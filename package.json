@@ -1,0 +1,16 @@
+{
+  "name": "wormhole",
+  "version": "1.0.0",
+  "description": "",
+  "main": "networks.js",
+  "dependencies": {},
+  "devDependencies": {
+    "@openzeppelin/cli": "^2.8.2",
+    "@openzeppelin/contracts": "^3.1.0"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC"
+}
