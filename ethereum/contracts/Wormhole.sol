@@ -58,33 +58,6 @@ contract Wormhole {
         }
     }
 
-    function changeGuardianAdmin(address newAddress) public {
-        require(guardians.contains(msg.sender), "sender is not a guardian");
-
-        pendingGuardianTransfers[msg.sender] = newAddress;
-    }
-
-    function confirmGuardianAdminChange(address oldAddress) public {
-        require(pendingGuardianTransfers[oldAddress] == msg.sender, "no pending key change to this account");
-
-        // Swap guardian
-        require(guardians.remove(oldAddress), "account oldAddress is not a guardian");
-        require(guardians.add(msg.sender), "sender is already a guardian");
-
-        // Migrate authorizedSigner
-        address oldAuthorizedSigner = guardianToAuthorizedSigner[oldAddress];
-        authorizedSignerToGuardian[oldAuthorizedSigner] = msg.sender;
-        guardianToAuthorizedSigner[msg.sender] = oldAuthorizedSigner;
-
-        // Remove pending transfer
-        pendingGuardianTransfers[oldAddress] = address(0);
-
-        emit LogGuardianKeyChanged(
-            oldAddress,
-            msg.sender
-        );
-    }
-
     function changeAuthorizedSigner(address newSigner) public {
         require(guardians.contains(msg.sender), "sender is not a guardian");
         require(authorizedSignerToGuardian[msg.sender] == address(0), "new signer is already a signer");
@@ -136,16 +109,18 @@ contract Wormhole {
                 signatures[i].r,
                 signatures[i].s
             );
+
+            address guardian = authorizedSignerToGuardian[signer];
             require(
                 guardians.contains(authorizedSignerToGuardian[signer]),
                 "signature of non-guardian included"
             );
 
             for (uint j = 0; j < alreadySigned.length; j++) {
-                require(signer != alreadySigned[j], "multiple signatures of the same guardian included");
+                require(guardian != alreadySigned[j], "multiple signatures of the same guardian included");
             }
 
-            alreadySigned[i] = signer;
+            alreadySigned[i] = guardian;
             nSignatures++;
         }
 
