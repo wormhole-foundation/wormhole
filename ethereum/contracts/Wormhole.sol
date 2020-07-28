@@ -58,10 +58,6 @@ contract Wormhole {
         }
     }
 
-    function() public payable  {
-        revert("please use lockETH to transfer ETH to Solana");
-    }
-
     function changeGuardianAdmin(address newAddress) public {
         require(guardians.contains(msg.sender), "sender is not a guardian");
 
@@ -175,6 +171,7 @@ contract Wormhole {
     ) public {
         require(amount != 0, "amount must not be 0");
 
+        // TODO handle tokens that subtract fees
         IERC20(asset).safeTransferFrom(msg.sender, address(this), amount);
         emit LogTokensLocked(asset, recipient, amount);
     }
@@ -184,14 +181,21 @@ contract Wormhole {
     ) public payable {
         require(msg.value != 0, "amount must not be 0");
 
-        WETH(WETHAddress).deposit(msg.value);
+        // Wrap tx value in WETH
+        WETH(WETHAddress).deposit{value : msg.value}();
+
+        // Log deposit of WETH
         emit LogTokensLocked(WETHAddress, recipient, msg.value);
     }
+
+
+    fallback() external payable {revert("please use lockETH to transfer ETH to Solana");}
+    receive() external payable {revert("please use lockETH to transfer ETH to Solana");}
 }
 
 
-contract WETH is IERC20 {
-    function deposit() public payable {}
+interface WETH is IERC20 {
+    function deposit() external payable;
 
-    function withdraw(uint256 amount) public {}
+    function withdraw(uint256 amount) external;
 }
