@@ -51,7 +51,7 @@ There are a couple of other issues with this concept:
 
 1. There is no way for the Solana Bridge program to verify whether the guardians have actually unlocked the tokens on
 the foreign chain.
-2. User's cannot cover gas costs themselves because transactions are not "portable". I.e. the require serialized nonces.
+2. Users cannot cover gas costs themselves because transactions are not "portable". I.e. the require serialized nonces.
 If a guardian submits a transaction with nonce 20 to the user but in the meantime issues another transaction with the 
 same nonce, the user tx will be invalid even though the Solana program might successfully verify the tx (as it does not
 know the state of ETH).
@@ -73,7 +73,7 @@ However since all signatures can be aggregate into one tx, we'll save `(n-1)*21k
 Most of the disadvantages of the MultiSig solution come down to the high gas costs of verifying multiple transactions
 and tracking individual guardian key changes / set changes on other chains.
 
-In order to proof a quorum on a single signature, there exist different mechanisms for so called Threshold signatures.
+In order to prove a quorum on a single signature, there exist different mechanisms for so-called Threshold signatures.
 A single signature is generated using a multi party computation process or aggregation of signatures from different
 parties of a group and only valid if a previously specified quorum has participated in the generation of such signature.
 
@@ -116,8 +116,9 @@ A great overview can be found [here](https://github.com/Turing-Chain/TSSKit-Thre
 
 Most of the downsides of MultiSig are limited to foreign chains due to Solana being substantially faster and 
 cheaper. We'll therefore use a multisig schema on Solana to verify transfers from foreign chains => Solana. This keeps
-the disadvantage (1). Optionally we can add a feature to use Ethereum for data availability and allow the user to
-reclaim tokens if no approval (which could be used to claim tokens on ETH) is sent by the guardians.
+the disadvantage (1). Optionally we can add a feature to use the foreign chain for data availability on 
+foreign chain => Solana transfers and allow the user to reclaim tokens if no VAA (which could be used to claim tokens
+on Solana) is published by the guardians.
 
 For transfers to foreign chain we'll implement a Schnorr-Threshold signature schema based on the implementation from 
 Chainlink. We'll create a portable "action blob" with a threshold signature to allow anyone to relay action approvals
@@ -180,12 +181,12 @@ uint256 amount
 
 ID: `0x12`
 
-Size: `72 byte`
+Size: `84 byte`
 
 Payload:
 
 ```
-[20]uint8 target_address
+[32]uint8 target_address
 [20]uint8 token_address
 uint256 amount
 ```
@@ -208,14 +209,14 @@ uint256 amount
 
 ID: `0x13`
 
-Size: `84 byte`
+Size: `96 byte`
 
 Payload:
 
 ```
-[20]uint8 target_address
-[32]uint8 token
 [32]uint8 target_address
+[32]uint8 token
+uint256 amount
 ```
 
 ### Cross-Chain Transfers
