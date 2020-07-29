@@ -114,20 +114,19 @@ A great overview can be found [here](https://github.com/Turing-Chain/TSSKit-Thre
 
 #### Design choices
 
-Most of the downsides of MultiSig are limited to foreign chains due to Solana being substantially faster and 
-cheaper. We'll therefore use a multisig schema on Solana to verify transfers from foreign chains => Solana. This keeps
-the disadvantage (1). Optionally we can add a feature to use the foreign chain for data availability on 
-foreign chain => Solana transfers and allow the user to reclaim tokens if no VAA (which could be used to claim tokens
-on Solana) is published by the guardians.
-
-For transfers to foreign chain we'll implement a Schnorr-Threshold signature schema based on the implementation from 
-Chainlink. We'll create a portable "action blob" with a threshold signature to allow anyone to relay action approvals
+For transfers we implement a Schnorr-Threshold signature schema based on the implementation from Chainlink.
+We'll create a portable "action blob" with a threshold signature to allow anyone to relay action approvals
 between chains. We call this structure: **VAA** (Validator Action Approval).
 
 A validator action approval leads to information symmetry i.e. if the validators have submitted a VAA to a token lockup
 on Solana, this VAA can be used to unlock the tokens on the specified foreign chain, it also proves to the Solana chain
 that the lockup is not refundable as it can provably be claimed (as long as safety guarantees are not broken and except
 for the case of a guardian set change which is discussed later).
+
+While for the above mentioned transfers from Solana => foreign chain we use Solana for data availability of the VAAs, 
+in the other direction data availability i.e. the guardians posting the VAA on the foreign chain (where the transfer
+was initiated) is optional because in most cases it will be substantially cheaper for the guardians to directly submit
+the VAA on Solana itself to unlock/mint the transferred tokens there.
 
 ### VAA - Validator Action Approval
 
