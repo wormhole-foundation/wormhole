@@ -88,8 +88,9 @@ Since we target Ethereum as primary foreign chain, there are 3 viable options of
 Threshold ECDSA signatures generated using [GG20](https://eprint.iacr.org/2020/540.pdf).
 This is a highly complex, cutting edge cryptographic protocol that requires significant amounts of compute to generate
 signatures with larger quorums.
-Still it generates plain ECDSA signatures that can easily be verified on Ethereum (`5k gas`) or even be used for Bitcoin
-transactions
+
+Still, it generates plain ECDSA signatures that can easily be verified on Ethereum (`5k gas`) or even be used for Bitcoin
+transactions.
 
 **BLS**
 
@@ -112,9 +113,10 @@ to implement support on Bitcoin (BIP340).
 A great overview can be found [here](https://github.com/Turing-Chain/TSSKit-Threshold-Signature-Scheme-Toolkit)
 
 #### Design choices
-Since most of the downsides of MultiSig are limited to foreign chains due to Solana being substantially faster and 
-cheaper. We'll therefor use a multisig schema on Solana to verify transfers from foreign chains => Solana. This keeps
-the disadvantage (1). Optionally we can add a feature to use Ethereum for data-availability and allow the user to
+
+Most of the downsides of MultiSig are limited to foreign chains due to Solana being substantially faster and 
+cheaper. We'll therefore use a multisig schema on Solana to verify transfers from foreign chains => Solana. This keeps
+the disadvantage (1). Optionally we can add a feature to use Ethereum for data availability and allow the user to
 reclaim tokens if no approval (which could be used to claim tokens on ETH) is sent by the guardians.
 
 For transfers to foreign chain we'll implement a Schnorr-Threshold signature schema based on the implementation from 
@@ -122,7 +124,7 @@ Chainlink. We'll create a portable "action blob" with a threshold signature to a
 between chains. We call this structure: **VAA** (Validator Action Approval).
 
 A validator action approval leads to information symmetry i.e. if the validators have submitted a VAA to a token lockup
-on Solana, this VAA can be used to unlock the tokens on the specified foreign chain, it also proofs to the Solana chain
+on Solana, this VAA can be used to unlock the tokens on the specified foreign chain, it also proves to the Solana chain
 that the lockup is not refundable as it can provably be claimed (as long as safety guarantees are not broken and except
 for the case of a guardian set change which is discussed later).
 
@@ -227,12 +229,13 @@ Guardians will pick up the *Lock transaction* once it has enough confirmations o
 confirmations required is a parameter that guardians can specify individually.
 
 They check for the validity, parse it and will then send a `ConfirmForeignLockup` transaction to the Solana program
-testifying that they have seen a foreign lockup. Once *Quorum* has been reached, a new wrapped asset will be minted or
-released from custody. *Custody* is used for Solana-native tokens that have previously been transferred to a foreign 
-chain, *Mint* will be used to create new units of a wrapped foreign-chain asset.
-If this is the first time a foreign asset is minted, a new **Mint** will be created on quorum.
+testifying that they have seen a foreign lockup. Once the quorum has been reached, a new wrapped asset will be minted or
+released from custody. Custody is used for Solana-native tokens that have previously been transferred to a foreign 
+chain, minting will be used to create new units of a wrapped foreign-chain asset.
 
-### Transfer of assets  Root Chain -> Foreign Chain
+If this is the first time a foreign asset is minted, a new **Mint** (token) will be created on quorum.
+
+### Transfer of assets Root Chain -> Foreign Chain
 
 The user sends a **Lock** or **LockNative** instruction to the *Bridge program*.
 
@@ -241,45 +244,48 @@ The user sends a **Lock** or **LockNative** instruction to the *Bridge program*.
 **LockNative** has to be used for Solana-native assets that should be transferred to a foreign chain. They will be held
 in a custody account until the tokens are transferred back from the foreign chain.
 
-The lock function takes a `chain_id` which identifies the foreign chain the tokens should be sent to, a `foreign_address`
-which is a left-zero-padded address on the foreign chain. This operation creates a `LockProposal` that tracks the status
-of the transfer.
+The lock function takes a `chain_id` which identifies the foreign chain the tokens should be sent to and a `foreign_address`
+which is a left-zero-padded address on the foreign chain. This operation creates a **LockProposal** account
+that tracks the status of the transfer.
 
-Guardians will pick up the *LockProposal* once it has enough confirmations on the Solana network. The amount of 
-confirmations required is a parameter that guardians can specify individually. Usually the maximum number of 
-confirmations is 15 which should guarantee *full-finality* of the transaction.
+Guardians will pick up the **LockProposal** once it has enough confirmations on the Solana network. It defaults to
+full confirmation (i.e. the max lockup, currently 32 slots), but can be changed to a different commitment levels
+on each guardian's discretion.
 
 They check for the validity of the tx, parse it and will initiate an off-chain threshold signature ceremony which will
-output a *VAA* that can be used with a foreign chain *SC* to reclaim an unwrapped local asset or mint a 
+output a **VAA** that can be used with a foreign chain smart contract to reclaim an unwrapped local asset or mint a 
 wrapped `spl-token`.
-This *VAA* will be posted on Solana by one of the guardians using the `PostVAA` instruction and will be stored in the
+
+This VAA will be posted on Solana by one of the guardians using the `PostVAA` instruction and will be stored in the
 `LockProposal`.
 
 Depending on whether the fees are sufficient for **guardians** or **relayers** to cover the foreign chain fees, they
-will also post the *VAA* on the foreign chain completing the transfer.
-If not or no fee is specified, the user can pick up the *VAA* from the `LockProposal` and submit it on the foreign chain.
-`VAAs` for conducting transfers to a foreign chain are submitted using `FinalizeTransfer`.
+will also post the VAA on the foreign chain, completing the transfer.
 
+If no fee or an insufficient fee is specified, the user can pick up the VAA from the `LockProposal` and submit it on the foreign chain themselves.
+
+VAAs for conducting transfers to a foreign chain are submitted using `FinalizeTransfer`.
 
 ### Fees
 
-TODO
+TODO  \o/
 
 ### Config changes
 #### Guardian set changes
 
-Since we use a *TSS* (Threshold signature scheme) for *VAAs*, changes to the guardian list are finalized by setting a
-new aggregate public key that's derived from a DKG ceremony of the new guardian set.
-This new public key is set via a *VAA* with the `UPDATE_GUARDIANS` action that is signed by the previous guardians.
+Since we use a *TSS* (Threshold signature scheme) for VAAs, changes to the guardian list are finalized by setting a
+new aggregate public key that's derived from a distributed key generation ("DKG") ceremony of the new guardian set.
+
+This new public key is set via a VAA with the `UPDATE_GUARDIANS` action that is signed by the previous guardians.
 
 The guardians need to make sure that the sets are synchronized between all chains.
-If the guardian set is changed, the guardian must also be replaced on all foreign chains. Therefor we
+If the guardian set is changed, the guardian must also be replaced on all foreign chains. Therefore we
 conduct these changes via VAAs that are universally valid on all chains.
 
-That way if a change is made on the *root chain*, the same signatures can be used to trigger the same
-update on the `foreign chain`. This allows all parties in the system to propagate bridge state changes across all
+That way, if a change is made on the root chain, the same signatures can be used to trigger the same
+update on the foreign chain. This allows all parties in the system to propagate bridge state changes across all
 chains.
 
-If all VAAs issued by the previous would immediately become invalid once a new guardian set takes over, that would
+If all VAAs issued by the previous guardian set would immediately become invalid once a new guardian set takes over, that would
 lead to some payments being "stuck". Therefor we track a list of previous guardian sets. VAAs issued by old 
-guardian sets stay valid for 1 day from the time that the change happens.
+guardian sets stay valid for one day from the time that the change happens.
