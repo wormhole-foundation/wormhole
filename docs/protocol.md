@@ -123,8 +123,8 @@ between chains. We call this structure: **VAA** (Validator Action Approval).
 
 A validator action approval leads to information symmetry i.e. if the validators have submitted a VAA to a token lockup
 on Solana, this VAA can be used to unlock the tokens on the specified foreign chain, it also proofs to the Solana chain
-that the lockup is not refundable as it provably be claimed (as long as safety guarantees are not broken and except for
-the case of a guardian set change which is discussed later).
+that the lockup is not refundable as it can provably be claimed (as long as safety guarantees are not broken and except
+for the case of a guardian set change which is discussed later).
 
 ### VAA - Validator Action Approval
 
