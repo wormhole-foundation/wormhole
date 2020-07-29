@@ -288,5 +288,5 @@ update on the foreign chain. This allows all parties in the system to propagate 
 chains.
 
 If all VAAs issued by the previous guardian set would immediately become invalid once a new guardian set takes over, that would
-lead to some payments being "stuck". Therefor we track a list of previous guardian sets. VAAs issued by old 
+lead to some payments being "stuck". Therefore we track a list of previous guardian sets. VAAs issued by old 
 guardian sets stay valid for one day from the time that the change happens.
