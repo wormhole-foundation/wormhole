@@ -1,10 +1,10 @@
-## Wormhole Protocol
+# Wormhole Protocol
 
 The Wormhole protocol is a way of transferring assets between a **root chain** and multiple **foreign chains**.
 Therefor it makes use of decentralized oracles called **guardians** to relay transfer information about token transfers
 between the chains.
 
-### The role of guardians
+## The role of guardians
 
 Guardians are responsible for monitoring the root and foreign chains for token transfers to bridge *smart contracts*.
 This can be done using full or light clients of the particular network.
@@ -17,18 +17,18 @@ The **admin key** is supposed to be held in cold-storage and is used to manage r
 The **signer key** is a hot-key that is used to confirm asset transfers between chains by reporting lockups of tokens
 on a foreign chain on the root chain or the other way around.
 
-### Protocol
+## Protocol
 
 The following section describes the protocol and design decisions made.
 
-#### Signature scheme
+### Signature scheme
 
 In order to implement a trustless bridge, there needs to be a consensus mechanism to measure whether there is a quorum
 on a cross chain transfer to prevent a single malicious actor from unlocking or minting an infinite amount of assets.
 
 There are multiple ways to measure whether enough validators have approved a decision:
 
-##### Multiple signatures - MultiSig
+#### Multiple signatures - MultiSig
 
 The most simple solution is by using a *MultiSig* mechanism. This means that each guardian would sign a message 
 and submit it to a smart contract on-chain with reference to a *decision* that the guardians need to make (e.g. a transfer).
@@ -68,7 +68,7 @@ gas costs by about `(5k+5k)*n` (`ECRECOVER+GTXDATANONZERO*72`) for the additiona
 However since all signatures can be aggregate into one tx, we'll save `(n-1)*21k` leading to an effective gas saving of
 `~10k*n`. Still, transfers would be considerably expensive applying the aforementioned assumptions.
 
-##### Threshold signatures
+#### Threshold signatures
 
 Most of the disadvantages of the MultiSig solution come down to the high gas costs of verifying multiple transactions
 and tracking individual guardian key changes / set changes on other chains.
@@ -111,7 +111,7 @@ to implement support on Bitcoin (BIP340).
 
 A great overview can be found [here](https://github.com/Turing-Chain/TSSKit-Threshold-Signature-Scheme-Toolkit)
 
-##### Design choices
+#### Design choices
 Since most of the downsides of MultiSig are limited to foreign chains due to Solana being substantially faster and 
 cheaper. We'll therefor use a multisig schema on Solana to verify transfers from foreign chains => Solana. This keeps
 the disadvantage (1). Optionally we can add a feature to use Ethereum for data-availability and allow the user to
@@ -126,7 +126,7 @@ on Solana, this VAA can be used to unlock the tokens on the specified foreign ch
 that the lockup is not refundable as it provably be claimed (as long as safety guarantees are not broken and except for
 the case of a guardian set change which is discussed later).
 
-#### VAA - Validator Action Approval
+### VAA - Validator Action Approval
 
 Validator action approvals are used to approve the execution of a specified action on a chain.
 
@@ -147,9 +147,9 @@ uint8               payload_size
 ```
 
 
-##### Actions
+#### Actions
 
-**Solana (wrapped) -> Ethereum (native)**
+##### Solana (wrapped) -> Ethereum (native)
 
 ID: `0x10`
 
@@ -161,7 +161,7 @@ Payload:
 uint256 amount
 ```
 
-**Solana (wrapped) -> Ethereum (native)**
+##### Solana (wrapped) -> Ethereum (native)
 
 ID: `0x10`
 
@@ -175,7 +175,7 @@ Payload:
 uint256 amount
 ```
 
-**Ethereum (native) -> Solana (wrapped)**
+##### Ethereum (native) -> Solana (wrapped)
 
 ID: `0x12`
 
@@ -189,7 +189,7 @@ Payload:
 uint256 amount
 ```
 
-**Solana (native) -> Ethereum (wrapped)**
+##### Solana (native) -> Ethereum (wrapped)
 
 ID: `0x12`
 
@@ -203,7 +203,7 @@ Payload:
 uint256 amount
 ```
 
-**Ethereum (wrapped) -> Solana (native)**
+##### Ethereum (wrapped) -> Solana (native)
 
 ID: `0x13`
 
@@ -217,9 +217,9 @@ Payload:
 [32]uint8 target_address
 ```
 
-#### Cross-Chain Transfers
+### Cross-Chain Transfers
 
-##### Transfer of assets Foreign Chain -> Root Chain
+#### Transfer of assets Foreign Chain -> Root Chain
 
 The user sends a chain native asset to the bridge on the foreign chain using the `Lock` function.
 The lock function takes a Solana `address` as parameter which is the TokenAccount that should receive the wrapped token.
@@ -233,7 +233,7 @@ released from custody. *Custody* is used for Solana-native tokens that have prev
 chain, *Mint* will be used to create new units of a wrapped foreign-chain asset.
 If this is the first time a foreign asset is minted, a new **Mint** will be created on quorum.
 
-#### Transfer of assets  Root Chain -> Foreign Chain
+### Transfer of assets  Root Chain -> Foreign Chain
 
 The user sends a **Lock** or **LockNative** instruction to the *Bridge program*.
 
@@ -262,12 +262,12 @@ If not or no fee is specified, the user can pick up the *VAA* from the `LockProp
 `VAAs` for conducting transfers to a foreign chain are submitted using `FinalizeTransfer`.
 
 
-#### Fees
+### Fees
 
 TODO
 
-#### Config changes
-##### Guardian set changes
+### Config changes
+#### Guardian set changes
 
 Since we use a *TSS* (Threshold signature scheme) for *VAAs*, changes to the guardian list are finalized by setting a
 new aggregate public key that's derived from a DKG ceremony of the new guardian set.
