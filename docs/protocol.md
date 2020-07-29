@@ -134,31 +134,30 @@ They are structured as follows:
 
 ```
 Header:
+uint8               Version (0x01)
 [72]uint8           signature(body)
 
 body:
-
-uint8               Version
+uint32              Validator set index
 uint32              Unix seconds
 uint8               Action
 uint8               payload_size
 [payload_size]uint8 payload
-
 ```
 
 
 #### Actions
 
-##### Solana (wrapped) -> Ethereum (native)
+##### Guardian set update
 
-ID: `0x10`
+ID: `0x01`
+
+Size: `32 byte`
 
 Payload:
 
 ```
-[20]uint8 target_address
-[20]uint8 token_address
-uint256 amount
+[32]uint8 new_key
 ```
 
 ##### Solana (wrapped) -> Ethereum (native)
@@ -281,5 +280,6 @@ That way if a change is made on the *root chain*, the same signatures can be use
 update on the `foreign chain`. This allows all parties in the system to propagate bridge state changes across all
 chains.
 
-In the case that a validatorset rotates in such a way that an unclaimed `VAA` would no longer be valid,
-a `Reprocess` transaction can be triggered on the chain that holds the *Lock* to ask validators to reconfirm the transfer.
+If all VAAs issued by the previous would immediately become invalid once a new guardian set takes over, that would
+lead to some payments being "stuck". Therefor we track a list of previous guardian sets. VAAs issued by old 
+guardian sets stay valid for 1 day from the time that the change happens.
