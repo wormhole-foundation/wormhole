@@ -167,8 +167,8 @@ Payload:
 uint32 new_index
 ```
 
-The `new_index` must be monotonically increasing and is manually specified here to fix potential guardian_set index 
-desynchonizations between the any of the chains in the system.
+The `new_index` must be monotonically increasing and is manually specified here to fix a potential guardian_set index 
+desynchronization between the any of the chains in the system.
 
 ##### Solana (wrapped) -> Ethereum (native)
 
