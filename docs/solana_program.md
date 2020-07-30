@@ -45,13 +45,23 @@ The transfer proposal will be tracked at a new account `proposal` where a VAA wi
 
 #### EvictTransferOut
 
-Deletes a `proposal` after the `BRIDGE_WAIT_PERIOD` to free up space on chain. This returns the rent to `guardian`.
+Deletes a `proposal` after the `VAA_EXPIRATION_TIME` to free up space on chain. This returns the rent to `guardian`.
 
 | Index | Name     | Type                | signer | writeable | empty | derived |
 | ----- | -------- | ------------------- | ------ | --------- | ----- | ------- |
 | 0     | guardian | Account             | ✅     |           |       |         |
 | 1     | bridge   | BridgeConfig        |        |           |       |         |
 | 2     | proposal | TransferOutProposal |        | ✅        |       | ✅      |
+
+#### EvictExecutedVAA
+
+Deletes a `ExecutedVAA` after the `VAA_EXPIRATION_TIME` to free up space on chain. This returns the rent to `guardian`.
+
+| Index | Name     | Type                | signer | writeable | empty | derived |
+| ----- | -------- | ------------------- | ------ | --------- | ----- | ------- |
+| 0     | guardian | Account             | ✅     |           |       |         |
+| 1     | bridge   | BridgeConfig        |        |           |       |         |
+| 2     | proposal | ExecutedVAA |        | ✅        |       | ✅      |
 
 #### PostVAA
 
@@ -65,7 +75,7 @@ The required accounts depend on the `action` of the VAA:
 | ----- | ------------ | ------------------- | ------ | --------- | ----- | ------- |
 | 0     | bridge       | BridgeConfig        |        | ✅        |       |         |
 | 1     | guardian_set | GuardianSet         |        |   ✅       | ✅    | ✅      |
-| 2     | proposal     | TransferOutProposal |        | ✅        |       | ✅      |
+| 2     | claim     | ExecutedVAA |        | ✅        |   ✅    | ✅      |
 
 ##### Ethereum (native) -> Solana (wrapped)
 
@@ -73,8 +83,9 @@ The required accounts depend on the `action` of the VAA:
 | ----- | ------------ | ------------ | ------ | --------- | ----- | ------- |
 | 0     | bridge       | BridgeConfig |        |           |       |         |
 | 1     | guardian_set | GuardianSet  |        |           |       |         |
-| 2     | token        | WrappedAsset |        |           | opt   | ✅      |
-| 3     | destination  | TokenAccount |        | ✅        | opt   |         |
+| 2     | claim     | ExecutedVAA |        | ✅        |   ✅    | ✅      |
+| 3     | token        | WrappedAsset |        |           | opt   | ✅      |
+| 4     | destination  | TokenAccount |        | ✅        | opt   |         |
 
 ##### Ethereum (wrapped) -> Solana (native)
 
@@ -82,9 +93,10 @@ The required accounts depend on the `action` of the VAA:
 | ----- | ------------ | ------------ | ------ | --------- | ----- | ------- |
 | 0     | bridge       | BridgeConfig |        |           |       |         |
 | 1     | guardian_set | GuardianSet  |        |           |       |         |
-| 2     | token        | Mint         |        |           |       | ✅      |
-| 3     | custody_src  | TokenAccount |        | ✅        |       | ✅      |
-| 4     | destination  | TokenAccount |        | ✅        | opt   |         |
+| 2     | claim     | ExecutedVAA |        | ✅        |   ✅    | ✅      |
+| 3     | token        | Mint         |        |           |       | ✅      |
+| 4     | custody_src  | TokenAccount |        | ✅        |       | ✅      |
+| 5     | destination  | TokenAccount |        | ✅        | opt   |         |
 
 ##### Solana (any) -> Ethereum (any)
 
@@ -92,7 +104,8 @@ The required accounts depend on the `action` of the VAA:
 | ----- | ------------ | ------------------- | ------ | --------- | ----- | ------- |
 | 0     | bridge       | BridgeConfig        |        |           |       |         |
 | 1     | guardian_set | GuardianSet         |        |           |       |         |
-| 2     | out_proposal | TransferOutProposal |        | ✅        |       | ✅      |
+| 2     | claim     | ExecutedVAA |        | ✅        |   ✅    | ✅      |
+| 3     | out_proposal | TransferOutProposal |        | ✅        |       | ✅      |
 
 ## Accounts
 
@@ -104,12 +117,22 @@ This account tracks the configuration of the transfer bridge.
 
 | Parameter          | Description                                                                                                                                                     |
 | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| BRIDGE_WAIT_PERIOD | The period after a valid VAA has been published to a `transfer out proposal` after which the account can be evicted. This exists to guarantee data availability |
+| VAA_EXPIRATION_TIME | Period for how long a VAA is valid. This exists to guarantee data availability and prevent replays|
 | GUARDIAN_SET_INDEX | Index of the current active guardian set //TODO do we need to track this if the VAA contains the index?                                                         |
 
 ## Program Accounts
 
 The program own the following types of accounts:
+
+#### _ExecutedVAA_ Account
+
+> Seed derivation: `executedvaa_<vaa_hash>`
+>
+> **vaa_hash**: Hash of the VAA
+
+This account is created when a VAA is executed/consumed on Solana (i.e. not when a TransferOutProposal is approved).
+It tracks a used VAA to protect from replay attacks where a VAA is executed multiple times. This account stays active
+until the `VAA_EXPIRATION_TIME` has passed and can then be evicted using `IEvictExecutedVAA`.
 
 #### _GuardianSet_ Account
 
@@ -139,7 +162,7 @@ It is used to signal a pending transfer to a foreign chain and will also store t
 `IPostVAA`.
 
 Once the VAA has been published this TransferOut is considered completed and can be evicted using `EvictTransferOut`
-after `BRIDGE_WAIT_PERIOD`
+after `VAA_EXPIRATION_TIME` has passed.
 
 #### _WrappedAsset_ Mint
 
