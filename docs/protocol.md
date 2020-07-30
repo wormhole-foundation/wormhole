@@ -116,7 +116,7 @@ A great overview can be found [here](https://github.com/Turing-Chain/TSSKit-Thre
 
 For transfers we implement a Schnorr-Threshold signature schema based on the implementation from Chainlink.
 We'll create a portable "action blob" with a threshold signature to allow anyone to relay action approvals
-between chains. We call this structure: **VAA** (Validator Action Approval).
+between chains. We call this structure: **VAA** (Verifiable Action Approval).
 
 A validator action approval leads to information symmetry i.e. if the validators have submitted a VAA to a token lockup
 on Solana, this VAA can be used to unlock the tokens on the specified foreign chain, it also proves to the Solana chain
@@ -128,25 +128,29 @@ in the other direction data availability i.e. the guardians posting the VAA on t
 was initiated) is optional because in most cases it will be substantially cheaper for the guardians to directly submit
 the VAA on Solana itself to unlock/mint the transferred tokens there.
 
-### VAA - Validator Action Approval
+### VAA - Verifiable Action Approval
 
-Validator action approvals are used to approve the execution of a specified action on a chain.
+Verifiable action approvals are used to approve the execution of a specified action on a chain.
 
 They are structured as follows:
 
 ```
 Header:
-uint8               Version (0x01)
+uint8               version (0x01)
+uint32              guardian set index
 [72]uint8           signature(body)
 
 body:
-uint32              Validator set index
-uint32              Unix seconds
-uint8               Action
+uint32              unix seconds
+uint8               action
 uint8               payload_size
 [payload_size]uint8 payload
 ```
 
+The `guardian set index` does not need to be in the signed body since it is verifiable using the signature itself which
+is created using the guardian set's key.
+It is a monotonically number that's increased every time a validator set update happens and tracks the public key of the
+set.
 
 #### Actions
 
@@ -160,7 +164,11 @@ Payload:
 
 ```
 [32]uint8 new_key
+uint32 new_index
 ```
+
+The `new_index` must be monotonically increasing and is manually specified here to fix potential guardian_set index 
+desynchonizations between the any of the chains in the system.
 
 ##### Solana (wrapped) -> Ethereum (native)
 
