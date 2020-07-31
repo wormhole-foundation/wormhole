@@ -1,10 +1,10 @@
-## Solana Wormhole Program
+# Solana Wormhole Program
 
 The `Wormhole` program acts as a bridge for Solana \<> Foreign Chain transfers using the WhP (WormHoleProtocol).
 
-### Instructions
+## Instructions
 
-##### Initialize
+#### Initialize
 
 Initializes a new Bridge at `bridge`.
 
@@ -13,198 +13,158 @@ Initializes a new Bridge at `bridge`.
 | 0     | owner  | Account      | ✅️    |           |       |         |
 | 0     | bridge | BridgeConfig |        |           | ✅️   | ✅️     |
 
-##### Lock
+#### TransferOut
 
 Burns a wrapped asset `token` from `sender` on the Solana chain.
 
-The transfer proposal will be tracked at a new account `proposal` where VPAs will be submitted by guardians.
+The transfer proposal will be tracked at a new account `proposal` where VAAs will be submitted by guardians.
 
 Parameters:
 
-| Index | Name     | Type         | signer | writeable | empty | derived |
-| ----- | -------- | ------------ | ------ | --------- | ----- | ------- |
-| 0     | sender   | TokenAccount |        | ✅        |       |         |
-| 1     | bridge   | BridgeConfig |        |           |       |         |
-| 2     | proposal | LockProposal |        | ✅        | ✅    | ✅      |
-| 3     | token    | WrappedAsset |        | ✅        |       | ✅      |
+| Index | Name     | Type                | signer | writeable | empty | derived |
+| ----- | -------- | ------------------- | ------ | --------- | ----- | ------- |
+| 0     | sender   | TokenAccount        |        | ✅        |       |         |
+| 1     | bridge   | BridgeConfig        |        |           |       |         |
+| 2     | proposal | TransferOutProposal |        | ✅        | ✅    | ✅      |
+| 3     | token    | WrappedAsset        |        | ✅        |       | ✅      |
 
-##### LockNative
+#### TransferOutNative
 
-Locks a Solana native token (spl-token) `token` from `sender` on the Solana chain by transferring it to the 
+Locks a Solana native token (spl-token) `token` from `sender` on the Solana chain by transferring it to the
 `custody_account`.
 
-The transfer proposal will be tracked at a new account `proposal` where VPAs will be submitted by guardians.
+The transfer proposal will be tracked at a new account `proposal` where a VAA will be submitted by guardians.
 
-| Index | Name            | Type         | signer | writeable | empty | derived |
-| ----- | --------------- | ------------ | ------ | --------- | ----- | ------- |
-| 0     | sender          | TokenAccount |        | ✅        |       |         |
-| 1     | bridge          | BridgeConfig |        |           |       |         |
-| 2     | proposal        | LockProposal |        | ✅        | ✅    | ✅      |
-| 3     | token           | Mint         |        | ✅        |       |         |
-| 4     | custody_account | Mint         |        | ✅        | opt   | ✅      |
+| Index | Name            | Type                | signer | writeable | empty | derived |
+| ----- | --------------- | ------------------- | ------ | --------- | ----- | ------- |
+| 0     | sender          | TokenAccount        |        | ✅        |       |         |
+| 1     | bridge          | BridgeConfig        |        |           |       |         |
+| 2     | proposal        | TransferOutProposal |        | ✅        | ✅    | ✅      |
+| 3     | token           | Mint                |        | ✅        |       |         |
+| 4     | custody_account | Mint                |        | ✅        | opt   | ✅      |
 
-##### PostVPA
+#### EvictTransferOut
 
-Submits a VPA signed by `guardian` on a valid `proposal`.
+Deletes a `proposal` after the `VAA_EXPIRATION_TIME` to free up space on chain. This returns the rent to `guardian`.
 
-| Index | Name            | Type         | signer | writeable | empty | derived |
-| ----- | --------------- | ------------ | ------ | --------- | ----- | ------- |
-| 0     | guardian          | Account |    ✅    |         |       |         |
-| 1     | bridge          | BridgeConfig |        |           |       |         |
-| 2     | proposal        | LockProposal |        | ✅        |     | ✅      |
+| Index | Name     | Type                | signer | writeable | empty | derived |
+| ----- | -------- | ------------------- | ------ | --------- | ----- | ------- |
+| 0     | guardian | Account             | ✅     |           |       |         |
+| 1     | bridge   | BridgeConfig        |        |           |       |         |
+| 2     | proposal | TransferOutProposal |        | ✅        |       | ✅      |
 
-##### Reclaim
+#### EvictExecutedVAA
 
-Reclaim tokens that did not receive enough VPAs on the `proposal` within the `SIGN_PERIOD` to finish the transfer.
-`claimant` will get back the `locked_token` previously locked via `ILock`. 
+Deletes a `ExecutedVAA` after the `VAA_EXPIRATION_TIME` to free up space on chain. This returns the rent to `guardian`.
 
-| Index | Name         | Type         | signer | writeable | empty | derived |
-| ----- | ------------ | ------------ | ------ | --------- | ----- | ------- |
-| 0     | claimant     | TokenAccount |        | ✅        |       |         |
-| 1     | bridge       | BridgeConfig |        |           |       |         |
-| 2     | proposal     | LockProposal |        | ✅        |       | ✅      |
-| 3     | locked_token | WrappedAsset |        |           |       | ✅      |
+| Index | Name     | Type                | signer | writeable | empty | derived |
+| ----- | -------- | ------------------- | ------ | --------- | ----- | ------- |
+| 0     | guardian | Account             | ✅     |           |       |         |
+| 1     | bridge   | BridgeConfig        |        |           |       |         |
+| 2     | proposal | ExecutedVAA |        | ✅        |       | ✅      |
 
-##### ReclaimNative
+#### PostVAA
 
-Reclaim tokens that did not receive enough VPAs on the `proposal` within the `SIGN_PERIOD` to finish the transfer.
-`claimant` will get back the `locked_token` previously locked via `ILockNative` from the `custody_account`. 
+Submits a VAA signed by the guardians to perform an action.
 
-| Index | Name            | Type         | signer | writeable | empty | derived |
-| ----- | --------------- | ------------ | ------ | --------- | ----- | ------- |
-| 0     | claimant        | TokenAccount |        | ✅        |       |         |
-| 1     | bridge          | BridgeConfig |        |           |       |         |
-| 2     | proposal        | LockProposal |        | ✅        |       | ✅      |
-| 3     | locked_token    | Mint         |        |           |       |         |
-| 4     | custody_account | Mint         |        | ✅        |       | ✅      |
+The required accounts depend on the `action` of the VAA:
 
-##### EvictLock
+##### Guardian set update
 
-Deletes a `proposal` after the `BRIDGE_WAIT_PERIOD` to free up space on chain. This returns the rent to `guardian`.
+| Index | Name         | Type                | signer | writeable | empty | derived |
+| ----- | ------------ | ------------------- | ------ | --------- | ----- | ------- |
+| 0     | bridge       | BridgeConfig        |        | ✅        |       |         |
+| 1     | guardian_set | GuardianSet         |        |   ✅       | ✅    | ✅      |
+| 2     | claim     | ExecutedVAA |        | ✅        |   ✅    | ✅      |
 
-| Index | Name     | Type         | signer | writeable | empty | derived |
-| ----- | -------- | ------------ | ------ | --------- | ----- | ------- |
-| 0     | guardian | Account      | ✅     |           |       |         |
-| 1     | bridge   | BridgeConfig |        |           |       |         |
-| 2     | proposal | LockProposal |        | ✅        |       | ✅      |
-
-##### ConfirmForeignLockup
-
-The `guardian` confirms that a user locked up a foreign asset on a foreign chain.
-This creates or updates a `proposal` to mint the wrapped asset `token` to `destination`.
-If enough confirmations have been submitted, this instruction mints the token.
-
-| Index | Name        | Type                   | signer | writeable | empty | derived |
-| ----- | ----------- | ---------------------- | ------ | --------- | ----- | ------- |
-| 0     | guardian    | Account                | ✅     |           |       |         |
-| 1     | bridge      | BridgeConfig           |        |           |       |         |
-| 2     | proposal    | ReleaseWrappedProposal | opt    | ✅        |       | ✅      |
-| 3     | token       | WrappedAsset           |        |           |   opt    | ✅      |
-| 4     | destination | TokenAccount           |        | ✅        | opt?  |         |
-
-##### ConfirmForeignLockupOfNative
-
-The `guardian` confirms that a user locked up a native asset on a foreign chain.
-This creates or updates a `proposal` to release the `token` to `destination` from `custody_src`.
-If enough confirmations have been submitted, this instruction releases the token.
-
-| Index | Name        | Type                   | signer | writeable | empty | derived |
-| ----- | ----------- | ---------------------- | ------ | --------- | ----- | ------- |
-| 0     | guardian    | Account                | ✅     |           |       |         |
-| 1     | bridge      | BridgeConfig           |        |           |       |         |
-| 2     | proposal    | ReleaseWrappedProposal | opt    | ✅        |   opt    | ✅      |
-| 3     | token       | WrappedAsset           |        |           |       | ✅      |
-| 4     | custody_src | TokenAccount           |        | ✅        |       | ✅      |
-| 5     | destination | TokenAccount           |        | ✅        | opt?  |         |
-
-##### EvictRelease
-
-Deletes a `proposal` after the `RELEASE_WRAPPED_TIMEOUT_PERIOD` to free up space on chain. This returns the rent to `guardian`.
-
-| Index | Name     | Type                            | signer | writeable | empty | derived |
-| ----- | -------- | ------------------------------- | ------ | --------- | ----- | ------- |
-| 0     | guardian | Account                         | ✅     |           |       |         |
-| 1     | bridge   | BridgeConfig                    |        |           |       |         |
-| 2     | proposal | ReleaseWrappedProposal |        | ✅        |       | ✅      |✅ |
-
-##### ChangeGuardianAdmin
-
-This instruction is used to change the admin account of a guardian i.e. the account that manages rewards and the
-signer account.
+##### Transfer: Ethereum (native) -> Solana (wrapped)
 
 | Index | Name         | Type         | signer | writeable | empty | derived |
 | ----- | ------------ | ------------ | ------ | --------- | ----- | ------- |
-| 0     | guardian     | Account      | ✅     |           |       |         |
-| 1     | bridge       | BridgeConfig |        | ✅        |       |         |
-| 2     | new_guardian | Account      | ✅     |           |       |         |
+| 0     | bridge       | BridgeConfig |        |           |       |         |
+| 1     | guardian_set | GuardianSet  |        |           |       |         |
+| 2     | claim     | ExecutedVAA |        | ✅        |   ✅    | ✅      |
+| 3     | token        | WrappedAsset |        |           | opt   | ✅      |
+| 4     | destination  | TokenAccount |        | ✅        | opt   |         |
 
-##### ChangeGuardianSigner
+##### Transfer: Ethereum (wrapped) -> Solana (native)
 
-This instruction is used to change the signer account of a guardian.
+| Index | Name         | Type         | signer | writeable | empty | derived |
+| ----- | ------------ | ------------ | ------ | --------- | ----- | ------- |
+| 0     | bridge       | BridgeConfig |        |           |       |         |
+| 1     | guardian_set | GuardianSet  |        |           |       |         |
+| 2     | claim     | ExecutedVAA |        | ✅        |   ✅    | ✅      |
+| 3     | token        | Mint         |        |           |       | ✅      |
+| 4     | custody_src  | TokenAccount |        | ✅        |       | ✅      |
+| 5     | destination  | TokenAccount |        | ✅        | opt   |         |
 
-| Index | Name       | Type         | signer | writeable | empty | derived |
-| ----- | ---------- | ------------ | ------ | --------- | ----- | ------- |
-| 0     | guardian   | Account      | ✅     |           |       |         |
-| 1     | bridge     | BridgeConfig |        | ✅        |       |         |
-| 2     | new_signer | Account      | ✅     |           |       |         |
+##### Transfer: Solana (any) -> Ethereum (any)
 
-### Accounts
+| Index | Name         | Type                | signer | writeable | empty | derived |
+| ----- | ------------ | ------------------- | ------ | --------- | ----- | ------- |
+| 0     | bridge       | BridgeConfig        |        |           |       |         |
+| 1     | guardian_set | GuardianSet         |        |           |       |         |
+| 2     | claim     | ExecutedVAA |        | ✅        |   ✅    | ✅      |
+| 3     | out_proposal | TransferOutProposal |        | ✅        |       | ✅      |
+
+## Accounts
 
 The following types of accounts are owned by creators of bridges:
 
-##### _BridgeConfig_ Account
+#### _BridgeConfig_ Account
 
 This account tracks the configuration of the transfer bridge.
 
-| Parameter           | Description                                                                                                                                                   |
-| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| SIGN_PERIOD         | The period in which enough foreign chain signatures need to be aggregated before tokens are freed up again                                                    |
-| BRIDGE_WAIT_PERIOD  | The period after enough signatures have been published to a _lock account_ after which the account can be evicted. This exists to guarantee data availability |
-| RELEASE_WRAPPED_TIMEOUT_PERIOD | The period in which enough votes need to be cast for an asset to be minted.                                                                                   |
+| Parameter          | Description                                                                                                                                                     |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| VAA_EXPIRATION_TIME | Period for how long a VAA is valid. This exists to guarantee data availability and prevent replays|
+| GUARDIAN_SET_INDEX | Index of the current active guardian set //TODO do we need to track this if the VAA contains the index?                                                         |
 
-### Program Accounts
+## Program Accounts
 
 The program own the following types of accounts:
 
-##### _LockProposal_ Account
+#### _ExecutedVAA_ Account
 
-> Seed derivation: `lock_<chain>_<asset>_<lock_hash>`
+> Seed derivation: `executedvaa_<vaa_hash>`
+>
+> **vaa_hash**: Hash of the VAA
+
+This account is created when a VAA is executed/consumed on Solana (i.e. not when a TransferOutProposal is approved).
+It tracks a used VAA to protect from replay attacks where a VAA is executed multiple times. This account stays active
+until the `VAA_EXPIRATION_TIME` has passed and can then be evicted using `IEvictExecutedVAA`.
+
+#### _GuardianSet_ Account
+
+> Seed derivation: `guardians_<index>`
+>
+> **index**: Index of the guardian set
+
+This account is created when a new guardian set is set. It tracks the public key, creation time and expiration time of
+this set.
+The expiration time is set when this guardian set is abandoned. When a switchover happens, the guardian-issued VAAs will
+still be valid until the expiration time.
+
+#### _TransferOutProposal_ Account
+
+> Seed derivation: `out_<chain>_<asset>_<transfer_hash>`
 >
 > **chain**: CHAIN_ID of the native chain of this asset
 >
 > **asset**: address of the asset
 >
-> **lock_hash**: Random ID of the lock
+> **transfer_hash**: Random ID of the transfer
 
-This account is created when a user wants to lock tokens to transfer them to a foreign chain using the `ILock` instruction.
+This account is created when a user wants to lock tokens to transfer them to a foreign chain using the `ITransferOut`
+instruction.
 
-It tracks the progress of validator signatures. If not enough valid signatures are submitted within `SIGN_PERIOD`,
-the tokens can be claimed by the user using the `IReclaim` instruction.
+It is used to signal a pending transfer to a foreign chain and will also store the respective VAA provided using
+`IPostVAA`.
 
-If enough signatures have been submitted, the account can be deleted using `IEvictLock` after `BRIDGE_WAIT_PERIOD`,
-freeing up the rent.
+Once the VAA has been published this TransferOut is considered completed and can be evicted using `EvictTransferOut`
+after `VAA_EXPIRATION_TIME` has passed.
 
-##### _ReleaseWrappedProposal_ Account
-
-> Seed derivation: `release_<chain>_<asset>_<foreign_lock_hash>`
->
-> **chain**: CHAIN_ID of the native chain of this asset
->
-> **asset**: address of the asset
->
-> **foreign_lock_hash**: Hash of the foreign chain lock transaction
-
-This account is created when the first validator sees a _fully confirmed_ **Lockup** of an asset on a foreign chain.
-
-It tracks the confirmations of validators that have also seen the Lockup using `IConfirmForeignLockup`.
-
-Once enough votes have been cast within the `RELEASE_WRAPPED_TIMEOUT_PERIOD`, this account is evicted and wrapped tokens are minted
-or native tokens released.
-
-If not enough votes are cast within the `RELEASE_WRAPPED_TIMEOUT_PERIOD`, the account can be evicted and the release aborted using
-`IEvictRelease`.
-
-##### _WrappedAsset_ Mint
+#### _WrappedAsset_ Mint
 
 > Seed derivation: `wrapped_<chain>_<asset>`
 >
@@ -214,7 +174,7 @@ If not enough votes are cast within the `RELEASE_WRAPPED_TIMEOUT_PERIOD`, the ac
 
 This account is an instance of `spl-token/Mint` tracks a wrapped asset on the Solana chain.
 
-##### _NativeAsset_ TokenAccount
+#### _NativeAsset_ TokenAccount
 
 > Seed derivation: `custody_<asset>`
 >
@@ -222,3 +182,44 @@ This account is an instance of `spl-token/Mint` tracks a wrapped asset on the So
 
 This account is an instance of `spl-token/TokenAccount` and holds spl tokens in custody that have been transferred to a
 foreign chain.
+
+## Archive
+
+### Reclaim mechanism
+
+**Options:**
+
+| Parameter                      | Description                                                                 |
+| ------------------------------ | --------------------------------------------------------------------------- |
+| RELEASE_WRAPPED_TIMEOUT_PERIOD | The period in which enough votes need to be cast for an asset to be minted. |
+
+Reclaim calls were intended to allow users to reclaim tokens if no VAA was provided in time. This would protect a user
+against censorship attacks from guardians.
+
+However this opens a window for race conditions where a VAA would be delayed and the user would frontrun that VAA with
+a Reclaim.
+
+#### Reclaim
+
+Reclaim tokens that did not receive enough VAAs on the `proposal` within the `SIGN_PERIOD` to finish the transfer.
+`claimant` will get back the `locked_token` previously locked via `ITransferOut`.
+
+| Index | Name         | Type                | signer | writeable | empty | derived |
+| ----- | ------------ | ------------------- | ------ | --------- | ----- | ------- |
+| 0     | claimant     | TokenAccount        |        | ✅        |       |         |
+| 1     | bridge       | BridgeConfig        |        |           |       |         |
+| 2     | proposal     | TransferOutProposal |        | ✅        |       | ✅      |
+| 3     | locked_token | WrappedAsset        |        |           |       | ✅      |
+
+#### ReclaimNative
+
+Reclaim tokens that did not receive enough VAAs on the `proposal` within the `SIGN_PERIOD` to finish the transfer.
+`claimant` will get back the `locked_token` previously locked via `ITransferOutNative` from the `custody_account`.
+
+| Index | Name            | Type                | signer | writeable | empty | derived |
+| ----- | --------------- | ------------------- | ------ | --------- | ----- | ------- |
+| 0     | claimant        | TokenAccount        |        | ✅        |       |         |
+| 1     | bridge          | BridgeConfig        |        |           |       |         |
+| 2     | proposal        | TransferOutProposal |        | ✅        |       | ✅      |
+| 3     | locked_token    | Mint                |        |           |       |         |
+| 4     | custody_account | Mint                |        | ✅        |       | ✅      |
