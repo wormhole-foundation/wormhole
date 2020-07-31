@@ -170,60 +170,21 @@ uint32 new_index
 The `new_index` must be monotonically increasing and is manually specified here to fix a potential guardian_set index 
 desynchronization between the any of the chains in the system.
 
-##### Solana (wrapped) -> Ethereum (native)
+##### Transfer
 
 ID: `0x10`
 
-Size: `72 byte`
+Size: `75 byte`
 
 Payload:
 
 ```
-[20]uint8 target_address
-[20]uint8 token_address
-uint256 amount
-```
-
-##### Ethereum (native) -> Solana (wrapped)
-
-ID: `0x12`
-
-Size: `84 byte`
-
-Payload:
-
-```
+uint8 source_chain
+uint8 target_chain
 [32]uint8 target_address
-[20]uint8 token_address
-uint256 amount
-```
-
-##### Solana (native) -> Ethereum (wrapped)
-
-ID: `0x12`
-
-Size: `84 byte`
-
-Payload:
-
-```
-[20]uint8 target_address
+uint8 token_chain
 [32]uint8 token_address
-uint256 amount
-```
-
-##### Ethereum (wrapped) -> Solana (native)
-
-ID: `0x13`
-
-Size: `96 byte`
-
-Payload:
-
-```
-[32]uint8 target_address
-[32]uint8 token
-uint256 amount
+uint64 amount
 ```
 
 ### Cross-Chain Transfers
