@@ -16,6 +16,9 @@ pub enum Error {
     /// The deserialization of the Token state returned something besides State::Token.
     #[error("ExpectedToken")]
     ExpectedToken,
+    /// The deserialization of the Bridge returned something besides State::Bridge.
+    #[error("ExpectedBridge")]
+    ExpectedBridge,
     /// The deserialization of the Token state returned something besides State::Account.
     #[error("ExpectedAccount")]
     ExpectedAccount,
@@ -28,6 +31,21 @@ pub enum Error {
     /// The submitted VAA is invalid form
     #[error("InvalidVAAFormat")]
     InvalidVAAFormat,
+    /// The account is already initialized
+    #[error("AlreadyExists")]
+    AlreadyExists,
+    /// An account was not derived correctly
+    #[error("InvalidDerivedAccount")]
+    InvalidDerivedAccount,
+    /// A given token account does not belong to the given mint
+    #[error("TokenMintMismatch")]
+    TokenMintMismatch,
+    /// A given mint account does not belong to the program
+    #[error("WrongMintOwner")]
+    WrongMintOwner,
+    /// A given token account does not belong to the program
+    #[error("WrongTokenAccountOwner")]
+    WrongTokenAccountOwner,
 }
 
 impl From<Error> for ProgramError {
@@ -50,9 +68,15 @@ impl PrintProgramError for Error {
         match self {
             Error::ExpectedToken => info!("Error: ExpectedToken"),
             Error::ExpectedAccount => info!("Error: ExpectedAccount"),
+            Error::ExpectedBridge => info!("Error: ExpectedBridge"),
             Error::UninitializedState => info!("Error: State is unititialized"),
             Error::InvalidProgramAddress => info!("Error: InvalidProgramAddress"),
             Error::InvalidVAAFormat => info!("Error: InvalidVAAFormat"),
+            Error::AlreadyExists => info!("Error: AlreadyExists"),
+            Error::InvalidDerivedAccount => info!("Error: InvalidDerivedAccount"),
+            Error::TokenMintMismatch => info!("Error: TokenMintMismatch"),
+            Error::WrongMintOwner => info!("Error: WrongMintOwner"),
+            Error::WrongTokenAccountOwner => info!("Error: WrongTokenAccountOwner"),
         }
     }
 }

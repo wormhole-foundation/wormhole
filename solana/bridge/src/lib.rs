@@ -1,10 +1,11 @@
-//! A Wormhole protocol bridge.
 #[macro_use]
 extern crate arrayref;
+#[macro_use]
+extern crate zerocopy;
 
 pub mod error;
 pub mod instruction;
 pub mod processor;
 pub mod state;
-pub mod crypto;
 pub mod vaa;
+pub mod syscalls;

@@ -1,5 +1,5 @@
 use std::any::Any;
-use std::io::{Cursor, Read, stderr, Write};
+use std::io::{Cursor, Read, Write};
 use std::mem::size_of;
 
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
@@ -164,7 +164,6 @@ impl BodyUpdateGuardianSet {
     }
 }
 
-
 impl BodyTransfer {
     fn deserialize(data: &mut Cursor<&Vec<u8>>) -> Result<BodyTransfer, std::io::Error> {
         let source_chain = data.read_u8()?;
@@ -177,7 +176,7 @@ impl BodyTransfer {
         let amount = data.read_u64::<BigEndian>()?;
 
         Ok(BodyTransfer {
-            source_chain
+            source_chain,
             target_chain,
             target_address,
             token_chain,

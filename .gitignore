@@ -4,3 +4,4 @@ node_modules
 .arcconfig
 *.iml
 target
+bin
