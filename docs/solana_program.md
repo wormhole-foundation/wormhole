@@ -13,6 +13,7 @@ Initializes a new Bridge at `bridge`.
 | 0     | bridge | BridgeConfig |        |           | ✅️   | ✅️     |
 | 1     | clock | Sysvar |        |           | ️   | ✅     |
 | 2     | guardian_set | GuardianSet         |        |   ✅       | ✅    | ✅      |
+| 3     | sender | Account         |    ✅     |          |     |       |
 
 #### TransferOut
 
@@ -95,7 +96,7 @@ The required accounts depend on the `action` of the VAA:
 | 3     | claim     | ExecutedVAA |        | ✅        |   ✅    | ✅      |
 | 4     | token        | WrappedAsset |        |           | opt   | ✅      |
 | 5     | destination  | TokenAccount |        | ✅        | opt   |         |
-| 6     | sender  | Account |  ✅      | ✅        |    |         |
+| 6     | sender  | Account |  ✅      |         |    |         |
 
 ##### Transfer: Ethereum (wrapped) -> Solana (native)
 
@@ -118,7 +119,7 @@ The required accounts depend on the `action` of the VAA:
 | 2     | guardian_set | GuardianSet         |        |           |       |         |
 | 3     | claim     | ExecutedVAA |        | ✅        |   ✅    | ✅      |
 | 4     | out_proposal | TransferOutProposal |        | ✅        |       | ✅      |
-| 5     | sender  | Account |  ✅      | ✅        |    |         |
+| 5     | sender  | Account |  ✅      |         |    |         |
 
 ## Accounts
 

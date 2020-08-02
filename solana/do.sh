@@ -1,3 +1,4 @@
+
 #!/usr/bin/env bash
 
 cd "$(dirname "$0")"
@@ -7,6 +8,7 @@ usage() {
 Usage: do.sh <action> <project> <action specific arguments>
 Supported actions:
     build
+    build-lib
     clean
     clippy
     doc
@@ -30,14 +32,18 @@ perform_action() {
     targetDir="$projectDir"/target
     case "$1" in
     build)
-        "$sdkDir"/rust/build.sh "$projectDir"
+        if [[ -f "$projectDir"/Xargo.toml ]]; then
+          "$sdkDir"/rust/build.sh "$projectDir"
 
-        so_path="$targetDir/$profile"
-        so_name="spl_${2//\-/_}"
-        cp "$so_path/${so_name}.so" "$so_path/${so_name}_debug.so"
-        "$sdkDir"/dependencies/llvm-native/bin/llvm-objcopy --strip-all "$so_path/${so_name}.so" "$so_path/$so_name.so"
+          so_path="$targetDir/$profile"
+          so_name="spl_${2//\-/_}"
+          cp "$so_path/${so_name}.so" "$so_path/${so_name}_debug.so"
+          "$sdkDir"/dependencies/llvm-native/bin/llvm-objcopy --strip-all "$so_path/${so_name}.so" "$so_path/$so_name.so"
+        else
+            echo "$projectDir does not contain a program, skipping"
+        fi
         ;;
-    build-native)
+    build-lib)
         (
             cd "$projectDir"
             echo "build $projectDir"
@@ -48,25 +54,11 @@ perform_action() {
     clean)
         "$sdkDir"/rust/clean.sh "$projectDir"
         ;;
-    test)
-        (
-            cd "$projectDir"
-            echo "test $projectDir"
-            cargo +nightly test ${@:3}
-        )
-        ;;
     clippy)
         (
             cd "$projectDir"
             echo "clippy $projectDir"
-            cargo +nightly clippy ${@:3}
-        )
-        ;;
-    fmt)
-        (
-            cd "$projectDir"
-            echo "formatting $projectDir"
-            cargo fmt ${@:3}
+            cargo +nightly clippy  --features=program ${@:3}
         )
         ;;
     doc)
@@ -75,11 +67,6 @@ perform_action() {
             echo "generating docs $projectDir"
             cargo doc ${@:3}
         )
-        ;;
-    update)
-        mkdir -p $sdkParentDir
-        ./bpf-sdk-install.sh $sdkParentDir
-        ./do.sh clean all
         ;;
     dump)
         # Dump depends on tools that are not installed by default and must be installed manually
@@ -124,9 +111,28 @@ perform_action() {
             fi
         )
         ;;
+    fmt)
+        (
+            cd "$projectDir"
+            echo "formatting $projectDir"
+            cargo fmt ${@:3}
+        )
+        ;;
     help)
         usage
         exit
+        ;;
+    test)
+        (
+            cd "$projectDir"
+            echo "test $projectDir"
+            cargo test --features=program ${@:3}
+        )
+        ;;
+    update)
+        mkdir -p $sdkParentDir
+        ./bpf-sdk-install.sh $sdkParentDir
+        ./do.sh clean all
         ;;
     *)
         echo "Error: Unknown command"

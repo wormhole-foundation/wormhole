@@ -59,6 +59,12 @@ pub struct TransferOutPayload {
 #[repr(C)]
 pub enum BridgeInstruction {
     /// Initializes a new Bridge
+    /// Accounts expected by this instruction:
+    ///
+    ///   0. `[writable, derived]`  The bridge to initialize.
+    ///   1. `[]` The clock SysVar
+    ///   2. `[writable, derived]` The initial guardian set account
+    ///   3. `[signer]` The fee payer for new account creation
     Initialize(InitializePayload),
 
     /// Burns or locks a (wrapped) asset `token` from `sender` on the Solana chain.
@@ -100,19 +106,24 @@ impl BridgeInstruction {
             Self::Initialize(payload) => {
                 output[0] = 0;
                 #[allow(clippy::cast_ptr_alignment)]
-                    let value = unsafe { &mut *(&mut output[size_of::<u8>()] as *mut u8 as *mut InitializePayload) };
+                let value = unsafe {
+                    &mut *(&mut output[size_of::<u8>()] as *mut u8 as *mut InitializePayload)
+                };
                 *value = payload;
             }
             Self::TransferOut(payload) => {
                 output[0] = 1;
                 #[allow(clippy::cast_ptr_alignment)]
-                    let value = unsafe { &mut *(&mut output[size_of::<u8>()] as *mut u8 as *mut TransferOutPayload) };
+                let value = unsafe {
+                    &mut *(&mut output[size_of::<u8>()] as *mut u8 as *mut TransferOutPayload)
+                };
                 *value = payload;
             }
             Self::PostVAA(payload) => {
                 output[0] = 2;
                 #[allow(clippy::cast_ptr_alignment)]
-                    let value = unsafe { &mut *(&mut output[size_of::<u8>()] as *mut u8 as *mut VAA_BODY) };
+                let value =
+                    unsafe { &mut *(&mut output[size_of::<u8>()] as *mut u8 as *mut VAA_BODY) };
                 *value = payload;
             }
             Self::EvictTransferOut() => {
@@ -121,9 +132,7 @@ impl BridgeInstruction {
             Self::EvictExecutedVAA() => {
                 output[0] = 4;
             }
-            _ => {
-                panic!("")
-            }
+            _ => panic!(""),
         }
         Ok(output)
     }
@@ -140,7 +149,8 @@ pub fn initialize(
     let data = BridgeInstruction::Initialize(InitializePayload {
         config: *config,
         initial_guardian,
-    }).serialize()?;
+    })
+    .serialize()?;
 
     let accounts = vec![
         AccountMeta::new(*sender, true),
@@ -160,6 +170,6 @@ pub fn unpack<T>(input: &[u8]) -> Result<&T, ProgramError> {
         return Err(ProgramError::InvalidAccountData);
     }
     #[allow(clippy::cast_ptr_alignment)]
-        let val: &T = unsafe { &*(&input[1] as *const u8 as *const T) };
+    let val: &T = unsafe { &*(&input[1] as *const u8 as *const T) };
     Ok(val)
 }
