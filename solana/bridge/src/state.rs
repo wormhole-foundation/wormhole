@@ -7,10 +7,6 @@ use std::str;
 
 use num_traits::AsPrimitive;
 use sha3::Digest;
-use solana_sdk::{
-    account_info::AccountInfo, account_info::next_account_info, entrypoint::ProgramResult, info,
-    program_error::ProgramError, pubkey::bs58, pubkey::Pubkey,
-};
 use solana_sdk::clock::Clock;
 use solana_sdk::hash::hash;
 #[cfg(not(target_arch = "bpf"))]
@@ -21,16 +17,19 @@ use solana_sdk::program::invoke_signed;
 use solana_sdk::rent::Rent;
 use solana_sdk::system_instruction::{create_account, SystemInstruction};
 use solana_sdk::sysvar::Sysvar;
+use solana_sdk::{
+    account_info::next_account_info, account_info::AccountInfo, entrypoint::ProgramResult, info,
+    program_error::ProgramError, pubkey::bs58, pubkey::Pubkey,
+};
 use spl_token::state::Mint;
 
-use crate::{
-    error::Error,
-    instruction::unpack,
-};
-use crate::instruction::{BridgeInstruction, CHAIN_ID_SOLANA, ForeignAddress, GuardianKey, TransferOutPayload, VAA_BODY};
 use crate::instruction::BridgeInstruction::*;
-use crate::syscalls::{RawKey, SchnorrifyInput, sol_verify_schnorr};
-use crate::vaa::{BodyTransfer, BodyUpdateGuardianSet, VAA, VAABody};
+use crate::instruction::{
+    BridgeInstruction, ForeignAddress, GuardianKey, TransferOutPayload, CHAIN_ID_SOLANA, VAA_BODY,
+};
+use crate::syscalls::{sol_verify_schnorr, RawKey, SchnorrifyInput};
+use crate::vaa::{BodyTransfer, BodyUpdateGuardianSet, VAABody, VAA};
+use crate::{error::Error, instruction::unpack};
 
 /// fee rate as a ratio
 #[repr(C)]
@@ -89,6 +88,15 @@ pub struct TransferOutProposal {
 impl IsInitialized for TransferOutProposal {
     fn is_initialized(&self) -> bool {
         self.is_initialized
+    }
+}
+
+impl TransferOutProposal {
+    fn matches_vaa(&self, b: &BodyTransfer) -> bool {
+        return b.amount == self.amount
+            && b.target_address == self.foreign_address
+            && b.target_chain == self.to_chain_id
+            && b.asset == self.asset;
     }
 }
 
@@ -163,7 +171,12 @@ impl Bridge {
         match instruction {
             Initialize(payload) => {
                 info!("Instruction: Initialize");
-                Self::process_initialize(program_id, accounts, payload.initial_guardian, payload.config)
+                Self::process_initialize(
+                    program_id,
+                    accounts,
+                    payload.initial_guardian,
+                    payload.config,
+                )
             }
             TransferOut(p) => {
                 info!("Instruction: TransferOut");
@@ -181,14 +194,14 @@ impl Bridge {
                 let vaa = VAA::deserialize(vaa_data)?;
 
                 let mut k = sha3::Keccak256::default();
-                if let Err(_) = k.write(vaa_data) { return Err(Error::ParseFailed.into()); };
+                if let Err(_) = k.write(vaa_data) {
+                    return Err(Error::ParseFailed.into());
+                };
                 let hash = k.finalize();
 
-                Self::process_vaa(program_id, accounts, &vaa, hash.as_ref())
+                Self::process_vaa(program_id, accounts, &vaa_body, &vaa, hash.as_ref())
             }
-            _ => {
-                panic!("")
-            }
+            _ => panic!(""),
         }
     }
 
@@ -216,7 +229,8 @@ impl Bridge {
             return Err(Error::InvalidDerivedAccount.into());
         }
 
-        let expected_guardian_set_key = Bridge::derive_guardian_set_id(program_id, new_account_info.key, 0)?;
+        let expected_guardian_set_key =
+            Bridge::derive_guardian_set_id(program_id, new_account_info.key, 0)?;
         if expected_guardian_set_key != *new_guardian_info.key {
             return Err(Error::InvalidDerivedAccount.into());
         }
@@ -271,35 +285,46 @@ impl Bridge {
         }
 
         // Check that the mint is actually a wrapped asset belonging to *this* bridge instance
-        let expected_mint_address =
-            Bridge::derive_wrapped_asset_id(
-                program_id, bridge_info.key, t.asset.chain,
-                t.asset.address)?;
+        let expected_mint_address = Bridge::derive_wrapped_asset_id(
+            program_id,
+            bridge_info.key,
+            t.asset.chain,
+            t.asset.address,
+        )?;
         if expected_mint_address != *mint_info.key {
             return Err(Error::InvalidDerivedAccount.into());
         }
 
         // Check that the transfer account was derived correctly
-        let expected_transfer_id =
-            Bridge::derive_transfer_id(
-                program_id, bridge_info.key, t.asset.chain,
-                t.asset.address, t.chain_id, t.target,
-                sender.owner, clock.slot.as_())?;
+        let expected_transfer_id = Bridge::derive_transfer_id(
+            program_id,
+            bridge_info.key,
+            t.asset.chain,
+            t.asset.address,
+            t.chain_id,
+            t.target,
+            sender.owner.to_bytes(),
+            clock.slot.as_(),
+        )?;
         if expected_transfer_id != *proposal_info.key {
             return Err(Error::InvalidDerivedAccount.into());
         }
 
         // Load proposal account
         let mut proposal_data = proposal_info.data.borrow_mut();
-        let proposal: &mut TransferOutProposal =
-            Bridge::unpack_unchecked(&mut proposal_data)?;
+        let proposal: &mut TransferOutProposal = Bridge::unpack_unchecked(&mut proposal_data)?;
         if proposal.is_initialized {
             return Err(Error::AlreadyExists.into());
         }
 
         // Burn tokens
-        Bridge::wrapped_burn(accounts, &bridge.config.token_program,
-                             sender_info.key, sender_account_info.key, t.amount)?;
+        Bridge::wrapped_burn(
+            accounts,
+            &bridge.config.token_program,
+            sender_info.key,
+            sender_account_info.key,
+            t.amount,
+        )?;
 
         // Initialize proposal
         proposal.is_initialized = true;
@@ -342,43 +367,61 @@ impl Bridge {
         }
 
         // Check that the transfer account was derived correctly
-        let expected_transfer_id =
-            Bridge::derive_transfer_id(
-                program_id, bridge_info.key, t.asset.chain,
-                t.asset.address, t.chain_id, t.target,
-                sender.owner, clock.slot.as_())?;
+        let expected_transfer_id = Bridge::derive_transfer_id(
+            program_id,
+            bridge_info.key,
+            t.asset.chain,
+            t.asset.address,
+            t.chain_id,
+            t.target,
+            sender.owner.to_bytes(),
+            clock.slot.as_(),
+        )?;
         if expected_transfer_id != *proposal_info.key {
             return Err(Error::InvalidDerivedAccount.into());
         }
 
         // Load proposal account
         let mut proposal_data = proposal_info.data.borrow_mut();
-        let proposal: &mut TransferOutProposal =
-            Bridge::unpack_unchecked(&mut proposal_data)?;
+        let proposal: &mut TransferOutProposal = Bridge::unpack_unchecked(&mut proposal_data)?;
         if proposal.is_initialized {
             return Err(Error::AlreadyExists.into());
         }
 
-        let custody_addr = Bridge::derive_custody(program_id, bridge_info.key, mint_info.key)?;
-        if expected_transfer_id != *custody_info.key {
+        let expected_custody_id =
+            Bridge::derive_custody_id(program_id, bridge_info.key, mint_info.key)?;
+        if expected_custody_id != *custody_info.key {
             return Err(Error::InvalidDerivedAccount.into());
         }
 
         // Create the account if it does not exist
         if custody_info.data_is_empty() {
-            Bridge::create_token_account(accounts, &bridge.config.token_program, &custody_addr, mint_info.key, &custody_addr,
-                                         &["custody", bridge_info.key.to_string().as_str(), mint_info.key.to_string().as_str()])?;
+            Bridge::create_custody_account(
+                program_id,
+                accounts,
+                &bridge.config.token_program,
+                bridge_info.key,
+                custody_info.key,
+                mint_info.key,
+                sender_info.key,
+            )?;
         }
 
         // Check that the custody token account is owned by the derived key
         let custody = Self::token_account_deserialize(custody_info)?;
-        if custody.owner != custody_addr {
+        if custody.owner != *bridge_info.key {
             return Err(Error::WrongTokenAccountOwner.into());
         }
 
         // Transfer tokens to custody
-        Bridge::token_transfer_caller(accounts, &bridge.config.token_program, sender_account_info.key,
-                                      &custody_addr, sender_info.key, t.amount)?;
+        Bridge::token_transfer_caller(
+            accounts,
+            &bridge.config.token_program,
+            sender_account_info.key,
+            custody_info.key,
+            sender_info.key,
+            t.amount,
+        )?;
 
         // Initialize proposal
         proposal.is_initialized = true;
@@ -399,7 +442,8 @@ impl Bridge {
     pub fn process_vaa(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        v: &VAA,
+        vaa_data: &[u8; 100],
+        vaa: &VAA,
         hash: &[u8; 32],
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
@@ -413,13 +457,14 @@ impl Bridge {
         let mut guardian_set = Bridge::guardian_set_deserialize(guardian_set_info)?;
 
         // Check that the guardian set is valid
-        let expected_guardian_set = Bridge::derive_guardian_set_id(program_id, bridge_info.key, v.guardian_set_index)?;
+        let expected_guardian_set =
+            Bridge::derive_guardian_set_id(program_id, bridge_info.key, vaa.guardian_set_index)?;
         if expected_guardian_set != *guardian_set_info.key {
             return Err(Error::InvalidDerivedAccount.into());
         }
 
         // Check that the claim is valid
-        let expected_claim = Bridge::derive_claim(program_id, bridge_info.key, hash)?;
+        let expected_claim = Bridge::derive_claim_id(program_id, bridge_info.key, hash)?;
         if expected_claim != *claim_info.key {
             return Err(Error::InvalidDerivedAccount.into());
         }
@@ -430,29 +475,54 @@ impl Bridge {
         }
 
         // Check that the VAA is still valid
-        if (guardian_set.expiration_time as i64) + (bridge.config.vaa_expiration_time as i64) < clock.unix_timestamp {
+        if (guardian_set.expiration_time as i64) + (bridge.config.vaa_expiration_time as i64)
+            < clock.unix_timestamp
+        {
             return Err(Error::VAAExpired.into());
         }
 
         // Verify VAA signature
-        if !v.verify(&guardian_set.pubkey) {
+        if !vaa.verify(&guardian_set.pubkey) {
             return Err(Error::InvalidVAASignature.into());
         }
 
-        let payload = v.payload.ok_or(Error::InvalidVAAAction)?;
+        let payload = vaa.payload.ok_or(Error::InvalidVAAAction)?;
         match payload {
-            VAABody::UpdateGuardianSet(v) => {
-                Self::process_vaa_set_update(program_id, account_info_iter, &clock, bridge_info, &mut bridge, &mut guardian_set, &v)
-            }
+            VAABody::UpdateGuardianSet(v) => Self::process_vaa_set_update(
+                program_id,
+                account_info_iter,
+                &clock,
+                bridge_info,
+                &mut bridge,
+                &mut guardian_set,
+                &v,
+            ),
             VAABody::Transfer(v) => {
-                Self::process_vaa_transfer(program_id, account_info_iter, &v)
+                if v.source_chain == CHAIN_ID_SOLANA {
+                    Self::process_vaa_transfer(
+                        program_id,
+                        accounts,
+                        account_info_iter,
+                        bridge_info,
+                        &mut bridge,
+                        &v,
+                    )
+                } else {
+                    Self::process_vaa_transfer_post(
+                        program_id,
+                        account_info_iter,
+                        bridge_info,
+                        vaa,
+                        &v,
+                        vaa_data,
+                    )
+                }
             }
         }?;
 
         // Load proposal account
         let mut claim_data = claim_info.data.borrow_mut();
-        let claim: &mut ClaimedVAA =
-            Bridge::unpack_unchecked(&mut claim_data)?;
+        let claim: &mut ClaimedVAA = Bridge::unpack_unchecked(&mut claim_data)?;
         if claim.is_initialized {
             return Err(Error::VAAClaimed.into());
         }
@@ -483,16 +553,19 @@ impl Bridge {
         }
 
         // The new guardian set must have an index > current
+        // We don't check +1 because we trust the set to not set something close to max(u32)
         if bridge.guardian_set_index >= b.new_index {
             return Err(Error::GuardianIndexNotIncreasing.into());
         }
 
         // Set the exirity on the old guardian set
         // The guardian set will expire once all currently issues vaas have expired
-        old_guardian_set.expiration_time = (clock.unix_timestamp as u32) + bridge.config.vaa_expiration_time;
+        old_guardian_set.expiration_time =
+            (clock.unix_timestamp as u32) + bridge.config.vaa_expiration_time;
 
         // Check whether the new guardian set was derived correctly
-        let expected_guardian_set = Bridge::derive_guardian_set_id(program_id, bridge_info.key, b.new_index)?;
+        let expected_guardian_set =
+            Bridge::derive_guardian_set_id(program_id, bridge_info.key, b.new_index)?;
         if expected_guardian_set != *guardian_set_new_info.key {
             return Err(Error::InvalidDerivedAccount.into());
         }
@@ -501,6 +574,7 @@ impl Bridge {
         let guardian_set_new: &mut GuardianSet =
             Bridge::unpack_unchecked(&mut guardian_set_new_data)?;
 
+        // The new guardian set must not exist
         if guardian_set_new.is_initialized {
             return Err(Error::AlreadyExists.into());
         }
@@ -517,15 +591,113 @@ impl Bridge {
         Ok(())
     }
 
-    /// Processes a Guardian set update
+    /// Processes a VAA transfer in
     pub fn process_vaa_transfer(
         program_id: &Pubkey,
+        accounts: &[AccountInfo],
         account_info_iter: &mut Iter<AccountInfo>,
+        bridge_info: &AccountInfo,
+        bridge: &mut Bridge,
         b: &BodyTransfer,
     ) -> ProgramResult {
-        let guardian_set_new_info = next_account_info(account_info_iter)?;
-        let claim = next_account_info(account_info_iter)?;
-        let guardian_set_info = next_account_info(account_info_iter)?;
+        let mint_info = next_account_info(account_info_iter)?;
+        let destination_info = next_account_info(account_info_iter)?;
+
+        let destination = Self::token_account_deserialize(destination_info)?;
+        if destination.mint != *mint_info.key {
+            return Err(Error::TokenMintMismatch.into());
+        }
+
+        if b.asset.chain == CHAIN_ID_SOLANA {
+            let custody_info = next_account_info(account_info_iter)?;
+            let expected_custody_id =
+                Bridge::derive_custody_id(program_id, bridge_info.key, mint_info.key)?;
+            if expected_custody_id != *custody_info.key {
+                return Err(Error::InvalidDerivedAccount.into());
+            }
+
+            // Native Solana asset, transfer from custody
+            Bridge::token_transfer_custody(
+                accounts,
+                &bridge.config.token_program,
+                bridge_info.key,
+                custody_info.key,
+                destination_info.key,
+                b.amount,
+            )?;
+        } else {
+            // Foreign chain asset, mint wrapped asset
+            let expected_mint_address = Bridge::derive_wrapped_asset_id(
+                program_id,
+                bridge_info.key,
+                b.asset.chain,
+                b.asset.address,
+            )?;
+            if expected_mint_address != *mint_info.key {
+                return Err(Error::InvalidDerivedAccount.into());
+            }
+
+            // If wrapped mint does not exist, create it
+            if mint_info.data_is_empty() {
+                let sender_info = next_account_info(account_info_iter)?;
+                Self::create_wrapped_mint(
+                    program_id,
+                    accounts,
+                    &bridge.config.token_program,
+                    mint_info.key,
+                    bridge_info.key,
+                    sender_info.key,
+                    &b.asset,
+                )?;
+            }
+
+            Bridge::wrapped_mint_to(
+                accounts,
+                &bridge.config.token_program,
+                mint_info.key,
+                destination_info.key,
+                bridge_info.key,
+                b.amount,
+            )?;
+        }
+
+        Ok(())
+    }
+
+    /// Processes a VAA post for data availability (for Solana -> foreign transfers)
+    pub fn process_vaa_transfer_post(
+        program_id: &Pubkey,
+        account_info_iter: &mut Iter<AccountInfo>,
+        bridge_info: &AccountInfo,
+        vaa: &VAA,
+        b: &BodyTransfer,
+        vaa_data: &[u8; 100],
+    ) -> ProgramResult {
+        let proposal_info = next_account_info(account_info_iter)?;
+
+        // Check whether the proposal was derived correctly
+        let expected_proposal = Bridge::derive_transfer_id(
+            program_id,
+            bridge_info.key,
+            b.asset.chain,
+            b.asset.address,
+            b.target_chain,
+            b.target_address,
+            b.source_address,
+            b.ref_block,
+        )?;
+        if expected_proposal != *proposal_info.key {
+            return Err(Error::InvalidDerivedAccount.into());
+        }
+
+        let mut proposal = Self::transfer_out_proposal_deserialize(proposal_info)?;
+        if !proposal.matches_vaa(b) {
+            return Err(Error::VAAProposalMismatch.into());
+        }
+
+        // Set vaa
+        proposal.vaa = *vaa_data;
+        proposal.vaa_time = vaa.timestamp;
 
         Ok(())
     }
@@ -553,18 +725,20 @@ impl Bridge {
 
     /// Deserializes a `Bridge`.
     pub fn bridge_deserialize(info: &AccountInfo) -> Result<Bridge, Error> {
-        Ok(
-            *Bridge::unpack(&mut info.data.borrow_mut())
-                .map_err(|_| Error::ExpectedBridge)?,
-        )
+        Ok(*Bridge::unpack(&mut info.data.borrow_mut()).map_err(|_| Error::ExpectedBridge)?)
     }
 
     /// Deserializes a `GuardianSet`.
     pub fn guardian_set_deserialize(info: &AccountInfo) -> Result<GuardianSet, Error> {
-        Ok(
-            *Bridge::unpack(&mut info.data.borrow_mut())
-                .map_err(|_| Error::ExpectedGuardianSet)?,
-        )
+        Ok(*Bridge::unpack(&mut info.data.borrow_mut()).map_err(|_| Error::ExpectedGuardianSet)?)
+    }
+
+    /// Deserializes a `TransferOutProposal`.
+    pub fn transfer_out_proposal_deserialize(
+        info: &AccountInfo,
+    ) -> Result<TransferOutProposal, Error> {
+        Ok(*Bridge::unpack(&mut info.data.borrow_mut())
+            .map_err(|_| Error::ExpectedTransferOutProposal)?)
     }
 
     /// Unpacks a token state from a bytes buffer while assuring that the state is initialized.
@@ -581,71 +755,13 @@ impl Bridge {
             return Err(ProgramError::InvalidAccountData);
         }
         #[allow(clippy::cast_ptr_alignment)]
-            Ok(unsafe { &mut *(&mut input[0] as *mut u8 as *mut T) })
+        Ok(unsafe { &mut *(&mut input[0] as *mut u8 as *mut T) })
     }
 }
 
-
-/// Implementation of actions and derivation
+/// Implementation of actions
 impl Bridge {
-    /// Calculates a derived address for this program
-    pub fn derive_bridge_id(program_id: &Pubkey) -> Result<Pubkey, Error> {
-        Pubkey::create_program_address(&[program_id.to_string().as_str()], program_id)
-            .or(Err(Error::InvalidProgramAddress))
-    }
-
-    /// Calculates a derived address for a custody account
-    pub fn derive_custody(program_id: &Pubkey, bridge: &Pubkey, mint: &Pubkey) -> Result<Pubkey, Error> {
-        Pubkey::create_program_address(&["custody", bridge.to_string().as_str(), mint.to_string().as_str()], program_id)
-            .or(Err(Error::InvalidProgramAddress))
-    }
-
-    /// Calculates a derived address for a claim account
-    pub fn derive_claim(program_id: &Pubkey, bridge: &Pubkey, hash: &[u8; 32]) -> Result<Pubkey, Error> {
-        Pubkey::create_program_address(&["claim", bridge.to_string().as_str(), bs58::encode(hash).into_string().as_str()], program_id)
-            .or(Err(Error::InvalidProgramAddress))
-    }
-
-
-    /// Calculates a derived address for this program
-    pub fn derive_guardian_set_id(program_id: &Pubkey, bridge_key: &Pubkey, guardian_set_index: u32) -> Result<Pubkey, Error> {
-        Pubkey::create_program_address(&[
-            bridge_key.to_string().as_str(),
-            guardian_set_index.to_string().as_str()
-        ], program_id)
-            .or(Err(Error::InvalidProgramAddress))
-    }
-
-    /// Calculates a derived address for this program
-    pub fn derive_wrapped_asset_id(program_id: &Pubkey, bridge_key: &Pubkey, asset_chain: u8, asset: ForeignAddress) -> Result<Pubkey, Error> {
-        Pubkey::create_program_address(&[
-            &"wrapped",
-            bridge_key.to_string().as_str(),
-            asset_chain.to_string().as_str(),
-            bs58::encode(asset).into_string().as_str()
-        ], program_id)
-            .or(Err(Error::InvalidProgramAddress))
-    }
-
-    /// Calculates a derived address for this program
-    pub fn derive_transfer_id(program_id: &Pubkey, bridge_key: &Pubkey,
-                              asset_chain: u8, asset: ForeignAddress,
-                              target_chain: u8, target_address: ForeignAddress,
-                              user: Pubkey, slot: u64) -> Result<Pubkey, Error> {
-        Pubkey::create_program_address(&[
-            &"transfer",
-            bridge_key.to_string().as_str(),
-            asset_chain.to_string().as_str(),
-            bs58::encode(asset).into_string().as_str(),
-            target_chain.to_string().as_str(),
-            bs58::encode(target_address).into_string().as_str(),
-            user.to_string().as_str(),
-            slot.to_string().as_str(),
-        ], program_id)
-            .or(Err(Error::InvalidProgramAddress))
-    }
-
-    /// Issue a spl_token `Burn` instruction.
+    /// Burn a wrapped asset from account
     pub fn wrapped_burn(
         accounts: &[AccountInfo],
         token_program_id: &Pubkey,
@@ -653,46 +769,41 @@ impl Bridge {
         token_account: &Pubkey,
         amount: u64,
     ) -> Result<(), ProgramError> {
-        let all_signers: Vec<&Pubkey> = accounts.iter()
+        let all_signers: Vec<&Pubkey> = accounts
+            .iter()
             .filter_map(|item| if item.is_signer { Some(item.key) } else { None })
             .collect();
-        let ix =
-            spl_token::instruction::burn(
-                token_program_id,
-                token_account,
-                authority,
-                all_signers.as_slice(),
-                amount,
-            )?;
+        let ix = spl_token::instruction::burn(
+            token_program_id,
+            token_account,
+            authority,
+            all_signers.as_slice(),
+            amount,
+        )?;
         invoke_signed(&ix, accounts, &[])
     }
 
-    /// Issue a spl_token `MintTo` instruction.
+    /// Mint a wrapped asset to account
     pub fn wrapped_mint_to(
         accounts: &[AccountInfo],
         token_program_id: &Pubkey,
-        chain_id: u8,
-        asset: [u8; 32],
         mint: &Pubkey,
         destination: &Pubkey,
-        authority: &Pubkey,
+        bridge: &Pubkey,
         amount: u64,
     ) -> Result<(), ProgramError> {
-        let chain_str = chain_id.to_string();
-        let asset_str = bs58::encode(asset).into_string();
-        let signers = &[&["wrapped", chain_str.as_str(), asset_str.as_str()][..]];
         let ix = spl_token::instruction::mint_to(
             token_program_id,
             mint,
             destination,
-            authority,
+            bridge,
             &[],
             amount,
         )?;
-        invoke_signed(&ix, accounts, signers)
+        invoke_signed(&ix, accounts, &[&[&bridge.to_string()[..32]][..]])
     }
 
-    /// Issue a spl_token `Transfer` instruction.
+    /// Transfer tokens from a caller
     pub fn token_transfer_caller(
         accounts: &[AccountInfo],
         token_program_id: &Pubkey,
@@ -701,7 +812,8 @@ impl Bridge {
         authority: &Pubkey,
         amount: u64,
     ) -> Result<(), ProgramError> {
-        let all_signers: Vec<&Pubkey> = accounts.iter()
+        let all_signers: Vec<&Pubkey> = accounts
+            .iter()
             .filter_map(|item| if item.is_signer { Some(item.key) } else { None })
             .collect();
         let ix = spl_token::instruction::transfer(
@@ -715,40 +827,237 @@ impl Bridge {
         invoke_signed(&ix, accounts, &[])
     }
 
-    /// Issue a spl_token `Transfer` instruction.
+    /// Transfer tokens from a custody account
     pub fn token_transfer_custody(
         accounts: &[AccountInfo],
         token_program_id: &Pubkey,
         bridge: &Pubkey,
         source: &Pubkey,
         destination: &Pubkey,
-        authority: &Pubkey,
         amount: u64,
     ) -> Result<(), ProgramError> {
-        let signers = &[&["wrapped", "kot"][..]];
         let ix = spl_token::instruction::transfer(
             token_program_id,
             source,
             destination,
-            authority,
+            bridge,
             &[],
             amount,
         )?;
-        invoke_signed(&ix, accounts, signers)
+        invoke_signed(&ix, accounts, &[&[&bridge.to_string()[..32]][..]])
     }
 
     /// Create a new account
-    pub fn create_token_account(
+    pub fn create_custody_account(
+        program_id: &Pubkey,
         accounts: &[AccountInfo],
         token_program: &Pubkey,
+        bridge: &Pubkey,
         account: &Pubkey,
         mint: &Pubkey,
-        owner: &Pubkey,
-        new_seed: &[&str],
+        payer: &Pubkey,
     ) -> Result<(), ProgramError> {
-        let ix = spl_token::instruction::initialize_account(token_program,
-                                                            account, mint, owner)?;
-        invoke_signed(&ix, accounts, &[new_seed])
+        Self::create_account::<Mint>(
+            program_id,
+            accounts,
+            mint,
+            payer,
+            Self::derive_custody_seeds(bridge, mint),
+        )?;
+        let ix = spl_token::instruction::initialize_account(token_program, account, mint, bridge)?;
+        invoke_signed(&ix, accounts, &[&[&bridge.to_string()[..32]][..]])
+    }
+
+    /// Create a mint for a wrapped asset
+    pub fn create_wrapped_mint(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        token_program: &Pubkey,
+        mint: &Pubkey,
+        bridge: &Pubkey,
+        payer: &Pubkey,
+        asset: &AssetMeta,
+    ) -> Result<(), ProgramError> {
+        Self::create_account::<Mint>(
+            program_id,
+            accounts,
+            mint,
+            payer,
+            Self::derive_wrapped_asset_seeds(bridge, asset.chain, asset.address),
+        )?;
+        let ix =
+            spl_token::instruction::initialize_mint(token_program, mint, None, Some(bridge), 0, 8)?;
+        invoke_signed(&ix, accounts, &[&[&bridge.to_string()[..32]][..]])
+    }
+
+    /// Create a new account
+    pub fn create_account<T: Sized>(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        new_account: &Pubkey,
+        payer: &Pubkey,
+        seeds: Vec<String>,
+    ) -> Result<(), ProgramError> {
+        let size = size_of::<T>();
+        let ix = create_account(
+            payer,
+            new_account,
+            Rent::default().minimum_balance(size as usize),
+            size as u64,
+            program_id,
+        );
+        let s: Vec<_> = seeds.iter().map(|item| &item[..32]).collect();
+        invoke_signed(&ix, accounts, &[s.as_slice()])
+    }
+}
+
+/// Implementation of derivations
+impl Bridge {
+    /// Calculates derived seeds for a guardian set
+    pub fn derive_guardian_set_seeds(bridge_key: &Pubkey, guardian_set_index: u32) -> Vec<String> {
+        vec![
+            String::from("guardian"),
+            bridge_key.to_string(),
+            guardian_set_index.to_string(),
+        ]
+    }
+
+    /// Calculates derived seeds for a wrapped asset
+    pub fn derive_wrapped_asset_seeds(
+        bridge_key: &Pubkey,
+        asset_chain: u8,
+        asset: ForeignAddress,
+    ) -> Vec<String> {
+        vec![
+            String::from("wrapped"),
+            bridge_key.to_string(),
+            asset_chain.to_string(),
+            bs58::encode(asset).into_string(),
+        ]
+    }
+
+    /// Calculates derived seeds for a transfer out
+    pub fn derive_transfer_id_seeds(
+        bridge_key: &Pubkey,
+        asset_chain: u8,
+        asset: ForeignAddress,
+        target_chain: u8,
+        target_address: ForeignAddress,
+        user: ForeignAddress,
+        slot: u64,
+    ) -> Vec<String> {
+        vec![
+            String::from("transfer"),
+            bridge_key.to_string(),
+            asset_chain.to_string(),
+            bs58::encode(asset).into_string(),
+            target_chain.to_string(),
+            bs58::encode(target_address).into_string(),
+            bs58::encode(user).into_string(),
+            slot.to_string(),
+        ]
+    }
+
+    /// Calculates derived seeds for a bridge
+    pub fn derive_bridge_seeds(program_id: &Pubkey) -> Vec<String> {
+        vec![program_id.to_string()]
+    }
+
+    /// Calculates derived seeds for a custody account
+    pub fn derive_custody_seeds(bridge: &Pubkey, mint: &Pubkey) -> Vec<String> {
+        vec![
+            String::from("custody"),
+            bridge.to_string(),
+            mint.to_string(),
+        ]
+    }
+
+    /// Calculates derived seeds for a claim
+    pub fn derive_claim_seeds(bridge: &Pubkey, hash: &[u8; 32]) -> Vec<String> {
+        vec![
+            String::from("claim"),
+            bridge.to_string(),
+            bs58::encode(hash).into_string(),
+        ]
+    }
+
+    /// Calculates a derived address for this program
+    pub fn derive_bridge_id(program_id: &Pubkey) -> Result<Pubkey, Error> {
+        Self::derive_key(program_id, Self::derive_bridge_seeds(program_id))
+    }
+
+    /// Calculates a derived address for a custody account
+    pub fn derive_custody_id(
+        program_id: &Pubkey,
+        bridge: &Pubkey,
+        mint: &Pubkey,
+    ) -> Result<Pubkey, Error> {
+        Self::derive_key(program_id, Self::derive_custody_seeds(bridge, mint))
+    }
+
+    /// Calculates a derived address for a claim account
+    pub fn derive_claim_id(
+        program_id: &Pubkey,
+        bridge: &Pubkey,
+        hash: &[u8; 32],
+    ) -> Result<Pubkey, Error> {
+        Self::derive_key(program_id, Self::derive_claim_seeds(bridge, hash))
+    }
+
+    /// Calculates a derived address for this program
+    pub fn derive_guardian_set_id(
+        program_id: &Pubkey,
+        bridge_key: &Pubkey,
+        guardian_set_index: u32,
+    ) -> Result<Pubkey, Error> {
+        Self::derive_key(
+            program_id,
+            Self::derive_guardian_set_seeds(bridge_key, guardian_set_index),
+        )
+    }
+
+    /// Calculates a derived seeds for a wrapped asset
+    pub fn derive_wrapped_asset_id(
+        program_id: &Pubkey,
+        bridge_key: &Pubkey,
+        asset_chain: u8,
+        asset: ForeignAddress,
+    ) -> Result<Pubkey, Error> {
+        Self::derive_key(
+            program_id,
+            Self::derive_wrapped_asset_seeds(bridge_key, asset_chain, asset),
+        )
+    }
+
+    /// Calculates a derived address for a transfer out
+    pub fn derive_transfer_id(
+        program_id: &Pubkey,
+        bridge_key: &Pubkey,
+        asset_chain: u8,
+        asset: ForeignAddress,
+        target_chain: u8,
+        target_address: ForeignAddress,
+        user: ForeignAddress,
+        slot: u64,
+    ) -> Result<Pubkey, Error> {
+        Self::derive_key(
+            program_id,
+            Self::derive_transfer_id_seeds(
+                bridge_key,
+                asset_chain,
+                asset,
+                target_chain,
+                target_address,
+                user,
+                slot,
+            ),
+        )
+    }
+
+    fn derive_key(program_id: &Pubkey, seeds: Vec<String>) -> Result<Pubkey, Error> {
+        let s: Vec<_> = seeds.iter().map(|item| &item[..32]).collect();
+        Pubkey::create_program_address(s.as_slice(), program_id)
+            .or(Err(Error::InvalidProgramAddress))
     }
 }
 
@@ -775,7 +1084,8 @@ pub fn invoke_signed<'a>(
             if meta.pubkey == *account_info.key {
                 let mut new_account_info = account_info.clone();
                 for seeds in signers_seeds.iter() {
-                    let signer = Pubkey::create_program_address(seeds, &WORMHOLE_PROGRAM_ID).unwrap();
+                    let signer =
+                        Pubkey::create_program_address(seeds, &WORMHOLE_PROGRAM_ID).unwrap();
                     if *account_info.key == signer {
                         new_account_info.is_signer = true;
                     }
@@ -853,7 +1163,7 @@ mod tests {
                 &mut token_account,
             ],
         )
-            .unwrap();
+        .unwrap();
         let mut authority_account = Account::default();
         do_process_instruction(
             initialize_mint(
@@ -864,7 +1174,7 @@ mod tests {
                 amount,
                 2,
             )
-                .unwrap(),
+            .unwrap(),
             if amount == 0 {
                 vec![&mut token_account, &mut authority_account]
             } else {
@@ -875,7 +1185,7 @@ mod tests {
                 ]
             },
         )
-            .unwrap();
+        .unwrap();
 
         return ((token_key, token_account), (account_key, account_account));
     }

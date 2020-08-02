@@ -95,6 +95,7 @@ The required accounts depend on the `action` of the VAA:
 | 3     | claim     | ExecutedVAA |        | ✅        |   ✅    | ✅      |
 | 4     | token        | WrappedAsset |        |           | opt   | ✅      |
 | 5     | destination  | TokenAccount |        | ✅        | opt   |         |
+| 6     | sender  | Account |  ✅      | ✅        |    |         |
 
 ##### Transfer: Ethereum (wrapped) -> Solana (native)
 
@@ -105,8 +106,8 @@ The required accounts depend on the `action` of the VAA:
 | 2     | guardian_set | GuardianSet  |        |           |       |         |
 | 3     | claim     | ExecutedVAA |        | ✅        |   ✅    | ✅      |
 | 4     | token        | Mint         |        |           |       | ✅      |
+| 6     | destination  | TokenAccount |        | ✅        |    opt   |         |
 | 5     | custody_src  | TokenAccount |        | ✅        |       | ✅      |
-| 6     | destination  | TokenAccount |        | ✅        | opt   |         |
 
 ##### Transfer: Solana (any) -> Ethereum (any)
 
@@ -117,6 +118,7 @@ The required accounts depend on the `action` of the VAA:
 | 2     | guardian_set | GuardianSet         |        |           |       |         |
 | 3     | claim     | ExecutedVAA |        | ✅        |   ✅    | ✅      |
 | 4     | out_proposal | TransferOutProposal |        | ✅        |       | ✅      |
+| 5     | sender  | Account |  ✅      | ✅        |    |         |
 
 ## Accounts
 

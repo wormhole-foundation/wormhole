@@ -9,6 +9,7 @@ use solana_sdk::program_error::ProgramError;
 use crate::error::Error;
 use crate::error::Error::InvalidVAAFormat;
 use crate::instruction::unpack;
+use crate::state::AssetMeta;
 use crate::syscalls::{RawKey, SchnorrifyInput, sol_verify_schnorr};
 use crate::vaa::VAABody::UpdateGuardianSet;
 
@@ -159,11 +160,12 @@ pub struct BodyUpdateGuardianSet {
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct BodyTransfer {
+    pub ref_block: u64,
     pub source_chain: u8,
+    pub source_address: ForeignAddress,
     pub target_chain: u8,
     pub target_address: ForeignAddress,
-    pub token_chain: u8,
-    pub token_address: ForeignAddress,
+    pub asset: AssetMeta,
     pub amount: u64,
 }
 
@@ -196,7 +198,10 @@ impl BodyUpdateGuardianSet {
 
 impl BodyTransfer {
     fn deserialize(data: &mut Cursor<&Vec<u8>>) -> Result<BodyTransfer, Error> {
+        let ref_block = data.read_u64::<BigEndian>()?;
         let source_chain = data.read_u8()?;
+        let mut source_address: ForeignAddress = ForeignAddress::default();
+        data.read(&mut source_address)?;
         let target_chain = data.read_u8()?;
         let mut target_address: ForeignAddress = ForeignAddress::default();
         data.read(&mut target_address)?;
@@ -206,11 +211,15 @@ impl BodyTransfer {
         let amount = data.read_u64::<BigEndian>()?;
 
         Ok(BodyTransfer {
+            ref_block,
             source_chain,
+            source_address,
             target_chain,
             target_address,
-            token_chain,
-            token_address,
+            asset: AssetMeta {
+                address: target_address,
+                chain: token_chain,
+            },
             amount,
         })
     }
@@ -220,8 +229,8 @@ impl BodyTransfer {
         v.write_u8(self.source_chain)?;
         v.write_u8(self.target_chain)?;
         v.write(&self.target_address)?;
-        v.write_u8(self.token_chain)?;
-        v.write(&self.token_address)?;
+        v.write_u8(self.asset.chain)?;
+        v.write(&self.asset.address)?;
         v.write_u64::<BigEndian>(self.amount)?;
 
         Ok(v.into_inner())
@@ -235,6 +244,7 @@ mod tests {
     use hex;
 
     use crate::error::Error;
+    use crate::state::AssetMeta;
     use crate::syscalls::RawKey;
     use crate::vaa::{BodyTransfer, BodyUpdateGuardianSet, VAA, VAABody};
 
@@ -247,11 +257,15 @@ mod tests {
             signature_addr: [9; 20],
             timestamp: 83,
             payload: Some(VAABody::Transfer(BodyTransfer {
+                ref_block: 28,
                 source_chain: 1,
+                source_address: [9; 32],
                 target_chain: 2,
                 target_address: [1; 32],
-                token_chain: 3,
-                token_address: [8; 32],
+                asset: AssetMeta {
+                    address: [2; 32],
+                    chain: 8,
+                },
                 amount: 4,
             })),
         };

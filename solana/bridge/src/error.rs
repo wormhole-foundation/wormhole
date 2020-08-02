@@ -38,6 +38,9 @@ pub enum Error {
     /// The deserialization of the GuardianSet state returned something besides State::GuardianSet.
     #[error("ExpectedGuardianSet")]
     ExpectedGuardianSet,
+    /// The deserialization of the TransferOutProposal state returned something besides State::TransferOutProposal.
+    #[error("ExpectedTransferOutProposal")]
+    ExpectedTransferOutProposal,
     /// State is uninitialized.
     #[error("State is unititialized")]
     UninitializedState,
@@ -89,6 +92,12 @@ pub enum Error {
     /// The guardian set index must increase on update
     #[error("GuardianIndexNotIncreasing")]
     GuardianIndexNotIncreasing,
+    /// The given VAA does not match the proposal
+    #[error("VAAProposalMismatch")]
+    VAAProposalMismatch,
+    /// Invalid transfer with src=dst
+    #[error("SameChainTransfer")]
+    SameChainTransfer,
 }
 
 impl From<Error> for ProgramError {
@@ -136,6 +145,9 @@ impl PrintProgramError for Error {
             Error::WrongBridgeOwner => info!("Error: WrongBridgeOwner"),
             Error::OldGuardianSet => info!("Error: OldGuardianSet"),
             Error::GuardianIndexNotIncreasing => info!("Error: GuardianIndexNotIncreasing"),
+            Error::ExpectedTransferOutProposal => info!("Error: ExpectedTransferOutProposal"),
+            Error::VAAProposalMismatch => info!("Error: VAAProposalMismatch"),
+            Error::SameChainTransfer => info!("Error: SameChainTransfer"),
         }
     }
 }
