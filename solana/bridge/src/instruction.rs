@@ -15,18 +15,19 @@ use zerocopy::{AsBytes, FromBytes};
 use crate::error::Error;
 use crate::instruction::BridgeInstruction::Initialize;
 use crate::state::{AssetMeta, BridgeConfig};
+use crate::syscalls::RawKey;
 
 /// chain id of this chain
 pub const CHAIN_ID_SOLANA: u8 = 1;
 
 /// size of a VAA in bytes
-const VAA_SIZE: usize = 32;
+const VAA_SIZE: usize = 100;
 
 /// size of a foreign address in bytes
 const FOREIGN_ADDRESS_SIZE: usize = 32;
 
 /// validator payment approval
-pub type VAA = [u8; VAA_SIZE];
+pub type VAA_BODY = [u8; VAA_SIZE];
 /// X and Y point of P for guardians
 pub type GuardianKey = [u8; 64];
 /// address on a foreign chain
@@ -36,7 +37,7 @@ pub type ForeignAddress = [u8; FOREIGN_ADDRESS_SIZE];
 #[derive(Clone, Copy)]
 pub struct InitializePayload {
     /// guardians that are allowed to sign mints
-    pub initial_guardian: GuardianKey,
+    pub initial_guardian: RawKey,
     /// config for the bridge
     pub config: BridgeConfig,
 }
@@ -64,7 +65,7 @@ pub enum BridgeInstruction {
     TransferOut(TransferOutPayload),
 
     /// Submits a VAA signed by `guardian` on a valid `proposal`.
-    PostVAA(VAA),
+    PostVAA(VAA_BODY),
 
     /// Deletes a `proposal` after the `VAA_EXPIRATION_TIME` is over to free up space on chain.
     /// This returns the rent to the sender.
@@ -111,7 +112,7 @@ impl BridgeInstruction {
             Self::PostVAA(payload) => {
                 output[0] = 2;
                 #[allow(clippy::cast_ptr_alignment)]
-                    let value = unsafe { &mut *(&mut output[size_of::<u8>()] as *mut u8 as *mut VAA) };
+                    let value = unsafe { &mut *(&mut output[size_of::<u8>()] as *mut u8 as *mut VAA_BODY) };
                 *value = payload;
             }
             Self::EvictTransferOut() => {
@@ -133,7 +134,7 @@ pub fn initialize(
     program_id: &Pubkey,
     sender: &Pubkey,
     bridge: &Pubkey,
-    initial_guardian: GuardianKey,
+    initial_guardian: RawKey,
     config: &BridgeConfig,
 ) -> Result<Instruction, ProgramError> {
     let data = BridgeInstruction::Initialize(InitializePayload {

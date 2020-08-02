@@ -1,9 +1,12 @@
 //! Bridge transition types
 
+use std::io::Write;
 use std::mem::size_of;
+use std::slice::Iter;
 use std::str;
 
 use num_traits::AsPrimitive;
+use sha3::Digest;
 use solana_sdk::{
     account_info::AccountInfo, account_info::next_account_info, entrypoint::ProgramResult, info,
     program_error::ProgramError, pubkey::bs58, pubkey::Pubkey,
@@ -24,9 +27,10 @@ use crate::{
     error::Error,
     instruction::unpack,
 };
-use crate::instruction::{BridgeInstruction, CHAIN_ID_SOLANA, ForeignAddress, GuardianKey, TransferOutPayload, VAA};
+use crate::instruction::{BridgeInstruction, CHAIN_ID_SOLANA, ForeignAddress, GuardianKey, TransferOutPayload, VAA_BODY};
 use crate::instruction::BridgeInstruction::*;
-use crate::syscalls::{SchnorrifyInput, sol_verify_schnorr};
+use crate::syscalls::{RawKey, SchnorrifyInput, sol_verify_schnorr};
+use crate::vaa::{BodyTransfer, BodyUpdateGuardianSet, VAA, VAABody};
 
 /// fee rate as a ratio
 #[repr(C)]
@@ -45,7 +49,7 @@ pub struct GuardianSet {
     /// index of the set
     pub index: u32,
     /// public key of the threshold schnorr set
-    pub pubkey: GuardianKey,
+    pub pubkey: RawKey,
     /// creation time
     pub creation_time: u32,
     /// expiration time when VAAs issued by this set are no longer valid
@@ -74,7 +78,7 @@ pub struct TransferOutProposal {
     /// asset that is being transferred
     pub asset: AssetMeta,
     /// vaa to unlock the tokens on the foreign chain
-    pub vaa: VAA,
+    pub vaa: VAA_BODY,
     /// time the vaa was submitted
     pub vaa_time: u32,
 
@@ -170,6 +174,18 @@ impl Bridge {
                     Self::process_transfer_out(program_id, accounts, &p)
                 }
             }
+            PostVAA(vaa_body) => {
+                info!("Instruction: PostVAA");
+                let len = vaa_body[0] as usize;
+                let vaa_data = &vaa_body[..len];
+                let vaa = VAA::deserialize(vaa_data)?;
+
+                let mut k = sha3::Keccak256::default();
+                if let Err(_) = k.write(vaa_data) { return Err(Error::ParseFailed.into()); };
+                let hash = k.finalize();
+
+                Self::process_vaa(program_id, accounts, &vaa, hash.as_ref())
+            }
             _ => {
                 panic!("")
             }
@@ -180,7 +196,7 @@ impl Bridge {
     pub fn process_initialize(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        initial_guardian_key: GuardianKey,
+        initial_guardian_key: RawKey,
         config: BridgeConfig,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
@@ -349,10 +365,14 @@ impl Bridge {
         }
 
         // Create the account if it does not exist
-        if custody_info.data_len() == 0 {
-            Bridge::create_account(accounts, sender_info.key, &custody_addr,
-                                   size_of::<spl_token::state::Mint>(), program_id)?;
-        } else if custody_info.owner != program_id {
+        if custody_info.data_is_empty() {
+            Bridge::create_token_account(accounts, &bridge.config.token_program, &custody_addr, mint_info.key, &custody_addr,
+                                         &["custody", bridge_info.key.to_string().as_str(), mint_info.key.to_string().as_str()])?;
+        }
+
+        // Check that the custody token account is owned by the derived key
+        let custody = Self::token_account_deserialize(custody_info)?;
+        if custody.owner != custody_addr {
             return Err(Error::WrongTokenAccountOwner.into());
         }
 
@@ -371,6 +391,141 @@ impl Bridge {
             chain: CHAIN_ID_SOLANA,
             address: mint_info.key.to_bytes(),
         };
+
+        Ok(())
+    }
+
+    /// Processes a VAA
+    pub fn process_vaa(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        v: &VAA,
+        hash: &[u8; 32],
+    ) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter();
+        let bridge_info = next_account_info(account_info_iter)?;
+        let clock_info = next_account_info(account_info_iter)?;
+        let guardian_set_info = next_account_info(account_info_iter)?;
+        let claim_info = next_account_info(account_info_iter)?;
+
+        let mut bridge = Bridge::bridge_deserialize(bridge_info)?;
+        let clock = Clock::from_account_info(clock_info)?;
+        let mut guardian_set = Bridge::guardian_set_deserialize(guardian_set_info)?;
+
+        // Check that the guardian set is valid
+        let expected_guardian_set = Bridge::derive_guardian_set_id(program_id, bridge_info.key, v.guardian_set_index)?;
+        if expected_guardian_set != *guardian_set_info.key {
+            return Err(Error::InvalidDerivedAccount.into());
+        }
+
+        // Check that the claim is valid
+        let expected_claim = Bridge::derive_claim(program_id, bridge_info.key, hash)?;
+        if expected_claim != *claim_info.key {
+            return Err(Error::InvalidDerivedAccount.into());
+        }
+
+        // Check that the guardian set is still active
+        if (guardian_set.expiration_time as i64) < clock.unix_timestamp {
+            return Err(Error::GuardianSetExpired.into());
+        }
+
+        // Check that the VAA is still valid
+        if (guardian_set.expiration_time as i64) + (bridge.config.vaa_expiration_time as i64) < clock.unix_timestamp {
+            return Err(Error::VAAExpired.into());
+        }
+
+        // Verify VAA signature
+        if !v.verify(&guardian_set.pubkey) {
+            return Err(Error::InvalidVAASignature.into());
+        }
+
+        let payload = v.payload.ok_or(Error::InvalidVAAAction)?;
+        match payload {
+            VAABody::UpdateGuardianSet(v) => {
+                Self::process_vaa_set_update(program_id, account_info_iter, &clock, bridge_info, &mut bridge, &mut guardian_set, &v)
+            }
+            VAABody::Transfer(v) => {
+                Self::process_vaa_transfer(program_id, account_info_iter, &v)
+            }
+        }?;
+
+        // Load proposal account
+        let mut claim_data = claim_info.data.borrow_mut();
+        let claim: &mut ClaimedVAA =
+            Bridge::unpack_unchecked(&mut claim_data)?;
+        if claim.is_initialized {
+            return Err(Error::VAAClaimed.into());
+        }
+
+        // Set claimed
+        claim.is_initialized = true;
+        claim.vaa_time = clock.unix_timestamp as u32;
+
+        Ok(())
+    }
+
+    /// Processes a Guardian set update
+    pub fn process_vaa_set_update(
+        program_id: &Pubkey,
+        account_info_iter: &mut Iter<AccountInfo>,
+        clock: &Clock,
+        bridge_info: &AccountInfo,
+        bridge: &mut Bridge,
+        old_guardian_set: &mut GuardianSet,
+        b: &BodyUpdateGuardianSet,
+    ) -> ProgramResult {
+        let guardian_set_new_info = next_account_info(account_info_iter)?;
+
+        // TODO this could deadlock the bridge if an update is performed with an invalid key
+        // The new guardian set must be signed by the current one
+        if bridge.guardian_set_index != old_guardian_set.index {
+            return Err(Error::OldGuardianSet.into());
+        }
+
+        // The new guardian set must have an index > current
+        if bridge.guardian_set_index >= b.new_index {
+            return Err(Error::GuardianIndexNotIncreasing.into());
+        }
+
+        // Set the exirity on the old guardian set
+        // The guardian set will expire once all currently issues vaas have expired
+        old_guardian_set.expiration_time = (clock.unix_timestamp as u32) + bridge.config.vaa_expiration_time;
+
+        // Check whether the new guardian set was derived correctly
+        let expected_guardian_set = Bridge::derive_guardian_set_id(program_id, bridge_info.key, b.new_index)?;
+        if expected_guardian_set != *guardian_set_new_info.key {
+            return Err(Error::InvalidDerivedAccount.into());
+        }
+
+        let mut guardian_set_new_data = guardian_set_new_info.data.borrow_mut();
+        let guardian_set_new: &mut GuardianSet =
+            Bridge::unpack_unchecked(&mut guardian_set_new_data)?;
+
+        if guardian_set_new.is_initialized {
+            return Err(Error::AlreadyExists.into());
+        }
+
+        // Set values on the new guardian set
+        guardian_set_new.is_initialized = true;
+        guardian_set_new.index = b.new_index;
+        guardian_set_new.pubkey = b.new_key;
+        guardian_set_new.creation_time = clock.unix_timestamp as u32;
+
+        // Update the bridge guardian set id
+        bridge.guardian_set_index = b.new_index;
+
+        Ok(())
+    }
+
+    /// Processes a Guardian set update
+    pub fn process_vaa_transfer(
+        program_id: &Pubkey,
+        account_info_iter: &mut Iter<AccountInfo>,
+        b: &BodyTransfer,
+    ) -> ProgramResult {
+        let guardian_set_new_info = next_account_info(account_info_iter)?;
+        let claim = next_account_info(account_info_iter)?;
+        let guardian_set_info = next_account_info(account_info_iter)?;
 
         Ok(())
     }
@@ -403,6 +558,15 @@ impl Bridge {
                 .map_err(|_| Error::ExpectedBridge)?,
         )
     }
+
+    /// Deserializes a `GuardianSet`.
+    pub fn guardian_set_deserialize(info: &AccountInfo) -> Result<GuardianSet, Error> {
+        Ok(
+            *Bridge::unpack(&mut info.data.borrow_mut())
+                .map_err(|_| Error::ExpectedGuardianSet)?,
+        )
+    }
+
     /// Unpacks a token state from a bytes buffer while assuring that the state is initialized.
     pub fn unpack<T: IsInitialized>(input: &mut [u8]) -> Result<&mut T, ProgramError> {
         let mut_ref: &mut T = Self::unpack_unchecked(input)?;
@@ -435,6 +599,13 @@ impl Bridge {
         Pubkey::create_program_address(&["custody", bridge.to_string().as_str(), mint.to_string().as_str()], program_id)
             .or(Err(Error::InvalidProgramAddress))
     }
+
+    /// Calculates a derived address for a claim account
+    pub fn derive_claim(program_id: &Pubkey, bridge: &Pubkey, hash: &[u8; 32]) -> Result<Pubkey, Error> {
+        Pubkey::create_program_address(&["claim", bridge.to_string().as_str(), bs58::encode(hash).into_string().as_str()], program_id)
+            .or(Err(Error::InvalidProgramAddress))
+    }
+
 
     /// Calculates a derived address for this program
     pub fn derive_guardian_set_id(program_id: &Pubkey, bridge_key: &Pubkey, guardian_set_index: u32) -> Result<Pubkey, Error> {
@@ -545,7 +716,7 @@ impl Bridge {
     }
 
     /// Issue a spl_token `Transfer` instruction.
-    pub fn token_transfer(
+    pub fn token_transfer_custody(
         accounts: &[AccountInfo],
         token_program_id: &Pubkey,
         bridge: &Pubkey,
@@ -567,29 +738,17 @@ impl Bridge {
     }
 
     /// Create a new account
-    pub fn create_account(
-        accounts: &[AccountInfo],
-        payer_account: &Pubkey,
-        new_address: &Pubkey,
-        size: usize,
-        owner: &Pubkey,
-    ) -> Result<(), ProgramError> {
-        let ix = create_account(payer_account, new_address,
-                                Rent::default().minimum_balance(size), size.as_(), owner);
-        invoke_signed(&ix, accounts, &[])
-    }
-
-    /// Create a new account
     pub fn create_token_account(
         accounts: &[AccountInfo],
         token_program: &Pubkey,
         account: &Pubkey,
         mint: &Pubkey,
         owner: &Pubkey,
+        new_seed: &[&str],
     ) -> Result<(), ProgramError> {
         let ix = spl_token::instruction::initialize_account(token_program,
                                                             account, mint, owner)?;
-        invoke_signed(&ix, accounts, &[])
+        invoke_signed(&ix, accounts, &[new_seed])
     }
 }
 

@@ -3,76 +3,111 @@ use std::io::{Cursor, Read, Write};
 use std::mem::size_of;
 
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
+use sha3::Digest;
 use solana_sdk::program_error::ProgramError;
 
 use crate::error::Error;
 use crate::error::Error::InvalidVAAFormat;
 use crate::instruction::unpack;
-use crate::vaa::VAABody::{Undefined, UpdateGuardianSet};
+use crate::syscalls::{RawKey, SchnorrifyInput, sol_verify_schnorr};
+use crate::vaa::VAABody::UpdateGuardianSet;
 
 pub type ForeignAddress = [u8; 32];
 
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct VAA {
     // Header part
-    version: u8,
-    guardian_set_index: u32,
-    signature: [u8; 52],
+    pub version: u8,
+    pub guardian_set_index: u32,
+    pub signature_sig: [u8; 32],
+    pub signature_addr: [u8; 20],
 
     // Body part
-    timestamp: u32,
-    payload: VAABody,
+    pub timestamp: u32,
+    pub payload: Option<VAABody>,
 }
 
 impl VAA {
-    fn new() -> VAA {
+    pub fn new() -> VAA {
         return VAA {
             version: 0,
             guardian_set_index: 0,
-            signature: [0; 52],
+            signature_sig: [0; 32],
+            signature_addr: [0; 20],
             timestamp: 0,
-            payload: Undefined(),
+            payload: None,
         };
     }
 
-    fn serialize(&self) -> Vec<u8> {
-        let mut v = Cursor::new(Vec::new());
+    pub fn verify(&self, guardian_key: &RawKey) -> bool {
+        let body = match self.signature_body() {
+            Ok(v) => { v }
+            Err(_) => { return false; }
+        };
 
-        v.write_u8(self.version);
-        v.write_u32::<BigEndian>(self.guardian_set_index);
-        v.write(self.signature.as_ref());
-        v.write_u32::<BigEndian>(self.timestamp);
-        v.write_u8(self.payload.action_id());
+        let mut h = sha3::Keccak256::default();
+        if let Err(_) = h.write(body.as_slice()) { return false; };
+        let hash = h.finalize().into();
 
-        let payload_data = self.payload.serialize();
-        v.write_u8(payload_data.len() as u8);
-        v.write(payload_data.as_slice());
-
-        v.into_inner()
+        let schnorr_input = SchnorrifyInput::new(*guardian_key, hash,
+                                                 self.signature_sig, self.signature_addr);
+        sol_verify_schnorr(&schnorr_input)
     }
 
-    fn deserialize(data: &Vec<u8>) -> Result<VAA, std::io::Error> {
-        let mut rdr = Cursor::new(data.as_slice());
+    pub fn serialize(&self) -> Result<Vec<u8>, Error> {
+        let mut v = Cursor::new(Vec::new());
+
+        v.write_u8(self.version)?;
+        v.write_u32::<BigEndian>(self.guardian_set_index)?;
+        v.write(self.signature_sig.as_ref())?;
+        v.write(self.signature_addr.as_ref())?;
+        v.write_u32::<BigEndian>(self.timestamp)?;
+
+        let payload = self.payload.as_ref().ok_or(Error::InvalidVAAAction)?;
+        v.write_u8(payload.action_id())?;
+
+        let payload_data = payload.serialize()?;
+        v.write(payload_data.as_slice())?;
+
+        Ok(v.into_inner())
+    }
+
+    pub fn signature_body(&self) -> Result<Vec<u8>, Error> {
+        let mut v = Cursor::new(Vec::new());
+
+        v.write_u32::<BigEndian>(self.timestamp)?;
+
+        let payload = self.payload.as_ref().ok_or(Error::InvalidVAAAction)?;
+        v.write_u8(payload.action_id())?;
+
+        let payload_data = payload.serialize()?;
+        v.write_u8(payload_data.len() as u8)?;
+        v.write(payload_data.as_slice())?;
+
+        Ok(v.into_inner())
+    }
+
+    pub fn deserialize(data: &[u8]) -> Result<VAA, Error> {
+        let mut rdr = Cursor::new(data);
         let mut v = VAA::new();
 
         v.version = rdr.read_u8()?;
         v.guardian_set_index = rdr.read_u32::<BigEndian>()?;
-
-        let mut sig: [u8; 52] = [0; 52];
-        rdr.read_exact(&mut sig)?;
-        v.signature = sig;
+        rdr.read_exact(&mut v.signature_sig)?;
+        rdr.read_exact(&mut v.signature_addr)?;
 
         v.timestamp = rdr.read_u32::<BigEndian>()?;
 
         let mut payload_d = Vec::new();
-        rdr.read(&mut payload_d)?;
-        v.payload = VAABody::deserialize(&payload_d)?;
+        rdr.read_to_end(&mut payload_d)?;
+        v.payload = Some(VAABody::deserialize(&payload_d)?);
 
         Ok(v)
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum VAABody {
-    Undefined(),
     UpdateGuardianSet(BodyUpdateGuardianSet),
     Transfer(BodyTransfer),
 }
@@ -80,39 +115,31 @@ pub enum VAABody {
 impl VAABody {
     fn action_id(&self) -> u8 {
         match self {
-            VAABody::Undefined() => { panic!("undefined action") }
             VAABody::UpdateGuardianSet(_) => 0x01,
             VAABody::Transfer(_) => 0x10,
         }
     }
 
-    fn deserialize(data: &Vec<u8>) -> Result<VAABody, std::io::Error> {
+    fn deserialize(data: &Vec<u8>) -> Result<VAABody, Error> {
         let mut payload_data = Cursor::new(data);
         let action = payload_data.read_u8()?;
 
         let payload = match action {
             0x01 => {
-                let guardian_set_index = payload_data.read_u32::<BigEndian>()?;
-                let mut key: [u8; 32] = [0; 32];
-                payload_data.read(&mut key)?;
-
-                UpdateGuardianSet(BodyUpdateGuardianSet {
-                    new_index: guardian_set_index,
-                    new_key: key,
-                })
+                VAABody::UpdateGuardianSet(BodyUpdateGuardianSet::deserialize(&mut payload_data)?)
             }
             0x10 => {
                 VAABody::Transfer(BodyTransfer::deserialize(&mut payload_data)?)
             }
             _ => {
-                Undefined()
+                return Err(Error::InvalidVAAAction);
             }
         };
 
         Ok(payload)
     }
 
-    fn serialize(&self) -> Vec<u8> {
+    fn serialize(&self) -> Result<Vec<u8>, Error> {
         match self {
             VAABody::Transfer(b) => {
                 b.serialize()
@@ -120,52 +147,55 @@ impl VAABody {
             VAABody::UpdateGuardianSet(b) => {
                 b.serialize()
             }
-            VAABody::Undefined() => {
-                panic!("undefined action")
-            }
         }
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct BodyUpdateGuardianSet {
-    new_index: u32,
-    new_key: [u8; 32],
+    pub new_index: u32,
+    pub new_key: RawKey,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct BodyTransfer {
-    source_chain: u8,
-    target_chain: u8,
-    target_address: ForeignAddress,
-    token_chain: u8,
-    token_address: ForeignAddress,
-    amount: u64,
+    pub source_chain: u8,
+    pub target_chain: u8,
+    pub target_address: ForeignAddress,
+    pub token_chain: u8,
+    pub token_address: ForeignAddress,
+    pub amount: u64,
 }
 
 impl BodyUpdateGuardianSet {
-    fn deserialize(data: &mut Cursor<&Vec<u8>>) -> Result<BodyUpdateGuardianSet, std::io::Error> {
+    fn deserialize(data: &mut Cursor<&Vec<u8>>) -> Result<BodyUpdateGuardianSet, Error> {
         let new_index = data.read_u32::<BigEndian>()?;
-        let mut new_key: [u8; 32] = [0; 32];
-        data.read(&mut new_key)?;
+        let mut new_key_x: [u8; 32] = [0; 32];
+        data.read(&mut new_key_x)?;
+        let mut new_key_y: [u8; 32] = [0; 32];
+        data.read(&mut new_key_y)?;
 
         Ok(BodyUpdateGuardianSet {
             new_index,
-            new_key,
+            new_key: RawKey {
+                x: new_key_x,
+                y: new_key_y,
+            },
         })
     }
 
-    fn serialize(&self) -> Vec<u8> {
+    fn serialize(&self) -> Result<Vec<u8>, Error> {
         let mut v: Cursor<Vec<u8>> = Cursor::new(Vec::new());
-        v.write_u32::<BigEndian>(self.new_index);
-        v.write(&self.new_key);
+        v.write_u32::<BigEndian>(self.new_index)?;
+        v.write(&self.new_key.x)?;
+        v.write(&self.new_key.y)?;
 
-        v.into_inner()
+        Ok(v.into_inner())
     }
 }
 
 impl BodyTransfer {
-    fn deserialize(data: &mut Cursor<&Vec<u8>>) -> Result<BodyTransfer, std::io::Error> {
+    fn deserialize(data: &mut Cursor<&Vec<u8>>) -> Result<BodyTransfer, Error> {
         let source_chain = data.read_u8()?;
         let target_chain = data.read_u8()?;
         let mut target_address: ForeignAddress = ForeignAddress::default();
@@ -185,15 +215,71 @@ impl BodyTransfer {
         })
     }
 
-    fn serialize(&self) -> Vec<u8> {
+    fn serialize(&self) -> Result<Vec<u8>, Error> {
         let mut v: Cursor<Vec<u8>> = Cursor::new(Vec::new());
-        v.write_u8(self.source_chain);
-        v.write_u8(self.target_chain);
-        v.write(&self.target_address);
-        v.write_u8(self.token_chain);
-        v.write(&self.token_address);
-        v.write_u64::<BigEndian>(self.amount);
+        v.write_u8(self.source_chain)?;
+        v.write_u8(self.target_chain)?;
+        v.write(&self.target_address)?;
+        v.write_u8(self.token_chain)?;
+        v.write(&self.token_address)?;
+        v.write_u64::<BigEndian>(self.amount)?;
 
-        v.into_inner()
+        Ok(v.into_inner())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::io::Write;
+
+    use hex;
+
+    use crate::error::Error;
+    use crate::syscalls::RawKey;
+    use crate::vaa::{BodyTransfer, BodyUpdateGuardianSet, VAA, VAABody};
+
+    #[test]
+    fn serialize_deserialize_vaa_transfer() {
+        let vaa = VAA {
+            version: 8,
+            guardian_set_index: 3,
+            signature_sig: [7; 32],
+            signature_addr: [9; 20],
+            timestamp: 83,
+            payload: Some(VAABody::Transfer(BodyTransfer {
+                source_chain: 1,
+                target_chain: 2,
+                target_address: [1; 32],
+                token_chain: 3,
+                token_address: [8; 32],
+                amount: 4,
+            })),
+        };
+
+        let data = vaa.serialize().unwrap();
+        let parsed_vaa = VAA::deserialize(data.as_slice()).unwrap();
+        assert_eq!(vaa, parsed_vaa)
+    }
+
+    #[test]
+    fn serialize_deserialize_vaa_guardian() {
+        let vaa = VAA {
+            version: 8,
+            guardian_set_index: 3,
+            signature_sig: [7; 32],
+            signature_addr: [9; 20],
+            timestamp: 83,
+            payload: Some(VAABody::UpdateGuardianSet(BodyUpdateGuardianSet {
+                new_index: 29,
+                new_key: RawKey {
+                    x: [2; 32],
+                    y: [3; 32],
+                },
+            })),
+        };
+
+        let data = vaa.serialize().unwrap();
+        let parsed_vaa = VAA::deserialize(data.as_slice()).unwrap();
+        assert_eq!(vaa, parsed_vaa)
     }
 }

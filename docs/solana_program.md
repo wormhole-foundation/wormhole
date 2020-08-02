@@ -81,8 +81,9 @@ The required accounts depend on the `action` of the VAA:
 | ----- | ------------ | ------------------- | ------ | --------- | ----- | ------- |
 | 0     | bridge       | BridgeConfig        |        | ✅        |       |         |
 | 1     | clock | Sysvar |        |           | ️   | ✅     |
-| 2     | guardian_set | GuardianSet         |        |   ✅       | ✅    | ✅      |
+| 2     | guardian_set_old | GuardianSet         |        |   ✅       |     | ✅      |
 | 3     | claim     | ExecutedVAA |        | ✅        |   ✅    | ✅      |
+| 4     | guardian_set | GuardianSet         |        |   ✅       | ✅    | ✅      |
 
 ##### Transfer: Ethereum (native) -> Solana (wrapped)
 
@@ -105,7 +106,7 @@ The required accounts depend on the `action` of the VAA:
 | 3     | claim     | ExecutedVAA |        | ✅        |   ✅    | ✅      |
 | 4     | token        | Mint         |        |           |       | ✅      |
 | 5     | custody_src  | TokenAccount |        | ✅        |       | ✅      |
-| 6      | destination  | TokenAccount |        | ✅        | opt   |         |
+| 6     | destination  | TokenAccount |        | ✅        | opt   |         |
 
 ##### Transfer: Solana (any) -> Ethereum (any)
 
