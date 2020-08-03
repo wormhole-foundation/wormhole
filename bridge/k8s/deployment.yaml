@@ -23,7 +23,11 @@ spec:
     matchLabels:
       app: guardian
   serviceName: guardian
-  replicas: 20
+  replicas: 10
+  updateStrategy:
+    # The StatefulSet rolling update strategy is rather dumb, and updates one pod after another.
+    # If we want blue-green deployments, we should use a Deployment instead.
+    type: RollingUpdate
   template:
     metadata:
       labels:
@@ -33,6 +37,12 @@ spec:
       containers:
         - name: guardiand
           image: guardiand-image
+          command:
+            - /guardiand
+            - -nodeKey
+            - /data/node.key
+            - -bootstrap
+            - /dns4/guardian-0.guardian/udp/8999/quic/p2p/12D3KooWQ1sV2kowPY1iJX1hJcVTysZjKv3sfULTGwhdpUGGZ1VF
           ports:
             - containerPort: 8999
               name: p2p
