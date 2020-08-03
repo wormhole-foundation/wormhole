@@ -1,0 +1,9 @@
+docker_build(
+    ref = "guardiand-image",
+    context = ".",
+    dockerfile = "Dockerfile",
+)
+
+k8s_yaml("k8s/deployment.yaml")
+
+k8s_resource("guardian")

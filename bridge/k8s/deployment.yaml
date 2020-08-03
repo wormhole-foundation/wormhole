@@ -1,0 +1,50 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: guardian
+  labels:
+    app: guardian
+spec:
+  ports:
+    - port: 8999
+      name: p2p
+      protocol: UDP
+  clusterIP: None
+  selector:
+    app: guardian
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: guardian
+spec:
+  selector:
+    matchLabels:
+      app: guardian
+  serviceName: guardian
+  replicas: 20
+  template:
+    metadata:
+      labels:
+        app: guardian
+    spec:
+      terminationGracePeriodSeconds: 1
+      containers:
+        - name: guardiand
+          image: guardiand-image
+          ports:
+            - containerPort: 8999
+              name: p2p
+              protocol: UDP
+          volumeMounts:
+            - name: guardian-data
+              mountPath: /data
+  volumeClaimTemplates:
+    - metadata:
+        name: guardian-data
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: 1Gi
