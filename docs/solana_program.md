@@ -10,8 +10,10 @@ Initializes a new Bridge at `bridge`.
 
 | Index | Name   | Type         | signer | writeable | empty | derived |
 | ----- | ------ | ------------ | ------ | --------- | ----- | ------- |
-| 0     | owner  | Account      | ✅️    |           |       |         |
 | 0     | bridge | BridgeConfig |        |           | ✅️   | ✅️     |
+| 1     | clock | Sysvar |        |           | ️   | ✅     |
+| 2     | guardian_set | GuardianSet         |        |   ✅       | ✅    | ✅      |
+| 3     | sender | Account         |    ✅     |          |     |       |
 
 #### TransferOut
 
@@ -24,9 +26,10 @@ Parameters:
 | Index | Name     | Type                | signer | writeable | empty | derived |
 | ----- | -------- | ------------------- | ------ | --------- | ----- | ------- |
 | 0     | sender   | TokenAccount        |        | ✅        |       |         |
-| 1     | bridge   | BridgeConfig        |        |           |       |         |
-| 2     | proposal | TransferOutProposal |        | ✅        | ✅    | ✅      |
-| 3     | token    | WrappedAsset        |        | ✅        |       | ✅      |
+| 1     | clock | Sysvar |        |           | ️   | ✅     |
+| 2     | bridge   | BridgeConfig        |        |           |       |         |
+| 3     | proposal | TransferOutProposal |        | ✅        | ✅    | ✅      |
+| 4     | token    | WrappedAsset        |        | ✅        |       | ✅      |
 
 #### TransferOutNative
 
@@ -41,7 +44,8 @@ The transfer proposal will be tracked at a new account `proposal` where a VAA wi
 | 1     | bridge          | BridgeConfig        |        |           |       |         |
 | 2     | proposal        | TransferOutProposal |        | ✅        | ✅    | ✅      |
 | 3     | token           | Mint                |        | ✅        |       |         |
-| 4     | custody_account | Mint                |        | ✅        | opt   | ✅      |
+| 4     | custody_account | TokenAccount                |        | ✅        | opt   | ✅      |
+| 5-n     | sender_owner          | Account        |   ✅     |         |       |         |
 
 #### EvictTransferOut
 
@@ -50,8 +54,10 @@ Deletes a `proposal` after the `VAA_EXPIRATION_TIME` to free up space on chain. 
 | Index | Name     | Type                | signer | writeable | empty | derived |
 | ----- | -------- | ------------------- | ------ | --------- | ----- | ------- |
 | 0     | guardian | Account             | ✅     |           |       |         |
-| 1     | bridge   | BridgeConfig        |        |           |       |         |
-| 2     | proposal | TransferOutProposal |        | ✅        |       | ✅      |
+| 1     | clock | Sysvar |        |           | ️   | ✅     |
+| 2     | bridge   | BridgeConfig        |        |           |       |         |
+| 3     | proposal | TransferOutProposal |        | ✅        |       | ✅      |
+| 4-n     | sender_owner          | Account        |   ✅     |         |       |         |
 
 #### EvictExecutedVAA
 
@@ -60,8 +66,9 @@ Deletes a `ExecutedVAA` after the `VAA_EXPIRATION_TIME` to free up space on chai
 | Index | Name     | Type                | signer | writeable | empty | derived |
 | ----- | -------- | ------------------- | ------ | --------- | ----- | ------- |
 | 0     | guardian | Account             | ✅     |           |       |         |
-| 1     | bridge   | BridgeConfig        |        |           |       |         |
-| 2     | proposal | ExecutedVAA |        | ✅        |       | ✅      |
+| 1     | clock | Sysvar |        |           | ️   | ✅     |
+| 2     | bridge   | BridgeConfig        |        |           |       |         |
+| 3     | proposal | ExecutedVAA |        | ✅        |       | ✅      |
 
 #### PostVAA
 
@@ -74,38 +81,45 @@ The required accounts depend on the `action` of the VAA:
 | Index | Name         | Type                | signer | writeable | empty | derived |
 | ----- | ------------ | ------------------- | ------ | --------- | ----- | ------- |
 | 0     | bridge       | BridgeConfig        |        | ✅        |       |         |
-| 1     | guardian_set | GuardianSet         |        |   ✅       | ✅    | ✅      |
-| 2     | claim     | ExecutedVAA |        | ✅        |   ✅    | ✅      |
+| 1     | clock | Sysvar |        |           | ️   | ✅     |
+| 2     | guardian_set_old | GuardianSet         |        |   ✅       |     | ✅      |
+| 3     | claim     | ExecutedVAA |        | ✅        |   ✅    | ✅      |
+| 4     | guardian_set | GuardianSet         |        |   ✅       | ✅    | ✅      |
 
 ##### Transfer: Ethereum (native) -> Solana (wrapped)
 
 | Index | Name         | Type         | signer | writeable | empty | derived |
 | ----- | ------------ | ------------ | ------ | --------- | ----- | ------- |
 | 0     | bridge       | BridgeConfig |        |           |       |         |
-| 1     | guardian_set | GuardianSet  |        |           |       |         |
-| 2     | claim     | ExecutedVAA |        | ✅        |   ✅    | ✅      |
-| 3     | token        | WrappedAsset |        |           | opt   | ✅      |
-| 4     | destination  | TokenAccount |        | ✅        | opt   |         |
+| 1     | clock | Sysvar |        |           | ️   | ✅     |
+| 2     | guardian_set | GuardianSet  |        |           |       |         |
+| 3     | claim     | ExecutedVAA |        | ✅        |   ✅    | ✅      |
+| 4     | token        | WrappedAsset |        |           | opt   | ✅      |
+| 5     | destination  | TokenAccount |        | ✅        | opt   |         |
+| 6     | sender  | Account |  ✅      |         |    |         |
 
 ##### Transfer: Ethereum (wrapped) -> Solana (native)
 
 | Index | Name         | Type         | signer | writeable | empty | derived |
 | ----- | ------------ | ------------ | ------ | --------- | ----- | ------- |
 | 0     | bridge       | BridgeConfig |        |           |       |         |
-| 1     | guardian_set | GuardianSet  |        |           |       |         |
-| 2     | claim     | ExecutedVAA |        | ✅        |   ✅    | ✅      |
-| 3     | token        | Mint         |        |           |       | ✅      |
-| 4     | custody_src  | TokenAccount |        | ✅        |       | ✅      |
-| 5     | destination  | TokenAccount |        | ✅        | opt   |         |
+| 1     | clock | Sysvar |        |           | ️   | ✅     |
+| 2     | guardian_set | GuardianSet  |        |           |       |         |
+| 3     | claim     | ExecutedVAA |        | ✅        |   ✅    | ✅      |
+| 4     | token        | Mint         |        |           |       | ✅      |
+| 6     | destination  | TokenAccount |        | ✅        |    opt   |         |
+| 5     | custody_src  | TokenAccount |        | ✅        |       | ✅      |
 
 ##### Transfer: Solana (any) -> Ethereum (any)
 
 | Index | Name         | Type                | signer | writeable | empty | derived |
 | ----- | ------------ | ------------------- | ------ | --------- | ----- | ------- |
 | 0     | bridge       | BridgeConfig        |        |           |       |         |
-| 1     | guardian_set | GuardianSet         |        |           |       |         |
-| 2     | claim     | ExecutedVAA |        | ✅        |   ✅    | ✅      |
-| 3     | out_proposal | TransferOutProposal |        | ✅        |       | ✅      |
+| 1     | clock | Sysvar |        |           | ️   | ✅     |
+| 2     | guardian_set | GuardianSet         |        |           |       |         |
+| 3     | claim     | ExecutedVAA |        | ✅        |   ✅    | ✅      |
+| 4     | out_proposal | TransferOutProposal |        | ✅        |       | ✅      |
+| 5     | sender  | Account |  ✅      |         |    |         |
 
 ## Accounts
 

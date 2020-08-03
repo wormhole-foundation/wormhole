@@ -3,3 +3,5 @@ node_modules
 .idea
 .arcconfig
 *.iml
+target
+bin
