@@ -1,35 +1,43 @@
 // contracts/Wormhole.sol
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: Apache 2
 
 pragma solidity ^0.6.0;
 pragma experimental ABIEncoderV2;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
-import "@openzeppelin/contracts/utils/EnumerableSet.sol";
+import "./BytesLib.sol";
+import "./SchnorrSECP256K1.sol";
+import "./WrappedAsset.sol";
 
 contract Wormhole {
     using SafeERC20 for IERC20;
-    using EnumerableSet for EnumerableSet.AddressSet;
+    using BytesLib for bytes;
 
-    address constant WETHAddress = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+    // Bytecode of WrappedAsset.sol
+    bytes wrappedAssetBytecode = hex"60806040523480156200001157600080fd5b506040518060400160405280601681526020017f576f726d686f6c652057726170706564204173736574000000000000000000008152506040518060400160405280600681526020017f5741535345540000000000000000000000000000000000000000000000000000815250816003908051906020019062000096929190620000d4565b508060049080519060200190620000af929190620000d4565b506012600560006101000a81548160ff021916908360ff16021790555050506200017a565b828054600181600116156101000203166002900490600052602060002090601f016020900481019282601f106200011757805160ff191683800117855562000148565b8280016001018555821562000148579182015b82811115620001475782518255916020019190600101906200012a565b5b5090506200015791906200015b565b5090565b5b80821115620001765760008160009055506001016200015c565b5090565b6119dc806200018a6000396000f3fe608060405234801561001057600080fd5b50600436106101165760003560e01c806339509351116100a25780639dc29fac116100715780639dc29fac146104ec578063a457c2d71461053a578063a9059cbb1461059e578063dd62ed3e14610602578063e78cea921461067a57610116565b8063395093511461035f57806340c10f19146103c357806370a082311461041157806395d89b411461046957610116565b8063158ef93e116100e9578063158ef93e1461025e57806318160ddd1461027e5780631ba46cfd1461029c57806323b872dd146102ba578063313ce5671461033e57610116565b8063026b05391461011b57806302a095851461013c57806306fdde0314610177578063095ea7b3146101fa575b600080fd5b6101236106ae565b604051808260ff16815260200191505060405180910390f35b6101756004803603604081101561015257600080fd5b81019080803560ff169060200190929190803590602001909291905050506106c1565b005b61017f6107c6565b6040518080602001828103825283818151815260200191508051906020019080838360005b838110156101bf5780820151818401526020810190506101a4565b50505050905090810190601f1680156101ec5780820380516001836020036101000a031916815260200191505b509250505060405180910390f35b6102466004803603604081101561021057600080fd5b81019080803573ffffffffffffffffffffffffffffffffffffffff16906020019092919080359060200190929190505050610868565b60405180821515815260200191505060405180910390f35b610266610886565b60405180821515815260200191505060405180910390f35b610286610899565b6040518082815260200191505060405180910390f35b6102a46108a3565b6040518082815260200191505060405180910390f35b610326600480360360608110156102d057600080fd5b81019080803573ffffffffffffffffffffffffffffffffffffffff169060200190929190803573ffffffffffffffffffffffffffffffffffffffff169060200190929190803590602001909291905050506108a9565b60405180821515815260200191505060405180910390f35b610346610982565b604051808260ff16815260200191505060405180910390f35b6103ab6004803603604081101561037557600080fd5b81019080803573ffffffffffffffffffffffffffffffffffffffff16906020019092919080359060200190929190505050610999565b60405180821515815260200191505060405180910390f35b61040f600480360360408110156103d957600080fd5b81019080803573ffffffffffffffffffffffffffffffffffffffff16906020019092919080359060200190929190505050610a4c565b005b6104536004803603602081101561042757600080fd5b81019080803573ffffffffffffffffffffffffffffffffffffffff169060200190929190505050610b00565b6040518082815260200191505060405180910390f35b610471610b48565b6040518080602001828103825283818151815260200191508051906020019080838360005b838110156104b1578082015181840152602081019050610496565b50505050905090810190601f1680156104de5780820380516001836020036101000a031916815260200191505b509250505060405180910390f35b6105386004803603604081101561050257600080fd5b81019080803573ffffffffffffffffffffffffffffffffffffffff16906020019092919080359060200190929190505050610bea565b005b6105866004803603604081101561055057600080fd5b81019080803573ffffffffffffffffffffffffffffffffffffffff16906020019092919080359060200190929190505050610c9e565b60405180821515815260200191505060405180910390f35b6105ea600480360360408110156105b457600080fd5b81019080803573ffffffffffffffffffffffffffffffffffffffff16906020019092919080359060200190929190505050610d6b565b60405180821515815260200191505060405180910390f35b6106646004803603604081101561061857600080fd5b81019080803573ffffffffffffffffffffffffffffffffffffffff169060200190929190803573ffffffffffffffffffffffffffffffffffffffff169060200190929190505050610d89565b6040518082815260200191505060405180910390f35b610682610e10565b604051808273ffffffffffffffffffffffffffffffffffffffff16815260200191505060405180910390f35b600560019054906101000a900460ff1681565b600760009054906101000a900460ff1615610744576040517f08c379a00000000000000000000000000000000000000000000000000000000081526004018080602001828103825260138152602001807f616c726561647920696e697469616c697a65640000000000000000000000000081525060200191505060405180910390fd5b81600560016101000a81548160ff021916908360ff1602179055508060068190555033600760016101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff1602179055506001600760006101000a81548160ff0219169083151502179055505050565b606060038054600181600116156101000203166002900480601f01602080910402602001604051908101604052809291908181526020018280546001816001161561010002031660029004801561085e5780601f106108335761010080835404028352916020019161085e565b820191906000526020600020905b81548152906001019060200180831161084157829003601f168201915b5050505050905090565b600061087c610875610e36565b8484610e3e565b6001905092915050565b600760009054906101000a900460ff1681565b6000600254905090565b60065481565b60006108b6848484611035565b610977846108c2610e36565b610972856040518060600160405280602881526020016118a660289139600160008b73ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020019081526020016000206000610928610e36565b73ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020546112f69092919063ffffffff16565b610e3e565b600190509392505050565b6000600560009054906101000a900460ff16905090565b6000610a426109a6610e36565b84610a3d85600160006109b7610e36565b73ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002060008973ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020546113b690919063ffffffff16565b610e3e565b6001905092915050565b600760019054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff1614610af2576040517f08c379a000000000000000000000000000000000000000000000000000000000815260040180806020018281038252602581526020018061195d6025913960400191505060405180910390fd5b610afc828261143e565b5050565b60008060008373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020549050919050565b606060048054600181600116156101000203166002900480601f016020809104026020016040519081016040528092919081815260200182805460018160011615610100020316600290048015610be05780601f10610bb557610100808354040283529160200191610be0565b820191906000526020600020905b815481529060010190602001808311610bc357829003601f168201915b5050505050905090565b600760019054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff1614610c90576040517f08c379a00000000000000000000000000000000000000000000000000000000081526004018080602001828103825260258152602001806119146025913960400191505060405180910390fd5b610c9a8282611605565b5050565b6000610d61610cab610e36565b84610d5c856040518060600160405280602581526020016119826025913960016000610cd5610e36565b73ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002060008a73ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020546112f69092919063ffffffff16565b610e3e565b6001905092915050565b6000610d7f610d78610e36565b8484611035565b6001905092915050565b6000600160008473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002060008373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002054905092915050565b600760019054906101000a900473ffffffffffffffffffffffffffffffffffffffff1681565b600033905090565b600073ffffffffffffffffffffffffffffffffffffffff168373ffffffffffffffffffffffffffffffffffffffff161415610ec4576040517f08c379a00000000000000000000000000000000000000000000000000000000081526004018080602001828103825260248152602001806119396024913960400191505060405180910390fd5b600073ffffffffffffffffffffffffffffffffffffffff168273ffffffffffffffffffffffffffffffffffffffff161415610f4a576040517f08c379a000000000000000000000000000000000000000000000000000000000815260040180806020018281038252602281526020018061185e6022913960400191505060405180910390fd5b80600160008573ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002060008473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020819055508173ffffffffffffffffffffffffffffffffffffffff168373ffffffffffffffffffffffffffffffffffffffff167f8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925836040518082815260200191505060405180910390a3505050565b600073ffffffffffffffffffffffffffffffffffffffff168373ffffffffffffffffffffffffffffffffffffffff1614156110bb576040517f08c379a00000000000000000000000000000000000000000000000000000000081526004018080602001828103825260258152602001806118ef6025913960400191505060405180910390fd5b600073ffffffffffffffffffffffffffffffffffffffff168273ffffffffffffffffffffffffffffffffffffffff161415611141576040517f08c379a00000000000000000000000000000000000000000000000000000000081526004018080602001828103825260238152602001806118196023913960400191505060405180910390fd5b61114c8383836117c9565b6111b781604051806060016040528060268152602001611880602691396000808773ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020546112f69092919063ffffffff16565b6000808573ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020019081526020016000208190555061124a816000808573ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020546113b690919063ffffffff16565b6000808473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020819055508173ffffffffffffffffffffffffffffffffffffffff168373ffffffffffffffffffffffffffffffffffffffff167fddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef836040518082815260200191505060405180910390a3505050565b60008383111582906113a3576040517f08c379a00000000000000000000000000000000000000000000000000000000081526004018080602001828103825283818151815260200191508051906020019080838360005b8381101561136857808201518184015260208101905061134d565b50505050905090810190601f1680156113955780820380516001836020036101000a031916815260200191505b509250505060405180910390fd5b5060008385039050809150509392505050565b600080828401905083811015611434576040517f08c379a000000000000000000000000000000000000000000000000000000000815260040180806020018281038252601b8152602001807f536166654d6174683a206164646974696f6e206f766572666c6f77000000000081525060200191505060405180910390fd5b8091505092915050565b600073ffffffffffffffffffffffffffffffffffffffff168273ffffffffffffffffffffffffffffffffffffffff1614156114e1576040517f08c379a000000000000000000000000000000000000000000000000000000000815260040180806020018281038252601f8152602001807f45524332303a206d696e7420746f20746865207a65726f20616464726573730081525060200191505060405180910390fd5b6114ed600083836117c9565b611502816002546113b690919063ffffffff16565b600281905550611559816000808573ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020546113b690919063ffffffff16565b6000808473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020819055508173ffffffffffffffffffffffffffffffffffffffff16600073ffffffffffffffffffffffffffffffffffffffff167fddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef836040518082815260200191505060405180910390a35050565b600073ffffffffffffffffffffffffffffffffffffffff168273ffffffffffffffffffffffffffffffffffffffff16141561168b576040517f08c379a00000000000000000000000000000000000000000000000000000000081526004018080602001828103825260218152602001806118ce6021913960400191505060405180910390fd5b611697826000836117c9565b6117028160405180606001604052806022815260200161183c602291396000808673ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020546112f69092919063ffffffff16565b6000808473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002081905550611759816002546117ce90919063ffffffff16565b600281905550600073ffffffffffffffffffffffffffffffffffffffff168273ffffffffffffffffffffffffffffffffffffffff167fddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef836040518082815260200191505060405180910390a35050565b505050565b600061181083836040518060400160405280601e81526020017f536166654d6174683a207375627472616374696f6e206f766572666c6f7700008152506112f6565b90509291505056fe45524332303a207472616e7366657220746f20746865207a65726f206164647265737345524332303a206275726e20616d6f756e7420657863656564732062616c616e636545524332303a20617070726f766520746f20746865207a65726f206164647265737345524332303a207472616e7366657220616d6f756e7420657863656564732062616c616e636545524332303a207472616e7366657220616d6f756e74206578636565647320616c6c6f77616e636545524332303a206275726e2066726f6d20746865207a65726f206164647265737345524332303a207472616e736665722066726f6d20746865207a65726f20616464726573736275726e2063616e206f6e6c792062652063616c6c6564206279207468652062726964676545524332303a20617070726f76652066726f6d20746865207a65726f20616464726573736d696e742063616e206f6e6c792062652063616c6c6564206279207468652062726964676545524332303a2064656372656173656420616c6c6f77616e63652062656c6f77207a65726fa264697066735822122024d7fa397b82db2c4f45301b536d8ce45895487d1c641dbb38adc32e4bb6e5e364736f6c634300060c0033";
 
+    // Chain ID of Ethereum
     uint256 CHAIN_ID = 2;
 
-    struct Signature {
-        uint8 v;
-        bytes32 r;
-        bytes32 s;
+    // Address of the official WETH contract
+    address constant WETHAddress = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+
+    struct GuardianSet {
+        uint256 x;
+        uint8 parity;
+        uint32 expiration_time;
     }
 
-    event LogGuardianKeyChanged(
-        address indexed oldGuardian,
-        address indexed newGuardian
+    event LogGuardianSetChanged(
+        GuardianSet indexed oldGuardian,
+        GuardianSet indexed newGuardian
     );
 
     event LogTokensLocked(
         address indexed token,
         bytes32 indexed recipient,
+        uint8 indexed target_chain,
         uint256 amount
     );
 
@@ -40,119 +48,174 @@ contract Wormhole {
         uint256 amount
     );
 
-    EnumerableSet.AddressSet private guardians;
-    mapping(address => address) pendingGuardianTransfers;
+    // Mapping of guardian_set_index => guardian set
+    mapping(uint32 => GuardianSet)  private guardian_sets;
+    // Current active guardian set
+    uint32 public guardian_set_index;
 
-    // Mappings guardian <=> authorized signer
-    mapping(address => address) guardianToAuthorizedSigner;
-    mapping(address => address) authorizedSignerToGuardian;
+    // Period for which an vaa is valid in seconds
+    uint32 public vaa_expirity;
 
-    // Mapping of already completed transactions
-    mapping(bytes32 => bool) completedTransactions;
+    // Mapping of already consumedVAAs
+    mapping(bytes32 => bool) consumedVAAs;
 
-    constructor(address[] memory _guardians) public {
-        require(_guardians.length > 0, "no guardians specified");
+    // Mapping of wrapped asset ERC20 contracts
+    mapping(bytes32 => address) wrappedAssets;
+    mapping(address => bool) isWrappedAsset;
 
-        for (uint i = 0; i < _guardians.length; i++) {
-            guardians.add(_guardians[i]);
-        }
+    constructor(GuardianSet memory initial_guardian_set) public {
+        guardian_sets[0] = initial_guardian_set;
+        // Explicitly set for doc purposes
+        guardian_set_index = 0;
     }
 
-    function changeAuthorizedSigner(address newSigner) public {
-        require(guardians.contains(msg.sender), "sender is not a guardian");
-        require(authorizedSignerToGuardian[msg.sender] == address(0), "new signer is already a signer");
-
-        // Unset old mapping
-        address oldAuthorizedSigner = guardianToAuthorizedSigner[msg.sender];
-        authorizedSignerToGuardian[oldAuthorizedSigner] = address(0);
-
-        // Add new mapping
-        authorizedSignerToGuardian[newSigner] = msg.sender;
-        guardianToAuthorizedSigner[msg.sender] = newSigner;
-    }
-
-    function unlockERC20(
-        address asset,
-        uint256 amount,
-        uint256 height,
-        bytes32 sender,
-        address recipient,
-        Signature[] calldata signatures
+    function submitVAA(
+        bytes calldata vaa
     ) public {
-        require(recipient != address(0), "assets should not be burned");
+        uint8 version = vaa.toUint8(0);
+        require(version == 1, "VAA version incompatible");
 
-        // unlock data structure
-        // asset  32bytes
-        // height uint256
-        // amount uint256
-        // target_chain 32bytes
-        // sender 32bytes
-        // recipient 32bytes
-        bytes32 hash = keccak256(
-            abi.encodePacked(
-                bytes32(uint256(asset)),
-                amount,
-                height,
-                bytes32(CHAIN_ID),
-                sender,
-                bytes32(uint256(recipient))
-            )
-        );
-        require(!completedTransactions[hash], "transfer was already executed");
+        // Load 4 bytes starting from index 1
+        uint32 vaa_guardian_set_index = vaa.toUint32(1);
 
-        uint nSignatures = 0;
-        address[] memory alreadySigned = new address[](signatures.length);
-        for (uint256 i = 0; i < signatures.length; i++) {
-            address signer = ecrecover(
-                hash,
-                signatures[i].v,
-                signatures[i].r,
-                signatures[i].s
-            );
+        uint256 signature = vaa.toUint256(2);
+        address sig_address = vaa.toAddress(34);
 
-            address guardian = authorizedSignerToGuardian[signer];
-            require(
-                guardians.contains(authorizedSignerToGuardian[signer]),
-                "signature of non-guardian included"
-            );
+        // Load 4 bytes starting from index 77
+        uint32 timestamp = vaa.toUint32(77);
 
-            for (uint j = 0; j < alreadySigned.length; j++) {
-                require(guardian != alreadySigned[j], "multiple signatures of the same guardian included");
+        // Verify that the VAA is still valid
+        require(timestamp + vaa_expirity < block.timestamp, "VAA has expired");
+
+        // Hash the body
+        bytes32 hash = keccak256(vaa.slice(77, vaa.length - 77));
+        require(!consumedVAAs[hash], "VAA was already executed");
+
+        GuardianSet memory guardian_set = guardian_sets[vaa_guardian_set_index];
+        require(guardian_set.expiration_time == 0 || guardian_set.expiration_time > block.timestamp, "guardian set has expired");
+        require(
+            Schnorr.verifySignature(
+                guardian_set.x,
+                guardian_set.parity,
+                signature,
+                uint256(hash),
+                sig_address
+            ),
+            "VAA signataure invalid");
+
+        uint8 action = vaa.toUint8(81);
+        uint8 payload_len = vaa.toUint8(82);
+        bytes memory payload = vaa.slice(83, payload_len);
+
+        // Process VAA
+        if (action == 0x01) {
+            vaaUpdateGuardianSet(payload);
+        } else if (action == 0x10) {
+            vaaTransfer(payload);
+        } else {
+            revert("invalid VAA action");
+        }
+
+        // Set the VAA as consumed
+        consumedVAAs[hash] = true;
+    }
+
+    function vaaUpdateGuardianSet(bytes memory data) private {
+        uint256 new_key_x = data.toUint256(0);
+        uint256 new_key_y = data.toUint256(32);
+        uint32 new_guardian_set_index = data.toUint32(64);
+
+        require(new_guardian_set_index > guardian_set_index, "index of new guardian set must be > current");
+        require(new_key_x < Schnorr.HALF_Q, "invalid key for fast Schnorr verification");
+
+        uint32 old_guardian_set_index = guardian_set_index;
+        guardian_set_index = new_guardian_set_index;
+
+        GuardianSet memory new_guardian_set = GuardianSet(new_key_x, uint8(new_key_y % 2), 0);
+        guardian_sets[guardian_set_index] = new_guardian_set;
+        guardian_sets[old_guardian_set_index].expiration_time = uint32(block.timestamp) + vaa_expirity;
+
+        emit LogGuardianSetChanged(guardian_sets[old_guardian_set_index], new_guardian_set);
+    }
+
+    function vaaTransfer(bytes memory data) private {
+        //uint64 nonce = data.toUint64(0);
+        uint8 source_chain = data.toUint8(8);
+
+        uint8 target_chain = data.toUint8(9);
+        //bytes32 target_address = data.toBytes32(10);
+        address target_address = data.toAddress(10 + 12);
+
+        uint8 token_chain = data.toUint8(42);
+        //bytes32 token_address = data.toBytes32(43);
+        uint256 amount = data.toUint8(75);
+
+        require(source_chain != target_chain, "same chain transfers are not supported");
+        require(target_chain == CHAIN_ID, "transfer must be incoming");
+
+        if (token_chain != CHAIN_ID) {
+            bytes32 token_address = data.toBytes32(43);
+            bytes32 asset_id = keccak256(abi.encodePacked(token_chain, token_address));
+
+            // if yes: mint to address
+            // if no: create and mint
+            address wrapped_asset = wrappedAssets[asset_id];
+            if (wrapped_asset == address(0)) {
+                wrapped_asset = deployWrappedAsset(asset_id, token_chain, token_address);
             }
 
-            alreadySigned[i] = guardian;
-            nSignatures++;
+            WrappedAsset(wrapped_asset).mint(target_address, amount);
+        } else {
+            address token_address = data.toAddress(43 + 12);
+
+            IERC20(token_address).safeTransfer(target_address, amount);
+        }
+        // Safely transfer tokens out
+    }
+
+    function deployWrappedAsset(bytes32 seed, uint8 token_chain, bytes32 token_address) private returns (address){
+        bytes memory bytecode = wrappedAssetBytecode;
+        address addr;
+
+        assembly {
+            addr := create2(0, add(bytecode, 0x20), mload(bytecode), seed)
         }
 
-        // Check whether the threshold was met
-        require(
-            nSignatures > 5,
-            "not enough valid signatures attached to unlock funds"
-        );
+        // Initialize asset
+        WrappedAsset(addr).initialize(token_chain, token_address);
+        // Store address
+        wrappedAssets[seed] = addr;
+        isWrappedAsset[addr] = true;
 
-        // Safely transfer tokens out
-        IERC20(asset).safeTransfer(recipient, amount);
-
-        // Set the transfer as completed
-        completedTransactions[hash] = true;
-
-        emit LogTokensUnlocked(asset, sender, recipient, amount);
+        return addr;
     }
 
     function lockAssets(
         address asset,
         uint256 amount,
-        bytes32 recipient
+        bytes32 recipient,
+        uint8 target_chain,
+        bool wrapped_allowance
     ) public {
         require(amount != 0, "amount must not be 0");
 
-        // TODO handle tokens that subtract fees
-        IERC20(asset).safeTransferFrom(msg.sender, address(this), amount);
-        emit LogTokensLocked(asset, recipient, amount);
+        if (isWrappedAsset[asset]) {
+            if (wrapped_allowance) {
+                // First transfer to cover the case where the user has given an allowance
+                IERC20(asset).safeTransferFrom(msg.sender, address(this), amount);
+                WrappedAsset(asset).burn(address(this), amount);
+            } else {
+                WrappedAsset(asset).burn(msg.sender, amount);
+            }
+        } else {
+            IERC20(asset).safeTransferFrom(msg.sender, address(this), amount);
+        }
+        emit LogTokensLocked(asset, recipient, target_chain, amount);
     }
 
     function lockETH(
-        bytes32 recipient
+        bytes32 recipient,
+        uint8 target_chain
     ) public payable {
         require(msg.value != 0, "amount must not be 0");
 
@@ -160,17 +223,17 @@ contract Wormhole {
         WETH(WETHAddress).deposit{value : msg.value}();
 
         // Log deposit of WETH
-        emit LogTokensLocked(WETHAddress, recipient, msg.value);
+        emit LogTokensLocked(WETHAddress, recipient, target_chain, msg.value);
     }
 
 
-    fallback() external payable {revert("please use lockETH to transfer ETH to Solana");}
-    receive() external payable {revert("please use lockETH to transfer ETH to Solana");}
+fallback() external payable {revert("please use lockETH to transfer ETH to Solana");}
+receive() external payable {revert("please use lockETH to transfer ETH to Solana");}
 }
 
 
 interface WETH is IERC20 {
-    function deposit() external payable;
+function deposit() external payable;
 
-    function withdraw(uint256 amount) external;
+function withdraw(uint256 amount) external;
 }
