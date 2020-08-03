@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "description": "",
   "main": "networks.js",
-  "dependencies": {},
   "devDependencies": {
     "@openzeppelin/cli": "^2.8.2",
     "@openzeppelin/contracts": "^3.1.0"
