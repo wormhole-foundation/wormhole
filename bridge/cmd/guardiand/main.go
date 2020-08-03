@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"strings"
 	"time"
@@ -31,6 +33,7 @@ var (
 	p2pNetworkID = flag.String("network", "/wormhole/dev", "P2P network identifier")
 	p2pPort      = flag.Uint("port", 8999, "P2P UDP listener port")
 	p2pBootstrap = flag.String("bootstrap", "", "P2P bootstrap peers (comma-separated)")
+	nodeKeyPath  = flag.String("nodeKey", "", "Path to node key (will be generated if it doesn't exist)")
 	logLevel     = flag.String("loglevel", "info", "Logging level (debug, info, warn, error, dpanic, panic, fatal)")
 )
 
@@ -45,14 +48,26 @@ func main() {
 		os.Exit(1)
 	}
 
+	// FIXME: add hostname to root logger for cleaner console output in multi-node development.
+	// The proper way is to change the output format to include the hostname.
+	hostname, err := os.Hostname()
+	if err != nil {
+		panic(err)
+	}
+
 	// Our root logger.
-	logger := ipfslog.Logger("wormhole")
+	logger := ipfslog.Logger(fmt.Sprintf("%s-%s", "wormhole", hostname))
 
 	// Override the default go-log config, which uses a magic environment variable.
 	ipfslog.SetAllLoggers(lvl)
 
 	// Mute chatty subsystems.
 	ipfslog.SetLogLevel("swarm2", "error") // connection errors
+
+	// Verify flags
+	if *nodeKeyPath == "" {
+		logger.Fatal("Please specify -nodeKey")
+	}
 
 	// Node's main lifecycle context.
 	ctx, cancel := context.WithCancel(context.Background())
@@ -73,14 +88,84 @@ func main() {
 	select {}
 }
 
+func getOrCreateNodeKey(logger *zap.Logger, path string) (crypto.PrivKey, error) {
+	b, err := ioutil.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			logger.Info("No node key found, generating a new one...", zap.String("path", path))
+
+			// TODO(leo): what does -1 mean?
+			priv, _, err := crypto.GenerateKeyPair(crypto.Ed25519, -1)
+			if err != nil {
+				panic(err)
+			}
+
+			s, err := crypto.MarshalPrivateKey(priv)
+			if err != nil {
+				panic(err)
+			}
+
+			err = ioutil.WriteFile(path, s, 0600)
+			if err != nil {
+				return nil, fmt.Errorf("failed to write node key: %w", err)
+			}
+
+			return priv, nil
+		} else {
+			return nil, fmt.Errorf("failed to read node key: %w", err)
+		}
+	}
+
+	priv, err := crypto.UnmarshalPrivateKey(b)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal node key: %w", err)
+	}
+
+	logger.Info("Found existing node key", zap.String("path", path))
+
+	return priv, nil
+}
+
+// FIXME: this hardcodes the private key if we're guardian-0.
+// Proper fix is to add a debug mode and fetch the remote peer ID,
+// or add a special bootstrap pod.
+func bootstrapNodePrivateKeyHack() crypto.PrivKey {
+	hostname, err := os.Hostname()
+	if err != nil {
+		panic(err)
+	}
+
+	if hostname == "guardian-0" {
+		// node ID: 12D3KooWQ1sV2kowPY1iJX1hJcVTysZjKv3sfULTGwhdpUGGZ1VF
+		b, err := base64.StdEncoding.DecodeString("CAESQGlv6OJOMXrZZVTCC0cgCv7goXr6QaSVMZIndOIXKNh80vYnG+EutVlZK20Nx9cLkUG5ymKB\n88LXi/vPBwP8zfY=")
+		if err != nil {
+			panic(err)
+		}
+
+		priv, err := crypto.UnmarshalPrivateKey(b)
+		if err != nil {
+			panic(err)
+		}
+
+		return priv
+	}
+
+	return nil
+}
+
 func p2p(ctx context.Context) error {
 	logger := supervisor.Logger(ctx)
 
-	// TODO(leo): persist the key
-	priv, _, err := crypto.GenerateKeyPair(crypto.Ed25519, -1)
+	priv := bootstrapNodePrivateKeyHack()
 
-	if err != nil {
-		panic(err)
+	var err error
+	if priv == nil {
+		priv, err = getOrCreateNodeKey(logger, *nodeKeyPath)
+		if err != nil {
+			panic(err)
+		}
+	} else {
+		logger.Info("HACK: loaded hardcoded guardian-0 node key")
 	}
 
 	var idht *dht.IpfsDHT
@@ -158,6 +243,9 @@ func p2p(ctx context.Context) error {
 			logger.Error("Failed to connect to bootstrap peer", zap.String("peer", addr), zap.Error(err))
 		}
 	}
+
+	// TODO(leo): crash if we couldn't connect to any bootstrap peers?
+	// (i.e. can we get stuck here if the other nodes have yet to come up?)
 
 	topic := fmt.Sprintf("%s/%s", *p2pNetworkID, "broadcast")
 
