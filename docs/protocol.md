@@ -136,7 +136,7 @@ They are structured as follows:
 Header:
 uint8               version (0x01)
 uint32              guardian set index
-[72]uint8           signature(body)
+[52]uint8           signature(body)
 
 body:
 uint32              unix seconds
