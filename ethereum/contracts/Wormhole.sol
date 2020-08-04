@@ -85,6 +85,7 @@ contract Wormhole {
         uint32 timestamp = vaa.toUint32(77);
 
         // Verify that the VAA is still valid
+        // TODO: the clock on Solana can't be trusted
         require(timestamp + vaa_expiry < block.timestamp, "VAA has expired");
 
         // Hash the body
