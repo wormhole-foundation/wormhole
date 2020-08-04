@@ -1,0 +1,2 @@
+The Distributed Schnorr Signature Go implementation and the corresponding Solidity smart contract
+have been imported from https://hub.docker.com/r/smartcontract/chainlink (which is based ob EPFL DEDIS/kyber).
