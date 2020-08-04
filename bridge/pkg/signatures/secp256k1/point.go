@@ -148,8 +148,8 @@ func (P *Secp256k1Point) Data() ([]byte, error) {
 // Add sets P to a+b (secp256k1 group operation) and returns it.
 func (P *Secp256k1Point) Add(a, b kyber.Point) kyber.Point {
 	X, Y := s256.Add(
-		a.(*Secp256k1Point).X.int(), a.(*Secp256k1Point).Y.int(),
-		b.(*Secp256k1Point).X.int(), b.(*Secp256k1Point).Y.int())
+		a.(*Secp256k1Point).X.Int(), a.(*Secp256k1Point).Y.Int(),
+		b.(*Secp256k1Point).X.Int(), b.(*Secp256k1Point).Y.Int())
 	P.X.SetInt(X)
 	P.Y.SetInt(Y)
 	return P
@@ -158,9 +158,9 @@ func (P *Secp256k1Point) Add(a, b kyber.Point) kyber.Point {
 // Add sets P to a-b (secp256k1 group operation), and returns it.
 func (P *Secp256k1Point) Sub(a, b kyber.Point) kyber.Point {
 	X, Y := s256.Add(
-		a.(*Secp256k1Point).X.int(), a.(*Secp256k1Point).Y.int(),
-		b.(*Secp256k1Point).X.int(),
-		newFieldZero().Neg(b.(*Secp256k1Point).Y).int()) // -b_y
+		a.(*Secp256k1Point).X.Int(), a.(*Secp256k1Point).Y.Int(),
+		b.(*Secp256k1Point).X.Int(),
+		newFieldZero().Neg(b.(*Secp256k1Point).Y).Int()) // -b_y
 	P.X.SetInt(X)
 	P.Y.SetInt(Y)
 	return P
@@ -185,8 +185,8 @@ func (P *Secp256k1Point) Mul(s kyber.Scalar, a kyber.Point) kyber.Point {
 	if a == (*Secp256k1Point)(nil) || a == nil {
 		X, Y = s256.ScalarBaseMult(sBytes)
 	} else {
-		X, Y = s256.ScalarMult(a.(*Secp256k1Point).X.int(),
-			a.(*Secp256k1Point).Y.int(), sBytes)
+		X, Y = s256.ScalarMult(a.(*Secp256k1Point).X.Int(),
+			a.(*Secp256k1Point).Y.Int(), sBytes)
 	}
 	P.X.SetInt(X)
 	P.Y.SetInt(Y)
@@ -309,7 +309,7 @@ func IsSecp256k1Point(p kyber.Point) bool {
 
 // Coordinates returns the coordinates of p
 func Coordinates(p kyber.Point) (*big.Int, *big.Int) {
-	return p.(*Secp256k1Point).X.int(), p.(*Secp256k1Point).Y.int()
+	return p.(*Secp256k1Point).X.Int(), p.(*Secp256k1Point).Y.Int()
 }
 
 // ValidPublicKey returns true iff p can be used in the optimized on-chain
@@ -322,6 +322,13 @@ func ValidPublicKey(p kyber.Point) bool {
 	if !ok {
 		return false
 	}
+
+	// Verify that X < HALF_Q so it can be used for optimized on-chain verification
+	if P.X.Int().Cmp(halfQ) == 1 {
+		return false
+	}
+
+	// Verify that the pub key is a valid curve point
 	maybeY := maybeSqrtInField(rightHandSide(P.X))
 	return maybeY != nil && (P.Y.Equal(maybeY) || P.Y.Equal(maybeY.Neg(maybeY)))
 }

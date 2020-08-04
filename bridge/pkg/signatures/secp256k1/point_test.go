@@ -64,7 +64,7 @@ func TestPoint_Embed(t *testing.T) {
 		_, err := rand.Read(data)
 		require.Nil(t, err)
 		p.Embed(data, randomStreamPoint)
-		require.True(t, s256.IsOnCurve(p.X.int(), p.Y.int()),
+		require.True(t, s256.IsOnCurve(p.X.Int(), p.Y.Int()),
 			"should embed to a secp256k1 point")
 		output, err := p.Data()
 		require.NoError(t, err)

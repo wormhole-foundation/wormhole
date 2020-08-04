@@ -74,7 +74,7 @@ func TestField_SmokeTestPick(t *testing.T) {
 	f := newFieldZero()
 	f.Pick(randomStream)
 	observedFieldElt(t, f)
-	assert.True(t, f.int().Cmp(big.NewInt(1000000000)) == 1,
+	assert.True(t, f.Int().Cmp(big.NewInt(1000000000)) == 1,
 		"should be greater than 1000000000, with very high probability")
 }
 
@@ -132,9 +132,9 @@ func TestField_MaybeSquareRootInField(t *testing.T) {
 	for i := 0; i < numFieldSamples; i++ {
 		f.Pick(randomStream)
 		observedFieldElt(t, f)
-		require.True(t, f.int().Cmp(q) == -1, "picked larger value than q: %s", f)
-		require.True(t, f.int().Cmp(big.NewInt(-1)) != -1,
-			"backing int must be non-negative")
+		require.True(t, f.Int().Cmp(q) == -1, "picked larger value than q: %s", f)
+		require.True(t, f.Int().Cmp(big.NewInt(-1)) != -1,
+			"backing Int must be non-negative")
 		s := fieldSquare(f)
 		g := maybeSqrtInField(s)
 		require.NotEqual(t, g, (*fieldElt)(nil))
@@ -142,11 +142,11 @@ func TestField_MaybeSquareRootInField(t *testing.T) {
 		require.True(t, f.Equal(g) || f.Equal(ng), "squaring something and "+
 			"taking the square root should give ± the original: failed with %s", f)
 		bigIntSqrt := newFieldZero() // Cross-check against big.ModSqrt
-		rv := bigIntSqrt.int().ModSqrt(s.int(), q)
+		rv := bigIntSqrt.Int().ModSqrt(s.Int(), q)
 		require.NotNil(t, rv)
 		require.True(t, bigIntSqrt.Equal(g) || bigIntSqrt.Equal(ng))
 		nonSquare := newFieldZero().Neg(s)
-		rv = bigIntSqrt.int().ModSqrt(nonSquare.int(), q)
+		rv = bigIntSqrt.Int().ModSqrt(nonSquare.Int(), q)
 		require.Nil(t, rv, "ModSqrt indicates nonSquare is square")
 		require.Nil(t, maybeSqrtInField(nonSquare), "the negative of square "+
 			"should not be a square")
