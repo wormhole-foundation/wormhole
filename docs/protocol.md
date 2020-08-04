@@ -1,7 +1,7 @@
 # Wormhole Protocol
 
 The Wormhole protocol is a way of transferring assets between a **root chain** and multiple **foreign chains**.
-Therefor it makes use of decentralized oracles called **guardians** to relay transfer information about token transfers
+It makes use of decentralized oracles called **guardians** to relay transfer information about token transfers
 between the chains.
 
 ## The role of guardians
@@ -118,10 +118,8 @@ For transfers we implement a Schnorr-Threshold signature schema based on the imp
 We'll create a portable "action blob" with a threshold signature to allow anyone to relay action approvals
 between chains. We call this structure: **VAA** (Verifiable Action Approval).
 
-A validator action approval leads to information symmetry i.e. if the validators have submitted a VAA to a token lockup
-on Solana, this VAA can be used to unlock the tokens on the specified foreign chain, it also proves to the Solana chain
-that the lockup is not refundable as it can provably be claimed (as long as safety guarantees are not broken and except
-for the case of a guardian set change which is discussed later).
+A validator action approval guarantees eventual consistency across chains - if the validators have submitted a VAA to a token lockup
+on Solana, this VAA can be used to unlock the tokens on the specified foreign chain.
 
 While for the above mentioned transfers from Solana => foreign chain we use Solana for data availability of the VAAs, 
 in the other direction data availability i.e. the guardians posting the VAA on the foreign chain (where the transfer
