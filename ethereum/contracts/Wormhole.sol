@@ -54,7 +54,7 @@ contract Wormhole {
     uint32 public guardian_set_index;
 
     // Period for which an vaa is valid in seconds
-    uint32 public vaa_expirity;
+    uint32 public vaa_expiry;
 
     // Mapping of already consumedVAAs
     mapping(bytes32 => bool) consumedVAAs;
@@ -85,7 +85,7 @@ contract Wormhole {
         uint32 timestamp = vaa.toUint32(77);
 
         // Verify that the VAA is still valid
-        require(timestamp + vaa_expirity < block.timestamp, "VAA has expired");
+        require(timestamp + vaa_expiry < block.timestamp, "VAA has expired");
 
         // Hash the body
         bytes32 hash = keccak256(vaa.slice(77, vaa.length - 77));
@@ -133,7 +133,7 @@ contract Wormhole {
 
         GuardianSet memory new_guardian_set = GuardianSet(new_key_x, uint8(new_key_y % 2), 0);
         guardian_sets[guardian_set_index] = new_guardian_set;
-        guardian_sets[old_guardian_set_index].expiration_time = uint32(block.timestamp) + vaa_expirity;
+        guardian_sets[old_guardian_set_index].expiration_time = uint32(block.timestamp) + vaa_expiry;
 
         emit LogGuardianSetChanged(guardian_sets[old_guardian_set_index], new_guardian_set);
     }
