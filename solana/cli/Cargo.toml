@@ -1,0 +1,18 @@
+[package]
+name = "cli"
+version = "0.1.0"
+authors = ["Hendrik Hofstadt <hendrik@nexantic.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+clap = "2.33.0"
+solana-clap-utils = { version = "1.2.17"}
+solana-cli-config = { version = "1.2.17" }
+solana-logger = { version = "1.2.17" }
+solana-sdk = { version = "1.2.17" }
+solana-client = { version = "1.2.17" }
+solana-faucet = "1.2.17"
+spl-token = { version = "1.0.6" }
+wormhole-bridge = { path = "../bridge" }
