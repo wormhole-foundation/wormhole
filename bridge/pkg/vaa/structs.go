@@ -4,9 +4,12 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"github.com/certusone/wormhole/bridge/pkg/signatures/secp256k1"
+	"github.com/certusone/wormhole/bridge/third_party/chainlink/ethschnorr"
+	"github.com/certusone/wormhole/bridge/third_party/chainlink/secp256k1"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"go.dedis.ch/kyber/v3"
+	"go.dedis.ch/kyber/v3/util/key"
 	"io"
 	"math"
 	"math/big"
@@ -150,9 +153,64 @@ func ParseVAA(data []byte) (*VAA, error) {
 	return v, nil
 }
 
-// SigningBody returns the binary representation of the data that is relevant for signing and verifying the VAA
-func (v *VAA) SigningBody() ([]byte, error) {
+// signingBody returns the binary representation of the data that is relevant for signing and verifying the VAA
+func (v *VAA) signingBody() ([]byte, error) {
 	return v.serializeBody()
+}
+
+// SigningMsg returns the hash of the signing body. This is used for signature generation and verification
+func (v *VAA) SigningMsg() (*big.Int, error) {
+	body, err := v.signingBody()
+	if err != nil {
+		// Should never happen on a successfully parsed VAA
+		return nil, fmt.Errorf("failed to serialize signing body: %w", err)
+	}
+
+	hash := crypto.Keccak256Hash(body)
+	return hash.Big(), nil
+}
+
+// VerifySignature verifies the signature of the VAA given a public key
+func (v *VAA) VerifySignature(pubKey kyber.Point) bool {
+	if v.Signature == nil {
+		return false
+	}
+
+	msg, err := v.SigningMsg()
+	if err != nil {
+		return false
+	}
+
+	sig := ethschnorr.NewSignature()
+	sig.Signature = new(big.Int).SetBytes(v.Signature.Sig[:])
+	sig.CommitmentPublicAddress = v.Signature.Address
+
+	err = ethschnorr.Verify(pubKey, msg, sig)
+	return err == nil
+}
+
+// Sign signs the VAA, setting it's signature field
+func (v *VAA) Sign(key *key.Pair) error {
+	if v.Signature != nil {
+		return fmt.Errorf("VAA has already been signed")
+	}
+
+	hash, err := v.SigningMsg()
+	if err != nil {
+		return fmt.Errorf("failed to get signing message: %w", err)
+	}
+
+	sig, err := ethschnorr.Sign(key.Private, hash)
+	if err != nil {
+		return fmt.Errorf("failed to sign: %w", err)
+	}
+
+	// Set fields
+	v.Signature = &Signature{}
+	copy(v.Signature.Sig[:], common.LeftPadBytes(sig.Signature.Bytes(), 32))
+	v.Signature.Address = sig.CommitmentPublicAddress
+
+	return nil
 }
 
 // Serialize returns the binary representation of the VAA

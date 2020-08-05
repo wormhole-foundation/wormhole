@@ -1,8 +1,8 @@
 package vaa
 
 import (
-	"github.com/certusone/wormhole/bridge/pkg/signatures/cryptotest"
-	"github.com/certusone/wormhole/bridge/pkg/signatures/secp256k1"
+	"github.com/certusone/wormhole/bridge/third_party/chainlink/cryptotest"
+	"github.com/certusone/wormhole/bridge/third_party/chainlink/secp256k1"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
 	"math/big"
@@ -68,4 +68,27 @@ func TestSerializeDeserialize(t *testing.T) {
 			require.EqualValues(t, test.vaa, vaaParsed)
 		})
 	}
+}
+
+func TestVerifySignature(t *testing.T) {
+	key := secp256k1.Generate(randomStream)
+
+	v := &VAA{
+		Version:          8,
+		GuardianSetIndex: 9,
+		Timestamp:        time.Unix(2837, 0),
+		Payload: &BodyTransfer{
+			SourceChain:   2,
+			TargetChain:   1,
+			TargetAddress: Address{2, 1, 3},
+			Asset: &AssetMeta{
+				Chain:   9,
+				Address: Address{9, 2, 4},
+			},
+			Amount: big.NewInt(29),
+		},
+	}
+
+	require.NoError(t, v.Sign(key))
+	require.True(t, v.VerifySignature(key.Public))
 }

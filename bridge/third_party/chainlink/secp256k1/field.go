@@ -21,6 +21,7 @@ import (
 // q is the field characteristic (cardinality) of the secp256k1 base field. All
 // arithmetic operations on the field are modulo this.
 var q = s256.P
+var halfQ = new(big.Int).Div(q, big.NewInt(2))
 
 type fieldElt big.Int
 
@@ -28,17 +29,17 @@ type fieldElt big.Int
 func newFieldZero() *fieldElt { return (*fieldElt)(big.NewInt(0)) }
 
 // Int returns f as a big.Int
-func (f *fieldElt) int() *big.Int { return (*big.Int)(f) }
+func (f *fieldElt) Int() *big.Int { return (*big.Int)(f) }
 
 // modQ reduces f's underlying big.Int modulo q, and returns it
 func (f *fieldElt) modQ() *fieldElt {
-	if f.int().Cmp(q) != -1 || f.int().Cmp(bigZero) == -1 {
+	if f.Int().Cmp(q) != -1 || f.Int().Cmp(bigZero) == -1 {
 		// f ∉ {0, ..., q-1}. Find the representative of f+qℤ in that set.
 		//
 		// Per Mod docstring, "Mod implements Euclidean modulus", meaning that after
 		// this, f will be the smallest non-negative representative of its
 		// equivalence class in ℤ/qℤ. TODO(alx): Make this faster
-		f.int().Mod(f.int(), q)
+		f.Int().Mod(f.Int(), q)
 	}
 	return f
 }
@@ -55,7 +56,7 @@ var bigZero = big.NewInt(0)
 
 // String returns the string representation of f
 func (f *fieldElt) String() string {
-	return fmt.Sprintf("fieldElt{%x}", f.int())
+	return fmt.Sprintf("fieldElt{%x}", f.Int())
 }
 
 // Equal returns true iff f=g, i.e. the backing big.Ints satisfy f ≡ g mod q
@@ -69,30 +70,30 @@ func (f *fieldElt) Equal(g *fieldElt) bool {
 	if g == (*fieldElt)(nil) { // g is nil, f is not
 		return false
 	}
-	return bigZero.Cmp(newFieldZero().Sub(f, g).modQ().int()) == 0
+	return bigZero.Cmp(newFieldZero().Sub(f, g).modQ().Int()) == 0
 }
 
 // Add sets f to the sum of a and b modulo q, and returns it.
 func (f *fieldElt) Add(a, b *fieldElt) *fieldElt {
-	f.int().Add(a.int(), b.int())
+	f.Int().Add(a.Int(), b.Int())
 	return f.modQ()
 }
 
 // Sub sets f to a-b mod q, and returns it.
 func (f *fieldElt) Sub(a, b *fieldElt) *fieldElt {
-	f.int().Sub(a.int(), b.int())
+	f.Int().Sub(a.Int(), b.Int())
 	return f.modQ()
 }
 
 // Set sets f's value to v, and returns f.
 func (f *fieldElt) Set(v *fieldElt) *fieldElt {
-	f.int().Set(v.int())
+	f.Int().Set(v.Int())
 	return f.modQ()
 }
 
 // SetInt sets f's value to v mod q, and returns f.
 func (f *fieldElt) SetInt(v *big.Int) *fieldElt {
-	f.int().Set(v)
+	f.Int().Set(v)
 	return f.modQ()
 }
 
@@ -103,7 +104,7 @@ func (f *fieldElt) Pick(rand cipher.Stream) *fieldElt {
 
 // Neg sets f to the negation of g modulo q, and returns it
 func (f *fieldElt) Neg(g *fieldElt) *fieldElt {
-	f.int().Neg(g.int())
+	f.Int().Neg(g.Int())
 	return f.modQ()
 }
 
@@ -113,13 +114,13 @@ func (f *fieldElt) Clone() *fieldElt { return newFieldZero().Set(f.modQ()) }
 // SetBytes sets f to the 32-byte big-endian value represented by buf, reduces
 // it, and returns it.
 func (f *fieldElt) SetBytes(buf [32]byte) *fieldElt {
-	f.int().SetBytes(buf[:])
+	f.Int().SetBytes(buf[:])
 	return f.modQ()
 }
 
 // Bytes returns the 32-byte big-endian representation of f
 func (f *fieldElt) Bytes() [32]byte {
-	bytes := f.modQ().int().Bytes()
+	bytes := f.modQ().Int().Bytes()
 	if len(bytes) > 32 {
 		panic("field element longer than 256 bits")
 	}
@@ -132,7 +133,7 @@ var two = big.NewInt(2)
 
 // square returns y² mod q
 func fieldSquare(y *fieldElt) *fieldElt {
-	return fieldEltFromBigInt(newFieldZero().int().Exp(y.int(), two, q))
+	return fieldEltFromBigInt(newFieldZero().Int().Exp(y.Int(), two, q))
 }
 
 // sqrtPower is s.t. n^sqrtPower≡sqrt(n) mod q, if n has a root at all. See
@@ -146,7 +147,7 @@ var sqrtPower = s256.QPlus1Div4()
 // maybeSqrtInField returns a square root of v, if it has any, else nil
 func maybeSqrtInField(v *fieldElt) *fieldElt {
 	s := newFieldZero()
-	s.int().Exp(v.int(), sqrtPower, q)
+	s.Int().Exp(v.Int(), sqrtPower, q)
 	if !fieldSquare(s).Equal(v) {
 		return nil
 	}
@@ -159,11 +160,11 @@ var seven = fieldEltFromInt(7)
 // rightHandSide returns the RHS of the secp256k1 equation, x³+7 mod q, given x
 func rightHandSide(x *fieldElt) *fieldElt {
 	xCubed := newFieldZero()
-	xCubed.int().Exp(x.int(), three, q)
+	xCubed.Int().Exp(x.Int(), three, q)
 	return xCubed.Add(xCubed, seven)
 }
 
 // isEven returns true if f is even, false otherwise
 func (f *fieldElt) isEven() bool {
-	return big.NewInt(0).Mod(f.int(), two).Cmp(big.NewInt(0)) == 0
+	return big.NewInt(0).Mod(f.Int(), two).Cmp(big.NewInt(0)) == 0
 }

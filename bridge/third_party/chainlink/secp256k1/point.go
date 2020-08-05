@@ -31,7 +31,7 @@ type secp256k1Point struct {
 	Y *fieldElt
 }
 
-func newPoint() *secp256k1Point {
+func NewPoint() *secp256k1Point {
 	return &secp256k1Point{newFieldZero(), newFieldZero()}
 }
 
@@ -148,8 +148,8 @@ func (P *secp256k1Point) Data() ([]byte, error) {
 // Add sets P to a+b (secp256k1 group operation) and returns it.
 func (P *secp256k1Point) Add(a, b kyber.Point) kyber.Point {
 	X, Y := s256.Add(
-		a.(*secp256k1Point).X.int(), a.(*secp256k1Point).Y.int(),
-		b.(*secp256k1Point).X.int(), b.(*secp256k1Point).Y.int())
+		a.(*secp256k1Point).X.Int(), a.(*secp256k1Point).Y.Int(),
+		b.(*secp256k1Point).X.Int(), b.(*secp256k1Point).Y.Int())
 	P.X.SetInt(X)
 	P.Y.SetInt(Y)
 	return P
@@ -158,9 +158,9 @@ func (P *secp256k1Point) Add(a, b kyber.Point) kyber.Point {
 // Add sets P to a-b (secp256k1 group operation), and returns it.
 func (P *secp256k1Point) Sub(a, b kyber.Point) kyber.Point {
 	X, Y := s256.Add(
-		a.(*secp256k1Point).X.int(), a.(*secp256k1Point).Y.int(),
-		b.(*secp256k1Point).X.int(),
-		newFieldZero().Neg(b.(*secp256k1Point).Y).int()) // -b_y
+		a.(*secp256k1Point).X.Int(), a.(*secp256k1Point).Y.Int(),
+		b.(*secp256k1Point).X.Int(),
+		newFieldZero().Neg(b.(*secp256k1Point).Y).Int()) // -b_y
 	P.X.SetInt(X)
 	P.Y.SetInt(Y)
 	return P
@@ -185,8 +185,8 @@ func (P *secp256k1Point) Mul(s kyber.Scalar, a kyber.Point) kyber.Point {
 	if a == (*secp256k1Point)(nil) || a == nil {
 		X, Y = s256.ScalarBaseMult(sBytes)
 	} else {
-		X, Y = s256.ScalarMult(a.(*secp256k1Point).X.int(),
-			a.(*secp256k1Point).Y.int(), sBytes)
+		X, Y = s256.ScalarMult(a.(*secp256k1Point).X.Int(),
+			a.(*secp256k1Point).Y.Int(), sBytes)
 	}
 	P.X.SetInt(X)
 	P.Y.SetInt(Y)
@@ -309,7 +309,7 @@ func IsSecp256k1Point(p kyber.Point) bool {
 
 // Coordinates returns the coordinates of p
 func Coordinates(p kyber.Point) (*big.Int, *big.Int) {
-	return p.(*secp256k1Point).X.int(), p.(*secp256k1Point).Y.int()
+	return p.(*secp256k1Point).X.Int(), p.(*secp256k1Point).Y.Int()
 }
 
 // ValidPublicKey returns true iff p can be used in the optimized on-chain
@@ -322,6 +322,13 @@ func ValidPublicKey(p kyber.Point) bool {
 	if !ok {
 		return false
 	}
+
+	// Verify that X < HALF_Q so it can be used for optimized on-chain verification
+	if P.X.Int().Cmp(halfQ) == 1 {
+		return false
+	}
+
+	// Verify that the pub key is a valid curve point
 	maybeY := maybeSqrtInField(rightHandSide(P.X))
 	return maybeY != nil && (P.Y.Equal(maybeY) || P.Y.Equal(maybeY.Neg(maybeY)))
 }
@@ -352,7 +359,7 @@ func LongUnmarshal(m []byte) (kyber.Point, error) {
 			"0x%x does not represent an uncompressed secp256k1Point. Should be length 64, but is length %d",
 			m, len(m))
 	}
-	p := newPoint()
+	p := NewPoint()
 	p.X.SetInt(big.NewInt(0).SetBytes(m[:32]))
 	p.Y.SetInt(big.NewInt(0).SetBytes(m[32:]))
 	if !ValidPublicKey(p) {
@@ -369,7 +376,7 @@ func ScalarToPublicPoint(s kyber.Scalar) kyber.Point {
 
 // SetCoordinates returns the point (x,y), or panics if an invalid secp256k1Point
 func SetCoordinates(x, y *big.Int) kyber.Point {
-	rv := newPoint()
+	rv := NewPoint()
 	rv.X.SetInt(x)
 	rv.Y.SetInt(y)
 	if !ValidPublicKey(rv) {

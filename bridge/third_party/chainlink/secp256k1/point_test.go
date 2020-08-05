@@ -20,12 +20,12 @@ var numPointSamples = 10
 var randomStreamPoint = cryptotest.NewStream(&testing.T{}, 0)
 
 func TestPoint_String(t *testing.T) {
-	require.Equal(t, newPoint().String(),
+	require.Equal(t, NewPoint().String(),
 		"Secp256k1{X: fieldElt{0}, Y: fieldElt{0}}")
 }
 
 func TestPoint_CloneAndEqual(t *testing.T) {
-	f := newPoint()
+	f := NewPoint()
 	for i := 0; i < numPointSamples; i++ {
 		g := f.Clone()
 		f.Pick(randomStreamPoint)
@@ -40,7 +40,7 @@ func TestPoint_CloneAndEqual(t *testing.T) {
 }
 
 func TestPoint_NullAndAdd(t *testing.T) {
-	f, g := newPoint(), newPoint()
+	f, g := NewPoint(), NewPoint()
 	for i := 0; i < numPointSamples; i++ {
 		g.Null()
 		f.Pick(randomStreamPoint)
@@ -50,21 +50,21 @@ func TestPoint_NullAndAdd(t *testing.T) {
 }
 
 func TestPoint_Set(t *testing.T) {
-	p := newPoint()
-	base := newPoint().Base()
+	p := NewPoint()
+	base := NewPoint().Base()
 	assert.NotEqual(t, p, base, "generator should not be zero")
 	p.Set(base)
 	assert.Equal(t, p, base, "setting to generator should yield generator")
 }
 
 func TestPoint_Embed(t *testing.T) {
-	p := newPoint()
+	p := NewPoint()
 	for i := 0; i < numPointSamples; i++ {
 		data := make([]byte, p.EmbedLen())
 		_, err := rand.Read(data)
 		require.Nil(t, err)
 		p.Embed(data, randomStreamPoint)
-		require.True(t, s256.IsOnCurve(p.X.int(), p.Y.int()),
+		require.True(t, s256.IsOnCurve(p.X.Int(), p.Y.Int()),
 			"should embed to a secp256k1 point")
 		output, err := p.Data()
 		require.NoError(t, err)
@@ -94,8 +94,8 @@ func TestPoint_Embed(t *testing.T) {
 }
 
 func TestPoint_AddSubAndNeg(t *testing.T) {
-	zero := newPoint().Null()
-	p := newPoint()
+	zero := NewPoint().Null()
+	p := NewPoint()
 	for i := 0; i < numPointSamples; i++ {
 		p.Pick(randomStreamPoint)
 		q := p.Clone()
@@ -104,20 +104,20 @@ func TestPoint_AddSubAndNeg(t *testing.T) {
 			"subtracting a point from itself should give zero, "+
 				"got %v - %v = %v ≠ %v", q, q, p, zero)
 		p.Neg(q)
-		r := newPoint().Add(p, q)
+		r := NewPoint().Add(p, q)
 		require.True(t, r.Equal(zero),
 			"adding a point to its negative should give zero"+
 				" got %v+%v=%v≠%v", q, p, r, zero)
 		r.Neg(q)
 		p.Sub(q, r)
-		s := newPoint().Add(q, q)
+		s := NewPoint().Add(q, q)
 		require.True(t, p.Equal(s), "q-(-q)=q+q?"+
 			" got %v-%v=%v≠%v", q, r, p, s)
 	}
 }
 
 func TestPoint_Mul(t *testing.T) {
-	zero := newPoint().Null()
+	zero := NewPoint().Null()
 	multiplier := newScalar(bigZero)
 	one := newScalar(big.NewInt(int64(1)))
 	var p *secp256k1Point
@@ -125,12 +125,12 @@ func TestPoint_Mul(t *testing.T) {
 		if i%20 == 0 {
 			p = nil // Test default to generator point
 		} else {
-			p = newPoint()
+			p = NewPoint()
 			p.Pick(randomStreamPoint)
 		}
 		multiplier.Pick(randomStreamPoint)
-		q := newPoint().Mul(one, p)
-		comparee := newPoint()
+		q := NewPoint().Mul(one, p)
+		comparee := NewPoint()
 		if p == (*secp256k1Point)(nil) {
 			comparee.Base()
 		} else {
@@ -140,8 +140,8 @@ func TestPoint_Mul(t *testing.T) {
 			comparee, q)
 		q.Mul(multiplier, p)
 		negMultiplier := newScalar(bigZero).Neg(multiplier)
-		r := newPoint().Mul(negMultiplier, p)
-		s := newPoint().Add(q, r)
+		r := NewPoint().Mul(negMultiplier, p)
+		s := NewPoint().Add(q, r)
 		require.True(t, s.Equal(zero), "s*p+(-s)*p=0? got "+
 			"%v*%v + %v*%v = %v + %v = %v ≠ %v", multiplier, p,
 		)
@@ -149,12 +149,12 @@ func TestPoint_Mul(t *testing.T) {
 }
 
 func TestPoint_Marshal(t *testing.T) {
-	p := newPoint()
+	p := NewPoint()
 	for i := 0; i < numPointSamples; i++ {
 		p.Pick(randomStreamPoint)
 		serialized, err := p.MarshalBinary()
 		require.Nil(t, err)
-		q := newPoint()
+		q := NewPoint()
 		err = q.UnmarshalBinary(serialized)
 		require.Nil(t, err)
 		require.True(t, p.Equal(q), "%v marshalled to %x, which "+
@@ -186,9 +186,9 @@ func TestPoint_Marshal(t *testing.T) {
 }
 
 func TestPoint_BaseTakesCopy(t *testing.T) {
-	p := newPoint().Base()
+	p := NewPoint().Base()
 	p.Add(p, p)
-	q := newPoint().Base()
+	q := NewPoint().Base()
 	assert.False(t, p.Equal(q),
 		"modifying output from Base changes S256.G{x,y}")
 }
@@ -200,7 +200,7 @@ func TestPoint_EthereumAddress(t *testing.T) {
 	pInt, ok := big.NewInt(0).SetString(pString, 16)
 	require.True(t, ok, "failed to parse private key")
 	private := newScalar(pInt)
-	public := newPoint().Mul(private, nil)
+	public := NewPoint().Mul(private, nil)
 	address := EthereumAddress(public)
 	assert.Equal(t, fmt.Sprintf("%x", address),
 		"c2d7cf95645d33006175b78989035c7c9061d3f9")
@@ -209,18 +209,18 @@ func TestPoint_EthereumAddress(t *testing.T) {
 func TestIsSecp256k1Point(t *testing.T) {
 	p := curve25519.NewBlakeSHA256Curve25519(false).Point()
 	require.False(t, IsSecp256k1Point(p))
-	require.True(t, IsSecp256k1Point(newPoint()))
+	require.True(t, IsSecp256k1Point(NewPoint()))
 }
 
 func TestCoordinates(t *testing.T) {
-	x, y := Coordinates(newPoint())
+	x, y := Coordinates(NewPoint())
 	require.Equal(t, x, bigZero)
 	require.Equal(t, y, bigZero)
 }
 
 func TestValidPublicKey(t *testing.T) {
-	require.False(t, ValidPublicKey(newPoint()), "zero is not a valid key")
-	require.True(t, ValidPublicKey(newPoint().Base()))
+	require.False(t, ValidPublicKey(NewPoint()), "zero is not a valid key")
+	require.True(t, ValidPublicKey(NewPoint().Base()))
 }
 
 func TestGenerate(t *testing.T) {
