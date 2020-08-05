@@ -69,6 +69,8 @@ type (
 		SourceChain ChainID
 		// TargetChain is the id of the chain the transfer is directed to
 		TargetChain ChainID
+		// TargetAddress is the address of the sender on SourceChain
+		SourceAddress Address
 		// TargetAddress is the address of the recipient on TargetChain
 		TargetAddress Address
 		// Asset is the asset to be transferred
@@ -273,6 +275,10 @@ func parseBodyTransfer(r io.Reader) (*BodyTransfer, error) {
 		return nil, fmt.Errorf("failed to read target chain: %w", err)
 	}
 
+	if n, err := r.Read(b.SourceAddress[:]); err != nil || n != 32 {
+		return nil, fmt.Errorf("failed to read source address: %w", err)
+	}
+
 	if n, err := r.Read(b.TargetAddress[:]); err != nil || n != 32 {
 		return nil, fmt.Errorf("failed to read target address: %w", err)
 	}
@@ -303,6 +309,7 @@ func (v *BodyTransfer) serialize() ([]byte, error) {
 	MustWrite(buf, binary.BigEndian, v.Nonce)
 	MustWrite(buf, binary.BigEndian, v.SourceChain)
 	MustWrite(buf, binary.BigEndian, v.TargetChain)
+	buf.Write(v.SourceAddress[:])
 	buf.Write(v.TargetAddress[:])
 
 	if v.Asset == nil {

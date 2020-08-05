@@ -15,6 +15,7 @@ use crate::error::Error;
 use crate::instruction::BridgeInstruction::Initialize;
 use crate::state::{AssetMeta, BridgeConfig};
 use crate::syscalls::RawKey;
+use primitive_types::U256;
 
 /// chain id of this chain
 pub const CHAIN_ID_SOLANA: u8 = 1;
@@ -45,7 +46,7 @@ pub struct InitializePayload {
 #[derive(Clone, Copy)]
 pub struct TransferOutPayload {
     /// amount to transfer
-    pub amount: u64,
+    pub amount: U256,
     /// chain id to transfer to
     pub chain_id: u8,
     /// Information about the asset to be transferred

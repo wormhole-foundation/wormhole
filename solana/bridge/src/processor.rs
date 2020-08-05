@@ -32,6 +32,7 @@ use crate::state::*;
 use crate::syscalls::{sol_verify_schnorr, RawKey, SchnorrifyInput};
 use crate::vaa::{BodyTransfer, BodyUpdateGuardianSet, VAABody, VAA};
 use crate::{error::Error, instruction::unpack};
+use primitive_types::U256;
 
 /// Instruction processing logic
 impl Bridge {
@@ -620,7 +621,7 @@ impl Bridge {
         token_program_id: &Pubkey,
         authority: &Pubkey,
         token_account: &Pubkey,
-        amount: u64,
+        amount: U256,
     ) -> Result<(), ProgramError> {
         let all_signers: Vec<&Pubkey> = accounts
             .iter()
@@ -643,7 +644,7 @@ impl Bridge {
         mint: &Pubkey,
         destination: &Pubkey,
         bridge: &Pubkey,
-        amount: u64,
+        amount: U256,
     ) -> Result<(), ProgramError> {
         let ix = spl_token::instruction::mint_to(
             token_program_id,
@@ -663,7 +664,7 @@ impl Bridge {
         source: &Pubkey,
         destination: &Pubkey,
         authority: &Pubkey,
-        amount: u64,
+        amount: U256,
     ) -> Result<(), ProgramError> {
         let all_signers: Vec<&Pubkey> = accounts
             .iter()
@@ -687,7 +688,7 @@ impl Bridge {
         bridge: &Pubkey,
         source: &Pubkey,
         destination: &Pubkey,
-        amount: u64,
+        amount: U256,
     ) -> Result<(), ProgramError> {
         let ix = spl_token::instruction::transfer(
             token_program_id,
@@ -738,8 +739,14 @@ impl Bridge {
             payer,
             Self::derive_wrapped_asset_seeds(bridge, asset.chain, asset.address),
         )?;
-        let ix =
-            spl_token::instruction::initialize_mint(token_program, mint, None, Some(bridge), 0, 8)?;
+        let ix = spl_token::instruction::initialize_mint(
+            token_program,
+            mint,
+            None,
+            Some(bridge),
+            U256::from(0),
+            8,
+        )?;
         invoke_signed(&ix, accounts, &[&[&bridge.to_bytes()[..32]][..]])
     }
 

@@ -1,6 +1,7 @@
 package vaa
 
 import (
+	"encoding/hex"
 	"github.com/certusone/wormhole/bridge/third_party/chainlink/cryptotest"
 	"github.com/certusone/wormhole/bridge/third_party/chainlink/secp256k1"
 	"github.com/ethereum/go-ethereum/common"
@@ -31,6 +32,7 @@ func TestSerializeDeserialize(t *testing.T) {
 					Nonce:         38,
 					SourceChain:   2,
 					TargetChain:   1,
+					SourceAddress: Address{2, 1, 4},
 					TargetAddress: Address{2, 1, 3},
 					Asset: &AssetMeta{
 						Chain:   9,
@@ -63,6 +65,7 @@ func TestSerializeDeserialize(t *testing.T) {
 			vaaData, err := test.vaa.Serialize()
 			require.NoError(t, err)
 
+			println(hex.EncodeToString(vaaData))
 			vaaParsed, err := ParseVAA(vaaData)
 			require.NoError(t, err)
 

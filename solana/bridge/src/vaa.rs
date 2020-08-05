@@ -163,6 +163,7 @@ pub struct BodyTransfer {
     pub nonce: u32,
     pub source_chain: u8,
     pub target_chain: u8,
+    pub source_address: ForeignAddress,
     pub target_address: ForeignAddress,
     pub asset: AssetMeta,
     pub amount: U256,
@@ -209,6 +210,8 @@ impl BodyTransfer {
         let nonce = data.read_u32::<BigEndian>()?;
         let source_chain = data.read_u8()?;
         let target_chain = data.read_u8()?;
+        let mut source_address: ForeignAddress = ForeignAddress::default();
+        data.read_exact(&mut source_address)?;
         let mut target_address: ForeignAddress = ForeignAddress::default();
         data.read_exact(&mut target_address)?;
         let token_chain = data.read_u8()?;
@@ -223,6 +226,7 @@ impl BodyTransfer {
             nonce,
             source_chain,
             target_chain,
+            source_address,
             target_address,
             asset: AssetMeta {
                 address: token_address,
@@ -237,6 +241,7 @@ impl BodyTransfer {
         v.write_u32::<BigEndian>(self.nonce)?;
         v.write_u8(self.source_chain)?;
         v.write_u8(self.target_chain)?;
+        v.write(&self.source_address)?;
         v.write(&self.target_address)?;
         v.write_u8(self.asset.chain)?;
         v.write(&self.asset.address)?;
@@ -273,6 +278,7 @@ mod tests {
                 nonce: 28,
                 source_chain: 1,
                 target_chain: 2,
+                source_address: [1; 32],
                 target_address: [1; 32],
                 asset: AssetMeta {
                     address: [2; 32],
@@ -354,6 +360,10 @@ mod tests {
                 nonce: 38,
                 source_chain: 2,
                 target_chain: 1,
+                source_address: [
+                    2, 1, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                    0, 0, 0, 0, 0, 0,
+                ],
                 target_address: [
                     2, 1, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                     0, 0, 0, 0, 0, 0,
@@ -368,7 +378,7 @@ mod tests {
                 amount: U256::from(29),
             })),
         };
-        let data = hex::decode("01000000090208000000000000000000000000000000000000000000000000000000000000010203040000000000000000000000000000000000000b1510670000002602010201030000000000000000000000000000000000000000000000000000000000090902040000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001d").unwrap();
+        let data = hex::decode("01000000090208000000000000000000000000000000000000000000000000000000000000010203040000000000000000000000000000000000000b15108700000026020102010400000000000000000000000000000000000000000000000000000000000201030000000000000000000000000000000000000000000000000000000000090902040000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001d").unwrap();
         let parsed_vaa = VAA::deserialize(data.as_slice()).unwrap();
         assert_eq!(vaa, parsed_vaa);
 
