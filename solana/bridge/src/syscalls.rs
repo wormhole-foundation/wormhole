@@ -10,11 +10,16 @@ pub struct SchnorrifyInput {
 #[derive(Copy, Clone, Debug, PartialOrd, PartialEq)]
 pub struct RawKey {
     pub x: [u8; 32],
-    pub y: [u8; 32],
+    pub y_parity: bool,
 }
 
 impl SchnorrifyInput {
-    pub fn new(pub_key: RawKey, message: [u8; 32], signature: [u8; 32], addr: [u8; 20]) -> SchnorrifyInput {
+    pub fn new(
+        pub_key: RawKey,
+        message: [u8; 32],
+        signature: [u8; 32],
+        addr: [u8; 20],
+    ) -> SchnorrifyInput {
         SchnorrifyInput {
             message,
             addr,
@@ -29,9 +34,7 @@ impl SchnorrifyInput {
 /// @param input - Input for signature verification
 #[inline]
 pub fn sol_verify_schnorr(input: &SchnorrifyInput) -> bool {
-    let res = unsafe {
-        sol_verify_ethschnorr(input as *const _ as *const u8)
-    };
+    let res = unsafe { sol_verify_ethschnorr(input as *const _ as *const u8) };
 
     res == 1
 }

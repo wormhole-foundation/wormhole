@@ -11,14 +11,13 @@ use solana_sdk::clock::Clock;
 use solana_sdk::hash::hash;
 #[cfg(not(target_arch = "bpf"))]
 use solana_sdk::instruction::Instruction;
-use solana_sdk::log::sol_log;
 #[cfg(target_arch = "bpf")]
 use solana_sdk::program::invoke_signed;
 use solana_sdk::rent::Rent;
 use solana_sdk::system_instruction::{create_account, SystemInstruction};
 use solana_sdk::sysvar::Sysvar;
 use solana_sdk::{
-    account_info::next_account_info, account_info::AccountInfo, entrypoint::ProgramResult, info,
+    account_info::next_account_info, account_info::AccountInfo, entrypoint::ProgramResult,
     program_error::ProgramError, pubkey::bs58, pubkey::Pubkey,
 };
 use spl_token::state::Mint;
@@ -27,12 +26,11 @@ use crate::instruction::BridgeInstruction::*;
 use crate::instruction::{
     BridgeInstruction, ForeignAddress, GuardianKey, TransferOutPayload, CHAIN_ID_SOLANA, VAA_BODY,
 };
-#[cfg(not(target_arch = "bpf"))]
-use crate::processor::invoke_signed;
 
 use crate::syscalls::{sol_verify_schnorr, RawKey, SchnorrifyInput};
 use crate::vaa::{BodyTransfer, BodyUpdateGuardianSet, VAABody, VAA};
 use crate::{error::Error, instruction::unpack};
+use primitive_types::U256;
 use zerocopy::AsBytes;
 
 /// fee rate as a ratio
@@ -73,7 +71,7 @@ impl IsInitialized for GuardianSet {
 #[derive(Clone, Copy)]
 pub struct TransferOutProposal {
     /// amount to transfer
-    pub amount: u64,
+    pub amount: U256,
     /// chain id to transfer to
     pub to_chain_id: u8,
     /// address on the foreign chain to transfer to
@@ -219,158 +217,6 @@ impl Bridge {
     }
 }
 
-/// Implementation of actions
-impl Bridge {
-    /// Burn a wrapped asset from account
-    pub fn wrapped_burn(
-        accounts: &[AccountInfo],
-        token_program_id: &Pubkey,
-        authority: &Pubkey,
-        token_account: &Pubkey,
-        amount: u64,
-    ) -> Result<(), ProgramError> {
-        let all_signers: Vec<&Pubkey> = accounts
-            .iter()
-            .filter_map(|item| if item.is_signer { Some(item.key) } else { None })
-            .collect();
-        let ix = spl_token::instruction::burn(
-            token_program_id,
-            token_account,
-            authority,
-            all_signers.as_slice(),
-            amount,
-        )?;
-        invoke_signed(&ix, accounts, &[])
-    }
-
-    /// Mint a wrapped asset to account
-    pub fn wrapped_mint_to(
-        accounts: &[AccountInfo],
-        token_program_id: &Pubkey,
-        mint: &Pubkey,
-        destination: &Pubkey,
-        bridge: &Pubkey,
-        amount: u64,
-    ) -> Result<(), ProgramError> {
-        let ix = spl_token::instruction::mint_to(
-            token_program_id,
-            mint,
-            destination,
-            bridge,
-            &[],
-            amount,
-        )?;
-        invoke_signed(&ix, accounts, &[&[&bridge.to_bytes()[..32]][..]])
-    }
-
-    /// Transfer tokens from a caller
-    pub fn token_transfer_caller(
-        accounts: &[AccountInfo],
-        token_program_id: &Pubkey,
-        source: &Pubkey,
-        destination: &Pubkey,
-        authority: &Pubkey,
-        amount: u64,
-    ) -> Result<(), ProgramError> {
-        let all_signers: Vec<&Pubkey> = accounts
-            .iter()
-            .filter_map(|item| if item.is_signer { Some(item.key) } else { None })
-            .collect();
-        let ix = spl_token::instruction::transfer(
-            token_program_id,
-            source,
-            destination,
-            authority,
-            all_signers.as_slice(),
-            amount,
-        )?;
-        invoke_signed(&ix, accounts, &[])
-    }
-
-    /// Transfer tokens from a custody account
-    pub fn token_transfer_custody(
-        accounts: &[AccountInfo],
-        token_program_id: &Pubkey,
-        bridge: &Pubkey,
-        source: &Pubkey,
-        destination: &Pubkey,
-        amount: u64,
-    ) -> Result<(), ProgramError> {
-        let ix = spl_token::instruction::transfer(
-            token_program_id,
-            source,
-            destination,
-            bridge,
-            &[],
-            amount,
-        )?;
-        invoke_signed(&ix, accounts, &[&[&bridge.to_bytes()[..32]][..]])
-    }
-
-    /// Create a new account
-    pub fn create_custody_account(
-        program_id: &Pubkey,
-        accounts: &[AccountInfo],
-        token_program: &Pubkey,
-        bridge: &Pubkey,
-        account: &Pubkey,
-        mint: &Pubkey,
-        payer: &Pubkey,
-    ) -> Result<(), ProgramError> {
-        Self::create_account::<Mint>(
-            program_id,
-            accounts,
-            mint,
-            payer,
-            Self::derive_custody_seeds(bridge, mint),
-        )?;
-        let ix = spl_token::instruction::initialize_account(token_program, account, mint, bridge)?;
-        invoke_signed(&ix, accounts, &[&[&bridge.to_bytes()[..32]][..]])
-    }
-
-    /// Create a mint for a wrapped asset
-    pub fn create_wrapped_mint(
-        program_id: &Pubkey,
-        accounts: &[AccountInfo],
-        token_program: &Pubkey,
-        mint: &Pubkey,
-        bridge: &Pubkey,
-        payer: &Pubkey,
-        asset: &AssetMeta,
-    ) -> Result<(), ProgramError> {
-        Self::create_account::<Mint>(
-            program_id,
-            accounts,
-            mint,
-            payer,
-            Self::derive_wrapped_asset_seeds(bridge, asset.chain, asset.address),
-        )?;
-        let ix =
-            spl_token::instruction::initialize_mint(token_program, mint, None, Some(bridge), 0, 8)?;
-        invoke_signed(&ix, accounts, &[&[&bridge.to_bytes()[..32]][..]])
-    }
-
-    /// Create a new account
-    pub fn create_account<T: Sized>(
-        program_id: &Pubkey,
-        accounts: &[AccountInfo],
-        new_account: &Pubkey,
-        payer: &Pubkey,
-        seeds: Vec<Vec<u8>>,
-    ) -> Result<(), ProgramError> {
-        let size = size_of::<T>();
-        let ix = create_account(
-            payer,
-            new_account,
-            Rent::default().minimum_balance(size as usize),
-            size as u64,
-            program_id,
-        );
-        let s: Vec<_> = seeds.iter().map(|item| item.as_slice()).collect();
-        invoke_signed(&ix, accounts, &[s.as_slice()])
-    }
-}
-
 /// Implementation of derivations
 impl Bridge {
     /// Calculates derived seeds for a guardian set
@@ -404,7 +250,7 @@ impl Bridge {
         target_chain: u8,
         target_address: ForeignAddress,
         user: ForeignAddress,
-        slot: u64,
+        slot: u32,
     ) -> Vec<Vec<u8>> {
         vec![
             "transfer".as_bytes().to_vec(),
@@ -498,7 +344,7 @@ impl Bridge {
         target_chain: u8,
         target_address: ForeignAddress,
         user: ForeignAddress,
-        slot: u64,
+        slot: u32,
     ) -> Result<Pubkey, Error> {
         Self::derive_key(
             program_id,

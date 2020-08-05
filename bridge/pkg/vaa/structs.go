@@ -63,6 +63,8 @@ type (
 	}
 
 	BodyTransfer struct {
+		// Nonce is a user given unique nonce for this transfer
+		Nonce uint32
 		// SourceChain is the id of the chain the transfer was initiated from
 		SourceChain ChainID
 		// TargetChain is the id of the chain the transfer is directed to
@@ -106,7 +108,7 @@ func ParseVAA(data []byte) (*VAA, error) {
 	}
 
 	v.Version = data[0]
-	if v.Version < supportedVAAVersion {
+	if v.Version != supportedVAAVersion {
 		return nil, fmt.Errorf("unsupported VAA version: %d", v.Version)
 	}
 
@@ -259,6 +261,10 @@ func (v *VAA) serializeBody() ([]byte, error) {
 func parseBodyTransfer(r io.Reader) (*BodyTransfer, error) {
 	b := &BodyTransfer{}
 
+	if err := binary.Read(r, binary.BigEndian, &b.Nonce); err != nil {
+		return nil, fmt.Errorf("failed to read nonce: %w", err)
+	}
+
 	if err := binary.Read(r, binary.BigEndian, &b.SourceChain); err != nil {
 		return nil, fmt.Errorf("failed to read source chain: %w", err)
 	}
@@ -294,6 +300,7 @@ func (v *BodyTransfer) getActionID() Action {
 
 func (v *BodyTransfer) serialize() ([]byte, error) {
 	buf := new(bytes.Buffer)
+	MustWrite(buf, binary.BigEndian, v.Nonce)
 	MustWrite(buf, binary.BigEndian, v.SourceChain)
 	MustWrite(buf, binary.BigEndian, v.TargetChain)
 	buf.Write(v.TargetAddress[:])

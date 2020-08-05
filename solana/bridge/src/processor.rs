@@ -1,4 +1,5 @@
 //! Program instruction processing logic
+#![cfg(feature = "program")]
 
 use std::io::Write;
 use std::mem::size_of;
@@ -553,7 +554,7 @@ impl Bridge {
             b.target_chain,
             b.target_address,
             b.source_address,
-            b.ref_block,
+            b.nonce,
         )?;
         if expected_proposal != *proposal_info.key {
             return Err(Error::InvalidDerivedAccount.into());
@@ -608,6 +609,158 @@ pub fn invoke_signed<'a>(
             &instruction.data,
         ),
         _ => panic!(),
+    }
+}
+
+/// Implementation of actions
+impl Bridge {
+    /// Burn a wrapped asset from account
+    pub fn wrapped_burn(
+        accounts: &[AccountInfo],
+        token_program_id: &Pubkey,
+        authority: &Pubkey,
+        token_account: &Pubkey,
+        amount: u64,
+    ) -> Result<(), ProgramError> {
+        let all_signers: Vec<&Pubkey> = accounts
+            .iter()
+            .filter_map(|item| if item.is_signer { Some(item.key) } else { None })
+            .collect();
+        let ix = spl_token::instruction::burn(
+            token_program_id,
+            token_account,
+            authority,
+            all_signers.as_slice(),
+            amount,
+        )?;
+        invoke_signed(&ix, accounts, &[])
+    }
+
+    /// Mint a wrapped asset to account
+    pub fn wrapped_mint_to(
+        accounts: &[AccountInfo],
+        token_program_id: &Pubkey,
+        mint: &Pubkey,
+        destination: &Pubkey,
+        bridge: &Pubkey,
+        amount: u64,
+    ) -> Result<(), ProgramError> {
+        let ix = spl_token::instruction::mint_to(
+            token_program_id,
+            mint,
+            destination,
+            bridge,
+            &[],
+            amount,
+        )?;
+        invoke_signed(&ix, accounts, &[&[&bridge.to_bytes()[..32]][..]])
+    }
+
+    /// Transfer tokens from a caller
+    pub fn token_transfer_caller(
+        accounts: &[AccountInfo],
+        token_program_id: &Pubkey,
+        source: &Pubkey,
+        destination: &Pubkey,
+        authority: &Pubkey,
+        amount: u64,
+    ) -> Result<(), ProgramError> {
+        let all_signers: Vec<&Pubkey> = accounts
+            .iter()
+            .filter_map(|item| if item.is_signer { Some(item.key) } else { None })
+            .collect();
+        let ix = spl_token::instruction::transfer(
+            token_program_id,
+            source,
+            destination,
+            authority,
+            all_signers.as_slice(),
+            amount,
+        )?;
+        invoke_signed(&ix, accounts, &[])
+    }
+
+    /// Transfer tokens from a custody account
+    pub fn token_transfer_custody(
+        accounts: &[AccountInfo],
+        token_program_id: &Pubkey,
+        bridge: &Pubkey,
+        source: &Pubkey,
+        destination: &Pubkey,
+        amount: u64,
+    ) -> Result<(), ProgramError> {
+        let ix = spl_token::instruction::transfer(
+            token_program_id,
+            source,
+            destination,
+            bridge,
+            &[],
+            amount,
+        )?;
+        invoke_signed(&ix, accounts, &[&[&bridge.to_bytes()[..32]][..]])
+    }
+
+    /// Create a new account
+    pub fn create_custody_account(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        token_program: &Pubkey,
+        bridge: &Pubkey,
+        account: &Pubkey,
+        mint: &Pubkey,
+        payer: &Pubkey,
+    ) -> Result<(), ProgramError> {
+        Self::create_account::<Mint>(
+            program_id,
+            accounts,
+            mint,
+            payer,
+            Self::derive_custody_seeds(bridge, mint),
+        )?;
+        let ix = spl_token::instruction::initialize_account(token_program, account, mint, bridge)?;
+        invoke_signed(&ix, accounts, &[&[&bridge.to_bytes()[..32]][..]])
+    }
+
+    /// Create a mint for a wrapped asset
+    pub fn create_wrapped_mint(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        token_program: &Pubkey,
+        mint: &Pubkey,
+        bridge: &Pubkey,
+        payer: &Pubkey,
+        asset: &AssetMeta,
+    ) -> Result<(), ProgramError> {
+        Self::create_account::<Mint>(
+            program_id,
+            accounts,
+            mint,
+            payer,
+            Self::derive_wrapped_asset_seeds(bridge, asset.chain, asset.address),
+        )?;
+        let ix =
+            spl_token::instruction::initialize_mint(token_program, mint, None, Some(bridge), 0, 8)?;
+        invoke_signed(&ix, accounts, &[&[&bridge.to_bytes()[..32]][..]])
+    }
+
+    /// Create a new account
+    pub fn create_account<T: Sized>(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        new_account: &Pubkey,
+        payer: &Pubkey,
+        seeds: Vec<Vec<u8>>,
+    ) -> Result<(), ProgramError> {
+        let size = size_of::<T>();
+        let ix = create_account(
+            payer,
+            new_account,
+            Rent::default().minimum_balance(size as usize),
+            size as u64,
+            program_id,
+        );
+        let s: Vec<_> = seeds.iter().map(|item| item.as_slice()).collect();
+        invoke_signed(&ix, accounts, &[s.as_slice()])
     }
 }
 

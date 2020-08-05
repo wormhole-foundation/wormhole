@@ -20,7 +20,7 @@ func TestSerializeDeserialize(t *testing.T) {
 		{
 			name: "BodyTransfer",
 			vaa: &VAA{
-				Version:          8,
+				Version:          1,
 				GuardianSetIndex: 9,
 				Signature: &Signature{
 					Sig:     [32]byte{2, 8},
@@ -28,6 +28,7 @@ func TestSerializeDeserialize(t *testing.T) {
 				},
 				Timestamp: time.Unix(2837, 0),
 				Payload: &BodyTransfer{
+					Nonce:         38,
 					SourceChain:   2,
 					TargetChain:   1,
 					TargetAddress: Address{2, 1, 3},
@@ -42,7 +43,7 @@ func TestSerializeDeserialize(t *testing.T) {
 		{
 			name: "GuardianSetUpdate",
 			vaa: &VAA{
-				Version:          8,
+				Version:          1,
 				GuardianSetIndex: 9,
 				Signature: &Signature{
 					Sig:     [32]byte{2, 8},

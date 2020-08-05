@@ -1,5 +1,4 @@
 #![allow(clippy::too_many_arguments)]
-
 //! Instruction types
 
 use std::io::Write;
@@ -132,7 +131,6 @@ impl BridgeInstruction {
             Self::EvictExecutedVAA() => {
                 output[0] = 4;
             }
-            _ => panic!(""),
         }
         Ok(output)
     }

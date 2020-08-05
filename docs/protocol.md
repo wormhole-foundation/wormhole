@@ -177,6 +177,7 @@ Size: `75 byte`
 Payload:
 
 ```
+uint32 nonce
 uint8 source_chain
 uint8 target_chain
 [32]uint8 target_address

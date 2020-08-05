@@ -3,14 +3,14 @@ use std::io::{Cursor, Read, Write};
 use std::mem::size_of;
 
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
+use primitive_types::U256;
 use sha3::Digest;
 use solana_sdk::program_error::ProgramError;
 
 use crate::error::Error;
 use crate::error::Error::InvalidVAAFormat;
-use crate::instruction::unpack;
 use crate::state::AssetMeta;
-use crate::syscalls::{RawKey, SchnorrifyInput, sol_verify_schnorr};
+use crate::syscalls::{sol_verify_schnorr, RawKey, SchnorrifyInput};
 use crate::vaa::VAABody::UpdateGuardianSet;
 
 pub type ForeignAddress = [u8; 32];
@@ -42,16 +42,20 @@ impl VAA {
 
     pub fn verify(&self, guardian_key: &RawKey) -> bool {
         let body = match self.signature_body() {
-            Ok(v) => { v }
-            Err(_) => { return false; }
+            Ok(v) => v,
+            Err(_) => {
+                return false;
+            }
         };
 
         let mut h = sha3::Keccak256::default();
-        if let Err(_) = h.write(body.as_slice()) { return false; };
+        if let Err(_) = h.write(body.as_slice()) {
+            return false;
+        };
         let hash = h.finalize().into();
 
-        let schnorr_input = SchnorrifyInput::new(*guardian_key, hash,
-                                                 self.signature_sig, self.signature_addr);
+        let schnorr_input =
+            SchnorrifyInput::new(*guardian_key, hash, self.signature_sig, self.signature_addr);
         sol_verify_schnorr(&schnorr_input)
     }
 
@@ -68,6 +72,7 @@ impl VAA {
         v.write_u8(payload.action_id())?;
 
         let payload_data = payload.serialize()?;
+        v.write_u8(payload_data.len() as u8)?;
         v.write(payload_data.as_slice())?;
 
         Ok(v.into_inner())
@@ -124,14 +129,13 @@ impl VAABody {
     fn deserialize(data: &Vec<u8>) -> Result<VAABody, Error> {
         let mut payload_data = Cursor::new(data);
         let action = payload_data.read_u8()?;
+        let length = payload_data.read_u8()?;
 
         let payload = match action {
             0x01 => {
                 VAABody::UpdateGuardianSet(BodyUpdateGuardianSet::deserialize(&mut payload_data)?)
             }
-            0x10 => {
-                VAABody::Transfer(BodyTransfer::deserialize(&mut payload_data)?)
-            }
+            0x10 => VAABody::Transfer(BodyTransfer::deserialize(&mut payload_data)?),
             _ => {
                 return Err(Error::InvalidVAAAction);
             }
@@ -142,12 +146,8 @@ impl VAABody {
 
     fn serialize(&self) -> Result<Vec<u8>, Error> {
         match self {
-            VAABody::Transfer(b) => {
-                b.serialize()
-            }
-            VAABody::UpdateGuardianSet(b) => {
-                b.serialize()
-            }
+            VAABody::Transfer(b) => b.serialize(),
+            VAABody::UpdateGuardianSet(b) => b.serialize(),
         }
     }
 }
@@ -160,37 +160,45 @@ pub struct BodyUpdateGuardianSet {
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct BodyTransfer {
-    pub ref_block: u64,
+    pub nonce: u32,
     pub source_chain: u8,
-    pub source_address: ForeignAddress,
     pub target_chain: u8,
     pub target_address: ForeignAddress,
     pub asset: AssetMeta,
-    pub amount: u64,
+    pub amount: U256,
 }
 
 impl BodyUpdateGuardianSet {
     fn deserialize(data: &mut Cursor<&Vec<u8>>) -> Result<BodyUpdateGuardianSet, Error> {
-        let new_index = data.read_u32::<BigEndian>()?;
         let mut new_key_x: [u8; 32] = [0; 32];
         data.read(&mut new_key_x)?;
-        let mut new_key_y: [u8; 32] = [0; 32];
-        data.read(&mut new_key_y)?;
+        let new_key_y_parity = match data.read_u8()? {
+            0 => false,
+            1 => true,
+            _ => return Err(InvalidVAAFormat),
+        };
+
+        let new_index = data.read_u32::<BigEndian>()?;
 
         Ok(BodyUpdateGuardianSet {
             new_index,
             new_key: RawKey {
                 x: new_key_x,
-                y: new_key_y,
+                y_parity: new_key_y_parity,
             },
         })
     }
 
     fn serialize(&self) -> Result<Vec<u8>, Error> {
         let mut v: Cursor<Vec<u8>> = Cursor::new(Vec::new());
-        v.write_u32::<BigEndian>(self.new_index)?;
         v.write(&self.new_key.x)?;
-        v.write(&self.new_key.y)?;
+        v.write_u8({
+            match self.new_key.y_parity {
+                false => 0,
+                true => 1,
+            }
+        })?;
+        v.write_u32::<BigEndian>(self.new_index)?;
 
         Ok(v.into_inner())
     }
@@ -198,26 +206,26 @@ impl BodyUpdateGuardianSet {
 
 impl BodyTransfer {
     fn deserialize(data: &mut Cursor<&Vec<u8>>) -> Result<BodyTransfer, Error> {
-        let ref_block = data.read_u64::<BigEndian>()?;
+        let nonce = data.read_u32::<BigEndian>()?;
         let source_chain = data.read_u8()?;
-        let mut source_address: ForeignAddress = ForeignAddress::default();
-        data.read(&mut source_address)?;
         let target_chain = data.read_u8()?;
         let mut target_address: ForeignAddress = ForeignAddress::default();
-        data.read(&mut target_address)?;
+        data.read_exact(&mut target_address)?;
         let token_chain = data.read_u8()?;
         let mut token_address: ForeignAddress = ForeignAddress::default();
-        data.read(&mut token_address)?;
-        let amount = data.read_u64::<BigEndian>()?;
+        data.read_exact(&mut token_address)?;
+
+        let mut am_data: [u8; 32] = [0; 32];
+        data.read_exact(&mut am_data)?;
+        let amount = U256::from_big_endian(&am_data);
 
         Ok(BodyTransfer {
-            ref_block,
+            nonce,
             source_chain,
-            source_address,
             target_chain,
             target_address,
             asset: AssetMeta {
-                address: target_address,
+                address: token_address,
                 chain: token_chain,
             },
             amount,
@@ -226,12 +234,16 @@ impl BodyTransfer {
 
     fn serialize(&self) -> Result<Vec<u8>, Error> {
         let mut v: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+        v.write_u32::<BigEndian>(self.nonce)?;
         v.write_u8(self.source_chain)?;
         v.write_u8(self.target_chain)?;
         v.write(&self.target_address)?;
         v.write_u8(self.asset.chain)?;
         v.write(&self.asset.address)?;
-        v.write_u64::<BigEndian>(self.amount)?;
+
+        let mut am_data: [u8; 32] = [0; 32];
+        self.amount.to_big_endian(&mut am_data);
+        v.write(&am_data[..])?;
 
         Ok(v.into_inner())
     }
@@ -242,11 +254,12 @@ mod tests {
     use std::io::Write;
 
     use hex;
+    use primitive_types::U256;
 
     use crate::error::Error;
     use crate::state::AssetMeta;
     use crate::syscalls::RawKey;
-    use crate::vaa::{BodyTransfer, BodyUpdateGuardianSet, VAA, VAABody};
+    use crate::vaa::{BodyTransfer, BodyUpdateGuardianSet, VAABody, VAA};
 
     #[test]
     fn serialize_deserialize_vaa_transfer() {
@@ -257,16 +270,15 @@ mod tests {
             signature_addr: [9; 20],
             timestamp: 83,
             payload: Some(VAABody::Transfer(BodyTransfer {
-                ref_block: 28,
+                nonce: 28,
                 source_chain: 1,
-                source_address: [9; 32],
                 target_chain: 2,
                 target_address: [1; 32],
                 asset: AssetMeta {
                     address: [2; 32],
                     chain: 8,
                 },
-                amount: 4,
+                amount: U256::from(3),
             })),
         };
 
@@ -287,7 +299,7 @@ mod tests {
                 new_index: 29,
                 new_key: RawKey {
                     x: [2; 32],
-                    y: [3; 32],
+                    y_parity: true,
                 },
             })),
         };
@@ -295,5 +307,72 @@ mod tests {
         let data = vaa.serialize().unwrap();
         let parsed_vaa = VAA::deserialize(data.as_slice()).unwrap();
         assert_eq!(vaa, parsed_vaa)
+    }
+
+    #[test]
+    fn parse_given_guardian_set_update() {
+        let vaa = VAA {
+            version: 1,
+            guardian_set_index: 9,
+            signature_sig: [
+                2, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0,
+            ],
+            signature_addr: [1, 2, 3, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            timestamp: 2837,
+            payload: Some(VAABody::UpdateGuardianSet(BodyUpdateGuardianSet {
+                new_index: 2,
+                new_key: RawKey {
+                    x: [
+                        34, 23, 130, 103, 189, 101, 144, 104, 196, 19, 115, 119, 37, 80, 123, 46,
+                        218, 191, 167, 75, 3, 40, 130, 168, 218, 203, 128, 99, 120, 238, 102, 1,
+                    ],
+                    y_parity: true,
+                },
+            })),
+        };
+        let data = hex::decode("01000000090208000000000000000000000000000000000000000000000000000000000000010203040000000000000000000000000000000000000b15012522178267bd659068c413737725507b2edabfa74b032882a8dacb806378ee66010100000002").unwrap();
+        let parsed_vaa = VAA::deserialize(data.as_slice()).unwrap();
+        assert_eq!(vaa, parsed_vaa);
+
+        let rec_data = parsed_vaa.serialize().unwrap();
+        assert_eq!(data, rec_data);
+    }
+
+    #[test]
+    fn parse_given_transfer() {
+        let vaa = VAA {
+            version: 1,
+            guardian_set_index: 9,
+            signature_sig: [
+                2, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0,
+            ],
+            signature_addr: [1, 2, 3, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            timestamp: 2837,
+            payload: Some(VAABody::Transfer(BodyTransfer {
+                nonce: 38,
+                source_chain: 2,
+                target_chain: 1,
+                target_address: [
+                    2, 1, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                    0, 0, 0, 0, 0, 0,
+                ],
+                asset: AssetMeta {
+                    address: [
+                        9, 2, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                        0, 0, 0, 0, 0, 0, 0,
+                    ],
+                    chain: 9,
+                },
+                amount: U256::from(29),
+            })),
+        };
+        let data = hex::decode("01000000090208000000000000000000000000000000000000000000000000000000000000010203040000000000000000000000000000000000000b1510670000002602010201030000000000000000000000000000000000000000000000000000000000090902040000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001d").unwrap();
+        let parsed_vaa = VAA::deserialize(data.as_slice()).unwrap();
+        assert_eq!(vaa, parsed_vaa);
+
+        let rec_data = parsed_vaa.serialize().unwrap();
+        assert_eq!(data, rec_data);
     }
 }
