@@ -78,18 +78,18 @@ contract Wormhole {
         // Load 4 bytes starting from index 1
         uint32 vaa_guardian_set_index = vaa.toUint32(1);
 
-        uint256 signature = vaa.toUint256(2);
-        address sig_address = vaa.toAddress(34);
+        uint256 signature = vaa.toUint256(5);
+        address sig_address = vaa.toAddress(37);
 
         // Load 4 bytes starting from index 77
-        uint32 timestamp = vaa.toUint32(77);
+        uint32 timestamp = vaa.toUint32(57);
 
         // Verify that the VAA is still valid
         // TODO: the clock on Solana can't be trusted
         require(timestamp + vaa_expiry < block.timestamp, "VAA has expired");
 
         // Hash the body
-        bytes32 hash = keccak256(vaa.slice(77, vaa.length - 77));
+        bytes32 hash = keccak256(vaa.slice(57, vaa.length - 57));
         require(!consumedVAAs[hash], "VAA was already executed");
 
         GuardianSet memory guardian_set = guardian_sets[vaa_guardian_set_index];
@@ -102,11 +102,11 @@ contract Wormhole {
                 uint256(hash),
                 sig_address
             ),
-            "VAA signataure invalid");
+            "VAA signature invalid");
 
-        uint8 action = vaa.toUint8(81);
-        uint8 payload_len = vaa.toUint8(82);
-        bytes memory payload = vaa.slice(83, payload_len);
+        uint8 action = vaa.toUint8(61);
+        uint8 payload_len = vaa.toUint8(62);
+        bytes memory payload = vaa.slice(63, payload_len);
 
         // Process VAA
         if (action == 0x01) {
@@ -140,22 +140,23 @@ contract Wormhole {
     }
 
     function vaaTransfer(bytes memory data) private {
-        //uint64 nonce = data.toUint64(0);
-        uint8 source_chain = data.toUint8(8);
+        //uint32 nonce = data.toUint64(0);
+        uint8 source_chain = data.toUint8(4);
 
-        uint8 target_chain = data.toUint8(9);
-        //bytes32 target_address = data.toBytes32(10);
-        address target_address = data.toAddress(10 + 12);
+        uint8 target_chain = data.toUint8(5);
+        //bytes32 source_address = data.toBytes32(6);
+        //bytes32 target_address = data.toBytes32(38);
+        address target_address = data.toAddress(38 + 12);
 
-        uint8 token_chain = data.toUint8(42);
-        //bytes32 token_address = data.toBytes32(43);
-        uint256 amount = data.toUint8(75);
+        uint8 token_chain = data.toUint8(70);
+        //bytes32 token_address = data.toBytes32(71);
+        uint256 amount = data.toUint256(103);
 
         require(source_chain != target_chain, "same chain transfers are not supported");
         require(target_chain == CHAIN_ID, "transfer must be incoming");
 
         if (token_chain != CHAIN_ID) {
-            bytes32 token_address = data.toBytes32(43);
+            bytes32 token_address = data.toBytes32(71);
             bytes32 asset_id = keccak256(abi.encodePacked(token_chain, token_address));
 
             // if yes: mint to address
@@ -167,7 +168,7 @@ contract Wormhole {
 
             WrappedAsset(wrapped_asset).mint(target_address, amount);
         } else {
-            address token_address = data.toAddress(43 + 12);
+            address token_address = data.toAddress(71 + 12);
 
             IERC20(token_address).safeTransfer(target_address, amount);
         }
