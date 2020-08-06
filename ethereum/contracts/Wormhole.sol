@@ -6,6 +6,7 @@ pragma experimental ABIEncoderV2;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
+import "@openzeppelin/contracts/math/SafeMath.sol";
 import "./BytesLib.sol";
 import "./SchnorrSECP256K1.sol";
 import "./WrappedAsset.sol";
@@ -13,6 +14,7 @@ import "./WrappedAsset.sol";
 contract Wormhole {
     using SafeERC20 for IERC20;
     using BytesLib for bytes;
+    using SafeMath for uint256;
 
     // Address of the Wrapped asset template
     address public wrappedAssetMaster;
@@ -214,7 +216,13 @@ contract Wormhole {
             asset_chain = WrappedAsset(asset).assetChain();
             asset_address = WrappedAsset(asset).assetAddress();
         } else {
+            uint256 balanceBefore = IERC20(asset).balanceOf(address(this));
             IERC20(asset).safeTransferFrom(msg.sender, address(this), amount);
+            uint256 balanceAfter = IERC20(asset).balanceOf(address(this));
+
+            // The amount that was transferred in is the delta between balance before and after the transfer.
+            // This is to properly handle tokens that charge a fee on transfer.
+            amount = balanceAfter.sub(balanceBefore);
             asset_address = bytes32(uint256(asset));
         }
 
