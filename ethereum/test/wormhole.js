@@ -3,6 +3,7 @@ const Wormhole = artifacts.require("Wormhole");
 const WrappedAsset = artifacts.require("WrappedAsset");
 const ERC20 = artifacts.require("ERC20PresetMinterPauser");
 
+// Taken from https://medium.com/fluidity/standing-the-time-of-test-b906fcc374a9
 advanceTimeAndBlock = async (time) => {
     await advanceTime(time);
     await advanceBlock();
