@@ -53,7 +53,7 @@ contract Wormhole {
     );
 
     // Mapping of guardian_set_index => guardian set
-    mapping(uint32 => GuardianSet)  private guardian_sets;
+    mapping(uint32 => GuardianSet) public guardian_sets;
     // Current active guardian set
     uint32 public guardian_set_index;
 
@@ -67,10 +67,11 @@ contract Wormhole {
     mapping(bytes32 => address) wrappedAssets;
     mapping(address => bool) isWrappedAsset;
 
-    constructor(GuardianSet memory initial_guardian_set, address wrapped_asset_master) public {
+    constructor(GuardianSet memory initial_guardian_set, address wrapped_asset_master, uint32 _vaa_expiry) public {
         guardian_sets[0] = initial_guardian_set;
         // Explicitly set for doc purposes
         guardian_set_index = 0;
+        vaa_expiry = _vaa_expiry;
 
         wrappedAssetMaster = wrapped_asset_master;
     }
@@ -91,8 +92,7 @@ contract Wormhole {
         uint32 timestamp = vaa.toUint32(57);
 
         // Verify that the VAA is still valid
-        // TODO: the clock on Solana can't be trusted
-        require(timestamp + vaa_expiry < block.timestamp, "VAA has expired");
+        require(timestamp + vaa_expiry > block.timestamp, "VAA has expired");
 
         // Hash the body
         bytes32 hash = keccak256(vaa.slice(57, vaa.length - 57));
@@ -129,16 +129,17 @@ contract Wormhole {
 
     function vaaUpdateGuardianSet(bytes memory data) private {
         uint256 new_key_x = data.toUint256(0);
-        uint256 new_key_y = data.toUint256(32);
-        uint32 new_guardian_set_index = data.toUint32(64);
+        uint256 y_parity = data.toUint8(32);
+        uint32 new_guardian_set_index = data.toUint32(33);
 
         require(new_guardian_set_index > guardian_set_index, "index of new guardian set must be > current");
         require(new_key_x < Schnorr.HALF_Q, "invalid key for fast Schnorr verification");
+        require(y_parity <= 1, "invalid y parity");
 
         uint32 old_guardian_set_index = guardian_set_index;
         guardian_set_index = new_guardian_set_index;
 
-        GuardianSet memory new_guardian_set = GuardianSet(new_key_x, uint8(new_key_y % 2), 0);
+        GuardianSet memory new_guardian_set = GuardianSet(new_key_x, uint8(y_parity), 0);
         guardian_sets[guardian_set_index] = new_guardian_set;
         guardian_sets[old_guardian_set_index].expiration_time = uint32(block.timestamp) + vaa_expiry;
 
@@ -226,7 +227,7 @@ contract Wormhole {
             asset_address = bytes32(uint256(asset));
         }
 
-        emit LogTokensLocked(target_chain, asset_chain, asset_address, recipient, bytes32(uint256(msg.sender)), amount);
+        emit LogTokensLocked(target_chain, asset_chain, asset_address, bytes32(uint256(msg.sender)), recipient, amount);
     }
 
     function lockETH(
@@ -239,7 +240,7 @@ contract Wormhole {
         WETH(WETHAddress).deposit{value : msg.value}();
 
         // Log deposit of WETH
-        emit LogTokensLocked(target_chain, CHAIN_ID, bytes32(uint256(WETHAddress)), recipient, bytes32(uint256(msg.sender)), msg.value);
+        emit LogTokensLocked(target_chain, CHAIN_ID, bytes32(uint256(WETHAddress)), bytes32(uint256(msg.sender)), recipient, msg.value);
     }
 
 

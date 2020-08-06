@@ -11,7 +11,7 @@ wrapped non-ETH assets that are currently held on ETH.
 ### Deploying
 
 To deploy the bridge on Ethereum you first need to compile all smart contracts:
-`npx oz compile`
+`npx truffle compile`
 
 To deploy you can either use the bytecode from the `build/contracts` folder or the oz cli `oz deploy <Contract>` 
 ([Documentation](https://docs.openzeppelin.com/learn/deploying-and-interacting)).
@@ -21,6 +21,14 @@ You first need to deploy one `Wrapped Asset` and initialize it using dummy data.
 Then deploy the `Wormhole` using the initial guardian key (`key_x,y_parity,0`) and the address of the previously deployed
 `WrappedAsset`. The wrapped asset contract will be used as proxy library to all the creation of cheap proxy wrapped 
 assets.
+
+### Testing
+
+For each test run:
+
+Run `npx ganache-cli --deterministic --time "1970-01-01T00:00:00+00:00"` to start a chain.
+
+Run the tests using `npm test`
 
 ### User methods
 
