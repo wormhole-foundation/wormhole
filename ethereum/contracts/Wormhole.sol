@@ -18,7 +18,7 @@ contract Wormhole {
     address public wrappedAssetMaster;
 
     // Chain ID of Ethereum
-    uint256 CHAIN_ID = 2;
+    uint8 CHAIN_ID = 2;
 
     // Address of the official WETH contract
     address constant WETHAddress = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
@@ -35,16 +35,18 @@ contract Wormhole {
     );
 
     event LogTokensLocked(
-        address indexed token,
-        bytes32 indexed recipient,
-        uint8 indexed target_chain,
+        uint8 target_chain,
+        uint8 token_chain,
+        bytes32 indexed token,
+        bytes32 indexed sender,
+        bytes32 recipient,
         uint256 amount
     );
 
     event LogTokensUnlocked(
         address indexed token,
         bytes32 indexed sender,
-        address indexed recipient,
+        address recipient,
         uint256 amount
     );
 
@@ -205,12 +207,24 @@ contract Wormhole {
     ) public {
         require(amount != 0, "amount must not be 0");
 
+        uint8 asset_chain = CHAIN_ID;
+        bytes32 asset_address;
         if (isWrappedAsset[asset]) {
             WrappedAsset(asset).burn(msg.sender, amount);
+            asset_chain = WrappedAsset(asset).assetChain();
+            asset_address = WrappedAsset(asset).assetAddress();
         } else {
             IERC20(asset).safeTransferFrom(msg.sender, address(this), amount);
+            asset_address = bytes32(uint256(asset));
         }
-        emit LogTokensLocked(asset, recipient, target_chain, amount);
+
+        //        uint8 indexed target_chain,
+        //        bytes32 indexed sender,
+        //        bytes32 indexed recipient,
+        //        uint8 indexed token_chain,
+        //        address indexed token,
+        //        uint256 amount
+        emit LogTokensLocked(target_chain, asset_chain, asset_address, recipient, bytes32(uint256(msg.sender)), amount);
     }
 
     function lockETH(
@@ -223,7 +237,7 @@ contract Wormhole {
         WETH(WETHAddress).deposit{value : msg.value}();
 
         // Log deposit of WETH
-        emit LogTokensLocked(WETHAddress, recipient, target_chain, msg.value);
+        emit LogTokensLocked(target_chain, CHAIN_ID, bytes32(uint256(WETHAddress)), recipient, bytes32(uint256(msg.sender)), msg.value);
     }
 
 

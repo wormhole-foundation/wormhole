@@ -184,7 +184,7 @@ uint8 target_chain
 [32]uint8 target_address
 uint8 token_chain
 [32]uint8 token_address
-uint64 amount
+uint256 amount
 ```
 
 ### Cross-Chain Transfers
