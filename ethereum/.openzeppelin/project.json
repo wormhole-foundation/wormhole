@@ -1,6 +1,8 @@
 {
   "manifestVersion": "2.2",
-  "contracts": {},
+  "contracts": {
+    "Wormhole": "Wormhole"
+  },
   "dependencies": {},
   "name": "wormhole",
   "version": "0.1.0",
