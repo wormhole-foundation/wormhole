@@ -45,13 +45,6 @@ contract Wormhole {
         uint256 amount
     );
 
-    event LogTokensUnlocked(
-        address indexed token,
-        bytes32 indexed sender,
-        address recipient,
-        uint256 amount
-    );
-
     // Mapping of guardian_set_index => guardian set
     mapping(uint32 => GuardianSet) public guardian_sets;
     // Current active guardian set
@@ -179,7 +172,6 @@ contract Wormhole {
 
             IERC20(token_address).safeTransfer(target_address, amount);
         }
-        // Safely transfer tokens out
     }
 
     function deployWrappedAsset(bytes32 seed, uint8 token_chain, bytes32 token_address) private returns (address asset){
