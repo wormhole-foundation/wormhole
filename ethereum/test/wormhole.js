@@ -137,8 +137,11 @@ contract("Wormhole", function () {
 
         // Push time by 1000
         await advanceTimeAndBlock(1000);
-        await bridge.submitVAA("0x0100000000fe60d5766a84300effedd5362dcf6ff8f4ed75ab3dbe4c1ae07151ab48bc8cbf767b4aa42cf768477dc5bb45367044bd2de6d6b3000003e801253e2f87d126ef42ac22d284de7619d2c87437198a32887efeddb4debfd016747f0000000001")
-        // Expect user to have a balance of a new wrapped asset
+        let ev = await bridge.submitVAA("0x0100000000fe60d5766a84300effedd5362dcf6ff8f4ed75ab3dbe4c1ae07151ab48bc8cbf767b4aa42cf768477dc5bb45367044bd2de6d6b3000003e801253e2f87d126ef42ac22d284de7619d2c87437198a32887efeddb4debfd016747f0000000001")
+        assert.lengthOf(ev.logs, 1)
+        assert.equal(ev.logs[0].event, "LogGuardianSetChanged")
+
+        // Expect guardian set to transition to 1
         assert.equal(await bridge.guardian_set_index(), 1);
         assert.equal((await bridge.guardian_sets(1)).x, "28127375798693063422362909717576839343810687066240716944661469189277081826431");
 
