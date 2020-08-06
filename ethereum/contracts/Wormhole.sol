@@ -226,12 +226,6 @@ contract Wormhole {
             asset_address = bytes32(uint256(asset));
         }
 
-        //        uint8 indexed target_chain,
-        //        bytes32 indexed sender,
-        //        bytes32 indexed recipient,
-        //        uint8 indexed token_chain,
-        //        address indexed token,
-        //        uint256 amount
         emit LogTokensLocked(target_chain, asset_chain, asset_address, recipient, bytes32(uint256(msg.sender)), amount);
     }
 
