@@ -1,13 +1,7 @@
 //! Error types
 
-use std::io;
-
 use num_derive::FromPrimitive;
-use num_traits::FromPrimitive;
-use solana_sdk::{
-    decode_error::DecodeError,
-    program_error::{PrintProgramError, ProgramError},
-};
+use solana_sdk::{decode_error::DecodeError, program_error::ProgramError};
 use thiserror::Error;
 
 /// Errors that may be returned by the TokenSwap program.

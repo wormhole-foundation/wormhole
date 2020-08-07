@@ -1,21 +1,18 @@
 #![allow(clippy::too_many_arguments)]
 //! Instruction types
 
-use std::io::Write;
 use std::mem::size_of;
 
+use primitive_types::U256;
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
     program_error::ProgramError,
     pubkey::Pubkey,
 };
-use zerocopy::{AsBytes, FromBytes};
 
-use crate::error::Error;
 use crate::instruction::BridgeInstruction::Initialize;
 use crate::state::{AssetMeta, BridgeConfig};
 use crate::syscalls::RawKey;
-use primitive_types::U256;
 
 /// chain id of this chain
 pub const CHAIN_ID_SOLANA: u8 = 1;
@@ -62,15 +59,38 @@ pub enum BridgeInstruction {
     /// Accounts expected by this instruction:
     ///
     ///   0. `[writable, derived]`  The bridge to initialize.
-    ///   1. `[]` The clock SysVar
-    ///   2. `[writable, derived]` The initial guardian set account
-    ///   3. `[signer]` The fee payer for new account creation
+    ///   1. `[]` The System program
+    ///   2. `[]` The clock SysVar
+    ///   3. `[writable, derived]` The initial guardian set account
+    ///   4. `[signer]` The fee payer for new account creation
     Initialize(InitializePayload),
 
     /// Burns or locks a (wrapped) asset `token` from `sender` on the Solana chain.
+    ///
+    ///   Wrapped asset transfer out
+    ///   0. `[writable]`  The from token account
+    ///   1. `[]` The System program.
+    ///   2. `[]` The spl token program.
+    ///   3. `[]` The clock SysVar
+    ///   4. `[derived]` The bridge config
+    ///   5. `[writable, derived, empty]` The new transfer out tracking account
+    ///   6. `[writable, derived]` The mint of the wrapped asset
+    ///   7. ..7+M '[signer]' M signer accounts (from token authority)
+    ///
+    ///   Native token transfer out
+    ///   0. `[writable]`  The from token account
+    ///   1. `[]` The System program.
+    ///   2. `[]` The spl token program.
+    ///   3. `[]` The clock SysVar
+    ///   4. `[derived]` The bridge config
+    ///   5. `[writable, derived, empty]` The new transfer out tracking account
+    ///   6. `[writable, derived]` The mint of the wrapped asset
+    ///   7. `[writable, derived]` The custody token account of the bridge
+    ///   8. ..8+M '[signer]' M signer accounts (from token authority)
     TransferOut(TransferOutPayload),
 
     /// Submits a VAA signed by `guardian` on a valid `proposal`.
+    /// See docs for accounts
     PostVAA(VAA_BODY),
 
     /// Deletes a `proposal` after the `VAA_EXPIRATION_TIME` is over to free up space on chain.

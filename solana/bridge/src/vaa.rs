@@ -1,17 +1,13 @@
-use std::any::Any;
 use std::io::{Cursor, Read, Write};
-use std::mem::size_of;
 
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use primitive_types::U256;
 use sha3::Digest;
-use solana_sdk::program_error::ProgramError;
 
 use crate::error::Error;
 use crate::error::Error::InvalidVAAFormat;
 use crate::state::AssetMeta;
 use crate::syscalls::{sol_verify_schnorr, RawKey, SchnorrifyInput};
-use crate::vaa::VAABody::UpdateGuardianSet;
 
 pub type ForeignAddress = [u8; 32];
 
@@ -129,7 +125,7 @@ impl VAABody {
     fn deserialize(data: &Vec<u8>) -> Result<VAABody, Error> {
         let mut payload_data = Cursor::new(data);
         let action = payload_data.read_u8()?;
-        let length = payload_data.read_u8()?;
+        let _length = payload_data.read_u8()?;
 
         let payload = match action {
             0x01 => {
@@ -256,12 +252,10 @@ impl BodyTransfer {
 
 #[cfg(test)]
 mod tests {
-    use std::io::Write;
 
     use hex;
     use primitive_types::U256;
 
-    use crate::error::Error;
     use crate::state::AssetMeta;
     use crate::syscalls::RawKey;
     use crate::vaa::{BodyTransfer, BodyUpdateGuardianSet, VAABody, VAA};

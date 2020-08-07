@@ -1,35 +1,14 @@
 //! Bridge transition types
 
-use std::io::Write;
 use std::mem::size_of;
-use std::slice::Iter;
-use std::str;
 
-use num_traits::AsPrimitive;
-use sha3::Digest;
-use solana_sdk::clock::Clock;
-use solana_sdk::hash::hash;
-#[cfg(not(target_arch = "bpf"))]
-use solana_sdk::instruction::Instruction;
-#[cfg(target_arch = "bpf")]
-use solana_sdk::program::invoke_signed;
-use solana_sdk::rent::Rent;
-use solana_sdk::system_instruction::{create_account, SystemInstruction};
-use solana_sdk::sysvar::Sysvar;
-use solana_sdk::{
-    account_info::next_account_info, account_info::AccountInfo, entrypoint::ProgramResult,
-    program_error::ProgramError, pubkey::bs58, pubkey::Pubkey,
-};
-use spl_token::state::Mint;
+use solana_sdk::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 
-use crate::instruction::BridgeInstruction::*;
-use crate::instruction::{
-    BridgeInstruction, ForeignAddress, GuardianKey, TransferOutPayload, CHAIN_ID_SOLANA, VAA_BODY,
-};
+use crate::instruction::{ForeignAddress, VAA_BODY};
 
-use crate::syscalls::{sol_verify_schnorr, RawKey, SchnorrifyInput};
-use crate::vaa::{BodyTransfer, BodyUpdateGuardianSet, VAABody, VAA};
-use crate::{error::Error, instruction::unpack};
+use crate::error::Error;
+use crate::syscalls::RawKey;
+use crate::vaa::BodyTransfer;
 use primitive_types::U256;
 use zerocopy::AsBytes;
 
@@ -289,7 +268,7 @@ impl Bridge {
 
     /// Calculates a derived address for this program
     pub fn derive_bridge_id(program_id: &Pubkey) -> Result<Pubkey, Error> {
-        Self::derive_key(program_id, Self::derive_bridge_seeds(program_id))
+        Self::derive_key(program_id, &Self::derive_bridge_seeds(program_id))
     }
 
     /// Calculates a derived address for a custody account
@@ -298,7 +277,7 @@ impl Bridge {
         bridge: &Pubkey,
         mint: &Pubkey,
     ) -> Result<Pubkey, Error> {
-        Self::derive_key(program_id, Self::derive_custody_seeds(bridge, mint))
+        Self::derive_key(program_id, &Self::derive_custody_seeds(bridge, mint))
     }
 
     /// Calculates a derived address for a claim account
@@ -307,7 +286,7 @@ impl Bridge {
         bridge: &Pubkey,
         hash: &[u8; 32],
     ) -> Result<Pubkey, Error> {
-        Self::derive_key(program_id, Self::derive_claim_seeds(bridge, hash))
+        Self::derive_key(program_id, &Self::derive_claim_seeds(bridge, hash))
     }
 
     /// Calculates a derived address for this program
@@ -318,7 +297,7 @@ impl Bridge {
     ) -> Result<Pubkey, Error> {
         Self::derive_key(
             program_id,
-            Self::derive_guardian_set_seeds(bridge_key, guardian_set_index),
+            &Self::derive_guardian_set_seeds(bridge_key, guardian_set_index),
         )
     }
 
@@ -331,7 +310,7 @@ impl Bridge {
     ) -> Result<Pubkey, Error> {
         Self::derive_key(
             program_id,
-            Self::derive_wrapped_asset_seeds(bridge_key, asset_chain, asset),
+            &Self::derive_wrapped_asset_seeds(bridge_key, asset_chain, asset),
         )
     }
 
@@ -348,7 +327,7 @@ impl Bridge {
     ) -> Result<Pubkey, Error> {
         Self::derive_key(
             program_id,
-            Self::derive_transfer_id_seeds(
+            &Self::derive_transfer_id_seeds(
                 bridge_key,
                 asset_chain,
                 asset,
@@ -360,7 +339,7 @@ impl Bridge {
         )
     }
 
-    fn derive_key(program_id: &Pubkey, seeds: Vec<Vec<u8>>) -> Result<Pubkey, Error> {
+    pub fn derive_key(program_id: &Pubkey, seeds: &Vec<Vec<u8>>) -> Result<Pubkey, Error> {
         let s: Vec<_> = seeds.iter().map(|item| item.as_slice()).collect();
         Pubkey::create_program_address(s.as_slice(), program_id)
             .or(Err(Error::InvalidProgramAddress))

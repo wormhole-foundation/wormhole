@@ -4,35 +4,30 @@
 use std::io::Write;
 use std::mem::size_of;
 use std::slice::Iter;
-use std::str;
 
 use num_traits::AsPrimitive;
+use primitive_types::U256;
 use sha3::Digest;
 use solana_sdk::clock::Clock;
-use solana_sdk::hash::hash;
 #[cfg(not(target_arch = "bpf"))]
 use solana_sdk::instruction::Instruction;
-use solana_sdk::log::sol_log;
 #[cfg(target_arch = "bpf")]
 use solana_sdk::program::invoke_signed;
 use solana_sdk::rent::Rent;
-use solana_sdk::system_instruction::{create_account, SystemInstruction};
+use solana_sdk::system_instruction::create_account;
 use solana_sdk::sysvar::Sysvar;
 use solana_sdk::{
     account_info::next_account_info, account_info::AccountInfo, entrypoint::ProgramResult, info,
-    program_error::ProgramError, pubkey::bs58, pubkey::Pubkey,
+    program_error::ProgramError, pubkey::Pubkey,
 };
 use spl_token::state::Mint;
 
+use crate::error::Error;
 use crate::instruction::BridgeInstruction::*;
-use crate::instruction::{
-    BridgeInstruction, ForeignAddress, GuardianKey, TransferOutPayload, CHAIN_ID_SOLANA, VAA_BODY,
-};
+use crate::instruction::{BridgeInstruction, TransferOutPayload, CHAIN_ID_SOLANA};
 use crate::state::*;
-use crate::syscalls::{sol_verify_schnorr, RawKey, SchnorrifyInput};
+use crate::syscalls::RawKey;
 use crate::vaa::{BodyTransfer, BodyUpdateGuardianSet, VAABody, VAA};
-use crate::{error::Error, instruction::unpack};
-use primitive_types::U256;
 
 /// Instruction processing logic
 impl Bridge {
@@ -84,27 +79,39 @@ impl Bridge {
         config: BridgeConfig,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
-        let new_account_info = next_account_info(account_info_iter)?;
-        let new_guardian_info = next_account_info(account_info_iter)?;
+        next_account_info(account_info_iter)?; // System program
         let clock_info = next_account_info(account_info_iter)?;
+        let new_bridge_info = next_account_info(account_info_iter)?;
+        let new_guardian_info = next_account_info(account_info_iter)?;
+        let payer_info = next_account_info(account_info_iter)?;
+
         let clock = Clock::from_account_info(clock_info)?;
 
-        let mut new_account_data = new_account_info.data.borrow_mut();
+        // Create bridge account
+        let bridge_seed = Bridge::derive_bridge_seeds(program_id);
+        Bridge::check_and_create_account::<BridgeConfig>(
+            program_id,
+            accounts,
+            new_bridge_info.key,
+            payer_info.key,
+            &bridge_seed,
+        )?;
+
+        let mut new_account_data = new_bridge_info.data.borrow_mut();
         let mut bridge: &mut Bridge = Self::unpack_unchecked(&mut new_account_data)?;
         if bridge.is_initialized {
             return Err(Error::AlreadyExists.into());
         }
 
-        let expected_bridge_key = Bridge::derive_bridge_id(program_id)?;
-        if expected_bridge_key != *new_account_info.key {
-            return Err(Error::InvalidDerivedAccount.into());
-        }
-
-        let expected_guardian_set_key =
-            Bridge::derive_guardian_set_id(program_id, new_account_info.key, 0)?;
-        if expected_guardian_set_key != *new_guardian_info.key {
-            return Err(Error::InvalidDerivedAccount.into());
-        }
+        // Create guardian set account
+        let guardian_seed = Bridge::derive_guardian_set_seeds(new_bridge_info.key, 0);
+        Bridge::check_and_create_account::<GuardianSet>(
+            program_id,
+            accounts,
+            new_guardian_info.key,
+            payer_info.key,
+            &guardian_seed,
+        )?;
 
         let mut new_guardian_data = new_guardian_info.data.borrow_mut();
         let mut guardian_info: &mut GuardianSet = Self::unpack_unchecked(&mut new_guardian_data)?;
@@ -133,12 +140,15 @@ impl Bridge {
         t: &TransferOutPayload,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
-        let sender_account_info = next_account_info(account_info_iter)?;
+        next_account_info(account_info_iter)?; // System program
+        next_account_info(account_info_iter)?; // Token program
         let clock_info = next_account_info(account_info_iter)?;
+        let sender_account_info = next_account_info(account_info_iter)?;
         let bridge_info = next_account_info(account_info_iter)?;
-        let proposal_info = next_account_info(account_info_iter)?;
+        let transfer_info = next_account_info(account_info_iter)?;
         let mint_info = next_account_info(account_info_iter)?;
-        let sender_info = next_account_info(account_info_iter)?;
+        let payer_info = next_account_info(account_info_iter)?;
+        let authority_info = next_account_info(account_info_iter)?;
 
         let clock = Clock::from_account_info(clock_info)?;
         let sender = Bridge::token_account_deserialize(sender_account_info)?;
@@ -166,25 +176,28 @@ impl Bridge {
             return Err(Error::InvalidDerivedAccount.into());
         }
 
-        // Check that the transfer account was derived correctly
-        let expected_transfer_id = Bridge::derive_transfer_id(
-            program_id,
+        // Create transfer account
+        let transfer_seed = Bridge::derive_transfer_id_seeds(
             bridge_info.key,
             t.asset.chain,
             t.asset.address,
             t.chain_id,
             t.target,
             sender.owner.to_bytes(),
-            clock.slot.as_(),
+            clock.slot.as_(), //TODO use nonce
+        );
+        Bridge::check_and_create_account::<TransferOutProposal>(
+            program_id,
+            accounts,
+            transfer_info.key,
+            payer_info.key,
+            &transfer_seed,
         )?;
-        if expected_transfer_id != *proposal_info.key {
-            return Err(Error::InvalidDerivedAccount.into());
-        }
 
-        // Load proposal account
-        let mut proposal_data = proposal_info.data.borrow_mut();
-        let proposal: &mut TransferOutProposal = Bridge::unpack_unchecked(&mut proposal_data)?;
-        if proposal.is_initialized {
+        // Load transfer account
+        let mut transfer_data = transfer_info.data.borrow_mut();
+        let transfer: &mut TransferOutProposal = Bridge::unpack_unchecked(&mut transfer_data)?;
+        if transfer.is_initialized {
             return Err(Error::AlreadyExists.into());
         }
 
@@ -192,17 +205,17 @@ impl Bridge {
         Bridge::wrapped_burn(
             accounts,
             &bridge.config.token_program,
-            sender_info.key,
+            authority_info.key,
             sender_account_info.key,
             t.amount,
         )?;
 
-        // Initialize proposal
-        proposal.is_initialized = true;
-        proposal.foreign_address = t.target;
-        proposal.amount = t.amount;
-        proposal.to_chain_id = t.chain_id;
-        proposal.asset = t.asset;
+        // Initialize transfer
+        transfer.is_initialized = true;
+        transfer.foreign_address = t.target;
+        transfer.amount = t.amount;
+        transfer.to_chain_id = t.chain_id;
+        transfer.asset = t.asset;
 
         Ok(())
     }
@@ -214,12 +227,15 @@ impl Bridge {
         t: &TransferOutPayload,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
-        let sender_account_info = next_account_info(account_info_iter)?;
+        next_account_info(account_info_iter)?; // System program
+        next_account_info(account_info_iter)?; // Token program
         let clock_info = next_account_info(account_info_iter)?;
+        let sender_account_info = next_account_info(account_info_iter)?;
         let bridge_info = next_account_info(account_info_iter)?;
-        let proposal_info = next_account_info(account_info_iter)?;
+        let transfer_info = next_account_info(account_info_iter)?;
         let mint_info = next_account_info(account_info_iter)?;
         let custody_info = next_account_info(account_info_iter)?;
+        let payer_info = next_account_info(account_info_iter)?;
         let sender_info = next_account_info(account_info_iter)?;
 
         let clock = Clock::from_account_info(clock_info)?;
@@ -237,28 +253,32 @@ impl Bridge {
             return Err(Error::WrongMintOwner.into());
         }
 
-        // Check that the transfer account was derived correctly
-        let expected_transfer_id = Bridge::derive_transfer_id(
-            program_id,
+        // Create transfer account
+        let transfer_seed = Bridge::derive_transfer_id_seeds(
             bridge_info.key,
             t.asset.chain,
             t.asset.address,
             t.chain_id,
             t.target,
             sender.owner.to_bytes(),
-            clock.slot.as_(),
+            clock.slot.as_(), //TODO use nonce
+        );
+        Bridge::check_and_create_account::<TransferOutProposal>(
+            program_id,
+            accounts,
+            transfer_info.key,
+            payer_info.key,
+            &transfer_seed,
         )?;
-        if expected_transfer_id != *proposal_info.key {
-            return Err(Error::InvalidDerivedAccount.into());
-        }
 
-        // Load proposal account
-        let mut proposal_data = proposal_info.data.borrow_mut();
-        let proposal: &mut TransferOutProposal = Bridge::unpack_unchecked(&mut proposal_data)?;
-        if proposal.is_initialized {
+        // Load transfer account
+        let mut transfer_data = transfer_info.data.borrow_mut();
+        let transfer: &mut TransferOutProposal = Bridge::unpack_unchecked(&mut transfer_data)?;
+        if transfer.is_initialized {
             return Err(Error::AlreadyExists.into());
         }
 
+        // Check that custody account was derived correctly
         let expected_custody_id =
             Bridge::derive_custody_id(program_id, bridge_info.key, mint_info.key)?;
         if expected_custody_id != *custody_info.key {
@@ -274,7 +294,7 @@ impl Bridge {
                 bridge_info.key,
                 custody_info.key,
                 mint_info.key,
-                sender_info.key,
+                payer_info.key,
             )?;
         }
 
@@ -295,13 +315,13 @@ impl Bridge {
         )?;
 
         // Initialize proposal
-        proposal.is_initialized = true;
-        proposal.foreign_address = t.target;
-        proposal.amount = t.amount;
-        proposal.to_chain_id = t.chain_id;
+        transfer.is_initialized = true;
+        transfer.foreign_address = t.target;
+        transfer.amount = t.amount;
+        transfer.to_chain_id = t.chain_id;
 
         // Don't use the user-given data as we don't check mint = AssetMeta.address
-        proposal.asset = AssetMeta {
+        transfer.asset = AssetMeta {
             chain: CHAIN_ID_SOLANA,
             address: mint_info.key.to_bytes(),
         };
@@ -318,10 +338,14 @@ impl Bridge {
         hash: &[u8; 32],
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
-        let bridge_info = next_account_info(account_info_iter)?;
+
+        // Load VAA processing default accounts
+        next_account_info(account_info_iter)?; // System program
         let clock_info = next_account_info(account_info_iter)?;
+        let bridge_info = next_account_info(account_info_iter)?;
         let guardian_set_info = next_account_info(account_info_iter)?;
         let claim_info = next_account_info(account_info_iter)?;
+        let payer_info = next_account_info(account_info_iter)?;
 
         let mut bridge = Bridge::bridge_deserialize(bridge_info)?;
         let clock = Clock::from_account_info(clock_info)?;
@@ -334,20 +358,24 @@ impl Bridge {
             return Err(Error::InvalidDerivedAccount.into());
         }
 
-        // Check that the claim is valid
-        let expected_claim = Bridge::derive_claim_id(program_id, bridge_info.key, hash)?;
-        if expected_claim != *claim_info.key {
-            return Err(Error::InvalidDerivedAccount.into());
-        }
+        // Check and create claim
+        let claim_seeds = Bridge::derive_claim_seeds(bridge_info.key, hash);
+        Bridge::check_and_create_account::<ClaimedVAA>(
+            program_id,
+            accounts,
+            claim_info.key,
+            payer_info.key,
+            &claim_seeds,
+        )?;
 
         // Check that the guardian set is still active
-        if (guardian_set.expiration_time as i64) < clock.unix_timestamp {
+        if (guardian_set.expiration_time as i64) > clock.unix_timestamp {
             return Err(Error::GuardianSetExpired.into());
         }
 
         // Check that the VAA is still valid
         if (guardian_set.expiration_time as i64) + (bridge.config.vaa_expiration_time as i64)
-            < clock.unix_timestamp
+            > clock.unix_timestamp
         {
             return Err(Error::VAAExpired.into());
         }
@@ -361,9 +389,11 @@ impl Bridge {
         match payload {
             VAABody::UpdateGuardianSet(v) => Self::process_vaa_set_update(
                 program_id,
+                accounts,
                 account_info_iter,
                 &clock,
                 bridge_info,
+                payer_info,
                 &mut bridge,
                 &mut guardian_set,
                 &v,
@@ -375,6 +405,7 @@ impl Bridge {
                         accounts,
                         account_info_iter,
                         bridge_info,
+                        payer_info,
                         &mut bridge,
                         &v,
                     )
@@ -391,7 +422,7 @@ impl Bridge {
             }
         }?;
 
-        // Load proposal account
+        // Load claim account
         let mut claim_data = claim_info.data.borrow_mut();
         let claim: &mut ClaimedVAA = Bridge::unpack_unchecked(&mut claim_data)?;
         if claim.is_initialized {
@@ -408,14 +439,16 @@ impl Bridge {
     /// Processes a Guardian set update
     pub fn process_vaa_set_update(
         program_id: &Pubkey,
+        accounts: &[AccountInfo],
         account_info_iter: &mut Iter<AccountInfo>,
         clock: &Clock,
         bridge_info: &AccountInfo,
+        payer_info: &AccountInfo,
         bridge: &mut Bridge,
         old_guardian_set: &mut GuardianSet,
         b: &BodyUpdateGuardianSet,
     ) -> ProgramResult {
-        let guardian_set_new_info = next_account_info(account_info_iter)?;
+        let new_guardian_info = next_account_info(account_info_iter)?;
 
         // TODO this could deadlock the bridge if an update is performed with an invalid key
         // The new guardian set must be signed by the current one
@@ -435,13 +468,16 @@ impl Bridge {
             (clock.unix_timestamp as u32) + bridge.config.vaa_expiration_time;
 
         // Check whether the new guardian set was derived correctly
-        let expected_guardian_set =
-            Bridge::derive_guardian_set_id(program_id, bridge_info.key, b.new_index)?;
-        if expected_guardian_set != *guardian_set_new_info.key {
-            return Err(Error::InvalidDerivedAccount.into());
-        }
+        let guardian_seed = Bridge::derive_guardian_set_seeds(bridge_info.key, b.new_index);
+        Bridge::check_and_create_account::<GuardianSet>(
+            program_id,
+            accounts,
+            new_guardian_info.key,
+            payer_info.key,
+            &guardian_seed,
+        )?;
 
-        let mut guardian_set_new_data = guardian_set_new_info.data.borrow_mut();
+        let mut guardian_set_new_data = new_guardian_info.data.borrow_mut();
         let guardian_set_new: &mut GuardianSet =
             Bridge::unpack_unchecked(&mut guardian_set_new_data)?;
 
@@ -468,6 +504,7 @@ impl Bridge {
         accounts: &[AccountInfo],
         account_info_iter: &mut Iter<AccountInfo>,
         bridge_info: &AccountInfo,
+        payer_info: &AccountInfo,
         bridge: &mut Bridge,
         b: &BodyTransfer,
     ) -> ProgramResult {
@@ -510,14 +547,13 @@ impl Bridge {
 
             // If wrapped mint does not exist, create it
             if mint_info.data_is_empty() {
-                let sender_info = next_account_info(account_info_iter)?;
                 Self::create_wrapped_mint(
                     program_id,
                     accounts,
                     &bridge.config.token_program,
                     mint_info.key,
                     bridge_info.key,
-                    sender_info.key,
+                    payer_info.key,
                     &b.asset,
                 )?;
             }
@@ -577,6 +613,7 @@ impl Bridge {
 // Test program id for the swap program.
 #[cfg(not(target_arch = "bpf"))]
 const WORMHOLE_PROGRAM_ID: Pubkey = Pubkey::new_from_array([2u8; 32]);
+#[cfg(not(target_arch = "bpf"))]
 const TOKEN_PROGRAM_ID: Pubkey = Pubkey::new_from_array([2u8; 32]);
 
 /// Routes invokes to the token program, used for testing.
@@ -604,7 +641,7 @@ pub fn invoke_signed<'a>(
     }
 
     match instruction.program_id {
-        TOKEN_PROGRAM_ID => spl_token::state::State::process(
+        TOKEN_PROGRAM_ID => spl_token::processor::Processor::process(
             &instruction.program_id,
             &new_account_infos,
             &instruction.data,
@@ -716,7 +753,7 @@ impl Bridge {
             accounts,
             mint,
             payer,
-            Self::derive_custody_seeds(bridge, mint),
+            &Self::derive_custody_seeds(bridge, mint),
         )?;
         let ix = spl_token::instruction::initialize_account(token_program, account, mint, bridge)?;
         invoke_signed(&ix, accounts, &[&[&bridge.to_bytes()[..32]][..]])
@@ -737,7 +774,7 @@ impl Bridge {
             accounts,
             mint,
             payer,
-            Self::derive_wrapped_asset_seeds(bridge, asset.chain, asset.address),
+            &Self::derive_wrapped_asset_seeds(bridge, asset.chain, asset.address),
         )?;
         let ix = spl_token::instruction::initialize_mint(
             token_program,
@@ -750,13 +787,29 @@ impl Bridge {
         invoke_signed(&ix, accounts, &[&[&bridge.to_bytes()[..32]][..]])
     }
 
+    /// Check that a key was derived correctly and create account
+    pub fn check_and_create_account<T: Sized>(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        new_account: &Pubkey,
+        payer: &Pubkey,
+        seeds: &Vec<Vec<u8>>,
+    ) -> Result<(), ProgramError> {
+        let expected_key = Bridge::derive_key(program_id, seeds)?;
+        if expected_key != *new_account {
+            return Err(Error::InvalidDerivedAccount.into());
+        }
+
+        Self::create_account::<T>(program_id, accounts, new_account, payer, seeds)
+    }
+
     /// Create a new account
     pub fn create_account<T: Sized>(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
         new_account: &Pubkey,
         payer: &Pubkey,
-        seeds: Vec<Vec<u8>>,
+        seeds: &Vec<Vec<u8>>,
     ) -> Result<(), ProgramError> {
         let size = size_of::<T>();
         let ix = create_account(
@@ -778,7 +831,8 @@ mod tests {
     };
     use spl_token::{
         instruction::{initialize_account, initialize_mint},
-        state::{Account as SplAccount, Mint as SplMint, State as SplState},
+        processor::Processor,
+        state::{Account as SplAccount, Mint as SplMint},
     };
 
     use crate::instruction::initialize;
@@ -810,53 +864,7 @@ mod tests {
         if instruction.program_id == WORMHOLE_PROGRAM_ID {
             Bridge::process(&instruction.program_id, &account_infos, &instruction.data)
         } else {
-            SplState::process(&instruction.program_id, &account_infos, &instruction.data)
+            Processor::process(&instruction.program_id, &account_infos, &instruction.data)
         }
-    }
-
-    fn create_bridge(
-        program_id: &Pubkey,
-        config: &BridgeConfig,
-        initial_guardians: &RawKey,
-    ) -> (Pubkey, Account) {
-        let token_key = pubkey_rand();
-        let mut token_account = Account::new(0, size_of::<SplMint>(), &program_id);
-        let account_key = pubkey_rand();
-        let mut account_account = Account::new(0, size_of::<SplAccount>(), &program_id);
-
-        // create pool and pool account
-        do_process_instruction(
-            initialize_account(&program_id, &account_key, &token_key, &authority_key).unwrap(),
-            vec![
-                &mut account_account,
-                &mut Account::default(),
-                &mut token_account,
-            ],
-        )
-        .unwrap();
-        let mut authority_account = Account::default();
-        do_process_instruction(
-            initialize_mint(
-                &program_id,
-                &token_key,
-                Some(&account_key),
-                Some(&authority_key),
-                amount,
-                2,
-            )
-            .unwrap(),
-            if amount == 0 {
-                vec![&mut token_account, &mut authority_account]
-            } else {
-                vec![
-                    &mut token_account,
-                    &mut account_account,
-                    &mut authority_account,
-                ]
-            },
-        )
-        .unwrap();
-
-        return ((account_key, account_account));
     }
 }

@@ -1,17 +1,8 @@
 #![cfg(feature = "program")]
 
-use std::io;
-
-use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
-use solana_sdk::{
-    decode_error::DecodeError,
-    info,
-    program_error::{PrintProgramError, ProgramError},
-};
-use thiserror::Error;
+use solana_sdk::{decode_error::DecodeError, info, program_error::PrintProgramError};
 
-use crate::error;
 use crate::error::*;
 
 impl PrintProgramError for Error {
