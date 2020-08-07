@@ -109,6 +109,7 @@ contract Wormhole {
 
         // Process VAA
         if (action == 0x01) {
+            require(vaa_guardian_set_index == guardian_set_index, "only the current guardian set can change the guardian set");
             vaaUpdateGuardianSet(payload);
         } else if (action == 0x10) {
             vaaTransfer(payload);

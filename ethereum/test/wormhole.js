@@ -144,6 +144,24 @@ contract("Wormhole", function () {
         // Expect guardian set to transition to 1
         assert.equal(await bridge.guardian_set_index(), 1);
         assert.equal((await bridge.guardian_sets(1)).x, "28127375798693063422362909717576839343810687066240716944661469189277081826431");
+    });
+
+    it("should not accept guardian set change from old guardians", async function () {
+        let bridge = await Wormhole.deployed();
+
+        // Test update guardian set VAA from guardian set 0; timestamp 2000
+        let threw = false;
+        try {
+            await bridge.submitVAA("0x0100000000cbaa28896d5c77df474f007489b6a42b8815784c0b17d6171de4c55bce58bda8805f2948e4e78b3bad03ff50210f3ebd084263e1000003e801253e2f87d126ef42ac22d284de7619d2c87437198a32887efeddb4debfd016747f0000000002")
+        } catch (e) {
+            threw = true;
+            assert.equal(e.reason, "only the current guardian set can change the guardian set")
+        }
+        assert.isTrue(threw, "old guardian set could make changes")
+    });
+
+    it("should time out guardians", async function () {
+        let bridge = await Wormhole.deployed();
 
         // Test VAA from guardian set 0; timestamp 1000
         await bridge.submitVAA("0x01000000004f871da18c25af540bf7ea0ef28df13ff8945903fa1b82aa5d11ff749f33dba57b6064666dfe07b627e5e1da1f4bf620f92c15c2000003e81087000000340102020104000000000000000000000000000000000000000000000000000000000000000000000000000000000090f8bf6a479f320ead074411a4b0e7944ea8c9c1010000000000000000000000000347ef34687bdc9f189e87a9200658d9c40e99880000000000000000000000000000000000000000000000004563918244f40000")
@@ -179,5 +197,20 @@ contract("Wormhole", function () {
             assert.equal(e.reason, "VAA has expired")
         }
         assert.isTrue(threw, "VAA did not expire")
+    });
+
+
+    it("mismatching guardian set and signature should not work", async function () {
+        let bridge = await Wormhole.deployed();
+
+        // Test VAA signed by guardian set 0 but set guardian set index to 1
+        let threw = false;
+        try {
+            await bridge.submitVAA("0x01000000015672c0a0e9f27f002bca12fb165e03b9e1d093bc1565eeefec11abbe5a420cf10fd932604a3075566d069f46b09d6a4c860f179300000bb801253e2f87d126ef42ac22d284de7619d2c87437198a32887efeddb4debfd016747f0000000003")
+        } catch (e) {
+            threw = true;
+            assert.equal(e.reason, "VAA signature invalid")
+        }
+        assert.isTrue(threw, "invalid signature accepted")
     });
 });
