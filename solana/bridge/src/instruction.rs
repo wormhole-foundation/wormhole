@@ -11,7 +11,7 @@ use solana_sdk::{
 };
 
 use crate::error::Error::VAATooLong;
-use crate::instruction::BridgeInstruction::{Initialize, PostVAA, TransferOut};
+use crate::instruction::BridgeInstruction::{CreateWrapped, Initialize, PostVAA, TransferOut};
 use crate::state::{AssetMeta, Bridge, BridgeConfig};
 use crate::syscalls::RawKey;
 use crate::vaa::{VAABody, VAA};
@@ -104,6 +104,9 @@ pub enum BridgeInstruction {
     /// Deletes a `ExecutedVAA` after the `VAA_EXPIRATION_TIME` is over to free up space on chain.
     /// This returns the rent to the sender.
     EvictExecutedVAA(),
+
+    /// Creates a new wrapped asset
+    CreateWrapped(AssetMeta),
 }
 
 impl BridgeInstruction {
@@ -127,6 +130,11 @@ impl BridgeInstruction {
                 let payload: &VAAData = unpack(input)?;
 
                 PostVAA(*payload)
+            }
+            5 => {
+                let payload: &AssetMeta = unpack(input)?;
+
+                CreateWrapped(*payload)
             }
             _ => return Err(ProgramError::InvalidInstructionData),
         })
@@ -166,6 +174,13 @@ impl BridgeInstruction {
             Self::EvictExecutedVAA() => {
                 output[0] = 4;
             }
+            Self::CreateWrapped(meta) => {
+                output[0] = 5;
+                #[allow(clippy::cast_ptr_alignment)]
+                let value =
+                    unsafe { &mut *(&mut output[size_of::<u8>()] as *mut u8 as *mut AssetMeta) };
+                *value = meta;
+            }
         }
         Ok(output)
     }
@@ -193,6 +208,36 @@ pub fn initialize(
         AccountMeta::new(bridge_key, false),
         AccountMeta::new(guardian_set_key, false),
         AccountMeta::new(*sender, true),
+    ];
+
+    Ok(Instruction {
+        program_id: *program_id,
+        accounts,
+        data,
+    })
+}
+
+/// Creates a 'CreateWrapped' instruction.
+pub fn create_wrapped(
+    program_id: &Pubkey,
+    payer: &Pubkey,
+    meta: AssetMeta,
+) -> Result<Instruction, ProgramError> {
+    let data = BridgeInstruction::CreateWrapped(meta).serialize()?;
+
+    let bridge_key = Bridge::derive_bridge_id(program_id)?;
+    let wrapped_mint_key =
+        Bridge::derive_wrapped_asset_id(program_id, &bridge_key, meta.chain, meta.address)?;
+    let wrapped_meta_key =
+        Bridge::derive_wrapped_meta_id(program_id, &bridge_key, &wrapped_mint_key)?;
+
+    let accounts = vec![
+        AccountMeta::new_readonly(solana_sdk::system_program::id(), false),
+        AccountMeta::new_readonly(spl_token::id(), false),
+        AccountMeta::new(bridge_key, false),
+        AccountMeta::new(*payer, true),
+        AccountMeta::new(wrapped_mint_key, false),
+        AccountMeta::new(wrapped_meta_key, false),
     ];
 
     Ok(Instruction {

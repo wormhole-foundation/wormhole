@@ -191,6 +191,11 @@ uint256 amount
 
 #### Transfer of assets Foreign Chain -> Root Chain
 
+If this is the first time the asset is transferred to the root chain, the user inititates a `CreateWrapped` instruction
+on the root chain to initialize the wrapped asset. 
+
+The user creates a token account for the wrapped asset on the root chain.
+
 The user sends a chain native asset to the bridge on the foreign chain using the `Lock` function.
 The lock function takes a Solana `address` as parameter which is the TokenAccount that should receive the wrapped token.
 

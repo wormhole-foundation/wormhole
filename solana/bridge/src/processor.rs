@@ -61,6 +61,10 @@ impl Bridge {
 
                 Self::process_vaa(program_id, accounts, vaa_body, &vaa, &hash)
             }
+            CreateWrapped(meta) => {
+                info!("Instruction: CreateWrapped");
+                Self::process_create_wrapped(program_id, accounts, &meta)
+            }
             _ => panic!(""),
         }
     }
@@ -203,6 +207,54 @@ impl Bridge {
         transfer.amount = t.amount;
         transfer.to_chain_id = t.chain_id;
         transfer.asset = t.asset;
+
+        Ok(())
+    }
+
+    /// Creates a new wrapped asset
+    pub fn process_create_wrapped(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        a: &AssetMeta,
+    ) -> ProgramResult {
+        info!("create wrapped");
+        let account_info_iter = &mut accounts.iter();
+        next_account_info(account_info_iter)?; // System program
+        next_account_info(account_info_iter)?; // Token program
+        let bridge_info = next_account_info(account_info_iter)?;
+        let payer_info = next_account_info(account_info_iter)?;
+        let mint_info = next_account_info(account_info_iter)?;
+        let wrapped_meta_info = next_account_info(account_info_iter)?;
+
+        let bridge = Bridge::bridge_deserialize(bridge_info)?;
+
+        // Create wrapped mint
+        Self::create_wrapped_mint(
+            program_id,
+            accounts,
+            &bridge.config.token_program,
+            mint_info.key,
+            bridge_info.key,
+            payer_info.key,
+            &a,
+        )?;
+
+        // Check and create wrapped asset meta to allow reverse resolution of info
+        let wrapped_meta_seeds = Bridge::derive_wrapped_meta_seeds(bridge_info.key, mint_info.key);
+        Bridge::check_and_create_account::<WrappedAssetMeta>(
+            program_id,
+            accounts,
+            wrapped_meta_info.key,
+            payer_info.key,
+            &wrapped_meta_seeds,
+        )?;
+
+        let mut wrapped_meta_data = wrapped_meta_info.data.borrow_mut();
+        let wrapped_meta: &mut WrappedAssetMeta = Bridge::unpack_unchecked(&mut wrapped_meta_data)?;
+
+        wrapped_meta.is_initialized = true;
+        wrapped_meta.address = a.address;
+        wrapped_meta.chain = a.chain;
 
         Ok(())
     }
@@ -379,6 +431,15 @@ impl Bridge {
             ),
             VAABody::Transfer(v) => {
                 if v.source_chain == CHAIN_ID_SOLANA {
+                    Self::process_vaa_transfer_post(
+                        program_id,
+                        account_info_iter,
+                        bridge_info,
+                        vaa,
+                        &v,
+                        vaa_data,
+                    )
+                } else {
                     Self::process_vaa_transfer(
                         program_id,
                         accounts,
@@ -387,15 +448,6 @@ impl Bridge {
                         payer_info,
                         &mut bridge,
                         &v,
-                    )
-                } else {
-                    Self::process_vaa_transfer_post(
-                        program_id,
-                        account_info_iter,
-                        bridge_info,
-                        vaa,
-                        &v,
-                        vaa_data,
                     )
                 }
             }
@@ -490,7 +542,6 @@ impl Bridge {
         next_account_info(account_info_iter)?; // Token program
         let mint_info = next_account_info(account_info_iter)?;
         let destination_info = next_account_info(account_info_iter)?;
-        let wrapped_meta_info = next_account_info(account_info_iter)?;
 
         let destination = Self::token_account_deserialize(destination_info)?;
         if destination.mint != *mint_info.key {
@@ -526,38 +577,8 @@ impl Bridge {
                 return Err(Error::InvalidDerivedAccount.into());
             }
 
-            // If wrapped mint does not exist, create it
-            if mint_info.data_is_empty() {
-                Self::create_wrapped_mint(
-                    program_id,
-                    accounts,
-                    &bridge.config.token_program,
-                    mint_info.key,
-                    bridge_info.key,
-                    payer_info.key,
-                    &b.asset,
-                )?;
-
-                // Check and create wrapped asset meta if it is unset
-                let wrapped_meta_seeds =
-                    Bridge::derive_wrapped_meta_seeds(bridge_info.key, mint_info.key);
-                Bridge::check_and_create_account::<WrappedAssetMeta>(
-                    program_id,
-                    accounts,
-                    wrapped_meta_info.key,
-                    payer_info.key,
-                    &wrapped_meta_seeds,
-                )?;
-
-                let mut wrapped_meta_data = wrapped_meta_info.data.borrow_mut();
-                let wrapped_meta: &mut WrappedAssetMeta =
-                    Bridge::unpack_unchecked(&mut wrapped_meta_data)?;
-
-                wrapped_meta.is_initialized = true;
-                wrapped_meta.address = b.asset.address;
-                wrapped_meta.chain = b.asset.chain;
-            }
-
+            // This automatically asserts that the mint was created by this account by using
+            // derivated keys
             Bridge::wrapped_mint_to(
                 accounts,
                 &bridge.config.token_program,

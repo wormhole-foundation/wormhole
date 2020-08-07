@@ -74,6 +74,19 @@ Deletes a `ExecutedVAA` after the `VAA_EXPIRATION_TIME` to free up space on chai
 | 2     | bridge   | BridgeConfig        |        |           |       |         |
 | 3     | proposal | ExecutedVAA |        | ✅        |       | ✅      |
 
+#### CreateWrappedAsset
+
+Creates a new `WrappedAsset` to be used to create accounts and later receive transfers on chain.
+
+| Index | Name     | Type                | signer | writeable | empty | derived |
+| ----- | -------- | ------------------- | ------ | --------- | ----- | ------- |
+| 0     | sys | SystemProgram |        |           | ️   |      |
+| 1     | token_program | SplToken |        |           | ️   |      |
+| 2     | bridge   | BridgeConfig        |        |           |       |         |
+| 3     | payer | Account |     ✅    |           | ️   |      |
+| 4     | wrapped_mint        | WrappedAsset |        |           |  ✅   | ✅      |
+| 5     | wrapped_meta_account | WrappedAssetMeta  |        | ✅        |  ✅   | ✅      |
+
 #### PostVAA
 
 Submits a VAA signed by the guardians to perform an action.
@@ -104,9 +117,8 @@ followed by:
 | Index | Name         | Type         | signer | writeable | empty | derived |
 | ----- | ------------ | ------------ | ------ | --------- | ----- | ------- |
 | 6     | token_program | SplToken |        |           | ️   |      |
-| 7     | token        | WrappedAsset |        |           | opt   | ✅      |
-| 8     | destination  | TokenAccount |        | ✅        | opt   |         |
-| 9     | wrapped_meta_account | WrappedAssetMeta  |        | ✅        | opt   | ✅      |
+| 7     | token        | WrappedAsset |        |           |    | ✅      |
+| 8     | destination  | TokenAccount |        | ✅        |    |         |
 
 ##### Transfer: Ethereum (wrapped) -> Solana (native)
 
