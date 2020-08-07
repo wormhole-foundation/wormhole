@@ -1,13 +1,11 @@
 //! Program instruction processing logic
 #![cfg(feature = "program")]
 
-use std::io::Write;
 use std::mem::size_of;
 use std::slice::Iter;
 
 use num_traits::AsPrimitive;
 use primitive_types::U256;
-use sha3::Digest;
 use solana_sdk::clock::Clock;
 #[cfg(not(target_arch = "bpf"))]
 use solana_sdk::instruction::Instruction;
@@ -24,7 +22,7 @@ use spl_token::state::Mint;
 
 use crate::error::Error;
 use crate::instruction::BridgeInstruction::*;
-use crate::instruction::{BridgeInstruction, TransferOutPayload, CHAIN_ID_SOLANA};
+use crate::instruction::{BridgeInstruction, TransferOutPayload, VAAData, CHAIN_ID_SOLANA};
 use crate::state::*;
 use crate::syscalls::RawKey;
 use crate::vaa::{BodyTransfer, BodyUpdateGuardianSet, VAABody, VAA};
@@ -59,13 +57,9 @@ impl Bridge {
                 let vaa_data = &vaa_body[..len];
                 let vaa = VAA::deserialize(vaa_data)?;
 
-                let mut k = sha3::Keccak256::default();
-                if let Err(_) = k.write(vaa_data) {
-                    return Err(Error::ParseFailed.into());
-                };
-                let hash = k.finalize();
+                let hash = vaa.body_hash()?;
 
-                Self::process_vaa(program_id, accounts, &vaa_body, &vaa, hash.as_ref())
+                Self::process_vaa(program_id, accounts, vaa_body, &vaa, &hash)
             }
             _ => panic!(""),
         }
@@ -88,7 +82,7 @@ impl Bridge {
         let clock = Clock::from_account_info(clock_info)?;
 
         // Create bridge account
-        let bridge_seed = Bridge::derive_bridge_seeds(program_id);
+        let bridge_seed = Bridge::derive_bridge_seeds();
         Bridge::check_and_create_account::<BridgeConfig>(
             program_id,
             accounts,
@@ -142,7 +136,6 @@ impl Bridge {
         let account_info_iter = &mut accounts.iter();
         next_account_info(account_info_iter)?; // System program
         next_account_info(account_info_iter)?; // Token program
-        let clock_info = next_account_info(account_info_iter)?;
         let sender_account_info = next_account_info(account_info_iter)?;
         let bridge_info = next_account_info(account_info_iter)?;
         let transfer_info = next_account_info(account_info_iter)?;
@@ -150,7 +143,6 @@ impl Bridge {
         let payer_info = next_account_info(account_info_iter)?;
         let authority_info = next_account_info(account_info_iter)?;
 
-        let clock = Clock::from_account_info(clock_info)?;
         let sender = Bridge::token_account_deserialize(sender_account_info)?;
         let bridge = Bridge::bridge_deserialize(bridge_info)?;
         let mint = Bridge::mint_deserialize(mint_info)?;
@@ -184,7 +176,7 @@ impl Bridge {
             t.chain_id,
             t.target,
             sender.owner.to_bytes(),
-            clock.slot.as_(), //TODO use nonce
+            t.nonce,
         );
         Bridge::check_and_create_account::<TransferOutProposal>(
             program_id,
@@ -229,16 +221,13 @@ impl Bridge {
         let account_info_iter = &mut accounts.iter();
         next_account_info(account_info_iter)?; // System program
         next_account_info(account_info_iter)?; // Token program
-        let clock_info = next_account_info(account_info_iter)?;
         let sender_account_info = next_account_info(account_info_iter)?;
         let bridge_info = next_account_info(account_info_iter)?;
         let transfer_info = next_account_info(account_info_iter)?;
         let mint_info = next_account_info(account_info_iter)?;
-        let custody_info = next_account_info(account_info_iter)?;
         let payer_info = next_account_info(account_info_iter)?;
-        let sender_info = next_account_info(account_info_iter)?;
+        let custody_info = next_account_info(account_info_iter)?;
 
-        let clock = Clock::from_account_info(clock_info)?;
         let sender = Bridge::token_account_deserialize(sender_account_info)?;
         let bridge = Bridge::bridge_deserialize(bridge_info)?;
         let mint = Bridge::mint_deserialize(mint_info)?;
@@ -260,8 +249,8 @@ impl Bridge {
             t.asset.address,
             t.chain_id,
             t.target,
-            sender.owner.to_bytes(),
-            clock.slot.as_(), //TODO use nonce
+            sender_account_info.key.to_bytes(),
+            t.nonce,
         );
         Bridge::check_and_create_account::<TransferOutProposal>(
             program_id,
@@ -310,7 +299,7 @@ impl Bridge {
             &bridge.config.token_program,
             sender_account_info.key,
             custody_info.key,
-            sender_info.key,
+            bridge_info.key,
             t.amount,
         )?;
 
@@ -333,7 +322,7 @@ impl Bridge {
     pub fn process_vaa(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        vaa_data: &[u8; 100],
+        vaa_data: VAAData,
         vaa: &VAA,
         hash: &[u8; 32],
     ) -> ProgramResult {
@@ -508,6 +497,7 @@ impl Bridge {
         bridge: &mut Bridge,
         b: &BodyTransfer,
     ) -> ProgramResult {
+        next_account_info(account_info_iter)?; // Token program
         let mint_info = next_account_info(account_info_iter)?;
         let destination_info = next_account_info(account_info_iter)?;
 
@@ -578,7 +568,7 @@ impl Bridge {
         bridge_info: &AccountInfo,
         vaa: &VAA,
         b: &BodyTransfer,
-        vaa_data: &[u8; 100],
+        vaa_data: VAAData,
     ) -> ProgramResult {
         let proposal_info = next_account_info(account_info_iter)?;
 
@@ -603,7 +593,7 @@ impl Bridge {
         }
 
         // Set vaa
-        proposal.vaa = *vaa_data;
+        proposal.vaa = vaa_data;
         proposal.vaa_time = vaa.timestamp;
 
         Ok(())
@@ -671,7 +661,7 @@ impl Bridge {
             all_signers.as_slice(),
             amount,
         )?;
-        invoke_signed(&ix, accounts, &[])
+        invoke_signed(&ix, accounts, &[&["bridge".as_bytes()]])
     }
 
     /// Mint a wrapped asset to account
@@ -691,7 +681,7 @@ impl Bridge {
             &[],
             amount,
         )?;
-        invoke_signed(&ix, accounts, &[&[&bridge.to_bytes()[..32]][..]])
+        invoke_signed(&ix, accounts, &[&["bridge".as_bytes()]])
     }
 
     /// Transfer tokens from a caller
@@ -703,19 +693,15 @@ impl Bridge {
         authority: &Pubkey,
         amount: U256,
     ) -> Result<(), ProgramError> {
-        let all_signers: Vec<&Pubkey> = accounts
-            .iter()
-            .filter_map(|item| if item.is_signer { Some(item.key) } else { None })
-            .collect();
         let ix = spl_token::instruction::transfer(
             token_program_id,
             source,
             destination,
             authority,
-            all_signers.as_slice(),
+            &[],
             amount,
         )?;
-        invoke_signed(&ix, accounts, &[])
+        invoke_signed(&ix, accounts, &[&["bridge".as_bytes()]])
     }
 
     /// Transfer tokens from a custody account
@@ -735,7 +721,7 @@ impl Bridge {
             &[],
             amount,
         )?;
-        invoke_signed(&ix, accounts, &[&[&bridge.to_bytes()[..32]][..]])
+        invoke_signed(&ix, accounts, &[&["bridge".as_bytes()]])
     }
 
     /// Create a new account
@@ -756,7 +742,7 @@ impl Bridge {
             &Self::derive_custody_seeds(bridge, mint),
         )?;
         let ix = spl_token::instruction::initialize_account(token_program, account, mint, bridge)?;
-        invoke_signed(&ix, accounts, &[&[&bridge.to_bytes()[..32]][..]])
+        invoke_signed(&ix, accounts, &[&["bridge".as_bytes()]])
     }
 
     /// Create a mint for a wrapped asset
@@ -784,7 +770,7 @@ impl Bridge {
             U256::from(0),
             8,
         )?;
-        invoke_signed(&ix, accounts, &[&[&bridge.to_bytes()[..32]][..]])
+        invoke_signed(&ix, accounts, &[&["bridge".as_bytes()]])
     }
 
     /// Check that a key was derived correctly and create account

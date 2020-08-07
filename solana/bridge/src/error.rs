@@ -91,6 +91,9 @@ pub enum Error {
     /// Invalid transfer with src=dst
     #[error("SameChainTransfer")]
     SameChainTransfer,
+    /// VAA is longer than the maximum size
+    #[error("VAATooLong")]
+    VAATooLong,
 }
 
 impl From<Error> for ProgramError {

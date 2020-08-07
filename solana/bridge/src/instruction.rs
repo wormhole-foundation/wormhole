@@ -10,21 +10,23 @@ use solana_sdk::{
     pubkey::Pubkey,
 };
 
+use crate::error::Error::VAATooLong;
 use crate::instruction::BridgeInstruction::Initialize;
-use crate::state::{AssetMeta, BridgeConfig};
+use crate::state::{AssetMeta, Bridge, BridgeConfig};
 use crate::syscalls::RawKey;
+use crate::vaa::{VAABody, VAA};
 
 /// chain id of this chain
 pub const CHAIN_ID_SOLANA: u8 = 1;
 
 /// size of a VAA in bytes
-const VAA_SIZE: usize = 100;
+const VAA_SIZE: usize = 200;
 
 /// size of a foreign address in bytes
 const FOREIGN_ADDRESS_SIZE: usize = 32;
 
-/// validator payment approval
-pub type VAA_BODY = [u8; VAA_SIZE];
+/// length-prefixed serialized validator payment approval data
+pub type VAAData = [u8; VAA_SIZE];
 /// X and Y point of P for guardians
 pub type GuardianKey = [u8; 64];
 /// address on a foreign chain
@@ -50,6 +52,8 @@ pub struct TransferOutPayload {
     pub asset: AssetMeta,
     /// address on the foreign chain to transfer to
     pub target: ForeignAddress,
+    /// unique nonce of the transfer
+    pub nonce: u32,
 }
 
 /// Instructions supported by the SwapInfo program.
@@ -91,7 +95,7 @@ pub enum BridgeInstruction {
 
     /// Submits a VAA signed by `guardian` on a valid `proposal`.
     /// See docs for accounts
-    PostVAA(VAA_BODY),
+    PostVAA(VAAData),
 
     /// Deletes a `proposal` after the `VAA_EXPIRATION_TIME` is over to free up space on chain.
     /// This returns the rent to the sender.
@@ -143,7 +147,7 @@ impl BridgeInstruction {
                 output[0] = 2;
                 #[allow(clippy::cast_ptr_alignment)]
                 let value =
-                    unsafe { &mut *(&mut output[size_of::<u8>()] as *mut u8 as *mut VAA_BODY) };
+                    unsafe { &mut *(&mut output[size_of::<u8>()] as *mut u8 as *mut VAAData) };
                 *value = payload;
             }
             Self::EvictTransferOut() => {
@@ -161,7 +165,6 @@ impl BridgeInstruction {
 pub fn initialize(
     program_id: &Pubkey,
     sender: &Pubkey,
-    bridge: &Pubkey,
     initial_guardian: RawKey,
     config: &BridgeConfig,
 ) -> Result<Instruction, ProgramError> {
@@ -171,10 +174,148 @@ pub fn initialize(
     })
     .serialize()?;
 
+    let bridge_key = Bridge::derive_bridge_id(program_id)?;
+    let guardian_set_key = Bridge::derive_guardian_set_id(program_id, &bridge_key, 0)?;
+
     let accounts = vec![
+        AccountMeta::new_readonly(solana_sdk::system_program::id(), false),
+        AccountMeta::new_readonly(solana_sdk::sysvar::clock::id(), false),
+        AccountMeta::new(bridge_key, false),
+        AccountMeta::new(guardian_set_key, false),
         AccountMeta::new(*sender, true),
-        AccountMeta::new(*bridge, false),
     ];
+
+    Ok(Instruction {
+        program_id: *program_id,
+        accounts,
+        data,
+    })
+}
+
+/// Creates an 'TransferOut' instruction.
+pub fn transfer_out(
+    program_id: &Pubkey,
+    payer: &Pubkey,
+    token_account: &Pubkey,
+    token_mint: &Pubkey,
+    t: &TransferOutPayload,
+) -> Result<Instruction, ProgramError> {
+    let data = BridgeInstruction::TransferOut(*t).serialize()?;
+
+    let bridge_key = Bridge::derive_bridge_id(program_id)?;
+    let transfer_key = Bridge::derive_transfer_id(
+        program_id,
+        &bridge_key,
+        t.asset.chain,
+        t.asset.address,
+        t.chain_id,
+        t.target,
+        token_account.to_bytes(),
+        t.nonce,
+    )?;
+
+    let mut accounts = vec![
+        AccountMeta::new_readonly(solana_sdk::system_program::id(), false),
+        AccountMeta::new_readonly(spl_token::id(), false),
+        AccountMeta::new(*token_account, false),
+        AccountMeta::new(bridge_key, false),
+        AccountMeta::new(transfer_key, false),
+        AccountMeta::new(*token_mint, false),
+        AccountMeta::new(*payer, true),
+    ];
+
+    // If the token is a native solana token add a custody account
+    if t.asset.chain == CHAIN_ID_SOLANA {
+        let custody_key = Bridge::derive_custody_id(program_id, &bridge_key, token_mint)?;
+        accounts.push(AccountMeta::new(custody_key, false));
+    }
+
+    Ok(Instruction {
+        program_id: *program_id,
+        accounts,
+        data,
+    })
+}
+
+/// Creates a 'PostVAA' instruction.
+pub fn post_vaa(
+    program_id: &Pubkey,
+    payer: &Pubkey,
+    v: &[u8],
+) -> Result<Instruction, ProgramError> {
+    // VAA must be <= VAA_SIZE-1 to allow for the length prefix
+    if v.len() > VAA_SIZE - 1 {
+        return Err(VAATooLong.into());
+    }
+    // Convert data to length-prefixed on-chain format
+    let mut vaa_data: Vec<u8> = vec![];
+    vaa_data.push(v.len() as u8);
+    vaa_data.append(&mut v.to_vec());
+
+    let mut vaa_chain: [u8; 200] = [0; 200];
+    vaa_chain.copy_from_slice(vaa_data.as_slice());
+
+    let data = BridgeInstruction::PostVAA(vaa_chain).serialize()?;
+
+    // Parse VAA
+    let vaa = VAA::deserialize(&v[..])?;
+
+    let bridge_key = Bridge::derive_bridge_id(program_id)?;
+    let guardian_set_key =
+        Bridge::derive_guardian_set_id(program_id, &bridge_key, vaa.guardian_set_index)?;
+    let claim_key = Bridge::derive_claim_id(program_id, &bridge_key, &vaa.body_hash()?)?;
+
+    let mut accounts = vec![
+        AccountMeta::new_readonly(solana_sdk::system_program::id(), false),
+        AccountMeta::new_readonly(solana_sdk::sysvar::clock::id(), false),
+        AccountMeta::new(bridge_key, false),
+        AccountMeta::new(guardian_set_key, false),
+        AccountMeta::new(claim_key, false),
+        AccountMeta::new(*payer, true),
+    ];
+
+    match vaa.payload.unwrap() {
+        VAABody::UpdateGuardianSet(u) => {
+            let guardian_set_key =
+                Bridge::derive_guardian_set_id(program_id, &bridge_key, u.new_index)?;
+            accounts.push(AccountMeta::new(guardian_set_key, false));
+        }
+        VAABody::Transfer(t) => {
+            if t.source_chain == CHAIN_ID_SOLANA {
+                // Solana (any) -> Ethereum (any)
+                let transfer_key = Bridge::derive_transfer_id(
+                    program_id,
+                    &bridge_key,
+                    t.asset.chain,
+                    t.asset.address,
+                    t.target_chain,
+                    t.target_address,
+                    t.source_address,
+                    t.nonce,
+                )?;
+                accounts.push(AccountMeta::new(transfer_key, false))
+            } else if t.asset.chain == CHAIN_ID_SOLANA {
+                // Foreign (wrapped) -> Solana (native)
+                let mint_key = Pubkey::new(&t.asset.address);
+                let custody_key = Bridge::derive_custody_id(program_id, &bridge_key, &mint_key)?;
+                accounts.push(AccountMeta::new_readonly(spl_token::id(), false));
+                accounts.push(AccountMeta::new(mint_key, false));
+                accounts.push(AccountMeta::new(Pubkey::new(&t.target_address), false));
+                accounts.push(AccountMeta::new(custody_key, false));
+            } else {
+                // Foreign (native) -> Solana (wrapped)
+                let wrapped_key = Bridge::derive_wrapped_asset_id(
+                    program_id,
+                    &bridge_key,
+                    t.asset.chain,
+                    t.asset.address,
+                )?;
+                accounts.push(AccountMeta::new_readonly(spl_token::id(), false));
+                accounts.push(AccountMeta::new(wrapped_key, false));
+                accounts.push(AccountMeta::new(Pubkey::new(&t.target_address), false));
+            }
+        }
+    }
 
     Ok(Instruction {
         program_id: *program_id,

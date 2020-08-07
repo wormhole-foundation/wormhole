@@ -55,6 +55,18 @@ impl VAA {
         sol_verify_schnorr(&schnorr_input)
     }
 
+    pub fn body_hash(&self) -> Result<[u8; 32], Error> {
+        let body_bytes = self.signature_body()?;
+
+        let mut k = sha3::Keccak256::default();
+        if let Err(_) = k.write(body_bytes.as_slice()) {
+            return Err(Error::ParseFailed.into());
+        };
+        let hash = k.finalize();
+
+        return Ok(hash.into());
+    }
+
     pub fn serialize(&self) -> Result<Vec<u8>, Error> {
         let mut v = Cursor::new(Vec::new());
 
@@ -252,7 +264,6 @@ impl BodyTransfer {
 
 #[cfg(test)]
 mod tests {
-
     use hex;
     use primitive_types::U256;
 

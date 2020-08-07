@@ -28,13 +28,11 @@ Parameters:
 | ----- | -------- | ------------------- | ------ | --------- | ----- | ------- |
 | 0     | sys | SystemProgram |        |           | ️   |      |
 | 1     | token_program | SplToken |        |           | ️   |      |
-| 2     | clock | Sysvar |        |           | ️   | ✅     |
-| 3     | sender   | TokenAccount        |        | ✅        |       |         |
-| 4     | bridge   | BridgeConfig        |        |           |       |         |
-| 5     | proposal | TransferOutProposal |        | ✅        | ✅    | ✅      |
-| 6     | token    | WrappedAsset        |        | ✅        |       | ✅      |
-| 7     | payer    | Account        |    ✅    |         |       |       |
-| 8-n     | sender_owner          | Account        |   ✅     |         |       |         |
+| 2     | token_account   | TokenAccount        |        | ✅        |       |         |
+| 3     | bridge   | BridgeConfig        |        |           |       |         |
+| 4     | proposal | TransferOutProposal |        | ✅        | ✅    | ✅      |
+| 5     | token    | WrappedAsset        |        | ✅        |       | ✅      |
+| 6     | payer    | Account        |    ✅    |         |       |       |
 
 #### TransferOutNative
 
@@ -47,14 +45,12 @@ The transfer proposal will be tracked at a new account `proposal` where a VAA wi
 | ----- | --------------- | ------------------- | ------ | --------- | ----- | ------- |
 | 0     | sys | SystemProgram |        |           | ️   |      |
 | 1     | token_program | SplToken |        |           | ️   |      |
-| 2     | clock | Sysvar |        |           | ️   | ✅     |
-| 3     | sender          | TokenAccount        |        | ✅        |       |         |
-| 4     | bridge          | BridgeConfig        |        |           |       |         |
-| 5     | proposal        | TransferOutProposal |        | ✅        | ✅    | ✅      |
-| 6     | token           | Mint                |        | ✅        |       |         |
+| 2     | token_account          | TokenAccount        |        | ✅        |       |         |
+| 3     | bridge          | BridgeConfig        |        |           |       |         |
+| 4     | proposal        | TransferOutProposal |        | ✅        | ✅    | ✅      |
+| 5     | token           | Mint                |        | ✅        |       |         |
+| 6     | payer    | Account        |    ✅    |         |       |       |
 | 7     | custody_account | TokenAccount                |        | ✅        | opt   | ✅      |
-| 8     | payer    | Account        |    ✅    |         |       |       |
-| 9-n     | sender_owner          | Account        |   ✅     |         |       |         |
 
 #### EvictTransferOut
 
@@ -108,9 +104,8 @@ followed by:
 | Index | Name         | Type         | signer | writeable | empty | derived |
 | ----- | ------------ | ------------ | ------ | --------- | ----- | ------- |
 | 6     | token_program | SplToken |        |           | ️   |      |
-| 7    | token        | WrappedAsset |        |           | opt   | ✅      |
+| 7     | token        | WrappedAsset |        |           | opt   | ✅      |
 | 8     | destination  | TokenAccount |        | ✅        | opt   |         |
-| 9     | sender  | Account |  ✅      |         |    |         |
 
 ##### Transfer: Ethereum (wrapped) -> Solana (native)
 
@@ -125,7 +120,6 @@ followed by:
 
 | Index | Name         | Type                | signer | writeable | empty | derived |
 | ----- | ------------ | ------------------- | ------ | --------- | ----- | ------- |
-| 6     | token_program | SplToken |        |           | ️   |      |
 | 7     | out_proposal | TransferOutProposal |        | ✅        |       | ✅      |
 | 8     | sender  | Account |  ✅      |         |    |         |
 

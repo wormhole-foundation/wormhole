@@ -2,15 +2,14 @@
 
 use std::mem::size_of;
 
+use primitive_types::U256;
 use solana_sdk::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
-
-use crate::instruction::{ForeignAddress, VAA_BODY};
+use zerocopy::AsBytes;
 
 use crate::error::Error;
+use crate::instruction::{ForeignAddress, VAAData};
 use crate::syscalls::RawKey;
 use crate::vaa::BodyTransfer;
-use primitive_types::U256;
-use zerocopy::AsBytes;
 
 /// fee rate as a ratio
 #[repr(C)]
@@ -58,7 +57,7 @@ pub struct TransferOutProposal {
     /// asset that is being transferred
     pub asset: AssetMeta,
     /// vaa to unlock the tokens on the foreign chain
-    pub vaa: VAA_BODY,
+    pub vaa: VAAData,
     /// time the vaa was submitted
     pub vaa_time: u32,
 
@@ -244,8 +243,8 @@ impl Bridge {
     }
 
     /// Calculates derived seeds for a bridge
-    pub fn derive_bridge_seeds(program_id: &Pubkey) -> Vec<Vec<u8>> {
-        vec![program_id.to_bytes().to_vec()]
+    pub fn derive_bridge_seeds() -> Vec<Vec<u8>> {
+        vec!["bridge".as_bytes().to_vec()]
     }
 
     /// Calculates derived seeds for a custody account
@@ -268,7 +267,7 @@ impl Bridge {
 
     /// Calculates a derived address for this program
     pub fn derive_bridge_id(program_id: &Pubkey) -> Result<Pubkey, Error> {
-        Self::derive_key(program_id, &Self::derive_bridge_seeds(program_id))
+        Self::derive_key(program_id, &Self::derive_bridge_seeds())
     }
 
     /// Calculates a derived address for a custody account
