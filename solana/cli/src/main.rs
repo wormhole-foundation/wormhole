@@ -1,3 +1,4 @@
+use std::fmt::Display;
 use std::net::{IpAddr, SocketAddr};
 use std::str::FromStr;
 use std::thread::sleep;
@@ -8,13 +9,16 @@ use clap::{
     crate_description, crate_name, crate_version, value_t, value_t_or_exit, App, AppSettings, Arg,
     SubCommand,
 };
+use primitive_types::U256;
 use solana_clap_utils::{
     input_parsers::{keypair_of, pubkey_of},
     input_validators::{is_amount, is_keypair, is_pubkey_or_keypair, is_url},
 };
 use solana_client::rpc_client::RpcClient;
+use solana_client::rpc_request::TokenAccountsFilter;
 use solana_faucet::faucet::request_airdrop_transaction;
 use solana_sdk::hash::Hash;
+use solana_sdk::system_instruction::create_account;
 use solana_sdk::{
     native_token::*,
     pubkey::Pubkey,
@@ -28,8 +32,13 @@ use spl_token::{
     state::{Account, Mint},
 };
 
-use spl_bridge::instruction::initialize;
-use spl_bridge::state::BridgeConfig;
+use spl_bridge::instruction::{
+    initialize, post_vaa, transfer_out, BridgeInstruction, ForeignAddress, TransferOutPayload,
+    VAAData, CHAIN_ID_SOLANA,
+};
+use spl_bridge::state::{
+    AssetMeta, Bridge, BridgeConfig, ClaimedVAA, GuardianSet, TransferOutProposal,
+};
 use spl_bridge::syscalls::RawKey;
 
 struct Config {
@@ -40,50 +49,6 @@ struct Config {
 
 type Error = Box<dyn std::error::Error>;
 type CommmandResult = Result<Option<Transaction>, Error>;
-
-fn requestAirdrop(config: &Config, request_sol: u64) -> CommmandResult {
-    let (blockhash, _fee_calculator) = config.rpc_client.get_recent_blockhash()?;
-    let faucet_addr = SocketAddr::new(IpAddr::from_str("127.0.0.1").unwrap(), 9900);
-    match {
-        let mut retries = 5;
-        loop {
-            let result = FaucetKeypair::new_keypair(
-                &faucet_addr,
-                &config.owner.pubkey(),
-                LAMPORTS_PER_SOL * request_sol,
-                blockhash,
-            );
-            if result.is_ok() || retries == 0 {
-                break result;
-            }
-            retries -= 1;
-            sleep(Duration::from_secs(1));
-        }
-    } {
-        Ok(kp) => Ok(Some(kp.airdrop_transaction())),
-        Err(e) => Err(e),
-    }
-}
-
-struct FaucetKeypair {
-    transaction: Transaction,
-}
-
-impl FaucetKeypair {
-    fn new_keypair(
-        faucet_addr: &SocketAddr,
-        to_pubkey: &Pubkey,
-        lamports: u64,
-        blockhash: Hash,
-    ) -> Result<Self, Error> {
-        let transaction = request_airdrop_transaction(faucet_addr, to_pubkey, lamports, blockhash)?;
-        Ok(Self { transaction })
-    }
-
-    fn airdrop_transaction(&self) -> Transaction {
-        self.transaction.clone()
-    }
-}
 
 fn check_fee_payer_balance(config: &Config, required_balance: u64) -> Result<(), Error> {
     let balance = config.rpc_client.get_balance(&config.fee_payer.pubkey())?;
@@ -115,28 +80,6 @@ fn check_owner_balance(config: &Config, required_balance: u64) -> Result<(), Err
     }
 }
 
-fn command_request_airdrop(config: &Config) -> CommmandResult {
-    let token = Keypair::new();
-    println!("Requesting airdrop");
-
-    let minimum_balance_for_rent_exemption = config
-        .rpc_client
-        .get_minimum_balance_for_rent_exemption(size_of::<Mint>())?;
-
-    let mut transaction: Transaction = requestAirdrop(config, 20)?.unwrap();
-
-    let (recent_blockhash, fee_calculator) = config.rpc_client.get_recent_blockhash()?;
-    check_fee_payer_balance(
-        config,
-        minimum_balance_for_rent_exemption + fee_calculator.calculate_fee(&transaction.message()),
-    )?;
-    transaction.sign(
-        &[&config.fee_payer, &config.owner, &token],
-        recent_blockhash,
-    );
-    Ok(Some(transaction))
-}
-
 fn command_deploy_bridge(config: &Config) -> CommmandResult {
     println!("Deploying bridge program");
 
@@ -144,20 +87,134 @@ fn command_deploy_bridge(config: &Config) -> CommmandResult {
         .rpc_client
         .get_minimum_balance_for_rent_exemption(size_of::<Mint>())?;
 
+    let p = Pubkey::from_str("7AeSppn3AjaeYScZsnRf1ZRQvtyo4Ke5gx7PAJ3r7BFp").unwrap();
     let ix = initialize(
-        &Pubkey::from_str("5x4kJ1G4UgJc3yNsznZpxEAB2vrnJirSBxZDu1uwaqnZ").unwrap(),
+        &p,
         &config.owner.pubkey(),
         RawKey {
             x: [8; 32],
-            y: [2; 32],
+            y_parity: true,
         },
         &BridgeConfig {
             vaa_expiration_time: 200000000,
             token_program: spl_token::id(),
         },
     )?;
-    println!("bridge: {}, ", ix.accounts[0].pubkey.to_string());
+    println!("bridge: {}, ", ix.accounts[2].pubkey.to_string());
     println!("payer: {}, ", ix.accounts[3].pubkey.to_string());
+
+    let mut ix_c = create_account(
+        &config.owner.pubkey(),
+        &ix.accounts[2].pubkey,
+        100000000,
+        size_of::<Bridge>() as u64,
+        &p,
+    );
+    ix_c.accounts[1].is_signer = false;
+    let mut ix_c2 = create_account(
+        &config.owner.pubkey(),
+        &ix.accounts[3].pubkey,
+        100000000,
+        size_of::<GuardianSet>() as u64,
+        &p,
+    );
+    ix_c2.accounts[1].is_signer = false;
+    let mut transaction =
+        Transaction::new_with_payer(&[ix_c, ix_c2, ix], Some(&config.fee_payer.pubkey()));
+
+    let (recent_blockhash, fee_calculator) = config.rpc_client.get_recent_blockhash()?;
+    check_fee_payer_balance(
+        config,
+        minimum_balance_for_rent_exemption + fee_calculator.calculate_fee(&transaction.message()),
+    )?;
+    transaction.sign(&[&config.fee_payer, &config.owner], recent_blockhash);
+    Ok(Some(transaction))
+}
+
+fn command_lock_tokens(
+    config: &Config,
+    account: Pubkey,
+    token: Pubkey,
+    amount: u64,
+    to_chain: u8,
+    target: ForeignAddress,
+    nonce: u32,
+) -> CommmandResult {
+    println!("Initiating transfer to foreign chain");
+
+    let minimum_balance_for_rent_exemption = config
+        .rpc_client
+        .get_minimum_balance_for_rent_exemption(size_of::<Mint>())?;
+
+    let p = Pubkey::from_str("7AeSppn3AjaeYScZsnRf1ZRQvtyo4Ke5gx7PAJ3r7BFp").unwrap();
+    let ix = transfer_out(
+        &p,
+        &config.owner.pubkey(),
+        &account,
+        &token,
+        &TransferOutPayload {
+            amount: U256::from(amount),
+            chain_id: to_chain,
+            asset: AssetMeta {
+                address: token.to_bytes(), // TODO fetch from WASSET (if WASSET)
+                chain: CHAIN_ID_SOLANA,    //TODO fetch from WASSET (if WASSET)
+            },
+            target,
+            nonce,
+        },
+    )?;
+    println!("custody: {}, ", ix.accounts[7].pubkey.to_string());
+
+    // Approve tokens
+    let mut ix_a = approve(
+        &spl_token::id(),
+        &account,
+        &ix.accounts[3].pubkey,
+        &config.owner.pubkey(),
+        &[],
+        U256::from(amount),
+    );
+
+    // TODO remove create calls
+    let mut ix_c = create_account(
+        &config.owner.pubkey(),
+        &ix.accounts[4].pubkey,
+        100000000,
+        size_of::<TransferOutProposal>() as u64,
+        &p,
+    );
+    ix_c.accounts[1].is_signer = false;
+    let mut ix_c2 = create_account(
+        &config.owner.pubkey(),
+        &ix.accounts[7].pubkey,
+        100000000,
+        size_of::<Account>() as u64,
+        &spl_token::id(),
+    );
+    ix_c2.accounts[1].is_signer = false;
+
+    let mut transaction =
+        Transaction::new_with_payer(&[ix_a, ix_c, ix_c2, ix], Some(&config.fee_payer.pubkey()));
+
+    let (recent_blockhash, fee_calculator) = config.rpc_client.get_recent_blockhash()?;
+    check_fee_payer_balance(
+        config,
+        minimum_balance_for_rent_exemption + fee_calculator.calculate_fee(&transaction.message()),
+    )?;
+    transaction.sign(&[&config.fee_payer, &config.owner], recent_blockhash);
+    Ok(Some(transaction))
+}
+
+fn command_submit_vaa(config: &Config, vaa: &[u8]) -> CommmandResult {
+    println!("Submitting VAA");
+
+    let minimum_balance_for_rent_exemption = config
+        .rpc_client
+        .get_minimum_balance_for_rent_exemption(size_of::<Mint>())?;
+
+    let p = Pubkey::from_str("7AeSppn3AjaeYScZsnRf1ZRQvtyo4Ke5gx7PAJ3r7BFp").unwrap();
+    let ix = post_vaa(&p, &config.owner.pubkey(), vaa)?;
+
     let mut transaction = Transaction::new_with_payer(&[ix], Some(&config.fee_payer.pubkey()));
 
     let (recent_blockhash, fee_calculator) = config.rpc_client.get_recent_blockhash()?;
@@ -191,7 +248,7 @@ fn command_create_token(config: &Config) -> CommmandResult {
                 &token.pubkey(),
                 None,
                 Some(&config.owner.pubkey()),
-                0,
+                U256::from(0),
                 9, // hard code 9 decimal places to match the sol/lamports relationship
             )?,
         ],
@@ -293,7 +350,37 @@ fn command_transfer(
             &recipient,
             &config.owner.pubkey(),
             &[],
-            amount,
+            U256::from(amount),
+        )?],
+        Some(&config.fee_payer.pubkey()),
+    );
+
+    let (recent_blockhash, fee_calculator) = config.rpc_client.get_recent_blockhash()?;
+    check_fee_payer_balance(config, fee_calculator.calculate_fee(&transaction.message()))?;
+    transaction.sign(&[&config.fee_payer, &config.owner], recent_blockhash);
+    Ok(Some(transaction))
+}
+
+fn command_approve(
+    config: &Config,
+    sender: Pubkey,
+    ui_amount: f64,
+    recipient: Pubkey,
+) -> CommmandResult {
+    println!(
+        "Approve {} tokens\n  Sender: {}\n  Recipient: {}",
+        ui_amount, sender, recipient
+    );
+    let amount = sol_to_lamports(ui_amount);
+
+    let mut transaction = Transaction::new_with_payer(
+        &[approve(
+            &spl_token::id(),
+            &sender,
+            &recipient,
+            &config.owner.pubkey(),
+            &[],
+            U256::from(amount),
         )?],
         Some(&config.fee_payer.pubkey()),
     );
@@ -314,7 +401,7 @@ fn command_burn(config: &Config, source: Pubkey, ui_amount: f64) -> CommmandResu
             &source,
             &config.owner.pubkey(),
             &[],
-            amount,
+            U256::from(amount),
         )?],
         Some(&config.fee_payer.pubkey()),
     );
@@ -344,7 +431,7 @@ fn command_mint(
             &recipient,
             &config.owner.pubkey(),
             &[],
-            amount,
+            U256::from(amount),
         )?],
         Some(&config.fee_payer.pubkey()),
     );
@@ -414,8 +501,9 @@ fn command_unwrap(config: &Config, address: Pubkey) -> CommmandResult {
     Ok(Some(transaction))
 }
 
-fn command_balance(_config: &Config, address: Pubkey) -> CommmandResult {
-    println!("balance {}", address);
+fn command_balance(config: &Config, address: Pubkey) -> CommmandResult {
+    let balance = config.rpc_client.get_token_account_balance(&address)?;
+    println!("{}", balance);
     Ok(None)
 }
 
@@ -424,8 +512,28 @@ fn command_supply(_config: &Config, address: Pubkey) -> CommmandResult {
     Ok(None)
 }
 
-fn command_accounts(_config: &Config, token: Option<Pubkey>) -> CommmandResult {
-    println!("accounts {:?}", token);
+fn command_accounts(config: &Config, token: Option<Pubkey>) -> CommmandResult {
+    let accounts = config.rpc_client.get_token_accounts_by_owner(
+        &config.owner.pubkey(),
+        match token {
+            Some(token) => TokenAccountsFilter::Mint(token),
+            None => TokenAccountsFilter::ProgramId(spl_token::id()),
+        },
+    )?;
+    if accounts.is_empty() {
+        println!("None");
+    }
+
+    println!("Account                                      Token                                        Balance");
+    println!("-------------------------------------------------------------------------------------------------");
+    for (address, account) in accounts {
+        let balance = match config.rpc_client.get_token_account_balance(&address) {
+            Ok(response) => response,
+            Err(err) => 0,
+        };
+
+        println!("{:<44} {:<44} {}", address, account.lamports, balance);
+    }
     Ok(None)
 }
 
@@ -482,7 +590,6 @@ fn main() {
         )
         .subcommand(SubCommand::with_name("create-token").about("Create a new token"))
         .subcommand(SubCommand::with_name("create-bridge").about("Create a new bridge"))
-        .subcommand(SubCommand::with_name("airdrop").about("Request an airdrop"))
         .subcommand(
             SubCommand::with_name("create-account")
                 .about("Create a new token account")
@@ -547,6 +654,86 @@ fn main() {
                         .index(3)
                         .required(true)
                         .help("The token account address of recipient"),
+                ),
+        )
+        .subcommand(
+            SubCommand::with_name("approve")
+                .about("Approve token sprending")
+                .arg(
+                    Arg::with_name("sender")
+                        .validator(is_pubkey_or_keypair)
+                        .value_name("SENDER_TOKEN_ACCOUNT_ADDRESS")
+                        .takes_value(true)
+                        .index(1)
+                        .required(true)
+                        .help("The token account address of the sender"),
+                )
+                .arg(
+                    Arg::with_name("amount")
+                        .validator(is_amount)
+                        .value_name("TOKEN_AMOUNT")
+                        .takes_value(true)
+                        .index(2)
+                        .required(true)
+                        .help("Amount to send, in tokens"),
+                )
+                .arg(
+                    Arg::with_name("recipient")
+                        .validator(is_pubkey_or_keypair)
+                        .value_name("RECIPIENT_TOKEN_ACCOUNT_ADDRESS")
+                        .takes_value(true)
+                        .index(3)
+                        .required(true)
+                        .help("The token account address of recipient"),
+                ),
+        )
+        .subcommand(
+            SubCommand::with_name("lock")
+                .about("Transfer tokens to another chain")
+                .arg(
+                    Arg::with_name("sender")
+                        .validator(is_pubkey_or_keypair)
+                        .value_name("SENDER_TOKEN_ACCOUNT_ADDRESS")
+                        .takes_value(true)
+                        .index(1)
+                        .required(true)
+                        .help("The token account address of the sender"),
+                )
+                .arg(
+                    Arg::with_name("token")
+                        .validator(is_pubkey_or_keypair)
+                        .value_name("TOKEN_ADDRESS")
+                        .takes_value(true)
+                        .index(2)
+                        .required(true)
+                        .help("The mint address"),
+                )
+                .arg(
+                    Arg::with_name("amount")
+                        .validator(is_amount)
+                        .value_name("AMOUNT")
+                        .takes_value(true)
+                        .index(3)
+                        .required(true)
+                        .help("Amount to transfer out"),
+                )
+                .arg(
+                    Arg::with_name("chain")
+                        .validator(is_u8)
+                        .value_name("CHAIN")
+                        .takes_value(true)
+                        .index(4)
+                        .required(true)
+                        .help("Chain to transfer to"),
+                )
+                .arg(
+                    Arg::with_name("nonce")
+                        .validator(is_u8)
+                        .value_name("NONCE")
+                        .takes_value(true)
+                        .index(5)
+                        .required(true)
+                        .help("Nonce of the transfer"),
                 ),
         )
         .subcommand(
@@ -697,9 +884,16 @@ fn main() {
     solana_logger::setup_with_default("solana=info");
 
     let _ = match matches.subcommand() {
-        ("airdrop", Some(_arg_matches)) => command_request_airdrop(&config),
         ("create-token", Some(_arg_matches)) => command_create_token(&config),
         ("create-bridge", Some(_arg_matches)) => command_deploy_bridge(&config),
+        ("lock", Some(arg_matches)) => {
+            let account = pubkey_of(arg_matches, "sender").unwrap();
+            let amount = value_t_or_exit!(arg_matches, "amount", u64);
+            let nonce = value_t_or_exit!(arg_matches, "nonce", u32);
+            let chain = value_t_or_exit!(arg_matches, "chain", u8);
+            let token = pubkey_of(arg_matches, "token").unwrap();
+            command_lock_tokens(&config, account, token, amount, chain, [0; 32], nonce)
+        }
         ("create-account", Some(arg_matches)) => {
             let token = pubkey_of(arg_matches, "token").unwrap();
             command_create_account(&config, token)
@@ -714,6 +908,12 @@ fn main() {
             let amount = value_t_or_exit!(arg_matches, "amount", f64);
             let recipient = pubkey_of(arg_matches, "recipient").unwrap();
             command_transfer(&config, sender, amount, recipient)
+        }
+        ("approve", Some(arg_matches)) => {
+            let sender = pubkey_of(arg_matches, "sender").unwrap();
+            let amount = value_t_or_exit!(arg_matches, "amount", f64);
+            let recipient = pubkey_of(arg_matches, "recipient").unwrap();
+            command_approve(&config, sender, amount, recipient)
         }
         ("burn", Some(arg_matches)) => {
             let source = pubkey_of(arg_matches, "source").unwrap();
@@ -764,4 +964,18 @@ fn main() {
         eprintln!("{}", err);
         exit(1);
     });
+}
+
+pub fn is_u8<T>(amount: T) -> Result<(), String>
+where
+    T: AsRef<str> + Display,
+{
+    if amount.as_ref().parse::<u8>().is_ok() {
+        Ok(())
+    } else {
+        Err(format!(
+            "Unable to parse input amount as integer, provided: {}",
+            amount
+        ))
+    }
 }

@@ -291,13 +291,14 @@ name = "cli"
 version = "0.1.0"
 dependencies = [
  "clap",
+ "primitive-types",
  "solana-clap-utils",
  "solana-cli-config",
  "solana-client",
  "solana-faucet",
  "solana-logger",
  "solana-sdk",
- "spl-token 1.0.6",
+ "spl-token 1.0.3",
  "wormhole-bridge",
 ]
 

@@ -11,7 +11,7 @@ use solana_sdk::{
 };
 
 use crate::error::Error::VAATooLong;
-use crate::instruction::BridgeInstruction::Initialize;
+use crate::instruction::BridgeInstruction::{Initialize, PostVAA, TransferOut};
 use crate::state::{AssetMeta, Bridge, BridgeConfig};
 use crate::syscalls::RawKey;
 use crate::vaa::{VAABody, VAA};
@@ -117,6 +117,16 @@ impl BridgeInstruction {
                 let payload: &InitializePayload = unpack(input)?;
 
                 Initialize(*payload)
+            }
+            1 => {
+                let payload: &TransferOutPayload = unpack(input)?;
+
+                TransferOut(*payload)
+            }
+            2 => {
+                let payload: &VAAData = unpack(input)?;
+
+                PostVAA(*payload)
             }
             _ => return Err(ProgramError::InvalidInstructionData),
         })
@@ -310,9 +320,12 @@ pub fn post_vaa(
                     t.asset.chain,
                     t.asset.address,
                 )?;
+                let wrapped_meta_key =
+                    Bridge::derive_wrapped_meta_id(program_id, &bridge_key, &wrapped_key)?;
                 accounts.push(AccountMeta::new_readonly(spl_token::id(), false));
                 accounts.push(AccountMeta::new(wrapped_key, false));
                 accounts.push(AccountMeta::new(Pubkey::new(&t.target_address), false));
+                accounts.push(AccountMeta::new(wrapped_meta_key, false));
             }
         }
     }

@@ -133,6 +133,7 @@ impl Bridge {
         accounts: &[AccountInfo],
         t: &TransferOutPayload,
     ) -> ProgramResult {
+        info!("wrapped transfer out");
         let account_info_iter = &mut accounts.iter();
         next_account_info(account_info_iter)?; // System program
         next_account_info(account_info_iter)?; // Token program
@@ -145,16 +146,10 @@ impl Bridge {
 
         let sender = Bridge::token_account_deserialize(sender_account_info)?;
         let bridge = Bridge::bridge_deserialize(bridge_info)?;
-        let mint = Bridge::mint_deserialize(mint_info)?;
 
         // Does the token belong to the mint
         if sender.mint != *mint_info.key {
             return Err(Error::TokenMintMismatch.into());
-        }
-
-        // Is the mint owned by the program
-        if mint.owner.unwrap() != *program_id {
-            return Err(Error::WrongMintOwner.into());
         }
 
         // Check that the mint is actually a wrapped asset belonging to *this* bridge instance
@@ -218,6 +213,7 @@ impl Bridge {
         accounts: &[AccountInfo],
         t: &TransferOutPayload,
     ) -> ProgramResult {
+        info!("native transfer out");
         let account_info_iter = &mut accounts.iter();
         next_account_info(account_info_iter)?; // System program
         next_account_info(account_info_iter)?; // Token program
@@ -230,16 +226,10 @@ impl Bridge {
 
         let sender = Bridge::token_account_deserialize(sender_account_info)?;
         let bridge = Bridge::bridge_deserialize(bridge_info)?;
-        let mint = Bridge::mint_deserialize(mint_info)?;
 
         // Does the token belong to the mint
         if sender.mint != *mint_info.key {
             return Err(Error::TokenMintMismatch.into());
-        }
-
-        // If the mint is owned by the program, it's a wrapped asset
-        if mint.owner.unwrap() == *program_id {
-            return Err(Error::WrongMintOwner.into());
         }
 
         // Create transfer account
@@ -293,7 +283,7 @@ impl Bridge {
             return Err(Error::WrongTokenAccountOwner.into());
         }
 
-        // Transfer tokens to custody
+        // Transfer tokens to custody - This also checks that custody mint = mint
         Bridge::token_transfer_caller(
             accounts,
             &bridge.config.token_program,
@@ -500,6 +490,7 @@ impl Bridge {
         next_account_info(account_info_iter)?; // Token program
         let mint_info = next_account_info(account_info_iter)?;
         let destination_info = next_account_info(account_info_iter)?;
+        let wrapped_meta_info = next_account_info(account_info_iter)?;
 
         let destination = Self::token_account_deserialize(destination_info)?;
         if destination.mint != *mint_info.key {
@@ -546,6 +537,25 @@ impl Bridge {
                     payer_info.key,
                     &b.asset,
                 )?;
+
+                // Check and create wrapped asset meta if it is unset
+                let wrapped_meta_seeds =
+                    Bridge::derive_wrapped_meta_seeds(bridge_info.key, mint_info.key);
+                Bridge::check_and_create_account::<WrappedAssetMeta>(
+                    program_id,
+                    accounts,
+                    wrapped_meta_info.key,
+                    payer_info.key,
+                    &wrapped_meta_seeds,
+                )?;
+
+                let mut wrapped_meta_data = wrapped_meta_info.data.borrow_mut();
+                let wrapped_meta: &mut WrappedAssetMeta =
+                    Bridge::unpack_unchecked(&mut wrapped_meta_data)?;
+
+                wrapped_meta.is_initialized = true;
+                wrapped_meta.address = b.asset.address;
+                wrapped_meta.chain = b.asset.chain;
             }
 
             Bridge::wrapped_mint_to(
@@ -735,7 +745,7 @@ impl Bridge {
         payer: &Pubkey,
     ) -> Result<(), ProgramError> {
         Self::create_account::<Mint>(
-            program_id,
+            token_program,
             accounts,
             mint,
             payer,
@@ -756,7 +766,7 @@ impl Bridge {
         asset: &AssetMeta,
     ) -> Result<(), ProgramError> {
         Self::create_account::<Mint>(
-            program_id,
+            token_program,
             accounts,
             mint,
             payer,
@@ -806,7 +816,8 @@ impl Bridge {
             program_id,
         );
         let s: Vec<_> = seeds.iter().map(|item| item.as_slice()).collect();
-        invoke_signed(&ix, accounts, &[s.as_slice()])
+        //invoke_signed(&ix, accounts, &[s.as_slice()])
+        Ok(())
     }
 }
 

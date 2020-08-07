@@ -99,6 +99,25 @@ impl IsInitialized for ClaimedVAA {
     }
 }
 
+/// metadata tracking for wrapped assets
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct WrappedAssetMeta {
+    /// chain id of the native chain of this asset
+    pub chain: u8,
+    /// address of the asset on the native chain
+    pub address: ForeignAddress,
+
+    /// Is `true` if this structure has been initialized.
+    pub is_initialized: bool,
+}
+
+impl IsInitialized for WrappedAssetMeta {
+    fn is_initialized(&self) -> bool {
+        self.is_initialized
+    }
+}
+
 /// Metadata about an asset
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -265,6 +284,15 @@ impl Bridge {
         ]
     }
 
+    /// Calculates derived seeds for a wrapped asset meta entry
+    pub fn derive_wrapped_meta_seeds<'a>(bridge: &Pubkey, mint: &Pubkey) -> Vec<Vec<u8>> {
+        vec![
+            "claim".as_bytes().to_vec(),
+            bridge.to_bytes().to_vec(),
+            mint.to_bytes().to_vec(),
+        ]
+    }
+
     /// Calculates a derived address for this program
     pub fn derive_bridge_id(program_id: &Pubkey) -> Result<Pubkey, Error> {
         Self::derive_key(program_id, &Self::derive_bridge_seeds())
@@ -286,6 +314,15 @@ impl Bridge {
         hash: &[u8; 32],
     ) -> Result<Pubkey, Error> {
         Self::derive_key(program_id, &Self::derive_claim_seeds(bridge, hash))
+    }
+
+    /// Calculates a derived address for a wrapped asset meta entry
+    pub fn derive_wrapped_meta_id(
+        program_id: &Pubkey,
+        bridge: &Pubkey,
+        mint: &Pubkey,
+    ) -> Result<Pubkey, Error> {
+        Self::derive_key(program_id, &Self::derive_wrapped_meta_seeds(bridge, mint))
     }
 
     /// Calculates a derived address for this program

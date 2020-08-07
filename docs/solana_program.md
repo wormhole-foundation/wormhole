@@ -106,6 +106,7 @@ followed by:
 | 6     | token_program | SplToken |        |           | ️   |      |
 | 7     | token        | WrappedAsset |        |           | opt   | ✅      |
 | 8     | destination  | TokenAccount |        | ✅        | opt   |         |
+| 9     | wrapped_meta_account | WrappedAssetMeta  |        | ✅        | opt   | ✅      |
 
 ##### Transfer: Ethereum (wrapped) -> Solana (native)
 
@@ -120,8 +121,7 @@ followed by:
 
 | Index | Name         | Type                | signer | writeable | empty | derived |
 | ----- | ------------ | ------------------- | ------ | --------- | ----- | ------- |
-| 7     | out_proposal | TransferOutProposal |        | ✅        |       | ✅      |
-| 8     | sender  | Account |  ✅      |         |    |         |
+| 6     | out_proposal | TransferOutProposal |        | ✅        |       | ✅      |
 
 ## Accounts
 
