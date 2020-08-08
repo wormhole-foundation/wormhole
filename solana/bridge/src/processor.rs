@@ -203,6 +203,8 @@ impl Bridge {
 
         // Initialize transfer
         transfer.is_initialized = true;
+        transfer.nonce = t.nonce;
+        transfer.source_address = sender_account_info.key.to_bytes();
         transfer.foreign_address = t.target;
         transfer.amount = t.amount;
         transfer.to_chain_id = t.chain_id;

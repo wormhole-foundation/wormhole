@@ -6,7 +6,10 @@ use clap::{
     crate_description, crate_name, crate_version, value_t, value_t_or_exit, App, AppSettings, Arg,
     SubCommand,
 };
+use hex;
 use primitive_types::U256;
+use solana_clap_utils::input_parsers::value_of;
+use solana_clap_utils::input_validators::is_derivation;
 use solana_clap_utils::{
     input_parsers::{keypair_of, pubkey_of},
     input_validators::{is_amount, is_keypair, is_pubkey_or_keypair, is_url},
@@ -28,10 +31,6 @@ use spl_token::{
     state::{Account, Mint},
 };
 
-use hex;
-
-use solana_clap_utils::input_parsers::value_of;
-use solana_clap_utils::input_validators::is_derivation;
 use spl_bridge::instruction::*;
 use spl_bridge::state::*;
 use spl_bridge::syscalls::RawKey;

@@ -1,0 +1,54 @@
+syntax = "proto3";
+package service;
+
+service Agent {
+    rpc SubmitVAA (SubmitVAARequest) returns (SubmitVAAResponse);
+    rpc WatchLockups (WatchLockupsRequest) returns (stream LockupEvent);
+}
+
+message Empty {
+}
+
+message SubmitVAARequest {
+
+}
+
+message SubmitVAAResponse {
+
+}
+
+message WatchLockupsRequest {
+
+}
+
+message LockupEvent {
+    oneof event {
+        LockupEventNew new = 1;
+        LockupEventVAAPosted vaaPosted = 2;
+        Empty empty = 3;
+    }
+}
+
+message LockupEventNew {
+    uint32 nonce = 1;
+    uint32 sourceChain = 2;
+    uint32 targetChain = 3;
+    bytes sourceAddress = 4;
+    bytes targetAddress = 5;
+    uint32 tokenChain = 6;
+    bytes tokenAddress = 7;
+    bytes amount = 8;
+}
+
+message LockupEventVAAPosted {
+    uint32 nonce = 1;
+    uint32 sourceChain = 2;
+    uint32 targetChain = 3;
+    bytes sourceAddress = 4;
+    bytes targetAddress = 5;
+    uint32 tokenChain = 6;
+    bytes tokenAddress = 7;
+    bytes amount = 8;
+
+    bytes vaa = 9;
+}

@@ -52,10 +52,14 @@ pub struct TransferOutProposal {
     pub amount: U256,
     /// chain id to transfer to
     pub to_chain_id: u8,
+    /// address the transfer was initiated from
+    pub source_address: ForeignAddress,
     /// address on the foreign chain to transfer to
     pub foreign_address: ForeignAddress,
     /// asset that is being transferred
     pub asset: AssetMeta,
+    /// nonce of the transfer
+    pub nonce: u32,
     /// vaa to unlock the tokens on the foreign chain
     pub vaa: VAAData,
     /// time the vaa was submitted
@@ -210,6 +214,7 @@ impl Bridge {
         }
         Ok(mut_ref)
     }
+
     /// Unpacks a state from a bytes buffer without checking that the state is initialized.
     pub fn unpack_unchecked<T: IsInitialized>(input: &mut [u8]) -> Result<&mut T, ProgramError> {
         if input.len() != size_of::<T>() {
@@ -217,6 +222,15 @@ impl Bridge {
         }
         #[allow(clippy::cast_ptr_alignment)]
         Ok(unsafe { &mut *(&mut input[0] as *mut u8 as *mut T) })
+    }
+
+    /// Unpacks a state from a bytes buffer while assuring that the state is initialized.
+    pub fn unpack_immutable<T: IsInitialized>(input: &[u8]) -> Result<&T, ProgramError> {
+        let mut_ref: &T = Self::unpack_unchecked_immutable(input)?;
+        if !mut_ref.is_initialized() {
+            return Err(Error::UninitializedState.into());
+        }
+        Ok(mut_ref)
     }
 
     /// Unpacks a state from a bytes buffer without checking that the state is initialized.
