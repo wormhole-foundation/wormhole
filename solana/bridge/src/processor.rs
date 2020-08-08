@@ -690,7 +690,7 @@ impl Bridge {
             token_account,
             authority,
             all_signers.as_slice(),
-            amount,
+            amount.as_u64(),
         )?;
         invoke_signed(&ix, accounts, &[&["bridge".as_bytes()]])
     }
@@ -710,7 +710,7 @@ impl Bridge {
             destination,
             bridge,
             &[],
-            amount,
+            amount.as_u64(),
         )?;
         invoke_signed(&ix, accounts, &[&["bridge".as_bytes()]])
     }
@@ -730,7 +730,7 @@ impl Bridge {
             destination,
             authority,
             &[],
-            amount,
+            amount.as_u64(),
         )?;
         invoke_signed(&ix, accounts, &[&["bridge".as_bytes()]])
     }
@@ -750,7 +750,7 @@ impl Bridge {
             destination,
             bridge,
             &[],
-            amount,
+            amount.as_u64(),
         )?;
         invoke_signed(&ix, accounts, &[&["bridge".as_bytes()]])
     }
@@ -793,14 +793,8 @@ impl Bridge {
             payer,
             &Self::derive_wrapped_asset_seeds(bridge, asset.chain, asset.address),
         )?;
-        let ix = spl_token::instruction::initialize_mint(
-            token_program,
-            mint,
-            None,
-            Some(bridge),
-            U256::from(0),
-            8,
-        )?;
+        let ix =
+            spl_token::instruction::initialize_mint(token_program, mint, None, Some(bridge), 0, 8)?;
         invoke_signed(&ix, accounts, &[&["bridge".as_bytes()]])
     }
 

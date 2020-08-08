@@ -15,6 +15,7 @@ impl PrintProgramError for Error {
             Error::ExpectedAccount => info!("Error: ExpectedAccount"),
             Error::ExpectedBridge => info!("Error: ExpectedBridge"),
             Error::ExpectedGuardianSet => info!("Error: ExpectedGuardianSet"),
+            Error::ExpectedWrappedAssetMeta => info!("Error: ExpectedWrappedAssetMeta"),
             Error::UninitializedState => info!("Error: State is unititialized"),
             Error::InvalidProgramAddress => info!("Error: InvalidProgramAddress"),
             Error::InvalidVAAFormat => info!("Error: InvalidVAAFormat"),

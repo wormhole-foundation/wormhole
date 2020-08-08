@@ -34,6 +34,9 @@ pub enum Error {
     /// The deserialization of the TransferOutProposal state returned something besides State::TransferOutProposal.
     #[error("ExpectedTransferOutProposal")]
     ExpectedTransferOutProposal,
+    /// The deserialization of the GuardianSet state returned something besides State::WrappedAssetMeta.
+    #[error("ExpectedWrappedAssetMeta")]
+    ExpectedWrappedAssetMeta,
     /// State is uninitialized.
     #[error("State is unititialized")]
     UninitializedState,

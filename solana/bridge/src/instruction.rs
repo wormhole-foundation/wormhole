@@ -306,6 +306,7 @@ pub fn post_vaa(
     let mut vaa_data: Vec<u8> = vec![];
     vaa_data.push(v.len() as u8);
     vaa_data.append(&mut v.to_vec());
+    vaa_data.resize(200, 0);
 
     let mut vaa_chain: [u8; 200] = [0; 200];
     vaa_chain.copy_from_slice(vaa_data.as_slice());

@@ -1,8 +1,5 @@
 use std::fmt::Display;
-use std::net::{IpAddr, SocketAddr};
 use std::str::FromStr;
-use std::thread::sleep;
-use std::time::Duration;
 use std::{mem::size_of, process::exit};
 
 use clap::{
@@ -14,12 +11,10 @@ use solana_clap_utils::{
     input_parsers::{keypair_of, pubkey_of},
     input_validators::{is_amount, is_keypair, is_pubkey_or_keypair, is_url},
 };
-use solana_client::rpc_client::RpcClient;
-use solana_client::rpc_request::TokenAccountsFilter;
-use solana_faucet::faucet::request_airdrop_transaction;
-use solana_sdk::hash::Hash;
+use solana_client::{rpc_client::RpcClient, rpc_request::TokenAccountsFilter};
 use solana_sdk::system_instruction::create_account;
 use solana_sdk::{
+    commitment_config::CommitmentConfig,
     native_token::*,
     pubkey::Pubkey,
     signature::{read_keypair_file, Keypair, Signer},
@@ -29,22 +24,23 @@ use solana_sdk::{
 use spl_token::{
     self,
     instruction::*,
+    native_mint,
     state::{Account, Mint},
 };
 
-use spl_bridge::instruction::{
-    initialize, post_vaa, transfer_out, BridgeInstruction, ForeignAddress, TransferOutPayload,
-    VAAData, CHAIN_ID_SOLANA,
-};
-use spl_bridge::state::{
-    AssetMeta, Bridge, BridgeConfig, ClaimedVAA, GuardianSet, TransferOutProposal,
-};
+use hex;
+
+use solana_clap_utils::input_parsers::value_of;
+use solana_clap_utils::input_validators::is_derivation;
+use spl_bridge::instruction::*;
+use spl_bridge::state::*;
 use spl_bridge::syscalls::RawKey;
 
 struct Config {
     rpc_client: RpcClient,
     owner: Keypair,
     fee_payer: Keypair,
+    commitment_config: CommitmentConfig,
 }
 
 type Error = Box<dyn std::error::Error>;
@@ -77,6 +73,19 @@ fn check_owner_balance(config: &Config, required_balance: u64) -> Result<(), Err
         .into())
     } else {
         Ok(())
+    }
+}
+
+fn get_decimals_for_token(config: &Config, token: &Pubkey) -> Result<u8, Error> {
+    if *token == native_mint::id() {
+        Ok(native_mint::DECIMALS)
+    } else {
+        let mint = config
+            .rpc_client
+            .get_token_mint_with_commitment(token, config.commitment_config)?
+            .value
+            .ok_or_else(|| format!("Invalid token: {}", token))?;
+        Ok(mint.decimals)
     }
 }
 
@@ -147,6 +156,14 @@ fn command_lock_tokens(
         .get_minimum_balance_for_rent_exemption(size_of::<Mint>())?;
 
     let p = Pubkey::from_str("7AeSppn3AjaeYScZsnRf1ZRQvtyo4Ke5gx7PAJ3r7BFp").unwrap();
+    let bridge_key = Bridge::derive_bridge_id(&p)?;
+
+    // Check whether we can find wrapped asset meta for the given token
+    let wrapped_key = Bridge::derive_wrapped_meta_id(&p, &bridge_key, &token)?;
+    let wrapped_info = config.rpc_client.get_account(&wrapped_key).or_else(Err)?;
+    let wrapped_meta: &WrappedAssetMeta =
+        Bridge::unpack_unchecked_immutable(wrapped_info.data.as_slice())?;
+
     let ix = transfer_out(
         &p,
         &config.owner.pubkey(),
@@ -155,9 +172,18 @@ fn command_lock_tokens(
         &TransferOutPayload {
             amount: U256::from(amount),
             chain_id: to_chain,
-            asset: AssetMeta {
-                address: token.to_bytes(), // TODO fetch from WASSET (if WASSET)
-                chain: CHAIN_ID_SOLANA,    //TODO fetch from WASSET (if WASSET)
+            asset: {
+                if wrapped_meta.is_initialized() {
+                    AssetMeta {
+                        address: wrapped_meta.address,
+                        chain: wrapped_meta.chain,
+                    }
+                } else {
+                    AssetMeta {
+                        address: token.to_bytes(),
+                        chain: CHAIN_ID_SOLANA,
+                    }
+                }
             },
             target,
             nonce,
@@ -166,14 +192,14 @@ fn command_lock_tokens(
     println!("custody: {}, ", ix.accounts[7].pubkey.to_string());
 
     // Approve tokens
-    let mut ix_a = approve(
+    let ix_a = approve(
         &spl_token::id(),
         &account,
         &ix.accounts[3].pubkey,
         &config.owner.pubkey(),
         &[],
-        U256::from(amount),
-    );
+        amount,
+    )?;
 
     // TODO remove create calls
     let mut ix_c = create_account(
@@ -226,7 +252,7 @@ fn command_submit_vaa(config: &Config, vaa: &[u8]) -> CommmandResult {
     Ok(Some(transaction))
 }
 
-fn command_create_token(config: &Config) -> CommmandResult {
+fn command_create_token(config: &Config, decimals: u8) -> CommmandResult {
     let token = Keypair::new();
     println!("Creating token {}", token.pubkey());
 
@@ -248,8 +274,8 @@ fn command_create_token(config: &Config) -> CommmandResult {
                 &token.pubkey(),
                 None,
                 Some(&config.owner.pubkey()),
-                U256::from(0),
-                9, // hard code 9 decimal places to match the sol/lamports relationship
+                0,
+                decimals,
             )?,
         ],
         Some(&config.fee_payer.pubkey()),
@@ -341,7 +367,40 @@ fn command_transfer(
         "Transfer {} tokens\n  Sender: {}\n  Recipient: {}",
         ui_amount, sender, recipient
     );
-    let amount = sol_to_lamports(ui_amount);
+
+    let sender_token_account = config
+        .rpc_client
+        .get_token_account_with_commitment(&sender, config.commitment_config)?
+        .value;
+    let recipient_token_account = config
+        .rpc_client
+        .get_token_account_with_commitment(&recipient, config.commitment_config)?
+        .value;
+
+    let decimals = match (sender_token_account, recipient_token_account) {
+        (Some(sender_token_account), Some(recipient_token_account)) => {
+            if sender_token_account.mint != recipient_token_account.mint {
+                eprintln!("Error: token mismatch between sender and recipient");
+                exit(1)
+            }
+            get_decimals_for_token(config, &sender_token_account.mint.parse::<Pubkey>()?)?
+        }
+        (None, _) => {
+            eprintln!(
+                "Error: sender account is invalid or does not exist: {}",
+                sender
+            );
+            exit(1)
+        }
+        (Some(_), None) => {
+            eprintln!(
+                "Error: recipient account is invalid or does not exist: {}",
+                recipient
+            );
+            exit(1)
+        }
+    };
+    let amount = spl_token::ui_amount_to_amount(ui_amount, decimals);
 
     let mut transaction = Transaction::new_with_payer(
         &[transfer(
@@ -350,37 +409,7 @@ fn command_transfer(
             &recipient,
             &config.owner.pubkey(),
             &[],
-            U256::from(amount),
-        )?],
-        Some(&config.fee_payer.pubkey()),
-    );
-
-    let (recent_blockhash, fee_calculator) = config.rpc_client.get_recent_blockhash()?;
-    check_fee_payer_balance(config, fee_calculator.calculate_fee(&transaction.message()))?;
-    transaction.sign(&[&config.fee_payer, &config.owner], recent_blockhash);
-    Ok(Some(transaction))
-}
-
-fn command_approve(
-    config: &Config,
-    sender: Pubkey,
-    ui_amount: f64,
-    recipient: Pubkey,
-) -> CommmandResult {
-    println!(
-        "Approve {} tokens\n  Sender: {}\n  Recipient: {}",
-        ui_amount, sender, recipient
-    );
-    let amount = sol_to_lamports(ui_amount);
-
-    let mut transaction = Transaction::new_with_payer(
-        &[approve(
-            &spl_token::id(),
-            &sender,
-            &recipient,
-            &config.owner.pubkey(),
-            &[],
-            U256::from(amount),
+            amount,
         )?],
         Some(&config.fee_payer.pubkey()),
     );
@@ -393,7 +422,25 @@ fn command_approve(
 
 fn command_burn(config: &Config, source: Pubkey, ui_amount: f64) -> CommmandResult {
     println!("Burn {} tokens\n  Source: {}", ui_amount, source);
-    let amount = sol_to_lamports(ui_amount);
+
+    let source_token_account = config
+        .rpc_client
+        .get_token_account_with_commitment(&source, config.commitment_config)?
+        .value;
+
+    let decimals = match source_token_account {
+        Some(source_token_account) => {
+            get_decimals_for_token(config, &source_token_account.mint.parse::<Pubkey>()?)?
+        }
+        None => {
+            eprintln!(
+                "Error: burn account is invalid or does not exist: {}",
+                source
+            );
+            exit(1)
+        }
+    };
+    let amount = spl_token::ui_amount_to_amount(ui_amount, decimals);
 
     let mut transaction = Transaction::new_with_payer(
         &[burn(
@@ -401,7 +448,7 @@ fn command_burn(config: &Config, source: Pubkey, ui_amount: f64) -> CommmandResu
             &source,
             &config.owner.pubkey(),
             &[],
-            U256::from(amount),
+            amount,
         )?],
         Some(&config.fee_payer.pubkey()),
     );
@@ -419,10 +466,28 @@ fn command_mint(
     recipient: Pubkey,
 ) -> CommmandResult {
     println!(
-        "Mint {} tokens\n  Token: {}\n  Recipient: {}",
+        "Minting {} tokens\n  Token: {}\n  Recipient: {}",
         ui_amount, token, recipient
     );
-    let amount = sol_to_lamports(ui_amount);
+
+    let recipient_token_account = config
+        .rpc_client
+        .get_token_account_with_commitment(&recipient, config.commitment_config)?
+        .value;
+
+    let decimals = match recipient_token_account {
+        Some(recipient_token_account) => {
+            get_decimals_for_token(config, &recipient_token_account.mint.parse::<Pubkey>()?)?
+        }
+        None => {
+            eprintln!(
+                "Error: recipient account is invalid or does not exist: {}",
+                recipient
+            );
+            exit(1)
+        }
+    };
+    let amount = spl_token::ui_amount_to_amount(ui_amount, decimals);
 
     let mut transaction = Transaction::new_with_payer(
         &[mint_to(
@@ -431,7 +496,7 @@ fn command_mint(
             &recipient,
             &config.owner.pubkey(),
             &[],
-            U256::from(amount),
+            amount,
         )?],
         Some(&config.fee_payer.pubkey()),
     );
@@ -459,7 +524,7 @@ fn command_wrap(config: &Config, sol: f64) -> CommmandResult {
             initialize_account(
                 &spl_token::id(),
                 &account.pubkey(),
-                &spl_token::native_mint::id(),
+                &native_mint::id(),
                 &config.owner.pubkey(),
             )?,
         ],
@@ -480,7 +545,12 @@ fn command_unwrap(config: &Config, address: Pubkey) -> CommmandResult {
     println!("Unwrapping {}", address);
     println!(
         "  Amount: {} SOL\n  Recipient: {}",
-        lamports_to_sol(config.rpc_client.get_balance(&address)?),
+        lamports_to_sol(
+            config
+                .rpc_client
+                .get_balance_with_commitment(&address, config.commitment_config)?
+                .value
+        ),
         config.owner.pubkey()
     );
 
@@ -502,24 +572,36 @@ fn command_unwrap(config: &Config, address: Pubkey) -> CommmandResult {
 }
 
 fn command_balance(config: &Config, address: Pubkey) -> CommmandResult {
-    let balance = config.rpc_client.get_token_account_balance(&address)?;
-    println!("{}", balance);
+    let balance = config
+        .rpc_client
+        .get_token_account_balance_with_commitment(&address, config.commitment_config)?
+        .value;
+    println!("{}", balance.ui_amount);
     Ok(None)
 }
 
-fn command_supply(_config: &Config, address: Pubkey) -> CommmandResult {
-    println!("supply {}", address);
+fn command_supply(config: &Config, address: Pubkey) -> CommmandResult {
+    let supply = config
+        .rpc_client
+        .get_token_supply_with_commitment(&address, config.commitment_config)?
+        .value;
+
+    println!("{}", supply.ui_amount);
     Ok(None)
 }
 
 fn command_accounts(config: &Config, token: Option<Pubkey>) -> CommmandResult {
-    let accounts = config.rpc_client.get_token_accounts_by_owner(
-        &config.owner.pubkey(),
-        match token {
-            Some(token) => TokenAccountsFilter::Mint(token),
-            None => TokenAccountsFilter::ProgramId(spl_token::id()),
-        },
-    )?;
+    let accounts = config
+        .rpc_client
+        .get_token_accounts_by_owner_with_commitment(
+            &config.owner.pubkey(),
+            match token {
+                Some(token) => TokenAccountsFilter::Mint(token),
+                None => TokenAccountsFilter::ProgramId(spl_token::id()),
+            },
+            config.commitment_config,
+        )?
+        .value;
     if accounts.is_empty() {
         println!("None");
     }
@@ -527,17 +609,21 @@ fn command_accounts(config: &Config, token: Option<Pubkey>) -> CommmandResult {
     println!("Account                                      Token                                        Balance");
     println!("-------------------------------------------------------------------------------------------------");
     for (address, account) in accounts {
-        let balance = match config.rpc_client.get_token_account_balance(&address) {
-            Ok(response) => response,
-            Err(err) => 0,
+        let balance = match config
+            .rpc_client
+            .get_token_account_balance_with_commitment(&address, config.commitment_config)
+        {
+            Ok(response) => response.value.ui_amount.to_string(),
+            Err(err) => format!("{}", err),
         };
 
-        println!("{:<44} {:<44} {}", address, account.lamports, balance);
+        println!("{:<44} {:<44} {}", address, account.mint, balance);
     }
     Ok(None)
 }
 
 fn main() {
+    let default_decimals = &format!("{}", native_mint::DECIMALS);
     let matches = App::new(crate_name!())
         .about(crate_description!())
         .version(crate_version!())
@@ -588,8 +674,20 @@ fn main() {
                      Defaults to the client keypair.",
                 ),
         )
-        .subcommand(SubCommand::with_name("create-token").about("Create a new token"))
-        .subcommand(SubCommand::with_name("create-bridge").about("Create a new bridge"))
+        .subcommand(SubCommand::with_name("create-token").about("Create a new token")
+            .arg(
+                Arg::with_name("decimals")
+                    .long("decimals")
+                    .validator(|s| {
+                        s.parse::<u8>().map_err(|e| format!("{}", e))?;
+                        Ok(())
+                    })
+                    .value_name("DECIMALS")
+                    .takes_value(true)
+                    .default_value(&default_decimals)
+                    .help("Number of base 10 digits to the right of the decimal place"),
+            )
+        )
         .subcommand(
             SubCommand::with_name("create-account")
                 .about("Create a new token account")
@@ -685,55 +783,6 @@ fn main() {
                         .index(3)
                         .required(true)
                         .help("The token account address of recipient"),
-                ),
-        )
-        .subcommand(
-            SubCommand::with_name("lock")
-                .about("Transfer tokens to another chain")
-                .arg(
-                    Arg::with_name("sender")
-                        .validator(is_pubkey_or_keypair)
-                        .value_name("SENDER_TOKEN_ACCOUNT_ADDRESS")
-                        .takes_value(true)
-                        .index(1)
-                        .required(true)
-                        .help("The token account address of the sender"),
-                )
-                .arg(
-                    Arg::with_name("token")
-                        .validator(is_pubkey_or_keypair)
-                        .value_name("TOKEN_ADDRESS")
-                        .takes_value(true)
-                        .index(2)
-                        .required(true)
-                        .help("The mint address"),
-                )
-                .arg(
-                    Arg::with_name("amount")
-                        .validator(is_amount)
-                        .value_name("AMOUNT")
-                        .takes_value(true)
-                        .index(3)
-                        .required(true)
-                        .help("Amount to transfer out"),
-                )
-                .arg(
-                    Arg::with_name("chain")
-                        .validator(is_u8)
-                        .value_name("CHAIN")
-                        .takes_value(true)
-                        .index(4)
-                        .required(true)
-                        .help("Chain to transfer to"),
-                )
-                .arg(
-                    Arg::with_name("nonce")
-                        .validator(is_u8)
-                        .value_name("NONCE")
-                        .takes_value(true)
-                        .index(5)
-                        .required(true)
-                        .help("Nonce of the transfer"),
                 ),
         )
         .subcommand(
@@ -853,6 +902,69 @@ fn main() {
                         .help("The address of the token account to unwrap"),
                 ),
         )
+        .subcommand(SubCommand::with_name("create-bridge").about("Create a new bridge"))
+        .subcommand(
+            SubCommand::with_name("lock")
+                .about("Transfer tokens to another chain")
+                .arg(
+                    Arg::with_name("sender")
+                        .validator(is_pubkey_or_keypair)
+                        .value_name("SENDER_TOKEN_ACCOUNT_ADDRESS")
+                        .takes_value(true)
+                        .index(1)
+                        .required(true)
+                        .help("The token account address of the sender"),
+                )
+                .arg(
+                    Arg::with_name("token")
+                        .validator(is_pubkey_or_keypair)
+                        .value_name("TOKEN_ADDRESS")
+                        .takes_value(true)
+                        .index(2)
+                        .required(true)
+                        .help("The mint address"),
+                )
+                .arg(
+                    Arg::with_name("amount")
+                        .validator(is_amount)
+                        .value_name("AMOUNT")
+                        .takes_value(true)
+                        .index(3)
+                        .required(true)
+                        .help("Amount to transfer out"),
+                )
+                .arg(
+                    Arg::with_name("chain")
+                        .validator(is_u8)
+                        .value_name("CHAIN")
+                        .takes_value(true)
+                        .index(4)
+                        .required(true)
+                        .help("Chain to transfer to"),
+                )
+                .arg(
+                    Arg::with_name("nonce")
+                        .validator(is_u8)
+                        .value_name("NONCE")
+                        .takes_value(true)
+                        .index(5)
+                        .required(true)
+                        .help("Nonce of the transfer"),
+                ),
+        )
+        .subcommand(
+            SubCommand::with_name("postvaa")
+                .about("Submit a VAA to the chain")
+                .arg(
+                    Arg::with_name("vaa")
+                        .validator(is_hex)
+                        .value_name("HEX_VAA")
+                        .takes_value(true)
+                        .index(1)
+                        .required(true)
+                        .help("The vaa to be posted"),
+                )
+        )
         .get_matches();
 
     let config = {
@@ -878,21 +990,16 @@ fn main() {
             rpc_client: RpcClient::new(json_rpc_url),
             owner,
             fee_payer,
+            commitment_config: CommitmentConfig::single(),
         }
     };
 
     solana_logger::setup_with_default("solana=info");
 
     let _ = match matches.subcommand() {
-        ("create-token", Some(_arg_matches)) => command_create_token(&config),
-        ("create-bridge", Some(_arg_matches)) => command_deploy_bridge(&config),
-        ("lock", Some(arg_matches)) => {
-            let account = pubkey_of(arg_matches, "sender").unwrap();
-            let amount = value_t_or_exit!(arg_matches, "amount", u64);
-            let nonce = value_t_or_exit!(arg_matches, "nonce", u32);
-            let chain = value_t_or_exit!(arg_matches, "chain", u8);
-            let token = pubkey_of(arg_matches, "token").unwrap();
-            command_lock_tokens(&config, account, token, amount, chain, [0; 32], nonce)
+        ("create-token", Some(arg_matches)) => {
+            let decimals = value_t_or_exit!(arg_matches, "decimals", u8);
+            command_create_token(&config, decimals)
         }
         ("create-account", Some(arg_matches)) => {
             let token = pubkey_of(arg_matches, "token").unwrap();
@@ -908,12 +1015,6 @@ fn main() {
             let amount = value_t_or_exit!(arg_matches, "amount", f64);
             let recipient = pubkey_of(arg_matches, "recipient").unwrap();
             command_transfer(&config, sender, amount, recipient)
-        }
-        ("approve", Some(arg_matches)) => {
-            let sender = pubkey_of(arg_matches, "sender").unwrap();
-            let amount = value_t_or_exit!(arg_matches, "amount", f64);
-            let recipient = pubkey_of(arg_matches, "recipient").unwrap();
-            command_approve(&config, sender, amount, recipient)
         }
         ("burn", Some(arg_matches)) => {
             let source = pubkey_of(arg_matches, "source").unwrap();
@@ -946,6 +1047,20 @@ fn main() {
             let token = pubkey_of(arg_matches, "token");
             command_accounts(&config, token)
         }
+        ("create-bridge", Some(_arg_matches)) => command_deploy_bridge(&config),
+        ("lock", Some(arg_matches)) => {
+            let account = pubkey_of(arg_matches, "sender").unwrap();
+            let amount = value_t_or_exit!(arg_matches, "amount", u64);
+            let nonce = value_t_or_exit!(arg_matches, "nonce", u32);
+            let chain = value_t_or_exit!(arg_matches, "chain", u8);
+            let token = pubkey_of(arg_matches, "token").unwrap();
+            command_lock_tokens(&config, account, token, amount, chain, [0; 32], nonce)
+        }
+        ("postvaa", Some(arg_matches)) => {
+            let vaa_string: String = value_of(arg_matches, "vaa").unwrap();
+            let vaa = hex::decode(vaa_string).unwrap();
+            command_submit_vaa(&config, vaa.as_slice())
+        }
         _ => unreachable!(),
     }
     .and_then(|transaction| {
@@ -955,7 +1070,10 @@ fn main() {
             // confirmation by default for better UX
             let signature = config
                 .rpc_client
-                .send_and_confirm_transaction_with_spinner(&transaction)?;
+                .send_and_confirm_transaction_with_spinner_and_commitment(
+                    &transaction,
+                    config.commitment_config,
+                )?;
             println!("Signature: {}", signature);
         }
         Ok(())
@@ -978,4 +1096,13 @@ where
             amount
         ))
     }
+}
+
+pub fn is_hex<T>(value: T) -> Result<(), String>
+where
+    T: AsRef<str> + Display,
+{
+    hex::decode(value.to_string())
+        .map(|_| ())
+        .map_err(|e| format!("{}", e))
 }

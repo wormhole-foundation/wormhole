@@ -188,6 +188,12 @@ impl Bridge {
         Ok(*Bridge::unpack(&mut info.data.borrow_mut()).map_err(|_| Error::ExpectedGuardianSet)?)
     }
 
+    /// Deserializes a `WrappedAssetMeta`.
+    pub fn wrapped_meta_deserialize(info: &AccountInfo) -> Result<WrappedAssetMeta, Error> {
+        Ok(*Bridge::unpack(&mut info.data.borrow_mut())
+            .map_err(|_| Error::ExpectedWrappedAssetMeta)?)
+    }
+
     /// Deserializes a `TransferOutProposal`.
     pub fn transfer_out_proposal_deserialize(
         info: &AccountInfo,
@@ -196,7 +202,7 @@ impl Bridge {
             .map_err(|_| Error::ExpectedTransferOutProposal)?)
     }
 
-    /// Unpacks a token state from a bytes buffer while assuring that the state is initialized.
+    /// Unpacks a state from a bytes buffer while assuring that the state is initialized.
     pub fn unpack<T: IsInitialized>(input: &mut [u8]) -> Result<&mut T, ProgramError> {
         let mut_ref: &mut T = Self::unpack_unchecked(input)?;
         if !mut_ref.is_initialized() {
@@ -204,13 +210,22 @@ impl Bridge {
         }
         Ok(mut_ref)
     }
-    /// Unpacks a token state from a bytes buffer without checking that the state is initialized.
+    /// Unpacks a state from a bytes buffer without checking that the state is initialized.
     pub fn unpack_unchecked<T: IsInitialized>(input: &mut [u8]) -> Result<&mut T, ProgramError> {
         if input.len() != size_of::<T>() {
             return Err(ProgramError::InvalidAccountData);
         }
         #[allow(clippy::cast_ptr_alignment)]
         Ok(unsafe { &mut *(&mut input[0] as *mut u8 as *mut T) })
+    }
+
+    /// Unpacks a state from a bytes buffer without checking that the state is initialized.
+    pub fn unpack_unchecked_immutable<T: IsInitialized>(input: &[u8]) -> Result<&T, ProgramError> {
+        if input.len() != size_of::<T>() {
+            return Err(ProgramError::InvalidAccountData);
+        }
+        #[allow(clippy::cast_ptr_alignment)]
+        Ok(unsafe { &*(&input[0] as *const u8 as *const T) })
     }
 }
 
@@ -377,8 +392,7 @@ impl Bridge {
 
     pub fn derive_key(program_id: &Pubkey, seeds: &Vec<Vec<u8>>) -> Result<Pubkey, Error> {
         let s: Vec<_> = seeds.iter().map(|item| item.as_slice()).collect();
-        Pubkey::create_program_address(s.as_slice(), program_id)
-            .or(Err(Error::InvalidProgramAddress))
+        Ok(Pubkey::find_program_address(s.as_slice(), program_id).0)
     }
 }
 
