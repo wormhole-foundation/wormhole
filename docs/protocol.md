@@ -202,10 +202,13 @@ The lock function takes a Solana `address` as parameter which is the TokenAccoun
 Guardians will pick up the *Lock transaction* once it has enough confirmations on the foreign chain. The amount of 
 confirmations required is a parameter that guardians can specify individually.
 
-They check for the validity, parse it and will then send a `ConfirmForeignLockup` transaction to the Solana program
-testifying that they have seen a foreign lockup. Once the quorum has been reached, a new wrapped asset will be minted or
-released from custody. Custody is used for Solana-native tokens that have previously been transferred to a foreign 
-chain, minting will be used to create new units of a wrapped foreign-chain asset.
+They check for the validity, parse it and will then initiate a threshold signature ceremony on a deterministically 
+produced VAA (`Transfer`) testifying that they have seen a foreign lockup. They will post this VAA on the root chain
+using the `SubmitVAA` instruction.
+ 
+This instruction will either mint a new wrapped assetor released tokens from custody. 
+Custody is used for Solana-native tokens that have previously been transferred to a foreign chain, minting will be used
+ to create new units of a wrapped foreign-chain asset.
 
 If this is the first time a foreign asset is minted, a new **Mint** (token) will be created on quorum.
 
@@ -230,7 +233,7 @@ They check for the validity of the tx, parse it and will initiate an off-chain t
 output a **VAA** that can be used with a foreign chain smart contract to reclaim an unwrapped local asset or mint a 
 wrapped `spl-token`.
 
-This VAA will be posted on Solana by one of the guardians using the `PostVAA` instruction and will be stored in the
+This VAA will be posted on Solana by one of the guardians using the `SubmitVAA` instruction and will be stored in the
 `LockProposal`.
 
 Depending on whether the fees are sufficient for **guardians** or **relayers** to cover the foreign chain fees, they
