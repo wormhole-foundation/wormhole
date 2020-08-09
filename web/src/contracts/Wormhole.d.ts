@@ -14,9 +14,17 @@ interface WormholeInterface extends Interface {
   functions: {
     guardian_set_index: TypedFunctionDescription<{ encode([]: []): string }>;
 
+    guardian_sets: TypedFunctionDescription<{
+      encode([]: [BigNumberish]): string;
+    }>;
+
+    isWrappedAsset: TypedFunctionDescription<{ encode([]: [string]): string }>;
+
     vaa_expiry: TypedFunctionDescription<{ encode([]: []): string }>;
 
     wrappedAssetMaster: TypedFunctionDescription<{ encode([]: []): string }>;
+
+    wrappedAssets: TypedFunctionDescription<{ encode([]: [Arrayish]): string }>;
 
     submitVAA: TypedFunctionDescription<{ encode([vaa]: [Arrayish]): string }>;
 
@@ -60,15 +68,6 @@ interface WormholeInterface extends Interface {
         amount
       ]: [null, null, Arrayish | null, Arrayish | null, null, null]): string[];
     }>;
-
-    LogTokensUnlocked: TypedEventDescription<{
-      encodeTopics([token, sender, recipient, amount]: [
-        string | null,
-        Arrayish | null,
-        null,
-        null
-      ]): string[];
-    }>;
   };
 }
 
@@ -90,6 +89,40 @@ export class Wormhole extends Contract {
 
     "guardian_set_index()"(overrides?: TransactionOverrides): Promise<number>;
 
+    guardian_sets(
+      arg0: BigNumberish,
+      overrides?: TransactionOverrides
+    ): Promise<{
+      x: BigNumber;
+      parity: number;
+      expiration_time: number;
+      0: BigNumber;
+      1: number;
+      2: number;
+    }>;
+
+    "guardian_sets(uint32)"(
+      arg0: BigNumberish,
+      overrides?: TransactionOverrides
+    ): Promise<{
+      x: BigNumber;
+      parity: number;
+      expiration_time: number;
+      0: BigNumber;
+      1: number;
+      2: number;
+    }>;
+
+    isWrappedAsset(
+      arg0: string,
+      overrides?: TransactionOverrides
+    ): Promise<boolean>;
+
+    "isWrappedAsset(address)"(
+      arg0: string,
+      overrides?: TransactionOverrides
+    ): Promise<boolean>;
+
     vaa_expiry(overrides?: TransactionOverrides): Promise<number>;
 
     "vaa_expiry()"(overrides?: TransactionOverrides): Promise<number>;
@@ -97,6 +130,16 @@ export class Wormhole extends Contract {
     wrappedAssetMaster(overrides?: TransactionOverrides): Promise<string>;
 
     "wrappedAssetMaster()"(overrides?: TransactionOverrides): Promise<string>;
+
+    wrappedAssets(
+      arg0: Arrayish,
+      overrides?: TransactionOverrides
+    ): Promise<string>;
+
+    "wrappedAssets(bytes32)"(
+      arg0: Arrayish,
+      overrides?: TransactionOverrides
+    ): Promise<string>;
 
     submitVAA(
       vaa: Arrayish,
@@ -141,6 +184,40 @@ export class Wormhole extends Contract {
 
   "guardian_set_index()"(overrides?: TransactionOverrides): Promise<number>;
 
+  guardian_sets(
+    arg0: BigNumberish,
+    overrides?: TransactionOverrides
+  ): Promise<{
+    x: BigNumber;
+    parity: number;
+    expiration_time: number;
+    0: BigNumber;
+    1: number;
+    2: number;
+  }>;
+
+  "guardian_sets(uint32)"(
+    arg0: BigNumberish,
+    overrides?: TransactionOverrides
+  ): Promise<{
+    x: BigNumber;
+    parity: number;
+    expiration_time: number;
+    0: BigNumber;
+    1: number;
+    2: number;
+  }>;
+
+  isWrappedAsset(
+    arg0: string,
+    overrides?: TransactionOverrides
+  ): Promise<boolean>;
+
+  "isWrappedAsset(address)"(
+    arg0: string,
+    overrides?: TransactionOverrides
+  ): Promise<boolean>;
+
   vaa_expiry(overrides?: TransactionOverrides): Promise<number>;
 
   "vaa_expiry()"(overrides?: TransactionOverrides): Promise<number>;
@@ -148,6 +225,16 @@ export class Wormhole extends Contract {
   wrappedAssetMaster(overrides?: TransactionOverrides): Promise<string>;
 
   "wrappedAssetMaster()"(overrides?: TransactionOverrides): Promise<string>;
+
+  wrappedAssets(
+    arg0: Arrayish,
+    overrides?: TransactionOverrides
+  ): Promise<string>;
+
+  "wrappedAssets(bytes32)"(
+    arg0: Arrayish,
+    overrides?: TransactionOverrides
+  ): Promise<string>;
 
   submitVAA(
     vaa: Arrayish,
@@ -209,19 +296,32 @@ export class Wormhole extends Contract {
       recipient: null,
       amount: null
     ): EventFilter;
-
-    LogTokensUnlocked(
-      token: string | null,
-      sender: Arrayish | null,
-      recipient: null,
-      amount: null
-    ): EventFilter;
   };
 
   estimate: {
     guardian_set_index(overrides?: TransactionOverrides): Promise<BigNumber>;
 
     "guardian_set_index()"(
+      overrides?: TransactionOverrides
+    ): Promise<BigNumber>;
+
+    guardian_sets(
+      arg0: BigNumberish,
+      overrides?: TransactionOverrides
+    ): Promise<BigNumber>;
+
+    "guardian_sets(uint32)"(
+      arg0: BigNumberish,
+      overrides?: TransactionOverrides
+    ): Promise<BigNumber>;
+
+    isWrappedAsset(
+      arg0: string,
+      overrides?: TransactionOverrides
+    ): Promise<BigNumber>;
+
+    "isWrappedAsset(address)"(
+      arg0: string,
       overrides?: TransactionOverrides
     ): Promise<BigNumber>;
 
@@ -232,6 +332,16 @@ export class Wormhole extends Contract {
     wrappedAssetMaster(overrides?: TransactionOverrides): Promise<BigNumber>;
 
     "wrappedAssetMaster()"(
+      overrides?: TransactionOverrides
+    ): Promise<BigNumber>;
+
+    wrappedAssets(
+      arg0: Arrayish,
+      overrides?: TransactionOverrides
+    ): Promise<BigNumber>;
+
+    "wrappedAssets(bytes32)"(
+      arg0: Arrayish,
       overrides?: TransactionOverrides
     ): Promise<BigNumber>;
 

@@ -57,8 +57,8 @@ contract Wormhole {
     mapping(bytes32 => bool) consumedVAAs;
 
     // Mapping of wrapped asset ERC20 contracts
-    mapping(bytes32 => address) wrappedAssets;
-    mapping(address => bool) isWrappedAsset;
+    mapping(bytes32 => address) public wrappedAssets;
+    mapping(address => bool) public isWrappedAsset;
 
     constructor(GuardianSet memory initial_guardian_set, address wrapped_asset_master, uint32 _vaa_expiry) public {
         guardian_sets[0] = initial_guardian_set;

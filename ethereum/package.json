@@ -11,7 +11,8 @@
     "chai": "^4.2.0",
     "mocha": "^8.1.1",
     "truffle-assertions": "^0.9.2",
-    "truffle": "^5.1.37"
+    "truffle": "^5.1.37",
+    "@truffle/hdwallet-provider": "^1.0.42"
   },
   "scripts": {
     "build": "truffle compile",
