@@ -87,7 +87,7 @@ Creates a new `WrappedAsset` to be used to create accounts and later receive tra
 | 4     | wrapped_mint        | WrappedAsset |        |           |  ✅   | ✅      |
 | 5     | wrapped_meta_account | WrappedAssetMeta  |        | ✅        |  ✅   | ✅      |
 
-#### PostVAA
+#### SubmitVAA
 
 Submits a VAA signed by the guardians to perform an action.
 
@@ -164,7 +164,9 @@ until the `VAA_EXPIRATION_TIME` has passed and can then be evicted using `IEvict
 
 #### _GuardianSet_ Account
 
-> Seed derivation: `guardians_<index>`
+> Seed derivation: `guardian || <bridge> || <index>`
+>
+> **bridge**: Pubkey of the bridge
 >
 > **index**: Index of the guardian set
 
@@ -175,26 +177,36 @@ still be valid until the expiration time.
 
 #### _TransferOutProposal_ Account
 
-> Seed derivation: `out_<chain>_<asset>_<transfer_hash>`
+> Seed derivation: `transfer || <bridge> || <asset_chain> || <asset> || <target_chain> || <target_address> || <sender> || <nonce>`
 >
-> **chain**: CHAIN_ID of the native chain of this asset
+> **bridge**: Pubkey of the bridge
+>
+> **asset_chain**: CHAIN_ID of the native chain of this asset
 >
 > **asset**: address of the asset
 >
-> **transfer_hash**: Random ID of the transfer
+> **target_chain**: ChainID of the recipient
+>
+> **target_address**: address of the recipient
+>
+> **sender**: pubkey of the sender
+>
+> **nonce**: nonce of the transfer
 
 This account is created when a user wants to lock tokens to transfer them to a foreign chain using the `ITransferOut`
 instruction.
 
 It is used to signal a pending transfer to a foreign chain and will also store the respective VAA provided using
-`IPostVAA`.
+`ISubmitVAA`.
 
 Once the VAA has been published this TransferOut is considered completed and can be evicted using `EvictTransferOut`
 after `VAA_EXPIRATION_TIME` has passed.
 
 #### _WrappedAsset_ Mint
 
-> Seed derivation: `wrapped_<chain>_<asset>`
+> Seed derivation: `wrapped || <bridge> || <chain> || <asset>`
+>
+> **bridge**: Pubkey of the bridge
 >
 > **chain**: CHAIN_ID of the native chain of this asset
 >
@@ -202,11 +214,33 @@ after `VAA_EXPIRATION_TIME` has passed.
 
 This account is an instance of `spl-token/Mint` tracks a wrapped asset on the Solana chain.
 
-#### _NativeAsset_ TokenAccount
+#### _WrappedAssetMeta_ Mint
 
-> Seed derivation: `custody_<asset>`
+> Seed derivation: `meta || <bridge> || <wrapped>`
 >
-> **asset**: address of the asset on the native chain
+> **bridge**: Pubkey of the bridge
+>
+> **wrapped**: address of the wrapped asset
+
+This account tracks the metadata about a wrapped asset to allow reverse lookups.
+
+#### _Custody_ TokenAccount
+
+> Seed derivation: `custody || <bridge> || <asset>`
+>
+> **bridge**: Pubkey of the bridge
+>
+> **asset**: address of the asset mint on the native chain
 
 This account is an instance of `spl-token/TokenAccount` and holds spl tokens in custody that have been transferred to a
 foreign chain.
+
+#### _ClaimedVAA_ Account
+
+> Seed derivation: `claim || <bridge> || <hash>`
+>
+> **bridge**: Pubkey of the bridge
+>
+> **hash**: signing hash of the VAA
+
+This account tracks a claimed VAA to prevent replay attacks.

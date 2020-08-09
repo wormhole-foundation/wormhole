@@ -275,8 +275,8 @@ impl Bridge {
         asset: ForeignAddress,
         target_chain: u8,
         target_address: ForeignAddress,
-        user: ForeignAddress,
-        slot: u32,
+        sender: ForeignAddress,
+        nonce: u32,
     ) -> Vec<Vec<u8>> {
         vec![
             "transfer".as_bytes().to_vec(),
@@ -285,8 +285,8 @@ impl Bridge {
             asset.as_bytes().to_vec(),
             target_chain.as_bytes().to_vec(),
             target_address.as_bytes().to_vec(),
-            user.as_bytes().to_vec(),
-            slot.as_bytes().to_vec(),
+            sender.as_bytes().to_vec(),
+            nonce.as_bytes().to_vec(),
         ]
     }
 
@@ -316,7 +316,7 @@ impl Bridge {
     /// Calculates derived seeds for a wrapped asset meta entry
     pub fn derive_wrapped_meta_seeds<'a>(bridge: &Pubkey, mint: &Pubkey) -> Vec<Vec<u8>> {
         vec![
-            "claim".as_bytes().to_vec(),
+            "meta".as_bytes().to_vec(),
             bridge.to_bytes().to_vec(),
             mint.to_bytes().to_vec(),
         ]
