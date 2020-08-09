@@ -10,11 +10,11 @@ message Empty {
 }
 
 message SubmitVAARequest {
-
+    bytes vaa = 1;
 }
 
 message SubmitVAAResponse {
-
+    string signature = 1;
 }
 
 message WatchLockupsRequest {
