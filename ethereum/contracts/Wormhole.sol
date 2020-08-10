@@ -127,7 +127,6 @@ contract Wormhole {
         uint32 new_guardian_set_index = data.toUint32(33);
 
         require(new_guardian_set_index > guardian_set_index, "index of new guardian set must be > current");
-        require(new_key_x < Schnorr.HALF_Q, "invalid key for fast Schnorr verification");
         require(y_parity <= 1, "invalid y parity");
 
         uint32 old_guardian_set_index = guardian_set_index;

@@ -323,11 +323,6 @@ func ValidPublicKey(p kyber.Point) bool {
 		return false
 	}
 
-	// Verify that X < HALF_Q so it can be used for optimized on-chain verification
-	if P.X.Int().Cmp(halfQ) == 1 {
-		return false
-	}
-
 	// Verify that the pub key is a valid curve point
 	maybeY := maybeSqrtInField(rightHandSide(P.X))
 	return maybeY != nil && (P.Y.Equal(maybeY) || P.Y.Equal(maybeY.Neg(maybeY)))

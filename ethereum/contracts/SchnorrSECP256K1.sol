@@ -8,8 +8,6 @@ library Schnorr {
     uint256 constant public Q = // Group order of secp256k1
     // solium-disable-next-line indentation
     0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141;
-    // solium-disable-next-line zeppelin/no-arithmetic-operations
-    uint256 constant public HALF_Q = (Q >> 1) + 1;
 
     /** **************************************************************************
         @notice verifySignature returns true iff passed a valid Schnorr signature.
@@ -19,8 +17,6 @@ library Schnorr {
         the y ordinate (i.e., 0 if PKy is even, 1 if odd.)
         **************************************************************************
         @dev TO CREATE A VALID SIGNATURE FOR THIS METHOD
-        @dev First PKx must be less than HALF_Q. Then follow these instructions
-             (see evm/test/schnorr_test.js, for an example of carrying them out):
         @dev 1. Hash the target message to a uint256, called msgHash here, using
                 keccak256
         @dev 2. Pick k uniformly and cryptographically securely randomly from
@@ -28,8 +24,7 @@ library Schnorr {
                 private key can be reconstructed from k and the signature.
         @dev 3. Compute k*g in the secp256k1 group, where g is the group
                 generator. (This is the same as computing the public key from the
-                secret key k. But it's OK if k*g's x ordinate is greater than
-                HALF_Q.)
+                secret key k.)
         @dev 4. Compute the ethereum address for k*g. This is the lower 160 bits
                 of the keccak hash of the concatenated affine coordinates of k*g,
                 as 32-byte big-endians. (For instance, you could pass k to
@@ -66,17 +61,8 @@ library Schnorr {
         However, the difficulty of cracking the public key using "baby-step,
         giant-step" is only 128 bits, so this weakening constitutes no compromise
         in the security of the signatures or the key.
-        @dev The constraint signingPubKeyX < HALF_Q comes from Eq. (281), p. 24
-        of Yellow Paper version 78d7b9a. ecrecover only accepts "s" inputs less
-        than HALF_Q, to protect against a signature- malleability vulnerability in
-        ECDSA. Schnorr does not have this vulnerability, but we must account for
-        ecrecover's defense anyway. And since we are abusing ecrecover by putting
-        signingPubKeyX in ecrecover's "s" argument the constraint applies to
-        signingPubKeyX, even though it represents a value in the base field, and
-        has no natural relationship to the order of the curve's cyclic group.
         **************************************************************************
-        @param signingPubKeyX is the x ordinate of the public key. This must be
-               less than HALF_Q.
+        @param signingPubKeyX is the x ordinate of the public key.
         @param pubKeyYParity is 0 if the y ordinate of the public key is even, 1
                if it's odd.
         @param signature is the actual signature, described as s in the above
@@ -92,7 +78,6 @@ library Schnorr {
         uint256 signature,
         uint256 msgHash,
         address nonceTimesGeneratorAddress) external pure returns (bool) {
-        require(signingPubKeyX < HALF_Q, "Public-key x >= HALF_Q");
         // Avoid signature malleability from multiple representations for ℤ/Qℤ elts
         require(signature < Q, "signature must be reduced modulo Q");
 

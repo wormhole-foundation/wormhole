@@ -21,7 +21,6 @@ import (
 // q is the field characteristic (cardinality) of the secp256k1 base field. All
 // arithmetic operations on the field are modulo this.
 var q = s256.P
-var halfQ = new(big.Int).Div(q, big.NewInt(2))
 
 type fieldElt big.Int
 
