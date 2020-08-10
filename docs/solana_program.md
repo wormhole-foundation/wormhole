@@ -63,16 +63,16 @@ Deletes a `proposal` after the `VAA_EXPIRATION_TIME` to free up space on chain. 
 | 2     | bridge   | BridgeConfig        |        |           |       |         |
 | 3     | proposal | TransferOutProposal |        | ✅        |       | ✅      |
 
-#### EvictExecutedVAA
+#### EvictClaimedVAA
 
-Deletes a `ExecutedVAA` after the `VAA_EXPIRATION_TIME` to free up space on chain. This returns the rent to `guardian`.
+Deletes a `ClaimedVAA` after the `VAA_EXPIRATION_TIME` to free up space on chain. This returns the rent to `guardian`.
 
 | Index | Name     | Type                | signer | writeable | empty | derived |
 | ----- | -------- | ------------------- | ------ | --------- | ----- | ------- |
 | 0     | guardian | Account             | ✅     |           |       |         |
 | 1     | clock | Sysvar |        |           | ️   | ✅     |
 | 2     | bridge   | BridgeConfig        |        |           |       |         |
-| 3     | proposal | ExecutedVAA |        | ✅        |       | ✅      |
+| 3     | claim | ClaimedVAA |        | ✅        |       | ✅      |
 
 #### CreateWrappedAsset
 
@@ -152,15 +152,17 @@ This account tracks the configuration of the transfer bridge.
 
 The program own the following types of accounts:
 
-#### _ExecutedVAA_ Account
+#### _ClaimedVAA_ Account
 
-> Seed derivation: `executedvaa_<vaa_hash>`
+> Seed derivation: `claim || <bridge> || <hash>`
 >
-> **vaa_hash**: Hash of the VAA
+> **bridge**: Pubkey of the bridge
+>
+> **hash**: signing hash of the VAA
 
 This account is created when a VAA is executed/consumed on Solana (i.e. not when a TransferOutProposal is approved).
 It tracks a used VAA to protect from replay attacks where a VAA is executed multiple times. This account stays active
-until the `VAA_EXPIRATION_TIME` has passed and can then be evicted using `IEvictExecutedVAA`.
+until the `VAA_EXPIRATION_TIME` has passed and can then be evicted using `IEvictClaimedVAA`.
 
 #### _GuardianSet_ Account
 
@@ -234,13 +236,3 @@ This account tracks the metadata about a wrapped asset to allow reverse lookups.
 
 This account is an instance of `spl-token/TokenAccount` and holds spl tokens in custody that have been transferred to a
 foreign chain.
-
-#### _ClaimedVAA_ Account
-
-> Seed derivation: `claim || <bridge> || <hash>`
->
-> **bridge**: Pubkey of the bridge
->
-> **hash**: signing hash of the VAA
-
-This account tracks a claimed VAA to prevent replay attacks.

@@ -103,7 +103,7 @@ pub enum BridgeInstruction {
 
     /// Deletes a `ExecutedVAA` after the `VAA_EXPIRATION_TIME` is over to free up space on chain.
     /// This returns the rent to the sender.
-    EvictExecutedVAA(),
+    EvictClaimedVAA(),
 
     /// Creates a new wrapped asset
     CreateWrapped(AssetMeta),
@@ -171,7 +171,7 @@ impl BridgeInstruction {
             Self::EvictTransferOut() => {
                 output[0] = 3;
             }
-            Self::EvictExecutedVAA() => {
+            Self::EvictClaimedVAA() => {
                 output[0] = 4;
             }
             Self::CreateWrapped(meta) => {
