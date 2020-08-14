@@ -10,18 +10,20 @@ export interface AssetMeta {
     address: Buffer
 }
 
+const CHAIN_ID_SOLANA = 1;
+
 class SolanaBridge {
+    connection: solanaWeb3.Connection;
     programID: PublicKey;
-    configKey: PublicKey;
     tokenProgram: PublicKey;
 
-    constructor(programID: PublicKey, configKey: PublicKey, tokenProgram: PublicKey) {
+    constructor(connection: solanaWeb3.Connection, programID: PublicKey, tokenProgram: PublicKey) {
         this.programID = programID;
-        this.configKey = configKey;
         this.tokenProgram = tokenProgram;
+        this.connection = connection;
     }
 
-    async createWrappedAsset(
+    async createWrappedAssetInstruction(
         payer: PublicKey,
         amount: number | u64,
         asset: AssetMeta,
@@ -32,17 +34,19 @@ class SolanaBridge {
             BufferLayout.u8('chain'),
         ]);
 
-        let seeds: Array<Buffer> = [Buffer.from("wrapped"), this.configKey.toBuffer(), Buffer.of(asset.chain),
+        // @ts-ignore
+        let configKey = (await solanaWeb3.PublicKey.findProgramAddress([Buffer.from("bridge"), this.programID.toBuffer()], this.programID))[0];
+        let seeds: Array<Buffer> = [Buffer.from("wrapped"), configKey.toBuffer(), Buffer.of(asset.chain),
             asset.address];
         // @ts-ignore
         let wrappedKey = (await solanaWeb3.PublicKey.findProgramAddress(seeds, this.programID))[0];
         // @ts-ignore
-        let wrappedMetaKey = (await solanaWeb3.PublicKey.findProgramAddress([Buffer.from("wrapped"), this.configKey.toBuffer(),wrappedKey.toBuffer()], this.programID))[0];
+        let wrappedMetaKey = (await solanaWeb3.PublicKey.findProgramAddress([Buffer.from("wrapped"), this.configKey.toBuffer(), wrappedKey.toBuffer()], this.programID))[0];
 
         const data = Buffer.alloc(dataLayout.span);
         dataLayout.encode(
             {
-                instruction: 1, // Swap instruction
+                instruction: 5, // CreateWrapped instruction
                 address: asset.address,
                 chain: asset.chain,
             },
@@ -52,7 +56,7 @@ class SolanaBridge {
         const keys = [
             {pubkey: solanaWeb3.SystemProgram.programId, isSigner: false, isWritable: false},
             {pubkey: this.tokenProgram, isSigner: false, isWritable: false},
-            {pubkey: this.configKey, isSigner: false, isWritable: false},
+            {pubkey: configKey, isSigner: false, isWritable: false},
             {pubkey: payer, isSigner: true, isWritable: true},
             {pubkey: wrappedKey, isSigner: false, isWritable: true},
             {pubkey: wrappedMetaKey, isSigner: false, isWritable: true},
@@ -64,6 +68,105 @@ class SolanaBridge {
         });
     }
 
+    async createLockAssetInstruction(
+        payer: PublicKey,
+        tokenAccount: PublicKey,
+        mint: PublicKey,
+        amount: number | u64,
+        targetChain: number,
+        targetAddress: Buffer,
+        asset: AssetMeta,
+        nonce: number,
+    ): Promise<TransactionInstruction> {
+        const dataLayout = BufferLayout.struct([
+            BufferLayout.u8('instruction'),
+            uint256('amount'),
+            BufferLayout.u8('targetChain'),
+            BufferLayout.blob(32, 'assetAddress'),
+            BufferLayout.u8('assetChain'),
+            BufferLayout.blob(32, 'targetAddress'),
+            BufferLayout.u32('nonce'),
+        ]);
+
+        let nonceBuffer = Buffer.alloc(4);
+        nonceBuffer.writeUInt32BE(nonce, 0);
+
+        // @ts-ignore
+        let configKey = (await solanaWeb3.PublicKey.findProgramAddress([Buffer.from("bridge"), this.programID.toBuffer()], this.programID))[0];
+        let seeds: Array<Buffer> = [Buffer.from("transfer"), configKey.toBuffer(), Buffer.of(asset.chain),
+            asset.address, Buffer.of(targetChain), targetAddress, tokenAccount.toBuffer(),
+            nonceBuffer,
+        ];
+        // @ts-ignore
+        let transferKey = (await solanaWeb3.PublicKey.findProgramAddress(seeds, this.programID))[0];
+
+        const data = Buffer.alloc(dataLayout.span);
+        dataLayout.encode(
+            {
+                instruction: 1, // TransferOut instruction
+                amount: amount,
+                targetChain: targetChain,
+                assetAddress: asset.address,
+                assetChain: asset.chain,
+                targetAddress: targetAddress,
+                nonce: nonce,
+            },
+            data,
+        );
+
+        const keys = [
+            {pubkey: solanaWeb3.SystemProgram.programId, isSigner: false, isWritable: false},
+            {pubkey: this.tokenProgram, isSigner: false, isWritable: false},
+            {pubkey: tokenAccount, isSigner: false, isWritable: true},
+            {pubkey: configKey, isSigner: false, isWritable: false},
+
+            {pubkey: transferKey, isSigner: false, isWritable: true},
+            {pubkey: mint, isSigner: false, isWritable: false},
+            {pubkey: payer, isSigner: true, isWritable: false},
+        ];
+
+        //TODO replace chainID
+        if (asset.chain == CHAIN_ID_SOLANA) {
+            // @ts-ignore
+            let custodyKey = (await solanaWeb3.PublicKey.findProgramAddress([Buffer.from("custody"), this.configKey.toBuffer(), mint.toBuffer()], this.programID))[0];
+            keys.push({pubkey: custodyKey, isSigner: false, isWritable: true})
+        }
+
+        return new TransactionInstruction({
+            keys,
+            programId: this.programID,
+            data,
+        });
+    }
+
+    // fetchAssetMeta fetches the AssetMeta for an SPL token
+    async fetchAssetMeta(
+        mint: PublicKey,
+    ): Promise<AssetMeta> {
+        // @ts-ignore
+        let configKey = (await solanaWeb3.PublicKey.findProgramAddress([Buffer.from("bridge"), this.programID.toBuffer()], this.programID))[0];
+        let seeds: Array<Buffer> = [Buffer.from("meta"), configKey.toBuffer(), mint.toBuffer()];
+        // @ts-ignore
+        let metaKey = (await solanaWeb3.PublicKey.findProgramAddress(seeds, this.programID))[0];
+        let metaInfo = await this.connection.getAccountInfo(metaKey);
+        if (metaInfo == null || metaInfo.lamports == 0) {
+            return {
+                address: mint.toBuffer(),
+                chain: CHAIN_ID_SOLANA,
+            }
+        } else {
+            const dataLayout = BufferLayout.struct([
+                BufferLayout.blob(32, 'assetAddress'),
+                BufferLayout.u8('assetChain'),
+            ]);
+            let wrappedMeta = dataLayout.decode(metaInfo?.data);
+
+            return {
+                address: wrappedMeta.assetAddress,
+                chain: wrappedMeta.assetChain
+            }
+        }
+    }
 }
 
 // Taken from https://github.com/solana-labs/solana-program-library

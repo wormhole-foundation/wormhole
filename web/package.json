@@ -10,6 +10,7 @@
     "@types/node": "^12.0.0",
     "@types/react": "^16.9.0",
     "@types/react-dom": "^16.9.0",
+    "@types/react-router-dom": "^5.1.5",
     "antd": "^4.4.1",
     "ethers": "^4.0.44",
     "react": "^16.13.1",
@@ -17,10 +18,11 @@
     "react-scripts": "3.4.1",
     "typescript": "~3.7.2",
     "web3": "^1.2.9",
-    "@solana/web3.js": "^0.66.3",
+    "@solana/web3.js": "^0.70.3",
     "@solana/spl-token": "^0.0.5",
     "buffer-layout": "^1.2.0",
-    "buffer": "^5.6.0"
+    "buffer": "^5.6.0",
+    "react-router-dom": "^5.2.0"
   },
   "devDependencies": {
     "npm": "^6.14.6",
