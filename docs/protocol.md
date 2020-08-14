@@ -136,7 +136,11 @@ They are structured as follows:
 Header:
 uint8               version (0x01)
 uint32              guardian set index
-[52]uint8           signature(body)
+uint8               len signatures
+
+per signature:
+uint8               index of the signer (in guardian keys)
+[65]uint8           signature
 
 body:
 uint32              unix seconds
@@ -161,8 +165,9 @@ Size: `32 byte`
 Payload:
 
 ```
-[32]uint8 new_key
 uint32 new_index
+uint8 len(keys)
+[][20]uint8 guardian addresses
 ```
 
 The `new_index` must be monotonically increasing and is manually specified here to fix a potential guardian_set index 
