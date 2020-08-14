@@ -1,10 +1,13 @@
 package vaa
 
 import (
+	"crypto/ecdsa"
+	"crypto/rand"
 	"encoding/hex"
 	"github.com/certusone/wormhole/bridge/third_party/chainlink/cryptotest"
 	"github.com/certusone/wormhole/bridge/third_party/chainlink/secp256k1"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
 	"math/big"
 	"testing"
@@ -23,9 +26,11 @@ func TestSerializeDeserialize(t *testing.T) {
 			vaa: &VAA{
 				Version:          1,
 				GuardianSetIndex: 9,
-				Signature: &Signature{
-					Sig:     [32]byte{2, 8},
-					Address: common.Address{1, 2, 3, 4},
+				Signatures: []*Signature{
+					{
+						Index:     1,
+						Signature: [65]byte{},
+					},
 				},
 				Timestamp: time.Unix(2837, 0),
 				Payload: &BodyTransfer{
@@ -47,9 +52,11 @@ func TestSerializeDeserialize(t *testing.T) {
 			vaa: &VAA{
 				Version:          1,
 				GuardianSetIndex: 9,
-				Signature: &Signature{
-					Sig:     [32]byte{2, 8},
-					Address: common.Address{1, 2, 3, 4},
+				Signatures: []*Signature{
+					{
+						Index:     1,
+						Signature: [65]byte{},
+					},
 				},
 				Timestamp: time.Unix(2837, 0),
 				Payload: &BodyGuardianSetUpdate{
@@ -75,8 +82,6 @@ func TestSerializeDeserialize(t *testing.T) {
 }
 
 func TestVerifySignature(t *testing.T) {
-	key := secp256k1.Generate(randomStream)
-
 	v := &VAA{
 		Version:          8,
 		GuardianSetIndex: 9,
@@ -93,6 +98,23 @@ func TestVerifySignature(t *testing.T) {
 		},
 	}
 
-	require.NoError(t, v.Sign(key))
-	require.True(t, v.VerifySignature(key.Public))
+	data, err := v.SigningMsg()
+	require.NoError(t, err)
+
+	key, err := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
+	require.NoError(t, err)
+
+	sig, err := crypto.Sign(data.Bytes(), key)
+	require.NoError(t, err)
+	sigData := [65]byte{}
+	copy(sigData[:], sig)
+
+	v.Signatures = append(v.Signatures, &Signature{
+		Index:     0,
+		Signature: sigData,
+	})
+	addr := crypto.PubkeyToAddress(key.PublicKey)
+	require.True(t, v.VerifySignatures([]common.Address{
+		addr,
+	}))
 }

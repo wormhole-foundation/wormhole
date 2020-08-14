@@ -4,12 +4,10 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"github.com/certusone/wormhole/bridge/third_party/chainlink/ethschnorr"
 	"github.com/certusone/wormhole/bridge/third_party/chainlink/secp256k1"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"go.dedis.ch/kyber/v3"
-	"go.dedis.ch/kyber/v3/util/key"
 	"io"
 	"math"
 	"math/big"
@@ -23,8 +21,8 @@ type (
 		Version uint8
 		// GuardianSetIndex is the index of the guardian set that signed this VAA
 		GuardianSetIndex uint32
-		// Signature is the signature of the guardian set
-		Signature *Signature
+		// SignatureData is the signature of the guardian set
+		Signatures []*Signature
 
 		// Timestamp when the VAA was created
 		Timestamp time.Time
@@ -41,12 +39,12 @@ type (
 	// chain is < 32bytes the value is zero-padded on the left.
 	Address [32]byte
 
-	// Signature of a VAA
+	// Signature of a single guardian
 	Signature struct {
-		// Sig is the signature field of a Schnorr signature
-		Sig [32]byte
-		// Address is the R equivalent in our Schnorr signature schema
-		Address common.Address
+		// Index of the validator
+		Index uint8
+		// Signature data
+		Signature [65]byte
 	}
 
 	// AssetMeta describes an asset within the Wormhole protocol
@@ -105,9 +103,7 @@ func ParseVAA(data []byte) (*VAA, error) {
 	if len(data) < minVAALength {
 		return nil, fmt.Errorf("VAA is too short")
 	}
-	v := &VAA{
-		Signature: &Signature{},
-	}
+	v := &VAA{}
 
 	v.Version = data[0]
 	if v.Version != supportedVAAVersion {
@@ -120,11 +116,27 @@ func ParseVAA(data []byte) (*VAA, error) {
 		return nil, fmt.Errorf("failed to read guardian set index: %w", err)
 	}
 
-	if n, err := reader.Read(v.Signature.Sig[:]); err != nil || n != 32 {
-		return nil, fmt.Errorf("failed to read signature sig field: %w", err)
+	lenSignatures, er := reader.ReadByte()
+	if er != nil {
+		return nil, fmt.Errorf("failed to read signature length")
 	}
-	if n, err := reader.Read(v.Signature.Address[:]); err != nil || n != 20 {
-		return nil, fmt.Errorf("failed to read signature addr field: %w", err)
+
+	v.Signatures = make([]*Signature, lenSignatures)
+	for i := 0; i < int(lenSignatures); i++ {
+		index, err := reader.ReadByte()
+		if err != nil {
+			return nil, fmt.Errorf("failed to read validator index [%d]", i)
+		}
+
+		signature := [65]byte{}
+		if n, err := reader.Read(signature[:]); err != nil || n != 65 {
+			return nil, fmt.Errorf("failed to read signature [%d]: %w", i, err)
+		}
+
+		v.Signatures[i] = &Signature{
+			Index:     index,
+			Signature: signature,
+		}
 	}
 
 	unixSeconds := uint32(0)
@@ -133,14 +145,15 @@ func ParseVAA(data []byte) (*VAA, error) {
 	}
 	v.Timestamp = time.Unix(int64(unixSeconds), 0)
 
-	action := data[61]
-	payloadLength := data[62]
+	currentPos := len(data) - reader.Len()
+	action := data[currentPos]
+	payloadLength := data[currentPos+1]
 
-	if len(data[63:]) != int(payloadLength) {
+	if len(data[currentPos+2:]) != int(payloadLength) {
 		return nil, fmt.Errorf("payload length does not match given payload data size")
 	}
 
-	payloadReader := bytes.NewReader(data[63:])
+	payloadReader := bytes.NewReader(data[currentPos+2:])
 	var err error
 	switch Action(action) {
 	case ActionGuardianSetUpdate:
@@ -175,46 +188,33 @@ func (v *VAA) SigningMsg() (*big.Int, error) {
 }
 
 // VerifySignature verifies the signature of the VAA given a public key
-func (v *VAA) VerifySignature(pubKey kyber.Point) bool {
-	if v.Signature == nil {
+func (v *VAA) VerifySignatures(addresses []common.Address) bool {
+	if len(addresses) < len(v.Signatures) {
 		return false
 	}
 
-	msg, err := v.SigningMsg()
+	h, err := v.SigningMsg()
 	if err != nil {
 		return false
 	}
 
-	sig := ethschnorr.NewSignature()
-	sig.Signature = new(big.Int).SetBytes(v.Signature.Sig[:])
-	sig.CommitmentPublicAddress = v.Signature.Address
+	for _, sig := range v.Signatures {
+		if int(sig.Index) >= len(addresses) {
+			return false
+		}
 
-	err = ethschnorr.Verify(pubKey, msg, sig)
-	return err == nil
-}
+		pubKey, err := crypto.Ecrecover(h.Bytes(), sig.Signature[:])
+		if err != nil {
+			return false
+		}
+		addr := common.BytesToAddress(crypto.Keccak256(pubKey[1:])[12:])
 
-// Sign signs the VAA, setting it's signature field
-func (v *VAA) Sign(key *key.Pair) error {
-	if v.Signature != nil {
-		return fmt.Errorf("VAA has already been signed")
+		if addr != addresses[sig.Index] {
+			return false
+		}
 	}
 
-	hash, err := v.SigningMsg()
-	if err != nil {
-		return fmt.Errorf("failed to get signing message: %w", err)
-	}
-
-	sig, err := ethschnorr.Sign(key.Private, hash)
-	if err != nil {
-		return fmt.Errorf("failed to sign: %w", err)
-	}
-
-	// Set fields
-	v.Signature = &Signature{}
-	copy(v.Signature.Sig[:], common.LeftPadBytes(sig.Signature.Bytes(), 32))
-	v.Signature.Address = sig.CommitmentPublicAddress
-
-	return nil
+	return true
 }
 
 // Serialize returns the binary representation of the VAA
@@ -223,13 +223,12 @@ func (v *VAA) Serialize() ([]byte, error) {
 	MustWrite(buf, binary.BigEndian, v.Version)
 	MustWrite(buf, binary.BigEndian, v.GuardianSetIndex)
 
-	if v.Signature == nil {
-		return nil, fmt.Errorf("empty signature")
+	// Write signatures
+	MustWrite(buf, binary.BigEndian, uint8(len(v.Signatures)))
+	for _, sig := range v.Signatures {
+		MustWrite(buf, binary.BigEndian, sig.Index)
+		buf.Write(sig.Signature[:])
 	}
-
-	// Write signature
-	buf.Write(v.Signature.Sig[:])
-	buf.Write(v.Signature.Address[:])
 
 	// Write Body
 	body, err := v.serializeBody()
