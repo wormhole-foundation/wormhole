@@ -4,10 +4,8 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"github.com/certusone/wormhole/bridge/third_party/chainlink/secp256k1"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"go.dedis.ch/kyber/v3"
 	"io"
 	"math"
 	"math/big"
@@ -79,7 +77,7 @@ type (
 
 	BodyGuardianSetUpdate struct {
 		// Key is the new guardian set key
-		Key kyber.Point
+		Keys []common.Address
 		// NewIndex is the index of the new guardian set
 		NewIndex uint32
 	}
@@ -328,14 +326,20 @@ func (v *BodyTransfer) serialize() ([]byte, error) {
 func parseBodyGuardianSetUpdate(r io.Reader) (*BodyGuardianSetUpdate, error) {
 	b := &BodyGuardianSetUpdate{}
 
-	b.Key = secp256k1.NewPoint()
-	_, err := b.Key.UnmarshalFrom(r)
-	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal new key: %w", err)
-	}
-
 	if err := binary.Read(r, binary.BigEndian, &b.NewIndex); err != nil {
 		return nil, fmt.Errorf("failed to read new index: %w", err)
+	}
+
+	keyLen := uint8(0)
+	if err := binary.Read(r, binary.BigEndian, &keyLen); err != nil {
+		return nil, fmt.Errorf("failed to read guardianset key len: %w", err)
+	}
+	for i := 0; i < int(keyLen); i++ {
+		key := common.Address{}
+		if n, err := r.Read(key[:]); err != nil || n != 20 {
+			return nil, fmt.Errorf("failed to read guardianset key [%d]: %w", i, err)
+		}
+		b.Keys = append(b.Keys, key)
 	}
 
 	return b, nil
@@ -348,15 +352,11 @@ func (v *BodyGuardianSetUpdate) getActionID() Action {
 func (v *BodyGuardianSetUpdate) serialize() ([]byte, error) {
 	buf := new(bytes.Buffer)
 
-	if v.Key == nil {
-		return nil, fmt.Errorf("key is empty")
-	}
-	_, err := v.Key.MarshalTo(buf)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal key: %w", err)
-	}
-
 	MustWrite(buf, binary.BigEndian, v.NewIndex)
+	MustWrite(buf, binary.BigEndian, uint8(len(v.Keys)))
+	for _, key := range v.Keys {
+		buf.Write(key.Bytes())
+	}
 
 	return buf.Bytes(), nil
 }

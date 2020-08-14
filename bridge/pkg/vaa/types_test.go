@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"github.com/certusone/wormhole/bridge/third_party/chainlink/cryptotest"
-	"github.com/certusone/wormhole/bridge/third_party/chainlink/secp256k1"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
@@ -60,7 +59,7 @@ func TestSerializeDeserialize(t *testing.T) {
 				},
 				Timestamp: time.Unix(2837, 0),
 				Payload: &BodyGuardianSetUpdate{
-					Key:      secp256k1.Generate(randomStream).Public,
+					Keys:     []common.Address{{}, {}},
 					NewIndex: 2,
 				},
 			},

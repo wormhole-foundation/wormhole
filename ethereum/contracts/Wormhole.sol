@@ -8,7 +8,6 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "./BytesLib.sol";
-import "./SchnorrSECP256K1.sol";
 import "./WrappedAsset.sol";
 
 contract Wormhole {
@@ -26,8 +25,7 @@ contract Wormhole {
     address constant WETHAddress = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
     struct GuardianSet {
-        uint256 x;
-        uint8 parity;
+        address[] keys;
         uint32 expiration_time;
     }
 
@@ -78,34 +76,35 @@ contract Wormhole {
         // Load 4 bytes starting from index 1
         uint32 vaa_guardian_set_index = vaa.toUint32(1);
 
-        uint256 signature = vaa.toUint256(5);
-        address sig_address = vaa.toAddress(37);
+        uint256 len_signers = vaa.toUint8(5);
+        uint offset = 6 + 66 * len_signers;
 
-        // Load 4 bytes starting from index 77
-        uint32 timestamp = vaa.toUint32(57);
+        // Load 4 bytes timestamp
+        uint32 timestamp = vaa.toUint32(offset);
 
         // Verify that the VAA is still valid
         require(timestamp + vaa_expiry > block.timestamp, "VAA has expired");
 
         // Hash the body
-        bytes32 hash = keccak256(vaa.slice(57, vaa.length - 57));
+        bytes32 hash = keccak256(vaa.slice(offset, vaa.length - offset));
         require(!consumedVAAs[hash], "VAA was already executed");
 
         GuardianSet memory guardian_set = guardian_sets[vaa_guardian_set_index];
         require(guardian_set.expiration_time == 0 || guardian_set.expiration_time > block.timestamp, "guardian set has expired");
-        require(
-            Schnorr.verifySignature(
-                guardian_set.x,
-                guardian_set.parity,
-                signature,
-                uint256(hash),
-                sig_address
-            ),
-            "VAA signature invalid");
+        require(guardian_set.keys.length * 3 / 4 + 1 <= len_signers, "no quorum");
 
-        uint8 action = vaa.toUint8(61);
-        uint8 payload_len = vaa.toUint8(62);
-        bytes memory payload = vaa.slice(63, payload_len);
+        for (uint i = 0; i < len_signers; i++) {
+            uint8 index = vaa.toUint8(6 + i * 66);
+            bytes32 r = vaa.toBytes32(7 + i * 66);
+            bytes32 s = vaa.toBytes32(39 + i * 66);
+            uint8 v = vaa.toUint8(71 + i * 66);
+            v += 27;
+            require(ecrecover(hash, v, r, s) == guardian_set.keys[index], "VAA signature invalid");
+        }
+
+        uint8 action = vaa.toUint8(offset + 4);
+        uint8 payload_len = vaa.toUint8(offset + 5);
+        bytes memory payload = vaa.slice(offset + 6, payload_len);
 
         // Process VAA
         if (action == 0x01) {
@@ -122,17 +121,19 @@ contract Wormhole {
     }
 
     function vaaUpdateGuardianSet(bytes memory data) private {
-        uint256 new_key_x = data.toUint256(0);
-        uint256 y_parity = data.toUint8(32);
-        uint32 new_guardian_set_index = data.toUint32(33);
+        uint32 new_guardian_set_index = data.toUint32(0);
+        uint8 len = data.toUint8(4);
 
-        require(new_guardian_set_index > guardian_set_index, "index of new guardian set must be > current");
-        require(y_parity <= 1, "invalid y parity");
+        address[] memory new_guardians = new address[](len);
+        for (uint i = 0; i < len; i++) {
+            address addr = data.toAddress(5 + i * 20);
+            new_guardians[i] = addr;
+        }
 
         uint32 old_guardian_set_index = guardian_set_index;
         guardian_set_index = new_guardian_set_index;
 
-        GuardianSet memory new_guardian_set = GuardianSet(new_key_x, uint8(y_parity), 0);
+        GuardianSet memory new_guardian_set = GuardianSet(new_guardians, 0);
         guardian_sets[guardian_set_index] = new_guardian_set;
         guardian_sets[old_guardian_set_index].expiration_time = uint32(block.timestamp) + vaa_expiry;
 
