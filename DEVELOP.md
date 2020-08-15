@@ -19,4 +19,6 @@ This should work on Linux, MacOS and possibly even Windows.
 After installing all dependencies, just run `tilt up`. 
 Whenever you modify a file, the devnet is automatically rebuilt and a rolling update is done.
 
+Watch pod status in your cluster: `kubectl get pod -A -w`.
+
 Once you're done, press Ctrl-C. Run `tilt down` to tear down the devnet.
