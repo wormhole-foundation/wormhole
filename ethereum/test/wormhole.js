@@ -1,4 +1,3 @@
-const Schnorr = artifacts.require("Schnorr");
 const Wormhole = artifacts.require("Wormhole");
 const WrappedAsset = artifacts.require("WrappedAsset");
 const ERC20 = artifacts.require("ERC20PresetMinterPauser");
