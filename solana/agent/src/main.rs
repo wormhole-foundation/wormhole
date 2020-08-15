@@ -200,11 +200,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let bridge = &args[1];
     let host = &args[2];
-    let rpc_port: u8 = args[3].parse()?;
-    let ws_port: u8 = args[4].parse()?;
-    let port: u8 = args[5].parse()?;
+    let rpc_port: u16 = args[3].parse()?;
+    let ws_port: u16 = args[4].parse()?;
+    let port: u16 = args[5].parse()?;
 
-    let addr = format!("[::1]:{}", port).parse().unwrap();
+    let addr = format!("[::]:{}", port).parse().unwrap();
 
     let agent = AgentImpl {
         url: String::from(format!("ws://{}:{}", host, ws_port)),
