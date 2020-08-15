@@ -1,0 +1,74 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: solana-devnet
+  labels:
+    app: solana-devnet
+spec:
+  ports:
+    - port: 8899
+      name: rpc
+      protocol: TCP
+  clusterIP: None
+  selector:
+    app: solana-devnet
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: solana-devnet
+spec:
+  selector:
+    matchLabels:
+      app: solana-devnet
+  serviceName: solana-devnet
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: solana-devnet
+    spec:
+      terminationGracePeriodSeconds: 1
+      containers:
+        - name: solana-devnet
+          image: solana-devnet
+          ports:
+            - containerPort: 8001
+              name: gossip
+              protocol: UDP
+            - containerPort: 8003
+              name: tpu
+              protocol: UDP
+            - containerPort: 8004
+              name: tpufwd
+              protocol: UDP
+            - containerPort: 8000
+              name: tvu
+              protocol: UDP
+            - containerPort: 8002
+              name: tvufwd
+              protocol: UDP
+            - containerPort: 8006
+              name: repair
+              protocol: UDP
+            - containerPort: 8007
+              name: serverepair
+              protocol: UDP
+            - containerPort: 8899
+              name: rpc
+              protocol: TCP
+            - containerPort: 8900
+              name: pubsub
+              protocol: TCP
+#          volumeMounts:
+#            - name: solana-devnet-data
+#              mountPath: /data
+#  volumeClaimTemplates:
+#    - metadata:
+#        name: solana-devnet-data
+#      spec:
+#        accessModes: [ "ReadWriteOnce" ]
+#        resources:
+#          requests:
+#            storage: 1Gi
