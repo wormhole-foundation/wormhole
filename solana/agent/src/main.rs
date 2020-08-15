@@ -32,7 +32,7 @@ use crate::monitor::{ProgramNotificationMessage, PubsubClient};
 mod monitor;
 
 pub mod service {
-    include!(concat!(env!("OUT_DIR"), concat!("/", "service", ".rs")));
+    include!(concat!(env!("OUT_DIR"), concat!("/", "agent.v1", ".rs")));
 }
 
 pub struct AgentImpl {

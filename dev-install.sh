@@ -41,7 +41,8 @@ export PATH=/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/sbin:/bin
 
 # Install Go binaries.
 ARCH=amd64
-GO=1.14.6
+GO=1.15
+# TODO(leo): verify checksum
 
 (
   if [[ -d /usr/local/go ]]; then
@@ -93,6 +94,11 @@ function use-namespace {
 
 # Required for tilt to find the local cluster
 export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+EOF
+
+cat <<'EOF' > /etc/profile.d/buildkit.sh
+# Enable buildkit support in Docker for incremental builds
+export DOCKER_BUILDKIT=1
 EOF
 
 . /etc/profile.d/k3s.sh

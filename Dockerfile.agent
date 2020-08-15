@@ -1,0 +1,15 @@
+# syntax=docker/dockerfile:experimental
+FROM rust:1.45
+
+RUN apt-get update && apt-get install -y libssl-dev libudev-dev pkg-config zlib1g-dev llvm clang
+RUN rustup component add rustfmt
+
+WORKDIR /usr/src/solana
+
+ADD solana /usr/src/solana
+ADD proto  /usr/src/proto
+
+RUN --mount=type=cache,target=/usr/local/cargo,from=rust,source=/usr/local/cargo \
+    --mount=type=cache,target=target \
+    cargo build --package=agent --package=cli --release && \
+    cp target/release/agent target/release/cli /usr/local/bin

@@ -1,3 +1,3 @@
 fn main() {
-    tonic_build::compile_protos("proto/service.proto").unwrap();
+    tonic_build::compile_protos("../../proto/agent/v1/service.proto").unwrap();
 }
