@@ -16,7 +16,7 @@
   },
   "scripts": {
     "build": "truffle compile",
-    "test": "cp node_modules/@openzeppelin/contracts/build/contracts/* build/contracts/ && truffle test"
+    "test": "mkdir -p build/contracts && cp node_modules/@openzeppelin/contracts/build/contracts/* build/contracts/ && truffle test"
   },
   "author": "",
   "license": "ISC",
