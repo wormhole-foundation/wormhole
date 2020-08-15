@@ -1,0 +1,56 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: eth-devnet
+  labels:
+    app: eth-devnet
+spec:
+  ports:
+    - port: 8545
+      name: rpc
+      protocol: TCP
+  clusterIP: None
+  selector:
+    app: eth-devnet
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: eth-devnet
+spec:
+  selector:
+    matchLabels:
+      app: eth-devnet
+  serviceName: eth-devnet
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: eth-devnet
+    spec:
+      terminationGracePeriodSeconds: 1
+      containers:
+        - name: eth-devnet
+          image: eth-node
+          command:
+            - npx
+            - ganache-cli
+            - --deterministic
+            - --time="1970-01-01T00:00:00+00:00"
+            - --host=0.0.0.0
+          ports:
+            - containerPort: 8545
+              name: rpc
+              protocol: TCP
+#          volumeMounts:
+#            - name: eth-devnet-data
+#              mountPath: /data
+#  volumeClaimTemplates:
+#    - metadata:
+#        name: eth-devnet-data
+#      spec:
+#        accessModes: [ "ReadWriteOnce" ]
+#        resources:
+#          requests:
+#            storage: 1Gi

@@ -21,6 +21,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "ganache-cli": "^6.10.1",
     "truffle": "^5.1.37"
   }
 }

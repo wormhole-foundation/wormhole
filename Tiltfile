@@ -38,3 +38,17 @@ docker_build(
 k8s_yaml("devnet/solana-devnet.yaml")
 
 k8s_resource("solana-devnet")
+
+# eth devnet
+
+# TODO: Slow - takes ~30s to rebuild on a no-op, even with caching, because npm sucks.
+# We might wamt to add excludes here and use file sync for smart contract developmeent.
+docker_build(
+    ref = "eth-node",
+    context = "ethereum",
+    dockerfile = "ethereum/Dockerfile",
+)
+
+k8s_yaml("devnet/eth-devnet.yaml")
+
+k8s_resource("eth-devnet")
