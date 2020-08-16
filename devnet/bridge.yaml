@@ -23,7 +23,7 @@ spec:
     matchLabels:
       app: guardian
   serviceName: guardian
-  replicas: 10
+  replicas: 5
   updateStrategy:
     # The StatefulSet rolling update strategy is rather dumb, and updates one pod after another.
     # If we want blue-green deployments, we should use a Deployment instead.
