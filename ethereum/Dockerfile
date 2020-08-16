@@ -1,6 +1,9 @@
 # syntax=docker/dockerfile:experimental
 FROM node:lts-alpine
 
+# npm wants to clone random Git repositories - lovely.
+RUN apk add git
+
 # Run as user, otherwise, npx explodes.
 USER 1000
 RUN mkdir -p /home/node/app
