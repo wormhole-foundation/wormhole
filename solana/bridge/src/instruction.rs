@@ -1,8 +1,10 @@
 #![allow(clippy::too_many_arguments)]
 //! Instruction types
 
+use std::io::{Cursor, Read, Write};
 use std::mem::size_of;
 
+use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use primitive_types::U256;
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
@@ -10,10 +12,10 @@ use solana_sdk::{
     pubkey::Pubkey,
 };
 
+use crate::error::Error;
 use crate::error::Error::VAATooLong;
 use crate::instruction::BridgeInstruction::{CreateWrapped, Initialize, PostVAA, TransferOut};
 use crate::state::{AssetMeta, Bridge, BridgeConfig};
-use crate::syscalls::RawKey;
 use crate::vaa::{VAABody, VAA};
 
 /// chain id of this chain
@@ -36,7 +38,7 @@ pub type ForeignAddress = [u8; FOREIGN_ADDRESS_SIZE];
 #[derive(Clone, Copy)]
 pub struct InitializePayload {
     /// guardians that are allowed to sign mints
-    pub initial_guardian: RawKey,
+    pub initial_guardian: [[u8; 20]; 20],
     /// config for the bridge
     pub config: BridgeConfig,
 }
@@ -190,12 +192,19 @@ impl BridgeInstruction {
 pub fn initialize(
     program_id: &Pubkey,
     sender: &Pubkey,
-    initial_guardian: RawKey,
+    initial_guardian: Vec<[u8; 20]>,
     config: &BridgeConfig,
 ) -> Result<Instruction, ProgramError> {
+    if initial_guardian.len() > 20 {
+        return Err(ProgramError::InvalidArgument);
+    }
+    let mut initial_g = [[0u8; 20]; 20];
+    for (i, key) in initial_guardian.iter().enumerate() {
+        initial_g[i] = *key;
+    }
     let data = BridgeInstruction::Initialize(InitializePayload {
         config: *config,
-        initial_guardian,
+        initial_guardian: initial_g,
     })
     .serialize()?;
 

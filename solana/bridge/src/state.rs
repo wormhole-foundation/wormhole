@@ -8,7 +8,6 @@ use zerocopy::AsBytes;
 
 use crate::error::Error;
 use crate::instruction::{ForeignAddress, VAAData};
-use crate::syscalls::RawKey;
 use crate::vaa::BodyTransfer;
 
 /// fee rate as a ratio
@@ -28,7 +27,7 @@ pub struct GuardianSet {
     /// index of the set
     pub index: u32,
     /// public key of the threshold schnorr set
-    pub pubkey: RawKey,
+    pub keys: [[u8; 20]; 20],
     /// creation time
     pub creation_time: u32,
     /// expiration time when VAAs issued by this set are no longer valid
@@ -406,7 +405,22 @@ impl Bridge {
 
     pub fn derive_key(program_id: &Pubkey, seeds: &Vec<Vec<u8>>) -> Result<Pubkey, Error> {
         let s: Vec<_> = seeds.iter().map(|item| item.as_slice()).collect();
-        Ok(Pubkey::find_program_address(s.as_slice(), program_id).0)
+        Ok(Self::find_program_address(s.as_slice(), program_id).0)
+    }
+
+    pub fn find_program_address(seeds: &[&[u8]], program_id: &Pubkey) -> (Pubkey, u8) {
+        let mut nonce = [255];
+        for _ in 0..std::u8::MAX {
+            {
+                let mut seeds_with_nonce = seeds.to_vec();
+                seeds_with_nonce.push(&nonce);
+                if let Ok(address) = Pubkey::create_program_address(&seeds_with_nonce, program_id) {
+                    return (address, nonce[0]);
+                }
+            }
+            nonce[0] -= 1;
+        }
+        panic!("Unable to find a viable program address nonce");
     }
 }
 

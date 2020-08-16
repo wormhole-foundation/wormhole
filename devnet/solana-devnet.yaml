@@ -14,6 +14,21 @@ spec:
   selector:
     app: solana-devnet
 ---
+apiVersion: v1
+kind: Service
+metadata:
+  name: solana-faucet
+  labels:
+    app: solana-faucet
+spec:
+  ports:
+    - port: 9900
+      name: faucet
+      protocol: TCP
+  clusterIP: None
+  selector:
+    app: solana-devnet
+---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -60,6 +75,9 @@ spec:
               protocol: TCP
             - containerPort: 8900
               name: pubsub
+              protocol: TCP
+            - containerPort: 9900
+              name: faucet
               protocol: TCP
 #          volumeMounts:
 #            - name: solana-devnet-data

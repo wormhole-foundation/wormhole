@@ -7,12 +7,13 @@ use std::slice::Iter;
 use num_traits::AsPrimitive;
 use primitive_types::U256;
 use solana_sdk::clock::Clock;
+use solana_sdk::hash::Hasher;
 #[cfg(not(target_arch = "bpf"))]
 use solana_sdk::instruction::Instruction;
 #[cfg(target_arch = "bpf")]
 use solana_sdk::program::invoke_signed;
 use solana_sdk::rent::Rent;
-use solana_sdk::system_instruction::create_account;
+use solana_sdk::system_instruction::{create_account, SystemInstruction};
 use solana_sdk::sysvar::Sysvar;
 use solana_sdk::{
     account_info::next_account_info, account_info::AccountInfo, entrypoint::ProgramResult, info,
@@ -24,7 +25,6 @@ use crate::error::Error;
 use crate::instruction::BridgeInstruction::*;
 use crate::instruction::{BridgeInstruction, TransferOutPayload, VAAData, CHAIN_ID_SOLANA};
 use crate::state::*;
-use crate::syscalls::RawKey;
 use crate::vaa::{BodyTransfer, BodyUpdateGuardianSet, VAABody, VAA};
 
 /// Instruction processing logic
@@ -73,7 +73,7 @@ impl Bridge {
     pub fn process_initialize(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        initial_guardian_key: RawKey,
+        initial_guardian_key: [[u8; 20]; 20],
         config: BridgeConfig,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
@@ -126,7 +126,7 @@ impl Bridge {
         guardian_info.is_initialized = true;
         guardian_info.index = 0;
         guardian_info.creation_time = clock.unix_timestamp.as_();
-        guardian_info.pubkey = initial_guardian_key;
+        guardian_info.keys = initial_guardian_key;
 
         Ok(())
     }
@@ -414,11 +414,11 @@ impl Bridge {
         }
 
         // Verify VAA signature
-        if !vaa.verify(&guardian_set.pubkey) {
+        if !vaa.verify(&guardian_set.keys) {
             return Err(Error::InvalidVAASignature.into());
         }
 
-        let payload = vaa.payload.ok_or(Error::InvalidVAAAction)?;
+        let payload = vaa.payload.as_ref().ok_or(Error::InvalidVAAAction)?;
         match payload {
             VAABody::UpdateGuardianSet(v) => Self::process_vaa_set_update(
                 program_id,
@@ -522,7 +522,9 @@ impl Bridge {
         // Set values on the new guardian set
         guardian_set_new.is_initialized = true;
         guardian_set_new.index = b.new_index;
-        guardian_set_new.pubkey = b.new_key;
+        let mut new_guardians = [[0u8; 20]; 20];
+        new_guardians.copy_from_slice(b.new_keys.as_slice());
+        guardian_set_new.keys = new_guardians;
         guardian_set_new.creation_time = clock.unix_timestamp as u32;
 
         // Update the bridge guardian set id
@@ -646,6 +648,7 @@ pub fn invoke_signed<'a>(
     account_infos: &[AccountInfo<'a>],
     signers_seeds: &[&[&[u8]]],
 ) -> ProgramResult {
+    let sys = solana_sdk::system_program::id();
     let mut new_account_infos = vec![];
     for meta in instruction.accounts.iter() {
         for account_info in account_infos.iter() {
@@ -653,7 +656,8 @@ pub fn invoke_signed<'a>(
                 let mut new_account_info = account_info.clone();
                 for seeds in signers_seeds.iter() {
                     let signer =
-                        Pubkey::create_program_address(seeds, &WORMHOLE_PROGRAM_ID).unwrap();
+                        solana_sdk::program::create_program_address(seeds, &WORMHOLE_PROGRAM_ID)
+                            .unwrap();
                     if *account_info.key == signer {
                         new_account_info.is_signer = true;
                     }
@@ -833,8 +837,7 @@ impl Bridge {
             program_id,
         );
         let s: Vec<_> = seeds.iter().map(|item| item.as_slice()).collect();
-        //invoke_signed(&ix, accounts, &[s.as_slice()])
-        Ok(())
+        invoke_signed(&ix, accounts, &[s.as_slice()])
     }
 }
 
