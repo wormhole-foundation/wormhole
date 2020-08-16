@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/libp2p/go-libp2p-core/protocol"
+	swarm "github.com/libp2p/go-libp2p-swarm"
 	"github.com/multiformats/go-multiaddr"
 	"go.uber.org/zap"
 
@@ -83,7 +84,9 @@ func main() {
 		logger.Info("Created services")
 
 		select {}
-	}, supervisor.WithPropagatePanic) // TODO(leo): only propagate panics in debug mode
+	}, supervisor.WithPropagatePanic)
+	// TODO(leo): only propagate panics in debug mode. We currently need this to properly reset p2p
+	// (it leaks its socket and we need to restart the process to fix it)
 
 	select {}
 }
@@ -210,7 +213,14 @@ func p2p(ctx context.Context) error {
 			return idht, err
 		}),
 	)
-	defer h.Close()
+	defer func() {
+		fmt.Printf("h is %+v", h)
+		// FIXME: why can this be nil? We need to close the host to free the socket because apparently,
+		// closing the context is not enough, but sometimes h is nil when the function runs.
+		if h != nil {
+			h.Close()
+		}
+	}()
 
 	if err != nil {
 		panic(err)
@@ -225,6 +235,11 @@ func p2p(ctx context.Context) error {
 	//}
 
 	// Add our own bootstrap nodes
+
+	// Count number of successful connection attempts. If we fail to connect to every bootstrap peer, kill
+	// the service and have supervisor retry it.
+	successes := 0
+
 	for _, addr := range strings.Split(*p2pBootstrap, ",") {
 		if addr == "" {
 			continue
@@ -239,9 +254,24 @@ func p2p(ctx context.Context) error {
 			logger.Error("Invalid bootstrap address", zap.String("peer", addr), zap.Error(err))
 			continue
 		}
+
 		if err = h.Connect(ctx, *pi); err != nil {
-			logger.Error("Failed to connect to bootstrap peer", zap.String("peer", addr), zap.Error(err))
+			if err != swarm.ErrDialToSelf {
+				logger.Error("Failed to connect to bootstrap peer", zap.String("peer", addr), zap.Error(err))
+			} else {
+				// Dialing self, carrying on... (we're a bootstrap peer)
+				logger.Info("Tried to connect to ourselves - we're a bootstrap peer")
+				successes += 1
+			}
+		} else {
+			successes += 1
 		}
+	}
+
+	if successes == 0 {
+		return fmt.Errorf("Failed to connect to any bootstrap peer")
+	} else {
+		logger.Info("Connected to bootstrap peers", zap.Int("num", successes))
 	}
 
 	// TODO(leo): crash if we couldn't connect to any bootstrap peers?

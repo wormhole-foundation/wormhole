@@ -25,7 +25,9 @@ docker_build(
     context = ".",
     only = ["./proto", "./solana"],
     dockerfile = "Dockerfile.agent",
-    ignore = ["./solana/target","./solana/agent/target", "./solana/cli/target"],
+
+    # Ignore target folders from local (non-container) development.
+    ignore = ["./solana/target", "./solana/agent/target", "./solana/cli/target"],
 )
 
 # solana local devnet
