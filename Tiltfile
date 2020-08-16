@@ -45,11 +45,20 @@ k8s_resource("solana-devnet")
 # We might want to add excludes here and use file sync for smart contract developmeent.
 docker_build(
     ref = "eth-node",
-    context = "ethereum",
-    dockerfile = "ethereum/Dockerfile",
+    context = "./ethereum",
+    dockerfile = "./ethereum/Dockerfile",
 
-    # ignore local node_modules
-    ignore = ["node_modules"],
+    # ignore local node_modules (in case they're present)
+    ignore = ["./ethereum/node_modules"],
+
+    # sync smart contract changes to running container for incremental development
+    # (rebuilding the container is way too slow, thanks npm!)
+    live_update = [
+        sync("./ethereum", "/home/node/app"),
+
+        # https://github.com/tilt-dev/tilt/issues/3060
+        #        run("chown -R node:node /home/node/app"),
+    ],
 )
 
 k8s_yaml("devnet/eth-devnet.yaml")
