@@ -4,7 +4,6 @@ import (
 	"crypto/ecdsa"
 	"crypto/rand"
 	"encoding/hex"
-	"github.com/certusone/wormhole/bridge/third_party/chainlink/cryptotest"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
@@ -13,7 +12,6 @@ import (
 	"time"
 )
 
-var randomStream = cryptotest.NewStream(&testing.T{}, 0)
 
 func TestSerializeDeserialize(t *testing.T) {
 	tests := []struct {
