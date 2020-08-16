@@ -2,7 +2,7 @@
 
 local_resource(
     name = "proto-gen",
-    deps = "proto/*",
+    deps = "./proto",
     cmd = "./generate.sh",
 )
 

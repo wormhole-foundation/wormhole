@@ -43,6 +43,10 @@ spec:
             - /data/node.key
             - -bootstrap
             - /dns4/guardian-0.guardian/udp/8999/quic/p2p/12D3KooWQ1sV2kowPY1iJX1hJcVTysZjKv3sfULTGwhdpUGGZ1VF
+            - -ethRPC
+            - ws://eth-devnet:8545
+            - -ethContract
+            - 0x5b1869D9A4C187F2EAa108f3062412ecf0526b24
           ports:
             - containerPort: 8999
               name: p2p
