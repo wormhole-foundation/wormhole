@@ -47,6 +47,9 @@ docker_build(
     ref = "eth-node",
     context = "ethereum",
     dockerfile = "ethereum/Dockerfile",
+
+    # ignore local node_modules
+    ignore = ["node_modules"],
 )
 
 k8s_yaml("devnet/eth-devnet.yaml")
