@@ -9,7 +9,9 @@ WORKDIR /usr/src/solana
 RUN git clone https://github.com/solana-labs/solana --depth=1 --branch master && \
   cd solana && git checkout 6c5b8f324a6e668c4bf7555747fdb499974f0ac3
 
-RUN cd solana && patch -p1 ../Add_crypto_syscalls.patch
+ADD *.patch .
+
+RUN cd solana && patch -p1 < ../Add_crypto_syscalls.patch
 RUN cd solana && curl -L https://patch-diff.githubusercontent.com/raw/solana-labs/solana/pull/11649.patch | patch -p1
 
 RUN --mount=type=cache,target=/usr/local/cargo,from=rust,source=/usr/local/cargo \
