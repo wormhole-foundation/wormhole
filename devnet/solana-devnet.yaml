@@ -10,18 +10,6 @@ spec:
     - port: 8899
       name: rpc
       protocol: TCP
-  clusterIP: None
-  selector:
-    app: solana-devnet
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: solana-faucet
-  labels:
-    app: solana-faucet
-spec:
-  ports:
     - port: 9900
       name: faucet
       protocol: TCP
