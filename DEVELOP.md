@@ -16,7 +16,7 @@ it won't take more than a few minutes to set up!
 
 This should work on Linux, MacOS and possibly even Windows.
 
-After installing all dependencies, just run `tilt up`. 
+After installing all dependencies, just run `tilt up --update-mode=exec`. 
 Whenever you modify a file, the devnet is automatically rebuilt and a rolling update is done.
 
 Watch pod status in your cluster: `kubectl get pod -A -w`.

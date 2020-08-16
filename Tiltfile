@@ -53,11 +53,11 @@ docker_build(
 
     # sync smart contract changes to running container for incremental development
     # (rebuilding the container is way too slow, thanks npm!)
+    #
+    # This relies on --update-mode=exec to work properly with a non-root user.
+    # https://github.com/tilt-dev/tilt/issues/3708
     live_update = [
         sync("./ethereum", "/home/node/app"),
-
-        # https://github.com/tilt-dev/tilt/issues/3060
-        #        run("chown -R node:node /home/node/app"),
     ],
 )
 
