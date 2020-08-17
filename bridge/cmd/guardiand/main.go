@@ -41,13 +41,13 @@ var (
 	p2pPort      = flag.Uint("port", 8999, "P2P UDP listener port")
 	p2pBootstrap = flag.String("bootstrap", "", "P2P bootstrap peers (comma-separated)")
 
-	nodeKeyPath  = flag.String("nodeKey", "", "Path to node key (will be generated if it doesn't exist)")
+	nodeKeyPath = flag.String("nodeKey", "", "Path to node key (will be generated if it doesn't exist)")
 
-	ethRPC  = flag.String("ethRPC", "", "Ethereum RPC URL")
-	ethContract  = flag.String("ethContract", "", "Ethereum bridge contract address")
-	ethConfirmations  = flag.Uint64("ethConfirmations", 5, "Ethereum confirmation count requirement")
+	ethRPC           = flag.String("ethRPC", "", "Ethereum RPC URL")
+	ethContract      = flag.String("ethContract", "", "Ethereum bridge contract address")
+	ethConfirmations = flag.Uint64("ethConfirmations", 15, "Ethereum confirmation count requirement")
 
-	logLevel     = flag.String("loglevel", "info", "Logging level (debug, info, warn, error, dpanic, panic, fatal)")
+	logLevel = flag.String("loglevel", "info", "Logging level (debug, info, warn, error, dpanic, panic, fatal)")
 )
 
 func main() {
@@ -184,6 +184,7 @@ func bootstrapNodePrivateKeyHack() crypto.PrivKey {
 }
 
 func p2p(ctx context.Context) error {
+
 	logger := supervisor.Logger(ctx)
 
 	priv := bootstrapNodePrivateKeyHack()
@@ -337,7 +338,7 @@ func p2p(ctx context.Context) error {
 		for {
 			msg := gossipv1.Heartbeat{
 				Hostname: hostname,
-				Index: ctr,
+				Index:    ctr,
 			}
 
 			b, err := proto.Marshal(&msg)
