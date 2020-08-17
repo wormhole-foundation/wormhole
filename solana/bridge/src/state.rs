@@ -3,6 +3,8 @@
 use std::mem::size_of;
 
 use primitive_types::U256;
+use solana_sdk::hash::Hasher;
+use solana_sdk::pubkey::{PubkeyError, MAX_SEED_LEN};
 use solana_sdk::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 use zerocopy::AsBytes;
 
@@ -323,7 +325,7 @@ impl Bridge {
 
     /// Calculates a derived address for this program
     pub fn derive_bridge_id(program_id: &Pubkey) -> Result<Pubkey, Error> {
-        Self::derive_key(program_id, &Self::derive_bridge_seeds())
+        Ok(Self::derive_key(program_id, &Self::derive_bridge_seeds())?.0)
     }
 
     /// Calculates a derived address for a custody account
@@ -332,7 +334,7 @@ impl Bridge {
         bridge: &Pubkey,
         mint: &Pubkey,
     ) -> Result<Pubkey, Error> {
-        Self::derive_key(program_id, &Self::derive_custody_seeds(bridge, mint))
+        Ok(Self::derive_key(program_id, &Self::derive_custody_seeds(bridge, mint))?.0)
     }
 
     /// Calculates a derived address for a claim account
@@ -341,7 +343,7 @@ impl Bridge {
         bridge: &Pubkey,
         hash: &[u8; 32],
     ) -> Result<Pubkey, Error> {
-        Self::derive_key(program_id, &Self::derive_claim_seeds(bridge, hash))
+        Ok(Self::derive_key(program_id, &Self::derive_claim_seeds(bridge, hash))?.0)
     }
 
     /// Calculates a derived address for a wrapped asset meta entry
@@ -350,7 +352,7 @@ impl Bridge {
         bridge: &Pubkey,
         mint: &Pubkey,
     ) -> Result<Pubkey, Error> {
-        Self::derive_key(program_id, &Self::derive_wrapped_meta_seeds(bridge, mint))
+        Ok(Self::derive_key(program_id, &Self::derive_wrapped_meta_seeds(bridge, mint))?.0)
     }
 
     /// Calculates a derived address for this program
@@ -359,10 +361,11 @@ impl Bridge {
         bridge_key: &Pubkey,
         guardian_set_index: u32,
     ) -> Result<Pubkey, Error> {
-        Self::derive_key(
+        Ok(Self::derive_key(
             program_id,
             &Self::derive_guardian_set_seeds(bridge_key, guardian_set_index),
-        )
+        )?
+        .0)
     }
 
     /// Calculates a derived seeds for a wrapped asset
@@ -372,10 +375,11 @@ impl Bridge {
         asset_chain: u8,
         asset: ForeignAddress,
     ) -> Result<Pubkey, Error> {
-        Self::derive_key(
+        Ok(Self::derive_key(
             program_id,
             &Self::derive_wrapped_asset_seeds(bridge_key, asset_chain, asset),
-        )
+        )?
+        .0)
     }
 
     /// Calculates a derived address for a transfer out
@@ -389,7 +393,7 @@ impl Bridge {
         user: ForeignAddress,
         slot: u32,
     ) -> Result<Pubkey, Error> {
-        Self::derive_key(
+        Ok(Self::derive_key(
             program_id,
             &Self::derive_transfer_id_seeds(
                 bridge_key,
@@ -400,22 +404,32 @@ impl Bridge {
                 user,
                 slot,
             ),
-        )
+        )?
+        .0)
     }
 
-    pub fn derive_key(program_id: &Pubkey, seeds: &Vec<Vec<u8>>) -> Result<Pubkey, Error> {
-        let s: Vec<_> = seeds.iter().map(|item| item.as_slice()).collect();
-        Ok(Self::find_program_address(s.as_slice(), program_id).0)
+    pub fn derive_key(
+        program_id: &Pubkey,
+        seeds: &Vec<Vec<u8>>,
+    ) -> Result<(Pubkey, Vec<Vec<u8>>), Error> {
+        Ok(Self::find_program_address(seeds, program_id))
     }
 
-    pub fn find_program_address(seeds: &[&[u8]], program_id: &Pubkey) -> (Pubkey, u8) {
-        let mut nonce = [255];
+    pub fn find_program_address(
+        seeds: &Vec<Vec<u8>>,
+        program_id: &Pubkey,
+    ) -> (Pubkey, Vec<Vec<u8>>) {
+        let mut nonce = [255u8];
         for _ in 0..std::u8::MAX {
             {
                 let mut seeds_with_nonce = seeds.to_vec();
-                seeds_with_nonce.push(&nonce);
-                if let Ok(address) = Pubkey::create_program_address(&seeds_with_nonce, program_id) {
-                    return (address, nonce[0]);
+                seeds_with_nonce.push(nonce.to_vec());
+                let s: Vec<_> = seeds_with_nonce
+                    .iter()
+                    .map(|item| item.as_slice())
+                    .collect();
+                if let Ok(address) = Pubkey::create_program_address(&s, program_id) {
+                    return (address, seeds_with_nonce);
                 }
             }
             nonce[0] -= 1;

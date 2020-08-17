@@ -97,6 +97,9 @@ pub enum Error {
     /// VAA is longer than the maximum size
     #[error("VAATooLong")]
     VAATooLong,
+    /// Cannot wrap a solana native asset
+    #[error("CannotWrapNative")]
+    CannotWrapNative,
 }
 
 impl From<Error> for ProgramError {

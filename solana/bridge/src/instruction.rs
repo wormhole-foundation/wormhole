@@ -241,6 +241,7 @@ pub fn create_wrapped(
         Bridge::derive_wrapped_meta_id(program_id, &bridge_key, &wrapped_mint_key)?;
 
     let accounts = vec![
+        AccountMeta::new_readonly(*program_id, false),
         AccountMeta::new_readonly(solana_sdk::system_program::id(), false),
         AccountMeta::new_readonly(spl_token::id(), false),
         AccountMeta::new(bridge_key, false),
@@ -279,6 +280,7 @@ pub fn transfer_out(
     )?;
 
     let mut accounts = vec![
+        AccountMeta::new_readonly(*program_id, false),
         AccountMeta::new_readonly(solana_sdk::system_program::id(), false),
         AccountMeta::new_readonly(spl_token::id(), false),
         AccountMeta::new(*token_account, false),
@@ -331,6 +333,7 @@ pub fn post_vaa(
     let claim_key = Bridge::derive_claim_id(program_id, &bridge_key, &vaa.body_hash()?)?;
 
     let mut accounts = vec![
+        AccountMeta::new_readonly(*program_id, false),
         AccountMeta::new_readonly(solana_sdk::system_program::id(), false),
         AccountMeta::new_readonly(solana_sdk::sysvar::clock::id(), false),
         AccountMeta::new(bridge_key, false),

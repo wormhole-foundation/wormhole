@@ -8,12 +8,14 @@ use clap::{
 };
 use hex;
 use primitive_types::U256;
+use solana_account_decoder::{parse_token::TokenAccountType, UiAccountData};
 use solana_clap_utils::input_parsers::value_of;
 use solana_clap_utils::input_validators::is_derivation;
 use solana_clap_utils::{
     input_parsers::{keypair_of, pubkey_of},
     input_validators::{is_amount, is_keypair, is_pubkey_or_keypair, is_url},
 };
+use solana_client::client_error::ClientError;
 use solana_client::{rpc_client::RpcClient, rpc_request::TokenAccountsFilter};
 use solana_sdk::system_instruction::create_account;
 use solana_sdk::{
@@ -31,7 +33,6 @@ use spl_token::{
     state::{Account, Mint},
 };
 
-use solana_account_decoder::{parse_token::TokenAccountType, UiAccountData};
 use spl_bridge::instruction::*;
 use spl_bridge::state::*;
 
@@ -94,9 +95,20 @@ fn command_lock_tokens(
 
     // Check whether we can find wrapped asset meta for the given token
     let wrapped_key = Bridge::derive_wrapped_meta_id(bridge, &bridge_key, &token)?;
-    let wrapped_info = config.rpc_client.get_account(&wrapped_key).or_else(Err)?;
-    let wrapped_meta: &WrappedAssetMeta =
-        Bridge::unpack_unchecked_immutable(wrapped_info.data.as_slice())?;
+    let asset_meta = match config.rpc_client.get_account(&wrapped_key) {
+        Ok(v) => {
+            let wrapped_meta: &WrappedAssetMeta =
+                Bridge::unpack_unchecked_immutable(v.data.as_slice())?;
+            AssetMeta {
+                address: wrapped_meta.address,
+                chain: wrapped_meta.chain,
+            }
+        }
+        Err(_) => AssetMeta {
+            address: token.to_bytes(),
+            chain: CHAIN_ID_SOLANA,
+        },
+    };
 
     let ix = transfer_out(
         bridge,
@@ -106,37 +118,30 @@ fn command_lock_tokens(
         &TransferOutPayload {
             amount: U256::from(amount),
             chain_id: to_chain,
-            asset: {
-                if wrapped_meta.is_initialized() {
-                    AssetMeta {
-                        address: wrapped_meta.address,
-                        chain: wrapped_meta.chain,
-                    }
-                } else {
-                    AssetMeta {
-                        address: token.to_bytes(),
-                        chain: CHAIN_ID_SOLANA,
-                    }
-                }
-            },
+            asset: asset_meta,
             target,
             nonce,
         },
     )?;
     println!("custody: {}, ", ix.accounts[7].pubkey.to_string());
 
+    let mut instructions = vec![];
     // Approve tokens
-    let ix_a = approve(
-        &spl_token::id(),
-        &account,
-        &ix.accounts[3].pubkey,
-        &config.owner.pubkey(),
-        &[],
-        amount,
-    )?;
+    if asset_meta.chain == CHAIN_ID_SOLANA {
+        let ix_a = approve(
+            &spl_token::id(),
+            &account,
+            &ix.accounts[4].pubkey,
+            &config.owner.pubkey(),
+            &[],
+            amount,
+        )?;
+        instructions.push(ix_a);
+    }
+    instructions.push(ix);
 
     let mut transaction =
-        Transaction::new_with_payer(&[ix_a, ix], Some(&config.fee_payer.pubkey()));
+        Transaction::new_with_payer(&instructions.as_slice(), Some(&config.fee_payer.pubkey()));
 
     let (recent_blockhash, fee_calculator) = config.rpc_client.get_recent_blockhash()?;
     check_fee_payer_balance(

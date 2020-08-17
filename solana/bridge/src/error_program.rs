@@ -37,6 +37,7 @@ impl PrintProgramError for Error {
             Error::VAAProposalMismatch => info!("Error: VAAProposalMismatch"),
             Error::SameChainTransfer => info!("Error: SameChainTransfer"),
             Error::VAATooLong => info!("Error: VAATooLong"),
+            Error::CannotWrapNative => info!("Error: CannotWrapNative"),
         }
     }
 }

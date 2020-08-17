@@ -8,8 +8,6 @@ use num_traits::AsPrimitive;
 use primitive_types::U256;
 use solana_sdk::clock::Clock;
 use solana_sdk::hash::Hasher;
-#[cfg(not(target_arch = "bpf"))]
-use solana_sdk::instruction::Instruction;
 #[cfg(target_arch = "bpf")]
 use solana_sdk::program::invoke_signed;
 use solana_sdk::rent::Rent;
@@ -17,7 +15,7 @@ use solana_sdk::system_instruction::{create_account, SystemInstruction};
 use solana_sdk::sysvar::Sysvar;
 use solana_sdk::{
     account_info::next_account_info, account_info::AccountInfo, entrypoint::ProgramResult, info,
-    program_error::ProgramError, pubkey::Pubkey,
+    instruction::Instruction, program_error::ProgramError, pubkey::Pubkey,
 };
 use spl_token::state::Mint;
 
@@ -87,11 +85,12 @@ impl Bridge {
 
         // Create bridge account
         let bridge_seed = Bridge::derive_bridge_seeds();
-        Bridge::check_and_create_account::<BridgeConfig>(
+        Bridge::check_and_create_account::<Bridge>(
             program_id,
             accounts,
             new_bridge_info.key,
             payer_info.key,
+            program_id,
             &bridge_seed,
         )?;
 
@@ -108,6 +107,7 @@ impl Bridge {
             accounts,
             new_guardian_info.key,
             payer_info.key,
+            program_id,
             &guardian_seed,
         )?;
 
@@ -139,6 +139,7 @@ impl Bridge {
     ) -> ProgramResult {
         info!("wrapped transfer out");
         let account_info_iter = &mut accounts.iter();
+        next_account_info(account_info_iter)?; // Bridge program
         next_account_info(account_info_iter)?; // System program
         next_account_info(account_info_iter)?; // Token program
         let sender_account_info = next_account_info(account_info_iter)?;
@@ -182,6 +183,7 @@ impl Bridge {
             accounts,
             transfer_info.key,
             payer_info.key,
+            program_id,
             &transfer_seed,
         )?;
 
@@ -192,8 +194,10 @@ impl Bridge {
             return Err(Error::AlreadyExists.into());
         }
 
+        info!("burning");
         // Burn tokens
         Bridge::wrapped_burn(
+            program_id,
             accounts,
             &bridge.config.token_program,
             authority_info.key,
@@ -221,6 +225,7 @@ impl Bridge {
     ) -> ProgramResult {
         info!("create wrapped");
         let account_info_iter = &mut accounts.iter();
+        next_account_info(account_info_iter)?; // Bridge program
         next_account_info(account_info_iter)?; // System program
         next_account_info(account_info_iter)?; // Token program
         let bridge_info = next_account_info(account_info_iter)?;
@@ -229,6 +234,10 @@ impl Bridge {
         let wrapped_meta_info = next_account_info(account_info_iter)?;
 
         let bridge = Bridge::bridge_deserialize(bridge_info)?;
+
+        if a.chain == CHAIN_ID_SOLANA {
+            return Err(Error::CannotWrapNative.into());
+        }
 
         // Create wrapped mint
         Self::create_wrapped_mint(
@@ -248,6 +257,7 @@ impl Bridge {
             accounts,
             wrapped_meta_info.key,
             payer_info.key,
+            program_id,
             &wrapped_meta_seeds,
         )?;
 
@@ -269,6 +279,7 @@ impl Bridge {
     ) -> ProgramResult {
         info!("native transfer out");
         let account_info_iter = &mut accounts.iter();
+        next_account_info(account_info_iter)?; // Bridge program
         next_account_info(account_info_iter)?; // System program
         next_account_info(account_info_iter)?; // Token program
         let sender_account_info = next_account_info(account_info_iter)?;
@@ -301,6 +312,7 @@ impl Bridge {
             accounts,
             transfer_info.key,
             payer_info.key,
+            program_id,
             &transfer_seed,
         )?;
 
@@ -320,6 +332,7 @@ impl Bridge {
 
         // Create the account if it does not exist
         if custody_info.data_is_empty() {
+            info!("custody acc");
             Bridge::create_custody_account(
                 program_id,
                 accounts,
@@ -331,19 +344,23 @@ impl Bridge {
             )?;
         }
 
+        let bridge_authority = Self::derive_bridge_id(program_id)?;
+
         // Check that the custody token account is owned by the derived key
         let custody = Self::token_account_deserialize(custody_info)?;
-        if custody.owner != *bridge_info.key {
+        if custody.owner != bridge_authority {
             return Err(Error::WrongTokenAccountOwner.into());
         }
 
+        info!("transferring");
         // Transfer tokens to custody - This also checks that custody mint = mint
         Bridge::token_transfer_caller(
+            program_id,
             accounts,
             &bridge.config.token_program,
             sender_account_info.key,
             custody_info.key,
-            bridge_info.key,
+            &bridge_authority,
             t.amount,
         )?;
 
@@ -373,6 +390,7 @@ impl Bridge {
         let account_info_iter = &mut accounts.iter();
 
         // Load VAA processing default accounts
+        next_account_info(account_info_iter)?; // Bridge program
         next_account_info(account_info_iter)?; // System program
         let clock_info = next_account_info(account_info_iter)?;
         let bridge_info = next_account_info(account_info_iter)?;
@@ -398,6 +416,7 @@ impl Bridge {
             accounts,
             claim_info.key,
             payer_info.key,
+            program_id,
             &claim_seeds,
         )?;
 
@@ -507,6 +526,7 @@ impl Bridge {
             accounts,
             new_guardian_info.key,
             payer_info.key,
+            program_id,
             &guardian_seed,
         )?;
 
@@ -562,6 +582,7 @@ impl Bridge {
 
             // Native Solana asset, transfer from custody
             Bridge::token_transfer_custody(
+                program_id,
                 accounts,
                 &bridge.config.token_program,
                 bridge_info.key,
@@ -584,6 +605,7 @@ impl Bridge {
             // This automatically asserts that the mint was created by this account by using
             // derivated keys
             Bridge::wrapped_mint_to(
+                program_id,
                 accounts,
                 &bridge.config.token_program,
                 mint_info.key,
@@ -681,6 +703,7 @@ pub fn invoke_signed<'a>(
 impl Bridge {
     /// Burn a wrapped asset from account
     pub fn wrapped_burn(
+        program_id: &Pubkey,
         accounts: &[AccountInfo],
         token_program_id: &Pubkey,
         authority: &Pubkey,
@@ -698,11 +721,12 @@ impl Bridge {
             all_signers.as_slice(),
             amount.as_u64(),
         )?;
-        invoke_signed(&ix, accounts, &[&["bridge".as_bytes()]])
+        Self::invoke_as_bridge(program_id, &ix, accounts)
     }
 
     /// Mint a wrapped asset to account
     pub fn wrapped_mint_to(
+        program_id: &Pubkey,
         accounts: &[AccountInfo],
         token_program_id: &Pubkey,
         mint: &Pubkey,
@@ -718,11 +742,12 @@ impl Bridge {
             &[],
             amount.as_u64(),
         )?;
-        invoke_signed(&ix, accounts, &[&["bridge".as_bytes()]])
+        Self::invoke_as_bridge(program_id, &ix, accounts)
     }
 
     /// Transfer tokens from a caller
     pub fn token_transfer_caller(
+        program_id: &Pubkey,
         accounts: &[AccountInfo],
         token_program_id: &Pubkey,
         source: &Pubkey,
@@ -738,11 +763,12 @@ impl Bridge {
             &[],
             amount.as_u64(),
         )?;
-        invoke_signed(&ix, accounts, &[&["bridge".as_bytes()]])
+        Self::invoke_as_bridge(program_id, &ix, accounts)
     }
 
     /// Transfer tokens from a custody account
     pub fn token_transfer_custody(
+        program_id: &Pubkey,
         accounts: &[AccountInfo],
         token_program_id: &Pubkey,
         bridge: &Pubkey,
@@ -758,7 +784,7 @@ impl Bridge {
             &[],
             amount.as_u64(),
         )?;
-        invoke_signed(&ix, accounts, &[&["bridge".as_bytes()]])
+        Self::invoke_as_bridge(program_id, &ix, accounts)
     }
 
     /// Create a new account
@@ -771,15 +797,23 @@ impl Bridge {
         mint: &Pubkey,
         payer: &Pubkey,
     ) -> Result<(), ProgramError> {
-        Self::create_account::<Mint>(
-            token_program,
+        Self::check_and_create_account::<spl_token::state::Account>(
+            program_id,
             accounts,
-            mint,
+            account,
             payer,
+            token_program,
             &Self::derive_custody_seeds(bridge, mint),
         )?;
-        let ix = spl_token::instruction::initialize_account(token_program, account, mint, bridge)?;
-        invoke_signed(&ix, accounts, &[&["bridge".as_bytes()]])
+        info!("bababu");
+        info!(token_program.to_string().as_str());
+        let ix = spl_token::instruction::initialize_account(
+            token_program,
+            account,
+            mint,
+            &Self::derive_bridge_id(program_id)?,
+        )?;
+        invoke_signed(&ix, accounts, &[])
     }
 
     /// Create a mint for a wrapped asset
@@ -792,16 +826,43 @@ impl Bridge {
         payer: &Pubkey,
         asset: &AssetMeta,
     ) -> Result<(), ProgramError> {
-        Self::create_account::<Mint>(
-            token_program,
+        Self::check_and_create_account::<Mint>(
+            program_id,
             accounts,
             mint,
             payer,
+            token_program,
             &Self::derive_wrapped_asset_seeds(bridge, asset.chain, asset.address),
         )?;
-        let ix =
-            spl_token::instruction::initialize_mint(token_program, mint, None, Some(bridge), 0, 8)?;
-        invoke_signed(&ix, accounts, &[&["bridge".as_bytes()]])
+        let ix = spl_token::instruction::initialize_mint(
+            token_program,
+            mint,
+            None,
+            Some(&Self::derive_bridge_id(program_id)?),
+            0,
+            8,
+        )?;
+        invoke_signed(&ix, accounts, &[])
+    }
+
+    pub fn invoke_as_bridge<'a>(
+        program_id: &Pubkey,
+        instruction: &Instruction,
+        account_infos: &[AccountInfo<'a>],
+    ) -> ProgramResult {
+        let (_, seeds) =
+            Self::find_program_address(&vec!["bridge".as_bytes().to_vec()], program_id);
+        Self::invoke_vec_seed(program_id, instruction, account_infos, &seeds)
+    }
+
+    pub fn invoke_vec_seed<'a>(
+        program_id: &Pubkey,
+        instruction: &Instruction,
+        account_infos: &[AccountInfo<'a>],
+        seeds: &Vec<Vec<u8>>,
+    ) -> ProgramResult {
+        let s: Vec<_> = seeds.iter().map(|item| item.as_slice()).collect();
+        invoke_signed(instruction, account_infos, &[s.as_slice()])
     }
 
     /// Check that a key was derived correctly and create account
@@ -810,22 +871,35 @@ impl Bridge {
         accounts: &[AccountInfo],
         new_account: &Pubkey,
         payer: &Pubkey,
+        owner: &Pubkey,
         seeds: &Vec<Vec<u8>>,
-    ) -> Result<(), ProgramError> {
-        let expected_key = Bridge::derive_key(program_id, seeds)?;
+    ) -> Result<Vec<Vec<u8>>, ProgramError> {
+        info!("deriving key");
+        let (expected_key, full_seeds) = Bridge::derive_key(program_id, seeds)?;
         if expected_key != *new_account {
             return Err(Error::InvalidDerivedAccount.into());
         }
 
-        Self::create_account::<T>(program_id, accounts, new_account, payer, seeds)
+        info!("deploying contract");
+        Self::create_account_raw::<T>(
+            program_id,
+            accounts,
+            new_account,
+            payer,
+            owner,
+            &full_seeds,
+        )?;
+
+        Ok(full_seeds)
     }
 
     /// Create a new account
-    pub fn create_account<T: Sized>(
+    fn create_account_raw<T: Sized>(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
         new_account: &Pubkey,
         payer: &Pubkey,
+        owner: &Pubkey,
         seeds: &Vec<Vec<u8>>,
     ) -> Result<(), ProgramError> {
         let size = size_of::<T>();
@@ -834,7 +908,7 @@ impl Bridge {
             new_account,
             Rent::default().minimum_balance(size as usize),
             size as u64,
-            program_id,
+            owner,
         );
         let s: Vec<_> = seeds.iter().map(|item| item.as_slice()).collect();
         invoke_signed(&ix, accounts, &[s.as_slice()])
