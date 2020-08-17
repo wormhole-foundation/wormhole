@@ -48,16 +48,14 @@ func getOrCreateNodeKey(logger *zap.Logger, path string) (crypto.PrivKey, error)
 	return priv, nil
 }
 
-// FIXME: this hardcodes the private key if we're guardian-0.
-// Proper fix is to add a debug mode and fetch the remote peer ID,
-// or add a special bootstrap pod.
-func bootstrapNodePrivateKeyHack() crypto.PrivKey {
-	hostname, err := os.Hostname()
+// deterministicNodeKey returns a non-nil value if we have a deterministic key on file for the current host.
+func deterministicNodeKey() crypto.PrivKey {
+	idx, err := getDevnetIndex()
 	if err != nil {
 		panic(err)
 	}
 
-	if hostname == "guardian-0" {
+	if idx == 0 {
 		// node ID: 12D3KooWQ1sV2kowPY1iJX1hJcVTysZjKv3sfULTGwhdpUGGZ1VF
 		b, err := base64.StdEncoding.DecodeString("CAESQGlv6OJOMXrZZVTCC0cgCv7goXr6QaSVMZIndOIXKNh80vYnG+EutVlZK20Nx9cLkUG5ymKB\n88LXi/vPBwP8zfY=")
 		if err != nil {

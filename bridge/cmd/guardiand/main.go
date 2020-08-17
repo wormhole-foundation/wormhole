@@ -2,12 +2,14 @@ package main
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"encoding/hex"
 	"flag"
 	"fmt"
 	"os"
 
 	eth_common "github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"go.uber.org/zap"
 
 	"github.com/certusone/wormhole/bridge/pkg/common"
@@ -29,6 +31,8 @@ var (
 	ethConfirmations = flag.Uint64("ethConfirmations", 15, "Ethereum confirmation count requirement")
 
 	logLevel = flag.String("loglevel", "info", "Logging level (debug, info, warn, error, dpanic, panic, fatal)")
+
+	unsafeDevMode = flag.Bool("unsafeDevMode", false, "Launch node in unsafe, deterministic devnet mode")
 )
 
 var (
@@ -54,8 +58,8 @@ func main() {
 		panic(err)
 	}
 
-	// Our root logger.
-	logger := ipfslog.Logger(fmt.Sprintf("%s-%s", "wormhole", hostname))
+	// Our root logger. Convert directly to a regular Zap logger.
+	logger := ipfslog.Logger(fmt.Sprintf("%s-%s", "wormhole", hostname)).Desugar()
 
 	// Override the default go-log config, which uses a magic environment variable.
 	ipfslog.SetAllLoggers(lvl)
@@ -73,6 +77,25 @@ func main() {
 
 	ethContractAddr := eth_common.HexToAddress(*ethContract)
 
+	// Guardian key initialization
+	var gk *ecdsa.PrivateKey
+
+	if *unsafeDevMode {
+		// Figure out our devnet index
+		idx, err := getDevnetIndex()
+		if err != nil {
+			logger.Fatal("Failed to parse hostname - are we running in devnet?")
+		}
+
+		// Generate guardian key
+		gk = deterministicKeyByIndex(crypto.S256(), uint64(idx))
+	} else {
+		panic("not implemented") // TODO
+	}
+
+	logger.Info("Loaded guardian key", zap.String(
+		"address", crypto.PubkeyToAddress(gk.PublicKey).String()))
+
 	// Node's main lifecycle context.
 	rootCtx, rootCtxCancel = context.WithCancel(context.Background())
 	defer rootCtxCancel()
@@ -81,7 +104,7 @@ func main() {
 	ec := make(chan *common.ChainLock)
 
 	// Run supervisor.
-	supervisor.New(rootCtx, logger.Desugar(), func(ctx context.Context) error {
+	supervisor.New(rootCtx, logger, func(ctx context.Context) error {
 		if err := supervisor.Run(ctx, "p2p", p2p); err != nil {
 			return err
 		}

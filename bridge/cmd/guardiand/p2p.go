@@ -18,6 +18,7 @@ import (
 	libp2pquic "github.com/libp2p/go-libp2p-quic-transport"
 	swarm "github.com/libp2p/go-libp2p-swarm"
 	libp2ptls "github.com/libp2p/go-libp2p-tls"
+	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/multiformats/go-multiaddr"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
@@ -29,16 +30,26 @@ import (
 func p2p(ctx context.Context) (re error) {
 	logger := supervisor.Logger(ctx)
 
-	priv := bootstrapNodePrivateKeyHack()
-
+	var priv crypto.PrivKey
 	var err error
-	if priv == nil {
-		priv, err = getOrCreateNodeKey(logger, *nodeKeyPath)
-		if err != nil {
-			panic(err)
+
+	if *unsafeDevMode {
+		priv = deterministicNodeKey()
+
+		var err error
+		if priv == nil {
+			priv, err = getOrCreateNodeKey(logger, *nodeKeyPath)
+			if err != nil {
+				return fmt.Errorf("failed to load node key: %w", err)
+			}
+		} else {
+			logger.Info("devnet: loaded hardcoded node key")
 		}
 	} else {
-		logger.Info("HACK: loaded hardcoded guardian-0 node key")
+		priv, err = getOrCreateNodeKey(logger, *nodeKeyPath)
+		if err != nil {
+			return fmt.Errorf("failed to load node key: %w", err)
+		}
 	}
 
 	var idht *dht.IpfsDHT

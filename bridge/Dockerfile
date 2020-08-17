@@ -5,7 +5,7 @@ WORKDIR /app
 
 ADD . .
 
-RUN --mount=type=cache,target=/root/.cache/go-build --mount=type=cache,target=/go/pkg \
-  go build -o /guardiand github.com/certusone/wormhole/bridge/cmd/guardiand
+RUN --mount=type=cache,target=/root/.cache --mount=type=cache,target=/go \
+  go build -mod=readonly -o /guardiand github.com/certusone/wormhole/bridge/cmd/guardiand
 
 ENTRYPOINT /guardiand

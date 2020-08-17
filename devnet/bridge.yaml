@@ -33,7 +33,7 @@ spec:
       labels:
         app: guardian
     spec:
-      terminationGracePeriodSeconds: 1
+      terminationGracePeriodSeconds: 0
       containers:
         - name: guardiand
           image: guardiand-image
@@ -48,7 +48,8 @@ spec:
             - -ethContract
             - 0xCfEB869F69431e42cdB54A4F4f105C19C080A601
             - -ethConfirmations
-            - '1'
+            - '2'
+            - -unsafeDevMode
           ports:
             - containerPort: 8999
               name: p2p
