@@ -3,7 +3,7 @@
 local_resource(
     name = "proto-gen",
     deps = "./proto",
-    cmd = "./generate.sh",
+    cmd = "./generate-protos.sh",
 )
 
 # bridge
@@ -16,7 +16,7 @@ docker_build(
 
 k8s_yaml("devnet/bridge.yaml")
 
-k8s_resource("guardian")
+k8s_resource("guardian", resource_deps=["proto-gen"])
 
 # solana smart contract components
 
