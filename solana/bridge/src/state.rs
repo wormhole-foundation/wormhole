@@ -1,7 +1,10 @@
 //! Bridge transition types
 
+use std::io::{Cursor, Read, Write};
 use std::mem::size_of;
+use std::ops::Deref;
 
+use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use primitive_types::U256;
 use solana_sdk::hash::Hasher;
 use solana_sdk::pubkey::{PubkeyError, MAX_SEED_LEN};
@@ -46,8 +49,7 @@ impl IsInitialized for GuardianSet {
 }
 
 /// proposal to transfer tokens to a foreign chain
-#[repr(C)]
-#[derive(Clone, Copy)]
+#[derive(Default)]
 pub struct TransferOutProposal {
     /// amount to transfer
     pub amount: U256,
@@ -62,7 +64,7 @@ pub struct TransferOutProposal {
     /// nonce of the transfer
     pub nonce: u32,
     /// vaa to unlock the tokens on the foreign chain
-    pub vaa: VAAData,
+    pub vaa: Vec<u8>,
     /// time the vaa was submitted
     pub vaa_time: u32,
 
@@ -76,6 +78,7 @@ impl IsInitialized for TransferOutProposal {
     }
 }
 
+pub const TRANSFER_OUT_PROPOSAL_SIZE: usize = 1139;
 impl TransferOutProposal {
     pub fn matches_vaa(&self, b: &BodyTransfer) -> bool {
         return b.amount == self.amount
@@ -203,8 +206,55 @@ impl Bridge {
     pub fn transfer_out_proposal_deserialize(
         info: &AccountInfo,
     ) -> Result<TransferOutProposal, Error> {
-        Ok(*Bridge::unpack(&mut info.data.borrow_mut())
-            .map_err(|_| Error::ExpectedTransferOutProposal)?)
+        let raw_data = info.data.borrow();
+        let mut rdr = Cursor::new(raw_data.as_ref());
+        let mut proposal = TransferOutProposal::default();
+        proposal.is_initialized = rdr.read_u8()? == 1;
+
+        let mut amount_data = [0u8; 32];
+        rdr.read_exact(&mut amount_data)?;
+        let amount = U256::from_big_endian(&amount_data[..]);
+        proposal.amount = amount;
+
+        proposal.nonce = rdr.read_u32::<BigEndian>()?;
+        proposal.vaa_time = rdr.read_u32::<BigEndian>()?;
+        proposal.to_chain_id = rdr.read_u8()?;
+        rdr.read_exact(&mut proposal.source_address)?;
+        rdr.read_exact(&mut proposal.foreign_address)?;
+        proposal.asset.chain = rdr.read_u8()?;
+        rdr.read_exact(&mut proposal.asset.address)?;
+
+        rdr.read_to_end(&mut proposal.vaa)?;
+
+        return Ok(proposal);
+    }
+
+    /// Deserializes a `TransferOutProposal`.
+    pub fn transfer_out_proposal_serialize(data: &TransferOutProposal) -> Result<Vec<u8>, Error> {
+        let mut out_data = Vec::new();
+        out_data.write_u8({
+            if data.is_initialized {
+                1
+            } else {
+                0
+            }
+        })?;
+        let mut amount_data = [0u8; 32];
+        data.amount.to_big_endian(&mut amount_data);
+        out_data.write(&amount_data)?;
+
+        out_data.write_u32::<BigEndian>(data.nonce)?;
+        out_data.write_u32::<BigEndian>(data.vaa_time)?;
+        out_data.write_u8(data.to_chain_id)?;
+        out_data.write(&data.source_address)?;
+        out_data.write(&data.foreign_address)?;
+        out_data.write_u8(data.asset.chain)?;
+        out_data.write(&data.asset.address)?;
+        let mut vaa_res = data.vaa.clone();
+        vaa_res.resize(1000, 0u8);
+        out_data.write(&vaa_res)?;
+
+        return Ok(out_data);
     }
 
     /// Unpacks a state from a bytes buffer while assuring that the state is initialized.

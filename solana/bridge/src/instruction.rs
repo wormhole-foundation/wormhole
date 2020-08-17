@@ -21,14 +21,11 @@ use crate::vaa::{VAABody, VAA};
 /// chain id of this chain
 pub const CHAIN_ID_SOLANA: u8 = 1;
 
-/// size of a VAA in bytes
-const VAA_SIZE: usize = 200;
-
 /// size of a foreign address in bytes
 const FOREIGN_ADDRESS_SIZE: usize = 32;
 
 /// length-prefixed serialized validator payment approval data
-pub type VAAData = [u8; VAA_SIZE];
+pub type VAAData = Vec<u8>;
 /// X and Y point of P for guardians
 pub type GuardianKey = [u8; 64];
 /// address on a foreign chain
@@ -129,9 +126,8 @@ impl BridgeInstruction {
                 TransferOut(*payload)
             }
             2 => {
-                let payload: &VAAData = unpack(input)?;
-
-                PostVAA(*payload)
+                let payload: VAAData = input[1..].to_vec();
+                PostVAA(payload)
             }
             5 => {
                 let payload: &AssetMeta = unpack(input)?;
@@ -307,22 +303,10 @@ pub fn transfer_out(
 pub fn post_vaa(
     program_id: &Pubkey,
     payer: &Pubkey,
-    v: &[u8],
+    v: VAAData,
 ) -> Result<Instruction, ProgramError> {
-    // VAA must be <= VAA_SIZE-1 to allow for the length prefix
-    if v.len() > VAA_SIZE - 1 {
-        return Err(VAATooLong.into());
-    }
-    // Convert data to length-prefixed on-chain format
-    let mut vaa_data: Vec<u8> = vec![];
-    vaa_data.push(v.len() as u8);
-    vaa_data.append(&mut v.to_vec());
-    vaa_data.resize(200, 0);
-
-    let mut vaa_chain: [u8; 200] = [0; 200];
-    vaa_chain.copy_from_slice(vaa_data.as_slice());
-
-    let data = BridgeInstruction::PostVAA(vaa_chain).serialize()?;
+    let mut data = v.clone();
+    data.insert(0, 2);
 
     // Parse VAA
     let vaa = VAA::deserialize(&v[..])?;
@@ -350,6 +334,7 @@ pub fn post_vaa(
         }
         VAABody::Transfer(t) => {
             if t.source_chain == CHAIN_ID_SOLANA {
+                println!("kot");
                 // Solana (any) -> Ethereum (any)
                 let transfer_key = Bridge::derive_transfer_id(
                     program_id,
@@ -363,6 +348,7 @@ pub fn post_vaa(
                 )?;
                 accounts.push(AccountMeta::new(transfer_key, false))
             } else if t.asset.chain == CHAIN_ID_SOLANA {
+                println!("kat");
                 // Foreign (wrapped) -> Solana (native)
                 let mint_key = Pubkey::new(&t.asset.address);
                 let custody_key = Bridge::derive_custody_id(program_id, &bridge_key, &mint_key)?;
@@ -371,6 +357,7 @@ pub fn post_vaa(
                 accounts.push(AccountMeta::new(Pubkey::new(&t.target_address), false));
                 accounts.push(AccountMeta::new(custody_key, false));
             } else {
+                println!("kit");
                 // Foreign (native) -> Solana (wrapped)
                 let wrapped_key = Bridge::derive_wrapped_asset_id(
                     program_id,

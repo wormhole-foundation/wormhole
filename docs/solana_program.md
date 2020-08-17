@@ -26,13 +26,14 @@ Parameters:
 
 | Index | Name     | Type                | signer | writeable | empty | derived |
 | ----- | -------- | ------------------- | ------ | --------- | ----- | ------- |
-| 0     | sys | SystemProgram |        |           | ️   |      |
-| 1     | token_program | SplToken |        |           | ️   |      |
-| 2     | token_account   | TokenAccount        |        | ✅        |       |         |
-| 3     | bridge   | BridgeConfig        |        |           |       |         |
-| 4     | proposal | TransferOutProposal |        | ✅        | ✅    | ✅      |
-| 5     | token    | WrappedAsset        |        | ✅        |       | ✅      |
-| 6     | payer    | Account        |    ✅    |         |       |       |
+| 0     | bridge_p | BridgeProgram |        |           | ️   |      |
+| 1     | sys | SystemProgram |        |           | ️   |      |
+| 2     | token_program | SplToken |        |           | ️   |      |
+| 3     | token_account   | TokenAccount        |        | ✅        |       |         |
+| 4     | bridge   | BridgeConfig        |        |           |       |         |
+| 5     | proposal | TransferOutProposal |        | ✅        | ✅    | ✅      |
+| 6     | token    | WrappedAsset        |        | ✅        |       | ✅      |
+| 7     | payer    | Account        |    ✅    |         |       |       |
 
 #### TransferOutNative
 
@@ -43,14 +44,15 @@ The transfer proposal will be tracked at a new account `proposal` where a VAA wi
 
 | Index | Name            | Type                | signer | writeable | empty | derived |
 | ----- | --------------- | ------------------- | ------ | --------- | ----- | ------- |
-| 0     | sys | SystemProgram |        |           | ️   |      |
-| 1     | token_program | SplToken |        |           | ️   |      |
-| 2     | token_account          | TokenAccount        |        | ✅        |       |         |
-| 3     | bridge          | BridgeConfig        |        |           |       |         |
-| 4     | proposal        | TransferOutProposal |        | ✅        | ✅    | ✅      |
-| 5     | token           | Mint                |        | ✅        |       |         |
-| 6     | payer    | Account        |    ✅    |         |       |       |
-| 7     | custody_account | TokenAccount                |        | ✅        | opt   | ✅      |
+| 0     | bridge_p | BridgeProgram |        |           | ️   |      |
+| 1     | sys | SystemProgram |        |           | ️   |      |
+| 2     | token_program | SplToken |        |           | ️   |      |
+| 3     | token_account          | TokenAccount        |        | ✅        |       |         |
+| 4     | bridge          | BridgeConfig        |        |           |       |         |
+| 5     | proposal        | TransferOutProposal |        | ✅        | ✅    | ✅      |
+| 6     | token           | Mint                |        | ✅        |       |         |
+| 7     | payer    | Account        |    ✅    |         |       |       |
+| 8     | custody_account | TokenAccount                |        | ✅        | opt   | ✅      |
 
 #### EvictTransferOut
 
@@ -58,10 +60,11 @@ Deletes a `proposal` after the `VAA_EXPIRATION_TIME` to free up space on chain. 
 
 | Index | Name     | Type                | signer | writeable | empty | derived |
 | ----- | -------- | ------------------- | ------ | --------- | ----- | ------- |
-| 0     | guardian | Account             | ✅     |           |       |         |
-| 1     | clock | Sysvar |        |           | ️   | ✅     |
-| 2     | bridge   | BridgeConfig        |        |           |       |         |
-| 3     | proposal | TransferOutProposal |        | ✅        |       | ✅      |
+| 0     | bridge_p | BridgeProgram |        |           | ️   |      |
+| 1     | guardian | Account             | ✅     |           |       |         |
+| 2     | clock | Sysvar |        |           | ️   | ✅     |
+| 3     | bridge   | BridgeConfig        |        |           |       |         |
+| 4     | proposal | TransferOutProposal |        | ✅        |       | ✅      |
 
 #### EvictClaimedVAA
 
@@ -69,10 +72,11 @@ Deletes a `ClaimedVAA` after the `VAA_EXPIRATION_TIME` to free up space on chain
 
 | Index | Name     | Type                | signer | writeable | empty | derived |
 | ----- | -------- | ------------------- | ------ | --------- | ----- | ------- |
-| 0     | guardian | Account             | ✅     |           |       |         |
-| 1     | clock | Sysvar |        |           | ️   | ✅     |
-| 2     | bridge   | BridgeConfig        |        |           |       |         |
-| 3     | claim | ClaimedVAA |        | ✅        |       | ✅      |
+| 0     | bridge_p | BridgeProgram |        |           | ️   |      |
+| 1     | guardian | Account             | ✅     |           |       |         |
+| 2     | clock | Sysvar |        |           | ️   | ✅     |
+| 3     | bridge   | BridgeConfig        |        |           |       |         |
+| 4     | claim | ClaimedVAA |        | ✅        |       | ✅      |
 
 #### CreateWrappedAsset
 
@@ -80,12 +84,13 @@ Creates a new `WrappedAsset` to be used to create accounts and later receive tra
 
 | Index | Name     | Type                | signer | writeable | empty | derived |
 | ----- | -------- | ------------------- | ------ | --------- | ----- | ------- |
-| 0     | sys | SystemProgram |        |           | ️   |      |
-| 1     | token_program | SplToken |        |           | ️   |      |
-| 2     | bridge   | BridgeConfig        |        |           |       |         |
-| 3     | payer | Account |     ✅    |           | ️   |      |
-| 4     | wrapped_mint        | WrappedAsset |        |           |  ✅   | ✅      |
-| 5     | wrapped_meta_account | WrappedAssetMeta  |        | ✅        |  ✅   | ✅      |
+| 0     | bridge_p | BridgeProgram |        |           | ️   |      |
+| 1     | sys | SystemProgram |        |           | ️   |      |
+| 2     | token_program | SplToken |        |           | ️   |      |
+| 3     | bridge   | BridgeConfig        |        |           |       |         |
+| 4     | payer | Account |     ✅    |           | ️   |      |
+| 5     | wrapped_mint        | WrappedAsset |        |           |  ✅   | ✅      |
+| 6     | wrapped_meta_account | WrappedAssetMeta  |        | ✅        |  ✅   | ✅      |
 
 #### SubmitVAA
 
@@ -97,12 +102,13 @@ All require:
 
 | Index | Name         | Type         | signer | writeable | empty | derived |
 | ----- | ------------ | ------------ | ------ | --------- | ----- | ------- |
-| 0     | sys | SystemProgram |        |           | ️   |      |
-| 1     | clock | Sysvar |        |           | ️   | ✅     |
-| 2     | bridge       | BridgeConfig |        |           |       |         |  
-| 3     | guardian_set | GuardianSet  |        |           |       |         |
-| 4     | claim     | ExecutedVAA |        | ✅        |   ✅    | ✅      |
-| 5     | payer  | Account |  ✅      |         |    |         |
+| 0     | bridge_p | BridgeProgram |        |           | ️   |      |
+| 1     | sys | SystemProgram |        |           | ️   |      |
+| 2     | clock | Sysvar |        |           | ️   | ✅     |
+| 3     | bridge       | BridgeConfig |        |           |       |         |  
+| 4     | guardian_set | GuardianSet  |        |           |       |         |
+| 5     | claim     | ExecutedVAA |        | ✅        |   ✅    | ✅      |
+| 6     | payer  | Account |  ✅      |         |    |         |
 
 followed by:
 
@@ -110,30 +116,30 @@ followed by:
 
 | Index | Name         | Type                | signer | writeable | empty | derived |
 | ----- | ------------ | ------------------- | ------ | --------- | ----- | ------- |
-| 6     | guardian_set_new | GuardianSet         |        |   ✅       |  ✅   | ✅      |
+| 7     | guardian_set_new | GuardianSet         |        |   ✅       |  ✅   | ✅      |
 
 ##### Transfer: Ethereum (native) -> Solana (wrapped)
 
 | Index | Name         | Type         | signer | writeable | empty | derived |
 | ----- | ------------ | ------------ | ------ | --------- | ----- | ------- |
-| 6     | token_program | SplToken |        |           | ️   |      |
-| 7     | token        | WrappedAsset |        |           |    | ✅      |
-| 8     | destination  | TokenAccount |        | ✅        |    |         |
+| 7     | token_program | SplToken |        |           | ️   |      |
+| 8     | token        | WrappedAsset |        |           |    | ✅      |
+| 9     | destination  | TokenAccount |        | ✅        |    |         |
 
 ##### Transfer: Ethereum (wrapped) -> Solana (native)
 
 | Index | Name         | Type         | signer | writeable | empty | derived |
 | ----- | ------------ | ------------ | ------ | --------- | ----- | ------- |
-| 6     | token_program | SplToken |        |           | ️   |      |
-| 7     | token        | Mint         |        |           |       | ✅      |
-| 8     | destination  | TokenAccount |        | ✅        |    opt   |         |
-| 9     | custody_src  | TokenAccount |        | ✅        |       | ✅      |
+| 7     | token_program | SplToken |        |           | ️   |      |
+| 8     | token        | Mint         |        |           |       | ✅      |
+| 9     | destination  | TokenAccount |        | ✅        |    opt   |         |
+| 10    | custody_src  | TokenAccount |        | ✅        |       | ✅      |
 
 ##### Transfer: Solana (any) -> Ethereum (any)
 
 | Index | Name         | Type                | signer | writeable | empty | derived |
 | ----- | ------------ | ------------------- | ------ | --------- | ----- | ------- |
-| 6     | out_proposal | TransferOutProposal |        | ✅        |       | ✅      |
+| 7     | out_proposal | TransferOutProposal |        | ✅        |       | ✅      |
 
 ## Accounts
 

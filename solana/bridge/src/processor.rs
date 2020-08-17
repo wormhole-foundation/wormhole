@@ -51,9 +51,7 @@ impl Bridge {
             }
             PostVAA(vaa_body) => {
                 info!("Instruction: PostVAA");
-                let len = vaa_body[0] as usize;
-                let vaa_data = &vaa_body[..len];
-                let vaa = VAA::deserialize(vaa_data)?;
+                let vaa = VAA::deserialize(&vaa_body)?;
 
                 let hash = vaa.body_hash()?;
 
@@ -147,7 +145,6 @@ impl Bridge {
         let transfer_info = next_account_info(account_info_iter)?;
         let mint_info = next_account_info(account_info_iter)?;
         let payer_info = next_account_info(account_info_iter)?;
-        let authority_info = next_account_info(account_info_iter)?;
 
         let sender = Bridge::token_account_deserialize(sender_account_info)?;
         let bridge = Bridge::bridge_deserialize(bridge_info)?;
@@ -175,10 +172,10 @@ impl Bridge {
             t.asset.address,
             t.chain_id,
             t.target,
-            sender.owner.to_bytes(),
+            sender_account_info.key.to_bytes(),
             t.nonce,
         );
-        Bridge::check_and_create_account::<TransferOutProposal>(
+        Bridge::check_and_create_account::<[u8; TRANSFER_OUT_PROPOSAL_SIZE]>(
             program_id,
             accounts,
             transfer_info.key,
@@ -188,11 +185,7 @@ impl Bridge {
         )?;
 
         // Load transfer account
-        let mut transfer_data = transfer_info.data.borrow_mut();
-        let transfer: &mut TransferOutProposal = Bridge::unpack_unchecked(&mut transfer_data)?;
-        if transfer.is_initialized {
-            return Err(Error::AlreadyExists.into());
-        }
+        let mut transfer: TransferOutProposal = TransferOutProposal::default();
 
         info!("burning");
         // Burn tokens
@@ -200,7 +193,6 @@ impl Bridge {
             program_id,
             accounts,
             &bridge.config.token_program,
-            authority_info.key,
             sender_account_info.key,
             t.amount,
         )?;
@@ -213,6 +205,11 @@ impl Bridge {
         transfer.amount = t.amount;
         transfer.to_chain_id = t.chain_id;
         transfer.asset = t.asset;
+        let mut transfer_data = Self::transfer_out_proposal_serialize(&transfer)?;
+        transfer_info
+            .data
+            .borrow_mut()
+            .swap_with_slice(transfer_data.as_mut_slice());
 
         Ok(())
     }
@@ -307,7 +304,7 @@ impl Bridge {
             sender_account_info.key.to_bytes(),
             t.nonce,
         );
-        Bridge::check_and_create_account::<TransferOutProposal>(
+        Bridge::check_and_create_account::<[u8; TRANSFER_OUT_PROPOSAL_SIZE]>(
             program_id,
             accounts,
             transfer_info.key,
@@ -317,11 +314,7 @@ impl Bridge {
         )?;
 
         // Load transfer account
-        let mut transfer_data = transfer_info.data.borrow_mut();
-        let transfer: &mut TransferOutProposal = Bridge::unpack_unchecked(&mut transfer_data)?;
-        if transfer.is_initialized {
-            return Err(Error::AlreadyExists.into());
-        }
+        let mut transfer = TransferOutProposal::default();
 
         // Check that custody account was derived correctly
         let expected_custody_id =
@@ -375,6 +368,12 @@ impl Bridge {
             chain: CHAIN_ID_SOLANA,
             address: mint_info.key.to_bytes(),
         };
+
+        let mut transfer_data = Self::transfer_out_proposal_serialize(&transfer)?;
+        transfer_info
+            .data
+            .borrow_mut()
+            .swap_with_slice(transfer_data.as_mut_slice());
 
         Ok(())
     }
@@ -585,7 +584,6 @@ impl Bridge {
                 program_id,
                 accounts,
                 &bridge.config.token_program,
-                bridge_info.key,
                 custody_info.key,
                 destination_info.key,
                 b.amount,
@@ -610,7 +608,6 @@ impl Bridge {
                 &bridge.config.token_program,
                 mint_info.key,
                 destination_info.key,
-                bridge_info.key,
                 b.amount,
             )?;
         }
@@ -653,6 +650,12 @@ impl Bridge {
         proposal.vaa = vaa_data;
         proposal.vaa_time = vaa.timestamp;
 
+        let mut transfer_data = Self::transfer_out_proposal_serialize(&proposal)?;
+        proposal_info
+            .data
+            .borrow_mut()
+            .swap_with_slice(transfer_data.as_mut_slice());
+
         Ok(())
     }
 }
@@ -676,14 +679,7 @@ pub fn invoke_signed<'a>(
         for account_info in account_infos.iter() {
             if meta.pubkey == *account_info.key {
                 let mut new_account_info = account_info.clone();
-                for seeds in signers_seeds.iter() {
-                    let signer =
-                        solana_sdk::program::create_program_address(seeds, &WORMHOLE_PROGRAM_ID)
-                            .unwrap();
-                    if *account_info.key == signer {
-                        new_account_info.is_signer = true;
-                    }
-                }
+                for seeds in signers_seeds.iter() {}
                 new_account_infos.push(new_account_info);
             }
         }
@@ -706,19 +702,14 @@ impl Bridge {
         program_id: &Pubkey,
         accounts: &[AccountInfo],
         token_program_id: &Pubkey,
-        authority: &Pubkey,
         token_account: &Pubkey,
         amount: U256,
     ) -> Result<(), ProgramError> {
-        let all_signers: Vec<&Pubkey> = accounts
-            .iter()
-            .filter_map(|item| if item.is_signer { Some(item.key) } else { None })
-            .collect();
         let ix = spl_token::instruction::burn(
             token_program_id,
             token_account,
-            authority,
-            all_signers.as_slice(),
+            &Self::derive_bridge_id(program_id)?,
+            &[],
             amount.as_u64(),
         )?;
         Self::invoke_as_bridge(program_id, &ix, accounts)
@@ -731,14 +722,13 @@ impl Bridge {
         token_program_id: &Pubkey,
         mint: &Pubkey,
         destination: &Pubkey,
-        bridge: &Pubkey,
         amount: U256,
     ) -> Result<(), ProgramError> {
         let ix = spl_token::instruction::mint_to(
             token_program_id,
             mint,
             destination,
-            bridge,
+            &Self::derive_bridge_id(program_id)?,
             &[],
             amount.as_u64(),
         )?;
@@ -771,7 +761,6 @@ impl Bridge {
         program_id: &Pubkey,
         accounts: &[AccountInfo],
         token_program_id: &Pubkey,
-        bridge: &Pubkey,
         source: &Pubkey,
         destination: &Pubkey,
         amount: U256,
@@ -780,7 +769,7 @@ impl Bridge {
             token_program_id,
             source,
             destination,
-            bridge,
+            &Self::derive_bridge_id(program_id)?,
             &[],
             amount.as_u64(),
         )?;

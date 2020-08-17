@@ -46,7 +46,11 @@ struct Config {
 type Error = Box<dyn std::error::Error>;
 type CommmandResult = Result<Option<Transaction>, Error>;
 
-fn command_deploy_bridge(config: &Config, bridge: &Pubkey) -> CommmandResult {
+fn command_deploy_bridge(
+    config: &Config,
+    bridge: &Pubkey,
+    initial_guardian: Vec<[u8; 20]>,
+) -> CommmandResult {
     println!("Deploying bridge program");
 
     let minimum_balance_for_rent_exemption = config
@@ -56,7 +60,7 @@ fn command_deploy_bridge(config: &Config, bridge: &Pubkey) -> CommmandResult {
     let ix = initialize(
         bridge,
         &config.owner.pubkey(),
-        vec![[0u8; 20]],
+        initial_guardian,
         &BridgeConfig {
             vaa_expiration_time: 200000000,
             token_program: spl_token::id(),
@@ -104,7 +108,7 @@ fn command_lock_tokens(
                 chain: wrapped_meta.chain,
             }
         }
-        Err(_) => AssetMeta {
+        Err(e) => AssetMeta {
             address: token.to_bytes(),
             chain: CHAIN_ID_SOLANA,
         },
@@ -152,6 +156,30 @@ fn command_lock_tokens(
     Ok(Some(transaction))
 }
 
+fn command_create_wrapped_asset(
+    config: &Config,
+    bridge: &Pubkey,
+    meta: AssetMeta,
+) -> CommmandResult {
+    println!("Creating wrapped asset");
+
+    let minimum_balance_for_rent_exemption = config
+        .rpc_client
+        .get_minimum_balance_for_rent_exemption(size_of::<Mint>())?;
+
+    let ix = create_wrapped(bridge, &config.owner.pubkey(), meta)?;
+
+    let mut transaction = Transaction::new_with_payer(&[ix], Some(&config.fee_payer.pubkey()));
+
+    let (recent_blockhash, fee_calculator) = config.rpc_client.get_recent_blockhash()?;
+    check_fee_payer_balance(
+        config,
+        minimum_balance_for_rent_exemption + fee_calculator.calculate_fee(&transaction.message()),
+    )?;
+    transaction.sign(&[&config.fee_payer, &config.owner], recent_blockhash);
+    Ok(Some(transaction))
+}
+
 fn command_submit_vaa(config: &Config, bridge: &Pubkey, vaa: &[u8]) -> CommmandResult {
     println!("Submitting VAA");
 
@@ -159,7 +187,7 @@ fn command_submit_vaa(config: &Config, bridge: &Pubkey, vaa: &[u8]) -> CommmandR
         .rpc_client
         .get_minimum_balance_for_rent_exemption(size_of::<Mint>())?;
 
-    let ix = post_vaa(bridge, &config.owner.pubkey(), vaa)?;
+    let ix = post_vaa(bridge, &config.owner.pubkey(), vaa.to_vec())?;
 
     let mut transaction = Transaction::new_with_payer(&[ix], Some(&config.fee_payer.pubkey()));
 
@@ -828,6 +856,16 @@ fn main() {
                     .help(
                         "Specify the bridge program public key"
                     ),
+            )
+            .arg(
+                Arg::with_name("guardian")
+                    .validator(is_hex)
+                    .value_name("GUADIAN_ADDRESS")
+                    .takes_value(true)
+                    .index(2)
+                    .required(true)
+                    .help("Address of the initial guardian"),
+
             ))
         .subcommand(
             SubCommand::with_name("lock")
@@ -915,6 +953,74 @@ fn main() {
                         .help("The vaa to be posted"),
                 )
         )
+        .subcommand(
+            SubCommand::with_name("create-wrapped")
+                .about("Create new wrapped asset and token account")
+                .arg(
+                    Arg::with_name("bridge")
+                        .long("bridge")
+                        .value_name("BRIDGE_KEY")
+                        .validator(is_pubkey_or_keypair)
+                        .takes_value(true)
+                        .index(1)
+                        .required(true)
+                        .help(
+                            "Specify the bridge program public key"
+                        ),
+                )
+                .arg(
+                    Arg::with_name("chain")
+                        .validator(is_u8)
+                        .value_name("CHAIN")
+                        .takes_value(true)
+                        .index(2)
+                        .required(true)
+                        .help("Chain ID of the asset"),
+                )
+                .arg(
+                    Arg::with_name("token")
+                        .validator(is_hex)
+                        .value_name("TOKEN_ADDRESS")
+                        .takes_value(true)
+                        .index(3)
+                        .required(true)
+                        .help("Token address of the asset"),
+                )
+        )
+        .subcommand(
+            SubCommand::with_name("wrapped-address")
+                .about("Derive wrapped asset address")
+                .arg(
+                    Arg::with_name("bridge")
+                        .long("bridge")
+                        .value_name("BRIDGE_KEY")
+                        .validator(is_pubkey_or_keypair)
+                        .takes_value(true)
+                        .index(1)
+                        .required(true)
+                        .help(
+                            "Specify the bridge program public key"
+                        ),
+                )
+                .arg(
+                    Arg::with_name("chain")
+                        .validator(is_u8)
+                        .value_name("CHAIN")
+                        .takes_value(true)
+                        .index(2)
+                        .required(true)
+                        .help("Chain ID of the asset"),
+                )
+                .arg(
+                    Arg::with_name("token")
+                        .validator(is_hex)
+                        .value_name("TOKEN_ADDRESS")
+                        .takes_value(true)
+                        .index(3)
+                        .required(true)
+                        .help("Token address of the asset"),
+                )
+        )
         .get_matches();
 
     let config = {
@@ -999,7 +1105,12 @@ fn main() {
         }
         ("create-bridge", Some(arg_matches)) => {
             let bridge = pubkey_of(arg_matches, "bridge").unwrap();
-            command_deploy_bridge(&config, &bridge)
+            let initial_guardian: String = value_of(arg_matches, "guardian").unwrap();
+            let initial_data = hex::decode(initial_guardian).unwrap();
+
+            let mut guardian = [0u8; 20];
+            guardian.copy_from_slice(&initial_data);
+            command_deploy_bridge(&config, &bridge, vec![guardian])
         }
         ("lock", Some(arg_matches)) => {
             let bridge = pubkey_of(arg_matches, "bridge").unwrap();
@@ -1017,6 +1128,39 @@ fn main() {
             let vaa_string: String = value_of(arg_matches, "vaa").unwrap();
             let vaa = hex::decode(vaa_string).unwrap();
             command_submit_vaa(&config, &bridge, vaa.as_slice())
+        }
+        ("create-wrapped", Some(arg_matches)) => {
+            let bridge = pubkey_of(arg_matches, "bridge").unwrap();
+            let chain = value_t_or_exit!(arg_matches, "chain", u8);
+            let addr_string: String = value_of(arg_matches, "token").unwrap();
+            let addr_data = hex::decode(addr_string).unwrap();
+
+            let mut token_addr = [0u8; 32];
+            token_addr.copy_from_slice(addr_data.as_slice());
+
+            command_create_wrapped_asset(
+                &config,
+                &bridge,
+                AssetMeta {
+                    chain,
+                    address: token_addr,
+                },
+            )
+        }
+        ("wrapped-address", Some(arg_matches)) => {
+            let bridge = pubkey_of(arg_matches, "bridge").unwrap();
+            let chain = value_t_or_exit!(arg_matches, "chain", u8);
+            let addr_string: String = value_of(arg_matches, "token").unwrap();
+            let addr_data = hex::decode(addr_string).unwrap();
+
+            let mut token_addr = [0u8; 32];
+            token_addr.copy_from_slice(addr_data.as_slice());
+
+            let bridge_key = Bridge::derive_bridge_id(&bridge).unwrap();
+            let wrapped_key =
+                Bridge::derive_wrapped_asset_id(&bridge, &bridge_key, chain, token_addr).unwrap();
+            println!("Wrapped address: {}", wrapped_key);
+            return;
         }
         _ => unreachable!(),
     }
