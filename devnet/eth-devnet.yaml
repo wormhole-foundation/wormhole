@@ -43,20 +43,9 @@ spec:
             - containerPort: 8545
               name: rpc
               protocol: TCP
-#          volumeMounts:
-#            - name: eth-devnet-data
-#              mountPath: /data
         - name: tests
           image: eth-node
           command:
             - /bin/sh
             - -c
             - "npm run test && sleep infinity"
-#  volumeClaimTemplates:
-#    - metadata:
-#        name: eth-devnet-data
-#      spec:
-#        accessModes: [ "ReadWriteOnce" ]
-#        resources:
-#          requests:
-#            storage: 1Gi
