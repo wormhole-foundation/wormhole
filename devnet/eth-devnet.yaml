@@ -31,7 +31,7 @@ spec:
     spec:
       terminationGracePeriodSeconds: 1
       containers:
-        - name: eth-devnet
+        - name: ganache
           image: eth-node
           command:
             - npx
@@ -46,6 +46,12 @@ spec:
 #          volumeMounts:
 #            - name: eth-devnet-data
 #              mountPath: /data
+        - name: tests
+          image: eth-node
+          command:
+            - /bin/sh
+            - -c
+            - "npm run test && sleep infinity"
 #  volumeClaimTemplates:
 #    - metadata:
 #        name: eth-devnet-data
