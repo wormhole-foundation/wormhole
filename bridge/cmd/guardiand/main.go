@@ -33,12 +33,29 @@ var (
 	logLevel = flag.String("loglevel", "info", "Logging level (debug, info, warn, error, dpanic, panic, fatal)")
 
 	unsafeDevMode = flag.Bool("unsafeDevMode", false, "Launch node in unsafe, deterministic devnet mode")
+
+	nodeName = flag.String("nodeName", "", "Node name to announce in gossip heartbeats (default: hostname)")
 )
 
 var (
 	rootCtx       context.Context
 	rootCtxCancel context.CancelFunc
 )
+
+func rootLoggerName() string {
+	if *unsafeDevMode {
+		// FIXME: add hostname to root logger for cleaner console output in multi-node development.
+		// The proper way is to change the output format to include the hostname.
+		hostname, err := os.Hostname()
+		if err != nil {
+			panic(err)
+		}
+
+		return fmt.Sprintf("%s-%s", "wormhole", hostname)
+	} else {
+		return "wormhole"
+	}
+}
 
 func main() {
 	flag.Parse()
@@ -51,15 +68,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	// FIXME: add hostname to root logger for cleaner console output in multi-node development.
-	// The proper way is to change the output format to include the hostname.
-	hostname, err := os.Hostname()
-	if err != nil {
-		panic(err)
-	}
-
 	// Our root logger. Convert directly to a regular Zap logger.
-	logger := ipfslog.Logger(fmt.Sprintf("%s-%s", "wormhole", hostname)).Desugar()
+	logger := ipfslog.Logger(rootLoggerName()).Desugar()
 
 	// Override the default go-log config, which uses a magic environment variable.
 	ipfslog.SetAllLoggers(lvl)
@@ -73,6 +83,13 @@ func main() {
 	}
 	if *ethRPC == "" {
 		logger.Fatal("Please specify -ethRPC")
+	}
+	if *nodeName == "" {
+		hostname, err := os.Hostname()
+		if err != nil {
+			panic(err)
+		}
+		*nodeName = hostname
 	}
 
 	ethContractAddr := eth_common.HexToAddress(*ethContract)

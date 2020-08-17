@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+package gossip.v1;
+
+option go_package = "proto/gossip/v1;gossipv1";
+
+message Heartbeat {
+  string node_name = 1;
+  int64 counter = 2;
+}

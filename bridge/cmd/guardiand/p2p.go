@@ -3,12 +3,12 @@ package main
 import (
 	"context"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
 	"github.com/libp2p/go-libp2p"
 	connmgr "github.com/libp2p/go-libp2p-connmgr"
+	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/protocol"
@@ -18,7 +18,6 @@ import (
 	libp2pquic "github.com/libp2p/go-libp2p-quic-transport"
 	swarm "github.com/libp2p/go-libp2p-swarm"
 	libp2ptls "github.com/libp2p/go-libp2p-tls"
-	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/multiformats/go-multiaddr"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
@@ -169,18 +168,13 @@ func p2p(ctx context.Context) (re error) {
 	logger.Info("Node has been started", zap.String("peer_id", h.ID().String()),
 		zap.String("addrs", fmt.Sprintf("%v", h.Addrs())))
 
-	hostname, err := os.Hostname()
-	if err != nil {
-		panic(err)
-	}
-
 	go func() {
 		ctr := int64(0)
 
 		for {
 			msg := gossipv1.Heartbeat{
-				Hostname: hostname,
-				Index:    ctr,
+				NodeName: *nodeName,
+				Counter:  ctr,
 			}
 
 			b, err := proto.Marshal(&msg)
@@ -205,6 +199,6 @@ func p2p(ctx context.Context) (re error) {
 			return fmt.Errorf("failed to receive pubsub message: %w", err)
 		}
 
-		logger.Info("received message", zap.String("data", string(msg.Data)), zap.String("from", msg.GetFrom().String()))
+		logger.Debug("received message", zap.String("data", string(msg.Data)), zap.String("from", msg.GetFrom().String()))
 	}
 }
