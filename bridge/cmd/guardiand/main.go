@@ -355,6 +355,8 @@ func p2p(ctx context.Context) error {
 		}
 	}()
 
+	supervisor.Signal(ctx, supervisor.SignalHealthy)
+
 	for {
 		msg, err := sub.Next(ctx)
 		if err != nil {
