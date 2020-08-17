@@ -26,8 +26,7 @@ import (
 	"github.com/certusone/wormhole/bridge/pkg/supervisor"
 )
 
-func p2p(ctx context.Context) error {
-
+func p2p(ctx context.Context) (re error) {
 	logger := supervisor.Logger(ctx)
 
 	priv := bootstrapNodePrivateKeyHack()
@@ -84,26 +83,18 @@ func p2p(ctx context.Context) error {
 			return idht, err
 		}),
 	)
-	defer func() {
-		fmt.Printf("h is %+v", h)
-		// FIXME: why can this be nil? We need to close the host to free the socket because apparently,
-		// closing the context is not enough, but sometimes h is nil when the function runs.
-		if h != nil {
-			h.Close()
-		}
-	}()
 
 	if err != nil {
 		panic(err)
 	}
 
+	defer func() {
+		// TODO: libp2p cannot be cleanly restarted (https://github.com/libp2p/go-libp2p/issues/992)
+		logger.Error("p2p routine has exited, cancelling root context...", zap.Error(re))
+		rootCtxCancel()
+	}()
+
 	logger.Info("Connecting to bootstrap peers")
-	// TODO(leo): use our own bootstrap peers rather than the IPFS ones so we have a dedicated network
-	//for _, addr := range dht.DefaultBootstrapPeers {
-	//	pi, _ := peer.AddrInfoFromP2pAddr(addr)
-	//	// We ignore errors as some bootstrap peers may be down and that is fine.
-	//	_ = h.Connect(ctx, *pi)
-	//}
 
 	// Add our own bootstrap nodes
 
@@ -145,9 +136,6 @@ func p2p(ctx context.Context) error {
 	} else {
 		logger.Info("Connected to bootstrap peers", zap.Int("num", successes))
 	}
-
-	// TODO(leo): crash if we couldn't connect to any bootstrap peers?
-	// (i.e. can we get stuck here if the other nodes have yet to come up?)
 
 	topic := fmt.Sprintf("%s/%s", *p2pNetworkID, "broadcast")
 

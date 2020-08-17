@@ -29,6 +29,11 @@ var (
 	logLevel = flag.String("loglevel", "info", "Logging level (debug, info, warn, error, dpanic, panic, fatal)")
 )
 
+var (
+	rootCtx       context.Context
+	rootCtxCancel context.CancelFunc
+)
+
 func main() {
 	flag.Parse()
 
@@ -67,33 +72,35 @@ func main() {
 	ethContractAddr := eth_common.HexToAddress(*ethContract)
 
 	// Node's main lifecycle context.
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	rootCtx, rootCtxCancel = context.WithCancel(context.Background())
+	defer rootCtxCancel()
 
 	// Ethereum lock event channel
 	ec := make(chan *common.ChainLock)
 
 	// Run supervisor.
-	supervisor.New(ctx, logger.Desugar(), func(ctx context.Context) error {
+	supervisor.New(rootCtx, logger.Desugar(), func(ctx context.Context) error {
 		if err := supervisor.Run(ctx, "p2p", p2p); err != nil {
 			return err
 		}
 
-		watcher := ethereum.NewEthBridgeWatcher(
-			*ethRPC, ethContractAddr, *ethConfirmations, ec)
-
-		if err := supervisor.Run(ctx, "eth", watcher.Run); err != nil {
+		if err := supervisor.Run(ctx, "eth",
+			ethereum.NewEthBridgeWatcher(*ethRPC, ethContractAddr, *ethConfirmations, ec).Run); err != nil {
 			return err
 		}
 
+		logger.Info("Started internal services")
 		supervisor.Signal(ctx, supervisor.SignalHealthy)
-		logger.Info("Created services")
 
-		select {}
-	}, supervisor.WithPropagatePanic)
-	// TODO(leo): only propagate panics in debug mode. We currently need this to properly reset p2p
-	// (it leaks its socket and we need to restart the process to fix it)
+		select {
+		case <-ctx.Done():
+			return nil
+		}
+	})
 
-	select {}
+	select {
+	case <-rootCtx.Done():
+		logger.Info("root context cancelled, exiting...")
+		// TODO: wait for things to shut down gracefully
+	}
 }
-
