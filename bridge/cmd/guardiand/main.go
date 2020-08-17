@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"crypto/ecdsa"
-	"encoding/hex"
 	"flag"
 	"fmt"
 	"os"
@@ -57,6 +56,28 @@ func rootLoggerName() string {
 	}
 }
 
+func loadGuardianKey(logger *zap.Logger) *ecdsa.PrivateKey {
+	var gk *ecdsa.PrivateKey
+
+	if *unsafeDevMode {
+		// Figure out our devnet index
+		idx, err := getDevnetIndex()
+		if err != nil {
+			logger.Fatal("Failed to parse hostname - are we running in devnet?")
+		}
+
+		// Generate guardian key
+		gk = deterministicKeyByIndex(crypto.S256(), uint64(idx))
+	} else {
+		panic("not implemented") // TODO
+	}
+
+	logger.Info("Loaded guardian key", zap.String(
+		"address", crypto.PubkeyToAddress(gk.PublicKey).String()))
+
+	return gk
+}
+
 func main() {
 	flag.Parse()
 
@@ -94,24 +115,8 @@ func main() {
 
 	ethContractAddr := eth_common.HexToAddress(*ethContract)
 
-	// Guardian key initialization
-	var gk *ecdsa.PrivateKey
-
-	if *unsafeDevMode {
-		// Figure out our devnet index
-		idx, err := getDevnetIndex()
-		if err != nil {
-			logger.Fatal("Failed to parse hostname - are we running in devnet?")
-		}
-
-		// Generate guardian key
-		gk = deterministicKeyByIndex(crypto.S256(), uint64(idx))
-	} else {
-		panic("not implemented") // TODO
-	}
-
-	logger.Info("Loaded guardian key", zap.String(
-		"address", crypto.PubkeyToAddress(gk.PublicKey).String()))
+	// Guardian key
+	gk := loadGuardianKey(logger)
 
 	// Node's main lifecycle context.
 	rootCtx, rootCtxCancel = context.WithCancel(context.Background())
@@ -131,21 +136,7 @@ func main() {
 			return err
 		}
 
-		if err := supervisor.Run(ctx, "lockups", func(ctx context.Context) error {
-			for {
-				select {
-				case <-ctx.Done():
-					return ctx.Err()
-				case k := <-ec:
-					supervisor.Logger(ctx).Info("lockup confirmed",
-						zap.String("source", hex.EncodeToString(k.SourceAddress[:])),
-						zap.String("target", hex.EncodeToString(k.TargetAddress[:])),
-						zap.String("amount", k.Amount.String()),
-						zap.String("hash", hex.EncodeToString(k.Hash())),
-					)
-				}
-			}
-		}); err != nil {
+		if err := supervisor.Run(ctx, "lockups", ethLockupProcessor(ec, gk)); err != nil {
 			return err
 		}
 
@@ -164,3 +155,4 @@ func main() {
 		// TODO: wait for things to shut down gracefully
 	}
 }
+
