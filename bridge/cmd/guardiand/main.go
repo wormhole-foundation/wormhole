@@ -96,7 +96,9 @@ func main() {
 	ipfslog.SetAllLoggers(lvl)
 
 	// Mute chatty subsystems.
-	ipfslog.SetLogLevel("swarm2", "error") // connection errors
+	if err := ipfslog.SetLogLevel("swarm2", "error"); err != nil {
+		panic(err)
+	} // connection errors
 
 	// Verify flags
 	if *nodeKeyPath == "" {
