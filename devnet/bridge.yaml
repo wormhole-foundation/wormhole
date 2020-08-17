@@ -46,7 +46,9 @@ spec:
             - -ethRPC
             - ws://eth-devnet:8545
             - -ethContract
-            - 0x5b1869D9A4C187F2EAa108f3062412ecf0526b24
+            - 0xCfEB869F69431e42cdB54A4F4f105C19C080A601
+            - -ethConfirmations
+            - '1'
           ports:
             - containerPort: 8999
               name: p2p
