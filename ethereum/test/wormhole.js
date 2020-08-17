@@ -53,11 +53,18 @@ contract("Wormhole", function () {
     it("should transfer tokens in on valid VAA", async function () {
         let bridge = await Wormhole.deployed();
 
+        // User locked an asset on the foreign chain and the VAA proving this is transferred in.
         await bridge.submitVAA("0x0100000000010092737a1504f3b3df8c93cb85c64a4860bb270e26026b6e37f095356a406f6af439c6b2e9775fa1c6669525f06edab033ba5d447308f4e3bdb33c0f361dc32ec3015f3700081087000000350102020104000000000000000000000000000000000000000000000000000000000000000000000000000000000090f8bf6a479f320ead074411a4b0e7944ea8c9c1010000000000000000000000000347ef34687bdc9f189e87a9200658d9c40e99880000000000000000000000000000000000000000000000004563918244f40000")
+
         // Expect user to have a balance of a new wrapped asset
+
+        // submitVAA has automatically created a new WrappedAsset for the foreign asset that has been transferred in.
+        // We know the address because deterministic network. A user would see the address in the submitVAA tx log.
         let wa = new WrappedAsset("0x79183957Be84C0F4dA451E534d5bA5BA3FB9c696");
         assert.equal(await wa.assetChain(), 1)
+        // Remote asset's contract address.
         assert.equal(await wa.assetAddress(), "0x0000000000000000000000000347ef34687bdc9f189e87a9200658d9c40e9988")
+        // Account that the user requests the transfer to.
         let balance = await wa.balanceOf("0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1");
         assert.equal(balance, "5000000000000000000");
     });

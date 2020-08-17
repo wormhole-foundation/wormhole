@@ -8,10 +8,11 @@ require (
 	github.com/cespare/cp v1.1.1 // indirect
 	github.com/deckarep/golang-set v1.7.1 // indirect
 	github.com/ethereum/go-ethereum v1.9.18
+	github.com/go-kit/kit v0.9.0 // indirect
+	github.com/go-logfmt/logfmt v0.4.0 // indirect
 	github.com/golang/mock v1.4.3 // indirect
 	github.com/golang/protobuf v1.4.2
 	github.com/ipfs/go-log/v2 v2.1.1
-	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
 	github.com/libp2p/go-libp2p v0.10.2
 	github.com/libp2p/go-libp2p-connmgr v0.2.4
 	github.com/libp2p/go-libp2p-core v0.6.1
@@ -26,7 +27,6 @@ require (
 	github.com/olekukonko/tablewriter v0.0.4 // indirect
 	github.com/onsi/gomega v1.10.1 // indirect
 	github.com/pborman/uuid v0.0.0-20180906182336-adf5a7427709 // indirect
-	github.com/prometheus/common v0.10.0
 	github.com/prometheus/tsdb v0.7.1 // indirect
 	github.com/rjeczalik/notify v0.9.2 // indirect
 	github.com/rs/cors v1.6.0 // indirect

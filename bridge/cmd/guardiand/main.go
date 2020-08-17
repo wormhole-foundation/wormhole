@@ -2,11 +2,13 @@ package main
 
 import (
 	"context"
+	"encoding/hex"
 	"flag"
 	"fmt"
 	"os"
 
 	eth_common "github.com/ethereum/go-ethereum/common"
+	"go.uber.org/zap"
 
 	"github.com/certusone/wormhole/bridge/pkg/common"
 	"github.com/certusone/wormhole/bridge/pkg/ethereum"
@@ -86,6 +88,23 @@ func main() {
 
 		if err := supervisor.Run(ctx, "eth",
 			ethereum.NewEthBridgeWatcher(*ethRPC, ethContractAddr, *ethConfirmations, ec).Run); err != nil {
+			return err
+		}
+
+		if err := supervisor.Run(ctx, "lockups", func(ctx context.Context) error {
+			for {
+				select {
+				case <-ctx.Done():
+					return ctx.Err()
+				case k := <-ec:
+					supervisor.Logger(ctx).Info("lockup confirmed",
+						zap.String("source", hex.EncodeToString(k.SourceAddress[:])),
+						zap.String("target", hex.EncodeToString(k.TargetAddress[:])),
+						zap.String("amount", k.Amount.String()),
+					)
+				}
+			}
+		}); err != nil {
 			return err
 		}
 

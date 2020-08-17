@@ -1,6 +1,8 @@
 // contracts/Wormhole.sol
 // SPDX-License-Identifier: Apache 2
 
+// TODO(hendrik): reentrancy protection for all methods
+
 pragma solidity ^0.6.0;
 pragma experimental ABIEncoderV2;
 

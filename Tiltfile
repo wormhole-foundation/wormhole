@@ -53,6 +53,16 @@ docker_build(
 
     # ignore local node_modules (in case they're present)
     ignore = ["./ethereum/node_modules"],
+
+    # sync external scripts for incremental development
+    # (everything else needs to be restarted from scratch for determinism)
+    #
+    # This relies on --update-mode=exec to work properly with a non-root user.
+    # https://github.com/tilt-dev/tilt/issues/3708
+    live_update = [
+        sync("./ethereum/src", "/home/node/app/src"),
+    ],
+
 )
 
 k8s_yaml("devnet/eth-devnet.yaml")

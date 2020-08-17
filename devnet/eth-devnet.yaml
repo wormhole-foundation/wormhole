@@ -48,4 +48,4 @@ spec:
           command:
             - /bin/sh
             - -c
-            - "npm run test && sleep infinity"
+            - "npm run migrate && sleep infinity"
