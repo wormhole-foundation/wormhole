@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache 2
 
 // TODO(hendrik): reentrancy protection for all methods
+// TODO(hendrik): switch-over feature
 
 pragma solidity ^0.6.0;
 pragma experimental ABIEncoderV2;
@@ -197,6 +198,7 @@ contract Wormhole {
         isWrappedAsset[asset] = true;
     }
 
+    // TODO(hendrik): nonce
     function lockAssets(
         address asset,
         uint256 amount,

@@ -141,6 +141,7 @@ func main() {
 						zap.String("source", hex.EncodeToString(k.SourceAddress[:])),
 						zap.String("target", hex.EncodeToString(k.TargetAddress[:])),
 						zap.String("amount", k.Amount.String()),
+						zap.String("hash", hex.EncodeToString(k.Hash())),
 					)
 				}
 			}

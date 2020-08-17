@@ -3,17 +3,19 @@ package ethereum
 import (
 	"context"
 	"fmt"
-	"github.com/certusone/wormhole/bridge/pkg/common"
-	"github.com/certusone/wormhole/bridge/pkg/ethereum/abi"
-	"github.com/certusone/wormhole/bridge/pkg/supervisor"
-	"github.com/certusone/wormhole/bridge/pkg/vaa"
+	"sync"
+	"time"
+
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	eth_common "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"go.uber.org/zap"
-	"sync"
-	"time"
+
+	"github.com/certusone/wormhole/bridge/pkg/common"
+	"github.com/certusone/wormhole/bridge/pkg/ethereum/abi"
+	"github.com/certusone/wormhole/bridge/pkg/supervisor"
+	"github.com/certusone/wormhole/bridge/pkg/vaa"
 )
 
 type (
@@ -30,8 +32,6 @@ type (
 
 	pendingLock struct {
 		lock *common.ChainLock
-
-		txHash eth_common.Hash
 		height uint64
 	}
 )
@@ -73,6 +73,7 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 				return
 			case ev := <-sink:
 				lock := &common.ChainLock{
+					TxHash:        ev.Raw.TxHash,
 					SourceAddress: ev.Sender,
 					TargetAddress: ev.Recipient,
 					SourceChain:   vaa.ChainIDEthereum,
@@ -87,7 +88,6 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 				e.pendingLocksGuard.Lock()
 				e.pendingLocks[ev.Raw.TxHash] = &pendingLock{
 					lock:   lock,
-					txHash: ev.Raw.TxHash,
 					height: ev.Raw.BlockNumber,
 				}
 				e.pendingLocksGuard.Unlock()
@@ -121,7 +121,7 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 
 					// Transaction was dropped and never picked up again
 					if pLock.height+4*e.minConfirmations <= blockNumberU {
-						logger.Debug("lockup timed out", zap.Stringer("tx", pLock.txHash),
+						logger.Debug("lockup timed out", zap.Stringer("tx", pLock.lock.TxHash),
 							zap.Stringer("number", ev.Number))
 						delete(e.pendingLocks, hash)
 						continue
@@ -129,7 +129,7 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 
 					// Transaction is now ready
 					if pLock.height+e.minConfirmations <= ev.Number.Uint64() {
-						logger.Debug("lockup confirmed", zap.Stringer("tx", pLock.txHash),
+						logger.Debug("lockup confirmed", zap.Stringer("tx", pLock.lock.TxHash),
 							zap.Stringer("number", ev.Number))
 						delete(e.pendingLocks, hash)
 						e.evChan <- pLock.lock
