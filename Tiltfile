@@ -53,15 +53,6 @@ docker_build(
 
     # ignore local node_modules (in case they're present)
     ignore = ["./ethereum/node_modules"],
-
-    # sync smart contract changes to running container for incremental development
-    # (rebuilding the container is way too slow, thanks npm!)
-    #
-    # This relies on --update-mode=exec to work properly with a non-root user.
-    # https://github.com/tilt-dev/tilt/issues/3708
-    live_update = [
-        sync("./ethereum", "/home/node/app"),
-    ],
 )
 
 k8s_yaml("devnet/eth-devnet.yaml")
