@@ -106,7 +106,7 @@ EOF
 . /etc/profile.d/k3s.sh
 
 # Set default namespace to wormhole to make it easier to reset without deleting the cluster.
-kubectl create namespace wormhole
+! kubectl create namespace wormhole
 use-namespace wormhole
 
 # Trick tilt into not pushing images by pretending to be docker-desktop
@@ -120,3 +120,7 @@ while ! k3s kubectl get all; do
   systemctl status k3s.service
   sleep 5
 done
+
+echo "Done! You have to reopen your shell or source the new profile scripts:"
+echo "  source /etc/profile.d/k3s.sh"
+echo "  source /etc/profile.d/buildkit.sh"
