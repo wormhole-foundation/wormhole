@@ -25,6 +25,8 @@ if [[ $EUID -ne 0 ]]; then
   exit 1
 fi
 
+# TODO: https://docs.docker.com/engine/security/userns-remap/
+
 if ! docker info; then
   echo "Please install and configure Docker first"
   exit 1
@@ -74,7 +76,7 @@ if rpm -q libselinux-utils; then
 fi
 
 # Install k3s with sane defaults and make it use the local Docker daemon.
-curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION="v1.18.6+k3s1" INSTALL_K3S_EXEC="server
+curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION="v1.18.8+k3s1" INSTALL_K3S_EXEC="server
   --disable-cloud-controller
   --kube-scheduler-arg=address=127.0.0.1
   --kube-controller-manager-arg=address=127.0.0.1
