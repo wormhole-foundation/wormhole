@@ -915,9 +915,10 @@ mod tests {
         state::{Account as SplAccount, Mint as SplMint},
     };
 
-    use crate::instruction::initialize;
+    use crate::instruction::{initialize, TransferOutPayloadRaw};
 
     use super::*;
+    use std::str::FromStr;
 
     const TOKEN_PROGRAM_ID: Pubkey = Pubkey::new_from_array([1u8; 32]);
 

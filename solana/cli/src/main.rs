@@ -114,35 +114,34 @@ fn command_lock_tokens(
         },
     };
 
-    let ix = transfer_out(
-        bridge,
-        &config.owner.pubkey(),
-        &account,
-        &token,
-        &TransferOutPayload {
-            amount: U256::from(amount),
-            chain_id: to_chain,
-            asset: asset_meta,
-            target,
-            nonce,
-        },
-    )?;
-    println!("custody: {}, ", ix.accounts[7].pubkey.to_string());
-
-    let mut instructions = vec![];
-    // Approve tokens
-    if asset_meta.chain == CHAIN_ID_SOLANA {
-        let ix_a = approve(
+    let mut instructions = vec![
+        approve(
             &spl_token::id(),
             &account,
-            &ix.accounts[4].pubkey,
+            &bridge_key,
             &config.owner.pubkey(),
             &[],
             amount,
-        )?;
-        instructions.push(ix_a);
-    }
-    instructions.push(ix);
+        )?,
+        transfer_out(
+            bridge,
+            &config.owner.pubkey(),
+            &account,
+            &token,
+            &TransferOutPayload {
+                amount: U256::from(amount),
+                chain_id: to_chain,
+                asset: asset_meta,
+                target,
+                nonce,
+            },
+        )?,
+    ];
+
+    println!(
+        "custody: {}, ",
+        instructions[1].accounts[8].pubkey.to_string()
+    );
 
     let mut transaction =
         Transaction::new_with_payer(&instructions.as_slice(), Some(&config.fee_payer.pubkey()));
@@ -865,7 +864,6 @@ fn main() {
                     .index(2)
                     .required(true)
                     .help("Address of the initial guardian"),
-
             ))
         .subcommand(
             SubCommand::with_name("lock")

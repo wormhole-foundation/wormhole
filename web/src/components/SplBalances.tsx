@@ -1,24 +1,10 @@
 import React, {useContext} from "react"
 import {BalanceInfo, SolanaTokenContext} from "../providers/SolanaTokenContext";
 import {Table} from "antd";
+import {CHAIN_ID_SOLANA} from "../utils/bridge";
 
 function SplBalances() {
     let t = useContext(SolanaTokenContext);
-
-    const dataSource = [
-        {
-            key: '1',
-            name: 'Mike',
-            age: 32,
-            address: '10 Downing Street',
-        },
-        {
-            key: '2',
-            name: 'John',
-            age: 42,
-            address: '10 Downing Street',
-        },
-    ];
 
     const columns = [
         {
@@ -35,6 +21,13 @@ function SplBalances() {
             title: 'Balance',
             key: 'balance',
             render: (n: any, v: BalanceInfo) => v.balance.div(Math.pow(10, v.decimals)).toString()
+        },
+        {
+            title: 'Wrapped',
+            key: 'wrapped',
+            render: (n: any, v: BalanceInfo) => {
+                return v.assetMeta.chain != CHAIN_ID_SOLANA ? `Wrapped (${v.assetMeta.chain})` : "Native"
+            }
         },
     ];
 

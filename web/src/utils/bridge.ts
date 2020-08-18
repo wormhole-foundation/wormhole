@@ -3,14 +3,14 @@ import {PublicKey, TransactionInstruction} from "@solana/web3.js";
 import BN from 'bn.js';
 import assert from "assert";
 // @ts-ignore
-import * as BufferLayout from 'buffer-layout';
+import * as BufferLayout from 'buffer-layout'
 
 export interface AssetMeta {
     chain: number,
     address: Buffer
 }
 
-const CHAIN_ID_SOLANA = 1;
+export const CHAIN_ID_SOLANA = 1;
 
 class SolanaBridge {
     connection: solanaWeb3.Connection;
@@ -35,9 +35,9 @@ class SolanaBridge {
         ]);
 
         // @ts-ignore
-        let configKey = (await solanaWeb3.PublicKey.findProgramAddress([Buffer.from("bridge"), this.programID.toBuffer()], this.programID))[0];
+        let configKey = await this.getConfigKey();
         let seeds: Array<Buffer> = [Buffer.from("wrapped"), configKey.toBuffer(), Buffer.of(asset.chain),
-            asset.address];
+            padBuffer(asset.address, 32)];
         // @ts-ignore
         let wrappedKey = (await solanaWeb3.PublicKey.findProgramAddress(seeds, this.programID))[0];
         // @ts-ignore
@@ -47,7 +47,7 @@ class SolanaBridge {
         dataLayout.encode(
             {
                 instruction: 5, // CreateWrapped instruction
-                address: asset.address,
+                address: padBuffer(asset.address, 32),
                 chain: asset.chain,
             },
             data,
@@ -72,7 +72,7 @@ class SolanaBridge {
         payer: PublicKey,
         tokenAccount: PublicKey,
         mint: PublicKey,
-        amount: number | u64,
+        amount: BN,
         targetChain: number,
         targetAddress: Buffer,
         asset: AssetMeta,
@@ -85,16 +85,17 @@ class SolanaBridge {
             BufferLayout.blob(32, 'assetAddress'),
             BufferLayout.u8('assetChain'),
             BufferLayout.blob(32, 'targetAddress'),
+            BufferLayout.seq(BufferLayout.u8(), 2),
             BufferLayout.u32('nonce'),
         ]);
 
         let nonceBuffer = Buffer.alloc(4);
-        nonceBuffer.writeUInt32BE(nonce, 0);
+        nonceBuffer.writeUInt32LE(nonce, 0);
 
         // @ts-ignore
-        let configKey = (await solanaWeb3.PublicKey.findProgramAddress([Buffer.from("bridge"), this.programID.toBuffer()], this.programID))[0];
-        let seeds: Array<Buffer> = [Buffer.from("transfer"), configKey.toBuffer(), Buffer.of(asset.chain),
-            asset.address, Buffer.of(targetChain), targetAddress, tokenAccount.toBuffer(),
+        let configKey = await this.getConfigKey();
+        let seeds: Array<Buffer> = [Buffer.from("transfer"), configKey.toBuffer(), new Buffer([asset.chain]),
+            padBuffer(asset.address, 32), new Buffer([targetChain]), padBuffer(targetAddress, 32), tokenAccount.toBuffer(),
             nonceBuffer,
         ];
         // @ts-ignore
@@ -104,17 +105,18 @@ class SolanaBridge {
         dataLayout.encode(
             {
                 instruction: 1, // TransferOut instruction
-                amount: amount,
+                amount: padBuffer(new Buffer(amount.toArray()), 32),
                 targetChain: targetChain,
-                assetAddress: asset.address,
+                assetAddress: padBuffer(asset.address, 32),
                 assetChain: asset.chain,
-                targetAddress: targetAddress,
+                targetAddress: padBuffer(targetAddress, 32),
                 nonce: nonce,
             },
             data,
         );
 
         const keys = [
+            {pubkey: this.programID, isSigner: false, isWritable: false},
             {pubkey: solanaWeb3.SystemProgram.programId, isSigner: false, isWritable: false},
             {pubkey: this.tokenProgram, isSigner: false, isWritable: false},
             {pubkey: tokenAccount, isSigner: false, isWritable: true},
@@ -122,15 +124,16 @@ class SolanaBridge {
 
             {pubkey: transferKey, isSigner: false, isWritable: true},
             {pubkey: mint, isSigner: false, isWritable: false},
-            {pubkey: payer, isSigner: true, isWritable: false},
+            {pubkey: payer, isSigner: true, isWritable: true},
         ];
 
-        //TODO replace chainID
         if (asset.chain == CHAIN_ID_SOLANA) {
             // @ts-ignore
             let custodyKey = (await solanaWeb3.PublicKey.findProgramAddress([Buffer.from("custody"), this.configKey.toBuffer(), mint.toBuffer()], this.programID))[0];
             keys.push({pubkey: custodyKey, isSigner: false, isWritable: true})
         }
+
+        console.log(data)
 
         return new TransactionInstruction({
             keys,
@@ -144,7 +147,7 @@ class SolanaBridge {
         mint: PublicKey,
     ): Promise<AssetMeta> {
         // @ts-ignore
-        let configKey = (await solanaWeb3.PublicKey.findProgramAddress([Buffer.from("bridge"), this.programID.toBuffer()], this.programID))[0];
+        let configKey = await this.getConfigKey();
         let seeds: Array<Buffer> = [Buffer.from("meta"), configKey.toBuffer(), mint.toBuffer()];
         // @ts-ignore
         let metaKey = (await solanaWeb3.PublicKey.findProgramAddress(seeds, this.programID))[0];
@@ -156,8 +159,8 @@ class SolanaBridge {
             }
         } else {
             const dataLayout = BufferLayout.struct([
-                BufferLayout.blob(32, 'assetAddress'),
                 BufferLayout.u8('assetChain'),
+                BufferLayout.blob(32, 'assetAddress'),
             ]);
             let wrappedMeta = dataLayout.decode(metaInfo?.data);
 
@@ -166,6 +169,11 @@ class SolanaBridge {
                 chain: wrappedMeta.assetChain
             }
         }
+    }
+
+    async getConfigKey(): Promise<PublicKey> {
+        // @ts-ignore
+        return (await solanaWeb3.PublicKey.findProgramAddress([Buffer.from("bridge")], this.programID))[0]
     }
 }
 
@@ -194,6 +202,46 @@ export class u64 extends BN {
      */
     static fromBuffer(buffer: Buffer): u64 {
         assert(buffer.length === 8, `Invalid buffer length: ${buffer.length}`);
+        return new BN(
+            // @ts-ignore
+            [...buffer]
+                .reverse()
+                .map(i => `00${i.toString(16)}`.slice(-2))
+                .join(''),
+            16,
+        );
+    }
+}
+
+function padBuffer(b: Buffer, len: number): Buffer {
+    const zeroPad = Buffer.alloc(len);
+    console.log(len - b.length)
+    b.copy(zeroPad, len - b.length);
+    return zeroPad;
+}
+
+export class u256 extends BN {
+    /**
+     * Convert to Buffer representation
+     */
+    toBuffer(): Buffer {
+        const a = super.toArray().reverse();
+        const b = Buffer.from(a);
+        if (b.length === 32) {
+            return b;
+        }
+        assert(b.length < 32, 'u256 too large');
+
+        const zeroPad = Buffer.alloc(32);
+        b.copy(zeroPad);
+        return zeroPad;
+    }
+
+    /**
+     * Construct a u256 from Buffer representation
+     */
+    static fromBuffer(buffer: number[]): u256 {
+        assert(buffer.length === 32, `Invalid buffer length: ${buffer.length}`);
         return new BN(
             // @ts-ignore
             [...buffer]

@@ -164,9 +164,6 @@ function Transfer() {
                         </Form>
                     </Space>
                 </Col>
-                <Col>
-                    <SplBalances/>
-                </Col>
             </Row>
 
         </>

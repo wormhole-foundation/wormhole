@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "@project-serum/sol-wallet-adapter": "^0.1.0",
+    "@solana/spl-token": "^0.0.5",
+    "@solana/web3.js": "^0.71.4",
     "@testing-library/jest-dom": "^4.2.4",
     "@testing-library/react": "^9.3.2",
     "@testing-library/user-event": "^7.1.2",
@@ -12,17 +15,15 @@
     "@types/react-dom": "^16.9.0",
     "@types/react-router-dom": "^5.1.5",
     "antd": "^4.4.1",
+    "buffer": "^5.6.0",
+    "buffer-layout": "^1.2.0",
     "ethers": "^4.0.44",
     "react": "^16.13.1",
     "react-dom": "^16.13.1",
+    "react-router-dom": "^5.2.0",
     "react-scripts": "3.4.1",
     "typescript": "~3.7.2",
-    "web3": "^1.2.9",
-    "@solana/web3.js": "^0.70.3",
-    "@solana/spl-token": "^0.0.5",
-    "buffer-layout": "^1.2.0",
-    "buffer": "^5.6.0",
-    "react-router-dom": "^5.2.0"
+    "web3": "^1.2.9"
   },
   "devDependencies": {
     "npm": "^6.14.6",

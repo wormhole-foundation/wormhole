@@ -41,10 +41,25 @@ pub struct InitializePayload {
 }
 
 #[repr(C)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct TransferOutPayload {
     /// amount to transfer
     pub amount: U256,
+    /// chain id to transfer to
+    pub chain_id: u8,
+    /// Information about the asset to be transferred
+    pub asset: AssetMeta,
+    /// address on the foreign chain to transfer to
+    pub target: ForeignAddress,
+    /// unique nonce of the transfer
+    pub nonce: u32,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, Debug)]
+pub struct TransferOutPayloadRaw {
+    /// amount to transfer
+    pub amount: [u8; 32],
     /// chain id to transfer to
     pub chain_id: u8,
     /// Information about the asset to be transferred
@@ -121,9 +136,16 @@ impl BridgeInstruction {
                 Initialize(*payload)
             }
             1 => {
-                let payload: &TransferOutPayload = unpack(input)?;
+                let payload: &TransferOutPayloadRaw = unpack(input)?;
+                let amount = U256::from_big_endian(&payload.amount);
 
-                TransferOut(*payload)
+                TransferOut(TransferOutPayload {
+                    amount,
+                    chain_id: payload.chain_id,
+                    asset: payload.asset,
+                    target: payload.target,
+                    nonce: payload.nonce,
+                })
             }
             2 => {
                 let payload: VAAData = input[1..].to_vec();
@@ -155,9 +177,19 @@ impl BridgeInstruction {
                 output[0] = 1;
                 #[allow(clippy::cast_ptr_alignment)]
                 let value = unsafe {
-                    &mut *(&mut output[size_of::<u8>()] as *mut u8 as *mut TransferOutPayload)
+                    &mut *(&mut output[size_of::<u8>()] as *mut u8 as *mut TransferOutPayloadRaw)
                 };
-                *value = payload;
+
+                let mut amount_bytes = [0u8; 32];
+                payload.amount.to_big_endian(&mut amount_bytes);
+
+                *value = TransferOutPayloadRaw {
+                    amount: amount_bytes,
+                    chain_id: payload.chain_id,
+                    asset: payload.asset,
+                    target: payload.target,
+                    nonce: payload.nonce,
+                };
             }
             Self::PostVAA(payload) => {
                 output[0] = 2;
@@ -334,7 +366,6 @@ pub fn post_vaa(
         }
         VAABody::Transfer(t) => {
             if t.source_chain == CHAIN_ID_SOLANA {
-                println!("kot");
                 // Solana (any) -> Ethereum (any)
                 let transfer_key = Bridge::derive_transfer_id(
                     program_id,
@@ -385,7 +416,7 @@ pub fn post_vaa(
 /// Unpacks a reference from a bytes buffer.
 pub fn unpack<T>(input: &[u8]) -> Result<&T, ProgramError> {
     if input.len() < size_of::<u8>() + size_of::<T>() {
-        return Err(ProgramError::InvalidAccountData);
+        return Err(ProgramError::InvalidInstructionData);
     }
     #[allow(clippy::cast_ptr_alignment)]
     let val: &T = unsafe { &*(&input[1] as *const u8 as *const T) };

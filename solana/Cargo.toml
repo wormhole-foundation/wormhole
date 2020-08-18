@@ -2,4 +2,4 @@
 members = ["agent", "bridge", "cli"]
 
 [patch.crates-io]
-solana-sdk = { git="https://github.com/jackcmay/solana", branch="cpi-create-account" }
+solana-sdk = { git="https://github.com/solana-labs/solana", branch="master" }
