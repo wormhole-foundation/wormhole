@@ -3,6 +3,7 @@
 
 // TODO(hendrik): reentrancy protection for all methods
 // TODO(hendrik): switch-over feature
+// TODO(hendrik): add call for retrying a lockup that the guardian set have refused to sign
 
 pragma solidity ^0.6.0;
 pragma experimental ABIEncoderV2;
@@ -68,6 +69,10 @@ contract Wormhole {
         vaa_expiry = _vaa_expiry;
 
         wrappedAssetMaster = wrapped_asset_master;
+    }
+
+    function getGuardianSet(uint32 idx) view public returns (GuardianSet memory gs) {
+        return guardian_sets[idx];
     }
 
     function submitVAA(
