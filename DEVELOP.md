@@ -35,4 +35,8 @@ Generate test ETH lockups once the cluster is up:
 
     kubectl exec -it -c tests eth-devnet-0 -- npx truffle exec src/send-lockups.js
 
+Adjust number of nodes in running cluster:
+
+    tilt args -- --num=2
+
 Once you're done, press Ctrl-C. Run `tilt down` to tear down the devnet.

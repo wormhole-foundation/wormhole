@@ -15,8 +15,8 @@ var (
 	GanacheClientDefaultAccountAddress = common.HexToAddress("0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1")
 
 	// Contracts (deployed by "truffle migrate" on a deterministic devnet)
-	WrappedAssetContractAddress = common.HexToAddress("0x79183957Be84C0F4dA451E534d5bA5BA3FB9c696")
-	BridgeContractAddress       = common.HexToAddress("0xCfEB869F69431e42cdB54A4F4f105C19C080A601")
+	WrappedAssetContractAddress = common.HexToAddress("0xe78A0F7E598Cc8b0Bb87894B0F60dD2a88d6a8Ab")
+	BridgeContractAddress       = common.HexToAddress("0x5b1869D9A4C187F2EAa108f3062412ecf0526b24")
 )
 
 const (

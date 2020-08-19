@@ -1,10 +1,8 @@
 package devnet
 
 import (
-	"bytes"
 	"crypto/ecdsa"
 	"crypto/elliptic"
-	"encoding/binary"
 	mathrand "math/rand"
 
 	"github.com/libp2p/go-libp2p-core/crypto"
@@ -12,12 +10,10 @@ import (
 
 // DeterministicEcdsaKeyByIndex generates a deterministic ecdsa.PrivateKey from a given index.
 func DeterministicEcdsaKeyByIndex(c elliptic.Curve, idx uint64) *ecdsa.PrivateKey {
-	buf := make([]byte, 200)
-	binary.LittleEndian.PutUint64(buf, idx)
-
-	worstRNG := bytes.NewBuffer(buf)
-
-	key, err := ecdsa.GenerateKey(c, bytes.NewReader(worstRNG.Bytes()))
+	// use 555 as offset to deterministically generate key 0 to match vaa-test such that
+	// we generate the same key.
+	r := mathrand.New(mathrand.NewSource(int64(555 + idx)))
+	key, err := ecdsa.GenerateKey(c, r)
 	if err != nil {
 		panic(err)
 	}

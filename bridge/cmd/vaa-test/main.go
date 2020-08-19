@@ -1,3 +1,4 @@
+// vaa-test generates VAA test fixtures used by the ETH devnet tests
 package main
 
 import (

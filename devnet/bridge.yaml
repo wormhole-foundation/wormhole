@@ -56,19 +56,19 @@ spec:
 #          volumeMounts:
 #            - name: guardian-data
 #              mountPath: /data
-#        - name: agent
-#          image: solana-agent
-#          command:
-#            - /usr/local/bin/agent
-#            - '11111111111111111111111111111111'  # TODO: program address
-#            - 'solana-devnet'  # host
-#            - '8899'  # rpc port
-#            - '8999'  # pubsub/ws port
-#            - '9000'  # grpc listen port
-#          ports:
-#            - containerPort: 9000
-#              name: grpc
-#              protocol: TCP
+        - name: agent
+          image: solana-agent
+          command:
+            - /usr/local/bin/agent
+            - '11111111111111111111111111111111'  # TODO: program address
+            - 'solana-devnet'  # host
+            - '8899'  # rpc port
+            - '8999'  # pubsub/ws port
+            - '9000'  # grpc listen port
+          ports:
+            - containerPort: 9000
+              name: grpc
+              protocol: TCP
 #  volumeClaimTemplates:
 #    - metadata:
 #        name: guardian-data
