@@ -3,8 +3,8 @@ IDEA additional info:
 Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
 <+>UTF-8
 ===================================================================
---- Cargo.lock	(revision d84010e4afe5f79c812ff7da349460dc690a8392)
-+++ Cargo.lock	(revision aa30fbafe08be98cfbea6772040d5f3b073877b0)
+--- Cargo.lock	(revision e2d66cf796484301668c2b45804e31610373a0e9)
++++ Cargo.lock	(revision 26c89c185550ea921e19b040b08abd6811607d86)
 @@ -274,12 +274,22 @@
  source = "registry+https://github.com/rust-lang/crates.io-index"
  checksum = "c0940dc441f31689269e10ac70eb1002a3a1d3ad1390e030043662eb7fe4688b"
@@ -211,8 +211,8 @@ IDEA additional info:
 Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
 <+>UTF-8
 ===================================================================
---- programs/bpf_loader/Cargo.toml	(revision d84010e4afe5f79c812ff7da349460dc690a8392)
-+++ programs/bpf_loader/Cargo.toml	(revision aa30fbafe08be98cfbea6772040d5f3b073877b0)
+--- programs/bpf_loader/Cargo.toml	(revision e2d66cf796484301668c2b45804e31610373a0e9)
++++ programs/bpf_loader/Cargo.toml	(revision 26c89c185550ea921e19b040b08abd6811607d86)
 @@ -17,6 +17,10 @@
  solana-sdk = { path = "../../sdk", version = "1.4.0" }
  solana_rbpf = "=0.1.28"
@@ -229,8 +229,8 @@ IDEA additional info:
 Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
 <+>UTF-8
 ===================================================================
---- programs/bpf_loader/src/crypto.rs	(revision aa30fbafe08be98cfbea6772040d5f3b073877b0)
-+++ programs/bpf_loader/src/crypto.rs	(revision aa30fbafe08be98cfbea6772040d5f3b073877b0)
+--- programs/bpf_loader/src/crypto.rs	(revision 26c89c185550ea921e19b040b08abd6811607d86)
++++ programs/bpf_loader/src/crypto.rs	(revision 26c89c185550ea921e19b040b08abd6811607d86)
 @@ -0,0 +1,171 @@
 +pub extern crate secp256k1;
 +
@@ -408,8 +408,8 @@ IDEA additional info:
 Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
 <+>UTF-8
 ===================================================================
---- programs/bpf_loader/src/lib.rs	(revision d84010e4afe5f79c812ff7da349460dc690a8392)
-+++ programs/bpf_loader/src/lib.rs	(revision aa30fbafe08be98cfbea6772040d5f3b073877b0)
+--- programs/bpf_loader/src/lib.rs	(revision e2d66cf796484301668c2b45804e31610373a0e9)
++++ programs/bpf_loader/src/lib.rs	(revision 2c10215589be61459a5f22c2fff7f7575705f667)
 @@ -4,6 +4,10 @@
  pub mod deprecated;
  pub mod serialization;
@@ -421,13 +421,22 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
 
  use crate::{
      bpf_verifier::VerifierError,
+@@ -65,7 +69,7 @@
+ ) -> Result<(EbpfVm<'a, BPFError>, MemoryRegion), EbpfError<BPFError>> {
+     let mut vm = EbpfVm::new(None)?;
+     vm.set_verifier(bpf_verifier::check)?;
+-    vm.set_max_instruction_count(100_000)?;
++    vm.set_max_instruction_count(1_000_000)?;
+     vm.set_elf(&prog)?;
+
+     let heap_region = syscalls::register_syscalls(&mut vm, parameter_accounts, invoke_context)?;
 Index: programs/bpf_loader/src/syscalls.rs
 IDEA additional info:
 Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
 <+>UTF-8
 ===================================================================
---- programs/bpf_loader/src/syscalls.rs	(revision d84010e4afe5f79c812ff7da349460dc690a8392)
-+++ programs/bpf_loader/src/syscalls.rs	(revision aa30fbafe08be98cfbea6772040d5f3b073877b0)
+--- programs/bpf_loader/src/syscalls.rs	(revision e2d66cf796484301668c2b45804e31610373a0e9)
++++ programs/bpf_loader/src/syscalls.rs	(revision 26c89c185550ea921e19b040b08abd6811607d86)
 @@ -1,10 +1,23 @@
 -use crate::{alloc, BPFError};
 -use alloc::Alloc;
@@ -505,28 +514,24 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
  /// Default program heap size, allocators
  /// are expected to enforce this
  const DEFAULT_HEAP_SIZE: usize = 32 * 1024;
-@@ -114,6 +120,20 @@
-             invoke_context: invoke_context.clone(),
-         }),
-     )?;
-+
+@@ -114,6 +120,16 @@
+         )?;
+     }
+
 +    // Signature verification
 +    vm.register_syscall_with_context_ex(
 +        "sol_verify_ethschnorr",
-+        Box::new(SyscallSchorrify {
-+            invoke_context: invoke_context.clone(),
-+        }),
++        Box::new(SyscallSchorrify {}),
 +    )?;
 +    vm.register_syscall_with_context_ex(
 +        "sol_ecrecover",
-+        Box::new(SyscallEcrecover {
-+            invoke_context: invoke_context.clone(),
-+        }),
++        Box::new(SyscallEcrecover {}),
 +    )?;
-
++
      // Memory allocator
      let heap = vec![0_u8; DEFAULT_HEAP_SIZE];
-@@ -256,6 +276,7 @@
+     let heap_region = MemoryRegion::new_from_slice(&heap, MM_HEAP_START);
+@@ -255,6 +271,7 @@
  pub struct SyscallLog {
      logger: Rc<RefCell<dyn Logger>>,
  }
@@ -534,7 +539,7 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
  impl SyscallObject<BPFError> for SyscallLog {
      fn call(
          &mut self,
-@@ -285,6 +306,7 @@
+@@ -284,6 +301,7 @@
  pub struct SyscallLogU64 {
      logger: Rc<RefCell<dyn Logger>>,
  }
@@ -542,7 +547,7 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
  impl SyscallObject<BPFError> for SyscallLogU64 {
      fn call(
          &mut self,
-@@ -319,6 +341,7 @@
+@@ -318,6 +336,7 @@
  pub struct SyscallSolAllocFree {
      allocator: BPFAllocator,
  }
@@ -550,24 +555,15 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
  impl SyscallObject<BPFError> for SyscallSolAllocFree {
      fn call(
          &mut self,
-@@ -373,6 +396,105 @@
+@@ -380,6 +399,87 @@
      Ok(0)
  }
 
 +/// Verify a ETH optimized Schnorr Signature
-+pub struct SyscallEcrecover<'a> {
-+    invoke_context: Rc<RefCell<&'a mut dyn InvokeContext>>,
++pub struct SyscallEcrecover {
 +}
 +
-+impl<'a> SyscallEcrecover<'a> {
-+    fn get_context_mut(&self) -> Result<RefMut<&'a mut dyn InvokeContext>, EbpfError<BPFError>> {
-+        self.invoke_context
-+            .try_borrow_mut()
-+            .map_err(|_| SyscallError::InvokeContextBorrowFailed.into())
-+    }
-+}
-+
-+impl<'a> SyscallObject<BPFError> for SyscallEcrecover<'a> {
++impl SyscallObject<BPFError> for SyscallEcrecover {
 +    fn call(
 +        &mut self,
 +        input: u64,
@@ -606,7 +602,7 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
 +                                 &recovery_id) {
 +            Ok(v) => {
 +                let mut addr = [0u8; 20];
-+                addr.copy_from_slice(&sha3::Keccak256::digest(&v.serialize())[12..]);
++                addr.copy_from_slice(&sha3::Keccak256::digest(&v.serialize()[1..])[12..]);
 +                output.address = addr;
 +            }
 +            Err(_) => {
@@ -619,19 +615,10 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
 +}
 +
 +/// Verify a ETH optimized Schnorr Signature
-+pub struct SyscallSchorrify<'a> {
-+    invoke_context: Rc<RefCell<&'a mut dyn InvokeContext>>,
++pub struct SyscallSchorrify {
 +}
 +
-+impl<'a> SyscallSchorrify<'a> {
-+    fn get_context_mut(&self) -> Result<RefMut<&'a mut dyn InvokeContext>, EbpfError<BPFError>> {
-+        self.invoke_context
-+            .try_borrow_mut()
-+            .map_err(|_| SyscallError::InvokeContextBorrowFailed.into())
-+    }
-+}
-+
-+impl<'a> SyscallObject<BPFError> for SyscallSchorrify<'a> {
++impl SyscallObject<BPFError> for SyscallSchorrify {
 +    fn call(
 +        &mut self,
 +        addr: u64,
@@ -656,7 +643,7 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
  // Cross-program invocation syscalls
 
  struct AccountReferences<'a> {
-@@ -415,6 +537,7 @@
+@@ -422,6 +522,7 @@
      callers_keyed_accounts: &'a [KeyedAccount<'a>],
      invoke_context: Rc<RefCell<&'a mut dyn InvokeContext>>,
  }
@@ -664,7 +651,7 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
  impl<'a> SyscallProcessInstruction<'a> for SyscallProcessInstructionRust<'a> {
      fn get_context_mut(&self) -> Result<RefMut<&'a mut dyn InvokeContext>, EbpfError<BPFError>> {
          self.invoke_context
-@@ -436,7 +559,7 @@
+@@ -443,7 +544,7 @@
              ix.accounts.len(),
              ro_regions
          )?
@@ -673,7 +660,7 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
          let data = translate_slice!(u8, ix.data.as_ptr(), ix.data.len(), ro_regions)?.to_vec();
          Ok(Instruction {
              program_id: ix.program_id,
-@@ -551,6 +674,7 @@
+@@ -558,6 +659,7 @@
          }
      }
  }
@@ -681,7 +668,7 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
  impl<'a> SyscallObject<BPFError> for SyscallProcessInstructionRust<'a> {
      fn call(
          &mut self,
-@@ -626,6 +750,7 @@
+@@ -633,6 +735,7 @@
      callers_keyed_accounts: &'a [KeyedAccount<'a>],
      invoke_context: Rc<RefCell<&'a mut dyn InvokeContext>>,
  }
@@ -689,7 +676,7 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
  impl<'a> SyscallProcessInstruction<'a> for SyscallProcessSolInstructionC<'a> {
      fn get_context_mut(&self) -> Result<RefMut<&'a mut dyn InvokeContext>, EbpfError<BPFError>> {
          self.invoke_context
-@@ -763,6 +888,7 @@
+@@ -770,6 +873,7 @@
          }
      }
  }
@@ -697,7 +684,7 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
  impl<'a> SyscallObject<BPFError> for SyscallProcessSolInstructionC<'a> {
      fn call(
          &mut self,
-@@ -814,10 +940,10 @@
+@@ -821,10 +925,10 @@
          }
 
          if account.is_signer && // If message indicates account is signed
@@ -712,7 +699,7 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
              return Err(SyscallError::PrivilegeEscalation.into());
          }
      }
-@@ -1034,7 +1160,7 @@
+@@ -1042,7 +1146,7 @@
                  assert_eq!(string, "Gaggablaghblagh!");
                  Ok(42)
              })
@@ -721,7 +708,7 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
          );
      }
 
-@@ -1066,7 +1192,7 @@
+@@ -1074,7 +1178,7 @@
              &[ro_region],
              &[rw_region],
          )
