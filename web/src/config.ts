@@ -1,7 +1,9 @@
+import {PublicKey} from "@solana/web3.js";
+
 const BRIDGE_ADDRESS = "0xac3eB48829fFC3C37437ce4459cE63F1F4d4E0b4";
 
-const SOLANA_BRIDGE_PROGRAM = "9Y7DSe9VGMZPmev93o2JhaAD25ZwQ7d8pPswe9LzL7Eb";
-const TOKEN_PROGRAM = "TokenSVp5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o";
+const SOLANA_BRIDGE_PROGRAM = new PublicKey("C2MtMo3upLePs5Sumkw61aBgcgpCw9Q84KyJMovLbXu6");
+const TOKEN_PROGRAM = new PublicKey("TokenSVp5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o");
 
 
 export {

@@ -40,8 +40,7 @@ export const SolanaTokenProvider: FunctionComponent = ({children}) => {
             // @ts-ignore
             setLoading(true)
             let getAccounts = async () => {
-                try {
-                    let res: RpcResponseAndContext<Array<{ pubkey: PublicKey; account: AccountInfo<ParsedAccountData> }>> = await c.getParsedTokenAccountsByOwner(k.publicKey, {programId: new PublicKey(TOKEN_PROGRAM)}, "single")
+                    let res: RpcResponseAndContext<Array<{ pubkey: PublicKey; account: AccountInfo<ParsedAccountData> }>> = await c.getParsedTokenAccountsByOwner(k.publicKey, {programId: TOKEN_PROGRAM}, "single")
                     let meta: AssetMeta[] = [];
                     for (let acc of res.value) {
                         let am = await b?.fetchAssetMeta(new PublicKey(acc.account.data.parsed.info.mint))
@@ -61,10 +60,7 @@ export const SolanaTokenProvider: FunctionComponent = ({children}) => {
                     })
                     setBalances(balances)
                     setLoading(false)
-                } catch (e) {
-                    setLoading(false)
-                    message.error("Failed to load token accounts")
-                }
+
             }
             getAccounts();
         },

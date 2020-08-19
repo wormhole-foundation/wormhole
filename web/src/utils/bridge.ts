@@ -4,6 +4,8 @@ import BN from 'bn.js';
 import assert from "assert";
 // @ts-ignore
 import * as BufferLayout from 'buffer-layout'
+import {Token} from "@solana/spl-token";
+import {TOKEN_PROGRAM} from "../config";
 
 export interface AssetMeta {
     chain: number,
@@ -25,7 +27,6 @@ class SolanaBridge {
 
     async createWrappedAssetInstruction(
         payer: PublicKey,
-        amount: number | u64,
         asset: AssetMeta,
     ): Promise<TransactionInstruction> {
         const dataLayout = BufferLayout.struct([
@@ -36,12 +37,12 @@ class SolanaBridge {
 
         // @ts-ignore
         let configKey = await this.getConfigKey();
-        let seeds: Array<Buffer> = [Buffer.from("wrapped"), configKey.toBuffer(), Buffer.of(asset.chain),
+        let seeds: Array<Buffer> = [Buffer.from("wrapped"), configKey.toBuffer(), Buffer.from([asset.chain]),
             padBuffer(asset.address, 32)];
         // @ts-ignore
         let wrappedKey = (await solanaWeb3.PublicKey.findProgramAddress(seeds, this.programID))[0];
         // @ts-ignore
-        let wrappedMetaKey = (await solanaWeb3.PublicKey.findProgramAddress([Buffer.from("wrapped"), this.configKey.toBuffer(), wrappedKey.toBuffer()], this.programID))[0];
+        let wrappedMetaKey = (await solanaWeb3.PublicKey.findProgramAddress([Buffer.from("meta"), configKey.toBuffer(), wrappedKey.toBuffer()], this.programID))[0];
 
         const data = Buffer.alloc(dataLayout.span);
         dataLayout.encode(
@@ -54,6 +55,7 @@ class SolanaBridge {
         );
 
         const keys = [
+            {pubkey: this.programID, isSigner: false, isWritable: false},
             {pubkey: solanaWeb3.SystemProgram.programId, isSigner: false, isWritable: false},
             {pubkey: this.tokenProgram, isSigner: false, isWritable: false},
             {pubkey: configKey, isSigner: false, isWritable: false},
@@ -133,7 +135,6 @@ class SolanaBridge {
             keys.push({pubkey: custodyKey, isSigner: false, isWritable: true})
         }
 
-        console.log(data)
 
         return new TransactionInstruction({
             keys,
@@ -171,9 +172,60 @@ class SolanaBridge {
         }
     }
 
+    AccountLayout = BufferLayout.struct([publicKey('mint'), publicKey('owner'), uint64('amount'), BufferLayout.u32('option'), publicKey('delegate'), BufferLayout.u8('is_initialized'), BufferLayout.u8('is_native'), BufferLayout.u16('padding'), uint64('delegatedAmount')]);
+
+    async createWrappedAssetAndAccountInstructions(owner: PublicKey, mint: PublicKey): Promise<[TransactionInstruction[], solanaWeb3.Account]> {
+        const newAccount = new solanaWeb3.Account();
+
+        // @ts-ignore
+        const balanceNeeded = await Token.getMinBalanceRentForExemptAccount(this.connection);
+        let transaction = solanaWeb3.SystemProgram.createAccount({
+            fromPubkey: owner,
+            newAccountPubkey: newAccount.publicKey,
+            lamports: balanceNeeded,
+            space: this.AccountLayout.span,
+            programId: TOKEN_PROGRAM,
+        }); // create the new account
+
+        const keys = [{
+            pubkey: newAccount.publicKey,
+            isSigner: false,
+            isWritable: true
+        }, {
+            pubkey: mint,
+            isSigner: false,
+            isWritable: false
+        }, {
+            pubkey: owner,
+            isSigner: false,
+            isWritable: false
+        }];
+        const dataLayout = BufferLayout.struct([BufferLayout.u8('instruction')]);
+        const data = Buffer.alloc(dataLayout.span);
+        dataLayout.encode({
+            instruction: 1 // InitializeAccount instruction
+
+        }, data);
+        let ix_init = {
+            keys,
+            programId: TOKEN_PROGRAM,
+            data
+        }
+
+        return [[transaction.instructions[0], ix_init], newAccount]
+    }
+
     async getConfigKey(): Promise<PublicKey> {
         // @ts-ignore
         return (await solanaWeb3.PublicKey.findProgramAddress([Buffer.from("bridge")], this.programID))[0]
+    }
+
+    async getWrappedAssetMint(asset: AssetMeta): Promise<PublicKey> {
+        let configKey = await this.getConfigKey();
+        let seeds: Array<Buffer> = [Buffer.from("wrapped"), configKey.toBuffer(), Buffer.of(asset.chain),
+            padBuffer(asset.address, 32)];
+        // @ts-ignore
+        return (await solanaWeb3.PublicKey.findProgramAddress(seeds, this.programID))[0];
     }
 }
 
@@ -215,7 +267,6 @@ export class u64 extends BN {
 
 function padBuffer(b: Buffer, len: number): Buffer {
     const zeroPad = Buffer.alloc(len);
-    console.log(len - b.length)
     b.copy(zeroPad, len - b.length);
     return zeroPad;
 }

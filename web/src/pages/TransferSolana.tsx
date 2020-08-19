@@ -3,7 +3,7 @@ import ClientContext from "../providers/ClientContext";
 import * as solanaWeb3 from '@solana/web3.js';
 import {PublicKey, Transaction} from '@solana/web3.js';
 import * as spl from '@solana/spl-token';
-import {Button, Col, Form, Input, InputNumber, message, Row, Select, Space} from "antd";
+import {Button, Col, Form, Input, InputNumber, message, Row, Select} from "antd";
 import {BigNumber} from "ethers/utils";
 import SplBalances from "../components/SplBalances";
 import {SlotContext} from "../providers/SlotContext";
@@ -60,86 +60,84 @@ function TransferSolana() {
         <>
             <p>Slot: {slot}</p>
             <Row>
-                <Col>
-                    <Space>
-                        <Form onFinish={(values) => {
-                            let recipient = new Buffer(values["recipient"].slice(2), "hex");
+                <Col span={12}>
+                    <Form onFinish={(values) => {
+                        let recipient = new Buffer(values["recipient"].slice(2), "hex");
 
-                            let transferAmount = new BN(values["amount"]).mul(new BN(10).pow(new BN(coinInfo.decimals)));
-                            let fromAccount = new PublicKey(values["address"])
+                        let transferAmount = new BN(values["amount"]).mul(new BN(10).pow(new BN(coinInfo.decimals)));
+                        let fromAccount = new PublicKey(values["address"])
 
-                            let send = async () => {
-                                message.loading({content: "Transferring tokens...", key: "transfer"}, 1000)
+                        let send = async () => {
+                            message.loading({content: "Transferring tokens...", key: "transfer"}, 1000)
 
-                                let lock_ix = await bridge.createLockAssetInstruction(k.publicKey, fromAccount, new PublicKey(coinInfo.mint), transferAmount, values["target_chain"], recipient,
-                                    {
-                                        chain: coinInfo.chainID,
-                                        address: coinInfo.wrappedAddress
-                                    }, 2);
-                                let ix = spl.Token.createApproveInstruction(new PublicKey(TOKEN_PROGRAM), fromAccount, await bridge.getConfigKey(), k.publicKey, [], transferAmount.toNumber())
+                            let lock_ix = await bridge.createLockAssetInstruction(k.publicKey, fromAccount, new PublicKey(coinInfo.mint), transferAmount, values["target_chain"], recipient,
+                                {
+                                    chain: coinInfo.chainID,
+                                    address: coinInfo.wrappedAddress
+                                }, 2);
+                            let ix = spl.Token.createApproveInstruction(TOKEN_PROGRAM, fromAccount, await bridge.getConfigKey(), k.publicKey, [], transferAmount.toNumber())
 
-                                let recentHash = await c.getRecentBlockhash();
-                                let tx = new Transaction();
-                                tx.recentBlockhash = recentHash.blockhash
-                                tx.add(ix)
-                                tx.add(lock_ix)
-                                tx.sign(k)
-                                try {
-                                    await c.sendTransaction(tx, [k])
-                                    message.success({content: "Transfer succeeded", key: "transfer"})
-                                } catch (e) {
-                                    message.error({content: "Transfer failed", key: "transfer"})
+                            let recentHash = await c.getRecentBlockhash();
+                            let tx = new Transaction();
+                            tx.recentBlockhash = recentHash.blockhash
+                            tx.add(ix)
+                            tx.add(lock_ix)
+                            tx.sign(k)
+                            try {
+                                await c.sendTransaction(tx, [k])
+                                message.success({content: "Transfer succeeded", key: "transfer"})
+                            } catch (e) {
+                                message.error({content: "Transfer failed", key: "transfer"})
+                            }
+                        }
+                        send()
+                    }}>
+                        <Form.Item name="address" validateStatus={addressValid ? "success" : "error"}>
+                            <Input
+                                addonAfter={`Balance: ${coinInfo.balance.div(new BigNumber(Math.pow(10, coinInfo.decimals)))}`}
+                                name="address"
+                                placeholder={"Token account Pubkey"}
+                                onBlur={(v) => {
+                                    setAddress(v.target.value)
+                                }}/>
+                        </Form.Item>
+                        <Form.Item name="amount" rules={[{
+                            required: true, validator: (rule, value, callback) => {
+                                let big = new BigNumber(value).mul(new BigNumber(10).pow(coinInfo.decimals));
+                                callback(big.lte(coinInfo.balance) ? undefined : "Amount exceeds balance")
+                            }
+                        }]}>
+                            <InputNumber name={"amount"} placeholder={"Amount"} type={"number"} onChange={value => {
+                                // @ts-ignore
+                                setAmount(value || 0)
+                            }}/>
+                        </Form.Item>
+                        <Form.Item name="target_chain"
+                                   rules={[{required: true, message: "Please choose a target chain"}]}>
+                            <Select placeholder="Target Chain">
+                                <Select.Option value={2}>
+                                    Ethereum
+                                </Select.Option>
+                            </Select>
+                        </Form.Item>
+                        <Form.Item name="recipient" rules={[{
+                            required: true,
+                            validator: (rule, value, callback) => {
+                                if (value.length !== 42 || value.indexOf("0x") != 0) {
+                                    callback("Invalid address")
+                                } else {
+                                    callback()
                                 }
                             }
-                            send()
-                        }}>
-                            <Form.Item name="address" validateStatus={addressValid ? "success" : "error"}>
-                                <Input
-                                    addonAfter={`Balance: ${coinInfo.balance.div(new BigNumber(Math.pow(10, coinInfo.decimals)))}`}
-                                    name="address"
-                                    placeholder={"Token account Pubkey"}
-                                    onBlur={(v) => {
-                                        setAddress(v.target.value)
-                                    }}/>
-                            </Form.Item>
-                            <Form.Item name="amount" rules={[{
-                                required: true, validator: (rule, value, callback) => {
-                                    let big = new BigNumber(value).mul(new BigNumber(10).pow(coinInfo.decimals));
-                                    callback(big.lte(coinInfo.balance) ? undefined : "Amount exceeds balance")
-                                }
-                            }]}>
-                                <InputNumber name={"amount"} placeholder={"Amount"} type={"number"} onChange={value => {
-                                    // @ts-ignore
-                                    setAmount(value || 0)
-                                }}/>
-                            </Form.Item>
-                            <Form.Item name="target_chain"
-                                       rules={[{required: true, message: "Please choose a target chain"}]}>
-                                <Select placeholder="Target Chain">
-                                    <Select.Option value={2}>
-                                        Ethereum
-                                    </Select.Option>
-                                </Select>
-                            </Form.Item>
-                            <Form.Item name="recipient" rules={[{
-                                required: true,
-                                validator: (rule, value, callback) => {
-                                    if (value.length !== 42 || value.indexOf("0x") != 0) {
-                                        callback("Invalid address")
-                                    } else {
-                                        callback()
-                                    }
-                                }
-                            },]}>
-                                <Input name="recipient" placeholder={"Address of the recipient"}/>
-                            </Form.Item>
-                            <Form.Item>
-                                <Button type="primary" htmlType="submit">
-                                    Transfer
-                                </Button>
-                            </Form.Item>
-                        </Form>
-                    </Space>
+                        },]}>
+                            <Input name="recipient" placeholder={"Address of the recipient"}/>
+                        </Form.Item>
+                        <Form.Item>
+                            <Button type="primary" htmlType="submit">
+                                Transfer
+                            </Button>
+                        </Form.Item>
+                    </Form>
                 </Col>
                 <Col>
                     <SplBalances/>
