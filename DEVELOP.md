@@ -31,6 +31,10 @@ Get logs for single guardian node:
 
     kubectl logs guardian-0
 
+Restart a specific pod:
+
+    kubectl delete pod guardian-0
+
 Generate test ETH lockups once the cluster is up:
 
     kubectl exec -it -c tests eth-devnet-0 -- npx truffle exec src/send-lockups.js
@@ -38,5 +42,8 @@ Generate test ETH lockups once the cluster is up:
 Adjust number of nodes in running cluster:
 
     tilt args -- --num=2
+    
+(this is only useful if you want to test scenarios where the number
+of nodes diverges from the guardian set - otherwise, `tilt down` and restart the cluster)
 
 Once you're done, press Ctrl-C. Run `tilt down` to tear down the devnet.
