@@ -19,6 +19,20 @@ This should work on Linux, MacOS and possibly even Windows.
 After installing all dependencies, just run `tilt up --update-mode=exec`. 
 Whenever you modify a file, the devnet is automatically rebuilt and a rolling update is done.
 
-Watch pod status in your cluster: `kubectl get pod -A -w`.
+Specify number of guardians nodes to run (default is five):
+
+    tilt up --update-mode=exec -- --num=10
+
+Watch pod status in your cluster:
+
+    kubectl get pod -A -w
+    
+Get logs for single guardian node:
+
+    kubectl logs guardian-0
+
+Generate test ETH lockups once the cluster is up:
+
+    kubectl exec -it -c tests eth-devnet-0 -- npx truffle exec src/send-lockups.js
 
 Once you're done, press Ctrl-C. Run `tilt down` to tear down the devnet.

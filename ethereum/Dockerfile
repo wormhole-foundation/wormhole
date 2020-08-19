@@ -11,6 +11,7 @@ RUN mkdir -p /home/node/.npm
 WORKDIR /home/node/app
 
 # Only invalidate the npm install step if package.json changed
+# TODO: build with "npm ci" for determinism
 ADD --chown=node:node package.json .
 
 # We want to cache node_modules *and* incorporate it into the final image.

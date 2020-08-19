@@ -3,17 +3,19 @@ package main
 import (
 	"crypto/ecdsa"
 	"encoding/hex"
-	"github.com/certusone/wormhole/bridge/pkg/vaa"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 	"math/big"
 	"math/rand"
 	"time"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
+
+	"github.com/certusone/wormhole/bridge/pkg/devnet"
+	"github.com/certusone/wormhole/bridge/pkg/vaa"
 )
 
-
 func main() {
-	addr := common.HexToAddress("0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1")
+	addr := devnet.GanacheClientDefaultAccountAddress
 	addrP := common.LeftPadBytes(addr[:], 32)
 	addrTarget := vaa.Address{}
 	copy(addrTarget[:], addrP)
@@ -83,11 +85,11 @@ func main() {
 	//	},
 	//}
 
-	AddSignature(v,key,0)
-	AddSignature(v,key2,1)
-	AddSignature(v,key3,2)
-	AddSignature(v,key5,4)
-	AddSignature(v,key6,5)
+	v.AddSignature(key, 0)
+	v.AddSignature(key2, 1)
+	v.AddSignature(key3, 2)
+	v.AddSignature(key5, 4)
+	v.AddSignature(key6, 5)
 	sigAddr := crypto.PubkeyToAddress(key.PublicKey)
 	println(sigAddr.String())
 	println(crypto.PubkeyToAddress(key2.PublicKey).String())
@@ -96,28 +98,10 @@ func main() {
 	println(crypto.PubkeyToAddress(key5.PublicKey).String())
 	println(crypto.PubkeyToAddress(key6.PublicKey).String())
 
-	vData, err := v.Serialize()
+	vData, err := v.Marshal()
 	if err != nil {
 		panic(err)
 	}
 
 	println(hex.EncodeToString(vData))
-}
-
-func AddSignature(v *vaa.VAA, key *ecdsa.PrivateKey,index uint8){
-	data, err := v.SigningMsg()
-	if err != nil {
-		panic(err)
-	}
-	sig, err := crypto.Sign(data.Bytes(), key)
-	if err != nil {
-		panic(err)
-	}
-	sigData := [65]byte{}
-	copy(sigData[:], sig)
-
-	v.Signatures = append(v.Signatures, &vaa.Signature{
-		Index:     index,
-		Signature: sigData,
-	})
 }

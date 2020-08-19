@@ -5,14 +5,19 @@ import (
 	"crypto/ecdsa"
 	"flag"
 	"fmt"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 
 	eth_common "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/libp2p/go-libp2p-core/peer"
 	"go.uber.org/zap"
 
 	"github.com/certusone/wormhole/bridge/pkg/common"
+	"github.com/certusone/wormhole/bridge/pkg/devnet"
 	"github.com/certusone/wormhole/bridge/pkg/ethereum"
+	gossipv1 "github.com/certusone/wormhole/bridge/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/bridge/pkg/supervisor"
 
 	ipfslog "github.com/ipfs/go-log/v2"
@@ -29,17 +34,34 @@ var (
 	ethContract      = flag.String("ethContract", "", "Ethereum bridge contract address")
 	ethConfirmations = flag.Uint64("ethConfirmations", 15, "Ethereum confirmation count requirement")
 
-	logLevel = flag.String("loglevel", "info", "Logging level (debug, info, warn, error, dpanic, panic, fatal)")
+	logLevel = flag.String("logLevel", "info", "Logging level (debug, info, warn, error, dpanic, panic, fatal)")
 
 	unsafeDevMode = flag.Bool("unsafeDevMode", false, "Launch node in unsafe, deterministic devnet mode")
+	devNumGuardians = flag.Uint("devNumGuardians", 5, "Number of devnet guardians to include in guardian set")
 
-	nodeName = flag.String("nodeName", "", "Node name to announce in gossip heartbeats (default: hostname)")
+	nodeName = flag.String("nodeName", "", "Node name to announce in gossip heartbeats")
 )
 
 var (
 	rootCtx       context.Context
 	rootCtxCancel context.CancelFunc
 )
+
+// TODO: prometheus metrics
+// TODO: telemetry?
+
+// "Why would anyone do this?" are famous last words.
+//
+// We already forcibly override RPC URLs and keys in dev mode to prevent security
+// risks from operator error, but an extra warning won't hurt.
+const devwarning = `
+        +++++++++++++++++++++++++++++++++++++++++++++++++++
+        |   NODE IS RUNNING IN INSECURE DEVELOPMENT MODE  |
+        |                                                 |
+        |      Do not use -unsafeDevMode in prod.         |
+        +++++++++++++++++++++++++++++++++++++++++++++++++++
+
+`
 
 func rootLoggerName() string {
 	if *unsafeDevMode {
@@ -61,13 +83,13 @@ func loadGuardianKey(logger *zap.Logger) *ecdsa.PrivateKey {
 
 	if *unsafeDevMode {
 		// Figure out our devnet index
-		idx, err := getDevnetIndex()
+		idx, err := devnet.GetDevnetIndex()
 		if err != nil {
 			logger.Fatal("Failed to parse hostname - are we running in devnet?")
 		}
 
 		// Generate guardian key
-		gk = deterministicKeyByIndex(crypto.S256(), uint64(idx))
+		gk = devnet.DeterministicEcdsaKeyByIndex(crypto.S256(), uint64(idx))
 	} else {
 		panic("not implemented") // TODO
 	}
@@ -80,6 +102,10 @@ func loadGuardianKey(logger *zap.Logger) *ecdsa.PrivateKey {
 
 func main() {
 	flag.Parse()
+
+	if *unsafeDevMode {
+		fmt.Print(devwarning)
+	}
 
 	// Set up logging. The go-log zap wrapper that libp2p uses is compatible with our
 	// usage of zap in supervisor, which is nice.
@@ -95,24 +121,46 @@ func main() {
 	// Override the default go-log config, which uses a magic environment variable.
 	ipfslog.SetAllLoggers(lvl)
 
-	// Mute chatty subsystems.
-	if err := ipfslog.SetLogLevel("swarm2", "error"); err != nil {
-		panic(err)
-	} // connection errors
+	// In devnet mode, we automatically set a number of flags that rely on deterministic keys.
+	if *unsafeDevMode {
+		go func() {
+			logger.Info("debug server listening on [::]:6060")
+			logger.Error("debug server crashed", zap.Error(http.ListenAndServe("[::]:6060", nil)))
+		}()
 
-	// Verify flags
-	if *nodeKeyPath == "" {
-		logger.Fatal("Please specify -nodeKey")
-	}
-	if *ethRPC == "" {
-		logger.Fatal("Please specify -ethRPC")
-	}
-	if *nodeName == "" {
+		g0key, err := peer.IDFromPrivateKey(devnet.DeterministicP2PPrivKeyByIndex(0))
+		if err != nil {
+			panic(err)
+		}
+
+		// Use the first guardian node as bootstrap
+		*p2pBootstrap = fmt.Sprintf("/dns4/guardian-0.guardian/udp/%d/quic/p2p/%s", *p2pPort, g0key.String())
+
+		// Deterministic ganache ETH devnet address.
+		*ethContract = devnet.BridgeContractAddress.Hex()
+
+		// Use the hostname as nodeName. For production, we don't want to do this to
+		// prevent accidentally leaking sensitive hostnames.
 		hostname, err := os.Hostname()
 		if err != nil {
 			panic(err)
 		}
 		*nodeName = hostname
+	}
+
+	// Verify flags
+
+	if *nodeKeyPath == "" && !*unsafeDevMode { // In devnet mode, keys are deterministically generated.
+		logger.Fatal("Please specify -nodeKey")
+	}
+	if *ethRPC == "" {
+		logger.Fatal("Please specify -ethRPC")
+	}
+	if *ethContract == "" {
+		logger.Fatal("Please specify -ethContract")
+	}
+	if *nodeName == "" {
+		logger.Fatal("Please specify -nodeName")
 	}
 
 	ethContractAddr := eth_common.HexToAddress(*ethContract)
@@ -125,20 +173,31 @@ func main() {
 	defer rootCtxCancel()
 
 	// Ethereum lock event channel
-	ec := make(chan *common.ChainLock)
+	lockC := make(chan *common.ChainLock)
+
+	// Ethereum incoming guardian set updates
+	setC := make(chan *common.GuardianSet)
+
+	// Outbound gossip message queue
+	sendC := make(chan []byte)
+
+	// Inbound ETH observations
+	ethObsvC := make(chan *gossipv1.EthLockupObservation)
 
 	// Run supervisor.
 	supervisor.New(rootCtx, logger, func(ctx context.Context) error {
-		if err := supervisor.Run(ctx, "p2p", p2p); err != nil {
+		// TODO: use a dependency injection framework like wire?
+
+		if err := supervisor.Run(ctx, "p2p", p2p(ethObsvC, sendC)); err != nil {
 			return err
 		}
 
 		if err := supervisor.Run(ctx, "eth",
-			ethereum.NewEthBridgeWatcher(*ethRPC, ethContractAddr, *ethConfirmations, ec).Run); err != nil {
+			ethereum.NewEthBridgeWatcher(*ethRPC, ethContractAddr, *ethConfirmations, lockC, setC).Run); err != nil {
 			return err
 		}
 
-		if err := supervisor.Run(ctx, "lockups", ethLockupProcessor(ec, gk)); err != nil {
+		if err := supervisor.Run(ctx, "ethwatch", ethLockupProcessor(lockC, setC, gk, sendC, ethObsvC)); err != nil {
 			return err
 		}
 
@@ -157,4 +216,3 @@ func main() {
 		// TODO: wait for things to shut down gracefully
 	}
 }
-

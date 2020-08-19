@@ -27,38 +27,55 @@ type (
 		pendingLocks      map[eth_common.Hash]*pendingLock
 		pendingLocksGuard sync.Mutex
 
-		evChan chan *common.ChainLock
+		lockChan chan *common.ChainLock
+		setChan  chan *common.GuardianSet
 	}
 
 	pendingLock struct {
-		lock *common.ChainLock
+		lock   *common.ChainLock
 		height uint64
 	}
 )
 
-func NewEthBridgeWatcher(url string, bridge eth_common.Address, minConfirmations uint64, events chan *common.ChainLock) *EthBridgeWatcher {
-	return &EthBridgeWatcher{url: url, bridge: bridge, minConfirmations: minConfirmations, evChan: events, pendingLocks: map[eth_common.Hash]*pendingLock{}}
+func NewEthBridgeWatcher(url string, bridge eth_common.Address, minConfirmations uint64, lockEvents chan *common.ChainLock, setEvents chan *common.GuardianSet) *EthBridgeWatcher {
+	return &EthBridgeWatcher{url: url, bridge: bridge, minConfirmations: minConfirmations, lockChan: lockEvents, setChan: setEvents, pendingLocks: map[eth_common.Hash]*pendingLock{}}
 }
 
 func (e *EthBridgeWatcher) Run(ctx context.Context) error {
-	c, err := ethclient.DialContext(ctx, e.url)
+	timeout, _ := context.WithTimeout(ctx, 15 * time.Second)
+	c, err := ethclient.DialContext(timeout, e.url)
 	if err != nil {
 		return fmt.Errorf("dialing eth client failed: %w", err)
 	}
 
-	f, err := abi.NewWormholeBridgeFilterer(e.bridge, c)
+	f, err := abi.NewAbiFilterer(e.bridge, c)
 	if err != nil {
 		return fmt.Errorf("could not create wormhole bridge filter: %w", err)
 	}
 
-	sink := make(chan *abi.WormholeBridgeLogTokensLocked, 2)
-	eventSubscription, err := f.WatchLogTokensLocked(&bind.WatchOpts{
-		Context: ctx,
-	}, sink, nil, nil)
+	caller, err := abi.NewAbiCaller(e.bridge, c)
 	if err != nil {
-		return fmt.Errorf("failed to subscribe to eth events: %w", err)
+		panic(err)
 	}
-	defer eventSubscription.Unsubscribe()
+
+	// Timeout for initializing subscriptions
+	timeout, _ = context.WithTimeout(ctx, 15 * time.Second)
+
+	// Subscribe to new token lockups
+	tokensLockedC := make(chan *abi.AbiLogTokensLocked, 2)
+	tokensLockedSub, err := f.WatchLogTokensLocked(&bind.WatchOpts{Context: timeout}, tokensLockedC, nil, nil)
+	if err != nil {
+		return fmt.Errorf("failed to subscribe to token lockup events: %w", err)
+	}
+	defer tokensLockedSub.Unsubscribe()
+
+	// Subscribe to guardian set changes
+	guardianSetC := make(chan *abi.AbiLogGuardianSetChanged, 2)
+	guardianSetEvent, err := f.WatchLogGuardianSetChanged(&bind.WatchOpts{Context: timeout}, guardianSetC)
+	if err != nil {
+		return fmt.Errorf("failed to subscribe to guardian set events: %w", err)
+	}
+	defer tokensLockedSub.Unsubscribe()
 
 	errC := make(chan error)
 	logger := supervisor.Logger(ctx)
@@ -68,10 +85,13 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 			select {
 			case <-ctx.Done():
 				return
-			case e := <-eventSubscription.Err():
-				errC <- e
+			case e := <-tokensLockedSub.Err():
+				errC <- fmt.Errorf("error while processing token lockup subscription: %w", e)
 				return
-			case ev := <-sink:
+			case e := <-guardianSetEvent.Err():
+				errC <- fmt.Errorf("error while processing guardian set subscription: %w", e)
+				return
+			case ev := <-tokensLockedC:
 				lock := &common.ChainLock{
 					TxHash:        ev.Raw.TxHash,
 					SourceAddress: ev.Sender,
@@ -91,6 +111,21 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 					height: ev.Raw.BlockNumber,
 				}
 				e.pendingLocksGuard.Unlock()
+			case ev := <-guardianSetC:
+				logger.Info("guardian set has changed, fetching new value",
+					zap.Uint32("new_index", ev.NewGuardianIndex))
+
+				gs, err := caller.GetGuardianSet(&bind.CallOpts{Context: timeout}, ev.NewGuardianIndex)
+				if err != nil {
+					errC <- fmt.Errorf("error requesting new guardian set value: %w", err)
+					return
+				}
+
+				logger.Info("new guardian set fetched", zap.Any("value", gs), zap.Uint32("index", ev.NewGuardianIndex))
+				e.setChan <- &common.GuardianSet{
+					Keys: gs.Keys,
+					Index: ev.NewGuardianIndex,
+				}
 			}
 		}
 	}()
@@ -109,7 +144,7 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 			case <-ctx.Done():
 				return
 			case e := <-headerSubscription.Err():
-				errC <- e
+				errC <- fmt.Errorf("error while processing header subscription: %w", e)
 				return
 			case ev := <-headSink:
 				start := time.Now()
@@ -132,7 +167,7 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 						logger.Debug("lockup confirmed", zap.Stringer("tx", pLock.lock.TxHash),
 							zap.Stringer("number", ev.Number))
 						delete(e.pendingLocks, hash)
-						e.evChan <- pLock.lock
+						e.lockChan <- pLock.lock
 					}
 				}
 
@@ -144,6 +179,26 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 	}()
 
 	supervisor.Signal(ctx, supervisor.SignalHealthy)
+
+	// Fetch current guardian set
+	timeout, _ = context.WithTimeout(ctx, 15 * time.Second)
+	opts := &bind.CallOpts{Context: timeout}
+
+	currentIndex, err := caller.GuardianSetIndex(opts)
+	if err != nil {
+		return fmt.Errorf("error requesting current guardian set index: %w", err)
+	}
+
+	gs, err := caller.GetGuardianSet(opts, currentIndex)
+	if err != nil {
+		return fmt.Errorf("error requesting current guardian set value: %w", err)
+	}
+
+	logger.Info("current guardian set fetched", zap.Any("value", gs), zap.Uint32("index", currentIndex))
+	e.setChan <- &common.GuardianSet{
+		Keys: gs.Keys,
+		Index: currentIndex,
+	}
 
 	select {
 	case <-ctx.Done():

@@ -36,7 +36,7 @@ module.exports = function(callback) {
             let block = await web3.eth.getBlock('latest');
             console.log("block", block.number, "with txs", block.transactions, "and time", block.timestamp);
             await advanceBlock();
-            await sleep(1000);
+            await sleep(5000);
         }
     }
 

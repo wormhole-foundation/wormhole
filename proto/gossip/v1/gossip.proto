@@ -4,7 +4,40 @@ package gossip.v1;
 
 option go_package = "proto/gossip/v1;gossipv1";
 
+message GossipMessage {
+  oneof message {
+    Heartbeat heartbeat = 1;
+    EthLockupObservation eth_lockup_observation = 2;
+  }
+}
+
+// P2P gossip heartbeats for network introspection purposes.
 message Heartbeat {
+  // The node's arbitrarily chosen, untrusted nodeName.
   string node_name = 1;
+  // A monotonic counter that resets to zero on startup.
   int64 counter = 2;
+  // UNIX wall time.
+  int64 timestamp = 3;
+
+  // TODO: include statement of gk public key?
+  // TODO: software version/release
+}
+
+// An EthLockupObservation is a signed statement by a given guardian node
+// that they observed a finalized lockup on Ethereum.
+//
+// The lockup is uniquely identified by its hashed (tx_hash, nonce, values...) tuple.
+//
+// Other nodes will verify the signature. Once any node has observed a quorum of
+// guardians submitting valid signatures for a given hash, they can be assembled into a VAA.
+//
+// Messages without valid signature are dropped unceremoniously.
+message EthLockupObservation {
+  // Guardian pubkey as truncated eth address.
+  bytes addr = 1;
+  // The lockup's deterministic, unique hash. See pkg/common/chainlock.go.
+  bytes hash = 2;
+  // ECSDA signature of the hash using the node's guardian key.
+  bytes signature = 3;
 }

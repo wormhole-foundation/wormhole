@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/base64"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -46,29 +45,4 @@ func getOrCreateNodeKey(logger *zap.Logger, path string) (crypto.PrivKey, error)
 	logger.Info("Found existing node key", zap.String("path", path))
 
 	return priv, nil
-}
-
-// deterministicNodeKey returns a non-nil value if we have a deterministic key on file for the current host.
-func deterministicNodeKey() crypto.PrivKey {
-	idx, err := getDevnetIndex()
-	if err != nil {
-		panic(err)
-	}
-
-	if idx == 0 {
-		// node ID: 12D3KooWQ1sV2kowPY1iJX1hJcVTysZjKv3sfULTGwhdpUGGZ1VF
-		b, err := base64.StdEncoding.DecodeString("CAESQGlv6OJOMXrZZVTCC0cgCv7goXr6QaSVMZIndOIXKNh80vYnG+EutVlZK20Nx9cLkUG5ymKB\n88LXi/vPBwP8zfY=")
-		if err != nil {
-			panic(err)
-		}
-
-		priv, err := crypto.UnmarshalPrivateKey(b)
-		if err != nil {
-			panic(err)
-		}
-
-		return priv
-	}
-
-	return nil
 }

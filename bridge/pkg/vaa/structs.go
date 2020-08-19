@@ -2,14 +2,16 @@ package vaa
 
 import (
 	"bytes"
+	"crypto/ecdsa"
 	"encoding/binary"
 	"fmt"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 	"io"
 	"math"
 	"math/big"
 	"time"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 )
 
 type (
@@ -96,8 +98,8 @@ const (
 	supportedVAAVersion = 0x01
 )
 
-// ParseVAA deserializes the binary representation of a VAA
-func ParseVAA(data []byte) (*VAA, error) {
+// Unmarshal deserializes the binary representation of a VAA
+func Unmarshal(data []byte) (*VAA, error) {
 	if len(data) < minVAALength {
 		return nil, fmt.Errorf("VAA is too short")
 	}
@@ -215,8 +217,8 @@ func (v *VAA) VerifySignatures(addresses []common.Address) bool {
 	return true
 }
 
-// Serialize returns the binary representation of the VAA
-func (v *VAA) Serialize() ([]byte, error) {
+// Marshal returns the binary representation of the VAA
+func (v *VAA) Marshal() ([]byte, error) {
 	buf := new(bytes.Buffer)
 	MustWrite(buf, binary.BigEndian, v.Version)
 	MustWrite(buf, binary.BigEndian, v.GuardianSetIndex)
@@ -255,6 +257,24 @@ func (v *VAA) serializeBody() ([]byte, error) {
 	buf.Write(payloadData)
 
 	return buf.Bytes(), nil
+}
+
+func (v *VAA) AddSignature(key *ecdsa.PrivateKey, index uint8) {
+	data, err := v.SigningMsg()
+	if err != nil {
+		panic(err)
+	}
+	sig, err := crypto.Sign(data.Bytes(), key)
+	if err != nil {
+		panic(err)
+	}
+	sigData := [65]byte{}
+	copy(sigData[:], sig)
+
+	v.Signatures = append(v.Signatures, &Signature{
+		Index:     index,
+		Signature: sigData,
+	})
 }
 
 func parseBodyTransfer(r io.Reader) (*BodyTransfer, error) {

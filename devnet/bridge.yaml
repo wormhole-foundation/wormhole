@@ -39,24 +39,23 @@ spec:
           image: guardiand-image
           command:
             - /guardiand
-            - -nodeKey
-            - /data/node.key
-            - -bootstrap
-            - /dns4/guardian-0.guardian/udp/8999/quic/p2p/12D3KooWQ1sV2kowPY1iJX1hJcVTysZjKv3sfULTGwhdpUGGZ1VF
             - -ethRPC
             - ws://eth-devnet:8545
-            - -ethContract
-            - 0xCfEB869F69431e42cdB54A4F4f105C19C080A601
             - -ethConfirmations
-            - '2'
+            - '1'
             - -unsafeDevMode
+#            - -logLevel
+#            - debug
           ports:
             - containerPort: 8999
               name: p2p
               protocol: UDP
-          volumeMounts:
-            - name: guardian-data
-              mountPath: /data
+            - containerPort: 6060
+              name: pprof
+              protocol: TCP
+#          volumeMounts:
+#            - name: guardian-data
+#              mountPath: /data
 #        - name: agent
 #          image: solana-agent
 #          command:
@@ -70,11 +69,11 @@ spec:
 #            - containerPort: 9000
 #              name: grpc
 #              protocol: TCP
-  volumeClaimTemplates:
-    - metadata:
-        name: guardian-data
-      spec:
-        accessModes: [ "ReadWriteOnce" ]
-        resources:
-          requests:
-            storage: 1Gi
+#  volumeClaimTemplates:
+#    - metadata:
+#        name: guardian-data
+#      spec:
+#        accessModes: [ "ReadWriteOnce" ]
+#        resources:
+#          requests:
+#            storage: 1Gi
