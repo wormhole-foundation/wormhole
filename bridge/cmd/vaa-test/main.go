@@ -3,105 +3,233 @@ package main
 import (
 	"crypto/ecdsa"
 	"encoding/hex"
+	"fmt"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"math/big"
 	"math/rand"
 	"time"
-
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 
 	"github.com/certusone/wormhole/bridge/pkg/devnet"
 	"github.com/certusone/wormhole/bridge/pkg/vaa"
 )
 
-func main() {
-	addr := devnet.GanacheClientDefaultAccountAddress
-	addrP := common.LeftPadBytes(addr[:], 32)
-	addrTarget := vaa.Address{}
-	copy(addrTarget[:], addrP)
+type signerInfo struct {
+	signer *ecdsa.PrivateKey
+	index  int
+}
 
-	tAddr := common.HexToAddress("0x0000000000000000000000009561c133dd8580860b6b7e504bc5aa500f0f06a7")
-	tAddrP := common.LeftPadBytes(tAddr[:], 32)
-	tAddrTarget := vaa.Address{}
-	copy(tAddrTarget[:], tAddrP)
-	v := &vaa.VAA{
+func main() {
+
+	keys := generateKeys(6)
+	for i, key := range keys {
+		fmt.Printf("Key [%d]: %s\n", i, crypto.PubkeyToAddress(key.PublicKey).String())
+	}
+
+	signAndPrintVAA(&vaa.VAA{
 		Version:          1,
-		GuardianSetIndex: 2,
-		Timestamp:        time.Unix(4000, 0),
+		GuardianSetIndex: 0,
+		Timestamp:        time.Unix(2000, 0),
 		Payload: &vaa.BodyTransfer{
 			Nonce:         56,
 			SourceChain:   1,
 			TargetChain:   2,
 			SourceAddress: vaa.Address{2, 1, 4},
-			TargetAddress: addrTarget,
+			TargetAddress: padAddress(devnet.GanacheClientDefaultAccountAddress),
 			Asset: &vaa.AssetMeta{
 				Chain:   vaa.ChainIDSolana,
-				Address: tAddrTarget,
+				Address: hexToAddress("0x347ef34687bdc9f189e87a9200658d9c40e9988"),
 			},
 			Amount: big.NewInt(1000000000000000000),
 		},
-	}
+	}, []*signerInfo{{keys[0], 0}})
 
-	r := rand.New(rand.NewSource(555))
-	key, err := ecdsa.GenerateKey(crypto.S256(), r)
-	if err != nil {
-		panic(err)
-	}
-	key2, err := ecdsa.GenerateKey(crypto.S256(), r)
-	if err != nil {
-		panic(err)
-	}
-	key3, err := ecdsa.GenerateKey(crypto.S256(), r)
-	if err != nil {
-		panic(err)
-	}
-	key4, err := ecdsa.GenerateKey(crypto.S256(), r)
-	if err != nil {
-		panic(err)
-	}
-	key5, err := ecdsa.GenerateKey(crypto.S256(), r)
-	if err != nil {
-		panic(err)
-	}
-	key6, err := ecdsa.GenerateKey(crypto.S256(), r)
-	if err != nil {
-		panic(err)
-	}
+	signAndPrintVAA(&vaa.VAA{
+		Version:          1,
+		GuardianSetIndex: 0,
+		Timestamp:        time.Unix(2000, 0),
+		Payload: &vaa.BodyTransfer{
+			Nonce:         56,
+			SourceChain:   1,
+			TargetChain:   2,
+			SourceAddress: vaa.Address{2, 1, 4},
+			TargetAddress: padAddress(devnet.GanacheClientDefaultAccountAddress),
+			Asset: &vaa.AssetMeta{
+				Chain:   vaa.ChainIDEthereum,
+				Address: hexToAddress("0xd833215cbcc3f914bd1c9ece3ee7bf8b14f841bb"),
+			},
+			Amount: big.NewInt(1000000000000000000),
+		},
+	}, []*signerInfo{{keys[0], 0}})
 
-	//v = &vaa.VAA{
-	//	Version:          1,
-	//	GuardianSetIndex: 1,
-	//	Timestamp:        time.Unix(5000, 0),
-	//	Payload: &vaa.BodyGuardianSetUpdate{
-	//		Keys:     []common.Address{
-	//			crypto.PubkeyToAddress(key.PublicKey),
-	//			crypto.PubkeyToAddress(key2.PublicKey),
-	//			crypto.PubkeyToAddress(key3.PublicKey),
-	//			crypto.PubkeyToAddress(key4.PublicKey),
-	//			crypto.PubkeyToAddress(key5.PublicKey),
-	//			crypto.PubkeyToAddress(key6.PublicKey),
-	//		},
-	//		NewIndex: 2,
-	//	},
-	//}
+	signAndPrintVAA(&vaa.VAA{
+		Version:          1,
+		GuardianSetIndex: 0,
+		Timestamp:        time.Unix(2000, 0),
+		Payload: &vaa.BodyGuardianSetUpdate{
+			Keys: []common.Address{
+				crypto.PubkeyToAddress(keys[1].PublicKey),
+			},
+			NewIndex: 1,
+		},
+	}, []*signerInfo{{keys[0], 0}})
 
-	v.AddSignature(key, 0)
-	v.AddSignature(key2, 1)
-	v.AddSignature(key3, 2)
-	v.AddSignature(key5, 4)
-	v.AddSignature(key6, 5)
-	sigAddr := crypto.PubkeyToAddress(key.PublicKey)
-	println(sigAddr.String())
-	println(crypto.PubkeyToAddress(key2.PublicKey).String())
-	println(crypto.PubkeyToAddress(key3.PublicKey).String())
-	println(crypto.PubkeyToAddress(key4.PublicKey).String())
-	println(crypto.PubkeyToAddress(key5.PublicKey).String())
-	println(crypto.PubkeyToAddress(key6.PublicKey).String())
+	signAndPrintVAA(&vaa.VAA{
+		Version:          1,
+		GuardianSetIndex: 0,
+		Timestamp:        time.Unix(2000, 0),
+		Payload: &vaa.BodyGuardianSetUpdate{
+			Keys: []common.Address{
+				crypto.PubkeyToAddress(keys[2].PublicKey),
+			},
+			NewIndex: 1,
+		},
+	}, []*signerInfo{{keys[0], 0}})
 
-	vData, err := v.Marshal()
+	signAndPrintVAA(&vaa.VAA{
+		Version:          1,
+		GuardianSetIndex: 0,
+		Timestamp:        time.Unix(1000, 0),
+		Payload: &vaa.BodyTransfer{
+			Nonce:         56,
+			SourceChain:   1,
+			TargetChain:   2,
+			SourceAddress: vaa.Address{2, 1, 4},
+			TargetAddress: padAddress(devnet.GanacheClientDefaultAccountAddress),
+			Asset: &vaa.AssetMeta{
+				Chain:   vaa.ChainIDSolana,
+				Address: hexToAddress("0x347ef34687bdc9f189e87a9200658d9c40e9988"),
+			},
+			Amount: big.NewInt(1000000000000000000),
+		},
+	}, []*signerInfo{{keys[0], 0}})
+
+	signAndPrintVAA(&vaa.VAA{
+		Version:          1,
+		GuardianSetIndex: 0,
+		Timestamp:        time.Unix(2000, 0),
+		Payload: &vaa.BodyTransfer{
+			Nonce:         56,
+			SourceChain:   1,
+			TargetChain:   2,
+			SourceAddress: vaa.Address{2, 1, 5},
+			TargetAddress: padAddress(devnet.GanacheClientDefaultAccountAddress),
+			Asset: &vaa.AssetMeta{
+				Chain:   vaa.ChainIDSolana,
+				Address: hexToAddress("0x347ef34687bdc9f189e87a9200658d9c40e9988"),
+			},
+			Amount: big.NewInt(1000000000000000000),
+		},
+	}, []*signerInfo{{keys[0], 0}})
+
+	signAndPrintVAA(&vaa.VAA{
+		Version:          1,
+		GuardianSetIndex: 1,
+		Timestamp:        time.Unix(2000, 0),
+		Payload: &vaa.BodyTransfer{
+			Nonce:         56,
+			SourceChain:   1,
+			TargetChain:   2,
+			SourceAddress: vaa.Address{2, 1, 5},
+			TargetAddress: padAddress(devnet.GanacheClientDefaultAccountAddress),
+			Asset: &vaa.AssetMeta{
+				Chain:   vaa.ChainIDSolana,
+				Address: hexToAddress("0x347ef34687bdc9f189e87a9200658d9c40e9988"),
+			},
+			Amount: big.NewInt(1000000000000000000),
+		},
+	}, []*signerInfo{{keys[1], 0}})
+
+	signAndPrintVAA(&vaa.VAA{
+		Version:          1,
+		GuardianSetIndex: 1,
+		Timestamp:        time.Unix(4000, 0),
+		Payload: &vaa.BodyGuardianSetUpdate{
+			Keys: []common.Address{
+				crypto.PubkeyToAddress(keys[0].PublicKey),
+				crypto.PubkeyToAddress(keys[1].PublicKey),
+				crypto.PubkeyToAddress(keys[2].PublicKey),
+				crypto.PubkeyToAddress(keys[3].PublicKey),
+				crypto.PubkeyToAddress(keys[4].PublicKey),
+				crypto.PubkeyToAddress(keys[5].PublicKey),
+			},
+			NewIndex: 2,
+		},
+	}, []*signerInfo{{keys[1], 0}})
+
+	signAndPrintVAA(&vaa.VAA{
+		Version:          1,
+		GuardianSetIndex: 2,
+		Timestamp:        time.Unix(4000, 0),
+		Payload: &vaa.BodyTransfer{
+			Nonce:         57,
+			SourceChain:   1,
+			TargetChain:   2,
+			SourceAddress: vaa.Address{2, 1, 5},
+			TargetAddress: padAddress(devnet.GanacheClientDefaultAccountAddress),
+			Asset: &vaa.AssetMeta{
+				Chain:   vaa.ChainIDSolana,
+				Address: hexToAddress("0x347ef34687bdc9f189e87a9200658d9c40e9988"),
+			},
+			Amount: big.NewInt(1000000000000000000),
+		},
+	}, []*signerInfo{{keys[0], 0}, {keys[1], 1}, {keys[2], 2}})
+
+	signAndPrintVAA(&vaa.VAA{
+		Version:          1,
+		GuardianSetIndex: 2,
+		Timestamp:        time.Unix(4000, 0),
+		Payload: &vaa.BodyTransfer{
+			Nonce:         57,
+			SourceChain:   1,
+			TargetChain:   2,
+			SourceAddress: vaa.Address{2, 1, 5},
+			TargetAddress: padAddress(devnet.GanacheClientDefaultAccountAddress),
+			Asset: &vaa.AssetMeta{
+				Chain:   vaa.ChainIDSolana,
+				Address: hexToAddress("0x347ef34687bdc9f189e87a9200658d9c40e9988"),
+			},
+			Amount: big.NewInt(1000000000000000000),
+		},
+	}, []*signerInfo{{keys[0], 0}, {keys[1], 1}, {keys[3], 3}, {keys[4], 4}, {keys[5], 5}})
+}
+
+func signAndPrintVAA(vaa *vaa.VAA, signers []*signerInfo) {
+	for _, signer := range signers {
+		vaa.AddSignature(signer.signer, uint8(signer.index))
+	}
+	vData, err := vaa.Marshal()
 	if err != nil {
 		panic(err)
 	}
-
 	println(hex.EncodeToString(vData))
+}
+
+func generateKeys(n int) (keys []*ecdsa.PrivateKey) {
+	r := rand.New(rand.NewSource(555))
+
+	for i := 0; i < n; i++ {
+		key, err := ecdsa.GenerateKey(crypto.S256(), r)
+		if err != nil {
+			panic(err)
+		}
+
+		keys = append(keys, key)
+	}
+
+	return
+}
+
+func hexToAddress(hex string) vaa.Address {
+	hexAddr := common.HexToAddress(hex)
+	return padAddress(hexAddr)
+}
+
+func padAddress(address common.Address) vaa.Address {
+	paddedAddress := common.LeftPadBytes(address[:], 32)
+
+	addr := vaa.Address{}
+	copy(addr[:], paddedAddress)
+
+	return addr
 }

@@ -6,7 +6,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-	"math"
 	"math/big"
 	"time"
 
@@ -145,15 +144,16 @@ func Unmarshal(data []byte) (*VAA, error) {
 	}
 	v.Timestamp = time.Unix(int64(unixSeconds), 0)
 
-	currentPos := len(data) - reader.Len()
-	action := data[currentPos]
-	payloadLength := data[currentPos+1]
-
-	if len(data[currentPos+2:]) != int(payloadLength) {
-		return nil, fmt.Errorf("payload length does not match given payload data size")
+	var (
+		action uint8
+	)
+	if err := binary.Read(reader, binary.BigEndian, &action); err != nil {
+		return nil, fmt.Errorf("failed to read action: %w", err)
 	}
 
-	payloadReader := bytes.NewReader(data[currentPos+2:])
+	currentPos := len(data) - reader.Len()
+
+	payloadReader := bytes.NewReader(data[currentPos:])
 	var err error
 	switch Action(action) {
 	case ActionGuardianSetUpdate:
@@ -250,10 +250,6 @@ func (v *VAA) serializeBody() ([]byte, error) {
 		return nil, fmt.Errorf("failed to serialize payload: %w", err)
 	}
 
-	if len(payloadData) > math.MaxUint8 {
-		return nil, fmt.Errorf("payload size exceeds maximum")
-	}
-	MustWrite(buf, binary.BigEndian, uint8(len(payloadData)))
 	buf.Write(payloadData)
 
 	return buf.Bytes(), nil

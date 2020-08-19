@@ -108,7 +108,6 @@ impl VAA {
         v.write_u8(payload.action_id())?;
 
         let payload_data = payload.serialize()?;
-        v.write_u8(payload_data.len() as u8)?;
         v.write(payload_data.as_slice())?;
 
         Ok(v.into_inner())
@@ -177,7 +176,6 @@ impl VAABody {
     fn deserialize(data: &Vec<u8>) -> Result<VAABody, Error> {
         let mut payload_data = Cursor::new(data);
         let action = payload_data.read_u8()?;
-        let _length = payload_data.read_u8()?;
 
         let payload = match action {
             0x01 => {
@@ -385,7 +383,7 @@ mod tests {
                 ]],
             })),
         };
-        let data = hex::decode("010000000001003382c71a4c79e1518a6ce29c91569f6427a60a95696a3515b8c2340b6acffd723315bd1011aa779f22573882a4edfe1b8206548e134871a23f8ba0c1c7d0b5ed0100000bb801190000000101befa429d57cd18b7f8a4d91a2da9ab4af05d0fbe").unwrap();
+        let data = hex::decode("010000000001003382c71a4c79e1518a6ce29c91569f6427a60a95696a3515b8c2340b6acffd723315bd1011aa779f22573882a4edfe1b8206548e134871a23f8ba0c1c7d0b5ed0100000bb8010000000101befa429d57cd18b7f8a4d91a2da9ab4af05d0fbe").unwrap();
         let parsed_vaa = VAA::deserialize(data.as_slice()).unwrap();
         assert_eq!(vaa, parsed_vaa);
 
@@ -433,7 +431,7 @@ mod tests {
                 amount: U256::from_dec_str("5000000000000000000").unwrap(),
             })),
         };
-        let data = hex::decode("0100000000010092737a1504f3b3df8c93cb85c64a4860bb270e26026b6e37f095356a406f6af439c6b2e9775fa1c6669525f06edab033ba5d447308f4e3bdb33c0f361dc32ec3015f3700081087000000350102020104000000000000000000000000000000000000000000000000000000000000000000000000000000000090f8bf6a479f320ead074411a4b0e7944ea8c9c1010000000000000000000000000347ef34687bdc9f189e87a9200658d9c40e99880000000000000000000000000000000000000000000000004563918244f40000").unwrap();
+        let data = hex::decode("0100000000010092737a1504f3b3df8c93cb85c64a4860bb270e26026b6e37f095356a406f6af439c6b2e9775fa1c6669525f06edab033ba5d447308f4e3bdb33c0f361dc32ec3015f37000810000000350102020104000000000000000000000000000000000000000000000000000000000000000000000000000000000090f8bf6a479f320ead074411a4b0e7944ea8c9c1010000000000000000000000000347ef34687bdc9f189e87a9200658d9c40e99880000000000000000000000000000000000000000000000004563918244f40000").unwrap();
         let parsed_vaa = VAA::deserialize(data.as_slice()).unwrap();
         assert_eq!(vaa, parsed_vaa);
 

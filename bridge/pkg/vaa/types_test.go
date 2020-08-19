@@ -12,7 +12,6 @@ import (
 	"time"
 )
 
-
 func TestSerializeDeserialize(t *testing.T) {
 	tests := []struct {
 		name string
@@ -66,11 +65,11 @@ func TestSerializeDeserialize(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 
-			vaaData, err := test.vaa.Serialize()
+			vaaData, err := test.vaa.Marshal()
 			require.NoError(t, err)
 
 			println(hex.EncodeToString(vaaData))
-			vaaParsed, err := ParseVAA(vaaData)
+			vaaParsed, err := Unmarshal(vaaData)
 			require.NoError(t, err)
 
 			require.EqualValues(t, test.vaa, vaaParsed)

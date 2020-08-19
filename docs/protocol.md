@@ -145,7 +145,6 @@ uint8               index of the signer (in guardian keys)
 body:
 uint32              unix seconds
 uint8               action
-uint8               payload_size
 [payload_size]uint8 payload
 ```
 

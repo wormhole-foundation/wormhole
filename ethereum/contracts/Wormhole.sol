@@ -111,8 +111,7 @@ contract Wormhole {
         }
 
         uint8 action = vaa.toUint8(offset + 4);
-        uint8 payload_len = vaa.toUint8(offset + 5);
-        bytes memory payload = vaa.slice(offset + 6, payload_len);
+        bytes memory payload = vaa.slice(offset + 5, vaa.length - (offset + 5));
 
         // Process VAA
         if (action == 0x01) {
