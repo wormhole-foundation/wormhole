@@ -53,7 +53,7 @@ impl Agent for AgentImpl {
         let b = self.key.to_bytes();
         let key = Keypair::from_bytes(&b).unwrap();
 
-        let ix = match post_vaa(&self.bridge, &key.pubkey(), &request.get_ref().vaa) {
+        let ix = match post_vaa(&self.bridge, &key.pubkey(), request.get_ref().vaa.clone()) {
             Ok(v) => v,
             Err(e) => {
                 return Err(Status::new(

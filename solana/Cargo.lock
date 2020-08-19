@@ -2277,7 +2277,7 @@ dependencies = [
 [[package]]
 name = "solana-crate-features"
 version = "1.4.0"
-source = "git+https://github.com/solana-labs/solana#46830124f8b98c72ff58e6e1c723fb1cbdb75e4e"
+source = "git+https://github.com/solana-labs/solana?branch=master#e2d66cf796484301668c2b45804e31610373a0e9"
 dependencies = [
  "backtrace",
  "bytes 0.4.12",
@@ -2334,7 +2334,7 @@ dependencies = [
 [[package]]
 name = "solana-logger"
 version = "1.4.0"
-source = "git+https://github.com/solana-labs/solana#46830124f8b98c72ff58e6e1c723fb1cbdb75e4e"
+source = "git+https://github.com/solana-labs/solana?branch=master#e2d66cf796484301668c2b45804e31610373a0e9"
 dependencies = [
  "env_logger",
  "lazy_static",
@@ -2401,7 +2401,7 @@ dependencies = [
 [[package]]
 name = "solana-sdk"
 version = "1.4.0"
-source = "git+https://github.com/solana-labs/solana#46830124f8b98c72ff58e6e1c723fb1cbdb75e4e"
+source = "git+https://github.com/solana-labs/solana?branch=master#e2d66cf796484301668c2b45804e31610373a0e9"
 dependencies = [
  "assert_matches",
  "bincode",
@@ -2439,7 +2439,7 @@ dependencies = [
 [[package]]
 name = "solana-sdk-macro"
 version = "1.4.0"
-source = "git+https://github.com/solana-labs/solana#46830124f8b98c72ff58e6e1c723fb1cbdb75e4e"
+source = "git+https://github.com/solana-labs/solana?branch=master#e2d66cf796484301668c2b45804e31610373a0e9"
 dependencies = [
  "bs58",
  "proc-macro2 1.0.19",
@@ -2464,7 +2464,7 @@ dependencies = [
 [[package]]
 name = "solana-sdk-macro-frozen-abi"
 version = "1.4.0"
-source = "git+https://github.com/solana-labs/solana#46830124f8b98c72ff58e6e1c723fb1cbdb75e4e"
+source = "git+https://github.com/solana-labs/solana?branch=master#e2d66cf796484301668c2b45804e31610373a0e9"
 dependencies = [
  "lazy_static",
  "proc-macro2 1.0.19",
@@ -2574,19 +2574,6 @@ dependencies = [
  "cbindgen",
  "num-derive 0.3.1",
  "num-traits",
- "remove_dir_all",
- "solana-sdk",
- "thiserror",
-]
-
-[[package]]
-name = "spl-token"
-version = "1.0.8"
-dependencies = [
- "cbindgen",
- "num-derive 0.3.1",
- "num-traits",
- "rand",
  "remove_dir_all",
  "solana-sdk",
  "thiserror",
