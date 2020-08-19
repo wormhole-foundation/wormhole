@@ -33,7 +33,7 @@ type WormholeGuardianSet struct {
 }
 
 // AbiABI is the input ABI used to generate the binding from.
-const AbiABI = "[{\"inputs\":[{\"components\":[{\"internalType\":\"address[]\",\"name\":\"keys\",\"type\":\"address[]\"},{\"internalType\":\"uint32\",\"name\":\"expiration_time\",\"type\":\"uint32\"}],\"internalType\":\"structWormhole.GuardianSet\",\"name\":\"initial_guardian_set\",\"type\":\"tuple\"},{\"internalType\":\"address\",\"name\":\"wrapped_asset_master\",\"type\":\"address\"},{\"internalType\":\"uint32\",\"name\":\"_vaa_expiry\",\"type\":\"uint32\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"components\":[{\"internalType\":\"address[]\",\"name\":\"keys\",\"type\":\"address[]\"},{\"internalType\":\"uint32\",\"name\":\"expiration_time\",\"type\":\"uint32\"}],\"indexed\":true,\"internalType\":\"structWormhole.GuardianSet\",\"name\":\"oldGuardian\",\"type\":\"tuple\"},{\"components\":[{\"internalType\":\"address[]\",\"name\":\"keys\",\"type\":\"address[]\"},{\"internalType\":\"uint32\",\"name\":\"expiration_time\",\"type\":\"uint32\"}],\"indexed\":true,\"internalType\":\"structWormhole.GuardianSet\",\"name\":\"newGuardian\",\"type\":\"tuple\"}],\"name\":\"LogGuardianSetChanged\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint8\",\"name\":\"target_chain\",\"type\":\"uint8\"},{\"indexed\":false,\"internalType\":\"uint8\",\"name\":\"token_chain\",\"type\":\"uint8\"},{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"token\",\"type\":\"bytes32\"},{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"sender\",\"type\":\"bytes32\"},{\"indexed\":false,\"internalType\":\"bytes32\",\"name\":\"recipient\",\"type\":\"bytes32\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"LogTokensLocked\",\"type\":\"event\"},{\"stateMutability\":\"payable\",\"type\":\"fallback\"},{\"inputs\":[],\"name\":\"guardian_set_index\",\"outputs\":[{\"internalType\":\"uint32\",\"name\":\"\",\"type\":\"uint32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint32\",\"name\":\"\",\"type\":\"uint32\"}],\"name\":\"guardian_sets\",\"outputs\":[{\"internalType\":\"uint32\",\"name\":\"expiration_time\",\"type\":\"uint32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"name\":\"isWrappedAsset\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"vaa_expiry\",\"outputs\":[{\"internalType\":\"uint32\",\"name\":\"\",\"type\":\"uint32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"wrappedAssetMaster\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"name\":\"wrappedAssets\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"stateMutability\":\"payable\",\"type\":\"receive\"},{\"inputs\":[{\"internalType\":\"uint32\",\"name\":\"idx\",\"type\":\"uint32\"}],\"name\":\"getGuardianSet\",\"outputs\":[{\"components\":[{\"internalType\":\"address[]\",\"name\":\"keys\",\"type\":\"address[]\"},{\"internalType\":\"uint32\",\"name\":\"expiration_time\",\"type\":\"uint32\"}],\"internalType\":\"structWormhole.GuardianSet\",\"name\":\"gs\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"vaa\",\"type\":\"bytes\"}],\"name\":\"submitVAA\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"asset\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"internalType\":\"bytes32\",\"name\":\"recipient\",\"type\":\"bytes32\"},{\"internalType\":\"uint8\",\"name\":\"target_chain\",\"type\":\"uint8\"}],\"name\":\"lockAssets\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"recipient\",\"type\":\"bytes32\"},{\"internalType\":\"uint8\",\"name\":\"target_chain\",\"type\":\"uint8\"}],\"name\":\"lockETH\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"}]"
+const AbiABI = "[{\"inputs\":[{\"components\":[{\"internalType\":\"address[]\",\"name\":\"keys\",\"type\":\"address[]\"},{\"internalType\":\"uint32\",\"name\":\"expiration_time\",\"type\":\"uint32\"}],\"internalType\":\"structWormhole.GuardianSet\",\"name\":\"initial_guardian_set\",\"type\":\"tuple\"},{\"internalType\":\"address\",\"name\":\"wrapped_asset_master\",\"type\":\"address\"},{\"internalType\":\"uint32\",\"name\":\"_vaa_expiry\",\"type\":\"uint32\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint32\",\"name\":\"oldGuardianIndex\",\"type\":\"uint32\"},{\"indexed\":false,\"internalType\":\"uint32\",\"name\":\"newGuardianIndex\",\"type\":\"uint32\"}],\"name\":\"LogGuardianSetChanged\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint8\",\"name\":\"target_chain\",\"type\":\"uint8\"},{\"indexed\":false,\"internalType\":\"uint8\",\"name\":\"token_chain\",\"type\":\"uint8\"},{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"token\",\"type\":\"bytes32\"},{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"sender\",\"type\":\"bytes32\"},{\"indexed\":false,\"internalType\":\"bytes32\",\"name\":\"recipient\",\"type\":\"bytes32\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"LogTokensLocked\",\"type\":\"event\"},{\"stateMutability\":\"payable\",\"type\":\"fallback\"},{\"inputs\":[],\"name\":\"guardian_set_index\",\"outputs\":[{\"internalType\":\"uint32\",\"name\":\"\",\"type\":\"uint32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint32\",\"name\":\"\",\"type\":\"uint32\"}],\"name\":\"guardian_sets\",\"outputs\":[{\"internalType\":\"uint32\",\"name\":\"expiration_time\",\"type\":\"uint32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"name\":\"isWrappedAsset\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"vaa_expiry\",\"outputs\":[{\"internalType\":\"uint32\",\"name\":\"\",\"type\":\"uint32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"wrappedAssetMaster\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"name\":\"wrappedAssets\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"stateMutability\":\"payable\",\"type\":\"receive\"},{\"inputs\":[{\"internalType\":\"uint32\",\"name\":\"idx\",\"type\":\"uint32\"}],\"name\":\"getGuardianSet\",\"outputs\":[{\"components\":[{\"internalType\":\"address[]\",\"name\":\"keys\",\"type\":\"address[]\"},{\"internalType\":\"uint32\",\"name\":\"expiration_time\",\"type\":\"uint32\"}],\"internalType\":\"structWormhole.GuardianSet\",\"name\":\"gs\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"vaa\",\"type\":\"bytes\"}],\"name\":\"submitVAA\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"asset\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"internalType\":\"bytes32\",\"name\":\"recipient\",\"type\":\"bytes32\"},{\"internalType\":\"uint8\",\"name\":\"target_chain\",\"type\":\"uint8\"}],\"name\":\"lockAssets\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"recipient\",\"type\":\"bytes32\"},{\"internalType\":\"uint8\",\"name\":\"target_chain\",\"type\":\"uint8\"}],\"name\":\"lockETH\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"}]"
 
 // Abi is an auto generated Go binding around an Ethereum contract.
 type Abi struct {
@@ -533,47 +533,29 @@ func (it *AbiLogGuardianSetChangedIterator) Close() error {
 
 // AbiLogGuardianSetChanged represents a LogGuardianSetChanged event raised by the Abi contract.
 type AbiLogGuardianSetChanged struct {
-	OldGuardian WormholeGuardianSet
-	NewGuardian WormholeGuardianSet
-	Raw         types.Log // Blockchain specific contextual infos
+	OldGuardianIndex uint32
+	NewGuardianIndex uint32
+	Raw              types.Log // Blockchain specific contextual infos
 }
 
-// FilterLogGuardianSetChanged is a free log retrieval operation binding the contract event 0xffd222fffe5bc3841c76607f52e3101e111286ab95f24f199ba39e0d5df72acb.
+// FilterLogGuardianSetChanged is a free log retrieval operation binding the contract event 0xdfb80683934199683861bf00b64ecdf0984bbaf661bf27983dba382e99297a62.
 //
-// Solidity: event LogGuardianSetChanged((address[],uint32) indexed oldGuardian, (address[],uint32) indexed newGuardian)
-func (_Abi *AbiFilterer) FilterLogGuardianSetChanged(opts *bind.FilterOpts, oldGuardian []WormholeGuardianSet, newGuardian []WormholeGuardianSet) (*AbiLogGuardianSetChangedIterator, error) {
+// Solidity: event LogGuardianSetChanged(uint32 oldGuardianIndex, uint32 newGuardianIndex)
+func (_Abi *AbiFilterer) FilterLogGuardianSetChanged(opts *bind.FilterOpts) (*AbiLogGuardianSetChangedIterator, error) {
 
-	var oldGuardianRule []interface{}
-	for _, oldGuardianItem := range oldGuardian {
-		oldGuardianRule = append(oldGuardianRule, oldGuardianItem)
-	}
-	var newGuardianRule []interface{}
-	for _, newGuardianItem := range newGuardian {
-		newGuardianRule = append(newGuardianRule, newGuardianItem)
-	}
-
-	logs, sub, err := _Abi.contract.FilterLogs(opts, "LogGuardianSetChanged", oldGuardianRule, newGuardianRule)
+	logs, sub, err := _Abi.contract.FilterLogs(opts, "LogGuardianSetChanged")
 	if err != nil {
 		return nil, err
 	}
 	return &AbiLogGuardianSetChangedIterator{contract: _Abi.contract, event: "LogGuardianSetChanged", logs: logs, sub: sub}, nil
 }
 
-// WatchLogGuardianSetChanged is a free log subscription operation binding the contract event 0xffd222fffe5bc3841c76607f52e3101e111286ab95f24f199ba39e0d5df72acb.
+// WatchLogGuardianSetChanged is a free log subscription operation binding the contract event 0xdfb80683934199683861bf00b64ecdf0984bbaf661bf27983dba382e99297a62.
 //
-// Solidity: event LogGuardianSetChanged((address[],uint32) indexed oldGuardian, (address[],uint32) indexed newGuardian)
-func (_Abi *AbiFilterer) WatchLogGuardianSetChanged(opts *bind.WatchOpts, sink chan<- *AbiLogGuardianSetChanged, oldGuardian []WormholeGuardianSet, newGuardian []WormholeGuardianSet) (event.Subscription, error) {
+// Solidity: event LogGuardianSetChanged(uint32 oldGuardianIndex, uint32 newGuardianIndex)
+func (_Abi *AbiFilterer) WatchLogGuardianSetChanged(opts *bind.WatchOpts, sink chan<- *AbiLogGuardianSetChanged) (event.Subscription, error) {
 
-	var oldGuardianRule []interface{}
-	for _, oldGuardianItem := range oldGuardian {
-		oldGuardianRule = append(oldGuardianRule, oldGuardianItem)
-	}
-	var newGuardianRule []interface{}
-	for _, newGuardianItem := range newGuardian {
-		newGuardianRule = append(newGuardianRule, newGuardianItem)
-	}
-
-	logs, sub, err := _Abi.contract.WatchLogs(opts, "LogGuardianSetChanged", oldGuardianRule, newGuardianRule)
+	logs, sub, err := _Abi.contract.WatchLogs(opts, "LogGuardianSetChanged")
 	if err != nil {
 		return nil, err
 	}
@@ -605,9 +587,9 @@ func (_Abi *AbiFilterer) WatchLogGuardianSetChanged(opts *bind.WatchOpts, sink c
 	}), nil
 }
 
-// ParseLogGuardianSetChanged is a log parse operation binding the contract event 0xffd222fffe5bc3841c76607f52e3101e111286ab95f24f199ba39e0d5df72acb.
+// ParseLogGuardianSetChanged is a log parse operation binding the contract event 0xdfb80683934199683861bf00b64ecdf0984bbaf661bf27983dba382e99297a62.
 //
-// Solidity: event LogGuardianSetChanged((address[],uint32) indexed oldGuardian, (address[],uint32) indexed newGuardian)
+// Solidity: event LogGuardianSetChanged(uint32 oldGuardianIndex, uint32 newGuardianIndex)
 func (_Abi *AbiFilterer) ParseLogGuardianSetChanged(log types.Log) (*AbiLogGuardianSetChanged, error) {
 	event := new(AbiLogGuardianSetChanged)
 	if err := _Abi.contract.UnpackLog(event, "LogGuardianSetChanged", log); err != nil {

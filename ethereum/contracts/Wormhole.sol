@@ -34,8 +34,8 @@ contract Wormhole {
     }
 
     event LogGuardianSetChanged(
-        GuardianSet indexed oldGuardian,
-        GuardianSet indexed newGuardian
+        uint32 oldGuardianIndex,
+        uint32 newGuardianIndex
     );
 
     event LogTokensLocked(
@@ -145,7 +145,7 @@ contract Wormhole {
         guardian_sets[guardian_set_index] = new_guardian_set;
         guardian_sets[old_guardian_set_index].expiration_time = uint32(block.timestamp) + vaa_expiry;
 
-        emit LogGuardianSetChanged(guardian_sets[old_guardian_set_index], new_guardian_set);
+        emit LogGuardianSetChanged(old_guardian_set_index, guardian_set_index);
     }
 
     function vaaTransfer(bytes memory data) private {
