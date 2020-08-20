@@ -22,12 +22,12 @@ def build_bridge_yaml():
     bridge_yaml = read_yaml_stream("devnet/bridge.yaml")
 
     for obj in bridge_yaml:
-        if obj['kind'] == 'StatefulSet' and obj['metadata']['name'] == 'guardian':
-            obj['spec']['replicas'] = num_guardians
-            container = obj['spec']['template']['spec']['containers'][0]
-            if container['name'] != 'guardiand':
+        if obj["kind"] == "StatefulSet" and obj["metadata"]["name"] == "guardian":
+            obj["spec"]["replicas"] = num_guardians
+            container = obj["spec"]["template"]["spec"]["containers"][0]
+            if container["name"] != "guardiand":
                 fail("container 0 is not guardiand")
-            container['command'] += ['-devNumGuardians', str(num_guardians)]
+            container["command"] += ["-devNumGuardians", str(num_guardians)]
 
     return encode_yaml_stream(bridge_yaml)
 
