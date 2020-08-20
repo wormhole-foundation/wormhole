@@ -17,8 +17,6 @@ COPY cli cli
 COPY Cargo.toml .
 COPY Cargo.lock .
 
-RUN ./do.sh build bridge
-
 RUN --mount=type=cache,target=/usr/local/cargo,from=rust,source=/usr/local/cargo \
     --mount=type=cache,target=/root/.cache \
     --mount=type=cache,target=bridge/target \
