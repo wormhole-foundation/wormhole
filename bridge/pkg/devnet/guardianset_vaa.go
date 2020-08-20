@@ -10,8 +10,10 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"go.uber.org/zap"
 
 	"github.com/certusone/wormhole/bridge/pkg/ethereum/abi"
+	"github.com/certusone/wormhole/bridge/pkg/supervisor"
 	"github.com/certusone/wormhole/bridge/pkg/vaa"
 )
 
@@ -65,6 +67,8 @@ func SubmitVAA(ctx context.Context, rpcURL string, vaa *vaa.VAA) (*types.Transac
 	if err != nil {
 		panic(err)
 	}
+
+	supervisor.Logger(ctx).Info("initial guardian set VAA", zap.Binary("binary", b))  // TODO
 
 	tx, err := bridge.SubmitVAA(opts, b)
 	if err != nil {
