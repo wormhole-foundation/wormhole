@@ -2,19 +2,18 @@ import React, {useContext, useEffect, useState} from 'react';
 import ClientContext from "../providers/ClientContext";
 import * as solanaWeb3 from '@solana/web3.js';
 import {Account, Connection, PublicKey, Transaction} from '@solana/web3.js';
-import {Button, Col, Form, Input, InputNumber, message, Row, Select, Space} from "antd";
+import {Button, Card, Col, Divider, Form, Input, InputNumber, List, message, Row, Select} from "antd";
 import {ethers} from "ethers";
 import {Erc20Factory} from "../contracts/Erc20Factory";
 import {Arrayish, BigNumber, BigNumberish} from "ethers/utils";
 import {WormholeFactory} from "../contracts/WormholeFactory";
 import {WrappedAssetFactory} from "../contracts/WrappedAssetFactory";
 import {BRIDGE_ADDRESS} from "../config";
-import {SlotContext} from "../providers/SlotContext";
 import {SolanaTokenContext} from "../providers/SolanaTokenContext";
 import {BridgeContext} from "../providers/BridgeContext";
-import SplBalances from "../components/SplBalances";
 import {AssetMeta, SolanaBridge} from "../utils/bridge";
 import KeyContext from "../providers/KeyContext";
+import {FormInstance} from "antd/lib/form";
 
 
 // @ts-ignore
@@ -79,7 +78,6 @@ async function createWrapped(c: Connection, b: SolanaBridge, key: Account, meta:
 function Transfer() {
     let c = useContext<solanaWeb3.Connection>(ClientContext);
     let tokenAccounts = useContext(SolanaTokenContext);
-    let slot = useContext(SlotContext);
     let bridge = useContext(BridgeContext);
     let k = useContext(KeyContext);
 
@@ -91,20 +89,63 @@ function Transfer() {
         chainID: 0,
         assetAddress: new Buffer("")
     });
-    let [amount, setAmount] = useState(0);
+    let [amount, setAmount] = useState(new BigNumber(0));
+    let [amountValid, setAmountValid] = useState(false);
+
     let [address, setAddress] = useState("");
     let [addressValid, setAddressValid] = useState(false)
-    let [solanaAccount, setSolanaAccount] = useState(false)
+
+    let [solanaAccount, setSolanaAccount] = useState({
+        valid: false,
+        message: ""
+    })
     let [wrappedMint, setWrappedMint] = useState("")
+    let [recipient, setRecipient] = useState("")
+
+    let formRef = React.createRef<FormInstance>();
 
     useEffect(() => {
+        let fetchBalance = async (token: string) => {
+            try {
+                let e = WrappedAssetFactory.connect(token, provider);
+                let addr = await signer.getAddress();
+                let balance = await e.balanceOf(addr);
+                let decimals = await e.decimals();
+                let allowance = await e.allowance(addr, BRIDGE_ADDRESS);
+
+                let info = {
+                    balance: balance.div(new BigNumber(10).pow(decimals)),
+                    allowance: allowance.div(new BigNumber(10).pow(decimals)),
+                    decimals: decimals,
+                    isWrapped: false,
+                    chainID: 2,
+                    assetAddress: new Buffer(token.slice(2), "hex")
+                }
+
+                let b = WormholeFactory.connect(BRIDGE_ADDRESS, provider);
+
+                let isWrapped = await b.isWrappedAsset(token)
+                if (isWrapped) {
+                    info.chainID = await e.assetChain()
+                    info.assetAddress = new Buffer((await e.assetAddress()).slice(2), "hex")
+                    info.isWrapped = true
+                }
+                setCoinInfo(info)
+                setAddressValid(true)
+            } catch (e) {
+                setAddressValid(false)
+            }
+        }
         fetchBalance(address)
     }, [address])
 
     useEffect(() => {
         if (!addressValid) {
             setWrappedMint("")
-            setSolanaAccount(false)
+            setSolanaAccount({
+                valid: false,
+                message: ""
+            })
             return
         }
 
@@ -116,62 +157,39 @@ function Transfer() {
             setWrappedMint(wrappedMint.toString())
 
             for (let account of tokenAccounts.balances) {
-                if (account.mint == wrappedMint.toString()) {
-                    setSolanaAccount(true)
+                if (account.account.toString() == recipient) {
+                    setSolanaAccount({
+                        valid: true,
+                        message: ""
+                    })
                     return;
                 }
             }
-            setSolanaAccount(false)
+            setSolanaAccount({
+                valid: false,
+                message: "Not a valid wrapped token account"
+            })
         }
         getWrappedInfo();
     }, [address, addressValid, tokenAccounts, bridge])
 
-    async function fetchBalance(token: string) {
-        try {
-            let e = WrappedAssetFactory.connect(token, provider);
-            let addr = await signer.getAddress();
-            let balance = await e.balanceOf(addr);
-            let decimals = await e.decimals();
-            let allowance = await e.allowance(addr, BRIDGE_ADDRESS);
-
-            let info = {
-                balance: balance.div(new BigNumber(10).pow(decimals)),
-                allowance: allowance.div(new BigNumber(10).pow(decimals)),
-                decimals: decimals,
-                isWrapped: false,
-                chainID: 2,
-                assetAddress: new Buffer(token.slice(2), "hex")
-            }
-
-            let b = WormholeFactory.connect(BRIDGE_ADDRESS, provider);
-
-            let isWrapped = await b.isWrappedAsset(token)
-            if (isWrapped) {
-                info.chainID = await e.assetChain()
-                info.assetAddress = new Buffer((await e.assetAddress()).slice(2), "hex")
-                info.isWrapped = true
-            }
-            setCoinInfo(info)
-            setAddressValid(true)
-        } catch (e) {
-            setAddressValid(false)
-        }
-    }
+    useEffect(() => {
+        setAmountValid(amount.lte(coinInfo.balance))
+    }, [amount, coinInfo])
 
     return (
         <>
-            <p>Slot: {slot}</p>
-            <Row>
+            <Row gutter={12}>
                 <Col span={12}>
                     <Form onFinish={(values) => {
                         let recipient = new solanaWeb3.PublicKey(values["recipient"]).toBuffer()
                         let transferAmount = new BigNumber(values["amount"]).mul(new BigNumber(10).pow(coinInfo.decimals));
-                        if (coinInfo.allowance.toNumber() >= amount || coinInfo.isWrapped) {
+                        if (coinInfo.allowance.gte(amount) || coinInfo.isWrapped) {
                             lockAssets(values["address"], transferAmount, recipient, values["target_chain"])
                         } else {
                             approveAssets(values["address"], transferAmount)
                         }
-                    }} style={{width: "100%"}}>
+                    }} style={{width: "100%"}} ref={formRef}>
                         <Form.Item name="address" validateStatus={addressValid ? "success" : "error"}>
                             <Input addonAfter={`Balance: ${coinInfo.balance}`} name="address"
                                    placeholder={"ERC20 address"}
@@ -179,46 +197,73 @@ function Transfer() {
                                        setAddress(v.target.value)
                                    }}/>
                         </Form.Item>
-                        <Form.Item name="amount" rules={[{
-                            required: true, validator: (rule, value, callback) => {
-                                let big = new BigNumber(value);
-                                callback(big.lte(coinInfo.balance) ? undefined : "Amount exceeds balance")
-                            }
-                        }]}>
-                            <InputNumber name={"amount"} placeholder={"Amount"} type={"number"} onChange={value => {
-                                // @ts-ignore
-                                setAmount(value || 0)
-                            }}/>
+                        <Form.Item name="amount" validateStatus={amountValid ? "success" : "error"}>
+                            <InputNumber name={"amount"} placeholder={"Amount"} type={"number"} min={0}
+                                         onChange={value => {
+                                             // @ts-ignore
+                                             setAmount(new BigNumber(value) || 0)
+                                         }}/>
                         </Form.Item>
                         <Form.Item name="target_chain"
                                    rules={[{required: true, message: "Please choose a target chain"}]}>
-                            <Select placeholder="Target Chain">
+                            <Select placeholder="Target Chain" defaultValue={1}>
                                 <Select.Option value={1}>
                                     Solana
                                 </Select.Option>
                             </Select>
                         </Form.Item>
-                        <Form.Item name="recipient" validateStatus={solanaAccount ? "success" : "error"}>
-                            <Input name="recipient" placeholder={"Address of the recipient"}/>
+                        <Form.Item name="recipient" validateStatus={solanaAccount.valid ? "success" : "error"}
+                                   help={recipient === "" ? undefined : solanaAccount.message}>
+                            <Input name="recipient" placeholder={"Address of the recipient"}
+                                   onFocus={(v) => {
+                                       setRecipient(v.target.value)
+                                   }}/>
                         </Form.Item>
                         <Form.Item>
                             <Button type="primary" htmlType="submit">
-                                {coinInfo.allowance.toNumber() >= amount || coinInfo.isWrapped ? "Transfer" : "Approve"}
+                                {coinInfo.allowance.gte(amount) || coinInfo.isWrapped ? "Transfer" : "Approve"}
                             </Button>
                         </Form.Item>
                     </Form>
                 </Col>
+                <Col span={12}>
+                    <Card>
+                        <Row justify={"space-between"} align={"middle"}>
+                            <Col>Token Accounts on Solana:</Col>
+                            <Col><Button size={"small"}
+                                         disabled={wrappedMint === ""}
+                                         onClick={() => {
+                                             createWrapped(c, bridge, k, {
+                                                 chain: coinInfo.chainID,
+                                                 address: coinInfo.assetAddress
+                                             }, new PublicKey(wrappedMint))
+                                         }}>Create new</Button></Col>
+                        </Row>
+                        <Divider/>
+                        <Row>
+                            <Col span={24}>
+                                <List>
+                                    {
+                                        tokenAccounts.balances
+                                            .filter(value => value.mint == wrappedMint)
+                                            .map(v => (
+                                                <List.Item
+                                                    actions={[(<Button size={"small"} type={"dashed"} onClick={() => {
+                                                        setRecipient(v.account.toString())
+                                                        formRef.current?.setFieldsValue({
+                                                            "recipient": v.account.toString()
+                                                        })
+                                                    }}>use</Button>)]}>
+                                                    {v.account.toString()}
+                                                </List.Item>
+                                            ))
+                                    }
+                                </List>
+                            </Col>
+                        </Row>
+                    </Card>
+                </Col>
             </Row>
-            <Col>
-                <Space><Button disabled={!addressValid} onClick={() => {
-                    createWrapped(c, bridge, k, {
-                        chain: coinInfo.chainID,
-                        address: coinInfo.assetAddress
-                    }, new PublicKey(wrappedMint))
-                }}>Create Wrapped account</Button>
-                    <p>Mint: {wrappedMint}</p></Space>
-                <SplBalances/>
-            </Col>
         </>
     );
 }

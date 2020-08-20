@@ -3,7 +3,7 @@ import ClientContext from "../providers/ClientContext";
 import * as solanaWeb3 from '@solana/web3.js';
 import {PublicKey, Transaction} from '@solana/web3.js';
 import * as spl from '@solana/spl-token';
-import {Button, Col, Form, Input, InputNumber, message, Row, Select} from "antd";
+import {Button, Card, Col, Divider, Form, Input, InputNumber, List, message, Row, Select} from "antd";
 import {BigNumber} from "ethers/utils";
 import SplBalances from "../components/SplBalances";
 import {SlotContext} from "../providers/SlotContext";
@@ -58,9 +58,9 @@ function TransferSolana() {
 
     return (
         <>
-            <p>Slot: {slot}</p>
-            <Row>
+            <Row gutter={12}>
                 <Col span={12}>
+                    <p>Transfer from Solana:</p>
                     <Form onFinish={(values) => {
                         let recipient = new Buffer(values["recipient"].slice(2), "hex");
 
@@ -114,7 +114,7 @@ function TransferSolana() {
                         </Form.Item>
                         <Form.Item name="target_chain"
                                    rules={[{required: true, message: "Please choose a target chain"}]}>
-                            <Select placeholder="Target Chain">
+                            <Select placeholder="Target Chain" defaultValue={2}>
                                 <Select.Option value={2}>
                                     Ethereum
                                 </Select.Option>
@@ -129,7 +129,7 @@ function TransferSolana() {
                                     callback()
                                 }
                             }
-                        },]}>
+                        }]}>
                             <Input name="recipient" placeholder={"Address of the recipient"}/>
                         </Form.Item>
                         <Form.Item>
@@ -139,6 +139,8 @@ function TransferSolana() {
                         </Form.Item>
                     </Form>
                 </Col>
+            </Row>
+            <Row>
                 <Col>
                     <SplBalances/>
                 </Col>
