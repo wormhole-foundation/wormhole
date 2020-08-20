@@ -12,6 +12,10 @@ COPY do.sh .
 RUN ./do.sh update
 
 COPY bridge bridge
+COPY agent agent
+COPY cli cli
+COPY Cargo.toml .
+COPY Cargo.lock .
 
 RUN ./do.sh build bridge
 
@@ -20,4 +24,4 @@ RUN --mount=type=cache,target=/usr/local/cargo,from=rust,source=/usr/local/cargo
     --mount=type=cache,target=bridge/target \
     ./do.sh build bridge && \
     mkdir -p /opt/solana/deps && \
-    cp bridge/target/bpfel-unknown-unknown/release/spl_bridge.so /opt/solana/deps
+    cp target/bpfel-unknown-unknown/release/spl_bridge.so /opt/solana/deps

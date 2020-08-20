@@ -2569,7 +2569,8 @@ dependencies = [
 [[package]]
 name = "spl-token"
 version = "1.0.8"
-source = "git+https://github.com/solana-labs/solana-program-library#b619da32aea7b2898d1fe2faf4cdc7dba99df164"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7e8bee8b59279b46d0627490b544c3bc38e440ff4da9851a34a26ab0a24bfe7d"
 dependencies = [
  "cbindgen",
  "num-derive 0.3.1",
@@ -2582,8 +2583,7 @@ dependencies = [
 [[package]]
 name = "spl-token"
 version = "1.0.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7e8bee8b59279b46d0627490b544c3bc38e440ff4da9851a34a26ab0a24bfe7d"
+source = "git+https://github.com/solana-labs/solana-program-library#b619da32aea7b2898d1fe2faf4cdc7dba99df164"
 dependencies = [
  "cbindgen",
  "num-derive 0.3.1",
