@@ -93,8 +93,8 @@ func (e *SolanaBridgeWatcher) Run(ctx context.Context) error {
 				timeout, _ := context.WithTimeout(ctx, 15*time.Second)
 				res, err := c.SubmitVAA(timeout, &agentv1.SubmitVAARequest{Vaa: vaaBytes})
 				if err != nil {
-					errC <- fmt.Errorf("failed to submit VAA: %w", err)
-					return
+					logger.Error("failed to submit VAA", zap.Error(err))
+					break
 				}
 
 				logger.Info("submitted VAA",

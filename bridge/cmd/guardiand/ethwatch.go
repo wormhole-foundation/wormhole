@@ -247,7 +247,7 @@ func ethLockupProcessor(lockC chan *common.ChainLock, setC chan *common.Guardian
 						)
 
 					if *unsafeDevMode && len(sigs) >= quorum {
-						_, err := devnet.GetDevnetIndex()
+						idx, err := devnet.GetDevnetIndex()
 						if err != nil {
 							return err
 						}
@@ -263,9 +263,9 @@ func ethLockupProcessor(lockC chan *common.ChainLock, setC chan *common.Guardian
 							zap.Binary("bytes", vaaBytes))
 
 						// TODO: actually submit to Solana once the agent works and has a reasonable key
-						//if idx == 0 {
-						//	vaaC <- state.lockupSignatures[hash].ourVAA
-						//}
+						if idx == 0 {
+							vaaC <- state.lockupSignatures[hash].ourVAA
+						}
 					} else if !*unsafeDevMode {
 						panic("not implemented")  // TODO
 					} else {

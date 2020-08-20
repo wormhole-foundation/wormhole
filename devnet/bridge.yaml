@@ -42,7 +42,7 @@ spec:
             - -ethRPC
             - ws://eth-devnet:8545
             - -agentRPC
-            - http://localhost:9000
+            - localhost:9000
             - -ethConfirmations
             - '1'
             - -unsafeDevMode
