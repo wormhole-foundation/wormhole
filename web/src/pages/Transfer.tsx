@@ -189,15 +189,15 @@ function Transfer() {
                         } else {
                             approveAssets(values["address"], transferAmount)
                         }
-                    }} style={{width: "100%"}} ref={formRef}>
-                        <Form.Item name="address" validateStatus={addressValid ? "success" : "error"}>
+                    }} style={{width: "100%"}} ref={formRef} layout={"vertical"}>
+                        <Form.Item name="address" validateStatus={addressValid ? "success" : "error"} label={"Token:"}>
                             <Input addonAfter={`Balance: ${coinInfo.balance}`} name="address"
                                    placeholder={"ERC20 address"}
                                    onBlur={(v) => {
                                        setAddress(v.target.value)
                                    }}/>
                         </Form.Item>
-                        <Form.Item name="amount" validateStatus={amountValid ? "success" : "error"}>
+                        <Form.Item name="amount" validateStatus={amountValid ? "success" : "error"} label={"Amount:"}>
                             <InputNumber name={"amount"} placeholder={"Amount"} type={"number"} min={0}
                                          onChange={value => {
                                              // @ts-ignore
@@ -205,7 +205,7 @@ function Transfer() {
                                          }}/>
                         </Form.Item>
                         <Form.Item name="target_chain"
-                                   rules={[{required: true, message: "Please choose a target chain"}]}>
+                                   label={"Target Chain:"}>
                             <Select placeholder="Target Chain" defaultValue={1}>
                                 <Select.Option value={1}>
                                     Solana
@@ -213,14 +213,14 @@ function Transfer() {
                             </Select>
                         </Form.Item>
                         <Form.Item name="recipient" validateStatus={solanaAccount.valid ? "success" : "error"}
-                                   help={recipient === "" ? undefined : solanaAccount.message}>
+                                   help={recipient === "" ? undefined : solanaAccount.message} label={"Recipient"}>
                             <Input name="recipient" placeholder={"Address of the recipient"}
                                    onFocus={(v) => {
                                        setRecipient(v.target.value)
                                    }}/>
                         </Form.Item>
                         <Form.Item>
-                            <Button type="primary" htmlType="submit">
+                            <Button type="primary" htmlType="submit" style={{marginLeft:"auto"}}>
                                 {coinInfo.allowance.gte(amount) || coinInfo.isWrapped ? "Transfer" : "Approve"}
                             </Button>
                         </Form.Item>

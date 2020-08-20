@@ -91,8 +91,8 @@ function TransferSolana() {
                             }
                         }
                         send()
-                    }}>
-                        <Form.Item name="address" validateStatus={addressValid ? "success" : "error"}>
+                    }} layout={"vertical"} >
+                        <Form.Item name="address" validateStatus={addressValid ? "success" : "error"} label={"Token Account:"}>
                             <Input
                                 addonAfter={`Balance: ${coinInfo.balance.div(new BigNumber(Math.pow(10, coinInfo.decimals)))}`}
                                 name="address"
@@ -106,14 +106,15 @@ function TransferSolana() {
                                 let big = new BigNumber(value).mul(new BigNumber(10).pow(coinInfo.decimals));
                                 callback(big.lte(coinInfo.balance) ? undefined : "Amount exceeds balance")
                             }
-                        }]}>
+                        }]} label={"Amount:"}>
                             <InputNumber name={"amount"} placeholder={"Amount"} type={"number"} onChange={value => {
                                 // @ts-ignore
                                 setAmount(value || 0)
                             }}/>
                         </Form.Item>
                         <Form.Item name="target_chain"
-                                   rules={[{required: true, message: "Please choose a target chain"}]}>
+                                   rules={[{required: true, message: "Please choose a target chain"}]}
+                                   label={"Target Chain:"}>
                             <Select placeholder="Target Chain" defaultValue={2}>
                                 <Select.Option value={2}>
                                     Ethereum
@@ -129,7 +130,7 @@ function TransferSolana() {
                                     callback()
                                 }
                             }
-                        }]}>
+                        }]} label={"Recipient:"}>
                             <Input name="recipient" placeholder={"Address of the recipient"}/>
                         </Form.Item>
                         <Form.Item>
