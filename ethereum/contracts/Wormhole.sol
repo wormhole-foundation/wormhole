@@ -43,7 +43,8 @@ contract Wormhole is ReentrancyGuard {
         bytes32 indexed token,
         bytes32 indexed sender,
         bytes32 recipient,
-        uint256 amount
+        uint256 amount,
+        uint32 nonce
     );
 
     // Mapping of guardian_set_index => guardian set
@@ -206,7 +207,8 @@ contract Wormhole is ReentrancyGuard {
         address asset,
         uint256 amount,
         bytes32 recipient,
-        uint8 target_chain
+        uint8 target_chain,
+        uint32 nonce
     ) public nonReentrant {
         require(amount != 0, "amount must not be 0");
 
@@ -227,12 +229,13 @@ contract Wormhole is ReentrancyGuard {
             asset_address = bytes32(uint256(asset));
         }
 
-        emit LogTokensLocked(target_chain, asset_chain, asset_address, bytes32(uint256(msg.sender)), recipient, amount);
+        emit LogTokensLocked(target_chain, asset_chain, asset_address, bytes32(uint256(msg.sender)), recipient, amount, nonce);
     }
 
     function lockETH(
         bytes32 recipient,
-        uint8 target_chain
+        uint8 target_chain,
+        uint32 nonce
     ) public payable nonReentrant {
         require(msg.value != 0, "amount must not be 0");
 
@@ -240,7 +243,7 @@ contract Wormhole is ReentrancyGuard {
         WETH(WETHAddress).deposit{value : msg.value}();
 
         // Log deposit of WETH
-        emit LogTokensLocked(target_chain, CHAIN_ID, bytes32(uint256(WETHAddress)), bytes32(uint256(msg.sender)), recipient, msg.value);
+        emit LogTokensLocked(target_chain, CHAIN_ID, bytes32(uint256(WETHAddress)), bytes32(uint256(msg.sender)), recipient, msg.value, nonce);
     }
 
 
