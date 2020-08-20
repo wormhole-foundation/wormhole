@@ -3,8 +3,8 @@ IDEA additional info:
 Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
 <+>UTF-8
 ===================================================================
---- Cargo.lock	(revision e2d66cf796484301668c2b45804e31610373a0e9)
-+++ Cargo.lock	(revision 26c89c185550ea921e19b040b08abd6811607d86)
+--- Cargo.lock	(revision c8b40da7abf11c1d880436b0b3ed51261900a986)
++++ Cargo.lock	(revision d0901065ee3d9b73483be7d8101ef124a2ee7dda)
 @@ -274,12 +274,22 @@
  source = "registry+https://github.com/rust-lang/crates.io-index"
  checksum = "c0940dc441f31689269e10ac70eb1002a3a1d3ad1390e030043662eb7fe4688b"
@@ -211,8 +211,8 @@ IDEA additional info:
 Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
 <+>UTF-8
 ===================================================================
---- programs/bpf_loader/Cargo.toml	(revision e2d66cf796484301668c2b45804e31610373a0e9)
-+++ programs/bpf_loader/Cargo.toml	(revision 26c89c185550ea921e19b040b08abd6811607d86)
+--- programs/bpf_loader/Cargo.toml	(revision c8b40da7abf11c1d880436b0b3ed51261900a986)
++++ programs/bpf_loader/Cargo.toml	(revision d0901065ee3d9b73483be7d8101ef124a2ee7dda)
 @@ -17,6 +17,10 @@
  solana-sdk = { path = "../../sdk", version = "1.4.0" }
  solana_rbpf = "=0.1.28"
@@ -229,8 +229,8 @@ IDEA additional info:
 Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
 <+>UTF-8
 ===================================================================
---- programs/bpf_loader/src/crypto.rs	(revision 26c89c185550ea921e19b040b08abd6811607d86)
-+++ programs/bpf_loader/src/crypto.rs	(revision 26c89c185550ea921e19b040b08abd6811607d86)
+--- programs/bpf_loader/src/crypto.rs	(revision d0901065ee3d9b73483be7d8101ef124a2ee7dda)
++++ programs/bpf_loader/src/crypto.rs	(revision d0901065ee3d9b73483be7d8101ef124a2ee7dda)
 @@ -0,0 +1,171 @@
 +pub extern crate secp256k1;
 +
@@ -408,8 +408,8 @@ IDEA additional info:
 Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
 <+>UTF-8
 ===================================================================
---- programs/bpf_loader/src/lib.rs	(revision e2d66cf796484301668c2b45804e31610373a0e9)
-+++ programs/bpf_loader/src/lib.rs	(revision 2c10215589be61459a5f22c2fff7f7575705f667)
+--- programs/bpf_loader/src/lib.rs	(revision c8b40da7abf11c1d880436b0b3ed51261900a986)
++++ programs/bpf_loader/src/lib.rs	(revision 745a97685408ff4249d96333a7885cd214639b70)
 @@ -4,6 +4,10 @@
  pub mod deprecated;
  pub mod serialization;
@@ -435,8 +435,8 @@ IDEA additional info:
 Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
 <+>UTF-8
 ===================================================================
---- programs/bpf_loader/src/syscalls.rs	(revision e2d66cf796484301668c2b45804e31610373a0e9)
-+++ programs/bpf_loader/src/syscalls.rs	(revision 26c89c185550ea921e19b040b08abd6811607d86)
+--- programs/bpf_loader/src/syscalls.rs	(revision c8b40da7abf11c1d880436b0b3ed51261900a986)
++++ programs/bpf_loader/src/syscalls.rs	(revision d0901065ee3d9b73483be7d8101ef124a2ee7dda)
 @@ -1,10 +1,23 @@
 -use crate::{alloc, BPFError};
 -use alloc::Alloc;
@@ -717,3 +717,20 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
      }
 
      #[test]
+Index: fetch-spl.sh
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- fetch-spl.sh	(revision 745a97685408ff4249d96333a7885cd214639b70)
++++ fetch-spl.sh	(revision 97144cdb8e9cb4d83943b0b5898d08f57844a4dd)
+@@ -40,6 +40,9 @@
+ fetch_program token 1.0.0 TokenSVp5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o BPFLoader1111111111111111111111111111111111
+ fetch_program memo  1.0.0 Memo1UhkJRfHyvLMcVucJwxXeuD728EqVDDwQDxFMNo BPFLoader1111111111111111111111111111111111
+
++# Add bridge
++genesis_args+=(--bpf-program Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o BPFLoader2111111111111111111111111111111111 spl_bridge.so)
++
+ echo "${genesis_args[@]}" > spl-genesis-args.sh
+
+ echo
