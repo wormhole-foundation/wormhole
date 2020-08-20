@@ -6,7 +6,7 @@ num_guardians = int(cfg.get("num", "5"))
 
 local_resource(
     name = "proto-gen",
-    deps = "./proto",
+    deps = ["./proto", "./generate-protos.sh"],
     cmd = "./generate-protos.sh",
 )
 
