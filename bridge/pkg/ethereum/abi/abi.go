@@ -33,7 +33,7 @@ type WormholeGuardianSet struct {
 }
 
 // AbiABI is the input ABI used to generate the binding from.
-const AbiABI = "[{\"inputs\":[{\"components\":[{\"internalType\":\"address[]\",\"name\":\"keys\",\"type\":\"address[]\"},{\"internalType\":\"uint32\",\"name\":\"expiration_time\",\"type\":\"uint32\"}],\"internalType\":\"structWormhole.GuardianSet\",\"name\":\"initial_guardian_set\",\"type\":\"tuple\"},{\"internalType\":\"address\",\"name\":\"wrapped_asset_master\",\"type\":\"address\"},{\"internalType\":\"uint32\",\"name\":\"_vaa_expiry\",\"type\":\"uint32\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint32\",\"name\":\"oldGuardianIndex\",\"type\":\"uint32\"},{\"indexed\":false,\"internalType\":\"uint32\",\"name\":\"newGuardianIndex\",\"type\":\"uint32\"}],\"name\":\"LogGuardianSetChanged\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint8\",\"name\":\"target_chain\",\"type\":\"uint8\"},{\"indexed\":false,\"internalType\":\"uint8\",\"name\":\"token_chain\",\"type\":\"uint8\"},{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"token\",\"type\":\"bytes32\"},{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"sender\",\"type\":\"bytes32\"},{\"indexed\":false,\"internalType\":\"bytes32\",\"name\":\"recipient\",\"type\":\"bytes32\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"LogTokensLocked\",\"type\":\"event\"},{\"stateMutability\":\"payable\",\"type\":\"fallback\",\"payable\":true},{\"inputs\":[],\"name\":\"guardian_set_index\",\"outputs\":[{\"internalType\":\"uint32\",\"name\":\"\",\"type\":\"uint32\"}],\"stateMutability\":\"view\",\"type\":\"function\",\"constant\":true},{\"inputs\":[{\"internalType\":\"uint32\",\"name\":\"\",\"type\":\"uint32\"}],\"name\":\"guardian_sets\",\"outputs\":[{\"internalType\":\"uint32\",\"name\":\"expiration_time\",\"type\":\"uint32\"}],\"stateMutability\":\"view\",\"type\":\"function\",\"constant\":true},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"name\":\"isWrappedAsset\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\",\"constant\":true},{\"inputs\":[],\"name\":\"vaa_expiry\",\"outputs\":[{\"internalType\":\"uint32\",\"name\":\"\",\"type\":\"uint32\"}],\"stateMutability\":\"view\",\"type\":\"function\",\"constant\":true},{\"inputs\":[],\"name\":\"wrappedAssetMaster\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\",\"constant\":true},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"name\":\"wrappedAssets\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\",\"constant\":true},{\"stateMutability\":\"payable\",\"type\":\"receive\",\"payable\":true},{\"inputs\":[{\"internalType\":\"uint32\",\"name\":\"idx\",\"type\":\"uint32\"}],\"name\":\"getGuardianSet\",\"outputs\":[{\"components\":[{\"internalType\":\"address[]\",\"name\":\"keys\",\"type\":\"address[]\"},{\"internalType\":\"uint32\",\"name\":\"expiration_time\",\"type\":\"uint32\"}],\"internalType\":\"structWormhole.GuardianSet\",\"name\":\"gs\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\",\"constant\":true},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"vaa\",\"type\":\"bytes\"}],\"name\":\"submitVAA\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"asset\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"internalType\":\"bytes32\",\"name\":\"recipient\",\"type\":\"bytes32\"},{\"internalType\":\"uint8\",\"name\":\"target_chain\",\"type\":\"uint8\"}],\"name\":\"lockAssets\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"recipient\",\"type\":\"bytes32\"},{\"internalType\":\"uint8\",\"name\":\"target_chain\",\"type\":\"uint8\"}],\"name\":\"lockETH\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\",\"payable\":true}]"
+const AbiABI = "[{\"inputs\":[{\"components\":[{\"internalType\":\"address[]\",\"name\":\"keys\",\"type\":\"address[]\"},{\"internalType\":\"uint32\",\"name\":\"expiration_time\",\"type\":\"uint32\"}],\"internalType\":\"structWormhole.GuardianSet\",\"name\":\"initial_guardian_set\",\"type\":\"tuple\"},{\"internalType\":\"address\",\"name\":\"wrapped_asset_master\",\"type\":\"address\"},{\"internalType\":\"uint32\",\"name\":\"_vaa_expiry\",\"type\":\"uint32\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint32\",\"name\":\"oldGuardianIndex\",\"type\":\"uint32\"},{\"indexed\":false,\"internalType\":\"uint32\",\"name\":\"newGuardianIndex\",\"type\":\"uint32\"}],\"name\":\"LogGuardianSetChanged\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint8\",\"name\":\"target_chain\",\"type\":\"uint8\"},{\"indexed\":false,\"internalType\":\"uint8\",\"name\":\"token_chain\",\"type\":\"uint8\"},{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"token\",\"type\":\"bytes32\"},{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"sender\",\"type\":\"bytes32\"},{\"indexed\":false,\"internalType\":\"bytes32\",\"name\":\"recipient\",\"type\":\"bytes32\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint32\",\"name\":\"nonce\",\"type\":\"uint32\"}],\"name\":\"LogTokensLocked\",\"type\":\"event\"},{\"stateMutability\":\"payable\",\"type\":\"fallback\",\"payable\":true},{\"inputs\":[],\"name\":\"guardian_set_index\",\"outputs\":[{\"internalType\":\"uint32\",\"name\":\"\",\"type\":\"uint32\"}],\"stateMutability\":\"view\",\"type\":\"function\",\"constant\":true},{\"inputs\":[{\"internalType\":\"uint32\",\"name\":\"\",\"type\":\"uint32\"}],\"name\":\"guardian_sets\",\"outputs\":[{\"internalType\":\"uint32\",\"name\":\"expiration_time\",\"type\":\"uint32\"}],\"stateMutability\":\"view\",\"type\":\"function\",\"constant\":true},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"name\":\"isWrappedAsset\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\",\"constant\":true},{\"inputs\":[],\"name\":\"vaa_expiry\",\"outputs\":[{\"internalType\":\"uint32\",\"name\":\"\",\"type\":\"uint32\"}],\"stateMutability\":\"view\",\"type\":\"function\",\"constant\":true},{\"inputs\":[],\"name\":\"wrappedAssetMaster\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\",\"constant\":true},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"name\":\"wrappedAssets\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\",\"constant\":true},{\"stateMutability\":\"payable\",\"type\":\"receive\",\"payable\":true},{\"inputs\":[{\"internalType\":\"uint32\",\"name\":\"idx\",\"type\":\"uint32\"}],\"name\":\"getGuardianSet\",\"outputs\":[{\"components\":[{\"internalType\":\"address[]\",\"name\":\"keys\",\"type\":\"address[]\"},{\"internalType\":\"uint32\",\"name\":\"expiration_time\",\"type\":\"uint32\"}],\"internalType\":\"structWormhole.GuardianSet\",\"name\":\"gs\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\",\"constant\":true},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"vaa\",\"type\":\"bytes\"}],\"name\":\"submitVAA\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"asset\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"internalType\":\"bytes32\",\"name\":\"recipient\",\"type\":\"bytes32\"},{\"internalType\":\"uint8\",\"name\":\"target_chain\",\"type\":\"uint8\"},{\"internalType\":\"uint32\",\"name\":\"nonce\",\"type\":\"uint32\"}],\"name\":\"lockAssets\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"recipient\",\"type\":\"bytes32\"},{\"internalType\":\"uint8\",\"name\":\"target_chain\",\"type\":\"uint8\"},{\"internalType\":\"uint32\",\"name\":\"nonce\",\"type\":\"uint32\"}],\"name\":\"lockETH\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\",\"payable\":true}]"
 
 // Abi is an auto generated Go binding around an Ethereum contract.
 type Abi struct {
@@ -359,46 +359,46 @@ func (_Abi *AbiCallerSession) WrappedAssets(arg0 [32]byte) (common.Address, erro
 	return _Abi.Contract.WrappedAssets(&_Abi.CallOpts, arg0)
 }
 
-// LockAssets is a paid mutator transaction binding the contract method 0xe66fd373.
+// LockAssets is a paid mutator transaction binding the contract method 0x13cca1a9.
 //
-// Solidity: function lockAssets(address asset, uint256 amount, bytes32 recipient, uint8 target_chain) returns()
-func (_Abi *AbiTransactor) LockAssets(opts *bind.TransactOpts, asset common.Address, amount *big.Int, recipient [32]byte, target_chain uint8) (*types.Transaction, error) {
-	return _Abi.contract.Transact(opts, "lockAssets", asset, amount, recipient, target_chain)
+// Solidity: function lockAssets(address asset, uint256 amount, bytes32 recipient, uint8 target_chain, uint32 nonce) returns()
+func (_Abi *AbiTransactor) LockAssets(opts *bind.TransactOpts, asset common.Address, amount *big.Int, recipient [32]byte, target_chain uint8, nonce uint32) (*types.Transaction, error) {
+	return _Abi.contract.Transact(opts, "lockAssets", asset, amount, recipient, target_chain, nonce)
 }
 
-// LockAssets is a paid mutator transaction binding the contract method 0xe66fd373.
+// LockAssets is a paid mutator transaction binding the contract method 0x13cca1a9.
 //
-// Solidity: function lockAssets(address asset, uint256 amount, bytes32 recipient, uint8 target_chain) returns()
-func (_Abi *AbiSession) LockAssets(asset common.Address, amount *big.Int, recipient [32]byte, target_chain uint8) (*types.Transaction, error) {
-	return _Abi.Contract.LockAssets(&_Abi.TransactOpts, asset, amount, recipient, target_chain)
+// Solidity: function lockAssets(address asset, uint256 amount, bytes32 recipient, uint8 target_chain, uint32 nonce) returns()
+func (_Abi *AbiSession) LockAssets(asset common.Address, amount *big.Int, recipient [32]byte, target_chain uint8, nonce uint32) (*types.Transaction, error) {
+	return _Abi.Contract.LockAssets(&_Abi.TransactOpts, asset, amount, recipient, target_chain, nonce)
 }
 
-// LockAssets is a paid mutator transaction binding the contract method 0xe66fd373.
+// LockAssets is a paid mutator transaction binding the contract method 0x13cca1a9.
 //
-// Solidity: function lockAssets(address asset, uint256 amount, bytes32 recipient, uint8 target_chain) returns()
-func (_Abi *AbiTransactorSession) LockAssets(asset common.Address, amount *big.Int, recipient [32]byte, target_chain uint8) (*types.Transaction, error) {
-	return _Abi.Contract.LockAssets(&_Abi.TransactOpts, asset, amount, recipient, target_chain)
+// Solidity: function lockAssets(address asset, uint256 amount, bytes32 recipient, uint8 target_chain, uint32 nonce) returns()
+func (_Abi *AbiTransactorSession) LockAssets(asset common.Address, amount *big.Int, recipient [32]byte, target_chain uint8, nonce uint32) (*types.Transaction, error) {
+	return _Abi.Contract.LockAssets(&_Abi.TransactOpts, asset, amount, recipient, target_chain, nonce)
 }
 
-// LockETH is a paid mutator transaction binding the contract method 0x780e2183.
+// LockETH is a paid mutator transaction binding the contract method 0x58d62e46.
 //
-// Solidity: function lockETH(bytes32 recipient, uint8 target_chain) payable returns()
-func (_Abi *AbiTransactor) LockETH(opts *bind.TransactOpts, recipient [32]byte, target_chain uint8) (*types.Transaction, error) {
-	return _Abi.contract.Transact(opts, "lockETH", recipient, target_chain)
+// Solidity: function lockETH(bytes32 recipient, uint8 target_chain, uint32 nonce) payable returns()
+func (_Abi *AbiTransactor) LockETH(opts *bind.TransactOpts, recipient [32]byte, target_chain uint8, nonce uint32) (*types.Transaction, error) {
+	return _Abi.contract.Transact(opts, "lockETH", recipient, target_chain, nonce)
 }
 
-// LockETH is a paid mutator transaction binding the contract method 0x780e2183.
+// LockETH is a paid mutator transaction binding the contract method 0x58d62e46.
 //
-// Solidity: function lockETH(bytes32 recipient, uint8 target_chain) payable returns()
-func (_Abi *AbiSession) LockETH(recipient [32]byte, target_chain uint8) (*types.Transaction, error) {
-	return _Abi.Contract.LockETH(&_Abi.TransactOpts, recipient, target_chain)
+// Solidity: function lockETH(bytes32 recipient, uint8 target_chain, uint32 nonce) payable returns()
+func (_Abi *AbiSession) LockETH(recipient [32]byte, target_chain uint8, nonce uint32) (*types.Transaction, error) {
+	return _Abi.Contract.LockETH(&_Abi.TransactOpts, recipient, target_chain, nonce)
 }
 
-// LockETH is a paid mutator transaction binding the contract method 0x780e2183.
+// LockETH is a paid mutator transaction binding the contract method 0x58d62e46.
 //
-// Solidity: function lockETH(bytes32 recipient, uint8 target_chain) payable returns()
-func (_Abi *AbiTransactorSession) LockETH(recipient [32]byte, target_chain uint8) (*types.Transaction, error) {
-	return _Abi.Contract.LockETH(&_Abi.TransactOpts, recipient, target_chain)
+// Solidity: function lockETH(bytes32 recipient, uint8 target_chain, uint32 nonce) payable returns()
+func (_Abi *AbiTransactorSession) LockETH(recipient [32]byte, target_chain uint8, nonce uint32) (*types.Transaction, error) {
+	return _Abi.Contract.LockETH(&_Abi.TransactOpts, recipient, target_chain, nonce)
 }
 
 // SubmitVAA is a paid mutator transaction binding the contract method 0x3bc0aee6.
@@ -673,12 +673,13 @@ type AbiLogTokensLocked struct {
 	Sender      [32]byte
 	Recipient   [32]byte
 	Amount      *big.Int
+	Nonce       uint32
 	Raw         types.Log // Blockchain specific contextual infos
 }
 
-// FilterLogTokensLocked is a free log retrieval operation binding the contract event 0x84b445260a99044cc9529b3033663c078031a14e31f3c255ff02c62667bab14b.
+// FilterLogTokensLocked is a free log retrieval operation binding the contract event 0x5742f26a345471409566883d5cac5a7d295eee7092e5be3a7d6c60bc2a3e2420.
 //
-// Solidity: event LogTokensLocked(uint8 target_chain, uint8 token_chain, bytes32 indexed token, bytes32 indexed sender, bytes32 recipient, uint256 amount)
+// Solidity: event LogTokensLocked(uint8 target_chain, uint8 token_chain, bytes32 indexed token, bytes32 indexed sender, bytes32 recipient, uint256 amount, uint32 nonce)
 func (_Abi *AbiFilterer) FilterLogTokensLocked(opts *bind.FilterOpts, token [][32]byte, sender [][32]byte) (*AbiLogTokensLockedIterator, error) {
 
 	var tokenRule []interface{}
@@ -697,9 +698,9 @@ func (_Abi *AbiFilterer) FilterLogTokensLocked(opts *bind.FilterOpts, token [][3
 	return &AbiLogTokensLockedIterator{contract: _Abi.contract, event: "LogTokensLocked", logs: logs, sub: sub}, nil
 }
 
-// WatchLogTokensLocked is a free log subscription operation binding the contract event 0x84b445260a99044cc9529b3033663c078031a14e31f3c255ff02c62667bab14b.
+// WatchLogTokensLocked is a free log subscription operation binding the contract event 0x5742f26a345471409566883d5cac5a7d295eee7092e5be3a7d6c60bc2a3e2420.
 //
-// Solidity: event LogTokensLocked(uint8 target_chain, uint8 token_chain, bytes32 indexed token, bytes32 indexed sender, bytes32 recipient, uint256 amount)
+// Solidity: event LogTokensLocked(uint8 target_chain, uint8 token_chain, bytes32 indexed token, bytes32 indexed sender, bytes32 recipient, uint256 amount, uint32 nonce)
 func (_Abi *AbiFilterer) WatchLogTokensLocked(opts *bind.WatchOpts, sink chan<- *AbiLogTokensLocked, token [][32]byte, sender [][32]byte) (event.Subscription, error) {
 
 	var tokenRule []interface{}
@@ -743,9 +744,9 @@ func (_Abi *AbiFilterer) WatchLogTokensLocked(opts *bind.WatchOpts, sink chan<- 
 	}), nil
 }
 
-// ParseLogTokensLocked is a log parse operation binding the contract event 0x84b445260a99044cc9529b3033663c078031a14e31f3c255ff02c62667bab14b.
+// ParseLogTokensLocked is a log parse operation binding the contract event 0x5742f26a345471409566883d5cac5a7d295eee7092e5be3a7d6c60bc2a3e2420.
 //
-// Solidity: event LogTokensLocked(uint8 target_chain, uint8 token_chain, bytes32 indexed token, bytes32 indexed sender, bytes32 recipient, uint256 amount)
+// Solidity: event LogTokensLocked(uint8 target_chain, uint8 token_chain, bytes32 indexed token, bytes32 indexed sender, bytes32 recipient, uint256 amount, uint32 nonce)
 func (_Abi *AbiFilterer) ParseLogTokensLocked(log types.Log) (*AbiLogTokensLocked, error) {
 	event := new(AbiLogTokensLocked)
 	if err := _Abi.contract.UnpackLog(event, "LogTokensLocked", log); err != nil {
