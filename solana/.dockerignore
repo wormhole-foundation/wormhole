@@ -1,2 +1,4 @@
 target
 bin
+cli/target
+agent/target

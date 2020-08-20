@@ -1,13 +1,12 @@
 # syntax=docker/dockerfile:experimental
-FROM rust:1.45
 
-RUN apt-get update && apt-get install -y libssl-dev libudev-dev pkg-config zlib1g-dev llvm clang
-RUN rustup component add rustfmt
+# Depend on our smart contract build - it's going to be linked directly into Solana as part the patch we carry.
+FROM solana-contract
 
 WORKDIR /usr/src/solana
 
 RUN git clone https://github.com/solana-labs/solana --depth=1 --branch master && \
-  cd solana && git checkout e2d66cf7
+  cd solana
 
 ADD *.patch .
 
@@ -23,4 +22,5 @@ RUN --mount=type=cache,target=/usr/local/cargo,from=rust,source=/usr/local/cargo
 
 ENV PATH="/opt/solana:${PATH}"
 ENV RUST_LOG="solana_runtime::system_instruction_processor=trace,solana_runtime::message_processor=trace,solana_bpf_loader=debug,solana_rbpf=debug"
+
 CMD ["/usr/src/solana/solana/run.sh"]

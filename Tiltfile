@@ -33,9 +33,9 @@ def build_bridge_yaml():
 
 k8s_yaml(build_bridge_yaml())
 
-k8s_resource("guardian", resource_deps=["proto-gen"])
+k8s_resource("guardian", resource_deps = ["proto-gen"])
 
-# solana smart contract components
+# solana agent and cli (runs alongside bridge)
 
 docker_build(
     ref = "solana-agent",
@@ -45,6 +45,14 @@ docker_build(
 
     # Ignore target folders from local (non-container) development.
     ignore = ["./solana/target", "./solana/agent/target", "./solana/cli/target"],
+)
+
+# solana smart contract
+
+docker_build(
+    ref = "solana-contract",
+    context = "solana",
+    dockerfile = "solana/Dockerfile",
 )
 
 # solana local devnet

@@ -729,7 +729,7 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
  fetch_program memo  1.0.0 Memo1UhkJRfHyvLMcVucJwxXeuD728EqVDDwQDxFMNo BPFLoader1111111111111111111111111111111111
 
 +# Add bridge
-+genesis_args+=(--bpf-program Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o BPFLoader2111111111111111111111111111111111 spl_bridge.so)
++genesis_args+=(--bpf-program Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o BPFLoader2111111111111111111111111111111111 /opt/solana/deps/spl_bridge.so)
 +
  echo "${genesis_args[@]}" > spl-genesis-args.sh
 
