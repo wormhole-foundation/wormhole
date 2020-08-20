@@ -1,10 +1,3 @@
-use std::env;
-use std::mem::size_of;
-use std::rc::Rc;
-use std::str::FromStr;
-use std::sync::mpsc::RecvError;
-use std::thread::sleep;
-
 use solana_client::client_error::ClientError;
 use solana_client::rpc_client::RpcClient;
 use solana_sdk::fee_calculator::FeeCalculator;
@@ -26,6 +19,12 @@ use service::{
 };
 use spl_bridge::instruction::{post_vaa, CHAIN_ID_SOLANA};
 use spl_bridge::state::{Bridge, TransferOutProposal};
+use std::env;
+use std::mem::size_of;
+use std::rc::Rc;
+use std::str::FromStr;
+use std::sync::mpsc::RecvError;
+use std::thread::sleep;
 
 use crate::monitor::{ProgramNotificationMessage, PubsubClient};
 
@@ -131,6 +130,7 @@ impl Agent for AgentImpl {
                         let event = if b.vaa_time == 0 {
                             // The Lockup was created
                             LockupEvent {
+                                slot: v.context.slot,
                                 event: Some(Event::New(LockupEventNew {
                                     nonce: b.nonce,
                                     source_chain: CHAIN_ID_SOLANA as u32,
@@ -145,6 +145,7 @@ impl Agent for AgentImpl {
                         } else {
                             // The VAA was submitted
                             LockupEvent {
+                                slot: v.context.slot,
                                 event: Some(Event::VaaPosted(LockupEventVaaPosted {
                                     nonce: b.nonce,
                                     source_chain: CHAIN_ID_SOLANA as u32,
@@ -178,6 +179,7 @@ impl Agent for AgentImpl {
             // We need to keep the channel alive https://github.com/hyperium/tonic/issues/378
             loop {
                 tx1.send(Ok(LockupEvent {
+                    slot: 0,
                     event: Some(Event::Empty(Empty {})),
                 }))
                 .await;

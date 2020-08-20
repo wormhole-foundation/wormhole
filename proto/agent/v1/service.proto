@@ -25,10 +25,11 @@ message WatchLockupsRequest {
 }
 
 message LockupEvent {
+    uint64 slot = 1;
     oneof event {
-        LockupEventNew new = 1;
-        LockupEventVAAPosted vaaPosted = 2;
-        Empty empty = 3;
+        LockupEventNew new = 2;
+        LockupEventVAAPosted vaaPosted = 3;
+        Empty empty = 4;
     }
 }
 
