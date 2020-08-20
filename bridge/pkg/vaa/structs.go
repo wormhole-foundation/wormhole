@@ -94,7 +94,7 @@ const (
 	ChainIDEthereum = 2
 
 	minVAALength        = 1 + 4 + 52 + 4 + 1 + 1
-	supportedVAAVersion = 0x01
+	SupportedVAAVersion = 0x01
 )
 
 // Unmarshal deserializes the binary representation of a VAA
@@ -105,7 +105,7 @@ func Unmarshal(data []byte) (*VAA, error) {
 	v := &VAA{}
 
 	v.Version = data[0]
-	if v.Version != supportedVAAVersion {
+	if v.Version != SupportedVAAVersion {
 		return nil, fmt.Errorf("unsupported VAA version: %d", v.Version)
 	}
 

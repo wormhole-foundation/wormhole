@@ -3,6 +3,7 @@ package ethereum
 import (
 	"context"
 	"fmt"
+	"math/big"
 	"sync"
 	"time"
 
@@ -42,7 +43,7 @@ func NewEthBridgeWatcher(url string, bridge eth_common.Address, minConfirmations
 }
 
 func (e *EthBridgeWatcher) Run(ctx context.Context) error {
-	timeout, _ := context.WithTimeout(ctx, 15 * time.Second)
+	timeout, _ := context.WithTimeout(ctx, 15*time.Second)
 	c, err := ethclient.DialContext(timeout, e.url)
 	if err != nil {
 		return fmt.Errorf("dialing eth client failed: %w", err)
@@ -59,7 +60,7 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 	}
 
 	// Timeout for initializing subscriptions
-	timeout, _ = context.WithTimeout(ctx, 15 * time.Second)
+	timeout, _ = context.WithTimeout(ctx, 15*time.Second)
 
 	// Subscribe to new token lockups
 	tokensLockedC := make(chan *abi.AbiLogTokensLocked, 2)
@@ -92,8 +93,18 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 				errC <- fmt.Errorf("error while processing guardian set subscription: %w", e)
 				return
 			case ev := <-tokensLockedC:
+				// Request timestamp for block
+				timeout, _ = context.WithTimeout(ctx, 15*time.Second)
+				b, err := c.BlockByNumber(timeout, big.NewInt(int64(ev.Raw.BlockNumber)))
+				if err != nil {
+					errC <- fmt.Errorf("failed to request timestamp for block %d: %w", ev.Raw.BlockNumber, err)
+					return
+				}
+
 				lock := &common.ChainLock{
 					TxHash:        ev.Raw.TxHash,
+					Timestamp:     time.Unix(int64(b.Time()), 0),
+					Nonce:         ev.Nonce,
 					SourceAddress: ev.Sender,
 					TargetAddress: ev.Recipient,
 					SourceChain:   vaa.ChainIDEthereum,
@@ -123,7 +134,7 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 
 				logger.Info("new guardian set fetched", zap.Any("value", gs), zap.Uint32("index", ev.NewGuardianIndex))
 				e.setChan <- &common.GuardianSet{
-					Keys: gs.Keys,
+					Keys:  gs.Keys,
 					Index: ev.NewGuardianIndex,
 				}
 			}
@@ -181,7 +192,7 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 	supervisor.Signal(ctx, supervisor.SignalHealthy)
 
 	// Fetch current guardian set
-	timeout, _ = context.WithTimeout(ctx, 15 * time.Second)
+	timeout, _ = context.WithTimeout(ctx, 15*time.Second)
 	opts := &bind.CallOpts{Context: timeout}
 
 	currentIndex, err := caller.GuardianSetIndex(opts)
@@ -196,7 +207,7 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 
 	logger.Info("current guardian set fetched", zap.Any("value", gs), zap.Uint32("index", currentIndex))
 	e.setChan <- &common.GuardianSet{
-		Keys: gs.Keys,
+		Keys:  gs.Keys,
 		Index: currentIndex,
 	}
 

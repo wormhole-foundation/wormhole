@@ -18,7 +18,9 @@ import (
 	"github.com/certusone/wormhole/bridge/pkg/devnet"
 	"github.com/certusone/wormhole/bridge/pkg/ethereum"
 	gossipv1 "github.com/certusone/wormhole/bridge/pkg/proto/gossip/v1"
+	solana "github.com/certusone/wormhole/bridge/pkg/solana"
 	"github.com/certusone/wormhole/bridge/pkg/supervisor"
+	"github.com/certusone/wormhole/bridge/pkg/vaa"
 
 	ipfslog "github.com/ipfs/go-log/v2"
 )
@@ -33,6 +35,8 @@ var (
 	ethRPC           = flag.String("ethRPC", "", "Ethereum RPC URL")
 	ethContract      = flag.String("ethContract", "", "Ethereum bridge contract address")
 	ethConfirmations = flag.Uint64("ethConfirmations", 15, "Ethereum confirmation count requirement")
+
+	agentRPC           = flag.String("agentRPC", "", "Solana agent sidecar gRPC address")
 
 	logLevel = flag.String("logLevel", "info", "Logging level (debug, info, warn, error, dpanic, panic, fatal)")
 
@@ -153,6 +157,9 @@ func main() {
 	if *nodeKeyPath == "" && !*unsafeDevMode { // In devnet mode, keys are deterministically generated.
 		logger.Fatal("Please specify -nodeKey")
 	}
+	if *agentRPC == "" {
+		logger.Fatal("Please specify -agentRPC")
+	}
 	if *ethRPC == "" {
 		logger.Fatal("Please specify -ethRPC")
 	}
@@ -182,7 +189,10 @@ func main() {
 	sendC := make(chan []byte)
 
 	// Inbound ETH observations
-	ethObsvC := make(chan *gossipv1.EthLockupObservation)
+	ethObsvC := make(chan *gossipv1.EthLockupObservation, 50)  // TODO: is this an acceptable mitigation for bursts?
+
+	// VAAs to submit to Solana
+	vaaC := make(chan *vaa.VAA)
 
 	// Run supervisor.
 	supervisor.New(rootCtx, logger, func(ctx context.Context) error {
@@ -197,7 +207,12 @@ func main() {
 			return err
 		}
 
-		if err := supervisor.Run(ctx, "ethwatch", ethLockupProcessor(lockC, setC, gk, sendC, ethObsvC)); err != nil {
+		if err := supervisor.Run(ctx, "solana",
+			solana.NewSolanaBridgeWatcher(*agentRPC, lockC, vaaC).Run); err != nil {
+			return err
+		}
+
+		if err := supervisor.Run(ctx, "ethwatch", ethLockupProcessor(lockC, setC, gk, sendC, ethObsvC, vaaC)); err != nil {
 			return err
 		}
 

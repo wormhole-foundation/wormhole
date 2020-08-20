@@ -3,10 +3,11 @@ package ethereum
 import (
 	"context"
 	"fmt"
-	agentv1 "github.com/certusone/wormhole/bridge/pkg/proto/agent/v1"
-	"google.golang.org/grpc"
-	"sync"
 	"time"
+
+	"google.golang.org/grpc"
+
+	agentv1 "github.com/certusone/wormhole/bridge/pkg/proto/agent/v1"
 
 	"go.uber.org/zap"
 
@@ -19,40 +20,36 @@ type (
 	SolanaBridgeWatcher struct {
 		url string
 
-		pendingLocks      map[string]*pendingLock
-		pendingLocksGuard sync.Mutex
-
 		lockChan chan *common.ChainLock
-		setChan  chan *common.GuardianSet
 		vaaChan  chan *vaa.VAA
-	}
-
-	pendingLock struct {
-		lock *common.ChainLock
 	}
 )
 
-func NewSolanaBridgeWatcher(url string, lockEvents chan *common.ChainLock, setEvents chan *common.GuardianSet, vaaQueue chan *vaa.VAA) *SolanaBridgeWatcher {
-	return &SolanaBridgeWatcher{url: url, lockChan: lockEvents, setChan: setEvents, pendingLocks: map[string]*pendingLock{}, vaaChan: vaaQueue}
+func NewSolanaBridgeWatcher(url string, lockEvents chan *common.ChainLock, vaaQueue chan *vaa.VAA) *SolanaBridgeWatcher {
+	return &SolanaBridgeWatcher{url: url, lockChan: lockEvents, vaaChan: vaaQueue}
 }
 
 func (e *SolanaBridgeWatcher) Run(ctx context.Context) error {
-	conn, err := grpc.Dial(e.url)
+	timeout, _ := context.WithTimeout(ctx, 15*time.Second)
+	conn, err := grpc.DialContext(timeout, e.url, grpc.WithBlock(), grpc.WithInsecure())
 	if err != nil {
-		return fmt.Errorf("failed to dial agent: %w", err)
+		return fmt.Errorf("failed to dial agent at %s: %w", e.url, err)
 	}
+	defer conn.Close()
+
 	c := agentv1.NewAgentClient(conn)
 
 	errC := make(chan error)
 	logger := supervisor.Logger(ctx)
+
 	//// Subscribe to new token lockups
 	//tokensLockedSub, err := c.WatchLockups(ctx, &agentv1.WatchLockupsRequest{})
 	//if err != nil {
 	//	return fmt.Errorf("failed to subscribe to token lockup events: %w", err)
 	//}
 	//
-	//
 	//go func() {
+	//	// TODO: does this properly terminate on ctx cancellation?
 	//	ev, err := tokensLockedSub.Recv()
 	//	for ; err == nil; ev, err = tokensLockedSub.Recv() {
 	//		switch event := ev.Event.(type) {
@@ -83,21 +80,26 @@ func (e *SolanaBridgeWatcher) Run(ctx context.Context) error {
 	//}()
 
 	go func() {
-		for v := range e.vaaChan {
-			vaaBytes, err := v.Marshal()
-			if err != nil {
-				logger.Error("failed to marshal VAA", zap.Any("vaa", v), zap.Error(err))
-				continue
-			}
-
-			timeout, _ := context.WithTimeout(ctx, 15*time.Second)
-			res, err := c.SubmitVAA(timeout, &agentv1.SubmitVAARequest{Vaa: vaaBytes})
-			if err != nil {
-				errC <- fmt.Errorf("failed to submit VAA: %w", err)
+		for {
+			select {
+			case <-ctx.Done():
 				return
-			}
+			case v := <-e.vaaChan:
+				vaaBytes, err := v.Marshal()
+				if err != nil {
+					panic(err)
+				}
 
-			logger.Debug("submitted VAA", zap.String("signature", res.Signature))
+				timeout, _ := context.WithTimeout(ctx, 15*time.Second)
+				res, err := c.SubmitVAA(timeout, &agentv1.SubmitVAARequest{Vaa: vaaBytes})
+				if err != nil {
+					errC <- fmt.Errorf("failed to submit VAA: %w", err)
+					return
+				}
+
+				logger.Info("submitted VAA",
+					zap.String("signature", res.Signature))
+			}
 		}
 	}()
 

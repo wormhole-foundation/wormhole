@@ -206,7 +206,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let ws_port: u16 = args[4].parse()?;
     let port: u16 = args[5].parse()?;
 
-    let addr = format!("[::]:{}", port).parse().unwrap();
+    let addr = format!("0.0.0.0:{}", port).parse().unwrap();
 
     let agent = AgentImpl {
         url: String::from(format!("ws://{}:{}", host, ws_port)),
