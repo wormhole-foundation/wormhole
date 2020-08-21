@@ -43,7 +43,8 @@ func padAddress(address eth_common.Address) vaa.Address {
 }
 
 func (e *SolanaBridgeWatcher) Run(ctx context.Context) error {
-	timeout, _ := context.WithTimeout(ctx, 15*time.Second)
+	timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
 	conn, err := grpc.DialContext(timeout, e.url, grpc.WithBlock(), grpc.WithInsecure())
 	if err != nil {
 		return fmt.Errorf("failed to dial agent at %s: %w", e.url, err)
@@ -113,8 +114,9 @@ func (e *SolanaBridgeWatcher) Run(ctx context.Context) error {
 				}
 				h := hex.EncodeToString(m.Bytes())
 
-				timeout, _ := context.WithTimeout(ctx, 15*time.Second)
+				timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
 				res, err := c.SubmitVAA(timeout, &agentv1.SubmitVAARequest{Vaa: vaaBytes})
+				cancel()
 				if err != nil {
 					logger.Error("failed to submit VAA", zap.Error(err), zap.String("digest", h))
 					break

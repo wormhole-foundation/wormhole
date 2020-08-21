@@ -43,7 +43,8 @@ func NewEthBridgeWatcher(url string, bridge eth_common.Address, minConfirmations
 }
 
 func (e *EthBridgeWatcher) Run(ctx context.Context) error {
-	timeout, _ := context.WithTimeout(ctx, 15*time.Second)
+	timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
 	c, err := ethclient.DialContext(timeout, e.url)
 	if err != nil {
 		return fmt.Errorf("dialing eth client failed: %w", err)
@@ -60,7 +61,8 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 	}
 
 	// Timeout for initializing subscriptions
-	timeout, _ = context.WithTimeout(ctx, 15*time.Second)
+	timeout, cancel = context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
 
 	// Subscribe to new token lockups
 	tokensLockedC := make(chan *abi.AbiLogTokensLocked, 2)
@@ -94,8 +96,9 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 				return
 			case ev := <-tokensLockedC:
 				// Request timestamp for block
-				timeout, _ = context.WithTimeout(ctx, 15*time.Second)
+				timeout, cancel = context.WithTimeout(ctx, 15*time.Second)
 				b, err := c.BlockByNumber(timeout, big.NewInt(int64(ev.Raw.BlockNumber)))
+				cancel()
 				if err != nil {
 					errC <- fmt.Errorf("failed to request timestamp for block %d: %w", ev.Raw.BlockNumber, err)
 					return
@@ -192,7 +195,8 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 	supervisor.Signal(ctx, supervisor.SignalHealthy)
 
 	// Fetch current guardian set
-	timeout, _ = context.WithTimeout(ctx, 15*time.Second)
+	timeout, cancel = context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
 	opts := &bind.CallOpts{Context: timeout}
 
 	currentIndex, err := caller.GuardianSetIndex(opts)

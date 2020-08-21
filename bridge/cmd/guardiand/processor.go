@@ -66,7 +66,8 @@ func vaaConsensusProcessor(lockC chan *common.ChainLock, setC chan *common.Guard
 					len(gs.Keys), *devNumGuardians),
 					zap.Any("v", v))
 
-				timeout, _ := context.WithTimeout(ctx, 15*time.Second)
+				timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
+				defer cancel()
 				tx, err := devnet.SubmitVAA(timeout, *ethRPC, v)
 				if err != nil {
 					logger.Error("failed to submit devnet guardian set change", zap.Error(err))
@@ -277,10 +278,12 @@ func vaaConsensusProcessor(lockC chan *common.ChainLock, setC chan *common.Guard
 									vaaC <- state.vaaSignatures[hash].ourVAA
 								}
 							case t.TargetChain == vaa.ChainIDEthereum:
-								timeout, _ := context.WithTimeout(ctx, 15*time.Second)
+								timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
 								tx, err := devnet.SubmitVAA(timeout, *ethRPC, v)
+								cancel()
 								if err != nil {
 									logger.Error("failed to submit lockup to Ethereum", zap.Error(err))
+									break
 								}
 								logger.Info("lockup submitted to Ethereum", zap.Any("tx", tx))
 							default:
