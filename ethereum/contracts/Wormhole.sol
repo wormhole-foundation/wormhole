@@ -99,7 +99,7 @@ contract Wormhole is ReentrancyGuard {
 
         GuardianSet memory guardian_set = guardian_sets[vaa_guardian_set_index];
         require(guardian_set.expiration_time == 0 || guardian_set.expiration_time > block.timestamp, "guardian set has expired");
-        require(guardian_set.keys.length * 3 / 4 + 1 <= len_signers, "no quorum");
+        require(((guardian_set.keys.length / 4) * 3) + 1 <= len_signers, "no quorum");
 
         for (uint i = 0; i < len_signers; i++) {
             uint8 index = vaa.toUint8(6 + i * 66);
