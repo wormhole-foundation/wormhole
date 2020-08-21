@@ -31,6 +31,8 @@ pub struct Fee {
 pub struct GuardianSet {
     /// index of the set
     pub index: u32,
+    /// number of keys stored
+    pub len_keys: u8,
     /// public key of the threshold schnorr set
     pub keys: [[u8; 20]; 20],
     /// creation time
@@ -79,6 +81,7 @@ impl IsInitialized for TransferOutProposal {
 }
 
 pub const TRANSFER_OUT_PROPOSAL_SIZE: usize = 1139;
+
 impl TransferOutProposal {
     pub fn matches_vaa(&self, b: &BodyTransfer) -> bool {
         return b.amount == self.amount

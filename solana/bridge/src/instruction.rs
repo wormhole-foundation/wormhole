@@ -34,6 +34,8 @@ pub type ForeignAddress = [u8; FOREIGN_ADDRESS_SIZE];
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct InitializePayload {
+    /// number of initial guardians
+    pub len_guardians: u8,
     /// guardians that are allowed to sign mints
     pub initial_guardian: [[u8; 20]; 20],
     /// config for the bridge
@@ -232,6 +234,7 @@ pub fn initialize(
     }
     let data = BridgeInstruction::Initialize(InitializePayload {
         config: *config,
+        len_guardians: initial_guardian.len() as u8,
         initial_guardian: initial_g,
     })
     .serialize()?;

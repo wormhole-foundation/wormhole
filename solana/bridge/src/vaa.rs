@@ -56,6 +56,11 @@ impl VAA {
         };
         let hash = h.finalize().into();
 
+        // Check quorum
+        if self.signatures.len() < ((guardian_keys.len() as f32 / 4f32 * 3f32).ceil() as usize) {
+            return false;
+        }
+
         for sig in self.signatures.iter() {
             let ecrecover_input = EcrecoverInput::new(sig.r, sig.s, sig.v, hash);
             let res = match sol_syscall_ecrecover(&ecrecover_input) {
@@ -122,7 +127,6 @@ impl VAA {
         v.write_u8(payload.action_id())?;
 
         let payload_data = payload.serialize()?;
-        v.write_u8(payload_data.len() as u8)?;
         v.write(payload_data.as_slice())?;
 
         Ok(v.into_inner())

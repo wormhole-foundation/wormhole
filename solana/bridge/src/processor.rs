@@ -36,6 +36,7 @@ impl Bridge {
                 Self::process_initialize(
                     program_id,
                     accounts,
+                    payload.len_guardians,
                     payload.initial_guardian,
                     payload.config,
                 )
@@ -69,6 +70,7 @@ impl Bridge {
     pub fn process_initialize(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
+        len_guardians: u8,
         initial_guardian_key: [[u8; 20]; 20],
         config: BridgeConfig,
     ) -> ProgramResult {
@@ -115,6 +117,10 @@ impl Bridge {
             return Err(Error::AlreadyExists.into());
         }
 
+        if len_guardians > 20 {
+            return Err(ProgramError::InvalidInstructionData);
+        }
+
         // Initialize bridge params
         bridge.is_initialized = true;
         bridge.guardian_set_index = 0;
@@ -125,6 +131,7 @@ impl Bridge {
         guardian_info.index = 0;
         guardian_info.creation_time = clock.unix_timestamp.as_();
         guardian_info.keys = initial_guardian_key;
+        guardian_info.len_keys = len_guardians;
 
         Ok(())
     }
@@ -432,7 +439,7 @@ impl Bridge {
         }
 
         // Verify VAA signature
-        if !vaa.verify(&guardian_set.keys) {
+        if !vaa.verify(&guardian_set.keys[..guardian_set.len_keys as usize]) {
             return Err(Error::InvalidVAASignature.into());
         }
 
@@ -538,12 +545,19 @@ impl Bridge {
             return Err(Error::AlreadyExists.into());
         }
 
+        if b.new_keys.len() > 20 {
+            return Err(Error::InvalidVAAFormat.into());
+        }
+
         // Set values on the new guardian set
         guardian_set_new.is_initialized = true;
         guardian_set_new.index = b.new_index;
         let mut new_guardians = [[0u8; 20]; 20];
-        new_guardians.copy_from_slice(b.new_keys.as_slice());
+        for (i, guardian) in b.new_keys.iter().enumerate() {
+            new_guardians[i] = *guardian
+        }
         guardian_set_new.keys = new_guardians;
+        guardian_set_new.len_keys = b.new_keys.len() as u8;
         guardian_set_new.creation_time = clock.unix_timestamp as u32;
 
         // Update the bridge guardian set id
@@ -829,7 +843,7 @@ impl Bridge {
             None,
             Some(&Self::derive_bridge_id(program_id)?),
             0,
-            8,
+            18,
         )?;
         invoke_signed(&ix, accounts, &[])
     }
@@ -906,6 +920,8 @@ impl Bridge {
 
 #[cfg(test)]
 mod tests {
+    use std::str::FromStr;
+
     use solana_sdk::{
         account::Account, account_info::create_is_signer_account_infos, instruction::Instruction,
     };
@@ -918,7 +934,6 @@ mod tests {
     use crate::instruction::{initialize, TransferOutPayloadRaw};
 
     use super::*;
-    use std::str::FromStr;
 
     const TOKEN_PROGRAM_ID: Pubkey = Pubkey::new_from_array([1u8; 32]);
 
