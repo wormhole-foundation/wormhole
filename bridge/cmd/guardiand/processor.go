@@ -44,6 +44,8 @@ func vaaConsensusProcessor(lockC chan *common.ChainLock, setC chan *common.Guard
 		// Get initial validator set from Ethereum. We could also fetch it from Solana,
 		// because both sets are synchronized, we simply made an arbitrary decision to use Ethereum.
 
+		// TODO: this can deadlock even in the same RunGroup - needs to fetch the set independently
+
 		logger.Info("waiting for initial validator set to be fetched from Ethereum")
 		gs := <-setC
 		logger.Info("current guardian set received",
@@ -264,7 +266,8 @@ func vaaConsensusProcessor(lockC chan *common.ChainLock, setC chan *common.Guard
 						}
 
 						if t, ok := v.Payload.(*vaa.BodyTransfer); ok {
-							if t.TargetChain == vaa.ChainIDSolana {
+							switch {
+							case t.TargetChain == vaa.ChainIDSolana:
 								logger.Info("submitting signed VAA to Solana",
 									zap.String("digest", hash),
 									zap.Any("vaa", signed),
@@ -273,7 +276,14 @@ func vaaConsensusProcessor(lockC chan *common.ChainLock, setC chan *common.Guard
 								if idx == 0 {
 									vaaC <- state.vaaSignatures[hash].ourVAA
 								}
-							} else {
+							case t.TargetChain == vaa.ChainIDEthereum:
+								timeout, _ := context.WithTimeout(ctx, 15*time.Second)
+								tx, err := devnet.SubmitVAA(timeout, *ethRPC, v)
+								if err != nil {
+									logger.Error("failed to submit lockup to Ethereum", zap.Error(err))
+								}
+								logger.Info("lockup submitted to Ethereum", zap.Any("tx", tx))
+							default:
 								logger.Error("we don't know how to submit this VAA",
 									zap.String("digest", hash),
 									zap.Any("vaa", signed),
