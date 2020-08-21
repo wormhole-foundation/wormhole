@@ -21,6 +21,7 @@ use spl_token::state::Mint;
 
 use crate::error::Error;
 use crate::instruction::BridgeInstruction::*;
+use crate::instruction::MAX_LEN_GUARDIAN_KEYS;
 use crate::instruction::{BridgeInstruction, TransferOutPayload, VAAData, CHAIN_ID_SOLANA};
 use crate::state::*;
 use crate::vaa::{BodyTransfer, BodyUpdateGuardianSet, VAABody, VAA};
@@ -71,7 +72,7 @@ impl Bridge {
         program_id: &Pubkey,
         accounts: &[AccountInfo],
         len_guardians: u8,
-        initial_guardian_key: [[u8; 20]; 20],
+        initial_guardian_key: [[u8; 20]; MAX_LEN_GUARDIAN_KEYS],
         config: BridgeConfig,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
@@ -117,7 +118,7 @@ impl Bridge {
             return Err(Error::AlreadyExists.into());
         }
 
-        if len_guardians > 20 {
+        if len_guardians > MAX_LEN_GUARDIAN_KEYS as u8 {
             return Err(ProgramError::InvalidInstructionData);
         }
 
@@ -130,7 +131,7 @@ impl Bridge {
         guardian_info.is_initialized = true;
         guardian_info.index = 0;
         guardian_info.creation_time = clock.unix_timestamp.as_();
-        guardian_info.keys = initial_guardian_key;
+        guardian_info.keys = initial_guardian_key.into();
         guardian_info.len_keys = len_guardians;
 
         Ok(())
@@ -545,14 +546,14 @@ impl Bridge {
             return Err(Error::AlreadyExists.into());
         }
 
-        if b.new_keys.len() > 20 {
+        if b.new_keys.len() > MAX_LEN_GUARDIAN_KEYS {
             return Err(Error::InvalidVAAFormat.into());
         }
 
         // Set values on the new guardian set
         guardian_set_new.is_initialized = true;
         guardian_set_new.index = b.new_index;
-        let mut new_guardians = [[0u8; 20]; 20];
+        let mut new_guardians = [[0u8; 20]; MAX_LEN_GUARDIAN_KEYS];
         for (i, guardian) in b.new_keys.iter().enumerate() {
             new_guardians[i] = *guardian
         }

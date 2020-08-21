@@ -20,7 +20,8 @@ use crate::vaa::{VAABody, VAA};
 
 /// chain id of this chain
 pub const CHAIN_ID_SOLANA: u8 = 1;
-
+/// maximum number of guardians
+pub const MAX_LEN_GUARDIAN_KEYS: usize = 20;
 /// size of a foreign address in bytes
 const FOREIGN_ADDRESS_SIZE: usize = 32;
 
@@ -37,7 +38,7 @@ pub struct InitializePayload {
     /// number of initial guardians
     pub len_guardians: u8,
     /// guardians that are allowed to sign mints
-    pub initial_guardian: [[u8; 20]; 20],
+    pub initial_guardian: [[u8; 20]; MAX_LEN_GUARDIAN_KEYS],
     /// config for the bridge
     pub config: BridgeConfig,
 }
@@ -225,10 +226,10 @@ pub fn initialize(
     initial_guardian: Vec<[u8; 20]>,
     config: &BridgeConfig,
 ) -> Result<Instruction, ProgramError> {
-    if initial_guardian.len() > 20 {
+    if initial_guardian.len() > MAX_LEN_GUARDIAN_KEYS {
         return Err(ProgramError::InvalidArgument);
     }
-    let mut initial_g = [[0u8; 20]; 20];
+    let mut initial_g = [[0u8; 20]; MAX_LEN_GUARDIAN_KEYS];
     for (i, key) in initial_guardian.iter().enumerate() {
         initial_g[i] = *key;
     }

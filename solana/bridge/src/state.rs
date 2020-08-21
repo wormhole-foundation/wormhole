@@ -12,7 +12,7 @@ use solana_sdk::{account_info::AccountInfo, program_error::ProgramError, pubkey:
 use zerocopy::AsBytes;
 
 use crate::error::Error;
-use crate::instruction::{ForeignAddress, VAAData};
+use crate::instruction::{ForeignAddress, VAAData, MAX_LEN_GUARDIAN_KEYS};
 use crate::vaa::BodyTransfer;
 
 /// fee rate as a ratio
@@ -34,7 +34,7 @@ pub struct GuardianSet {
     /// number of keys stored
     pub len_keys: u8,
     /// public key of the threshold schnorr set
-    pub keys: [[u8; 20]; 20],
+    pub keys: [[u8; 20]; MAX_LEN_GUARDIAN_KEYS],
     /// creation time
     pub creation_time: u32,
     /// expiration time when VAAs issued by this set are no longer valid
