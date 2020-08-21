@@ -284,7 +284,7 @@ func vaaConsensusProcessor(lockC chan *common.ChainLock, setC chan *common.Guard
 								}
 							case t.TargetChain == vaa.ChainIDEthereum:
 								timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
-								tx, err := devnet.SubmitVAA(timeout, *ethRPC, v)
+								tx, err := devnet.SubmitVAA(timeout, *ethRPC, signed)
 								cancel()
 								if err != nil {
 									logger.Error("failed to submit lockup to Ethereum", zap.Error(err))
