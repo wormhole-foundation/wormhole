@@ -45,6 +45,11 @@ docker_build(
 
     # Ignore target folders from local (non-container) development.
     ignore = ["./solana/target", "./solana/agent/target", "./solana/cli/target"],
+
+    # See below for --sync-mode caveats.
+    live_update = [
+        sync("./solana/devnet_setup.sh", "/usr/src/solana/devnet_setup.sh"),
+    ],
 )
 
 # solana smart contract

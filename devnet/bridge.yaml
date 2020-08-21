@@ -37,8 +37,6 @@ spec:
       volumes:
         - name: key-volume
           configMap:
-            # Provide the name of the ConfigMap containing the files you want
-            # to add to the container
             name: bridge-keypair
       containers:
         - name: guardiand
@@ -68,7 +66,7 @@ spec:
           image: solana-agent
           command:
             - /usr/local/bin/agent
-            - 'Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o'  # TODO: program address
+            - 'Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o'
             - 'solana-devnet'  # host
             - '8899'  # rpc port
             - '8900'  # pubsub/ws port
@@ -77,11 +75,6 @@ spec:
             - containerPort: 9000
               name: grpc
               protocol: TCP
-          volumeMounts:
-            - name: key-volume
-              mountPath: /usr/src/solana
-            - name: key-volume
-              mountPath: /root/.config/solana
 #  volumeClaimTemplates:
 #    - metadata:
 #        name: guardian-data
@@ -90,13 +83,4 @@ spec:
 #        resources:
 #          requests:
 #            storage: 1Gi
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: bridge-keypair
-  namespace: default
-data:
-  # Key with pubkey 6sbzC1eH4FTujJXWj51eQe25cYvr4xfXbJ1vAj7j2k5J
-  id.json: |
-    [14,173,153,4,176,224,201,111,32,237,183,185,159,247,22,161,89,84,215,209,212,137,10,92,157,49,29,192,101,164,152,70,87,65,8,174,214,157,175,126,98,90,54,24,100,177,247,77,19,112,47,44,165,109,233,102,14,86,109,29,134,145,132,141]
+
