@@ -18,7 +18,14 @@ message Heartbeat {
   // A monotonic counter that resets to zero on startup.
   int64 counter = 2;
   // UNIX wall time.
-  int64 timestamp = 3;
+  int64 timestamp = 3;  // TODO: use this
+
+  // Consensus heights on connected networks
+  message Network {// TODO: use this
+    uint32 id = 1;
+    int64 height = 2;
+  }
+  repeated Network networks = 4;
 
   // TODO: include statement of gk public key?
   // TODO: software version/release
