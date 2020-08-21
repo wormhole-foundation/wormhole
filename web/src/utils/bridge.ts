@@ -131,7 +131,7 @@ class SolanaBridge {
 
         if (asset.chain == CHAIN_ID_SOLANA) {
             // @ts-ignore
-            let custodyKey = (await solanaWeb3.PublicKey.findProgramAddress([Buffer.from("custody"), this.configKey.toBuffer(), mint.toBuffer()], this.programID))[0];
+            let custodyKey = (await solanaWeb3.PublicKey.findProgramAddress([Buffer.from("custody"), configKey.toBuffer(), mint.toBuffer()], this.programID))[0];
             keys.push({pubkey: custodyKey, isSigner: false, isWritable: true})
         }
 
