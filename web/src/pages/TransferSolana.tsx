@@ -115,7 +115,7 @@ function TransferSolana() {
                         <Form.Item name="target_chain"
                                    rules={[{required: true, message: "Please choose a target chain"}]}
                                    label={"Target Chain:"}>
-                            <Select placeholder="Target Chain" defaultValue={2}>
+                            <Select placeholder="Target Chain">
                                 <Select.Option value={2}>
                                     Ethereum
                                 </Select.Option>

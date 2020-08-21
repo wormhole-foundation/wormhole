@@ -14,6 +14,7 @@ import {BridgeContext} from "../providers/BridgeContext";
 import {AssetMeta, SolanaBridge} from "../utils/bridge";
 import KeyContext from "../providers/KeyContext";
 import {FormInstance} from "antd/lib/form";
+import SplBalances from "../components/SplBalances";
 
 
 // @ts-ignore
@@ -29,11 +30,12 @@ async function lockAssets(asset: string,
     let wh = WormholeFactory.connect(BRIDGE_ADDRESS, signer);
     try {
         message.loading({content: "Signing transaction...", key: "eth_tx", duration: 1000},)
-        let res = await wh.lockAssets(asset, amount, recipient, target_chain)
+        let res = await wh.lockAssets(asset, amount, recipient, target_chain, 10)
         message.loading({content: "Waiting for transaction to be mined...", key: "eth_tx", duration: 1000})
         await res.wait(1);
         message.success({content: "Transfer on ETH succeeded!", key: "eth_tx"})
     } catch (e) {
+        console.log(e)
         message.error({content: "Transfer failed", key: "eth_tx"})
     }
 }
@@ -102,6 +104,8 @@ function Transfer() {
     let [wrappedMint, setWrappedMint] = useState("")
     let [recipient, setRecipient] = useState("")
 
+    let [transacting, setTransacting] = useState(false);
+
     let formRef = React.createRef<FormInstance>();
 
     useEffect(() => {
@@ -137,7 +141,7 @@ function Transfer() {
             }
         }
         fetchBalance(address)
-    }, [address])
+    }, [address, transacting])
 
     useEffect(() => {
         if (!addressValid) {
@@ -184,10 +188,15 @@ function Transfer() {
                     <Form onFinish={(values) => {
                         let recipient = new solanaWeb3.PublicKey(values["recipient"]).toBuffer()
                         let transferAmount = new BigNumber(values["amount"]).mul(new BigNumber(10).pow(coinInfo.decimals));
+                        setTransacting(true)
                         if (coinInfo.allowance.gte(amount) || coinInfo.isWrapped) {
-                            lockAssets(values["address"], transferAmount, recipient, values["target_chain"])
+                            lockAssets(values["address"], transferAmount, recipient, values["target_chain"]).finally(() => {
+                                setTransacting(false)
+                            })
                         } else {
-                            approveAssets(values["address"], transferAmount)
+                            approveAssets(values["address"], transferAmount).finally(() => {
+                                setTransacting(false)
+                            })
                         }
                     }} style={{width: "100%"}} ref={formRef} layout={"vertical"}>
                         <Form.Item name="address" validateStatus={addressValid ? "success" : "error"} label={"Token:"}>
@@ -206,7 +215,7 @@ function Transfer() {
                         </Form.Item>
                         <Form.Item name="target_chain"
                                    label={"Target Chain:"}>
-                            <Select placeholder="Target Chain" defaultValue={1}>
+                            <Select placeholder="Target Chain">
                                 <Select.Option value={1}>
                                     Solana
                                 </Select.Option>
@@ -220,7 +229,8 @@ function Transfer() {
                                    }}/>
                         </Form.Item>
                         <Form.Item>
-                            <Button type="primary" htmlType="submit" style={{marginLeft:"auto"}}>
+                            <Button type="primary" htmlType="submit" style={{marginLeft: "auto"}}
+                                    disabled={transacting}>
                                 {coinInfo.allowance.gte(amount) || coinInfo.isWrapped ? "Transfer" : "Approve"}
                             </Button>
                         </Form.Item>
@@ -262,6 +272,11 @@ function Transfer() {
                             </Col>
                         </Row>
                     </Card>
+                </Col>
+            </Row>
+            <Row>
+                <Col>
+                    <SplBalances/>
                 </Col>
             </Row>
         </>

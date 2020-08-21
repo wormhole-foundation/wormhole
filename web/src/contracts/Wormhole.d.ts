@@ -26,35 +26,36 @@ interface WormholeInterface extends Interface {
 
     wrappedAssets: TypedFunctionDescription<{ encode([]: [Arrayish]): string }>;
 
+    getGuardianSet: TypedFunctionDescription<{
+      encode([idx]: [BigNumberish]): string;
+    }>;
+
     submitVAA: TypedFunctionDescription<{ encode([vaa]: [Arrayish]): string }>;
 
     lockAssets: TypedFunctionDescription<{
-      encode([asset, amount, recipient, target_chain]: [
+      encode([asset, amount, recipient, target_chain, nonce]: [
         string,
         BigNumberish,
         Arrayish,
+        BigNumberish,
         BigNumberish
       ]): string;
     }>;
 
     lockETH: TypedFunctionDescription<{
-      encode([recipient, target_chain]: [Arrayish, BigNumberish]): string;
+      encode([recipient, target_chain, nonce]: [
+        Arrayish,
+        BigNumberish,
+        BigNumberish
+      ]): string;
     }>;
   };
 
   events: {
     LogGuardianSetChanged: TypedEventDescription<{
-      encodeTopics([oldGuardian, newGuardian]: [
-        {
-          x: BigNumberish;
-          parity: BigNumberish;
-          expiration_time: BigNumberish;
-        } | null,
-        {
-          x: BigNumberish;
-          parity: BigNumberish;
-          expiration_time: BigNumberish;
-        } | null
+      encodeTopics([oldGuardianIndex, newGuardianIndex]: [
+        null,
+        null
       ]): string[];
     }>;
 
@@ -65,8 +66,17 @@ interface WormholeInterface extends Interface {
         token,
         sender,
         recipient,
-        amount
-      ]: [null, null, Arrayish | null, Arrayish | null, null, null]): string[];
+        amount,
+        nonce
+      ]: [
+        null,
+        null,
+        Arrayish | null,
+        Arrayish | null,
+        null,
+        null,
+        null
+      ]): string[];
     }>;
   };
 }
@@ -92,26 +102,12 @@ export class Wormhole extends Contract {
     guardian_sets(
       arg0: BigNumberish,
       overrides?: TransactionOverrides
-    ): Promise<{
-      x: BigNumber;
-      parity: number;
-      expiration_time: number;
-      0: BigNumber;
-      1: number;
-      2: number;
-    }>;
+    ): Promise<number>;
 
     "guardian_sets(uint32)"(
       arg0: BigNumberish,
       overrides?: TransactionOverrides
-    ): Promise<{
-      x: BigNumber;
-      parity: number;
-      expiration_time: number;
-      0: BigNumber;
-      1: number;
-      2: number;
-    }>;
+    ): Promise<number>;
 
     isWrappedAsset(
       arg0: string,
@@ -141,6 +137,26 @@ export class Wormhole extends Contract {
       overrides?: TransactionOverrides
     ): Promise<string>;
 
+    getGuardianSet(
+      idx: BigNumberish,
+      overrides?: TransactionOverrides
+    ): Promise<{
+      keys: string[];
+      expiration_time: number;
+      0: string[];
+      1: number;
+    }>;
+
+    "getGuardianSet(uint32)"(
+      idx: BigNumberish,
+      overrides?: TransactionOverrides
+    ): Promise<{
+      keys: string[];
+      expiration_time: number;
+      0: string[];
+      1: number;
+    }>;
+
     submitVAA(
       vaa: Arrayish,
       overrides?: TransactionOverrides
@@ -156,26 +172,30 @@ export class Wormhole extends Contract {
       amount: BigNumberish,
       recipient: Arrayish,
       target_chain: BigNumberish,
+      nonce: BigNumberish,
       overrides?: TransactionOverrides
     ): Promise<ContractTransaction>;
 
-    "lockAssets(address,uint256,bytes32,uint8)"(
+    "lockAssets(address,uint256,bytes32,uint8,uint32)"(
       asset: string,
       amount: BigNumberish,
       recipient: Arrayish,
       target_chain: BigNumberish,
+      nonce: BigNumberish,
       overrides?: TransactionOverrides
     ): Promise<ContractTransaction>;
 
     lockETH(
       recipient: Arrayish,
       target_chain: BigNumberish,
+      nonce: BigNumberish,
       overrides?: TransactionOverrides
     ): Promise<ContractTransaction>;
 
-    "lockETH(bytes32,uint8)"(
+    "lockETH(bytes32,uint8,uint32)"(
       recipient: Arrayish,
       target_chain: BigNumberish,
+      nonce: BigNumberish,
       overrides?: TransactionOverrides
     ): Promise<ContractTransaction>;
   };
@@ -187,26 +207,12 @@ export class Wormhole extends Contract {
   guardian_sets(
     arg0: BigNumberish,
     overrides?: TransactionOverrides
-  ): Promise<{
-    x: BigNumber;
-    parity: number;
-    expiration_time: number;
-    0: BigNumber;
-    1: number;
-    2: number;
-  }>;
+  ): Promise<number>;
 
   "guardian_sets(uint32)"(
     arg0: BigNumberish,
     overrides?: TransactionOverrides
-  ): Promise<{
-    x: BigNumber;
-    parity: number;
-    expiration_time: number;
-    0: BigNumber;
-    1: number;
-    2: number;
-  }>;
+  ): Promise<number>;
 
   isWrappedAsset(
     arg0: string,
@@ -236,6 +242,26 @@ export class Wormhole extends Contract {
     overrides?: TransactionOverrides
   ): Promise<string>;
 
+  getGuardianSet(
+    idx: BigNumberish,
+    overrides?: TransactionOverrides
+  ): Promise<{
+    keys: string[];
+    expiration_time: number;
+    0: string[];
+    1: number;
+  }>;
+
+  "getGuardianSet(uint32)"(
+    idx: BigNumberish,
+    overrides?: TransactionOverrides
+  ): Promise<{
+    keys: string[];
+    expiration_time: number;
+    0: string[];
+    1: number;
+  }>;
+
   submitVAA(
     vaa: Arrayish,
     overrides?: TransactionOverrides
@@ -251,41 +277,37 @@ export class Wormhole extends Contract {
     amount: BigNumberish,
     recipient: Arrayish,
     target_chain: BigNumberish,
+    nonce: BigNumberish,
     overrides?: TransactionOverrides
   ): Promise<ContractTransaction>;
 
-  "lockAssets(address,uint256,bytes32,uint8)"(
+  "lockAssets(address,uint256,bytes32,uint8,uint32)"(
     asset: string,
     amount: BigNumberish,
     recipient: Arrayish,
     target_chain: BigNumberish,
+    nonce: BigNumberish,
     overrides?: TransactionOverrides
   ): Promise<ContractTransaction>;
 
   lockETH(
     recipient: Arrayish,
     target_chain: BigNumberish,
+    nonce: BigNumberish,
     overrides?: TransactionOverrides
   ): Promise<ContractTransaction>;
 
-  "lockETH(bytes32,uint8)"(
+  "lockETH(bytes32,uint8,uint32)"(
     recipient: Arrayish,
     target_chain: BigNumberish,
+    nonce: BigNumberish,
     overrides?: TransactionOverrides
   ): Promise<ContractTransaction>;
 
   filters: {
     LogGuardianSetChanged(
-      oldGuardian: {
-        x: BigNumberish;
-        parity: BigNumberish;
-        expiration_time: BigNumberish;
-      } | null,
-      newGuardian: {
-        x: BigNumberish;
-        parity: BigNumberish;
-        expiration_time: BigNumberish;
-      } | null
+      oldGuardianIndex: null,
+      newGuardianIndex: null
     ): EventFilter;
 
     LogTokensLocked(
@@ -294,7 +316,8 @@ export class Wormhole extends Contract {
       token: Arrayish | null,
       sender: Arrayish | null,
       recipient: null,
-      amount: null
+      amount: null,
+      nonce: null
     ): EventFilter;
   };
 
@@ -345,6 +368,16 @@ export class Wormhole extends Contract {
       overrides?: TransactionOverrides
     ): Promise<BigNumber>;
 
+    getGuardianSet(
+      idx: BigNumberish,
+      overrides?: TransactionOverrides
+    ): Promise<BigNumber>;
+
+    "getGuardianSet(uint32)"(
+      idx: BigNumberish,
+      overrides?: TransactionOverrides
+    ): Promise<BigNumber>;
+
     submitVAA(
       vaa: Arrayish,
       overrides?: TransactionOverrides
@@ -360,26 +393,30 @@ export class Wormhole extends Contract {
       amount: BigNumberish,
       recipient: Arrayish,
       target_chain: BigNumberish,
+      nonce: BigNumberish,
       overrides?: TransactionOverrides
     ): Promise<BigNumber>;
 
-    "lockAssets(address,uint256,bytes32,uint8)"(
+    "lockAssets(address,uint256,bytes32,uint8,uint32)"(
       asset: string,
       amount: BigNumberish,
       recipient: Arrayish,
       target_chain: BigNumberish,
+      nonce: BigNumberish,
       overrides?: TransactionOverrides
     ): Promise<BigNumber>;
 
     lockETH(
       recipient: Arrayish,
       target_chain: BigNumberish,
+      nonce: BigNumberish,
       overrides?: TransactionOverrides
     ): Promise<BigNumber>;
 
-    "lockETH(bytes32,uint8)"(
+    "lockETH(bytes32,uint8,uint32)"(
       recipient: Arrayish,
       target_chain: BigNumberish,
+      nonce: BigNumberish,
       overrides?: TransactionOverrides
     ): Promise<BigNumber>;
   };
