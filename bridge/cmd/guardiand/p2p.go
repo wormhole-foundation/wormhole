@@ -26,7 +26,7 @@ import (
 	"github.com/certusone/wormhole/bridge/pkg/supervisor"
 )
 
-func p2p(ethObsvC chan *gossipv1.EthLockupObservation, sendC chan []byte) func(ctx context.Context) error {
+func p2p(obsvC chan *gossipv1.LockupObservation, sendC chan []byte) func(ctx context.Context) error {
 	return func(ctx context.Context) (re error) {
 		logger := supervisor.Logger(ctx)
 
@@ -240,8 +240,8 @@ func p2p(ethObsvC chan *gossipv1.EthLockupObservation, sendC chan []byte) func(c
 				logger.Info("heartbeat received",
 					zap.Any("value", m.Heartbeat),
 					zap.String("from", envl.GetFrom().String()))
-			case *gossipv1.GossipMessage_EthLockupObservation:
-				ethObsvC <- m.EthLockupObservation
+			case *gossipv1.GossipMessage_LockupObservation:
+				obsvC <- m.LockupObservation
 			default:
 				logger.Warn("received unknown message type (running outdated software?)",
 					zap.Any("payload", msg.Message),

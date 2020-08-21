@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/ecdsa"
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"math/big"
@@ -43,7 +44,7 @@ type (
 		// Index of the validator
 		Index uint8
 		// Signature data
-		Signature [65]byte
+		Signature [65]byte  // TODO: hex marshaller
 	}
 
 	// AssetMeta describes an asset within the Wormhole protocol
@@ -84,6 +85,21 @@ type (
 	}
 )
 
+func (a Address) String() string {
+	return hex.EncodeToString(a[:])
+}
+
+func (c ChainID) String() string {
+	switch c {
+	case ChainIDSolana:
+		return "solana"
+	case ChainIDEthereum:
+		return "ethereum"
+	default:
+		return fmt.Sprintf("unknown chain ID: %d", c)
+	}
+}
+
 const (
 	ActionGuardianSetUpdate Action = 0x01
 	ActionTransfer          Action = 0x10
@@ -96,6 +112,8 @@ const (
 	minVAALength        = 1 + 4 + 52 + 4 + 1 + 1
 	SupportedVAAVersion = 0x01
 )
+
+
 
 // Unmarshal deserializes the binary representation of a VAA
 func Unmarshal(data []byte) (*VAA, error) {

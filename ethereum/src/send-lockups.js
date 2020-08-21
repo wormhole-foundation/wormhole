@@ -32,7 +32,7 @@ module.exports = function(callback) {
         await token.approve(bridge.address, "1000000000000000000");
 
         while (true) {
-            let ev = await bridge.lockAssets(token.address, "1000", "0x1230000000000000000000000000000000000000000000000000000000000000", 3, 0);
+            let ev = await bridge.lockAssets(token.address, "1000", "0x1230000000000000000000000000000000000000000000000000000000000000", 1 /* Solana */, 0);
             let block = await web3.eth.getBlock('latest');
             console.log("block", block.number, "with txs", block.transactions, "and time", block.timestamp);
             await advanceBlock();

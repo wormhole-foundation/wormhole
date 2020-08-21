@@ -115,7 +115,7 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 				}
 
 				logger.Info("found new lockup transaction", zap.Stringer("tx", ev.Raw.TxHash),
-					zap.Uint64("number", ev.Raw.BlockNumber))
+					zap.Uint64("block", ev.Raw.BlockNumber))
 				e.pendingLocksGuard.Lock()
 				e.pendingLocks[ev.Raw.TxHash] = &pendingLock{
 					lock:   lock,
@@ -159,7 +159,7 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 				return
 			case ev := <-headSink:
 				start := time.Now()
-				logger.Info("processing new header", zap.Stringer("number", ev.Number))
+				logger.Info("processing new header", zap.Stringer("block", ev.Number))
 				e.pendingLocksGuard.Lock()
 
 				blockNumberU := ev.Number.Uint64()
@@ -168,7 +168,7 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 					// Transaction was dropped and never picked up again
 					if pLock.height+4*e.minConfirmations <= blockNumberU {
 						logger.Debug("lockup timed out", zap.Stringer("tx", pLock.lock.TxHash),
-							zap.Stringer("number", ev.Number))
+							zap.Stringer("block", ev.Number))
 						delete(e.pendingLocks, hash)
 						continue
 					}
@@ -176,14 +176,14 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 					// Transaction is now ready
 					if pLock.height+e.minConfirmations <= ev.Number.Uint64() {
 						logger.Debug("lockup confirmed", zap.Stringer("tx", pLock.lock.TxHash),
-							zap.Stringer("number", ev.Number))
+							zap.Stringer("block", ev.Number))
 						delete(e.pendingLocks, hash)
 						e.lockChan <- pLock.lock
 					}
 				}
 
 				e.pendingLocksGuard.Unlock()
-				logger.Info("processed new header", zap.Stringer("number", ev.Number),
+				logger.Info("processed new header", zap.Stringer("block", ev.Number),
 					zap.Duration("took", time.Since(start)))
 			}
 		}

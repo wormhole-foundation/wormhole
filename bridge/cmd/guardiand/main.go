@@ -164,17 +164,17 @@ func main() {
 	// Outbound gossip message queue
 	sendC := make(chan []byte)
 
-	// Inbound ETH observations
-	ethObsvC := make(chan *gossipv1.EthLockupObservation, 50) // TODO: is this an acceptable mitigation for bursts?
+	// Inbound observations
+	obsvC := make(chan *gossipv1.LockupObservation)
 
 	// VAAs to submit to Solana
-	vaaC := make(chan *vaa.VAA)
+	solanaVaaC := make(chan *vaa.VAA)
 
 	// Run supervisor.
 	supervisor.New(rootCtx, logger, func(ctx context.Context) error {
 		// TODO: use a dependency injection framework like wire?
 
-		if err := supervisor.Run(ctx, "p2p", p2p(ethObsvC, sendC)); err != nil {
+		if err := supervisor.Run(ctx, "p2p", p2p(obsvC, sendC)); err != nil {
 			return err
 		}
 
@@ -182,13 +182,13 @@ func main() {
 		// TODO: on-demand fetching of guardian set to avoid restarting ethwatch?
 		if err := supervisor.RunGroup(ctx, map[string]supervisor.Runnable{
 			"ethwatch":  ethereum.NewEthBridgeWatcher(*ethRPC, ethContractAddr, *ethConfirmations, lockC, setC).Run,
-			"ethlockup": ethLockupProcessor(lockC, setC, gk, sendC, ethObsvC, vaaC),
+			"processor": vaaConsensusProcessor(lockC, setC, gk, sendC, obsvC, solanaVaaC),
 		}); err != nil {
 			return err
 		}
 
 		if err := supervisor.Run(ctx, "solana",
-			solana.NewSolanaBridgeWatcher(*agentRPC, lockC, vaaC).Run); err != nil {
+			solana.NewSolanaBridgeWatcher(*agentRPC, lockC, solanaVaaC).Run); err != nil {
 			return err
 		}
 

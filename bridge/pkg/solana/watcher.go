@@ -2,6 +2,7 @@ package ethereum
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"time"
 
@@ -90,15 +91,22 @@ func (e *SolanaBridgeWatcher) Run(ctx context.Context) error {
 					panic(err)
 				}
 
+				// Calculate digest so we can log it (TODO: refactor to vaa method? we do this in different places)
+				m, err := v.SigningMsg()
+				if err != nil {
+					panic(err)
+				}
+				h := hex.EncodeToString(m.Bytes())
+
 				timeout, _ := context.WithTimeout(ctx, 15*time.Second)
 				res, err := c.SubmitVAA(timeout, &agentv1.SubmitVAARequest{Vaa: vaaBytes})
 				if err != nil {
-					logger.Error("failed to submit VAA", zap.Error(err))
+					logger.Error("failed to submit VAA", zap.Error(err), zap.String("digest", h))
 					break
 				}
 
 				logger.Info("submitted VAA",
-					zap.String("signature", res.Signature))
+					zap.String("signature", res.Signature), zap.String("digest", h))
 			}
 		}
 	}()
