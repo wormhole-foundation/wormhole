@@ -73,6 +73,9 @@ func (e *SolanaBridgeWatcher) Run(ctx context.Context) error {
 
 			switch event := ev.Event.(type) {
 			case *agentv1.LockupEvent_New:
+				logger.Info("received lockup event",
+					zap.Any("event", ev))  // TODO: debug level
+
 				lock := &common.ChainLock{
 					TxHash:        eth_common.HexToHash(ev.LockupAddress),
 					Timestamp:     time.Time{}, // FIXME

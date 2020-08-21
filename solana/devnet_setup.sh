@@ -2,6 +2,8 @@
 # This script configures the devnet for test transfers with hardcoded addresses.
 set -x
 
+# TODO: run as solana devnet sidecar
+
 # Configure CLI (works the same as upstream Solana CLI)
 mkdir -p ~/.config/solana/cli
 cat <<EOF > ~/.config/solana/cli/config.yml
@@ -43,6 +45,6 @@ retry cli mint "$token" 10000000000 "$account"
 
 # Do lock transactions <3
 while : ; do
-  cli lock "$bridge_address" "$account" "$token" 10 "$chain_id_ethereum" "$((RANDOM % 254))"
-  sleep 5
+  cli lock "$bridge_address" "$account" "$token" 10 "$chain_id_ethereum" "$RANDOM"
+  sleep 1
 done
