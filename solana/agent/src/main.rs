@@ -1,10 +1,18 @@
+use std::env;
+use std::fs::File;
+use std::mem::size_of;
+use std::rc::Rc;
+use std::str::FromStr;
+use std::sync::mpsc::RecvError;
+use std::thread::sleep;
+
 use solana_client::client_error::ClientError;
 use solana_client::rpc_client::RpcClient;
 use solana_sdk::fee_calculator::FeeCalculator;
 use solana_sdk::instruction::Instruction;
 use solana_sdk::program_error::ProgramError;
 use solana_sdk::pubkey::Pubkey;
-use solana_sdk::signature::{read_keypair_file, Keypair, Signer};
+use solana_sdk::signature::{read_keypair_file, write_keypair_file, Keypair, Signer};
 use solana_sdk::transaction::Transaction;
 use spl_token::state::Account;
 use tokio::stream::Stream;
@@ -19,12 +27,6 @@ use service::{
 };
 use spl_bridge::instruction::{post_vaa, CHAIN_ID_SOLANA};
 use spl_bridge::state::{Bridge, TransferOutProposal};
-use std::env;
-use std::mem::size_of;
-use std::rc::Rc;
-use std::str::FromStr;
-use std::sync::mpsc::RecvError;
-use std::thread::sleep;
 
 use crate::monitor::{ProgramNotificationMessage, PubsubClient};
 
@@ -208,11 +210,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let addr = format!("0.0.0.0:{}", port).parse().unwrap();
 
+    let keypair = {
+        if let Ok(k) = read_keypair_file("keypair.json") {
+            k
+        } else {
+            let k = Keypair::new();
+            write_keypair_file(&k, "keypair.json").unwrap();
+            k
+        }
+    };
+
+    println!("Agent using account: {}", keypair.pubkey());
+
     let agent = AgentImpl {
         url: String::from(format!("ws://{}:{}", host, ws_port)),
         rpc_url: format!("http://{}:{}", host, rpc_port),
         bridge: Pubkey::from_str(bridge).unwrap(),
-        key: Keypair::new(), // TODO
+        key: keypair,
     };
 
     println!("Agent listening on {}", addr);
