@@ -44,7 +44,7 @@ spec:
             - -agentRPC
             - localhost:9000
             - -ethConfirmations
-            - '1'
+            - '3'
             - -unsafeDevMode
 #            - -logLevel
 #            - debug
@@ -62,7 +62,7 @@ spec:
           image: solana-agent
           command:
             - /usr/local/bin/agent
-            - '11111111111111111111111111111111'  # TODO: program address
+            - 'Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o'  # TODO: program address
             - 'solana-devnet'  # host
             - '8899'  # rpc port
             - '8999'  # pubsub/ws port
