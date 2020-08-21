@@ -1059,7 +1059,7 @@ fn main() {
             rpc_client: RpcClient::new(json_rpc_url),
             owner,
             fee_payer,
-            commitment_config: CommitmentConfig::single(),
+            commitment_config: CommitmentConfig::max(),
         }
     };
 
