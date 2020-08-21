@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"flag"
 	"fmt"
 	"net/http"
@@ -10,7 +9,6 @@ import (
 	"os"
 
 	eth_common "github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"go.uber.org/zap"
 
@@ -36,11 +34,11 @@ var (
 	ethContract      = flag.String("ethContract", "", "Ethereum bridge contract address")
 	ethConfirmations = flag.Uint64("ethConfirmations", 15, "Ethereum confirmation count requirement")
 
-	agentRPC           = flag.String("agentRPC", "", "Solana agent sidecar gRPC address")
+	agentRPC = flag.String("agentRPC", "", "Solana agent sidecar gRPC address")
 
 	logLevel = flag.String("logLevel", "info", "Logging level (debug, info, warn, error, dpanic, panic, fatal)")
 
-	unsafeDevMode = flag.Bool("unsafeDevMode", false, "Launch node in unsafe, deterministic devnet mode")
+	unsafeDevMode   = flag.Bool("unsafeDevMode", false, "Launch node in unsafe, deterministic devnet mode")
 	devNumGuardians = flag.Uint("devNumGuardians", 5, "Number of devnet guardians to include in guardian set")
 
 	nodeName = flag.String("nodeName", "", "Node name to announce in gossip heartbeats")
@@ -80,28 +78,6 @@ func rootLoggerName() string {
 	} else {
 		return "wormhole"
 	}
-}
-
-func loadGuardianKey(logger *zap.Logger) *ecdsa.PrivateKey {
-	var gk *ecdsa.PrivateKey
-
-	if *unsafeDevMode {
-		// Figure out our devnet index
-		idx, err := devnet.GetDevnetIndex()
-		if err != nil {
-			logger.Fatal("Failed to parse hostname - are we running in devnet?")
-		}
-
-		// Generate guardian key
-		gk = devnet.DeterministicEcdsaKeyByIndex(crypto.S256(), uint64(idx))
-	} else {
-		panic("not implemented") // TODO
-	}
-
-	logger.Info("Loaded guardian key", zap.String(
-		"address", crypto.PubkeyToAddress(gk.PublicKey).String()))
-
-	return gk
 }
 
 func main() {
@@ -189,7 +165,7 @@ func main() {
 	sendC := make(chan []byte)
 
 	// Inbound ETH observations
-	ethObsvC := make(chan *gossipv1.EthLockupObservation, 50)  // TODO: is this an acceptable mitigation for bursts?
+	ethObsvC := make(chan *gossipv1.EthLockupObservation, 50) // TODO: is this an acceptable mitigation for bursts?
 
 	// VAAs to submit to Solana
 	vaaC := make(chan *vaa.VAA)
@@ -213,7 +189,6 @@ func main() {
 			solana.NewSolanaBridgeWatcher(*agentRPC, lockC, vaaC).Run); err != nil {
 			return err
 		}
-
 
 		logger.Info("Started internal services")
 		supervisor.Signal(ctx, supervisor.SignalHealthy)
