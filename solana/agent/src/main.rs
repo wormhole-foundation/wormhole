@@ -133,6 +133,7 @@ impl Agent for AgentImpl {
                             // The Lockup was created
                             LockupEvent {
                                 slot: v.context.slot,
+                                lockup_address: v.value.pubkey.to_string(),
                                 event: Some(Event::New(LockupEventNew {
                                     nonce: b.nonce,
                                     source_chain: CHAIN_ID_SOLANA as u32,
@@ -148,6 +149,7 @@ impl Agent for AgentImpl {
                             // The VAA was submitted
                             LockupEvent {
                                 slot: v.context.slot,
+                                lockup_address: v.value.pubkey.to_string(),
                                 event: Some(Event::VaaPosted(LockupEventVaaPosted {
                                     nonce: b.nonce,
                                     source_chain: CHAIN_ID_SOLANA as u32,
@@ -182,6 +184,7 @@ impl Agent for AgentImpl {
             loop {
                 tx1.send(Ok(LockupEvent {
                     slot: 0,
+                    lockup_address: String::from(""),
                     event: Some(Event::Empty(Empty {})),
                 }))
                 .await;
