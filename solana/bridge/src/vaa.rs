@@ -57,7 +57,7 @@ impl VAA {
         let hash = h.finalize().into();
 
         // Check quorum
-        if self.signatures.len() < ((guardian_keys.len() as f32 / 4f32 * 3f32).ceil() as usize) {
+        if self.signatures.len() < (((guardian_keys.len() / 4) * 3) + 1 as usize) {
             return false;
         }
 

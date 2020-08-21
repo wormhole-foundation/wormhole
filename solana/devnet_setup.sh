@@ -15,7 +15,7 @@ EOF
 # Constants
 cli_address=6sbzC1eH4FTujJXWj51eQe25cYvr4xfXbJ1vAj7j2k5J
 bridge_address=Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o
-initial_guardian=5b1869D9A4C187F2EAa108f3062412ecf0526b24
+initial_guardian=befa429d57cd18b7f8a4d91a2da9ab4af05d0fbe
 chain_id_ethereum=2
 
 # TODO: use proper confirmation level to avoid retries (except for faucet, which waits for devnet to come up)
