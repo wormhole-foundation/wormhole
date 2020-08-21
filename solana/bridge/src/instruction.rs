@@ -220,6 +220,7 @@ impl BridgeInstruction {
 }
 
 /// Creates an 'initialize' instruction.
+#[cfg(not(target_arch = "bpf"))]
 pub fn initialize(
     program_id: &Pubkey,
     sender: &Pubkey,
@@ -259,6 +260,7 @@ pub fn initialize(
 }
 
 /// Creates a 'CreateWrapped' instruction.
+#[cfg(not(target_arch = "bpf"))]
 pub fn create_wrapped(
     program_id: &Pubkey,
     payer: &Pubkey,
@@ -290,6 +292,7 @@ pub fn create_wrapped(
 }
 
 /// Creates an 'TransferOut' instruction.
+#[cfg(not(target_arch = "bpf"))]
 pub fn transfer_out(
     program_id: &Pubkey,
     payer: &Pubkey,
@@ -336,6 +339,7 @@ pub fn transfer_out(
 }
 
 /// Creates a 'PostVAA' instruction.
+#[cfg(not(target_arch = "bpf"))]
 pub fn post_vaa(
     program_id: &Pubkey,
     payer: &Pubkey,

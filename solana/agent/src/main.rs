@@ -14,6 +14,7 @@ use solana_sdk::program_error::ProgramError;
 use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signature::{read_keypair_file, write_keypair_file, Keypair, Signer};
 use solana_sdk::transaction::Transaction;
+use solana_transaction_status::UiTransactionEncoding;
 use spl_token::state::Account;
 use tokio::stream::Stream;
 use tokio::sync::mpsc;
@@ -110,6 +111,7 @@ impl Agent for AgentImpl {
         let mut tx1 = tx.clone();
         let url = self.url.clone();
         let bridge = self.bridge.clone();
+        let rpc_url = self.rpc_url.clone();
         // creating a new task
         tokio::spawn(async move {
             // looping and sending our response using stream
@@ -118,12 +120,27 @@ impl Agent for AgentImpl {
                 let item = sub.1.recv();
                 match item {
                     Ok(v) => {
+                        let rpc = RpcClient::new(rpc_url.to_string());
+
+                        println!("program account changed in slot: {}", v.context.slot);
+
+                        let time = match rpc.get_block_time(v.context.slot) {
+                            Ok(v) => v as u64,
+                            Err(e) => {
+                                println!("failed to fetch block time for event: {}", e);
+                                continue;
+                            }
+                        };
+
                         //
-                        let b = match Bridge::unpack_immutable::<TransferOutProposal>(
+                        let b = match Bridge::transfer_out_proposal_deserialize(
                             v.value.account.data.as_slice(),
                         ) {
                             Ok(v) => v,
-                            Err(_) => continue,
+                            Err(e) => {
+                                println!("failed to deserialize lockup: {}", e);
+                                continue;
+                            }
                         };
 
                         let mut amount_b: [u8; 32] = [0; 32];
@@ -134,6 +151,7 @@ impl Agent for AgentImpl {
                             LockupEvent {
                                 slot: v.context.slot,
                                 lockup_address: v.value.pubkey.to_string(),
+                                time,
                                 event: Some(Event::New(LockupEventNew {
                                     nonce: b.nonce,
                                     source_chain: CHAIN_ID_SOLANA as u32,
@@ -150,6 +168,7 @@ impl Agent for AgentImpl {
                             LockupEvent {
                                 slot: v.context.slot,
                                 lockup_address: v.value.pubkey.to_string(),
+                                time,
                                 event: Some(Event::VaaPosted(LockupEventVaaPosted {
                                     nonce: b.nonce,
                                     source_chain: CHAIN_ID_SOLANA as u32,
@@ -184,10 +203,12 @@ impl Agent for AgentImpl {
             loop {
                 tx1.send(Ok(LockupEvent {
                     slot: 0,
+                    time: 0,
                     lockup_address: String::from(""),
                     event: Some(Event::Empty(Empty {})),
                 }))
                 .await;
+
                 sleep(Duration::new(1, 0))
             }
         });

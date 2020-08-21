@@ -116,7 +116,7 @@ where
             .unwrap()
             .write_message(Message::Text(
                 json!({
-                "jsonrpc":"2.0","id":1,"method":method,"params":[program.to_string(),{"encoding":"binary"}]
+                "jsonrpc":"2.0","id":1,"method":method,"params":[program.to_string(),{"encoding":"binary", "commitment": "max"}]
                 })
                     .to_string(),
             ))?;

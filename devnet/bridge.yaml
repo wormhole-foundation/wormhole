@@ -71,7 +71,7 @@ spec:
             - 'Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o'  # TODO: program address
             - 'solana-devnet'  # host
             - '8899'  # rpc port
-            - '8999'  # pubsub/ws port
+            - '8900'  # pubsub/ws port
             - '9000'  # grpc listen port
           ports:
             - containerPort: 9000

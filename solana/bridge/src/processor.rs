@@ -25,6 +25,8 @@ use crate::instruction::MAX_LEN_GUARDIAN_KEYS;
 use crate::instruction::{BridgeInstruction, TransferOutPayload, VAAData, CHAIN_ID_SOLANA};
 use crate::state::*;
 use crate::vaa::{BodyTransfer, BodyUpdateGuardianSet, VAABody, VAA};
+use std::borrow::Borrow;
+use std::cell::RefCell;
 
 /// Instruction processing logic
 impl Bridge {
@@ -131,7 +133,7 @@ impl Bridge {
         guardian_info.is_initialized = true;
         guardian_info.index = 0;
         guardian_info.creation_time = clock.unix_timestamp.as_();
-        guardian_info.keys = initial_guardian_key.into();
+        guardian_info.keys = initial_guardian_key;
         guardian_info.len_keys = len_guardians;
 
         Ok(())
@@ -554,8 +556,8 @@ impl Bridge {
         guardian_set_new.is_initialized = true;
         guardian_set_new.index = b.new_index;
         let mut new_guardians = [[0u8; 20]; MAX_LEN_GUARDIAN_KEYS];
-        for (i, guardian) in b.new_keys.iter().enumerate() {
-            new_guardians[i] = *guardian
+        for n in 0..b.new_keys.len() {
+            new_guardians[n] = b.new_keys[n]
         }
         guardian_set_new.keys = new_guardians;
         guardian_set_new.len_keys = b.new_keys.len() as u8;
@@ -656,7 +658,9 @@ impl Bridge {
             return Err(Error::InvalidDerivedAccount.into());
         }
 
-        let mut proposal = Self::transfer_out_proposal_deserialize(proposal_info)?;
+        let transfer_data: &RefCell<&mut [u8]> = proposal_info.data.borrow();
+        let mut proposal =
+            Self::transfer_out_proposal_deserialize(transfer_data.borrow().as_ref())?;
         if !proposal.matches_vaa(b) {
             return Err(Error::VAAProposalMismatch.into());
         }
@@ -672,41 +676,6 @@ impl Bridge {
             .swap_with_slice(transfer_data.as_mut_slice());
 
         Ok(())
-    }
-}
-
-// Test program id for the swap program.
-#[cfg(not(target_arch = "bpf"))]
-const WORMHOLE_PROGRAM_ID: Pubkey = Pubkey::new_from_array([2u8; 32]);
-#[cfg(not(target_arch = "bpf"))]
-const TOKEN_PROGRAM_ID: Pubkey = Pubkey::new_from_array([2u8; 32]);
-
-/// Routes invokes to the token program, used for testing.
-#[cfg(not(target_arch = "bpf"))]
-pub fn invoke_signed<'a>(
-    instruction: &Instruction,
-    account_infos: &[AccountInfo<'a>],
-    signers_seeds: &[&[&[u8]]],
-) -> ProgramResult {
-    let sys = solana_sdk::system_program::id();
-    let mut new_account_infos = vec![];
-    for meta in instruction.accounts.iter() {
-        for account_info in account_infos.iter() {
-            if meta.pubkey == *account_info.key {
-                let mut new_account_info = account_info.clone();
-                for seeds in signers_seeds.iter() {}
-                new_account_infos.push(new_account_info);
-            }
-        }
-    }
-
-    match instruction.program_id {
-        TOKEN_PROGRAM_ID => spl_token::processor::Processor::process(
-            &instruction.program_id,
-            &new_account_infos,
-            &instruction.data,
-        ),
-        _ => panic!(),
     }
 }
 
@@ -916,52 +885,5 @@ impl Bridge {
         );
         let s: Vec<_> = seeds.iter().map(|item| item.as_slice()).collect();
         invoke_signed(&ix, accounts, &[s.as_slice()])
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use std::str::FromStr;
-
-    use solana_sdk::{
-        account::Account, account_info::create_is_signer_account_infos, instruction::Instruction,
-    };
-    use spl_token::{
-        instruction::{initialize_account, initialize_mint},
-        processor::Processor,
-        state::{Account as SplAccount, Mint as SplMint},
-    };
-
-    use crate::instruction::{initialize, TransferOutPayloadRaw};
-
-    use super::*;
-
-    const TOKEN_PROGRAM_ID: Pubkey = Pubkey::new_from_array([1u8; 32]);
-
-    // Pulls in the stubs required for `info!()`
-    #[cfg(not(target_arch = "bpf"))]
-    solana_sdk::program_stubs!();
-
-    fn pubkey_rand() -> Pubkey {
-        Pubkey::new(&rand::random::<[u8; 32]>())
-    }
-
-    fn do_process_instruction(
-        instruction: Instruction,
-        accounts: Vec<&mut Account>,
-    ) -> ProgramResult {
-        let mut meta = instruction
-            .accounts
-            .iter()
-            .zip(accounts)
-            .map(|(account_meta, account)| (&account_meta.pubkey, account_meta.is_signer, account))
-            .collect::<Vec<_>>();
-
-        let account_infos = create_is_signer_account_infos(&mut meta);
-        if instruction.program_id == WORMHOLE_PROGRAM_ID {
-            Bridge::process(&instruction.program_id, &account_infos, &instruction.data)
-        } else {
-            Processor::process(&instruction.program_id, &account_infos, &instruction.data)
-        }
     }
 }

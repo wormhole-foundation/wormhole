@@ -6,7 +6,6 @@ use std::ops::Deref;
 
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use primitive_types::U256;
-use solana_sdk::hash::Hasher;
 use solana_sdk::pubkey::{PubkeyError, MAX_SEED_LEN};
 use solana_sdk::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 use zerocopy::AsBytes;
@@ -206,11 +205,8 @@ impl Bridge {
     }
 
     /// Deserializes a `TransferOutProposal`.
-    pub fn transfer_out_proposal_deserialize(
-        info: &AccountInfo,
-    ) -> Result<TransferOutProposal, Error> {
-        let raw_data = info.data.borrow();
-        let mut rdr = Cursor::new(raw_data.as_ref());
+    pub fn transfer_out_proposal_deserialize(data: &[u8]) -> Result<TransferOutProposal, Error> {
+        let mut rdr = Cursor::new(data);
         let mut proposal = TransferOutProposal::default();
         proposal.is_initialized = rdr.read_u8()? == 1;
 
