@@ -131,7 +131,6 @@ perform_action() {
     update)
         mkdir -p $sdkParentDir
         ./bpf-sdk-install.sh $sdkParentDir
-        ./do.sh clean all
         ;;
     *)
         echo "Error: Unknown command"
