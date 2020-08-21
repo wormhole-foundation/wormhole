@@ -1,4 +1,5 @@
 use std::fmt::Display;
+use std::net::{SocketAddr, ToSocketAddrs};
 use std::str::FromStr;
 use std::{mem::size_of, process::exit};
 
@@ -35,6 +36,10 @@ use spl_token::{
 
 use spl_bridge::instruction::*;
 use spl_bridge::state::*;
+
+use crate::faucet::request_and_confirm_airdrop;
+
+mod faucet;
 
 struct Config {
     rpc_client: RpcClient,
@@ -842,6 +847,16 @@ fn main() {
                         .help("The address of the token account to unwrap"),
                 ),
         )
+        .subcommand(SubCommand::with_name("airdrop")
+            .arg(
+                Arg::with_name("faucet_url")
+                    .value_name("FAUCET_URL")
+                    .takes_value(true)
+                    .index(1)
+                    .required(true)
+                    .help("The address of the faucet"),
+            )
+            .about("Request an airdrop of 100 SOL"))
         .subcommand(SubCommand::with_name("create-bridge")
             .about("Create a new bridge")
             .arg(
@@ -1100,6 +1115,15 @@ fn main() {
         ("accounts", Some(arg_matches)) => {
             let token = pubkey_of(arg_matches, "token");
             command_accounts(&config, token)
+        }
+        ("airdrop", Some(arg_matches)) => {
+            let faucet_addr = value_t_or_exit!(arg_matches, "faucet_url", String);
+            request_and_confirm_airdrop(
+                &config.rpc_client,
+                &faucet_addr.to_socket_addrs().unwrap().next().unwrap(),
+                &config.owner.pubkey(),
+                100 * LAMPORTS_PER_SOL,
+            )
         }
         ("create-bridge", Some(arg_matches)) => {
             let bridge = pubkey_of(arg_matches, "bridge").unwrap();
