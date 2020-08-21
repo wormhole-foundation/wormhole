@@ -214,11 +214,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let addr = format!("0.0.0.0:{}", port).parse().unwrap();
 
     let keypair = {
-        if let Ok(k) = read_keypair_file("keypair.json") {
+        if let Ok(k) = read_keypair_file("id.json") {
             k
         } else {
             let k = Keypair::new();
-            write_keypair_file(&k, "keypair.json").unwrap();
+            write_keypair_file(&k, "id.json").unwrap();
             k
         }
     };
