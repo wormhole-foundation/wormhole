@@ -1221,6 +1221,20 @@ where
     }
 }
 
+pub fn is_u32<T>(amount: T) -> Result<(), String>
+where
+    T: AsRef<str> + Display,
+{
+    if amount.as_ref().parse::<u32>().is_ok() {
+        Ok(())
+    } else {
+        Err(format!(
+            "Unable to parse input amount as integer, provided: {}",
+            amount
+        ))
+    }
+}
+
 pub fn is_hex<T>(value: T) -> Result<(), String>
 where
     T: AsRef<str> + Display,

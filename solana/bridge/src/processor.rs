@@ -198,7 +198,6 @@ impl Bridge {
         let mut transfer_data = transfer_info.data.borrow_mut();
         let mut transfer: &mut TransferOutProposal = Self::unpack(&mut transfer_data)?;
 
-        info!("burning");
         // Burn tokens
         Bridge::wrapped_burn(
             program_id,
@@ -365,9 +364,11 @@ impl Bridge {
 
         // Initialize proposal
         transfer.is_initialized = true;
-        transfer.foreign_address = t.target;
         transfer.amount = t.amount;
         transfer.to_chain_id = t.chain_id;
+        transfer.source_address = mint_info.key.to_bytes();
+        transfer.foreign_address = t.target;
+        transfer.nonce = t.nonce;
 
         // Don't use the user-given data as we don't check mint = AssetMeta.address
         transfer.asset = AssetMeta {
