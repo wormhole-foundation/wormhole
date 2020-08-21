@@ -88,7 +88,7 @@ contract("Wormhole", function () {
         // Expect user to have a balance
         let wa = new WrappedAsset("0x3c63250aFA2470359482d98749f2d60D2971c818")
 
-        await bridge.lockAssets(wa.address, "500000000000000000", "0x0", 2);
+        await bridge.lockAssets(wa.address, "500000000000000000", "0x0", 2, 2);
         let balance = await wa.balanceOf("0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1");
 
         // Expect user balance to decrease
@@ -120,7 +120,7 @@ contract("Wormhole", function () {
         assert.isTrue(threw);
 
         // Lock assets
-        let ev = await bridge.lockAssets(token.address, "1000000000000000000", "0x1230000000000000000000000000000000000000000000000000000000000000", 3);
+        let ev = await bridge.lockAssets(token.address, "1000000000000000000", "0x1230000000000000000000000000000000000000000000000000000000000000", 3 ,3);
 
         // Check that the lock event was emitted correctly
         assert.lengthOf(ev.logs, 1)
