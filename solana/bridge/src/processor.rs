@@ -1,6 +1,8 @@
 //! Program instruction processing logic
 #![cfg(feature = "program")]
 
+use std::borrow::Borrow;
+use std::cell::RefCell;
 use std::mem::size_of;
 use std::slice::Iter;
 
@@ -25,8 +27,6 @@ use crate::instruction::MAX_LEN_GUARDIAN_KEYS;
 use crate::instruction::{BridgeInstruction, TransferOutPayload, VAAData, CHAIN_ID_SOLANA};
 use crate::state::*;
 use crate::vaa::{BodyTransfer, BodyUpdateGuardianSet, VAABody, VAA};
-use std::borrow::Borrow;
-use std::cell::RefCell;
 
 /// Instruction processing logic
 impl Bridge {
@@ -185,7 +185,7 @@ impl Bridge {
             sender_account_info.key.to_bytes(),
             t.nonce,
         );
-        Bridge::check_and_create_account::<[u8; TRANSFER_OUT_PROPOSAL_SIZE]>(
+        Bridge::check_and_create_account::<TransferOutProposal>(
             program_id,
             accounts,
             transfer_info.key,
@@ -195,7 +195,8 @@ impl Bridge {
         )?;
 
         // Load transfer account
-        let mut transfer: TransferOutProposal = TransferOutProposal::default();
+        let mut transfer_data = transfer_info.data.borrow_mut();
+        let mut transfer: &mut TransferOutProposal = Self::unpack(&mut transfer_data)?;
 
         info!("burning");
         // Burn tokens
@@ -215,11 +216,6 @@ impl Bridge {
         transfer.amount = t.amount;
         transfer.to_chain_id = t.chain_id;
         transfer.asset = t.asset;
-        let mut transfer_data = Self::transfer_out_proposal_serialize(&transfer)?;
-        transfer_info
-            .data
-            .borrow_mut()
-            .swap_with_slice(transfer_data.as_mut_slice());
 
         Ok(())
     }
@@ -314,7 +310,7 @@ impl Bridge {
             sender_account_info.key.to_bytes(),
             t.nonce,
         );
-        Bridge::check_and_create_account::<[u8; TRANSFER_OUT_PROPOSAL_SIZE]>(
+        Bridge::check_and_create_account::<TransferOutProposal>(
             program_id,
             accounts,
             transfer_info.key,
@@ -324,7 +320,8 @@ impl Bridge {
         )?;
 
         // Load transfer account
-        let mut transfer = TransferOutProposal::default();
+        let mut transfer_data = transfer_info.data.borrow_mut();
+        let mut transfer: &mut TransferOutProposal = Self::unpack_unchecked(&mut transfer_data)?;
 
         // Check that custody account was derived correctly
         let expected_custody_id =
@@ -335,7 +332,6 @@ impl Bridge {
 
         // Create the account if it does not exist
         if custody_info.data_is_empty() {
-            info!("custody acc");
             Bridge::create_custody_account(
                 program_id,
                 accounts,
@@ -378,12 +374,6 @@ impl Bridge {
             chain: CHAIN_ID_SOLANA,
             address: mint_info.key.to_bytes(),
         };
-
-        let mut transfer_data = Self::transfer_out_proposal_serialize(&transfer)?;
-        transfer_info
-            .data
-            .borrow_mut()
-            .swap_with_slice(transfer_data.as_mut_slice());
 
         Ok(())
     }
@@ -658,22 +648,15 @@ impl Bridge {
             return Err(Error::InvalidDerivedAccount.into());
         }
 
-        let transfer_data: &RefCell<&mut [u8]> = proposal_info.data.borrow();
-        let mut proposal =
-            Self::transfer_out_proposal_deserialize(transfer_data.borrow().as_ref())?;
+        let mut transfer_data = proposal_info.data.borrow_mut();
+        let mut proposal: &mut TransferOutProposal = Self::unpack(&mut transfer_data)?;
         if !proposal.matches_vaa(b) {
             return Err(Error::VAAProposalMismatch.into());
         }
 
         // Set vaa
-        proposal.vaa = vaa_data;
+        proposal.vaa;
         proposal.vaa_time = vaa.timestamp;
-
-        let mut transfer_data = Self::transfer_out_proposal_serialize(&proposal)?;
-        proposal_info
-            .data
-            .borrow_mut()
-            .swap_with_slice(transfer_data.as_mut_slice());
 
         Ok(())
     }

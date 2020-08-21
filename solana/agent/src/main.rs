@@ -122,7 +122,12 @@ impl Agent for AgentImpl {
                     Ok(v) => {
                         let rpc = RpcClient::new(rpc_url.to_string());
 
-                        println!("program account changed in slot: {}", v.context.slot);
+                        // We only want to track lockups
+                        if v.value.account.data.len() != size_of::<TransferOutProposal>() {
+                            continue;
+                        }
+
+                        println!("lockup changed in slot: {}", v.context.slot);
 
                         let time = match rpc.get_block_time(v.context.slot) {
                             Ok(v) => v as u64,
@@ -133,7 +138,7 @@ impl Agent for AgentImpl {
                         };
 
                         //
-                        let b = match Bridge::transfer_out_proposal_deserialize(
+                        let b = match Bridge::unpack_immutable::<TransferOutProposal>(
                             v.value.account.data.as_slice(),
                         ) {
                             Ok(v) => v,

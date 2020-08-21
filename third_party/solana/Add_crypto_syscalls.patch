@@ -734,19 +734,3 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
  echo "${genesis_args[@]}" > spl-genesis-args.sh
 
  echo
-Index: programs/bpf_loader/src/bpf_verifier.rs
-IDEA additional info:
-Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
-<+>UTF-8
-===================================================================
---- programs/bpf_loader/src/bpf_verifier.rs	(revision 97144cdb8e9cb4d83943b0b5898d08f57844a4dd)
-+++ programs/bpf_loader/src/bpf_verifier.rs	(date 1598022580695)
-@@ -58,7 +58,7 @@
-     if prog.len() % ebpf::INSN_SIZE != 0 {
-         return Err(VerifierError::ProgramLengthNotMultiple.into());
-     }
--    if prog.len() > ebpf::PROG_MAX_SIZE {
-+    if prog.len() > ebpf::PROG_MAX_SIZE * 2 {
-         return Err(VerifierError::ProgramTooLarge(prog.len() / ebpf::INSN_SIZE).into());
-     }
-
