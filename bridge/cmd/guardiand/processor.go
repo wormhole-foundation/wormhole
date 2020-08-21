@@ -75,6 +75,8 @@ func vaaConsensusProcessor(lockC chan *common.ChainLock, setC chan *common.Guard
 			}
 		}
 
+		supervisor.Signal(ctx, supervisor.SignalHealthy)
+
 		for {
 			select {
 			case <-ctx.Done():

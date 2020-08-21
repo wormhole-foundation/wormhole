@@ -10,9 +10,9 @@ import (
 )
 
 type ChainLock struct {
-	TxHash    common.Hash
+	TxHash    common.Hash // TODO: rename to identifier? on Solana, this isn't actually the tx hash
 	Timestamp time.Time
-	
+
 	Nonce uint32
 
 	SourceAddress vaa.Address

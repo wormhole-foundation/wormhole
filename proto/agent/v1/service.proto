@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package agent.v1;
 
+// TODO: documentation
+
 option go_package = "proto/agent/v1;agentv1";
 
 service Agent {
@@ -26,7 +28,7 @@ message WatchLockupsRequest {
 
 message LockupEvent {
     uint64 slot = 1;
-    string lockupAddress = 2;
+    string lockupAddress = 2;  // TODO: why is this a string?
     uint64 time = 3;
     oneof event {
         LockupEventNew new = 4;
@@ -35,6 +37,7 @@ message LockupEvent {
     }
 }
 
+// Token on Solana was locked or burned.
 message LockupEventNew {
     uint32 nonce = 1;
     uint32 sourceChain = 2;
@@ -46,6 +49,7 @@ message LockupEventNew {
     bytes amount = 8;
 }
 
+// A VAA was posted to Solana for data availability.
 message LockupEventVAAPosted {
     uint32 nonce = 1;
     uint32 sourceChain = 2;

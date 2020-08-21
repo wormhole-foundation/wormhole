@@ -187,7 +187,7 @@ func main() {
 			return err
 		}
 
-		if err := supervisor.Run(ctx, "solana",
+		if err := supervisor.Run(ctx, "solwatch",
 			solana.NewSolanaBridgeWatcher(*agentRPC, lockC, solanaVaaC).Run); err != nil {
 			return err
 		}

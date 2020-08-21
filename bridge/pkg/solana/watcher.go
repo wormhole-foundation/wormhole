@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"math/big"
 	"time"
 
+	eth_common "github.com/ethereum/go-ethereum/common"
 	"google.golang.org/grpc"
 
 	agentv1 "github.com/certusone/wormhole/bridge/pkg/proto/agent/v1"
@@ -30,6 +32,16 @@ func NewSolanaBridgeWatcher(url string, lockEvents chan *common.ChainLock, vaaQu
 	return &SolanaBridgeWatcher{url: url, lockChan: lockEvents, vaaChan: vaaQueue}
 }
 
+// TODO: document/deduplicate
+func padAddress(address eth_common.Address) vaa.Address {
+	paddedAddress := eth_common.LeftPadBytes(address[:], 32)
+
+	addr := vaa.Address{}
+	copy(addr[:], paddedAddress)
+
+	return addr
+}
+
 func (e *SolanaBridgeWatcher) Run(ctx context.Context) error {
 	timeout, _ := context.WithTimeout(ctx, 15*time.Second)
 	conn, err := grpc.DialContext(timeout, e.url, grpc.WithBlock(), grpc.WithInsecure())
@@ -43,42 +55,42 @@ func (e *SolanaBridgeWatcher) Run(ctx context.Context) error {
 	errC := make(chan error)
 	logger := supervisor.Logger(ctx)
 
-	//// Subscribe to new token lockups
-	//tokensLockedSub, err := c.WatchLockups(ctx, &agentv1.WatchLockupsRequest{})
-	//if err != nil {
-	//	return fmt.Errorf("failed to subscribe to token lockup events: %w", err)
-	//}
-	//
-	//go func() {
-	//	// TODO: does this properly terminate on ctx cancellation?
-	//	ev, err := tokensLockedSub.Recv()
-	//	for ; err == nil; ev, err = tokensLockedSub.Recv() {
-	//		switch event := ev.Event.(type) {
-	//		case *agentv1.LockupEvent_New:
-	//			lock := &common.ChainLock{
-	//				TxHash:        eth_common.HexToHash(ev.TxHash),
-	//				SourceAddress: event.New.SourceAddress,
-	//				TargetAddress: event.New.TargetAddress,
-	//				SourceChain:   vaa.ChainIDSolana,
-	//				TargetChain:   vaa.ChainID(event.New.TargetChain),
-	//				TokenChain:    vaa.ChainID(event.New.TokenChain),
-	//				TokenAddress:  event.New.TokenAddress,
-	//				Amount:        new(big.Int).SetBytes(event.New.Amount),
-	//			}
-	//
-	//			logger.Info("found new lockup transaction", zap.String("tx", ev.TxHash))
-	//			e.pendingLocksGuard.Lock()
-	//			e.pendingLocks[ev.BlockHash] = &pendingLock{
-	//				lock: lock,
-	//			}
-	//			e.pendingLocksGuard.Unlock()
-	//		}
-	//	}
-	//
-	//	if err != io.EOF {
-	//		errC <- err
-	//	}
-	//}()
+	// Subscribe to new token lockups
+	tokensLockedSub, err := c.WatchLockups(ctx, &agentv1.WatchLockupsRequest{})
+	if err != nil {
+		return fmt.Errorf("failed to subscribe to token lockup events: %w", err)
+	}
+
+	go func() {
+		logger.Info("watching for on-chain events")
+
+		for {
+			ev, err := tokensLockedSub.Recv()
+			if err != nil {
+				errC <- err
+				return
+			}
+
+			switch event := ev.Event.(type) {
+			case *agentv1.LockupEvent_New:
+				lock := &common.ChainLock{
+					TxHash:        eth_common.HexToHash(ev.LockupAddress),
+					Timestamp:     time.Time{}, // FIXME
+					Nonce:         event.New.Nonce,
+					SourceAddress: padAddress(eth_common.BytesToAddress(event.New.SourceAddress)),
+					TargetAddress: padAddress(eth_common.BytesToAddress(event.New.TargetAddress)),
+					SourceChain:   vaa.ChainIDSolana,
+					TargetChain:   vaa.ChainID(event.New.TargetChain),
+					TokenChain:    vaa.ChainID(event.New.TokenChain),
+					TokenAddress:  padAddress(eth_common.BytesToAddress(event.New.TokenAddress)),
+					Amount:        new(big.Int).SetBytes(event.New.Amount),
+				}
+
+				e.lockChan <- lock
+				logger.Info("found new lockup transaction", zap.String("lockup_address", ev.LockupAddress))
+			}
+		}
+	}()
 
 	go func() {
 		for {
@@ -106,7 +118,7 @@ func (e *SolanaBridgeWatcher) Run(ctx context.Context) error {
 				}
 
 				logger.Info("submitted VAA",
-					zap.String("signature", res.Signature), zap.String("digest", h))
+					zap.String("tx_sig", res.Signature), zap.String("digest", h))
 			}
 		}
 	}()
