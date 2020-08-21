@@ -933,7 +933,7 @@ fn main() {
                 )
                 .arg(
                     Arg::with_name("nonce")
-                        .validator(is_u8)
+                        .validator(is_u32)
                         .value_name("NONCE")
                         .takes_value(true)
                         .index(6)
