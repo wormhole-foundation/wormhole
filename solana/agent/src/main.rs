@@ -113,7 +113,7 @@ impl Agent for AgentImpl {
         let bridge = self.bridge.clone();
         let rpc_url = self.rpc_url.clone();
 
-        tokio::spawn(async move {
+        match tokio::spawn(async move {
             let rpc = RpcClient::new(rpc_url.to_string());
             let sub = PubsubClient::program_subscribe(&url, &bridge).unwrap();
 
@@ -221,8 +221,15 @@ impl Agent for AgentImpl {
                     };
                 }
             });
-        });
-        Ok(Response::new(rx))
+        })
+        .await
+        {
+            Ok(_) => Ok(Response::new(rx)),
+            Err(_) => Err(Status::new(
+                Code::Unavailable,
+                "failed to connect to solana",
+            )),
+        }
     }
 }
 
