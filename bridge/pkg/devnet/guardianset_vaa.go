@@ -68,7 +68,7 @@ func SubmitVAA(ctx context.Context, rpcURL string, vaa *vaa.VAA) (*types.Transac
 		panic(err)
 	}
 
-	supervisor.Logger(ctx).Info("initial guardian set VAA", zap.Binary("binary", b))  // TODO
+	supervisor.Logger(ctx).Info("submitted VAA to devnet", zap.Binary("binary", b))  // TODO
 
 	tx, err := bridge.SubmitVAA(opts, b)
 	if err != nil {

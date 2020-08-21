@@ -194,31 +194,39 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 
 	supervisor.Signal(ctx, supervisor.SignalHealthy)
 
-	// Fetch current guardian set
-	timeout, cancel = context.WithTimeout(ctx, 15*time.Second)
-	defer cancel()
-	opts := &bind.CallOpts{Context: timeout}
-
-	currentIndex, err := caller.GuardianSetIndex(opts)
-	if err != nil {
-		return fmt.Errorf("error requesting current guardian set index: %w", err)
-	}
-
-	gs, err := caller.GetGuardianSet(opts, currentIndex)
-	if err != nil {
-		return fmt.Errorf("error requesting current guardian set value: %w", err)
-	}
-
-	logger.Info("current guardian set fetched", zap.Any("value", gs), zap.Uint32("index", currentIndex))
-	e.setChan <- &common.GuardianSet{
-		Keys:  gs.Keys,
-		Index: currentIndex,
-	}
-
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
 	case err := <-errC:
 		return err
 	}
+}
+
+// Fetch the current guardian set ID and guardian set from the chain.
+func FetchCurrentGuardianSet(ctx context.Context, logger *zap.Logger, rpcURL string, bridgeContract eth_common.Address) (uint32, *abi.WormholeGuardianSet, error) {
+	c, err := ethclient.DialContext(ctx, rpcURL)
+	if err != nil {
+		return 0, nil, fmt.Errorf("dialing eth client failed: %w", err)
+	}
+
+	caller, err := abi.NewAbiCaller(bridgeContract, c)
+	if err != nil {
+		panic(err)
+	}
+
+	opts := &bind.CallOpts{Context: ctx}
+
+	currentIndex, err := caller.GuardianSetIndex(opts)
+	if err != nil {
+		return 0, nil, fmt.Errorf("error requesting current guardian set index: %w", err)
+	}
+
+	gs, err := caller.GetGuardianSet(opts, currentIndex)
+	if err != nil {
+		return 0, nil, fmt.Errorf("error requesting current guardian set value: %w", err)
+	}
+
+	logger.Info("current guardian set fetched", zap.Any("value", gs), zap.Uint32("index", currentIndex))
+
+	return currentIndex, &gs, nil
 }

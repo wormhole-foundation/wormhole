@@ -15,6 +15,7 @@ import (
 
 	"github.com/certusone/wormhole/bridge/pkg/common"
 	"github.com/certusone/wormhole/bridge/pkg/devnet"
+	"github.com/certusone/wormhole/bridge/pkg/ethereum"
 	gossipv1 "github.com/certusone/wormhole/bridge/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/bridge/pkg/supervisor"
 	"github.com/certusone/wormhole/bridge/pkg/vaa"
@@ -44,13 +45,17 @@ func vaaConsensusProcessor(lockC chan *common.ChainLock, setC chan *common.Guard
 		// Get initial validator set from Ethereum. We could also fetch it from Solana,
 		// because both sets are synchronized, we simply made an arbitrary decision to use Ethereum.
 
-		// TODO: this can deadlock even in the same RunGroup - needs to fetch the set independently
+		timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
+		defer cancel()
+		idx, ethGs, err := ethereum.FetchCurrentGuardianSet(timeout, logger, *ethRPC, ethcommon.HexToAddress(*ethContract))
+		if err != nil {
+			return fmt.Errorf("failed requesting guardian set from Ethereum: %w", err)
+		}
 
-		logger.Info("waiting for initial validator set to be fetched from Ethereum")
-		gs := <-setC
-		logger.Info("current guardian set received",
-			zap.Strings("set", gs.KeysAsHexStrings()),
-			zap.Uint32("index", gs.Index))
+		gs := &common.GuardianSet{
+			Keys:  ethGs.Keys,
+			Index: idx,
+		}
 
 		// In debug mode, node 0 submits a VAA that configures the desired number of guardians to both chains.
 		if *unsafeDevMode {

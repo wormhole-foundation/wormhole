@@ -178,17 +178,17 @@ func main() {
 			return err
 		}
 
-		// We need to re-fetch the initial initiator set when ethwatch dies, so we want to restart the watcher as well.
-		// TODO: on-demand fetching of guardian set to avoid restarting ethwatch?
-		if err := supervisor.RunGroup(ctx, map[string]supervisor.Runnable{
-			"ethwatch":  ethereum.NewEthBridgeWatcher(*ethRPC, ethContractAddr, *ethConfirmations, lockC, setC).Run,
-			"processor": vaaConsensusProcessor(lockC, setC, gk, sendC, obsvC, solanaVaaC),
-		}); err != nil {
+		if err := supervisor.Run(ctx, "ethwatch",
+			ethereum.NewEthBridgeWatcher(*ethRPC, ethContractAddr, *ethConfirmations, lockC, setC).Run); err != nil {
 			return err
 		}
 
 		if err := supervisor.Run(ctx, "solwatch",
 			solana.NewSolanaBridgeWatcher(*agentRPC, lockC, solanaVaaC).Run); err != nil {
+			return err
+		}
+
+		if err := supervisor.Run(ctx, "processor", vaaConsensusProcessor(lockC, setC, gk, sendC, obsvC, solanaVaaC)); err != nil {
 			return err
 		}
 
