@@ -1,7 +1,12 @@
 # syntax=docker/dockerfile:experimental
 
 # Depend on our smart contract build - it's going to be linked directly into Solana as part the patch we carry.
-FROM solana-contract
+FROM solana-contract as contract
+
+FROM rust:1.45
+
+RUN apt-get update && apt-get install -y libssl-dev libudev-dev pkg-config zlib1g-dev llvm clang
+RUN rustup component add rustfmt
 
 WORKDIR /usr/src/solana
 
@@ -19,6 +24,8 @@ RUN --mount=type=cache,target=/usr/local/cargo,from=rust,source=/usr/local/cargo
     mkdir -p /opt/solana/deps && \
     cp $(find ./target/release -maxdepth 1 -type f ! -name "*.*") /opt/solana && \
     cp ./target/release/deps/*.so /opt/solana/deps
+
+COPY --from=contract /opt/solana/deps/spl_bridge.so /opt/solana/deps/spl_bridge.so
 
 ENV PATH="/opt/solana:${PATH}"
 ENV RUST_LOG="solana_runtime::system_instruction_processor=trace,solana_runtime::message_processor=trace,solana_bpf_loader=debug,solana_rbpf=debug"

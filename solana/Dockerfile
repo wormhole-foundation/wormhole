@@ -24,4 +24,4 @@ RUN --mount=type=cache,target=/usr/local,from=rust,source=/usr/local \
     --mount=type=cache,target=bin,from=rust,source=bin \
     ./do.sh build bridge && \
     mkdir -p /opt/solana/deps && \
-    cp target/bpfel-unknown-unknown/release/spl_bridge.so /opt/solana/deps
+    cp target/bpfel-unknown-unknown/release/spl_bridge_debug.so /opt/solana/deps/spl_bridge.so
