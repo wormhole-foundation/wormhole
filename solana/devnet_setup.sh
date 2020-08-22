@@ -18,7 +18,6 @@ bridge_address=Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o
 initial_guardian=befa429d57cd18b7f8a4d91a2da9ab4af05d0fbe
 chain_id_ethereum=2
 
-# TODO: use proper confirmation level to avoid retries (except for faucet, which waits for devnet to come up)
 retry () {
   while ! $@; do
     sleep 1
@@ -41,10 +40,10 @@ account=$(cli create-account "$token" | grep 'Creating account' | awk '{ print $
 echo "Created token account $account"
 
 # Mint new tokens owned by our CLI account
-retry cli mint "$token" 10000000000 "$account"
+cli mint "$token" 10000000000 "$account"
 
 # Do lock transactions <3
 while : ; do
   cli lock "$bridge_address" "$account" "$token" 10 "$chain_id_ethereum" "$RANDOM"
-  sleep 1
+  sleep 5
 done

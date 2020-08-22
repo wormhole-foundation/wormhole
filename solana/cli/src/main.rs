@@ -18,6 +18,7 @@ use solana_clap_utils::{
 };
 use solana_client::client_error::ClientError;
 use solana_client::{rpc_client::RpcClient, rpc_request::TokenAccountsFilter};
+use solana_client::rpc_config::RpcSendTransactionConfig;
 use solana_sdk::system_instruction::create_account;
 use solana_sdk::{
     commitment_config::CommitmentConfig,
@@ -27,6 +28,7 @@ use solana_sdk::{
     system_instruction,
     transaction::Transaction,
 };
+
 use spl_token::{
     self,
     instruction::*,
@@ -1059,7 +1061,7 @@ fn main() {
             rpc_client: RpcClient::new(json_rpc_url),
             owner,
             fee_payer,
-            commitment_config: CommitmentConfig::max(),
+            commitment_config: CommitmentConfig::single(),
         }
     };
 
@@ -1193,9 +1195,13 @@ fn main() {
             // confirmation by default for better UX
             let signature = config
                 .rpc_client
-                .send_and_confirm_transaction_with_spinner_and_commitment(
+                .send_and_confirm_transaction_with_spinner_and_config(
                     &transaction,
                     config.commitment_config,
+                    RpcSendTransactionConfig {
+                        // TODO: move to https://github.com/solana-labs/solana/pull/11792
+                        skip_preflight: true,
+                    },
                 )?;
             println!("Signature: {}", signature);
         }
