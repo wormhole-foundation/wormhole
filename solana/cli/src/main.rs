@@ -17,8 +17,8 @@ use solana_clap_utils::{
     input_validators::{is_amount, is_keypair, is_pubkey_or_keypair, is_url},
 };
 use solana_client::client_error::ClientError;
-use solana_client::{rpc_client::RpcClient, rpc_request::TokenAccountsFilter};
 use solana_client::rpc_config::RpcSendTransactionConfig;
+use solana_client::{rpc_client::RpcClient, rpc_request::TokenAccountsFilter};
 use solana_sdk::system_instruction::create_account;
 use solana_sdk::{
     commitment_config::CommitmentConfig,
@@ -28,7 +28,6 @@ use solana_sdk::{
     system_instruction,
     transaction::Transaction,
 };
-
 use spl_token::{
     self,
     instruction::*,
@@ -941,7 +940,16 @@ fn main() {
                         .index(6)
                         .required(true)
                         .help("Nonce of the transfer"),
-                ),
+                )
+                .arg(
+                    Arg::with_name("recipient")
+                        .validator(is_hex)
+                        .value_name("RECIPIENT_ADDRESS")
+                        .takes_value(true)
+                        .index(7)
+                        .required(true)
+                        .help("Address of the recipient (hex)"),
+                )
         )
         .subcommand(
             SubCommand::with_name("postvaa")
@@ -1143,8 +1151,17 @@ fn main() {
             let nonce = value_t_or_exit!(arg_matches, "nonce", u32);
             let chain = value_t_or_exit!(arg_matches, "chain", u8);
             let token = pubkey_of(arg_matches, "token").unwrap();
+            let recipient_string: String = value_of(arg_matches, "recipient").unwrap();
+            let mut recipient_data = hex::decode(recipient_string).unwrap();
+            // Pad to 32 bytes
+            while recipient_data.len() < 32 {
+                recipient_data.insert(0, 0u8)
+            }
+
+            let mut recipient = [0u8; 32];
+            recipient.copy_from_slice(&recipient_data);
             command_lock_tokens(
-                &config, &bridge, account, token, amount, chain, [0; 32], nonce,
+                &config, &bridge, account, token, amount, chain, recipient, nonce,
             )
         }
         ("postvaa", Some(arg_matches)) => {
