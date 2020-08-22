@@ -2,8 +2,6 @@
 # This script configures the devnet for test transfers with hardcoded addresses.
 set -x
 
-# TODO: run as solana devnet sidecar
-
 # Configure CLI (works the same as upstream Solana CLI)
 mkdir -p ~/.config/solana/cli
 cat <<EOF > ~/.config/solana/cli/config.yml
@@ -29,7 +27,7 @@ retry cli airdrop solana-devnet:9900
 
 # Create the bridge contract at a known address
 # OK to fail on subsequent attempts (already created).
-cli create-bridge "$bridge_address" "$initial_guardian"
+retry cli create-bridge "$bridge_address" "$initial_guardian"
 
 # Create a new SPL token (at a random address)
 token=$(cli create-token | grep 'Creating token' | awk '{ print $3 }')

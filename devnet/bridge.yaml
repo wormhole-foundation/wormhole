@@ -59,9 +59,6 @@ spec:
             - containerPort: 6060
               name: pprof
               protocol: TCP
-#          volumeMounts:
-#            - name: guardian-data
-#              mountPath: /data
         - name: agent
           image: solana-agent
           command:
@@ -75,12 +72,3 @@ spec:
             - containerPort: 9000
               name: grpc
               protocol: TCP
-#  volumeClaimTemplates:
-#    - metadata:
-#        name: guardian-data
-#      spec:
-#        accessModes: [ "ReadWriteOnce" ]
-#        resources:
-#          requests:
-#            storage: 1Gi
-

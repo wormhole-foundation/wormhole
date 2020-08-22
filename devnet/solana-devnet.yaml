@@ -34,7 +34,7 @@ spec:
     spec:
       terminationGracePeriodSeconds: 1
       containers:
-        - name: solana-devnet
+        - name: devnet
           image: solana-devnet
           ports:
             - containerPort: 8001
@@ -67,14 +67,7 @@ spec:
             - containerPort: 9900
               name: faucet
               protocol: TCP
-#          volumeMounts:
-#            - name: solana-devnet-data
-#              mountPath: /data
-#  volumeClaimTemplates:
-#    - metadata:
-#        name: solana-devnet-data
-#      spec:
-#        accessModes: [ "ReadWriteOnce" ]
-#        resources:
-#          requests:
-#            storage: 1Gi
+        - name: setup
+          image: solana-agent
+          command:
+            - /usr/src/solana/devnet_setup.sh
