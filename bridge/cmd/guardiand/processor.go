@@ -271,6 +271,8 @@ func vaaConsensusProcessor(lockC chan *common.ChainLock, setC chan *common.Guard
 							panic(err)
 						}
 
+						// TODO: proper leader selection
+
 						if t, ok := v.Payload.(*vaa.BodyTransfer); ok {
 							switch {
 							case t.TargetChain == vaa.ChainIDSolana:

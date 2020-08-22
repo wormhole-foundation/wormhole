@@ -39,10 +39,6 @@ Generate test ETH lockups once the cluster is up:
 
     kubectl exec -it -c tests eth-devnet-0 -- npx truffle exec src/send-lockups.js
 
-Initialize contract on devnet and generate test SOL lockups:
-
-    kubectl exec -it guardian-0 -c agent ./devnet_setup.sh
-
 Adjust number of nodes in running cluster:
 
     tilt args -- --num=2
