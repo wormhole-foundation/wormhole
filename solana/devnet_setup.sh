@@ -14,6 +14,7 @@ EOF
 cli_address=6sbzC1eH4FTujJXWj51eQe25cYvr4xfXbJ1vAj7j2k5J
 bridge_address=Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o
 initial_guardian=befa429d57cd18b7f8a4d91a2da9ab4af05d0fbe
+recipient_address=90F8bf6A479f320ead074411a4B0e7944Ea8c9C1
 chain_id_ethereum=2
 
 retry () {
@@ -42,6 +43,6 @@ cli mint "$token" 10000000000 "$account"
 
 # Do lock transactions <3
 while : ; do
-  cli lock "$bridge_address" "$account" "$token" 10 "$chain_id_ethereum" "$RANDOM"
+  cli lock "$bridge_address" "$account" "$token" 10 "$chain_id_ethereum" "$RANDOM" "$recipient_address"
   sleep 5
 done
