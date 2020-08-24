@@ -282,7 +282,7 @@ func vaaConsensusProcessor(lockC chan *common.ChainLock, setC chan *common.Guard
 									zap.String("bytes", hex.EncodeToString(vaaBytes)))
 
 								if idx == 0 {
-									vaaC <- state.vaaSignatures[hash].ourVAA
+									vaaC <- signed
 								}
 							case t.TargetChain == vaa.ChainIDEthereum:
 								timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
@@ -293,6 +293,11 @@ func vaaConsensusProcessor(lockC chan *common.ChainLock, setC chan *common.Guard
 									break
 								}
 								logger.Info("lockup submitted to Ethereum", zap.Any("tx", tx))
+
+								// cross-submit to Solana for data availability
+								if idx == 0 {
+									vaaC <- signed
+								}
 							default:
 								logger.Error("we don't know how to submit this VAA",
 									zap.String("digest", hash),
