@@ -654,9 +654,19 @@ impl Bridge {
         if !proposal.matches_vaa(b) {
             return Err(Error::VAAProposalMismatch.into());
         }
+        if proposal.vaa_time != 0 {
+            return Err(Error::VAAAlreadySubmitted.into());
+        }
+        if vaa_data.len() > MAX_VAA_SIZE {
+            return Err(Error::VAATooLong.into());
+        }
 
         // Set vaa
-        proposal.vaa;
+        for i in 0..vaa_data.len() {
+            proposal.vaa[i] = vaa_data[i]
+        }
+        // Stop byte
+        proposal.vaa[vaa_data.len()] = 0xff;
         proposal.vaa_time = vaa.timestamp;
 
         Ok(())

@@ -11,7 +11,7 @@ use solana_sdk::{account_info::AccountInfo, program_error::ProgramError, pubkey:
 use zerocopy::AsBytes;
 
 use crate::error::Error;
-use crate::instruction::{ForeignAddress, VAAData, MAX_LEN_GUARDIAN_KEYS};
+use crate::instruction::{ForeignAddress, VAAData, MAX_LEN_GUARDIAN_KEYS, MAX_VAA_SIZE};
 use crate::vaa::BodyTransfer;
 
 /// fee rate as a ratio
@@ -65,7 +65,8 @@ pub struct TransferOutProposal {
     /// nonce of the transfer
     pub nonce: u32,
     /// vaa to unlock the tokens on the foreign chain
-    pub vaa: [u8; 1000],
+    /// it is +1 byte long to make space for the termination byte
+    pub vaa: [u8; MAX_VAA_SIZE + 1],
     /// time the vaa was submitted
     pub vaa_time: u32,
 

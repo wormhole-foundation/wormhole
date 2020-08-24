@@ -38,6 +38,7 @@ impl PrintProgramError for Error {
             Error::SameChainTransfer => info!("Error: SameChainTransfer"),
             Error::VAATooLong => info!("Error: VAATooLong"),
             Error::CannotWrapNative => info!("Error: CannotWrapNative"),
+            Error::VAAAlreadySubmitted => info!("Error: VAAAlreadySubmitted"),
         }
     }
 }

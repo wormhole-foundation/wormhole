@@ -100,6 +100,9 @@ pub enum Error {
     /// Cannot wrap a solana native asset
     #[error("CannotWrapNative")]
     CannotWrapNative,
+    /// VAA for this transfer has already been submitted
+    #[error("VAAAlreadySubmitted")]
+    VAAAlreadySubmitted,
 }
 
 impl From<Error> for ProgramError {

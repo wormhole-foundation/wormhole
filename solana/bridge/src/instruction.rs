@@ -22,10 +22,12 @@ use crate::vaa::{VAABody, VAA};
 pub const CHAIN_ID_SOLANA: u8 = 1;
 /// maximum number of guardians
 pub const MAX_LEN_GUARDIAN_KEYS: usize = 20;
+/// maximum size of a posted VAA
+pub const MAX_VAA_SIZE: usize = 1000;
 /// size of a foreign address in bytes
 const FOREIGN_ADDRESS_SIZE: usize = 32;
 
-/// length-prefixed serialized validator payment approval data
+/// serialized VAA data
 pub type VAAData = Vec<u8>;
 /// X and Y point of P for guardians
 pub type GuardianKey = [u8; 64];
