@@ -132,11 +132,16 @@ func (n *node) groupSiblings(name string) map[string]bool {
 // newNode creates a new node with a given parent. It does not register it with the parent (as that depends on group
 // placement).
 func newNode(name string, runnable Runnable, sup *supervisor, parent *node) *node {
+	// We use exponential backoff for failed runnables, but at some point we cap at a given backoff time.
+	// To achieve this, we set MaxElapsedTime to 0, which will cap the backoff at MaxInterval.
+	bo := backoff.NewExponentialBackOff()
+	bo.MaxElapsedTime = 0
+
 	n := &node{
 		name:     name,
 		runnable: runnable,
 
-		bo: backoff.NewExponentialBackOff(),
+		bo: bo,
 
 		sup:    sup,
 		parent: parent,
