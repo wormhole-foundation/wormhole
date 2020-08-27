@@ -202,7 +202,6 @@ contract Wormhole is ReentrancyGuard {
         isWrappedAsset[asset] = true;
     }
 
-    // TODO(hendrik): nonce
     function lockAssets(
         address asset,
         uint256 amount,

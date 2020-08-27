@@ -79,7 +79,7 @@ func vaaConsensusProcessor(lockC chan *common.ChainLock, setC chan *common.Guard
 				}
 				logger.Info("devnet guardian set change submitted to Ethereum", zap.Any("tx", tx))
 
-				// TODO: submit to Solana
+				vaaC <- v
 			}
 		}
 
