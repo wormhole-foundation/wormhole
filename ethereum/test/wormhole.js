@@ -191,24 +191,6 @@ contract("Wormhole", function () {
         await bridge.submitVAA("0x01000000010100a3f58fb72b3c7e242d6934718eafb3076cb0764e65d8df3e0746b0c72cca791027ac649fa0095a1c3537611f4adc0dc90aaa01fce31fac722eae898cfb06e96d01000007d010000000380102020105000000000000000000000000000000000000000000000000000000000000000000000000000000000090f8bf6a479f320ead074411a4b0e7944ea8c9c1010000000000000000000000000347ef34687bdc9f189e87a9200658d9c40e99880000000000000000000000000000000000000000000000000de0b6b3a7640000")
     });
 
-    it("should expire VAA", async function () {
-        let bridge = await Wormhole.deployed();
-
-        // Push time by 1000
-        await advanceTimeAndBlock(1000);
-
-        // Test same transaction with guardian set 1; timestamp 2000
-        let threw = false;
-        try {
-            await bridge.submitVAA("0x01000000010100f69b3f6e31fbbe6ce9b9b1be8e8effded63b44ab8d7d2dc993c914d50d4bb6fe75cdf6ebb15e5bf209f2ea608e496283d8ff5a91a102f1cab42e9093cbb50b6201000007d01087000000360102020104000000000000000000000000000000000000000000000000000000000000000000000000000000000090f8bf6a479f320ead074411a4b0e7944ea8c9c1010000000000000000000000009561c133dd8580860b6b7e504bc5aa500f0f06a70000000000000000000000000000000000000000000000000de0b6b3a7640000")
-        } catch (e) {
-            threw = true;
-            assert.equal(e.reason, "VAA has expired")
-        }
-        assert.isTrue(threw, "VAA did not expire")
-    });
-
-
     it("mismatching guardian set and signature should not work", async function () {
         let bridge = await Wormhole.deployed();
 

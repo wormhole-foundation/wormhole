@@ -28,7 +28,6 @@ impl PrintProgramError for Error {
             Error::WrongTokenAccountOwner => info!("Error: WrongTokenAccountOwner"),
             Error::ParseFailed => info!("Error: ParseFailed"),
             Error::GuardianSetExpired => info!("Error: GuardianSetExpired"),
-            Error::VAAExpired => info!("Error: VAAExpired"),
             Error::VAAClaimed => info!("Error: VAAClaimed"),
             Error::WrongBridgeOwner => info!("Error: WrongBridgeOwner"),
             Error::OldGuardianSet => info!("Error: OldGuardianSet"),

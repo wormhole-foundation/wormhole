@@ -68,7 +68,7 @@ fn command_deploy_bridge(
         &config.owner.pubkey(),
         initial_guardian,
         &BridgeConfig {
-            vaa_expiration_time: 200000000,
+            guardian_set_expiration_time: 200000000,
             token_program: spl_token::id(),
         },
     )?;

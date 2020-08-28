@@ -425,13 +425,6 @@ impl Bridge {
             return Err(Error::GuardianSetExpired.into());
         }
 
-        // Check that the VAA is still valid
-        if (guardian_set.expiration_time as i64) + (bridge.config.vaa_expiration_time as i64)
-            > clock.unix_timestamp
-        {
-            return Err(Error::VAAExpired.into());
-        }
-
         // Verify VAA signature
         if !vaa.verify(&guardian_set.keys[..guardian_set.len_keys as usize]) {
             return Err(Error::InvalidVAASignature.into());
@@ -515,9 +508,8 @@ impl Bridge {
         }
 
         // Set the exirity on the old guardian set
-        // The guardian set will expire once all currently issues vaas have expired
         old_guardian_set.expiration_time =
-            (clock.unix_timestamp as u32) + bridge.config.vaa_expiration_time;
+            (clock.unix_timestamp as u32) + bridge.config.guardian_set_expiration_time;
 
         // Check whether the new guardian set was derived correctly
         let guardian_seed = Bridge::derive_guardian_set_seeds(bridge_info.key, b.new_index);

@@ -142,10 +142,10 @@ pub struct AssetMeta {
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct BridgeConfig {
-    /// Period for how long a VAA is valid. This is also the period after a valid VAA has been
-    /// published to a `TransferOutProposal` or `ClaimedVAA` after which the account can be evicted.
-    /// This exists to guarantee data availability and prevent replays.
-    pub vaa_expiration_time: u32,
+    /// Period for how long a guardian set is valid after it has been replaced by a new one.
+    /// This guarantees that VAAs issued by that set can still be submitted for a certain period.
+    /// In this period we still trust the old guardian set.
+    pub guardian_set_expiration_time: u32,
 
     /// Token program that is used for this bridge
     pub token_program: Pubkey,

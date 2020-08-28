@@ -52,8 +52,8 @@ contract Wormhole is ReentrancyGuard {
     // Current active guardian set
     uint32 public guardian_set_index;
 
-    // Period for which an vaa is valid in seconds
-    uint32 public vaa_expiry;
+    // Period for which a guardian set stays active after it has been replaced
+    uint32 public guardian_set_expirity;
 
     // Mapping of already consumedVAAs
     mapping(bytes32 => bool) consumedVAAs;
@@ -62,11 +62,11 @@ contract Wormhole is ReentrancyGuard {
     mapping(bytes32 => address) public wrappedAssets;
     mapping(address => bool) public isWrappedAsset;
 
-    constructor(GuardianSet memory initial_guardian_set, address wrapped_asset_master, uint32 _vaa_expiry) public {
+    constructor(GuardianSet memory initial_guardian_set, address wrapped_asset_master, uint32 _guardian_set_expirity) public {
         guardian_sets[0] = initial_guardian_set;
         // Explicitly set for doc purposes
         guardian_set_index = 0;
-        vaa_expiry = _vaa_expiry;
+        guardian_set_expirity = _guardian_set_expirity;
 
         wrappedAssetMaster = wrapped_asset_master;
     }
@@ -89,9 +89,6 @@ contract Wormhole is ReentrancyGuard {
 
         // Load 4 bytes timestamp
         uint32 timestamp = vaa.toUint32(offset);
-
-        // Verify that the VAA is still valid
-        require(timestamp + vaa_expiry > block.timestamp, "VAA has expired");
 
         // Hash the body
         bytes32 hash = keccak256(vaa.slice(offset, vaa.length - offset));
@@ -142,7 +139,7 @@ contract Wormhole is ReentrancyGuard {
 
         GuardianSet memory new_guardian_set = GuardianSet(new_guardians, 0);
         guardian_sets[guardian_set_index] = new_guardian_set;
-        guardian_sets[old_guardian_set_index].expiration_time = uint32(block.timestamp) + vaa_expiry;
+        guardian_sets[old_guardian_set_index].expiration_time = uint32(block.timestamp) + guardian_set_expirity;
 
         emit LogGuardianSetChanged(old_guardian_set_index, guardian_set_index);
     }

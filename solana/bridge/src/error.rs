@@ -76,9 +76,6 @@ pub enum Error {
     /// The guardian set that signed this VAA has expired
     #[error("GuardianSetExpired")]
     GuardianSetExpired,
-    /// The given VAA has expired
-    #[error("VAAExpired")]
-    VAAExpired,
     /// The given VAA has already been claimed
     #[error("VAAClaimed")]
     VAAClaimed,
