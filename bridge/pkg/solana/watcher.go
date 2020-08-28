@@ -58,7 +58,7 @@ func (e *SolanaBridgeWatcher) Run(ctx context.Context) error {
 		for {
 			ev, err := tokensLockedSub.Recv()
 			if err != nil {
-				errC <- err
+				errC <- fmt.Errorf("failed to receive message from agent: %w", err)
 				return
 			}
 
