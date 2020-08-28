@@ -1,0 +1,66 @@
+# Wormhole
+
+⚠️ **WORK IN PROGRESS — UNAUDITED, DO NOT USE.** ⚠
+
+See [DEVELOP.md](DEVELOP.md) for instructions on how to set up a local devnet.
+
+Repo overview:
+
+- **[bridge/](bridge/)** — The guardian node which connects to both chains, observes lockups and submits VAAs.
+  Written in pure Go.
+  
+  - **[cmd/guardiand](bridge/cmd/guardiand)** — Most of the business logic for cross-chain communication
+    lives here. Consists of multiple loosely coupled services communicating via Go channels. 
+  - [pkg/devnet](bridge/pkg/devnet) — Constants and helper functions for the deterministic local devnet.
+  - [pkg/ethereum](bridge/pkg/ethereum) — Ethereum chain interface with auto-generated contract ABI.
+    Uses go-ethereum to directly connect to an Eth node.
+  - [pkg/solana](bridge/pkg/ethereum) — Solana chain interface. Light gRPC wrapper around a Rust agent (see below)
+    which actually talks to Solana.  
+  - [pkg/supervisor](bridge/pkg/supervisor) — Erlang-inspired process supervision tree imported from Certus One's
+    internal code base. We use this everywhere in the bridge code for fault tolerance and fast convergence.
+  - [pkg/vaa](bridge/pkg/vaa) — Go implementation of our VAA structure, including serialization code.
+  
+- **[ethereum/](ethereum/)** — Ethereum wormhole contract, tests and fixtures.
+
+  - **[contracts/](ethereum/contracts)** — Wormhole itself, the wrapped token and helper libraries.
+  - [migrations/](ethereum/migrations) — Ganache migration that deploys the contracts to a local devnet.
+    This is the starting point for both the tests and the devnet. Note that devnet and tests result
+    in different devnet states.
+  - [src/send-lockups.js](ethereum/src/send-lockups.js) — Sends ETH lockups in a loop.
+    See DEVELOP.md for usage.
+  
+- **[solana/](solana/)** — Solana sidecar agent, contract and CLI.
+  - **[agent/](solana/agent/)** — Rust agent sidecar deployed alongside each Guardian node. It serves
+    a local gRPC API to interface with the Solana blockchain. This is far easier to maintain than a
+    pure-Go Solana client.
+  - **[bridge/](solana/bridge/)** — Solana Wormhole smart contract code. 
+  - [cli/](solana/cli/) — Wormhole user CLI tool for interaction with the smart contract. 
+  - [devnet_setup.sh](solana/devnet_setup.sh) — Devnet initialization and lockup generator
+    (the Solana equivalent to the Ganache migration + send-lockups.js). Runs as a sidecar alongside the Solana devnet. 
+
+- **[proto/](proto/)** — Protocol Buffer definitions for the P2P network and the local Solana agent RPC.
+  These are heavily commented and a good intro.
+
+- **[third_party/](third_party/)** — Build machinery and tooling for third party applications we use.
+  - [abigen/](third_party/abigen/) — Reproducible build for the go-ethereum ABI code generator we use.
+  - **[solana/](third_party/solana/)** — Build for the full Solana project plus a floating patchset we maintain while
+    waiting for features to be implemented in the upstream project. 
+
+- **[docs/](docs/)** — Operator documentation and project specs.
+
+- **[web/](web/)** — User interface for cross-chain transfers. Not yet wired into the local devnet.
+  Uses Metamask and Web3.js to initiate transfers from a browser.
+  Watch [this video](https://youtu.be/9OTTyJ_h4O0) as an introduction.
+  
+- [tools/](tools/) — Reproducible builds for local development tooling like buf and protoc-gen-go. 
+  
+- [Tiltfile](Tiltfile),  [devnet/](devnet/) and various Dockerfiles — deployment code and fixtures for local development.
+  Deploys a determimistic devnet with an Ethereum devnet, Solana devnet, and a variably sized guardian set
+  that can be used to simulate full cross-chain transfers. The Dockerfiles are carefully designed for fast incremental
+  builds with local caching, and require a recent Docker version with Buildkit support. See DEVELOP.md for usage.
+  
+- [generate-abi.sh](generate-abi.sh) and [generate-protos.sh](generate-protos.sh) — 
+  Helper scripts to (re-)build generated code. The Eth ABI is committed to the repo, so you only
+  need to run this script if the Wormhole.sol interface changes. The protobuf libraries are not
+  committed and will be regenerated automatically by the Tiltfile. 
+  
