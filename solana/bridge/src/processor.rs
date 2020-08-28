@@ -23,8 +23,8 @@ use spl_token::state::Mint;
 
 use crate::error::Error;
 use crate::instruction::BridgeInstruction::*;
-use crate::instruction::MAX_LEN_GUARDIAN_KEYS;
 use crate::instruction::{BridgeInstruction, TransferOutPayload, VAAData, CHAIN_ID_SOLANA};
+use crate::instruction::{MAX_LEN_GUARDIAN_KEYS, MAX_VAA_SIZE};
 use crate::state::*;
 use crate::vaa::{BodyTransfer, BodyUpdateGuardianSet, VAABody, VAA};
 
@@ -366,7 +366,7 @@ impl Bridge {
         transfer.is_initialized = true;
         transfer.amount = t.amount;
         transfer.to_chain_id = t.chain_id;
-        transfer.source_address = mint_info.key.to_bytes();
+        transfer.source_address = sender_account_info.key.to_bytes();
         transfer.foreign_address = t.target;
         transfer.nonce = t.nonce;
 
