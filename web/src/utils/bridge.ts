@@ -20,6 +20,7 @@ export interface Lockup {
     targetAddress: Uint8Array,
     assetAddress: Uint8Array,
     assetChain: number,
+    assetDecimals: number,
     nonce: number,
     vaa: Uint8Array,
     vaaTime: number,
@@ -176,8 +177,10 @@ class SolanaBridge {
             BufferLayout.blob(32, 'assetAddress'),
             BufferLayout.u8('assetChain'),
             BufferLayout.u8('assetDecimals'),
+            BufferLayout.seq(BufferLayout.u8(), 1), // 4 byte alignment because a u32 is following
             BufferLayout.u32('nonce'),
             BufferLayout.blob(1001, 'vaa'),
+            BufferLayout.seq(BufferLayout.u8(), 3), // 4 byte alignment because a u32 is following
             BufferLayout.u32('vaaTime'),
             BufferLayout.u8('initialized'),
         ]);
@@ -186,18 +189,18 @@ class SolanaBridge {
         for (let acc of raw_accounts) {
             acc = acc.account;
             let parsedAccount = dataLayout.decode(bs58.decode(acc.data))
-            console.log(parsedAccount);
             accounts.push({
                 amount: new BN(parsedAccount.amount, 2, "le"),
                 assetAddress: parsedAccount.assetAddress,
-                assetChain: acc.assetChain,
-                initialized: acc.initialized == 1,
-                nonce: acc.nonce,
+                assetChain: parsedAccount.assetChain,
+                assetDecimals: parsedAccount.assetDecimals,
+                initialized: parsedAccount.initialized == 1,
+                nonce: parsedAccount.nonce,
                 sourceAddress: new PublicKey(parsedAccount.sourceAddress),
                 targetAddress: parsedAccount.targetAddress,
-                toChain: acc.toChain,
-                vaa: acc.vaa,
-                vaaTime: acc.vaaTime
+                toChain: parsedAccount.toChain,
+                vaa: parsedAccount.vaa,
+                vaaTime: parsedAccount.vaaTime
             })
         }
 
