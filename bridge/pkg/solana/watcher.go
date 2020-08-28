@@ -75,7 +75,7 @@ func (e *SolanaBridgeWatcher) Run(ctx context.Context) error {
 			switch event := ev.Event.(type) {
 			case *agentv1.LockupEvent_New:
 				logger.Debug("received lockup event",
-					zap.Any("event", ev))  // TODO: debug level
+					zap.Any("event", ev)) // TODO: debug level
 
 				lock := &common.ChainLock{
 					TxHash:        eth_common.HexToHash(ev.LockupAddress),
@@ -86,9 +86,9 @@ func (e *SolanaBridgeWatcher) Run(ctx context.Context) error {
 					SourceChain:   vaa.ChainIDSolana,
 					TargetChain:   vaa.ChainID(event.New.TargetChain),
 					TokenChain:    vaa.ChainID(event.New.TokenChain),
-					TokenAddress:  padAddress(eth_common.BytesToAddress(event.New.TokenAddress)),
 					Amount:        new(big.Int).SetBytes(event.New.Amount),
 				}
+				copy(lock.TokenAddress[:], event.New.TokenAddress)
 
 				e.lockChan <- lock
 				logger.Info("found new lockup transaction", zap.String("lockup_address", ev.LockupAddress))
