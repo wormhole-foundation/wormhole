@@ -20,7 +20,6 @@ var (
 	_ = big.NewInt
 	_ = strings.NewReader
 	_ = ethereum.NotFound
-	_ = abi.U256
 	_ = bind.Bind
 	_ = common.Big1
 	_ = types.BloomLookup
@@ -34,7 +33,7 @@ type WormholeGuardianSet struct {
 }
 
 // AbiABI is the input ABI used to generate the binding from.
-const AbiABI = "[{\"inputs\":[{\"components\":[{\"internalType\":\"address[]\",\"name\":\"keys\",\"type\":\"address[]\"},{\"internalType\":\"uint32\",\"name\":\"expiration_time\",\"type\":\"uint32\"}],\"internalType\":\"structWormhole.GuardianSet\",\"name\":\"initial_guardian_set\",\"type\":\"tuple\"},{\"internalType\":\"address\",\"name\":\"wrapped_asset_master\",\"type\":\"address\"},{\"internalType\":\"uint32\",\"name\":\"_guardian_set_expirity\",\"type\":\"uint32\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint32\",\"name\":\"oldGuardianIndex\",\"type\":\"uint32\"},{\"indexed\":false,\"internalType\":\"uint32\",\"name\":\"newGuardianIndex\",\"type\":\"uint32\"}],\"name\":\"LogGuardianSetChanged\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint8\",\"name\":\"target_chain\",\"type\":\"uint8\"},{\"indexed\":false,\"internalType\":\"uint8\",\"name\":\"token_chain\",\"type\":\"uint8\"},{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"token\",\"type\":\"bytes32\"},{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"sender\",\"type\":\"bytes32\"},{\"indexed\":false,\"internalType\":\"bytes32\",\"name\":\"recipient\",\"type\":\"bytes32\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint32\",\"name\":\"nonce\",\"type\":\"uint32\"}],\"name\":\"LogTokensLocked\",\"type\":\"event\"},{\"stateMutability\":\"payable\",\"type\":\"fallback\"},{\"inputs\":[],\"name\":\"guardian_set_expirity\",\"outputs\":[{\"internalType\":\"uint32\",\"name\":\"\",\"type\":\"uint32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"guardian_set_index\",\"outputs\":[{\"internalType\":\"uint32\",\"name\":\"\",\"type\":\"uint32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint32\",\"name\":\"\",\"type\":\"uint32\"}],\"name\":\"guardian_sets\",\"outputs\":[{\"internalType\":\"uint32\",\"name\":\"expiration_time\",\"type\":\"uint32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"name\":\"isWrappedAsset\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"wrappedAssetMaster\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"name\":\"wrappedAssets\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"stateMutability\":\"payable\",\"type\":\"receive\"},{\"inputs\":[{\"internalType\":\"uint32\",\"name\":\"idx\",\"type\":\"uint32\"}],\"name\":\"getGuardianSet\",\"outputs\":[{\"components\":[{\"internalType\":\"address[]\",\"name\":\"keys\",\"type\":\"address[]\"},{\"internalType\":\"uint32\",\"name\":\"expiration_time\",\"type\":\"uint32\"}],\"internalType\":\"structWormhole.GuardianSet\",\"name\":\"gs\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"vaa\",\"type\":\"bytes\"}],\"name\":\"submitVAA\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"asset\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"internalType\":\"bytes32\",\"name\":\"recipient\",\"type\":\"bytes32\"},{\"internalType\":\"uint8\",\"name\":\"target_chain\",\"type\":\"uint8\"},{\"internalType\":\"uint32\",\"name\":\"nonce\",\"type\":\"uint32\"}],\"name\":\"lockAssets\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"recipient\",\"type\":\"bytes32\"},{\"internalType\":\"uint8\",\"name\":\"target_chain\",\"type\":\"uint8\"},{\"internalType\":\"uint32\",\"name\":\"nonce\",\"type\":\"uint32\"}],\"name\":\"lockETH\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"}]"
+const AbiABI = "[{\"inputs\":[{\"components\":[{\"internalType\":\"address[]\",\"name\":\"keys\",\"type\":\"address[]\"},{\"internalType\":\"uint32\",\"name\":\"expiration_time\",\"type\":\"uint32\"}],\"internalType\":\"structWormhole.GuardianSet\",\"name\":\"initial_guardian_set\",\"type\":\"tuple\"},{\"internalType\":\"address\",\"name\":\"wrapped_asset_master\",\"type\":\"address\"},{\"internalType\":\"uint32\",\"name\":\"_guardian_set_expirity\",\"type\":\"uint32\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint32\",\"name\":\"oldGuardianIndex\",\"type\":\"uint32\"},{\"indexed\":false,\"internalType\":\"uint32\",\"name\":\"newGuardianIndex\",\"type\":\"uint32\"}],\"name\":\"LogGuardianSetChanged\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint8\",\"name\":\"target_chain\",\"type\":\"uint8\"},{\"indexed\":false,\"internalType\":\"uint8\",\"name\":\"token_chain\",\"type\":\"uint8\"},{\"indexed\":false,\"internalType\":\"uint8\",\"name\":\"token_decimals\",\"type\":\"uint8\"},{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"token\",\"type\":\"bytes32\"},{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"sender\",\"type\":\"bytes32\"},{\"indexed\":false,\"internalType\":\"bytes32\",\"name\":\"recipient\",\"type\":\"bytes32\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint32\",\"name\":\"nonce\",\"type\":\"uint32\"}],\"name\":\"LogTokensLocked\",\"type\":\"event\"},{\"stateMutability\":\"payable\",\"type\":\"fallback\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"name\":\"consumedVAAs\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"guardian_set_expirity\",\"outputs\":[{\"internalType\":\"uint32\",\"name\":\"\",\"type\":\"uint32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"guardian_set_index\",\"outputs\":[{\"internalType\":\"uint32\",\"name\":\"\",\"type\":\"uint32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint32\",\"name\":\"\",\"type\":\"uint32\"}],\"name\":\"guardian_sets\",\"outputs\":[{\"internalType\":\"uint32\",\"name\":\"expiration_time\",\"type\":\"uint32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"name\":\"isWrappedAsset\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"wrappedAssetMaster\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"name\":\"wrappedAssets\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"stateMutability\":\"payable\",\"type\":\"receive\"},{\"inputs\":[{\"internalType\":\"uint32\",\"name\":\"idx\",\"type\":\"uint32\"}],\"name\":\"getGuardianSet\",\"outputs\":[{\"components\":[{\"internalType\":\"address[]\",\"name\":\"keys\",\"type\":\"address[]\"},{\"internalType\":\"uint32\",\"name\":\"expiration_time\",\"type\":\"uint32\"}],\"internalType\":\"structWormhole.GuardianSet\",\"name\":\"gs\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"vaa\",\"type\":\"bytes\"}],\"name\":\"submitVAA\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"asset\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"internalType\":\"bytes32\",\"name\":\"recipient\",\"type\":\"bytes32\"},{\"internalType\":\"uint8\",\"name\":\"target_chain\",\"type\":\"uint8\"},{\"internalType\":\"uint32\",\"name\":\"nonce\",\"type\":\"uint32\"}],\"name\":\"lockAssets\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"recipient\",\"type\":\"bytes32\"},{\"internalType\":\"uint8\",\"name\":\"target_chain\",\"type\":\"uint8\"},{\"internalType\":\"uint32\",\"name\":\"nonce\",\"type\":\"uint32\"}],\"name\":\"lockETH\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"}]"
 
 // Abi is an auto generated Go binding around an Ethereum contract.
 type Abi struct {
@@ -178,9 +177,35 @@ func (_Abi *AbiTransactorRaw) Transact(opts *bind.TransactOpts, method string, p
 	return _Abi.Contract.contract.Transact(opts, method, params...)
 }
 
+// ConsumedVAAs is a free data retrieval call binding the contract method 0xa31fe409.
+//
+// Solidity: function consumedVAAs(bytes32 ) view returns(bool)
+func (_Abi *AbiCaller) ConsumedVAAs(opts *bind.CallOpts, arg0 [32]byte) (bool, error) {
+	var (
+		ret0 = new(bool)
+	)
+	out := ret0
+	err := _Abi.contract.Call(opts, out, "consumedVAAs", arg0)
+	return *ret0, err
+}
+
+// ConsumedVAAs is a free data retrieval call binding the contract method 0xa31fe409.
+//
+// Solidity: function consumedVAAs(bytes32 ) view returns(bool)
+func (_Abi *AbiSession) ConsumedVAAs(arg0 [32]byte) (bool, error) {
+	return _Abi.Contract.ConsumedVAAs(&_Abi.CallOpts, arg0)
+}
+
+// ConsumedVAAs is a free data retrieval call binding the contract method 0xa31fe409.
+//
+// Solidity: function consumedVAAs(bytes32 ) view returns(bool)
+func (_Abi *AbiCallerSession) ConsumedVAAs(arg0 [32]byte) (bool, error) {
+	return _Abi.Contract.ConsumedVAAs(&_Abi.CallOpts, arg0)
+}
+
 // GetGuardianSet is a free data retrieval call binding the contract method 0xf951975a.
 //
-// Solidity: function getGuardianSet(uint32 idx) constant returns(WormholeGuardianSet gs)
+// Solidity: function getGuardianSet(uint32 idx) view returns((address[],uint32) gs)
 func (_Abi *AbiCaller) GetGuardianSet(opts *bind.CallOpts, idx uint32) (WormholeGuardianSet, error) {
 	var (
 		ret0 = new(WormholeGuardianSet)
@@ -192,21 +217,21 @@ func (_Abi *AbiCaller) GetGuardianSet(opts *bind.CallOpts, idx uint32) (Wormhole
 
 // GetGuardianSet is a free data retrieval call binding the contract method 0xf951975a.
 //
-// Solidity: function getGuardianSet(uint32 idx) constant returns(WormholeGuardianSet gs)
+// Solidity: function getGuardianSet(uint32 idx) view returns((address[],uint32) gs)
 func (_Abi *AbiSession) GetGuardianSet(idx uint32) (WormholeGuardianSet, error) {
 	return _Abi.Contract.GetGuardianSet(&_Abi.CallOpts, idx)
 }
 
 // GetGuardianSet is a free data retrieval call binding the contract method 0xf951975a.
 //
-// Solidity: function getGuardianSet(uint32 idx) constant returns(WormholeGuardianSet gs)
+// Solidity: function getGuardianSet(uint32 idx) view returns((address[],uint32) gs)
 func (_Abi *AbiCallerSession) GetGuardianSet(idx uint32) (WormholeGuardianSet, error) {
 	return _Abi.Contract.GetGuardianSet(&_Abi.CallOpts, idx)
 }
 
 // GuardianSetExpirity is a free data retrieval call binding the contract method 0x4db47840.
 //
-// Solidity: function guardian_set_expirity() constant returns(uint32)
+// Solidity: function guardian_set_expirity() view returns(uint32)
 func (_Abi *AbiCaller) GuardianSetExpirity(opts *bind.CallOpts) (uint32, error) {
 	var (
 		ret0 = new(uint32)
@@ -218,21 +243,21 @@ func (_Abi *AbiCaller) GuardianSetExpirity(opts *bind.CallOpts) (uint32, error) 
 
 // GuardianSetExpirity is a free data retrieval call binding the contract method 0x4db47840.
 //
-// Solidity: function guardian_set_expirity() constant returns(uint32)
+// Solidity: function guardian_set_expirity() view returns(uint32)
 func (_Abi *AbiSession) GuardianSetExpirity() (uint32, error) {
 	return _Abi.Contract.GuardianSetExpirity(&_Abi.CallOpts)
 }
 
 // GuardianSetExpirity is a free data retrieval call binding the contract method 0x4db47840.
 //
-// Solidity: function guardian_set_expirity() constant returns(uint32)
+// Solidity: function guardian_set_expirity() view returns(uint32)
 func (_Abi *AbiCallerSession) GuardianSetExpirity() (uint32, error) {
 	return _Abi.Contract.GuardianSetExpirity(&_Abi.CallOpts)
 }
 
 // GuardianSetIndex is a free data retrieval call binding the contract method 0x822d82b3.
 //
-// Solidity: function guardian_set_index() constant returns(uint32)
+// Solidity: function guardian_set_index() view returns(uint32)
 func (_Abi *AbiCaller) GuardianSetIndex(opts *bind.CallOpts) (uint32, error) {
 	var (
 		ret0 = new(uint32)
@@ -244,21 +269,21 @@ func (_Abi *AbiCaller) GuardianSetIndex(opts *bind.CallOpts) (uint32, error) {
 
 // GuardianSetIndex is a free data retrieval call binding the contract method 0x822d82b3.
 //
-// Solidity: function guardian_set_index() constant returns(uint32)
+// Solidity: function guardian_set_index() view returns(uint32)
 func (_Abi *AbiSession) GuardianSetIndex() (uint32, error) {
 	return _Abi.Contract.GuardianSetIndex(&_Abi.CallOpts)
 }
 
 // GuardianSetIndex is a free data retrieval call binding the contract method 0x822d82b3.
 //
-// Solidity: function guardian_set_index() constant returns(uint32)
+// Solidity: function guardian_set_index() view returns(uint32)
 func (_Abi *AbiCallerSession) GuardianSetIndex() (uint32, error) {
 	return _Abi.Contract.GuardianSetIndex(&_Abi.CallOpts)
 }
 
 // GuardianSets is a free data retrieval call binding the contract method 0x42b0aefa.
 //
-// Solidity: function guardian_sets(uint32 ) constant returns(uint32 expiration_time)
+// Solidity: function guardian_sets(uint32 ) view returns(uint32 expiration_time)
 func (_Abi *AbiCaller) GuardianSets(opts *bind.CallOpts, arg0 uint32) (uint32, error) {
 	var (
 		ret0 = new(uint32)
@@ -270,21 +295,21 @@ func (_Abi *AbiCaller) GuardianSets(opts *bind.CallOpts, arg0 uint32) (uint32, e
 
 // GuardianSets is a free data retrieval call binding the contract method 0x42b0aefa.
 //
-// Solidity: function guardian_sets(uint32 ) constant returns(uint32 expiration_time)
+// Solidity: function guardian_sets(uint32 ) view returns(uint32 expiration_time)
 func (_Abi *AbiSession) GuardianSets(arg0 uint32) (uint32, error) {
 	return _Abi.Contract.GuardianSets(&_Abi.CallOpts, arg0)
 }
 
 // GuardianSets is a free data retrieval call binding the contract method 0x42b0aefa.
 //
-// Solidity: function guardian_sets(uint32 ) constant returns(uint32 expiration_time)
+// Solidity: function guardian_sets(uint32 ) view returns(uint32 expiration_time)
 func (_Abi *AbiCallerSession) GuardianSets(arg0 uint32) (uint32, error) {
 	return _Abi.Contract.GuardianSets(&_Abi.CallOpts, arg0)
 }
 
 // IsWrappedAsset is a free data retrieval call binding the contract method 0x1a2be4da.
 //
-// Solidity: function isWrappedAsset(address ) constant returns(bool)
+// Solidity: function isWrappedAsset(address ) view returns(bool)
 func (_Abi *AbiCaller) IsWrappedAsset(opts *bind.CallOpts, arg0 common.Address) (bool, error) {
 	var (
 		ret0 = new(bool)
@@ -296,21 +321,21 @@ func (_Abi *AbiCaller) IsWrappedAsset(opts *bind.CallOpts, arg0 common.Address) 
 
 // IsWrappedAsset is a free data retrieval call binding the contract method 0x1a2be4da.
 //
-// Solidity: function isWrappedAsset(address ) constant returns(bool)
+// Solidity: function isWrappedAsset(address ) view returns(bool)
 func (_Abi *AbiSession) IsWrappedAsset(arg0 common.Address) (bool, error) {
 	return _Abi.Contract.IsWrappedAsset(&_Abi.CallOpts, arg0)
 }
 
 // IsWrappedAsset is a free data retrieval call binding the contract method 0x1a2be4da.
 //
-// Solidity: function isWrappedAsset(address ) constant returns(bool)
+// Solidity: function isWrappedAsset(address ) view returns(bool)
 func (_Abi *AbiCallerSession) IsWrappedAsset(arg0 common.Address) (bool, error) {
 	return _Abi.Contract.IsWrappedAsset(&_Abi.CallOpts, arg0)
 }
 
 // WrappedAssetMaster is a free data retrieval call binding the contract method 0x99da1d3c.
 //
-// Solidity: function wrappedAssetMaster() constant returns(address)
+// Solidity: function wrappedAssetMaster() view returns(address)
 func (_Abi *AbiCaller) WrappedAssetMaster(opts *bind.CallOpts) (common.Address, error) {
 	var (
 		ret0 = new(common.Address)
@@ -322,21 +347,21 @@ func (_Abi *AbiCaller) WrappedAssetMaster(opts *bind.CallOpts) (common.Address, 
 
 // WrappedAssetMaster is a free data retrieval call binding the contract method 0x99da1d3c.
 //
-// Solidity: function wrappedAssetMaster() constant returns(address)
+// Solidity: function wrappedAssetMaster() view returns(address)
 func (_Abi *AbiSession) WrappedAssetMaster() (common.Address, error) {
 	return _Abi.Contract.WrappedAssetMaster(&_Abi.CallOpts)
 }
 
 // WrappedAssetMaster is a free data retrieval call binding the contract method 0x99da1d3c.
 //
-// Solidity: function wrappedAssetMaster() constant returns(address)
+// Solidity: function wrappedAssetMaster() view returns(address)
 func (_Abi *AbiCallerSession) WrappedAssetMaster() (common.Address, error) {
 	return _Abi.Contract.WrappedAssetMaster(&_Abi.CallOpts)
 }
 
 // WrappedAssets is a free data retrieval call binding the contract method 0xb6694c2a.
 //
-// Solidity: function wrappedAssets(bytes32 ) constant returns(address)
+// Solidity: function wrappedAssets(bytes32 ) view returns(address)
 func (_Abi *AbiCaller) WrappedAssets(opts *bind.CallOpts, arg0 [32]byte) (common.Address, error) {
 	var (
 		ret0 = new(common.Address)
@@ -348,14 +373,14 @@ func (_Abi *AbiCaller) WrappedAssets(opts *bind.CallOpts, arg0 [32]byte) (common
 
 // WrappedAssets is a free data retrieval call binding the contract method 0xb6694c2a.
 //
-// Solidity: function wrappedAssets(bytes32 ) constant returns(address)
+// Solidity: function wrappedAssets(bytes32 ) view returns(address)
 func (_Abi *AbiSession) WrappedAssets(arg0 [32]byte) (common.Address, error) {
 	return _Abi.Contract.WrappedAssets(&_Abi.CallOpts, arg0)
 }
 
 // WrappedAssets is a free data retrieval call binding the contract method 0xb6694c2a.
 //
-// Solidity: function wrappedAssets(bytes32 ) constant returns(address)
+// Solidity: function wrappedAssets(bytes32 ) view returns(address)
 func (_Abi *AbiCallerSession) WrappedAssets(arg0 [32]byte) (common.Address, error) {
 	return _Abi.Contract.WrappedAssets(&_Abi.CallOpts, arg0)
 }
@@ -383,21 +408,21 @@ func (_Abi *AbiTransactorSession) LockAssets(asset common.Address, amount *big.I
 
 // LockETH is a paid mutator transaction binding the contract method 0x58d62e46.
 //
-// Solidity: function lockETH(bytes32 recipient, uint8 target_chain, uint32 nonce) returns()
+// Solidity: function lockETH(bytes32 recipient, uint8 target_chain, uint32 nonce) payable returns()
 func (_Abi *AbiTransactor) LockETH(opts *bind.TransactOpts, recipient [32]byte, target_chain uint8, nonce uint32) (*types.Transaction, error) {
 	return _Abi.contract.Transact(opts, "lockETH", recipient, target_chain, nonce)
 }
 
 // LockETH is a paid mutator transaction binding the contract method 0x58d62e46.
 //
-// Solidity: function lockETH(bytes32 recipient, uint8 target_chain, uint32 nonce) returns()
+// Solidity: function lockETH(bytes32 recipient, uint8 target_chain, uint32 nonce) payable returns()
 func (_Abi *AbiSession) LockETH(recipient [32]byte, target_chain uint8, nonce uint32) (*types.Transaction, error) {
 	return _Abi.Contract.LockETH(&_Abi.TransactOpts, recipient, target_chain, nonce)
 }
 
 // LockETH is a paid mutator transaction binding the contract method 0x58d62e46.
 //
-// Solidity: function lockETH(bytes32 recipient, uint8 target_chain, uint32 nonce) returns()
+// Solidity: function lockETH(bytes32 recipient, uint8 target_chain, uint32 nonce) payable returns()
 func (_Abi *AbiTransactorSession) LockETH(recipient [32]byte, target_chain uint8, nonce uint32) (*types.Transaction, error) {
 	return _Abi.Contract.LockETH(&_Abi.TransactOpts, recipient, target_chain, nonce)
 }
@@ -421,6 +446,48 @@ func (_Abi *AbiSession) SubmitVAA(vaa []byte) (*types.Transaction, error) {
 // Solidity: function submitVAA(bytes vaa) returns()
 func (_Abi *AbiTransactorSession) SubmitVAA(vaa []byte) (*types.Transaction, error) {
 	return _Abi.Contract.SubmitVAA(&_Abi.TransactOpts, vaa)
+}
+
+// Fallback is a paid mutator transaction binding the contract fallback function.
+//
+// Solidity: fallback() payable returns()
+func (_Abi *AbiTransactor) Fallback(opts *bind.TransactOpts, calldata []byte) (*types.Transaction, error) {
+	return _Abi.contract.RawTransact(opts, calldata)
+}
+
+// Fallback is a paid mutator transaction binding the contract fallback function.
+//
+// Solidity: fallback() payable returns()
+func (_Abi *AbiSession) Fallback(calldata []byte) (*types.Transaction, error) {
+	return _Abi.Contract.Fallback(&_Abi.TransactOpts, calldata)
+}
+
+// Fallback is a paid mutator transaction binding the contract fallback function.
+//
+// Solidity: fallback() payable returns()
+func (_Abi *AbiTransactorSession) Fallback(calldata []byte) (*types.Transaction, error) {
+	return _Abi.Contract.Fallback(&_Abi.TransactOpts, calldata)
+}
+
+// Receive is a paid mutator transaction binding the contract receive function.
+//
+// Solidity: receive() payable returns()
+func (_Abi *AbiTransactor) Receive(opts *bind.TransactOpts) (*types.Transaction, error) {
+	return _Abi.contract.RawTransact(opts, nil) // calldata is disallowed for receive function
+}
+
+// Receive is a paid mutator transaction binding the contract receive function.
+//
+// Solidity: receive() payable returns()
+func (_Abi *AbiSession) Receive() (*types.Transaction, error) {
+	return _Abi.Contract.Receive(&_Abi.TransactOpts)
+}
+
+// Receive is a paid mutator transaction binding the contract receive function.
+//
+// Solidity: receive() payable returns()
+func (_Abi *AbiTransactorSession) Receive() (*types.Transaction, error) {
+	return _Abi.Contract.Receive(&_Abi.TransactOpts)
 }
 
 // AbiLogGuardianSetChangedIterator is returned from FilterLogGuardianSetChanged and is used to iterate over the raw logs and unpacked data for LogGuardianSetChanged events raised by the Abi contract.
@@ -626,19 +693,20 @@ func (it *AbiLogTokensLockedIterator) Close() error {
 
 // AbiLogTokensLocked represents a LogTokensLocked event raised by the Abi contract.
 type AbiLogTokensLocked struct {
-	TargetChain uint8
-	TokenChain  uint8
-	Token       [32]byte
-	Sender      [32]byte
-	Recipient   [32]byte
-	Amount      *big.Int
-	Nonce       uint32
-	Raw         types.Log // Blockchain specific contextual infos
+	TargetChain   uint8
+	TokenChain    uint8
+	TokenDecimals uint8
+	Token         [32]byte
+	Sender        [32]byte
+	Recipient     [32]byte
+	Amount        *big.Int
+	Nonce         uint32
+	Raw           types.Log // Blockchain specific contextual infos
 }
 
-// FilterLogTokensLocked is a free log retrieval operation binding the contract event 0x5742f26a345471409566883d5cac5a7d295eee7092e5be3a7d6c60bc2a3e2420.
+// FilterLogTokensLocked is a free log retrieval operation binding the contract event 0x6bbd554ad75919f71fd91bf917ca6e4f41c10f03ab25751596a22253bb39aab8.
 //
-// Solidity: event LogTokensLocked(uint8 target_chain, uint8 token_chain, bytes32 indexed token, bytes32 indexed sender, bytes32 recipient, uint256 amount, uint32 nonce)
+// Solidity: event LogTokensLocked(uint8 target_chain, uint8 token_chain, uint8 token_decimals, bytes32 indexed token, bytes32 indexed sender, bytes32 recipient, uint256 amount, uint32 nonce)
 func (_Abi *AbiFilterer) FilterLogTokensLocked(opts *bind.FilterOpts, token [][32]byte, sender [][32]byte) (*AbiLogTokensLockedIterator, error) {
 
 	var tokenRule []interface{}
@@ -657,9 +725,9 @@ func (_Abi *AbiFilterer) FilterLogTokensLocked(opts *bind.FilterOpts, token [][3
 	return &AbiLogTokensLockedIterator{contract: _Abi.contract, event: "LogTokensLocked", logs: logs, sub: sub}, nil
 }
 
-// WatchLogTokensLocked is a free log subscription operation binding the contract event 0x5742f26a345471409566883d5cac5a7d295eee7092e5be3a7d6c60bc2a3e2420.
+// WatchLogTokensLocked is a free log subscription operation binding the contract event 0x6bbd554ad75919f71fd91bf917ca6e4f41c10f03ab25751596a22253bb39aab8.
 //
-// Solidity: event LogTokensLocked(uint8 target_chain, uint8 token_chain, bytes32 indexed token, bytes32 indexed sender, bytes32 recipient, uint256 amount, uint32 nonce)
+// Solidity: event LogTokensLocked(uint8 target_chain, uint8 token_chain, uint8 token_decimals, bytes32 indexed token, bytes32 indexed sender, bytes32 recipient, uint256 amount, uint32 nonce)
 func (_Abi *AbiFilterer) WatchLogTokensLocked(opts *bind.WatchOpts, sink chan<- *AbiLogTokensLocked, token [][32]byte, sender [][32]byte) (event.Subscription, error) {
 
 	var tokenRule []interface{}
@@ -703,9 +771,9 @@ func (_Abi *AbiFilterer) WatchLogTokensLocked(opts *bind.WatchOpts, sink chan<- 
 	}), nil
 }
 
-// ParseLogTokensLocked is a log parse operation binding the contract event 0x5742f26a345471409566883d5cac5a7d295eee7092e5be3a7d6c60bc2a3e2420.
+// ParseLogTokensLocked is a log parse operation binding the contract event 0x6bbd554ad75919f71fd91bf917ca6e4f41c10f03ab25751596a22253bb39aab8.
 //
-// Solidity: event LogTokensLocked(uint8 target_chain, uint8 token_chain, bytes32 indexed token, bytes32 indexed sender, bytes32 recipient, uint256 amount, uint32 nonce)
+// Solidity: event LogTokensLocked(uint8 target_chain, uint8 token_chain, uint8 token_decimals, bytes32 indexed token, bytes32 indexed sender, bytes32 recipient, uint256 amount, uint32 nonce)
 func (_Abi *AbiFilterer) ParseLogTokensLocked(log types.Log) (*AbiLogTokensLocked, error) {
 	event := new(AbiLogTokensLocked)
 	if err := _Abi.contract.UnpackLog(event, "LogTokensLocked", log); err != nil {

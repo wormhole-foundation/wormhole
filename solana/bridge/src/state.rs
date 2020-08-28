@@ -136,6 +136,9 @@ pub struct AssetMeta {
 
     /// Chain of the token
     pub chain: u8,
+
+    /// Number of decimals of the token
+    pub decimals: u8,
 }
 
 /// Config for a bridge.

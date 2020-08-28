@@ -44,7 +44,7 @@ type (
 		// Index of the validator
 		Index uint8
 		// Signature data
-		Signature [65]byte  // TODO: hex marshaller
+		Signature [65]byte // TODO: hex marshaller
 	}
 
 	// AssetMeta describes an asset within the Wormhole protocol
@@ -53,6 +53,8 @@ type (
 		Chain ChainID
 		// Address is the address of the token contract/mint/equivalent.
 		Address Address
+		// Decimals is the number of decimals the token has
+		Decimals uint8
 	}
 
 	vaaBody interface {
@@ -112,8 +114,6 @@ const (
 	minVAALength        = 1 + 4 + 52 + 4 + 1 + 1
 	SupportedVAAVersion = 0x01
 )
-
-
 
 // Unmarshal deserializes the binary representation of a VAA
 func Unmarshal(data []byte) (*VAA, error) {
@@ -321,6 +321,9 @@ func parseBodyTransfer(r io.Reader) (*BodyTransfer, error) {
 	if n, err := r.Read(b.Asset.Address[:]); err != nil || n != 32 {
 		return nil, fmt.Errorf("failed to read asset address: %w", err)
 	}
+	if err := binary.Read(r, binary.BigEndian, &b.Asset.Decimals); err != nil {
+		return nil, fmt.Errorf("failed to read asset decimals: %w", err)
+	}
 
 	var amountBytes [32]byte
 	if n, err := r.Read(amountBytes[:]); err != nil || n != 32 {
@@ -348,6 +351,7 @@ func (v *BodyTransfer) serialize() ([]byte, error) {
 	}
 	MustWrite(buf, binary.BigEndian, v.Asset.Chain)
 	buf.Write(v.Asset.Address[:])
+	MustWrite(buf, binary.BigEndian, v.Asset.Decimals)
 
 	if v.Amount == nil {
 		return nil, fmt.Errorf("amount is empty")

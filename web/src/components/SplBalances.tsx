@@ -3,6 +3,9 @@ import {BalanceInfo, SolanaTokenContext} from "../providers/SolanaTokenContext";
 import {Table} from "antd";
 import {CHAIN_ID_SOLANA} from "../utils/bridge";
 import {BigNumber} from "ethers/utils";
+import {PublicKey} from "@solana/web3.js";
+import {deriveERC20Address} from "../utils/helpers";
+
 
 function SplBalances() {
     let t = useContext(SolanaTokenContext);
@@ -27,7 +30,7 @@ function SplBalances() {
             title: 'Wrapped',
             key: 'wrapped',
             render: (n: any, v: BalanceInfo) => {
-                return v.assetMeta.chain != CHAIN_ID_SOLANA ? `Wrapped (${v.assetMeta.chain} - 0x${v.assetMeta.address.slice(12).toString("hex")})` : "Native"
+                return v.assetMeta.chain != CHAIN_ID_SOLANA ? `Wrapped (${v.assetMeta.chain == 2 ? "ETH" : "SOL"} - 0x${v.assetMeta.address.slice(12).toString("hex")})` : `Native (0x${deriveERC20Address(new PublicKey(v.mint))})`
             }
         },
     ];

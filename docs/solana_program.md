@@ -125,6 +125,7 @@ followed by:
 | 7     | token_program | SplToken |        |           | ️   |      |
 | 8     | token        | WrappedAsset |        |           |    | ✅      |
 | 9     | destination  | TokenAccount |        | ✅        |    |         |
+| 10    | wrapped_meta | WrappedMeta  |        | ✅        |  opt  |    ✅    |
 
 ##### Transfer: Ethereum (wrapped) -> Solana (native)
 

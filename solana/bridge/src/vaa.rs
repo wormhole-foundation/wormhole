@@ -262,6 +262,7 @@ impl BodyTransfer {
         let token_chain = data.read_u8()?;
         let mut token_address: ForeignAddress = ForeignAddress::default();
         data.read_exact(&mut token_address)?;
+        let token_decimals = data.read_u8()?;
 
         let mut am_data: [u8; 32] = [0; 32];
         data.read_exact(&mut am_data)?;
@@ -276,6 +277,7 @@ impl BodyTransfer {
             asset: AssetMeta {
                 address: token_address,
                 chain: token_chain,
+                decimals: token_decimals,
             },
             amount,
         })
@@ -290,6 +292,7 @@ impl BodyTransfer {
         v.write(&self.target_address)?;
         v.write_u8(self.asset.chain)?;
         v.write(&self.asset.address)?;
+        v.write_u8(self.asset.decimals)?;
 
         let mut am_data: [u8; 32] = [0; 32];
         self.amount.to_big_endian(&mut am_data);
@@ -328,6 +331,7 @@ mod tests {
                 asset: AssetMeta {
                     address: [2; 32],
                     chain: 8,
+                    decimals: 9,
                 },
                 amount: U256::from(3),
             })),
@@ -431,11 +435,12 @@ mod tests {
                         158, 135, 169, 32, 6, 88, 217, 196, 14, 153, 136,
                     ],
                     chain: 1,
+                    decimals: 8,
                 },
                 amount: U256::from_dec_str("5000000000000000000").unwrap(),
             })),
         };
-        let data = hex::decode("0100000000010092737a1504f3b3df8c93cb85c64a4860bb270e26026b6e37f095356a406f6af439c6b2e9775fa1c6669525f06edab033ba5d447308f4e3bdb33c0f361dc32ec3015f37000810000000350102020104000000000000000000000000000000000000000000000000000000000000000000000000000000000090f8bf6a479f320ead074411a4b0e7944ea8c9c1010000000000000000000000000347ef34687bdc9f189e87a9200658d9c40e99880000000000000000000000000000000000000000000000004563918244f40000").unwrap();
+        let data = hex::decode("0100000000010092737a1504f3b3df8c93cb85c64a4860bb270e26026b6e37f095356a406f6af439c6b2e9775fa1c6669525f06edab033ba5d447308f4e3bdb33c0f361dc32ec3015f37000810000000350102020104000000000000000000000000000000000000000000000000000000000000000000000000000000000090f8bf6a479f320ead074411a4b0e7944ea8c9c1010000000000000000000000000347ef34687bdc9f189e87a9200658d9c40e9988080000000000000000000000000000000000000000000000004563918244f40000").unwrap();
         let parsed_vaa = VAA::deserialize(data.as_slice()).unwrap();
         assert_eq!(vaa, parsed_vaa);
 

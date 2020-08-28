@@ -32,16 +32,6 @@ func NewSolanaBridgeWatcher(url string, lockEvents chan *common.ChainLock, vaaQu
 	return &SolanaBridgeWatcher{url: url, lockChan: lockEvents, vaaChan: vaaQueue}
 }
 
-// TODO: document/deduplicate
-func padAddress(address eth_common.Address) vaa.Address {
-	paddedAddress := eth_common.LeftPadBytes(address[:], 32)
-
-	addr := vaa.Address{}
-	copy(addr[:], paddedAddress)
-
-	return addr
-}
-
 func (e *SolanaBridgeWatcher) Run(ctx context.Context) error {
 	timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
@@ -75,20 +65,21 @@ func (e *SolanaBridgeWatcher) Run(ctx context.Context) error {
 			switch event := ev.Event.(type) {
 			case *agentv1.LockupEvent_New:
 				logger.Debug("received lockup event",
-					zap.Any("event", ev)) // TODO: debug level
+					zap.Any("event", ev))
 
 				lock := &common.ChainLock{
 					TxHash:        eth_common.HexToHash(ev.LockupAddress),
-					Timestamp:     time.Time{}, // FIXME
+					Timestamp:     time.Unix(int64(ev.Time), 0),
 					Nonce:         event.New.Nonce,
-					SourceAddress: padAddress(eth_common.BytesToAddress(event.New.SourceAddress)),
-					TargetAddress: padAddress(eth_common.BytesToAddress(event.New.TargetAddress)),
 					SourceChain:   vaa.ChainIDSolana,
 					TargetChain:   vaa.ChainID(event.New.TargetChain),
 					TokenChain:    vaa.ChainID(event.New.TokenChain),
+					TokenDecimals: uint8(event.New.TokenDecimals),
 					Amount:        new(big.Int).SetBytes(event.New.Amount),
 				}
 				copy(lock.TokenAddress[:], event.New.TokenAddress)
+				copy(lock.SourceAddress[:], event.New.SourceAddress)
+				copy(lock.TargetAddress[:], event.New.TargetAddress)
 
 				e.lockChan <- lock
 				logger.Info("found new lockup transaction", zap.String("lockup_address", ev.LockupAddress))

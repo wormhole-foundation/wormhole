@@ -15,6 +15,7 @@ import {AssetMeta, SolanaBridge} from "../utils/bridge";
 import KeyContext from "../providers/KeyContext";
 import {FormInstance} from "antd/lib/form";
 import SplBalances from "../components/SplBalances";
+import TransferProposals from "../components/TransferProposals";
 
 
 // @ts-ignore
@@ -57,11 +58,6 @@ async function approveAssets(asset: string,
 async function createWrapped(c: Connection, b: SolanaBridge, key: Account, meta: AssetMeta, mint: PublicKey) {
     try {
         let tx = new Transaction();
-        let mintAccount = await c.getAccountInfo(mint);
-        if (!mintAccount) {
-            let ix = await b.createWrappedAssetInstruction(key.publicKey, meta);
-            tx.add(ix)
-        }
 
         // @ts-ignore
         let [ix_account, newSigner] = await b.createWrappedAssetAndAccountInstructions(key.publicKey, mint);
@@ -277,6 +273,11 @@ function Transfer() {
             <Row>
                 <Col>
                     <SplBalances/>
+                </Col>
+            </Row>
+            <Row>
+                <Col>
+                    <TransferProposals/>
                 </Col>
             </Row>
         </>

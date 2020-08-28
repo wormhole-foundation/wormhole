@@ -46,7 +46,8 @@ message LockupEventNew {
     bytes targetAddress = 5;
     uint32 tokenChain = 6;
     bytes tokenAddress = 7;
-    bytes amount = 8;
+    uint32 tokenDecimals = 8;
+    bytes amount = 9;
 }
 
 // A VAA was posted to Solana for data availability.
@@ -58,7 +59,8 @@ message LockupEventVAAPosted {
     bytes targetAddress = 5;
     uint32 tokenChain = 6;
     bytes tokenAddress = 7;
-    bytes amount = 8;
+    uint32 tokenDecimals = 8;
+    bytes amount = 9;
 
-    bytes vaa = 9;
+    bytes vaa = 10;
 }

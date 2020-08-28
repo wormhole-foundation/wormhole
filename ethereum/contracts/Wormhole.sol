@@ -6,6 +6,7 @@
 pragma solidity ^0.6.0;
 pragma experimental ABIEncoderV2;
 
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
@@ -40,6 +41,7 @@ contract Wormhole is ReentrancyGuard {
     event LogTokensLocked(
         uint8 target_chain,
         uint8 token_chain,
+        uint8 token_decimals,
         bytes32 indexed token,
         bytes32 indexed sender,
         bytes32 recipient,
@@ -56,7 +58,7 @@ contract Wormhole is ReentrancyGuard {
     uint32 public guardian_set_expirity;
 
     // Mapping of already consumedVAAs
-    mapping(bytes32 => bool) consumedVAAs;
+    mapping(bytes32 => bool) public consumedVAAs;
 
     // Mapping of wrapped asset ERC20 contracts
     mapping(bytes32 => address) public wrappedAssets;
@@ -88,7 +90,7 @@ contract Wormhole is ReentrancyGuard {
         uint offset = 6 + 66 * len_signers;
 
         // Load 4 bytes timestamp
-        uint32 timestamp = vaa.toUint32(offset);
+        //uint32 timestamp = vaa.toUint32(offset);
 
         // Hash the body
         bytes32 hash = keccak256(vaa.slice(offset, vaa.length - offset));
@@ -155,7 +157,7 @@ contract Wormhole is ReentrancyGuard {
 
         uint8 token_chain = data.toUint8(70);
         //bytes32 token_address = data.toBytes32(71);
-        uint256 amount = data.toUint256(103);
+        uint256 amount = data.toUint256(104);
 
         require(source_chain != target_chain, "same chain transfers are not supported");
         require(target_chain == CHAIN_ID, "transfer must be incoming");
@@ -168,7 +170,8 @@ contract Wormhole is ReentrancyGuard {
             // if no: create and mint
             address wrapped_asset = wrappedAssets[asset_id];
             if (wrapped_asset == address(0)) {
-                wrapped_asset = deployWrappedAsset(asset_id, token_chain, token_address);
+                uint8 asset_decimals = data.toUint8(103);
+                wrapped_asset = deployWrappedAsset(asset_id, token_chain, token_address, asset_decimals);
             }
 
             WrappedAsset(wrapped_asset).mint(target_address, amount);
@@ -179,7 +182,7 @@ contract Wormhole is ReentrancyGuard {
         }
     }
 
-    function deployWrappedAsset(bytes32 seed, uint8 token_chain, bytes32 token_address) private returns (address asset){
+    function deployWrappedAsset(bytes32 seed, uint8 token_chain, bytes32 token_address, uint8 decimals) private returns (address asset){
         // Taken from https://github.com/OpenZeppelin/openzeppelin-sdk/blob/master/packages/lib/contracts/upgradeability/ProxyFactory.sol
         // Licensed under MIT
         bytes20 targetBytes = bytes20(wrappedAssetMaster);
@@ -192,7 +195,7 @@ contract Wormhole is ReentrancyGuard {
         }
 
         // Call initializer
-        WrappedAsset(asset).initialize(token_chain, token_address);
+        WrappedAsset(asset).initialize(token_chain, token_address, decimals);
 
         // Store address
         wrappedAssets[seed] = asset;
@@ -225,7 +228,7 @@ contract Wormhole is ReentrancyGuard {
             asset_address = bytes32(uint256(asset));
         }
 
-        emit LogTokensLocked(target_chain, asset_chain, asset_address, bytes32(uint256(msg.sender)), recipient, amount, nonce);
+        emit LogTokensLocked(target_chain, asset_chain, ERC20(asset).decimals(), asset_address, bytes32(uint256(msg.sender)), recipient, amount, nonce);
     }
 
     function lockETH(
@@ -239,7 +242,7 @@ contract Wormhole is ReentrancyGuard {
         WETH(WETHAddress).deposit{value : msg.value}();
 
         // Log deposit of WETH
-        emit LogTokensLocked(target_chain, CHAIN_ID, bytes32(uint256(WETHAddress)), bytes32(uint256(msg.sender)), recipient, msg.value, nonce);
+        emit LogTokensLocked(target_chain, CHAIN_ID, 18, bytes32(uint256(WETHAddress)), bytes32(uint256(msg.sender)), recipient, msg.value, nonce);
     }
 
 

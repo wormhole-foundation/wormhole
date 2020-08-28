@@ -112,11 +112,13 @@ fn command_lock_tokens(
             AssetMeta {
                 address: wrapped_meta.address,
                 chain: wrapped_meta.chain,
+                decimals: 0,
             }
         }
         Err(e) => AssetMeta {
             address: token.to_bytes(),
             chain: CHAIN_ID_SOLANA,
+            decimals: 0,
         },
     };
 
@@ -151,30 +153,6 @@ fn command_lock_tokens(
 
     let mut transaction =
         Transaction::new_with_payer(&instructions.as_slice(), Some(&config.fee_payer.pubkey()));
-
-    let (recent_blockhash, fee_calculator) = config.rpc_client.get_recent_blockhash()?;
-    check_fee_payer_balance(
-        config,
-        minimum_balance_for_rent_exemption + fee_calculator.calculate_fee(&transaction.message()),
-    )?;
-    transaction.sign(&[&config.fee_payer, &config.owner], recent_blockhash);
-    Ok(Some(transaction))
-}
-
-fn command_create_wrapped_asset(
-    config: &Config,
-    bridge: &Pubkey,
-    meta: AssetMeta,
-) -> CommmandResult {
-    println!("Creating wrapped asset");
-
-    let minimum_balance_for_rent_exemption = config
-        .rpc_client
-        .get_minimum_balance_for_rent_exemption(size_of::<Mint>())?;
-
-    let ix = create_wrapped(bridge, &config.owner.pubkey(), meta)?;
-
-    let mut transaction = Transaction::new_with_payer(&[ix], Some(&config.fee_payer.pubkey()));
 
     let (recent_blockhash, fee_calculator) = config.rpc_client.get_recent_blockhash()?;
     check_fee_payer_balance(
@@ -977,40 +955,6 @@ fn main() {
                 )
         )
         .subcommand(
-            SubCommand::with_name("create-wrapped")
-                .about("Create new wrapped asset and token account")
-                .arg(
-                    Arg::with_name("bridge")
-                        .long("bridge")
-                        .value_name("BRIDGE_KEY")
-                        .validator(is_pubkey_or_keypair)
-                        .takes_value(true)
-                        .index(1)
-                        .required(true)
-                        .help(
-                            "Specify the bridge program public key"
-                        ),
-                )
-                .arg(
-                    Arg::with_name("chain")
-                        .validator(is_u8)
-                        .value_name("CHAIN")
-                        .takes_value(true)
-                        .index(2)
-                        .required(true)
-                        .help("Chain ID of the asset"),
-                )
-                .arg(
-                    Arg::with_name("token")
-                        .validator(is_hex)
-                        .value_name("TOKEN_ADDRESS")
-                        .takes_value(true)
-                        .index(3)
-                        .required(true)
-                        .help("Token address of the asset"),
-                )
-        )
-        .subcommand(
             SubCommand::with_name("wrapped-address")
                 .about("Derive wrapped asset address")
                 .arg(
@@ -1169,24 +1113,6 @@ fn main() {
             let vaa_string: String = value_of(arg_matches, "vaa").unwrap();
             let vaa = hex::decode(vaa_string).unwrap();
             command_submit_vaa(&config, &bridge, vaa.as_slice())
-        }
-        ("create-wrapped", Some(arg_matches)) => {
-            let bridge = pubkey_of(arg_matches, "bridge").unwrap();
-            let chain = value_t_or_exit!(arg_matches, "chain", u8);
-            let addr_string: String = value_of(arg_matches, "token").unwrap();
-            let addr_data = hex::decode(addr_string).unwrap();
-
-            let mut token_addr = [0u8; 32];
-            token_addr.copy_from_slice(addr_data.as_slice());
-
-            command_create_wrapped_asset(
-                &config,
-                &bridge,
-                AssetMeta {
-                    chain,
-                    address: token_addr,
-                },
-            )
         }
         ("wrapped-address", Some(arg_matches)) => {
             let bridge = pubkey_of(arg_matches, "bridge").unwrap();

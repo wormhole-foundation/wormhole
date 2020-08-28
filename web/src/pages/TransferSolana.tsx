@@ -74,7 +74,7 @@ function TransferSolana() {
                                 {
                                     chain: coinInfo.chainID,
                                     address: coinInfo.wrappedAddress
-                                }, 2);
+                                }, Math.random()*100000);
                             let ix = spl.Token.createApproveInstruction(TOKEN_PROGRAM, fromAccount, await bridge.getConfigKey(), k.publicKey, [], transferAmount.toNumber())
 
                             let recentHash = await c.getRecentBlockhash();

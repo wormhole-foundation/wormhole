@@ -13,7 +13,7 @@ contract WrappedAsset is IERC20, Context {
     bool public initialized;
     address public bridge;
 
-    function initialize(uint8 _assetChain, bytes32 _assetAddress) public {
+    function initialize(uint8 _assetChain, bytes32 _assetAddress, uint8 decimals) public {
         require(!initialized, "already initialized");
         // Set local fields
         assetChain = _assetChain;
@@ -23,7 +23,7 @@ contract WrappedAsset is IERC20, Context {
 
         _name = "Wormhole Wrapped";
         _symbol = "WWT";
-        _decimals = 18;
+        _decimals = decimals;
     }
 
     function mint(address account, uint256 amount) external {

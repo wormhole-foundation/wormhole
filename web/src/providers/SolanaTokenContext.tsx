@@ -8,6 +8,7 @@ import {TOKEN_PROGRAM} from "../config";
 import {BridgeContext} from "./BridgeContext";
 import {message} from "antd";
 import {AssetMeta} from "../utils/bridge";
+import {Buffer} from "buffer";
 
 export interface BalanceInfo {
     mint: string,

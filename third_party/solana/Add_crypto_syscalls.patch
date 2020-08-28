@@ -734,3 +734,23 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
  echo "${genesis_args[@]}" > spl-genesis-args.sh
 
  echo
+Index: account-decoder/src/parse_token.rs
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- account-decoder/src/parse_token.rs	(revision 97144cdb8e9cb4d83943b0b5898d08f57844a4dd)
++++ account-decoder/src/parse_token.rs	(date 1598606089966)
+@@ -30,11 +30,7 @@
+     if data.len() == size_of::<Account>() {
+         let account: Account = *unpack(&mut data)
+             .map_err(|_| ParseAccountError::AccountNotParsable(ParsableAccount::SplToken))?;
+-        let decimals = mint_decimals.ok_or_else(|| {
+-            ParseAccountError::AdditionalDataMissing(
+-                "no mint_decimals provided to parse spl-token account".to_string(),
+-            )
+-        })?;
++        let decimals = mint_decimals.or(Some(0)).unwrap();
+         Ok(TokenAccountType::Account(UiTokenAccount {
+             mint: account.mint.to_string(),
+             owner: account.owner.to_string(),

@@ -20,6 +20,8 @@ type signerInfo struct {
 	index  int
 }
 
+var i = 0
+
 func main() {
 
 	keys := generateKeys(6)
@@ -38,8 +40,9 @@ func main() {
 			SourceAddress: vaa.Address{2, 1, 4},
 			TargetAddress: padAddress(devnet.GanacheClientDefaultAccountAddress),
 			Asset: &vaa.AssetMeta{
-				Chain:   vaa.ChainIDSolana,
-				Address: hexToAddress("0x347ef34687bdc9f189e87a9200658d9c40e9988"),
+				Chain:    vaa.ChainIDSolana,
+				Address:  hexToAddress("0x347ef34687bdc9f189e87a9200658d9c40e9988"),
+				Decimals: 8,
 			},
 			Amount: big.NewInt(1000000000000000000),
 		},
@@ -56,8 +59,9 @@ func main() {
 			SourceAddress: vaa.Address{2, 1, 4},
 			TargetAddress: padAddress(devnet.GanacheClientDefaultAccountAddress),
 			Asset: &vaa.AssetMeta{
-				Chain:   vaa.ChainIDEthereum,
-				Address: hexToAddress("0xd833215cbcc3f914bd1c9ece3ee7bf8b14f841bb"),
+				Chain:    vaa.ChainIDEthereum,
+				Address:  hexToAddress("0xd833215cbcc3f914bd1c9ece3ee7bf8b14f841bb"),
+				Decimals: 8,
 			},
 			Amount: big.NewInt(1000000000000000000),
 		},
@@ -98,8 +102,9 @@ func main() {
 			SourceAddress: vaa.Address{2, 1, 4},
 			TargetAddress: padAddress(devnet.GanacheClientDefaultAccountAddress),
 			Asset: &vaa.AssetMeta{
-				Chain:   vaa.ChainIDSolana,
-				Address: hexToAddress("0x347ef34687bdc9f189e87a9200658d9c40e9988"),
+				Chain:    vaa.ChainIDSolana,
+				Address:  hexToAddress("0x347ef34687bdc9f189e87a9200658d9c40e9988"),
+				Decimals: 8,
 			},
 			Amount: big.NewInt(1000000000000000000),
 		},
@@ -116,8 +121,9 @@ func main() {
 			SourceAddress: vaa.Address{2, 1, 5},
 			TargetAddress: padAddress(devnet.GanacheClientDefaultAccountAddress),
 			Asset: &vaa.AssetMeta{
-				Chain:   vaa.ChainIDSolana,
-				Address: hexToAddress("0x347ef34687bdc9f189e87a9200658d9c40e9988"),
+				Chain:    vaa.ChainIDSolana,
+				Address:  hexToAddress("0x347ef34687bdc9f189e87a9200658d9c40e9988"),
+				Decimals: 8,
 			},
 			Amount: big.NewInt(1000000000000000000),
 		},
@@ -134,12 +140,32 @@ func main() {
 			SourceAddress: vaa.Address{2, 1, 5},
 			TargetAddress: padAddress(devnet.GanacheClientDefaultAccountAddress),
 			Asset: &vaa.AssetMeta{
-				Chain:   vaa.ChainIDSolana,
-				Address: hexToAddress("0x347ef34687bdc9f189e87a9200658d9c40e9988"),
+				Chain:    vaa.ChainIDSolana,
+				Address:  hexToAddress("0x347ef34687bdc9f189e87a9200658d9c40e9988"),
+				Decimals: 8,
 			},
 			Amount: big.NewInt(1000000000000000000),
 		},
 	}, []*signerInfo{{keys[1], 0}})
+
+	signAndPrintVAA(&vaa.VAA{
+		Version:          1,
+		GuardianSetIndex: 1,
+		Timestamp:        time.Unix(2000, 0),
+		Payload: &vaa.BodyTransfer{
+			Nonce:         57,
+			SourceChain:   1,
+			TargetChain:   2,
+			SourceAddress: vaa.Address{2, 1, 5},
+			TargetAddress: padAddress(devnet.GanacheClientDefaultAccountAddress),
+			Asset: &vaa.AssetMeta{
+				Chain:    vaa.ChainIDSolana,
+				Address:  hexToAddress("0x347ef34687bdc9f189e87a9200658d9c40e9988"),
+				Decimals: 8,
+			},
+			Amount: big.NewInt(1000000000000000000),
+		},
+	}, []*signerInfo{{keys[0], 0}})
 
 	signAndPrintVAA(&vaa.VAA{
 		Version:          1,
@@ -169,8 +195,9 @@ func main() {
 			SourceAddress: vaa.Address{2, 1, 5},
 			TargetAddress: padAddress(devnet.GanacheClientDefaultAccountAddress),
 			Asset: &vaa.AssetMeta{
-				Chain:   vaa.ChainIDSolana,
-				Address: hexToAddress("0x347ef34687bdc9f189e87a9200658d9c40e9988"),
+				Chain:    vaa.ChainIDSolana,
+				Address:  hexToAddress("0x347ef34687bdc9f189e87a9200658d9c40e9988"),
+				Decimals: 8,
 			},
 			Amount: big.NewInt(1000000000000000000),
 		},
@@ -187,8 +214,9 @@ func main() {
 			SourceAddress: vaa.Address{2, 1, 5},
 			TargetAddress: padAddress(devnet.GanacheClientDefaultAccountAddress),
 			Asset: &vaa.AssetMeta{
-				Chain:   vaa.ChainIDSolana,
-				Address: hexToAddress("0x347ef34687bdc9f189e87a9200658d9c40e9988"),
+				Chain:    vaa.ChainIDSolana,
+				Address:  hexToAddress("0x347ef34687bdc9f189e87a9200658d9c40e9988"),
+				Decimals: 8,
 			},
 			Amount: big.NewInt(1000000000000000000),
 		},
@@ -203,7 +231,8 @@ func signAndPrintVAA(vaa *vaa.VAA, signers []*signerInfo) {
 	if err != nil {
 		panic(err)
 	}
-	println(hex.EncodeToString(vData))
+	println(i, hex.EncodeToString(vData))
+	i++
 }
 
 func generateKeys(n int) (keys []*ecdsa.PrivateKey) {

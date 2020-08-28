@@ -12,6 +12,10 @@ import {
 
 interface WormholeInterface extends Interface {
   functions: {
+    consumedVAAs: TypedFunctionDescription<{ encode([]: [Arrayish]): string }>;
+
+    guardian_set_expirity: TypedFunctionDescription<{ encode([]: []): string }>;
+
     guardian_set_index: TypedFunctionDescription<{ encode([]: []): string }>;
 
     guardian_sets: TypedFunctionDescription<{
@@ -19,8 +23,6 @@ interface WormholeInterface extends Interface {
     }>;
 
     isWrappedAsset: TypedFunctionDescription<{ encode([]: [string]): string }>;
-
-    vaa_expiry: TypedFunctionDescription<{ encode([]: []): string }>;
 
     wrappedAssetMaster: TypedFunctionDescription<{ encode([]: []): string }>;
 
@@ -63,12 +65,14 @@ interface WormholeInterface extends Interface {
       encodeTopics([
         target_chain,
         token_chain,
+        token_decimals,
         token,
         sender,
         recipient,
         amount,
         nonce
       ]: [
+        null,
         null,
         null,
         Arrayish | null,
@@ -95,6 +99,22 @@ export class Wormhole extends Contract {
   interface: WormholeInterface;
 
   functions: {
+    consumedVAAs(
+      arg0: Arrayish,
+      overrides?: TransactionOverrides
+    ): Promise<boolean>;
+
+    "consumedVAAs(bytes32)"(
+      arg0: Arrayish,
+      overrides?: TransactionOverrides
+    ): Promise<boolean>;
+
+    guardian_set_expirity(overrides?: TransactionOverrides): Promise<number>;
+
+    "guardian_set_expirity()"(
+      overrides?: TransactionOverrides
+    ): Promise<number>;
+
     guardian_set_index(overrides?: TransactionOverrides): Promise<number>;
 
     "guardian_set_index()"(overrides?: TransactionOverrides): Promise<number>;
@@ -118,10 +138,6 @@ export class Wormhole extends Contract {
       arg0: string,
       overrides?: TransactionOverrides
     ): Promise<boolean>;
-
-    vaa_expiry(overrides?: TransactionOverrides): Promise<number>;
-
-    "vaa_expiry()"(overrides?: TransactionOverrides): Promise<number>;
 
     wrappedAssetMaster(overrides?: TransactionOverrides): Promise<string>;
 
@@ -200,6 +216,20 @@ export class Wormhole extends Contract {
     ): Promise<ContractTransaction>;
   };
 
+  consumedVAAs(
+    arg0: Arrayish,
+    overrides?: TransactionOverrides
+  ): Promise<boolean>;
+
+  "consumedVAAs(bytes32)"(
+    arg0: Arrayish,
+    overrides?: TransactionOverrides
+  ): Promise<boolean>;
+
+  guardian_set_expirity(overrides?: TransactionOverrides): Promise<number>;
+
+  "guardian_set_expirity()"(overrides?: TransactionOverrides): Promise<number>;
+
   guardian_set_index(overrides?: TransactionOverrides): Promise<number>;
 
   "guardian_set_index()"(overrides?: TransactionOverrides): Promise<number>;
@@ -223,10 +253,6 @@ export class Wormhole extends Contract {
     arg0: string,
     overrides?: TransactionOverrides
   ): Promise<boolean>;
-
-  vaa_expiry(overrides?: TransactionOverrides): Promise<number>;
-
-  "vaa_expiry()"(overrides?: TransactionOverrides): Promise<number>;
 
   wrappedAssetMaster(overrides?: TransactionOverrides): Promise<string>;
 
@@ -313,6 +339,7 @@ export class Wormhole extends Contract {
     LogTokensLocked(
       target_chain: null,
       token_chain: null,
+      token_decimals: null,
       token: Arrayish | null,
       sender: Arrayish | null,
       recipient: null,
@@ -322,6 +349,22 @@ export class Wormhole extends Contract {
   };
 
   estimate: {
+    consumedVAAs(
+      arg0: Arrayish,
+      overrides?: TransactionOverrides
+    ): Promise<BigNumber>;
+
+    "consumedVAAs(bytes32)"(
+      arg0: Arrayish,
+      overrides?: TransactionOverrides
+    ): Promise<BigNumber>;
+
+    guardian_set_expirity(overrides?: TransactionOverrides): Promise<BigNumber>;
+
+    "guardian_set_expirity()"(
+      overrides?: TransactionOverrides
+    ): Promise<BigNumber>;
+
     guardian_set_index(overrides?: TransactionOverrides): Promise<BigNumber>;
 
     "guardian_set_index()"(
@@ -347,10 +390,6 @@ export class Wormhole extends Contract {
       arg0: string,
       overrides?: TransactionOverrides
     ): Promise<BigNumber>;
-
-    vaa_expiry(overrides?: TransactionOverrides): Promise<BigNumber>;
-
-    "vaa_expiry()"(overrides?: TransactionOverrides): Promise<BigNumber>;
 
     wrappedAssetMaster(overrides?: TransactionOverrides): Promise<BigNumber>;
 

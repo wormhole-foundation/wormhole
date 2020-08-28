@@ -14,6 +14,7 @@
     "@types/react": "^16.9.0",
     "@types/react-dom": "^16.9.0",
     "@types/react-router-dom": "^5.1.5",
+    "@types/bs58": "^4.0.1",
     "antd": "^4.4.1",
     "buffer": "^5.6.0",
     "buffer-layout": "^1.2.0",
@@ -23,7 +24,8 @@
     "react-router-dom": "^5.2.0",
     "react-scripts": "3.4.1",
     "typescript": "~3.7.2",
-    "web3": "^1.2.9"
+    "web3": "^1.2.9",
+    "bs58": "^4.0.1"
   },
   "devDependencies": {
     "npm": "^6.14.6",

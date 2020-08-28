@@ -114,6 +114,7 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 					TargetChain:   vaa.ChainID(ev.TargetChain),
 					TokenChain:    vaa.ChainID(ev.TokenChain),
 					TokenAddress:  ev.Token,
+					TokenDecimals: ev.TokenDecimals,
 					Amount:        ev.Amount,
 				}
 

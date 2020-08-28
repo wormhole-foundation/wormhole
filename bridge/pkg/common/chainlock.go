@@ -21,8 +21,9 @@ type ChainLock struct {
 	SourceChain vaa.ChainID
 	TargetChain vaa.ChainID
 
-	TokenChain   vaa.ChainID
-	TokenAddress vaa.Address
+	TokenChain    vaa.ChainID
+	TokenAddress  vaa.Address
+	TokenDecimals uint8
 
 	Amount *big.Int
 }

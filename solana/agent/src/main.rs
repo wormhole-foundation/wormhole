@@ -183,6 +183,7 @@ impl Agent for AgentImpl {
                                         target_address: b.foreign_address.to_vec(),
                                         token_chain: b.asset.chain as u32,
                                         token_address: b.asset.address.to_vec(),
+                                        token_decimals: b.asset.decimals as u32,
                                         amount: amount_b.to_vec(),
                                     })),
                                 }
@@ -200,6 +201,7 @@ impl Agent for AgentImpl {
                                         target_address: b.foreign_address.to_vec(),
                                         token_chain: b.asset.chain as u32,
                                         token_address: b.asset.address.to_vec(),
+                                        token_decimals: b.asset.decimals as u32,
                                         amount: amount_b.to_vec(),
                                         vaa: b.vaa.to_vec(),
                                     })),

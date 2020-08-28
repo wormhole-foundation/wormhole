@@ -48,53 +48,53 @@ func p2p(obsvC chan *gossipv1.LockupObservation, sendC chan []byte) func(ctx con
 
 		var idht *dht.IpfsDHT
 
-h, err := libp2p.New(ctx,
-	// Use the keypair we generated
-	libp2p.Identity(priv),
+		h, err := libp2p.New(ctx,
+			// Use the keypair we generated
+			libp2p.Identity(priv),
 
-	// Multiple listen addresses
-	libp2p.ListenAddrStrings(
-		// Listen on QUIC only.
-		// TODO(leo): is this more or less stable than using both TCP and QUIC transports?
-		// https://github.com/libp2p/go-libp2p/issues/688
-		fmt.Sprintf("/ip4/0.0.0.0/udp/%d/quic", *p2pPort),
-		fmt.Sprintf("/ip6/::/udp/%d/quic", *p2pPort),
-	),
+			// Multiple listen addresses
+			libp2p.ListenAddrStrings(
+				// Listen on QUIC only.
+				// TODO(leo): is this more or less stable than using both TCP and QUIC transports?
+				// https://github.com/libp2p/go-libp2p/issues/688
+				fmt.Sprintf("/ip4/0.0.0.0/udp/%d/quic", *p2pPort),
+				fmt.Sprintf("/ip6/::/udp/%d/quic", *p2pPort),
+			),
 
-	// Enable TLS security as the only security protocol.
-	libp2p.Security(libp2ptls.ID, libp2ptls.New),
+			// Enable TLS security as the only security protocol.
+			libp2p.Security(libp2ptls.ID, libp2ptls.New),
 
-	// Enable QUIC transport as the only transport.
-	libp2p.Transport(libp2pquic.NewTransport),
+			// Enable QUIC transport as the only transport.
+			libp2p.Transport(libp2pquic.NewTransport),
 
-	// Let's prevent our peer from having too many
-	// connections by attaching a connection manager.
-	libp2p.ConnectionManager(connmgr.NewConnManager(
-		100,         // Lowwater
-		400,         // HighWater,
-		time.Minute, // GracePeriod
-	)),
+			// Let's prevent our peer from having too many
+			// connections by attaching a connection manager.
+			libp2p.ConnectionManager(connmgr.NewConnManager(
+				100,         // Lowwater
+				400,         // HighWater,
+				time.Minute, // GracePeriod
+			)),
 
-	// Let this host use the DHT to find other hosts
-	libp2p.Routing(func(h host.Host) (routing.PeerRouting, error) {
-		// TODO(leo): Persistent data store (i.e. address book)
-		idht, err = dht.New(ctx, h, dht.Mode(dht.ModeServer),
-			// TODO(leo): This intentionally makes us incompatible with the global IPFS DHT
-			dht.ProtocolPrefix(protocol.ID("/"+*p2pNetworkID)),
+			// Let this host use the DHT to find other hosts
+			libp2p.Routing(func(h host.Host) (routing.PeerRouting, error) {
+				// TODO(leo): Persistent data store (i.e. address book)
+				idht, err = dht.New(ctx, h, dht.Mode(dht.ModeServer),
+					// TODO(leo): This intentionally makes us incompatible with the global IPFS DHT
+					dht.ProtocolPrefix(protocol.ID("/"+*p2pNetworkID)),
+				)
+				return idht, err
+			}),
 		)
-		return idht, err
-	}),
-)
 
-if err != nil {
-	panic(err)
-}
+		if err != nil {
+			panic(err)
+		}
 
-defer func() {
-	// TODO: libp2p cannot be cleanly restarted (https://github.com/libp2p/go-libp2p/issues/992)
-	logger.Error("p2p routine has exited, cancelling root context...", zap.Error(re))
-	rootCtxCancel()
-}()
+		defer func() {
+			// TODO: libp2p cannot be cleanly restarted (https://github.com/libp2p/go-libp2p/issues/992)
+			logger.Error("p2p routine has exited, cancelling root context...", zap.Error(re))
+			rootCtxCancel()
+		}()
 
 		logger.Info("Connecting to bootstrap peers", zap.String("bootstrap_peers", *p2pBootstrap))
 
