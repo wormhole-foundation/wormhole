@@ -114,11 +114,8 @@ impl Agent for AgentImpl {
         let rpc_url = self.rpc_url.clone();
 
         match tokio::spawn(async move {
-            let rpc = RpcClient::new(rpc_url.to_string());
-            let sub = PubsubClient::program_subscribe(&url, &bridge).unwrap();
-
             // Keepalive routine
-            let keepalive = tokio::spawn(async move {
+            tokio::spawn(async move {
                 // We need to keep the channel alive https://github.com/hyperium/tonic/issues/378
                 loop {
                     tx1.send(Ok(LockupEvent {
@@ -127,14 +124,17 @@ impl Agent for AgentImpl {
                         lockup_address: String::from(""),
                         event: Some(Event::Empty(Empty {})),
                     }))
-                    .await;
+                    .await
+                    .unwrap();
 
                     sleep(Duration::new(1, 0))
                 }
             });
 
             // Watcher thread
-            let watcher = tokio::spawn(async move {
+            tokio::spawn(async move {
+                let rpc = RpcClient::new(rpc_url.to_string());
+                let sub = PubsubClient::program_subscribe(&url, &bridge).unwrap();
                 // looping and sending our response using stream
                 loop {
                     let item = sub.1.recv();
@@ -211,11 +211,13 @@ impl Agent for AgentImpl {
                             let mut amount_b: [u8; 32] = [0; 32];
                             b.amount.to_big_endian(&mut amount_b);
 
-                            if let Err(_) = tx.send(Ok(event)).await {
+                            if let Err(e) = tx.send(Ok(event)).await {
+                                println!("sending event failed: {}", e);
                                 return;
                             };
                         }
-                        Err(_) => {
+                        Err(e) => {
+                            println!("watcher died: {}", e);
                             tx.send(Err(Status::new(Code::Aborted, "watcher died")))
                                 .await;
                             return;
