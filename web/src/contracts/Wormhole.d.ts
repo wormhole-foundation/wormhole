@@ -35,12 +35,13 @@ interface WormholeInterface extends Interface {
     submitVAA: TypedFunctionDescription<{ encode([vaa]: [Arrayish]): string }>;
 
     lockAssets: TypedFunctionDescription<{
-      encode([asset, amount, recipient, target_chain, nonce]: [
+      encode([asset, amount, recipient, target_chain, nonce, refund_dust]: [
         string,
         BigNumberish,
         Arrayish,
         BigNumberish,
-        BigNumberish
+        BigNumberish,
+        boolean
       ]): string;
     }>;
 
@@ -189,15 +190,17 @@ export class Wormhole extends Contract {
       recipient: Arrayish,
       target_chain: BigNumberish,
       nonce: BigNumberish,
+      refund_dust: boolean,
       overrides?: TransactionOverrides
     ): Promise<ContractTransaction>;
 
-    "lockAssets(address,uint256,bytes32,uint8,uint32)"(
+    "lockAssets(address,uint256,bytes32,uint8,uint32,bool)"(
       asset: string,
       amount: BigNumberish,
       recipient: Arrayish,
       target_chain: BigNumberish,
       nonce: BigNumberish,
+      refund_dust: boolean,
       overrides?: TransactionOverrides
     ): Promise<ContractTransaction>;
 
@@ -304,15 +307,17 @@ export class Wormhole extends Contract {
     recipient: Arrayish,
     target_chain: BigNumberish,
     nonce: BigNumberish,
+    refund_dust: boolean,
     overrides?: TransactionOverrides
   ): Promise<ContractTransaction>;
 
-  "lockAssets(address,uint256,bytes32,uint8,uint32)"(
+  "lockAssets(address,uint256,bytes32,uint8,uint32,bool)"(
     asset: string,
     amount: BigNumberish,
     recipient: Arrayish,
     target_chain: BigNumberish,
     nonce: BigNumberish,
+    refund_dust: boolean,
     overrides?: TransactionOverrides
   ): Promise<ContractTransaction>;
 
@@ -433,15 +438,17 @@ export class Wormhole extends Contract {
       recipient: Arrayish,
       target_chain: BigNumberish,
       nonce: BigNumberish,
+      refund_dust: boolean,
       overrides?: TransactionOverrides
     ): Promise<BigNumber>;
 
-    "lockAssets(address,uint256,bytes32,uint8,uint32)"(
+    "lockAssets(address,uint256,bytes32,uint8,uint32,bool)"(
       asset: string,
       amount: BigNumberish,
       recipient: Arrayish,
       target_chain: BigNumberish,
       nonce: BigNumberish,
+      refund_dust: boolean,
       overrides?: TransactionOverrides
     ): Promise<BigNumber>;
 

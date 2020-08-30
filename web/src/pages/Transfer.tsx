@@ -31,7 +31,7 @@ async function lockAssets(asset: string,
     let wh = WormholeFactory.connect(BRIDGE_ADDRESS, signer);
     try {
         message.loading({content: "Signing transaction...", key: "eth_tx", duration: 1000},)
-        let res = await wh.lockAssets(asset, amount, recipient, target_chain, 10)
+        let res = await wh.lockAssets(asset, amount, recipient, target_chain, 10, false)
         message.loading({content: "Waiting for transaction to be mined...", key: "eth_tx", duration: 1000})
         await res.wait(1);
         message.success({content: "Transfer on ETH succeeded!", key: "eth_tx"})
