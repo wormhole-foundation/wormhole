@@ -87,7 +87,7 @@ contract("Wormhole", function () {
         // Expect user to have a balance
         let wa = new WrappedAsset("0xC3697aaf5B3D354214548248710414812099bc93")
 
-        await bridge.lockAssets(wa.address, "500000000000000000", "0x0", 2, 2);
+        await bridge.lockAssets(wa.address, "500000000000000000", "0x0", 2, 2, false);
         let balance = await wa.balanceOf("0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1");
 
         // Expect user balance to decrease
@@ -119,7 +119,7 @@ contract("Wormhole", function () {
         assert.isTrue(threw);
 
         // Lock assets
-        let ev = await bridge.lockAssets(token.address, "1000000000000000000", "0x1230000000000000000000000000000000000000000000000000000000000000", 3 ,3);
+        let ev = await bridge.lockAssets(token.address, "1000000000000000000", "0x1230000000000000000000000000000000000000000000000000000000000000", 3, 3, false);
 
         // Check that the lock event was emitted correctly
         assert.lengthOf(ev.logs, 1)
@@ -129,7 +129,7 @@ contract("Wormhole", function () {
         assert.equal(ev.logs[0].args.token, "0x000000000000000000000000d833215cbcc3f914bd1c9ece3ee7bf8b14f841bb")
         assert.equal(ev.logs[0].args.sender, "0x00000000000000000000000090f8bf6a479f320ead074411a4b0e7944ea8c9c1")
         assert.equal(ev.logs[0].args.recipient, "0x1230000000000000000000000000000000000000000000000000000000000000")
-        assert.equal(ev.logs[0].args.amount, "1000000000000000000")
+        assert.equal(ev.logs[0].args.amount, "1000000000")
 
         // Check that the tokens were transferred to the bridge
         assert.equal(await token.balanceOf("0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1"), "0");
@@ -222,5 +222,68 @@ contract("Wormhole", function () {
 
         // Test VAA signed by 5 signers (all except i=3)
         await bridge.submitVAA("0x01000000020500e94bec8a17bd313522cdfea30cec5406a41a4cc4b6ec416a633ebe3aca070ae448e370e0a2e7c67fed04a2b825f56cf226c76e6ecd2e71865642393bf729dad80101ccf89506bef58d8cb12baabd60e3304cfb90ef0ef0657caba9c37ffa0d34a54c3aacd1a475ef4c72f24e8d9ce1e2de51e580ce85b18356436b6cda9e2ae9abc001033e9b4ff5fb545e964e907349e3dab0057c408c832bb31fb76fae7f81c3e488ea4897ce14db61c46d1169bd64b449498b1a18dee4de0ef2038b1c7e3a4a0239a0010432eac9532a4c0ce279d6a3018a5ea0d74402eb6969df5d444f20e0cca66d3b4c53e41cb18648f64af100c7410692e83fa16e5696b1f5f0d517653b003e22689800055859330bd1fee76d99728803fa26d739e494e1a232f5658150c2a2c97e1c9722793bdd83bd7cbb4a39b587b45093ee76187c72dfd68d64b7c0abc32bfef5d55c0000000fa010000000390102020105000000000000000000000000000000000000000000000000000000000000000000000000000000000090f8bf6a479f320ead074411a4b0e7944ea8c9c1010000000000000000000000000347ef34687bdc9f189e87a9200658d9c40e9988080000000000000000000000000000000000000000000000000de0b6b3a7640000")
+    });
+
+    it("should correctly adjust decimals", async function () {
+        let bridge = await Wormhole.deployed();
+        let token = await ERC20.new("Test Token", "TKN");
+
+        await token.mint("0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1", "25000000000000000000000000000000000000");
+
+        // Approve bridge
+        await token.approve(bridge.address, "25000000000000000000000000000000000000");
+
+        // Lock assets
+        let ev = await bridge.lockAssets(token.address, "2000000000000000003", "0x1230000000000000000000000000000000000000000000000000000000000000", 3, 3, false);
+
+        // Check that the correct amount was logged
+        assert.lengthOf(ev.logs, 1)
+        assert.equal(ev.logs[0].event, "LogTokensLocked")
+        assert.equal(ev.logs[0].args.amount, "2000000000")
+        assert.equal(ev.logs[0].args.token_decimals, "9")
+
+        ev = await bridge.lockAssets(token.address, "2000000000000000000", "0x1230000000000000000000000000000000000000000000000000000000000000", 3, 3, false);
+        // Check that the correct amount was logged
+        assert.lengthOf(ev.logs, 1)
+        assert.equal(ev.logs[0].event, "LogTokensLocked")
+        assert.equal(ev.logs[0].args.amount, "2000000000")
+
+        await bridge.lockAssets(token.address, "18446744069709551615000000000", "0x1230000000000000000000000000000000000000000000000000000000000000", 3, 3, false);
+        let threw = false;
+        try {
+            await bridge.lockAssets(token.address, "1000000000", "0x1230000000000000000000000000000000000000000000000000000000000000", 3, 3, false);
+        } catch (e) {
+            threw = true;
+            assert.equal(e.reason, "bridge balance would exceed maximum")
+        }
+        assert.isTrue(threw, "accepted total bridge balance > MAX_U64")
+    });
+
+    it("should refund dust", async function () {
+        let bridge = await Wormhole.deployed();
+        let token = await ERC20.new("Test Token", "TKN");
+
+        await token.mint("0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1", "5000000100");
+
+        // Approve bridge
+        await token.approve(bridge.address, "5000000100");
+
+        // Lock assets
+        let ev = await bridge.lockAssets(token.address, "1000000005", "0x1230000000000000000000000000000000000000000000000000000000000000", 3, 3, false);
+
+        // Check that dust was not subtracted
+        assert.lengthOf(ev.logs, 1)
+        assert.equal(ev.logs[0].event, "LogTokensLocked")
+        assert.equal(ev.logs[0].args.amount, "1")
+        assert.equal(await token.balanceOf("0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1"), "4000000095");
+
+        // Lock assets
+        ev = await bridge.lockAssets(token.address, "1000000005", "0x1230000000000000000000000000000000000000000000000000000000000000", 3, 3, true);
+
+        // Check that dust was refunded
+        assert.lengthOf(ev.logs, 1)
+        assert.equal(ev.logs[0].event, "LogTokensLocked")
+        assert.equal(ev.logs[0].args.amount, "1")
+        assert.equal((await token.balanceOf("0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1")).toString(), "3000000095");
     });
 });

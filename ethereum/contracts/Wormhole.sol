@@ -19,6 +19,8 @@ contract Wormhole is ReentrancyGuard {
     using BytesLib for bytes;
     using SafeMath for uint256;
 
+    uint64 constant MAX_UINT64 = 18_446_744_073_709_551_615;
+
     // Address of the Wrapped asset template
     address public wrappedAssetMaster;
 
@@ -207,12 +209,15 @@ contract Wormhole is ReentrancyGuard {
         uint256 amount,
         bytes32 recipient,
         uint8 target_chain,
-        uint32 nonce
+        uint32 nonce,
+        bool refund_dust
     ) public nonReentrant {
         require(amount != 0, "amount must not be 0");
 
         uint8 asset_chain = CHAIN_ID;
         bytes32 asset_address;
+        uint8 decimals = ERC20(asset).decimals();
+
         if (isWrappedAsset[asset]) {
             WrappedAsset(asset).burn(msg.sender, amount);
             asset_chain = WrappedAsset(asset).assetChain();
@@ -225,10 +230,25 @@ contract Wormhole is ReentrancyGuard {
             // The amount that was transferred in is the delta between balance before and after the transfer.
             // This is to properly handle tokens that charge a fee on transfer.
             amount = balanceAfter.sub(balanceBefore);
+
+            // Decimal adjust amount - we keep the dust
+            if (decimals > 9) {
+                uint256 original_amount = amount;
+                amount = amount.div(10 ** uint256(decimals - 9));
+
+                if (refund_dust) {
+                    ERC20(asset).transfer(msg.sender, original_amount.mod(10 ** uint256(decimals - 9)));
+                }
+
+                decimals = 9;
+            }
+
+            require(balanceAfter.div(10 ** uint256(ERC20(asset).decimals() - 9)) <= MAX_UINT64, "bridge balance would exceed maximum");
+
             asset_address = bytes32(uint256(asset));
         }
 
-        emit LogTokensLocked(target_chain, asset_chain, ERC20(asset).decimals(), asset_address, bytes32(uint256(msg.sender)), recipient, amount, nonce);
+        emit LogTokensLocked(target_chain, asset_chain, decimals, asset_address, bytes32(uint256(msg.sender)), recipient, amount, nonce);
     }
 
     function lockETH(
@@ -245,14 +265,14 @@ contract Wormhole is ReentrancyGuard {
         emit LogTokensLocked(target_chain, CHAIN_ID, 18, bytes32(uint256(WETHAddress)), bytes32(uint256(msg.sender)), recipient, msg.value, nonce);
     }
 
+    fallback() external payable {revert("please use lockETH to transfer ETH to Solana");}
 
-fallback() external payable {revert("please use lockETH to transfer ETH to Solana");}
-receive() external payable {revert("please use lockETH to transfer ETH to Solana");}
+    receive() external payable {revert("please use lockETH to transfer ETH to Solana");}
 }
 
 
 interface WETH is IERC20 {
-function deposit() external payable;
+    function deposit() external payable;
 
-function withdraw(uint256 amount) external;
+    function withdraw(uint256 amount) external;
 }
