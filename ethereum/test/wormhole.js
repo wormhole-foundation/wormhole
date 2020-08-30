@@ -87,7 +87,7 @@ contract("Wormhole", function () {
         // Expect user to have a balance
         let wa = new WrappedAsset("0xC3697aaf5B3D354214548248710414812099bc93")
 
-        await bridge.lockAssets(wa.address, "500000000000000000", "0x0", 2, 2, false);
+        await bridge.lockAssets(wa.address, "500000000000000000", "0x0", 4, 2, false);
         let balance = await wa.balanceOf("0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1");
 
         // Expect user balance to decrease
@@ -102,12 +102,12 @@ contract("Wormhole", function () {
         let bridge = await Wormhole.deployed();
         let token = await ERC20.new("Test Token", "TKN");
 
-        await token.mint("0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1", "1000000000000000000");
+        await token.mint("0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1", "1000000000000000000000000000");
         // Expect user to have a balance
-        assert.equal(await token.balanceOf("0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1"), "1000000000000000000");
+        assert.equal(await token.balanceOf("0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1"), "1000000000000000000000000000");
 
         // Approve bridge
-        await token.approve(bridge.address, "1000000000000000000");
+        await token.approve(bridge.address, "1000000000000000000000000000");
 
         // Transfer of that token out of the contract should not work
         let threw = false;
@@ -119,7 +119,7 @@ contract("Wormhole", function () {
         assert.isTrue(threw);
 
         // Lock assets
-        let ev = await bridge.lockAssets(token.address, "1000000000000000000", "0x1230000000000000000000000000000000000000000000000000000000000000", 3, 3, false);
+        let ev = await bridge.lockAssets(token.address, "1000000000000000000000000000", "0x1230000000000000000000000000000000000000000000000000000000000000", 3, 3, false);
 
         // Check that the lock event was emitted correctly
         assert.lengthOf(ev.logs, 1)
@@ -129,15 +129,15 @@ contract("Wormhole", function () {
         assert.equal(ev.logs[0].args.token, "0x000000000000000000000000d833215cbcc3f914bd1c9ece3ee7bf8b14f841bb")
         assert.equal(ev.logs[0].args.sender, "0x00000000000000000000000090f8bf6a479f320ead074411a4b0e7944ea8c9c1")
         assert.equal(ev.logs[0].args.recipient, "0x1230000000000000000000000000000000000000000000000000000000000000")
-        assert.equal(ev.logs[0].args.amount, "1000000000")
+        assert.equal(ev.logs[0].args.amount, "1000000000000000000")
 
         // Check that the tokens were transferred to the bridge
         assert.equal(await token.balanceOf("0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1"), "0");
-        assert.equal(await token.balanceOf(bridge.address), "1000000000000000000");
+        assert.equal(await token.balanceOf(bridge.address), "1000000000000000000000000000");
 
-        // Transfer this token back
+        // Transfer this token back - This also checks decimal realignment
         await bridge.submitVAA("0x01000000000100078f0fe9406808b1e5003867ab74aa2085153b7735b329640d275ea943dd115d00e356c6d343142d9190872c11d2de898d075cea7f4e85ff2188af299e26a14200000007d010000000380102020104000000000000000000000000000000000000000000000000000000000000000000000000000000000090f8bf6a479f320ead074411a4b0e7944ea8c9c102000000000000000000000000d833215cbcc3f914bd1c9ece3ee7bf8b14f841bb080000000000000000000000000000000000000000000000000de0b6b3a7640000");
-        assert.equal(await token.balanceOf("0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1"), "1000000000000000000");
+        assert.equal(await token.balanceOf("0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1"), "1000000000000000000000000000");
         assert.equal(await token.balanceOf(bridge.address), "0");
     });
 

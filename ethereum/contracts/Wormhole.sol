@@ -1,8 +1,6 @@
 // contracts/Wormhole.sol
 // SPDX-License-Identifier: Apache 2
 
-// TODO(hendrik): switch-over feature
-
 pragma solidity ^0.6.0;
 pragma experimental ABIEncoderV2;
 
@@ -185,6 +183,12 @@ contract Wormhole is ReentrancyGuard {
         } else {
             address token_address = data.toAddress(71 + 12);
 
+            uint8 decimals = ERC20(token_address).decimals();
+
+            // Readjust decimals if they've previously been truncated
+            if (decimals > 9) {
+                amount = amount.mul(10 ** uint256(decimals - 9));
+            }
             IERC20(token_address).safeTransfer(target_address, amount);
         }
     }
@@ -217,7 +221,7 @@ contract Wormhole is ReentrancyGuard {
         uint32 nonce,
         bool refund_dust
     ) public nonReentrant {
-        require(amount != 0, "amount must not be 0");
+        require(target_chain != CHAIN_ID, "must not transfer to the same chain");
 
         uint8 asset_chain = CHAIN_ID;
         bytes32 asset_address;
@@ -242,7 +246,7 @@ contract Wormhole is ReentrancyGuard {
                 amount = amount.div(10 ** uint256(decimals - 9));
 
                 if (refund_dust) {
-                    ERC20(asset).transfer(msg.sender, original_amount.mod(10 ** uint256(decimals - 9)));
+                    IERC20(asset).safeTransfer(msg.sender, original_amount.mod(10 ** uint256(decimals - 9)));
                 }
 
                 decimals = 9;
@@ -253,6 +257,9 @@ contract Wormhole is ReentrancyGuard {
             asset_address = bytes32(uint256(asset));
         }
 
+        // Check here after truncation
+        require(amount != 0, "truncated amount must not be 0");
+
         emit LogTokensLocked(target_chain, asset_chain, decimals, asset_address, bytes32(uint256(msg.sender)), recipient, amount, nonce);
     }
 
@@ -261,13 +268,20 @@ contract Wormhole is ReentrancyGuard {
         uint8 target_chain,
         uint32 nonce
     ) public payable nonReentrant {
-        require(msg.value != 0, "amount must not be 0");
+        require(target_chain != CHAIN_ID, "must not transfer to the same chain");
+
+        uint256 remainder = msg.value.mod(10 ** 9);
+        uint256 transfer_amount = msg.value.div(10 ** 9);
+        require(transfer_amount != 0, "truncated amount must not be 0");
+
+        // Transfer back remainder
+        msg.sender.transfer(remainder);
 
         // Wrap tx value in WETH
-        WETH(WETHAddress).deposit{value : msg.value}();
+        WETH(WETHAddress).deposit{value : msg.value - remainder}();
 
         // Log deposit of WETH
-        emit LogTokensLocked(target_chain, CHAIN_ID, 18, bytes32(uint256(WETHAddress)), bytes32(uint256(msg.sender)), recipient, msg.value, nonce);
+        emit LogTokensLocked(target_chain, CHAIN_ID, 9, bytes32(uint256(WETHAddress)), bytes32(uint256(msg.sender)), recipient, transfer_amount, nonce);
     }
 
     fallback() external payable {revert("please use lockETH to transfer ETH to Solana");}
