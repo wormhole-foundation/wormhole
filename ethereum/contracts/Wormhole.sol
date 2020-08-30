@@ -99,11 +99,16 @@ contract Wormhole is ReentrancyGuard {
         require(!consumedVAAs[hash], "VAA was already executed");
 
         GuardianSet memory guardian_set = guardian_sets[vaa_guardian_set_index];
+        require(guardian_set.keys.length > 0, "invalid guardian set");
         require(guardian_set.expiration_time == 0 || guardian_set.expiration_time > block.timestamp, "guardian set has expired");
         require(((guardian_set.keys.length / 4) * 3) + 1 <= len_signers, "no quorum");
 
+        int16 last_index = - 1;
         for (uint i = 0; i < len_signers; i++) {
             uint8 index = vaa.toUint8(6 + i * 66);
+            require(index > last_index, "signature indices must be ascending");
+            last_index = int16(index);
+
             bytes32 r = vaa.toBytes32(7 + i * 66);
             bytes32 s = vaa.toBytes32(39 + i * 66);
             uint8 v = vaa.toUint8(71 + i * 66);
