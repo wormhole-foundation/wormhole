@@ -14,7 +14,7 @@ use solana_sdk::{
 
 use crate::error::Error;
 use crate::error::Error::VAATooLong;
-use crate::instruction::BridgeInstruction::{Initialize, PostVAA, TransferOut};
+use crate::instruction::BridgeInstruction::{Initialize, PokeProposal, PostVAA, TransferOut};
 use crate::state::{AssetMeta, Bridge, BridgeConfig};
 use crate::vaa::{VAABody, VAA};
 
@@ -123,6 +123,9 @@ pub enum BridgeInstruction {
     /// Deletes a `ExecutedVAA` after the `VAA_EXPIRATION_TIME` is over to free up space on chain.
     /// This returns the rent to the sender.
     EvictClaimedVAA(),
+
+    /// Pokes a proposal with no valid VAAs attached so guardians reprocess it.
+    PokeProposal(),
 }
 
 impl BridgeInstruction {
@@ -153,6 +156,7 @@ impl BridgeInstruction {
                 let payload: VAAData = input[1..].to_vec();
                 PostVAA(payload)
             }
+            5 => PokeProposal(),
             _ => return Err(ProgramError::InvalidInstructionData),
         })
     }
@@ -200,6 +204,9 @@ impl BridgeInstruction {
             }
             Self::EvictClaimedVAA() => {
                 output[0] = 4;
+            }
+            Self::PokeProposal() => {
+                output[0] = 5;
             }
         }
         Ok(output)
@@ -273,6 +280,7 @@ pub fn transfer_out(
         AccountMeta::new_readonly(*program_id, false),
         AccountMeta::new_readonly(solana_sdk::system_program::id(), false),
         AccountMeta::new_readonly(spl_token::id(), false),
+        AccountMeta::new_readonly(solana_sdk::sysvar::clock::id(), false),
         AccountMeta::new(*token_account, false),
         AccountMeta::new(bridge_key, false),
         AccountMeta::new(transfer_key, false),
@@ -366,6 +374,23 @@ pub fn post_vaa(
             }
         }
     }
+
+    Ok(Instruction {
+        program_id: *program_id,
+        accounts,
+        data,
+    })
+}
+
+/// Creates an 'PokeProposal' instruction.
+#[cfg(not(target_arch = "bpf"))]
+pub fn poke_proposal(
+    program_id: &Pubkey,
+    transfer_proposal: &Pubkey,
+) -> Result<Instruction, ProgramError> {
+    let data = BridgeInstruction::PokeProposal().serialize()?;
+
+    let mut accounts = vec![AccountMeta::new(*transfer_proposal, false)];
 
     Ok(Instruction {
         program_id: *program_id,

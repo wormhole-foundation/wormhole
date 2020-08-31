@@ -69,6 +69,10 @@ pub struct TransferOutProposal {
     pub vaa: [u8; MAX_VAA_SIZE + 1],
     /// time the vaa was submitted
     pub vaa_time: u32,
+    /// time the lockup was created
+    pub lockup_time: u32,
+    /// times the proposal has been poked
+    pub poke_counter: u8,
 
     /// Is `true` if this structure has been initialized.
     pub is_initialized: bool,

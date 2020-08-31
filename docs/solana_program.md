@@ -16,6 +16,14 @@ Initializes a new Bridge at `bridge`.
 | 3     | guardian_set | GuardianSet         |        |   ✅       | ✅    | ✅      |
 | 4     | payer | Account         |    ✅     |          |     |       |
 
+#### PokeProposal
+
+Pokes a `TransferOutProposal` so it is reprocessed by the guardians.
+
+| Index | Name   | Type         | signer | writeable | empty | derived |
+| ----- | ------ | ------------ | ------ | --------- | ----- | ------- |
+| 0     | proposal | TransferOutProposal |        |     ✅      | ️   |  ✅    |
+
 #### TransferOut
 
 Burns a wrapped asset `token` from `sender` on the Solana chain.
@@ -29,11 +37,12 @@ Parameters:
 | 0     | bridge_p | BridgeProgram |        |           | ️   |      |
 | 1     | sys | SystemProgram |        |           | ️   |      |
 | 2     | token_program | SplToken |        |           | ️   |      |
-| 3     | token_account   | TokenAccount        |        | ✅        |       |         |
-| 4     | bridge   | BridgeConfig        |        |           |       |         |
-| 5     | proposal | TransferOutProposal |        | ✅        | ✅    | ✅      |
-| 6     | token    | WrappedAsset        |        | ✅        |       | ✅      |
-| 7     | payer    | Account        |    ✅    |         |       |       |
+| 3     | clock | Sysvar |        |           | ️   | ✅     |
+| 4     | token_account   | TokenAccount        |        | ✅        |       |         |
+| 5     | bridge   | BridgeConfig        |        |           |       |         |
+| 6     | proposal | TransferOutProposal |        | ✅        | ✅    | ✅      |
+| 7     | token    | WrappedAsset        |        | ✅        |       | ✅      |
+| 8     | payer    | Account        |    ✅    |         |       |       |
 
 #### TransferOutNative
 
@@ -47,12 +56,13 @@ The transfer proposal will be tracked at a new account `proposal` where a VAA wi
 | 0     | bridge_p | BridgeProgram |        |           | ️   |      |
 | 1     | sys | SystemProgram |        |           | ️   |      |
 | 2     | token_program | SplToken |        |           | ️   |      |
-| 3     | token_account          | TokenAccount        |        | ✅        |       |         |
-| 4     | bridge          | BridgeConfig        |        |           |       |         |
-| 5     | proposal        | TransferOutProposal |        | ✅        | ✅    | ✅      |
-| 6     | token           | Mint                |        | ✅        |       |         |
-| 7     | payer    | Account        |    ✅    |         |       |       |
-| 8     | custody_account | TokenAccount                |        | ✅        | opt   | ✅      |
+| 3     | clock | Sysvar |        |           | ️   | ✅     |
+| 4     | token_account          | TokenAccount        |        | ✅        |       |         |
+| 5     | bridge          | BridgeConfig        |        |           |       |         |
+| 6     | proposal        | TransferOutProposal |        | ✅        | ✅    | ✅      |
+| 7     | token           | Mint                |        | ✅        |       |         |
+| 8     | payer    | Account        |    ✅    |         |       |       |
+| 9     | custody_account | TokenAccount                |        | ✅        | opt   | ✅      |
 
 #### EvictTransferOut
 

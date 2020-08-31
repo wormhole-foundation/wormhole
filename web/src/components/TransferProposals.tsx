@@ -9,7 +9,9 @@ import {WormholeFactory} from "../contracts/WormholeFactory";
 import {BRIDGE_ADDRESS} from "../config";
 import {keccak256} from "ethers/utils";
 import BN from 'bn.js';
-import {PublicKey} from "@solana/web3.js";
+import {PublicKey, Transaction} from "@solana/web3.js";
+import KeyContext from "../providers/KeyContext";
+import ClientContext from "../providers/ClientContext";
 
 // @ts-ignore
 window.ethereum.enable();
@@ -32,6 +34,8 @@ function TransferProposals() {
     let t = useContext(SolanaTokenContext);
     let tokens = useContext(SolanaTokenContext);
     let b = useContext(BridgeContext);
+    let k = useContext(KeyContext);
+    let c = useContext(ClientContext);
 
     let [lockups, setLockups] = useState<LockupWithStatus[]>([])
 
@@ -84,13 +88,31 @@ function TransferProposals() {
         message.loading({content: "Waiting for transaction to be mined...", key: "eth_tx", duration: 1000})
         await tx.wait(1)
         message.success({content: "Execution of VAA succeeded", key: "eth_tx"})
+    }
 
+    let pokeProposal = async (proposalAddress: PublicKey) => {
+        message.loading({content: "Poking lockup ...", key: "poke"}, 1000)
+
+        let ix = await b.createPokeProposalInstruction(proposalAddress);
+        let recentHash = await c.getRecentBlockhash();
+        let tx = new Transaction();
+        tx.recentBlockhash = recentHash.blockhash
+        tx.add(ix)
+        tx.sign(k)
+        try {
+            await c.sendTransaction(tx, [k])
+            message.success({content: "Poke succeeded", key: "poke"})
+        } catch (e) {
+            message.error({content: "Poke failed", key: "poke"})
+        }
     }
 
     let statusToPrompt = (v: LockupWithStatus) => {
         switch (v.status) {
             case LockupStatus.AWAITING_VAA:
-                return ("Awaiting VAA");
+                return (<>Awaiting VAA (<a onClick={() => {
+                    pokeProposal(v.lockupAddress)
+                }}>poke</a>)</>);
             case LockupStatus.UNCLAIMED_VAA:
                 return (<Button onClick={() => {
                     executeVAA(v)

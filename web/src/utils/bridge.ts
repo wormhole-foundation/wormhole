@@ -14,6 +14,7 @@ export interface AssetMeta {
 }
 
 export interface Lockup {
+    lockupAddress: PublicKey,
     amount: BN,
     toChain: number,
     sourceAddress: PublicKey,
@@ -24,6 +25,7 @@ export interface Lockup {
     nonce: number,
     vaa: Uint8Array,
     vaaTime: number,
+    pokeCounter: number,
     initialized: boolean,
 }
 
@@ -93,6 +95,7 @@ class SolanaBridge {
             {pubkey: this.programID, isSigner: false, isWritable: false},
             {pubkey: solanaWeb3.SystemProgram.programId, isSigner: false, isWritable: false},
             {pubkey: this.tokenProgram, isSigner: false, isWritable: false},
+            {pubkey: solanaWeb3.SYSVAR_CLOCK_PUBKEY, isSigner: false, isWritable: false},
             {pubkey: tokenAccount, isSigner: false, isWritable: true},
             {pubkey: configKey, isSigner: false, isWritable: false},
 
@@ -107,6 +110,30 @@ class SolanaBridge {
             keys.push({pubkey: custodyKey, isSigner: false, isWritable: true})
         }
 
+
+        return new TransactionInstruction({
+            keys,
+            programId: this.programID,
+            data,
+        });
+    }
+
+    createPokeProposalInstruction(
+        proposalAccount: PublicKey,
+    ): TransactionInstruction {
+        const dataLayout = BufferLayout.struct([BufferLayout.u8('instruction'),]);
+
+        const data = Buffer.alloc(dataLayout.span);
+        dataLayout.encode(
+            {
+                instruction: 5, // PokeProposal instruction
+            },
+            data,
+        );
+
+        const keys = [
+            {pubkey: proposalAccount, isSigner: false, isWritable: true},
+        ];
 
         return new TransactionInstruction({
             keys,
@@ -183,14 +210,15 @@ class SolanaBridge {
             BufferLayout.blob(1001, 'vaa'),
             BufferLayout.seq(BufferLayout.u8(), 3), // 4 byte alignment because a u32 is following
             BufferLayout.u32('vaaTime'),
+            BufferLayout.u8('pokeCounter'),
             BufferLayout.u8('initialized'),
         ]);
 
         let accounts: Lockup[] = [];
         for (let acc of raw_accounts) {
-            acc = acc.account;
-            let parsedAccount = dataLayout.decode(bs58.decode(acc.data))
+            let parsedAccount = dataLayout.decode(bs58.decode(acc.account.data))
             accounts.push({
+                lockupAddress: acc.pubkey,
                 amount: new BN(parsedAccount.amount, 2, "le"),
                 assetAddress: parsedAccount.assetAddress,
                 assetChain: parsedAccount.assetChain,
@@ -201,7 +229,8 @@ class SolanaBridge {
                 targetAddress: parsedAccount.targetAddress,
                 toChain: parsedAccount.toChain,
                 vaa: parsedAccount.vaa,
-                vaaTime: parsedAccount.vaaTime
+                vaaTime: parsedAccount.vaaTime,
+                pokeCounter: parsedAccount.pokeCounter
             })
         }
 

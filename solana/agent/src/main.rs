@@ -137,14 +137,6 @@ impl Agent for AgentImpl {
 
                         println!("lockup changed in slot: {}", v.context.slot);
 
-                        let time = match rpc.get_block_time(v.context.slot) {
-                            Ok(v) => v as u64,
-                            Err(e) => {
-                                println!("failed to fetch block time for event: {}", e);
-                                continue;
-                            }
-                        };
-
                         let b = match Bridge::unpack_immutable::<TransferOutProposal>(
                             v.value.account.data.as_slice(),
                         ) {
@@ -163,7 +155,7 @@ impl Agent for AgentImpl {
                             LockupEvent {
                                 slot: v.context.slot,
                                 lockup_address: v.value.pubkey.to_string(),
-                                time,
+                                time: b.lockup_time as u64,
                                 event: Some(Event::New(LockupEventNew {
                                     nonce: b.nonce,
                                     source_chain: CHAIN_ID_SOLANA as u32,
@@ -181,7 +173,7 @@ impl Agent for AgentImpl {
                             LockupEvent {
                                 slot: v.context.slot,
                                 lockup_address: v.value.pubkey.to_string(),
-                                time,
+                                time: b.lockup_time as u64,
                                 event: Some(Event::VaaPosted(LockupEventVaaPosted {
                                     nonce: b.nonce,
                                     source_chain: CHAIN_ID_SOLANA as u32,

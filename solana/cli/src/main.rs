@@ -85,6 +85,18 @@ fn command_deploy_bridge(
     Ok(Some(transaction))
 }
 
+fn command_poke_proposal(config: &Config, bridge: &Pubkey, proposal: &Pubkey) -> CommmandResult {
+    println!("Poking lockup");
+
+    let ix = poke_proposal(bridge, proposal)?;
+    let mut transaction = Transaction::new_with_payer(&[ix], Some(&config.fee_payer.pubkey()));
+
+    let (recent_blockhash, fee_calculator) = config.rpc_client.get_recent_blockhash()?;
+    check_fee_payer_balance(config, fee_calculator.calculate_fee(&transaction.message()))?;
+    transaction.sign(&[&config.fee_payer, &config.owner], recent_blockhash);
+    Ok(Some(transaction))
+}
+
 fn command_lock_tokens(
     config: &Config,
     bridge: &Pubkey,
@@ -955,6 +967,34 @@ fn main() {
                 )
         )
         .subcommand(
+            SubCommand::with_name("poke")
+                .about("Poke a proposal so it's retried")
+                .arg(
+                    Arg::with_name("bridge")
+                        .long("bridge")
+                        .value_name("BRIDGE_KEY")
+                        .validator(is_pubkey_or_keypair)
+                        .takes_value(true)
+                        .index(1)
+                        .required(true)
+                        .help(
+                            "Specify the bridge program public key"
+                        ),
+                )
+                .arg(
+                    Arg::with_name("proposal")
+                        .long("proposal")
+                        .value_name("PROPOSAL_KEY")
+                        .validator(is_pubkey_or_keypair)
+                        .takes_value(true)
+                        .index(2)
+                        .required(true)
+                        .help(
+                            "Specify the transfer proposal to poke"
+                        ),
+                )
+        )
+        .subcommand(
             SubCommand::with_name("wrapped-address")
                 .about("Derive wrapped asset address")
                 .arg(
@@ -1113,6 +1153,11 @@ fn main() {
             let vaa_string: String = value_of(arg_matches, "vaa").unwrap();
             let vaa = hex::decode(vaa_string).unwrap();
             command_submit_vaa(&config, &bridge, vaa.as_slice())
+        }
+        ("poke", Some(arg_matches)) => {
+            let bridge = pubkey_of(arg_matches, "bridge").unwrap();
+            let proposal = pubkey_of(arg_matches, "proposal").unwrap();
+            command_poke_proposal(&config, &bridge, &proposal)
         }
         ("wrapped-address", Some(arg_matches)) => {
             let bridge = pubkey_of(arg_matches, "bridge").unwrap();

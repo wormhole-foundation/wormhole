@@ -59,6 +59,11 @@ impl Bridge {
 
                 Self::process_vaa(program_id, accounts, vaa_body, &vaa)
             }
+            PokeProposal() => {
+                info!("Instruction: PokeProposal");
+
+                Self::process_poke(program_id, accounts)
+            }
             _ => panic!(""),
         }
     }
@@ -134,6 +139,23 @@ impl Bridge {
     }
 
     /// Transfers a wrapped asset out
+    pub fn process_poke(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter();
+        let proposal_info = next_account_info(account_info_iter)?;
+
+        let mut transfer_data = proposal_info.data.borrow_mut();
+        let mut proposal: &mut TransferOutProposal = Self::unpack(&mut transfer_data)?;
+        if proposal.vaa_time != 0 {
+            return Err(Error::VAAAlreadySubmitted.into());
+        }
+
+        // Increase poke counter
+        proposal.poke_counter += 1;
+
+        Ok(())
+    }
+
+    /// Transfers a wrapped asset out
     pub fn process_transfer_out(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
@@ -144,6 +166,7 @@ impl Bridge {
         next_account_info(account_info_iter)?; // Bridge program
         next_account_info(account_info_iter)?; // System program
         next_account_info(account_info_iter)?; // Token program
+        let clock_info = next_account_info(account_info_iter)?;
         let sender_account_info = next_account_info(account_info_iter)?;
         let bridge_info = next_account_info(account_info_iter)?;
         let transfer_info = next_account_info(account_info_iter)?;
@@ -153,6 +176,7 @@ impl Bridge {
         let sender = Bridge::token_account_deserialize(sender_account_info)?;
         let bridge = Bridge::bridge_deserialize(bridge_info)?;
         let mint = Bridge::mint_deserialize(mint_info)?;
+        let clock = Clock::from_account_info(clock_info)?;
 
         // Does the token belong to the mint
         if sender.mint != *mint_info.key {
@@ -209,6 +233,7 @@ impl Bridge {
         transfer.foreign_address = t.target;
         transfer.amount = t.amount;
         transfer.to_chain_id = t.chain_id;
+        transfer.lockup_time = clock.unix_timestamp as u32;
 
         // Make sure decimals are correct
         transfer.asset = AssetMeta {
@@ -231,6 +256,7 @@ impl Bridge {
         next_account_info(account_info_iter)?; // Bridge program
         next_account_info(account_info_iter)?; // System program
         next_account_info(account_info_iter)?; // Token program
+        let clock_info = next_account_info(account_info_iter)?;
         let sender_account_info = next_account_info(account_info_iter)?;
         let bridge_info = next_account_info(account_info_iter)?;
         let transfer_info = next_account_info(account_info_iter)?;
@@ -241,6 +267,7 @@ impl Bridge {
         let sender = Bridge::token_account_deserialize(sender_account_info)?;
         let mint = Bridge::mint_deserialize(mint_info)?;
         let bridge = Bridge::bridge_deserialize(bridge_info)?;
+        let clock = Clock::from_account_info(clock_info)?;
 
         // Does the token belong to the mint
         if sender.mint != *mint_info.key {
@@ -317,6 +344,7 @@ impl Bridge {
         transfer.source_address = sender_account_info.key.to_bytes();
         transfer.foreign_address = t.target;
         transfer.nonce = t.nonce;
+        transfer.lockup_time = clock.unix_timestamp as u32;
 
         // Don't use the user-given data as we don't check mint = AssetMeta.address
         transfer.asset = AssetMeta {
