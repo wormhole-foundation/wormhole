@@ -194,15 +194,15 @@ func (v *VAA) signingBody() ([]byte, error) {
 }
 
 // SigningMsg returns the hash of the signing body. This is used for signature generation and verification
-func (v *VAA) SigningMsg() (*big.Int, error) {
+func (v *VAA) SigningMsg() (common.Hash, error) {
 	body, err := v.signingBody()
 	if err != nil {
 		// Should never happen on a successfully parsed VAA
-		return nil, fmt.Errorf("failed to serialize signing body: %w", err)
+		return common.Hash{}, fmt.Errorf("failed to serialize signing body: %w", err)
 	}
 
 	hash := crypto.Keccak256Hash(body)
-	return hash.Big(), nil
+	return hash, nil
 }
 
 // VerifySignature verifies the signature of the VAA given a public key
