@@ -305,12 +305,12 @@ impl Bridge {
     }
 
     /// Calculates derived seeds for a claim
-    pub fn derive_claim_seeds<'a>(bridge: &Pubkey, hash: &[u8; 32]) -> Vec<Vec<u8>> {
-        vec![
-            "claim".as_bytes().to_vec(),
-            bridge.to_bytes().to_vec(),
-            hash.as_bytes().to_vec(),
+    pub fn derive_claim_seeds<'a>(bridge: &Pubkey, body: Vec<u8>) -> Vec<Vec<u8>> {
+        [
+            vec!["claim".as_bytes().to_vec(), bridge.to_bytes().to_vec()],
+            body.chunks(32).map(|v| v.to_vec()).collect(),
         ]
+        .concat()
     }
 
     /// Calculates derived seeds for a wrapped asset meta entry
@@ -340,9 +340,9 @@ impl Bridge {
     pub fn derive_claim_id(
         program_id: &Pubkey,
         bridge: &Pubkey,
-        hash: &[u8; 32],
+        body: Vec<u8>,
     ) -> Result<Pubkey, Error> {
-        Ok(Self::derive_key(program_id, &Self::derive_claim_seeds(bridge, hash))?.0)
+        Ok(Self::derive_key(program_id, &Self::derive_claim_seeds(bridge, body))?.0)
     }
 
     /// Calculates a derived address for a wrapped asset meta entry

@@ -57,9 +57,7 @@ impl Bridge {
                 info!("Instruction: PostVAA");
                 let vaa = VAA::deserialize(&vaa_body)?;
 
-                let hash = vaa.body_hash()?;
-
-                Self::process_vaa(program_id, accounts, vaa_body, &vaa, &hash)
+                Self::process_vaa(program_id, accounts, vaa_body, &vaa)
             }
             _ => panic!(""),
         }
@@ -336,7 +334,6 @@ impl Bridge {
         accounts: &[AccountInfo],
         vaa_data: VAAData,
         vaa: &VAA,
-        hash: &[u8; 32],
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
@@ -361,7 +358,7 @@ impl Bridge {
         }
 
         // Check and create claim
-        let claim_seeds = Bridge::derive_claim_seeds(bridge_info.key, hash);
+        let claim_seeds = Bridge::derive_claim_seeds(bridge_info.key, vaa.signature_body()?);
         Bridge::check_and_create_account::<ClaimedVAA>(
             program_id,
             accounts,

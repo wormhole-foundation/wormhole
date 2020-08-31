@@ -309,7 +309,7 @@ pub fn post_vaa(
     let bridge_key = Bridge::derive_bridge_id(program_id)?;
     let guardian_set_key =
         Bridge::derive_guardian_set_id(program_id, &bridge_key, vaa.guardian_set_index)?;
-    let claim_key = Bridge::derive_claim_id(program_id, &bridge_key, &vaa.body_hash()?)?;
+    let claim_key = Bridge::derive_claim_id(program_id, &bridge_key, vaa.signature_body()?)?;
 
     let mut accounts = vec![
         AccountMeta::new_readonly(*program_id, false),

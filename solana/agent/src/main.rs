@@ -8,6 +8,8 @@ use std::thread::sleep;
 
 use solana_client::client_error::ClientError;
 use solana_client::rpc_client::RpcClient;
+use solana_client::rpc_config::RpcSendTransactionConfig;
+use solana_sdk::commitment_config::{CommitmentConfig, CommitmentLevel};
 use solana_sdk::fee_calculator::FeeCalculator;
 use solana_sdk::instruction::Instruction;
 use solana_sdk::program_error::ProgramError;
@@ -81,7 +83,15 @@ impl Agent for AgentImpl {
                 }
             };
             transaction.sign(&[&key], recent_blockhash);
-            match rpc.send_and_confirm_transaction(&transaction) {
+            match rpc.send_and_confirm_transaction_with_spinner_and_config(
+                &transaction,
+                CommitmentConfig {
+                    commitment: CommitmentLevel::Single,
+                },
+                RpcSendTransactionConfig {
+                    skip_preflight: true,
+                },
+            ) {
                 Ok(s) => Ok(Response::new(SubmitVaaResponse {
                     signature: s.to_string(),
                 })),
