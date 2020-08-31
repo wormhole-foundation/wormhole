@@ -1,6 +1,6 @@
 import React, {useContext, useEffect, useState} from "react"
 import {SolanaTokenContext} from "../providers/SolanaTokenContext";
-import {Table} from "antd";
+import {Button, message, Table} from "antd";
 import {Lockup} from "../utils/bridge";
 import {BridgeContext} from "../providers/BridgeContext";
 import {SlotContext} from "../providers/SlotContext";
@@ -10,8 +10,12 @@ import {BRIDGE_ADDRESS} from "../config";
 import {keccak256} from "ethers/utils";
 import BN from 'bn.js';
 import {PublicKey} from "@solana/web3.js";
+
+// @ts-ignore
+window.ethereum.enable();
 // @ts-ignore
 const provider = new ethers.providers.Web3Provider(window.ethereum);
+const signer = provider.getSigner();
 
 interface LockupWithStatus extends Lockup {
     status: LockupStatus,
@@ -32,8 +36,6 @@ function TransferProposals() {
     let [lockups, setLockups] = useState<LockupWithStatus[]>([])
 
     useEffect(() => {
-        if (s % 10 !== 0) return;
-
         let updateLockups = async () => {
             let lockups: LockupWithStatus[] = [];
             for (let account of tokens.balances) {
@@ -68,12 +70,31 @@ function TransferProposals() {
         updateLockups()
     }, [s])
 
-    let statusToPrompt = (v: LockupStatus) => {
-        switch (v) {
+    let executeVAA = async (v: LockupWithStatus) => {
+        let wh = WormholeFactory.connect(BRIDGE_ADDRESS, signer)
+        let vaa = v.vaa;
+        for (let i = vaa.length; i > 0; i--) {
+            if (vaa[i] == 0xff) {
+                vaa = vaa.slice(0, i)
+                break
+            }
+        }
+        message.loading({content: "Signing transaction...", key: "eth_tx", duration: 1000},)
+        let tx = await wh.submitVAA(vaa)
+        message.loading({content: "Waiting for transaction to be mined...", key: "eth_tx", duration: 1000})
+        await tx.wait(1)
+        message.success({content: "Execution of VAA succeeded", key: "eth_tx"})
+
+    }
+
+    let statusToPrompt = (v: LockupWithStatus) => {
+        switch (v.status) {
             case LockupStatus.AWAITING_VAA:
                 return ("Awaiting VAA");
             case LockupStatus.UNCLAIMED_VAA:
-                return ("Submit to chain");
+                return (<Button onClick={() => {
+                    executeVAA(v)
+                }}>Execute</Button>);
             case LockupStatus.COMPLETED:
                 return ("Completed");
         }
@@ -118,14 +139,14 @@ function TransferProposals() {
             title: 'Status',
             key: 'status',
             render: (n: any, v: LockupWithStatus) => {
-                return (<>{statusToPrompt(v.status)}</>)
+                return (<>{statusToPrompt(v)}</>)
             }
         },
     ];
 
     return (<>
             <h3>Pending transfers</h3>
-            <Table dataSource={lockups} columns={columns} pagination={false} scroll={{y: 400}}/>
+            <Table dataSource={lockups} columns={columns}/>
         </>
     )
 }

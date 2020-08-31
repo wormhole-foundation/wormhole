@@ -158,6 +158,7 @@ class SolanaBridge {
                 "id": 1,
                 "method": "getProgramAccounts",
                 "params": [this.programID.toString(), {
+                    "commitment": "single",
                     "filters": [{"dataSize": 1152}, {
                         "memcmp": {
                             "offset": 33,
