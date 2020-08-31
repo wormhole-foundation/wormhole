@@ -82,7 +82,7 @@ pub enum Error {
     /// The given VAA was not signed by the latest guardian set
     #[error("OldGuardianSet")]
     OldGuardianSet,
-    /// The guardian set index must increase on update
+    /// The guardian set index must increase in steps of 1 on update
     #[error("GuardianIndexNotIncreasing")]
     GuardianIndexNotIncreasing,
     /// The given VAA does not match the proposal

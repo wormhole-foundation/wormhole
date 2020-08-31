@@ -446,7 +446,6 @@ impl Bridge {
     ) -> ProgramResult {
         let new_guardian_info = next_account_info(account_info_iter)?;
 
-        // TODO this could deadlock the bridge if an update is performed with an invalid key
         // The new guardian set must be signed by the current one
         if bridge.guardian_set_index != old_guardian_set.index {
             return Err(Error::OldGuardianSet.into());
@@ -454,7 +453,7 @@ impl Bridge {
 
         // The new guardian set must have an index > current
         // We don't check +1 because we trust the set to not set something close to max(u32)
-        if bridge.guardian_set_index >= b.new_index {
+        if bridge.guardian_set_index + 1 != b.new_index {
             return Err(Error::GuardianIndexNotIncreasing.into());
         }
 

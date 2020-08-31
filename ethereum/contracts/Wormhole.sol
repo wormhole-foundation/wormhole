@@ -133,6 +133,7 @@ contract Wormhole is ReentrancyGuard {
 
     function vaaUpdateGuardianSet(bytes memory data) private {
         uint32 new_guardian_set_index = data.toUint32(0);
+        require(new_guardian_set_index == guardian_set_index + 1, "index must increase in steps of 1");
         uint8 len = data.toUint8(4);
 
         address[] memory new_guardians = new address[](len);
