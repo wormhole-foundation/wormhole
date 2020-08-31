@@ -13,6 +13,7 @@ use zerocopy::AsBytes;
 use crate::error::Error;
 use crate::instruction::{ForeignAddress, VAAData, MAX_LEN_GUARDIAN_KEYS, MAX_VAA_SIZE};
 use crate::vaa::BodyTransfer;
+use spl_token::pack::Pack;
 
 /// fee rate as a ratio
 #[repr(C)]
@@ -180,13 +181,15 @@ impl Bridge {
     pub fn token_account_deserialize(
         info: &AccountInfo,
     ) -> Result<spl_token::state::Account, Error> {
-        Ok(*spl_token::state::unpack(&mut info.data.borrow_mut())
-            .map_err(|_| Error::ExpectedAccount)?)
+        Ok(
+            spl_token::state::Account::unpack(&mut info.data.borrow_mut())
+                .map_err(|_| Error::ExpectedAccount)?,
+        )
     }
 
     /// Deserializes a spl_token `Mint`.
     pub fn mint_deserialize(info: &AccountInfo) -> Result<spl_token::state::Mint, Error> {
-        Ok(*spl_token::state::unpack(&mut info.data.borrow_mut())
+        Ok(spl_token::state::Mint::unpack(&mut info.data.borrow_mut())
             .map_err(|_| Error::ExpectedToken)?)
     }
 

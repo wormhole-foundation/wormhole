@@ -19,6 +19,7 @@ use solana_sdk::{
     account_info::next_account_info, account_info::AccountInfo, entrypoint::ProgramResult, info,
     instruction::Instruction, program_error::ProgramError, pubkey::Pubkey,
 };
+use spl_token::pack::Pack;
 use spl_token::state::Mint;
 
 use crate::error::Error;
@@ -201,6 +202,7 @@ impl Bridge {
             accounts,
             &bridge.config.token_program,
             sender_account_info.key,
+            mint_info.key,
             t.amount,
         )?;
 
@@ -662,11 +664,13 @@ impl Bridge {
         accounts: &[AccountInfo],
         token_program_id: &Pubkey,
         token_account: &Pubkey,
+        mint: &Pubkey,
         amount: U256,
     ) -> Result<(), ProgramError> {
         let ix = spl_token::instruction::burn(
             token_program_id,
             token_account,
+            mint,
             &Self::derive_bridge_id(program_id)?,
             &[],
             amount.as_u64(),
@@ -745,7 +749,7 @@ impl Bridge {
         mint: &Pubkey,
         payer: &Pubkey,
     ) -> Result<(), ProgramError> {
-        Self::check_and_create_account::<spl_token::state::Account>(
+        Self::check_and_create_account::<[u8; spl_token::state::Account::LEN]>(
             program_id,
             accounts,
             account,
@@ -753,7 +757,6 @@ impl Bridge {
             token_program,
             &Self::derive_custody_seeds(bridge, mint),
         )?;
-        info!("bababu");
         info!(token_program.to_string().as_str());
         let ix = spl_token::instruction::initialize_account(
             token_program,
@@ -775,7 +778,7 @@ impl Bridge {
         asset: &AssetMeta,
         decimals: u8,
     ) -> Result<(), ProgramError> {
-        Self::check_and_create_account::<Mint>(
+        Self::check_and_create_account::<[u8; spl_token::state::Mint::LEN]>(
             program_id,
             accounts,
             mint,
@@ -786,9 +789,8 @@ impl Bridge {
         let ix = spl_token::instruction::initialize_mint(
             token_program,
             mint,
+            &Self::derive_bridge_id(program_id)?,
             None,
-            Some(&Self::derive_bridge_id(program_id)?),
-            0,
             decimals,
         )?;
         invoke_signed(&ix, accounts, &[])

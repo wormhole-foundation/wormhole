@@ -39,6 +39,7 @@ use spl_bridge::instruction::*;
 use spl_bridge::state::*;
 
 use crate::faucet::request_and_confirm_airdrop;
+use spl_token::pack::Pack;
 
 mod faucet;
 
@@ -219,7 +220,7 @@ fn command_create_token(config: &Config, decimals: u8) -> CommmandResult {
 
     let minimum_balance_for_rent_exemption = config
         .rpc_client
-        .get_minimum_balance_for_rent_exemption(size_of::<Mint>())?;
+        .get_minimum_balance_for_rent_exemption(Mint::LEN)?;
 
     let mut transaction = Transaction::new_with_payer(
         &[
@@ -227,15 +228,14 @@ fn command_create_token(config: &Config, decimals: u8) -> CommmandResult {
                 &config.fee_payer.pubkey(),
                 &token.pubkey(),
                 minimum_balance_for_rent_exemption,
-                size_of::<Mint>() as u64,
+                Mint::LEN as u64,
                 &spl_token::id(),
             ),
             initialize_mint(
                 &spl_token::id(),
                 &token.pubkey(),
+                &config.owner.pubkey(),
                 None,
-                Some(&config.owner.pubkey()),
-                0,
                 decimals,
             )?,
         ],
@@ -260,7 +260,7 @@ fn command_create_account(config: &Config, token: Pubkey) -> CommmandResult {
 
     let minimum_balance_for_rent_exemption = config
         .rpc_client
-        .get_minimum_balance_for_rent_exemption(size_of::<Account>())?;
+        .get_minimum_balance_for_rent_exemption(Account::LEN)?;
 
     let mut transaction = Transaction::new_with_payer(
         &[
@@ -268,7 +268,7 @@ fn command_create_account(config: &Config, token: Pubkey) -> CommmandResult {
                 &config.fee_payer.pubkey(),
                 &account.pubkey(),
                 minimum_balance_for_rent_exemption,
-                size_of::<Account>() as u64,
+                Account::LEN as u64,
                 &spl_token::id(),
             ),
             initialize_account(
@@ -302,10 +302,11 @@ fn command_assign(config: &Config, account: Pubkey, new_owner: Pubkey) -> Commma
     );
 
     let mut transaction = Transaction::new_with_payer(
-        &[set_owner(
+        &[set_authority(
             &spl_token::id(),
             &account,
-            &new_owner,
+            Some(&new_owner),
+            AuthorityType::AccountOwner,
             &config.owner.pubkey(),
             &[],
         )?],
@@ -361,12 +362,19 @@ fn command_burn(config: &Config, source: Pubkey, ui_amount: f64) -> CommmandResu
         .rpc_client
         .get_token_account_balance_with_commitment(&source, config.commitment_config)?
         .value;
-
+    let source_account = config
+        .rpc_client
+        .get_account_with_commitment(&source, config.commitment_config)?
+        .value
+        .unwrap_or_default();
+    let data = source_account.data.to_vec();
+    let mint_pubkey = Account::unpack_from_slice(&data)?.mint;
     let amount = spl_token::ui_amount_to_amount(ui_amount, source_token_balance.decimals);
     let mut transaction = Transaction::new_with_payer(
         &[burn(
             &spl_token::id(),
             &source,
+            &mint_pubkey,
             &config.owner.pubkey(),
             &[],
             amount,
@@ -1144,6 +1152,7 @@ fn main() {
                     RpcSendTransactionConfig {
                         // TODO: move to https://github.com/solana-labs/solana/pull/11792
                         skip_preflight: true,
+                        preflight_commitment: None,
                     },
                 )?;
             println!("Signature: {}", signature);

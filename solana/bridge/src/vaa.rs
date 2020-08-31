@@ -3,11 +3,14 @@ use std::io::{Cursor, Read, Write};
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use primitive_types::U256;
 use sha3::Digest;
+use solana_sdk::instruction::Instruction;
+#[cfg(feature = "program")]
+use solana_sdk::program::invoke_signed;
+use solana_sdk::program_error::ProgramError;
 
 use crate::error::Error;
 use crate::error::Error::InvalidVAAFormat;
 use crate::state::AssetMeta;
-use crate::syscalls::{sol_syscall_ecrecover, EcrecoverInput, EcrecoverOutput};
 
 pub type ForeignAddress = [u8; 32];
 
@@ -50,31 +53,37 @@ impl VAA {
             }
         };
 
-        let mut h = sha3::Keccak256::default();
-        if let Err(_) = h.write(body.as_slice()) {
-            return false;
-        };
-        let hash = h.finalize().into();
-
         // Check quorum
         if self.signatures.len() < (((guardian_keys.len() / 4) * 3) + 1 as usize) {
             return false;
         }
 
         for sig in self.signatures.iter() {
-            let ecrecover_input = EcrecoverInput::new(sig.r, sig.s, sig.v, hash);
-            let res = match sol_syscall_ecrecover(&ecrecover_input) {
-                Ok(v) => v,
-                Err(_) => {
-                    return false;
-                }
-            };
-
             if sig.index >= guardian_keys.len() as u8 {
                 return false;
             }
-            if res.address != guardian_keys[sig.index as usize] {
-                return false;
+
+            #[cfg(feature = "program")]
+            {
+                let mut instruction_data = Vec::new();
+                instruction_data.resize(20 + 32 + 32 + 1 + body.len(), 0);
+                instruction_data[..20].copy_from_slice(&guardian_keys[sig.index as usize]);
+                instruction_data[20..20 + 32].copy_from_slice(&sig.r);
+                instruction_data[20 + 32..20 + 32 + 32].copy_from_slice(&sig.s);
+                instruction_data[20 + 32 + 32] = sig.v;
+                instruction_data[20 + 32 + 32 + 1..].copy_from_slice(&body);
+
+                if let Err(_) = invoke_signed(
+                    &Instruction {
+                        program_id: solana_sdk::secp256k1_program::id(),
+                        accounts: vec![],
+                        data: instruction_data,
+                    },
+                    &[],
+                    &[],
+                ) {
+                    return false;
+                };
             }
         }
 
@@ -132,6 +141,7 @@ impl VAA {
         Ok(v.into_inner())
     }
 
+    #[inline(never)]
     pub fn deserialize(data: &[u8]) -> Result<VAA, Error> {
         let mut rdr = Cursor::new(data);
         let mut v = VAA::new();

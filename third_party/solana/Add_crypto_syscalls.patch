@@ -1,10 +1,47 @@
+Index: account-decoder/src/parse_token.rs
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- account-decoder/src/parse_token.rs	(revision 998f9725d06052be4f70293ab53041d660646987)
++++ account-decoder/src/parse_token.rs	(revision c7427aae23633651466a068035b9cc1b2033a42b)
+@@ -30,11 +30,7 @@
+     if data.len() == Account::get_packed_len() {
+         let account = Account::unpack(data)
+             .map_err(|_| ParseAccountError::AccountNotParsable(ParsableAccount::SplToken))?;
+-        let decimals = mint_decimals.ok_or_else(|| {
+-            ParseAccountError::AdditionalDataMissing(
+-                "no mint_decimals provided to parse spl-token account".to_string(),
+-            )
+-        })?;
++        let decimals = mint_decimals.or(Some(0))?;
+         Ok(TokenAccountType::Account(UiTokenAccount {
+             mint: account.mint.to_string(),
+             owner: account.owner.to_string(),
+Index: fetch-spl.sh
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- fetch-spl.sh	(revision 998f9725d06052be4f70293ab53041d660646987)
++++ fetch-spl.sh	(revision c7427aae23633651466a068035b9cc1b2033a42b)
+@@ -40,6 +40,9 @@
+ fetch_program token 2.0.3 TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA BPFLoader1111111111111111111111111111111111
+ fetch_program memo  1.0.0 Memo1UhkJRfHyvLMcVucJwxXeuD728EqVDDwQDxFMNo BPFLoader1111111111111111111111111111111111
+
++# Add bridge
++genesis_args+=(--bpf-program Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o BPFLoader2111111111111111111111111111111111 /opt/solana/deps/spl_bridge.so)
++
+ echo "${genesis_args[@]}" > spl-genesis-args.sh
+
+ echo
 Index: Cargo.lock
 IDEA additional info:
 Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
 <+>UTF-8
 ===================================================================
---- Cargo.lock	(revision c8b40da7abf11c1d880436b0b3ed51261900a986)
-+++ Cargo.lock	(revision d0901065ee3d9b73483be7d8101ef124a2ee7dda)
+--- Cargo.lock	(revision c7427aae23633651466a068035b9cc1b2033a42b)
++++ Cargo.lock	(revision 61b697eef4f25bdebeb90223de8a34affdf96d3a)
 @@ -274,12 +274,22 @@
  source = "registry+https://github.com/rust-lang/crates.io-index"
  checksum = "c0940dc441f31689269e10ac70eb1002a3a1d3ad1390e030043662eb7fe4688b"
@@ -42,7 +79,7 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
  [[package]]
  name = "bs58"
  version = "0.3.1"
-@@ -633,6 +649,12 @@
+@@ -615,6 +631,12 @@
   "lazy_static",
  ]
 
@@ -55,7 +92,7 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
  [[package]]
  name = "crypto-mac"
  version = "0.7.0"
-@@ -682,7 +704,7 @@
+@@ -664,7 +686,7 @@
  checksum = "5d85653f070353a16313d0046f173f70d1aadd5b42600a14de626f0dfb3473a5"
  dependencies = [
   "byteorder",
@@ -64,7 +101,7 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
   "rand_core 0.5.1",
   "subtle 2.2.2",
   "zeroize",
-@@ -725,6 +747,15 @@
+@@ -707,6 +729,15 @@
   "generic-array 0.12.3",
  ]
 
@@ -80,7 +117,7 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
  [[package]]
  name = "dir-diff"
  version = "0.3.2"
-@@ -1316,7 +1347,18 @@
+@@ -1289,7 +1320,18 @@
  checksum = "5dcb5e64cda4c23119ab41ba960d1e170a774c8e4b9d9e6a9bc18aabf5e59695"
  dependencies = [
   "crypto-mac",
@@ -100,7 +137,7 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
  ]
 
  [[package]]
-@@ -1750,6 +1792,12 @@
+@@ -1723,6 +1765,12 @@
   "ws",
  ]
 
@@ -113,7 +150,7 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
  [[package]]
  name = "kernel32-sys"
  version = "0.2.2"
-@@ -1818,6 +1866,22 @@
+@@ -1791,6 +1839,22 @@
   "libc",
  ]
 
@@ -136,7 +173,7 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
  [[package]]
  name = "linked-hash-map"
  version = "0.5.3"
-@@ -2146,6 +2210,12 @@
+@@ -2141,6 +2205,12 @@
  source = "registry+https://github.com/rust-lang/crates.io-index"
  checksum = "2839e79665f131bdb5782e51f2c6c9599c133c6098982a54c794358bf432529c"
 
@@ -149,7 +186,7 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
  [[package]]
  name = "openssl"
  version = "0.10.29"
-@@ -3098,10 +3168,10 @@
+@@ -3093,10 +3163,10 @@
  source = "registry+https://github.com/rust-lang/crates.io-index"
  checksum = "f7d94d0bede923b3cea61f3f1ff57ff8cdfd77b400fb8f9998949e0cf04163df"
  dependencies = [
@@ -163,7 +200,7 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
  ]
 
  [[package]]
-@@ -3116,10 +3186,22 @@
+@@ -3111,10 +3181,22 @@
  source = "registry+https://github.com/rust-lang/crates.io-index"
  checksum = "a256f46ea78a0c0d9ff00077504903ac881a1dafdc20da66545699e7776b3e69"
  dependencies = [
@@ -189,568 +226,727 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
  ]
 
  [[package]]
-@@ -3376,12 +3458,16 @@
- name = "solana-bpf-loader-program"
- version = "1.4.0"
- dependencies = [
-+ "arrayref",
-  "bincode",
-  "byteorder",
-+ "hex",
+@@ -4310,6 +4392,21 @@
+  "syn 1.0.27",
+ ]
+
++[[package]]
++name = "solana-secp256k1"
++version = "1.4.0"
++dependencies = [
++ "bincode",
++ "digest 0.9.0",
 + "libsecp256k1",
-  "num-derive 0.3.0",
-  "num-traits",
-  "rand 0.7.3",
-  "rustversion",
++ "log 0.3.9",
++ "rand 0.7.3",
 + "sha3",
-  "solana-runtime",
-  "solana-sdk 1.4.0",
-  "solana_rbpf",
-Index: programs/bpf_loader/Cargo.toml
++ "solana-logger 1.4.0",
++ "solana-runtime",
++ "solana-sdk 1.4.0",
++]
++
+ [[package]]
+ name = "solana-stake-accounts"
+ version = "1.4.0"
+Index: Cargo.toml
 IDEA additional info:
 Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
 <+>UTF-8
 ===================================================================
---- programs/bpf_loader/Cargo.toml	(revision c8b40da7abf11c1d880436b0b3ed51261900a986)
-+++ programs/bpf_loader/Cargo.toml	(revision d0901065ee3d9b73483be7d8101ef124a2ee7dda)
-@@ -17,6 +17,10 @@
- solana-sdk = { path = "../../sdk", version = "1.4.0" }
- solana_rbpf = "=0.1.28"
- thiserror = "1.0"
+--- Cargo.toml	(revision c7427aae23633651466a068035b9cc1b2033a42b)
++++ Cargo.toml	(revision 61b697eef4f25bdebeb90223de8a34affdf96d3a)
+@@ -36,6 +36,7 @@
+     "net-shaper",
+     "notifier",
+     "poh-bench",
++    "programs/secp256k1",
+     "programs/bpf_loader",
+     "programs/budget",
+     "programs/config",
+Index: programs/secp256k1/Cargo.toml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- programs/secp256k1/Cargo.toml	(revision 61b697eef4f25bdebeb90223de8a34affdf96d3a)
++++ programs/secp256k1/Cargo.toml	(revision 61b697eef4f25bdebeb90223de8a34affdf96d3a)
+@@ -0,0 +1,32 @@
++[package]
++name = "solana-secp256k1"
++description = "Blockchain, Rebuilt for Scale"
++version = "1.4.0"
++documentation = "https://docs.rs/solana"
++homepage = "https://solana.com/"
++readme = "README.md"
++repository = "https://github.com/solana-labs/solana"
++authors = ["Solana Maintainers <maintainers@solana.foundation>"]
++license = "Apache-2.0"
++edition = "2018"
++publish = false
++
++[dependencies]
++bincode = "1.1.4"
++solana-logger = { path = "../../logger", version = "1.4.0" }
++solana-sdk = { path = "../../sdk", version = "1.4.0" }
 +libsecp256k1 = "0.3.5"
 +sha3 = "0.9.1"
-+arrayref = "0.3.6"
-+hex = "0.4.2"
-
- [dev-dependencies]
- rand = "0.7.3"
-Index: programs/bpf_loader/src/crypto.rs
++digest = "0.9.0"
++log = ""
++rand = "0.7.0"
++
++[dev-dependencies]
++solana-runtime = { path = "../../runtime", version = "1.4.0" }
++
++[lib]
++crate-type = ["lib"]
++name = "solana_secp256k1_program"
++
++[package.metadata.docs.rs]
++targets = ["x86_64-unknown-linux-gnu"]
+Index: programs/secp256k1/src/lib.rs
 IDEA additional info:
 Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
 <+>UTF-8
 ===================================================================
---- programs/bpf_loader/src/crypto.rs	(revision d0901065ee3d9b73483be7d8101ef124a2ee7dda)
-+++ programs/bpf_loader/src/crypto.rs	(revision d0901065ee3d9b73483be7d8101ef124a2ee7dda)
-@@ -0,0 +1,171 @@
-+pub extern crate secp256k1;
+--- programs/secp256k1/src/lib.rs	(revision 61b697eef4f25bdebeb90223de8a34affdf96d3a)
++++ programs/secp256k1/src/lib.rs	(revision 61b697eef4f25bdebeb90223de8a34affdf96d3a)
+@@ -0,0 +1,2 @@
++extern crate secp256k1;
++mod secp256k1_instruction;
+Index: programs/secp256k1/src/secp256k1_instruction.rs
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- programs/secp256k1/src/secp256k1_instruction.rs	(revision 61b697eef4f25bdebeb90223de8a34affdf96d3a)
++++ programs/secp256k1/src/secp256k1_instruction.rs	(revision 61b697eef4f25bdebeb90223de8a34affdf96d3a)
+@@ -0,0 +1,158 @@
++use digest::Digest;
++use solana_sdk::pubkey::Pubkey;
++use solana_sdk::{account::KeyedAccount, instruction::InstructionError};
 +
-+use std::io::Write;
-+
-+use num_traits::AsPrimitive;
-+use secp256k1::curve::{Affine, ECMULT_CONTEXT, ECMULT_GEN_CONTEXT, ECMultGenContext, Field, Jacobian, Scalar};
-+use sha3::Digest;
-+
-+use self::secp256k1::{Error, PublicKey};
-+
-+pub enum SchnorrError {
-+    InvalidPubKey
++enum Secp256k1Error {
++    InvalidSignature,
++    InvalidRecoveryId,
 +}
 +
-+#[repr(C)]
-+pub struct EcrecoverInput {
-+    pub signature: [u8; 65],
-+    pub message: [u8; 32],
++const HASHED_PUBKEY_SERIALIZED_SIZE: usize = 20;
++const SIGNATURE_SERIALIZED_SIZE: usize = 64;
++
++fn construct_eth_pubkey(pubkey: &secp256k1::PublicKey) -> [u8; HASHED_PUBKEY_SERIALIZED_SIZE] {
++    let mut addr = [0u8; HASHED_PUBKEY_SERIALIZED_SIZE];
++    addr.copy_from_slice(&sha3::Keccak256::digest(&pubkey.serialize()[1..])[12..]);
++    addr
 +}
 +
-+#[repr(C)]
-+pub struct EcrecoverOutput {
-+    pub address: [u8; 20],
-+}
++pub fn process_instruction(
++    _program_id: &Pubkey,
++    _keyed_accounts: &[KeyedAccount],
++    data: &[u8],
++) -> Result<(), InstructionError> {
++    if data.len() < (HASHED_PUBKEY_SERIALIZED_SIZE + SIGNATURE_SERIALIZED_SIZE + 1) {
++        return Err(InstructionError::InvalidInstructionData);
++    }
++    let signature = secp256k1::Signature::parse_slice(
++        &data[HASHED_PUBKEY_SERIALIZED_SIZE
++            ..HASHED_PUBKEY_SERIALIZED_SIZE + SIGNATURE_SERIALIZED_SIZE],
++    )
++    .map_err(|_| InstructionError::Custom(Secp256k1Error::InvalidSignature as u32))?;
 +
-+#[repr(C)]
-+pub struct SchnorrifyInput {
-+    message: [u8; 32],
-+    addr: [u8; 20],
-+    signature: [u8; 32],
-+    pub_key: [u8; 64],
-+}
++    let recovery_id = secp256k1::RecoveryId::parse(
++        data[HASHED_PUBKEY_SERIALIZED_SIZE + SIGNATURE_SERIALIZED_SIZE],
++    )
++    .map_err(|_| InstructionError::Custom(Secp256k1Error::InvalidRecoveryId as u32))?;
 +
-+impl SchnorrifyInput {
-+    pub fn verify(&self) -> bool {
-+        let sig = SchnorrSignature {
-+            address: self.addr,
-+            signature: self.signature,
-+        };
++    let mut hasher = sha3::Keccak256::new();
++    hasher.update(&data[HASHED_PUBKEY_SERIALIZED_SIZE + SIGNATURE_SERIALIZED_SIZE + 1..]);
++    let message_hash = hasher.finalize();
 +
-+        let pub_key = SchnorrPublicKey::deserialize(&self.pub_key);
++    let pubkey = secp256k1::recover(
++        &secp256k1::Message::parse_slice(&message_hash).unwrap(),
++        &signature,
++        &recovery_id,
++    )
++    .map_err(|_| InstructionError::Custom(Secp256k1Error::InvalidSignature as u32))?;
++    let eth_pubkey = construct_eth_pubkey(&pubkey);
 +
-+        match sig.verify_signature(&self.message, &pub_key) {
-+            Ok(res) => res,
-+            Err(_) => false
-+        }
++    if data[..HASHED_PUBKEY_SERIALIZED_SIZE] == eth_pubkey {
++        Ok(())
++    } else {
++        Err(InstructionError::Custom(
++            Secp256k1Error::InvalidSignature as u32,
++        ))
 +    }
 +}
 +
-+pub struct SchnorrPublicKey {
-+    x: Field,
-+    y: Field,
-+}
-+
-+pub struct SchnorrSignature {
-+    pub address: [u8; 20],
-+    pub signature: [u8; 32],
-+}
-+
-+impl SchnorrPublicKey {
-+    pub fn deserialize(d: &[u8; 64]) -> SchnorrPublicKey {
-+        let mut x = Field::default();
-+        let mut y = Field::default();
-+        x.set_b32(array_ref![d,0,32]);
-+        y.set_b32(array_ref![d,32,32]);
-+        x.normalize();
-+        y.normalize();
-+        SchnorrPublicKey {
-+            x,
-+            y,
-+        }
-+    }
-+}
-+
-+impl SchnorrSignature {
-+    pub fn verify_signature(&self, msg: &[u8; 32], pub_key: &SchnorrPublicKey) -> Result<bool, SchnorrError> {
-+        let mut af = Affine::default();
-+        af.set_xy(&pub_key.x, &pub_key.y);
-+        let mut pubkey_j: Jacobian = Jacobian::default();
-+        pubkey_j.set_ge(&af);
-+
-+        // Verify that the pubkey is a curve point
-+        let mut elem = Affine::default();
-+        if !elem.set_xo_var(&pub_key.x, pub_key.y.is_odd()) {
-+            return Err(SchnorrError::InvalidPubKey);
-+        }
-+        elem.y.normalize();
-+
-+        // Make sure that the ordinates are equal
-+        if elem.y.b32() != pub_key.y.b32() {
-+            return Err(SchnorrError::InvalidPubKey);
-+        }
-+
-+        // Generate the challenge
-+        let mut h = sha3::Keccak256::default();
-+        h.write(&pub_key.x.b32()); // pub key x coordinate
-+        h.write(&[(pub_key.y.is_odd()).as_()]); // y parity
-+        h.write(msg); // msg
-+        h.write(&self.address); // nonceTimesGeneratorAddress
-+        let challenge = h.finalize();
-+
-+        let mut e = Scalar::default();
-+        e.set_b32(array_ref![challenge,0,32]);
-+
-+        let mut s = Scalar::default();
-+        s.set_b32(&self.signature);
-+
-+        // Calculate s x G + e x P
-+        let mut k: Jacobian = Jacobian::default();
-+        ECMULT_CONTEXT.ecmult(&mut k, &pubkey_j, &e, &s);
-+
-+        let r = jacobian_to_normalized_affine(&k);
-+
-+        // Generate Ethereum address from calculated point
-+        let eth_addr = affine_to_eth_address(&r);
-+
-+        // Verify that addr(k) == sig.address
-+        Ok(eth_addr == self.address)
-+    }
-+}
-+
-+fn affine_to_eth_address(a: &Affine) -> [u8; 20] {
-+    let mut h = sha3::Keccak256::default();
-+    h.write(a.x.b32().as_ref()); // result key x coordinate
-+    h.write(a.y.b32().as_ref()); // result key y coordinate
-+
-+    let out = h.finalize();
-+    let mut out_addr = [0; 20];
-+    out_addr.copy_from_slice(&out[12..]);
-+
-+    out_addr
-+}
-+
-+fn jacobian_to_normalized_affine(j: &Jacobian) -> Affine {
-+    let mut r = Affine::default();
-+    r.set_gej(j);
-+    r.x.normalize();
-+    r.y.normalize();
-+
-+    r
-+}
++solana_sdk::declare_program!(
++    solana_sdk::secp256k1_program::ID,
++    solana_keccak_secp256k1_program,
++    process_instruction
++);
 +
 +#[cfg(test)]
-+mod tests {
-+    use std::io::Write;
++pub mod test {
++    use super::construct_eth_pubkey;
++    use crate::secp256k1_instruction::SIGNATURE_SERIALIZED_SIZE;
++    use digest::Digest;
++    use log::*;
++    use rand::{thread_rng, Rng};
++    use solana_runtime::bank::Bank;
++    use solana_sdk::instruction::Instruction;
++    use solana_sdk::transaction::Transaction;
++    use solana_sdk::{genesis_config::create_genesis_config, signature::Signer};
 +
-+    use hex;
++    fn new_secp256k1_instruction(
++        priv_key: &secp256k1::SecretKey,
++        message_arr: &[u8],
++    ) -> Instruction {
++        let secp_pubkey = secp256k1::PublicKey::from_secret_key(priv_key);
++        let eth_pubkey = construct_eth_pubkey(&secp_pubkey);
++        let mut hasher = sha3::Keccak256::new();
++        hasher.update(&message_arr);
++        let message_hash = hasher.finalize();
++        let mut message_hash_arr = [0u8; 32];
++        message_hash_arr.copy_from_slice(&message_hash.as_slice());
++        let message = secp256k1::Message::parse(&message_hash_arr);
++        let (signature, recovery_id) = secp256k1::sign(&message, priv_key);
++        let signature_arr = signature.serialize();
++        assert_eq!(signature_arr.len(), SIGNATURE_SERIALIZED_SIZE);
 +
-+    use crate::crypto::{SchnorrPublicKey, SchnorrSignature};
++        let mut instruction_data = vec![];
++        instruction_data.resize(
++            eth_pubkey.len() + signature_arr.len() + message_arr.len() + 1,
++            0,
++        );
++        instruction_data[..eth_pubkey.len()].copy_from_slice(&eth_pubkey);
++        instruction_data[eth_pubkey.len()..eth_pubkey.len() + signature_arr.len()]
++            .copy_from_slice(&signature_arr);
++        instruction_data[eth_pubkey.len() + signature_arr.len()] = recovery_id.serialize();
++        instruction_data[eth_pubkey.len() + signature_arr.len() + 1..].copy_from_slice(message_arr);
++
++        Instruction {
++            program_id: crate::secp256k1_instruction::id(),
++            accounts: vec![],
++            data: instruction_data,
++        }
++    }
 +
 +    #[test]
-+    fn verify_signature() {
-+        let msggg = hex::decode("0194fdc2fa2ffcc041d3ff12045b73c86e4ff95ff662a5eee82abdf44a2d0b75").unwrap();
-+        let siggg = hex::decode("ee5884a66454baca985f4453c05394214a75dc38956ea39f12cc429f081aae4b").unwrap();
-+        let addr = hex::decode("9addd8a38fea7e1b94550e5bc249309a633dfa63").unwrap();
-+        let pb = hex::decode("ae92ce7553993f04400c6976f8cd4540ae076bf0131eec8b35ae0ff9fc577a901de834d0f62ae6ecbeec2124595b06bce078b8133b4dda3855cf346feb2b2ca2").unwrap();
++    fn test_secp256k1() {
++        use super::Secp256k1Error;
++        use solana_sdk::instruction::InstructionError;
++        use solana_sdk::transaction::TransactionError;
++        solana_logger::setup();
 +
-+        let sig = SchnorrSignature {
-+            address: *array_ref![addr,0,20],
-+            signature: *array_ref![siggg,0,32],
-+        };
++        let (genesis_config, mint_keypair) = create_genesis_config(1_000_000_000);
++        let mut bank = Bank::new(&genesis_config);
 +
-+        let pub_key = SchnorrPublicKey::deserialize(array_ref![pb,0,64]);
++        let secp_privkey = secp256k1::SecretKey::random(&mut thread_rng());
++        let message_arr = b"hello";
++        let mut secp_instruction = new_secp256k1_instruction(&secp_privkey, message_arr);
 +
-+        let msg = array_ref![msggg,0,32];
-+        match sig.verify_signature(msg, &pub_key) {
-+            Ok(res) => assert!(res, "signature should be valid"),
-+            Err(err) => assert!(false, "signature verification failed")
++        let tx = Transaction::new_signed_with_payer(
++            &[secp_instruction.clone()],
++            Some(&mint_keypair.pubkey()),
++            &[&mint_keypair],
++            bank.last_blockhash(),
++        );
++        bank.add_builtin_program(
++            "secp256k1",
++            crate::secp256k1_instruction::id(),
++            crate::secp256k1_instruction::process_instruction,
++        );
++
++        info!("tx: {:?}", tx);
++        assert!(bank.process_transaction(&tx).is_ok());
++
++        let index = thread_rng().gen_range(0, secp_instruction.data.len());
++        secp_instruction.data[index] = secp_instruction.data[index].wrapping_add(12);
++        let tx = Transaction::new_signed_with_payer(
++            &[secp_instruction],
++            Some(&mint_keypair.pubkey()),
++            &[&mint_keypair],
++            bank.last_blockhash(),
++        );
++        match bank.process_transaction(&tx) {
++            Ok(_) => panic!("should error"),
++            Err(e) => match e {
++                TransactionError::InstructionError(0, InstructionError::Custom(code)) => {
++                    assert_eq!(code, Secp256k1Error::InvalidSignature as u32);
++                }
++                _ => panic!("should error"),
++            },
 +        }
 +    }
 +}
-Index: programs/bpf_loader/src/lib.rs
+Index: sdk/src/fee_calculator.rs
 IDEA additional info:
 Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
 <+>UTF-8
 ===================================================================
---- programs/bpf_loader/src/lib.rs	(revision c8b40da7abf11c1d880436b0b3ed51261900a986)
-+++ programs/bpf_loader/src/lib.rs	(revision 745a97685408ff4249d96333a7885cd214639b70)
-@@ -4,6 +4,10 @@
- pub mod deprecated;
- pub mod serialization;
- pub mod syscalls;
-+pub mod crypto;
+--- sdk/src/fee_calculator.rs	(revision c7427aae23633651466a068035b9cc1b2033a42b)
++++ sdk/src/fee_calculator.rs	(revision 61b697eef4f25bdebeb90223de8a34affdf96d3a)
+@@ -1,5 +1,6 @@
+ use crate::clock::{DEFAULT_TICKS_PER_SECOND, DEFAULT_TICKS_PER_SLOT};
+ use crate::message::Message;
++use crate::secp256k1_program;
+ use log::*;
+
+ #[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug, AbiExample)]
+@@ -26,7 +27,18 @@
+     }
+
+     pub fn calculate_fee(&self, message: &Message) -> u64 {
+-        self.lamports_per_signature * u64::from(message.header.num_required_signatures)
++        let mut num_secp_signatures: u64 = 0;
++        for instruction in &message.instructions {
++            let program_index = instruction.program_id_index as usize;
++            if program_index < message.account_keys.len() {
++                let id = message.account_keys[program_index];
++                if secp256k1_program::check_id(&id) {
++                    num_secp_signatures += 1;
++                }
++            }
++        }
++        self.lamports_per_signature
++            * (u64::from(message.header.num_required_signatures) + num_secp_signatures)
+     }
+ }
+
+@@ -203,6 +215,27 @@
+         assert_eq!(FeeCalculator::new(2).calculate_fee(&message), 4);
+     }
+
++    #[test]
++    fn test_fee_calculator_calculate_fee_secp256k1() {
++        use crate::instruction::Instruction;
++        let pubkey0 = Pubkey::new(&[0; 32]);
++        let pubkey1 = Pubkey::new(&[1; 32]);
++        let ix0 = system_instruction::transfer(&pubkey0, &pubkey1, 1);
++        let secp_instruction = Instruction {
++            program_id: crate::secp256k1_program::id(),
++            accounts: vec![],
++            data: vec![],
++        };
++        let secp_instruction2 = Instruction {
++            program_id: crate::secp256k1_program::id(),
++            accounts: vec![],
++            data: vec![1],
++        };
 +
-+#[macro_use]
-+extern crate arrayref;
-
- use crate::{
-     bpf_verifier::VerifierError,
-@@ -65,7 +69,7 @@
- ) -> Result<(EbpfVm<'a, BPFError>, MemoryRegion), EbpfError<BPFError>> {
-     let mut vm = EbpfVm::new(None)?;
-     vm.set_verifier(bpf_verifier::check)?;
--    vm.set_max_instruction_count(100_000)?;
-+    vm.set_max_instruction_count(1_000_000)?;
-     vm.set_elf(&prog)?;
-
-     let heap_region = syscalls::register_syscalls(&mut vm, parameter_accounts, invoke_context)?;
-Index: programs/bpf_loader/src/syscalls.rs
++        let message = Message::new(&[ix0, secp_instruction, secp_instruction2], Some(&pubkey0));
++        assert_eq!(FeeCalculator::new(1).calculate_fee(&message), 3);
++    }
++
+     #[test]
+     fn test_fee_rate_governor_derived_default() {
+         solana_logger::setup();
+Index: sdk/src/lib.rs
 IDEA additional info:
 Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
 <+>UTF-8
 ===================================================================
---- programs/bpf_loader/src/syscalls.rs	(revision c8b40da7abf11c1d880436b0b3ed51261900a986)
-+++ programs/bpf_loader/src/syscalls.rs	(revision d0901065ee3d9b73483be7d8101ef124a2ee7dda)
-@@ -1,10 +1,23 @@
--use crate::{alloc, BPFError};
--use alloc::Alloc;
-+use std::{
-+    alloc::Layout,
-+    cell::{RefCell, RefMut},
-+    convert::TryFrom,
-+    mem::{align_of, size_of},
-+    rc::Rc,
-+    slice::from_raw_parts_mut,
-+    str::{from_utf8, Utf8Error},
+--- sdk/src/lib.rs	(revision c7427aae23633651466a068035b9cc1b2033a42b)
++++ sdk/src/lib.rs	(revision 61b697eef4f25bdebeb90223de8a34affdf96d3a)
+@@ -37,6 +37,7 @@
+ pub mod rent;
+ pub mod rpc_port;
+ pub mod sanitize;
++pub mod secp256k1_program;
+ pub mod short_vec;
+ pub mod slot_hashes;
+ pub mod slot_history;
+Index: sdk/src/secp256k1_program.rs
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- sdk/src/secp256k1_program.rs	(revision 61b697eef4f25bdebeb90223de8a34affdf96d3a)
++++ sdk/src/secp256k1_program.rs	(revision 61b697eef4f25bdebeb90223de8a34affdf96d3a)
+@@ -0,0 +1,1 @@
++solana_sdk::declare_id!("KeccakSecp256k11111111111111111111111111111");
+Index: programs/bpf/Cargo.lock
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- programs/bpf/Cargo.lock	(revision 61b697eef4f25bdebeb90223de8a34affdf96d3a)
++++ programs/bpf/Cargo.lock	(revision dc94838be76e0d3ee2441c47df4bb1add701c3ee)
+@@ -1693,6 +1693,14 @@
+  "solana-sdk",
+ ]
+
++[[package]]
++name = "solana-bpf-rust-instruction-introspection"
++version = "1.4.0"
++dependencies = [
++ "bincode",
++ "solana-sdk",
++]
++
+ [[package]]
+ name = "solana-bpf-rust-invoke"
+ version = "1.4.0"
+Index: programs/bpf/Cargo.toml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- programs/bpf/Cargo.toml	(revision 61b697eef4f25bdebeb90223de8a34affdf96d3a)
++++ programs/bpf/Cargo.toml	(revision dc94838be76e0d3ee2441c47df4bb1add701c3ee)
+@@ -40,6 +40,7 @@
+     "rust/dup_accounts",
+     "rust/error_handling",
+     "rust/external_spend",
++    "rust/instruction_introspection",
+     "rust/invoke",
+     "rust/invoked",
+     "rust/iter",
+Index: programs/bpf/build.rs
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- programs/bpf/build.rs	(revision 61b697eef4f25bdebeb90223de8a34affdf96d3a)
++++ programs/bpf/build.rs	(revision dc94838be76e0d3ee2441c47df4bb1add701c3ee)
+@@ -71,6 +71,7 @@
+             "dup_accounts",
+             "error_handling",
+             "external_spend",
++            "instruction_introspection",
+             "invoke",
+             "invoked",
+             "iter",
+Index: programs/bpf/rust/instruction_introspection/Cargo.toml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- programs/bpf/rust/instruction_introspection/Cargo.toml	(revision dc94838be76e0d3ee2441c47df4bb1add701c3ee)
++++ programs/bpf/rust/instruction_introspection/Cargo.toml	(revision dc94838be76e0d3ee2441c47df4bb1add701c3ee)
+@@ -0,0 +1,27 @@
++
++# Note: This crate must be built using do.sh
++
++[package]
++name = "solana-bpf-rust-instruction-introspection"
++version = "1.4.0"
++description = "Solana BPF test program written in Rust"
++authors = ["Solana Maintainers <maintainers@solana.foundation>"]
++repository = "https://github.com/solana-labs/solana"
++license = "Apache-2.0"
++homepage = "https://solana.com/"
++edition = "2018"
++
++[dependencies]
++solana-sdk = { path = "../../../../sdk/", version = "1.4.0", default-features = false }
++bincode = "1.3.1"
++
++[features]
++program = ["solana-sdk/program"]
++default = ["program", "solana-sdk/default"]
++
++[lib]
++name = "solana_bpf_rust_instruction_introspection"
++crate-type = ["cdylib"]
++
++[package.metadata.docs.rs]
++targets = ["x86_64-unknown-linux-gnu"]
+Index: programs/bpf/rust/instruction_introspection/Xargo.toml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- programs/bpf/rust/instruction_introspection/Xargo.toml	(revision dc94838be76e0d3ee2441c47df4bb1add701c3ee)
++++ programs/bpf/rust/instruction_introspection/Xargo.toml	(revision dc94838be76e0d3ee2441c47df4bb1add701c3ee)
+@@ -0,0 +1,2 @@
++[target.bpfel-unknown-unknown.dependencies.std]
++features = []
+\ No newline at end of file
+Index: programs/bpf/rust/instruction_introspection/src/lib.rs
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- programs/bpf/rust/instruction_introspection/src/lib.rs	(revision dc94838be76e0d3ee2441c47df4bb1add701c3ee)
++++ programs/bpf/rust/instruction_introspection/src/lib.rs	(revision dc94838be76e0d3ee2441c47df4bb1add701c3ee)
+@@ -0,0 +1,44 @@
++//! @brief Example Rust-based BPF program that exercises instruction introspection
++
++extern crate solana_sdk;
++use solana_sdk::sysvar::instructions::Instructions;
++use solana_sdk::sysvar::Sysvar;
++use solana_sdk::{
++    account_info::next_account_info, account_info::AccountInfo, entrypoint,
++    entrypoint::ProgramResult, info, instruction::Instruction, program_error::ProgramError,
++    pubkey::Pubkey,
 +};
 +
-+use secp256k1::{Error, PublicKey, RecoveryId, Signature};
-+use sha3::Digest;
- use solana_rbpf::{
--    ebpf::{EbpfError, SyscallObject, ELF_INSN_DUMP_OFFSET, MM_HEAP_START},
--    memory_region::{translate_addr, MemoryRegion},
-+    ebpf::{EbpfError, ELF_INSN_DUMP_OFFSET, MM_HEAP_START, SyscallObject},
-     EbpfVm,
-+    memory_region::{MemoryRegion, translate_addr},
- };
-+use thiserror::Error as ThisError;
-+
-+use alloc::Alloc;
- use solana_runtime::message_processor::MessageProcessor;
- use solana_sdk::{
-     account::Account,
-@@ -18,16 +31,16 @@
-     program_error::ProgramError,
-     pubkey::{Pubkey, PubkeyError},
- };
--use std::{
--    alloc::Layout,
--    cell::{RefCell, RefMut},
--    convert::TryFrom,
--    mem::{align_of, size_of},
--    rc::Rc,
--    slice::from_raw_parts_mut,
--    str::{from_utf8, Utf8Error},
--};
--use thiserror::Error as ThisError;
-+
-+use crate::{alloc, BPFError};
-+/// Program heap allocators are intended to allocate/free from a given
-+/// chunk of memory.  The specific allocator implementation is
-+/// selectable at build-time.
-+/// Only one allocator is currently supported
-+
-+/// Simple bump allocator, never frees
-+use crate::allocator_bump::BPFAllocator;
-+use crate::crypto::{EcrecoverInput, EcrecoverOutput, SchnorrifyInput};
-
- /// Error definitions
- #[derive(Debug, ThisError)]
-@@ -53,20 +66,13 @@
-     #[error("Unaligned pointer")]
-     UnalignedPointer,
- }
-+
- impl From<SyscallError> for EbpfError<BPFError> {
-     fn from(error: SyscallError) -> Self {
-         EbpfError::UserError(error.into())
-     }
- }
-
--/// Program heap allocators are intended to allocate/free from a given
--/// chunk of memory.  The specific allocator implementation is
--/// selectable at build-time.
--/// Only one allocator is currently supported
--
--/// Simple bump allocator, never frees
--use crate::allocator_bump::BPFAllocator;
--
- /// Default program heap size, allocators
- /// are expected to enforce this
- const DEFAULT_HEAP_SIZE: usize = 32 * 1024;
-@@ -114,6 +120,16 @@
-         )?;
-     }
-
-+    // Signature verification
-+    vm.register_syscall_with_context_ex(
-+        "sol_verify_ethschnorr",
-+        Box::new(SyscallSchorrify {}),
-+    )?;
-+    vm.register_syscall_with_context_ex(
-+        "sol_ecrecover",
-+        Box::new(SyscallEcrecover {}),
-+    )?;
-+
-     // Memory allocator
-     let heap = vec![0_u8; DEFAULT_HEAP_SIZE];
-     let heap_region = MemoryRegion::new_from_slice(&heap, MM_HEAP_START);
-@@ -255,6 +271,7 @@
- pub struct SyscallLog {
-     logger: Rc<RefCell<dyn Logger>>,
- }
-+
- impl SyscallObject<BPFError> for SyscallLog {
-     fn call(
-         &mut self,
-@@ -284,6 +301,7 @@
- pub struct SyscallLogU64 {
-     logger: Rc<RefCell<dyn Logger>>,
- }
-+
- impl SyscallObject<BPFError> for SyscallLogU64 {
-     fn call(
-         &mut self,
-@@ -318,6 +336,7 @@
- pub struct SyscallSolAllocFree {
-     allocator: BPFAllocator,
- }
-+
- impl SyscallObject<BPFError> for SyscallSolAllocFree {
-     fn call(
-         &mut self,
-@@ -380,6 +399,87 @@
-     Ok(0)
- }
-
-+/// Verify a ETH optimized Schnorr Signature
-+pub struct SyscallEcrecover {
-+}
-+
-+impl SyscallObject<BPFError> for SyscallEcrecover {
-+    fn call(
-+        &mut self,
-+        input: u64,
-+        output: u64,
-+        _arg3: u64,
-+        _arg4: u64,
-+        _arg5: u64,
-+        ro_regions: &[MemoryRegion],
-+        _rw_regions: &[MemoryRegion],
-+    ) -> Result<u64, EbpfError<BPFError>> {
-+        let input = translate_type!(
-+                EcrecoverInput,
-+                input,
-+                ro_regions
-+        )?;
-+
-+        let mut output = translate_type_mut!(
-+                EcrecoverOutput,
-+                output,
-+                ro_regions
-+        )?;
-+
-+        let signature = match secp256k1::Signature::parse_slice(&input.signature[..64]) {
-+            Ok(v) => v,
-+            Err(_) => {
-+                return Ok(0);
-+            }
-+        };
-+
-+        let recovery_id = match secp256k1::RecoveryId::parse(input.signature[64]) {
-+            Ok(v) => v,
-+            Err(_) => { return Ok(0); }
-+        };
-+
-+        match secp256k1::recover(&secp256k1::Message::parse(&input.message), &signature,
-+                                 &recovery_id) {
-+            Ok(v) => {
-+                let mut addr = [0u8; 20];
-+                addr.copy_from_slice(&sha3::Keccak256::digest(&v.serialize()[1..])[12..]);
-+                output.address = addr;
-+            }
-+            Err(_) => {
-+                return Ok(0);
-+            }
-+        }
-+
-+        Ok(1)
++entrypoint!(process_instruction);
++fn process_instruction(
++    _program_id: &Pubkey,
++    accounts: &[AccountInfo],
++    instruction_data: &[u8],
++) -> ProgramResult {
++    if instruction_data.is_empty() {
++        return Err(ProgramError::InvalidAccountData);
 +    }
-+}
 +
-+/// Verify a ETH optimized Schnorr Signature
-+pub struct SyscallSchorrify {
-+}
-+
-+impl SyscallObject<BPFError> for SyscallSchorrify {
-+    fn call(
-+        &mut self,
-+        addr: u64,
-+        _arg2: u64,
-+        _arg3: u64,
-+        _arg4: u64,
-+        _arg5: u64,
-+        ro_regions: &[MemoryRegion],
-+        _rw_regions: &[MemoryRegion],
-+    ) -> Result<u64, EbpfError<BPFError>> {
-+        let input = translate_type!(
-+                SchnorrifyInput,
-+                addr,
-+                ro_regions
-+        )?;
-+        let res = input.verify();
-+
-+        Ok(res as u64)
++    let secp_instruction_index = instruction_data[0];
++    let account_info_iter = &mut accounts.iter();
++    let instruction_accounts = next_account_info(account_info_iter)?;
++    assert_eq!(
++        *instruction_accounts.key,
++        solana_sdk::sysvar::instructions::id()
++    );
++    let instructions: Vec<Instruction> = Instructions::from_account_info(instruction_accounts)
++        .map_err(|_| ProgramError::InvalidAccountData)?;
++    if secp_instruction_index as usize > instructions.len() {
++        return Err(ProgramError::InvalidAccountData);
 +    }
++    info!(&format!(
++        "{}",
++        instructions[secp_instruction_index as usize].program_id
++    ));
++
++    info!(&format!(
++        "{}",
++        instructions[secp_instruction_index as usize].data[0]
++    ));
++    Ok(())
 +}
-+
- // Cross-program invocation syscalls
-
- struct AccountReferences<'a> {
-@@ -422,6 +522,7 @@
-     callers_keyed_accounts: &'a [KeyedAccount<'a>],
-     invoke_context: Rc<RefCell<&'a mut dyn InvokeContext>>,
- }
-+
- impl<'a> SyscallProcessInstruction<'a> for SyscallProcessInstructionRust<'a> {
-     fn get_context_mut(&self) -> Result<RefMut<&'a mut dyn InvokeContext>, EbpfError<BPFError>> {
-         self.invoke_context
-@@ -443,7 +544,7 @@
-             ix.accounts.len(),
-             ro_regions
-         )?
--        .to_vec();
-+            .to_vec();
-         let data = translate_slice!(u8, ix.data.as_ptr(), ix.data.len(), ro_regions)?.to_vec();
-         Ok(Instruction {
-             program_id: ix.program_id,
-@@ -558,6 +659,7 @@
-         }
-     }
- }
-+
- impl<'a> SyscallObject<BPFError> for SyscallProcessInstructionRust<'a> {
-     fn call(
-         &mut self,
-@@ -633,6 +735,7 @@
-     callers_keyed_accounts: &'a [KeyedAccount<'a>],
-     invoke_context: Rc<RefCell<&'a mut dyn InvokeContext>>,
- }
-+
- impl<'a> SyscallProcessInstruction<'a> for SyscallProcessSolInstructionC<'a> {
-     fn get_context_mut(&self) -> Result<RefMut<&'a mut dyn InvokeContext>, EbpfError<BPFError>> {
-         self.invoke_context
-@@ -770,6 +873,7 @@
-         }
-     }
- }
-+
- impl<'a> SyscallObject<BPFError> for SyscallProcessSolInstructionC<'a> {
-     fn call(
-         &mut self,
-@@ -821,10 +925,10 @@
-         }
-
-         if account.is_signer && // If message indicates account is signed
--        !( // one of the following needs to be true:
--            keyed_account.signer_key().is_some() // Signed in the parent instruction
--            || signers.contains(&account.pubkey) // Signed by the program
--        ) {
-+            !( // one of the following needs to be true:
-+                keyed_account.signer_key().is_some() // Signed in the parent instruction
-+                    || signers.contains(&account.pubkey) // Signed by the program
-+            ) {
-             return Err(SyscallError::PrivilegeEscalation.into());
-         }
-     }
-@@ -1042,7 +1146,7 @@
-                 assert_eq!(string, "Gaggablaghblagh!");
-                 Ok(42)
-             })
--            .unwrap()
-+                .unwrap()
-         );
-     }
-
-@@ -1074,7 +1178,7 @@
-             &[ro_region],
-             &[rw_region],
-         )
--        .unwrap();
-+            .unwrap();
-     }
-
-     #[test]
-Index: fetch-spl.sh
+Index: programs/bpf/tests/programs.rs
 IDEA additional info:
 Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
 <+>UTF-8
 ===================================================================
---- fetch-spl.sh	(revision 745a97685408ff4249d96333a7885cd214639b70)
-+++ fetch-spl.sh	(revision 97144cdb8e9cb4d83943b0b5898d08f57844a4dd)
-@@ -40,6 +40,9 @@
- fetch_program token 1.0.0 TokenSVp5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o BPFLoader1111111111111111111111111111111111
- fetch_program memo  1.0.0 Memo1UhkJRfHyvLMcVucJwxXeuD728EqVDDwQDxFMNo BPFLoader1111111111111111111111111111111111
-
-+# Add bridge
-+genesis_args+=(--bpf-program Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o BPFLoader2111111111111111111111111111111111 /opt/solana/deps/spl_bridge.so)
+--- programs/bpf/tests/programs.rs	(revision 61b697eef4f25bdebeb90223de8a34affdf96d3a)
++++ programs/bpf/tests/programs.rs	(revision dc94838be76e0d3ee2441c47df4bb1add701c3ee)
+@@ -457,3 +457,38 @@
+         }
+     }
+ }
 +
- echo "${genesis_args[@]}" > spl-genesis-args.sh
++#[test]
++#[cfg(any(feature = "bpf_rust"))]
++fn test_program_bpf_instruction_introspection() {
++    solana_logger::setup();
++
++    let GenesisConfigInfo {
++        genesis_config,
++        mint_keypair,
++        ..
++    } = create_genesis_config(50_000);
++    let mut bank = Bank::new(&genesis_config);
++
++    let (name, id, entrypoint) = solana_bpf_loader_program!();
++    bank.add_builtin_loader(&name, id, entrypoint);
++    let bank = Arc::new(bank);
++    let bank_client = BankClient::new_shared(&bank);
++
++    let program_id = load_bpf_program(
++        &bank_client,
++        &mint_keypair,
++        "solana_bpf_rust_instruction_introspection",
++    );
++    let account_metas = vec![AccountMeta::new(
++        solana_sdk::sysvar::instructions::id(),
++        false,
++    )];
++    let instruction = Instruction::new(program_id, &0u8, account_metas);
++    let result = bank_client.send_and_confirm_instruction(&mint_keypair, instruction);
++    assert!(result.is_ok());
++
++    let instruction = Instruction::new(program_id, &0u8, vec![]);
++    let result = bank_client.send_and_confirm_instruction(&mint_keypair, instruction);
++    assert!(result.is_err());
++}
+Index: runtime/src/accounts.rs
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- runtime/src/accounts.rs	(revision 61b697eef4f25bdebeb90223de8a34affdf96d3a)
++++ runtime/src/accounts.rs	(revision dc94838be76e0d3ee2441c47df4bb1add701c3ee)
+@@ -108,6 +108,13 @@
+         false
+     }
 
- echo
++    fn construct_instructions_account(message: &Message) -> Account {
++        let mut account = Account::default();
++        let instructions = message.decompile_instructions();
++        account.data = bincode::serialize(&instructions).unwrap();
++        account
++    }
++
+     fn load_tx_accounts(
+         &self,
+         storage: &AccountStorage,
+@@ -136,6 +143,10 @@
+                         if payer_index.is_none() {
+                             payer_index = Some(i);
+                         }
++
++                        if solana_sdk::sysvar::instructions::check_id(key) {
++                            return Self::construct_instructions_account(message);
++                        }
+                         let (account, rent) =
+                             AccountsDB::load(storage, ancestors, accounts_index, key)
+                                 .map(|(mut account, _)| {
+Index: sdk/src/instruction.rs
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- sdk/src/instruction.rs	(revision 61b697eef4f25bdebeb90223de8a34affdf96d3a)
++++ sdk/src/instruction.rs	(revision dc94838be76e0d3ee2441c47df4bb1add701c3ee)
+@@ -169,7 +169,7 @@
+     ComputationalBudgetExceeded,
+ }
+
+-#[derive(Debug, PartialEq, Clone)]
++#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+ pub struct Instruction {
+     /// Pubkey of the instruction processor that executes this instruction
+     pub program_id: Pubkey,
+Index: sdk/src/message.rs
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- sdk/src/message.rs	(revision 61b697eef4f25bdebeb90223de8a34affdf96d3a)
++++ sdk/src/message.rs	(revision dc94838be76e0d3ee2441c47df4bb1add701c3ee)
+@@ -322,6 +322,34 @@
+         }
+         (writable_keys, readonly_keys)
+     }
++
++    pub fn decompile_instructions(&self) -> Vec<Instruction> {
++        self.instructions
++            .iter()
++            .map(|instruction| {
++                let accounts: Vec<_> = instruction
++                    .accounts
++                    .iter()
++                    .map(|account_index| {
++                        let account_index = *account_index as usize;
++                        let is_signer = self.is_signer(account_index);
++                        let is_writable = self.is_writable(account_index);
++                        AccountMeta {
++                            pubkey: self.account_keys[account_index],
++                            is_signer,
++                            is_writable,
++                        }
++                    })
++                    .collect();
++                let program_id = self.account_keys[instruction.program_id_index as usize];
++                Instruction {
++                    program_id,
++                    data: instruction.data.clone(),
++                    accounts,
++                }
++            })
++            .collect()
++    }
+ }
+
+ #[cfg(test)]
+@@ -673,4 +701,23 @@
+             (vec![&id1, &id0], vec![&id3, &id2, &program_id])
+         );
+     }
++
++    #[test]
++    fn test_decompile_instructions() {
++        let program_id0 = Pubkey::new_rand();
++        let program_id1 = Pubkey::new_rand();
++        let id0 = Pubkey::new_rand();
++        let id1 = Pubkey::new_rand();
++        let id2 = Pubkey::new_rand();
++        let id3 = Pubkey::new_rand();
++        let instructions = vec![
++            Instruction::new(program_id0, &0, vec![AccountMeta::new(id0, false)]),
++            Instruction::new(program_id0, &0, vec![AccountMeta::new(id1, true)]),
++            Instruction::new(program_id1, &0, vec![AccountMeta::new_readonly(id2, false)]),
++            Instruction::new(program_id1, &0, vec![AccountMeta::new_readonly(id3, true)]),
++        ];
++
++        let message = Message::new(&instructions, Some(&id1));
++        assert_eq!(message.decompile_instructions(), instructions);
++    }
+ }
+Index: sdk/src/sysvar/instructions.rs
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- sdk/src/sysvar/instructions.rs	(revision dc94838be76e0d3ee2441c47df4bb1add701c3ee)
++++ sdk/src/sysvar/instructions.rs	(revision dc94838be76e0d3ee2441c47df4bb1add701c3ee)
+@@ -0,0 +1,11 @@
++//! This account contains the serialized transaction instructions
++//!
++
++use crate::instruction::Instruction;
++use crate::sysvar::Sysvar;
++
++pub type Instructions = Vec<Instruction>;
++
++crate::declare_sysvar_id!("instructions1111111111111111111111111111111", Instructions);
++
++impl Sysvar for Instructions {}
+Index: sdk/src/sysvar/mod.rs
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- sdk/src/sysvar/mod.rs	(revision 61b697eef4f25bdebeb90223de8a34affdf96d3a)
++++ sdk/src/sysvar/mod.rs	(revision dc94838be76e0d3ee2441c47df4bb1add701c3ee)
+@@ -11,6 +11,7 @@
+ pub mod clock;
+ pub mod epoch_schedule;
+ pub mod fees;
++pub mod instructions;
+ pub mod recent_blockhashes;
+ pub mod rent;
+ pub mod rewards;
+@@ -28,6 +29,7 @@
+         || slot_hashes::check_id(id)
+         || slot_history::check_id(id)
+         || stake_history::check_id(id)
++        || instructions::check_id(id)
+ }
+
+ #[macro_export]
 Index: account-decoder/src/parse_token.rs
 IDEA additional info:
 Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
 <+>UTF-8
 ===================================================================
---- account-decoder/src/parse_token.rs	(revision 97144cdb8e9cb4d83943b0b5898d08f57844a4dd)
-+++ account-decoder/src/parse_token.rs	(date 1598606089966)
-@@ -30,11 +30,7 @@
-     if data.len() == size_of::<Account>() {
-         let account: Account = *unpack(&mut data)
+--- account-decoder/src/parse_token.rs	(revision dc94838be76e0d3ee2441c47df4bb1add701c3ee)
++++ account-decoder/src/parse_token.rs	(date 1598798938438)
+@@ -30,7 +30,7 @@
+     if data.len() == Account::get_packed_len() {
+         let account = Account::unpack(data)
              .map_err(|_| ParseAccountError::AccountNotParsable(ParsableAccount::SplToken))?;
--        let decimals = mint_decimals.ok_or_else(|| {
--            ParseAccountError::AdditionalDataMissing(
--                "no mint_decimals provided to parse spl-token account".to_string(),
--            )
--        })?;
+-        let decimals = mint_decimals.or(Some(0))?;
 +        let decimals = mint_decimals.or(Some(0)).unwrap();
          Ok(TokenAccountType::Account(UiTokenAccount {
              mint: account.mint.to_string(),
              owner: account.owner.to_string(),
+
+Index: programs/bpf_loader/src/bpf_verifier.rs
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- programs/bpf_loader/src/bpf_verifier.rs	(revision dc94838be76e0d3ee2441c47df4bb1add701c3ee)
++++ programs/bpf_loader/src/bpf_verifier.rs	(date 1598809541828)
+@@ -58,7 +58,7 @@
+     if prog.len() % ebpf::INSN_SIZE != 0 {
+         return Err(VerifierError::ProgramLengthNotMultiple.into());
+     }
+-    if prog.len() > ebpf::PROG_MAX_SIZE {
++    if prog.len() > ebpf::PROG_MAX_SIZE * 2 {
+         return Err(VerifierError::ProgramTooLarge(prog.len() / ebpf::INSN_SIZE).into());
+     }
+

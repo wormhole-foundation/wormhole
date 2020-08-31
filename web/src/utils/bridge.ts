@@ -107,6 +107,8 @@ class SolanaBridge {
             keys.push({pubkey: custodyKey, isSigner: false, isWritable: true})
         }
 
+        keys.push({pubkey: solanaWeb3.SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false});
+
 
         return new TransactionInstruction({
             keys,
