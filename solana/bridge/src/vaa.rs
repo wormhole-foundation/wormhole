@@ -61,7 +61,14 @@ impl VAA {
             return false;
         }
 
+        let mut last_index: i16 = -1;
         for sig in self.signatures.iter() {
+            // Prevent multiple sinatures by the same guardian
+            if sig.index as i16 <= last_index {
+                return false;
+            }
+            last_index = sig.index as i16;
+
             let ecrecover_input = EcrecoverInput::new(sig.r, sig.s, sig.v, hash);
             let res = match sol_syscall_ecrecover(&ecrecover_input) {
                 Ok(v) => v,
