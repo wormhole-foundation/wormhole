@@ -165,7 +165,7 @@ func main() {
 	sendC := make(chan []byte)
 
 	// Inbound observations
-	obsvC := make(chan *gossipv1.LockupObservation)
+	obsvC := make(chan *gossipv1.LockupObservation, 50)
 
 	// VAAs to submit to Solana
 	solanaVaaC := make(chan *vaa.VAA)

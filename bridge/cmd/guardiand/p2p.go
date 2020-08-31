@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/multiformats/go-multiaddr"
 	"strings"
 	"time"
 
@@ -10,14 +12,12 @@ import (
 	connmgr "github.com/libp2p/go-libp2p-connmgr"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/host"
-	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/protocol"
 	"github.com/libp2p/go-libp2p-core/routing"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	libp2pquic "github.com/libp2p/go-libp2p-quic-transport"
 	libp2ptls "github.com/libp2p/go-libp2p-tls"
-	"github.com/multiformats/go-multiaddr"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
 
@@ -98,6 +98,24 @@ func p2p(obsvC chan *gossipv1.LockupObservation, sendC chan []byte) func(ctx con
 
 		logger.Info("Connecting to bootstrap peers", zap.String("bootstrap_peers", *p2pBootstrap))
 
+		topic := fmt.Sprintf("%s/%s", *p2pNetworkID, "broadcast")
+
+		logger.Info("Subscribing pubsub topic", zap.String("topic", topic))
+		ps, err := pubsub.NewGossipSub(ctx, h)
+		if err != nil {
+			panic(err)
+		}
+
+		th, err := ps.Join(topic)
+		if err != nil {
+			return fmt.Errorf("failed to join topic: %w", err)
+		}
+
+		sub, err := th.Subscribe()
+		if err != nil {
+			return fmt.Errorf("failed to subscribe topic: %w", err)
+		}
+
 		// Add our own bootstrap nodes
 
 		// Count number of successful connection attempts. If we fail to connect to every bootstrap peer, kill
@@ -139,24 +157,6 @@ func p2p(obsvC chan *gossipv1.LockupObservation, sendC chan []byte) func(ctx con
 			return fmt.Errorf("Failed to connect to any bootstrap peer")
 		} else {
 			logger.Info("Connected to bootstrap peers", zap.Int("num", successes))
-		}
-
-		topic := fmt.Sprintf("%s/%s", *p2pNetworkID, "broadcast")
-
-		logger.Info("Subscribing pubsub topic", zap.String("topic", topic))
-		ps, err := pubsub.NewGossipSub(ctx, h)
-		if err != nil {
-			panic(err)
-		}
-
-		th, err := ps.Join(topic)
-		if err != nil {
-			return fmt.Errorf("failed to join topic: %w", err)
-		}
-
-		sub, err := th.Subscribe()
-		if err != nil {
-			return fmt.Errorf("failed to subscribe topic: %w", err)
 		}
 
 		logger.Info("Node has been started", zap.String("peer_id", h.ID().String()),
