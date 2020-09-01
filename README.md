@@ -1,6 +1,6 @@
 # Wormhole
 
-⚠️ **WORK IN PROGRESS — UNAUDITED, DO NOT USE.** ⚠
+⚠️ **WORK IN PROGRESS — UNAUDITED, DO NOT USE.** ⚠️
 
 See [DEVELOP.md](DEVELOP.md) for instructions on how to set up a local devnet.
 
