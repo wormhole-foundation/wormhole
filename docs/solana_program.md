@@ -118,7 +118,8 @@ All require:
 | 3     | bridge       | BridgeConfig |        |           |       |         |  
 | 4     | guardian_set | GuardianSet  |        |           |       |         |
 | 5     | claim     | ExecutedVAA |        | ✅        |   ✅    | ✅      |
-| 6     | payer  | Account |  ✅      |         |    |         |
+| 6     | sig_info     | SigState |        |         |   ✅    |       |
+| 7     | payer  | Account |  ✅      |         |    |         |
 
 followed by:
 
@@ -126,31 +127,31 @@ followed by:
 
 | Index | Name         | Type                | signer | writeable | empty | derived |
 | ----- | ------------ | ------------------- | ------ | --------- | ----- | ------- |
-| 7     | guardian_set_new | GuardianSet         |        |   ✅       |  ✅   | ✅      |
+| 8     | guardian_set_new | GuardianSet         |        |   ✅       |  ✅   | ✅      |
 
 ##### Transfer: Ethereum (native) -> Solana (wrapped)
 
 | Index | Name         | Type         | signer | writeable | empty | derived |
 | ----- | ------------ | ------------ | ------ | --------- | ----- | ------- |
-| 7     | token_program | SplToken |        |           | ️   |      |
-| 8     | token        | WrappedAsset |        |           |    | ✅      |
-| 9     | destination  | TokenAccount |        | ✅        |    |         |
-| 10    | wrapped_meta | WrappedMeta  |        | ✅        |  opt  |    ✅    |
+| 8     | token_program | SplToken |        |           | ️   |      |
+| 9     | token        | WrappedAsset |        |           |    | ✅      |
+| 10     | destination  | TokenAccount |        | ✅        |    |         |
+| 11    | wrapped_meta | WrappedMeta  |        | ✅        |  opt  |    ✅    |
 
 ##### Transfer: Ethereum (wrapped) -> Solana (native)
 
 | Index | Name         | Type         | signer | writeable | empty | derived |
 | ----- | ------------ | ------------ | ------ | --------- | ----- | ------- |
-| 7     | token_program | SplToken |        |           | ️   |      |
-| 8     | token        | Mint         |        |           |       | ✅      |
-| 9     | destination  | TokenAccount |        | ✅        |    opt   |         |
-| 10    | custody_src  | TokenAccount |        | ✅        |       | ✅      |
+| 8     | token_program | SplToken |        |           | ️   |      |
+| 9     | token        | Mint         |        |           |       | ✅      |
+| 10     | destination  | TokenAccount |        | ✅        |    opt   |         |
+| 11    | custody_src  | TokenAccount |        | ✅        |       | ✅      |
 
 ##### Transfer: Solana (any) -> Ethereum (any)
 
 | Index | Name         | Type                | signer | writeable | empty | derived |
 | ----- | ------------ | ------------------- | ------ | --------- | ----- | ------- |
-| 7     | out_proposal | TransferOutProposal |        | ✅        |       | ✅      |
+| 8     | out_proposal | TransferOutProposal |        | ✅        |       | ✅      |
 
 ## Accounts
 

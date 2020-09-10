@@ -38,6 +38,7 @@ impl PrintProgramError for Error {
             Error::VAATooLong => info!("Error: VAATooLong"),
             Error::CannotWrapNative => info!("Error: CannotWrapNative"),
             Error::VAAAlreadySubmitted => info!("Error: VAAAlreadySubmitted"),
+            Error::GuardianSetMismatch => info!("Error: GuardianSetMismatch"),
         }
     }
 }

@@ -3,6 +3,7 @@ use std::io::{Cursor, Read, Write};
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use primitive_types::U256;
 use sha3::Digest;
+use solana_sdk::program_error::ProgramError;
 
 use crate::error::Error;
 use crate::error::Error::InvalidVAAFormat;
@@ -42,50 +43,19 @@ impl VAA {
         };
     }
 
-    pub fn verify(&self, guardian_keys: &[[u8; 20]]) -> bool {
+    pub fn body_hash(&self) -> Result<[u8; 32], ProgramError> {
         let body = match self.signature_body() {
             Ok(v) => v,
             Err(_) => {
-                return false;
+                return Err(ProgramError::InvalidArgument);
             }
         };
 
         let mut h = sha3::Keccak256::default();
         if let Err(_) = h.write(body.as_slice()) {
-            return false;
+            return Err(ProgramError::InvalidArgument);
         };
-        let hash = h.finalize().into();
-
-        // Check quorum
-        if self.signatures.len() < (((guardian_keys.len() / 4) * 3) + 1 as usize) {
-            return false;
-        }
-
-        let mut last_index: i16 = -1;
-        for sig in self.signatures.iter() {
-            // Prevent multiple sinatures by the same guardian
-            if sig.index as i16 <= last_index {
-                return false;
-            }
-            last_index = sig.index as i16;
-
-            let ecrecover_input = EcrecoverInput::new(sig.r, sig.s, sig.v, hash);
-            let res = match sol_syscall_ecrecover(&ecrecover_input) {
-                Ok(v) => v,
-                Err(_) => {
-                    return false;
-                }
-            };
-
-            if sig.index >= guardian_keys.len() as u8 {
-                return false;
-            }
-            if res.address != guardian_keys[sig.index as usize] {
-                return false;
-            }
-        }
-
-        true
+        Ok(h.finalize().into())
     }
 
     pub fn serialize(&self) -> Result<Vec<u8>, Error> {

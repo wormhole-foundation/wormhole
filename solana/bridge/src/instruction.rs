@@ -14,7 +14,9 @@ use solana_sdk::{
 
 use crate::error::Error;
 use crate::error::Error::VAATooLong;
-use crate::instruction::BridgeInstruction::{Initialize, PokeProposal, PostVAA, TransferOut};
+use crate::instruction::BridgeInstruction::{
+    Initialize, PokeProposal, PostVAA, TransferOut, VerifySignatures,
+};
 use crate::state::{AssetMeta, Bridge, BridgeConfig};
 use crate::vaa::{VAABody, VAA};
 
@@ -75,6 +77,14 @@ pub struct TransferOutPayloadRaw {
     pub nonce: u32,
 }
 
+#[derive(Clone, Copy, Debug)]
+pub struct VerifySigPayload {
+    /// hash of the VAA
+    pub hash: [u8; 32],
+    /// instruction indices of signers (-1 for missing)
+    pub signers: [i8; MAX_LEN_GUARDIAN_KEYS],
+}
+
 /// Instructions supported by the SwapInfo program.
 #[repr(C)]
 pub enum BridgeInstruction {
@@ -126,6 +136,9 @@ pub enum BridgeInstruction {
 
     /// Pokes a proposal with no valid VAAs attached so guardians reprocess it.
     PokeProposal(),
+
+    /// Verifies signature instructions
+    VerifySignatures(VerifySigPayload),
 }
 
 impl BridgeInstruction {
@@ -157,6 +170,11 @@ impl BridgeInstruction {
                 PostVAA(payload)
             }
             5 => PokeProposal(),
+            6 => {
+                let payload: &VerifySigPayload = unpack(input)?;
+
+                VerifySignatures(*payload)
+            }
             _ => return Err(ProgramError::InvalidInstructionData),
         })
     }
@@ -207,6 +225,14 @@ impl BridgeInstruction {
             }
             Self::PokeProposal() => {
                 output[0] = 5;
+            }
+            Self::VerifySignatures(payload) => {
+                output[0] = 6;
+                #[allow(clippy::cast_ptr_alignment)]
+                let value = unsafe {
+                    &mut *(&mut output[size_of::<u8>()] as *mut u8 as *mut VerifySigPayload)
+                };
+                *value = payload;
             }
         }
         Ok(output)

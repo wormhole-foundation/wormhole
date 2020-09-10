@@ -178,6 +178,23 @@ impl IsInitialized for Bridge {
     }
 }
 
+/// Signature state
+#[repr(C)]
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct SignatureState {
+    /// status of signers
+    pub signed_status: [bool; MAX_LEN_GUARDIAN_KEYS],
+
+    /// hash of the data
+    pub hash: [u8; 32],
+
+    /// index of the guardian set
+    pub guardian_set_index: u32,
+
+    /// Is `true` if this structure has been initialized.
+    pub is_initialized: bool,
+}
+
 /// Implementation of serialization functions
 impl Bridge {
     /// Deserializes a spl_token `Account`.

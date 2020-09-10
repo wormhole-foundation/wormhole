@@ -8,6 +8,10 @@ use std::slice::Iter;
 
 use num_traits::AsPrimitive;
 use primitive_types::U256;
+use solana_sdk::{
+    account_info::AccountInfo, account_info::next_account_info, entrypoint::ProgramResult, info,
+    instruction::Instruction, program_error::ProgramError, pubkey::Pubkey,
+};
 use solana_sdk::clock::Clock;
 use solana_sdk::hash::Hasher;
 #[cfg(target_arch = "bpf")]
@@ -15,18 +19,14 @@ use solana_sdk::program::invoke_signed;
 use solana_sdk::rent::Rent;
 use solana_sdk::system_instruction::{create_account, SystemInstruction};
 use solana_sdk::sysvar::Sysvar;
-use solana_sdk::{
-    account_info::next_account_info, account_info::AccountInfo, entrypoint::ProgramResult, info,
-    instruction::Instruction, program_error::ProgramError, pubkey::Pubkey,
-};
 use spl_token::state::Mint;
 
 use crate::error::Error;
-use crate::instruction::BridgeInstruction::*;
-use crate::instruction::{BridgeInstruction, TransferOutPayload, VAAData, CHAIN_ID_SOLANA};
+use crate::instruction::{BridgeInstruction, CHAIN_ID_SOLANA, TransferOutPayload, VAAData, VerifySigPayload};
 use crate::instruction::{MAX_LEN_GUARDIAN_KEYS, MAX_VAA_SIZE};
+use crate::instruction::BridgeInstruction::*;
 use crate::state::*;
-use crate::vaa::{BodyTransfer, BodyUpdateGuardianSet, VAABody, VAA};
+use crate::vaa::{BodyTransfer, BodyUpdateGuardianSet, VAA, VAABody};
 
 /// Instruction processing logic
 impl Bridge {
@@ -63,6 +63,11 @@ impl Bridge {
                 info!("Instruction: PokeProposal");
 
                 Self::process_poke(program_id, accounts)
+            }
+            VerifySignatures(p) => {
+                info!("Instruction: VerifySignatures");
+
+                Self::process_verify_signatures(program_id, accounts, &p)
             }
             _ => panic!(""),
         }
@@ -151,6 +156,55 @@ impl Bridge {
 
         // Increase poke counter
         proposal.poke_counter += 1;
+
+        Ok(())
+    }
+
+    /// Processes signature verifications
+    pub fn process_verify_signatures(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        payload: &VerifySigPayload,
+    ) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter();
+        let sig_info = next_account_info(account_info_iter)?;
+        let guardian_set_info = next_account_info(account_info_iter)?;
+
+        let mut guardian_set_data = guardian_set_info.data.borrow_mut();
+        let guardian_set: &GuardianSet = Self::unpack(&mut guardian_set_data)?;
+
+        let mut sig_state_data = sig_info.data.borrow_mut();
+        let mut sig_state: &mut SignatureState = Self::unpack_unchecked(&mut sig_state_data)?;
+
+        if sig_state.is_initialized {
+            if sig_state.guardian_set_index != guardian_set.index {
+                return Err(Error::GuardianSetMismatch.into());
+            }
+            if sig_state.hash != payload.hash {
+                return Err(ProgramError::InvalidArgument);
+            }
+        } else {
+            sig_state.is_initialized = true;
+            sig_state.guardian_set_index = guardian_set.index;
+            sig_state.hash = payload.hash;
+        }
+
+        for (i, p) in payload.signers.iter().enumerate() {
+            if p == -1 {
+                continue;
+            }
+            if i > guardian_set.len_keys as usize {
+                return Err(ProgramError::InvalidArgument);
+            }
+
+            let key = guardian_set.keys[i];
+            let ix = instructions[p];
+            // Check hash in ix
+
+            // Check key in ix
+
+            sig_state.signed_status[i] = true;
+        }
 
         Ok(())
     }
@@ -372,6 +426,7 @@ impl Bridge {
         let bridge_info = next_account_info(account_info_iter)?;
         let guardian_set_info = next_account_info(account_info_iter)?;
         let claim_info = next_account_info(account_info_iter)?;
+        let sig_info = next_account_info(account_info_iter)?;
         let payer_info = next_account_info(account_info_iter)?;
 
         let mut bridge = Bridge::bridge_deserialize(bridge_info)?;
@@ -401,9 +456,24 @@ impl Bridge {
             return Err(Error::GuardianSetExpired.into());
         }
 
-        // Verify VAA signature
-        if !vaa.verify(&guardian_set.keys[..guardian_set.len_keys as usize]) {
-            return Err(Error::InvalidVAASignature.into());
+        // Verify sig state
+        let mut sig_state_data = sig_info.data.borrow_mut();
+        let sig_state: &SignatureState = Self::unpack(&mut sig_state_data)?;
+
+        // Verify that signatures were made using the correct set
+        if sig_state.guardian_set_index != guardian_set.index {
+            return Err(Error::GuardianSetMismatch.into());
+        }
+
+        let hash = vaa.body_hash()?;
+        if sig_state.hash != hash {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        // Check quorum
+        if (sig_state.signed_status.iter().filter(|v| **v).count() as u8)
+            < (((guardian_set.len_keys / 4) * 3) + 1 as usize) {
+            return Err(ProgramError::InvalidArgument);
         }
 
         let payload = vaa.payload.as_ref().ok_or(Error::InvalidVAAAction)?;
@@ -804,9 +874,10 @@ impl Bridge {
             accounts,
             mint,
             payer,
-            token_program,
-            &Self::derive_wrapped_asset_seeds(bridge, asset.chain, asset.address),
-        )?;
+            token_program,// Increase poke counter
+            proposal.poke_counter += 1;
+        &Self::derive_wrapped_asset_seeds(bridge, asset.chain, asset.address),
+        ) ? ;
         let ix = spl_token::instruction::initialize_mint(
             token_program,
             mint,

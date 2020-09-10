@@ -100,6 +100,9 @@ pub enum Error {
     /// VAA for this transfer has already been submitted
     #[error("VAAAlreadySubmitted")]
     VAAAlreadySubmitted,
+    /// Mismatching guardian set
+    #[error("GuardianSetMismatch")]
+    GuardianSetMismatch,
 }
 
 impl From<Error> for ProgramError {
