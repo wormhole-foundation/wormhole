@@ -16,7 +16,6 @@ use solana_sdk::program_error::ProgramError;
 use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signature::{read_keypair_file, write_keypair_file, Keypair, Signer};
 use solana_sdk::transaction::Transaction;
-use solana_transaction_status::UiTransactionEncoding;
 use spl_token::state::Account;
 use tokio::stream::Stream;
 use tokio::sync::mpsc;
@@ -90,6 +89,7 @@ impl Agent for AgentImpl {
                 },
                 RpcSendTransactionConfig {
                     skip_preflight: true,
+                    preflight_commitment: None,
                 },
             ) {
                 Ok(s) => Ok(Response::new(SubmitVaaResponse {

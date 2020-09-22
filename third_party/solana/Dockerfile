@@ -11,7 +11,7 @@ RUN rustup component add rustfmt
 WORKDIR /usr/src/solana
 
 RUN git clone https://github.com/solana-labs/solana --branch master && \
-  cd solana && git checkout e2d66cf7
+  cd solana && git checkout afd9bfc45f7c467470d060dac892de878c9976c0
 
 ADD *.patch .
 

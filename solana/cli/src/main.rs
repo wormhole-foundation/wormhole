@@ -39,6 +39,7 @@ use spl_bridge::instruction::*;
 use spl_bridge::state::*;
 
 use crate::faucet::request_and_confirm_airdrop;
+use spl_token::pack::Pack;
 
 mod faucet;
 
@@ -79,7 +80,8 @@ fn command_deploy_bridge(
     let (recent_blockhash, fee_calculator) = config.rpc_client.get_recent_blockhash()?;
     check_fee_payer_balance(
         config,
-        minimum_balance_for_rent_exemption + fee_calculator.calculate_fee(&transaction.message()),
+        minimum_balance_for_rent_exemption
+            + fee_calculator.calculate_fee(&transaction.message(), None),
     )?;
     transaction.sign(&[&config.fee_payer, &config.owner], recent_blockhash);
     Ok(Some(transaction))
@@ -92,7 +94,10 @@ fn command_poke_proposal(config: &Config, bridge: &Pubkey, proposal: &Pubkey) ->
     let mut transaction = Transaction::new_with_payer(&[ix], Some(&config.fee_payer.pubkey()));
 
     let (recent_blockhash, fee_calculator) = config.rpc_client.get_recent_blockhash()?;
-    check_fee_payer_balance(config, fee_calculator.calculate_fee(&transaction.message()))?;
+    check_fee_payer_balance(
+        config,
+        fee_calculator.calculate_fee(&transaction.message(), None),
+    )?;
     transaction.sign(&[&config.fee_payer, &config.owner], recent_blockhash);
     Ok(Some(transaction))
 }
@@ -169,7 +174,8 @@ fn command_lock_tokens(
     let (recent_blockhash, fee_calculator) = config.rpc_client.get_recent_blockhash()?;
     check_fee_payer_balance(
         config,
-        minimum_balance_for_rent_exemption + fee_calculator.calculate_fee(&transaction.message()),
+        minimum_balance_for_rent_exemption
+            + fee_calculator.calculate_fee(&transaction.message(), None),
     )?;
     transaction.sign(&[&config.fee_payer, &config.owner], recent_blockhash);
     Ok(Some(transaction))
@@ -189,7 +195,8 @@ fn command_submit_vaa(config: &Config, bridge: &Pubkey, vaa: &[u8]) -> CommmandR
     let (recent_blockhash, fee_calculator) = config.rpc_client.get_recent_blockhash()?;
     check_fee_payer_balance(
         config,
-        minimum_balance_for_rent_exemption + fee_calculator.calculate_fee(&transaction.message()),
+        minimum_balance_for_rent_exemption
+            + fee_calculator.calculate_fee(&transaction.message(), None),
     )?;
     transaction.sign(&[&config.fee_payer, &config.owner], recent_blockhash);
     Ok(Some(transaction))
@@ -245,9 +252,8 @@ fn command_create_token(config: &Config, decimals: u8) -> CommmandResult {
             initialize_mint(
                 &spl_token::id(),
                 &token.pubkey(),
+                &config.owner.pubkey(),
                 None,
-                Some(&config.owner.pubkey()),
-                0,
                 decimals,
             )?,
         ],
@@ -257,7 +263,8 @@ fn command_create_token(config: &Config, decimals: u8) -> CommmandResult {
     let (recent_blockhash, fee_calculator) = config.rpc_client.get_recent_blockhash()?;
     check_fee_payer_balance(
         config,
-        minimum_balance_for_rent_exemption + fee_calculator.calculate_fee(&transaction.message()),
+        minimum_balance_for_rent_exemption
+            + fee_calculator.calculate_fee(&transaction.message(), None),
     )?;
     transaction.sign(
         &[&config.fee_payer, &config.owner, &token],
@@ -296,7 +303,8 @@ fn command_create_account(config: &Config, token: Pubkey) -> CommmandResult {
     let (recent_blockhash, fee_calculator) = config.rpc_client.get_recent_blockhash()?;
     check_fee_payer_balance(
         config,
-        minimum_balance_for_rent_exemption + fee_calculator.calculate_fee(&transaction.message()),
+        minimum_balance_for_rent_exemption
+            + fee_calculator.calculate_fee(&transaction.message(), None),
     )?;
     transaction.sign(
         &[&config.fee_payer, &config.owner, &account],
@@ -314,10 +322,11 @@ fn command_assign(config: &Config, account: Pubkey, new_owner: Pubkey) -> Commma
     );
 
     let mut transaction = Transaction::new_with_payer(
-        &[set_owner(
+        &[spl_token::instruction::set_authority(
             &spl_token::id(),
             &account,
-            &new_owner,
+            Some(&new_owner),
+            AuthorityType::AccountOwner,
             &config.owner.pubkey(),
             &[],
         )?],
@@ -325,7 +334,10 @@ fn command_assign(config: &Config, account: Pubkey, new_owner: Pubkey) -> Commma
     );
 
     let (recent_blockhash, fee_calculator) = config.rpc_client.get_recent_blockhash()?;
-    check_fee_payer_balance(config, fee_calculator.calculate_fee(&transaction.message()))?;
+    check_fee_payer_balance(
+        config,
+        fee_calculator.calculate_fee(&transaction.message(), None),
+    )?;
     transaction.sign(&[&config.fee_payer, &config.owner], recent_blockhash);
     Ok(Some(transaction))
 }
@@ -361,7 +373,10 @@ fn command_transfer(
     );
 
     let (recent_blockhash, fee_calculator) = config.rpc_client.get_recent_blockhash()?;
-    check_fee_payer_balance(config, fee_calculator.calculate_fee(&transaction.message()))?;
+    check_fee_payer_balance(
+        config,
+        fee_calculator.calculate_fee(&transaction.message(), None),
+    )?;
     transaction.sign(&[&config.fee_payer, &config.owner], recent_blockhash);
     Ok(Some(transaction))
 }
@@ -373,12 +388,19 @@ fn command_burn(config: &Config, source: Pubkey, ui_amount: f64) -> CommmandResu
         .rpc_client
         .get_token_account_balance_with_commitment(&source, config.commitment_config)?
         .value;
-
+    let source_account = config
+        .rpc_client
+        .get_account_with_commitment(&source, config.commitment_config)?
+        .value
+        .unwrap_or_default();
+    let data = source_account.data.to_vec();
+    let mint_pubkey = Account::unpack_from_slice(&data)?.mint;
     let amount = spl_token::ui_amount_to_amount(ui_amount, source_token_balance.decimals);
     let mut transaction = Transaction::new_with_payer(
         &[burn(
             &spl_token::id(),
             &source,
+            &mint_pubkey,
             &config.owner.pubkey(),
             &[],
             amount,
@@ -387,7 +409,10 @@ fn command_burn(config: &Config, source: Pubkey, ui_amount: f64) -> CommmandResu
     );
 
     let (recent_blockhash, fee_calculator) = config.rpc_client.get_recent_blockhash()?;
-    check_fee_payer_balance(config, fee_calculator.calculate_fee(&transaction.message()))?;
+    check_fee_payer_balance(
+        config,
+        fee_calculator.calculate_fee(&transaction.message(), None),
+    )?;
     transaction.sign(&[&config.fee_payer, &config.owner], recent_blockhash);
     Ok(Some(transaction))
 }
@@ -422,7 +447,10 @@ fn command_mint(
     );
 
     let (recent_blockhash, fee_calculator) = config.rpc_client.get_recent_blockhash()?;
-    check_fee_payer_balance(config, fee_calculator.calculate_fee(&transaction.message()))?;
+    check_fee_payer_balance(
+        config,
+        fee_calculator.calculate_fee(&transaction.message(), None),
+    )?;
     transaction.sign(&[&config.fee_payer, &config.owner], recent_blockhash);
     Ok(Some(transaction))
 }
@@ -453,7 +481,10 @@ fn command_wrap(config: &Config, sol: f64) -> CommmandResult {
 
     let (recent_blockhash, fee_calculator) = config.rpc_client.get_recent_blockhash()?;
     check_owner_balance(config, lamports)?;
-    check_fee_payer_balance(config, fee_calculator.calculate_fee(&transaction.message()))?;
+    check_fee_payer_balance(
+        config,
+        fee_calculator.calculate_fee(&transaction.message(), None),
+    )?;
     transaction.sign(
         &[&config.fee_payer, &config.owner, &account],
         recent_blockhash,
@@ -486,7 +517,10 @@ fn command_unwrap(config: &Config, address: Pubkey) -> CommmandResult {
     );
 
     let (recent_blockhash, fee_calculator) = config.rpc_client.get_recent_blockhash()?;
-    check_fee_payer_balance(config, fee_calculator.calculate_fee(&transaction.message()))?;
+    check_fee_payer_balance(
+        config,
+        fee_calculator.calculate_fee(&transaction.message(), None),
+    )?;
     transaction.sign(&[&config.fee_payer, &config.owner], recent_blockhash);
     Ok(Some(transaction))
 }
@@ -1189,6 +1223,7 @@ fn main() {
                     RpcSendTransactionConfig {
                         // TODO: move to https://github.com/solana-labs/solana/pull/11792
                         skip_preflight: true,
+                        preflight_commitment: None,
                     },
                 )?;
             println!("Signature: {}", signature);

@@ -195,19 +195,25 @@ pub struct SignatureState {
     pub is_initialized: bool,
 }
 
+impl IsInitialized for SignatureState {
+    fn is_initialized(&self) -> bool {
+        self.is_initialized
+    }
+}
+
 /// Implementation of serialization functions
 impl Bridge {
     /// Deserializes a spl_token `Account`.
     pub fn token_account_deserialize(
         info: &AccountInfo,
     ) -> Result<spl_token::state::Account, Error> {
-        Ok(*spl_token::state::unpack(&mut info.data.borrow_mut())
+        Ok(spl_token::pack::Pack::unpack(&mut info.data.borrow_mut())
             .map_err(|_| Error::ExpectedAccount)?)
     }
 
     /// Deserializes a spl_token `Mint`.
     pub fn mint_deserialize(info: &AccountInfo) -> Result<spl_token::state::Mint, Error> {
-        Ok(*spl_token::state::unpack(&mut info.data.borrow_mut())
+        Ok(spl_token::pack::Pack::unpack(&mut info.data.borrow_mut())
             .map_err(|_| Error::ExpectedToken)?)
     }
 

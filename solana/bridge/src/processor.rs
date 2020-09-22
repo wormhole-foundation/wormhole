@@ -6,12 +6,9 @@ use std::cell::RefCell;
 use std::mem::size_of;
 use std::slice::Iter;
 
+use byteorder::ByteOrder;
 use num_traits::AsPrimitive;
 use primitive_types::U256;
-use solana_sdk::{
-    account_info::AccountInfo, account_info::next_account_info, entrypoint::ProgramResult, info,
-    instruction::Instruction, program_error::ProgramError, pubkey::Pubkey,
-};
 use solana_sdk::clock::Clock;
 use solana_sdk::hash::Hasher;
 #[cfg(target_arch = "bpf")]
@@ -19,14 +16,34 @@ use solana_sdk::program::invoke_signed;
 use solana_sdk::rent::Rent;
 use solana_sdk::system_instruction::{create_account, SystemInstruction};
 use solana_sdk::sysvar::Sysvar;
+use solana_sdk::{
+    account_info::next_account_info, account_info::AccountInfo, entrypoint::ProgramResult, info,
+    instruction::Instruction, program_error::ProgramError, pubkey::Pubkey,
+};
 use spl_token::state::Mint;
 
 use crate::error::Error;
-use crate::instruction::{BridgeInstruction, CHAIN_ID_SOLANA, TransferOutPayload, VAAData, VerifySigPayload};
-use crate::instruction::{MAX_LEN_GUARDIAN_KEYS, MAX_VAA_SIZE};
 use crate::instruction::BridgeInstruction::*;
+use crate::instruction::{
+    BridgeInstruction, TransferOutPayload, VAAData, VerifySigPayload, CHAIN_ID_SOLANA,
+};
+use crate::instruction::{MAX_LEN_GUARDIAN_KEYS, MAX_VAA_SIZE};
 use crate::state::*;
-use crate::vaa::{BodyTransfer, BodyUpdateGuardianSet, VAA, VAABody};
+use crate::vaa::{BodyTransfer, BodyUpdateGuardianSet, VAABody, VAA};
+
+/// SigInfo contains metadata about signers in a VerifySignature ix
+struct SigInfo {
+    /// index of the signer in the guardianset
+    signer_index: u8,
+    /// index of the signature in the secp instruction
+    sig_index: u8,
+}
+
+struct SecpInstructionPart<'a> {
+    address: &'a [u8],
+    msg_offset: u16,
+    msg_size: u16,
+}
 
 /// Instruction processing logic
 impl Bridge {
@@ -167,6 +184,7 @@ impl Bridge {
         payload: &VerifySigPayload,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
+        let instruction_accounts = next_account_info(account_info_iter)?;
         let sig_info = next_account_info(account_info_iter)?;
         let guardian_set_info = next_account_info(account_info_iter)?;
 
@@ -189,21 +207,100 @@ impl Bridge {
             sig_state.hash = payload.hash;
         }
 
-        for (i, p) in payload.signers.iter().enumerate() {
-            if p == -1 {
-                continue;
-            }
-            if i > guardian_set.len_keys as usize {
+        let sig_infos: Vec<SigInfo> = payload
+            .signers
+            .iter()
+            .enumerate()
+            .filter_map(|(i, p)| {
+                if *p == -1 {
+                    return None;
+                }
+
+                return Some(SigInfo {
+                    sig_index: *p as u8,
+                    signer_index: i as u8,
+                });
+            })
+            .collect();
+
+        let data_len = instruction_accounts.try_borrow_data()?.len();
+        if data_len < 2 {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        let current_instruction = solana_sdk::sysvar::instructions::load_current_index(
+            &instruction_accounts.try_borrow_data()?,
+        );
+        if current_instruction == 0 {
+            return Err(ProgramError::InvalidInstructionData);
+        }
+
+        // The previous ix must be a secp verification instruction
+        let secp_ix_index = (current_instruction - 1) as u8;
+        let secp_ix = solana_sdk::sysvar::instructions::load_instruction_at(
+            secp_ix_index as usize,
+            &instruction_accounts.try_borrow_data()?,
+        )
+        .map_err(|_| ProgramError::InvalidAccountData)?;
+        let sig_len = secp_ix.data[0];
+        let mut index = 1;
+
+        let mut secp_ixs: Vec<SecpInstructionPart> = Vec::with_capacity(sig_len as usize);
+        for i in 0..sig_len {
+            // Skip
+            index += 3;
+
+            let address_offset = byteorder::BE::read_u16(&secp_ix.data[index..index + 2]) as usize;
+            index += 2;
+            let address_ix = secp_ix.data[index];
+            index += 1;
+            let msg_offset = byteorder::BE::read_u16(&secp_ix.data[index..index + 2]);
+            index += 2;
+            let msg_size = byteorder::BE::read_u16(&secp_ix.data[index..index + 2]);
+            index += 2;
+            let msg_ix = secp_ix.data[index];
+            index += 1;
+
+            if address_ix != secp_ix_index || msg_ix != secp_ix_index {
                 return Err(ProgramError::InvalidArgument);
             }
 
-            let key = guardian_set.keys[i];
-            let ix = instructions[p];
-            // Check hash in ix
+            let address: &[u8] = &secp_ix.data[address_offset..address_offset + 20];
 
+            // Make sure that all messages are equal
+            if i > 0 {
+                if msg_offset != secp_ixs[0].msg_offset || msg_size != secp_ixs[0].msg_size {
+                    return Err(ProgramError::InvalidArgument);
+                }
+            }
+            secp_ixs[i as usize] = SecpInstructionPart {
+                address,
+                msg_offset,
+                msg_size,
+            }
+        }
+
+        if sig_infos.len() != secp_ixs.len() {
+            return Err(ProgramError::InvalidArgument);
+        }
+
+        // Check message
+        for s in sig_infos {
+            if s.signer_index > guardian_set.len_keys {
+                return Err(ProgramError::InvalidArgument);
+            }
+
+            if s.sig_index + 1 > sig_len {
+                return Err(ProgramError::InvalidArgument);
+            }
+
+            let key = guardian_set.keys[s.signer_index as usize];
             // Check key in ix
+            if key != secp_ixs[s.sig_index as usize].address {
+                return Err(ProgramError::InvalidArgument);
+            }
 
-            sig_state.signed_status[i] = true;
+            sig_state.signed_status[s.signer_index as usize] = true;
         }
 
         Ok(())
@@ -277,6 +374,7 @@ impl Bridge {
             accounts,
             &bridge.config.token_program,
             sender_account_info.key,
+            mint_info.key,
             t.amount,
         )?;
 
@@ -472,7 +570,8 @@ impl Bridge {
 
         // Check quorum
         if (sig_state.signed_status.iter().filter(|v| **v).count() as u8)
-            < (((guardian_set.len_keys / 4) * 3) + 1 as usize) {
+            < (((guardian_set.len_keys / 4) * 3) + 1)
+        {
             return Err(ProgramError::InvalidArgument);
         }
 
@@ -756,11 +855,13 @@ impl Bridge {
         accounts: &[AccountInfo],
         token_program_id: &Pubkey,
         token_account: &Pubkey,
+        mint_account: &Pubkey,
         amount: U256,
     ) -> Result<(), ProgramError> {
         let ix = spl_token::instruction::burn(
             token_program_id,
             token_account,
+            mint_account,
             &Self::derive_bridge_id(program_id)?,
             &[],
             amount.as_u64(),
@@ -847,7 +948,6 @@ impl Bridge {
             token_program,
             &Self::derive_custody_seeds(bridge, mint),
         )?;
-        info!("bababu");
         info!(token_program.to_string().as_str());
         let ix = spl_token::instruction::initialize_account(
             token_program,
@@ -874,16 +974,14 @@ impl Bridge {
             accounts,
             mint,
             payer,
-            token_program,// Increase poke counter
-            proposal.poke_counter += 1;
-        &Self::derive_wrapped_asset_seeds(bridge, asset.chain, asset.address),
-        ) ? ;
+            token_program,
+            &Self::derive_wrapped_asset_seeds(bridge, asset.chain, asset.address),
+        )?;
         let ix = spl_token::instruction::initialize_mint(
             token_program,
             mint,
+            &Self::derive_bridge_id(program_id)?,
             None,
-            Some(&Self::derive_bridge_id(program_id)?),
-            0,
             decimals,
         )?;
         invoke_signed(&ix, accounts, &[])
