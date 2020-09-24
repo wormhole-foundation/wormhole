@@ -9,7 +9,7 @@ The following dependencies are required for local development:
 - [Tilt](http://tilt.dev/) >= 0.17.2
 
 - Any of the local Kubernetes clusters supported by Tilt 
-  (we recommend [minikube](https://kubernetes.io/docs/setup/learning-environment/minikube/) using the VM driver).
+  (we recommend [minikube](https://kubernetes.io/docs/setup/learning-environment/minikube/) in the default config).
 
 See the [Tilt docs](https://docs.tilt.dev/install.html) docs on how to set up your local cluster -
 it won't take more than a few minutes to set up!
