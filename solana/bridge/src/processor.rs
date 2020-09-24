@@ -3,12 +3,14 @@
 
 use std::borrow::Borrow;
 use std::cell::RefCell;
+use std::io::Write;
 use std::mem::size_of;
 use std::slice::Iter;
 
 use byteorder::ByteOrder;
 use num_traits::AsPrimitive;
 use primitive_types::U256;
+use sha3::Digest;
 use solana_sdk::clock::Clock;
 use solana_sdk::hash::Hasher;
 #[cfg(target_arch = "bpf")]
@@ -30,6 +32,7 @@ use crate::instruction::{
 use crate::instruction::{MAX_LEN_GUARDIAN_KEYS, MAX_VAA_SIZE};
 use crate::state::*;
 use crate::vaa::{BodyTransfer, BodyUpdateGuardianSet, VAABody, VAA};
+use spl_token::pack::Pack;
 
 /// SigInfo contains metadata about signers in a VerifySignature ix
 struct SigInfo {
@@ -184,12 +187,12 @@ impl Bridge {
         payload: &VerifySigPayload,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
+        next_account_info(account_info_iter)?; // Bridge program
         let instruction_accounts = next_account_info(account_info_iter)?;
         let sig_info = next_account_info(account_info_iter)?;
         let guardian_set_info = next_account_info(account_info_iter)?;
 
-        let mut guardian_set_data = guardian_set_info.data.borrow_mut();
-        let guardian_set: &GuardianSet = Self::unpack(&mut guardian_set_data)?;
+        let guardian_set: GuardianSet = Self::guardian_set_deserialize(guardian_set_info)?;
 
         let mut sig_state_data = sig_info.data.borrow_mut();
         let mut sig_state: &mut SignatureState = Self::unpack_unchecked(&mut sig_state_data)?;
@@ -223,11 +226,6 @@ impl Bridge {
             })
             .collect();
 
-        let data_len = instruction_accounts.try_borrow_data()?.len();
-        if data_len < 2 {
-            return Err(ProgramError::InvalidAccountData);
-        }
-
         let current_instruction = solana_sdk::sysvar::instructions::load_current_index(
             &instruction_accounts.try_borrow_data()?,
         );
@@ -242,6 +240,17 @@ impl Bridge {
             &instruction_accounts.try_borrow_data()?,
         )
         .map_err(|_| ProgramError::InvalidAccountData)?;
+
+        // Check that the instruction is actually for the secp program
+        if secp_ix.program_id != solana_sdk::secp256k1_program::id() {
+            return Err(ProgramError::InvalidArgument);
+        }
+
+        let secp_data_len = secp_ix.data.len();
+        if secp_data_len < 2 {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
         let sig_len = secp_ix.data[0];
         let mut index = 1;
 
@@ -250,13 +259,13 @@ impl Bridge {
             // Skip
             index += 3;
 
-            let address_offset = byteorder::BE::read_u16(&secp_ix.data[index..index + 2]) as usize;
+            let address_offset = byteorder::LE::read_u16(&secp_ix.data[index..index + 2]) as usize;
             index += 2;
             let address_ix = secp_ix.data[index];
             index += 1;
-            let msg_offset = byteorder::BE::read_u16(&secp_ix.data[index..index + 2]);
+            let msg_offset = byteorder::LE::read_u16(&secp_ix.data[index..index + 2]);
             index += 2;
-            let msg_size = byteorder::BE::read_u16(&secp_ix.data[index..index + 2]);
+            let msg_size = byteorder::LE::read_u16(&secp_ix.data[index..index + 2]);
             index += 2;
             let msg_ix = secp_ix.data[index];
             index += 1;
@@ -285,6 +294,19 @@ impl Bridge {
         }
 
         // Check message
+        let message = &secp_ix.data[secp_ixs[0].msg_offset as usize
+            ..(secp_ixs[0].msg_offset + secp_ixs[1].msg_size) as usize];
+
+        let mut h = sha3::Keccak256::default();
+        if let Err(_) = h.write(message) {
+            return Err(ProgramError::InvalidArgument);
+        };
+        let msg_hash: [u8; 32] = h.finalize().into();
+        if msg_hash != payload.hash {
+            return Err(ProgramError::InvalidArgument);
+        }
+
+        // Check addresses
         for s in sig_infos {
             if s.signer_index > guardian_set.len_keys {
                 return Err(ProgramError::InvalidArgument);
@@ -317,6 +339,7 @@ impl Bridge {
         next_account_info(account_info_iter)?; // Bridge program
         next_account_info(account_info_iter)?; // System program
         next_account_info(account_info_iter)?; // Token program
+        next_account_info(account_info_iter)?; // Rent sysvar
         let clock_info = next_account_info(account_info_iter)?;
         let sender_account_info = next_account_info(account_info_iter)?;
         let bridge_info = next_account_info(account_info_iter)?;
@@ -408,6 +431,7 @@ impl Bridge {
         next_account_info(account_info_iter)?; // Bridge program
         next_account_info(account_info_iter)?; // System program
         next_account_info(account_info_iter)?; // Token program
+        next_account_info(account_info_iter)?; // Rent sysvar
         let clock_info = next_account_info(account_info_iter)?;
         let sender_account_info = next_account_info(account_info_iter)?;
         let bridge_info = next_account_info(account_info_iter)?;
@@ -520,6 +544,7 @@ impl Bridge {
         // Load VAA processing default accounts
         next_account_info(account_info_iter)?; // Bridge program
         next_account_info(account_info_iter)?; // System program
+        next_account_info(account_info_iter)?; // Rent sysvar
         let clock_info = next_account_info(account_info_iter)?;
         let bridge_info = next_account_info(account_info_iter)?;
         let guardian_set_info = next_account_info(account_info_iter)?;
@@ -940,7 +965,7 @@ impl Bridge {
         mint: &Pubkey,
         payer: &Pubkey,
     ) -> Result<(), ProgramError> {
-        Self::check_and_create_account::<spl_token::state::Account>(
+        Self::check_and_create_account::<[u8; spl_token::state::Account::LEN]>(
             program_id,
             accounts,
             account,
@@ -969,7 +994,7 @@ impl Bridge {
         asset: &AssetMeta,
         decimals: u8,
     ) -> Result<(), ProgramError> {
-        Self::check_and_create_account::<Mint>(
+        Self::check_and_create_account::<[u8; spl_token::state::Mint::LEN]>(
             program_id,
             accounts,
             mint,

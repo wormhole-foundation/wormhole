@@ -306,6 +306,7 @@ pub fn transfer_out(
         AccountMeta::new_readonly(*program_id, false),
         AccountMeta::new_readonly(solana_sdk::system_program::id(), false),
         AccountMeta::new_readonly(spl_token::id(), false),
+        AccountMeta::new_readonly(solana_sdk::sysvar::rent::id(), false),
         AccountMeta::new_readonly(solana_sdk::sysvar::clock::id(), false),
         AccountMeta::new(*token_account, false),
         AccountMeta::new(bridge_key, false),
@@ -327,11 +328,40 @@ pub fn transfer_out(
     })
 }
 
+/// Creates a 'VerifySignatures' instruction.
+#[cfg(not(target_arch = "bpf"))]
+pub fn verify_signatures(
+    program_id: &Pubkey,
+    signature_acc: &Pubkey,
+    guardian_set_id: u32,
+    p: &VerifySigPayload,
+) -> Result<Instruction, ProgramError> {
+    let data = BridgeInstruction::VerifySignatures(*p).serialize()?;
+
+    let bridge_key = Bridge::derive_bridge_id(program_id)?;
+    let guardian_set_key =
+        Bridge::derive_guardian_set_id(program_id, &bridge_key, guardian_set_id)?;
+
+    let mut accounts = vec![
+        AccountMeta::new_readonly(*program_id, false),
+        AccountMeta::new_readonly(solana_sdk::sysvar::instructions::id(), false),
+        AccountMeta::new(*signature_acc, false),
+        AccountMeta::new_readonly(guardian_set_key, false),
+    ];
+
+    Ok(Instruction {
+        program_id: *program_id,
+        accounts,
+        data,
+    })
+}
+
 /// Creates a 'PostVAA' instruction.
 #[cfg(not(target_arch = "bpf"))]
 pub fn post_vaa(
     program_id: &Pubkey,
     payer: &Pubkey,
+    signature_key: &Pubkey,
     v: VAAData,
 ) -> Result<Instruction, ProgramError> {
     let mut data = v.clone();
@@ -348,10 +378,12 @@ pub fn post_vaa(
     let mut accounts = vec![
         AccountMeta::new_readonly(*program_id, false),
         AccountMeta::new_readonly(solana_sdk::system_program::id(), false),
+        AccountMeta::new_readonly(solana_sdk::sysvar::rent::id(), false),
         AccountMeta::new_readonly(solana_sdk::sysvar::clock::id(), false),
         AccountMeta::new(bridge_key, false),
         AccountMeta::new(guardian_set_key, false),
         AccountMeta::new(claim_key, false),
+        AccountMeta::new(*signature_key, false),
         AccountMeta::new(*payer, true),
     ];
 

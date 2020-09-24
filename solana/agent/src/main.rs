@@ -1,11 +1,13 @@
 use std::env;
 use std::fs::File;
+use std::io::{Cursor, Write};
 use std::mem::size_of;
 use std::rc::Rc;
 use std::str::FromStr;
 use std::sync::mpsc::RecvError;
 use std::thread::sleep;
 
+use byteorder::{BigEndian, LittleEndian, ReadBytesExt, WriteBytesExt};
 use solana_client::client_error::ClientError;
 use solana_client::rpc_client::RpcClient;
 use solana_client::rpc_config::RpcSendTransactionConfig;
@@ -15,6 +17,7 @@ use solana_sdk::instruction::Instruction;
 use solana_sdk::program_error::ProgramError;
 use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signature::{read_keypair_file, write_keypair_file, Keypair, Signer};
+use solana_sdk::system_instruction::create_account;
 use solana_sdk::transaction::Transaction;
 use spl_token::state::Account;
 use tokio::stream::Stream;
@@ -27,8 +30,9 @@ use service::{
     lockup_event::Event, Empty, LockupEvent, LockupEventNew, LockupEventVaaPosted,
     SubmitVaaRequest, SubmitVaaResponse, WatchLockupsRequest,
 };
-use spl_bridge::instruction::{post_vaa, CHAIN_ID_SOLANA};
-use spl_bridge::state::{Bridge, TransferOutProposal};
+use spl_bridge::instruction::{post_vaa, verify_signatures, VerifySigPayload, CHAIN_ID_SOLANA};
+use spl_bridge::state::{Bridge, GuardianSet, SignatureState, TransferOutProposal};
+use spl_bridge::vaa::VAA;
 
 use crate::monitor::{ProgramNotificationMessage, PubsubClient};
 
@@ -46,6 +50,12 @@ pub struct AgentImpl {
     key: Keypair,
 }
 
+pub struct SignatureItem {
+    signature: [u8; 64 + 1],
+    key: [u8; 20],
+    index: u8,
+}
+
 #[tonic::async_trait]
 impl Agent for AgentImpl {
     async fn submit_vaa(
@@ -55,23 +65,155 @@ impl Agent for AgentImpl {
         // Hack to clone keypair
         let b = self.key.to_bytes();
         let key = Keypair::from_bytes(&b).unwrap();
+        let bridge = self.bridge.clone();
 
-        let ix = match post_vaa(&self.bridge, &key.pubkey(), request.get_ref().vaa.clone()) {
-            Ok(v) => v,
-            Err(e) => {
-                return Err(Status::new(
-                    Code::InvalidArgument,
-                    format!("could not create instruction: {}", e),
-                ));
-            }
-        };
-
-        let mut transaction = Transaction::new_with_payer(&[ix], Some(&key.pubkey()));
         let rpc_url = self.rpc_url.clone();
 
         // we need to spawn an extra thread because tokio does not allow nested runtimes
         std::thread::spawn(move || {
+            let sig_key = solana_sdk::signature::Keypair::new();
+            let create_ix = create_account(
+                &key.pubkey(),
+                &sig_key.pubkey(),
+                100,
+                size_of::<SignatureState>() as u64,
+                &bridge,
+            );
+
             let rpc = RpcClient::new(rpc_url);
+            let vaa = match VAA::deserialize(&request.get_ref().vaa) {
+                Ok(v) => v,
+                Err(e) => {
+                    return Err(Status::new(
+                        Code::InvalidArgument,
+                        format!("could not parse VAA: {}", e),
+                    ));
+                }
+            };
+
+            let bridge_key = Bridge::derive_bridge_id(&bridge).unwrap();
+            let guardian_key =
+                Bridge::derive_guardian_set_id(&bridge, &bridge_key, vaa.guardian_set_index)
+                    .unwrap();
+            let guardian_account = rpc
+                .get_account_with_commitment(
+                    &guardian_key,
+                    CommitmentConfig {
+                        commitment: CommitmentLevel::Single,
+                    },
+                )
+                .unwrap()
+                .value
+                .unwrap_or_default();
+            let data = guardian_account.data;
+            let guardian_set: &GuardianSet = Bridge::unpack_immutable(data.as_slice()).unwrap();
+
+            let mut signature_items: Vec<SignatureItem> = Vec::new();
+            let mut signature_status = [-1i8; 20];
+            for (i, s) in vaa.signatures.iter().enumerate() {
+                let mut item = SignatureItem {
+                    signature: [0; 64 + 1],
+                    key: [0; 20],
+                    index: s.index,
+                };
+
+                item.signature[0..32].copy_from_slice(&s.r);
+                item.signature[32..64].copy_from_slice(&s.s);
+                item.signature[64] = s.v;
+                item.key = guardian_set.keys[s.index as usize];
+                signature_status[s.index as usize] = i as i8;
+
+                signature_items.push(item);
+            }
+
+            let vaa_hash = match vaa.body_hash() {
+                Ok(v) => v,
+                Err(e) => {
+                    return Err(Status::new(
+                        Code::InvalidArgument,
+                        format!("could get vaa body hash: {}", e),
+                    ));
+                }
+            };
+            let vaa_body = match vaa.signature_body() {
+                Ok(v) => v,
+                Err(e) => {
+                    return Err(Status::new(
+                        Code::InvalidArgument,
+                        format!("could get vaa body: {}", e),
+                    ));
+                }
+            };
+
+            let mut secp_payload = Vec::new();
+            let data_offset = 1 + signature_items.len() * 11;
+            let message_offset = data_offset + signature_items.len() * 85;
+
+            // 1 number of signatures
+            secp_payload.write_u8(signature_items.len() as u8);
+
+            // Secp signature info description
+            for (i, s) in signature_items.iter().enumerate() {
+                secp_payload.write_u16::<LittleEndian>((data_offset + 85 * i) as u16);
+                secp_payload.write_u8(1);
+                secp_payload.write_u16::<LittleEndian>((data_offset + 85 * i + 65) as u16);
+                secp_payload.write_u8(1);
+                secp_payload.write_u16::<LittleEndian>(message_offset as u16);
+                secp_payload.write_u16::<LittleEndian>(vaa_body.len() as u16);
+                secp_payload.write_u8(1);
+            }
+
+            // Write signatures and addresses
+            for s in signature_items.iter() {
+                secp_payload.write(&s.signature);
+                secp_payload.write(&s.key);
+            }
+
+            // Write body
+            secp_payload.write(&vaa_body);
+
+            let secp_ix =
+                Instruction::new(solana_sdk::secp256k1_program::id(), &secp_payload, vec![]);
+
+            let payload = VerifySigPayload {
+                signers: signature_status,
+                hash: vaa_hash,
+            };
+            let verify_ix = match verify_signatures(
+                &bridge,
+                &sig_key.pubkey(),
+                vaa.guardian_set_index,
+                &payload,
+            ) {
+                Ok(v) => v,
+                Err(e) => {
+                    return Err(Status::new(
+                        Code::InvalidArgument,
+                        format!("could not create verify instruction: {}", e),
+                    ));
+                }
+            };
+
+            let ix = match post_vaa(
+                &bridge,
+                &key.pubkey(),
+                &sig_key.pubkey(),
+                request.get_ref().vaa.clone(),
+            ) {
+                Ok(v) => v,
+                Err(e) => {
+                    return Err(Status::new(
+                        Code::InvalidArgument,
+                        format!("could not create post_vaa instruction: {}", e),
+                    ));
+                }
+            };
+
+            // TODO add all instructions again
+            let mut transaction1 =
+                Transaction::new_with_payer(&[create_ix, secp_ix, verify_ix], Some(&key.pubkey()));
+            let mut transaction2 = Transaction::new_with_payer(&[ix], Some(&key.pubkey()));
+
             let (recent_blockhash, fee_calculator) = match rpc.get_recent_blockhash() {
                 Ok(v) => v,
                 Err(e) => {
@@ -81,9 +223,42 @@ impl Agent for AgentImpl {
                     ));
                 }
             };
-            transaction.sign(&[&key], recent_blockhash);
+
+            transaction1.sign(&[&key, &sig_key], recent_blockhash);
+
             match rpc.send_and_confirm_transaction_with_spinner_and_config(
-                &transaction,
+                &transaction1,
+                CommitmentConfig {
+                    commitment: CommitmentLevel::Single,
+                },
+                RpcSendTransactionConfig {
+                    skip_preflight: true,
+                    preflight_commitment: None,
+                },
+            ) {
+                Ok(s) => s,
+                Err(e) => {
+                    return Err(Status::new(
+                        Code::Unavailable,
+                        format!("tx sending failed: {}", e),
+                    ));
+                }
+            };
+
+            let (recent_blockhash, fee_calculator) = match rpc.get_recent_blockhash() {
+                Ok(v) => v,
+                Err(e) => {
+                    return Err(Status::new(
+                        Code::Unavailable,
+                        format!("could not fetch recent blockhash: {}", e),
+                    ));
+                }
+            };
+
+            transaction2.sign(&[&key], recent_blockhash);
+
+            match rpc.send_and_confirm_transaction_with_spinner_and_config(
+                &transaction2,
                 CommitmentConfig {
                     commitment: CommitmentLevel::Single,
                 },

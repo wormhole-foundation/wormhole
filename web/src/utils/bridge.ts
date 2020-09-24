@@ -95,6 +95,7 @@ class SolanaBridge {
             {pubkey: this.programID, isSigner: false, isWritable: false},
             {pubkey: solanaWeb3.SystemProgram.programId, isSigner: false, isWritable: false},
             {pubkey: this.tokenProgram, isSigner: false, isWritable: false},
+            {pubkey: solanaWeb3.SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false},
             {pubkey: solanaWeb3.SYSVAR_CLOCK_PUBKEY, isSigner: false, isWritable: false},
             {pubkey: tokenAccount, isSigner: false, isWritable: true},
             {pubkey: configKey, isSigner: false, isWritable: false},

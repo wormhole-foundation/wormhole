@@ -35,3 +35,19 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
          Ok(TokenAccountType::Account(UiTokenAccount {
              mint: account.mint.to_string(),
              owner: account.owner.to_string(),
+Index: programs/bpf_loader/src/bpf_verifier.rs
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- programs/bpf_loader/src/bpf_verifier.rs	(revision 6563726f227414164c32a0373fa32b0f87fbd4e8)
++++ programs/bpf_loader/src/bpf_verifier.rs	(date 1600862128332)
+@@ -58,7 +58,7 @@
+     if prog.len() % ebpf::INSN_SIZE != 0 {
+         return Err(VerifierError::ProgramLengthNotMultiple.into());
+     }
+-    if prog.len() > ebpf::PROG_MAX_SIZE {
++    if prog.len() > ebpf::PROG_MAX_SIZE * 2 {
+         return Err(VerifierError::ProgramTooLarge(prog.len() / ebpf::INSN_SIZE).into());
+     }
+

@@ -181,27 +181,6 @@ fn command_lock_tokens(
     Ok(Some(transaction))
 }
 
-fn command_submit_vaa(config: &Config, bridge: &Pubkey, vaa: &[u8]) -> CommmandResult {
-    println!("Submitting VAA");
-
-    let minimum_balance_for_rent_exemption = config
-        .rpc_client
-        .get_minimum_balance_for_rent_exemption(size_of::<Mint>())?;
-
-    let ix = post_vaa(bridge, &config.owner.pubkey(), vaa.to_vec())?;
-
-    let mut transaction = Transaction::new_with_payer(&[ix], Some(&config.fee_payer.pubkey()));
-
-    let (recent_blockhash, fee_calculator) = config.rpc_client.get_recent_blockhash()?;
-    check_fee_payer_balance(
-        config,
-        minimum_balance_for_rent_exemption
-            + fee_calculator.calculate_fee(&transaction.message(), None),
-    )?;
-    transaction.sign(&[&config.fee_payer, &config.owner], recent_blockhash);
-    Ok(Some(transaction))
-}
-
 fn check_fee_payer_balance(config: &Config, required_balance: u64) -> Result<(), Error> {
     let balance = config.rpc_client.get_balance(&config.fee_payer.pubkey())?;
     if balance < required_balance {
@@ -246,7 +225,7 @@ fn command_create_token(config: &Config, decimals: u8) -> CommmandResult {
                 &config.fee_payer.pubkey(),
                 &token.pubkey(),
                 minimum_balance_for_rent_exemption,
-                size_of::<Mint>() as u64,
+                Mint::LEN as u64,
                 &spl_token::id(),
             ),
             initialize_mint(
@@ -287,7 +266,7 @@ fn command_create_account(config: &Config, token: Pubkey) -> CommmandResult {
                 &config.fee_payer.pubkey(),
                 &account.pubkey(),
                 minimum_balance_for_rent_exemption,
-                size_of::<Account>() as u64,
+                Account::LEN as u64,
                 &spl_token::id(),
             ),
             initialize_account(
@@ -1181,12 +1160,6 @@ fn main() {
             command_lock_tokens(
                 &config, &bridge, account, token, amount, chain, recipient, nonce,
             )
-        }
-        ("postvaa", Some(arg_matches)) => {
-            let bridge = pubkey_of(arg_matches, "bridge").unwrap();
-            let vaa_string: String = value_of(arg_matches, "vaa").unwrap();
-            let vaa = hex::decode(vaa_string).unwrap();
-            command_submit_vaa(&config, &bridge, vaa.as_slice())
         }
         ("poke", Some(arg_matches)) => {
             let bridge = pubkey_of(arg_matches, "bridge").unwrap();
