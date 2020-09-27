@@ -181,10 +181,11 @@ impl BridgeInstruction {
 
     /// Serializes a BridgeInstruction into a byte buffer.
     pub fn serialize(self: Self) -> Result<Vec<u8>, ProgramError> {
-        let mut output = vec![0u8; size_of::<BridgeInstruction>()];
+        let mut output = Vec::with_capacity(size_of::<BridgeInstruction>());
 
         match self {
             Self::Initialize(payload) => {
+                output.resize(size_of::<InitializePayload>() + 1, 0);
                 output[0] = 0;
                 #[allow(clippy::cast_ptr_alignment)]
                 let value = unsafe {
@@ -193,6 +194,7 @@ impl BridgeInstruction {
                 *value = payload;
             }
             Self::TransferOut(payload) => {
+                output.resize(size_of::<TransferOutPayloadRaw>() + 1, 0);
                 output[0] = 1;
                 #[allow(clippy::cast_ptr_alignment)]
                 let value = unsafe {
@@ -211,22 +213,25 @@ impl BridgeInstruction {
                 };
             }
             Self::PostVAA(payload) => {
+                output.resize(1, 0);
                 output[0] = 2;
                 #[allow(clippy::cast_ptr_alignment)]
-                let value =
-                    unsafe { &mut *(&mut output[size_of::<u8>()] as *mut u8 as *mut VAAData) };
-                *value = payload;
+                output.extend_from_slice(&payload);
             }
             Self::EvictTransferOut() => {
+                output.resize(1, 0);
                 output[0] = 3;
             }
             Self::EvictClaimedVAA() => {
+                output.resize(1, 0);
                 output[0] = 4;
             }
             Self::PokeProposal() => {
+                output.resize(1, 0);
                 output[0] = 5;
             }
             Self::VerifySignatures(payload) => {
+                output.resize(size_of::<VerifySigPayload>() + 1, 0);
                 output[0] = 6;
                 #[allow(clippy::cast_ptr_alignment)]
                 let value = unsafe {
