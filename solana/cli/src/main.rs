@@ -217,7 +217,7 @@ fn command_create_token(config: &Config, decimals: u8) -> CommmandResult {
 
     let minimum_balance_for_rent_exemption = config
         .rpc_client
-        .get_minimum_balance_for_rent_exemption(size_of::<Mint>())?;
+        .get_minimum_balance_for_rent_exemption(Mint::LEN)?;
 
     let mut transaction = Transaction::new_with_payer(
         &[
@@ -258,7 +258,7 @@ fn command_create_account(config: &Config, token: Pubkey) -> CommmandResult {
 
     let minimum_balance_for_rent_exemption = config
         .rpc_client
-        .get_minimum_balance_for_rent_exemption(size_of::<Account>())?;
+        .get_minimum_balance_for_rent_exemption(Account::LEN)?;
 
     let mut transaction = Transaction::new_with_payer(
         &[

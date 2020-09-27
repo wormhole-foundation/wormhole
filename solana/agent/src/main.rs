@@ -71,16 +71,21 @@ impl Agent for AgentImpl {
 
         // we need to spawn an extra thread because tokio does not allow nested runtimes
         std::thread::spawn(move || {
+            let rpc = RpcClient::new(rpc_url);
+
             let sig_key = solana_sdk::signature::Keypair::new();
+
+            let min_sig_rent = rpc
+                .get_minimum_balance_for_rent_exemption(size_of::<SignatureState>())
+                .unwrap();
             let create_ix = create_account(
                 &key.pubkey(),
                 &sig_key.pubkey(),
-                100,
+                min_sig_rent,
                 size_of::<SignatureState>() as u64,
                 &bridge,
             );
 
-            let rpc = RpcClient::new(rpc_url);
             let vaa = match VAA::deserialize(&request.get_ref().vaa) {
                 Ok(v) => v,
                 Err(e) => {
@@ -172,8 +177,11 @@ impl Agent for AgentImpl {
             // Write body
             secp_payload.write(&vaa_body);
 
-            let secp_ix =
-                Instruction::new(solana_sdk::secp256k1_program::id(), &secp_payload, vec![]);
+            let secp_ix = Instruction {
+                program_id: solana_sdk::secp256k1_program::id(),
+                data: secp_payload,
+                accounts: vec![],
+            };
 
             let payload = VerifySigPayload {
                 signers: signature_status,
@@ -209,7 +217,6 @@ impl Agent for AgentImpl {
                 }
             };
 
-            // TODO add all instructions again
             let mut transaction1 =
                 Transaction::new_with_payer(&[create_ix, secp_ix, verify_ix], Some(&key.pubkey()));
             let mut transaction2 = Transaction::new_with_payer(&[ix], Some(&key.pubkey()));
@@ -232,11 +239,11 @@ impl Agent for AgentImpl {
                     commitment: CommitmentLevel::Single,
                 },
                 RpcSendTransactionConfig {
-                    skip_preflight: true,
-                    preflight_commitment: None,
+                    skip_preflight: false,
+                    preflight_commitment: Some(CommitmentLevel::SingleGossip),
                 },
             ) {
-                Ok(s) => s,
+                Ok(_) => (),
                 Err(e) => {
                     return Err(Status::new(
                         Code::Unavailable,
@@ -263,8 +270,8 @@ impl Agent for AgentImpl {
                     commitment: CommitmentLevel::Single,
                 },
                 RpcSendTransactionConfig {
-                    skip_preflight: true,
-                    preflight_commitment: None,
+                    skip_preflight: false,
+                    preflight_commitment: Some(CommitmentLevel::SingleGossip),
                 },
             ) {
                 Ok(s) => Ok(Response::new(SubmitVaaResponse {

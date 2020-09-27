@@ -282,11 +282,11 @@ impl Bridge {
                     return Err(ProgramError::InvalidArgument);
                 }
             }
-            secp_ixs[i as usize] = SecpInstructionPart {
+            secp_ixs.push(SecpInstructionPart {
                 address,
                 msg_offset,
                 msg_size,
-            }
+            });
         }
 
         if sig_infos.len() != secp_ixs.len() {
@@ -295,7 +295,7 @@ impl Bridge {
 
         // Check message
         let message = &secp_ix.data[secp_ixs[0].msg_offset as usize
-            ..(secp_ixs[0].msg_offset + secp_ixs[1].msg_size) as usize];
+            ..(secp_ixs[0].msg_offset + secp_ixs[0].msg_size) as usize];
 
         let mut h = sha3::Keccak256::default();
         if let Err(_) = h.write(message) {
