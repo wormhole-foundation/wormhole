@@ -73,6 +73,8 @@ pub struct TransferOutProposal {
     pub lockup_time: u32,
     /// times the proposal has been poked
     pub poke_counter: u8,
+    /// Account where signatures are stored
+    pub signature_account: Pubkey,
 
     /// Is `true` if this structure has been initialized.
     pub is_initialized: bool,
@@ -180,10 +182,10 @@ impl IsInitialized for Bridge {
 
 /// Signature state
 #[repr(C)]
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy)]
 pub struct SignatureState {
-    /// status of signers
-    pub signed_status: [bool; MAX_LEN_GUARDIAN_KEYS],
+    /// signatures of validators
+    pub signatures: [[u8; 65]; MAX_LEN_GUARDIAN_KEYS],
 
     /// hash of the data
     pub hash: [u8; 32],

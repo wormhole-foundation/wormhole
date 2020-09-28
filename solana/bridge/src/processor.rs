@@ -22,6 +22,7 @@ use solana_sdk::{
     account_info::next_account_info, account_info::AccountInfo, entrypoint::ProgramResult, info,
     instruction::Instruction, program_error::ProgramError, pubkey::Pubkey,
 };
+use spl_token::pack::Pack;
 use spl_token::state::Mint;
 
 use crate::error::Error;
@@ -32,7 +33,6 @@ use crate::instruction::{
 use crate::instruction::{MAX_LEN_GUARDIAN_KEYS, MAX_VAA_SIZE};
 use crate::state::*;
 use crate::vaa::{BodyTransfer, BodyUpdateGuardianSet, VAABody, VAA};
-use spl_token::pack::Pack;
 
 /// SigInfo contains metadata about signers in a VerifySignature ix
 struct SigInfo {
@@ -44,6 +44,7 @@ struct SigInfo {
 
 struct SecpInstructionPart<'a> {
     address: &'a [u8],
+    signature: &'a [u8],
     msg_offset: u16,
     msg_size: u16,
 }
@@ -256,9 +257,10 @@ impl Bridge {
 
         let mut secp_ixs: Vec<SecpInstructionPart> = Vec::with_capacity(sig_len as usize);
         for i in 0..sig_len {
-            // Skip
-            index += 3;
-
+            let sig_offset = byteorder::LE::read_u16(&secp_ix.data[index..index + 2]) as usize;
+            index += 2;
+            let sig_ix = secp_ix.data[index];
+            index += 1;
             let address_offset = byteorder::LE::read_u16(&secp_ix.data[index..index + 2]) as usize;
             index += 2;
             let address_ix = secp_ix.data[index];
@@ -270,11 +272,12 @@ impl Bridge {
             let msg_ix = secp_ix.data[index];
             index += 1;
 
-            if address_ix != secp_ix_index || msg_ix != secp_ix_index {
+            if address_ix != secp_ix_index || msg_ix != secp_ix_index || sig_ix != secp_ix_index {
                 return Err(ProgramError::InvalidArgument);
             }
 
             let address: &[u8] = &secp_ix.data[address_offset..address_offset + 20];
+            let signature: &[u8] = &secp_ix.data[sig_offset..sig_offset + 65];
 
             // Make sure that all messages are equal
             if i > 0 {
@@ -284,6 +287,7 @@ impl Bridge {
             }
             secp_ixs.push(SecpInstructionPart {
                 address,
+                signature,
                 msg_offset,
                 msg_size,
             });
@@ -322,7 +326,8 @@ impl Bridge {
                 return Err(ProgramError::InvalidArgument);
             }
 
-            sig_state.signed_status[s.signer_index as usize] = true;
+            sig_state.signatures[s.signer_index as usize]
+                .copy_from_slice(secp_ixs[s.sig_index as usize].signature);
         }
 
         Ok(())
@@ -594,7 +599,11 @@ impl Bridge {
         }
 
         // Check quorum
-        if (sig_state.signed_status.iter().filter(|v| **v).count() as u8)
+        if (sig_state
+            .signatures
+            .iter()
+            .filter(|v| v.iter().filter(|v| **v != 0).count() != 0)
+            .count() as u8)
             < (((guardian_set.len_keys / 4) * 3) + 1)
         {
             return Err(ProgramError::InvalidArgument);
@@ -622,6 +631,7 @@ impl Bridge {
                         vaa,
                         &v,
                         vaa_data,
+                        sig_info.key,
                     )
                 } else {
                     Self::process_vaa_transfer(
@@ -829,6 +839,7 @@ impl Bridge {
         vaa: &VAA,
         b: &BodyTransfer,
         vaa_data: VAAData,
+        sig_account: &Pubkey,
     ) -> ProgramResult {
         info!("posting VAA");
         let proposal_info = next_account_info(account_info_iter)?;
@@ -867,6 +878,7 @@ impl Bridge {
         // Stop byte
         proposal.vaa[vaa_data.len()] = 0xff;
         proposal.vaa_time = vaa.timestamp;
+        proposal.signature_account = *sig_account;
 
         Ok(())
     }
