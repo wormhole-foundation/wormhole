@@ -31,42 +31,18 @@ There are multiple ways to measure whether enough validators have approved a dec
 #### Multiple signatures - MultiSig
 
 The most simple solution is by using a *MultiSig* mechanism. This means that each guardian would sign a message 
-and submit it to a smart contract on-chain with reference to a *decision* that the guardians need to make (e.g. a transfer).
-Since a transaction itself is already signed, we can simplify this to using the transaction itself as proof.
+and submit it via a P2P gossip network.
 
-Said smart contract will count the number of guardians that have submitted a transaction for a *decision*.
-Once the consensus threshold has been reached, the contract will execute the action the guardians have agreed on.
+Once the consensus threshold has been reached, a guardian will aggregate all signatures into a VAA and execute/submit it
+on the chain.
 
-The issue with this schema is that it requires at least `n=2/3*m+1` transactions for `m` validators. On Ethereum for
-example one such transaction would cost `21k+20k+x` gas (base + `SSTORE` \[to track the tx] + additional compute).
-With `n` txs and 20 guardians threshold (`2/3m+1`) the cost would be `n*(41k+x)` which is `820k+20x`.
-
-At a gas price of `50 Gwei` this would mean total tx costs of `0.041 ETH` at `x=0`. At an ETH price of `300$` that
-means costs of `12.3$`.
-
-These prices will require the guardians to charge significant fees. If these fees are not covered by the user, bridge
-transactions would stall and time out. 
-
-There are a couple of other issues with this concept:
-
-1. There is no way for the Solana Bridge program to verify whether the guardians have actually unlocked the tokens on
-the foreign chain.
-2. Users cannot cover gas costs themselves because transactions are not "portable". I.e. the require serialized nonces.
-If a guardian submits a transaction with nonce 20 to the user but in the meantime issues another transaction with the 
-same nonce, the user tx will be invalid even though the Solana program might successfully verify the tx (as it does not
-know the state of ETH).
-
-There is an alternative way by using portable ECDSA signatures that approve an action i.e. a transfer. The guardians
-could submit all of those signatures to the lock proposal and the user or another participant in the network could relay
-them to Ethereum.
-That way the Solana program can verify that the signatures and signed action are valid, being sure that if there is a 
-quorum (i.e. enough signatures), the user could use these signatures to trigger the execution of the signed action on
-the foreign chain.
-
-The downside here is that this makes tracking and synchronizing guardian changes highly complex and further increases
-gas costs by about `(5k+5k)*n` (`ECRECOVER+GTXDATANONZERO*72`) for the additional `ecrecover` calls that need to be made.
-However since all signatures can be aggregate into one tx, we'll save `(n-1)*21k` leading to an effective gas saving of
-`~10k*n`. Still, transfers would be considerably expensive applying the aforementioned assumptions.
+The downside here is that gas costs increase with larger guardian sets bringing verification costs to
+ `(5k+5k)*n` (`ECRECOVER+GTXDATANONZERO*72`).
+ 
+To prevent lagging and complex gas price handling by validators or relayers, we always submit VAAs to Solana where txs
+are negligibly cheap. In the case of a Solana -> ETH transfer. Guardians would publish a signed VAA on Solana and a user
+or independently paid relayer would publish said VAA on Ethereum, paying for gas costs. This mechanism is similar to a 
+check issued by the guardians (a VAA) which can be used on another chain to claim assets.
 
 #### Threshold signatures
 
@@ -114,7 +90,7 @@ A great overview can be found [here](https://github.com/Turing-Chain/TSSKit-Thre
 
 #### Design choices
 
-For transfers we implement a Schnorr-Threshold signature schema based on the implementation from Chainlink.
+For transfers we implement a simple MultiSig schema.
 We'll create a portable "action blob" with a threshold signature to allow anyone to relay action approvals
 between chains. We call this structure: **VAA** (Verifiable Action Approval).
 
@@ -159,8 +135,6 @@ set.
 
 ID: `0x01`
 
-Size: `32 byte`
-
 Payload:
 
 ```
@@ -175,8 +149,6 @@ desynchronization between the any of the chains in the system.
 ##### Transfer
 
 ID: `0x10`
-
-Size: `75 byte`
 
 Payload:
 
@@ -195,9 +167,6 @@ uint256 amount
 
 #### Transfer of assets Foreign Chain -> Root Chain
 
-If this is the first time the asset is transferred to the root chain, the user inititates a `CreateWrapped` instruction
-on the root chain to initialize the wrapped asset. 
-
 The user creates a token account for the wrapped asset on the root chain.
 
 The user sends a chain native asset to the bridge on the foreign chain using the `Lock` function.
@@ -210,7 +179,7 @@ They check for the validity, parse it and will then initiate a threshold signatu
 produced VAA (`Transfer`) testifying that they have seen a foreign lockup. They will post this VAA on the root chain
 using the `SubmitVAA` instruction.
  
-This instruction will either mint a new wrapped assetor released tokens from custody. 
+This instruction will either mint a new wrapped asset or release tokens from custody. 
 Custody is used for Solana-native tokens that have previously been transferred to a foreign chain, minting will be used
  to create new units of a wrapped foreign-chain asset.
 
@@ -233,19 +202,14 @@ Guardians will pick up the **LockProposal** once it has enough confirmations on 
 full confirmation (i.e. the max lockup, currently 32 slots), but can be changed to a different commitment levels
 on each guardian's discretion.
 
-They check for the validity of the tx, parse it and will initiate an off-chain threshold signature ceremony which will
+They check for the validity of the tx, parse it and will initiate an off-chain signature aggregation ceremony which will
 output a **VAA** that can be used with a foreign chain smart contract to reclaim an unwrapped local asset or mint a 
 wrapped `spl-token`.
 
 This VAA will be posted on Solana by one of the guardians using the `SubmitVAA` instruction and will be stored in the
 `LockProposal`.
 
-Depending on whether the fees are sufficient for **guardians** or **relayers** to cover the foreign chain fees, they
-will also post the VAA on the foreign chain, completing the transfer.
-
-If no fee or an insufficient fee is specified, the user can pick up the VAA from the `LockProposal` and submit it on the foreign chain themselves.
-
-VAAs for conducting transfers to a foreign chain are submitted using `FinalizeTransfer`.
+The user can then get the VAA from the `LockProposal` and submit it on the foreign chain.
 
 ### Fees
 
@@ -253,11 +217,6 @@ TODO  \o/
 
 ### Config changes
 #### Guardian set changes
-
-Since we use a *TSS* (Threshold signature scheme) for VAAs, changes to the guardian list are finalized by setting a
-new aggregate public key that's derived from a distributed key generation ("DKG") ceremony of the new guardian set.
-
-This new public key is set via a VAA with the `UPDATE_GUARDIANS` action that is signed by the previous guardians.
 
 The guardians need to make sure that the sets are synchronized between all chains.
 If the guardian set is changed, the guardian must also be replaced on all foreign chains. Therefore we
@@ -269,4 +228,4 @@ chains.
 
 If all VAAs issued by the previous guardian set would immediately become invalid once a new guardian set takes over, that would
 lead to some payments being "stuck". Therefore we track a list of previous guardian sets. VAAs issued by old 
-guardian sets stay valid for one day from the time that the change happens.
+guardian sets stay valid for one day from the time that the change happens in the default configuration.
