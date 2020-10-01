@@ -1,14 +1,15 @@
-use crate::CommmandResult;
+use std::{error, net::SocketAddr, thread::sleep, time::Duration};
+
 use solana_client::rpc_client::RpcClient;
 use solana_faucet::faucet::request_airdrop_transaction;
-use solana_sdk::hash::Hash;
-use solana_sdk::pubkey::Pubkey;
-use solana_sdk::signature::{Signature, Signer, SignerError};
-use solana_sdk::transaction::Transaction;
-use std::error;
-use std::net::SocketAddr;
-use std::thread::sleep;
-use std::time::Duration;
+use solana_sdk::{
+    hash::Hash,
+    pubkey::Pubkey,
+    signature::{Signature, Signer, SignerError},
+    transaction::Transaction,
+};
+
+use crate::CommmandResult;
 
 // Quick and dirty Keypair that assumes the client will do retries but not update the
 // blockhash. If the client updates the blockhash, the signature will be invalid.

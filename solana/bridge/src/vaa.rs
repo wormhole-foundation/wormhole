@@ -5,10 +5,7 @@ use primitive_types::U256;
 use sha3::Digest;
 use solana_sdk::program_error::ProgramError;
 
-use crate::error::Error;
-use crate::error::Error::InvalidVAAFormat;
-use crate::state::AssetMeta;
-use crate::syscalls::{sol_syscall_ecrecover, EcrecoverInput, EcrecoverOutput};
+use crate::{error::Error, state::AssetMeta};
 
 pub type ForeignAddress = [u8; 32];
 
@@ -106,7 +103,7 @@ impl VAA {
 
         let len_sig = rdr.read_u8()?;
         let mut sigs: Vec<Signature> = Vec::with_capacity(len_sig as usize);
-        for i in 0..len_sig {
+        for _i in 0..len_sig {
             let mut sig = Signature::default();
 
             sig.index = rdr.read_u8()?;
@@ -272,8 +269,10 @@ mod tests {
     use hex;
     use primitive_types::U256;
 
-    use crate::state::AssetMeta;
-    use crate::vaa::{BodyTransfer, BodyUpdateGuardianSet, Signature, VAABody, VAA};
+    use crate::{
+        state::AssetMeta,
+        vaa::{BodyTransfer, BodyUpdateGuardianSet, Signature, VAABody, VAA},
+    };
 
     #[test]
     fn serialize_deserialize_vaa_transfer() {

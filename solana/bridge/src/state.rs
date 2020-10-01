@@ -1,18 +1,16 @@
 //! Bridge transition types
 
-use std::io::{Cursor, Read, Write};
 use std::mem::size_of;
-use std::ops::Deref;
 
-use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use primitive_types::U256;
-use solana_sdk::pubkey::{PubkeyError, MAX_SEED_LEN};
 use solana_sdk::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 use zerocopy::AsBytes;
 
-use crate::error::Error;
-use crate::instruction::{ForeignAddress, VAAData, MAX_LEN_GUARDIAN_KEYS, MAX_VAA_SIZE};
-use crate::vaa::BodyTransfer;
+use crate::{
+    error::Error,
+    instruction::{ForeignAddress, MAX_LEN_GUARDIAN_KEYS, MAX_VAA_SIZE},
+    vaa::BodyTransfer,
+};
 
 /// fee rate as a ratio
 #[repr(C)]

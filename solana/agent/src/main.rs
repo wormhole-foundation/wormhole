@@ -1,40 +1,41 @@
 use std::env;
-use std::fs::File;
-use std::io::{Cursor, Write};
-use std::mem::size_of;
-use std::rc::Rc;
+
+use std::{io::Write, mem::size_of};
+
 use std::str::FromStr;
-use std::sync::mpsc::RecvError;
-use std::thread::sleep;
 
 use byteorder::{BigEndian, LittleEndian, ReadBytesExt, WriteBytesExt};
-use solana_client::client_error::ClientError;
-use solana_client::rpc_client::RpcClient;
-use solana_client::rpc_config::RpcSendTransactionConfig;
+use solana_client::{
+    client_error::ClientError, rpc_client::RpcClient, rpc_config::RpcSendTransactionConfig,
+};
 use solana_sdk::commitment_config::{CommitmentConfig, CommitmentLevel};
-use solana_sdk::fee_calculator::FeeCalculator;
+
 use solana_sdk::instruction::Instruction;
-use solana_sdk::program_error::ProgramError;
-use solana_sdk::pubkey::Pubkey;
-use solana_sdk::signature::{read_keypair_file, write_keypair_file, Keypair, Signature, Signer};
-use solana_sdk::system_instruction::create_account;
-use solana_sdk::transaction::Transaction;
-use spl_token::state::Account;
-use tokio::stream::Stream;
+
+use solana_sdk::{
+    pubkey::Pubkey,
+    signature::{read_keypair_file, write_keypair_file, Keypair, Signature, Signer},
+    system_instruction::create_account,
+    transaction::Transaction,
+};
+
 use tokio::sync::mpsc;
-use tokio::time::Duration;
+
 use tonic::{transport::Server, Code, Request, Response, Status};
 
-use service::agent_server::{Agent, AgentServer};
 use service::{
-    lockup_event::Event, Empty, LockupEvent, LockupEventNew, LockupEventVaaPosted,
-    SubmitVaaRequest, SubmitVaaResponse, WatchLockupsRequest,
+    agent_server::{Agent, AgentServer},
+    lockup_event::Event,
+    Empty, LockupEvent, LockupEventNew, LockupEventVaaPosted, SubmitVaaRequest, SubmitVaaResponse,
+    WatchLockupsRequest,
 };
-use spl_bridge::instruction::{post_vaa, verify_signatures, VerifySigPayload, CHAIN_ID_SOLANA};
-use spl_bridge::state::{Bridge, GuardianSet, SignatureState, TransferOutProposal};
-use spl_bridge::vaa::VAA;
+use spl_bridge::{
+    instruction::{post_vaa, verify_signatures, VerifySigPayload, CHAIN_ID_SOLANA},
+    state::{Bridge, GuardianSet, SignatureState, TransferOutProposal},
+    vaa::VAA,
+};
 
-use crate::monitor::{ProgramNotificationMessage, PubsubClient};
+use crate::monitor::PubsubClient;
 
 mod monitor;
 
@@ -106,7 +107,7 @@ impl Agent for AgentImpl {
 
             for (mut tx, signers) in verify_txs {
                 match sign_and_send(&rpc, &mut tx, signers) {
-                    Ok(s) => (),
+                    Ok(_) => (),
                     Err(e) => {
                         return Err(Status::new(
                             Code::Unavailable,
@@ -140,15 +141,15 @@ impl Agent for AgentImpl {
 
     async fn watch_lockups(
         &self,
-        req: Request<WatchLockupsRequest>,
+        _req: Request<WatchLockupsRequest>,
     ) -> Result<Response<Self::WatchLockupsStream>, Status> {
-        let (mut tx, mut rx) = mpsc::channel(1);
+        let (mut tx, rx) = mpsc::channel(1);
         let url = self.url.clone();
         let bridge = self.bridge.clone();
         let rpc_url = self.rpc_url.clone();
 
         tokio::spawn(async move {
-            let rpc = RpcClient::new(rpc_url.to_string());
+            let _rpc = RpcClient::new(rpc_url.to_string());
             let sub = PubsubClient::program_subscribe(&url, &bridge).unwrap();
             // looping and sending our response using stream
             loop {
@@ -276,7 +277,7 @@ fn pack_sig_verification_txs<'a>(
 
     // Map signatures to guardian set
     let mut signature_items: Vec<SignatureItem> = Vec::new();
-    for (i, s) in vaa.signatures.iter().enumerate() {
+    for s in vaa.signatures.iter() {
         let mut item = SignatureItem {
             signature: [0; 64 + 1],
             key: [0; 20],
@@ -404,7 +405,7 @@ fn sign_and_send(
     tx: &mut Transaction,
     keys: Vec<&Keypair>,
 ) -> Result<Signature, ClientError> {
-    let (recent_blockhash, fee_calculator) = rpc.get_recent_blockhash()?;
+    let (recent_blockhash, _fee_calculator) = rpc.get_recent_blockhash()?;
 
     tx.sign(&keys, recent_blockhash);
 

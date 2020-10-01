@@ -1,10 +1,8 @@
 #![allow(clippy::too_many_arguments)]
 //! Instruction types
 
-use std::io::{Cursor, Read, Write};
 use std::mem::size_of;
 
-use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use primitive_types::U256;
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
@@ -12,13 +10,13 @@ use solana_sdk::{
     pubkey::Pubkey,
 };
 
-use crate::error::Error;
-use crate::error::Error::VAATooLong;
-use crate::instruction::BridgeInstruction::{
-    Initialize, PokeProposal, PostVAA, TransferOut, VerifySignatures,
+use crate::{
+    instruction::BridgeInstruction::{
+        Initialize, PokeProposal, PostVAA, TransferOut, VerifySignatures,
+    },
+    state::{AssetMeta, Bridge, BridgeConfig},
+    vaa::{VAABody, VAA},
 };
-use crate::state::{AssetMeta, Bridge, BridgeConfig};
-use crate::vaa::{VAABody, VAA};
 
 /// chain id of this chain
 pub const CHAIN_ID_SOLANA: u8 = 1;
@@ -347,7 +345,7 @@ pub fn verify_signatures(
     let guardian_set_key =
         Bridge::derive_guardian_set_id(program_id, &bridge_key, guardian_set_id)?;
 
-    let mut accounts = vec![
+    let accounts = vec![
         AccountMeta::new_readonly(*program_id, false),
         AccountMeta::new_readonly(solana_sdk::sysvar::instructions::id(), false),
         AccountMeta::new(*signature_acc, false),
@@ -453,7 +451,7 @@ pub fn poke_proposal(
 ) -> Result<Instruction, ProgramError> {
     let data = BridgeInstruction::PokeProposal().serialize()?;
 
-    let mut accounts = vec![AccountMeta::new(*transfer_proposal, false)];
+    let accounts = vec![AccountMeta::new(*transfer_proposal, false)];
 
     Ok(Instruction {
         program_id: *program_id,

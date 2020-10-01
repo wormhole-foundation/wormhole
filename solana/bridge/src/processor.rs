@@ -1,38 +1,38 @@
 //! Program instruction processing logic
 #![cfg(feature = "program")]
 
-use std::borrow::Borrow;
-use std::cell::RefCell;
-use std::io::Write;
-use std::mem::size_of;
-use std::slice::Iter;
+use std::{borrow::Borrow, cell::RefCell, io::Write, mem::size_of, slice::Iter};
 
 use byteorder::ByteOrder;
 use num_traits::AsPrimitive;
 use primitive_types::U256;
 use sha3::Digest;
-use solana_sdk::clock::Clock;
-use solana_sdk::hash::Hasher;
 #[cfg(target_arch = "bpf")]
 use solana_sdk::program::invoke_signed;
-use solana_sdk::rent::Rent;
-use solana_sdk::system_instruction::{create_account, SystemInstruction};
-use solana_sdk::sysvar::Sysvar;
 use solana_sdk::{
-    account_info::next_account_info, account_info::AccountInfo, entrypoint::ProgramResult, info,
-    instruction::Instruction, program_error::ProgramError, pubkey::Pubkey,
+    account_info::{next_account_info, AccountInfo},
+    clock::Clock,
+    entrypoint::ProgramResult,
+    hash::Hasher,
+    info,
+    instruction::Instruction,
+    program_error::ProgramError,
+    pubkey::Pubkey,
+    rent::Rent,
+    system_instruction::{create_account, SystemInstruction},
+    sysvar::Sysvar,
 };
-use spl_token::pack::Pack;
-use spl_token::state::Mint;
+use spl_token::{pack::Pack, state::Mint};
 
-use crate::error::Error;
-use crate::instruction::BridgeInstruction::*;
-use crate::instruction::{
-    BridgeInstruction, TransferOutPayload, VAAData, VerifySigPayload, CHAIN_ID_SOLANA,
+use crate::{
+    error::Error,
+    instruction::{
+        BridgeInstruction, BridgeInstruction::*, TransferOutPayload, VAAData, VerifySigPayload,
+        CHAIN_ID_SOLANA, MAX_LEN_GUARDIAN_KEYS, MAX_VAA_SIZE,
+    },
+    state::*,
+    vaa::{BodyTransfer, BodyUpdateGuardianSet, VAABody, VAA},
 };
-use crate::instruction::{MAX_LEN_GUARDIAN_KEYS, MAX_VAA_SIZE};
-use crate::state::*;
-use crate::vaa::{BodyTransfer, BodyUpdateGuardianSet, VAABody, VAA};
 
 /// SigInfo contains metadata about signers in a VerifySignature ix
 struct SigInfo {

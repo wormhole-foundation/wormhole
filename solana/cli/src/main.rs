@@ -1,7 +1,4 @@
-use std::fmt::Display;
-use std::net::{SocketAddr, ToSocketAddrs};
-use std::str::FromStr;
-use std::{mem::size_of, process::exit};
+use std::{fmt::Display, mem::size_of, net::ToSocketAddrs, process::exit};
 
 use clap::{
     crate_description, crate_name, crate_version, value_t, value_t_or_exit, App, AppSettings, Arg,
@@ -10,16 +7,13 @@ use clap::{
 use hex;
 use primitive_types::U256;
 use solana_account_decoder::{parse_token::TokenAccountType, UiAccountData};
-use solana_clap_utils::input_parsers::value_of;
-use solana_clap_utils::input_validators::is_derivation;
 use solana_clap_utils::{
-    input_parsers::{keypair_of, pubkey_of},
+    input_parsers::{keypair_of, pubkey_of, value_of},
     input_validators::{is_amount, is_keypair, is_pubkey_or_keypair, is_url},
 };
-use solana_client::client_error::ClientError;
-use solana_client::rpc_config::RpcSendTransactionConfig;
-use solana_client::{rpc_client::RpcClient, rpc_request::TokenAccountsFilter};
-use solana_sdk::system_instruction::create_account;
+use solana_client::{
+    rpc_client::RpcClient, rpc_config::RpcSendTransactionConfig, rpc_request::TokenAccountsFilter,
+};
 use solana_sdk::{
     commitment_config::CommitmentConfig,
     native_token::*,
@@ -32,14 +26,13 @@ use spl_token::{
     self,
     instruction::*,
     native_mint,
+    pack::Pack,
     state::{Account, Mint},
 };
 
-use spl_bridge::instruction::*;
-use spl_bridge::state::*;
+use spl_bridge::{instruction::*, state::*};
 
 use crate::faucet::request_and_confirm_airdrop;
-use spl_token::pack::Pack;
 
 mod faucet;
 
@@ -132,14 +125,14 @@ fn command_lock_tokens(
                 decimals: 0,
             }
         }
-        Err(e) => AssetMeta {
+        Err(_e) => AssetMeta {
             address: token.to_bytes(),
             chain: CHAIN_ID_SOLANA,
             decimals: 0,
         },
     };
 
-    let mut instructions = vec![
+    let instructions = vec![
         approve(
             &spl_token::id(),
             &account,
