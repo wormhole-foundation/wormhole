@@ -1,18 +1,16 @@
 //! Bridge transition types
 
-use std::io::{Cursor, Read, Write};
 use std::mem::size_of;
-use std::ops::Deref;
 
-use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use primitive_types::U256;
-use solana_sdk::pubkey::{PubkeyError, MAX_SEED_LEN};
 use solana_sdk::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 use zerocopy::AsBytes;
 
-use crate::error::Error;
-use crate::instruction::{ForeignAddress, VAAData, MAX_LEN_GUARDIAN_KEYS, MAX_VAA_SIZE};
-use crate::vaa::BodyTransfer;
+use crate::{
+    error::Error,
+    instruction::{ForeignAddress, MAX_LEN_GUARDIAN_KEYS, MAX_VAA_SIZE},
+    vaa::BodyTransfer,
+};
 
 /// fee rate as a ratio
 #[repr(C)]
@@ -73,6 +71,8 @@ pub struct TransferOutProposal {
     pub lockup_time: u32,
     /// times the proposal has been poked
     pub poke_counter: u8,
+    /// Account where signatures are stored
+    pub signature_account: Pubkey,
 
     /// Is `true` if this structure has been initialized.
     pub is_initialized: bool,
@@ -178,19 +178,42 @@ impl IsInitialized for Bridge {
     }
 }
 
+/// Signature state
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct SignatureState {
+    /// signatures of validators
+    pub signatures: [[u8; 65]; MAX_LEN_GUARDIAN_KEYS],
+
+    /// hash of the data
+    pub hash: [u8; 32],
+
+    /// index of the guardian set
+    pub guardian_set_index: u32,
+
+    /// Is `true` if this structure has been initialized.
+    pub is_initialized: bool,
+}
+
+impl IsInitialized for SignatureState {
+    fn is_initialized(&self) -> bool {
+        self.is_initialized
+    }
+}
+
 /// Implementation of serialization functions
 impl Bridge {
     /// Deserializes a spl_token `Account`.
     pub fn token_account_deserialize(
         info: &AccountInfo,
     ) -> Result<spl_token::state::Account, Error> {
-        Ok(*spl_token::state::unpack(&mut info.data.borrow_mut())
+        Ok(spl_token::pack::Pack::unpack(&mut info.data.borrow_mut())
             .map_err(|_| Error::ExpectedAccount)?)
     }
 
     /// Deserializes a spl_token `Mint`.
     pub fn mint_deserialize(info: &AccountInfo) -> Result<spl_token::state::Mint, Error> {
-        Ok(*spl_token::state::unpack(&mut info.data.borrow_mut())
+        Ok(spl_token::pack::Pack::unpack(&mut info.data.borrow_mut())
             .map_err(|_| Error::ExpectedToken)?)
     }
 

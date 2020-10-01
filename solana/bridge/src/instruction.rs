@@ -1,10 +1,8 @@
 #![allow(clippy::too_many_arguments)]
 //! Instruction types
 
-use std::io::{Cursor, Read, Write};
 use std::mem::size_of;
 
-use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use primitive_types::U256;
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
@@ -12,11 +10,13 @@ use solana_sdk::{
     pubkey::Pubkey,
 };
 
-use crate::error::Error;
-use crate::error::Error::VAATooLong;
-use crate::instruction::BridgeInstruction::{Initialize, PokeProposal, PostVAA, TransferOut};
-use crate::state::{AssetMeta, Bridge, BridgeConfig};
-use crate::vaa::{VAABody, VAA};
+use crate::{
+    instruction::BridgeInstruction::{
+        Initialize, PokeProposal, PostVAA, TransferOut, VerifySignatures,
+    },
+    state::{AssetMeta, Bridge, BridgeConfig},
+    vaa::{VAABody, VAA},
+};
 
 /// chain id of this chain
 pub const CHAIN_ID_SOLANA: u8 = 1;
@@ -75,6 +75,14 @@ pub struct TransferOutPayloadRaw {
     pub nonce: u32,
 }
 
+#[derive(Clone, Copy, Debug)]
+pub struct VerifySigPayload {
+    /// hash of the VAA
+    pub hash: [u8; 32],
+    /// instruction indices of signers (-1 for missing)
+    pub signers: [i8; MAX_LEN_GUARDIAN_KEYS],
+}
+
 /// Instructions supported by the SwapInfo program.
 #[repr(C)]
 pub enum BridgeInstruction {
@@ -126,6 +134,9 @@ pub enum BridgeInstruction {
 
     /// Pokes a proposal with no valid VAAs attached so guardians reprocess it.
     PokeProposal(),
+
+    /// Verifies signature instructions
+    VerifySignatures(VerifySigPayload),
 }
 
 impl BridgeInstruction {
@@ -157,16 +168,22 @@ impl BridgeInstruction {
                 PostVAA(payload)
             }
             5 => PokeProposal(),
+            6 => {
+                let payload: &VerifySigPayload = unpack(input)?;
+
+                VerifySignatures(*payload)
+            }
             _ => return Err(ProgramError::InvalidInstructionData),
         })
     }
 
     /// Serializes a BridgeInstruction into a byte buffer.
     pub fn serialize(self: Self) -> Result<Vec<u8>, ProgramError> {
-        let mut output = vec![0u8; size_of::<BridgeInstruction>()];
+        let mut output = Vec::with_capacity(size_of::<BridgeInstruction>());
 
         match self {
             Self::Initialize(payload) => {
+                output.resize(size_of::<InitializePayload>() + 1, 0);
                 output[0] = 0;
                 #[allow(clippy::cast_ptr_alignment)]
                 let value = unsafe {
@@ -175,6 +192,7 @@ impl BridgeInstruction {
                 *value = payload;
             }
             Self::TransferOut(payload) => {
+                output.resize(size_of::<TransferOutPayloadRaw>() + 1, 0);
                 output[0] = 1;
                 #[allow(clippy::cast_ptr_alignment)]
                 let value = unsafe {
@@ -193,20 +211,31 @@ impl BridgeInstruction {
                 };
             }
             Self::PostVAA(payload) => {
+                output.resize(1, 0);
                 output[0] = 2;
                 #[allow(clippy::cast_ptr_alignment)]
-                let value =
-                    unsafe { &mut *(&mut output[size_of::<u8>()] as *mut u8 as *mut VAAData) };
-                *value = payload;
+                output.extend_from_slice(&payload);
             }
             Self::EvictTransferOut() => {
+                output.resize(1, 0);
                 output[0] = 3;
             }
             Self::EvictClaimedVAA() => {
+                output.resize(1, 0);
                 output[0] = 4;
             }
             Self::PokeProposal() => {
+                output.resize(1, 0);
                 output[0] = 5;
+            }
+            Self::VerifySignatures(payload) => {
+                output.resize(size_of::<VerifySigPayload>() + 1, 0);
+                output[0] = 6;
+                #[allow(clippy::cast_ptr_alignment)]
+                let value = unsafe {
+                    &mut *(&mut output[size_of::<u8>()] as *mut u8 as *mut VerifySigPayload)
+                };
+                *value = payload;
             }
         }
         Ok(output)
@@ -280,6 +309,7 @@ pub fn transfer_out(
         AccountMeta::new_readonly(*program_id, false),
         AccountMeta::new_readonly(solana_sdk::system_program::id(), false),
         AccountMeta::new_readonly(spl_token::id(), false),
+        AccountMeta::new_readonly(solana_sdk::sysvar::rent::id(), false),
         AccountMeta::new_readonly(solana_sdk::sysvar::clock::id(), false),
         AccountMeta::new(*token_account, false),
         AccountMeta::new(bridge_key, false),
@@ -301,11 +331,40 @@ pub fn transfer_out(
     })
 }
 
+/// Creates a 'VerifySignatures' instruction.
+#[cfg(not(target_arch = "bpf"))]
+pub fn verify_signatures(
+    program_id: &Pubkey,
+    signature_acc: &Pubkey,
+    guardian_set_id: u32,
+    p: &VerifySigPayload,
+) -> Result<Instruction, ProgramError> {
+    let data = BridgeInstruction::VerifySignatures(*p).serialize()?;
+
+    let bridge_key = Bridge::derive_bridge_id(program_id)?;
+    let guardian_set_key =
+        Bridge::derive_guardian_set_id(program_id, &bridge_key, guardian_set_id)?;
+
+    let accounts = vec![
+        AccountMeta::new_readonly(*program_id, false),
+        AccountMeta::new_readonly(solana_sdk::sysvar::instructions::id(), false),
+        AccountMeta::new(*signature_acc, false),
+        AccountMeta::new_readonly(guardian_set_key, false),
+    ];
+
+    Ok(Instruction {
+        program_id: *program_id,
+        accounts,
+        data,
+    })
+}
+
 /// Creates a 'PostVAA' instruction.
 #[cfg(not(target_arch = "bpf"))]
 pub fn post_vaa(
     program_id: &Pubkey,
     payer: &Pubkey,
+    signature_key: &Pubkey,
     v: VAAData,
 ) -> Result<Instruction, ProgramError> {
     let mut data = v.clone();
@@ -322,10 +381,12 @@ pub fn post_vaa(
     let mut accounts = vec![
         AccountMeta::new_readonly(*program_id, false),
         AccountMeta::new_readonly(solana_sdk::system_program::id(), false),
+        AccountMeta::new_readonly(solana_sdk::sysvar::rent::id(), false),
         AccountMeta::new_readonly(solana_sdk::sysvar::clock::id(), false),
         AccountMeta::new(bridge_key, false),
         AccountMeta::new(guardian_set_key, false),
         AccountMeta::new(claim_key, false),
+        AccountMeta::new(*signature_key, false),
         AccountMeta::new(*payer, true),
     ];
 
@@ -390,7 +451,7 @@ pub fn poke_proposal(
 ) -> Result<Instruction, ProgramError> {
     let data = BridgeInstruction::PokeProposal().serialize()?;
 
-    let mut accounts = vec![AccountMeta::new(*transfer_proposal, false)];
+    let accounts = vec![AccountMeta::new(*transfer_proposal, false)];
 
     Ok(Instruction {
         program_id: *program_id,

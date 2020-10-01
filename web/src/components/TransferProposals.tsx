@@ -76,13 +76,24 @@ function TransferProposals() {
 
     let executeVAA = async (v: LockupWithStatus) => {
         let wh = WormholeFactory.connect(BRIDGE_ADDRESS, signer)
-        let vaa = v.vaa;
+        let vaa = new Buffer(v.vaa);
         for (let i = vaa.length; i > 0; i--) {
             if (vaa[i] == 0xff) {
                 vaa = vaa.slice(0, i)
                 break
             }
         }
+
+        let signatures = await b.fetchSignatureStatus(v.signatureAccount);
+        let sigData = Buffer.of(...signatures.reduce((previousValue, currentValue) => {
+            previousValue.push(currentValue.index)
+            previousValue.push(...currentValue.signature)
+
+            return previousValue
+        }, new Array<number>()))
+
+        vaa = Buffer.concat([vaa.slice(0, 5), Buffer.of(signatures.length), sigData, vaa.slice(6)])
+
         message.loading({content: "Signing transaction...", key: "eth_tx", duration: 1000},)
         let tx = await wh.submitVAA(vaa)
         message.loading({content: "Waiting for transaction to be mined...", key: "eth_tx", duration: 1000})

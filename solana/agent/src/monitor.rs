@@ -1,6 +1,6 @@
-use std::str::FromStr;
 use std::{
     marker::PhantomData,
+    str::FromStr,
     sync::{
         atomic::{AtomicBool, Ordering},
         mpsc::{channel, Receiver},
@@ -11,14 +11,16 @@ use std::{
 
 use bs58;
 use log::*;
-use serde::{de::DeserializeOwned, de::Error, Deserialize, Deserializer, Serialize};
+use serde::{
+    de::{DeserializeOwned, Error},
+    Deserialize, Deserializer, Serialize,
+};
 use serde_json::{
     json,
     value::Value::{Number, Object},
     Map, Value,
 };
-use solana_sdk::account::Account;
-use solana_sdk::account_info::AccountInfo;
+
 use solana_sdk::pubkey::Pubkey;
 use thiserror::Error;
 use tungstenite::{client::AutoStream, connect, Message, WebSocket};

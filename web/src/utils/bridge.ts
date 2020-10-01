@@ -5,7 +5,7 @@ import assert from "assert";
 // @ts-ignore
 import * as BufferLayout from 'buffer-layout'
 import {Token} from "@solana/spl-token";
-import {TOKEN_PROGRAM} from "../config";
+import {SOLANA_HOST, TOKEN_PROGRAM} from "../config";
 import * as bs58 from "bs58";
 
 export interface AssetMeta {
@@ -26,7 +26,13 @@ export interface Lockup {
     vaa: Uint8Array,
     vaaTime: number,
     pokeCounter: number,
+    signatureAccount: PublicKey,
     initialized: boolean,
+}
+
+export interface Signature {
+    signature: number[],
+    index: number,
 }
 
 export const CHAIN_ID_SOLANA = 1;
@@ -95,6 +101,7 @@ class SolanaBridge {
             {pubkey: this.programID, isSigner: false, isWritable: false},
             {pubkey: solanaWeb3.SystemProgram.programId, isSigner: false, isWritable: false},
             {pubkey: this.tokenProgram, isSigner: false, isWritable: false},
+            {pubkey: solanaWeb3.SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false},
             {pubkey: solanaWeb3.SYSVAR_CLOCK_PUBKEY, isSigner: false, isWritable: false},
             {pubkey: tokenAccount, isSigner: false, isWritable: true},
             {pubkey: configKey, isSigner: false, isWritable: false},
@@ -171,11 +178,47 @@ class SolanaBridge {
         }
     }
 
+    // fetchSignatureStatus fetches the signatures for a VAA
+    async fetchSignatureStatus(
+        signatureStatus: PublicKey,
+    ): Promise<Signature[]> {
+        let signatureInfo = await this.connection.getAccountInfo(signatureStatus);
+        console.log(signatureStatus.toBase58())
+        if (signatureInfo == null || signatureInfo.lamports == 0) {
+            throw new Error("not found")
+        } else {
+            const dataLayout = BufferLayout.struct([
+                BufferLayout.blob(20 * 65, 'signaturesRaw'),
+            ]);
+            let rawSignatureInfo = dataLayout.decode(signatureInfo?.data);
+
+            let signatures: Signature[] = [];
+            for (let i = 0; i < 20; i++) {
+                let data = rawSignatureInfo.signaturesRaw.slice(65 * i, 65 * (i + 1));
+                let empty = true;
+                for (let v of data) {
+                    if (v != 0) {
+                        empty = false;
+                        break
+                    }
+                }
+                if (empty) continue;
+
+                signatures.push({
+                    signature: data,
+                    index: i,
+                })
+            }
+
+            return signatures;
+        }
+    }
+
     // fetchAssetMeta fetches the AssetMeta for an SPL token
     async fetchTransferProposals(
         tokenAccount: PublicKey,
     ): Promise<Lockup[]> {
-        let accountRes = await fetch("http://localhost:8899", {
+        let accountRes = await fetch(SOLANA_HOST, {
             method: "POST",
             headers: {
                 'Content-Type': 'application/json'
@@ -186,7 +229,7 @@ class SolanaBridge {
                 "method": "getProgramAccounts",
                 "params": [this.programID.toString(), {
                     "commitment": "single",
-                    "filters": [{"dataSize": 1152}, {
+                    "filters": [{"dataSize": 1184}, {
                         "memcmp": {
                             "offset": 33,
                             "bytes": tokenAccount.toString()
@@ -210,7 +253,9 @@ class SolanaBridge {
             BufferLayout.blob(1001, 'vaa'),
             BufferLayout.seq(BufferLayout.u8(), 3), // 4 byte alignment because a u32 is following
             BufferLayout.u32('vaaTime'),
+            BufferLayout.u32('lockupTime'),
             BufferLayout.u8('pokeCounter'),
+            BufferLayout.blob(32, 'signatureAccount'),
             BufferLayout.u8('initialized'),
         ]);
 
@@ -230,6 +275,7 @@ class SolanaBridge {
                 toChain: parsedAccount.toChain,
                 vaa: parsedAccount.vaa,
                 vaaTime: parsedAccount.vaaTime,
+                signatureAccount: new PublicKey(parsedAccount.signatureAccount),
                 pokeCounter: parsedAccount.pokeCounter
             })
         }
