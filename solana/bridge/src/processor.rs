@@ -189,27 +189,13 @@ impl Bridge {
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
         next_account_info(account_info_iter)?; // Bridge program
+        next_account_info(account_info_iter)?; // System program
         let instruction_accounts = next_account_info(account_info_iter)?;
         let sig_info = next_account_info(account_info_iter)?;
         let guardian_set_info = next_account_info(account_info_iter)?;
+        let payer_info = next_account_info(account_info_iter)?;
 
         let guardian_set: GuardianSet = Self::guardian_set_deserialize(guardian_set_info)?;
-
-        let mut sig_state_data = sig_info.data.borrow_mut();
-        let mut sig_state: &mut SignatureState = Self::unpack_unchecked(&mut sig_state_data)?;
-
-        if sig_state.is_initialized {
-            if sig_state.guardian_set_index != guardian_set.index {
-                return Err(Error::GuardianSetMismatch.into());
-            }
-            if sig_state.hash != payload.hash {
-                return Err(ProgramError::InvalidArgument);
-            }
-        } else {
-            sig_state.is_initialized = true;
-            sig_state.guardian_set_index = guardian_set.index;
-            sig_state.hash = payload.hash;
-        }
 
         let sig_infos: Vec<SigInfo> = payload
             .signers
@@ -308,6 +294,38 @@ impl Bridge {
         let msg_hash: [u8; 32] = h.finalize().into();
         if msg_hash != payload.hash {
             return Err(ProgramError::InvalidArgument);
+        }
+
+        if sig_info.data_is_empty() {
+            let bridge_key = Bridge::derive_bridge_id(program_id)?;
+            let sig_seeds =
+                Bridge::derive_signature_seeds(&bridge_key, &msg_hash, guardian_set.index);
+            Bridge::check_and_create_account::<SignatureState>(
+                program_id,
+                accounts,
+                sig_info.key,
+                payer_info.key,
+                program_id,
+                &sig_seeds,
+            )?;
+        } else if payload.initial_creation {
+            return Err(Error::AlreadyExists.into());
+        }
+
+        let mut sig_state_data = sig_info.data.borrow_mut();
+        let mut sig_state: &mut SignatureState = Self::unpack_unchecked(&mut sig_state_data)?;
+
+        if sig_state.is_initialized {
+            if sig_state.guardian_set_index != guardian_set.index {
+                return Err(Error::GuardianSetMismatch.into());
+            }
+            if sig_state.hash != payload.hash {
+                return Err(ProgramError::InvalidArgument);
+            }
+        } else {
+            sig_state.is_initialized = true;
+            sig_state.guardian_set_index = guardian_set.index;
+            sig_state.hash = payload.hash;
         }
 
         // Check addresses

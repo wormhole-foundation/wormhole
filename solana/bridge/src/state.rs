@@ -349,6 +349,20 @@ impl Bridge {
         ]
     }
 
+    /// Calculates derived seeds for a signature account
+    pub fn derive_signature_seeds<'a>(
+        bridge: &Pubkey,
+        hash: &[u8; 32],
+        guardian_index: u32,
+    ) -> Vec<Vec<u8>> {
+        vec![
+            "sig".as_bytes().to_vec(),
+            bridge.to_bytes().to_vec(),
+            hash.to_vec(),
+            guardian_index.to_le_bytes().to_vec(),
+        ]
+    }
+
     /// Calculates a derived address for this program
     pub fn derive_bridge_id(program_id: &Pubkey) -> Result<Pubkey, Error> {
         Ok(Self::derive_key(program_id, &Self::derive_bridge_seeds())?.0)
@@ -430,6 +444,20 @@ impl Bridge {
                 user,
                 slot,
             ),
+        )?
+        .0)
+    }
+
+    /// Calculates derived address for a signature account
+    pub fn derive_signature_id<'a>(
+        program_id: &Pubkey,
+        bridge: &Pubkey,
+        hash: &[u8; 32],
+        guardian_index: u32,
+    ) -> Result<Pubkey, Error> {
+        Ok(Self::derive_key(
+            program_id,
+            &Self::derive_signature_seeds(bridge, hash, guardian_index),
         )?
         .0)
     }

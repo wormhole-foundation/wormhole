@@ -81,6 +81,8 @@ pub struct VerifySigPayload {
     pub hash: [u8; 32],
     /// instruction indices of signers (-1 for missing)
     pub signers: [i8; MAX_LEN_GUARDIAN_KEYS],
+    /// indicates whether this verification should only succeed if the sig account does not exist
+    pub initial_creation: bool,
 }
 
 /// Instructions supported by the SwapInfo program.
@@ -336,6 +338,7 @@ pub fn transfer_out(
 pub fn verify_signatures(
     program_id: &Pubkey,
     signature_acc: &Pubkey,
+    payer: &Pubkey,
     guardian_set_id: u32,
     p: &VerifySigPayload,
 ) -> Result<Instruction, ProgramError> {
@@ -347,9 +350,11 @@ pub fn verify_signatures(
 
     let accounts = vec![
         AccountMeta::new_readonly(*program_id, false),
+        AccountMeta::new_readonly(solana_sdk::system_program::id(), false),
         AccountMeta::new_readonly(solana_sdk::sysvar::instructions::id(), false),
         AccountMeta::new(*signature_acc, false),
         AccountMeta::new_readonly(guardian_set_key, false),
+        AccountMeta::new(*payer, true),
     ];
 
     Ok(Instruction {
@@ -364,7 +369,6 @@ pub fn verify_signatures(
 pub fn post_vaa(
     program_id: &Pubkey,
     payer: &Pubkey,
-    signature_key: &Pubkey,
     v: VAAData,
 ) -> Result<Instruction, ProgramError> {
     let mut data = v.clone();
@@ -378,6 +382,13 @@ pub fn post_vaa(
         Bridge::derive_guardian_set_id(program_id, &bridge_key, vaa.guardian_set_index)?;
     let claim_key = Bridge::derive_claim_id(program_id, &bridge_key, vaa.signature_body()?)?;
 
+    let signature_acc = Bridge::derive_signature_id(
+        program_id,
+        &bridge_key,
+        &vaa.body_hash()?,
+        vaa.guardian_set_index,
+    )?;
+
     let mut accounts = vec![
         AccountMeta::new_readonly(*program_id, false),
         AccountMeta::new_readonly(solana_sdk::system_program::id(), false),
@@ -386,7 +397,7 @@ pub fn post_vaa(
         AccountMeta::new(bridge_key, false),
         AccountMeta::new(guardian_set_key, false),
         AccountMeta::new(claim_key, false),
-        AccountMeta::new(*signature_key, false),
+        AccountMeta::new(signature_acc, false),
         AccountMeta::new(*payer, true),
     ];
 

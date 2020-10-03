@@ -31,9 +31,11 @@ Checks secp checks (in the previous instruction) and stores results.
 | Index | Name   | Type         | signer | writeable | empty | derived |
 | ----- | ------ | ------------ | ------ | --------- | ----- | ------- |
 | 0     | bridge_p | BridgeProgram |        |           | ️   |      |
-| 1     | instructions | Sysvar |        |           | ️   |   ✅   |
-| 2     | sig_status | SignatureState |        |      ✅      | ️   |      |
-| 3     | guardian_set | GuardianSet |        |           | ️   |   ✅   |
+| 1     | sys | SystemProgram |        |           | ️   |      |
+| 2     | instructions | Sysvar |        |           | ️   |   ✅   |
+| 3     | sig_status | SignatureState |        |      ✅      | ️   |      |
+| 4     | guardian_set | GuardianSet |        |           | ️   |   ✅   |
+| 5     | payer    | Account        |    ✅    |         |       |       |
 
 #### TransferOut
 

@@ -1,26 +1,17 @@
-use std::env;
-
-use std::{io::Write, mem::size_of};
-
-use std::str::FromStr;
+use std::{env, io::Write, mem::size_of, str::FromStr};
 
 use byteorder::{BigEndian, LittleEndian, ReadBytesExt, WriteBytesExt};
 use solana_client::{
     client_error::ClientError, rpc_client::RpcClient, rpc_config::RpcSendTransactionConfig,
 };
-use solana_sdk::commitment_config::{CommitmentConfig, CommitmentLevel};
-
-use solana_sdk::instruction::Instruction;
-
 use solana_sdk::{
+    commitment_config::{CommitmentConfig, CommitmentLevel},
+    instruction::Instruction,
     pubkey::Pubkey,
     signature::{read_keypair_file, write_keypair_file, Keypair, Signature, Signer},
-    system_instruction::create_account,
     transaction::Transaction,
 };
-
 use tokio::sync::mpsc;
-
 use tonic::{transport::Server, Code, Request, Response, Status};
 
 use service::{
@@ -31,7 +22,7 @@ use service::{
 };
 use spl_bridge::{
     instruction::{post_vaa, verify_signatures, VerifySigPayload, CHAIN_ID_SOLANA},
-    state::{Bridge, GuardianSet, SignatureState, TransferOutProposal},
+    state::{Bridge, GuardianSet, TransferOutProposal},
     vaa::VAA,
 };
 
@@ -74,8 +65,6 @@ impl Agent for AgentImpl {
         std::thread::spawn(move || {
             let rpc = RpcClient::new(rpc_url);
 
-            let sig_key = solana_sdk::signature::Keypair::new();
-
             let mut vaa = match VAA::deserialize(&request.get_ref().vaa) {
                 Ok(v) => v,
                 Err(e) => {
@@ -85,16 +74,11 @@ impl Agent for AgentImpl {
                     ));
                 }
             };
-            let verify_txs = pack_sig_verification_txs(&rpc, &bridge, &vaa, &key, &sig_key)?;
+            let verify_txs = pack_sig_verification_txs(&rpc, &bridge, &vaa, &key)?;
 
             // Strip signatures
             vaa.signatures = Vec::new();
-            let ix = match post_vaa(
-                &bridge,
-                &key.pubkey(),
-                &sig_key.pubkey(),
-                vaa.serialize().unwrap(),
-            ) {
+            let ix = match post_vaa(&bridge, &key.pubkey(), vaa.serialize().unwrap()) {
                 Ok(v) => v,
                 Err(e) => {
                     return Err(Status::new(
@@ -103,10 +87,9 @@ impl Agent for AgentImpl {
                     ));
                 }
             };
-            let mut transaction2 = Transaction::new_with_payer(&[ix], Some(&key.pubkey()));
 
-            for (mut tx, signers) in verify_txs {
-                match sign_and_send(&rpc, &mut tx, signers) {
+            for mut tx in verify_txs {
+                match sign_and_send(&rpc, &mut tx, vec![&key]) {
                     Ok(_) => (),
                     Err(e) => {
                         return Err(Status::new(
@@ -117,6 +100,7 @@ impl Agent for AgentImpl {
                 };
             }
 
+            let mut transaction2 = Transaction::new_with_payer(&[ix], Some(&key.pubkey()));
             match sign_and_send(&rpc, &mut transaction2, vec![&key]) {
                 Ok(s) => Ok(Response::new(SubmitVaaResponse {
                     signature: s.to_string(),
@@ -129,12 +113,6 @@ impl Agent for AgentImpl {
         })
         .join()
         .unwrap()
-
-        //check_fee_payer_balance(
-        //    config,
-        //    minimum_balance_for_rent_exemption
-        //        + fee_calculator.calculate_fee(&transaction.message()),
-        //)?;
     }
 
     type WatchLockupsStream = mpsc::Receiver<Result<LockupEvent, Status>>;
@@ -256,8 +234,7 @@ fn pack_sig_verification_txs<'a>(
     bridge: &Pubkey,
     vaa: &VAA,
     sender_keypair: &'a Keypair,
-    sign_keypair: &'a Keypair,
-) -> Result<Vec<(Transaction, Vec<&'a Keypair>)>, Status> {
+) -> Result<Vec<Transaction>, Status> {
     // Load guardian set
     let bridge_key = Bridge::derive_bridge_id(bridge).unwrap();
     let guardian_key =
@@ -311,7 +288,10 @@ fn pack_sig_verification_txs<'a>(
         }
     };
 
-    let mut verify_txs: Vec<(Transaction, Vec<&Keypair>)> = Vec::new();
+    let signature_acc =
+        Bridge::derive_signature_id(&bridge, &bridge_key, &vaa_hash, guardian_set.index).unwrap();
+
+    let mut verify_txs: Vec<Transaction> = Vec::new();
     for (tx_index, chunk) in signature_items.chunks(6).enumerate() {
         let mut secp_payload = Vec::new();
         let mut signature_status = [-1i8; 20];
@@ -322,16 +302,15 @@ fn pack_sig_verification_txs<'a>(
         // 1 number of signatures
         secp_payload.write_u8(chunk.len() as u8);
 
-        let secp_ix_index = if tx_index == 0 { 1u8 } else { 0u8 };
         // Secp signature info description (11 bytes * n)
         for (i, s) in chunk.iter().enumerate() {
             secp_payload.write_u16::<LittleEndian>((data_offset + 85 * i) as u16);
-            secp_payload.write_u8(secp_ix_index);
+            secp_payload.write_u8(0);
             secp_payload.write_u16::<LittleEndian>((data_offset + 85 * i + 65) as u16);
-            secp_payload.write_u8(secp_ix_index);
+            secp_payload.write_u8(0);
             secp_payload.write_u16::<LittleEndian>(message_offset as u16);
             secp_payload.write_u16::<LittleEndian>(vaa_body.len() as u16);
-            secp_payload.write_u8(secp_ix_index);
+            secp_payload.write_u8(0);
             signature_status[s.index as usize] = i as i8;
         }
 
@@ -353,10 +332,13 @@ fn pack_sig_verification_txs<'a>(
         let payload = VerifySigPayload {
             signers: signature_status,
             hash: vaa_hash,
+            initial_creation: tx_index == 0,
         };
+
         let verify_ix = match verify_signatures(
             &bridge,
-            &sign_keypair.pubkey(),
+            &signature_acc,
+            &sender_keypair.pubkey(),
             vaa.guardian_set_index,
             &payload,
         ) {
@@ -369,32 +351,10 @@ fn pack_sig_verification_txs<'a>(
             }
         };
 
-        if tx_index == 0 {
-            // Instruction for creating the signature status account
-            let min_sig_rent = rpc
-                .get_minimum_balance_for_rent_exemption(size_of::<SignatureState>())
-                .unwrap();
-            let create_ix = create_account(
-                &sender_keypair.pubkey(),
-                &sign_keypair.pubkey(),
-                min_sig_rent,
-                size_of::<SignatureState>() as u64,
-                bridge,
-            );
-
-            verify_txs.push((
-                Transaction::new_with_payer(
-                    &[create_ix, secp_ix, verify_ix],
-                    Some(&sender_keypair.pubkey()),
-                ),
-                vec![sender_keypair, sign_keypair],
-            ))
-        } else {
-            verify_txs.push((
-                Transaction::new_with_payer(&[secp_ix, verify_ix], Some(&sender_keypair.pubkey())),
-                vec![sender_keypair],
-            ))
-        }
+        verify_txs.push(Transaction::new_with_payer(
+            &[secp_ix, verify_ix],
+            Some(&sender_keypair.pubkey()),
+        ))
     }
 
     Ok(verify_txs)
