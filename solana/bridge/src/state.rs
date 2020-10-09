@@ -285,12 +285,14 @@ impl Bridge {
     pub fn derive_wrapped_asset_seeds(
         bridge_key: &Pubkey,
         asset_chain: u8,
+        asset_decimal: u8,
         asset: ForeignAddress,
     ) -> Vec<Vec<u8>> {
         vec![
             "wrapped".as_bytes().to_vec(),
             bridge_key.to_bytes().to_vec(),
             asset_chain.as_bytes().to_vec(),
+            asset_decimal.as_bytes().to_vec(),
             asset.as_bytes().to_vec(),
         ]
     }
@@ -413,11 +415,12 @@ impl Bridge {
         program_id: &Pubkey,
         bridge_key: &Pubkey,
         asset_chain: u8,
+        asset_decimal: u8,
         asset: ForeignAddress,
     ) -> Result<Pubkey, Error> {
         Ok(Self::derive_key(
             program_id,
-            &Self::derive_wrapped_asset_seeds(bridge_key, asset_chain, asset),
+            &Self::derive_wrapped_asset_seeds(bridge_key, asset_chain, asset_decimal, asset),
         )?
         .0)
     }

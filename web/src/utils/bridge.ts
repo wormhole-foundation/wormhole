@@ -2,14 +2,16 @@ import * as solanaWeb3 from "@solana/web3.js";
 import {PublicKey, TransactionInstruction} from "@solana/web3.js";
 import BN from 'bn.js';
 import assert from "assert";
+import * as spl from '@solana/spl-token';
+import {Token} from '@solana/spl-token';
 // @ts-ignore
 import * as BufferLayout from 'buffer-layout'
-import {Token} from "@solana/spl-token";
-import {SOLANA_HOST, TOKEN_PROGRAM} from "../config";
+import {SOLANA_BRIDGE_PROGRAM, SOLANA_HOST, TOKEN_PROGRAM} from "../config";
 import * as bs58 from "bs58";
 
 export interface AssetMeta {
     chain: number,
+    decimals: number,
     address: Buffer
 }
 
@@ -163,17 +165,20 @@ class SolanaBridge {
             return {
                 address: mint.toBuffer(),
                 chain: CHAIN_ID_SOLANA,
+                decimals: 8,
             }
         } else {
             const dataLayout = BufferLayout.struct([
-                BufferLayout.u8('assetChain'),
                 BufferLayout.blob(32, 'assetAddress'),
+                BufferLayout.u8('assetChain'),
+                BufferLayout.u8('assetDecimals'),
             ]);
             let wrappedMeta = dataLayout.decode(metaInfo?.data);
 
             return {
                 address: wrappedMeta.assetAddress,
-                chain: wrappedMeta.assetChain
+                chain: wrappedMeta.assetChain,
+                decimals: wrappedMeta.assetDecimals,
             }
         }
     }
@@ -285,7 +290,7 @@ class SolanaBridge {
 
     AccountLayout = BufferLayout.struct([publicKey('mint'), publicKey('owner'), uint64('amount'), BufferLayout.u32('option'), publicKey('delegate'), BufferLayout.u8('is_initialized'), BufferLayout.u8('is_native'), BufferLayout.u16('padding'), uint64('delegatedAmount')]);
 
-    async createWrappedAssetAndAccountInstructions(owner: PublicKey, mint: PublicKey): Promise<[TransactionInstruction[], solanaWeb3.Account]> {
+    async createWrappedAssetAndAccountInstructions(owner: PublicKey, mint: PublicKey, meta: AssetMeta): Promise<[TransactionInstruction[], solanaWeb3.Account]> {
         const newAccount = new solanaWeb3.Account();
 
         // @ts-ignore
@@ -294,7 +299,7 @@ class SolanaBridge {
             fromPubkey: owner,
             newAccountPubkey: newAccount.publicKey,
             lamports: balanceNeeded,
-            space: this.AccountLayout.span,
+            space: spl.AccountLayout.span,
             programId: TOKEN_PROGRAM,
         }); // create the new account
 
@@ -310,6 +315,10 @@ class SolanaBridge {
             pubkey: owner,
             isSigner: false,
             isWritable: false
+        }, {
+            pubkey: solanaWeb3.SYSVAR_RENT_PUBKEY,
+            isSigner: false,
+            isWritable: false
         }];
         const dataLayout = BufferLayout.struct([BufferLayout.u8('instruction')]);
         const data = Buffer.alloc(dataLayout.span);
@@ -323,7 +332,54 @@ class SolanaBridge {
             data
         }
 
-        return [[transaction.instructions[0], ix_init], newAccount]
+        // @ts-ignore
+        let configKey = await this.getConfigKey();
+        let wrappedKey = await this.getWrappedAssetMint(meta);
+        let metaKey = await this.getWrappedAssetMeta(wrappedKey);
+        const wa_keys = [{
+            pubkey: solanaWeb3.SystemProgram.programId,
+            isSigner: false,
+            isWritable: false
+        }, {
+            pubkey: TOKEN_PROGRAM,
+            isSigner: false,
+            isWritable: false
+        },{
+            pubkey: solanaWeb3.SYSVAR_RENT_PUBKEY,
+            isSigner: false,
+            isWritable: false
+        }, {
+            pubkey: configKey,
+            isSigner: false,
+            isWritable: false
+        }, {
+            pubkey: owner,
+            isSigner: true,
+            isWritable: true
+        }, {
+            pubkey: wrappedKey,
+            isSigner: false,
+            isWritable: true
+        }, {
+            pubkey: metaKey,
+            isSigner: false,
+            isWritable: true
+        }];
+        const wrappedDataLayout = BufferLayout.struct([BufferLayout.u8('instruction'), BufferLayout.blob(32, "assetAddress"), BufferLayout.u8('chain'), BufferLayout.u8('decimals')]);
+        const wrappedData = Buffer.alloc(wrappedDataLayout.span);
+        wrappedDataLayout.encode({
+            instruction: 7, // CreateWrapped instruction
+            assetAddress: padBuffer(meta.address, 32),
+            chain: meta.chain,
+            decimals: meta.decimals
+        }, wrappedData);
+        let ix_wrapped = {
+            keys: wa_keys,
+            programId: SOLANA_BRIDGE_PROGRAM,
+            data: wrappedData
+        }
+
+        return [[ix_wrapped, transaction.instructions[0], ix_init], newAccount]
     }
 
     async getConfigKey(): Promise<PublicKey> {
@@ -337,8 +393,15 @@ class SolanaBridge {
         }
 
         let configKey = await this.getConfigKey();
-        let seeds: Array<Buffer> = [Buffer.from("wrapped"), configKey.toBuffer(), Buffer.of(asset.chain),
+        let seeds: Array<Buffer> = [Buffer.from("wrapped"), configKey.toBuffer(), Buffer.of(asset.chain), Buffer.of(asset.decimals),
             padBuffer(asset.address, 32)];
+        // @ts-ignore
+        return (await solanaWeb3.PublicKey.findProgramAddress(seeds, this.programID))[0];
+    }
+
+    async getWrappedAssetMeta(mint: PublicKey): Promise<PublicKey> {
+        let configKey = await this.getConfigKey();
+        let seeds: Array<Buffer> = [Buffer.from("meta"), configKey.toBuffer(), mint.toBuffer()];
         // @ts-ignore
         return (await solanaWeb3.PublicKey.findProgramAddress(seeds, this.programID))[0];
     }

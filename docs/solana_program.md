@@ -24,6 +24,20 @@ Pokes a `TransferOutProposal` so it is reprocessed by the guardians.
 | ----- | ------ | ------------ | ------ | --------- | ----- | ------- |
 | 0     | proposal | TransferOutProposal |        |     ✅      | ️   |  ✅    |
 
+#### CreateWrappedAsset
+
+Creates a new `WrappedAsset` to be used to create accounts and later receive transfers on chain.
+
+| Index | Name     | Type                | signer | writeable | empty | derived |
+| ----- | -------- | ------------------- | ------ | --------- | ----- | ------- |
+| 0     | sys | SystemProgram |        |           | ️   |      |
+| 1     | token_program | SplToken |        |           | ️   |      |
+| 2     | rent | Sysvar |        |           | ️   |     ✅  |
+| 3     | bridge   | BridgeConfig        |        |           |       |         |
+| 4     | payer | Account |     ✅    |           | ️   |      |
+| 5     | wrapped_mint        | WrappedAsset |        |           |  ✅   | ✅      |
+| 6     | wrapped_meta_account | WrappedAssetMeta  |        | ✅        |  ✅   | ✅      |
+
 #### VerifySignatures
 
 Checks secp checks (in the previous instruction) and stores results.

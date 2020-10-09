@@ -12,7 +12,7 @@ use solana_sdk::{
 
 use crate::{
     instruction::BridgeInstruction::{
-        Initialize, PokeProposal, PostVAA, TransferOut, VerifySignatures,
+        CreateWrapped, Initialize, PokeProposal, PostVAA, TransferOut, VerifySignatures,
     },
     state::{AssetMeta, Bridge, BridgeConfig},
     vaa::{VAABody, VAA},
@@ -139,6 +139,9 @@ pub enum BridgeInstruction {
 
     /// Verifies signature instructions
     VerifySignatures(VerifySigPayload),
+
+    /// Creates a new wrapped asset
+    CreateWrapped(AssetMeta),
 }
 
 impl BridgeInstruction {
@@ -174,6 +177,11 @@ impl BridgeInstruction {
                 let payload: &VerifySigPayload = unpack(input)?;
 
                 VerifySignatures(*payload)
+            }
+            7 => {
+                let payload: &AssetMeta = unpack(input)?;
+
+                CreateWrapped(*payload)
             }
             _ => return Err(ProgramError::InvalidInstructionData),
         })
@@ -237,6 +245,14 @@ impl BridgeInstruction {
                 let value = unsafe {
                     &mut *(&mut output[size_of::<u8>()] as *mut u8 as *mut VerifySigPayload)
                 };
+                *value = payload;
+            }
+            Self::CreateWrapped(payload) => {
+                output.resize(size_of::<AssetMeta>() + 1, 0);
+                output[0] = 7;
+                #[allow(clippy::cast_ptr_alignment)]
+                let value =
+                    unsafe { &mut *(&mut output[size_of::<u8>()] as *mut u8 as *mut AssetMeta) };
                 *value = payload;
             }
         }
@@ -435,6 +451,7 @@ pub fn post_vaa(
                     program_id,
                     &bridge_key,
                     t.asset.chain,
+                    t.asset.decimals,
                     t.asset.address,
                 )?;
                 let wrapped_meta_key =
@@ -446,6 +463,41 @@ pub fn post_vaa(
             }
         }
     }
+
+    Ok(Instruction {
+        program_id: *program_id,
+        accounts,
+        data,
+    })
+}
+
+/// Creates a 'CreateWrapped' instruction.
+pub fn create_wrapped(
+    program_id: &Pubkey,
+    payer: &Pubkey,
+    meta: AssetMeta,
+) -> Result<Instruction, ProgramError> {
+    let data = BridgeInstruction::CreateWrapped(meta).serialize()?;
+
+    let bridge_key = Bridge::derive_bridge_id(program_id)?;
+    let wrapped_mint_key = Bridge::derive_wrapped_asset_id(
+        program_id,
+        &bridge_key,
+        meta.chain,
+        meta.decimals,
+        meta.address,
+    )?;
+    let wrapped_meta_key =
+        Bridge::derive_wrapped_meta_id(program_id, &bridge_key, &wrapped_mint_key)?;
+
+    let accounts = vec![
+        AccountMeta::new_readonly(solana_sdk::system_program::id(), false),
+        AccountMeta::new_readonly(spl_token::id(), false),
+        AccountMeta::new(bridge_key, false),
+        AccountMeta::new(*payer, true),
+        AccountMeta::new(wrapped_mint_key, false),
+        AccountMeta::new(wrapped_meta_key, false),
+    ];
 
     Ok(Instruction {
         program_id: *program_id,
