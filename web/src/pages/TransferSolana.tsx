@@ -71,11 +71,11 @@ function TransferSolana() {
                         let send = async () => {
                             message.loading({content: "Transferring tokens...", key: "transfer"}, 1000)
 
-                            let lock_ix = await bridge.createLockAssetInstruction(k.publicKey, fromAccount, new PublicKey(coinInfo.mint), transferAmount, values["target_chain"], recipient,
+                            let {ix: lock_ix} = await bridge.createLockAssetInstruction(k.publicKey, fromAccount, new PublicKey(coinInfo.mint), transferAmount, values["target_chain"], recipient,
                                 {
                                     chain: coinInfo.chainID,
                                     address: coinInfo.wrappedAddress,
-                                    decimals: Math.min(coinInfo.decimals, 8)
+                                    decimals: Math.min(coinInfo.decimals, 9)
                                 }, Math.random() * 100000);
                             let ix = spl.Token.createApproveInstruction(TOKEN_PROGRAM, fromAccount, await bridge.getConfigKey(), k.publicKey, [], transferAmount.toNumber())
 

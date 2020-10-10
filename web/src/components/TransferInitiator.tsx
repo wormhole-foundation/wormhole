@@ -1,5 +1,5 @@
 import React, {useContext, useEffect, useState} from "react";
-import {Button, Form, Input, message, Modal, Select} from "antd";
+import {Button, Empty, Form, Input, message, Modal, Select} from "antd";
 import solanaWeb3, {Account, Connection, PublicKey, Transaction} from "@solana/web3.js";
 import ClientContext from "../providers/ClientContext";
 import {SlotContext} from "../providers/SlotContext";
@@ -15,20 +15,43 @@ import BN from "bignumber.js";
 import {BigNumber} from "ethers/utils";
 import {AssetMeta, SolanaBridge} from "../utils/bridge";
 import KeyContext from "../providers/KeyContext";
+import {ChainID} from "../pages/Assistant";
 
 const {confirm} = Modal;
 
 const {Option} = Select;
 
 interface TransferInitiatorParams {
-    onFromNetworkChanged?: (v: string) => void
+    onFromNetworkChanged?: (v: ChainID) => void
+    dataChanged?: (d: TransferInitiatorData) => void
+}
+
+export interface CoinInfo {
+    address: string,
+    name: string,
+    balance: BigNumber,
+    decimals: number,
+    allowance: BigNumber,
+    isWrapped: boolean,
+    chainID: number,
+    assetAddress: Buffer,
+    mint: string,
+}
+
+export interface TransferInitiatorData {
+    fromNetwork: ChainID,
+    fromCoinInfo: CoinInfo
+    toNetwork: ChainID,
+    toAddress: Buffer,
+    amount: BigNumber,
 }
 
 // @ts-ignore
 const provider = new ethers.providers.Web3Provider(window.ethereum);
 const signer = provider.getSigner();
 
-const defaultCoinInfo = {
+export const defaultCoinInfo = {
+    address: "",
     name: "",
     balance: new BigNumber(0),
     decimals: 0,
@@ -36,6 +59,7 @@ const defaultCoinInfo = {
     isWrapped: false,
     chainID: 0,
     assetAddress: new Buffer(0),
+    mint: ""
 }
 
 let debounceUpdater = debounce((e) => e(), 500)
@@ -66,35 +90,40 @@ export default function TransferInitiator(params: TransferInitiatorParams) {
     let bridge = useContext(BridgeContext);
     let k = useContext(KeyContext);
 
-    let [fromNetwork, setFromNetwork] = useState("eth");
-    let [toNetwork, setToNetwork] = useState("solana");
+    let [fromNetwork, setFromNetwork] = useState(ChainID.ETH);
+    let [toNetwork, setToNetwork] = useState(ChainID.SOLANA);
     let [fromAddress, setFromAddress] = useState("");
-    let [fromAddressValid, setFromAddressValid] = useState(true)
-    let [coinInfo, setCoinInfo] = useState(defaultCoinInfo);
+    let [fromAddressValid, setFromAddressValid] = useState(false)
+    let [coinInfo, setCoinInfo] = useState<CoinInfo>(defaultCoinInfo);
     let [toAddress, setToAddress] = useState("");
-    let [toAddressValid, setToAddressValid] = useState(true)
+    let [toAddressValid, setToAddressValid] = useState(false)
     let [amount, setAmount] = useState(new BigNumber(0));
     let [amountValid, setAmountValid] = useState(true);
 
     let [wrappedMint, setWrappedMint] = useState("")
 
     const updateBalance = async () => {
-        if (fromNetwork == "solana") {
+        if (fromNetwork == ChainID.SOLANA) {
             let acc = b.balances.find(value => value.account.toString() == fromAddress)
             if (!acc) {
                 setFromAddressValid(false);
                 setCoinInfo(defaultCoinInfo);
                 return
             }
+        console.log(acc.assetMeta)
 
             setCoinInfo({
+                address: fromAddress,
                 name: "",
                 balance: acc.balance,
                 allowance: new BigNumber(0),
-                decimals: acc.decimals,
-                isWrapped: false,
-                chainID: 1,
-                assetAddress: new PublicKey(fromAddress).toBuffer(),
+                decimals: acc.assetMeta.decimals,
+                isWrapped: acc.assetMeta.chain != ChainID.SOLANA,
+                chainID: acc.assetMeta.chain,
+                assetAddress: acc.assetMeta.address,
+
+                // Solana specific
+                mint: acc.mint,
             })
             setFromAddressValid(true);
         } else {
@@ -107,13 +136,15 @@ export default function TransferInitiator(params: TransferInitiatorParams) {
                 let allowance = await e.allowance(addr, BRIDGE_ADDRESS);
 
                 let info = {
+                    address: fromAddress,
                     name: symbol,
                     balance: balance,
                     allowance: allowance,
                     decimals: decimals,
                     isWrapped: false,
                     chainID: 2,
-                    assetAddress: new Buffer(fromAddress.slice(2), "hex")
+                    assetAddress: new Buffer(fromAddress.slice(2), "hex"),
+                    mint: "",
                 }
 
                 let b = WormholeFactory.connect(BRIDGE_ADDRESS, provider);
@@ -128,8 +159,9 @@ export default function TransferInitiator(params: TransferInitiatorParams) {
                 let wrappedMint = await bridge.getWrappedAssetMint({
                     chain: info.chainID,
                     address: info.assetAddress,
-                    decimals: Math.min(decimals, 8),
+                    decimals: Math.min(decimals, 9),
                 });
+                console.log(decimals)
 
                 setWrappedMint(wrappedMint.toString())
                 setCoinInfo(info)
@@ -145,10 +177,10 @@ export default function TransferInitiator(params: TransferInitiatorParams) {
     }, [fromNetwork, fromAddress])
 
     useEffect(() => {
-        if (toNetwork == "eth") {
+        if (toNetwork == ChainID.ETH) {
             setToAddressValid(toAddress.length == 42 && toAddress.match(/0[xX][0-9a-fA-F]+/) != null)
         } else {
-
+            setToAddressValid(toAddress != "")
         }
     }, [toNetwork, toAddress])
 
@@ -156,29 +188,42 @@ export default function TransferInitiator(params: TransferInitiatorParams) {
         setAmountValid(amount.lte(coinInfo.balance) && amount.gt(0))
     }, [amount])
 
+    useEffect(() => {
+        if (params.dataChanged) {
+            params.dataChanged({
+                fromCoinInfo: coinInfo,
+                fromNetwork,
+                toNetwork,
+                toAddress: toAddressValid ? (toNetwork == ChainID.ETH ? new Buffer(toAddress.slice(2), "hex") : new PublicKey(toAddress).toBuffer()) : new Buffer(0),
+                amount: amount,
+            });
+        }
+    }, [fromNetwork, fromAddressValid, coinInfo, toNetwork, toAddress, toAddressValid, amount])
+
     return (
         <>
             <Form layout={"vertical"}>
                 <Form.Item label="From" name="layout" validateStatus={fromAddressValid ? "success" : "error"}>
                     <Input.Group compact={true}>
-                        <Select style={{width: '30%'}} defaultValue="eth" className="select-before"
+                        <Select style={{width: '30%'}} defaultValue={ChainID.ETH} className="select-before"
                                 value={fromNetwork}
                                 onChange={(v) => {
                                     setFromNetwork(v);
+                                    setFromAddress("");
                                     if (v === toNetwork) {
-                                        setToNetwork(v == "eth" ? "solana" : "eth");
+                                        setToNetwork(v == ChainID.ETH ? ChainID.SOLANA : ChainID.ETH);
                                     }
                                     if (params.onFromNetworkChanged) params.onFromNetworkChanged(v);
                                 }}>
-                            <Option value="eth">Ethereum</Option>
-                            <Option value="solana">Solana</Option>
+                            <Option value={ChainID.ETH}>Ethereum</Option>
+                            <Option value={ChainID.SOLANA}>Solana</Option>
                         </Select>
-                        {fromNetwork == "eth" &&
+                        {fromNetwork == ChainID.ETH &&
 
                         <Input style={{width: '70%'}} placeholder="ERC20 address"
                                onChange={(e) => setFromAddress(e.target.value)}
                                suffix={coinInfo.name}/>}
-                        {fromNetwork == "solana" &&
+                        {fromNetwork == ChainID.SOLANA &&
                         <>
                             <Select style={{width: '70%'}} placeholder="Pick a token account"
                                     onChange={(e) => {
@@ -205,23 +250,27 @@ export default function TransferInitiator(params: TransferInitiatorParams) {
                 </Form.Item>
                 <Form.Item label="Recipient" name="layout" validateStatus={toAddressValid ? "success" : "error"}>
                     <Input.Group compact={true}>
-                        <Select style={{width: '30%'}} defaultValue="solana" className="select-before" value={toNetwork}
+                        <Select style={{width: '30%'}} defaultValue={ChainID.SOLANA} className="select-before"
+                                value={toNetwork}
                                 onChange={(v) => {
                                     setToNetwork(v)
                                     if (v === fromNetwork) {
-                                        setFromNetwork(v == "eth" ? "solana" : "eth");
+                                        setFromNetwork(v == ChainID.ETH ? ChainID.SOLANA : ChainID.ETH);
                                     }
+                                    setToAddress("");
                                 }}>
-                            <Option value="eth">Ethereum</Option>
-                            <Option value="solana">Solana</Option>
+                            <Option value={ChainID.ETH}>Ethereum</Option>
+                            <Option value={ChainID.SOLANA}>Solana</Option>
                         </Select>
-                        {toNetwork == "eth" &&
+                        {toNetwork == ChainID.ETH &&
 
                         <Input style={{width: '70%'}} placeholder="Account address"
                                onChange={(e) => setToAddress(e.target.value)}/>}
-                        {toNetwork == "solana" &&
+                        {toNetwork == ChainID.SOLANA &&
                         <>
-                            <Select style={{width: '60%'}} placeholder="Pick a token account or create a new one">
+                            <Select style={{width: '60%'}} onChange={(e) => setToAddress(e.toString())}
+                                    placeholder="Pick a token account or create a new one"
+                                    notFoundContent={<Empty description="No accounts. Create a new one."/>}>
                                 {b.balances.filter((v) => v.mint == wrappedMint).map((v) =>
                                     <Option
                                         value={v.account.toString()}>{v.account.toString()}</Option>)}
@@ -233,10 +282,11 @@ export default function TransferInitiator(params: TransferInitiatorParams) {
                                     content: (<>This will create a new token account for the
                                         token: <code>{wrappedMint}</code></>),
                                     onOk() {
+                                        console.log(coinInfo.decimals)
                                         createWrapped(c, bridge, k, {
                                             chain: coinInfo.chainID,
                                             address: coinInfo.assetAddress,
-                                            decimals: Math.min(coinInfo.decimals, 8)
+                                            decimals: Math.min(coinInfo.decimals, 9)
                                         }, new PublicKey(wrappedMint))
                                     },
                                     onCancel() {

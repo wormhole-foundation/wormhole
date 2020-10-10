@@ -154,7 +154,7 @@ function Transfer() {
             let wrappedMint = await bridge.getWrappedAssetMint({
                 chain: coinInfo.chainID,
                 address: coinInfo.assetAddress,
-                decimals: Math.min(coinInfo.decimals, 8)
+                decimals: Math.min(coinInfo.decimals, 9)
             });
             setWrappedMint(wrappedMint.toString())
 
@@ -244,7 +244,7 @@ function Transfer() {
                                              createWrapped(c, bridge, k, {
                                                  chain: coinInfo.chainID,
                                                  address: coinInfo.assetAddress,
-                                                 decimals: Math.min(coinInfo.decimals, 8)
+                                                 decimals: Math.min(coinInfo.decimals, 9)
                                              }, new PublicKey(wrappedMint))
                                          }}>Create new</Button></Col>
                         </Row>
