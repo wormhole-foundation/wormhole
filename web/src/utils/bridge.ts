@@ -301,7 +301,7 @@ class SolanaBridge {
 
         // @ts-ignore
         const balanceNeeded = await Token.getMinBalanceRentForExemptAccount(this.connection);
-        let transaction = solanaWeb3.SystemProgram.createAccount({
+        let create_ix = solanaWeb3.SystemProgram.createAccount({
             fromPubkey: owner,
             newAccountPubkey: newAccount.publicKey,
             lamports: balanceNeeded,
@@ -338,54 +338,61 @@ class SolanaBridge {
             data
         }
 
-        // @ts-ignore
+        let ixs: TransactionInstruction[] = [];
+
         let configKey = await this.getConfigKey();
         let wrappedKey = await this.getWrappedAssetMint(meta);
-        let metaKey = await this.getWrappedAssetMeta(wrappedKey);
-        const wa_keys = [{
-            pubkey: solanaWeb3.SystemProgram.programId,
-            isSigner: false,
-            isWritable: false
-        }, {
-            pubkey: TOKEN_PROGRAM,
-            isSigner: false,
-            isWritable: false
-        }, {
-            pubkey: solanaWeb3.SYSVAR_RENT_PUBKEY,
-            isSigner: false,
-            isWritable: false
-        }, {
-            pubkey: configKey,
-            isSigner: false,
-            isWritable: false
-        }, {
-            pubkey: owner,
-            isSigner: true,
-            isWritable: true
-        }, {
-            pubkey: wrappedKey,
-            isSigner: false,
-            isWritable: true
-        }, {
-            pubkey: metaKey,
-            isSigner: false,
-            isWritable: true
-        }];
-        const wrappedDataLayout = BufferLayout.struct([BufferLayout.u8('instruction'), BufferLayout.blob(32, "assetAddress"), BufferLayout.u8('chain'), BufferLayout.u8('decimals')]);
-        const wrappedData = Buffer.alloc(wrappedDataLayout.span);
-        wrappedDataLayout.encode({
-            instruction: 7, // CreateWrapped instruction
-            assetAddress: padBuffer(meta.address, 32),
-            chain: meta.chain,
-            decimals: meta.decimals
-        }, wrappedData);
-        let ix_wrapped = {
-            keys: wa_keys,
-            programId: SOLANA_BRIDGE_PROGRAM,
-            data: wrappedData
+        let wrappedAcc = await this.connection.getAccountInfo(wrappedKey, "single");
+        if (!wrappedAcc) {
+            let metaKey = await this.getWrappedAssetMeta(wrappedKey);
+            const wa_keys = [{
+                pubkey: solanaWeb3.SystemProgram.programId,
+                isSigner: false,
+                isWritable: false
+            }, {
+                pubkey: TOKEN_PROGRAM,
+                isSigner: false,
+                isWritable: false
+            }, {
+                pubkey: solanaWeb3.SYSVAR_RENT_PUBKEY,
+                isSigner: false,
+                isWritable: false
+            }, {
+                pubkey: configKey,
+                isSigner: false,
+                isWritable: false
+            }, {
+                pubkey: owner,
+                isSigner: true,
+                isWritable: true
+            }, {
+                pubkey: wrappedKey,
+                isSigner: false,
+                isWritable: true
+            }, {
+                pubkey: metaKey,
+                isSigner: false,
+                isWritable: true
+            }];
+            const wrappedDataLayout = BufferLayout.struct([BufferLayout.u8('instruction'), BufferLayout.blob(32, "assetAddress"), BufferLayout.u8('chain'), BufferLayout.u8('decimals')]);
+            const wrappedData = Buffer.alloc(wrappedDataLayout.span);
+            wrappedDataLayout.encode({
+                instruction: 7, // CreateWrapped instruction
+                assetAddress: padBuffer(meta.address, 32),
+                chain: meta.chain,
+                decimals: meta.decimals
+            }, wrappedData);
+            let ix_wrapped = {
+                keys: wa_keys,
+                programId: SOLANA_BRIDGE_PROGRAM,
+                data: wrappedData
+            }
+            ixs.push(ix_wrapped);
         }
 
-        return [[ix_wrapped, transaction.instructions[0], ix_init], newAccount]
+        ixs.push(create_ix, ix_init)
+
+        return [ixs, newAccount]
     }
 
     async getConfigKey(): Promise<PublicKey> {

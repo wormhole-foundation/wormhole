@@ -75,7 +75,7 @@ async function createWrapped(c: Connection, b: SolanaBridge, key: Account, meta:
         tx.add(...ix_account)
         tx.sign(key, newSigner)
         message.loading({content: "Waiting for transaction to be confirmed...", key: "tx", duration: 1000})
-        await c.sendTransaction(tx, [key, newSigner])
+        await c.sendTransaction(tx, [key, newSigner], {preflightCommitment: "single"})
         message.success({content: "Creation succeeded!", key: "tx"})
     } catch (e) {
         console.log(e)
@@ -110,7 +110,7 @@ export default function TransferInitiator(params: TransferInitiatorParams) {
                 setCoinInfo(defaultCoinInfo);
                 return
             }
-        console.log(acc.assetMeta)
+            console.log(acc.assetMeta)
 
             setCoinInfo({
                 address: fromAddress,
