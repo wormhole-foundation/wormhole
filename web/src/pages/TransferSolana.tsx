@@ -3,7 +3,7 @@ import ClientContext from "../providers/ClientContext";
 import * as solanaWeb3 from '@solana/web3.js';
 import {PublicKey, Transaction} from '@solana/web3.js';
 import * as spl from '@solana/spl-token';
-import {Button, Card, Col, Divider, Form, Input, InputNumber, List, message, Row, Select} from "antd";
+import {Button, Col, Form, Input, InputNumber, message, Row, Select} from "antd";
 import {BigNumber} from "ethers/utils";
 import SplBalances from "../components/SplBalances";
 import {SlotContext} from "../providers/SlotContext";
@@ -56,6 +56,7 @@ function TransferSolana() {
         getCoinInfo()
     }, [address])
 
+
     return (
         <>
             <Row gutter={12}>
@@ -70,11 +71,12 @@ function TransferSolana() {
                         let send = async () => {
                             message.loading({content: "Transferring tokens...", key: "transfer"}, 1000)
 
-                            let lock_ix = await bridge.createLockAssetInstruction(k.publicKey, fromAccount, new PublicKey(coinInfo.mint), transferAmount, values["target_chain"], recipient,
+                            let {ix: lock_ix} = await bridge.createLockAssetInstruction(k.publicKey, fromAccount, new PublicKey(coinInfo.mint), transferAmount, values["target_chain"], recipient,
                                 {
                                     chain: coinInfo.chainID,
-                                    address: coinInfo.wrappedAddress
-                                }, Math.random()*100000);
+                                    address: coinInfo.wrappedAddress,
+                                    decimals: Math.min(coinInfo.decimals, 9)
+                                }, Math.random() * 100000);
                             let ix = spl.Token.createApproveInstruction(TOKEN_PROGRAM, fromAccount, await bridge.getConfigKey(), k.publicKey, [], transferAmount.toNumber())
 
                             let recentHash = await c.getRecentBlockhash();
@@ -91,8 +93,9 @@ function TransferSolana() {
                             }
                         }
                         send()
-                    }} layout={"vertical"} >
-                        <Form.Item name="address" validateStatus={addressValid ? "success" : "error"} label={"Token Account:"}>
+                    }} layout={"vertical"}>
+                        <Form.Item name="address" validateStatus={addressValid ? "success" : "error"}
+                                   label={"Token Account:"}>
                             <Input
                                 addonAfter={`Balance: ${coinInfo.balance.div(new BigNumber(Math.pow(10, coinInfo.decimals)))}`}
                                 name="address"

@@ -60,7 +60,7 @@ async function createWrapped(c: Connection, b: SolanaBridge, key: Account, meta:
         let tx = new Transaction();
 
         // @ts-ignore
-        let [ix_account, newSigner] = await b.createWrappedAssetAndAccountInstructions(key.publicKey, mint);
+        let [ix_account, newSigner] = await b.createWrappedAssetAndAccountInstructions(key.publicKey, mint, meta);
         let recentHash = await c.getRecentBlockhash();
         tx.recentBlockhash = recentHash.blockhash
         tx.add(...ix_account)
@@ -69,6 +69,7 @@ async function createWrapped(c: Connection, b: SolanaBridge, key: Account, meta:
         await c.sendTransaction(tx, [key, newSigner])
         message.success({content: "Creation succeeded!", key: "tx"})
     } catch (e) {
+        console.log(e)
         message.error({content: "Creation failed", key: "tx"})
     }
 }
@@ -152,7 +153,8 @@ function Transfer() {
         let getWrappedInfo = async () => {
             let wrappedMint = await bridge.getWrappedAssetMint({
                 chain: coinInfo.chainID,
-                address: coinInfo.assetAddress
+                address: coinInfo.assetAddress,
+                decimals: Math.min(coinInfo.decimals, 9)
             });
             setWrappedMint(wrappedMint.toString())
 
@@ -241,7 +243,8 @@ function Transfer() {
                                          onClick={() => {
                                              createWrapped(c, bridge, k, {
                                                  chain: coinInfo.chainID,
-                                                 address: coinInfo.assetAddress
+                                                 address: coinInfo.assetAddress,
+                                                 decimals: Math.min(coinInfo.decimals, 9)
                                              }, new PublicKey(wrappedMint))
                                          }}>Create new</Button></Col>
                         </Row>
