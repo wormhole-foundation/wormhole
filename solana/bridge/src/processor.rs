@@ -90,6 +90,10 @@ impl Bridge {
 
                 Self::process_verify_signatures(program_id, accounts, &p)
             }
+            CreateWrapped(meta) => {
+                info!("Instruction: CreateWrapped");
+                Self::process_create_wrapped(program_id, accounts, &meta)
+            }
             _ => panic!(""),
         }
     }
@@ -385,6 +389,7 @@ impl Bridge {
             program_id,
             bridge_info.key,
             t.asset.chain,
+            t.asset.decimals,
             t.asset.address,
         )?;
         if expected_mint_address != *mint_info.key {
@@ -657,7 +662,6 @@ impl Bridge {
                         accounts,
                         account_info_iter,
                         bridge_info,
-                        payer_info,
                         &mut bridge,
                         &v,
                     )
@@ -755,7 +759,6 @@ impl Bridge {
         accounts: &[AccountInfo],
         account_info_iter: &mut Iter<AccountInfo>,
         bridge_info: &AccountInfo,
-        payer_info: &AccountInfo,
         bridge: &mut Bridge,
         b: &BodyTransfer,
     ) -> ProgramResult {
@@ -786,52 +789,16 @@ impl Bridge {
                 b.amount,
             )?;
         } else {
-            // Create wrapped asset if it does not exist
-            if mint_info.data_is_empty() {
-                let meta_info = next_account_info(account_info_iter)?;
-
-                // Foreign chain asset, mint wrapped asset
-                let expected_mint_address = Bridge::derive_wrapped_asset_id(
-                    program_id,
-                    bridge_info.key,
-                    b.asset.chain,
-                    b.asset.address,
-                )?;
-                if expected_mint_address != *mint_info.key {
-                    return Err(Error::InvalidDerivedAccount.into());
-                }
-
-                // Create wrapped mint
-                Self::create_wrapped_mint(
-                    program_id,
-                    accounts,
-                    &bridge.config.token_program,
-                    mint_info.key,
-                    bridge_info.key,
-                    payer_info.key,
-                    &b.asset,
-                    b.asset.decimals,
-                )?;
-
-                // Check and create wrapped asset meta to allow reverse resolution of info
-                let wrapped_meta_seeds =
-                    Bridge::derive_wrapped_meta_seeds(bridge_info.key, mint_info.key);
-                Bridge::check_and_create_account::<WrappedAssetMeta>(
-                    program_id,
-                    accounts,
-                    meta_info.key,
-                    payer_info.key,
-                    program_id,
-                    &wrapped_meta_seeds,
-                )?;
-
-                let mut wrapped_meta_data = meta_info.data.borrow_mut();
-                let wrapped_meta: &mut WrappedAssetMeta =
-                    Bridge::unpack_unchecked(&mut wrapped_meta_data)?;
-
-                wrapped_meta.is_initialized = true;
-                wrapped_meta.address = b.asset.address;
-                wrapped_meta.chain = b.asset.chain;
+            // Foreign chain asset, mint wrapped asset
+            let expected_mint_address = Bridge::derive_wrapped_asset_id(
+                program_id,
+                bridge_info.key,
+                b.asset.chain,
+                b.asset.decimals,
+                b.asset.address,
+            )?;
+            if expected_mint_address != *mint_info.key {
+                return Err(Error::InvalidDerivedAccount.into());
             }
 
             // This automatically asserts that the mint was created by this account by using
@@ -897,6 +864,69 @@ impl Bridge {
         proposal.vaa[vaa_data.len()] = 0xff;
         proposal.vaa_time = vaa.timestamp;
         proposal.signature_account = *sig_account;
+
+        Ok(())
+    }
+
+    /// Creates a new wrapped asset
+    pub fn process_create_wrapped(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        a: &AssetMeta,
+    ) -> ProgramResult {
+        info!("create wrapped");
+        let account_info_iter = &mut accounts.iter();
+        next_account_info(account_info_iter)?; // System program
+        next_account_info(account_info_iter)?; // Token program
+        next_account_info(account_info_iter)?; // Rent sysvar
+        let bridge_info = next_account_info(account_info_iter)?;
+        let payer_info = next_account_info(account_info_iter)?;
+        let mint_info = next_account_info(account_info_iter)?;
+        let wrapped_meta_info = next_account_info(account_info_iter)?;
+
+        let bridge = Bridge::bridge_deserialize(bridge_info)?;
+
+        // Foreign chain asset, mint wrapped asset
+        let expected_mint_address = Bridge::derive_wrapped_asset_id(
+            program_id,
+            bridge_info.key,
+            a.chain,
+            a.decimals,
+            a.address,
+        )?;
+        if expected_mint_address != *mint_info.key {
+            return Err(Error::InvalidDerivedAccount.into());
+        }
+
+        // Create wrapped mint
+        Self::create_wrapped_mint(
+            program_id,
+            accounts,
+            &bridge.config.token_program,
+            mint_info.key,
+            bridge_info.key,
+            payer_info.key,
+            &a,
+            a.decimals,
+        )?;
+
+        // Check and create wrapped asset meta to allow reverse resolution of info
+        let wrapped_meta_seeds = Bridge::derive_wrapped_meta_seeds(bridge_info.key, mint_info.key);
+        Bridge::check_and_create_account::<WrappedAssetMeta>(
+            program_id,
+            accounts,
+            wrapped_meta_info.key,
+            payer_info.key,
+            program_id,
+            &wrapped_meta_seeds,
+        )?;
+
+        let mut wrapped_meta_data = wrapped_meta_info.data.borrow_mut();
+        let wrapped_meta: &mut WrappedAssetMeta = Bridge::unpack_unchecked(&mut wrapped_meta_data)?;
+
+        wrapped_meta.is_initialized = true;
+        wrapped_meta.address = a.address;
+        wrapped_meta.chain = a.chain;
 
         Ok(())
     }
@@ -1030,7 +1060,7 @@ impl Bridge {
             mint,
             payer,
             token_program,
-            &Self::derive_wrapped_asset_seeds(bridge, asset.chain, asset.address),
+            &Self::derive_wrapped_asset_seeds(bridge, asset.chain, asset.decimals, asset.address),
         )?;
         let ix = spl_token::instruction::initialize_mint(
             token_program,

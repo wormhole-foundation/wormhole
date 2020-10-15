@@ -1025,11 +1025,20 @@ fn main() {
                         .help("Chain ID of the asset"),
                 )
                 .arg(
+                    Arg::with_name("decimals")
+                        .validator(is_u8)
+                        .value_name("DECIMALS")
+                        .takes_value(true)
+                        .index(3)
+                        .required(true)
+                        .help("Decimals of the asset"),
+                )
+                .arg(
                     Arg::with_name("token")
                         .validator(is_hex)
                         .value_name("TOKEN_ADDRESS")
                         .takes_value(true)
-                        .index(3)
+                        .index(4)
                         .required(true)
                         .help("Token address of the asset"),
                 )
@@ -1162,6 +1171,7 @@ fn main() {
         ("wrapped-address", Some(arg_matches)) => {
             let bridge = pubkey_of(arg_matches, "bridge").unwrap();
             let chain = value_t_or_exit!(arg_matches, "chain", u8);
+            let decimals = value_t_or_exit!(arg_matches, "decimals", u8);
             let addr_string: String = value_of(arg_matches, "token").unwrap();
             let addr_data = hex::decode(addr_string).unwrap();
 
@@ -1170,7 +1180,8 @@ fn main() {
 
             let bridge_key = Bridge::derive_bridge_id(&bridge).unwrap();
             let wrapped_key =
-                Bridge::derive_wrapped_asset_id(&bridge, &bridge_key, chain, token_addr).unwrap();
+                Bridge::derive_wrapped_asset_id(&bridge, &bridge_key, chain, decimals, token_addr)
+                    .unwrap();
             println!("Wrapped address: {}", wrapped_key);
             return;
         }

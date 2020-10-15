@@ -48,6 +48,7 @@ export const SolanaTokenProvider: FunctionComponent = ({children}) => {
                         if (!am) {
                             throw new Error("could not derive asset meta")
                         }
+                        am.decimals = acc.account.data.parsed.info.tokenAmount.decimals;
                         meta.push(am)
                     }
                     let balances: Array<BalanceInfo> = await res.value.map((v, i) => {

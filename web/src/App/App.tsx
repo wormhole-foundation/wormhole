@@ -11,6 +11,7 @@ import TransferSolana from "../pages/TransferSolana";
 import WalletContext from '../providers/WalletContext';
 import Wallet from "@project-serum/sol-wallet-adapter";
 import {BridgeProvider} from "../providers/BridgeContext";
+import Assistant from "../pages/Assistant";
 
 const {Header, Content, Footer} = Layout;
 
@@ -37,6 +38,7 @@ function App() {
             <Layout style={{height: '100%'}}>
                 <Router>
                     <Header style={{position: 'fixed', zIndex: 1, width: '100%'}}>
+                        <Link to="/assistant" style={{paddingRight: 20}}>Assistant</Link>
                         <Link to="/" style={{paddingRight: 20}}>Ethereum</Link>
                         <Link to="/solana">Solana</Link>
                         <div className="logo"/>
@@ -50,6 +52,9 @@ function App() {
                                             <SolanaTokenProvider>
 
                                                 <Switch>
+                                                    <Route path="/assistant">
+                                                        <Assistant/>
+                                                    </Route>
                                                     <Route path="/solana">
                                                         <TransferSolana/>
                                                     </Route>
