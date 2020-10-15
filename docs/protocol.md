@@ -23,7 +23,7 @@ The following section describes the protocol and design decisions made.
 
 ### Signature scheme
 
-In order to implement a trustless bridge, there needs to be a consensus mechanism to measure whether there is a quorum
+In order to implement a decentralized bridge, there needs to be a consensus mechanism to measure whether there is a quorum
 on a cross chain transfer to prevent a single malicious actor from unlocking or minting an infinite amount of assets.
 
 There are multiple ways to measure whether enough validators have approved a decision:
