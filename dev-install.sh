@@ -124,3 +124,4 @@ done
 echo "Done! You have to reopen your shell or source the new profile scripts:"
 echo "  source /etc/profile.d/k3s.sh"
 echo "  source /etc/profile.d/buildkit.sh"
+echo "  source /etc/profile.d/local_go.sh"
