@@ -1,5 +1,5 @@
 [workspace]
-members = ["contracts/*"]
+members = ["contracts/cw20-wrapped", "contracts/wormhole"]
 
 [profile.release]
 opt-level = 3
