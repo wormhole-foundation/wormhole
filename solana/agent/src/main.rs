@@ -93,7 +93,7 @@ impl Agent for AgentImpl {
                     Ok(_) => (),
                     Err(e) => {
                         return Err(Status::new(
-                            Code::Unavailable,
+                            Code::Internal,
                             format!("tx sending failed: {}", e),
                         ));
                     }
@@ -106,7 +106,7 @@ impl Agent for AgentImpl {
                     signature: s.to_string(),
                 })),
                 Err(e) => Err(Status::new(
-                    Code::Unavailable,
+                    Code::Internal,
                     format!("tx sending failed: {}", e),
                 )),
             }
