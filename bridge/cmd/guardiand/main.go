@@ -199,7 +199,10 @@ func main() {
 		case <-ctx.Done():
 			return nil
 		}
-	})
+	},
+		// It's safer to crash and restart the process in case we encounter a panic,
+		// rather than attempting to reschedule the runnable.
+		supervisor.WithPropagatePanic)
 
 	select {
 	case <-rootCtx.Done():
