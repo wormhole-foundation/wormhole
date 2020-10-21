@@ -268,8 +268,6 @@ func vaaConsensusProcessor(lockC chan *common.ChainLock, setC chan *common.Guard
 						} else {
 							panic(fmt.Sprintf("unknown VAA payload type: %+v", v))
 						}
-					} else if !*unsafeDevMode {
-						panic("not implemented") // TODO
 					} else {
 						logger.Info("quorum not met, doing nothing",
 							zap.String("digest", hash))
