@@ -138,7 +138,7 @@ func (e *SolanaBridgeWatcher) Run(ctx context.Context) error {
 					case codes.Internal:
 						// This VAA has already been executed on chain, successfully or not.
 						// TODO: dissect InstructionError in agent and convert this to the proper gRPC code
-						if strings.Contains(st.Message(), "AlreadyExists") {
+						if strings.Contains(st.Message(), "custom program error: 0xb") {  // AlreadyExists
 							logger.Info("VAA already submitted on-chain, ignoring", zap.Error(err), zap.String("digest", h))
 							break
 						}
