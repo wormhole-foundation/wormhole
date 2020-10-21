@@ -83,6 +83,20 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 	errC := make(chan error)
 	logger := supervisor.Logger(ctx)
 
+	// Get initial validator set from Ethereum. We could also fetch it from Solana,
+	// because both sets are synchronized, we simply made an arbitrary decision to use Ethereum.
+	timeout, cancel = context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+	idx, gs, err := FetchCurrentGuardianSet(timeout, e.url, e.bridge)
+	if err != nil {
+		return fmt.Errorf("failed requesting guardian set from Ethereum: %w", err)
+	}
+	logger.Info("initial guardian set fetched", zap.Any("value", gs), zap.Uint32("index", idx))
+	e.setChan <- &common.GuardianSet{
+		Keys:  gs.Keys,
+		Index: idx,
+	}
+
 	go func() {
 		for {
 			select {
@@ -132,7 +146,9 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 
 				gs, err := caller.GetGuardianSet(&bind.CallOpts{Context: timeout}, ev.NewGuardianIndex)
 				if err != nil {
-					errC <- fmt.Errorf("error requesting new guardian set value: %w", err)
+					// We failed to process the guardian set update and are now out of sync with the chain.
+					// Recover by crashing the runnable, which causes the guardian set to be re-fetched.
+					errC <- fmt.Errorf("error requesting new guardian set value for %d: %w", ev.NewGuardianIndex, err)
 					return
 				}
 
@@ -204,7 +220,7 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 }
 
 // Fetch the current guardian set ID and guardian set from the chain.
-func FetchCurrentGuardianSet(ctx context.Context, logger *zap.Logger, rpcURL string, bridgeContract eth_common.Address) (uint32, *abi.WormholeGuardianSet, error) {
+func FetchCurrentGuardianSet(ctx context.Context, rpcURL string, bridgeContract eth_common.Address) (uint32, *abi.WormholeGuardianSet, error) {
 	c, err := ethclient.DialContext(ctx, rpcURL)
 	if err != nil {
 		return 0, nil, fmt.Errorf("dialing eth client failed: %w", err)
@@ -226,8 +242,6 @@ func FetchCurrentGuardianSet(ctx context.Context, logger *zap.Logger, rpcURL str
 	if err != nil {
 		return 0, nil, fmt.Errorf("error requesting current guardian set value: %w", err)
 	}
-
-	logger.Info("current guardian set fetched", zap.Any("value", gs), zap.Uint32("index", currentIndex))
 
 	return currentIndex, &gs, nil
 }
