@@ -227,18 +227,11 @@ func vaaConsensusProcessor(lockC chan *common.ChainLock, setC chan *common.Guard
 						zap.Int("have_sigs", len(sigs)),
 					)
 
-					if *unsafeDevMode && len(sigs) >= quorum {
-						idx, err := devnet.GetDevnetIndex()
-						if err != nil {
-							return err
-						}
-
+					if len(sigs) >= quorum {
 						vaaBytes, err := signed.Marshal()
 						if err != nil {
 							panic(err)
 						}
-
-						// TODO: proper leader selection
 
 						if t, ok := v.Payload.(*vaa.BodyTransfer); ok {
 							switch {
@@ -248,24 +241,23 @@ func vaaConsensusProcessor(lockC chan *common.ChainLock, setC chan *common.Guard
 									zap.Any("vaa", signed),
 									zap.String("bytes", hex.EncodeToString(vaaBytes)))
 
-								if idx == 1 {
-									vaaC <- signed
-								}
+								vaaC <- signed
 							case t.TargetChain == vaa.ChainIDEthereum:
 								// cross-submit to Solana for data availability
-								if idx == 1 {
-									vaaC <- signed
-								}
+								vaaC <- signed
 
-								timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
-								tx, err := devnet.SubmitVAA(timeout, *ethRPC, signed)
-								cancel()
-								if err != nil {
-									logger.Error("failed to submit lockup to Ethereum", zap.Error(err))
-									break
+								// In dev mode, submit VAA to Ethereum. For production, the bridge won't
+								// have an Ethereum account and the user retrieves the VAA and submits the transactions themselves.
+								if *unsafeDevMode {
+									timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
+									tx, err := devnet.SubmitVAA(timeout, *ethRPC, signed)
+									cancel()
+									if err != nil {
+										logger.Error("failed to submit lockup to Ethereum", zap.Error(err))
+										break
+									}
+									logger.Info("lockup submitted to Ethereum", zap.Any("tx", tx))
 								}
-								logger.Info("lockup submitted to Ethereum", zap.Any("tx", tx))
-
 							default:
 								logger.Error("we don't know how to submit this VAA",
 									zap.String("digest", hash),
@@ -292,12 +284,7 @@ func checkDevModeGuardianSetUpdate(ctx context.Context, vaaC chan *vaa.VAA, gs *
 	logger := supervisor.Logger(ctx)
 
 	if *unsafeDevMode {
-		idx, err := devnet.GetDevnetIndex()
-		if err != nil {
-			return fmt.Errorf("failed to get devnet index: %s")
-		}
-
-		if idx == 0 && (uint(len(gs.Keys)) != *devNumGuardians) {
+		if uint(len(gs.Keys)) != *devNumGuardians {
 			v := devnet.DevnetGuardianSetVSS(*devNumGuardians)
 
 			logger.Info(fmt.Sprintf("guardian set has %d members, expecting %d - submitting VAA",
