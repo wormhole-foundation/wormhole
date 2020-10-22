@@ -236,17 +236,7 @@ func vaaConsensusProcessor(lockC chan *common.ChainLock, setC chan *common.Guard
 
 						if t, ok := v.Payload.(*vaa.BodyTransfer); ok {
 							switch {
-							case t.TargetChain == vaa.ChainIDSolana:
-								logger.Info("submitting signed VAA to Solana",
-									zap.String("digest", hash),
-									zap.Any("vaa", signed),
-									zap.String("bytes", hex.EncodeToString(vaaBytes)))
-
-								vaaC <- signed
 							case t.TargetChain == vaa.ChainIDEthereum:
-								// cross-submit to Solana for data availability
-								vaaC <- signed
-
 								// In dev mode, submit VAA to Ethereum. For production, the bridge won't
 								// have an Ethereum account and the user retrieves the VAA and submits the transactions themselves.
 								if *unsafeDevMode {
@@ -259,6 +249,16 @@ func vaaConsensusProcessor(lockC chan *common.ChainLock, setC chan *common.Guard
 									}
 									logger.Info("lockup submitted to Ethereum", zap.Any("tx", tx))
 								}
+
+								// Cross-submit to Solana for data availability
+								fallthrough
+							case t.TargetChain == vaa.ChainIDSolana:
+								logger.Info("submitting signed VAA to Solana",
+									zap.String("digest", hash),
+									zap.Any("vaa", signed),
+									zap.String("bytes", hex.EncodeToString(vaaBytes)))
+
+								vaaC <- signed
 							default:
 								logger.Error("we don't know how to submit this VAA",
 									zap.String("digest", hash),
