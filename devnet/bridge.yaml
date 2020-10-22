@@ -42,7 +42,15 @@ spec:
         - name: guardiand
           image: guardiand-image
           command:
+            - /dlv
+            - --listen=:2345
+            - --accept-multiclient
+            - --headless=true
+            - --api-version=2
+            - --continue
+            - exec
             - /guardiand
+            - --
             - -ethRPC
             - ws://eth-devnet:8545
             - -agentRPC
