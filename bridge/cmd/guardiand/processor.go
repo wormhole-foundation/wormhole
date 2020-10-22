@@ -26,6 +26,7 @@ type (
 		firstObserved time.Time
 		ourVAA        *vaa.VAA
 		signatures    map[ethcommon.Address][]byte
+		submitted     bool
 	}
 
 	vaaMap map[string]*vaaState
@@ -227,7 +228,7 @@ func vaaConsensusProcessor(lockC chan *common.ChainLock, setC chan *common.Guard
 						zap.Int("have_sigs", len(sigs)),
 					)
 
-					if len(sigs) >= quorum {
+					if len(sigs) >= quorum && !state.vaaSignatures[hash].submitted {
 						vaaBytes, err := signed.Marshal()
 						if err != nil {
 							panic(err)
@@ -265,6 +266,8 @@ func vaaConsensusProcessor(lockC chan *common.ChainLock, setC chan *common.Guard
 									zap.String("bytes", hex.EncodeToString(vaaBytes)),
 									zap.Stringer("target_chain", t.TargetChain))
 							}
+
+							state.vaaSignatures[hash].submitted = true
 						} else {
 							panic(fmt.Sprintf("unknown VAA payload type: %+v", v))
 						}
