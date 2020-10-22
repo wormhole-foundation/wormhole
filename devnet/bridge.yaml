@@ -42,8 +42,6 @@ spec:
         - name: guardiand
           image: guardiand-image
           command:
-# Uncomment this for in-place debugging using dlv
-#
             - /dlv
             - --listen=:2345
             - --accept-multiclient
@@ -52,7 +50,7 @@ spec:
             - --continue
             - exec
             - /guardiand
-#            - --
+            - --
             - -ethRPC
             - ws://eth-devnet:8545
             - -agentRPC
