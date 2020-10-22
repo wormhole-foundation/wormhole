@@ -94,7 +94,7 @@ func main() {
 	// stored in memory and never touch the disk. This is a privileged operation and requires CAP_IPC_LOCK.
 	err := unix.Mlockall(syscall.MCL_CURRENT | syscall.MCL_FUTURE)
 	if err != nil {
-		fmt.Printf("Failed to lock memory: %v\n", err)
+		fmt.Printf("Failed to lock memory: %v (CAP_IPC_LOCK missing?)\n", err)
 		os.Exit(1)
 	}
 
