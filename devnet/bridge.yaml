@@ -42,15 +42,18 @@ spec:
         - name: guardiand
           image: guardiand-image
           command:
-            - /dlv
-            - --listen=:2345
-            - --accept-multiclient
-            - --headless=true
-            - --api-version=2
-            - --continue=true
-            - exec
+# Uncomment this to enable in-place debugging using dlv
+# (not suitable for regular development since the process will no longer restart on its own)
+#
+#            - /dlv
+#            - --listen=:2345
+#            - --accept-multiclient
+#            - --headless=true
+#            - --api-version=2
+#            - --continue=true
+#            - exec
             - /guardiand
-            - --
+#            - --
             - -ethRPC
             - ws://eth-devnet:8545
             - -agentRPC
