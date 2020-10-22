@@ -47,7 +47,7 @@ spec:
             - --accept-multiclient
             - --headless=true
             - --api-version=2
-            - --continue
+            - --continue=true
             - exec
             - /guardiand
             - --
