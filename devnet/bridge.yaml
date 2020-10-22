@@ -63,6 +63,11 @@ spec:
             - -unsafeDevMode
 #            - -logLevel
 #            - debug
+          securityContext:
+            capabilities:
+              add:
+                # required for syscall.Mlockall
+                - IPC_LOCK
           ports:
             - containerPort: 8999
               name: p2p
