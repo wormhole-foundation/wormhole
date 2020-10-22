@@ -5,21 +5,19 @@ use cosmwasm_storage::to_length_prefixed;
 use cosmwasm_vm::testing::{mock_instance, mock_env, init, MockStorage, MockApi, MockQuerier};
 use cosmwasm_vm::{Storage, Instance};
 
-use wormhole::msg::{InitMsg, GuardianSetMsg};
-use wormhole::state::{ConfigInfo, CONFIG_KEY};
+use wormhole::msg::{InitMsg};
+use wormhole::state::{ConfigInfo, CONFIG_KEY, GuardianSetInfo, GuardianAddress};
+
+use hex;
 
 enum TestAddress {
     INITIALIZER,
-    GUARDIAN1,
-    GUARDIAN2
 }
 
 impl TestAddress {
     fn value(&self) -> HumanAddr {
         match self {
             TestAddress::INITIALIZER => HumanAddr::from("initializer"),
-            TestAddress::GUARDIAN1 => HumanAddr::from("guardian1"),
-            TestAddress::GUARDIAN2 => HumanAddr::from("quardian2"),
         }
     }
 }
@@ -41,10 +39,10 @@ fn get_config_info<S: Storage>(storage: &S) -> ConfigInfo {
     from_slice(&data).expect("invalid data")
 }
 
-fn do_init(height: u64, guardians: &Vec<HumanAddr>) -> Instance<MockStorage, MockApi, MockQuerier> {
+fn do_init(height: u64, guardians: &Vec<GuardianAddress>) -> Instance<MockStorage, MockApi, MockQuerier> {
     let mut deps = mock_instance(WASM, &[]);
     let init_msg = InitMsg {
-        initial_guardian_set: GuardianSetMsg {
+        initial_guardian_set: GuardianSetInfo {
             addresses: guardians.clone(),
             expiration_time: 100
         },
@@ -71,6 +69,9 @@ fn do_init(height: u64, guardians: &Vec<HumanAddr>) -> Instance<MockStorage, Moc
 
 #[test]
 fn init_works() {
-    let guardians = vec![TestAddress::GUARDIAN1.value(), TestAddress::GUARDIAN2.value()];
+    let guardians = vec![GuardianAddress::from(
+        GuardianAddress {
+            bytes: hex::decode("beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe").expect("Decoding failed")
+        })];
     let _deps = do_init(111, &guardians);
 }

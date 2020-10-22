@@ -1,11 +1,11 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use cosmwasm_std::{HumanAddr};
+use crate::state::GuardianSetInfo;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InitMsg {
-    pub initial_guardian_set: GuardianSetMsg,
+    pub initial_guardian_set: GuardianSetInfo,
     pub guardian_set_expirity: u64,
 }
 
@@ -20,10 +20,4 @@ pub enum HandleMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct GuardianSetMsg {
-    pub addresses: Vec<HumanAddr>,
-    pub expiration_time: u64,
 }

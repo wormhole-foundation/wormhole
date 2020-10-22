@@ -3,13 +3,53 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum ContractError {
-    // Generic error
+    /// Invalid VAA version
     #[error("InvalidVersion")]
     InvalidVersion,
+
+    /// Guardian set with this index does not exist
+    #[error("InvalidGuardianSetIndex")]
+    InvalidGuardianSetIndex,
+
+    /// Guardian set expiration date is zero or in the past
+    #[error("GuardianSetExpired")]
+    GuardianSetExpired,
+
+    /// Not enough signers on the VAA
+    #[error("NoQuorum")]
+    NoQuorum,
+
+    /// Wrong guardian index order, order must be ascending
+    #[error("WrongGuardianIndexOrder")]
+    WrongGuardianIndexOrder,
+
+    /// Some problem with signature decoding from bytes
+    #[error("CannotDecodeSignature")]
+    CannotDecodeSignature,
+
+    /// Some problem with public key recovery from the signature
+    #[error("CannotRecoverKey")]
+    CannotRecoverKey,
+
+    /// Recovered pubkey from signature does not match guardian address
+    #[error("GuardianSignatureError")]
+    GuardianSignatureError,
+
+    /// VAA action code not recognized
+    #[error("InvalidVAAAction")]
+    InvalidVAAAction,
+
+    /// VAA guardian set is not current
+    #[error("NotCurrentGuardianSet")]
+    NotCurrentGuardianSet,
 }
 
 impl ContractError {
     pub fn std(&self) -> StdError {
         StdError::GenericErr{msg: format!("{}", self), backtrace: None}
+    }
+
+    pub fn std_err<T>(&self) -> Result<T, StdError> {
+        Err(self.std())
     }
 }
