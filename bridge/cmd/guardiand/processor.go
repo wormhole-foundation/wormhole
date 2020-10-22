@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math"
+	"strings"
 	"time"
 
 	ethcommon "github.com/ethereum/go-ethereum/common"
@@ -244,10 +245,16 @@ func vaaConsensusProcessor(lockC chan *common.ChainLock, setC chan *common.Guard
 									tx, err := devnet.SubmitVAA(timeout, *ethRPC, signed)
 									cancel()
 									if err != nil {
-										logger.Error("failed to submit lockup to Ethereum", zap.Error(err))
+										if strings.Contains(err.Error(), "VAA was already executed") {
+											logger.Info("lockup already submitted to Ethereum by another node, ignoring",
+												zap.Error(err), zap.String("digest", hash))
+										} else {
+											logger.Error("failed to submit lockup to Ethereum",
+												zap.Error(err), zap.String("digest", hash))
+										}
 										break
 									}
-									logger.Info("lockup submitted to Ethereum", zap.Any("tx", tx))
+									logger.Info("lockup submitted to Ethereum", zap.Any("tx", tx), zap.String("digest", hash))
 								}
 
 								// Cross-submit to Solana for data availability
@@ -299,7 +306,7 @@ func checkDevModeGuardianSetUpdate(ctx context.Context, vaaC chan *vaa.VAA, gs *
 				return fmt.Errorf("failed to submit devnet guardian set change: %v")
 			}
 
-			logger.Info("devnet guardian set change submitted to Ethereum", zap.Any("tx", tx))
+			logger.Info("devnet guardian set change submitted to Ethereum", zap.Any("tx", tx), zap.Any("vaa", v))
 
 			// Submit VAA to Solana as well. This is asynchronous and can fail, leading to inconsistent devnet state.
 			vaaC <- v
