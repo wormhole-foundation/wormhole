@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math/big"
+	"strings"
 	"time"
 
 	eth_common "github.com/ethereum/go-ethereum/common"
@@ -111,8 +112,6 @@ func (e *SolanaBridgeWatcher) Run(ctx context.Context) error {
 				res, err := c.SubmitVAA(timeout, &agentv1.SubmitVAARequest{Vaa: vaaBytes})
 				cancel()
 				if err != nil {
-					logger.Error("failed to submit VAA", zap.Error(err), zap.String("digest", h))
-
 					st, ok := status.FromError(err)
 					if !ok {
 						panic("err not a status")
@@ -128,13 +127,25 @@ func (e *SolanaBridgeWatcher) Run(ctx context.Context) error {
 						codes.Unavailable,
 						codes.Aborted:
 
-						logger.Error("requeuing VAA", zap.Error(err), zap.String("digest", h))
+						logger.Error("transient error, requeuing VAA", zap.Error(err), zap.String("digest", h))
 
 						// Tombstone goroutine
 						go func(v *vaa.VAA) {
 							time.Sleep(10 * time.Second)
 							e.vaaChan <- v
 						}(v)
+
+					case codes.Internal:
+						// This VAA has already been executed on chain, successfully or not.
+						// TODO: dissect InstructionError in agent and convert this to the proper gRPC code
+						if strings.Contains(st.Message(), "custom program error: 0xb") {  // AlreadyExists
+							logger.Info("VAA already submitted on-chain, ignoring", zap.Error(err), zap.String("digest", h))
+							break
+						}
+
+						fallthrough
+					default:
+						logger.Error("error submitting VAA", zap.Error(err), zap.String("digest", h))
 					}
 
 					break
