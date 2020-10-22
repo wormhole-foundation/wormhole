@@ -15,7 +15,6 @@ import (
 
 	"github.com/certusone/wormhole/bridge/pkg/common"
 	"github.com/certusone/wormhole/bridge/pkg/devnet"
-	"github.com/certusone/wormhole/bridge/pkg/ethereum"
 	gossipv1 "github.com/certusone/wormhole/bridge/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/bridge/pkg/supervisor"
 	"github.com/certusone/wormhole/bridge/pkg/vaa"
@@ -42,46 +41,7 @@ func vaaConsensusProcessor(lockC chan *common.ChainLock, setC chan *common.Guard
 		our_addr := crypto.PubkeyToAddress(gk.PublicKey)
 		state := &aggregationState{vaaMap{}}
 
-		// Get initial validator set from Ethereum. We could also fetch it from Solana,
-		// because both sets are synchronized, we simply made an arbitrary decision to use Ethereum.
-
-		timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
-		defer cancel()
-		idx, ethGs, err := ethereum.FetchCurrentGuardianSet(timeout, logger, *ethRPC, ethcommon.HexToAddress(*ethContract))
-		if err != nil {
-			return fmt.Errorf("failed requesting guardian set from Ethereum: %w", err)
-		}
-
-		gs := &common.GuardianSet{
-			Keys:  ethGs.Keys,
-			Index: idx,
-		}
-
-		// In debug mode, node 0 submits a VAA that configures the desired number of guardians to both chains.
-		if *unsafeDevMode {
-			idx, err := devnet.GetDevnetIndex()
-			if err != nil {
-				return err
-			}
-
-			if idx == 0 && (uint(len(gs.Keys)) != *devNumGuardians) {
-				v := devnet.DevnetGuardianSetVSS(*devNumGuardians)
-
-				logger.Info(fmt.Sprintf("guardian set has %d members, expecting %d - submitting VAA",
-					len(gs.Keys), *devNumGuardians),
-					zap.Any("v", v))
-
-				timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
-				defer cancel()
-				tx, err := devnet.SubmitVAA(timeout, *ethRPC, v)
-				if err != nil {
-					logger.Error("failed to submit devnet guardian set change", zap.Error(err))
-				}
-				logger.Info("devnet guardian set change submitted to Ethereum", zap.Any("tx", tx))
-
-				vaaC <- v
-			}
-		}
+		var gs *common.GuardianSet
 
 		supervisor.Signal(ctx, supervisor.SignalHealthy)
 
@@ -93,6 +53,12 @@ func vaaConsensusProcessor(lockC chan *common.ChainLock, setC chan *common.Guard
 				logger.Info("guardian set updated",
 					zap.Strings("set", gs.KeysAsHexStrings()),
 					zap.Uint32("index", gs.Index))
+
+				// Dev mode guardian set update check (no-op in production)
+				err := checkDevModeGuardianSetUpdate(ctx, vaaC, gs)
+				if err != nil {
+					return err
+				}
 			case k := <-lockC:
 				supervisor.Logger(ctx).Info("lockup confirmed",
 					zap.Stringer("source_chain", k.SourceChain),
@@ -320,4 +286,37 @@ func vaaConsensusProcessor(lockC chan *common.ChainLock, setC chan *common.Guard
 			}
 		}
 	}
+}
+
+func checkDevModeGuardianSetUpdate(ctx context.Context, vaaC chan *vaa.VAA, gs *common.GuardianSet) error {
+	logger := supervisor.Logger(ctx)
+
+	if *unsafeDevMode {
+		idx, err := devnet.GetDevnetIndex()
+		if err != nil {
+			return fmt.Errorf("failed to get devnet index: %s")
+		}
+
+		if idx == 0 && (uint(len(gs.Keys)) != *devNumGuardians) {
+			v := devnet.DevnetGuardianSetVSS(*devNumGuardians)
+
+			logger.Info(fmt.Sprintf("guardian set has %d members, expecting %d - submitting VAA",
+				len(gs.Keys), *devNumGuardians),
+				zap.Any("v", v))
+
+			timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
+			defer cancel()
+			tx, err := devnet.SubmitVAA(timeout, *ethRPC, v)
+			if err != nil {
+				return fmt.Errorf("failed to submit devnet guardian set change: %v")
+			}
+
+			logger.Info("devnet guardian set change submitted to Ethereum", zap.Any("tx", tx))
+
+			// Submit VAA to Solana as well. This is asynchronous and can fail, leading to inconsistent devnet state.
+			vaaC <- v
+		}
+	}
+
+	return nil
 }
