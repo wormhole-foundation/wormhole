@@ -7,10 +7,12 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"os"
+	"syscall"
 
 	eth_common "github.com/ethereum/go-ethereum/common"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"go.uber.org/zap"
+	"golang.org/x/sys/unix"
 
 	"github.com/certusone/wormhole/bridge/pkg/common"
 	"github.com/certusone/wormhole/bridge/pkg/devnet"
@@ -85,6 +87,15 @@ func main() {
 
 	if *unsafeDevMode {
 		fmt.Print(devwarning)
+	}
+
+	// Lock current and future pages in memory to protect secret keys from being swapped out to disk.
+	// It's possible (and strongly recommended) to deploy Wormhole such that keys are only ever
+	// stored in memory and never touch the disk. This is a privileged operation and requires CAP_IPC_LOCK.
+	err := unix.Mlockall(syscall.MCL_CURRENT | syscall.MCL_FUTURE)
+	if err != nil {
+		fmt.Printf("Failed to lock memory: %v\n", err)
+		os.Exit(1)
 	}
 
 	// Set up logging. The go-log zap wrapper that libp2p uses is compatible with our
