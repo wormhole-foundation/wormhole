@@ -44,12 +44,13 @@ spec:
           command:
 # Uncomment this for in-place debugging using dlv
 #
-#            - /dlv
-#            - --listen=:2345
-#            - --accept-multiclient
-#            - --headless=true
-#            - --api-version=2
-#            - exec
+            - /dlv
+            - --listen=:2345
+            - --accept-multiclient
+            - --headless=true
+            - --api-version=2
+            - --continue
+            - exec
             - /guardiand
 #            - --
             - -ethRPC
