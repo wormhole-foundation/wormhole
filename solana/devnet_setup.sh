@@ -41,8 +41,9 @@ echo "Created token account $account"
 # Mint new tokens owned by our CLI account
 cli mint "$token" 10000000000 "$account"
 
-# Do lock transactions <3
-#while : ; do
-#  cli lock "$bridge_address" "$account" "$token" 10 "$chain_id_ethereum" "$RANDOM" "$recipient_address"
-  sleep 5000
-#done
+# Do lock transactions
+while : ; do
+  # Uncomment for simulated debugging transactions
+  #cli lock "$bridge_address" "$account" "$token" 10 "$chain_id_ethereum" "$RANDOM" "$recipient_address"
+  sleep 5
+done
