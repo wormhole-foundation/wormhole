@@ -99,7 +99,9 @@ contract Wormhole is ReentrancyGuard {
         GuardianSet memory guardian_set = guardian_sets[vaa_guardian_set_index];
         require(guardian_set.keys.length > 0, "invalid guardian set");
         require(guardian_set.expiration_time == 0 || guardian_set.expiration_time > block.timestamp, "guardian set has expired");
-        require(((guardian_set.keys.length / 4) * 3) + 1 <= len_signers, "no quorum");
+        // For guardian sets  < 3, the division by 3 evaluates to 0 and the quorum would not be calculated correctly
+        // We fall back to the guardian set size as quorum for < 3, because 2/3+ for <3 is always the set size
+        require((guardian_set.keys.length < 3 && len_signers == guardian_set.keys.length) || (len_signers >= 3 && ((guardian_set.keys.length / 3) * 2) + 1 <= len_signers), "no quorum");
 
         int16 last_index = - 1;
         for (uint i = 0; i < len_signers; i++) {

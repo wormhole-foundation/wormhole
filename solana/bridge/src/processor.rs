@@ -621,13 +621,17 @@ impl Bridge {
             return Err(ProgramError::InvalidAccountData);
         }
 
-        // Check quorum
-        if (sig_state
+        let signature_count = (sig_state
             .signatures
             .iter()
             .filter(|v| v.iter().filter(|v| **v != 0).count() != 0)
-            .count() as u8)
-            < (((guardian_set.len_keys / 4) * 3) + 1)
+            .count() as u8);
+        // Check quorum
+        // For guardian sets  < 3, the division by 3 evaluates to 0 and the quorum would not be calculated correctly
+        // We fall back to the guardian set size as quorum for < 3, because 2/3+ for <3 is always the set size
+        if (guardian_set.len_keys < 3 && signature_count != guardian_set.len_keys)
+            || (guardian_set.len_keys >= 3
+                && signature_count < (((guardian_set.len_keys / 3) * 2) + 1))
         {
             return Err(ProgramError::InvalidArgument);
         }
