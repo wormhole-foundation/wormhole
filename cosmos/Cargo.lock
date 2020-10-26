@@ -533,7 +533,6 @@ dependencies = [
  "cfg-if 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ecdsa 0.8.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "elliptic-curve 0.6.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "sha3 0.9.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -1093,6 +1092,7 @@ dependencies = [
  "cosmwasm-vm 0.10.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "cw20 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "cw20-base 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cw20-wrapped 0.1.0",
  "hex 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "k256 0.5.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "schemars 0.7.6 (registry+https://github.com/rust-lang/crates.io-index)",

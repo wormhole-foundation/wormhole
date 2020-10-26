@@ -20,8 +20,9 @@ schemars = "0.7"
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }
 cw20 = "0.2.2"
 cw20-base = { version = "0.2.2", features = ["library"] }
+cw20-wrapped = { path = "../cw20-wrapped", features = ["library"] }
 thiserror = { version = "1.0.20" }
-k256 = { version = "0.5.9", default-features = false, features = ["ecdsa", "keccak256"] }
+k256 = { version = "0.5.9", default-features = false, features = ["ecdsa"] }
 sha3 = { version = "0.9.1", default-features = false }
 
 [dev-dependencies]

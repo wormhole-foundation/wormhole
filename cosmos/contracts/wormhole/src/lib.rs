@@ -1,3 +1,4 @@
+mod byte_utils;
 pub mod contract;
 mod error;
 pub mod msg;

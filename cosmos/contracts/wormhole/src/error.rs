@@ -1,4 +1,4 @@
-use cosmwasm_std::{StdError};
+use cosmwasm_std::StdError;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -42,11 +42,30 @@ pub enum ContractError {
     /// VAA guardian set is not current
     #[error("NotCurrentGuardianSet")]
     NotCurrentGuardianSet,
+
+    /// Only 128-bit amounts are supported
+    #[error("AmountTooHigh")]
+    AmountTooHigh,
+
+    /// Source and target chain ids must be different
+    #[error("SameSourceAndTarget")]
+    SameSourceAndTarget,
+
+    /// Target chain id must be the same as the current CHAIN_ID
+    #[error("WrongTargetChain")]
+    WrongTargetChain,
+
+    /// Wrapped asset init hook sent twice for the same asset id
+    #[error("AssetAlreadyRegistered")]
+    AssetAlreadyRegistered,
 }
 
 impl ContractError {
     pub fn std(&self) -> StdError {
-        StdError::GenericErr{msg: format!("{}", self), backtrace: None}
+        StdError::GenericErr {
+            msg: format!("{}", self),
+            backtrace: None,
+        }
     }
 
     pub fn std_err<T>(&self) -> Result<T, StdError> {

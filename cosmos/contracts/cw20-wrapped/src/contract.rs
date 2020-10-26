@@ -1,4 +1,7 @@
-use cosmwasm_std::{log, to_binary, Api, Querier, Binary, Extern, Env, InitResponse, StdResult, StdError, Storage, HandleResponse, HumanAddr, Uint128};
+use cosmwasm_std::{
+    log, to_binary, Api, Binary, CosmosMsg, Env, Extern, HandleResponse, HumanAddr, InitResponse,
+    Querier, StdError, StdResult, Storage, Uint128, WasmMsg,
+};
 
 use cw20_base::allowances::{
     handle_burn_from, handle_decrease_allowance, handle_increase_allowance, handle_send_from,
@@ -7,7 +10,7 @@ use cw20_base::allowances::{
 use cw20_base::contract::{
     handle_mint, handle_send, handle_transfer, query_balance, query_token_info,
 };
-use cw20_base::state::{token_info, balances, MinterData, TokenInfo};
+use cw20_base::state::{balances, token_info, MinterData, TokenInfo};
 
 use crate::msg::{HandleMsg, InitMsg, QueryMsg, WrappedAssetInfoResponse};
 use crate::state::{wrapped_asset_info, wrapped_asset_info_read, WrappedAssetInfo};
@@ -18,7 +21,6 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     env: Env,
     msg: InitMsg,
 ) -> StdResult<InitResponse> {
-
     // store token info using cw20-base format
     let data = TokenInfo {
         name: String::from("Wormhole Wrapped"),
@@ -36,12 +38,27 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     // save wrapped asset info
     let data = WrappedAssetInfo {
         asset_chain: msg.asset_chain,
-        asset_address: deps.api.canonical_address(&msg.asset_address)?,
-        bridge: deps.api.canonical_address(&env.message.sender)?
+        asset_address: msg.asset_address,
+        bridge: deps.api.canonical_address(&env.message.sender)?,
     };
     wrapped_asset_info(&mut deps.storage).save(&data)?;
 
-    Ok(InitResponse::default())
+    if let Some(mint_info) = msg.mint {
+        handle_mint(deps, env, mint_info.recipient, mint_info.amount)?;
+    }
+
+    if let Some(hook) = msg.init_hook {
+        Ok(InitResponse {
+            messages: vec![CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: hook.contract_addr,
+                msg: hook.msg,
+                send: vec![],
+            })],
+            log: vec![],
+        })
+    } else {
+        Ok(InitResponse::default())
+    }
 }
 
 pub fn handle<S: Storage, A: Api, Q: Querier>(
@@ -91,9 +108,11 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
 }
 
 fn handle_burn_wrapped<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>, env: Env, account: HumanAddr, amount: Uint128
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+    account: HumanAddr,
+    amount: Uint128,
 ) -> StdResult<HandleResponse> {
-
     // Only bridge can burn
     let wrapped_info = wrapped_asset_info_read(&deps.storage).load()?;
     if wrapped_info.bridge != deps.api.canonical_address(&env.message.sender)? {
@@ -131,9 +150,11 @@ fn handle_burn_wrapped<S: Storage, A: Api, Q: Querier>(
 }
 
 fn handle_mint_wrapped<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>, env: Env, recipient: HumanAddr, amount: Uint128
-) ->StdResult<HandleResponse> {
-
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+    recipient: HumanAddr,
+    amount: Uint128,
+) -> StdResult<HandleResponse> {
     // Only bridge can mint
     let wrapped_info = wrapped_asset_info_read(&deps.storage).load()?;
     if wrapped_info.bridge != deps.api.canonical_address(&env.message.sender)? {
@@ -164,8 +185,8 @@ pub fn query_wrapped_asset_info<S: Storage, A: Api, Q: Querier>(
     let info = wrapped_asset_info_read(&deps.storage).load()?;
     let res = WrappedAssetInfoResponse {
         asset_chain: info.asset_chain,
-        asset_address: deps.api.human_address(&info.asset_address)?,
-        bridge: deps.api.human_address(&info.bridge)?
+        asset_address: info.asset_address,
+        bridge: deps.api.human_address(&info.bridge)?,
     };
     Ok(res)
 }
@@ -174,7 +195,7 @@ pub fn query_wrapped_asset_info<S: Storage, A: Api, Q: Querier>(
 mod tests {
     use super::*;
     use cosmwasm_std::testing::{mock_dependencies, mock_env};
-    use cosmwasm_std::{HumanAddr};
+    use cosmwasm_std::HumanAddr;
     use cw20::TokenInfoResponse;
 
     const CANONICAL_LENGTH: usize = 20;
@@ -186,14 +207,13 @@ mod tests {
         query_balance(&deps, address.into()).unwrap().balance
     }
 
-    fn do_init<S: Storage, A: Api, Q: Querier>(
-        deps: &mut Extern<S, A, Q>,
-        creator: &HumanAddr)
-    {
+    fn do_init<S: Storage, A: Api, Q: Querier>(deps: &mut Extern<S, A, Q>, creator: &HumanAddr) {
         let init_msg = InitMsg {
             asset_chain: 1,
-            asset_address: HumanAddr("assetAddress".to_string()),
+            asset_address: vec![1; 32],
             decimals: 10,
+            mint: None,
+            init_hook: None,
         };
         let env = mock_env(creator, &[]);
         let res = init(deps, env, init_msg).unwrap();
@@ -213,7 +233,7 @@ mod tests {
             query_wrapped_asset_info(&deps).unwrap(),
             WrappedAssetInfoResponse {
                 asset_chain: 1,
-                asset_address: HumanAddr("assetAddress".to_string()),
+                asset_address: vec![1; 32],
                 bridge: creator.clone(),
             }
         );
@@ -222,8 +242,8 @@ mod tests {
     fn do_init_and_mint<S: Storage, A: Api, Q: Querier>(
         deps: &mut Extern<S, A, Q>,
         creator: &HumanAddr,
-        mint_to: &HumanAddr, 
-        amount: Uint128
+        mint_to: &HumanAddr,
+        amount: Uint128,
     ) {
         do_init(deps, creator);
 
@@ -273,7 +293,10 @@ mod tests {
         let other_address = HumanAddr::from("other");
         let env = mock_env(&other_address, &[]);
         let res = handle(&mut deps, env, msg);
-        assert_eq!(format!("{}", res.unwrap_err()), format!("{}", crate::error::ContractError::Unauthorized {}));
+        assert_eq!(
+            format!("{}", res.unwrap_err()),
+            format!("{}", crate::error::ContractError::Unauthorized {})
+        );
     }
 
     #[test]
@@ -287,7 +310,7 @@ mod tests {
         let amount_to_burn = Uint128(222_222_221);
         let msg = HandleMsg::Burn {
             account: recipient.clone(),
-            amount: amount_to_burn
+            amount: amount_to_burn,
         };
 
         let env = mock_env(&minter, &[]);
@@ -317,12 +340,15 @@ mod tests {
         let amount_to_burn = Uint128(222_222_221);
         let msg = HandleMsg::Burn {
             account: recipient.clone(),
-            amount: amount_to_burn
+            amount: amount_to_burn,
         };
 
         let env = mock_env(&recipient, &[]);
         let res = handle(&mut deps, env, msg.clone());
-        assert_eq!(format!("{}", res.unwrap_err()), format!("{}", crate::error::ContractError::Unauthorized {}));
+        assert_eq!(
+            format!("{}", res.unwrap_err()),
+            format!("{}", crate::error::ContractError::Unauthorized {})
+        );
     }
 
     #[test]

@@ -7,8 +7,22 @@ use cw20::Expiration;
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InitMsg {
     pub asset_chain: u8,
-    pub asset_address: HumanAddr,
-    pub decimals: u8
+    pub asset_address: Vec<u8>,
+    pub decimals: u8,
+    pub mint: Option<InitMint>,
+    pub init_hook: Option<InitHook>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct InitHook {
+    pub msg: Binary,
+    pub contract_addr: HumanAddr,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct InitMint {
+    pub recipient: HumanAddr,
+    pub amount: Uint128,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -75,7 +89,9 @@ pub enum QueryMsg {
     // Generic information about the wrapped asset
     WrappedAssetInfo {},
     /// Implements CW20. Returns the current balance of the given address, 0 if unset.
-    Balance { address: HumanAddr },
+    Balance {
+        address: HumanAddr,
+    },
     /// Implements CW20. Returns metadata on the contract - name, decimals, supply, etc.
     TokenInfo {},
     /// Implements CW20 "allowance" extension.
@@ -88,7 +104,7 @@ pub enum QueryMsg {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct WrappedAssetInfoResponse {
-    pub asset_chain: u8,     // Asset chain id
-    pub asset_address: HumanAddr, // Asset smart contract address
-    pub bridge: HumanAddr // Bridge address, authorized to mint and burn wrapped tokens
+    pub asset_chain: u8,            // Asset chain id
+    pub asset_address: Vec<u8>,     // Asset smart contract address in the original chain
+    pub bridge: HumanAddr,          // Bridge address, authorized to mint and burn wrapped tokens
 }
