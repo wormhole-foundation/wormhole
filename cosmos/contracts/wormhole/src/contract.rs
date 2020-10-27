@@ -7,8 +7,8 @@ use crate::byte_utils::ByteUtils;
 use crate::error::ContractError;
 use crate::msg::{HandleMsg, InitMsg, QueryMsg};
 use crate::state::{
-    config, config_read, guardian_set, guardian_set_read, wrapped_asset, wrapped_asset_read,
-    ConfigInfo, GuardianAddress, GuardianSetInfo,
+    config, config_read, guardian_set_set, guardian_set_get, wrapped_asset, wrapped_asset_read,
+    ConfigInfo, GuardianAddress, GuardianSetInfo, vaa_archive_add, vaa_archive_check
 };
 
 use cw20_wrapped::msg::HandleMsg as WrappedMsg;
@@ -41,10 +41,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     config(&mut deps.storage).save(&state)?;
 
     // Add initial guardian set to storage
-    guardian_set(&mut deps.storage).save(
-        &state.guardian_set_index.to_le_bytes(),
-        &msg.initial_guardian_set,
-    )?;
+    guardian_set_set(&mut deps.storage, state.guardian_set_index, &msg.initial_guardian_set)?;
 
     Ok(InitResponse::default())
 }
@@ -66,6 +63,26 @@ fn handle_submit_vaa<S: Storage, A: Api, Q: Querier>(
     env: Env,
     data: &[u8],
 ) -> StdResult<HandleResponse> {
+
+    /* VAA format:
+
+    header (length 6):
+    0   uint8   version (0x01)
+    1   uint32  guardian set index
+    5   uint8   len signatures
+
+    per signature (length 66):
+    0   uint8       index of the signer (in guardian keys)
+    1   [65]uint8   signature
+
+    body:
+    0   uint32  unix seconds
+    4   uint8   action
+    5   [payload_size]uint8 payload */
+
+    const HEADER_LEN: usize = 6;
+    const SIGNATURE_LEN: usize = 66;
+
     let version = data.get_u8(0);
     if version != 1 {
         return ContractError::InvalidVersion.std_err();
@@ -74,17 +91,22 @@ fn handle_submit_vaa<S: Storage, A: Api, Q: Querier>(
     // Load 4 bytes starting from index 1
     let vaa_guardian_set_index: u32 = data.get_u32(1);
     let len_signers = data.get_u8(5) as usize;
-    let offset: usize = 6 + 66 * len_signers as usize;
+    let body_offset: usize = 6 + SIGNATURE_LEN * len_signers as usize;
 
     // Hash the body
-    let body = &data[offset..];
+    let body = &data[body_offset..];
     let mut hasher = Keccak256::new();
     hasher.update(body);
     let hash = hasher.finalize();
-    // TODO: Check if VAA with this hash was already accepted
+
+    // Check if VAA with this hash was already accepted
+    if vaa_archive_check(&deps.storage, &hash) {
+        return ContractError::VaaAlreadyExecuted.std_err();
+    }
+    vaa_archive_add(&mut deps.storage, &hash)?;
 
     // Load and check guardian set
-    let guardian_set = guardian_set_read(&deps.storage).load(&vaa_guardian_set_index.to_le_bytes());
+    let guardian_set = guardian_set_get(&deps.storage, vaa_guardian_set_index);
     let guardian_set: GuardianSetInfo =
         guardian_set.or(ContractError::InvalidGuardianSetIndex.std_err())?;
 
@@ -97,16 +119,17 @@ fn handle_submit_vaa<S: Storage, A: Api, Q: Querier>(
 
     // Verify guardian signatures
     let mut last_index: i32 = -1;
-    for i in 0..len_signers {
-        let index = data.get_u8(6 + i * 66) as i32;
+    let mut pos = HEADER_LEN;
+    for _ in 0..len_signers {
+        let index = data.get_u8(pos) as i32;
         if index <= last_index {
             return Err(ContractError::WrongGuardianIndexOrder.std());
         }
         last_index = index;
 
-        let signature = Signature::try_from(&data[7 + i * 66..71 + i * 66])
+        let signature = Signature::try_from(&data[pos + 1 .. pos + 1 + 64])
             .or(ContractError::CannotDecodeSignature.std_err())?;
-        let id = RecoverableId::new(data.get_u8(71 + i * 66))
+        let id = RecoverableId::new(data.get_u8(pos + 1 + 64))
             .or(ContractError::CannotDecodeSignature.std_err())?;
         let recoverable_signature = RecoverableSignature::new(&signature, id)
             .or(ContractError::CannotDecodeSignature.std_err())?;
@@ -117,11 +140,12 @@ fn handle_submit_vaa<S: Storage, A: Api, Q: Querier>(
         if !keys_equal(&verify_key, &guardian_set.addresses[index as usize]) {
             return ContractError::GuardianSignatureError.std_err();
         }
+        pos += SIGNATURE_LEN;
     }
 
     // Signatures valid, apply VAA
-    let action = data.get_u8(offset + 4);
-    let payload = &data[offset + 5..];
+    let action = data.get_u8(body_offset + 4);
+    let payload = &data[body_offset + 5..];
 
     match action {
         0x01 => {
@@ -129,7 +153,7 @@ fn handle_submit_vaa<S: Storage, A: Api, Q: Querier>(
             if vaa_guardian_set_index != state.guardian_set_index {
                 return ContractError::NotCurrentGuardianSet.std_err();
             }
-            vaa_update_guardian_set(payload)
+            vaa_update_guardian_set(deps, env, payload)
         }
         0x10 => vaa_transfer(deps, env, payload),
         _ => ContractError::InvalidVAAAction.std_err(),
@@ -165,11 +189,54 @@ fn handle_register_asset<S: Storage, A: Api, Q: Querier>(
     }
 }
 
-fn vaa_update_guardian_set(_payload: &[u8]) -> StdResult<HandleResponse> {
+fn vaa_update_guardian_set<S: Storage, A: Api, Q: Querier>(deps: &mut Extern<S, A, Q>, env: Env, data: &[u8]) -> StdResult<HandleResponse> {
+    /* Payload format
+    0   uint32 new_index
+    4   uint8 len(keys)
+    5   [][20]uint8 guardian addresses
+    */
+
+    let mut state = config_read(&deps.storage).load()?;
+
+    let new_guardian_set_index = data.get_u32(0);
+    
+    if new_guardian_set_index != state.guardian_set_index + 1 {
+        return ContractError::GuardianSetIndexIncreaseError.std_err();
+    }
+    let len = data.get_u8(4);
+
+    let mut new_guardian_set = GuardianSetInfo {
+        addresses: vec![],
+        expiration_time: 0
+    };
+    let mut pos = 5;
+    for _ in 0..len {
+        new_guardian_set.addresses.push(
+            GuardianAddress {
+                bytes: data[pos .. pos + 20].to_vec()
+            }
+        );
+        pos += 20;
+    }
+
+    let old_guardian_set_index = state.guardian_set_index;
+    state.guardian_set_index = new_guardian_set_index;
+
+    guardian_set_set(&mut deps.storage, state.guardian_set_index, &new_guardian_set)?;
+    config(&mut deps.storage).save(&state)?;
+
+    let mut old_guardian_set = guardian_set_get(&deps.storage, old_guardian_set_index)?;
+    old_guardian_set.expiration_time = env.block.time + state.guardian_set_expirity;
+    guardian_set_set(&mut deps.storage, old_guardian_set_index, &old_guardian_set)?;
+
     // TODO: Apply new guardian set
     Ok(HandleResponse {
         messages: vec![],
-        log: vec![],
+        log: vec![
+            log("action", "guardian_set_change"),
+            log("old", old_guardian_set_index),
+            log("new", state.guardian_set_index)
+        ],
         data: None,
     })
 }
@@ -327,7 +394,19 @@ mod tests {
     use cosmwasm_std::testing::{mock_dependencies, mock_env};
     use cosmwasm_std::HumanAddr;
 
+    const ADDR_1: &str = "beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe";
+    const ADDR_2: &str = "8575Df9b3c97B4E267Deb92d93137844A97A0132";
+
+    const VAA_VALID_TRANSFER: &str = "010000000001005468beb21caff68710b2af2d60a986245bf85099509b6babe990a6c32456b44b3e2e9493e3056b7d5892957e14beab24be02dab77ed6c8915000e4a1267f78f400000007d01000000038018002010400000000000000000000000000000000000000000000000000000000000101010101010101010101010101010101010101000000000000000000000000010000000000000000000000000347ef34687bdc9f189e87a9200658d9c40e9988080000000000000000000000000000000000000000000000000de0b6b3a7640000";
+    const VAA_VALID_GUARDIAN_SET_CHANGE: &str = "01000000000100d90d6f9cbc0458599cbe4d267bc9221b54955b94cb5cb338aeb845bdc9dd275f558871ea479de9cc0b44cfb2a07344431a3adbd2f98aa86f4e12ff4aba061b7f00000007d00100000001018575df9b3c97b4e267deb92d93137844a97a0132";
+
     const CANONICAL_LENGTH: usize = 20;
+
+    fn do_init_default_guardians<S: Storage, A: Api, Q: Querier>(
+        deps: &mut Extern<S, A, Q>
+    ) {
+        do_init(deps, &vec![GuardianAddress::from(ADDR_1)]);
+    }
 
     fn do_init<S: Storage, A: Api, Q: Querier>(
         deps: &mut Extern<S, A, Q>,
@@ -351,34 +430,27 @@ mod tests {
     fn submit_vaa<S: Storage, A: Api, Q: Querier>(
         deps: &mut Extern<S, A, Q>,
         vaa: &str,
-    ) -> Vec<CosmosMsg> {
+    ) -> StdResult<HandleResponse> {
         let msg = HandleMsg::SubmitVAA {
             vaa: hex::decode(vaa).expect("Decoding failed"),
         };
         let env = mock_env(&HumanAddr::from("creator"), &[]);
-        let res = handle(deps, env, msg).unwrap();
-
-        res.messages
+        
+        handle(deps, env, msg)
     }
 
     #[test]
     fn can_init() {
         let mut deps = mock_dependencies(CANONICAL_LENGTH, &[]);
-        let guardians = vec![GuardianAddress::from(
-            "beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe",
-        )];
-        do_init(&mut deps, &guardians);
+        do_init_default_guardians(&mut deps);
     }
 
     #[test]
     fn valid_vaa_token_transfer() {
         let mut deps = mock_dependencies(CANONICAL_LENGTH, &[]);
-        let guardians = vec![GuardianAddress::from(
-            "beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe",
-        )];
-        do_init(&mut deps, &guardians);
+        do_init_default_guardians(&mut deps);
 
-        let messages = submit_vaa(&mut deps, "010000000001005468beb21caff68710b2af2d60a986245bf85099509b6babe990a6c32456b44b3e2e9493e3056b7d5892957e14beab24be02dab77ed6c8915000e4a1267f78f400000007d01000000038018002010400000000000000000000000000000000000000000000000000000000000101010101010101010101010101010101010101000000000000000000000000010000000000000000000000000347ef34687bdc9f189e87a9200658d9c40e9988080000000000000000000000000000000000000000000000000de0b6b3a7640000");
+        let messages = submit_vaa(&mut deps, VAA_VALID_TRANSFER).unwrap().messages;
         assert_eq!(1, messages.len());
         let msg = &messages[0];
         match msg {
@@ -396,5 +468,33 @@ mod tests {
             },
             _ => panic!("Wrong message type")
         }
+    }
+
+    #[test]
+    fn same_vaa_twice_error() {
+        let mut deps = mock_dependencies(CANONICAL_LENGTH, &[]);
+        do_init_default_guardians(&mut deps);
+
+        let _ = submit_vaa(&mut deps, VAA_VALID_TRANSFER).unwrap();
+        let e = submit_vaa(&mut deps, VAA_VALID_TRANSFER).unwrap_err();
+        assert_eq!(e, ContractError::VaaAlreadyExecuted.std());
+    }
+
+    #[test]
+    fn valid_vaa_guardian_set_change() {
+        let mut deps = mock_dependencies(CANONICAL_LENGTH, &[]);
+        do_init_default_guardians(&mut deps);
+
+        let messages = submit_vaa(&mut deps, VAA_VALID_GUARDIAN_SET_CHANGE).unwrap().messages;
+        assert_eq!(0, messages.len());
+
+        // Check storage
+        let state = config_read(&deps.storage).load().expect("Cannot load config storage");
+        assert_eq!(state.guardian_set_index, 1);
+        let guardian_set_info = guardian_set_get(&deps.storage, state.guardian_set_index).expect("Cannot find guardian set");
+        assert_eq!(guardian_set_info, GuardianSetInfo {
+            addresses: vec![GuardianAddress::from(ADDR_2)],
+            expiration_time: 0
+        });
     }
 }

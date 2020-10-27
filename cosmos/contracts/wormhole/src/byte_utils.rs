@@ -17,7 +17,7 @@ impl ByteUtils for &[u8] {
     fn get_u32(&self, index: usize) -> u32 {
         let mut bytes: [u8; 32 / 8] = [0; 32 / 8];
         bytes.copy_from_slice(&self[index..index + 4]);
-        u32::from_le_bytes(bytes)
+        u32::from_be_bytes(bytes)
     }
     fn get_u128_be(&self, index: usize) -> u128 {
         let mut bytes: [u8; 128 / 8] = [0; 128 / 8];

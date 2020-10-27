@@ -58,6 +58,14 @@ pub enum ContractError {
     /// Wrapped asset init hook sent twice for the same asset id
     #[error("AssetAlreadyRegistered")]
     AssetAlreadyRegistered,
+
+    /// Guardian set must increase in steps of 1
+    #[error("GuardianSetIndexIncreaseError")]
+    GuardianSetIndexIncreaseError,
+
+    /// VAA was already executed
+    #[error("VaaAlreadyExecuted")]
+    VaaAlreadyExecuted,
 }
 
 impl ContractError {

@@ -1,7 +1,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use cosmwasm_std::{HumanAddr, Storage};
+use cosmwasm_std::{HumanAddr, Storage, StdResult};
 use cosmwasm_storage::{
     bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket, ReadonlySingleton,
     Singleton,
@@ -63,12 +63,20 @@ pub fn config_read<S: Storage>(storage: &S) -> ReadonlySingleton<S, ConfigInfo> 
     singleton_read(storage, CONFIG_KEY)
 }
 
-pub fn guardian_set<S: Storage>(storage: &mut S) -> Bucket<S, GuardianSetInfo> {
-    bucket(GUARDIAN_SET_KEY, storage)
+pub fn guardian_set_set<S: Storage>(storage: &mut S, index: u32, data: &GuardianSetInfo) -> StdResult<()> {
+    bucket(GUARDIAN_SET_KEY, storage).save(&index.to_le_bytes(), data)
 }
 
-pub fn guardian_set_read<S: Storage>(storage: &S) -> ReadonlyBucket<S, GuardianSetInfo> {
-    bucket_read(GUARDIAN_SET_KEY, storage)
+pub fn guardian_set_get<S: Storage>(storage: &S, index: u32) -> StdResult<GuardianSetInfo> {
+    bucket_read(GUARDIAN_SET_KEY, storage).load(&index.to_le_bytes())
+}
+
+pub fn vaa_archive_add<S: Storage>(storage: &mut S, hash: &[u8]) -> StdResult<()> {
+    bucket(GUARDIAN_SET_KEY, storage).save(hash, &true)
+}
+
+pub fn vaa_archive_check<S: Storage>(storage: &S, hash: &[u8]) -> bool {
+    bucket_read(GUARDIAN_SET_KEY, storage).load(&hash).or::<bool>(Ok(false)).unwrap()
 }
 
 pub fn wrapped_asset<S: Storage>(storage: &mut S) -> Bucket<S, HumanAddr> {
