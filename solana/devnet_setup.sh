@@ -41,6 +41,14 @@ echo "Created token account $account"
 # Mint new tokens owned by our CLI account
 cli mint "$token" 10000000000 "$account"
 
+# Create wrapped asset for the token we mint in send-lockups.js (2 = Ethereum, 9 decimals)
+wrapped_token=$(cli create-wrapped "$bridge_address" 2 9 000000000000000000000000CfEB869F69431e42cdB54A4F4f105C19C080A601 | grep 'Wrapped Mint address' | awk '{ print $4 }')
+echo "Created wrapped token $token"
+
+# Create token account to receive wrapped assets from send-lockups.js
+wrapped_account=$(cli create-account --seed=934893 "$wrapped_token" | grep 'Creating account' | awk '{ print $3 }')
+echo "Created wrapped token account $wrapped_account"
+
 # Do lock transactions
 while : ; do
   # Uncomment for simulated debugging transactions
