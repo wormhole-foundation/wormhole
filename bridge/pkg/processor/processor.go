@@ -258,9 +258,6 @@ func (p *Processor) Run(ctx context.Context) error {
 			// a valid signature by an active guardian. We still don't fully trust them, as they may be
 			// byzantine, but now we know who we're dealing with.
 
-			// TODO: timeout/garbage collection for lockup state
-			// TODO: rebroadcast signatures for VAAs that fail to reach consensus
-
 			// []byte isn't hashable in a map. Paying a small extra cost for encoding for easier debugging.
 			hash := hex.EncodeToString(m.Hash)
 

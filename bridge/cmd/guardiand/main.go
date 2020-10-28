@@ -54,9 +54,6 @@ var (
 	rootCtxCancel context.CancelFunc
 )
 
-// TODO: prometheus metrics
-// TODO: telemetry?
-
 // "Why would anyone do this?" are famous last words.
 //
 // We already forcibly override RPC URLs and keys in dev mode to prevent security
@@ -201,8 +198,6 @@ func main() {
 
 	// Run supervisor.
 	supervisor.New(rootCtx, logger, func(ctx context.Context) error {
-		// TODO: use a dependency injection framework like wire?
-
 		if err := supervisor.Run(ctx, "p2p", p2p.Run(
 			obsvC, sendC, priv, *p2pPort, *p2pNetworkID, *p2pBootstrap, *nodeName, rootCtxCancel)); err != nil {
 			return err
