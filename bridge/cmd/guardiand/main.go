@@ -17,6 +17,7 @@ import (
 	"github.com/certusone/wormhole/bridge/pkg/common"
 	"github.com/certusone/wormhole/bridge/pkg/devnet"
 	"github.com/certusone/wormhole/bridge/pkg/ethereum"
+	"github.com/certusone/wormhole/bridge/pkg/processor"
 	gossipv1 "github.com/certusone/wormhole/bridge/pkg/proto/gossip/v1"
 	solana "github.com/certusone/wormhole/bridge/pkg/solana"
 	"github.com/certusone/wormhole/bridge/pkg/supervisor"
@@ -199,7 +200,8 @@ func main() {
 			return err
 		}
 
-		if err := supervisor.Run(ctx, "processor", vaaConsensusProcessor(lockC, setC, gk, sendC, obsvC, solanaVaaC)); err != nil {
+		p := processor.NewProcessor(ctx, lockC, setC, sendC, obsvC, solanaVaaC, gk, *unsafeDevMode, *devNumGuardians, *ethRPC)
+		if err := supervisor.Run(ctx, "processor", p.Run); err != nil {
 			return err
 		}
 
