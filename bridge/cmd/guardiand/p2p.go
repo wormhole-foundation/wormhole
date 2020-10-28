@@ -206,8 +206,6 @@ func p2p(obsvC chan *gossipv1.LockupObservation, sendC chan []byte) func(ctx con
 			}
 		}()
 
-		supervisor.Signal(ctx, supervisor.SignalHealthy)
-
 		for {
 			envl, err := sub.Next(ctx)
 			if err != nil {
