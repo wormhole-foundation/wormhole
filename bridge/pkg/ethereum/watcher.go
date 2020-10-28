@@ -209,8 +209,6 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 		}
 	}()
 
-	supervisor.Signal(ctx, supervisor.SignalHealthy)
-
 	select {
 	case <-ctx.Done():
 		return ctx.Err()

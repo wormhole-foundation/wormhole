@@ -206,7 +206,6 @@ func main() {
 		}
 
 		logger.Info("Started internal services")
-		supervisor.Signal(ctx, supervisor.SignalHealthy)
 
 		select {
 		case <-ctx.Done():

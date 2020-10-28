@@ -100,8 +100,6 @@ func NewProcessor(
 func (p *Processor) Run(ctx context.Context) error {
 	ourAddr := crypto.PubkeyToAddress(p.gk.PublicKey)
 
-	supervisor.Signal(ctx, supervisor.SignalHealthy)
-
 	for {
 		select {
 		case <-ctx.Done():
