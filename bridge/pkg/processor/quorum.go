@@ -1,4 +1,4 @@
-package main
+package processor
 
 // CalculateQuorum returns the minimum number of have that needs to sign a VAA for a given guardian set.
 //
