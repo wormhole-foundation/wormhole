@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+package node.v1;
+
+option go_package = "proto/node/v1;nodev1";
+
+import "google/api/annotations.proto";
+
+service Node {}
