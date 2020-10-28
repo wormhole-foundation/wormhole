@@ -5,5 +5,5 @@ package main
 // The canonical source is the calculation in the contracts (solana/bridge/src/processor.rs and
 // ethereum/contracts/Wormhole.sol), and this needs to match the implementation in the contracts.
 func CalculateQuorum(numGuardians int) int {
-	return int(((float64(numGuardians) / 3) * 2) + 1)
+	return ((numGuardians*10/3)*2)/10 + 1
 }
