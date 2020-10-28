@@ -26,19 +26,26 @@ function sleep(ms) {
 module.exports = function(callback) {
     const fn = async () => {
         let bridge = await Wormhole.deployed();
-
-        let token = await ERC20.new("Test Token", "TKN");
+        let token = await ERC20.deployed();
+        console.log("Token:", token.address);
         await token.mint("0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1", "1000000000000000000");
         await token.approve(bridge.address, "1000000000000000000");
 
         while (true) {
             let ev = await bridge.lockAssets(
-                token.address, /* asset address */
-                "1000000005",  /* amount */
-                "0x1230000000000000000000000000000000000000000000000000000000000000", /* recipient */
-                1,     /* target chain: solana */
-                0,     /* nonce */
-                false  /* refund dust? */
+                /* asset address */
+                token.address,
+                /* amount */
+                "1000000005",
+                /* recipient
+                *  7EFk3VrWeb29SWJPQs5cUyqcY3fQd33S9gELkGybRzeu base58 -> hex) */
+                "0x5c8b574eced4dbea1bbf23d5149564791900129ede419a6860e3e706b426b2ba",
+                /* target chain: solana */
+                1,
+                /* nonce */
+                Math.floor(Math.random() * 65535),
+                /* refund dust? */
+                false
             );
 
             let block = await web3.eth.getBlock('latest');
