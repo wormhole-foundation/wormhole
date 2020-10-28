@@ -1,4 +1,4 @@
-package main
+package guardiand
 
 import (
 	"crypto/ecdsa"

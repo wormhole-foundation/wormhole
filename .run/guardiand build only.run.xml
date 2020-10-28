@@ -3,7 +3,7 @@
     <module name="wormhole" />
     <working_directory value="$PROJECT_DIR$/bridge" />
     <kind value="PACKAGE" />
-    <package value="github.com/certusone/wormhole/bridge/cmd/guardiand" />
+    <package value="github.com/certusone/wormhole/bridge" />
     <directory value="$PROJECT_DIR$/" />
     <option name="run" value="false" />
     <method v="2" />

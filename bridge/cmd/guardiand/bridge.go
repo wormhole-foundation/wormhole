@@ -1,8 +1,7 @@
-package main
+package guardiand
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"net/http"
 	_ "net/http/pprof"
@@ -12,6 +11,7 @@ import (
 	eth_common "github.com/ethereum/go-ethereum/common"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 	"golang.org/x/sys/unix"
 
@@ -29,25 +29,44 @@ import (
 )
 
 var (
-	p2pNetworkID = flag.String("network", "/wormhole/dev", "P2P network identifier")
-	p2pPort      = flag.Uint("port", 8999, "P2P UDP listener port")
-	p2pBootstrap = flag.String("bootstrap", "", "P2P bootstrap peers (comma-separated)")
+	p2pNetworkID *string
+	p2pPort      *uint
+	p2pBootstrap *string
 
-	nodeKeyPath = flag.String("nodeKey", "", "Path to node key (will be generated if it doesn't exist)")
+	nodeKeyPath *string
 
-	ethRPC           = flag.String("ethRPC", "", "Ethereum RPC URL")
-	ethContract      = flag.String("ethContract", "", "Ethereum bridge contract address")
-	ethConfirmations = flag.Uint64("ethConfirmations", 15, "Ethereum confirmation count requirement")
+	ethRPC           *string
+	ethContract      *string
+	ethConfirmations *uint64
 
-	agentRPC = flag.String("agentRPC", "", "Solana agent sidecar gRPC address")
+	agentRPC *string
 
-	logLevel = flag.String("logLevel", "info", "Logging level (debug, info, warn, error, dpanic, panic, fatal)")
+	logLevel *string
 
-	unsafeDevMode   = flag.Bool("unsafeDevMode", false, "Launch node in unsafe, deterministic devnet mode")
-	devNumGuardians = flag.Uint("devNumGuardians", 5, "Number of devnet guardians to include in guardian set")
-
-	nodeName = flag.String("nodeName", "", "Node name to announce in gossip heartbeats")
+	unsafeDevMode   *bool
+	devNumGuardians *uint
+	nodeName        *string
 )
+
+func init() {
+	p2pNetworkID = BridgeCmd.Flags().String("network", "/wormhole/dev", "P2P network identifier")
+	p2pPort = BridgeCmd.Flags().Uint("port", 8999, "P2P UDP listener port")
+	p2pBootstrap = BridgeCmd.Flags().String("bootstrap", "", "P2P bootstrap peers (comma-separated)")
+
+	nodeKeyPath = BridgeCmd.Flags().String("nodeKey", "", "Path to node key (will be generated if it doesn't exist)")
+
+	ethRPC = BridgeCmd.Flags().String("ethRPC", "", "Ethereum RPC URL")
+	ethContract = BridgeCmd.Flags().String("ethContract", "", "Ethereum bridge contract address")
+	ethConfirmations = BridgeCmd.Flags().Uint64("ethConfirmations", 15, "Ethereum confirmation count requirement")
+
+	agentRPC = BridgeCmd.Flags().String("agentRPC", "", "Solana agent sidecar gRPC address")
+
+	logLevel = BridgeCmd.Flags().String("logLevel", "info", "Logging level (debug, info, warn, error, dpanic, panic, fatal)")
+
+	unsafeDevMode = BridgeCmd.Flags().Bool("unsafeDevMode", false, "Launch node in unsafe, deterministic devnet mode")
+	devNumGuardians = BridgeCmd.Flags().Uint("devNumGuardians", 5, "Number of devnet guardians to include in guardian set")
+	nodeName = BridgeCmd.Flags().String("nodeName", "", "Node name to announce in gossip heartbeats")
+}
 
 var (
 	rootCtx       context.Context
@@ -82,9 +101,14 @@ func rootLoggerName() string {
 	}
 }
 
-func main() {
-	flag.Parse()
+// BridgeCmd represents the bridge command
+var BridgeCmd = &cobra.Command{
+	Use:   "bridge",
+	Short: "Run the bridge server",
+	Run:   runBridge,
+}
 
+func runBridge(cmd *cobra.Command, args []string) {
 	if *unsafeDevMode {
 		fmt.Print(devwarning)
 	}
