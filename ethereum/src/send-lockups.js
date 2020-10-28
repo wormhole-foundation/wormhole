@@ -35,9 +35,9 @@ module.exports = function(callback) {
             let ev = await bridge.lockAssets(
                 token.address, /* asset address */
                 "1000000005",  /* amount */
-                "0x1230000000000000000000000000000000000000000000000000000000000000", /* recipient */
+                "0xe964facf2174f495f35832a29203e421173c8c20db80a0a976f96fce1dc59a1e", /* recipient 36sMzZHzMZRSqSHYCw5KGG6rN5av1C5v11A5KgwPMpas */
                 1,     /* target chain: solana */
-                0,     /* nonce */
+                Math.floor(Math.random() * 65535),    /* nonce */
                 false  /* refund dust? */
             );
 
