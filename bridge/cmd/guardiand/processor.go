@@ -151,6 +151,9 @@ func vaaConsensusProcessor(lockC chan *common.ChainLock, setC chan *common.Guard
 				}
 
 				state.vaaSignatures[hash].ourVAA = v
+
+				// Fast path for our own signature
+				go func() { obsvC <- &obsv }()
 			case m := <-obsvC:
 				// SECURITY: at this point, observations received from the p2p network are fully untrusted (all fields!)
 				//

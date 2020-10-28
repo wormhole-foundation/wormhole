@@ -223,12 +223,11 @@ func p2p(obsvC chan *gossipv1.LockupObservation, sendC chan []byte) func(ctx con
 				continue
 			}
 
-			// TODO: better way to handle our own sigs?
-			//if envl.GetFrom() == h.ID() {
-			//	logger.Debug("received message from ourselves, ignoring",
-			//		zap.Any("payload", msg.Message))
-			//	continue
-			//}
+			if envl.GetFrom() == h.ID() {
+				logger.Debug("received message from ourselves, ignoring",
+					zap.Any("payload", msg.Message))
+				continue
+			}
 
 			logger.Debug("received message",
 				zap.Any("payload", msg.Message),
