@@ -1,11 +1,16 @@
-use std::{fmt::Display, mem::size_of, net::ToSocketAddrs, process::exit};
+use std::{fmt::Display, mem::size_of, net::ToSocketAddrs, ops::Deref, process::exit};
 
 use clap::{
     crate_description, crate_name, crate_version, value_t, value_t_or_exit, App, AppSettings, Arg,
-    SubCommand,
+    ArgMatches, SubCommand,
 };
 use hex;
 use primitive_types::U256;
+use rand::{
+    prelude::StdRng,
+    rngs::{mock::StepRng, ThreadRng},
+    CryptoRng, RngCore,
+};
 use solana_account_decoder::{parse_token::TokenAccountType, UiAccountData};
 use solana_clap_utils::{
     input_parsers::{keypair_of, pubkey_of, value_of},
@@ -68,6 +73,44 @@ fn command_deploy_bridge(
     )?;
     println!("bridge: {}, ", ix.accounts[2].pubkey.to_string());
     println!("payer: {}, ", ix.accounts[3].pubkey.to_string());
+    let mut transaction = Transaction::new_with_payer(&[ix], Some(&config.fee_payer.pubkey()));
+
+    let (recent_blockhash, fee_calculator) = config.rpc_client.get_recent_blockhash()?;
+    check_fee_payer_balance(
+        config,
+        minimum_balance_for_rent_exemption
+            + fee_calculator.calculate_fee(&transaction.message(), None),
+    )?;
+    transaction.sign(&[&config.fee_payer, &config.owner], recent_blockhash);
+    Ok(Some(transaction))
+}
+
+fn command_create_wrapped(
+    config: &Config,
+    bridge: &Pubkey,
+    address: ForeignAddress,
+    chain: u8,
+    decimals: u8,
+) -> CommmandResult {
+    println!("Creating wrapped asset");
+
+    let minimum_balance_for_rent_exemption = config
+        .rpc_client
+        .get_minimum_balance_for_rent_exemption(size_of::<Mint>())?;
+
+    let ix = create_wrapped(
+        bridge,
+        &config.owner.pubkey(),
+        AssetMeta {
+            address,
+            chain,
+            decimals,
+        },
+    )?;
+    println!(
+        "Wrapped Mint address: {}",
+        ix.accounts[5].pubkey.to_string()
+    );
     let mut transaction = Transaction::new_with_payer(&[ix], Some(&config.fee_payer.pubkey()));
 
     let (recent_blockhash, fee_calculator) = config.rpc_client.get_recent_blockhash()?;
@@ -204,8 +247,7 @@ fn check_owner_balance(config: &Config, required_balance: u64) -> Result<(), Err
     }
 }
 
-fn command_create_token(config: &Config, decimals: u8) -> CommmandResult {
-    let token = Keypair::new();
+fn command_create_token(config: &Config, decimals: u8, token: Keypair) -> CommmandResult {
     println!("Creating token {}", token.pubkey());
 
     let minimum_balance_for_rent_exemption = config
@@ -245,8 +287,7 @@ fn command_create_token(config: &Config, decimals: u8) -> CommmandResult {
     Ok(Some(transaction))
 }
 
-fn command_create_account(config: &Config, token: Pubkey) -> CommmandResult {
-    let account = Keypair::new();
+fn command_create_account(config: &Config, token: Pubkey, account: Keypair) -> CommmandResult {
     println!("Creating account {}", account.pubkey());
 
     let minimum_balance_for_rent_exemption = config
@@ -629,6 +670,17 @@ fn main() {
                     .default_value(&default_decimals)
                     .help("Number of base 10 digits to the right of the decimal place"),
             )
+            .arg(
+                Arg::with_name("seed")
+                    .long("seed")
+                    .validator(|s| {
+                        s.parse::<u64>().map_err(|e| format!("{}", e))?;
+                        Ok(())
+                    })
+                    .value_name("SEED")
+                    .takes_value(true)
+                    .help("Numeric seed for deterministic account creation (debug only)"),
+            )
         )
         .subcommand(
             SubCommand::with_name("create-account")
@@ -641,6 +693,17 @@ fn main() {
                         .index(1)
                         .required(true)
                         .help("The token that the account will hold"),
+                )
+                .arg(
+                    Arg::with_name("seed")
+                        .long("seed")
+                        .validator(|s| {
+                            s.parse::<u64>().map_err(|e| format!("{}", e))?;
+                            Ok(())
+                        })
+                        .value_name("SEED")
+                        .takes_value(true)
+                        .help("Numeric seed for deterministic account creation (debug only)"),
                 ),
         )
         .subcommand(
@@ -1043,6 +1106,49 @@ fn main() {
                         .help("Token address of the asset"),
                 )
         )
+        .subcommand(
+            SubCommand::with_name("create-wrapped")
+                .about("Create a new wrapped asset Mint")
+                .arg(
+                    Arg::with_name("bridge")
+                        .long("bridge")
+                        .value_name("BRIDGE_KEY")
+                        .validator(is_pubkey_or_keypair)
+                        .takes_value(true)
+                        .index(1)
+                        .required(true)
+                        .help(
+                            "Specify the bridge program public key"
+                        ),
+                )
+                .arg(
+                    Arg::with_name("chain")
+                        .validator(is_u8)
+                        .value_name("CHAIN")
+                        .takes_value(true)
+                        .index(2)
+                        .required(true)
+                        .help("Chain ID of the asset"),
+                )
+                .arg(
+                    Arg::with_name("decimals")
+                        .validator(is_u8)
+                        .value_name("DECIMALS")
+                        .takes_value(true)
+                        .index(3)
+                        .required(true)
+                        .help("Decimals of the asset"),
+                )
+                .arg(
+                    Arg::with_name("token")
+                        .validator(is_hex)
+                        .value_name("TOKEN_ADDRESS")
+                        .takes_value(true)
+                        .index(4)
+                        .required(true)
+                        .help("Token address of the asset"),
+                )
+        )
         .get_matches();
 
     let config = {
@@ -1077,11 +1183,13 @@ fn main() {
     let _ = match matches.subcommand() {
         ("create-token", Some(arg_matches)) => {
             let decimals = value_t_or_exit!(arg_matches, "decimals", u8);
-            command_create_token(&config, decimals)
+            let keypair = keypair_from_seed_arg(arg_matches);
+            command_create_token(&config, decimals, keypair)
         }
         ("create-account", Some(arg_matches)) => {
             let token = pubkey_of(arg_matches, "token").unwrap();
-            command_create_account(&config, token)
+            let keypair = keypair_from_seed_arg(arg_matches);
+            command_create_account(&config, token, keypair)
         }
         ("assign", Some(arg_matches)) => {
             let address = pubkey_of(arg_matches, "address").unwrap();
@@ -1168,6 +1276,18 @@ fn main() {
             let proposal = pubkey_of(arg_matches, "proposal").unwrap();
             command_poke_proposal(&config, &bridge, &proposal)
         }
+        ("create-wrapped", Some(arg_matches)) => {
+            let bridge = pubkey_of(arg_matches, "bridge").unwrap();
+            let chain = value_t_or_exit!(arg_matches, "chain", u8);
+            let decimals = value_t_or_exit!(arg_matches, "decimals", u8);
+            let addr_string: String = value_of(arg_matches, "token").unwrap();
+            let addr_data = hex::decode(addr_string).unwrap();
+
+            let mut token_addr = [0u8; 32];
+            token_addr.copy_from_slice(addr_data.as_slice());
+
+            command_create_wrapped(&config, &bridge, token_addr, chain, decimals)
+        }
         ("wrapped-address", Some(arg_matches)) => {
             let bridge = pubkey_of(arg_matches, "bridge").unwrap();
             let chain = value_t_or_exit!(arg_matches, "chain", u8);
@@ -1211,6 +1331,17 @@ fn main() {
         eprintln!("{}", err);
         exit(1);
     });
+}
+
+fn keypair_from_seed_arg(arg_matches: &ArgMatches) -> Keypair {
+    match value_t!(arg_matches, "seed", u64) {
+        Ok(v) => {
+            let mut sk_bytes = [0u8; 32];
+            StepRng::new(v, 1).fill_bytes(&mut sk_bytes);
+            solana_sdk::signature::keypair_from_seed(&sk_bytes).unwrap()
+        }
+        Err(_) => Keypair::new(),
+    }
 }
 
 pub fn is_u8<T>(amount: T) -> Result<(), String>
