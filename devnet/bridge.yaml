@@ -54,15 +54,15 @@ spec:
 #            - exec
             - /guardiand
 #            - --
-            - -ethRPC
+            - bridge
+            - --ethRPC
             - ws://eth-devnet:8545
-            - -agentRPC
+            - --agentRPC
             - localhost:9000
-            - -ethConfirmations
+            - --ethConfirmations
             - '3'
-            - -unsafeDevMode
-#            - -logLevel
-#            - debug
+            - --unsafeDevMode
+#            - --logLevel=debug
           securityContext:
             capabilities:
               add:

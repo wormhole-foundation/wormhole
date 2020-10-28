@@ -27,7 +27,7 @@ def build_bridge_yaml():
             container = obj["spec"]["template"]["spec"]["containers"][0]
             if container["name"] != "guardiand":
                 fail("container 0 is not guardiand")
-            container["command"] += ["-devNumGuardians", str(num_guardians)]
+            container["command"] += ["--devNumGuardians", str(num_guardians)]
 
     return encode_yaml_stream(bridge_yaml)
 
