@@ -152,12 +152,42 @@ func vaaConsensusProcessor(lockC chan *common.ChainLock, setC chan *common.Guard
 
 				state.vaaSignatures[hash].ourVAA = v
 			case m := <-obsvC:
+				// SECURITY: at this point, observations received from the p2p network are fully untrusted (all fields!)
+				//
+				// Note that observations are never tied to the (verified) p2p identity key - the p2p network
+				// identity is completely decoupled from the guardian identity, p2p is just transport.
+
 				logger.Info("received lockup observation",
 					zap.String("digest", hex.EncodeToString(m.Hash)),
 					zap.String("signature", hex.EncodeToString(m.Signature)),
 					zap.String("addr", hex.EncodeToString(m.Addr)))
 
+				// Verify the Guardian's signature. This verifies that m.Signature matches m.Hash and recovers
+				// the public key that was used to sign the payload.
+				pk, err := crypto.Ecrecover(m.Hash, m.Signature)
+				if err != nil {
+					logger.Warn("failed to verify signature on lockup observation",
+						zap.String("digest", hex.EncodeToString(m.Hash)),
+						zap.String("signature", hex.EncodeToString(m.Signature)),
+						zap.String("addr", hex.EncodeToString(m.Addr)),
+						zap.Error(err))
+					break
+				}
+
+				// Verify that m.Addr matches the public key that signed m.Hash.
 				their_addr := ethcommon.BytesToAddress(m.Addr)
+				signer_pk := ethcommon.BytesToAddress(crypto.Keccak256(pk[1:])[12:])
+
+				if their_addr != signer_pk {
+					logger.Info("invalid lockup observation - address does not match pubkey",
+						zap.String("digest", hex.EncodeToString(m.Hash)),
+						zap.String("signature", hex.EncodeToString(m.Signature)),
+						zap.String("addr", hex.EncodeToString(m.Addr)),
+						zap.String("pk", signer_pk.Hex()))
+					break
+				}
+
+				// Verify that m.Addr is included in the current guardian set.
 				_, ok := gs.KeyIndex(their_addr)
 				if !ok {
 					logger.Warn("received observation by unknown guardian - is our guardian set outdated?",
@@ -167,13 +197,22 @@ func vaaConsensusProcessor(lockC chan *common.ChainLock, setC chan *common.Guard
 					break
 				}
 
+				// Hooray! Now, we have verified all fields on LockupObservation and know that it includes
+				// a valid signature by an active guardian. We still don't fully trust them, as they may be
+				// byzantine, but now we know who we're dealing with.
+
 				// TODO: timeout/garbage collection for lockup state
 				// TODO: rebroadcast signatures for VAAs that fail to reach consensus
 
-				// []byte isn't hashable in a map. Paying a small extra cost to for encoding for easier debugging.
+				// []byte isn't hashable in a map. Paying a small extra cost for encoding for easier debugging.
 				hash := hex.EncodeToString(m.Hash)
 
 				if state.vaaSignatures[hash] == nil {
+					// We haven't yet seen this lockup ourselves, and therefore do not know what the VAA looks like.
+					// However, we have established that a valid guardian has signed it, and therefore we can
+					// already start aggregating signatures for it.
+					//
+					// TODO: a malicious guardian can DoS this by creating fake lockups
 					state.vaaSignatures[hash] = &vaaState{
 						firstObserved: time.Now(),
 						signatures:    map[ethcommon.Address][]byte{},
@@ -182,11 +221,10 @@ func vaaConsensusProcessor(lockC chan *common.ChainLock, setC chan *common.Guard
 
 				state.vaaSignatures[hash].signatures[their_addr] = m.Signature
 
-				// Enumerate guardian set and check for signatures
+				// Aggregate all valid signatures into a list of vaa.Signature and construct signed VAA.
 				agg := make([]bool, len(gs.Keys))
 				var sigs []*vaa.Signature
 				for i, a := range gs.Keys {
-					// TODO: verify signature
 					s, ok := state.vaaSignatures[hash].signatures[a]
 
 					if ok {
