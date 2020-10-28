@@ -5,7 +5,6 @@ import (
 	"crypto/ecdsa"
 	"encoding/hex"
 	"fmt"
-	"math"
 	"strings"
 	"time"
 
@@ -218,7 +217,7 @@ func vaaConsensusProcessor(lockC chan *common.ChainLock, setC chan *common.Guard
 					}
 
 					// 2/3+ majority required for VAA to be valid - wait until we have quorum to submit VAA.
-					quorum := int(math.Ceil((float64(len(gs.Keys)) / 3) * 2))
+					quorum := CalculateQuorum(len(gs.Keys))
 
 					logger.Info("aggregation state for VAA",
 						zap.String("digest", hash),
@@ -303,7 +302,7 @@ func checkDevModeGuardianSetUpdate(ctx context.Context, vaaC chan *vaa.VAA, gs *
 			defer cancel()
 			tx, err := devnet.SubmitVAA(timeout, *ethRPC, v)
 			if err != nil {
-				return fmt.Errorf("failed to submit devnet guardian set change: %v")
+				return fmt.Errorf("failed to submit devnet guardian set change: %v", err)
 			}
 
 			logger.Info("devnet guardian set change submitted to Ethereum", zap.Any("tx", tx), zap.Any("vaa", v))
