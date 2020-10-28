@@ -41,7 +41,6 @@ func getOrCreateNodeKey(logger *zap.Logger, path string) (p2pcrypto.PrivKey, err
 		if os.IsNotExist(err) {
 			logger.Info("No node key found, generating a new one...", zap.String("path", path))
 
-			// TODO(leo): what does -1 mean?
 			priv, _, err := p2pcrypto.GenerateKeyPair(p2pcrypto.Ed25519, -1)
 			if err != nil {
 				panic(err)
