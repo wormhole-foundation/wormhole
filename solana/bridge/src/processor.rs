@@ -627,12 +627,9 @@ impl Bridge {
             .filter(|v| v.iter().filter(|v| **v != 0).count() != 0)
             .count() as u8);
         // Check quorum
-        // For guardian sets  < 3, the division by 3 evaluates to 0 and the quorum would not be calculated correctly
-        // We fall back to the guardian set size as quorum for < 3, because 2/3+ for <3 is always the set size
-        if (guardian_set.len_keys < 3 && signature_count != guardian_set.len_keys)
-            || (guardian_set.len_keys >= 3
-                && signature_count < (((guardian_set.len_keys / 3) * 2) + 1))
-        {
+        // We're using a fixed point number transformation with 1 decimal to deal with rounding.
+        // The cast to u16 exists to prevent issues where len_keys * 10 might overflow.
+        if (signature_count as u16) < ((((guardian_set.len_keys as u16) * 10 / 3) * 2) / 10 + 1) {
             return Err(ProgramError::InvalidArgument);
         }
 
