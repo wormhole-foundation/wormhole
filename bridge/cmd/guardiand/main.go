@@ -10,6 +10,7 @@ import (
 	"syscall"
 
 	eth_common "github.com/ethereum/go-ethereum/common"
+	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"go.uber.org/zap"
 	"golang.org/x/sys/unix"
@@ -17,6 +18,7 @@ import (
 	"github.com/certusone/wormhole/bridge/pkg/common"
 	"github.com/certusone/wormhole/bridge/pkg/devnet"
 	"github.com/certusone/wormhole/bridge/pkg/ethereum"
+	"github.com/certusone/wormhole/bridge/pkg/p2p"
 	"github.com/certusone/wormhole/bridge/pkg/processor"
 	gossipv1 "github.com/certusone/wormhole/bridge/pkg/proto/gossip/v1"
 	solana "github.com/certusone/wormhole/bridge/pkg/solana"
@@ -182,11 +184,27 @@ func main() {
 	// VAAs to submit to Solana
 	solanaVaaC := make(chan *vaa.VAA)
 
+	// Load p2p private key
+	var priv crypto.PrivKey
+	if *unsafeDevMode {
+		idx, err := devnet.GetDevnetIndex()
+		if err != nil {
+			logger.Fatal("Failed to parse hostname - are we running in devnet?")
+		}
+		priv = devnet.DeterministicP2PPrivKeyByIndex(int64(idx))
+	} else {
+		priv, err = getOrCreateNodeKey(logger, *nodeKeyPath)
+		if err != nil {
+			logger.Fatal("Failed to load node key", zap.Error(err))
+		}
+	}
+
 	// Run supervisor.
 	supervisor.New(rootCtx, logger, func(ctx context.Context) error {
 		// TODO: use a dependency injection framework like wire?
 
-		if err := supervisor.Run(ctx, "p2p", p2p(obsvC, sendC)); err != nil {
+		if err := supervisor.Run(ctx, "p2p", p2p.Run(
+			obsvC, sendC, priv, *p2pPort, *p2pNetworkID, *p2pBootstrap, *nodeName, rootCtxCancel)); err != nil {
 			return err
 		}
 
