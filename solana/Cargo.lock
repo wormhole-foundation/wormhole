@@ -359,6 +359,7 @@ dependencies = [
  "hex",
  "log",
  "primitive-types",
+ "rand",
  "serde",
  "serde_bytes",
  "serde_derive",
