@@ -493,6 +493,7 @@ pub fn create_wrapped(
     let accounts = vec![
         AccountMeta::new_readonly(solana_sdk::system_program::id(), false),
         AccountMeta::new_readonly(spl_token::id(), false),
+        AccountMeta::new_readonly(solana_sdk::sysvar::rent::id(), false),
         AccountMeta::new(bridge_key, false),
         AccountMeta::new(*payer, true),
         AccountMeta::new(wrapped_mint_key, false),

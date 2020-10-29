@@ -12,8 +12,10 @@ Repo overview:
 - **[bridge/](bridge/)** — The guardian node which connects to both chains, observes lockups and submits VAAs.
   Written in pure Go.
   
-  - **[cmd/guardiand](bridge/cmd/guardiand)** — Most of the business logic for cross-chain communication
-    lives here. Consists of multiple loosely coupled services communicating via Go channels. 
+  - [cmd/](bridge/cmd/) - CLI entry point, deals with the mechanics of parsing command line flags and loading keys.
+  - **[pkg/processor](bridge/pkg/processor)** — Most of the business logic for cross-chain communication
+    lives here. Talks to multiple loosely coupled services communicating via Go channels.
+  - [pkg/p2p](bridge/pkg/p2p)** — libp2p-based gossip network.
   - [pkg/devnet](bridge/pkg/devnet) — Constants and helper functions for the deterministic local devnet.
   - [pkg/ethereum](bridge/pkg/ethereum) — Ethereum chain interface with auto-generated contract ABI.
     Uses go-ethereum to directly connect to an Eth node.

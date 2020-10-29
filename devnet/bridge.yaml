@@ -42,16 +42,32 @@ spec:
         - name: guardiand
           image: guardiand-image
           command:
+# Uncomment this to enable in-place debugging using dlv
+# (not suitable for regular development since the process will no longer restart on its own)
+#
+#            - /dlv
+#            - --listen=:2345
+#            - --accept-multiclient
+#            - --headless=true
+#            - --api-version=2
+#            - --continue=true
+#            - exec
             - /guardiand
-            - -ethRPC
+#            - --
+            - bridge
+            - --ethRPC
             - ws://eth-devnet:8545
-            - -agentRPC
+            - --agentRPC
             - localhost:9000
-            - -ethConfirmations
+            - --ethConfirmations
             - '3'
-            - -unsafeDevMode
-#            - -logLevel
-#            - debug
+            - --unsafeDevMode
+#            - --logLevel=debug
+          securityContext:
+            capabilities:
+              add:
+                # required for syscall.Mlockall
+                - IPC_LOCK
           ports:
             - containerPort: 8999
               name: p2p

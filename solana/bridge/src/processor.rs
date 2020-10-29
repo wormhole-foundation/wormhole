@@ -621,14 +621,15 @@ impl Bridge {
             return Err(ProgramError::InvalidAccountData);
         }
 
-        // Check quorum
-        if (sig_state
+        let signature_count = (sig_state
             .signatures
             .iter()
             .filter(|v| v.iter().filter(|v| **v != 0).count() != 0)
-            .count() as u8)
-            < (((guardian_set.len_keys / 4) * 3) + 1)
-        {
+            .count() as u8);
+        // Check quorum
+        // We're using a fixed point number transformation with 1 decimal to deal with rounding.
+        // The cast to u16 exists to prevent issues where len_keys * 10 might overflow.
+        if (signature_count as u16) < ((((guardian_set.len_keys as u16) * 10 / 3) * 2) / 10 + 1) {
             return Err(ProgramError::InvalidArgument);
         }
 

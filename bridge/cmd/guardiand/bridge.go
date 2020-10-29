@@ -1,20 +1,25 @@
-package main
+package guardiand
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
+	"syscall"
 
 	eth_common "github.com/ethereum/go-ethereum/common"
+	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/spf13/cobra"
 	"go.uber.org/zap"
+	"golang.org/x/sys/unix"
 
 	"github.com/certusone/wormhole/bridge/pkg/common"
 	"github.com/certusone/wormhole/bridge/pkg/devnet"
 	"github.com/certusone/wormhole/bridge/pkg/ethereum"
+	"github.com/certusone/wormhole/bridge/pkg/p2p"
+	"github.com/certusone/wormhole/bridge/pkg/processor"
 	gossipv1 "github.com/certusone/wormhole/bridge/pkg/proto/gossip/v1"
 	solana "github.com/certusone/wormhole/bridge/pkg/solana"
 	"github.com/certusone/wormhole/bridge/pkg/supervisor"
@@ -24,33 +29,49 @@ import (
 )
 
 var (
-	p2pNetworkID = flag.String("network", "/wormhole/dev", "P2P network identifier")
-	p2pPort      = flag.Uint("port", 8999, "P2P UDP listener port")
-	p2pBootstrap = flag.String("bootstrap", "", "P2P bootstrap peers (comma-separated)")
+	p2pNetworkID *string
+	p2pPort      *uint
+	p2pBootstrap *string
 
-	nodeKeyPath = flag.String("nodeKey", "", "Path to node key (will be generated if it doesn't exist)")
+	nodeKeyPath *string
 
-	ethRPC           = flag.String("ethRPC", "", "Ethereum RPC URL")
-	ethContract      = flag.String("ethContract", "", "Ethereum bridge contract address")
-	ethConfirmations = flag.Uint64("ethConfirmations", 15, "Ethereum confirmation count requirement")
+	ethRPC           *string
+	ethContract      *string
+	ethConfirmations *uint64
 
-	agentRPC = flag.String("agentRPC", "", "Solana agent sidecar gRPC address")
+	agentRPC *string
 
-	logLevel = flag.String("logLevel", "info", "Logging level (debug, info, warn, error, dpanic, panic, fatal)")
+	logLevel *string
 
-	unsafeDevMode   = flag.Bool("unsafeDevMode", false, "Launch node in unsafe, deterministic devnet mode")
-	devNumGuardians = flag.Uint("devNumGuardians", 5, "Number of devnet guardians to include in guardian set")
-
-	nodeName = flag.String("nodeName", "", "Node name to announce in gossip heartbeats")
+	unsafeDevMode   *bool
+	devNumGuardians *uint
+	nodeName        *string
 )
+
+func init() {
+	p2pNetworkID = BridgeCmd.Flags().String("network", "/wormhole/dev", "P2P network identifier")
+	p2pPort = BridgeCmd.Flags().Uint("port", 8999, "P2P UDP listener port")
+	p2pBootstrap = BridgeCmd.Flags().String("bootstrap", "", "P2P bootstrap peers (comma-separated)")
+
+	nodeKeyPath = BridgeCmd.Flags().String("nodeKey", "", "Path to node key (will be generated if it doesn't exist)")
+
+	ethRPC = BridgeCmd.Flags().String("ethRPC", "", "Ethereum RPC URL")
+	ethContract = BridgeCmd.Flags().String("ethContract", "", "Ethereum bridge contract address")
+	ethConfirmations = BridgeCmd.Flags().Uint64("ethConfirmations", 15, "Ethereum confirmation count requirement")
+
+	agentRPC = BridgeCmd.Flags().String("agentRPC", "", "Solana agent sidecar gRPC address")
+
+	logLevel = BridgeCmd.Flags().String("logLevel", "info", "Logging level (debug, info, warn, error, dpanic, panic, fatal)")
+
+	unsafeDevMode = BridgeCmd.Flags().Bool("unsafeDevMode", false, "Launch node in unsafe, deterministic devnet mode")
+	devNumGuardians = BridgeCmd.Flags().Uint("devNumGuardians", 5, "Number of devnet guardians to include in guardian set")
+	nodeName = BridgeCmd.Flags().String("nodeName", "", "Node name to announce in gossip heartbeats")
+}
 
 var (
 	rootCtx       context.Context
 	rootCtxCancel context.CancelFunc
 )
-
-// TODO: prometheus metrics
-// TODO: telemetry?
 
 // "Why would anyone do this?" are famous last words.
 //
@@ -80,11 +101,25 @@ func rootLoggerName() string {
 	}
 }
 
-func main() {
-	flag.Parse()
+// BridgeCmd represents the bridge command
+var BridgeCmd = &cobra.Command{
+	Use:   "bridge",
+	Short: "Run the bridge server",
+	Run:   runBridge,
+}
 
+func runBridge(cmd *cobra.Command, args []string) {
 	if *unsafeDevMode {
 		fmt.Print(devwarning)
+	}
+
+	// Lock current and future pages in memory to protect secret keys from being swapped out to disk.
+	// It's possible (and strongly recommended) to deploy Wormhole such that keys are only ever
+	// stored in memory and never touch the disk. This is a privileged operation and requires CAP_IPC_LOCK.
+	err := unix.Mlockall(syscall.MCL_CURRENT | syscall.MCL_FUTURE)
+	if err != nil {
+		fmt.Printf("Failed to lock memory: %v (CAP_IPC_LOCK missing?)\n", err)
+		os.Exit(1)
 	}
 
 	// Set up logging. The go-log zap wrapper that libp2p uses is compatible with our
@@ -170,11 +205,25 @@ func main() {
 	// VAAs to submit to Solana
 	solanaVaaC := make(chan *vaa.VAA)
 
+	// Load p2p private key
+	var priv crypto.PrivKey
+	if *unsafeDevMode {
+		idx, err := devnet.GetDevnetIndex()
+		if err != nil {
+			logger.Fatal("Failed to parse hostname - are we running in devnet?")
+		}
+		priv = devnet.DeterministicP2PPrivKeyByIndex(int64(idx))
+	} else {
+		priv, err = getOrCreateNodeKey(logger, *nodeKeyPath)
+		if err != nil {
+			logger.Fatal("Failed to load node key", zap.Error(err))
+		}
+	}
+
 	// Run supervisor.
 	supervisor.New(rootCtx, logger, func(ctx context.Context) error {
-		// TODO: use a dependency injection framework like wire?
-
-		if err := supervisor.Run(ctx, "p2p", p2p(obsvC, sendC)); err != nil {
+		if err := supervisor.Run(ctx, "p2p", p2p.Run(
+			obsvC, sendC, priv, *p2pPort, *p2pNetworkID, *p2pBootstrap, *nodeName, rootCtxCancel)); err != nil {
 			return err
 		}
 
@@ -188,18 +237,21 @@ func main() {
 			return err
 		}
 
-		if err := supervisor.Run(ctx, "processor", vaaConsensusProcessor(lockC, setC, gk, sendC, obsvC, solanaVaaC)); err != nil {
+		p := processor.NewProcessor(ctx, lockC, setC, sendC, obsvC, solanaVaaC, gk, *unsafeDevMode, *devNumGuardians, *ethRPC)
+		if err := supervisor.Run(ctx, "processor", p.Run); err != nil {
 			return err
 		}
 
 		logger.Info("Started internal services")
-		supervisor.Signal(ctx, supervisor.SignalHealthy)
 
 		select {
 		case <-ctx.Done():
 			return nil
 		}
-	})
+	},
+		// It's safer to crash and restart the process in case we encounter a panic,
+		// rather than attempting to reschedule the runnable.
+		supervisor.WithPropagatePanic)
 
 	select {
 	case <-rootCtx.Done():

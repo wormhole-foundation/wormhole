@@ -8,48 +8,48 @@ The `Wormhole` program acts as a bridge for Solana \<> Foreign Chain transfers u
 
 Initializes a new Bridge at `bridge`.
 
-| Index | Name   | Type         | signer | writeable | empty | derived |
-| ----- | ------ | ------------ | ------ | --------- | ----- | ------- |
-| 0     | sys | SystemProgram |        |           | ️   |      |
-| 1     | clock | Sysvar |        |           | ️   | ✅     |
-| 2     | bridge | BridgeConfig |        |           | ✅️   | ✅️     |
-| 3     | guardian_set | GuardianSet         |        |   ✅       | ✅    | ✅      |
-| 4     | payer | Account         |    ✅     |          |     |       |
+| Index | Name         | Type          | signer | writeable | empty | derived |
+| ----- | ------       | ------------  | ------ | --------- | ----- | ------- |
+|     0 | sys          | SystemProgram |        |           |       |         |
+|     1 | clock        | Sysvar        |        |           |       | ✅      |
+|     2 | bridge       | BridgeConfig  |        |           | ✅    | ✅      |
+|     3 | guardian_set | GuardianSet   |        | ✅        | ✅    | ✅      |
+|     4 | payer        | Account       | ✅     |           |       |         |
 
 #### PokeProposal
 
 Pokes a `TransferOutProposal` so it is reprocessed by the guardians.
 
-| Index | Name   | Type         | signer | writeable | empty | derived |
-| ----- | ------ | ------------ | ------ | --------- | ----- | ------- |
-| 0     | proposal | TransferOutProposal |        |     ✅      | ️   |  ✅    |
+| Index | Name     | Type                | signer | writeable | empty | derived |
+| ----- | ------   | ------------        | ------ | --------- | ----- | ------- |
+| 0     | proposal | TransferOutProposal |        | ✅        | ️      | ✅      |
 
 #### CreateWrappedAsset
 
 Creates a new `WrappedAsset` to be used to create accounts and later receive transfers on chain.
 
-| Index | Name     | Type                | signer | writeable | empty | derived |
-| ----- | -------- | ------------------- | ------ | --------- | ----- | ------- |
-| 0     | sys | SystemProgram |        |           | ️   |      |
-| 1     | token_program | SplToken |        |           | ️   |      |
-| 2     | rent | Sysvar |        |           | ️   |     ✅  |
-| 3     | bridge   | BridgeConfig        |        |           |       |         |
-| 4     | payer | Account |     ✅    |           | ️   |      |
-| 5     | wrapped_mint        | WrappedAsset |        |           |  ✅   | ✅      |
-| 6     | wrapped_meta_account | WrappedAssetMeta  |        | ✅        |  ✅   | ✅      |
+| Index | Name                 | Type                | signer | writeable | empty | derived |
+| ----- | --------             | ------------------- | ------ | --------- | ----- | ------- |
+|     0 | sys                  | SystemProgram       |        |           |       |         |
+|     1 | token_program        | SplToken            |        |           |       |         |
+|     2 | rent                 | Sysvar              |        |           |       | ✅      |
+|     3 | bridge               | BridgeConfig        |        |           |       |         |
+|     4 | payer                | Account             | ✅     |           |       |         |
+|     5 | wrapped_mint         | WrappedAsset        |        |           | ✅    | ✅      |
+|     6 | wrapped_meta_account | WrappedAssetMeta    |        | ✅        | ✅    | ✅      |
 
 #### VerifySignatures
 
 Checks secp checks (in the previous instruction) and stores results.
 
-| Index | Name   | Type         | signer | writeable | empty | derived |
-| ----- | ------ | ------------ | ------ | --------- | ----- | ------- |
-| 0     | bridge_p | BridgeProgram |        |           | ️   |      |
-| 1     | sys | SystemProgram |        |           | ️   |      |
-| 2     | instructions | Sysvar |        |           | ️   |   ✅   |
-| 3     | sig_status | SignatureState |        |      ✅      | ️   |      |
-| 4     | guardian_set | GuardianSet |        |           | ️   |   ✅   |
-| 5     | payer    | Account        |    ✅    |         |       |       |
+| Index | Name         | Type           | signer | writeable | empty | derived |
+| ----- | ------       | ------------   | ------ | --------- | ----- | ------- |
+|     0 | bridge_p     | BridgeProgram  |        |           |       |         |
+|     1 | sys          | SystemProgram  |        |           |       |         |
+|     2 | instructions | Sysvar         |        |           |       | ✅      |
+|     3 | sig_status   | SignatureState |        | ✅        |       |         |
+|     4 | guardian_set | GuardianSet    |        |           |       | ✅      |
+|     5 | payer        | Account        | ✅     |           |       |         |
 
 #### TransferOut
 
@@ -59,18 +59,18 @@ The transfer proposal will be tracked at a new account `proposal` where VAAs wil
 
 Parameters:
 
-| Index | Name     | Type                | signer | writeable | empty | derived |
-| ----- | -------- | ------------------- | ------ | --------- | ----- | ------- |
-| 0     | bridge_p | BridgeProgram |        |           | ️   |      |
-| 1     | sys | SystemProgram |        |           | ️   |      |
-| 2     | token_program | SplToken |        |           | ️   |      |
-| 3     | rent | Sysvar |        |           | ️   | ✅     |
-| 4     | clock | Sysvar |        |           | ️   | ✅     |
-| 5     | token_account   | TokenAccount        |        | ✅        |       |         |
-| 6     | bridge   | BridgeConfig        |        |           |       |         |
-| 7     | proposal | TransferOutProposal |        | ✅        | ✅    | ✅      |
-| 8     | token    | WrappedAsset        |        | ✅        |       | ✅      |
-| 9     | payer    | Account        |    ✅    |         |       |       |
+| Index | Name          | Type                | signer | writeable | empty | derived |
+| ----- | --------      | ------------------- | ------ | --------- | ----- | ------- |
+|     0 | bridge_p      | BridgeProgram       |        |           |       |         |
+|     1 | sys           | SystemProgram       |        |           |       |         |
+|     2 | token_program | SplToken            |        |           |       |         |
+|     3 | rent          | Sysvar              |        |           |       | ✅      |
+|     4 | clock         | Sysvar              |        |           |  ✅     |         |
+|     5 | token_account | TokenAccount        |        | ✅        |       |         |
+|     6 | bridge        | BridgeConfig        |        |           |       |         |
+|     7 | proposal      | TransferOutProposal |        | ✅        | ✅    | ✅      |
+|     8 | token         | WrappedAsset        |        | ✅        |       | ✅      |
+|     9 | payer         | Account             | ✅     |           |       |         |
 
 #### TransferOutNative
 
@@ -81,17 +81,17 @@ The transfer proposal will be tracked at a new account `proposal` where a VAA wi
 
 | Index | Name            | Type                | signer | writeable | empty | derived |
 | ----- | --------------- | ------------------- | ------ | --------- | ----- | ------- |
-| 0     | bridge_p | BridgeProgram |        |           | ️   |      |
-| 1     | sys | SystemProgram |        |           | ️   |      |
-| 2     | token_program | SplToken |        |           | ️   |      |
-| 3     | rent | Sysvar |        |           | ️   | ✅     |
-| 4     | clock | Sysvar |        |           | ️   | ✅     |
-| 5     | token_account          | TokenAccount        |        | ✅        |       |         |
-| 6     | bridge          | BridgeConfig        |        |           |       |         |
-| 7     | proposal        | TransferOutProposal |        | ✅        | ✅    | ✅      |
-| 8     | token           | Mint                |        | ✅        |       |         |
-| 9     | payer    | Account        |    ✅    |         |       |       |
-| 10    | custody_account | TokenAccount                |        | ✅        | opt   | ✅      |
+|     0 | bridge_p        | BridgeProgram       |        |           |       |         |
+|     1 | sys             | SystemProgram       |        |           |       |         |
+|     2 | token_program   | SplToken            |        |           |       |         |
+|     3 | rent            | Sysvar              |        |           |       | ✅      |
+|     4 | clock           | Sysvar              |        |           |       | ✅      |
+|     5 | token_account   | TokenAccount        |        | ✅        |       |         |
+|     6 | bridge          | BridgeConfig        |        |           |       |         |
+|     7 | proposal        | TransferOutProposal |        | ✅        | ✅    | ✅      |
+|     8 | token           | Mint                |        | ✅        |       |         |
+|     9 | payer           | Account             | ✅     |           |       |         |
+|    10 | custody_account | TokenAccount        |        | ✅        | opt   | ✅      |
 
 #### EvictTransferOut
 
@@ -99,11 +99,11 @@ Deletes a `proposal` after the `VAA_EXPIRATION_TIME` to free up space on chain. 
 
 | Index | Name     | Type                | signer | writeable | empty | derived |
 | ----- | -------- | ------------------- | ------ | --------- | ----- | ------- |
-| 0     | bridge_p | BridgeProgram |        |           | ️   |      |
-| 1     | guardian | Account             | ✅     |           |       |         |
-| 2     | clock | Sysvar |        |           | ️   | ✅     |
-| 3     | bridge   | BridgeConfig        |        |           |       |         |
-| 4     | proposal | TransferOutProposal |        | ✅        |       | ✅      |
+|     0 | bridge_p | BridgeProgram       |        |           |       |         |
+|     1 | guardian | Account             | ✅     |           |       |         |
+|     2 | clock    | Sysvar              |        |           |       | ✅      |
+|     3 | bridge   | BridgeConfig        |        |           |       |         |
+|     4 | proposal | TransferOutProposal |        | ✅        |       | ✅      |
 
 #### EvictClaimedVAA
 
@@ -111,11 +111,11 @@ Deletes a `ClaimedVAA` after the `VAA_EXPIRATION_TIME` to free up space on chain
 
 | Index | Name     | Type                | signer | writeable | empty | derived |
 | ----- | -------- | ------------------- | ------ | --------- | ----- | ------- |
-| 0     | bridge_p | BridgeProgram |        |           | ️   |      |
-| 1     | guardian | Account             | ✅     |           |       |         |
-| 2     | clock | Sysvar |        |           | ️   | ✅     |
-| 3     | bridge   | BridgeConfig        |        |           |       |         |
-| 4     | claim | ClaimedVAA |        | ✅        |       | ✅      |
+|     0 | bridge_p | BridgeProgram       |        |           |       |         |
+|     1 | guardian | Account             | ✅     |           |       |         |
+|     2 | clock    | Sysvar              |        |           |       | ✅      |
+|     3 | bridge   | BridgeConfig        |        |           |       |         |
+|     4 | claim    | ClaimedVAA          |        | ✅        |       | ✅      |
 
 #### SubmitVAA
 
@@ -125,43 +125,43 @@ The required accounts depend on the `action` of the VAA:
 
 All require:
 
-| Index | Name         | Type         | signer | writeable | empty | derived |
-| ----- | ------------ | ------------ | ------ | --------- | ----- | ------- |
-| 0     | bridge_p | BridgeProgram |        |           | ️   |      |
-| 1     | sys | SystemProgram |        |           | ️   |      |
-| 2     | rent | Sysvar |        |           | ️   |     ✅  |
-| 3     | clock | Sysvar |        |           | ️   | ✅     |
-| 4     | bridge       | BridgeConfig |        |           |       |         |  
-| 5     | guardian_set | GuardianSet  |        |           |       |         |
-| 6     | claim     | ExecutedVAA |        | ✅        |   ✅    | ✅      |
-| 7     | sig_info     | SigState |        |         |   ✅    |       |
-| 8     | payer  | Account |  ✅      |         |    |         |
+| Index | Name         | Type          | signer | writeable | empty | derived |
+| ----- | ------------ | ------------  | ------ | --------- | ----- | ------- |
+|     0 | bridge_p     | BridgeProgram |        |           |       |         |
+|     1 | sys          | SystemProgram |        |           |       |         |
+|     2 | rent         | Sysvar        |        |           |       | ✅      |
+|     3 | clock        | Sysvar        |        |           |       | ✅      |
+|     4 | bridge       | BridgeConfig  |        |           |       |         |
+|     5 | guardian_set | GuardianSet   |        |           |       |         |
+|     6 | claim        | ExecutedVAA   |        | ✅        | ✅    | ✅      |
+|     7 | sig_info     | SigState      |        |           | ✅    |         |
+|     8 | payer        | Account       | ✅     |           |       |         |
 
 followed by:
 
 ##### Guardian set update
 
-| Index | Name         | Type                | signer | writeable | empty | derived |
-| ----- | ------------ | ------------------- | ------ | --------- | ----- | ------- |
-| 9     | guardian_set_new | GuardianSet         |        |   ✅       |  ✅   | ✅      |
+| Index | Name             | Type                | signer | writeable | empty | derived |
+| ----- | ------------     | ------------------- | ------ | --------- | ----- | ------- |
+| 9     | guardian_set_new | GuardianSet         |        | ✅        | ✅    | ✅      |
 
 ##### Transfer: Ethereum (native) -> Solana (wrapped)
 
-| Index | Name         | Type         | signer | writeable | empty | derived |
-| ----- | ------------ | ------------ | ------ | --------- | ----- | ------- |
-| 9     | token_program | SplToken |        |           | ️   |      |
-| 10     | token        | WrappedAsset |        |           |    | ✅      |
-| 11     | destination  | TokenAccount |        | ✅        |    |         |
-| 12    | wrapped_meta | WrappedMeta  |        | ✅        |  opt  |    ✅    |
+| Index | Name          | Type         | signer | writeable | empty | derived |
+| ----- | ------------  | ------------ | ------ | --------- | ----- | ------- |
+|     9 | token_program | SplToken     |        |           |       |         |
+|    10 | token         | WrappedAsset |        |           |       | ✅      |
+|    11 | destination   | TokenAccount |        | ✅        |       |         |
+|    12 | wrapped_meta  | WrappedMeta  |        | ✅        | opt   | ✅      |
 
 ##### Transfer: Ethereum (wrapped) -> Solana (native)
 
-| Index | Name         | Type         | signer | writeable | empty | derived |
-| ----- | ------------ | ------------ | ------ | --------- | ----- | ------- |
-| 9     | token_program | SplToken |        |           | ️   |      |
-| 10     | token        | Mint         |        |           |       | ✅      |
-| 11     | destination  | TokenAccount |        | ✅        |    opt   |         |
-| 12    | custody_src  | TokenAccount |        | ✅        |       | ✅      |
+| Index | Name          | Type         | signer | writeable | empty | derived |
+| ----- | ------------  | ------------ | ------ | --------- | ----- | ------- |
+|     9 | token_program | SplToken     |        |           |       |         |
+|    10 | token         | Mint         |        |           |       | ✅      |
+|    11 | destination   | TokenAccount |        | ✅        | opt   |         |
+|    12 | custody_src   | TokenAccount |        | ✅        |       | ✅      |
 
 ##### Transfer: Solana (any) -> Ethereum (any)
 
@@ -177,10 +177,10 @@ The following types of accounts are owned by creators of bridges:
 
 This account tracks the configuration of the transfer bridge.
 
-| Parameter          | Description                                                                                                                                                     |
-| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| VAA_EXPIRATION_TIME | Period for how long a VAA is valid. This exists to guarantee data availability and prevent replays|
-| GUARDIAN_SET_INDEX | Index of the current active guardian set //TODO do we need to track this if the VAA contains the index?                                                         |
+| Parameter           | Description                                                                                              |
+| ------------------  | -------------------------------------------------------------------------------------------------------- |
+| VAA_EXPIRATION_TIME | Period for how long a VAA is valid. This exists to guarantee data availability and prevent replays       |
+| GUARDIAN_SET_INDEX  | Index of the current active guardian set //TODO do we need to track this if the VAA contains the index?  |
 
 ## Program Accounts
 
