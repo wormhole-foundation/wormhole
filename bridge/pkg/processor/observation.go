@@ -16,6 +16,8 @@ import (
 	"github.com/certusone/wormhole/bridge/pkg/vaa"
 )
 
+// handleObservation processes a remote VAA observation, verifies it, checks whether the VAA has met quorum,
+// and assembles and submits a valid VAA if possible.
 func (p *Processor) handleObservation(ctx context.Context, m *gossipv1.LockupObservation) {
 	// SECURITY: at this point, observations received from the p2p network are fully untrusted (all fields!)
 	//
@@ -137,24 +139,8 @@ func (p *Processor) handleObservation(ctx context.Context, m *gossipv1.LockupObs
 			if t, ok := v.Payload.(*vaa.BodyTransfer); ok {
 				switch {
 				case t.TargetChain == vaa.ChainIDEthereum:
-					// In dev mode, submit VAA to Ethereum. For production, the bridge won't
-					// have an Ethereum account and the user retrieves the VAA and submits the transactions themselves.
-					if p.devnetMode {
-						timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
-						tx, err := devnet.SubmitVAA(timeout, p.devnetEthRPC, signed)
-						cancel()
-						if err != nil {
-							if strings.Contains(err.Error(), "VAA was already executed") {
-								p.logger.Info("lockup already submitted to Ethereum by another node, ignoring",
-									zap.Error(err), zap.String("digest", hash))
-							} else {
-								p.logger.Error("failed to submit lockup to Ethereum",
-									zap.Error(err), zap.String("digest", hash))
-							}
-							break
-						}
-						p.logger.Info("lockup submitted to Ethereum", zap.Any("tx", tx), zap.String("digest", hash))
-					}
+					// Check whether we run in devmode and submit the VAA ourselves, if so.
+					p.devnetVAASubmission(ctx, signed, hash)
 
 					// Cross-submit to Solana for data availability
 					fallthrough
@@ -181,5 +167,26 @@ func (p *Processor) handleObservation(ctx context.Context, m *gossipv1.LockupObs
 			p.logger.Info("quorum not met, doing nothing",
 				zap.String("digest", hash))
 		}
+	}
+}
+
+// devnetVAASubmission submits VAA to a local Ethereum devnet. For production, the bridge won't
+// have an Ethereum account and the user retrieves the VAA and submits the transactions themselves.
+func (p *Processor) devnetVAASubmission(ctx context.Context, signed *vaa.VAA, hash string) {
+	if p.devnetMode {
+		timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
+		tx, err := devnet.SubmitVAA(timeout, p.devnetEthRPC, signed)
+		cancel()
+		if err != nil {
+			if strings.Contains(err.Error(), "VAA was already executed") {
+				p.logger.Info("lockup already submitted to Ethereum by another node, ignoring",
+					zap.Error(err), zap.String("digest", hash))
+			} else {
+				p.logger.Error("failed to submit lockup to Ethereum",
+					zap.Error(err), zap.String("digest", hash))
+			}
+			return
+		}
+		p.logger.Info("lockup submitted to Ethereum", zap.Any("tx", tx), zap.String("digest", hash))
 	}
 }
