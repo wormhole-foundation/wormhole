@@ -224,7 +224,7 @@ func Run(obsvC chan *gossipv1.LockupObservation,
 
 			switch m := msg.Message.(type) {
 			case *gossipv1.GossipMessage_Heartbeat:
-				logger.Info("heartbeat received",
+				logger.Debug("heartbeat received",
 					zap.Any("value", m.Heartbeat),
 					zap.String("from", envelope.GetFrom().String()))
 			case *gossipv1.GossipMessage_LockupObservation:
