@@ -164,7 +164,7 @@ func (p *Processor) handleObservation(ctx context.Context, m *gossipv1.LockupObs
 				panic(fmt.Sprintf("unknown VAA payload type: %+v", v))
 			}
 		} else {
-			p.logger.Info("quorum not met, doing nothing",
+			p.logger.Info("quorum not met or already submitted, doing nothing",
 				zap.String("digest", hash))
 		}
 	}

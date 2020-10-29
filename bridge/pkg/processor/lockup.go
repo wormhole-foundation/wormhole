@@ -108,6 +108,7 @@ func (p *Processor) handleLockup(ctx context.Context, k *common.ChainLock) {
 	}
 
 	p.state.vaaSignatures[hash].ourVAA = v
+	p.state.vaaSignatures[hash].ourMsg = msg
 
 	// Fast path for our own signature
 	go func() { p.obsvC <- &obsv }()

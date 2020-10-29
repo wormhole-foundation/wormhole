@@ -24,6 +24,8 @@ type (
 		ourVAA        *vaa.VAA
 		signatures    map[ethcommon.Address][]byte
 		submitted     bool
+		retryCount    uint
+		ourMsg        []byte
 	}
 
 	vaaMap map[string]*vaaState
@@ -66,6 +68,8 @@ type Processor struct {
 	state *aggregationState
 	// gk pk as eth address
 	ourAddr ethcommon.Address
+	// cleanup triggers periodic state cleanup
+	cleanup *time.Ticker
 }
 
 func NewProcessor(
@@ -98,6 +102,8 @@ func NewProcessor(
 }
 
 func (p *Processor) Run(ctx context.Context) error {
+	p.cleanup = time.NewTicker(30 * time.Second)
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -116,6 +122,8 @@ func (p *Processor) Run(ctx context.Context) error {
 			p.handleLockup(ctx, k)
 		case m := <-p.obsvC:
 			p.handleObservation(ctx, m)
+		case <-p.cleanup.C:
+			p.handleCleanup(ctx)
 		}
 	}
 }
