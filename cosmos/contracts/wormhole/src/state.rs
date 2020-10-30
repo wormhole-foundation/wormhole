@@ -1,7 +1,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use cosmwasm_std::{HumanAddr, Storage, StdResult};
+use cosmwasm_std::{HumanAddr, StdResult, Storage};
 use cosmwasm_storage::{
     bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket, ReadonlySingleton,
     Singleton,
@@ -10,6 +10,7 @@ use cosmwasm_storage::{
 pub static CONFIG_KEY: &[u8] = b"config";
 pub static GUARDIAN_SET_KEY: &[u8] = b"guardian_set";
 pub static WRAPPED_ASSET_KEY: &[u8] = b"wrapped_asset";
+pub static WRAPPED_ASSET_ADDRESS_KEY: &[u8] = b"wrapped_asset_address";
 
 // Guardian set information
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -63,7 +64,11 @@ pub fn config_read<S: Storage>(storage: &S) -> ReadonlySingleton<S, ConfigInfo> 
     singleton_read(storage, CONFIG_KEY)
 }
 
-pub fn guardian_set_set<S: Storage>(storage: &mut S, index: u32, data: &GuardianSetInfo) -> StdResult<()> {
+pub fn guardian_set_set<S: Storage>(
+    storage: &mut S,
+    index: u32,
+    data: &GuardianSetInfo,
+) -> StdResult<()> {
     bucket(GUARDIAN_SET_KEY, storage).save(&index.to_le_bytes(), data)
 }
 
@@ -76,7 +81,10 @@ pub fn vaa_archive_add<S: Storage>(storage: &mut S, hash: &[u8]) -> StdResult<()
 }
 
 pub fn vaa_archive_check<S: Storage>(storage: &S, hash: &[u8]) -> bool {
-    bucket_read(GUARDIAN_SET_KEY, storage).load(&hash).or::<bool>(Ok(false)).unwrap()
+    bucket_read(GUARDIAN_SET_KEY, storage)
+        .load(&hash)
+        .or::<bool>(Ok(false))
+        .unwrap()
 }
 
 pub fn wrapped_asset<S: Storage>(storage: &mut S) -> Bucket<S, HumanAddr> {
@@ -85,4 +93,12 @@ pub fn wrapped_asset<S: Storage>(storage: &mut S) -> Bucket<S, HumanAddr> {
 
 pub fn wrapped_asset_read<S: Storage>(storage: &S) -> ReadonlyBucket<S, HumanAddr> {
     bucket_read(WRAPPED_ASSET_KEY, storage)
+}
+
+pub fn wrapped_asset_address<S: Storage>(storage: &mut S) -> Bucket<S, Vec<u8>> {
+    bucket(WRAPPED_ASSET_ADDRESS_KEY, storage)
+}
+
+pub fn wrapped_asset_address_read<S: Storage>(storage: &S) -> ReadonlyBucket<S, Vec<u8>> {
+    bucket_read(WRAPPED_ASSET_ADDRESS_KEY, storage)
 }

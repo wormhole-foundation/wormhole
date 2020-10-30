@@ -35,3 +35,9 @@ impl ByteUtils for &[u8] {
         &self[index..index + 32]
     }
 }
+
+pub fn extend_address_to_32(addr: &CanonicalAddr) -> Vec<u8> {
+    let mut result: Vec<u8> = vec![0; 12];
+    result.extend(addr.as_slice());
+    result
+}

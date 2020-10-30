@@ -47,6 +47,10 @@ pub enum ContractError {
     #[error("AmountTooHigh")]
     AmountTooHigh,
 
+    /// Amount should be higher than zero
+    #[error("AmountTooLow")]
+    AmountTooLow,
+
     /// Source and target chain ids must be different
     #[error("SameSourceAndTarget")]
     SameSourceAndTarget,

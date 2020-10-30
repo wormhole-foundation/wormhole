@@ -1,19 +1,27 @@
 use cosmwasm_std::{
-    log, to_binary, Api, Binary, CosmosMsg, Env, Extern, HandleResponse, InitResponse, Querier,
-    StdResult, Storage, Uint128, WasmMsg,
+    log, to_binary, Api, Binary, CanonicalAddr, CosmosMsg, Env, Extern, HandleResponse, HumanAddr,
+    InitResponse, Querier, QueryRequest, StdResult, Storage, Uint128, WasmMsg, WasmQuery,
 };
 
+use crate::byte_utils::extend_address_to_32;
 use crate::byte_utils::ByteUtils;
 use crate::error::ContractError;
 use crate::msg::{HandleMsg, InitMsg, QueryMsg};
 use crate::state::{
-    config, config_read, guardian_set_set, guardian_set_get, wrapped_asset, wrapped_asset_read,
-    ConfigInfo, GuardianAddress, GuardianSetInfo, vaa_archive_add, vaa_archive_check
+    config, config_read, guardian_set_get, guardian_set_set, vaa_archive_add, vaa_archive_check,
+    wrapped_asset, wrapped_asset_address, wrapped_asset_address_read, wrapped_asset_read,
+    ConfigInfo, GuardianAddress, GuardianSetInfo,
 };
+
+use cw20_base::msg::HandleMsg as TokenMsg;
+use cw20_base::msg::QueryMsg as TokenQuery;
+
+use cw20::TokenInfoResponse;
 
 use cw20_wrapped::msg::HandleMsg as WrappedMsg;
 use cw20_wrapped::msg::InitMsg as WrappedInit;
-use cw20_wrapped::msg::{InitHook, InitMint};
+use cw20_wrapped::msg::QueryMsg as WrappedQuery;
+use cw20_wrapped::msg::{InitHook, InitMint, WrappedAssetInfoResponse};
 
 use k256::ecdsa::recoverable::Id as RecoverableId;
 use k256::ecdsa::recoverable::Signature as RecoverableSignature;
@@ -41,7 +49,11 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     config(&mut deps.storage).save(&state)?;
 
     // Add initial guardian set to storage
-    guardian_set_set(&mut deps.storage, state.guardian_set_index, &msg.initial_guardian_set)?;
+    guardian_set_set(
+        &mut deps.storage,
+        state.guardian_set_index,
+        &msg.initial_guardian_set,
+    )?;
 
     Ok(InitResponse::default())
 }
@@ -54,6 +66,32 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
     match msg {
         HandleMsg::SubmitVAA { vaa } => handle_submit_vaa(deps, env, &vaa),
         HandleMsg::RegisterAssetHook { asset_id } => handle_register_asset(deps, env, &asset_id),
+        HandleMsg::LockAssets {
+            asset,
+            recipient,
+            amount,
+            target_chain,
+            nonce,
+        } => handle_lock_assets(deps, env, asset, amount, recipient, target_chain, nonce),
+        HandleMsg::TokensLocked {
+            target_chain,
+            token_chain,
+            token_decimals,
+            token,
+            sender,
+            recipient,
+            amount,
+            nonce,
+        } => handle_tokens_locked(
+            target_chain,
+            token_chain,
+            token_decimals,
+            token,
+            sender,
+            recipient,
+            amount,
+            nonce,
+        ),
     }
 }
 
@@ -63,7 +101,6 @@ fn handle_submit_vaa<S: Storage, A: Api, Q: Querier>(
     env: Env,
     data: &[u8],
 ) -> StdResult<HandleResponse> {
-
     /* VAA format:
 
     header (length 6):
@@ -127,7 +164,7 @@ fn handle_submit_vaa<S: Storage, A: Api, Q: Querier>(
         }
         last_index = index;
 
-        let signature = Signature::try_from(&data[pos + 1 .. pos + 1 + 64])
+        let signature = Signature::try_from(&data[pos + 1..pos + 1 + 64])
             .or(ContractError::CannotDecodeSignature.std_err())?;
         let id = RecoverableId::new(data.get_u8(pos + 1 + 64))
             .or(ContractError::CannotDecodeSignature.std_err())?;
@@ -176,6 +213,11 @@ fn handle_register_asset<S: Storage, A: Api, Q: Querier>(
         Err(_) => {
             bucket.save(asset_id, &env.message.sender)?;
 
+            let contract_address: CanonicalAddr =
+                deps.api.canonical_address(&env.message.sender)?;
+            wrapped_asset_address(&mut deps.storage)
+                .save(contract_address.as_slice(), &asset_id.to_vec())?;
+
             Ok(HandleResponse {
                 messages: vec![],
                 log: vec![
@@ -189,7 +231,11 @@ fn handle_register_asset<S: Storage, A: Api, Q: Querier>(
     }
 }
 
-fn vaa_update_guardian_set<S: Storage, A: Api, Q: Querier>(deps: &mut Extern<S, A, Q>, env: Env, data: &[u8]) -> StdResult<HandleResponse> {
+fn vaa_update_guardian_set<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+    data: &[u8],
+) -> StdResult<HandleResponse> {
     /* Payload format
     0   uint32 new_index
     4   uint8 len(keys)
@@ -199,7 +245,7 @@ fn vaa_update_guardian_set<S: Storage, A: Api, Q: Querier>(deps: &mut Extern<S, 
     let mut state = config_read(&deps.storage).load()?;
 
     let new_guardian_set_index = data.get_u32(0);
-    
+
     if new_guardian_set_index != state.guardian_set_index + 1 {
         return ContractError::GuardianSetIndexIncreaseError.std_err();
     }
@@ -207,22 +253,24 @@ fn vaa_update_guardian_set<S: Storage, A: Api, Q: Querier>(deps: &mut Extern<S, 
 
     let mut new_guardian_set = GuardianSetInfo {
         addresses: vec![],
-        expiration_time: 0
+        expiration_time: 0,
     };
     let mut pos = 5;
     for _ in 0..len {
-        new_guardian_set.addresses.push(
-            GuardianAddress {
-                bytes: data[pos .. pos + 20].to_vec()
-            }
-        );
+        new_guardian_set.addresses.push(GuardianAddress {
+            bytes: data[pos..pos + 20].to_vec(),
+        });
         pos += 20;
     }
 
     let old_guardian_set_index = state.guardian_set_index;
     state.guardian_set_index = new_guardian_set_index;
 
-    guardian_set_set(&mut deps.storage, state.guardian_set_index, &new_guardian_set)?;
+    guardian_set_set(
+        &mut deps.storage,
+        state.guardian_set_index,
+        &new_guardian_set,
+    )?;
     config(&mut deps.storage).save(&state)?;
 
     let mut old_guardian_set = guardian_set_get(&deps.storage, old_guardian_set_index)?;
@@ -235,7 +283,7 @@ fn vaa_update_guardian_set<S: Storage, A: Api, Q: Querier>(deps: &mut Extern<S, 
         log: vec![
             log("action", "guardian_set_change"),
             log("old", old_guardian_set_index),
-            log("new", state.guardian_set_index)
+            log("new", state.guardian_set_index),
         ],
         data: None,
     })
@@ -281,7 +329,6 @@ fn vaa_transfer<S: Storage, A: Api, Q: Querier>(
     }
 
     if token_chain != CHAIN_ID {
-
         let mut asset_id: Vec<u8> = vec![];
         asset_id.push(token_chain);
         let asset_address = data.get_bytes32(71);
@@ -343,7 +390,7 @@ fn vaa_transfer<S: Storage, A: Api, Q: Querier>(
         Ok(HandleResponse {
             messages: vec![CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: deps.api.human_address(&token_address)?,
-                msg: to_binary(&WrappedMsg::Transfer {
+                msg: to_binary(&TokenMsg::Transfer {
                     recipient: deps.api.human_address(&target_address)?,
                     amount: Uint128::from(amount),
                 })?,
@@ -353,6 +400,115 @@ fn vaa_transfer<S: Storage, A: Api, Q: Querier>(
             data: None,
         })
     }
+}
+
+fn handle_lock_assets<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+    asset: HumanAddr,
+    amount: Uint128,
+    recipient: Vec<u8>,
+    target_chain: u8,
+    nonce: u32,
+) -> StdResult<HandleResponse> {
+    if target_chain == CHAIN_ID {
+        return ContractError::SameSourceAndTarget.std_err();
+    }
+
+    if amount.is_zero() {
+        return ContractError::AmountTooLow.std_err();
+    }
+
+    let asset_chain: u8;
+    let asset_address: Vec<u8>;
+
+    // Query asset details
+    let request = QueryRequest::<()>::Wasm(WasmQuery::Smart {
+        contract_addr: asset.clone(),
+        msg: to_binary(&TokenQuery::TokenInfo {})?,
+    });
+    let token_info: TokenInfoResponse = deps.querier.custom_query(&request)?;
+
+    let decimals: u8 = token_info.decimals;
+
+    let asset_canonical: CanonicalAddr = deps.api.canonical_address(&asset)?;
+
+    let mut messages: Vec<CosmosMsg> = vec![];
+
+    match wrapped_asset_address_read(&deps.storage).load(asset_canonical.as_slice()) {
+        Ok(_) => {
+            // This is a deployed wrapped asset, burn it
+            messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: asset.clone(),
+                msg: to_binary(&WrappedMsg::Burn {
+                    account: env.message.sender.clone(),
+                    amount: Uint128::from(amount),
+                })?,
+                send: vec![],
+            }));
+            let request = QueryRequest::<()>::Wasm(WasmQuery::Smart {
+                contract_addr: asset,
+                msg: to_binary(&WrappedQuery::WrappedAssetInfo {})?,
+            });
+            let wrapped_token_info: WrappedAssetInfoResponse =
+                deps.querier.custom_query(&request)?;
+            asset_chain = wrapped_token_info.asset_chain;
+            asset_address = wrapped_token_info.asset_address;
+        }
+        Err(_) => {
+            // This is a regular asset, transfer its balance
+            messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: asset.clone(),
+                msg: to_binary(&TokenMsg::TransferFrom {
+                    owner: env.message.sender.clone(),
+                    recipient: env.contract.address.clone(),
+                    amount: Uint128::from(amount),
+                })?,
+                send: vec![],
+            }));
+            asset_address = extend_address_to_32(&asset_canonical);
+            asset_chain = CHAIN_ID;
+        }
+    };
+
+    messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
+        contract_addr: env.contract.address,
+        msg: to_binary(&HandleMsg::TokensLocked {
+            target_chain,
+            token_chain: asset_chain,
+            token_decimals: decimals,
+            token: asset_address,
+            sender: extend_address_to_32(&deps.api.canonical_address(&env.message.sender)?),
+            recipient,
+            amount,
+            nonce,
+        })?,
+        send: vec![],
+    }));
+
+    Ok(HandleResponse {
+        messages,
+        log: vec![],
+        data: None,
+    })
+}
+
+fn handle_tokens_locked(
+    _target_chain: u8,
+    _token_chain: u8,
+    _token_decimals: u8,
+    _token: Vec<u8>,
+    _sender: Vec<u8>,
+    _recipient: Vec<u8>,
+    _amount: Uint128,
+    _nonce: u32,
+) -> StdResult<HandleResponse> {
+    // Dummy handler to record token lock as transaction
+    Ok(HandleResponse {
+        messages: vec![],
+        log: vec![],
+        data: None,
+    })
 }
 
 pub fn query<S: Storage, A: Api, Q: Querier>(
@@ -402,9 +558,7 @@ mod tests {
 
     const CANONICAL_LENGTH: usize = 20;
 
-    fn do_init_default_guardians<S: Storage, A: Api, Q: Querier>(
-        deps: &mut Extern<S, A, Q>
-    ) {
+    fn do_init_default_guardians<S: Storage, A: Api, Q: Querier>(deps: &mut Extern<S, A, Q>) {
         do_init(deps, &vec![GuardianAddress::from(ADDR_1)]);
     }
 
@@ -435,7 +589,7 @@ mod tests {
             vaa: hex::decode(vaa).expect("Decoding failed"),
         };
         let env = mock_env(&HumanAddr::from("creator"), &[]);
-        
+
         handle(deps, env, msg)
     }
 
@@ -454,19 +608,20 @@ mod tests {
         assert_eq!(1, messages.len());
         let msg = &messages[0];
         match msg {
-            CosmosMsg::Wasm(wasm_msg) => {
-                match wasm_msg {
-                    WasmMsg::Instantiate {
-                        code_id, msg: _, send, label
-                    } => {
-                        assert_eq!(*code_id, 999);
-                        assert_eq!(*label, None);
-                        assert_eq!(*send, vec![]);
-                    },
-                    _ => panic!("Wrong message type")
+            CosmosMsg::Wasm(wasm_msg) => match wasm_msg {
+                WasmMsg::Instantiate {
+                    code_id,
+                    msg: _,
+                    send,
+                    label,
+                } => {
+                    assert_eq!(*code_id, 999);
+                    assert_eq!(*label, None);
+                    assert_eq!(*send, vec![]);
                 }
+                _ => panic!("Wrong message type"),
             },
-            _ => panic!("Wrong message type")
+            _ => panic!("Wrong message type"),
         }
     }
 
@@ -485,16 +640,24 @@ mod tests {
         let mut deps = mock_dependencies(CANONICAL_LENGTH, &[]);
         do_init_default_guardians(&mut deps);
 
-        let messages = submit_vaa(&mut deps, VAA_VALID_GUARDIAN_SET_CHANGE).unwrap().messages;
+        let messages = submit_vaa(&mut deps, VAA_VALID_GUARDIAN_SET_CHANGE)
+            .unwrap()
+            .messages;
         assert_eq!(0, messages.len());
 
         // Check storage
-        let state = config_read(&deps.storage).load().expect("Cannot load config storage");
+        let state = config_read(&deps.storage)
+            .load()
+            .expect("Cannot load config storage");
         assert_eq!(state.guardian_set_index, 1);
-        let guardian_set_info = guardian_set_get(&deps.storage, state.guardian_set_index).expect("Cannot find guardian set");
-        assert_eq!(guardian_set_info, GuardianSetInfo {
-            addresses: vec![GuardianAddress::from(ADDR_2)],
-            expiration_time: 0
-        });
+        let guardian_set_info = guardian_set_get(&deps.storage, state.guardian_set_index)
+            .expect("Cannot find guardian set");
+        assert_eq!(
+            guardian_set_info,
+            GuardianSetInfo {
+                addresses: vec![GuardianAddress::from(ADDR_2)],
+                expiration_time: 0
+            }
+        );
     }
 }

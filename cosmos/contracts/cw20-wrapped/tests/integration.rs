@@ -144,7 +144,7 @@ fn check_token_details(deps: &mut Instance<MockStorage, MockApi, MockQuerier>, s
 fn format_array(data: &Vec<u8>) -> String {
     let mut result = String::new();
 
-    for num in &data[0 .. data.len() - 1] {
+    for num in &data[0..data.len() - 1] {
         result.push_str(&num.to_string());
         result.push_str(",");
     }
