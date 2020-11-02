@@ -1,3 +1,33 @@
+# This Tiltfile contains the deployment and build config for the Wormhole devnet.
+#
+#  We use Buildkit cache mounts and careful layering to avoid unnecessary rebuilds - almost
+#  all source code changes result in small, incremental rebuilds. Dockerfiles are written such
+#  that, for example, changing the contract source code won't cause Solana itself to be rebuilt.
+#
+#  Graph of dependencies between Dockerfiles, image refs and k8s StatefulSets:
+#
+#      Dockerfile                    Image ref                      StatefulSet
+#      +------------------------------------------------------------------------------+
+#      rust+1.45
+#       +                                                           +-----------------+
+#       +-> Dockerfile.agent    +->  solana-agent  +--------+-----> | [agent]         |
+#       |                                                   |  +--> |    guardian-N   |
+#       +-> solana/Dockerfile   +->  solana-contract +---+  |  |    +-- --------------+
+#       |                                                |  |  |
+#       +-> third_party/solana/Dockerfile <--------------+  |  |
+#                              +                            |  |    +-----------------+
+#                              +-->  solana-devnet  +-------|-----> |  solana-devnet  |
+#      golang:1.15.3                                        +-----> | [setup]         |
+#       +                                                      |    +-----------------+
+#       +-> bridge/Dockerfile   +->  guardiand-image +---------+
+#
+#
+#      node:lts-alpine
+#       +                                                           +-----------------+
+#       +-> ethereum/Dockerfile +->  eth+node  +------------------> |    eth|devnet   |
+#                                                                   +-----------------+
+#
+
 config.define_string("num", False, "Number of guardian nodes to run")
 cfg = config.parse()
 num_guardians = int(cfg.get("num", "5"))

@@ -69,14 +69,8 @@ GO=1.15.3
 # Install Tilt (latest stable release by Tilt). Install script looks fine.
 curl -fsSL https://raw.githubusercontent.com/tilt-dev/tilt/master/scripts/install.sh | bash
 
-# Install SELinux policies for k3s on CentOS/Fedora systems (ignored otherwise).
-if rpm -q libselinux-utils; then
-  yum install -y container-selinux selinux-policy-base
-  ! rpm -i https://rpm.rancher.io/k3s-selinux-0.1.1-rc1.el7.noarch.rpm
-fi
-
 # Install k3s with sane defaults and make it use the local Docker daemon.
-curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION="v1.18.8+k3s1" INSTALL_K3S_EXEC="server
+curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION="v1.19.3+k3s2" INSTALL_K3S_EXEC="server
   --disable-cloud-controller
   --kube-scheduler-arg=address=127.0.0.1
   --kube-controller-manager-arg=address=127.0.0.1
