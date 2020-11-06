@@ -108,7 +108,7 @@ func Run(obsvC chan *gossipv1.LockupObservation,
 
 		// Add our own bootstrap nodes
 
-		// Count number of successful connection attempts. If we fail to connect to every bootstrap peer, kill
+		// Count number of successful connection attempts. If we fail to connect to any bootstrap peer, kill
 		// the service and have supervisor retry it.
 		successes := 0
 		// Are we a bootstrap node? If so, it's okay to not have any peers.
