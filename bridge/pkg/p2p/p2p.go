@@ -178,6 +178,8 @@ func Run(obsvC chan *gossipv1.LockupObservation,
 					if err != nil {
 						logger.Warn("failed to publish heartbeat message", zap.Error(err))
 					}
+
+					ctr += 1
 				}
 			}
 		}()
