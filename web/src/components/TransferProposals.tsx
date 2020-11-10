@@ -183,7 +183,7 @@ function TransferProposals() {
     ];
 
     return (<>
-            <h3>Pending transfers</h3>
+            <h3>Pending transfers to Ethereum</h3>
             <Table dataSource={lockups} columns={columns}/>
         </>
     )

@@ -36,7 +36,7 @@ function SplBalances() {
     ];
 
     return (<>
-            <h3>SPL Holdings</h3>
+            <h3>SPL Holdings on Solana</h3>
             <Table dataSource={t.balances} columns={columns} pagination={false} scroll={{y: 400}}/>
         </>
     )
