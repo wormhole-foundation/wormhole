@@ -18,6 +18,8 @@ use cw20_base::msg::QueryMsg as TokenQuery;
 
 use cw20::TokenInfoResponse;
 
+use hex;
+
 use cw20_wrapped::msg::HandleMsg as WrappedMsg;
 use cw20_wrapped::msg::InitMsg as WrappedInit;
 use cw20_wrapped::msg::QueryMsg as WrappedQuery;
@@ -32,7 +34,7 @@ use sha3::{Digest, Keccak256};
 
 use std::convert::TryFrom;
 
-// Chain ID of Cosmos
+// Chain ID of Terra
 const CHAIN_ID: u8 = 0x80;
 
 pub fn init<S: Storage, A: Api, Q: Querier>(
@@ -494,19 +496,28 @@ fn handle_lock_assets<S: Storage, A: Api, Q: Querier>(
 }
 
 fn handle_tokens_locked(
-    _target_chain: u8,
-    _token_chain: u8,
-    _token_decimals: u8,
-    _token: Vec<u8>,
-    _sender: Vec<u8>,
-    _recipient: Vec<u8>,
-    _amount: Uint128,
-    _nonce: u32,
+    target_chain: u8,
+    token_chain: u8,
+    token_decimals: u8,
+    token: Vec<u8>,
+    sender: Vec<u8>,
+    recipient: Vec<u8>,
+    amount: Uint128,
+    nonce: u32,
 ) -> StdResult<HandleResponse> {
     // Dummy handler to record token lock as transaction
     Ok(HandleResponse {
         messages: vec![],
-        log: vec![],
+        log: vec![
+            log("locked.target_chain", target_chain),
+            log("locked.token_chain", token_chain),
+            log("locked.token_decimals", token_decimals),
+            log("locked.token", hex::encode(token)),
+            log("locked.sender", hex::encode(sender)),
+            log("locked.recipient", hex::encode(recipient)),
+            log("locked.amount", amount),
+            log("locked.nonce", nonce),
+        ],
         data: None,
     })
 }

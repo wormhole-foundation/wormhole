@@ -25,6 +25,8 @@ import (
 	"github.com/certusone/wormhole/bridge/pkg/supervisor"
 	"github.com/certusone/wormhole/bridge/pkg/vaa"
 
+	"github.com/certusone/wormhole/bridge/pkg/terra"
+
 	ipfslog "github.com/ipfs/go-log/v2"
 )
 
@@ -38,6 +40,11 @@ var (
 	ethRPC           *string
 	ethContract      *string
 	ethConfirmations *uint64
+
+	terraWS       *string
+	terraLCD      *string
+	terraChaidID  *string
+	terraContract *string
 
 	agentRPC *string
 
@@ -58,6 +65,11 @@ func init() {
 	ethRPC = BridgeCmd.Flags().String("ethRPC", "", "Ethereum RPC URL")
 	ethContract = BridgeCmd.Flags().String("ethContract", "", "Ethereum bridge contract address")
 	ethConfirmations = BridgeCmd.Flags().Uint64("ethConfirmations", 15, "Ethereum confirmation count requirement")
+
+	terraWS = BridgeCmd.Flags().String("terraWS", "", "Path to terrad root for websocket connection")
+	terraLCD = BridgeCmd.Flags().String("terraLCD", "", "Path to LCD service root for http calls")
+	terraChaidID = BridgeCmd.Flags().String("terraChainID", "", "Terra chain ID, used in LCD client initialization")
+	terraContract = BridgeCmd.Flags().String("terraContract", "", "Wormhole contract address on Terra blockhain")
 
 	agentRPC = BridgeCmd.Flags().String("agentRPC", "", "Solana agent sidecar gRPC address")
 
@@ -230,6 +242,15 @@ func runBridge(cmd *cobra.Command, args []string) {
 		if err := supervisor.Run(ctx, "ethwatch",
 			ethereum.NewEthBridgeWatcher(*ethRPC, ethContractAddr, *ethConfirmations, lockC, setC).Run); err != nil {
 			return err
+		}
+
+		// Start Terra watcher only if configured
+		if *terraWS != "" && *terraLCD != "" && *terraChaidID != "" && *terraContract != "" {
+			logger.Info("Starting Terra watcher")
+			if err := supervisor.Run(ctx, "terrawatch",
+				terra.NewTerraBridgeWatcher(*terraWS, *terraContract, lockC, setC).Run); err != nil {
+				return err
+			}
 		}
 
 		if err := supervisor.Run(ctx, "solwatch",

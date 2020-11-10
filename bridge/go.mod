@@ -14,6 +14,7 @@ require (
 	github.com/go-ole/go-ole v1.2.4 // indirect
 	github.com/golang/protobuf v1.4.3
 	github.com/golang/snappy v0.0.2 // indirect
+	github.com/gorilla/websocket v1.4.2
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/ipfs/go-log/v2 v2.1.1
 	github.com/karalabe/usb v0.0.0-20191104083709-911d15fe12a9 // indirect
@@ -46,6 +47,8 @@ require (
 	github.com/spf13/viper v1.3.2
 	github.com/status-im/keycard-go v0.0.0-20200402102358-957c09536969 // indirect
 	github.com/stretchr/testify v1.6.1
+	github.com/tidwall/gjson v1.6.3
+	github.com/tidwall/match v1.0.2 // indirect
 	github.com/tyler-smith/go-bip39 v1.0.2 // indirect
 	go.opencensus.io v0.22.5 // indirect
 	go.uber.org/multierr v1.6.0 // indirect

@@ -49,7 +49,7 @@ docker_build(
 )
 
 def build_bridge_yaml():
-    bridge_yaml = read_yaml_stream("devnet/bridge.yaml")
+    bridge_yaml = read_yaml_stream("devnet/bridge-terra.yaml")
 
     for obj in bridge_yaml:
         if obj["kind"] == "StatefulSet" and obj["metadata"]["name"] == "guardian":
@@ -120,3 +120,10 @@ docker_build(
 k8s_yaml("devnet/eth-devnet.yaml")
 
 k8s_resource("eth-devnet")
+
+# terra devnet
+
+k8s_yaml("devnet/terra-devnet.yaml")
+
+k8s_resource("terra-lcd")
+k8s_resource("terra-terrad")

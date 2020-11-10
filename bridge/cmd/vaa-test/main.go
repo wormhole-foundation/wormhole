@@ -5,11 +5,12 @@ import (
 	"crypto/ecdsa"
 	"encoding/hex"
 	"fmt"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 	"math/big"
 	"math/rand"
 	"time"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 
 	"github.com/certusone/wormhole/bridge/pkg/devnet"
 	"github.com/certusone/wormhole/bridge/pkg/vaa"
@@ -26,7 +27,7 @@ func main() {
 
 	keys := generateKeys(6)
 	for i, key := range keys {
-		fmt.Printf("Key [%d]: %s\n", i, crypto.PubkeyToAddress(key.PublicKey).String())
+		fmt.Printf("Key [%d]: %s (%s)\n", i, crypto.PubkeyToAddress(key.PublicKey).String(), hex.EncodeToString(crypto.CompressPubkey(&key.PublicKey)))
 	}
 
 	signAndPrintVAA(&vaa.VAA{
@@ -36,9 +37,9 @@ func main() {
 		Payload: &vaa.BodyTransfer{
 			Nonce:         56,
 			SourceChain:   1,
-			TargetChain:   2,
+			TargetChain:   0x80,
 			SourceAddress: vaa.Address{2, 1, 4},
-			TargetAddress: padAddress(devnet.GanacheClientDefaultAccountAddress),
+			TargetAddress: vaa.Address{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
 			Asset: &vaa.AssetMeta{
 				Chain:    vaa.ChainIDSolana,
 				Address:  hexToAddress("0x347ef34687bdc9f189e87a9200658d9c40e9988"),
