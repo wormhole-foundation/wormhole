@@ -1,0 +1,43 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web
+  labels:
+    app: web
+spec:
+  ports:
+    - port: 3000
+      name: rpc
+      protocol: TCP
+  clusterIP: None
+  selector:
+    app: web
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: web
+spec:
+  selector:
+    matchLabels:
+      app: web
+  serviceName: web
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      terminationGracePeriodSeconds: 1
+      containers:
+        - name: web
+          image: web
+          command:
+            - /usr/local/bin/npm
+            - start
+          tty: true
+          ports:
+            - containerPort: 3000
+              name: react-devserver
+              protocol: TCP

@@ -7,14 +7,18 @@ The following dependencies are required for local development:
 - [Go](https://golang.org/dl/) >= 1.15.3
 - [Docker](https://docs.docker.com/engine/install/) / moby-engine >= 19.03
 - [Tilt](http://tilt.dev/) >= 0.17.2
-
-- Any of the local Kubernetes clusters supported by Tilt 
-  (we recommend [minikube](https://kubernetes.io/docs/setup/learning-environment/minikube/) in the default config).
+- Any of the local Kubernetes clusters supported by Tilt. 
+  We recommend [minikube](https://kubernetes.io/docs/setup/learning-environment/minikube/) with the kvm2 driver.
 
 See the [Tilt docs](https://docs.tilt.dev/install.html) docs on how to set up your local cluster -
 it won't take more than a few minutes to set up! Example minikube invocation, adjust limits as needed:
 
     minikube start --cpus=8 --memory=8G --disk-size=50G --driver=kvm2
+
+npm wants to set up an insane number of inotify watches in the web container which may exceed kernel limits.
+The minikube default is too low, adjust it like this:
+
+    minikube ssh 'echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p'
 
 This should work on Linux, MacOS and possibly even Windows.
 
@@ -24,6 +28,8 @@ Whenever you modify a file, the devnet is automatically rebuilt and a rolling up
 Specify number of guardians nodes to run (default is five):
 
     tilt up --update-mode=exec -- --num=1
+
+## Usage
 
 Watch pod status in your cluster:
 
