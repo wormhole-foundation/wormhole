@@ -29,6 +29,9 @@ Specify number of guardians nodes to run (default is five):
 
     tilt up --update-mode=exec -- --num=1
 
+If you want to work on non-consensus parts of the code, running with a single guardian is easiest since
+you won't have to wait for k8s to restart all pods.
+
 ## Usage
 
 Watch pod status in your cluster:
@@ -43,9 +46,13 @@ Restart a specific pod:
 
     kubectl delete pod guardian-0
 
-Generate test ETH lockups once the cluster is up:
+Generate test Ethereum -> Solana transfers once the cluster is up:
 
-    kubectl exec -it -c tests eth-devnet-0 -- npx truffle exec src/send-lockups.js
+    scripts/send-eth-lockups.sh
+   
+Generate test Solana -> Ethereum transfers:
+
+    scripts/send-solana-lockups.sh
 
 Adjust number of nodes in running cluster:
 
@@ -55,3 +62,69 @@ Adjust number of nodes in running cluster:
 of nodes diverges from the guardian set - otherwise, `tilt down` and restart the cluster)
 
 Once you're done, press Ctrl-C. Run `tilt down` to tear down the devnet.
+
+## Web UI
+
+The deployment includes a web UI that uses MetaMask to demonstrate token transfers. It's experimental
+and meant as **example code on how to interact with Wormhole tokens** - the UI itself is just the bare minimum
+to demonstrate how to use the libraries. The Tilt deployment automatically sets up port forwardings on your
+local machine so you can access the devnet and the UI.
+
+To access the UI, install the [MetaMask browser extension](https://metamask.io) and add a custom network with
+RPC URL `http://localhost:8545` and chain ID `0x539`. Import the hardcoded Ganache seed phrase as account:
+
+    myth like bonus scare over problem client lizard pioneer submit female collect
+
+You can now play with the web UI by initiating token transfers in either directions. The devnet comes with a number
+of deterministic accounts on both chains that you can use (see below for copy&paste).
+
+For example, send a bunch of ERC20 tokens to Solana:
+
+<img src="https://user-images.githubusercontent.com/859697/98732005-dcbb4f00-239e-11eb-8ec2-9ecf74f411d6.png" width="66%" />
+
+Note how the transfer is basically instant! You can now see the completed transfer in the Ethereum tab:
+
+![image](https://user-images.githubusercontent.com/859697/98732459-784cbf80-239f-11eb-84bf-3d824b58191b.png)
+
+You can now add the wrapped token address - `0xf5b1d8fab1054b9cf7db274126972f97f9d42a11` - as a custom token
+to MetaMask and you'll see your 1000 brand new wrapped tokens:
+
+<img src="https://user-images.githubusercontent.com/859697/98733991-a9c68a80-23a1-11eb-926b-ea3742fad7bd.png" width="66%" />
+
+Next, send some of them back to Ethereum:
+
+<img src="https://user-images.githubusercontent.com/859697/98734694-a1228400-23a2-11eb-8f39-13000631c839.png" width="66%" />
+
+MetaMask will ask you to confirm the transaction. You have to run send-eth-lockups.sh script in the background to
+force Ganache to mint new blocks such that the bridge can reach its confirmation threshold (https://github.com/certusone/wormhole/issues/75).
+
+After a few seconds, the SPL token balance shown below will increase as the VAA gets accepted on Solana.
+
+## Devnet addresses
+
+**Solana**
+
+| Account                                        | Description |
+|------------------------------------------------|-------------|
+| `6sbzC1eH4FTujJXWj51eQe25cYvr4xfXbJ1vAj7j2k5J` | id.json account in the `setup` container [1]
+| `Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o`  | Bridge contract
+| `TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA`  | SPL token contract
+| `6qRhs8oAuZYLd4zzaNnQHqdRyknrQQWDWQhALEN8UA7M` | Example SPL token
+| `3C3m4tjTy4nSMkkYdqCDSiCWEgpDa6whvprvABdFGBiW` | Account that holds 6qRhs8oA... SPL tokens
+| `85kW19uNvETzH43p3AfpyqPaQS5rWouq4x9rGiKUvihf` | Wrapped token for the 0xCfEB86... ERC20 token
+| `7EFk3VrWeb29SWJPQs5cUyqcY3fQd33S9gELkGybRzeu` | Account that holds 85kW19u... wrapped tokens [2]
+
+[1]: The account will eventually run out of funds if you run the lockup sending scripts for a long time. Refill it
+using `kubectl exec solana-devnet-0 -c setup cli airdrop solana-devnet:9900` (see [devnet_setup.sh](solana/devnet_setup.sh)).
+
+[2]: This is where tokens sent by `scripts/send-eth-lockups.sh` end up.
+
+**Ethereum**
+
+| Account                                    | Description |
+|--------------------------------------------|-------------|
+| `0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1` | Ganache main account (w/ the seed phrase above)
+| `0x5b1869D9A4C187F2EAa108f3062412ecf0526b24` | Bridge contract
+| `0xe78A0F7E598Cc8b0Bb87894B0F60dD2a88d6a8Ab` | Wrapped asset contract
+| `0xCfEB869F69431e42cdB54A4F4f105C19C080A601` | Example ERC20 token
+| `0xf5b1d8fab1054b9cf7db274126972f97f9d42a11` | Wrapped asset address for the 6qRhs8oA... SPL token
