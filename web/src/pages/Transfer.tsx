@@ -17,6 +17,10 @@ import {FormInstance} from "antd/lib/form";
 import SplBalances from "../components/SplBalances";
 import TransferProposals from "../components/TransferProposals";
 
+// @ts-ignore
+if (window.ethereum === undefined) {
+    alert("Please install the MetaMask extension before using this experimental demo web UI");
+}
 
 // @ts-ignore
 window.ethereum.enable();

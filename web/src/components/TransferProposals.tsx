@@ -14,6 +14,11 @@ import KeyContext from "../providers/KeyContext";
 import ClientContext from "../providers/ClientContext";
 
 // @ts-ignore
+if (window.ethereum === undefined) {
+    alert("Please install the MetaMask extension before using this experimental demo web UI");
+}
+
+// @ts-ignore
 window.ethereum.enable();
 // @ts-ignore
 const provider = new ethers.providers.Web3Provider(window.ethereum);
