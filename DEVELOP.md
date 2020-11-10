@@ -12,7 +12,9 @@ The following dependencies are required for local development:
   (we recommend [minikube](https://kubernetes.io/docs/setup/learning-environment/minikube/) in the default config).
 
 See the [Tilt docs](https://docs.tilt.dev/install.html) docs on how to set up your local cluster -
-it won't take more than a few minutes to set up!
+it won't take more than a few minutes to set up! Example minikube invocation, adjust limits as needed:
+
+    minikube start --cpus=8 --memory=8G --disk-size=50G --driver=kvm2
 
 This should work on Linux, MacOS and possibly even Windows.
 
@@ -21,7 +23,7 @@ Whenever you modify a file, the devnet is automatically rebuilt and a rolling up
 
 Specify number of guardians nodes to run (default is five):
 
-    tilt up --update-mode=exec -- --num=10
+    tilt up --update-mode=exec -- --num=1
 
 Watch pod status in your cluster:
 
