@@ -78,7 +78,7 @@ RPC URL `http://localhost:8545` and chain ID `0x539`. Import the hardcoded Ganac
 You can now play with the web UI by initiating token transfers in either directions. The devnet comes with a number
 of deterministic accounts on both chains that you can use (see below for copy&paste).
 
-For example, send a bunch of ERC20 tokens to Solana:
+For example, send a bunch of SPL tokens to Ethereum:
 
 <img src="https://user-images.githubusercontent.com/859697/98732005-dcbb4f00-239e-11eb-8ec2-9ecf74f411d6.png" width="66%" />
 
