@@ -4,7 +4,10 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"io/ioutil"
+	"log"
 	"math/big"
+	"net/http"
 	"net/url"
 	"time"
 
@@ -21,7 +24,8 @@ import (
 type (
 	// BridgeWatcher is responsible for looking over Terra blockchain and reporting new transactions to the bridge
 	BridgeWatcher struct {
-		url    string
+		urlWS  string
+		urlLCD string
 		bridge string
 
 		lockChan chan *common.ChainLock
@@ -41,8 +45,8 @@ type clientRequest struct {
 }
 
 // NewTerraBridgeWatcher creates a new terra bridge watcher
-func NewTerraBridgeWatcher(url string, bridge string, lockEvents chan *common.ChainLock, setEvents chan *common.GuardianSet) *BridgeWatcher {
-	return &BridgeWatcher{url: url, bridge: bridge, lockChan: lockEvents, setChan: setEvents}
+func NewTerraBridgeWatcher(urlWS string, urlLCD string, bridge string, lockEvents chan *common.ChainLock, setEvents chan *common.GuardianSet) *BridgeWatcher {
+	return &BridgeWatcher{urlWS: urlWS, urlLCD: urlLCD, bridge: bridge, lockChan: lockEvents, setChan: setEvents}
 }
 
 // Run is the main Terra Bridge run cycle
@@ -50,7 +54,7 @@ func (e *BridgeWatcher) Run(ctx context.Context) error {
 	errC := make(chan error)
 	logger := supervisor.Logger(ctx)
 
-	u, err := url.Parse(e.url)
+	u, err := url.Parse(e.urlWS)
 	if err != nil {
 		return fmt.Errorf("parsing terrad url failed: %w", err)
 	}
@@ -151,6 +155,37 @@ func (e *BridgeWatcher) Run(ctx context.Context) error {
 				}
 				e.lockChan <- lock
 			}
+
+			// Query and report guardian set status
+			resp, err := http.Get(fmt.Sprintf("%s/wasm/contracts/%s/store?query_msg={\"guardian_set_info\":{}}", e.urlLCD, e.bridge))
+			if err != nil {
+				logger.Error("query guardian set error", zap.Any("error", err))
+				return
+			}
+
+			defer resp.Body.Close()
+			body, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				logger.Error("query guardian set error", zap.Any("error", err))
+				return
+			}
+			json = string(body)
+			guardianSetIndex := gjson.Get(json, "result.guardian_set_index")
+			addresses := gjson.Get(json, "result.addresses.#.bytes")
+
+			log.Printf("guardianSetIndex: %v", guardianSetIndex)
+			log.Printf("addresses: %v", addresses)
+
+			guardianSet := &common.GuardianSet{
+				Index: uint32(guardianSetIndex.Uint()),
+				Keys:  make([]eth_common.Address, len(addresses.Array())),
+			}
+			for addressIndex, address := range addresses.Array() {
+				for valueIndex, value := range address.Array() {
+					guardianSet.Keys[addressIndex][valueIndex] = uint8(value.Uint())
+				}
+			}
+			e.setChan <- guardianSet
 		}
 	}()
 

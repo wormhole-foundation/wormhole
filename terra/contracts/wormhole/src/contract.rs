@@ -6,7 +6,7 @@ use cosmwasm_std::{
 use crate::byte_utils::extend_address_to_32;
 use crate::byte_utils::ByteUtils;
 use crate::error::ContractError;
-use crate::msg::{HandleMsg, InitMsg, QueryMsg};
+use crate::msg::{HandleMsg, InitMsg, QueryMsg, GuardianSetInfoResponse};
 use crate::state::{
     config, config_read, guardian_set_get, guardian_set_set, vaa_archive_add, vaa_archive_check,
     wrapped_asset, wrapped_asset_address, wrapped_asset_address_read, wrapped_asset_read,
@@ -523,10 +523,24 @@ fn handle_tokens_locked(
 }
 
 pub fn query<S: Storage, A: Api, Q: Querier>(
-    _deps: &Extern<S, A, Q>,
+    deps: &Extern<S, A, Q>,
     msg: QueryMsg,
 ) -> StdResult<Binary> {
-    match msg {}
+    match msg {
+        QueryMsg::GuardianSetInfo {} => to_binary(&query_query_guardian_set_info(deps)?),
+    }
+}
+
+pub fn query_query_guardian_set_info<S: Storage, A: Api, Q: Querier>(
+    deps: &Extern<S, A, Q>,
+) -> StdResult<GuardianSetInfoResponse> {
+    let state = config_read(&deps.storage).load()?;
+    let guardian_set = guardian_set_get(&deps.storage, state.guardian_set_index)?;
+    let res = GuardianSetInfoResponse {
+        guardian_set_index: state.guardian_set_index,
+        addresses: guardian_set.addresses
+    };
+    Ok(res)
 }
 
 fn keys_equal(a: &VerifyKey, b: &GuardianAddress) -> bool {

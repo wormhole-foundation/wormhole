@@ -248,7 +248,7 @@ func runBridge(cmd *cobra.Command, args []string) {
 		if *terraWS != "" && *terraLCD != "" && *terraChaidID != "" && *terraContract != "" {
 			logger.Info("Starting Terra watcher")
 			if err := supervisor.Run(ctx, "terrawatch",
-				terra.NewTerraBridgeWatcher(*terraWS, *terraContract, lockC, setC).Run); err != nil {
+				terra.NewTerraBridgeWatcher(*terraWS, *terraLCD, *terraContract, lockC, setC).Run); err != nil {
 				return err
 			}
 		}
