@@ -3,7 +3,7 @@ use std::io::{Cursor, Read, Write};
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use primitive_types::U256;
 use sha3::Digest;
-use solana_sdk::program_error::ProgramError;
+use solana_program::program_error::ProgramError;
 
 use crate::{error::Error, state::AssetMeta};
 

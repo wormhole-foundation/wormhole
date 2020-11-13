@@ -3,7 +3,7 @@
 use std::mem::size_of;
 
 use primitive_types::U256;
-use solana_sdk::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
+use solana_program::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 use zerocopy::AsBytes;
 
 use crate::{
@@ -11,6 +11,7 @@ use crate::{
     instruction::{ForeignAddress, MAX_LEN_GUARDIAN_KEYS, MAX_VAA_SIZE},
     vaa::BodyTransfer,
 };
+use solana_program::program_pack::Pack;
 
 /// fee rate as a ratio
 #[repr(C)]
@@ -207,13 +208,13 @@ impl Bridge {
     pub fn token_account_deserialize(
         info: &AccountInfo,
     ) -> Result<spl_token::state::Account, Error> {
-        Ok(spl_token::pack::Pack::unpack(&mut info.data.borrow_mut())
+        Ok(spl_token::state::Account::unpack(&mut info.data.borrow_mut())
             .map_err(|_| Error::ExpectedAccount)?)
     }
 
     /// Deserializes a spl_token `Mint`.
     pub fn mint_deserialize(info: &AccountInfo) -> Result<spl_token::state::Mint, Error> {
-        Ok(spl_token::pack::Pack::unpack(&mut info.data.borrow_mut())
+        Ok(spl_token::state::Mint::unpack(&mut info.data.borrow_mut())
             .map_err(|_| Error::ExpectedToken)?)
     }
 

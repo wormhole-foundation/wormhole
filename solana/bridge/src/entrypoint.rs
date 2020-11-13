@@ -2,9 +2,9 @@
 #![cfg(feature = "program")]
 #![cfg(not(feature = "no-entrypoint"))]
 
-use solana_sdk::{
-    account_info::AccountInfo, entrypoint, entrypoint::ProgramResult,
-    program_error::PrintProgramError, pubkey::Pubkey,
+use solana_program::{
+    account_info::AccountInfo,entrypoint, entrypoint::ProgramResult, program_error::PrintProgramError,
+    pubkey::Pubkey,
 };
 
 use crate::{error::Error, state::Bridge};

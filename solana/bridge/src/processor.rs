@@ -7,9 +7,8 @@ use byteorder::ByteOrder;
 use num_traits::AsPrimitive;
 use primitive_types::U256;
 use sha3::Digest;
-#[cfg(target_arch = "bpf")]
-use solana_sdk::program::invoke_signed;
-use solana_sdk::{
+use solana_program::program::invoke_signed;
+use solana_program::{
     account_info::{next_account_info, AccountInfo},
     clock::Clock,
     entrypoint::ProgramResult,
@@ -22,7 +21,7 @@ use solana_sdk::{
     system_instruction::{create_account, SystemInstruction},
     sysvar::Sysvar,
 };
-use spl_token::{pack::Pack, state::Mint};
+use spl_token::{state::Mint};
 
 use crate::{
     error::Error,
@@ -33,6 +32,9 @@ use crate::{
     state::*,
     vaa::{BodyTransfer, BodyUpdateGuardianSet, VAABody, VAA},
 };
+use solana_program::program_pack::Pack;
+use std::borrow::BorrowMut;
+use std::ops::Add;
 
 /// SigInfo contains metadata about signers in a VerifySignature ix
 struct SigInfo {
@@ -126,7 +128,7 @@ impl Bridge {
             &bridge_seed,
         )?;
 
-        let mut new_account_data = new_bridge_info.data.borrow_mut();
+        let mut new_account_data = new_bridge_info.try_borrow_mut_data()?;
         let mut bridge: &mut Bridge = Self::unpack_unchecked(&mut new_account_data)?;
         if bridge.is_initialized {
             return Err(Error::AlreadyExists.into());
@@ -143,7 +145,7 @@ impl Bridge {
             &guardian_seed,
         )?;
 
-        let mut new_guardian_data = new_guardian_info.data.borrow_mut();
+        let mut new_guardian_data = new_guardian_info.try_borrow_mut_data()?;
         let mut guardian_info: &mut GuardianSet = Self::unpack_unchecked(&mut new_guardian_data)?;
         if guardian_info.is_initialized {
             return Err(Error::AlreadyExists.into());
@@ -173,7 +175,7 @@ impl Bridge {
         let account_info_iter = &mut accounts.iter();
         let proposal_info = next_account_info(account_info_iter)?;
 
-        let mut transfer_data = proposal_info.data.borrow_mut();
+        let mut transfer_data = proposal_info.try_borrow_mut_data()?;
         let mut proposal: &mut TransferOutProposal = Self::unpack(&mut transfer_data)?;
         if proposal.vaa_time != 0 {
             return Err(Error::VAAAlreadySubmitted.into());
@@ -217,8 +219,8 @@ impl Bridge {
             })
             .collect();
 
-        let current_instruction = solana_sdk::sysvar::instructions::load_current_index(
-            &instruction_accounts.try_borrow_data()?,
+        let current_instruction = solana_program::sysvar::instructions::load_current_index(
+            &instruction_accounts.try_borrow_mut_data()?,
         );
         if current_instruction == 0 {
             return Err(ProgramError::InvalidInstructionData);
@@ -226,14 +228,14 @@ impl Bridge {
 
         // The previous ix must be a secp verification instruction
         let secp_ix_index = (current_instruction - 1) as u8;
-        let secp_ix = solana_sdk::sysvar::instructions::load_instruction_at(
+        let secp_ix = solana_program::sysvar::instructions::load_instruction_at(
             secp_ix_index as usize,
-            &instruction_accounts.try_borrow_data()?,
+            &instruction_accounts.try_borrow_mut_data()?,
         )
         .map_err(|_| ProgramError::InvalidAccountData)?;
 
         // Check that the instruction is actually for the secp program
-        if secp_ix.program_id != solana_sdk::secp256k1_program::id() {
+        if secp_ix.program_id != solana_program::secp256k1_program::id() {
             return Err(ProgramError::InvalidArgument);
         }
 
@@ -316,7 +318,7 @@ impl Bridge {
             return Err(Error::AlreadyExists.into());
         }
 
-        let mut sig_state_data = sig_info.data.borrow_mut();
+        let mut sig_state_data = sig_info.try_borrow_mut_data()?;
         let mut sig_state: &mut SignatureState = Self::unpack_unchecked(&mut sig_state_data)?;
 
         if sig_state.is_initialized {
@@ -416,7 +418,7 @@ impl Bridge {
         )?;
 
         // Load transfer account
-        let mut transfer_data = transfer_info.data.borrow_mut();
+        let mut transfer_data = transfer_info.try_borrow_mut_data()?;
         let mut transfer: &mut TransferOutProposal = Self::unpack_unchecked(&mut transfer_data)?;
 
         // Burn tokens
@@ -498,7 +500,7 @@ impl Bridge {
         )?;
 
         // Load transfer account
-        let mut transfer_data = transfer_info.data.borrow_mut();
+        let mut transfer_data = transfer_info.try_borrow_mut_data()?;
         let mut transfer: &mut TransferOutProposal = Self::unpack_unchecked(&mut transfer_data)?;
 
         // Check that custody account was derived correctly
@@ -608,7 +610,7 @@ impl Bridge {
         }
 
         // Verify sig state
-        let mut sig_state_data = sig_info.data.borrow_mut();
+        let mut sig_state_data = sig_info.try_borrow_mut_data()?;
         let sig_state: &SignatureState = Self::unpack(&mut sig_state_data)?;
 
         // Verify that signatures were made using the correct set
@@ -671,7 +673,7 @@ impl Bridge {
         }?;
 
         // Load claim account
-        let mut claim_data = claim_info.data.borrow_mut();
+        let mut claim_data = claim_info.try_borrow_mut_data()?;
         let claim: &mut ClaimedVAA = Bridge::unpack_unchecked(&mut claim_data)?;
         if claim.is_initialized {
             return Err(Error::VAAClaimed.into());
@@ -724,7 +726,7 @@ impl Bridge {
             &guardian_seed,
         )?;
 
-        let mut guardian_set_new_data = new_guardian_info.data.borrow_mut();
+        let mut guardian_set_new_data = new_guardian_info.try_borrow_mut_data()?;
         let guardian_set_new: &mut GuardianSet =
             Bridge::unpack_unchecked(&mut guardian_set_new_data)?;
 
@@ -845,7 +847,7 @@ impl Bridge {
             return Err(Error::InvalidDerivedAccount.into());
         }
 
-        let mut transfer_data = proposal_info.data.borrow_mut();
+        let mut transfer_data = proposal_info.try_borrow_mut_data()?;
         let mut proposal: &mut TransferOutProposal = Self::unpack(&mut transfer_data)?;
         if !proposal.matches_vaa(b) {
             return Err(Error::VAAProposalMismatch.into());
@@ -922,7 +924,7 @@ impl Bridge {
             &wrapped_meta_seeds,
         )?;
 
-        let mut wrapped_meta_data = wrapped_meta_info.data.borrow_mut();
+        let mut wrapped_meta_data = wrapped_meta_info.try_borrow_mut_data()?;
         let wrapped_meta: &mut WrappedAssetMeta = Bridge::unpack_unchecked(&mut wrapped_meta_data)?;
 
         wrapped_meta.is_initialized = true;

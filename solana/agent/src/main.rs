@@ -18,6 +18,7 @@ use service::{
     agent_server::{Agent, AgentServer},
     lockup_event::Event,
     Empty, LockupEvent, LockupEventNew, LockupEventVaaPosted, SubmitVaaRequest, SubmitVaaResponse,
+    GetBalanceResponse, GetBalanceRequest,
     WatchLockupsRequest,
 };
 use spl_bridge::{
@@ -111,8 +112,39 @@ impl Agent for AgentImpl {
                 )),
             }
         })
-        .join()
-        .unwrap()
+            .join()
+            .unwrap()
+    }
+
+    async fn get_balance(
+        &self,
+        request: Request<GetBalanceRequest>,
+    ) -> Result<Response<GetBalanceResponse>, Status> {
+        // Hack to clone keypair
+        let b = self.key.pubkey();
+
+        let rpc_url = self.rpc_url.clone();
+
+        // we need to spawn an extra thread because tokio does not allow nested runtimes
+        std::thread::spawn(move || {
+            let rpc = RpcClient::new(rpc_url);
+
+            let balance = match rpc.get_balance(&b) {
+                Ok(v) => v,
+                Err(e) => {
+                    return Err(Status::new(
+                        Code::Internal,
+                        format!("failed to fetch balance: {}", e),
+                    ));
+                }
+            };
+
+            Ok(Response::new(GetBalanceResponse {
+                balance,
+            }))
+        })
+            .join()
+            .unwrap()
     }
 
     type WatchLockupsStream = mpsc::Receiver<Result<LockupEvent, Status>>;
@@ -377,6 +409,7 @@ fn sign_and_send(
         RpcSendTransactionConfig {
             skip_preflight: false,
             preflight_commitment: Some(CommitmentLevel::SingleGossip),
+            encoding: None,
         },
     )
 }
