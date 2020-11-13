@@ -58,6 +58,11 @@ type Processor struct {
 	devnetNumGuardians uint
 	devnetEthRPC       string
 
+	terraLCD      string
+	terraChaidID  string
+	terraContract string
+	terraFeePayer string
+
 	logger *zap.Logger
 
 	// Runtime state
@@ -82,7 +87,11 @@ func NewProcessor(
 	gk *ecdsa.PrivateKey,
 	devnetMode bool,
 	devnetNumGuardians uint,
-	devnetEthRPC string) *Processor {
+	devnetEthRPC string,
+	terraLCD string,
+	terraChaidID string,
+	terraContract string,
+	terraFeePayer string) *Processor {
 
 	return &Processor{
 		lockC:              lockC,
@@ -94,6 +103,11 @@ func NewProcessor(
 		devnetMode:         devnetMode,
 		devnetNumGuardians: devnetNumGuardians,
 		devnetEthRPC:       devnetEthRPC,
+
+		terraLCD:      terraLCD,
+		terraChaidID:  terraChaidID,
+		terraContract: terraContract,
+		terraFeePayer: terraFeePayer,
 
 		logger:  supervisor.Logger(ctx),
 		state:   &aggregationState{vaaMap{}},

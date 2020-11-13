@@ -7,7 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
 
-	"github.com/miguelmota/go-ethereum-hdwallet"
+	hdwallet "github.com/miguelmota/go-ethereum-hdwallet"
 )
 
 var (

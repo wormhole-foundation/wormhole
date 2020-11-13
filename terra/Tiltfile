@@ -1,0 +1,6 @@
+# Smaller environment only with terra and no bridge
+
+k8s_yaml("../devnet/terra-devnet.yaml")
+
+k8s_resource("terra-lcd")
+k8s_resource("terra-terrad")
