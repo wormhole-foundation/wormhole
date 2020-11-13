@@ -81,7 +81,7 @@ func (m Swap) GetSigners() []AccAddress {
 	return []AccAddress{m.Value.Trader}
 }
 
-// GetSendCoins - return send coins for tax calulcation
+// GetSendCoins - return send coins for tax calculation
 func (m Swap) GetSendCoins() Coins {
 	return Coins{}
 }
@@ -106,7 +106,7 @@ func (m SwapSend) GetSigners() []AccAddress {
 	return []AccAddress{m.Value.FromAddress}
 }
 
-// GetSendCoins - return send coins for tax calulcation
+// GetSendCoins - return send coins for tax calculation
 func (m SwapSend) GetSendCoins() Coins {
 	return Coins{m.Value.OfferCoin}
 }

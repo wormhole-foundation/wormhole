@@ -32,7 +32,7 @@ type SubmitVAAParams struct {
 	VAA JSONArraySlice `json:"vaa"`
 }
 
-// SubmitVAA Prepares transaction with signed VAA and sends it to the Terra blockchain
+// SubmitVAA prepares transaction with signed VAA and sends it to the Terra blockchain
 func SubmitVAA(urlLCD string, chainID string, contractAddress string, feePayer string, signed *vaa.VAA) (client.TxResponse, error) {
 
 	// Serialize VAA

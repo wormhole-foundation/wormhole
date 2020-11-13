@@ -53,7 +53,7 @@ func (m Send) GetSigners() []AccAddress {
 	return []AccAddress{m.Value.FromAddress}
 }
 
-// GetSendCoins - return send coins for tax calulcation
+// GetSendCoins - return send coins for tax calculation
 func (m Send) GetSendCoins() Coins {
 	return m.Value.Amount
 }

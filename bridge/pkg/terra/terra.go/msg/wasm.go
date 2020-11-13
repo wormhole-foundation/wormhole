@@ -53,7 +53,7 @@ func (m StoreCode) GetSigners() []AccAddress {
 	return []AccAddress{m.Value.Sender}
 }
 
-// GetSendCoins - return send coins for tax calulcation
+// GetSendCoins - return send coins for tax calculation
 func (m StoreCode) GetSendCoins() Coins {
 	return Coins{}
 }
@@ -107,7 +107,7 @@ func (m InstantiateContract) GetSigners() []AccAddress {
 	return []AccAddress{m.Value.Owner}
 }
 
-// GetSendCoins - return send coins for tax calulcation
+// GetSendCoins - return send coins for tax calculation
 func (m InstantiateContract) GetSendCoins() Coins {
 	return m.Value.InitCoins
 }
@@ -159,7 +159,7 @@ func (m ExecuteContract) GetSigners() []AccAddress {
 	return []AccAddress{m.Value.Sender}
 }
 
-// GetSendCoins - return send coins for tax calulcation
+// GetSendCoins - return send coins for tax calculation
 func (m ExecuteContract) GetSendCoins() Coins {
 	return m.Value.Coins
 }

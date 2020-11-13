@@ -80,7 +80,7 @@ func (e *BridgeWatcher) Run(ctx context.Context) error {
 	// Wait for the success response
 	_, _, err = c.ReadMessage()
 	if err != nil {
-		return fmt.Errorf("event subsciption failed: %w", err)
+		return fmt.Errorf("event subscription failed: %w", err)
 	}
 	logger.Info("Subscribed to new transaction events")
 
@@ -122,22 +122,22 @@ func (e *BridgeWatcher) Run(ctx context.Context) error {
 
 				senderAddress, err := StringToAddress(sender.String())
 				if err != nil {
-					logger.Error("cannod decode hex ", zap.Any("value", sender.String()))
+					logger.Error("cannot decode hex ", zap.Any("value", sender.String()))
 					continue
 				}
 				recipientAddress, err := StringToAddress(recipient.String())
 				if err != nil {
-					logger.Error("cannod decode hex ", zap.Any("value", recipient.String()))
+					logger.Error("cannot decode hex ", zap.Any("value", recipient.String()))
 					continue
 				}
 				tokenAddress, err := StringToAddress(token.String())
 				if err != nil {
-					logger.Error("cannod decode hex ", zap.Any("value", token.String()))
+					logger.Error("cannot decode hex ", zap.Any("value", token.String()))
 					continue
 				}
 				txHashValue, err := StringToHash(txHash.String())
 				if err != nil {
-					logger.Error("cannod decode hex ", zap.Any("value", txHash.String()))
+					logger.Error("cannot decode hex ", zap.Any("value", txHash.String()))
 					continue
 				}
 				lock := &common.ChainLock{
