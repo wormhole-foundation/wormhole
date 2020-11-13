@@ -60,6 +60,7 @@ spec:
             - bridge
             - --ethRPC
             - ws://eth-devnet:8545
+            - --terra
             - --terraWS
             - ws://terra-terrad:26657/websocket
             - --terraLCD

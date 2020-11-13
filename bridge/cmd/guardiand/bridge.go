@@ -41,6 +41,7 @@ var (
 	ethContract      *string
 	ethConfirmations *uint64
 
+	terraSupport  *bool
 	terraWS       *string
 	terraLCD      *string
 	terraChaidID  *string
@@ -67,6 +68,7 @@ func init() {
 	ethContract = BridgeCmd.Flags().String("ethContract", "", "Ethereum bridge contract address")
 	ethConfirmations = BridgeCmd.Flags().Uint64("ethConfirmations", 15, "Ethereum confirmation count requirement")
 
+	terraSupport = BridgeCmd.Flags().Bool("terra", false, "Turn on support for Terra")
 	terraWS = BridgeCmd.Flags().String("terraWS", "", "Path to terrad root for websocket connection")
 	terraLCD = BridgeCmd.Flags().String("terraLCD", "", "Path to LCD service root for http calls")
 	terraChaidID = BridgeCmd.Flags().String("terraChainID", "", "Terra chain ID, used in LCD client initialization")
@@ -247,7 +249,7 @@ func runBridge(cmd *cobra.Command, args []string) {
 		}
 
 		// Start Terra watcher only if configured
-		if *terraWS != "" && *terraLCD != "" && *terraChaidID != "" && *terraContract != "" {
+		if *terraSupport {
 			logger.Info("Starting Terra watcher")
 			if err := supervisor.Run(ctx, "terrawatch",
 				terra.NewTerraBridgeWatcher(*terraWS, *terraLCD, *terraContract, lockC, setC).Run); err != nil {
