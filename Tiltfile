@@ -95,7 +95,11 @@ docker_build(
 
 k8s_yaml("devnet/solana-devnet.yaml")
 
-k8s_resource("solana-devnet")
+k8s_resource("solana-devnet", port_forwards=[
+    port_forward(8899, name="Solana RPC [:8899]"),
+    port_forward(8900, name="Solana WS [:8900]"),
+    port_forward(9000, name="Solana PubSub [:9000]"),
+])
 
 # eth devnet
 
@@ -119,4 +123,26 @@ docker_build(
 
 k8s_yaml("devnet/eth-devnet.yaml")
 
-k8s_resource("eth-devnet")
+k8s_resource("eth-devnet", port_forwards=[
+    port_forward(8545, name="Ganache RPC [:8545]")
+])
+
+# web frontend
+
+docker_build(
+    ref = "web",
+    context = "./web",
+    dockerfile = "./web/Dockerfile",
+    ignore = ["./web/node_modules"],
+    live_update = [
+        sync("./web/src", "/home/node/app/src"),
+        sync("./web/public", "/home/node/app/public"),
+        sync("./web/contracts", "/home/node/app/contracts"),
+    ],
+)
+
+k8s_yaml("devnet/web.yaml")
+
+k8s_resource("web", port_forwards=[
+    port_forward(3000, name="Experimental Web UI [:3000]")
+])

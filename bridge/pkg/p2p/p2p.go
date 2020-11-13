@@ -45,7 +45,6 @@ func Run(obsvC chan *gossipv1.LockupObservation,
 			// Multiple listen addresses
 			libp2p.ListenAddrStrings(
 				// Listen on QUIC only.
-				// TODO(leo): is this more or less stable than using both TCP and QUIC transports?
 				// https://github.com/libp2p/go-libp2p/issues/688
 				fmt.Sprintf("/ip4/0.0.0.0/udp/%d/quic", port),
 				fmt.Sprintf("/ip6/::/udp/%d/quic", port),
@@ -108,7 +107,7 @@ func Run(obsvC chan *gossipv1.LockupObservation,
 
 		// Add our own bootstrap nodes
 
-		// Count number of successful connection attempts. If we fail to connect to every bootstrap peer, kill
+		// Count number of successful connection attempts. If we fail to connect to any bootstrap peer, kill
 		// the service and have supervisor retry it.
 		successes := 0
 		// Are we a bootstrap node? If so, it's okay to not have any peers.
@@ -178,6 +177,8 @@ func Run(obsvC chan *gossipv1.LockupObservation,
 					if err != nil {
 						logger.Warn("failed to publish heartbeat message", zap.Error(err))
 					}
+
+					ctr += 1
 				}
 			}
 		}()

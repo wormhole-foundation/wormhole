@@ -31,11 +31,11 @@ retry cli airdrop solana-devnet:9900
 retry cli create-bridge "$bridge_address" "$initial_guardian"
 
 # Create a new SPL token (at a random address)
-token=$(cli create-token | grep 'Creating token' | awk '{ print $3 }')
+token=$(cli create-token --seed=29934 | grep 'Creating token' | awk '{ print $3 }')
 echo "Created token $token"
 
 # Create token account
-account=$(cli create-account "$token" | grep 'Creating account' | awk '{ print $3 }')
+account=$(cli create-account --seed=38489 "$token" | grep 'Creating account' | awk '{ print $3 }')
 echo "Created token account $account"
 
 # Mint new tokens owned by our CLI account
@@ -49,9 +49,5 @@ echo "Created wrapped token $token"
 wrapped_account=$(cli create-account --seed=934893 "$wrapped_token" | grep 'Creating account' | awk '{ print $3 }')
 echo "Created wrapped token account $wrapped_account"
 
-# Do lock transactions
-while : ; do
-  # Uncomment for simulated debugging transactions
-  #cli lock "$bridge_address" "$account" "$token" 10 "$chain_id_ethereum" "$RANDOM" "$recipient_address"
-  sleep 5
-done
+# Keep the container alive for interactive CLI usage
+sleep infinity

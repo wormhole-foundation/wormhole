@@ -16,6 +16,10 @@ import * as spl from "@solana/spl-token";
 import BN from "bn.js"
 import {SlotContext} from "../providers/SlotContext";
 
+// @ts-ignore
+if (window.ethereum === undefined) {
+    alert("Please install the MetaMask extension before using this experimental demo web UI");
+}
 
 const {Step} = Steps;
 
