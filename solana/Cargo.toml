@@ -1,7 +1,2 @@
 [workspace]
 members = ["agent", "bridge", "cli"]
-
-[patch.crates-io]
-solana-sdk = { git="https://github.com/solana-labs/solana", branch="master" }
-solana-client = { git="https://github.com/solana-labs/solana", branch="master" }
-solana-account-decoder = { git="https://github.com/solana-labs/solana", branch="master" }

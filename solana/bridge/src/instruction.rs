@@ -4,7 +4,7 @@
 use std::mem::size_of;
 
 use primitive_types::U256;
-use solana_sdk::{
+use solana_program::{
     instruction::{AccountMeta, Instruction},
     program_error::ProgramError,
     pubkey::Pubkey,
@@ -286,8 +286,8 @@ pub fn initialize(
     let guardian_set_key = Bridge::derive_guardian_set_id(program_id, &bridge_key, 0)?;
 
     let accounts = vec![
-        AccountMeta::new_readonly(solana_sdk::system_program::id(), false),
-        AccountMeta::new_readonly(solana_sdk::sysvar::clock::id(), false),
+        AccountMeta::new_readonly(solana_program::system_program::id(), false),
+        AccountMeta::new_readonly(solana_program::sysvar::clock::id(), false),
         AccountMeta::new(bridge_key, false),
         AccountMeta::new(guardian_set_key, false),
         AccountMeta::new(*sender, true),
@@ -325,10 +325,10 @@ pub fn transfer_out(
 
     let mut accounts = vec![
         AccountMeta::new_readonly(*program_id, false),
-        AccountMeta::new_readonly(solana_sdk::system_program::id(), false),
+        AccountMeta::new_readonly(solana_program::system_program::id(), false),
         AccountMeta::new_readonly(spl_token::id(), false),
-        AccountMeta::new_readonly(solana_sdk::sysvar::rent::id(), false),
-        AccountMeta::new_readonly(solana_sdk::sysvar::clock::id(), false),
+        AccountMeta::new_readonly(solana_program::sysvar::rent::id(), false),
+        AccountMeta::new_readonly(solana_program::sysvar::clock::id(), false),
         AccountMeta::new(*token_account, false),
         AccountMeta::new(bridge_key, false),
         AccountMeta::new(transfer_key, false),
@@ -366,8 +366,8 @@ pub fn verify_signatures(
 
     let accounts = vec![
         AccountMeta::new_readonly(*program_id, false),
-        AccountMeta::new_readonly(solana_sdk::system_program::id(), false),
-        AccountMeta::new_readonly(solana_sdk::sysvar::instructions::id(), false),
+        AccountMeta::new_readonly(solana_program::system_program::id(), false),
+        AccountMeta::new_readonly(solana_program::sysvar::instructions::id(), false),
         AccountMeta::new(*signature_acc, false),
         AccountMeta::new_readonly(guardian_set_key, false),
         AccountMeta::new(*payer, true),
@@ -407,9 +407,9 @@ pub fn post_vaa(
 
     let mut accounts = vec![
         AccountMeta::new_readonly(*program_id, false),
-        AccountMeta::new_readonly(solana_sdk::system_program::id(), false),
-        AccountMeta::new_readonly(solana_sdk::sysvar::rent::id(), false),
-        AccountMeta::new_readonly(solana_sdk::sysvar::clock::id(), false),
+        AccountMeta::new_readonly(solana_program::system_program::id(), false),
+        AccountMeta::new_readonly(solana_program::sysvar::rent::id(), false),
+        AccountMeta::new_readonly(solana_program::sysvar::clock::id(), false),
         AccountMeta::new(bridge_key, false),
         AccountMeta::new(guardian_set_key, false),
         AccountMeta::new(claim_key, false),
@@ -491,9 +491,9 @@ pub fn create_wrapped(
         Bridge::derive_wrapped_meta_id(program_id, &bridge_key, &wrapped_mint_key)?;
 
     let accounts = vec![
-        AccountMeta::new_readonly(solana_sdk::system_program::id(), false),
+        AccountMeta::new_readonly(solana_program::system_program::id(), false),
         AccountMeta::new_readonly(spl_token::id(), false),
-        AccountMeta::new_readonly(solana_sdk::sysvar::rent::id(), false),
+        AccountMeta::new_readonly(solana_program::sysvar::rent::id(), false),
         AccountMeta::new(bridge_key, false),
         AccountMeta::new(*payer, true),
         AccountMeta::new(wrapped_mint_key, false),

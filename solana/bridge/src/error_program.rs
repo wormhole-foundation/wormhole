@@ -1,14 +1,14 @@
 #![cfg(feature = "program")]
 
 use num_traits::FromPrimitive;
-use solana_sdk::{decode_error::DecodeError, info, program_error::PrintProgramError};
+use solana_program::{decode_error::DecodeError, program_error::PrintProgramError};
 
 use crate::error::*;
 
 impl PrintProgramError for Error {
     fn print<E>(&self)
-    where
-        E: 'static + std::error::Error + DecodeError<E> + PrintProgramError + FromPrimitive,
+        where
+            E: 'static + std::error::Error + DecodeError<E> + PrintProgramError + FromPrimitive,
     {
         match self {
             Error::ExpectedToken => info!("Error: ExpectedToken"),
