@@ -45,7 +45,6 @@ func Run(obsvC chan *gossipv1.LockupObservation,
 			// Multiple listen addresses
 			libp2p.ListenAddrStrings(
 				// Listen on QUIC only.
-				// TODO(leo): is this more or less stable than using both TCP and QUIC transports?
 				// https://github.com/libp2p/go-libp2p/issues/688
 				fmt.Sprintf("/ip4/0.0.0.0/udp/%d/quic", port),
 				fmt.Sprintf("/ip6/::/udp/%d/quic", port),
