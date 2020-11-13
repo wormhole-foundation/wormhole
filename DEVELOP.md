@@ -104,15 +104,15 @@ After a few seconds, the SPL token balance shown below will increase as the VAA 
 
 **Solana**
 
-| Account                                        | Description |
-|------------------------------------------------|-------------|
-| `6sbzC1eH4FTujJXWj51eQe25cYvr4xfXbJ1vAj7j2k5J` | id.json account in the `setup` container [1]
-| `Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o`  | Bridge contract
-| `TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA`  | SPL token contract
-| `6qRhs8oAuZYLd4zzaNnQHqdRyknrQQWDWQhALEN8UA7M` | Example SPL token
-| `3C3m4tjTy4nSMkkYdqCDSiCWEgpDa6whvprvABdFGBiW` | Account that holds 6qRhs8oA... SPL tokens
-| `85kW19uNvETzH43p3AfpyqPaQS5rWouq4x9rGiKUvihf` | Wrapped token for the 0xCfEB86... ERC20 token
-| `7EFk3VrWeb29SWJPQs5cUyqcY3fQd33S9gELkGybRzeu` | Account that holds 85kW19u... wrapped tokens [2]
+| Account                                        | Description                                         |
+|------------------------------------------------|-----------------------------------------------------|
+| `6sbzC1eH4FTujJXWj51eQe25cYvr4xfXbJ1vAj7j2k5J` | id.json account in the `setup` container [1]        |
+| `Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o`  | Bridge contract                                     |
+| `TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA`  | SPL token contract                                  |
+| `6qRhs8oAuZYLd4zzaNnQHqdRyknrQQWDWQhALEN8UA7M` | Example SPL token                                   |
+| `3C3m4tjTy4nSMkkYdqCDSiCWEgpDa6whvprvABdFGBiW` | Account that holds 6qRhs8oA... SPL tokens           |
+| `85kW19uNvETzH43p3AfpyqPaQS5rWouq4x9rGiKUvihf` | Wrapped token for the 0xCfEB86... ERC20 token       |
+| `7EFk3VrWeb29SWJPQs5cUyqcY3fQd33S9gELkGybRzeu` | Account that holds 85kW19u... wrapped tokens [2]    |
 
 [1]: The account will eventually run out of funds if you run the lockup sending scripts for a long time. Refill it
 using `kubectl exec solana-devnet-0 -c setup cli airdrop solana-devnet:9900` (see [devnet_setup.sh](solana/devnet_setup.sh)).
@@ -121,10 +121,10 @@ using `kubectl exec solana-devnet-0 -c setup cli airdrop solana-devnet:9900` (se
 
 **Ethereum**
 
-| Account                                    | Description |
-|--------------------------------------------|-------------|
-| `0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1` | Ganache main account (w/ the seed phrase above)
-| `0x5b1869D9A4C187F2EAa108f3062412ecf0526b24` | Bridge contract
-| `0xe78A0F7E598Cc8b0Bb87894B0F60dD2a88d6a8Ab` | Wrapped asset contract
-| `0xCfEB869F69431e42cdB54A4F4f105C19C080A601` | Example ERC20 token
-| `0xf5b1d8fab1054b9cf7db274126972f97f9d42a11` | Wrapped asset address for the 6qRhs8oA... SPL token
+| Account                                      | Description                                           |
+|----------------------------------------------|-------------------------------------------------------|
+| `0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1` | Ganache main account (w/ the seed phrase above)       |
+| `0x5b1869D9A4C187F2EAa108f3062412ecf0526b24` | Bridge contract                                       |
+| `0xe78A0F7E598Cc8b0Bb87894B0F60dD2a88d6a8Ab` | Wrapped asset contract                                |
+| `0xCfEB869F69431e42cdB54A4F4f105C19C080A601` | Example ERC20 token                                   |
+| `0xf5b1d8fab1054b9cf7db274126972f97f9d42a11` | Wrapped asset address for the 6qRhs8oA... SPL token   |
