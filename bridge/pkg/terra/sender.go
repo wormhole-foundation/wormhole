@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/certusone/wormhole/bridge/pkg/terra/terra.go/client"
-	"github.com/certusone/wormhole/bridge/pkg/terra/terra.go/key"
-	"github.com/certusone/wormhole/bridge/pkg/terra/terra.go/msg"
-	"github.com/certusone/wormhole/bridge/pkg/terra/terra.go/tx"
 	"github.com/certusone/wormhole/bridge/pkg/vaa"
+	"github.com/terra-project/terra.go/client"
+	"github.com/terra-project/terra.go/key"
+	"github.com/terra-project/terra.go/msg"
+	"github.com/terra-project/terra.go/tx"
 )
 
 type JSONArraySlice []uint8
