@@ -1,7 +1,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use cosmwasm_std::{HumanAddr, StdResult, Storage};
+use cosmwasm_std::{CanonicalAddr, HumanAddr, StdResult, Storage};
 use cosmwasm_storage::{
     bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket, ReadonlySingleton,
     Singleton,
@@ -23,6 +23,12 @@ pub struct ConfigInfo {
 
     // Code id for wrapped asset contract
     pub wrapped_asset_code_id: u64,
+
+    // Contract owner address, it can make contract active/inactive
+    pub owner: CanonicalAddr,
+
+    // If true the contract is active and functioning
+    pub is_active: bool,
 }
 
 // Guardian address

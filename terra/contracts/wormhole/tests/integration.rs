@@ -3,7 +3,7 @@ static WASM: &[u8] = include_bytes!("../../../target/wasm32-unknown-unknown/rele
 use cosmwasm_std::{from_slice, Env, HumanAddr, InitResponse};
 use cosmwasm_storage::to_length_prefixed;
 use cosmwasm_vm::testing::{init, mock_env, mock_instance, MockApi, MockQuerier, MockStorage};
-use cosmwasm_vm::{Instance, Storage};
+use cosmwasm_vm::{Instance, Storage, Api};
 
 use wormhole::msg::InitMsg;
 use wormhole::state::{ConfigInfo, GuardianAddress, GuardianSetInfo, CONFIG_KEY};
@@ -53,6 +53,7 @@ fn do_init(
         wrapped_asset_code_id: 999,
     };
     let env = mock_env_height(&TestAddress::INITIALIZER.value(), height, 0);
+    let owner = deps.api.canonical_address(&TestAddress::INITIALIZER.value()).0.unwrap();
     let res: InitResponse = init(&mut deps, env, init_msg).unwrap();
     assert_eq!(0, res.messages.len());
 
@@ -64,6 +65,8 @@ fn do_init(
                 guardian_set_index: 0,
                 guardian_set_expirity: 50,
                 wrapped_asset_code_id: 999,
+                owner,
+                is_active: true, 
             }
         );
         Ok(())

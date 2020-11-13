@@ -70,6 +70,14 @@ pub enum ContractError {
     /// VAA was already executed
     #[error("VaaAlreadyExecuted")]
     VaaAlreadyExecuted,
+
+    /// Message sender not permitted to execute this operation
+    #[error("PermissionDenied")]
+    PermissionDenied,
+
+    /// Attempt to execute contract action while it is inactive
+    #[error("ContractInactive")]
+    ContractInactive,
 }
 
 impl ContractError {

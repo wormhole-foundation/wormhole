@@ -7,6 +7,8 @@ require (
 	github.com/aristanetworks/goarista v0.0.0-20201012165903-2cb20defcd66 // indirect
 	github.com/btcsuite/btcd v0.21.0-beta // indirect
 	github.com/cenkalti/backoff/v4 v4.1.0
+	github.com/cosmos/cosmos-sdk v0.39.1
+	github.com/cosmos/go-bip39 v0.0.0-20200817134856-d632e0d11689
 	github.com/davidlazar/go-crypto v0.0.0-20200604182044-b73af7476f6c // indirect
 	github.com/deckarep/golang-set v1.7.1 // indirect
 	github.com/ethereum/go-ethereum v1.9.23
@@ -41,12 +43,15 @@ require (
 	github.com/olekukonko/tablewriter v0.0.4 // indirect
 	github.com/pborman/uuid v1.2.1 // indirect
 	github.com/peterh/liner v1.2.0 // indirect
+	github.com/prometheus/common v0.9.1
 	github.com/prometheus/tsdb v0.10.0 // indirect
 	github.com/shirou/gopsutil v2.20.9+incompatible // indirect
-	github.com/spf13/cobra v0.0.5
-	github.com/spf13/viper v1.3.2
+	github.com/spf13/cobra v1.0.0
+	github.com/spf13/viper v1.6.3
 	github.com/status-im/keycard-go v0.0.0-20200402102358-957c09536969 // indirect
 	github.com/stretchr/testify v1.6.1
+	github.com/tendermint/tendermint v0.33.8
+	github.com/terra-project/terra.go v0.0.0-20201112132816-3eb55b358ed6
 	github.com/tidwall/gjson v1.6.3
 	github.com/tidwall/match v1.0.2 // indirect
 	github.com/tyler-smith/go-bip39 v1.0.2 // indirect

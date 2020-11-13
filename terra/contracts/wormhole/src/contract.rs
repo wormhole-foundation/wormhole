@@ -6,7 +6,7 @@ use cosmwasm_std::{
 use crate::byte_utils::extend_address_to_32;
 use crate::byte_utils::ByteUtils;
 use crate::error::ContractError;
-use crate::msg::{HandleMsg, InitMsg, QueryMsg, GuardianSetInfoResponse};
+use crate::msg::{GuardianSetInfoResponse, HandleMsg, InitMsg, QueryMsg};
 use crate::state::{
     config, config_read, guardian_set_get, guardian_set_set, vaa_archive_add, vaa_archive_check,
     wrapped_asset, wrapped_asset_address, wrapped_asset_address_read, wrapped_asset_read,
@@ -39,7 +39,7 @@ const CHAIN_ID: u8 = 0x80;
 
 pub fn init<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
-    _env: Env,
+    env: Env,
     msg: InitMsg,
 ) -> StdResult<InitResponse> {
     // Save general wormhole info
@@ -47,6 +47,8 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
         guardian_set_index: 0,
         guardian_set_expirity: msg.guardian_set_expirity,
         wrapped_asset_code_id: msg.wrapped_asset_code_id,
+        owner: deps.api.canonical_address(&env.message.sender)?,
+        is_active: true,
     };
     config(&mut deps.storage).save(&state)?;
 
@@ -94,6 +96,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             amount,
             nonce,
         ),
+        HandleMsg::SetActive { is_active } => handle_set_active(deps, env, is_active),
     }
 }
 
@@ -103,6 +106,12 @@ fn handle_submit_vaa<S: Storage, A: Api, Q: Querier>(
     env: Env,
     data: &[u8],
 ) -> StdResult<HandleResponse> {
+
+    let state = config_read(&deps.storage).load()?;
+    if !state.is_active {
+        return ContractError::ContractInactive.std_err();
+    }
+
     /* VAA format:
 
     header (length 6):
@@ -188,7 +197,6 @@ fn handle_submit_vaa<S: Storage, A: Api, Q: Querier>(
 
     match action {
         0x01 => {
-            let state = config_read(&deps.storage).load()?;
             if vaa_guardian_set_index != state.guardian_set_index {
                 return ContractError::NotCurrentGuardianSet.std_err();
             }
@@ -421,6 +429,11 @@ fn handle_lock_assets<S: Storage, A: Api, Q: Querier>(
         return ContractError::AmountTooLow.std_err();
     }
 
+    let state = config_read(&deps.storage).load()?;
+    if !state.is_active {
+        return ContractError::ContractInactive.std_err();
+    }
+
     let asset_chain: u8;
     let asset_address: Vec<u8>;
 
@@ -522,6 +535,28 @@ fn handle_tokens_locked(
     })
 }
 
+pub fn handle_set_active<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+    is_active: bool,
+) -> StdResult<HandleResponse> {
+    let mut state = config_read(&deps.storage).load()?;
+
+    if deps.api.canonical_address(&env.message.sender)? != state.owner {
+        return ContractError::PermissionDenied.std_err();
+    }
+
+    state.is_active = is_active;
+
+    config(&mut deps.storage).save(&state)?;
+
+    Ok(HandleResponse {
+        messages: vec![],
+        log: vec![],
+        data: None,
+    })
+}
+
 pub fn query<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
     msg: QueryMsg,
@@ -538,7 +573,7 @@ pub fn query_query_guardian_set_info<S: Storage, A: Api, Q: Querier>(
     let guardian_set = guardian_set_get(&deps.storage, state.guardian_set_index)?;
     let res = GuardianSetInfoResponse {
         guardian_set_index: state.guardian_set_index,
-        addresses: guardian_set.addresses
+        addresses: guardian_set.addresses,
     };
     Ok(res)
 }

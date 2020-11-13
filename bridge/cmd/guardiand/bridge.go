@@ -45,6 +45,7 @@ var (
 	terraLCD      *string
 	terraChaidID  *string
 	terraContract *string
+	terraFeePayer *string
 
 	agentRPC *string
 
@@ -70,6 +71,7 @@ func init() {
 	terraLCD = BridgeCmd.Flags().String("terraLCD", "", "Path to LCD service root for http calls")
 	terraChaidID = BridgeCmd.Flags().String("terraChainID", "", "Terra chain ID, used in LCD client initialization")
 	terraContract = BridgeCmd.Flags().String("terraContract", "", "Wormhole contract address on Terra blockhain")
+	terraFeePayer = BridgeCmd.Flags().String("terraFeePayer", "", "Mnemonic to account paying gas for submitting transactions to Terra")
 
 	agentRPC = BridgeCmd.Flags().String("agentRPC", "", "Solana agent sidecar gRPC address")
 
@@ -258,7 +260,7 @@ func runBridge(cmd *cobra.Command, args []string) {
 			return err
 		}
 
-		p := processor.NewProcessor(ctx, lockC, setC, sendC, obsvC, solanaVaaC, gk, *unsafeDevMode, *devNumGuardians, *ethRPC)
+		p := processor.NewProcessor(ctx, lockC, setC, sendC, obsvC, solanaVaaC, gk, *unsafeDevMode, *devNumGuardians, *ethRPC, *terraLCD, *terraChaidID, *terraContract, *terraFeePayer)
 		if err := supervisor.Run(ctx, "processor", p.Run); err != nil {
 			return err
 		}

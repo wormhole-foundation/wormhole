@@ -2,7 +2,7 @@ use cosmwasm_std::{HumanAddr, Uint128};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::state::{GuardianSetInfo, GuardianAddress};
+use crate::state::{GuardianAddress, GuardianSetInfo};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InitMsg {
@@ -37,6 +37,9 @@ pub enum HandleMsg {
         amount: Uint128,
         nonce: u32,
     },
+    SetActive {
+        is_active: bool,
+    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -47,6 +50,6 @@ pub enum QueryMsg {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct GuardianSetInfoResponse {
-    pub guardian_set_index: u32, // Current guardian set index
-    pub addresses: Vec<GuardianAddress>,  // List of querdian addresses
+    pub guardian_set_index: u32,         // Current guardian set index
+    pub addresses: Vec<GuardianAddress>, // List of querdian addresses
 }

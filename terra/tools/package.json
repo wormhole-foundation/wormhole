@@ -7,7 +7,8 @@
     "build-contracts": "( cd .. && docker run --rm -v \"$(pwd)\":/code --mount type=volume,source=\"$(basename \"$(pwd)\")_cache\",target=/code/target --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry cosmwasm/workspace-optimizer:0.10.4 )",
     "prepare-token": "ts-node prepare-token.ts",
     "prepare-wormhole": "ts-node prepare-wormhole.ts",
-    "lock-token": "ts-node lock-token.ts"
+    "lock-token": "ts-node lock-token.ts",
+    "submit-vaa": "ts-node submit-vaa.ts"
   },
   "author": "",
   "license": "ISC",
