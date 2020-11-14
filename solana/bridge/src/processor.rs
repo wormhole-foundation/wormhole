@@ -1169,10 +1169,7 @@ impl Bridge {
                 let rent = Rent::default().minimum_balance(size_of::<T>());
                 if bal.checked_sub(Self::MIN_BRIDGE_BALANCE).ok_or(ProgramError::InsufficientFunds)? >= rent {
                     // Refund rent to payer
-                    let mut payer_balance = payer.try_borrow_mut_lamports()?;
-                    **payer_balance = payer_balance.checked_add(rent).ok_or(ProgramError::InvalidArgument)?;
-                    let mut subsidizer_balance = v.try_borrow_mut_lamports()?;
-                    **subsidizer_balance = subsidizer_balance.checked_sub(rent).ok_or(ProgramError::InsufficientFunds)?;
+                    Self::transfer_sol(v,payer,rent)?;
                 }
             }
         }
