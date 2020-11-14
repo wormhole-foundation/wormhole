@@ -35,7 +35,7 @@ use sha3::{Digest, Keccak256};
 use std::convert::TryFrom;
 
 // Chain ID of Terra
-const CHAIN_ID: u8 = 0x80;
+const CHAIN_ID: u8 = 3;
 
 pub fn init<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,

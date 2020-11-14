@@ -110,9 +110,8 @@ const (
 	ChainIDSolana = 1
 	// ChainIDEthereum is the ChainID of Ethereum
 	ChainIDEthereum = 2
-
 	// ChainIDTerra is the ChainID of Terra
-	ChainIDTerra = 0x80
+	ChainIDTerra = 3
 
 	minVAALength        = 1 + 4 + 52 + 4 + 1 + 1
 	SupportedVAAVersion = 0x01
