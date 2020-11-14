@@ -388,7 +388,7 @@ impl Bridge {
 
         // Fee handling
         let fee = Rent::default().minimum_balance((size_of::<SignatureState>() + size_of::<ClaimedVAA>()) * 2);
-        Self::transfer_sol(&payer_info, bridge_info, fee)?;
+        Self::transfer_sol(payer_info, bridge_info, fee)?;
 
         // Does the token belong to the mint
         if sender.mint != *mint_info.key {
@@ -486,8 +486,8 @@ impl Bridge {
         let clock = Clock::from_account_info(clock_info)?;
 
         // Fee handling
-        let fee = Rent::default().minimum_balance(size_of::<SignatureState>() * 2 + size_of::<ClaimedVAA>());
-        Self::transfer_sol(&payer_info, bridge_info, fee)?;
+        let fee = Rent::default().minimum_balance((size_of::<SignatureState>() + size_of::<ClaimedVAA>()) * 2);
+        Self::transfer_sol(payer_info, bridge_info, fee)?;
 
         // Does the token belong to the mint
         if sender.mint != *mint_info.key {
@@ -665,19 +665,23 @@ impl Bridge {
             return Err(ProgramError::InvalidArgument);
         }
 
+        let mut evict_signatures = false;
         let payload = vaa.payload.as_ref().ok_or(Error::InvalidVAAAction)?;
         match payload {
-            VAABody::UpdateGuardianSet(v) => Self::process_vaa_set_update(
-                program_id,
-                accounts,
-                account_info_iter,
-                &clock,
-                bridge_info,
-                payer_info,
-                &mut bridge,
-                &mut guardian_set,
-                &v,
-            ),
+            VAABody::UpdateGuardianSet(v) => {
+                evict_signatures = true;
+                Self::process_vaa_set_update(
+                    program_id,
+                    accounts,
+                    account_info_iter,
+                    &clock,
+                    bridge_info,
+                    payer_info,
+                    &mut bridge,
+                    &mut guardian_set,
+                    &v,
+                )
+            }
             VAABody::Transfer(v) => {
                 if v.source_chain == CHAIN_ID_SOLANA {
                     Self::process_vaa_transfer_post(
@@ -690,6 +694,7 @@ impl Bridge {
                         sig_info.key,
                     )
                 } else {
+                    evict_signatures = true;
                     Self::process_vaa_transfer(
                         program_id,
                         accounts,
@@ -701,6 +706,12 @@ impl Bridge {
                 }
             }
         }?;
+
+        // If the signatures are not needed anymore, evict them and reclaim rent.
+        // This should cover most of the costs of the guardian.
+        if evict_signatures {
+            Self::transfer_sol(sig_info, payer_info, sig_info.lamports())?;
+        }
 
         // Load claim account
         let mut claim_data = claim_info.try_borrow_mut_data()?;
@@ -1169,7 +1180,7 @@ impl Bridge {
                 let rent = Rent::default().minimum_balance(size_of::<T>());
                 if bal.checked_sub(Self::MIN_BRIDGE_BALANCE).ok_or(ProgramError::InsufficientFunds)? >= rent {
                     // Refund rent to payer
-                    Self::transfer_sol(v,payer,rent)?;
+                    Self::transfer_sol(v, payer, rent)?;
                 }
             }
         }

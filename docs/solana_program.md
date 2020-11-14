@@ -135,7 +135,7 @@ All require:
 |     4 | bridge       | BridgeConfig  |        |    ✅      |       |         |
 |     5 | guardian_set | GuardianSet   |        |           |       |         |
 |     6 | claim        | ExecutedVAA   |        | ✅        | ✅    | ✅      |
-|     7 | sig_info     | SigState      |        |           | ✅    |         |
+|     7 | sig_info     | SigState      |        |  ✅       | ✅    |         |
 |     8 | payer        | Account       | ✅     |           |       |         |
 
 followed by:
