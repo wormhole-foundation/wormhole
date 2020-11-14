@@ -33,31 +33,28 @@ type SubmitVAAParams struct {
 }
 
 // SubmitVAA prepares transaction with signed VAA and sends it to the Terra blockchain
-func SubmitVAA(urlLCD string, chainID string, contractAddress string, feePayer string, signed *vaa.VAA) (client.TxResponse, error) {
+func SubmitVAA(urlLCD string, chainID string, contractAddress string, feePayer string, signed *vaa.VAA) (*client.TxResponse, error) {
 
 	// Serialize VAA
-	vaa, err := signed.Marshal()
+	vaaBytes, err := signed.Marshal()
 	if err != nil {
-		return client.TxResponse{}, err
+		return nil, err
 	}
 
 	// Derive Raw Private Key
 	privKey, err := key.DerivePrivKey(feePayer, key.CreateHDPath(0, 0))
 	if err != nil {
-		return client.TxResponse{}, err
+		return nil, err
 	}
 
 	// Generate StdPrivKey
 	tmKey, err := key.StdPrivKeyGen(privKey)
 	if err != nil {
-		return client.TxResponse{}, err
+		return nil, err
 	}
 
 	// Generate Address from Public Key
 	addr := msg.AccAddress(tmKey.PubKey().Address())
-	if err != nil {
-		return client.TxResponse{}, err
-	}
 
 	// Create LCDClient
 	LCDClient := client.NewLCDClient(
@@ -69,22 +66,22 @@ func SubmitVAA(urlLCD string, chainID string, contractAddress string, feePayer s
 
 	contract, err := msg.AccAddressFromBech32(contractAddress)
 	if err != nil {
-		return client.TxResponse{}, err
+		return nil, err
 	}
 
 	// Create tx
 	contractCall, err := json.Marshal(SubmitVAAMsg{
 		Params: SubmitVAAParams{
-			VAA: vaa,
+			VAA: vaaBytes,
 		}})
 
 	if err != nil {
-		return client.TxResponse{}, err
+		return nil, err
 	}
 
 	executeContract := msg.NewExecuteContract(addr, contract, contractCall, msg.NewCoins())
 
-	tx, err := LCDClient.CreateAndSignTx(client.CreateTxOptions{
+	transaction, err := LCDClient.CreateAndSignTx(client.CreateTxOptions{
 		Msgs: []msg.Msg{
 			executeContract,
 		},
@@ -94,9 +91,10 @@ func SubmitVAA(urlLCD string, chainID string, contractAddress string, feePayer s
 		},
 	})
 	if err != nil {
-		return client.TxResponse{}, err
+		return nil, err
 	}
 
 	// Broadcast
-	return LCDClient.Broadcast(tx)
+	txResponse, err := LCDClient.Broadcast(transaction)
+	return &txResponse, err
 }
