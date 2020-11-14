@@ -196,6 +196,23 @@ func runBridge(cmd *cobra.Command, args []string) {
 	if *nodeName == "" {
 		logger.Fatal("Please specify -nodeName")
 	}
+	if *terraSupport {
+		if *terraWS == "" {
+			logger.Fatal("Please specify -terraWS")
+		}
+		if *terraLCD == "" {
+			logger.Fatal("Please specify -terraLCD")
+		}
+		if *terraChaidID == "" {
+			logger.Fatal("Please specify -terraChaidID")
+		}
+		if *terraContract == "" {
+			logger.Fatal("Please specify -terraContract")
+		}
+		if *terraFeePayer == "" {
+			logger.Fatal("Please specify -terraFeePayer")
+		}
+	}
 
 	ethContractAddr := eth_common.HexToAddress(*ethContract)
 
