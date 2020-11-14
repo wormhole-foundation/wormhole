@@ -12,7 +12,7 @@ Initializes a new Bridge at `bridge`.
 | ----- | ------       | ------------  | ------ | --------- | ----- | ------- |
 |     0 | sys          | SystemProgram |        |           |       |         |
 |     1 | clock        | Sysvar        |        |           |       | ✅      |
-|     2 | bridge       | BridgeConfig  |        |           | ✅    | ✅      |
+|     2 | bridge       | BridgeConfig  |        |    ✅      | ✅    | ✅      |
 |     3 | guardian_set | GuardianSet   |        | ✅        | ✅    | ✅      |
 |     4 | payer        | Account       | ✅     |           |       |         |
 
@@ -47,9 +47,10 @@ Checks secp checks (in the previous instruction) and stores results.
 |     0 | bridge_p     | BridgeProgram  |        |           |       |         |
 |     1 | sys          | SystemProgram  |        |           |       |         |
 |     2 | instructions | Sysvar         |        |           |       | ✅      |
-|     3 | sig_status   | SignatureState |        | ✅        |       |         |
-|     4 | guardian_set | GuardianSet    |        |           |       | ✅      |
-|     5 | payer        | Account        | ✅     |           |       |         |
+|     3 | bridge_config| BridgeConfig |        | ✅        |       |   ✅      |
+|     4 | sig_status   | SignatureState |        | ✅        |       |         |
+|     5 | guardian_set | GuardianSet    |        |           |       | ✅      |
+|     6 | payer        | Account        | ✅     |           |       |         |
 
 #### TransferOut
 
@@ -131,7 +132,7 @@ All require:
 |     1 | sys          | SystemProgram |        |           |       |         |
 |     2 | rent         | Sysvar        |        |           |       | ✅      |
 |     3 | clock        | Sysvar        |        |           |       | ✅      |
-|     4 | bridge       | BridgeConfig  |        |           |       |         |
+|     4 | bridge       | BridgeConfig  |        |    ✅      |       |         |
 |     5 | guardian_set | GuardianSet   |        |           |       |         |
 |     6 | claim        | ExecutedVAA   |        | ✅        | ✅    | ✅      |
 |     7 | sig_info     | SigState      |        |           | ✅    |         |
