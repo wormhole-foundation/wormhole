@@ -1107,6 +1107,7 @@ github.com/tendermint/tm-db v0.5.1/go.mod h1:g92zWjHpCYlEvQXvy9M168Su8V1IBEeawpX
 github.com/terra-project/terra.go v0.0.0-20201112132816-3eb55b358ed6 h1:P3aCNycSUafF3ctydWIrMvI9AmIdQZwBEqIcaVd29uc=
 github.com/terra-project/terra.go v0.0.0-20201112132816-3eb55b358ed6/go.mod h1:w+V/aEgQEeMuxV9ZnA3J0FUGjg1qBNi3WOr8/yphh/U=
 github.com/terra-project/terra.go v1.0.0 h1:TR2b3x8yrljXhrs9a3KORRCQ6BGr+bCTp0ZwTrG/i3c=
+github.com/terra-project/terra.go v1.0.0/go.mod h1:w+V/aEgQEeMuxV9ZnA3J0FUGjg1qBNi3WOr8/yphh/U=
 github.com/tidwall/gjson v1.6.3 h1:aHoiiem0dr7GHkW001T1SMTJ7X5PvyekH5WX0whWGnI=
 github.com/tidwall/gjson v1.6.3/go.mod h1:BaHyNc5bjzYkPqgLq7mdVzeiRtULKULXLgZFKsxEHI0=
 github.com/tidwall/match v1.0.1 h1:PnKP62LPNxHKTwvHHZZzdOAOCtsJTjo6dZLCwpKm5xc=

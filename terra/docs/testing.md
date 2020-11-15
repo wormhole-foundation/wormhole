@@ -1,21 +1,13 @@
 # Wormhole + Terra local test environment
 
-The following dependencies are required for local development:
+For the list of dependencies please follow [DEVELOP.md](../../DEVELOP.md)
 
-- [Go](https://golang.org/dl/) >= 1.15.3
-- [Docker](https://docs.docker.com/engine/install/) / moby-engine >= 19.03
-- [Tilt](http://tilt.dev/) >= 0.17.2
-- Any of the local Kubernetes clusters supported by Tilt. 
-  We recommend [minikube](https://kubernetes.io/docs/setup/learning-environment/minikube/) with the kvm2 driver.
+Additional dependencies:
 - [Node.js](https://nodejs.org/) >= 14.x, [ts-node](https://www.npmjs.com/package/ts-node) >= 8.x
 
-Start Tilt from the project root using `TiltfileTerra` configuration:
+Start Tilt from the project root:
 
-    tilt up -f TiltfileTerra
-
-Then expose Terra LCD server port to the localhost:
-
-    kubectl port-forward terra-lcd-0 1317
+    tilt up
 
 Afterwards use test scripts in `terra/tools` folder:
 

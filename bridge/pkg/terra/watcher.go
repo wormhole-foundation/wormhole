@@ -52,7 +52,7 @@ func (e *BridgeWatcher) Run(ctx context.Context) error {
 	errC := make(chan error)
 	logger := supervisor.Logger(ctx)
 
-	logger.Info("connecting to ", zap.Any("url", e.urlLCD))
+	logger.Info("connecting to", zap.String("url", e.urlLCD))
 
 	c, _, err := websocket.DefaultDialer.DialContext(ctx, e.urlLCD, nil)
 	if err != nil {
@@ -86,7 +86,7 @@ func (e *BridgeWatcher) Run(ctx context.Context) error {
 		for {
 			_, message, err := c.ReadMessage()
 			if err != nil {
-				logger.Error("error reading channel")
+				logger.Error("error reading channel", zap.Error(err))
 				errC <- err
 				return
 			}
@@ -106,28 +106,35 @@ func (e *BridgeWatcher) Run(ctx context.Context) error {
 			if targetChain.Exists() && tokenChain.Exists() && tokenDecimals.Exists() && token.Exists() &&
 				sender.Exists() && recipient.Exists() && amount.Exists() && amount.Exists() && nonce.Exists() && txHash.Exists() {
 
-				logger.Info("Token lock detected on Terra: ", zap.Any("txHash", txHash), zap.Any("targetChain", targetChain),
-					zap.Any("tokenChain", tokenChain), zap.Any("tokenDecimals", tokenDecimals), zap.Any("token", token),
-					zap.Any("sender", sender), zap.Any("recipient", recipient), zap.Any("amount", amount), zap.Any("nonce", nonce))
+				logger.Info("Token lock detected on Terra: ",
+					zap.String("txHash", txHash.String()),
+					zap.String("targetChain", targetChain.String()),
+					zap.String("tokenChain", tokenChain.String()),
+					zap.String("tokenDecimals", tokenDecimals.String()),
+					zap.String("token", token.String()),
+					zap.String("sender", sender.String()),
+					zap.String("recipient", recipient.String()),
+					zap.String("amount", amount.String()),
+					zap.String("nonce", nonce.String()))
 
 				senderAddress, err := StringToAddress(sender.String())
 				if err != nil {
-					logger.Error("cannot decode hex ", zap.Any("value", sender.String()))
+					logger.Error("cannot decode hex ", zap.String("value", sender.String()))
 					continue
 				}
 				recipientAddress, err := StringToAddress(recipient.String())
 				if err != nil {
-					logger.Error("cannot decode hex ", zap.Any("value", recipient.String()))
+					logger.Error("cannot decode hex ", zap.String("value", recipient.String()))
 					continue
 				}
 				tokenAddress, err := StringToAddress(token.String())
 				if err != nil {
-					logger.Error("cannot decode hex ", zap.Any("value", token.String()))
+					logger.Error("cannot decode hex ", zap.String("value", token.String()))
 					continue
 				}
 				txHashValue, err := StringToHash(txHash.String())
 				if err != nil {
-					logger.Error("cannot decode hex ", zap.Any("value", txHash.String()))
+					logger.Error("cannot decode hex ", zap.String("value", txHash.String()))
 					continue
 				}
 				lock := &common.ChainLock{
@@ -150,29 +157,34 @@ func (e *BridgeWatcher) Run(ctx context.Context) error {
 			requestURL := fmt.Sprintf("%s/wasm/contracts/%s/store?query_msg={\"guardian_set_info\":{}}", e.urlLCD, e.bridge)
 			req, err := http.NewRequestWithContext(ctx, http.MethodGet, requestURL, nil)
 			if err != nil {
-				logger.Error("query guardian set request error", zap.Any("error", err))
+				logger.Error("query guardian set request error", zap.Error(err))
 				errC <- err
 				return
 			}
-			client := &http.Client{}
+			client := &http.Client{
+				Timeout: time.Second * 15,
+			}
 			resp, err := client.Do(req)
 			if err != nil {
-				logger.Error("query guardian set response error", zap.Any("error", err))
+				logger.Error("query guardian set response error", zap.Error(err))
 				errC <- err
 				return
 			}
 
 			body, err := ioutil.ReadAll(resp.Body)
 			if err != nil {
-				logger.Error("query guardian set error", zap.Any("error", err))
+				logger.Error("query guardian set error", zap.Error(err))
 				errC <- err
+				resp.Body.Close()
 				return
 			}
 			json = string(body)
 			guardianSetIndex := gjson.Get(json, "result.guardian_set_index")
 			addresses := gjson.Get(json, "result.addresses.#.bytes")
 
-			logger.Info("Current guardian set on Terra: ", zap.Any("guardianSetIndex", guardianSetIndex), zap.Any("addresses", addresses))
+			logger.Info("Current guardian set on Terra: ",
+				zap.Any("guardianSetIndex", guardianSetIndex),
+				zap.Any("addresses", addresses))
 
 			resp.Body.Close()
 
@@ -184,7 +196,7 @@ func (e *BridgeWatcher) Run(ctx context.Context) error {
 	case <-ctx.Done():
 		err := c.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
 		if err != nil {
-			logger.Error("error on closing socket ", zap.Any("error", err))
+			logger.Error("error on closing socket ", zap.Error(err))
 		}
 		return ctx.Err()
 	case err := <-errC:

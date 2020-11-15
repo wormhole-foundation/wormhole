@@ -51,7 +51,7 @@ require (
 	github.com/status-im/keycard-go v0.0.0-20200402102358-957c09536969 // indirect
 	github.com/stretchr/testify v1.6.1
 	github.com/tendermint/tendermint v0.33.8
-	github.com/terra-project/terra.go v0.0.0-20201112132816-3eb55b358ed6
+	github.com/terra-project/terra.go v1.0.0
 	github.com/tidwall/gjson v1.6.3
 	github.com/tidwall/match v1.0.2 // indirect
 	github.com/tyler-smith/go-bip39 v1.0.2 // indirect

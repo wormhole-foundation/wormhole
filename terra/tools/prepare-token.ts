@@ -2,6 +2,7 @@ import { deploy_contract, instantiate_contract, query_contract } from './utils';
 
 async function script() {
     const TEST_ADDRESS: string = 'terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v';
+    // cw20_base.wasm is build from https://github.com/CosmWasm/cosmwasm-plus repository, v.0.2.0 and is a standard base cw20 contract
     let code_id = await deploy_contract('../artifacts/cw20_base.wasm');
     if (code_id == -1) return;
     console.log(`Program deployed with code id ${code_id}`);
