@@ -5,10 +5,8 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"math/big"
 	"net/http"
-	"net/url"
 	"time"
 
 	eth_common "github.com/ethereum/go-ethereum/common"
@@ -54,14 +52,9 @@ func (e *BridgeWatcher) Run(ctx context.Context) error {
 	errC := make(chan error)
 	logger := supervisor.Logger(ctx)
 
-	u, err := url.Parse(e.urlWS)
-	if err != nil {
-		return fmt.Errorf("parsing terrad url failed: %w", err)
-	}
+	logger.Info("connecting to ", zap.Any("url", e.urlLCD))
 
-	logger.Info("connecting to ", zap.Any("url", u))
-
-	c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
+	c, _, err := websocket.DefaultDialer.DialContext(ctx, e.urlLCD, nil)
 	if err != nil {
 		return fmt.Errorf("socket dial failed: %w", err)
 	}
@@ -75,7 +68,10 @@ func (e *BridgeWatcher) Run(ctx context.Context) error {
 		Params:  params,
 		ID:      1,
 	}
-	c.WriteJSON(command)
+	err = c.WriteJSON(command)
+	if err != nil {
+		return fmt.Errorf("websocket subscription failed: %w", err)
+	}
 
 	// Wait for the success response
 	_, _, err = c.ReadMessage()
@@ -90,7 +86,7 @@ func (e *BridgeWatcher) Run(ctx context.Context) error {
 		for {
 			_, message, err := c.ReadMessage()
 			if err != nil {
-				logger.Error("error reading channel: ", zap.Any("error", err))
+				logger.Error("error reading channel")
 				return
 			}
 
@@ -109,16 +105,9 @@ func (e *BridgeWatcher) Run(ctx context.Context) error {
 			if targetChain.Exists() && tokenChain.Exists() && tokenDecimals.Exists() && token.Exists() &&
 				sender.Exists() && recipient.Exists() && amount.Exists() && amount.Exists() && nonce.Exists() && txHash.Exists() {
 
-				logger.Info("Token lock detected on Terra")
-				logger.Info("\ttxHash: ", zap.Any("txHash", txHash))
-				logger.Info("\ttargetChain: ", zap.Any("targetChain", targetChain))
-				logger.Info("\ttokenChain: ", zap.Any("tokenChain", tokenChain))
-				logger.Info("\ttokenDecimals: ", zap.Any("tokenDecimals", tokenDecimals))
-				logger.Info("\ttoken: ", zap.Any("token", token))
-				logger.Info("\tsender: ", zap.Any("sender", sender))
-				logger.Info("\trecipient: ", zap.Any("recipient", recipient))
-				logger.Info("\tamount: ", zap.Any("amount", amount))
-				logger.Info("\tnonce: ", zap.Any("nonce", nonce))
+				logger.Info("Token lock detected on Terra: ", zap.Any("txHash", txHash), zap.Any("targetChain", targetChain),
+					zap.Any("tokenChain", tokenChain), zap.Any("tokenDecimals", tokenDecimals), zap.Any("token", token),
+					zap.Any("sender", sender), zap.Any("recipient", recipient), zap.Any("amount", amount), zap.Any("nonce", nonce))
 
 				senderAddress, err := StringToAddress(sender.String())
 				if err != nil {
@@ -173,19 +162,9 @@ func (e *BridgeWatcher) Run(ctx context.Context) error {
 			guardianSetIndex := gjson.Get(json, "result.guardian_set_index")
 			addresses := gjson.Get(json, "result.addresses.#.bytes")
 
-			log.Printf("guardianSetIndex: %v", guardianSetIndex)
-			log.Printf("addresses: %v", addresses)
+			logger.Info("Current guardian set on Terra: ", zap.Any("guardianSetIndex", guardianSetIndex), zap.Any("addresses", addresses))
 
-			guardianSet := &common.GuardianSet{
-				Index: uint32(guardianSetIndex.Uint()),
-				Keys:  make([]eth_common.Address, len(addresses.Array())),
-			}
-			for addressIndex, address := range addresses.Array() {
-				for valueIndex, value := range address.Array() {
-					guardianSet.Keys[addressIndex][valueIndex] = uint8(value.Uint())
-				}
-			}
-			e.setChan <- guardianSet
+			// Do not report it since ETH guardians are the source of truth
 		}
 	}()
 
