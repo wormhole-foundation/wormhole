@@ -87,6 +87,7 @@ func (e *BridgeWatcher) Run(ctx context.Context) error {
 			_, message, err := c.ReadMessage()
 			if err != nil {
 				logger.Error("error reading channel")
+				errC <- err
 				return
 			}
 
@@ -146,16 +147,25 @@ func (e *BridgeWatcher) Run(ctx context.Context) error {
 			}
 
 			// Query and report guardian set status
-			resp, err := http.Get(fmt.Sprintf("%s/wasm/contracts/%s/store?query_msg={\"guardian_set_info\":{}}", e.urlLCD, e.bridge))
+			requestURL := fmt.Sprintf("%s/wasm/contracts/%s/store?query_msg={\"guardian_set_info\":{}}", e.urlLCD, e.bridge)
+			req, err := http.NewRequestWithContext(ctx, http.MethodGet, requestURL, nil)
 			if err != nil {
-				logger.Error("query guardian set error", zap.Any("error", err))
+				logger.Error("query guardian set request error", zap.Any("error", err))
+				errC <- err
+				return
+			}
+			client := &http.Client{}
+			resp, err := client.Do(req)
+			if err != nil {
+				logger.Error("query guardian set response error", zap.Any("error", err))
+				errC <- err
 				return
 			}
 
-			defer resp.Body.Close()
 			body, err := ioutil.ReadAll(resp.Body)
 			if err != nil {
 				logger.Error("query guardian set error", zap.Any("error", err))
+				errC <- err
 				return
 			}
 			json = string(body)
@@ -163,6 +173,8 @@ func (e *BridgeWatcher) Run(ctx context.Context) error {
 			addresses := gjson.Get(json, "result.addresses.#.bytes")
 
 			logger.Info("Current guardian set on Terra: ", zap.Any("guardianSetIndex", guardianSetIndex), zap.Any("addresses", addresses))
+
+			resp.Body.Close()
 
 			// Do not report it since ETH guardians are the source of truth
 		}
