@@ -1,0 +1,20 @@
+{
+  "name": "terra-contract-tools",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build-contracts": "( cd .. && docker run --rm -v \"$(pwd)\":/code --mount type=volume,source=\"$(basename \"$(pwd)\")_cache\",target=/code/target --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry cosmwasm/workspace-optimizer:0.10.4 )",
+    "prepare-token": "ts-node prepare-token.ts",
+    "prepare-wormhole": "ts-node prepare-wormhole.ts",
+    "lock-token": "ts-node lock-token.ts",
+    "submit-vaa": "ts-node submit-vaa.ts"
+  },
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "@terra-money/terra.js": "^0.5.12",
+    "@types/node": "^14.14.6"
+  }
+}

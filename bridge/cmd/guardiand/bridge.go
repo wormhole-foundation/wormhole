@@ -25,6 +25,8 @@ import (
 	"github.com/certusone/wormhole/bridge/pkg/supervisor"
 	"github.com/certusone/wormhole/bridge/pkg/vaa"
 
+	"github.com/certusone/wormhole/bridge/pkg/terra"
+
 	ipfslog "github.com/ipfs/go-log/v2"
 )
 
@@ -38,6 +40,13 @@ var (
 	ethRPC           *string
 	ethContract      *string
 	ethConfirmations *uint64
+
+	terraSupport  *bool
+	terraWS       *string
+	terraLCD      *string
+	terraChaidID  *string
+	terraContract *string
+	terraFeePayer *string
 
 	agentRPC *string
 
@@ -58,6 +67,13 @@ func init() {
 	ethRPC = BridgeCmd.Flags().String("ethRPC", "", "Ethereum RPC URL")
 	ethContract = BridgeCmd.Flags().String("ethContract", "", "Ethereum bridge contract address")
 	ethConfirmations = BridgeCmd.Flags().Uint64("ethConfirmations", 15, "Ethereum confirmation count requirement")
+
+	terraSupport = BridgeCmd.Flags().Bool("terra", false, "Turn on support for Terra")
+	terraWS = BridgeCmd.Flags().String("terraWS", "", "Path to terrad root for websocket connection")
+	terraLCD = BridgeCmd.Flags().String("terraLCD", "", "Path to LCD service root for http calls")
+	terraChaidID = BridgeCmd.Flags().String("terraChainID", "", "Terra chain ID, used in LCD client initialization")
+	terraContract = BridgeCmd.Flags().String("terraContract", "", "Wormhole contract address on Terra blockhain")
+	terraFeePayer = BridgeCmd.Flags().String("terraFeePayer", "", "Mnemonic to account paying gas for submitting transactions to Terra")
 
 	agentRPC = BridgeCmd.Flags().String("agentRPC", "", "Solana agent sidecar gRPC address")
 
@@ -180,6 +196,23 @@ func runBridge(cmd *cobra.Command, args []string) {
 	if *nodeName == "" {
 		logger.Fatal("Please specify -nodeName")
 	}
+	if *terraSupport {
+		if *terraWS == "" {
+			logger.Fatal("Please specify -terraWS")
+		}
+		if *terraLCD == "" {
+			logger.Fatal("Please specify -terraLCD")
+		}
+		if *terraChaidID == "" {
+			logger.Fatal("Please specify -terraChaidID")
+		}
+		if *terraContract == "" {
+			logger.Fatal("Please specify -terraContract")
+		}
+		if *terraFeePayer == "" {
+			logger.Fatal("Please specify -terraFeePayer")
+		}
+	}
 
 	ethContractAddr := eth_common.HexToAddress(*ethContract)
 
@@ -232,12 +265,21 @@ func runBridge(cmd *cobra.Command, args []string) {
 			return err
 		}
 
+		// Start Terra watcher only if configured
+		if *terraSupport {
+			logger.Info("Starting Terra watcher")
+			if err := supervisor.Run(ctx, "terrawatch",
+				terra.NewTerraBridgeWatcher(*terraWS, *terraLCD, *terraContract, lockC, setC).Run); err != nil {
+				return err
+			}
+		}
+
 		if err := supervisor.Run(ctx, "solwatch",
 			solana.NewSolanaBridgeWatcher(*agentRPC, lockC, solanaVaaC).Run); err != nil {
 			return err
 		}
 
-		p := processor.NewProcessor(ctx, lockC, setC, sendC, obsvC, solanaVaaC, gk, *unsafeDevMode, *devNumGuardians, *ethRPC)
+		p := processor.NewProcessor(ctx, lockC, setC, sendC, obsvC, solanaVaaC, gk, *unsafeDevMode, *devNumGuardians, *ethRPC, *terraLCD, *terraChaidID, *terraContract, *terraFeePayer)
 		if err := supervisor.Run(ctx, "processor", p.Run); err != nil {
 			return err
 		}

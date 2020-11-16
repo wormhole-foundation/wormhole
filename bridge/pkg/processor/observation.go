@@ -7,12 +7,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/certusone/wormhole/bridge/pkg/terra"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"go.uber.org/zap"
 
 	"github.com/certusone/wormhole/bridge/pkg/devnet"
-	"github.com/certusone/wormhole/bridge/pkg/proto/gossip/v1"
+	gossipv1 "github.com/certusone/wormhole/bridge/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/bridge/pkg/vaa"
 )
 
@@ -137,18 +139,24 @@ func (p *Processor) handleObservation(ctx context.Context, m *gossipv1.LockupObs
 			}
 
 			if t, ok := v.Payload.(*vaa.BodyTransfer); ok {
-				switch {
-				case t.TargetChain == vaa.ChainIDEthereum:
-					// Check whether we run in devmode and submit the VAA ourselves, if so.
-					p.devnetVAASubmission(ctx, signed, hash)
 
-					// Cross-submit to Solana for data availability
-					fallthrough
-				case t.TargetChain == vaa.ChainIDSolana:
+				switch t.TargetChain {
+				case vaa.ChainIDEthereum,
+					vaa.ChainIDSolana,
+					vaa.ChainIDTerra:
+					// Submit to Solana if target is Solana, but also cross-submit all other targets to Solana for data availability
 					p.logger.Info("submitting signed VAA to Solana",
 						zap.String("digest", hash),
 						zap.Any("vaa", signed),
 						zap.String("bytes", hex.EncodeToString(vaaBytes)))
+
+					switch t.TargetChain {
+					case vaa.ChainIDEthereum:
+						// Check whether we run in devmode and submit the VAA ourselves, if so.
+						p.devnetVAASubmission(ctx, signed, hash)
+					case vaa.ChainIDTerra:
+						p.terraVAASubmission(ctx, signed, hash)
+					}
 
 					p.vaaC <- signed
 				default:
@@ -189,4 +197,20 @@ func (p *Processor) devnetVAASubmission(ctx context.Context, signed *vaa.VAA, ha
 		}
 		p.logger.Info("lockup submitted to Ethereum", zap.Any("tx", tx), zap.String("digest", hash))
 	}
+}
+
+// Submit VAA to Terra
+func (p *Processor) terraVAASubmission(ctx context.Context, signed *vaa.VAA, hash string) {
+	tx, err := terra.SubmitVAA(ctx, p.terraLCD, p.terraChaidID, p.terraContract, p.terraFeePayer, signed)
+	if err != nil {
+		if strings.Contains(err.Error(), "VaaAlreadyExecuted") {
+			p.logger.Info("lockup already submitted to Terra by another node, ignoring",
+				zap.Error(err), zap.String("digest", hash))
+		} else {
+			p.logger.Error("failed to submit lockup to Terra",
+				zap.Error(err), zap.String("digest", hash))
+		}
+		return
+	}
+	p.logger.Info("lockup submitted to Terra", zap.Any("tx", tx), zap.String("digest", hash))
 }

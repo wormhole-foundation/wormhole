@@ -146,3 +146,12 @@ k8s_yaml("devnet/web.yaml")
 k8s_resource("web", port_forwards=[
     port_forward(3000, name="Experimental Web UI [:3000]")
 ])
+
+# terra devnet
+
+k8s_yaml("devnet/terra-devnet.yaml")
+
+k8s_resource("terra-lcd", port_forwards=[
+    port_forward(1317, name="Terra LCD interface [:1317]")
+])
+k8s_resource("terra-terrad")

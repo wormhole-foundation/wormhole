@@ -41,6 +41,9 @@ spec:
       containers:
         - name: guardiand
           image: guardiand-image
+          env:
+            - name: TERRA_FEE_PAYER
+              value: "notice oak worry limit wrap speak medal online prefer cluster roof addict wrist behave treat actual wasp year salad speed social layer crew genius"
           command:
 # Uncomment this to enable in-place debugging using dlv
 # (not suitable for regular development since the process will no longer restart on its own)
@@ -57,6 +60,17 @@ spec:
             - bridge
             - --ethRPC
             - ws://eth-devnet:8545
+            - --terra
+            - --terraWS
+            - ws://terra-terrad:26657/websocket
+            - --terraLCD
+            - http://terra-lcd:1317
+            - --terraChainID
+            - localterra
+            - --terraContract
+            - terra174kgn5rtw4kf6f938wm7kwh70h2v4vcfd26jlc
+            - --terraFeePayer
+            - $(TERRA_FEE_PAYER)
             - --agentRPC
             - localhost:9000
             - --ethConfirmations

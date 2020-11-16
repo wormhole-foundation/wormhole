@@ -1,0 +1,2183 @@
+apiVersion: v1
+data:
+  addrbook.json: "{\n\t\"key\": \"42a010b29b4d74efd44c4694\",\n\t\"addrs\": []\n}"
+  app.toml: |
+    # This is a TOML config file.
+    # For more information, see https://github.com/toml-lang/toml
+
+    ##### main base config options #####
+
+    # The minimum gas prices a validator is willing to accept for processing a
+    # transaction. A transaction's fees must meet the minimum of any denomination
+    # specified in this config (e.g. 0.25token1;0.0001token2).
+    minimum-gas-prices = "0.00506uluna,0.0015uusd,0.00102usdr,1.7805ukrw,4.31626umnt"
+
+    # default: the last 100 states are kept in addition to every 500th state; pruning at 10 block intervals
+    # nothing: all historic states will be saved, nothing will be deleted (i.e. archiving node)
+    # everything: all saved states will be deleted, storing only the current state; pruning at 10 block intervals
+    # custom: allow pruning options to be manually specified through 'pruning-keep-recent', 'pruning-keep-every', and 'pruning-interval'
+    pruning = "default"
+
+    # These are applied if and only if the pruning strategy is custom.
+    pruning-keep-recent = "0"
+    pruning-keep-every = "0"
+    pruning-interval = "0"
+
+    # HaltHeight contains a non-zero block height at which a node will gracefully
+    # halt and shutdown that can be used to assist upgrades and testing.
+    #
+    # Note: Commitment of state will be attempted on the corresponding block.
+    halt-height = 0
+
+    # HaltTime contains a non-zero minimum block time (in Unix seconds) at which
+    # a node will gracefully halt and shutdown that can be used to assist upgrades
+    # and testing.
+    #
+    # Note: Commitment of state will be attempted on the corresponding block.
+    halt-time = 0
+
+    # InterBlockCache enables inter-block caching.
+    inter-block-cache = true
+  config.toml: |
+    # This is a TOML config file.
+    # For more information, see https://github.com/toml-lang/toml
+
+    # NOTE: Any path below can be absolute (e.g. "/var/myawesomeapp/data") or
+    # relative to the home directory (e.g. "data"). The home directory is
+    # "$HOME/.tendermint" by default, but could be changed via $TMHOME env variable
+    # or --home cmd flag.
+
+    ##### main base config options #####
+
+    # TCP or UNIX socket address of the ABCI application,
+    # or the name of an ABCI application compiled in with the Tendermint binary
+    proxy_app = "tcp://127.0.0.1:26656"
+
+    # A custom human readable name for this node
+    moniker = "localterra"
+
+    # If this node is many blocks behind the tip of the chain, FastSync
+    # allows them to catchup quickly by downloading blocks in parallel
+    # and verifying their commits
+    fast_sync = true
+
+    # Database backend: goleveldb | cleveldb | boltdb | rocksdb
+    # * goleveldb (github.com/syndtr/goleveldb - most popular implementation)
+    #   - pure go
+    #   - stable
+    # * cleveldb (uses levigo wrapper)
+    #   - fast
+    #   - requires gcc
+    #   - use cleveldb build tag (go build -tags cleveldb)
+    # * boltdb (uses etcd's fork of bolt - github.com/etcd-io/bbolt)
+    #   - EXPERIMENTAL
+    #   - may be faster is some use-cases (random reads - indexer)
+    #   - use boltdb build tag (go build -tags boltdb)
+    # * rocksdb (uses github.com/tecbot/gorocksdb)
+    #   - EXPERIMENTAL
+    #   - requires gcc
+    #   - use rocksdb build tag (go build -tags rocksdb)
+    db_backend = "goleveldb"
+
+    # Database directory
+    db_dir = "data"
+
+    # Output level for logging, including package level options
+    log_level = "main:info,state:info,*:error"
+
+    # Output format: 'plain' (colored text) or 'json'
+    log_format = "plain"
+
+    ##### additional base config options #####
+
+    # Path to the JSON file containing the initial validator set and other meta data
+    genesis_file = "config/genesis.json"
+
+    # Path to the JSON file containing the private key to use as a validator in the consensus protocol
+    priv_validator_key_file = "config/priv_validator_key.json"
+
+    # Path to the JSON file containing the last sign state of a validator
+    priv_validator_state_file = "data/priv_validator_state.json"
+
+    # TCP or UNIX socket address for Tendermint to listen on for
+    # connections from an external PrivValidator process
+    priv_validator_laddr = ""
+
+    # Path to the JSON file containing the private key to use for node authentication in the p2p protocol
+    node_key_file = "config/node_key.json"
+
+    # Mechanism to connect to the ABCI application: socket | grpc
+    abci = "socket"
+
+    # TCP or UNIX socket address for the profiling server to listen on
+    prof_laddr = "localhost:6060"
+
+    # If true, query the ABCI app on connecting to a new peer
+    # so the app can decide if we should keep the connection or not
+    filter_peers = false
+
+    ##### advanced configuration options #####
+
+    ##### rpc server configuration options #####
+    [rpc]
+
+    # TCP or UNIX socket address for the RPC server to listen on
+    laddr = "tcp://0.0.0.0:26657"
+
+    # A list of origins a cross-domain request can be executed from
+    # Default value '[]' disables cors support
+    # Use '["*"]' to allow any origin
+    cors_allowed_origins = []
+
+    # A list of methods the client is allowed to use with cross-domain requests
+    cors_allowed_methods = ["HEAD", "GET", "POST", ]
+
+    # A list of non simple headers the client is allowed to use with cross-domain requests
+    cors_allowed_headers = ["Origin", "Accept", "Content-Type", "X-Requested-With", "X-Server-Time", ]
+
+    # TCP or UNIX socket address for the gRPC server to listen on
+    # NOTE: This server only supports /broadcast_tx_commit
+    grpc_laddr = ""
+
+    # Maximum number of simultaneous connections.
+    # Does not include RPC (HTTP&WebSocket) connections. See max_open_connections
+    # If you want to accept a larger number than the default, make sure
+    # you increase your OS limits.
+    # 0 - unlimited.
+    # Should be < {ulimit -Sn} - {MaxNumInboundPeers} - {MaxNumOutboundPeers} - {N of wal, db and other open files}
+    # 1024 - 40 - 10 - 50 = 924 = ~900
+    grpc_max_open_connections = 900
+
+    # Activate unsafe RPC commands like /dial_seeds and /unsafe_flush_mempool
+    unsafe = false
+
+    # Maximum number of simultaneous connections (including WebSocket).
+    # Does not include gRPC connections. See grpc_max_open_connections
+    # If you want to accept a larger number than the default, make sure
+    # you increase your OS limits.
+    # 0 - unlimited.
+    # Should be < {ulimit -Sn} - {MaxNumInboundPeers} - {MaxNumOutboundPeers} - {N of wal, db and other open files}
+    # 1024 - 40 - 10 - 50 = 924 = ~900
+    max_open_connections = 900
+
+    # Maximum number of unique clientIDs that can /subscribe
+    # If you're using /broadcast_tx_commit, set to the estimated maximum number
+    # of broadcast_tx_commit calls per block.
+    max_subscription_clients = 100
+
+    # Maximum number of unique queries a given client can /subscribe to
+    # If you're using GRPC (or Local RPC client) and /broadcast_tx_commit, set to
+    # the estimated # maximum number of broadcast_tx_commit calls per block.
+    max_subscriptions_per_client = 5
+
+    # How long to wait for a tx to be committed during /broadcast_tx_commit.
+    # WARNING: Using a value larger than 10s will result in increasing the
+    # global HTTP write timeout, which applies to all connections and endpoints.
+    # See https://github.com/tendermint/tendermint/issues/3435
+    timeout_broadcast_tx_commit = "10s"
+
+    # Maximum size of request body, in bytes
+    max_body_bytes = 10000000
+
+    # Maximum size of request header, in bytes
+    max_header_bytes = 1048576
+
+    # The path to a file containing certificate that is used to create the HTTPS server.
+    # Migth be either absolute path or path related to tendermint's config directory.
+    # If the certificate is signed by a certificate authority,
+    # the certFile should be the concatenation of the server's certificate, any intermediates,
+    # and the CA's certificate.
+    # NOTE: both tls_cert_file and tls_key_file must be present for Tendermint to create HTTPS server.
+    # Otherwise, HTTP server is run.
+    tls_cert_file = ""
+
+    # The path to a file containing matching private key that is used to create the HTTPS server.
+    # Migth be either absolute path or path related to tendermint's config directory.
+    # NOTE: both tls_cert_file and tls_key_file must be present for Tendermint to create HTTPS server.
+    # Otherwise, HTTP server is run.
+    tls_key_file = ""
+
+    ##### peer to peer configuration options #####
+    [p2p]
+
+    # Address to listen for incoming connections
+    laddr = "tcp://0.0.0.0:26660"
+
+    # Address to advertise to peers for them to dial
+    # If empty, will use the same port as the laddr,
+    # and will introspect on the listener or use UPnP
+    # to figure out the address.
+    external_address = ""
+
+    # Comma separated list of seed nodes to connect to
+    seeds = ""
+
+    # Comma separated list of nodes to keep persistent connections to
+    persistent_peers = ""
+
+    # UPNP port forwarding
+    upnp = false
+
+    # Path to address book
+    addr_book_file = "config/addrbook.json"
+
+    # Set true for strict address routability rules
+    # Set false for private or local networks
+    addr_book_strict = true
+
+    # Maximum number of inbound peers
+    max_num_inbound_peers = 40
+
+    # Maximum number of outbound peers to connect to, excluding persistent peers
+    max_num_outbound_peers = 10
+
+    # List of node IDs, to which a connection will be (re)established ignoring any existing limits
+    unconditional_peer_ids = ""
+
+    # Maximum pause when redialing a persistent peer (if zero, exponential backoff is used)
+    persistent_peers_max_dial_period = "0s"
+
+    # Time to wait before flushing messages out on the connection
+    flush_throttle_timeout = "100ms"
+
+    # Maximum size of a message packet payload, in bytes
+    max_packet_msg_payload_size = 1024
+
+    # Rate at which packets can be sent, in bytes/second
+    send_rate = 5120000
+
+    # Rate at which packets can be received, in bytes/second
+    recv_rate = 5120000
+
+    # Set true to enable the peer-exchange reactor
+    pex = true
+
+    # Seed mode, in which node constantly crawls the network and looks for
+    # peers. If another node asks it for addresses, it responds and disconnects.
+    #
+    # Does not work if the peer-exchange reactor is disabled.
+    seed_mode = false
+
+    # Comma separated list of peer IDs to keep private (will not be gossiped to other peers)
+    private_peer_ids = ""
+
+    # Toggle to disable guard against peers connecting from the same ip.
+    allow_duplicate_ip = false
+
+    # Peer connection configuration.
+    handshake_timeout = "20s"
+    dial_timeout = "3s"
+
+    ##### mempool configuration options #####
+    [mempool]
+
+    recheck = true
+    broadcast = true
+    wal_dir = ""
+
+    # Maximum number of transactions in the mempool
+    size = 5000
+
+    # Limit the total size of all txs in the mempool.
+    # This only accounts for raw transactions (e.g. given 1MB transactions and
+    # max_txs_bytes=5MB, mempool will only accept 5 transactions).
+    max_txs_bytes = 1073741824
+
+    # Size of the cache (used to filter transactions we saw earlier) in transactions
+    cache_size = 10000
+
+    # Maximum size of a single transaction.
+    # NOTE: the max size of a tx transmitted over the network is {max_tx_bytes} + {amino overhead}.
+    max_tx_bytes = 1048576
+
+    ##### fast sync configuration options #####
+    [fastsync]
+
+    # Fast Sync version to use:
+    #   1) "v0" (default) - the legacy fast sync implementation
+    #   2) "v1" - refactor of v0 version for better testability
+    #   3) "v2" - refactor of v1 version for better usability
+    version = "v0"
+
+    ##### consensus configuration options #####
+    [consensus]
+
+    wal_file = "data/cs.wal/wal"
+
+    timeout_propose = "3s"
+    timeout_propose_delta = "500ms"
+    timeout_prevote = "1s"
+    timeout_prevote_delta = "500ms"
+    timeout_precommit = "1s"
+    timeout_precommit_delta = "500ms"
+    timeout_commit = "5s"
+
+    # Make progress as soon as we have all the precommits (as if TimeoutCommit = 0)
+    skip_timeout_commit = false
+
+    # EmptyBlocks mode and possible interval between empty blocks
+    create_empty_blocks = true
+    create_empty_blocks_interval = "0s"
+
+    # Reactor sleep duration parameters
+    peer_gossip_sleep_duration = "100ms"
+    peer_query_maj23_sleep_duration = "2s"
+
+    ##### transactions indexer configuration options #####
+    [tx_index]
+
+    # What indexer to use for transactions
+    #
+    # Options:
+    #   1) "null"
+    #   2) "kv" (default) - the simplest possible indexer, backed by key-value storage (defaults to levelDB; see DBBackend).
+    indexer = "kv"
+
+    # Comma-separated list of compositeKeys to index (by default the only key is "tx.hash")
+    # Remember that Event has the following structure: type.key
+    # type: [
+    #  key: value,
+    #  ...
+    # ]
+    #
+    # You can also index transactions by height by adding "tx.height" key here.
+    #
+    # It's recommended to index only a subset of keys due to possible memory
+    # bloat. This is, of course, depends on the indexer's DB and the volume of
+    # transactions.
+    index_keys = "tx.hash,tx.height,message.action,message.sender,submit_proposal.proposal_id,proposal_vote.proposal_id,proposal_deposit.proposal_id"
+
+    # When set to true, tells indexer to index all compositeKeys (predefined keys:
+    # "tx.hash", "tx.height" and all keys from DeliverTx responses).
+    #
+    # Note this may be not desirable (see the comment above). IndexKeys has a
+    # precedence over IndexAllKeys (i.e. when given both, IndexKeys will be
+    # indexed).
+    index_all_keys = false
+
+    ##### instrumentation configuration options #####
+    [instrumentation]
+
+    # When true, Prometheus metrics are served under /metrics on
+    # PrometheusListenAddr.
+    # Check out the documentation for the list of available metrics.
+    prometheus = false
+
+    # Address to listen for Prometheus collector(s) connections
+    prometheus_listen_addr = ":26660"
+
+    # Maximum number of simultaneous connections.
+    # If you want to accept a larger number than the default, make sure
+    # you increase your OS limits.
+    # 0 - unlimited.
+    max_open_connections = 3
+
+    # Instrumentation namespace
+    namespace = "tendermint"
+  genesis.json: |
+    {
+      "genesis_time": "2020-08-24T08:43:02.336889Z",
+      "chain_id": "localterra",
+      "consensus_params": {
+        "block": {
+          "max_bytes": "22020096",
+          "max_gas": "-1",
+          "time_iota_ms": "1000"
+        },
+        "evidence": {
+          "max_age_num_blocks": "100000",
+          "max_age_duration": "172800000000000"
+        },
+        "validator": {
+          "pub_key_types": [
+            "ed25519"
+          ]
+        }
+      },
+      "app_hash": "",
+      "app_state": {
+        "auth": {
+          "params": {
+            "max_memo_characters": "256",
+            "tx_sig_limit": "7",
+            "tx_size_cost_per_byte": "10",
+            "sig_verify_cost_ed25519": "590",
+            "sig_verify_cost_secp256k1": "1000"
+          },
+          "accounts": [
+            {
+              "type": "core/Account",
+              "value": {
+                "address": "terra1dcegyrekltswvyy0xy69ydgxn9x8x32zdtapd8",
+                "coins": [
+                  {
+                    "denom": "ukrw",
+                    "amount": "1000000000000000000"
+                  },
+                  {
+                    "denom": "uluna",
+                    "amount": "1000000000000000"
+                  },
+                  {
+                    "denom": "umnt",
+                    "amount": "1000000000000000000"
+                  },
+                  {
+                    "denom": "usdr",
+                    "amount": "1000000000000000"
+                  },
+                  {
+                    "denom": "uusd",
+                    "amount": "10000000000000000"
+                  }
+                ],
+                "public_key": null,
+                "account_number": "0",
+                "sequence": "0"
+              }
+            },
+            {
+              "type": "core/Account",
+              "value": {
+                "address": "terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v",
+                "coins": [
+                  {
+                    "denom": "ukrw",
+                    "amount": "1000000000000000000"
+                  },
+                  {
+                    "denom": "uluna",
+                    "amount": "1000000000000000"
+                  },
+                  {
+                    "denom": "umnt",
+                    "amount": "1000000000000000000"
+                  },
+                  {
+                    "denom": "usdr",
+                    "amount": "1000000000000000"
+                  },
+                  {
+                    "denom": "uusd",
+                    "amount": "10000000000000000"
+                  }
+                ],
+                "public_key": null,
+                "account_number": "0",
+                "sequence": "0"
+              }
+            },
+            {
+              "type": "core/Account",
+              "value": {
+                "address": "terra17lmam6zguazs5q5u6z5mmx76uj63gldnse2pdp",
+                "coins": [
+                  {
+                    "denom": "ukrw",
+                    "amount": "1000000000000000000"
+                  },
+                  {
+                    "denom": "uluna",
+                    "amount": "1000000000000000"
+                  },
+                  {
+                    "denom": "umnt",
+                    "amount": "1000000000000000000"
+                  },
+                  {
+                    "denom": "usdr",
+                    "amount": "1000000000000000"
+                  },
+                  {
+                    "denom": "uusd",
+                    "amount": "10000000000000000"
+                  }
+                ],
+                "public_key": null,
+                "account_number": "0",
+                "sequence": "0"
+              }
+            },
+            {
+              "type": "core/Account",
+              "value": {
+                "address": "terra1757tkx08n0cqrw7p86ny9lnxsqeth0wgp0em95",
+                "coins": [
+                  {
+                    "denom": "ukrw",
+                    "amount": "1000000000000000000"
+                  },
+                  {
+                    "denom": "uluna",
+                    "amount": "1000000000000000"
+                  },
+                  {
+                    "denom": "umnt",
+                    "amount": "1000000000000000000"
+                  },
+                  {
+                    "denom": "usdr",
+                    "amount": "1000000000000000"
+                  },
+                  {
+                    "denom": "uusd",
+                    "amount": "10000000000000000"
+                  }
+                ],
+                "public_key": null,
+                "account_number": "0",
+                "sequence": "0"
+              }
+            },
+            {
+              "type": "core/Account",
+              "value": {
+                "address": "terra199vw7724lzkwz6lf2hsx04lrxfkz09tg8dlp6r",
+                "coins": [
+                  {
+                    "denom": "ukrw",
+                    "amount": "1000000000000000000"
+                  },
+                  {
+                    "denom": "uluna",
+                    "amount": "1000000000000000"
+                  },
+                  {
+                    "denom": "umnt",
+                    "amount": "1000000000000000000"
+                  },
+                  {
+                    "denom": "usdr",
+                    "amount": "1000000000000000"
+                  },
+                  {
+                    "denom": "uusd",
+                    "amount": "10000000000000000"
+                  }
+                ],
+                "public_key": null,
+                "account_number": "0",
+                "sequence": "0"
+              }
+            },
+            {
+              "type": "core/Account",
+              "value": {
+                "address": "terra18wlvftxzj6zt0xugy2lr9nxzu402690ltaf4ss",
+                "coins": [
+                  {
+                    "denom": "ukrw",
+                    "amount": "1000000000000000000"
+                  },
+                  {
+                    "denom": "uluna",
+                    "amount": "1000000000000000"
+                  },
+                  {
+                    "denom": "umnt",
+                    "amount": "1000000000000000000"
+                  },
+                  {
+                    "denom": "usdr",
+                    "amount": "1000000000000000"
+                  },
+                  {
+                    "denom": "uusd",
+                    "amount": "10000000000000000"
+                  }
+                ],
+                "public_key": null,
+                "account_number": "0",
+                "sequence": "0"
+              }
+            },
+            {
+              "type": "core/Account",
+              "value": {
+                "address": "terra1e8ryd9ezefuucd4mje33zdms9m2s90m57878v9",
+                "coins": [
+                  {
+                    "denom": "ukrw",
+                    "amount": "1000000000000000000"
+                  },
+                  {
+                    "denom": "uluna",
+                    "amount": "1000000000000000"
+                  },
+                  {
+                    "denom": "umnt",
+                    "amount": "1000000000000000000"
+                  },
+                  {
+                    "denom": "usdr",
+                    "amount": "1000000000000000"
+                  },
+                  {
+                    "denom": "uusd",
+                    "amount": "10000000000000000"
+                  }
+                ],
+                "public_key": null,
+                "account_number": "0",
+                "sequence": "0"
+              }
+            },
+            {
+              "type": "core/Account",
+              "value": {
+                "address": "terra17tv2hvwpg0ukqgd2y5ct2w54fyan7z0zxrm2f9",
+                "coins": [
+                  {
+                    "denom": "ukrw",
+                    "amount": "1000000000000000000"
+                  },
+                  {
+                    "denom": "uluna",
+                    "amount": "1000000000000000"
+                  },
+                  {
+                    "denom": "umnt",
+                    "amount": "1000000000000000000"
+                  },
+                  {
+                    "denom": "usdr",
+                    "amount": "1000000000000000"
+                  },
+                  {
+                    "denom": "uusd",
+                    "amount": "10000000000000000"
+                  }
+                ],
+                "public_key": null,
+                "account_number": "0",
+                "sequence": "0"
+              }
+            },
+            {
+              "type": "core/Account",
+              "value": {
+                "address": "terra1lkccuqgj6sjwjn8gsa9xlklqv4pmrqg9dx2fxc",
+                "coins": [
+                  {
+                    "denom": "ukrw",
+                    "amount": "1000000000000000000"
+                  },
+                  {
+                    "denom": "uluna",
+                    "amount": "1000000000000000"
+                  },
+                  {
+                    "denom": "umnt",
+                    "amount": "1000000000000000000"
+                  },
+                  {
+                    "denom": "usdr",
+                    "amount": "1000000000000000"
+                  },
+                  {
+                    "denom": "uusd",
+                    "amount": "10000000000000000"
+                  }
+                ],
+                "public_key": null,
+                "account_number": "0",
+                "sequence": "0"
+              }
+            },
+            {
+              "type": "core/Account",
+              "value": {
+                "address": "terra1333veey879eeqcff8j3gfcgwt8cfrg9mq20v6f",
+                "coins": [
+                  {
+                    "denom": "ukrw",
+                    "amount": "1000000000000000000"
+                  },
+                  {
+                    "denom": "uluna",
+                    "amount": "1000000000000000"
+                  },
+                  {
+                    "denom": "umnt",
+                    "amount": "1000000000000000000"
+                  },
+                  {
+                    "denom": "usdr",
+                    "amount": "1000000000000000"
+                  },
+                  {
+                    "denom": "uusd",
+                    "amount": "10000000000000000"
+                  }
+                ],
+                "public_key": null,
+                "account_number": "0",
+                "sequence": "0"
+              }
+            },
+            {
+              "type": "core/Account",
+              "value": {
+                "address": "terra1fmcjjt6yc9wqup2r06urnrd928jhrde6gcld6n",
+                "coins": [
+                  {
+                    "denom": "ukrw",
+                    "amount": "1000000000000000000"
+                  },
+                  {
+                    "denom": "uluna",
+                    "amount": "1000000000000000"
+                  },
+                  {
+                    "denom": "umnt",
+                    "amount": "1000000000000000000"
+                  },
+                  {
+                    "denom": "usdr",
+                    "amount": "1000000000000000"
+                  },
+                  {
+                    "denom": "uusd",
+                    "amount": "10000000000000000"
+                  }
+                ],
+                "public_key": null,
+                "account_number": "0",
+                "sequence": "0"
+              }
+            }
+          ]
+        },
+        "params": null,
+        "distribution": {
+          "params": {
+            "community_tax": "0.020000000000000000",
+            "base_proposer_reward": "0.010000000000000000",
+            "bonus_proposer_reward": "0.040000000000000000",
+            "withdraw_addr_enabled": true
+          },
+          "fee_pool": {
+            "community_pool": []
+          },
+          "delegator_withdraw_infos": [],
+          "previous_proposer": "",
+          "outstanding_rewards": [],
+          "validator_accumulated_commissions": [],
+          "validator_historical_rewards": [],
+          "validator_current_rewards": [],
+          "delegator_starting_infos": [],
+          "validator_slash_events": []
+        },
+        "msgauth": {
+          "authorization_entries": []
+        },
+        "wasm": {
+          "params": {
+            "max_contract_size": "512000",
+            "max_contract_gas": "100000000",
+            "max_contract_msg_size": "1024"
+          },
+          "last_code_id": "0",
+          "last_instance_id": "0",
+          "codes": [],
+          "contracts": []
+        },
+        "mint": {
+          "minter": {
+            "inflation": "0.130000000000000000",
+            "annual_provisions": "0.000000000000000000"
+          },
+          "params": {
+            "mint_denom": "uluna",
+            "inflation_rate_change": "0.130000000000000000",
+            "inflation_max": "0.200000000000000000",
+            "inflation_min": "0.070000000000000000",
+            "goal_bonded": "0.670000000000000000",
+            "blocks_per_year": "6311520"
+          }
+        },
+        "upgrade": {},
+        "bank": {
+          "send_enabled": true
+        },
+        "gov": {
+          "starting_proposal_id": "1",
+          "deposits": null,
+          "votes": null,
+          "proposals": null,
+          "deposit_params": {
+            "min_deposit": [
+              {
+                "denom": "uluna",
+                "amount": "10000000"
+              }
+            ],
+            "max_deposit_period": "172800000000000"
+          },
+          "voting_params": {
+            "voting_period": "300000000000"
+          },
+          "tally_params": {
+            "quorum": "0.334000000000000000",
+            "threshold": "0.500000000000000000",
+            "veto": "0.334000000000000000"
+          }
+        },
+        "staking": {
+          "params": {
+            "unbonding_time": "1814400000000000",
+            "max_validators": 100,
+            "max_entries": 100,
+            "historical_entries": 0,
+            "bond_denom": "uluna"
+          },
+          "last_total_power": "0",
+          "last_validator_powers": null,
+          "validators": null,
+          "delegations": null,
+          "unbonding_delegations": null,
+          "redelegations": null,
+          "exported": false
+        },
+        "supply": {
+          "supply": []
+        },
+        "treasury": {
+          "params": {
+            "tax_policy": {
+              "rate_min": "0.000500000000000000",
+              "rate_max": "0.010000000000000000",
+              "cap": {
+                "denom": "usdr",
+                "amount": "1000000"
+              },
+              "change_max": "0.000250000000000000"
+            },
+            "reward_policy": {
+              "rate_min": "0.050000000000000000",
+              "rate_max": "0.500000000000000000",
+              "cap": {
+                "denom": "unused",
+                "amount": "0"
+              },
+              "change_max": "0.025000000000000000"
+            },
+            "seigniorage_burden_target": "0.670000000000000000",
+            "mining_increment": "1.070000000000000000",
+            "window_short": "4",
+            "window_long": "52",
+            "window_probation": "12"
+          },
+          "tax_rate": "0.001000000000000000",
+          "reward_weight": "0.050000000000000000",
+          "tax_caps": {},
+          "tax_proceed": [],
+          "epoch_initial_issuance": [],
+          "cumulated_height": "0",
+          "TRs": [],
+          "SRs": [],
+          "TSLs": []
+        },
+        "genutil": {
+          "gentxs": [
+            {
+              "type": "core/StdTx",
+              "value": {
+                "msg": [
+                  {
+                    "type": "staking/MsgCreateValidator",
+                    "value": {
+                      "description": {
+                        "moniker": "localterra",
+                        "identity": "",
+                        "website": "https://github.com/terra-project/LocalTerra",
+                        "security_contact": "",
+                        "details": ""
+                      },
+                      "commission": {
+                        "rate": "0.100000000000000000",
+                        "max_rate": "0.200000000000000000",
+                        "max_change_rate": "0.010000000000000000"
+                      },
+                      "min_self_delegation": "1",
+                      "delegator_address": "terra1dcegyrekltswvyy0xy69ydgxn9x8x32zdtapd8",
+                      "validator_address": "terravaloper1dcegyrekltswvyy0xy69ydgxn9x8x32zdy3ua5",
+                      "pubkey": "terravalconspub1zcjduepqn7ju9nnv6fl0l6a24ha3a52s8nm948athu5fy3e05vjpapw3rhksszjl92",
+                      "value": {
+                        "denom": "uluna",
+                        "amount": "1000000000"
+                      }
+                    }
+                  }
+                ],
+                "fee": {
+                  "amount": [],
+                  "gas": "200000"
+                },
+                "signatures": [
+                  {
+                    "pub_key": {
+                      "type": "tendermint/PubKeySecp256k1",
+                      "value": "An4JQUJX6KTbh6CvqmDLPhe6knWdqfKYjDvkCl2QE1oc"
+                    },
+                    "signature": "mj0RNoIqzPCfTjWwA0R7jcUBA5Yr820vgk5sFiN98Vx4ifKTU6qtVRCpXExR6B9pDHZ/1PXyGXMp8DEGZQ/Vxg=="
+                  }
+                ],
+                "memo": "e9059223d8b9a9539394a05f996f63ce7bb3a405@10.10.20.74:26656"
+              }
+            }
+          ]
+        },
+        "crisis": {
+          "constant_fee": {
+            "denom": "uluna",
+            "amount": "1000"
+          }
+        },
+        "slashing": {
+          "params": {
+            "signed_blocks_window": "100",
+            "min_signed_per_window": "0.500000000000000000",
+            "downtime_jail_duration": "600000000000",
+            "slash_fraction_double_sign": "0.050000000000000000",
+            "slash_fraction_downtime": "0.010000000000000000"
+          },
+          "signing_infos": {},
+          "missed_blocks": {}
+        },
+        "oracle": {
+          "params": {
+            "vote_period": "5",
+            "vote_threshold": "0.500000000000000000",
+            "reward_band": "0.020000000000000000",
+            "reward_distribution_window": "5256000",
+            "whitelist": [
+              {
+                "name": "ukrw",
+                "tobin_tax": "0.002500000000000000"
+              },
+              {
+                "name": "usdr",
+                "tobin_tax": "0.002500000000000000"
+              },
+              {
+                "name": "uusd",
+                "tobin_tax": "0.002500000000000000"
+              },
+              {
+                "name": "umnt",
+                "tobin_tax": "0.020000000000000000"
+              }
+            ],
+            "slash_fraction": "0.000100000000000000",
+            "slash_window": "100800",
+            "min_valid_per_window": "0.000000000000000000"
+          },
+          "feeder_delegations": {},
+          "exchange_rates": {},
+          "exchange_rate_prevotes": [],
+          "exchange_rate_votes": [],
+          "miss_counters": {},
+          "aggregate_exchange_rate_prevotes": [],
+          "aggregate_exchange_rate_votes": [],
+          "tobin_taxes": {}
+        },
+        "market": {
+          "terra_pool_delta": "0.000000000000000000",
+          "params": {
+            "base_pool": "625000000000",
+            "pool_recovery_period": "14400",
+            "min_spread": "0.005"
+          }
+        },
+        "evidence": {
+          "params": {
+            "max_evidence_age": "120000000000"
+          },
+          "evidence": []
+        }
+      }
+    }
+  node_key.json: '{"priv_key":{"type":"tendermint/PrivKeyEd25519","value":"4XSNmmjHbNiAnP0qrXwJ1otOzZuObJXXvg+ASKlxjVwdP4Tlh4TA6iSpQ/5EF9aFpDGUqcTnJY8u3/FfHiIl2A=="}}'
+  priv_validator_key.json: |-
+    {
+      "address": "411E0995BFCA0250FC442B8B330786F6ACA56D9D",
+      "pub_key": {
+        "type": "tendermint/PubKeyEd25519",
+        "value": "n6XCzmzSfv/rqq37HtFQPPZan6u/KJJHL6MkHoXRHe0="
+      },
+      "priv_key": {
+        "type": "tendermint/PrivKeyEd25519",
+        "value": "GYmv6DOzsd8kVS3JU1TkZr6MOr0CFCBzTCxNYquyDK2fpcLObNJ+/+uqrfse0VA89lqfq78okkcvoyQehdEd7Q=="
+      }
+    }
+  terrad.toml: |
+    # This is a TOML config file.
+    # For more information, see https://github.com/toml-lang/toml
+
+    ##### main base config options #####
+
+    # The minimum gas prices a validator is willing to accept for processing a
+    # transaction. A transaction's fees must meet the minimum of any denomination
+    # specified in this config (e.g. 0.25token1;0.0001token2).
+    minimum-gas-prices = ""
+  wasm.toml: "# This is a TOML config file.\n# For more information, see https://github.com/toml-lang/toml\n\n#####
+    main base config options #####\n\n# The maximum gas amount can be spent for contract
+    query.\n# The contract query will invoke contract execution vm,\n# so we need
+    to restrict the max usage to prevent DoS attack\ncontract-query-gas-limit = \"3000000\"\n\n#
+    Storing instances in the LRU will have no effect on the results \n# (still deterministic),
+    but should lower execution time at \n# the cost of increased memory usage. We
+    cannot pick universal \n# parameters for this, so we should allow node operators
+    to set it.\nlru-size = \"0\"\n"
+kind: ConfigMap
+metadata:
+  labels:
+    app: terra-lcd
+  name: terra-lcd-cm0
+---
+apiVersion: v1
+data:
+  addrbook.json: "{\n\t\"key\": \"42a010b29b4d74efd44c4694\",\n\t\"addrs\": []\n}"
+  app.toml: |
+    # This is a TOML config file.
+    # For more information, see https://github.com/toml-lang/toml
+
+    ##### main base config options #####
+
+    # The minimum gas prices a validator is willing to accept for processing a
+    # transaction. A transaction's fees must meet the minimum of any denomination
+    # specified in this config (e.g. 0.25token1;0.0001token2).
+    minimum-gas-prices = "0.00506uluna,0.0015uusd,0.00102usdr,1.7805ukrw,4.31626umnt"
+
+    # default: the last 100 states are kept in addition to every 500th state; pruning at 10 block intervals
+    # nothing: all historic states will be saved, nothing will be deleted (i.e. archiving node)
+    # everything: all saved states will be deleted, storing only the current state; pruning at 10 block intervals
+    # custom: allow pruning options to be manually specified through 'pruning-keep-recent', 'pruning-keep-every', and 'pruning-interval'
+    pruning = "default"
+
+    # These are applied if and only if the pruning strategy is custom.
+    pruning-keep-recent = "0"
+    pruning-keep-every = "0"
+    pruning-interval = "0"
+
+    # HaltHeight contains a non-zero block height at which a node will gracefully
+    # halt and shutdown that can be used to assist upgrades and testing.
+    #
+    # Note: Commitment of state will be attempted on the corresponding block.
+    halt-height = 0
+
+    # HaltTime contains a non-zero minimum block time (in Unix seconds) at which
+    # a node will gracefully halt and shutdown that can be used to assist upgrades
+    # and testing.
+    #
+    # Note: Commitment of state will be attempted on the corresponding block.
+    halt-time = 0
+
+    # InterBlockCache enables inter-block caching.
+    inter-block-cache = true
+  config.toml: |
+    # This is a TOML config file.
+    # For more information, see https://github.com/toml-lang/toml
+
+    # NOTE: Any path below can be absolute (e.g. "/var/myawesomeapp/data") or
+    # relative to the home directory (e.g. "data"). The home directory is
+    # "$HOME/.tendermint" by default, but could be changed via $TMHOME env variable
+    # or --home cmd flag.
+
+    ##### main base config options #####
+
+    # TCP or UNIX socket address of the ABCI application,
+    # or the name of an ABCI application compiled in with the Tendermint binary
+    proxy_app = "tcp://127.0.0.1:26656"
+
+    # A custom human readable name for this node
+    moniker = "localterra"
+
+    # If this node is many blocks behind the tip of the chain, FastSync
+    # allows them to catchup quickly by downloading blocks in parallel
+    # and verifying their commits
+    fast_sync = true
+
+    # Database backend: goleveldb | cleveldb | boltdb | rocksdb
+    # * goleveldb (github.com/syndtr/goleveldb - most popular implementation)
+    #   - pure go
+    #   - stable
+    # * cleveldb (uses levigo wrapper)
+    #   - fast
+    #   - requires gcc
+    #   - use cleveldb build tag (go build -tags cleveldb)
+    # * boltdb (uses etcd's fork of bolt - github.com/etcd-io/bbolt)
+    #   - EXPERIMENTAL
+    #   - may be faster is some use-cases (random reads - indexer)
+    #   - use boltdb build tag (go build -tags boltdb)
+    # * rocksdb (uses github.com/tecbot/gorocksdb)
+    #   - EXPERIMENTAL
+    #   - requires gcc
+    #   - use rocksdb build tag (go build -tags rocksdb)
+    db_backend = "goleveldb"
+
+    # Database directory
+    db_dir = "data"
+
+    # Output level for logging, including package level options
+    log_level = "main:info,state:info,*:error"
+
+    # Output format: 'plain' (colored text) or 'json'
+    log_format = "plain"
+
+    ##### additional base config options #####
+
+    # Path to the JSON file containing the initial validator set and other meta data
+    genesis_file = "config/genesis.json"
+
+    # Path to the JSON file containing the private key to use as a validator in the consensus protocol
+    priv_validator_key_file = "config/priv_validator_key.json"
+
+    # Path to the JSON file containing the last sign state of a validator
+    priv_validator_state_file = "data/priv_validator_state.json"
+
+    # TCP or UNIX socket address for Tendermint to listen on for
+    # connections from an external PrivValidator process
+    priv_validator_laddr = ""
+
+    # Path to the JSON file containing the private key to use for node authentication in the p2p protocol
+    node_key_file = "config/node_key.json"
+
+    # Mechanism to connect to the ABCI application: socket | grpc
+    abci = "socket"
+
+    # TCP or UNIX socket address for the profiling server to listen on
+    prof_laddr = "localhost:6060"
+
+    # If true, query the ABCI app on connecting to a new peer
+    # so the app can decide if we should keep the connection or not
+    filter_peers = false
+
+    ##### advanced configuration options #####
+
+    ##### rpc server configuration options #####
+    [rpc]
+
+    # TCP or UNIX socket address for the RPC server to listen on
+    laddr = "tcp://0.0.0.0:26657"
+
+    # A list of origins a cross-domain request can be executed from
+    # Default value '[]' disables cors support
+    # Use '["*"]' to allow any origin
+    cors_allowed_origins = []
+
+    # A list of methods the client is allowed to use with cross-domain requests
+    cors_allowed_methods = ["HEAD", "GET", "POST", ]
+
+    # A list of non simple headers the client is allowed to use with cross-domain requests
+    cors_allowed_headers = ["Origin", "Accept", "Content-Type", "X-Requested-With", "X-Server-Time", ]
+
+    # TCP or UNIX socket address for the gRPC server to listen on
+    # NOTE: This server only supports /broadcast_tx_commit
+    grpc_laddr = ""
+
+    # Maximum number of simultaneous connections.
+    # Does not include RPC (HTTP&WebSocket) connections. See max_open_connections
+    # If you want to accept a larger number than the default, make sure
+    # you increase your OS limits.
+    # 0 - unlimited.
+    # Should be < {ulimit -Sn} - {MaxNumInboundPeers} - {MaxNumOutboundPeers} - {N of wal, db and other open files}
+    # 1024 - 40 - 10 - 50 = 924 = ~900
+    grpc_max_open_connections = 900
+
+    # Activate unsafe RPC commands like /dial_seeds and /unsafe_flush_mempool
+    unsafe = false
+
+    # Maximum number of simultaneous connections (including WebSocket).
+    # Does not include gRPC connections. See grpc_max_open_connections
+    # If you want to accept a larger number than the default, make sure
+    # you increase your OS limits.
+    # 0 - unlimited.
+    # Should be < {ulimit -Sn} - {MaxNumInboundPeers} - {MaxNumOutboundPeers} - {N of wal, db and other open files}
+    # 1024 - 40 - 10 - 50 = 924 = ~900
+    max_open_connections = 900
+
+    # Maximum number of unique clientIDs that can /subscribe
+    # If you're using /broadcast_tx_commit, set to the estimated maximum number
+    # of broadcast_tx_commit calls per block.
+    max_subscription_clients = 100
+
+    # Maximum number of unique queries a given client can /subscribe to
+    # If you're using GRPC (or Local RPC client) and /broadcast_tx_commit, set to
+    # the estimated # maximum number of broadcast_tx_commit calls per block.
+    max_subscriptions_per_client = 5
+
+    # How long to wait for a tx to be committed during /broadcast_tx_commit.
+    # WARNING: Using a value larger than 10s will result in increasing the
+    # global HTTP write timeout, which applies to all connections and endpoints.
+    # See https://github.com/tendermint/tendermint/issues/3435
+    timeout_broadcast_tx_commit = "10s"
+
+    # Maximum size of request body, in bytes
+    max_body_bytes = 10000000
+
+    # Maximum size of request header, in bytes
+    max_header_bytes = 1048576
+
+    # The path to a file containing certificate that is used to create the HTTPS server.
+    # Migth be either absolute path or path related to tendermint's config directory.
+    # If the certificate is signed by a certificate authority,
+    # the certFile should be the concatenation of the server's certificate, any intermediates,
+    # and the CA's certificate.
+    # NOTE: both tls_cert_file and tls_key_file must be present for Tendermint to create HTTPS server.
+    # Otherwise, HTTP server is run.
+    tls_cert_file = ""
+
+    # The path to a file containing matching private key that is used to create the HTTPS server.
+    # Migth be either absolute path or path related to tendermint's config directory.
+    # NOTE: both tls_cert_file and tls_key_file must be present for Tendermint to create HTTPS server.
+    # Otherwise, HTTP server is run.
+    tls_key_file = ""
+
+    ##### peer to peer configuration options #####
+    [p2p]
+
+    # Address to listen for incoming connections
+    laddr = "tcp://0.0.0.0:26660"
+
+    # Address to advertise to peers for them to dial
+    # If empty, will use the same port as the laddr,
+    # and will introspect on the listener or use UPnP
+    # to figure out the address.
+    external_address = ""
+
+    # Comma separated list of seed nodes to connect to
+    seeds = ""
+
+    # Comma separated list of nodes to keep persistent connections to
+    persistent_peers = ""
+
+    # UPNP port forwarding
+    upnp = false
+
+    # Path to address book
+    addr_book_file = "config/addrbook.json"
+
+    # Set true for strict address routability rules
+    # Set false for private or local networks
+    addr_book_strict = true
+
+    # Maximum number of inbound peers
+    max_num_inbound_peers = 40
+
+    # Maximum number of outbound peers to connect to, excluding persistent peers
+    max_num_outbound_peers = 10
+
+    # List of node IDs, to which a connection will be (re)established ignoring any existing limits
+    unconditional_peer_ids = ""
+
+    # Maximum pause when redialing a persistent peer (if zero, exponential backoff is used)
+    persistent_peers_max_dial_period = "0s"
+
+    # Time to wait before flushing messages out on the connection
+    flush_throttle_timeout = "100ms"
+
+    # Maximum size of a message packet payload, in bytes
+    max_packet_msg_payload_size = 1024
+
+    # Rate at which packets can be sent, in bytes/second
+    send_rate = 5120000
+
+    # Rate at which packets can be received, in bytes/second
+    recv_rate = 5120000
+
+    # Set true to enable the peer-exchange reactor
+    pex = true
+
+    # Seed mode, in which node constantly crawls the network and looks for
+    # peers. If another node asks it for addresses, it responds and disconnects.
+    #
+    # Does not work if the peer-exchange reactor is disabled.
+    seed_mode = false
+
+    # Comma separated list of peer IDs to keep private (will not be gossiped to other peers)
+    private_peer_ids = ""
+
+    # Toggle to disable guard against peers connecting from the same ip.
+    allow_duplicate_ip = false
+
+    # Peer connection configuration.
+    handshake_timeout = "20s"
+    dial_timeout = "3s"
+
+    ##### mempool configuration options #####
+    [mempool]
+
+    recheck = true
+    broadcast = true
+    wal_dir = ""
+
+    # Maximum number of transactions in the mempool
+    size = 5000
+
+    # Limit the total size of all txs in the mempool.
+    # This only accounts for raw transactions (e.g. given 1MB transactions and
+    # max_txs_bytes=5MB, mempool will only accept 5 transactions).
+    max_txs_bytes = 1073741824
+
+    # Size of the cache (used to filter transactions we saw earlier) in transactions
+    cache_size = 10000
+
+    # Maximum size of a single transaction.
+    # NOTE: the max size of a tx transmitted over the network is {max_tx_bytes} + {amino overhead}.
+    max_tx_bytes = 1048576
+
+    ##### fast sync configuration options #####
+    [fastsync]
+
+    # Fast Sync version to use:
+    #   1) "v0" (default) - the legacy fast sync implementation
+    #   2) "v1" - refactor of v0 version for better testability
+    #   3) "v2" - refactor of v1 version for better usability
+    version = "v0"
+
+    ##### consensus configuration options #####
+    [consensus]
+
+    wal_file = "data/cs.wal/wal"
+
+    timeout_propose = "3s"
+    timeout_propose_delta = "500ms"
+    timeout_prevote = "1s"
+    timeout_prevote_delta = "500ms"
+    timeout_precommit = "1s"
+    timeout_precommit_delta = "500ms"
+    timeout_commit = "5s"
+
+    # Make progress as soon as we have all the precommits (as if TimeoutCommit = 0)
+    skip_timeout_commit = false
+
+    # EmptyBlocks mode and possible interval between empty blocks
+    create_empty_blocks = true
+    create_empty_blocks_interval = "0s"
+
+    # Reactor sleep duration parameters
+    peer_gossip_sleep_duration = "100ms"
+    peer_query_maj23_sleep_duration = "2s"
+
+    ##### transactions indexer configuration options #####
+    [tx_index]
+
+    # What indexer to use for transactions
+    #
+    # Options:
+    #   1) "null"
+    #   2) "kv" (default) - the simplest possible indexer, backed by key-value storage (defaults to levelDB; see DBBackend).
+    indexer = "kv"
+
+    # Comma-separated list of compositeKeys to index (by default the only key is "tx.hash")
+    # Remember that Event has the following structure: type.key
+    # type: [
+    #  key: value,
+    #  ...
+    # ]
+    #
+    # You can also index transactions by height by adding "tx.height" key here.
+    #
+    # It's recommended to index only a subset of keys due to possible memory
+    # bloat. This is, of course, depends on the indexer's DB and the volume of
+    # transactions.
+    index_keys = "tx.hash,tx.height,message.action,message.sender,submit_proposal.proposal_id,proposal_vote.proposal_id,proposal_deposit.proposal_id"
+
+    # When set to true, tells indexer to index all compositeKeys (predefined keys:
+    # "tx.hash", "tx.height" and all keys from DeliverTx responses).
+    #
+    # Note this may be not desirable (see the comment above). IndexKeys has a
+    # precedence over IndexAllKeys (i.e. when given both, IndexKeys will be
+    # indexed).
+    index_all_keys = false
+
+    ##### instrumentation configuration options #####
+    [instrumentation]
+
+    # When true, Prometheus metrics are served under /metrics on
+    # PrometheusListenAddr.
+    # Check out the documentation for the list of available metrics.
+    prometheus = false
+
+    # Address to listen for Prometheus collector(s) connections
+    prometheus_listen_addr = ":26660"
+
+    # Maximum number of simultaneous connections.
+    # If you want to accept a larger number than the default, make sure
+    # you increase your OS limits.
+    # 0 - unlimited.
+    max_open_connections = 3
+
+    # Instrumentation namespace
+    namespace = "tendermint"
+  genesis.json: |
+    {
+      "genesis_time": "2020-08-24T08:43:02.336889Z",
+      "chain_id": "localterra",
+      "consensus_params": {
+        "block": {
+          "max_bytes": "22020096",
+          "max_gas": "-1",
+          "time_iota_ms": "1000"
+        },
+        "evidence": {
+          "max_age_num_blocks": "100000",
+          "max_age_duration": "172800000000000"
+        },
+        "validator": {
+          "pub_key_types": [
+            "ed25519"
+          ]
+        }
+      },
+      "app_hash": "",
+      "app_state": {
+        "auth": {
+          "params": {
+            "max_memo_characters": "256",
+            "tx_sig_limit": "7",
+            "tx_size_cost_per_byte": "10",
+            "sig_verify_cost_ed25519": "590",
+            "sig_verify_cost_secp256k1": "1000"
+          },
+          "accounts": [
+            {
+              "type": "core/Account",
+              "value": {
+                "address": "terra1dcegyrekltswvyy0xy69ydgxn9x8x32zdtapd8",
+                "coins": [
+                  {
+                    "denom": "ukrw",
+                    "amount": "1000000000000000000"
+                  },
+                  {
+                    "denom": "uluna",
+                    "amount": "1000000000000000"
+                  },
+                  {
+                    "denom": "umnt",
+                    "amount": "1000000000000000000"
+                  },
+                  {
+                    "denom": "usdr",
+                    "amount": "1000000000000000"
+                  },
+                  {
+                    "denom": "uusd",
+                    "amount": "10000000000000000"
+                  }
+                ],
+                "public_key": null,
+                "account_number": "0",
+                "sequence": "0"
+              }
+            },
+            {
+              "type": "core/Account",
+              "value": {
+                "address": "terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v",
+                "coins": [
+                  {
+                    "denom": "ukrw",
+                    "amount": "1000000000000000000"
+                  },
+                  {
+                    "denom": "uluna",
+                    "amount": "1000000000000000"
+                  },
+                  {
+                    "denom": "umnt",
+                    "amount": "1000000000000000000"
+                  },
+                  {
+                    "denom": "usdr",
+                    "amount": "1000000000000000"
+                  },
+                  {
+                    "denom": "uusd",
+                    "amount": "10000000000000000"
+                  }
+                ],
+                "public_key": null,
+                "account_number": "0",
+                "sequence": "0"
+              }
+            },
+            {
+              "type": "core/Account",
+              "value": {
+                "address": "terra17lmam6zguazs5q5u6z5mmx76uj63gldnse2pdp",
+                "coins": [
+                  {
+                    "denom": "ukrw",
+                    "amount": "1000000000000000000"
+                  },
+                  {
+                    "denom": "uluna",
+                    "amount": "1000000000000000"
+                  },
+                  {
+                    "denom": "umnt",
+                    "amount": "1000000000000000000"
+                  },
+                  {
+                    "denom": "usdr",
+                    "amount": "1000000000000000"
+                  },
+                  {
+                    "denom": "uusd",
+                    "amount": "10000000000000000"
+                  }
+                ],
+                "public_key": null,
+                "account_number": "0",
+                "sequence": "0"
+              }
+            },
+            {
+              "type": "core/Account",
+              "value": {
+                "address": "terra1757tkx08n0cqrw7p86ny9lnxsqeth0wgp0em95",
+                "coins": [
+                  {
+                    "denom": "ukrw",
+                    "amount": "1000000000000000000"
+                  },
+                  {
+                    "denom": "uluna",
+                    "amount": "1000000000000000"
+                  },
+                  {
+                    "denom": "umnt",
+                    "amount": "1000000000000000000"
+                  },
+                  {
+                    "denom": "usdr",
+                    "amount": "1000000000000000"
+                  },
+                  {
+                    "denom": "uusd",
+                    "amount": "10000000000000000"
+                  }
+                ],
+                "public_key": null,
+                "account_number": "0",
+                "sequence": "0"
+              }
+            },
+            {
+              "type": "core/Account",
+              "value": {
+                "address": "terra199vw7724lzkwz6lf2hsx04lrxfkz09tg8dlp6r",
+                "coins": [
+                  {
+                    "denom": "ukrw",
+                    "amount": "1000000000000000000"
+                  },
+                  {
+                    "denom": "uluna",
+                    "amount": "1000000000000000"
+                  },
+                  {
+                    "denom": "umnt",
+                    "amount": "1000000000000000000"
+                  },
+                  {
+                    "denom": "usdr",
+                    "amount": "1000000000000000"
+                  },
+                  {
+                    "denom": "uusd",
+                    "amount": "10000000000000000"
+                  }
+                ],
+                "public_key": null,
+                "account_number": "0",
+                "sequence": "0"
+              }
+            },
+            {
+              "type": "core/Account",
+              "value": {
+                "address": "terra18wlvftxzj6zt0xugy2lr9nxzu402690ltaf4ss",
+                "coins": [
+                  {
+                    "denom": "ukrw",
+                    "amount": "1000000000000000000"
+                  },
+                  {
+                    "denom": "uluna",
+                    "amount": "1000000000000000"
+                  },
+                  {
+                    "denom": "umnt",
+                    "amount": "1000000000000000000"
+                  },
+                  {
+                    "denom": "usdr",
+                    "amount": "1000000000000000"
+                  },
+                  {
+                    "denom": "uusd",
+                    "amount": "10000000000000000"
+                  }
+                ],
+                "public_key": null,
+                "account_number": "0",
+                "sequence": "0"
+              }
+            },
+            {
+              "type": "core/Account",
+              "value": {
+                "address": "terra1e8ryd9ezefuucd4mje33zdms9m2s90m57878v9",
+                "coins": [
+                  {
+                    "denom": "ukrw",
+                    "amount": "1000000000000000000"
+                  },
+                  {
+                    "denom": "uluna",
+                    "amount": "1000000000000000"
+                  },
+                  {
+                    "denom": "umnt",
+                    "amount": "1000000000000000000"
+                  },
+                  {
+                    "denom": "usdr",
+                    "amount": "1000000000000000"
+                  },
+                  {
+                    "denom": "uusd",
+                    "amount": "10000000000000000"
+                  }
+                ],
+                "public_key": null,
+                "account_number": "0",
+                "sequence": "0"
+              }
+            },
+            {
+              "type": "core/Account",
+              "value": {
+                "address": "terra17tv2hvwpg0ukqgd2y5ct2w54fyan7z0zxrm2f9",
+                "coins": [
+                  {
+                    "denom": "ukrw",
+                    "amount": "1000000000000000000"
+                  },
+                  {
+                    "denom": "uluna",
+                    "amount": "1000000000000000"
+                  },
+                  {
+                    "denom": "umnt",
+                    "amount": "1000000000000000000"
+                  },
+                  {
+                    "denom": "usdr",
+                    "amount": "1000000000000000"
+                  },
+                  {
+                    "denom": "uusd",
+                    "amount": "10000000000000000"
+                  }
+                ],
+                "public_key": null,
+                "account_number": "0",
+                "sequence": "0"
+              }
+            },
+            {
+              "type": "core/Account",
+              "value": {
+                "address": "terra1lkccuqgj6sjwjn8gsa9xlklqv4pmrqg9dx2fxc",
+                "coins": [
+                  {
+                    "denom": "ukrw",
+                    "amount": "1000000000000000000"
+                  },
+                  {
+                    "denom": "uluna",
+                    "amount": "1000000000000000"
+                  },
+                  {
+                    "denom": "umnt",
+                    "amount": "1000000000000000000"
+                  },
+                  {
+                    "denom": "usdr",
+                    "amount": "1000000000000000"
+                  },
+                  {
+                    "denom": "uusd",
+                    "amount": "10000000000000000"
+                  }
+                ],
+                "public_key": null,
+                "account_number": "0",
+                "sequence": "0"
+              }
+            },
+            {
+              "type": "core/Account",
+              "value": {
+                "address": "terra1333veey879eeqcff8j3gfcgwt8cfrg9mq20v6f",
+                "coins": [
+                  {
+                    "denom": "ukrw",
+                    "amount": "1000000000000000000"
+                  },
+                  {
+                    "denom": "uluna",
+                    "amount": "1000000000000000"
+                  },
+                  {
+                    "denom": "umnt",
+                    "amount": "1000000000000000000"
+                  },
+                  {
+                    "denom": "usdr",
+                    "amount": "1000000000000000"
+                  },
+                  {
+                    "denom": "uusd",
+                    "amount": "10000000000000000"
+                  }
+                ],
+                "public_key": null,
+                "account_number": "0",
+                "sequence": "0"
+              }
+            },
+            {
+              "type": "core/Account",
+              "value": {
+                "address": "terra1fmcjjt6yc9wqup2r06urnrd928jhrde6gcld6n",
+                "coins": [
+                  {
+                    "denom": "ukrw",
+                    "amount": "1000000000000000000"
+                  },
+                  {
+                    "denom": "uluna",
+                    "amount": "1000000000000000"
+                  },
+                  {
+                    "denom": "umnt",
+                    "amount": "1000000000000000000"
+                  },
+                  {
+                    "denom": "usdr",
+                    "amount": "1000000000000000"
+                  },
+                  {
+                    "denom": "uusd",
+                    "amount": "10000000000000000"
+                  }
+                ],
+                "public_key": null,
+                "account_number": "0",
+                "sequence": "0"
+              }
+            }
+          ]
+        },
+        "params": null,
+        "distribution": {
+          "params": {
+            "community_tax": "0.020000000000000000",
+            "base_proposer_reward": "0.010000000000000000",
+            "bonus_proposer_reward": "0.040000000000000000",
+            "withdraw_addr_enabled": true
+          },
+          "fee_pool": {
+            "community_pool": []
+          },
+          "delegator_withdraw_infos": [],
+          "previous_proposer": "",
+          "outstanding_rewards": [],
+          "validator_accumulated_commissions": [],
+          "validator_historical_rewards": [],
+          "validator_current_rewards": [],
+          "delegator_starting_infos": [],
+          "validator_slash_events": []
+        },
+        "msgauth": {
+          "authorization_entries": []
+        },
+        "wasm": {
+          "params": {
+            "max_contract_size": "512000",
+            "max_contract_gas": "100000000",
+            "max_contract_msg_size": "1024"
+          },
+          "last_code_id": "0",
+          "last_instance_id": "0",
+          "codes": [],
+          "contracts": []
+        },
+        "mint": {
+          "minter": {
+            "inflation": "0.130000000000000000",
+            "annual_provisions": "0.000000000000000000"
+          },
+          "params": {
+            "mint_denom": "uluna",
+            "inflation_rate_change": "0.130000000000000000",
+            "inflation_max": "0.200000000000000000",
+            "inflation_min": "0.070000000000000000",
+            "goal_bonded": "0.670000000000000000",
+            "blocks_per_year": "6311520"
+          }
+        },
+        "upgrade": {},
+        "bank": {
+          "send_enabled": true
+        },
+        "gov": {
+          "starting_proposal_id": "1",
+          "deposits": null,
+          "votes": null,
+          "proposals": null,
+          "deposit_params": {
+            "min_deposit": [
+              {
+                "denom": "uluna",
+                "amount": "10000000"
+              }
+            ],
+            "max_deposit_period": "172800000000000"
+          },
+          "voting_params": {
+            "voting_period": "300000000000"
+          },
+          "tally_params": {
+            "quorum": "0.334000000000000000",
+            "threshold": "0.500000000000000000",
+            "veto": "0.334000000000000000"
+          }
+        },
+        "staking": {
+          "params": {
+            "unbonding_time": "1814400000000000",
+            "max_validators": 100,
+            "max_entries": 100,
+            "historical_entries": 0,
+            "bond_denom": "uluna"
+          },
+          "last_total_power": "0",
+          "last_validator_powers": null,
+          "validators": null,
+          "delegations": null,
+          "unbonding_delegations": null,
+          "redelegations": null,
+          "exported": false
+        },
+        "supply": {
+          "supply": []
+        },
+        "treasury": {
+          "params": {
+            "tax_policy": {
+              "rate_min": "0.000500000000000000",
+              "rate_max": "0.010000000000000000",
+              "cap": {
+                "denom": "usdr",
+                "amount": "1000000"
+              },
+              "change_max": "0.000250000000000000"
+            },
+            "reward_policy": {
+              "rate_min": "0.050000000000000000",
+              "rate_max": "0.500000000000000000",
+              "cap": {
+                "denom": "unused",
+                "amount": "0"
+              },
+              "change_max": "0.025000000000000000"
+            },
+            "seigniorage_burden_target": "0.670000000000000000",
+            "mining_increment": "1.070000000000000000",
+            "window_short": "4",
+            "window_long": "52",
+            "window_probation": "12"
+          },
+          "tax_rate": "0.001000000000000000",
+          "reward_weight": "0.050000000000000000",
+          "tax_caps": {},
+          "tax_proceed": [],
+          "epoch_initial_issuance": [],
+          "cumulated_height": "0",
+          "TRs": [],
+          "SRs": [],
+          "TSLs": []
+        },
+        "genutil": {
+          "gentxs": [
+            {
+              "type": "core/StdTx",
+              "value": {
+                "msg": [
+                  {
+                    "type": "staking/MsgCreateValidator",
+                    "value": {
+                      "description": {
+                        "moniker": "localterra",
+                        "identity": "",
+                        "website": "https://github.com/terra-project/LocalTerra",
+                        "security_contact": "",
+                        "details": ""
+                      },
+                      "commission": {
+                        "rate": "0.100000000000000000",
+                        "max_rate": "0.200000000000000000",
+                        "max_change_rate": "0.010000000000000000"
+                      },
+                      "min_self_delegation": "1",
+                      "delegator_address": "terra1dcegyrekltswvyy0xy69ydgxn9x8x32zdtapd8",
+                      "validator_address": "terravaloper1dcegyrekltswvyy0xy69ydgxn9x8x32zdy3ua5",
+                      "pubkey": "terravalconspub1zcjduepqn7ju9nnv6fl0l6a24ha3a52s8nm948athu5fy3e05vjpapw3rhksszjl92",
+                      "value": {
+                        "denom": "uluna",
+                        "amount": "1000000000"
+                      }
+                    }
+                  }
+                ],
+                "fee": {
+                  "amount": [],
+                  "gas": "200000"
+                },
+                "signatures": [
+                  {
+                    "pub_key": {
+                      "type": "tendermint/PubKeySecp256k1",
+                      "value": "An4JQUJX6KTbh6CvqmDLPhe6knWdqfKYjDvkCl2QE1oc"
+                    },
+                    "signature": "mj0RNoIqzPCfTjWwA0R7jcUBA5Yr820vgk5sFiN98Vx4ifKTU6qtVRCpXExR6B9pDHZ/1PXyGXMp8DEGZQ/Vxg=="
+                  }
+                ],
+                "memo": "e9059223d8b9a9539394a05f996f63ce7bb3a405@10.10.20.74:26656"
+              }
+            }
+          ]
+        },
+        "crisis": {
+          "constant_fee": {
+            "denom": "uluna",
+            "amount": "1000"
+          }
+        },
+        "slashing": {
+          "params": {
+            "signed_blocks_window": "100",
+            "min_signed_per_window": "0.500000000000000000",
+            "downtime_jail_duration": "600000000000",
+            "slash_fraction_double_sign": "0.050000000000000000",
+            "slash_fraction_downtime": "0.010000000000000000"
+          },
+          "signing_infos": {},
+          "missed_blocks": {}
+        },
+        "oracle": {
+          "params": {
+            "vote_period": "5",
+            "vote_threshold": "0.500000000000000000",
+            "reward_band": "0.020000000000000000",
+            "reward_distribution_window": "5256000",
+            "whitelist": [
+              {
+                "name": "ukrw",
+                "tobin_tax": "0.002500000000000000"
+              },
+              {
+                "name": "usdr",
+                "tobin_tax": "0.002500000000000000"
+              },
+              {
+                "name": "uusd",
+                "tobin_tax": "0.002500000000000000"
+              },
+              {
+                "name": "umnt",
+                "tobin_tax": "0.020000000000000000"
+              }
+            ],
+            "slash_fraction": "0.000100000000000000",
+            "slash_window": "100800",
+            "min_valid_per_window": "0.050000000000000000"
+          },
+          "feeder_delegations": {},
+          "exchange_rates": {},
+          "exchange_rate_prevotes": [],
+          "exchange_rate_votes": [],
+          "miss_counters": {},
+          "aggregate_exchange_rate_prevotes": [],
+          "aggregate_exchange_rate_votes": [],
+          "tobin_taxes": {}
+        },
+        "market": {
+          "terra_pool_delta": "0.000000000000000000",
+          "params": {
+            "base_pool": "625000000000",
+            "pool_recovery_period": "14400",
+            "min_spread": "0.005"
+          }
+        },
+        "evidence": {
+          "params": {
+            "max_evidence_age": "120000000000"
+          },
+          "evidence": []
+        }
+      }
+    }
+  node_key.json: '{"priv_key":{"type":"tendermint/PrivKeyEd25519","value":"4XSNmmjHbNiAnP0qrXwJ1otOzZuObJXXvg+ASKlxjVwdP4Tlh4TA6iSpQ/5EF9aFpDGUqcTnJY8u3/FfHiIl2A=="}}'
+  priv_validator_key.json: |-
+    {
+      "address": "411E0995BFCA0250FC442B8B330786F6ACA56D9D",
+      "pub_key": {
+        "type": "tendermint/PubKeyEd25519",
+        "value": "n6XCzmzSfv/rqq37HtFQPPZan6u/KJJHL6MkHoXRHe0="
+      },
+      "priv_key": {
+        "type": "tendermint/PrivKeyEd25519",
+        "value": "GYmv6DOzsd8kVS3JU1TkZr6MOr0CFCBzTCxNYquyDK2fpcLObNJ+/+uqrfse0VA89lqfq78okkcvoyQehdEd7Q=="
+      }
+    }
+  terrad.toml: |
+    # This is a TOML config file.
+    # For more information, see https://github.com/toml-lang/toml
+
+    ##### main base config options #####
+
+    # The minimum gas prices a validator is willing to accept for processing a
+    # transaction. A transaction's fees must meet the minimum of any denomination
+    # specified in this config (e.g. 0.25token1;0.0001token2).
+    minimum-gas-prices = ""
+  wasm.toml: "# This is a TOML config file.\n# For more information, see https://github.com/toml-lang/toml\n\n#####
+    main base config options #####\n\n# The maximum gas amount can be spent for contract
+    query.\n# The contract query will invoke contract execution vm,\n# so we need
+    to restrict the max usage to prevent DoS attack\ncontract-query-gas-limit = \"3000000\"\n\n#
+    Storing instances in the LRU will have no effect on the results \n# (still deterministic),
+    but should lower execution time at \n# the cost of increased memory usage. We
+    cannot pick universal \n# parameters for this, so we should allow node operators
+    to set it.\nlru-size = \"0\"\n"
+kind: ConfigMap
+metadata:
+  labels:
+    app: terra-terrad
+  name: terra-terrad-cm0
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: terra-lcd
+  name: terra-lcd
+spec:
+  ports:
+  - name: "1317"
+    port: 1317
+    targetPort: 1317
+  selector:
+    app: terra-lcd
+status:
+  loadBalancer: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: terra-terrad
+  name: terra-terrad
+spec:
+  ports:
+  - name: "26657"
+    port: 26657
+    targetPort: 26657
+  selector:
+    app: terra-terrad
+status:
+  loadBalancer: {}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app: terra-lcd
+  name: terra-lcd
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: terra-lcd
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: terra-lcd
+    spec:
+      containers:
+      - args:
+        - terracli
+        - rest-server
+        - --laddr=tcp://0.0.0.0:1317
+        - --node=tcp://terra-terrad:26657
+        - --trust-node=true
+        - --unsafe-cors
+        image: terramoney/localterra-core:0.4.5
+        name: terra-lcd
+        ports:
+        - containerPort: 1317
+        resources: {}
+        volumeMounts:
+        - mountPath: /root/.terrad/config
+          name: terra-lcd-cm0
+      restartPolicy: Always
+      volumes:
+      - configMap:
+          name: terra-lcd-cm0
+        name: terra-lcd-cm0
+status: {}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app: terra-terrad
+  name: terra-terrad
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: terra-terrad
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: terra-terrad
+    spec:
+      containers:
+      - args:
+        - terrad
+        - start
+        image: terramoney/localterra-core:0.4.5
+        name: terra-terrad
+        ports:
+        - containerPort: 26657
+        resources: {}
+        volumeMounts:
+        - mountPath: /root/.terrad/config
+          name: terra-terrad-cm0
+      restartPolicy: Always
+      volumes:
+      - configMap:
+          name: terra-terrad-cm0
+        name: terra-terrad-cm0
+status: {}
