@@ -153,12 +153,12 @@ func (p *Processor) checkDevModeGuardianSetUpdate(ctx context.Context) error {
 
 			timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
 			defer cancel()
-			tx, err := devnet.SubmitVAA(timeout, p.devnetEthRPC, v)
+			trx, err := devnet.SubmitVAA(timeout, p.devnetEthRPC, v)
 			if err != nil {
 				return fmt.Errorf("failed to submit devnet guardian set change: %v", err)
 			}
 
-			p.logger.Info("devnet guardian set change submitted to Ethereum", zap.Any("tx", tx), zap.Any("vaa", v))
+			p.logger.Info("devnet guardian set change submitted to Ethereum", zap.Any("trx", trx), zap.Any("vaa", v))
 
 			// Submit VAA to Solana as well. This is asynchronous and can fail, leading to inconsistent devnet state.
 			p.vaaC <- v

@@ -201,7 +201,7 @@ func (p *Processor) devnetVAASubmission(ctx context.Context, signed *vaa.VAA, ha
 
 // Submit VAA to Terra
 func (p *Processor) terraVAASubmission(ctx context.Context, signed *vaa.VAA, hash string) {
-	tx, err := terra.SubmitVAA(p.terraLCD, p.terraChaidID, p.terraContract, p.terraFeePayer, signed)
+	tx, err := terra.SubmitVAA(ctx, p.terraLCD, p.terraChaidID, p.terraContract, p.terraFeePayer, signed)
 	if err != nil {
 		if strings.Contains(err.Error(), "VaaAlreadyExecuted") {
 			p.logger.Info("lockup already submitted to Terra by another node, ignoring",

@@ -1108,6 +1108,8 @@ github.com/terra-project/terra.go v0.0.0-20201112132816-3eb55b358ed6 h1:P3aCNycS
 github.com/terra-project/terra.go v0.0.0-20201112132816-3eb55b358ed6/go.mod h1:w+V/aEgQEeMuxV9ZnA3J0FUGjg1qBNi3WOr8/yphh/U=
 github.com/terra-project/terra.go v1.0.0 h1:TR2b3x8yrljXhrs9a3KORRCQ6BGr+bCTp0ZwTrG/i3c=
 github.com/terra-project/terra.go v1.0.0/go.mod h1:w+V/aEgQEeMuxV9ZnA3J0FUGjg1qBNi3WOr8/yphh/U=
+github.com/terra-project/terra.go v1.0.1-0.20201113170042-b3bffdc6fd06 h1:TAhaL+7VYJe44qBEKqjlj3wD0CRjJN1JZfz8p+L6FGY=
+github.com/terra-project/terra.go v1.0.1-0.20201113170042-b3bffdc6fd06/go.mod h1:elzj1F6B9Sel3c4QFNeR3yR4E9tu+c1xBP+ZZYPlSq8=
 github.com/tidwall/gjson v1.6.3 h1:aHoiiem0dr7GHkW001T1SMTJ7X5PvyekH5WX0whWGnI=
 github.com/tidwall/gjson v1.6.3/go.mod h1:BaHyNc5bjzYkPqgLq7mdVzeiRtULKULXLgZFKsxEHI0=
 github.com/tidwall/match v1.0.1 h1:PnKP62LPNxHKTwvHHZZzdOAOCtsJTjo6dZLCwpKm5xc=

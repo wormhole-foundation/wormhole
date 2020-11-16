@@ -182,7 +182,7 @@ func (e *BridgeWatcher) Run(ctx context.Context) error {
 			guardianSetIndex := gjson.Get(json, "result.guardian_set_index")
 			addresses := gjson.Get(json, "result.addresses.#.bytes")
 
-			logger.Info("Current guardian set on Terra: ",
+			logger.Debug("Current guardian set on Terra: ",
 				zap.Any("guardianSetIndex", guardianSetIndex),
 				zap.Any("addresses", addresses))
 

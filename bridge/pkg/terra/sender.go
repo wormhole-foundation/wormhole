@@ -1,9 +1,11 @@
 package terra
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/certusone/wormhole/bridge/pkg/vaa"
 	"github.com/terra-project/terra.go/client"
@@ -33,7 +35,7 @@ type SubmitVAAParams struct {
 }
 
 // SubmitVAA prepares transaction with signed VAA and sends it to the Terra blockchain
-func SubmitVAA(urlLCD string, chainID string, contractAddress string, feePayer string, signed *vaa.VAA) (*client.TxResponse, error) {
+func SubmitVAA(ctx context.Context, urlLCD string, chainID string, contractAddress string, feePayer string, signed *vaa.VAA) (*client.TxResponse, error) {
 
 	// Serialize VAA
 	vaaBytes, err := signed.Marshal()
@@ -61,7 +63,7 @@ func SubmitVAA(urlLCD string, chainID string, contractAddress string, feePayer s
 		urlLCD,
 		chainID,
 		msg.NewDecCoinFromDec("uusd", msg.NewDecFromIntWithPrec(msg.NewInt(15), 2)), // 0.15uusd
-		msg.NewDecFromIntWithPrec(msg.NewInt(15), 1), tmKey,
+		msg.NewDecFromIntWithPrec(msg.NewInt(15), 1), tmKey, time.Second*15,
 	)
 
 	contract, err := msg.AccAddressFromBech32(contractAddress)
@@ -81,7 +83,7 @@ func SubmitVAA(urlLCD string, chainID string, contractAddress string, feePayer s
 
 	executeContract := msg.NewExecuteContract(addr, contract, contractCall, msg.NewCoins())
 
-	transaction, err := LCDClient.CreateAndSignTx(client.CreateTxOptions{
+	transaction, err := LCDClient.CreateAndSignTx(ctx, client.CreateTxOptions{
 		Msgs: []msg.Msg{
 			executeContract,
 		},
@@ -95,6 +97,5 @@ func SubmitVAA(urlLCD string, chainID string, contractAddress string, feePayer s
 	}
 
 	// Broadcast
-	txResponse, err := LCDClient.Broadcast(transaction)
-	return &txResponse, err
+	return LCDClient.Broadcast(ctx, transaction)
 }
