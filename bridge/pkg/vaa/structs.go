@@ -97,6 +97,8 @@ func (c ChainID) String() string {
 		return "solana"
 	case ChainIDEthereum:
 		return "ethereum"
+	case ChainIDTerra:
+		return "terra"
 	default:
 		return fmt.Sprintf("unknown chain ID: %d", c)
 	}

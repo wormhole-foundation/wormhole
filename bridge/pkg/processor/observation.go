@@ -150,9 +150,9 @@ func (p *Processor) handleObservation(ctx context.Context, m *gossipv1.LockupObs
 						zap.Any("vaa", signed),
 						zap.String("bytes", hex.EncodeToString(vaaBytes)))
 
+					// Check whether we run in devmode and submit the VAA ourselves, if so.
 					switch t.TargetChain {
 					case vaa.ChainIDEthereum:
-						// Check whether we run in devmode and submit the VAA ourselves, if so.
 						p.devnetVAASubmission(ctx, signed, hash)
 					case vaa.ChainIDTerra:
 						p.terraVAASubmission(ctx, signed, hash)
@@ -199,7 +199,7 @@ func (p *Processor) devnetVAASubmission(ctx context.Context, signed *vaa.VAA, ha
 	}
 }
 
-// Submit VAA to Terra
+// Submit VAA to Terra devnet.
 func (p *Processor) terraVAASubmission(ctx context.Context, signed *vaa.VAA, hash string) {
 	tx, err := terra.SubmitVAA(ctx, p.terraLCD, p.terraChaidID, p.terraContract, p.terraFeePayer, signed)
 	if err != nil {

@@ -78,7 +78,7 @@ func (e *BridgeWatcher) Run(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("event subscription failed: %w", err)
 	}
-	logger.Info("Subscribed to new transaction events")
+	logger.Info("subscribed to new transaction events")
 
 	go func() {
 		defer close(errC)
@@ -106,7 +106,7 @@ func (e *BridgeWatcher) Run(ctx context.Context) error {
 			if targetChain.Exists() && tokenChain.Exists() && tokenDecimals.Exists() && token.Exists() &&
 				sender.Exists() && recipient.Exists() && amount.Exists() && amount.Exists() && nonce.Exists() && txHash.Exists() {
 
-				logger.Info("Token lock detected on Terra: ",
+				logger.Info("token lock detected on Terra",
 					zap.String("txHash", txHash.String()),
 					zap.String("targetChain", targetChain.String()),
 					zap.String("tokenChain", tokenChain.String()),
@@ -119,22 +119,22 @@ func (e *BridgeWatcher) Run(ctx context.Context) error {
 
 				senderAddress, err := StringToAddress(sender.String())
 				if err != nil {
-					logger.Error("cannot decode hex ", zap.String("value", sender.String()))
+					logger.Error("cannot decode hex", zap.String("value", sender.String()))
 					continue
 				}
 				recipientAddress, err := StringToAddress(recipient.String())
 				if err != nil {
-					logger.Error("cannot decode hex ", zap.String("value", recipient.String()))
+					logger.Error("cannot decode hex", zap.String("value", recipient.String()))
 					continue
 				}
 				tokenAddress, err := StringToAddress(token.String())
 				if err != nil {
-					logger.Error("cannot decode hex ", zap.String("value", token.String()))
+					logger.Error("cannot decode hex", zap.String("value", token.String()))
 					continue
 				}
 				txHashValue, err := StringToHash(txHash.String())
 				if err != nil {
-					logger.Error("cannot decode hex ", zap.String("value", txHash.String()))
+					logger.Error("cannot decode hex", zap.String("value", txHash.String()))
 					continue
 				}
 				lock := &common.ChainLock{
@@ -161,6 +161,7 @@ func (e *BridgeWatcher) Run(ctx context.Context) error {
 				errC <- err
 				return
 			}
+
 			client := &http.Client{
 				Timeout: time.Second * 15,
 			}
@@ -178,17 +179,18 @@ func (e *BridgeWatcher) Run(ctx context.Context) error {
 				resp.Body.Close()
 				return
 			}
+
 			json = string(body)
 			guardianSetIndex := gjson.Get(json, "result.guardian_set_index")
 			addresses := gjson.Get(json, "result.addresses.#.bytes")
 
-			logger.Debug("Current guardian set on Terra: ",
+			logger.Debug("current guardian set on Terra",
 				zap.Any("guardianSetIndex", guardianSetIndex),
 				zap.Any("addresses", addresses))
 
 			resp.Body.Close()
 
-			// Do not report it since ETH guardians are the source of truth
+			// We do not send guardian changes to the processor - ETH guardians are the source of truth.
 		}
 	}()
 
