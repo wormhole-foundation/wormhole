@@ -2,7 +2,7 @@
 FROM node:lts-alpine
 
 # npm wants to clone random Git repositories - lovely.
-RUN apk add git
+RUN apk add git python
 
 # Run as user, otherwise, npx explodes.
 USER 1000
