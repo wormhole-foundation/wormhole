@@ -60,7 +60,7 @@ Repo overview:
 - [tools/](tools/) — Reproducible builds for local development tooling like buf and protoc-gen-go. 
   
 - [Tiltfile](Tiltfile),  [devnet/](devnet/) and various Dockerfiles — deployment code and fixtures for local development.
-  Deploys a determimistic devnet with an Ethereum devnet, Solana devnet, and a variably sized guardian set
+  Deploys a deterministic devnet with an Ethereum devnet, Solana devnet, and a variably sized guardian set
   that can be used to simulate full cross-chain transfers. The Dockerfiles are carefully designed for fast incremental
   builds with local caching, and require a recent Docker version with Buildkit support. See DEVELOP.md for usage.
   
