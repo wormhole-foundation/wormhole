@@ -52,11 +52,11 @@ func (e *BridgeWatcher) Run(ctx context.Context) error {
 	errC := make(chan error)
 	logger := supervisor.Logger(ctx)
 
-	logger.Info("connecting to", zap.String("url", e.urlLCD))
+	logger.Info("connecting to websocket", zap.String("url", e.urlWS))
 
-	c, _, err := websocket.DefaultDialer.DialContext(ctx, e.urlLCD, nil)
+	c, _, err := websocket.DefaultDialer.DialContext(ctx, e.urlWS, nil)
 	if err != nil {
-		return fmt.Errorf("socket dial failed: %w", err)
+		return fmt.Errorf("websocket dial failed: %w", err)
 	}
 	defer c.Close()
 
