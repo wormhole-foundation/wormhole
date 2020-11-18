@@ -1,5 +1,7 @@
 # Terra Wormhole Contracts
 
+The Wormhole Terra integration is developed and maintained by Everstake / @ysavchenko.
+
 ## Summary
 
 To facilitate token exchange via the Wormhole bridge blockchains must provide a set of smart contracts to process bridge commands on chain. Here are such contracts for the Terra blockchain.
