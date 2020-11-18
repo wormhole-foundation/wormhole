@@ -1,5 +1,5 @@
 use cosmwasm_std::{
-    log, to_binary, Api, Binary, CosmosMsg, Env, Extern, HandleResponse, HumanAddr, InitResponse,
+    to_binary, Api, Binary, CosmosMsg, Env, Extern, HandleResponse, HumanAddr, InitResponse,
     Querier, StdError, StdResult, Storage, Uint128, WasmMsg,
 };
 
@@ -10,7 +10,7 @@ use cw20_base::allowances::{
 use cw20_base::contract::{
     handle_mint, handle_send, handle_transfer, query_balance, query_token_info,
 };
-use cw20_base::state::{balances, token_info, MinterData, TokenInfo};
+use cw20_base::state::{token_info, MinterData, TokenInfo};
 
 use crate::msg::{HandleMsg, InitMsg, QueryMsg, WrappedAssetInfoResponse};
 use crate::state::{wrapped_asset_info, wrapped_asset_info_read, WrappedAssetInfo};
@@ -71,7 +71,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         HandleMsg::Transfer { recipient, amount } => {
             Ok(handle_transfer(deps, env, recipient, amount)?)
         }
-        HandleMsg::Burn { account, amount } => Ok(handle_burn_wrapped(deps, env, account, amount)?),
+        HandleMsg::Burn { account, amount } => Ok(handle_burn_from(deps, env, account, amount)?),
         HandleMsg::Send {
             contract,
             amount,
@@ -105,48 +105,6 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             msg,
         } => Ok(handle_send_from(deps, env, owner, contract, amount, msg)?),
     }
-}
-
-fn handle_burn_wrapped<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
-    env: Env,
-    account: HumanAddr,
-    amount: Uint128,
-) -> StdResult<HandleResponse> {
-    // Only bridge can burn
-    let wrapped_info = wrapped_asset_info_read(&deps.storage).load()?;
-    if wrapped_info.bridge != deps.api.canonical_address(&env.message.sender)? {
-        return Err(StdError::unauthorized());
-    }
-
-    // Copy of CW20-base handle_burn, but burning from account sent with parameters, not from sender
-    if amount == Uint128::zero() {
-        return Err(StdError::generic_err("Invalid zero amount"));
-    }
-
-    let burn_from_raw = deps.api.canonical_address(&account)?;
-
-    // lower balance
-    let mut accounts = balances(&mut deps.storage);
-    accounts.update(burn_from_raw.as_slice(), |balance: Option<Uint128>| {
-        balance.unwrap_or_default() - amount
-    })?;
-    // reduce total_supply
-    token_info(&mut deps.storage).update(|mut info| {
-        info.total_supply = (info.total_supply - amount)?;
-        Ok(info)
-    })?;
-
-    let res = HandleResponse {
-        messages: vec![],
-        log: vec![
-            log("action", "burn"),
-            log("from", account),
-            log("amount", amount),
-        ],
-        data: None,
-    };
-    Ok(res)
 }
 
 fn handle_mint_wrapped<S: Storage, A: Api, Q: Querier>(
@@ -293,58 +251,6 @@ mod tests {
         let other_address = HumanAddr::from("other");
         let env = mock_env(&other_address, &[]);
         let res = handle(&mut deps, env, msg);
-        assert_eq!(
-            format!("{}", res.unwrap_err()),
-            format!("{}", crate::error::ContractError::Unauthorized {})
-        );
-    }
-
-    #[test]
-    fn can_burn_by_minter() {
-        let mut deps = mock_dependencies(CANONICAL_LENGTH, &[]);
-        let minter = HumanAddr::from("minter");
-        let recipient = HumanAddr::from("recipient");
-        let amount = Uint128(222_222_222);
-        do_init_and_mint(&mut deps, &minter, &recipient, amount);
-
-        let amount_to_burn = Uint128(222_222_221);
-        let msg = HandleMsg::Burn {
-            account: recipient.clone(),
-            amount: amount_to_burn,
-        };
-
-        let env = mock_env(&minter, &[]);
-        let res = handle(&mut deps, env, msg.clone()).unwrap();
-        assert_eq!(0, res.messages.len());
-        assert_eq!(get_balance(&deps, recipient), Uint128(1));
-
-        assert_eq!(
-            query_token_info(&deps).unwrap(),
-            TokenInfoResponse {
-                name: "Wormhole Wrapped".to_string(),
-                symbol: "WWT".to_string(),
-                decimals: 10,
-                total_supply: Uint128(1),
-            }
-        );
-    }
-
-    #[test]
-    fn others_cannot_burn() {
-        let mut deps = mock_dependencies(CANONICAL_LENGTH, &[]);
-        let minter = HumanAddr::from("minter");
-        let recipient = HumanAddr::from("recipient");
-        let amount = Uint128(222_222_222);
-        do_init_and_mint(&mut deps, &minter, &recipient, amount);
-
-        let amount_to_burn = Uint128(222_222_221);
-        let msg = HandleMsg::Burn {
-            account: recipient.clone(),
-            amount: amount_to_burn,
-        };
-
-        let env = mock_env(&recipient, &[]);
-        let res = handle(&mut deps, env, msg.clone());
         assert_eq!(
             format!("{}", res.unwrap_err()),
             format!("{}", crate::error::ContractError::Unauthorized {})
