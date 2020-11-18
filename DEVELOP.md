@@ -95,8 +95,7 @@ Next, send some of them back to Ethereum:
 
 <img src="https://user-images.githubusercontent.com/859697/98734694-a1228400-23a2-11eb-8f39-13000631c839.png" width="66%" />
 
-MetaMask will ask you to confirm the transaction. You have to run send-eth-lockups.sh script in the background to
-force Ganache to mint new blocks such that the bridge can reach its confirmation threshold (https://github.com/certusone/wormhole/issues/75).
+MetaMask will ask you to confirm the transaction.
 
 After a few seconds, the SPL token balance shown below will increase as the VAA gets accepted on Solana.
 

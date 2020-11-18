@@ -49,3 +49,9 @@ spec:
             - /bin/sh
             - -c
             - "npm run migrate && sleep infinity"
+        - name: mine
+          image: eth-node
+          command:
+            - /bin/sh
+            - -c
+            - "npx truffle exec mine.js"
