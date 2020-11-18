@@ -27,16 +27,6 @@ pub enum HandleMsg {
         target_chain: u8,
         nonce: u32,
     },
-    TokensLocked {
-        target_chain: u8,
-        token_chain: u8,
-        token_decimals: u8,
-        token: Vec<u8>,
-        sender: Vec<u8>,
-        recipient: Vec<u8>,
-        amount: Uint128,
-        nonce: u32,
-    },
     SetActive {
         is_active: bool,
     },

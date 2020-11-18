@@ -77,25 +77,6 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             target_chain,
             nonce,
         } => handle_lock_assets(deps, env, asset, amount, recipient, target_chain, nonce),
-        HandleMsg::TokensLocked {
-            target_chain,
-            token_chain,
-            token_decimals,
-            token,
-            sender,
-            recipient,
-            amount,
-            nonce,
-        } => handle_tokens_locked(
-            target_chain,
-            token_chain,
-            token_decimals,
-            token,
-            sender,
-            recipient,
-            amount,
-            nonce,
-        ),
         HandleMsg::SetActive { is_active } => handle_set_active(deps, env, is_active),
     }
 }
@@ -486,47 +467,14 @@ fn handle_lock_assets<S: Storage, A: Api, Q: Querier>(
         }
     };
 
-    messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: env.contract.address,
-        msg: to_binary(&HandleMsg::TokensLocked {
-            target_chain,
-            token_chain: asset_chain,
-            token_decimals: decimals,
-            token: asset_address,
-            sender: extend_address_to_32(&deps.api.canonical_address(&env.message.sender)?),
-            recipient,
-            amount,
-            nonce,
-        })?,
-        send: vec![],
-    }));
-
     Ok(HandleResponse {
         messages,
-        log: vec![],
-        data: None,
-    })
-}
-
-fn handle_tokens_locked(
-    target_chain: u8,
-    token_chain: u8,
-    token_decimals: u8,
-    token: Vec<u8>,
-    sender: Vec<u8>,
-    recipient: Vec<u8>,
-    amount: Uint128,
-    nonce: u32,
-) -> StdResult<HandleResponse> {
-    // Dummy handler to record token lock as transaction
-    Ok(HandleResponse {
-        messages: vec![],
         log: vec![
             log("locked.target_chain", target_chain),
-            log("locked.token_chain", token_chain),
-            log("locked.token_decimals", token_decimals),
-            log("locked.token", hex::encode(token)),
-            log("locked.sender", hex::encode(sender)),
+            log("locked.token_chain", asset_chain),
+            log("locked.token_decimals", decimals),
+            log("locked.token", hex::encode(asset_address)),
+            log("locked.sender", hex::encode(extend_address_to_32(&deps.api.canonical_address(&env.message.sender)?))),
             log("locked.recipient", hex::encode(recipient)),
             log("locked.amount", amount),
             log("locked.nonce", nonce),
@@ -612,8 +560,7 @@ mod tests {
 
     const ADDR_1: &str = "beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe";
     const ADDR_2: &str = "8575Df9b3c97B4E267Deb92d93137844A97A0132";
-
-    const VAA_VALID_TRANSFER: &str = "010000000001005468beb21caff68710b2af2d60a986245bf85099509b6babe990a6c32456b44b3e2e9493e3056b7d5892957e14beab24be02dab77ed6c8915000e4a1267f78f400000007d01000000038018002010400000000000000000000000000000000000000000000000000000000000101010101010101010101010101010101010101000000000000000000000000010000000000000000000000000347ef34687bdc9f189e87a9200658d9c40e9988080000000000000000000000000000000000000000000000000de0b6b3a7640000";
+    const VAA_VALID_TRANSFER: &str = "010000000001001063f503dd308134e0f158537f54c5799719f4fa2687dd276c72ef60ae0c82c47d4fb560545afaabdf60c15918e221763fd1892c75f2098c0ffd5db4af254a4501000007d01000000038010302010400000000000000000000000000000000000000000000000000000000000101010101010101010101010101010101010101000000000000000000000000010000000000000000000000000347ef34687bdc9f189e87a9200658d9c40e9988080000000000000000000000000000000000000000000000000de0b6b3a7640000";
     const VAA_VALID_GUARDIAN_SET_CHANGE: &str = "01000000000100d90d6f9cbc0458599cbe4d267bc9221b54955b94cb5cb338aeb845bdc9dd275f558871ea479de9cc0b44cfb2a07344431a3adbd2f98aa86f4e12ff4aba061b7f00000007d00100000001018575df9b3c97b4e267deb92d93137844a97a0132";
 
     const CANONICAL_LENGTH: usize = 20;
