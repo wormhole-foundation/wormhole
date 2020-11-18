@@ -1,39 +1,13 @@
 package guardiand
 
 import (
-	"crypto/ecdsa"
 	"fmt"
 	"io/ioutil"
 	"os"
 
-	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	p2pcrypto "github.com/libp2p/go-libp2p-core/crypto"
 	"go.uber.org/zap"
-
-	"github.com/certusone/wormhole/bridge/pkg/devnet"
 )
-
-func loadGuardianKey(logger *zap.Logger) *ecdsa.PrivateKey {
-	var gk *ecdsa.PrivateKey
-
-	if *unsafeDevMode {
-		// Figure out our devnet index
-		idx, err := devnet.GetDevnetIndex()
-		if err != nil {
-			logger.Fatal("Failed to parse hostname - are we running in devnet?")
-		}
-
-		// Generate guardian key
-		gk = devnet.DeterministicEcdsaKeyByIndex(ethcrypto.S256(), uint64(idx))
-	} else {
-		panic("not implemented") // TODO
-	}
-
-	logger.Info("Loaded guardian key", zap.String(
-		"address", ethcrypto.PubkeyToAddress(gk.PublicKey).String()))
-
-	return gk
-}
 
 func getOrCreateNodeKey(logger *zap.Logger, path string) (p2pcrypto.PrivKey, error) {
 	b, err := ioutil.ReadFile(path)

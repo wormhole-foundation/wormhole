@@ -9,6 +9,7 @@ import (
 	"syscall"
 
 	eth_common "github.com/ethereum/go-ethereum/common"
+	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/spf13/cobra"
@@ -37,6 +38,8 @@ var (
 
 	nodeKeyPath *string
 
+	bridgeKeyPath *string
+
 	ethRPC           *string
 	ethContract      *string
 	ethConfirmations *uint64
@@ -63,6 +66,8 @@ func init() {
 	p2pBootstrap = BridgeCmd.Flags().String("bootstrap", "", "P2P bootstrap peers (comma-separated)")
 
 	nodeKeyPath = BridgeCmd.Flags().String("nodeKey", "", "Path to node key (will be generated if it doesn't exist)")
+
+	bridgeKeyPath = BridgeCmd.Flags().String("bridgeKey", "", "Path to guardian key (required)")
 
 	ethRPC = BridgeCmd.Flags().String("ethRPC", "", "Ethereum RPC URL")
 	ethContract = BridgeCmd.Flags().String("ethContract", "", "Ethereum bridge contract address")
@@ -184,6 +189,9 @@ func runBridge(cmd *cobra.Command, args []string) {
 	if *nodeKeyPath == "" && !*unsafeDevMode { // In devnet mode, keys are deterministically generated.
 		logger.Fatal("Please specify -nodeKey")
 	}
+	if *bridgeKeyPath == "" {
+		logger.Fatal("Please specify -bridgeKey")
+	}
 	if *agentRPC == "" {
 		logger.Fatal("Please specify -agentRPC")
 	}
@@ -216,8 +224,27 @@ func runBridge(cmd *cobra.Command, args []string) {
 
 	ethContractAddr := eth_common.HexToAddress(*ethContract)
 
+	// In devnet mode, we generate a deterministic guardian key and write it to disk.
+	if *unsafeDevMode {
+		gk, err := generateDevnetGuardianKey()
+		if err != nil {
+			logger.Fatal("failed to generate devnet guardian key", zap.Error(err))
+		}
+
+		err = writeGuardianKey(gk, "auto-generated deterministic devnet key", *bridgeKeyPath)
+		if err != nil {
+			logger.Fatal("failed to write devnet guardian key", zap.Error(err))
+		}
+	}
+
 	// Guardian key
-	gk := loadGuardianKey(logger)
+	gk, err := loadGuardianKey(*bridgeKeyPath)
+	if err != nil {
+		logger.Fatal("failed to load guardian key", zap.Error(err))
+	}
+
+	logger.Info("Loaded guardian key", zap.String(
+		"address", ethcrypto.PubkeyToAddress(gk.PublicKey).String()))
 
 	// Node's main lifecycle context.
 	rootCtx, rootCtxCancel = context.WithCancel(context.Background())
