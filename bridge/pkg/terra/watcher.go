@@ -102,9 +102,10 @@ func (e *BridgeWatcher) Run(ctx context.Context) error {
 			amount := gjson.Get(json, "result.events.from_contract\\.locked\\.amount.0")
 			nonce := gjson.Get(json, "result.events.from_contract\\.locked\\.nonce.0")
 			txHash := gjson.Get(json, "result.events.tx\\.hash.0")
+			blockTime := gjson.Get(json, "result.events.from_contract\\.locked\\.block_time.0")
 
-			if targetChain.Exists() && tokenChain.Exists() && tokenDecimals.Exists() && token.Exists() &&
-				sender.Exists() && recipient.Exists() && amount.Exists() && amount.Exists() && nonce.Exists() && txHash.Exists() {
+			if targetChain.Exists() && tokenChain.Exists() && tokenDecimals.Exists() && token.Exists() && sender.Exists() &&
+				recipient.Exists() && amount.Exists() && amount.Exists() && nonce.Exists() && txHash.Exists() && blockTime.Exists() {
 
 				logger.Info("token lock detected on Terra",
 					zap.String("txHash", txHash.String()),
@@ -115,7 +116,9 @@ func (e *BridgeWatcher) Run(ctx context.Context) error {
 					zap.String("sender", sender.String()),
 					zap.String("recipient", recipient.String()),
 					zap.String("amount", amount.String()),
-					zap.String("nonce", nonce.String()))
+					zap.String("nonce", nonce.String()),
+					zap.String("blockTime", blockTime.String()),
+				)
 
 				senderAddress, err := StringToAddress(sender.String())
 				if err != nil {
@@ -139,7 +142,7 @@ func (e *BridgeWatcher) Run(ctx context.Context) error {
 				}
 				lock := &common.ChainLock{
 					TxHash:        txHashValue,
-					Timestamp:     time.Now(), // No timestamp available, consider adding it into transaction logs or request additionally from the blockchain
+					Timestamp:     time.Unix(blockTime.Int(), 0),
 					Nonce:         uint32(nonce.Uint()),
 					SourceAddress: senderAddress,
 					TargetAddress: recipientAddress,

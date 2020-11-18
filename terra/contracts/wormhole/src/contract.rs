@@ -478,6 +478,7 @@ fn handle_lock_assets<S: Storage, A: Api, Q: Querier>(
             log("locked.recipient", hex::encode(recipient)),
             log("locked.amount", amount),
             log("locked.nonce", nonce),
+            log("locked.block_time", env.block.time),
         ],
         data: None,
     })
