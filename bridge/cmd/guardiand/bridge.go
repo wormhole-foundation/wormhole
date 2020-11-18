@@ -122,6 +122,17 @@ func rootLoggerName() string {
 	}
 }
 
+// lockMemory locks current and future pages in memory to protect secret keys from being swapped out to disk.
+// It's possible (and strongly recommended) to deploy Wormhole such that keys are only ever
+// stored in memory and never touch the disk. This is a privileged operation and requires CAP_IPC_LOCK.
+func lockMemory() {
+	err := unix.Mlockall(syscall.MCL_CURRENT | syscall.MCL_FUTURE)
+	if err != nil {
+		fmt.Printf("Failed to lock memory: %v (CAP_IPC_LOCK missing?)\n", err)
+		os.Exit(1)
+	}
+}
+
 // BridgeCmd represents the bridge command
 var BridgeCmd = &cobra.Command{
 	Use:   "bridge",
@@ -134,14 +145,7 @@ func runBridge(cmd *cobra.Command, args []string) {
 		fmt.Print(devwarning)
 	}
 
-	// Lock current and future pages in memory to protect secret keys from being swapped out to disk.
-	// It's possible (and strongly recommended) to deploy Wormhole such that keys are only ever
-	// stored in memory and never touch the disk. This is a privileged operation and requires CAP_IPC_LOCK.
-	err := unix.Mlockall(syscall.MCL_CURRENT | syscall.MCL_FUTURE)
-	if err != nil {
-		fmt.Printf("Failed to lock memory: %v (CAP_IPC_LOCK missing?)\n", err)
-		os.Exit(1)
-	}
+	lockMemory()
 
 	// Set up logging. The go-log zap wrapper that libp2p uses is compatible with our
 	// usage of zap in supervisor, which is nice.
