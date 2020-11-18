@@ -4,16 +4,16 @@
   "description": "",
   "main": "networks.js",
   "devDependencies": {
-    "@openzeppelin/cli": "^2.8.2",
-    "@openzeppelin/contracts": "^3.1.0",
-    "@openzeppelin/test-environment": "^0.1.4",
-    "@openzeppelin/test-helpers": "^0.5.6",
     "@chainsafe/truffle-plugin-abigen": "0.0.1",
+    "@openzeppelin/cli": "^2.8.2",
+    "@openzeppelin/contracts": "^3.2.0",
+    "@openzeppelin/test-environment": "^0.1.6",
+    "@openzeppelin/test-helpers": "^0.5.9",
+    "@truffle/hdwallet-provider": "^1.2.0",
     "chai": "^4.2.0",
-    "mocha": "^8.1.1",
-    "truffle-assertions": "^0.9.2",
-    "truffle": "^5.1.37",
-    "@truffle/hdwallet-provider": "^1.0.42"
+    "mocha": "^8.2.1",
+    "truffle": "^5.1.53",
+    "truffle-assertions": "^0.9.2"
   },
   "scripts": {
     "build": "truffle compile",
@@ -23,7 +23,6 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "ganache-cli": "^6.10.1",
-    "truffle": "^5.1.37"
+    "ganache-cli": "^6.12.1"
   }
 }
