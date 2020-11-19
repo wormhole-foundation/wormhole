@@ -627,7 +627,7 @@ impl Bridge {
         let bridge: &mut Bridge = Self::unpack(&mut bridge_data)?;
         let clock = Clock::from_account_info(clock_info)?;
         let mut guardian_data = guardian_set_info.data.try_borrow_mut().map_err(|_| ProgramError::AccountBorrowFailed)?;
-        let guardian_set = Bridge::unpack(&mut guardian_data)?;
+        let guardian_set: &mut GuardianSet = Bridge::unpack(&mut guardian_data)?;
 
         // Check that the guardian set is valid
         let expected_guardian_set =
