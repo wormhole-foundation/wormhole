@@ -78,7 +78,7 @@ fn do_init(
 #[test]
 fn init_works() {
     let guardians = vec![GuardianAddress::from(GuardianAddress {
-        bytes: hex::decode("beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe").expect("Decoding failed"),
+        bytes: hex::decode("beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe").expect("Decoding failed").into(),
     })];
     let _deps = do_init(111, &guardians);
 }

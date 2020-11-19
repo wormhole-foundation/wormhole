@@ -168,7 +168,7 @@ mod tests {
     fn do_init<S: Storage, A: Api, Q: Querier>(deps: &mut Extern<S, A, Q>, creator: &HumanAddr) {
         let init_msg = InitMsg {
             asset_chain: 1,
-            asset_address: vec![1; 32],
+            asset_address: vec![1; 32].into(),
             decimals: 10,
             mint: None,
             init_hook: None,
@@ -191,7 +191,7 @@ mod tests {
             query_wrapped_asset_info(&deps).unwrap(),
             WrappedAssetInfoResponse {
                 asset_chain: 1,
-                asset_address: vec![1; 32],
+                asset_address: vec![1; 32].into(),
                 bridge: creator.clone(),
             }
         );

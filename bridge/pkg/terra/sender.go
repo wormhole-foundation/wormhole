@@ -3,8 +3,6 @@ package terra
 import (
 	"context"
 	"encoding/json"
-	"fmt"
-	"strings"
 	"time"
 
 	"github.com/certusone/wormhole/bridge/pkg/vaa"
@@ -14,24 +12,12 @@ import (
 	"github.com/terra-project/terra.go/tx"
 )
 
-type JSONArraySlice []uint8
-
-func (u JSONArraySlice) MarshalJSON() ([]uint8, error) {
-	var result string
-	if u == nil {
-		result = "null"
-	} else {
-		result = strings.Join(strings.Fields(fmt.Sprintf("%d", u)), ",")
-	}
-	return []byte(result), nil
-}
-
 type SubmitVAAMsg struct {
 	Params SubmitVAAParams `json:"submit_v_a_a"`
 }
 
 type SubmitVAAParams struct {
-	VAA JSONArraySlice `json:"vaa"`
+	VAA []byte `json:"vaa"`
 }
 
 // SubmitVAA prepares transaction with signed VAA and sends it to the Terra blockchain

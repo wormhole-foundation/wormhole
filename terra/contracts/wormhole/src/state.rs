@@ -1,7 +1,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use cosmwasm_std::{CanonicalAddr, HumanAddr, StdResult, Storage};
+use cosmwasm_std::{CanonicalAddr, HumanAddr, StdResult, Storage, Binary};
 use cosmwasm_storage::{
     bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket, ReadonlySingleton,
     Singleton,
@@ -34,7 +34,7 @@ pub struct ConfigInfo {
 // Guardian address
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct GuardianAddress {
-    pub bytes: Vec<u8>, // 20-byte addresses
+    pub bytes: Binary, // 20-byte addresses
 }
 
 #[cfg(test)]
@@ -43,7 +43,7 @@ use hex;
 impl GuardianAddress {
     pub fn from(string: &str) -> GuardianAddress {
         GuardianAddress {
-            bytes: hex::decode(string).expect("Decoding failed"),
+            bytes: hex::decode(string).expect("Decoding failed").into(),
         }
     }
 }

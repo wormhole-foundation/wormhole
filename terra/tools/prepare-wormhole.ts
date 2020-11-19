@@ -13,7 +13,7 @@ async function script() {
     let contract_address = await instantiate_contract(wormhole_code_id, {
         initial_guardian_set: {
             addresses: [
-                { bytes: [0xbe, 0xfa, 0x42, 0x9d, 0x57, 0xcd, 0x18, 0xb7, 0xf8, 0xa4, 0xd9, 0x1a, 0x2d, 0xa9, 0xab, 0x4a, 0xf0, 0x5d, 0x0f, 0xbe] }
+                { bytes: Buffer.from('beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe', 'hex').toString('base64') }
             ],
             expiration_time: 1000 * 60 * 60
         },
