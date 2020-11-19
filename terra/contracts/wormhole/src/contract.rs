@@ -68,15 +68,15 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
     msg: HandleMsg,
 ) -> StdResult<HandleResponse> {
     match msg {
-        HandleMsg::SubmitVAA { vaa } => handle_submit_vaa(deps, env, &vaa),
-        HandleMsg::RegisterAssetHook { asset_id } => handle_register_asset(deps, env, &asset_id),
+        HandleMsg::SubmitVAA { vaa } => handle_submit_vaa(deps, env, &vaa.as_slice()),
+        HandleMsg::RegisterAssetHook { asset_id } => handle_register_asset(deps, env, &asset_id.as_slice()),
         HandleMsg::LockAssets {
             asset,
             recipient,
             amount,
             target_chain,
             nonce,
-        } => handle_lock_assets(deps, env, asset, amount, recipient, target_chain, nonce),
+        } => handle_lock_assets(deps, env, asset, amount, recipient.as_slice(), target_chain, nonce),
         HandleMsg::SetActive { is_active } => handle_set_active(deps, env, is_active),
     }
 }
@@ -249,7 +249,7 @@ fn vaa_update_guardian_set<S: Storage, A: Api, Q: Querier>(
     let mut pos = 5;
     for _ in 0..len {
         new_guardian_set.addresses.push(GuardianAddress {
-            bytes: data[pos..pos + 20].to_vec(),
+            bytes: data[pos..pos + 20].to_vec().into(),
         });
         pos += 20;
     }
@@ -351,7 +351,7 @@ fn vaa_transfer<S: Storage, A: Api, Q: Querier>(
                     code_id: state.wrapped_asset_code_id,
                     msg: to_binary(&WrappedInit {
                         asset_chain: token_chain,
-                        asset_address: asset_address.to_vec(),
+                        asset_address: asset_address.to_vec().into(),
                         decimals: data.get_u8(103),
                         mint: Some(InitMint {
                             recipient: deps.api.human_address(&target_address)?,
@@ -360,7 +360,7 @@ fn vaa_transfer<S: Storage, A: Api, Q: Querier>(
                         init_hook: Some(InitHook {
                             contract_addr: env.contract.address,
                             msg: to_binary(&HandleMsg::RegisterAssetHook {
-                                asset_id: asset_id.to_vec(),
+                                asset_id: asset_id.to_vec().into(),
                             })?,
                         }),
                     })?,
@@ -398,7 +398,7 @@ fn handle_lock_assets<S: Storage, A: Api, Q: Querier>(
     env: Env,
     asset: HumanAddr,
     amount: Uint128,
-    recipient: Vec<u8>,
+    recipient: &[u8],
     target_chain: u8,
     nonce: u32,
 ) -> StdResult<HandleResponse> {
@@ -449,7 +449,7 @@ fn handle_lock_assets<S: Storage, A: Api, Q: Querier>(
             let wrapped_token_info: WrappedAssetInfoResponse =
                 deps.querier.custom_query(&request)?;
             asset_chain = wrapped_token_info.asset_chain;
-            asset_address = wrapped_token_info.asset_address;
+            asset_address = wrapped_token_info.asset_address.as_slice().to_vec();
         }
         Err(_) => {
             // This is a regular asset, transfer its balance
@@ -544,7 +544,7 @@ fn keys_equal(a: &VerifyKey, b: &GuardianAddress) -> bool {
     if a.len() != b.len() {
         return false;
     }
-    for (ai, bi) in a.iter().zip(b.iter()) {
+    for (ai, bi) in a.iter().zip(b.as_slice().iter()) {
         if ai != bi {
             return false;
         }
@@ -594,7 +594,7 @@ mod tests {
         vaa: &str,
     ) -> StdResult<HandleResponse> {
         let msg = HandleMsg::SubmitVAA {
-            vaa: hex::decode(vaa).expect("Decoding failed"),
+            vaa: hex::decode(vaa).expect("Decoding failed").into(),
         };
         let env = mock_env(&HumanAddr::from("creator"), &[]);
 

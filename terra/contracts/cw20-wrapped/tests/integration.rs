@@ -2,7 +2,7 @@ static WASM: &[u8] =
     include_bytes!("../../../target/wasm32-unknown-unknown/release/cw20_wrapped.wasm");
 
 use cosmwasm_std::{
-    from_slice, Env, HandleResponse, HandleResult, HumanAddr, InitResponse, Uint128,
+    from_slice, Env, HandleResponse, HandleResult, HumanAddr, InitResponse, Uint128, Binary,
 };
 use cosmwasm_storage::to_length_prefixed;
 use cosmwasm_vm::testing::{
@@ -51,7 +51,7 @@ fn do_init(height: u64) -> Instance<MockStorage, MockApi, MockQuerier> {
     let mut deps = mock_instance(WASM, &[]);
     let init_msg = InitMsg {
         asset_chain: 1,
-        asset_address: vec![1; 32],
+        asset_address: vec![1; 32].into(),
         decimals: 10,
         mint: None,
         init_hook: None,
@@ -67,7 +67,7 @@ fn do_init(height: u64) -> Instance<MockStorage, MockApi, MockQuerier> {
             get_wrapped_asset_info(storage),
             WrappedAssetInfo {
                 asset_chain: 1,
-                asset_address: vec![1; 32],
+                asset_address: vec![1; 32].into(),
                 bridge: api.canonical_address(&TestAddress::INITIALIZER.value()).0?,
             }
         );
@@ -141,18 +141,6 @@ fn check_token_details(deps: &mut Instance<MockStorage, MockApi, MockQuerier>, s
     );
 }
 
-fn format_array(data: &Vec<u8>) -> String {
-    let mut result = String::new();
-
-    for num in &data[0..data.len() - 1] {
-        result.push_str(&num.to_string());
-        result.push_str(",");
-    }
-    result.push_str(&data[data.len() - 1].to_string());
-
-    result
-}
-
 #[test]
 fn init_works() {
     let mut deps = do_init(111);
@@ -168,9 +156,9 @@ fn query_works() {
         query_response.as_slice(),
         format!(
             "{{\"asset_chain\":1,\
-        \"asset_address\":[{}],\
+        \"asset_address\":\"{}\",\
         \"bridge\":\"{}\"}}",
-            format_array(&vec![1; 32]),
+            Binary::from(vec![1; 32]).to_base64(),
             TestAddress::INITIALIZER.value().as_str()
         )
         .as_bytes()

@@ -242,7 +242,7 @@ data:
     flush_throttle_timeout = "100ms"
 
     # Maximum size of a message packet payload, in bytes
-    max_packet_msg_payload_size = 1024
+    max_packet_msg_payload_size = 4096
 
     # Rate at which packets can be sent, in bytes/second
     send_rate = 5120000
@@ -776,7 +776,7 @@ data:
           "params": {
             "max_contract_size": "512000",
             "max_contract_gas": "100000000",
-            "max_contract_msg_size": "1024"
+            "max_contract_msg_size": "4096"
           },
           "last_code_id": "0",
           "last_instance_id": "0",
@@ -1279,7 +1279,7 @@ data:
     flush_throttle_timeout = "100ms"
 
     # Maximum size of a message packet payload, in bytes
-    max_packet_msg_payload_size = 1024
+    max_packet_msg_payload_size = 4096
 
     # Rate at which packets can be sent, in bytes/second
     send_rate = 5120000
@@ -1813,7 +1813,7 @@ data:
           "params": {
             "max_contract_size": "512000",
             "max_contract_gas": "100000000",
-            "max_contract_msg_size": "1024"
+            "max_contract_msg_size": "4096"
           },
           "last_code_id": "0",
           "last_instance_id": "0",

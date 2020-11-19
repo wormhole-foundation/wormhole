@@ -14,7 +14,7 @@ async function script() {
     let lockResult = await execute_contract(wormhole_contract, {lock_assets: {
             asset: token_contract, 
             amount,
-            recipient: [...Buffer.from('00000000000000000000000019a4437E2BA06bF1FA42C56Fb269Ca0d30f60716', 'hex')],
+            recipient: Buffer.from('00000000000000000000000019a4437E2BA06bF1FA42C56Fb269Ca0d30f60716', 'hex').toString('base64'),
             target_chain: 2, // Ethereum
             nonce: Date.now() % 1000000
         }});
