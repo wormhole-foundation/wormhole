@@ -7,6 +7,8 @@ for more details on Wormhole and its major design decisions.
 
 See [DEVELOP.md](DEVELOP.md) for instructions on how to set up a local devnet.
 
+![](docs/images/overview.svg)
+
 Repo overview:
 
 - **[bridge/](bridge/)** — The guardian node which connects to both chains, observes lockups and submits VAAs.
