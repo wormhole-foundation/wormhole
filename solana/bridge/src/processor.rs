@@ -735,6 +735,10 @@ impl Bridge {
             return Err(Error::AlreadyExists.into());
         }
 
+        if b.new_keys.len() == 0 {
+            return Err(Error::InvalidVAAFormat.into());
+        }
+
         if b.new_keys.len() > MAX_LEN_GUARDIAN_KEYS {
             return Err(Error::InvalidVAAFormat.into());
         }
