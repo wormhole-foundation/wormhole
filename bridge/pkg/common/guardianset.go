@@ -4,6 +4,15 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
+// TODO: this should be 20, https://github.com/certusone/wormhole/issues/86
+//
+// Matching constants:
+//  - MAX_LEN_GUARDIAN_KEYS in Solana contract
+//
+// The Eth and Terra contracts do not specify a maximum number and support more than 20,
+// but presumably, chain-specific transaction size limits will apply at some point (untested).
+const MaxGuardianCount = 19
+
 type GuardianSet struct {
 	// Guardian's public keys truncated by the ETH standard hashing mechanism (20 bytes).
 	Keys []common.Address

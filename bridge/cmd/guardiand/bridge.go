@@ -38,6 +38,8 @@ var (
 
 	nodeKeyPath *string
 
+	adminSocketPath *string
+
 	bridgeKeyPath *string
 
 	ethRPC           *string
@@ -66,6 +68,8 @@ func init() {
 	p2pBootstrap = BridgeCmd.Flags().String("bootstrap", "", "P2P bootstrap peers (comma-separated)")
 
 	nodeKeyPath = BridgeCmd.Flags().String("nodeKey", "", "Path to node key (will be generated if it doesn't exist)")
+
+	adminSocketPath = BridgeCmd.Flags().String("adminSocket", "", "Admin gRPC service UNIX domain socket path")
 
 	bridgeKeyPath = BridgeCmd.Flags().String("bridgeKey", "", "Path to guardian key (required)")
 
@@ -133,6 +137,12 @@ func lockMemory() {
 	}
 }
 
+// setRestrictiveUmask masks the group and world bits. This ensures that key material
+// and sockets we create aren't accidentally group- or world-readable.
+func setRestrictiveUmask() {
+	syscall.Umask(0077) // cannot fail
+}
+
 // BridgeCmd represents the bridge command
 var BridgeCmd = &cobra.Command{
 	Use:   "bridge",
@@ -146,6 +156,7 @@ func runBridge(cmd *cobra.Command, args []string) {
 	}
 
 	lockMemory()
+	setRestrictiveUmask()
 
 	// Set up logging. The go-log zap wrapper that libp2p uses is compatible with our
 	// usage of zap in supervisor, which is nice.
@@ -195,6 +206,9 @@ func runBridge(cmd *cobra.Command, args []string) {
 	}
 	if *bridgeKeyPath == "" {
 		logger.Fatal("Please specify -bridgeKey")
+	}
+	if *adminSocketPath == "" {
+		logger.Fatal("Please specify -adminSocket")
 	}
 	if *agentRPC == "" {
 		logger.Fatal("Please specify -agentRPC")
@@ -273,6 +287,9 @@ func runBridge(cmd *cobra.Command, args []string) {
 	// VAAs to submit to Solana
 	solanaVaaC := make(chan *vaa.VAA)
 
+	// Injected VAAs (manually generated rather than created via observation)
+	injectC := make(chan *vaa.VAA)
+
 	// Load p2p private key
 	var priv crypto.PrivKey
 	if *unsafeDevMode {
@@ -286,6 +303,11 @@ func runBridge(cmd *cobra.Command, args []string) {
 		if err != nil {
 			logger.Fatal("Failed to load node key", zap.Error(err))
 		}
+	}
+
+	adminService, err := adminServiceRunnable(logger, *adminSocketPath, injectC)
+	if err != nil {
+		logger.Fatal("failed to create admin service socket", zap.Error(err))
 	}
 
 	// Run supervisor.
@@ -314,8 +336,12 @@ func runBridge(cmd *cobra.Command, args []string) {
 			return err
 		}
 
-		p := processor.NewProcessor(ctx, lockC, setC, sendC, obsvC, solanaVaaC, gk, *unsafeDevMode, *devNumGuardians, *ethRPC, *terraLCD, *terraChaidID, *terraContract, *terraFeePayer)
+		p := processor.NewProcessor(ctx, lockC, setC, sendC, obsvC, solanaVaaC, injectC, gk, *unsafeDevMode, *devNumGuardians, *ethRPC, *terraLCD, *terraChaidID, *terraContract, *terraFeePayer)
 		if err := supervisor.Run(ctx, "processor", p.Run); err != nil {
+			return err
+		}
+
+		if err := supervisor.Run(ctx, "admin", adminService); err != nil {
 			return err
 		}
 
