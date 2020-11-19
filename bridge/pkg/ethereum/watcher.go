@@ -70,7 +70,6 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to subscribe to token lockup events: %w", err)
 	}
-	defer tokensLockedSub.Unsubscribe()
 
 	// Subscribe to guardian set changes
 	guardianSetC := make(chan *abi.AbiLogGuardianSetChanged, 2)
@@ -78,7 +77,6 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to subscribe to guardian set events: %w", err)
 	}
-	defer tokensLockedSub.Unsubscribe()
 
 	errC := make(chan error)
 	logger := supervisor.Logger(ctx)
@@ -167,7 +165,6 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to subscribe to header events: %w", err)
 	}
-	defer headerSubscription.Unsubscribe()
 
 	go func() {
 		for {
