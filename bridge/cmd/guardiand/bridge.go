@@ -209,6 +209,10 @@ func runBridge(cmd *cobra.Command, args []string) {
 		logger.Fatal("Please specify -nodeName")
 	}
 	if *terraSupport {
+		if !*unsafeDevMode {
+			logger.Fatal("cannot enable terra support in production mode")
+		}
+
 		if *terraWS == "" {
 			logger.Fatal("Please specify -terraWS")
 		}

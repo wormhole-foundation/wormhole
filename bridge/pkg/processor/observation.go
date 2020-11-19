@@ -199,8 +199,20 @@ func (p *Processor) devnetVAASubmission(ctx context.Context, signed *vaa.VAA, ha
 	}
 }
 
-// Submit VAA to Terra devnet.
+// Submit VAA to Terra.
 func (p *Processor) terraVAASubmission(ctx context.Context, signed *vaa.VAA, hash string) {
+	// Terra support is not yet ready for production.
+	//  - https://github.com/certusone/wormhole/issues/83
+	//  - https://github.com/certusone/wormhole/issues/95
+	//  - https://github.com/certusone/wormhole/issues/97
+	//
+	// Roadmap: https://github.com/certusone/wormhole/milestone/4
+	if !p.devnetMode || p.terraChaidID == "" {
+		p.logger.Warn("ignoring terra VAA submission",
+			zap.String("digest", hash))
+		return
+	}
+
 	tx, err := terra.SubmitVAA(ctx, p.terraLCD, p.terraChaidID, p.terraContract, p.terraFeePayer, signed)
 	if err != nil {
 		if strings.Contains(err.Error(), "VaaAlreadyExecuted") {
