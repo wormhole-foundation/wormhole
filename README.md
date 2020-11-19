@@ -1,16 +1,5 @@
 # Wormhole
 
-### Audit / Feature Status
-
-| Feature           | Maintainer | Auditor  | Status          |
-+-------------------+------------+----------+-----------------+
-| Ethereum contract | Certus One | Kudelski | ✅ Audited      |
-| Solana contract   | Certus One | Kudelski | ✅ Audited      |
-| Bridge node       | Certus One | Kudelski | 🚧 In Progress  |
-| Terra contract    | Everstake  | Kudelski | ⚠ Pending       |
-
-### Overview
-
 Read our [introduction blog article](https://medium.com/certus-one/introducing-the-wormhole-bridge-24911b7335f7) 
 for more details on Wormhole and its major design decisions.
 
@@ -18,7 +7,17 @@ See [DEVELOP.md](DEVELOP.md) for instructions on how to set up a local devnet.
 
 ![](docs/images/overview.svg)
 
-Repo overview:
+### Audit / Feature Status
+
+| Feature           | Maintainer | Auditor  | Status          |
+|-------------------|------------|----------|-----------------|
+| Ethereum contract | Certus One | Kudelski | ✔️ Audited      |
+| Solana contract   | Certus One | Kudelski | ✔️ Audited      |
+| Bridge node       | Certus One | Kudelski | 🚧 In Progress  |
+| Terra contract    | Everstake  | Kudelski | ⚠ Pending       |
+
+
+### Repo overview
 
 - **[bridge/](bridge/)** — The guardian node which connects to both chains, observes lockups and submits VAAs.
   Written in pure Go.
