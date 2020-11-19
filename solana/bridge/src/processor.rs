@@ -37,6 +37,9 @@ use std::borrow::BorrowMut;
 use std::ops::Add;
 use solana_program::fee_calculator::FeeCalculator;
 
+/// Tx fee of Signature checks and PostVAA (see docs for calculation)
+const VAA_TX_FEE: u64 = 18 * 10000;
+
 /// SigInfo contains metadata about signers in a VerifySignature ix
 struct SigInfo {
     /// index of the signer in the guardianset
@@ -716,6 +719,11 @@ impl Bridge {
         // This should cover most of the costs of the guardian.
         if evict_signatures {
             Self::transfer_sol(sig_info, payer_info, sig_info.lamports())?;
+        }
+
+        // Refund tx fee if possible
+        if bridge_info.lamports().checked_sub(Self::MIN_BRIDGE_BALANCE).unwrap_or(0) >= VAA_TX_FEE {
+            Self::transfer_sol(bridge_info, payer_info, VAA_TX_FEE)?;
         }
 
         // Load claim account
