@@ -2,7 +2,7 @@
 FROM node:lts-alpine
 
 # npm wants to clone random Git repositories - lovely.
-RUN apk add git python
+RUN apk add git python make
 
 # Run as user, otherwise, npx explodes.
 USER 1000
@@ -11,8 +11,8 @@ RUN mkdir -p /home/node/.npm
 WORKDIR /home/node/app
 
 # Only invalidate the npm install step if package.json changed
-# TODO: build with "npm ci" for determinism
 ADD --chown=node:node package.json .
+ADD --chown=node:node package-lock.json .
 
 # We want to cache node_modules *and* incorporate it into the final image.
 RUN --mount=type=cache,uid=1000,gid=1000,target=/home/node/.npm \
