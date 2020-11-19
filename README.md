@@ -1,6 +1,15 @@
 # Wormhole
 
-⚠️ **WORK IN PROGRESS — CURRENTLY UNDERGOING AUDIT, DO NOT USE.** ⚠️
+### Audit / Feature Status
+
+| Feature           | Maintainer | Auditor  | Status          |
++-------------------+------------+----------+-----------------+
+| Ethereum contract | Certus One | Kudelski | ✅ Audited      |
+| Solana contract   | Certus One | Kudelski | ✅ Audited      |
+| Bridge node       | Certus One | Kudelski | 🚧 In Progress  |
+| Terra contract    | Everstake  | Kudelski | ⚠ Pending       |
+
+### Overview
 
 Read our [introduction blog article](https://medium.com/certus-one/introducing-the-wormhole-bridge-24911b7335f7) 
 for more details on Wormhole and its major design decisions.
