@@ -218,22 +218,6 @@ impl Bridge {
             .map_err(|_| Error::ExpectedToken)?)
     }
 
-    /// Deserializes a `Bridge`.
-    pub fn bridge_deserialize(info: &AccountInfo) -> Result<Bridge, Error> {
-        Ok(*Bridge::unpack(&mut info.data.borrow_mut()).map_err(|_| Error::ExpectedBridge)?)
-    }
-
-    /// Deserializes a `GuardianSet`.
-    pub fn guardian_set_deserialize(info: &AccountInfo) -> Result<GuardianSet, Error> {
-        Ok(*Bridge::unpack(&mut info.data.borrow_mut()).map_err(|_| Error::ExpectedGuardianSet)?)
-    }
-
-    /// Deserializes a `WrappedAssetMeta`.
-    pub fn wrapped_meta_deserialize(info: &AccountInfo) -> Result<WrappedAssetMeta, Error> {
-        Ok(*Bridge::unpack(&mut info.data.borrow_mut())
-            .map_err(|_| Error::ExpectedWrappedAssetMeta)?)
-    }
-
     /// Unpacks a state from a bytes buffer while assuring that the state is initialized.
     pub fn unpack<T: IsInitialized>(input: &mut [u8]) -> Result<&mut T, ProgramError> {
         let mut_ref: &mut T = Self::unpack_unchecked(input)?;

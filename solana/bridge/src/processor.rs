@@ -130,7 +130,7 @@ impl Bridge {
             None,
         )?;
 
-        let mut new_account_data = new_bridge_info.try_borrow_mut_data()?;
+        let mut new_account_data = new_bridge_info.try_borrow_mut_data().map_err(|_| ProgramError::AccountBorrowFailed)?;
         let mut bridge: &mut Bridge = Self::unpack_unchecked(&mut new_account_data)?;
         if bridge.is_initialized {
             return Err(Error::AlreadyExists.into());
@@ -148,7 +148,7 @@ impl Bridge {
             None,
         )?;
 
-        let mut new_guardian_data = new_guardian_info.try_borrow_mut_data()?;
+        let mut new_guardian_data = new_guardian_info.try_borrow_mut_data().map_err(|_| ProgramError::AccountBorrowFailed)?;
         let mut guardian_info: &mut GuardianSet = Self::unpack_unchecked(&mut new_guardian_data)?;
         if guardian_info.is_initialized {
             return Err(Error::AlreadyExists.into());
@@ -205,7 +205,8 @@ impl Bridge {
         let guardian_set_info = next_account_info(account_info_iter)?;
         let payer_info = next_account_info(account_info_iter)?;
 
-        let guardian_set: GuardianSet = Self::guardian_set_deserialize(guardian_set_info)?;
+        let guardian_data = guardian_set_info.data.try_borrow().map_err(|_| ProgramError::AccountBorrowFailed)?;
+        let guardian_set: &GuardianSet = Self::unpack_immutable(&guardian_data)?;
 
         let sig_infos: Vec<SigInfo> = payload
             .signers
@@ -382,7 +383,8 @@ impl Bridge {
         let payer_info = next_account_info(account_info_iter)?;
 
         let sender = Bridge::token_account_deserialize(sender_account_info)?;
-        let bridge = Bridge::bridge_deserialize(bridge_info)?;
+        let bridge_data = bridge_info.data.try_borrow().map_err(|_| ProgramError::AccountBorrowFailed)?;
+        let bridge: &Bridge = Self::unpack_immutable(&bridge_data)?;
         let mint = Bridge::mint_deserialize(mint_info)?;
         let clock = Clock::from_account_info(clock_info)?;
 
@@ -482,7 +484,8 @@ impl Bridge {
 
         let sender = Bridge::token_account_deserialize(sender_account_info)?;
         let mint = Bridge::mint_deserialize(mint_info)?;
-        let bridge = Bridge::bridge_deserialize(bridge_info)?;
+        let bridge_data = bridge_info.data.try_borrow().map_err(|_| ProgramError::AccountBorrowFailed)?;
+        let bridge: &Bridge = Self::unpack_immutable(&bridge_data)?;
         let clock = Clock::from_account_info(clock_info)?;
 
         // Fee handling
@@ -611,9 +614,11 @@ impl Bridge {
         let sig_info = next_account_info(account_info_iter)?;
         let payer_info = next_account_info(account_info_iter)?;
 
-        let mut bridge = Bridge::bridge_deserialize(bridge_info)?;
+        let mut bridge_data = bridge_info.data.try_borrow_mut().map_err(|_| ProgramError::AccountBorrowFailed)?;
+        let bridge: &mut Bridge = Self::unpack(&mut bridge_data)?;
         let clock = Clock::from_account_info(clock_info)?;
-        let mut guardian_set = Bridge::guardian_set_deserialize(guardian_set_info)?;
+        let mut guardian_data = guardian_set_info.data.try_borrow_mut().map_err(|_| ProgramError::AccountBorrowFailed)?;
+        let guardian_set = Bridge::unpack(&mut guardian_data)?;
 
         // Check that the guardian set is valid
         let expected_guardian_set =
@@ -677,8 +682,8 @@ impl Bridge {
                     &clock,
                     bridge_info,
                     payer_info,
-                    &mut bridge,
-                    &mut guardian_set,
+                    bridge,
+                    guardian_set,
                     &v,
                 )
             }
@@ -700,7 +705,7 @@ impl Bridge {
                         accounts,
                         account_info_iter,
                         bridge_info,
-                        &mut bridge,
+                        bridge,
                         &v,
                     )
                 }
@@ -933,7 +938,8 @@ impl Bridge {
         let mint_info = next_account_info(account_info_iter)?;
         let wrapped_meta_info = next_account_info(account_info_iter)?;
 
-        let bridge = Bridge::bridge_deserialize(bridge_info)?;
+        let bridge_data = bridge_info.data.try_borrow().map_err(|_| ProgramError::AccountBorrowFailed)?;
+        let bridge: &Bridge = Self::unpack_immutable(&bridge_data)?;
 
         // Foreign chain asset, mint wrapped asset
         let expected_mint_address = Bridge::derive_wrapped_asset_id(
