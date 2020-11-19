@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"net"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -20,7 +19,7 @@ var clientSocketPath *string
 
 func init() {
 	pf := AdminClientInjectGuardianSetUpdateCmd.Flags()
-	clientSocketPath = pf.String("socket", "", "gRPC server path to connect to (usually unix:///path/to.sock)")
+	clientSocketPath = pf.String("socket", "", "gRPC admin server socket to connect to")
 	err := cobra.MarkFlagRequired(pf, "socket")
 	if err != nil {
 		panic(err)
@@ -44,12 +43,7 @@ var AdminClientInjectGuardianSetUpdateCmd = &cobra.Command{
 }
 
 func getAdminClient(ctx context.Context, addr string) (*grpc.ClientConn, error, nodev1.NodePrivilegedClient) {
-	conn, err := grpc.DialContext(ctx,
-		fmt.Sprintf("passthrough:///%s", addr),
-		grpc.WithInsecure(),
-		grpc.WithContextDialer(func(ctx context.Context, addr string) (net.Conn, error) {
-			return new(net.Dialer).DialContext(ctx, "unix", addr)
-		}))
+	conn, err := grpc.DialContext(ctx, fmt.Sprintf("unix:///%s", addr), grpc.WithInsecure())
 
 	if err != nil {
 		log.Fatalf("failed to connect to %s: %v", addr, err)
