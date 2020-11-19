@@ -40,6 +40,8 @@ message Heartbeat {
 // guardians submitting valid signatures for a given hash, they can be assembled into a VAA.
 //
 // Messages without valid signature are dropped unceremoniously.
+//
+// TODO: rename? we also use it for governance VAAs
 message LockupObservation {
   // Guardian pubkey as truncated eth address.
   bytes addr = 1;

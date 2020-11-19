@@ -138,43 +138,50 @@ func (p *Processor) handleObservation(ctx context.Context, m *gossipv1.LockupObs
 				panic(err)
 			}
 
-			if t, ok := v.Payload.(*vaa.BodyTransfer); ok {
+			// Submit every VAA to Solana for data availability.
+			p.logger.Info("submitting signed VAA to Solana",
+				zap.String("digest", hash),
+				zap.Any("vaa", signed),
+				zap.String("bytes", hex.EncodeToString(vaaBytes)))
+			p.vaaC <- signed
+
+			switch t := v.Payload.(type) {
+			case *vaa.BodyTransfer:
+				// Depending on the target chain, guardians submit VAAs directly to the chain.
 
 				switch t.TargetChain {
-				case vaa.ChainIDEthereum,
-					vaa.ChainIDSolana,
-					vaa.ChainIDTerra:
-					// Submit to Solana if target is Solana, but also cross-submit all other targets to Solana for data availability
-					p.logger.Info("submitting signed VAA to Solana",
-						zap.String("digest", hash),
-						zap.Any("vaa", signed),
-						zap.String("bytes", hex.EncodeToString(vaaBytes)))
-
-					// Check whether we run in devmode and submit the VAA ourselves, if so.
-					switch t.TargetChain {
-					case vaa.ChainIDEthereum:
-						p.devnetVAASubmission(ctx, signed, hash)
-					case vaa.ChainIDTerra:
-						p.terraVAASubmission(ctx, signed, hash)
-					}
-
-					p.vaaC <- signed
+				case vaa.ChainIDSolana:
+					// No-op.
+				case vaa.ChainIDEthereum:
+					// Ethereum is special because it's expensive, and guardians cannot
+					// be expected to pay the fees. We only submit to Ethereum in devnet mode.
+					p.devnetVAASubmission(ctx, signed, hash)
+				case vaa.ChainIDTerra:
+					p.terraVAASubmission(ctx, signed, hash)
 				default:
-					p.logger.Error("we don't know how to submit this VAA",
+					p.logger.Error("unknown target chain ID",
 						zap.String("digest", hash),
 						zap.Any("vaa", signed),
 						zap.String("bytes", hex.EncodeToString(vaaBytes)),
 						zap.Stringer("target_chain", t.TargetChain))
 				}
-
-				p.state.vaaSignatures[hash].submitted = true
-			} else {
+			case *vaa.BodyGuardianSetUpdate:
+				// A guardian set update is broadcast to every chain that we talk to.
+				p.devnetVAASubmission(ctx, signed, hash)
+				p.terraVAASubmission(ctx, signed, hash)
+			default:
 				panic(fmt.Sprintf("unknown VAA payload type: %+v", v))
 			}
+
+			p.state.vaaSignatures[hash].submitted = true
 		} else {
 			p.logger.Info("quorum not met or already submitted, doing nothing",
 				zap.String("digest", hash))
 		}
+	} else {
+		p.logger.Info("we have not yet seen this VAA - temporarily storing signature",
+			zap.String("digest", hash))
+
 	}
 }
 

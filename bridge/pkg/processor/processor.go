@@ -50,6 +50,9 @@ type Processor struct {
 	// vaaC is a channel of VAAs to submit to store on Solana (either as target, or for data availability)
 	vaaC chan *vaa.VAA
 
+	// injectC is a channel of VAAs injected locally.
+	injectC chan *vaa.VAA
+
 	// gk is the node's guardian private key
 	gk *ecdsa.PrivateKey
 
@@ -84,6 +87,7 @@ func NewProcessor(
 	sendC chan []byte,
 	obsvC chan *gossipv1.LockupObservation,
 	vaaC chan *vaa.VAA,
+	injectC chan *vaa.VAA,
 	gk *ecdsa.PrivateKey,
 	devnetMode bool,
 	devnetNumGuardians uint,
@@ -99,6 +103,7 @@ func NewProcessor(
 		sendC:              sendC,
 		obsvC:              obsvC,
 		vaaC:               vaaC,
+		injectC:            injectC,
 		gk:                 gk,
 		devnetMode:         devnetMode,
 		devnetNumGuardians: devnetNumGuardians,
@@ -134,6 +139,8 @@ func (p *Processor) Run(ctx context.Context) error {
 			}
 		case k := <-p.lockC:
 			p.handleLockup(ctx, k)
+		case v := <-p.injectC:
+			p.handleInjection(ctx, v)
 		case m := <-p.obsvC:
 			p.handleObservation(ctx, m)
 		case <-p.cleanup.C:

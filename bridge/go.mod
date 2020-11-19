@@ -7,6 +7,7 @@ require (
 	github.com/aristanetworks/goarista v0.0.0-20201012165903-2cb20defcd66 // indirect
 	github.com/btcsuite/btcd v0.21.0-beta // indirect
 	github.com/cenkalti/backoff/v4 v4.1.0
+	github.com/davecgh/go-spew v1.1.1
 	github.com/davidlazar/go-crypto v0.0.0-20200604182044-b73af7476f6c // indirect
 	github.com/deckarep/golang-set v1.7.1 // indirect
 	github.com/ethereum/go-ethereum v1.9.23
@@ -45,7 +46,7 @@ require (
 	github.com/shirou/gopsutil v2.20.9+incompatible // indirect
 	github.com/spf13/cobra v1.0.0
 	github.com/spf13/viper v1.6.3
-	github.com/status-im/keycard-go v0.0.0-20200402102358-957c09536969 // indirect
+	github.com/status-im/keycard-go v0.0.0-20200402102358-957c09536969
 	github.com/stretchr/testify v1.6.1
 	github.com/tendermint/tendermint v0.33.8 // indirect
 	github.com/terra-project/terra.go v1.0.1-0.20201113170042-b3bffdc6fd06

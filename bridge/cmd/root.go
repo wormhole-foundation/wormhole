@@ -2,8 +2,9 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/spf13/cobra"
 	"os"
+
+	"github.com/spf13/cobra"
 
 	homedir "github.com/mitchellh/go-homedir"
 	"github.com/spf13/viper"
@@ -34,6 +35,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.guardiand.yaml)")
 	rootCmd.AddCommand(guardiand.BridgeCmd)
 	rootCmd.AddCommand(guardiand.KeygenCmd)
+	rootCmd.AddCommand(guardiand.AdminCmd)
 }
 
 // initConfig reads in config file and ENV variables if set.
