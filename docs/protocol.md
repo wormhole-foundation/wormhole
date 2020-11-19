@@ -217,7 +217,80 @@ The user can then get the VAA from the `LockProposal` and submit it on the forei
 
 ### Fees
 
-TODO  \o/
+Fees exist for 2 reasons: spam prevention and guardian cost coverage.
+
+Costs for guardians:
+
+Assuming no hosting costs for a guardian operation (blockchain and guardian nodes), the only costs
+that need to be covered by a guardian operator are Solana transaction fees as well as rent costs for newly
+created account (used to store application information).
+
+**For a transfer from Solana to a foreign chain (20 guardians; 14 quorum):**
+
+Transactions required: `3 (signatures + verify) + 1 (post VAA)`
+
+Accounts created: `1 ClaimedVAA + 1 SignatureState`
+
+Costs:
+```
+4 TX (14 secp signatures + 4 ed25519) + ClaimedVAA (exemption rent) + SignatureState (exemption rent)
+18 * 10_000 + (36+128) * 6962 + (1337+128) * 6962
+11521098 lamports = 0.0115 SOL
+```
+
+**For a transfer from a foreign chain to Solana (20 guardians; 14 quorum):**
+
+Transactions required: `3 (signatures + verify) + 1 (post VAA)`
+
+Accounts created: `1 ClaimedVAA + 1 SignatureState (temporary; evicted in PostVAA)`
+
+Costs:
+```
+4 TX (14 secp signatures + 4 ed25519) + ClaimedVAA (exemption rent)
+18 * 10_000 + (36+128) * 6962
+1321768 lamports = 0.0013 SOL
+```
+
+---
+
+In order to cover rent costs there exists a subsidy pool controlled by the bridge to cover rent payments.
+While the guardian needs to hold enough SOL to pay for the rent, it is automatically refunded by the pool,
+in case the pool has sufficient balance.
+
+This subsidy pool is funded by transaction fees.
+Additionally, the subsidy pool subsidizes the transactions fees paid by the guardian submitting the VAA.
+As long as the pool has a sufficient balance, it will try to refund transaction fees to the guardian.
+
+Since Wormhole does not require foreign chain users to own SOL, Wormhole can't charge subsidy fees on inbound
+transfers. Assuming a balance between inbound and outbound transfers, outbound transfers need to subsidize
+inbound Solana transfers.
+
+Additionally, foreign chain contracts might start charging additional fees in the future.
+
+---
+
+The bridge can handle at most <TODO> transactions per second. Therefore, the fees should prevent spam
+by dynamically adjusting to load. This is particularly useful on Solana where fees are low and spamming
+would be cheap.
+
+Dynamic fees should be cheap while the system is under low and medium load and high while the system is
+close or above its capacity.
+To prevent sudden fee changes, the fee system has inertia.
+
+Fees scale as follows `fee = (tps/tps_max)^6`.
+The result is the fee per transfer in SOL. So at max capacity, the price per transfer is 1SOL.
+TPS is measured over a 30 second window.
+
+The minimum fee is the equivalent of 2x the rent of SignatureState and ClaimedVAA to cover the cost
+of this transfer and about 10 inbound transfers.
+
+---
+
+The above design can currently not be implemented due to limitations in the Solana BPF VM.
+
+In the current design, tx fees are refunded, rents are subsidized by the bridge and transfers out of Solana
+cost a fixed fee of 2x (ClaimedVAA rent + SignatureState rent + VAA submission fee), which will roughly
+pay for 1 outbound + ~10 inbound transfers.
 
 ### Config changes
 #### Guardian set changes
