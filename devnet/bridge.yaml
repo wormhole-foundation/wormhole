@@ -76,6 +76,8 @@ spec:
             - --ethConfirmations
             - '3'
             - --unsafeDevMode
+            - --bridgeKey
+            - /tmp/bridge.key
 #            - --logLevel=debug
           securityContext:
             capabilities:

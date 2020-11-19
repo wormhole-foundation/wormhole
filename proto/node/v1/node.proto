@@ -6,4 +6,16 @@ option go_package = "proto/node/v1;nodev1";
 
 import "google/api/annotations.proto";
 
-service Node {}
+service Node {
+}
+
+message GuardianKey {
+    // description is an optional, free-form description text set by the operator.
+    string description = 1;
+
+    // data is the binary representation of the secp256k1 private key.
+    bytes data = 2;
+
+    // pubkey is a human-readable representation of the key, included for operator convenience.
+    string pubkey = 3;
+}
