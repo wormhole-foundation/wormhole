@@ -14,6 +14,7 @@ import (
 	"github.com/certusone/wormhole/bridge/pkg/devnet"
 	gossipv1 "github.com/certusone/wormhole/bridge/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/bridge/pkg/supervisor"
+	"github.com/certusone/wormhole/bridge/pkg/terra"
 	"github.com/certusone/wormhole/bridge/pkg/vaa"
 )
 
@@ -166,6 +167,15 @@ func (p *Processor) checkDevModeGuardianSetUpdate(ctx context.Context) error {
 			}
 
 			p.logger.Info("devnet guardian set change submitted to Ethereum", zap.Any("trx", trx), zap.Any("vaa", v))
+
+			if p.terraChaidID != "" {
+				// Submit to Terra
+				trxResponse, err := terra.SubmitVAA(timeout, p.terraLCD, p.terraChaidID, p.terraContract, p.terraFeePayer, v)
+				if err != nil {
+					return fmt.Errorf("failed to submit devnet guardian set change: %v", err)
+				}
+				p.logger.Info("devnet guardian set change submitted to Terra", zap.Any("trxResponse", trxResponse), zap.Any("vaa", v))
+			}
 
 			// Submit VAA to Solana as well. This is asynchronous and can fail, leading to inconsistent devnet state.
 			p.vaaC <- v
