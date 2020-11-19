@@ -3,15 +3,11 @@ package processor
 import (
 	"context"
 	"encoding/hex"
-	"time"
 
-	common2 "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"go.uber.org/zap"
-	"google.golang.org/protobuf/proto"
 
 	"github.com/certusone/wormhole/bridge/pkg/common"
-	"github.com/certusone/wormhole/bridge/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/bridge/pkg/supervisor"
 	"github.com/certusone/wormhole/bridge/pkg/vaa"
 )
@@ -82,34 +78,5 @@ func (p *Processor) handleLockup(ctx context.Context, k *common.ChainLock) {
 		zap.String("signature", hex.EncodeToString(s)),
 		zap.Int("our_index", us))
 
-	obsv := gossipv1.LockupObservation{
-		Addr:      crypto.PubkeyToAddress(p.gk.PublicKey).Bytes(),
-		Hash:      digest.Bytes(),
-		Signature: s,
-	}
-
-	w := gossipv1.GossipMessage{Message: &gossipv1.GossipMessage_LockupObservation{LockupObservation: &obsv}}
-
-	msg, err := proto.Marshal(&w)
-	if err != nil {
-		panic(err)
-	}
-
-	p.sendC <- msg
-
-	// Store our VAA in case we're going to submit it to Solana
-	hash := hex.EncodeToString(digest.Bytes())
-
-	if p.state.vaaSignatures[hash] == nil {
-		p.state.vaaSignatures[hash] = &vaaState{
-			firstObserved: time.Now(),
-			signatures:    map[common2.Address][]byte{},
-		}
-	}
-
-	p.state.vaaSignatures[hash].ourVAA = v
-	p.state.vaaSignatures[hash].ourMsg = msg
-
-	// Fast path for our own signature
-	go func() { p.obsvC <- &obsv }()
+	p.broadcastSignature(v, s)
 }
