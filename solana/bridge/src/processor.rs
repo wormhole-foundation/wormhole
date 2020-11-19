@@ -392,7 +392,7 @@ impl Bridge {
         let clock = Clock::from_account_info(clock_info)?;
 
         // Fee handling
-        let fee = Rent::default().minimum_balance((size_of::<SignatureState>() + size_of::<ClaimedVAA>()) * 2);
+        let fee = Self::transfer_fee();
         Self::transfer_sol(payer_info, bridge_info, fee)?;
 
         // Does the token belong to the mint
@@ -492,7 +492,7 @@ impl Bridge {
         let clock = Clock::from_account_info(clock_info)?;
 
         // Fee handling
-        let fee = Rent::default().minimum_balance((size_of::<SignatureState>() + size_of::<ClaimedVAA>()) * 2);
+        let fee = Self::transfer_fee();
         Self::transfer_sol(payer_info, bridge_info, fee)?;
 
         // Does the token belong to the mint
@@ -582,6 +582,12 @@ impl Bridge {
         };
 
         Ok(())
+    }
+
+    pub fn transfer_fee() -> u64 {
+        // Pay for 2 signature state and Claimed VAA rents + 2 * guardian tx fees
+        // This will pay for this transfer and ~10 inbound ones
+        Rent::default().minimum_balance((size_of::<SignatureState>() + size_of::<ClaimedVAA>()) * 2) + VAA_TX_FEE * 2
     }
 
     pub fn transfer_sol(
