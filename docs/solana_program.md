@@ -12,7 +12,7 @@ Initializes a new Bridge at `bridge`.
 | ----- | ------       | ------------  | ------ | --------- | ----- | ------- |
 |     0 | sys          | SystemProgram |        |           |       |         |
 |     1 | clock        | Sysvar        |        |           |       | ✅      |
-|     2 | bridge       | BridgeConfig  |        |    ✅      | ✅    | ✅      |
+|     2 | bridge       | BridgeConfig  |        | ✅        | ✅    | ✅      |
 |     3 | guardian_set | GuardianSet   |        | ✅        | ✅    | ✅      |
 |     4 | payer        | Account       | ✅     |           |       |         |
 
@@ -42,15 +42,15 @@ Creates a new `WrappedAsset` to be used to create accounts and later receive tra
 
 Checks secp checks (in the previous instruction) and stores results.
 
-| Index | Name         | Type           | signer | writeable | empty | derived |
-| ----- | ------       | ------------   | ------ | --------- | ----- | ------- |
-|     0 | bridge_p     | BridgeProgram  |        |           |       |         |
-|     1 | sys          | SystemProgram  |        |           |       |         |
-|     2 | instructions | Sysvar         |        |           |       | ✅      |
-|     3 | bridge_config| BridgeConfig |        | ✅        |       |   ✅      |
-|     4 | sig_status   | SignatureState |        | ✅        |       |         |
-|     5 | guardian_set | GuardianSet    |        |           |       | ✅      |
-|     6 | payer        | Account        | ✅     |           |       |         |
+| Index | Name          | Type           | signer | writeable | empty | derived |
+| ----- | ------        | ------------   | ------ | --------- | ----- | ------- |
+|     0 | bridge_p      | BridgeProgram  |        |           |       |         |
+|     1 | sys           | SystemProgram  |        |           |       |         |
+|     2 | instructions  | Sysvar         |        |           |       | ✅      |
+|     3 | bridge_config | BridgeConfig   |        | ✅        |       | ✅      |
+|     4 | sig_status    | SignatureState |        | ✅        |       |         |
+|     5 | guardian_set  | GuardianSet    |        |           |       | ✅      |
+|     6 | payer         | Account        | ✅     |           |       |         |
 
 #### TransferOut
 
@@ -66,7 +66,7 @@ Parameters:
 |     1 | sys           | SystemProgram       |        |           |       |         |
 |     2 | token_program | SplToken            |        |           |       |         |
 |     3 | rent          | Sysvar              |        |           |       | ✅      |
-|     4 | clock         | Sysvar              |        |           |  ✅     |         |
+|     4 | clock         | Sysvar              |        |           | ✅    |         |
 |     5 | token_account | TokenAccount        |        | ✅        |       |         |
 |     6 | bridge        | BridgeConfig        |        |           |       |         |
 |     7 | proposal      | TransferOutProposal |        | ✅        | ✅    | ✅      |
@@ -132,10 +132,10 @@ All require:
 |     1 | sys          | SystemProgram |        |           |       |         |
 |     2 | rent         | Sysvar        |        |           |       | ✅      |
 |     3 | clock        | Sysvar        |        |           |       | ✅      |
-|     4 | bridge       | BridgeConfig  |        |    ✅      |       |         |
+|     4 | bridge       | BridgeConfig  |        | ✅        |       |         |
 |     5 | guardian_set | GuardianSet   |        |           |       |         |
 |     6 | claim        | ExecutedVAA   |        | ✅        | ✅    | ✅      |
-|     7 | sig_info     | SigState      |        |  ✅       | ✅    |         |
+|     7 | sig_info     | SigState      |        | ✅        | ✅    |         |
 |     8 | payer        | Account       | ✅     |           |       |         |
 
 followed by:
