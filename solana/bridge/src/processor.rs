@@ -582,7 +582,9 @@ impl Bridge {
         let sig_info = next_account_info(account_info_iter)?;
         let payer_info = next_account_info(account_info_iter)?;
 
-        let mut bridge = Bridge::bridge_deserialize(bridge_info)?;
+        let mut bridge_data = bridge_info.try_borrow_mut_data()?;
+        let mut bridge = Bridge::unpack(&mut bridge_data)?;
+
         let clock = Clock::from_account_info(clock_info)?;
         let mut guardian_set = Bridge::guardian_set_deserialize(guardian_set_info)?;
 
