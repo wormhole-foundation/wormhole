@@ -14,9 +14,11 @@ import (
 )
 
 var templateNumGuardians *int
+var templateGuardianIndex *int
 
 func init() {
 	templateNumGuardians = AdminClientGuardianSetTemplateCmd.Flags().Int("num", 1, "Number of devnet guardians in example file")
+	templateGuardianIndex = AdminClientGuardianSetTemplateCmd.Flags().Int("idx", 0, "Default current guardian set index")
 }
 
 var AdminClientGuardianSetTemplateCmd = &cobra.Command{
@@ -40,7 +42,7 @@ func runGuardianSetTemplate(cmd *cobra.Command, args []string) {
 	}
 
 	m := &nodev1.GuardianSetUpdate{
-		CurrentSetIndex: 1,
+		CurrentSetIndex: uint32(*templateGuardianIndex),
 		// Timestamp is hardcoded to make it reproducible on different devnet nodes.
 		// In production, a real UNIX timestamp should be used (see node.proto).
 		Timestamp: 1605744545,
