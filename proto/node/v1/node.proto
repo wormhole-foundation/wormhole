@@ -59,12 +59,6 @@ message SubmitGuardianSetVAAResponse {
 
 // GuardianKey specifies the on-disk format for a node's guardian key.
 message GuardianKey {
-    // description is an optional, free-form description text set by the operator.
-    string description = 1;
-
     // data is the binary representation of the secp256k1 private key.
-    bytes data = 2;
-
-    // pubkey is a human-readable representation of the key, included for operator convenience.
-    string pubkey = 3;
+    bytes data = 1;
 }

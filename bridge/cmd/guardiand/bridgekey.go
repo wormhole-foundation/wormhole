@@ -11,13 +11,18 @@ import (
 
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/spf13/cobra"
-	"google.golang.org/protobuf/encoding/prototext"
+	"golang.org/x/crypto/openpgp/armor"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/certusone/wormhole/bridge/pkg/devnet"
 	nodev1 "github.com/certusone/wormhole/bridge/pkg/proto/node/v1"
 )
 
 var keyDescription *string
+
+const (
+	GuardianKeyArmoredBlock = "WORMHOLE GUARDIAN PRIVATE KEY"
+)
 
 func init() {
 	keyDescription = KeygenCmd.Flags().String("desc", "", "Human-readable key description (optional)")
@@ -49,20 +54,34 @@ func runKeygen(cmd *cobra.Command, args []string) {
 
 // loadGuardianKey loads a serialized guardian key from disk.
 func loadGuardianKey(filename string) (*ecdsa.PrivateKey, error) {
-	b, err := ioutil.ReadFile(filename)
+	f, err := os.Open(filename)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read guardian private key from disk: %w", err)
+		return nil, fmt.Errorf("failed to open file: %w", err)
+	}
+
+	p, err := armor.Decode(f)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read armored file: %w", err)
+	}
+
+	if p.Type != GuardianKeyArmoredBlock {
+		return nil, fmt.Errorf("invalid block type: %s", p.Type)
+	}
+
+	b, err := ioutil.ReadAll(p.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file: %w", err)
 	}
 
 	var m nodev1.GuardianKey
-	err = prototext.Unmarshal(b, &m)
+	err = proto.Unmarshal(b, &m)
 	if err != nil {
-		return nil, fmt.Errorf("failed to deserialize private key from disk: %w", err)
+		return nil, fmt.Errorf("failed to deserialize protobuf: %w", err)
 	}
 
 	gk, err := ethcrypto.ToECDSA(m.Data)
 	if err != nil {
-		return nil, fmt.Errorf("failed to deserialize key data: %w", err)
+		return nil, fmt.Errorf("failed to deserialize raw key data: %w", err)
 	}
 
 	return gk, nil
@@ -75,21 +94,37 @@ func writeGuardianKey(key *ecdsa.PrivateKey, description string, filename string
 	}
 
 	m := &nodev1.GuardianKey{
-		Description: description,
-		Data:        ethcrypto.FromECDSA(key),
-		Pubkey:      ethcrypto.PubkeyToAddress(key.PublicKey).String(),
+		Data: ethcrypto.FromECDSA(key),
 	}
 
-	b, err := prototext.MarshalOptions{Multiline: true, EmitASCII: true}.Marshal(m)
+	// The private key is a really long-lived piece of data, and we really want to use the stable binary
+	// protobuf encoding with field tags to make sure that we can safely evolve it in the future.
+	b, err := proto.Marshal(m)
 	if err != nil {
 		panic(err)
 	}
 
-	if err := ioutil.WriteFile(filename, b, 0600); err != nil {
-		return err
+	f, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE, 0600)
+	if err != nil {
+		return fmt.Errorf("failed to open file: %w", err)
 	}
 
-	return nil
+	a, err := armor.Encode(f, GuardianKeyArmoredBlock, map[string]string{
+		"Description": description,
+		"PublicKey":   ethcrypto.PubkeyToAddress(key.PublicKey).String(),
+	})
+	if err != nil {
+		panic(err)
+	}
+	_, err = a.Write(b)
+	if err != nil {
+		return fmt.Errorf("failed to write to file: %w", err)
+	}
+	err = a.Close()
+	if err != nil {
+		return err
+	}
+	return f.Close()
 }
 
 // generateDevnetGuardianKey returns a deterministic testnet key.
