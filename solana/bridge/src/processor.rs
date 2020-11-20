@@ -133,7 +133,7 @@ impl Bridge {
             None,
         )?;
 
-        let mut new_account_data = new_bridge_info.try_borrow_mut_data().map_err(|_| ProgramError::AccountBorrowFailed)?;
+        let mut new_account_data = new_bridge_info.try_borrow_mut_data()?;
         let mut bridge: &mut Bridge = Self::unpack_unchecked(&mut new_account_data)?;
         if bridge.is_initialized {
             return Err(Error::AlreadyExists.into());
@@ -208,7 +208,7 @@ impl Bridge {
         let guardian_set_info = next_account_info(account_info_iter)?;
         let payer_info = next_account_info(account_info_iter)?;
 
-        let guardian_data = guardian_set_info.data.try_borrow().map_err(|_| ProgramError::AccountBorrowFailed)?;
+        let guardian_data = guardian_set_info.try_borrow_data()?;
         let guardian_set: &GuardianSet = Self::unpack_immutable(&guardian_data)?;
 
         let sig_infos: Vec<SigInfo> = payload
@@ -386,7 +386,7 @@ impl Bridge {
         let payer_info = next_account_info(account_info_iter)?;
 
         let sender = Bridge::token_account_deserialize(sender_account_info)?;
-        let bridge_data = bridge_info.data.try_borrow().map_err(|_| ProgramError::AccountBorrowFailed)?;
+        let bridge_data = bridge_info.try_borrow_data()?;
         let bridge: &Bridge = Self::unpack_immutable(&bridge_data)?;
         let mint = Bridge::mint_deserialize(mint_info)?;
         let clock = Clock::from_account_info(clock_info)?;
@@ -487,7 +487,7 @@ impl Bridge {
 
         let sender = Bridge::token_account_deserialize(sender_account_info)?;
         let mint = Bridge::mint_deserialize(mint_info)?;
-        let bridge_data = bridge_info.data.try_borrow().map_err(|_| ProgramError::AccountBorrowFailed)?;
+        let bridge_data = bridge_info.try_borrow_data()?;
         let bridge: &Bridge = Self::unpack_immutable(&bridge_data)?;
         let clock = Clock::from_account_info(clock_info)?;
 
@@ -623,10 +623,8 @@ impl Bridge {
         let sig_info = next_account_info(account_info_iter)?;
         let payer_info = next_account_info(account_info_iter)?;
 
-        let mut bridge_data = bridge_info.data.try_borrow_mut().map_err(|_| ProgramError::AccountBorrowFailed)?;
-        let bridge: &mut Bridge = Self::unpack(&mut bridge_data)?;
         let clock = Clock::from_account_info(clock_info)?;
-        let mut guardian_data = guardian_set_info.data.try_borrow_mut().map_err(|_| ProgramError::AccountBorrowFailed)?;
+        let mut guardian_data = guardian_set_info.try_borrow_mut_data()?;
         let guardian_set: &mut GuardianSet = Bridge::unpack(&mut guardian_data)?;
 
         // Check that the guardian set is valid
@@ -683,6 +681,9 @@ impl Bridge {
         let payload = vaa.payload.as_ref().ok_or(Error::InvalidVAAAction)?;
         match payload {
             VAABody::UpdateGuardianSet(v) => {
+                let mut bridge_data = bridge_info.try_borrow_mut_data()?;
+                let bridge: &mut Bridge = Self::unpack(&mut bridge_data)?;
+
                 evict_signatures = true;
                 Self::process_vaa_set_update(
                     program_id,
@@ -708,6 +709,8 @@ impl Bridge {
                         sig_info.key,
                     )
                 } else {
+                    let bridge_data = bridge_info.try_borrow_data()?;
+                    let bridge: &Bridge = Self::unpack_immutable(&bridge_data)?;
                     evict_signatures = true;
                     Self::process_vaa_transfer(
                         program_id,
@@ -827,7 +830,7 @@ impl Bridge {
         accounts: &[AccountInfo],
         account_info_iter: &mut Iter<AccountInfo>,
         bridge_info: &AccountInfo,
-        bridge: &mut Bridge,
+        bridge: &Bridge,
         b: &BodyTransfer,
     ) -> ProgramResult {
         next_account_info(account_info_iter)?; // Token program
