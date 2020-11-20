@@ -16,10 +16,11 @@ In addition to Wormhole itself, you need to run your own verifying node for ever
 
 - **Ethereum**. See below - you need at least a light client. For stability reasons, a full node is recommended.
 
-- [**Terra** requires a full node and an [LCD server](https://docs.terra.money/terracli/lcd.html#light-client-daemon)
+- \[**Terra** requires a full node and an [LCD server](https://docs.terra.money/terracli/lcd.html#light-client-daemon)
   pointing to your full node. Refer to the [Terra documentation](https://docs.terra.money/node/join-network.html)
   on how to run a full node. From a security point of view, running only an LCD server with `--trust-node=false` pointed
-  to somebody else's full node would be sufficient, but you'd then depend on that single node for availability.]
+  to somebody else's full node would be sufficient, but you'd then depend on that single node for availability unless
+  you set up a load balancer pointing to a set of nodes.\]
 
 Do NOT use third-party RPC service providers for any of the chains! You'd fully trust them and they could lie to you on
 whether a lockup has actually been observed, and the whole point of Wormhole is to not rely on centralized nodes.
@@ -108,8 +109,9 @@ You'll have to manage the following keys:
    critical and can be rotated. The node will automatically create a node key at the path you specify if it doesn't exist.
  
  - The **Solana fee payer** account supplied to wormhole-solana-agent. This is a hot wallet which should hold
-   ~1 SOL to pay for VAA submissions. The Wormhole protocol includes a subsidization mechanism which uses transfer
-   fees to reimburse guardians, so during normal operation, you shouldn't have to top up the account.
+   ~10 SOL to pay for VAA submissions. The Wormhole protocol includes a subsidization mechanism which uses transfer
+   fees to reimburse guardians, so during normal operation, you shouldn't have to top up the account (but by
+   all means, set up monitoring for it!).
    
  - _\[The **Terra fee payer** account. Terra support is still a work in progress - more details on this later\]._ 
 
