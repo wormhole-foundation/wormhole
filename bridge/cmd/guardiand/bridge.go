@@ -202,25 +202,25 @@ func runBridge(cmd *cobra.Command, args []string) {
 	// Verify flags
 
 	if *nodeKeyPath == "" && !*unsafeDevMode { // In devnet mode, keys are deterministically generated.
-		logger.Fatal("Please specify -nodeKey")
+		logger.Fatal("Please specify --nodeKey")
 	}
 	if *bridgeKeyPath == "" {
-		logger.Fatal("Please specify -bridgeKey")
+		logger.Fatal("Please specify --bridgeKey")
 	}
 	if *adminSocketPath == "" {
-		logger.Fatal("Please specify -adminSocket")
+		logger.Fatal("Please specify --adminSocket")
 	}
 	if *agentRPC == "" {
-		logger.Fatal("Please specify -agentRPC")
+		logger.Fatal("Please specify --agentRPC")
 	}
 	if *ethRPC == "" {
-		logger.Fatal("Please specify -ethRPC")
+		logger.Fatal("Please specify --ethRPC")
 	}
 	if *ethContract == "" {
-		logger.Fatal("Please specify -ethContract")
+		logger.Fatal("Please specify --ethContract")
 	}
 	if *nodeName == "" {
-		logger.Fatal("Please specify -nodeName")
+		logger.Fatal("Please specify --nodeName")
 	}
 	if *terraSupport {
 		if !*unsafeDevMode {
@@ -228,19 +228,19 @@ func runBridge(cmd *cobra.Command, args []string) {
 		}
 
 		if *terraWS == "" {
-			logger.Fatal("Please specify -terraWS")
+			logger.Fatal("Please specify --terraWS")
 		}
 		if *terraLCD == "" {
-			logger.Fatal("Please specify -terraLCD")
+			logger.Fatal("Please specify --terraLCD")
 		}
 		if *terraChaidID == "" {
-			logger.Fatal("Please specify -terraChaidID")
+			logger.Fatal("Please specify --terraChaidID")
 		}
 		if *terraContract == "" {
-			logger.Fatal("Please specify -terraContract")
+			logger.Fatal("Please specify --terraContract")
 		}
 		if *terraFeePayer == "" {
-			logger.Fatal("Please specify -terraFeePayer")
+			logger.Fatal("Please specify --terraFeePayer")
 		}
 	}
 
