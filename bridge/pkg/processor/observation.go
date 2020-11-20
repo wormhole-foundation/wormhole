@@ -20,7 +20,7 @@ import (
 
 // handleObservation processes a remote VAA observation, verifies it, checks whether the VAA has met quorum,
 // and assembles and submits a valid VAA if possible.
-func (p *Processor) handleObservation(ctx context.Context, m *gossipv1.LockupObservation) {
+func (p *Processor) handleObservation(ctx context.Context, m *gossipv1.SignedObservation) {
 	// SECURITY: at this point, observations received from the p2p network are fully untrusted (all fields!)
 	//
 	// Note that observations are never tied to the (verified) p2p identity key - the p2p network
@@ -66,7 +66,7 @@ func (p *Processor) handleObservation(ctx context.Context, m *gossipv1.LockupObs
 		return
 	}
 
-	// Hooray! Now, we have verified all fields on LockupObservation and know that it includes
+	// Hooray! Now, we have verified all fields on SignedObservation and know that it includes
 	// a valid signature by an active guardian. We still don't fully trust them, as they may be
 	// byzantine, but now we know who we're dealing with.
 

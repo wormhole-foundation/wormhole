@@ -46,7 +46,7 @@ type Processor struct {
 	// sendC is a channel of outbound messages to broadcast on p2p
 	sendC chan []byte
 	// obsvC is a channel of inbound decoded observations from p2p
-	obsvC chan *gossipv1.LockupObservation
+	obsvC chan *gossipv1.SignedObservation
 
 	// vaaC is a channel of VAAs to submit to store on Solana (either as target, or for data availability)
 	vaaC chan *vaa.VAA
@@ -86,7 +86,7 @@ func NewProcessor(
 	lockC chan *common.ChainLock,
 	setC chan *common.GuardianSet,
 	sendC chan []byte,
-	obsvC chan *gossipv1.LockupObservation,
+	obsvC chan *gossipv1.SignedObservation,
 	vaaC chan *vaa.VAA,
 	injectC chan *vaa.VAA,
 	gk *ecdsa.PrivateKey,

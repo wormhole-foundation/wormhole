@@ -18,13 +18,13 @@ func (p *Processor) broadcastSignature(v *vaa.VAA, signature []byte) {
 		panic(err)
 	}
 
-	obsv := gossipv1.LockupObservation{
+	obsv := gossipv1.SignedObservation{
 		Addr:      crypto.PubkeyToAddress(p.gk.PublicKey).Bytes(),
 		Hash:      digest.Bytes(),
 		Signature: signature,
 	}
 
-	w := gossipv1.GossipMessage{Message: &gossipv1.GossipMessage_LockupObservation{LockupObservation: &obsv}}
+	w := gossipv1.GossipMessage{Message: &gossipv1.GossipMessage_SignedObservation{SignedObservation: &obsv}}
 
 	msg, err := proto.Marshal(&w)
 	if err != nil {

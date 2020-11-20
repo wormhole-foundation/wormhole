@@ -26,7 +26,7 @@ import (
 	"github.com/certusone/wormhole/bridge/pkg/supervisor"
 )
 
-func Run(obsvC chan *gossipv1.LockupObservation,
+func Run(obsvC chan *gossipv1.SignedObservation,
 	sendC chan []byte,
 	priv crypto.PrivKey,
 	port uint,
@@ -228,8 +228,8 @@ func Run(obsvC chan *gossipv1.LockupObservation,
 				logger.Debug("heartbeat received",
 					zap.Any("value", m.Heartbeat),
 					zap.String("from", envelope.GetFrom().String()))
-			case *gossipv1.GossipMessage_LockupObservation:
-				obsvC <- m.LockupObservation
+			case *gossipv1.GossipMessage_SignedObservation:
+				obsvC <- m.SignedObservation
 			default:
 				logger.Warn("received unknown message type (running outdated software?)",
 					zap.Any("payload", msg.Message),

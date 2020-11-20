@@ -7,7 +7,7 @@ option go_package = "proto/gossip/v1;gossipv1";
 message GossipMessage {
   oneof message {
     Heartbeat heartbeat = 1;
-    LockupObservation lockup_observation = 2;
+    SignedObservation signed_observation = 2;
   }
 }
 
@@ -31,18 +31,20 @@ message Heartbeat {
   // TODO: software version/release
 }
 
-// A LockupObservation is a signed statement by a given guardian node
-// that they observed a finalized lockup on a chain.
+// A SignedObservation is a signed statement by a given guardian node
+// that they observed a given event.
 //
-// The lockup is uniquely identified by its hashed (tx_hash, nonce, values...) tuple.
+// Observations always result from an external, final event being observed.
+// Examples are lockups in finalized blocks on a block or guardian set changes
+// injected by node operators after reaching off-chain consensus.
+//
+// The event is uniquely identified by its hashed (tx_hash, nonce, values...) tuple.
 //
 // Other nodes will verify the signature. Once any node has observed a quorum of
 // guardians submitting valid signatures for a given hash, they can be assembled into a VAA.
 //
 // Messages without valid signature are dropped unceremoniously.
-//
-// TODO: rename? we also use it for governance VAAs
-message LockupObservation {
+message SignedObservation {
   // Guardian pubkey as truncated eth address.
   bytes addr = 1;
   // The lockup's deterministic, unique hash.

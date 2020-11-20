@@ -282,7 +282,7 @@ func runBridge(cmd *cobra.Command, args []string) {
 	sendC := make(chan []byte)
 
 	// Inbound observations
-	obsvC := make(chan *gossipv1.LockupObservation, 50)
+	obsvC := make(chan *gossipv1.SignedObservation, 50)
 
 	// VAAs to submit to Solana
 	solanaVaaC := make(chan *vaa.VAA)
