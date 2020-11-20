@@ -5,6 +5,8 @@ for more details on Wormhole and its major design decisions.
 
 See [DEVELOP.md](DEVELOP.md) for instructions on how to set up a local devnet.
 
+See [docs/operations.md](docs/operations.md) for node operator instructions.
+
 ![](docs/images/overview.svg)
 
 ### Audit / Feature Status
@@ -16,6 +18,12 @@ See [DEVELOP.md](DEVELOP.md) for instructions on how to set up a local devnet.
 | Bridge node       | Certus One | Kudelski | 🚧 In Progress  |
 | Terra contract    | Everstake  | Kudelski | ⚠ Pending       |
 
+⚠ **This software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+implied. See the License for the specific language governing permissions and limitations under the License.** Or plainly
+spoken - this is a very complex software which targets a bleeding-edge, experimental smart contract runtime. Mistakes
+happens, and no matter how hard you try and whether or not you pay someone to audit it, it may contain bugs that eat
+your tokens or set your printer on fire. Cryptocurrencies are a high-risk investment and there's decent chance you'll
+lose your money anyway, and you most certainly shouldn't put your life savings into a Wormhole contract (or any other).
 
 ### Repo overview
 
