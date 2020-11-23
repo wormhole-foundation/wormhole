@@ -35,15 +35,18 @@ spec:
     spec:
       terminationGracePeriodSeconds: 0
       volumes:
-        - name: key-volume
-          configMap:
-            name: bridge-keypair
+        # mount shared between containers for runtime state
+        - name: bridge-rundir
+          emptyDir: {}
       containers:
         - name: guardiand
           image: guardiand-image
           env:
             - name: TERRA_FEE_PAYER
               value: "notice oak worry limit wrap speak medal online prefer cluster roof addict wrist behave treat actual wasp year salad speed social layer crew genius"
+          volumeMounts:
+            - mountPath: /run/bridge
+              name: bridge-rundir
           command:
 # Uncomment this to enable in-place debugging using dlv
 # (not suitable for regular development since the process will no longer restart on its own)
@@ -72,7 +75,7 @@ spec:
 #            - --terraFeePayer
 #            - $(TERRA_FEE_PAYER)
             - --agentRPC
-            - localhost:9000
+            - /run/bridge/agent.sock
             - --ethConfirmations
             - '3'
             - --unsafeDevMode
@@ -95,13 +98,16 @@ spec:
               protocol: TCP
         - name: agent
           image: solana-agent
+          volumeMounts:
+            - mountPath: /run/bridge
+              name: bridge-rundir
           command:
             - /usr/local/bin/agent
             - 'Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o'
             - 'solana-devnet'  # host
             - '8899'  # rpc port
             - '8900'  # pubsub/ws port
-            - '9000'  # grpc listen port
+            - '/run/bridge/agent.sock'  # grpc listen socket
           ports:
             - containerPort: 9000
               name: grpc

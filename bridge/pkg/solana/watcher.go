@@ -36,11 +36,14 @@ func NewSolanaBridgeWatcher(url string, lockEvents chan *common.ChainLock, vaaQu
 }
 
 func (e *SolanaBridgeWatcher) Run(ctx context.Context) error {
+	// We only support UNIX sockets since we rely on Unix filesystem permissions for access control.
+	path := fmt.Sprintf("unix://%s", e.url)
+
 	timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
-	conn, err := grpc.DialContext(timeout, e.url, grpc.WithBlock(), grpc.WithInsecure())
+	conn, err := grpc.DialContext(timeout, path, grpc.WithBlock(), grpc.WithInsecure())
 	if err != nil {
-		return fmt.Errorf("failed to dial agent at %s: %w", e.url, err)
+		return fmt.Errorf("failed to dial agent at %s: %w", path, err)
 	}
 	defer conn.Close()
 
