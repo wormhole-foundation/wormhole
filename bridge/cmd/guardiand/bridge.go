@@ -84,7 +84,7 @@ func init() {
 	terraContract = BridgeCmd.Flags().String("terraContract", "", "Wormhole contract address on Terra blockhain")
 	terraFeePayer = BridgeCmd.Flags().String("terraFeePayer", "", "Mnemonic to account paying gas for submitting transactions to Terra")
 
-	agentRPC = BridgeCmd.Flags().String("agentRPC", "", "Solana agent sidecar gRPC address")
+	agentRPC = BridgeCmd.Flags().String("agentRPC", "", "Solana agent sidecar gRPC socket path")
 
 	logLevel = BridgeCmd.Flags().String("logLevel", "info", "Logging level (debug, info, warn, error, dpanic, panic, fatal)")
 

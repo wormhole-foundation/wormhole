@@ -1,6 +1,9 @@
-use std::{env, io::Write, mem::size_of, str::FromStr};
+use std::{env, io::Write, mem::size_of, str::FromStr, fs};
+use std::path::Path;
+use libc;
 
 use byteorder::{BigEndian, LittleEndian, ReadBytesExt, WriteBytesExt};
+use futures::stream::TryStreamExt;
 use solana_client::{
     client_error::ClientError, rpc_client::RpcClient, rpc_config::RpcSendTransactionConfig,
 };
@@ -11,6 +14,7 @@ use solana_sdk::{
     signature::{read_keypair_file, write_keypair_file, Keypair, Signature, Signer},
     transaction::Transaction,
 };
+use tokio::net::UnixListener;
 use tokio::sync::mpsc;
 use tonic::{transport::Server, Code, Request, Response, Status};
 
@@ -30,6 +34,7 @@ use spl_bridge::{
 use crate::monitor::PubsubClient;
 
 mod monitor;
+mod socket;
 
 pub mod service {
     include!(concat!(env!("OUT_DIR"), concat!("/", "agent.v1", ".rs")));
@@ -420,7 +425,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // TODO use clap
     if args.len() < 6 {
-        println!("<bridge> <rpc_host> <rpc_port> <ws_port> <port>");
+        println!("<bridge_address> <rpc_host> <rpc_port> <ws_port> <socket_path>");
         return Ok(());
     }
 
@@ -428,9 +433,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let host = &args[2];
     let rpc_port: u16 = args[3].parse()?;
     let ws_port: u16 = args[4].parse()?;
-    let port: u16 = args[5].parse()?;
-
-    let addr = format!("0.0.0.0:{}", port).parse().unwrap();
+    let socket_path = &args[5];
 
     let keypair = {
         if let Ok(k) = read_keypair_file("id.json") {
@@ -451,11 +454,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         key: keypair,
     };
 
-    println!("Agent listening on {}", addr);
+    // Setting a umask appears to be the only way of safely creating a UNIX socket using
+    // UnixListener::bind without introducing a TOCTOU race condition.
+    unsafe { libc::umask(0o0077) };
+
+    // Delete existing socket file and recreate it with restrictive permissions.
+    let mut path = Path::new(socket_path);
+    if path.exists() {
+        fs::remove_file(path)?;
+    }
+
+    let mut listener = UnixListener::bind(socket_path)?;
+    println!("Agent listening on {}", socket_path);
 
     Server::builder()
         .add_service(AgentServer::new(agent))
-        .serve(addr)
+        .serve_with_incoming(listener.incoming().map_ok(socket::UnixStream))
         .await?;
 
     Ok(())

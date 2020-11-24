@@ -110,7 +110,7 @@ func adminServiceRunnable(logger *zap.Logger, socketPath string, injectC chan<- 
 		return nil, fmt.Errorf("failed to listen on %s: %w", socketPath, err)
 	}
 
-	logger.Info("listening on", zap.String("path", socketPath))
+	logger.Info("admin server listening on", zap.String("path", socketPath))
 
 	nodeService := &nodePrivilegedService{
 		injectC: injectC,
