@@ -84,6 +84,26 @@ You'll end up with the following binaries in `build/`:
 Consider these recommendations, not a tutorial to be followed blindly. You'll want to integrate this with your
 existing build pipeline. If you need Dockerfile examples, you can take a look at our devnet deployment.
 
+## Key Generation
+
+To generate a guardian key, you only need to only build the Go bridge.
+
+It requires [Go](https://golang.org/dl/) >= 1.15.3. Clone the Wormhole repo
+and build the binary:
+
+    git clone https://github.com/certusone/wormhole
+    cd wormhole/
+    ./generate-protos.sh
+    cd bridge/
+    go build github.com/certusone/wormhole/bridge
+
+Then, generate a new key:
+
+    ./bridge keygen --desc "Testnet key foo" /path/to/your.key
+
+The key file includes a human-readable part that includes the public key
+and the description.
+
 ## Deploying
 
 ⚠ TODO:️ _systemd service file examples (not entirely trivial)_  
