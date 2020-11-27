@@ -26,7 +26,7 @@ request retransmission of their lockup, resulting in re-observation by nodes and
 chain replay, nodes will re-process events from connected chains up from a given block height, check whether a VAA has
 already been submitted to Solana, and initiate a round of consensus for missed lockups.
  
-This carries no risk and can be be done any number of times. VAAs are fully deterministic and idempotent - any given
+This carries no risk and can be done any number of times. VAAs are fully deterministic and idempotent - any given
 lockup will always result in the same VAA body hash. All connected chains keep a permanent record of whether a given VAA
 body - identified by its hash - has already been executed, therefore, VAAs can safely undergo multiple rounds of
 consensus until they are executed on all chains.
@@ -44,7 +44,7 @@ operator consensus in the same way.
 A non-exhaustive list of external chain properties Wormhole relies on:
 
 - It can be assumed that at some point, transactions are final and cannot be rolled back.
-- A given transaction is only included/executed once in a single block, resulting in a determistic VAA body.
+- A given transaction is only included/executed once in a single block, resulting in a deterministic VAA body.
 - Account data and state is permanent, by default or through a mechanism like Solana's rent exemptions.
 - No equivocation - there is only one valid block at a given height.
 
@@ -55,7 +55,7 @@ and that Wormhole's processing capacity is greater than the sum of the capacity 
 
 Solana has ridiculous processing capacity and can process transactions at a greater rate than what its websocket
 subscription interface, the agent, or the Wormhole itself could handle. This is partially mitigated by the fee that the
-Wormhole contracts charge in excess of the (very cheap) transaction fee, but a sufficiently incentived attacker could
+Wormhole contracts charge in excess of the (very cheap) transaction fee, but a sufficiently incentivized attacker could
 still execute a sustained attack by simply paying said fee.
 
 A possible future improvement would be dynamic fees on the Solana side, but this is currently blocked by runtime
@@ -79,9 +79,9 @@ We assume that at the present time, such incentive alignment is easy to bootstra
 which requires carefully-designed token economy and slashing criteria. In particular, it attracts operators who care
 about the ecosystem beyond short-term validation rewards, resulting in a high-quality, resilient guardian set.
 
-As the project grows, there's a number of potential improvements to consider other to a staking token, including
+As the project grows, there's a number of potential improvements to consider other than a staking token, including
 the [Balsa](https://docs.google.com/document/d/1sCgxHIOrVHAqrt4NWkUJXxQvpSxq6DyZrkf4IR-R-YM/edit) insurance pool
-proposal and a DAO that offsets operational costs and rewards operators.
+proposal, and a DAO that offsets operational costs and rewards operators.
 
 ## Uncompromised hosts
 
