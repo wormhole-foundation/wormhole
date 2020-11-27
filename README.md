@@ -24,7 +24,7 @@ spoken - this is a very complex software which targets a bleeding-edge, experime
 happens, and no matter how hard you try and whether or not you pay someone to audit it, it may eat your tokens, set your
 printer on fire or startle your cat.
 
-Cryptocurrencies in generals are a high-risk investment, there's decent chance you'll lose your money, and you most
+Cryptocurrencies in general are a high-risk investment, there's decent chance you'll lose your money, and you most
 certainly shouldn't put your life savings into a Wormhole contract (or any other).
 
 ### Repo overview
