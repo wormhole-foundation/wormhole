@@ -26,7 +26,9 @@ message GuardianSetUpdate {
     uint32 current_set_index = 1;
 
     // UNIX timestamp (s) of the VAA to be created. The timestamp is informational and will be part
-    // of the VAA submitted to the chain. It's part of the VAA digest and has to be identical across nodes.
+    // of the VAA submitted to the chain. It's part of the VAA digest and has to be identical across nodes and
+    // is critical for replay protection - a given event may only ever be observed with the same timestamp,
+    // otherwise, it may be possible to execute it multiple times.
     //
     // For lockups, the timestamp identifies the block that the lockup belongs to. For guardian set updates,
     // we create the VAA manually. Best practice is to pick a timestamp which roughly matches the expected
