@@ -74,11 +74,14 @@ func (p *Processor) handleObservation(ctx context.Context, m *gossipv1.SignedObs
 	hash := hex.EncodeToString(m.Hash)
 
 	if p.state.vaaSignatures[hash] == nil {
-		// We haven't yet seen this lockup ourselves, and therefore do not know what the VAA looks like.
+		// We haven't yet seen this lockup ourselves, and therefore  do not know what the VAA looks like.
 		// However, we have established that a valid guardian has signed it, and therefore we can
 		// already start aggregating signatures for it.
 		//
-		// TODO: a malicious guardian can DoS this by creating fake lockups
+		// A malicious guardian can potentially DoS this by creating fake lockups at a faster rate than they decay,
+		// leading to a slow out-of-memory crash. We do not attempt to automatically mitigate spam attacks with valid
+		// signatures - such byzantine behavior would be plainly visible and would be dealt with by kicking them.
+
 		p.state.vaaSignatures[hash] = &vaaState{
 			firstObserved: time.Now(),
 			signatures:    map[common.Address][]byte{},
