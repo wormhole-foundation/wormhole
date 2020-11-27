@@ -98,9 +98,12 @@ causing irreversible damage with a single signature. It merely complicates the a
 For some use cases, like PoS validation, the risk of host compromise can be fully mitigated by running a smart HSM like
 [SignOS](https://certus.one/sign-os). In these cases, the smart HSM can parse the signature payload and apply
 constraints like "a given block height may only be signed once", which can be independently verified in a secure
-enclave. In the case of on an oracle like Wormhole, this constraint is "only finalized events may be certified", which
-is impossible to verify without verifying block headers. Therefore, in the case of Wormhole, the entire Wormhole
-instance would have to run inside a smart HSM, including light clients for the chains it supports.
+enclave.
+
+In the case of an oracle like Wormhole, this constraint is "only finalized events may be certified", which is impossible
+to verify without verifying merkle proofs and syncing at least a sparse header chain. Therefore, in the case of
+Wormhole, the entire Wormhole instance would have to run inside a smart HSM/SignOS, including light clients for the
+chains it supports.
 
 ## Third-party libraries
 
