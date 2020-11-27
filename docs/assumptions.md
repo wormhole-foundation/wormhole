@@ -1,14 +1,14 @@
 # Security Assumptions
 
 This page details various assumptions that Wormhole relies on for security and availability. Many of these are
-universally applicable to different decentralized protocols.
+universal assumptions that apply to various decentralized protocols.
 
-This document assumes familiarity with Wormhole concepts like VAAs, lockups and transfers.
+This document assumes familiarity with Wormhole concepts like VAAs and lockups/transfers.
 
 ## Gossip network availability
 
 Wormhole's peer-to-peer gossip network relies on the [go-libp2p](https://github.com/libp2p/go-libp2p) and
-[go-libp2p-pubsub](https://github.com/libp2p/go-libp2p-pubsub) library. libp2p is a very popular library used by many
+[go-libp2p-pubsub](https://github.com/libp2p/go-libp2p-pubsub) libraries. libp2p is a very popular library used by many
 major decentralized networks like IPFS and Ethereum 2.0. Nevertheless, like any distributed protocol, it may be
 susceptible to various denial-of-service attacks that may cause message loss or overwhelm individual nodes.
 
@@ -18,18 +18,18 @@ denial of service attacks on the gossip network or individual nodes.
 
 Gossip network unavailability can result in transfers getting temporarily stuck, but never permanently. Nodes will
 periodically attempt to retransmit signatures for VAAs which failed to reach consensus in order to mitigate short-term
-network outages. Longer network outages, leading to eventual VAA retransmission timeouts, as well as correlated crashes
-of a superminority of nodes, may result in lockups being dropped.
+network outages. Longer network outages, leading to timeouts, and correlated crashes of a superminority of nodes may
+result in lockups being dropped.
 
 The mitigation for this is the PokeVAA mechanism on Solana or chain replay for other chains. On Solana, a user can
-request retransmission of their lockup, resulting in re-observation by nodes and another round of consensus - and manual
-chain replay by the nodes. During chain replay, nodes will re-process events from connected chains up from a given block
-height, check whether a VAA has already been submitted to Solana, and initiate a round of consensus for missed lockups.
+request retransmission of their lockup, resulting in re-observation by nodes and another round of consensus. During
+chain replay, nodes will re-process events from connected chains up from a given block height, check whether a VAA has
+already been submitted to Solana, and initiate a round of consensus for missed lockups.
  
-This carries no risk and can be be done any number of times because VAAs are fully deterministic and idempotent - any
-given lockup will always result in the same VAA body hash. All connected chains keep a permanent record of whether a
-given VAA body - identified by its hash - has already been executed, therefore, VAAs can safely undergo multiple rounds
-of consensus until they are executed on all chains.
+This carries no risk and can be be done any number of times. VAAs are fully deterministic and idempotent - any given
+lockup will always result in the same VAA body hash. All connected chains keep a permanent record of whether a given VAA
+body - identified by its hash - has already been executed, therefore, VAAs can safely undergo multiple rounds of
+consensus until they are executed on all chains.
 
 The bridge does not yet implement chain replay (see https://github.com/certusone/wormhole/issues/123). Network outages
 can therefore result in stuck transfers from chains other than Solana in the case of a prolonged network outage. It
@@ -71,8 +71,9 @@ attacking the connected chains directly.
 ## Guardian incentive alignment
 
 Wormhole is a decentralized PoA bridge. Its game-theoretical security relies on hand-picked operators whose incentives
-strongly align with Solana ecosystem - large token holders, ecosystem projects, top validators and similar, who would
-risk damage to their reputation, token values, and ecosystem growth by attacking the network or neglecting their duties.
+strongly align with the Solana ecosystem - large token holders, ecosystem projects, top validators and similar, who
+would risk damage to their reputation, token values, and ecosystem growth by attacking the network or neglecting their
+duties.
 
 We assume that at the present time, such incentive alignment is easy to bootstrap and get right than a separate chain,
 which requires carefully-designed token economy and slashing criteria. In particular, it attracts operators who care
