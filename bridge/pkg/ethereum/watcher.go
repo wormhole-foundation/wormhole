@@ -15,6 +15,7 @@ import (
 
 	"github.com/certusone/wormhole/bridge/pkg/common"
 	"github.com/certusone/wormhole/bridge/pkg/ethereum/abi"
+	"github.com/certusone/wormhole/bridge/pkg/readiness"
 	"github.com/certusone/wormhole/bridge/pkg/supervisor"
 	"github.com/certusone/wormhole/bridge/pkg/vaa"
 )
@@ -177,6 +178,9 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 			case ev := <-headSink:
 				start := time.Now()
 				logger.Info("processing new header", zap.Stringer("block", ev.Number))
+
+				readiness.SetReady("ethSyncing")
+
 				e.pendingLocksGuard.Lock()
 
 				blockNumberU := ev.Number.Uint64()

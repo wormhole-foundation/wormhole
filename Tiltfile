@@ -61,17 +61,20 @@ def build_bridge_yaml():
 
     return encode_yaml_stream(bridge_yaml)
 
+
 k8s_yaml(build_bridge_yaml())
 
-k8s_resource("guardian", resource_deps = ["proto-gen"])
+k8s_resource("guardian", resource_deps=["proto-gen"], port_forwards=[
+    port_forward(6060, name="Debug Server [:6060]"),
+])
 
 # solana agent and cli (runs alongside bridge)
 
 docker_build(
-    ref = "solana-agent",
-    context = ".",
-    only = ["./proto", "./solana"],
-    dockerfile = "Dockerfile.agent",
+    ref="solana-agent",
+    context=".",
+    only=["./proto", "./solana"],
+    dockerfile="Dockerfile.agent",
 
     # Ignore target folders from local (non-container) development.
     ignore = ["./solana/target", "./solana/agent/target", "./solana/cli/target"],

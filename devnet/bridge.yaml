@@ -89,6 +89,10 @@ spec:
               add:
                 # required for syscall.Mlockall
                 - IPC_LOCK
+          readinessProbe:
+            httpGet:
+              port: 6060
+              path: /readyz
           ports:
             - containerPort: 8999
               name: p2p

@@ -13,9 +13,10 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	agentv1 "github.com/certusone/wormhole/bridge/pkg/proto/agent/v1"
-
 	"go.uber.org/zap"
+
+	agentv1 "github.com/certusone/wormhole/bridge/pkg/proto/agent/v1"
+	"github.com/certusone/wormhole/bridge/pkg/readiness"
 
 	"github.com/certusone/wormhole/bridge/pkg/common"
 	"github.com/certusone/wormhole/bridge/pkg/supervisor"
@@ -57,6 +58,15 @@ func (e *SolanaBridgeWatcher) Run(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to subscribe to token lockup events: %w", err)
 	}
+
+	// Check whether agent is up by doing a GetBalance call. This is a bit hacky, but otherwise, a broken agent won't
+	// fail until Recv(). Readiness is best-effort and if this succeeds, it's fair to assume that the watch does too.
+	balance, err := c.GetBalance(timeout, &agentv1.GetBalanceRequest{})
+	if err != nil {
+		return fmt.Errorf("failed to get balance: %v", err)
+	}
+	readiness.SetReady("solanaSyncing")
+	logger.Info("account balance", zap.Uint64("lamports", balance.Balance))
 
 	go func() {
 		logger.Info("watching for on-chain events")

@@ -22,6 +22,7 @@ import (
 	"github.com/certusone/wormhole/bridge/pkg/p2p"
 	"github.com/certusone/wormhole/bridge/pkg/processor"
 	gossipv1 "github.com/certusone/wormhole/bridge/pkg/proto/gossip/v1"
+	"github.com/certusone/wormhole/bridge/pkg/readiness"
 	solana "github.com/certusone/wormhole/bridge/pkg/solana"
 	"github.com/certusone/wormhole/bridge/pkg/supervisor"
 	"github.com/certusone/wormhole/bridge/pkg/vaa"
@@ -172,9 +173,19 @@ func runBridge(cmd *cobra.Command, args []string) {
 	// Override the default go-log config, which uses a magic environment variable.
 	ipfslog.SetAllLoggers(lvl)
 
+	// Register components for readiness checks.
+	readiness.RegisterComponent("ethSyncing")
+	readiness.RegisterComponent("solanaSyncing")
+	if *terraSupport {
+		readiness.RegisterComponent("terraSyncing")
+	}
+
 	// In devnet mode, we automatically set a number of flags that rely on deterministic keys.
 	if *unsafeDevMode {
 		go func() {
+			// TODO: once monitoring server is implemented, move this to that http server instance
+			http.HandleFunc("/readyz", readiness.Handler)
+
 			logger.Info("debug server listening on [::]:6060")
 			logger.Error("debug server crashed", zap.Error(http.ListenAndServe("[::]:6060", nil)))
 		}()

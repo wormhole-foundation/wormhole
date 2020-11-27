@@ -12,6 +12,7 @@ import (
 	eth_common "github.com/ethereum/go-ethereum/common"
 
 	"github.com/certusone/wormhole/bridge/pkg/common"
+	"github.com/certusone/wormhole/bridge/pkg/readiness"
 	"github.com/certusone/wormhole/bridge/pkg/supervisor"
 	"github.com/certusone/wormhole/bridge/pkg/vaa"
 	"github.com/gorilla/websocket"
@@ -79,6 +80,8 @@ func (e *BridgeWatcher) Run(ctx context.Context) error {
 		return fmt.Errorf("event subscription failed: %w", err)
 	}
 	logger.Info("subscribed to new transaction events")
+
+	readiness.SetReady("terraSyncing")
 
 	go func() {
 		defer close(errC)
