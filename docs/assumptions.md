@@ -88,7 +88,7 @@ proposal and a DAO that offsets operational costs and rewards operators.
 This should go without saying - in the context of a single node, we assume that an adversary cannot read or write host
 memory, execute code, or otherwise compromise the running host operating system or platform while or after the node is
 running. If a supermajority of nodes is compromised, an attacker can produce arbitrary VAAs. If a superminority of nodes
-is compromised, the network may no longer achieve consensus.
+is compromised, the network may temporarily lose consensus (there's no way to intentionally void a guardian key).
 
 Contrary to popular belief, hardware security modules do _not_ significantly change the risks associated with host
 compromise when dealing with cryptocurrency keys. A compromised host could easily abuse the HSM as a signing oracle,
