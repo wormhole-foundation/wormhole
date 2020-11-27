@@ -49,8 +49,11 @@ Wormhole binaries from source. A Git repo is much harder to tamper with than rel
 
 To build Wormhole, you need:
 
-- [Go](https://golang.org/dl/) >= 1.15.3
+- [Go](https://golang.org/dl/) >= 1.15.5
 - [Rust](https://www.rust-lang.org/learn/get-started) >= 1.47.0
+
+It is very important to use a sufficiently recent Go version that includes a fix for
+[CVE-2020-28362](https://blog.ethereum.org/2020/11/12/geth_security_release/).
 
 If your Linux distribution has recent enough packages for these, it's preferable to use those and avoid
 the extra third-party build dependency.
@@ -88,7 +91,7 @@ existing build pipeline. If you need Dockerfile examples, you can take a look at
 
 To generate a guardian key, you only need to only build the Go bridge.
 
-It requires [Go](https://golang.org/dl/) >= 1.15.3. Clone the Wormhole repo
+It requires [Go](https://golang.org/dl/) >= 1.15.5. Clone the Wormhole repo
 and build the binary:
 
     git clone https://github.com/certusone/wormhole

@@ -17,7 +17,7 @@
 #       +-> third_party/solana/Dockerfile <--------------+  |  |
 #                              +                            |  |    +-----------------+
 #                              +-->  solana-devnet  +-------|-----> |  solana-devnet  |
-#      golang:1.15.3                                        +-----> | [setup]         |
+#      golang:1.*                                           +-----> | [setup]         |
 #       +                                                      |    +-----------------+
 #       +-> bridge/Dockerfile   +->  guardiand-image +---------+
 #

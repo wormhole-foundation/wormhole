@@ -4,7 +4,7 @@
 
 The following dependencies are required for local development:
 
-- [Go](https://golang.org/dl/) >= 1.15.3
+- [Go](https://golang.org/dl/) >= 1.15.5
 - [Docker](https://docs.docker.com/engine/install/) / moby-engine >= 19.03
 - [Tilt](http://tilt.dev/) >= 0.17.2
 - Any of the local Kubernetes clusters supported by Tilt. 
