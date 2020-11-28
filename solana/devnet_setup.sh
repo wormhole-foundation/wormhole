@@ -49,5 +49,8 @@ echo "Created wrapped token $token"
 wrapped_account=$(cli create-account --seed=934893 "$wrapped_token" | grep 'Creating account' | awk '{ print $3 }')
 echo "Created wrapped token account $wrapped_account"
 
+# Let k8s startup probe succeed
+nc -l -p 2000
+
 # Keep the container alive for interactive CLI usage
 sleep infinity

@@ -55,7 +55,9 @@ spec:
         name: terra-lcd
         ports:
         - containerPort: 1317
-        resources: {}
+        readinessProbe:
+          tcpSocket:
+            port: 1317
         volumeMounts:
         - mountPath: /root/.terrad/config
           name: terra-lcd-cm0
@@ -90,6 +92,9 @@ spec:
         name: terra-terrad
         ports:
         - containerPort: 26657
+        readinessProbe:
+          httpGet:
+            port: 26657
         resources: {}
         volumeMounts:
         - mountPath: /root/.terrad/config
