@@ -41,3 +41,6 @@ spec:
             - containerPort: 3000
               name: react-devserver
               protocol: TCP
+          readinessProbe:
+            httpGet:
+              port: react-devserver

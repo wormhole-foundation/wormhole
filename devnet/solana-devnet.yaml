@@ -67,7 +67,16 @@ spec:
             - containerPort: 9900
               name: faucet
               protocol: TCP
+          readinessProbe:
+            httpGet:
+              port: rpc
+              path: /health
         - name: setup
           image: solana-agent
           command:
             - /usr/src/solana/devnet_setup.sh
+          startupProbe:
+            tcpSocket:
+              port: 2000
+            periodSeconds: 1
+            failureThreshold: 300

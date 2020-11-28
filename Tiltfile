@@ -161,4 +161,8 @@ k8s_resource(
     objects=["terra-lcd-cm0"]
 )
 
-k8s_resource("terra-terrad", objects=["terra-terrad-cm0"])
+k8s_resource(
+    "terra-terrad",
+    objects=["terra-terrad-cm0"],
+    port_forwards=[port_forward(26657, name="Terra RPC [:26657]")]
+)

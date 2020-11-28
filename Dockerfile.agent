@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:experimental
 FROM rust:1.45
 
-RUN apt-get update && apt-get install -y libssl-dev libudev-dev pkg-config zlib1g-dev llvm clang
+RUN apt-get update && apt-get install -y libssl-dev libudev-dev pkg-config zlib1g-dev llvm clang ncat
 RUN rustup component add rustfmt
 
 WORKDIR /usr/src/solana

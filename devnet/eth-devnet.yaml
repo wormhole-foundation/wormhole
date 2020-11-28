@@ -43,12 +43,20 @@ spec:
             - containerPort: 8545
               name: rpc
               protocol: TCP
+          readinessProbe:
+            tcpSocket:
+              port: rpc
         - name: tests
           image: eth-node
           command:
             - /bin/sh
             - -c
-            - "npm run migrate && sleep infinity"
+            - "npm run migrate && nc -l -p 2000 && sleep infinity"
+          startupProbe:
+            periodSeconds: 1
+            failureThreshold: 60
+            tcpSocket:
+              port: 2000
         - name: mine
           image: eth-node
           command:
