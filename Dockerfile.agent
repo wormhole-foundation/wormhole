@@ -1,5 +1,5 @@
 # syntax=docker.io/docker/dockerfile:experimental@sha256:de85b2f3a3e8a2f7fe48e8e84a65f6fdd5cd5183afa6412fff9caa6871649c44
-FROM rust:1.45
+FROM rust:1.48
 
 RUN apt-get update && apt-get install -y libssl-dev libudev-dev pkg-config zlib1g-dev llvm clang ncat
 RUN rustup component add rustfmt

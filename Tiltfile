@@ -8,7 +8,7 @@
 #
 #      Dockerfile                    Image ref                      StatefulSet
 #      +------------------------------------------------------------------------------+
-#      rust+1.45
+#      rust+1.*
 #       +                                                           +-----------------+
 #       +-> Dockerfile.agent    +->  solana-agent  +--------+-----> | [agent]         |
 #       |                                                   |  +--> |    guardian-N   |
