@@ -156,6 +156,12 @@ fn command_lock_tokens(
 
     let bridge_key = Bridge::derive_bridge_id(bridge)?;
 
+    // Fetch token balance to get decimals.
+    let balance = config
+        .rpc_client
+        .get_token_account_balance_with_commitment(&account, config.commitment_config)?
+        .value;
+
     // Check whether we can find wrapped asset meta for the given token
     let wrapped_key = Bridge::derive_wrapped_meta_id(bridge, &bridge_key, &token)?;
     let asset_meta = match config.rpc_client.get_account(&wrapped_key) {
@@ -165,7 +171,7 @@ fn command_lock_tokens(
             AssetMeta {
                 address: wrapped_meta.address,
                 chain: wrapped_meta.chain,
-                decimals: 0,
+                decimals: balance.decimals,
             }
         }
         Err(_e) => AssetMeta {
