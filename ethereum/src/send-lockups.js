@@ -28,8 +28,6 @@ module.exports = function(callback) {
         let bridge = await Wormhole.deployed();
         let token = await ERC20.deployed();
         console.log("Token:", token.address);
-        await token.mint("0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1", "1000000000000000000");
-        await token.approve(bridge.address, "1000000000000000000");
 
         while (true) {
             let ev = await bridge.lockAssets(
@@ -57,4 +55,3 @@ module.exports = function(callback) {
 
     fn().catch(reason => console.error(reason))
 }
-
