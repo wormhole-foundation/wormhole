@@ -77,7 +77,7 @@ spec:
             - --agentRPC
             - /run/bridge/agent.sock
             - --ethConfirmations
-            - '3'
+            - '2'
             - --unsafeDevMode
             - --bridgeKey
             - /tmp/bridge.key

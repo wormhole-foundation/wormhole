@@ -50,15 +50,8 @@ func SubmitVAA(ctx context.Context, rpcURL string, vaa *vaa.VAA) (*types.Transac
 		return nil, fmt.Errorf("dialing eth client failed: %w", err)
 	}
 
-	key, err := Wallet().PrivateKey(DeriveAccount(0))
-	if err != nil {
-		panic(err)
-	}
-
-	opts := bind.NewKeyedTransactor(key)
-	opts.Context = ctx
-
-	bridge, err := abi.NewAbi(BridgeContractAddress, c)
+	kt := GetKeyedTransactor(ctx)
+	bridge, err := abi.NewAbi(GanacheBridgeContractAddress, c)
 	if err != nil {
 		panic(err)
 	}
@@ -70,10 +63,23 @@ func SubmitVAA(ctx context.Context, rpcURL string, vaa *vaa.VAA) (*types.Transac
 
 	supervisor.Logger(ctx).Info("submitted VAA to Ethereum devnet", zap.Binary("binary", b))
 
-	tx, err := bridge.SubmitVAA(opts, b)
+	tx, err := bridge.SubmitVAA(kt, b)
 	if err != nil {
 		return nil, err
 	}
 
 	return tx, nil
+}
+
+// GetKeyedTransactor returns a transaction signer with the deterministic devnet key.
+func GetKeyedTransactor(ctx context.Context) *bind.TransactOpts {
+	key, err := Wallet().PrivateKey(DeriveAccount(0))
+	if err != nil {
+		panic(err)
+	}
+
+	kt := bind.NewKeyedTransactor(key)
+	kt.Context = ctx
+
+	return kt
 }
