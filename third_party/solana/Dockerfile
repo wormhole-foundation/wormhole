@@ -3,7 +3,7 @@
 # Depend on our smart contract build - it's going to be linked directly into Solana as part the patch we carry.
 FROM solana-contract as contract
 
-FROM rust:1.45
+FROM rust:1.48
 
 RUN apt-get update && apt-get install -y libssl-dev libudev-dev pkg-config zlib1g-dev llvm clang
 RUN rustup component add rustfmt
@@ -11,7 +11,7 @@ RUN rustup component add rustfmt
 WORKDIR /usr/src/solana
 
 RUN git clone https://github.com/solana-labs/solana --branch master && \
-  cd solana && git checkout v1.4.7
+  cd solana && git checkout v1.4.12
 
 ADD *.patch .
 
