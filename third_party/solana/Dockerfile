@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:experimental
+# syntax=docker.io/docker/dockerfile:experimental@sha256:de85b2f3a3e8a2f7fe48e8e84a65f6fdd5cd5183afa6412fff9caa6871649c44
 
 # Depend on our smart contract build - it's going to be linked directly into Solana as part the patch we carry.
 FROM solana-contract as contract
