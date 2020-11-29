@@ -65,7 +65,7 @@ func (e *SolanaBridgeWatcher) Run(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to get balance: %v", err)
 	}
-	readiness.SetReady("solanaSyncing")
+	readiness.SetReady(common.ReadinessSolanaSyncing)
 	logger.Info("account balance", zap.Uint64("lamports", balance.Balance))
 
 	go func() {

@@ -81,7 +81,7 @@ func (e *BridgeWatcher) Run(ctx context.Context) error {
 	}
 	logger.Info("subscribed to new transaction events")
 
-	readiness.SetReady("terraSyncing")
+	readiness.SetReady(common.ReadinessTerraSyncing)
 
 	go func() {
 		defer close(errC)

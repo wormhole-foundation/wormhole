@@ -174,10 +174,10 @@ func runBridge(cmd *cobra.Command, args []string) {
 	ipfslog.SetAllLoggers(lvl)
 
 	// Register components for readiness checks.
-	readiness.RegisterComponent("ethSyncing")
-	readiness.RegisterComponent("solanaSyncing")
+	readiness.RegisterComponent(common.ReadinessEthSyncing)
+	readiness.RegisterComponent(common.ReadinessSolanaSyncing)
 	if *terraSupport {
-		readiness.RegisterComponent("terraSyncing")
+		readiness.RegisterComponent(common.ReadinessTerraSyncing)
 	}
 
 	// In devnet mode, we automatically set a number of flags that rely on deterministic keys.
