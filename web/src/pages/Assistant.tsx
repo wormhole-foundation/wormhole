@@ -192,11 +192,17 @@ function Assistant() {
                 decimals: transferData.fromCoinInfo.decimals,
             }, Math.random() * 100000);
         let ix = spl.Token.createApproveInstruction(TOKEN_PROGRAM, new PublicKey(transferData.fromCoinInfo.address), await bridge.getConfigKey(), k.publicKey, [], transferData.amount.toNumber())
-
+        let bridge_account = await bridge.getConfigKey();
+        let fee_ix = solanaWeb3.SystemProgram.transfer({
+            fromPubkey: k.publicKey,
+            toPubkey: bridge_account,
+            lamports: await bridge.getTransferFee()
+        });
         let recentHash = await c.getRecentBlockhash();
         let tx = new Transaction();
         tx.recentBlockhash = recentHash.blockhash
         tx.add(ix)
+        tx.add(fee_ix)
         tx.add(lock_ix)
         tx.sign(k)
         try {

@@ -37,9 +37,6 @@ use std::borrow::BorrowMut;
 use std::ops::Add;
 use solana_program::fee_calculator::FeeCalculator;
 
-/// Tx fee of Signature checks and PostVAA (see docs for calculation)
-const VAA_TX_FEE: u64 = 18 * 10000;
-
 /// SigInfo contains metadata about signers in a VerifySignature ix
 struct SigInfo {
     /// index of the signer in the guardianset
@@ -379,6 +376,7 @@ impl Bridge {
         next_account_info(account_info_iter)?; // Token program
         next_account_info(account_info_iter)?; // Rent sysvar
         let clock_info = next_account_info(account_info_iter)?;
+        let instructions_info = next_account_info(account_info_iter)?;
         let sender_account_info = next_account_info(account_info_iter)?;
         let bridge_info = next_account_info(account_info_iter)?;
         let transfer_info = next_account_info(account_info_iter)?;
@@ -393,7 +391,7 @@ impl Bridge {
 
         // Fee handling
         let fee = Self::transfer_fee();
-        Self::transfer_sol(payer_info, bridge_info, fee)?;
+        Self::check_fees(instructions_info, bridge_info, fee)?;
 
         // Does the token belong to the mint
         if sender.mint != *mint_info.key {
@@ -478,6 +476,7 @@ impl Bridge {
         next_account_info(account_info_iter)?; // Token program
         next_account_info(account_info_iter)?; // Rent sysvar
         let clock_info = next_account_info(account_info_iter)?;
+        let instructions_info = next_account_info(account_info_iter)?;
         let sender_account_info = next_account_info(account_info_iter)?;
         let bridge_info = next_account_info(account_info_iter)?;
         let transfer_info = next_account_info(account_info_iter)?;
@@ -491,9 +490,8 @@ impl Bridge {
         let bridge: &Bridge = Self::unpack_immutable(&bridge_data)?;
         let clock = Clock::from_account_info(clock_info)?;
 
-        // Fee handling
         let fee = Self::transfer_fee();
-        Self::transfer_sol(payer_info, bridge_info, fee)?;
+        Self::check_fees(instructions_info, bridge_info, fee)?;
 
         // Does the token belong to the mint
         if sender.mint != *mint_info.key {
@@ -584,10 +582,52 @@ impl Bridge {
         Ok(())
     }
 
-    pub fn transfer_fee() -> u64 {
-        // Pay for 2 signature state and Claimed VAA rents + 2 * guardian tx fees
-        // This will pay for this transfer and ~10 inbound ones
-        Rent::default().minimum_balance((size_of::<SignatureState>() + size_of::<ClaimedVAA>()) * 2) + VAA_TX_FEE * 2
+    /// Verify that a certain fee was sent to the bridge in the preceding instruction
+    pub fn check_fees(instructions_info: &AccountInfo, bridge_info: &AccountInfo, fee: u64) -> Result<(), ProgramError> {
+        let current_instruction = solana_program::sysvar::instructions::load_current_index(
+            &instructions_info.try_borrow_mut_data()?,
+        );
+        if current_instruction == 0 {
+            return Err(ProgramError::InvalidInstructionData);
+        }
+
+        // The previous ix must be a transfer instruction
+        let transfer_ix_index = (current_instruction - 1) as u8;
+        let transfer_ix = solana_program::sysvar::instructions::load_instruction_at(
+            transfer_ix_index as usize,
+            &instructions_info.try_borrow_mut_data()?,
+        )
+            .map_err(|_| ProgramError::InvalidAccountData)?;
+
+        // Check that the instruction is actually for the system program
+        if transfer_ix.program_id != solana_program::system_program::id() {
+            return Err(ProgramError::InvalidArgument);
+        }
+
+        if transfer_ix.data.len() != 12 {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        if transfer_ix.accounts.len() != 2 {
+            return Err(ProgramError::InvalidInstructionData);
+        }
+
+        // Check that the fee was transferred to the bridge config
+        if transfer_ix.accounts[1].pubkey != *bridge_info.key {
+            return Err(ProgramError::InvalidArgument);
+        }
+
+        // Parse amount
+        let mut fixed_data = [0u8; 8];
+        fixed_data.copy_from_slice(&transfer_ix.data[4..]);
+        let amount = u64::from_le_bytes(fixed_data);
+
+        // Verify fee amount
+        if amount < fee {
+            return Err(Error::InsufficientFees.into());
+        }
+
+        Ok(())
     }
 
     pub fn transfer_sol(
@@ -633,18 +673,6 @@ impl Bridge {
         if expected_guardian_set != *guardian_set_info.key {
             return Err(Error::InvalidDerivedAccount.into());
         }
-
-        // Check and create claim
-        let claim_seeds = Bridge::derive_claim_seeds(bridge_info.key, vaa.signature_body()?);
-        Bridge::check_and_create_account::<ClaimedVAA>(
-            program_id,
-            accounts,
-            claim_info.key,
-            payer_info,
-            program_id,
-            &claim_seeds,
-            Some(bridge_info),
-        )?;
 
         // Check that the guardian set is still active
         if (guardian_set.expiration_time as i64) > clock.unix_timestamp {
@@ -724,6 +752,18 @@ impl Bridge {
             }
         }?;
 
+        // Check and create claim
+        let claim_seeds = Bridge::derive_claim_seeds(bridge_info.key, vaa.signature_body()?);
+        Bridge::check_and_create_account::<ClaimedVAA>(
+            program_id,
+            accounts,
+            claim_info.key,
+            payer_info,
+            program_id,
+            &claim_seeds,
+            Some(bridge_info),
+        )?;
+
         // If the signatures are not needed anymore, evict them and reclaim rent.
         // This should cover most of the costs of the guardian.
         if evict_signatures {
@@ -731,8 +771,8 @@ impl Bridge {
         }
 
         // Refund tx fee if possible
-        if bridge_info.lamports().checked_sub(Self::MIN_BRIDGE_BALANCE).unwrap_or(0) >= VAA_TX_FEE {
-            Self::transfer_sol(bridge_info, payer_info, VAA_TX_FEE)?;
+        if bridge_info.lamports().checked_sub(Self::MIN_BRIDGE_BALANCE).unwrap_or(0) >= Self::VAA_TX_FEE {
+            Self::transfer_sol(bridge_info, payer_info, Self::VAA_TX_FEE)?;
         }
 
         // Load claim account
@@ -1192,6 +1232,16 @@ impl Bridge {
             return Err(Error::InvalidDerivedAccount.into());
         }
 
+        info!("deploying contract");
+        Self::create_account_raw::<T>(
+            program_id,
+            accounts,
+            new_account,
+            payer.key,
+            owner,
+            &full_seeds,
+        )?;
+
         // The subsidizer refunds the rent that needs to be paid to create the account.
         // This mechanism is intended to reduce the cost of operating a guardian.
         // The subsidizer account should be of the type BridgeConfig and will only pay out
@@ -1207,16 +1257,6 @@ impl Bridge {
                 }
             }
         }
-
-        info!("deploying contract");
-        Self::create_account_raw::<T>(
-            program_id,
-            accounts,
-            new_account,
-            payer.key,
-            owner,
-            &full_seeds,
-        )?;
 
         Ok(full_seeds)
     }

@@ -196,7 +196,7 @@ impl BridgeInstruction {
                 output.resize(size_of::<InitializePayload>() + 1, 0);
                 output[0] = 0;
                 #[allow(clippy::cast_ptr_alignment)]
-                let value = unsafe {
+                    let value = unsafe {
                     &mut *(&mut output[size_of::<u8>()] as *mut u8 as *mut InitializePayload)
                 };
                 *value = payload;
@@ -205,7 +205,7 @@ impl BridgeInstruction {
                 output.resize(size_of::<TransferOutPayloadRaw>() + 1, 0);
                 output[0] = 1;
                 #[allow(clippy::cast_ptr_alignment)]
-                let value = unsafe {
+                    let value = unsafe {
                     &mut *(&mut output[size_of::<u8>()] as *mut u8 as *mut TransferOutPayloadRaw)
                 };
 
@@ -224,7 +224,7 @@ impl BridgeInstruction {
                 output.resize(1, 0);
                 output[0] = 2;
                 #[allow(clippy::cast_ptr_alignment)]
-                output.extend_from_slice(&payload);
+                    output.extend_from_slice(&payload);
             }
             Self::EvictTransferOut() => {
                 output.resize(1, 0);
@@ -242,7 +242,7 @@ impl BridgeInstruction {
                 output.resize(size_of::<VerifySigPayload>() + 1, 0);
                 output[0] = 6;
                 #[allow(clippy::cast_ptr_alignment)]
-                let value = unsafe {
+                    let value = unsafe {
                     &mut *(&mut output[size_of::<u8>()] as *mut u8 as *mut VerifySigPayload)
                 };
                 *value = payload;
@@ -251,7 +251,7 @@ impl BridgeInstruction {
                 output.resize(size_of::<AssetMeta>() + 1, 0);
                 output[0] = 7;
                 #[allow(clippy::cast_ptr_alignment)]
-                let value =
+                    let value =
                     unsafe { &mut *(&mut output[size_of::<u8>()] as *mut u8 as *mut AssetMeta) };
                 *value = payload;
             }
@@ -280,7 +280,7 @@ pub fn initialize(
         len_guardians: initial_guardian.len() as u8,
         initial_guardian: initial_g,
     })
-    .serialize()?;
+        .serialize()?;
 
     let bridge_key = Bridge::derive_bridge_id(program_id)?;
     let guardian_set_key = Bridge::derive_guardian_set_id(program_id, &bridge_key, 0)?;
@@ -329,6 +329,7 @@ pub fn transfer_out(
         AccountMeta::new_readonly(spl_token::id(), false),
         AccountMeta::new_readonly(solana_program::sysvar::rent::id(), false),
         AccountMeta::new_readonly(solana_program::sysvar::clock::id(), false),
+        AccountMeta::new_readonly(solana_program::sysvar::instructions::id(), false),
         AccountMeta::new(*token_account, false),
         AccountMeta::new_readonly(bridge_key, false),
         AccountMeta::new(transfer_key, false),
@@ -531,6 +532,6 @@ pub fn unpack<T>(input: &[u8]) -> Result<&T, ProgramError> {
         return Err(ProgramError::InvalidInstructionData);
     }
     #[allow(clippy::cast_ptr_alignment)]
-    let val: &T = unsafe { &*(&input[1] as *const u8 as *const T) };
+        let val: &T = unsafe { &*(&input[1] as *const u8 as *const T) };
     Ok(val)
 }
