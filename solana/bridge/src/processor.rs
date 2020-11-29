@@ -127,9 +127,10 @@ impl Bridge {
             program_id,
             accounts,
             new_bridge_info.key,
-            payer_info.key,
+            payer_info,
             program_id,
             &bridge_seed,
+            None,
         )?;
 
         let mut new_account_data = new_bridge_info.try_borrow_mut_data()?;
@@ -144,9 +145,10 @@ impl Bridge {
             program_id,
             accounts,
             new_guardian_info.key,
-            payer_info.key,
+            payer_info,
             program_id,
             &guardian_seed,
+            None,
         )?;
 
         let mut new_guardian_data = new_guardian_info.try_borrow_mut_data().map_err(|_| ProgramError::AccountBorrowFailed)?;
@@ -201,6 +203,7 @@ impl Bridge {
         next_account_info(account_info_iter)?; // Bridge program
         next_account_info(account_info_iter)?; // System program
         let instruction_accounts = next_account_info(account_info_iter)?;
+        let bridge_info = next_account_info(account_info_iter)?;
         let sig_info = next_account_info(account_info_iter)?;
         let guardian_set_info = next_account_info(account_info_iter)?;
         let payer_info = next_account_info(account_info_iter)?;
@@ -315,9 +318,10 @@ impl Bridge {
                 program_id,
                 accounts,
                 sig_info.key,
-                payer_info.key,
+                payer_info,
                 program_id,
                 &sig_seeds,
+                Some(bridge_info),
             )?;
         } else if payload.initial_creation {
             return Err(Error::AlreadyExists.into());
@@ -387,6 +391,10 @@ impl Bridge {
         let mint = Bridge::mint_deserialize(mint_info)?;
         let clock = Clock::from_account_info(clock_info)?;
 
+        // Fee handling
+        let fee = Self::transfer_fee();
+        Self::transfer_sol(payer_info, bridge_info, fee)?;
+
         // Does the token belong to the mint
         if sender.mint != *mint_info.key {
             return Err(Error::TokenMintMismatch.into());
@@ -418,9 +426,10 @@ impl Bridge {
             program_id,
             accounts,
             transfer_info.key,
-            payer_info.key,
+            payer_info,
             program_id,
             &transfer_seed,
+            None,
         )?;
 
         // Load transfer account
@@ -482,6 +491,9 @@ impl Bridge {
         let bridge: &Bridge = Self::unpack_immutable(&bridge_data)?;
         let clock = Clock::from_account_info(clock_info)?;
 
+        // Fee handling
+        let fee = Self::transfer_fee();
+        Self::transfer_sol(payer_info, bridge_info, fee)?;
 
         // Does the token belong to the mint
         if sender.mint != *mint_info.key {
@@ -502,9 +514,10 @@ impl Bridge {
             program_id,
             accounts,
             transfer_info.key,
-            payer_info.key,
+            payer_info,
             program_id,
             &transfer_seed,
+            None,
         )?;
 
         // Load transfer account
@@ -527,7 +540,8 @@ impl Bridge {
                 bridge_info.key,
                 custody_info.key,
                 mint_info.key,
-                payer_info.key,
+                payer_info,
+                None,
             )?;
         }
 
@@ -570,6 +584,25 @@ impl Bridge {
         Ok(())
     }
 
+    pub fn transfer_fee() -> u64 {
+        // Pay for 2 signature state and Claimed VAA rents + 2 * guardian tx fees
+        // This will pay for this transfer and ~10 inbound ones
+        Rent::default().minimum_balance((size_of::<SignatureState>() + size_of::<ClaimedVAA>()) * 2) + VAA_TX_FEE * 2
+    }
+
+    pub fn transfer_sol(
+        payer_account: &AccountInfo,
+        recipient_account: &AccountInfo,
+        amount: u64,
+    ) -> ProgramResult {
+        let mut payer_balance = payer_account.try_borrow_mut_lamports()?;
+        **payer_balance = payer_balance.checked_sub(amount).ok_or(ProgramError::InsufficientFunds)?;
+        let mut recipient_balance = recipient_account.try_borrow_mut_lamports()?;
+        **recipient_balance = recipient_balance.checked_add(amount).ok_or(ProgramError::InvalidArgument)?;
+
+        Ok(())
+    }
+
     /// Processes a VAA
     pub fn process_vaa(
         program_id: &Pubkey,
@@ -607,9 +640,10 @@ impl Bridge {
             program_id,
             accounts,
             claim_info.key,
-            payer_info.key,
+            payer_info,
             program_id,
             &claim_seeds,
+            Some(bridge_info),
         )?;
 
         // Check that the guardian set is still active
@@ -643,12 +677,14 @@ impl Bridge {
             return Err(ProgramError::InvalidArgument);
         }
 
+        let mut evict_signatures = false;
         let payload = vaa.payload.as_ref().ok_or(Error::InvalidVAAAction)?;
         match payload {
             VAABody::UpdateGuardianSet(v) => {
                 let mut bridge_data = bridge_info.try_borrow_mut_data()?;
                 let bridge: &mut Bridge = Self::unpack(&mut bridge_data)?;
 
+                evict_signatures = true;
                 Self::process_vaa_set_update(
                     program_id,
                     accounts,
@@ -675,6 +711,7 @@ impl Bridge {
                 } else {
                     let bridge_data = bridge_info.try_borrow_data()?;
                     let bridge: &Bridge = Self::unpack_immutable(&bridge_data)?;
+                    evict_signatures = true;
                     Self::process_vaa_transfer(
                         program_id,
                         accounts,
@@ -686,6 +723,17 @@ impl Bridge {
                 }
             }
         }?;
+
+        // If the signatures are not needed anymore, evict them and reclaim rent.
+        // This should cover most of the costs of the guardian.
+        if evict_signatures {
+            Self::transfer_sol(sig_info, payer_info, sig_info.lamports())?;
+        }
+
+        // Refund tx fee if possible
+        if bridge_info.lamports().checked_sub(Self::MIN_BRIDGE_BALANCE).unwrap_or(0) >= VAA_TX_FEE {
+            Self::transfer_sol(bridge_info, payer_info, VAA_TX_FEE)?;
+        }
 
         // Load claim account
         let mut claim_data = claim_info.try_borrow_mut_data()?;
@@ -736,9 +784,10 @@ impl Bridge {
             program_id,
             accounts,
             new_guardian_info.key,
-            payer_info.key,
+            payer_info,
             program_id,
             &guardian_seed,
+            Some(bridge_info),
         )?;
 
         let mut guardian_set_new_data = new_guardian_info.try_borrow_mut_data()?;
@@ -928,9 +977,10 @@ impl Bridge {
             &bridge.config.token_program,
             mint_info.key,
             bridge_info.key,
-            payer_info.key,
+            payer_info,
             &a,
             a.decimals,
+            None,
         )?;
 
         // Check and create wrapped asset meta to allow reverse resolution of info
@@ -939,9 +989,10 @@ impl Bridge {
             program_id,
             accounts,
             wrapped_meta_info.key,
-            payer_info.key,
+            payer_info,
             program_id,
             &wrapped_meta_seeds,
+            None,
         )?;
 
         let mut wrapped_meta_data = wrapped_meta_info.try_borrow_mut_data()?;
@@ -1046,7 +1097,8 @@ impl Bridge {
         bridge: &Pubkey,
         account: &Pubkey,
         mint: &Pubkey,
-        payer: &Pubkey,
+        payer: &AccountInfo,
+        subsidizer: Option<&AccountInfo>,
     ) -> Result<(), ProgramError> {
         Self::check_and_create_account::<[u8; spl_token::state::Account::LEN]>(
             program_id,
@@ -1055,6 +1107,7 @@ impl Bridge {
             payer,
             token_program,
             &Self::derive_custody_seeds(bridge, mint),
+            subsidizer,
         )?;
         info!(token_program.to_string().as_str());
         let ix = spl_token::instruction::initialize_account(
@@ -1073,9 +1126,10 @@ impl Bridge {
         token_program: &Pubkey,
         mint: &Pubkey,
         bridge: &Pubkey,
-        payer: &Pubkey,
+        payer: &AccountInfo,
         asset: &AssetMeta,
         decimals: u8,
+        subsidizer: Option<&AccountInfo>,
     ) -> Result<(), ProgramError> {
         Self::check_and_create_account::<[u8; spl_token::state::Mint::LEN]>(
             program_id,
@@ -1084,6 +1138,7 @@ impl Bridge {
             payer,
             token_program,
             &Self::derive_wrapped_asset_seeds(bridge, asset.chain, asset.decimals, asset.address),
+            subsidizer,
         )?;
         let ix = spl_token::instruction::initialize_mint(
             token_program,
@@ -1115,14 +1170,21 @@ impl Bridge {
         invoke_signed(instruction, account_infos, &[s.as_slice()])
     }
 
+    /// The amount of sol that needs to be held in the BridgeConfig account in order to make it
+    /// exempt of rent payments.
+    const MIN_BRIDGE_BALANCE: u64 = (((solana_program::rent::ACCOUNT_STORAGE_OVERHEAD + size_of::<BridgeConfig>() as u64) *
+        solana_program::rent::DEFAULT_LAMPORTS_PER_BYTE_YEAR) as f64
+        * solana_program::rent::DEFAULT_EXEMPTION_THRESHOLD) as u64;
+
     /// Check that a key was derived correctly and create account
     pub fn check_and_create_account<T: Sized>(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
         new_account: &Pubkey,
-        payer: &Pubkey,
+        payer: &AccountInfo,
         owner: &Pubkey,
         seeds: &Vec<Vec<u8>>,
+        subsidizer: Option<&AccountInfo>,
     ) -> Result<Vec<Vec<u8>>, ProgramError> {
         info!("deriving key");
         let (expected_key, full_seeds) = Bridge::derive_key(program_id, seeds)?;
@@ -1130,12 +1192,28 @@ impl Bridge {
             return Err(Error::InvalidDerivedAccount.into());
         }
 
+        // The subsidizer refunds the rent that needs to be paid to create the account.
+        // This mechanism is intended to reduce the cost of operating a guardian.
+        // The subsidizer account should be of the type BridgeConfig and will only pay out
+        // the subsidy if the account holds at least MIN_BRIDGE_BALANCE+rent
+        match subsidizer {
+            None => {}
+            Some(v) => {
+                let bal = v.try_lamports()?;
+                let rent = Rent::default().minimum_balance(size_of::<T>());
+                if bal.checked_sub(Self::MIN_BRIDGE_BALANCE).ok_or(ProgramError::InsufficientFunds)? >= rent {
+                    // Refund rent to payer
+                    Self::transfer_sol(v, payer, rent)?;
+                }
+            }
+        }
+
         info!("deploying contract");
         Self::create_account_raw::<T>(
             program_id,
             accounts,
             new_account,
-            payer,
+            payer.key,
             owner,
             &full_seeds,
         )?;

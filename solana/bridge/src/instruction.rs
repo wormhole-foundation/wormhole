@@ -368,6 +368,7 @@ pub fn verify_signatures(
         AccountMeta::new_readonly(*program_id, false),
         AccountMeta::new_readonly(solana_program::system_program::id(), false),
         AccountMeta::new_readonly(solana_program::sysvar::instructions::id(), false),
+        AccountMeta::new(bridge_key, false),
         AccountMeta::new(*signature_acc, false),
         AccountMeta::new_readonly(guardian_set_key, false),
         AccountMeta::new(*payer, true),
