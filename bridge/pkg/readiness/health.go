@@ -16,21 +16,23 @@ var (
 	registry = map[string]bool{}
 )
 
+type Component string
+
 // RegisterComponent registers the given component name such that it is required to be ready for the global check to succeed.
-func RegisterComponent(component string) {
+func RegisterComponent(component Component) {
 	mu.Lock()
-	if _, ok := registry[component]; ok {
+	if _, ok := registry[string(component)]; ok {
 		panic("component already registered")
 	}
-	registry[component] = false
+	registry[string(component)] = false
 	mu.Unlock()
 }
 
 // SetReady sets the given global component state.
-func SetReady(component string) {
+func SetReady(component Component) {
 	mu.Lock()
-	if !registry[component] {
-		registry[component] = true
+	if !registry[string(component)] {
+		registry[string(component)] = true
 	}
 	mu.Unlock()
 }

@@ -179,7 +179,7 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 				start := time.Now()
 				logger.Info("processing new header", zap.Stringer("block", ev.Number))
 
-				readiness.SetReady("ethSyncing")
+				readiness.SetReady(common.ReadinessEthSyncing)
 
 				e.pendingLocksGuard.Lock()
 
