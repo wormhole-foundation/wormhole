@@ -5,7 +5,7 @@ set -x
 # Configure CLI (works the same as upstream Solana CLI)
 mkdir -p ~/.config/solana/cli
 cat <<EOF > ~/.config/solana/cli/config.yml
-json_rpc_url: "http://solana-devnet:8899"
+json_rpc_url: "http://127.0.0.1:8899"
 websocket_url: ""
 keypair_path: /usr/src/solana/id.json
 EOF
@@ -24,7 +24,7 @@ retry () {
 }
 
 # Fund our account (as seen in id.json).
-retry cli airdrop solana-devnet:9900
+retry cli airdrop 127.0.0.1:9900
 
 # Create the bridge contract at a known address
 # OK to fail on subsequent attempts (already created).
