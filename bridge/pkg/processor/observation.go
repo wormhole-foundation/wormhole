@@ -217,7 +217,7 @@ func (p *Processor) terraVAASubmission(ctx context.Context, signed *vaa.VAA, has
 	//  - https://github.com/certusone/wormhole/issues/97
 	//
 	// Roadmap: https://github.com/certusone/wormhole/milestone/4
-	if !p.devnetMode || p.terraChaidID == "" {
+	if !p.devnetMode || !p.terraEnabled {
 		p.logger.Warn("ignoring terra VAA submission",
 			zap.String("digest", hash))
 		return

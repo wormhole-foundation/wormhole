@@ -62,6 +62,7 @@ type Processor struct {
 	devnetNumGuardians uint
 	devnetEthRPC       string
 
+	terraEnabled  bool
 	terraLCD      string
 	terraChaidID  string
 	terraContract string
@@ -93,6 +94,7 @@ func NewProcessor(
 	devnetMode bool,
 	devnetNumGuardians uint,
 	devnetEthRPC string,
+	terraEnabled bool,
 	terraLCD string,
 	terraChaidID string,
 	terraContract string,
@@ -110,6 +112,7 @@ func NewProcessor(
 		devnetNumGuardians: devnetNumGuardians,
 		devnetEthRPC:       devnetEthRPC,
 
+		terraEnabled:  terraEnabled,
 		terraLCD:      terraLCD,
 		terraChaidID:  terraChaidID,
 		terraContract: terraContract,
@@ -168,7 +171,7 @@ func (p *Processor) checkDevModeGuardianSetUpdate(ctx context.Context) error {
 
 			p.logger.Info("devnet guardian set change submitted to Ethereum", zap.Any("trx", trx), zap.Any("vaa", v))
 
-			if p.terraChaidID != "" {
+			if p.terraEnabled {
 				// Submit to Terra
 				trxResponse, err := terra.SubmitVAA(timeout, p.terraLCD, p.terraChaidID, p.terraContract, p.terraFeePayer, v)
 				if err != nil {

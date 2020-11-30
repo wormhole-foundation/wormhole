@@ -347,7 +347,24 @@ func runBridge(cmd *cobra.Command, args []string) {
 			return err
 		}
 
-		p := processor.NewProcessor(ctx, lockC, setC, sendC, obsvC, solanaVaaC, injectC, gk, *unsafeDevMode, *devNumGuardians, *ethRPC, *terraLCD, *terraChaidID, *terraContract, *terraFeePayer)
+		// TODO: this thing has way too many arguments at this point - make it an options struct
+		p := processor.NewProcessor(ctx,
+			lockC,
+			setC,
+			sendC,
+			obsvC,
+			solanaVaaC,
+			injectC,
+			gk,
+			*unsafeDevMode,
+			*devNumGuardians,
+			*ethRPC,
+			*terraSupport,
+			*terraLCD,
+			*terraChaidID,
+			*terraContract,
+			*terraFeePayer,
+		)
 		if err := supervisor.Run(ctx, "processor", p.Run); err != nil {
 			return err
 		}
