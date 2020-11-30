@@ -160,7 +160,7 @@ func (p *Processor) handleObservation(ctx context.Context, m *gossipv1.SignedObs
 					// be expected to pay the fees. We only submit to Ethereum in devnet mode.
 					p.devnetVAASubmission(ctx, signed, hash)
 				case vaa.ChainIDTerra:
-					p.terraVAASubmission(ctx, signed, hash)
+					go p.terraVAASubmission(ctx, signed, hash)
 				default:
 					p.logger.Error("unknown target chain ID",
 						zap.String("digest", hash),
@@ -211,12 +211,6 @@ func (p *Processor) devnetVAASubmission(ctx context.Context, signed *vaa.VAA, ha
 
 // Submit VAA to Terra.
 func (p *Processor) terraVAASubmission(ctx context.Context, signed *vaa.VAA, hash string) {
-	// Terra support is not yet ready for production.
-	//  - https://github.com/certusone/wormhole/issues/83
-	//  - https://github.com/certusone/wormhole/issues/95
-	//  - https://github.com/certusone/wormhole/issues/97
-	//
-	// Roadmap: https://github.com/certusone/wormhole/milestone/4
 	if !p.devnetMode || !p.terraEnabled {
 		p.logger.Warn("ignoring terra VAA submission",
 			zap.String("digest", hash))
