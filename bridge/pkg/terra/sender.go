@@ -6,14 +6,14 @@ import (
 	"io/ioutil"
 	"time"
 
+	"github.com/certusone/wormhole/bridge/pkg/devnet"
+
 	"github.com/certusone/wormhole/bridge/pkg/vaa"
 	"github.com/terra-project/terra.go/client"
 	"github.com/terra-project/terra.go/key"
 	"github.com/terra-project/terra.go/msg"
 	"github.com/terra-project/terra.go/tx"
 )
-
-const devnetFeePayerKey = "notice oak worry limit wrap speak medal online prefer cluster roof addict wrist behave treat actual wasp year salad speed social layer crew genius"
 
 type submitVAAMsg struct {
 	Params submitVAAParams `json:"submit_v_a_a"`
@@ -90,16 +90,18 @@ func SubmitVAA(ctx context.Context, urlLCD string, chainID string, contractAddre
 }
 
 // ReadKey reads file and returns its content as a string
-func ReadKey(path string) (*string, error) {
+func ReadKey(path string) (string, error) {
 	b, err := ioutil.ReadFile(path)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-	result := string(b)
-	return &result, nil
+	return string(b), nil
 }
 
 // WriteDevnetKey writes default devnet key to the file
 func WriteDevnetKey(path string) {
-	_ = ioutil.WriteFile(path, []byte(devnetFeePayerKey), 0644)
+	err := ioutil.WriteFile(path, []byte(devnet.TerraFeePayerKey), 0600)
+	if err != nil {
+		panic("Cannot write Terra key file")
+	}
 }

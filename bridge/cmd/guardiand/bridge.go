@@ -317,7 +317,7 @@ func runBridge(cmd *cobra.Command, args []string) {
 	}
 
 	// Load Terra fee payer key
-	var terraFeePayer *string
+	var terraFeePayer string
 	if *terraSupport {
 		if *unsafeDevMode {
 			terra.WriteDevnetKey(*terraKeyPath)
@@ -375,7 +375,7 @@ func runBridge(cmd *cobra.Command, args []string) {
 			*terraLCD,
 			*terraChaidID,
 			*terraContract,
-			*terraFeePayer,
+			terraFeePayer,
 		)
 		if err := supervisor.Run(ctx, "processor", p.Run); err != nil {
 			return err
