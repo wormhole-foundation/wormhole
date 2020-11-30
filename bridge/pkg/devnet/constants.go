@@ -57,6 +57,9 @@ const (
 
 	// ERC20 default precision.
 	ERC20DefaultPrecision = 1e18
+
+	// Terra devnet fee payer mnemonic
+	TerraFeePayerKey = "notice oak worry limit wrap speak medal online prefer cluster roof addict wrist behave treat actual wasp year salad speed social layer crew genius"
 )
 
 func DeriveAccount(accountIndex uint) accounts.Account {
