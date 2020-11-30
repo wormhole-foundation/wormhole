@@ -52,7 +52,7 @@ var (
 	terraLCD      *string
 	terraChaidID  *string
 	terraContract *string
-	terraFeePayer *string
+	terraKeyPath  *string
 
 	agentRPC *string
 
@@ -83,7 +83,7 @@ func init() {
 	terraLCD = BridgeCmd.Flags().String("terraLCD", "", "Path to LCD service root for http calls")
 	terraChaidID = BridgeCmd.Flags().String("terraChainID", "", "Terra chain ID, used in LCD client initialization")
 	terraContract = BridgeCmd.Flags().String("terraContract", "", "Wormhole contract address on Terra blockhain")
-	terraFeePayer = BridgeCmd.Flags().String("terraFeePayer", "", "Mnemonic to account paying gas for submitting transactions to Terra")
+	terraKeyPath = BridgeCmd.Flags().String("terraKey", "", "Path to mnemonic for account paying gas for submitting transactions to Terra")
 
 	agentRPC = BridgeCmd.Flags().String("agentRPC", "", "Solana agent sidecar gRPC socket path")
 
@@ -250,8 +250,8 @@ func runBridge(cmd *cobra.Command, args []string) {
 		if *terraContract == "" {
 			logger.Fatal("Please specify --terraContract")
 		}
-		if *terraFeePayer == "" {
-			logger.Fatal("Please specify --terraFeePayer")
+		if *terraKeyPath == "" {
+			logger.Fatal("Please specify --terraKey")
 		}
 	}
 
@@ -313,6 +313,18 @@ func runBridge(cmd *cobra.Command, args []string) {
 		priv, err = getOrCreateNodeKey(logger, *nodeKeyPath)
 		if err != nil {
 			logger.Fatal("Failed to load node key", zap.Error(err))
+		}
+	}
+
+	// Load Terra fee payer key
+	var terraFeePayer *string
+	if *terraSupport {
+		if *unsafeDevMode {
+			terra.WriteDevnetKey(*terraKeyPath)
+		}
+		terraFeePayer, err = terra.ReadKey(*terraKeyPath)
+		if err != nil {
+			logger.Fatal("Failed to load Terra fee payer key", zap.Error(err))
 		}
 	}
 
