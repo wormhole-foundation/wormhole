@@ -422,7 +422,7 @@ class SolanaBridge {
 
     async getTransferFee(): Promise<number> {
         // Reference processor.rs::Bridge::transfer_fee
-        return (await this.connection.getMinimumBalanceForRentExemption((37 + 1337) * 2)) + 18 * 10000 * 2
+        return (await this.connection.getMinimumBalanceForRentExemption((40 + 1340) * 2)) + 18 * 10000 * 2
     }
 }
 

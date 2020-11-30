@@ -234,8 +234,8 @@ Accounts created: `1 ClaimedVAA + 1 SignatureState`
 Costs:
 ```
 4 TX (14 secp signatures + 4 ed25519) + ClaimedVAA (exemption rent) + SignatureState (exemption rent)
-18 * 10_000 + (36+128) * 6962 + (1337+128) * 6962
-11521098 lamports = 0.0115 SOL
+18 * 10_000 + (40+128) * 6962 + (1340+128) * 6962
+11569832 lamports = 0.0116 SOL
 ```
 
 **For a transfer from a foreign chain to Solana (20 guardians; 14 quorum):**
@@ -247,8 +247,8 @@ Accounts created: `1 ClaimedVAA + 1 SignatureState (temporary; evicted in PostVA
 Costs:
 ```
 4 TX (14 secp signatures + 4 ed25519) + ClaimedVAA (exemption rent)
-18 * 10_000 + (36+128) * 6962
-1321768 lamports = 0.0013 SOL
+18 * 10_000 + (40+128) * 6962
+1349616 lamports = 0.0013 SOL
 ```
 
 ---
