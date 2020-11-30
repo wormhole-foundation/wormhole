@@ -69,8 +69,8 @@ Parameters:
 |     1 | sys           | SystemProgram       |        |           |       |         |
 |     2 | token_program | SplToken            |        |           |       |         |
 |     3 | rent          | Sysvar              |        |           |       | ✅      |
-|     4 | clock         | Sysvar              |        |           |      |  ✅       |
-|     5 | instructions  | Sysvar              |        |           |      |  ✅       |
+|     4 | clock         | Sysvar              |        |           |       | ✅      |
+|     5 | instructions  | Sysvar              |        |           |       | ✅      |
 |     6 | token_account | TokenAccount        |        | ✅        |       |         |
 |     7 | bridge        | BridgeConfig        |        |           |       |         |
 |     8 | proposal      | TransferOutProposal |        | ✅        | ✅    | ✅      |
