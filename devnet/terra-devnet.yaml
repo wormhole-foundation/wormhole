@@ -51,21 +51,14 @@ spec:
         - --node=tcp://terra-terrad:26657
         - --trust-node=true
         - --unsafe-cors
-        image: terramoney/localterra-core:0.4.5
+        image: terra-image
         name: terra-lcd
         ports:
         - containerPort: 1317
         readinessProbe:
           tcpSocket:
             port: 1317
-        volumeMounts:
-        - mountPath: /root/.terrad/config
-          name: terra-lcd-cm0
       restartPolicy: Always
-      volumes:
-      - configMap:
-          name: terra-lcd-cm0
-        name: terra-lcd-cm0
   serviceName: terra-lcd
 ---
 apiVersion: apps/v1
@@ -88,7 +81,7 @@ spec:
       - args:
         - terrad
         - start
-        image: terramoney/localterra-core:0.4.5
+        image: terra-image
         name: terra-terrad
         ports:
         - containerPort: 26657
@@ -96,12 +89,5 @@ spec:
           httpGet:
             port: 26657
         resources: {}
-        volumeMounts:
-        - mountPath: /root/.terrad/config
-          name: terra-terrad-cm0
       restartPolicy: Always
-      volumes:
-      - configMap:
-          name: terra-terrad-cm0
-        name: terra-terrad-cm0
   serviceName: terra-terrad

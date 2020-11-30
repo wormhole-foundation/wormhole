@@ -152,17 +152,20 @@ k8s_resource("web", port_forwards=[
 
 # terra devnet
 
+docker_build(
+    ref = "terra-image",
+    context = "./terra/docker",
+    dockerfile = "terra/docker/Dockerfile",
+)
+
 k8s_yaml("devnet/terra-devnet.yaml")
-k8s_yaml("devnet/terra-configmaps.yaml")
 
 k8s_resource(
     "terra-lcd",
-    port_forwards=[port_forward(1317, name="Terra LCD interface [:1317]")],
-    objects=["terra-lcd-cm0"]
+    port_forwards=[port_forward(1317, name="Terra LCD interface [:1317]")]
 )
 
 k8s_resource(
     "terra-terrad",
-    objects=["terra-terrad-cm0"],
     port_forwards=[port_forward(26657, name="Terra RPC [:26657]")]
 )
