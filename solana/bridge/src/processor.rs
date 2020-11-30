@@ -604,17 +604,27 @@ impl Bridge {
             return Err(ProgramError::InvalidArgument);
         }
 
-        if transfer_ix.data.len() != 12 {
-            return Err(ProgramError::InvalidAccountData);
-        }
-
         if transfer_ix.accounts.len() != 2 {
             return Err(ProgramError::InvalidInstructionData);
         }
 
-        // Check that the fee was transferred to the bridge config
+        // Check that the fee was transferred to the bridge config.
+        // We only care that the fee was sent to the bridge, not by whom it was sent.
         if transfer_ix.accounts[1].pubkey != *bridge_info.key {
             return Err(ProgramError::InvalidArgument);
+        }
+
+        // The transfer instruction is serialized using bincode (little endian)
+        // uint32 ix_type = 2 (Transfer)
+        // uint64 lamports
+        // LEN: 4 + 8 = 12 bytes
+        if transfer_ix.data.len() != 12 {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        // Verify action
+        if transfer_ix.data[..4] != [2, 0, 0, 0] {
+            return Err(ProgramError::InvalidInstructionData);
         }
 
         // Parse amount
