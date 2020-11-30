@@ -103,6 +103,9 @@ pub enum Error {
     /// Mismatching guardian set
     #[error("GuardianSetMismatch")]
     GuardianSetMismatch,
+    /// Insufficient fees
+    #[error("InsufficientFees")]
+    InsufficientFees,
 }
 
 impl From<Error> for ProgramError {

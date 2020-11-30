@@ -190,6 +190,7 @@ fn command_lock_tokens(
             &[],
             amount,
         )?,
+        system_instruction::transfer(&config.owner.pubkey(), &bridge_key, Bridge::transfer_fee()),
         transfer_out(
             bridge,
             &config.owner.pubkey(),
@@ -207,7 +208,7 @@ fn command_lock_tokens(
 
     println!(
         "custody: {}, ",
-        instructions[1].accounts[8].pubkey.to_string()
+        instructions[2].accounts[8].pubkey.to_string()
     );
 
     let mut transaction =
@@ -232,7 +233,7 @@ fn check_fee_payer_balance(config: &Config, required_balance: u64) -> Result<(),
             lamports_to_sol(required_balance),
             lamports_to_sol(balance)
         )
-        .into())
+            .into())
     } else {
         Ok(())
     }
@@ -247,7 +248,7 @@ fn check_owner_balance(config: &Config, required_balance: u64) -> Result<(), Err
             lamports_to_sol(required_balance),
             lamports_to_sol(balance)
         )
-        .into())
+            .into())
     } else {
         Ok(())
     }
@@ -1313,31 +1314,31 @@ fn main() {
         }
         _ => unreachable!(),
     }
-    .and_then(|transaction| {
-        if let Some(transaction) = transaction {
-            // TODO: Upgrade to solana-client 1.3 and
-            // `send_and_confirm_transaction_with_spinner_and_commitment()` with single
-            // confirmation by default for better UX
-            let signature = config
-                .rpc_client
-                .send_and_confirm_transaction_with_spinner_and_config(
-                    &transaction,
-                    config.commitment_config,
-                    RpcSendTransactionConfig {
-                        // TODO: move to https://github.com/solana-labs/solana/pull/11792
-                        skip_preflight: true,
-                        preflight_commitment: None,
-                        encoding: None,
-                    },
-                )?;
-            println!("Signature: {}", signature);
-        }
-        Ok(())
-    })
-    .map_err(|err| {
-        eprintln!("{}", err);
-        exit(1);
-    });
+        .and_then(|transaction| {
+            if let Some(transaction) = transaction {
+                // TODO: Upgrade to solana-client 1.3 and
+                // `send_and_confirm_transaction_with_spinner_and_commitment()` with single
+                // confirmation by default for better UX
+                let signature = config
+                    .rpc_client
+                    .send_and_confirm_transaction_with_spinner_and_config(
+                        &transaction,
+                        config.commitment_config,
+                        RpcSendTransactionConfig {
+                            // TODO: move to https://github.com/solana-labs/solana/pull/11792
+                            skip_preflight: true,
+                            preflight_commitment: None,
+                            encoding: None,
+                        },
+                    )?;
+                println!("Signature: {}", signature);
+            }
+            Ok(())
+        })
+        .map_err(|err| {
+            eprintln!("{}", err);
+            exit(1);
+        });
 }
 
 fn keypair_from_seed_arg(arg_matches: &ArgMatches) -> Keypair {
@@ -1352,8 +1353,8 @@ fn keypair_from_seed_arg(arg_matches: &ArgMatches) -> Keypair {
 }
 
 pub fn is_u8<T>(amount: T) -> Result<(), String>
-where
-    T: AsRef<str> + Display,
+    where
+        T: AsRef<str> + Display,
 {
     if amount.as_ref().parse::<u8>().is_ok() {
         Ok(())
@@ -1366,8 +1367,8 @@ where
 }
 
 pub fn is_u32<T>(amount: T) -> Result<(), String>
-where
-    T: AsRef<str> + Display,
+    where
+        T: AsRef<str> + Display,
 {
     if amount.as_ref().parse::<u32>().is_ok() {
         Ok(())
@@ -1380,8 +1381,8 @@ where
 }
 
 pub fn is_hex<T>(value: T) -> Result<(), String>
-where
-    T: AsRef<str> + Display,
+    where
+        T: AsRef<str> + Display,
 {
     hex::decode(value.to_string())
         .map(|_| ())

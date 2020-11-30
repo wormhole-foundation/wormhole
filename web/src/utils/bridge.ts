@@ -105,6 +105,7 @@ class SolanaBridge {
             {pubkey: this.tokenProgram, isSigner: false, isWritable: false},
             {pubkey: solanaWeb3.SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false},
             {pubkey: solanaWeb3.SYSVAR_CLOCK_PUBKEY, isSigner: false, isWritable: false},
+            {pubkey: solanaWeb3.SYSVAR_INSTRUCTIONS_PUBKEY, isSigner: false, isWritable: false},
             {pubkey: tokenAccount, isSigner: false, isWritable: true},
             {pubkey: configKey, isSigner: false, isWritable: false},
 
@@ -417,6 +418,11 @@ class SolanaBridge {
         let seeds: Array<Buffer> = [Buffer.from("meta"), configKey.toBuffer(), mint.toBuffer()];
         // @ts-ignore
         return (await solanaWeb3.PublicKey.findProgramAddress(seeds, this.programID))[0];
+    }
+
+    async getTransferFee(): Promise<number> {
+        // Reference processor.rs::Bridge::transfer_fee
+        return (await this.connection.getMinimumBalanceForRentExemption((37 + 1337) * 2)) + 18 * 10000 * 2
     }
 }
 

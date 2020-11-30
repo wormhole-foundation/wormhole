@@ -58,6 +58,9 @@ Burns a wrapped asset `token` from `sender` on the Solana chain.
 
 The transfer proposal will be tracked at a new account `proposal` where VAAs will be submitted by guardians.
 
+This instruction needs to be preceded by a SOL Transfer instruction that transfers the fee to the BridgeConfig.
+The fee can be calculated using the rules explained in the protocol documentation and `Bridge::transfer_fee()`.
+
 Parameters:
 
 | Index | Name          | Type                | signer | writeable | empty | derived |
@@ -66,12 +69,13 @@ Parameters:
 |     1 | sys           | SystemProgram       |        |           |       |         |
 |     2 | token_program | SplToken            |        |           |       |         |
 |     3 | rent          | Sysvar              |        |           |       | ✅      |
-|     4 | clock         | Sysvar              |        |           | ✅    |         |
-|     5 | token_account | TokenAccount        |        | ✅        |       |         |
-|     6 | bridge        | BridgeConfig        |        |           |       |         |
-|     7 | proposal      | TransferOutProposal |        | ✅        | ✅    | ✅      |
-|     8 | token         | WrappedAsset        |        | ✅        |       | ✅      |
-|     9 | payer         | Account             | ✅     |           |       |         |
+|     4 | clock         | Sysvar              |        |           |       | ✅      |
+|     5 | instructions  | Sysvar              |        |           |       | ✅      |
+|     6 | token_account | TokenAccount        |        | ✅        |       |         |
+|     7 | bridge        | BridgeConfig        |        |           |       |         |
+|     8 | proposal      | TransferOutProposal |        | ✅        | ✅    | ✅      |
+|     9 | token         | WrappedAsset        |        | ✅        |       | ✅      |
+|    10 | payer         | Account             | ✅     |           |       |         |
 
 #### TransferOutNative
 
@@ -80,6 +84,9 @@ Locks a Solana native token (spl-token) `token` from `sender` on the Solana chai
 
 The transfer proposal will be tracked at a new account `proposal` where a VAA will be submitted by guardians.
 
+This instruction needs to be preceded by a SOL Transfer instruction that transfers the fee to the BridgeConfig.
+The fee can be calculated using the rules explained in the protocol documentation and `Bridge::transfer_fee()`.
+
 | Index | Name            | Type                | signer | writeable | empty | derived |
 | ----- | --------------- | ------------------- | ------ | --------- | ----- | ------- |
 |     0 | bridge_p        | BridgeProgram       |        |           |       |         |
@@ -87,12 +94,13 @@ The transfer proposal will be tracked at a new account `proposal` where a VAA wi
 |     2 | token_program   | SplToken            |        |           |       |         |
 |     3 | rent            | Sysvar              |        |           |       | ✅      |
 |     4 | clock           | Sysvar              |        |           |       | ✅      |
-|     5 | token_account   | TokenAccount        |        | ✅        |       |         |
-|     6 | bridge          | BridgeConfig        |        |           |       |         |
-|     7 | proposal        | TransferOutProposal |        | ✅        | ✅    | ✅      |
-|     8 | token           | Mint                |        | ✅        |       |         |
-|     9 | payer           | Account             | ✅     |           |       |         |
-|    10 | custody_account | TokenAccount        |        | ✅        | opt   | ✅      |
+|     5 | instructions    | Sysvar              |        |           |       | ✅      |
+|     6 | token_account   | TokenAccount        |        | ✅        |       |         |
+|     7 | bridge          | BridgeConfig        |        |           |       |         |
+|     8 | proposal        | TransferOutProposal |        | ✅        | ✅    | ✅      |
+|     9 | token           | Mint                |        | ✅        |       |         |
+|    10 | payer           | Account             | ✅     |           |       |         |
+|    11 | custody_account | TokenAccount        |        | ✅        | opt   | ✅      |
 
 #### EvictTransferOut
 
