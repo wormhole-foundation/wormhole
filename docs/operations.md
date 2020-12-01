@@ -99,6 +99,7 @@ and build the binary:
     ./generate-protos.sh
     cd bridge/
     go build github.com/certusone/wormhole/bridge
+    sudo setcap cap_ipc_lock=+ep ./bridge
 
 Then, generate a new key:
 
