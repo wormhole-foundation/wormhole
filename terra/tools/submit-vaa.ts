@@ -1,4 +1,4 @@
-import { execute_contract } from './utils';
+import { init_lcd, execute_contract } from './utils';
 
 async function script() {
     if (process.argv.length < 3) {
@@ -14,4 +14,5 @@ async function script() {
     console.log('Vaa submitted');
 }
 
+init_lcd(process.argv[3]);
 script();

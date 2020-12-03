@@ -6,12 +6,21 @@ const mk = new MnemonicKey({
     mnemonic: 'notice oak worry limit wrap speak medal online prefer cluster roof addict wrist behave treat actual wasp year salad speed social layer crew genius'
 })
 
-// connect to localterra
-const terra = new LCDClient({
-    URL: 'http://localhost:1317',
-    chainID: 'localterra'
-});
-const wallet = terra.wallet(mk);
+let terra: LCDClient;
+let wallet;
+
+export function init_lcd(host_name='http://localhost:1317') {
+    // connect to localterra
+    terra = new LCDClient({
+        URL: host_name,
+        chainID: 'localterra'
+    });
+    wallet = terra.wallet(mk);
+}
+
+function delay(ms: number) {
+    return new Promise( resolve => setTimeout(resolve, ms) );
+}
 
 export async function deploy_contract(wasm_file) : Promise<number> {
   
@@ -19,31 +28,33 @@ export async function deploy_contract(wasm_file) : Promise<number> {
         wallet.key.accAddress,
         fs.readFileSync(wasm_file).toString('base64')
     );
-    try {
-        const storeCodeTx = await wallet.createAndSignTx({
-            msgs: [storeCode],
-        });
-        const storeCodeTxResult = await terra.tx.broadcast(storeCodeTx);
+    for (;;) {
+        try {
+            const storeCodeTx = await wallet.createAndSignTx({
+                msgs: [storeCode],
+            });
+            const storeCodeTxResult = await terra.tx.broadcast(storeCodeTx);
 
-        //console.log(storeCodeTxResult);
+            //console.log(storeCodeTxResult);
 
-        if (isTxError(storeCodeTxResult)) {
-            throw new Error(
-            `store code failed. code: ${storeCodeTxResult.code}, codespace: ${storeCodeTxResult.codespace}, raw_log: ${storeCodeTxResult.raw_log}`
-            );
+            if (isTxError(storeCodeTxResult)) {
+                throw new Error(
+                `store code failed. code: ${storeCodeTxResult.code}, codespace: ${storeCodeTxResult.codespace}, raw_log: ${storeCodeTxResult.raw_log}`
+                );
+            }
+
+            const {
+                store_code: { code_id },
+            } = storeCodeTxResult.logs[0].eventsByType;
+
+            return parseInt(code_id[0], 10);
+        } catch (err) {
+            console.log(`Error ${err}`);
+            if (err.response) {
+                console.log(err.response.data);
+            }
+            await delay(5000);
         }
-
-        const {
-            store_code: { code_id },
-        } = storeCodeTxResult.logs[0].eventsByType;
-
-        return parseInt(code_id[0], 10);
-    } catch (err) {
-        console.log(`Error ${err}`);
-        if (err.response) {
-            console.log(err.response.data);
-        }
-        return -1;
     }
 }
 

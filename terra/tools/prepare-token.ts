@@ -1,4 +1,4 @@
-import { deploy_contract, instantiate_contract, query_contract } from './utils';
+import { init_lcd, deploy_contract, instantiate_contract, query_contract } from './utils';
 
 async function script() {
     const TEST_ADDRESS: string = 'terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v';
@@ -24,4 +24,5 @@ async function script() {
     console.log(`${TEST_ADDRESS} balance is ${result.balance}`);
 }
 
+init_lcd(process.argv[2]);
 script();

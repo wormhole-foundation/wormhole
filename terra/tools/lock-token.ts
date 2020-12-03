@@ -1,4 +1,4 @@
-import { execute_contract, query_contract } from './utils';
+import { init_lcd, execute_contract, query_contract } from './utils';
 
 async function script() {
     if (process.argv.length < 5) {
@@ -22,4 +22,5 @@ async function script() {
     console.log('Tokens locked');
 }
 
+init_lcd(process.argv[5]);
 script();

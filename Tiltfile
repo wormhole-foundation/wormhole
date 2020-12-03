@@ -154,8 +154,8 @@ k8s_resource("web", port_forwards=[
 
 docker_build(
     ref = "terra-image",
-    context = "./terra/docker",
-    dockerfile = "terra/docker/Dockerfile",
+    context = "./terra/devnet",
+    dockerfile = "terra/devnet/Dockerfile",
 )
 
 k8s_yaml("devnet/terra-devnet.yaml")
@@ -169,3 +169,11 @@ k8s_resource(
     "terra-terrad",
     port_forwards=[port_forward(26657, name="Terra RPC [:26657]")]
 )
+
+docker_build(
+    ref = "terra-contracts",
+    context = "./terra",
+    dockerfile = "./terra/Dockerfile",
+)
+
+k8s_resource("terra-contracts")
