@@ -89,5 +89,7 @@ spec:
           httpGet:
             port: 26657
         resources: {}
+      - name: terra-contracts
+        image: terra-contracts
       restartPolicy: Always
   serviceName: terra-terrad

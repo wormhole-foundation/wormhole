@@ -1,4 +1,4 @@
-import { deploy_contract, instantiate_contract, query_contract } from './utils';
+import { init_lcd, deploy_contract, instantiate_contract, query_contract } from './utils';
 
 async function script() {
     // Deploy cw20-wrapped
@@ -23,4 +23,5 @@ async function script() {
     console.log(`Wormhole instance created at ${contract_address}`);
 }
 
+init_lcd(process.argv[2]);
 script();
