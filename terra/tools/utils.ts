@@ -28,6 +28,7 @@ export async function deploy_contract(wasm_file) : Promise<number> {
         wallet.key.accAddress,
         fs.readFileSync(wasm_file).toString('base64')
     );
+    let first_attempt = true;
     for (;;) {
         try {
             const storeCodeTx = await wallet.createAndSignTx({
@@ -49,10 +50,14 @@ export async function deploy_contract(wasm_file) : Promise<number> {
 
             return parseInt(code_id[0], 10);
         } catch (err) {
-            console.log(`Error ${err}`);
-            if (err.response) {
-                console.log(err.response.data);
+            // Only show error from the second time it shows to avoid spamming errors while initialization not yet finished
+            if (!first_attempt) {
+                console.log(`Error ${err}`);
+                if (err.response) {
+                    console.log(err.response.data);
+                }
             }
+            first_attempt = false;
             await delay(5000);
         }
     }

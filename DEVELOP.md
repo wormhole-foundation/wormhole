@@ -127,3 +127,11 @@ using `kubectl exec solana-devnet-0 -c setup cli airdrop solana-devnet:9900` (se
 | `0xe78A0F7E598Cc8b0Bb87894B0F60dD2a88d6a8Ab` | Wrapped asset contract                                |
 | `0xCfEB869F69431e42cdB54A4F4f105C19C080A601` | Example ERC20 token                                   |
 | `0xf5b1d8fab1054b9cf7db274126972f97f9d42a11` | Wrapped asset address for the 6qRhs8oA... SPL token   |
+
+**Terra**
+
+| Account                                        | Description                                         |
+|------------------------------------------------|-----------------------------------------------------|
+| `terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v` | Main test account                                   |
+| `terra18vd8fpwxzck93qlwghaj6arh4p7c5n896xzem5` | Test token account to send via bridge               |
+| `terra174kgn5rtw4kf6f938wm7kwh70h2v4vcfd26jlc` | Bridge contract instance                            |

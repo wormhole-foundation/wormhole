@@ -158,6 +158,12 @@ docker_build(
     dockerfile = "terra/devnet/Dockerfile",
 )
 
+docker_build(
+    ref = "terra-contracts",
+    context = "./terra",
+    dockerfile = "./terra/Dockerfile",
+)
+
 k8s_yaml("devnet/terra-devnet.yaml")
 
 k8s_resource(
@@ -169,11 +175,3 @@ k8s_resource(
     "terra-terrad",
     port_forwards=[port_forward(26657, name="Terra RPC [:26657]")]
 )
-
-docker_build(
-    ref = "terra-contracts",
-    context = "./terra",
-    dockerfile = "./terra/Dockerfile",
-)
-
-k8s_resource("terra-contracts")

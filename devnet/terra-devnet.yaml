@@ -27,18 +27,6 @@ spec:
   selector:
     app: terra-terrad
 ---
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: terra-contracts
-spec:
-  template:
-    spec:
-      containers:
-      - name: terra-contracts
-        image: terra-contracts
-      restartPolicy: Never
----
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -101,5 +89,7 @@ spec:
           httpGet:
             port: 26657
         resources: {}
+      - name: terra-contracts
+        image: terra-contracts
       restartPolicy: Always
   serviceName: terra-terrad
