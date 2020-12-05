@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	TiltDefaultNamespace = metav1.NamespaceDefault // hardcoded Tilt assumption
+	TiltDefaultNamespace = "wormhole" // hardcoded in Tiltfile
 )
 
 func getk8sClient() *kubernetes.Clientset {

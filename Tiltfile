@@ -28,9 +28,28 @@
 #                                                                   +-----------------+
 #
 
+load('ext://namespace', 'namespace_inject', 'namespace_create')
+
+# Runtime configuration
+
 config.define_string("num", False, "Number of guardian nodes to run")
+
+# You do not usually need to set this argument - this argument is for debugging only. If you do use a different
+# namespace, note that the "wormhole" namespace is hardcoded in the e2e test and don't forget specifying the argument
+# when running "tilt down".
+#
+config.define_string("namespace", False, "Kubernetes namespace to use")
+
 cfg = config.parse()
 num_guardians = int(cfg.get("num", "5"))
+namespace = cfg.get("namespace", "wormhole")
+
+# namespace
+
+namespace_create(namespace)
+
+def k8s_yaml_with_ns(objects):
+    return k8s_yaml(namespace_inject(objects, namespace))
 
 # protos
 
@@ -62,7 +81,7 @@ def build_bridge_yaml():
     return encode_yaml_stream(bridge_yaml)
 
 
-k8s_yaml(build_bridge_yaml())
+k8s_yaml_with_ns(build_bridge_yaml())
 
 k8s_resource("guardian", resource_deps=["proto-gen"], port_forwards=[
     port_forward(6060, name="Debug Server [:6060]"),
@@ -96,7 +115,7 @@ docker_build(
     dockerfile = "third_party/solana/Dockerfile",
 )
 
-k8s_yaml("devnet/solana-devnet.yaml")
+k8s_yaml_with_ns("devnet/solana-devnet.yaml")
 
 k8s_resource("solana-devnet", port_forwards=[
     port_forward(8899, name="Solana RPC [:8899]"),
@@ -124,7 +143,7 @@ docker_build(
     ],
 )
 
-k8s_yaml("devnet/eth-devnet.yaml")
+k8s_yaml_with_ns("devnet/eth-devnet.yaml")
 
 k8s_resource("eth-devnet", port_forwards=[
     port_forward(8545, name="Ganache RPC [:8545]")
@@ -144,7 +163,7 @@ docker_build(
     ],
 )
 
-k8s_yaml("devnet/web.yaml")
+k8s_yaml_with_ns("devnet/web.yaml")
 
 k8s_resource("web", port_forwards=[
     port_forward(3000, name="Experimental Web UI [:3000]")
@@ -164,7 +183,7 @@ docker_build(
     dockerfile = "./terra/Dockerfile",
 )
 
-k8s_yaml("devnet/terra-devnet.yaml")
+k8s_yaml_with_ns("devnet/terra-devnet.yaml")
 
 k8s_resource(
     "terra-lcd",
