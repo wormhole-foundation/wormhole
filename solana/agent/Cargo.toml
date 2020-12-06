@@ -28,6 +28,7 @@ bs58 = "0.3.1"
 byteorder = "1.3.4"
 futures = "0.3.8"
 libc = "0.2.80"
+clap = "2.33.3"
 
 [build-dependencies]
 tonic-build = { version = "0.3.0", features = ["prost"] }
