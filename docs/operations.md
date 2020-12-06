@@ -62,7 +62,7 @@ First, check out the version of the Wormhole repo that you want to deploy:
 
 ```bash
 git clone https://github.com/certusone/wormhole && cd wormhole
-git checkout <the stable tag you want to compile>
+git checkout v0.1.0
 ```
 
 Then, compile the release binaries as an unprivileged build user:
