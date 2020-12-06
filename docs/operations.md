@@ -68,45 +68,38 @@ git checkout <the stable tag you want to compile>
 Then, compile the release binaries as an unprivileged build user:
 
 ```bash
-# this doesn't actually work yet - the Makefile has yet to be written
-# TOOD: https://github.com/certusone/wormhole/issues/120
 make agent bridge
-
-# Install binaries to /usr/local/bin in case of a local compilation workflow.
-sudo make install
 ```
     
 You'll end up with the following binaries in `build/`:
 
-- `wormhole-guardiand` is the main Wormhole bridge node software.
-- `wormhole-solana-agent` is a helper service which runs alongside Wormhole and exposes a gRPC API
+- `guardiand` is the main Wormhole bridge node software.
+- `guardiand-solana-agent` is a helper service which runs alongside Wormhole and exposes a gRPC API
   for Wormhole to interact with Solana and the Wormhole contract on Solana.
-- `wormhole-solana-cli` is a CLI you can use to manually interact with the Wormhole contract on Solana.
-  You don't strictly need this on a production machine, but it can be useful for debugging.
   
 Consider these recommendations, not a tutorial to be followed blindly. You'll want to integrate this with your
 existing build pipeline. If you need Dockerfile examples, you can take a look at our devnet deployment.
 
+If you want to compile and deploy locally, you can run `sudo make install` to install the binaries to /usr/local/bin.
+
+If you deploy using a custom pipeline, you need to set the `CAP_IPC_LOCK` capability on the binary (e.g. doing the
+equivalent to `sudo setcap cap_ipc_lock=+ep`) to allow it to lock its memory pages to prevent them from being paged out.
+See below on why - this is a generic defense-in-depth mitigation which ensures that process memory is never swapped out
+to disk. Please create a GitHub issue if this extra capability represents an operational or compliance concern.
+
 ## Key Generation
 
-To generate a guardian key, you only need to only build the Go bridge.
+To generate a guardian key, install guardiand first. If you generate the key on a separate machine, you may want to
+compile guardiand only, without compiling the agent or installing it:
 
-It requires [Go](https://golang.org/dl/) >= 1.15.5. Clone the Wormhole repo
-and build the binary:
+    make bridge
+    sudo setcap cap_ipc_lock=+ep ./build/bin/guardiand
 
-    git clone https://github.com/certusone/wormhole
-    cd wormhole/
-    ./generate-protos.sh
-    cd bridge/
-    go build github.com/certusone/wormhole/bridge
-    sudo setcap cap_ipc_lock=+ep ./bridge
+Generate a new key using the `keygen` subcommand:
 
-Then, generate a new key:
+    guardiand keygen --desc "Testnet key foo" /path/to/your.key
 
-    ./bridge keygen --desc "Testnet key foo" /path/to/your.key
-
-The key file includes a human-readable part that includes the public key
-and the description.
+The key file includes a human-readable part that includes the public key and the description.
 
 ## Deploying
 
@@ -145,7 +138,7 @@ storage or an HSM/vault whenever the node is rebooted. You might want to disable
 specific to Wormhole - this applies to any hot keys.
 
 Our node software takes extra care to lock memory using mlock(2) to prevent keys from being swapped out to disk, which
-is why it requires extra capabilities.
+is why it requires extra capabilities. Yes, other chains might want to do this too :-)
 
 Storing keys on an HSM or using remote signers only partially mitigates the risk of server compromise - it means the key
 can't get stolen, but an attacker could still cause the HSM to sign malicious payloads. Future iterations of Wormhole

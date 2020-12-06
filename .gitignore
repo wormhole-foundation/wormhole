@@ -5,3 +5,4 @@ node_modules
 *.iml
 bin
 target
+/mutagen.sh
