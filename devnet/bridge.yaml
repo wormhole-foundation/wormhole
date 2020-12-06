@@ -104,11 +104,11 @@ spec:
               name: bridge-rundir
           command:
             - /usr/local/bin/agent
-            - 'Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o'
-            - 'solana-devnet'  # host
-            - '8899'  # rpc port
-            - '8900'  # pubsub/ws port
-            - '/run/bridge/agent.sock'  # grpc listen socket
+            - --bridge=Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o
+            - --rpc=http://solana-devnet:8899
+            - --ws=ws://solana-devnet:8900
+            - --socket=/run/bridge/agent.sock
+            - --keypair=id.json
           ports:
             - containerPort: 9000
               name: grpc

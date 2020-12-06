@@ -2,6 +2,8 @@ use std::{env, io::Write, mem::size_of, str::FromStr, fs};
 use std::path::Path;
 use libc;
 
+use clap::{Arg, App, SubCommand};
+
 use byteorder::{BigEndian, LittleEndian, ReadBytesExt, WriteBytesExt};
 use futures::stream::TryStreamExt;
 use solana_client::{
@@ -421,35 +423,50 @@ fn sign_and_send(
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let args: Vec<String> = env::args().collect();
+    let matches = App::new("Wormhole Solana agent")
+        .arg(Arg::with_name("bridge")
+            .long("bridge")
+            .value_name("ADDRESS")
+            .help("Bridge address")
+            .required(true)
+            .takes_value(true))
+        .arg(Arg::with_name("ws")
+            .long("ws")
+            .value_name("URI")
+            .help("PubSub Websocket URI (ws[s]://)")
+            .required(true)
+            .takes_value(true))
+        .arg(Arg::with_name("rpc")
+            .long("rpc")
+            .value_name("URI")
+            .help("RPC URI (http[s]://)")
+            .required(true)
+            .takes_value(true))
+        .arg(Arg::with_name("socket")
+            .long("socket")
+            .value_name("URI")
+            .help("Path to agent socket")
+            .required(true)
+            .takes_value(true))
+        .arg(Arg::with_name("keypair")
+            .long("keypair")
+            .value_name("FILE")
+            .help("Fee payer account key ")
+            .required(true)
+            .takes_value(true))
+        .get_matches();
 
-    // TODO use clap
-    if args.len() < 6 {
-        println!("<bridge_address> <rpc_host> <rpc_port> <ws_port> <socket_path>");
-        return Ok(());
-    }
-
-    let bridge = &args[1];
-    let host = &args[2];
-    let rpc_port: u16 = args[3].parse()?;
-    let ws_port: u16 = args[4].parse()?;
-    let socket_path = &args[5];
-
-    let keypair = {
-        if let Ok(k) = read_keypair_file("id.json") {
-            k
-        } else {
-            let k = Keypair::new();
-            write_keypair_file(&k, "id.json").unwrap();
-            k
-        }
-    };
+    let bridge = matches.value_of("bridge").unwrap();
+    let ws_url = matches.value_of("ws").unwrap();
+    let rpc_url = matches.value_of("rpc").unwrap();
+    let socket_path = matches.value_of("socket").unwrap();
+    let keypair = read_keypair_file(matches.value_of("keypair").unwrap()).unwrap();
 
     println!("Agent using account: {}", keypair.pubkey());
 
     let agent = AgentImpl {
-        url: String::from(format!("ws://{}:{}", host, ws_port)),
-        rpc_url: format!("http://{}:{}", host, rpc_port),
+        url: ws_url.to_string(),
+        rpc_url: rpc_url.to_string(),
         bridge: Pubkey::from_str(bridge).unwrap(),
         key: keypair,
     };
