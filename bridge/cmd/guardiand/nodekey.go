@@ -6,6 +6,7 @@ import (
 	"os"
 
 	p2pcrypto "github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/libp2p/go-libp2p-core/peer"
 	"go.uber.org/zap"
 )
 
@@ -41,7 +42,14 @@ func getOrCreateNodeKey(logger *zap.Logger, path string) (p2pcrypto.PrivKey, err
 		return nil, fmt.Errorf("failed to unmarshal node key: %w", err)
 	}
 
-	logger.Info("Found existing node key", zap.String("path", path))
+	peerID, err := peer.IDFromPrivateKey(priv)
+	if err != nil {
+		panic(err)
+	}
+
+	logger.Info("Found existing node key",
+		zap.String("path", path),
+		zap.Stringer("peerID", peerID))
 
 	return priv, nil
 }
