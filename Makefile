@@ -14,9 +14,9 @@ dirs: Makefile
 	@mkdir -p $(BIN)
 
 .PHONY: install
-install: bridge
-	install -m 744 $(BIN)/* $(PREFIX)/bin
-	setcap cap_ipc_lock=+ep $(PREFIX)/guardiand
+install:
+	install -m 775 $(BIN)/* $(PREFIX)/bin
+	setcap cap_ipc_lock=+ep $(PREFIX)/bin/guardiand
 
 .PHONY: generate
 generate: dirs
