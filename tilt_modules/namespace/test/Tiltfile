@@ -1,0 +1,12 @@
+load('../Tiltfile', 'namespace_create', 'namespace_inject')
+
+# Disable parallelism until this issue is fixed:
+# https://github.com/tilt-dev/tilt/issues/3421
+update_settings(max_parallel_updates=1)
+
+namespace_create('namespace-test')
+k8s_yaml(namespace_inject('deployment.yaml', 'namespace-test'))
+k8s_yaml('job.yaml')
+k8s_yaml(namespace_inject('job-default-namespace.yaml', 'namespace-test'))
+k8s_resource('namespace-test-verify', resource_deps=['namespace-test-busybox'])
+k8s_resource('namespace-test-verify2', resource_deps=['namespace-test-busybox'])

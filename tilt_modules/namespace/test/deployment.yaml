@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: namespace-test-busybox
+spec:
+  selector:
+    matchLabels:
+      app: namespace-test-busybox
+  template:
+    metadata:
+      labels:
+        app: namespace-test-busybox
+    spec:
+      containers:
+      - name: busybox
+        image: busybox
+        ports:
+        - containerPort: 8000
+        command: ["sh", "-c", "echo 'hello world' > index.html; busybox httpd -f -p 8000"]
+        readinessProbe:
+          tcpSocket:
+            port: 8000
+          periodSeconds: 1
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: namespace-test-busybox
+spec:
+  selector:
+    app: namespace-test-busybox
+  ports:
+    - protocol: TCP
+      port: 8000
+      targetPort: 8000

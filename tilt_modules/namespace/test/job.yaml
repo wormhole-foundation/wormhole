@@ -1,0 +1,14 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: namespace-test-verify
+  namespace: namespace-test
+spec:
+  backoffLimit: 1
+  template:
+    spec:
+      containers:
+      - name: namespace-test-verify
+        image: curlimages/curl
+        command: ["curl",  "-fsSL", "http://namespace-test-busybox:8000/"]
+      restartPolicy: Never
