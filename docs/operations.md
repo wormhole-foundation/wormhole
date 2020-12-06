@@ -103,9 +103,89 @@ The key file includes a human-readable part that includes the public key and the
 
 ## Deploying
 
-⚠ TODO:️ _systemd service file examples (not entirely trivial)_  
+We strongly recommend a separate user and systemd services for both services.
+
+Example systemd unit for `guardiand.service`, including the right capabilities and best-practice security mitigations:
+
+```
+# /etc/systemd/system/guardiand.service
+[Unit]
+Description=Wormhole Bridge guardian daemon
+Documentation=https://github.com/certusone/wormhole
+Requires=network.target
+Wants=guardiand-solana-agent.service
+After=network.target
+
+[Service]
+User=wormhole
+Group=wormhole
+ExecStart=/usr/local/bin/guardiand bridge \
+    --bootstrap "<see launch repo>" \
+    --network "<see launch repo>" \
+    --ethContract <see launch repo> \
+    --nodeName "my-node-name" \
+    --nodeKey /path/to/your/node.key \
+    --bridgeKey /path/to/your/guardian.key \
+    --ethRPC ws://your-eth-node:8545 \
+    --adminSocket /run/guardiand/admin.socket \
+    --agentRPC /run/guardiand/agent.socket
+RuntimeDirectory=guardiand
+RuntimeDirectoryMode=700
+RuntimeDirectoryPreserve=yes
+PermissionsStartOnly=yes
+PrivateTmp=yes
+PrivateDevices=yes
+SecureBits=keep-caps
+AmbientCapabilities=CAP_IPC_LOCK
+CapabilityBoundingSet=CAP_IPC_LOCK
+NoNewPrivileges=yes
+Restart=on-failure 
+RestartSec=5s
+LimitNOFILE=65536
+LimitMEMLOCK=infinity
+
+[Install]
+WantedBy=multi-user.target
+```
+
+And `guardiand-solana-agent.service`:
+
+```
+# /etc/systemd/system/guardiand-solana-agent.service
+[Unit]
+Description=Wormhole Bridge Solana agent
+Documentation=https://github.com/certusone/wormhole
+Requires=network.target
+
+[Service]
+User=solana
+Group=solana
+ExecStart=/usr/local/bin/guardiand-solana-agent \
+    --bridge "<see launch repo>" \
+    --rpc http://solana-host:8899 \
+    --ws ws://solana-devnet:8900 \
+    --keypair /path/to/feepayer.key \
+    --socket /run/guardiand/agent.socket
+RuntimeDirectory=guardiand
+RuntimeDirectoryMode=700
+RuntimeDirectoryPreserve=yes
+PermissionsStartOnly=yes
+PrivateTmp=yes
+PrivateDevices=yes
+NoNewPrivileges=yes
+Restart=on-failure 
+RestartSec=5s
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
+```
+
+You need to open port 8999/tcp in your firewall for the P2P network. Nothing else has to be exposed externally.
 
 ### Kubernetes
+
+Kubernetes deployment is fully supported.
 
 Refer to [devnet/](../devnet) for example k8s deployments as a starting point for your own production deployment. You'll
 have to build your own containers. Unless you already run Kubernetes in production, we strongly recommend a traditional
