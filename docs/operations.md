@@ -103,7 +103,9 @@ To generate a guardian key, install guardiand first. If you generate the key on 
 compile guardiand only, without compiling the agent or installing it:
 
     make bridge
-    sudo setcap cap_ipc_lock=+ep ./build/bin/guardiand
+    sudo setcap cap_ipc_lock=+ep ./build/bin/
+
+Otherwise, use the same guardiand binary that you compiled using the regular instructions above.
 
 Generate a new key using the `keygen` subcommand:
 
@@ -113,7 +115,7 @@ The key file includes a human-readable part that includes the public key and the
 
 ## Deploying
 
-We strongly recommend a separate user and systemd services for both services.
+We strongly recommend a separate user and systemd services for the Wormhole services.
 
 Example systemd unit for `guardiand.service`, including the right capabilities and best-practice security mitigations:
 
