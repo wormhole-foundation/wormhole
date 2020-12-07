@@ -26,7 +26,7 @@ generate: dirs
 bridge: $(BIN)/guardiand
 
 .PHONY: $(BIN)/guardiand
-$(BIN)/guardiand: dirs
+$(BIN)/guardiand: dirs generate
 	cd bridge && go build -mod=readonly -o ../$(BIN)/guardiand github.com/certusone/wormhole/bridge
 
 .PHONY: agent
