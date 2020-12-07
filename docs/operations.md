@@ -170,8 +170,8 @@ Documentation=https://github.com/certusone/wormhole
 Requires=network.target
 
 [Service]
-User=solana
-Group=solana
+User=wormhole
+Group=wormhole
 ExecStart=/usr/local/bin/guardiand-solana-agent \
     --bridge "<see launch repo>" \
     --rpc http://solana-host:8899 \
