@@ -444,7 +444,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .takes_value(true))
         .arg(Arg::with_name("socket")
             .long("socket")
-            .value_name("URI")
+            .value_name("FILE")
             .help("Path to agent socket")
             .required(true)
             .takes_value(true))
