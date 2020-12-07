@@ -52,16 +52,6 @@ To build Wormhole, you need:
 - [Go](https://golang.org/dl/) >= 1.15.5
 - [Rust](https://www.rust-lang.org/learn/get-started) >= 1.47.0
 
-...plus the same library dependencies as Solana itself:
-
-```bash
-# Debian and friends
-sudo apt-get install libssl-dev libudev-dev pkg-config zlib1g-dev llvm clang
-
-# Red Hat and friends
-sudo yum install openssl-devel pkg-config gcc gcc-c++ clang git make zlib-devel llvm systemd-devel
-```
-
 It is very important to use a sufficiently recent Go version that includes a fix for
 [CVE-2020-28362](https://blog.ethereum.org/2020/11/12/geth_security_release/).
 
@@ -73,6 +63,7 @@ First, check out the version of the Wormhole repo that you want to deploy:
 ```bash
 git clone https://github.com/certusone/wormhole && cd wormhole
 git checkout v0.1.1
+./generate-protos.sh
 ```
 
 Then, compile the release binaries as an unprivileged build user:
