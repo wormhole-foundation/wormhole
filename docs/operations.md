@@ -223,17 +223,3 @@ is why it requires extra capabilities. Yes, other chains might want to do this t
 Storing keys on an HSM or using remote signers only partially mitigates the risk of server compromise - it means the key
 can't get stolen, but an attacker could still cause the HSM to sign malicious payloads. Future iterations of Wormhole
 may include support for remote signing using a signer like [SignOS](https://certus.one/sign-os/).
-
-## High Availability
- 
-Multiple nodes with different node keys can share the same guardian keys. The node which first submits a signature
-"wins" and the duplicate signature will be ignored by the network. Wormhole has no need for slashing, and therefore,
-there's no risk of equivocation.
-
-⚠️ _This is not yet tested - see https://github.com/certusone/wormhole/issues/73_  
-
-## Monitoring
-
-The node exposes a Prometheus endpoint for monitoring.
-
-⚠ TODO:️ _Actually build and document this: https://github.com/certusone/wormhole/issues/11_
