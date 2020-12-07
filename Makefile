@@ -27,7 +27,7 @@ bridge: $(BIN)/guardiand
 
 .PHONY: $(BIN)/guardiand
 $(BIN)/guardiand: dirs
-	cd bridge && go build -o mod=readonly -o ../$(BIN)/guardiand github.com/certusone/wormhole/bridge
+	cd bridge && go build -mod=readonly -o ../$(BIN)/guardiand github.com/certusone/wormhole/bridge
 
 .PHONY: agent
 agent: $(BIN)/guardiand-solana-agent
