@@ -193,7 +193,7 @@ LimitNOFILE=65536
 WantedBy=multi-user.target
 ```
 
-You need to open port 8999/tcp in your firewall for the P2P network. Nothing else has to be exposed externally.
+You need to open port 8999/udp in your firewall for the P2P network. Nothing else has to be exposed externally.
 
 ### Kubernetes
 
