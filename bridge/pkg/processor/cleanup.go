@@ -9,7 +9,7 @@ import (
 
 // handleCleanup handles periodic retransmissions and cleanup of VAAs
 func (p *Processor) handleCleanup(ctx context.Context) {
-	p.logger.Info("aggregation state summary", zap.Int("pending", len(p.state.vaaSignatures)))
+	p.logger.Info("aggregation state summary", zap.Int("cached", len(p.state.vaaSignatures)))
 
 	for hash, s := range p.state.vaaSignatures {
 		delta := time.Now().Sub(s.firstObserved)
