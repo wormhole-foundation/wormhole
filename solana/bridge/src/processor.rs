@@ -722,7 +722,6 @@ impl Bridge {
                 let mut bridge_data = bridge_info.try_borrow_mut_data()?;
                 let bridge: &mut Bridge = Self::unpack(&mut bridge_data)?;
 
-                evict_signatures = true;
                 Self::process_vaa_set_update(
                     program_id,
                     accounts,
