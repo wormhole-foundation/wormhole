@@ -289,7 +289,8 @@ class SolanaBridge {
 
         let accounts: Lockup[] = [];
         for (let acc of raw_accounts) {
-            accounts.push(this.parseLockup(acc.pubkey, bs58.decode(acc.account.data)))
+            let pubkey = new PublicKey(acc.pubkey)
+            accounts.push(this.parseLockup(pubkey, bs58.decode(acc.account.data)))
         }
 
         return accounts

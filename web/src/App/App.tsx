@@ -12,12 +12,13 @@ import WalletContext from '../providers/WalletContext';
 import Wallet from "@project-serum/sol-wallet-adapter";
 import {BridgeProvider} from "../providers/BridgeContext";
 import Assistant from "../pages/Assistant";
+import {SOLANA_HOST} from "../config";
 
 const {Header, Content, Footer} = Layout;
 
 function App() {
-    let c = new solanaWeb3.Connection("http://localhost:8899");
-    const wallet = useMemo(() => new Wallet("https://www.sollet.io", "http://localhost:8899"), []);
+    let c = new solanaWeb3.Connection(SOLANA_HOST);
+    const wallet = useMemo(() => new Wallet("https://www.sollet.io", SOLANA_HOST), []);
     const [, setConnected] = useState(false);
     useEffect(() => {
         wallet.on('connect', () => {

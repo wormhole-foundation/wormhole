@@ -1,13 +1,13 @@
 import {PublicKey} from "@solana/web3.js";
 
-const BRIDGE_ADDRESS = "0x5b1869D9A4C187F2EAa108f3062412ecf0526b24";
-const WRAPPED_MASTER = "e78A0F7E598Cc8b0Bb87894B0F60dD2a88d6a8Ab"
+const BRIDGE_ADDRESS = "0xdae0Cba01eFc4bfEc1F7Fece73Fe8b8d2Eda65B0";
+const WRAPPED_MASTER = "9f7bedd9ef2d57eccab2cb56a5bd395edbb77df8"
 
 
-const SOLANA_BRIDGE_PROGRAM = new PublicKey("Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o");
+const SOLANA_BRIDGE_PROGRAM = new PublicKey("BrdgiFmZN3BKkcY3danbPYyxPKwb8RhQzpM2VY5L97ED");
 const TOKEN_PROGRAM = new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
 
-const SOLANA_HOST = "http://localhost:8899";
+const SOLANA_HOST = "https://testnet.solana.com";
 
 export {
     BRIDGE_ADDRESS,

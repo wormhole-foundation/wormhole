@@ -36,32 +36,38 @@ export const SolanaTokenProvider: FunctionComponent = ({children}) => {
 
     let [loading, setLoading] = useState(true)
     let [balances, setBalances] = useState<Array<BalanceInfo>>([]);
+    let [lastUpdate, setLastUpdate] = useState(0);
 
     useEffect(() => {
+            if (slot - lastUpdate <= 16) {
+                return
+            }
+            setLastUpdate(slot);
+
             // @ts-ignore
             setLoading(true)
             let getAccounts = async () => {
-                    let res: RpcResponseAndContext<Array<{ pubkey: PublicKey; account: AccountInfo<ParsedAccountData> }>> = await c.getParsedTokenAccountsByOwner(k.publicKey, {programId: TOKEN_PROGRAM}, "single")
-                    let meta: AssetMeta[] = [];
-                    for (let acc of res.value) {
-                        let am = await b?.fetchAssetMeta(new PublicKey(acc.account.data.parsed.info.mint))
-                        if (!am) {
-                            throw new Error("could not derive asset meta")
-                        }
-                        am.decimals = acc.account.data.parsed.info.tokenAmount.decimals;
-                        meta.push(am)
+                let res: RpcResponseAndContext<Array<{ pubkey: PublicKey; account: AccountInfo<ParsedAccountData> }>> = await c.getParsedTokenAccountsByOwner(k.publicKey, {programId: TOKEN_PROGRAM}, "single")
+                let meta: AssetMeta[] = [];
+                for (let acc of res.value) {
+                    let am = await b?.fetchAssetMeta(new PublicKey(acc.account.data.parsed.info.mint))
+                    if (!am) {
+                        throw new Error("could not derive asset meta")
                     }
-                    let balances: Array<BalanceInfo> = await res.value.map((v, i) => {
-                        return {
-                            mint: v.account.data.parsed.info.mint,
-                            account: v.pubkey,
-                            balance: new BigNumber(v.account.data.parsed.info.tokenAmount.amount),
-                            decimals: v.account.data.parsed.info.tokenAmount.decimals,
-                            assetMeta: meta[i],
-                        }
-                    })
-                    setBalances(balances)
-                    setLoading(false)
+                    am.decimals = acc.account.data.parsed.info.tokenAmount.decimals;
+                    meta.push(am)
+                }
+                let balances: Array<BalanceInfo> = await res.value.map((v, i) => {
+                    return {
+                        mint: v.account.data.parsed.info.mint,
+                        account: v.pubkey,
+                        balance: new BigNumber(v.account.data.parsed.info.tokenAmount.amount),
+                        decimals: v.account.data.parsed.info.tokenAmount.decimals,
+                        assetMeta: meta[i],
+                    }
+                })
+                setBalances(balances)
+                setLoading(false)
 
             }
             getAccounts();

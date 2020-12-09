@@ -43,8 +43,14 @@ function TransferProposals() {
     let c = useContext(ClientContext);
 
     let [lockups, setLockups] = useState<LockupWithStatus[]>([])
+    let [lastUpdate, setLastUpdate] = useState(0);
 
     useEffect(() => {
+        if (s - lastUpdate <= 16) {
+            return
+        }
+        setLastUpdate(s);
+
         let updateLockups = async () => {
             let lockups: LockupWithStatus[] = [];
             for (let account of tokens.balances) {

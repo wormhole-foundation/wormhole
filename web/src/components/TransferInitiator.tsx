@@ -239,7 +239,7 @@ export default function TransferInitiator(params: TransferInitiatorParams) {
                 <Form.Item label="Amount" name="layout"
                            validateStatus={amountValid ? "success" : "error"}>
                     <Input type={"number"} placeholder={"Amount"}
-                           addonAfter={`Balance: ${coinInfo.balance.div(Math.pow(10, coinInfo.decimals))}`}
+                           addonAfter={`Balance: ${coinInfo.balance.div(new BigNumber(10).pow(coinInfo.decimals))}`}
                            onChange={(v) => {
                                if (v.target.value === "") {
                                    setAmount(new BigNumber(0));
@@ -282,7 +282,6 @@ export default function TransferInitiator(params: TransferInitiatorParams) {
                                     content: (<>This will create a new token account for the
                                         token: <code>{wrappedMint}</code></>),
                                     onOk() {
-                                        console.log(coinInfo.decimals)
                                         createWrapped(c, bridge, k, {
                                             chain: coinInfo.chainID,
                                             address: coinInfo.assetAddress,
@@ -290,7 +289,6 @@ export default function TransferInitiator(params: TransferInitiatorParams) {
                                         }, new PublicKey(wrappedMint))
                                     },
                                     onCancel() {
-                                        console.log('Cancel');
                                     },
                                 })
                             }}>+</Button>
