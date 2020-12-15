@@ -161,9 +161,12 @@ impl Agent for AgentImpl {
         _req: Request<WatchLockupsRequest>,
     ) -> Result<Response<Self::WatchLockupsStream>, Status> {
         let (mut tx, rx) = mpsc::channel(1);
+        let mut tx2 = tx.clone();
         let url = self.url.clone();
+        let url2 = self.url.clone();
         let bridge = self.bridge.clone();
         let rpc_url = self.rpc_url.clone();
+        let rpc_url2 = self.rpc_url.clone();
 
         tokio::spawn(async move {
             let _rpc = RpcClient::new(rpc_url.to_string());
@@ -257,6 +260,37 @@ impl Agent for AgentImpl {
                     Err(e) => {
                         println!("watcher died: {}", e);
                         tx.send(Err(Status::new(Code::Aborted, "watcher died")))
+                            .await;
+                        return;
+                    }
+                };
+            }
+        });
+
+        tokio::spawn(async move {
+            let _rpc = RpcClient::new(rpc_url2.to_string());
+            let sub = solana_client::pubsub_client::PubsubClient::slot_subscribe(&url2).unwrap();
+            // looping and sending our response using stream
+            loop {
+                let item = sub.1.recv();
+                match item {
+                    Ok(v) => {
+                        if let Err(e) = tx2
+                            .send(Ok(LockupEvent {
+                                slot: v.slot,
+                                time: 0,
+                                lockup_address: String::from(""),
+                                event: Some(Event::SlotEvent(Empty {})),
+                            }))
+                            .await
+                        {
+                            println!("sending event failed: {}", e);
+                            return;
+                        };
+                    }
+                    Err(e) => {
+                        println!("watcher died: {}", e);
+                        tx2.send(Err(Status::new(Code::Aborted, "watcher died")))
                             .await;
                         return;
                     }
