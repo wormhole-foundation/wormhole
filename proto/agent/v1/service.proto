@@ -35,7 +35,7 @@ message LockupEvent {
     LockupEventNew new = 4;
     LockupEventVAAPosted vaaPosted = 5;
     Empty empty = 6;
-    Empty slot_event = 7;
+    Empty slotEvent = 7;
   }
 }
 
