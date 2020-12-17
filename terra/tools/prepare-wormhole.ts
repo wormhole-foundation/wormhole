@@ -15,7 +15,7 @@ async function script() {
             addresses: [
                 { bytes: Buffer.from('beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe', 'hex').toString('base64') }
             ],
-            expiration_time: 1000 * 60 * 60
+            expiration_time: Math.floor(Date.now() / 1000) + 1000 * 60 * 60
         },
         guardian_set_expirity: 0,
         wrapped_asset_code_id: wrapped_code_id,
