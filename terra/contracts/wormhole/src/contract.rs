@@ -132,17 +132,16 @@ fn handle_submit_vaa<S: Storage, A: Api, Q: Querier>(
     if vaa_archive_check(&deps.storage, &hash) {
         return ContractError::VaaAlreadyExecuted.std_err();
     }
-    vaa_archive_add(&mut deps.storage, &hash)?;
-
+    
     // Load and check guardian set
     let guardian_set = guardian_set_get(&deps.storage, vaa_guardian_set_index);
     let guardian_set: GuardianSetInfo =
         guardian_set.or(ContractError::InvalidGuardianSetIndex.std_err())?;
 
-    if guardian_set.expiration_time == 0 || guardian_set.expiration_time > env.block.time {
+    if guardian_set.expiration_time == 0 || guardian_set.expiration_time < env.block.time {
         return ContractError::GuardianSetExpired.std_err();
     }
-    if len_signers < (guardian_set.addresses.len() / 4) * 3 + 1 {
+    if len_signers < guardian_set.quorum() {
         return ContractError::NoQuorum.std_err();
     }
 
@@ -176,7 +175,7 @@ fn handle_submit_vaa<S: Storage, A: Api, Q: Querier>(
     let action = data.get_u8(body_offset + 4);
     let payload = &data[body_offset + 5..];
 
-    match action {
+    let result = match action {
         0x01 => {
             if vaa_guardian_set_index != state.guardian_set_index {
                 return ContractError::NotCurrentGuardianSet.std_err();
@@ -185,7 +184,13 @@ fn handle_submit_vaa<S: Storage, A: Api, Q: Querier>(
         }
         0x10 => vaa_transfer(deps, env, payload),
         _ => ContractError::InvalidVAAAction.std_err(),
+    };
+
+    if result.is_ok() {
+        vaa_archive_add(&mut deps.storage, &hash)?;
     }
+
+    result
 }
 
 /// Handle wrapped asset registration messages
@@ -554,6 +559,7 @@ fn keys_equal(a: &VerifyKey, b: &GuardianAddress) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use std::time::{UNIX_EPOCH, SystemTime};
     use super::*;
     use crate::state::GuardianSetInfo;
     use cosmwasm_std::testing::{mock_dependencies, mock_env};
@@ -577,7 +583,7 @@ mod tests {
         let init_msg = InitMsg {
             initial_guardian_set: GuardianSetInfo {
                 addresses: guardians.clone(),
-                expiration_time: 100,
+                expiration_time: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() + 1000,
             },
             guardian_set_expirity: 50,
             wrapped_asset_code_id: 999,
