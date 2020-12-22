@@ -78,6 +78,14 @@ pub enum ContractError {
     /// Attempt to execute contract action while it is inactive
     #[error("ContractInactive")]
     ContractInactive,
+
+    /// Could not decode target address from canonical to human-readable form
+    #[error("WrongTargetAddressFormat")]
+    WrongTargetAddressFormat,
+
+    /// More signatures than active guardians found
+    #[error("TooManySignatures")]
+    TooManySignatures,
 }
 
 impl ContractError {
