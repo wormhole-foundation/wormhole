@@ -1,7 +1,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use cosmwasm_std::{CanonicalAddr, HumanAddr, StdResult, Storage, Binary};
+use cosmwasm_std::{Binary, CanonicalAddr, HumanAddr, StdResult, Storage};
 use cosmwasm_storage::{
     bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket, ReadonlySingleton,
     Singleton,
@@ -122,7 +122,9 @@ mod tests {
     fn build_guardian_set(length: usize) -> GuardianSetInfo {
         let mut addresses: Vec<GuardianAddress> = Vec::with_capacity(length);
         for _ in 0..length {
-            addresses.push(GuardianAddress{bytes: vec![].into()});
+            addresses.push(GuardianAddress {
+                bytes: vec![].into(),
+            });
         }
 
         GuardianSetInfo {

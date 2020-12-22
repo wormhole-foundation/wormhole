@@ -1,3 +1,4 @@
+#![allow(clippy::field_reassign_with_default)]
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 

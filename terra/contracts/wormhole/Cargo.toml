@@ -25,6 +25,7 @@ thiserror = { version = "1.0.20" }
 k256 = { version = "0.5.9", default-features = false, features = ["ecdsa"] }
 sha3 = { version = "0.9.1", default-features = false }
 hex = "0.4.2"
+lazy_static = "1.4.0"
 
 [dev-dependencies]
 cosmwasm-vm = { version = "0.10.0", default-features = false, features = ["default-cranelift"] }

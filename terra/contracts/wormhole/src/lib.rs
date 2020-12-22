@@ -1,3 +1,7 @@
+#[cfg(test)]
+#[macro_use]
+extern crate lazy_static;
+
 mod byte_utils;
 pub mod contract;
 mod error;

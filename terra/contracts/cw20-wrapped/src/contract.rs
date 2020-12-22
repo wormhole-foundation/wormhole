@@ -119,7 +119,7 @@ fn handle_mint_wrapped<S: Storage, A: Api, Q: Querier>(
         return Err(StdError::unauthorized());
     }
 
-    return Ok(handle_mint(deps, env, recipient, amount)?);
+    Ok(handle_mint(deps, env, recipient, amount)?)
 }
 
 pub fn query<S: Storage, A: Api, Q: Querier>(
