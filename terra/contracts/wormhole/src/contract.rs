@@ -975,12 +975,16 @@ mod tests {
                     symbol: String::from("TST"),
                     decimals: LOCKED_DECIMALS,
                     total_supply: Uint128::from(1000000000000u128),
-                }).unwrap(),
-                WrappedQuery::WrappedAssetInfo {} => serde_json::to_string(&WrappedAssetInfoResponse {
-                    asset_chain: LOCK_WRAPPED_CHAIN,
-                    asset_address: Binary::from(hex::decode(LOCK_WRAPPED_ASSET).unwrap()),
-                    bridge: HumanAddr::from("bridgeaddr"),
-                }).unwrap(),
+                })
+                .unwrap(),
+                WrappedQuery::WrappedAssetInfo {} => {
+                    serde_json::to_string(&WrappedAssetInfoResponse {
+                        asset_chain: LOCK_WRAPPED_CHAIN,
+                        asset_address: Binary::from(hex::decode(LOCK_WRAPPED_ASSET).unwrap()),
+                        bridge: HumanAddr::from("bridgeaddr"),
+                    })
+                    .unwrap()
+                }
                 _ => panic!("Wrong msg type"),
             };
             Ok(Ok(Binary::from(response.as_bytes())))
@@ -1034,7 +1038,12 @@ mod tests {
             panic!("Wrong wasm msg type");
         };
         let command_msg: TokenMsg = serde_json::from_slice(command_msg.as_slice()).unwrap();
-        if let TokenMsg::TransferFrom { owner, recipient, amount } = command_msg {
+        if let TokenMsg::TransferFrom {
+            owner,
+            recipient,
+            amount,
+        } = command_msg
+        {
             assert_eq!(owner, HumanAddr::from(SENDER_ADDR));
             assert_eq!(recipient, HumanAddr::from(MOCK_CONTRACT_ADDR));
             assert_eq!(amount, Uint128::from(LOCK_AMOUNT));
@@ -1057,7 +1066,11 @@ mod tests {
             asset_id: Binary::from(LOCK_ASSET_ID),
         };
 
-        let result = submit_msg_with_sender(&mut deps, register_msg.clone(), &HumanAddr::from(LOCK_ASSET_ADDR));
+        let result = submit_msg_with_sender(
+            &mut deps,
+            register_msg.clone(),
+            &HumanAddr::from(LOCK_ASSET_ADDR),
+        );
         assert!(result.is_ok());
 
         let result = submit_msg(&mut deps, MSG_LOCK.clone()).unwrap();
@@ -1109,7 +1122,11 @@ mod tests {
         do_init_with_guardians(&mut deps, 1);
 
         let mut msg = MSG_LOCK.clone();
-        if let HandleMsg::LockAssets {ref mut target_chain, .. } = msg {
+        if let HandleMsg::LockAssets {
+            ref mut target_chain,
+            ..
+        } = msg
+        {
             *target_chain = CHAIN_ID;
         }
         let result = submit_msg(&mut deps, msg);
@@ -1122,19 +1139,23 @@ mod tests {
         do_init_with_guardians(&mut deps, 1);
 
         let mut msg = MSG_LOCK.clone();
-        if let HandleMsg::LockAssets {ref mut amount, .. } = msg {
+        if let HandleMsg::LockAssets { ref mut amount, .. } = msg {
             *amount = Uint128::zero();
         }
         let result = submit_msg(&mut deps, msg);
         assert_eq!(result, ContractError::AmountTooLow.std_err());
-    }  
+    }
 
     #[test]
     fn error_lock_contract_inactive() {
         let mut deps = mock_dependencies(CANONICAL_LENGTH, &[]);
         do_init_with_guardians(&mut deps, 1);
 
-        let result = submit_msg_with_sender(&mut deps, HandleMsg::SetActive { is_active: false }, &HumanAddr::from(CREATOR_ADDR));
+        let result = submit_msg_with_sender(
+            &mut deps,
+            HandleMsg::SetActive { is_active: false },
+            &HumanAddr::from(CREATOR_ADDR),
+        );
         assert!(result.is_ok());
 
         let result = submit_msg(&mut deps, MSG_LOCK.clone());
@@ -1146,7 +1167,11 @@ mod tests {
         let mut deps = mock_dependencies(CANONICAL_LENGTH, &[]);
         do_init_with_guardians(&mut deps, 1);
 
-        let result = submit_msg_with_sender(&mut deps, HandleMsg::SetActive { is_active: false }, &HumanAddr::from(CREATOR_ADDR));
+        let result = submit_msg_with_sender(
+            &mut deps,
+            HandleMsg::SetActive { is_active: false },
+            &HumanAddr::from(CREATOR_ADDR),
+        );
         assert!(result.is_ok());
     }
 
@@ -1166,14 +1191,23 @@ mod tests {
 
         let result = query(&deps, QueryMsg::GuardianSetInfo {}).unwrap();
         let result: GuardianSetInfoResponse = serde_json::from_slice(result.as_slice()).unwrap();
-        
-        assert_eq!(result, GuardianSetInfoResponse {
-            guardian_set_index: 0,
-            addresses: vec![
-                GuardianAddress { bytes: Binary::from(hex::decode(ADDR_1).unwrap()) },
-                GuardianAddress { bytes: Binary::from(hex::decode(ADDR_2).unwrap()) },
-                GuardianAddress { bytes: Binary::from(hex::decode(ADDR_3).unwrap()) },
-            ],
-        })
+
+        assert_eq!(
+            result,
+            GuardianSetInfoResponse {
+                guardian_set_index: 0,
+                addresses: vec![
+                    GuardianAddress {
+                        bytes: Binary::from(hex::decode(ADDR_1).unwrap())
+                    },
+                    GuardianAddress {
+                        bytes: Binary::from(hex::decode(ADDR_2).unwrap())
+                    },
+                    GuardianAddress {
+                        bytes: Binary::from(hex::decode(ADDR_3).unwrap())
+                    },
+                ],
+            }
+        )
     }
 }
