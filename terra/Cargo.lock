@@ -1225,6 +1225,7 @@ dependencies = [
  "lazy_static",
  "schemars",
  "serde",
+ "serde_json",
  "sha3",
  "thiserror",
 ]
