@@ -127,6 +127,8 @@ After a few seconds, the SPL token balance shown below will increase as the VAA 
 | `3C3m4tjTy4nSMkkYdqCDSiCWEgpDa6whvprvABdFGBiW` | Account that holds 6qRhs8oA... SPL tokens           |
 | `85kW19uNvETzH43p3AfpyqPaQS5rWouq4x9rGiKUvihf` | Wrapped token for the 0xCfEB86... ERC20 token       |
 | `7EFk3VrWeb29SWJPQs5cUyqcY3fQd33S9gELkGybRzeu` | Account that holds 85kW19u... wrapped tokens [2]    |
+| `9ESkHLgJH4zqbG7fvhpC9u2ZeHMoLJznCHtaRLviEVRh` | Wrapped token for the terra18vd8f... CW20 token     |
+| `EERzaqe8Agm8p1ZkGQFq9zKpP7MDW29FX1pC1vEw9Yfv` | Account that holds 9ESkHLg... wrapped tokens        |
 
 [1]: The account will eventually run out of funds if you run the lockup sending scripts for a long time. Refill it
 using `kubectl exec solana-devnet-0 -c setup cli airdrop solana-devnet:9900` (see [devnet_setup.sh](solana/devnet_setup.sh)).

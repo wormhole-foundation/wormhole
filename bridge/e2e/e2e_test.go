@@ -5,9 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ethereum/go-ethereum/ethclient"
-
 	"github.com/certusone/wormhole/bridge/pkg/devnet"
+	"github.com/ethereum/go-ethereum/ethclient"
 )
 
 func TestEndToEnd(t *testing.T) {
@@ -46,6 +45,12 @@ func TestEndToEnd(t *testing.T) {
 		t.Fatalf("dialing devnet eth rpc failed: %v", err)
 	}
 	kt := devnet.GetKeyedTransactor(ctx)
+
+	// Terra client
+	tc, err := NewTerraClient()
+	if err != nil {
+		t.Fatalf("creating devnet terra client failed: %v", err)
+	}
 
 	// Generic context for tests.
 	ctx, cancel = context.WithCancel(context.Background())
@@ -105,6 +110,31 @@ func TestEndToEnd(t *testing.T) {
 			0.000000012*devnet.SolanaDefaultPrecision,
 			// We gain 9 digits of precision on Eth.
 			9,
+		)
+	})
+
+	t.Run("[Terra] Native -> [SOL] Wrapped", func(t *testing.T) {
+		testTerraLockup(t, ctx, tc, c,
+			// Source CW20 token
+			devnet.TerraTokenAddress,
+			// Destination SPL token account
+			devnet.SolanaExampleWrappedCWTokenOwningAccount,
+			// Amount
+			2*devnet.TerraDefaultPrecision,
+			// Same precision - same amount, no precision gained.
+			0,
+		)
+	})
+	t.Run("[SOL] Native -> [Terra] Wrapped", func(t *testing.T) {
+		testSolanaToTerraLockup(t, ctx, tc, c,
+			// Source SPL account
+			devnet.SolanaExampleTokenOwningAccount,
+			// Source SPL token
+			devnet.SolanaExampleToken,
+			// Amount of SPL token value to transfer.
+			50*devnet.SolanaDefaultPrecision,
+			// Same precision - same amount, no precision gained.
+			0,
 		)
 	})
 }
