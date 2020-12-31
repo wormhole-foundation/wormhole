@@ -36,10 +36,18 @@ pub enum HandleMsg {
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
     GuardianSetInfo {},
+    WrappedRegistry { chain: u8, address: Binary },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
 pub struct GuardianSetInfoResponse {
     pub guardian_set_index: u32,         // Current guardian set index
     pub addresses: Vec<GuardianAddress>, // List of querdian addresses
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct WrappedRegistryResponse {
+    pub address: HumanAddr,
 }

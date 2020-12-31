@@ -1187,6 +1187,7 @@ github.com/tendermint/tendermint v0.33.8 h1:Xxu4QhpqcomSE0iQDw1MqLgfsa8fqtPtWFJK
 github.com/tendermint/tendermint v0.33.8/go.mod h1:0yUs9eIuuDq07nQql9BmI30FtYGcEC60Tu5JzB5IezM=
 github.com/tendermint/tm-db v0.5.1 h1:H9HDq8UEA7Eeg13kdYckkgwwkQLBnJGgX4PgLJRhieY=
 github.com/tendermint/tm-db v0.5.1/go.mod h1:g92zWjHpCYlEvQXvy9M168Su8V1IBEeawpXVVBaK4f4=
+github.com/terra-project/terra.go v1.0.0 h1:TR2b3x8yrljXhrs9a3KORRCQ6BGr+bCTp0ZwTrG/i3c=
 github.com/terra-project/terra.go v1.0.1-0.20201113170042-b3bffdc6fd06 h1:TAhaL+7VYJe44qBEKqjlj3wD0CRjJN1JZfz8p+L6FGY=
 github.com/terra-project/terra.go v1.0.1-0.20201113170042-b3bffdc6fd06/go.mod h1:elzj1F6B9Sel3c4QFNeR3yR4E9tu+c1xBP+ZZYPlSq8=
 github.com/tidwall/gjson v1.6.3 h1:aHoiiem0dr7GHkW001T1SMTJ7X5PvyekH5WX0whWGnI=
@@ -1634,6 +1635,7 @@ k8s.io/api v0.19.4 h1:I+1I4cgJYuCDgiLNjKx7SLmIbwgj9w7N7Zr5vSIdwpo=
 k8s.io/api v0.19.4/go.mod h1:SbtJ2aHCItirzdJ36YslycFNzWADYH3tgOhvBEFtZAk=
 k8s.io/apimachinery v0.19.4 h1:+ZoddM7nbzrDCp0T3SWnyxqf8cbWPT2fkZImoyvHUG0=
 k8s.io/apimachinery v0.19.4/go.mod h1:DnPGDnARWFvYa3pMHgSxtbZb7gpzzAZ1pTfaUNDVlmA=
+k8s.io/apimachinery v0.20.1 h1:LAhz8pKbgR8tUwn7boK+b2HZdt7MiTu2mkYtFMUjTRQ=
 k8s.io/client-go v0.19.4 h1:85D3mDNoLF+xqpyE9Dh/OtrJDyJrSRKkHmDXIbEzer8=
 k8s.io/client-go v0.19.4/go.mod h1:ZrEy7+wj9PjH5VMBCuu/BDlvtUAku0oVFk4MmnW9mWA=
 k8s.io/gengo v0.0.0-20200413195148-3a45101e95ac/go.mod h1:ezvh/TsK7cY6rbqRK0oQQ8IAqLxYwwyPxAX1Pzy0ii0=

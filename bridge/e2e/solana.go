@@ -12,6 +12,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/mr-tron/base58"
 	"github.com/tendermint/tendermint/libs/rand"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
@@ -115,4 +116,55 @@ func testSolanaLockup(t *testing.T, ctx context.Context, ec *ethclient.Client, c
 
 	// Source account decreases by full amount.
 	waitSPLBalance(t, ctx, c, sourceAcct, beforeSPL, -int64(amount))
+}
+
+func testSolanaToTerraLockup(t *testing.T, ctx context.Context, tc *TerraClient, c *kubernetes.Clientset,
+	sourceAcct string, tokenAddr string, amount int, precisionGain int) {
+
+	tokenSlice, err := base58.Decode(tokenAddr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	terraToken, err := getAssetAddress(ctx, devnet.TerraBridgeAddress, vaa.ChainIDSolana, tokenSlice)
+
+	// Get balance if deployed
+	beforeCw20, err := getTerraBalance(ctx, terraToken)
+	if err != nil {
+		t.Log(err) // account may not yet exist, defaults to 0
+	}
+	t.Logf("CW20 balance: %v", beforeCw20)
+
+	// Store balance of source SPL token
+	beforeSPL, err := getSPLBalance(ctx, c, sourceAcct)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("SPL balance: %d", beforeSPL)
+
+	_, err = executeCommandInPod(ctx, c, "solana-devnet-0", "setup",
+		[]string{"cli", "lock",
+			// Address of the Wormhole bridge.
+			devnet.SolanaBridgeContract,
+			// Account which holds the SPL tokens to be sent.
+			sourceAcct,
+			// The SPL token.
+			tokenAddr,
+			// Token amount.
+			strconv.Itoa(amount),
+			// Destination chain ID.
+			strconv.Itoa(vaa.ChainIDTerra),
+			// Random nonce.
+			strconv.Itoa(int(rand.Uint16())),
+			// Destination account on Terra
+			devnet.TerraMainTestAddressHex,
+		})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Source account decreases by full amount.
+	waitSPLBalance(t, ctx, c, sourceAcct, beforeSPL, -int64(amount))
+
+	// Destination account increases by the full amount.
+	waitTerraUnknownBalance(t, ctx, devnet.TerraBridgeAddress, vaa.ChainIDSolana, tokenSlice, beforeCw20, int64(float64(amount)*math.Pow10(precisionGain)))
 }

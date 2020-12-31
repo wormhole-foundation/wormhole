@@ -86,6 +86,10 @@ pub enum ContractError {
     /// More signatures than active guardians found
     #[error("TooManySignatures")]
     TooManySignatures,
+
+    /// Wrapped asset not found in the registry
+    #[error("AssetNotFound")]
+    AssetNotFound,
 }
 
 impl ContractError {

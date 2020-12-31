@@ -1,3 +1,4 @@
+use crate::msg::WrappedRegistryResponse;
 use cosmwasm_std::{
     log, to_binary, Api, Binary, CanonicalAddr, CosmosMsg, Env, Extern, HandleResponse, HumanAddr,
     InitResponse, Querier, QueryRequest, StdResult, Storage, Uint128, WasmMsg, WasmQuery,
@@ -337,14 +338,8 @@ fn vaa_transfer<S: Storage, A: Api, Q: Querier>(
     }
 
     if token_chain != CHAIN_ID {
-        let mut asset_id: Vec<u8> = vec![];
-        asset_id.push(token_chain);
         let asset_address = data.get_bytes32(71);
-        asset_id.extend_from_slice(asset_address);
-
-        let mut hasher = Keccak256::new();
-        hasher.update(asset_id);
-        let asset_id = hasher.finalize();
+        let asset_id = build_asset_id(token_chain, asset_address);
 
         let mut messages: Vec<CosmosMsg> = vec![];
 
@@ -539,11 +534,14 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
     msg: QueryMsg,
 ) -> StdResult<Binary> {
     match msg {
-        QueryMsg::GuardianSetInfo {} => to_binary(&query_query_guardian_set_info(deps)?),
+        QueryMsg::GuardianSetInfo {} => to_binary(&query_guardian_set_info(deps)?),
+        QueryMsg::WrappedRegistry { chain, address } => {
+            to_binary(&query_wrapped_registry(deps, chain, address.as_slice())?)
+        }
     }
 }
 
-pub fn query_query_guardian_set_info<S: Storage, A: Api, Q: Querier>(
+pub fn query_guardian_set_info<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
 ) -> StdResult<GuardianSetInfoResponse> {
     let state = config_read(&deps.storage).load()?;
@@ -553,6 +551,19 @@ pub fn query_query_guardian_set_info<S: Storage, A: Api, Q: Querier>(
         addresses: guardian_set.addresses,
     };
     Ok(res)
+}
+
+pub fn query_wrapped_registry<S: Storage, A: Api, Q: Querier>(
+    deps: &Extern<S, A, Q>,
+    chain: u8,
+    address: &[u8],
+) -> StdResult<WrappedRegistryResponse> {
+    let asset_id = build_asset_id(chain, address);
+    // Check if this asset is already deployed
+    match wrapped_asset_read(&deps.storage).load(&asset_id) {
+        Ok(address) => Ok(WrappedRegistryResponse { address }),
+        Err(_) => ContractError::AssetNotFound.std_err(),
+    }
 }
 
 fn keys_equal(a: &VerifyKey, b: &GuardianAddress) -> bool {
@@ -578,6 +589,16 @@ fn keys_equal(a: &VerifyKey, b: &GuardianAddress) -> bool {
         }
     }
     true
+}
+
+fn build_asset_id(chain: u8, address: &[u8]) -> Vec<u8> {
+    let mut asset_id: Vec<u8> = vec![];
+    asset_id.push(chain);
+    asset_id.extend_from_slice(address);
+
+    let mut hasher = Keccak256::new();
+    hasher.update(asset_id);
+    hasher.finalize().to_vec()
 }
 
 #[cfg(test)]
