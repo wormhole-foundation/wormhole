@@ -85,6 +85,13 @@ type (
 		// NewIndex is the index of the new guardian set
 		NewIndex uint32
 	}
+
+	BodyContractUpgrade struct {
+		// ChainID is the chain on which the contract should be upgraded
+		ChainID uint8
+		// NewContract is the index of the new contract
+		NewContract Address
+	}
 )
 
 func (a Address) String() string {
@@ -106,6 +113,7 @@ func (c ChainID) String() string {
 
 const (
 	ActionGuardianSetUpdate Action = 0x01
+	ActionContractUpgrade   Action = 0x02
 	ActionTransfer          Action = 0x10
 
 	// ChainIDSolana is the ChainID of Solana
@@ -182,6 +190,8 @@ func Unmarshal(data []byte) (*VAA, error) {
 		v.Payload, err = parseBodyGuardianSetUpdate(payloadReader)
 	case ActionTransfer:
 		v.Payload, err = parseBodyTransfer(payloadReader)
+	case ActionContractUpgrade:
+		v.Payload, err = parseBodyContractUpgrade(payloadReader)
 	default:
 		return nil, fmt.Errorf("unknown action: %d", action)
 	}
@@ -399,6 +409,33 @@ func (v *BodyGuardianSetUpdate) serialize() ([]byte, error) {
 	for _, key := range v.Keys {
 		buf.Write(key.Bytes())
 	}
+
+	return buf.Bytes(), nil
+}
+
+func parseBodyContractUpgrade(r io.Reader) (*BodyContractUpgrade, error) {
+	b := &BodyContractUpgrade{}
+
+	if err := binary.Read(r, binary.BigEndian, &b.ChainID); err != nil {
+		return nil, fmt.Errorf("failed to read chain id: %w", err)
+	}
+
+	if n, err := r.Read(b.NewContract[:]); err != nil || n != 32 {
+		return nil, fmt.Errorf("failed to read new contract address: %w", err)
+	}
+
+	return b, nil
+}
+
+func (v *BodyContractUpgrade) getActionID() Action {
+	return ActionContractUpgrade
+}
+
+func (v *BodyContractUpgrade) serialize() ([]byte, error) {
+	buf := new(bytes.Buffer)
+
+	MustWrite(buf, binary.BigEndian, v.ChainID)
+	buf.Write(v.NewContract[:])
 
 	return buf.Bytes(), nil
 }

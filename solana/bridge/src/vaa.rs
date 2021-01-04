@@ -6,6 +6,7 @@ use sha3::Digest;
 use solana_program::program_error::ProgramError;
 
 use crate::{error::Error, state::AssetMeta};
+use solana_program::pubkey::Pubkey;
 
 pub type ForeignAddress = [u8; 32];
 
@@ -129,12 +130,14 @@ impl VAA {
 pub enum VAABody {
     UpdateGuardianSet(BodyUpdateGuardianSet),
     Transfer(BodyTransfer),
+    UpgradeContract(BodyUpgrade),
 }
 
 impl VAABody {
     fn action_id(&self) -> u8 {
         match self {
             VAABody::UpdateGuardianSet(_) => 0x01,
+            VAABody::UpgradeContract(_) => 0x02,
             VAABody::Transfer(_) => 0x10,
         }
     }
@@ -147,6 +150,7 @@ impl VAABody {
             0x01 => {
                 VAABody::UpdateGuardianSet(BodyUpdateGuardianSet::deserialize(&mut payload_data)?)
             }
+            0x02 => VAABody::UpgradeContract(BodyUpgrade::deserialize(&mut payload_data)?),
             0x10 => VAABody::Transfer(BodyTransfer::deserialize(&mut payload_data)?),
             _ => {
                 return Err(Error::InvalidVAAAction);
@@ -160,6 +164,7 @@ impl VAABody {
         match self {
             VAABody::Transfer(b) => b.serialize(),
             VAABody::UpdateGuardianSet(b) => b.serialize(),
+            VAABody::UpgradeContract(b) => b.serialize(),
         }
     }
 }
@@ -180,6 +185,34 @@ pub struct BodyTransfer {
     pub asset: AssetMeta,
     pub amount: U256,
 }
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct BodyUpgrade {
+    pub chain_id: u8,
+    pub buffer: Pubkey,
+}
+
+impl BodyUpgrade {
+    fn deserialize(data: &mut Cursor<&Vec<u8>>) -> Result<BodyUpgrade, Error> {
+        let chain_id = data.read_u8()?;
+        let mut key: [u8; 32] = [0; 32];
+        data.read(&mut key[..])?;
+
+        Ok(BodyUpgrade {
+            chain_id,
+            buffer: Pubkey::new(&key[..]),
+        })
+    }
+
+    fn serialize(&self) -> Result<Vec<u8>, Error> {
+        let mut v: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+        v.write_u8(self.chain_id)?;
+        v.write(&self.buffer.to_bytes());
+
+        Ok(v.into_inner())
+    }
+}
+
 
 impl BodyUpdateGuardianSet {
     fn deserialize(data: &mut Cursor<&Vec<u8>>) -> Result<BodyUpdateGuardianSet, Error> {
@@ -273,6 +306,8 @@ mod tests {
         state::AssetMeta,
         vaa::{BodyTransfer, BodyUpdateGuardianSet, Signature, VAABody, VAA},
     };
+    use crate::vaa::BodyUpgrade;
+    use solana_program::pubkey::Pubkey;
 
     #[test]
     fn serialize_deserialize_vaa_transfer() {
@@ -321,6 +356,29 @@ mod tests {
             payload: Some(VAABody::UpdateGuardianSet(BodyUpdateGuardianSet {
                 new_index: 29,
                 new_keys: vec![],
+            })),
+        };
+
+        let data = vaa.serialize().unwrap();
+        let parsed_vaa = VAA::deserialize(data.as_slice()).unwrap();
+        assert_eq!(vaa, parsed_vaa)
+    }
+
+    #[test]
+    fn serialize_deserialize_vaa_contract_upgrade() {
+        let vaa = VAA {
+            version: 8,
+            guardian_set_index: 3,
+            signatures: vec![Signature {
+                index: 1,
+                r: [2; 32],
+                s: [2; 32],
+                v: 7,
+            }],
+            timestamp: 83,
+            payload: Some(VAABody::UpgradeContract(BodyUpgrade {
+                chain_id: 3,
+                buffer: Pubkey::new_unique(),
             })),
         };
 
@@ -405,6 +463,38 @@ mod tests {
             })),
         };
         let data = hex::decode("0100000000010092737a1504f3b3df8c93cb85c64a4860bb270e26026b6e37f095356a406f6af439c6b2e9775fa1c6669525f06edab033ba5d447308f4e3bdb33c0f361dc32ec3015f37000810000000350102020104000000000000000000000000000000000000000000000000000000000000000000000000000000000090f8bf6a479f320ead074411a4b0e7944ea8c9c1010000000000000000000000000347ef34687bdc9f189e87a9200658d9c40e9988080000000000000000000000000000000000000000000000004563918244f40000").unwrap();
+        let parsed_vaa = VAA::deserialize(data.as_slice()).unwrap();
+        assert_eq!(vaa, parsed_vaa);
+
+        let rec_data = parsed_vaa.serialize().unwrap();
+        assert_eq!(data, rec_data);
+    }
+
+    #[test]
+    fn parse_given_contract_upgrade() {
+        let vaa = VAA {
+            version: 1,
+            guardian_set_index: 2,
+            signatures: vec![Signature {
+                index: 0,
+                r: [
+                    72, 156, 56, 20, 222, 146, 161, 112, 22, 97, 69, 59, 188, 199, 130, 240, 89,
+                    249, 241, 79, 96, 27, 235, 10, 99, 16, 56, 80, 232, 188, 235, 11
+                ],
+                s: [
+                    65, 19, 144, 42, 104, 122, 52, 0, 126, 7, 43, 127, 120, 85, 5, 21, 216, 207,
+                    78, 73, 213, 207, 142, 103, 211, 192, 100, 90, 27, 98, 176, 98
+                ],
+                v: 1,
+            }],
+            timestamp: 4000,
+            payload: Some(VAABody::UpgradeContract(BodyUpgrade {
+                chain_id: 2,
+                buffer: Pubkey::new(&[146, 115, 122, 21, 4, 243, 179, 223, 140, 147, 203, 133, 198, 74, 72, 96, 187,
+                    39, 14, 38, 2, 107, 110, 55, 240, 149, 53, 106, 64, 111, 106, 244]),
+            })),
+        };
+        let data = hex::decode("01000000020100489c3814de92a1701661453bbcc782f059f9f14f601beb0a63103850e8bceb0b4113902a687a34007e072b7f78550515d8cf4e49d5cf8e67d3c0645a1b62b0620100000fa0020292737a1504f3b3df8c93cb85c64a4860bb270e26026b6e37f095356a406f6af4").unwrap();
         let parsed_vaa = VAA::deserialize(data.as_slice()).unwrap();
         assert_eq!(vaa, parsed_vaa);
 

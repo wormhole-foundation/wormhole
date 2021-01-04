@@ -42,6 +42,7 @@ impl PrintProgramError for Error {
             Error::InsufficientFees => msg!("Error: InsufficientFees"),
             Error::InvalidOwner => msg!("Error: InvalidOwner"),
             Error::InvalidSysvar => msg!("Error: InvalidSysvar"),
+            Error::InvalidChain => msg!("Error: InvalidChain"),
         }
     }
 }

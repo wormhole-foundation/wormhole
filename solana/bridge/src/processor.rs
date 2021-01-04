@@ -36,6 +36,7 @@ use solana_program::program_pack::Pack;
 use std::borrow::BorrowMut;
 use std::ops::Add;
 use solana_program::fee_calculator::FeeCalculator;
+use crate::vaa::BodyUpgrade;
 
 /// SigInfo contains metadata about signers in a VerifySignature ix
 struct SigInfo {
@@ -772,6 +773,19 @@ impl Bridge {
                     )
                 }
             }
+            VAABody::UpgradeContract(v) => {
+                if v.chain_id == CHAIN_ID_SOLANA {
+                    evict_signatures = true;
+                    Self::process_vaa_upgrade(
+                        program_id,
+                        accounts,
+                        bridge_info,
+                        v,
+                    )
+                } else {
+                    return Err(Error::InvalidChain.into());
+                }
+            }
         }?;
 
         // Check and create claim
@@ -997,6 +1011,25 @@ impl Bridge {
         proposal.vaa[vaa_data.len()] = 0xff;
         proposal.vaa_time = vaa.timestamp;
         proposal.signature_account = *sig_account;
+
+        Ok(())
+    }
+
+    /// Processes a VAA contract upgrade
+    pub fn process_vaa_upgrade(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        bridge_info: &AccountInfo,
+        b: &BodyUpgrade,
+    ) -> ProgramResult {
+        // Invoke upgrade
+        let upgrade_ix = solana_program::bpf_loader_upgradeable::upgrade(
+            program_id,
+            &b.buffer,
+            bridge_info.key,
+            bridge_info.key,
+        );
+        Self::invoke_as_bridge(program_id, &upgrade_ix, accounts);
 
         Ok(())
     }
