@@ -106,6 +106,9 @@ pub enum Error {
     /// Insufficient fees
     #[error("InsufficientFees")]
     InsufficientFees,
+    /// Invalid Chain
+    #[error("InvalidChain")]
+    InvalidChain,
 }
 
 impl From<Error> for ProgramError {

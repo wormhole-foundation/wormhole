@@ -425,6 +425,11 @@ pub fn post_vaa(
                 Bridge::derive_guardian_set_id(program_id, &bridge_key, u.new_index)?;
             accounts.push(AccountMeta::new(guardian_set_key, false));
         }
+        VAABody::UpgradeContract(u) => {
+            accounts.push(AccountMeta::new(u.buffer, false));
+            let (programdata_address, _) = Pubkey::find_program_address(&[program_id.as_ref()], &solana_program::bpf_loader_upgradeable::id());
+            accounts.push(AccountMeta::new(programdata_address, false));
+        }
         VAABody::Transfer(t) => {
             if t.source_chain == CHAIN_ID_SOLANA {
                 // Solana (any) -> Ethereum (any)

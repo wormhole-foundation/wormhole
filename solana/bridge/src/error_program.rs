@@ -40,6 +40,7 @@ impl PrintProgramError for Error {
             Error::VAAAlreadySubmitted => info!("Error: VAAAlreadySubmitted"),
             Error::GuardianSetMismatch => info!("Error: GuardianSetMismatch"),
             Error::InsufficientFees => info!("Error: InsufficientFees"),
+            Error::InvalidChain => info!("Error: InvalidChain"),
         }
     }
 }

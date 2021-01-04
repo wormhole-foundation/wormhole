@@ -9,10 +9,10 @@ tonic = "0.3.0"
 tokio = { version = "0.2", features = ["rt-threaded", "time", "stream", "fs", "macros", "uds"] }
 prost = "0.6"
 prost-types = "0.6"
-solana-sdk = { version = "1.4.7" }
-solana-client = { version = "1.4.7" }
-solana-faucet = "1.4.7"
-spl-token =  "=3.0.0"
+solana-sdk = { version = "1.4.20" }
+solana-client = { version = "1.4.20" }
+solana-faucet = "1.4.20"
+spl-token =  "=3.0.1"
 wormhole-bridge = { path = "../bridge" }
 primitive-types = { version = "0.7.2" }
 hex = "0.4.2"
@@ -21,7 +21,7 @@ tungstenite = "0.11.1"
 serde = "1.0.103"
 url = "2.1.1"
 serde_bytes = "0.11.5"
-log = "0.4.8"
+log = "0.4.11"
 serde_derive = "1.0.103"
 serde_json = "1.0.57"
 bs58 = "0.3.1"
