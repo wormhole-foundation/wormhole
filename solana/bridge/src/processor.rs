@@ -36,7 +36,7 @@ use solana_program::program_pack::Pack;
 use std::borrow::BorrowMut;
 use std::ops::Add;
 use solana_program::fee_calculator::FeeCalculator;
-use crate::vaa::BodyUpgrade;
+use crate::vaa::BodyContractUpgrade;
 
 /// SigInfo contains metadata about signers in a VerifySignature ix
 struct SigInfo {
@@ -1008,7 +1008,7 @@ impl Bridge {
         program_id: &Pubkey,
         accounts: &[AccountInfo],
         bridge_info: &AccountInfo,
-        b: &BodyUpgrade,
+        b: &BodyContractUpgrade,
     ) -> ProgramResult {
         // Invoke upgrade
         let upgrade_ix = solana_program::bpf_loader_upgradeable::upgrade(

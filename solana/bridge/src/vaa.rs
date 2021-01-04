@@ -130,7 +130,7 @@ impl VAA {
 pub enum VAABody {
     UpdateGuardianSet(BodyUpdateGuardianSet),
     Transfer(BodyTransfer),
-    UpgradeContract(BodyUpgrade),
+    UpgradeContract(BodyContractUpgrade),
 }
 
 impl VAABody {
@@ -150,7 +150,7 @@ impl VAABody {
             0x01 => {
                 VAABody::UpdateGuardianSet(BodyUpdateGuardianSet::deserialize(&mut payload_data)?)
             }
-            0x02 => VAABody::UpgradeContract(BodyUpgrade::deserialize(&mut payload_data)?),
+            0x02 => VAABody::UpgradeContract(BodyContractUpgrade::deserialize(&mut payload_data)?),
             0x10 => VAABody::Transfer(BodyTransfer::deserialize(&mut payload_data)?),
             _ => {
                 return Err(Error::InvalidVAAAction);
@@ -187,18 +187,18 @@ pub struct BodyTransfer {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct BodyUpgrade {
+pub struct BodyContractUpgrade {
     pub chain_id: u8,
     pub buffer: Pubkey,
 }
 
-impl BodyUpgrade {
-    fn deserialize(data: &mut Cursor<&Vec<u8>>) -> Result<BodyUpgrade, Error> {
+impl BodyContractUpgrade {
+    fn deserialize(data: &mut Cursor<&Vec<u8>>) -> Result<BodyContractUpgrade, Error> {
         let chain_id = data.read_u8()?;
         let mut key: [u8; 32] = [0; 32];
         data.read(&mut key[..])?;
 
-        Ok(BodyUpgrade {
+        Ok(BodyContractUpgrade {
             chain_id,
             buffer: Pubkey::new(&key[..]),
         })
@@ -306,7 +306,7 @@ mod tests {
         state::AssetMeta,
         vaa::{BodyTransfer, BodyUpdateGuardianSet, Signature, VAABody, VAA},
     };
-    use crate::vaa::BodyUpgrade;
+    use crate::vaa::BodyContractUpgrade;
     use solana_program::pubkey::Pubkey;
 
     #[test]
@@ -376,7 +376,7 @@ mod tests {
                 v: 7,
             }],
             timestamp: 83,
-            payload: Some(VAABody::UpgradeContract(BodyUpgrade {
+            payload: Some(VAABody::UpgradeContract(BodyContractUpgrade {
                 chain_id: 3,
                 buffer: Pubkey::new_unique(),
             })),
@@ -488,7 +488,7 @@ mod tests {
                 v: 1,
             }],
             timestamp: 4000,
-            payload: Some(VAABody::UpgradeContract(BodyUpgrade {
+            payload: Some(VAABody::UpgradeContract(BodyContractUpgrade {
                 chain_id: 2,
                 buffer: Pubkey::new(&[146, 115, 122, 21, 4, 243, 179, 223, 140, 147, 203, 133, 198, 74, 72, 96, 187,
                     39, 14, 38, 2, 107, 110, 55, 240, 149, 53, 106, 64, 111, 106, 244]),
