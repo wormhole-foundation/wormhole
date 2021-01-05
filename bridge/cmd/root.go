@@ -36,6 +36,7 @@ func init() {
 	rootCmd.AddCommand(guardiand.BridgeCmd)
 	rootCmd.AddCommand(guardiand.KeygenCmd)
 	rootCmd.AddCommand(guardiand.AdminCmd)
+	rootCmd.AddCommand(guardiand.TemplateCmd)
 }
 
 // initConfig reads in config file and ENV variables if set.

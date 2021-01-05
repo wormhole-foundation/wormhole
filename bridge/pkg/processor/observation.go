@@ -172,6 +172,17 @@ func (p *Processor) handleObservation(ctx context.Context, m *gossipv1.SignedObs
 				// A guardian set update is broadcast to every chain that we talk to.
 				p.devnetVAASubmission(ctx, signed, hash)
 				p.terraVAASubmission(ctx, signed, hash)
+			case *vaa.BodyContractUpgrade:
+				switch t.ChainID {
+				case vaa.ChainIDSolana:
+				// Already submitted to Solana
+				default:
+					p.logger.Error("unsupported target chain for contract update",
+						zap.String("digest", hash),
+						zap.Any("vaa", signed),
+						zap.String("bytes", hex.EncodeToString(vaaBytes)),
+						zap.Uint8("target_chain", t.ChainID))
+				}
 			default:
 				panic(fmt.Sprintf("unknown VAA payload type: %+v", v))
 			}

@@ -429,6 +429,7 @@ pub fn post_vaa(
             accounts.push(AccountMeta::new(u.buffer, false));
             let (programdata_address, _) = Pubkey::find_program_address(&[program_id.as_ref()], &solana_program::bpf_loader_upgradeable::id());
             accounts.push(AccountMeta::new(programdata_address, false));
+            accounts.push(AccountMeta::new_readonly(solana_program::bpf_loader_upgradeable::id(), false));
         }
         VAABody::Transfer(t) => {
             if t.source_chain == CHAIN_ID_SOLANA {
