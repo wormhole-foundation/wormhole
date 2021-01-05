@@ -9,58 +9,70 @@ import "google/api/annotations.proto";
 // NodePrivileged exposes an administrative API. It runs on a UNIX socket and is authenticated
 // using Linux filesystem permissions.
 service NodePrivileged {
-    // SubmitGuardianSetVAA injects a guardian set change VAA into the guardian node.
-    // The node will inject the VAA into the aggregator and sign/broadcast the VAA signature.
-    //
-    // A consensus majority of nodes on the network will have to inject the VAA within the
-    // VAA timeout window for it to reach consensus.
-    //
-    rpc SubmitGuardianSetVAA (SubmitGuardianSetVAARequest) returns (SubmitGuardianSetVAAResponse);
+  // InjectGovernanceVAA injects a governance VAA into the guardian node.
+  // The node will inject the VAA into the aggregator and sign/broadcast the VAA signature.
+  //
+  // A consensus majority of nodes on the network will have to inject the VAA within the
+  // VAA timeout window for it to reach consensus.
+  //
+  rpc InjectGovernanceVAA (InjectGovernanceVAARequest) returns (InjectGovernanceVAAResponse);
+}
+
+message InjectGovernanceVAARequest {
+  // Index of the current guardian set.
+  uint32 current_set_index = 1;
+
+  // UNIX timestamp (s) of the VAA to be created. The timestamp is informational and will be part
+  // of the VAA submitted to the chain. It's part of the VAA digest and has to be identical across nodes and
+  // is critical for replay protection - a given event may only ever be observed with the same timestamp,
+  // otherwise, it may be possible to execute it multiple times.
+  //
+  // For lockups, the timestamp identifies the block that the lockup belongs to. For guardian set updates,
+  // we create the VAA manually. Best practice is to pick a timestamp which roughly matches the expected
+  // genesis ceremony data.
+  //
+  // The actual on-chain guardian set creation timestamp will be set when the VAA is accepted on each chain.
+  //
+  // This is a uint32 to match the on-chain timestamp representation. This becomes a problem in 2106 (sorry).
+  uint32 timestamp = 2;
+
+  oneof payload{
+    GuardianSetUpdate guardian_set = 3;
+    ContractUpgrade contract_upgrade = 4;
+  }
+}
+
+message InjectGovernanceVAAResponse {
+  // Canonical digest of the submitted VAA.
+  bytes digest = 1;
 }
 
 // GuardianSet represents a new guardian set to be submitted to and signed by the node.
 // During the genesis procedure, this data structure will be assembled using off-chain collaborative tooling
 // like GitHub using a human-readable encoding, so readability is a concern.
 message GuardianSetUpdate {
-    // Index of the current guardian set to be replaced.
-    uint32 current_set_index = 1;
-
-    // UNIX timestamp (s) of the VAA to be created. The timestamp is informational and will be part
-    // of the VAA submitted to the chain. It's part of the VAA digest and has to be identical across nodes and
-    // is critical for replay protection - a given event may only ever be observed with the same timestamp,
-    // otherwise, it may be possible to execute it multiple times.
-    //
-    // For lockups, the timestamp identifies the block that the lockup belongs to. For guardian set updates,
-    // we create the VAA manually. Best practice is to pick a timestamp which roughly matches the expected
-    // genesis ceremony data.
-    //
-    // The actual on-chain guardian set creation timestamp will be set when the VAA is accepted on each chain.
-    //
-    // This is a uint32 to match the on-chain timestamp representation. This becomes a problem in 2106 (sorry).
-    uint32 timestamp = 2;
-
-    // List of guardian set members.
-    message Guardian {
-        // Guardian key pubkey. Stored as hex string with 0x prefix for human readability -
-        // this is the canonical Ethereum representation.
-        string pubkey = 1;
-        // Optional descriptive name. Not stored on any chain, purely informational.
-        string name = 2;
-    };
-    repeated Guardian guardians = 3;
-}
-
-message SubmitGuardianSetVAARequest {
-    GuardianSetUpdate guardian_set = 1;
-}
-
-message SubmitGuardianSetVAAResponse {
-    // Canonical digest of the submitted VAA.
-    bytes digest = 1;
+  // List of guardian set members.
+  message Guardian {
+    // Guardian key pubkey. Stored as hex string with 0x prefix for human readability -
+    // this is the canonical Ethereum representation.
+    string pubkey = 1;
+    // Optional descriptive name. Not stored on any chain, purely informational.
+    string name = 2;
+  };
+  repeated Guardian guardians = 3;
 }
 
 // GuardianKey specifies the on-disk format for a node's guardian key.
 message GuardianKey {
-    // data is the binary representation of the secp256k1 private key.
-    bytes data = 1;
+  // data is the binary representation of the secp256k1 private key.
+  bytes data = 1;
+}
+
+// ContractUpgrade represents a Wormhole contract update to be submitted to and signed by the node.
+message ContractUpgrade {
+  // ID of the chain where the Wormhole contract should be updated (uint8)
+  uint32 chain_id = 1;
+
+  // Address of the new program/contract
+  bytes new_contract = 2;
 }

@@ -26,8 +26,7 @@ func init() {
 	}
 
 	AdminCmd.AddCommand(AdminClientInjectGuardianSetUpdateCmd)
-	AdminCmd.AddCommand(AdminClientGuardianSetTemplateCmd)
-	AdminCmd.AddCommand(AdminClientGuardianSetVerifyCmd)
+	AdminCmd.AddCommand(AdminClientGovernanceVAAVerifyCmd)
 }
 
 var AdminCmd = &cobra.Command{
@@ -36,9 +35,9 @@ var AdminCmd = &cobra.Command{
 }
 
 var AdminClientInjectGuardianSetUpdateCmd = &cobra.Command{
-	Use:   "guardian-set-update-inject",
-	Short: "Inject and sign a guardian set update from a prototxt file (see docs!)",
-	Run:   runInjectGuardianSetUpdate,
+	Use:   "governance-vaa-inject",
+	Short: "Inject and sign a governance VAA from a prototxt file (see docs!)",
+	Run:   runInjectGovernanceVAA,
 	Args:  cobra.ExactArgs(1),
 }
 
@@ -53,7 +52,7 @@ func getAdminClient(ctx context.Context, addr string) (*grpc.ClientConn, error, 
 	return conn, err, c
 }
 
-func runInjectGuardianSetUpdate(cmd *cobra.Command, args []string) {
+func runInjectGovernanceVAA(cmd *cobra.Command, args []string) {
 	path := args[0]
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -66,15 +65,15 @@ func runInjectGuardianSetUpdate(cmd *cobra.Command, args []string) {
 		log.Fatalf("failed to read file: %v", err)
 	}
 
-	var msg nodev1.GuardianSetUpdate
+	var msg nodev1.InjectGovernanceVAARequest
 	err = prototext.Unmarshal(b, &msg)
 	if err != nil {
 		log.Fatalf("failed to deserialize: %v", err)
 	}
 
-	resp, err := c.SubmitGuardianSetVAA(ctx, &nodev1.SubmitGuardianSetVAARequest{GuardianSet: &msg})
+	resp, err := c.InjectGovernanceVAA(ctx, &msg)
 	if err != nil {
-		log.Fatalf("failed to submit guardian set update: %v", err)
+		log.Fatalf("failed to governance VAA: %v", err)
 	}
 
 	log.Printf("VAA successfully injected with digest %s", hexutils.BytesToHex(resp.Digest))
