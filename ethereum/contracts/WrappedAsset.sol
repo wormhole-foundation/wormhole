@@ -21,7 +21,6 @@ contract WrappedAsset is IERC20, Context {
         bridge = msg.sender;
         initialized = true;
 
-        _name = "Wormhole Wrapped";
         _symbol = "WWT";
         _decimals = decimals;
     }
@@ -50,7 +49,6 @@ contract WrappedAsset is IERC20, Context {
 
     uint256 private _totalSupply;
 
-    string private _name;
     string private _symbol;
     uint8 private _decimals = 18;
 
@@ -58,7 +56,40 @@ contract WrappedAsset is IERC20, Context {
      * @dev Returns the name of the token.
      */
     function name() public view returns (string memory) {
-        return _name;
+        return string(abi.encodePacked("Wormhole Wrapped - ", uintToString(assetChain), "-", assetAddressString()));
+    }
+
+    // https://ethereum.stackexchange.com/a/40977
+    function uintToString(uint _i) internal pure returns (string memory _uintAsString) {
+        if (_i == 0) {
+            return "0";
+        }
+        uint j = _i;
+        uint len;
+        while (j != 0) {
+            len++;
+            j /= 10;
+        }
+        bytes memory bstr = new bytes(len);
+        uint k = len - 1;
+        while (_i != 0) {
+            bstr[k--] = byte(uint8(48 + _i % 10));
+            _i /= 10;
+        }
+        return string(bstr);
+    }
+
+    // https://ethereum.stackexchange.com/a/58341
+    function assetAddressString() private view returns (string memory) {
+        bytes memory alphabet = "0123456789abcdef";
+        bytes32 data = assetAddress;
+
+        bytes memory str = new bytes(2 + data.length * 2);
+        for (uint i = 0; i < data.length; i++) {
+            str[i * 2] = alphabet[uint(uint8(data[i] >> 4))];
+            str[1 + i * 2] = alphabet[uint(uint8(data[i] & 0x0f))];
+        }
+        return string(str);
     }
 
     /**
