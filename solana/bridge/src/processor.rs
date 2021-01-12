@@ -59,7 +59,7 @@ impl Bridge {
         let instruction = BridgeInstruction::deserialize(input)?;
         match instruction {
             Initialize(payload) => {
-                info!("Instruction: Initialize");
+                msg!("Instruction: Initialize");
                 Self::process_initialize(
                     program_id,
                     accounts,
@@ -69,7 +69,7 @@ impl Bridge {
                 )
             }
             TransferOut(p) => {
-                info!("Instruction: TransferOut");
+                msg!("Instruction: TransferOut");
 
                 if p.asset.chain == CHAIN_ID_SOLANA {
                     Self::process_transfer_native_out(program_id, accounts, &p)
@@ -78,23 +78,23 @@ impl Bridge {
                 }
             }
             PostVAA(vaa_body) => {
-                info!("Instruction: PostVAA");
+                msg!("Instruction: PostVAA");
                 let vaa = VAA::deserialize(&vaa_body)?;
 
                 Self::process_vaa(program_id, accounts, vaa_body, &vaa)
             }
             PokeProposal() => {
-                info!("Instruction: PokeProposal");
+                msg!("Instruction: PokeProposal");
 
                 Self::process_poke(program_id, accounts)
             }
             VerifySignatures(p) => {
-                info!("Instruction: VerifySignatures");
+                msg!("Instruction: VerifySignatures");
 
                 Self::process_verify_signatures(program_id, accounts, &p)
             }
             CreateWrapped(meta) => {
-                info!("Instruction: CreateWrapped");
+                msg!("Instruction: CreateWrapped");
                 Self::process_create_wrapped(program_id, accounts, &meta)
             }
             _ => panic!(""),
@@ -176,7 +176,7 @@ impl Bridge {
     /// Transfers a wrapped asset out
     pub fn process_poke(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
-        let proposal_info = next_account_info(account_info_iter)?;
+        let proposal_info = Self::next_account_info_with_owner(account_info_iter, program_id)?;
 
         let mut transfer_data = proposal_info.try_borrow_mut_data()?;
         let mut proposal: &mut TransferOutProposal = Self::unpack(&mut transfer_data)?;
@@ -200,10 +200,14 @@ impl Bridge {
         next_account_info(account_info_iter)?; // Bridge program
         next_account_info(account_info_iter)?; // System program
         let instruction_accounts = next_account_info(account_info_iter)?;
-        let bridge_info = next_account_info(account_info_iter)?;
+        let bridge_info = Self::next_account_info_with_owner(account_info_iter, program_id)?;
         let sig_info = next_account_info(account_info_iter)?;
-        let guardian_set_info = next_account_info(account_info_iter)?;
+        let guardian_set_info = Self::next_account_info_with_owner(account_info_iter, program_id)?;
         let payer_info = next_account_info(account_info_iter)?;
+
+        if *instruction_accounts.key != solana_program::sysvar::instructions::id() {
+            return Err(Error::InvalidSysvar.into());
+        }
 
         let guardian_data = guardian_set_info.try_borrow_data()?;
         let guardian_set: &GuardianSet = Self::unpack_immutable(&guardian_data)?;
@@ -369,7 +373,7 @@ impl Bridge {
         accounts: &[AccountInfo],
         t: &TransferOutPayload,
     ) -> ProgramResult {
-        info!("wrapped transfer out");
+        msg!("wrapped transfer out");
         let account_info_iter = &mut accounts.iter();
         next_account_info(account_info_iter)?; // Bridge program
         next_account_info(account_info_iter)?; // System program
@@ -378,7 +382,7 @@ impl Bridge {
         let clock_info = next_account_info(account_info_iter)?;
         let instructions_info = next_account_info(account_info_iter)?;
         let sender_account_info = next_account_info(account_info_iter)?;
-        let bridge_info = next_account_info(account_info_iter)?;
+        let bridge_info = Self::next_account_info_with_owner(account_info_iter, program_id)?;
         let transfer_info = next_account_info(account_info_iter)?;
         let mint_info = next_account_info(account_info_iter)?;
         let payer_info = next_account_info(account_info_iter)?;
@@ -388,6 +392,10 @@ impl Bridge {
         let bridge: &Bridge = Self::unpack_immutable(&bridge_data)?;
         let mint = Bridge::mint_deserialize(mint_info)?;
         let clock = Clock::from_account_info(clock_info)?;
+
+        if *instructions_info.key != solana_program::sysvar::instructions::id() {
+            return Err(Error::InvalidSysvar.into());
+        }
 
         // Fee handling
         let fee = Self::transfer_fee();
@@ -469,7 +477,7 @@ impl Bridge {
         accounts: &[AccountInfo],
         t: &TransferOutPayload,
     ) -> ProgramResult {
-        info!("native transfer out");
+        msg!("native transfer out");
         let account_info_iter = &mut accounts.iter();
         next_account_info(account_info_iter)?; // Bridge program
         next_account_info(account_info_iter)?; // System program
@@ -478,7 +486,7 @@ impl Bridge {
         let clock_info = next_account_info(account_info_iter)?;
         let instructions_info = next_account_info(account_info_iter)?;
         let sender_account_info = next_account_info(account_info_iter)?;
-        let bridge_info = next_account_info(account_info_iter)?;
+        let bridge_info = Self::next_account_info_with_owner(account_info_iter, program_id)?;
         let transfer_info = next_account_info(account_info_iter)?;
         let mint_info = next_account_info(account_info_iter)?;
         let payer_info = next_account_info(account_info_iter)?;
@@ -551,7 +559,12 @@ impl Bridge {
             return Err(Error::WrongTokenAccountOwner.into());
         }
 
-        info!("transferring");
+        // Check that the source is not the custody account
+        if custody_info.key == sender_account_info.key {
+            return Err(Error::WrongTokenAccountOwner.into());
+        }
+
+        msg!("transferring");
         // Transfer tokens to custody - This also checks that custody mint = mint
         Bridge::token_transfer_caller(
             program_id,
@@ -667,10 +680,10 @@ impl Bridge {
         next_account_info(account_info_iter)?; // System program
         next_account_info(account_info_iter)?; // Rent sysvar
         let clock_info = next_account_info(account_info_iter)?;
-        let bridge_info = next_account_info(account_info_iter)?;
-        let guardian_set_info = next_account_info(account_info_iter)?;
+        let bridge_info = Self::next_account_info_with_owner(account_info_iter, program_id)?;
+        let guardian_set_info = Self::next_account_info_with_owner(account_info_iter, program_id)?;
         let claim_info = next_account_info(account_info_iter)?;
-        let sig_info = next_account_info(account_info_iter)?;
+        let sig_info = Self::next_account_info_with_owner(account_info_iter, program_id)?;
         let payer_info = next_account_info(account_info_iter)?;
 
         let clock = Clock::from_account_info(clock_info)?;
@@ -946,8 +959,8 @@ impl Bridge {
         vaa_data: VAAData,
         sig_account: &Pubkey,
     ) -> ProgramResult {
-        info!("posting VAA");
-        let proposal_info = next_account_info(account_info_iter)?;
+        msg!("posting VAA");
+        let proposal_info = Self::next_account_info_with_owner(account_info_iter, program_id)?;
 
         // Check whether the proposal was derived correctly
         let expected_proposal = Bridge::derive_transfer_id(
@@ -994,12 +1007,12 @@ impl Bridge {
         accounts: &[AccountInfo],
         a: &AssetMeta,
     ) -> ProgramResult {
-        info!("create wrapped");
+        msg!("create wrapped");
         let account_info_iter = &mut accounts.iter();
         next_account_info(account_info_iter)?; // System program
         next_account_info(account_info_iter)?; // Token program
         next_account_info(account_info_iter)?; // Rent sysvar
-        let bridge_info = next_account_info(account_info_iter)?;
+        let bridge_info = Self::next_account_info_with_owner(account_info_iter, program_id)?;
         let payer_info = next_account_info(account_info_iter)?;
         let mint_info = next_account_info(account_info_iter)?;
         let wrapped_meta_info = next_account_info(account_info_iter)?;
@@ -1158,7 +1171,7 @@ impl Bridge {
             &Self::derive_custody_seeds(bridge, mint),
             subsidizer,
         )?;
-        info!(token_program.to_string().as_str());
+        msg!(token_program.to_string().as_str());
         let ix = spl_token::instruction::initialize_account(
             token_program,
             account,
@@ -1235,13 +1248,13 @@ impl Bridge {
         seeds: &Vec<Vec<u8>>,
         subsidizer: Option<&AccountInfo>,
     ) -> Result<Vec<Vec<u8>>, ProgramError> {
-        info!("deriving key");
+        msg!("deriving key");
         let (expected_key, full_seeds) = Bridge::derive_key(program_id, seeds)?;
         if expected_key != *new_account {
             return Err(Error::InvalidDerivedAccount.into());
         }
 
-        info!("deploying contract");
+        msg!("deploying contract");
         Self::create_account_raw::<T>(
             program_id,
             accounts,
@@ -1289,5 +1302,17 @@ impl Bridge {
         );
         let s: Vec<_> = seeds.iter().map(|item| item.as_slice()).collect();
         invoke_signed(&ix, accounts, &[s.as_slice()])
+    }
+
+    /// Get the next account info from the iterator and check that it has the given owner
+    pub fn next_account_info_with_owner<'a, 'b, I: Iterator<Item=&'a AccountInfo<'b>>>(
+        iter: &mut I,
+        owner: &Pubkey,
+    ) -> Result<I::Item, ProgramError> {
+        let acc = iter.next().ok_or(ProgramError::NotEnoughAccountKeys)?;
+        if acc.owner != owner {
+            return Err(Error::InvalidOwner.into());
+        }
+        Ok(acc)
     }
 }

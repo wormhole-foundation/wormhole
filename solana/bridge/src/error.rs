@@ -106,6 +106,12 @@ pub enum Error {
     /// Insufficient fees
     #[error("InsufficientFees")]
     InsufficientFees,
+    /// Invalid owner
+    #[error("InvalidOwner")]
+    InvalidOwner,
+    /// Invalid Sysvar
+    #[error("InvalidSysvar")]
+    InvalidSysvar,
 }
 
 impl From<Error> for ProgramError {
