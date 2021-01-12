@@ -49,6 +49,15 @@ contract Wormhole is ReentrancyGuard {
         uint32 nonce
     );
 
+    struct ParsedVAA {
+        uint8 version;
+        bytes32 hash;
+        uint32 guardian_set_index;
+        uint32 timestamp;
+        uint8 action;
+        bytes payload;
+    }
+
     // Mapping of guardian_set_index => guardian set
     mapping(uint32 => GuardianSet) public guardian_sets;
     // Current active guardian set
@@ -80,23 +89,41 @@ contract Wormhole is ReentrancyGuard {
     function submitVAA(
         bytes calldata vaa
     ) public nonReentrant {
-        uint8 version = vaa.toUint8(0);
-        require(version == 1, "VAA version incompatible");
+        ParsedVAA memory parsed_vaa = parseAndVerifyVAA(vaa);
+        // Process VAA
+        if (parsed_vaa.action == 0x01) {
+            require(parsed_vaa.guardian_set_index == guardian_set_index, "only the current guardian set can change the guardian set");
+            vaaUpdateGuardianSet(parsed_vaa.payload);
+        } else if (parsed_vaa.action == 0x10) {
+            vaaTransfer(parsed_vaa.payload);
+        } else {
+            revert("invalid VAA action");
+        }
+
+        // Set the VAA as consumed
+        consumedVAAs[parsed_vaa.hash] = true;
+    }
+
+    // parseAndVerifyVAA parses raw VAA data into a struct and verifies whether it contains sufficient signatures of an
+    // active guardian set i.e. is valid according to Wormhole consensus rules.
+    function parseAndVerifyVAA(bytes calldata vaa) public view returns (ParsedVAA memory parsed_vaa) {
+        parsed_vaa.version = vaa.toUint8(0);
+        require(parsed_vaa.version == 1, "VAA version incompatible");
 
         // Load 4 bytes starting from index 1
-        uint32 vaa_guardian_set_index = vaa.toUint32(1);
+        parsed_vaa.guardian_set_index = vaa.toUint32(1);
 
         uint256 len_signers = vaa.toUint8(5);
         uint offset = 6 + 66 * len_signers;
 
         // Load 4 bytes timestamp
-        //uint32 timestamp = vaa.toUint32(offset);
+        parsed_vaa.timestamp = vaa.toUint32(offset);
 
         // Hash the body
-        bytes32 hash = keccak256(vaa.slice(offset, vaa.length - offset));
-        require(!consumedVAAs[hash], "VAA was already executed");
+        parsed_vaa.hash = keccak256(vaa.slice(offset, vaa.length - offset));
+        require(!consumedVAAs[parsed_vaa.hash], "VAA was already executed");
 
-        GuardianSet memory guardian_set = guardian_sets[vaa_guardian_set_index];
+        GuardianSet memory guardian_set = guardian_sets[parsed_vaa.guardian_set_index];
         require(guardian_set.keys.length > 0, "invalid guardian set");
         require(guardian_set.expiration_time == 0 || guardian_set.expiration_time > block.timestamp, "guardian set has expired");
         // We're using a fixed point number transformation with 1 decimal to deal with rounding.
@@ -112,24 +139,11 @@ contract Wormhole is ReentrancyGuard {
             bytes32 s = vaa.toBytes32(39 + i * 66);
             uint8 v = vaa.toUint8(71 + i * 66);
             v += 27;
-            require(ecrecover(hash, v, r, s) == guardian_set.keys[index], "VAA signature invalid");
+            require(ecrecover(parsed_vaa.hash, v, r, s) == guardian_set.keys[index], "VAA signature invalid");
         }
 
-        uint8 action = vaa.toUint8(offset + 4);
-        bytes memory payload = vaa.slice(offset + 5, vaa.length - (offset + 5));
-
-        // Process VAA
-        if (action == 0x01) {
-            require(vaa_guardian_set_index == guardian_set_index, "only the current guardian set can change the guardian set");
-            vaaUpdateGuardianSet(payload);
-        } else if (action == 0x10) {
-            vaaTransfer(payload);
-        } else {
-            revert("invalid VAA action");
-        }
-
-        // Set the VAA as consumed
-        consumedVAAs[hash] = true;
+        parsed_vaa.action = vaa.toUint8(offset + 4);
+        parsed_vaa.payload = vaa.slice(offset + 5, vaa.length - (offset + 5));
     }
 
     function vaaUpdateGuardianSet(bytes memory data) private {
