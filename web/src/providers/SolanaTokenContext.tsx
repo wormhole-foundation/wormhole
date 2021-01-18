@@ -1,6 +1,5 @@
 import React, {createContext, FunctionComponent, useContext, useEffect, useState} from "react"
 import ClientContext from "../providers/ClientContext";
-import KeyContext from "../providers/KeyContext";
 import {AccountInfo, ParsedAccountData, PublicKey, RpcResponseAndContext} from "@solana/web3.js";
 import {BigNumber} from "ethers/utils";
 import {SlotContext} from "./SlotContext";
@@ -9,6 +8,7 @@ import {BridgeContext} from "./BridgeContext";
 import {message} from "antd";
 import {AssetMeta} from "../utils/bridge";
 import {Buffer} from "buffer";
+import WalletContext from "./WalletContext";
 
 export interface BalanceInfo {
     mint: string,
@@ -29,7 +29,7 @@ export const SolanaTokenContext = createContext<TokenInfo>({
 })
 
 export const SolanaTokenProvider: FunctionComponent = ({children}) => {
-    let k = useContext(KeyContext)
+    let wallet = useContext(WalletContext);
     let c = useContext(ClientContext);
     let b = useContext(BridgeContext);
     let slot = useContext(SlotContext);
@@ -47,7 +47,7 @@ export const SolanaTokenProvider: FunctionComponent = ({children}) => {
             // @ts-ignore
             setLoading(true)
             let getAccounts = async () => {
-                let res: RpcResponseAndContext<Array<{ pubkey: PublicKey; account: AccountInfo<ParsedAccountData> }>> = await c.getParsedTokenAccountsByOwner(k.publicKey, {programId: TOKEN_PROGRAM}, "single")
+                let res: RpcResponseAndContext<Array<{ pubkey: PublicKey; account: AccountInfo<ParsedAccountData> }>> = await c.getParsedTokenAccountsByOwner(wallet.publicKey, {programId: TOKEN_PROGRAM}, "single")
                 let meta: AssetMeta[] = [];
                 for (let acc of res.value) {
                     let am = await b?.fetchAssetMeta(new PublicKey(acc.account.data.parsed.info.mint))

@@ -14,8 +14,9 @@ import debounce from "lodash.debounce"
 import BN from "bignumber.js";
 import {BigNumber} from "ethers/utils";
 import {AssetMeta, SolanaBridge} from "../utils/bridge";
-import KeyContext from "../providers/KeyContext";
 import {ChainID} from "../pages/Assistant";
+import WalletContext from "../providers/WalletContext";
+import Wallet from "@project-serum/sol-wallet-adapter";
 
 const {confirm} = Modal;
 
@@ -64,7 +65,7 @@ export const defaultCoinInfo = {
 
 let debounceUpdater = debounce((e) => e(), 500)
 
-async function createWrapped(c: Connection, b: SolanaBridge, key: Account, meta: AssetMeta, mint: PublicKey) {
+async function createWrapped(c: Connection, b: SolanaBridge, wallet: Wallet, meta: AssetMeta, mint: PublicKey) {
     try {
         let tx = new Transaction();
 
@@ -73,9 +74,10 @@ async function createWrapped(c: Connection, b: SolanaBridge, key: Account, meta:
         let recentHash = await c.getRecentBlockhash();
         tx.recentBlockhash = recentHash.blockhash
         tx.add(...ix_account)
-        tx.sign(key, newSigner)
+        tx.feePayer = wallet.publicKey;
+        let signed = await wallet.signTransaction(tx);
         message.loading({content: "Waiting for transaction to be confirmed...", key: "tx", duration: 1000})
-        await c.sendTransaction(tx, [key, newSigner], {preflightCommitment: "single"})
+        await c.sendRawTransaction(signed.serialize(), {preflightCommitment: "single"})
         message.success({content: "Creation succeeded!", key: "tx"})
     } catch (e) {
         console.log(e)
@@ -88,7 +90,7 @@ export default function TransferInitiator(params: TransferInitiatorParams) {
     let slot = useContext(SlotContext);
     let b = useContext(SolanaTokenContext);
     let bridge = useContext(BridgeContext);
-    let k = useContext(KeyContext);
+    let wallet = useContext(WalletContext);
 
     let [fromNetwork, setFromNetwork] = useState(ChainID.ETH);
     let [toNetwork, setToNetwork] = useState(ChainID.SOLANA);
@@ -110,7 +112,6 @@ export default function TransferInitiator(params: TransferInitiatorParams) {
                 setCoinInfo(defaultCoinInfo);
                 return
             }
-            console.log(acc.assetMeta)
 
             setCoinInfo({
                 address: fromAddress,
@@ -207,7 +208,7 @@ export default function TransferInitiator(params: TransferInitiatorParams) {
                     <Input.Group compact={true}>
                         <Select style={{width: '30%'}} defaultValue={ChainID.ETH} className="select-before"
                                 value={fromNetwork}
-                                onChange={(v) => {
+                                onChange={(v: ChainID) => {
                                     setFromNetwork(v);
                                     setFromAddress("");
                                     if (v === toNetwork) {
@@ -252,7 +253,7 @@ export default function TransferInitiator(params: TransferInitiatorParams) {
                     <Input.Group compact={true}>
                         <Select style={{width: '30%'}} defaultValue={ChainID.SOLANA} className="select-before"
                                 value={toNetwork}
-                                onChange={(v) => {
+                                onChange={(v: ChainID) => {
                                     setToNetwork(v)
                                     if (v === fromNetwork) {
                                         setFromNetwork(v == ChainID.ETH ? ChainID.SOLANA : ChainID.ETH);
@@ -282,7 +283,7 @@ export default function TransferInitiator(params: TransferInitiatorParams) {
                                     content: (<>This will create a new token account for the
                                         token: <code>{wrappedMint}</code></>),
                                     onOk() {
-                                        createWrapped(c, bridge, k, {
+                                        createWrapped(c, bridge, wallet, {
                                             chain: coinInfo.chainID,
                                             address: coinInfo.assetAddress,
                                             decimals: Math.min(coinInfo.decimals, 9)

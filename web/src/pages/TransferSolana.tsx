@@ -10,16 +10,16 @@ import {SlotContext} from "../providers/SlotContext";
 import {SolanaTokenContext} from "../providers/SolanaTokenContext";
 import {CHAIN_ID_SOLANA} from "../utils/bridge";
 import {BridgeContext} from "../providers/BridgeContext";
-import KeyContext from "../providers/KeyContext";
 import BN from 'bn.js';
 import {TOKEN_PROGRAM} from "../config";
+import WalletContext from "../providers/WalletContext";
 
 function TransferSolana() {
     let c = useContext<solanaWeb3.Connection>(ClientContext);
     let slot = useContext(SlotContext);
     let b = useContext(SolanaTokenContext);
     let bridge = useContext(BridgeContext);
-    let k = useContext(KeyContext);
+    let wallet = useContext(WalletContext);
 
     let [coinInfo, setCoinInfo] = useState({
         balance: new BigNumber(0),
@@ -71,16 +71,16 @@ function TransferSolana() {
                         let send = async () => {
                             message.loading({content: "Transferring tokens...", key: "transfer"}, 1000)
 
-                            let {ix: lock_ix} = await bridge.createLockAssetInstruction(k.publicKey, fromAccount, new PublicKey(coinInfo.mint), transferAmount, values["target_chain"], recipient,
+                            let {ix: lock_ix} = await bridge.createLockAssetInstruction(wallet.publicKey, fromAccount, new PublicKey(coinInfo.mint), transferAmount, values["target_chain"], recipient,
                                 {
                                     chain: coinInfo.chainID,
                                     address: coinInfo.wrappedAddress,
                                     decimals: Math.min(coinInfo.decimals, 9)
                                 }, Math.random() * 100000);
-                            let ix = spl.Token.createApproveInstruction(TOKEN_PROGRAM, fromAccount, await bridge.getConfigKey(), k.publicKey, [], transferAmount.toNumber())
+                            let ix = spl.Token.createApproveInstruction(TOKEN_PROGRAM, fromAccount, await bridge.getConfigKey(), wallet.publicKey, [], transferAmount.toNumber())
                             let bridge_account = await bridge.getConfigKey();
                             let fee_ix = solanaWeb3.SystemProgram.transfer({
-                                fromPubkey: k.publicKey,
+                                fromPubkey: wallet.publicKey,
                                 toPubkey: bridge_account,
                                 lamports: await bridge.getTransferFee()
                             });
@@ -91,9 +91,10 @@ function TransferSolana() {
                             tx.add(ix)
                             tx.add(fee_ix)
                             tx.add(lock_ix)
-                            tx.sign(k)
+                            tx.feePayer = wallet.publicKey;
+                            let signed = await wallet.signTransaction(tx)
                             try {
-                                await c.sendTransaction(tx, [k])
+                                await c.sendRawTransaction(signed.serialize())
                                 message.success({content: "Transfer succeeded", key: "transfer"})
                             } catch (e) {
                                 message.error({content: "Transfer failed", key: "transfer"})

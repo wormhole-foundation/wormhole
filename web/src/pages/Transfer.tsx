@@ -12,10 +12,11 @@ import {BRIDGE_ADDRESS} from "../config";
 import {SolanaTokenContext} from "../providers/SolanaTokenContext";
 import {BridgeContext} from "../providers/BridgeContext";
 import {AssetMeta, SolanaBridge} from "../utils/bridge";
-import KeyContext from "../providers/KeyContext";
 import {FormInstance} from "antd/lib/form";
 import SplBalances from "../components/SplBalances";
 import TransferProposals from "../components/TransferProposals";
+import WalletContext from "../providers/WalletContext";
+import Wallet from "@project-serum/sol-wallet-adapter";
 
 // @ts-ignore
 if (window.ethereum === undefined) {
@@ -59,7 +60,7 @@ async function approveAssets(asset: string,
     }
 }
 
-async function createWrapped(c: Connection, b: SolanaBridge, key: Account, meta: AssetMeta, mint: PublicKey) {
+async function createWrapped(c: Connection, b: SolanaBridge, wallet: Wallet, meta: AssetMeta, mint: PublicKey) {
     try {
         let tx = new Transaction();
 
@@ -68,9 +69,11 @@ async function createWrapped(c: Connection, b: SolanaBridge, key: Account, meta:
         let recentHash = await c.getRecentBlockhash();
         tx.recentBlockhash = recentHash.blockhash
         tx.add(...ix_account)
-        tx.sign(key, newSigner)
+        tx.sign(newSigner)
+        tx.feePayer = wallet.publicKey;
+        let signed = await wallet.signTransaction(tx);
         message.loading({content: "Waiting for transaction to be confirmed...", key: "tx", duration: 1000})
-        await c.sendTransaction(tx, [key, newSigner])
+        await c.sendRawTransaction(signed.serialize())
         message.success({content: "Creation succeeded!", key: "tx"})
     } catch (e) {
         console.log(e)
@@ -82,7 +85,7 @@ function Transfer() {
     let c = useContext<solanaWeb3.Connection>(ClientContext);
     let tokenAccounts = useContext(SolanaTokenContext);
     let bridge = useContext(BridgeContext);
-    let k = useContext(KeyContext);
+    let wallet = useContext(WalletContext);
 
     let [coinInfo, setCoinInfo] = useState({
         balance: new BigNumber(0),
@@ -245,7 +248,7 @@ function Transfer() {
                             <Col><Button size={"small"}
                                          disabled={wrappedMint === ""}
                                          onClick={() => {
-                                             createWrapped(c, bridge, k, {
+                                             createWrapped(c, bridge, wallet, {
                                                  chain: coinInfo.chainID,
                                                  address: coinInfo.assetAddress,
                                                  decimals: Math.min(coinInfo.decimals, 9)

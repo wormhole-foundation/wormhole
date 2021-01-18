@@ -1,6 +1,6 @@
 declare module '@project-serum/sol-wallet-adapter' {
     import EventEmitter = NodeJS.EventEmitter;
-    import {PublicKey} from "@solana/web3.js";
+    import {PublicKey, Transaction} from "@solana/web3.js";
 
     export default class Wallet extends EventEmitter {
         public publicKey: PublicKey;
@@ -9,5 +9,6 @@ declare module '@project-serum/sol-wallet-adapter' {
 
         async connect();
         async disconnect();
+        async signTransaction(tx: Transaction): Promise<Transaction>;
     }
 }

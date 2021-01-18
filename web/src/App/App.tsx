@@ -3,7 +3,7 @@ import './App.css';
 import * as solanaWeb3 from '@solana/web3.js';
 import ClientContext from '../providers/ClientContext';
 import Transfer from "../pages/Transfer";
-import {Layout} from 'antd';
+import {Empty, Layout} from 'antd';
 import {SolanaTokenProvider} from "../providers/SolanaTokenContext";
 import {SlotProvider} from "../providers/SlotContext";
 import {BrowserRouter as Router, Link, Route, Switch} from 'react-router-dom';
@@ -19,7 +19,7 @@ const {Header, Content, Footer} = Layout;
 function App() {
     let c = new solanaWeb3.Connection(SOLANA_HOST);
     const wallet = useMemo(() => new Wallet("https://www.sollet.io", SOLANA_HOST), []);
-    const [, setConnected] = useState(false);
+    const [connected, setConnected] = useState(false);
     useEffect(() => {
         wallet.on('connect', () => {
             setConnected(true);
@@ -42,32 +42,46 @@ function App() {
                         <Link to="/assistant" style={{paddingRight: 20}}>Assistant</Link>
                         <Link to="/" style={{paddingRight: 20}}>Ethereum</Link>
                         <Link to="/solana">Solana</Link>
-                        <div className="logo"/>
+                        {
+                            connected ? (<a style={{float: "right"}}>
+                                Connected as {wallet.publicKey.toString()}
+                            </a>) : (<a style={{float: "right"}} onClick={() => {
+                                if (!connected) {
+                                    wallet.connect()
+                                }
+                            }
+                            }>Connect</a>)
+                        }
+
                     </Header>
                     <Content style={{padding: '0 50px', marginTop: 64}}>
                         <div style={{padding: 24}}>
-                            <ClientContext.Provider value={c}>
-                                <SlotProvider>
-                                    <WalletContext.Provider value={wallet}>
-                                        <BridgeProvider>
-                                            <SolanaTokenProvider>
+                            {
+                                connected?( <ClientContext.Provider value={c}>
+                                    <SlotProvider>
+                                        <WalletContext.Provider value={wallet}>
+                                            <BridgeProvider>
+                                                <SolanaTokenProvider>
+                                                    <Switch>
+                                                        <Route path="/assistant">
+                                                            <Assistant/>
+                                                        </Route>
+                                                        <Route path="/solana">
+                                                            <TransferSolana/>
+                                                        </Route>
+                                                        <Route path="/">
+                                                            <Transfer/>
+                                                        </Route>
+                                                    </Switch>
+                                                </SolanaTokenProvider>
+                                            </BridgeProvider>
+                                        </WalletContext.Provider>
+                                    </SlotProvider>
+                                </ClientContext.Provider>):(
+                                    <Empty description={"Please connect your wallet"}/>
+                                )
+                            }
 
-                                                <Switch>
-                                                    <Route path="/assistant">
-                                                        <Assistant/>
-                                                    </Route>
-                                                    <Route path="/solana">
-                                                        <TransferSolana/>
-                                                    </Route>
-                                                    <Route path="/">
-                                                        <Transfer/>
-                                                    </Route>
-                                                </Switch>
-                                            </SolanaTokenProvider>
-                                        </BridgeProvider>
-                                    </WalletContext.Provider>
-                                </SlotProvider>
-                            </ClientContext.Provider>
                         </div>
                     </Content>
                     <Footer style={{textAlign: 'center'}}>nexantic GmbH 2020</Footer>

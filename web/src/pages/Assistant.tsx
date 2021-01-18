@@ -10,11 +10,11 @@ import {WormholeFactory} from "../contracts/WormholeFactory";
 import {BRIDGE_ADDRESS, TOKEN_PROGRAM} from "../config";
 import {SolanaTokenContext} from "../providers/SolanaTokenContext";
 import {BridgeContext} from "../providers/BridgeContext";
-import KeyContext from "../providers/KeyContext";
 import TransferInitiator, {defaultCoinInfo, TransferInitiatorData} from "../components/TransferInitiator";
 import * as spl from "@solana/spl-token";
 import BN from "bn.js"
 import {SlotContext} from "../providers/SlotContext";
+import WalletContext from "../providers/WalletContext";
 
 // @ts-ignore
 if (window.ethereum === undefined) {
@@ -63,7 +63,7 @@ function Assistant() {
     let c = useContext<solanaWeb3.Connection>(ClientContext);
     let tokenAccounts = useContext(SolanaTokenContext);
     let bridge = useContext(BridgeContext);
-    let k = useContext(KeyContext);
+    let wallet = useContext(WalletContext);
     let slot = useContext(SlotContext);
 
     let [fromNetwork, setFromNetwork] = useState(ChainID.ETH)
@@ -87,7 +87,7 @@ function Assistant() {
             loading: false
         })
         if (from == "approve") {
-            lockAssets(transferData.fromCoinInfo?.address, transferData.amount, transferData.toAddress, transferData.toNetwork)
+            lockAssets(transferData.fromCoinInfo.address, transferData.amount, transferData.toAddress, transferData.toNetwork)
         } else if (from == "lock") {
             // Await approvals or allow to submit guardian shit
             if (fromNetwork == ChainID.ETH && transferData.toNetwork == ChainID.SOLANA) {
@@ -164,9 +164,9 @@ function Assistant() {
         if (fromNetwork == ChainID.ETH && transferData.fromCoinInfo) {
             nextStep("init")
             if (transferData.fromCoinInfo?.allowance.lt(transferData.amount)) {
-                approveAssets(transferData.fromCoinInfo?.address, transferData.amount)
+                approveAssets(transferData.fromCoinInfo.address, transferData.amount)
             } else {
-                lockAssets(transferData.fromCoinInfo?.address, transferData.amount, transferData.toAddress, transferData.toNetwork)
+                lockAssets(transferData.fromCoinInfo.address, transferData.amount, transferData.toAddress, transferData.toNetwork)
             }
         } else if (fromNetwork == ChainID.SOLANA && transferData.fromCoinInfo) {
             nextStep("init")
@@ -183,7 +183,10 @@ function Assistant() {
             message: "Locking tokens on Solana...",
         })
 
-        let {ix: lock_ix, transferKey} = await bridge.createLockAssetInstruction(k.publicKey, new PublicKey(transferData.fromCoinInfo.address),
+        let {
+            ix: lock_ix,
+            transferKey
+        } = await bridge.createLockAssetInstruction(wallet.publicKey, new PublicKey(transferData.fromCoinInfo.address),
             new PublicKey(transferData.fromCoinInfo.mint), new BN(transferData.amount.toString()),
             transferData.toNetwork, transferData.toAddress,
             {
@@ -191,10 +194,10 @@ function Assistant() {
                 address: transferData.fromCoinInfo.assetAddress,
                 decimals: transferData.fromCoinInfo.decimals,
             }, Math.random() * 100000);
-        let ix = spl.Token.createApproveInstruction(TOKEN_PROGRAM, new PublicKey(transferData.fromCoinInfo.address), await bridge.getConfigKey(), k.publicKey, [], transferData.amount.toNumber())
+        let ix = spl.Token.createApproveInstruction(TOKEN_PROGRAM, new PublicKey(transferData.fromCoinInfo.address), await bridge.getConfigKey(), wallet.publicKey, [], transferData.amount.toNumber())
         let bridge_account = await bridge.getConfigKey();
         let fee_ix = solanaWeb3.SystemProgram.transfer({
-            fromPubkey: k.publicKey,
+            fromPubkey: wallet.publicKey,
             toPubkey: bridge_account,
             lamports: await bridge.getTransferFee()
         });
@@ -204,9 +207,10 @@ function Assistant() {
         tx.add(ix)
         tx.add(fee_ix)
         tx.add(lock_ix)
-        tx.sign(k)
+        tx.feePayer = wallet.publicKey;
+        let signed = await wallet.signTransaction(tx)
         try {
-            await c.sendTransaction(tx, [k])
+            await c.sendRawTransaction(signed.serialize())
             message.success({content: "Transfer succeeded", key: "transfer"})
         } catch (e) {
             message.error({content: "Transfer failed", key: "transfer"})

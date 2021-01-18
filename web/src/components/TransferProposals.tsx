@@ -10,8 +10,8 @@ import {BRIDGE_ADDRESS} from "../config";
 import {keccak256} from "ethers/utils";
 import BN from 'bn.js';
 import {PublicKey, Transaction} from "@solana/web3.js";
-import KeyContext from "../providers/KeyContext";
 import ClientContext from "../providers/ClientContext";
+import WalletContext from "../providers/WalletContext";
 
 // @ts-ignore
 if (window.ethereum === undefined) {
@@ -39,7 +39,7 @@ function TransferProposals() {
     let t = useContext(SolanaTokenContext);
     let tokens = useContext(SolanaTokenContext);
     let b = useContext(BridgeContext);
-    let k = useContext(KeyContext);
+    let wallet = useContext(WalletContext);
     let c = useContext(ClientContext);
 
     let [lockups, setLockups] = useState<LockupWithStatus[]>([])
@@ -120,9 +120,10 @@ function TransferProposals() {
         let tx = new Transaction();
         tx.recentBlockhash = recentHash.blockhash
         tx.add(ix)
-        tx.sign(k)
+        tx.feePayer = wallet.publicKey;
+        let signed = await wallet.signTransaction(tx);
         try {
-            await c.sendTransaction(tx, [k])
+            await c.sendRawTransaction(signed.serialize())
             message.success({content: "Poke succeeded", key: "poke"})
         } catch (e) {
             message.error({content: "Poke failed", key: "poke"})
