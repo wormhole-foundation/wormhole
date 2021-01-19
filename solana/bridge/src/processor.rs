@@ -699,7 +699,7 @@ impl Bridge {
         }
 
         // Check that the guardian set is still active
-        if (guardian_set.expiration_time as i64) > clock.unix_timestamp {
+        if guardian_set.expiration_time != 0 && (guardian_set.expiration_time as i64) < clock.unix_timestamp {
             return Err(Error::GuardianSetExpired.into());
         }
 
@@ -885,6 +885,8 @@ impl Bridge {
 
         // Set values on the new guardian set
         guardian_set_new.is_initialized = true;
+        // Force the new guardian set to not expire
+        guardian_set_new.expiration_time = 0;
         guardian_set_new.index = b.new_index;
         let mut new_guardians = [[0u8; 20]; MAX_LEN_GUARDIAN_KEYS];
         for n in 0..b.new_keys.len() {
