@@ -15,8 +15,8 @@ See [docs/operations.md](docs/operations.md) for node operator instructions.
 |-------------------|------------|----------|-----------------|
 | Ethereum contract | Certus One | Kudelski | ✔️ Audited      |
 | Solana contract   | Certus One | Kudelski | ✔️ Audited      |
-| Bridge node       | Certus One | Kudelski | 🚧 In Progress  |
-| Terra contract    | Everstake  | Kudelski | ⚠ Pending       |
+| Bridge node       | Certus One | Kudelski | ✔️ Audited      |
+| Terra contract    | Everstake  | Kudelski | ✔️ Audited      |
 
 ⚠ **This software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
 implied. See the License for the specific language governing permissions and limitations under the License.** Or plainly
