@@ -154,6 +154,14 @@ followed by:
 | ----- | ------------     | ------------------- | ------ | --------- | ----- | ------- |
 | 9     | guardian_set_new | GuardianSet         |        | ✅        | ✅    | ✅      |
 
+##### Contract upgrade
+
+| Index | Name               | Type              | signer | writeable | empty | derived |
+| ----- | ------------------ | ----------------- | ------ | --------- | ----- | ------- |
+| 9     | new_contract       | Account           |        |           | ✅    |         |
+| 10    | program_data       | Account           |        | ✅        | ✅    | ✅      |
+| 11    | upgradeable_loader | UpgradeableLoader |        |           |       |         |
+
 ##### Transfer: Ethereum (native) -> Solana (wrapped)
 
 | Index | Name          | Type         | signer | writeable | empty | derived |

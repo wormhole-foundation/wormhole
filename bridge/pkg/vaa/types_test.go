@@ -61,6 +61,24 @@ func TestSerializeDeserialize(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "ContractUpgrade",
+			vaa: &VAA{
+				Version:          1,
+				GuardianSetIndex: 9,
+				Signatures: []*Signature{
+					{
+						Index:     1,
+						Signature: [65]byte{},
+					},
+				},
+				Timestamp: time.Unix(2837, 0),
+				Payload: &BodyContractUpgrade{
+					ChainID:     ChainIDEthereum,
+					NewContract: Address{1, 3, 4, 5, 2, 3},
+				},
+			},
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

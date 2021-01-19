@@ -9,10 +9,10 @@ path=/tmp/new-guardianset.prototxt
 sock=/tmp/admin.sock
 
 # Create a no-op update that sets the same 1-node guardian set again.
-kubectl exec guardian-${node} -c guardiand -- /guardiand admin guardian-set-update-template --num=1 --idx=${idx} $path
+kubectl exec -n wormhole guardian-${node} -c guardiand -- /guardiand template guardian-set-update --num=1 --idx=${idx} $path
 
 # Verify and print resulting result. The digest incorporates the current time and is NOT deterministic.
-kubectl exec guardian-${node} -c guardiand -- /guardiand admin guardian-set-update-verify $path
+kubectl exec -n wormhole guardian-${node} -c guardiand -- /guardiand admin governance-vaa-verify $path
 
 # Submit to node
-kubectl exec guardian-${node} -c guardiand -- /guardiand admin guardian-set-update-inject --socket $sock $path
+kubectl exec -n wormhole guardian-${node} -c guardiand -- /guardiand admin governance-vaa-inject --socket $sock $path

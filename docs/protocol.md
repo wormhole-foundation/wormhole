@@ -146,6 +146,20 @@ uint8 len(keys)
 The `new_index` must be monotonically increasing and is manually specified here to fix a potential guardian_set index 
 desynchronization between the any of the chains in the system.
 
+##### Contract upgrade
+
+ID: `0x02`
+
+Payload:
+
+```
+uint8 chain_id
+[32]uint8 new_contract
+```
+
+`chain_id` specifies the chain on which the contract should be updated. `new_contract` is the address of the updated
+contract.
+
 ##### Transfer
 
 ID: `0x10`

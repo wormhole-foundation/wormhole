@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"net"
 	"os"
 	"time"
@@ -28,7 +29,7 @@ type nodePrivilegedService struct {
 
 // adminGuardianSetUpdateToVAA converts a nodev1.GuardianSetUpdate message to its canonical VAA representation.
 // Returns an error if the data is invalid.
-func adminGuardianSetUpdateToVAA(req *nodev1.GuardianSetUpdate) (*vaa.VAA, error) {
+func adminGuardianSetUpdateToVAA(req *nodev1.GuardianSetUpdate, guardianSetIndex uint32, timestamp uint32) (*vaa.VAA, error) {
 	if len(req.Guardians) == 0 {
 		return nil, errors.New("empty guardian set specified")
 	}
@@ -48,21 +49,59 @@ func adminGuardianSetUpdateToVAA(req *nodev1.GuardianSetUpdate) (*vaa.VAA, error
 
 	v := &vaa.VAA{
 		Version:          vaa.SupportedVAAVersion,
-		GuardianSetIndex: req.CurrentSetIndex,
-		Timestamp:        time.Unix(int64(req.Timestamp), 0),
+		GuardianSetIndex: guardianSetIndex,
+		Timestamp:        time.Unix(int64(timestamp), 0),
 		Payload: &vaa.BodyGuardianSetUpdate{
 			Keys:     addrs,
-			NewIndex: req.CurrentSetIndex + 1,
+			NewIndex: guardianSetIndex + 1,
 		},
 	}
 
 	return v, nil
 }
 
-func (s *nodePrivilegedService) SubmitGuardianSetVAA(ctx context.Context, req *nodev1.SubmitGuardianSetVAARequest) (*nodev1.SubmitGuardianSetVAAResponse, error) {
-	s.logger.Info("guardian set injected via admin socket", zap.String("request", req.String()))
+// adminContractUpgradeToVAA converts a nodev1.ContractUpgrade message to its canonical VAA representation.
+// Returns an error if the data is invalid.
+func adminContractUpgradeToVAA(req *nodev1.ContractUpgrade, guardianSetIndex uint32, timestamp uint32) (*vaa.VAA, error) {
+	if len(req.NewContract) != 32 {
+		return nil, errors.New("invalid new_contract address")
+	}
 
-	v, err := adminGuardianSetUpdateToVAA(req.GuardianSet)
+	if req.ChainId > math.MaxUint8 {
+		return nil, errors.New("invalid chain_id")
+	}
+
+	newContractAddress := vaa.Address{}
+	copy(newContractAddress[:], req.NewContract)
+
+	v := &vaa.VAA{
+		Version:          vaa.SupportedVAAVersion,
+		GuardianSetIndex: guardianSetIndex,
+		Timestamp:        time.Unix(int64(timestamp), 0),
+		Payload: &vaa.BodyContractUpgrade{
+			ChainID:     uint8(req.ChainId),
+			NewContract: newContractAddress,
+		},
+	}
+
+	return v, nil
+}
+
+func (s *nodePrivilegedService) InjectGovernanceVAA(ctx context.Context, req *nodev1.InjectGovernanceVAARequest) (*nodev1.InjectGovernanceVAAResponse, error) {
+	s.logger.Info("governance VAA injected via admin socket", zap.String("request", req.String()))
+
+	var (
+		v   *vaa.VAA
+		err error
+	)
+	switch payload := req.Payload.(type) {
+	case *nodev1.InjectGovernanceVAARequest_GuardianSet:
+		v, err = adminGuardianSetUpdateToVAA(payload.GuardianSet, req.CurrentSetIndex, req.Timestamp)
+	case *nodev1.InjectGovernanceVAARequest_ContractUpgrade:
+		v, err = adminContractUpgradeToVAA(payload.ContractUpgrade, req.CurrentSetIndex, req.Timestamp)
+	default:
+		panic(fmt.Sprintf("unsupported VAA type: %T", payload))
+	}
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
@@ -73,14 +112,14 @@ func (s *nodePrivilegedService) SubmitGuardianSetVAA(ctx context.Context, req *n
 		panic(err)
 	}
 
-	s.logger.Info("guardian set VAA constructed",
+	s.logger.Info("governance VAA constructed",
 		zap.Any("vaa", v),
 		zap.String("digest", digest.String()),
 	)
 
 	s.injectC <- v
 
-	return &nodev1.SubmitGuardianSetVAAResponse{Digest: digest.Bytes()}, nil
+	return &nodev1.InjectGovernanceVAAResponse{Digest: digest.Bytes()}, nil
 }
 
 func adminServiceRunnable(logger *zap.Logger, socketPath string, injectC chan<- *vaa.VAA) (supervisor.Runnable, error) {

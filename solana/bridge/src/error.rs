@@ -112,6 +112,9 @@ pub enum Error {
     /// Invalid Sysvar
     #[error("InvalidSysvar")]
     InvalidSysvar,
+    /// Invalid Chain
+    #[error("InvalidChain")]
+    InvalidChain,
 }
 
 impl From<Error> for ProgramError {
