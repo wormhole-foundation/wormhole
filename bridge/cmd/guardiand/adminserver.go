@@ -99,6 +99,8 @@ func (s *nodePrivilegedService) InjectGovernanceVAA(ctx context.Context, req *no
 		v, err = adminGuardianSetUpdateToVAA(payload.GuardianSet, req.CurrentSetIndex, req.Timestamp)
 	case *nodev1.InjectGovernanceVAARequest_ContractUpgrade:
 		v, err = adminContractUpgradeToVAA(payload.ContractUpgrade, req.CurrentSetIndex, req.Timestamp)
+	default:
+		panic(fmt.Sprintf("unsupported VAA type: %T", payload))
 	}
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
