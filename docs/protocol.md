@@ -146,7 +146,7 @@ uint8 len(keys)
 The `new_index` must be monotonically increasing and is manually specified here to fix a potential guardian_set index 
 desynchronization between the any of the chains in the system.
 
-##### Contract update
+##### Contract upgrade
 
 ID: `0x02`
 

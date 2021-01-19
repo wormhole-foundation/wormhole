@@ -175,9 +175,9 @@ func (p *Processor) handleObservation(ctx context.Context, m *gossipv1.SignedObs
 			case *vaa.BodyContractUpgrade:
 				switch t.ChainID {
 				case vaa.ChainIDSolana:
-				// Already submitted to Solana
+				// Already submitted to Solana.
 				default:
-					p.logger.Error("unsupported target chain for contract update",
+					p.logger.Error("unsupported target chain for contract upgrade",
 						zap.String("digest", hash),
 						zap.Any("vaa", signed),
 						zap.String("bytes", hex.EncodeToString(vaaBytes)),

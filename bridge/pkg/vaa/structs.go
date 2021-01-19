@@ -89,7 +89,7 @@ type (
 	BodyContractUpgrade struct {
 		// ChainID is the chain on which the contract should be upgraded
 		ChainID uint8
-		// NewContract is the index of the new contract
+		// NewContract is the address of the account containing the new contract.
 		NewContract Address
 	}
 )

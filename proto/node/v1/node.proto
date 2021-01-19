@@ -27,11 +27,11 @@ message InjectGovernanceVAARequest {
   // is critical for replay protection - a given event may only ever be observed with the same timestamp,
   // otherwise, it may be possible to execute it multiple times.
   //
-  // For lockups, the timestamp identifies the block that the lockup belongs to. For guardian set updates,
-  // we create the VAA manually. Best practice is to pick a timestamp which roughly matches the expected
-  // genesis ceremony data.
-  //
-  // The actual on-chain guardian set creation timestamp will be set when the VAA is accepted on each chain.
+  // For lockups, the timestamp identifies the block that the lockup belongs to.
+
+  // For governance VAAs, guardians inject the VAA manually. Best practice is to pick a timestamp which roughly matches
+  // the timing of the off-chain ceremony used to achieve consensus. For guardian set updates, the actual on-chain
+  // guardian set creation timestamp will be set when the VAA is accepted on each chain.
   //
   // This is a uint32 to match the on-chain timestamp representation. This becomes a problem in 2106 (sorry).
   uint32 timestamp = 2;
@@ -70,9 +70,9 @@ message GuardianKey {
 
 // ContractUpgrade represents a Wormhole contract update to be submitted to and signed by the node.
 message ContractUpgrade {
-  // ID of the chain where the Wormhole contract should be updated (uint8)
+  // ID of the chain where the Wormhole contract should be updated (uint8).
   uint32 chain_id = 1;
 
-  // Address of the new program/contract
+  // Address of the new program/contract.
   bytes new_contract = 2;
 }

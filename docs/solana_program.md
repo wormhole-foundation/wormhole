@@ -154,7 +154,7 @@ followed by:
 | ----- | ------------     | ------------------- | ------ | --------- | ----- | ------- |
 | 9     | guardian_set_new | GuardianSet         |        | ✅        | ✅    | ✅      |
 
-##### Contract update
+##### Contract upgrade
 
 | Index | Name               | Type              | signer | writeable | empty | derived |
 | ----- | ------------------ | ----------------- | ------ | --------- | ----- | ------- |
