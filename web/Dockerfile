@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:experimental
 
 # Derivative of ethereum/Dockerfile, look there for an explanation on how it works.
-FROM node:lts-alpine
+FROM node:lts-alpine@sha256:2ae9624a39ce437e7f58931a5747fdc60224c6e40f8980db90728de58e22af7c
 
 USER 1000
 RUN mkdir -p /home/node/app
