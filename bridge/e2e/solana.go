@@ -79,6 +79,7 @@ func testSolanaLockup(t *testing.T, ctx context.Context, ec *ethclient.Client, c
 	// Store balance of wrapped destination token
 	beforeErc20, err := token.BalanceOf(nil, devnet.GanacheClientDefaultAccountAddress)
 	if err != nil {
+		beforeErc20 = new(big.Int)
 		t.Log(err) // account may not yet exist, defaults to 0
 	}
 	t.Logf("ERC20 balance: %v", beforeErc20)
