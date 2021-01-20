@@ -194,7 +194,8 @@ func (p *Processor) handleObservation(ctx context.Context, m *gossipv1.SignedObs
 		}
 	} else {
 		p.logger.Info("we have not yet seen this VAA - temporarily storing signature",
-			zap.String("digest", hash))
+			zap.String("digest", hash),
+			zap.Bools("aggregation", agg))
 
 	}
 }
