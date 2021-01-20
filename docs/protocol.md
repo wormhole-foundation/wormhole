@@ -283,7 +283,7 @@ Additionally, foreign chain contracts might start charging additional fees in th
 
 ---
 
-The bridge can handle at most <TODO> transactions per second. Therefore, the fees should prevent spam
+The bridge can handle fewer transactions per second than Solana. Therefore, the fees should prevent spam
 by dynamically adjusting to load. This is particularly useful on Solana where fees are low and spamming
 would be cheap.
 
