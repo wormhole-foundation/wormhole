@@ -26,7 +26,7 @@ func (p *Processor) handleObservation(ctx context.Context, m *gossipv1.SignedObs
 	// Note that observations are never tied to the (verified) p2p identity key - the p2p network
 	// identity is completely decoupled from the guardian identity, p2p is just transport.
 
-	p.logger.Info("received lockup observation",
+	p.logger.Info("received observation",
 		zap.String("digest", hex.EncodeToString(m.Hash)),
 		zap.String("signature", hex.EncodeToString(m.Signature)),
 		zap.String("addr", hex.EncodeToString(m.Addr)))
@@ -35,7 +35,7 @@ func (p *Processor) handleObservation(ctx context.Context, m *gossipv1.SignedObs
 	// the public key that was used to sign the payload.
 	pk, err := crypto.Ecrecover(m.Hash, m.Signature)
 	if err != nil {
-		p.logger.Warn("failed to verify signature on lockup observation",
+		p.logger.Warn("failed to verify signature on observation",
 			zap.String("digest", hex.EncodeToString(m.Hash)),
 			zap.String("signature", hex.EncodeToString(m.Signature)),
 			zap.String("addr", hex.EncodeToString(m.Addr)),
@@ -48,7 +48,7 @@ func (p *Processor) handleObservation(ctx context.Context, m *gossipv1.SignedObs
 	signer_pk := common.BytesToAddress(crypto.Keccak256(pk[1:])[12:])
 
 	if their_addr != signer_pk {
-		p.logger.Info("invalid lockup observation - address does not match pubkey",
+		p.logger.Info("invalid observation - address does not match pubkey",
 			zap.String("digest", hex.EncodeToString(m.Hash)),
 			zap.String("signature", hex.EncodeToString(m.Signature)),
 			zap.String("addr", hex.EncodeToString(m.Addr)),
@@ -74,7 +74,7 @@ func (p *Processor) handleObservation(ctx context.Context, m *gossipv1.SignedObs
 	hash := hex.EncodeToString(m.Hash)
 
 	if p.state.vaaSignatures[hash] == nil {
-		// We haven't yet seen this lockup ourselves, and therefore  do not know what the VAA looks like.
+		// We haven't yet seen this event ourselves, and therefore  do not know what the VAA looks like.
 		// However, we have established that a valid guardian has signed it, and therefore we can
 		// already start aggregating signatures for it.
 		//
@@ -209,15 +209,15 @@ func (p *Processor) devnetVAASubmission(ctx context.Context, signed *vaa.VAA, ha
 		cancel()
 		if err != nil {
 			if strings.Contains(err.Error(), "VAA was already executed") {
-				p.logger.Info("lockup already submitted to Ethereum by another node, ignoring",
+				p.logger.Info("VAA already submitted to Ethereum by another node, ignoring",
 					zap.Error(err), zap.String("digest", hash))
 			} else {
-				p.logger.Error("failed to submit lockup to Ethereum",
+				p.logger.Error("failed to submit VAA to Ethereum",
 					zap.Error(err), zap.String("digest", hash))
 			}
 			return
 		}
-		p.logger.Info("lockup submitted to Ethereum", zap.Any("tx", tx), zap.String("digest", hash))
+		p.logger.Info("VAA submitted to Ethereum", zap.Any("tx", tx), zap.String("digest", hash))
 	}
 }
 
@@ -232,13 +232,13 @@ func (p *Processor) terraVAASubmission(ctx context.Context, signed *vaa.VAA, has
 	tx, err := terra.SubmitVAA(ctx, p.terraLCD, p.terraChaidID, p.terraContract, p.terraFeePayer, signed)
 	if err != nil {
 		if strings.Contains(err.Error(), "VaaAlreadyExecuted") {
-			p.logger.Info("lockup already submitted to Terra by another node, ignoring",
+			p.logger.Info("VAA already submitted to Terra by another node, ignoring",
 				zap.Error(err), zap.String("digest", hash))
 		} else {
-			p.logger.Error("failed to submit lockup to Terra",
+			p.logger.Error("failed to submit VAA to Terra",
 				zap.Error(err), zap.String("digest", hash))
 		}
 		return
 	}
-	p.logger.Info("lockup submitted to Terra", zap.Any("tx", tx), zap.String("digest", hash))
+	p.logger.Info("VAA submitted to Terra", zap.Any("tx", tx), zap.String("digest", hash))
 }
