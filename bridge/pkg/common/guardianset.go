@@ -12,7 +12,7 @@ import (
 const MaxGuardianCount = 19
 
 type GuardianSet struct {
-	// Guardian's public keys truncated by the ETH standard hashing mechanism (20 bytes).
+	// Guardian's public key hashes truncated by the ETH standard hashing mechanism (20 bytes).
 	Keys []common.Address
 	// On-chain set index
 	Index uint32

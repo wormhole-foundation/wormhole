@@ -125,9 +125,8 @@ uint8               action
 ```
 
 The `guardian set index` does not need to be in the signed body since it is verifiable using the signature itself which
-is created using the guardian set's key.
-It is a monotonically number that's increased every time a validator set update happens and tracks the public key of the
-set.
+is created using the guardian set's key. It is a number that's monotonically increasing every time a validator set
+update happens and tracks the public key hashes of the set.
 
 #### Actions
 

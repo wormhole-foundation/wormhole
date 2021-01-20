@@ -219,7 +219,7 @@ func (v *VAA) SigningMsg() (common.Hash, error) {
 	return hash, nil
 }
 
-// VerifySignature verifies the signature of the VAA given a public key
+// VerifySignature verifies the signature of the VAA given the signer addresses.
 func (v *VAA) VerifySignatures(addresses []common.Address) bool {
 	if len(addresses) < len(v.Signatures) {
 		return false

@@ -111,7 +111,7 @@ Generate a new key using the `keygen` subcommand:
 
     guardiand keygen --desc "Testnet key foo" /path/to/your.key
 
-The key file includes a human-readable part that includes the public key and the description.
+The key file includes a human-readable part which includes the public key hashes and the description.
 
 ## Deploying
 
@@ -208,7 +208,7 @@ deployment on a dedicated instance - it's easier to understand and troubleshoot.
 You'll have to manage the following keys:
 
  - The **guardian key**, which is the bridge consensus key. This key is very critical - your node uses it to certify
-   VAA messages. The public key is stored in the guardian set on all connected chains. It does not accrue rewards.
+   VAA messages. The public key's hash is stored in the guardian set on all connected chains. It does not accrue rewards.
    It's your share of the multisig mechanism that protect the Wormhole network. The guardian set can be replaced
    if a majority of the guardians agree to sign and publish a new guardian set.
   

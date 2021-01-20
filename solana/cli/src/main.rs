@@ -935,7 +935,7 @@ fn main() {
                     .index(1)
                     .required(true)
                     .help(
-                        "Specify the bridge program public key"
+                        "Specify the bridge program address"
                     ),
             )
             .arg(
@@ -959,7 +959,7 @@ fn main() {
                         .index(1)
                         .required(true)
                         .help(
-                            "Specify the bridge program public key"
+                            "Specify the bridge program address"
                         ),
                 )
                 .arg(
@@ -1029,7 +1029,7 @@ fn main() {
                         .index(1)
                         .required(true)
                         .help(
-                            "Specify the bridge program public key"
+                            "Specify the bridge program address"
                         ),
                 )
                 .arg(
@@ -1054,7 +1054,7 @@ fn main() {
                         .index(1)
                         .required(true)
                         .help(
-                            "Specify the bridge program public key"
+                            "Specify the bridge program address"
                         ),
                 )
                 .arg(
@@ -1082,7 +1082,7 @@ fn main() {
                         .index(1)
                         .required(true)
                         .help(
-                            "Specify the bridge program public key"
+                            "Specify the bridge program address"
                         ),
                 )
                 .arg(
@@ -1125,7 +1125,7 @@ fn main() {
                         .index(1)
                         .required(true)
                         .help(
-                            "Specify the bridge program public key"
+                            "Specify the bridge program address"
                         ),
                 )
                 .arg(

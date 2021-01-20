@@ -23,7 +23,8 @@ This contract mostly wraps functionality of the `cw20-base` contract with the fo
 
 ### `wormhole`
 
-This contract controls token transfers, minting and burning as well as maintaining the list of guardians: off-chain entities identified by their public keys, majority of whom can issue commands to the contract.
+This contract controls token transfers, minting and burning as well as maintaining the list of guardians: off-chain
+entities identified by their public key hashes, majority of whom can issue commands to the contract.
 
 `wormhole` bridge processes the following instructions.
 

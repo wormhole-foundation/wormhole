@@ -32,7 +32,7 @@ pub struct GuardianSet {
     pub index: u32,
     /// number of keys stored
     pub len_keys: u8,
-    /// public key of the threshold schnorr set
+    /// public key hashes of the guardian set
     pub keys: [[u8; 20]; MAX_LEN_GUARDIAN_KEYS],
     /// creation time
     pub creation_time: u32,

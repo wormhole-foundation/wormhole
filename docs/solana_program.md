@@ -223,7 +223,7 @@ until the `VAA_EXPIRATION_TIME` has passed and can then be evicted using `IEvict
 >
 > **index**: Index of the guardian set
 
-This account is created when a new guardian set is set. It tracks the public key, creation time and expiration time of
+This account is created when a new guardian set is set. It tracks the public key hash, creation time and expiration time of
 this set.
 The expiration time is set when this guardian set is abandoned. When a switchover happens, the guardian-issued VAAs will
 still be valid until the expiration time.
