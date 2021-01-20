@@ -35,7 +35,7 @@ var AdminCmd = &cobra.Command{
 }
 
 var AdminClientInjectGuardianSetUpdateCmd = &cobra.Command{
-	Use:   "governance-vaa-inject",
+	Use:   "governance-vaa-inject [FILENAME]",
 	Short: "Inject and sign a governance VAA from a prototxt file (see docs!)",
 	Run:   runInjectGovernanceVAA,
 	Args:  cobra.ExactArgs(1),

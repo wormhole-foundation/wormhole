@@ -29,7 +29,7 @@ func init() {
 }
 
 var KeygenCmd = &cobra.Command{
-	Use:   "keygen",
+	Use:   "keygen [KEYFILE]",
 	Short: "Create guardian key at the specified path",
 	Run:   runKeygen,
 	Args:  cobra.ExactArgs(1),

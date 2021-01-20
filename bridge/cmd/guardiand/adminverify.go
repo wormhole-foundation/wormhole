@@ -13,7 +13,7 @@ import (
 )
 
 var AdminClientGovernanceVAAVerifyCmd = &cobra.Command{
-	Use:   "governance-vaa-verify",
+	Use:   "governance-vaa-verify [FILENAME]",
 	Short: "Verify governance vaa in prototxt format (offline)",
 	Run:   runGovernanceVAAVerify,
 	Args:  cobra.ExactArgs(1),

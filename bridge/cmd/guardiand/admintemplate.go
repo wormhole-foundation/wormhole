@@ -30,14 +30,14 @@ var TemplateCmd = &cobra.Command{
 }
 
 var AdminClientGuardianSetTemplateCmd = &cobra.Command{
-	Use:   "guardian-set-update",
+	Use:   "guardian-set-update [FILENAME]",
 	Short: "Generate an empty guardian set template at specified path (offline)",
 	Run:   runGuardianSetTemplate,
 	Args:  cobra.ExactArgs(1),
 }
 
 var AdminClientContractUpgradeTemplateCmd = &cobra.Command{
-	Use:   "contract-upgrade",
+	Use:   "contract-upgrade [FILENAME]",
 	Short: "Generate an empty contract upgrade template at specified path (offline)",
 	Run:   runContractUpgradeTemplate,
 	Args:  cobra.ExactArgs(1),
