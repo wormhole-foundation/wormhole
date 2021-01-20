@@ -22,10 +22,8 @@ use tonic::{transport::Server, Code, Request, Response, Status};
 
 use service::{
     agent_server::{Agent, AgentServer},
-    lockup_event::Event,
-    Empty, LockupEvent, LockupEventNew, LockupEventVaaPosted, SubmitVaaRequest, SubmitVaaResponse,
+    Empty,SubmitVaaRequest, SubmitVaaResponse,
     GetBalanceResponse, GetBalanceRequest,
-    WatchLockupsRequest,
 };
 use spl_bridge::{
     instruction::{post_vaa, verify_signatures, VerifySigPayload, CHAIN_ID_SOLANA},
@@ -33,9 +31,6 @@ use spl_bridge::{
     vaa::VAA,
 };
 
-use crate::monitor::PubsubClient;
-
-mod monitor;
 mod socket;
 
 pub mod service {
@@ -152,153 +147,6 @@ impl Agent for AgentImpl {
         })
             .join()
             .unwrap()
-    }
-
-    type WatchLockupsStream = mpsc::Receiver<Result<LockupEvent, Status>>;
-
-    async fn watch_lockups(
-        &self,
-        _req: Request<WatchLockupsRequest>,
-    ) -> Result<Response<Self::WatchLockupsStream>, Status> {
-        let (mut tx, rx) = mpsc::channel(1);
-        let mut tx2 = tx.clone();
-        let url = self.url.clone();
-        let url2 = self.url.clone();
-        let bridge = self.bridge.clone();
-        let rpc_url = self.rpc_url.clone();
-        let rpc_url2 = self.rpc_url.clone();
-
-        tokio::spawn(async move {
-            let _rpc = RpcClient::new(rpc_url.to_string());
-            let sub = PubsubClient::program_subscribe(&url, &bridge).unwrap();
-            // looping and sending our response using stream
-            loop {
-                let item = sub.1.recv();
-                match item {
-                    Ok(v) => {
-                        // We only want to track lockups
-                        if v.value.account.data.len() != size_of::<TransferOutProposal>() {
-                            continue;
-                        }
-
-                        println!("lockup changed in slot: {}", v.context.slot);
-
-                        let b = match Bridge::unpack_immutable::<TransferOutProposal>(
-                            v.value.account.data.as_slice(),
-                        ) {
-                            Ok(v) => v,
-                            Err(e) => {
-                                println!("failed to deserialize lockup: {}", e);
-                                continue;
-                            }
-                        };
-
-                        let mut amount_b: [u8; 32] = [0; 32];
-                        b.amount.to_big_endian(&mut amount_b);
-
-                        let event = if b.vaa_time == 0 {
-                            // The Lockup was created
-                            LockupEvent {
-                                slot: v.context.slot,
-                                lockup_address: v.value.pubkey.to_string(),
-                                time: b.lockup_time as u64,
-                                event: Some(Event::New(LockupEventNew {
-                                    nonce: b.nonce,
-                                    source_chain: CHAIN_ID_SOLANA as u32,
-                                    target_chain: b.to_chain_id as u32,
-                                    source_address: b.source_address.to_vec(),
-                                    target_address: b.foreign_address.to_vec(),
-                                    token_chain: b.asset.chain as u32,
-                                    token_address: b.asset.address.to_vec(),
-                                    token_decimals: b.asset.decimals as u32,
-                                    amount: amount_b.to_vec(),
-                                })),
-                            }
-                        } else {
-                            // The VAA was submitted
-                            LockupEvent {
-                                slot: v.context.slot,
-                                lockup_address: v.value.pubkey.to_string(),
-                                time: b.lockup_time as u64,
-                                event: Some(Event::VaaPosted(LockupEventVaaPosted {
-                                    nonce: b.nonce,
-                                    source_chain: CHAIN_ID_SOLANA as u32,
-                                    target_chain: b.to_chain_id as u32,
-                                    source_address: b.source_address.to_vec(),
-                                    target_address: b.foreign_address.to_vec(),
-                                    token_chain: b.asset.chain as u32,
-                                    token_address: b.asset.address.to_vec(),
-                                    token_decimals: b.asset.decimals as u32,
-                                    amount: amount_b.to_vec(),
-                                    vaa: b.vaa.to_vec(),
-                                })),
-                            }
-                        };
-
-                        let mut amount_b: [u8; 32] = [0; 32];
-                        b.amount.to_big_endian(&mut amount_b);
-
-                        if let Err(e) = tx.send(Ok(event)).await {
-                            println!("sending event failed: {}", e);
-                            return;
-                        };
-                        // We need to push a second message to flush the channel
-                        // https://github.com/hyperium/tonic/issues/378
-                        if let Err(e) = tx
-                            .send(Ok(LockupEvent {
-                                slot: 0,
-                                time: 0,
-                                lockup_address: String::from(""),
-                                event: Some(Event::Empty(Empty {})),
-                            }))
-                            .await
-                        {
-                            println!("sending event failed: {}", e);
-                            return;
-                        };
-                    }
-                    Err(e) => {
-                        println!("watcher died: {}", e);
-                        tx.send(Err(Status::new(Code::Aborted, "watcher died")))
-                            .await;
-                        return;
-                    }
-                };
-            }
-        });
-
-        tokio::spawn(async move {
-            let _rpc = RpcClient::new(rpc_url2.to_string());
-            let sub = solana_client::pubsub_client::PubsubClient::slot_subscribe(&url2).unwrap();
-            // looping and sending our response using stream
-            loop {
-                let item = sub.1.recv();
-                match item {
-                    Ok(v) => {
-                        if let Err(e) = tx2
-                            .send(Ok(LockupEvent {
-                                slot: v.slot,
-                                time: 0,
-                                lockup_address: String::from(""),
-                                event: Some(Event::SlotEvent(Empty {})),
-                            }))
-                            .await
-                        {
-                            println!("sending event failed: {}", e);
-                            return;
-                        };
-                    }
-                    Err(e) => {
-                        println!("watcher died: {}", e);
-                        tx2.send(Err(Status::new(Code::Aborted, "watcher died")))
-                            .await;
-                        return;
-                    }
-                };
-            }
-        });
-
-        Ok(Response::new(rx))
     }
 }
 

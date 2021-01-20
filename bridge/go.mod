@@ -10,6 +10,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1
 	github.com/davidlazar/go-crypto v0.0.0-20200604182044-b73af7476f6c // indirect
 	github.com/deckarep/golang-set v1.7.1 // indirect
+	github.com/dfuse-io/solana-go v0.2.1-0.20210119190242-57bebed0dae0
 	github.com/ethereum/go-ethereum v1.9.23
 	github.com/gballet/go-libpcsclite v0.0.0-20191108122812-4678299bea08 // indirect
 	github.com/go-ole/go-ole v1.2.4 // indirect
@@ -47,8 +48,8 @@ require (
 	github.com/peterh/liner v1.2.0 // indirect
 	github.com/prometheus/tsdb v0.10.0 // indirect
 	github.com/shirou/gopsutil v2.20.9+incompatible // indirect
-	github.com/spf13/cobra v1.0.0
-	github.com/spf13/viper v1.6.3
+	github.com/spf13/cobra v1.1.1
+	github.com/spf13/viper v1.7.1
 	github.com/status-im/keycard-go v0.0.0-20200402102358-957c09536969
 	github.com/stretchr/testify v1.6.1
 	github.com/tendermint/tendermint v0.33.8

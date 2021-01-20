@@ -3,6 +3,7 @@ package guardiand
 import (
 	"context"
 	"fmt"
+	solana_types "github.com/dfuse-io/solana-go"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -41,7 +42,8 @@ var (
 
 	adminSocketPath *string
 
-	bridgeKeyPath *string
+	bridgeKeyPath       *string
+	solanaBridgeAddress *string
 
 	ethRPC           *string
 	ethContract      *string
@@ -53,6 +55,8 @@ var (
 	terraChaidID  *string
 	terraContract *string
 	terraKeyPath  *string
+
+	solanaWsRPC *string
 
 	agentRPC *string
 
@@ -73,6 +77,7 @@ func init() {
 	adminSocketPath = BridgeCmd.Flags().String("adminSocket", "", "Admin gRPC service UNIX domain socket path")
 
 	bridgeKeyPath = BridgeCmd.Flags().String("bridgeKey", "", "Path to guardian key (required)")
+	solanaBridgeAddress = BridgeCmd.Flags().String("solanaBridgeAddress", "", "Address of the Solana Bridge Program (required)")
 
 	ethRPC = BridgeCmd.Flags().String("ethRPC", "", "Ethereum RPC URL")
 	ethContract = BridgeCmd.Flags().String("ethContract", "", "Ethereum bridge contract address")
@@ -84,6 +89,8 @@ func init() {
 	terraChaidID = BridgeCmd.Flags().String("terraChainID", "", "Terra chain ID, used in LCD client initialization")
 	terraContract = BridgeCmd.Flags().String("terraContract", "", "Wormhole contract address on Terra blockhain")
 	terraKeyPath = BridgeCmd.Flags().String("terraKey", "", "Path to mnemonic for account paying gas for submitting transactions to Terra")
+
+	solanaWsRPC = BridgeCmd.Flags().String("solanaWsUrl", "", "Solana websocket url (required")
 
 	agentRPC = BridgeCmd.Flags().String("agentRPC", "", "Solana agent sidecar gRPC socket path")
 
@@ -233,6 +240,14 @@ func runBridge(cmd *cobra.Command, args []string) {
 	if *nodeName == "" {
 		logger.Fatal("Please specify --nodeName")
 	}
+
+	if *solanaBridgeAddress == "" {
+		logger.Fatal("Please specify --solanaBridgeAddress")
+	}
+	if *solanaWsRPC == "" {
+		logger.Fatal("Please specify --solanaWsUrl")
+	}
+
 	if *terraSupport {
 		if !*unsafeDevMode {
 			logger.Fatal("cannot enable terra support in production mode")
@@ -256,6 +271,10 @@ func runBridge(cmd *cobra.Command, args []string) {
 	}
 
 	ethContractAddr := eth_common.HexToAddress(*ethContract)
+	solBridgeAddress, err := solana_types.PublicKeyFromBase58(*solanaBridgeAddress)
+	if err != nil {
+		logger.Fatal("invalid Solana bridge address", zap.Error(err))
+	}
 
 	// In devnet mode, we generate a deterministic guardian key and write it to disk.
 	if *unsafeDevMode {
@@ -354,8 +373,13 @@ func runBridge(cmd *cobra.Command, args []string) {
 			}
 		}
 
+		if err := supervisor.Run(ctx, "solvaa",
+			solana.NewSolanaVAASubmitter(*agentRPC, lockC, solanaVaaC).Run); err != nil {
+			return err
+		}
+
 		if err := supervisor.Run(ctx, "solwatch",
-			solana.NewSolanaBridgeWatcher(*agentRPC, lockC, solanaVaaC).Run); err != nil {
+			solana.NewSolanaWatcher(*solanaWsRPC, solBridgeAddress, lockC).Run); err != nil {
 			return err
 		}
 
