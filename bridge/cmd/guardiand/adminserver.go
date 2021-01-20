@@ -44,7 +44,14 @@ func adminGuardianSetUpdateToVAA(req *nodev1.GuardianSetUpdate, guardianSetIndex
 			return nil, fmt.Errorf("invalid pubkey format at index %d (%s)", i, g.Name)
 		}
 
-		addrs[i] = ethcommon.HexToAddress(g.Pubkey)
+		ethAddr := ethcommon.HexToAddress(g.Pubkey)
+		for j, pk := range addrs {
+			if pk == ethAddr {
+				return nil, fmt.Errorf("duplicate pubkey at index %d (duplicate of %d): %s", i, j, g.Name)
+			}
+		}
+
+		addrs[i] = ethAddr
 	}
 
 	v := &vaa.VAA{
