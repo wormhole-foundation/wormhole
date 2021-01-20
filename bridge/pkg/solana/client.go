@@ -28,7 +28,9 @@ func NewSolanaWatcher(wsUrl string, bridgeAddress solana.PublicKey, lockEvents c
 }
 
 func (s *SolanaWatcher) Run(ctx context.Context) error {
-	c, err := ws.Dial(ctx, s.url)
+	tCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	c, err := ws.Dial(tCtx, s.url)
 	if err != nil {
 		return fmt.Errorf("failed to connect to solana ws: %w", err)
 	}
@@ -54,12 +56,12 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 		programUpdate := updateRaw.(*ws.ProgramResult)
 		data := programUpdate.Value.Account.Data
 
+		// 1184 is the size of a TransferOutProposal as determined by Rust code `size_of::<TransferOutProposal>`
 		if len(data) != 1184 {
 			logger.Debug(
 				"saw update to non-transfer-proposal wormhole account",
 				zap.Stringer("account", programUpdate.Value.PubKey),
 				zap.Uint64("slot", programUpdate.Context.Slot),
-				zap.Error(err),
 			)
 			continue
 		}
