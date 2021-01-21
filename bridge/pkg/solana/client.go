@@ -34,6 +34,7 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 
 	go func() {
 		timer := time.NewTicker(time.Second * 5)
+		defer timer.Stop()
 
 		for {
 			select {
