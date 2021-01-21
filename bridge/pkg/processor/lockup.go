@@ -26,6 +26,11 @@ func (p *Processor) handleLockup(ctx context.Context, k *common.ChainLock) {
 		zap.Time("timestamp", k.Timestamp),
 	)
 
+	if p.gs == nil {
+		p.logger.Warn("received observation, but we don't know the guardian set yet")
+		return
+	}
+
 	us, ok := p.gs.KeyIndex(p.ourAddr)
 	if !ok {
 		p.logger.Error("we're not in the guardian set - refusing to sign",
