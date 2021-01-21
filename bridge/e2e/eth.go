@@ -94,7 +94,7 @@ func testEthereumLockup(t *testing.T, ctx context.Context, ec *ethclient.Client,
 		false,
 	)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 
 	t.Logf("sent lockup tx: %v", tx.Hash().Hex())
