@@ -20,6 +20,10 @@ Initializes a new Bridge at `bridge`.
 
 Pokes a `TransferOutProposal` so it is reprocessed by the guardians.
 
+**Deprecated:** PokeProposals were a workaround for unreliable message delivery on Solana. Now that this has been fixed
+using a control loop (https://github.com/certusone/wormhole/commit/fd6c54de836cb9f4c423aa334b73546a139c0ee6), poking is
+no longer required. The feature is left in place for backwards compatibility reasons.
+
 | Index | Name     | Type                | signer | writeable | empty | derived |
 | ----- | ------   | ------------        | ------ | --------- | ----- | ------- |
 | 0     | proposal | TransferOutProposal |        | ✅        | ️      | ✅      |

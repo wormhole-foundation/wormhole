@@ -21,10 +21,10 @@ periodically attempt to retransmit signatures for VAAs which failed to reach con
 network outages. Longer network outages, leading to timeouts, and correlated crashes of a superminority of nodes may
 result in lockups being dropped.
 
-The mitigation for this is the PokeVAA mechanism on Solana or chain replay for other chains. On Solana, a user can
-request retransmission of their lockup, resulting in re-observation by nodes and another round of consensus. During
-chain replay, nodes will re-process events from connected chains up from a given block height, check whether a VAA has
-already been submitted to Solana, and initiate a round of consensus for missed lockups.
+The mitigation for this is a polling control loop in the case of Solana or chain replay for other chains. On Solana, the
+node will consistently poll for unprocessed lockups, resulting in re-observation by nodes and another round of
+consensus. During chain replay, nodes will re-process events from connected chains up from a given block height, check
+whether a VAA has already been submitted to Solana, and initiate a round of consensus for missed lockups.
  
 This carries no risk and can be done any number of times. VAAs are fully deterministic and idempotent - any given
 lockup will always result in the same VAA body hash. All connected chains keep a permanent record of whether a given VAA
