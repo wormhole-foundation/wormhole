@@ -4,11 +4,9 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"math/big"
 	"strings"
 	"time"
 
-	eth_common "github.com/ethereum/go-ethereum/common"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -24,7 +22,7 @@ import (
 )
 
 type (
-	SolanaBridgeWatcher struct {
+	SolanaVAASubmitter struct {
 		url string
 
 		lockChan chan *common.ChainLock
@@ -32,11 +30,11 @@ type (
 	}
 )
 
-func NewSolanaBridgeWatcher(url string, lockEvents chan *common.ChainLock, vaaQueue chan *vaa.VAA) *SolanaBridgeWatcher {
-	return &SolanaBridgeWatcher{url: url, lockChan: lockEvents, vaaChan: vaaQueue}
+func NewSolanaVAASubmitter(url string, lockEvents chan *common.ChainLock, vaaQueue chan *vaa.VAA) *SolanaVAASubmitter {
+	return &SolanaVAASubmitter{url: url, lockChan: lockEvents, vaaChan: vaaQueue}
 }
 
-func (e *SolanaBridgeWatcher) Run(ctx context.Context) error {
+func (e *SolanaVAASubmitter) Run(ctx context.Context) error {
 	// We only support UNIX sockets since we rely on Unix filesystem permissions for access control.
 	path := fmt.Sprintf("unix://%s", e.url)
 
@@ -53,12 +51,6 @@ func (e *SolanaBridgeWatcher) Run(ctx context.Context) error {
 	errC := make(chan error)
 	logger := supervisor.Logger(ctx)
 
-	// Subscribe to new token lockups
-	tokensLockedSub, err := c.WatchLockups(ctx, &agentv1.WatchLockupsRequest{})
-	if err != nil {
-		return fmt.Errorf("failed to subscribe to token lockup events: %w", err)
-	}
-
 	// Check whether agent is up by doing a GetBalance call. This is a bit hacky, but otherwise, a broken agent won't
 	// fail until Recv(). Readiness is best-effort and if this succeeds, it's fair to assume that the watch does too.
 	balance, err := c.GetBalance(timeout, &agentv1.GetBalanceRequest{})
@@ -67,41 +59,6 @@ func (e *SolanaBridgeWatcher) Run(ctx context.Context) error {
 	}
 	readiness.SetReady(common.ReadinessSolanaSyncing)
 	logger.Info("account balance", zap.Uint64("lamports", balance.Balance))
-
-	go func() {
-		logger.Info("watching for on-chain events")
-
-		for {
-			ev, err := tokensLockedSub.Recv()
-			if err != nil {
-				errC <- fmt.Errorf("failed to receive message from agent: %w", err)
-				return
-			}
-
-			switch event := ev.Event.(type) {
-			case *agentv1.LockupEvent_New:
-				logger.Debug("received lockup event",
-					zap.Any("event", ev))
-
-				lock := &common.ChainLock{
-					TxHash:        eth_common.HexToHash(ev.LockupAddress),
-					Timestamp:     time.Unix(int64(ev.Time), 0),
-					Nonce:         event.New.Nonce,
-					SourceChain:   vaa.ChainIDSolana,
-					TargetChain:   vaa.ChainID(event.New.TargetChain),
-					TokenChain:    vaa.ChainID(event.New.TokenChain),
-					TokenDecimals: uint8(event.New.TokenDecimals),
-					Amount:        new(big.Int).SetBytes(event.New.Amount),
-				}
-				copy(lock.TokenAddress[:], event.New.TokenAddress)
-				copy(lock.SourceAddress[:], event.New.SourceAddress)
-				copy(lock.TargetAddress[:], event.New.TargetAddress)
-
-				e.lockChan <- lock
-				logger.Info("found new lockup transaction", zap.String("lockup_address", ev.LockupAddress))
-			}
-		}
-	}()
 
 	go func() {
 		for {

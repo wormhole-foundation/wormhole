@@ -8,7 +8,6 @@ option go_package = "proto/agent/v1;agentv1";
 
 service Agent {
   rpc SubmitVAA (SubmitVAARequest) returns (SubmitVAAResponse);
-  rpc WatchLockups (WatchLockupsRequest) returns (stream LockupEvent);
   rpc GetBalance (GetBalanceRequest) returns (GetBalanceResponse);
 }
 
@@ -21,50 +20,6 @@ message SubmitVAARequest {
 
 message SubmitVAAResponse {
   string signature = 1;
-}
-
-message WatchLockupsRequest {
-
-}
-
-message LockupEvent {
-  uint64 slot = 1;
-  string lockupAddress = 2;  // TODO: why is this a string?
-  uint64 time = 3;
-  oneof event {
-    LockupEventNew new = 4;
-    LockupEventVAAPosted vaaPosted = 5;
-    Empty empty = 6;
-    Empty slotEvent = 7;
-  }
-}
-
-// Token on Solana was locked or burned.
-message LockupEventNew {
-  uint32 nonce = 1;
-  uint32 sourceChain = 2;
-  uint32 targetChain = 3;
-  bytes sourceAddress = 4;
-  bytes targetAddress = 5;
-  uint32 tokenChain = 6;
-  bytes tokenAddress = 7;
-  uint32 tokenDecimals = 8;
-  bytes amount = 9;
-}
-
-// A VAA was posted to Solana for data availability.
-message LockupEventVAAPosted {
-  uint32 nonce = 1;
-  uint32 sourceChain = 2;
-  uint32 targetChain = 3;
-  bytes sourceAddress = 4;
-  bytes targetAddress = 5;
-  uint32 tokenChain = 6;
-  bytes tokenAddress = 7;
-  uint32 tokenDecimals = 8;
-  bytes amount = 9;
-
-  bytes vaa = 10;
 }
 
 message GetBalanceRequest{
