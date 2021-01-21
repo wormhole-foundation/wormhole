@@ -140,7 +140,10 @@ ExecStart=/usr/local/bin/guardiand bridge \
     --bridgeKey /path/to/your/guardian.key \
     --ethRPC ws://your-eth-node:8545 \
     --adminSocket /run/guardiand/admin.socket \
-    --agentRPC /run/guardiand/agent.socket
+    --agentRPC /run/guardiand/agent.socket \
+    --solanaBridgeAddress "<see launch repo>" \
+    --solanaRPC http://solana-host:8899 \
+    --solanaWS ws://solana-devnet:8900
 RuntimeDirectory=guardiand
 RuntimeDirectoryMode=700
 RuntimeDirectoryPreserve=yes

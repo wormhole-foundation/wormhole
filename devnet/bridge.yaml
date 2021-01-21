@@ -75,6 +75,12 @@ spec:
             - /run/bridge/agent.sock
             - --ethConfirmations
             - '2'
+            - --solanaBridgeAddress
+            - Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o
+            - --solanaWS
+            - ws://solana-devnet:8900
+            - --solanaRPC
+            - http://solana-devnet:8899
             - --unsafeDevMode
             - --bridgeKey
             - /tmp/bridge.key
