@@ -91,8 +91,8 @@ func init() {
 	terraContract = BridgeCmd.Flags().String("terraContract", "", "Wormhole contract address on Terra blockhain")
 	terraKeyPath = BridgeCmd.Flags().String("terraKey", "", "Path to mnemonic for account paying gas for submitting transactions to Terra")
 
-	solanaWsRPC = BridgeCmd.Flags().String("solanaWsUrl", "", "Solana websocket url (required")
-	solanaRPC = BridgeCmd.Flags().String("solanaUrl", "", "Solana rpc url (required")
+	solanaWsRPC = BridgeCmd.Flags().String("solanaWS", "", "Solana Websocket URL (required")
+	solanaRPC = BridgeCmd.Flags().String("solanaRPC", "", "Solana RPC URL (required")
 
 	agentRPC = BridgeCmd.Flags().String("agentRPC", "", "Solana agent sidecar gRPC socket path")
 
