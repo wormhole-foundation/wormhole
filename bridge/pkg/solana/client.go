@@ -10,7 +10,6 @@ import (
 	"github.com/certusone/wormhole/bridge/pkg/vaa"
 	"github.com/dfuse-io/solana-go"
 	"github.com/dfuse-io/solana-go/rpc"
-	"github.com/dfuse-io/solana-go/rpc/ws"
 	eth_common "github.com/ethereum/go-ethereum/common"
 	"go.uber.org/zap"
 	"math/big"
@@ -19,87 +18,104 @@ import (
 
 type SolanaWatcher struct {
 	bridge    solana.PublicKey
-	url       string
+	wsUrl     string
+	rpcUrl    string
 	lockEvent chan *common.ChainLock
 }
 
-func NewSolanaWatcher(wsUrl string, bridgeAddress solana.PublicKey, lockEvents chan *common.ChainLock) *SolanaWatcher {
-	return &SolanaWatcher{bridge: bridgeAddress, url: wsUrl, lockEvent: lockEvents}
+func NewSolanaWatcher(wsUrl, rpcUrl string, bridgeAddress solana.PublicKey, lockEvents chan *common.ChainLock) *SolanaWatcher {
+	return &SolanaWatcher{bridge: bridgeAddress, wsUrl: wsUrl, rpcUrl: rpcUrl, lockEvent: lockEvents}
 }
 
 func (s *SolanaWatcher) Run(ctx context.Context) error {
-	tCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-	c, err := ws.Dial(tCtx, s.url)
-	if err != nil {
-		return fmt.Errorf("failed to connect to solana ws: %w", err)
-	}
-	defer c.Close()
-
+	rpcClient := rpc.NewClient(s.rpcUrl)
 	logger := supervisor.Logger(ctx)
+	errC := make(chan error)
 
-	sub, err := c.ProgramSubscribe(s.bridge, rpc.CommitmentMax)
-	if err != nil {
-		return fmt.Errorf("failed to subscribe to program: %w", err)
-	}
 	go func() {
-		<-ctx.Done()
-		sub.Unsubscribe()
+		timer := time.NewTicker(time.Second * 5)
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-timer.C:
+				func() {
+					rCtx, cancel := context.WithTimeout(ctx, time.Second*5)
+					defer cancel()
+
+					start := time.Now()
+
+					// Find TransferOutProposal accounts without a VAA
+					accounts, err := rpcClient.GetProgramAccounts(rCtx, s.bridge, &rpc.GetProgramAccountsOpts{
+						Commitment: rpc.CommitmentMax,
+						Filters: []rpc.RPCFilter{
+							{
+								DataSize: 1184, // Search for TransferOutProposal accounts
+							},
+							{
+								Memcmp: &rpc.RPCFilterMemcmp{
+									Offset: 1140,                      // Offset of VaaTime
+									Bytes:  solana.Base58{0, 0, 0, 0}, // VAA time is 0 when no VAA is present
+								},
+							},
+						},
+					})
+					if err != nil {
+						errC <- err
+						return
+					}
+
+					logger.Debug("fetched transfer proposals without VAA",
+						zap.Int("n", len(accounts)),
+						zap.Duration("took", time.Since(start)),
+					)
+
+					for _, acc := range accounts {
+						proposal, err := ParseTransferOutProposal(acc.Account.Data)
+						if err != nil {
+							logger.Warn(
+								"failed to parse transfer proposal",
+								zap.Stringer("account", acc.Pubkey),
+								zap.Error(err),
+							)
+							continue
+						}
+
+						// VAA submitted
+						if proposal.VaaTime.Unix() != 0 {
+							continue
+						}
+
+						var txHash eth_common.Hash
+						copy(txHash[:], acc.Pubkey[:])
+
+						lock := &common.ChainLock{
+							TxHash:        txHash,
+							Timestamp:     proposal.LockupTime,
+							Nonce:         proposal.Nonce,
+							SourceAddress: proposal.SourceAddress,
+							TargetAddress: proposal.ForeignAddress,
+							SourceChain:   vaa.ChainIDSolana,
+							TargetChain:   proposal.ToChainID,
+							TokenChain:    proposal.Asset.Chain,
+							TokenAddress:  proposal.Asset.Address,
+							TokenDecimals: proposal.Asset.Decimals,
+							Amount:        proposal.Amount,
+						}
+						logger.Info("found lockup without VAA", zap.Stringer("lockup_address", acc.Pubkey))
+						s.lockEvent <- lock
+					}
+				}()
+			}
+		}
 	}()
 
-	logger.Info("watching for on-chain events")
-	for {
-		updateRaw, err := sub.Recv()
-		if err != nil {
-			return err
-		}
-		programUpdate := updateRaw.(*ws.ProgramResult)
-		data := programUpdate.Value.Account.Data
-
-		// 1184 is the size of a TransferOutProposal as determined by Rust code `size_of::<TransferOutProposal>`
-		if len(data) != 1184 {
-			logger.Debug(
-				"saw update to non-transfer-proposal wormhole account",
-				zap.Stringer("account", programUpdate.Value.PubKey),
-				zap.Uint64("slot", programUpdate.Context.Slot),
-			)
-			continue
-		}
-
-		proposal, err := ParseTransferOutProposal(data)
-		if err != nil {
-			logger.Warn(
-				"failed to parse transfer proposal",
-				zap.Stringer("account", programUpdate.Value.PubKey),
-				zap.Uint64("slot", programUpdate.Context.Slot),
-				zap.Error(err),
-			)
-			continue
-		}
-
-		// VAA submitted
-		if proposal.VaaTime.Unix() == 0 {
-			continue
-		}
-
-		var txHash eth_common.Hash
-		copy(txHash[:], programUpdate.Value.PubKey[:])
-
-		lock := &common.ChainLock{
-			TxHash:        txHash,
-			Timestamp:     proposal.LockupTime,
-			Nonce:         proposal.Nonce,
-			SourceAddress: proposal.SourceAddress,
-			TargetAddress: proposal.ForeignAddress,
-			SourceChain:   vaa.ChainIDSolana,
-			TargetChain:   proposal.ToChainID,
-			TokenChain:    proposal.Asset.Chain,
-			TokenAddress:  proposal.Asset.Address,
-			TokenDecimals: proposal.Asset.Decimals,
-			Amount:        proposal.Amount,
-		}
-		logger.Info("found new lockup transaction", zap.Stringer("lockup_address", programUpdate.Value.PubKey))
-		s.lockEvent <- lock
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case err := <-errC:
+		return err
 	}
 }
 

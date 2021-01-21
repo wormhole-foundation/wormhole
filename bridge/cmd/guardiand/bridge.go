@@ -57,6 +57,7 @@ var (
 	terraKeyPath  *string
 
 	solanaWsRPC *string
+	solanaRPC   *string
 
 	agentRPC *string
 
@@ -91,6 +92,7 @@ func init() {
 	terraKeyPath = BridgeCmd.Flags().String("terraKey", "", "Path to mnemonic for account paying gas for submitting transactions to Terra")
 
 	solanaWsRPC = BridgeCmd.Flags().String("solanaWsUrl", "", "Solana websocket url (required")
+	solanaRPC = BridgeCmd.Flags().String("solanaUrl", "", "Solana rpc url (required")
 
 	agentRPC = BridgeCmd.Flags().String("agentRPC", "", "Solana agent sidecar gRPC socket path")
 
@@ -247,6 +249,9 @@ func runBridge(cmd *cobra.Command, args []string) {
 	if *solanaWsRPC == "" {
 		logger.Fatal("Please specify --solanaWsUrl")
 	}
+	if *solanaRPC == "" {
+		logger.Fatal("Please specify --solanaUrl")
+	}
 
 	if *terraSupport {
 		if !*unsafeDevMode {
@@ -379,7 +384,7 @@ func runBridge(cmd *cobra.Command, args []string) {
 		}
 
 		if err := supervisor.Run(ctx, "solwatch",
-			solana.NewSolanaWatcher(*solanaWsRPC, solBridgeAddress, lockC).Run); err != nil {
+			solana.NewSolanaWatcher(*solanaWsRPC, *solanaRPC, solBridgeAddress, lockC).Run); err != nil {
 			return err
 		}
 
