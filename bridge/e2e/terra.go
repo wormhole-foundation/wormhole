@@ -252,7 +252,7 @@ func waitTerraUnknownBalance(t *testing.T, ctx context.Context, contract string,
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 
 	err = wait.PollUntil(1*time.Second, func() (bool, error) {
