@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # This script submits a guardian set update using the VAA injection admin command.
 # First argument is node to submit to. Second argument is current set index.
 set -e
