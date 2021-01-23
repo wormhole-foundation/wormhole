@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Generate test lockups on Solana to be executed on Ethereum
 
 # Constants (hardcoded)

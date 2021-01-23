@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Regenerate bridge/pkg/ethereum/abi using a running eth-devnet's state.
 set -euo pipefail
 

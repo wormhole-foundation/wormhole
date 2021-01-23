@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # This script configures the devnet for test transfers with hardcoded addresses.
 set -x
 
