@@ -103,7 +103,7 @@ To generate a guardian key, install guardiand first. If you generate the key on 
 compile guardiand only, without compiling the agent or installing it:
 
     make bridge
-    sudo setcap cap_ipc_lock=+ep ./build/bin/
+    sudo setcap cap_ipc_lock=+ep ./build/bin/guardiand
 
 Otherwise, use the same guardiand binary that you compiled using the regular instructions above.
 
