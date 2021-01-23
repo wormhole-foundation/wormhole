@@ -65,16 +65,14 @@ Run end-to-end tests:
     cd bridge
     go test github.com/certusone/wormhole/bridge/e2e
 
-Adjust number of nodes in running cluster:
+Adjust number of nodes in running cluster: (this is only useful if you want to test scenarios where the number
+of nodes diverges from the guardian set - otherwise, `tilt down --delete-namespaces` and restart the cluster)
 
     tilt args -- --num=2
 
 Tear down cluster:
 
     tilt down --delete-namespaces
-    
-(this is only useful if you want to test scenarios where the number
-of nodes diverges from the guardian set - otherwise, `tilt down --delete-namespaces` and restart the cluster)
 
 Once you're done, press Ctrl-C. Run `tilt down` to tear down the devnet.
 
