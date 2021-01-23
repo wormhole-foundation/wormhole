@@ -131,7 +131,7 @@ After a few seconds, the SPL token balance shown below will increase as the VAA 
 | `EERzaqe8Agm8p1ZkGQFq9zKpP7MDW29FX1pC1vEw9Yfv` | Account that holds 9ESkHLg... wrapped tokens        |
 
 [1]: The account will eventually run out of funds if you run the lockup sending scripts for a long time. Refill it
-using `kubectl exec solana-devnet-0 -c setup cli airdrop solana-devnet:9900` (see [devnet_setup.sh](solana/devnet_setup.sh)).
+using `kubectl exec solana-devnet-0 -c setup -- cli airdrop solana-devnet:9900` (see [devnet_setup.sh](solana/devnet_setup.sh)).
 
 [2]: This is where tokens sent by `scripts/send-eth-lockups.sh` end up.
 
