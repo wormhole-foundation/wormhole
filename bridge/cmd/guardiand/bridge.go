@@ -52,7 +52,7 @@ var (
 	terraSupport  *bool
 	terraWS       *string
 	terraLCD      *string
-	terraChaidID  *string
+	terraChainID  *string
 	terraContract *string
 	terraKeyPath  *string
 
@@ -87,7 +87,7 @@ func init() {
 	terraSupport = BridgeCmd.Flags().Bool("terra", false, "Turn on support for Terra")
 	terraWS = BridgeCmd.Flags().String("terraWS", "", "Path to terrad root for websocket connection")
 	terraLCD = BridgeCmd.Flags().String("terraLCD", "", "Path to LCD service root for http calls")
-	terraChaidID = BridgeCmd.Flags().String("terraChainID", "", "Terra chain ID, used in LCD client initialization")
+	terraChainID = BridgeCmd.Flags().String("terraChainID", "", "Terra chain ID, used in LCD client initialization")
 	terraContract = BridgeCmd.Flags().String("terraContract", "", "Wormhole contract address on Terra blockhain")
 	terraKeyPath = BridgeCmd.Flags().String("terraKey", "", "Path to mnemonic for account paying gas for submitting transactions to Terra")
 
@@ -264,8 +264,8 @@ func runBridge(cmd *cobra.Command, args []string) {
 		if *terraLCD == "" {
 			logger.Fatal("Please specify --terraLCD")
 		}
-		if *terraChaidID == "" {
-			logger.Fatal("Please specify --terraChaidID")
+		if *terraChainID == "" {
+			logger.Fatal("Please specify --terraChainID")
 		}
 		if *terraContract == "" {
 			logger.Fatal("Please specify --terraContract")
@@ -402,7 +402,7 @@ func runBridge(cmd *cobra.Command, args []string) {
 			*ethRPC,
 			*terraSupport,
 			*terraLCD,
-			*terraChaidID,
+			*terraChainID,
 			*terraContract,
 			terraFeePayer,
 		)
