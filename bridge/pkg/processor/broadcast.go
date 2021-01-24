@@ -2,6 +2,7 @@ package processor
 
 import (
 	"encoding/hex"
+	"github.com/prometheus/client_golang/prometheus"
 	"time"
 
 	ethcommon "github.com/ethereum/go-ethereum/common"
@@ -11,6 +12,18 @@ import (
 	gossipv1 "github.com/certusone/wormhole/bridge/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/bridge/pkg/vaa"
 )
+
+var (
+	observationsBroadcastTotal = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "wormhole_observations_broadcast_total",
+			Help: "Total number of signed observations queued for broadcast",
+		})
+)
+
+func init() {
+	prometheus.MustRegister(observationsBroadcastTotal)
+}
 
 func (p *Processor) broadcastSignature(v *vaa.VAA, signature []byte) {
 	digest, err := v.SigningMsg()
@@ -48,4 +61,6 @@ func (p *Processor) broadcastSignature(v *vaa.VAA, signature []byte) {
 
 	// Fast path for our own signature
 	go func() { p.obsvC <- &obsv }()
+
+	observationsBroadcastTotal.Inc()
 }

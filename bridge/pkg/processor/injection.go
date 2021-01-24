@@ -3,6 +3,7 @@ package processor
 import (
 	"context"
 	"encoding/hex"
+	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"go.uber.org/zap"
@@ -10,6 +11,18 @@ import (
 	"github.com/certusone/wormhole/bridge/pkg/supervisor"
 	"github.com/certusone/wormhole/bridge/pkg/vaa"
 )
+
+var (
+	vaaInjectionsTotal = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "wormhole_vaa_injections_total",
+			Help: "Total number of injected VAA queued for broadcast",
+		})
+)
+
+func init() {
+	prometheus.MustRegister(vaaInjectionsTotal)
+}
 
 // handleInjection processes a pre-populated VAA injected locally.
 func (p *Processor) handleInjection(ctx context.Context, v *vaa.VAA) {
@@ -44,5 +57,6 @@ func (p *Processor) handleInjection(ctx context.Context, v *vaa.VAA) {
 		zap.String("signature", hex.EncodeToString(s)),
 		zap.Int("our_index", us))
 
+	vaaInjectionsTotal.Inc()
 	p.broadcastSignature(v, s)
 }

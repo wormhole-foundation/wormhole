@@ -84,7 +84,7 @@ def build_bridge_yaml():
 k8s_yaml_with_ns(build_bridge_yaml())
 
 k8s_resource("guardian", resource_deps=["proto-gen"], port_forwards=[
-    port_forward(6060, name="Debug Server [:6060]"),
+    port_forward(6060, name="Debug/Status Server [:6060]"),
 ])
 
 # solana agent and cli (runs alongside bridge)

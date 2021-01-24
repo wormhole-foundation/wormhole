@@ -51,8 +51,7 @@ func (e *SolanaVAASubmitter) Run(ctx context.Context) error {
 	errC := make(chan error)
 	logger := supervisor.Logger(ctx)
 
-	// Check whether agent is up by doing a GetBalance call. This is a bit hacky, but otherwise, a broken agent won't
-	// fail until Recv(). Readiness is best-effort and if this succeeds, it's fair to assume that the watch does too.
+	// Check whether agent is up by doing a GetBalance call.
 	balance, err := c.GetBalance(timeout, &agentv1.GetBalanceRequest{})
 	if err != nil {
 		return fmt.Errorf("failed to get balance: %v", err)

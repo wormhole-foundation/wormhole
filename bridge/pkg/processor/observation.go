@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"github.com/prometheus/client_golang/prometheus"
 	"strings"
 	"time"
 
@@ -18,6 +19,48 @@ import (
 	"github.com/certusone/wormhole/bridge/pkg/vaa"
 )
 
+var (
+	observationsReceivedTotal = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "wormhole_observations_received_total",
+			Help: "Total number of raw VAA observations received from gossip",
+		})
+	observationsReceivedByGuardianAddressTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "wormhole_observations_signed_by_guardian_total",
+			Help: "Total number of signed and verified VAA observations grouped by guardian address",
+		}, []string{"addr"})
+	observationsFailedTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "wormhole_observations_verification_failures_total",
+			Help: "Total number of observations verification failure, grouped by failure reason",
+		}, []string{"cause"})
+	observationsUnknownLockupTotal = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "wormhole_observations_unknown_lockup_total",
+			Help: "Total number of verified VAA observations for a lockup we haven't seen yet",
+		})
+	observationsDirectSubmissionsTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "wormhole_observations_direct_submissions_queued_total",
+			Help: "Total number of observations for a specific target chain that were queued for direct submission",
+		}, []string{"target_chain"})
+	observationsDirectSubmissionSuccessTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "wormhole_observations_direct_submission_success_total",
+			Help: "Total number of observations for a specific target chain that succeeded",
+		}, []string{"target_chain"})
+)
+
+func init() {
+	prometheus.MustRegister(observationsReceivedTotal)
+	prometheus.MustRegister(observationsReceivedByGuardianAddressTotal)
+	prometheus.MustRegister(observationsFailedTotal)
+	prometheus.MustRegister(observationsUnknownLockupTotal)
+	prometheus.MustRegister(observationsDirectSubmissionsTotal)
+	prometheus.MustRegister(observationsDirectSubmissionSuccessTotal)
+}
+
 // handleObservation processes a remote VAA observation, verifies it, checks whether the VAA has met quorum,
 // and assembles and submits a valid VAA if possible.
 func (p *Processor) handleObservation(ctx context.Context, m *gossipv1.SignedObservation) {
@@ -31,6 +74,8 @@ func (p *Processor) handleObservation(ctx context.Context, m *gossipv1.SignedObs
 		zap.String("signature", hex.EncodeToString(m.Signature)),
 		zap.String("addr", hex.EncodeToString(m.Addr)))
 
+	observationsReceivedTotal.Inc()
+
 	// Verify the Guardian's signature. This verifies that m.Signature matches m.Hash and recovers
 	// the public key that was used to sign the payload.
 	pk, err := crypto.Ecrecover(m.Hash, m.Signature)
@@ -40,6 +85,7 @@ func (p *Processor) handleObservation(ctx context.Context, m *gossipv1.SignedObs
 			zap.String("signature", hex.EncodeToString(m.Signature)),
 			zap.String("addr", hex.EncodeToString(m.Addr)),
 			zap.Error(err))
+		observationsFailedTotal.WithLabelValues("invalid_signature").Inc()
 		return
 	}
 
@@ -53,6 +99,7 @@ func (p *Processor) handleObservation(ctx context.Context, m *gossipv1.SignedObs
 			zap.String("signature", hex.EncodeToString(m.Signature)),
 			zap.String("addr", hex.EncodeToString(m.Addr)),
 			zap.String("pk", signer_pk.Hex()))
+		observationsFailedTotal.WithLabelValues("pubkey_mismatch").Inc()
 		return
 	}
 
@@ -63,6 +110,7 @@ func (p *Processor) handleObservation(ctx context.Context, m *gossipv1.SignedObs
 			zap.String("their_addr", their_addr.Hex()),
 			zap.Any("current_set", p.gs.KeysAsHexStrings()),
 		)
+		observationsFailedTotal.WithLabelValues("unknown_guardian").Inc()
 		return
 	}
 
@@ -70,17 +118,23 @@ func (p *Processor) handleObservation(ctx context.Context, m *gossipv1.SignedObs
 	// a valid signature by an active guardian. We still don't fully trust them, as they may be
 	// byzantine, but now we know who we're dealing with.
 
+	// We can now count events by guardian without worry about cardinality explosions:
+	// TODO: add source_chain
+	observationsReceivedByGuardianAddressTotal.WithLabelValues(their_addr.Hex()).Inc()
+
 	// []byte isn't hashable in a map. Paying a small extra cost for encoding for easier debugging.
 	hash := hex.EncodeToString(m.Hash)
 
 	if p.state.vaaSignatures[hash] == nil {
-		// We haven't yet seen this event ourselves, and therefore  do not know what the VAA looks like.
+		// We haven't yet seen this event ourselves, and therefore do not know what the VAA looks like.
 		// However, we have established that a valid guardian has signed it, and therefore we can
 		// already start aggregating signatures for it.
 		//
 		// A malicious guardian can potentially DoS this by creating fake lockups at a faster rate than they decay,
 		// leading to a slow out-of-memory crash. We do not attempt to automatically mitigate spam attacks with valid
 		// signatures - such byzantine behavior would be plainly visible and would be dealt with by kicking them.
+
+		observationsUnknownLockupTotal.Inc()
 
 		p.state.vaaSignatures[hash] = &vaaState{
 			firstObserved: time.Now(),
@@ -204,6 +258,8 @@ func (p *Processor) handleObservation(ctx context.Context, m *gossipv1.SignedObs
 // have an Ethereum account and the user retrieves the VAA and submits the transactions themselves.
 func (p *Processor) devnetVAASubmission(ctx context.Context, signed *vaa.VAA, hash string) {
 	if p.devnetMode {
+		observationsDirectSubmissionsTotal.WithLabelValues("ethereum").Inc()
+
 		timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
 		tx, err := devnet.SubmitVAA(timeout, p.devnetEthRPC, signed)
 		cancel()
@@ -217,6 +273,8 @@ func (p *Processor) devnetVAASubmission(ctx context.Context, signed *vaa.VAA, ha
 			}
 			return
 		}
+
+		observationsDirectSubmissionSuccessTotal.WithLabelValues("ethereum").Inc()
 		p.logger.Info("VAA submitted to Ethereum", zap.Any("tx", tx), zap.String("digest", hash))
 	}
 }
@@ -229,6 +287,8 @@ func (p *Processor) terraVAASubmission(ctx context.Context, signed *vaa.VAA, has
 		return
 	}
 
+	observationsDirectSubmissionsTotal.WithLabelValues("terra").Inc()
+
 	tx, err := terra.SubmitVAA(ctx, p.terraLCD, p.terraChaidID, p.terraContract, p.terraFeePayer, signed)
 	if err != nil {
 		if strings.Contains(err.Error(), "VaaAlreadyExecuted") {
@@ -240,5 +300,7 @@ func (p *Processor) terraVAASubmission(ctx context.Context, signed *vaa.VAA, has
 		}
 		return
 	}
+
+	observationsDirectSubmissionSuccessTotal.WithLabelValues("terra").Inc()
 	p.logger.Info("VAA submitted to Terra", zap.Any("tx", tx), zap.String("digest", hash))
 }

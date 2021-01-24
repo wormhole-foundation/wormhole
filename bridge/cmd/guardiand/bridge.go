@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	solana_types "github.com/dfuse-io/solana-go"
+	"github.com/gorilla/mux"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -42,6 +44,8 @@ var (
 
 	adminSocketPath *string
 
+	statusAddr *string
+
 	bridgeKeyPath       *string
 	solanaBridgeAddress *string
 
@@ -72,6 +76,8 @@ func init() {
 	p2pNetworkID = BridgeCmd.Flags().String("network", "/wormhole/dev", "P2P network identifier")
 	p2pPort = BridgeCmd.Flags().Uint("port", 8999, "P2P UDP listener port")
 	p2pBootstrap = BridgeCmd.Flags().String("bootstrap", "", "P2P bootstrap peers (comma-separated)")
+
+	statusAddr = BridgeCmd.Flags().String("statusAddr", "Listen address for status server (disabled if blank)", "[::1]:6060")
 
 	nodeKeyPath = BridgeCmd.Flags().String("nodeKey", "", "Path to node key (will be generated if it doesn't exist)")
 
@@ -189,16 +195,33 @@ func runBridge(cmd *cobra.Command, args []string) {
 		readiness.RegisterComponent(common.ReadinessTerraSyncing)
 	}
 
+	if *statusAddr != "" {
+		// Use a custom routing instead of using http.DefaultServeMux directly to avoid accidentally exposing packages
+		// that register themselves with it by default (like pprof).
+		router := mux.NewRouter()
+
+		// pprof server. NOT necessarily safe to expose publicly - only enable it in dev mode to avoid exposing it by
+		// accident. There's benefit to having pprof enabled on production nodes, but we would likely want to expose it
+		// via a dedicated port listening on localhost, or via the admin UNIX socket.
+		if *unsafeDevMode {
+			// Pass requests to http.DefaultServeMux, which pprof automatically registers with as an import side-effect.
+			router.PathPrefix("/debug/pprof/").Handler(http.DefaultServeMux)
+		}
+
+		// Simple endpoint exposing node readiness (safe to expose to untrusted clients)
+		router.HandleFunc("/readyz", readiness.Handler)
+
+		// Prometheus metrics (safe to expose to untrusted clients)
+		router.Handle("/metrics", promhttp.Handler())
+
+		go func() {
+			logger.Info("status server listening on [::]:6060")
+			logger.Error("status server crashed", zap.Error(http.ListenAndServe("[::]:6060", router)))
+		}()
+	}
+
 	// In devnet mode, we automatically set a number of flags that rely on deterministic keys.
 	if *unsafeDevMode {
-		go func() {
-			// TODO: once monitoring server is implemented, move this to that http server instance
-			http.HandleFunc("/readyz", readiness.Handler)
-
-			logger.Info("debug server listening on [::]:6060")
-			logger.Error("debug server crashed", zap.Error(http.ListenAndServe("[::]:6060", nil)))
-		}()
-
 		g0key, err := peer.IDFromPrivateKey(devnet.DeterministicP2PPrivKeyByIndex(0))
 		if err != nil {
 			panic(err)
