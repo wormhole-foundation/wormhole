@@ -26,16 +26,6 @@ func init() {
 
 // handleInjection processes a pre-populated VAA injected locally.
 func (p *Processor) handleInjection(ctx context.Context, v *vaa.VAA) {
-	// Check if we're in the guardian set.
-	us, ok := p.gs.KeyIndex(p.ourAddr)
-	if !ok {
-		p.logger.Error("we're not in the guardian set - refusing to sign",
-			zap.Uint32("index", p.gs.Index),
-			zap.Stringer("our_addr", p.ourAddr),
-			zap.Any("set", p.gs.KeysAsHexStrings()))
-		return
-	}
-
 	// Generate digest of the unsigned VAA.
 	digest, err := v.SigningMsg()
 	if err != nil {
@@ -54,8 +44,7 @@ func (p *Processor) handleInjection(ctx context.Context, v *vaa.VAA) {
 
 	p.logger.Info("observed and signed injected VAA",
 		zap.String("digest", hex.EncodeToString(digest.Bytes())),
-		zap.String("signature", hex.EncodeToString(s)),
-		zap.Int("our_index", us))
+		zap.String("signature", hex.EncodeToString(s)))
 
 	vaaInjectionsTotal.Inc()
 	p.broadcastSignature(v, s)

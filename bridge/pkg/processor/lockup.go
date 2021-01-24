@@ -56,20 +56,6 @@ func (p *Processor) handleLockup(ctx context.Context, k *common.ChainLock) {
 		"source_chain": k.SourceChain.String(),
 		"target_chain": k.TargetChain.String()}).Add(1)
 
-	if p.gs == nil {
-		p.logger.Warn("received observation, but we don't know the guardian set yet")
-		return
-	}
-
-	us, ok := p.gs.KeyIndex(p.ourAddr)
-	if !ok {
-		p.logger.Error("we're not in the guardian set - refusing to sign",
-			zap.Uint32("index", p.gs.Index),
-			zap.Stringer("our_addr", p.ourAddr),
-			zap.Any("set", p.gs.KeysAsHexStrings()))
-		return
-	}
-
 	// All nodes will create the exact same VAA and sign its digest.
 	// Consensus is established on this digest.
 
@@ -110,8 +96,7 @@ func (p *Processor) handleLockup(ctx context.Context, k *common.ChainLock) {
 		zap.Stringer("target_chain", k.TargetChain),
 		zap.Stringer("txhash", k.TxHash),
 		zap.String("digest", hex.EncodeToString(digest.Bytes())),
-		zap.String("signature", hex.EncodeToString(s)),
-		zap.Int("our_index", us))
+		zap.String("signature", hex.EncodeToString(s)))
 
 	lockupsSignedTotal.With(prometheus.Labels{
 		"source_chain": k.SourceChain.String(),

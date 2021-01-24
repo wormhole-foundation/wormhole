@@ -27,6 +27,7 @@ type (
 		submitted     bool
 		retryCount    uint
 		ourMsg        []byte
+		gs            *common.GuardianSet
 	}
 
 	vaaMap map[string]*vaaState

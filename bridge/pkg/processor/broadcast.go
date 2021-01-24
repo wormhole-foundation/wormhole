@@ -58,6 +58,7 @@ func (p *Processor) broadcastSignature(v *vaa.VAA, signature []byte) {
 
 	p.state.vaaSignatures[hash].ourVAA = v
 	p.state.vaaSignatures[hash].ourMsg = msg
+	p.state.vaaSignatures[hash].gs = p.gs // guaranteed to match ourVAA - there's no concurrent access to p.gs
 
 	// Fast path for our own signature
 	go func() { p.obsvC <- &obsv }()
