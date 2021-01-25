@@ -193,7 +193,7 @@ func terraQuery(ctx context.Context, contract string, query string) (string, err
 
 // waitTerraAsset waits for asset contract to be deployed on terra
 func waitTerraAsset(t *testing.T, ctx context.Context, contract string, chain uint8, asset []byte) (string, error) {
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 
 	assetAddress := ""
@@ -218,7 +218,7 @@ func waitTerraAsset(t *testing.T, ctx context.Context, contract string, chain ui
 
 // waitTerraBalance waits for target account before to increase.
 func waitTerraBalance(t *testing.T, ctx context.Context, token string, before *big.Int, target int64) {
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 
 	err := wait.PollUntil(1*time.Second, func() (bool, error) {

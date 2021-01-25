@@ -22,7 +22,7 @@ import (
 
 // waitEthBalance waits for target account before to increase.
 func waitEthBalance(t *testing.T, ctx context.Context, token *erc20.Erc20, before *big.Int, target int64) {
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 
 	err := wait.PollUntil(1*time.Second, func() (bool, error) {

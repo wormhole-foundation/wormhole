@@ -45,7 +45,7 @@ func getSPLBalance(ctx context.Context, c *kubernetes.Clientset, hexAddr string)
 
 func waitSPLBalance(t *testing.T, ctx context.Context, c *kubernetes.Clientset, hexAddr string, before *big.Int, target int64) {
 	// Wait for target account balance to increase.
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	err := wait.PollUntil(1*time.Second, func() (bool, error) {
 		after, err := getSPLBalance(ctx, c, hexAddr)
