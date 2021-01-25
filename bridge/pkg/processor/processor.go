@@ -65,7 +65,7 @@ type Processor struct {
 
 	terraEnabled  bool
 	terraLCD      string
-	terraChaidID  string
+	terraChainID  string
 	terraContract string
 	terraFeePayer string
 
@@ -97,7 +97,7 @@ func NewProcessor(
 	devnetEthRPC string,
 	terraEnabled bool,
 	terraLCD string,
-	terraChaidID string,
+	terraChainID string,
 	terraContract string,
 	terraFeePayer string) *Processor {
 
@@ -115,7 +115,7 @@ func NewProcessor(
 
 		terraEnabled:  terraEnabled,
 		terraLCD:      terraLCD,
-		terraChaidID:  terraChaidID,
+		terraChainID:  terraChainID,
 		terraContract: terraContract,
 		terraFeePayer: terraFeePayer,
 
@@ -179,7 +179,7 @@ func (p *Processor) checkDevModeGuardianSetUpdate(ctx context.Context) error {
 				// Submit to Terra
 				go func() {
 					for {
-						trxResponse, err := terra.SubmitVAA(timeout, p.terraLCD, p.terraChaidID, p.terraContract, p.terraFeePayer, v)
+						trxResponse, err := terra.SubmitVAA(timeout, p.terraLCD, p.terraChainID, p.terraContract, p.terraFeePayer, v)
 						if err != nil {
 							p.logger.Error("failed to submit Terra devnet guardian set change, retrying", zap.Error(err))
 							time.Sleep(1 * time.Second)
