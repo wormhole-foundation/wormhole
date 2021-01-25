@@ -21,13 +21,25 @@ import (
 type (
 	// vaaState represents the local view of a given VAA
 	vaaState struct {
+		// First time this digest was seen (possibly even before we saw its lockup).
 		firstObserved time.Time
-		ourVAA        *vaa.VAA
-		signatures    map[ethcommon.Address][]byte
-		submitted     bool
-		retryCount    uint
-		ourMsg        []byte
-		gs            *common.GuardianSet
+		// Copy of the VAA we constructed when we saw the lockup.
+		ourVAA *vaa.VAA
+		// Map of signatures seen by guardian. During guardian set updates, this may contain signatures belonging
+		// to either the old or new guardian set.
+		signatures map[ethcommon.Address][]byte
+		// Flag set after reaching quorum and submitting the VAA.
+		submitted bool
+		// Flag set by the cleanup service after the settlement timeout has expired and misses were counted.
+		settled bool
+		// Human-readable description of the VAA's source, used for metrics.
+		source string
+		// Number of times the cleanup service has attempted to retransmit this VAA.
+		retryCount uint
+		// Copy of the bytes we submitted (ourVAA, but signed and serialized). Used for retransmissions.
+		ourMsg []byte
+		// Copy of the guardian set valid at lockup/injection time.
+		gs *common.GuardianSet
 	}
 
 	vaaMap map[string]*vaaState

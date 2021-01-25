@@ -148,7 +148,6 @@ func (p *Processor) handleObservation(ctx context.Context, m *gossipv1.SignedObs
 	// byzantine, but now we know who we're dealing with.
 
 	// We can now count events by guardian without worry about cardinality explosions:
-	// TODO: add source_chain
 	observationsReceivedByGuardianAddressTotal.WithLabelValues(their_addr.Hex()).Inc()
 
 	// []byte isn't hashable in a map. Paying a small extra cost for encoding for easier debugging.
@@ -166,6 +165,7 @@ func (p *Processor) handleObservation(ctx context.Context, m *gossipv1.SignedObs
 		p.state.vaaSignatures[hash] = &vaaState{
 			firstObserved: time.Now(),
 			signatures:    map[common.Address][]byte{},
+			source:        "unknown",
 		}
 	}
 
@@ -231,6 +231,7 @@ func (p *Processor) handleObservation(ctx context.Context, m *gossipv1.SignedObs
 
 			switch t := v.Payload.(type) {
 			case *vaa.BodyTransfer:
+				p.state.vaaSignatures[hash].source = t.SourceChain.String()
 				// Depending on the target chain, guardians submit VAAs directly to the chain.
 
 				switch t.TargetChain {
@@ -250,10 +251,14 @@ func (p *Processor) handleObservation(ctx context.Context, m *gossipv1.SignedObs
 						zap.Stringer("target_chain", t.TargetChain))
 				}
 			case *vaa.BodyGuardianSetUpdate:
+				p.state.vaaSignatures[hash].source = "guardian_set_upgrade"
+
 				// A guardian set update is broadcast to every chain that we talk to.
 				p.devnetVAASubmission(ctx, signed, hash)
 				p.terraVAASubmission(ctx, signed, hash)
 			case *vaa.BodyContractUpgrade:
+				p.state.vaaSignatures[hash].source = "contract_upgrade"
+
 				switch t.ChainID {
 				case vaa.ChainIDSolana:
 				// Already submitted to Solana.

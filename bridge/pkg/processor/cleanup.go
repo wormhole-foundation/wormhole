@@ -2,6 +2,7 @@ package processor
 
 import (
 	"context"
+	"github.com/certusone/wormhole/bridge/pkg/common"
 	"github.com/prometheus/client_golang/prometheus"
 	"time"
 
@@ -34,6 +35,11 @@ var (
 			Name: "wormhole_aggregation_state_unobserved_total",
 			Help: "Total number of aggregation states expired due to no matching local lockup observations",
 		})
+	aggregationStateFulfillment = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "wormhole_aggregation_state_settled_signatures_total",
+			Help: "Total number of signatures produced by a validator, counted after waiting a fixed amount of time",
+		}, []string{"addr", "origin", "status"})
 )
 
 func init() {
@@ -42,6 +48,7 @@ func init() {
 	prometheus.MustRegister(aggregationStateTimeout)
 	prometheus.MustRegister(aggregationStateRetries)
 	prometheus.MustRegister(aggregationStateUnobserved)
+	prometheus.MustRegister(aggregationStateFulfillment)
 }
 
 // handleCleanup handles periodic retransmissions and cleanup of VAAs
@@ -53,6 +60,28 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 		delta := time.Now().Sub(s.firstObserved)
 
 		switch {
+		case !s.settled && delta.Seconds() >= 30:
+			// After 30 seconds, the VAA is considered settled - it's unlikely that more observations will
+			// arrive, barring special circumstances. This is a better time to count misses than submission,
+			// because we submit right when we quorum rather than waiting for all observations to arrive.
+			s.settled = true
+			p.logger.Info("VAA considered settled", zap.String("digest", hash))
+
+			// Use either the most recent (in case of a VAA we haven't seen) or stored gs, if available.
+			var gs *common.GuardianSet
+			if s.gs != nil {
+				gs = s.gs
+			} else {
+				gs = p.gs
+			}
+
+			for _, k := range gs.Keys {
+				if _, ok := s.signatures[k]; ok {
+					aggregationStateFulfillment.WithLabelValues(k.Hex(), s.source, "present").Inc()
+				} else {
+					aggregationStateFulfillment.WithLabelValues(k.Hex(), s.source, "missing").Inc()
+				}
+			}
 		case s.submitted && delta.Hours() >= 1:
 			// We could delete submitted VAAs right away, but then we'd lose context about additional (late)
 			// observation that come in. Therefore, keep it for a reasonable amount of time.
