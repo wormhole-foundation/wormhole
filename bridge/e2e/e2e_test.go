@@ -2,6 +2,8 @@ package e2e
 
 import (
 	"context"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"k8s.io/client-go/kubernetes"
 	"testing"
 	"time"
 
@@ -9,7 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
-func TestEndToEnd(t *testing.T) {
+func setup(t *testing.T) (*kubernetes.Clientset, *ethclient.Client, *bind.TransactOpts) {
 	// List of pods we need in a ready state before we can run tests.
 	want := []string{
 		// Our test guardian set.
@@ -44,20 +46,20 @@ func TestEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatalf("dialing devnet eth rpc failed: %v", err)
 	}
-	kt := devnet.GetKeyedTransactor(ctx)
+	kt := devnet.GetKeyedTransactor(context.Background())
 
-	// Terra client
-	tc, err := NewTerraClient()
-	if err != nil {
-		t.Fatalf("creating devnet terra client failed: %v", err)
-	}
+	return c, ec, kt
+}
 
-	// Generic context for tests.
-	ctx, cancel = context.WithCancel(context.Background())
-	defer cancel()
+// Careful about parallel tests - accounts on some chains like Ethereum cannot be
+// used concurrently as they have monotonically increasing nonces that would conflict.
+// Either use different Ethereum account, or do not run Ethereum tests in parallel.
+
+func TestEndToEnd_SOL_ETH(t *testing.T) {
+	c, ec, kt := setup(t)
 
 	t.Run("[SOL] Native -> [ETH] Wrapped", func(t *testing.T) {
-		testSolanaLockup(t, ctx, ec, c,
+		testSolanaLockup(t, context.Background(), ec, c,
 			// Source SPL account
 			devnet.SolanaExampleTokenOwningAccount,
 			// Source SPL token
@@ -72,7 +74,7 @@ func TestEndToEnd(t *testing.T) {
 	})
 
 	t.Run("[ETH] Wrapped -> [SOL] Native", func(t *testing.T) {
-		testEthereumLockup(t, ctx, ec, kt, c,
+		testEthereumLockup(t, context.Background(), ec, kt, c,
 			// Source ERC20 token
 			devnet.GanacheExampleERC20WrappedSOL,
 			// Destination SPL token account
@@ -86,7 +88,7 @@ func TestEndToEnd(t *testing.T) {
 	})
 
 	t.Run("[ETH] Native -> [SOL] Wrapped", func(t *testing.T) {
-		testEthereumLockup(t, ctx, ec, kt, c,
+		testEthereumLockup(t, context.Background(), ec, kt, c,
 			// Source ERC20 token
 			devnet.GanacheExampleERC20Token,
 			// Destination SPL token account
@@ -99,7 +101,7 @@ func TestEndToEnd(t *testing.T) {
 	})
 
 	t.Run("[SOL] Wrapped -> [ETH] Native", func(t *testing.T) {
-		testSolanaLockup(t, ctx, ec, c,
+		testSolanaLockup(t, context.Background(), ec, c,
 			// Source SPL account
 			devnet.SolanaExampleWrappedERCTokenOwningAccount,
 			// Source SPL token
@@ -112,9 +114,18 @@ func TestEndToEnd(t *testing.T) {
 			9,
 		)
 	})
+}
+
+func TestEndToEnd_SOL_Terra(t *testing.T) {
+	c, _, _ := setup(t)
+
+	tc, err := NewTerraClient()
+	if err != nil {
+		t.Fatalf("creating devnet terra client failed: %v", err)
+	}
 
 	t.Run("[Terra] Native -> [SOL] Wrapped", func(t *testing.T) {
-		testTerraLockup(t, ctx, tc, c,
+		testTerraLockup(t, context.Background(), tc, c,
 			// Source CW20 token
 			devnet.TerraTokenAddress,
 			// Destination SPL token account
@@ -125,8 +136,11 @@ func TestEndToEnd(t *testing.T) {
 			0,
 		)
 	})
+
+	// TODO(https://github.com/certusone/wormhole/issues/164): [SOL] Wrapped -> [Terra] Native
+
 	t.Run("[SOL] Native -> [Terra] Wrapped", func(t *testing.T) {
-		testSolanaToTerraLockup(t, ctx, tc, c,
+		testSolanaToTerraLockup(t, context.Background(), tc, c,
 			// Source SPL account
 			devnet.SolanaExampleTokenOwningAccount,
 			// Source SPL token
@@ -137,4 +151,8 @@ func TestEndToEnd(t *testing.T) {
 			0,
 		)
 	})
+
+	// TODO(https://github.com/certusone/wormhole/issues/164): [Terra] Wrapped -> [SOL] Native
 }
+
+// TODO(https://github.com/certusone/wormhole/issues/164): TestEndToEnd_ETH_Terra
