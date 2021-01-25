@@ -131,6 +131,7 @@ func testSolanaToTerraLockup(t *testing.T, ctx context.Context, tc *TerraClient,
 	// Get balance if deployed
 	beforeCw20, err := getTerraBalance(ctx, terraToken)
 	if err != nil {
+		beforeCw20 = new(big.Int)
 		t.Log(err) // account may not yet exist, defaults to 0
 	}
 	t.Logf("CW20 balance: %v", beforeCw20)
