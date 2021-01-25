@@ -1269,7 +1269,7 @@ impl Bridge {
 
     /// The amount of sol that needs to be held in the BridgeConfig account in order to make it
     /// exempt of rent payments.
-    const MIN_BRIDGE_BALANCE: u64 = (((solana_program::rent::ACCOUNT_STORAGE_OVERHEAD + size_of::<BridgeConfig>() as u64) *
+    const MIN_BRIDGE_BALANCE: u64 = (((solana_program::rent::ACCOUNT_STORAGE_OVERHEAD + size_of::<Bridge>() as u64) *
         solana_program::rent::DEFAULT_LAMPORTS_PER_BYTE_YEAR) as f64
         * solana_program::rent::DEFAULT_EXEMPTION_THRESHOLD) as u64;
 
