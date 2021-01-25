@@ -697,6 +697,12 @@ impl Bridge {
         let mut guardian_data = guardian_set_info.try_borrow_mut_data()?;
         let guardian_set: &mut GuardianSet = Bridge::unpack(&mut guardian_data)?;
 
+        // Verify bridge key because it is used as subsidizer and for key derivation
+        let expected_bridge_key = Self::derive_bridge_id(program_id)?;
+        if *bridge_info.key != expected_bridge_key {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
         // Check that the guardian set is valid
         let expected_guardian_set =
             Bridge::derive_guardian_set_id(program_id, bridge_info.key, vaa.guardian_set_index)?;
