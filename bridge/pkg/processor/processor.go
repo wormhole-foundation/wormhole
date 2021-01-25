@@ -167,18 +167,28 @@ func (p *Processor) checkDevModeGuardianSetUpdate(ctx context.Context) error {
 			defer cancel()
 			trx, err := devnet.SubmitVAA(timeout, p.devnetEthRPC, v)
 			if err != nil {
-				return fmt.Errorf("failed to submit devnet guardian set change: %v", err)
+				// Either Ethereum is not yet up, or another node has already submitted - bail
+				// and let another node handle it. We only check the guardian set on Ethereum,
+				// so we use that to sequence devnet creation for Terra and Solana as well.
+				return fmt.Errorf("failed to submit Eth devnet guardian set change: %v", err)
 			}
 
 			p.logger.Info("devnet guardian set change submitted to Ethereum", zap.Any("trx", trx), zap.Any("vaa", v))
 
 			if p.terraEnabled {
 				// Submit to Terra
-				trxResponse, err := terra.SubmitVAA(timeout, p.terraLCD, p.terraChaidID, p.terraContract, p.terraFeePayer, v)
-				if err != nil {
-					return fmt.Errorf("failed to submit devnet guardian set change: %v", err)
-				}
-				p.logger.Info("devnet guardian set change submitted to Terra", zap.Any("trxResponse", trxResponse), zap.Any("vaa", v))
+				go func() {
+					for {
+						trxResponse, err := terra.SubmitVAA(timeout, p.terraLCD, p.terraChaidID, p.terraContract, p.terraFeePayer, v)
+						if err != nil {
+							p.logger.Error("failed to submit Terra devnet guardian set change, retrying", zap.Error(err))
+							time.Sleep(1 * time.Second)
+							continue
+						}
+						p.logger.Info("devnet guardian set change submitted to Terra", zap.Any("trxResponse", trxResponse), zap.Any("vaa", v))
+						break
+					}
+				}()
 			}
 
 			// Submit VAA to Solana as well. This is asynchronous and can fail, leading to inconsistent devnet state.
