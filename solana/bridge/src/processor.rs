@@ -210,6 +210,12 @@ impl Bridge {
             return Err(Error::InvalidSysvar.into());
         }
 
+        // Verify bridge key because it is used as subsidizer
+        let expected_bridge_key = Self::derive_bridge_id(program_id)?;
+        if *bridge_info.key != expected_bridge_key {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
         let guardian_data = guardian_set_info.try_borrow_data()?;
         let guardian_set: &GuardianSet = Self::unpack_immutable(&guardian_data)?;
 
