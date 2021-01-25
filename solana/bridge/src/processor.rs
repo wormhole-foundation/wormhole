@@ -210,6 +210,12 @@ impl Bridge {
             return Err(Error::InvalidSysvar.into());
         }
 
+        // Verify bridge key because it is used as subsidizer
+        let expected_bridge_key = Self::derive_bridge_id(program_id)?;
+        if *bridge_info.key != expected_bridge_key {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
         let guardian_data = guardian_set_info.try_borrow_data()?;
         let guardian_set: &GuardianSet = Self::unpack_immutable(&guardian_data)?;
 
@@ -690,6 +696,12 @@ impl Bridge {
         let clock = Clock::from_account_info(clock_info)?;
         let mut guardian_data = guardian_set_info.try_borrow_mut_data()?;
         let guardian_set: &mut GuardianSet = Bridge::unpack(&mut guardian_data)?;
+
+        // Verify bridge key because it is used as subsidizer and for key derivation
+        let expected_bridge_key = Self::derive_bridge_id(program_id)?;
+        if *bridge_info.key != expected_bridge_key {
+            return Err(ProgramError::InvalidAccountData);
+        }
 
         // Check that the guardian set is valid
         let expected_guardian_set =
@@ -1269,7 +1281,7 @@ impl Bridge {
 
     /// The amount of sol that needs to be held in the BridgeConfig account in order to make it
     /// exempt of rent payments.
-    const MIN_BRIDGE_BALANCE: u64 = (((solana_program::rent::ACCOUNT_STORAGE_OVERHEAD + size_of::<BridgeConfig>() as u64) *
+    const MIN_BRIDGE_BALANCE: u64 = (((solana_program::rent::ACCOUNT_STORAGE_OVERHEAD + size_of::<Bridge>() as u64) *
         solana_program::rent::DEFAULT_LAMPORTS_PER_BYTE_YEAR) as f64
         * solana_program::rent::DEFAULT_EXEMPTION_THRESHOLD) as u64;
 
