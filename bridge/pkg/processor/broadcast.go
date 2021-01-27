@@ -53,6 +53,7 @@ func (p *Processor) broadcastSignature(v *vaa.VAA, signature []byte) {
 		p.state.vaaSignatures[hash] = &vaaState{
 			firstObserved: time.Now(),
 			signatures:    map[ethcommon.Address][]byte{},
+			source:        "loopback",
 		}
 	}
 

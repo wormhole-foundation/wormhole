@@ -3,6 +3,7 @@ package ethereum
 import (
 	"context"
 	"fmt"
+	"github.com/prometheus/client_golang/prometheus"
 	"math/big"
 	"sync"
 	"time"
@@ -19,6 +20,49 @@ import (
 	"github.com/certusone/wormhole/bridge/pkg/supervisor"
 	"github.com/certusone/wormhole/bridge/pkg/vaa"
 )
+
+var (
+	ethConnectionErrors = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "wormhole_eth_connection_errors_total",
+			Help: "Total number of Ethereum connection errors (either during initial connection or while watching)",
+		}, []string{"reason"})
+
+	ethLockupsFound = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "wormhole_eth_lockups_found_total",
+			Help: "Total number of Eth lockups found (pre-confirmation)",
+		})
+	ethLockupsConfirmed = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "wormhole_eth_lockups_confirmed_total",
+			Help: "Total number of Eth lockups verified (post-confirmation)",
+		})
+	guardianSetChangesConfirmed = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "wormhole_eth_guardian_set_changes_confirmed_total",
+			Help: "Total number of guardian set changes verified (we only see confirmed ones to begin with)",
+		})
+	currentEthHeight = prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "wormhole_eth_current_height",
+			Help: "Current Ethereum block height",
+		})
+	queryLatency = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name: "wormhole_eth_query_latency",
+			Help: "Latency histogram for Ethereum calls (note that most interactions are streaming queries, NOT calls, and we cannot measure latency for those",
+		}, []string{"operation"})
+)
+
+func init() {
+	prometheus.MustRegister(ethConnectionErrors)
+	prometheus.MustRegister(ethLockupsFound)
+	prometheus.MustRegister(ethLockupsConfirmed)
+	prometheus.MustRegister(guardianSetChangesConfirmed)
+	prometheus.MustRegister(currentEthHeight)
+	prometheus.MustRegister(queryLatency)
+}
 
 type (
 	EthBridgeWatcher struct {
@@ -48,6 +92,7 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 	defer cancel()
 	c, err := ethclient.DialContext(timeout, e.url)
 	if err != nil {
+		ethConnectionErrors.WithLabelValues("dial_error").Inc()
 		return fmt.Errorf("dialing eth client failed: %w", err)
 	}
 
@@ -69,6 +114,7 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 	tokensLockedC := make(chan *abi.AbiLogTokensLocked, 2)
 	tokensLockedSub, err := f.WatchLogTokensLocked(&bind.WatchOpts{Context: timeout}, tokensLockedC, nil, nil)
 	if err != nil {
+		ethConnectionErrors.WithLabelValues("subscribe_error").Inc()
 		return fmt.Errorf("failed to subscribe to token lockup events: %w", err)
 	}
 
@@ -76,6 +122,7 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 	guardianSetC := make(chan *abi.AbiLogGuardianSetChanged, 2)
 	guardianSetEvent, err := f.WatchLogGuardianSetChanged(&bind.WatchOpts{Context: timeout}, guardianSetC)
 	if err != nil {
+		ethConnectionErrors.WithLabelValues("subscribe_error").Inc()
 		return fmt.Errorf("failed to subscribe to guardian set events: %w", err)
 	}
 
@@ -88,6 +135,7 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 	defer cancel()
 	idx, gs, err := FetchCurrentGuardianSet(timeout, e.url, e.bridge)
 	if err != nil {
+		ethConnectionErrors.WithLabelValues("guardian_set_fetch_error").Inc()
 		return fmt.Errorf("failed requesting guardian set from Ethereum: %w", err)
 	}
 	logger.Info("initial guardian set fetched", zap.Any("value", gs), zap.Uint32("index", idx))
@@ -102,17 +150,23 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 			case <-ctx.Done():
 				return
 			case e := <-tokensLockedSub.Err():
+				ethConnectionErrors.WithLabelValues("subscription_error").Inc()
 				errC <- fmt.Errorf("error while processing token lockup subscription: %w", e)
 				return
 			case e := <-guardianSetEvent.Err():
+				ethConnectionErrors.WithLabelValues("subscription_error").Inc()
 				errC <- fmt.Errorf("error while processing guardian set subscription: %w", e)
 				return
 			case ev := <-tokensLockedC:
 				// Request timestamp for block
+				msm := time.Now()
 				timeout, cancel = context.WithTimeout(ctx, 15*time.Second)
 				b, err := c.BlockByNumber(timeout, big.NewInt(int64(ev.Raw.BlockNumber)))
 				cancel()
+				queryLatency.WithLabelValues("block_by_number").Observe(time.Since(msm).Seconds())
+
 				if err != nil {
+					ethConnectionErrors.WithLabelValues("block_by_number_error").Inc()
 					errC <- fmt.Errorf("failed to request timestamp for block %d: %w", ev.Raw.BlockNumber, err)
 					return
 				}
@@ -133,6 +187,9 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 
 				logger.Info("found new lockup transaction", zap.Stringer("tx", ev.Raw.TxHash),
 					zap.Uint64("block", ev.Raw.BlockNumber))
+
+				ethLockupsFound.Inc()
+
 				e.pendingLocksGuard.Lock()
 				e.pendingLocks[ev.Raw.TxHash] = &pendingLock{
 					lock:   lock,
@@ -143,7 +200,11 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 				logger.Info("guardian set has changed, fetching new value",
 					zap.Uint32("new_index", ev.NewGuardianIndex))
 
+				guardianSetChangesConfirmed.Inc()
+
+				msm := time.Now()
 				gs, err := caller.GetGuardianSet(&bind.CallOpts{Context: timeout}, ev.NewGuardianIndex)
+				queryLatency.WithLabelValues("get_guardian_set").Observe(time.Since(msm).Seconds())
 				if err != nil {
 					// We failed to process the guardian set update and are now out of sync with the chain.
 					// Recover by crashing the runnable, which causes the guardian set to be re-fetched.
@@ -178,7 +239,7 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 			case ev := <-headSink:
 				start := time.Now()
 				logger.Info("processing new header", zap.Stringer("block", ev.Number))
-
+				currentEthHeight.Set(float64(ev.Number.Int64()))
 				readiness.SetReady(common.ReadinessEthSyncing)
 
 				e.pendingLocksGuard.Lock()
@@ -200,6 +261,7 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 							zap.Stringer("block", ev.Number))
 						delete(e.pendingLocks, hash)
 						e.lockChan <- pLock.lock
+						ethLockupsConfirmed.Inc()
 					}
 				}
 

@@ -3,6 +3,7 @@ package p2p
 import (
 	"context"
 	"fmt"
+	"github.com/prometheus/client_golang/prometheus"
 	"strings"
 	"time"
 
@@ -25,6 +26,30 @@ import (
 	gossipv1 "github.com/certusone/wormhole/bridge/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/bridge/pkg/supervisor"
 )
+
+var (
+	p2pHeartbeatsSent = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "wormhole_p2p_heartbeats_sent_total",
+			Help: "Total number of p2p heartbeats sent",
+		})
+	p2pMessagesSent = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "wormhole_p2p_broadcast_messages_sent_total",
+			Help: "Total number of p2p pubsub broadcast messages sent",
+		})
+	p2pMessagesReceived = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "wormhole_p2p_broadcast_messages_received_total",
+			Help: "Total number of p2p pubsub broadcast messages received",
+		}, []string{"type"})
+)
+
+func init() {
+	prometheus.MustRegister(p2pHeartbeatsSent)
+	prometheus.MustRegister(p2pMessagesSent)
+	prometheus.MustRegister(p2pMessagesReceived)
+}
 
 func Run(obsvC chan *gossipv1.SignedObservation,
 	sendC chan []byte,
@@ -178,6 +203,7 @@ func Run(obsvC chan *gossipv1.SignedObservation,
 						logger.Warn("failed to publish heartbeat message", zap.Error(err))
 					}
 
+					p2pHeartbeatsSent.Inc()
 					ctr += 1
 				}
 			}
@@ -190,6 +216,7 @@ func Run(obsvC chan *gossipv1.SignedObservation,
 					return
 				case msg := <-sendC:
 					err := th.Publish(ctx, msg)
+					p2pMessagesSent.Inc()
 					if err != nil {
 						logger.Error("failed to publish message from queue", zap.Error(err))
 					}
@@ -209,12 +236,14 @@ func Run(obsvC chan *gossipv1.SignedObservation,
 				logger.Info("received invalid message",
 					zap.String("data", string(envelope.Data)),
 					zap.String("from", envelope.GetFrom().String()))
+				p2pMessagesReceived.WithLabelValues("invalid").Inc()
 				continue
 			}
 
 			if envelope.GetFrom() == h.ID() {
 				logger.Debug("received message from ourselves, ignoring",
 					zap.Any("payload", msg.Message))
+				p2pMessagesReceived.WithLabelValues("loopback").Inc()
 				continue
 			}
 
@@ -228,9 +257,12 @@ func Run(obsvC chan *gossipv1.SignedObservation,
 				logger.Debug("heartbeat received",
 					zap.Any("value", m.Heartbeat),
 					zap.String("from", envelope.GetFrom().String()))
+				p2pMessagesReceived.WithLabelValues("heartbeat").Inc()
 			case *gossipv1.GossipMessage_SignedObservation:
 				obsvC <- m.SignedObservation
+				p2pMessagesReceived.WithLabelValues("observation").Inc()
 			default:
+				p2pMessagesReceived.WithLabelValues("unknown").Inc()
 				logger.Warn("received unknown message type (running outdated software?)",
 					zap.Any("payload", msg.Message),
 					zap.Binary("raw", envelope.Data),

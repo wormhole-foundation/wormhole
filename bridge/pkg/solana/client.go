@@ -11,6 +11,7 @@ import (
 	"github.com/dfuse-io/solana-go"
 	"github.com/dfuse-io/solana-go/rpc"
 	eth_common "github.com/ethereum/go-ethereum/common"
+	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/zap"
 	"math/big"
 	"time"
@@ -21,6 +22,42 @@ type SolanaWatcher struct {
 	wsUrl     string
 	rpcUrl    string
 	lockEvent chan *common.ChainLock
+}
+
+var (
+	solanaConnectionErrors = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "wormhole_solana_connection_errors_total",
+			Help: "Total number of Solana connection errors",
+		}, []string{"reason"})
+	solanaAccountSkips = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "wormhole_solana_account_updates_skipped_total",
+			Help: "Total number of account updates skipped due to invalid data",
+		}, []string{"reason"})
+	solanaLockupsConfirmed = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "wormhole_solana_lockups_confirmed_total",
+			Help: "Total number of verified Solana lockups found",
+		})
+	currentSolanaHeight = prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "wormhole_solana_current_height",
+			Help: "Current Solana slot height (at default commitment level, not the level used for lockups)",
+		})
+	queryLatency = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name: "wormhole_solana_query_latency",
+			Help: "Latency histogram for Solana RPC calls",
+		}, []string{"operation"})
+)
+
+func init() {
+	prometheus.MustRegister(solanaConnectionErrors)
+	prometheus.MustRegister(solanaAccountSkips)
+	prometheus.MustRegister(solanaLockupsConfirmed)
+	prometheus.MustRegister(currentSolanaHeight)
+	prometheus.MustRegister(queryLatency)
 }
 
 func NewSolanaWatcher(wsUrl, rpcUrl string, bridgeAddress solana.PublicKey, lockEvents chan *common.ChainLock) *SolanaWatcher {
@@ -42,12 +79,24 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 				return
 			case <-timer.C:
 				func() {
+					// Get current slot height
 					rCtx, cancel := context.WithTimeout(ctx, time.Second*5)
 					defer cancel()
-
 					start := time.Now()
+					slot, err := rpcClient.GetSlot(rCtx, "")
+					queryLatency.WithLabelValues("get_slot").Observe(time.Since(start).Seconds())
+					if err != nil {
+						solanaConnectionErrors.WithLabelValues("get_slot_error").Inc()
+						errC <- err
+						return
+					}
+					currentSolanaHeight.Set(float64(slot))
 
 					// Find TransferOutProposal accounts without a VAA
+					rCtx, cancel = context.WithTimeout(ctx, time.Second*5)
+					defer cancel()
+					start = time.Now()
+
 					accounts, err := rpcClient.GetProgramAccounts(rCtx, s.bridge, &rpc.GetProgramAccountsOpts{
 						Commitment: rpc.CommitmentMax,
 						Filters: []rpc.RPCFilter{
@@ -62,7 +111,9 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 							},
 						},
 					})
+					queryLatency.WithLabelValues("get_program_accounts").Observe(time.Since(start).Seconds())
 					if err != nil {
+						solanaConnectionErrors.WithLabelValues("get_program_account_error").Inc()
 						errC <- err
 						return
 					}
@@ -75,6 +126,7 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 					for _, acc := range accounts {
 						proposal, err := ParseTransferOutProposal(acc.Account.Data)
 						if err != nil {
+							solanaAccountSkips.WithLabelValues("parse_transfer_out").Inc()
 							logger.Warn(
 								"failed to parse transfer proposal",
 								zap.Stringer("account", acc.Pubkey),
@@ -85,6 +137,7 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 
 						// VAA submitted
 						if proposal.VaaTime.Unix() != 0 {
+							solanaAccountSkips.WithLabelValues("is_submitted_vaa").Inc()
 							continue
 						}
 
@@ -104,6 +157,8 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 							TokenDecimals: proposal.Asset.Decimals,
 							Amount:        proposal.Amount,
 						}
+
+						solanaLockupsConfirmed.Inc()
 						logger.Info("found lockup without VAA", zap.Stringer("lockup_address", acc.Pubkey))
 						s.lockEvent <- lock
 					}

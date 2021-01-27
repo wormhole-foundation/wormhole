@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"github.com/prometheus/client_golang/prometheus"
 	"strings"
 	"time"
 
@@ -20,6 +21,24 @@ import (
 	"github.com/certusone/wormhole/bridge/pkg/supervisor"
 	"github.com/certusone/wormhole/bridge/pkg/vaa"
 )
+
+var (
+	solanaVAASubmitted = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "wormhole_solana_vaa_submitted_total",
+			Help: "Total number of VAAs successfully submitted to the chain",
+		})
+	solanaFeePayerBalance = prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "wormhole_solana_fee_account_balance_lamports",
+			Help: "Current fee payer account balance in lamports",
+		})
+)
+
+func init() {
+	prometheus.MustRegister(solanaVAASubmitted)
+	prometheus.MustRegister(solanaFeePayerBalance)
+}
 
 type (
 	SolanaVAASubmitter struct {
@@ -54,16 +73,33 @@ func (e *SolanaVAASubmitter) Run(ctx context.Context) error {
 	// Check whether agent is up by doing a GetBalance call.
 	balance, err := c.GetBalance(timeout, &agentv1.GetBalanceRequest{})
 	if err != nil {
+		solanaConnectionErrors.WithLabelValues("get_balance_error").Inc()
 		return fmt.Errorf("failed to get balance: %v", err)
 	}
 	readiness.SetReady(common.ReadinessSolanaSyncing)
 	logger.Info("account balance", zap.Uint64("lamports", balance.Balance))
+
+	// Periodically request the balance for monitoring
+	btick := time.NewTicker(1 * time.Minute)
 
 	go func() {
 		for {
 			select {
 			case <-ctx.Done():
 				return
+			case <-btick.C:
+				timeout, cancel := context.WithTimeout(ctx, 5*time.Second)
+				balance, err = c.GetBalance(timeout, &agentv1.GetBalanceRequest{})
+				if err != nil {
+					solanaConnectionErrors.WithLabelValues("get_balance_error").Inc()
+					// With PostVAA, it's hard to tell, but if this one fails we know
+					// that something went wrong and we should restart the service.
+					errC <- fmt.Errorf("failed to get balance: %v", err)
+					cancel()
+					break
+				}
+				cancel()
+				solanaFeePayerBalance.Set(float64(balance.Balance))
 			case v := <-e.vaaChan:
 				vaaBytes, err := v.Marshal()
 				if err != nil {
@@ -96,6 +132,7 @@ func (e *SolanaVAASubmitter) Run(ctx context.Context) error {
 						codes.Unavailable,
 						codes.Aborted:
 
+						solanaConnectionErrors.WithLabelValues("postvaa_transient_error").Inc()
 						logger.Error("transient error, requeuing VAA", zap.Error(err), zap.String("digest", h))
 
 						// Tombstone goroutine
@@ -114,12 +151,14 @@ func (e *SolanaVAASubmitter) Run(ctx context.Context) error {
 
 						fallthrough
 					default:
+						solanaConnectionErrors.WithLabelValues("postvaa_internal_error").Inc()
 						logger.Error("error submitting VAA", zap.Error(err), zap.String("digest", h))
 					}
 
 					break
 				}
 
+				solanaVAASubmitted.Inc()
 				logger.Info("submitted VAA",
 					zap.String("tx_sig", res.Signature), zap.String("digest", h))
 			}
