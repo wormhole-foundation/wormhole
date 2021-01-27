@@ -206,6 +206,28 @@ Refer to [devnet/](../devnet) for example k8s deployments as a starting point fo
 have to build your own containers. Unless you already run Kubernetes in production, we strongly recommend a traditional
 deployment on a dedicated instance - it's easier to understand and troubleshoot.
 
+### Monitoring
+
+Wormhole exposes a status server for readiness and metrics. By default, it listens on port 6060 on localhost.
+You can use a command line argument to expose it publicly: `--statusAddr=[::]:6060`.
+
+#### `/readyz`
+
+This endpoint returns a 200 OK status code once the Wormhole node is ready to serve requests. A node is
+considered ready as soon as it has successfully connected to all chains and started processing requests.
+
+#### `/metrics`
+
+This endpoint serves [Prometheus metrics](https://prometheus.io/docs/concepts/data_model/) for alerting and
+introspection. We recommend using Prometheus and Alertmanager, but any monitoring tool that can ingest metrics using the
+standardized Prometheus exposition format will work.
+
+Once we gained more operational experience with Wormhole, specific recommendations on appropriate symptoms-based
+alerting will be documented here.
+
+**NOTE:** Parsing the log output for monitoring is NOT recommended. Log output is meant for human consumption and are
+not considered a stable API. Log messages may be added, modified or removed without notice. Use the metrics :-)
+
 ## Key Management
 
 You'll have to manage the following keys:
