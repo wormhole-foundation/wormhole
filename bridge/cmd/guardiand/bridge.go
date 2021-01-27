@@ -94,7 +94,7 @@ func init() {
 	terraWS = BridgeCmd.Flags().String("terraWS", "", "Path to terrad root for websocket connection")
 	terraLCD = BridgeCmd.Flags().String("terraLCD", "", "Path to LCD service root for http calls")
 	terraChainID = BridgeCmd.Flags().String("terraChainID", "", "Terra chain ID, used in LCD client initialization")
-	terraContract = BridgeCmd.Flags().String("terraContract", "", "Wormhole contract address on Terra blockhain")
+	terraContract = BridgeCmd.Flags().String("terraContract", "", "Wormhole contract address on Terra blockchain")
 	terraKeyPath = BridgeCmd.Flags().String("terraKey", "", "Path to mnemonic for account paying gas for submitting transactions to Terra")
 
 	solanaWsRPC = BridgeCmd.Flags().String("solanaWS", "", "Solana Websocket URL (required")
