@@ -120,17 +120,23 @@ fn handle_submit_vaa<S: Storage, A: Api, Q: Querier>(
     const HEADER_LEN: usize = 6;
     const SIGNATURE_LEN: usize = 66;
 
+    const GUARDIAN_SET_INDEX_POS: usize = 1;
+    const LEN_SIGNER_POS: usize = 5;
+
     let version = data.get_u8(0);
     if version != 1 {
         return ContractError::InvalidVersion.std_err();
     }
 
     // Load 4 bytes starting from index 1
-    let vaa_guardian_set_index: u32 = data.get_u32(1);
-    let len_signers = data.get_u8(5) as usize;
-    let body_offset: usize = 6 + SIGNATURE_LEN * len_signers as usize;
+    let vaa_guardian_set_index: u32 = data.get_u32(GUARDIAN_SET_INDEX_POS);
+    let len_signers = data.get_u8(LEN_SIGNER_POS) as usize;
+    let body_offset: usize = HEADER_LEN + SIGNATURE_LEN * len_signers as usize;
 
     // Hash the body
+    if body_offset >= data.len() {
+        return ContractError::InvalidVAA.std_err();
+    }
     let body = &data[body_offset..];
     let mut hasher = Keccak256::new();
     hasher.update(body);
@@ -156,16 +162,26 @@ fn handle_submit_vaa<S: Storage, A: Api, Q: Querier>(
     // Verify guardian signatures
     let mut last_index: i32 = -1;
     let mut pos = HEADER_LEN;
+
+    // Signature data offsets in the signature block
+    const SIG_DATA_POS: usize = 1;
+    const SIG_DATA_LEN: usize = 64; // Signature length minus recovery id at the end
+    const SIG_RECOVERY_POS: usize = SIG_DATA_POS + SIG_DATA_LEN; // Recovery byte is last affter the main signature
+
     for _ in 0..len_signers {
+        if pos + SIGNATURE_LEN > data.len() {
+            return ContractError::InvalidVAA.std_err();
+        }
         let index = data.get_u8(pos) as i32;
         if index <= last_index {
             return ContractError::WrongGuardianIndexOrder.std_err();
         }
         last_index = index;
 
-        let signature = Signature::try_from(&data[pos + 1..pos + 1 + 64])
-            .or_else(|_| ContractError::CannotDecodeSignature.std_err())?;
-        let id = RecoverableId::new(data.get_u8(pos + 1 + 64))
+        let signature =
+            Signature::try_from(&data[pos + SIG_DATA_POS..pos + SIG_DATA_POS + SIG_DATA_LEN])
+                .or_else(|_| ContractError::CannotDecodeSignature.std_err())?;
+        let id = RecoverableId::new(data.get_u8(pos + SIG_RECOVERY_POS))
             .or_else(|_| ContractError::CannotDecodeSignature.std_err())?;
         let recoverable_signature = RecoverableSignature::new(&signature, id)
             .or_else(|_| ContractError::CannotDecodeSignature.std_err())?;
@@ -184,9 +200,14 @@ fn handle_submit_vaa<S: Storage, A: Api, Q: Querier>(
         pos += SIGNATURE_LEN;
     }
 
+    const VAA_ACTION_POS: usize = 4;
+    const VAA_PAYLOAD_POS: usize = 5;
     // Signatures valid, apply VAA
-    let action = data.get_u8(body_offset + 4);
-    let payload = &data[body_offset + 5..];
+    if body_offset + VAA_PAYLOAD_POS > data.len() {
+        return ContractError::InvalidVAA.std_err();
+    }
+    let action = data.get_u8(body_offset + VAA_ACTION_POS);
+    let payload = &data[body_offset + VAA_PAYLOAD_POS..];
 
     let result = match action {
         0x01 => {
@@ -251,25 +272,39 @@ fn vaa_update_guardian_set<S: Storage, A: Api, Q: Querier>(
     5   [][20]uint8 guardian addresses
     */
 
+    const GUARDIAN_INDEX_POS: usize = 0;
+    const LENGTH_POS: usize = 4;
+    const ADDRESS_POS: usize = 5;
+    const ADDRESS_LEN: usize = 20;
+
+    if ADDRESS_POS >= data.len() {
+        return ContractError::InvalidVAA.std_err();
+    }
+
     let mut state = config_read(&deps.storage).load()?;
 
-    let new_guardian_set_index = data.get_u32(0);
+    let new_guardian_set_index = data.get_u32(GUARDIAN_INDEX_POS);
 
     if new_guardian_set_index != state.guardian_set_index + 1 {
         return ContractError::GuardianSetIndexIncreaseError.std_err();
     }
-    let len = data.get_u8(4);
+    let len = data.get_u8(LENGTH_POS);
 
     let mut new_guardian_set = GuardianSetInfo {
         addresses: vec![],
         expiration_time: 0,
     };
-    let mut pos = 5;
+    let mut pos = ADDRESS_POS;
     for _ in 0..len {
+
+        if pos + ADDRESS_LEN > data.len() {
+            return ContractError::InvalidVAA.std_err();
+        }
+
         new_guardian_set.addresses.push(GuardianAddress {
-            bytes: data[pos..pos + 20].to_vec().into(),
+            bytes: data[pos..pos + ADDRESS_LEN].to_vec().into(),
         });
-        pos += 20;
+        pos += ADDRESS_LEN;
     }
 
     let old_guardian_set_index = state.guardian_set_index;
@@ -286,7 +321,6 @@ fn vaa_update_guardian_set<S: Storage, A: Api, Q: Querier>(
     old_guardian_set.expiration_time = env.block.time + state.guardian_set_expirity;
     guardian_set_set(&mut deps.storage, old_guardian_set_index, &old_guardian_set)?;
 
-    // TODO: Apply new guardian set
     Ok(HandleResponse {
         messages: vec![],
         log: vec![
@@ -314,13 +348,25 @@ fn vaa_transfer<S: Storage, A: Api, Q: Querier>(
     103 uint8 decimals
     104 uint256 amount */
 
-    let source_chain = data.get_u8(4);
-    let target_chain = data.get_u8(5);
+    const SOURCE_CHAIN_POS: usize = 4;
+    const TARGET_CHAIN_POS: usize = 5;
+    const TARGET_ADDRESS_POS: usize = 38;
+    const TOKEN_CHAIN_POS: usize = 70;
+    const TOKEN_ADDRESS_POS: usize = 71;
+    const AMOUNT_POS: usize = 104;
+    const PAYLOAD_LEN: usize = 136;
 
-    let target_address = data.get_address(38);
+    if PAYLOAD_LEN > data.len() {
+        return ContractError::InvalidVAA.std_err();
+    }
 
-    let token_chain = data.get_u8(70);
-    let (not_supported_amount, amount) = data.get_u256(104);
+    let source_chain = data.get_u8(SOURCE_CHAIN_POS);
+    let target_chain = data.get_u8(TARGET_CHAIN_POS);
+
+    let target_address = data.get_address(TARGET_ADDRESS_POS);
+
+    let token_chain = data.get_u8(TOKEN_CHAIN_POS);
+    let (not_supported_amount, amount) = data.get_u256(AMOUNT_POS);
 
     // Check high 128 bit of amount value to be empty
     if not_supported_amount != 0 {
@@ -338,7 +384,7 @@ fn vaa_transfer<S: Storage, A: Api, Q: Querier>(
     }
 
     if token_chain != CHAIN_ID {
-        let asset_address = data.get_bytes32(71);
+        let asset_address = data.get_bytes32(TOKEN_ADDRESS_POS);
         let asset_id = build_asset_id(token_chain, asset_address);
 
         let mut messages: Vec<CosmosMsg> = vec![];
@@ -394,7 +440,7 @@ fn vaa_transfer<S: Storage, A: Api, Q: Querier>(
             data: None,
         })
     } else {
-        let token_address = data.get_address(71);
+        let token_address = data.get_address(TOKEN_ADDRESS_POS);
 
         Ok(HandleResponse {
             messages: vec![CosmosMsg::Wasm(WasmMsg::Execute {
@@ -405,7 +451,7 @@ fn vaa_transfer<S: Storage, A: Api, Q: Querier>(
                 })?,
                 send: vec![],
             })],
-            log: vec![], // TODO: Add log entries
+            log: vec![],
             data: None,
         })
     }
@@ -677,7 +723,6 @@ mod tests {
         env.block.time = unix_timestamp();
         let res = init(deps, env, init_msg).unwrap();
         assert_eq!(0, res.messages.len());
-        // TODO: Query and check contract state and guardians storage
     }
 
     fn submit_msg<S: Storage, A: Api, Q: Querier>(
