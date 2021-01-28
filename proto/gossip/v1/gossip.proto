@@ -27,8 +27,10 @@ message Heartbeat {
   }
   repeated Network networks = 4;
 
+  // Human-readable representation of the current bridge node release.
+  string version = 5;
+
   // TODO: include statement of gk public key?
-  // TODO: software version/release
 }
 
 // A SignedObservation is a signed statement by a given guardian node

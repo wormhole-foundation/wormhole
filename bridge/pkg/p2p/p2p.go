@@ -3,6 +3,7 @@ package p2p
 import (
 	"context"
 	"fmt"
+	"github.com/certusone/wormhole/bridge/pkg/version"
 	"github.com/prometheus/client_golang/prometheus"
 	"strings"
 	"time"
@@ -191,6 +192,7 @@ func Run(obsvC chan *gossipv1.SignedObservation,
 							NodeName:  nodeName,
 							Counter:   ctr,
 							Timestamp: time.Now().UnixNano(),
+							Version:   version.Version(),
 						}}}
 
 					b, err := proto.Marshal(&msg)

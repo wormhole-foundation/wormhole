@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/certusone/wormhole/bridge/pkg/version"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -18,6 +19,15 @@ var cfgFile string
 var rootCmd = &cobra.Command{
 	Use:   "guardiand",
 	Short: "Wormhole bridge server",
+}
+
+// Top-level version subcommand
+var versionCmd = &cobra.Command{
+	Use:   "version",
+	Short: "Display binary version information",
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Println(version.Version())
+	},
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
@@ -37,6 +47,7 @@ func init() {
 	rootCmd.AddCommand(guardiand.KeygenCmd)
 	rootCmd.AddCommand(guardiand.AdminCmd)
 	rootCmd.AddCommand(guardiand.TemplateCmd)
+	rootCmd.AddCommand(versionCmd)
 }
 
 // initConfig reads in config file and ENV variables if set.

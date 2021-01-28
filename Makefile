@@ -9,6 +9,8 @@ PREFIX ?= /usr/local
 OUT = build
 BIN = $(OUT)/bin
 
+VERSION = $(shell git describe --tags --dirty)
+
 .PHONY: dirs
 dirs: Makefile
 	@mkdir -p $(BIN)
@@ -27,7 +29,9 @@ bridge: $(BIN)/guardiand
 
 .PHONY: $(BIN)/guardiand
 $(BIN)/guardiand: dirs generate
-	cd bridge && go build -mod=readonly -o ../$(BIN)/guardiand github.com/certusone/wormhole/bridge
+	cd bridge && go build -ldflags "-X github.com/certusone/wormhole/bridge/pkg/version.version=${VERSION}" \
+	  -mod=readonly -o ../$(BIN)/guardiand \
+	  github.com/certusone/wormhole/bridge
 
 .PHONY: agent
 agent: $(BIN)/guardiand-solana-agent
