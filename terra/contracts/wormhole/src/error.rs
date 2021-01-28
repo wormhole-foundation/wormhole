@@ -90,6 +90,10 @@ pub enum ContractError {
     /// Wrapped asset not found in the registry
     #[error("AssetNotFound")]
     AssetNotFound,
+
+    /// Generic error when there is a problem with VAA structure
+    #[error("InvalidVAA")]
+    InvalidVAA,
 }
 
 impl ContractError {
