@@ -164,7 +164,7 @@ fn pack_sig_verification_txs<'a>(
         .get_account_with_commitment(
             &guardian_key,
             CommitmentConfig {
-                commitment: CommitmentLevel::Single,
+                commitment: CommitmentLevel::Processed,
             },
         )
         .unwrap()
@@ -293,11 +293,11 @@ fn sign_and_send(
     rpc.send_and_confirm_transaction_with_spinner_and_config(
         &tx,
         CommitmentConfig {
-            commitment: CommitmentLevel::Single,
+            commitment: CommitmentLevel::Processed,
         },
         RpcSendTransactionConfig {
             skip_preflight: false,
-            preflight_commitment: Some(CommitmentLevel::SingleGossip),
+            preflight_commitment: Some(CommitmentLevel::Processed),
             encoding: None,
         },
     )
