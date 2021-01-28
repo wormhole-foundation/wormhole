@@ -98,7 +98,7 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 					start = time.Now()
 
 					accounts, err := rpcClient.GetProgramAccounts(rCtx, s.bridge, &rpc.GetProgramAccountsOpts{
-						Commitment: rpc.CommitmentMax,
+						Commitment: rpc.CommitmentMax, // TODO: deprecated, use Finalized
 						Filters: []rpc.RPCFilter{
 							{
 								DataSize: 1184, // Search for TransferOutProposal accounts
