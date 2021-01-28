@@ -426,6 +426,8 @@ pub fn post_vaa(
             accounts.push(AccountMeta::new(guardian_set_key, false));
         }
         VAABody::UpgradeContract(u) => {
+            // Make program writeable
+            accounts[0] = AccountMeta::new(*program_id, false);
             accounts.push(AccountMeta::new(u.buffer, false));
             let (programdata_address, _) = Pubkey::find_program_address(&[program_id.as_ref()], &solana_program::bpf_loader_upgradeable::id());
             accounts.push(AccountMeta::new(programdata_address, false));
