@@ -46,7 +46,7 @@ func runKeygen(cmd *cobra.Command, args []string) {
 		log.Fatalf("failed to generate key: %v", err)
 	}
 
-	err = writeGuardianKey(gk, *keyDescription, args[0])
+	err = writeGuardianKey(gk, *keyDescription, args[0], false)
 	if err != nil {
 		log.Fatalf("failed to write key: %v", err)
 	}
@@ -79,6 +79,10 @@ func loadGuardianKey(filename string) (*ecdsa.PrivateKey, error) {
 		return nil, fmt.Errorf("failed to deserialize protobuf: %w", err)
 	}
 
+	if !*unsafeDevMode && m.UnsafeDeterministicKey {
+		return nil, errors.New("refusing to use deterministic key in production")
+	}
+
 	gk, err := ethcrypto.ToECDSA(m.Data)
 	if err != nil {
 		return nil, fmt.Errorf("failed to deserialize raw key data: %w", err)
@@ -88,13 +92,14 @@ func loadGuardianKey(filename string) (*ecdsa.PrivateKey, error) {
 }
 
 // writeGuardianKey serializes a guardian key and writes it to disk.
-func writeGuardianKey(key *ecdsa.PrivateKey, description string, filename string) error {
+func writeGuardianKey(key *ecdsa.PrivateKey, description string, filename string, unsafe bool) error {
 	if _, err := os.Stat(filename); !os.IsNotExist(err) {
 		return errors.New("refusing to override existing key")
 	}
 
 	m := &nodev1.GuardianKey{
-		Data: ethcrypto.FromECDSA(key),
+		Data:                   ethcrypto.FromECDSA(key),
+		UnsafeDeterministicKey: unsafe,
 	}
 
 	// The private key is a really long-lived piece of data, and we really want to use the stable binary

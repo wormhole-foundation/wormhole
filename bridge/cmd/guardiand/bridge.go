@@ -311,7 +311,7 @@ func runBridge(cmd *cobra.Command, args []string) {
 			logger.Fatal("failed to generate devnet guardian key", zap.Error(err))
 		}
 
-		err = writeGuardianKey(gk, "auto-generated deterministic devnet key", *bridgeKeyPath)
+		err = writeGuardianKey(gk, "auto-generated deterministic devnet key", *bridgeKeyPath, true)
 		if err != nil {
 			logger.Fatal("failed to write devnet guardian key", zap.Error(err))
 		}
