@@ -16,6 +16,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/certusone/wormhole/bridge/pkg/devnet"
+	"github.com/certusone/wormhole/bridge/pkg/ethereum"
 	"github.com/certusone/wormhole/bridge/pkg/ethereum/abi"
 	"github.com/certusone/wormhole/bridge/pkg/ethereum/erc20"
 	"github.com/certusone/wormhole/bridge/pkg/vaa"
@@ -108,7 +109,7 @@ func testEthereumLockup(t *testing.T, ctx context.Context, ec *ethclient.Client,
 }
 
 func testEthereumToTerraLockup(t *testing.T, ctx context.Context, ec *ethclient.Client, kt *bind.TransactOpts,
-	tc *TerraClient, tokenAddr common.Address, isNative bool, amount int64, precisionLoss int) {
+	tokenAddr common.Address, isNative bool, amount int64, precisionLoss int) {
 
 	// Bridge client
 	ethBridge, err := abi.NewAbi(devnet.GanacheBridgeContractAddress, ec)
@@ -125,15 +126,21 @@ func testEthereumToTerraLockup(t *testing.T, ctx context.Context, ec *ethclient.
 	// Store balance of source ERC20 token
 	beforeErc20, err := token.BalanceOf(nil, devnet.GanacheClientDefaultAccountAddress)
 	if err != nil {
+		beforeErc20 = new(big.Int)
 		t.Log(err) // account may not yet exist, defaults to 0
 	}
 	t.Logf("ERC20 balance: %v", beforeErc20)
 
 	// Store balance of destination CW20 token
-	paddedTokenAddress := padAddress(tokenAddr)
-	terraToken := devnet.TerraTokenAddress
+	paddedTokenAddress := ethereum.PadAddress(tokenAddr)
+	var terraToken string
 	if isNative {
 		terraToken, err = getAssetAddress(ctx, devnet.TerraBridgeAddress, vaa.ChainIDEthereum, paddedTokenAddress[:])
+		if err != nil {
+			t.Log(err)
+		}
+	} else {
+		terraToken = devnet.TerraTokenAddress
 	}
 
 	// Get balance if deployed

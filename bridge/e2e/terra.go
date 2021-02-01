@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/certusone/wormhole/bridge/pkg/devnet"
+	"github.com/certusone/wormhole/bridge/pkg/ethereum"
 	"github.com/certusone/wormhole/bridge/pkg/ethereum/erc20"
 	"github.com/certusone/wormhole/bridge/pkg/vaa"
 	"github.com/ethereum/go-ethereum/common"
@@ -170,15 +171,6 @@ func getAssetAddress(ctx context.Context, contract string, chain uint8, asset []
 	return gjson.Get(json, "result.address").String(), nil
 }
 
-func padAddress(address common.Address) vaa.Address {
-	paddedAddress := common.LeftPadBytes(address[:], 32)
-
-	addr := vaa.Address{}
-	copy(addr[:], paddedAddress)
-
-	return addr
-}
-
 func terraQuery(ctx context.Context, contract string, query string) (string, error) {
 
 	requestURL := fmt.Sprintf("%s/wasm/contracts/%s/store?query_msg=%s", devnet.TerraLCDURL, contract, url.QueryEscape(query))
@@ -218,6 +210,11 @@ func waitTerraAsset(t *testing.T, ctx context.Context, contract string, chain ui
 			t.Log(err)
 			return false, nil
 		}
+
+		if address == "" {
+			return false, nil
+		}
+		t.Logf("Returning asset: %s", address)
 
 		assetAddress = address
 		return true, nil
@@ -348,7 +345,7 @@ func testTerraToEthLockup(t *testing.T, ctx context.Context, tc *TerraClient,
 	beforeCw20, err := getTerraBalance(ctx, tokenAddr)
 	if err != nil {
 		t.Log(err) // account may not yet exist, defaults to 0
-		beforeCw20 = big.NewInt(0)
+		beforeCw20 = new(big.Int)
 	}
 	t.Logf("CW20 balance: %v", beforeCw20)
 
@@ -356,7 +353,7 @@ func testTerraToEthLockup(t *testing.T, ctx context.Context, tc *TerraClient,
 	beforeErc20, err := token.BalanceOf(nil, devnet.GanacheClientDefaultAccountAddress)
 	if err != nil {
 		t.Log(err) // account may not yet exist, defaults to 0
-		beforeErc20 = big.NewInt(0)
+		beforeErc20 = new(big.Int)
 	}
 	t.Logf("ERC20 balance: %v", beforeErc20)
 
@@ -368,7 +365,7 @@ func testTerraToEthLockup(t *testing.T, ctx context.Context, tc *TerraClient,
 		// token amount
 		new(big.Int).SetInt64(amount),
 		// recipient address on target chain
-		padAddress(devnet.GanacheClientDefaultAccountAddress),
+		ethereum.PadAddress(devnet.GanacheClientDefaultAccountAddress),
 		// target chain
 		vaa.ChainIDEthereum,
 		// random nonce

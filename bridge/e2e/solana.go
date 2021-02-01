@@ -119,17 +119,21 @@ func testSolanaLockup(t *testing.T, ctx context.Context, ec *ethclient.Client, c
 	waitSPLBalance(t, ctx, c, sourceAcct, beforeSPL, -int64(amount))
 }
 
-func testSolanaToTerraLockup(t *testing.T, ctx context.Context, tc *TerraClient, c *kubernetes.Clientset,
+func testSolanaToTerraLockup(t *testing.T, ctx context.Context, c *kubernetes.Clientset,
 	sourceAcct string, tokenAddr string, isNative bool, amount int, precisionGain int) {
 
 	tokenSlice, err := base58.Decode(tokenAddr)
 	if err != nil {
 		t.Fatal(err)
 	}
-	terraToken := devnet.TerraTokenAddress
+	var terraToken string
 	if isNative {
-		terraToken = ""
 		terraToken, err = getAssetAddress(ctx, devnet.TerraBridgeAddress, vaa.ChainIDSolana, tokenSlice)
+		if err != nil {
+			t.Log(err)
+		}
+	} else {
+		terraToken = devnet.TerraTokenAddress
 	}
 
 	// Get balance if deployed

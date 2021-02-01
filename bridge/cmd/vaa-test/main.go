@@ -13,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 
 	"github.com/certusone/wormhole/bridge/pkg/devnet"
+	"github.com/certusone/wormhole/bridge/pkg/ethereum"
 	"github.com/certusone/wormhole/bridge/pkg/vaa"
 )
 
@@ -39,7 +40,7 @@ func main() {
 			SourceChain:   1,
 			TargetChain:   2,
 			SourceAddress: vaa.Address{2, 1, 4},
-			TargetAddress: padAddress(devnet.GanacheClientDefaultAccountAddress),
+			TargetAddress: ethereum.PadAddress(devnet.GanacheClientDefaultAccountAddress),
 			Asset: &vaa.AssetMeta{
 				Chain:    vaa.ChainIDSolana,
 				Address:  hexToAddress("0x347ef34687bdc9f189e87a9200658d9c40e9988"),
@@ -58,7 +59,7 @@ func main() {
 			SourceChain:   1,
 			TargetChain:   2,
 			SourceAddress: vaa.Address{2, 1, 4},
-			TargetAddress: padAddress(devnet.GanacheClientDefaultAccountAddress),
+			TargetAddress: ethereum.PadAddress(devnet.GanacheClientDefaultAccountAddress),
 			Asset: &vaa.AssetMeta{
 				Chain:    vaa.ChainIDEthereum,
 				Address:  hexToAddress("0xd833215cbcc3f914bd1c9ece3ee7bf8b14f841bb"),
@@ -101,7 +102,7 @@ func main() {
 			SourceChain:   1,
 			TargetChain:   2,
 			SourceAddress: vaa.Address{2, 1, 4},
-			TargetAddress: padAddress(devnet.GanacheClientDefaultAccountAddress),
+			TargetAddress: ethereum.PadAddress(devnet.GanacheClientDefaultAccountAddress),
 			Asset: &vaa.AssetMeta{
 				Chain:    vaa.ChainIDSolana,
 				Address:  hexToAddress("0x347ef34687bdc9f189e87a9200658d9c40e9988"),
@@ -120,7 +121,7 @@ func main() {
 			SourceChain:   1,
 			TargetChain:   2,
 			SourceAddress: vaa.Address{2, 1, 5},
-			TargetAddress: padAddress(devnet.GanacheClientDefaultAccountAddress),
+			TargetAddress: ethereum.PadAddress(devnet.GanacheClientDefaultAccountAddress),
 			Asset: &vaa.AssetMeta{
 				Chain:    vaa.ChainIDSolana,
 				Address:  hexToAddress("0x347ef34687bdc9f189e87a9200658d9c40e9988"),
@@ -139,7 +140,7 @@ func main() {
 			SourceChain:   1,
 			TargetChain:   2,
 			SourceAddress: vaa.Address{2, 1, 5},
-			TargetAddress: padAddress(devnet.GanacheClientDefaultAccountAddress),
+			TargetAddress: ethereum.PadAddress(devnet.GanacheClientDefaultAccountAddress),
 			Asset: &vaa.AssetMeta{
 				Chain:    vaa.ChainIDSolana,
 				Address:  hexToAddress("0x347ef34687bdc9f189e87a9200658d9c40e9988"),
@@ -158,7 +159,7 @@ func main() {
 			SourceChain:   1,
 			TargetChain:   2,
 			SourceAddress: vaa.Address{2, 1, 5},
-			TargetAddress: padAddress(devnet.GanacheClientDefaultAccountAddress),
+			TargetAddress: ethereum.PadAddress(devnet.GanacheClientDefaultAccountAddress),
 			Asset: &vaa.AssetMeta{
 				Chain:    vaa.ChainIDSolana,
 				Address:  hexToAddress("0x347ef34687bdc9f189e87a9200658d9c40e9988"),
@@ -194,7 +195,7 @@ func main() {
 			SourceChain:   1,
 			TargetChain:   2,
 			SourceAddress: vaa.Address{2, 1, 5},
-			TargetAddress: padAddress(devnet.GanacheClientDefaultAccountAddress),
+			TargetAddress: ethereum.PadAddress(devnet.GanacheClientDefaultAccountAddress),
 			Asset: &vaa.AssetMeta{
 				Chain:    vaa.ChainIDSolana,
 				Address:  hexToAddress("0x347ef34687bdc9f189e87a9200658d9c40e9988"),
@@ -213,7 +214,7 @@ func main() {
 			SourceChain:   1,
 			TargetChain:   2,
 			SourceAddress: vaa.Address{2, 1, 5},
-			TargetAddress: padAddress(devnet.GanacheClientDefaultAccountAddress),
+			TargetAddress: ethereum.PadAddress(devnet.GanacheClientDefaultAccountAddress),
 			Asset: &vaa.AssetMeta{
 				Chain:    vaa.ChainIDSolana,
 				Address:  hexToAddress("0x347ef34687bdc9f189e87a9200658d9c40e9988"),
@@ -253,14 +254,5 @@ func generateKeys(n int) (keys []*ecdsa.PrivateKey) {
 
 func hexToAddress(hex string) vaa.Address {
 	hexAddr := common.HexToAddress(hex)
-	return padAddress(hexAddr)
-}
-
-func padAddress(address common.Address) vaa.Address {
-	paddedAddress := common.LeftPadBytes(address[:], 32)
-
-	addr := vaa.Address{}
-	copy(addr[:], paddedAddress)
-
-	return addr
+	return ethereum.PadAddress(hexAddr)
 }
