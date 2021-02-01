@@ -65,7 +65,7 @@ func setup(t *testing.T) (*kubernetes.Clientset, *ethclient.Client, *bind.Transa
 // used concurrently as they have monotonically increasing nonces that would conflict.
 // Either use different Ethereum account, or do not run Ethereum tests in parallel.
 
-/* func TestEndToEnd_SOL_ETH(t *testing.T) {
+func TestEndToEnd_SOL_ETH(t *testing.T) {
 	c, ec, kt, _ := setup(t)
 
 	t.Run("[SOL] Native -> [ETH] Wrapped", func(t *testing.T) {
@@ -124,7 +124,7 @@ func setup(t *testing.T) (*kubernetes.Clientset, *ethclient.Client, *bind.Transa
 			9,
 		)
 	})
-} */
+}
 
 func TestEndToEnd_SOL_Terra(t *testing.T) {
 	c, _, _, tc := setup(t)

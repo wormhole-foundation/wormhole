@@ -211,6 +211,7 @@ func waitTerraAsset(t *testing.T, ctx context.Context, contract string, chain ui
 			return false, nil
 		}
 
+		// Check the case if request was successful, but asset address is not yet in the registry
 		if address == "" {
 			return false, nil
 		}
