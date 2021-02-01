@@ -12,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 
+	"github.com/certusone/wormhole/bridge/pkg/ethereum"
 	"github.com/certusone/wormhole/bridge/pkg/vaa"
 )
 
@@ -322,14 +323,5 @@ func generateKeys(n int) (keys []*ecdsa.PrivateKey) {
 
 func hexToAddress(hex string) vaa.Address {
 	hexAddr := common.HexToAddress(hex)
-	return padAddress(hexAddr)
-}
-
-func padAddress(address common.Address) vaa.Address {
-	paddedAddress := common.LeftPadBytes(address[:], 32)
-
-	addr := vaa.Address{}
-	copy(addr[:], paddedAddress)
-
-	return addr
+	return ethereum.PadAddress(hexAddr)
 }

@@ -119,14 +119,22 @@ func testSolanaLockup(t *testing.T, ctx context.Context, ec *ethclient.Client, c
 	waitSPLBalance(t, ctx, c, sourceAcct, beforeSPL, -int64(amount))
 }
 
-func testSolanaToTerraLockup(t *testing.T, ctx context.Context, tc *TerraClient, c *kubernetes.Clientset,
-	sourceAcct string, tokenAddr string, amount int, precisionGain int) {
+func testSolanaToTerraLockup(t *testing.T, ctx context.Context, c *kubernetes.Clientset,
+	sourceAcct string, tokenAddr string, isNative bool, amount int, precisionGain int) {
 
 	tokenSlice, err := base58.Decode(tokenAddr)
 	if err != nil {
 		t.Fatal(err)
 	}
-	terraToken, err := getAssetAddress(ctx, devnet.TerraBridgeAddress, vaa.ChainIDSolana, tokenSlice)
+	var terraToken string
+	if isNative {
+		terraToken, err = getAssetAddress(ctx, devnet.TerraBridgeAddress, vaa.ChainIDSolana, tokenSlice)
+		if err != nil {
+			t.Log(err)
+		}
+	} else {
+		terraToken = devnet.TerraTokenAddress
+	}
 
 	// Get balance if deployed
 	beforeCw20, err := getTerraBalance(ctx, terraToken)
@@ -168,5 +176,9 @@ func testSolanaToTerraLockup(t *testing.T, ctx context.Context, tc *TerraClient,
 	waitSPLBalance(t, ctx, c, sourceAcct, beforeSPL, -int64(amount))
 
 	// Destination account increases by the full amount.
-	waitTerraUnknownBalance(t, ctx, devnet.TerraBridgeAddress, vaa.ChainIDSolana, tokenSlice, beforeCw20, int64(float64(amount)*math.Pow10(precisionGain)))
+	if isNative {
+		waitTerraUnknownBalance(t, ctx, devnet.TerraBridgeAddress, vaa.ChainIDSolana, tokenSlice, beforeCw20, int64(float64(amount)*math.Pow10(precisionGain)))
+	} else {
+		waitTerraBalance(t, ctx, devnet.TerraTokenAddress, beforeCw20, int64(float64(amount)*math.Pow10(precisionGain)))
+	}
 }

@@ -3,10 +3,11 @@ package ethereum
 import (
 	"context"
 	"fmt"
-	"github.com/prometheus/client_golang/prometheus"
 	"math/big"
 	"sync"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	eth_common "github.com/ethereum/go-ethereum/common"
