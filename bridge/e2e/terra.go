@@ -9,11 +9,15 @@ import (
 	"math"
 	"math/big"
 	"net/http"
+	"net/url"
 	"testing"
 	"time"
 
 	"github.com/certusone/wormhole/bridge/pkg/devnet"
+	"github.com/certusone/wormhole/bridge/pkg/ethereum/erc20"
 	"github.com/certusone/wormhole/bridge/pkg/vaa"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/tendermint/tendermint/libs/rand"
 	"github.com/terra-project/terra.go/client"
 	"github.com/terra-project/terra.go/key"
@@ -166,9 +170,18 @@ func getAssetAddress(ctx context.Context, contract string, chain uint8, asset []
 	return gjson.Get(json, "result.address").String(), nil
 }
 
+func padAddress(address common.Address) vaa.Address {
+	paddedAddress := common.LeftPadBytes(address[:], 32)
+
+	addr := vaa.Address{}
+	copy(addr[:], paddedAddress)
+
+	return addr
+}
+
 func terraQuery(ctx context.Context, contract string, query string) (string, error) {
 
-	requestURL := fmt.Sprintf("%s/wasm/contracts/%s/store?query_msg=%s", devnet.TerraLCDURL, contract, query)
+	requestURL := fmt.Sprintf("%s/wasm/contracts/%s/store?query_msg=%s", devnet.TerraLCDURL, contract, url.QueryEscape(query))
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, requestURL, nil)
 	if err != nil {
@@ -193,21 +206,21 @@ func terraQuery(ctx context.Context, contract string, query string) (string, err
 
 // waitTerraAsset waits for asset contract to be deployed on terra
 func waitTerraAsset(t *testing.T, ctx context.Context, contract string, chain uint8, asset []byte) (string, error) {
-	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 90*time.Second)
 	defer cancel()
 
 	assetAddress := ""
 
-	err := wait.PollUntil(1*time.Second, func() (bool, error) {
+	err := wait.PollUntil(3*time.Second, func() (bool, error) {
 
 		address, err := getAssetAddress(ctx, contract, chain, asset)
 		if err != nil {
 			t.Log(err)
-			return true, nil
+			return false, nil
 		}
 
 		assetAddress = address
-		return false, nil
+		return true, nil
 	}, ctx.Done())
 
 	if err != nil {
@@ -252,10 +265,10 @@ func waitTerraUnknownBalance(t *testing.T, ctx context.Context, contract string,
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 90*time.Second)
 	defer cancel()
 
-	err = wait.PollUntil(1*time.Second, func() (bool, error) {
+	err = wait.PollUntil(3*time.Second, func() (bool, error) {
 
 		after, err := getTerraBalance(ctx, token)
 		if err != nil {
@@ -321,4 +334,55 @@ func testTerraLockup(t *testing.T, ctx context.Context, tc *TerraClient,
 
 	// Source account decreases by the full amount.
 	waitTerraBalance(t, ctx, token, beforeCw20, -int64(amount))
+}
+
+func testTerraToEthLockup(t *testing.T, ctx context.Context, tc *TerraClient,
+	ec *ethclient.Client, tokenAddr string, destination common.Address, amount int64, precisionGain int) {
+
+	token, err := erc20.NewErc20(destination, ec)
+	if err != nil {
+		panic(err)
+	}
+
+	// Store balance of source CW20 token
+	beforeCw20, err := getTerraBalance(ctx, tokenAddr)
+	if err != nil {
+		t.Log(err) // account may not yet exist, defaults to 0
+		beforeCw20 = big.NewInt(0)
+	}
+	t.Logf("CW20 balance: %v", beforeCw20)
+
+	/// Store balance of wrapped destination token
+	beforeErc20, err := token.BalanceOf(nil, devnet.GanacheClientDefaultAccountAddress)
+	if err != nil {
+		t.Log(err) // account may not yet exist, defaults to 0
+		beforeErc20 = big.NewInt(0)
+	}
+	t.Logf("ERC20 balance: %v", beforeErc20)
+
+	// Send lockup
+	tx, err := tc.lockAssets(
+		t, ctx,
+		// asset address
+		tokenAddr,
+		// token amount
+		new(big.Int).SetInt64(amount),
+		// recipient address on target chain
+		padAddress(devnet.GanacheClientDefaultAccountAddress),
+		// target chain
+		vaa.ChainIDEthereum,
+		// random nonce
+		rand.Uint32(),
+	)
+	if err != nil {
+		t.Error(err)
+	}
+
+	t.Logf("sent lockup tx: %s", tx.TxHash)
+
+	// Destination account increases by full amount.
+	waitEthBalance(t, ctx, token, beforeErc20, int64(float64(amount)*math.Pow10(precisionGain)))
+
+	// Source account decreases by the full amount.
+	waitTerraBalance(t, ctx, tokenAddr, beforeCw20, -int64(amount))
 }

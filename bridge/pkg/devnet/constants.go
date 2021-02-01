@@ -26,8 +26,9 @@ var (
 	GanacheBridgeContractAddress = common.HexToAddress("0x5b1869D9A4C187F2EAa108f3062412ecf0526b24")
 
 	// ERC20 example tokens.
-	GanacheExampleERC20Token      = common.HexToAddress("0xCfEB869F69431e42cdB54A4F4f105C19C080A601")
-	GanacheExampleERC20WrappedSOL = common.HexToAddress("0xf5b1d8fab1054b9cf7db274126972f97f9d42a11")
+	GanacheExampleERC20Token        = common.HexToAddress("0xCfEB869F69431e42cdB54A4F4f105C19C080A601")
+	GanacheExampleERC20WrappedSOL   = common.HexToAddress("0xf5b1d8fab1054b9cf7db274126972f97f9d42a11")
+	GanacheExampleERC20WrappedTerra = common.HexToAddress("0x62b47a23cd900da982bdbe75aeb891d3ed18cc36")
 )
 
 const (

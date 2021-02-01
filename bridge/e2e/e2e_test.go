@@ -2,16 +2,19 @@ package e2e
 
 import (
 	"context"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"k8s.io/client-go/kubernetes"
 	"testing"
 	"time"
 
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/mr-tron/base58"
+	"k8s.io/client-go/kubernetes"
+
 	"github.com/certusone/wormhole/bridge/pkg/devnet"
+	"github.com/certusone/wormhole/bridge/pkg/vaa"
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
-func setup(t *testing.T) (*kubernetes.Clientset, *ethclient.Client, *bind.TransactOpts) {
+func setup(t *testing.T) (*kubernetes.Clientset, *ethclient.Client, *bind.TransactOpts, *TerraClient) {
 	// List of pods we need in a ready state before we can run tests.
 	want := []string{
 		// Our test guardian set.
@@ -48,7 +51,13 @@ func setup(t *testing.T) (*kubernetes.Clientset, *ethclient.Client, *bind.Transa
 	}
 	kt := devnet.GetKeyedTransactor(context.Background())
 
-	return c, ec, kt
+	// Terra client
+	tc, err := NewTerraClient()
+	if err != nil {
+		t.Fatalf("creating devnet terra client failed: %v", err)
+	}
+
+	return c, ec, kt, tc
 }
 
 // Careful about parallel tests - accounts on some chains like Ethereum cannot be
@@ -56,7 +65,7 @@ func setup(t *testing.T) (*kubernetes.Clientset, *ethclient.Client, *bind.Transa
 // Either use different Ethereum account, or do not run Ethereum tests in parallel.
 
 func TestEndToEnd_SOL_ETH(t *testing.T) {
-	c, ec, kt := setup(t)
+	c, ec, kt, _ := setup(t)
 
 	t.Run("[SOL] Native -> [ETH] Wrapped", func(t *testing.T) {
 		testSolanaLockup(t, context.Background(), ec, c,
@@ -117,12 +126,7 @@ func TestEndToEnd_SOL_ETH(t *testing.T) {
 }
 
 func TestEndToEnd_SOL_Terra(t *testing.T) {
-	c, _, _ := setup(t)
-
-	tc, err := NewTerraClient()
-	if err != nil {
-		t.Fatalf("creating devnet terra client failed: %v", err)
-	}
+	c, _, _, tc := setup(t)
 
 	t.Run("[Terra] Native -> [SOL] Wrapped", func(t *testing.T) {
 		testTerraLockup(t, context.Background(), tc, c,
@@ -137,7 +141,20 @@ func TestEndToEnd_SOL_Terra(t *testing.T) {
 		)
 	})
 
-	// TODO(https://github.com/certusone/wormhole/issues/164): [SOL] Wrapped -> [Terra] Native
+	t.Run("[SOL] Wrapped -> [Terra] Native", func(t *testing.T) {
+		testSolanaToTerraLockup(t, context.Background(), tc, c,
+			// Source SPL account
+			devnet.SolanaExampleWrappedCWTokenOwningAccount,
+			// Source SPL token
+			devnet.SolanaExampleWrappedCWToken,
+			// Wrapped
+			false,
+			// Amount of SPL token value to transfer.
+			2*devnet.TerraDefaultPrecision,
+			// Same precision - same amount, no precision gained.
+			0,
+		)
+	})
 
 	t.Run("[SOL] Native -> [Terra] Wrapped", func(t *testing.T) {
 		testSolanaToTerraLockup(t, context.Background(), tc, c,
@@ -145,6 +162,8 @@ func TestEndToEnd_SOL_Terra(t *testing.T) {
 			devnet.SolanaExampleTokenOwningAccount,
 			// Source SPL token
 			devnet.SolanaExampleToken,
+			// Native
+			true,
 			// Amount of SPL token value to transfer.
 			50*devnet.SolanaDefaultPrecision,
 			// Same precision - same amount, no precision gained.
@@ -152,7 +171,91 @@ func TestEndToEnd_SOL_Terra(t *testing.T) {
 		)
 	})
 
-	// TODO(https://github.com/certusone/wormhole/issues/164): [Terra] Wrapped -> [SOL] Native
+	t.Run("[Terra] Wrapped -> [SOL] Native", func(t *testing.T) {
+
+		tokenSlice, err := base58.Decode(devnet.SolanaExampleToken)
+		if err != nil {
+			t.Fatal(err)
+		}
+		wrappedAsset, err := getAssetAddress(context.Background(), devnet.TerraBridgeAddress, vaa.ChainIDSolana, tokenSlice)
+
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		testTerraLockup(t, context.Background(), tc, c,
+			// Source wrapped token
+			wrappedAsset,
+			// Destination SPL token account
+			devnet.SolanaExampleTokenOwningAccount,
+			// Amount of Terra token value to transfer.
+			50*devnet.SolanaDefaultPrecision,
+			// Same precision
+			0,
+		)
+	})
 }
 
-// TODO(https://github.com/certusone/wormhole/issues/164): TestEndToEnd_ETH_Terra
+func TestEndToEnd_ETH_Terra(t *testing.T) {
+	_, ec, kt, tc := setup(t)
+
+	t.Run("[Terra] Native -> [ETH] Wrapped", func(t *testing.T) {
+		testTerraToEthLockup(t, context.Background(), tc, ec,
+			// Source CW20 token
+			devnet.TerraTokenAddress,
+			// Destination ETH token
+			devnet.GanacheExampleERC20WrappedTerra,
+			// Amount
+			2*devnet.TerraDefaultPrecision,
+			// Same precision - same amount, no precision gained.
+			0,
+		)
+	})
+
+	t.Run("[ETH] Wrapped -> [Terra] Native", func(t *testing.T) {
+		testEthereumToTerraLockup(t, context.Background(), ec, kt, tc,
+			// Source Ethereum token
+			devnet.GanacheExampleERC20WrappedTerra,
+			// Wrapped
+			false,
+			// Amount of Ethereum token value to transfer.
+			2*devnet.TerraDefaultPrecision,
+			// Same precision
+			0,
+		)
+	})
+
+	t.Run("[ETH] Native -> [Terra] Wrapped", func(t *testing.T) {
+		testEthereumToTerraLockup(t, context.Background(), ec, kt, tc,
+			// Source Ethereum token
+			devnet.GanacheExampleERC20Token,
+			// Native
+			true,
+			// Amount of Ethereum token value to transfer.
+			0.000000012*devnet.ERC20DefaultPrecision,
+			// We lose 9 digits of precision on this path, as the default ERC20 token has 10**18 precision.
+			9,
+		)
+	})
+
+	t.Run("[Terra] Wrapped -> [ETH] Native", func(t *testing.T) {
+
+		paddedTokenAddress := padAddress(devnet.GanacheExampleERC20Token)
+		wrappedAsset, err := getAssetAddress(context.Background(), devnet.TerraBridgeAddress, vaa.ChainIDEthereum, paddedTokenAddress[:])
+
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		testTerraToEthLockup(t, context.Background(), tc, ec,
+			// Source wrapped token
+			wrappedAsset,
+			// Destination ETH token
+			devnet.GanacheExampleERC20Token,
+			// Amount of Terra token value to transfer.
+			0.000000012*1e9, // 10**9 because default ETH precision is 18 and we lost 9 digits on wrapping
+			// We gain 9 digits of precision on Eth.
+			9,
+		)
+	})
+}

@@ -142,6 +142,7 @@ using `kubectl exec solana-devnet-0 -c setup -- cli airdrop solana-devnet:9900` 
 | `0xe78A0F7E598Cc8b0Bb87894B0F60dD2a88d6a8Ab` | Wrapped asset contract                                |
 | `0xCfEB869F69431e42cdB54A4F4f105C19C080A601` | Example ERC20 token                                   |
 | `0xf5b1d8fab1054b9cf7db274126972f97f9d42a11` | Wrapped asset address for the 6qRhs8oA... SPL token   |
+| `0x62b47a23cd900da982bdbe75aeb891d3ed18cc36` | Wrapped asset address for the terra18v... Terra token |
 
 **Terra**
 

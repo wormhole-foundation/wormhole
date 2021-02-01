@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"context"
+	"encoding/hex"
 	"math"
 	"math/big"
 	"testing"
@@ -101,6 +102,81 @@ func testEthereumLockup(t *testing.T, ctx context.Context, ec *ethclient.Client,
 
 	// Destination account increases by full amount.
 	waitSPLBalance(t, ctx, c, destination, beforeSPL, int64(float64(amount)/math.Pow10(precisionLoss)))
+
+	// Source account decreases by the full amount.
+	waitEthBalance(t, ctx, token, beforeErc20, -int64(amount))
+}
+
+func testEthereumToTerraLockup(t *testing.T, ctx context.Context, ec *ethclient.Client, kt *bind.TransactOpts,
+	tc *TerraClient, tokenAddr common.Address, isNative bool, amount int64, precisionLoss int) {
+
+	// Bridge client
+	ethBridge, err := abi.NewAbi(devnet.GanacheBridgeContractAddress, ec)
+	if err != nil {
+		panic(err)
+	}
+
+	// Source token client
+	token, err := erc20.NewErc20(tokenAddr, ec)
+	if err != nil {
+		panic(err)
+	}
+
+	// Store balance of source ERC20 token
+	beforeErc20, err := token.BalanceOf(nil, devnet.GanacheClientDefaultAccountAddress)
+	if err != nil {
+		t.Log(err) // account may not yet exist, defaults to 0
+	}
+	t.Logf("ERC20 balance: %v", beforeErc20)
+
+	// Store balance of destination CW20 token
+	paddedTokenAddress := padAddress(tokenAddr)
+	terraToken := devnet.TerraTokenAddress
+	if isNative {
+		terraToken, err = getAssetAddress(ctx, devnet.TerraBridgeAddress, vaa.ChainIDEthereum, paddedTokenAddress[:])
+	}
+
+	// Get balance if deployed
+	beforeCw20, err := getTerraBalance(ctx, terraToken)
+	if err != nil {
+		beforeCw20 = new(big.Int)
+		t.Log(err) // account may not yet exist, defaults to 0
+	}
+	t.Logf("CW20 balance: %v", beforeCw20)
+
+	// Send lockup
+	dstAddress, err := hex.DecodeString(devnet.TerraMainTestAddressHex)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var dstAddressBytes [32]byte
+	copy(dstAddressBytes[:], dstAddress)
+	tx, err := ethBridge.LockAssets(kt,
+		// asset address
+		tokenAddr,
+		// token amount
+		new(big.Int).SetInt64(amount),
+		// recipient address on target chain
+		dstAddressBytes,
+		// target chain
+		vaa.ChainIDTerra,
+		// random nonce
+		rand.Uint32(),
+		// refund dust?
+		false,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Logf("sent lockup tx: %v", tx.Hash().Hex())
+
+	// Destination account increases by the full amount.
+	if isNative {
+		waitTerraUnknownBalance(t, ctx, devnet.TerraBridgeAddress, vaa.ChainIDEthereum, paddedTokenAddress[:], beforeCw20, int64(float64(amount)/math.Pow10(precisionLoss)))
+	} else {
+		waitTerraBalance(t, ctx, devnet.TerraTokenAddress, beforeCw20, int64(float64(amount)/math.Pow10(precisionLoss)))
+	}
 
 	// Source account decreases by the full amount.
 	waitEthBalance(t, ctx, token, beforeErc20, -int64(amount))

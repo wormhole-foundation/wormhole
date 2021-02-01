@@ -353,6 +353,7 @@ fn vaa_transfer<S: Storage, A: Api, Q: Querier>(
     const TARGET_ADDRESS_POS: usize = 38;
     const TOKEN_CHAIN_POS: usize = 70;
     const TOKEN_ADDRESS_POS: usize = 71;
+    const DECIMALS_POS: usize = 103;
     const AMOUNT_POS: usize = 104;
     const PAYLOAD_LEN: usize = 136;
 
@@ -413,7 +414,7 @@ fn vaa_transfer<S: Storage, A: Api, Q: Querier>(
                     msg: to_binary(&WrappedInit {
                         asset_chain: token_chain,
                         asset_address: asset_address.to_vec().into(),
-                        decimals: data.get_u8(103),
+                        decimals: data.get_u8(DECIMALS_POS),
                         mint: Some(InitMint {
                             recipient: deps
                                 .api
