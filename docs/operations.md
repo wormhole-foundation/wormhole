@@ -216,6 +216,9 @@ You can use a command line argument to expose it publicly: `--statusAddr=[::]:60
 This endpoint returns a 200 OK status code once the Wormhole node is ready to serve requests. A node is
 considered ready as soon as it has successfully connected to all chains and started processing requests.
 
+This is **only for startup signalling** - it will not tell whether it *stopped*
+processing requests at some later point. Use metrics to figure that out.
+
 #### `/metrics`
 
 This endpoint serves [Prometheus metrics](https://prometheus.io/docs/concepts/data_model/) for alerting and
