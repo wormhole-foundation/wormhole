@@ -191,12 +191,15 @@ func (p *Processor) checkDevModeGuardianSetUpdate(ctx context.Context) error {
 				// Submit to Terra
 				go func() {
 					for {
+						timeout, cancel := context.WithTimeout(ctx, 5*time.Second)
 						trxResponse, err := terra.SubmitVAA(timeout, p.terraLCD, p.terraChainID, p.terraContract, p.terraFeePayer, v)
 						if err != nil {
+							cancel()
 							p.logger.Error("failed to submit Terra devnet guardian set change, retrying", zap.Error(err))
 							time.Sleep(1 * time.Second)
 							continue
 						}
+						cancel()
 						p.logger.Info("devnet guardian set change submitted to Terra", zap.Any("trxResponse", trxResponse), zap.Any("vaa", v))
 						break
 					}
