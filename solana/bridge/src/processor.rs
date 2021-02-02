@@ -875,7 +875,7 @@ impl Bridge {
             payer_info,
             program_id,
             &guardian_seed,
-            Some(bridge_info),
+            None,
         )?;
 
         let mut guardian_set_new_data = new_guardian_info.try_borrow_mut_data()?;
