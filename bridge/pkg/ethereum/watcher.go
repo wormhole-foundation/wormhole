@@ -204,7 +204,9 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 				guardianSetChangesConfirmed.Inc()
 
 				msm := time.Now()
+				timeout, cancel = context.WithTimeout(ctx, 15*time.Second)
 				gs, err := caller.GetGuardianSet(&bind.CallOpts{Context: timeout}, ev.NewGuardianIndex)
+				cancel()
 				queryLatency.WithLabelValues("get_guardian_set").Observe(time.Since(msm).Seconds())
 				if err != nil {
 					// We failed to process the guardian set update and are now out of sync with the chain.
