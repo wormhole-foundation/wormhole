@@ -11,26 +11,41 @@ message GossipMessage {
   }
 }
 
-// P2P gossip heartbeats for network introspection purposes.
+// P2P gossip heartbeats for network introspection purposes. ALL FIELDS ARE UNTRUSTED.
 message Heartbeat {
   // The node's arbitrarily chosen, untrusted nodeName.
   string node_name = 1;
   // A monotonic counter that resets to zero on startup.
   int64 counter = 2;
   // UNIX wall time.
-  int64 timestamp = 3;  // TODO: use this
+  int64 timestamp = 3;
 
-  // Consensus heights on connected networks
-  message Network {// TODO: use this
+  message Network {
+    // Canonical chain ID.
     uint32 id = 1;
+    // Consensus height of the node.
     int64 height = 2;
+    // Chain-specific human-readable representation of the bridge contract address.
+    string bridge_address = 3;
+
+    // Fee payer account for this network, if present. Some networks like Ethereum do not use fee payer accounts.
+    message FeePayer {
+      // The account's on-chain balance.
+      int64 balance = 1;
+      // Chain-specific human-readable representation of the fee payer account's address.
+      string address = 2;
+    }
+    FeePayer fee_payer = 4;
   }
   repeated Network networks = 4;
 
   // Human-readable representation of the current bridge node release.
   string version = 5;
 
-  // TODO: include statement of gk public key?
+  // Human-readable representation of the guardian key's address.
+  string guardian_addr = 6;
+
+  // TODO: include signed statement of gk public key?
 }
 
 // A SignedObservation is a signed statement by a given guardian node

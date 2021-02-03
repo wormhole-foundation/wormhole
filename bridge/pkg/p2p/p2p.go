@@ -187,18 +187,27 @@ func Run(obsvC chan *gossipv1.SignedObservation,
 				case <-ctx.Done():
 					return
 				case <-tick.C:
+					DefaultRegistry.mu.Lock()
+					networks := make([]*gossipv1.Heartbeat_Network, 0, len(DefaultRegistry.networkStats))
+					for _, v := range DefaultRegistry.networkStats {
+						networks = append(networks, v)
+					}
+
 					msg := gossipv1.GossipMessage{Message: &gossipv1.GossipMessage_Heartbeat{
 						Heartbeat: &gossipv1.Heartbeat{
-							NodeName:  nodeName,
-							Counter:   ctr,
-							Timestamp: time.Now().UnixNano(),
-							Version:   version.Version(),
+							NodeName:     nodeName,
+							Counter:      ctr,
+							Timestamp:    time.Now().UnixNano(),
+							Networks:     networks,
+							Version:      version.Version(),
+							GuardianAddr: DefaultRegistry.guardianAddress,
 						}}}
 
 					b, err := proto.Marshal(&msg)
 					if err != nil {
 						panic(err)
 					}
+					DefaultRegistry.mu.Unlock()
 
 					err = th.Publish(ctx, b)
 					if err != nil {

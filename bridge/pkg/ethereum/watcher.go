@@ -3,6 +3,8 @@ package ethereum
 import (
 	"context"
 	"fmt"
+	"github.com/certusone/wormhole/bridge/pkg/p2p"
+	gossipv1 "github.com/certusone/wormhole/bridge/pkg/proto/gossip/v1"
 	"math/big"
 	"sync"
 	"time"
@@ -89,6 +91,11 @@ func NewEthBridgeWatcher(url string, bridge eth_common.Address, minConfirmations
 }
 
 func (e *EthBridgeWatcher) Run(ctx context.Context) error {
+	// Initialize gossip metrics (we want to broadcast the address even if we're not yet syncing)
+	p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDEthereum, &gossipv1.Heartbeat_Network{
+		BridgeAddress: e.bridge.Hex(),
+	})
+
 	timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 	c, err := ethclient.DialContext(timeout, e.url)
@@ -244,6 +251,10 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 				logger.Info("processing new header", zap.Stringer("block", ev.Number))
 				currentEthHeight.Set(float64(ev.Number.Int64()))
 				readiness.SetReady(common.ReadinessEthSyncing)
+				p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDEthereum, &gossipv1.Heartbeat_Network{
+					Height:        ev.Number.Int64(),
+					BridgeAddress: e.bridge.Hex(),
+				})
 
 				e.pendingLocksGuard.Lock()
 

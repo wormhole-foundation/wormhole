@@ -6,11 +6,14 @@ import (
 	"encoding/binary"
 	"fmt"
 	"github.com/certusone/wormhole/bridge/pkg/common"
+	"github.com/certusone/wormhole/bridge/pkg/p2p"
+	gossipv1 "github.com/certusone/wormhole/bridge/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/bridge/pkg/supervisor"
 	"github.com/certusone/wormhole/bridge/pkg/vaa"
 	"github.com/dfuse-io/solana-go"
 	"github.com/dfuse-io/solana-go/rpc"
 	eth_common "github.com/ethereum/go-ethereum/common"
+	"github.com/mr-tron/base58"
 	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/zap"
 	"math/big"
@@ -65,6 +68,12 @@ func NewSolanaWatcher(wsUrl, rpcUrl string, bridgeAddress solana.PublicKey, lock
 }
 
 func (s *SolanaWatcher) Run(ctx context.Context) error {
+	// Initialize gossip metrics (we want to broadcast the address even if we're not yet syncing)
+	bridgeAddr := base58.Encode(s.bridge[:])
+	p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDSolana, &gossipv1.Heartbeat_Network{
+		BridgeAddress: bridgeAddr,
+	})
+
 	rpcClient := rpc.NewClient(s.rpcUrl)
 	logger := supervisor.Logger(ctx)
 	errC := make(chan error)
@@ -91,6 +100,10 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 						return
 					}
 					currentSolanaHeight.Set(float64(slot))
+					p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDSolana, &gossipv1.Heartbeat_Network{
+						Height:        int64(slot),
+						BridgeAddress: bridgeAddr,
+					})
 
 					logger.Info("current Solana height", zap.Uint64("slot", uint64(slot)))
 
