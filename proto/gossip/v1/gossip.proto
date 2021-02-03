@@ -43,7 +43,7 @@ message Heartbeat {
   // Human-readable representation of the current bridge node release.
   string version = 5;
 
-  // Hex representation of the guardian key's address.
+  // Human-readable representation of the guardian key's address.
   string guardian_addr = 6;
 
   // TODO: include signed statement of gk public key?

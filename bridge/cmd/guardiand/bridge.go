@@ -323,8 +323,11 @@ func runBridge(cmd *cobra.Command, args []string) {
 		logger.Fatal("failed to load guardian key", zap.Error(err))
 	}
 
+	guardianAddr := ethcrypto.PubkeyToAddress(gk.PublicKey).String()
 	logger.Info("Loaded guardian key", zap.String(
-		"address", ethcrypto.PubkeyToAddress(gk.PublicKey).String()))
+		"address", guardianAddr))
+
+	p2p.DefaultRegistry.SetGuardianAddress(guardianAddr)
 
 	// Node's main lifecycle context.
 	rootCtx, rootCtxCancel = context.WithCancel(context.Background())
