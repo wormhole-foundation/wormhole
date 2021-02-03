@@ -242,13 +242,13 @@ function Assistant() {
         let startBlock = provider.blockNumber;
         let completed = false;
         let blockHandler = (blockNumber: number) => {
-            if (blockNumber - startBlock < 5) {
+            if (blockNumber - startBlock < 15) {
                 setLoading({
                     loading: true,
                     message: "Awaiting ETH confirmations",
                     progress: {
-                        completion: (blockNumber - startBlock) / 5 * 100,
-                        content: `${blockNumber - startBlock}/${5}`
+                        completion: (blockNumber - startBlock) / 15 * 100,
+                        content: `${blockNumber - startBlock}/${15}`
                     }
                 })
             } else if (!completed) {
@@ -284,7 +284,7 @@ function Assistant() {
                     }
                 })
             } else {
-                setLoading({loading: true, message: "Awaiting guardians (TODO ping)"})
+                setLoading({loading: true, message: "Awaiting guardian confirmation"})
             }
         })
 

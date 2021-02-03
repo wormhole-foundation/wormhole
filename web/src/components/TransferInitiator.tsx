@@ -70,11 +70,12 @@ async function createWrapped(c: Connection, b: SolanaBridge, wallet: Wallet, met
         let tx = new Transaction();
 
         // @ts-ignore
-        let [ix_account, newSigner] = await b.createWrappedAssetAndAccountInstructions(key.publicKey, mint, meta);
+        let [ix_account, newSigner] = await b.createWrappedAssetAndAccountInstructions(wallet.publicKey, mint, meta);
         let recentHash = await c.getRecentBlockhash();
         tx.recentBlockhash = recentHash.blockhash
         tx.add(...ix_account)
         tx.feePayer = wallet.publicKey;
+        tx.sign(newSigner);
         let signed = await wallet.signTransaction(tx);
         message.loading({content: "Waiting for transaction to be confirmed...", key: "tx", duration: 1000})
         await c.sendRawTransaction(signed.serialize(), {preflightCommitment: "single"})
@@ -240,7 +241,7 @@ export default function TransferInitiator(params: TransferInitiatorParams) {
                 <Form.Item label="Amount" name="layout"
                            validateStatus={amountValid ? "success" : "error"}>
                     <Input type={"number"} placeholder={"Amount"}
-                           addonAfter={`Balance: ${coinInfo.balance.div(new BigNumber(10).pow(coinInfo.decimals))}`}
+                           addonAfter={`Balance: ${new BN(coinInfo.balance.toString()).div(new BN(10).pow(coinInfo.decimals))}`}
                            onChange={(v) => {
                                if (v.target.value === "") {
                                    setAmount(new BigNumber(0));

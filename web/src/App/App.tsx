@@ -39,8 +39,8 @@ function App() {
             <Layout style={{height: '100%'}}>
                 <Router>
                     <Header style={{position: 'fixed', zIndex: 1, width: '100%'}}>
-                        <Link to="/assistant" style={{paddingRight: 20}}>Assistant</Link>
-                        <Link to="/" style={{paddingRight: 20}}>Ethereum</Link>
+                        <Link to="/" style={{paddingRight: 20}}>Assistant</Link>
+                        <Link to="/eth" style={{paddingRight: 20}}>Ethereum</Link>
                         <Link to="/solana">Solana</Link>
                         {
                             connected ? (<a style={{float: "right"}}>
@@ -63,13 +63,13 @@ function App() {
                                             <BridgeProvider>
                                                 <SolanaTokenProvider>
                                                     <Switch>
-                                                        <Route path="/assistant">
+                                                        <Route path="/">
                                                             <Assistant/>
                                                         </Route>
                                                         <Route path="/solana">
                                                             <TransferSolana/>
                                                         </Route>
-                                                        <Route path="/">
+                                                        <Route path="/eth">
                                                             <Transfer/>
                                                         </Route>
                                                     </Switch>
@@ -84,7 +84,7 @@ function App() {
 
                         </div>
                     </Content>
-                    <Footer style={{textAlign: 'center'}}>nexantic GmbH 2020</Footer>
+                    <Footer style={{textAlign: 'center'}}>The Wormhole Project</Footer>
                 </Router>
             </Layout>
         </div>
