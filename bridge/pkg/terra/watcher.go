@@ -4,11 +4,12 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"github.com/prometheus/client_golang/prometheus"
 	"io/ioutil"
 	"math/big"
 	"net/http"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
 
 	eth_common "github.com/ethereum/go-ethereum/common"
 
@@ -195,7 +196,27 @@ func (e *BridgeWatcher) Run(ctx context.Context) error {
 				terraLockupsConfirmed.Inc()
 			}
 
-			// TODO: query and report height and set currentTerraHeight
+			client := &http.Client{
+				Timeout: time.Second * 15,
+			}
+			// Query and report height and set currentTerraHeight
+			blocksResp, err := client.Get(fmt.Sprintf("%s/blocks/latest", e.urlLCD))
+			if err != nil {
+				logger.Error("query latest block response error", zap.Error(err))
+				errC <- err
+				return
+			}
+			blocksBody, err := ioutil.ReadAll(blocksResp.Body)
+			if err != nil {
+				logger.Error("query guardian set error", zap.Error(err))
+				errC <- err
+				blocksResp.Body.Close()
+				return
+			}
+			blockJSON := string(blocksBody)
+			latestBlock := gjson.Get(blockJSON, "block.header.height")
+			logger.Info("Current Terra height", zap.Int64("block", latestBlock.Int()))
+			currentTerraHeight.Set(float64(latestBlock.Int()))
 
 			// Query and report guardian set status
 			requestURL := fmt.Sprintf("%s/wasm/contracts/%s/store?query_msg={\"guardian_set_info\":{}}", e.urlLCD, e.bridge)
@@ -208,9 +229,6 @@ func (e *BridgeWatcher) Run(ctx context.Context) error {
 			}
 
 			msm := time.Now()
-			client := &http.Client{
-				Timeout: time.Second * 15,
-			}
 			resp, err := client.Do(req)
 			if err != nil {
 				logger.Error("query guardian set response error", zap.Error(err))
