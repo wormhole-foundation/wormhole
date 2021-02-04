@@ -3,13 +3,14 @@ package guardiand
 import (
 	"context"
 	"fmt"
-	solana_types "github.com/dfuse-io/solana-go"
-	"github.com/gorilla/mux"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"syscall"
+
+	solana_types "github.com/dfuse-io/solana-go"
+	"github.com/gorilla/mux"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	eth_common "github.com/ethereum/go-ethereum/common"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
@@ -277,10 +278,6 @@ func runBridge(cmd *cobra.Command, args []string) {
 	}
 
 	if *terraSupport {
-		if !*unsafeDevMode {
-			logger.Fatal("cannot enable terra support in production mode")
-		}
-
 		if *terraWS == "" {
 			logger.Fatal("Please specify --terraWS")
 		}
