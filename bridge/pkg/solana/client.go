@@ -92,6 +92,8 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 					}
 					currentSolanaHeight.Set(float64(slot))
 
+					logger.Info("current Solana height", zap.Uint64("slot", uint64(slot)))
+
 					// Find TransferOutProposal accounts without a VAA
 					rCtx, cancel = context.WithTimeout(ctx, time.Second*5)
 					defer cancel()
