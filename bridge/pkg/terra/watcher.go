@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"github.com/prometheus/client_golang/prometheus"
 	"io/ioutil"
 	"math/big"
 	"net/http"
@@ -32,6 +33,36 @@ type (
 	}
 )
 
+var (
+	terraConnectionErrors = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "wormhole_terra_connection_errors_total",
+			Help: "Total number of Terra connection errors",
+		}, []string{"reason"})
+	terraLockupsConfirmed = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "wormhole_terra_lockups_confirmed_total",
+			Help: "Total number of verified terra lockups found",
+		})
+	currentTerraHeight = prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "wormhole_terra_current_height",
+			Help: "Current terra slot height (at default commitment level, not the level used for lockups)",
+		})
+	queryLatency = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name: "wormhole_terra_query_latency",
+			Help: "Latency histogram for terra RPC calls",
+		}, []string{"operation"})
+)
+
+func init() {
+	prometheus.MustRegister(terraConnectionErrors)
+	prometheus.MustRegister(terraLockupsConfirmed)
+	prometheus.MustRegister(currentTerraHeight)
+	prometheus.MustRegister(queryLatency)
+}
+
 type clientRequest struct {
 	JSONRPC string `json:"jsonrpc"`
 	// A String containing the name of the method to be invoked.
@@ -57,6 +88,7 @@ func (e *BridgeWatcher) Run(ctx context.Context) error {
 
 	c, _, err := websocket.DefaultDialer.DialContext(ctx, e.urlWS, nil)
 	if err != nil {
+		terraConnectionErrors.WithLabelValues("websocket_dial_error").Inc()
 		return fmt.Errorf("websocket dial failed: %w", err)
 	}
 	defer c.Close()
@@ -71,12 +103,14 @@ func (e *BridgeWatcher) Run(ctx context.Context) error {
 	}
 	err = c.WriteJSON(command)
 	if err != nil {
+		terraConnectionErrors.WithLabelValues("websocket_subscription_error").Inc()
 		return fmt.Errorf("websocket subscription failed: %w", err)
 	}
 
 	// Wait for the success response
 	_, _, err = c.ReadMessage()
 	if err != nil {
+		terraConnectionErrors.WithLabelValues("event_subscription_error").Inc()
 		return fmt.Errorf("event subscription failed: %w", err)
 	}
 	logger.Info("subscribed to new transaction events")
@@ -89,6 +123,7 @@ func (e *BridgeWatcher) Run(ctx context.Context) error {
 		for {
 			_, message, err := c.ReadMessage()
 			if err != nil {
+				terraConnectionErrors.WithLabelValues("channel_read_error").Inc()
 				logger.Error("error reading channel", zap.Error(err))
 				errC <- err
 				return
@@ -157,17 +192,22 @@ func (e *BridgeWatcher) Run(ctx context.Context) error {
 					Amount:        new(big.Int).SetUint64(amount.Uint()),
 				}
 				e.lockChan <- lock
+				terraLockupsConfirmed.Inc()
 			}
+
+			// TODO: query and report height and set currentTerraHeight
 
 			// Query and report guardian set status
 			requestURL := fmt.Sprintf("%s/wasm/contracts/%s/store?query_msg={\"guardian_set_info\":{}}", e.urlLCD, e.bridge)
 			req, err := http.NewRequestWithContext(ctx, http.MethodGet, requestURL, nil)
 			if err != nil {
+				terraConnectionErrors.WithLabelValues("guardian_set_req_error").Inc()
 				logger.Error("query guardian set request error", zap.Error(err))
 				errC <- err
 				return
 			}
 
+			msm := time.Now()
 			client := &http.Client{
 				Timeout: time.Second * 15,
 			}
@@ -179,6 +219,7 @@ func (e *BridgeWatcher) Run(ctx context.Context) error {
 			}
 
 			body, err := ioutil.ReadAll(resp.Body)
+			queryLatency.WithLabelValues("guardian_set_info").Observe(time.Since(msm).Seconds())
 			if err != nil {
 				logger.Error("query guardian set error", zap.Error(err))
 				errC <- err
