@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/certusone/wormhole/bridge/cmd/debug"
 	"github.com/certusone/wormhole/bridge/pkg/version"
 	"os"
 
@@ -48,6 +49,7 @@ func init() {
 	rootCmd.AddCommand(guardiand.AdminCmd)
 	rootCmd.AddCommand(guardiand.TemplateCmd)
 	rootCmd.AddCommand(versionCmd)
+	rootCmd.AddCommand(debug.DebugCmd)
 }
 
 // initConfig reads in config file and ENV variables if set.
