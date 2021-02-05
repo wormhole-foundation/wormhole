@@ -33,6 +33,8 @@
     "@typechain/ethers-v4": "^1.0.0",
     "npm": "^6.14.8",
     "typechain": "^2.0.1",
+    "arweave-deploy": "^1.9.1",
+    "gh-pages": "^3.1.0",
     "yarn": "^1.22.10"
   },
   "scripts": {
@@ -40,11 +42,14 @@
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
-    "ethers": "typechain --target ethers-v4 --outDir src/contracts 'contracts/*.json'"
+    "ethers": "typechain --target ethers-v4 --outDir src/contracts 'contracts/*.json'",
+    "deploy": "gh-pages -d build",
+    "deploy:ar": "arweave deploy-dir build --key-file "
   },
   "eslintConfig": {
     "extends": "react-app"
   },
+  "homepage": ".",
   "browserslist": {
     "production": [
       ">0.2%",
