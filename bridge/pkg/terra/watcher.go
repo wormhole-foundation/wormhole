@@ -119,6 +119,37 @@ func (e *BridgeWatcher) Run(ctx context.Context) error {
 	readiness.SetReady(common.ReadinessTerraSyncing)
 
 	go func() {
+		t := time.NewTicker(5 * time.Second)
+		client := &http.Client{
+			Timeout: time.Second * 5,
+		}
+
+		for {
+			<-t.C
+
+			// Query and report height and set currentTerraHeight
+			resp, err := client.Get(fmt.Sprintf("%s/blocks/latest", e.urlLCD))
+			if err != nil {
+				logger.Error("query latest block response error", zap.Error(err))
+				continue
+			}
+			blocksBody, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				logger.Error("query guardian set error", zap.Error(err))
+				errC <- err
+				resp.Body.Close()
+				continue
+			}
+			resp.Body.Close()
+
+			blockJSON := string(blocksBody)
+			latestBlock := gjson.Get(blockJSON, "block.header.height")
+			logger.Info("current Terra height", zap.Int64("block", latestBlock.Int()))
+			currentTerraHeight.Set(float64(latestBlock.Int()))
+		}
+	}()
+
+	go func() {
 		defer close(errC)
 
 		for {
@@ -199,24 +230,6 @@ func (e *BridgeWatcher) Run(ctx context.Context) error {
 			client := &http.Client{
 				Timeout: time.Second * 15,
 			}
-			// Query and report height and set currentTerraHeight
-			blocksResp, err := client.Get(fmt.Sprintf("%s/blocks/latest", e.urlLCD))
-			if err != nil {
-				logger.Error("query latest block response error", zap.Error(err))
-				errC <- err
-				return
-			}
-			blocksBody, err := ioutil.ReadAll(blocksResp.Body)
-			if err != nil {
-				logger.Error("query guardian set error", zap.Error(err))
-				errC <- err
-				blocksResp.Body.Close()
-				return
-			}
-			blockJSON := string(blocksBody)
-			latestBlock := gjson.Get(blockJSON, "block.header.height")
-			logger.Info("Current Terra height", zap.Int64("block", latestBlock.Int()))
-			currentTerraHeight.Set(float64(latestBlock.Int()))
 
 			// Query and report guardian set status
 			requestURL := fmt.Sprintf("%s/wasm/contracts/%s/store?query_msg={\"guardian_set_info\":{}}", e.urlLCD, e.bridge)
