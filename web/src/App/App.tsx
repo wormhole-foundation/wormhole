@@ -6,7 +6,7 @@ import Transfer from "../pages/Transfer";
 import {Empty, Layout} from 'antd';
 import {SolanaTokenProvider} from "../providers/SolanaTokenContext";
 import {SlotProvider} from "../providers/SlotContext";
-import {BrowserRouter as Router, Link, Route, Switch} from 'react-router-dom';
+import { HashRouter, Link, Route, Switch} from 'react-router-dom';
 import TransferSolana from "../pages/TransferSolana";
 import WalletContext from '../providers/WalletContext';
 import Wallet from "@project-serum/sol-wallet-adapter";
@@ -37,7 +37,7 @@ function App() {
     return (
         <div className="App">
             <Layout style={{height: '100%'}}>
-                <Router>
+                <HashRouter basename={"/"}>
                     <Header style={{position: 'fixed', zIndex: 1, width: '100%'}}>
                         <Link to="/" style={{paddingRight: 20}}>Assistant</Link>
                         <Link to="/eth" style={{paddingRight: 20}}>Ethereum</Link>
@@ -85,7 +85,7 @@ function App() {
                         </div>
                     </Content>
                     <Footer style={{textAlign: 'center'}}>The Wormhole Project</Footer>
-                </Router>
+                </HashRouter>
             </Layout>
         </div>
     );
