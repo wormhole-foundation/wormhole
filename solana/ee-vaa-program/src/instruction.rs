@@ -19,8 +19,16 @@ pub enum Instruction {
     PostEEVAA(EEVAA),
 }
 
+/// An enum used to distinguish between instructions in the
+/// serialization format. It is best practice to match variant names
+/// with variants of [`Instruction`].
+#[repr(u8)]
+pub enum InstructionKind {
+    PostEEVAA = 1,
+}
+
 impl Instruction {
-    /// QoL wrapper for `deserialize_from_reader`
+    /// QoL wrapper for [`Self::deserialize_from_reader`]
     #[inline]
     pub fn deserialize(buf: &[u8]) -> Result<Self, Error> {
         Self::deserialize_from_reader(Cursor::new(buf))
@@ -52,9 +60,12 @@ impl Instruction {
     /// Turns this instruction into bytes.
     ///
     /// Format:
-    /// Magic (EE_VAA_MAGIC.len() bytes, must match exactly)
-    /// InstructionKind (1 byte)
-    /// Instruction data (may vary, see serialize() of each inner struct)
+    ///
+    /// | Name             | Length in bytes           | Description                                                |
+    /// |------------------|---------------------------|------------------------------------------------------------|
+    /// | Magic            | [`EE_VAA_MAGIC`] length   | Must match [`EE_VAA_MAGIC`] exactly                        |
+    /// | Instruction kind | 1                         | Decides [`InstructionKind`] on deserialization             |
+    /// | Payload          | Decided by inner struct   | Each [`Instruction`] variant is responsible for its format |
     pub fn serialize(&self) -> Result<Vec<u8>, io::Error> {
         // Start with a copy of the magic
         let mut buf = EE_VAA_MAGIC.to_owned();
@@ -70,24 +81,18 @@ impl Instruction {
     }
 }
 
-/// An enum used to distinguish between instructions in the serialization format
-#[repr(u8)]
-pub enum InstructionKind {
-    PostEEVAA = 1,
-}
-
 /// EE VAA representation
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct EEVAA {
-    /// The data to pass along the guardian set
+    /// The data to pass along the guardian set gossip network.
     pub payload: Vec<u8>,
 }
 
 impl EEVAA {
-    /// QoL Deserialization method
+    /// QoL wrapper for [`Self::deserialize_from_reader`]
     #[inline]
-    pub fn deserialize(bytes: &[u8]) ->  Result<Self, Error> {
-	Self::deserialize_from_reader(Cursor::new(bytes))
+    pub fn deserialize(bytes: &[u8]) -> Result<Self, Error> {
+        Self::deserialize_from_reader(Cursor::new(bytes))
     }
 
     /// Deserialize this EE-VAA
@@ -107,8 +112,11 @@ impl EEVAA {
     /// Turns this EE VAA into bytes.
     ///
     /// Format:
-    /// Length (2 bytes)
-    /// Data (Length bytes)
+    ///
+    /// | Name   | Length in bytes             | Description                                        |
+    /// |--------|-----------------------------|----------------------------------------------------|
+    /// | Length | 2                           | Big endian, denotes size of the rest of the buffer |
+    /// | Data   | decided by the length field |                                                    |
     pub fn serialize(&self) -> Result<Vec<u8>, io::Error> {
         let mut c = Cursor::new(Vec::new());
 

@@ -697,17 +697,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "derive-try-from-primitive"
-version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "302ccf094df1151173bb6f5a2282fcd2f45accd5eae1bdf82dcbfefbc501ad5c"
-dependencies = [
- "proc-macro2 1.0.24",
- "quote 1.0.7",
- "syn 1.0.53",
-]
-
-[[package]]
 name = "dialoguer"
 version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -801,7 +790,6 @@ name = "ee-vaa-program"
 version = "0.1.0"
 dependencies = [
  "byteorder",
- "derive-try-from-primitive",
  "hex",
  "num-derive 0.2.5",
  "num-traits",
