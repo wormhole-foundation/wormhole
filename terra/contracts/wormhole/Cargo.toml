@@ -24,6 +24,7 @@ cw20-wrapped = { path = "../cw20-wrapped", features = ["library"] }
 thiserror = { version = "1.0.20" }
 k256 = { version = "0.5.9", default-features = false, features = ["ecdsa"] }
 sha3 = { version = "0.9.1", default-features = false }
+generic-array = { version = "0.14.4" }
 hex = "0.4.2"
 lazy_static = "1.4.0"
 
