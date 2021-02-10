@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"github.com/certusone/wormhole/bridge/pkg/p2p"
+	gossipv1 "github.com/certusone/wormhole/bridge/pkg/proto/gossip/v1"
 	"io/ioutil"
 	"math/big"
 	"net/http"
@@ -82,6 +84,10 @@ func NewTerraBridgeWatcher(urlWS string, urlLCD string, bridge string, lockEvent
 
 // Run is the main Terra Bridge run cycle
 func (e *BridgeWatcher) Run(ctx context.Context) error {
+	p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDTerra, &gossipv1.Heartbeat_Network{
+		BridgeAddress: e.bridge,
+	})
+
 	errC := make(chan error)
 	logger := supervisor.Logger(ctx)
 
@@ -146,6 +152,10 @@ func (e *BridgeWatcher) Run(ctx context.Context) error {
 			latestBlock := gjson.Get(blockJSON, "block.header.height")
 			logger.Info("current Terra height", zap.Int64("block", latestBlock.Int()))
 			currentTerraHeight.Set(float64(latestBlock.Int()))
+			p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDTerra, &gossipv1.Heartbeat_Network{
+				Height:        latestBlock.Int(),
+				BridgeAddress: e.bridge,
+			})
 		}
 	}()
 
