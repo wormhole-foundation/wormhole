@@ -11,7 +11,7 @@ use crate::msg::{GuardianSetInfoResponse, HandleMsg, InitMsg, QueryMsg};
 use crate::state::{
     config, config_read, guardian_set_get, guardian_set_set, vaa_archive_add, vaa_archive_check,
     wrapped_asset, wrapped_asset_address, wrapped_asset_address_read, wrapped_asset_read,
-    ConfigInfo, GuardianAddress, GuardianSetInfo,
+    ConfigInfo, GuardianAddress, GuardianSetInfo, ParsedVAA,
 };
 
 use cw20_base::msg::HandleMsg as TokenMsg;
@@ -30,6 +30,8 @@ use k256::ecdsa::Signature;
 use k256::ecdsa::VerifyKey;
 use k256::EncodedPoint;
 use sha3::{Digest, Keccak256};
+
+use generic_array::GenericArray;
 
 use std::convert::TryFrom;
 
@@ -101,75 +103,62 @@ fn handle_submit_vaa<S: Storage, A: Api, Q: Querier>(
         return ContractError::ContractInactive.std_err();
     }
 
-    /* VAA format:
+    let vaa = parse_and_verify_vaa(&deps.storage, data, env.block.time)?;
 
-    header (length 6):
-    0   uint8   version (0x01)
-    1   uint32  guardian set index
-    5   uint8   len signatures
+    let result = match vaa.action {
+        0x01 => {
+            if vaa.guardian_set_index != state.guardian_set_index {
+                return ContractError::NotCurrentGuardianSet.std_err();
+            }
+            vaa_update_guardian_set(deps, env, vaa.payload.as_slice())
+        }
+        0x10 => vaa_transfer(deps, env, vaa.payload.as_slice()),
+        _ => ContractError::InvalidVAAAction.std_err(),
+    };
 
-    per signature (length 66):
-    0   uint8       index of the signer (in guardian keys)
-    1   [65]uint8   signature
+    if result.is_ok() {
+        vaa_archive_add(&mut deps.storage, vaa.hash.as_slice())?;
+    }
 
-    body:
-    0   uint32  unix seconds
-    4   uint8   action
-    5   [payload_size]uint8 payload */
+    result
+}
 
-    const HEADER_LEN: usize = 6;
-    const SIGNATURE_LEN: usize = 66;
+/// Parses raw VAA data into a struct and verifies whether it contains sufficient signatures of an
+/// active guardian set i.e. is valid according to Wormhole consensus rules
+fn parse_and_verify_vaa<S: Storage>(
+    storage: &S,
+    data: &[u8],
+    block_time: u64,
+) -> StdResult<ParsedVAA> {
+    let vaa = ParsedVAA::deserialize(data)?;
 
-    const GUARDIAN_SET_INDEX_POS: usize = 1;
-    const LEN_SIGNER_POS: usize = 5;
-
-    let version = data.get_u8(0);
-    if version != 1 {
+    if vaa.version != 1 {
         return ContractError::InvalidVersion.std_err();
     }
 
-    // Load 4 bytes starting from index 1
-    let vaa_guardian_set_index: u32 = data.get_u32(GUARDIAN_SET_INDEX_POS);
-    let len_signers = data.get_u8(LEN_SIGNER_POS) as usize;
-    let body_offset: usize = HEADER_LEN + SIGNATURE_LEN * len_signers as usize;
-
-    // Hash the body
-    if body_offset >= data.len() {
-        return ContractError::InvalidVAA.std_err();
-    }
-    let body = &data[body_offset..];
-    let mut hasher = Keccak256::new();
-    hasher.update(body);
-    let hash = hasher.finalize();
-
     // Check if VAA with this hash was already accepted
-    if vaa_archive_check(&deps.storage, &hash) {
+    if vaa_archive_check(storage, vaa.hash.as_slice()) {
         return ContractError::VaaAlreadyExecuted.std_err();
     }
 
     // Load and check guardian set
-    let guardian_set = guardian_set_get(&deps.storage, vaa_guardian_set_index);
+    let guardian_set = guardian_set_get(storage, vaa.guardian_set_index);
     let guardian_set: GuardianSetInfo =
         guardian_set.or_else(|_| ContractError::InvalidGuardianSetIndex.std_err())?;
 
-    if guardian_set.expiration_time != 0 && guardian_set.expiration_time < env.block.time {
+    if guardian_set.expiration_time != 0 && guardian_set.expiration_time < block_time {
         return ContractError::GuardianSetExpired.std_err();
     }
-    if len_signers < guardian_set.quorum() {
+    if vaa.len_signers < guardian_set.quorum() {
         return ContractError::NoQuorum.std_err();
     }
 
     // Verify guardian signatures
     let mut last_index: i32 = -1;
-    let mut pos = HEADER_LEN;
+    let mut pos = ParsedVAA::HEADER_LEN;
 
-    // Signature data offsets in the signature block
-    const SIG_DATA_POS: usize = 1;
-    const SIG_DATA_LEN: usize = 64; // Signature length minus recovery id at the end
-    const SIG_RECOVERY_POS: usize = SIG_DATA_POS + SIG_DATA_LEN; // Recovery byte is last affter the main signature
-
-    for _ in 0..len_signers {
-        if pos + SIGNATURE_LEN > data.len() {
+    for _ in 0..vaa.len_signers {
+        if pos + ParsedVAA::SIGNATURE_LEN > data.len() {
             return ContractError::InvalidVAA.std_err();
         }
         let index = data.get_u8(pos) as i32;
@@ -178,16 +167,18 @@ fn handle_submit_vaa<S: Storage, A: Api, Q: Querier>(
         }
         last_index = index;
 
-        let signature =
-            Signature::try_from(&data[pos + SIG_DATA_POS..pos + SIG_DATA_POS + SIG_DATA_LEN])
-                .or_else(|_| ContractError::CannotDecodeSignature.std_err())?;
-        let id = RecoverableId::new(data.get_u8(pos + SIG_RECOVERY_POS))
+        let signature = Signature::try_from(
+            &data[pos + ParsedVAA::SIG_DATA_POS
+                ..pos + ParsedVAA::SIG_DATA_POS + ParsedVAA::SIG_DATA_LEN],
+        )
+        .or_else(|_| ContractError::CannotDecodeSignature.std_err())?;
+        let id = RecoverableId::new(data.get_u8(pos + ParsedVAA::SIG_RECOVERY_POS))
             .or_else(|_| ContractError::CannotDecodeSignature.std_err())?;
         let recoverable_signature = RecoverableSignature::new(&signature, id)
             .or_else(|_| ContractError::CannotDecodeSignature.std_err())?;
 
         let verify_key = recoverable_signature
-            .recover_verify_key_from_digest_bytes(&hash)
+            .recover_verify_key_from_digest_bytes(GenericArray::from_slice(vaa.hash.as_slice()))
             .or_else(|_| ContractError::CannotRecoverKey.std_err())?;
 
         let index = index as usize;
@@ -197,34 +188,10 @@ fn handle_submit_vaa<S: Storage, A: Api, Q: Querier>(
         if !keys_equal(&verify_key, &guardian_set.addresses[index]) {
             return ContractError::GuardianSignatureError.std_err();
         }
-        pos += SIGNATURE_LEN;
+        pos += ParsedVAA::SIGNATURE_LEN;
     }
 
-    const VAA_ACTION_POS: usize = 4;
-    const VAA_PAYLOAD_POS: usize = 5;
-    // Signatures valid, apply VAA
-    if body_offset + VAA_PAYLOAD_POS > data.len() {
-        return ContractError::InvalidVAA.std_err();
-    }
-    let action = data.get_u8(body_offset + VAA_ACTION_POS);
-    let payload = &data[body_offset + VAA_PAYLOAD_POS..];
-
-    let result = match action {
-        0x01 => {
-            if vaa_guardian_set_index != state.guardian_set_index {
-                return ContractError::NotCurrentGuardianSet.std_err();
-            }
-            vaa_update_guardian_set(deps, env, payload)
-        }
-        0x10 => vaa_transfer(deps, env, payload),
-        _ => ContractError::InvalidVAAAction.std_err(),
-    };
-
-    if result.is_ok() {
-        vaa_archive_add(&mut deps.storage, &hash)?;
-    }
-
-    result
+    Ok(vaa)
 }
 
 /// Handle wrapped asset registration messages
@@ -296,7 +263,6 @@ fn vaa_update_guardian_set<S: Storage, A: Api, Q: Querier>(
     };
     let mut pos = ADDRESS_POS;
     for _ in 0..len {
-
         if pos + ADDRESS_LEN > data.len() {
             return ContractError::InvalidVAA.std_err();
         }
@@ -578,12 +544,16 @@ pub fn handle_set_active<S: Storage, A: Api, Q: Querier>(
 
 pub fn query<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
+    env: Env,
     msg: QueryMsg,
 ) -> StdResult<Binary> {
     match msg {
         QueryMsg::GuardianSetInfo {} => to_binary(&query_guardian_set_info(deps)?),
         QueryMsg::WrappedRegistry { chain, address } => {
             to_binary(&query_wrapped_registry(deps, chain, address.as_slice())?)
+        }
+        QueryMsg::VerifyVAA { vaa } => {
+            to_binary(&query_parse_and_verify_vaa(deps, env, &vaa.as_slice())?)
         }
     }
 }
@@ -611,6 +581,14 @@ pub fn query_wrapped_registry<S: Storage, A: Api, Q: Querier>(
         Ok(address) => Ok(WrappedRegistryResponse { address }),
         Err(_) => ContractError::AssetNotFound.std_err(),
     }
+}
+
+pub fn query_parse_and_verify_vaa<S: Storage, A: Api, Q: Querier>(
+    deps: &Extern<S, A, Q>,
+    env: Env,
+    data: &[u8],
+) -> StdResult<ParsedVAA> {
+    parse_and_verify_vaa(&deps.storage, data, env.block.time)
 }
 
 fn keys_equal(a: &VerifyKey, b: &GuardianAddress) -> bool {
@@ -1255,8 +1233,9 @@ mod tests {
     fn valid_query_guardian_set() {
         let mut deps = mock_dependencies(CANONICAL_LENGTH, &[]);
         do_init_with_guardians(&mut deps, 3);
+        let env = mock_env(&HumanAddr::from(CREATOR_ADDR), &[]);
 
-        let result = query(&deps, QueryMsg::GuardianSetInfo {}).unwrap();
+        let result = query(&deps, env, QueryMsg::GuardianSetInfo {}).unwrap();
         let result: GuardianSetInfoResponse = serde_json::from_slice(result.as_slice()).unwrap();
 
         assert_eq!(
@@ -1276,5 +1255,42 @@ mod tests {
                 ],
             }
         )
+    }
+
+    #[test]
+    fn valid_query_verify_vaa() {
+        let mut deps = mock_dependencies(CANONICAL_LENGTH, &[]);
+        do_init_with_guardians(&mut deps, 4);
+        let env = mock_env(&HumanAddr::from(SENDER_ADDR), &[]);
+
+        let decoded_vaa: Binary = hex::decode(VAA_VALID_TRANSFER_3_SIGS)
+            .expect("Decoding failed")
+            .into();
+        let result = query(&deps, env, QueryMsg::VerifyVAA { vaa: decoded_vaa });
+
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn error_query_verify_vaa() {
+        let mut deps = mock_dependencies(CANONICAL_LENGTH, &[]);
+        do_init(
+            &mut deps,
+            // Use 1-2-4 guardians
+            &vec![
+                GuardianAddress::from(ADDR_1),
+                GuardianAddress::from(ADDR_2),
+                GuardianAddress::from(ADDR_4),
+            ],
+            unix_timestamp(),
+        );
+        let env = mock_env(&HumanAddr::from(SENDER_ADDR), &[]);
+        // Sign by 1-2-3 guardians
+        let decoded_vaa: Binary = hex::decode(VAA_VALID_TRANSFER_3_SIGS)
+            .expect("Decoding failed")
+            .into();
+        let result = query(&deps, env, QueryMsg::VerifyVAA { vaa: decoded_vaa });
+
+        assert_eq!(result, ContractError::GuardianSignatureError.std_err());
     }
 }

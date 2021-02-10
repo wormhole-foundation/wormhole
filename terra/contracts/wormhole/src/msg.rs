@@ -37,6 +37,7 @@ pub enum HandleMsg {
 pub enum QueryMsg {
     GuardianSetInfo {},
     WrappedRegistry { chain: u8, address: Binary },
+    VerifyVAA { vaa: Binary },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
