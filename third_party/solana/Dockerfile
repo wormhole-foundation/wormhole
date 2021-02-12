@@ -3,7 +3,7 @@
 # Depend on our smart contract build - it's going to be linked directly into Solana as part the patch we carry.
 FROM solana-contract as contract
 
-FROM rust:1.48@sha256:65e254fff15478af71d342706b1e73b26fd883f3432813c129665a97a74e2278
+FROM docker.io/library/rust:1.49@sha256:a50165ea96983c21832578afb1c8c028674c965bc1ed43b607871b1f362e06a5
 
 RUN apt-get update && apt-get install -y libssl-dev libudev-dev pkg-config zlib1g-dev llvm clang
 RUN rustup component add rustfmt
