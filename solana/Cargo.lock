@@ -424,6 +424,7 @@ dependencies = [
  "tungstenite 0.11.1",
  "url",
  "wormhole-bridge",
+ "wormhole-ee-vaa-program",
 ]
 
 [[package]]
@@ -783,24 +784,6 @@ dependencies = [
  "serde",
  "sha2 0.8.2",
  "zeroize",
-]
-
-[[package]]
-name = "ee-vaa-program"
-version = "0.1.0"
-dependencies = [
- "byteorder",
- "hex",
- "num-derive 0.2.5",
- "num-traits",
- "primitive-types",
- "rand",
- "remove_dir_all",
- "sha3",
- "solana-program",
- "spl-token",
- "thiserror",
- "zerocopy",
 ]
 
 [[package]]
@@ -4407,6 +4390,24 @@ dependencies = [
 
 [[package]]
 name = "wormhole-bridge"
+version = "0.1.0"
+dependencies = [
+ "byteorder",
+ "hex",
+ "num-derive 0.2.5",
+ "num-traits",
+ "primitive-types",
+ "rand",
+ "remove_dir_all",
+ "sha3",
+ "solana-program",
+ "spl-token",
+ "thiserror",
+ "zerocopy",
+]
+
+[[package]]
+name = "wormhole-ee-vaa-program"
 version = "0.1.0"
 dependencies = [
  "byteorder",

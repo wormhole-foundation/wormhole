@@ -1,9 +1,9 @@
 # Note: This crate must be built using do.sh
 
 [package]
-name = "ee-vaa-program"
+name = "wormhole-ee-vaa-program"
 version = "0.1.0"
-description = "External Entity Verifiable Action Approval program on Solana"
+description = "EE VAA Wormhole program on Solana"
 authors = ["Certus One Team <info@certus.one>"]
 repository = "https://github.com/solana-labs/solana-program-library"
 license = "Apache-2.0"
