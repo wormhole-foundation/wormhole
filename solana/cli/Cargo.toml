@@ -17,6 +17,7 @@ solana-faucet = "=1.5.5"
 solana-account-decoder = { version = "=1.5.5" }
 spl-token = "=3.0.1"
 wormhole-bridge = { path = "../bridge" }
+wormhole-ee-vaa-program = { path = "../ee-vaa-program" }
 primitive-types = { version = "0.7.2" }
 hex = "0.4.2"
 thiserror = "1.0.20"

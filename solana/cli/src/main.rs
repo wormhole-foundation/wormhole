@@ -1018,6 +1018,31 @@ fn main() {
                 )
         )
         .subcommand(
+	    SubCommand::with_name("post-eevaa")
+		.about("Submit an External Entity VAA to the chain")
+		.arg(
+		    Arg::with_name("bridge")
+                        .long("bridge")
+                        .value_name("BRIDGE_KEY")
+                        .validator(is_pubkey_or_keypair)
+                        .takes_value(true)
+                        .index(1)
+                        .required(true)
+                        .help(
+                            "Specify the bridge program address"
+                        ),
+		)
+		.arg(
+		    Arg::with_name("eevaa")
+                        .validator(is_hex)
+			.value_name("HEX_EE_VAA")
+			.takes_value(true)
+			.index(2)
+			.required(true)
+			.help("The EE VAA  payload to be posted" )
+		)
+	)
+	.subcommand(
             SubCommand::with_name("postvaa")
                 .about("Submit a VAA to the chain")
                 .arg(
