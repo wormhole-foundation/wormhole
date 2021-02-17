@@ -14,16 +14,13 @@ no-entrypoint = []
 program = ["spl-token/no-entrypoint"]
 
 [dependencies]
-num-derive = "0.2"
-num-traits = "0.2"
+byteorder = "1.4.2"
+num_enum = "0.5.1"
 remove_dir_all = "=0.5.0"
 solana-program = "=1.5.5"
 spl-token = { version = "=3.0.1" }
 thiserror = "1.0"
-byteorder = "1.4.2"
 zerocopy = "0.3.0"
-sha3 = "0.9.1"
-primitive-types = { version = "0.7.2", default-features = false }
 
 [dev-dependencies]
 rand = { version = "0.7.0" }

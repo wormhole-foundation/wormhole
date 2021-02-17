@@ -14,7 +14,7 @@ pub const EE_VAA_MAGIC: &'static [u8] = b"WHEV"; // Wormhole EE VAA
 
 /// Top-level instruction data type
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum Instruction {
+pub enum EEVAAInstruction {
     /// Pass an EE-VAA to the bridge
     PostEEVAA(EEVAA),
 }
@@ -27,7 +27,7 @@ pub enum InstructionKind {
     PostEEVAA = 1,
 }
 
-impl Instruction {
+impl EEVAAInstruction {
     /// QoL wrapper for [`Self::deserialize_from_reader`]
     #[inline]
     pub fn deserialize(buf: &[u8]) -> Result<Self, Error> {
@@ -71,7 +71,7 @@ impl Instruction {
         let mut buf = EE_VAA_MAGIC.to_owned();
 
         match self {
-            Instruction::PostEEVAA(ee_vaa) => {
+            EEVAAInstruction::PostEEVAA(ee_vaa) => {
                 buf.push(InstructionKind::PostEEVAA as u8);
                 buf.append(&mut ee_vaa.serialize()?);
             }
@@ -159,11 +159,11 @@ mod tests {
         let ee_vaa = EEVAA {
             payload: vec![0x42],
         };
-        let i_a = Instruction::PostEEVAA(ee_vaa);
+        let i_a = EEVAAInstruction::PostEEVAA(ee_vaa);
 
         let buf = i_a.serialize()?;
 
-        let i_b = Instruction::deserialize(buf.as_slice())?;
+        let i_b = EEVAAInstruction::deserialize(buf.as_slice())?;
 
         assert_eq!(i_a, i_b);
 

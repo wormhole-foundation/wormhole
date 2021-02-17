@@ -1,16 +1,21 @@
 //! Wormhole-specific errors
+
+use num_enum::TryFromPrimitive;
 use solana_program::program_error::ProgramError as ProgErr;
-use std::{error, fmt::Display};
+
+use std::{error, fmt::Display, convert::TryFrom};
 
 /// Custom error type, meant to give more context before collapsing to
 /// Solana's error type.
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
 #[repr(u8)]
 pub enum Error {
     Internal = 0,
     InvalidInstructionKind,
     InvalidMagic,
     UnexpectedEndOfBuffer,
+    UnexpectedEndOfAccounts,
+    InvalidOwner,
 }
 
 /// Needed for `std::error::Error`.
@@ -31,6 +36,8 @@ impl From<Error> for ProgErr {
             Error::InvalidInstructionKind => ProgErr::InvalidInstructionData,
             Error::InvalidMagic => ProgErr::InvalidInstructionData,
             Error::UnexpectedEndOfBuffer => ProgErr::InvalidInstructionData,
+            Error::UnexpectedEndOfAccounts => ProgErr::InvalidAccountData,
+            Error::InvalidOwner => ProgErr::InvalidAccountData,
         }
     }
 }

@@ -21,6 +21,7 @@ use solana_client::{
 };
 use solana_sdk::{
     commitment_config::CommitmentConfig,
+    instruction::Instruction,
     native_token::*,
     pubkey::Pubkey,
     signature::{read_keypair_file, Keypair, Signer},
@@ -34,6 +35,7 @@ use spl_token::{
     state::{Account, Mint},
 };
 
+use ee_vaa_program::instruction::{EEVAAInstruction, EEVAA};
 use spl_bridge::{instruction::*, state::*};
 
 use crate::faucet::request_and_confirm_airdrop;
@@ -78,8 +80,7 @@ fn command_deploy_bridge(
     let (recent_blockhash, fee_calculator) = config.rpc_client.get_recent_blockhash()?;
     check_fee_payer_balance(
         config,
-        minimum_balance_for_rent_exemption
-            + fee_calculator.calculate_fee(&transaction.message()),
+        minimum_balance_for_rent_exemption + fee_calculator.calculate_fee(&transaction.message()),
     )?;
     transaction.sign(&[&config.fee_payer, &config.owner], recent_blockhash);
     Ok(Some(transaction))
@@ -116,10 +117,28 @@ fn command_create_wrapped(
     let (recent_blockhash, fee_calculator) = config.rpc_client.get_recent_blockhash()?;
     check_fee_payer_balance(
         config,
-        minimum_balance_for_rent_exemption
-            + fee_calculator.calculate_fee(&transaction.message()),
+        minimum_balance_for_rent_exemption + fee_calculator.calculate_fee(&transaction.message()),
     )?;
     transaction.sign(&[&config.fee_payer, &config.owner], recent_blockhash);
+    Ok(Some(transaction))
+}
+
+fn command_post_eevaa(config: &Config, program_key: &Pubkey, eevaa: EEVAA) -> CommmandResult {
+    println!("Posting EEVAA {:#?}", eevaa);
+
+    let ix = Instruction {
+        program_id: *program_key,
+        accounts: vec![],
+        data: EEVAAInstruction::PostEEVAA(eevaa).serialize()?,
+    };
+
+    let mut transaction = Transaction::new_with_payer(&[ix], Some(&config.fee_payer.pubkey()));
+
+    let (recent_blockhash, fee_calculator) = config.rpc_client.get_recent_blockhash()?;
+
+    check_fee_payer_balance(config, fee_calculator.calculate_fee(&transaction.message()))?;
+    transaction.sign(&[&config.fee_payer, &config.owner], recent_blockhash);
+
     Ok(Some(transaction))
 }
 
@@ -130,10 +149,7 @@ fn command_poke_proposal(config: &Config, bridge: &Pubkey, proposal: &Pubkey) ->
     let mut transaction = Transaction::new_with_payer(&[ix], Some(&config.fee_payer.pubkey()));
 
     let (recent_blockhash, fee_calculator) = config.rpc_client.get_recent_blockhash()?;
-    check_fee_payer_balance(
-        config,
-        fee_calculator.calculate_fee(&transaction.message()),
-    )?;
+    check_fee_payer_balance(config, fee_calculator.calculate_fee(&transaction.message()))?;
     transaction.sign(&[&config.fee_payer, &config.owner], recent_blockhash);
     Ok(Some(transaction))
 }
@@ -217,8 +233,7 @@ fn command_lock_tokens(
     let (recent_blockhash, fee_calculator) = config.rpc_client.get_recent_blockhash()?;
     check_fee_payer_balance(
         config,
-        minimum_balance_for_rent_exemption
-            + fee_calculator.calculate_fee(&transaction.message()),
+        minimum_balance_for_rent_exemption + fee_calculator.calculate_fee(&transaction.message()),
     )?;
     transaction.sign(&[&config.fee_payer, &config.owner], recent_blockhash);
     Ok(Some(transaction))
@@ -233,7 +248,7 @@ fn check_fee_payer_balance(config: &Config, required_balance: u64) -> Result<(),
             lamports_to_sol(required_balance),
             lamports_to_sol(balance)
         )
-            .into())
+        .into())
     } else {
         Ok(())
     }
@@ -248,7 +263,7 @@ fn check_owner_balance(config: &Config, required_balance: u64) -> Result<(), Err
             lamports_to_sol(required_balance),
             lamports_to_sol(balance)
         )
-            .into())
+        .into())
     } else {
         Ok(())
     }
@@ -284,8 +299,7 @@ fn command_create_token(config: &Config, decimals: u8, token: Keypair) -> Commma
     let (recent_blockhash, fee_calculator) = config.rpc_client.get_recent_blockhash()?;
     check_fee_payer_balance(
         config,
-        minimum_balance_for_rent_exemption
-            + fee_calculator.calculate_fee(&transaction.message()),
+        minimum_balance_for_rent_exemption + fee_calculator.calculate_fee(&transaction.message()),
     )?;
     transaction.sign(
         &[&config.fee_payer, &config.owner, &token],
@@ -323,8 +337,7 @@ fn command_create_account(config: &Config, token: Pubkey, account: Keypair) -> C
     let (recent_blockhash, fee_calculator) = config.rpc_client.get_recent_blockhash()?;
     check_fee_payer_balance(
         config,
-        minimum_balance_for_rent_exemption
-            + fee_calculator.calculate_fee(&transaction.message()),
+        minimum_balance_for_rent_exemption + fee_calculator.calculate_fee(&transaction.message()),
     )?;
     transaction.sign(
         &[&config.fee_payer, &config.owner, &account],
@@ -354,10 +367,7 @@ fn command_assign(config: &Config, account: Pubkey, new_owner: Pubkey) -> Commma
     );
 
     let (recent_blockhash, fee_calculator) = config.rpc_client.get_recent_blockhash()?;
-    check_fee_payer_balance(
-        config,
-        fee_calculator.calculate_fee(&transaction.message()),
-    )?;
+    check_fee_payer_balance(config, fee_calculator.calculate_fee(&transaction.message()))?;
     transaction.sign(&[&config.fee_payer, &config.owner], recent_blockhash);
     Ok(Some(transaction))
 }
@@ -393,10 +403,7 @@ fn command_transfer(
     );
 
     let (recent_blockhash, fee_calculator) = config.rpc_client.get_recent_blockhash()?;
-    check_fee_payer_balance(
-        config,
-        fee_calculator.calculate_fee(&transaction.message()),
-    )?;
+    check_fee_payer_balance(config, fee_calculator.calculate_fee(&transaction.message()))?;
     transaction.sign(&[&config.fee_payer, &config.owner], recent_blockhash);
     Ok(Some(transaction))
 }
@@ -429,10 +436,7 @@ fn command_burn(config: &Config, source: Pubkey, ui_amount: f64) -> CommmandResu
     );
 
     let (recent_blockhash, fee_calculator) = config.rpc_client.get_recent_blockhash()?;
-    check_fee_payer_balance(
-        config,
-        fee_calculator.calculate_fee(&transaction.message()),
-    )?;
+    check_fee_payer_balance(config, fee_calculator.calculate_fee(&transaction.message()))?;
     transaction.sign(&[&config.fee_payer, &config.owner], recent_blockhash);
     Ok(Some(transaction))
 }
@@ -467,10 +471,7 @@ fn command_mint(
     );
 
     let (recent_blockhash, fee_calculator) = config.rpc_client.get_recent_blockhash()?;
-    check_fee_payer_balance(
-        config,
-        fee_calculator.calculate_fee(&transaction.message()),
-    )?;
+    check_fee_payer_balance(config, fee_calculator.calculate_fee(&transaction.message()))?;
     transaction.sign(&[&config.fee_payer, &config.owner], recent_blockhash);
     Ok(Some(transaction))
 }
@@ -501,10 +502,7 @@ fn command_wrap(config: &Config, sol: f64) -> CommmandResult {
 
     let (recent_blockhash, fee_calculator) = config.rpc_client.get_recent_blockhash()?;
     check_owner_balance(config, lamports)?;
-    check_fee_payer_balance(
-        config,
-        fee_calculator.calculate_fee(&transaction.message()),
-    )?;
+    check_fee_payer_balance(config, fee_calculator.calculate_fee(&transaction.message()))?;
     transaction.sign(
         &[&config.fee_payer, &config.owner, &account],
         recent_blockhash,
@@ -537,10 +535,7 @@ fn command_unwrap(config: &Config, address: Pubkey) -> CommmandResult {
     );
 
     let (recent_blockhash, fee_calculator) = config.rpc_client.get_recent_blockhash()?;
-    check_fee_payer_balance(
-        config,
-        fee_calculator.calculate_fee(&transaction.message()),
-    )?;
+    check_fee_payer_balance(config, fee_calculator.calculate_fee(&transaction.message()))?;
     transaction.sign(&[&config.fee_payer, &config.owner], recent_blockhash);
     Ok(Some(transaction))
 }
@@ -1039,34 +1034,9 @@ fn main() {
 			.takes_value(true)
 			.index(2)
 			.required(true)
-			.help("The EE VAA  payload to be posted" )
+			.help("The EE VAA payload to be posted" )
 		)
 	)
-	.subcommand(
-            SubCommand::with_name("postvaa")
-                .about("Submit a VAA to the chain")
-                .arg(
-                    Arg::with_name("bridge")
-                        .long("bridge")
-                        .value_name("BRIDGE_KEY")
-                        .validator(is_pubkey_or_keypair)
-                        .takes_value(true)
-                        .index(1)
-                        .required(true)
-                        .help(
-                            "Specify the bridge program address"
-                        ),
-                )
-                .arg(
-                    Arg::with_name("vaa")
-                        .validator(is_hex)
-                        .value_name("HEX_VAA")
-                        .takes_value(true)
-                        .index(2)
-                        .required(true)
-                        .help("The vaa to be posted"),
-                )
-        )
         .subcommand(
             SubCommand::with_name("poke")
                 .about("Poke a proposal so it's retried")
@@ -1308,6 +1278,22 @@ fn main() {
             let proposal = pubkey_of(arg_matches, "proposal").unwrap();
             command_poke_proposal(&config, &bridge, &proposal)
         }
+        ("post-eevaa", Some(arg_matches)) => {
+            let bridge = pubkey_of(arg_matches, "bridge").unwrap();
+
+            let bytes = arg_matches
+                .value_of("eevaa")
+                .map(|s| {
+                    hex::decode(s).expect("INTERNAL: Could not unhex EEVAA despite validation")
+                })
+                .unwrap();
+
+            command_post_eevaa(
+                &config,
+                &bridge,
+                EEVAA::deserialize(bytes.as_slice()).expect("Could not parse EEVAA"),
+            )
+        }
         ("create-wrapped", Some(arg_matches)) => {
             let bridge = pubkey_of(arg_matches, "bridge").unwrap();
             let chain = value_t_or_exit!(arg_matches, "chain", u8);
@@ -1339,31 +1325,31 @@ fn main() {
         }
         _ => unreachable!(),
     }
-        .and_then(|transaction| {
-            if let Some(transaction) = transaction {
-                // TODO: Upgrade to solana-client 1.3 and
-                // `send_and_confirm_transaction_with_spinner_and_commitment()` with single
-                // confirmation by default for better UX
-                let signature = config
-                    .rpc_client
-                    .send_and_confirm_transaction_with_spinner_and_config(
-                        &transaction,
-                        config.commitment_config,
-                        RpcSendTransactionConfig {
-                            // TODO: move to https://github.com/solana-labs/solana/pull/11792
-                            skip_preflight: true,
-                            preflight_commitment: None,
-                            encoding: None,
-                        },
-                    )?;
-                println!("Signature: {}", signature);
-            }
-            Ok(())
-        })
-        .map_err(|err| {
-            eprintln!("{}", err);
-            exit(1);
-        });
+    .and_then(|transaction| {
+        if let Some(transaction) = transaction {
+            // TODO: Upgrade to solana-client 1.3 and
+            // `send_and_confirm_transaction_with_spinner_and_commitment()` with single
+            // confirmation by default for better UX
+            let signature = config
+                .rpc_client
+                .send_and_confirm_transaction_with_spinner_and_config(
+                    &transaction,
+                    config.commitment_config,
+                    RpcSendTransactionConfig {
+                        // TODO: move to https://github.com/solana-labs/solana/pull/11792
+                        skip_preflight: true,
+                        preflight_commitment: None,
+                        encoding: None,
+                    },
+                )?;
+            println!("Signature: {}", signature);
+        }
+        Ok(())
+    })
+    .map_err(|err| {
+        eprintln!("{}", err);
+        exit(1);
+    });
 }
 
 fn keypair_from_seed_arg(arg_matches: &ArgMatches) -> Keypair {
@@ -1378,8 +1364,8 @@ fn keypair_from_seed_arg(arg_matches: &ArgMatches) -> Keypair {
 }
 
 pub fn is_u8<T>(amount: T) -> Result<(), String>
-    where
-        T: AsRef<str> + Display,
+where
+    T: AsRef<str> + Display,
 {
     if amount.as_ref().parse::<u8>().is_ok() {
         Ok(())
@@ -1392,8 +1378,8 @@ pub fn is_u8<T>(amount: T) -> Result<(), String>
 }
 
 pub fn is_u32<T>(amount: T) -> Result<(), String>
-    where
-        T: AsRef<str> + Display,
+where
+    T: AsRef<str> + Display,
 {
     if amount.as_ref().parse::<u32>().is_ok() {
         Ok(())
@@ -1406,8 +1392,8 @@ pub fn is_u32<T>(amount: T) -> Result<(), String>
 }
 
 pub fn is_hex<T>(value: T) -> Result<(), String>
-    where
-        T: AsRef<str> + Display,
+where
+    T: AsRef<str> + Display,
 {
     hex::decode(value.to_string())
         .map(|_| ())
