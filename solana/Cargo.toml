@@ -1,2 +1,5 @@
 [workspace]
 members = ["agent", "bridge", "cli", "ee-vaa-program"]
+
+[profile.release]
+overflow-checks = true
