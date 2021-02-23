@@ -13,6 +13,7 @@ EOF
 # Constants
 cli_address=6sbzC1eH4FTujJXWj51eQe25cYvr4xfXbJ1vAj7j2k5J
 bridge_address=Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o
+eevaa_program_address=EevaaBridgeeXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o
 initial_guardian=befa429d57cd18b7f8a4d91a2da9ab4af05d0fbe
 recipient_address=90F8bf6A479f320ead074411a4B0e7944Ea8c9C1
 chain_id_ethereum=2
@@ -29,6 +30,10 @@ retry cli airdrop 127.0.0.1:9900
 # Create the bridge contract at a known address
 # OK to fail on subsequent attempts (already created).
 retry cli create-bridge "$bridge_address" "$initial_guardian"
+
+
+# TODO(drozdziak1): Uncomment once we have eevaa state
+# retry cli create-eevaa-program "$eevaa_program_address" "$initial_guardian"
 
 # Create a new SPL token (at a random address)
 token=$(cli create-token --seed=29934 | grep 'Creating token' | awk '{ print $3 }')

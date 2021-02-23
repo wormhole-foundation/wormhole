@@ -21,10 +21,11 @@ import (
 )
 
 type SolanaWatcher struct {
-	bridge    solana.PublicKey
-	wsUrl     string
-	rpcUrl    string
-	lockEvent chan *common.ChainLock
+	bridge              solana.PublicKey
+	eevaaProgramAddress solana.PublicKey
+	wsUrl               string
+	rpcUrl              string
+	lockEvent           chan *common.ChainLock
 }
 
 var (
@@ -63,8 +64,8 @@ func init() {
 	prometheus.MustRegister(queryLatency)
 }
 
-func NewSolanaWatcher(wsUrl, rpcUrl string, bridgeAddress solana.PublicKey, lockEvents chan *common.ChainLock) *SolanaWatcher {
-	return &SolanaWatcher{bridge: bridgeAddress, wsUrl: wsUrl, rpcUrl: rpcUrl, lockEvent: lockEvents}
+func NewSolanaWatcher(wsUrl, rpcUrl string, bridgeAddress solana.PublicKey, eevaaProgramAddress solana.PublicKey, lockEvents chan *common.ChainLock) *SolanaWatcher {
+	return &SolanaWatcher{bridge: bridgeAddress, eevaaProgramAddress: eevaaProgramAddress, wsUrl: wsUrl, rpcUrl: rpcUrl, lockEvent: lockEvents}
 }
 
 func (s *SolanaWatcher) Run(ctx context.Context) error {

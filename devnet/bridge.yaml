@@ -77,6 +77,8 @@ spec:
             - '2'
             - --solanaBridgeAddress
             - Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o
+            - --eevaaProgramAddress
+            - EevaaBridgeeXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o
             - --solanaWS
             - ws://solana-devnet:8900
             - --solanaRPC

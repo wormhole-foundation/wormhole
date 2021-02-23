@@ -9,6 +9,7 @@ use primitive_types::U256;
 use rand::{
     prelude::StdRng,
     rngs::{mock::StepRng, ThreadRng},
+    Rng,
     CryptoRng, RngCore,
 };
 use solana_account_decoder::{parse_token::TokenAccountType, UiAccountData};
@@ -21,7 +22,7 @@ use solana_client::{
 };
 use solana_sdk::{
     commitment_config::CommitmentConfig,
-    instruction::Instruction,
+    instruction::{AccountMeta, Instruction},
     native_token::*,
     pubkey::Pubkey,
     signature::{read_keypair_file, Keypair, Signer},
@@ -86,6 +87,13 @@ fn command_deploy_bridge(
     Ok(Some(transaction))
 }
 
+fn command_deploy_eevaa_program(config: &Config, eevaa_program: &Pubkey) -> CommmandResult {
+    println!("Deploying EE VAA program");
+
+    println!("TODO: Design and populate EE VAA program state");
+    Ok(None)
+}
+
 fn command_create_wrapped(
     config: &Config,
     bridge: &Pubkey,
@@ -128,7 +136,12 @@ fn command_post_eevaa(config: &Config, program_key: &Pubkey, eevaa: EEVAA) -> Co
 
     let ix = Instruction {
         program_id: *program_key,
-        accounts: vec![],
+        accounts: vec![
+            AccountMeta::new_readonly(*program_key, false),
+            AccountMeta::new_readonly(solana_program::system_program::id(), false),
+            AccountMeta::new(config.fee_payer.pubkey(), true),
+            AccountMeta::new(ee_vaa_program::derive_eevaa_key(program_key, &eevaa)?.0, false),
+        ],
         data: EEVAAInstruction::PostEEVAA(eevaa).serialize()?,
     };
 
@@ -136,8 +149,15 @@ fn command_post_eevaa(config: &Config, program_key: &Pubkey, eevaa: EEVAA) -> Co
 
     let (recent_blockhash, fee_calculator) = config.rpc_client.get_recent_blockhash()?;
 
+    println!("Henlo before payer balance");
     check_fee_payer_balance(config, fee_calculator.calculate_fee(&transaction.message()))?;
-    transaction.sign(&[&config.fee_payer, &config.owner], recent_blockhash);
+    println!("Henlo before tx.sign");
+    transaction.sign(
+        &[
+            &config.fee_payer,
+        ],
+        recent_blockhash,
+    );
 
     Ok(Some(transaction))
 }
@@ -936,6 +956,29 @@ fn main() {
             .arg(
                 Arg::with_name("guardian")
                     .validator(is_hex)
+                    .value_name("GUARDIAN_ADDRESS")
+                    .takes_value(true)
+                    .index(2)
+                    .required(true)
+                    .help("Address of the initial guardian"),
+            ))
+        .subcommand(SubCommand::with_name("create-eevaa-program")
+            .about("Create a new bridge")
+            .arg(
+                Arg::with_name("eevaa_program")
+                    .long("eevaa_program")
+                    .value_name("EEVAA_PROGRAM_KEY")
+                    .validator(is_pubkey_or_keypair)
+                    .takes_value(true)
+                    .index(1)
+                    .required(true)
+                    .help(
+                        "Specify the bridge program address"
+                    ),
+            )
+            .arg(
+                Arg::with_name("guardian")
+                    .validator(is_hex)
                     .value_name("GUADIAN_ADDRESS")
                     .takes_value(true)
                     .index(2)
@@ -1016,25 +1059,25 @@ fn main() {
 	    SubCommand::with_name("post-eevaa")
 		.about("Submit an External Entity VAA to the chain")
 		.arg(
-		    Arg::with_name("bridge")
-                        .long("bridge")
-                        .value_name("BRIDGE_KEY")
+		    Arg::with_name("eevaa_program")
+                        .long("eevaa_program")
+                        .value_name("EEVAA_PROGRAM_KEY")
                         .validator(is_pubkey_or_keypair)
                         .takes_value(true)
                         .index(1)
                         .required(true)
                         .help(
-                            "Specify the bridge program address"
+                            "Specify the EE VAA program address"
                         ),
 		)
 		.arg(
-		    Arg::with_name("eevaa")
+		    Arg::with_name("eevaa_payload")
                         .validator(is_hex)
-			.value_name("HEX_EE_VAA")
+			.value_name("HEX_EE_VAA_PAYLOAD")
 			.takes_value(true)
 			.index(2)
 			.required(true)
-			.help("The EE VAA payload to be posted" )
+			.help("The EE VAA *payload* (not serialized form) to be posted." )
 		)
 	)
         .subcommand(
@@ -1253,6 +1296,13 @@ fn main() {
             guardian.copy_from_slice(&initial_data);
             command_deploy_bridge(&config, &bridge, vec![guardian])
         }
+        ("create-eevaa-program", Some(arg_matches)) => {
+            let eevaa_program = pubkey_of(arg_matches, "eevaa_program").unwrap();
+            let initial_guardian: String = value_of(arg_matches, "sender").unwrap();
+            let initial_data = hex::decode(initial_guardian).unwrap();
+
+            command_deploy_eevaa_program(&config, &eevaa_program)
+        }
         ("lock", Some(arg_matches)) => {
             let bridge = pubkey_of(arg_matches, "bridge").unwrap();
             let account = pubkey_of(arg_matches, "sender").unwrap();
@@ -1279,20 +1329,20 @@ fn main() {
             command_poke_proposal(&config, &bridge, &proposal)
         }
         ("post-eevaa", Some(arg_matches)) => {
-            let bridge = pubkey_of(arg_matches, "bridge").unwrap();
+            let eevaa_program = pubkey_of(arg_matches, "eevaa_program").unwrap();
 
             let bytes = arg_matches
-                .value_of("eevaa")
+                .value_of("eevaa_payload")
                 .map(|s| {
                     hex::decode(s).expect("INTERNAL: Could not unhex EEVAA despite validation")
                 })
                 .unwrap();
 
-            command_post_eevaa(
-                &config,
-                &bridge,
-                EEVAA::deserialize(bytes.as_slice()).expect("Could not parse EEVAA"),
-            )
+	    let mut rng = rand::thread_rng();
+
+            let eevaa = EEVAA { id: rng.gen(), payload: bytes };
+
+            command_post_eevaa(&config, &eevaa_program, eevaa)
         }
         ("create-wrapped", Some(arg_matches)) => {
             let bridge = pubkey_of(arg_matches, "bridge").unwrap();
@@ -1330,8 +1380,10 @@ fn main() {
             // TODO: Upgrade to solana-client 1.3 and
             // `send_and_confirm_transaction_with_spinner_and_commitment()` with single
             // confirmation by default for better UX
+            println!("Henlo before send_and_confirm");
             let signature = config
                 .rpc_client
+                // .send_and_confirm_transaction_with_spinner_and_config(
                 .send_and_confirm_transaction_with_spinner_and_config(
                     &transaction,
                     config.commitment_config,

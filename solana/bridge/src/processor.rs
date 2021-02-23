@@ -1362,6 +1362,7 @@ impl Bridge {
         if acc.owner != owner {
             return Err(Error::InvalidOwner.into());
         }
+	msg!("Got expected owner {:?}", owner);
         Ok(acc)
     }
 }

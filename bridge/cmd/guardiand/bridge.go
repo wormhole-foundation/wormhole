@@ -49,6 +49,7 @@ var (
 
 	bridgeKeyPath       *string
 	solanaBridgeAddress *string
+	eevaaProgramAddress *string
 
 	ethRPC           *string
 	ethContract      *string
@@ -86,6 +87,7 @@ func init() {
 
 	bridgeKeyPath = BridgeCmd.Flags().String("bridgeKey", "", "Path to guardian key (required)")
 	solanaBridgeAddress = BridgeCmd.Flags().String("solanaBridgeAddress", "", "Address of the Solana Bridge Program (required)")
+	eevaaProgramAddress = BridgeCmd.Flags().String("eevaaProgramAddress", "", "Address of the Solana EE VAA Program (required)")
 
 	ethRPC = BridgeCmd.Flags().String("ethRPC", "", "Ethereum RPC URL")
 	ethContract = BridgeCmd.Flags().String("ethContract", "", "Ethereum bridge contract address")
@@ -301,6 +303,11 @@ func runBridge(cmd *cobra.Command, args []string) {
 		logger.Fatal("invalid Solana bridge address", zap.Error(err))
 	}
 
+	eevaaProgramAddress, err := solana_types.PublicKeyFromBase58(*eevaaProgramAddress)
+	if err != nil {
+		logger.Fatal("invalid EE VAA program address", zap.Error(err))
+	}
+
 	// In devnet mode, we generate a deterministic guardian key and write it to disk.
 	if *unsafeDevMode {
 		gk, err := generateDevnetGuardianKey()
@@ -407,7 +414,7 @@ func runBridge(cmd *cobra.Command, args []string) {
 		}
 
 		if err := supervisor.Run(ctx, "solwatch",
-			solana.NewSolanaWatcher(*solanaWsRPC, *solanaRPC, solBridgeAddress, lockC).Run); err != nil {
+			solana.NewSolanaWatcher(*solanaWsRPC, *solanaRPC, solBridgeAddress, eevaaProgramAddress, lockC).Run); err != nil {
 			return err
 		}
 

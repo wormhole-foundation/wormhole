@@ -11,8 +11,7 @@ use crate::{
     instruction::{ForeignAddress, MAX_LEN_GUARDIAN_KEYS, MAX_VAA_SIZE},
     vaa::BodyTransfer,
 };
-use solana_program::program_pack::Pack;
-use solana_program::rent::Rent;
+use solana_program::{program_pack::Pack, rent::Rent};
 
 /// fee rate as a ratio
 #[repr(C)]
@@ -209,8 +208,10 @@ impl Bridge {
     pub fn token_account_deserialize(
         info: &AccountInfo,
     ) -> Result<spl_token::state::Account, Error> {
-        Ok(spl_token::state::Account::unpack(&mut info.data.borrow_mut())
-            .map_err(|_| Error::ExpectedAccount)?)
+        Ok(
+            spl_token::state::Account::unpack(&mut info.data.borrow_mut())
+                .map_err(|_| Error::ExpectedAccount)?,
+        )
     }
 
     /// Deserializes a spl_token `Mint`.
@@ -234,7 +235,7 @@ impl Bridge {
             return Err(ProgramError::InvalidAccountData);
         }
         #[allow(clippy::cast_ptr_alignment)]
-            Ok(unsafe { &mut *(&mut input[0] as *mut u8 as *mut T) })
+        Ok(unsafe { &mut *(&mut input[0] as *mut u8 as *mut T) })
     }
 
     /// Unpacks a state from a bytes buffer while assuring that the state is initialized.
@@ -252,7 +253,7 @@ impl Bridge {
             return Err(ProgramError::InvalidAccountData);
         }
         #[allow(clippy::cast_ptr_alignment)]
-            Ok(unsafe { &*(&input[0] as *const u8 as *const T) })
+        Ok(unsafe { &*(&input[0] as *const u8 as *const T) })
     }
 }
 
@@ -325,7 +326,7 @@ impl Bridge {
             vec!["claim".as_bytes().to_vec(), bridge.to_bytes().to_vec()],
             body.chunks(32).map(|v| v.to_vec()).collect(),
         ]
-            .concat()
+        .concat()
     }
 
     /// Calculates derived seeds for a wrapped asset meta entry
@@ -393,7 +394,7 @@ impl Bridge {
             program_id,
             &Self::derive_guardian_set_seeds(bridge_key, guardian_set_index),
         )?
-            .0)
+        .0)
     }
 
     /// Calculates a derived seeds for a wrapped asset
@@ -408,7 +409,7 @@ impl Bridge {
             program_id,
             &Self::derive_wrapped_asset_seeds(bridge_key, asset_chain, asset_decimal, asset),
         )?
-            .0)
+        .0)
     }
 
     /// Calculates a derived address for a transfer out
@@ -434,7 +435,7 @@ impl Bridge {
                 slot,
             ),
         )?
-            .0)
+        .0)
     }
 
     /// Calculates derived address for a signature account
@@ -448,7 +449,7 @@ impl Bridge {
             program_id,
             &Self::derive_signature_seeds(bridge, hash, guardian_index),
         )?
-            .0)
+        .0)
     }
 
     pub fn derive_key(
@@ -486,7 +487,8 @@ impl Bridge {
     pub fn transfer_fee() -> u64 {
         // Pay for 2 signature state and Claimed VAA rents + 2 * guardian tx fees
         // This will pay for this transfer and ~10 inbound ones
-        Rent::default().minimum_balance((size_of::<SignatureState>() + size_of::<ClaimedVAA>()) * 2) + Self::VAA_TX_FEE * 2
+        Rent::default().minimum_balance((size_of::<SignatureState>() + size_of::<ClaimedVAA>()) * 2)
+            + Self::VAA_TX_FEE * 2
     }
 }
 

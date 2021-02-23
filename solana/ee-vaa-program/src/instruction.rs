@@ -84,6 +84,9 @@ impl EEVAAInstruction {
 /// EE VAA representation
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct EEVAA {
+    /// Can be anything, used to distinguish between EEVAAs with
+    /// identical payloads and prevent EEVAA account address conflicts
+    pub id: u64,
     /// The data to pass along the guardian set gossip network.
     pub payload: Vec<u8>,
 }
@@ -97,28 +100,34 @@ impl EEVAA {
 
     /// Deserialize this EE-VAA
     pub fn deserialize_from_reader(mut r: impl Read) -> Result<Self, Error> {
-        let payload_len = r
-            .read_u16::<BigEndian>()
-            .map_err(|_| UnexpectedEndOfBuffer)?;
+        // All results boil down to the same type of error, we use a
+        // closure to boil it down to a single map_err()
+        let mut f = || -> io::Result<Self> {
+            let id = r.read_u64::<BigEndian>()?;
+            let payload_len = r.read_u16::<BigEndian>()?;
 
-        let mut payload = vec![0; payload_len as usize];
+            let mut payload = vec![0; payload_len as usize];
 
-        r.read_exact(payload.as_mut_slice())
-            .map_err(|_| UnexpectedEndOfBuffer)?;
+            r.read_exact(payload.as_mut_slice())?;
 
-        Ok(Self { payload })
+            Ok(Self { id, payload })
+        };
+
+        f().map_err(|_| UnexpectedEndOfBuffer)
     }
 
     /// Turns this EE VAA into bytes.
     ///
     /// Format:
     ///
-    /// | Name   | Length in bytes             | Description                                        |
-    /// |--------|-----------------------------|----------------------------------------------------|
-    /// | Length | 2                           | Big endian, denotes size of the rest of the buffer |
-    /// | Data   | decided by the length field |                                                    |
+    /// | Name   | Length in bytes             | Description                                                                         |
+    /// |--------|-----------------------------|-------------------------------------------------------------------------------------|
+    /// | ID     | 8                           | Arbitrary, unique, big endian; used in seeding to prevent account address conflicts |
+    /// | Length | 2                           | Big endian, denotes size of the rest of the buffer                                  |
+    /// | Data   | decided by the length field |                                                                                     |
     pub fn serialize(&self) -> Result<Vec<u8>, io::Error> {
         let mut c = Cursor::new(Vec::new());
+        c.write_u64::<BigEndian>(self.id)?;
 
         c.write_u16::<BigEndian>(
             self.payload
@@ -142,6 +151,7 @@ mod tests {
     #[test]
     fn test_serde_eevaa_basic() -> Result<(), ErrBox> {
         let a = EEVAA {
+	    id: 0xDEADBEEFDEADBABE,
             payload: vec![0x42],
         };
 
@@ -157,6 +167,7 @@ mod tests {
     #[test]
     fn test_serde_instruction_basic() -> Result<(), ErrBox> {
         let ee_vaa = EEVAA {
+	    id: 0xDEADBEEFDEADBABE,
             payload: vec![0x42],
         };
         let i_a = EEVAAInstruction::PostEEVAA(ee_vaa);

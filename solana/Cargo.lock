@@ -420,6 +420,7 @@ dependencies = [
  "solana-client",
  "solana-faucet",
  "solana-logger",
+ "solana-program",
  "solana-sdk",
  "spl-token",
  "thiserror",
@@ -4420,7 +4421,6 @@ dependencies = [
  "solana-program",
  "spl-token",
  "thiserror",
- "zerocopy",
 ]
 
 [[package]]

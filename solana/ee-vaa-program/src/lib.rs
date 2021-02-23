@@ -2,20 +2,24 @@
 //! program. Processes instructions related to arbitrary cross-chain
 //! messaging.
 
-#[macro_use]
-extern crate solana_program;
-
 pub mod error;
 pub mod instruction;
 
+#[macro_use]
+extern crate solana_program;
+
+use instruction::EEVAA;
 use solana_program::{
-    account_info::next_account_info, account_info::AccountInfo, entrypoint,
-    entrypoint::ProgramResult, program_error::ProgramError as ProgErr, pubkey::Pubkey,
-    rent::ACCOUNT_STORAGE_OVERHEAD, rent::DEFAULT_LAMPORTS_PER_BYTE_YEAR,
+    account_info::{next_account_info, AccountInfo},
+    entrypoint,
+    entrypoint::ProgramResult,
+    instruction::Instruction,
+    program::invoke_signed,
+    program_error::ProgramError as ProgErr,
+    pubkey::Pubkey,
+    rent::{ACCOUNT_STORAGE_OVERHEAD, DEFAULT_LAMPORTS_PER_BYTE_YEAR},
     system_instruction::create_account,
 };
-
-use std::convert::TryFrom;
 
 use crate::{
     error::Error::{self, *},
@@ -38,40 +42,69 @@ fn ee_vaa_entrypoint<'a>(
     instruction_data: &[u8],
 ) -> ProgramResult {
     let mut acc_iter = accounts.iter();
-    let program_acc: &AccountInfo = next_account_info_with_owner(&mut acc_iter, program_id)?;
-    let payer_acc: &AccountInfo = next_account_info(&mut acc_iter)?;
+
+    msg!("Before account checks! Accounts: {:?}", accounts);
+    let program_acc_info: &AccountInfo = next_account_info(&mut acc_iter)?;
+    let system_prog_acc_info: &AccountInfo = next_account_info(&mut acc_iter)?;
+    msg!("Before payer_acc_info");
+    let payer_acc_info: &AccountInfo = next_account_info(&mut acc_iter)?;
+    msg!("Before ee_vaa_acc_info");
+    let ee_vaa_acc_info: &AccountInfo = next_account_info(&mut acc_iter)?;
+
+    msg!("After account checks!");
 
     // Verify that the EE VAA is not garbage
-    let ix: EEVAAInstruction = EEVAAInstruction::deserialize(instruction_data).map_err(|e| {
-        msg!("Invalid EE VAA Payload: {}", e);
-        e
-    })?;
+    let ee_vaa_ix: EEVAAInstruction =
+        EEVAAInstruction::deserialize(instruction_data).map_err(|e| {
+            msg!("Invalid EE VAA: {}", e);
+            e
+        })?;
 
-    match ix {
-        EEVAAInstruction::PostEEVAA(ee_vaa) => {
+    match ee_vaa_ix {
+        EEVAAInstruction::PostEEVAA(eevaa) => {
             let payload = instruction_data;
             let payload_len = payload.len() as u64;
 
             let ee_vaa_acc_rent =
                 ACCOUNT_STORAGE_OVERHEAD * payload_len * LAMPORTS_PER_THREE_BYTEHOURS;
 
-            let amount = EE_VAA_BASE_TX_FEE + ee_vaa_acc_rent;
+            // transfer_sol(payer_acc_info, program_acc_info, EE_VAA_BASE_TX_FEE)?;
 
-            // Transfer full fee from payer
-            transfer_sol(payer_acc, program_acc, amount)?;
-
-            let ee_vaa_acc = unimplemented!();
-
-            // Create new account, program pays for it with surplus over TX FEE
-            let ix = create_account(
-                program_id,
-                ee_vaa_acc,
+            // Create new account, program pays for it with surplus over TX fee
+            let ix: Instruction = create_account(
+                payer_acc_info.signer_key().ok_or_else(|| {
+                    msg!("Payer must be a signer!");
+                    ProgErr::InvalidAccountData
+                })?,
+                ee_vaa_acc_info.unsigned_key(),
+                // ee_vaa_acc_info.signer_key().ok_or_else(|| {
+                //     msg!("EE VAA acc must be a signer!");
+                //     ProgErr::InvalidAccountData
+                // })?,
                 ee_vaa_acc_rent,
                 payload_len,
                 program_id,
             );
 
+            let accounts = &[
+                system_prog_acc_info.clone(),
+                payer_acc_info.clone(),
+                ee_vaa_acc_info.clone(),
+            ];
 
+            let (_key, seeds) = derive_eevaa_key(program_id, &eevaa)?;
+
+            msg!("Yooooooooo");
+            invoke_signed(
+                &ix,
+                accounts,
+                &[seeds
+                    .iter()
+                    .map(|seed| seed.as_slice())
+                    .collect::<Vec<_>>()
+                    .as_slice()][..],
+            )?;
+            msg!("Greetings after");
         }
     }
 
@@ -84,6 +117,7 @@ pub fn next_account_info_with_owner<'a, 'b, I: Iterator<Item = &'a AccountInfo<'
 ) -> Result<I::Item, error::Error> {
     let acc = iter.next().ok_or(UnexpectedEndOfAccounts)?;
     if acc.owner != owner {
+        msg!("Expected owner {}, got {}", owner, acc.owner);
         return Err(InvalidOwner);
     }
     Ok(acc)
@@ -104,6 +138,43 @@ pub fn transfer_sol(
         .ok_or(ProgErr::InvalidArgument)?;
 
     Ok(())
+}
+
+pub fn derive_eevaa_seeds(eevaa: &EEVAA) -> Vec<Vec<u8>> {
+    vec![eevaa.id.to_be_bytes().to_vec(), eevaa.payload.clone()]
+}
+
+/// Creates program address for the EEVAA program
+pub fn derive_eevaa_key(
+    program_id: &Pubkey,
+    eevaa: &EEVAA,
+) -> Result<(Pubkey, Vec<Vec<u8>>), Error> {
+    let seeds = derive_eevaa_seeds(eevaa);
+
+    find_program_address(&seeds, program_id)
+}
+
+pub fn find_program_address(
+    seeds: &Vec<Vec<u8>>,
+    program_id: &Pubkey,
+) -> Result<(Pubkey, Vec<Vec<u8>>), Error> {
+    let mut nonce = [255u8];
+    for _ in 0..std::u8::MAX {
+        {
+            let mut seeds_with_nonce = seeds.to_vec();
+            seeds_with_nonce.push(nonce.to_vec());
+            let s: Vec<_> = seeds_with_nonce
+                .iter()
+                .map(|item| item.as_slice())
+                .collect();
+            if let Ok(address) = Pubkey::create_program_address(&s, program_id) {
+                return Ok((address, seeds_with_nonce));
+            }
+        }
+        nonce[0] -= 1;
+    }
+    msg!("Unable to find a viable program address nonce");
+    Err(Error::Internal)
 }
 
 #[cfg(test)]
