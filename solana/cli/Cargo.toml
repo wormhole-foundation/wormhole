@@ -18,7 +18,7 @@ solana-program = "=1.5.5"
 solana-sdk = { version = "=1.5.5" }
 spl-token = "=3.0.1"
 wormhole-bridge = { path = "../bridge" }
-wormhole-ee-vaa-program = { path = "../ee-vaa-program" }
+wormhole-eevaa-program = { path = "../eevaa-program" }
 primitive-types = { version = "0.7.2" }
 hex = "0.4.2"
 thiserror = "1.0.20"

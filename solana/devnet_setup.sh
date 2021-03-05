@@ -30,6 +30,7 @@ retry cli airdrop 127.0.0.1:9900
 # Create the bridge contract at a known address
 # OK to fail on subsequent attempts (already created).
 retry cli create-bridge "$bridge_address" "$initial_guardian"
+retry cli init-eevaa-program "$eevaa_program_address" "$initial_guardian"
 
 
 # TODO(drozdziak1): Uncomment once we have eevaa state

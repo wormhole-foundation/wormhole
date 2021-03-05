@@ -26,7 +26,7 @@ RUN --mount=type=cache,target=/usr/local/cargo,from=rust,source=/usr/local/cargo
     cp ./target/release/deps/*.so /opt/solana/deps
 
 COPY --from=contract /opt/solana/deps/spl_bridge.so /opt/solana/deps/spl_bridge.so
-COPY --from=contract /opt/solana/deps/ee_vaa_program.so /opt/solana/deps/ee_vaa_program.so
+COPY --from=contract /opt/solana/deps/eevaa_program.so /opt/solana/deps/eevaa_program.so
 
 ENV PATH="/opt/solana:${PATH}"
 ENV RUST_LOG="solana_runtime::system_instruction_processor=trace,solana_runtime::message_processor=trace,solana_bpf_loader=debug,solana_rbpf=debug"

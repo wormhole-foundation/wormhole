@@ -1,9 +1,9 @@
 # Note: This crate must be built using do.sh
 
 [package]
-name = "wormhole-ee-vaa-program"
+name = "wormhole-eevaa-program"
 version = "0.1.0"
-description = "EE VAA Wormhole program on Solana"
+description = "EEVAA Wormhole program on Solana"
 authors = ["Certus One Team <info@certus.one>"]
 repository = "https://github.com/solana-labs/solana-program-library"
 license = "Apache-2.0"
@@ -26,5 +26,5 @@ rand = { version = "0.7.0" }
 hex = "0.4.2"
 
 [lib]
-name = "ee_vaa_program"
+name = "eevaa_program"
 crate-type = ["cdylib", "lib"]

@@ -9,8 +9,7 @@ use primitive_types::U256;
 use rand::{
     prelude::StdRng,
     rngs::{mock::StepRng, ThreadRng},
-    Rng,
-    CryptoRng, RngCore,
+    CryptoRng, Rng, RngCore,
 };
 use solana_account_decoder::{parse_token::TokenAccountType, UiAccountData};
 use solana_clap_utils::{
@@ -36,7 +35,7 @@ use spl_token::{
     state::{Account, Mint},
 };
 
-use ee_vaa_program::instruction::{EEVAAInstruction, EEVAA};
+use eevaa_program::instruction::{EEVAAInstruction, InitParams, EEVAA};
 use spl_bridge::{instruction::*, state::*};
 
 use crate::faucet::request_and_confirm_airdrop;
@@ -87,11 +86,34 @@ fn command_deploy_bridge(
     Ok(Some(transaction))
 }
 
-fn command_deploy_eevaa_program(config: &Config, eevaa_program: &Pubkey) -> CommmandResult {
-    println!("Deploying EE VAA program");
+fn command_init_eevaa_program(config: &Config, program_id: &Pubkey) -> CommmandResult {
+    println!("Initializing the EEVAA program at {:?}", program_id);
 
-    println!("TODO: Design and populate EE VAA program state");
-    Ok(None)
+    let init_params = InitParams {
+        eevaa_fee_acc_rent: config
+            .rpc_client
+            .get_minimum_balance_for_rent_exemption(0)?,
+    };
+
+    let ix = Instruction {
+        program_id: *program_id,
+        accounts: vec![
+            AccountMeta::new(eevaa_program::derive_eevaa_fee_key(program_id)?.0, false),
+            AccountMeta::new_readonly(solana_program::system_program::id(), false),
+            AccountMeta::new(config.fee_payer.pubkey(), true),
+        ],
+        data: EEVAAInstruction::Initialize(init_params).serialize()?,
+    };
+
+    let mut tx = Transaction::new_with_payer(&[ix], Some(&config.fee_payer.pubkey()));
+
+    let (recent_blockhash, fee_calculator) = config.rpc_client.get_recent_blockhash()?;
+
+    check_fee_payer_balance(config, fee_calculator.calculate_fee(&tx.message()))?;
+    tx.sign(&[&config.fee_payer], recent_blockhash);
+    println!("EEVAA init TX signed A-OK!");
+
+    Ok(Some(tx))
 }
 
 fn command_create_wrapped(
@@ -131,16 +153,19 @@ fn command_create_wrapped(
     Ok(Some(transaction))
 }
 
-fn command_post_eevaa(config: &Config, program_key: &Pubkey, eevaa: EEVAA) -> CommmandResult {
+fn command_post_eevaa(config: &Config, program_id: &Pubkey, eevaa: EEVAA) -> CommmandResult {
     println!("Posting EEVAA {:#?}", eevaa);
 
     let ix = Instruction {
-        program_id: *program_key,
+        program_id: *program_id,
         accounts: vec![
-            AccountMeta::new_readonly(*program_key, false),
+            AccountMeta::new(eevaa_program::derive_eevaa_fee_key(program_id)?.0, false),
             AccountMeta::new_readonly(solana_program::system_program::id(), false),
             AccountMeta::new(config.fee_payer.pubkey(), true),
-            AccountMeta::new(ee_vaa_program::derive_eevaa_key(program_key, &eevaa)?.0, false),
+            AccountMeta::new(
+                eevaa_program::derive_eevaa_key(program_id, &eevaa)?.0,
+                false,
+            ),
         ],
         data: EEVAAInstruction::PostEEVAA(eevaa).serialize()?,
     };
@@ -149,15 +174,8 @@ fn command_post_eevaa(config: &Config, program_key: &Pubkey, eevaa: EEVAA) -> Co
 
     let (recent_blockhash, fee_calculator) = config.rpc_client.get_recent_blockhash()?;
 
-    println!("Henlo before payer balance");
     check_fee_payer_balance(config, fee_calculator.calculate_fee(&transaction.message()))?;
-    println!("Henlo before tx.sign");
-    transaction.sign(
-        &[
-            &config.fee_payer,
-        ],
-        recent_blockhash,
-    );
+    transaction.sign(&[&config.fee_payer], recent_blockhash);
 
     Ok(Some(transaction))
 }
@@ -962,8 +980,8 @@ fn main() {
                     .required(true)
                     .help("Address of the initial guardian"),
             ))
-        .subcommand(SubCommand::with_name("create-eevaa-program")
-            .about("Create a new bridge")
+        .subcommand(SubCommand::with_name("init-eevaa-program")
+            .about("Create a new EEVAA bridge")
             .arg(
                 Arg::with_name("eevaa_program")
                     .long("eevaa_program")
@@ -1073,11 +1091,11 @@ fn main() {
 		.arg(
 		    Arg::with_name("eevaa_payload")
                         .validator(is_hex)
-			.value_name("HEX_EE_VAA_PAYLOAD")
+			.value_name("HEX_EEVAA_PAYLOAD")
 			.takes_value(true)
 			.index(2)
 			.required(true)
-			.help("The EE VAA *payload* (not serialized form) to be posted." )
+			.help("The EEVAA *payload* (not serialized form) to be posted." )
 		)
 	)
         .subcommand(
@@ -1296,12 +1314,11 @@ fn main() {
             guardian.copy_from_slice(&initial_data);
             command_deploy_bridge(&config, &bridge, vec![guardian])
         }
-        ("create-eevaa-program", Some(arg_matches)) => {
+        ("init-eevaa-program", Some(arg_matches)) => {
             let eevaa_program = pubkey_of(arg_matches, "eevaa_program").unwrap();
-            let initial_guardian: String = value_of(arg_matches, "sender").unwrap();
-            let initial_data = hex::decode(initial_guardian).unwrap();
 
-            command_deploy_eevaa_program(&config, &eevaa_program)
+            command_init_eevaa_program(&config, &eevaa_program)
+
         }
         ("lock", Some(arg_matches)) => {
             let bridge = pubkey_of(arg_matches, "bridge").unwrap();
@@ -1338,9 +1355,12 @@ fn main() {
                 })
                 .unwrap();
 
-	    let mut rng = rand::thread_rng();
+            let mut rng = rand::thread_rng();
 
-            let eevaa = EEVAA { id: rng.gen(), payload: bytes };
+            let eevaa = EEVAA {
+                id: rng.gen(),
+                payload: bytes,
+            };
 
             command_post_eevaa(&config, &eevaa_program, eevaa)
         }

@@ -10,21 +10,24 @@ use std::{
 use crate::error::{Error, Error::*};
 
 /// Present at the beginning of every EE-VAA instruction
-pub const EE_VAA_MAGIC: &'static [u8] = b"WHEV"; // Wormhole EE VAA
+pub const EEVAA_MAGIC: &'static [u8] = b"WHEV"; // Wormhole EE VAA
 
 /// Top-level instruction data type
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum EEVAAInstruction {
     /// Pass an EE-VAA to the bridge
     PostEEVAA(EEVAA),
+    /// Pass initialization params to this program
+    Initialize(InitParams),
 }
 
 /// An enum used to distinguish between instructions in the
 /// serialization format. It is best practice to match variant names
-/// with variants of [`Instruction`].
+/// with variants of [`EEVAAInstruction`].
 #[repr(u8)]
 pub enum InstructionKind {
     PostEEVAA = 1,
+    Initialize = 2,
 }
 
 impl EEVAAInstruction {
@@ -36,12 +39,12 @@ impl EEVAAInstruction {
 
     /// Deserialize the custom Instruction format and underlying data
     pub fn deserialize_from_reader<R: Read>(mut r: R) -> Result<Self, Error> {
-        let mut magic = vec![0; EE_VAA_MAGIC.len()];
+        let mut magic = vec![0; EEVAA_MAGIC.len()];
 
         r.read_exact(&mut magic)
             .map_err(|_| UnexpectedEndOfBuffer)?;
 
-        if magic != EE_VAA_MAGIC {
+        if magic != EEVAA_MAGIC {
             return Err(Error::InvalidMagic);
         }
 
@@ -50,6 +53,9 @@ impl EEVAAInstruction {
         let i = match kind_byte {
             n if n == InstructionKind::PostEEVAA as u8 => {
                 Self::PostEEVAA(EEVAA::deserialize_from_reader(r)?)
+            }
+            n if n == InstructionKind::Initialize as u8 => {
+                Self::Initialize(InitParams::deserialize_from_reader(r)?)
             }
             _other => return Err(InvalidInstructionKind),
         };
@@ -61,19 +67,23 @@ impl EEVAAInstruction {
     ///
     /// Format:
     ///
-    /// | Name             | Length in bytes           | Description                                                |
-    /// |------------------|---------------------------|------------------------------------------------------------|
-    /// | Magic            | [`EE_VAA_MAGIC`] length   | Must match [`EE_VAA_MAGIC`] exactly                        |
-    /// | Instruction kind | 1                         | Decides [`InstructionKind`] on deserialization             |
-    /// | Payload          | Decided by inner struct   | Each [`Instruction`] variant is responsible for its format |
+    /// | Name             | Length in bytes           | Description                                                     |
+    /// |------------------|---------------------------|-----------------------------------------------------------------|
+    /// | Magic            | [`EEVAA_MAGIC`] length   | Must match [`EEVAA_MAGIC`] exactly                             |
+    /// | Instruction kind | 1                         | Decides [`InstructionKind`] on deserialization                  |
+    /// | Payload          | Decided by inner struct   | Each [`EEVAAInstruction`] variant is responsible for its format |
     pub fn serialize(&self) -> Result<Vec<u8>, io::Error> {
         // Start with a copy of the magic
-        let mut buf = EE_VAA_MAGIC.to_owned();
+        let mut buf = EEVAA_MAGIC.to_owned();
 
+        use EEVAAInstruction::*;
         match self {
-            EEVAAInstruction::PostEEVAA(ee_vaa) => {
+            PostEEVAA(eevaa) => {
                 buf.push(InstructionKind::PostEEVAA as u8);
-                buf.append(&mut ee_vaa.serialize()?);
+                buf.append(&mut eevaa.serialize()?);
+            }
+            Initialize(_) => {
+                buf.push(InstructionKind::Initialize as u8);
             }
         }
 
@@ -120,11 +130,11 @@ impl EEVAA {
     ///
     /// Format:
     ///
-    /// | Name   | Length in bytes             | Description                                                                         |
-    /// |--------|-----------------------------|-------------------------------------------------------------------------------------|
-    /// | ID     | 8                           | Arbitrary, unique, big endian; used in seeding to prevent account address conflicts |
-    /// | Length | 2                           | Big endian, denotes size of the rest of the buffer                                  |
-    /// | Data   | decided by the length field |                                                                                     |
+    /// | Name   | Length in bytes             | Description                                                                                           |
+    /// |--------|-----------------------------|-------------------------------------------------------------------------------------------------------|
+    /// | ID     | 8                           | Arbitrary, unique, big endian; used in seeding to prevent account address conflicts for resent EEVAAs |
+    /// | Length | 2                           | Big endian, denotes size of the rest of the buffer                                                    |
+    /// | Data   | decided by the length field |                                                                                                       |
     pub fn serialize(&self) -> Result<Vec<u8>, io::Error> {
         let mut c = Cursor::new(Vec::new());
         c.write_u64::<BigEndian>(self.id)?;
@@ -142,6 +152,22 @@ impl EEVAA {
     }
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct InitParams {
+    /// How many lamports to initially put in the EEVAA fee account
+    pub eevaa_fee_acc_rent: u64,
+}
+
+impl InitParams {
+    pub fn deserialize_from_reader(mut r: impl Read) -> Result<Self, Error> {
+        let eevaa_fee_acc_rent = r
+            .read_u64::<BigEndian>()
+            .map_err(|_e| UnexpectedEndOfBuffer)?;
+
+        Ok(Self { eevaa_fee_acc_rent })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -151,7 +177,7 @@ mod tests {
     #[test]
     fn test_serde_eevaa_basic() -> Result<(), ErrBox> {
         let a = EEVAA {
-	    id: 0xDEADBEEFDEADBABE,
+            id: 0xDEADBEEFDEADBABE,
             payload: vec![0x42],
         };
 
@@ -166,11 +192,11 @@ mod tests {
 
     #[test]
     fn test_serde_instruction_basic() -> Result<(), ErrBox> {
-        let ee_vaa = EEVAA {
-	    id: 0xDEADBEEFDEADBABE,
+        let eevaa = EEVAA {
+            id: 0xDEADBEEFDEADBABE,
             payload: vec![0x42],
         };
-        let i_a = EEVAAInstruction::PostEEVAA(ee_vaa);
+        let i_a = EEVAAInstruction::PostEEVAA(eevaa);
 
         let buf = i_a.serialize()?;
 

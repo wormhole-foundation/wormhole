@@ -11,7 +11,7 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
 
 +# Add bridge
 +genesis_args+=(--bpf-program Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o BPFLoader2111111111111111111111111111111111 /opt/solana/deps/spl_bridge.so)
-+genesis_args+=(--bpf-program EevaaBridgeeXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o BPFLoader2111111111111111111111111111111111 /opt/solana/deps/ee_vaa_program.so)
++genesis_args+=(--bpf-program EevaaBridgeeXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o BPFLoader2111111111111111111111111111111111 /opt/solana/deps/eevaa_program.so)
 +
  echo "${genesis_args[@]}" > spl-genesis-args.sh
 

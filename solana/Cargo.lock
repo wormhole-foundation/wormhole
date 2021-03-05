@@ -427,7 +427,7 @@ dependencies = [
  "tungstenite 0.11.1",
  "url",
  "wormhole-bridge",
- "wormhole-ee-vaa-program",
+ "wormhole-eevaa-program",
 ]
 
 [[package]]
@@ -4410,7 +4410,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "wormhole-ee-vaa-program"
+name = "wormhole-eevaa-program"
 version = "0.1.0"
 dependencies = [
  "byteorder",
