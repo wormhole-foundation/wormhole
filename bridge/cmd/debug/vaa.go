@@ -9,11 +9,6 @@ import (
 	"strings"
 )
 
-var DebugCmd = &cobra.Command{
-	Use:   "debug",
-	Short: "Debugging utilities",
-}
-
 var decodeVaaCmd = &cobra.Command{
 	Use:   "decode-vaa [DATA]",
 	Short: "Decode a hex-encoded VAA",
@@ -33,8 +28,4 @@ var decodeVaaCmd = &cobra.Command{
 			spew.Dump(v)
 		}
 	},
-}
-
-func init() {
-	DebugCmd.AddCommand(decodeVaaCmd)
 }
