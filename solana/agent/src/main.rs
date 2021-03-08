@@ -110,7 +110,7 @@ impl Agent for AgentImpl {
                 })),
                 Err(e) => Err(Status::new(
                     Code::Internal,
-                    format!("tx sending failed: {}", e),
+                    format!("tx sending failed: {:?}", e),
                 )),
             }
         })
