@@ -1,4 +1,4 @@
-package ethereum
+package solana
 
 import (
 	"context"
@@ -42,15 +42,13 @@ func init() {
 
 type (
 	SolanaVAASubmitter struct {
-		url string
-
-		lockChan chan *common.ChainLock
-		vaaChan  chan *vaa.VAA
+		url     string
+		vaaChan chan *vaa.VAA
 	}
 )
 
-func NewSolanaVAASubmitter(url string, lockEvents chan *common.ChainLock, vaaQueue chan *vaa.VAA) *SolanaVAASubmitter {
-	return &SolanaVAASubmitter{url: url, lockChan: lockEvents, vaaChan: vaaQueue}
+func NewSolanaVAASubmitter(url string, vaaQueue chan *vaa.VAA) *SolanaVAASubmitter {
+	return &SolanaVAASubmitter{url: url, vaaChan: vaaQueue}
 }
 
 func (e *SolanaVAASubmitter) Run(ctx context.Context) error {
@@ -113,7 +111,7 @@ func (e *SolanaVAASubmitter) Run(ctx context.Context) error {
 				}
 				h := hex.EncodeToString(m.Bytes())
 
-				timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
+				timeout, cancel := context.WithTimeout(ctx, 120*time.Second)
 				res, err := c.SubmitVAA(timeout, &agentv1.SubmitVAARequest{Vaa: vaaBytes})
 				cancel()
 				if err != nil {
