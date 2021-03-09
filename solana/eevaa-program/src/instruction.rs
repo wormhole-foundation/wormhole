@@ -80,10 +80,11 @@ impl EEVAAInstruction {
         match self {
             PostEEVAA(eevaa) => {
                 buf.push(InstructionKind::PostEEVAA as u8);
-                buf.append(&mut eevaa.serialize()?);
-            }
-            Initialize(_) => {
+		buf.append(&mut eevaa.serialize()?);
+	    }
+            Initialize(init) => {
                 buf.push(InstructionKind::Initialize as u8);
+		buf.append(&mut init.serialize()?);
             }
         }
 
@@ -165,6 +166,12 @@ impl InitParams {
             .map_err(|_e| UnexpectedEndOfBuffer)?;
 
         Ok(Self { eevaa_fee_acc_rent })
+    }
+    pub fn serialize(&self) -> Result<Vec<u8>, io::Error> {
+        let mut c = Cursor::new(Vec::new());
+        c.write_u64::<BigEndian>(self.eevaa_fee_acc_rent)?;
+
+        Ok(c.into_inner())
     }
 }
 
