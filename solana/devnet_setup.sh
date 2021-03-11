@@ -32,10 +32,6 @@ retry cli airdrop 127.0.0.1:9900
 retry cli create-bridge "$bridge_address" "$initial_guardian"
 retry cli init-eevaa-program "$eevaa_program_address" "$initial_guardian"
 
-
-# TODO(drozdziak1): Uncomment once we have eevaa state
-# retry cli create-eevaa-program "$eevaa_program_address" "$initial_guardian"
-
 # Create a new SPL token (at a random address)
 token=$(cli create-token --seed=29934 | grep 'Creating token' | awk '{ print $3 }')
 echo "Created token $token"
