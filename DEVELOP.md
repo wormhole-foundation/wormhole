@@ -34,6 +34,8 @@ Whenever you modify a file, the devnet is automatically rebuilt and a rolling up
 Launch the devnet while specifying the number of guardians nodes to run (default is five):
 
     tilt up --update-mode=exec -- --num=1
+	
+In order to adjust number of guardian nodes you need to redeploy the cluster (`tilt down --delete-namespaces` and `tilt up [...]` again)
 
 If you want to work on non-consensus parts of the code, running with a single guardian is easiest since
 you won't have to wait for k8s to restart all pods.
