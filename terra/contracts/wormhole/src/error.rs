@@ -94,6 +94,10 @@ pub enum ContractError {
     /// Generic error when there is a problem with VAA structure
     #[error("InvalidVAA")]
     InvalidVAA,
+
+    /// Thrown when fee is enabled for the action, but was not sent with the transaction
+    #[error("FeeTooLow")]
+    FeeTooLow,
 }
 
 impl ContractError {

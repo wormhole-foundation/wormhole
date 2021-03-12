@@ -1,7 +1,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use cosmwasm_std::{Binary, CanonicalAddr, HumanAddr, StdResult, Storage};
+use cosmwasm_std::{Binary, CanonicalAddr, HumanAddr, StdResult, Storage, Coin};
 use cosmwasm_storage::{
     bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket, ReadonlySingleton,
     Singleton,
@@ -34,6 +34,9 @@ pub struct ConfigInfo {
 
     // If true the contract is active and functioning
     pub is_active: bool,
+
+    // Asset locking fee
+    pub fee: Coin,
 }
 
 // Validator Action Approval(VAA) data

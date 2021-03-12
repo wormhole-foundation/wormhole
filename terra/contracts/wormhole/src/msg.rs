@@ -1,4 +1,4 @@
-use cosmwasm_std::{Binary, HumanAddr, Uint128};
+use cosmwasm_std::{Binary, HumanAddr, Uint128, Coin};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -30,6 +30,13 @@ pub enum HandleMsg {
     SetActive {
         is_active: bool,
     },
+    SetFee {
+        fee: Coin,
+    },
+    TransferFee {
+        amount: Coin,
+        recipient: HumanAddr,
+    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -37,7 +44,8 @@ pub enum HandleMsg {
 pub enum QueryMsg {
     GuardianSetInfo {},
     WrappedRegistry { chain: u8, address: Binary },
-    VerifyVAA { vaa: Binary },
+    VerifyVAA { vaa: Binary, block_time: u64 },
+    GetState {},
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -51,4 +59,11 @@ pub struct GuardianSetInfoResponse {
 #[serde(rename_all = "snake_case")]
 pub struct WrappedRegistryResponse {
     pub address: HumanAddr,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct GetStateResponse {
+    pub is_active: bool,
+    pub fee: Coin,
 }
