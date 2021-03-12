@@ -1,13 +1,13 @@
 use crate::msg::WrappedRegistryResponse;
 use cosmwasm_std::{
-    log, to_binary, Api, Binary, CanonicalAddr, CosmosMsg, Env, Extern, HandleResponse, HumanAddr,
-    InitResponse, Querier, QueryRequest, StdResult, Storage, Uint128, WasmMsg, WasmQuery,
+    log, to_binary, Api, Binary, CanonicalAddr, CosmosMsg, BankMsg, Env, Extern, HandleResponse, HumanAddr,
+    InitResponse, Querier, QueryRequest, StdResult, Storage, Uint128, WasmMsg, WasmQuery, Coin, has_coins,
 };
 
 use crate::byte_utils::extend_address_to_32;
 use crate::byte_utils::ByteUtils;
 use crate::error::ContractError;
-use crate::msg::{GuardianSetInfoResponse, HandleMsg, InitMsg, QueryMsg};
+use crate::msg::{GuardianSetInfoResponse, HandleMsg, InitMsg, QueryMsg, GetStateResponse};
 use crate::state::{
     config, config_read, guardian_set_get, guardian_set_set, vaa_archive_add, vaa_archive_check,
     wrapped_asset, wrapped_asset_address, wrapped_asset_address_read, wrapped_asset_read,
@@ -50,6 +50,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
         wrapped_asset_code_id: msg.wrapped_asset_code_id,
         owner: deps.api.canonical_address(&env.message.sender)?,
         is_active: true,
+        fee: Coin::new(0, ""),  // No fee by default
     };
     config(&mut deps.storage).save(&state)?;
 
@@ -89,6 +90,8 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             nonce,
         ),
         HandleMsg::SetActive { is_active } => handle_set_active(deps, env, is_active),
+        HandleMsg::SetFee { fee } => handle_set_fee(deps, env, fee),
+        HandleMsg::TransferFee { amount, recipient } => handle_transfer_fee(deps, env, amount, recipient),
     }
 }
 
@@ -446,6 +449,13 @@ fn handle_lock_assets<S: Storage, A: Api, Q: Querier>(
         return ContractError::ContractInactive.std_err();
     }
 
+    // Check fee
+    if state.fee.amount > Uint128::zero() {
+        if !has_coins(env.message.sent_funds.as_ref(), &state.fee) {
+            return ContractError::FeeTooLow.std_err();
+        }
+    }
+
     let asset_chain: u8;
     let asset_address: Vec<u8>;
 
@@ -535,8 +545,45 @@ pub fn handle_set_active<S: Storage, A: Api, Q: Querier>(
 
     config(&mut deps.storage).save(&state)?;
 
+    Ok(HandleResponse::default())
+}
+
+pub fn handle_set_fee<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+    fee: Coin,
+) -> StdResult<HandleResponse> {
+    let mut state = config_read(&deps.storage).load()?;
+
+    if deps.api.canonical_address(&env.message.sender)? != state.owner {
+        return ContractError::PermissionDenied.std_err();
+    }
+
+    state.fee = fee;
+
+    config(&mut deps.storage).save(&state)?;
+
+    Ok(HandleResponse::default())
+}
+
+pub fn handle_transfer_fee<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+    amount: Coin,
+    recipient: HumanAddr,
+) -> StdResult<HandleResponse> {
+    let state = config_read(&deps.storage).load()?;
+
+    if deps.api.canonical_address(&env.message.sender)? != state.owner {
+        return ContractError::PermissionDenied.std_err();
+    }
+
     Ok(HandleResponse {
-        messages: vec![],
+        messages: vec![CosmosMsg::Bank(BankMsg::Send{
+            from_address: env.contract.address,
+            to_address: recipient,
+            amount: vec![amount],
+        })],
         log: vec![],
         data: None,
     })
@@ -544,7 +591,6 @@ pub fn handle_set_active<S: Storage, A: Api, Q: Querier>(
 
 pub fn query<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
-    env: Env,
     msg: QueryMsg,
 ) -> StdResult<Binary> {
     match msg {
@@ -552,9 +598,10 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
         QueryMsg::WrappedRegistry { chain, address } => {
             to_binary(&query_wrapped_registry(deps, chain, address.as_slice())?)
         }
-        QueryMsg::VerifyVAA { vaa } => {
-            to_binary(&query_parse_and_verify_vaa(deps, env, &vaa.as_slice())?)
-        }
+        QueryMsg::VerifyVAA { vaa, block_time } => {
+            to_binary(&query_parse_and_verify_vaa(deps, &vaa.as_slice(), block_time)?)
+        },
+        QueryMsg::GetState {} => to_binary(&query_state(deps)?),
     }
 }
 
@@ -585,10 +632,21 @@ pub fn query_wrapped_registry<S: Storage, A: Api, Q: Querier>(
 
 pub fn query_parse_and_verify_vaa<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
-    env: Env,
     data: &[u8],
+    block_time: u64,
 ) -> StdResult<ParsedVAA> {
-    parse_and_verify_vaa(&deps.storage, data, env.block.time)
+    parse_and_verify_vaa(&deps.storage, data, block_time)
+}
+
+pub fn query_state<S: Storage, A: Api, Q: Querier>(
+    deps: &Extern<S, A, Q>,
+) -> StdResult<GetStateResponse> {
+    let state = config_read(&deps.storage).load()?;
+    let res = GetStateResponse {
+        is_active: state.is_active,
+        fee: state.fee,
+    };
+    Ok(res)
 }
 
 fn keys_equal(a: &VerifyKey, b: &GuardianAddress) -> bool {
@@ -1233,9 +1291,8 @@ mod tests {
     fn valid_query_guardian_set() {
         let mut deps = mock_dependencies(CANONICAL_LENGTH, &[]);
         do_init_with_guardians(&mut deps, 3);
-        let env = mock_env(&HumanAddr::from(CREATOR_ADDR), &[]);
 
-        let result = query(&deps, env, QueryMsg::GuardianSetInfo {}).unwrap();
+        let result = query(&deps, QueryMsg::GuardianSetInfo {}).unwrap();
         let result: GuardianSetInfoResponse = serde_json::from_slice(result.as_slice()).unwrap();
 
         assert_eq!(
@@ -1266,7 +1323,7 @@ mod tests {
         let decoded_vaa: Binary = hex::decode(VAA_VALID_TRANSFER_3_SIGS)
             .expect("Decoding failed")
             .into();
-        let result = query(&deps, env, QueryMsg::VerifyVAA { vaa: decoded_vaa });
+        let result = query(&deps, QueryMsg::VerifyVAA { vaa: decoded_vaa, block_time: env.block.time });
 
         assert!(result.is_ok());
     }
@@ -1289,8 +1346,66 @@ mod tests {
         let decoded_vaa: Binary = hex::decode(VAA_VALID_TRANSFER_3_SIGS)
             .expect("Decoding failed")
             .into();
-        let result = query(&deps, env, QueryMsg::VerifyVAA { vaa: decoded_vaa });
+        let result = query(&deps, QueryMsg::VerifyVAA { vaa: decoded_vaa, block_time: env.block.time });
 
         assert_eq!(result, ContractError::GuardianSignatureError.std_err());
+    }
+
+    #[test]
+    fn valid_set_fee() {
+        let deps = mock_dependencies(CANONICAL_LENGTH, &[]);
+        let mut deps = Extern {
+            storage: deps.storage,
+            api: deps.api,
+            querier: LockAssetQuerier {},
+        };
+
+        do_init_with_guardians(&mut deps, 1);
+
+        let fee = Coin::new(1000, "luna");
+        let result = submit_msg_with_sender(
+            &mut deps,
+            HandleMsg::SetFee { fee: fee.clone() },
+            &HumanAddr::from(CREATOR_ADDR),
+        );
+        assert!(result.is_ok());
+
+        // Check storage
+        let state = config_read(&deps.storage)
+            .load()
+            .expect("Cannot load config storage");
+        assert_eq!(state.fee, fee);
+
+        // Check error on lock
+        let result = submit_msg(&mut deps, MSG_LOCK.clone());
+        assert_eq!(result, ContractError::FeeTooLow.std_err());
+
+        // Still error if fee is slightly smaller
+        let mut env = mock_env(&HumanAddr::from(SENDER_ADDR), &[Coin::new(999, "luna")]);
+        env.block.time = unix_timestamp();
+        let result = handle(&mut deps, env.clone(), MSG_LOCK.clone());
+        assert_eq!(result, ContractError::FeeTooLow.std_err());
+
+        // Check success after adding fee
+        env.message.sent_funds = vec![Coin::new(1000, "luna")];
+        let result = handle(&mut deps, env.clone(), MSG_LOCK.clone());
+        assert!(result.is_ok());
+
+        // Still success if fee is slightly larger success after adding fee
+        env.message.sent_funds = vec![Coin::new(1001, "luna")];
+        let result = handle(&mut deps, env, MSG_LOCK.clone());
+        assert!(result.is_ok());
+
+        // Finally qery fee info from the contract
+        let result = query(&deps, QueryMsg::GetState {}).unwrap();
+        let result: GetStateResponse = serde_json::from_slice(result.as_slice()).unwrap();
+
+        assert_eq!(
+            result,
+            GetStateResponse {
+                is_active: true,
+                fee,
+            }
+        )
     }
 }
