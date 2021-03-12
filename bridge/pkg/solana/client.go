@@ -194,6 +194,7 @@ type (
 	TransferOutProposal struct {
 		Amount           *big.Int
 		ToChainID        vaa.ChainID
+		SourceChain      uint8
 		SourceAddress    vaa.Address
 		ForeignAddress   vaa.Address
 		Asset            vaa.AssetMeta
@@ -224,6 +225,10 @@ func ParseTransferOutProposal(data []byte) (*TransferOutProposal, error) {
 		return nil, fmt.Errorf("failed to read to chain id: %w", err)
 	}
 
+	if err := binary.Read(r, binary.LittleEndian, &prop.SourceChain); err != nil {
+		return nil, fmt.Errorf("failed to read source chain: %w", err)
+	}
+
 	if n, err := r.Read(prop.SourceAddress[:]); err != nil || n != 32 {
 		return nil, fmt.Errorf("failed to read source address: %w", err)
 	}
@@ -245,9 +250,6 @@ func ParseTransferOutProposal(data []byte) (*TransferOutProposal, error) {
 		return nil, fmt.Errorf("failed to read asset meta decimals: %w", err)
 	}
 	prop.Asset = assetMeta
-
-	// Skip alignment byte
-	r.Next(1)
 
 	if err := binary.Read(r, binary.LittleEndian, &prop.Nonce); err != nil {
 		return nil, fmt.Errorf("failed to read nonce: %w", err)

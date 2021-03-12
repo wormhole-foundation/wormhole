@@ -27,7 +27,7 @@ use service::{
 };
 use spl_bridge::{
     instruction::{post_vaa, verify_signatures, VerifySigPayload, CHAIN_ID_SOLANA},
-    state::{Bridge, GuardianSet, TransferOutProposal},
+    state::{Bridge, GuardianSet, TransferProposal},
     vaa::VAA,
 };
 

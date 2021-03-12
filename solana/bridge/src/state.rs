@@ -51,11 +51,13 @@ impl IsInitialized for GuardianSet {
 
 /// proposal to transfer tokens to a foreign chain
 #[repr(C)]
-pub struct TransferOutProposal {
+pub struct TransferProposal {
     /// amount to transfer
     pub amount: U256,
     /// chain id to transfer to
     pub to_chain_id: u8,
+    /// Chain the transfer was initiated from
+    pub source_chain: u8,
     /// address the transfer was initiated from
     pub source_address: ForeignAddress,
     /// address on the foreign chain to transfer to
@@ -80,13 +82,13 @@ pub struct TransferOutProposal {
     pub is_initialized: bool,
 }
 
-impl IsInitialized for TransferOutProposal {
+impl IsInitialized for TransferProposal {
     fn is_initialized(&self) -> bool {
         self.is_initialized
     }
 }
 
-impl TransferOutProposal {
+impl TransferProposal {
     pub fn matches_vaa(&self, b: &BodyTransfer) -> bool {
         return b.amount == self.amount
             && b.target_address == self.foreign_address
@@ -291,6 +293,7 @@ impl Bridge {
         target_chain: u8,
         target_address: ForeignAddress,
         sender: ForeignAddress,
+        sender_chain: u8,
         nonce: u32,
     ) -> Vec<Vec<u8>> {
         vec![
@@ -301,6 +304,7 @@ impl Bridge {
             target_chain.as_bytes().to_vec(),
             target_address.as_bytes().to_vec(),
             sender.as_bytes().to_vec(),
+            sender_chain.as_bytes().to_vec(),
             nonce.as_bytes().to_vec(),
         ]
     }
@@ -420,6 +424,7 @@ impl Bridge {
         target_chain: u8,
         target_address: ForeignAddress,
         user: ForeignAddress,
+        sender_chain: u8,
         slot: u32,
     ) -> Result<Pubkey, Error> {
         Ok(Self::derive_key(
@@ -431,6 +436,7 @@ impl Bridge {
                 target_chain,
                 target_address,
                 user,
+                sender_chain,
                 slot,
             ),
         )?

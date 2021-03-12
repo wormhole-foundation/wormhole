@@ -180,7 +180,7 @@ impl Bridge {
         let proposal_info = Self::next_account_info_with_owner(account_info_iter, program_id)?;
 
         let mut transfer_data = proposal_info.try_borrow_mut_data()?;
-        let mut proposal: &mut TransferOutProposal = Self::unpack(&mut transfer_data)?;
+        let mut proposal: &mut TransferProposal = Self::unpack(&mut transfer_data)?;
         if proposal.vaa_time != 0 {
             return Err(Error::VAAAlreadySubmitted.into());
         }
@@ -435,9 +435,10 @@ impl Bridge {
             t.chain_id,
             t.target,
             sender_account_info.key.to_bytes(),
+            CHAIN_ID_SOLANA,
             t.nonce,
         );
-        Bridge::check_and_create_account::<TransferOutProposal>(
+        Bridge::check_and_create_account::<TransferProposal>(
             program_id,
             accounts,
             transfer_info.key,
@@ -449,7 +450,7 @@ impl Bridge {
 
         // Load transfer account
         let mut transfer_data = transfer_info.try_borrow_mut_data()?;
-        let mut transfer: &mut TransferOutProposal = Self::unpack_unchecked(&mut transfer_data)?;
+        let mut transfer: &mut TransferProposal = Self::unpack_unchecked(&mut transfer_data)?;
 
         // Burn tokens
         Bridge::wrapped_burn(
@@ -465,6 +466,7 @@ impl Bridge {
         transfer.is_initialized = true;
         transfer.nonce = t.nonce;
         transfer.source_address = sender_account_info.key.to_bytes();
+        transfer.source_chain = CHAIN_ID_SOLANA;
         transfer.foreign_address = t.target;
         transfer.amount = t.amount;
         transfer.to_chain_id = t.chain_id;
@@ -523,9 +525,10 @@ impl Bridge {
             t.chain_id,
             t.target,
             sender_account_info.key.to_bytes(),
+            CHAIN_ID_SOLANA,
             t.nonce,
         );
-        Bridge::check_and_create_account::<TransferOutProposal>(
+        Bridge::check_and_create_account::<TransferProposal>(
             program_id,
             accounts,
             transfer_info.key,
@@ -537,7 +540,7 @@ impl Bridge {
 
         // Load transfer account
         let mut transfer_data = transfer_info.try_borrow_mut_data()?;
-        let mut transfer: &mut TransferOutProposal = Self::unpack_unchecked(&mut transfer_data)?;
+        let mut transfer: &mut TransferProposal = Self::unpack_unchecked(&mut transfer_data)?;
 
         // Check that custody account was derived correctly
         let expected_custody_id =
@@ -590,6 +593,7 @@ impl Bridge {
         transfer.amount = t.amount;
         transfer.to_chain_id = t.chain_id;
         transfer.source_address = sender_account_info.key.to_bytes();
+        transfer.source_chain = CHAIN_ID_SOLANA;
         transfer.foreign_address = t.target;
         transfer.nonce = t.nonce;
         transfer.lockup_time = clock.unix_timestamp as u32;
@@ -763,15 +767,17 @@ impl Bridge {
                 )
             }
             VAABody::Transfer(v) => {
-                if v.source_chain == CHAIN_ID_SOLANA {
+                if v.source_chain == CHAIN_ID_SOLANA || (v.source_chain != CHAIN_ID_SOLANA && v.target_chain != CHAIN_ID_SOLANA) {
                     Self::process_vaa_transfer_post(
                         program_id,
+                        accounts,
                         account_info_iter,
                         bridge_info,
                         vaa,
                         &v,
                         vaa_data,
                         sig_info.key,
+                        payer_info,
                     )
                 } else {
                     let bridge_data = bridge_info.try_borrow_data()?;
@@ -982,15 +988,21 @@ impl Bridge {
     /// Processes a VAA post for data availability (for Solana -> foreign transfers)
     pub fn process_vaa_transfer_post(
         program_id: &Pubkey,
+        accounts: &[AccountInfo],
         account_info_iter: &mut Iter<AccountInfo>,
         bridge_info: &AccountInfo,
         vaa: &VAA,
         b: &BodyTransfer,
         vaa_data: VAAData,
         sig_account: &Pubkey,
+        payer_info: &AccountInfo,
     ) -> ProgramResult {
         msg!("posting VAA");
-        let proposal_info = Self::next_account_info_with_owner(account_info_iter, program_id)?;
+        let proposal_info = if b.source_chain == CHAIN_ID_SOLANA {
+            Self::next_account_info_with_owner(account_info_iter, program_id)?
+        } else {
+            next_account_info(account_info_iter)?
+        };
 
         // Check whether the proposal was derived correctly
         let expected_proposal = Bridge::derive_transfer_id(
@@ -1001,14 +1013,55 @@ impl Bridge {
             b.target_chain,
             b.target_address,
             b.source_address,
+            b.source_chain,
             b.nonce,
         )?;
         if expected_proposal != *proposal_info.key {
             return Err(Error::InvalidDerivedAccount.into());
         }
 
+        if b.source_chain != CHAIN_ID_SOLANA {
+            // Create transfer account
+            let transfer_seed = Bridge::derive_transfer_id_seeds(
+                bridge_info.key,
+                b.asset.chain,
+                b.asset.address,
+                b.target_chain,
+                b.target_address,
+                b.source_address,
+                b.source_chain,
+                b.nonce,
+            );
+            Bridge::check_and_create_account::<TransferProposal>(
+                program_id,
+                accounts,
+                proposal_info.key,
+                payer_info,
+                program_id,
+                &transfer_seed,
+                None,
+            )?;
+        };
+
         let mut transfer_data = proposal_info.try_borrow_mut_data()?;
-        let mut proposal: &mut TransferOutProposal = Self::unpack(&mut transfer_data)?;
+        let mut proposal: &mut TransferProposal = if b.source_chain != CHAIN_ID_SOLANA {
+            let mut transfer: &mut TransferProposal = Self::unpack_unchecked(&mut transfer_data)?;
+            // Initialize transfer
+            transfer.is_initialized = true;
+            transfer.nonce = b.nonce;
+            transfer.source_address = b.source_address;
+            transfer.source_chain = b.source_chain;
+            transfer.foreign_address = b.target_address;
+            transfer.amount = b.amount;
+            transfer.to_chain_id = b.target_chain;
+            transfer.lockup_time = 0;
+            transfer.asset = b.asset;
+
+            transfer
+        } else {
+            Self::unpack(&mut transfer_data)?
+        };
+
         if !proposal.matches_vaa(b) {
             return Err(Error::VAAProposalMismatch.into());
         }

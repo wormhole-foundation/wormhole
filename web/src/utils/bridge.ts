@@ -19,6 +19,7 @@ export interface Lockup {
     lockupAddress: PublicKey,
     amount: BN,
     toChain: number,
+    sourceChain: number,
     sourceAddress: PublicKey,
     targetAddress: Uint8Array,
     assetAddress: Uint8Array,
@@ -225,12 +226,12 @@ class SolanaBridge {
         const dataLayout = BufferLayout.struct([
             uint256('amount'),
             BufferLayout.u8('toChain'),
+            BufferLayout.u8('sourceChain'),
             BufferLayout.blob(32, 'sourceAddress'),
             BufferLayout.blob(32, 'targetAddress'),
             BufferLayout.blob(32, 'assetAddress'),
             BufferLayout.u8('assetChain'),
             BufferLayout.u8('assetDecimals'),
-            BufferLayout.seq(BufferLayout.u8(), 1), // 4 byte alignment because a u32 is following
             BufferLayout.u32('nonce'),
             BufferLayout.blob(1001, 'vaa'),
             BufferLayout.seq(BufferLayout.u8(), 3), // 4 byte alignment because a u32 is following
@@ -251,6 +252,7 @@ class SolanaBridge {
             assetDecimals: parsedAccount.assetDecimals,
             initialized: parsedAccount.initialized == 1,
             nonce: parsedAccount.nonce,
+            sourceChain: parsedAccount.sourceChain,
             sourceAddress: new PublicKey(parsedAccount.sourceAddress),
             targetAddress: parsedAccount.targetAddress,
             toChain: parsedAccount.toChain,

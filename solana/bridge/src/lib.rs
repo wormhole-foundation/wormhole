@@ -1,6 +1,4 @@
 #[macro_use]
-extern crate zerocopy;
-#[macro_use]
 extern crate solana_program;
 
 pub mod entrypoint;

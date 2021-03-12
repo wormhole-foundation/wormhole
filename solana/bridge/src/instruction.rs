@@ -320,6 +320,7 @@ pub fn transfer_out(
         t.chain_id,
         t.target,
         token_account.to_bytes(),
+        CHAIN_ID_SOLANA,
         t.nonce,
     )?;
 
@@ -434,8 +435,8 @@ pub fn post_vaa(
             accounts.push(AccountMeta::new_readonly(solana_program::bpf_loader_upgradeable::id(), false));
         }
         VAABody::Transfer(t) => {
-            if t.source_chain == CHAIN_ID_SOLANA {
-                // Solana (any) -> Ethereum (any)
+            if t.source_chain == CHAIN_ID_SOLANA || (t.source_chain != CHAIN_ID_SOLANA && t.target_chain != CHAIN_ID_SOLANA) {
+                // Solana (any) -> Ethereum (any) // Other (any) -> Other (any)
                 let transfer_key = Bridge::derive_transfer_id(
                     program_id,
                     &bridge_key,
@@ -444,6 +445,7 @@ pub fn post_vaa(
                     t.target_chain,
                     t.target_address,
                     t.source_address,
+                    t.source_chain,
                     t.nonce,
                 )?;
                 accounts.push(AccountMeta::new(transfer_key, false))
