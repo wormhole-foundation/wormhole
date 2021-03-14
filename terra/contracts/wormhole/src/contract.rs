@@ -50,7 +50,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
         wrapped_asset_code_id: msg.wrapped_asset_code_id,
         owner: deps.api.canonical_address(&env.message.sender)?,
         is_active: true,
-        fee: Coin::new(0, ""),  // No fee by default
+        fee: None,  // No fee by default
     };
     config(&mut deps.storage).save(&state)?;
 
@@ -450,8 +450,8 @@ fn handle_lock_assets<S: Storage, A: Api, Q: Querier>(
     }
 
     // Check fee
-    if state.fee.amount > Uint128::zero() {
-        if !has_coins(env.message.sent_funds.as_ref(), &state.fee) {
+    if let Some(fee) = state.fee {
+        if !has_coins(env.message.sent_funds.as_ref(), &fee) {
             return ContractError::FeeTooLow.std_err();
         }
     }
@@ -551,7 +551,7 @@ pub fn handle_set_active<S: Storage, A: Api, Q: Querier>(
 pub fn handle_set_fee<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
-    fee: Coin,
+    fee: Option<Coin>,
 ) -> StdResult<HandleResponse> {
     let mut state = config_read(&deps.storage).load()?;
 
@@ -1365,7 +1365,7 @@ mod tests {
         let fee = Coin::new(1000, "luna");
         let result = submit_msg_with_sender(
             &mut deps,
-            HandleMsg::SetFee { fee: fee.clone() },
+            HandleMsg::SetFee { fee: Some(fee.clone()) },
             &HumanAddr::from(CREATOR_ADDR),
         );
         assert!(result.is_ok());
@@ -1374,7 +1374,7 @@ mod tests {
         let state = config_read(&deps.storage)
             .load()
             .expect("Cannot load config storage");
-        assert_eq!(state.fee, fee);
+        assert_eq!(state.fee, Some(fee.clone()));
 
         // Check error on lock
         let result = submit_msg(&mut deps, MSG_LOCK.clone());
@@ -1404,7 +1404,7 @@ mod tests {
             result,
             GetStateResponse {
                 is_active: true,
-                fee,
+                fee: Some(fee),
             }
         )
     }
