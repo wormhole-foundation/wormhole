@@ -36,7 +36,7 @@ pub struct ConfigInfo {
     pub is_active: bool,
 
     // Asset locking fee
-    pub fee: Coin,
+    pub fee: Option<Coin>,
 }
 
 // Validator Action Approval(VAA) data

@@ -1,6 +1,6 @@
 static WASM: &[u8] = include_bytes!("../../../target/wasm32-unknown-unknown/release/wormhole.wasm");
 
-use cosmwasm_std::{from_slice, Env, HumanAddr, InitResponse, Coin};
+use cosmwasm_std::{from_slice, Env, HumanAddr, InitResponse};
 use cosmwasm_storage::to_length_prefixed;
 use cosmwasm_vm::testing::{init, mock_env, mock_instance, MockApi, MockQuerier, MockStorage};
 use cosmwasm_vm::{Api, Instance, Storage};
@@ -71,7 +71,7 @@ fn do_init(
                 wrapped_asset_code_id: 999,
                 owner,
                 is_active: true,
-                fee: Coin::new(0, ""),
+                fee: None,
             }
         );
         Ok(())

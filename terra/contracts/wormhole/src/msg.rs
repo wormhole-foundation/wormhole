@@ -31,7 +31,7 @@ pub enum HandleMsg {
         is_active: bool,
     },
     SetFee {
-        fee: Coin,
+        fee: Option<Coin>,
     },
     TransferFee {
         amount: Coin,
@@ -65,5 +65,5 @@ pub struct WrappedRegistryResponse {
 #[serde(rename_all = "snake_case")]
 pub struct GetStateResponse {
     pub is_active: bool,
-    pub fee: Coin,
+    pub fee: Option<Coin>,
 }
