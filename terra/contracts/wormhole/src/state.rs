@@ -32,11 +32,8 @@ pub struct ConfigInfo {
     // Contract owner address, it can make contract active/inactive
     pub owner: CanonicalAddr,
 
-    // If true the contract is active and functioning
-    pub is_active: bool,
-
     // Asset locking fee
-    pub fee: Option<Coin>,
+    pub fee: Coin,
 }
 
 // Validator Action Approval(VAA) data

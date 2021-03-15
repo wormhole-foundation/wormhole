@@ -56,6 +56,11 @@ type TerraClient struct {
 	address   msg.AccAddress
 }
 
+const (
+	feeAmount = 10000,
+	feeDenomination = "uluna",
+)
+
 func (tc TerraClient) lockAssets(t *testing.T, ctx context.Context, token string, amount *big.Int, recipient [32]byte, targetChain uint8, nonce uint32) (*client.TxResponse, error) {
 	bridgeContract, err := msg.AccAddressFromBech32(devnet.TerraBridgeAddress)
 	if err != nil {
@@ -95,7 +100,7 @@ func (tc TerraClient) lockAssets(t *testing.T, ctx context.Context, token string
 	t.Logf("lockAssetsCall\n %s", lockAssetsCall)
 
 	executeIncreaseAllowance := msg.NewExecuteContract(tc.address, tokenContract, increaseAllowanceCall, msg.NewCoins())
-	executeLockAssets := msg.NewExecuteContract(tc.address, bridgeContract, lockAssetsCall, msg.NewCoins())
+	executeLockAssets := msg.NewExecuteContract(tc.address, bridgeContract, lockAssetsCall, msg.NewCoins(msg.NewCoin(feeDenomination, feeAmount)))
 
 	transaction, err := tc.lcdClient.CreateAndSignTx(ctx, client.CreateTxOptions{
 		Msgs: []msg.Msg{
