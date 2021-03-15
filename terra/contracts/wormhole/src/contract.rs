@@ -38,6 +38,10 @@ use std::convert::TryFrom;
 // Chain ID of Terra
 const CHAIN_ID: u8 = 3;
 
+// Lock assets fee amount and denomination
+const FEE_AMOUNT: u128 = 10000;
+const FEE_DENOMINATION: &str = "uluna";
+
 pub fn init<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
@@ -49,8 +53,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
         guardian_set_expirity: msg.guardian_set_expirity,
         wrapped_asset_code_id: msg.wrapped_asset_code_id,
         owner: deps.api.canonical_address(&env.message.sender)?,
-        is_active: true,
-        fee: None,  // No fee by default
+        fee: Coin::new(FEE_AMOUNT, FEE_DENOMINATION),  // 0.01 Luna (or 10000 uluna) fee by default
     };
     config(&mut deps.storage).save(&state)?;
 
@@ -89,8 +92,6 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             target_chain,
             nonce,
         ),
-        HandleMsg::SetActive { is_active } => handle_set_active(deps, env, is_active),
-        HandleMsg::SetFee { fee } => handle_set_fee(deps, env, fee),
         HandleMsg::TransferFee { amount, recipient } => handle_transfer_fee(deps, env, amount, recipient),
     }
 }
@@ -102,10 +103,7 @@ fn handle_submit_vaa<S: Storage, A: Api, Q: Querier>(
     data: &[u8],
 ) -> StdResult<HandleResponse> {
     let state = config_read(&deps.storage).load()?;
-    if !state.is_active {
-        return ContractError::ContractInactive.std_err();
-    }
-
+    
     let vaa = parse_and_verify_vaa(&deps.storage, data, env.block.time)?;
 
     let result = match vaa.action {
@@ -445,15 +443,10 @@ fn handle_lock_assets<S: Storage, A: Api, Q: Querier>(
     }
 
     let state = config_read(&deps.storage).load()?;
-    if !state.is_active {
-        return ContractError::ContractInactive.std_err();
-    }
-
+    
     // Check fee
-    if let Some(fee) = state.fee {
-        if !has_coins(env.message.sent_funds.as_ref(), &fee) {
-            return ContractError::FeeTooLow.std_err();
-        }
+    if !has_coins(env.message.sent_funds.as_ref(), &state.fee) {
+        return ContractError::FeeTooLow.std_err();
     }
 
     let asset_chain: u8;
@@ -528,42 +521,6 @@ fn handle_lock_assets<S: Storage, A: Api, Q: Querier>(
         ],
         data: None,
     })
-}
-
-pub fn handle_set_active<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
-    env: Env,
-    is_active: bool,
-) -> StdResult<HandleResponse> {
-    let mut state = config_read(&deps.storage).load()?;
-
-    if deps.api.canonical_address(&env.message.sender)? != state.owner {
-        return ContractError::PermissionDenied.std_err();
-    }
-
-    state.is_active = is_active;
-
-    config(&mut deps.storage).save(&state)?;
-
-    Ok(HandleResponse::default())
-}
-
-pub fn handle_set_fee<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
-    env: Env,
-    fee: Option<Coin>,
-) -> StdResult<HandleResponse> {
-    let mut state = config_read(&deps.storage).load()?;
-
-    if deps.api.canonical_address(&env.message.sender)? != state.owner {
-        return ContractError::PermissionDenied.std_err();
-    }
-
-    state.fee = fee;
-
-    config(&mut deps.storage).save(&state)?;
-
-    Ok(HandleResponse::default())
 }
 
 pub fn handle_transfer_fee<S: Storage, A: Api, Q: Querier>(
@@ -643,7 +600,6 @@ pub fn query_state<S: Storage, A: Api, Q: Querier>(
 ) -> StdResult<GetStateResponse> {
     let state = config_read(&deps.storage).load()?;
     let res = GetStateResponse {
-        is_active: state.is_active,
         fee: state.fee,
     };
     Ok(res)
@@ -766,16 +722,28 @@ mod tests {
         deps: &mut Extern<S, A, Q>,
         msg: HandleMsg,
     ) -> StdResult<HandleResponse> {
-        submit_msg_with_sender(deps, msg, &HumanAddr::from(SENDER_ADDR))
+        submit_msg_with_sender(deps, msg, &HumanAddr::from(SENDER_ADDR), None)
+    }
+
+    fn submit_msg_with_fee<S: Storage, A: Api, Q: Querier>(
+        deps: &mut Extern<S, A, Q>,
+        msg: HandleMsg,
+        fee: Coin,
+    ) -> StdResult<HandleResponse> {
+        submit_msg_with_sender(deps, msg, &HumanAddr::from(SENDER_ADDR), Some(fee))
     }
 
     fn submit_msg_with_sender<S: Storage, A: Api, Q: Querier>(
         deps: &mut Extern<S, A, Q>,
         msg: HandleMsg,
         sender: &HumanAddr,
+        fee: Option<Coin>,
     ) -> StdResult<HandleResponse> {
         let mut env = mock_env(sender, &[]);
         env.block.time = unix_timestamp();
+        if let Some(fee) = fee {
+            env.message.sent_funds = vec![fee];
+        }
 
         handle(deps, env, msg)
     }
@@ -1095,6 +1063,29 @@ mod tests {
     }
 
     #[test]
+    fn error_lock_fee_too_low() {
+        let deps = mock_dependencies(CANONICAL_LENGTH, &[]);
+        let mut deps = Extern {
+            storage: deps.storage,
+            api: deps.api,
+            querier: LockAssetQuerier {},
+        };
+        do_init_with_guardians(&mut deps, 1);
+
+        // No fee
+        let result = submit_msg(&mut deps, MSG_LOCK.clone());
+        assert_eq!(result, ContractError::FeeTooLow.std_err());
+
+        // Amount too low
+        let result = submit_msg_with_fee(&mut deps, MSG_LOCK.clone(), Coin::new(9999, "uluna"));
+        assert_eq!(result, ContractError::FeeTooLow.std_err());
+
+        // Wrong denomination
+        let result = submit_msg_with_fee(&mut deps, MSG_LOCK.clone(), Coin::new(10000, "uusd"));
+        assert_eq!(result, ContractError::FeeTooLow.std_err());
+    }
+
+    #[test]
     fn valid_lock_regular_asset() {
         let deps = mock_dependencies(CANONICAL_LENGTH, &[]);
         let mut deps = Extern {
@@ -1104,7 +1095,7 @@ mod tests {
         };
         do_init_with_guardians(&mut deps, 1);
 
-        let result = submit_msg(&mut deps, MSG_LOCK.clone()).unwrap();
+        let result = submit_msg_with_fee(&mut deps, MSG_LOCK.clone(), Coin::new(10000, "uluna")).unwrap();
 
         let expected_logs = vec![
             log("locked.target_chain", LOCK_TARGET),
@@ -1173,10 +1164,11 @@ mod tests {
             &mut deps,
             register_msg.clone(),
             &HumanAddr::from(LOCK_ASSET_ADDR),
+            None,
         );
         assert!(result.is_ok());
 
-        let result = submit_msg(&mut deps, MSG_LOCK.clone()).unwrap();
+        let result = submit_msg_with_fee(&mut deps, MSG_LOCK.clone(), Coin::new(10000, "uluna")).unwrap();
 
         let expected_logs = vec![
             log("locked.target_chain", LOCK_TARGET),
@@ -1250,44 +1242,6 @@ mod tests {
     }
 
     #[test]
-    fn error_lock_contract_inactive() {
-        let mut deps = mock_dependencies(CANONICAL_LENGTH, &[]);
-        do_init_with_guardians(&mut deps, 1);
-
-        let result = submit_msg_with_sender(
-            &mut deps,
-            HandleMsg::SetActive { is_active: false },
-            &HumanAddr::from(CREATOR_ADDR),
-        );
-        assert!(result.is_ok());
-
-        let result = submit_msg(&mut deps, MSG_LOCK.clone());
-        assert_eq!(result, ContractError::ContractInactive.std_err());
-    }
-
-    #[test]
-    fn valid_set_active() {
-        let mut deps = mock_dependencies(CANONICAL_LENGTH, &[]);
-        do_init_with_guardians(&mut deps, 1);
-
-        let result = submit_msg_with_sender(
-            &mut deps,
-            HandleMsg::SetActive { is_active: false },
-            &HumanAddr::from(CREATOR_ADDR),
-        );
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn error_set_active_not_owner() {
-        let mut deps = mock_dependencies(CANONICAL_LENGTH, &[]);
-        do_init_with_guardians(&mut deps, 1);
-
-        let result = submit_msg(&mut deps, HandleMsg::SetActive { is_active: false });
-        assert_eq!(result, ContractError::PermissionDenied.std_err());
-    }
-
-    #[test]
     fn valid_query_guardian_set() {
         let mut deps = mock_dependencies(CANONICAL_LENGTH, &[]);
         do_init_with_guardians(&mut deps, 3);
@@ -1349,63 +1303,5 @@ mod tests {
         let result = query(&deps, QueryMsg::VerifyVAA { vaa: decoded_vaa, block_time: env.block.time });
 
         assert_eq!(result, ContractError::GuardianSignatureError.std_err());
-    }
-
-    #[test]
-    fn valid_set_fee() {
-        let deps = mock_dependencies(CANONICAL_LENGTH, &[]);
-        let mut deps = Extern {
-            storage: deps.storage,
-            api: deps.api,
-            querier: LockAssetQuerier {},
-        };
-
-        do_init_with_guardians(&mut deps, 1);
-
-        let fee = Coin::new(1000, "luna");
-        let result = submit_msg_with_sender(
-            &mut deps,
-            HandleMsg::SetFee { fee: Some(fee.clone()) },
-            &HumanAddr::from(CREATOR_ADDR),
-        );
-        assert!(result.is_ok());
-
-        // Check storage
-        let state = config_read(&deps.storage)
-            .load()
-            .expect("Cannot load config storage");
-        assert_eq!(state.fee, Some(fee.clone()));
-
-        // Check error on lock
-        let result = submit_msg(&mut deps, MSG_LOCK.clone());
-        assert_eq!(result, ContractError::FeeTooLow.std_err());
-
-        // Still error if fee is slightly smaller
-        let mut env = mock_env(&HumanAddr::from(SENDER_ADDR), &[Coin::new(999, "luna")]);
-        env.block.time = unix_timestamp();
-        let result = handle(&mut deps, env.clone(), MSG_LOCK.clone());
-        assert_eq!(result, ContractError::FeeTooLow.std_err());
-
-        // Check success after adding fee
-        env.message.sent_funds = vec![Coin::new(1000, "luna")];
-        let result = handle(&mut deps, env.clone(), MSG_LOCK.clone());
-        assert!(result.is_ok());
-
-        // Still success if fee is slightly larger success after adding fee
-        env.message.sent_funds = vec![Coin::new(1001, "luna")];
-        let result = handle(&mut deps, env, MSG_LOCK.clone());
-        assert!(result.is_ok());
-
-        // Finally qery fee info from the contract
-        let result = query(&deps, QueryMsg::GetState {}).unwrap();
-        let result: GetStateResponse = serde_json::from_slice(result.as_slice()).unwrap();
-
-        assert_eq!(
-            result,
-            GetStateResponse {
-                is_active: true,
-                fee: Some(fee),
-            }
-        )
     }
 }

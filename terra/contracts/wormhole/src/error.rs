@@ -75,10 +75,6 @@ pub enum ContractError {
     #[error("PermissionDenied")]
     PermissionDenied,
 
-    /// Attempt to execute contract action while it is inactive
-    #[error("ContractInactive")]
-    ContractInactive,
-
     /// Could not decode target address from canonical to human-readable form
     #[error("WrongTargetAddressFormat")]
     WrongTargetAddressFormat,

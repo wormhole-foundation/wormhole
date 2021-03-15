@@ -1,4 +1,4 @@
-import { init_lcd, execute_contract, query_contract } from './utils';
+import { init_lcd, execute_contract, execute_contract_with_fee, query_contract } from './utils';
 
 async function script() {
     if (process.argv.length < 5) {
@@ -11,7 +11,7 @@ async function script() {
     let allowanceResult = await execute_contract(token_contract, {increase_allowance: {spender: wormhole_contract, amount}});
     if (allowanceResult == null) return;
     console.log('Allowance increased');
-    let lockResult = await execute_contract(wormhole_contract, {lock_assets: {
+    let lockResult = await execute_contract_with_fee(wormhole_contract, {lock_assets: {
             asset: token_contract, 
             amount,
             recipient: Buffer.from('00000000000000000000000019a4437E2BA06bF1FA42C56Fb269Ca0d30f60716', 'hex').toString('base64'),

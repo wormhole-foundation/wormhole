@@ -27,12 +27,6 @@ pub enum HandleMsg {
         target_chain: u8,
         nonce: u32,
     },
-    SetActive {
-        is_active: bool,
-    },
-    SetFee {
-        fee: Option<Coin>,
-    },
     TransferFee {
         amount: Coin,
         recipient: HumanAddr,
@@ -64,6 +58,5 @@ pub struct WrappedRegistryResponse {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct GetStateResponse {
-    pub is_active: bool,
-    pub fee: Option<Coin>,
+    pub fee: Coin,
 }

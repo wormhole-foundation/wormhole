@@ -105,7 +105,30 @@ export async function execute_contract(contract_address: string, msg: object) : 
         const execute = new MsgExecuteContract(
             wallet.key.accAddress,
             contract_address,
-            { ...msg }, { } 
+            { ...msg }, { }
+        );
+
+        const executeTx = await wallet.createAndSignTx({
+            msgs: [execute]
+        });
+
+        const result = await terra.tx.broadcast(executeTx);
+        return result;
+    } catch (err) {
+        console.log(`Error ${err}`);
+        if (err.response) {
+            console.log(err.response.data);
+        }
+        return null;
+    }
+}
+
+export async function execute_contract_with_fee(contract_address: string, msg: object) : Promise<any> {
+    try {
+        const execute = new MsgExecuteContract(
+            wallet.key.accAddress,
+            contract_address,
+            { ...msg }, { uluna: 10000 }
         );
 
         const executeTx = await wallet.createAndSignTx({
