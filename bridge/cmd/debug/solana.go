@@ -13,11 +13,13 @@ import (
 )
 
 var (
-	agentRPC *string
+	agentRPC      *string
+	skipPreflight *bool
 )
 
 func init() {
 	agentRPC = postVaaSolanaCmd.Flags().String("agentRPC", "", "Solana agent sidecar gRPC socket path")
+	skipPreflight = postVaaSolanaCmd.Flags().Bool("skipPreflight", false, "Set skip_preflight flag on submission")
 	DebugCmd.AddCommand(postVaaSolanaCmd)
 }
 
@@ -32,7 +34,7 @@ var postVaaSolanaCmd = &cobra.Command{
 		}
 		supervisor.New(context.Background(), logger, func(ctx context.Context) error {
 			if err := supervisor.Run(ctx, "solvaa",
-				solana.NewSolanaVAASubmitter(*agentRPC, vaaQueue).Run); err != nil {
+				solana.NewSolanaVAASubmitter(*agentRPC, vaaQueue, *skipPreflight).Run); err != nil {
 				return err
 			}
 

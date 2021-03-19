@@ -410,7 +410,7 @@ func runBridge(cmd *cobra.Command, args []string) {
 		}
 
 		if err := supervisor.Run(ctx, "solvaa",
-			solana.NewSolanaVAASubmitter(*agentRPC, solanaVaaC).Run); err != nil {
+			solana.NewSolanaVAASubmitter(*agentRPC, solanaVaaC, false).Run); err != nil {
 			return err
 		}
 

@@ -92,7 +92,7 @@ impl Agent for AgentImpl {
             };
 
             for mut tx in verify_txs {
-                match sign_and_send(&rpc, &mut tx, vec![&key]) {
+                match sign_and_send(&rpc, &mut tx, vec![&key], request.skip_preflight) {
                     Ok(_) => (),
                     Err(e) => {
                         return Err(Status::new(
@@ -104,7 +104,7 @@ impl Agent for AgentImpl {
             }
 
             let mut transaction2 = Transaction::new_with_payer(&[ix], Some(&key.pubkey()));
-            match sign_and_send(&rpc, &mut transaction2, vec![&key]) {
+            match sign_and_send(&rpc, &mut transaction2, vec![&key], request.skip_preflight) {
                 Ok(s) => Ok(Response::new(SubmitVaaResponse {
                     signature: s.to_string(),
                 })),
@@ -285,6 +285,7 @@ fn sign_and_send(
     rpc: &RpcClient,
     tx: &mut Transaction,
     keys: Vec<&Keypair>,
+    skip_preflight: bool,
 ) -> Result<Signature, ClientError> {
     let (recent_blockhash, _fee_calculator) = rpc.get_recent_blockhash()?;
 
@@ -296,7 +297,7 @@ fn sign_and_send(
             commitment: CommitmentLevel::Processed,
         },
         RpcSendTransactionConfig {
-            skip_preflight: false,
+            skip_preflight,
             preflight_commitment: Some(CommitmentLevel::Processed),
             encoding: None,
         },

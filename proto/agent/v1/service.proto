@@ -16,6 +16,7 @@ message Empty {
 
 message SubmitVAARequest {
   bytes vaa = 1;
+  bool skip_preflight = 2;
 }
 
 message SubmitVAAResponse {
