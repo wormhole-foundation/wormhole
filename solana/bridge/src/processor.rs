@@ -318,6 +318,7 @@ impl Bridge {
             return Err(ProgramError::InvalidArgument);
         }
 
+        // Prepare message/payload-specific sig_info account
         if sig_info.data_is_empty() {
             let bridge_key = Bridge::derive_bridge_id(program_id)?;
             let sig_seeds =
@@ -351,7 +352,7 @@ impl Bridge {
             sig_state.hash = payload.hash;
         }
 
-        // Check addresses
+        // Write sigs of checked addresses into sig_state
         for s in sig_infos {
             if s.signer_index > guardian_set.len_keys {
                 return Err(ProgramError::InvalidArgument);
@@ -367,6 +368,7 @@ impl Bridge {
                 return Err(ProgramError::InvalidArgument);
             }
 
+            // Overwritten content should be zeros except double signs by the signer or harmless replays
             sig_state.signatures[s.signer_index as usize]
                 .copy_from_slice(secp_ixs[s.sig_index as usize].signature);
         }
