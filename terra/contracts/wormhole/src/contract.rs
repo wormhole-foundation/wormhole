@@ -42,6 +42,8 @@ const CHAIN_ID: u8 = 3;
 const FEE_AMOUNT: u128 = 10000;
 const FEE_DENOMINATION: &str = "uluna";
 
+const WRAPPED_ASSET_UPDATING: &str = "updating";
+
 pub fn init<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
@@ -203,30 +205,27 @@ fn handle_register_asset<S: Storage, A: Api, Q: Querier>(
 ) -> StdResult<HandleResponse> {
     let mut bucket = wrapped_asset(&mut deps.storage);
     let result = bucket.load(asset_id);
-    match result {
-        Ok(_) => {
-            // Asset already registered, return error
-            ContractError::AssetAlreadyRegistered.std_err()
-        }
-        Err(_) => {
-            bucket.save(asset_id, &env.message.sender)?;
-
-            let contract_address: CanonicalAddr =
-                deps.api.canonical_address(&env.message.sender)?;
-            wrapped_asset_address(&mut deps.storage)
-                .save(contract_address.as_slice(), &asset_id.to_vec())?;
-
-            Ok(HandleResponse {
-                messages: vec![],
-                log: vec![
-                    log("action", "register_asset"),
-                    log("asset_id", format!("{:?}", asset_id)),
-                    log("contract_addr", env.message.sender),
-                ],
-                data: None,
-            })
-        }
+    let result = result.map_err(|_| ContractError::RegistrationForbidden.std())?;
+    if result != HumanAddr::from(WRAPPED_ASSET_UPDATING) {
+        return ContractError::AssetAlreadyRegistered.std_err();
     }
+    
+    bucket.save(asset_id, &env.message.sender)?;
+
+    let contract_address: CanonicalAddr =
+        deps.api.canonical_address(&env.message.sender)?;
+    wrapped_asset_address(&mut deps.storage)
+        .save(contract_address.as_slice(), &asset_id.to_vec())?;
+
+    Ok(HandleResponse {
+        messages: vec![],
+        log: vec![
+            log("action", "register_asset"),
+            log("asset_id", format!("{:?}", asset_id)),
+            log("contract_addr", env.message.sender),
+        ],
+        data: None,
+    })
 }
 
 fn vaa_update_guardian_set<S: Storage, A: Api, Q: Querier>(
@@ -358,48 +357,50 @@ fn vaa_transfer<S: Storage, A: Api, Q: Querier>(
         let mut messages: Vec<CosmosMsg> = vec![];
 
         // Check if this asset is already deployed
-        match wrapped_asset_read(&deps.storage).load(&asset_id) {
-            Ok(contract_addr) => {
-                // Asset already deployed, just mint
-                messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-                    contract_addr,
-                    msg: to_binary(&WrappedMsg::Mint {
+        let contract_addr = wrapped_asset_read(&deps.storage).load(&asset_id).ok();
+        let contract_addr = contract_addr.filter(|addr| addr != &HumanAddr::from(WRAPPED_ASSET_UPDATING));
+
+        if let Some(contract_addr) = contract_addr {
+            // Asset already deployed, just mint
+            messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr,
+                msg: to_binary(&WrappedMsg::Mint {
+                    recipient: deps
+                        .api
+                        .human_address(&target_address)
+                        .or_else(|_| ContractError::WrongTargetAddressFormat.std_err())?,
+                    amount: Uint128::from(amount),
+                })?,
+                send: vec![],
+            }));
+        } else {
+            // Asset is not deployed yet, deploy and mint
+            wrapped_asset(&mut deps.storage).save(&asset_id, &HumanAddr::from(WRAPPED_ASSET_UPDATING))?;
+
+            let state = config_read(&deps.storage).load()?;
+            messages.push(CosmosMsg::Wasm(WasmMsg::Instantiate {
+                code_id: state.wrapped_asset_code_id,
+                msg: to_binary(&WrappedInit {
+                    asset_chain: token_chain,
+                    asset_address: asset_address.to_vec().into(),
+                    decimals: data.get_u8(DECIMALS_POS),
+                    mint: Some(InitMint {
                         recipient: deps
                             .api
                             .human_address(&target_address)
                             .or_else(|_| ContractError::WrongTargetAddressFormat.std_err())?,
                         amount: Uint128::from(amount),
-                    })?,
-                    send: vec![],
-                }));
-            }
-            Err(_) => {
-                // Asset is not deployed yet, deploy and mint
-                let state = config_read(&deps.storage).load()?;
-                messages.push(CosmosMsg::Wasm(WasmMsg::Instantiate {
-                    code_id: state.wrapped_asset_code_id,
-                    msg: to_binary(&WrappedInit {
-                        asset_chain: token_chain,
-                        asset_address: asset_address.to_vec().into(),
-                        decimals: data.get_u8(DECIMALS_POS),
-                        mint: Some(InitMint {
-                            recipient: deps
-                                .api
-                                .human_address(&target_address)
-                                .or_else(|_| ContractError::WrongTargetAddressFormat.std_err())?,
-                            amount: Uint128::from(amount),
-                        }),
-                        init_hook: Some(InitHook {
-                            contract_addr: env.contract.address,
-                            msg: to_binary(&HandleMsg::RegisterAssetHook {
-                                asset_id: asset_id.to_vec().into(),
-                            })?,
-                        }),
-                    })?,
-                    send: vec![],
-                    label: None,
-                }));
-            }
+                    }),
+                    init_hook: Some(InitHook {
+                        contract_addr: env.contract.address,
+                        msg: to_binary(&HandleMsg::RegisterAssetHook {
+                            asset_id: asset_id.to_vec().into(),
+                        })?,
+                    }),
+                })?,
+                send: vec![],
+                label: None,
+            }));
         }
 
         Ok(HandleResponse {
@@ -1147,6 +1148,30 @@ mod tests {
     }
 
     #[test]
+    fn error_lock_deployed_asset() {
+        let deps = mock_dependencies(CANONICAL_LENGTH, &[]);
+        let mut deps = Extern {
+            storage: deps.storage,
+            api: deps.api,
+            querier: LockAssetQuerier {},
+        };
+        do_init_with_guardians(&mut deps, 1);
+
+        let register_msg = HandleMsg::RegisterAssetHook {
+            asset_id: Binary::from(LOCK_ASSET_ID),
+        };
+        
+        let result = submit_msg_with_sender(
+            &mut deps,
+            register_msg.clone(),
+            &HumanAddr::from(LOCK_ASSET_ADDR),
+            None,
+        );
+
+        assert_eq!(result, ContractError::RegistrationForbidden.std_err());
+    }
+
+    #[test]
     fn valid_lock_deployed_asset() {
         let deps = mock_dependencies(CANONICAL_LENGTH, &[]);
         let mut deps = Extern {
@@ -1160,12 +1185,15 @@ mod tests {
             asset_id: Binary::from(LOCK_ASSET_ID),
         };
 
+        wrapped_asset(&mut deps.storage).save(&LOCK_ASSET_ID, &HumanAddr::from(WRAPPED_ASSET_UPDATING)).unwrap();
+
         let result = submit_msg_with_sender(
             &mut deps,
             register_msg.clone(),
             &HumanAddr::from(LOCK_ASSET_ADDR),
             None,
         );
+
         assert!(result.is_ok());
 
         let result = submit_msg_with_fee(&mut deps, MSG_LOCK.clone(), Coin::new(10000, "uluna")).unwrap();
