@@ -94,6 +94,10 @@ pub enum ContractError {
     /// Thrown when fee is enabled for the action, but was not sent with the transaction
     #[error("FeeTooLow")]
     FeeTooLow,
+
+    /// Registering asset outside of the wormhole
+    #[error("RegistrationForbidden")]
+    RegistrationForbidden,
 }
 
 impl ContractError {
