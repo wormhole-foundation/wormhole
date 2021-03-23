@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# This script is based on Solana's upstream do.sh. If our usage of
+# bpf-sdk breaks, it is best to inspect its context and check with
+# Solana's latest program build workflow.
 
 cd "$(dirname "$0")"
 
@@ -35,9 +38,13 @@ perform_action() {
           "$sdkDir"/rust/build.sh "$projectDir"
 
           so_path="$targetDir/$profile"
-          so_name="spl_${2//\-/_}"
-          cp "$so_path/${so_name}.so" "$so_path/${so_name}_debug.so"
-          "$sdkDir"/dependencies/llvm-native/bin/llvm-objcopy --strip-all "$so_path/${so_name}.so" "$so_path/$so_name.so"
+	  files=`find $so_path -maxdepth 1 -type f \! -name "*_debug.so" -name  "*.so"`
+	  for file in $files
+	  do
+	    cp $file ${file/.so/_debug.so} # Copy with rename
+	    $sdkDir/scripts/strip.sh $file $file
+	    # "$sdkDir"/dependencies/llvm-native/bin/llvm-objcopy --strip-all "$file"
+	  done
         else
             echo "$projectDir does not contain a program, skipping"
         fi
@@ -75,39 +82,38 @@ perform_action() {
             pwd
             "$0" build "$2"
 
-            so_path="$targetDir/$profile"
-            so_name="spl_${2//\-/_}"
-            so="$so_path/${so_name}_debug.so"
-            dump="$so_path/${so_name}_dump"
+	    so_path="$targetDir/$profile"
+	    files=`find $so_path -maxdepth 1 -type f \! -name "*_debug.so" -name  "*.so"`
+	    for file in $files
+	    do
+		dump_filename="${file}_dump"
+		echo $file
+		echo $dump_filename
 
-            echo $so_path
-            echo $so_name
-            echo $so
-            echo $dump
-
-            if [ -f "$so" ]; then
-                ls \
-                    -la \
-                    "$so" \
-                    >"${dump}_mangled.txt"
-                greadelf \
-                    -aW \
-                    "$so" \
-                    >>"${dump}_mangled.txt"
-                "$sdkDir/dependencies/llvm-native/bin/llvm-objdump" \
-                    -print-imm-hex \
-                    --source \
-                    --disassemble \
-                    "$so" \
-                    >>"${dump}_mangled.txt"
-                sed \
-                    s/://g \
-                    <"${dump}_mangled.txt" |
-                    rustfilt \
-                        >"${dump}.txt"
-            else
-                echo "Warning: No dump created, cannot find: $so"
-            fi
+		if [ -f "$file" ]; then
+		    ls \
+			-la \
+			"$file" \
+			>"${dump_filename}_mangled.txt"
+		    greadelf \
+			-aW \
+			"$file" \
+			>>"${dump_filename}_mangled.txt"
+		    "$sdkDir/dependencies/llvm-native/bin/llvm-objdump" \
+			-print-imm-hex \
+			--source \
+			--disassemble \
+			"$file" \
+			>>"${dump_filename}_mangled.txt"
+		    sed \
+			s/://g \
+			<"${dump_filename}_mangled.txt" |
+			rustfilt \
+			    >"${dump_filename}.txt"
+		else
+		    echo "Warning: No dump created, cannot find: $file"
+		fi
+	    done
         )
         ;;
     fmt)
