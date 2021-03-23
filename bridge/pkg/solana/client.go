@@ -5,6 +5,9 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+	"math/big"
+	"time"
+
 	"github.com/certusone/wormhole/bridge/pkg/common"
 	"github.com/certusone/wormhole/bridge/pkg/p2p"
 	gossipv1 "github.com/certusone/wormhole/bridge/pkg/proto/gossip/v1"
@@ -16,16 +19,14 @@ import (
 	"github.com/mr-tron/base58"
 	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/zap"
-	"math/big"
-	"time"
 )
 
 type SolanaWatcher struct {
-	bridge              solana.PublicKey
-	eevaaProgramAddress solana.PublicKey
-	wsUrl               string
-	rpcUrl              string
-	lockEvent           chan *common.ChainLock
+	bridge      solana.PublicKey
+	eevaaBridge solana.PublicKey
+	wsUrl       string
+	rpcUrl      string
+	lockEvent   chan *common.ChainLock
 }
 
 var (
@@ -65,10 +66,10 @@ func init() {
 }
 
 func NewSolanaWatcher(wsUrl, rpcUrl string, bridgeAddress solana.PublicKey, eevaaProgramAddress solana.PublicKey, lockEvents chan *common.ChainLock) *SolanaWatcher {
-	return &SolanaWatcher{bridge: bridgeAddress, eevaaProgramAddress: eevaaProgramAddress, wsUrl: wsUrl, rpcUrl: rpcUrl, lockEvent: lockEvents}
+	return &SolanaWatcher{bridge: bridgeAddress, eevaaBridge: eevaaProgramAddress, wsUrl: wsUrl, rpcUrl: rpcUrl, lockEvent: lockEvents}
 }
 
-func (s *SolanaWatcher) Run(ctx context.Context) error {
+func (s *SolanaWatcher) RunBridge(ctx context.Context) error {
 	// Initialize gossip metrics (we want to broadcast the address even if we're not yet syncing)
 	bridgeAddr := base58.Encode(s.bridge[:])
 	p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDSolana, &gossipv1.Heartbeat_Network{

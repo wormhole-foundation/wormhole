@@ -5,8 +5,7 @@
 eevaa_program_address=EevaaBridgeeXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o
 recipient_address=90F8bf6A479f320ead074411a4B0e7944Ea8c9C1
 
-eevaa=ABCDEF
-
+eevaa=`hexdump -n 16 -e '4/4 "%08X" 1 "\n"' /dev/random`
 
 
 while : ; do

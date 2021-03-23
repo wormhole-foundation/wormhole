@@ -29,6 +29,7 @@ require (
 	github.com/gorilla/websocket v1.4.2
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/imdario/mergo v0.3.11 // indirect
+	github.com/ipfs/go-datastore v0.4.5
 	github.com/ipfs/go-log/v2 v2.1.1
 	github.com/karalabe/usb v0.0.0-20191104083709-911d15fe12a9 // indirect
 	github.com/koron/go-ssdp v0.0.2 // indirect

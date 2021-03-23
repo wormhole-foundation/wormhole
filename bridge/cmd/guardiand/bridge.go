@@ -413,8 +413,14 @@ func runBridge(cmd *cobra.Command, args []string) {
 			return err
 		}
 
+		solana_watcher := solana.NewSolanaWatcher(*solanaWsRPC, *solanaRPC, solBridgeAddress, eevaaProgramAddress, lockC)
 		if err := supervisor.Run(ctx, "solwatch",
-			solana.NewSolanaWatcher(*solanaWsRPC, *solanaRPC, solBridgeAddress, eevaaProgramAddress, lockC).Run); err != nil {
+			solana_watcher.RunBridge); err != nil {
+			return err
+		}
+
+		if err := supervisor.Run(ctx, "solwatch-eevaa",
+			solana_watcher.RunEevaaBridge); err != nil {
 			return err
 		}
 
