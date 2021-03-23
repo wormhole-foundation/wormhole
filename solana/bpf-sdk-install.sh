@@ -18,5 +18,6 @@ rm -rf bpf-sdk
 mkdir -p bpf-sdk
 tar jxf bpf-sdk.tar.bz2
 rm -f bpf-sdk.tar.bz2
+bpf-sdk/scripts/install.sh
 
 cat bpf-sdk/version.txt
