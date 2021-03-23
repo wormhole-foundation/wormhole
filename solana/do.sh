@@ -105,7 +105,7 @@ perform_action() {
 			--disassemble \
 			"$file" \
 			>>"${dump_filename}_mangled.txt"
-		    sed e
+		    sed \
 			s/://g \
 			<"${dump_filename}_mangled.txt" |
 			rustfilt \
