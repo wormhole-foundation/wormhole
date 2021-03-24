@@ -1,2 +1,2 @@
 [workspace]
-members = ["agent", "bridge", "cli"]
+members = ["agent", "bridge", "cli", "ee-vaa-program"]

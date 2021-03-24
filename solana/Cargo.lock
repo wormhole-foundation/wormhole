@@ -786,6 +786,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "ee-vaa-program"
+version = "0.1.0"
+dependencies = [
+ "byteorder",
+ "hex",
+ "num-derive 0.2.5",
+ "num-traits",
+ "primitive-types",
+ "rand",
+ "remove_dir_all",
+ "sha3",
+ "solana-program",
+ "spl-token",
+ "thiserror",
+ "zerocopy",
+]
+
+[[package]]
 name = "either"
 version = "1.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

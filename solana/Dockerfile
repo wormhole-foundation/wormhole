@@ -12,6 +12,7 @@ COPY do.sh .
 RUN ./do.sh update
 
 COPY bridge bridge
+COPY ee-vaa-program ee-vaa-program
 COPY agent agent
 COPY cli cli
 COPY Cargo.toml .
@@ -23,5 +24,7 @@ RUN --mount=type=cache,target=/usr/local,from=rust,source=/usr/local \
     --mount=type=cache,target=target \
     --mount=type=cache,target=bin,from=rust,source=bin \
     ./do.sh build bridge && \
+    ./do.sh build ee-vaa-program && \
     mkdir -p /opt/solana/deps && \
-    cp target/bpfel-unknown-unknown/release/spl_bridge_debug.so /opt/solana/deps/spl_bridge.so
+    cp target/bpfel-unknown-unknown/release/spl_bridge_debug.so /opt/solana/deps/spl_bridge.so && \
+    cp target/bpfel-unknown-unknown/release/ee_vaa_program_debug.so /opt/solana/deps/ee_vaa_program.so

@@ -1,4 +1,2 @@
-target
-bin
-cli/target
-agent/target
+**/target
+**/bin
