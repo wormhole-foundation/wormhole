@@ -1,7 +1,7 @@
 { sources ? import nix/sources.nix # Please specify inputs obtained from `sources` as separate params like below
 , cargo2nix ? sources.cargo2nix
 , nixpkgs ? sources.nixpkgs
-, nixpkgsMozilla ? sources.nixpkgs-mozilla
+, rust-olay ? import sources.rust-overlay
 }:
 let
   tilt-olay = self: super: {
@@ -51,9 +51,9 @@ let
     '';
   };
   cargo2nix-olay = import "${cargo2nix}/overlay";
-  pkgs = import nixpkgs { overlays = [ cargo2nix-olay tilt-olay scripts-olay ]; };
+  pkgs = import nixpkgs { overlays = [ cargo2nix-olay rust-olay tilt-olay scripts-olay ]; };
   cargo2nix-drv = import cargo2nix {
-    inherit nixpkgs nixpkgsMozilla;
+    inherit nixpkgs;
   };
 in
 cargo2nix-drv.shell.overrideAttrs (
