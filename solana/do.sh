@@ -24,21 +24,22 @@ Supported projects:
 EOF
 }
 
-sdkParentDir=bin
-sdkDir="$sdkParentDir"/bpf-sdk
-profile=bpfel-unknown-unknown/release
+sdkDir=$HOME/.local/share/solana/install/active_release/bin/sdk/bpf
+profile=deploy
 
 perform_action() {
     set -e
+    set -x
     projectDir="$PWD"/$2
     targetDir=target
     case "$1" in
     build)
-        if [[ -f "$projectDir"/Xargo.toml ]]; then
-          "$sdkDir"/rust/build.sh "$projectDir"
-
+	if [[ -f "$projectDir"/Xargo.toml ]]; then
+	  # "$sdkDir"/rust/build.sh "$projectDir"
           so_path="$targetDir/$profile"
+	  cargo build-bpf --manifest-path "$projectDir/Cargo.toml"
 	  files=`find $so_path -maxdepth 1 -type f \! -name "*_debug.so" -name  "*.so"`
+	  echo "pwd: $PWD"
 	  for file in $files
 	  do
 	    cp $file ${file/.so/_debug.so} # Copy with rename
@@ -134,10 +135,10 @@ perform_action() {
             cargo test --features=program ${@:3}
         )
         ;;
-    update)
-        mkdir -p $sdkParentDir
-        ./bpf-sdk-install.sh $sdkParentDir
-        ;;
+    # update)
+    #     mkdir -p $sdkParentDir
+    #     ./bpf-sdk-install.sh $sdkParentDir
+    #     ;;
     *)
         echo "Error: Unknown command"
         usage
@@ -156,7 +157,8 @@ else
         exit
     fi
     if [[ ! -d "$sdkDir" ]]; then
-        ./do.sh update
+	true
+        # ./do.sh update
     fi
 fi
 
