@@ -8,15 +8,15 @@
 #
 #      Dockerfile                    Image ref                      StatefulSet
 #      +------------------------------------------------------------------------------+
-#      rust+1.*
+#      rust-1.*
 #       +                                                           +-----------------+
 #       +-> Dockerfile.agent    +->  solana-agent  +--------+-----> | [agent]         |
 #       |                                                   |  +--> |    guardian-N   |
 #       +-> solana/Dockerfile   +->  solana-contract +---+  |  |    +-- --------------+
-#       |                                                |  |  |
-#       +-> third_party/solana/Dockerfile <--------------+  |  |
-#                              +                            |  |    +-----------------+
-#                              +-->  solana-devnet  +-------|-----> |  solana-devnet  |
+#                                                        |  |  |
+#                                                        |  |  |
+#                                                        |  |  |    +-----------------+
+#                                                        +--|-----> |  solana-devnet  |
 #      golang:1.*                                           +-----> | [setup]         |
 #       +                                                      |    +-----------------+
 #       +-> bridge/Dockerfile   +->  guardiand-image +---------+
@@ -24,7 +24,7 @@
 #
 #      node:lts-alpine
 #       +                                                           +-----------------+
-#       +-> ethereum/Dockerfile +->  eth+node  +------------------> |    eth|devnet   |
+#       +-> ethereum/Dockerfile +->  eth-node  +------------------> |    eth-devnet   |
 #                                                                   +-----------------+
 #
 
@@ -108,12 +108,6 @@ docker_build(
 )
 
 # solana local devnet
-
-docker_build(
-    ref = "solana-devnet",
-    context = "third_party/solana",
-    dockerfile = "third_party/solana/Dockerfile",
-)
 
 k8s_yaml_with_ns("devnet/solana-devnet.yaml")
 

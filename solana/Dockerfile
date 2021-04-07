@@ -9,9 +9,7 @@ WORKDIR /usr/src/bridge
 RUN sh -c "$(curl -sSfL https://release.solana.com/v1.5.5/install)"
 
 ENV PATH="/root/.local/share/solana/install/active_release/bin:$PATH"
-
-COPY bpf-sdk-install.sh .
-COPY do.sh .
+ENV RUST_LOG="solana_runtime::system_instruction_processor=trace,solana_runtime::message_processor=trace,solana_bpf_loader=debug,solana_rbpf=debug"
 
 COPY bridge bridge
 COPY agent agent
@@ -24,6 +22,6 @@ RUN --mount=type=cache,target=/usr/local,from=rust,source=/usr/local \
     --mount=type=cache,target=bridge/target \
     --mount=type=cache,target=target \
     --mount=type=cache,target=bin,from=rust,source=bin \
-    ./do.sh build bridge && \
+    cargo build-bpf --manifest-path "bridge/Cargo.toml" && \
     mkdir -p /opt/solana/deps && \
     cp target/deploy/spl_bridge_debug.so /opt/solana/deps/spl_bridge.so
