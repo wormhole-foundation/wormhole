@@ -15,6 +15,7 @@ fn process_instruction<'a>(
     accounts: &'a [AccountInfo<'a>],
     instruction_data: &[u8],
 ) -> ProgramResult {
+    msg!("In bridge entrypoint");
     if let Err(error) = Bridge::process(program_id, accounts, instruction_data) {
         // catch the error so we can print it
         error.print::<Error>();
