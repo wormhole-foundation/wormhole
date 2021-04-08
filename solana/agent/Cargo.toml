@@ -12,8 +12,8 @@ prost-types = "0.6"
 solana-sdk = { version = "=1.5.5" }
 solana-client = { version = "=1.5.5" }
 solana-faucet = "=1.5.5"
-spl-token =  "=3.0.1"
-wormhole-bridge = { path = "../bridge" }
+spl-token = {version = "=3.0.1", features = ["no-entrypoint"]}
+wormhole-bridge = { path = "../bridge", default-features = false, features = ["no-entrypoint"] }
 primitive-types = { version = "0.7.2" }
 hex = "0.4.2"
 thiserror = "1.0.20"
