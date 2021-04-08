@@ -25,5 +25,5 @@ RUN --mount=type=cache,target=/usr/local,from=rust,source=/usr/local \
     --mount=type=cache,target=bin,from=rust,source=bin \
     cargo build-bpf --workspace && \
     mkdir -p /opt/solana/deps && \
-    cp target/deploy/spl_bridge_debug.so /opt/solana/deps/spl_bridge.so
-    cp target/deploy/eevaa_program_debug.so /opt/solana/deps/eevaa_program.so
+    cp target/deploy/spl_bridge.so /opt/solana/deps/spl_bridge.so && \
+    cp target/deploy/eevaa_program.so /opt/solana/deps/eevaa_program.so
