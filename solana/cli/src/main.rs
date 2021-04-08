@@ -58,7 +58,7 @@ fn command_deploy_bridge(
     bridge: &Pubkey,
     initial_guardian: Vec<[u8; 20]>,
 ) -> CommmandResult {
-    println!("Deploying bridge program");
+    println!("Deploying bridge program {}", bridge);
 
     let minimum_balance_for_rent_exemption = config
         .rpc_client

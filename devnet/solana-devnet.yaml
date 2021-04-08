@@ -35,7 +35,13 @@ spec:
       terminationGracePeriodSeconds: 1
       containers:
         - name: devnet
-          image: solana-devnet
+          image: solana-contract
+          command:
+            - /root/.local/share/solana/install/active_release/bin/solana-test-validator
+            - --bpf-program
+            - Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o
+            - /opt/solana/deps/spl_bridge.so
+            - --log
           ports:
             - containerPort: 8001
               name: gossip
