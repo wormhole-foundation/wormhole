@@ -1,11 +1,10 @@
 use std::io::{Cursor, Read, Write};
 
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
-use primitive_types::U256;
 use sha3::Digest;
 use solana_program::program_error::ProgramError;
 
-use crate::{error::Error, state::AssetMeta};
+use crate::{error::Error};
 use solana_program::pubkey::Pubkey;
 
 pub type ForeignAddress = [u8; 32];
@@ -129,7 +128,7 @@ impl VAA {
 #[derive(Clone, Debug, PartialEq)]
 pub enum VAABody {
     UpdateGuardianSet(BodyUpdateGuardianSet),
-    Transfer(BodyTransfer),
+    Message(BodyMessage),
     UpgradeContract(BodyContractUpgrade),
 }
 
@@ -138,7 +137,7 @@ impl VAABody {
         match self {
             VAABody::UpdateGuardianSet(_) => 0x01,
             VAABody::UpgradeContract(_) => 0x02,
-            VAABody::Transfer(_) => 0x10,
+            VAABody::Message(_) => 0x10,
         }
     }
 
@@ -151,7 +150,7 @@ impl VAABody {
                 VAABody::UpdateGuardianSet(BodyUpdateGuardianSet::deserialize(&mut payload_data)?)
             }
             0x02 => VAABody::UpgradeContract(BodyContractUpgrade::deserialize(&mut payload_data)?),
-            0x10 => VAABody::Transfer(BodyTransfer::deserialize(&mut payload_data)?),
+            0x10 => VAABody::Message(BodyMessage::deserialize(&mut payload_data)?),
             _ => {
                 return Err(Error::InvalidVAAAction);
             }
@@ -162,7 +161,7 @@ impl VAABody {
 
     fn serialize(&self) -> Result<Vec<u8>, Error> {
         match self {
-            VAABody::Transfer(b) => b.serialize(),
+            VAABody::Message(b) => b.serialize(),
             VAABody::UpdateGuardianSet(b) => b.serialize(),
             VAABody::UpgradeContract(b) => b.serialize(),
         }
@@ -176,14 +175,11 @@ pub struct BodyUpdateGuardianSet {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct BodyTransfer {
+pub struct BodyMessage {
+    pub emitter_chain: u8,
+    pub emitter_address: ForeignAddress,
     pub nonce: u32,
-    pub source_chain: u8,
-    pub target_chain: u8,
-    pub source_address: ForeignAddress,
-    pub target_address: ForeignAddress,
-    pub asset: AssetMeta,
-    pub amount: U256,
+    pub data: Vec<u8>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -245,53 +241,33 @@ impl BodyUpdateGuardianSet {
     }
 }
 
-impl BodyTransfer {
-    fn deserialize(data: &mut Cursor<&Vec<u8>>) -> Result<BodyTransfer, Error> {
+impl BodyMessage {
+    fn deserialize(data: &mut Cursor<&Vec<u8>>) -> Result<BodyMessage, Error> {
+        let emitter_chain = data.read_u8()?;
+
+        let mut emitter_address: ForeignAddress = ForeignAddress::default();
+        data.read_exact(&mut emitter_address)?;
+
         let nonce = data.read_u32::<BigEndian>()?;
-        let source_chain = data.read_u8()?;
-        let target_chain = data.read_u8()?;
-        let mut source_address: ForeignAddress = ForeignAddress::default();
-        data.read_exact(&mut source_address)?;
-        let mut target_address: ForeignAddress = ForeignAddress::default();
-        data.read_exact(&mut target_address)?;
-        let token_chain = data.read_u8()?;
-        let mut token_address: ForeignAddress = ForeignAddress::default();
-        data.read_exact(&mut token_address)?;
-        let token_decimals = data.read_u8()?;
 
-        let mut am_data: [u8; 32] = [0; 32];
-        data.read_exact(&mut am_data)?;
-        let amount = U256::from_big_endian(&am_data);
+        let mut payload: Vec<u8> = vec![];
+        data.read(&mut payload)?;
 
-        Ok(BodyTransfer {
+        Ok(BodyMessage {
+            emitter_chain,
+            emitter_address,
             nonce,
-            source_chain,
-            target_chain,
-            source_address,
-            target_address,
-            asset: AssetMeta {
-                address: token_address,
-                chain: token_chain,
-                decimals: token_decimals,
-            },
-            amount,
+            data: payload,
         })
     }
 
     fn serialize(&self) -> Result<Vec<u8>, Error> {
         let mut v: Cursor<Vec<u8>> = Cursor::new(Vec::new());
-        v.write_u32::<BigEndian>(self.nonce)?;
-        v.write_u8(self.source_chain)?;
-        v.write_u8(self.target_chain)?;
-        v.write(&self.source_address)?;
-        v.write(&self.target_address)?;
-        v.write_u8(self.asset.chain)?;
-        v.write(&self.asset.address)?;
-        v.write_u8(self.asset.decimals)?;
 
-        let mut am_data: [u8; 32] = [0; 32];
-        self.amount.to_big_endian(&mut am_data);
-        v.write(&am_data[..])?;
+        v.write_u8(self.emitter_chain)?;
+        v.write(&self.emitter_address)?;
+        v.write_u32::<BigEndian>(self.nonce)?;
+        v.write(&self.data)?;
 
         Ok(v.into_inner())
     }
