@@ -1,42 +1,36 @@
 //! Program instruction processing logic
 #![cfg(feature = "program")]
 
-use std::{borrow::Borrow, cell::RefCell, io::Write, mem::size_of, slice::Iter};
+use std::{io::Write, mem::size_of, slice::Iter};
 
 use byteorder::ByteOrder;
 use num_traits::AsPrimitive;
-use primitive_types::U256;
+
 use sha3::Digest;
 use solana_program::program::invoke_signed;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     clock::Clock,
     entrypoint::ProgramResult,
-    hash::Hasher,
-    info,
     instruction::Instruction,
     program_error::ProgramError,
     pubkey::Pubkey,
     rent::Rent,
-    system_instruction::{create_account, SystemInstruction},
+    system_instruction::{create_account},
     sysvar::Sysvar,
 };
-use spl_token::{state::Mint};
 
+use crate::instruction::PublishMessagePayload;
+use crate::vaa::{BodyContractUpgrade, BodyMessage};
 use crate::{
     error::Error,
     instruction::{
-        BridgeInstruction, BridgeInstruction::*, TransferOutPayload, VAAData, VerifySigPayload,
-        CHAIN_ID_SOLANA, MAX_LEN_GUARDIAN_KEYS, MAX_VAA_SIZE,
+        BridgeInstruction, BridgeInstruction::*, VAAData, VerifySigPayload, CHAIN_ID_SOLANA,
+        MAX_LEN_GUARDIAN_KEYS, MAX_VAA_SIZE,
     },
     state::*,
-    vaa::{BodyTransfer, BodyUpdateGuardianSet, VAABody, VAA},
+    vaa::{BodyUpdateGuardianSet, VAABody, VAA},
 };
-use solana_program::program_pack::Pack;
-use std::borrow::BorrowMut;
-use std::ops::Add;
-use solana_program::fee_calculator::FeeCalculator;
-use crate::vaa::{BodyContractUpgrade, BodyMessage};
 
 /// SigInfo contains metadata about signers in a VerifySignature ix
 struct SigInfo {
@@ -69,7 +63,7 @@ impl Bridge {
                     payload.config,
                 )
             }
-            (p) => {
+            PublishMessage(p) => {
                 msg!("Instruction: PublishMessage");
 
                 Self::process_publish_message(program_id, accounts, &p)
@@ -85,7 +79,6 @@ impl Bridge {
 
                 Self::process_verify_signatures(program_id, accounts, &p)
             }
-            _ => panic!(""),
         }
     }
 
@@ -136,7 +129,9 @@ impl Bridge {
             None,
         )?;
 
-        let mut new_guardian_data = new_guardian_info.try_borrow_mut_data().map_err(|_| ProgramError::AccountBorrowFailed)?;
+        let mut new_guardian_data = new_guardian_info
+            .try_borrow_mut_data()
+            .map_err(|_| ProgramError::AccountBorrowFailed)?;
         let mut guardian_info: &mut GuardianSet = Self::unpack_unchecked(&mut new_guardian_data)?;
         if guardian_info.is_initialized {
             return Err(Error::AlreadyExists.into());
@@ -218,7 +213,7 @@ impl Bridge {
             secp_ix_index as usize,
             &instruction_accounts.try_borrow_mut_data()?,
         )
-            .map_err(|_| ProgramError::InvalidAccountData)?;
+        .map_err(|_| ProgramError::InvalidAccountData)?;
 
         // Check that the instruction is actually for the secp program
         if secp_ix.program_id != solana_program::secp256k1_program::id() {
@@ -346,24 +341,23 @@ impl Bridge {
         Ok(())
     }
 
-
     /// Publish a message to the Wormhole protocol
     pub fn process_publish_message(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        t: &PostMessagePayload,
+        t: &PublishMessagePayload,
     ) -> ProgramResult {
-        msg!("wrapped transfer out");
+        msg!("publishing message");
         let account_info_iter = &mut accounts.iter();
         next_account_info(account_info_iter)?; // Bridge program
         next_account_info(account_info_iter)?; // System program
-        next_account_info(account_info_iter)?; // Token program
         next_account_info(account_info_iter)?; // Rent sysvar
         let clock_info = next_account_info(account_info_iter)?;
         let instructions_info = next_account_info(account_info_iter)?;
-        let sender_account_info = next_account_info(account_info_iter)?;
         let bridge_info = Self::next_account_info_with_owner(account_info_iter, program_id)?;
-        let transfer_info = next_account_info(account_info_iter)?;
+        let message_info = next_account_info(account_info_iter)?;
+        let payer_info = next_account_info(account_info_iter)?;
+        let emitter_info = next_account_info(account_info_iter)?;
 
         let clock = Clock::from_account_info(clock_info)?;
 
@@ -371,43 +365,50 @@ impl Bridge {
             return Err(Error::InvalidSysvar.into());
         }
 
+        // The message emitter must be a signer
+        if !emitter_info.is_signer {
+            return Err(Error::EmitterNotSigner.into());
+        }
+
         // Fee handling
         let fee = Self::transfer_fee();
         Self::check_fees(instructions_info, bridge_info, fee)?;
 
         // Create transfer account
-        let transfer_seed = Bridge::derive_transfer_id_seeds(
+        let message_seed = Bridge::derive_message_seeds(
             bridge_info.key,
-            t.asset.chain,
-            t.asset.address,
-            t.chain_id,
-            t.target,
-            sender_account_info.key.to_bytes(),
+            CHAIN_ID_SOLANA,
+            emitter_info.key.to_bytes(),
             t.nonce,
+            &t.payload,
         );
         Bridge::check_and_create_account::<PostedMessage>(
             program_id,
             accounts,
-            transfer_info.key,
+            message_info.key,
             payer_info,
             program_id,
-            &transfer_seed,
+            &message_seed,
             None,
         )?;
 
         // Load transfer account
-        let mut transfer_data = transfer_info.try_borrow_mut_data()?;
-        let mut transfer: &mut PostedMessage = Self::unpack_unchecked(&mut transfer_data)?;
+        let mut message_data = message_info.try_borrow_mut_data()?;
+        let mut message: &mut PostedMessage = Self::unpack_unchecked(&mut message_data)?;
 
         // Initialize transfer
-        transfer.is_initialized = true;
-        transfer.submission_time = clock.unix_timestamp as u32;
+        message.is_initialized = true;
+        message.submission_time = clock.unix_timestamp as u32;
 
         Ok(())
     }
 
     /// Verify that a certain fee was sent to the bridge in the preceding instruction
-    pub fn check_fees(instructions_info: &AccountInfo, bridge_info: &AccountInfo, fee: u64) -> Result<(), ProgramError> {
+    pub fn check_fees(
+        instructions_info: &AccountInfo,
+        bridge_info: &AccountInfo,
+        fee: u64,
+    ) -> Result<(), ProgramError> {
         let current_instruction = solana_program::sysvar::instructions::load_current_index(
             &instructions_info.try_borrow_mut_data()?,
         );
@@ -421,7 +422,7 @@ impl Bridge {
             transfer_ix_index as usize,
             &instructions_info.try_borrow_mut_data()?,
         )
-            .map_err(|_| ProgramError::InvalidAccountData)?;
+        .map_err(|_| ProgramError::InvalidAccountData)?;
 
         // Check that the instruction is actually for the system program
         if transfer_ix.program_id != solana_program::system_program::id() {
@@ -470,9 +471,13 @@ impl Bridge {
         amount: u64,
     ) -> ProgramResult {
         let mut payer_balance = payer_account.try_borrow_mut_lamports()?;
-        **payer_balance = payer_balance.checked_sub(amount).ok_or(ProgramError::InsufficientFunds)?;
+        **payer_balance = payer_balance
+            .checked_sub(amount)
+            .ok_or(ProgramError::InsufficientFunds)?;
         let mut recipient_balance = recipient_account.try_borrow_mut_lamports()?;
-        **recipient_balance = recipient_balance.checked_add(amount).ok_or(ProgramError::InvalidArgument)?;
+        **recipient_balance = recipient_balance
+            .checked_add(amount)
+            .ok_or(ProgramError::InvalidArgument)?;
 
         Ok(())
     }
@@ -515,7 +520,9 @@ impl Bridge {
         }
 
         // Check that the guardian set is still active
-        if guardian_set.expiration_time != 0 && (guardian_set.expiration_time as i64) < clock.unix_timestamp {
+        if guardian_set.expiration_time != 0
+            && (guardian_set.expiration_time as i64) < clock.unix_timestamp
+        {
             return Err(Error::GuardianSetExpired.into());
         }
 
@@ -533,11 +540,11 @@ impl Bridge {
             return Err(ProgramError::InvalidAccountData);
         }
 
-        let signature_count = (sig_state
+        let signature_count = sig_state
             .signatures
             .iter()
             .filter(|v| v.iter().filter(|v| **v != 0).count() != 0)
-            .count() as u8);
+            .count() as u8;
         // Check quorum
         // We're using a fixed point number transformation with 1 decimal to deal with rounding.
         // The cast to u16 exists to prevent issues where len_keys * 10 might overflow.
@@ -548,17 +555,15 @@ impl Bridge {
         let mut evict_signatures = false;
         let payload = vaa.payload.as_ref().ok_or(Error::InvalidVAAAction)?;
         match payload {
-            VAABody::Message(v) => {
-                Self::process_vaa_message_post(
-                    program_id,
-                    account_info_iter,
-                    bridge_info,
-                    vaa,
-                    &v,
-                    vaa_data,
-                    sig_info.key,
-                )
-            }
+            VAABody::Message(v) => Self::process_vaa_message_post(
+                program_id,
+                account_info_iter,
+                bridge_info,
+                vaa,
+                &v,
+                vaa_data,
+                sig_info.key,
+            ),
             VAABody::UpdateGuardianSet(v) => {
                 let mut bridge_data = bridge_info.try_borrow_mut_data()?;
                 let bridge: &mut Bridge = Self::unpack(&mut bridge_data)?;
@@ -578,12 +583,7 @@ impl Bridge {
             VAABody::UpgradeContract(v) => {
                 if v.chain_id == CHAIN_ID_SOLANA {
                     evict_signatures = true;
-                    Self::process_vaa_upgrade(
-                        program_id,
-                        accounts,
-                        bridge_info,
-                        v,
-                    )
+                    Self::process_vaa_upgrade(program_id, accounts, bridge_info, v)
                 } else {
                     return Err(Error::InvalidChain.into());
                 }
@@ -609,7 +609,12 @@ impl Bridge {
         }
 
         // Refund tx fee if possible
-        if bridge_info.lamports().checked_sub(Self::MIN_BRIDGE_BALANCE).unwrap_or(0) >= Self::VAA_TX_FEE {
+        if bridge_info
+            .lamports()
+            .checked_sub(Self::MIN_BRIDGE_BALANCE)
+            .unwrap_or(0)
+            >= Self::VAA_TX_FEE
+        {
             Self::transfer_sol(bridge_info, payer_info, Self::VAA_TX_FEE)?;
         }
 
@@ -724,7 +729,7 @@ impl Bridge {
             b.emitter_chain,
             b.emitter_address,
             b.nonce,
-            b.data,
+            &b.data,
         )?;
         if expected_message_address != *message_account.key {
             return Err(Error::InvalidDerivedAccount.into());
@@ -768,7 +773,7 @@ impl Bridge {
             bridge_info.key,
             bridge_info.key,
         );
-        Self::invoke_as_bridge(program_id, &upgrade_ix, accounts);
+        Self::invoke_as_bridge(program_id, &upgrade_ix, accounts)?;
 
         Ok(())
     }
@@ -787,7 +792,7 @@ impl Bridge {
     }
 
     pub fn invoke_vec_seed<'a>(
-        program_id: &Pubkey,
+        _program_id: &Pubkey,
         instruction: &Instruction,
         account_infos: &[AccountInfo<'a>],
         seeds: &Vec<Vec<u8>>,
@@ -798,9 +803,10 @@ impl Bridge {
 
     /// The amount of sol that needs to be held in the BridgeConfig account in order to make it
     /// exempt of rent payments.
-    const MIN_BRIDGE_BALANCE: u64 = (((solana_program::rent::ACCOUNT_STORAGE_OVERHEAD + size_of::<Bridge>() as u64) *
-        solana_program::rent::DEFAULT_LAMPORTS_PER_BYTE_YEAR) as f64
-        * solana_program::rent::DEFAULT_EXEMPTION_THRESHOLD) as u64;
+    const MIN_BRIDGE_BALANCE: u64 =
+        (((solana_program::rent::ACCOUNT_STORAGE_OVERHEAD + size_of::<Bridge>() as u64)
+            * solana_program::rent::DEFAULT_LAMPORTS_PER_BYTE_YEAR) as f64
+            * solana_program::rent::DEFAULT_EXEMPTION_THRESHOLD) as u64;
 
     /// Check that a key was derived correctly and create account
     pub fn check_and_create_account<T: Sized>(
@@ -837,7 +843,11 @@ impl Bridge {
             Some(v) => {
                 let bal = v.try_lamports()?;
                 let rent = Rent::default().minimum_balance(size_of::<T>());
-                if bal.checked_sub(Self::MIN_BRIDGE_BALANCE).ok_or(ProgramError::InsufficientFunds)? >= rent {
+                if bal
+                    .checked_sub(Self::MIN_BRIDGE_BALANCE)
+                    .ok_or(ProgramError::InsufficientFunds)?
+                    >= rent
+                {
                     // Refund rent to payer
                     Self::transfer_sol(v, payer, rent)?;
                 }
@@ -849,7 +859,7 @@ impl Bridge {
 
     /// Create a new account
     fn create_account_raw<T: Sized>(
-        program_id: &Pubkey,
+        _program_id: &Pubkey,
         accounts: &[AccountInfo],
         new_account: &Pubkey,
         payer: &Pubkey,
@@ -869,7 +879,7 @@ impl Bridge {
     }
 
     /// Get the next account info from the iterator and check that it has the given owner
-    pub fn next_account_info_with_owner<'a, 'b, I: Iterator<Item=&'a AccountInfo<'b>>>(
+    pub fn next_account_info_with_owner<'a, 'b, I: Iterator<Item = &'a AccountInfo<'b>>>(
         iter: &mut I,
         owner: &Pubkey,
     ) -> Result<I::Item, ProgramError> {

@@ -9,16 +9,14 @@ use solana_program::{
     pubkey::Pubkey,
 };
 
+use crate::instruction::BridgeInstruction::PublishMessage;
 use crate::{
-    instruction::BridgeInstruction::{
-        Initialize, PostVAA, VerifySignatures,
-    },
+    instruction::BridgeInstruction::{Initialize, PostVAA, VerifySignatures},
     state::{Bridge, BridgeConfig},
     vaa::{VAABody, VAA},
 };
-use crate::instruction::BridgeInstruction::PublishMessage;
+use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use std::io::{Cursor, Read, Write};
-use byteorder::{ReadBytesExt, BigEndian, WriteBytesExt};
 
 /// chain id of this chain
 pub const CHAIN_ID_SOLANA: u8 = 1;
@@ -55,7 +53,6 @@ pub struct PublishMessagePayload {
     /// message payload
     pub payload: Vec<u8>,
 }
-
 
 impl Clone for PublishMessagePayload {
     fn clone(&self) -> PublishMessagePayload {
@@ -117,9 +114,13 @@ impl BridgeInstruction {
             1 => {
                 let mut payload_data = Cursor::new(input);
 
-                let nonce = payload_data.read_u32::<BigEndian>().map_err(|_| ProgramError::InvalidArgument)?;
+                let nonce = payload_data
+                    .read_u32::<BigEndian>()
+                    .map_err(|_| ProgramError::InvalidArgument)?;
                 let mut message_payload: Vec<u8> = vec![];
-                payload_data.read(&mut message_payload).map_err(|_| ProgramError::InvalidArgument)?;
+                payload_data
+                    .read(&mut message_payload)
+                    .map_err(|_| ProgramError::InvalidArgument)?;
 
                 let payload: PublishMessagePayload = PublishMessagePayload {
                     nonce,
@@ -150,7 +151,7 @@ impl BridgeInstruction {
                 output.resize(size_of::<InitializePayload>() + 1, 0);
                 output[0] = 0;
                 #[allow(clippy::cast_ptr_alignment)]
-                    let value = unsafe {
+                let value = unsafe {
                     &mut *(&mut output[size_of::<u8>()] as *mut u8 as *mut InitializePayload)
                 };
                 *value = payload;
@@ -158,8 +159,10 @@ impl BridgeInstruction {
             Self::PublishMessage(payload) => {
                 let mut v: Cursor<Vec<u8>> = Cursor::new(Vec::new());
                 v.write_u8(1).map_err(|_| ProgramError::InvalidArgument)?;
-                v.write_u32::<BigEndian>(payload.nonce).map_err(|_| ProgramError::InvalidArgument)?;
-                v.write(&payload.payload).map_err(|_| ProgramError::InvalidArgument)?;
+                v.write_u32::<BigEndian>(payload.nonce)
+                    .map_err(|_| ProgramError::InvalidArgument)?;
+                v.write(&payload.payload)
+                    .map_err(|_| ProgramError::InvalidArgument)?;
 
                 output = v.into_inner();
             }
@@ -167,13 +170,13 @@ impl BridgeInstruction {
                 output.resize(1, 0);
                 output[0] = 2;
                 #[allow(clippy::cast_ptr_alignment)]
-                    output.extend_from_slice(&payload);
+                output.extend_from_slice(&payload);
             }
             Self::VerifySignatures(payload) => {
                 output.resize(size_of::<VerifySigPayload>() + 1, 0);
                 output[0] = 3;
                 #[allow(clippy::cast_ptr_alignment)]
-                    let value = unsafe {
+                let value = unsafe {
                     &mut *(&mut output[size_of::<u8>()] as *mut u8 as *mut VerifySigPayload)
                 };
                 *value = payload;
@@ -203,7 +206,7 @@ pub fn initialize(
         len_guardians: initial_guardian.len() as u8,
         initial_guardian: initial_g,
     })
-        .serialize()?;
+    .serialize()?;
 
     let bridge_key = Bridge::derive_bridge_id(program_id)?;
     let guardian_set_key = Bridge::derive_guardian_set_id(program_id, &bridge_key, 0)?;
@@ -223,9 +226,9 @@ pub fn initialize(
     })
 }
 
-/// Creates an 'TransferOut' instruction.
+/// Creates an 'PublishMessage' instruction.
 #[cfg(not(target_arch = "bpf"))]
-pub fn post_message(
+pub fn publish_message(
     program_id: &Pubkey,
     payer: &Pubkey,
     t: &PublishMessagePayload,
@@ -238,13 +241,12 @@ pub fn post_message(
         CHAIN_ID_SOLANA,
         payer.to_bytes(),
         t.nonce,
-        t.payload.clone(),
+        &t.payload,
     )?;
 
-    let mut accounts = vec![
+    let accounts = vec![
         AccountMeta::new_readonly(*program_id, false),
         AccountMeta::new_readonly(solana_program::system_program::id(), false),
-        AccountMeta::new_readonly(spl_token::id(), false),
         AccountMeta::new_readonly(solana_program::sysvar::rent::id(), false),
         AccountMeta::new_readonly(solana_program::sysvar::clock::id(), false),
         AccountMeta::new_readonly(solana_program::sysvar::instructions::id(), false),
@@ -341,9 +343,15 @@ pub fn post_vaa(
             // Make program writeable
             accounts[0] = AccountMeta::new(*program_id, false);
             accounts.push(AccountMeta::new(u.buffer, false));
-            let (programdata_address, _) = Pubkey::find_program_address(&[program_id.as_ref()], &solana_program::bpf_loader_upgradeable::id());
+            let (programdata_address, _) = Pubkey::find_program_address(
+                &[program_id.as_ref()],
+                &solana_program::bpf_loader_upgradeable::id(),
+            );
             accounts.push(AccountMeta::new(programdata_address, false));
-            accounts.push(AccountMeta::new_readonly(solana_program::bpf_loader_upgradeable::id(), false));
+            accounts.push(AccountMeta::new_readonly(
+                solana_program::bpf_loader_upgradeable::id(),
+                false,
+            ));
         }
         VAABody::Message(t) => {
             let message_key = Bridge::derive_message_id(
@@ -352,7 +360,7 @@ pub fn post_vaa(
                 t.emitter_chain,
                 t.emitter_address,
                 t.nonce,
-                t.data,
+                &t.data,
             )?;
             accounts.push(AccountMeta::new(message_key, false))
         }
@@ -371,6 +379,6 @@ pub fn unpack<T>(input: &[u8]) -> Result<&T, ProgramError> {
         return Err(ProgramError::InvalidInstructionData);
     }
     #[allow(clippy::cast_ptr_alignment)]
-        let val: &T = unsafe { &*(&input[1] as *const u8 as *const T) };
+    let val: &T = unsafe { &*(&input[1] as *const u8 as *const T) };
     Ok(val)
 }

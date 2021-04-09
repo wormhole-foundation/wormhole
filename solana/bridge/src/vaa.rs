@@ -4,7 +4,7 @@ use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use sha3::Digest;
 use solana_program::program_error::ProgramError;
 
-use crate::{error::Error};
+use crate::error::Error;
 use solana_program::pubkey::Pubkey;
 
 pub type ForeignAddress = [u8; 32];
@@ -203,12 +203,11 @@ impl BodyContractUpgrade {
     fn serialize(&self) -> Result<Vec<u8>, Error> {
         let mut v: Cursor<Vec<u8>> = Cursor::new(Vec::new());
         v.write_u8(self.chain_id)?;
-        v.write(&self.buffer.to_bytes());
+        v.write(&self.buffer.to_bytes())?;
 
         Ok(v.into_inner())
     }
 }
-
 
 impl BodyUpdateGuardianSet {
     fn deserialize(data: &mut Cursor<&Vec<u8>>) -> Result<BodyUpdateGuardianSet, Error> {
@@ -276,46 +275,10 @@ impl BodyMessage {
 #[cfg(test)]
 mod tests {
     use hex;
-    use primitive_types::U256;
 
-    use crate::{
-        state::AssetMeta,
-        vaa::{BodyTransfer, BodyUpdateGuardianSet, Signature, VAABody, VAA},
-    };
     use crate::vaa::BodyContractUpgrade;
+    use crate::vaa::{BodyUpdateGuardianSet, Signature, VAABody, VAA};
     use solana_program::pubkey::Pubkey;
-
-    #[test]
-    fn serialize_deserialize_vaa_transfer() {
-        let vaa = VAA {
-            version: 8,
-            guardian_set_index: 3,
-            signatures: vec![Signature {
-                index: 1,
-                r: [2; 32],
-                s: [2; 32],
-                v: 7,
-            }],
-            timestamp: 83,
-            payload: Some(VAABody::Transfer(BodyTransfer {
-                nonce: 28,
-                source_chain: 1,
-                target_chain: 2,
-                source_address: [1; 32],
-                target_address: [1; 32],
-                asset: AssetMeta {
-                    address: [2; 32],
-                    chain: 8,
-                    decimals: 9,
-                },
-                amount: U256::from(3),
-            })),
-        };
-
-        let data = vaa.serialize().unwrap();
-        let parsed_vaa = VAA::deserialize(data.as_slice()).unwrap();
-        assert_eq!(vaa, parsed_vaa)
-    }
 
     #[test]
     fn serialize_deserialize_vaa_guardian() {
@@ -398,55 +361,6 @@ mod tests {
     }
 
     #[test]
-    fn parse_given_transfer() {
-        let vaa = VAA {
-            version: 1,
-            guardian_set_index: 0,
-            signatures: vec![Signature {
-                index: 0,
-                r: [
-                    146, 115, 122, 21, 4, 243, 179, 223, 140, 147, 203, 133, 198, 74, 72, 96, 187,
-                    39, 14, 38, 2, 107, 110, 55, 240, 149, 53, 106, 64, 111, 106, 244,
-                ],
-                s: [
-                    57, 198, 178, 233, 119, 95, 161, 198, 102, 149, 37, 240, 110, 218, 176, 51,
-                    186, 93, 68, 115, 8, 244, 227, 189, 179, 60, 15, 54, 29, 195, 46, 195,
-                ],
-                v: 1,
-            }],
-            timestamp: 1597440008,
-            payload: Some(VAABody::Transfer(BodyTransfer {
-                nonce: 53,
-                source_chain: 1,
-                target_chain: 2,
-                source_address: [
-                    2, 1, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 0,
-                ],
-                target_address: [
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 144, 248, 191, 106, 71, 159, 50, 14, 173,
-                    7, 68, 17, 164, 176, 231, 148, 78, 168, 201, 193,
-                ],
-                asset: AssetMeta {
-                    address: [
-                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 71, 239, 52, 104, 123, 220, 159, 24,
-                        158, 135, 169, 32, 6, 88, 217, 196, 14, 153, 136,
-                    ],
-                    chain: 1,
-                    decimals: 8,
-                },
-                amount: U256::from_dec_str("5000000000000000000").unwrap(),
-            })),
-        };
-        let data = hex::decode("0100000000010092737a1504f3b3df8c93cb85c64a4860bb270e26026b6e37f095356a406f6af439c6b2e9775fa1c6669525f06edab033ba5d447308f4e3bdb33c0f361dc32ec3015f37000810000000350102020104000000000000000000000000000000000000000000000000000000000000000000000000000000000090f8bf6a479f320ead074411a4b0e7944ea8c9c1010000000000000000000000000347ef34687bdc9f189e87a9200658d9c40e9988080000000000000000000000000000000000000000000000004563918244f40000").unwrap();
-        let parsed_vaa = VAA::deserialize(data.as_slice()).unwrap();
-        assert_eq!(vaa, parsed_vaa);
-
-        let rec_data = parsed_vaa.serialize().unwrap();
-        assert_eq!(data, rec_data);
-    }
-
-    #[test]
     fn parse_given_contract_upgrade() {
         let vaa = VAA {
             version: 1,
@@ -455,19 +369,21 @@ mod tests {
                 index: 0,
                 r: [
                     72, 156, 56, 20, 222, 146, 161, 112, 22, 97, 69, 59, 188, 199, 130, 240, 89,
-                    249, 241, 79, 96, 27, 235, 10, 99, 16, 56, 80, 232, 188, 235, 11
+                    249, 241, 79, 96, 27, 235, 10, 99, 16, 56, 80, 232, 188, 235, 11,
                 ],
                 s: [
                     65, 19, 144, 42, 104, 122, 52, 0, 126, 7, 43, 127, 120, 85, 5, 21, 216, 207,
-                    78, 73, 213, 207, 142, 103, 211, 192, 100, 90, 27, 98, 176, 98
+                    78, 73, 213, 207, 142, 103, 211, 192, 100, 90, 27, 98, 176, 98,
                 ],
                 v: 1,
             }],
             timestamp: 4000,
             payload: Some(VAABody::UpgradeContract(BodyContractUpgrade {
                 chain_id: 2,
-                buffer: Pubkey::new(&[146, 115, 122, 21, 4, 243, 179, 223, 140, 147, 203, 133, 198, 74, 72, 96, 187,
-                    39, 14, 38, 2, 107, 110, 55, 240, 149, 53, 106, 64, 111, 106, 244]),
+                buffer: Pubkey::new(&[
+                    146, 115, 122, 21, 4, 243, 179, 223, 140, 147, 203, 133, 198, 74, 72, 96, 187,
+                    39, 14, 38, 2, 107, 110, 55, 240, 149, 53, 106, 64, 111, 106, 244,
+                ]),
             })),
         };
         let data = hex::decode("01000000020100489c3814de92a1701661453bbcc782f059f9f14f601beb0a63103850e8bceb0b4113902a687a34007e072b7f78550515d8cf4e49d5cf8e67d3c0645a1b62b0620100000fa0020292737a1504f3b3df8c93cb85c64a4860bb270e26026b6e37f095356a406f6af4").unwrap();

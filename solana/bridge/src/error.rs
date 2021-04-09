@@ -1,10 +1,10 @@
 //! Error types
 
 use num_derive::FromPrimitive;
+use num_traits::FromPrimitive;
+use solana_program::program_error::PrintProgramError;
 use solana_program::{decode_error::DecodeError, program_error::ProgramError};
 use thiserror::Error;
-use solana_program::program_error::PrintProgramError;
-use num_traits::FromPrimitive;
 
 /// Errors that may be returned by the TokenSwap program.
 #[derive(Clone, Debug, Eq, Error, FromPrimitive, PartialEq)]
@@ -96,13 +96,16 @@ pub enum Error {
     /// Invalid Chain
     #[error("InvalidChain")]
     InvalidChain,
+    /// Emitter is not a signer
+    #[error("EmitterNotSigner")]
+    EmitterNotSigner,
 }
 
 #[cfg(feature = "program")]
 impl PrintProgramError for Error {
     fn print<E>(&self)
-        where
-            E: 'static + std::error::Error + DecodeError<E> + PrintProgramError + FromPrimitive,
+    where
+        E: 'static + std::error::Error + DecodeError<E> + PrintProgramError + FromPrimitive,
     {
         match self {
             Error::ExpectedToken => msg!("Error: ExpectedToken"),
@@ -130,10 +133,10 @@ impl PrintProgramError for Error {
             Error::InvalidSysvar => msg!("Error: InvalidSysvar"),
             Error::InvalidChain => msg!("Error: InvalidChain"),
             Error::InvalidVAAAction => msg!("Error: InvalidVAAAction"),
+            Error::EmitterNotSigner => msg!("Error: EmitterNotSigner"),
         }
     }
 }
-
 
 impl From<Error> for ProgramError {
     fn from(e: Error) -> Self {
