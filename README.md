@@ -3,8 +3,6 @@
 Read our [introduction blog article](https://medium.com/certus-one/introducing-the-wormhole-bridge-24911b7335f7) 
 for more details on Wormhole and its major design decisions.
 
-See [Test application](https://arweave.net/lwPN0jvDXmdkB1wO27JYJ5OiI1-wtCconaNCZgnux2M) deployed on Arweave.
-
 See [DEVELOP.md](DEVELOP.md) for instructions on how to set up a local devnet.
 
 See [docs/operations.md](docs/operations.md) for node operator instructions.
