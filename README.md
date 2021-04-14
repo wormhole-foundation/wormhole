@@ -3,7 +3,8 @@
 Read our [introduction blog article](https://medium.com/certus-one/introducing-the-wormhole-bridge-24911b7335f7) 
 for more details on Wormhole and its major design decisions.
 
-See [DEVELOP.md](DEVELOP.md) for instructions on how to set up a local devnet.
+See [DEVELOP.md](DEVELOP.md) for instructions on how to set up a local devnet, and
+[CONTRIBUTING.md](CONTRIBUTING.md) for instructions on how to contribute to this project.
 
 See [docs/operations.md](docs/operations.md) for node operator instructions.
 
