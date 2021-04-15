@@ -331,7 +331,7 @@ func runBridge(cmd *cobra.Command, args []string) {
 	defer rootCtxCancel()
 
 	// Ethereum lock event channel
-	lockC := make(chan *common.ChainLock)
+	lockC := make(chan *common.MessagePublication)
 
 	// Ethereum incoming guardian set updates
 	setC := make(chan *common.GuardianSet)

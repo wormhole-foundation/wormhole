@@ -52,7 +52,7 @@ type (
 
 type Processor struct {
 	// lockC is a channel of observed chain lockups
-	lockC chan *common.ChainLock
+	lockC chan *common.MessagePublication
 	// setC is a channel of guardian set updates
 	setC chan *common.GuardianSet
 
@@ -97,7 +97,7 @@ type Processor struct {
 
 func NewProcessor(
 	ctx context.Context,
-	lockC chan *common.ChainLock,
+	lockC chan *common.MessagePublication,
 	setC chan *common.GuardianSet,
 	sendC chan []byte,
 	obsvC chan *gossipv1.SignedObservation,

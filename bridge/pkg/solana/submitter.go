@@ -44,13 +44,13 @@ type (
 	SolanaVAASubmitter struct {
 		url string
 
-		lockChan chan *common.ChainLock
-		vaaChan  chan *vaa.VAA
+		messageChan chan *common.MessagePublication
+		vaaChan     chan *vaa.VAA
 	}
 )
 
-func NewSolanaVAASubmitter(url string, lockEvents chan *common.ChainLock, vaaQueue chan *vaa.VAA) *SolanaVAASubmitter {
-	return &SolanaVAASubmitter{url: url, lockChan: lockEvents, vaaChan: vaaQueue}
+func NewSolanaVAASubmitter(url string, lockEvents chan *common.MessagePublication, vaaQueue chan *vaa.VAA) *SolanaVAASubmitter {
+	return &SolanaVAASubmitter{url: url, messageChan: lockEvents, vaaChan: vaaQueue}
 }
 
 func (e *SolanaVAASubmitter) Run(ctx context.Context) error {

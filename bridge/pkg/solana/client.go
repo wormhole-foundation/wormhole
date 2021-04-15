@@ -21,10 +21,10 @@ import (
 )
 
 type SolanaWatcher struct {
-	bridge    solana.PublicKey
-	wsUrl     string
-	rpcUrl    string
-	lockEvent chan *common.ChainLock
+	bridge       solana.PublicKey
+	wsUrl        string
+	rpcUrl       string
+	messageEvent chan *common.MessagePublication
 }
 
 var (
@@ -63,8 +63,8 @@ func init() {
 	prometheus.MustRegister(queryLatency)
 }
 
-func NewSolanaWatcher(wsUrl, rpcUrl string, bridgeAddress solana.PublicKey, lockEvents chan *common.ChainLock) *SolanaWatcher {
-	return &SolanaWatcher{bridge: bridgeAddress, wsUrl: wsUrl, rpcUrl: rpcUrl, lockEvent: lockEvents}
+func NewSolanaWatcher(wsUrl, rpcUrl string, bridgeAddress solana.PublicKey, messageEvents chan *common.MessagePublication) *SolanaWatcher {
+	return &SolanaWatcher{bridge: bridgeAddress, wsUrl: wsUrl, rpcUrl: rpcUrl, messageEvent: messageEvents}
 }
 
 func (s *SolanaWatcher) Run(ctx context.Context) error {
@@ -107,7 +107,7 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 
 					logger.Info("current Solana height", zap.Uint64("slot", uint64(slot)))
 
-					// Find TransferOutProposal accounts without a VAA
+					// Find MessagePublicationAccount accounts without a VAA
 					rCtx, cancel = context.WithTimeout(ctx, time.Second*5)
 					defer cancel()
 					start = time.Now()
@@ -116,7 +116,7 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 						Commitment: rpc.CommitmentMax, // TODO: deprecated, use Finalized
 						Filters: []rpc.RPCFilter{
 							{
-								DataSize: 1184, // Search for TransferOutProposal accounts
+								DataSize: 1184, // Search for MessagePublicationAccount accounts
 							},
 							{
 								Memcmp: &rpc.RPCFilterMemcmp{
@@ -159,7 +159,7 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 						var txHash eth_common.Hash
 						copy(txHash[:], acc.Pubkey[:])
 
-						lock := &common.ChainLock{
+						lock := &common.MessagePublication{
 							TxHash:        txHash,
 							Timestamp:     proposal.LockupTime,
 							Nonce:         proposal.Nonce,
@@ -175,7 +175,7 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 
 						solanaLockupsConfirmed.Inc()
 						logger.Info("found lockup without VAA", zap.Stringer("lockup_address", acc.Pubkey))
-						s.lockEvent <- lock
+						s.messageEvent <- lock
 					}
 				}()
 			}

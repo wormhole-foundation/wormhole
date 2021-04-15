@@ -39,15 +39,11 @@ func init() {
 
 // handleLockup processes a lockup received from a chain and instantiates our deterministic copy of the VAA. A lockup
 // event may be received multiple times until it has been successfully completed.
-func (p *Processor) handleLockup(ctx context.Context, k *common.ChainLock) {
-	supervisor.Logger(ctx).Info("lockup confirmed",
-		zap.Stringer("source_chain", k.SourceChain),
-		zap.Stringer("target_chain", k.TargetChain),
-		zap.Stringer("source_addr", k.SourceAddress),
-		zap.Stringer("target_addr", k.TargetAddress),
-		zap.Stringer("token_chain", k.TokenChain),
-		zap.Stringer("token_addr", k.TokenAddress),
-		zap.Stringer("amount", k.Amount),
+func (p *Processor) handleLockup(ctx context.Context, k *common.MessagePublication) {
+	supervisor.Logger(ctx).Info("message publication confirmed",
+		zap.Stringer("emitter_chain", k.EmitterChain),
+		zap.Stringer("emitter_address", k.EmitterAddress),
+		zap.Uint32("nonce", k.Nonce),
 		zap.Stringer("txhash", k.TxHash),
 		zap.Time("timestamp", k.Timestamp),
 	)

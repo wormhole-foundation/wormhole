@@ -31,7 +31,7 @@ type (
 		urlLCD string
 		bridge string
 
-		lockChan chan *common.ChainLock
+		lockChan chan *common.MessagePublication
 		setChan  chan *common.GuardianSet
 	}
 )
@@ -78,7 +78,7 @@ type clientRequest struct {
 }
 
 // NewTerraBridgeWatcher creates a new terra bridge watcher
-func NewTerraBridgeWatcher(urlWS string, urlLCD string, bridge string, lockEvents chan *common.ChainLock, setEvents chan *common.GuardianSet) *BridgeWatcher {
+func NewTerraBridgeWatcher(urlWS string, urlLCD string, bridge string, lockEvents chan *common.MessagePublication, setEvents chan *common.GuardianSet) *BridgeWatcher {
 	return &BridgeWatcher{urlWS: urlWS, urlLCD: urlLCD, bridge: bridge, lockChan: lockEvents, setChan: setEvents}
 }
 
@@ -220,7 +220,7 @@ func (e *BridgeWatcher) Run(ctx context.Context) error {
 					logger.Error("cannot decode hex", zap.String("value", txHash.String()))
 					continue
 				}
-				lock := &common.ChainLock{
+				lock := &common.MessagePublication{
 					TxHash:        txHashValue,
 					Timestamp:     time.Unix(blockTime.Int(), 0),
 					Nonce:         uint32(nonce.Uint()),

@@ -76,17 +76,17 @@ type (
 		pendingLocks      map[eth_common.Hash]*pendingLock
 		pendingLocksGuard sync.Mutex
 
-		lockChan chan *common.ChainLock
+		lockChan chan *common.MessagePublication
 		setChan  chan *common.GuardianSet
 	}
 
 	pendingLock struct {
-		lock   *common.ChainLock
+		lock   *common.MessagePublication
 		height uint64
 	}
 )
 
-func NewEthBridgeWatcher(url string, bridge eth_common.Address, minConfirmations uint64, lockEvents chan *common.ChainLock, setEvents chan *common.GuardianSet) *EthBridgeWatcher {
+func NewEthBridgeWatcher(url string, bridge eth_common.Address, minConfirmations uint64, lockEvents chan *common.MessagePublication, setEvents chan *common.GuardianSet) *EthBridgeWatcher {
 	return &EthBridgeWatcher{url: url, bridge: bridge, minConfirmations: minConfirmations, lockChan: lockEvents, setChan: setEvents, pendingLocks: map[eth_common.Hash]*pendingLock{}}
 }
 
@@ -179,7 +179,7 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 					return
 				}
 
-				lock := &common.ChainLock{
+				lock := &common.MessagePublication{
 					TxHash:        ev.Raw.TxHash,
 					Timestamp:     time.Unix(int64(b.Time()), 0),
 					Nonce:         ev.Nonce,
