@@ -22,8 +22,8 @@ In addition to Wormhole itself, you need to run your own verifying node for ever
   to somebody else's full node would be sufficient, but you'd then depend on that single node for availability unless
   you set up a load balancer pointing to a set of nodes.\]
 
-Do NOT use third-party RPC service providers for any of the chains! You'd fully trust them and they could lie to you on
-whether a lockup has actually been observed, and the whole point of Wormhole is to not rely on centralized nodes.
+Do NOT use third-party RPC service providers for any of the chains! You'd fully trust them, and they could lie to you on
+whether an event has actually been observed. The whole point of Wormhole is not to rely on centralized nodes!
 
 ### Ethereum node requirements
 

@@ -3,7 +3,7 @@
 This page details various assumptions that Wormhole relies on for security and availability. Many of these are
 universal assumptions that apply to various decentralized protocols.
 
-This document assumes familiarity with Wormhole concepts like VAAs and lockups/transfers.
+This document assumes familiarity with Wormhole concepts like VAAs.
 
 ## Gossip network availability
 
@@ -16,24 +16,24 @@ We do _not_ rely on libp2p for security, only for availability. libp2p's channel
 default, but we do not rely on that property. A compromise of libp2p transport security could, at worst, result in
 denial of service attacks on the gossip network or individual nodes.
 
-Gossip network unavailability can result in transfers getting temporarily stuck, but never permanently. Nodes will
-periodically attempt to retransmit signatures for VAAs which failed to reach consensus in order to mitigate short-term
-network outages. Longer network outages, leading to timeouts, and correlated crashes of a superminority of nodes may
-result in lockups being dropped.
+Gossip network unavailability can result in missing events, but never permanently. Nodes will periodically
+attempt to retransmit signatures for VAAs which failed to reach consensus in order to mitigate short-term
+network outages. Longer network outages, leading to timeouts, and correlated crashes of a superminority of
+nodes may result in observations being dropped.
 
 The mitigation for this is a polling control loop in the case of Solana or chain replay for other chains. On Solana, the
-node will consistently poll for unprocessed lockups, resulting in re-observation by nodes and another round of
+node will consistently poll for unprocessed observations, resulting in re-observation by nodes and another round of
 consensus. During chain replay, nodes will re-process events from connected chains up from a given block height, check
-whether a VAA has already been submitted to Solana, and initiate a round of consensus for missed lockups.
+whether a VAA has already been submitted to Solana, and initiate a round of consensus for missed observations.
  
-This carries no risk and can be done any number of times. VAAs are fully deterministic and idempotent - any given
-lockup will always result in the same VAA body hash. All connected chains keep a permanent record of whether a given VAA
-body - identified by its hash - has already been executed, therefore, VAAs can safely undergo multiple rounds of
-consensus until they are executed on all chains.
+This carries no risk and can be done any number of times. VAAs are fully deterministic and idempotent - any
+given observation will always result in the same VAA body hash. All connected chains keep a permanent record
+of whether a given VAA body - identified by its hash - has already been executed, therefore, VAAs can safely
+undergo multiple rounds of consensus until they are executed on all chains.
 
 The bridge does not yet implement chain replay (see https://github.com/certusone/wormhole/issues/123). Network outages
-can therefore result in stuck transfers from chains other than Solana in the case of a prolonged network outage. It
-would be possible to retroactively recover locked funds after chain replay has been implemented.
+can therefore result in missed observations from chains other than Solana in the case of a prolonged network outage. It
+will be possible to retroactively replay blocks after chain replay has been implemented to catch up on missed events.
 
 ## Chain consistency and finality
 
