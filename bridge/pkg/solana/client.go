@@ -191,74 +191,28 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 }
 
 type (
-	TransferOutProposal struct {
-		Amount           *big.Int
-		ToChainID        vaa.ChainID
-		SourceAddress    vaa.Address
-		ForeignAddress   vaa.Address
-		Asset            vaa.AssetMeta
-		Nonce            uint32
-		VAA              [1001]byte
-		VaaTime          time.Time
-		LockupTime       time.Time
-		PokeCounter      uint8
-		SignatureAccount solana.PublicKey
+	MessagePublicationAccount struct {
+		VaaVersion          uint8
+		VaaTime             time.Time
+		VaaSignatureAccount vaa.Address
+		SubmissionTime      time.Time
+		Nonce               uint32
+		EmitterChain        vaa.ChainID
+		EmitterAddress      vaa.Address
+		Payload             []byte
 	}
 )
 
-func ParseTransferOutProposal(data []byte) (*TransferOutProposal, error) {
-	prop := &TransferOutProposal{}
+func ParseTransferOutProposal(data []byte) (*MessagePublicationAccount, error) {
+	prop := &MessagePublicationAccount{}
 	r := bytes.NewBuffer(data)
 
-	var amountBytes [32]byte
-	if n, err := r.Read(amountBytes[:]); err != nil || n != 32 {
-		return nil, fmt.Errorf("failed to read amount: %w", err)
-	}
-	// Reverse (little endian -> big endian)
-	for i := 0; i < len(amountBytes)/2; i++ {
-		amountBytes[i], amountBytes[len(amountBytes)-i-1] = amountBytes[len(amountBytes)-i-1], amountBytes[i]
-	}
-	prop.Amount = new(big.Int).SetBytes(amountBytes[:])
-
-	if err := binary.Read(r, binary.LittleEndian, &prop.ToChainID); err != nil {
-		return nil, fmt.Errorf("failed to read to chain id: %w", err)
-	}
-
-	if n, err := r.Read(prop.SourceAddress[:]); err != nil || n != 32 {
-		return nil, fmt.Errorf("failed to read source address: %w", err)
-	}
-
-	if n, err := r.Read(prop.ForeignAddress[:]); err != nil || n != 32 {
-		return nil, fmt.Errorf("failed to read source address: %w", err)
-	}
-
-	assetMeta := vaa.AssetMeta{}
-	if n, err := r.Read(assetMeta.Address[:]); err != nil || n != 32 {
-		return nil, fmt.Errorf("failed to read asset meta address: %w", err)
-	}
-
-	if err := binary.Read(r, binary.LittleEndian, &assetMeta.Chain); err != nil {
-		return nil, fmt.Errorf("failed to read asset meta chain: %w", err)
-	}
-
-	if err := binary.Read(r, binary.LittleEndian, &assetMeta.Decimals); err != nil {
-		return nil, fmt.Errorf("failed to read asset meta decimals: %w", err)
-	}
-	prop.Asset = assetMeta
-
-	// Skip alignment byte
+	// Skip initialized bool
 	r.Next(1)
 
-	if err := binary.Read(r, binary.LittleEndian, &prop.Nonce); err != nil {
-		return nil, fmt.Errorf("failed to read nonce: %w", err)
+	if err := binary.Read(r, binary.LittleEndian, &prop.VaaVersion); err != nil {
+		return nil, fmt.Errorf("failed to read to vaa version: %w", err)
 	}
-
-	if n, err := r.Read(prop.VAA[:]); err != nil || n != 1001 {
-		return nil, fmt.Errorf("failed to read vaa: %w", err)
-	}
-
-	// Skip alignment bytes
-	r.Next(3)
 
 	var vaaTime uint32
 	if err := binary.Read(r, binary.LittleEndian, &vaaTime); err != nil {
@@ -266,19 +220,34 @@ func ParseTransferOutProposal(data []byte) (*TransferOutProposal, error) {
 	}
 	prop.VaaTime = time.Unix(int64(vaaTime), 0)
 
-	var lockupTime uint32
-	if err := binary.Read(r, binary.LittleEndian, &lockupTime); err != nil {
-		return nil, fmt.Errorf("failed to read lockup time: %w", err)
-	}
-	prop.LockupTime = time.Unix(int64(lockupTime), 0)
-
-	if err := binary.Read(r, binary.LittleEndian, &prop.PokeCounter); err != nil {
-		return nil, fmt.Errorf("failed to read poke counter: %w", err)
-	}
-
-	if n, err := r.Read(prop.SignatureAccount[:]); err != nil || n != 32 {
+	if n, err := r.Read(prop.VaaSignatureAccount[:]); err != nil || n != 32 {
 		return nil, fmt.Errorf("failed to read signature account: %w", err)
 	}
+
+	var submissionTime uint32
+	if err := binary.Read(r, binary.LittleEndian, &submissionTime); err != nil {
+		return nil, fmt.Errorf("failed to read lockup time: %w", err)
+	}
+	prop.SubmissionTime = time.Unix(int64(submissionTime), 0)
+
+	if err := binary.Read(r, binary.LittleEndian, &prop.Nonce); err != nil {
+		return nil, fmt.Errorf("failed to read nonce: %w", err)
+	}
+
+	if err := binary.Read(r, binary.LittleEndian, &prop.EmitterChain); err != nil {
+		return nil, fmt.Errorf("failed to read emitter chain: %w", err)
+	}
+
+	if n, err := r.Read(prop.EmitterAddress[:]); err != nil || n != 32 {
+		return nil, fmt.Errorf("failed to read emitter address: %w", err)
+	}
+
+	payload := make([]byte, 1000)
+	n, err := r.Read(payload)
+	if err != nil || n == 0 {
+		return nil, fmt.Errorf("failed to read vaa: %w", err)
+	}
+	prop.Payload = payload[:n]
 
 	return prop, nil
 }
