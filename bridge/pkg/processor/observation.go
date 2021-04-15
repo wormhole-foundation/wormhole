@@ -6,16 +6,12 @@ import (
 	"fmt"
 	bridge_common "github.com/certusone/wormhole/bridge/pkg/common"
 	"github.com/prometheus/client_golang/prometheus"
-	"strings"
 	"time"
-
-	"github.com/certusone/wormhole/bridge/pkg/terra"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"go.uber.org/zap"
 
-	"github.com/certusone/wormhole/bridge/pkg/devnet"
 	gossipv1 "github.com/certusone/wormhole/bridge/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/bridge/pkg/vaa"
 )
@@ -240,50 +236,6 @@ func (p *Processor) handleObservation(ctx context.Context, m *gossipv1.SignedObs
 				zap.String("bytes", hex.EncodeToString(vaaBytes)))
 			p.vaaC <- signed
 
-			switch t := v.Payload.(type) {
-			case *vaa.BodyTransfer:
-				p.state.vaaSignatures[hash].source = t.SourceChain.String()
-				// Depending on the target chain, guardians submit VAAs directly to the chain.
-
-				switch t.TargetChain {
-				case vaa.ChainIDSolana:
-					// No-op.
-				case vaa.ChainIDEthereum:
-					// Ethereum is special because it's expensive, and guardians cannot
-					// be expected to pay the fees. We only submit to Ethereum in devnet mode.
-					p.devnetVAASubmission(ctx, signed, hash)
-				case vaa.ChainIDTerra:
-					go p.terraVAASubmission(ctx, signed, hash)
-				default:
-					p.logger.Error("unknown target chain ID",
-						zap.String("digest", hash),
-						zap.Any("vaa", signed),
-						zap.String("bytes", hex.EncodeToString(vaaBytes)),
-						zap.Stringer("target_chain", t.TargetChain))
-				}
-			case *vaa.BodyGuardianSetUpdate:
-				p.state.vaaSignatures[hash].source = "guardian_set_upgrade"
-
-				// A guardian set update is broadcast to every chain that we talk to.
-				p.devnetVAASubmission(ctx, signed, hash)
-				p.terraVAASubmission(ctx, signed, hash)
-			case *vaa.BodyContractUpgrade:
-				p.state.vaaSignatures[hash].source = "contract_upgrade"
-
-				switch t.ChainID {
-				case vaa.ChainIDSolana:
-				// Already submitted to Solana.
-				default:
-					p.logger.Error("unsupported target chain for contract upgrade",
-						zap.String("digest", hash),
-						zap.Any("vaa", signed),
-						zap.String("bytes", hex.EncodeToString(vaaBytes)),
-						zap.Uint8("target_chain", t.ChainID))
-				}
-			default:
-				panic(fmt.Sprintf("unknown VAA payload type: %+v", v))
-			}
-
 			p.state.vaaSignatures[hash].submitted = true
 		} else {
 			p.logger.Info("quorum not met or already submitted, doing nothing",
@@ -295,55 +247,4 @@ func (p *Processor) handleObservation(ctx context.Context, m *gossipv1.SignedObs
 			zap.Bools("aggregation", agg))
 
 	}
-}
-
-// devnetVAASubmission submits VAA to a local Ethereum devnet. For production, the bridge won't
-// have an Ethereum account and the user retrieves the VAA and submits the transactions themselves.
-func (p *Processor) devnetVAASubmission(ctx context.Context, signed *vaa.VAA, hash string) {
-	if p.devnetMode {
-		observationsDirectSubmissionsTotal.WithLabelValues("ethereum").Inc()
-
-		timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
-		tx, err := devnet.SubmitVAA(timeout, p.devnetEthRPC, signed)
-		cancel()
-		if err != nil {
-			if strings.Contains(err.Error(), "VAA was already executed") {
-				p.logger.Info("VAA already submitted to Ethereum by another node, ignoring",
-					zap.Error(err), zap.String("digest", hash))
-			} else {
-				p.logger.Error("failed to submit VAA to Ethereum",
-					zap.Error(err), zap.String("digest", hash))
-			}
-			return
-		}
-
-		observationsDirectSubmissionSuccessTotal.WithLabelValues("ethereum").Inc()
-		p.logger.Info("VAA submitted to Ethereum", zap.Any("tx", tx), zap.String("digest", hash))
-	}
-}
-
-// Submit VAA to Terra.
-func (p *Processor) terraVAASubmission(ctx context.Context, signed *vaa.VAA, hash string) {
-	if !p.devnetMode || !p.terraEnabled {
-		p.logger.Warn("ignoring terra VAA submission",
-			zap.String("digest", hash))
-		return
-	}
-
-	observationsDirectSubmissionsTotal.WithLabelValues("terra").Inc()
-
-	tx, err := terra.SubmitVAA(ctx, p.terraLCD, p.terraChainID, p.terraContract, p.terraFeePayer, signed)
-	if err != nil {
-		if strings.Contains(err.Error(), "VaaAlreadyExecuted") {
-			p.logger.Info("VAA already submitted to Terra by another node, ignoring",
-				zap.Error(err), zap.String("digest", hash))
-		} else {
-			p.logger.Error("failed to submit VAA to Terra",
-				zap.Error(err), zap.String("digest", hash))
-		}
-		return
-	}
-
-	observationsDirectSubmissionSuccessTotal.WithLabelValues("terra").Inc()
-	p.logger.Info("VAA submitted to Terra", zap.Any("tx", tx), zap.String("digest", hash))
 }
