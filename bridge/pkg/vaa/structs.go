@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-	"math/big"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -26,8 +25,14 @@ type (
 
 		// Timestamp when the VAA was created
 		Timestamp time.Time
-		// Payload of the VAA. This describes the action to be performed
-		Payload vaaBody
+		// Nonce of the VAA
+		Nonce uint32
+		// EmitterChain the VAA was emitted on
+		EmitterChain ChainID
+		// EmitterAddress of the contract that emitted the Message
+		EmitterAddress Address
+		// Payload of the message
+		Payload []byte
 	}
 
 	// ChainID of a Wormhole chain
@@ -45,52 +50,6 @@ type (
 		Index uint8
 		// Signature data
 		Signature [65]byte // TODO: hex marshaller
-	}
-
-	// AssetMeta describes an asset within the Wormhole protocol
-	AssetMeta struct {
-		// Chain is the ID of the chain the original version of the asset exists on
-		Chain ChainID
-		// Address is the address of the token contract/mint/equivalent.
-		Address Address
-		// Decimals is the number of decimals the token has
-		Decimals uint8
-	}
-
-	vaaBody interface {
-		getActionID() Action
-		serialize() ([]byte, error)
-	}
-
-	BodyTransfer struct {
-		// Nonce is a user given unique nonce for this transfer
-		Nonce uint32
-		// SourceChain is the id of the chain the transfer was initiated from
-		SourceChain ChainID
-		// TargetChain is the id of the chain the transfer is directed to
-		TargetChain ChainID
-		// TargetAddress is the address of the sender on SourceChain
-		SourceAddress Address
-		// TargetAddress is the address of the recipient on TargetChain
-		TargetAddress Address
-		// Asset is the asset to be transferred
-		Asset *AssetMeta
-		// Amount is the amount of tokens to be transferred
-		Amount *big.Int
-	}
-
-	BodyGuardianSetUpdate struct {
-		// Key is the new guardian set key
-		Keys []common.Address
-		// NewIndex is the index of the new guardian set
-		NewIndex uint32
-	}
-
-	BodyContractUpgrade struct {
-		// ChainID is the chain on which the contract should be upgraded
-		ChainID uint8
-		// NewContract is the address of the account containing the new contract.
-		NewContract Address
 	}
 )
 
@@ -112,10 +71,6 @@ func (c ChainID) String() string {
 }
 
 const (
-	ActionGuardianSetUpdate Action = 0x01
-	ActionContractUpgrade   Action = 0x02
-	ActionTransfer          Action = 0x10
-
 	// ChainIDSolana is the ChainID of Solana
 	ChainIDSolana = 1
 	// ChainIDEthereum is the ChainID of Ethereum
@@ -174,30 +129,25 @@ func Unmarshal(data []byte) (*VAA, error) {
 	}
 	v.Timestamp = time.Unix(int64(unixSeconds), 0)
 
-	var (
-		action uint8
-	)
-	if err := binary.Read(reader, binary.BigEndian, &action); err != nil {
-		return nil, fmt.Errorf("failed to read action: %w", err)
+	if err := binary.Read(reader, binary.BigEndian, &v.Nonce); err != nil {
+		return nil, fmt.Errorf("failed to read nonce: %w", err)
 	}
 
-	currentPos := len(data) - reader.Len()
+	if err := binary.Read(reader, binary.BigEndian, &v.EmitterChain); err != nil {
+		return nil, fmt.Errorf("failed to read emitter chain: %w", err)
+	}
 
-	payloadReader := bytes.NewReader(data[currentPos:])
-	var err error
-	switch Action(action) {
-	case ActionGuardianSetUpdate:
-		v.Payload, err = parseBodyGuardianSetUpdate(payloadReader)
-	case ActionTransfer:
-		v.Payload, err = parseBodyTransfer(payloadReader)
-	case ActionContractUpgrade:
-		v.Payload, err = parseBodyContractUpgrade(payloadReader)
-	default:
-		return nil, fmt.Errorf("unknown action: %d", action)
+	emitterAddress := Address{}
+	if n, err := reader.Read(emitterAddress[:]); err != nil || n != 32 {
+		return nil, fmt.Errorf("failed to read emitter address [%d]: %w", n, err)
 	}
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse payload: %w", err)
+
+	payload := make([]byte, 1000)
+	n, err := reader.Read(payload)
+	if err != nil || n == 0 {
+		return nil, fmt.Errorf("failed to read payload [%d]: %w", n, err)
 	}
+	v.Payload = payload[:n]
 
 	return v, nil
 }
@@ -275,14 +225,10 @@ func (v *VAA) Marshal() ([]byte, error) {
 func (v *VAA) serializeBody() ([]byte, error) {
 	buf := new(bytes.Buffer)
 	MustWrite(buf, binary.BigEndian, uint32(v.Timestamp.Unix()))
-	MustWrite(buf, binary.BigEndian, v.Payload.getActionID())
-
-	payloadData, err := v.Payload.serialize()
-	if err != nil {
-		return nil, fmt.Errorf("failed to serialize payload: %w", err)
-	}
-
-	buf.Write(payloadData)
+	MustWrite(buf, binary.BigEndian, v.Nonce)
+	MustWrite(buf, binary.BigEndian, v.EmitterChain)
+	buf.Write(v.EmitterAddress[:])
+	buf.Write(v.Payload)
 
 	return buf.Bytes(), nil
 }
@@ -303,141 +249,6 @@ func (v *VAA) AddSignature(key *ecdsa.PrivateKey, index uint8) {
 		Index:     index,
 		Signature: sigData,
 	})
-}
-
-func parseBodyTransfer(r io.Reader) (*BodyTransfer, error) {
-	b := &BodyTransfer{}
-
-	if err := binary.Read(r, binary.BigEndian, &b.Nonce); err != nil {
-		return nil, fmt.Errorf("failed to read nonce: %w", err)
-	}
-
-	if err := binary.Read(r, binary.BigEndian, &b.SourceChain); err != nil {
-		return nil, fmt.Errorf("failed to read source chain: %w", err)
-	}
-
-	if err := binary.Read(r, binary.BigEndian, &b.TargetChain); err != nil {
-		return nil, fmt.Errorf("failed to read target chain: %w", err)
-	}
-
-	if n, err := r.Read(b.SourceAddress[:]); err != nil || n != 32 {
-		return nil, fmt.Errorf("failed to read source address: %w", err)
-	}
-
-	if n, err := r.Read(b.TargetAddress[:]); err != nil || n != 32 {
-		return nil, fmt.Errorf("failed to read target address: %w", err)
-	}
-
-	b.Asset = &AssetMeta{}
-	if err := binary.Read(r, binary.BigEndian, &b.Asset.Chain); err != nil {
-		return nil, fmt.Errorf("failed to read asset chain: %w", err)
-	}
-	if n, err := r.Read(b.Asset.Address[:]); err != nil || n != 32 {
-		return nil, fmt.Errorf("failed to read asset address: %w", err)
-	}
-	if err := binary.Read(r, binary.BigEndian, &b.Asset.Decimals); err != nil {
-		return nil, fmt.Errorf("failed to read asset decimals: %w", err)
-	}
-
-	var amountBytes [32]byte
-	if n, err := r.Read(amountBytes[:]); err != nil || n != 32 {
-		return nil, fmt.Errorf("failed to read amount: %w", err)
-	}
-	b.Amount = new(big.Int).SetBytes(amountBytes[:])
-
-	return b, nil
-}
-
-func (v *BodyTransfer) getActionID() Action {
-	return ActionTransfer
-}
-
-func (v *BodyTransfer) serialize() ([]byte, error) {
-	buf := new(bytes.Buffer)
-	MustWrite(buf, binary.BigEndian, v.Nonce)
-	MustWrite(buf, binary.BigEndian, v.SourceChain)
-	MustWrite(buf, binary.BigEndian, v.TargetChain)
-	buf.Write(v.SourceAddress[:])
-	buf.Write(v.TargetAddress[:])
-
-	if v.Asset == nil {
-		return nil, fmt.Errorf("asset is empty")
-	}
-	MustWrite(buf, binary.BigEndian, v.Asset.Chain)
-	buf.Write(v.Asset.Address[:])
-	MustWrite(buf, binary.BigEndian, v.Asset.Decimals)
-
-	if v.Amount == nil {
-		return nil, fmt.Errorf("amount is empty")
-	}
-	buf.Write(common.LeftPadBytes(v.Amount.Bytes(), 32))
-
-	return buf.Bytes(), nil
-}
-
-func parseBodyGuardianSetUpdate(r io.Reader) (*BodyGuardianSetUpdate, error) {
-	b := &BodyGuardianSetUpdate{}
-
-	if err := binary.Read(r, binary.BigEndian, &b.NewIndex); err != nil {
-		return nil, fmt.Errorf("failed to read new index: %w", err)
-	}
-
-	keyLen := uint8(0)
-	if err := binary.Read(r, binary.BigEndian, &keyLen); err != nil {
-		return nil, fmt.Errorf("failed to read guardianset key len: %w", err)
-	}
-	for i := 0; i < int(keyLen); i++ {
-		key := common.Address{}
-		if n, err := r.Read(key[:]); err != nil || n != 20 {
-			return nil, fmt.Errorf("failed to read guardianset key [%d]: %w", i, err)
-		}
-		b.Keys = append(b.Keys, key)
-	}
-
-	return b, nil
-}
-
-func (v *BodyGuardianSetUpdate) getActionID() Action {
-	return ActionGuardianSetUpdate
-}
-
-func (v *BodyGuardianSetUpdate) serialize() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	MustWrite(buf, binary.BigEndian, v.NewIndex)
-	MustWrite(buf, binary.BigEndian, uint8(len(v.Keys)))
-	for _, key := range v.Keys {
-		buf.Write(key.Bytes())
-	}
-
-	return buf.Bytes(), nil
-}
-
-func parseBodyContractUpgrade(r io.Reader) (*BodyContractUpgrade, error) {
-	b := &BodyContractUpgrade{}
-
-	if err := binary.Read(r, binary.BigEndian, &b.ChainID); err != nil {
-		return nil, fmt.Errorf("failed to read chain id: %w", err)
-	}
-
-	if n, err := r.Read(b.NewContract[:]); err != nil || n != 32 {
-		return nil, fmt.Errorf("failed to read new contract address: %w", err)
-	}
-
-	return b, nil
-}
-
-func (v *BodyContractUpgrade) getActionID() Action {
-	return ActionContractUpgrade
-}
-
-func (v *BodyContractUpgrade) serialize() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	MustWrite(buf, binary.BigEndian, v.ChainID)
-	buf.Write(v.NewContract[:])
-
-	return buf.Bytes(), nil
 }
 
 // MustWrite calls binary.Write and panics on errors

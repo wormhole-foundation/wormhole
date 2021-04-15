@@ -49,8 +49,8 @@ func (p *Processor) handleLockup(ctx context.Context, k *common.MessagePublicati
 	)
 
 	lockupsObservedTotal.With(prometheus.Labels{
-		"source_chain": k.SourceChain.String(),
-		"target_chain": k.TargetChain.String()}).Add(1)
+		"emitter_chain": k.EmitterChain.String(),
+	}).Add(1)
 
 	// All nodes will create the exact same VAA and sign its digest.
 	// Consensus is established on this digest.
@@ -60,19 +60,10 @@ func (p *Processor) handleLockup(ctx context.Context, k *common.MessagePublicati
 		GuardianSetIndex: p.gs.Index,
 		Signatures:       nil,
 		Timestamp:        k.Timestamp,
-		Payload: &vaa.BodyTransfer{
-			Nonce:         k.Nonce,
-			SourceChain:   k.SourceChain,
-			TargetChain:   k.TargetChain,
-			SourceAddress: k.SourceAddress,
-			TargetAddress: k.TargetAddress,
-			Asset: &vaa.AssetMeta{
-				Chain:    k.TokenChain,
-				Address:  k.TokenAddress,
-				Decimals: k.TokenDecimals,
-			},
-			Amount: k.Amount,
-		},
+		Nonce:            k.Nonce,
+		EmitterChain:     k.EmitterChain,
+		EmitterAddress:   k.EmitterAddress,
+		Payload:          k.Payload,
 	}
 
 	// Generate digest of the unsigned VAA.
@@ -87,16 +78,14 @@ func (p *Processor) handleLockup(ctx context.Context, k *common.MessagePublicati
 		panic(err)
 	}
 
-	p.logger.Info("observed and signed confirmed lockup",
-		zap.Stringer("source_chain", k.SourceChain),
-		zap.Stringer("target_chain", k.TargetChain),
+	p.logger.Info("observed and signed confirmed message publication",
+		zap.Stringer("source_chain", k.EmitterChain),
 		zap.Stringer("txhash", k.TxHash),
 		zap.String("digest", hex.EncodeToString(digest.Bytes())),
 		zap.String("signature", hex.EncodeToString(s)))
 
 	lockupsSignedTotal.With(prometheus.Labels{
-		"source_chain": k.SourceChain.String(),
-		"target_chain": k.TargetChain.String()}).Add(1)
+		"emitter_chain": k.EmitterChain.String()}).Add(1)
 
 	p.broadcastSignature(v, s)
 }
