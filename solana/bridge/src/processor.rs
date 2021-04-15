@@ -1,42 +1,37 @@
 //! Program instruction processing logic
 #![cfg(feature = "program")]
 
-use std::{borrow::Borrow, cell::RefCell, io::Write, mem::size_of, slice::Iter};
+use std::{io::Write, mem::size_of, slice::Iter};
 
 use byteorder::ByteOrder;
 use num_traits::AsPrimitive;
-use primitive_types::U256;
+
 use sha3::Digest;
 use solana_program::program::invoke_signed;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     clock::Clock,
     entrypoint::ProgramResult,
-    hash::Hasher,
-    info,
     instruction::Instruction,
     program_error::ProgramError,
     pubkey::Pubkey,
     rent::Rent,
-    system_instruction::{create_account, SystemInstruction},
+    system_instruction::{create_account},
     sysvar::Sysvar,
 };
-use spl_token::{state::Mint};
 
+use crate::instruction::PublishMessagePayload;
+use crate::vaa::{BodyContractUpgrade, BodyMessage};
 use crate::{
     error::Error,
     instruction::{
-        BridgeInstruction, BridgeInstruction::*, TransferOutPayload, VAAData, VerifySigPayload,
-        CHAIN_ID_SOLANA, MAX_LEN_GUARDIAN_KEYS, MAX_VAA_SIZE,
+        BridgeInstruction, BridgeInstruction::*, VAAData, VerifySigPayload, CHAIN_ID_SOLANA,
+        MAX_LEN_GUARDIAN_KEYS, MAX_VAA_SIZE,
     },
     state::*,
-    vaa::{BodyTransfer, BodyUpdateGuardianSet, VAABody, VAA},
+    vaa::{BodyUpdateGuardianSet, VAABody, VAA},
 };
-use solana_program::program_pack::Pack;
-use std::borrow::BorrowMut;
-use std::ops::Add;
-use solana_program::fee_calculator::FeeCalculator;
-use crate::vaa::BodyContractUpgrade;
+use crate::governance::{BodyUpdateGuardianSet, BodyContractUpgrade};
 
 /// SigInfo contains metadata about signers in a VerifySignature ix
 struct SigInfo {
@@ -69,14 +64,10 @@ impl Bridge {
                     payload.config,
                 )
             }
-            TransferOut(p) => {
-                msg!("Instruction: TransferOut");
+            PublishMessage(p) => {
+                msg!("Instruction: PublishMessage");
 
-                if p.asset.chain == CHAIN_ID_SOLANA {
-                    Self::process_transfer_native_out(program_id, accounts, &p)
-                } else {
-                    Self::process_transfer_out(program_id, accounts, &p)
-                }
+                Self::process_publish_message(program_id, accounts, &p)
             }
             PostVAA(vaa_body) => {
                 msg!("Instruction: PostVAA");
@@ -84,21 +75,11 @@ impl Bridge {
 
                 Self::process_vaa(program_id, accounts, vaa_body, &vaa)
             }
-            PokeProposal() => {
-                msg!("Instruction: PokeProposal");
-
-                Self::process_poke(program_id, accounts)
-            }
             VerifySignatures(p) => {
                 msg!("Instruction: VerifySignatures");
 
                 Self::process_verify_signatures(program_id, accounts, &p)
             }
-            CreateWrapped(meta) => {
-                msg!("Instruction: CreateWrapped");
-                Self::process_create_wrapped(program_id, accounts, &meta)
-            }
-            _ => panic!(""),
         }
     }
 
@@ -164,23 +145,6 @@ impl Bridge {
         guardian_info.creation_time = clock.unix_timestamp.as_();
         guardian_info.keys = initial_guardian_key;
         guardian_info.len_keys = len_guardians;
-
-        Ok(())
-    }
-
-    /// Transfers a wrapped asset out
-    pub fn process_poke(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
-        let account_info_iter = &mut accounts.iter();
-        let proposal_info = Self::next_account_info_with_owner(account_info_iter, program_id)?;
-
-        let mut transfer_data = proposal_info.try_borrow_mut_data()?;
-        let mut proposal: &mut TransferOutProposal = Self::unpack(&mut transfer_data)?;
-        if proposal.vaa_time != 0 {
-            return Err(Error::VAAAlreadySubmitted.into());
-        }
-
-        // Increase poke counter
-        proposal.poke_counter += 1;
 
         Ok(())
     }
@@ -373,234 +337,76 @@ impl Bridge {
         Ok(())
     }
 
-    /// Transfers a wrapped asset out
-    pub fn process_transfer_out(
+    /// Publish a message to the Wormhole protocol
+    pub fn process_publish_message(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        t: &TransferOutPayload,
+        t: &PublishMessagePayload,
     ) -> ProgramResult {
-        msg!("wrapped transfer out");
+        msg!("publishing message");
         let account_info_iter = &mut accounts.iter();
         next_account_info(account_info_iter)?; // Bridge program
         next_account_info(account_info_iter)?; // System program
-        next_account_info(account_info_iter)?; // Token program
         next_account_info(account_info_iter)?; // Rent sysvar
         let clock_info = next_account_info(account_info_iter)?;
         let instructions_info = next_account_info(account_info_iter)?;
-        let sender_account_info = next_account_info(account_info_iter)?;
         let bridge_info = Self::next_account_info_with_owner(account_info_iter, program_id)?;
-        let transfer_info = next_account_info(account_info_iter)?;
-        let mint_info = next_account_info(account_info_iter)?;
+        let message_info = next_account_info(account_info_iter)?;
         let payer_info = next_account_info(account_info_iter)?;
+        let emitter_info = next_account_info(account_info_iter)?;
 
-        let sender = Bridge::token_account_deserialize(sender_account_info)?;
-        let bridge_data = bridge_info.try_borrow_data()?;
-        let bridge: &Bridge = Self::unpack_immutable(&bridge_data)?;
-        let mint = Bridge::mint_deserialize(mint_info)?;
         let clock = Clock::from_account_info(clock_info)?;
 
         if *instructions_info.key != solana_program::sysvar::instructions::id() {
             return Err(Error::InvalidSysvar.into());
         }
 
+        // The message emitter must be a signer
+        if !emitter_info.is_signer {
+            return Err(Error::EmitterNotSigner.into());
+        }
+
         // Fee handling
         let fee = Self::transfer_fee();
         Self::check_fees(instructions_info, bridge_info, fee)?;
 
-        // Does the token belong to the mint
-        if sender.mint != *mint_info.key {
-            return Err(Error::TokenMintMismatch.into());
-        }
-
-        // Check that the mint is actually a wrapped asset belonging to *this* bridge instance
-        let expected_mint_address = Bridge::derive_wrapped_asset_id(
-            program_id,
-            bridge_info.key,
-            t.asset.chain,
-            t.asset.decimals,
-            t.asset.address,
-        )?;
-        if expected_mint_address != *mint_info.key {
-            return Err(Error::InvalidDerivedAccount.into());
-        }
-
         // Create transfer account
-        let transfer_seed = Bridge::derive_transfer_id_seeds(
+        let message_seed = Bridge::derive_message_seeds(
             bridge_info.key,
-            t.asset.chain,
-            t.asset.address,
-            t.chain_id,
-            t.target,
-            sender_account_info.key.to_bytes(),
+            CHAIN_ID_SOLANA,
+            emitter_info.key.to_bytes(),
             t.nonce,
+            &t.payload,
         );
-        Bridge::check_and_create_account::<TransferOutProposal>(
+        Bridge::check_and_create_account::<PostedMessage>(
             program_id,
             accounts,
-            transfer_info.key,
+            message_info.key,
             payer_info,
             program_id,
-            &transfer_seed,
+            &message_seed,
             None,
         )?;
 
-        // Load transfer account
-        let mut transfer_data = transfer_info.try_borrow_mut_data()?;
-        let mut transfer: &mut TransferOutProposal = Self::unpack(&mut transfer_data)?;
-
-        // Burn tokens
-        Bridge::wrapped_burn(
-            program_id,
-            accounts,
-            &bridge.config.token_program,
-            sender_account_info.key,
-            mint_info.key,
-            t.amount,
-        )?;
+        let mut message_data = message_info.try_borrow_mut_data()?;
+        let mut message: &mut PostedMessage = Self::unpack(&mut message_data)?;
 
         // Initialize transfer
-        transfer.nonce = t.nonce;
-        transfer.source_address = sender_account_info.key.to_bytes();
-        transfer.foreign_address = t.target;
-        transfer.amount = t.amount;
-        transfer.to_chain_id = t.chain_id;
-        transfer.lockup_time = clock.unix_timestamp as u32;
-
-        // Make sure decimals are correct
-        transfer.asset = AssetMeta {
-            chain: t.asset.chain, // Chain and address cannot be spoofed because the account is derived from it
-            address: t.asset.address,
-            decimals: mint.decimals, // We use the info from mint because it can be spoofed
-        };
-
-        Ok(())
-    }
-
-    /// Transfers a native token to a foreign chain
-    pub fn process_transfer_native_out(
-        program_id: &Pubkey,
-        accounts: &[AccountInfo],
-        t: &TransferOutPayload,
-    ) -> ProgramResult {
-        msg!("native transfer out");
-        let account_info_iter = &mut accounts.iter();
-        next_account_info(account_info_iter)?; // Bridge program
-        next_account_info(account_info_iter)?; // System program
-        next_account_info(account_info_iter)?; // Token program
-        next_account_info(account_info_iter)?; // Rent sysvar
-        let clock_info = next_account_info(account_info_iter)?;
-        let instructions_info = next_account_info(account_info_iter)?;
-        let sender_account_info = next_account_info(account_info_iter)?;
-        let bridge_info = Self::next_account_info_with_owner(account_info_iter, program_id)?;
-        let transfer_info = next_account_info(account_info_iter)?;
-        let mint_info = next_account_info(account_info_iter)?;
-        let payer_info = next_account_info(account_info_iter)?;
-        let custody_info = next_account_info(account_info_iter)?;
-
-        let sender = Bridge::token_account_deserialize(sender_account_info)?;
-        let mint = Bridge::mint_deserialize(mint_info)?;
-        let bridge_data = bridge_info.try_borrow_data()?;
-        let bridge: &Bridge = Self::unpack_immutable(&bridge_data)?;
-        let clock = Clock::from_account_info(clock_info)?;
-
-        let fee = Self::transfer_fee();
-        Self::check_fees(instructions_info, bridge_info, fee)?;
-
-        // Does the token belong to the mint
-        if sender.mint != *mint_info.key {
-            return Err(Error::TokenMintMismatch.into());
-        }
-
-        // Create transfer account
-        let transfer_seed = Bridge::derive_transfer_id_seeds(
-            bridge_info.key,
-            t.asset.chain,
-            t.asset.address,
-            t.chain_id,
-            t.target,
-            sender_account_info.key.to_bytes(),
-            t.nonce,
-        );
-        Bridge::check_and_create_account::<TransferOutProposal>(
-            program_id,
-            accounts,
-            transfer_info.key,
-            payer_info,
-            program_id,
-            &transfer_seed,
-            None,
-        )?;
-
-        // Load transfer account
-        let mut transfer_data = transfer_info.try_borrow_mut_data()?;
-        let mut transfer: &mut TransferOutProposal = Self::unpack(&mut transfer_data)?;
-
-        // Check that custody account was derived correctly
-        let expected_custody_id =
-            Bridge::derive_custody_id(program_id, bridge_info.key, mint_info.key)?;
-        if expected_custody_id != *custody_info.key {
-            return Err(Error::InvalidDerivedAccount.into());
-        }
-
-        // Create the account if it does not exist
-        if custody_info.data_is_empty() {
-            Bridge::create_custody_account(
-                program_id,
-                accounts,
-                &bridge.config.token_program,
-                bridge_info.key,
-                custody_info.key,
-                mint_info.key,
-                payer_info,
-                None,
-            )?;
-        }
-
-        let bridge_authority = Self::derive_bridge_id(program_id)?;
-
-        // Check that the custody token account is owned by the derived key
-        let custody = Self::token_account_deserialize(custody_info)?;
-        if custody.owner != bridge_authority {
-            return Err(Error::WrongTokenAccountOwner.into());
-        }
-
-        // Check that the source is not the custody account
-        if custody_info.key == sender_account_info.key {
-            return Err(Error::WrongTokenAccountOwner.into());
-        }
-
-        msg!("transferring");
-        // Transfer tokens to custody - This also checks that custody mint = mint
-        Bridge::token_transfer_caller(
-            program_id,
-            accounts,
-            &bridge.config.token_program,
-            sender_account_info.key,
-            custody_info.key,
-            &bridge_authority,
-            t.amount,
-        )?;
-
-        // Initialize proposal
-        transfer.amount = t.amount;
-        transfer.to_chain_id = t.chain_id;
-        transfer.source_address = sender_account_info.key.to_bytes();
-        transfer.foreign_address = t.target;
-        transfer.nonce = t.nonce;
-        transfer.lockup_time = clock.unix_timestamp as u32;
-
-        // Don't use the user-given data as we don't check mint = AssetMeta.address
-        transfer.asset = AssetMeta {
-            chain: CHAIN_ID_SOLANA,
-            address: mint_info.key.to_bytes(),
-            decimals: mint.decimals,
-        };
+        message.submission_time = clock.unix_timestamp as u32;
+        message.emitter_chain = CHAIN_ID_SOLANA;
+        message.emitter_address = emitter_info.key.to_bytes();
+        message.nonce = t.nonce;
+        message.payload = t.payload;
 
         Ok(())
     }
 
     /// Verify that a certain fee was sent to the bridge in the preceding instruction
-    pub fn check_fees(instructions_info: &AccountInfo, bridge_info: &AccountInfo, fee: u64) -> Result<(), ProgramError> {
+    pub fn check_fees(
+        instructions_info: &AccountInfo,
+        bridge_info: &AccountInfo,
+        fee: u64,
+    ) -> Result<(), ProgramError> {
         let current_instruction = solana_program::sysvar::instructions::load_current_index(
             &instructions_info.try_borrow_mut_data()?,
         );
@@ -663,9 +469,13 @@ impl Bridge {
         amount: u64,
     ) -> ProgramResult {
         let mut payer_balance = payer_account.try_borrow_mut_lamports()?;
-        **payer_balance = payer_balance.checked_sub(amount).ok_or(ProgramError::InsufficientFunds)?;
+        **payer_balance = payer_balance
+            .checked_sub(amount)
+            .ok_or(ProgramError::InsufficientFunds)?;
         let mut recipient_balance = recipient_account.try_borrow_mut_lamports()?;
-        **recipient_balance = recipient_balance.checked_add(amount).ok_or(ProgramError::InvalidArgument)?;
+        **recipient_balance = recipient_balance
+            .checked_add(amount)
+            .ok_or(ProgramError::InvalidArgument)?;
 
         Ok(())
     }
@@ -708,7 +518,9 @@ impl Bridge {
         }
 
         // Check that the guardian set is still active
-        if guardian_set.expiration_time != 0 && (guardian_set.expiration_time as i64) < clock.unix_timestamp {
+        if guardian_set.expiration_time != 0
+            && (guardian_set.expiration_time as i64) < clock.unix_timestamp
+        {
             return Err(Error::GuardianSetExpired.into());
         }
 
@@ -726,11 +538,11 @@ impl Bridge {
             return Err(ProgramError::InvalidAccountData);
         }
 
-        let signature_count = (sig_state
+        let signature_count = sig_state
             .signatures
             .iter()
             .filter(|v| v.iter().filter(|v| **v != 0).count() != 0)
-            .count() as u8);
+            .count() as u8;
         // Check quorum
         // We're using a fixed point number transformation with 1 decimal to deal with rounding.
         // The cast to u16 exists to prevent issues where len_keys * 10 might overflow.
@@ -738,86 +550,23 @@ impl Bridge {
             return Err(ProgramError::InvalidArgument);
         }
 
-        let mut evict_signatures = false;
-        let payload = vaa.payload.as_ref().ok_or(Error::InvalidVAAAction)?;
-        match payload {
-            VAABody::UpdateGuardianSet(v) => {
-                let mut bridge_data = bridge_info.try_borrow_mut_data()?;
-                let bridge: &mut Bridge = Self::unpack(&mut bridge_data)?;
 
-                Self::process_vaa_set_update(
-                    program_id,
-                    accounts,
-                    account_info_iter,
-                    &clock,
-                    bridge_info,
-                    payer_info,
-                    bridge,
-                    guardian_set,
-                    &v,
-                )
-            }
-            VAABody::Transfer(v) => {
-                if v.source_chain == CHAIN_ID_SOLANA {
-                    Self::process_vaa_transfer_post(
-                        program_id,
-                        account_info_iter,
-                        bridge_info,
-                        vaa,
-                        &v,
-                        vaa_data,
-                        sig_info.key,
-                    )
-                } else {
-                    let bridge_data = bridge_info.try_borrow_data()?;
-                    let bridge: &Bridge = Self::unpack_immutable(&bridge_data)?;
-                    evict_signatures = true;
-                    Self::process_vaa_transfer(
-                        program_id,
-                        accounts,
-                        account_info_iter,
-                        bridge_info,
-                        bridge,
-                        &v,
-                    )
-                }
-            }
-            VAABody::UpgradeContract(v) => {
-                if v.chain_id == CHAIN_ID_SOLANA {
-                    evict_signatures = true;
-                    Self::process_vaa_upgrade(
-                        program_id,
-                        accounts,
-                        bridge_info,
-                        v,
-                    )
-                } else {
-                    return Err(Error::InvalidChain.into());
-                }
-            }
-        }?;
-
-        // Check and create claim
-        let claim_seeds = Bridge::derive_claim_seeds(bridge_info.key, vaa.signature_body()?);
-        // Will fail if the Claim exists i.e. the VAA has already been claimed
-        Bridge::check_and_create_account::<ClaimedVAA>(
+        // Process the message posting
+        Self::process_vaa_message_post(
             program_id,
-            accounts,
-            claim_info.key,
-            payer_info,
-            program_id,
-            &claim_seeds,
-            Some(bridge_info),
+            account_info_iter,
+            bridge_info,
+            vaa,
+            sig_info.key,
         )?;
 
-        // If the signatures are not needed anymore, evict them and reclaim rent.
-        // This should cover most of the costs of the guardian.
-        if evict_signatures {
-            Self::transfer_sol(sig_info, payer_info, sig_info.lamports())?;
-        }
-
         // Refund tx fee if possible
-        if bridge_info.lamports().checked_sub(Self::MIN_BRIDGE_BALANCE).unwrap_or(0) >= Self::VAA_TX_FEE {
+        if bridge_info
+            .lamports()
+            .checked_sub(Self::MIN_BRIDGE_BALANCE)
+            .unwrap_or(0)
+            >= Self::VAA_TX_FEE
+        {
             Self::transfer_sol(bridge_info, payer_info, Self::VAA_TX_FEE)?;
         }
 
@@ -832,7 +581,7 @@ impl Bridge {
     }
 
     /// Processes a Guardian set update
-    pub fn process_vaa_set_update(
+    pub fn process_governance_guardian_update(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
         account_info_iter: &mut Iter<AccountInfo>,
@@ -903,59 +652,47 @@ impl Bridge {
     }
 
     /// Processes a VAA post for data availability (for Solana -> foreign transfers)
-    pub fn process_vaa_transfer_post(
+    pub fn process_vaa_message_post(
         program_id: &Pubkey,
         account_info_iter: &mut Iter<AccountInfo>,
         bridge_info: &AccountInfo,
         vaa: &VAA,
-        b: &BodyTransfer,
-        vaa_data: VAAData,
         sig_account: &Pubkey,
     ) -> ProgramResult {
-        msg!("posting VAA");
-        let proposal_info = Self::next_account_info_with_owner(account_info_iter, program_id)?;
+        msg!("posting VAA message");
+        let message_account = Self::next_account_info_with_owner(account_info_iter, program_id)?;
 
         // Check whether the proposal was derived correctly
-        let expected_proposal = Bridge::derive_transfer_id(
+        let expected_message_address = Bridge::derive_message_id(
             program_id,
             bridge_info.key,
-            b.asset.chain,
-            b.asset.address,
-            b.target_chain,
-            b.target_address,
-            b.source_address,
+            b.emitter_chain,
+            b.emitter_address,
             b.nonce,
+            &b.data,
         )?;
-        if expected_proposal != *proposal_info.key {
+        if expected_message_address != *message_account.key {
             return Err(Error::InvalidDerivedAccount.into());
         }
 
-        let mut transfer_data = proposal_info.try_borrow_mut_data()?;
-        let mut proposal: &mut TransferOutProposal = Self::unpack(&mut transfer_data)?;
-        if !proposal.matches_vaa(b) {
-            return Err(Error::VAAProposalMismatch.into());
+        let mut message_data = message_account.try_borrow_mut_data()?;
+        let mut message: &mut PostedMessage = Self::unpack(&mut message_data)?;
+        if !message.matches_vaa(b) {
+            return Err(Error::VAAMessageMismatch.into());
         }
-        if proposal.vaa_time != 0 {
+        if message.vaa_time != 0 {
             return Err(Error::VAAAlreadySubmitted.into());
         }
-        if vaa_data.len() > MAX_VAA_SIZE {
-            return Err(Error::VAATooLong.into());
-        }
 
-        // Set vaa
-        for i in 0..vaa_data.len() {
-            proposal.vaa[i] = vaa_data[i]
-        }
-        // Stop byte
-        proposal.vaa[vaa_data.len()] = 0xff;
-        proposal.vaa_time = vaa.timestamp;
-        proposal.signature_account = *sig_account;
+        message.vaa_version = vaa.version;
+        message.vaa_time = vaa.timestamp;
+        message.vaa_signature_account = *sig_account;
 
         Ok(())
     }
 
     /// Processes a VAA contract upgrade
-    pub fn process_vaa_upgrade(
+    pub fn process_governance_upgrade(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
         bridge_info: &AccountInfo,
@@ -987,7 +724,7 @@ impl Bridge {
     }
 
     pub fn invoke_vec_seed<'a>(
-        program_id: &Pubkey,
+        _program_id: &Pubkey,
         instruction: &Instruction,
         account_infos: &[AccountInfo<'a>],
         seeds: &Vec<Vec<u8>>,
@@ -998,9 +735,10 @@ impl Bridge {
 
     /// The amount of sol that needs to be held in the BridgeConfig account in order to make it
     /// exempt of rent payments.
-    const MIN_BRIDGE_BALANCE: u64 = (((solana_program::rent::ACCOUNT_STORAGE_OVERHEAD + size_of::<Bridge>() as u64) *
-        solana_program::rent::DEFAULT_LAMPORTS_PER_BYTE_YEAR) as f64
-        * solana_program::rent::DEFAULT_EXEMPTION_THRESHOLD) as u64;
+    const MIN_BRIDGE_BALANCE: u64 =
+        (((solana_program::rent::ACCOUNT_STORAGE_OVERHEAD + size_of::<Bridge>() as u64)
+            * solana_program::rent::DEFAULT_LAMPORTS_PER_BYTE_YEAR) as f64
+            * solana_program::rent::DEFAULT_EXEMPTION_THRESHOLD) as u64;
 
     /// Check that a key was derived correctly and create account
     pub fn check_and_create_account<T: Sized>(
@@ -1037,7 +775,11 @@ impl Bridge {
             Some(v) => {
                 let bal = v.try_lamports()?;
                 let rent = Rent::default().minimum_balance(size_of::<T>());
-                if bal.checked_sub(Self::MIN_BRIDGE_BALANCE).ok_or(ProgramError::InsufficientFunds)? >= rent {
+                if bal
+                    .checked_sub(Self::MIN_BRIDGE_BALANCE)
+                    .ok_or(ProgramError::InsufficientFunds)?
+                    >= rent
+                {
                     // Refund rent to payer
                     Self::transfer_sol(v, payer, rent)?;
                 }
@@ -1049,7 +791,7 @@ impl Bridge {
 
     /// Create a new account
     fn create_account_raw<T: Sized>(
-        program_id: &Pubkey,
+        _program_id: &Pubkey,
         accounts: &[AccountInfo],
         new_account: &Pubkey,
         payer: &Pubkey,
