@@ -4400,7 +4400,6 @@ dependencies = [
  "remove_dir_all",
  "sha3",
  "solana-program",
- "spl-token",
  "thiserror",
  "zerocopy",
 ]
