@@ -121,6 +121,7 @@ impl Bridge {
 
         // Create bridge account
         let bridge_seed = Bridge::derive_bridge_seeds();
+        // Will fail if the account already exists
         Bridge::check_and_create_account::<Bridge>(
             program_id,
             accounts,
@@ -132,13 +133,11 @@ impl Bridge {
         )?;
 
         let mut new_account_data = new_bridge_info.try_borrow_mut_data()?;
-        let mut bridge: &mut Bridge = Self::unpack_unchecked(&mut new_account_data)?;
-        if bridge.is_initialized {
-            return Err(Error::AlreadyExists.into());
-        }
+        let mut bridge: &mut Bridge = Self::unpack(&mut new_account_data)?;
 
         // Create guardian set account
         let guardian_seed = Bridge::derive_guardian_set_seeds(new_bridge_info.key, 0);
+        // Will fail if the account already exists
         Bridge::check_and_create_account::<GuardianSet>(
             program_id,
             accounts,
@@ -150,22 +149,17 @@ impl Bridge {
         )?;
 
         let mut new_guardian_data = new_guardian_info.try_borrow_mut_data().map_err(|_| ProgramError::AccountBorrowFailed)?;
-        let mut guardian_info: &mut GuardianSet = Self::unpack_unchecked(&mut new_guardian_data)?;
-        if guardian_info.is_initialized {
-            return Err(Error::AlreadyExists.into());
-        }
+        let mut guardian_info: &mut GuardianSet = Self::unpack(&mut new_guardian_data)?;
 
         if len_guardians > MAX_LEN_GUARDIAN_KEYS as u8 {
             return Err(ProgramError::InvalidInstructionData);
         }
 
         // Initialize bridge params
-        bridge.is_initialized = true;
         bridge.guardian_set_index = 0;
         bridge.config = config;
 
         // Initialize the initial guardian set
-        guardian_info.is_initialized = true;
         guardian_info.index = 0;
         guardian_info.creation_time = clock.unix_timestamp.as_();
         guardian_info.keys = initial_guardian_key;
@@ -318,6 +312,8 @@ impl Bridge {
             return Err(ProgramError::InvalidArgument);
         }
 
+        // Track whether the account needs initialization
+        let mut initialize_account = false;
         // Prepare message/payload-specific sig_info account
         if sig_info.data_is_empty() {
             let bridge_key = Bridge::derive_bridge_id(program_id)?;
@@ -332,24 +328,25 @@ impl Bridge {
                 &sig_seeds,
                 Some(bridge_info),
             )?;
+            initialize_account = true;
         } else if payload.initial_creation {
             return Err(Error::AlreadyExists.into());
         }
 
         let mut sig_state_data = sig_info.try_borrow_mut_data()?;
-        let mut sig_state: &mut SignatureState = Self::unpack_unchecked(&mut sig_state_data)?;
+        let mut sig_state: &mut SignatureState = Self::unpack(&mut sig_state_data)?;
 
-        if sig_state.is_initialized {
+        if initialize_account {
+            sig_state.guardian_set_index = guardian_set.index;
+            sig_state.hash = payload.hash;
+        } else {
+            // If the account already existed, check that the parameters match
             if sig_state.guardian_set_index != guardian_set.index {
                 return Err(Error::GuardianSetMismatch.into());
             }
             if sig_state.hash != payload.hash {
                 return Err(ProgramError::InvalidArgument);
             }
-        } else {
-            sig_state.is_initialized = true;
-            sig_state.guardian_set_index = guardian_set.index;
-            sig_state.hash = payload.hash;
         }
 
         // Write sigs of checked addresses into sig_state
@@ -449,7 +446,7 @@ impl Bridge {
 
         // Load transfer account
         let mut transfer_data = transfer_info.try_borrow_mut_data()?;
-        let mut transfer: &mut TransferOutProposal = Self::unpack_unchecked(&mut transfer_data)?;
+        let mut transfer: &mut TransferOutProposal = Self::unpack(&mut transfer_data)?;
 
         // Burn tokens
         Bridge::wrapped_burn(
@@ -462,7 +459,6 @@ impl Bridge {
         )?;
 
         // Initialize transfer
-        transfer.is_initialized = true;
         transfer.nonce = t.nonce;
         transfer.source_address = sender_account_info.key.to_bytes();
         transfer.foreign_address = t.target;
@@ -537,7 +533,7 @@ impl Bridge {
 
         // Load transfer account
         let mut transfer_data = transfer_info.try_borrow_mut_data()?;
-        let mut transfer: &mut TransferOutProposal = Self::unpack_unchecked(&mut transfer_data)?;
+        let mut transfer: &mut TransferOutProposal = Self::unpack(&mut transfer_data)?;
 
         // Check that custody account was derived correctly
         let expected_custody_id =
@@ -586,7 +582,6 @@ impl Bridge {
         )?;
 
         // Initialize proposal
-        transfer.is_initialized = true;
         transfer.amount = t.amount;
         transfer.to_chain_id = t.chain_id;
         transfer.source_address = sender_account_info.key.to_bytes();
@@ -804,6 +799,7 @@ impl Bridge {
 
         // Check and create claim
         let claim_seeds = Bridge::derive_claim_seeds(bridge_info.key, vaa.signature_body()?);
+        // Will fail if the Claim exists i.e. the VAA has already been claimed
         Bridge::check_and_create_account::<ClaimedVAA>(
             program_id,
             accounts,
@@ -827,13 +823,9 @@ impl Bridge {
 
         // Load claim account
         let mut claim_data = claim_info.try_borrow_mut_data()?;
-        let claim: &mut ClaimedVAA = Bridge::unpack_unchecked(&mut claim_data)?;
-        if claim.is_initialized {
-            return Err(Error::VAAClaimed.into());
-        }
+        let claim: &mut ClaimedVAA = Bridge::unpack(&mut claim_data)?;
 
         // Set claimed
-        claim.is_initialized = true;
         claim.vaa_time = clock.unix_timestamp as u32;
 
         Ok(())
@@ -870,6 +862,7 @@ impl Bridge {
 
         // Check whether the new guardian set was derived correctly
         let guardian_seed = Bridge::derive_guardian_set_seeds(bridge_info.key, b.new_index);
+        // Will fail if the guardianset already exists
         Bridge::check_and_create_account::<GuardianSet>(
             program_id,
             accounts,
@@ -882,12 +875,7 @@ impl Bridge {
 
         let mut guardian_set_new_data = new_guardian_info.try_borrow_mut_data()?;
         let guardian_set_new: &mut GuardianSet =
-            Bridge::unpack_unchecked(&mut guardian_set_new_data)?;
-
-        // The new guardian set must not exist
-        if guardian_set_new.is_initialized {
-            return Err(Error::AlreadyExists.into());
-        }
+            Bridge::unpack(&mut guardian_set_new_data)?;
 
         if b.new_keys.len() == 0 {
             return Err(Error::InvalidVAAFormat.into());
@@ -897,8 +885,6 @@ impl Bridge {
             return Err(Error::InvalidVAAFormat.into());
         }
 
-        // Set values on the new guardian set
-        guardian_set_new.is_initialized = true;
         // Force the new guardian set to not expire
         guardian_set_new.expiration_time = 0;
         guardian_set_new.index = b.new_index;
@@ -1107,9 +1093,8 @@ impl Bridge {
         )?;
 
         let mut wrapped_meta_data = wrapped_meta_info.try_borrow_mut_data()?;
-        let wrapped_meta: &mut WrappedAssetMeta = Bridge::unpack_unchecked(&mut wrapped_meta_data)?;
+        let wrapped_meta: &mut WrappedAssetMeta = Bridge::unpack(&mut wrapped_meta_data)?;
 
-        wrapped_meta.is_initialized = true;
         wrapped_meta.address = a.address;
         wrapped_meta.chain = a.chain;
 
