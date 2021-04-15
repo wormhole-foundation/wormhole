@@ -113,8 +113,8 @@ changes A, B and C on a single branch:
     …
 
 ... and submit all three using a single `git push origin HEAD:refs/for/main`. Gerrit will create a review
-.request for A, B and C, and it understands the relation chain between them. C can only be merged after B and
-.C, and merging C will automatically merge B and C as well.
+request for A, B and C, and it understands the relation chain between them. C can only be merged after B and
+C, and merging C will automatically merge B and C as well.
 
 This means that A can be reviewed, approved and merged before B and C are done. Other team members can then
 start building on A and avoid a "big scary merge". This workflow is often called **trunk-based development**.
