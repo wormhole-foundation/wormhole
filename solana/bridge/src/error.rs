@@ -1,6 +1,8 @@
 //! Error types
 
 use num_derive::FromPrimitive;
+use num_traits::FromPrimitive;
+use solana_program::program_error::PrintProgramError;
 use solana_program::{decode_error::DecodeError, program_error::ProgramError};
 use thiserror::Error;
 
@@ -31,12 +33,6 @@ pub enum Error {
     /// The deserialization of the GuardianSet state returned something besides State::GuardianSet.
     #[error("ExpectedGuardianSet")]
     ExpectedGuardianSet,
-    /// The deserialization of the TransferOutProposal state returned something besides State::TransferOutProposal.
-    #[error("ExpectedTransferOutProposal")]
-    ExpectedTransferOutProposal,
-    /// The deserialization of the GuardianSet state returned something besides State::WrappedAssetMeta.
-    #[error("ExpectedWrappedAssetMeta")]
-    ExpectedWrappedAssetMeta,
     /// State is uninitialized.
     #[error("State is unititialized")]
     UninitializedState,
@@ -58,18 +54,9 @@ pub enum Error {
     /// An account was not derived correctly
     #[error("InvalidDerivedAccount")]
     InvalidDerivedAccount,
-    /// A given token account does not belong to the given mint
-    #[error("TokenMintMismatch")]
-    TokenMintMismatch,
-    /// A given mint account does not belong to the program
-    #[error("WrongMintOwner")]
-    WrongMintOwner,
     /// A given bridge account does not belong to the program
     #[error("WrongBridgeOwner")]
     WrongBridgeOwner,
-    /// A given token account does not belong to the program
-    #[error("WrongTokenAccountOwner")]
-    WrongTokenAccountOwner,
     /// A parsing operation failed
     #[error("ParseFailed")]
     ParseFailed,
@@ -87,16 +74,10 @@ pub enum Error {
     GuardianIndexNotIncreasing,
     /// The given VAA does not match the proposal
     #[error("VAAProposalMismatch")]
-    VAAProposalMismatch,
-    /// Invalid transfer with src=dst
-    #[error("SameChainTransfer")]
-    SameChainTransfer,
+    VAAMessageMismatch,
     /// VAA is longer than the maximum size
     #[error("VAATooLong")]
     VAATooLong,
-    /// Cannot wrap a solana native asset
-    #[error("CannotWrapNative")]
-    CannotWrapNative,
     /// VAA for this transfer has already been submitted
     #[error("VAAAlreadySubmitted")]
     VAAAlreadySubmitted,
@@ -115,6 +96,46 @@ pub enum Error {
     /// Invalid Chain
     #[error("InvalidChain")]
     InvalidChain,
+    /// Emitter is not a signer
+    #[error("EmitterNotSigner")]
+    EmitterNotSigner,
+}
+
+#[cfg(feature = "program")]
+impl PrintProgramError for Error {
+    fn print<E>(&self)
+    where
+        E: 'static + std::error::Error + DecodeError<E> + PrintProgramError + FromPrimitive,
+    {
+        match self {
+            Error::ExpectedToken => msg!("Error: ExpectedToken"),
+            Error::ExpectedAccount => msg!("Error: ExpectedAccount"),
+            Error::ExpectedBridge => msg!("Error: ExpectedBridge"),
+            Error::ExpectedGuardianSet => msg!("Error: ExpectedGuardianSet"),
+            Error::UninitializedState => msg!("Error: State is unititialized"),
+            Error::InvalidProgramAddress => msg!("Error: InvalidProgramAddress"),
+            Error::InvalidVAAFormat => msg!("Error: InvalidVAAFormat"),
+            Error::InvalidVAASignature => msg!("Error: InvalidVAASignature"),
+            Error::AlreadyExists => msg!("Error: AlreadyExists"),
+            Error::InvalidDerivedAccount => msg!("Error: InvalidDerivedAccount"),
+            Error::ParseFailed => msg!("Error: ParseFailed"),
+            Error::GuardianSetExpired => msg!("Error: GuardianSetExpired"),
+            Error::VAAClaimed => msg!("Error: VAAClaimed"),
+            Error::WrongBridgeOwner => msg!("Error: WrongBridgeOwner"),
+            Error::OldGuardianSet => msg!("Error: OldGuardianSet"),
+            Error::GuardianIndexNotIncreasing => msg!("Error: GuardianIndexNotIncreasing"),
+            Error::VAAMessageMismatch => msg!("Error: VAAProposalMismatch"),
+            Error::VAATooLong => msg!("Error: VAATooLong"),
+            Error::VAAAlreadySubmitted => msg!("Error: VAAAlreadySubmitted"),
+            Error::GuardianSetMismatch => msg!("Error: GuardianSetMismatch"),
+            Error::InsufficientFees => msg!("Error: InsufficientFees"),
+            Error::InvalidOwner => msg!("Error: InvalidOwner"),
+            Error::InvalidSysvar => msg!("Error: InvalidSysvar"),
+            Error::InvalidChain => msg!("Error: InvalidChain"),
+            Error::InvalidVAAAction => msg!("Error: InvalidVAAAction"),
+            Error::EmitterNotSigner => msg!("Error: EmitterNotSigner"),
+        }
+    }
 }
 
 impl From<Error> for ProgramError {
