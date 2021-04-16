@@ -340,6 +340,9 @@ func runBridge(cmd *cobra.Command, args []string) {
 	// Ethereum lock event channel
 	lockC := make(chan *common.ChainLock)
 
+	// EEVAAs
+	eevaaC := make(chan *common.EEVAA)
+
 	// Ethereum incoming guardian set updates
 	setC := make(chan *common.GuardianSet)
 
@@ -413,7 +416,7 @@ func runBridge(cmd *cobra.Command, args []string) {
 			return err
 		}
 
-		solana_watcher := solana.NewSolanaWatcher(*solanaWsRPC, *solanaRPC, solBridgeAddress, eevaaProgramAddress, lockC)
+		solana_watcher := solana.NewSolanaWatcher(*solanaWsRPC, *solanaRPC, solBridgeAddress, eevaaProgramAddress, lockC, eevaaC)
 		if err := supervisor.Run(ctx, "solwatch",
 			solana_watcher.RunBridge); err != nil {
 			return err
@@ -431,6 +434,7 @@ func runBridge(cmd *cobra.Command, args []string) {
 			sendC,
 			obsvC,
 			solanaVaaC,
+			eevaaC,
 			injectC,
 			gk,
 			*unsafeDevMode,

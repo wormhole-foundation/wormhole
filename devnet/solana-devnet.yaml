@@ -41,6 +41,9 @@ spec:
             - --bpf-program
             - Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o
             - /opt/solana/deps/spl_bridge.so
+            - --bpf-program
+            - EevaaBridgeeXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o
+            - /opt/solana/deps/eevaa_program.so
             - --log
           ports:
             - containerPort: 8001

@@ -10,15 +10,15 @@ license = "Apache-2.0"
 edition = "2018"
 
 [features]
+default = ["program"]
 no-entrypoint = []
-program = ["spl-token/no-entrypoint"]
+program = []
 
 [dependencies]
 byteorder = "1.4.2"
 num_enum = "0.5.1"
 remove_dir_all = "=0.5.0"
 solana-program = "=1.5.5"
-spl-token = { version = "=3.0.1" }
 thiserror = "1.0"
 
 [dev-dependencies]

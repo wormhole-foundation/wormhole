@@ -29,25 +29,27 @@ let
     '';
     whkube = self.writeShellScriptBin "whkube" ''${self.kubectl}/bin/kubectl config set-context --current --namespace=wormhole'';
     whtilt = self.writeShellScriptBin "whtilt" ''
-      ${self.tilt184}/bin/tilt up --update-mode exec
+      echo "Starting Tilt with ''${1:=5} guardians"
+      ${self.tilt184}/bin/tilt up --update-mode exec -- --num=$1
     '';
     whinotify = self.writeShellScriptBin "whinotify" ''
       ${self.minikube}/bin/minikube ssh 'echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p'
     '';
     # stan-work config
     whsw = self.writeShellScriptBin "whsw" ''
-      set +e
       ${pkgs.mutagen}/bin/mutagen sync terminate whsw-sync || true
       ${pkgs.mutagen}/bin/mutagen sync create -n whsw-sync . stan-work:~/wormhole
       ${pkgs.mutagen}/bin/mutagen sync flush whsw-sync
       export MINIKUBE_ARGS='--cpus=30 --memory=110g --disk-size=1000gb'
       ssh stan-work \
         ". ~/.zprofile && \
-        cd wormhole && \
-        nix-shell --command ' MINIKUBE_ARGS=\"$MINIKUBE_ARGS\" whcluster && \
-        killall tilt || true'"
+            cd wormhole && \
+            nix-shell --command ' MINIKUBE_ARGS=\"$MINIKUBE_ARGS\" whcluster && \
+            killall tilt || true'"
       ssh -L 10350:127.0.0.1:10350 stan-work \
-        "cd wormhole && source ~/.zprofile && nix-shell shell.nix --command whtilt"
+        "cd wormhole && \
+            source ~/.zprofile && \
+            nix-shell shell.nix --command 'whtilt $WH_GUARDIAN_COUNT'"
     '';
   };
   cargo2nix-olay = import "${cargo2nix}/overlay";

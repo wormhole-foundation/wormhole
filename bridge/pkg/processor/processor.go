@@ -44,9 +44,23 @@ type (
 
 	vaaMap map[string]*vaaState
 
+	// In a similar vein to vaaState, eevaaState represents local view of an EEVAA
+	eevaaState struct {
+		firstObserved time.Time
+		ourEEVAA      *common.EEVAA
+		signatures    map[ethcommon.Address][]byte
+		settled       bool
+		retryCount    uint
+		ourMsg        []byte
+		gs            *common.GuardianSet
+	}
+
+	eevaaMap map[string]*eevaaState
+
 	// aggregationState represents the node's aggregation of guardian signatures.
 	aggregationState struct {
-		vaaSignatures vaaMap
+		vaaSignatures   vaaMap
+		eevaaSignatures eevaaMap
 	}
 )
 
@@ -63,6 +77,10 @@ type Processor struct {
 
 	// vaaC is a channel of VAAs to submit to store on Solana (either as target, or for data availability)
 	vaaC chan *vaa.VAA
+
+	// A channel for processing EEVAA accounts seen in the Solana EEVAA program.
+	// NOTE: This is more similar to lockC than vaaC
+	eevaaC chan *common.EEVAA
 
 	// injectC is a channel of VAAs injected locally.
 	injectC chan *vaa.VAA
@@ -102,6 +120,7 @@ func NewProcessor(
 	sendC chan []byte,
 	obsvC chan *gossipv1.SignedObservation,
 	vaaC chan *vaa.VAA,
+	eevaaC chan *common.EEVAA,
 	injectC chan *vaa.VAA,
 	gk *ecdsa.PrivateKey,
 	devnetMode bool,
@@ -119,6 +138,7 @@ func NewProcessor(
 		sendC:              sendC,
 		obsvC:              obsvC,
 		vaaC:               vaaC,
+		eevaaC:             eevaaC,
 		injectC:            injectC,
 		gk:                 gk,
 		devnetMode:         devnetMode,
@@ -132,7 +152,7 @@ func NewProcessor(
 		terraFeePayer: terraFeePayer,
 
 		logger:  supervisor.Logger(ctx),
-		state:   &aggregationState{vaaMap{}},
+		state:   &aggregationState{vaaMap{}, eevaaMap{}},
 		ourAddr: crypto.PubkeyToAddress(gk.PublicKey),
 	}
 }
@@ -160,6 +180,9 @@ func (p *Processor) Run(ctx context.Context) error {
 			p.handleInjection(ctx, v)
 		case m := <-p.obsvC:
 			p.handleObservation(ctx, m)
+		case e := <-p.eevaaC:
+			p.logger.Info("Beep boop, processor receives EEVAA", zap.Stringer("eevaa", e))
+			p.handleEEVAA(ctx, e)
 		case <-p.cleanup.C:
 			p.handleCleanup(ctx)
 		}

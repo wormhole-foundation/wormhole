@@ -1,15 +1,11 @@
 package ethereum
 
 import (
-	"bytes"
 	"context"
-	"encoding/binary"
-	"encoding/hex"
-	"fmt"
 	"time"
 
+	"github.com/certusone/wormhole/bridge/pkg/common"
 	"github.com/certusone/wormhole/bridge/pkg/supervisor"
-	// "github.com/dfuse-io/solana-go"
 	"github.com/dfuse-io/solana-go/rpc"
 	"go.uber.org/zap"
 )
@@ -76,16 +72,15 @@ func (s *SolanaWatcher) RunEevaaBridge(ctx context.Context) error {
 					})
 
 					if err != nil {
-						logger.Warn("Failed to get new accounts", zap.Error(err))
+						logger.Warn("Failed to get program accounts", zap.Error(err))
 					}
 
-					logger.Info("Got new accounts", zap.Int("count", len(accounts)))
+					logger.Info("Got program accounts", zap.Int("count", len(accounts)))
 
 					for _, acc := range accounts {
-						eevaa, err := ParseEevaa(acc.Account.Data)
-						logger.Info("Processing EEVAA", zap.Stringer("eevaa", eevaa))
+						eevaa, err := common.ParseEevaa(acc.Account.Data)
 						if err != nil {
-							solanaAccountSkips.WithLabelValues("parse_transfer_out").Inc()
+							solanaAccountSkips.WithLabelValues("parse_eevaa").Inc()
 							logger.Warn(
 								"failed to parse EEVAA",
 								zap.Stringer("account", acc.Pubkey),
@@ -93,6 +88,9 @@ func (s *SolanaWatcher) RunEevaaBridge(ctx context.Context) error {
 							)
 							continue
 						}
+						logger.Info("Processing EEVAA", zap.Stringer("eevaa", eevaa))
+
+						s.eevaaC <- eevaa
 
 						// VAA submitted
 						// if eevaa.VaaTime.Unix() != 0 {
@@ -133,51 +131,4 @@ func (s *SolanaWatcher) RunEevaaBridge(ctx context.Context) error {
 	case err := <-errC:
 		return err
 	}
-}
-
-const (
-	EevaaMagic = "WHEV" // Preceeds every EEVAA message
-	PostEEVAA  = 1      // Instruction kind for EEVAAs
-)
-
-type EEVAA struct {
-	id      uint64
-	payload []byte
-}
-
-func (e *EEVAA) String() string {
-	return fmt.Sprintf("id: %d, payload: %s", e.id, hex.EncodeToString(e.payload))
-}
-
-// ParseEevaa ...
-func ParseEevaa(data []byte) (*EEVAA, error) {
-	ret := &EEVAA{}
-
-	r := bytes.NewBuffer(data)
-
-	magicBytes := make([]byte, len(EevaaMagic))
-	if _, err := r.Read(magicBytes[:]); err != nil || bytes.Compare(magicBytes, []byte(EevaaMagic)) != 0 {
-		return nil, fmt.Errorf("Invalid magic")
-	}
-
-	kindByte := make([]byte, 1)
-	if _, err := r.Read(kindByte[:]); err != nil || bytes.Compare(kindByte, []byte{PostEEVAA}) != 0 {
-		return nil, fmt.Errorf("Invalid instruction byte (expected %d)", PostEEVAA)
-	}
-
-	if err := binary.Read(r, binary.BigEndian, &ret.id); err != nil {
-		return nil, fmt.Errorf("Could not read EEVAA id: %w", err);
-	}
-
-	var payloadLen uint16
-	if err := binary.Read(r, binary.BigEndian, &payloadLen); err != nil {
-		return nil, fmt.Errorf("Could not read EEVAA payload length: %w", err);
-	}
-
-	ret.payload = make([]byte, payloadLen)
-	if _, err := r.Read(ret.payload[:]); err != nil {
-		return nil, fmt.Errorf("Could not read EEVAA payload: %w", err);
-	}
-
-	return ret, nil
 }

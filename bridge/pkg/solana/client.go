@@ -27,6 +27,7 @@ type SolanaWatcher struct {
 	wsUrl       string
 	rpcUrl      string
 	lockEvent   chan *common.ChainLock
+	eevaaC      chan *common.EEVAA
 }
 
 var (
@@ -65,8 +66,8 @@ func init() {
 	prometheus.MustRegister(queryLatency)
 }
 
-func NewSolanaWatcher(wsUrl, rpcUrl string, bridgeAddress solana.PublicKey, eevaaProgramAddress solana.PublicKey, lockEvents chan *common.ChainLock) *SolanaWatcher {
-	return &SolanaWatcher{bridge: bridgeAddress, eevaaBridge: eevaaProgramAddress, wsUrl: wsUrl, rpcUrl: rpcUrl, lockEvent: lockEvents}
+func NewSolanaWatcher(wsUrl, rpcUrl string, bridgeAddress solana.PublicKey, eevaaProgramAddress solana.PublicKey, lockEvents chan *common.ChainLock, eevaaC chan *common.EEVAA) *SolanaWatcher {
+	return &SolanaWatcher{bridge: bridgeAddress, eevaaBridge: eevaaProgramAddress, wsUrl: wsUrl, rpcUrl: rpcUrl, lockEvent: lockEvents, eevaaC: eevaaC}
 }
 
 func (s *SolanaWatcher) RunBridge(ctx context.Context) error {

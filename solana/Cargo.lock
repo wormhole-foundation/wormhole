@@ -4419,7 +4419,6 @@ dependencies = [
  "rand",
  "remove_dir_all",
  "solana-program",
- "spl-token",
  "thiserror",
 ]
 
