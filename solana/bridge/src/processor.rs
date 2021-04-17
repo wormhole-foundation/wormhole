@@ -345,14 +345,24 @@ impl Bridge {
     ) -> ProgramResult {
         msg!("publishing message");
         let account_info_iter = &mut accounts.iter();
+
+        // Unused accounts.
         next_account_info(account_info_iter)?; // Bridge program
         next_account_info(account_info_iter)?; // System program
         next_account_info(account_info_iter)?; // Rent sysvar
+
+        // solana_program::sysvar::clock::id() verified by Clock::from_account_info.
         let clock_info = next_account_info(account_info_iter)?;
+        // solana_program::sysvar::instructions::id() verified below.
         let instructions_info = next_account_info(account_info_iter)?;
+        // owner == bridge program asserted by Self::next_account_info_with_owner.
         let bridge_info = Self::next_account_info_with_owner(account_info_iter, program_id)?;
+        // Derived account verified to match the expected pubkey via Bridge::check_and_create_account.
         let message_info = next_account_info(account_info_iter)?;
+        // No need to verify - only used as the fee payer for account creation.
         let payer_info = next_account_info(account_info_iter)?;
+        // The emitter, only used as metadata. We verify that the account is a signer
+        // to prevent messages from being spoofed.
         let emitter_info = next_account_info(account_info_iter)?;
 
         let clock = Clock::from_account_info(clock_info)?;
