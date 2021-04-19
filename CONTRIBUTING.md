@@ -1,6 +1,6 @@
 # Contributing
 
-Wormhole is an open-source project licensed unser the permissive Apache 2 license. Contributions are greatly
+Wormhole is an open-source project licensed under the permissive Apache 2 license. Contributions are greatly
 appreciated and will be reviewed swiftly.
 
 Wormhole is a mission-critical, high-stakes project. We optimize for quality over quantity. Design processes
