@@ -16,3 +16,5 @@ default = []
 
 [dependencies]
 anchor-lang = "0.4.4"
+byteorder = "1.4.3"
+sha3 = "0.9.1"
