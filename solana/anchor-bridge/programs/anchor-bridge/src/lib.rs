@@ -1,4 +1,4 @@
-use anchor_lang::{solana_program, prelude::*};
+use anchor_lang::{prelude::*, solana_program};
 use byteorder::ByteOrder;
 use sha3::Digest;
 
@@ -56,7 +56,6 @@ pub mod anchor_bridge {
     use super::*;
 
     pub fn verify_signatures(ctx: Context<VerifySig>, data: VerifySigsData) -> ProgramResult {
-
         let sig_infos: Vec<SigInfo> = data
             .signers
             .iter()
@@ -73,9 +72,9 @@ pub mod anchor_bridge {
             })
             .collect();
 
-	// We check this manually because the type-level checks are
-	// not available for Instructions yet. See the VerifySig
-	// struct for more info.
+        // We check this manually because the type-level checks are
+        // not available for Instructions yet. See the VerifySig
+        // struct for more info.
         let ix_acc = &ctx.accounts.instruction_sysvar;
         if *ix_acc.key != solana_program::sysvar::instructions::id() {
             return Err(ProgramError::Custom(42));
@@ -88,31 +87,31 @@ pub mod anchor_bridge {
             return Err(ProgramError::InvalidInstructionData);
         }
 
-	// Retrieve the previous instruction
+        // Retrieve the previous instruction
         let prev_ix_idx = (current_ix_idx - 1) as u8;
         let prev_ix = solana_program::sysvar::instructions::load_instruction_at(
-	    prev_ix_idx as usize,
+            prev_ix_idx as usize,
             &ix_acc.try_borrow_mut_data()?,
         )
         .map_err(|_e| ProgramError::InvalidAccountData)?;
-	
-	// Does prev_ix call the right program?
-	if prev_ix.program_id != solana_program::secp256k1_program::id() {
-	    return Err(ProgramError::InvalidArgument);
-	}
 
-	// Is the data correctly sized?
-	let prev_data_len = prev_ix.data.len();
-	if prev_data_len < MIN_SECP_PROGRAM_DATA_LEN {
-	    return Err(ProgramError::InvalidAccountData);
-	}
+        // Does prev_ix call the right program?
+        if prev_ix.program_id != solana_program::secp256k1_program::id() {
+            return Err(ProgramError::InvalidArgument);
+        }
 
-	// Parse the instruction data for verification
-	let sig_len = prev_ix.data[0];
-	let mut index = 1;
+        // Is the data correctly sized?
+        let prev_data_len = prev_ix.data.len();
+        if prev_data_len < MIN_SECP_PROGRAM_DATA_LEN {
+            return Err(ProgramError::InvalidAccountData);
+        }
 
-	let mut secp_ixs: Vec<SecpInstructionPart> = Vec::with_capacity(sig_len as usize);
-	for i in 0..sig_len {
+        // Parse the instruction data for verification
+        let sig_len = prev_ix.data[0];
+        let mut index = 1;
+
+        let mut secp_ixs: Vec<SecpInstructionPart> = Vec::with_capacity(sig_len as usize);
+        for i in 0..sig_len {
             let sig_offset = byteorder::LE::read_u16(&prev_ix.data[index..index + 2]) as usize;
             index += 2;
             let sig_ix = prev_ix.data[index];
@@ -147,9 +146,8 @@ pub mod anchor_bridge {
                 msg_offset,
                 msg_size,
             });
+        }
 
-	}
-	
         if sig_infos.len() != secp_ixs.len() {
             return Err(ProgramError::InvalidArgument);
         }
@@ -164,11 +162,11 @@ pub mod anchor_bridge {
         };
         let msg_hash: [u8; 32] = h.finalize().into();
         if msg_hash != data.hash {
-	    return Err(ProgramError::InvalidArgument);
-	}
+            return Err(ProgramError::InvalidArgument);
+        }
 
-	// ------ 8>< *SNIP <>8 --------
-	// In original bridge program specific bridge state checks follow
+        // ------ 8>< *SNIP <>8 --------
+        // In original bridge program specific bridge state checks follow
 
         Ok(())
     }
