@@ -4,6 +4,12 @@ use sha3::Digest;
 
 use std::io::Write;
 
+#[account]
+struct BridgeInfo {}
+
+#[account]
+struct GuardianSetInfo {}
+
 #[derive(Accounts)]
 pub struct VerifySig<'info> {
     bridge: AccountInfo<'info>,
@@ -11,9 +17,9 @@ pub struct VerifySig<'info> {
     // TODO: Make this a `Sysvar<'info, Instructions>` like you can do
     // with `Rent` when `Sysvar` gets implemented for `Instructions` inside Solana.
     instruction_sysvar: AccountInfo<'info>,
-    bridge_info: AccountInfo<'info>,
+    bridge_info: ProgramState<'info, BridgeInfo>,
     sig_info: AccountInfo<'info>,
-    guardian_set_info: AccountInfo<'info>,
+    guardian_set_info: ProgramState<'info, GuardianSetInfo>,
     payer_info: AccountInfo<'info>,
 }
 
