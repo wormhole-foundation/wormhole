@@ -6,6 +6,16 @@ mod api;
 use account::BridgeInfo;
 use account::GuardianSetInfo;
 
+/// An enum with labeled network identifiers. These must be consistent accross all wormhole
+/// contracts deployed on each chain.
+#[repr(u8)]
+pub enum Chain {
+    Solana = 1u8,
+}
+
+/// chain id of this chain
+pub const CHAIN_ID_SOLANA: u8 = Chain::Solana as u8;
+/// maximum number of guardians
 pub const MAX_LEN_GUARDIAN_KEYS: usize = 20;
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, Debug)]
