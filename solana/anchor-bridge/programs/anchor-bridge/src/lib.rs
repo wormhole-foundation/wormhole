@@ -41,7 +41,23 @@ pub struct VerifySigsData {
 }
 
 #[derive(Accounts)]
-pub struct Initialize {}
+pub struct Initialize<'info> {
+    /// Account used to pay for auxillary instructions.
+    #[account(signer)]
+    pub payer: AccountInfo<'info>,
+
+    /// Used for timestamping actions.
+    pub clock: Sysvar<'info, Clock>,
+
+    /// Information about the current guardian set.
+    pub guardian_set: ProgramState<'info, GuardianSetInfo>,
+
+    /// Required by Anchor for associated accounts.
+    pub rent: Sysvar<'info, Rent>,
+
+    /// Required by Anchor for associated accounts.
+    pub system_program: AccountInfo<'info>,
+}
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, Debug)]
 pub struct InitializeData {
@@ -63,13 +79,15 @@ pub mod anchor_bridge {
         pub config: types::BridgeConfig,
     }
 
-    pub fn initialize(ctx: Context<Initialize>, data: InitializeData) -> ProgramResult {
-        api::initialize(
-            ctx,
-            data.len_guardians,
-            data.initial_guardian_keys,
-            data.config,
-        )
+    impl Bridge {
+        pub fn new(ctx: Context<Initialize>, data: InitializeData) -> Result<Self, ProgramError> {
+            api::initialize(
+                ctx,
+                data.len_guardians,
+                data.initial_guardian_keys,
+                data.config,
+            )
+        }
     }
 
     pub fn verify_signatures(ctx: Context<VerifySig>, data: VerifySigsData) -> ProgramResult {

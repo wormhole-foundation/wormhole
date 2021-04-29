@@ -1,5 +1,6 @@
-use crate::{accounts, VerifySig, VerifySigsData};
 use anchor_lang::{prelude::*, solana_program};
+
+use crate::{accounts, VerifySig, VerifySigsData};
 use byteorder::ByteOrder;
 use sha3::Digest;
 use std::io::Write;
