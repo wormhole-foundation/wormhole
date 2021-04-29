@@ -8,4 +8,3 @@ pub struct BridgeConfig {
     /// this period we still trust the old guardian set.
     pub guardian_set_expiration_time: u32,
 }
-

@@ -48,7 +48,7 @@ pub struct InitializeData {
     /// number of initial guardians
     pub len_guardians: u8,
     /// guardians that are allowed to sign mints
-    pub initial_guardian: [[u8; 20]; MAX_LEN_GUARDIAN_KEYS],
+    pub initial_guardian_keys: [[u8; 20]; MAX_LEN_GUARDIAN_KEYS],
     /// config for the bridge
     pub config: BridgeConfig,
 }
@@ -58,7 +58,12 @@ pub mod anchor_bridge {
     use super::*;
 
     pub fn initialize(ctx: Context<Initialize>, data: InitializeData) -> ProgramResult {
-        api::initialize(ctx, data)
+        api::initialize(
+            ctx,
+            data.len_guardians,
+            data.initial_guardian_keys,
+            data.config,
+        )
     }
 
     pub fn verify_signatures(ctx: Context<VerifySig>, data: VerifySigsData) -> ProgramResult {
