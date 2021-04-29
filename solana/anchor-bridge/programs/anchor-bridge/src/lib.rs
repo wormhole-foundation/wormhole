@@ -50,7 +50,8 @@ pub struct Initialize<'info> {
     pub clock: Sysvar<'info, Clock>,
 
     /// Information about the current guardian set.
-    pub guardian_set: ProgramState<'info, GuardianSetInfo>,
+    #[account(init)]
+    pub guardian_set: ProgramAccount<'info, GuardianSetInfo>,
 
     /// Required by Anchor for associated accounts.
     pub rent: Sysvar<'info, Rent>,
