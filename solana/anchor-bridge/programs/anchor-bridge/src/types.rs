@@ -1,5 +1,9 @@
 use anchor_lang::prelude::*;
 
+// Distinguishes a Version number from a standard u32.
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, Debug)]
+pub struct Version(u32);
+
 #[repr(C)]
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, Debug)]
 pub struct BridgeConfig {

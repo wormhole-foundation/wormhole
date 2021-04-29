@@ -57,6 +57,12 @@ pub struct InitializeData {
 pub mod anchor_bridge {
     use super::*;
 
+    #[state]
+    pub struct Bridge {
+        pub guardian_set_version: types::Version,
+        pub config: types::BridgeConfig,
+    }
+
     pub fn initialize(ctx: Context<Initialize>, data: InitializeData) -> ProgramResult {
         api::initialize(
             ctx,
