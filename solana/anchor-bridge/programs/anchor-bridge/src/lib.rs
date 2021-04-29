@@ -69,6 +69,12 @@ pub struct InitializeData {
     pub config: BridgeConfig,
 }
 
+#[derive(Accounts)]
+pub struct PublishMessage {}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, Debug)]
+pub struct PublishMessageData {}
+
 #[program]
 pub mod anchor_bridge {
     use super::*;
@@ -86,6 +92,13 @@ pub mod anchor_bridge {
                 data.len_guardians,
                 data.initial_guardian_keys,
                 data.config,
+            )
+        }
+
+        pub fn publish_message(&mut self, ctx: Context<PublishMessage>, data: PublishMessageData) -> ProgramResult {
+            api::publish_message(
+                self,
+                ctx,
             )
         }
 
