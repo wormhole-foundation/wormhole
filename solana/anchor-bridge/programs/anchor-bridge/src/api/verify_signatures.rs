@@ -1,6 +1,6 @@
 use anchor_lang::{prelude::*, solana_program};
 
-use crate::{accounts, VerifySig, VerifySigsData};
+use crate::{accounts, anchor_bridge::Bridge, VerifySig, VerifySigsData, MAX_LEN_GUARDIAN_KEYS};
 use byteorder::ByteOrder;
 use sha3::Digest;
 use std::io::Write;
@@ -22,9 +22,14 @@ struct SecpInstructionPart<'a> {
     msg_size: u16,
 }
 
-pub fn verify_signatures(ctx: Context<VerifySig>, data: VerifySigsData) -> ProgramResult {
-    let sig_infos: Vec<SigInfo> = data
-        .signers
+pub fn verify_signatures(
+    bridge: &mut Bridge,
+    ctx: Context<VerifySig>,
+    hash: [u8; 32],
+    signers: [i8; MAX_LEN_GUARDIAN_KEYS],
+    initial_creation: bool,
+) -> ProgramResult {
+    let sig_infos: Vec<SigInfo> = signers
         .iter()
         .enumerate()
         .filter_map(|(i, p)| {
@@ -128,7 +133,7 @@ pub fn verify_signatures(ctx: Context<VerifySig>, data: VerifySigsData) -> Progr
         return Err(ProgramError::InvalidArgument);
     };
     let msg_hash: [u8; 32] = h.finalize().into();
-    if msg_hash != data.hash {
+    if msg_hash != hash {
         return Err(ProgramError::InvalidArgument);
     }
 

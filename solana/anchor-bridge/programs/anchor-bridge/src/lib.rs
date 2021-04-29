@@ -21,7 +21,6 @@ pub const MAX_LEN_GUARDIAN_KEYS: usize = 20;
 
 #[derive(Accounts)]
 pub struct VerifySig<'info> {
-    pub bridge: AccountInfo<'info>,
     pub system: AccountInfo<'info>,
     pub instruction_sysvar: AccountInfo<'info>,
     pub bridge_info: ProgramState<'info, BridgeInfo>,
@@ -89,9 +88,15 @@ pub mod anchor_bridge {
                 data.config,
             )
         }
-    }
 
-    pub fn verify_signatures(ctx: Context<VerifySig>, data: VerifySigsData) -> ProgramResult {
-        api::verify_signatures(ctx, data)
+        pub fn verify_signatures(&mut self, ctx: Context<VerifySig>, data: VerifySigsData) -> ProgramResult {
+            api::verify_signatures(
+                self,
+                ctx,
+                data.hash,
+                data.signers,
+                data.initial_creation,
+            )
+        }
     }
 }
