@@ -5,8 +5,9 @@ use crate::{
     anchor_bridge::Bridge,
     types::{BridgeConfig, Index},
     PublishMessage,
+    Result,
 };
 
-pub fn publish_message(bridge: &mut Bridge, ctx: Context<PublishMessage>) -> ProgramResult {
+pub fn publish_message(bridge: &mut Bridge, ctx: Context<PublishMessage>) -> Result<()> {
     Ok(())
 }

@@ -1,6 +1,6 @@
 use anchor_lang::{prelude::*, solana_program};
 
-use crate::{accounts, anchor_bridge::Bridge, VerifySig, VerifySigsData, MAX_LEN_GUARDIAN_KEYS};
+use crate::{Result, accounts, anchor_bridge::Bridge, VerifySig, VerifySigsData, MAX_LEN_GUARDIAN_KEYS};
 use byteorder::ByteOrder;
 use sha3::Digest;
 use std::io::Write;
@@ -43,7 +43,7 @@ pub fn verify_signatures(
     hash: [u8; 32],
     signers: [i8; MAX_LEN_GUARDIAN_KEYS],
     initial_creation: bool,
-) -> ProgramResult {
+) -> Result<()> {
     let sig_infos = filter_empty_signatures(&signers);
     let ix_acc = &ctx.accounts.instruction_sysvar;
 
@@ -51,7 +51,7 @@ pub fn verify_signatures(
         solana_program::sysvar::instructions::load_current_index(&ix_acc.try_borrow_data()?);
 
     if current_ix_idx == 0 {
-        return Err(ProgramError::InvalidInstructionData);
+        return Err(ProgramError::InvalidInstructionData.into());
     }
 
     // Retrieve the previous instruction
@@ -64,13 +64,13 @@ pub fn verify_signatures(
 
     // Does prev_ix call the right program?
     if prev_ix.program_id != solana_program::secp256k1_program::id() {
-        return Err(ProgramError::InvalidArgument);
+        return Err(ProgramError::InvalidArgument.into());
     }
 
     // Is the data correctly sized?
     let prev_data_len = prev_ix.data.len();
     if prev_data_len < MIN_SECP_PROGRAM_DATA_LEN {
-        return Err(ProgramError::InvalidAccountData);
+        return Err(ProgramError::InvalidAccountData.into());
     }
 
     // Parse the instruction data for verification
@@ -95,7 +95,7 @@ pub fn verify_signatures(
         index += 1;
 
         if address_ix != prev_ix_idx || msg_ix != prev_ix_idx || sig_ix != prev_ix_idx {
-            return Err(ProgramError::InvalidArgument);
+            return Err(ProgramError::InvalidArgument.into());
         }
 
         let address: &[u8] = &prev_ix.data[address_offset..address_offset + 20];
@@ -104,7 +104,7 @@ pub fn verify_signatures(
         // Make sure that all messages are equal
         if i > 0 {
             if msg_offset != secp_ixs[0].msg_offset || msg_size != secp_ixs[0].msg_size {
-                return Err(ProgramError::InvalidArgument);
+                return Err(ProgramError::InvalidArgument.into());
             }
         }
         secp_ixs.push(SecpInstructionPart {
@@ -116,7 +116,7 @@ pub fn verify_signatures(
     }
 
     if sig_infos.len() != secp_ixs.len() {
-        return Err(ProgramError::InvalidArgument);
+        return Err(ProgramError::InvalidArgument.into());
     }
 
     // Check message
@@ -125,11 +125,11 @@ pub fn verify_signatures(
 
     let mut h = sha3::Keccak256::default();
     if let Err(_) = h.write(message) {
-        return Err(ProgramError::InvalidArgument);
+        return Err(ProgramError::InvalidArgument.into());
     };
     let msg_hash: [u8; 32] = h.finalize().into();
     if msg_hash != hash {
-        return Err(ProgramError::InvalidArgument);
+        return Err(ProgramError::InvalidArgument.into());
     }
 
     // ------ 8>< *SNIP <>8 --------

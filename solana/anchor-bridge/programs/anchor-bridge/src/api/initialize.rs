@@ -1,6 +1,7 @@
 use anchor_lang::{prelude::*, solana_program};
 
 use crate::{
+    Result,
     accounts,
     anchor_bridge::Bridge,
     types::{BridgeConfig, Index},
@@ -14,7 +15,7 @@ pub fn initialize(
     len_guardians: u8,
     initial_guardian_key: [[u8; 20]; MAX_LEN_GUARDIAN_KEYS],
     config: BridgeConfig,
-) -> Result<Bridge, ProgramError> {
+) -> Result<Bridge> {
     let index = Index(0);
 
     // Initialize the Guardian Set for the first time.

@@ -111,7 +111,7 @@ pub mod anchor_bridge {
     }
 
     impl Bridge {
-        pub fn new(ctx: Context<Initialize>, data: InitializeData) -> Result<Self, ProgramError> {
+        pub fn new(ctx: Context<Initialize>, data: InitializeData) -> Result<Self> {
             api::initialize(
                 ctx,
                 data.len_guardians,
@@ -120,18 +120,18 @@ pub mod anchor_bridge {
             )
         }
 
-        pub fn publish_message(&mut self, ctx: Context<PublishMessage>, data: PublishMessageData) -> ProgramResult {
+        pub fn publish_message(&mut self, ctx: Context<PublishMessage>, data: PublishMessageData) -> Result<()> {
             api::publish_message(
                 self,
                 ctx,
             )
         }
 
-        pub fn verify_signatures(&mut self, ctx: Context<VerifySig>, data: VerifySigsData) -> ProgramResult {
+        pub fn verify_signatures(&mut self, ctx: Context<VerifySig>, data: VerifySigsData) -> Result<()> {
             // We check this manually because the type-level checks are not available for
             // Instructions yet. See the VerifySig struct for more info.
             if *ctx.accounts.instruction_sysvar.key != solana_program::sysvar::instructions::id() {
-                return Err(ProgramError::Custom(42));
+                return Err(ErrorCode::InvalidSysVar.into());
             }
 
             api::verify_signatures(
@@ -143,4 +143,10 @@ pub mod anchor_bridge {
             )
         }
     }
+}
+
+#[error]
+pub enum ErrorCode {
+    #[msg("System account pubkey did not match expected address.")]
+    InvalidSysVar,
 }
