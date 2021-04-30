@@ -70,7 +70,32 @@ pub struct InitializeData {
 }
 
 #[derive(Accounts)]
-pub struct PublishMessage {}
+pub struct PublishMessage<'info> {
+    /// Clock used for timestamping.
+    pub clock: Sysvar<'info, Clock>,
+
+    /// Instructions used for transaction reflection.
+    pub instructions: AccountInfo<'info>,
+
+    /// Derived account verified to match the expected pubkey via Bridge::check_and_create_account.
+    #[account(init)]
+    pub message: AccountInfo<'info>,
+
+    /// No need to verify - only used as the fee payer for account creation.
+    #[account(signer)]
+    pub payer: AccountInfo<'info>,
+
+    /// The emitter, only used as metadata. We verify that the account is a signer to prevent
+    /// messages from being spoofed.
+    #[account(signer)]
+    pub emitter: AccountInfo<'info>,
+
+    /// Required by Anchor for associated accounts.
+    pub rent: Sysvar<'info, Rent>,
+
+    /// Required by Anchor for associated accounts.
+    pub system_program: AccountInfo<'info>,
+}
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, Debug)]
 pub struct PublishMessageData {}

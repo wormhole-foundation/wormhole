@@ -22,6 +22,21 @@ struct SecpInstructionPart<'a> {
     msg_size: u16,
 }
 
+#[inline(always)]
+fn filter_empty_signatures(signers: &[i8; MAX_LEN_GUARDIAN_KEYS]) -> Vec<SigInfo> {
+    signers
+        .iter()
+        .enumerate()
+        .filter_map(|(i, p)| match *p {
+            -1 => None,
+            ix => Some(SigInfo {
+                sig_index: ix as u8,
+                signer_index: i as u8,
+            }),
+        })
+        .collect()
+}
+
 pub fn verify_signatures(
     bridge: &mut Bridge,
     ctx: Context<VerifySig>,
@@ -29,20 +44,7 @@ pub fn verify_signatures(
     signers: [i8; MAX_LEN_GUARDIAN_KEYS],
     initial_creation: bool,
 ) -> ProgramResult {
-    let sig_infos: Vec<SigInfo> = signers
-        .iter()
-        .enumerate()
-        .filter_map(|(i, p)| {
-            if *p == -1 {
-                return None;
-            }
-
-            return Some(SigInfo {
-                sig_index: *p as u8,
-                signer_index: i as u8,
-            });
-        })
-        .collect();
+    let sig_infos = filter_empty_signatures(&signers);
 
     // We check this manually because the type-level checks are
     // not available for Instructions yet. See the VerifySig

@@ -13,4 +13,3 @@ pub fn publish_message(
 ) -> ProgramResult {
     Ok(())
 }
-
