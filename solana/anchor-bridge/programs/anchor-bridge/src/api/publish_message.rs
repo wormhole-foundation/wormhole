@@ -7,9 +7,6 @@ use crate::{
     PublishMessage,
 };
 
-pub fn publish_message(
-    bridge: &mut Bridge,
-    ctx: Context<PublishMessage>,
-) -> ProgramResult {
+pub fn publish_message(bridge: &mut Bridge, ctx: Context<PublishMessage>) -> ProgramResult {
     Ok(())
 }

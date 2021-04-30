@@ -4,7 +4,9 @@ use crate::{
     accounts,
     anchor_bridge::Bridge,
     types::{BridgeConfig, Index},
-    Initialize, InitializeData, MAX_LEN_GUARDIAN_KEYS,
+    Initialize,
+    InitializeData,
+    MAX_LEN_GUARDIAN_KEYS,
 };
 
 pub fn initialize(
