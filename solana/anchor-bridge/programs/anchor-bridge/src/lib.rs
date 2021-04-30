@@ -106,7 +106,7 @@ pub mod anchor_bridge {
 
     #[state]
     pub struct Bridge {
-        pub guardian_set_version: types::Version,
+        pub guardian_set_index: types::Index,
         pub config: types::BridgeConfig,
     }
 

@@ -3,7 +3,7 @@ use anchor_lang::{prelude::*, solana_program};
 use crate::{
     accounts,
     anchor_bridge::Bridge,
-    types::{BridgeConfig, Version},
+    types::{BridgeConfig, Index},
     PublishMessage,
 };
 

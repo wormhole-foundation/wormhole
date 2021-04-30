@@ -1,8 +1,8 @@
 use anchor_lang::prelude::*;
 
-// Distinguishes a Version number from a standard u32.
+// Enforces a single bumping index number.
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, Debug)]
-pub struct Version(pub u32);
+pub struct Index(pub u32);
 
 #[repr(C)]
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, Debug)]
