@@ -121,6 +121,12 @@ pub mod anchor_bridge {
         }
 
         pub fn publish_message(&mut self, ctx: Context<PublishMessage>, data: PublishMessageData) -> Result<()> {
+            // Sysvar trait not implemented for Instructions by sdk, so manual check required.  See
+            // the VerifySig struct for more info.
+            if *ctx.accounts.instructions.key != solana_program::sysvar::instructions::id() {
+                return Err(ErrorCode::InvalidSysVar.into());
+            }
+
             api::publish_message(
                 self,
                 ctx,
@@ -128,8 +134,8 @@ pub mod anchor_bridge {
         }
 
         pub fn verify_signatures(&mut self, ctx: Context<VerifySig>, data: VerifySigsData) -> Result<()> {
-            // We check this manually because the type-level checks are not available for
-            // Instructions yet. See the VerifySig struct for more info.
+            // Sysvar trait not implemented for Instructions by sdk, so manual check required.  See
+            // the VerifySig struct for more info.
             if *ctx.accounts.instruction_sysvar.key != solana_program::sysvar::instructions::id() {
                 return Err(ErrorCode::InvalidSysVar.into());
             }
