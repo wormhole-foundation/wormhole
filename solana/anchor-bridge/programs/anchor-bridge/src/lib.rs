@@ -1,11 +1,9 @@
 use anchor_lang::{prelude::*, solana_program};
 
-mod account;
 mod api;
 mod types;
 
-use account::{BridgeInfo, GuardianSetInfo};
-use types::BridgeConfig;
+use types::{Index, BridgeConfig};
 
 /// An enum with labeled network identifiers. These must be consistent accross all wormhole
 /// contracts deployed on each chain.
@@ -155,4 +153,21 @@ pub mod anchor_bridge {
 pub enum ErrorCode {
     #[msg("System account pubkey did not match expected address.")]
     InvalidSysVar,
+}
+
+#[account]
+pub struct BridgeInfo {}
+
+#[account]
+pub struct GuardianSetInfo {
+    /// Version number of this guardian set.
+    pub index: Index,
+    /// Number of keys stored
+    pub len_keys: u8,
+    /// public key hashes of the guardian set
+    pub keys: [[u8; 20]; MAX_LEN_GUARDIAN_KEYS],
+    /// creation time
+    pub creation_time: u32,
+    /// expiration time when VAAs issued by this set are no longer valid
+    pub expiration_time: u32,
 }
