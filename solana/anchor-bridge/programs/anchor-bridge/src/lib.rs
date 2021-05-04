@@ -3,18 +3,12 @@ use anchor_lang::{prelude::*, solana_program};
 mod api;
 mod types;
 
-use types::{Index, BridgeConfig};
+use api::PostedMessage;
+use types::{Index, BridgeConfig, Chain};
 
 // Without this, Anchor's derivation macros break. It requires names with no path components at all
 // otherwise it errors.
 use anchor_bridge::Bridge;
-
-/// An enum with labeled network identifiers. These must be consistent accross all wormhole
-/// contracts deployed on each chain.
-#[repr(u8)]
-pub enum Chain {
-    Solana = 1u8,
-}
 
 /// chain id of this chain
 pub const CHAIN_ID_SOLANA: u8 = Chain::Solana as u8;
@@ -89,6 +83,9 @@ pub struct PublishMessage<'info> {
     /// messages from being spoofed.
     #[account(signer)]
     pub emitter: AccountInfo<'info>,
+
+    /// State struct, derived by #[state], used for associated accounts.
+    pub state: ProgramState<'info, Bridge>,
 
     /// Instructions used for transaction reflection.
     pub instructions: AccountInfo<'info>,

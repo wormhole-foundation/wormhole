@@ -12,3 +12,11 @@ pub struct BridgeConfig {
     /// this period we still trust the old guardian set.
     pub guardian_set_expiration_time: u32,
 }
+
+/// An enum with labeled network identifiers. These must be consistent accross all wormhole
+/// contracts deployed on each chain.
+#[repr(u8)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, Debug)]
+pub enum Chain {
+    Solana = 1u8,
+}
