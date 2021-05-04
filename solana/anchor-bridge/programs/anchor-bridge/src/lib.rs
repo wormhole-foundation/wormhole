@@ -77,12 +77,6 @@ pub struct InitializeData {
 
 #[derive(Accounts)]
 pub struct PublishMessage<'info> {
-    /// Clock used for timestamping.
-    pub clock: Sysvar<'info, Clock>,
-
-    /// Instructions used for transaction reflection.
-    pub instructions: AccountInfo<'info>,
-
     /// Derived account verified to match the expected pubkey via Bridge::check_and_create_account.
     #[account(init)]
     pub message: AccountInfo<'info>,
@@ -95,6 +89,12 @@ pub struct PublishMessage<'info> {
     /// messages from being spoofed.
     #[account(signer)]
     pub emitter: AccountInfo<'info>,
+
+    /// Instructions used for transaction reflection.
+    pub instructions: AccountInfo<'info>,
+
+    /// Clock used for timestamping.
+    pub clock: Sysvar<'info, Clock>,
 
     /// Required by Anchor for associated accounts.
     pub rent: Sysvar<'info, Rent>,
