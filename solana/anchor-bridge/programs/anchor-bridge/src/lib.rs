@@ -5,6 +5,10 @@ mod types;
 
 use types::{Index, BridgeConfig};
 
+// Without this, Anchor's derivation macros break. It requires names with no path components at all
+// otherwise it errors.
+use anchor_bridge::Bridge;
+
 /// An enum with labeled network identifiers. These must be consistent accross all wormhole
 /// contracts deployed on each chain.
 #[repr(u8)]
@@ -37,18 +41,22 @@ pub struct VerifySigsData {
     pub initial_creation: bool,
 }
 
+
 #[derive(Accounts)]
 pub struct Initialize<'info> {
     /// Account used to pay for auxillary instructions.
     #[account(signer)]
     pub payer: AccountInfo<'info>,
 
+    /// Information about the current guardian set.
+    #[account(init, associated = state)]
+    pub guardian_set: ProgramAccount<'info, GuardianSetInfo>,
+
+    /// State struct, derived by #[state], used for associated accounts.
+    pub state: ProgramState<'info, Bridge>,
+
     /// Used for timestamping actions.
     pub clock: Sysvar<'info, Clock>,
-
-    /// Information about the current guardian set.
-    #[account(init)]
-    pub guardian_set: ProgramAccount<'info, GuardianSetInfo>,
 
     /// Required by Anchor for associated accounts.
     pub rent: Sysvar<'info, Rent>,
@@ -158,7 +166,7 @@ pub enum ErrorCode {
 #[account]
 pub struct BridgeInfo {}
 
-#[account]
+#[associated]
 pub struct GuardianSetInfo {
     /// Version number of this guardian set.
     pub index: Index,

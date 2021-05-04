@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 
 // Enforces a single bumping index number.
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, Debug)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, Debug, Default)]
 pub struct Index(pub u32);
 
 #[repr(C)]
