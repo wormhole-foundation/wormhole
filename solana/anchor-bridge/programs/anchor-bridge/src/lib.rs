@@ -122,7 +122,7 @@ pub mod anchor_bridge {
             )
         }
 
-        pub fn publish_message(&mut self, ctx: Context<PublishMessage>, data: PublishMessageData) -> Result<()> {
+        pub fn publish_message(&mut self, ctx: Context<PublishMessage>, data: PublishMessageData, nonce: u8) -> Result<()> {
             // Sysvar trait not implemented for Instructions by sdk, so manual check required.  See
             // the VerifySig struct for more info.
             if *ctx.accounts.instructions.key != solana_program::sysvar::instructions::id() {
@@ -132,6 +132,7 @@ pub mod anchor_bridge {
             api::publish_message(
                 self,
                 ctx,
+                nonce,
             )
         }
 
