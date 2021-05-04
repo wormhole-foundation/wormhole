@@ -18,5 +18,12 @@ pub struct BridgeConfig {
 #[repr(u8)]
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, Debug)]
 pub enum Chain {
+    Unknown,
     Solana = 1u8,
+}
+
+impl Default for Chain {
+    fn default() -> Self {
+        Chain::Unknown
+    }
 }
