@@ -5,6 +5,7 @@ use crate::{
     anchor_bridge::Bridge,
     types::{BridgeConfig, Index, Chain},
     PublishMessage,
+    PostedMessage,
     Result,
     MAX_LEN_GUARDIAN_KEYS,
 };
@@ -16,6 +17,43 @@ const VAA_TX_FEE: u64 = 18 * 10000;
 pub const MAX_PAYLOAD_SIZE: usize = 400;
 
 pub fn publish_message(bridge: &mut Bridge, ctx: Context<PublishMessage>) -> Result<()> {
+    // Manually create message account, as Anchor can't do it.
+    let mut message: ProgramAccount<PostedMessage> = {
+        // First create the message account. 8 Bytes additional for the discriminator.
+        let space = 8 + PostedMessage::default().try_to_vec().unwrap().len();
+        let lamports = ctx.accounts.rent.minimum_balance(space);
+        let ix = solana_program::system_instruction::create_account(
+            ctx.accounts.payer.key,
+            ctx.accounts.message.key,
+            lamports,
+            space as u64,
+            ctx.program_id,
+        );
+
+        // let seeds = [
+        //     ctx.accounts.poll.to_account_info().key.as_ref(),
+        //     ctx.accounts.stake.member.to_account_info().key.as_ref(),
+        //     &[nonce],
+        // ];
+        // let signer = &[&seeds[..]];
+        // solana_program::program::invoke_signed(
+        //     &ix,
+        //     &[
+        //         ctx.accounts.stake.beneficiary.clone(),
+        //         ctx.accounts.vote.clone(),
+        //         ctx.accounts.system_program.clone(),
+        //     ],
+        //     signer,
+        // )?;
+        // Deserialize the newly created account into an object.
+        ProgramAccount::try_from_init(&ctx.accounts.message)?
+    };
+
+    // Do any initialization here.
+
+    // Manually persist changes since we manually created the account.
+    message.exit(ctx.program_id)?;
+
     Ok(())
 }
 
@@ -56,33 +94,4 @@ pub struct ClaimedVAA {
 
     /// time the vaa was submitted
     pub vaa_time: u32,
-}
-
-/// Record of a posted wormhole message.
-#[repr(C)]
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, Debug)]
-pub struct PostedMessage {
-    /// header of the posted VAA
-    pub vaa_version: u8,
-
-    /// time the vaa was submitted
-    pub vaa_time: u32,
-
-    /// Account where signatures are stored
-    pub vaa_signature_account: Pubkey,
-
-    /// time the posted message was created
-    pub submission_time: u32,
-
-    /// unique nonce for this message
-    pub nonce: u32,
-
-    /// emitter of the message
-    pub emitter_chain: Chain,
-
-    /// emitter of the message
-    pub emitter_address: [u8; 32],
-
-    /// message payload
-    pub payload: [[u8; 32]; 13],
 }

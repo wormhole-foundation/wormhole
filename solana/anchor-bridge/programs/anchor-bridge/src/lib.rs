@@ -3,7 +3,6 @@ use anchor_lang::{prelude::*, solana_program};
 mod api;
 mod types;
 
-use api::PostedMessage;
 use types::{Index, BridgeConfig, Chain};
 
 // Without this, Anchor's derivation macros break. It requires names with no path components at all
@@ -71,10 +70,6 @@ pub struct InitializeData {
 
 #[derive(Accounts)]
 pub struct PublishMessage<'info> {
-    /// Derived account verified to match the expected pubkey via Bridge::check_and_create_account.
-    #[account(init)]
-    pub message: AccountInfo<'info>,
-
     /// No need to verify - only used as the fee payer for account creation.
     #[account(signer)]
     pub payer: AccountInfo<'info>,
@@ -83,6 +78,10 @@ pub struct PublishMessage<'info> {
     /// messages from being spoofed.
     #[account(signer)]
     pub emitter: AccountInfo<'info>,
+
+    /// The message account to store data in, note that this cannot be derived by serum and so the
+    /// pulish_message handler does this by hand.
+    pub message: AccountInfo<'info>,
 
     /// State struct, derived by #[state], used for associated accounts.
     pub state: ProgramState<'info, Bridge>,
@@ -175,4 +174,33 @@ pub struct GuardianSetInfo {
     pub creation_time: u32,
     /// expiration time when VAAs issued by this set are no longer valid
     pub expiration_time: u32,
+}
+
+/// Record of a posted wormhole message.
+#[account]
+#[derive(Default)]
+pub struct PostedMessage {
+    /// header of the posted VAA
+    pub vaa_version: u8,
+
+    /// time the vaa was submitted
+    pub vaa_time: u32,
+
+    /// Account where signatures are stored
+    pub vaa_signature_account: Pubkey,
+
+    /// time the posted message was created
+    pub submission_time: u32,
+
+    /// unique nonce for this message
+    pub nonce: u32,
+
+    /// emitter of the message
+    pub emitter_chain: Chain,
+
+    /// emitter of the message
+    pub emitter_address: [u8; 32],
+
+    /// message payload
+    pub payload: [[u8; 32]; 13],
 }
