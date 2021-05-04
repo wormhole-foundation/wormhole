@@ -12,9 +12,11 @@ name = "anchor_bridge"
 no-entrypoint = []
 no-idl = []
 cpi = ["no-entrypoint"]
+# default = ["anchor-debug"]
 default = []
+anchor-debug = ["anchor-lang/anchor-debug"]
 
 [dependencies]
-anchor-lang = "0.4.4"
+anchor-lang = {git = "https://github.com/drozdziak1/anchor", branch = "anchor-debug-feature"}
 byteorder = "1.4.3"
 sha3 = "0.9.1"

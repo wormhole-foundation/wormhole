@@ -1,0 +1,62 @@
+{
+    "cargo2nix": {
+        "branch": "master",
+        "description": "Build Rust crates with Nix",
+        "homepage": "",
+        "owner": "cargo2nix",
+        "repo": "cargo2nix",
+        "rev": "c491edfb1b2721c8202afe4051ce7b44adfb668d",
+        "sha256": "0aby21f72314qfmkqcdv7wpw6cywn7isr7gsh8gz992cn2szjpg4",
+        "type": "tarball",
+        "url": "https://github.com/cargo2nix/cargo2nix/archive/c491edfb1b2721c8202afe4051ce7b44adfb668d.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+    },
+    "niv": {
+        "branch": "master",
+        "description": "Easy dependency management for Nix projects",
+        "homepage": "https://github.com/nmattia/niv",
+        "owner": "nmattia",
+        "repo": "niv",
+        "rev": "af958e8057f345ee1aca714c1247ef3ba1c15f5e",
+        "sha256": "1qjavxabbrsh73yck5dcq8jggvh3r2jkbr6b5nlz5d9yrqm9255n",
+        "type": "tarball",
+        "url": "https://github.com/nmattia/niv/archive/af958e8057f345ee1aca714c1247ef3ba1c15f5e.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+    },
+    "nixpkgs": {
+        "branch": "release-20.09",
+        "description": "Nix Packages collection",
+        "homepage": "",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "a1643da0480d7716e76c79654b2591dfacbf2931",
+        "sha256": "1bvivv5dj6qvc5kyf2f0s84s5hqh8ry0i5ly9c9qsw4s9svl9yb1",
+        "type": "tarball",
+        "url": "https://github.com/NixOS/nixpkgs/archive/a1643da0480d7716e76c79654b2591dfacbf2931.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+    },
+    "nixpkgs-mozilla": {
+        "branch": "master",
+        "description": "mozilla related nixpkgs (extends nixos/nixpkgs repo)",
+        "homepage": "",
+        "owner": "mozilla",
+        "repo": "nixpkgs-mozilla",
+        "rev": "8c007b60731c07dd7a052cce508de3bb1ae849b4",
+        "sha256": "1zybp62zz0h077zm2zmqs2wcg3whg6jqaah9hcl1gv4x8af4zhs6",
+        "type": "tarball",
+        "url": "https://github.com/mozilla/nixpkgs-mozilla/archive/8c007b60731c07dd7a052cce508de3bb1ae849b4.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+    },
+    "rust-overlay": {
+        "branch": "master",
+        "description": "Pure and reproducible nix overlay for binary distributed rust toolchains",
+        "homepage": "",
+        "owner": "oxalica",
+        "repo": "rust-overlay",
+        "rev": "a3873f83ed5fe58c4c6af09700d27b54aa19b986",
+        "sha256": "07hll4yalziyzd68gg518kmxs6y31bb2y3ilp1hw4lpbj1jyj4k7",
+        "type": "tarball",
+        "url": "https://github.com/oxalica/rust-overlay/archive/a3873f83ed5fe58c4c6af09700d27b54aa19b986.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+    }
+}

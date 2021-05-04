@@ -3,7 +3,9 @@ use anchor_lang::{prelude::*, solana_program};
 mod api;
 mod types;
 
-use types::{Index, BridgeConfig, Chain};
+use types::{Chain, Index};
+
+pub use types::BridgeConfig;
 
 // Without this, Anchor's derivation macros break. It requires names with no path components at all
 // otherwise it errors.
@@ -34,10 +36,9 @@ pub struct VerifySigsData {
     pub initial_creation: bool,
 }
 
-
 #[derive(Accounts)]
 pub struct Initialize<'info> {
-    /// Account used to pay for auxillary instructions.
+    // /// Account used to pay for auxillary instructions.
     #[account(signer)]
     pub payer: AccountInfo<'info>,
 
@@ -112,15 +113,9 @@ pub mod anchor_bridge {
         pub config: types::BridgeConfig,
     }
 
-    /// Trick Anchor into generating Initialize client structs. Anchor generates a Pubkey only
-    /// version of every Context struct, but only if a function or method with a self parameter
-    /// uses it. Bridge::new does not get picked up.
-    pub fn __trick_anchor_initialize(ctx: Context<Initialize>) -> Result<()> {
-        Ok(())
-    }
-
     impl Bridge {
         pub fn new(ctx: Context<Initialize>, data: InitializeData) -> Result<Self> {
+            msg!("Yeah boiiiiiii");
             api::initialize(
                 ctx,
                 data.len_guardians,
@@ -129,34 +124,33 @@ pub mod anchor_bridge {
             )
         }
 
-        pub fn publish_message(&mut self, ctx: Context<PublishMessage>, data: PublishMessageData, nonce: u8) -> Result<()> {
+        pub fn publish_message(
+            &mut self,
+            ctx: Context<PublishMessage>,
+            data: PublishMessageData,
+            nonce: u8,
+        ) -> Result<()> {
             // Sysvar trait not implemented for Instructions by sdk, so manual check required.  See
             // the VerifySig struct for more info.
             if *ctx.accounts.instructions.key != solana_program::sysvar::instructions::id() {
                 return Err(ErrorCode::InvalidSysVar.into());
             }
 
-            api::publish_message(
-                self,
-                ctx,
-                nonce,
-            )
+            api::publish_message(self, ctx, nonce)
         }
 
-        pub fn verify_signatures(&mut self, ctx: Context<VerifySig>, data: VerifySigsData) -> Result<()> {
+        pub fn verify_signatures(
+            &mut self,
+            ctx: Context<VerifySig>,
+            data: VerifySigsData,
+        ) -> Result<()> {
             // Sysvar trait not implemented for Instructions by sdk, so manual check required.  See
             // the VerifySig struct for more info.
             if *ctx.accounts.instruction_sysvar.key != solana_program::sysvar::instructions::id() {
                 return Err(ErrorCode::InvalidSysVar.into());
             }
 
-            api::verify_signatures(
-                self,
-                ctx,
-                data.hash,
-                data.signers,
-                data.initial_creation,
-            )
+            api::verify_signatures(self, ctx, data.hash, data.signers, data.initial_creation)
         }
     }
 }
