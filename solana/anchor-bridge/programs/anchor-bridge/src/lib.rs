@@ -112,6 +112,13 @@ pub mod anchor_bridge {
         pub config: types::BridgeConfig,
     }
 
+    /// Trick Anchor into generating Initialize client structs. Anchor generates a Pubkey only
+    /// version of every Context struct, but only if a function or method with a self parameter
+    /// uses it. Bridge::new does not get picked up.
+    pub fn __trick_anchor_initialize(ctx: Context<Initialize>) -> Result<()> {
+        Ok(())
+    }
+
     impl Bridge {
         pub fn new(ctx: Context<Initialize>, data: InitializeData) -> Result<Self> {
             api::initialize(
