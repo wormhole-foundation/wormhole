@@ -10,6 +10,9 @@ spec:
     - port: 8999
       name: p2p
       protocol: UDP
+    - port: 7070
+      name: public-grpc
+      protocol: TCP
   clusterIP: None
   selector:
     app: guardian
@@ -84,6 +87,8 @@ spec:
             - --unsafeDevMode
             - --bridgeKey
             - /tmp/bridge.key
+            - --publicRPC
+            - "[::]:7070"
             - --adminSocket
             - /tmp/admin.sock
 #            - --logLevel=debug
@@ -102,6 +107,9 @@ spec:
               protocol: UDP
             - containerPort: 6060
               name: pprof
+              protocol: TCP
+            - containerPort: 7070
+              name: public-grpc
               protocol: TCP
         - name: agent
           image: solana-agent
