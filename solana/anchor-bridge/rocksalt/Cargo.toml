@@ -1,0 +1,21 @@
+[package]
+name = "rocksalt"
+version = "0.1.0"
+description = "Created with Rocksalt"
+edition = "2018"
+
+[lib]
+proc-macro = true
+name = "rocksalt"
+
+[features]
+no-entrypoint = []
+default = []
+
+[dependencies]
+byteorder = "1.4.3"
+proc-macro2 = "1.0"
+quote = "1.0"
+sha3 = "0.9.1"
+solana-program = "*"
+syn = "1.0"

@@ -1,0 +1,22 @@
+[package]
+name = "example"
+version = "0.1.0"
+description = "Created with Rocksalt"
+edition = "2018"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "example"
+
+[features]
+no-entrypoint = []
+no-idl = []
+cpi = ["no-entrypoint"]
+default = []
+
+[dependencies]
+borsh = "0.8.1"
+byteorder = "1.4.3"
+solitaire = { path = "../solitaire" }
+sha3 = "0.9.1"
+solana-program = "*"
