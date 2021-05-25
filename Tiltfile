@@ -174,6 +174,28 @@ k8s_resource("web", port_forwards=[
     port_forward(3000, name="Experimental Web UI [:3000]")
 ])
 
+# explorer web app
+
+docker_build(
+    ref = "explorer",
+    context = "./explorer",
+    dockerfile = "./explorer/Dockerfile",
+    ignore = ["./explorer/node_modules"],
+    live_update = [
+        sync("./explorer/src", "/home/node/app/src"),
+        sync("./explorer/public", "/home/node/app/public"),
+    ],
+)
+
+k8s_yaml_with_ns("devnet/explorer.yaml")
+
+k8s_resource("explorer",
+    resource_deps=["envoy-proxy"],
+    port_forwards=[
+        port_forward(8001, name="Explorer Web UI [:8001]")
+    ]
+)
+
 # terra devnet
 
 docker_build(

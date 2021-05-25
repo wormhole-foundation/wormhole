@@ -1,0 +1,9 @@
+{
+  "name": "tools",
+  "version": "1.0.0",
+  "description": "tooling for building web code from protobufs",
+  "devDependencies": {
+    "ts-proto": "^1.81.1"
+  },
+  "dependencies": {}
+}

@@ -1,0 +1,29 @@
+{
+  "env": {
+    "production": {
+      "plugins": ["babel-plugin-jsx-remove-data-test-id"]
+    },
+    "test": {}
+  },
+  "plugins": [
+    [
+      "module-resolver",
+      {
+        "root": ["./src"],
+        "alias": {
+          "~": "./src"
+        }
+      }
+    ]
+  ],
+  "presets": [
+    [
+      "babel-preset-gatsby",
+      {
+        "targets": {
+          "browsers": [">0.25%", "not dead"]
+        }
+      }
+    ]
+  ]
+}
