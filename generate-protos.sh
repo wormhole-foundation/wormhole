@@ -16,10 +16,12 @@ tools/bin/buf protoc \
   -Iproto \
   -Ithird_party/googleapis \
   --plugin tools/bin/protoc-gen-go \
+  --go_opt=module=github.com/certusone/wormhole/bridge/pkg \
   --go_out=bridge/pkg/ proto/**/**/**
 
 tools/bin/buf protoc \
   -Iproto \
   -Ithird_party/googleapis \
   --plugin tools/bin/protoc-gen-go-grpc \
+  --go-grpc_opt=module=github.com/certusone/wormhole/bridge/pkg \
   --go-grpc_out=bridge/pkg/ proto/**/**/**

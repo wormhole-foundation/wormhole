@@ -4,7 +4,7 @@ syntax = "proto3";
 package publicrpc.v1;
 
 // only relevant for Go namespace
-option go_package = "proto/publicrpc/v1;publicrpcv1";
+option go_package = "github.com/certusone/wormhole/bridge/pkg/proto/publicrpc/v1;publicrpcv1";
 
 // public import will include the required types in the Go output
 import public "gossip/v1/gossip.proto";
