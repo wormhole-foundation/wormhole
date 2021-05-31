@@ -1,28 +1,18 @@
-use crate::msg::WrappedRegistryResponse;
 use cosmwasm_std::{
-    log, to_binary, Api, Binary, CanonicalAddr, CosmosMsg, BankMsg, Env, Extern, HandleResponse, HumanAddr,
-    InitResponse, Querier, QueryRequest, StdResult, Storage, Uint128, WasmMsg, WasmQuery, Coin, has_coins,
+    has_coins, log, to_binary, Api, BankMsg, Binary, Coin, CosmosMsg, Env, Extern, HandleResponse,
+    HumanAddr, InitResponse, Querier, StdError, StdResult, Storage,
 };
 
 use crate::byte_utils::extend_address_to_32;
 use crate::byte_utils::ByteUtils;
 use crate::error::ContractError;
-use crate::msg::{GuardianSetInfoResponse, HandleMsg, InitMsg, QueryMsg, GetStateResponse};
+use crate::msg::{
+    GetAddressHexResponse, GetStateResponse, GuardianSetInfoResponse, HandleMsg, InitMsg, QueryMsg,
+};
 use crate::state::{
     config, config_read, guardian_set_get, guardian_set_set, vaa_archive_add, vaa_archive_check,
-    wrapped_asset, wrapped_asset_address, wrapped_asset_address_read, wrapped_asset_read,
-    ConfigInfo, GuardianAddress, GuardianSetInfo, ParsedVAA,
+    ConfigInfo, GuardianAddress, GuardianSetInfo, ParsedVAA, WormholeGovernance,
 };
-
-use cw20_base::msg::HandleMsg as TokenMsg;
-use cw20_base::msg::QueryMsg as TokenQuery;
-
-use cw20::TokenInfoResponse;
-
-use cw20_wrapped::msg::HandleMsg as WrappedMsg;
-use cw20_wrapped::msg::InitMsg as WrappedInit;
-use cw20_wrapped::msg::QueryMsg as WrappedQuery;
-use cw20_wrapped::msg::{InitHook, InitMint, WrappedAssetInfoResponse};
 
 use k256::ecdsa::recoverable::Id as RecoverableId;
 use k256::ecdsa::recoverable::Signature as RecoverableSignature;
@@ -36,13 +26,11 @@ use generic_array::GenericArray;
 use std::convert::TryFrom;
 
 // Chain ID of Terra
-const CHAIN_ID: u8 = 3;
+const CHAIN_ID: u16 = 3;
 
 // Lock assets fee amount and denomination
 const FEE_AMOUNT: u128 = 10000;
 const FEE_DENOMINATION: &str = "uluna";
-
-const WRAPPED_ASSET_UPDATING: &str = "updating";
 
 pub fn init<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
@@ -53,9 +41,8 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     let state = ConfigInfo {
         guardian_set_index: 0,
         guardian_set_expirity: msg.guardian_set_expirity,
-        wrapped_asset_code_id: msg.wrapped_asset_code_id,
         owner: deps.api.canonical_address(&env.message.sender)?,
-        fee: Coin::new(FEE_AMOUNT, FEE_DENOMINATION),  // 0.01 Luna (or 10000 uluna) fee by default
+        fee: Coin::new(FEE_AMOUNT, FEE_DENOMINATION), // 0.01 Luna (or 10000 uluna) fee by default
     };
     config(&mut deps.storage).save(&state)?;
 
@@ -75,26 +62,14 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
     msg: HandleMsg,
 ) -> StdResult<HandleResponse> {
     match msg {
-        HandleMsg::SubmitVAA { vaa } => handle_submit_vaa(deps, env, &vaa.as_slice()),
-        HandleMsg::RegisterAssetHook { asset_id } => {
-            handle_register_asset(deps, env, &asset_id.as_slice())
+        HandleMsg::PostMessage { message, nonce } => {
+            handle_post_message(deps, env, &message.as_slice(), nonce)
         }
-        HandleMsg::LockAssets {
-            asset,
-            recipient,
-            amount,
-            target_chain,
-            nonce,
-        } => handle_lock_assets(
-            deps,
-            env,
-            asset,
-            amount,
-            recipient.as_slice(),
-            target_chain,
-            nonce,
-        ),
-        HandleMsg::TransferFee { amount, recipient } => handle_transfer_fee(deps, env, amount, recipient),
+        // HandleMsg::SubmitVAA { vaa } => handle_submit_vaa(deps, env, &vaa.as_slice()),
+        HandleMsg::TransferFee { amount, recipient } => {
+            handle_transfer_fee(deps, env, amount, recipient)
+        }
+        HandleMsg::SubmitVAA { vaa } => handle_submit_vaa(deps, env, vaa.as_slice()),
     }
 }
 
@@ -105,17 +80,24 @@ fn handle_submit_vaa<S: Storage, A: Api, Q: Querier>(
     data: &[u8],
 ) -> StdResult<HandleResponse> {
     let state = config_read(&deps.storage).load()?;
-    
-    let vaa = parse_and_verify_vaa(&deps.storage, data, env.block.time)?;
 
-    let result = match vaa.action {
-        0x01 => {
+    let vaa = parse_and_verify_vaa(&deps.storage, data, env.block.time)?;
+    if vaa.emitter_chain != 0u16 {
+        // chain 0 is the wormhole chain ?
+        return Err(StdError::generic_err(
+            "governance actions may only come from chain 0",
+        ));
+    }
+
+    let gov = WormholeGovernance::deserialize(&vaa.payload)?;
+
+    let result = match gov.action {
+        0u8 => {
             if vaa.guardian_set_index != state.guardian_set_index {
                 return ContractError::NotCurrentGuardianSet.std_err();
             }
-            vaa_update_guardian_set(deps, env, vaa.payload.as_slice())
+            vaa_update_guardian_set(deps, env, gov.payload.as_slice())
         }
-        0x10 => vaa_transfer(deps, env, vaa.payload.as_slice()),
         _ => ContractError::InvalidVAAAction.std_err(),
     };
 
@@ -152,7 +134,7 @@ fn parse_and_verify_vaa<S: Storage>(
     if guardian_set.expiration_time != 0 && guardian_set.expiration_time < block_time {
         return ContractError::GuardianSetExpired.std_err();
     }
-    if vaa.len_signers < guardian_set.quorum() {
+    if (vaa.len_signers as usize) < guardian_set.quorum() {
         return ContractError::NoQuorum.std_err();
     }
 
@@ -195,37 +177,6 @@ fn parse_and_verify_vaa<S: Storage>(
     }
 
     Ok(vaa)
-}
-
-/// Handle wrapped asset registration messages
-fn handle_register_asset<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
-    env: Env,
-    asset_id: &[u8],
-) -> StdResult<HandleResponse> {
-    let mut bucket = wrapped_asset(&mut deps.storage);
-    let result = bucket.load(asset_id);
-    let result = result.map_err(|_| ContractError::RegistrationForbidden.std())?;
-    if result != HumanAddr::from(WRAPPED_ASSET_UPDATING) {
-        return ContractError::AssetAlreadyRegistered.std_err();
-    }
-    
-    bucket.save(asset_id, &env.message.sender)?;
-
-    let contract_address: CanonicalAddr =
-        deps.api.canonical_address(&env.message.sender)?;
-    wrapped_asset_address(&mut deps.storage)
-        .save(contract_address.as_slice(), &asset_id.to_vec())?;
-
-    Ok(HandleResponse {
-        messages: vec![],
-        log: vec![
-            log("action", "register_asset"),
-            log("asset_id", format!("{:?}", asset_id)),
-            log("contract_addr", env.message.sender),
-        ],
-        data: None,
-    })
 }
 
 fn vaa_update_guardian_set<S: Storage, A: Api, Q: Querier>(
@@ -298,227 +249,32 @@ fn vaa_update_guardian_set<S: Storage, A: Api, Q: Querier>(
     })
 }
 
-fn vaa_transfer<S: Storage, A: Api, Q: Querier>(
+fn handle_post_message<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
-    data: &[u8],
-) -> StdResult<HandleResponse> {
-    /* Payload format:
-    0   uint32 nonce
-    4   uint8 source_chain
-    5   uint8 target_chain
-    6   [32]uint8 source_address
-    38  [32]uint8 target_address
-    70  uint8 token_chain
-    71  [32]uint8 token_address
-    103 uint8 decimals
-    104 uint256 amount */
-
-    const SOURCE_CHAIN_POS: usize = 4;
-    const TARGET_CHAIN_POS: usize = 5;
-    const TARGET_ADDRESS_POS: usize = 38;
-    const TOKEN_CHAIN_POS: usize = 70;
-    const TOKEN_ADDRESS_POS: usize = 71;
-    const DECIMALS_POS: usize = 103;
-    const AMOUNT_POS: usize = 104;
-    const PAYLOAD_LEN: usize = 136;
-
-    if PAYLOAD_LEN > data.len() {
-        return ContractError::InvalidVAA.std_err();
-    }
-
-    let source_chain = data.get_u8(SOURCE_CHAIN_POS);
-    let target_chain = data.get_u8(TARGET_CHAIN_POS);
-
-    let target_address = data.get_address(TARGET_ADDRESS_POS);
-
-    let token_chain = data.get_u8(TOKEN_CHAIN_POS);
-    let (not_supported_amount, amount) = data.get_u256(AMOUNT_POS);
-
-    // Check high 128 bit of amount value to be empty
-    if not_supported_amount != 0 {
-        return ContractError::AmountTooHigh.std_err();
-    }
-
-    // Check if source and target chains are different
-    if source_chain == target_chain {
-        return ContractError::SameSourceAndTarget.std_err();
-    }
-
-    // Check if transfer is incoming
-    if target_chain != CHAIN_ID {
-        return ContractError::WrongTargetChain.std_err();
-    }
-
-    if token_chain != CHAIN_ID {
-        let asset_address = data.get_bytes32(TOKEN_ADDRESS_POS);
-        let asset_id = build_asset_id(token_chain, asset_address);
-
-        let mut messages: Vec<CosmosMsg> = vec![];
-
-        // Check if this asset is already deployed
-        let contract_addr = wrapped_asset_read(&deps.storage).load(&asset_id).ok();
-        let contract_addr = contract_addr.filter(|addr| addr != &HumanAddr::from(WRAPPED_ASSET_UPDATING));
-
-        if let Some(contract_addr) = contract_addr {
-            // Asset already deployed, just mint
-            messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr,
-                msg: to_binary(&WrappedMsg::Mint {
-                    recipient: deps
-                        .api
-                        .human_address(&target_address)
-                        .or_else(|_| ContractError::WrongTargetAddressFormat.std_err())?,
-                    amount: Uint128::from(amount),
-                })?,
-                send: vec![],
-            }));
-        } else {
-            // Asset is not deployed yet, deploy and mint
-            wrapped_asset(&mut deps.storage).save(&asset_id, &HumanAddr::from(WRAPPED_ASSET_UPDATING))?;
-
-            let state = config_read(&deps.storage).load()?;
-            messages.push(CosmosMsg::Wasm(WasmMsg::Instantiate {
-                code_id: state.wrapped_asset_code_id,
-                msg: to_binary(&WrappedInit {
-                    asset_chain: token_chain,
-                    asset_address: asset_address.to_vec().into(),
-                    decimals: data.get_u8(DECIMALS_POS),
-                    mint: Some(InitMint {
-                        recipient: deps
-                            .api
-                            .human_address(&target_address)
-                            .or_else(|_| ContractError::WrongTargetAddressFormat.std_err())?,
-                        amount: Uint128::from(amount),
-                    }),
-                    init_hook: Some(InitHook {
-                        contract_addr: env.contract.address,
-                        msg: to_binary(&HandleMsg::RegisterAssetHook {
-                            asset_id: asset_id.to_vec().into(),
-                        })?,
-                    }),
-                })?,
-                send: vec![],
-                label: None,
-            }));
-        }
-
-        Ok(HandleResponse {
-            messages,
-            log: vec![],
-            data: None,
-        })
-    } else {
-        let token_address = data.get_address(TOKEN_ADDRESS_POS);
-
-        Ok(HandleResponse {
-            messages: vec![CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: deps.api.human_address(&token_address)?,
-                msg: to_binary(&TokenMsg::Transfer {
-                    recipient: deps.api.human_address(&target_address)?,
-                    amount: Uint128::from(amount),
-                })?,
-                send: vec![],
-            })],
-            log: vec![],
-            data: None,
-        })
-    }
-}
-
-fn handle_lock_assets<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
-    env: Env,
-    asset: HumanAddr,
-    amount: Uint128,
-    recipient: &[u8],
-    target_chain: u8,
+    message: &[u8],
     nonce: u32,
 ) -> StdResult<HandleResponse> {
-    if target_chain == CHAIN_ID {
-        return ContractError::SameSourceAndTarget.std_err();
-    }
-
-    if amount.is_zero() {
-        return ContractError::AmountTooLow.std_err();
-    }
-
     let state = config_read(&deps.storage).load()?;
-    
+
     // Check fee
     if !has_coins(env.message.sent_funds.as_ref(), &state.fee) {
         return ContractError::FeeTooLow.std_err();
     }
 
-    let asset_chain: u8;
-    let asset_address: Vec<u8>;
-
-    // Query asset details
-    let request = QueryRequest::<()>::Wasm(WasmQuery::Smart {
-        contract_addr: asset.clone(),
-        msg: to_binary(&TokenQuery::TokenInfo {})?,
-    });
-    let token_info: TokenInfoResponse = deps.querier.custom_query(&request)?;
-
-    let decimals: u8 = token_info.decimals;
-
-    let asset_canonical: CanonicalAddr = deps.api.canonical_address(&asset)?;
-
-    let mut messages: Vec<CosmosMsg> = vec![];
-
-    match wrapped_asset_address_read(&deps.storage).load(asset_canonical.as_slice()) {
-        Ok(_) => {
-            // This is a deployed wrapped asset, burn it
-            messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: asset.clone(),
-                msg: to_binary(&WrappedMsg::Burn {
-                    account: env.message.sender.clone(),
-                    amount,
-                })?,
-                send: vec![],
-            }));
-            let request = QueryRequest::<()>::Wasm(WasmQuery::Smart {
-                contract_addr: asset,
-                msg: to_binary(&WrappedQuery::WrappedAssetInfo {})?,
-            });
-            let wrapped_token_info: WrappedAssetInfoResponse =
-                deps.querier.custom_query(&request)?;
-            asset_chain = wrapped_token_info.asset_chain;
-            asset_address = wrapped_token_info.asset_address.as_slice().to_vec();
-        }
-        Err(_) => {
-            // This is a regular asset, transfer its balance
-            messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: asset,
-                msg: to_binary(&TokenMsg::TransferFrom {
-                    owner: env.message.sender.clone(),
-                    recipient: env.contract.address.clone(),
-                    amount,
-                })?,
-                send: vec![],
-            }));
-            asset_address = extend_address_to_32(&asset_canonical);
-            asset_chain = CHAIN_ID;
-        }
-    };
-
     Ok(HandleResponse {
-        messages,
+        messages: vec![],
         log: vec![
-            log("locked.target_chain", target_chain),
-            log("locked.token_chain", asset_chain),
-            log("locked.token_decimals", decimals),
-            log("locked.token", hex::encode(asset_address)),
+            log("message.message", hex::encode(message)),
             log(
-                "locked.sender",
+                "message.sender",
                 hex::encode(extend_address_to_32(
                     &deps.api.canonical_address(&env.message.sender)?,
                 )),
             ),
-            log("locked.recipient", hex::encode(recipient)),
-            log("locked.amount", amount),
-            log("locked.nonce", nonce),
-            log("locked.block_time", env.block.time),
+            log("message.chain_id", CHAIN_ID),
+            log("message.nonce", nonce),
+            log("message.block_time", env.block.time),
         ],
         data: None,
     })
@@ -537,7 +293,7 @@ pub fn handle_transfer_fee<S: Storage, A: Api, Q: Querier>(
     }
 
     Ok(HandleResponse {
-        messages: vec![CosmosMsg::Bank(BankMsg::Send{
+        messages: vec![CosmosMsg::Bank(BankMsg::Send {
             from_address: env.contract.address,
             to_address: recipient,
             amount: vec![amount],
@@ -553,13 +309,13 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
 ) -> StdResult<Binary> {
     match msg {
         QueryMsg::GuardianSetInfo {} => to_binary(&query_guardian_set_info(deps)?),
-        QueryMsg::WrappedRegistry { chain, address } => {
-            to_binary(&query_wrapped_registry(deps, chain, address.as_slice())?)
-        }
-        QueryMsg::VerifyVAA { vaa, block_time } => {
-            to_binary(&query_parse_and_verify_vaa(deps, &vaa.as_slice(), block_time)?)
-        },
+        QueryMsg::VerifyVAA { vaa, block_time } => to_binary(&query_parse_and_verify_vaa(
+            deps,
+            &vaa.as_slice(),
+            block_time,
+        )?),
         QueryMsg::GetState {} => to_binary(&query_state(deps)?),
+        QueryMsg::QueryAddressHex { address } => to_binary(&query_address_hex(deps, &address)?),
     }
 }
 
@@ -575,19 +331,6 @@ pub fn query_guardian_set_info<S: Storage, A: Api, Q: Querier>(
     Ok(res)
 }
 
-pub fn query_wrapped_registry<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
-    chain: u8,
-    address: &[u8],
-) -> StdResult<WrappedRegistryResponse> {
-    let asset_id = build_asset_id(chain, address);
-    // Check if this asset is already deployed
-    match wrapped_asset_read(&deps.storage).load(&asset_id) {
-        Ok(address) => Ok(WrappedRegistryResponse { address }),
-        Err(_) => ContractError::AssetNotFound.std_err(),
-    }
-}
-
 pub fn query_parse_and_verify_vaa<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
     data: &[u8],
@@ -596,13 +339,21 @@ pub fn query_parse_and_verify_vaa<S: Storage, A: Api, Q: Querier>(
     parse_and_verify_vaa(&deps.storage, data, block_time)
 }
 
+// returns the hex of the 32 byte address we use for some address on this chain
+pub fn query_address_hex<S: Storage, A: Api, Q: Querier>(
+    deps: &Extern<S, A, Q>,
+    address: &HumanAddr,
+) -> StdResult<GetAddressHexResponse> {
+    Ok(GetAddressHexResponse {
+        hex: hex::encode(extend_address_to_32(&deps.api.canonical_address(&address)?)),
+    })
+}
+
 pub fn query_state<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
 ) -> StdResult<GetStateResponse> {
     let state = config_read(&deps.storage).load()?;
-    let res = GetStateResponse {
-        fee: state.fee,
-    };
+    let res = GetStateResponse { fee: state.fee };
     Ok(res)
 }
 
@@ -629,16 +380,6 @@ fn keys_equal(a: &VerifyKey, b: &GuardianAddress) -> bool {
         }
     }
     true
-}
-
-fn build_asset_id(chain: u8, address: &[u8]) -> Vec<u8> {
-    let mut asset_id: Vec<u8> = vec![];
-    asset_id.push(chain);
-    asset_id.extend_from_slice(address);
-
-    let mut hasher = Keccak256::new();
-    hasher.update(asset_id);
-    hasher.finalize().to_vec()
 }
 
 #[cfg(test)]
@@ -1009,7 +750,7 @@ mod tests {
     const LOCK_AMOUNT: u128 = 10000000000;
     const LOCK_RECIPIENT: &str = "0000000000000000000011223344556677889900";
     const LOCK_TARGET: u8 = 1;
-    const LOCK_WRAPPED_CHAIN: u8 = 2;
+    const LOCK_WRAPPED_CHAIN: u16 = 2;
     const LOCK_WRAPPED_ASSET: &str = "112233445566ff";
     const LOCKED_DECIMALS: u8 = 11;
     const ADDRESS_EXTENSION: &str = "000000000000000000000000";
@@ -1096,7 +837,8 @@ mod tests {
         };
         do_init_with_guardians(&mut deps, 1);
 
-        let result = submit_msg_with_fee(&mut deps, MSG_LOCK.clone(), Coin::new(10000, "uluna")).unwrap();
+        let result =
+            submit_msg_with_fee(&mut deps, MSG_LOCK.clone(), Coin::new(10000, "uluna")).unwrap();
 
         let expected_logs = vec![
             log("locked.target_chain", LOCK_TARGET),
@@ -1160,7 +902,7 @@ mod tests {
         let register_msg = HandleMsg::RegisterAssetHook {
             asset_id: Binary::from(LOCK_ASSET_ID),
         };
-        
+
         let result = submit_msg_with_sender(
             &mut deps,
             register_msg.clone(),
@@ -1185,7 +927,9 @@ mod tests {
             asset_id: Binary::from(LOCK_ASSET_ID),
         };
 
-        wrapped_asset(&mut deps.storage).save(&LOCK_ASSET_ID, &HumanAddr::from(WRAPPED_ASSET_UPDATING)).unwrap();
+        wrapped_asset(&mut deps.storage)
+            .save(&LOCK_ASSET_ID, &HumanAddr::from(WRAPPED_ASSET_UPDATING))
+            .unwrap();
 
         let result = submit_msg_with_sender(
             &mut deps,
@@ -1196,7 +940,8 @@ mod tests {
 
         assert!(result.is_ok());
 
-        let result = submit_msg_with_fee(&mut deps, MSG_LOCK.clone(), Coin::new(10000, "uluna")).unwrap();
+        let result =
+            submit_msg_with_fee(&mut deps, MSG_LOCK.clone(), Coin::new(10000, "uluna")).unwrap();
 
         let expected_logs = vec![
             log("locked.target_chain", LOCK_TARGET),
@@ -1305,7 +1050,13 @@ mod tests {
         let decoded_vaa: Binary = hex::decode(VAA_VALID_TRANSFER_3_SIGS)
             .expect("Decoding failed")
             .into();
-        let result = query(&deps, QueryMsg::VerifyVAA { vaa: decoded_vaa, block_time: env.block.time });
+        let result = query(
+            &deps,
+            QueryMsg::VerifyVAA {
+                vaa: decoded_vaa,
+                block_time: env.block.time,
+            },
+        );
 
         assert!(result.is_ok());
     }
@@ -1328,7 +1079,13 @@ mod tests {
         let decoded_vaa: Binary = hex::decode(VAA_VALID_TRANSFER_3_SIGS)
             .expect("Decoding failed")
             .into();
-        let result = query(&deps, QueryMsg::VerifyVAA { vaa: decoded_vaa, block_time: env.block.time });
+        let result = query(
+            &deps,
+            QueryMsg::VerifyVAA {
+                vaa: decoded_vaa,
+                block_time: env.block.time,
+            },
+        );
 
         assert_eq!(result, ContractError::GuardianSignatureError.std_err());
     }

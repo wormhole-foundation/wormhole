@@ -1,4 +1,4 @@
-use cosmwasm_std::{Binary, HumanAddr, Uint128, Coin};
+use cosmwasm_std::{Binary, HumanAddr, Coin};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -8,7 +8,6 @@ use crate::state::{GuardianAddress, GuardianSetInfo};
 pub struct InitMsg {
     pub initial_guardian_set: GuardianSetInfo,
     pub guardian_set_expirity: u64,
-    pub wrapped_asset_code_id: u64,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -17,15 +16,9 @@ pub enum HandleMsg {
     SubmitVAA {
         vaa: Binary,
     },
-    RegisterAssetHook {
-        asset_id: Binary,
-    },
-    LockAssets {
-        asset: HumanAddr,
-        amount: Uint128,
-        recipient: Binary,
-        target_chain: u8,
-        nonce: u32,
+    PostMessage {
+        message: Binary,
+        nonce: u32
     },
     TransferFee {
         amount: Coin,
@@ -37,9 +30,9 @@ pub enum HandleMsg {
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
     GuardianSetInfo {},
-    WrappedRegistry { chain: u8, address: Binary },
     VerifyVAA { vaa: Binary, block_time: u64 },
     GetState {},
+    QueryAddressHex { address: HumanAddr }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -59,4 +52,10 @@ pub struct WrappedRegistryResponse {
 #[serde(rename_all = "snake_case")]
 pub struct GetStateResponse {
     pub fee: Coin,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct GetAddressHexResponse {
+    pub hex: String,
 }

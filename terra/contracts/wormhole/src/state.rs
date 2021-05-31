@@ -26,9 +26,6 @@ pub struct ConfigInfo {
     // Period for which a guardian set stays active after it has been replaced
     pub guardian_set_expirity: u64,
 
-    // Code id for wrapped asset contract
-    pub wrapped_asset_code_id: u64,
-
     // Contract owner address, it can make contract active/inactive
     pub owner: CanonicalAddr,
 
@@ -39,12 +36,18 @@ pub struct ConfigInfo {
 // Validator Action Approval(VAA) data
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct ParsedVAA {
+
     pub version: u8,
     pub guardian_set_index: u32,
-    pub len_signers: usize,
-    pub hash: Vec<u8>,
-    pub action: u8,
+    pub timestamp: u64,
+    pub nonce: u32,
+    pub len_signers: u8,
+
+    pub emitter_chain: u16,
+    pub emitter_address: Vec<u8>,
     pub payload: Vec<u8>,
+
+    pub hash: Vec<u8>
 }
 
 impl ParsedVAA {
@@ -60,9 +63,12 @@ impl ParsedVAA {
     1   [65]uint8   signature
 
     body:
-    0   uint32  unix seconds
-    4   uint8   action
-    5   [payload_size]uint8 payload */
+    0   uint64      timestamp (unix in seconds)
+    8   uint32      nonce
+    12  uint16      emitter_chain
+    14  [32]uint8   emitter_address
+    46  []uint8     payload
+    */
 
     pub const HEADER_LEN: usize = 6;
     pub const SIGNATURE_LEN: usize = 66;
@@ -70,8 +76,10 @@ impl ParsedVAA {
     pub const GUARDIAN_SET_INDEX_POS: usize = 1;
     pub const LEN_SIGNER_POS: usize = 5;
 
-    pub const VAA_ACTION_POS: usize = 4;
-    pub const VAA_PAYLOAD_POS: usize = 5;
+    pub const VAA_NONCE_POS: usize = 8;
+    pub const VAA_EMITTER_CHAIN_POS: usize = 12;
+    pub const VAA_EMITTER_ADDRESS_POS: usize = 14;
+    pub const VAA_PAYLOAD_POS: usize = 46;
 
     // Signature data offsets in the signature block
     pub const SIG_DATA_POS: usize = 1;
@@ -101,16 +109,23 @@ impl ParsedVAA {
         if body_offset + Self::VAA_PAYLOAD_POS > data.len() {
             return ContractError::InvalidVAA.std_err();
         }
-        let action = data.get_u8(body_offset + Self::VAA_ACTION_POS);
-        let payload = &data[body_offset + Self::VAA_PAYLOAD_POS..];
+
+        let timestamp = data.get_u64(body_offset);
+        let nonce = data.get_u32(body_offset + Self::VAA_NONCE_POS);
+        let emitter_chain = data.get_u16(body_offset + Self::VAA_EMITTER_CHAIN_POS);
+        let emitter_address = data.get_bytes32(body_offset + Self::VAA_EMITTER_ADDRESS_POS).to_vec();
+        let payload = data[body_offset + Self::VAA_PAYLOAD_POS..].to_vec();
 
         Ok(ParsedVAA {
             version,
             guardian_set_index,
-            len_signers,
+            timestamp,
+            nonce,
+            len_signers: len_signers as u8,
+            emitter_chain,
+            emitter_address,
+            payload,
             hash,
-            action,
-            payload: payload.to_vec(),
         })
     }
 }
@@ -141,6 +156,10 @@ pub struct GuardianSetInfo {
 
 impl GuardianSetInfo {
     pub fn quorum(&self) -> usize {
+        // allow quorum of 0 for testing purposes...
+        if self.addresses.len() == 0 {
+            return 0;
+        }
         ((self.addresses.len() * 10 / 3) * 2) / 10 + 1
     }
 }
@@ -165,11 +184,11 @@ pub fn guardian_set_set<S: Storage>(
     index: u32,
     data: &GuardianSetInfo,
 ) -> StdResult<()> {
-    bucket(GUARDIAN_SET_KEY, storage).save(&index.to_le_bytes(), data)
+    bucket(GUARDIAN_SET_KEY, storage).save(&index.to_be_bytes(), data)
 }
 
 pub fn guardian_set_get<S: Storage>(storage: &S, index: u32) -> StdResult<GuardianSetInfo> {
-    bucket_read(GUARDIAN_SET_KEY, storage).load(&index.to_le_bytes())
+    bucket_read(GUARDIAN_SET_KEY, storage).load(&index.to_be_bytes())
 }
 
 pub fn vaa_archive_add<S: Storage>(storage: &mut S, hash: &[u8]) -> StdResult<()> {
@@ -197,6 +216,25 @@ pub fn wrapped_asset_address<S: Storage>(storage: &mut S) -> Bucket<S, Vec<u8>> 
 
 pub fn wrapped_asset_address_read<S: Storage>(storage: &S) -> ReadonlyBucket<S, Vec<u8>> {
     bucket_read(WRAPPED_ASSET_ADDRESS_KEY, storage)
+}
+
+
+pub struct WormholeGovernance {
+    pub action: u8,
+    pub payload: Vec<u8>,
+}
+
+impl WormholeGovernance {
+    pub fn deserialize(data: &Vec<u8>) -> StdResult<Self> {
+        let data = data.as_slice();
+        let action = data.get_u8(0);
+        let payload = &data[1..];
+
+        Ok(WormholeGovernance {
+            action,
+            payload: payload.to_vec(),
+        })
+    }
 }
 
 #[cfg(test)]
@@ -234,5 +272,11 @@ mod tests {
         assert_eq!(build_guardian_set(20).quorum(), 14);
         assert_eq!(build_guardian_set(25).quorum(), 17);
         assert_eq!(build_guardian_set(100).quorum(), 67);
+    }
+
+    #[test]
+    fn test_deserialize() {
+        let x = vec![1u8,0u8,0u8,0u8,1u8,0u8,0u8,0u8,0u8,0u8,96u8,180u8,80u8,111u8,0u8,0u8,0u8,1u8,0u8,3u8,0u8,0u8,0u8,0u8,0u8,0u8,0u8,0u8,0u8,0u8,0u8,0u8,120u8,73u8,153u8,19u8,90u8,170u8,138u8,60u8,165u8,145u8,68u8,104u8,133u8,47u8,221u8,219u8,221u8,216u8,120u8,157u8,0u8,91u8,48u8,44u8,48u8,44u8,51u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,53u8,54u8,44u8,50u8,51u8,51u8,44u8,49u8,44u8,49u8,49u8,49u8,44u8,49u8,54u8,55u8,44u8,49u8,57u8,48u8,44u8,50u8,48u8,51u8,44u8,49u8,54u8,44u8,49u8,55u8,54u8,44u8,50u8,49u8,56u8,44u8,50u8,53u8,49u8,44u8,49u8,51u8,49u8,44u8,51u8,57u8,44u8,49u8,54u8,44u8,49u8,57u8,53u8,44u8,50u8,50u8,55u8,44u8,49u8,52u8,57u8,44u8,50u8,51u8,54u8,44u8,49u8,57u8,48u8,44u8,50u8,49u8,50u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,51u8,44u8,50u8,51u8,50u8,44u8,48u8,44u8,51u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,53u8,51u8,44u8,49u8,49u8,54u8,44u8,52u8,56u8,44u8,49u8,49u8,54u8,44u8,49u8,52u8,57u8,44u8,49u8,48u8,56u8,44u8,49u8,49u8,51u8,44u8,56u8,44u8,48u8,44u8,50u8,51u8,50u8,44u8,52u8,57u8,44u8,49u8,53u8,50u8,44u8,49u8,44u8,50u8,56u8,44u8,50u8,48u8,51u8,44u8,50u8,49u8,50u8,44u8,50u8,50u8,49u8,44u8,50u8,52u8,49u8,44u8,56u8,53u8,44u8,49u8,48u8,57u8,93u8];
+        ParsedVAA::deserialize(x.as_slice());
     }
 }

@@ -7,7 +7,7 @@ use cw20::Expiration;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InitMsg {
-    pub asset_chain: u8,
+    pub asset_chain: u16,
     pub asset_address: Binary,
     pub decimals: u8,
     pub mint: Option<InitMint>,
@@ -105,7 +105,7 @@ pub enum QueryMsg {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct WrappedAssetInfoResponse {
-    pub asset_chain: u8,        // Asset chain id
+    pub asset_chain: u16,        // Asset chain id
     pub asset_address: Binary, // Asset smart contract address in the original chain
     pub bridge: HumanAddr,      // Bridge address, authorized to mint and burn wrapped tokens
 }
