@@ -4,15 +4,15 @@ use cosmwasm_std::{
     InitResponse, Querier, QueryRequest, StdError, StdResult, Storage, Uint128, WasmMsg, WasmQuery,
 };
 
-use crate::byte_utils::ByteUtils;
-use crate::byte_utils::{extend_address_to_32, extend_string_to_32};
-use crate::error::ContractError;
 use crate::msg::{HandleMsg, InitMsg, QueryMsg};
 use crate::state::{
     bridge_contracts, bridge_contracts_read, config, config_read, wrapped_asset,
     wrapped_asset_address, wrapped_asset_address_read, wrapped_asset_read, Action, AssetMeta,
     ConfigInfo, TokenBridgeMessage, TransferInfo,
 };
+use wormhole::byte_utils::ByteUtils;
+use wormhole::byte_utils::{extend_address_to_32, extend_string_to_32};
+use wormhole::error::ContractError;
 
 use cw20_base::msg::HandleMsg as TokenMsg;
 use cw20_base::msg::QueryMsg as TokenQuery;
@@ -173,11 +173,22 @@ fn handle_attest_meta<S: Storage, A: Api, Q: Querier>(
 ) -> StdResult<HandleResponse> {
     let meta = AssetMeta::deserialize(data)?;
     if CHAIN_ID == meta.token_chain {
-        return Err(StdError::generic_err("matching chain id, kinda cringe"));
+        return Err(StdError::generic_err(
+            "this asset is native to this chain and should not be attested",
+        ));
     }
 
     let cfg = config_read(&deps.storage).load()?;
     let asset_id = build_asset_id(meta.token_chain, &meta.token_address.as_slice());
+
+    if wrapped_asset_read(&mut deps.storage)
+        .load(&asset_id)
+        .is_ok()
+    {
+        return Err(StdError::generic_err(
+            "this asset has already been attested",
+        ));
+    }
 
     wrapped_asset(&mut deps.storage).save(&asset_id, &HumanAddr::from(WRAPPED_ASSET_UPDATING))?;
 
@@ -296,7 +307,7 @@ fn handle_complete_transfer<S: Storage, A: Api, Q: Querier>(
 
     if transfer_info.recipient_chain != CHAIN_ID {
         return Err(StdError::generic_err(
-            "you sent the message to the wrong chain, idiot",
+            "this transfer is not directed at this chain",
         ));
     }
 

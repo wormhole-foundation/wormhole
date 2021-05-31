@@ -2,9 +2,9 @@
 #[macro_use]
 extern crate lazy_static;
 
-mod byte_utils;
+pub mod byte_utils;
 pub mod contract;
-mod error;
+pub mod error;
 pub mod msg;
 pub mod state;
 

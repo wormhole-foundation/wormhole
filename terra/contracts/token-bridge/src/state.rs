@@ -7,7 +7,7 @@ use cosmwasm_storage::{
     Singleton,
 };
 
-use crate::byte_utils::ByteUtils;
+use wormhole::byte_utils::ByteUtils;
 
 
 pub static CONFIG_KEY: &[u8] = b"config";
