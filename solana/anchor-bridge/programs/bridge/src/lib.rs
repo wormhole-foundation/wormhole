@@ -11,5 +11,5 @@ use types::BridgeConfig;
 use solitaire::*;
 
 solitaire! {
-    Initialize(config: BridgeConfig) => initialize,
+    Initialize(BridgeConfig) => initialize,
 }

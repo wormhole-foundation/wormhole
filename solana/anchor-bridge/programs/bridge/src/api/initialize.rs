@@ -1,5 +1,4 @@
 use crate::types::*;
-use solana_program::program_error::ProgramError;
 use solitaire::*;
 
 type Payer<'a> = Signer<Info<'a>>;

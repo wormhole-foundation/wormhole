@@ -63,6 +63,7 @@ impl Into<ProgramError> for SolitaireError {
 
 /// Quality of life Result type for the Solitaire stack.
 pub type Result<T> = std::result::Result<T, ProgramError>;
+pub type ErrBox = Box<dyn std::error::Error>;
 
 pub trait Persist {
     fn persist(self);
@@ -153,13 +154,13 @@ impl<'a, 'b: 'a, 'c, T> Context<'a, 'b, 'c, T> {
         program: &'a Pubkey,
         iter: &'c mut Iter<'a, AccountInfo<'b>>,
         data: &'a T,
-        deps: &'c mut Vec<Pubkey>,
+	deps: &'c mut Vec<Pubkey>,
     ) -> Self {
         Context {
             this: program,
             iter,
             data,
-            deps,
+            deps ,
             info: None,
         }
     }
@@ -393,7 +394,7 @@ pub trait FromAccounts<'a, 'b: 'a, 'c> {
 /// - A set of client calls scoped to the module `api` that can generate instructions.
 #[macro_export]
 macro_rules! solitaire {
-    { $($row:ident($($name:ident: $kind:ty),* $(,)*) => $fn:ident),+ $(,)* } => {
+    { $($row:ident($kind:ty) => $fn:ident),+ $(,)* } => {
         mod instruction {
             use super::*;
             use borsh::{BorshDeserialize, BorshSerialize};
@@ -405,7 +406,7 @@ macro_rules! solitaire {
 
             #[derive(BorshSerialize, BorshDeserialize)]
             enum Instruction {
-                $($row($($kind,)*),)*
+                $($row($kind),)*
             }
 
             /// This entrypoint is generated from the enum above, it deserializes incoming bytes
@@ -413,9 +414,9 @@ macro_rules! solitaire {
             pub fn dispatch<'a, 'b: 'a, 'c>(p: &Pubkey, a: &'c [AccountInfo<'b>], d: &[u8]) -> ProgramResult {
                 match Instruction::try_from_slice(d)? {
                     $(
-                        Instruction::$row($($name,)*) => {
+                        Instruction::$row(ix_data) => {
                             let (mut accounts, _deps): ($row, _) = FromAccounts::from(p, &mut a.iter(), &()).unwrap();
-                            $fn(&ExecutionContext{program_id: p, accounts: a}, &mut accounts, $($name,)*);
+                            $fn(&ExecutionContext{program_id: p, accounts: a}, &mut accounts, ix_data)?;
                             accounts.persist();
                             Ok(())
                         }
@@ -441,12 +442,12 @@ macro_rules! solitaire {
             use solana_program::instruction::Instruction;
 
             /// Generated from Instruction Field
-            $(pub(crate) fn $fn(pid: &Pubkey, $($name: $kind,)*) -> Instruction {
-                Instruction {
+            $(pub(crate) fn $fn(pid: &Pubkey, accounts: $row, ix_data: $kind) -> std::result::Result<Instruction, ErrBox> {
+                Ok(Instruction {
                     program_id: *pid,
                     accounts: vec![],
-                    data: vec![],
-                }
+                    data: ix_data.try_to_vec()?,
+                })
             })*
         }
 
