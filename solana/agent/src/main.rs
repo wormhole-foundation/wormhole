@@ -253,7 +253,7 @@ fn pack_sig_verification_txs<'a>(
         let payload = VerifySigPayload {
             signers: signature_status,
             hash: vaa_hash,
-            initial_creation: tx_index == 0,
+            initial_creation: false,
         };
 
         let verify_ix = match verify_signatures(
