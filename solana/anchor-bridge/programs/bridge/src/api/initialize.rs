@@ -5,7 +5,7 @@ type Payer<'a> = Signer<Info<'a>>;
 type GuardianSet<'a> = Derive<Data<'a, GuardianSetData, Uninitialized>, "GuardianSet">;
 type Bridge<'a> = Derive<Data<'a, BridgeData, Uninitialized>, "Bridge">;
 
-#[derive(FromAccounts)]
+#[derive(FromAccounts, ToAccounts)]
 pub struct Initialize<'b> {
     pub payer: Payer<'b>,
     pub guardian_set: GuardianSet<'b>,
@@ -13,9 +13,10 @@ pub struct Initialize<'b> {
     pub transfer: Transfer<'b>,
 }
 
-impl<'b> InstructionContext<'b> for Initialize<'b> {}
+impl<'b> InstructionContext<'b> for Initialize<'b> {
+}
 
-#[derive(FromAccounts)]
+#[derive(FromAccounts, ToAccounts)]
 pub struct Transfer<'b> {
     pub mint: Data<'b, Test, Initialized>,
     pub from: Data<'b, Test, Initialized>,
@@ -37,7 +38,11 @@ pub struct Test {
     mint: Pubkey,
 }
 
-pub fn initialize(ctx: &ExecutionContext, accs: &mut Initialize, config: BridgeConfig) -> Result<()> {
+pub fn initialize(
+    ctx: &ExecutionContext,
+    accs: &mut Initialize,
+    config: BridgeConfig,
+) -> Result<()> {
     // Initialize the Guardian Set for the first time.
     let index = Index::new(0);
 

@@ -15,9 +15,9 @@ pub use solana_program::{
     entrypoint,
     entrypoint::ProgramResult,
     pubkey::Pubkey,
+    system_instruction,
     system_program,
     sysvar::{self, SysvarId},
-    system_instruction,
 };
 
 // Later on we will define types that don't actually contain data, PhantomData will help us.
@@ -29,11 +29,14 @@ pub use std::ops::{Deref, DerefMut};
 // Borsh is Solana's goto serialization target, so we'll need this if we want to do any
 // serialization on the users behalf.
 pub use borsh::{BorshDeserialize, BorshSerialize};
-use solana_program::account_info::next_account_info;
+use solana_program::{
+    account_info::next_account_info,
+    instruction::AccountMeta,
+    program::invoke_signed,
+    program_error::ProgramError,
+    rent::Rent,
+};
 use std::slice::Iter;
-use solana_program::program::invoke_signed;
-use solana_program::rent::Rent;
-use solana_program::program_error::ProgramError;
 
 /// There are several places in Solitaire that might fail, we want descriptive errors.
 #[derive(Debug)]
@@ -154,13 +157,13 @@ impl<'a, 'b: 'a, 'c, T> Context<'a, 'b, 'c, T> {
         program: &'a Pubkey,
         iter: &'c mut Iter<'a, AccountInfo<'b>>,
         data: &'a T,
-	deps: &'c mut Vec<Pubkey>,
+        deps: &'c mut Vec<Pubkey>,
     ) -> Self {
         Context {
             this: program,
             iter,
             data,
-            deps ,
+            deps,
             info: None,
         }
     }
@@ -178,7 +181,7 @@ impl<'a, 'b: 'a, 'c, T> Context<'a, 'b, 'c, T> {
 }
 
 impl<'r, T, const IsInitialized: bool, const Lazy: bool> Deref
-for Data<'r, T, IsInitialized, Lazy>
+    for Data<'r, T, IsInitialized, Lazy>
 {
     type Target = T;
     fn deref(&self) -> &Self::Target {
@@ -187,7 +190,7 @@ for Data<'r, T, IsInitialized, Lazy>
 }
 
 impl<'r, T, const IsInitialized: bool, const Lazy: bool> DerefMut
-for Data<'r, T, IsInitialized, Lazy>
+    for Data<'r, T, IsInitialized, Lazy>
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.1
@@ -263,23 +266,47 @@ impl CreationLamports {
     pub fn amount(self, size: usize) -> u64 {
         match self {
             CreationLamports::Exempt => Rent::default().minimum_balance(size),
-            CreationLamports::Amount(v) => v
+            CreationLamports::Amount(v) => v,
         }
     }
 }
 
 impl<const Seed: &'static str> Derive<AccountInfo<'_>, Seed> {
-    pub fn create(&self, ctx: &ExecutionContext, payer: &Pubkey, lamports: CreationLamports, space: usize, owner: &Pubkey) -> Result<()> {
-        let ix = system_instruction::create_account(payer, self.0.key, lamports.amount(space), space as u64, owner);
+    pub fn create(
+        &self,
+        ctx: &ExecutionContext,
+        payer: &Pubkey,
+        lamports: CreationLamports,
+        space: usize,
+        owner: &Pubkey,
+    ) -> Result<()> {
+        let ix = system_instruction::create_account(
+            payer,
+            self.0.key,
+            lamports.amount(space),
+            space as u64,
+            owner,
+        );
         invoke_signed(&ix, ctx.accounts, &[&[Seed.as_bytes()]])
     }
 }
 
 impl<const Seed: &'static str, T: BorshSerialize> Derive<Data<'_, T, Uninitialized>, Seed> {
-    pub fn create(&self, ctx: &ExecutionContext, payer: &Pubkey, lamports: CreationLamports) -> Result<()> {
+    pub fn create(
+        &self,
+        ctx: &ExecutionContext,
+        payer: &Pubkey,
+        lamports: CreationLamports,
+    ) -> Result<()> {
         // Get serialized struct size
         let size = self.0.try_to_vec().unwrap().len();
-        let ix = system_instruction::create_account(payer, self.0.0.key, lamports.amount(size), size as u64, ctx.program_id);
+        let ix = system_instruction::create_account(
+            payer,
+            self.0 .0.key,
+            lamports.amount(size),
+            size as u64,
+            ctx.program_id,
+        );
         invoke_signed(&ix, ctx.accounts, &[&[Seed.as_bytes()]])
     }
 }
@@ -288,13 +315,13 @@ impl<const Seed: &'static str, T: BorshSerialize> Derive<Data<'_, T, Uninitializ
 /// layer of our constraints should check.
 pub trait Peel<'a, 'b: 'a, 'c> {
     fn peel<I>(ctx: &'c mut Context<'a, 'b, 'c, I>) -> Result<Self>
-        where
-            Self: Sized;
+    where
+        Self: Sized;
 }
 
 /// Peel a Derived Key
 impl<'a, 'b: 'a, 'c, T: Peel<'a, 'b, 'c>, const Seed: &'static str> Peel<'a, 'b, 'c>
-for Derive<T, Seed>
+    for Derive<T, Seed>
 {
     fn peel<I>(ctx: &'c mut Context<'a, 'b, 'c, I>) -> Result<Self> {
         // Attempt to Derive Seed
@@ -347,7 +374,7 @@ impl<'a, 'b: 'a, 'c> Peel<'a, 'b, 'c> for Info<'b> {
 /// This is our structural recursion base case, the trait system will stop
 /// generating new nested calls here.
 impl<'a, 'b: 'a, 'c, T: BorshDeserialize, const IsInitialized: bool, const Lazy: bool>
-Peel<'a, 'b, 'c> for Data<'b, T, IsInitialized, Lazy>
+    Peel<'a, 'b, 'c> for Data<'b, T, IsInitialized, Lazy>
 {
     fn peel<I>(ctx: &'c mut Context<'a, 'b, 'c, I>) -> Result<Self> {
         // If we're initializing the type, we should emit system/rent as deps.
@@ -360,6 +387,38 @@ Peel<'a, 'b, 'c> for Data<'b, T, IsInitialized, Lazy>
             .map_err::<ProgramError, _>(|e| SolitaireError::IoError(e).into())?;
 
         Ok(Data(ctx.info().clone(), data))
+    }
+}
+
+pub trait Wrap {
+    fn wrap(&self) -> Vec<AccountMeta>;
+}
+
+impl<T> Wrap for T
+where
+    T: ToAccounts,
+{
+    fn wrap(&self) -> Vec<AccountMeta> {
+        self.to()
+    }
+}
+
+impl<T> Wrap for Signer<T> {
+    fn wrap(&self) -> Vec<AccountMeta> {
+        todo!()
+    }
+}
+impl<T, const Seed: &'static str> Wrap for Derive<T, Seed> {
+    fn wrap(&self) -> Vec<AccountMeta> {
+        todo!()
+    }
+}
+
+impl<'a, T: BorshSerialize, const IsInitialized: bool, const Lazy: bool> Wrap
+    for Data<'a, T, IsInitialized, Lazy>
+{
+    fn wrap(&self) -> Vec<AccountMeta> {
+        todo!()
     }
 }
 
@@ -381,8 +440,12 @@ pub trait FromAccounts<'a, 'b: 'a, 'c> {
         _: &'c mut Iter<'a, AccountInfo<'b>>,
         _: &'a T,
     ) -> Result<(Self, Vec<Pubkey>)>
-        where
-            Self: Sized;
+    where
+        Self: Sized;
+}
+
+pub trait ToAccounts {
+    fn to(&self) -> Vec<AccountMeta>;
 }
 
 /// This is our main codegen macro. It takes as input a list of enum-like variants mapping field

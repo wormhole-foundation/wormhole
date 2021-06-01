@@ -1,5 +1,9 @@
 #![allow(warnings)]
 
+mod to_accounts;
+
+use to_accounts::*;
+
 use solana_program::{
     account_info::AccountInfo,
     entrypoint,
@@ -21,6 +25,24 @@ use syn::{
     Generics,
     Index,
 };
+
+#[proc_macro_derive(ToAccounts)]
+pub fn derive_to_accounts(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    let name = input.ident;
+    let to_method_body = generate_to_method(&name, &input.data);
+
+    let expanded = quote! {
+    /// Macro-generated implementation of ToAccounts by Solitaire.
+    impl<'a> solitaire::ToAccounts for #name<'a> {
+        fn to(&self) -> Vec<solana_program::instruction::AccountMeta> {
+        #to_method_body
+        }
+    }
+    };
+
+    TokenStream::from(expanded)
+}
 
 /// Generate a FromAccounts implementation for a product of accounts. Each field is constructed by
 /// a call to the Verify::verify instance of its type.
