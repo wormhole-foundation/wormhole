@@ -1,7 +1,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use cosmwasm_std::{Binary, CanonicalAddr, HumanAddr, StdResult, Storage, Coin};
+use cosmwasm_std::{Binary, CanonicalAddr, HumanAddr, StdResult, Storage, Coin, Uint128};
 use cosmwasm_storage::{
     bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket, ReadonlySingleton,
     Singleton,
@@ -26,8 +26,9 @@ pub struct ConfigInfo {
     // Period for which a guardian set stays active after it has been replaced
     pub guardian_set_expirity: u64,
 
-    // Contract owner address, it can make contract active/inactive
-    pub owner: CanonicalAddr,
+    // governance contract details
+    pub gov_chain: u16,
+    pub gov_address: Vec<u8>,
 
     // Asset locking fee
     pub fee: Coin,
@@ -219,20 +220,96 @@ pub fn wrapped_asset_address_read<S: Storage>(storage: &S) -> ReadonlyBucket<S, 
 }
 
 
-pub struct WormholeGovernance {
+pub struct GovernancePacket {
+    pub module: Vec<u8>,
+    pub chain: u16,
     pub action: u8,
     pub payload: Vec<u8>,
 }
 
-impl WormholeGovernance {
+impl GovernancePacket {
     pub fn deserialize(data: &Vec<u8>) -> StdResult<Self> {
         let data = data.as_slice();
-        let action = data.get_u8(0);
-        let payload = &data[1..];
+        let module = data.get_bytes32(0).to_vec();
+        let chain = data.get_u16(32);
+        let action = data.get_u8(34);
+        let payload = data[35..].to_vec();
 
-        Ok(WormholeGovernance {
+        Ok(GovernancePacket {
+            module,
+            chain,
             action,
-            payload: payload.to_vec(),
+            payload
+        })
+    }
+}
+
+// action 1
+pub struct GuardianSetUpgrade {
+    pub new_guardian_set_index: u32,
+    pub new_guardian_set: GuardianSetInfo,
+}
+
+impl GuardianSetUpgrade {
+    pub fn deserialize(data: &Vec<u8>) -> StdResult<Self> {
+
+        const ADDRESS_LEN: usize = 20;
+
+        let data = data.as_slice();
+        let new_guardian_set_index = data.get_u32(0);
+
+        let n_guardians = data.get_u8(4);
+
+        let mut addresses = vec![];
+
+        for i in 0..n_guardians {
+            let pos = 5 + (i as usize) * ADDRESS_LEN;
+            if pos + ADDRESS_LEN > data.len() {
+                return ContractError::InvalidVAA.std_err();
+            }
+
+            addresses.push(GuardianAddress {
+                bytes: data[pos..pos + ADDRESS_LEN].to_vec().into(),
+            });
+        }
+
+        let new_guardian_set = GuardianSetInfo {
+            addresses,
+            expiration_time: 0
+        };
+
+        return Ok(
+            GuardianSetUpgrade {
+                new_guardian_set_index,
+                new_guardian_set
+            }
+        )
+    }
+}
+
+// action 2
+pub struct TransferFee {
+    pub amount: Coin,
+    pub recipient: CanonicalAddr,
+}
+
+impl TransferFee {
+    pub fn deserialize(data: &Vec<u8>) -> StdResult<Self> {
+        let data = data.as_slice();
+        let recipient = data.get_address(0);
+
+        let amount = Uint128(data.get_u128_be(32));
+        let denom = match String::from_utf8(data[48..].to_vec()) {
+            Ok(s) => s,
+            Err(_) => return ContractError::InvalidVAA.std_err()
+        };
+        let amount = Coin {
+            denom,
+            amount,
+        };
+        Ok(TransferFee {
+            amount,
+            recipient
         })
     }
 }

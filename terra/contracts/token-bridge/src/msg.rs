@@ -4,7 +4,11 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InitMsg {
-    pub owner: HumanAddr,
+
+    // governance contract details
+    pub gov_chain: u16,
+    pub gov_address: Binary,
+
     pub wormhole_contract: HumanAddr,
     pub wrapped_asset_code_id: u64,
 }
@@ -28,11 +32,6 @@ pub enum HandleMsg {
 
     SubmitVaa {
         data: Binary,
-    },
-
-    RegisterChain {
-        chain_id: u16,
-        chain_address: Binary,
     },
 
     CreateAssetMeta {

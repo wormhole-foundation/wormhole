@@ -8,7 +8,7 @@ use crate::msg::{HandleMsg, InitMsg, QueryMsg};
 use crate::state::{
     bridge_contracts, bridge_contracts_read, config, config_read, wrapped_asset,
     wrapped_asset_address, wrapped_asset_address_read, wrapped_asset_read, Action, AssetMeta,
-    ConfigInfo, TokenBridgeMessage, TransferInfo,
+    ConfigInfo, RegisterChain, TokenBridgeMessage, TransferInfo,
 };
 use wormhole::byte_utils::ByteUtils;
 use wormhole::byte_utils::{extend_address_to_32, extend_string_to_32};
@@ -20,7 +20,7 @@ use cw20_base::msg::QueryMsg as TokenQuery;
 use wormhole::msg::HandleMsg as WormholeHandleMsg;
 use wormhole::msg::QueryMsg as WormholeQueryMsg;
 
-use wormhole::state::ParsedVAA;
+use wormhole::state::{GovernancePacket, ParsedVAA};
 
 use cw20::TokenInfoResponse;
 
@@ -43,7 +43,8 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
 ) -> StdResult<InitResponse> {
     // Save general wormhole info
     let state = ConfigInfo {
-        owner: msg.owner,
+        gov_chain: msg.gov_chain,
+        gov_address: msg.gov_address.as_slice().to_vec(),
         wormhole_contract: msg.wormhole_contract,
         wrapped_asset_code_id: msg.wrapped_asset_code_id,
     };
@@ -93,47 +94,11 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             nonce,
         ),
         HandleMsg::SubmitVaa { data } => submit_vaa(deps, env, &data),
-        HandleMsg::RegisterChain {
-            chain_id,
-            chain_address,
-        } => handle_register_chain(deps, env, chain_id, chain_address.as_slice().to_vec()),
         HandleMsg::CreateAssetMeta {
             asset_address,
             nonce,
         } => handle_create_asset_meta(deps, env, &asset_address, nonce),
     }
-}
-
-fn handle_register_chain<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
-    env: Env,
-    chain_id: u16,
-    chain_address: Vec<u8>,
-) -> StdResult<HandleResponse> {
-    let cfg = config_read(&deps.storage).load()?;
-
-    if env.message.sender != cfg.owner {
-        return Err(StdError::unauthorized());
-    }
-
-    let existing = bridge_contracts_read(&deps.storage).load(&chain_id.to_be_bytes());
-    if existing.is_ok() {
-        return Err(StdError::generic_err(
-            "bridge contract already exists for this chain",
-        ));
-    }
-
-    let mut bucket = bridge_contracts(&mut deps.storage);
-    bucket.save(&chain_id.to_be_bytes(), &chain_address)?;
-
-    Ok(HandleResponse {
-        messages: vec![],
-        log: vec![
-            log("chain_id", chain_id),
-            log("chain_address", hex::encode(chain_address)),
-        ],
-        data: None,
-    })
 }
 
 /// Handle wrapped asset registration messages
@@ -269,8 +234,15 @@ fn submit_vaa<S: Storage, A: Api, Q: Querier>(
     env: Env,
     data: &Binary,
 ) -> StdResult<HandleResponse> {
+    let state = config_read(&deps.storage).load()?;
+
     let vaa = parse_vaa(deps, env.block.time, data)?;
     let data = vaa.payload;
+
+    // check if vaa is from governance
+    if state.gov_chain == vaa.emitter_chain && state.gov_address == vaa.emitter_address {
+        return handle_governance_payload(deps, env, &data);
+    }
 
     let message = TokenBridgeMessage::deserialize(&data)?;
 
@@ -286,6 +258,56 @@ fn submit_vaa<S: Storage, A: Api, Q: Querier>(
         _ => ContractError::InvalidVAAAction.std_err(),
     };
     return result;
+}
+
+fn handle_governance_payload<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+    data: &Vec<u8>,
+) -> StdResult<HandleResponse> {
+    let gov_packet = GovernancePacket::deserialize(&data)?;
+
+    let module = String::from_utf8(gov_packet.module).unwrap();
+    let module: String = module.chars().filter(|c| !c.is_whitespace()).collect();
+
+    if module != "token_bridge" {
+        return Err(StdError::generic_err("this is not a valid module"))
+    }
+
+    match gov_packet.action {
+        0u8 => handle_register_chain(deps, env, &gov_packet.payload),
+        _ => ContractError::InvalidVAAAction.std_err(),
+    }
+}
+
+fn handle_register_chain<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+    data: &Vec<u8>,
+) -> StdResult<HandleResponse> {
+    let RegisterChain {
+        chain_id,
+        chain_address,
+    } = RegisterChain::deserialize(&data)?;
+
+    let existing = bridge_contracts_read(&deps.storage).load(&chain_id.to_be_bytes());
+    if existing.is_ok() {
+        return Err(StdError::generic_err(
+            "bridge contract already exists for this chain",
+        ));
+    }
+
+    let mut bucket = bridge_contracts(&mut deps.storage);
+    bucket.save(&chain_id.to_be_bytes(), &chain_address)?;
+
+    Ok(HandleResponse {
+        messages: vec![],
+        log: vec![
+            log("chain_id", chain_id),
+            log("chain_address", hex::encode(chain_address)),
+        ],
+        data: None,
+    })
 }
 
 fn handle_complete_transfer<S: Storage, A: Api, Q: Querier>(

@@ -1,7 +1,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use cosmwasm_std::{HumanAddr, StdResult, Storage};
+use cosmwasm_std::{HumanAddr, StdResult, Storage, Binary};
 use cosmwasm_storage::{
     bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket, ReadonlySingleton,
     Singleton,
@@ -18,8 +18,10 @@ pub static BRIDGE_CONTRACTS: &[u8] = b"bridge_contracts";
 // Guardian set information
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct ConfigInfo {
-    // Current active guardian set
-    pub owner: HumanAddr,
+    // governance contract details
+    pub gov_chain: u16,
+    pub gov_address: Vec<u8>,
+
     pub wormhole_contract: HumanAddr,
     pub wrapped_asset_code_id: u64,
 }
@@ -183,4 +185,24 @@ impl AssetMeta {
         ]
         .concat()
     }
+}
+
+pub struct RegisterChain {
+    pub chain_id: u16,
+    pub chain_address: Vec<u8>,
+}
+
+impl RegisterChain {
+
+    pub fn deserialize(data: &Vec<u8>) -> StdResult<Self> {
+        let data = data.as_slice();
+        let chain_id = data.get_u16(0);
+        let chain_address = data[2..].to_vec();
+
+        Ok(RegisterChain {
+            chain_id,
+            chain_address
+        })
+    }
+
 }

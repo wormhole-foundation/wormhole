@@ -6,6 +6,9 @@ use crate::state::{GuardianAddress, GuardianSetInfo};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InitMsg {
+    pub gov_chain: u16,
+    pub gov_address: Binary,
+
     pub initial_guardian_set: GuardianSetInfo,
     pub guardian_set_expirity: u64,
 }
@@ -19,10 +22,6 @@ pub enum HandleMsg {
     PostMessage {
         message: Binary,
         nonce: u32
-    },
-    TransferFee {
-        amount: Coin,
-        recipient: HumanAddr,
     },
 }
 

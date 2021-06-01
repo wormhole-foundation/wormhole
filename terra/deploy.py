@@ -5,6 +5,7 @@ from terra_sdk.core.wasm import (
     MsgStoreCode,
     MsgInstantiateContract,
     MsgExecuteContract,
+    MsgMigrateContract,
 )
 from terra_sdk.util.contract import get_code_id, get_contract_address, read_file_as_b64
 import os
@@ -74,9 +75,11 @@ class ContractQuerier:
 
 class Contract:
     @staticmethod
-    async def create(code_id, **kwargs):
+    async def create(code_id, migratable=False, **kwargs):
         kwargs = convert_contracts_to_addr(kwargs)
-        instantiate = MsgInstantiateContract(deployer.key.acc_address, code_id, kwargs)
+        instantiate = MsgInstantiateContract(
+            deployer.key.acc_address, code_id, kwargs, migratable=migratable
+        )
         result = await sign_and_broadcast(instantiate)
         return Contract(get_contract_address(result))
 
@@ -96,6 +99,15 @@ class Contract:
     @property
     def query(self):
         return ContractQuerier(self.address)
+
+    async def migrate(self, new_code_id):
+        migrate = MsgMigrateContract(
+            contract=self.address,
+            migrate_msg={},
+            new_code_id=new_code_id,
+            owner=deployer.key.acc_address,
+        )
+        return await sign_and_broadcast(migrate)
 
 
 def convert_contracts_to_addr(obj):
@@ -128,15 +140,29 @@ def assemble_vaa(emitter_chain, emitter_address, payload):
 async def main():
     code_ids = await store_contracts()
     print(code_ids)
+
+    # fake governance contract on solana
+    GOV_CHAIN = 1
+    GOV_ADDRESS = b"0" * 32
+
     wormhole = await Contract.create(
         code_id=code_ids["wormhole"],
+        gov_chain=GOV_CHAIN,
+        gov_address=base64.b64encode(GOV_ADDRESS).decode("utf-8"),
         guardian_set_expirity=10 ** 15,
         initial_guardian_set={"addresses": [], "expiration_time": 10 ** 15},
+        migratable=True,
     )
+
+    # TODO:
+    # resp = await wormhole.migrate(code_ids["wormhole"])
+    # for event in resp.logs:
+    #     pprint.pprint(event.events_by_type)
 
     token_bridge = await Contract.create(
         code_id=code_ids["token_bridge"],
-        owner=deployer.key.acc_address,
+        gov_chain=GOV_CHAIN,
+        gov_address=base64.b64encode(GOV_ADDRESS).decode("utf-8"),
         wormhole_contract=wormhole,
         wrapped_asset_code_id=int(code_ids["cw20_wrapped"]),
     )
@@ -163,9 +189,19 @@ async def main():
     bridge_canonical = bytes.fromhex(
         (await wormhole.query.query_address_hex(address=token_bridge))["hex"]
     )
-    await token_bridge.register_chain(
-        chain_id=3, chain_address=base64.b64encode(bridge_canonical).decode("utf-8")
-    )
+
+    # fake a VAA from the gov contract
+    module = b"token_bridge"
+    module += b" " * (32 - len(module))
+    chain = to_bytes(0, 2)
+    action = to_bytes(0, 1)
+    #         chain_id         chain_address (pretend there's a bridge w/ the same address on solana)
+    payload = to_bytes(3, 2) + bridge_canonical
+
+    vaa = assemble_vaa(GOV_CHAIN, GOV_ADDRESS, module + chain + action + payload)
+
+    # register the chain
+    await token_bridge.submit_vaa(data=base64.b64encode(vaa).decode("utf-8"))
 
     resp = await token_bridge.initiate_transfer(
         asset=mock_token,
@@ -199,9 +235,18 @@ async def main():
     )
 
     # pretend there exists another bridge contract with the same address but on solana
-    await token_bridge.register_chain(
-        chain_id=1, chain_address=base64.b64encode(bridge_canonical).decode("utf-8")
-    )
+    # fake a VAA from the gov contract
+    module = b"token_bridge"
+    module += b" " * (32 - len(module))
+    chain = to_bytes(0, 2)
+    action = to_bytes(0, 1)
+    #         chain_id         chain_address (pretend there's a bridge w/ the same address on solana)
+    payload = to_bytes(1, 2) + bridge_canonical
+
+    vaa = assemble_vaa(GOV_CHAIN, GOV_ADDRESS, module + chain + action + payload)
+
+    # register the chain
+    await token_bridge.submit_vaa(data=base64.b64encode(vaa).decode("utf-8"))
 
     resp = await token_bridge.create_asset_meta(
         asset_address=mock_token,

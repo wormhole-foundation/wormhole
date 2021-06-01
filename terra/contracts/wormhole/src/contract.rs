@@ -1,17 +1,17 @@
 use cosmwasm_std::{
     has_coins, log, to_binary, Api, BankMsg, Binary, Coin, CosmosMsg, Env, Extern, HandleResponse,
     HumanAddr, InitResponse, Querier, StdError, StdResult, Storage,
+    WasmMsg
 };
 
 use crate::byte_utils::extend_address_to_32;
 use crate::byte_utils::ByteUtils;
 use crate::error::ContractError;
-use crate::msg::{
-    GetAddressHexResponse, GetStateResponse, GuardianSetInfoResponse, HandleMsg, InitMsg, QueryMsg,
-};
+use crate::msg::{GetAddressHexResponse, GetStateResponse, GuardianSetInfoResponse, HandleMsg, InitMsg, QueryMsg};
 use crate::state::{
     config, config_read, guardian_set_get, guardian_set_set, vaa_archive_add, vaa_archive_check,
-    ConfigInfo, GuardianAddress, GuardianSetInfo, ParsedVAA, WormholeGovernance,
+    ConfigInfo, GovernancePacket, GuardianAddress, GuardianSetInfo, GuardianSetUpgrade, ParsedVAA,
+    TransferFee,
 };
 
 use k256::ecdsa::recoverable::Id as RecoverableId;
@@ -22,7 +22,6 @@ use k256::EncodedPoint;
 use sha3::{Digest, Keccak256};
 
 use generic_array::GenericArray;
-
 use std::convert::TryFrom;
 
 // Chain ID of Terra
@@ -39,9 +38,10 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
 ) -> StdResult<InitResponse> {
     // Save general wormhole info
     let state = ConfigInfo {
+        gov_chain: msg.gov_chain,
+        gov_address: msg.gov_address.as_slice().to_vec(),
         guardian_set_index: 0,
         guardian_set_expirity: msg.guardian_set_expirity,
-        owner: deps.api.canonical_address(&env.message.sender)?,
         fee: Coin::new(FEE_AMOUNT, FEE_DENOMINATION), // 0.01 Luna (or 10000 uluna) fee by default
     };
     config(&mut deps.storage).save(&state)?;
@@ -65,10 +65,6 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         HandleMsg::PostMessage { message, nonce } => {
             handle_post_message(deps, env, &message.as_slice(), nonce)
         }
-        // HandleMsg::SubmitVAA { vaa } => handle_submit_vaa(deps, env, &vaa.as_slice()),
-        HandleMsg::TransferFee { amount, recipient } => {
-            handle_transfer_fee(deps, env, amount, recipient)
-        }
         HandleMsg::SubmitVAA { vaa } => handle_submit_vaa(deps, env, vaa.as_slice()),
     }
 }
@@ -82,30 +78,33 @@ fn handle_submit_vaa<S: Storage, A: Api, Q: Querier>(
     let state = config_read(&deps.storage).load()?;
 
     let vaa = parse_and_verify_vaa(&deps.storage, data, env.block.time)?;
-    if vaa.emitter_chain != 0u16 {
-        // chain 0 is the wormhole chain ?
-        return Err(StdError::generic_err(
-            "governance actions may only come from chain 0",
-        ));
+    if state.gov_chain == vaa.emitter_chain && state.gov_address == vaa.emitter_address {
+        return handle_governance_payload(deps, env, &vaa.payload);
     }
 
-    let gov = WormholeGovernance::deserialize(&vaa.payload)?;
+    ContractError::InvalidVAAAction.std_err()
+}
 
-    let result = match gov.action {
-        0u8 => {
-            if vaa.guardian_set_index != state.guardian_set_index {
-                return ContractError::NotCurrentGuardianSet.std_err();
-            }
-            vaa_update_guardian_set(deps, env, gov.payload.as_slice())
-        }
+fn handle_governance_payload<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+    data: &Vec<u8>,
+) -> StdResult<HandleResponse> {
+    let gov_packet = GovernancePacket::deserialize(&data)?;
+
+    let module = String::from_utf8(gov_packet.module).unwrap();
+    let module: String = module.chars().filter(|c| !c.is_whitespace()).collect();
+
+    if module != "core" {
+        return Err(StdError::generic_err("this is not a valid module"))
+    }
+
+    match gov_packet.action {
+        // 0 is reserved for upgrade / migration
+        1u8 => vaa_update_guardian_set(deps, env, &gov_packet.payload),
+        2u8 => handle_transfer_fee(deps, env, &gov_packet.payload),
         _ => ContractError::InvalidVAAAction.std_err(),
-    };
-
-    if result.is_ok() {
-        vaa_archive_add(&mut deps.storage, vaa.hash.as_slice())?;
     }
-
-    result
 }
 
 /// Parses raw VAA data into a struct and verifies whether it contains sufficient signatures of an
@@ -182,7 +181,7 @@ fn parse_and_verify_vaa<S: Storage>(
 fn vaa_update_guardian_set<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
-    data: &[u8],
+    data: &Vec<u8>,
 ) -> StdResult<HandleResponse> {
     /* Payload format
     0   uint32 new_index
@@ -190,41 +189,19 @@ fn vaa_update_guardian_set<S: Storage, A: Api, Q: Querier>(
     5   [][20]uint8 guardian addresses
     */
 
-    const GUARDIAN_INDEX_POS: usize = 0;
-    const LENGTH_POS: usize = 4;
-    const ADDRESS_POS: usize = 5;
-    const ADDRESS_LEN: usize = 20;
-
-    if ADDRESS_POS >= data.len() {
-        return ContractError::InvalidVAA.std_err();
-    }
-
     let mut state = config_read(&deps.storage).load()?;
 
-    let new_guardian_set_index = data.get_u32(GUARDIAN_INDEX_POS);
+    let GuardianSetUpgrade {
+        new_guardian_set_index,
+        new_guardian_set,
+    } = GuardianSetUpgrade::deserialize(&data)?;
 
     if new_guardian_set_index != state.guardian_set_index + 1 {
         return ContractError::GuardianSetIndexIncreaseError.std_err();
     }
-    let len = data.get_u8(LENGTH_POS);
-
-    let mut new_guardian_set = GuardianSetInfo {
-        addresses: vec![],
-        expiration_time: 0,
-    };
-    let mut pos = ADDRESS_POS;
-    for _ in 0..len {
-        if pos + ADDRESS_LEN > data.len() {
-            return ContractError::InvalidVAA.std_err();
-        }
-
-        new_guardian_set.addresses.push(GuardianAddress {
-            bytes: data[pos..pos + ADDRESS_LEN].to_vec().into(),
-        });
-        pos += ADDRESS_LEN;
-    }
 
     let old_guardian_set_index = state.guardian_set_index;
+
     state.guardian_set_index = new_guardian_set_index;
 
     guardian_set_set(
@@ -232,6 +209,7 @@ fn vaa_update_guardian_set<S: Storage, A: Api, Q: Querier>(
         state.guardian_set_index,
         &new_guardian_set,
     )?;
+
     config(&mut deps.storage).save(&state)?;
 
     let mut old_guardian_set = guardian_set_get(&deps.storage, old_guardian_set_index)?;
@@ -245,6 +223,24 @@ fn vaa_update_guardian_set<S: Storage, A: Api, Q: Querier>(
             log("old", old_guardian_set_index),
             log("new", state.guardian_set_index),
         ],
+        data: None,
+    })
+}
+
+pub fn handle_transfer_fee<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+    data: &Vec<u8>,
+) -> StdResult<HandleResponse> {
+    let transfer_msg = TransferFee::deserialize(&data)?;
+
+    Ok(HandleResponse {
+        messages: vec![CosmosMsg::Bank(BankMsg::Send {
+            from_address: env.contract.address,
+            to_address: deps.api.human_address(&transfer_msg.recipient)?,
+            amount: vec![transfer_msg.amount],
+        })],
+        log: vec![],
         data: None,
     })
 }
@@ -276,29 +272,6 @@ fn handle_post_message<S: Storage, A: Api, Q: Querier>(
             log("message.nonce", nonce),
             log("message.block_time", env.block.time),
         ],
-        data: None,
-    })
-}
-
-pub fn handle_transfer_fee<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
-    env: Env,
-    amount: Coin,
-    recipient: HumanAddr,
-) -> StdResult<HandleResponse> {
-    let state = config_read(&deps.storage).load()?;
-
-    if deps.api.canonical_address(&env.message.sender)? != state.owner {
-        return ContractError::PermissionDenied.std_err();
-    }
-
-    Ok(HandleResponse {
-        messages: vec![CosmosMsg::Bank(BankMsg::Send {
-            from_address: env.contract.address,
-            to_address: recipient,
-            amount: vec![amount],
-        })],
-        log: vec![],
         data: None,
     })
 }
