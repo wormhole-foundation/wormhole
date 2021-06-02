@@ -32,11 +32,15 @@ pub use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{
     account_info::next_account_info,
     instruction::AccountMeta,
-    program::invoke_signed,
     program_error::ProgramError,
+    program_pack::Pack,
     rent::Rent,
 };
-use std::slice::Iter;
+use std::{
+    io::{ErrorKind, Write},
+    slice::Iter,
+    string::FromUtf8Error,
+};
 
 /// There are several places in Solitaire that might fail, we want descriptive errors.
 #[derive(Debug)]
@@ -55,25 +59,69 @@ pub enum SolitaireError {
 
     /// An IO error was captured, wrap it up and forward it along.
     IoError(std::io::Error),
+
+    /// An solana program error
+    ProgramError(ProgramError),
+
+    Custom(u64),
+}
+
+impl From<ProgramError> for SolitaireError {
+    fn from(e: ProgramError) -> Self {
+        SolitaireError::ProgramError(e)
+    }
+}
+
+impl From<std::io::Error> for SolitaireError {
+    fn from(e: std::io::Error) -> Self {
+        SolitaireError::IoError(e)
+    }
 }
 
 impl Into<ProgramError> for SolitaireError {
     fn into(self) -> ProgramError {
-        //TODO
+        if let SolitaireError::ProgramError(e) = self {
+            return e;
+        }
+        // TODO
         ProgramError::Custom(0)
     }
 }
 
 /// Quality of life Result type for the Solitaire stack.
-pub type Result<T> = std::result::Result<T, ProgramError>;
+pub type Result<T> = std::result::Result<T, SolitaireError>;
 pub type ErrBox = Box<dyn std::error::Error>;
 
 pub trait Persist {
     fn persist(self);
 }
 
-pub trait Seeded {
-    fn seeds(self) -> Vec<Vec<Vec<u8>>>;
+#[repr(transparent)]
+pub struct Packed<T: Pack + solana_program::program_pack::IsInitialized>(T);
+
+impl<T: Pack + solana_program::program_pack::IsInitialized> BorshDeserialize for Packed<T> {
+    fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
+        Ok(Packed(
+            T::unpack(buf).map_err(|e| std::io::Error::new(ErrorKind::Other, e))?,
+        ))
+    }
+}
+
+impl<T: Pack + solana_program::program_pack::IsInitialized> BorshSerialize for Packed<T> {
+    fn serialize<W: Write>(&self, writer: &mut W) -> std::io::Result<()> {
+        let mut data: [u8; 2000] = [0u8; 2000];
+        T::pack_into_slice(self, &mut data);
+        writer.write(&data);
+
+        Ok(())
+    }
+}
+
+impl<T: Pack + solana_program::program_pack::IsInitialized> Deref for Packed<T> {
+    type Target = T;
+    fn deref(&self) -> &Self::Target {
+        unsafe { std::mem::transmute(&self.0) }
+    }
 }
 
 // The following set of recursive types form the basis of this library, each one represents a
@@ -383,8 +431,7 @@ impl<'a, 'b: 'a, 'c, T: BorshDeserialize, const IsInitialized: bool, const Lazy:
             ctx.deps.push(system_program::ID);
         }
 
-        let data = T::try_from_slice(&mut *ctx.info().data.borrow_mut())
-            .map_err::<ProgramError, _>(|e| SolitaireError::IoError(e).into())?;
+        let data = T::try_from_slice(&mut *ctx.info().data.borrow_mut())?;
 
         Ok(Data(ctx.info().clone(), data))
     }
@@ -461,7 +508,7 @@ macro_rules! solitaire {
         mod instruction {
             use super::*;
             use borsh::{BorshDeserialize, BorshSerialize};
-            use solitaire::{Persist, FromAccounts};
+            use solitaire::{Persist, FromAccounts, Result};
 
             /// Generated:
             /// This Instruction contains a 1-1 mapping for each enum variant to function call. The
@@ -474,8 +521,8 @@ macro_rules! solitaire {
 
             /// This entrypoint is generated from the enum above, it deserializes incoming bytes
             /// and automatically dispatches to the correct method.
-            pub fn dispatch<'a, 'b: 'a, 'c>(p: &Pubkey, a: &'c [AccountInfo<'b>], d: &[u8]) -> ProgramResult {
-                match Instruction::try_from_slice(d)? {
+            pub fn dispatch<'a, 'b: 'a, 'c>(p: &Pubkey, a: &'c [AccountInfo<'b>], d: &[u8]) -> Result<()> {
+                match BorshDeserialize::try_from_slice(d).map_err(|_| SolitaireError::InstructionDeserializeFailed)? {
                     $(
                         Instruction::$row(ix_data) => {
                             let (mut accounts, _deps): ($row, _) = FromAccounts::from(p, &mut a.iter(), &()).unwrap();
