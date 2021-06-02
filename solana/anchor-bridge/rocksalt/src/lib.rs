@@ -14,6 +14,7 @@ use solana_program::{
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::{quote, quote_spanned};
+use std::borrow::BorrowMut;
 use syn::{
     parse_macro_input,
     parse_quote,
@@ -48,24 +49,53 @@ pub fn derive_to_accounts(input: TokenStream) -> TokenStream {
 /// a call to the Verify::verify instance of its type.
 #[proc_macro_derive(FromAccounts)]
 pub fn derive_from_accounts(input: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(input as DeriveInput);
+    let mut input = parse_macro_input!(input as DeriveInput);
     let name = input.ident;
+
+    // Type params of the instruction context account
+    let type_params: Vec<GenericParam> = input
+        .generics
+        .type_params()
+        .map(|v| GenericParam::Type(v.clone()))
+        .collect();
+
+    // Generics lifetimes of the peel type
+    let mut peel_g = input.generics.clone();
+    peel_g.params = parse_quote!('a, 'b: 'a, 'c);
+    let (_, peel_type_g, _) = peel_g.split_for_impl();
+
+    // Params of the instruction context
+    let mut type_generics = input.generics.clone();
+    type_generics.params = parse_quote!('b);
+    for x in &type_params {
+        type_generics.params.push(x.clone());
+    }
+    let (type_impl_g, type_g, _) = type_generics.split_for_impl();
+
+    // Combined lifetimes of peel and the instruction context
+    let mut combined_generics = Generics::default();
+    combined_generics.params = peel_g.params.clone();
+    for x in &type_params {
+        combined_generics.params.push(x.clone());
+    }
+    let (combined_impl_g, _, _) = combined_generics.split_for_impl();
+
     let from_method = generate_fields(&name, &input.data);
     let persist_method = generate_persist(&name, &input.data);
     let expanded = quote! {
         /// Macro generated implementation of FromAccounts by Solitaire.
-        impl<'a, 'b: 'a, 'c> solitaire::FromAccounts<'a, 'b, 'c> for #name<'b> {
-            fn from<T>(pid: &'a solana_program::pubkey::Pubkey, iter: &'c mut std::slice::Iter<'a, AccountInfo<'b>>, data: &'a T) -> solitaire::Result<(Self, Vec<solana_program::pubkey::Pubkey>)> {
+        impl #combined_impl_g solitaire::FromAccounts #peel_type_g for #name #type_g {
+            fn from<DataType>(pid: &'a solana_program::pubkey::Pubkey, iter: &'c mut std::slice::Iter<'a, AccountInfo<'b>>, data: &'a DataType) -> solitaire::Result<(Self, Vec<solana_program::pubkey::Pubkey>)> {
                 #from_method
             }
         }
 
-        impl<'a, 'b: 'a, 'c> Peel<'a, 'b, 'c> for #name<'b> {
+        impl #combined_impl_g Peel<'a, 'b, 'c> for #name #type_g {
             fn peel<I>(ctx: &'c mut Context<'a, 'b, 'c, I>) -> solitaire::Result<Self> where Self: Sized {
-                let v: #name = FromAccounts::from(ctx.this, ctx.iter, ctx.data).map(|v| v.0)?;
+                let v: #name #type_g = FromAccounts::from(ctx.this, ctx.iter, ctx.data).map(|v| v.0)?;
 
                 // Verify the instruction constraints
-                solitaire::InstructionContext::verify(&v)?;
+                solitaire::InstructionContext::verify(&v, ctx.this)?;
                 // Append instruction level dependencies
                 ctx.deps.append(&mut solitaire::InstructionContext::deps(&v));
 
@@ -74,7 +104,7 @@ pub fn derive_from_accounts(input: TokenStream) -> TokenStream {
         }
 
         /// Macro generated implementation of Persist by Solitaire.
-        impl<'a> solitaire::Persist for #name<'a> {
+        impl #type_impl_g solitaire::Persist for #name #type_g {
             fn persist(self) {
                 use borsh::BorshSerialize;
                 //self.guardian_set.serialize(
