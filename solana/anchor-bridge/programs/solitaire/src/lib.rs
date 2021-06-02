@@ -618,3 +618,115 @@ macro_rules! solitaire {
         entrypoint!(solitaire);
     }
 }
+
+#[macro_export]
+macro_rules! info_wrapper {
+    ($name:ident) => {
+        pub struct $name<'b>(Info<'b>);
+
+        impl<'b> Deref for $name<'b> {
+            type Target = Info<'b>;
+
+            fn deref(&self) -> &Self::Target {
+                return &self.0;
+            }
+        }
+
+        impl<'b> Keyed for $name<'b> {
+            fn pubkey(&self) -> &Pubkey {
+                self.key
+            }
+        }
+
+        impl<'a, 'b: 'a, 'c> Peel<'a, 'b, 'c> for $name<'b> {
+            fn peel<T>(ctx: &'c mut Context<'a, 'b, 'c, T>) -> Result<Self>
+            where
+                Self: Sized,
+            {
+                return Ok($name(ctx.info().clone()));
+            }
+        }
+    };
+    ($name:ident, size: $size:expr) => {
+        #[repr(transparent)]
+        pub struct $name<'b>(Info<'b>);
+
+        impl<'b> Deref for $name<'b> {
+            type Target = Info<'b>;
+
+            fn deref(&self) -> &Self::Target {
+                unsafe { std::mem::transmute(&self.0) }
+            }
+        }
+
+        impl<'b> DerefMut for $name<'b> {
+            fn deref_mut(&mut self) -> &mut Self::Target {
+                unsafe { std::mem::transmute(&mut self.0) }
+            }
+        }
+
+        impl<'b> AccountSize for $name<'b> {
+            fn size(&self) -> usize {
+                return $size;
+            }
+        }
+
+        impl<'b> Keyed for $name<'b> {
+            fn pubkey(&self) -> &Pubkey {
+                self.key
+            }
+        }
+
+        impl<'a, 'b: 'a, 'c> Peel<'a, 'b, 'c> for $name<'b> {
+            fn peel<T>(ctx: &'c mut Context<'a, 'b, 'c, T>) -> Result<Self>
+            where
+                Self: Sized,
+            {
+                Ok($name(ctx.info().clone()))
+            }
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! data_wrapper {
+    ($name:ident, $embed:ty) => {
+        #[repr(transparent)]
+        pub struct $name<'b>(Data<'b, $embed>);
+
+        impl<'b> Deref for $name<'b> {
+            type Target = Data<'b, $embed>;
+
+            fn deref(&self) -> &Self::Target {
+                return &self.0;
+            }
+        }
+
+        impl<'b> DerefMut for $name<'b> {
+            fn deref_mut(&mut self) -> &mut Self::Target {
+                unsafe { std::mem::transmute(&mut self.0) }
+            }
+        }
+
+        impl<'b> Keyed for $name<'b> {
+            fn pubkey(&self) -> &Pubkey {
+                self.0.pubkey()
+            }
+        }
+
+        impl<'b> AccountSize for $name<'b> {
+            fn size(&self) -> usize {
+                return self.0.size();
+            }
+        }
+
+        impl<'a, 'b: 'a, 'c> Peel<'a, 'b, 'c> for $name<'b> {
+            fn peel<T>(ctx: &'c mut Context<'a, 'b, 'c, T>) -> Result<Self>
+            where
+                Self: Sized,
+            {
+                Data::peel(ctx).map(|v| $name(v))
+            }
+        }
+    };
+}
