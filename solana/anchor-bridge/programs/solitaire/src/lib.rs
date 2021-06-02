@@ -2,6 +2,9 @@
 #![feature(const_generics_defaults)]
 #![allow(warnings)]
 
+pub mod seeded;
+
+pub use seeded::*;
 pub use rocksalt::*;
 
 // Lacking:
@@ -32,6 +35,7 @@ pub use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{
     account_info::next_account_info,
     instruction::AccountMeta,
+    program::invoke_signed,
     program_error::ProgramError,
     program_pack::Pack,
     rent::Rent,
@@ -229,7 +233,7 @@ impl<'a, 'b: 'a, 'c, T> Context<'a, 'b, 'c, T> {
 }
 
 impl<'r, T, const IsInitialized: bool, const Lazy: bool> Deref
-    for Data<'r, T, IsInitialized, Lazy>
+for Data<'r, T, IsInitialized, Lazy>
 {
     type Target = T;
     fn deref(&self) -> &Self::Target {
@@ -238,7 +242,7 @@ impl<'r, T, const IsInitialized: bool, const Lazy: bool> Deref
 }
 
 impl<'r, T, const IsInitialized: bool, const Lazy: bool> DerefMut
-    for Data<'r, T, IsInitialized, Lazy>
+for Data<'r, T, IsInitialized, Lazy>
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.1
@@ -297,9 +301,57 @@ impl<T, const Seed: &'static str> DerefMut for Derive<T, Seed> {
     }
 }
 
-impl<T, const Seed: &'static str> Seeded for Derive<T, Seed> {
-    fn seeds(self) -> Vec<Vec<Vec<u8>>> {
-        vec![vec![Seed.try_to_vec().unwrap()]]
+pub trait Keyed {
+    fn pubkey(&self) -> &Pubkey;
+}
+
+impl<'r, T, const IsInitialized: bool, const Lazy: bool> Keyed
+for Data<'r, T, IsInitialized, Lazy>
+{
+    fn pubkey(&self) -> &Pubkey {
+        self.0.key
+    }
+}
+
+impl<T> Keyed for Signer<T>
+    where
+        T: Keyed,
+{
+    fn pubkey(&self) -> &Pubkey {
+        self.0.pubkey()
+    }
+}
+
+impl<T, Var> Keyed for Sysvar<T, Var>
+    where
+        T: Keyed,
+{
+    fn pubkey(&self) -> &Pubkey {
+        self.0.pubkey()
+    }
+}
+
+impl<T> Keyed for System<T>
+    where
+        T: Keyed,
+{
+    fn pubkey(&self) -> &Pubkey {
+        self.0.pubkey()
+    }
+}
+
+impl<T, const Seed: &'static str> Keyed for Derive<T, Seed>
+    where
+        T: Keyed,
+{
+    fn pubkey(&self) -> &Pubkey {
+        self.0.pubkey()
+    }
+}
+
+impl<'r> Keyed for Info<'r> {
+    fn pubkey(&self) -> &Pubkey {
+        self.key
     }
 }
 
@@ -335,7 +387,7 @@ impl<const Seed: &'static str> Derive<AccountInfo<'_>, Seed> {
             space as u64,
             owner,
         );
-        invoke_signed(&ix, ctx.accounts, &[&[Seed.as_bytes()]])
+        Ok(invoke_signed(&ix, ctx.accounts, &[&[Seed.as_bytes()]])?)
     }
 }
 
@@ -350,12 +402,12 @@ impl<const Seed: &'static str, T: BorshSerialize> Derive<Data<'_, T, Uninitializ
         let size = self.0.try_to_vec().unwrap().len();
         let ix = system_instruction::create_account(
             payer,
-            self.0 .0.key,
+            self.0.0.key,
             lamports.amount(size),
             size as u64,
             ctx.program_id,
         );
-        invoke_signed(&ix, ctx.accounts, &[&[Seed.as_bytes()]])
+        Ok(invoke_signed(&ix, ctx.accounts, &[&[Seed.as_bytes()]])?)
     }
 }
 
@@ -363,13 +415,13 @@ impl<const Seed: &'static str, T: BorshSerialize> Derive<Data<'_, T, Uninitializ
 /// layer of our constraints should check.
 pub trait Peel<'a, 'b: 'a, 'c> {
     fn peel<I>(ctx: &'c mut Context<'a, 'b, 'c, I>) -> Result<Self>
-    where
-        Self: Sized;
+        where
+            Self: Sized;
 }
 
 /// Peel a Derived Key
 impl<'a, 'b: 'a, 'c, T: Peel<'a, 'b, 'c>, const Seed: &'static str> Peel<'a, 'b, 'c>
-    for Derive<T, Seed>
+for Derive<T, Seed>
 {
     fn peel<I>(ctx: &'c mut Context<'a, 'b, 'c, I>) -> Result<Self> {
         // Attempt to Derive Seed
@@ -422,7 +474,7 @@ impl<'a, 'b: 'a, 'c> Peel<'a, 'b, 'c> for Info<'b> {
 /// This is our structural recursion base case, the trait system will stop
 /// generating new nested calls here.
 impl<'a, 'b: 'a, 'c, T: BorshDeserialize, const IsInitialized: bool, const Lazy: bool>
-    Peel<'a, 'b, 'c> for Data<'b, T, IsInitialized, Lazy>
+Peel<'a, 'b, 'c> for Data<'b, T, IsInitialized, Lazy>
 {
     fn peel<I>(ctx: &'c mut Context<'a, 'b, 'c, I>) -> Result<Self> {
         // If we're initializing the type, we should emit system/rent as deps.
@@ -442,8 +494,8 @@ pub trait Wrap {
 }
 
 impl<T> Wrap for T
-where
-    T: ToAccounts,
+    where
+        T: ToAccounts,
 {
     fn wrap(&self) -> Vec<AccountMeta> {
         self.to()
@@ -455,6 +507,7 @@ impl<T> Wrap for Signer<T> {
         todo!()
     }
 }
+
 impl<T, const Seed: &'static str> Wrap for Derive<T, Seed> {
     fn wrap(&self) -> Vec<AccountMeta> {
         todo!()
@@ -462,7 +515,7 @@ impl<T, const Seed: &'static str> Wrap for Derive<T, Seed> {
 }
 
 impl<'a, T: BorshSerialize, const IsInitialized: bool, const Lazy: bool> Wrap
-    for Data<'a, T, IsInitialized, Lazy>
+for Data<'a, T, IsInitialized, Lazy>
 {
     fn wrap(&self) -> Vec<AccountMeta> {
         todo!()
@@ -470,7 +523,7 @@ impl<'a, T: BorshSerialize, const IsInitialized: bool, const Lazy: bool> Wrap
 }
 
 pub trait InstructionContext<'a> {
-    fn verify(&self) -> Result<()> {
+    fn verify(&self, program_id: &Pubkey) -> Result<()> {
         Ok(())
     }
 
@@ -487,8 +540,8 @@ pub trait FromAccounts<'a, 'b: 'a, 'c> {
         _: &'c mut Iter<'a, AccountInfo<'b>>,
         _: &'a T,
     ) -> Result<(Self, Vec<Pubkey>)>
-    where
-        Self: Sized;
+        where
+            Self: Sized;
 }
 
 pub trait ToAccounts {
