@@ -13,88 +13,37 @@ pub use rocksalt::*;
 // - Client generation incomplete.
 
 // We need a few Solana things in scope in order to properly abstract Solana.
-pub use solana_program::{
-    account_info::AccountInfo,
+use solana_program::{
+    account_info::{next_account_info, AccountInfo},
     entrypoint,
     entrypoint::ProgramResult,
+    instruction::AccountMeta,
+    program::invoke_signed,
+    program_error::ProgramError,
+    program_pack::Pack,
     pubkey::Pubkey,
+    rent::Rent,
     system_instruction,
     system_program,
     sysvar::{self, SysvarId},
 };
 
-// Later on we will define types that don't actually contain data, PhantomData will help us.
-pub use std::marker::PhantomData;
-
-// We'll need these traits to make any wrappers we define more ergonomic for users.
-pub use std::ops::{Deref, DerefMut};
-
-// Borsh is Solana's goto serialization target, so we'll need this if we want to do any
-// serialization on the users behalf.
-pub use borsh::{BorshDeserialize, BorshSerialize};
-use solana_program::{
-    account_info::next_account_info,
-    instruction::AccountMeta,
-    program::invoke_signed,
-    program_error::ProgramError,
-    program_pack::Pack,
-    rent::Rent,
-};
 use std::{
     io::{ErrorKind, Write},
+    marker::PhantomData,
+    ops::{Deref, DerefMut},
     slice::Iter,
     string::FromUtf8Error,
 };
 
-/// There are several places in Solitaire that might fail, we want descriptive errors.
-#[derive(Debug)]
-pub enum SolitaireError {
-    /// The AccountInfo parser expected a Signer, but the account did not sign.
-    InvalidSigner(Pubkey),
+use borsh::{BorshDeserialize, BorshSerialize};
 
-    /// The AccountInfo parser expected a Sysvar, but the key was invalid.
-    InvalidSysvar(Pubkey),
+pub use crate::{
+    error::{ErrBox, Result, SolitaireError},
+    seeded::Creatable,
+};
 
-    /// The AccountInfo parser tried to derive the provided key, but it did not match.
-    InvalidDerive(Pubkey),
-
-    /// The instruction payload itself could not be deserialized.
-    InstructionDeserializeFailed,
-
-    /// An IO error was captured, wrap it up and forward it along.
-    IoError(std::io::Error),
-
-    /// An solana program error
-    ProgramError(ProgramError),
-
-    Custom(u64),
-}
-
-impl From<ProgramError> for SolitaireError {
-    fn from(e: ProgramError) -> Self {
-        SolitaireError::ProgramError(e)
-    }
-}
-
-impl From<std::io::Error> for SolitaireError {
-    fn from(e: std::io::Error) -> Self {
-        SolitaireError::IoError(e)
-    }
-}
-
-impl Into<ProgramError> for SolitaireError {
-    fn into(self) -> ProgramError {
-        if let SolitaireError::ProgramError(e) = self {
-            return e;
-        }
-        // TODO
-        ProgramError::Custom(0)
-    }
-}
-
-/// Quality of life Result type for the Solitaire stack.
-pub type Result<T> = std::result::Result<T, SolitaireError>;
-pub type ErrBox = Box<dyn std::error::Error>;
+mod error;
 
 pub trait Persist {
     fn persist(self);
@@ -160,8 +109,8 @@ pub type Info<'r> = AccountInfo<'r>;
 /// But here, we must write `Lazy: bool = true` for now unfortunately.
 #[rustfmt::skip]
 pub struct Data < 'r, T, const IsInitialized: bool = true, const Lazy: bool = false > (
-pub Info<'r >,
-pub T,
+    pub Info<'r >,
+    pub T,
 );
 
 /// A tag for accounts that should be deserialized lazily.
@@ -561,7 +510,12 @@ macro_rules! solitaire {
         mod instruction {
             use super::*;
             use borsh::{BorshDeserialize, BorshSerialize};
-            use solitaire::{Persist, FromAccounts, Result};
+            use solana_program::{
+                account_info::AccountInfo,
+                entrypoint::ProgramResult,
+                pubkey::Pubkey,
+            };
+            use solitaire::{FromAccounts, Persist, Result};
 
             /// Generated:
             /// This Instruction contains a 1-1 mapping for each enum variant to function call. The
@@ -602,7 +556,8 @@ macro_rules! solitaire {
         /// can be matched to the Instruction found above.
         mod client {
             use super::*;
-            use solana_program::instruction::Instruction;
+            use borsh::BorshSerialize;
+            use solana_program::{instruction::Instruction, pubkey::Pubkey};
 
             /// Generated from Instruction Field
             $(pub(crate) fn $fn(pid: &Pubkey, accounts: $row, ix_data: $kind) -> std::result::Result<Instruction, ErrBox> {
@@ -615,7 +570,7 @@ macro_rules! solitaire {
         }
 
         use instruction::solitaire;
-        entrypoint!(solitaire);
+        solana_program::entrypoint!(solitaire);
     }
 }
 

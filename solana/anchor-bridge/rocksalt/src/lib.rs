@@ -85,12 +85,12 @@ pub fn derive_from_accounts(input: TokenStream) -> TokenStream {
     let expanded = quote! {
         /// Macro generated implementation of FromAccounts by Solitaire.
         impl #combined_impl_g solitaire::FromAccounts #peel_type_g for #name #type_g {
-            fn from<DataType>(pid: &'a solana_program::pubkey::Pubkey, iter: &'c mut std::slice::Iter<'a, AccountInfo<'b>>, data: &'a DataType) -> solitaire::Result<(Self, Vec<solana_program::pubkey::Pubkey>)> {
+            fn from<DataType>(pid: &'a solana_program::pubkey::Pubkey, iter: &'c mut std::slice::Iter<'a, solana_program::account_info::AccountInfo<'b>>, data: &'a DataType) -> solitaire::Result<(Self, Vec<solana_program::pubkey::Pubkey>)> {
                 #from_method
             }
         }
 
-        impl #combined_impl_g Peel<'a, 'b, 'c> for #name #type_g {
+        impl #combined_impl_g solitaire::Peel<'a, 'b, 'c> for #name #type_g {
             fn peel<I>(ctx: &'c mut Context<'a, 'b, 'c, I>) -> solitaire::Result<Self> where Self: Sized {
                 let v: #name #type_g = FromAccounts::from(ctx.this, ctx.iter, ctx.data).map(|v| v.0)?;
 

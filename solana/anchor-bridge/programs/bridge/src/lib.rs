@@ -5,11 +5,30 @@
 mod api;
 mod types;
 
+use solitaire::*;
+
 use api::{initialize, Initialize};
+use api::{post_vaa, PostVAA, PostVAAData};
 use types::BridgeConfig;
 
-use solitaire::*;
+const VAA_TX_FEE: u64 = 0;
+const MAX_LEN_GUARDIAN_KEYS: u64 = 0;
+
+enum Error {
+    InvalidSysVar,
+    InsufficientFees,
+    PostVAAGuardianSetExpired,
+    PostVAAGuardianSetMismatch,
+    PostVAAConsensusFailed,
+}
+
+impl From<Error> for SolitaireError {
+    fn from(e: Error) -> SolitaireError {
+        SolitaireError::Custom(e as u64)
+    }
+}
 
 solitaire! {
     Initialize(BridgeConfig) => initialize,
+    PostVAA(PostVAAData)     => post_vaa,
 }
