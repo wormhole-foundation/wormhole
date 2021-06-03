@@ -7,8 +7,13 @@ mod types;
 
 use solitaire::*;
 
-use api::{initialize, Initialize};
-use api::{post_vaa, PostVAA, PostVAAData};
+use api::{
+    initialize,
+    post_vaa,
+    Initialize,
+    PostVAA,
+    PostVAAData,
+};
 use types::BridgeConfig;
 
 const VAA_TX_FEE: u64 = 0;

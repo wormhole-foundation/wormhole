@@ -1,15 +1,15 @@
 use crate::types::*;
 use solitaire::*;
 
-type Payer<'a>       = Signer<Info<'a>>;
+type Payer<'a> = Signer<Info<'a>>;
 type GuardianSet<'a> = Derive<Data<'a, GuardianSetData, Uninitialized>, "GuardianSet">;
-type Bridge<'a>      = Derive<Data<'a, BridgeData, Uninitialized>, "Bridge">;
+type Bridge<'a> = Derive<Data<'a, BridgeData, Uninitialized>, "Bridge">;
 
 #[derive(FromAccounts, ToAccounts)]
 pub struct Initialize<'b> {
-    pub bridge:       Bridge<'b>,
+    pub bridge: Bridge<'b>,
     pub guardian_set: GuardianSet<'b>,
-    pub payer:        Payer<'b>,
+    pub payer: Payer<'b>,
 }
 
 impl<'b> InstructionContext<'b> for Initialize<'b> {

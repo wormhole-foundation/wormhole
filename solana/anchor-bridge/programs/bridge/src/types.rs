@@ -1,7 +1,10 @@
-use borsh::{BorshDeserialize, BorshSerialize};
+use borsh::{
+    BorshDeserialize,
+    BorshSerialize,
+};
 use solana_program::pubkey::Pubkey;
 
-#[derive(Default, Clone, Copy, BorshSerialize, BorshDeserialize)]
+#[derive(BorshSerialize, BorshDeserialize, Clone, Copy, Default, PartialEq)]
 pub struct Index(u8);
 
 impl Index {
@@ -54,7 +57,7 @@ pub struct Bridge {
 
     /// Bridge configuration, which is set once upon initialization.
     pub config: BridgeConfig,
-} 
+}
 
 #[derive(Default, BorshSerialize, BorshDeserialize)]
 pub struct SignatureSet {

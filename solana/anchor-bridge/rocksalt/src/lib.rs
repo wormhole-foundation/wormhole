@@ -13,7 +13,10 @@ use solana_program::{
 
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
-use quote::{quote, quote_spanned};
+use quote::{
+    quote,
+    quote_spanned,
+};
 use std::borrow::BorrowMut;
 use syn::{
     parse_macro_input,

@@ -2,9 +2,6 @@
 #![feature(const_generics_defaults)]
 #![allow(warnings)]
 
-pub mod seeded;
-
-pub use seeded::*;
 pub use rocksalt::*;
 
 // Lacking:
@@ -14,7 +11,10 @@ pub use rocksalt::*;
 
 // We need a few Solana things in scope in order to properly abstract Solana.
 use solana_program::{
-    account_info::{next_account_info, AccountInfo},
+    account_info::{
+        next_account_info,
+        AccountInfo,
+    },
     entrypoint,
     entrypoint::ProgramResult,
     instruction::AccountMeta,
@@ -25,125 +25,55 @@ use solana_program::{
     rent::Rent,
     system_instruction,
     system_program,
-    sysvar::{self, SysvarId},
+    sysvar::{
+        self,
+        SysvarId,
+    },
 };
 
 use std::{
-    io::{ErrorKind, Write},
+    io::{
+        ErrorKind,
+        Write,
+    },
     marker::PhantomData,
-    ops::{Deref, DerefMut},
+    ops::{
+        Deref,
+        DerefMut,
+    },
     slice::Iter,
     string::FromUtf8Error,
 };
 
-use borsh::{BorshDeserialize, BorshSerialize};
-
-pub use crate::{
-    error::{ErrBox, Result, SolitaireError},
-    seeded::Creatable,
+pub use borsh::{
+    BorshDeserialize,
+    BorshSerialize,
 };
 
-mod error;
+// Expose all submodules for consumption.
+pub mod error;
+pub mod macros;
+pub mod processors;
+pub mod types;
 
-pub trait Persist {
-    fn persist(self);
-}
-
-#[repr(transparent)]
-pub struct Packed<T: Pack + solana_program::program_pack::IsInitialized>(T);
-
-impl<T: Pack + solana_program::program_pack::IsInitialized> BorshDeserialize for Packed<T> {
-    fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
-        Ok(Packed(
-            T::unpack(buf).map_err(|e| std::io::Error::new(ErrorKind::Other, e))?,
-        ))
-    }
-}
-
-impl<T: Pack + solana_program::program_pack::IsInitialized> BorshSerialize for Packed<T> {
-    fn serialize<W: Write>(&self, writer: &mut W) -> std::io::Result<()> {
-        let mut data: [u8; 2000] = [0u8; 2000];
-        T::pack_into_slice(self, &mut data);
-        writer.write(&data);
-
-        Ok(())
-    }
-}
-
-impl<T: Pack + solana_program::program_pack::IsInitialized> Deref for Packed<T> {
-    type Target = T;
-    fn deref(&self) -> &Self::Target {
-        unsafe { std::mem::transmute(&self.0) }
-    }
-}
-
-// The following set of recursive types form the basis of this library, each one represents a
-// constraint to be fulfilled during parsing an account info.
-
-#[repr(transparent)]
-pub struct Signer<Next>(Next);
-
-#[repr(transparent)]
-pub struct System<Next>(Next);
-
-#[repr(transparent)]
-pub struct Sysvar<Next, Var>(Next, PhantomData<Var>);
-
-#[repr(transparent)]
-pub struct Derive<Next, const Seed: &'static str>(Next);
-
-/// A shorter type alias for AccountInfo to make types slightly more readable.
-pub type Info<'r> = AccountInfo<'r>;
-
-/// Another alias for an AccountInfo that pairs it with the deserialized data that resides in the
-/// accounts storage.
-///
-/// Note on const generics:
-///
-/// Solana's Rust version is JUST old enough that it cannot use constant variables in its default
-/// parameter assignments. But these DO work in the consumption side so a user can still happily
-/// use this type by writing for example:
-///
-/// Data<(), Uninitialized, Lazy>
-///
-/// But here, we must write `Lazy: bool = true` for now unfortunately.
-#[rustfmt::skip]
-pub struct Data < 'r, T, const IsInitialized: bool = true, const Lazy: bool = false > (
-    pub Info<'r >,
-    pub T,
-);
-
-/// A tag for accounts that should be deserialized lazily.
-pub const Lazy: bool = true;
-
-/// A tag for accounts that should be deserialized immediately (the default).
-pub const Strict: bool = false;
-
-/// A tag for accounts that are expected to have already been initialized.
-pub const Initialized: bool = true;
-
-/// A tag for accounts that must be uninitialized.
-pub const Uninitialized: bool = false;
-
-/// The context is threaded through each check. Include anything within this structure that you
-/// would like to have access to as each layer of dependency is peeled off.
-pub struct Context<'a, 'b: 'a, 'c, T> {
-    /// A reference to the program_id of the current program.
-    pub this: &'a Pubkey,
-
-    pub iter: &'c mut Iter<'a, AccountInfo<'b>>,
-
-    /// This is a reference to the instruction data we are processing this
-    /// account for.
-    pub data: &'a T,
-
-    /// This is a list of dependent keys that are emitted by this verification pipeline. This
-    /// allows things such as `rent`/`system` to be emitted as required for an account without
-    /// having to specify them in the original instruction account data.
-    pub deps: &'c mut Vec<Pubkey>,
-
-    info: Option<&'a AccountInfo<'b>>,
-}
+// We can also re-export a set of types at module scope, this defines the intended API we expect
+// people to be able to use from top-level.
+use crate::processors::seeded::Owned;
+pub use crate::{
+    error::{
+        ErrBox,
+        Result,
+        SolitaireError,
+    },
+    macros::*,
+    processors::{
+        keyed::Keyed,
+        peel::Peel,
+        persist::Persist,
+        seeded::Creatable,
+    },
+    types::*,
+};
 
 pub struct ExecutionContext<'a, 'b: 'a> {
     /// A reference to the program_id of the current program.
@@ -151,157 +81,6 @@ pub struct ExecutionContext<'a, 'b: 'a> {
 
     /// All accounts passed into the program
     pub accounts: &'a [AccountInfo<'b>],
-}
-
-impl<'a, 'b: 'a, 'c, T> Context<'a, 'b, 'c, T> {
-    pub fn new(
-        program: &'a Pubkey,
-        iter: &'c mut Iter<'a, AccountInfo<'b>>,
-        data: &'a T,
-        deps: &'c mut Vec<Pubkey>,
-    ) -> Self {
-        Context {
-            this: program,
-            iter,
-            data,
-            deps,
-            info: None,
-        }
-    }
-
-    pub fn info<'d>(&'d mut self) -> &'a AccountInfo<'b> {
-        match self.info {
-            None => {
-                let info = next_account_info(self.iter).unwrap();
-                self.info = Some(info);
-                info
-            }
-            Some(v) => v,
-        }
-    }
-}
-
-impl<'r, T, const IsInitialized: bool, const Lazy: bool> Deref
-for Data<'r, T, IsInitialized, Lazy>
-{
-    type Target = T;
-    fn deref(&self) -> &Self::Target {
-        &self.1
-    }
-}
-
-impl<'r, T, const IsInitialized: bool, const Lazy: bool> DerefMut
-for Data<'r, T, IsInitialized, Lazy>
-{
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.1
-    }
-}
-
-impl<T> Deref for Signer<T> {
-    type Target = T;
-    fn deref(&self) -> &Self::Target {
-        unsafe { std::mem::transmute(&self.0) }
-    }
-}
-
-impl<T> DerefMut for Signer<T> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        unsafe { std::mem::transmute(&mut self.0) }
-    }
-}
-
-impl<T, Var> Deref for Sysvar<T, Var> {
-    type Target = T;
-    fn deref(&self) -> &Self::Target {
-        unsafe { std::mem::transmute(&self.0) }
-    }
-}
-
-impl<T, Var> DerefMut for Sysvar<T, Var> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        unsafe { std::mem::transmute(&mut self.0) }
-    }
-}
-
-impl<T> Deref for System<T> {
-    type Target = T;
-    fn deref(&self) -> &Self::Target {
-        unsafe { std::mem::transmute(&self.0) }
-    }
-}
-
-impl<T> DerefMut for System<T> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        unsafe { std::mem::transmute(&mut self.0) }
-    }
-}
-
-impl<T, const Seed: &'static str> Deref for Derive<T, Seed> {
-    type Target = T;
-    fn deref(&self) -> &Self::Target {
-        unsafe { std::mem::transmute(&self.0) }
-    }
-}
-
-impl<T, const Seed: &'static str> DerefMut for Derive<T, Seed> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        unsafe { std::mem::transmute(&mut self.0) }
-    }
-}
-
-pub trait Keyed {
-    fn pubkey(&self) -> &Pubkey;
-}
-
-impl<'r, T, const IsInitialized: bool, const Lazy: bool> Keyed
-for Data<'r, T, IsInitialized, Lazy>
-{
-    fn pubkey(&self) -> &Pubkey {
-        self.0.key
-    }
-}
-
-impl<T> Keyed for Signer<T>
-    where
-        T: Keyed,
-{
-    fn pubkey(&self) -> &Pubkey {
-        self.0.pubkey()
-    }
-}
-
-impl<T, Var> Keyed for Sysvar<T, Var>
-    where
-        T: Keyed,
-{
-    fn pubkey(&self) -> &Pubkey {
-        self.0.pubkey()
-    }
-}
-
-impl<T> Keyed for System<T>
-    where
-        T: Keyed,
-{
-    fn pubkey(&self) -> &Pubkey {
-        self.0.pubkey()
-    }
-}
-
-impl<T, const Seed: &'static str> Keyed for Derive<T, Seed>
-    where
-        T: Keyed,
-{
-    fn pubkey(&self) -> &Pubkey {
-        self.0.pubkey()
-    }
-}
-
-impl<'r> Keyed for Info<'r> {
-    fn pubkey(&self) -> &Pubkey {
-        self.key
-    }
 }
 
 /// Lamports to pay to an account being created
@@ -320,131 +99,13 @@ impl CreationLamports {
     }
 }
 
-impl<const Seed: &'static str> Derive<AccountInfo<'_>, Seed> {
-    pub fn create(
-        &self,
-        ctx: &ExecutionContext,
-        payer: &Pubkey,
-        lamports: CreationLamports,
-        space: usize,
-        owner: &Pubkey,
-    ) -> Result<()> {
-        let ix = system_instruction::create_account(
-            payer,
-            self.0.key,
-            lamports.amount(space),
-            space as u64,
-            owner,
-        );
-        Ok(invoke_signed(&ix, ctx.accounts, &[&[Seed.as_bytes()]])?)
-    }
-}
-
-impl<const Seed: &'static str, T: BorshSerialize> Derive<Data<'_, T, Uninitialized>, Seed> {
-    pub fn create(
-        &self,
-        ctx: &ExecutionContext,
-        payer: &Pubkey,
-        lamports: CreationLamports,
-    ) -> Result<()> {
-        // Get serialized struct size
-        let size = self.0.try_to_vec().unwrap().len();
-        let ix = system_instruction::create_account(
-            payer,
-            self.0.0.key,
-            lamports.amount(size),
-            size as u64,
-            ctx.program_id,
-        );
-        Ok(invoke_signed(&ix, ctx.accounts, &[&[Seed.as_bytes()]])?)
-    }
-}
-
-/// Generic Peel trait. This provides a way to describe what each "peeled"
-/// layer of our constraints should check.
-pub trait Peel<'a, 'b: 'a, 'c> {
-    fn peel<I>(ctx: &'c mut Context<'a, 'b, 'c, I>) -> Result<Self>
-        where
-            Self: Sized;
-}
-
-/// Peel a Derived Key
-impl<'a, 'b: 'a, 'c, T: Peel<'a, 'b, 'c>, const Seed: &'static str> Peel<'a, 'b, 'c>
-for Derive<T, Seed>
-{
-    fn peel<I>(ctx: &'c mut Context<'a, 'b, 'c, I>) -> Result<Self> {
-        // Attempt to Derive Seed
-        let (derived, bump) = Pubkey::find_program_address(&[Seed.as_ref()], ctx.this);
-        match derived == *ctx.info().key {
-            true => T::peel(ctx).map(|v| Derive(v)),
-            _ => Err(SolitaireError::InvalidDerive(*ctx.info().key).into()),
-        }
-    }
-}
-
-/// Peel a Signer.
-impl<'a, 'b: 'a, 'c, T: Peel<'a, 'b, 'c>> Peel<'a, 'b, 'c> for Signer<T> {
-    fn peel<I>(ctx: &'c mut Context<'a, 'b, 'c, I>) -> Result<Self> {
-        match ctx.info().is_signer {
-            true => T::peel(ctx).map(|v| Signer(v)),
-            _ => Err(SolitaireError::InvalidSigner(*ctx.info().key).into()),
-        }
-    }
-}
-
-/// Expicitly depend upon the System account.
-impl<'a, 'b: 'a, 'c, T: Peel<'a, 'b, 'c>> Peel<'a, 'b, 'c> for System<T> {
-    fn peel<I>(ctx: &'c mut Context<'a, 'b, 'c, I>) -> Result<Self> {
-        match true {
-            true => T::peel(ctx).map(|v| System(v)),
-            _ => panic!(),
-        }
-    }
-}
-
-/// Peel a Sysvar
-impl<'a, 'b: 'a, 'c, T: Peel<'a, 'b, 'c>, Var: SysvarId> Peel<'a, 'b, 'c> for Sysvar<T, Var> {
-    fn peel<I>(ctx: &'c mut Context<'a, 'b, 'c, I>) -> Result<Self> {
-        match <Var as SysvarId>::check_id(ctx.info().key) {
-            true => T::peel(ctx).map(|v| Sysvar(v, PhantomData)),
-            _ => Err(SolitaireError::InvalidSysvar(*ctx.info().key).into()),
-        }
-    }
-}
-
-/// This is our structural recursion base case, the trait system will stop
-/// generating new nested calls here.
-impl<'a, 'b: 'a, 'c> Peel<'a, 'b, 'c> for Info<'b> {
-    fn peel<I>(ctx: &'c mut Context<'a, 'b, 'c, I>) -> Result<Self> {
-        Ok(ctx.info().clone())
-    }
-}
-
-/// This is our structural recursion base case, the trait system will stop
-/// generating new nested calls here.
-impl<'a, 'b: 'a, 'c, T: BorshDeserialize, const IsInitialized: bool, const Lazy: bool>
-Peel<'a, 'b, 'c> for Data<'b, T, IsInitialized, Lazy>
-{
-    fn peel<I>(ctx: &'c mut Context<'a, 'b, 'c, I>) -> Result<Self> {
-        // If we're initializing the type, we should emit system/rent as deps.
-        if !IsInitialized {
-            ctx.deps.push(sysvar::rent::ID);
-            ctx.deps.push(system_program::ID);
-        }
-
-        let data = T::try_from_slice(&mut *ctx.info().data.borrow_mut())?;
-
-        Ok(Data(ctx.info().clone(), data))
-    }
-}
-
 pub trait Wrap {
     fn wrap(&self) -> Vec<AccountMeta>;
 }
 
 impl<T> Wrap for T
-    where
-        T: ToAccounts,
+where
+    T: ToAccounts,
 {
     fn wrap(&self) -> Vec<AccountMeta> {
         self.to()
@@ -463,8 +124,8 @@ impl<T, const Seed: &'static str> Wrap for Derive<T, Seed> {
     }
 }
 
-impl<'a, T: BorshSerialize, const IsInitialized: bool, const Lazy: bool> Wrap
-for Data<'a, T, IsInitialized, Lazy>
+impl<'a, T: BorshSerialize + Owned, const IsInitialized: bool, const Lazy: bool> Wrap
+    for Data<'a, T, IsInitialized, Lazy>
 {
     fn wrap(&self) -> Vec<AccountMeta> {
         todo!()
@@ -481,6 +142,10 @@ pub trait InstructionContext<'a> {
     }
 }
 
+pub trait ToAccounts {
+    fn to(&self) -> Vec<AccountMeta>;
+}
+
 /// Trait definition that describes types that can be constructed from a list of solana account
 /// references. A list of dependent accounts is produced as a side effect of the parsing stage.
 pub trait FromAccounts<'a, 'b: 'a, 'c> {
@@ -489,199 +154,6 @@ pub trait FromAccounts<'a, 'b: 'a, 'c> {
         _: &'c mut Iter<'a, AccountInfo<'b>>,
         _: &'a T,
     ) -> Result<(Self, Vec<Pubkey>)>
-        where
-            Self: Sized;
-}
-
-pub trait ToAccounts {
-    fn to(&self) -> Vec<AccountMeta>;
-}
-
-/// This is our main codegen macro. It takes as input a list of enum-like variants mapping field
-/// types to function calls. The generated code produces:
-///
-/// - An `Instruction` enum with the enum variants passed in.
-/// - A set of functions which take as arguments the enum fields.
-/// - A Dispatcher that deserializes bytes into the enum and dispatches the function call.
-/// - A set of client calls scoped to the module `api` that can generate instructions.
-#[macro_export]
-macro_rules! solitaire {
-    { $($row:ident($kind:ty) => $fn:ident),+ $(,)* } => {
-        mod instruction {
-            use super::*;
-            use borsh::{BorshDeserialize, BorshSerialize};
-            use solana_program::{
-                account_info::AccountInfo,
-                entrypoint::ProgramResult,
-                pubkey::Pubkey,
-            };
-            use solitaire::{FromAccounts, Persist, Result};
-
-            /// Generated:
-            /// This Instruction contains a 1-1 mapping for each enum variant to function call. The
-            /// function calls can be found below in the `api` module.
-
-            #[derive(BorshSerialize, BorshDeserialize)]
-            enum Instruction {
-                $($row($kind),)*
-            }
-
-            /// This entrypoint is generated from the enum above, it deserializes incoming bytes
-            /// and automatically dispatches to the correct method.
-            pub fn dispatch<'a, 'b: 'a, 'c>(p: &Pubkey, a: &'c [AccountInfo<'b>], d: &[u8]) -> Result<()> {
-                match BorshDeserialize::try_from_slice(d).map_err(|_| SolitaireError::InstructionDeserializeFailed)? {
-                    $(
-                        Instruction::$row(ix_data) => {
-                            let (mut accounts, _deps): ($row, _) = FromAccounts::from(p, &mut a.iter(), &()).unwrap();
-                            $fn(&ExecutionContext{program_id: p, accounts: a}, &mut accounts, ix_data)?;
-                            accounts.persist();
-                            Ok(())
-                        }
-                    )*
-
-                    _ => {
-                        Ok(())
-                    }
-                }
-            }
-
-            pub fn solitaire<'a, 'b: 'a>(p: &Pubkey, a: &'a [AccountInfo<'b>], d: &[u8]) -> ProgramResult {
-                if let Err(err) = dispatch(p, a, d) {
-                }
-                Ok(())
-            }
-        }
-
-        /// This module contains a 1-1 mapping for each function to an enum variant. The variants
-        /// can be matched to the Instruction found above.
-        mod client {
-            use super::*;
-            use borsh::BorshSerialize;
-            use solana_program::{instruction::Instruction, pubkey::Pubkey};
-
-            /// Generated from Instruction Field
-            $(pub(crate) fn $fn(pid: &Pubkey, accounts: $row, ix_data: $kind) -> std::result::Result<Instruction, ErrBox> {
-                Ok(Instruction {
-                    program_id: *pid,
-                    accounts: vec![],
-                    data: ix_data.try_to_vec()?,
-                })
-            })*
-        }
-
-        use instruction::solitaire;
-        solana_program::entrypoint!(solitaire);
-    }
-}
-
-#[macro_export]
-macro_rules! info_wrapper {
-    ($name:ident) => {
-        pub struct $name<'b>(Info<'b>);
-
-        impl<'b> Deref for $name<'b> {
-            type Target = Info<'b>;
-
-            fn deref(&self) -> &Self::Target {
-                return &self.0;
-            }
-        }
-
-        impl<'b> Keyed for $name<'b> {
-            fn pubkey(&self) -> &Pubkey {
-                self.key
-            }
-        }
-
-        impl<'a, 'b: 'a, 'c> Peel<'a, 'b, 'c> for $name<'b> {
-            fn peel<T>(ctx: &'c mut Context<'a, 'b, 'c, T>) -> Result<Self>
-            where
-                Self: Sized,
-            {
-                return Ok($name(ctx.info().clone()));
-            }
-        }
-    };
-    ($name:ident, size: $size:expr) => {
-        #[repr(transparent)]
-        pub struct $name<'b>(Info<'b>);
-
-        impl<'b> Deref for $name<'b> {
-            type Target = Info<'b>;
-
-            fn deref(&self) -> &Self::Target {
-                unsafe { std::mem::transmute(&self.0) }
-            }
-        }
-
-        impl<'b> DerefMut for $name<'b> {
-            fn deref_mut(&mut self) -> &mut Self::Target {
-                unsafe { std::mem::transmute(&mut self.0) }
-            }
-        }
-
-        impl<'b> AccountSize for $name<'b> {
-            fn size(&self) -> usize {
-                return $size;
-            }
-        }
-
-        impl<'b> Keyed for $name<'b> {
-            fn pubkey(&self) -> &Pubkey {
-                self.key
-            }
-        }
-
-        impl<'a, 'b: 'a, 'c> Peel<'a, 'b, 'c> for $name<'b> {
-            fn peel<T>(ctx: &'c mut Context<'a, 'b, 'c, T>) -> Result<Self>
-            where
-                Self: Sized,
-            {
-                Ok($name(ctx.info().clone()))
-            }
-        }
-    };
-}
-
-#[macro_export]
-macro_rules! data_wrapper {
-    ($name:ident, $embed:ty) => {
-        #[repr(transparent)]
-        pub struct $name<'b>(Data<'b, $embed>);
-
-        impl<'b> Deref for $name<'b> {
-            type Target = Data<'b, $embed>;
-
-            fn deref(&self) -> &Self::Target {
-                return &self.0;
-            }
-        }
-
-        impl<'b> DerefMut for $name<'b> {
-            fn deref_mut(&mut self) -> &mut Self::Target {
-                unsafe { std::mem::transmute(&mut self.0) }
-            }
-        }
-
-        impl<'b> Keyed for $name<'b> {
-            fn pubkey(&self) -> &Pubkey {
-                self.0.pubkey()
-            }
-        }
-
-        impl<'b> AccountSize for $name<'b> {
-            fn size(&self) -> usize {
-                return self.0.size();
-            }
-        }
-
-        impl<'a, 'b: 'a, 'c> Peel<'a, 'b, 'c> for $name<'b> {
-            fn peel<T>(ctx: &'c mut Context<'a, 'b, 'c, T>) -> Result<Self>
-            where
-                Self: Sized,
-            {
-                Data::peel(ctx).map(|v| $name(v))
-            }
-        }
-    };
+    where
+        Self: Sized;
 }

@@ -1,4 +1,7 @@
-use solana_program::{program_error::ProgramError, pubkey::Pubkey};
+use solana_program::{
+    program_error::ProgramError,
+    pubkey::Pubkey,
+};
 
 /// Quality of life Result type for the Solitaire stack.
 pub type Result<T> = std::result::Result<T, SolitaireError>;
@@ -18,6 +21,9 @@ pub enum SolitaireError {
     /// The AccountInfo parser tried to derive the provided key, but it did not match.
     InvalidDerive(Pubkey),
 
+    /// The AccountInfo has an invalid owner.
+    InvalidOwner(Pubkey),
+
     /// The instruction payload itself could not be deserialized.
     InstructionDeserializeFailed,
 
@@ -26,6 +32,9 @@ pub enum SolitaireError {
 
     /// An solana program error
     ProgramError(ProgramError),
+
+    /// Owner of the account is ambiguous
+    AmbiguousOwner,
 
     Custom(u64),
 }
@@ -51,5 +60,3 @@ impl Into<ProgramError> for SolitaireError {
         ProgramError::Custom(0)
     }
 }
-
-
