@@ -5,9 +5,12 @@ authors = ["Stan Drozd <stan@nexantic.com>"]
 edition = "2018"
 
 [dependencies]
-anchor-client = {git = "https://github.com/drozdziak1/anchor", branch = "anchor-debug-feature", features = ["anchor-debug"]}
 anyhow = "1.0.40"
-anchor-bridge = {path = "../programs/anchor-bridge", features = ["no-idl", "no-entrypoint", "anchor-debug"]}
+bridge = {path = "../programs/bridge", features = ["no-idl", "no-entrypoint"]}
 clap = "3.0.0-beta.2"
 rand = "0.7.3"
 shellexpand = "2.1.0"
+solana-client = "1.7.0"
+solana-program = "*"
+solana-sdk = "1.7.0"
+solitaire = { path = "../programs/solitaire" }

@@ -12,7 +12,7 @@ let
           owner = "tilt-dev";
           repo = oldAttrs.pname;
           rev = "v0.18.4";
-          sha256 = "sha256-xqBgbsrVSAOqtfHbEF07i6XIdiBXMYoR7H4Kc4xK7x0=";
+          sha256 = null;
         };
         buildFlagsArray = [ "-ldflags=-X main.version=0.18.4" ];
       }

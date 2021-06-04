@@ -9,7 +9,7 @@ type GuardianSet<'a> =
     Derive<Data<'a, GuardianSetData, { AccountState::Uninitialized }>, "GuardianSet">;
 type Bridge<'a> = Derive<Data<'a, BridgeData, { AccountState::Uninitialized }>, "Bridge">;
 
-#[derive(FromAccounts, ToAccounts)]
+#[derive(FromAccounts, ToInstruction)]
 pub struct Initialize<'b> {
     pub bridge: Bridge<'b>,
     pub guardian_set: GuardianSet<'b>,

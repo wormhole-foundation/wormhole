@@ -16,7 +16,10 @@ use solana_program::{
     },
     entrypoint,
     entrypoint::ProgramResult,
-    instruction::AccountMeta,
+    instruction::{
+        AccountMeta,
+        Instruction,
+    },
     program::invoke_signed,
     program_error::ProgramError,
     program_pack::Pack,
@@ -28,6 +31,10 @@ use solana_program::{
         self,
         SysvarId,
     },
+};
+use solana_sdk::signature::{
+    Keypair,
+    Signer as SolSigner,
 };
 
 use std::{
@@ -74,6 +81,8 @@ pub use crate::{
     types::*,
 };
 
+type StdResult<T, E> = std::result::Result<T, E>;
+
 pub struct ExecutionContext<'a, 'b: 'a> {
     /// A reference to the program_id of the current program.
     pub program_id: &'a Pubkey,
@@ -98,36 +107,88 @@ impl CreationLamports {
     }
 }
 
+/// The sum type for clearly specifying the accounts required on client side.
+pub enum AccEntry {
+    /// Least privileged account.
+    Unprivileged(Pubkey),
+
+    /// Accounts that need to sign a Solana call
+    Signer(Keypair),
+    SignerRO(Keypair),
+
+    /// Program addresses for privileged/unprivileged cross calls
+    CPIProgram(Pubkey),
+    CPIProgramSigner(Keypair),
+
+    /// Key decided by Wrap implementation
+    Sysvar,
+    Derived(Pubkey),
+    DerivedRO(Pubkey),
+}
+
+/// Types implementing Wrap are those that can be turned into a
+/// partial account vector tha
+/// payload.
 pub trait Wrap {
-    fn wrap(&self) -> Vec<AccountMeta>;
+    fn wrap(_: &AccEntry) -> StdResult<Vec<AccountMeta>, ErrBox>;
+
+    /// If the implementor wants to sign using other AccEntry
+    /// variants, they should override this.
+    fn keypair(a: AccEntry) -> Option<Keypair> {
+        use AccEntry::*;
+        match a {
+            Signer(pair) => Some(pair),
+            SignerRO(pair) => Some(pair),
+            _other => None,
+        }
+    }
 }
 
-impl<T> Wrap for T
+impl<'a, 'b: 'a, T> Wrap for Signer<T>
 where
-    T: ToAccounts,
+    T: Keyed<'a, 'b>,
 {
-    fn wrap(&self) -> Vec<AccountMeta> {
-        self.to()
+    fn wrap(a: &AccEntry) -> StdResult<Vec<AccountMeta>, ErrBox> {
+        use AccEntry::*;
+        match a {
+            Signer(pair) => Ok(vec![AccountMeta::new(pair.pubkey(), true)]),
+            SignerRO(pair) => Ok(vec![AccountMeta::new_readonly(pair.pubkey(), true)]),
+            other => Err(format!(
+                "{} must be passed as Signer or SignerRO",
+                std::any::type_name::<Self>()
+            )
+            .into()),
+        }
     }
 }
 
-impl<T> Wrap for Signer<T> {
-    fn wrap(&self) -> Vec<AccountMeta> {
-        todo!()
-    }
-}
+impl<'a, 'b: 'a, T, const Seed: &'static str> Wrap for Derive<T, Seed> {
+    fn wrap(a: &AccEntry) -> StdResult<Vec<AccountMeta>, ErrBox> {
+        match a {
+            AccEntry::Derived(program_id) => {
+                let (k, extra_seed) = Pubkey::find_program_address(&[Seed.as_bytes()], &program_id);
 
-impl<T, const Seed: &'static str> Wrap for Derive<T, Seed> {
-    fn wrap(&self) -> Vec<AccountMeta> {
-        todo!()
+                Ok(vec![AccountMeta::new(k, false)])
+            }
+            AccEntry::DerivedRO(program_id) => {
+                let (k, extra_seed) = Pubkey::find_program_address(&[Seed.as_bytes()], &program_id);
+
+                Ok(vec![AccountMeta::new_readonly(k, false)])
+            }
+            other => Err(format!(
+                "{} must be passed as Derived or DerivedRO",
+                std::any::type_name::<Self>()
+            )
+            .into()),
+        }
     }
 }
 
 impl<'a, T: BorshSerialize + Owned + Default, const IsInitialized: AccountState> Wrap
     for Data<'a, T, IsInitialized>
 {
-    fn wrap(&self) -> Vec<AccountMeta> {
-        todo!()
+    fn wrap(a: &AccEntry) -> StdResult<Vec<AccountMeta>, ErrBox> {
+        todo!();
     }
 }
 
@@ -141,8 +202,9 @@ pub trait InstructionContext<'a> {
     }
 }
 
-pub trait ToAccounts {
-    fn to(&self) -> Vec<AccountMeta>;
+/// Trait used on client side to easily validate a program accounts + ix_data for a bare Solana call
+pub trait ToInstruction {
+    fn to_ix(self, program_id: Pubkey, ix_data: &[u8]) -> StdResult<(Instruction, Vec<Keypair>), ErrBox>;
 }
 
 /// Trait definition that describes types that can be constructed from a list of solana account

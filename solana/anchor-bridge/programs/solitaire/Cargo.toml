@@ -20,3 +20,4 @@ byteorder = "1.4.3"
 rocksalt = { path = "../../rocksalt" }
 sha3 = "0.9.1"
 solana-program = "*"
+solana-sdk = "1.7.0"

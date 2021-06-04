@@ -1,8 +1,8 @@
-mod governance;
-mod initialize;
-mod post_message;
-mod post_vaa;
-mod verify_signature;
+pub mod governance;
+pub mod initialize;
+pub mod post_message;
+pub mod post_vaa;
+pub mod verify_signature;
 
 pub use governance::*;
 pub use initialize::*;

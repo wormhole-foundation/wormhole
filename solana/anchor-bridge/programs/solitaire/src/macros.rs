@@ -13,7 +13,7 @@ use std::ops::{
 #[macro_export]
 macro_rules! solitaire {
     { $($row:ident($kind:ty) => $fn:ident),+ $(,)* } => {
-        mod instruction {
+        pub mod instruction {
             use super::*;
             use borsh::{BorshDeserialize, BorshSerialize};
             use solana_program::{
@@ -60,7 +60,7 @@ macro_rules! solitaire {
 
         /// This module contains a 1-1 mapping for each function to an enum variant. The variants
         /// can be matched to the Instruction found above.
-        mod client {
+        pub mod client {
             use super::*;
             use borsh::BorshSerialize;
             use solana_program::{instruction::Instruction, pubkey::Pubkey};
