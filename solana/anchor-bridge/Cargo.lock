@@ -132,6 +132,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "bridge"
+version = "0.1.0"
+dependencies = [
+ "borsh",
+ "byteorder",
+ "primitive-types",
+ "sha3",
+ "solana-program",
+ "solitaire",
+]
+
+[[package]]
 name = "bs58"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -241,17 +253,6 @@ dependencies = [
  "log",
  "regex",
  "termcolor",
-]
-
-[[package]]
-name = "example"
-version = "0.1.0"
-dependencies = [
- "borsh",
- "byteorder",
- "sha3",
- "solana-program",
- "solitaire",
 ]
 
 [[package]]

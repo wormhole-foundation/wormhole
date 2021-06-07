@@ -57,14 +57,17 @@ impl<'a, T: Owned + Default, const IsInitialized: AccountState> Owned
 }
 
 pub trait Seeded<I> {
-    fn seeds(&self, accs: I) -> Vec<Vec<Vec<u8>>>;
+    fn seeds(&self, accs: I) -> Vec<Vec<u8>>;
 
     fn verify_derivation<'a, 'b: 'a>(&'a self, program_id: &'a Pubkey, accs: I) -> Result<()>
     where
         Self: Keyed<'a, 'b>,
     {
         let seeds = self.seeds(accs);
-        let (derived, bump) = Pubkey::find_program_address(&[], program_id); //TODO
+        let s: Vec<&[u8]> = seeds.iter().map(|item| item.as_slice()).collect();
+        let seed_slice = s.as_slice();
+
+        let (derived, bump) = Pubkey::find_program_address(seed_slice, program_id);
         if &derived == self.info().key {
             Ok(())
         } else {
@@ -102,6 +105,9 @@ impl<'a, 'b: 'a, K, T: AccountSize + Seeded<K> + Keyed<'a, 'b> + Owned> Creatabl
         let seeds = self.seeds(accs);
         let size = self.size();
 
+        let s: Vec<&[u8]> = seeds.iter().map(|item| item.as_slice()).collect();
+        let seed_slice = s.as_slice();
+
         let ix = system_instruction::create_account(
             payer,
             self.info().key,
@@ -109,29 +115,12 @@ impl<'a, 'b: 'a, K, T: AccountSize + Seeded<K> + Keyed<'a, 'b> + Owned> Creatabl
             size as u64,
             &self.owner_pubkey(ctx.program_id)?,
         );
-        Ok(invoke_signed(&ix, ctx.accounts, &[])?) // TODO use seeds
+        Ok(invoke_signed(&ix, ctx.accounts, &[seed_slice])?)
     }
 }
 
-impl<'a, const Seed: &'static str, T: BorshSerialize + Owned + Default> Creatable<'a, Option<()>>
-    for Derive<Data<'_, T, { AccountState::Uninitialized }>, Seed>
-{
-    fn create(
-        &'a self,
-        _: Option<()>,
-        ctx: &'a ExecutionContext,
-        payer: &'a Pubkey,
-        lamports: CreationLamports,
-    ) -> Result<()> {
-        // Get serialized struct size
-        let size = self.0.try_to_vec().unwrap().len();
-        let ix = system_instruction::create_account(
-            payer,
-            self.0 .0.key,
-            lamports.amount(size),
-            size as u64,
-            &self.0 .1.owner_pubkey(ctx.program_id)?,
-        );
-        Ok(invoke_signed(&ix, ctx.accounts, &[&[Seed.as_bytes()]])?)
+impl<'a, const Seed: &'static str, T> Seeded<Option<()>> for Derive<T, Seed> {
+    fn seeds(&self, accs: Option<()>) -> Vec<Vec<u8>> {
+        vec![Seed.as_bytes().to_vec()]
     }
 }

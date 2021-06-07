@@ -82,12 +82,12 @@ macro_rules! solitaire {
 
 #[macro_export]
 macro_rules! data_wrapper {
-    ($name:ident, $embed:ty) => {
+    ($name:ident, $embed:ty, $state:expr) => {
         #[repr(transparent)]
-        pub struct $name<'b>(Data<'b, $embed, { solitaire::AccountState::Uninitialized }>);
+        pub struct $name<'b>(Data<'b, $embed, { $state }>);
 
         impl<'b> std::ops::Deref for $name<'b> {
-            type Target = Data<'b, $embed, { solitaire::AccountState::Uninitialized }>;
+            type Target = Data<'b, $embed, { $state }>;
 
             fn deref(&self) -> &Self::Target {
                 return &self.0;
@@ -164,6 +164,12 @@ macro_rules! pack_type {
             type Target = $embed;
             fn deref(&self) -> &Self::Target {
                 unsafe { std::mem::transmute(&self.0) }
+            }
+        }
+
+        impl std::default::Default for $name {
+            fn default() -> Self {
+                $name(<$embed>::default())
             }
         }
     };
