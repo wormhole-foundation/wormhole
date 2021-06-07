@@ -1,0 +1,28 @@
+[package]
+name = "token-bridge"
+version = "0.1.0"
+description = "Created with Rocksalt"
+edition = "2018"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "token_bridge"
+
+[features]
+no-entrypoint = ["solitaire/no-entrypoint"]
+client = ["solitaire-client"]
+no-idl = []
+cpi = ["no-entrypoint"]
+default = []
+
+[dependencies]
+bridge = { path = "../../../bridge/program", features = ["no-entrypoint", "cpi"] }
+borsh = "0.8.1"
+byteorder = "1.4.3"
+rocksalt = { path = "../../../solitaire/rocksalt" }
+solitaire = { path = "../../../solitaire/program" }
+sha3 = "0.9.1"
+solana-program = "*"
+spl-token = { version = "=3.1.0", features = ["no-entrypoint"] }
+primitive-types = { version = "0.9.0", default-features = false }
+solitaire-client = { path = "../../../solitaire/client", optional = true }

@@ -1,0 +1,85 @@
+use crate::types::*;
+use bridge::{
+    api::ForeignAddress,
+    vaa::{
+        DeserializePayload,
+        PayloadMessage,
+    },
+};
+use solana_program::pubkey::Pubkey;
+use solitaire::{
+    processors::seeded::Seeded,
+    *,
+};
+
+pub type AuthoritySigner<'b> = Derive<Info<'b>, "authority_signer">;
+pub type CustodySigner<'b> = Derive<Info<'b>, "custody_signer">;
+pub type MintSigner<'b> = Derive<Info<'b>, "mint_signer">;
+
+pub type EmitterAccount<'b> = Derive<Info<'b>, "emitter">;
+
+pub type ConfigAccount<'b, const State: AccountState> =
+    Derive<Data<'b, Config, { State }>, "config">;
+
+pub type CustodyAccount<'b, const State: AccountState> = Data<'b, SplAccount, { State }>;
+
+pub struct CustodyAccountDerivationData {
+    pub mint: Pubkey,
+}
+
+impl<'b, const State: AccountState> Seeded<&CustodyAccountDerivationData>
+    for CustodyAccount<'b, { State }>
+{
+    fn seeds(accs: &CustodyAccountDerivationData) -> Vec<Vec<u8>> {
+        vec![accs.mint.to_bytes().to_vec()]
+    }
+}
+
+pub type WrappedMint<'b, const State: AccountState> = Data<'b, SplMint, { State }>;
+
+pub struct WrappedDerivationData {
+    pub token_chain: ChainID,
+    pub token_address: ForeignAddress,
+}
+
+impl<'b, const State: AccountState> Seeded<&WrappedDerivationData> for WrappedMint<'b, { State }> {
+    fn seeds(data: &WrappedDerivationData) -> Vec<Vec<u8>> {
+        vec![
+            String::from("wrapped").as_bytes().to_vec(),
+            data.token_chain.to_be_bytes().to_vec(),
+            data.token_address.to_vec(),
+        ]
+    }
+}
+
+pub type WrappedTokenMeta<'b, const State: AccountState> = Data<'b, WrappedMeta, { State }>;
+
+impl<'b, const State: AccountState> Seeded<&WrappedDerivationData>
+    for WrappedTokenMeta<'b, { State }>
+{
+    fn seeds(data: &WrappedDerivationData) -> Vec<Vec<u8>> {
+        vec![
+            String::from("meta").as_bytes().to_vec(),
+            data.token_chain.to_be_bytes().to_vec(),
+            data.token_address.to_vec(),
+        ]
+    }
+}
+
+/// Registered chain endpoint
+pub type Endpoint<'b, const State: AccountState> = Data<'b, EndpointRegistration, { State }>;
+
+pub struct EndpointDerivationData {
+    pub emitter_chain: u16,
+    pub emitter_address: ForeignAddress,
+}
+
+/// Seeded implementation based on an incoming VAA
+impl<'b, const State: AccountState> Seeded<&EndpointDerivationData> for Endpoint<'b, { State }> {
+    fn seeds(data: &EndpointDerivationData) -> Vec<Vec<u8>> {
+        vec![
+            data.emitter_chain.to_be_bytes().to_vec(),
+            data.emitter_address.to_vec(),
+        ]
+    }
+}
