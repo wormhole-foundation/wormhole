@@ -1,0 +1,32 @@
+# syntax=docker/dockerfile:1.2
+FROM rust:1.52@sha256:9c106c1222abe1450f45774273f36246ebf257623ed51280dbc458632d14c9fc as rust-with-deps-and-src
+
+RUN rustup default nightly-2021-06-02
+RUN rm -f /etc/apt/apt.conf.d/docker-clean; echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache
+ENV DEBIAN_FRONTEND=noninteractive
+RUN --mount=type=cache,target=/var/cache/apt --mount=type=cache,target=/var/lib/apt \
+    apt update && \
+    apt-get install -y \
+    build-essential \
+    cmake \
+    curl \
+    git \
+    libudev-dev \
+    libudev1 \
+    pkg-config
+
+RUN sh -c "$(curl -sSfL https://release.solana.com/v1.7.1/install)"
+
+ENV PATH=/root/.local/share/solana/install/active_release/bin:$PATH
+
+WORKDIR code
+
+ADD . .
+
+FROM rust-with-deps-and-src as cargo-check
+
+RUN --mount=type=cache,target=target cargo check
+
+FROM rust-with-deps-and-src as cargo-build-bpf
+
+RUN --mount=type=cache,target=target cargo build-bpf
