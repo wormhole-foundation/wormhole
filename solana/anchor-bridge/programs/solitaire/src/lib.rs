@@ -1,5 +1,4 @@
 #![feature(const_generics)]
-#![feature(const_generics_defaults)]
 #![allow(warnings)]
 
 pub use rocksalt::*;
@@ -124,8 +123,8 @@ impl<T, const Seed: &'static str> Wrap for Derive<T, Seed> {
     }
 }
 
-impl<'a, T: BorshSerialize + Owned, const IsInitialized: bool, const Lazy: bool> Wrap
-    for Data<'a, T, IsInitialized, Lazy>
+impl<'a, T: BorshSerialize + Owned + Default, const IsInitialized: AccountState> Wrap
+    for Data<'a, T, IsInitialized>
 {
     fn wrap(&self) -> Vec<AccountMeta> {
         todo!()

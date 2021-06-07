@@ -2,6 +2,7 @@ use super::keyed::Keyed;
 use crate::{
     system_instruction,
     AccountInfo,
+    AccountState,
     CreationLamports,
     Data,
     Deref,
@@ -15,7 +16,6 @@ use crate::{
     SolitaireError,
     System,
     Sysvar,
-    Uninitialized,
 };
 use borsh::{
     BorshSchema,
@@ -48,8 +48,8 @@ pub trait Owned {
     }
 }
 
-impl<'a, T: Owned, const IsInitialized: bool, const Lazy: bool> Owned
-    for Data<'a, T, IsInitialized, Lazy>
+impl<'a, T: Owned + Default, const IsInitialized: AccountState> Owned
+    for Data<'a, T, IsInitialized>
 {
     fn owner(&self) -> AccountOwner {
         self.1.owner()
@@ -83,7 +83,7 @@ pub trait Creatable<'a, I> {
     ) -> Result<()>;
 }
 
-impl<T: BorshSerialize + Owned, const IsInitialized: bool> AccountSize
+impl<T: BorshSerialize + Owned + Default, const IsInitialized: AccountState> AccountSize
     for Data<'_, T, IsInitialized>
 {
     fn size(&self) -> usize {
@@ -113,8 +113,8 @@ impl<'a, 'b: 'a, K, T: AccountSize + Seeded<K> + Keyed<'a, 'b> + Owned> Creatabl
     }
 }
 
-impl<'a, const Seed: &'static str, T: BorshSerialize + Owned> Creatable<'a, Option<()>>
-    for Derive<Data<'_, T, Uninitialized>, Seed>
+impl<'a, const Seed: &'static str, T: BorshSerialize + Owned + Default> Creatable<'a, Option<()>>
+    for Derive<Data<'_, T, { AccountState::Uninitialized }>, Seed>
 {
     fn create(
         &'a self,

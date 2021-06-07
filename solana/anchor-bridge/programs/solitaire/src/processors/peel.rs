@@ -70,14 +70,16 @@ impl<'a, 'b: 'a, 'c, T: Peel<'a, 'b, 'c>> Peel<'a, 'b, 'c> for System<T> {
 }
 
 /// Peel a Sysvar
-impl<'a, 'b: 'a, 'c, T, Var> Peel<'a, 'b, 'c> for Sysvar<T, Var>
+impl<'a, 'b: 'a, 'c, Var> Peel<'a, 'b, 'c> for Sysvar<'b, Var>
 where
-    T: Peel<'a, 'b, 'c>,
-    Var: SolanaSysvar + SysvarId,
+    Var: SolanaSysvar,
 {
     fn peel<I>(ctx: &'c mut Context<'a, 'b, 'c, I>) -> Result<Self> {
-        match <Var as SysvarId>::check_id(ctx.info().key) {
-            true => T::peel(ctx).map(|v| Sysvar(v, PhantomData)),
+        match Var::check_id(ctx.info().key) {
+            true => Ok(Sysvar(
+                ctx.info().clone(),
+                Var::from_account_info(ctx.info())?,
+            )),
             _ => Err(SolitaireError::InvalidSysvar(*ctx.info().key).into()),
         }
     }
@@ -93,19 +95,40 @@ impl<'a, 'b: 'a, 'c> Peel<'a, 'b, 'c> for Info<'b> {
 
 /// This is our structural recursion base case, the trait system will stop generating new nested
 /// calls here.
-impl<'a, 'b: 'a, 'c, T: BorshDeserialize + Owned, const IsInitialized: bool, const Lazy: bool>
-    Peel<'a, 'b, 'c> for Data<'b, T, IsInitialized, Lazy>
+impl<'a, 'b: 'a, 'c, T: BorshDeserialize + Owned + Default, const IsInitialized: AccountState>
+    Peel<'a, 'b, 'c> for Data<'b, T, IsInitialized>
 {
     fn peel<I>(ctx: &'c mut Context<'a, 'b, 'c, I>) -> Result<Self> {
+        let mut initialized = false;
         // If we're initializing the type, we should emit system/rent as deps.
-        if !IsInitialized {
-            ctx.deps.push(sysvar::rent::ID);
-            ctx.deps.push(system_program::ID);
-        }
+        let data: T = match IsInitialized {
+            AccountState::Uninitialized => {
+                ctx.deps.push(sysvar::rent::ID);
+                ctx.deps.push(system_program::ID);
 
-        let data = T::try_from_slice(&mut *ctx.info().data.borrow_mut())?;
+                if **ctx.info().lamports.borrow() != 0 {
+                    return Err(SolitaireError::AlreadyInitialized(*ctx.info().key));
+                }
+                T::default()
+            }
+            AccountState::Initialized => {
+                initialized = true;
+                T::try_from_slice(&mut *ctx.info().data.borrow_mut())?
+            }
+            AccountState::MaybeInitialized => {
+                ctx.deps.push(sysvar::rent::ID);
+                ctx.deps.push(system_program::ID);
 
-        if IsInitialized {
+                if **ctx.info().lamports.borrow() == 0 {
+                    T::default()
+                } else {
+                    initialized = true;
+                    T::try_from_slice(&mut *ctx.info().data.borrow_mut())?
+                }
+            }
+        };
+
+        if initialized {
             match data.owner() {
                 AccountOwner::This => {
                     if ctx.info().owner != ctx.this {

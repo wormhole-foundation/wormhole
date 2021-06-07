@@ -10,6 +10,7 @@ use solana_program::{
     program::invoke_signed,
     pubkey::Pubkey,
     system_instruction,
+    sysvar::Sysvar as SolanaSysvar,
 };
 use std::ops::{
     Deref,
@@ -22,11 +23,17 @@ use crate::{
     Derive,
     ExecutionContext,
     Result,
-    Uninitialized,
 };
 
 /// A short alias for AccountInfo.
 pub type Info<'r> = AccountInfo<'r>;
+
+#[derive(Eq, PartialEq)]
+pub enum AccountState {
+    Initialized,
+    Uninitialized,
+    MaybeInitialized,
+}
 
 /// An account that is known to contain serialized data.
 ///
@@ -36,17 +43,15 @@ pub type Info<'r> = AccountInfo<'r>;
 /// parameter assignments. But these DO work in the consumption side so a user can still happily
 /// use this type by writing for example:
 ///
-/// Data<(), Uninitialized, Lazy>
-///
-/// But here, we must write `Lazy: bool = true` for now unfortunately.
+/// Data<(), { AccountState::Uninitialized }>
 #[rustfmt::skip]
-pub struct Data < 'r, T: Owned, const IsInitialized: bool = true, const Lazy: bool = false > (
+pub struct Data < 'r, T: Owned + Default + Default, const IsInitialized: AccountState> (
 pub Info<'r >,
 pub T,
 );
 
-impl<'r, T: Owned, const IsInitialized: bool, const Lazy: bool> Deref
-    for Data<'r, T, IsInitialized, Lazy>
+impl<'r, T: Owned + Default, const IsInitialized: AccountState> Deref
+    for Data<'r, T, IsInitialized>
 {
     type Target = T;
     fn deref(&self) -> &Self::Target {
@@ -54,11 +59,27 @@ impl<'r, T: Owned, const IsInitialized: bool, const Lazy: bool> Deref
     }
 }
 
-impl<'r, T: Owned, const IsInitialized: bool, const Lazy: bool> DerefMut
-    for Data<'r, T, IsInitialized, Lazy>
+impl<'r, T: Owned + Default, const IsInitialized: AccountState> DerefMut
+    for Data<'r, T, IsInitialized>
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.1
+    }
+}
+
+impl<'r, T: Owned + Default, const IsInitialized: AccountState> Data<'r, T, IsInitialized> {
+    /// Is the account already initialized / created
+    pub fn is_initialized(&self) -> bool {
+        **self.0.lamports.borrow() != 0
+    }
+}
+
+pub struct Sysvar<'b, Var: SolanaSysvar>(pub AccountInfo<'b>, pub Var);
+
+impl<'b, Var: SolanaSysvar> Deref for Sysvar<'b, Var> {
+    type Target = Var;
+    fn deref(&self) -> &Self::Target {
+        &self.1
     }
 }
 
@@ -82,7 +103,9 @@ impl<const Seed: &'static str> Derive<AccountInfo<'_>, Seed> {
     }
 }
 
-impl<const Seed: &'static str, T: BorshSerialize + Owned> Derive<Data<'_, T, Uninitialized>, Seed> {
+impl<const Seed: &'static str, T: BorshSerialize + Owned + Default>
+    Derive<Data<'_, T, { AccountState::Uninitialized }>, Seed>
+{
     pub fn create(
         &self,
         ctx: &ExecutionContext,

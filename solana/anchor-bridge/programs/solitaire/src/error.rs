@@ -36,6 +36,9 @@ pub enum SolitaireError {
     /// Owner of the account is ambiguous
     AmbiguousOwner,
 
+    /// Account has already been initialized
+    AlreadyInitialized(Pubkey),
+
     Custom(u64),
 }
 

@@ -17,6 +17,7 @@ use std::{
     },
 };
 
+use crate::Info;
 use borsh::{
     BorshDeserialize,
     BorshSerialize,
@@ -29,26 +30,7 @@ pub struct Signer<Next>(pub Next);
 pub struct System<Next>(pub Next);
 
 #[repr(transparent)]
-pub struct Sysvar<Next, Var>(pub Next, pub PhantomData<Var>);
-
-#[repr(transparent)]
 pub struct Derive<Next, const Seed: &'static str>(pub Next);
-
-/// A tag for accounts that should be deserialized lazily.
-#[allow(non_upper_case_globals)]
-pub const Lazy: bool = true;
-
-/// A tag for accounts that should be deserialized immediately (the default).
-#[allow(non_upper_case_globals)]
-pub const Strict: bool = false;
-
-/// A tag for accounts that are expected to have already been initialized.
-#[allow(non_upper_case_globals)]
-pub const Initialized: bool = true;
-
-/// A tag for accounts that must be uninitialized.
-#[allow(non_upper_case_globals)]
-pub const Uninitialized: bool = false;
 
 // Several traits are required for types defined here, they cannot be defined in another file due
 // to orphan instance limitations.
@@ -61,19 +43,6 @@ impl<T> Deref for Signer<T> {
 }
 
 impl<T> DerefMut for Signer<T> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        unsafe { std::mem::transmute(&mut self.0) }
-    }
-}
-
-impl<T, Var> Deref for Sysvar<T, Var> {
-    type Target = T;
-    fn deref(&self) -> &Self::Target {
-        unsafe { std::mem::transmute(&self.0) }
-    }
-}
-
-impl<T, Var> DerefMut for Sysvar<T, Var> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         unsafe { std::mem::transmute(&mut self.0) }
     }

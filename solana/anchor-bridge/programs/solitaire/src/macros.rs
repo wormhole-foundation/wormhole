@@ -84,10 +84,10 @@ macro_rules! solitaire {
 macro_rules! data_wrapper {
     ($name:ident, $embed:ty) => {
         #[repr(transparent)]
-        pub struct $name<'b>(Data<'b, $embed>);
+        pub struct $name<'b>(Data<'b, $embed, { solitaire::AccountState::Uninitialized }>);
 
         impl<'b> std::ops::Deref for $name<'b> {
-            type Target = Data<'b, $embed>;
+            type Target = Data<'b, $embed, { solitaire::AccountState::Uninitialized }>;
 
             fn deref(&self) -> &Self::Target {
                 return &self.0;
