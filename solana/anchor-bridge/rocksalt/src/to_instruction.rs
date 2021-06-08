@@ -22,7 +22,11 @@ use syn::{
     Index,
 };
 
-pub fn generate_to_instruction(name: &syn::Ident, impl_generics: &syn::ImplGenerics,  data: &Data) -> TokenStream2 {
+pub fn generate_to_instruction(
+    name: &syn::Ident,
+    impl_generics: &syn::ImplGenerics,
+    data: &Data,
+) -> TokenStream2 {
     match *data {
         Data::Struct(DataStruct {
             fields: Fields::Named(ref fields),
@@ -33,8 +37,8 @@ pub fn generate_to_instruction(name: &syn::Ident, impl_generics: &syn::ImplGener
                 let ty = &field.ty;
 
                 quote! {
-                    account_metas.append(&mut <#ty as solitaire::Wrap>::wrap(&self.#name)?);
-			if let Some(pair) = <#ty as solitaire::Wrap>::keypair(self.#name) {
+                    account_metas.append(&mut <#ty as solitaire_client::Wrap>::wrap(&self.#name)?);
+			if let Some(pair) = <#ty as solitaire_client::Wrap>::keypair(self.#name) {
 			    signers.push(pair);
 			}
                 }
@@ -44,40 +48,45 @@ pub fn generate_to_instruction(name: &syn::Ident, impl_generics: &syn::ImplGener
 
             let client_struct_decl = generate_clientside_struct(&name, &client_struct_name, &data);
 
-
             quote! {
-	    /// Solitaire-generated client-side #name representation
-	    #client_struct_decl
+            /// Solitaire-generated client-side #name representation
+            #[cfg(feature = "no-entrypoint")]
+            #client_struct_decl
 
-            /// Solitaire-generatied ToInstruction implementation
-            impl #impl_generics  solitaire::ToInstruction for #client_struct_name {
-                fn to_ix(
-		    self,
-		    program_id: solana_program::pubkey::Pubkey,
-		    ix_data: &[u8]) -> std::result::Result<
-			(solana_program::instruction::Instruction, Vec<solana_sdk::signer::keypair::Keypair>),
-                        solitaire::ErrBox
-			> {
-		use solana_program::{pubkey::Pubkey, instruction::Instruction};
-		let mut account_metas = Vec::new();
-		let mut signers = Vec::new();
+                /// Solitaire-generatied ToInstruction implementation
+            #[cfg(feature = "no-entrypoint")]
+                impl #impl_generics  solitaire_client::ToInstruction for #client_struct_name {
+                    fn to_ix(
+                self,
+                program_id: solana_program::pubkey::Pubkey,
+                ix_data: &[u8]) -> std::result::Result<
+                (solitaire_client::Instruction, Vec<solitaire_client::Keypair>),
+                            solitaire::ErrBox
+                > {
+            use solana_program::{pubkey::Pubkey, instruction::Instruction};
+            let mut account_metas = Vec::new();
+            let mut signers = Vec::new();
 
-                #(#expanded_appends;)*
+                    #(#expanded_appends;)*
 
-		Ok((solana_program::instruction::Instruction::new_with_bytes(program_id,
-									     ix_data,
-									     account_metas), signers))
+            Ok((solana_program::instruction::Instruction::new_with_bytes(program_id,
+                                             ix_data,
+                                             account_metas), signers))
+
+                    }
 
                 }
-
-            }
-            }
+                }
         }
         _ => unimplemented!(),
     }
 }
 
-pub fn generate_clientside_struct(name: &syn::Ident, client_struct_name: &syn::Ident, data: &Data) -> TokenStream2 {
+pub fn generate_clientside_struct(
+    name: &syn::Ident,
+    client_struct_name: &syn::Ident,
+    data: &Data,
+) -> TokenStream2 {
     match *data {
         Data::Struct(DataStruct {
             fields: Fields::Named(ref fields),
@@ -87,14 +96,14 @@ pub fn generate_clientside_struct(name: &syn::Ident, client_struct_name: &syn::I
                 let field_name = &field.ident;
 
                 quote! {
-                    #field_name: solitaire::AccEntry
+                    #field_name: solitaire_client::AccEntry
                 }
             });
 
             quote! {
                         pub struct #client_struct_name {
-			    #(pub #expanded_fields,)*
-			}
+                #(pub #expanded_fields,)*
+            }
             }
         }
         _ => unimplemented!(),

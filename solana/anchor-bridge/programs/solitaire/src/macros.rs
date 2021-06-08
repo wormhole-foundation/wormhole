@@ -19,6 +19,7 @@ macro_rules! solitaire {
             use solana_program::{
                 account_info::AccountInfo,
                 entrypoint::ProgramResult,
+		program_error::ProgramError,
                 pubkey::Pubkey,
             };
             use solitaire::{FromAccounts, Persist, Result};
@@ -52,7 +53,11 @@ macro_rules! solitaire {
             }
 
             pub fn solitaire<'a, 'b: 'a>(p: &Pubkey, a: &'a [AccountInfo<'b>], d: &[u8]) -> ProgramResult {
+		solana_program::msg!(concat!(env!("CARGO_PKG_NAME"), " ", env!("CARGO_PKG_VERSION")));
                 if let Err(err) = dispatch(p, a, d) {
+
+		    solana_program::msg!("Error: {:?}", err);
+		    return Err(err.into());
                 }
                 Ok(())
             }
