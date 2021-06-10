@@ -1,5 +1,7 @@
 # Message Publishing and Persistence
 
+[TOC]
+
 ## Objective
 
 To specify the mechanics and interfaces for publishing messages over Wormhole and how they are persisted.
