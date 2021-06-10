@@ -63,14 +63,14 @@ function App() {
                                             <BridgeProvider>
                                                 <SolanaTokenProvider>
                                                     <Switch>
-                                                        <Route path="/">
-                                                            <Assistant/>
-                                                        </Route>
                                                         <Route path="/solana">
                                                             <TransferSolana/>
                                                         </Route>
                                                         <Route path="/eth">
                                                             <Transfer/>
+                                                        </Route>
+                                                        <Route path="/">
+                                                            <Assistant/>
                                                         </Route>
                                                     </Switch>
                                                 </SolanaTokenProvider>
