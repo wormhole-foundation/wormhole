@@ -28,7 +28,7 @@ use crate::{
 /// A short alias for AccountInfo.
 pub type Info<'r> = AccountInfo<'r>;
 
-#[derive(Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum AccountState {
     Initialized,
     Uninitialized,

@@ -34,27 +34,34 @@ type StdResult<T, E> = std::result::Result<T, E>;
 pub type ErrBox = Box<dyn std::error::Error>;
 
 /// The sum type for clearly specifying the accounts required on client side.
+#[derive(Debug)]
 pub enum AccEntry {
     /// Least privileged account.
     Unprivileged(Pubkey),
+    /// Least privileged account, read-only.
+    UnprivilegedRO(Pubkey),
 
     /// Accounts that need to sign a Solana call
     Signer(Keypair),
+    /// Accounts that need to sign a Solana call, read-only.
     SignerRO(Keypair),
 
-    /// Program addresses for privileged/unprivileged cross calls
+    /// Program addresses for unprivileged cross calls
     CPIProgram(Pubkey),
+    /// Program addresses for privileged cross calls
     CPIProgramSigner(Keypair),
 
-    /// Key decided by Wrap implementation
+    /// Key decided from SPL constants
     Sysvar,
+
+    /// Key derived from constants and/or program address
     Derived(Pubkey),
+    /// Key derived from constants and/or program address, read-only.
     DerivedRO(Pubkey),
 }
 
 /// Types implementing Wrap are those that can be turned into a
-/// partial account vector tha
-/// payload.
+/// partial account vector for a program call.
 pub trait Wrap {
     fn wrap(_: &AccEntry) -> StdResult<Vec<AccountMeta>, ErrBox>;
 
@@ -115,7 +122,27 @@ where
     T: BorshSerialize + Owned + Default,
 {
     fn wrap(a: &AccEntry) -> StdResult<Vec<AccountMeta>, ErrBox> {
-        todo!();
+        use AccEntry::*;
+        use AccountState::*;
+        match IsInitialized {
+            Initialized => match a {
+                Unprivileged(k) => Ok(vec![AccountMeta::new(*k, false)]),
+                UnprivilegedRO(k) => Ok(vec![AccountMeta::new_readonly(*k, false)]),
+                Signer(pair) => Ok(vec![AccountMeta::new(pair.pubkey(), true)]),
+                SignerRO(pair) => Ok(vec![AccountMeta::new_readonly(pair.pubkey(), true)]),
+		_other => Err(format!("{} with IsInitialized = {:?} must be passed as Unprivileged, Signer or the respective read-only variant", std::any::type_name::<Self>(), a).into())
+            },
+            Uninitialized => match a {
+                Unprivileged(k) => Ok(vec![AccountMeta::new(*k, false)]),
+                Signer(pair) => Ok(vec![AccountMeta::new(pair.pubkey(), true)]),
+		_other => Err(format!("{} with IsInitialized = {:?} must be passed as Unprivileged or Signer (write access required for initialization)", std::any::type_name::<Self>(), a).into() )
+	    }
+            MaybeInitialized => match a {
+                Unprivileged(k) => Ok(vec![AccountMeta::new(*k, false)]),
+                Signer(pair) => Ok(vec![AccountMeta::new(pair.pubkey(), true)]),
+		_other => Err(format!("{} with IsInitialized = {:?} must be passed as Unprivileged or Signer (write access required in case of initialization)", std::any::type_name::<Self>(), a).into() )
+	    }
+        }
     }
 }
 
