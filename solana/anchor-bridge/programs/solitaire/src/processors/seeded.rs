@@ -59,6 +59,16 @@ impl<'a, T: Owned + Default, const IsInitialized: AccountState> Owned
 pub trait Seeded<I> {
     fn seeds(&self, accs: I) -> Vec<Vec<u8>>;
 
+    fn bumped_seeds(&self, accs: I, program_id: &Pubkey) -> Vec<Vec<u8>> {
+        let mut seeds = self.seeds(accs);
+        let mut s: Vec<&[u8]> = seeds.iter().map(|item| item.as_slice()).collect();
+        let mut seed_slice = s.as_slice();
+        let (_, bump_seed) = Pubkey::find_program_address(seed_slice, program_id);
+        seeds.push(vec![bump_seed]);
+
+        seeds
+    }
+
     fn verify_derivation<'a, 'b: 'a>(&'a self, program_id: &'a Pubkey, accs: I) -> Result<()>
     where
         Self: Keyed<'a, 'b>,
@@ -102,11 +112,11 @@ impl<'a, 'b: 'a, K, T: AccountSize + Seeded<K> + Keyed<'a, 'b> + Owned> Creatabl
         payer: &'a Pubkey,
         lamports: CreationLamports,
     ) -> Result<()> {
-        let seeds = self.seeds(accs);
+        let seeds = self.bumped_seeds(accs, ctx.program_id);
         let size = self.size();
 
-        let s: Vec<&[u8]> = seeds.iter().map(|item| item.as_slice()).collect();
-        let seed_slice = s.as_slice();
+        let mut s: Vec<&[u8]> = seeds.iter().map(|item| item.as_slice()).collect();
+        let mut seed_slice = s.as_slice();
 
         let ix = system_instruction::create_account(
             payer,

@@ -60,7 +60,6 @@ pub mod types;
 
 // We can also re-export a set of types at module scope, this defines the intended API we expect
 // people to be able to use from top-level.
-pub use crate::processors::seeded::Owned;
 pub use crate::{
     error::{
         ErrBox,
@@ -72,7 +71,10 @@ pub use crate::{
         keyed::Keyed,
         peel::Peel,
         persist::Persist,
-        seeded::Creatable,
+        seeded::{
+            Creatable,
+            Owned,
+        },
     },
     types::*,
 };
@@ -117,11 +119,7 @@ pub trait InstructionContext<'a> {
 /// Trait definition that describes types that can be constructed from a list of solana account
 /// references. A list of dependent accounts is produced as a side effect of the parsing stage.
 pub trait FromAccounts<'a, 'b: 'a, 'c> {
-    fn from<T>(
-        _: &'a Pubkey,
-        _: &'c mut Iter<'a, AccountInfo<'b>>,
-        _: &'a T,
-    ) -> Result<(Self, Vec<Pubkey>)>
+    fn from<T>(_: &'a Pubkey, _: &'c mut Iter<'a, AccountInfo<'b>>, _: &'a T) -> Result<Self>
     where
         Self: Sized;
 }

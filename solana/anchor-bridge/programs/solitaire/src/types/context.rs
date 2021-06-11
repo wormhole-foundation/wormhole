@@ -19,26 +19,15 @@ pub struct Context<'a, 'b: 'a, 'c, T> {
     /// account for.
     pub data: &'a T,
 
-    /// This is a list of dependent keys that are emitted by this verification pipeline. This
-    /// allows things such as `rent`/`system` to be emitted as required for an account without
-    /// having to specify them in the original instruction account data.
-    pub deps: &'c mut Vec<Pubkey>,
-
     pub info: Option<&'a AccountInfo<'b>>,
 }
 
 impl<'a, 'b: 'a, 'c, T> Context<'a, 'b, 'c, T> {
-    pub fn new(
-        program: &'a Pubkey,
-        iter: &'c mut Iter<'a, AccountInfo<'b>>,
-        data: &'a T,
-        deps: &'c mut Vec<Pubkey>,
-    ) -> Self {
+    pub fn new(program: &'a Pubkey, iter: &'c mut Iter<'a, AccountInfo<'b>>, data: &'a T) -> Self {
         Context {
             this: program,
             iter,
             data,
-            deps,
             info: None,
         }
     }

@@ -33,6 +33,8 @@ pub trait Peel<'a, 'b: 'a, 'c> {
     fn peel<I>(ctx: &'c mut Context<'a, 'b, 'c, I>) -> Result<Self>
     where
         Self: Sized;
+
+    fn deps() -> Vec<Pubkey>;
 }
 
 /// Peel a Derived Key
@@ -47,6 +49,9 @@ impl<'a, 'b: 'a, 'c, T: Peel<'a, 'b, 'c>, const Seed: &'static str> Peel<'a, 'b,
             _ => Err(SolitaireError::InvalidDerive(*ctx.info().key).into()),
         }
     }
+    fn deps() -> Vec<Pubkey> {
+        T::deps()
+    }
 }
 
 /// Peel a Signer.
@@ -57,6 +62,9 @@ impl<'a, 'b: 'a, 'c, T: Peel<'a, 'b, 'c>> Peel<'a, 'b, 'c> for Signer<T> {
             _ => Err(SolitaireError::InvalidSigner(*ctx.info().key).into()),
         }
     }
+    fn deps() -> Vec<Pubkey> {
+        T::deps()
+    }
 }
 
 /// Expicitly depend upon the System account.
@@ -66,6 +74,9 @@ impl<'a, 'b: 'a, 'c, T: Peel<'a, 'b, 'c>> Peel<'a, 'b, 'c> for System<T> {
             true => T::peel(ctx).map(|v| System(v)),
             _ => panic!(),
         }
+    }
+    fn deps() -> Vec<Pubkey> {
+        T::deps()
     }
 }
 
@@ -83,6 +94,9 @@ where
             _ => Err(SolitaireError::InvalidSysvar(*ctx.info().key).into()),
         }
     }
+    fn deps() -> Vec<Pubkey> {
+        vec![]
+    }
 }
 
 /// This is our structural recursion base case, the trait system will stop generating new nested
@@ -90,6 +104,9 @@ where
 impl<'a, 'b: 'a, 'c> Peel<'a, 'b, 'c> for Info<'b> {
     fn peel<I>(ctx: &'c mut Context<'a, 'b, 'c, I>) -> Result<Self> {
         Ok(ctx.info().clone())
+    }
+    fn deps() -> Vec<Pubkey> {
+        vec![]
     }
 }
 
@@ -103,9 +120,6 @@ impl<'a, 'b: 'a, 'c, T: BorshDeserialize + Owned + Default, const IsInitialized:
         // If we're initializing the type, we should emit system/rent as deps.
         let data: T = match IsInitialized {
             AccountState::Uninitialized => {
-                ctx.deps.push(sysvar::rent::ID);
-                ctx.deps.push(system_program::ID);
-
                 if **ctx.info().lamports.borrow() != 0 {
                     return Err(SolitaireError::AlreadyInitialized(*ctx.info().key));
                 }
@@ -116,9 +130,6 @@ impl<'a, 'b: 'a, 'c, T: BorshDeserialize + Owned + Default, const IsInitialized:
                 T::try_from_slice(&mut *ctx.info().data.borrow_mut())?
             }
             AccountState::MaybeInitialized => {
-                ctx.deps.push(sysvar::rent::ID);
-                ctx.deps.push(system_program::ID);
-
                 if **ctx.info().lamports.borrow() == 0 {
                     T::default()
                 } else {
@@ -145,5 +156,13 @@ impl<'a, 'b: 'a, 'c, T: BorshDeserialize + Owned + Default, const IsInitialized:
         }
 
         Ok(Data(ctx.info().clone(), data))
+    }
+
+    fn deps() -> Vec<Pubkey> {
+        if IsInitialized == AccountState::Initialized {
+            return vec![];
+        }
+
+        vec![sysvar::rent::ID, system_program::ID]
     }
 }

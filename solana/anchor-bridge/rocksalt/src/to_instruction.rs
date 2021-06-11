@@ -37,6 +37,7 @@ pub fn generate_to_instruction(
                 let ty = &field.ty;
 
                 quote! {
+                    deps.append(&mut <#ty as solitaire::Peel>::deps());
                     account_metas.append(&mut <#ty as solitaire_client::Wrap>::wrap(&self.#name)?);
 			if let Some(pair) = <#ty as solitaire_client::Wrap>::keypair(self.#name) {
 			    signers.push(pair);
@@ -66,8 +67,14 @@ pub fn generate_to_instruction(
             use solana_program::{pubkey::Pubkey, instruction::Instruction};
             let mut account_metas = Vec::new();
             let mut signers = Vec::new();
+            let mut deps = Vec::new();
 
-                    #(#expanded_appends;)*
+            #(#expanded_appends;)*
+
+            // Add dependencies
+            deps.dedup();
+            let mut dep_ams = deps.iter().map(|v| solana_program::instruction::AccountMeta::new_readonly(*v, false)).collect();
+            account_metas.append(&mut dep_ams);
 
             Ok((solana_program::instruction::Instruction::new_with_bytes(program_id,
                                              ix_data,

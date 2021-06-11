@@ -45,9 +45,9 @@ pub enum AccountState {
 ///
 /// Data<(), { AccountState::Uninitialized }>
 #[rustfmt::skip]
-pub struct Data < 'r, T: Owned + Default + Default, const IsInitialized: AccountState> (
-pub Info<'r >,
-pub T,
+pub struct Data<'r, T: Owned + Default + Default, const IsInitialized: AccountState> (
+    pub Info<'r>,
+    pub T,
 );
 
 impl<'r, T: Owned + Default, const IsInitialized: AccountState> Deref
@@ -99,7 +99,8 @@ impl<const Seed: &'static str> Derive<AccountInfo<'_>, Seed> {
             space as u64,
             owner,
         );
-        invoke_signed(&ix, ctx.accounts, &[&[Seed.as_bytes()]]).map_err(|e| e.into())
+        let (_, bump_seed) = Pubkey::find_program_address(&[Seed.as_bytes()][..], ctx.program_id);
+        invoke_signed(&ix, ctx.accounts, &[&[Seed.as_bytes(), &[bump_seed]]]).map_err(|e| e.into())
     }
 }
 
@@ -121,6 +122,7 @@ impl<const Seed: &'static str, T: BorshSerialize + Owned + Default>
             size as u64,
             ctx.program_id,
         );
-        invoke_signed(&ix, ctx.accounts, &[&[Seed.as_bytes()]]).map_err(|e| e.into())
+        let (_, bump_seed) = Pubkey::find_program_address(&[Seed.as_bytes()][..], ctx.program_id);
+        invoke_signed(&ix, ctx.accounts, &[&[Seed.as_bytes(), &[bump_seed]]]).map_err(|e| e.into())
     }
 }

@@ -29,7 +29,7 @@ macro_rules! solitaire {
             /// function calls can be found below in the `api` module.
 
             #[derive(BorshSerialize, BorshDeserialize)]
-            enum Instruction {
+            pub enum Instruction {
                 $($row($kind),)*
             }
 
@@ -39,7 +39,7 @@ macro_rules! solitaire {
                 match BorshDeserialize::try_from_slice(d).map_err(|_| SolitaireError::InstructionDeserializeFailed)? {
                     $(
                         Instruction::$row(ix_data) => {
-                            let (mut accounts, _deps): ($row, _) = FromAccounts::from(p, &mut a.iter(), &()).unwrap();
+                            let (mut accounts): ($row) = FromAccounts::from(p, &mut a.iter(), &()).unwrap();
                             $fn(&ExecutionContext{program_id: p, accounts: a}, &mut accounts, ix_data)?;
                             accounts.persist();
                             Ok(())
@@ -123,6 +123,10 @@ macro_rules! data_wrapper {
                 Self: Sized,
             {
                 Data::peel(ctx).map(|v| $name(v))
+            }
+
+            fn deps() -> Vec<Pubkey> {
+                Data::<'_, $embed, { $state }>::deps()
             }
         }
 
