@@ -96,6 +96,10 @@ impl<'a, 'b: 'a, 'c, T: DeserializePayload> Peel<'a, 'b, 'c> for PayloadMessage<
     fn deps() -> Vec<Pubkey> {
         Data::<'b, PostedMessage, { AccountState::Initialized }>::deps()
     }
+
+    fn persist(&self, program_id: &Pubkey) -> Result<()> {
+        Data::persist(&self.0, program_id)
+    }
 }
 
 impl<'b, T: DeserializePayload> Deref for PayloadMessage<'b, T> {

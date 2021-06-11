@@ -41,7 +41,7 @@ macro_rules! solitaire {
                         Instruction::$row(ix_data) => {
                             let (mut accounts): ($row) = FromAccounts::from(p, &mut a.iter(), &()).unwrap();
                             $fn(&ExecutionContext{program_id: p, accounts: a}, &mut accounts, ix_data)?;
-                            accounts.persist();
+                            Persist::persist(&accounts, p)?;
                             Ok(())
                         }
                     )*
@@ -127,6 +127,10 @@ macro_rules! data_wrapper {
 
             fn deps() -> Vec<Pubkey> {
                 Data::<'_, $embed, { $state }>::deps()
+            }
+
+            fn persist(&self, program_id: &Pubkey) -> solitaire::Result<()> {
+                Data::<'_, $embed, { $state }>::persist(self, program_id)
             }
         }
 

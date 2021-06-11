@@ -129,15 +129,16 @@ pub fn derive_from_accounts(input: TokenStream) -> TokenStream {
             fn deps() -> Vec<solana_program::pubkey::Pubkey> {
                 #deps_method
             }
+
+            fn persist(&self, program_id: &solana_program::pubkey::Pubkey) -> solitaire::Result<()> {
+                solitaire::Persist::persist(self, program_id)
+            }
         }
 
         /// Macro generated implementation of Persist by Solitaire.
         impl #type_impl_g solitaire::Persist for #name #type_g {
-            fn persist(self) {
-                use borsh::BorshSerialize;
-                //self.guardian_set.serialize(
-                //    &mut *self.guardian_set.0.data.borrow_mut()
-                //);
+            fn persist(&self, program_id: &solana_program::pubkey::Pubkey) -> solitaire::Result<()> {
+                #persist_method
             }
         }
     };
@@ -256,24 +257,14 @@ fn generate_persist(name: &syn::Ident, data: &Data) -> TokenStream2 {
                         let ty = &f.ty;
 
                         quote! {
-                            let #name: #ty = Peel::peel(&mut solitaire::Context::new(
-                                pid,
-                                iter,
-                                data,
-                            ))?;
+                            Peel::persist(&self.#name, program_id)?;
                         }
-                    });
-
-                    let names = fields.named.iter().map(|f| {
-                        let name = &f.ident;
-                        quote!(#name)
                     });
 
                     // Write out our iterator and return the filled structure.
                     quote! {
-                        use solana_program::account_info::next_account_info;
                         #(#recurse;)*
-                        Ok(#name { #(#names,)* })
+                        Ok(())
                     }
                 }
 

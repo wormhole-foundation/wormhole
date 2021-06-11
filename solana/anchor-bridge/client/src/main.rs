@@ -68,10 +68,10 @@ fn main() -> Result<(), ErrBox> {
         payer: Signer(payer),
     };
 
-    let init_args = types::BridgeConfig {
+    let init_args = bridge::instruction::Instruction::Initialize(types::BridgeConfig {
         guardian_set_expiration_time: DEFAULT_GUARDIAN_SET_EXPIRATION_TIME,
         fee: DEFAULT_MESSAGE_FEE,
-    };
+    });
 
     let ix_data = init_args.try_to_vec()?;
 

@@ -26,6 +26,7 @@ use crate::{
     Result,
     SolitaireError,
 };
+use borsh::BorshSerialize;
 
 /// Generic Peel trait. This provides a way to describe what each "peeled"
 /// layer of our constraints should check.
@@ -35,6 +36,8 @@ pub trait Peel<'a, 'b: 'a, 'c> {
         Self: Sized;
 
     fn deps() -> Vec<Pubkey>;
+
+    fn persist(&self, program_id: &Pubkey) -> Result<()>;
 }
 
 /// Peel a Derived Key
@@ -49,8 +52,13 @@ impl<'a, 'b: 'a, 'c, T: Peel<'a, 'b, 'c>, const Seed: &'static str> Peel<'a, 'b,
             _ => Err(SolitaireError::InvalidDerive(*ctx.info().key).into()),
         }
     }
+
     fn deps() -> Vec<Pubkey> {
         T::deps()
+    }
+
+    fn persist(&self, program_id: &Pubkey) -> Result<()> {
+        T::persist(self, program_id)
     }
 }
 
@@ -62,8 +70,13 @@ impl<'a, 'b: 'a, 'c, T: Peel<'a, 'b, 'c>> Peel<'a, 'b, 'c> for Signer<T> {
             _ => Err(SolitaireError::InvalidSigner(*ctx.info().key).into()),
         }
     }
+
     fn deps() -> Vec<Pubkey> {
         T::deps()
+    }
+
+    fn persist(&self, program_id: &Pubkey) -> Result<()> {
+        T::persist(self, program_id)
     }
 }
 
@@ -75,8 +88,13 @@ impl<'a, 'b: 'a, 'c, T: Peel<'a, 'b, 'c>> Peel<'a, 'b, 'c> for System<T> {
             _ => panic!(),
         }
     }
+
     fn deps() -> Vec<Pubkey> {
         T::deps()
+    }
+
+    fn persist(&self, program_id: &Pubkey) -> Result<()> {
+        T::persist(self, program_id)
     }
 }
 
@@ -94,8 +112,13 @@ where
             _ => Err(SolitaireError::InvalidSysvar(*ctx.info().key).into()),
         }
     }
+
     fn deps() -> Vec<Pubkey> {
         vec![]
+    }
+
+    fn persist(&self, _program_id: &Pubkey) -> Result<()> {
+        Ok(())
     }
 }
 
@@ -108,12 +131,20 @@ impl<'a, 'b: 'a, 'c> Peel<'a, 'b, 'c> for Info<'b> {
     fn deps() -> Vec<Pubkey> {
         vec![]
     }
+    fn persist(&self, _program_id: &Pubkey) -> Result<()> {
+        Ok(())
+    }
 }
 
 /// This is our structural recursion base case, the trait system will stop generating new nested
 /// calls here.
-impl<'a, 'b: 'a, 'c, T: BorshDeserialize + Owned + Default, const IsInitialized: AccountState>
-    Peel<'a, 'b, 'c> for Data<'b, T, IsInitialized>
+impl<
+        'a,
+        'b: 'a,
+        'c,
+        T: BorshDeserialize + BorshSerialize + Owned + Default,
+        const IsInitialized: AccountState,
+    > Peel<'a, 'b, 'c> for Data<'b, T, IsInitialized>
 {
     fn peel<I>(ctx: &'c mut Context<'a, 'b, 'c, I>) -> Result<Self> {
         let mut initialized = false;
@@ -164,5 +195,20 @@ impl<'a, 'b: 'a, 'c, T: BorshDeserialize + Owned + Default, const IsInitialized:
         }
 
         vec![sysvar::rent::ID, system_program::ID]
+    }
+
+    fn persist(&self, program_id: &Pubkey) -> Result<()> {
+        // Only write to accounts owned by us
+        if self.0.owner != program_id {
+            return Ok(());
+        }
+        if !self.0.is_writable {
+            // TODO this needs to be checked properly
+            return Ok(());
+        }
+
+        self.1.serialize(&mut *self.0.data.borrow_mut())?;
+
+        Ok(())
     }
 }
