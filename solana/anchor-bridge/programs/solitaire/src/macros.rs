@@ -39,7 +39,7 @@ macro_rules! solitaire {
                 match BorshDeserialize::try_from_slice(d).map_err(|_| SolitaireError::InstructionDeserializeFailed)? {
                     $(
                         Instruction::$row(ix_data) => {
-                            let (mut accounts): ($row) = FromAccounts::from(p, &mut a.iter(), &()).unwrap();
+                            let (mut accounts): ($row) = FromAccounts::from(p, &mut a.iter(), &())?;
                             $fn(&ExecutionContext{program_id: p, accounts: a}, &mut accounts, ix_data)?;
                             Persist::persist(&accounts, p)?;
                             Ok(())
