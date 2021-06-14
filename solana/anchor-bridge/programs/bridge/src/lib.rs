@@ -1,7 +1,9 @@
 // #![cfg(all(target_arch = "bpf", not(feature = "no-entrypoint")))]
-
+#![feature(const_generics)]
+#![allow(warnings)]
 // Salt contains the framework definition, single file for now but to be extracted into a cargo
 // package as soon as possible.
+pub mod accounts;
 pub mod api;
 pub mod types;
 pub mod vaa;

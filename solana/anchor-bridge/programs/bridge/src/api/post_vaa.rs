@@ -10,6 +10,15 @@ use solana_program::{
 };
 
 use crate::{
+    accounts::{
+        Bridge,
+        GuardianSet,
+        GuardianSetDerivationData,
+        Message,
+        MessageDerivationData,
+        SignatureSet,
+        SignaturesSetDerivationData,
+    },
     types::{self,},
     Error,
     Error::GuardianSetMismatch,
@@ -32,25 +41,28 @@ use std::io::{
     Write,
 };
 
-type GuardianSet<'b> = Data<'b, types::GuardianSetData, { AccountState::Initialized }>;
-type SignatureSet<'b> = Data<'b, types::SignatureSet, { AccountState::Initialized }>;
-type Message<'b> = Data<'b, types::PostedMessage, { AccountState::MaybeInitialized }>;
-
-impl<'b> Seeded<&PostVAA<'b>> for SignatureSet<'b> {
-    fn seeds(&self, accs: &PostVAA<'b>) -> Vec<Vec<u8>> {
-        vec![accs.signature_set.hash.to_vec()]
+impl<'a> From<&PostVAA<'a>> for SignaturesSetDerivationData {
+    fn from(accs: &PostVAA<'a>) -> Self {
+        SignaturesSetDerivationData {
+            hash: accs.signature_set.hash,
+        }
     }
 }
 
-impl<'b> Seeded<&PostVAA<'b>> for Message<'b> {
-    fn seeds(&self, accs: &PostVAA<'b>) -> Vec<Vec<u8>> {
-        vec![accs.signature_set.hash.to_vec()]
+impl From<&PostVAAData> for MessageDerivationData {
+    fn from(data: &PostVAAData) -> Self {
+        MessageDerivationData {
+            emitter_key: data.emitter_address,
+            sequence: data.sequence,
+        }
     }
 }
 
-impl<'b> Seeded<&PostVAAData> for GuardianSet<'b> {
-    fn seeds(&self, data: &PostVAAData) -> Vec<Vec<u8>> {
-        vec![data.guardian_set_index.to_be_bytes().to_vec()]
+impl From<&PostVAAData> for GuardianSetDerivationData {
+    fn from(data: &PostVAAData) -> Self {
+        GuardianSetDerivationData {
+            index: data.guardian_set_index,
+        }
     }
 }
 
@@ -69,25 +81,25 @@ pub struct PostVAA<'b> {
     pub state: Info<'b>,
 
     /// Information about the current guardian set.
-    pub guardian_set: GuardianSet<'b>,
+    pub guardian_set: GuardianSet<'b, { AccountState::Initialized }>,
 
     /// Bridge Info
-    pub bridge_info: Info<'b>,
+    pub bridge_info: Bridge<'b, { AccountState::Initialized }>,
 
     /// Signature Info
-    pub signature_set: SignatureSet<'b>,
+    pub signature_set: SignatureSet<'b, { AccountState::Initialized }>,
 
     /// Account used to pay for auxillary instructions.
     pub payer: Info<'b>,
 
     /// Message the VAA is associated with.
-    pub message: Message<'b>,
+    pub message: Message<'b, { AccountState::MaybeInitialized }>,
 }
 
 impl<'b> InstructionContext<'b> for PostVAA<'b> {
     fn verify(&self, program_id: &Pubkey) -> Result<()> {
-        self.signature_set.verify_derivation(program_id, self)?;
-        self.message.verify_derivation(program_id, self)?;
+        self.signature_set
+            .verify_derivation(program_id, &self.into())?;
         Ok(())
     }
 }
@@ -119,7 +131,10 @@ pub struct PostVAAData {
 }
 
 pub fn post_vaa(ctx: &ExecutionContext, accs: &mut PostVAA, vaa: PostVAAData) -> Result<()> {
-    accs.guardian_set.verify_derivation(ctx.program_id, &vaa)?;
+    accs.message
+        .verify_derivation(ctx.program_id, &(&vaa).into())?;
+    accs.guardian_set
+        .verify_derivation(ctx.program_id, &(&vaa).into())?;
     // Verify any required invariants before we process the instruction.
     check_active(&accs.guardian_set, &accs.clock)?;
     check_valid_sigs(&accs.guardian_set, &accs.signature_set)?;
@@ -151,7 +166,8 @@ pub fn post_vaa(ctx: &ExecutionContext, accs: &mut PostVAA, vaa: PostVAAData) ->
 
     // If the VAA originates from another chain we need to create the account and populate all fields
     if vaa.emitter_chain != 1 {
-        accs.message.create(accs, ctx, accs.payer.key, Exempt)?;
+        accs.message
+            .create(&(&vaa).into(), ctx, accs.payer.key, Exempt)?;
 
         accs.message.nonce = vaa.nonce;
         accs.message.emitter_chain = vaa.emitter_chain;
@@ -170,7 +186,10 @@ pub fn post_vaa(ctx: &ExecutionContext, accs: &mut PostVAA, vaa: PostVAAData) ->
 
 /// A guardian set must not have expired.
 #[inline(always)]
-fn check_active<'r>(guardian_set: &GuardianSet, clock: &Sysvar<'r, Clock>) -> Result<()> {
+fn check_active<'r>(
+    guardian_set: &GuardianSet<'r, { AccountState::Initialized }>,
+    clock: &Sysvar<'r, Clock>,
+) -> Result<()> {
     if guardian_set.expiration_time != 0
         && (guardian_set.expiration_time as i64) < clock.unix_timestamp
     {
@@ -181,7 +200,10 @@ fn check_active<'r>(guardian_set: &GuardianSet, clock: &Sysvar<'r, Clock>) -> Re
 
 /// The signatures in this instruction must be from the right guardian set.
 #[inline(always)]
-fn check_valid_sigs<'r>(guardian_set: &GuardianSet, signatures: &SignatureSet<'r>) -> Result<()> {
+fn check_valid_sigs<'r>(
+    guardian_set: &GuardianSet<'r, { AccountState::Initialized }>,
+    signatures: &SignatureSet<'r, { AccountState::Initialized }>,
+) -> Result<()> {
     if signatures.guardian_set_index != guardian_set.index {
         return Err(GuardianSetMismatch.into());
     }
@@ -189,7 +211,10 @@ fn check_valid_sigs<'r>(guardian_set: &GuardianSet, signatures: &SignatureSet<'r
 }
 
 #[inline(always)]
-fn check_integrity<'r>(vaa: &PostVAAData, signatures: &SignatureSet<'r>) -> Result<()> {
+fn check_integrity<'r>(
+    vaa: &PostVAAData,
+    signatures: &SignatureSet<'r, { AccountState::Initialized }>,
+) -> Result<()> {
     // Serialize the VAA body into an array of bytes.
     let body = {
         let mut v = Cursor::new(Vec::new());

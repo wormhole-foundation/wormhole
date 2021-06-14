@@ -57,10 +57,23 @@ impl<'a, T: Owned + Default, const IsInitialized: AccountState> Owned
 }
 
 pub trait Seeded<I> {
-    fn seeds(&self, accs: I) -> Vec<Vec<u8>>;
+    fn seeds(accs: I) -> Vec<Vec<u8>>;
 
-    fn bumped_seeds(&self, accs: I, program_id: &Pubkey) -> Vec<Vec<u8>> {
-        let mut seeds = self.seeds(accs);
+    fn self_seeds(&self, accs: I) -> Vec<Vec<u8>> {
+        Self::seeds(accs)
+    }
+
+    fn key(accs: I, program_id: &Pubkey) -> Pubkey {
+        let mut seeds = Self::seeds(accs);
+        let mut s: Vec<&[u8]> = seeds.iter().map(|item| item.as_slice()).collect();
+        let mut seed_slice = s.as_slice();
+        let (addr, _) = Pubkey::find_program_address(seed_slice, program_id);
+
+        addr
+    }
+
+    fn bumped_seeds(accs: I, program_id: &Pubkey) -> Vec<Vec<u8>> {
+        let mut seeds = Self::seeds(accs);
         let mut s: Vec<&[u8]> = seeds.iter().map(|item| item.as_slice()).collect();
         let mut seed_slice = s.as_slice();
         let (_, bump_seed) = Pubkey::find_program_address(seed_slice, program_id);
@@ -73,7 +86,7 @@ pub trait Seeded<I> {
     where
         Self: Keyed<'a, 'b>,
     {
-        let seeds = self.seeds(accs);
+        let seeds = Self::seeds(accs);
         let s: Vec<&[u8]> = seeds.iter().map(|item| item.as_slice()).collect();
         let seed_slice = s.as_slice();
 
@@ -112,7 +125,7 @@ impl<'a, 'b: 'a, K, T: AccountSize + Seeded<K> + Keyed<'a, 'b> + Owned> Creatabl
         payer: &'a Pubkey,
         lamports: CreationLamports,
     ) -> Result<()> {
-        let seeds = self.bumped_seeds(accs, ctx.program_id);
+        let seeds = T::bumped_seeds(accs, ctx.program_id);
         let size = self.size();
 
         let mut s: Vec<&[u8]> = seeds.iter().map(|item| item.as_slice()).collect();
@@ -130,7 +143,7 @@ impl<'a, 'b: 'a, K, T: AccountSize + Seeded<K> + Keyed<'a, 'b> + Owned> Creatabl
 }
 
 impl<'a, const Seed: &'static str, T> Seeded<Option<()>> for Derive<T, Seed> {
-    fn seeds(&self, accs: Option<()>) -> Vec<Vec<u8>> {
+    fn seeds(accs: Option<()>) -> Vec<Vec<u8>> {
         vec![Seed.as_bytes().to_vec()]
     }
 }

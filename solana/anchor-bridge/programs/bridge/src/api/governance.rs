@@ -6,6 +6,7 @@ use crate::types::{
     self,
     GovernancePayloadSetMessageFee,
     GovernancePayloadTransferFees,
+    GuardianSetData,
 };
 
 use solana_program::pubkey::Pubkey;
@@ -15,6 +16,11 @@ use solitaire::{
 };
 
 use crate::{
+    accounts::{
+        Bridge,
+        GuardianSet,
+        GuardianSetDerivationData,
+    },
     types::{
         BridgeData,
         GovernancePayloadGuardianSetChange,
@@ -62,28 +68,11 @@ pub fn upgrade_contract(
         accs.upgrade_authority.key,
         accs.spill.key,
     );
-    let _seeds = accs.upgrade_authority.seeds(None);
+    let _seeds = accs.upgrade_authority.self_seeds(None);
     invoke_signed(&upgrade_ix, ctx.accounts, &[])?;
 
     Ok(())
 }
-
-type GuardianSet<'b> = Data<'b, types::GuardianSetData, { AccountState::Initialized }>;
-type GuardianSetNew<'b> = Data<'b, types::GuardianSetData, { AccountState::Uninitialized }>;
-
-impl<'b> Seeded<&UpgradeGuardianSet<'b>> for GuardianSet<'b> {
-    fn seeds(&self, accs: &UpgradeGuardianSet<'b>) -> Vec<Vec<u8>> {
-        vec![(accs.vaa.new_guardian_set_index - 1).to_be_bytes().to_vec()]
-    }
-}
-
-impl<'b> Seeded<&UpgradeGuardianSet<'b>> for GuardianSetNew<'b> {
-    fn seeds(&self, accs: &UpgradeGuardianSet<'b>) -> Vec<Vec<u8>> {
-        vec![accs.vaa.new_guardian_set_index.to_be_bytes().to_vec()]
-    }
-}
-
-pub type Bridge<'a> = Derive<Data<'a, BridgeData, { AccountState::Initialized }>, "Bridge">;
 
 #[derive(FromAccounts)]
 pub struct UpgradeGuardianSet<'b> {
@@ -91,15 +80,15 @@ pub struct UpgradeGuardianSet<'b> {
     pub payer: Signer<Info<'b>>,
 
     /// Bridge config
-    pub bridge: Bridge<'b>,
+    pub bridge: Bridge<'b, { AccountState::Initialized }>,
 
     /// GuardianSet change VAA
     pub vaa: ClaimableVAA<'b, GovernancePayloadGuardianSetChange>,
 
     /// Old guardian set
-    pub guardian_set_old: GuardianSet<'b>,
+    pub guardian_set_old: GuardianSet<'b, { AccountState::Initialized }>,
     /// New guardian set
-    pub guardian_set_new: GuardianSetNew<'b>,
+    pub guardian_set_new: GuardianSet<'b, { AccountState::Uninitialized }>,
 }
 
 impl<'b> InstructionContext<'b> for UpgradeGuardianSet<'b> {
@@ -137,8 +126,14 @@ pub fn upgrade_guardian_set(
 
     // Create new guardian set
     // This is done after populating it to properly allocate space according to key vec length.
-    accs.guardian_set_new
-        .create(accs, ctx, accs.payer.key, Exempt)?;
+    accs.guardian_set_new.create(
+        &GuardianSetDerivationData {
+            index: accs.guardian_set_new.index,
+        },
+        ctx,
+        accs.payer.key,
+        Exempt,
+    )?;
 
     // Set guardian set index
     accs.bridge.guardian_set_index = accs.vaa.new_guardian_set_index;
@@ -152,7 +147,7 @@ pub struct SetFees<'b> {
     pub payer: Signer<Info<'b>>,
 
     /// Bridge config
-    pub bridge: Bridge<'b>,
+    pub bridge: Bridge<'b, { AccountState::Initialized }>,
 
     /// Governance VAA
     pub vaa: ClaimableVAA<'b, GovernancePayloadSetMessageFee>,
@@ -179,7 +174,7 @@ pub struct TransferFees<'b> {
     pub payer: Signer<Info<'b>>,
 
     /// Bridge config
-    pub bridge: Bridge<'b>,
+    pub bridge: Bridge<'b, { AccountState::Initialized }>,
 
     /// Governance VAA
     pub vaa: ClaimableVAA<'b, GovernancePayloadTransferFees>,
@@ -217,7 +212,7 @@ pub fn transfer_fees(
         accs.recipient.key,
         accs.vaa.amount.as_u64(),
     );
-    let seeds = accs.fee_collector.seeds(None);
+    let seeds = accs.fee_collector.self_seeds(None);
     let s: Vec<&[u8]> = seeds.iter().map(|item| item.as_slice()).collect();
     let seed_slice = s.as_slice();
     invoke_signed(&transfer_ix, ctx.accounts, &[seed_slice])?;

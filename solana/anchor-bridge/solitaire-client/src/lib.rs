@@ -130,18 +130,18 @@ where
                 UnprivilegedRO(k) => Ok(vec![AccountMeta::new_readonly(*k, false)]),
                 Signer(pair) => Ok(vec![AccountMeta::new(pair.pubkey(), true)]),
                 SignerRO(pair) => Ok(vec![AccountMeta::new_readonly(pair.pubkey(), true)]),
-		_other => Err(format!("{} with IsInitialized = {:?} must be passed as Unprivileged, Signer or the respective read-only variant", std::any::type_name::<Self>(), a).into())
+                _other => Err(format!("{} with IsInitialized = {:?} must be passed as Unprivileged, Signer or the respective read-only variant", std::any::type_name::<Self>(), a).into())
             },
             Uninitialized => match a {
                 Unprivileged(k) => Ok(vec![AccountMeta::new(*k, false)]),
                 Signer(pair) => Ok(vec![AccountMeta::new(pair.pubkey(), true)]),
-		_other => Err(format!("{} with IsInitialized = {:?} must be passed as Unprivileged or Signer (write access required for initialization)", std::any::type_name::<Self>(), a).into() )
-	    }
+                _other => Err(format!("{} with IsInitialized = {:?} must be passed as Unprivileged or Signer (write access required for initialization)", std::any::type_name::<Self>(), a).into())
+            }
             MaybeInitialized => match a {
                 Unprivileged(k) => Ok(vec![AccountMeta::new(*k, false)]),
                 Signer(pair) => Ok(vec![AccountMeta::new(pair.pubkey(), true)]),
-		_other => Err(format!("{} with IsInitialized = {:?} must be passed as Unprivileged or Signer (write access required in case of initialization)", std::any::type_name::<Self>(), a).into() )
-	    }
+                _other => Err(format!("{} with IsInitialized = {:?} must be passed as Unprivileged or Signer (write access required in case of initialization)", std::any::type_name::<Self>(), a).into())
+            }
         }
     }
 }

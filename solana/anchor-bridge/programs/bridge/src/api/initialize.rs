@@ -1,18 +1,22 @@
-use crate::types::*;
+use crate::{
+    accounts::{
+        Bridge,
+        GuardianSet,
+        GuardianSetDerivationData,
+    },
+    types::*,
+};
 use solitaire::{
     CreationLamports::Exempt,
     *,
 };
 
 type Payer<'a> = Signer<Info<'a>>;
-type GuardianSet<'a> =
-    Derive<Data<'a, GuardianSetData, { AccountState::Uninitialized }>, "GuardianSet">;
-type Bridge<'a> = Derive<Data<'a, BridgeData, { AccountState::Uninitialized }>, "Bridge">;
 
 #[derive(FromAccounts, ToInstruction)]
 pub struct Initialize<'b> {
-    pub bridge: Bridge<'b>,
-    pub guardian_set: GuardianSet<'b>,
+    pub bridge: Bridge<'b, { AccountState::Uninitialized }>,
+    pub guardian_set: GuardianSet<'b, { AccountState::Uninitialized }>,
     pub payer: Payer<'b>,
 }
 
@@ -25,13 +29,18 @@ pub fn initialize(
     config: BridgeConfig,
 ) -> Result<()> {
     // Initialize Guardian Set
+    accs.guardian_set.create(
+        &GuardianSetDerivationData { index: 0 },
+        ctx,
+        accs.payer.key,
+        Exempt,
+    )?;
     accs.guardian_set.index = 0;
     accs.guardian_set.creation_time = 0;
     accs.guardian_set.keys = Vec::with_capacity(20);
 
-    accs.bridge.create(ctx, accs.payer.key, Exempt)?;
-
     // Initialize the Bridge state for the first time.
+    accs.bridge.create(ctx, accs.payer.key, Exempt)?;
     accs.bridge.guardian_set_index = 0;
     accs.bridge.config = config;
 

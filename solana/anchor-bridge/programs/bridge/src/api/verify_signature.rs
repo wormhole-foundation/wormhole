@@ -3,6 +3,12 @@ use solitaire::*;
 use solana_program::{self,};
 
 use crate::{
+    accounts::{
+        GuardianSet,
+        GuardianSetDerivationData,
+        SignatureSet,
+        SignaturesSetDerivationData,
+    },
     types::{self,},
     Error::{
         GuardianSetMismatch,
@@ -21,32 +27,39 @@ use solitaire::{
 };
 use std::io::Write;
 
-type GuardianSet<'b> =
-    Derive<Data<'b, types::GuardianSetData, { AccountState::Initialized }>, "GuardianSet">;
-type SignatureSet<'b> = Data<'b, types::SignatureSet, { AccountState::MaybeInitialized }>;
-
-impl<'b> Seeded<&VerifySignaturesData> for SignatureSet<'b> {
-    fn seeds(&self, data: &VerifySignaturesData) -> Vec<Vec<u8>> {
-        vec![data.hash.to_vec()]
-    }
-}
-
 #[derive(FromAccounts)]
 pub struct VerifySignatures<'b> {
     /// Payer for account creation
     pub payer: Signer<Info<'b>>,
 
     /// Guardian set of the signatures
-    pub guardian_set: GuardianSet<'b>,
+    pub guardian_set: GuardianSet<'b, { AccountState::Initialized }>,
 
     /// Signature Account
-    pub signature_set: SignatureSet<'b>,
+    pub signature_set: SignatureSet<'b, { AccountState::MaybeInitialized }>,
 
     /// Instruction reflection account (special sysvar)
     pub instruction_acc: Info<'b>,
 }
 
 impl<'b> InstructionContext<'b> for VerifySignatures<'b> {
+}
+
+impl From<&VerifySignatures<'_>> for GuardianSetDerivationData {
+    fn from(data: &VerifySignatures<'_>) -> Self {
+        GuardianSetDerivationData {
+            index: data.guardian_set.index,
+        }
+    }
+}
+
+impl From<&VerifySignatures<'_>> for SignaturesSetDerivationData {
+    fn from(data: &VerifySignatures<'_>) -> Self {
+        SignaturesSetDerivationData {
+            // TODO
+            hash: data.signature_set.hash,
+        }
+    }
 }
 
 #[derive(Default, BorshSerialize, BorshDeserialize)]
@@ -81,7 +94,9 @@ pub fn verify_signatures(
 ) -> Result<()> {
     // TODO this needs to be done here because we don't have data in the context
     accs.signature_set
-        .verify_derivation(ctx.program_id, &data)?;
+        .verify_derivation(ctx.program_id, &(&*accs).into())?;
+    accs.guardian_set
+        .verify_derivation(ctx.program_id, &(&*accs).into())?;
 
     let sig_infos: Vec<SigInfo> = data
         .signers
@@ -187,7 +202,7 @@ pub fn verify_signatures(
     // Prepare message/payload-specific sig_info account
     if !accs.signature_set.is_initialized() {
         accs.signature_set
-            .create(&data, ctx, accs.payer.key, Exempt)?;
+            .create(&(&*accs).into(), ctx, accs.payer.key, Exempt)?;
         initialize_account = true;
     }
 

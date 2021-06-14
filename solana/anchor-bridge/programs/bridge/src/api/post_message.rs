@@ -1,4 +1,11 @@
 use crate::{
+    accounts::{
+        Bridge,
+        Message,
+        MessageDerivationData,
+        Sequence,
+        SequenceDerivationData,
+    },
     types::{
         BridgeData,
         PostedMessage,
@@ -19,35 +26,34 @@ use solitaire::{
     *,
 };
 
-type Message<'b> = Data<'b, PostedMessage, { AccountState::Uninitialized }>;
+type UninitializedMessage<'b> = Message<'b, { AccountState::Uninitialized }>;
 
-type Sequence<'b> = Data<'b, SequenceTracker, { AccountState::MaybeInitialized }>;
-
-impl<'a, 'b: 'a> Seeded<&PostMessage<'b>> for Message<'b> {
-    fn seeds(&self, accs: &PostMessage<'b>) -> Vec<Vec<u8>> {
-        vec![
-            accs.emitter.key.to_bytes().to_vec(),
-            accs.sequence.sequence.to_be_bytes().to_vec(),
-        ]
+impl<'a> From<&PostMessage<'a>> for MessageDerivationData {
+    fn from(accs: &PostMessage<'a>) -> Self {
+        MessageDerivationData {
+            emitter_key: accs.emitter.key.to_bytes(),
+            sequence: accs.sequence.sequence,
+        }
     }
 }
 
-impl<'b> Seeded<&PostMessage<'b>> for Sequence<'b> {
-    fn seeds(&self, accs: &PostMessage<'b>) -> Vec<Vec<u8>> {
-        vec![accs.emitter.key.to_bytes().to_vec()]
+impl<'a> From<&PostMessage<'a>> for SequenceDerivationData<'a> {
+    fn from(accs: &PostMessage<'a>) -> Self {
+        SequenceDerivationData {
+            emitter_key: accs.emitter.key,
+        }
     }
 }
 
-pub type Bridge<'a> = Derive<Data<'a, BridgeData, { AccountState::Initialized }>, "Bridge">;
 pub type FeeAccount<'a> = Derive<Info<'a>, "Fees">;
 
 #[derive(FromAccounts)]
 pub struct PostMessage<'b> {
-    pub bridge: Bridge<'b>,
+    pub bridge: Bridge<'b, { AccountState::Initialized }>,
     pub fee_vault: FeeAccount<'b>,
 
     /// Account to store the posted message
-    pub message: Message<'b>,
+    pub message: UninitializedMessage<'b>,
 
     /// Emitter of the VAA
     pub emitter: Signer<Info<'b>>,
@@ -69,8 +75,8 @@ pub struct PostMessage<'b> {
 
 impl<'b> InstructionContext<'b> for PostMessage<'b> {
     fn verify(&self, program_id: &Pubkey) -> Result<()> {
-        self.message.verify_derivation(program_id, self)?;
-        self.sequence.verify_derivation(program_id, self)?;
+        self.message.verify_derivation(program_id, &self.into())?;
+        self.sequence.verify_derivation(program_id, &self.into())?;
         Ok(())
     }
 }
@@ -81,6 +87,8 @@ pub struct PostMessageData {
     pub nonce: u32,
     /// message payload
     pub payload: Vec<u8>,
+    /// Emitter address
+    pub emitter: Pubkey,
 }
 
 pub fn post_message(
@@ -101,13 +109,15 @@ pub fn post_message(
     }
     accs.bridge.last_lamports = accs.fee_collector.lamports();
 
-    // Init sequencce tracker if it does not exist yet.
+    // Init sequence tracker if it does not exist yet.
     if !accs.sequence.is_initialized() {
-        accs.sequence.create(accs, ctx, accs.payer.key, Exempt)?;
+        accs.sequence
+            .create(&(&*accs).into(), ctx, accs.payer.key, Exempt)?;
     }
 
     // Create message account
-    accs.message.create(accs, ctx, accs.payer.key, Exempt)?;
+    accs.message
+        .create(&(&*accs).into(), ctx, accs.payer.key, Exempt)?;
 
     // Initialize transfer
     accs.message.submission_time = accs.clock.unix_timestamp as u32;

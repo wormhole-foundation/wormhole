@@ -1,8 +1,6 @@
 use borsh::BorshSerialize;
 use bridge::{
     api,
-    client,
-    instruction,
     types,
 };
 use clap::Clap;
@@ -10,12 +8,7 @@ use solana_client::{
     rpc_client::RpcClient,
     rpc_config::RpcSendTransactionConfig,
 };
-use solana_program::{
-    pubkey::Pubkey,
-    system_instruction,
-    system_program,
-    sysvar,
-};
+use solana_program::pubkey::Pubkey;
 use solana_sdk::{
     commitment_config::CommitmentConfig,
     signature::{
@@ -26,14 +19,18 @@ use solana_sdk::{
 };
 use solitaire_client::{
     AccEntry,
-    Signer,
     ToInstruction,
 };
 
-use std::{
-    error,
-    mem::size_of,
+use bridge::accounts::{
+    GuardianSet,
+    GuardianSetDerivationData,
 };
+use solitaire::{
+    processors::seeded::Seeded,
+    AccountState,
+};
+use std::error;
 
 #[derive(Clap)]
 pub struct Opts {
@@ -64,7 +61,10 @@ fn main() -> Result<(), ErrBox> {
     use AccEntry::*;
     let init = api::InitializeAccounts {
         bridge: Derived(program_id.clone()),
-        guardian_set: Derived(program_id.clone()),
+        guardian_set: Unprivileged(<GuardianSet<'_, { AccountState::Uninitialized }>>::key(
+            &GuardianSetDerivationData { index: 0 },
+            &program_id,
+        )),
         payer: Signer(payer),
     };
 

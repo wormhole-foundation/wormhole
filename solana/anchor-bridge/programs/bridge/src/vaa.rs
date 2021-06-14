@@ -118,7 +118,7 @@ impl<'b, T: DeserializePayload> PayloadMessage<'b, T> {
 data_wrapper!(Claim, ClaimData, AccountState::Uninitialized);
 
 impl<'b, T: DeserializePayload> Seeded<&ClaimableVAA<'b, T>> for Claim<'b> {
-    fn seeds(&self, _accs: &ClaimableVAA<'b, T>) -> Vec<Vec<u8>> {
+    fn seeds(_accs: &ClaimableVAA<'b, T>) -> Vec<Vec<u8>> {
         return vec![];
     }
 }

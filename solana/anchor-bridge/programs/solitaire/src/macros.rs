@@ -125,11 +125,14 @@ macro_rules! data_wrapper {
                 Data::peel(ctx).map(|v| $name(v))
             }
 
-            fn deps() -> Vec<Pubkey> {
+            fn deps() -> Vec<solana_program::pubkey::Pubkey> {
                 Data::<'_, $embed, { $state }>::deps()
             }
 
-            fn persist(&self, program_id: &Pubkey) -> solitaire::Result<()> {
+            fn persist(
+                &self,
+                program_id: &solana_program::pubkey::Pubkey,
+            ) -> solitaire::Result<()> {
                 Data::<'_, $embed, { $state }>::persist(self, program_id)
             }
         }
