@@ -5,6 +5,7 @@
 //! Client-specific code
 
 pub use solana_program::pubkey::Pubkey;
+use solana_program::sysvar::Sysvar as SolSysvar;
 pub use solana_sdk;
 
 pub use solana_sdk::{
@@ -20,7 +21,10 @@ pub use solana_sdk::{
 
 use borsh::BorshSerialize;
 
-use solitaire::AccountState;
+use solitaire::{
+    AccountState,
+    Sysvar,
+};
 pub use solitaire::{
     Data,
     Derive,
@@ -52,7 +56,7 @@ pub enum AccEntry {
     CPIProgramSigner(Keypair),
 
     /// Key decided from SPL constants
-    Sysvar,
+    Sysvar(Pubkey),
 
     /// Key derived from constants and/or program address
     Derived(Pubkey),
@@ -142,6 +146,26 @@ where
                 Signer(pair) => Ok(vec![AccountMeta::new(pair.pubkey(), true)]),
                 _other => Err(format!("{} with IsInitialized = {:?} must be passed as Unprivileged or Signer (write access required in case of initialization)", std::any::type_name::<Self>(), a).into())
             }
+        }
+    }
+}
+
+impl<'b, Var> Wrap for Sysvar<'b, Var>
+where
+    Var: SolSysvar,
+{
+    fn wrap(a: &AccEntry) -> StdResult<Vec<AccountMeta>, ErrBox> {
+        if let AccEntry::Sysvar(k) = a {
+	    if Var::check_id(k) {
+		Ok(vec![AccountMeta::new_readonly(k.clone(), false)])
+	    } else {
+		Err(format!("{} does not point at sysvar {}", k, std::any::type_name::<Var>()).into())
+	    }
+        } else {
+            Err(format!(
+                "{} must be passed as Sysvar",
+                std::any::type_name::<Self>()
+            ).into())
         }
     }
 }
