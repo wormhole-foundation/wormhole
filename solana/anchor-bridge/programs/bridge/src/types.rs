@@ -22,9 +22,12 @@ use solitaire::{
     },
     SolitaireError,
 };
-use std::io::{
-    Cursor,
-    Read,
+use std::{
+    io::{
+        Cursor,
+        Read,
+    },
+    str::FromStr,
 };
 
 #[derive(Default, BorshSerialize, BorshDeserialize)]
@@ -101,7 +104,7 @@ impl Owned for SignatureSet {
     }
 }
 
-#[derive(Default, BorshSerialize, BorshDeserialize)]
+#[derive(Default, BorshSerialize, BorshDeserialize, Clone)]
 pub struct PostedMessage {
     /// Header of the posted VAA
     pub vaa_version: u8,
@@ -133,7 +136,9 @@ pub struct PostedMessage {
 
 impl Owned for PostedMessage {
     fn owner(&self) -> AccountOwner {
-        AccountOwner::This
+        AccountOwner::Other(
+            Pubkey::from_str("96RHG3mfcckmrYN1UhmJzyS1XX3fZKbkeUcpJe9Sy3FE").unwrap(),
+        ) // TODO key of the bridge
     }
 }
 

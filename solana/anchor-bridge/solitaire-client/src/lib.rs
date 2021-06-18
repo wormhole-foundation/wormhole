@@ -156,16 +156,18 @@ where
 {
     fn wrap(a: &AccEntry) -> StdResult<Vec<AccountMeta>, ErrBox> {
         if let AccEntry::Sysvar(k) = a {
-	    if Var::check_id(k) {
-		Ok(vec![AccountMeta::new_readonly(k.clone(), false)])
-	    } else {
-		Err(format!("{} does not point at sysvar {}", k, std::any::type_name::<Var>()).into())
-	    }
+            if Var::check_id(k) {
+                Ok(vec![AccountMeta::new_readonly(k.clone(), false)])
+            } else {
+                Err(format!(
+                    "{} does not point at sysvar {}",
+                    k,
+                    std::any::type_name::<Var>()
+                )
+                .into())
+            }
         } else {
-            Err(format!(
-                "{} must be passed as Sysvar",
-                std::any::type_name::<Self>()
-            ).into())
+            Err(format!("{} must be passed as Sysvar", std::any::type_name::<Self>()).into())
         }
     }
 }

@@ -81,6 +81,7 @@ macro_rules! solitaire {
         }
 
         use instruction::solitaire;
+        #[cfg(not(feature = "no-entrypoint"))]
         solana_program::entrypoint!(solitaire);
     }
 }
@@ -153,10 +154,14 @@ macro_rules! pack_type {
 
         impl BorshDeserialize for $name {
             fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
-                Ok($name(
+                let acc = $name(
                     solana_program::program_pack::Pack::unpack(buf)
                         .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?,
-                ))
+                );
+                // We need to clear the buf to show to Borsh that we've read all data
+                *buf = &buf[..0];
+
+                Ok(acc)
             }
         }
 

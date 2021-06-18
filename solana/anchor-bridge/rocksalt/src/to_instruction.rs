@@ -51,11 +51,11 @@ pub fn generate_to_instruction(
 
             quote! {
             /// Solitaire-generated client-side #name representation
-            #[cfg(feature = "no-entrypoint")]
+            #[cfg(feature = "client")]
             #client_struct_decl
 
                 /// Solitaire-generatied ToInstruction implementation
-            #[cfg(feature = "no-entrypoint")]
+            #[cfg(feature = "client")]
                 impl #impl_generics  solitaire_client::ToInstruction for #client_struct_name {
                     fn to_ix(
                 self,

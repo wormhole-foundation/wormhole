@@ -9,7 +9,8 @@ crate-type = ["cdylib", "lib"]
 name = "bridge"
 
 [features]
-no-entrypoint = ["solitaire/no-entrypoint", "solitaire-client"]
+no-entrypoint = ["solitaire/no-entrypoint"]
+client = ["solitaire-client"]
 no-idl = []
 cpi = ["no-entrypoint"]
 default = []

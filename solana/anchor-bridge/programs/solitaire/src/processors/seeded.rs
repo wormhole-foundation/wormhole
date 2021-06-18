@@ -22,6 +22,8 @@ use borsh::{
     BorshSerialize,
 };
 use solana_program::{
+    entrypoint::ProgramResult,
+    instruction::Instruction,
     program::invoke_signed,
     pubkey::Pubkey,
 };
@@ -80,6 +82,10 @@ pub trait Seeded<I> {
         seeds.push(vec![bump_seed]);
 
         seeds
+    }
+
+    fn self_bumped_seeds(&self, accs: I, program_id: &Pubkey) -> Vec<Vec<u8>> {
+        Self::bumped_seeds(accs, program_id)
     }
 
     fn verify_derivation<'a, 'b: 'a>(&'a self, program_id: &'a Pubkey, accs: I) -> Result<()>
@@ -146,4 +152,16 @@ impl<'a, const Seed: &'static str, T> Seeded<Option<()>> for Derive<T, Seed> {
     fn seeds(accs: Option<()>) -> Vec<Vec<u8>> {
         vec![Seed.as_bytes().to_vec()]
     }
+}
+
+pub fn invoke_seeded<I, T: Seeded<I>>(
+    instruction: &Instruction,
+    context: &ExecutionContext,
+    seeded_acc: &T,
+    accs: I,
+) -> ProgramResult {
+    let seeds = seeded_acc.self_bumped_seeds(accs, context.program_id);
+    let s: Vec<&[u8]> = seeds.iter().map(|item| item.as_slice()).collect();
+    let seed_slice = s.as_slice();
+    invoke_signed(instruction, context.accounts, &[seed_slice])
 }

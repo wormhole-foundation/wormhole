@@ -49,15 +49,6 @@ impl<'a> From<&PostVAA<'a>> for SignaturesSetDerivationData {
     }
 }
 
-impl From<&PostVAAData> for MessageDerivationData {
-    fn from(data: &PostVAAData) -> Self {
-        MessageDerivationData {
-            emitter_key: data.emitter_address,
-            sequence: data.sequence,
-        }
-    }
-}
-
 impl From<&PostVAAData> for GuardianSetDerivationData {
     fn from(data: &PostVAAData) -> Self {
         GuardianSetDerivationData {
@@ -131,8 +122,14 @@ pub struct PostVAAData {
 }
 
 pub fn post_vaa(ctx: &ExecutionContext, accs: &mut PostVAA, vaa: PostVAAData) -> Result<()> {
+    let msg_derivation = MessageDerivationData {
+        emitter_key: vaa.emitter_address,
+        emitter_chain: vaa.emitter_chain,
+        nonce: vaa.nonce,
+        payload: vaa.payload.clone(),
+    };
     accs.message
-        .verify_derivation(ctx.program_id, &(&vaa).into())?;
+        .verify_derivation(ctx.program_id, &msg_derivation)?;
     accs.guardian_set
         .verify_derivation(ctx.program_id, &(&vaa).into())?;
     // Verify any required invariants before we process the instruction.
@@ -166,14 +163,13 @@ pub fn post_vaa(ctx: &ExecutionContext, accs: &mut PostVAA, vaa: PostVAAData) ->
 
     // If the VAA originates from another chain we need to create the account and populate all fields
     if vaa.emitter_chain != 1 {
-        accs.message
-            .create(&(&vaa).into(), ctx, accs.payer.key, Exempt)?;
-
         accs.message.nonce = vaa.nonce;
         accs.message.emitter_chain = vaa.emitter_chain;
         accs.message.emitter_address = vaa.emitter_address;
         accs.message.sequence = vaa.sequence;
         accs.message.payload = vaa.payload;
+        accs.message
+            .create(&msg_derivation, ctx, accs.payer.key, Exempt)?;
     }
 
     // Store VAA data in associated message.

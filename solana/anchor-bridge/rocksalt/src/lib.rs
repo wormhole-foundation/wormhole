@@ -19,6 +19,7 @@ use proc_macro2::{
 use quote::{
     quote,
     quote_spanned,
+    ToTokens,
 };
 use std::borrow::BorrowMut;
 use syn::{
@@ -162,9 +163,12 @@ fn generate_fields(name: &syn::Ident, data: &Data) -> TokenStream2 {
                     let recurse = fields.named.iter().map(|f| {
                         // Field name, to assign to.
                         let name = &f.ident;
+                        let name_string =
+                            format!("Peeling: {}", name.to_token_stream().to_string());
                         let ty = &f.ty;
 
                         quote! {
+                                solana_program::msg!(#name_string);
                             let #name: #ty = solitaire::Peel::peel(&mut solitaire::Context::new(
                                 pid,
                                 iter,

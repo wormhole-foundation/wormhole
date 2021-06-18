@@ -1,4 +1,8 @@
 use crate::{
+    accounts::{
+        Claim,
+        ClaimDerivationData,
+    },
     types::{
         ClaimData,
         PostedMessage,
@@ -115,21 +119,13 @@ impl<'b, T: DeserializePayload> PayloadMessage<'b, T> {
     }
 }
 
-data_wrapper!(Claim, ClaimData, AccountState::Uninitialized);
-
-impl<'b, T: DeserializePayload> Seeded<&ClaimableVAA<'b, T>> for Claim<'b> {
-    fn seeds(_accs: &ClaimableVAA<'b, T>) -> Vec<Vec<u8>> {
-        return vec![];
-    }
-}
-
 #[derive(FromAccounts)]
 pub struct ClaimableVAA<'b, T: DeserializePayload> {
     // Signed message for the transfer
     pub message: PayloadMessage<'b, T>, // TODO use bridge type here that does verifications
 
     // Claim account to prevent double spending
-    pub claim: Claim<'b>,
+    pub claim: Claim<'b, { AccountState::Uninitialized }>,
 }
 
 impl<'b, T: DeserializePayload> Deref for ClaimableVAA<'b, T> {
@@ -144,7 +140,14 @@ impl<'b, T: DeserializePayload> InstructionContext<'b> for ClaimableVAA<'b, T> {
         // Do the Posted Message verification
 
         // Verify that the claim account is derived correctly
-        self.claim.verify_derivation(program_id, self)?;
+        self.claim.verify_derivation(
+            program_id,
+            &ClaimDerivationData {
+                emitter_address: self.message.meta().emitter_address,
+                emitter_chain: self.message.meta().emitter_chain,
+                sequence: self.message.meta().sequence,
+            },
+        )?;
 
         Ok(())
     }
@@ -160,7 +163,16 @@ impl<'b, T: DeserializePayload> ClaimableVAA<'b, T> {
             return Err(VAAAlreadyExecuted.into());
         }
 
-        self.claim.create(self, ctx, payer, Exempt)?;
+        self.claim.create(
+            &ClaimDerivationData {
+                emitter_address: self.message.meta().emitter_address,
+                emitter_chain: self.message.meta().emitter_chain,
+                sequence: self.message.meta().sequence,
+            },
+            ctx,
+            payer,
+            Exempt,
+        )?;
         self.claim.claimed = true;
 
         Ok(())
