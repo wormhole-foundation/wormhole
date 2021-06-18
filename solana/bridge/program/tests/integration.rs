@@ -55,4 +55,27 @@ fn test_bridge_messages() {
         payer,
         GuardianSetDerivationData { index: 0 },
     );
+
+    // Post a Message
+    common::post_message(
+        client,
+        program,
+        payer,
+        PostedMessage {
+            vaa_version: 0,
+            vaa_time: 0,
+            vaa_signature_account: Pubkey::new_unique(),
+
+            nonce: 0,
+            sequence: 0,
+            emitter_chain: 1,
+            emitter_address: [0u8; 32],
+            payload: vec![],
+            submission_time: SystemTime::now()
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .unwrap()
+                .as_secs() as u32,
+        },
+        0,
+    );
 }

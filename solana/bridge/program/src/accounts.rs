@@ -28,7 +28,10 @@ impl<'b, const State: AccountState> Seeded<&GuardianSetDerivationData>
     for GuardianSet<'b, { State }>
 {
     fn seeds(data: &GuardianSetDerivationData) -> Vec<Vec<u8>> {
-        vec![data.index.to_be_bytes().to_vec()]
+        vec![
+            "GuardianSet".as_bytes().to_vec(),
+            data.index.to_be_bytes().to_vec()
+        ]
     }
 }
 
