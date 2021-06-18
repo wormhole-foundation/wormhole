@@ -144,6 +144,7 @@ impl<'a, 'b: 'a, K, T: AccountSize + Seeded<K> + Keyed<'a, 'b> + Owned> Creatabl
             size as u64,
             &self.owner_pubkey(ctx.program_id)?,
         );
+
         Ok(invoke_signed(&ix, ctx.accounts, &[seed_slice])?)
     }
 }

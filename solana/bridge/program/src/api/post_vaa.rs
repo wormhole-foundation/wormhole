@@ -59,18 +59,6 @@ impl From<&PostVAAData> for GuardianSetDerivationData {
 
 #[derive(FromAccounts)]
 pub struct PostVAA<'b> {
-    /// Required by Anchor for associated accounts.
-    pub system_program: Info<'b>,
-
-    /// Required by Anchor for associated accounts.
-    pub rent: Info<'b>,
-
-    /// Clock used for timestamping.
-    pub clock: Sysvar<'b, Clock>,
-
-    /// State struct, derived by #[state], used for associated accounts.
-    pub state: Info<'b>,
-
     /// Information about the current guardian set.
     pub guardian_set: GuardianSet<'b, { AccountState::Initialized }>,
 
@@ -80,11 +68,14 @@ pub struct PostVAA<'b> {
     /// Signature Info
     pub signature_set: SignatureSet<'b, { AccountState::Initialized }>,
 
+    /// Message the VAA is associated with.
+    pub message: Message<'b, { AccountState::MaybeInitialized }>,
+
     /// Account used to pay for auxillary instructions.
     pub payer: Info<'b>,
 
-    /// Message the VAA is associated with.
-    pub message: Message<'b, { AccountState::MaybeInitialized }>,
+    /// Clock used for timestamping.
+    pub clock: Sysvar<'b, Clock>,
 }
 
 impl<'b> InstructionContext<'b> for PostVAA<'b> {

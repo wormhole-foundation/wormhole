@@ -41,6 +41,8 @@ impl<'a> From<&PostMessage<'a>> for SequenceDerivationData<'a> {
 pub struct PostMessage<'b> {
     pub bridge: Bridge<'b, { AccountState::Initialized }>,
 
+    pub fee_vault: FeeAccount<'b>,
+
     /// Account to store the posted message
     pub message: UninitializedMessage<'b>,
 

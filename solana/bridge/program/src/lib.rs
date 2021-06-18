@@ -11,7 +11,7 @@ pub mod vaa;
 
 use solitaire::*;
 
-use api::{
+pub use api::{
     initialize,
     post_message,
     post_vaa,
