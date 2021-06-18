@@ -12,6 +12,7 @@ type MessagePublication struct {
 	Timestamp time.Time
 
 	Nonce          uint32
+	Sequence       uint64
 	EmitterChain   vaa.ChainID
 	EmitterAddress vaa.Address
 	Payload        []byte

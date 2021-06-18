@@ -27,6 +27,8 @@ type (
 		Timestamp time.Time
 		// Nonce of the VAA
 		Nonce uint32
+		// Sequence of the VAA
+		Sequence uint64
 		// EmitterChain the VAA was emitted on
 		EmitterChain ChainID
 		// EmitterAddress of the contract that emitted the Message
@@ -36,7 +38,7 @@ type (
 	}
 
 	// ChainID of a Wormhole chain
-	ChainID uint8
+	ChainID uint16
 	// Action of a VAA
 	Action uint8
 

@@ -1,5 +1,9 @@
 use crate::{
-    api::ForeignAddress,
+    api::{
+        ForeignAddress,
+        PostMessage,
+        PostMessageData,
+    },
     vaa::{
         DeserializeGovernancePayload,
         DeserializePayload,
@@ -26,6 +30,11 @@ use std::{
     io::{
         Cursor,
         Read,
+        Write,
+    },
+    ops::{
+        Deref,
+        DerefMut,
     },
     str::FromStr,
 };
@@ -104,8 +113,52 @@ impl Owned for SignatureSet {
     }
 }
 
+#[repr(transparent)]
+pub struct PostedMessage(pub PostedMessageData);
+
+impl BorshSerialize for PostedMessage {
+    fn serialize<W: Write>(&self, writer: &mut W) -> std::io::Result<()> {
+        writer.write(&['m' as u8, 's' as u8, 'g' as u8]);
+        BorshSerialize::serialize(&self.0, writer)
+    }
+}
+
+impl BorshDeserialize for PostedMessage {
+    fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
+        Ok(PostedMessage(
+            <PostedMessageData as BorshDeserialize>::deserialize(&mut &buf[3..])?,
+        ))
+    }
+}
+
+impl Deref for PostedMessage {
+    type Target = PostedMessageData;
+
+    fn deref(&self) -> &Self::Target {
+        unsafe { std::mem::transmute(&self.0) }
+    }
+}
+
+impl DerefMut for PostedMessage {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        unsafe { std::mem::transmute(&mut self.0) }
+    }
+}
+
+impl Default for PostedMessage {
+    fn default() -> Self {
+        PostedMessage(PostedMessageData::default())
+    }
+}
+
+impl Clone for PostedMessage {
+    fn clone(&self) -> Self {
+        PostedMessage(self.0.clone())
+    }
+}
+
 #[derive(Default, BorshSerialize, BorshDeserialize, Clone)]
-pub struct PostedMessage {
+pub struct PostedMessageData {
     /// Header of the posted VAA
     pub vaa_version: u8,
 

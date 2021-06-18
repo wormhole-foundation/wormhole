@@ -1,10 +1,7 @@
 package ethereum
 
 import (
-	"bytes"
 	"context"
-	"encoding/binary"
-	"fmt"
 	"github.com/certusone/wormhole/bridge/pkg/common"
 	"github.com/certusone/wormhole/bridge/pkg/p2p"
 	gossipv1 "github.com/certusone/wormhole/bridge/pkg/proto/gossip/v1"
@@ -14,9 +11,9 @@ import (
 	"github.com/dfuse-io/solana-go/rpc"
 	eth_common "github.com/ethereum/go-ethereum/common"
 	"github.com/mr-tron/base58"
+	"github.com/near/borsh-go"
 	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/zap"
-	"math/big"
 	"time"
 )
 
@@ -116,12 +113,9 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 						Commitment: rpc.CommitmentMax, // TODO: deprecated, use Finalized
 						Filters: []rpc.RPCFilter{
 							{
-								DataSize: 1184, // Search for MessagePublicationAccount accounts
-							},
-							{
 								Memcmp: &rpc.RPCFilterMemcmp{
-									Offset: 1140,                      // Offset of VaaTime
-									Bytes:  solana.Base58{0, 0, 0, 0}, // VAA time is 0 when no VAA is present
+									Offset: 0,                            // Offset of VaaTime
+									Bytes:  solana.Base58{'m', 's', 'g'}, // Prefix of the posted message accounts
 								},
 							},
 						},
@@ -151,7 +145,7 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 						}
 
 						// VAA submitted
-						if proposal.VaaTime.Unix() != 0 {
+						if proposal.VaaTime != 0 {
 							solanaAccountSkips.WithLabelValues("is_submitted_vaa").Inc()
 							continue
 						}
@@ -160,17 +154,13 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 						copy(txHash[:], acc.Pubkey[:])
 
 						lock := &common.MessagePublication{
-							TxHash:        txHash,
-							Timestamp:     proposal.LockupTime,
-							Nonce:         proposal.Nonce,
-							SourceAddress: proposal.SourceAddress,
-							TargetAddress: proposal.ForeignAddress,
-							SourceChain:   vaa.ChainIDSolana,
-							TargetChain:   proposal.ToChainID,
-							TokenChain:    proposal.Asset.Chain,
-							TokenAddress:  proposal.Asset.Address,
-							TokenDecimals: proposal.Asset.Decimals,
-							Amount:        proposal.Amount,
+							TxHash:         txHash,
+							Timestamp:      time.Unix(int64(proposal.SubmissionTime), 0),
+							Nonce:          proposal.Nonce,
+							Sequence:       proposal.Sequence,
+							EmitterChain:   proposal.EmitterChain,
+							EmitterAddress: proposal.EmitterAddress,
+							Payload:        proposal.Payload,
 						}
 
 						solanaLockupsConfirmed.Inc()
@@ -193,10 +183,11 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 type (
 	MessagePublicationAccount struct {
 		VaaVersion          uint8
-		VaaTime             time.Time
+		VaaTime             uint32
 		VaaSignatureAccount vaa.Address
-		SubmissionTime      time.Time
+		SubmissionTime      uint32
 		Nonce               uint32
+		Sequence            uint64
 		EmitterChain        vaa.ChainID
 		EmitterAddress      vaa.Address
 		Payload             []byte
@@ -205,49 +196,9 @@ type (
 
 func ParseTransferOutProposal(data []byte) (*MessagePublicationAccount, error) {
 	prop := &MessagePublicationAccount{}
-	r := bytes.NewBuffer(data)
-
-	// Skip initialized bool
-	r.Next(1)
-
-	if err := binary.Read(r, binary.LittleEndian, &prop.VaaVersion); err != nil {
-		return nil, fmt.Errorf("failed to read to vaa version: %w", err)
+	if err := borsh.Deserialize(prop, data); err != nil {
+		return nil, err
 	}
-
-	var vaaTime uint32
-	if err := binary.Read(r, binary.LittleEndian, &vaaTime); err != nil {
-		return nil, fmt.Errorf("failed to read vaa time: %w", err)
-	}
-	prop.VaaTime = time.Unix(int64(vaaTime), 0)
-
-	if n, err := r.Read(prop.VaaSignatureAccount[:]); err != nil || n != 32 {
-		return nil, fmt.Errorf("failed to read signature account: %w", err)
-	}
-
-	var submissionTime uint32
-	if err := binary.Read(r, binary.LittleEndian, &submissionTime); err != nil {
-		return nil, fmt.Errorf("failed to read lockup time: %w", err)
-	}
-	prop.SubmissionTime = time.Unix(int64(submissionTime), 0)
-
-	if err := binary.Read(r, binary.LittleEndian, &prop.Nonce); err != nil {
-		return nil, fmt.Errorf("failed to read nonce: %w", err)
-	}
-
-	if err := binary.Read(r, binary.LittleEndian, &prop.EmitterChain); err != nil {
-		return nil, fmt.Errorf("failed to read emitter chain: %w", err)
-	}
-
-	if n, err := r.Read(prop.EmitterAddress[:]); err != nil || n != 32 {
-		return nil, fmt.Errorf("failed to read emitter address: %w", err)
-	}
-
-	payload := make([]byte, 1000)
-	n, err := r.Read(payload)
-	if err != nil || n == 0 {
-		return nil, fmt.Errorf("failed to read vaa: %w", err)
-	}
-	prop.Payload = payload[:n]
 
 	return prop, nil
 }
