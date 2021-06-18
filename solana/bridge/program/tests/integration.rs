@@ -78,4 +78,16 @@ fn test_bridge_messages() {
         },
         0,
     );
+
+    guardian_sign_round();
+
+    // Post VAA
+    common::post_vaa(client, program, payer);
+
+    // Verify a Signature
+    common::verify_signature(client, program, payer);
+}
+
+/// Create a set of signatures for testing.
+fn guardian_sign_round() {
 }

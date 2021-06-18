@@ -142,6 +142,40 @@ mod helpers {
         transaction.sign(&signers, recent_blockhash);
         client.send_and_confirm_transaction(&transaction).unwrap();
     }
+
+    pub fn post_vaa(
+        client: &RpcClient,
+        program: &Pubkey,
+        payer: &Keypair,
+    ) {
+        let guardian_set = Pubkey::new_unique();
+        let (bridge, _) = Pubkey::find_program_address(&["Bridge".as_ref()], program);
+        let signature_set = Pubkey::new_unique();
+        let message = Pubkey::new_unique();
+
+        let signers = vec![payer];
+        let instructions = [instructions::create_post_vaa(
+            *program,
+            payer.pubkey(),
+            guardian_set,
+            bridge,
+            signature_set,
+            message,
+        )];
+
+        let mut transaction = Transaction::new_with_payer(&instructions, Some(&payer.pubkey()));
+        let recent_blockhash = client.get_recent_blockhash().unwrap().0;
+
+        transaction.sign(&signers, recent_blockhash);
+        client.send_and_confirm_transaction(&transaction).unwrap();
+    }
+
+    pub fn verify_signature(
+        client: &RpcClient,
+        program: &Pubkey,
+        payer: &Keypair,
+    ) {
+    }
 }
 
 mod instructions {
@@ -205,6 +239,34 @@ mod instructions {
                 payload: vec![],
                 emitter,
             })
+            .try_to_vec()
+            .unwrap(),
+        }
+    }
+
+    pub fn create_post_vaa(
+        program_id: Pubkey,
+        payer: Pubkey,
+        guardian_set: Pubkey,
+        bridge_info: Pubkey,
+        signature_set: Pubkey,
+        message: Pubkey,
+    ) -> Instruction {
+        Instruction {
+            program_id,
+
+            accounts: vec![
+                AccountMeta::new(guardian_set, false),
+                AccountMeta::new(bridge_info, false),
+                AccountMeta::new(signature_set, false),
+                AccountMeta::new(message, false),
+                AccountMeta::new(payer, true),
+                AccountMeta::new_readonly(sysvar::clock::id(), false),
+                AccountMeta::new_readonly(sysvar::rent::id(), false),
+                AccountMeta::new_readonly(solana_program::system_program::id(), false),
+            ],
+
+            data: instruction::Instruction::PostVAA(Default::default())
             .try_to_vec()
             .unwrap(),
         }
