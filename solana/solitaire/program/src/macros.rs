@@ -36,7 +36,7 @@ macro_rules! solitaire {
             /// This entrypoint is generated from the enum above, it deserializes incoming bytes
             /// and automatically dispatches to the correct method.
             pub fn dispatch<'a, 'b: 'a, 'c>(p: &Pubkey, a: &'c [AccountInfo<'b>], d: &[u8]) -> Result<()> {
-                match BorshDeserialize::try_from_slice(d).map_err(|_| SolitaireError::InstructionDeserializeFailed)? {
+                match Instruction::try_from_slice(d).map_err(|e| SolitaireError::InstructionDeserializeFailed(e))? {
                     $(
                         Instruction::$row(ix_data) => {
                             let (mut accounts): ($row) = FromAccounts::from(p, &mut a.iter(), &())?;
@@ -53,11 +53,10 @@ macro_rules! solitaire {
             }
 
             pub fn solitaire<'a, 'b: 'a>(p: &Pubkey, a: &'a [AccountInfo<'b>], d: &[u8]) -> ProgramResult {
-		solana_program::msg!(solitaire::PKG_NAME_VERSION);
+                solana_program::msg!(solitaire::PKG_NAME_VERSION);
                 if let Err(err) = dispatch(p, a, d) {
-
-		    solana_program::msg!("Error: {:?}", err);
-		    return Err(err.into());
+                    solana_program::msg!("Error: {:?}", err);
+                    return Err(err.into());
                 }
                 Ok(())
             }

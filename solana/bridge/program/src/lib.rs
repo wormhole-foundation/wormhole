@@ -29,6 +29,8 @@ pub use api::{
     UpgradeGuardianSetData,
     VerifySignatures,
     VerifySignaturesData,
+    UninitializedMessage,
+    Signature,
 };
 use types::BridgeConfig;
 

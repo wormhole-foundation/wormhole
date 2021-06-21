@@ -119,10 +119,10 @@ pub fn post_vaa(ctx: &ExecutionContext, accs: &mut PostVAA, vaa: PostVAAData) ->
         nonce: vaa.nonce,
         payload: vaa.payload.clone(),
     };
-    accs.message
-        .verify_derivation(ctx.program_id, &msg_derivation)?;
-    accs.guardian_set
-        .verify_derivation(ctx.program_id, &(&vaa).into())?;
+
+    accs.message.verify_derivation(ctx.program_id, &msg_derivation)?;
+    accs.guardian_set.verify_derivation(ctx.program_id, &(&vaa).into())?;
+
     // Verify any required invariants before we process the instruction.
     check_active(&accs.guardian_set, &accs.clock)?;
     check_valid_sigs(&accs.guardian_set, &accs.signature_set)?;
@@ -212,6 +212,7 @@ fn check_integrity<'r>(
         v.write(&vaa.payload)?;
         v.into_inner()
     };
+
     // Hash this body, which is expected to be the same as the hash currently stored in the
     // signature account, binding that set of signatures to this VAA.
     let body_hash: [u8; 32] = {
@@ -220,6 +221,7 @@ fn check_integrity<'r>(
             .map_err(|_| ProgramError::InvalidArgument)?;
         h.finalize().into()
     };
+
     if signatures.hash != body_hash {
         return Err(ProgramError::InvalidAccountData.into());
     }

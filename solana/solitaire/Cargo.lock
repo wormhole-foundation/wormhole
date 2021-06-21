@@ -33,6 +33,38 @@ dependencies = [
 ]
 
 [[package]]
+name = "anchor-bridge-client"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "borsh",
+ "bridge",
+ "clap 3.0.0-beta.2",
+ "rand 0.7.3",
+ "shellexpand",
+ "solana-client",
+ "solana-program",
+ "solana-sdk",
+ "solitaire",
+ "solitaire-client",
+]
+
+[[package]]
+name = "ansi_term"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ee49baf6cb617b853aa8d93bf420db2383fab46d314482ca2803b40d5fde979b"
+dependencies = [
+ "winapi 0.3.9",
+]
+
+[[package]]
+name = "anyhow"
+version = "1.0.41"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "15af2628f6890fe2609a3b91bef4c83450512802e59489f9c1cb1fa5df064a61"
+
+[[package]]
 name = "arrayref"
 version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"

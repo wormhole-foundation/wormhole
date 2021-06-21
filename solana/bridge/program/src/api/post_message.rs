@@ -27,7 +27,7 @@ use solitaire::{
     *,
 };
 
-type UninitializedMessage<'b> = Message<'b, { AccountState::Uninitialized }>;
+pub type UninitializedMessage<'b> = Message<'b, { AccountState::Uninitialized }>;
 
 impl<'a> From<&PostMessage<'a>> for SequenceDerivationData<'a> {
     fn from(accs: &PostMessage<'a>) -> Self {
@@ -40,8 +40,6 @@ impl<'a> From<&PostMessage<'a>> for SequenceDerivationData<'a> {
 #[derive(FromAccounts)]
 pub struct PostMessage<'b> {
     pub bridge: Bridge<'b, { AccountState::Initialized }>,
-
-    pub fee_vault: FeeAccount<'b>,
 
     /// Account to store the posted message
     pub message: UninitializedMessage<'b>,

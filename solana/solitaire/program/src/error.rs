@@ -25,7 +25,7 @@ pub enum SolitaireError {
     InvalidOwner(Pubkey),
 
     /// The instruction payload itself could not be deserialized.
-    InstructionDeserializeFailed,
+    InstructionDeserializeFailed(std::io::Error),
 
     /// An IO error was captured, wrap it up and forward it along.
     IoError(std::io::Error),

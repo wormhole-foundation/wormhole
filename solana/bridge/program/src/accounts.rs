@@ -18,6 +18,7 @@ use solitaire::{
 pub type FeeCollector<'a> = Derive<Info<'a>, "fee_collector">;
 pub type Bridge<'a, const State: AccountState> = Derive<Data<'a, BridgeData, { State }>, "Bridge">;
 
+
 pub type GuardianSet<'b, const State: AccountState> = Data<'b, types::GuardianSetData, { State }>;
 
 pub struct GuardianSetDerivationData {
