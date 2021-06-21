@@ -1,0 +1,316 @@
+// contracts/Bridge.sol
+// SPDX-License-Identifier: Apache 2
+
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+
+import "../libraries/external/BytesLib.sol";
+
+import "./BridgeGetters.sol";
+import "./BridgeSetters.sol";
+import "./BridgeStructs.sol";
+import "./BridgeGovernance.sol";
+
+import "./token/Token.sol";
+import "./token/TokenImplementation.sol";
+
+contract Bridge is BridgeGovernance {
+    using BytesLib for bytes;
+
+    // Produce a AssetMeta message for a given token
+    function attestToken(address tokenAddress, uint32 nonce) public payable returns (uint64 sequence){
+        // decimals, symbol & token are not part of the core ERC20 token standard, so we need to support contracts that dont implement them
+        (,bytes memory queriedDecimals) = tokenAddress.staticcall(abi.encodeWithSignature("decimals()"));
+        (,bytes memory queriedSymbol) = tokenAddress.staticcall(abi.encodeWithSignature("symbol()"));
+        (,bytes memory queriedName) = tokenAddress.staticcall(abi.encodeWithSignature("name()"));
+
+        uint8 decimals = abi.decode(queriedDecimals, (uint8));
+
+        string memory symbolString = abi.decode(queriedSymbol, (string));
+        string memory nameString = abi.decode(queriedName, (string));
+
+        bytes32 symbol;
+        bytes32 name;
+        assembly {
+            // first 32 bytes hold string length
+            symbol := mload(add(symbolString, 32))
+            name := mload(add(nameString, 32))
+        }
+
+        BridgeStructs.AssetMeta memory meta = BridgeStructs.AssetMeta({
+            payloadID : 2,
+            // Address of the token. Left-zero-padded if shorter than 32 bytes
+            tokenAddress : bytes32(uint256(uint160(tokenAddress))),
+            // Chain ID of the token
+            tokenChain : chainId(),
+            // Number of decimals of the token (big-endian uint8)
+            decimals : decimals,
+            // Symbol of the token (UTF-8)
+            symbol : symbol,
+            // Name of the token (UTF-8)
+            name : name
+        });
+
+        bytes memory encoded = encodeAssetMeta(meta);
+
+        sequence = wormhole().publishMessage{
+            value : msg.value
+        }(nonce, encoded, 15);
+    }
+
+    function wrapAndTransferETH(uint16 recipientChain, bytes32 recipient, uint256 fee, uint32 nonce) public payable returns (uint64 sequence) {
+        uint wormholeFee = wormhole().messageFee();
+
+        require(wormholeFee < msg.value, "value is smaller than wormhole fee");
+
+        WETH().deposit{
+            value : msg.value - wormholeFee
+        }();
+
+        sequence = logTransfer(chainId(), bytes32(uint256(uint160(address(WETH())))), msg.value, recipientChain, recipient, fee, wormholeFee, nonce);
+    }
+
+    // Initiate a Transfer
+    function transferTokens(uint16 tokenChain, bytes32 tokenAddress, uint256 amount, uint16 recipientChain, bytes32 recipient, uint256 fee, uint32 nonce) public payable returns (uint64 sequence) {
+        if(tokenChain == chainId()){
+            SafeERC20.safeTransferFrom(IERC20(address(uint160(uint256(tokenAddress)))), msg.sender, address(this), amount);
+        } else {
+            address wrapped = wrappedAsset(tokenChain, tokenAddress);
+            require(wrapped != address(0), "no wrapper for this token created yet");
+
+            SafeERC20.safeTransferFrom(IERC20(wrapped), msg.sender, address(this), amount);
+
+            TokenImplementation(wrapped).burn(address(this), amount);
+        }
+
+        sequence = logTransfer(tokenChain, tokenAddress, amount, recipientChain, recipient, fee, msg.value, nonce);
+    }
+
+    function logTransfer(uint16 tokenChain, bytes32 tokenAddress, uint256 amount, uint16 recipientChain, bytes32 recipient, uint256 fee, uint256 callValue, uint32 nonce) internal returns (uint64 sequence) {
+        require(fee <= amount, "fee exceeds amount");
+
+        BridgeStructs.Transfer memory transfer = BridgeStructs.Transfer({
+            payloadID    : 1,
+            amount       : amount,
+            tokenAddress : tokenAddress,
+            tokenChain   : tokenChain,
+            to           : recipient,
+            toChain      : recipientChain,
+            fee          : fee
+        });
+
+        bytes memory encoded = encodeTransfer(transfer);
+
+        sequence = wormhole().publishMessage{
+            value : callValue
+        }(nonce, encoded, 15);
+    }
+
+    function createWrapped(bytes memory encodedVm) external returns (address token) {
+        (IWormhole.VM memory vm, bool valid, string memory reason) = wormhole().parseAndVerifyVM(encodedVm);
+
+        require(valid, reason);
+        require(verifyBridgeVM(vm), "invalid emitter");
+
+        BridgeStructs.AssetMeta memory meta = parseAssetMeta(vm.payload);
+        return _createWrapped(meta);
+    }
+
+        // Creates a wrapped asset using AssetMeta
+    function _createWrapped(BridgeStructs.AssetMeta memory meta) internal returns (address token) {
+        require(meta.tokenChain != chainId(), "can only wrap tokens from foreign chains");
+        require(wrappedAsset(meta.tokenChain, meta.tokenAddress) == address(0), "wrapped asset already exists");
+
+        // initialize the TokenImplementation
+        bytes memory initialisationArgs = abi.encodeWithSelector(
+            TokenImplementation.initialize.selector,
+            bytes32ToString(meta.name),
+            bytes32ToString(meta.symbol),
+            meta.decimals,
+
+            address(this),
+
+            meta.tokenChain,
+            meta.tokenAddress
+        );
+
+        // initialize the BeaconProxy
+        bytes memory constructorArgs = abi.encode(address(this), initialisationArgs);
+
+        // deployment code
+        bytes memory bytecode = abi.encodePacked(type(BridgeToken).creationCode, constructorArgs);
+
+        bytes32 salt = keccak256(abi.encodePacked(meta.tokenChain, meta.tokenAddress));
+
+        assembly {
+            token := create2(0, add(bytecode, 0x20), mload(bytecode), salt)
+
+            if iszero(extcodesize(token)) {
+                revert(0, 0)
+            }
+        }
+
+        setWrappedAsset(meta.tokenChain, meta.tokenAddress, token);
+    }
+
+    function completeTransfer(bytes memory encodedVm) public {
+        _completeTransfer(encodedVm, false);
+    }
+
+    function completeTransferAndUnwrapETH(bytes memory encodedVm) public {
+        _completeTransfer(encodedVm, true);
+    }
+
+    // Execute a Transfer message
+    function _completeTransfer(bytes memory encodedVm, bool unwrapWETH) internal {
+        (IWormhole.VM memory vm, bool valid, string memory reason) = wormhole().parseAndVerifyVM(encodedVm);
+
+        require(valid, reason);
+        require(verifyBridgeVM(vm), "invalid emitter");
+
+        BridgeStructs.Transfer memory transfer = parseTransfer(vm.payload);
+
+        require(!isTransferCompleted(vm.hash), "transfer already completed");
+        setTransferCompleted(vm.hash);
+
+        require(transfer.toChain == chainId(), "invalid target chain");
+
+        IERC20 transferToken;
+        if(transfer.tokenChain == chainId()){
+            transferToken = IERC20(address(uint160(uint256(transfer.tokenAddress))));
+        } else {
+            address wrapped = wrappedAsset(transfer.tokenChain, transfer.tokenAddress);
+            require(wrapped != address(0), "no wrapper for this token created yet");
+
+            TokenImplementation(wrapped).mint(address(this), transfer.amount);
+
+            transferToken = IERC20(wrapped);
+        }
+
+        if(transfer.fee > 0) {
+            require(transfer.fee <= transfer.amount, "fee higher than transferred amount");
+
+            if (unwrapWETH) {
+                require(address(transferToken) == address(WETH()), "invalid token, can only unwrap ETH");
+                WETH().withdraw(transfer.fee);
+                payable(msg.sender).transfer(transfer.fee);
+            } else {
+                SafeERC20.safeTransfer(transferToken, msg.sender, transfer.fee);
+            }
+        }
+
+        uint transferAmount = transfer.amount - transfer.fee;
+        address payable transferRecipient = payable(address(uint160(uint256(transfer.to))));
+
+        if (unwrapWETH) {
+            require(address(transferToken) == address(WETH()), "invalid token, can only unwrap ETH");
+            WETH().withdraw(transferAmount);
+            transferRecipient.transfer(transferAmount);
+        } else {
+            SafeERC20.safeTransfer(transferToken, transferRecipient, transferAmount);
+        }
+    }
+
+    function verifyBridgeVM(IWormhole.VM memory vm) internal view returns (bool){
+        if (bridgeContracts(vm.emitterChainId) == vm.emitterAddress) {
+            return true;
+        }
+
+        return false;
+    }
+
+    function encodeAssetMeta(BridgeStructs.AssetMeta memory meta) public pure returns(bytes memory encoded) {
+        encoded = abi.encodePacked(
+            meta.payloadID,
+            meta.tokenAddress,
+            meta.tokenChain,
+            meta.decimals,
+            meta.symbol,
+            meta.name
+        );
+    }
+
+    function encodeTransfer(BridgeStructs.Transfer memory transfer) public pure returns (bytes memory encoded) {
+        encoded = abi.encodePacked(
+            transfer.payloadID,
+            transfer.amount,
+            transfer.tokenAddress,
+            transfer.tokenChain,
+            transfer.to,
+            transfer.toChain,
+            transfer.fee
+        );
+    }
+
+    function parseAssetMeta(bytes memory encoded) public pure returns(BridgeStructs.AssetMeta memory meta) {
+        uint index = 0;
+
+        meta.payloadID = encoded.toUint8(index);
+        index += 1;
+
+        require(meta.payloadID == 2, "invalid AssetMeta");
+
+        meta.tokenAddress = encoded.toBytes32(index);
+        index += 32;
+
+        meta.tokenChain = encoded.toUint16(index);
+        index += 2;
+
+        meta.decimals = encoded.toUint8(index);
+        index += 1;
+
+        meta.symbol = encoded.toBytes32(index);
+        index += 32;
+
+        meta.name = encoded.toBytes32(index);
+        index += 32;
+
+        require(encoded.length == index, "invalid AssetMeta");
+    }
+
+    function parseTransfer(bytes memory encoded) public pure returns(BridgeStructs.Transfer memory transfer) {
+        uint index = 0;
+
+        transfer.payloadID = encoded.toUint8(index);
+        index += 1;
+
+        require(transfer.payloadID == 1, "invalid Transfer");
+
+        transfer.amount = encoded.toUint256(index);
+        index += 32;
+
+        transfer.tokenAddress = encoded.toBytes32(index);
+        index += 32;
+
+        transfer.tokenChain = encoded.toUint16(index);
+        index += 2;
+
+        transfer.to = encoded.toBytes32(index);
+        index += 32;
+
+        transfer.toChain = encoded.toUint16(index);
+        index += 2;
+
+        transfer.fee = encoded.toUint256(index);
+        index += 32;
+
+        require(encoded.length == index, "invalid Transfer");
+    }
+
+    function bytes32ToString(bytes32 input) internal pure returns (string memory) {
+        uint256 i;
+        while(i < 32 && input[i] != 0) {
+            i++;
+        }
+        bytes memory array = new bytes(i);
+        for (uint c = 0; c < i; c++) {
+            array[c] = input[c];
+        }
+        return string(array);
+    }
+
+    // we need to accept ETH sends to unwrap WETH
+    receive() external payable {}
+}
