@@ -8,5 +8,5 @@ edition = "2018"
 [dependencies]
 solana-sdk = "=1.7.0"
 solana-program = "=1.7.0"
-solitaire = {path = "../programs/solitaire", features = ["no-entrypoint"]}
+solitaire = {path = "../program", features = ["no-entrypoint"]}
 borsh = "0.8.1"

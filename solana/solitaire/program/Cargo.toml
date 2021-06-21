@@ -17,6 +17,6 @@ default = []
 [dependencies]
 borsh = "0.8.1"
 byteorder = "1.4.3"
-rocksalt = { path = "../../rocksalt" }
+rocksalt = { path = "../../solitaire/rocksalt" }
 sha3 = "0.9.1"
 solana-program = "=1.7.0"

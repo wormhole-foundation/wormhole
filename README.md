@@ -48,11 +48,12 @@ your printer on fire or startle your cat. Cryptocurrencies are a high-risk inves
     See DEVELOP.md for usage.
   
 - **[solana/](solana/)** — Solana sidecar agent, contract and CLI.
-  - **[agent/](solana/agent/)** — Rust agent sidecar deployed alongside each Guardian node. It serves
+  - **[bridge/](solana/bridge/)** - Solana Wormhole bridge components
+    - **[agent/](solana/bridge/agent/)** — Rust agent sidecar deployed alongside each Guardian node. It serves
     a local gRPC API to interface with the Solana blockchain. This is far easier to maintain than a
     pure-Go Solana client.
-  - **[bridge/](solana/bridge/)** — Solana Wormhole smart contract code. 
-  - [cli/](solana/cli/) — Wormhole user CLI tool for interaction with the smart contract. 
+    - **[program/](solana/bridge/program)** — Solana Wormhole smart contract code. 
+    - [client/](solana/bridge/cli/) — Wormhole user CLI tool for interaction with the smart contract. 
   - [devnet_setup.sh](solana/devnet_setup.sh) — Devnet initialization and example code for a lockup program
     (the Solana equivalent to the Ganache migration + send-lockups.js). Runs as a sidecar alongside the Solana devnet. 
 

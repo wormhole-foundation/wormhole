@@ -12,8 +12,8 @@ ENV PATH="/root/.local/share/solana/install/active_release/bin:$PATH"
 ENV RUST_LOG="solana_runtime::system_instruction_processor=trace,solana_runtime::message_processor=trace,solana_bpf_loader=debug,solana_rbpf=debug"
 
 COPY bridge bridge
-COPY agent agent
-COPY cli cli
+COPY bridge/agent agent
+COPY bridge/cli cli
 COPY Cargo.toml .
 COPY Cargo.lock .
 
