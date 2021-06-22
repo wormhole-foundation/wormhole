@@ -6,10 +6,10 @@ The following dependencies are required for local development:
 
 - [Go](https://golang.org/dl/) >= 1.15.6
 - [Docker](https://docs.docker.com/engine/install/) / moby-engine >= 19.03
-- [Tilt](http://tilt.dev/) >= 0.17.10
+- [Tilt](http://tilt.dev/) >= 0.20.8
 - [NodeJS/npm](https://nodejs.org/en/download/) >= 14
 - Any of the local Kubernetes clusters supported by Tilt.
-  We recommend [minikube](https://kubernetes.io/docs/setup/learning-environment/minikube/) with the kvm2 driver.
+  We recommend [minikube](https://kubernetes.io/docs/setup/learning-environment/minikube/) >= v1.21.0 with the kvm2 driver.
 
 See the [Tilt docs](https://docs.tilt.dev/install.html) docs on how to set up your local cluster -
 it won't take more than a few minutes to set up! Example minikube invocation, adjust limits as needed:
@@ -29,12 +29,12 @@ to avoid having to specify `-n wormhole` for all commands:
 
     kubectl config set-context --current --namespace=wormhole
 
-After installing all dependencies, just run `tilt up --update-mode=exec`.
+After installing all dependencies, just run `tilt up`.
 Whenever you modify a file, the devnet is automatically rebuilt and a rolling update is done.
 
 Launch the devnet while specifying the number of guardians nodes to run (default is five):
 
-    tilt up --update-mode=exec -- --num=1
+    tilt up -- --num=1
 
 If you want to work on non-consensus parts of the code, running with a single guardian is easiest since
 you won't have to wait for k8s to restart all pods.
