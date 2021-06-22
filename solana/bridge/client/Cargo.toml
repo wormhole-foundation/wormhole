@@ -1,5 +1,5 @@
 [package]
-name = "anchor-bridge-client"
+name = "client"
 version = "0.1.0"
 authors = ["Stan Drozd <stan@nexantic.com>"]
 edition = "2018"
@@ -7,7 +7,7 @@ edition = "2018"
 [dependencies]
 anyhow = "1.0.40"
 borsh = "0.8.1"
-bridge = {path = "../program", features = ["no-idl", "no-entrypoint"]}
+bridge = {path = "../program", features = ["no-idl", "no-entrypoint", "client"]}
 clap = "3.0.0-beta.2"
 rand = "0.7.3"
 shellexpand = "2.1.0"

@@ -6,22 +6,20 @@ RUN rustup component add rustfmt
 
 WORKDIR /usr/src/bridge
 
-RUN sh -c "$(curl -sSfL https://release.solana.com/v1.5.5/install)"
+RUN sh -c "$(curl -sSfL https://release.solana.com/edge/install)"
 
 ENV PATH="/root/.local/share/solana/install/active_release/bin:$PATH"
 ENV RUST_LOG="solana_runtime::system_instruction_processor=trace,solana_runtime::message_processor=trace,solana_bpf_loader=debug,solana_rbpf=debug"
 
 COPY bridge bridge
-COPY bridge/agent agent
-COPY bridge/cli cli
-COPY Cargo.toml .
-COPY Cargo.lock .
+COPY modules modules
+COPY solitaire solitaire
 
 RUN --mount=type=cache,target=/usr/local,from=rust,source=/usr/local \
     --mount=type=cache,target=/root/.cache \
     --mount=type=cache,target=bridge/target \
     --mount=type=cache,target=target \
     --mount=type=cache,target=bin,from=rust,source=bin \
-    cargo build-bpf --manifest-path "bridge/Cargo.toml" && \
+    cargo build-bpf --manifest-path "bridge/program/Cargo.toml" && \
     mkdir -p /opt/solana/deps && \
-    cp target/deploy/spl_bridge.so /opt/solana/deps/spl_bridge.so
+    cp bridge/target/deploy/bridge.so /opt/solana/deps/bridge.so

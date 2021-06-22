@@ -75,23 +75,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "anchor-bridge-client"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "borsh",
- "bridge",
- "clap 3.0.0-beta.2",
- "rand 0.7.3",
- "shellexpand",
- "solana-client",
- "solana-program",
- "solana-sdk",
- "solitaire",
- "solitaire-client",
-]
-
-[[package]]
 name = "ansi_term"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -512,6 +495,23 @@ dependencies = [
  "proc-macro2 1.0.27",
  "quote 1.0.9",
  "syn 1.0.73",
+]
+
+[[package]]
+name = "client"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "borsh",
+ "bridge",
+ "clap 3.0.0-beta.2",
+ "rand 0.7.3",
+ "shellexpand",
+ "solana-client",
+ "solana-program",
+ "solana-sdk",
+ "solitaire",
+ "solitaire-client",
 ]
 
 [[package]]

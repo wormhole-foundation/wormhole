@@ -39,6 +39,7 @@ spec:
             - --deterministic
             - --time="1970-01-01T00:00:00+00:00"
             - --host=0.0.0.0
+            - --port=7545
           ports:
             - containerPort: 8545
               name: rpc
