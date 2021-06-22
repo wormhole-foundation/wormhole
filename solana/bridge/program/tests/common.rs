@@ -1,5 +1,6 @@
 #![allow(warnings)]
 
+use secp256k1::SecretKey;
 use borsh::BorshSerialize;
 use solana_client::rpc_client::RpcClient;
 use solana_program::{
@@ -18,10 +19,17 @@ use solana_program::{
     system_program,
     sysvar,
 };
-use std::env;
-use std::time::{Duration, SystemTime};
+
+use std::{
+    env,
+    time::{
+        Duration,
+        SystemTime,
+    },
+};
 
 use solana_sdk::{
+    secp256k1_instruction::new_secp256k1_instruction,
     signature::{
         read_keypair_file,
         Keypair,
@@ -31,7 +39,13 @@ use solana_sdk::{
 };
 
 use bridge::{
-    accounts::{MessageDerivationData, GuardianSetDerivationData},
+    accounts::{
+        GuardianSet,
+        GuardianSetDerivationData,
+        SignatureSet,
+        SignaturesSetDerivationData,
+        MessageDerivationData,
+    },
     instruction,
     types::{
         BridgeConfig,
@@ -42,9 +56,11 @@ use bridge::{
     PostMessageData,
     PostVAAData,
     UninitializedMessage,
+    VerifySignaturesData,
 };
 
 use solitaire::processors::seeded::Seeded;
+use solitaire::AccountState;
 
 pub use helpers::*;
 pub use instructions::*;
@@ -78,10 +94,11 @@ mod helpers {
         payer: &Keypair,
         guardian_set: GuardianSetDerivationData,
     ) {
-        let index = guardian_set.index.to_be_bytes();
-        let index = index.as_ref();
         let (bridge, _) = Pubkey::find_program_address(&["Bridge".as_ref()], program);
-        let (guardian_set, _) = Pubkey::find_program_address(&["GuardianSet".as_ref(), index], program);
+        let guardian_set = GuardianSet::<'_, { AccountState::Uninitialized }>::key(
+            &guardian_set,
+            &program,
+        );
 
         let signers = vec![payer];
         let instructions = [instructions::create_initialize(
@@ -118,7 +135,7 @@ mod helpers {
             payload: message.payload,
         }, program);
 
-        println!("Derived Keys:");
+        println!("PostMessage: Derived Keys:");
         println!("Bridge:        {}", bridge);
         println!("Fee Vault:     {}", fee_vault);
         println!("Fee Collector: {}", fee_collector);
@@ -150,20 +167,42 @@ mod helpers {
         client: &RpcClient,
         program: &Pubkey,
         payer: &Keypair,
-        signatures: &Keypair,
+        body: Vec<u8>,
+        body_hash: [u8; 32],
+        secret_key: SecretKey,
         guardian_set: GuardianSetDerivationData,
     ) {
-        let index = guardian_set.index.to_be_bytes();
-        let index = index.as_ref();
-        let (guardian_set, _) = Pubkey::find_program_address(&["GuardianSet".as_ref(), index], program);
+        let guardian_set = GuardianSet::<'_, { AccountState::Uninitialized }>::key(
+            &guardian_set,
+            &program,
+        );
+
+        let signatures = SignatureSet::<'_, { AccountState::Uninitialized }>::key(
+            &SignaturesSetDerivationData {
+                hash: body_hash,
+            },
+            &program,
+        );
+
+        println!("VerifySignatures: Derived Keys:");
+        println!("GuardianSet: {}", guardian_set);
+        println!("Signatures:  {}", signatures);
 
         let signers = vec![payer];
-        let instructions = [instructions::create_verify_signatures(
-            *program,
-            payer.pubkey(),
-            guardian_set,
-            signatures.pubkey(),
-        )];
+        let instructions = [
+            new_secp256k1_instruction(
+                &secret_key,
+                &body,
+            ),
+
+            instructions::create_verify_signatures(
+                *program,
+                payer.pubkey(),
+                guardian_set,
+                signatures,
+                body_hash,
+            )
+        ];
 
         let mut transaction = Transaction::new_with_payer(&instructions, Some(&payer.pubkey()));
         let recent_blockhash = client.get_recent_blockhash().unwrap().0;
@@ -179,9 +218,10 @@ mod helpers {
         guardian_set: GuardianSetDerivationData,
         vaa: PostVAAData,
     ) {
-        let index = guardian_set.index.to_be_bytes();
-        let index = index.as_ref();
-        let (guardian_set, _) = Pubkey::find_program_address(&["GuardianSet".as_ref(), index], program);
+        let guardian_set = GuardianSet::<'_, { AccountState::Uninitialized }>::key(
+            &guardian_set,
+            &program,
+        );
         let (bridge, _) = Pubkey::find_program_address(&["Bridge".as_ref()], program);
         let signature_set = Pubkey::new_unique();
         let message = Pubkey::new_unique();
@@ -202,13 +242,6 @@ mod helpers {
 
         transaction.sign(&signers, recent_blockhash);
         client.send_and_confirm_transaction(&transaction).unwrap();
-    }
-
-    pub fn verify_signature(
-        client: &RpcClient,
-        program: &Pubkey,
-        payer: &Keypair,
-    ) {
     }
 }
 
@@ -283,7 +316,11 @@ mod instructions {
         payer: Pubkey,
         guardian_set: Pubkey,
         signature_set: Pubkey,
+        hash: [u8; 32],
     ) -> Instruction {
+        let mut signers = [-1; 19];
+        signers[0] = 0;
+
         Instruction {
             program_id,
 
@@ -296,7 +333,11 @@ mod instructions {
                 AccountMeta::new_readonly(solana_program::system_program::id(), false),
             ],
 
-            data: instruction::Instruction::VerifySignatures(Default::default())
+            data: instruction::Instruction::VerifySignatures(VerifySignaturesData {
+                hash,
+                signers,
+                initial_creation: true,
+            })
             .try_to_vec()
             .unwrap(),
         }

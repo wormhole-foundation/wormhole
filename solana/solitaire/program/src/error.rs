@@ -19,7 +19,7 @@ pub enum SolitaireError {
     InvalidSysvar(Pubkey),
 
     /// The AccountInfo parser tried to derive the provided key, but it did not match.
-    InvalidDerive(Pubkey),
+    InvalidDerive(Pubkey, Pubkey),
 
     /// The AccountInfo has an invalid owner.
     InvalidOwner(Pubkey),

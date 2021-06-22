@@ -26,6 +26,7 @@ use solana_program::{
     instruction::Instruction,
     program::invoke_signed,
     pubkey::Pubkey,
+    msg,
 };
 
 pub trait AccountSize {
@@ -100,7 +101,7 @@ pub trait Seeded<I> {
         if &derived == self.info().key {
             Ok(())
         } else {
-            Err(SolitaireError::InvalidDerive(*self.info().key))
+            Err(SolitaireError::InvalidDerive(*self.info().key, derived))
         }
     }
 }

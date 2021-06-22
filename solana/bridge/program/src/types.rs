@@ -95,10 +95,18 @@ impl Owned for BridgeData {
     }
 }
 
+// Temporary work around the fact there is no Default for [u8; 64/65] and therefore no Borsh
+// implementation for the type. Cannot use Vec<> as we don't know the size to deserialize.
+type SplitSignature = (
+    [u8; 32],
+    [u8; 32],
+    u8,
+);
+
 #[derive(Default, BorshSerialize, BorshDeserialize)]
 pub struct SignatureSet {
     /// Signatures of validators
-    pub signatures: Vec<[u8; 32]>,
+    pub signatures: [SplitSignature; 19],
 
     /// Hash of the data
     pub hash: [u8; 32],

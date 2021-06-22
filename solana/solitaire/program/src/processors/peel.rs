@@ -49,7 +49,7 @@ impl<'a, 'b: 'a, 'c, T: Peel<'a, 'b, 'c>, const Seed: &'static str> Peel<'a, 'b,
         let (derived, bump) = Pubkey::find_program_address(&[Seed.as_ref()], ctx.this);
         match derived == *ctx.info().key {
             true => T::peel(ctx).map(|v| Derive(v)),
-            _ => Err(SolitaireError::InvalidDerive(*ctx.info().key).into()),
+            _ => Err(SolitaireError::InvalidDerive(*ctx.info().key, derived).into()),
         }
     }
 

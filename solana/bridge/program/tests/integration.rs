@@ -1,6 +1,8 @@
 #![allow(warnings)]
 
 use borsh::BorshSerialize;
+use secp256k1::{Message};
+
 use solana_client::rpc_client::RpcClient;
 use solana_program::{
     borsh::try_from_slice_unchecked,
@@ -26,18 +28,23 @@ use solana_sdk::{
     },
     transaction::Transaction,
 };
+
 use byteorder::{
     BigEndian,
     WriteBytesExt,
 };
+ 
+use std::convert::TryInto;
 use std::io::{
     Cursor,
     Write,
 };
+
 use std::time::{
     Duration,
     SystemTime,
 };
+
 use sha3::Digest;
 
 use bridge::{
@@ -84,21 +91,20 @@ fn test_bridge_messages() {
         0,
     );
 
-    let signatures = Keypair::new();
+    // Guardians sign, verify, and we produce VAA data here.
+    let (vaa, body, body_hash, secret_key) = guardian_sign_round(
+        &emitter,
+        data,
+    );
 
     common::verify_signatures(
         client,
         program,
         payer,
-        &signatures,
+        body,
+        body_hash,
+        secret_key,
         GuardianSetDerivationData { index: 0 },
-    );
-
-    // Guardians sign, verify, and we produce VAA data here.
-    let vaa = guardian_sign_round(
-        &signatures,
-        &emitter,
-        data,
     );
 
     // Post VAA
@@ -117,10 +123,9 @@ fn test_bridge_messages() {
 /// A utility function for emulating what the guardians should be doing, I.E, detecting a message
 /// is on the chain and creating a signature set for it.
 fn guardian_sign_round(
-    signatures: &Keypair,
     emitter: &Keypair,
     data: Vec<u8>
-) -> PostVAAData {
+) -> (PostVAAData, Vec<u8>, [u8; 32], secp256k1::SecretKey) {
     let mut vaa = PostVAAData {
         version: 0,
         guardian_set_index: 0,
@@ -149,6 +154,16 @@ fn guardian_sign_round(
         v.into_inner()
     };
 
+    // Public Key: 0x1d72877eb2d898738afe94c6101152ede0435de9
+    let secret_key = secp256k1::SecretKey::parse(&[
+      0x99, 0x70, 0x1c, 0x80, 0x5e, 0xf9, 0x38, 0xe1, 0x3f, 0x0e, 0x48, 0xf0, 0x9e, 0x2c, 0x32,
+      0x78, 0x91, 0xc1, 0xd8, 0x47, 0x29, 0xd1, 0x52, 0xf3, 0x01, 0xe7, 0xe6, 0x2c, 0xbf, 0x1f,
+      0x91, 0xc9
+    ]).unwrap();
+
+    let public_key = secp256k1::PublicKey::from_secret_key(&secret_key);
+    println!("{}", hex::encode(&public_key.serialize()));
+
     // Hash this body, which is expected to be the same as the hash currently stored in the
     // signature account, binding that set of signatures to this VAA.
     let body_hash: [u8; 32] = {
@@ -157,16 +172,24 @@ fn guardian_sign_round(
         h.finalize().into()
     };
 
-    let signatures = SignatureSet {
-        hash: body_hash,
-        guardian_set_index: 0,
-        signatures: vec![
-            [0u8; 32],
-            [0u8; 32],
-        ],
-    };
+    println!("Ahs: {:?}", body_hash);
 
-    vaa
+    // Sign the body hash of the VAA.
+    let sig = secp256k1::sign(
+        &Message::parse(&body_hash),
+        &secret_key,
+    );
+
+    // Insert signature into VAA.
+    let signature = sig.0.serialize();
+    vaa.signatures.push(Signature {
+        index: 0,
+        r:     signature[0..32].try_into().unwrap(),
+        s:     signature[32..64].try_into().unwrap(),
+        v:     sig.1.serialize(),
+    });
+
+    (vaa, body, body_hash, secret_key)
 }
 
 fn create_message(data: Vec<u8>) -> PostedMessage {

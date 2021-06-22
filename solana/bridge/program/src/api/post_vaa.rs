@@ -31,6 +31,7 @@ use sha3::Digest;
 use solana_program::{
     program_error::ProgramError,
     pubkey::Pubkey,
+    msg,
 };
 use solitaire::{
     processors::seeded::Seeded,
@@ -113,6 +114,7 @@ pub struct PostVAAData {
 }
 
 pub fn post_vaa(ctx: &ExecutionContext, accs: &mut PostVAA, vaa: PostVAAData) -> Result<()> {
+    msg!("Post VAA Entered");
     let msg_derivation = MessageDerivationData {
         emitter_key: vaa.emitter_address,
         emitter_chain: vaa.emitter_chain,
@@ -128,12 +130,16 @@ pub fn post_vaa(ctx: &ExecutionContext, accs: &mut PostVAA, vaa: PostVAAData) ->
     check_valid_sigs(&accs.guardian_set, &accs.signature_set)?;
     check_integrity(&vaa, &accs.signature_set)?;
 
-    // Count the numnber of signatures currently present.
+    // Count the number of signatures currently present.
     let signature_count: usize = accs
         .signature_set
         .signatures
         .iter()
-        .filter(|v| v.iter().filter(|v| **v != 0).count() != 0)
+        .filter(|v|
+            v.0.iter().filter(|v| **v != 0).count() != 0 ||
+            v.1.iter().filter(|v| **v != 0).count() != 0 ||
+            v.2 != 0
+        )
         .count();
 
     // Calculate how many signatures are required to reach consensus. This calculation is in

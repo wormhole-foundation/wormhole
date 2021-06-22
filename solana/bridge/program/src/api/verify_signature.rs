@@ -26,6 +26,7 @@ use solitaire::{
     CreationLamports::Exempt,
 };
 use std::io::Write;
+use solana_program::msg;
 
 #[derive(FromAccounts)]
 pub struct VerifySignatures<'b> {
@@ -67,7 +68,7 @@ pub struct VerifySignaturesData {
     /// Guardian set of the signatures
     pub hash: [u8; 32],
     /// instruction indices of signers (-1 for missing)
-    pub signers: [i8; MAX_LEN_GUARDIAN_KEYS as usize],
+    pub signers: [i8; MAX_LEN_GUARDIAN_KEYS],
     /// indicates whether this verification should only succeed if the sig account does not exist
     pub initial_creation: bool,
 }
@@ -92,9 +93,7 @@ pub fn verify_signatures(
     accs: &mut VerifySignatures,
     data: VerifySignaturesData,
 ) -> Result<()> {
-    // TODO this needs to be done here because we don't have data in the context
-    accs.signature_set
-        .verify_derivation(ctx.program_id, &(&*accs).into())?;
+
     accs.guardian_set
         .verify_derivation(ctx.program_id, &(&*accs).into())?;
 
@@ -192,24 +191,26 @@ pub fn verify_signatures(
     if let Err(e) = h.write(message) {
         return Err(e.into());
     };
+
     let msg_hash: [u8; 32] = h.finalize().into();
     if msg_hash != data.hash {
         return Err(InvalidHash.into());
     }
 
     // Track whether the account needs initialization
-    let mut initialize_account = false;
     // Prepare message/payload-specific sig_info account
     if !accs.signature_set.is_initialized() {
-        accs.signature_set
-            .create(&(&*accs).into(), ctx, accs.payer.key, Exempt)?;
-        initialize_account = true;
-    }
-
-    if initialize_account {
         accs.signature_set.guardian_set_index = accs.guardian_set.index;
         accs.signature_set.hash = data.hash;
+
+        accs.signature_set
+            .verify_derivation(ctx.program_id, &(&*accs).into())?;
+
+        accs.signature_set.create(&(&*accs).into(), ctx, accs.payer.key, Exempt)?;
     } else {
+        accs.signature_set
+            .verify_derivation(ctx.program_id, &(&*accs).into())?;
+
         // If the account already existed, check that the parameters match
         if accs.signature_set.guardian_set_index != accs.guardian_set.index {
             return Err(GuardianSetMismatch.into());
@@ -236,8 +237,12 @@ pub fn verify_signatures(
         }
 
         // Overwritten content should be zeros except double signs by the signer or harmless replays
-        accs.signature_set.signatures[s.signer_index as usize]
-            .copy_from_slice(secp_ixs[s.sig_index as usize].signature);
+        accs.signature_set.signatures[s.signer_index as usize].0
+            .copy_from_slice(&secp_ixs[s.sig_index as usize].signature[0..32]);
+        accs.signature_set.signatures[s.signer_index as usize].1
+            .copy_from_slice(&secp_ixs[s.sig_index as usize].signature[32..64]);
+        accs.signature_set.signatures[s.signer_index as usize].2 = 
+            secp_ixs[s.sig_index as usize].signature[64];
     }
 
     Ok(())

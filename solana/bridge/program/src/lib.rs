@@ -2,6 +2,8 @@
 #![feature(const_generics)]
 #![allow(warnings)]
 
+use solana_program::msg;
+
 // Salt contains the framework definition, single file for now but to be extracted into a cargo
 // package as soon as possible.
 pub mod accounts;
@@ -34,27 +36,29 @@ pub use api::{
 };
 use types::BridgeConfig;
 
-const MAX_LEN_GUARDIAN_KEYS: u64 = 19;
+const MAX_LEN_GUARDIAN_KEYS: usize = 19;
 
+#[derive(Debug)]
 enum Error {
-    InsufficientFees,
-    PostVAAGuardianSetExpired,
-    PostVAAConsensusFailed,
-    VAAAlreadyExecuted,
-    InstructionAtWrongIndex,
-    InvalidSecpInstruction,
-    InvalidHash,
     GuardianSetMismatch,
-    InvalidGovernanceModule,
-    InvalidGovernanceChain,
-    InvalidGovernanceAction,
-    InvalidGuardianSetUpgrade,
-    MathOverflow,
+    InstructionAtWrongIndex,
+    InsufficientFees,
     InvalidFeeRecipient,
+    InvalidGovernanceAction,
+    InvalidGovernanceChain,
+    InvalidGovernanceModule,
+    InvalidGuardianSetUpgrade,
+    InvalidHash,
+    InvalidSecpInstruction,
+    MathOverflow,
+    PostVAAConsensusFailed,
+    PostVAAGuardianSetExpired,
+    VAAAlreadyExecuted,
 }
 
 impl From<Error> for SolitaireError {
     fn from(e: Error) -> SolitaireError {
+        msg!("ProgramError: {:?}", e);
         SolitaireError::Custom(e as u64)
     }
 }

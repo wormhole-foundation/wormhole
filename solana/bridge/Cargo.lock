@@ -324,9 +324,13 @@ version = "0.1.0"
 dependencies = [
  "borsh",
  "byteorder",
+ "hex",
+ "libsecp256k1",
  "primitive-types 0.9.0",
  "sha3",
+ "solana-client",
  "solana-program",
+ "solana-sdk",
  "solitaire",
  "solitaire-client",
 ]
