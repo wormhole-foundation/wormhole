@@ -26,6 +26,7 @@ import (
 	"github.com/certusone/wormhole/bridge/pkg/p2p"
 	"github.com/certusone/wormhole/bridge/pkg/processor"
 	gossipv1 "github.com/certusone/wormhole/bridge/pkg/proto/gossip/v1"
+	"github.com/certusone/wormhole/bridge/pkg/publicrpc"
 	"github.com/certusone/wormhole/bridge/pkg/readiness"
 	solana "github.com/certusone/wormhole/bridge/pkg/solana"
 	"github.com/certusone/wormhole/bridge/pkg/supervisor"
@@ -71,6 +72,8 @@ var (
 	unsafeDevMode   *bool
 	devNumGuardians *uint
 	nodeName        *string
+
+	publicRPC *string
 )
 
 func init() {
@@ -108,6 +111,8 @@ func init() {
 	unsafeDevMode = BridgeCmd.Flags().Bool("unsafeDevMode", false, "Launch node in unsafe, deterministic devnet mode")
 	devNumGuardians = BridgeCmd.Flags().Uint("devNumGuardians", 5, "Number of devnet guardians to include in guardian set")
 	nodeName = BridgeCmd.Flags().String("nodeName", "", "Node name to announce in gossip heartbeats")
+
+	publicRPC = BridgeCmd.Flags().String("publicRPC", "", "Listen address for public gRPC interface")
 }
 
 var (
@@ -380,10 +385,13 @@ func runBridge(cmd *cobra.Command, args []string) {
 		logger.Fatal("failed to create admin service socket", zap.Error(err))
 	}
 
+	// subscriber channel multiplexing for public gPRC streams
+	rawHeartbeatListeners := publicrpc.HeartbeatStreamMultiplexer(logger)
+
 	// Run supervisor.
 	supervisor.New(rootCtx, logger, func(ctx context.Context) error {
 		if err := supervisor.Run(ctx, "p2p", p2p.Run(
-			obsvC, sendC, priv, *p2pPort, *p2pNetworkID, *p2pBootstrap, *nodeName, rootCtxCancel)); err != nil {
+			obsvC, sendC, rawHeartbeatListeners, priv, *p2pPort, *p2pNetworkID, *p2pBootstrap, *nodeName, rootCtxCancel)); err != nil {
 			return err
 		}
 
@@ -402,7 +410,7 @@ func runBridge(cmd *cobra.Command, args []string) {
 		}
 
 		if err := supervisor.Run(ctx, "solvaa",
-			solana.NewSolanaVAASubmitter(*agentRPC, lockC, solanaVaaC).Run); err != nil {
+			solana.NewSolanaVAASubmitter(*agentRPC, solanaVaaC, false).Run); err != nil {
 			return err
 		}
 
@@ -435,6 +443,12 @@ func runBridge(cmd *cobra.Command, args []string) {
 
 		if err := supervisor.Run(ctx, "admin", adminService); err != nil {
 			return err
+		}
+		if *publicRPC != "" {
+			if err := supervisor.Run(ctx, "publicrpc",
+				publicrpc.PublicrpcServiceRunnable(logger, *publicRPC, rawHeartbeatListeners)); err != nil {
+				return err
+			}
 		}
 
 		logger.Info("Started internal services")

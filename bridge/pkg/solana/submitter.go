@@ -1,4 +1,4 @@
-package ethereum
+package solana
 
 import (
 	"context"
@@ -46,11 +46,12 @@ type (
 
 		messageChan chan *common.MessagePublication
 		vaaChan     chan *vaa.VAA
+		skipPreflight bool
 	}
 )
 
-func NewSolanaVAASubmitter(url string, lockEvents chan *common.MessagePublication, vaaQueue chan *vaa.VAA) *SolanaVAASubmitter {
-	return &SolanaVAASubmitter{url: url, messageChan: lockEvents, vaaChan: vaaQueue}
+func NewSolanaVAASubmitter(url string, lockEvents chan *common.MessagePublication, vaaQueue chan *vaa.VAA, skipPreflight bool) *SolanaVAASubmitter {
+	return &SolanaVAASubmitter{url: url, messageChan: lockEvents, vaaChan: vaaQueue, skipPreflight: skipPreflight}
 }
 
 func (e *SolanaVAASubmitter) Run(ctx context.Context) error {
@@ -113,8 +114,8 @@ func (e *SolanaVAASubmitter) Run(ctx context.Context) error {
 				}
 				h := hex.EncodeToString(m.Bytes())
 
-				timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
-				res, err := c.SubmitVAA(timeout, &agentv1.SubmitVAARequest{Vaa: vaaBytes})
+				timeout, cancel := context.WithTimeout(ctx, 120*time.Second)
+				res, err := c.SubmitVAA(timeout, &agentv1.SubmitVAARequest{Vaa: vaaBytes, SkipPreflight: e.skipPreflight})
 				cancel()
 				if err != nil {
 					st, ok := status.FromError(err)

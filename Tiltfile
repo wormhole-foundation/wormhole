@@ -87,6 +87,17 @@ k8s_resource("guardian", resource_deps=["proto-gen", "solana-devnet"], port_forw
     port_forward(6060, name="Debug/Status Server [:6060]"),
 ])
 
+# publicRPC proxy that allows grpc over http1, for local development
+
+k8s_yaml_with_ns("./devnet/envoy-proxy.yaml")
+
+k8s_resource("envoy-proxy", resource_deps=["guardian"],
+  objects=['envoy-proxy:ConfigMap:wormhole'],
+  port_forwards=[
+    port_forward(8080, name="gRPC proxy for guardian's publicRPC data [:8080]"),
+    port_forward(9901, name="gRPC proxy admin [:9901]"), # for proxy debugging
+])
+
 # solana agent and cli (runs alongside bridge)
 
 docker_build(
@@ -162,6 +173,28 @@ k8s_yaml_with_ns("devnet/web.yaml")
 k8s_resource("web", port_forwards=[
     port_forward(3000, name="Experimental Web UI [:3000]")
 ])
+
+# explorer web app
+
+docker_build(
+    ref = "explorer",
+    context = "./explorer",
+    dockerfile = "./explorer/Dockerfile",
+    ignore = ["./explorer/node_modules"],
+    live_update = [
+        sync("./explorer/src", "/home/node/app/src"),
+        sync("./explorer/public", "/home/node/app/public"),
+    ],
+)
+
+k8s_yaml_with_ns("devnet/explorer.yaml")
+
+k8s_resource("explorer",
+    resource_deps=["envoy-proxy"],
+    port_forwards=[
+        port_forward(8001, name="Explorer Web UI [:8001]")
+    ]
+)
 
 # terra devnet
 

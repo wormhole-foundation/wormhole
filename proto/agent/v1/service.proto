@@ -4,7 +4,7 @@ package agent.v1;
 
 // TODO: documentation
 
-option go_package = "proto/agent/v1;agentv1";
+option go_package = "github.com/certusone/wormhole/bridge/pkg/proto/agent/v1;agentv1";
 
 service Agent {
   rpc SubmitVAA (SubmitVAARequest) returns (SubmitVAAResponse);
@@ -16,6 +16,7 @@ message Empty {
 
 message SubmitVAARequest {
   bytes vaa = 1;
+  bool skip_preflight = 2;
 }
 
 message SubmitVAAResponse {

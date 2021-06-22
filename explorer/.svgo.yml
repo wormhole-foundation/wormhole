@@ -1,0 +1,35 @@
+# multipass: true
+# full: true
+
+plugins:
+  - cleanupIDs: true
+    minify: true
+  - cleanupListOfValues: true
+  - convertColors: true
+  - convertStyleToAttrs: true
+  - convertTransform: true
+  - cleanupNumericValues: true
+    floatPrecision: 3
+  - mergePaths: true
+  - minifyStyles: true
+  - moveElemesAttrsToGroup: true
+  - removeAttrs: true
+    attrs: 'fill-rule'
+  - removeComments: true
+  - removeDesc: true
+    removeAny: true
+  - removeDimensions: true
+  - removeViewBox: false
+  - removeDoctype: true
+  - removeEditorsNSData: true
+  - removeEmptyAttrs: true
+  - removeEmptyContainers: true
+  - removeEmptyText: true
+  - removeNonInheritableGroupAttrs: true
+  - removeTitle: false
+  - removeUnknownsAndDefaults: true
+  - removeUnusedNS: true
+  - removeUselessDefs: true
+  - removeUselessStrokeAndFill: true
+  - removeXMLProcInst: true
+  - sortAttrs: true

@@ -2,7 +2,8 @@ syntax = "proto3";
 
 package gossip.v1;
 
-option go_package = "proto/gossip/v1;gossipv1";
+// full path of the resulting Go file is required in order to import in whisper.proto
+option go_package = "github.com/certusone/wormhole/bridge/pkg/proto/gossip/v1;gossipv1";
 
 message GossipMessage {
   oneof message {
