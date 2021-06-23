@@ -89,13 +89,12 @@ pub fn post_message(
         .verify_derivation(ctx.program_id, &msg_derivation)?;
 
     // Fee handling
-    let fee = transfer_fee();
     if accs
         .fee_collector
         .lamports()
         .checked_sub(accs.bridge.last_lamports)
         .ok_or(MathOverflow)?
-        < fee
+        < accs.bridge.config.fee
     {
         return Err(InsufficientFees.into());
     }
@@ -123,8 +122,4 @@ pub fn post_message(
     accs.sequence.sequence += 1;
 
     Ok(())
-}
-
-pub fn transfer_fee() -> u64 {
-    500
 }

@@ -1,6 +1,4 @@
 use borsh::BorshSerialize;
-use solitaire::processors::seeded::Seeded;
-use solitaire::AccountState;
 use solana_program::{
     borsh::try_from_slice_unchecked,
     hash,
@@ -16,6 +14,10 @@ use solana_program::{
     },
     system_program,
     sysvar,
+};
+use solitaire::{
+    processors::seeded::Seeded,
+    AccountState,
 };
 
 use crate::{
@@ -41,25 +43,22 @@ use crate::{
 pub fn initialize(
     program_id: Pubkey,
     payer: Pubkey,
-    bridge: Pubkey,
-    guardian_set_index: u32,
-    guardian_set: Pubkey,
     fee: u64,
     guardian_set_expiration_time: u32,
 ) -> solitaire::Result<Instruction> {
     let bridge = Bridge::<'_, { AccountState::Uninitialized }>::key(None, &program_id);
     let guardian_set = GuardianSet::<'_, { AccountState::Uninitialized }>::key(
-        &GuardianSetDerivationData {
-            index: guardian_set_index,
-        },
+        &GuardianSetDerivationData { index: 0 },
         &program_id,
     );
+    let fee_collector = FeeCollector::key(None, &program_id);
 
     Ok(Instruction {
         program_id,
         accounts: vec![
             AccountMeta::new(bridge, false),
             AccountMeta::new(guardian_set, false),
+            AccountMeta::new(fee_collector, false),
             AccountMeta::new(payer, true),
             AccountMeta::new_readonly(sysvar::rent::id(), false),
             AccountMeta::new_readonly(solana_program::system_program::id(), false),
@@ -75,22 +74,27 @@ pub fn initialize(
 pub fn post_message(
     program_id: Pubkey,
     payer: Pubkey,
-    bridge: Pubkey,
     emitter: Pubkey,
-    message: PostedMessage,
-    sequence: u64,
+    nonce: u32,
+    payload: Vec<u8>,
 ) -> solitaire::Result<Instruction> {
     let bridge = Bridge::<'_, { AccountState::Uninitialized }>::key(None, &program_id);
     let fee_collector = FeeCollector::<'_>::key(None, &program_id);
-    let sequence = Sequence::<'_>::key(&SequenceDerivationData {
-        emitter_key: &emitter,
-    }, &program_id);
-    let message = Message::<'_, { AccountState::Uninitialized }>::key(&MessageDerivationData {
-        emitter_key: emitter.to_bytes(),
-        emitter_chain: message.emitter_chain,
-        nonce: message.nonce,
-        payload: message.payload.clone(),
-    }, &program_id);
+    let sequence = Sequence::<'_>::key(
+        &SequenceDerivationData {
+            emitter_key: &emitter,
+        },
+        &program_id,
+    );
+    let message = Message::<'_, { AccountState::Uninitialized }>::key(
+        &MessageDerivationData {
+            emitter_key: emitter.to_bytes(),
+            emitter_chain: 1,
+            nonce,
+            payload: payload.clone(),
+        },
+        &program_id,
+    );
 
     Ok(Instruction {
         program_id,
@@ -108,10 +112,10 @@ pub fn post_message(
         ],
 
         data: crate::instruction::Instruction::PostMessage(PostMessageData {
-            nonce: 0,
-            payload: vec![],
+            nonce,
+            payload: payload.clone(),
         })
-        .try_to_vec()?
+        .try_to_vec()?,
     })
 }
 
@@ -155,7 +159,7 @@ pub fn verify_signatures(
             signers,
             initial_creation: true,
         })
-        .try_to_vec()?
+        .try_to_vec()?,
     })
 }
 
@@ -206,7 +210,7 @@ pub fn post_vaa(
         ],
 
         data: crate::instruction::Instruction::PostVAA(vaa)
-        .try_to_vec()
-        .unwrap(),
+            .try_to_vec()
+            .unwrap(),
     }
 }

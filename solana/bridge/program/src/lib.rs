@@ -8,6 +8,7 @@ use solana_program::msg;
 // package as soon as possible.
 pub mod accounts;
 pub mod api;
+pub mod client_instructions;
 pub mod types;
 pub mod vaa;
 
@@ -25,14 +26,14 @@ pub use api::{
     PostMessageData,
     PostVAA,
     PostVAAData,
+    Signature,
+    UninitializedMessage,
     UpgradeContract,
     UpgradeContractData,
     UpgradeGuardianSet,
     UpgradeGuardianSetData,
     VerifySignatures,
     VerifySignaturesData,
-    UninitializedMessage,
-    Signature,
 };
 use types::BridgeConfig;
 

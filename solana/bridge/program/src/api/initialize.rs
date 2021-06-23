@@ -1,6 +1,7 @@
 use crate::{
     accounts::{
         Bridge,
+        FeeCollector,
         GuardianSet,
         GuardianSetDerivationData,
     },
@@ -17,6 +18,7 @@ type Payer<'a> = Signer<Info<'a>>;
 pub struct Initialize<'b> {
     pub bridge: Bridge<'b, { AccountState::Uninitialized }>,
     pub guardian_set: GuardianSet<'b, { AccountState::Uninitialized }>,
+    pub fee_collector: FeeCollector<'b>,
     pub payer: Payer<'b>,
 }
 
@@ -48,6 +50,16 @@ pub fn initialize(
     accs.bridge.create(ctx, accs.payer.key, Exempt)?;
     accs.bridge.guardian_set_index = 0;
     accs.bridge.config = config;
+
+    // Initialize the fee collector account so it's rent exempt and will keep funds
+    accs.fee_collector.create(
+        ctx,
+        accs.payer.key,
+        Exempt,
+        0,
+        &solana_program::system_program::id(),
+    )?;
+    accs.bridge.last_lamports = accs.fee_collector.lamports();
 
     Ok(())
 }

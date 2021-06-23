@@ -1,4 +1,5 @@
 target
 bin
-cli/target
-agent/target
+bridge/target
+solitaire/target
+modules/token_bridge/target

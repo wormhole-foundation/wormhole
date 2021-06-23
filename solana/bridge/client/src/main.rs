@@ -1,104 +1,414 @@
-use borsh::BorshSerialize;
-use bridge::{
-    api,
-    types,
+#![feature(const_generics)]
+#![allow(warnings)]
+
+use std::{
+    fmt::Display,
+    mem::size_of,
+    process::exit,
 };
-use clap::Clap;
+
+use borsh::BorshDeserialize;
+use bridge::{
+    accounts::{
+        Bridge,
+        FeeCollector,
+    },
+    types::BridgeData,
+};
+use clap::{
+    crate_description,
+    crate_name,
+    crate_version,
+    value_t,
+    App,
+    AppSettings,
+    Arg,
+    SubCommand,
+};
+use hex;
+use solana_clap_utils::{
+    input_parsers::{
+        keypair_of,
+        pubkey_of,
+        value_of,
+    },
+    input_validators::{
+        is_keypair,
+        is_pubkey_or_keypair,
+        is_url,
+    },
+};
 use solana_client::{
     rpc_client::RpcClient,
     rpc_config::RpcSendTransactionConfig,
 };
-use solana_program::pubkey::Pubkey;
 use solana_sdk::{
     commitment_config::CommitmentConfig,
+    native_token::*,
+    program_error::ProgramError::AccountAlreadyInitialized,
+    pubkey::Pubkey,
     signature::{
         read_keypair_file,
-        Signer as SolSigner,
+        Keypair,
+        Signer,
     },
+    system_instruction::transfer,
     transaction::Transaction,
-};
-use solitaire_client::{
-    AccEntry,
-    ToInstruction,
-};
-
-use bridge::accounts::{
-    GuardianSet,
-    GuardianSetDerivationData,
 };
 use solitaire::{
     processors::seeded::Seeded,
     AccountState,
 };
-use std::error;
 
-#[derive(Clap)]
-pub struct Opts {
-    #[clap(long)]
-    bridge_address: Pubkey,
+struct Config {
+    rpc_client: RpcClient,
+    owner: Keypair,
+    fee_payer: Keypair,
+    commitment_config: CommitmentConfig,
 }
 
-pub type ErrBox = Box<dyn error::Error>;
+type Error = Box<dyn std::error::Error>;
+type CommmandResult = Result<Option<Transaction>, Error>;
 
-pub const DEFAULT_MESSAGE_FEE: u64 = 42;
-pub const DEFAULT_GUARDIAN_SET_EXPIRATION_TIME: u32 = 42;
+fn command_deploy_bridge(
+    config: &Config,
+    bridge: &Pubkey,
+    _initial_guardian: Vec<[u8; 20]>,
+    guardian_expiration: u32,
+    message_fee: u64,
+) -> CommmandResult {
+    println!("Initializing Wormhole bridge {}", bridge);
 
-fn main() -> Result<(), ErrBox> {
-    let opts = Opts::parse();
+    let minimum_balance_for_rent_exemption = config
+        .rpc_client
+        .get_minimum_balance_for_rent_exemption(size_of::<BridgeData>())?;
 
-    let payer = read_keypair_file(&*shellexpand::tilde("~/.config/solana/id.json"))
-        .expect("Example requires a keypair file");
+    let ix = bridge::client_instructions::initialize(
+        *bridge,
+        config.owner.pubkey(),
+        message_fee,
+        guardian_expiration,
+    )
+    .unwrap();
+    println!("config account: {}, ", ix.accounts[0].pubkey.to_string());
+    let mut transaction = Transaction::new_with_payer(&[ix], Some(&config.fee_payer.pubkey()));
 
-    // Keypair is not Clone
-    let payer_for_tx = read_keypair_file(&*shellexpand::tilde("~/.config/solana/id.json"))
-        .expect("Example requires a keypair file");
-    let url = "http://localhost:8899".to_owned();
+    let (recent_blockhash, fee_calculator) = config.rpc_client.get_recent_blockhash()?;
+    check_fee_payer_balance(
+        config,
+        minimum_balance_for_rent_exemption + fee_calculator.calculate_fee(&transaction.message()),
+    )?;
+    transaction.sign(&[&config.fee_payer, &config.owner], recent_blockhash);
+    Ok(Some(transaction))
+}
 
-    let client = RpcClient::new(url);
+fn command_post_message(
+    config: &Config,
+    bridge: &Pubkey,
+    nonce: u32,
+    payload: Vec<u8>,
+) -> CommmandResult {
+    println!("Posting a message to the wormhole");
 
-    let program_id = opts.bridge_address;
+    // Fetch the message fee
+    let bridge_config_account = config
+        .rpc_client
+        .get_account(&Bridge::<'_, { AccountState::Initialized }>::key(
+            None, bridge,
+        ))?;
+    let bridge_config = BridgeData::try_from_slice(bridge_config_account.data.as_slice())?;
+    println!("Message fee: {} lamports", bridge_config.config.fee);
 
-    use AccEntry::*;
-    let init = api::InitializeAccounts {
-        bridge: Derived(program_id.clone()),
-        guardian_set: Unprivileged(<GuardianSet<'_, { AccountState::Uninitialized }>>::key(
-            &GuardianSetDerivationData { index: 0 },
-            &program_id,
-        )),
-        payer: Signer(payer),
+    let transfer_ix = transfer(
+        &config.owner.pubkey(),
+        &FeeCollector::key(None, bridge),
+        bridge_config.config.fee,
+    );
+    let ix = bridge::client_instructions::post_message(
+        *bridge,
+        config.owner.pubkey(),
+        config.fee_payer.pubkey(),
+        nonce,
+        payload,
+    )
+    .unwrap();
+    let mut transaction =
+        Transaction::new_with_payer(&[transfer_ix, ix], Some(&config.fee_payer.pubkey()));
+
+    let (recent_blockhash, fee_calculator) = config.rpc_client.get_recent_blockhash()?;
+    check_fee_payer_balance(config, fee_calculator.calculate_fee(&transaction.message()))?;
+    transaction.sign(&[&config.fee_payer, &config.owner], recent_blockhash);
+    Ok(Some(transaction))
+}
+
+fn main() {
+    let matches = App::new(crate_name!())
+        .about(crate_description!())
+        .version(crate_version!())
+        .setting(AppSettings::SubcommandRequiredElseHelp)
+        .arg({
+            let arg = Arg::with_name("config_file")
+                .short("C")
+                .long("config")
+                .value_name("PATH")
+                .takes_value(true)
+                .global(true)
+                .help("Configuration file to use");
+            if let Some(ref config_file) = *solana_cli_config::CONFIG_FILE {
+                arg.default_value(&config_file)
+            } else {
+                arg
+            }
+        })
+        .arg(
+            Arg::with_name("json_rpc_url")
+                .long("url")
+                .value_name("URL")
+                .takes_value(true)
+                .validator(is_url)
+                .help("JSON RPC URL for the cluster.  Default from the configuration file."),
+        )
+        .arg(
+            Arg::with_name("owner")
+                .long("owner")
+                .value_name("KEYPAIR")
+                .validator(is_keypair)
+                .takes_value(true)
+                .help(
+                    "Specify the contract payer account. \
+                     This may be a keypair file, the ASK keyword. \
+                     Defaults to the client keypair.",
+                ),
+        )
+        .arg(
+            Arg::with_name("fee_payer")
+                .long("fee-payer")
+                .value_name("KEYPAIR")
+                .validator(is_keypair)
+                .takes_value(true)
+                .help(
+                    "Specify the fee-payer account. \
+                     This may be a keypair file, the ASK keyword. \
+                     Defaults to the client keypair.",
+                ),
+        )
+        .subcommand(
+            SubCommand::with_name("create-bridge")
+                .about("Create a new bridge")
+                .arg(
+                    Arg::with_name("bridge")
+                        .long("bridge")
+                        .value_name("BRIDGE_KEY")
+                        .validator(is_pubkey_or_keypair)
+                        .takes_value(true)
+                        .index(1)
+                        .required(true)
+                        .help("Specify the bridge program address"),
+                )
+                .arg(
+                    Arg::with_name("guardian")
+                        .validator(is_hex)
+                        .value_name("GUARDIAN_ADDRESS")
+                        .takes_value(true)
+                        .index(2)
+                        .required(true)
+                        .help("Address of the initial guardian"),
+                )
+                .arg(
+                    Arg::with_name("guardian_set_expiration")
+                        .validator(is_u32)
+                        .value_name("GUARDIAN_SET_EXPIRATION")
+                        .takes_value(true)
+                        .index(3)
+                        .required(true)
+                        .help("Time in seconds after which a guardian set expires after an update"),
+                )
+                .arg(
+                    Arg::with_name("message_fee")
+                        .validator(is_u64)
+                        .value_name("MESSAGE_FEE")
+                        .takes_value(true)
+                        .index(4)
+                        .required(true)
+                        .help("Initial message posting fee"),
+                ),
+        )
+        .subcommand(
+            SubCommand::with_name("post-message")
+                .about("Post a message via Wormhole")
+                .arg(
+                    Arg::with_name("bridge")
+                        .long("bridge")
+                        .value_name("BRIDGE_KEY")
+                        .validator(is_pubkey_or_keypair)
+                        .takes_value(true)
+                        .index(1)
+                        .required(true)
+                        .help("Specify the bridge program address"),
+                )
+                .arg(
+                    Arg::with_name("nonce")
+                        .validator(is_u32)
+                        .value_name("NONCE")
+                        .takes_value(true)
+                        .index(2)
+                        .required(true)
+                        .help("Nonce of the message"),
+                )
+                .arg(
+                    Arg::with_name("data")
+                        .validator(is_hex)
+                        .value_name("DATA")
+                        .takes_value(true)
+                        .index(3)
+                        .required(true)
+                        .help("Payload of the message"),
+                ),
+        )
+        .get_matches();
+
+    let config = {
+        let cli_config = if let Some(config_file) = matches.value_of("config_file") {
+            solana_cli_config::Config::load(config_file).unwrap_or_default()
+        } else {
+            solana_cli_config::Config::default()
+        };
+        let json_rpc_url = value_t!(matches, "json_rpc_url", String)
+            .unwrap_or_else(|_| cli_config.json_rpc_url.clone());
+
+        let client_keypair = || {
+            read_keypair_file(&cli_config.keypair_path).unwrap_or_else(|err| {
+                eprintln!("Unable to read {}: {}", cli_config.keypair_path, err);
+                exit(1)
+            })
+        };
+
+        let owner = keypair_of(&matches, "owner").unwrap_or_else(client_keypair);
+        let fee_payer = keypair_of(&matches, "fee_payer").unwrap_or_else(client_keypair);
+
+        Config {
+            rpc_client: RpcClient::new(json_rpc_url),
+            owner,
+            fee_payer,
+            commitment_config: CommitmentConfig::processed(),
+        }
     };
 
-    let init_args = bridge::instruction::Instruction::Initialize(types::BridgeConfig {
-        guardian_set_expiration_time: DEFAULT_GUARDIAN_SET_EXPIRATION_TIME,
-        fee: DEFAULT_MESSAGE_FEE,
+    let _ = match matches.subcommand() {
+        ("create-bridge", Some(arg_matches)) => {
+            let bridge = pubkey_of(arg_matches, "bridge").unwrap();
+            let initial_guardian: String = value_of(arg_matches, "guardian").unwrap();
+            let initial_data = hex::decode(initial_guardian).unwrap();
+            let guardian_expiration: u32 =
+                value_of(arg_matches, "guardian_set_expiration").unwrap();
+            let msg_fee: u64 = value_of(arg_matches, "message_fee").unwrap();
+
+            let mut guardian = [0u8; 20];
+            guardian.copy_from_slice(&initial_data);
+            command_deploy_bridge(
+                &config,
+                &bridge,
+                vec![guardian],
+                guardian_expiration,
+                msg_fee,
+            )
+        }
+        ("post-message", Some(arg_matches)) => {
+            let bridge = pubkey_of(arg_matches, "bridge").unwrap();
+            let data_str: String = value_of(arg_matches, "data").unwrap();
+            let data = hex::decode(data_str).unwrap();
+            let nonce: u32 = value_of(arg_matches, "nonce").unwrap();
+
+            command_post_message(&config, &bridge, nonce, data)
+        }
+
+        _ => unreachable!(),
+    }
+    .and_then(|transaction| {
+        if let Some(transaction) = transaction {
+            let signature = config
+                .rpc_client
+                .send_and_confirm_transaction_with_spinner_and_config(
+                    &transaction,
+                    config.commitment_config,
+                    RpcSendTransactionConfig {
+                        skip_preflight: true,
+                        preflight_commitment: None,
+                        encoding: None,
+                    },
+                )?;
+            println!("Signature: {}", signature);
+        }
+        Ok(())
+    })
+    .map_err(|err| {
+        eprintln!("{}", err);
+        exit(1);
     });
+}
 
-    let ix_data = init_args.try_to_vec()?;
+pub fn is_u8<T>(amount: T) -> Result<(), String>
+where
+    T: AsRef<str> + Display,
+{
+    if amount.as_ref().parse::<u8>().is_ok() {
+        Ok(())
+    } else {
+        Err(format!(
+            "Unable to parse input amount as integer, provided: {}",
+            amount
+        ))
+    }
+}
 
-    let (ix, signers) = init.to_ix(program_id, ix_data.as_slice())?;
-    let (recent_blockhash, _) = client.get_recent_blockhash()?;
-    println!("Instruction ready.");
-    println!(
-        "Signing for {} signer(s): {:?}",
-        signers.len(),
-        signers.iter().map(|s| s.pubkey()).collect::<Vec<_>>()
-    );
+pub fn is_u32<T>(amount: T) -> Result<(), String>
+where
+    T: AsRef<str> + Display,
+{
+    if amount.as_ref().parse::<u32>().is_ok() {
+        Ok(())
+    } else {
+        Err(format!(
+            "Unable to parse input amount as integer, provided: {}",
+            amount
+        ))
+    }
+}
 
-    let mut tx = Transaction::new_with_payer(&[ix], Some(&payer_for_tx.pubkey()));
+pub fn is_u64<T>(amount: T) -> Result<(), String>
+where
+    T: AsRef<str> + Display,
+{
+    if amount.as_ref().parse::<u64>().is_ok() {
+        Ok(())
+    } else {
+        Err(format!(
+            "Unable to parse input amount as integer, provided: {}",
+            amount
+        ))
+    }
+}
 
-    tx.try_sign(&signers.iter().collect::<Vec<_>>(), recent_blockhash)?;
-    println!("Transaction signed.");
+pub fn is_hex<T>(value: T) -> Result<(), String>
+where
+    T: AsRef<str> + Display,
+{
+    hex::decode(value.to_string())
+        .map(|_| ())
+        .map_err(|e| format!("{}", e))
+}
 
-    let signature = client.send_and_confirm_transaction_with_spinner_and_config(
-        &tx,
-        CommitmentConfig::processed(),
-        RpcSendTransactionConfig {
-            skip_preflight: true,
-            preflight_commitment: None,
-            encoding: None,
-        },
-    )?;
-    println!("Signature: {}", signature);
-
-    Ok(())
+fn check_fee_payer_balance(config: &Config, required_balance: u64) -> Result<(), Error> {
+    let balance = config.rpc_client.get_balance(&config.fee_payer.pubkey())?;
+    if balance < required_balance {
+        Err(format!(
+            "Fee payer, {}, has insufficient balance: {} required, {} available",
+            config.fee_payer.pubkey(),
+            lamports_to_sol(required_balance),
+            lamports_to_sol(balance)
+        )
+        .into())
+    } else {
+        Ok(())
+    }
 }
