@@ -1,7 +1,5 @@
 use solitaire::*;
 
-use solana_program::{self,};
-
 use crate::types::{
     self,
     GovernancePayloadSetMessageFee,

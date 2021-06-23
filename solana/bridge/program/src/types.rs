@@ -73,6 +73,7 @@ pub struct BridgeConfig {
     /// guarantees that VAAs issued by that set can still be submitted for a certain period.  In
     /// this period we still trust the old guardian set.
     pub guardian_set_expiration_time: u32,
+
     /// Amount of lamports that needs to be paid to the protocol to post a message
     pub fee: u64,
 }
@@ -95,18 +96,10 @@ impl Owned for BridgeData {
     }
 }
 
-// Temporary work around the fact there is no Default for [u8; 64/65] and therefore no Borsh
-// implementation for the type. Cannot use Vec<> as we don't know the size to deserialize.
-type SplitSignature = (
-    [u8; 32],
-    [u8; 32],
-    u8,
-);
-
 #[derive(Default, BorshSerialize, BorshDeserialize)]
 pub struct SignatureSet {
     /// Signatures of validators
-    pub signatures: [SplitSignature; 19],
+    pub signatures: Vec<[u8; 65]>,
 
     /// Hash of the data
     pub hash: [u8; 32],
@@ -126,6 +119,7 @@ pub struct PostedMessage(pub PostedMessageData);
 
 impl BorshSerialize for PostedMessage {
     fn serialize<W: Write>(&self, writer: &mut W) -> std::io::Result<()> {
+        // King of Flavour
         writer.write(&['m' as u8, 's' as u8, 'g' as u8]);
         BorshSerialize::serialize(&self.0, writer)
     }
@@ -133,8 +127,9 @@ impl BorshSerialize for PostedMessage {
 
 impl BorshDeserialize for PostedMessage {
     fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
+        *buf = &buf[3..];
         Ok(PostedMessage(
-            <PostedMessageData as BorshDeserialize>::deserialize(&mut &buf[3..])?,
+            <PostedMessageData as BorshDeserialize>::deserialize(buf)?,
         ))
     }
 }

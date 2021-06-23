@@ -158,7 +158,7 @@ impl<
             }
             AccountState::Initialized => {
                 initialized = true;
-                T::try_from_slice(&mut *ctx.info().data.borrow_mut())?
+                T::try_from_slice(&mut *ctx.info().data.borrow_mut()).expect("Blew up in Initialized")
             }
             AccountState::MaybeInitialized => {
                 if **ctx.info().lamports.borrow() == 0 {

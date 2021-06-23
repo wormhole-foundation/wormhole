@@ -53,6 +53,7 @@ use bridge::{
     types::{
         BridgeConfig,
         PostedMessage,
+        PostedMessageData,
         SequenceTracker,
         SignatureSet,
     },
@@ -94,7 +95,7 @@ fn test_bridge_messages() {
     // Guardians sign, verify, and we produce VAA data here.
     let (vaa, body, body_hash, secret_key) = guardian_sign_round(
         &emitter,
-        data,
+        data.clone(),
     );
 
     common::verify_signatures(
@@ -112,12 +113,14 @@ fn test_bridge_messages() {
         client,
         program,
         payer,
+        body_hash,
+        data,
+        &emitter,
         GuardianSetDerivationData { index: 0 },
         vaa,
     );
 
-    // // Verify a Signature
-    // common::verify_signature(client, program, payer);
+    // Did it actually work?
 }
 
 /// A utility function for emulating what the guardians should be doing, I.E, detecting a message
@@ -172,8 +175,6 @@ fn guardian_sign_round(
         h.finalize().into()
     };
 
-    println!("Ahs: {:?}", body_hash);
-
     // Sign the body hash of the VAA.
     let sig = secp256k1::sign(
         &Message::parse(&body_hash),
@@ -193,7 +194,7 @@ fn guardian_sign_round(
 }
 
 fn create_message(data: Vec<u8>) -> PostedMessage {
-    PostedMessage {
+    PostedMessage(PostedMessageData {
         vaa_version: 0,
         vaa_time: 0,
         vaa_signature_account: Pubkey::new_unique(),
@@ -207,5 +208,5 @@ fn create_message(data: Vec<u8>) -> PostedMessage {
             .duration_since(SystemTime::UNIX_EPOCH)
             .unwrap()
             .as_secs() as u32,
-    }
+    })
 }

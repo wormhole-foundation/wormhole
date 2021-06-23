@@ -19,8 +19,9 @@ macro_rules! solitaire {
             use solana_program::{
                 account_info::AccountInfo,
                 entrypoint::ProgramResult,
-		program_error::ProgramError,
+                program_error::ProgramError,
                 pubkey::Pubkey,
+                msg,
             };
             use solitaire::{FromAccounts, Persist, Result};
 
@@ -39,6 +40,7 @@ macro_rules! solitaire {
                 match Instruction::try_from_slice(d).map_err(|e| SolitaireError::InstructionDeserializeFailed(e))? {
                     $(
                         Instruction::$row(ix_data) => {
+                            msg!("Dispatch: {}", stringify!($row));
                             let (mut accounts): ($row) = FromAccounts::from(p, &mut a.iter(), &())?;
                             $fn(&ExecutionContext{program_id: p, accounts: a}, &mut accounts, ix_data)?;
                             Persist::persist(&accounts, p)?;

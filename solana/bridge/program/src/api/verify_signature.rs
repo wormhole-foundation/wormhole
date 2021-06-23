@@ -200,6 +200,7 @@ pub fn verify_signatures(
     // Track whether the account needs initialization
     // Prepare message/payload-specific sig_info account
     if !accs.signature_set.is_initialized() {
+        accs.signature_set.signatures = vec![[0u8; 65]; 19];
         accs.signature_set.guardian_set_index = accs.guardian_set.index;
         accs.signature_set.hash = data.hash;
 
@@ -237,12 +238,8 @@ pub fn verify_signatures(
         }
 
         // Overwritten content should be zeros except double signs by the signer or harmless replays
-        accs.signature_set.signatures[s.signer_index as usize].0
-            .copy_from_slice(&secp_ixs[s.sig_index as usize].signature[0..32]);
-        accs.signature_set.signatures[s.signer_index as usize].1
-            .copy_from_slice(&secp_ixs[s.sig_index as usize].signature[32..64]);
-        accs.signature_set.signatures[s.signer_index as usize].2 = 
-            secp_ixs[s.sig_index as usize].signature[64];
+        accs.signature_set.signatures[s.signer_index as usize]
+            .copy_from_slice(&secp_ixs[s.sig_index as usize].signature);
     }
 
     Ok(())

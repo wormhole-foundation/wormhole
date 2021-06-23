@@ -85,7 +85,6 @@ impl<'b, const State: AccountState> Seeded<&MessageDerivationData> for Message<'
             data.nonce.to_be_bytes().to_vec(),
         ];
         seeds.append(&mut data.payload.chunks(32).map(|v| v.to_vec()).collect());
-
         seeds
     }
 }

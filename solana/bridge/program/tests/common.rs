@@ -3,6 +3,7 @@
 use secp256k1::SecretKey;
 use borsh::BorshSerialize;
 use solana_client::rpc_client::RpcClient;
+use solana_client::rpc_config::RpcSendTransactionConfig;
 use solana_program::{
     borsh::try_from_slice_unchecked,
     hash,
@@ -29,6 +30,7 @@ use std::{
 };
 
 use solana_sdk::{
+    commitment_config::CommitmentConfig,
     secp256k1_instruction::new_secp256k1_instruction,
     signature::{
         read_keypair_file,
@@ -44,6 +46,7 @@ use bridge::{
         GuardianSetDerivationData,
         SignatureSet,
         SignaturesSetDerivationData,
+        Message,
         MessageDerivationData,
     },
     instruction,
@@ -68,6 +71,18 @@ pub use instructions::*;
 mod helpers {
     use super::*;
 
+    fn rpc_send(client: &RpcClient, tx: Transaction) {
+        client.send_and_confirm_transaction_with_spinner_and_config(
+            &tx,
+            CommitmentConfig::processed(),
+            RpcSendTransactionConfig {
+                skip_preflight: true,
+                preflight_commitment: None,
+                encoding: None,
+            },
+        ).unwrap();
+    }
+
     pub fn setup() -> (Keypair, RpcClient, Pubkey) {
         let payer = read_keypair_file(env::var("BRIDGE_PAYER").unwrap_or("./payer.json".to_string())).unwrap();
         let rpc = RpcClient::new(env::var("BRIDGE_RPC").unwrap_or("http://127.0.0.1:8899".to_string()));
@@ -75,7 +90,6 @@ mod helpers {
             .unwrap_or("6mFKdAtUBVbsQ5dgvBrUkn1Pixb7BMTUtVKj4dpwrmQs".to_string())
             .parse::<Pubkey>()
             .unwrap();
-
         (payer, rpc, program)
     }
 
@@ -85,7 +99,7 @@ mod helpers {
         let mut transaction = Transaction::new_with_payer(&instructions, Some(&from.pubkey()));
         let recent_blockhash = client.get_recent_blockhash().unwrap().0;
         transaction.sign(&signers, recent_blockhash);
-        client.send_and_confirm_transaction(&transaction).unwrap();
+        rpc_send(client, transaction);
     }
 
     pub fn initialize(
@@ -112,7 +126,7 @@ mod helpers {
         let recent_blockhash = client.get_recent_blockhash().unwrap().0;
 
         transaction.sign(&signers, recent_blockhash);
-        client.send_and_confirm_transaction(&transaction).unwrap();
+        rpc_send(client, transaction);
     }
 
     pub fn post_message(
@@ -132,7 +146,7 @@ mod helpers {
             emitter_key: emitter.pubkey().to_bytes(),
             emitter_chain: message.emitter_chain,
             nonce: message.nonce,
-            payload: message.payload,
+            payload: message.payload.clone(),
         }, program);
 
         println!("PostMessage: Derived Keys:");
@@ -160,7 +174,7 @@ mod helpers {
         let recent_blockhash = client.get_recent_blockhash().unwrap().0;
 
         transaction.sign(&signers, recent_blockhash);
-        client.send_and_confirm_transaction(&transaction).unwrap();
+        rpc_send(client, transaction);
     }
 
     pub fn verify_signatures(
@@ -208,23 +222,45 @@ mod helpers {
         let recent_blockhash = client.get_recent_blockhash().unwrap().0;
 
         transaction.sign(&signers, recent_blockhash);
-        client.send_and_confirm_transaction(&transaction).unwrap();
+        rpc_send(client, transaction);
     }
 
     pub fn post_vaa(
         client: &RpcClient,
         program: &Pubkey,
         payer: &Keypair,
+        body_hash: [u8; 32],
+        message: Vec<u8>,
+        emitter: &Keypair,
         guardian_set: GuardianSetDerivationData,
         vaa: PostVAAData,
     ) {
+        let (bridge, _) = Pubkey::find_program_address(&["Bridge".as_ref()], program);
         let guardian_set = GuardianSet::<'_, { AccountState::Uninitialized }>::key(
             &guardian_set,
             &program,
         );
-        let (bridge, _) = Pubkey::find_program_address(&["Bridge".as_ref()], program);
-        let signature_set = Pubkey::new_unique();
-        let message = Pubkey::new_unique();
+
+        let signatures = SignatureSet::<'_, { AccountState::Uninitialized }>::key(
+            &SignaturesSetDerivationData {
+                hash: body_hash,
+            },
+            &program,
+        );
+
+        let message = Message::<'_, { AccountState::MaybeInitialized }>::key(
+            &MessageDerivationData {
+                emitter_key: emitter.pubkey().to_bytes(),
+                emitter_chain: 1,
+                nonce: 0,
+                payload: message,
+            },
+            &program,
+        );
+
+        println!("PostVAA: Derived Key:");
+        println!("GuardianSet: {}", guardian_set);
+        println!("Signatures:  {}", signatures);
 
         let signers = vec![payer];
         let instructions = [instructions::create_post_vaa(
@@ -232,7 +268,7 @@ mod helpers {
             payer.pubkey(),
             guardian_set,
             bridge,
-            signature_set,
+            signatures,
             message,
             vaa,
         )];
@@ -241,7 +277,7 @@ mod helpers {
         let recent_blockhash = client.get_recent_blockhash().unwrap().0;
 
         transaction.sign(&signers, recent_blockhash);
-        client.send_and_confirm_transaction(&transaction).unwrap();
+        rpc_send(client, transaction);
     }
 }
 

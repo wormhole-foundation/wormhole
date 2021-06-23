@@ -45,7 +45,7 @@ pub enum AccountState {
 ///
 /// Data<(), { AccountState::Uninitialized }>
 #[rustfmt::skip]
-pub struct Data<'r, T: Owned + Default + Default, const IsInitialized: AccountState> (
+pub struct Data<'r, T: Owned + Default, const IsInitialized: AccountState> (
     pub Info<'r>,
     pub T,
 );
