@@ -3,10 +3,7 @@ use crate::{
         Claim,
         ClaimDerivationData,
     },
-    types::{
-        ClaimData,
-        PostedMessage,
-    },
+    types::PostedMessage,
     Error::{
         InvalidGovernanceAction,
         InvalidGovernanceChain,

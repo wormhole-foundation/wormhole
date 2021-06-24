@@ -1,9 +1,5 @@
 use crate::{
-    api::{
-        ForeignAddress,
-        PostMessage,
-        PostMessageData,
-    },
+    api::ForeignAddress,
     vaa::{
         DeserializeGovernancePayload,
         DeserializePayload,
@@ -119,8 +115,7 @@ pub struct PostedMessage(pub PostedMessageData);
 
 impl BorshSerialize for PostedMessage {
     fn serialize<W: Write>(&self, writer: &mut W) -> std::io::Result<()> {
-        // King of Flavour
-        writer.write(&['m' as u8, 's' as u8, 'g' as u8]);
+        writer.write(b"msg")?;
         BorshSerialize::serialize(&self.0, writer)
     }
 }

@@ -1,7 +1,5 @@
 use solitaire::*;
 
-use solana_program::{self,};
-
 use crate::{
     accounts::{
         GuardianSet,
@@ -9,7 +7,6 @@ use crate::{
         SignatureSet,
         SignatureSetDerivationData,
     },
-    types::{self,},
     Error::{
         GuardianSetMismatch,
         InstructionAtWrongIndex,
@@ -26,7 +23,6 @@ use solitaire::{
     CreationLamports::Exempt,
 };
 use std::io::Write;
-use solana_program::msg;
 
 #[derive(FromAccounts)]
 pub struct VerifySignatures<'b> {

@@ -1,6 +1,5 @@
-// #![cfg(all(target_arch = "bpf", not(feature = "no-entrypoint")))]
 #![feature(const_generics)]
-#![allow(warnings)]
+#![allow(non_upper_case_globals)]
 
 use solana_program::msg;
 

@@ -1,10 +1,8 @@
 use solitaire::*;
 
 use crate::types::{
-    self,
     GovernancePayloadSetMessageFee,
     GovernancePayloadTransferFees,
-    GuardianSetData,
 };
 
 use solana_program::pubkey::Pubkey;
@@ -20,7 +18,6 @@ use crate::{
         GuardianSetDerivationData,
     },
     types::{
-        BridgeData,
         GovernancePayloadGuardianSetChange,
         GovernancePayloadUpgrade,
     },

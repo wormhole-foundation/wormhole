@@ -7,11 +7,6 @@ use crate::{
         Sequence,
         SequenceDerivationData,
     },
-    types::{
-        BridgeData,
-        PostedMessage,
-        SequenceTracker,
-    },
     Error::{
         InsufficientFees,
         MathOverflow,
