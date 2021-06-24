@@ -73,13 +73,13 @@ fn test_bridge_messages() {
 
     // Data we want to verify exists.
     let data = vec![];
+    let message = create_message(data.clone());
 
     // Initialize the Bridge
     common::initialize(
         client,
         program,
         payer,
-        GuardianSetDerivationData { index: 0 },
     );
 
     // Post a Message
@@ -88,8 +88,8 @@ fn test_bridge_messages() {
         program,
         payer,
         &emitter,
-        create_message(data.clone()),
-        0,
+        message.0.sequence,
+        message.0.payload,
     );
 
     // Guardians sign, verify, and we produce VAA data here.
@@ -105,7 +105,6 @@ fn test_bridge_messages() {
         body,
         body_hash,
         secret_key,
-        GuardianSetDerivationData { index: 0 },
     );
 
     // Post VAA
@@ -113,10 +112,7 @@ fn test_bridge_messages() {
         client,
         program,
         payer,
-        body_hash,
-        data,
-        &emitter,
-        GuardianSetDerivationData { index: 0 },
+        &emitter.pubkey(),
         vaa,
     );
 

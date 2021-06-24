@@ -4,13 +4,13 @@
 
 use solana_program::msg;
 
-// Salt contains the framework definition, single file for now but to be extracted into a cargo
-// package as soon as possible.
 pub mod accounts;
 pub mod api;
-pub mod client_instructions;
 pub mod types;
 pub mod vaa;
+
+#[cfg(feature = "no-entrypoint")]
+pub mod instructions;
 
 use solitaire::*;
 

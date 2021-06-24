@@ -15,6 +15,7 @@ use solana_program::{
     system_program,
     sysvar,
 };
+
 use solitaire::{
     processors::seeded::Seeded,
     AccountState,
@@ -166,8 +167,6 @@ pub fn verify_signatures(
 pub fn post_vaa(
     program_id: Pubkey,
     payer: Pubkey,
-    hash: [u8; 32],
-    message: Vec<u8>,
     emitter: Pubkey,
     guardian_set_index: u32,
     vaa: PostVAAData,
@@ -181,7 +180,7 @@ pub fn post_vaa(
     );
 
     let signature_set = SignatureSet::<'_, { AccountState::Uninitialized }>::key(
-        &SignatureSetDerivationData { hash },
+        &SignatureSetDerivationData { hash: hash_vaa(&vaa) },
         &program_id,
     );
 
@@ -190,7 +189,7 @@ pub fn post_vaa(
             emitter_key: emitter.to_bytes(),
             emitter_chain: 1,
             nonce: 0,
-            payload: message,
+            payload: vaa.payload.clone(),
         },
         &program_id,
     );
@@ -213,4 +212,36 @@ pub fn post_vaa(
             .try_to_vec()
             .unwrap(),
     }
+}
+
+// Convert a full VAA structure into the serialization of its unique components, this structure is
+// what is hashed and verified by Guardians.
+fn serialize_vaa(vaa: &PostVAAData) -> Vec<u8> {
+    use byteorder::{
+        BigEndian,
+        WriteBytesExt,
+    };
+    use std::io::{
+        Cursor,
+        Write,
+    };
+
+    let mut v = Cursor::new(Vec::new());
+    v.write_u32::<BigEndian>(vaa.timestamp).unwrap();
+    v.write_u32::<BigEndian>(vaa.nonce).unwrap();
+    v.write_u16::<BigEndian>(vaa.emitter_chain).unwrap();
+    v.write(&vaa.emitter_address).unwrap();
+    v.write(&vaa.payload).unwrap();
+    v.into_inner()
+}
+
+// Hash a VAA, this combines serialization and hashing.
+fn hash_vaa(vaa: &PostVAAData) -> [u8; 32] {
+    use sha3::Digest;
+    use std::io::Write;
+
+    let body = serialize_vaa(vaa);
+    let mut h = sha3::Keccak256::default();
+    h.write(body.as_slice()).unwrap();
+    h.finalize().into()
 }
