@@ -17,7 +17,7 @@ use crate::{
         Message,
         MessageDerivationData,
         SignatureSet,
-        SignaturesSetDerivationData,
+        SignatureSetDerivationData,
     },
     types::{self,},
     Error,
@@ -42,9 +42,9 @@ use std::io::{
     Write,
 };
 
-impl<'a> From<&PostVAA<'a>> for SignaturesSetDerivationData {
+impl<'a> From<&PostVAA<'a>> for SignatureSetDerivationData {
     fn from(accs: &PostVAA<'a>) -> Self {
-        SignaturesSetDerivationData {
+        SignatureSetDerivationData {
             hash: accs.signature_set.hash,
         }
     }

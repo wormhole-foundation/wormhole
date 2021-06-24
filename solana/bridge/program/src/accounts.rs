@@ -56,14 +56,14 @@ impl<'b, const State: AccountState> Seeded<&ClaimDerivationData> for Claim<'b, {
 
 pub type SignatureSet<'b, const State: AccountState> = Data<'b, types::SignatureSet, { State }>;
 
-pub struct SignaturesSetDerivationData {
+pub struct SignatureSetDerivationData {
     pub hash: [u8; 32],
 }
 
-impl<'b, const State: AccountState> Seeded<&SignaturesSetDerivationData>
+impl<'b, const State: AccountState> Seeded<&SignatureSetDerivationData>
     for SignatureSet<'b, { State }>
 {
-    fn seeds(data: &SignaturesSetDerivationData) -> Vec<Vec<u8>> {
+    fn seeds(data: &SignatureSetDerivationData) -> Vec<Vec<u8>> {
         vec![data.hash.to_vec()]
     }
 }

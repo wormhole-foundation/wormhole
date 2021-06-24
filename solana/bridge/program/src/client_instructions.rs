@@ -31,7 +31,7 @@ use crate::{
         Sequence,
         SequenceDerivationData,
         SignatureSet,
-        SignaturesSetDerivationData,
+        SignatureSetDerivationData,
     },
     types::PostedMessage,
     BridgeConfig,
@@ -133,7 +133,7 @@ pub fn verify_signatures(
     );
 
     let signature_set = SignatureSet::<'_, { AccountState::Uninitialized }>::key(
-        &SignaturesSetDerivationData { hash },
+        &SignatureSetDerivationData { hash },
         &program_id,
     );
 
@@ -181,7 +181,7 @@ pub fn post_vaa(
     );
 
     let signature_set = SignatureSet::<'_, { AccountState::Uninitialized }>::key(
-        &SignaturesSetDerivationData { hash },
+        &SignatureSetDerivationData { hash },
         &program_id,
     );
 

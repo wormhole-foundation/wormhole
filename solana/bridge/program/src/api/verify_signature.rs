@@ -7,7 +7,7 @@ use crate::{
         GuardianSet,
         GuardianSetDerivationData,
         SignatureSet,
-        SignaturesSetDerivationData,
+        SignatureSetDerivationData,
     },
     types::{self,},
     Error::{
@@ -54,11 +54,10 @@ impl From<&VerifySignatures<'_>> for GuardianSetDerivationData {
     }
 }
 
-impl From<&VerifySignatures<'_>> for SignaturesSetDerivationData {
-    fn from(data: &VerifySignatures<'_>) -> Self {
-        SignaturesSetDerivationData {
-            // TODO
-            hash: data.signature_set.hash,
+impl From<[u8; 32]> for SignatureSetDerivationData {
+    fn from(hash: [u8; 32]) -> Self {
+        SignatureSetDerivationData {
+            hash
         }
     }
 }
@@ -93,7 +92,6 @@ pub fn verify_signatures(
     accs: &mut VerifySignatures,
     data: VerifySignaturesData,
 ) -> Result<()> {
-
     accs.guardian_set
         .verify_derivation(ctx.program_id, &(&*accs).into())?;
 
@@ -183,39 +181,41 @@ pub fn verify_signatures(
         return Err(ProgramError::InvalidArgument.into());
     }
 
-    // Check message
+    // Extract message which is encoded in Solana Secp256k1 instruction data.
     let message = &secp_ix.data
         [secp_ixs[0].msg_offset as usize..(secp_ixs[0].msg_offset + secp_ixs[0].msg_size) as usize];
 
-    let mut h = sha3::Keccak256::default();
-    if let Err(e) = h.write(message) {
-        return Err(e.into());
+    // Hash the message part, which contains the serialized VAA body.
+    let msg_hash: [u8; 32] = {
+        let mut h = sha3::Keccak256::default();
+        if let Err(e) = h.write(message) {
+            return Err(e.into());
+        };
+        h.finalize().into()
     };
 
-    let msg_hash: [u8; 32] = h.finalize().into();
     if msg_hash != data.hash {
         return Err(InvalidHash.into());
     }
 
-    // Track whether the account needs initialization
-    // Prepare message/payload-specific sig_info account
+    // Confirm at this point that the derivation succeeds, we didn't have a signature set with the
+    // correct hash until this point.
+    accs.signature_set.verify_derivation(
+        ctx.program_id,
+        &msg_hash.into(),
+    )?;
+
     if !accs.signature_set.is_initialized() {
         accs.signature_set.signatures = vec![[0u8; 65]; 19];
         accs.signature_set.guardian_set_index = accs.guardian_set.index;
         accs.signature_set.hash = data.hash;
-
-        accs.signature_set
-            .verify_derivation(ctx.program_id, &(&*accs).into())?;
-
-        accs.signature_set.create(&(&*accs).into(), ctx, accs.payer.key, Exempt)?;
+        accs.signature_set.create(&msg_hash.into(), ctx, accs.payer.key, Exempt)?;
     } else {
-        accs.signature_set
-            .verify_derivation(ctx.program_id, &(&*accs).into())?;
-
         // If the account already existed, check that the parameters match
         if accs.signature_set.guardian_set_index != accs.guardian_set.index {
             return Err(GuardianSetMismatch.into());
         }
+
         if accs.signature_set.hash != data.hash {
             return Err(InvalidHash.into());
         }
