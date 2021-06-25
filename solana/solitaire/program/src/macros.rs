@@ -55,7 +55,7 @@ macro_rules! solitaire {
             }
 
             pub fn solitaire<'a, 'b: 'a>(p: &Pubkey, a: &'a [AccountInfo<'b>], d: &[u8]) -> ProgramResult {
-                solana_program::msg!(solitaire::PKG_NAME_VERSION);
+                solana_program::msg!(&format!("{} {} built with {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"), solitaire::PKG_NAME_VERSION));
                 if let Err(err) = dispatch(p, a, d) {
                     solana_program::msg!("Error: {:?}", err);
                     return Err(err.into());
