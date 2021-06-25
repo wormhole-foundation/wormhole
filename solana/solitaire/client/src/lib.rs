@@ -23,6 +23,7 @@ use borsh::BorshSerialize;
 
 use solitaire::{
     AccountState,
+    Info,
     Sysvar,
 };
 pub use solitaire::{
@@ -168,6 +169,20 @@ where
             }
         } else {
             Err(format!("{} must be passed as Sysvar", std::any::type_name::<Self>()).into())
+        }
+    }
+}
+
+impl<'b> Wrap for Info<'b> {
+    fn wrap(a: &AccEntry) -> StdResult<Vec<AccountMeta>, ErrBox> {
+        match a {
+            AccEntry::UnprivilegedRO(k) => Ok(vec![AccountMeta::new_readonly(k.clone(), false)]),
+            AccEntry::Unprivileged(k) => Ok(vec![AccountMeta::new(k.clone(), false)]),
+            _other => Err(format!(
+                "{} must be passed as Unprivileged or UnprivilegedRO",
+                std::any::type_name::<Self>()
+            )
+            .into()),
         }
     }
 }

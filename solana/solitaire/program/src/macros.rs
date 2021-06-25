@@ -144,6 +144,16 @@ macro_rules! data_wrapper {
                 return self.1.owner();
             }
         }
+
+        #[cfg(feature = "client")]
+        impl<'b> solitaire_client::Wrap for $name<'b> {
+            fn wrap(
+                a: &solitaire_client::AccEntry,
+            ) -> std::result::Result<Vec<solitaire_client::AccountMeta>, solitaire_client::ErrBox>
+            {
+                solitaire::Data::<'b, $embed, { $state }>::wrap(a)
+            }
+        }
     };
 }
 
