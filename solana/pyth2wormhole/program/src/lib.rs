@@ -8,10 +8,10 @@ use solitaire::{
     solitaire
 };
 
-use config::Pyth2WormholeConfig;
-use forward::{forward_price, Forward, ForwardData};
-use initialize::{initialize, Initialize};
-use set_config::{set_config, SetConfig};
+pub use config::Pyth2WormholeConfig;
+pub use forward::{forward_price, Forward, ForwardData};
+pub use initialize::{initialize, Initialize};
+pub use set_config::{set_config, SetConfig};
 
 solitaire! {
     Forward(ForwardData) => forward_price,
