@@ -33,7 +33,7 @@ use byteorder::{
     BigEndian,
     WriteBytesExt,
 };
- 
+
 use std::convert::TryInto;
 use std::io::{
     Cursor,
@@ -112,7 +112,6 @@ fn test_bridge_messages() {
         client,
         program,
         payer,
-        &emitter.pubkey(),
         vaa,
     );
 
@@ -123,12 +122,11 @@ fn test_bridge_messages() {
 /// is on the chain and creating a signature set for it.
 fn guardian_sign_round(
     emitter: &Keypair,
-    data: Vec<u8>
+    data: Vec<u8>,
 ) -> (PostVAAData, Vec<u8>, [u8; 32], secp256k1::SecretKey) {
     let mut vaa = PostVAAData {
         version: 0,
         guardian_set_index: 0,
-        signatures: vec![],
 
         // Body part
         nonce: 0,
@@ -155,9 +153,9 @@ fn guardian_sign_round(
 
     // Public Key: 0x1d72877eb2d898738afe94c6101152ede0435de9
     let secret_key = secp256k1::SecretKey::parse(&[
-      0x99, 0x70, 0x1c, 0x80, 0x5e, 0xf9, 0x38, 0xe1, 0x3f, 0x0e, 0x48, 0xf0, 0x9e, 0x2c, 0x32,
-      0x78, 0x91, 0xc1, 0xd8, 0x47, 0x29, 0xd1, 0x52, 0xf3, 0x01, 0xe7, 0xe6, 0x2c, 0xbf, 0x1f,
-      0x91, 0xc9
+        0x99, 0x70, 0x1c, 0x80, 0x5e, 0xf9, 0x38, 0xe1, 0x3f, 0x0e, 0x48, 0xf0, 0x9e, 0x2c, 0x32,
+        0x78, 0x91, 0xc1, 0xd8, 0x47, 0x29, 0xd1, 0x52, 0xf3, 0x01, 0xe7, 0xe6, 0x2c, 0xbf, 0x1f,
+        0x91, 0xc9
     ]).unwrap();
 
     let public_key = secp256k1::PublicKey::from_secret_key(&secret_key);
@@ -181,9 +179,9 @@ fn guardian_sign_round(
     let signature = sig.0.serialize();
     vaa.signatures.push(Signature {
         index: 0,
-        r:     signature[0..32].try_into().unwrap(),
-        s:     signature[32..64].try_into().unwrap(),
-        v:     sig.1.serialize(),
+        r: signature[0..32].try_into().unwrap(),
+        s: signature[32..64].try_into().unwrap(),
+        v: sig.1.serialize(),
     });
 
     (vaa, body, body_hash, secret_key)

@@ -152,7 +152,7 @@ mod helpers {
                 0,
                 data,
             )
-            .unwrap()],
+                .unwrap()],
         );
     }
 
@@ -164,13 +164,20 @@ mod helpers {
         body_hash: [u8; 32],
         secret_key: SecretKey,
     ) {
+        let mut signers = [-1; 19];
+        signers[0] = 0;
+
         execute(
             client,
             payer,
             &[payer],
             &[
                 new_secp256k1_instruction(&secret_key, &body),
-                instructions::verify_signatures(*program, payer.pubkey(), 0, body_hash).unwrap(),
+                instructions::verify_signatures(*program, payer.pubkey(), 0, VerifySignaturesData {
+                    hash: body_hash,
+                    signers,
+                    initial_creation: true,
+                }).unwrap(),
             ],
         );
     }
@@ -179,7 +186,6 @@ mod helpers {
         client: &RpcClient,
         program: &Pubkey,
         payer: &Keypair,
-        emitter: &Pubkey,
         vaa: PostVAAData,
     ) {
         execute(
@@ -189,8 +195,6 @@ mod helpers {
             &[instructions::post_vaa(
                 *program,
                 payer.pubkey(),
-                *emitter,
-                0,
                 vaa,
             )],
         );

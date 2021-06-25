@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package agent.v1;
 
+import "google/protobuf/timestamp.proto";
 // TODO: documentation
 
 option go_package = "github.com/certusone/wormhole/bridge/pkg/proto/agent/v1;agentv1";
@@ -15,8 +16,25 @@ message Empty {
 }
 
 message SubmitVAARequest {
-  bytes vaa = 1;
+  VAA vaa = 1;
   bool skip_preflight = 2;
+}
+
+message VAA {
+  uint32 Version = 1;
+  google.protobuf.Timestamp Timestamp = 2;
+  uint32 Nonce = 3;
+  uint32 EmitterChain = 4;
+  bytes EmitterAddress = 5;
+  uint64 Sequence = 6;
+  bytes Payload = 7;
+  uint32 GuardianSetIndex = 8;
+  repeated Signature Signatures = 9;
+}
+
+message Signature{
+  uint32 GuardianIndex = 1;
+  bytes Signature = 2;
 }
 
 message SubmitVAAResponse {

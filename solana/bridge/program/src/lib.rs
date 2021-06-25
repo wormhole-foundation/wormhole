@@ -1,5 +1,6 @@
 #![feature(const_generics)]
 #![allow(non_upper_case_globals)]
+#![allow(incomplete_features)]
 
 use solana_program::msg;
 

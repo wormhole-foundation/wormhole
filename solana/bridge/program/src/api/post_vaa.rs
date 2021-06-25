@@ -100,7 +100,6 @@ pub struct PostVAAData {
     // Header part
     pub version: u8,
     pub guardian_set_index: u32,
-    pub signatures: Vec<Signature>,
 
     // Body part
     pub timestamp: u32,

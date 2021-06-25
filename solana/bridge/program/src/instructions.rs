@@ -1,18 +1,10 @@
 use borsh::BorshSerialize;
 use solana_program::{
-    borsh::try_from_slice_unchecked,
-    hash,
     instruction::{
         AccountMeta,
         Instruction,
     },
-    program_pack::Pack,
     pubkey::Pubkey,
-    system_instruction::{
-        self,
-        create_account,
-    },
-    system_program,
     sysvar,
 };
 
@@ -34,7 +26,6 @@ use crate::{
         SignatureSet,
         SignatureSetDerivationData,
     },
-    types::PostedMessage,
     BridgeConfig,
     PostMessageData,
     PostVAAData,
@@ -124,7 +115,7 @@ pub fn verify_signatures(
     program_id: Pubkey,
     payer: Pubkey,
     guardian_set_index: u32,
-    hash: [u8; 32],
+    data: VerifySignaturesData,
 ) -> solitaire::Result<Instruction> {
     let guardian_set = GuardianSet::<'_, { AccountState::Uninitialized }>::key(
         &GuardianSetDerivationData {
@@ -134,14 +125,9 @@ pub fn verify_signatures(
     );
 
     let signature_set = SignatureSet::<'_, { AccountState::Uninitialized }>::key(
-        &SignatureSetDerivationData { hash },
+        &SignatureSetDerivationData { hash: data.hash },
         &program_id,
     );
-
-    // Bridge with a single pre-existing signer.
-    // TODO: Get rid of this, exists to make testing easier for now.
-    let mut signers = [-1; 19];
-    signers[0] = 0;
 
     Ok(Instruction {
         program_id,
@@ -155,40 +141,31 @@ pub fn verify_signatures(
             AccountMeta::new_readonly(solana_program::system_program::id(), false),
         ],
 
-        data: crate::instruction::Instruction::VerifySignatures(VerifySignaturesData {
-            hash,
-            signers,
-            initial_creation: true,
-        })
-        .try_to_vec()?,
+        data: crate::instruction::Instruction::VerifySignatures(data).try_to_vec()?,
     })
 }
 
-pub fn post_vaa(
-    program_id: Pubkey,
-    payer: Pubkey,
-    emitter: Pubkey,
-    guardian_set_index: u32,
-    vaa: PostVAAData,
-) -> Instruction {
+pub fn post_vaa(program_id: Pubkey, payer: Pubkey, vaa: PostVAAData) -> Instruction {
     let bridge = Bridge::<'_, { AccountState::Uninitialized }>::key(None, &program_id);
     let guardian_set = GuardianSet::<'_, { AccountState::Uninitialized }>::key(
         &GuardianSetDerivationData {
-            index: guardian_set_index,
+            index: vaa.guardian_set_index,
         },
         &program_id,
     );
 
     let signature_set = SignatureSet::<'_, { AccountState::Uninitialized }>::key(
-        &SignatureSetDerivationData { hash: hash_vaa(&vaa) },
+        &SignatureSetDerivationData {
+            hash: hash_vaa(&vaa),
+        },
         &program_id,
     );
 
     let message = Message::<'_, { AccountState::MaybeInitialized }>::key(
         &MessageDerivationData {
-            emitter_key: emitter.to_bytes(),
-            emitter_chain: 1,
-            nonce: 0,
+            emitter_key: vaa.emitter_address,
+            emitter_chain: vaa.emitter_chain,
+            nonce: vaa.nonce,
             payload: vaa.payload.clone(),
         },
         &program_id,
@@ -216,7 +193,7 @@ pub fn post_vaa(
 
 // Convert a full VAA structure into the serialization of its unique components, this structure is
 // what is hashed and verified by Guardians.
-fn serialize_vaa(vaa: &PostVAAData) -> Vec<u8> {
+pub fn serialize_vaa(vaa: &PostVAAData) -> Vec<u8> {
     use byteorder::{
         BigEndian,
         WriteBytesExt,
@@ -231,12 +208,13 @@ fn serialize_vaa(vaa: &PostVAAData) -> Vec<u8> {
     v.write_u32::<BigEndian>(vaa.nonce).unwrap();
     v.write_u16::<BigEndian>(vaa.emitter_chain).unwrap();
     v.write(&vaa.emitter_address).unwrap();
+    v.write_u64::<BigEndian>(vaa.sequence).unwrap();
     v.write(&vaa.payload).unwrap();
     v.into_inner()
 }
 
 // Hash a VAA, this combines serialization and hashing.
-fn hash_vaa(vaa: &PostVAAData) -> [u8; 32] {
+pub fn hash_vaa(vaa: &PostVAAData) -> [u8; 32] {
     use sha3::Digest;
     use std::io::Write;
 
