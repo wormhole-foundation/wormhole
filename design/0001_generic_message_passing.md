@@ -91,6 +91,16 @@ VAA struct {
 	// pre-signing and is not part of the signed digest.
 	Version uint8
 
+	// GuardianSetIndex is the index of the guardian set that signed this VAA.
+	// Signatures are verified against the public keys in the guardian set.
+	GuardianSetIndex uint32
+
+	// Number of signatures included in this VAA
+	LenSignatures uint8
+
+	// Signatures contain a list of signatures made by the guardian set.
+	Signatures []*Signature
+
 	// OBSERVATION - these fields are *deterministically* set by the
 	// Guardian nodes when making an observation. They uniquely identify
 	// a message and are used for replay protection.
@@ -125,16 +135,6 @@ VAA struct {
 
 	// Payload of the message.
 	Payload []byte // <-- NEW
-
-	// TRAILER - these fields have zero values pre-signing and aren't
-	// part of the signed digest.
-
-	// GuardianSetIndex is the index of the guardian set that signed this VAA.
-	// Signatures are verified against the public keys in the guardian set.
-	GuardianSetIndex uint32
-
-	// Signatures contain a list of signatures made by the guardian set.
-	Signatures []*Signature
 }
 
 // ChainID of a Wormhole chain. These are defined in the guardian node
