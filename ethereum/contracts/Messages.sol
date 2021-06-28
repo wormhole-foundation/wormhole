@@ -98,6 +98,9 @@ contract Messages is Getters {
         vm.emitterAddress = encodedVM.toBytes32(index);
         index += 32;
 
+        vm.sequence = encodedVM.toUint64(index);
+        index += 8;
+
         uint8 payloadLen = encodedVM.toUint8(index);
         index += 1;
 

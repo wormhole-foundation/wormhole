@@ -9,7 +9,7 @@ import "./Governance.sol";
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Upgrade.sol";
 
 contract Implementation is Governance {
-    event LogMessagePublished(address indexed sender, uint32 nonce, bytes payload, bool persistMessage);
+    event LogMessagePublished(address indexed sender, uint64 sequence, uint32 nonce, bytes payload, bool persistMessage);
 
     // Publish a message to be attested by the Wormhole network
     function publishMessage(
@@ -25,7 +25,12 @@ contract Implementation is Governance {
         }
 
         // emit log
-        emit LogMessagePublished(msg.sender, nonce, payload, persistMessage);
+        emit LogMessagePublished(msg.sender, useSequence(msg.sender), nonce, payload, persistMessage);
+    }
+
+    function useSequence(address emitter) internal returns (uint64 sequence) {
+        sequence = nextSequence(emitter);
+        setNextSequence(emitter, sequence + 1);
     }
 
     function initialize(address[] memory initialGuardians, uint16 chainId, uint16 governanceChainId, bytes32 governanceContract) initializer public {

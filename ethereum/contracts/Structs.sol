@@ -28,6 +28,7 @@ interface Structs {
 		uint32 nonce;
 		uint16 emitterChainId;
 		bytes32 emitterAddress;
+		uint64 sequence;
 		bytes payload;
 
 		uint32 guardianSetIndex;

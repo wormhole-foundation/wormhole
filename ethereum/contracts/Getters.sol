@@ -45,4 +45,8 @@ contract Getters is State {
     function persistedMessageFee() public view returns (uint256) {
         return _state.persistedMessageFee;
     }
+
+    function nextSequence(address emitter) public view returns (uint64) {
+        return _state.sequences[emitter];
+    }
 }
