@@ -640,7 +640,6 @@ const signAndEncodeVM = async function(
         web3.eth.abi.encodeParameter("uint16", emitterChainId).substring(2 + (64 - 4)),
         web3.eth.abi.encodeParameter("bytes32", emitterAddress).substring(2),
         web3.eth.abi.encodeParameter("uint64", timestamp).substring(2 + (64 - 16)),
-        web3.eth.abi.encodeParameter("uint8", data.length / 2 - 1).substring(2 + (64 - 2)),
         data.substr(2)
     ]
 

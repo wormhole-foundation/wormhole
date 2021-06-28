@@ -101,12 +101,6 @@ contract Messages is Getters {
         vm.sequence = encodedVM.toUint64(index);
         index += 8;
 
-        uint8 payloadLen = encodedVM.toUint8(index);
-        index += 1;
-
-        vm.payload = encodedVM.slice(index, payloadLen);
-        index += payloadLen;
-
-        require(encodedVM.length == index, "invalid VM");
+        vm.payload = encodedVM.slice(index, encodedVM.length - index);
     }
 }
