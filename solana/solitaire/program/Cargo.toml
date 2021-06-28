@@ -9,8 +9,8 @@ crate-type = ["cdylib", "lib"]
 name = "solitaire"
 
 [features]
+client = ["no-entrypoint"]
 no-entrypoint = []
-no-idl = []
 cpi = ["no-entrypoint"]
 default = []
 
