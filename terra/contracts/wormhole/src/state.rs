@@ -1,7 +1,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use cosmwasm_std::{Binary, CanonicalAddr, HumanAddr, StdResult, Storage, Coin, Uint128};
+use cosmwasm_std::{Binary, CanonicalAddr, Coin, HumanAddr, StdResult, Storage, Uint128};
 use cosmwasm_storage::{
     bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket, ReadonlySingleton,
     Singleton,
@@ -14,6 +14,7 @@ use sha3::{Digest, Keccak256};
 
 pub static CONFIG_KEY: &[u8] = b"config";
 pub static GUARDIAN_SET_KEY: &[u8] = b"guardian_set";
+pub static SEQUENCE_KEY: &[u8] = b"sequence";
 pub static WRAPPED_ASSET_KEY: &[u8] = b"wrapped_asset";
 pub static WRAPPED_ASSET_ADDRESS_KEY: &[u8] = b"wrapped_asset_address";
 
@@ -37,7 +38,6 @@ pub struct ConfigInfo {
 // Validator Action Approval(VAA) data
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct ParsedVAA {
-
     pub version: u8,
     pub guardian_set_index: u32,
     pub timestamp: u64,
@@ -46,9 +46,10 @@ pub struct ParsedVAA {
 
     pub emitter_chain: u16,
     pub emitter_address: Vec<u8>,
+    pub sequence: u64,
     pub payload: Vec<u8>,
 
-    pub hash: Vec<u8>
+    pub hash: Vec<u8>,
 }
 
 impl ParsedVAA {
@@ -68,7 +69,8 @@ impl ParsedVAA {
     8   uint32      nonce
     12  uint16      emitter_chain
     14  [32]uint8   emitter_address
-    46  []uint8     payload
+    46  uint64      sequence
+    54  []uint8     payload
     */
 
     pub const HEADER_LEN: usize = 6;
@@ -80,7 +82,8 @@ impl ParsedVAA {
     pub const VAA_NONCE_POS: usize = 8;
     pub const VAA_EMITTER_CHAIN_POS: usize = 12;
     pub const VAA_EMITTER_ADDRESS_POS: usize = 14;
-    pub const VAA_PAYLOAD_POS: usize = 46;
+    pub const VAA_SEQUENCE_POS: usize = 46;
+    pub const VAA_PAYLOAD_POS: usize = 54;
 
     // Signature data offsets in the signature block
     pub const SIG_DATA_POS: usize = 1;
@@ -114,7 +117,10 @@ impl ParsedVAA {
         let timestamp = data.get_u64(body_offset);
         let nonce = data.get_u32(body_offset + Self::VAA_NONCE_POS);
         let emitter_chain = data.get_u16(body_offset + Self::VAA_EMITTER_CHAIN_POS);
-        let emitter_address = data.get_bytes32(body_offset + Self::VAA_EMITTER_ADDRESS_POS).to_vec();
+        let emitter_address = data
+            .get_bytes32(body_offset + Self::VAA_EMITTER_ADDRESS_POS)
+            .to_vec();
+        let sequence = data.get_u64(body_offset + Self::VAA_SEQUENCE_POS);
         let payload = data[body_offset + Self::VAA_PAYLOAD_POS..].to_vec();
 
         Ok(ParsedVAA {
@@ -125,6 +131,7 @@ impl ParsedVAA {
             len_signers: len_signers as u8,
             emitter_chain,
             emitter_address,
+            sequence,
             payload,
             hash,
         })
@@ -139,6 +146,7 @@ pub struct GuardianAddress {
 
 #[cfg(test)]
 use hex;
+
 #[cfg(test)]
 impl GuardianAddress {
     pub fn from(string: &str) -> GuardianAddress {
@@ -151,8 +159,9 @@ impl GuardianAddress {
 // Guardian set information
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct GuardianSetInfo {
-    pub addresses: Vec<GuardianAddress>, // List of guardian addresses
-    pub expiration_time: u64,            // Guardian set expiration time
+    pub addresses: Vec<GuardianAddress>,
+    // List of guardian addresses
+    pub expiration_time: u64, // Guardian set expiration time
 }
 
 impl GuardianSetInfo {
@@ -192,6 +201,17 @@ pub fn guardian_set_get<S: Storage>(storage: &S, index: u32) -> StdResult<Guardi
     bucket_read(GUARDIAN_SET_KEY, storage).load(&index.to_be_bytes())
 }
 
+pub fn sequence_set<S: Storage>(storage: &mut S, emitter: &[u8], sequence: u64) -> StdResult<()> {
+    bucket(SEQUENCE_KEY, storage).save(emitter, &sequence)
+}
+
+pub fn sequence_read<S: Storage>(storage: &S, emitter: &[u8]) -> u64 {
+    bucket_read(SEQUENCE_KEY, storage)
+        .load(&emitter)
+        .or::<u64>(Ok(0))
+        .unwrap()
+}
+
 pub fn vaa_archive_add<S: Storage>(storage: &mut S, hash: &[u8]) -> StdResult<()> {
     bucket(GUARDIAN_SET_KEY, storage).save(hash, &true)
 }
@@ -219,7 +239,6 @@ pub fn wrapped_asset_address_read<S: Storage>(storage: &S) -> ReadonlyBucket<S, 
     bucket_read(WRAPPED_ASSET_ADDRESS_KEY, storage)
 }
 
-
 pub struct GovernancePacket {
     pub module: Vec<u8>,
     pub chain: u16,
@@ -239,7 +258,7 @@ impl GovernancePacket {
             module,
             chain,
             action,
-            payload
+            payload,
         })
     }
 }
@@ -252,7 +271,6 @@ pub struct GuardianSetUpgrade {
 
 impl GuardianSetUpgrade {
     pub fn deserialize(data: &Vec<u8>) -> StdResult<Self> {
-
         const ADDRESS_LEN: usize = 20;
 
         let data = data.as_slice();
@@ -275,15 +293,13 @@ impl GuardianSetUpgrade {
 
         let new_guardian_set = GuardianSetInfo {
             addresses,
-            expiration_time: 0
+            expiration_time: 0,
         };
 
-        return Ok(
-            GuardianSetUpgrade {
-                new_guardian_set_index,
-                new_guardian_set
-            }
-        )
+        return Ok(GuardianSetUpgrade {
+            new_guardian_set_index,
+            new_guardian_set,
+        });
     }
 }
 
@@ -301,16 +317,10 @@ impl TransferFee {
         let amount = Uint128(data.get_u128_be(32));
         let denom = match String::from_utf8(data[48..].to_vec()) {
             Ok(s) => s,
-            Err(_) => return ContractError::InvalidVAA.std_err()
+            Err(_) => return ContractError::InvalidVAA.std_err(),
         };
-        let amount = Coin {
-            denom,
-            amount,
-        };
-        Ok(TransferFee {
-            amount,
-            recipient
-        })
+        let amount = Coin { denom, amount };
+        Ok(TransferFee { amount, recipient })
     }
 }
 
@@ -353,7 +363,31 @@ mod tests {
 
     #[test]
     fn test_deserialize() {
-        let x = vec![1u8,0u8,0u8,0u8,1u8,0u8,0u8,0u8,0u8,0u8,96u8,180u8,80u8,111u8,0u8,0u8,0u8,1u8,0u8,3u8,0u8,0u8,0u8,0u8,0u8,0u8,0u8,0u8,0u8,0u8,0u8,0u8,120u8,73u8,153u8,19u8,90u8,170u8,138u8,60u8,165u8,145u8,68u8,104u8,133u8,47u8,221u8,219u8,221u8,216u8,120u8,157u8,0u8,91u8,48u8,44u8,48u8,44u8,51u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,53u8,54u8,44u8,50u8,51u8,51u8,44u8,49u8,44u8,49u8,49u8,49u8,44u8,49u8,54u8,55u8,44u8,49u8,57u8,48u8,44u8,50u8,48u8,51u8,44u8,49u8,54u8,44u8,49u8,55u8,54u8,44u8,50u8,49u8,56u8,44u8,50u8,53u8,49u8,44u8,49u8,51u8,49u8,44u8,51u8,57u8,44u8,49u8,54u8,44u8,49u8,57u8,53u8,44u8,50u8,50u8,55u8,44u8,49u8,52u8,57u8,44u8,50u8,51u8,54u8,44u8,49u8,57u8,48u8,44u8,50u8,49u8,50u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,51u8,44u8,50u8,51u8,50u8,44u8,48u8,44u8,51u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,48u8,44u8,53u8,51u8,44u8,49u8,49u8,54u8,44u8,52u8,56u8,44u8,49u8,49u8,54u8,44u8,49u8,52u8,57u8,44u8,49u8,48u8,56u8,44u8,49u8,49u8,51u8,44u8,56u8,44u8,48u8,44u8,50u8,51u8,50u8,44u8,52u8,57u8,44u8,49u8,53u8,50u8,44u8,49u8,44u8,50u8,56u8,44u8,50u8,48u8,51u8,44u8,50u8,49u8,50u8,44u8,50u8,50u8,49u8,44u8,50u8,52u8,49u8,44u8,56u8,53u8,44u8,49u8,48u8,57u8,93u8];
+        let x = vec![
+            1u8, 0u8, 0u8, 0u8, 1u8, 0u8, 0u8, 0u8, 0u8, 0u8, 96u8, 180u8, 80u8, 111u8, 0u8, 0u8,
+            0u8, 1u8, 0u8, 3u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 120u8,
+            73u8, 153u8, 19u8, 90u8, 170u8, 138u8, 60u8, 165u8, 145u8, 68u8, 104u8, 133u8, 47u8,
+            221u8, 219u8, 221u8, 216u8, 120u8, 157u8, 0u8, 91u8, 48u8, 44u8, 48u8, 44u8, 51u8,
+            44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8,
+            44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 53u8, 54u8, 44u8,
+            50u8, 51u8, 51u8, 44u8, 49u8, 44u8, 49u8, 49u8, 49u8, 44u8, 49u8, 54u8, 55u8, 44u8,
+            49u8, 57u8, 48u8, 44u8, 50u8, 48u8, 51u8, 44u8, 49u8, 54u8, 44u8, 49u8, 55u8, 54u8,
+            44u8, 50u8, 49u8, 56u8, 44u8, 50u8, 53u8, 49u8, 44u8, 49u8, 51u8, 49u8, 44u8, 51u8,
+            57u8, 44u8, 49u8, 54u8, 44u8, 49u8, 57u8, 53u8, 44u8, 50u8, 50u8, 55u8, 44u8, 49u8,
+            52u8, 57u8, 44u8, 50u8, 51u8, 54u8, 44u8, 49u8, 57u8, 48u8, 44u8, 50u8, 49u8, 50u8,
+            44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8,
+            44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8,
+            44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8,
+            44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8,
+            44u8, 48u8, 44u8, 48u8, 44u8, 51u8, 44u8, 50u8, 51u8, 50u8, 44u8, 48u8, 44u8, 51u8,
+            44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8,
+            44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 53u8, 51u8, 44u8,
+            49u8, 49u8, 54u8, 44u8, 52u8, 56u8, 44u8, 49u8, 49u8, 54u8, 44u8, 49u8, 52u8, 57u8,
+            44u8, 49u8, 48u8, 56u8, 44u8, 49u8, 49u8, 51u8, 44u8, 56u8, 44u8, 48u8, 44u8, 50u8,
+            51u8, 50u8, 44u8, 52u8, 57u8, 44u8, 49u8, 53u8, 50u8, 44u8, 49u8, 44u8, 50u8, 56u8,
+            44u8, 50u8, 48u8, 51u8, 44u8, 50u8, 49u8, 50u8, 44u8, 50u8, 50u8, 49u8, 44u8, 50u8,
+            52u8, 49u8, 44u8, 56u8, 53u8, 44u8, 49u8, 48u8, 57u8, 93u8,
+        ];
         ParsedVAA::deserialize(x.as_slice()).unwrap();
     }
 }

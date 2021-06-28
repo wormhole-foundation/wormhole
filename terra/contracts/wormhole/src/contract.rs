@@ -6,11 +6,13 @@ use cosmwasm_std::{
 use crate::byte_utils::extend_address_to_32;
 use crate::byte_utils::ByteUtils;
 use crate::error::ContractError;
-use crate::msg::{GetAddressHexResponse, GetStateResponse, GuardianSetInfoResponse, HandleMsg, InitMsg, QueryMsg};
+use crate::msg::{
+    GetAddressHexResponse, GetStateResponse, GuardianSetInfoResponse, HandleMsg, InitMsg, QueryMsg,
+};
 use crate::state::{
-    config, config_read, guardian_set_get, guardian_set_set, vaa_archive_check,
-    ConfigInfo, GovernancePacket, GuardianAddress, GuardianSetInfo, GuardianSetUpgrade, ParsedVAA,
-    TransferFee,
+    config, config_read, guardian_set_get, guardian_set_set, sequence_read, sequence_set,
+    vaa_archive_check, ConfigInfo, GovernancePacket, GuardianAddress, GuardianSetInfo,
+    GuardianSetUpgrade, ParsedVAA, TransferFee,
 };
 
 use k256::ecdsa::recoverable::Id as RecoverableId;
@@ -154,7 +156,7 @@ fn parse_and_verify_vaa<S: Storage>(
             &data[pos + ParsedVAA::SIG_DATA_POS
                 ..pos + ParsedVAA::SIG_DATA_POS + ParsedVAA::SIG_DATA_LEN],
         )
-            .or_else(|_| ContractError::CannotDecodeSignature.std_err())?;
+        .or_else(|_| ContractError::CannotDecodeSignature.std_err())?;
         let id = RecoverableId::new(data.get_u8(pos + ParsedVAA::SIG_RECOVERY_POS))
             .or_else(|_| ContractError::CannotDecodeSignature.std_err())?;
         let recoverable_signature = RecoverableSignature::new(&signature, id)
@@ -257,18 +259,19 @@ fn handle_post_message<S: Storage, A: Api, Q: Querier>(
         return ContractError::FeeTooLow.std_err();
     }
 
+    let emitter = extend_address_to_32(&deps.api.canonical_address(&env.message.sender)?);
+
+    let sequence = sequence_read(&deps.storage, emitter.as_slice());
+    sequence_set(&mut deps.storage, emitter.as_slice(), sequence + 1)?;
+
     Ok(HandleResponse {
         messages: vec![],
         log: vec![
             log("message.message", hex::encode(message)),
-            log(
-                "message.sender",
-                hex::encode(extend_address_to_32(
-                    &deps.api.canonical_address(&env.message.sender)?,
-                )),
-            ),
+            log("message.sender", hex::encode(emitter)),
             log("message.chain_id", CHAIN_ID),
             log("message.nonce", nonce),
+            log("message.sequence", sequence),
             log("message.block_time", env.block.time),
         ],
         data: None,

@@ -58,7 +58,7 @@ pub fn extend_address_to_32(addr: &CanonicalAddr) -> Vec<u8> {
 pub fn extend_string_to_32(s: &String) -> StdResult<Vec<u8>> {
     let bytes = s.as_bytes();
     if bytes.len() > 32 {
-        return Err(StdError::generic_err("string more than 32 "))
+        return Err(StdError::generic_err("string more than 32 "));
     }
 
     let mut result = vec![0; 32 - bytes.len()];

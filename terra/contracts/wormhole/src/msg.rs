@@ -1,4 +1,4 @@
-use cosmwasm_std::{Binary, HumanAddr, Coin};
+use cosmwasm_std::{Binary, Coin, HumanAddr};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -16,13 +16,8 @@ pub struct InitMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum HandleMsg {
-    SubmitVAA {
-        vaa: Binary,
-    },
-    PostMessage {
-        message: Binary,
-        nonce: u32
-    },
+    SubmitVAA { vaa: Binary },
+    PostMessage { message: Binary, nonce: u32 },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -31,7 +26,7 @@ pub enum QueryMsg {
     GuardianSetInfo {},
     VerifyVAA { vaa: Binary, block_time: u64 },
     GetState {},
-    QueryAddressHex { address: HumanAddr }
+    QueryAddressHex { address: HumanAddr },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
