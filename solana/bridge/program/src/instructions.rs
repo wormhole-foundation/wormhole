@@ -85,7 +85,7 @@ pub fn post_message(
     emitter: Pubkey,
     nonce: u32,
     payload: Vec<u8>,
-) -> solitaire::Result<Instruction> {
+) -> solitaire::Result<(Pubkey, Instruction)> {
     let bridge = Bridge::<'_, { AccountState::Uninitialized }>::key(None, &program_id);
     let fee_collector = FeeCollector::<'_>::key(None, &program_id);
     let sequence = Sequence::<'_>::key(
@@ -104,7 +104,7 @@ pub fn post_message(
         &program_id,
     );
 
-    Ok(Instruction {
+    Ok((message, Instruction {
         program_id,
 
         accounts: vec![
@@ -124,7 +124,7 @@ pub fn post_message(
             payload: payload.clone(),
         })
         .try_to_vec()?,
-    })
+    }))
 }
 
 pub fn verify_signatures(
@@ -255,7 +255,7 @@ pub fn upgrade_guardian_set(
         &ClaimDerivationData {
             emitter_address: emitter.to_bytes(),
             emitter_chain: 1,
-            sequence: 0,
+            sequence: 1,
         },
         &program_id,
     );

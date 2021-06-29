@@ -121,12 +121,24 @@ mod helpers {
         );
     }
 
-    pub fn initialize(client: &RpcClient, program: &Pubkey, payer: &Keypair) {
+    pub fn initialize(
+        client: &RpcClient,
+        program: &Pubkey,
+        payer: &Keypair,
+        initial_guardians: &[[u8; 20]],
+    ) {
         execute(
             client,
             payer,
             &[payer],
-            &[instructions::initialize(*program, payer.pubkey(), 500, 2_000_000_000).unwrap()],
+            &[instructions::initialize(
+                *program,
+                payer.pubkey(),
+                500,
+                2_000_000_000,
+                initial_guardians,
+            )
+            .unwrap()],
         );
     }
 
@@ -135,26 +147,24 @@ mod helpers {
         program: &Pubkey,
         payer: &Keypair,
         emitter: &Keypair,
-        sequence: u64,
+        nonce: u32,
         data: Vec<u8>,
-    ) {
+    ) -> Pubkey {
         // Transfer money into the fee collector as it needs a balance/must exist.
         let fee_collector = FeeCollector::<'_>::key(None, program);
-        transfer(client, payer, &fee_collector, 1000000);
+        transfer(client, payer, &fee_collector, 100_000_000_000);
+
+        let (message_key, instruction) = instructions::post_message(*program, payer.pubkey(), emitter.pubkey(), nonce, data)
+            .unwrap();
 
         execute(
             client,
             payer,
             &[payer, emitter],
-            &[instructions::post_message(
-                *program,
-                payer.pubkey(),
-                emitter.pubkey(),
-                0,
-                data,
-            )
-                .unwrap()],
+            &[instruction],
         );
+
+        message_key
     }
 
     pub fn verify_signatures(
@@ -188,6 +198,7 @@ mod helpers {
         program: &Pubkey,
         payer: &Keypair,
         vaa: PostVAAData,
+        guardian_set_index: u32,
     ) {
         execute(
             client,
@@ -196,7 +207,89 @@ mod helpers {
             &[instructions::post_vaa(
                 *program,
                 payer.pubkey(),
+                *emitter,
+                guardian_set_index,
                 vaa,
+            )],
+        );
+    }
+
+    pub fn upgrade_contract(
+        client: &RpcClient,
+        program: &Pubkey,
+        payer: &Keypair,
+        payload_message: Pubkey,
+        spill: Pubkey,
+    ) {
+        execute(
+            client,
+            payer,
+            &[payer],
+            &[instructions::upgrade_contract(
+                *program,
+                payer.pubkey(),
+                payload_message,
+                spill,
+            )],
+        );
+    }
+
+    pub fn upgrade_guardian_set(
+        client: &RpcClient,
+        program: &Pubkey,
+        payer: &Keypair,
+        payload_message: Pubkey,
+        emitter: Pubkey,
+        old_index: u32,
+        new_index: u32,
+    ) {
+        execute(
+            client,
+            payer,
+            &[payer],
+            &[instructions::upgrade_guardian_set(
+                *program,
+                payer.pubkey(),
+                payload_message,
+                emitter,
+                old_index,
+                new_index,
+            )],
+        );
+    }
+
+    pub fn set_fees(
+        client: &RpcClient,
+        program: &Pubkey,
+        payer: &Keypair,
+        fee: u32,
+    ) {
+        execute(
+            client,
+            payer,
+            &[payer],
+            &[instructions::set_fees(
+                *program,
+                payer.pubkey(),
+                fee,
+            )],
+        );
+    }
+
+    pub fn transfer_fees(
+        client: &RpcClient,
+        program: &Pubkey,
+        payer: &Keypair,
+        recipient: &Pubkey,
+    ) {
+        execute(
+            client,
+            payer,
+            &[payer],
+            &[instructions::transfer_fees(
+                *program,
+                payer.pubkey(),
+                *recipient,
             )],
         );
     }
