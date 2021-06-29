@@ -7,7 +7,6 @@ import (
 	"github.com/certusone/wormhole/bridge/pkg/p2p"
 	gossipv1 "github.com/certusone/wormhole/bridge/pkg/proto/gossip/v1"
 	"io/ioutil"
-	"math/big"
 	"net/http"
 	"time"
 
@@ -31,8 +30,8 @@ type (
 		urlLCD string
 		bridge string
 
-		lockChan chan *common.MessagePublication
-		setChan  chan *common.GuardianSet
+		msgChan chan *common.MessagePublication
+		setChan chan *common.GuardianSet
 	}
 )
 
@@ -79,7 +78,7 @@ type clientRequest struct {
 
 // NewTerraBridgeWatcher creates a new terra bridge watcher
 func NewTerraBridgeWatcher(urlWS string, urlLCD string, bridge string, lockEvents chan *common.MessagePublication, setEvents chan *common.GuardianSet) *BridgeWatcher {
-	return &BridgeWatcher{urlWS: urlWS, urlLCD: urlLCD, bridge: bridge, lockChan: lockEvents, setChan: setEvents}
+	return &BridgeWatcher{urlWS: urlWS, urlLCD: urlLCD, bridge: bridge, msgChan: lockEvents, setChan: setEvents}
 }
 
 // Run is the main Terra Bridge run cycle
@@ -173,67 +172,52 @@ func (e *BridgeWatcher) Run(ctx context.Context) error {
 
 			// Received a message from the blockchain
 			json := string(message)
-			targetChain := gjson.Get(json, "result.events.from_contract\\.locked\\.target_chain.0")
-			tokenChain := gjson.Get(json, "result.events.from_contract\\.locked\\.token_chain.0")
-			tokenDecimals := gjson.Get(json, "result.events.from_contract\\.locked\\.token_decimals.0")
-			token := gjson.Get(json, "result.events.from_contract\\.locked\\.token.0")
-			sender := gjson.Get(json, "result.events.from_contract\\.locked\\.sender.0")
-			recipient := gjson.Get(json, "result.events.from_contract\\.locked\\.recipient.0")
-			amount := gjson.Get(json, "result.events.from_contract\\.locked\\.amount.0")
-			nonce := gjson.Get(json, "result.events.from_contract\\.locked\\.nonce.0")
+			payload := gjson.Get(json, "result.events.from_contract\\.message\\.message.0")
+			sender := gjson.Get(json, "result.events.from_contract\\.message\\.sender.0")
+			chainId := gjson.Get(json, "result.events.from_contract\\.message\\.chain_id.0")
+			nonce := gjson.Get(json, "result.events.from_contract\\.message\\.nonce.0")
+			sequence := gjson.Get(json, "result.events.from_contract\\.message.sequence.0")
+			blockTime := gjson.Get(json, "result.events.from_contract\\.message\\.block_time.0")
 			txHash := gjson.Get(json, "result.events.tx\\.hash.0")
-			blockTime := gjson.Get(json, "result.events.from_contract\\.locked\\.block_time.0")
 
-			if targetChain.Exists() && tokenChain.Exists() && tokenDecimals.Exists() && token.Exists() && sender.Exists() &&
-				recipient.Exists() && amount.Exists() && amount.Exists() && nonce.Exists() && txHash.Exists() && blockTime.Exists() {
+			if payload.Exists() && sender.Exists() && chainId.Exists() && nonce.Exists() && sequence.Exists() &&
+				blockTime.Exists() && txHash.Exists() {
 
-				logger.Info("token lock detected on Terra",
+				logger.Info("new message detected on terra",
+					zap.String("chainId", chainId.String()),
 					zap.String("txHash", txHash.String()),
-					zap.String("targetChain", targetChain.String()),
-					zap.String("tokenChain", tokenChain.String()),
-					zap.String("tokenDecimals", tokenDecimals.String()),
-					zap.String("token", token.String()),
 					zap.String("sender", sender.String()),
-					zap.String("recipient", recipient.String()),
-					zap.String("amount", amount.String()),
 					zap.String("nonce", nonce.String()),
+					zap.String("sequence", sequence.String()),
 					zap.String("blockTime", blockTime.String()),
 				)
 
 				senderAddress, err := StringToAddress(sender.String())
 				if err != nil {
-					logger.Error("cannot decode hex", zap.String("value", sender.String()))
-					continue
-				}
-				recipientAddress, err := StringToAddress(recipient.String())
-				if err != nil {
-					logger.Error("cannot decode hex", zap.String("value", recipient.String()))
-					continue
-				}
-				tokenAddress, err := StringToAddress(token.String())
-				if err != nil {
-					logger.Error("cannot decode hex", zap.String("value", token.String()))
+					logger.Error("cannot decode emitter hex", zap.String("value", sender.String()))
 					continue
 				}
 				txHashValue, err := StringToHash(txHash.String())
 				if err != nil {
-					logger.Error("cannot decode hex", zap.String("value", txHash.String()))
+					logger.Error("cannot decode tx hash hex", zap.String("value", txHash.String()))
 					continue
 				}
-				lock := &common.MessagePublication{
-					TxHash:        txHashValue,
-					Timestamp:     time.Unix(blockTime.Int(), 0),
-					Nonce:         uint32(nonce.Uint()),
-					SourceAddress: senderAddress,
-					TargetAddress: recipientAddress,
-					SourceChain:   vaa.ChainIDTerra,
-					TargetChain:   vaa.ChainID(uint8(targetChain.Uint())),
-					TokenChain:    vaa.ChainID(uint8(tokenChain.Uint())),
-					TokenAddress:  tokenAddress,
-					TokenDecimals: uint8(tokenDecimals.Uint()),
-					Amount:        new(big.Int).SetUint64(amount.Uint()),
+				payloadValue, err := hex.DecodeString(payload.String())
+				if err != nil {
+					logger.Error("cannot decode payload", zap.String("value", payload.String()))
+					continue
 				}
-				e.lockChan <- lock
+
+				messagePublication := &common.MessagePublication{
+					TxHash:         txHashValue,
+					Timestamp:      time.Unix(blockTime.Int(), 0),
+					Nonce:          uint32(nonce.Uint()),
+					Sequence:       sequence.Uint(),
+					EmitterChain:   vaa.ChainIDTerra,
+					EmitterAddress: senderAddress,
+					Payload:        payloadValue,
+				}
+				e.msgChan <- messagePublication
 				terraLockupsConfirmed.Inc()
 			}
 

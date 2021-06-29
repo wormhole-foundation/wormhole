@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"github.com/golang/protobuf/ptypes"
 	"github.com/prometheus/client_golang/prometheus"
 	"strings"
 	"time"
@@ -44,14 +45,13 @@ type (
 	SolanaVAASubmitter struct {
 		url string
 
-		messageChan chan *common.MessagePublication
-		vaaChan     chan *vaa.VAA
+		vaaChan       chan *vaa.VAA
 		skipPreflight bool
 	}
 )
 
-func NewSolanaVAASubmitter(url string, lockEvents chan *common.MessagePublication, vaaQueue chan *vaa.VAA, skipPreflight bool) *SolanaVAASubmitter {
-	return &SolanaVAASubmitter{url: url, messageChan: lockEvents, vaaChan: vaaQueue, skipPreflight: skipPreflight}
+func NewSolanaVAASubmitter(url string, vaaQueue chan *vaa.VAA, skipPreflight bool) *SolanaVAASubmitter {
+	return &SolanaVAASubmitter{url: url, vaaChan: vaaQueue, skipPreflight: skipPreflight}
 }
 
 func (e *SolanaVAASubmitter) Run(ctx context.Context) error {
@@ -102,11 +102,6 @@ func (e *SolanaVAASubmitter) Run(ctx context.Context) error {
 				cancel()
 				solanaFeePayerBalance.Set(float64(balance.Balance))
 			case v := <-e.vaaChan:
-				vaaBytes, err := v.Marshal()
-				if err != nil {
-					panic(err)
-				}
-
 				// Calculate digest so we can log it (TODO: refactor to vaa method? we do this in different places)
 				m, err := v.SigningMsg()
 				if err != nil {
@@ -115,7 +110,29 @@ func (e *SolanaVAASubmitter) Run(ctx context.Context) error {
 				h := hex.EncodeToString(m.Bytes())
 
 				timeout, cancel := context.WithTimeout(ctx, 120*time.Second)
-				res, err := c.SubmitVAA(timeout, &agentv1.SubmitVAARequest{Vaa: vaaBytes, SkipPreflight: e.skipPreflight})
+				ts, err := ptypes.TimestampProto(v.Timestamp)
+				if err != nil {
+					panic(err)
+				}
+
+				signatures := make([]*agentv1.Signature, len(v.Signatures))
+				for i := 0; i < len(v.Signatures); i++ {
+					signatures[i] = &agentv1.Signature{
+						GuardianIndex: uint32(v.Signatures[i].Index),
+						Signature:     v.Signatures[i].Signature[:],
+					}
+				}
+				res, err := c.SubmitVAA(timeout, &agentv1.SubmitVAARequest{Vaa: &agentv1.VAA{
+					Version:          uint32(v.Version),
+					Timestamp:        ts,
+					Nonce:            v.Nonce,
+					EmitterChain:     uint32(v.EmitterChain),
+					EmitterAddress:   v.EmitterAddress[:],
+					Sequence:         v.Sequence,
+					Payload:          v.Payload,
+					GuardianSetIndex: v.GuardianSetIndex,
+					Signatures:       signatures,
+				}, SkipPreflight: e.skipPreflight})
 				cancel()
 				if err != nil {
 					st, ok := status.FromError(err)

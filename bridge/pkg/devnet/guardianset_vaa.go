@@ -30,10 +30,10 @@ func DevnetGuardianSetVSS(n uint) *vaa.VAA {
 		Version:          1,
 		GuardianSetIndex: 0,
 		Timestamp:        time.Unix(5000, 0),
-		Payload: &vaa.BodyGuardianSetUpdate{
+		Payload: vaa.BodyGuardianSetUpdate{
 			Keys:     pubkeys,
 			NewIndex: 1,
-		},
+		}.Serialize(),
 	}
 
 	// The devnet is initialized with a single guardian (ethereum/migrations/1_initial_migration.js).
@@ -63,7 +63,7 @@ func SubmitVAA(ctx context.Context, rpcURL string, vaa *vaa.VAA) (*types.Transac
 
 	supervisor.Logger(ctx).Info("submitted VAA to Ethereum devnet", zap.Binary("binary", b))
 
-	tx, err := bridge.SubmitVAA(kt, b)
+	tx, err := bridge.SubmitNewGuardianSet(kt, b)
 	if err != nil {
 		return nil, err
 	}

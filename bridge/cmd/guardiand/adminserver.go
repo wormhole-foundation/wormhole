@@ -58,10 +58,10 @@ func adminGuardianSetUpdateToVAA(req *nodev1.GuardianSetUpdate, guardianSetIndex
 		Version:          vaa.SupportedVAAVersion,
 		GuardianSetIndex: guardianSetIndex,
 		Timestamp:        time.Unix(int64(timestamp), 0),
-		Payload: &vaa.BodyGuardianSetUpdate{
+		Payload: vaa.BodyGuardianSetUpdate{
 			Keys:     addrs,
 			NewIndex: guardianSetIndex + 1,
-		},
+		}.Serialize(),
 	}
 
 	return v, nil
@@ -85,10 +85,10 @@ func adminContractUpgradeToVAA(req *nodev1.ContractUpgrade, guardianSetIndex uin
 		Version:          vaa.SupportedVAAVersion,
 		GuardianSetIndex: guardianSetIndex,
 		Timestamp:        time.Unix(int64(timestamp), 0),
-		Payload: &vaa.BodyContractUpgrade{
-			ChainID:     uint8(req.ChainId),
+		Payload: vaa.BodyContractUpgrade{
+			ChainID:     vaa.ChainID(req.ChainId),
 			NewContract: newContractAddress,
-		},
+		}.Serialize(),
 	}
 
 	return v, nil

@@ -119,16 +119,16 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 	defer cancel()
 
 	// Subscribe to new token lockups
-	tokensLockedC := make(chan *abi.AbiLogTokensLocked, 2)
-	tokensLockedSub, err := f.WatchLogTokensLocked(&bind.WatchOpts{Context: timeout}, tokensLockedC, nil, nil)
+	tokensLockedC := make(chan *abi.AbiLogMessagePublished, 2)
+	tokensLockedSub, err := f.WatchLogMessagePublished(&bind.WatchOpts{Context: timeout}, tokensLockedC, nil)
 	if err != nil {
 		ethConnectionErrors.WithLabelValues("subscribe_error").Inc()
 		return fmt.Errorf("failed to subscribe to token lockup events: %w", err)
 	}
 
 	// Subscribe to guardian set changes
-	guardianSetC := make(chan *abi.AbiLogGuardianSetChanged, 2)
-	guardianSetEvent, err := f.WatchLogGuardianSetChanged(&bind.WatchOpts{Context: timeout}, guardianSetC)
+	guardianSetC := make(chan *abi.AbiGuardianSetAdded, 2)
+	guardianSetEvent, err := f.WatchGuardianSetAdded(&bind.WatchOpts{Context: timeout}, guardianSetC, nil)
 	if err != nil {
 		ethConnectionErrors.WithLabelValues("subscribe_error").Inc()
 		return fmt.Errorf("failed to subscribe to guardian set events: %w", err)
@@ -180,17 +180,13 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 				}
 
 				lock := &common.MessagePublication{
-					TxHash:        ev.Raw.TxHash,
-					Timestamp:     time.Unix(int64(b.Time()), 0),
-					Nonce:         ev.Nonce,
-					SourceAddress: ev.Sender,
-					TargetAddress: ev.Recipient,
-					SourceChain:   vaa.ChainIDEthereum,
-					TargetChain:   vaa.ChainID(ev.TargetChain),
-					TokenChain:    vaa.ChainID(ev.TokenChain),
-					TokenAddress:  ev.Token,
-					TokenDecimals: ev.TokenDecimals,
-					Amount:        ev.Amount,
+					TxHash:         ev.Raw.TxHash,
+					Timestamp:      time.Unix(int64(b.Time()), 0),
+					Nonce:          ev.Nonce,
+					Sequence:       ev.Sequence,
+					EmitterChain:   vaa.ChainIDEthereum,
+					EmitterAddress: PadAddress(ev.Sender),
+					Payload:        ev.Payload,
 				}
 
 				logger.Info("found new lockup transaction", zap.Stringer("tx", ev.Raw.TxHash),
@@ -206,26 +202,26 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 				e.pendingLocksGuard.Unlock()
 			case ev := <-guardianSetC:
 				logger.Info("guardian set has changed, fetching new value",
-					zap.Uint32("new_index", ev.NewGuardianIndex))
+					zap.Uint32("new_index", ev.Index))
 
 				guardianSetChangesConfirmed.Inc()
 
 				msm := time.Now()
 				timeout, cancel = context.WithTimeout(ctx, 15*time.Second)
-				gs, err := caller.GetGuardianSet(&bind.CallOpts{Context: timeout}, ev.NewGuardianIndex)
+				gs, err := caller.GetGuardianSet(&bind.CallOpts{Context: timeout}, ev.Index)
 				cancel()
 				queryLatency.WithLabelValues("get_guardian_set").Observe(time.Since(msm).Seconds())
 				if err != nil {
 					// We failed to process the guardian set update and are now out of sync with the chain.
 					// Recover by crashing the runnable, which causes the guardian set to be re-fetched.
-					errC <- fmt.Errorf("error requesting new guardian set value for %d: %w", ev.NewGuardianIndex, err)
+					errC <- fmt.Errorf("error requesting new guardian set value for %d: %w", ev.Index, err)
 					return
 				}
 
-				logger.Info("new guardian set fetched", zap.Any("value", gs), zap.Uint32("index", ev.NewGuardianIndex))
+				logger.Info("new guardian set fetched", zap.Any("value", gs), zap.Uint32("index", ev.Index))
 				e.setChan <- &common.GuardianSet{
 					Keys:  gs.Keys,
-					Index: ev.NewGuardianIndex,
+					Index: ev.Index,
 				}
 			}
 		}
@@ -295,7 +291,7 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 }
 
 // Fetch the current guardian set ID and guardian set from the chain.
-func FetchCurrentGuardianSet(ctx context.Context, rpcURL string, bridgeContract eth_common.Address) (uint32, *abi.WormholeGuardianSet, error) {
+func FetchCurrentGuardianSet(ctx context.Context, rpcURL string, bridgeContract eth_common.Address) (uint32, *abi.StructsGuardianSet, error) {
 	c, err := ethclient.DialContext(ctx, rpcURL)
 	if err != nil {
 		return 0, nil, fmt.Errorf("dialing eth client failed: %w", err)
@@ -308,7 +304,7 @@ func FetchCurrentGuardianSet(ctx context.Context, rpcURL string, bridgeContract 
 
 	opts := &bind.CallOpts{Context: ctx}
 
-	currentIndex, err := caller.GuardianSetIndex(opts)
+	currentIndex, err := caller.GetCurrentGuardianSetIndex(opts)
 	if err != nil {
 		return 0, nil, fmt.Errorf("error requesting current guardian set index: %w", err)
 	}
