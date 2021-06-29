@@ -24,6 +24,9 @@ pub enum SolitaireError {
     /// The AccountInfo has an invalid owner.
     InvalidOwner(Pubkey),
 
+    /// The AccountInfo is non-writeable where a writeable key was expected.
+    NonWriteableAccount(Pubkey),
+
     /// The instruction payload itself could not be deserialized.
     InstructionDeserializeFailed(std::io::Error),
 
@@ -56,10 +59,9 @@ impl From<std::io::Error> for SolitaireError {
 
 impl Into<ProgramError> for SolitaireError {
     fn into(self) -> ProgramError {
-        if let SolitaireError::ProgramError(e) = self {
-            return e;
+        match self {
+            SolitaireError::ProgramError(e) => return e,
+            _ => ProgramError::Custom(0),
         }
-        // TODO
-        ProgramError::Custom(0)
     }
 }

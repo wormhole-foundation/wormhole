@@ -147,25 +147,22 @@ impl<
     > Peel<'a, 'b, 'c> for Data<'b, T, IsInitialized>
 {
     fn peel<I>(ctx: &'c mut Context<'a, 'b, 'c, I>) -> Result<Self> {
-        let mut initialized = false;
         // If we're initializing the type, we should emit system/rent as deps.
-        let data: T = match IsInitialized {
+        let (initialized, data): (bool, T) = match IsInitialized {
             AccountState::Uninitialized => {
                 if **ctx.info().lamports.borrow() != 0 {
                     return Err(SolitaireError::AlreadyInitialized(*ctx.info().key));
                 }
-                T::default()
+                (false, T::default())
             }
             AccountState::Initialized => {
-                initialized = true;
-                T::try_from_slice(&mut *ctx.info().data.borrow_mut()).expect("Blew up in Initialized")
+                (true, T::try_from_slice(&mut *ctx.info().data.borrow_mut())?)
             }
             AccountState::MaybeInitialized => {
                 if **ctx.info().lamports.borrow() == 0 {
-                    T::default()
+                    (false, T::default())
                 } else {
-                    initialized = true;
-                    T::try_from_slice(&mut *ctx.info().data.borrow_mut())?
+                    (true, T::try_from_slice(&mut *ctx.info().data.borrow_mut())?)
                 }
             }
         };
@@ -198,13 +195,14 @@ impl<
     }
 
     fn persist(&self, program_id: &Pubkey) -> Result<()> {
-        // Only write to accounts owned by us
+        // TODO: Introduce Mut<> to solve the check we really want to make here.
         if self.0.owner != program_id {
             return Ok(());
         }
+
+        // It is also a malformed program to attempt to write to a non-writeable account.
         if !self.0.is_writable {
-            // TODO this needs to be checked properly
-            return Ok(());
+            return Err(SolitaireError::NonWriteableAccount(*self.0.key));
         }
 
         self.1.serialize(&mut *self.0.data.borrow_mut())?;

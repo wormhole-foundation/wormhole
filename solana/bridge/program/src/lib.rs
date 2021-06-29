@@ -57,6 +57,8 @@ enum Error {
     VAAAlreadyExecuted,
 }
 
+/// Translate from program specific errors to Solitaire framework errors. Log the error on the way
+/// out of the program for debugging.
 impl From<Error> for SolitaireError {
     fn from(e: Error) -> SolitaireError {
         msg!("ProgramError: {:?}", e);
