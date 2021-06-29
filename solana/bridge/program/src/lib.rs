@@ -18,15 +18,22 @@ pub use api::{
     initialize,
     post_message,
     post_vaa,
+    set_fees,
+    transfer_fees,
     upgrade_contract,
     upgrade_guardian_set,
     verify_signatures,
     Initialize,
+    InitializeData,
     PostMessage,
     PostMessageData,
     PostVAA,
     PostVAAData,
+    SetFees,
+    SetFeesData,
     Signature,
+    TransferFees,
+    TransferFeesData,
     UninitializedMessage,
     UpgradeContract,
     UpgradeContractData,
@@ -35,6 +42,14 @@ pub use api::{
     VerifySignatures,
     VerifySignaturesData,
 };
+
+pub use vaa::{
+    DeserializePayload,
+    PayloadMessage,
+    SerializePayload,
+};
+
+// BridgeConfig is the type of the main state the program maintains for itself.
 use types::BridgeConfig;
 
 const MAX_LEN_GUARDIAN_KEYS: usize = 19;
@@ -67,10 +82,12 @@ impl From<Error> for SolitaireError {
 }
 
 solitaire! {
-    Initialize(BridgeConfig)                    => initialize,
-    PostVAA(PostVAAData)                        => post_vaa,
+    Initialize(InitializeData)                  => initialize,
     PostMessage(PostMessageData)                => post_message,
-    VerifySignatures(VerifySignaturesData)      => verify_signatures,
+    PostVAA(PostVAAData)                        => post_vaa,
+    SetFees(SetFeesData)                        => set_fees,
+    TransferFees(TransferFeesData)              => transfer_fees,
     UpgradeContract(UpgradeContractData)        => upgrade_contract,
     UpgradeGuardianSet(UpgradeGuardianSetData)  => upgrade_guardian_set,
+    VerifySignatures(VerifySignaturesData)      => verify_signatures,
 }

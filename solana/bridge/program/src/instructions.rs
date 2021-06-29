@@ -16,6 +16,8 @@ use solitaire::{
 use crate::{
     accounts::{
         Bridge,
+        Claim,
+        ClaimDerivationData,
         FeeCollector,
         GuardianSet,
         GuardianSetDerivationData,
@@ -26,9 +28,21 @@ use crate::{
         SignatureSet,
         SignatureSetDerivationData,
     },
+    types::{
+        GovernancePayloadUpgrade,
+        PostedMessage,
+    },
     BridgeConfig,
+    InitializeData,
+    PayloadMessage,
     PostMessageData,
     PostVAAData,
+    SetFees,
+    SetFeesData,
+    TransferFees,
+    TransferFeesData,
+    UpgradeContractData,
+    UpgradeGuardianSetData,
     VerifySignaturesData,
 };
 
@@ -188,6 +202,150 @@ pub fn post_vaa(program_id: Pubkey, payer: Pubkey, vaa: PostVAAData) -> Instruct
         ],
 
         data: crate::instruction::Instruction::PostVAA(vaa)
+            .try_to_vec()
+            .unwrap(),
+    }
+}
+
+pub fn upgrade_contract(
+    program_id: Pubkey,
+    payer: Pubkey,
+    payload_message: Pubkey,
+    spill: Pubkey,
+) -> Instruction {
+    let claim = Claim::<'_, { AccountState::Uninitialized }>::key(
+        &ClaimDerivationData {
+            emitter_address: [0u8; 32],
+            emitter_chain: 1,
+            sequence: 0,
+        },
+        &program_id,
+    );
+
+    let (upgrade_authority, _) =
+        Pubkey::find_program_address(&["upgrade_authority".as_bytes()], &program_id);
+
+    Instruction {
+        program_id,
+
+        accounts: vec![
+            AccountMeta::new(payer, true),
+            AccountMeta::new(payload_message, false),
+            AccountMeta::new(claim, false),
+            AccountMeta::new(upgrade_authority, false),
+            AccountMeta::new(spill, false),
+        ],
+
+        data: crate::instruction::Instruction::UpgradeContract(UpgradeContractData {})
+            .try_to_vec()
+            .unwrap(),
+    }
+}
+
+pub fn upgrade_guardian_set(
+    program_id: Pubkey,
+    payer: Pubkey,
+    payload_message: Pubkey,
+    emitter: Pubkey,
+    old_index: u32,
+    new_index: u32,
+) -> Instruction {
+    let bridge = Bridge::<'_, { AccountState::Uninitialized }>::key(None, &program_id);
+    let claim = Claim::<'_, { AccountState::Uninitialized }>::key(
+        &ClaimDerivationData {
+            emitter_address: emitter.to_bytes(),
+            emitter_chain: 1,
+            sequence: 0,
+        },
+        &program_id,
+    );
+
+    let guardian_set_old = GuardianSet::<'_, { AccountState::Initialized }>::key(
+        &GuardianSetDerivationData { index: old_index },
+        &program_id,
+    );
+
+    let guardian_set_new = GuardianSet::<'_, { AccountState::Uninitialized }>::key(
+        &GuardianSetDerivationData { index: new_index },
+        &program_id,
+    );
+
+    Instruction {
+        program_id,
+
+        accounts: vec![
+            AccountMeta::new(payer, true),
+            AccountMeta::new(bridge, false),
+            AccountMeta::new(payload_message, false),
+            AccountMeta::new(claim, false),
+            AccountMeta::new(guardian_set_old, false),
+            AccountMeta::new(guardian_set_new, false),
+            AccountMeta::new_readonly(solana_program::system_program::id(), false),
+        ],
+
+        data: crate::instruction::Instruction::UpgradeGuardianSet(UpgradeGuardianSetData {})
+            .try_to_vec()
+            .unwrap(),
+    }
+}
+
+pub fn set_fees(program_id: Pubkey, payer: Pubkey, fee: u32) -> Instruction {
+    let bridge = Bridge::<'_, { AccountState::Uninitialized }>::key(None, &program_id);
+    let payload_message = Pubkey::new_unique();
+    let claim = Claim::<'_, { AccountState::Uninitialized }>::key(
+        &ClaimDerivationData {
+            emitter_address: [0u8; 32],
+            emitter_chain: 1,
+            sequence: 0,
+        },
+        &program_id,
+    );
+
+    Instruction {
+        program_id,
+
+        accounts: vec![
+            AccountMeta::new(payer, true),
+            AccountMeta::new(bridge, false),
+            AccountMeta::new(payload_message, false),
+            AccountMeta::new(claim, false),
+            AccountMeta::new_readonly(solana_program::system_program::id(), false),
+        ],
+
+        data: crate::instruction::Instruction::SetFees(SetFeesData {})
+            .try_to_vec()
+            .unwrap(),
+    }
+}
+
+pub fn transfer_fees(program_id: Pubkey, payer: Pubkey, recipient: Pubkey) -> Instruction {
+    let bridge = Bridge::<'_, { AccountState::Uninitialized }>::key(None, &program_id);
+    let payload_message = Pubkey::new_unique();
+    let claim = Claim::<'_, { AccountState::Uninitialized }>::key(
+        &ClaimDerivationData {
+            emitter_address: [0u8; 32],
+            emitter_chain: 1,
+            sequence: 0,
+        },
+        &program_id,
+    );
+
+    let fee_collector = FeeCollector::key(None, &program_id);
+
+    Instruction {
+        program_id,
+
+        accounts: vec![
+            AccountMeta::new(payer, true),
+            AccountMeta::new(bridge, false),
+            AccountMeta::new(payload_message, false),
+            AccountMeta::new(claim, false),
+            AccountMeta::new(fee_collector, false),
+            AccountMeta::new(recipient, false),
+            AccountMeta::new_readonly(solana_program::system_program::id(), false),
+        ],
+
+        data: crate::instruction::Instruction::TransferFees(TransferFeesData {})
             .try_to_vec()
             .unwrap(),
     }

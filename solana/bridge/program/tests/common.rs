@@ -44,13 +44,13 @@ use solana_sdk::{
 
 use bridge::{
     accounts::{
+        FeeCollector,
         GuardianSet,
         GuardianSetDerivationData,
         Message,
         MessageDerivationData,
         SignatureSet,
         SignatureSetDerivationData,
-        FeeCollector,
     },
     instruction,
     instructions,
@@ -60,6 +60,7 @@ use bridge::{
         SequenceTracker,
     },
     Initialize,
+    InitializeData,
     PostMessageData,
     PostVAAData,
     UninitializedMessage,
