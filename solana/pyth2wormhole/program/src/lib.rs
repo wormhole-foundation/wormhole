@@ -2,7 +2,8 @@
 pub mod config;
 pub mod forward;
 pub mod initialize;
-mod set_config;
+pub mod set_config;
+pub mod types;
 
 use solitaire::{
     solitaire

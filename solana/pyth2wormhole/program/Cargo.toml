@@ -8,10 +8,14 @@ edition = "2018"
 crate-type = ["cdylib", "lib"]
 name = "pyth2wormhole"
 
+[features]
+client = ["solitaire/client", "no-entrypoint"]
+no-entrypoint = []
+
 [dependencies]
 bridge = {path = "../../bridge/program"}
 solitaire = { path = "../../solitaire/program" }
-pyth-client = "0.2.0"
+pyth-client = {git = "https://github.com/drozdziak1/pyth-client-rs", branch = "v2-clone-and-debug"}
 rocksalt = { path = "../../solitaire/rocksalt" }
 solana-program = "=1.7.0"
 borsh = "0.8.1"

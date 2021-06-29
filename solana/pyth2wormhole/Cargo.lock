@@ -2056,8 +2056,7 @@ dependencies = [
 [[package]]
 name = "pyth-client"
 version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "731e2d5b2b790fc676518b29e41dddf7f69f23c61f27ab25cc9ae5b75ee190ad"
+source = "git+https://github.com/drozdziak1/pyth-client-rs?branch=v2-clone-and-debug#0b073bcdad1312051b086334e00f7925cff137e2"
 
 [[package]]
 name = "pyth2wormhole"
@@ -2069,7 +2068,6 @@ dependencies = [
  "rocksalt",
  "solana-program",
  "solitaire",
- "solitaire-client",
 ]
 
 [[package]]
