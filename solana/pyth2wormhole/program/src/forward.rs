@@ -1,13 +1,11 @@
-use std::{convert::TryFrom, mem};
+
 
 use borsh::{BorshDeserialize, BorshSerialize};
-use pyth_client::{
-    AccKey, AccountType, CorpAction, Price, PriceComp, PriceInfo, PriceStatus, PriceType,
-};
+
 use solana_program::{msg, program_error::ProgramError, pubkey::Pubkey};
 use solitaire::{
     processors::seeded::AccountOwner, AccountState, Context, Data, ExecutionContext, FromAccounts,
-    Info, InstructionContext, Keyed, Owned, Peel, Result as SoliResult, Signer, SolitaireError,
+    Info, InstructionContext, Keyed, Owned, Peel, Result as SoliResult, Signer,
     ToInstruction,
 };
 
@@ -67,9 +65,9 @@ impl<'b> InstructionContext<'b> for Forward<'b> {
 pub fn forward_price(
     _ctx: &ExecutionContext,
     accs: &mut Forward,
-    data: ForwardData,
+    _data: ForwardData,
 ) -> SoliResult<()> {
-    let price_attestation = PriceAttestation::from_bytes(&*accs.pyth_price.0.try_borrow_data()?)?;
+    let _price_attestation = PriceAttestation::from_bytes(&*accs.pyth_price.0.try_borrow_data()?)?;
 
     Ok(())
 }

@@ -2068,6 +2068,7 @@ dependencies = [
  "rocksalt",
  "solana-program",
  "solitaire",
+ "solitaire-client",
 ]
 
 [[package]]

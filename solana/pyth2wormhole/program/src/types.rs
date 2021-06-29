@@ -1,4 +1,4 @@
-use std::{convert::TryFrom, mem};
+use std::{mem};
 
 use pyth_client::{CorpAction, Price, PriceStatus, PriceType};
 use solana_program::{program_error::ProgramError, pubkey::Pubkey};
