@@ -207,6 +207,7 @@ fn check_integrity<'r>(
         v.write_u32::<BigEndian>(vaa.nonce)?;
         v.write_u16::<BigEndian>(vaa.emitter_chain)?;
         v.write(&vaa.emitter_address)?;
+        v.write_u64::<BigEndian>(vaa.sequence)?;
         v.write(&vaa.payload)?;
         v.into_inner()
     };

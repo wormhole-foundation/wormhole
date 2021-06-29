@@ -246,6 +246,7 @@ impl DeserializeGovernancePayload for GovernancePayloadUpgrade {
 pub struct GovernancePayloadGuardianSetChange {
     // New GuardianSetIndex
     pub new_guardian_set_index: u32,
+
     // New GuardianSet
     pub new_guardian_set: Vec<[u8; 20]>,
 }

@@ -119,7 +119,8 @@ impl<'b, T: DeserializePayload> PayloadMessage<'b, T> {
 #[derive(FromAccounts)]
 pub struct ClaimableVAA<'b, T: DeserializePayload> {
     // Signed message for the transfer
-    pub message: PayloadMessage<'b, T>, // TODO use bridge type here that does verifications
+    // TODO use bridge type here that does verifications
+    pub message: PayloadMessage<'b, T>,
 
     // Claim account to prevent double spending
     pub claim: Claim<'b, { AccountState::Uninitialized }>,
@@ -170,6 +171,7 @@ impl<'b, T: DeserializePayload> ClaimableVAA<'b, T> {
             payer,
             Exempt,
         )?;
+
         self.claim.claimed = true;
 
         Ok(())

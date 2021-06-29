@@ -6,6 +6,7 @@ use crate::{
         GuardianSetDerivationData,
     },
     types::*,
+    MAX_LEN_GUARDIAN_KEYS,
 };
 use solitaire::{
     CreationLamports::Exempt,
@@ -25,22 +26,35 @@ pub struct Initialize<'b> {
 impl<'b> InstructionContext<'b> for Initialize<'b> {
 }
 
+#[derive(BorshDeserialize, BorshSerialize, Default)]
+pub struct InitializeData {
+    /// Period for how long a guardian set is valid after it has been replaced by a new one.  This
+    /// guarantees that VAAs issued by that set can still be submitted for a certain period.  In
+    /// this period we still trust the old guardian set.
+    pub guardian_set_expiration_time: u32,
+
+    /// Amount of lamports that needs to be paid to the protocol to post a message
+    pub fee: u64,
+
+    /// Initial Guardian Set
+    pub initial_guardians: Vec<[u8; 20]>,
+}
+
 pub fn initialize(
     ctx: &ExecutionContext,
     accs: &mut Initialize,
-    config: BridgeConfig,
+    data: InitializeData,
 ) -> Result<()> {
-    accs.guardian_set.index = 0;
+    let index = 0;
+
+    // Allocate a default guardian set, with zeroed keys.
+    accs.guardian_set.index = index;
     accs.guardian_set.creation_time = 0;
-    accs.guardian_set.keys = Vec::with_capacity(20);
-    accs.guardian_set.keys.push([
-        0x1d, 0x72, 0x87, 0x7e, 0xb2, 0xd8, 0x98, 0x73, 0x8a, 0xfe, 0x94, 0xc6, 0x10, 0x11, 0x52,
-        0xed, 0xe0, 0x43, 0x5d, 0xe9,
-    ]);
+    accs.guardian_set.keys.extend(&data.initial_guardians);
 
     // Initialize Guardian Set
     accs.guardian_set.create(
-        &GuardianSetDerivationData { index: 0 },
+        &GuardianSetDerivationData { index },
         ctx,
         accs.payer.key,
         Exempt,
@@ -48,8 +62,11 @@ pub fn initialize(
 
     // Initialize the Bridge state for the first time.
     accs.bridge.create(ctx, accs.payer.key, Exempt)?;
-    accs.bridge.guardian_set_index = 0;
-    accs.bridge.config = config;
+    accs.bridge.guardian_set_index = index;
+    accs.bridge.config = BridgeConfig {
+        guardian_set_expiration_time: data.guardian_set_expiration_time,
+        fee: data.fee,
+    };
 
     // Initialize the fee collector account so it's rent exempt and will keep funds
     accs.fee_collector.create(

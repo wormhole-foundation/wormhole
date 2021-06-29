@@ -63,6 +63,7 @@ pub fn upgrade_contract(
         accs.upgrade_authority.key,
         accs.spill.key,
     );
+
     let _seeds = accs.upgrade_authority.self_seeds(None);
     invoke_signed(&upgrade_ix, ctx.accounts, &[])?;
 
@@ -82,6 +83,7 @@ pub struct UpgradeGuardianSet<'b> {
 
     /// Old guardian set
     pub guardian_set_old: GuardianSet<'b, { AccountState::Initialized }>,
+
     /// New guardian set
     pub guardian_set_new: GuardianSet<'b, { AccountState::Uninitialized }>,
 }

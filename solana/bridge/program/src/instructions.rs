@@ -37,6 +37,7 @@ pub fn initialize(
     payer: Pubkey,
     fee: u64,
     guardian_set_expiration_time: u32,
+    initial_guardians: &[[u8; 20]],
 ) -> solitaire::Result<Instruction> {
     let bridge = Bridge::<'_, { AccountState::Uninitialized }>::key(None, &program_id);
     let guardian_set = GuardianSet::<'_, { AccountState::Uninitialized }>::key(
@@ -55,7 +56,8 @@ pub fn initialize(
             AccountMeta::new_readonly(sysvar::rent::id(), false),
             AccountMeta::new_readonly(solana_program::system_program::id(), false),
         ],
-        data: crate::instruction::Instruction::Initialize(BridgeConfig {
+        data: crate::instruction::Instruction::Initialize(InitializeData {
+            initial_guardians: initial_guardians.to_vec(),
             fee,
             guardian_set_expiration_time,
         })
