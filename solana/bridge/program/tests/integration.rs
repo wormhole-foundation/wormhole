@@ -49,6 +49,10 @@ use std::time::{
 
 use sha3::Digest;
 use hex_literal::hex;
+use secp256k1::{
+    PublicKey,
+    SecretKey,
+};
 
 use bridge::{
     accounts::GuardianSetDerivationData,
@@ -74,20 +78,36 @@ mod common;
 fn test_alien_chain_messages() {
 }
 
-/// Ethereum Test Addresses (Keccak hashed Public Key)
-const INITIAL_PUBLIC: [[u8; 20]; 2] = [
-    hex!("1d72877eb2d898738afe94c6101152ede0435de9"),
-    hex!("7C6824A51bD586ecdc866ECCc9cd04b317570dDB"),
-];
+fn generate_keys() -> (Vec<[u8; 20]>, Vec<SecretKey>) {
+    use rand::Rng;
+    let mut rng = rand::thread_rng();
 
-/// Secp256k1 Secret Keys, used as the single initial guardian for testing.
-const INITIAL_SECRET: [[u8; 32]; 2] = [
-    hex!("99701c805ef938e13f0e48f09e2c327891c1d84729d152f301e7e62cbf1f91c9"),
-    hex!("0e76b44615dcabbcd1e5060c9b18e879cd0d4a5a7323e15f48ef13169c179743"),
-];
+    // Generate Guardian Keys
+    let secret_keys: Vec<SecretKey> = std::iter::repeat_with(|| SecretKey::random(&mut rng))
+        .take(10)
+        .collect();
+
+    (
+        secret_keys
+            .iter()
+            .map(|key| {
+                let public_key = PublicKey::from_secret_key(&key);
+                let mut h = sha3::Keccak256::default();
+                h.write(&public_key.serialize()[1..]).unwrap();
+                let key: [u8; 32] = h.finalize().into();
+                let mut address = [0u8; 20];
+                address.copy_from_slice(&key[12..]);
+                address
+            })
+            .collect(),
+        secret_keys,
+    )
+}
 
 #[test]
 fn test_bridge_messages() {
+    let (public_keys, secret_keys) = generate_keys();
+
     // Data we want to verify exists, wrapped in a message the guardians can process.
     let nonce = 12397;
     let data = b"Prove Me".to_vec();
@@ -99,19 +119,19 @@ fn test_bridge_messages() {
     let emitter = Keypair::new();
 
     // Initialize the Bridge.
-    common::initialize(client, program, payer, &INITIAL_PUBLIC);
+    common::initialize(client, program, payer, &*public_keys);
 
     // Post the message, publishing the data for guardian consumption.
     common::post_message(client, program, payer, &emitter, nonce, data.clone());
 
     // Emulate Guardian behaviour, verifying the data and publishing signatures/VAA.
-    let (vaa, body, body_hash, keys) = guardian_sign_round(&emitter, data.clone(), nonce);
-    common::verify_signatures(client, program, payer, body, body_hash, &keys);
+    let (vaa, body, body_hash) = guardian_sign_round(&emitter, data.clone(), nonce);
+    common::verify_signatures(client, program, payer, body, body_hash, &secret_keys);
     common::post_vaa(client, program, payer, vaa);
 
     // Upgrade the guardian set with a new set of guardians.
     let nonce = 12398;
-    let data = update_guardian_set(1, &INITIAL_PUBLIC);
+    let data = update_guardian_set(1, &public_keys);
     let message_key = common::post_message(client, program, payer, &emitter, nonce, data.clone());
 
     common::upgrade_guardian_set(
@@ -142,7 +162,7 @@ fn guardian_sign_round(
     emitter: &Keypair,
     data: Vec<u8>,
     nonce: u32,
-) -> (PostVAAData, Vec<u8>, [u8; 32], Vec<secp256k1::SecretKey>) {
+) -> (PostVAAData, Vec<u8>, [u8; 32]) {
     let mut vaa = PostVAAData {
         version: 0,
         guardian_set_index: 0,
@@ -179,12 +199,5 @@ fn guardian_sign_round(
         h.finalize().into()
     };
 
-    // Sign with all available secret keys.
-    let mut keys = Vec::new();
-    for secret_key in INITIAL_SECRET.iter() {
-        let secret_key = secp256k1::SecretKey::parse(secret_key).unwrap();
-        keys.push(secret_key);
-    }
-
-    (vaa, body, body_hash, keys)
+    (vaa, body, body_hash)
 }
