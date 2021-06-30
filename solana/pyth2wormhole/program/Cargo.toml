@@ -1,0 +1,17 @@
+[package]
+name = "pyth2wormhole"
+version = "0.1.0"
+description = "Pyth to Wormhole solana on-chain integration"
+edition = "2018"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "pyth2wormhole"
+
+[dependencies]
+bridge = {path = "../../bridge/program"}
+solitaire = { path = "../../solitaire/program" }
+pyth-client = "0.2.0"
+rocksalt = { path = "../../solitaire/rocksalt" }
+solana-program = "=1.7.0"
+borsh = "0.8.1"

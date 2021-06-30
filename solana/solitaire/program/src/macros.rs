@@ -41,7 +41,7 @@ macro_rules! solitaire {
                 program_error::ProgramError,
                 pubkey::Pubkey,
             };
-            use solitaire::{FromAccounts, Persist, Result, trace};
+            use solitaire::{ExecutionContext, FromAccounts, Persist, Result, trace, SolitaireError};
 
             /// Generated:
             /// This Instruction contains a 1-1 mapping for each enum variant to function call. The
@@ -84,23 +84,6 @@ macro_rules! solitaire {
             }
         }
 
-        /// This module contains a 1-1 mapping for each function to an enum variant. The variants
-        /// can be matched to the Instruction found above.
-        pub mod client {
-            use super::*;
-            use borsh::BorshSerialize;
-            use solana_program::{instruction::Instruction, pubkey::Pubkey};
-
-            /// Generated from Instruction Field
-            $(pub(crate) fn $fn(pid: &Pubkey, accounts: $row, ix_data: $kind) -> std::result::Result<Instruction, ErrBox> {
-                Ok(Instruction {
-                    program_id: *pid,
-                    accounts: vec![],
-                    data: ix_data.try_to_vec()?,
-                })
-            })*
-        }
-
         use instruction::solitaire;
         #[cfg(not(feature = "no-entrypoint"))]
         solana_program::entrypoint!(solitaire);
@@ -111,10 +94,10 @@ macro_rules! solitaire {
 macro_rules! data_wrapper {
     ($name:ident, $embed:ty, $state:expr) => {
         #[repr(transparent)]
-        pub struct $name<'b>(Data<'b, $embed, { $state }>);
+        pub struct $name<'b>(solitaire::Data<'b, $embed, { $state }>);
 
         impl<'b> std::ops::Deref for $name<'b> {
-            type Target = Data<'b, $embed, { $state }>;
+            type Target = solitaire::Data<'b, $embed, { $state }>;
 
             fn deref(&self) -> &Self::Target {
                 return &self.0;
@@ -128,39 +111,39 @@ macro_rules! data_wrapper {
         }
 
         impl<'a, 'b: 'a> solitaire::processors::keyed::Keyed<'a, 'b> for $name<'b> {
-            fn info(&'a self) -> &'a Info<'b> {
+            fn info(&'a self) -> &'a solitaire::Info<'b> {
                 self.0.info()
             }
         }
 
-        impl<'b> solitaire::processors::seeded::AccountSize for $name<'b> {
+        impl<'b> solitaire::AccountSize for $name<'b> {
             fn size(&self) -> usize {
                 return self.0.size();
             }
         }
 
         impl<'a, 'b: 'a, 'c> solitaire::Peel<'a, 'b, 'c> for $name<'b> {
-            fn peel<T>(ctx: &'c mut Context<'a, 'b, 'c, T>) -> Result<Self>
+            fn peel<T>(ctx: &'c mut solitaire::Context<'a, 'b, 'c, T>) -> solitaire::Result<Self>
             where
                 Self: Sized,
             {
-                Data::peel(ctx).map(|v| $name(v))
+                solitaire::Data::peel(ctx).map(|v| $name(v))
             }
 
             fn deps() -> Vec<solana_program::pubkey::Pubkey> {
-                Data::<'_, $embed, { $state }>::deps()
+                solitaire::Data::<'_, $embed, { $state }>::deps()
             }
 
             fn persist(
                 &self,
                 program_id: &solana_program::pubkey::Pubkey,
             ) -> solitaire::Result<()> {
-                Data::<'_, $embed, { $state }>::persist(self, program_id)
+                solitaire::Data::<'_, $embed, { $state }>::persist(self, program_id)
             }
         }
 
-        impl<'b> solitaire::processors::seeded::Owned for $name<'b> {
-            fn owner(&self) -> solitaire::processors::seeded::AccountOwner {
+        impl<'b> solitaire::Owned for $name<'b> {
+            fn owner(&self) -> solitaire::AccountOwner {
                 return self.1.owner();
             }
         }
