@@ -30,6 +30,10 @@ func DevnetGuardianSetVSS(n uint) *vaa.VAA {
 		Version:          1,
 		GuardianSetIndex: 0,
 		Timestamp:        time.Unix(5000, 0),
+		EmitterChain:     3,
+		EmitterAddress: vaa.Address{
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4,
+		},
 		Payload: vaa.BodyGuardianSetUpdate{
 			Keys:     pubkeys,
 			NewIndex: 1,

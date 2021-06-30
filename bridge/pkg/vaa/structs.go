@@ -230,6 +230,7 @@ func (v *VAA) serializeBody() ([]byte, error) {
 	MustWrite(buf, binary.BigEndian, v.Nonce)
 	MustWrite(buf, binary.BigEndian, v.EmitterChain)
 	buf.Write(v.EmitterAddress[:])
+	MustWrite(buf, binary.BigEndian, v.Sequence)
 	buf.Write(v.Payload)
 
 	return buf.Bytes(), nil

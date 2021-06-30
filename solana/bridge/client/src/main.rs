@@ -43,7 +43,10 @@ use solana_client::{
     rpc_config::RpcSendTransactionConfig,
 };
 use solana_sdk::{
-    commitment_config::CommitmentConfig,
+    commitment_config::{
+        CommitmentConfig,
+        CommitmentLevel,
+    },
     native_token::*,
     program_error::ProgramError::AccountAlreadyInitialized,
     pubkey::Pubkey,
@@ -399,7 +402,15 @@ where
 }
 
 fn check_fee_payer_balance(config: &Config, required_balance: u64) -> Result<(), Error> {
-    let balance = config.rpc_client.get_balance(&config.fee_payer.pubkey())?;
+    let balance = config
+        .rpc_client
+        .get_balance_with_commitment(
+            &config.fee_payer.pubkey(),
+            CommitmentConfig {
+                commitment: CommitmentLevel::Processed,
+            },
+        )?
+        .value;
     if balance < required_balance {
         Err(format!(
             "Fee payer, {}, has insufficient balance: {} required, {} available",

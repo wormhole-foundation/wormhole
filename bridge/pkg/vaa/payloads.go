@@ -44,7 +44,7 @@ func (b BodyGuardianSetUpdate) Serialize() []byte {
 	// Module
 	buf.Write(CoreModule)
 	// Action
-	MustWrite(buf, binary.BigEndian, uint8(1))
+	MustWrite(buf, binary.BigEndian, uint8(2))
 	// ChainID - 0 for universal
 	MustWrite(buf, binary.BigEndian, uint16(0))
 
