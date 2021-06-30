@@ -3,8 +3,7 @@ const Wormhole = artifacts.require("Wormhole");
 
 const initialSigners = [
     // testSigner 1 & 2
-    "0x7b6FA3F2bEb40eAf9Cefcb20505163C70d76f21c",
-    "0x4ba0C2db9A26208b3bB1a50B01b16941c10D76db",
+    "0xbeFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe",
 ]
 const chainId = "0x2";
 const governanceChainId = "0x3";

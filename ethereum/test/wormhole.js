@@ -6,7 +6,7 @@ const Wormhole = artifacts.require("Wormhole");
 const MockImplementation = artifacts.require("MockImplementation");
 const Implementation = artifacts.require("Implementation");
 
-const testSigner1PK = "13b422ac887f1912629e34928674cb4a81e59d96a4d74653e41c2a305ba754a5";
+const testSigner1PK = "cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0";
 const testSigner2PK = "892330666a850761e7370376430bb8c2aa1494072d3bfeaed0c4fa3d5a9135fe";
 const testSigner3PK = "87b45997ea577b93073568f06fc4838cffc1d01f90fc4d57f936957f3c4d99fb";
 
@@ -61,16 +61,15 @@ contract("Wormhole", function () {
     const testGovernanceChainId = "3";
     const testGovernanceContract = "0x0000000000000000000000000000000000000000000000000000000000000004";
 
-    it("should be initialized with the correct signers and values", async function(){
+    it("should be initialized with the correct signers and values", async function () {
         const initialized = new web3.eth.Contract(ImplementationFullABI, Wormhole.address);
 
         const index = await initialized.methods.getCurrentGuardianSetIndex().call();
         const set = (await initialized.methods.getGuardianSet(index).call());
 
         // check set
-        assert.lengthOf(set, 2);
+        assert.lengthOf(set[0], 1);
         assert.equal(set[0][0], testSigner1.address);
-        assert.equal(set[0][1], testSigner2.address);
 
         // check expiration
         assert.equal(set.expirationTime, "0");
@@ -86,14 +85,14 @@ contract("Wormhole", function () {
         assert.equal(governanceContract, testGovernanceContract);
     })
 
-    it("initialize should be non-reentrant", async function(){
+    it("initialize should be non-reentrant", async function () {
         const initialized = new web3.eth.Contract(ImplementationFullABI, Wormhole.address);
 
-        try{
+        try {
             await initialized.methods.initialize([
                 testSigner1.address
             ], testChainId, testGovernanceChainId, testGovernanceContract).estimateGas();
-        }  catch (error) {
+        } catch (error) {
             assert.equal(error.message, "Returned error: VM Exception while processing transaction: revert already initialized")
             return
         }
@@ -101,7 +100,7 @@ contract("Wormhole", function () {
         assert.fail("did not fail")
     })
 
-    it("should log a published message correctly", async function(){
+    it("should log a published message correctly", async function () {
         const initialized = new web3.eth.Contract(ImplementationFullABI, Wormhole.address);
         const accounts = await web3.eth.getAccounts();
 
@@ -110,8 +109,8 @@ contract("Wormhole", function () {
             "0x123321",
             false
         ).send({
-            value : 0, // fees are set to 0 initially
-            from : accounts[0]
+            value: 0, // fees are set to 0 initially
+            from: accounts[0]
         })
 
         assert.equal(log.events.LogMessagePublished.returnValues.sender.toString(), accounts[0]);
@@ -120,7 +119,7 @@ contract("Wormhole", function () {
         assert.equal(log.events.LogMessagePublished.returnValues.payload.toString(), "0x123321");
     })
 
-    it("should increase the sequence for an account", async function(){
+    it("should increase the sequence for an account", async function () {
         const initialized = new web3.eth.Contract(ImplementationFullABI, Wormhole.address);
         const accounts = await web3.eth.getAccounts();
 
@@ -129,14 +128,14 @@ contract("Wormhole", function () {
             "0x1",
             false
         ).send({
-            value : 0, // fees are set to 0 initially
-            from : accounts[0]
+            value: 0, // fees are set to 0 initially
+            from: accounts[0]
         })
 
         assert.equal(log.events.LogMessagePublished.returnValues.sequence.toString(), "1");
     })
 
-    it("parses VMs correctly", async function(){
+    it("parses VMs correctly", async function () {
         const initialized = new web3.eth.Contract(ImplementationFullABI, Wormhole.address);
 
         const timestamp = 1000;
@@ -154,7 +153,6 @@ contract("Wormhole", function () {
             data,
             [
                 testSigner1PK,
-                testSigner2PK
             ],
             0
         );
@@ -162,7 +160,7 @@ contract("Wormhole", function () {
         let result
         try {
             result = await initialized.methods.parseAndVerifyVM("0x" + vm).call();
-        } catch(err) {
+        } catch (err) {
             console.log(err)
             assert.fail("parseAndVerifyVM failed")
         }
@@ -181,7 +179,7 @@ contract("Wormhole", function () {
         assert.equal(result.reason, "");
     })
 
-    it("should set and enforce fees", async function(){
+    it("should set and enforce fees", async function () {
         const initialized = new web3.eth.Contract(ImplementationFullABI, Wormhole.address);
         const accounts = await web3.eth.getAccounts();
 
@@ -206,7 +204,6 @@ contract("Wormhole", function () {
             data,
             [
                 testSigner1PK,
-                testSigner2PK
             ],
             0
         );
@@ -215,9 +212,9 @@ contract("Wormhole", function () {
         let before = await initialized.methods.messageFee().call();
 
         let set = await initialized.methods.submitSetMessageFee("0x" + vm).send({
-            value : 0,
-            from : accounts[0],
-            gasLimit : 1000000
+            value: 0,
+            from: accounts[0],
+            gasLimit: 1000000
         });
 
         let after = await initialized.methods.messageFee().call();
@@ -231,8 +228,8 @@ contract("Wormhole", function () {
             "0x123321",
             false
         ).send({
-            from : accounts[0],
-            value : 1111
+            from: accounts[0],
+            value: 1111
         })
         // test persisted message
         await initialized.methods.publishMessage(
@@ -240,8 +237,8 @@ contract("Wormhole", function () {
             "0x123321",
             true
         ).send({
-            from : accounts[0],
-            value : 2222
+            from: accounts[0],
+            value: 2222
         })
 
         let failed = false;
@@ -251,21 +248,21 @@ contract("Wormhole", function () {
                 "0x123321",
                 false
             ).send({
-                value : 1110,
-                from : accounts[0]
+                value: 1110,
+                from: accounts[0]
             })
-        } catch(e) {
+        } catch (e) {
             failed = true
         }
 
         assert.equal(failed, true);
     })
 
-    it("should transfer out collected fees", async function(){
+    it("should transfer out collected fees", async function () {
         const initialized = new web3.eth.Contract(ImplementationFullABI, Wormhole.address);
         const accounts = await web3.eth.getAccounts();
 
-        const receiver = "0x" + zeroPadBytes( Math.floor(Math.random() * Number.MAX_SAFE_INTEGER).toString(16), 20);
+        const receiver = "0x" + zeroPadBytes(Math.floor(Math.random() * Number.MAX_SAFE_INTEGER).toString(16), 20);
 
         const timestamp = 1000;
         const nonce = 1001;
@@ -288,7 +285,6 @@ contract("Wormhole", function () {
             data,
             [
                 testSigner1PK,
-                testSigner2PK
             ],
             0
         );
@@ -297,9 +293,9 @@ contract("Wormhole", function () {
         let receiverBefore = await web3.eth.getBalance(receiver);
 
         let set = await initialized.methods.submitTransferFees("0x" + vm).send({
-            value : 0,
-            from : accounts[0],
-            gasLimit : 1000000
+            value: 0,
+            from: accounts[0],
+            gasLimit: 1000000
         });
 
         let WHAfter = await web3.eth.getBalance(Wormhole.address);
@@ -309,7 +305,7 @@ contract("Wormhole", function () {
         assert.equal(receiverAfter - receiverBefore, 11);
     })
 
-    it("should accept a new guardian set", async function(){
+    it("should accept a new guardian set", async function () {
         const initialized = new web3.eth.Contract(ImplementationFullABI, Wormhole.address);
         const accounts = await web3.eth.getAccounts();
 
@@ -339,15 +335,14 @@ contract("Wormhole", function () {
             data,
             [
                 testSigner1PK,
-                testSigner2PK
             ],
             0
         );
 
         let set = await initialized.methods.submitNewGuardianSet("0x" + vm).send({
-            value : 0,
-            from : accounts[0],
-            gasLimit : 1000000
+            value: 0,
+            from: accounts[0],
+            gasLimit: 1000000
         });
 
         let index = await initialized.methods.getCurrentGuardianSetIndex().call();
@@ -376,7 +371,7 @@ contract("Wormhole", function () {
         );
     })
 
-    it("should accept smart contract upgrades", async function(){
+    it("should accept smart contract upgrades", async function () {
         const initialized = new web3.eth.Contract(ImplementationFullABI, Wormhole.address);
         const accounts = await web3.eth.getAccounts();
 
@@ -413,8 +408,8 @@ contract("Wormhole", function () {
         assert.equal(before.toLowerCase(), Implementation.address.toLowerCase());
 
         let set = await initialized.methods.submitContractUpgrade("0x" + vm).send({
-            value : 0,
-            from : accounts[0],
+            value: 0,
+            from: accounts[0],
             gasLimit: 1000000
         });
 
@@ -429,7 +424,7 @@ contract("Wormhole", function () {
         assert.ok(isUpgraded);
     })
 
-    it("should revert governance packets from old guardian set", async function(){
+    it("should revert governance packets from old guardian set", async function () {
         const initialized = new web3.eth.Contract(ImplementationFullABI, Wormhole.address);
         const accounts = await web3.eth.getAccounts();
 
@@ -449,7 +444,6 @@ contract("Wormhole", function () {
             data,
             [
                 testSigner1PK,
-                testSigner2PK
             ],
             0
         );
@@ -457,17 +451,17 @@ contract("Wormhole", function () {
         let failed = false;
         try {
             await initialized.methods.submitTransferFees("0x" + vm).send({
-                value : 0,
-                from : accounts[0],
-                gasLimit : 1000000
+                value: 0,
+                from: accounts[0],
+                gasLimit: 1000000
             });
             asset.fail("governance packet of old guardian set accepted")
-        } catch(e) {
+        } catch (e) {
             assert.equal(e.data[Object.keys(e.data)[0]].reason, "not signed by current guardian set")
         }
     })
 
-    it("should time out old gardians", async function(){
+    it("should time out old gardians", async function () {
         const initialized = new web3.eth.Contract(ImplementationFullABI, Wormhole.address);
 
         const timestamp = 1000;
@@ -485,7 +479,6 @@ contract("Wormhole", function () {
             data,
             [
                 testSigner1PK,
-                testSigner2PK
             ],
             0
         );
@@ -502,7 +495,7 @@ contract("Wormhole", function () {
         assert.equal(expired.valid, false)
     })
 
-    it("should revert governance packets from wrong governance chain", async function(){
+    it("should revert governance packets from wrong governance chain", async function () {
         const initialized = new web3.eth.Contract(ImplementationFullABI, Wormhole.address);
         const accounts = await web3.eth.getAccounts();
 
@@ -530,17 +523,17 @@ contract("Wormhole", function () {
 
         try {
             await initialized.methods.submitTransferFees("0x" + vm).send({
-                value : 0,
-                from : accounts[0],
-                gasLimit : 1000000
+                value: 0,
+                from: accounts[0],
+                gasLimit: 1000000
             });
             asset.fail("governance packet from wrong governance chain accepted")
-        } catch(e) {
+        } catch (e) {
             assert.equal(e.data[Object.keys(e.data)[0]].reason, "wrong governance chain")
         }
     })
 
-    it("should revert governance packets from wrong governance contract", async function(){
+    it("should revert governance packets from wrong governance contract", async function () {
         const initialized = new web3.eth.Contract(ImplementationFullABI, Wormhole.address);
         const accounts = await web3.eth.getAccounts();
 
@@ -568,17 +561,17 @@ contract("Wormhole", function () {
 
         try {
             await initialized.methods.submitTransferFees("0x" + vm).send({
-                value : 0,
-                from : accounts[0],
-                gasLimit : 1000000
+                value: 0,
+                from: accounts[0],
+                gasLimit: 1000000
             });
             asset.fail("governance packet from wrong governance contract accepted")
-        } catch(e) {
+        } catch (e) {
             assert.equal(e.data[Object.keys(e.data)[0]].reason, "wrong governance contract")
         }
     })
 
-    it("should revert on governance packets that already have been applied", async function(){
+    it("should revert on governance packets that already have been applied", async function () {
         const initialized = new web3.eth.Contract(ImplementationFullABI, Wormhole.address);
         const accounts = await web3.eth.getAccounts();
 
@@ -605,36 +598,35 @@ contract("Wormhole", function () {
         );
 
         await initialized.methods.submitTransferFees("0x" + vm).send({
-            value : 0,
-            from : accounts[0],
-            gasLimit : 1000000
+            value: 0,
+            from: accounts[0],
+            gasLimit: 1000000
         });
 
         try {
             await initialized.methods.submitTransferFees("0x" + vm).send({
-                value : 0,
-                from : accounts[0],
-                gasLimit : 1000000
+                value: 0,
+                from: accounts[0],
+                gasLimit: 1000000
             });
 
             asset.fail("governance packet accepted twice")
-        } catch(e) {
+        } catch (e) {
             assert.equal(e.data[Object.keys(e.data)[0]].reason, "governance action already consumed")
         }
     })
 });
 
-const signAndEncodeVM = async function(
+const signAndEncodeVM = async function (
     timestamp,
     nonce,
     emitterChainId,
     emitterAddress,
     sequence,
     data,
-
     signers,
     guardianSetIndex
-){
+) {
     const body = [
         web3.eth.abi.encodeParameter("uint32", timestamp).substring(2 + (64 - 8)),
         web3.eth.abi.encodeParameter("uint32", nonce).substring(2 + (64 - 8)),
@@ -644,20 +636,20 @@ const signAndEncodeVM = async function(
         data.substr(2)
     ]
 
-    const hash = web3.utils.soliditySha3("0x"+body.join(""))
+    const hash = web3.utils.soliditySha3("0x" + body.join(""))
 
     let signatures = "";
 
-    for(let i in signers){
+    for (let i in signers) {
         const ec = new elliptic.ec("secp256k1");
         const key = ec.keyFromPrivate(signers[i]);
-        const signature = key.sign(hash.substr(2), { canonical: true });
+        const signature = key.sign(hash.substr(2), {canonical: true});
 
         const packSig = [
+            web3.eth.abi.encodeParameter("uint8", i).substring(2 + (64 - 2)),
             zeroPadBytes(signature.r.toString(16), 32),
             zeroPadBytes(signature.s.toString(16), 32),
             web3.eth.abi.encodeParameter("uint8", signature.recoveryParam).substr(2 + (64 - 2)),
-            web3.eth.abi.encodeParameter("uint8", i).substring(2 + (64 - 2))
         ]
 
         signatures += packSig.join("")

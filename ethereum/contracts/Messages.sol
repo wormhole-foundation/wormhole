@@ -70,14 +70,14 @@ contract Messages is Getters {
         index += 1;
         vm.signatures = new Structs.Signature[](signersLen);
         for (uint i = 0; i < signersLen; i++) {
+            vm.signatures[i].guardianIndex = encodedVM.toUint8(index);
+            index += 1;
+
             vm.signatures[i].r = encodedVM.toBytes32(index);
             index += 32;
             vm.signatures[i].s = encodedVM.toBytes32(index);
             index += 32;
             vm.signatures[i].v = encodedVM.toUint8(index) + 27;
-            index += 1;
-
-            vm.signatures[i].guardianIndex = encodedVM.toUint8(index);
             index += 1;
         }
 
