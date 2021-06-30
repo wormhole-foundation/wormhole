@@ -10,9 +10,10 @@ name = "solitaire"
 
 [features]
 client = ["no-entrypoint"]
-no-entrypoint = []
 cpi = ["no-entrypoint"]
 default = []
+no-entrypoint = []
+trace = []
 
 [dependencies]
 borsh = "0.8.1"

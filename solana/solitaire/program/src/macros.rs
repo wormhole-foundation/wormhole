@@ -3,6 +3,25 @@ use std::ops::{
     DerefMut,
 };
 
+/// A wrapper around Solana's `msg!` macro that is a no-op by default, allows for adding traces
+/// through the application that can be toggled during tests.
+#[macro_export]
+macro_rules! trace {
+    ( $($arg:tt)* ) => { $crate::trace_impl!( $($arg)* ) };
+}
+
+#[cfg(feature = "trace")]
+#[macro_export]
+macro_rules! trace_impl {
+    ( $($arg:tt)* ) => { solana_program::msg!( $($arg)* ) };
+}
+
+#[cfg(not(feature = "trace"))]
+#[macro_export]
+macro_rules! trace_impl {
+    ( $($arg:tt)* ) => {}
+}
+
 /// This is our main codegen macro. It takes as input a list of enum-like variants mapping field
 /// types to function calls. The generated code produces:
 ///
