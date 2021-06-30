@@ -142,8 +142,8 @@ pub fn post_vaa(ctx: &ExecutionContext, accs: &mut PostVAA, vaa: PostVAAData) ->
         let len = (len * 10) / 3;
         // Multiplication by two to get a 2/3 quorum.
         let len = len * 2;
-        // Division by 10+1 to bring the number back into range.
-        len / (10 + 1)
+        // Division to bring number back into range.
+        len / 10 + 1
     };
 
     if signature_count < required_consensus_count {
