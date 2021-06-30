@@ -155,6 +155,10 @@ macro_rules! data_wrapper {
             ) -> solitaire::Result<()> {
                 Data::<'_, $embed, { $state }>::persist(self, program_id)
             }
+
+            fn to_partial_cpi_meta(&self) -> Vec<solana_program::instruction::AccountMeta> {
+                self.0.to_partial_cpi_meta()
+            }
         }
 
         impl<'b> solitaire::processors::seeded::Owned for $name<'b> {
