@@ -173,24 +173,23 @@ mod helpers {
         payer: &Keypair,
         body: Vec<u8>,
         body_hash: [u8; 32],
-        secret_key: SecretKey,
+        secret_keys: &[SecretKey],
     ) {
-        let mut signers = [-1; 19];
-        signers[0] = 0;
+        // Push Secp256k1 instructions for each signature we want to verify.
+        for (i, key) in secret_keys.iter().enumerate() {
+            // Set this signers signature position as present at 0.
+            let mut signers = [-1; 19];
+            signers[i] = 0;
 
-        execute(
-            client,
-            payer,
-            &[payer],
-            &[
-                new_secp256k1_instruction(&secret_key, &body),
+            execute(client, payer, &[payer], &vec![
+                new_secp256k1_instruction(&key, &body),
                 instructions::verify_signatures(*program, payer.pubkey(), 0, VerifySignaturesData {
                     hash: body_hash,
-                    signers,
                     initial_creation: true,
+                    signers,
                 }).unwrap(),
-            ],
-        );
+            ]);
+        }
     }
 
     pub fn post_vaa(
@@ -198,7 +197,6 @@ mod helpers {
         program: &Pubkey,
         payer: &Keypair,
         vaa: PostVAAData,
-        guardian_set_index: u32,
     ) {
         execute(
             client,
@@ -207,8 +205,6 @@ mod helpers {
             &[instructions::post_vaa(
                 *program,
                 payer.pubkey(),
-                *emitter,
-                guardian_set_index,
                 vaa,
             )],
         );
