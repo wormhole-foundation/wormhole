@@ -150,7 +150,7 @@ contract("Wormhole", function () {
             nonce,
             emitterChainId,
             emitterAddress,
-            0,
+            1337,
             data,
             [
                 testSigner1PK,
@@ -174,6 +174,7 @@ contract("Wormhole", function () {
         assert.equal(result.vm.emitterAddress, emitterAddress);
         assert.equal(result.vm.payload, data);
         assert.equal(result.vm.guardianSetIndex, 0);
+        assert.equal(result.vm.sequence, 1337);
 
         assert.equal(result.valid, true);
 
@@ -639,7 +640,7 @@ const signAndEncodeVM = async function(
         web3.eth.abi.encodeParameter("uint32", nonce).substring(2 + (64 - 8)),
         web3.eth.abi.encodeParameter("uint16", emitterChainId).substring(2 + (64 - 4)),
         web3.eth.abi.encodeParameter("bytes32", emitterAddress).substring(2),
-        web3.eth.abi.encodeParameter("uint64", timestamp).substring(2 + (64 - 16)),
+        web3.eth.abi.encodeParameter("uint64", sequence).substring(2 + (64 - 16)),
         data.substr(2)
     ]
 
