@@ -6,6 +6,7 @@ use solana_program::{
     pubkey::Pubkey,
 };
 use std::slice::Iter;
+use crate::trace;
 
 /// The context is threaded through each check. Include anything within this structure that you
 /// would like to have access to as each layer of dependency is peeled off.
@@ -36,6 +37,7 @@ impl<'a, 'b: 'a, 'c, T> Context<'a, 'b, 'c, T> {
         match self.info {
             None => {
                 let info = next_account_info(self.iter).unwrap();
+                trace!("{}", info.key);
                 self.info = Some(info);
                 info
             }

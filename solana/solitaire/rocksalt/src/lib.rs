@@ -163,12 +163,10 @@ fn generate_fields(name: &syn::Ident, data: &Data) -> TokenStream2 {
                     let recurse = fields.named.iter().map(|f| {
                         // Field name, to assign to.
                         let name = &f.ident;
-                        let name_string =
-                            format!("Peeling: {}", name.to_token_stream().to_string());
                         let ty = &f.ty;
 
                         quote! {
-                                solana_program::msg!(#name_string);
+                            trace!(stringify!(#name));
                             let #name: #ty = solitaire::Peel::peel(&mut solitaire::Context::new(
                                 pid,
                                 iter,
@@ -185,6 +183,8 @@ fn generate_fields(name: &syn::Ident, data: &Data) -> TokenStream2 {
                     // Write out our iterator and return the filled structure.
                     quote! {
                         use solana_program::account_info::next_account_info;
+                        use solitaire::trace;
+                        trace!("Peeling:");
                         #(#recurse;)*
                         Ok(#name { #(#names,)* })
                     }
@@ -261,12 +261,15 @@ fn generate_persist(name: &syn::Ident, data: &Data) -> TokenStream2 {
                         let ty = &f.ty;
 
                         quote! {
+                            trace!(stringify!(#name));
                             Peel::persist(&self.#name, program_id)?;
                         }
                     });
 
                     // Write out our iterator and return the filled structure.
                     quote! {
+                        use solitaire::trace;
+                        trace!("Persisting:");
                         #(#recurse;)*
                         Ok(())
                     }

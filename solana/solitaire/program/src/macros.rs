@@ -40,9 +40,8 @@ macro_rules! solitaire {
                 entrypoint::ProgramResult,
                 program_error::ProgramError,
                 pubkey::Pubkey,
-                msg,
             };
-            use solitaire::{FromAccounts, Persist, Result};
+            use solitaire::{FromAccounts, Persist, Result, trace};
 
             /// Generated:
             /// This Instruction contains a 1-1 mapping for each enum variant to function call. The
@@ -59,7 +58,7 @@ macro_rules! solitaire {
                 match Instruction::try_from_slice(d).map_err(|e| SolitaireError::InstructionDeserializeFailed(e))? {
                     $(
                         Instruction::$row(ix_data) => {
-                            msg!("Dispatch: {}", stringify!($row));
+                            trace!("Dispatch: {}", stringify!($row));
                             let (mut accounts): ($row) = FromAccounts::from(p, &mut a.iter(), &())?;
                             $fn(&ExecutionContext{program_id: p, accounts: a}, &mut accounts, ix_data)?;
                             Persist::persist(&accounts, p)?;
@@ -74,9 +73,9 @@ macro_rules! solitaire {
             }
 
             pub fn solitaire<'a, 'b: 'a>(p: &Pubkey, a: &'a [AccountInfo<'b>], d: &[u8]) -> ProgramResult {
-                solana_program::msg!(&format!("{} {} built with {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"), solitaire::PKG_NAME_VERSION));
+                trace!("{} {} built with {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"), solitaire::PKG_NAME_VERSION);
                 if let Err(err) = dispatch(p, a, d) {
-                    solana_program::msg!("Error: {:?}", err);
+                    trace!("Error: {:?}", err);
                     return Err(err.into());
                 }
                 Ok(())
