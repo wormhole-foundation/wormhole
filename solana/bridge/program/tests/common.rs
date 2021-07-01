@@ -152,14 +152,21 @@ mod helpers {
     ) -> Pubkey {
         // Transfer money into the fee collector as it needs a balance/must exist.
         let fee_collector = FeeCollector::<'_>::key(None, program);
-        transfer(client, payer, &fee_collector, 10_000);
 
         // Capture the resulting message, later functions will need this.
         let (message_key, instruction) =
             instructions::post_message(*program, payer.pubkey(), emitter.pubkey(), nonce, data)
                 .unwrap();
 
-        execute(client, payer, &[payer, emitter], &[instruction]);
+        execute(
+            client,
+            payer,
+            &[payer, emitter],
+            &[
+                system_instruction::transfer(&payer.pubkey(), &fee_collector, 10_000),
+                instruction,
+            ],
+        );
 
         message_key
     }

@@ -64,9 +64,10 @@ impl<'b> InstructionContext<'b> for PostMessage<'b> {
 
 #[derive(BorshDeserialize, BorshSerialize, Default)]
 pub struct PostMessageData {
-    /// unique nonce for this message
+    /// Unique nonce for this message
     pub nonce: u32,
-    /// message payload
+
+    /// Message payload
     pub payload: Vec<u8>,
 }
 
@@ -84,7 +85,7 @@ pub fn post_message(
         payload: data.payload.clone(),
     };
 
-    trace!("Verifying Message: {}, {}", accs.emitter.key, data.nonce,);
+    trace!("Verifying Message: {}, {}", accs.emitter.key, data.nonce);
 
     accs.message
         .verify_derivation(ctx.program_id, &msg_derivation)?;
