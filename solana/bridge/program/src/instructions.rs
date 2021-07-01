@@ -94,7 +94,7 @@ pub fn post_message(
         },
         &program_id,
     );
-    let message = Message::<'_, { AccountState::Uninitialized }>::key(
+    let message = Message::<'_, { AccountState::MaybeInitialized }>::key(
         &MessageDerivationData {
             emitter_key: emitter.to_bytes(),
             emitter_chain: 1,

@@ -10,9 +10,10 @@ name = "bridge"
 
 [features]
 client = ["solitaire/client", "solitaire-client", "no-entrypoint"]
-no-entrypoint = ["solitaire/no-entrypoint"]
 cpi = ["no-entrypoint"]
 default = []
+no-entrypoint = ["solitaire/no-entrypoint"]
+trace = ["solitaire/trace"]
 
 [dependencies]
 borsh = "0.8.1"

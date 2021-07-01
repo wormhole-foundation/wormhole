@@ -152,17 +152,14 @@ mod helpers {
     ) -> Pubkey {
         // Transfer money into the fee collector as it needs a balance/must exist.
         let fee_collector = FeeCollector::<'_>::key(None, program);
-        transfer(client, payer, &fee_collector, 100_000_000_000);
+        transfer(client, payer, &fee_collector, 10_000);
 
-        let (message_key, instruction) = instructions::post_message(*program, payer.pubkey(), emitter.pubkey(), nonce, data)
-            .unwrap();
+        // Capture the resulting message, later functions will need this.
+        let (message_key, instruction) =
+            instructions::post_message(*program, payer.pubkey(), emitter.pubkey(), nonce, data)
+                .unwrap();
 
-        execute(
-            client,
-            payer,
-            &[payer, emitter],
-            &[instruction],
-        );
+        execute(client, payer, &[payer, emitter], &[instruction]);
 
         message_key
     }
@@ -181,32 +178,34 @@ mod helpers {
             let mut signers = [-1; 19];
             signers[i] = 0;
 
-            execute(client, payer, &[payer], &vec![
-                new_secp256k1_instruction(&key, &body),
-                instructions::verify_signatures(*program, payer.pubkey(), 0, VerifySignaturesData {
-                    hash: body_hash,
-                    initial_creation: true,
-                    signers,
-                }).unwrap(),
-            ]);
+            execute(
+                client,
+                payer,
+                &[payer],
+                &vec![
+                    new_secp256k1_instruction(&key, &body),
+                    instructions::verify_signatures(
+                        *program,
+                        payer.pubkey(),
+                        0,
+                        VerifySignaturesData {
+                            hash: body_hash,
+                            initial_creation: true,
+                            signers,
+                        },
+                    )
+                    .unwrap(),
+                ],
+            );
         }
     }
 
-    pub fn post_vaa(
-        client: &RpcClient,
-        program: &Pubkey,
-        payer: &Keypair,
-        vaa: PostVAAData,
-    ) {
+    pub fn post_vaa(client: &RpcClient, program: &Pubkey, payer: &Keypair, vaa: PostVAAData) {
         execute(
             client,
             payer,
             &[payer],
-            &[instructions::post_vaa(
-                *program,
-                payer.pubkey(),
-                vaa,
-            )],
+            &[instructions::post_vaa(*program, payer.pubkey(), vaa)],
         );
     }
 
@@ -254,21 +253,12 @@ mod helpers {
         );
     }
 
-    pub fn set_fees(
-        client: &RpcClient,
-        program: &Pubkey,
-        payer: &Keypair,
-        fee: u32,
-    ) {
+    pub fn set_fees(client: &RpcClient, program: &Pubkey, payer: &Keypair, fee: u32) {
         execute(
             client,
             payer,
             &[payer],
-            &[instructions::set_fees(
-                *program,
-                payer.pubkey(),
-                fee,
-            )],
+            &[instructions::set_fees(*program, payer.pubkey(), fee)],
         );
     }
 
