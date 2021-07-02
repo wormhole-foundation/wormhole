@@ -44,7 +44,10 @@
     "eject": "react-scripts eject",
     "ethers": "typechain --target ethers-v4 --outDir src/contracts 'contracts/*.json'",
     "deploy": "gh-pages -d build",
-    "deploy:ar": "arweave deploy-dir build --key-file "
+    "deploy:ar": "arweave deploy-dir build --key-file ",
+    "rm-contracts": "rm -rf src/contracts && rm -rf contracts",
+    "import-contracts": "mkdir -p ./contracts && cp -r ../ethereum/build/contracts/* ./contracts/ && npm run ethers",
+    "refresh-contracts": "npm run rm-contracts && npm run import-contracts"
   },
   "eslintConfig": {
     "extends": "react-app"

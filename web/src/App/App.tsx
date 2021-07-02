@@ -12,6 +12,7 @@ import WalletContext from '../providers/WalletContext';
 import Wallet from "@project-serum/sol-wallet-adapter";
 import {BridgeProvider} from "../providers/BridgeContext";
 import Assistant from "../pages/Assistant";
+import Message from "../pages/Message";
 import {SOLANA_HOST} from "../config";
 
 const {Header, Content, Footer} = Layout;
@@ -39,7 +40,8 @@ function App() {
             <Layout style={{height: '100%'}}>
                 <HashRouter basename={"/"}>
                     <Header style={{position: 'fixed', zIndex: 1, width: '100%'}}>
-                        <Link to="/" style={{paddingRight: 20}}>Assistant</Link>
+                        <Link to="/" style={{paddingRight: 20}}>Message</Link>
+                        <Link to="/assistant" style={{paddingRight: 20}}>Assistant</Link>
                         <Link to="/eth" style={{paddingRight: 20}}>Ethereum</Link>
                         <Link to="/solana">Solana</Link>
                         {
@@ -63,7 +65,7 @@ function App() {
                                             <BridgeProvider>
                                                 <SolanaTokenProvider>
                                                     <Switch>
-                                                        <Route path="/">
+                                                        <Route path="/assistant">
                                                             <Assistant/>
                                                         </Route>
                                                         <Route path="/solana">
@@ -71,6 +73,9 @@ function App() {
                                                         </Route>
                                                         <Route path="/eth">
                                                             <Transfer/>
+                                                        </Route>
+                                                        <Route path="/">
+                                                            <Message/>
                                                         </Route>
                                                     </Switch>
                                                 </SolanaTokenProvider>
