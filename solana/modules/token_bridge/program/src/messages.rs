@@ -1,36 +1,16 @@
 use crate::{
-    types::{
-        Address,
-        ChainID,
-    },
+    types::{Address, ChainID},
     TokenBridgeError,
 };
-use borsh::{
-    BorshDeserialize,
-    BorshSerialize,
-};
-use bridge::vaa::{
-    DeserializePayload,
-    SerializePayload,
-};
-use byteorder::{
-    BigEndian,
-    ReadBytesExt,
-    WriteBytesExt,
-};
+use borsh::{BorshDeserialize, BorshSerialize};
+use bridge::vaa::{DeserializePayload, SerializePayload};
+use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use primitive_types::U256;
-use solana_program::{
-    native_token::Sol,
-    program_error::ProgramError,
-};
+use solana_program::{native_token::Sol, program_error::ProgramError};
 use solitaire::SolitaireError;
 use std::{
     error::Error,
-    io::{
-        Cursor,
-        Read,
-        Write,
-    },
+    io::{Cursor, Read, Write},
     str::Utf8Error,
     string::FromUtf8Error,
 };

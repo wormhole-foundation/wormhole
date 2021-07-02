@@ -162,6 +162,9 @@ pub struct PostedMessageData {
     /// Header of the posted VAA
     pub vaa_version: u8,
 
+    /// Whether the VAA for this message should be persisted
+    pub persist: bool,
+
     /// Time the vaa was submitted
     pub vaa_time: u32,
 

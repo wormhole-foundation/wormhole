@@ -71,6 +71,9 @@ pub struct PostMessageData {
 
     /// Message payload
     pub payload: Vec<u8>,
+
+    /// Should the VAA for this message be persisted on-chain
+    pub persist: bool,
 }
 
 pub fn post_message(
@@ -127,6 +130,7 @@ pub fn post_message(
     accs.message.nonce = data.nonce;
     accs.message.payload = data.payload;
     accs.message.sequence = accs.sequence.sequence;
+    accs.message.persist = data.persist;
 
     // Create message account
     accs.message

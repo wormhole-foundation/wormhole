@@ -1,31 +1,12 @@
 use crate::{
-    accounts::{
-        ConfigAccount,
-        Endpoint,
-        EndpointDerivationData,
-    },
+    accounts::{ConfigAccount, Endpoint, EndpointDerivationData},
     messages::PayloadGovernanceRegisterChain,
     types::*,
 };
-use bridge::vaa::{
-    ClaimableVAA,
-    DeserializePayload,
-    PayloadMessage,
-};
-use solana_program::{
-    account_info::AccountInfo,
-    program_error::ProgramError,
-    pubkey::Pubkey,
-};
-use solitaire::{
-    processors::seeded::Seeded,
-    CreationLamports::Exempt,
-    *,
-};
-use std::ops::{
-    Deref,
-    DerefMut,
-};
+use bridge::vaa::{ClaimableVAA, DeserializePayload, PayloadMessage};
+use solana_program::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
+use solitaire::{processors::seeded::Seeded, CreationLamports::Exempt, *};
+use std::ops::{Deref, DerefMut};
 
 #[derive(FromAccounts)]
 pub struct RegisterChain<'b> {

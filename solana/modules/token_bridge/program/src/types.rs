@@ -1,19 +1,10 @@
-use borsh::{
-    BorshDeserialize,
-    BorshSerialize,
-};
+use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::pubkey::Pubkey;
 use solitaire::{
     pack_type,
-    processors::seeded::{
-        AccountOwner,
-        Owned,
-    },
+    processors::seeded::{AccountOwner, Owned},
 };
-use spl_token::state::{
-    Account,
-    Mint,
-};
+use spl_token::state::{Account, Mint};
 
 pub type Address = [u8; 32];
 pub type ChainID = u16;

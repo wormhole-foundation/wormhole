@@ -1,39 +1,21 @@
 use crate::{
     accounts::{
-        ConfigAccount,
-        Endpoint,
-        EndpointDerivationData,
-        MintSigner,
-        WrappedDerivationData,
-        WrappedMint,
-        WrappedTokenMeta,
+        ConfigAccount, Endpoint, EndpointDerivationData, MintSigner, WrappedDerivationData,
+        WrappedMint, WrappedTokenMeta,
     },
     messages::PayloadAssetMeta,
     types::*,
 };
 use bridge::vaa::ClaimableVAA;
 use solana_program::{
-    account_info::AccountInfo,
-    program::invoke_signed,
-    program_error::ProgramError,
-    pubkey::Pubkey,
+    account_info::AccountInfo, program::invoke_signed, program_error::ProgramError, pubkey::Pubkey,
 };
-use solitaire::{
-    processors::seeded::Seeded,
-    CreationLamports::Exempt,
-    *,
-};
+use solitaire::{processors::seeded::Seeded, CreationLamports::Exempt, *};
 use spl_token::{
     error::TokenError::OwnerMismatch,
-    state::{
-        Account,
-        Mint,
-    },
+    state::{Account, Mint},
 };
-use std::ops::{
-    Deref,
-    DerefMut,
-};
+use std::ops::{Deref, DerefMut};
 
 #[derive(FromAccounts)]
 pub struct CreateWrapped<'b> {

@@ -1,52 +1,28 @@
 use crate::{
-    accounts::{
-        ConfigAccount,
-        EmitterAccount,
-    },
-    messages::{
-        PayloadAssetMeta,
-        PayloadTransfer,
-    },
+    accounts::{ConfigAccount, EmitterAccount},
+    messages::{PayloadAssetMeta, PayloadTransfer},
     types::*,
 };
 use bridge::{
-    api::{
-        PostMessage,
-        PostMessageData,
-    },
+    api::{PostMessage, PostMessageData},
     vaa::SerializePayload,
 };
 use primitive_types::U256;
 use solana_program::{
     account_info::AccountInfo,
-    instruction::{
-        AccountMeta,
-        Instruction,
-    },
-    program::{
-        invoke,
-        invoke_signed,
-    },
+    instruction::{AccountMeta, Instruction},
+    program::{invoke, invoke_signed},
     program_error::ProgramError,
     pubkey::Pubkey,
     sysvar::clock::Clock,
 };
-use solitaire::{
-    CreationLamports::Exempt,
-    *,
-};
+use solitaire::processors::seeded::invoke_seeded;
+use solitaire::{CreationLamports::Exempt, *};
 use spl_token::{
     error::TokenError::OwnerMismatch,
-    state::{
-        Account,
-        Mint,
-    },
+    state::{Account, Mint},
 };
-use std::ops::{
-    Deref,
-    DerefMut,
-};
-use solitaire::processors::seeded::invoke_seeded;
+use std::ops::{Deref, DerefMut};
 
 #[derive(FromAccounts)]
 pub struct AttestToken<'b> {
@@ -111,6 +87,7 @@ pub fn attest_token(
     let params = bridge::instruction::Instruction::PostMessage(PostMessageData {
         nonce: data.nonce,
         payload: payload.try_to_vec()?,
+        persist: true,
     });
 
     let ix = Instruction::new_with_bytes(

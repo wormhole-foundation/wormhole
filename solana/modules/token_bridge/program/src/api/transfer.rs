@@ -1,14 +1,7 @@
 use crate::{
     accounts::{
-        AuthoritySigner,
-        ConfigAccount,
-        CustodyAccount,
-        CustodyAccountDerivationData,
-        CustodySigner,
-        EmitterAccount,
-        MintSigner,
-        WrappedDerivationData,
-        WrappedMint,
+        AuthoritySigner, ConfigAccount, CustodyAccount, CustodyAccountDerivationData,
+        CustodySigner, EmitterAccount, MintSigner, WrappedDerivationData, WrappedMint,
         WrappedTokenMeta,
     },
     messages::PayloadTransfer,
@@ -17,47 +10,29 @@ use crate::{
     TokenBridgeError::WrongAccountOwner,
 };
 use bridge::{
-    api::{
-        PostMessage,
-        PostMessageData,
-    },
+    api::{PostMessage, PostMessageData},
     vaa::SerializePayload,
 };
 use primitive_types::U256;
 use solana_program::{
     account_info::AccountInfo,
-    instruction::{
-        AccountMeta,
-        Instruction,
-    },
-    program::{
-        invoke,
-        invoke_signed,
-    },
+    instruction::{AccountMeta, Instruction},
+    program::{invoke, invoke_signed},
     program_error::ProgramError,
     program_option::COption,
     pubkey::Pubkey,
     sysvar::clock::Clock,
 };
 use solitaire::{
-    processors::seeded::{
-        invoke_seeded,
-        Seeded,
-    },
+    processors::seeded::{invoke_seeded, Seeded},
     CreationLamports::Exempt,
     *,
 };
 use spl_token::{
     error::TokenError::OwnerMismatch,
-    state::{
-        Account,
-        Mint,
-    },
+    state::{Account, Mint},
 };
-use std::ops::{
-    Deref,
-    DerefMut,
-};
+use std::ops::{Deref, DerefMut};
 
 #[derive(FromAccounts)]
 pub struct TransferNative<'b> {
@@ -176,6 +151,7 @@ pub fn transfer_native(
     let params = bridge::instruction::Instruction::PostMessage(PostMessageData {
         nonce: data.nonce,
         payload: payload.try_to_vec()?,
+        persist: true,
     });
 
     let ix = Instruction::new_with_bytes(
@@ -299,6 +275,7 @@ pub fn transfer_wrapped(
     let params = bridge::instruction::Instruction::PostMessage(PostMessageData {
         nonce: data.nonce,
         payload: payload.try_to_vec()?,
+        persist: true,
     });
 
     let ix = Instruction::new_with_bytes(

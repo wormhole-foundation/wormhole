@@ -111,6 +111,7 @@ fn command_post_message(
     bridge: &Pubkey,
     nonce: u32,
     payload: Vec<u8>,
+    persist: bool,
 ) -> CommmandResult {
     println!("Posting a message to the wormhole");
 
@@ -134,6 +135,7 @@ fn command_post_message(
         config.fee_payer.pubkey(),
         nonce,
         payload,
+        persist,
     )
     .unwrap();
     let mut transaction =
@@ -267,6 +269,13 @@ fn main() {
                         .index(3)
                         .required(true)
                         .help("Payload of the message"),
+                )
+                .arg(
+                    Arg::with_name("persist")
+                        .short("p")
+                        .long("persist")
+                        .takes_value(false)
+                        .help("Indicates that the VAA should be persisted on-chain"),
                 ),
         )
         .get_matches();
@@ -322,8 +331,9 @@ fn main() {
             let data_str: String = value_of(arg_matches, "data").unwrap();
             let data = hex::decode(data_str).unwrap();
             let nonce: u32 = value_of(arg_matches, "nonce").unwrap();
+            let persist = arg_matches.is_present("persist");
 
-            command_post_message(&config, &bridge, nonce, data)
+            command_post_message(&config, &bridge, nonce, data, persist)
         }
 
         _ => unreachable!(),

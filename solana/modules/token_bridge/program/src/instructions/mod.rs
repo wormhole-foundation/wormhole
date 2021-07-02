@@ -1,69 +1,31 @@
 use crate::{
     accounts::{
-        AuthoritySigner,
-        ConfigAccount,
-        CustodyAccount,
-        CustodyAccountDerivationData,
-        CustodySigner,
-        EmitterAccount,
-        Endpoint,
-        EndpointDerivationData,
-        MintSigner,
-        WrappedDerivationData,
-        WrappedMint,
-        WrappedTokenMeta,
+        AuthoritySigner, ConfigAccount, CustodyAccount, CustodyAccountDerivationData,
+        CustodySigner, EmitterAccount, Endpoint, EndpointDerivationData, MintSigner,
+        WrappedDerivationData, WrappedMint, WrappedTokenMeta,
     },
     api::{
-        complete_transfer::{
-            CompleteNativeData,
-            CompleteWrappedData,
-        },
-        AttestTokenData,
-        CreateWrappedData,
-        RegisterChainData,
-        TransferNativeData,
+        complete_transfer::{CompleteNativeData, CompleteWrappedData},
+        AttestTokenData, CreateWrappedData, RegisterChainData, TransferNativeData,
         TransferWrappedData,
     },
-    messages::{
-        PayloadAssetMeta,
-        PayloadGovernanceRegisterChain,
-        PayloadTransfer,
-    },
+    messages::{PayloadAssetMeta, PayloadGovernanceRegisterChain, PayloadTransfer},
 };
 use borsh::BorshSerialize;
+use bridge::vaa::SerializePayload;
 use bridge::{
     accounts::{
-        Bridge,
-        Claim,
-        ClaimDerivationData,
-        FeeCollector,
-        Message,
-        MessageDerivationData,
-        Sequence,
+        Bridge, Claim, ClaimDerivationData, FeeCollector, Message, MessageDerivationData, Sequence,
         SequenceDerivationData,
     },
     api::ForeignAddress,
-    types::{
-        BridgeConfig,
-        PostedMessage,
-    },
-    vaa::{
-        ClaimableVAA,
-        PayloadMessage,
-    },
+    types::{BridgeConfig, PostedMessage},
+    vaa::{ClaimableVAA, PayloadMessage},
 };
-use solana_program::instruction::Instruction;
-use solitaire::{
-    processors::seeded::Seeded,
-    AccountState,
-};
-use solitaire_client::{
-    AccountMeta,
-    Keypair,
-    Pubkey,
-};
-use bridge::vaa::SerializePayload;
 use primitive_types::U256;
+use solana_program::instruction::Instruction;
+use solitaire::{processors::seeded::Seeded, AccountState};
+use solitaire_client::{AccountMeta, Keypair, Pubkey};
 use spl_token::state::Mint;
 
 pub fn initialize(
@@ -511,6 +473,7 @@ pub fn attest(
             // Program
             AccountMeta::new_readonly(bridge_id, false),
         ],
-        data: crate::instruction::Instruction::AttestToken(AttestTokenData { nonce }).try_to_vec()?,
+        data: crate::instruction::Instruction::AttestToken(AttestTokenData { nonce })
+            .try_to_vec()?,
     })
 }

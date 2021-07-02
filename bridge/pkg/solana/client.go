@@ -120,7 +120,13 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 							},
 							{
 								Memcmp: &rpc.RPCFilterMemcmp{
-									Offset: 4,                         // Offset of VaaTime
+									Offset: 4,                   // Start of the Persist flag
+									Bytes:  solana.Base58{0x01}, // Only grab messages that need to be persisted
+								},
+							},
+							{
+								Memcmp: &rpc.RPCFilterMemcmp{
+									Offset: 5,                         // Offset of VaaTime
 									Bytes:  solana.Base58{0, 0, 0, 0}, // This means this VAA hasn't been signed yet
 								},
 							},
@@ -188,7 +194,9 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 
 type (
 	MessagePublicationAccount struct {
-		VaaVersion          uint8
+		VaaVersion uint8
+		// Borsh does not seem to support booleans, so 0=false / 1=true
+		Persist             uint8
 		VaaTime             uint32
 		VaaSignatureAccount vaa.Address
 		SubmissionTime      uint32

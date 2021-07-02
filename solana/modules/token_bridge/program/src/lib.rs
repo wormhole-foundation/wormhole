@@ -13,29 +13,11 @@ pub mod messages;
 pub mod types;
 
 use api::{
-    attest_token,
-    complete_native,
-    complete_wrapped,
-    create_wrapped,
-    initialize,
-    register_chain,
-    transfer_native,
-    transfer_wrapped,
-    AttestToken,
-    AttestTokenData,
-    CompleteNative,
-    CompleteNativeData,
-    CompleteWrapped,
-    CompleteWrappedData,
-    CreateWrapped,
-    CreateWrappedData,
-    Initialize,
-    RegisterChain,
-    RegisterChainData,
-    TransferNative,
-    TransferNativeData,
-    TransferWrapped,
-    TransferWrappedData,
+    attest_token, complete_native, complete_wrapped, create_wrapped, initialize, register_chain,
+    transfer_native, transfer_wrapped, AttestToken, AttestTokenData, CompleteNative,
+    CompleteNativeData, CompleteWrapped, CompleteWrappedData, CreateWrapped, CreateWrappedData,
+    Initialize, RegisterChain, RegisterChainData, TransferNative, TransferNativeData,
+    TransferWrapped, TransferWrappedData,
 };
 
 use solitaire::*;
