@@ -76,7 +76,7 @@ type CommmandResult = Result<Option<Transaction>, Error>;
 fn command_deploy_bridge(
     config: &Config,
     bridge: &Pubkey,
-    _initial_guardian: Vec<[u8; 20]>,
+    initial_guardians: Vec<[u8; 20]>,
     guardian_expiration: u32,
     message_fee: u64,
 ) -> CommmandResult {
@@ -86,11 +86,12 @@ fn command_deploy_bridge(
         .rpc_client
         .get_minimum_balance_for_rent_exemption(size_of::<BridgeData>())?;
 
-    let ix = bridge::client_instructions::initialize(
+    let ix = bridge::instructions::initialize(
         *bridge,
         config.owner.pubkey(),
         message_fee,
         guardian_expiration,
+        initial_guardians.as_slice(),
     )
     .unwrap();
     println!("config account: {}, ", ix.accounts[0].pubkey.to_string());
@@ -127,7 +128,7 @@ fn command_post_message(
         &FeeCollector::key(None, bridge),
         bridge_config.config.fee,
     );
-    let ix = bridge::client_instructions::post_message(
+    let (_, ix) = bridge::instructions::post_message(
         *bridge,
         config.owner.pubkey(),
         config.fee_payer.pubkey(),

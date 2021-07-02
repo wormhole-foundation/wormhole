@@ -19,7 +19,7 @@ macro_rules! trace_impl {
 #[cfg(not(feature = "trace"))]
 #[macro_export]
 macro_rules! trace_impl {
-    ( $($arg:tt)* ) => {}
+    ( $($arg:tt)* ) => {};
 }
 
 /// This is our main codegen macro. It takes as input a list of enum-like variants mapping field

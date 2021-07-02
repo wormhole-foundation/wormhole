@@ -47,12 +47,12 @@ use std::time::{
     SystemTime,
 };
 
-use sha3::Digest;
 use hex_literal::hex;
 use secp256k1::{
     PublicKey,
     SecretKey,
 };
+use sha3::Digest;
 
 use bridge::{
     accounts::GuardianSetDerivationData,
@@ -67,8 +67,8 @@ use bridge::{
     },
     Initialize,
     PostVAAData,
-    Signature,
     SerializePayload,
+    Signature,
 };
 
 mod common;
@@ -134,21 +134,10 @@ fn test_bridge_messages() {
     let data = update_guardian_set(1, &public_keys);
     let message_key = common::post_message(client, program, payer, &emitter, nonce, data.clone());
 
-    common::upgrade_guardian_set(
-        client,
-        program,
-        payer,
-        message_key,
-        emitter.pubkey(),
-        0,
-        1,
-    );
+    common::upgrade_guardian_set(client, program, payer, message_key, emitter.pubkey(), 0, 1);
 }
 
-fn update_guardian_set(
-    index: u32,
-    keys: &[[u8; 20]],
-) -> Vec<u8> {
+fn update_guardian_set(index: u32, keys: &[[u8; 20]]) -> Vec<u8> {
     let mut v = Cursor::new(Vec::new());
     v.write_u32::<BigEndian>(index).unwrap();
     v.write_u8(keys.len() as u8).unwrap();

@@ -1,3 +1,4 @@
+use crate::trace;
 use solana_program::{
     account_info::{
         next_account_info,
@@ -6,7 +7,6 @@ use solana_program::{
     pubkey::Pubkey,
 };
 use std::slice::Iter;
-use crate::trace;
 
 /// The context is threaded through each check. Include anything within this structure that you
 /// would like to have access to as each layer of dependency is peeled off.

@@ -6,6 +6,7 @@ use crate::{
         GuardianSetDerivationData,
     },
     types::*,
+    Error::TooManyGuardians,
     MAX_LEN_GUARDIAN_KEYS,
 };
 use solitaire::{
@@ -46,6 +47,10 @@ pub fn initialize(
     data: InitializeData,
 ) -> Result<()> {
     let index = 0;
+
+    if data.initial_guardians.len() > MAX_LEN_GUARDIAN_KEYS {
+        return Err(TooManyGuardians.into());
+    }
 
     // Allocate a default guardian set, with zeroed keys.
     accs.guardian_set.index = index;

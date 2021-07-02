@@ -24,9 +24,9 @@ use borsh::{
 use solana_program::{
     entrypoint::ProgramResult,
     instruction::Instruction,
+    msg,
     program::invoke_signed,
     pubkey::Pubkey,
-    msg,
 };
 
 pub trait AccountSize {

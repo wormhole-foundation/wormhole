@@ -52,9 +52,7 @@ impl From<&VerifySignatures<'_>> for GuardianSetDerivationData {
 
 impl From<[u8; 32]> for SignatureSetDerivationData {
     fn from(hash: [u8; 32]) -> Self {
-        SignatureSetDerivationData {
-            hash
-        }
+        SignatureSetDerivationData { hash }
     }
 }
 
@@ -196,16 +194,15 @@ pub fn verify_signatures(
 
     // Confirm at this point that the derivation succeeds, we didn't have a signature set with the
     // correct hash until this point.
-    accs.signature_set.verify_derivation(
-        ctx.program_id,
-        &msg_hash.into(),
-    )?;
+    accs.signature_set
+        .verify_derivation(ctx.program_id, &msg_hash.into())?;
 
     if !accs.signature_set.is_initialized() {
         accs.signature_set.signatures = vec![[0u8; 65]; 19];
         accs.signature_set.guardian_set_index = accs.guardian_set.index;
         accs.signature_set.hash = data.hash;
-        accs.signature_set.create(&msg_hash.into(), ctx, accs.payer.key, Exempt)?;
+        accs.signature_set
+            .create(&msg_hash.into(), ctx, accs.payer.key, Exempt)?;
     } else {
         // If the account already existed, check that the parameters match
         if accs.signature_set.guardian_set_index != accs.guardian_set.index {

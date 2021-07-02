@@ -118,8 +118,10 @@ pub fn post_vaa(ctx: &ExecutionContext, accs: &mut PostVAA, vaa: PostVAAData) ->
         payload: vaa.payload.clone(),
     };
 
-    accs.message.verify_derivation(ctx.program_id, &msg_derivation)?;
-    accs.guardian_set.verify_derivation(ctx.program_id, &(&vaa).into())?;
+    accs.message
+        .verify_derivation(ctx.program_id, &msg_derivation)?;
+    accs.guardian_set
+        .verify_derivation(ctx.program_id, &(&vaa).into())?;
 
     // Verify any required invariants before we process the instruction.
     check_active(&accs.guardian_set, &accs.clock)?;

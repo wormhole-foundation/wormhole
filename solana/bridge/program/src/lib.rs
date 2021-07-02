@@ -49,9 +49,6 @@ pub use vaa::{
     SerializePayload,
 };
 
-// BridgeConfig is the type of the main state the program maintains for itself.
-use types::BridgeConfig;
-
 const MAX_LEN_GUARDIAN_KEYS: usize = 19;
 
 #[derive(Debug)]
@@ -70,6 +67,7 @@ enum Error {
     PostVAAConsensusFailed,
     PostVAAGuardianSetExpired,
     VAAAlreadyExecuted,
+    TooManyGuardians,
 }
 
 /// Translate from program specific errors to Solitaire framework errors. Log the error on the way
