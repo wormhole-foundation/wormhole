@@ -188,7 +188,7 @@ pub struct PostedMessageData {
 impl Owned for PostedMessage {
     fn owner(&self) -> AccountOwner {
         AccountOwner::Other(
-            Pubkey::from_str("96RHG3mfcckmrYN1UhmJzyS1XX3fZKbkeUcpJe9Sy3FE").unwrap(),
+            Pubkey::from_str("Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o").unwrap(),
         ) // TODO key of the bridge
     }
 }

@@ -208,6 +208,10 @@ func (p *Processor) handleObservation(ctx context.Context, m *gossipv1.SignedObs
 			GuardianSetIndex: v.GuardianSetIndex,
 			Signatures:       sigs,
 			Timestamp:        v.Timestamp,
+			Nonce:            v.Nonce,
+			Sequence:         v.Sequence,
+			EmitterChain:     v.EmitterChain,
+			EmitterAddress:   v.EmitterAddress,
 			Payload:          v.Payload,
 		}
 

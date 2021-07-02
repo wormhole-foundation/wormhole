@@ -114,8 +114,14 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 						Filters: []rpc.RPCFilter{
 							{
 								Memcmp: &rpc.RPCFilterMemcmp{
-									Offset: 0,                            // Offset of VaaTime
+									Offset: 0,                            // Start of the account
 									Bytes:  solana.Base58{'m', 's', 'g'}, // Prefix of the posted message accounts
+								},
+							},
+							{
+								Memcmp: &rpc.RPCFilterMemcmp{
+									Offset: 4,                         // Offset of VaaTime
+									Bytes:  solana.Base58{0, 0, 0, 0}, // This means this VAA hasn't been signed yet
 								},
 							},
 						},
@@ -158,7 +164,7 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 							Timestamp:      time.Unix(int64(proposal.SubmissionTime), 0),
 							Nonce:          proposal.Nonce,
 							Sequence:       proposal.Sequence,
-							EmitterChain:   proposal.EmitterChain,
+							EmitterChain:   vaa.ChainIDSolana,
 							EmitterAddress: proposal.EmitterAddress,
 							Payload:        proposal.Payload,
 						}
@@ -188,7 +194,7 @@ type (
 		SubmissionTime      uint32
 		Nonce               uint32
 		Sequence            uint64
-		EmitterChain        vaa.ChainID
+		EmitterChain        uint16
 		EmitterAddress      vaa.Address
 		Payload             []byte
 	}
@@ -196,7 +202,8 @@ type (
 
 func ParseTransferOutProposal(data []byte) (*MessagePublicationAccount, error) {
 	prop := &MessagePublicationAccount{}
-	if err := borsh.Deserialize(prop, data); err != nil {
+	// Skip the b"msg" prefix
+	if err := borsh.Deserialize(prop, data[3:]); err != nil {
 		return nil, err
 	}
 

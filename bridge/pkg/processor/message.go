@@ -22,14 +22,14 @@ var (
 			Name: "wormhole_lockups_observed_total",
 			Help: "Total number of lockups received on-chain",
 		},
-		[]string{"source_chain", "target_chain"})
+		[]string{"emitter_chain"})
 
 	lockupsSignedTotal = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "wormhole_lockups_signed_total",
 			Help: "Total number of lockups that were successfully signed",
 		},
-		[]string{"source_chain", "target_chain"})
+		[]string{"emitter_chain"})
 )
 
 func init() {
@@ -64,6 +64,7 @@ func (p *Processor) handleLockup(ctx context.Context, k *common.MessagePublicati
 		EmitterChain:     k.EmitterChain,
 		EmitterAddress:   k.EmitterAddress,
 		Payload:          k.Payload,
+		Sequence:         k.Sequence,
 	}
 
 	// Generate digest of the unsigned VAA.
