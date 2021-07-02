@@ -28,21 +28,16 @@ use crate::{
         SignatureSet,
         SignatureSetDerivationData,
     },
-    types::{
-        GovernancePayloadUpgrade,
-        PostedMessage,
-    },
     InitializeData,
     PayloadMessage,
     PostMessageData,
     PostVAAData,
-    SetFees,
     SetFeesData,
-    TransferFees,
     TransferFeesData,
     UpgradeContractData,
     UpgradeGuardianSetData,
     VerifySignaturesData,
+    CHAIN_ID_SOLANA,
 };
 
 pub fn initialize(
@@ -96,8 +91,9 @@ pub fn post_message(
     let message = Message::<'_, { AccountState::MaybeInitialized }>::key(
         &MessageDerivationData {
             emitter_key: emitter.to_bytes(),
-            emitter_chain: 1,
+            emitter_chain: CHAIN_ID_SOLANA,
             nonce,
+            sequence: None,
             payload: payload.clone(),
         },
         &program_id,
@@ -179,15 +175,19 @@ pub fn post_vaa(program_id: Pubkey, payer: Pubkey, vaa: PostVAAData) -> Instruct
         &program_id,
     );
 
-    let message = Message::<'_, { AccountState::MaybeInitialized }>::key(
-        &MessageDerivationData {
-            emitter_key: vaa.emitter_address,
-            emitter_chain: vaa.emitter_chain,
-            nonce: vaa.nonce,
-            payload: vaa.payload.clone(),
-        },
-        &program_id,
-    );
+    let mut msg_derivation_data = MessageDerivationData {
+        emitter_key: vaa.emitter_address,
+        emitter_chain: vaa.emitter_chain,
+        nonce: vaa.nonce,
+        sequence: None,
+        payload: vaa.payload.clone(),
+    };
+    if vaa.emitter_chain != CHAIN_ID_SOLANA {
+        msg_derivation_data.sequence = Some(vaa.sequence);
+    }
+
+    let message =
+        Message::<'_, { AccountState::MaybeInitialized }>::key(&msg_derivation_data, &program_id);
 
     Instruction {
         program_id,
@@ -218,7 +218,7 @@ pub fn upgrade_contract(
     let claim = Claim::<'_, { AccountState::Uninitialized }>::key(
         &ClaimDerivationData {
             emitter_address: [0u8; 32],
-            emitter_chain: 1,
+            emitter_chain: CHAIN_ID_SOLANA,
             sequence: 0,
         },
         &program_id,
@@ -256,7 +256,7 @@ pub fn upgrade_guardian_set(
     let claim = Claim::<'_, { AccountState::Uninitialized }>::key(
         &ClaimDerivationData {
             emitter_address: emitter.to_bytes(),
-            emitter_chain: 1,
+            emitter_chain: CHAIN_ID_SOLANA,
             sequence: 1,
         },
         &program_id,
@@ -297,7 +297,7 @@ pub fn set_fees(program_id: Pubkey, payer: Pubkey, fee: u32) -> Instruction {
     let claim = Claim::<'_, { AccountState::Uninitialized }>::key(
         &ClaimDerivationData {
             emitter_address: [0u8; 32],
-            emitter_chain: 1,
+            emitter_chain: CHAIN_ID_SOLANA,
             sequence: 0,
         },
         &program_id,
@@ -326,7 +326,7 @@ pub fn transfer_fees(program_id: Pubkey, payer: Pubkey, recipient: Pubkey) -> In
     let claim = Claim::<'_, { AccountState::Uninitialized }>::key(
         &ClaimDerivationData {
             emitter_address: [0u8; 32],
-            emitter_chain: 1,
+            emitter_chain: CHAIN_ID_SOLANA,
             sequence: 0,
         },
         &program_id,

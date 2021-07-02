@@ -51,6 +51,8 @@ pub use vaa::{
 
 const MAX_LEN_GUARDIAN_KEYS: usize = 19;
 
+const CHAIN_ID_SOLANA: u16 = 1;
+
 #[derive(Debug)]
 enum Error {
     GuardianSetMismatch,

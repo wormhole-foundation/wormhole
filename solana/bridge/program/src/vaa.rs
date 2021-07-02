@@ -11,6 +11,7 @@ use crate::{
         VAAAlreadyExecuted,
     },
     Result,
+    CHAIN_ID_SOLANA,
 };
 use byteorder::{
     BigEndian,
@@ -69,7 +70,7 @@ pub trait DeserializeGovernancePayload {
         }
 
         let chain = c.read_u16::<BigEndian>()?;
-        if chain != 1 && chain != 0 {
+        if chain != CHAIN_ID_SOLANA && chain != 0 {
             return Err(InvalidGovernanceChain.into());
         }
 

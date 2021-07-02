@@ -11,6 +11,7 @@ use crate::{
         InsufficientFees,
         MathOverflow,
     },
+    CHAIN_ID_SOLANA,
 };
 use solana_program::{
     pubkey::Pubkey,
@@ -80,9 +81,10 @@ pub fn post_message(
 
     let msg_derivation = MessageDerivationData {
         emitter_key: accs.emitter.key.to_bytes(),
-        emitter_chain: 1,
+        emitter_chain: CHAIN_ID_SOLANA,
         nonce: data.nonce,
         payload: data.payload.clone(),
+        sequence: None,
     };
 
     trace!("Verifying Message: {}, {}", accs.emitter.key, data.nonce);
@@ -118,7 +120,7 @@ pub fn post_message(
     // Initialize transfer
     trace!("Setting Message Details");
     accs.message.submission_time = accs.clock.unix_timestamp as u32;
-    accs.message.emitter_chain = 1;
+    accs.message.emitter_chain = CHAIN_ID_SOLANA;
     accs.message.emitter_address = accs.emitter.key.to_bytes();
     accs.message.nonce = data.nonce;
     accs.message.payload = data.payload;

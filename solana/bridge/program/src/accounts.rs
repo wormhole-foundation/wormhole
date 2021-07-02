@@ -74,6 +74,8 @@ pub struct MessageDerivationData {
     pub emitter_chain: u16,
     pub nonce: u32,
     pub payload: Vec<u8>,
+    // This field is only used when a VAA from a foreign chain is posted
+    pub sequence: Option<u64>,
 }
 
 impl<'b, const State: AccountState> Seeded<&MessageDerivationData> for Message<'b, { State }> {
@@ -83,6 +85,9 @@ impl<'b, const State: AccountState> Seeded<&MessageDerivationData> for Message<'
             data.emitter_chain.to_be_bytes().to_vec(),
             data.nonce.to_be_bytes().to_vec(),
         ];
+        if let Some(seq) = data.sequence {
+            seeds.push(seq.to_be_bytes().to_vec())
+        }
         seeds.append(&mut data.payload.chunks(32).map(|v| v.to_vec()).collect());
         seeds
     }

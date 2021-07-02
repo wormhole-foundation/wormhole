@@ -327,6 +327,7 @@ pub fn transfer_native(
             emitter_chain: 1,
             nonce: data.nonce,
             payload: payload.try_to_vec().unwrap(),
+            sequence: None,
         },
         &bridge_id,
     );
@@ -412,6 +413,7 @@ pub fn transfer_wrapped(
             emitter_chain: 1,
             nonce: data.nonce,
             payload: payload.try_to_vec().unwrap(),
+            sequence: None,
         },
         &bridge_id,
     );
@@ -476,6 +478,7 @@ pub fn attest(
             emitter_key: emitter_key.to_bytes(),
             emitter_chain: 1,
             nonce,
+            sequence: None,
             payload: payload.try_to_vec().unwrap(),
         },
         &bridge_id,

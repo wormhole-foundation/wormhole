@@ -21,6 +21,7 @@ use crate::{
     },
     Error,
     Error::GuardianSetMismatch,
+    CHAIN_ID_SOLANA,
 };
 use byteorder::{
     BigEndian,
@@ -111,12 +112,16 @@ pub struct PostVAAData {
 }
 
 pub fn post_vaa(ctx: &ExecutionContext, accs: &mut PostVAA, vaa: PostVAAData) -> Result<()> {
-    let msg_derivation = MessageDerivationData {
+    let mut msg_derivation = MessageDerivationData {
         emitter_key: vaa.emitter_address,
         emitter_chain: vaa.emitter_chain,
         nonce: vaa.nonce,
         payload: vaa.payload.clone(),
+        sequence: None,
     };
+    if vaa.emitter_chain != CHAIN_ID_SOLANA {
+        msg_derivation.sequence = Some(vaa.sequence)
+    }
 
     accs.message
         .verify_derivation(ctx.program_id, &msg_derivation)?;
@@ -153,7 +158,7 @@ pub fn post_vaa(ctx: &ExecutionContext, accs: &mut PostVAA, vaa: PostVAAData) ->
     }
 
     // If the VAA originates from another chain we need to create the account and populate all fields
-    if vaa.emitter_chain != 1 {
+    if vaa.emitter_chain != CHAIN_ID_SOLANA {
         accs.message.nonce = vaa.nonce;
         accs.message.emitter_chain = vaa.emitter_chain;
         accs.message.emitter_address = vaa.emitter_address;
