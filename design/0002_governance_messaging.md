@@ -1,5 +1,7 @@
 # Cross-Chain Governance Decision Messaging
 
+[TOC]
+
 ## Objective
 
 Establish a protocol for wormhole core implementations and modules on different chains to communicate governance
