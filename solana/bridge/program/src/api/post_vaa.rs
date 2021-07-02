@@ -31,6 +31,7 @@ use sha3::Digest;
 use solana_program::{
     program_error::ProgramError,
     pubkey::Pubkey,
+    msg,
 };
 use solitaire::{
     processors::seeded::Seeded,

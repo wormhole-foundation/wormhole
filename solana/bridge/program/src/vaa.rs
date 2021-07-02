@@ -88,10 +88,9 @@ impl<'a, 'b: 'a, 'c, T: DeserializePayload> Peel<'a, 'b, 'c> for PayloadMessage<
     where
         Self: Sized,
     {
-        let data: Data<'b, PostedMessage, { AccountState::Initialized }> = Data::peel(ctx)?;
         // Deserialize wrapped payload
+        let data: Data<'b, PostedMessage, { AccountState::Initialized }> = Data::peel(ctx)?;
         let payload = DeserializePayload::deserialize(&mut &data.payload[..])?;
-
         Ok(PayloadMessage(data, payload))
     }
 
@@ -120,7 +119,6 @@ impl<'b, T: DeserializePayload> PayloadMessage<'b, T> {
 #[derive(FromAccounts)]
 pub struct ClaimableVAA<'b, T: DeserializePayload> {
     // Signed message for the transfer
-    // TODO use bridge type here that does verifications
     pub message: PayloadMessage<'b, T>,
 
     // Claim account to prevent double spending

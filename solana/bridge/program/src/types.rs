@@ -3,6 +3,7 @@ use crate::{
     vaa::{
         DeserializeGovernancePayload,
         DeserializePayload,
+        SerializePayload,
     },
 };
 use borsh::{
@@ -20,6 +21,7 @@ use solitaire::{
         AccountOwner,
         Owned,
     },
+    trace,
     SolitaireError,
 };
 use std::{
@@ -189,7 +191,7 @@ impl Owned for PostedMessage {
     fn owner(&self) -> AccountOwner {
         AccountOwner::Other(
             Pubkey::from_str("Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o").unwrap(),
-        ) // TODO key of the bridge
+        )
     }
 }
 
@@ -249,6 +251,18 @@ pub struct GovernancePayloadGuardianSetChange {
 
     // New GuardianSet
     pub new_guardian_set: Vec<[u8; 20]>,
+}
+
+impl SerializePayload for GovernancePayloadGuardianSetChange {
+    fn serialize<W: Write>(&self, v: &mut W) -> std::result::Result<(), SolitaireError> {
+        use byteorder::WriteBytesExt;
+        v.write_u32::<BigEndian>(self.new_guardian_set_index)?;
+        v.write_u8(self.new_guardian_set.len() as u8)?;
+        for key in self.new_guardian_set.iter() {
+            v.write(key);
+        }
+        Ok(())
+    }
 }
 
 impl DeserializePayload for GovernancePayloadGuardianSetChange

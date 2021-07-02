@@ -99,30 +99,27 @@ pub fn post_message(
         &program_id,
     );
 
-    Ok((
-        message,
-        Instruction {
-            program_id,
+    Ok((message, Instruction {
+        program_id,
 
-            accounts: vec![
-                AccountMeta::new(bridge, false),
-                AccountMeta::new(message, false),
-                AccountMeta::new(emitter, true),
-                AccountMeta::new(sequence, false),
-                AccountMeta::new(payer, true),
-                AccountMeta::new(fee_collector, false),
-                AccountMeta::new_readonly(sysvar::clock::id(), false),
-                AccountMeta::new_readonly(sysvar::rent::id(), false),
-                AccountMeta::new_readonly(solana_program::system_program::id(), false),
-            ],
+        accounts: vec![
+            AccountMeta::new(bridge, false),
+            AccountMeta::new(message, false),
+            AccountMeta::new(emitter, true),
+            AccountMeta::new(sequence, false),
+            AccountMeta::new(payer, true),
+            AccountMeta::new(fee_collector, false),
+            AccountMeta::new_readonly(sysvar::clock::id(), false),
+            AccountMeta::new_readonly(sysvar::rent::id(), false),
+            AccountMeta::new_readonly(solana_program::system_program::id(), false),
+        ],
 
-            data: crate::instruction::Instruction::PostMessage(PostMessageData {
-                nonce,
-                payload: payload.clone(),
-            })
-            .try_to_vec()?,
-        },
-    ))
+        data: crate::instruction::Instruction::PostMessage(PostMessageData {
+            nonce,
+            payload: payload.clone(),
+        })
+        .try_to_vec()?,
+    }))
 }
 
 pub fn verify_signatures(

@@ -1,7 +1,17 @@
 #![allow(warnings)]
 
 use borsh::BorshSerialize;
-use secp256k1::SecretKey;
+use byteorder::{
+    BigEndian,
+    WriteBytesExt,
+};
+use hex_literal::hex;
+use secp256k1::{
+    Message as Secp256k1Message,
+    PublicKey,
+    SecretKey,
+};
+use sha3::Digest;
 use solana_client::{
     rpc_client::RpcClient,
     rpc_config::RpcSendTransactionConfig,
@@ -22,15 +32,6 @@ use solana_program::{
     system_program,
     sysvar,
 };
-
-use std::{
-    env,
-    time::{
-        Duration,
-        SystemTime,
-    },
-};
-
 use solana_sdk::{
     commitment_config::CommitmentConfig,
     secp256k1_instruction::new_secp256k1_instruction,
@@ -41,13 +42,24 @@ use solana_sdk::{
     },
     transaction::Transaction,
 };
+use std::{
+    convert::TryInto,
+    env,
+    io::{
+        Cursor,
+        Write,
+    },
+    time::{
+        Duration,
+        SystemTime,
+    },
+};
 
 use bridge::{
     accounts::{
         FeeCollector,
         GuardianSet,
         GuardianSetDerivationData,
-        Message,
         MessageDerivationData,
         SignatureSet,
         SignatureSetDerivationData,
@@ -74,42 +86,120 @@ use solitaire::{
 
 pub use helpers::*;
 
+/// Simple API wrapper for quickly preparing and sending transactions.
+fn execute(
+    client: &RpcClient,
+    payer: &Keypair,
+    signers: &[&Keypair],
+    instructions: &[Instruction],
+) {
+    let mut transaction = Transaction::new_with_payer(instructions, Some(&payer.pubkey()));
+    let recent_blockhash = client.get_recent_blockhash().unwrap().0;
+    transaction.sign(&signers.to_vec(), recent_blockhash);
+    client
+        .send_and_confirm_transaction_with_spinner_and_config(
+            &transaction,
+            CommitmentConfig::processed(),
+            RpcSendTransactionConfig {
+                skip_preflight: true,
+                preflight_commitment: None,
+                encoding: None,
+            },
+        )
+        .unwrap();
+}
+
 mod helpers {
     use super::*;
 
-    fn execute(
-        client: &RpcClient,
-        payer: &Keypair,
-        signers: &[&Keypair],
-        instructions: &[Instruction],
-    ) {
-        let mut transaction = Transaction::new_with_payer(instructions, Some(&payer.pubkey()));
-        let recent_blockhash = client.get_recent_blockhash().unwrap().0;
-        transaction.sign(&signers.to_vec(), recent_blockhash);
-        client
-            .send_and_confirm_transaction_with_spinner_and_config(
-                &transaction,
-                CommitmentConfig::processed(),
-                RpcSendTransactionConfig {
-                    skip_preflight: true,
-                    preflight_commitment: None,
-                    encoding: None,
-                },
-            )
-            .unwrap();
-    }
-
+    /// Initialize the test environment, spins up a solana-test-validator in the background so that
+    /// each test has a fresh environment to work within.
     pub fn setup() -> (Keypair, RpcClient, Pubkey) {
-        let payer =
-            read_keypair_file(env::var("BRIDGE_PAYER").unwrap_or("./payer.json".to_string()))
-                .unwrap();
-        let rpc =
-            RpcClient::new(env::var("BRIDGE_RPC").unwrap_or("http://127.0.0.1:8899".to_string()));
+        let payer = env::var("BRIDGE_PAYER").unwrap_or("./payer.json".to_string());
+        let rpc_address = env::var("BRIDGE_RPC").unwrap_or("http://127.0.0.1:8899".to_string());
+        let payer = read_keypair_file(payer).unwrap();
+        let rpc = RpcClient::new(rpc_address);
         let program = env::var("BRIDGE_PROGRAM")
             .unwrap_or("6mFKdAtUBVbsQ5dgvBrUkn1Pixb7BMTUtVKj4dpwrmQs".to_string())
             .parse::<Pubkey>()
             .unwrap();
         (payer, rpc, program)
+    }
+
+    /// Generate `count` secp256k1 private keys, along with their ethereum-styled public key
+    /// encoding: 0x0123456789ABCDEF01234
+    pub fn generate_keys(count: u8) -> (Vec<[u8; 20]>, Vec<SecretKey>) {
+        use rand::Rng;
+        use sha3::Digest;
+
+        let mut rng = rand::thread_rng();
+
+        // Generate Guardian Keys
+        let secret_keys: Vec<SecretKey> = std::iter::repeat_with(|| SecretKey::random(&mut rng))
+            .take(count as usize)
+            .collect();
+
+        (
+            secret_keys
+                .iter()
+                .map(|key| {
+                    let public_key = PublicKey::from_secret_key(&key);
+                    let mut h = sha3::Keccak256::default();
+                    h.write(&public_key.serialize()[1..]).unwrap();
+                    let key: [u8; 32] = h.finalize().into();
+                    let mut address = [0u8; 20];
+                    address.copy_from_slice(&key[12..]);
+                    address
+                })
+                .collect(),
+            secret_keys,
+        )
+    }
+
+    /// Utility function for generating VAA's from message data.
+    pub fn generate_vaa(
+        emitter: &Keypair,
+        data: Vec<u8>,
+        nonce: u32,
+        guardian_set_index: u32,
+    ) -> (PostVAAData, Vec<u8>, [u8; 32]) {
+        let mut vaa = PostVAAData {
+            version: 0,
+            guardian_set_index,
+
+            // Body part
+            emitter_chain: 1,
+            emitter_address: emitter.pubkey().to_bytes(),
+            sequence: 0,
+            payload: data,
+            timestamp: SystemTime::now()
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .unwrap()
+                .as_secs() as u32,
+            nonce,
+        };
+
+        // Hash data, the thing we wish to actually sign.
+        let body = {
+            let mut v = Cursor::new(Vec::new());
+            v.write_u32::<BigEndian>(vaa.timestamp).unwrap();
+            v.write_u32::<BigEndian>(vaa.nonce).unwrap();
+            v.write_u16::<BigEndian>(vaa.emitter_chain).unwrap();
+            v.write(&vaa.emitter_address).unwrap();
+            v.write_u64::<BigEndian>(vaa.sequence).unwrap();
+            v.write(&vaa.payload).unwrap();
+            v.into_inner()
+        };
+
+        // Hash this body, which is expected to be the same as the hash currently stored in the
+        // signature account, binding that set of signatures to this VAA.
+        let body_hash: [u8; 32] = {
+            let mut h = sha3::Keccak256::default();
+            h.write(body.as_slice()).unwrap();
+            h.finalize().into()
+        };
+
+        (vaa, body, body_hash)
     }
 
     pub fn transfer(client: &RpcClient, from: &Keypair, to: &Pubkey, lamports: u64) {
@@ -178,6 +268,7 @@ mod helpers {
         body: Vec<u8>,
         body_hash: [u8; 32],
         secret_keys: &[SecretKey],
+        guardian_set_version: u32,
     ) {
         // Push Secp256k1 instructions for each signature we want to verify.
         for (i, key) in secret_keys.iter().enumerate() {
@@ -194,7 +285,7 @@ mod helpers {
                     instructions::verify_signatures(
                         *program,
                         payer.pubkey(),
-                        0,
+                        guardian_set_version,
                         VerifySignaturesData {
                             hash: body_hash,
                             initial_creation: true,

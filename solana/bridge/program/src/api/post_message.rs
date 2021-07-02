@@ -14,6 +14,7 @@ use crate::{
     CHAIN_ID_SOLANA,
 };
 use solana_program::{
+    msg,
     pubkey::Pubkey,
     sysvar::clock::Clock,
 };
@@ -92,7 +93,8 @@ pub fn post_message(
     accs.message
         .verify_derivation(ctx.program_id, &msg_derivation)?;
 
-    // Fee handling
+    // Fee handling, checking previously known balance allows us to not care who is the payer of
+    // this submission.
     if accs
         .fee_collector
         .lamports()
