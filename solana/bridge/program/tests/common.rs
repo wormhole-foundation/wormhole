@@ -181,13 +181,14 @@ mod helpers {
         data: Vec<u8>,
         nonce: u32,
         guardian_set_index: u32,
+        emitter_chain: u16,
     ) -> (PostVAAData, Vec<u8>, [u8; 32]) {
         let mut vaa = PostVAAData {
             version: 0,
             guardian_set_index,
 
             // Body part
-            emitter_chain: 1,
+            emitter_chain,
             emitter_address: emitter.pubkey().to_bytes(),
             sequence: 0,
             payload: data,

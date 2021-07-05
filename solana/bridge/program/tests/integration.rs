@@ -97,6 +97,7 @@ fn run_integration_tests() {
     // Tests are currently unhygienic as It's difficult to wrap `solana-test-validator` within the
     // integration tests so for now we work around it by simply chain-calling our tests.
     test_bridge_messages(&mut context);
+    test_foreign_bridge_messages(&mut context);
     test_guardian_set_change(&mut context);
     test_guardian_set_change_fails(&mut context);
     test_set_fees(&mut context);
@@ -125,7 +126,7 @@ fn test_bridge_messages(context: &mut Context) {
     .unwrap();
 
     // Emulate Guardian behaviour, verifying the data and publishing signatures/VAA.
-    let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 0);
+    let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 0, 1);
     common::verify_signatures(client, program, payer, body, body_hash, &context.secret, 0).unwrap();
     common::post_vaa(client, program, payer, vaa).unwrap();
 }
@@ -153,7 +154,7 @@ fn test_guardian_set_change(context: &mut Context) {
     .unwrap();
 
     // Emulate Guardian behaviour, verifying the data and publishing signatures/VAA.
-    let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 0);
+    let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 0, 1);
     common::verify_signatures(client, program, payer, body, body_hash, &context.secret, 0).unwrap();
     common::post_vaa(client, program, payer, vaa).unwrap();
 
@@ -179,7 +180,7 @@ fn test_guardian_set_change(context: &mut Context) {
         false,
     )
     .unwrap();
-    let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 0);
+    let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 0, 1);
     common::verify_signatures(client, program, payer, body, body_hash, &context.secret, 0).unwrap();
     common::post_vaa(client, program, payer, vaa).unwrap();
 
@@ -213,7 +214,7 @@ fn test_guardian_set_change(context: &mut Context) {
     context.secret = new_secret_keys;
 
     // Emulate Guardian behaviour, verifying the data and publishing signatures/VAA.
-    let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 1);
+    let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 1, 1);
     common::verify_signatures(client, program, payer, body, body_hash, &context.secret, 1).unwrap();
     common::post_vaa(client, program, payer, vaa).unwrap();
 }
@@ -244,7 +245,7 @@ fn test_guardian_set_change_fails(context: &mut Context) {
         false,
     )
     .unwrap();
-    let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 1);
+    let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 1, 1);
 
     assert!(common::upgrade_guardian_set(
         client,
@@ -284,7 +285,7 @@ fn test_set_fees(context: &mut Context) {
     )
     .unwrap();
 
-    let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 1);
+    let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 1, 1);
     common::verify_signatures(client, program, payer, body, body_hash, &context.secret, 1).unwrap();
     common::post_vaa(client, program, payer, vaa).unwrap();
     common::set_fees(client, program, payer, message_key, emitter.pubkey(), 3).unwrap();
@@ -327,7 +328,7 @@ fn test_transfer_fees(context: &mut Context) {
     let (ref payer, ref client, ref program) = common::setup();
     let emitter = Keypair::from_bytes(&GOV_KEY).unwrap();
 
-    let nonce = 12401;
+    let nonce = 12403;
     let message = GovernancePayloadTransferFees {
         amount: 100.into(),
         to: payer.pubkey().to_bytes(),
@@ -347,7 +348,7 @@ fn test_transfer_fees(context: &mut Context) {
     )
     .unwrap();
 
-    let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 1);
+    let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 1, 1);
     common::verify_signatures(client, program, payer, body, body_hash, &context.secret, 1).unwrap();
     common::post_vaa(client, program, payer, vaa).unwrap();
     common::transfer_fees(
@@ -360,4 +361,17 @@ fn test_transfer_fees(context: &mut Context) {
         payer.pubkey(),
     )
     .unwrap();
+}
+
+fn test_foreign_bridge_messages(context: &mut Context) {
+    // Initialize a wormhole bridge on Solana to test with.
+    let (ref payer, ref client, ref program) = common::setup();
+    let nonce = 13832;
+    let message = b"Prove Me".to_vec();
+    let emitter = Keypair::new();
+
+    // Verify the VAA generated on a foreign chain.
+    let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 0, 2);
+    common::verify_signatures(client, program, payer, body, body_hash, &context.secret, 0).unwrap();
+    common::post_vaa(client, program, payer, vaa).unwrap();
 }
