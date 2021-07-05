@@ -7,9 +7,9 @@ ADD contracts /code/contracts
 RUN optimize_workspace.sh
 
 # Contract deployment stage
-FROM node:14@sha256:04a33dac55af8d3170bffc91ca31fe8000b96ae1bab1a090deb920ca2ca2a38e
+FROM python:slim-buster@sha256:ec7a755e6313da2f7db02d8e82f6b0813b176f06c5622174c8ab45feefc8096d
 
-RUN npm update && npm i -g typescript ts-node
+RUN apt update && apt install netcat curl jq -y
 
 WORKDIR /app/tools
 
@@ -19,8 +19,6 @@ ADD ./tools /app/tools
 
 RUN chmod +x /app/tools/deploy.sh
 
-RUN npm install
-
-RUN ts-node --version
+RUN pip install -r /app/tools/requirements.txt
 
 ENTRYPOINT /app/tools/deploy.sh

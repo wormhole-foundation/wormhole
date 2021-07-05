@@ -71,7 +71,7 @@ spec:
             - --terraChainID
             - localterra
             - --terraContract
-            - terra174kgn5rtw4kf6f938wm7kwh70h2v4vcfd26jlc
+            - terra18eezxhys9jwku67cm4w84xhnzt4xjj77w2qt62
             - --terraKey
             - /tmp/terra.key
             - --agentRPC

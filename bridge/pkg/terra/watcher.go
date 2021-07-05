@@ -176,7 +176,7 @@ func (e *BridgeWatcher) Run(ctx context.Context) error {
 			sender := gjson.Get(json, "result.events.from_contract\\.message\\.sender.0")
 			chainId := gjson.Get(json, "result.events.from_contract\\.message\\.chain_id.0")
 			nonce := gjson.Get(json, "result.events.from_contract\\.message\\.nonce.0")
-			sequence := gjson.Get(json, "result.events.from_contract\\.message.sequence.0")
+			sequence := gjson.Get(json, "result.events.from_contract\\.message\\.sequence.0")
 			blockTime := gjson.Get(json, "result.events.from_contract\\.message\\.block_time.0")
 			txHash := gjson.Get(json, "result.events.tx\\.hash.0")
 

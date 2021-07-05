@@ -79,7 +79,7 @@ const (
 	TerraTokenAddress = "terra18vd8fpwxzck93qlwghaj6arh4p7c5n896xzem5"
 
 	// Terra bridge contract address
-	TerraBridgeAddress = "terra174kgn5rtw4kf6f938wm7kwh70h2v4vcfd26jlc"
+	TerraBridgeAddress = "terra18eezxhys9jwku67cm4w84xhnzt4xjj77w2qt62"
 
 	// Terra devnet fee payer mnemonic
 	TerraFeePayerKey = "notice oak worry limit wrap speak medal online prefer cluster roof addict wrist behave treat actual wasp year salad speed social layer crew genius"
