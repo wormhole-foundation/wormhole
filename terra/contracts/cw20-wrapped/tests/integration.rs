@@ -2,7 +2,7 @@ static WASM: &[u8] =
     include_bytes!("../../../target/wasm32-unknown-unknown/release/cw20_wrapped.wasm");
 
 use cosmwasm_std::{
-    from_slice, Env, HandleResponse, HandleResult, HumanAddr, InitResponse, Uint128, Binary,
+    from_slice, Binary, Env, HandleResponse, HandleResult, HumanAddr, InitResponse, Uint128,
 };
 use cosmwasm_storage::to_length_prefixed;
 use cosmwasm_vm::testing::{

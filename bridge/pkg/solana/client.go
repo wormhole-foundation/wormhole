@@ -173,6 +173,7 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 							EmitterChain:   vaa.ChainIDSolana,
 							EmitterAddress: proposal.EmitterAddress,
 							Payload:        proposal.Payload,
+							Persist:        proposal.Persist == 1,
 						}
 
 						solanaLockupsConfirmed.Inc()

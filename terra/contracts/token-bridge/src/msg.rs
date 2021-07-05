@@ -4,7 +4,6 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InitMsg {
-
     // governance contract details
     pub gov_chain: u16,
     pub gov_address: Binary,
@@ -16,8 +15,6 @@ pub struct InitMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum HandleMsg {
-
-
     RegisterAssetHook {
         asset_id: Binary,
     },
@@ -37,7 +34,7 @@ pub enum HandleMsg {
     CreateAssetMeta {
         asset_address: HumanAddr,
         nonce: u32,
-    }
+    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

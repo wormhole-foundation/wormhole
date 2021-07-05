@@ -63,9 +63,11 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
     msg: HandleMsg,
 ) -> StdResult<HandleResponse> {
     match msg {
-        HandleMsg::PostMessage { message, nonce } => {
-            handle_post_message(deps, env, &message.as_slice(), nonce)
-        }
+        HandleMsg::PostMessage {
+            message,
+            nonce,
+            persist,
+        } => handle_post_message(deps, env, &message.as_slice(), nonce, persist),
         HandleMsg::SubmitVAA { vaa } => handle_submit_vaa(deps, env, vaa.as_slice()),
     }
 }
@@ -251,6 +253,7 @@ fn handle_post_message<S: Storage, A: Api, Q: Querier>(
     env: Env,
     message: &[u8],
     nonce: u32,
+    persist: bool,
 ) -> StdResult<HandleResponse> {
     let state = config_read(&deps.storage).load()?;
 
@@ -273,6 +276,7 @@ fn handle_post_message<S: Storage, A: Api, Q: Querier>(
             log("message.nonce", nonce),
             log("message.sequence", sequence),
             log("message.block_time", env.block.time),
+            log("message.persist", persist),
         ],
         data: None,
     })

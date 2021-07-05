@@ -215,6 +215,7 @@ fn handle_create_asset_meta<S: Storage, A: Api, Q: Querier>(
             msg: to_binary(&WormholeHandleMsg::PostMessage {
                 message: Binary::from(token_bridge_message.serialize()),
                 nonce,
+                persist: true,
             })?,
             // forward coins sent to this message
             send: env.message.sent_funds.clone(),
@@ -271,7 +272,7 @@ fn handle_governance_payload<S: Storage, A: Api, Q: Querier>(
     let module: String = module.chars().filter(|c| !c.is_whitespace()).collect();
 
     if module != "token_bridge" {
-        return Err(StdError::generic_err("this is not a valid module"))
+        return Err(StdError::generic_err("this is not a valid module"));
     }
 
     match gov_packet.action {
@@ -482,6 +483,7 @@ fn handle_initiate_transfer<S: Storage, A: Api, Q: Querier>(
         msg: to_binary(&WormholeHandleMsg::PostMessage {
             message: Binary::from(token_bridge_message.serialize()),
             nonce,
+            persist: true,
         })?,
         // forward coins sent to this message
         send: env.message.sent_funds.clone(),

@@ -1,14 +1,13 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use cosmwasm_std::{HumanAddr, StdResult, Storage, Binary};
+use cosmwasm_std::{Binary, HumanAddr, StdResult, Storage};
 use cosmwasm_storage::{
     bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket, ReadonlySingleton,
     Singleton,
 };
 
 use wormhole::byte_utils::ByteUtils;
-
 
 pub static CONFIG_KEY: &[u8] = b"config";
 pub static WRAPPED_ASSET_KEY: &[u8] = b"wrapped_asset";
@@ -58,9 +57,6 @@ pub fn wrapped_asset_address_read<S: Storage>(storage: &S) -> ReadonlyBucket<S, 
     bucket_read(WRAPPED_ASSET_ADDRESS_KEY, storage)
 }
 
-
-
-
 pub struct Action;
 
 impl Action {
@@ -88,7 +84,7 @@ impl TokenBridgeMessage {
         })
     }
 
-    pub fn serialize(&self) ->Vec<u8> {
+    pub fn serialize(&self) -> Vec<u8> {
         [self.action.to_be_bytes().to_vec(), self.payload.clone()].concat()
     }
 }
@@ -193,7 +189,6 @@ pub struct RegisterChain {
 }
 
 impl RegisterChain {
-
     pub fn deserialize(data: &Vec<u8>) -> StdResult<Self> {
         let data = data.as_slice();
         let chain_id = data.get_u16(0);
@@ -201,8 +196,7 @@ impl RegisterChain {
 
         Ok(RegisterChain {
             chain_id,
-            chain_address
+            chain_address,
         })
     }
-
 }

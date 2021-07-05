@@ -16,4 +16,5 @@ type MessagePublication struct {
 	EmitterChain   vaa.ChainID
 	EmitterAddress vaa.Address
 	Payload        []byte
+	Persist        bool
 }
