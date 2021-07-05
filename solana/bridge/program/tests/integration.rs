@@ -55,6 +55,7 @@ use bridge::{
     types::{
         BridgeConfig,
         GovernancePayloadGuardianSetChange,
+        GovernancePayloadSetMessageFee,
         PostedMessage,
         PostedMessageData,
         SequenceTracker,
@@ -96,6 +97,7 @@ fn run_integration_tests() {
     test_bridge_messages(&mut context);
     test_guardian_set_change(&mut context);
     test_guardian_set_change_fails(&mut context);
+    test_set_fees(&mut context);
 }
 
 fn test_bridge_messages(context: &mut Context) {
@@ -107,7 +109,7 @@ fn test_bridge_messages(context: &mut Context) {
     let emitter = Keypair::new();
 
     // Post the message, publishing the data for guardian consumption.
-    let message_key = common::post_message(client, program, payer, &emitter, nonce, message.clone()).unwrap();
+    let message_key = common::post_message(client, program, payer, &emitter, nonce, message.clone(), 10_000).unwrap();
 
     // Emulate Guardian behaviour, verifying the data and publishing signatures/VAA.
     let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 0);
@@ -125,7 +127,7 @@ fn test_guardian_set_change(context: &mut Context) {
     let emitter = Keypair::from_bytes(&GOV_KEY).unwrap();
 
     // Post the message, publishing the data for guardian consumption.
-    let message_key = common::post_message(client, program, payer, &emitter, nonce, message.clone()).unwrap();
+    let message_key = common::post_message(client, program, payer, &emitter, nonce, message.clone(), 10_000).unwrap();
 
     // Emulate Guardian behaviour, verifying the data and publishing signatures/VAA.
     let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 0);
@@ -141,7 +143,7 @@ fn test_guardian_set_change(context: &mut Context) {
         new_guardian_set: new_public_keys.clone(),
     }.try_to_vec().unwrap();
 
-    let message_key = common::post_message(client, program, payer, &emitter, nonce, message.clone()).unwrap();
+    let message_key = common::post_message(client, program, payer, &emitter, nonce, message.clone(), 10_000).unwrap();
     let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 0);
     common::verify_signatures(client, program, payer, body, body_hash, &context.secret, 0).unwrap();
     common::post_vaa(client, program, payer, vaa).unwrap();
@@ -159,7 +161,7 @@ fn test_guardian_set_change(context: &mut Context) {
 
     // Submit the message a second time with a new nonce.
     let nonce = 12399;
-    let message_key = common::post_message(client, program, payer, &emitter, nonce, message.clone()).unwrap();
+    let message_key = common::post_message(client, program, payer, &emitter, nonce, message.clone(), 10_000).unwrap();
 
     context.public = new_public_keys;
     context.secret = new_secret_keys;
@@ -183,7 +185,7 @@ fn test_guardian_set_change_fails(context: &mut Context) {
         new_guardian_set: new_public_keys.clone(),
     }.try_to_vec().unwrap();
 
-    let message_key = common::post_message(client, program, payer, &emitter, nonce, message.clone()).unwrap();
+    let message_key = common::post_message(client, program, payer, &emitter, nonce, message.clone(), 10_000).unwrap();
     let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 1);
 
     assert!(common::upgrade_guardian_set(
@@ -196,7 +198,44 @@ fn test_guardian_set_change_fails(context: &mut Context) {
         2,
         0,
     ).is_err());
+}
 
-    context.public = new_public_keys;
-    context.secret = new_secret_keys;
+fn test_set_fees(context: &mut Context) {
+    // Initialize a wormhole bridge on Solana to test with.
+    let (ref payer, ref client, ref program) = common::setup();
+    let emitter = Keypair::from_bytes(&GOV_KEY).unwrap();
+
+    let nonce = 12401;
+    let message = GovernancePayloadSetMessageFee { fee: 100 }
+        .try_to_vec()
+        .unwrap();
+
+    let message_key = common::post_message(
+        client,
+        program,
+        payer,
+        &emitter,
+        nonce,
+        message.clone(),
+        10_000,
+    )
+    .unwrap();
+    let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 1);
+    common::verify_signatures(client, program, payer, body, body_hash, &context.secret, 1).unwrap();
+    common::post_vaa(client, program, payer, vaa).unwrap();
+    common::set_fees(client, program, payer, message_key, emitter.pubkey(), 3).unwrap();
+
+    // Check that posting a new message fails with too small a fee.
+    let emitter = Keypair::new();
+    let nonce = 12402;
+    let message = b"Fail to Pay".to_vec();
+    assert!(
+        common::post_message(client, program, payer, &emitter, nonce, message.clone(), 50).is_err()
+    );
+
+    // And succeeds with the new.
+    let emitter = Keypair::new();
+    let nonce = 12402;
+    let message = b"Fail to Pay".to_vec();
+    common::post_message(client, program, payer, &emitter, nonce, message.clone(), 100).unwrap();
 }

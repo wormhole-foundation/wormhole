@@ -299,6 +299,14 @@ pub struct GovernancePayloadSetMessageFee {
     pub fee: u64,
 }
 
+impl SerializePayload for GovernancePayloadSetMessageFee {
+    fn serialize<W: Write>(&self, v: &mut W) -> std::result::Result<(), SolitaireError> {
+        use byteorder::WriteBytesExt;
+        v.write_u64::<BigEndian>(self.fee)?;
+        Ok(())
+    }
+}
+
 impl DeserializePayload for GovernancePayloadSetMessageFee
 where
     Self: DeserializeGovernancePayload,

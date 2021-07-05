@@ -256,6 +256,7 @@ mod helpers {
         emitter: &Keypair,
         nonce: u32,
         data: Vec<u8>,
+        fee: u64,
     ) -> Result<Pubkey, ClientError> {
         // Transfer money into the fee collector as it needs a balance/must exist.
         let fee_collector = FeeCollector::<'_>::key(None, program);
@@ -270,7 +271,7 @@ mod helpers {
             payer,
             &[payer, emitter],
             &[
-                system_instruction::transfer(&payer.pubkey(), &fee_collector, 10_000),
+                system_instruction::transfer(&payer.pubkey(), &fee_collector, fee),
                 instruction,
             ],
         )?;
@@ -371,12 +372,25 @@ mod helpers {
         )
     }
 
-    pub fn set_fees(client: &RpcClient, program: &Pubkey, payer: &Keypair, fee: u32) -> Result<Signature, ClientError> {
+    pub fn set_fees(
+        client: &RpcClient,
+        program: &Pubkey,
+        payer: &Keypair,
+        message: Pubkey,
+        emitter: Pubkey,
+        sequence: u64,
+    ) -> Result<Signature, ClientError> {
         execute(
             client,
             payer,
             &[payer],
-            &[instructions::set_fees(*program, payer.pubkey(), fee)],
+            &[instructions::set_fees(
+                *program,
+                payer.pubkey(),
+                message,
+                emitter,
+                sequence,
+            )],
         )
     }
 
