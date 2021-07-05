@@ -14,6 +14,7 @@ use secp256k1::{
 use sha3::Digest;
 use solana_client::{
     rpc_client::RpcClient,
+    client_error::ClientError,
     rpc_config::RpcSendTransactionConfig,
 };
 use solana_program::{
@@ -39,6 +40,7 @@ use solana_sdk::{
         read_keypair_file,
         Keypair,
         Signer,
+        Signature,
     },
     transaction::Transaction,
 };
@@ -92,7 +94,7 @@ fn execute(
     payer: &Keypair,
     signers: &[&Keypair],
     instructions: &[Instruction],
-) {
+) -> Result<Signature, ClientError> {
     let mut transaction = Transaction::new_with_payer(instructions, Some(&payer.pubkey()));
     let recent_blockhash = client.get_recent_blockhash().unwrap().0;
     transaction.sign(&signers.to_vec(), recent_blockhash);
@@ -106,7 +108,6 @@ fn execute(
                 encoding: None,
             },
         )
-        .unwrap();
 }
 
 mod helpers {
@@ -202,13 +203,13 @@ mod helpers {
         (vaa, body, body_hash)
     }
 
-    pub fn transfer(client: &RpcClient, from: &Keypair, to: &Pubkey, lamports: u64) {
+    pub fn transfer(client: &RpcClient, from: &Keypair, to: &Pubkey, lamports: u64) -> Result<Signature, ClientError> {
         execute(
             client,
             from,
             &[from],
             &[system_instruction::transfer(&from.pubkey(), to, lamports)],
-        );
+        )
     }
 
     pub fn initialize(
@@ -216,7 +217,7 @@ mod helpers {
         program: &Pubkey,
         payer: &Keypair,
         initial_guardians: &[[u8; 20]],
-    ) {
+    ) -> Result<Signature, ClientError> {
         execute(
             client,
             payer,
@@ -229,7 +230,7 @@ mod helpers {
                 initial_guardians,
             )
             .unwrap()],
-        );
+        )
     }
 
     pub fn post_message(
@@ -239,7 +240,7 @@ mod helpers {
         emitter: &Keypair,
         nonce: u32,
         data: Vec<u8>,
-    ) -> Pubkey {
+    ) -> Result<Pubkey, ClientError> {
         // Transfer money into the fee collector as it needs a balance/must exist.
         let fee_collector = FeeCollector::<'_>::key(None, program);
 
@@ -256,9 +257,9 @@ mod helpers {
                 system_instruction::transfer(&payer.pubkey(), &fee_collector, 10_000),
                 instruction,
             ],
-        );
+        )?;
 
-        message_key
+        Ok(message_key)
     }
 
     pub fn verify_signatures(
@@ -269,7 +270,7 @@ mod helpers {
         body_hash: [u8; 32],
         secret_keys: &[SecretKey],
         guardian_set_version: u32,
-    ) {
+    ) -> Result<(), ClientError> {
         // Push Secp256k1 instructions for each signature we want to verify.
         for (i, key) in secret_keys.iter().enumerate() {
             // Set this signers signature position as present at 0.
@@ -294,17 +295,18 @@ mod helpers {
                     )
                     .unwrap(),
                 ],
-            );
+            )?;
         }
+        Ok(())
     }
 
-    pub fn post_vaa(client: &RpcClient, program: &Pubkey, payer: &Keypair, vaa: PostVAAData) {
+    pub fn post_vaa(client: &RpcClient, program: &Pubkey, payer: &Keypair, vaa: PostVAAData) -> Result<Signature, ClientError> {
         execute(
             client,
             payer,
             &[payer],
             &[instructions::post_vaa(*program, payer.pubkey(), vaa)],
-        );
+        )
     }
 
     pub fn upgrade_contract(
@@ -313,7 +315,7 @@ mod helpers {
         payer: &Keypair,
         payload_message: Pubkey,
         spill: Pubkey,
-    ) {
+    ) -> Result<Signature, ClientError> {
         execute(
             client,
             payer,
@@ -324,7 +326,7 @@ mod helpers {
                 payload_message,
                 spill,
             )],
-        );
+        )
     }
 
     pub fn upgrade_guardian_set(
@@ -335,7 +337,7 @@ mod helpers {
         emitter: Pubkey,
         old_index: u32,
         new_index: u32,
-    ) {
+    ) -> Result<Signature, ClientError> {
         execute(
             client,
             payer,
@@ -348,16 +350,16 @@ mod helpers {
                 old_index,
                 new_index,
             )],
-        );
+        )
     }
 
-    pub fn set_fees(client: &RpcClient, program: &Pubkey, payer: &Keypair, fee: u32) {
+    pub fn set_fees(client: &RpcClient, program: &Pubkey, payer: &Keypair, fee: u32) -> Result<Signature, ClientError> {
         execute(
             client,
             payer,
             &[payer],
             &[instructions::set_fees(*program, payer.pubkey(), fee)],
-        );
+        )
     }
 
     pub fn transfer_fees(
@@ -365,7 +367,7 @@ mod helpers {
         program: &Pubkey,
         payer: &Keypair,
         recipient: &Pubkey,
-    ) {
+    ) -> Result<Signature, ClientError> {
         execute(
             client,
             payer,
@@ -375,6 +377,6 @@ mod helpers {
                 payer.pubkey(),
                 *recipient,
             )],
-        );
+        )
     }
 }

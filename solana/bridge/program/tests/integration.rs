@@ -122,7 +122,7 @@ fn test_guardian_set_change(public_keys: &[[u8; 20]], secret_keys: &[SecretKey])
         new_guardian_set: new_public_keys.clone(),
     }.try_to_vec().unwrap();
 
-    let message_key = common::post_message(client, program, payer, &emitter, nonce, message.clone());
+    let message_key = common::post_message(client, program, payer, &emitter, nonce, message.clone()).unwrap();
     let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 0);
     common::verify_signatures(client, program, payer, body, body_hash, &secret_keys, 0);
     common::post_vaa(client, program, payer, vaa);
