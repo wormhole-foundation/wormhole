@@ -24,6 +24,7 @@ use crate::{
     vaa::ClaimableVAA,
     Error::{
         InvalidFeeRecipient,
+        InvalidGovernanceKey,
         InvalidGuardianSetUpgrade,
     },
 };
@@ -110,6 +111,16 @@ pub fn upgrade_guardian_set(
     accs: &mut UpgradeGuardianSet,
     _data: UpgradeGuardianSetData,
 ) -> Result<()> {
+    // Enforce only the expected governance key.
+    if format!(
+        "{}",
+        Pubkey::new_from_array(accs.vaa.message.meta().emitter_address)
+    ) != std::env!("EMITTER_ADDRESS")
+        || accs.vaa.message.meta().emitter_chain != 1
+    {
+        return Err(InvalidGovernanceKey.into());
+    }
+
     accs.vaa.claim(ctx, accs.payer.key)?;
 
     // Set expiration time for the old set

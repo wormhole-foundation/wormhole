@@ -248,13 +248,14 @@ pub fn upgrade_guardian_set(
     emitter: Pubkey,
     old_index: u32,
     new_index: u32,
+    sequence: u64,
 ) -> Instruction {
     let bridge = Bridge::<'_, { AccountState::Uninitialized }>::key(None, &program_id);
     let claim = Claim::<'_, { AccountState::Uninitialized }>::key(
         &ClaimDerivationData {
             emitter_address: emitter.to_bytes(),
             emitter_chain: CHAIN_ID_SOLANA,
-            sequence: 1,
+            sequence: sequence,
         },
         &program_id,
     );

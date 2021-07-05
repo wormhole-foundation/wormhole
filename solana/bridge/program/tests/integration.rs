@@ -68,20 +68,37 @@ use bridge::{
 
 mod common;
 
+const GOV_KEY: [u8; 64] = [
+    240, 133, 120, 113, 30, 67, 38, 184, 197, 72, 234, 99, 241, 21, 58, 225, 41, 157, 171, 44,
+    196, 163, 134, 236, 92, 148, 110, 68, 127, 114, 177, 0, 173, 253, 199, 9, 242, 142, 201,
+    174, 108, 197, 18, 102, 115, 0, 31, 205, 127, 188, 191, 56, 171, 228, 20, 247, 149, 170,
+    141, 231, 147, 88, 97, 199,
+];
+
+struct Context {
+    public: Vec<[u8; 20]>,
+    secret: Vec<SecretKey>,
+}
 
 #[test]
 fn run_integration_tests() {
     let (ref payer, ref client, ref program) = common::setup();
-    let (public_keys, secret_keys) = common::generate_keys(19);
+    let (public_keys, secret_keys) = common::generate_keys(6);
+    let mut context = Context {
+        public: public_keys,
+        secret: secret_keys,
+    };
 
-    common::initialize(client, program, payer, &*public_keys);
+    common::initialize(client, program, payer, &*context.public.clone());
 
-    test_bridge_messages(&public_keys, &secret_keys);
-    test_guardian_set_change(&public_keys, &secret_keys);
-    test_guardian_set_change_fails(&public_keys, &secret_keys);
+    // Tests are currently unhygienic as It's difficult to wrap `solana-test-validator` within the
+    // integration tests so for now we work around it by simply chain-calling our tests.
+    test_bridge_messages(&mut context);
+    test_guardian_set_change(&mut context);
+    test_guardian_set_change_fails(&mut context);
 }
 
-fn test_bridge_messages(public_keys: &[[u8; 20]], secret_keys: &[SecretKey]) {
+fn test_bridge_messages(context: &mut Context) {
     let (ref payer, ref client, ref program) = common::setup();
 
     // Data/Nonce used for emitting a message we want to prove exists.
@@ -90,33 +107,34 @@ fn test_bridge_messages(public_keys: &[[u8; 20]], secret_keys: &[SecretKey]) {
     let emitter = Keypair::new();
 
     // Post the message, publishing the data for guardian consumption.
-    let message_key = common::post_message(client, program, payer, &emitter, nonce, message.clone());
+    let message_key = common::post_message(client, program, payer, &emitter, nonce, message.clone()).unwrap();
 
     // Emulate Guardian behaviour, verifying the data and publishing signatures/VAA.
     let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 0);
-    common::verify_signatures(client, program, payer, body, body_hash, &secret_keys, 0);
-    common::post_vaa(client, program, payer, vaa);
+    common::verify_signatures(client, program, payer, body, body_hash, &context.secret, 0).unwrap();
+    common::post_vaa(client, program, payer, vaa).unwrap();
 }
 
-fn test_guardian_set_change(public_keys: &[[u8; 20]], secret_keys: &[SecretKey]) {
+fn test_guardian_set_change(context: &mut Context) {
     // Initialize a wormhole bridge on Solana to test with.
     let (ref payer, ref client, ref program) = common::setup();
 
     // Data/Nonce used for emitting a message we want to prove exists.
     let nonce = 12397;
     let message = b"Prove Me".to_vec();
-    let emitter = Keypair::new();
+    let emitter = Keypair::from_bytes(&GOV_KEY).unwrap();
 
     // Post the message, publishing the data for guardian consumption.
-    let message_key = common::post_message(client, program, payer, &emitter, nonce, message.clone());
+    let message_key = common::post_message(client, program, payer, &emitter, nonce, message.clone()).unwrap();
 
     // Emulate Guardian behaviour, verifying the data and publishing signatures/VAA.
     let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 0);
-    common::verify_signatures(client, program, payer, body, body_hash, &secret_keys, 0);
-    common::post_vaa(client, program, payer, vaa);
+    common::verify_signatures(client, program, payer, body, body_hash, &context.secret, 0).unwrap();
+    common::post_vaa(client, program, payer, vaa).unwrap();
 
     // Upgrade the guardian set with a new set of guardians.
-    let (new_public_keys, new_secret_keys) = common::generate_keys(3);
+    let (new_public_keys, new_secret_keys) = common::generate_keys(6);
+
     let nonce = 12398;
     let message = GovernancePayloadGuardianSetChange {
         new_guardian_set_index: 1,
@@ -125,8 +143,8 @@ fn test_guardian_set_change(public_keys: &[[u8; 20]], secret_keys: &[SecretKey])
 
     let message_key = common::post_message(client, program, payer, &emitter, nonce, message.clone()).unwrap();
     let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 0);
-    common::verify_signatures(client, program, payer, body, body_hash, &secret_keys, 0);
-    common::post_vaa(client, program, payer, vaa);
+    common::verify_signatures(client, program, payer, body, body_hash, &context.secret, 0).unwrap();
+    common::post_vaa(client, program, payer, vaa).unwrap();
 
     common::upgrade_guardian_set(
         client,
@@ -136,53 +154,49 @@ fn test_guardian_set_change(public_keys: &[[u8; 20]], secret_keys: &[SecretKey])
         emitter.pubkey(),
         0,
         1,
-    );
+        1,
+    ).unwrap();
 
     // Submit the message a second time with a new nonce.
     let nonce = 12399;
-    let message_key = common::post_message(client, program, payer, &emitter, nonce, message.clone());
+    let message_key = common::post_message(client, program, payer, &emitter, nonce, message.clone()).unwrap();
+
+    context.public = new_public_keys;
+    context.secret = new_secret_keys;
 
     // Emulate Guardian behaviour, verifying the data and publishing signatures/VAA.
     let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 1);
-    common::verify_signatures(client, program, payer, body, body_hash, &new_secret_keys, 1);
-    common::post_vaa(client, program, payer, vaa);
+    common::verify_signatures(client, program, payer, body, body_hash, &context.secret, 1).unwrap();
+    common::post_vaa(client, program, payer, vaa).unwrap();
 }
 
-fn test_guardian_set_change_fails(public_keys: &[[u8; 20]], secret_keys: &[SecretKey]) {
+fn test_guardian_set_change_fails(context: &mut Context) {
     // Initialize a wormhole bridge on Solana to test with.
     let (ref payer, ref client, ref program) = common::setup();
-
-    // Data/Nonce used for emitting a message we want to prove exists.
-    let nonce = 12397;
-    let message = b"Prove Me".to_vec();
     let emitter = Keypair::new();
 
-    // Post the message, publishing the data for guardian consumption.
-    let message_key = common::post_message(client, program, payer, &emitter, nonce, message.clone());
-
-    // Emulate Guardian behaviour, verifying the data and publishing signatures/VAA.
-    let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 0);
-    common::verify_signatures(client, program, payer, body, body_hash, &secret_keys, 0);
-    common::post_vaa(client, program, payer, vaa);
-
     // Upgrade the guardian set with a new set of guardians.
-    let (new_public_keys, new_secret_keys) = common::generate_keys(3);
-    let nonce = 12398;
+    let (new_public_keys, new_secret_keys) = common::generate_keys(6);
+    let nonce = 12400;
     let message = GovernancePayloadGuardianSetChange {
-        new_guardian_set_index: 1,
+        new_guardian_set_index: 2,
         new_guardian_set: new_public_keys.clone(),
     }.try_to_vec().unwrap();
 
     let message_key = common::post_message(client, program, payer, &emitter, nonce, message.clone()).unwrap();
-    let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 0);
+    let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 1);
 
-    common::upgrade_guardian_set(
+    assert!(common::upgrade_guardian_set(
         client,
         program,
         payer,
         message_key,
         emitter.pubkey(),
-        0,
         1,
-    );
+        2,
+        0,
+    ).is_err());
+
+    context.public = new_public_keys;
+    context.secret = new_secret_keys;
 }

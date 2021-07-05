@@ -79,6 +79,8 @@ pub fn post_message(
     data: PostMessageData,
 ) -> Result<()> {
     trace!("Message Address: {}", accs.message.info().key);
+    trace!("Emitter Address: {}", accs.emitter.info().key);
+    trace!("Nonce: {}", data.nonce);
 
     let msg_derivation = MessageDerivationData {
         emitter_key: accs.emitter.key.to_bytes(),
@@ -87,8 +89,6 @@ pub fn post_message(
         payload: data.payload.clone(),
         sequence: None,
     };
-
-    trace!("Verifying Message: {}, {}", accs.emitter.key, data.nonce);
 
     accs.message
         .verify_derivation(ctx.program_id, &msg_derivation)?;

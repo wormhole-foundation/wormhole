@@ -337,6 +337,7 @@ mod helpers {
         emitter: Pubkey,
         old_index: u32,
         new_index: u32,
+        sequence: u64,
     ) -> Result<Signature, ClientError> {
         execute(
             client,
@@ -349,6 +350,7 @@ mod helpers {
                 emitter,
                 old_index,
                 new_index,
+                sequence,
             )],
         )
     }

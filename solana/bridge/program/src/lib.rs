@@ -61,6 +61,7 @@ enum Error {
     InvalidFeeRecipient,
     InvalidGovernanceAction,
     InvalidGovernanceChain,
+    InvalidGovernanceKey,
     InvalidGovernanceModule,
     InvalidGuardianSetUpgrade,
     InvalidHash,

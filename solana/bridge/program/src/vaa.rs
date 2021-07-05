@@ -20,6 +20,7 @@ use byteorder::{
 use solana_program::pubkey::Pubkey;
 use solitaire::{
     processors::seeded::Seeded,
+    trace,
     Context,
     CreationLamports::Exempt,
     Data,
@@ -137,6 +138,7 @@ impl<'b, T: DeserializePayload> InstructionContext<'b> for ClaimableVAA<'b, T> {
         // Do the Posted Message verification
 
         // Verify that the claim account is derived correctly
+        trace!("Seq: {}", self.message.meta().sequence);
         self.claim.verify_derivation(
             program_id,
             &ClaimDerivationData {
