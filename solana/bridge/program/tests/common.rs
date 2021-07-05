@@ -1,6 +1,9 @@
 #![allow(warnings)]
 
-use borsh::BorshSerialize;
+use borsh::{
+    BorshDeserialize,
+    BorshSerialize,
+};
 use byteorder::{
     BigEndian,
     WriteBytesExt,
@@ -63,6 +66,8 @@ use bridge::{
         GuardianSet,
         GuardianSetDerivationData,
         MessageDerivationData,
+        Sequence,
+        SequenceDerivationData,
         SignatureSet,
         SignatureSetDerivationData,
     },
@@ -125,6 +130,17 @@ mod helpers {
             .parse::<Pubkey>()
             .unwrap();
         (payer, rpc, program)
+    }
+
+    /// Fetch account data, the loop is there to re-attempt until data is available.
+    pub fn get_account_data<T: BorshDeserialize>(client: &RpcClient, account: &Pubkey) -> Option<T> {
+        for _ in 0..5 {
+            if let Ok(account) = client.get_account(account) {
+                return Some(T::try_from_slice(&account.data).unwrap());
+            }
+            std::thread::sleep(std::time::Duration::from_millis(2000));
+        }
+        None
     }
 
     /// Generate `count` secp256k1 private keys, along with their ethereum-styled public key
