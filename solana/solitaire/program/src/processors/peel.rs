@@ -7,6 +7,7 @@
 use borsh::BorshDeserialize;
 use solana_program::{
     instruction::AccountMeta,
+    program_error::ProgramError,
     pubkey::Pubkey,
     system_program,
     sysvar::{
@@ -15,7 +16,10 @@ use solana_program::{
         SysvarId,
     },
 };
-use std::marker::PhantomData;
+use std::{
+    marker::PhantomData,
+    slice::Iter,
+};
 
 use crate::{
     processors::seeded::{
@@ -24,6 +28,7 @@ use crate::{
     },
     types::*,
     Context,
+    FromAccounts,
     Result,
     SolitaireError,
 };
@@ -40,8 +45,15 @@ pub trait Peel<'a, 'b: 'a, 'c> {
 
     fn persist(&self, program_id: &Pubkey) -> Result<()>;
 
-    /// Special method for turning the type back into AccountMeta for CPI use cases.
-    fn to_partial_cpi_meta(&self) -> Vec<AccountMeta>;
+    /// How many accounts from the on-chain account iterator
+    /// constitute this peelable type? Important to customizefor
+    /// multi-account types like FromAccounts implementors.
+    fn partial_size_in_accounts() -> usize {
+        1
+    }
+
+    /// Special method for turning an iterator into  AccountMetas for CPI use cases.
+    fn to_partial_cpi_metas(_: &'c mut Iter<Info<'b>>) -> Result<Vec<AccountMeta>>;
 }
 
 /// Peel a Derived Key
@@ -65,14 +77,13 @@ impl<'a, 'b: 'a, 'c, T: Peel<'a, 'b, 'c>, const Seed: &'static str> Peel<'a, 'b,
         T::persist(self, program_id)
     }
 
-    fn to_partial_cpi_meta(&self) -> Vec<AccountMeta> {
-        self.0.to_partial_cpi_meta()
+    fn to_partial_cpi_metas(infos: &'c mut Iter<Info<'b>>) -> Result<Vec<AccountMeta>> {
+        T::to_partial_cpi_metas(infos)
     }
 }
 
 /// Peel a Mutable key.
-impl<'a, 'b: 'a, 'c, T: Peel<'a, 'b, 'c>> Peel<'a, 'b, 'c> for Mut<T>
-{
+impl<'a, 'b: 'a, 'c, T: Peel<'a, 'b, 'c>> Peel<'a, 'b, 'c> for Mut<T> {
     fn peel<I>(mut ctx: &'c mut Context<'a, 'b, 'c, I>) -> Result<Self> {
         ctx.immutable = false;
         match ctx.info().is_writable {
@@ -87,6 +98,9 @@ impl<'a, 'b: 'a, 'c, T: Peel<'a, 'b, 'c>> Peel<'a, 'b, 'c> for Mut<T>
 
     fn persist(&self, program_id: &Pubkey) -> Result<()> {
         T::persist(self, program_id)
+    }
+    fn to_partial_cpi_metas(infos: &'c mut Iter<Info<'b>>) -> Result<Vec<AccountMeta>> {
+        T::to_partial_cpi_metas(infos)
     }
 }
 
@@ -107,8 +121,8 @@ impl<'a, 'b: 'a, 'c, T: Peel<'a, 'b, 'c>> Peel<'a, 'b, 'c> for Signer<T> {
         T::persist(self, program_id)
     }
 
-    fn to_partial_cpi_meta(&self) -> Vec<AccountMeta> {
-        self.0.to_partial_cpi_meta()
+    fn to_partial_cpi_metas(infos: &'c mut Iter<Info<'b>>) -> Result<Vec<AccountMeta>> {
+        T::to_partial_cpi_metas(infos)
     }
 }
 
@@ -129,8 +143,8 @@ impl<'a, 'b: 'a, 'c, T: Peel<'a, 'b, 'c>> Peel<'a, 'b, 'c> for System<T> {
         T::persist(self, program_id)
     }
 
-    fn to_partial_cpi_meta(&self) -> Vec<AccountMeta> {
-        self.0.to_partial_cpi_meta()
+    fn to_partial_cpi_metas(infos: &'c mut Iter<Info<'b>>) -> Result<Vec<AccountMeta>> {
+        T::to_partial_cpi_metas(infos)
     }
 }
 
@@ -157,8 +171,8 @@ where
         Ok(())
     }
 
-    fn to_partial_cpi_meta(&self) -> Vec<AccountMeta> {
-        self.to_partial_cpi_meta()
+    fn to_partial_cpi_metas(infos: &'c mut Iter<Info<'b>>) -> Result<Vec<AccountMeta>> {
+        Info::to_partial_cpi_metas(infos)
     }
 }
 
@@ -179,14 +193,17 @@ impl<'a, 'b: 'a, 'c> Peel<'a, 'b, 'c> for Info<'b> {
         Ok(())
     }
 
-    fn to_partial_cpi_meta(&self) -> Vec<AccountMeta> {
-        let meta = if self.is_writable {
-            AccountMeta::new(self.key.clone(), self.is_signer)
+    fn to_partial_cpi_metas(infos: &'c mut Iter<Info<'b>>) -> Result<Vec<AccountMeta>> {
+        let acc = infos
+            .next()
+            .ok_or_else(|| SolitaireError::ProgramError(ProgramError::AccountDataTooSmall))?;
+        let meta = if acc.is_writable {
+            AccountMeta::new(acc.key.clone(), acc.is_signer)
         } else {
-            AccountMeta::new_readonly(self.key.clone(), self.is_signer)
+            AccountMeta::new_readonly(acc.key.clone(), acc.is_signer)
         };
 
-        vec![meta]
+        Ok(vec![meta])
     }
 }
 
@@ -268,7 +285,51 @@ impl<
         Ok(())
     }
 
-    fn to_partial_cpi_meta(&self) -> Vec<AccountMeta> {
-        self.0.to_partial_cpi_meta()
+    fn to_partial_cpi_metas(infos: &'c mut Iter<Info<'b>>) -> Result<Vec<AccountMeta>> {
+        Info::to_partial_cpi_metas(infos)
+    }
+}
+
+impl<'a, 'b: 'a, 'c, T: Peel<'a, 'b, 'c> + FromAccounts<'a, 'b, 'c>> Peel<'a, 'b, 'c>
+    for CPICall<T>
+{
+    fn peel<I>(ctx: &'c mut Context<'a, 'b, 'c, I>) -> Result<Self>
+    where
+        Self: Sized,
+    {
+        let xprog = ctx
+            .iter
+            .next()
+            .ok_or_else(|| SolitaireError::ProgramError(ProgramError::AccountDataTooSmall))?;
+
+        let xprog_accounts = T::to_cpi_metas(ctx.iter)?;
+
+        if xprog_accounts.len() != T::size_in_accounts() {
+            return Err(SolitaireError::ProgramError(
+                ProgramError::AccountDataTooSmall,
+            ));
+        }
+        Ok(Self {
+            xprog_id: xprog.key.clone(),
+            xprog_accounts,
+            callee_type: PhantomData,
+        })
+    }
+
+    fn deps() -> Vec<Pubkey> {
+        todo!()
+    }
+
+    fn persist(&self, program_id: &Pubkey) -> Result<()> {
+        // Persisting cross accounts is not our business
+        Ok(())
+    }
+
+    fn to_partial_cpi_metas(infos: &'c mut Iter<Info<'b>>) -> Result<Vec<AccountMeta>> {
+        T::to_cpi_metas(infos)
+    }
+
+    fn partial_size_in_accounts() -> usize {
+        T::size_in_accounts() + 1 // Nested type size + 1 for cross program ID
     }
 }

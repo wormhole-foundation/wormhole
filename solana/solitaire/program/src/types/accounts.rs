@@ -5,17 +5,11 @@
 //! types that describe different kinds of accounts to target.
 
 use borsh::BorshSerialize;
-use solana_program::{
-    account_info::AccountInfo,
-    program::invoke_signed,
-    pubkey::Pubkey,
-    system_instruction,
-    sysvar::Sysvar as SolanaSysvar,
-};
-use std::ops::{
+use solana_program::{account_info::AccountInfo, instruction::AccountMeta, program::invoke_signed, pubkey::Pubkey, system_instruction, sysvar::Sysvar as SolanaSysvar};
+use std::{marker::PhantomData, ops::{
     Deref,
     DerefMut,
-};
+}};
 
 use crate::{
     processors::seeded::Owned,
@@ -125,4 +119,12 @@ impl<const Seed: &'static str, T: BorshSerialize + Owned + Default>
         let (_, bump_seed) = Pubkey::find_program_address(&[Seed.as_bytes()][..], ctx.program_id);
         invoke_signed(&ix, ctx.accounts, &[&[Seed.as_bytes(), &[bump_seed]]]).map_err(|e| e.into())
     }
+}
+
+#[derive(Debug)]
+pub struct CPICall<T> {
+    pub xprog_id: Pubkey,
+    pub xprog_accounts: Vec<AccountMeta>,
+    /// Helps preserve information about the type of cross program's arguments
+    pub callee_type: PhantomData<T>,
 }

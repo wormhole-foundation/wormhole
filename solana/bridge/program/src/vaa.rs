@@ -17,7 +17,10 @@ use byteorder::{
     BigEndian,
     ReadBytesExt,
 };
-use solana_program::{instruction::AccountMeta, pubkey::Pubkey};
+use solana_program::{
+    instruction::AccountMeta,
+    pubkey::Pubkey,
+};
 use solitaire::{
     processors::seeded::Seeded,
     trace,
@@ -103,8 +106,8 @@ impl<'a, 'b: 'a, 'c, T: DeserializePayload> Peel<'a, 'b, 'c> for PayloadMessage<
         Data::persist(&self.0, program_id)
     }
 
-    fn to_partial_cpi_meta(&self) -> Vec<AccountMeta> {
-        Data::to_partial_cpi_meta(&self.0)
+    fn to_partial_cpi_metas(infos: &'c mut std::slice::Iter<Info<'b>>) -> Result<Vec<AccountMeta>> {
+        Data::<'b, PostedMessage, {AccountState::Initialized}>::to_partial_cpi_metas(infos)
     }
 }
 
