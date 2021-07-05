@@ -78,6 +78,7 @@ fn run_integration_tests() {
 
     test_bridge_messages(&public_keys, &secret_keys);
     test_guardian_set_change(&public_keys, &secret_keys);
+    test_guardian_set_change_fails(&public_keys, &secret_keys);
 }
 
 fn test_bridge_messages(public_keys: &[[u8; 20]], secret_keys: &[SecretKey]) {
@@ -145,4 +146,43 @@ fn test_guardian_set_change(public_keys: &[[u8; 20]], secret_keys: &[SecretKey])
     let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 1);
     common::verify_signatures(client, program, payer, body, body_hash, &new_secret_keys, 1);
     common::post_vaa(client, program, payer, vaa);
+}
+
+fn test_guardian_set_change_fails(public_keys: &[[u8; 20]], secret_keys: &[SecretKey]) {
+    // Initialize a wormhole bridge on Solana to test with.
+    let (ref payer, ref client, ref program) = common::setup();
+
+    // Data/Nonce used for emitting a message we want to prove exists.
+    let nonce = 12397;
+    let message = b"Prove Me".to_vec();
+    let emitter = Keypair::new();
+
+    // Post the message, publishing the data for guardian consumption.
+    let message_key = common::post_message(client, program, payer, &emitter, nonce, message.clone());
+
+    // Emulate Guardian behaviour, verifying the data and publishing signatures/VAA.
+    let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 0);
+    common::verify_signatures(client, program, payer, body, body_hash, &secret_keys, 0);
+    common::post_vaa(client, program, payer, vaa);
+
+    // Upgrade the guardian set with a new set of guardians.
+    let (new_public_keys, new_secret_keys) = common::generate_keys(3);
+    let nonce = 12398;
+    let message = GovernancePayloadGuardianSetChange {
+        new_guardian_set_index: 1,
+        new_guardian_set: new_public_keys.clone(),
+    }.try_to_vec().unwrap();
+
+    let message_key = common::post_message(client, program, payer, &emitter, nonce, message.clone()).unwrap();
+    let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 0);
+
+    common::upgrade_guardian_set(
+        client,
+        program,
+        payer,
+        message_key,
+        emitter.pubkey(),
+        0,
+        1,
+    );
 }
