@@ -44,6 +44,7 @@ pub fn initialize(
     program_id: Pubkey,
     payer: Pubkey,
     fee: u64,
+    fee_persistent: u64,
     guardian_set_expiration_time: u32,
     initial_guardians: &[[u8; 20]],
 ) -> solitaire::Result<Instruction> {
@@ -67,6 +68,7 @@ pub fn initialize(
         data: crate::instruction::Instruction::Initialize(InitializeData {
             initial_guardians: initial_guardians.to_vec(),
             fee,
+            fee_persistent,
             guardian_set_expiration_time,
         })
         .try_to_vec()?,

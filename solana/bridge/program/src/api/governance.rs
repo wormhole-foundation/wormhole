@@ -170,8 +170,8 @@ pub struct SetFeesData {}
 pub fn set_fees(ctx: &ExecutionContext, accs: &mut SetFees, _data: SetFeesData) -> Result<()> {
     accs.vaa.claim(ctx, accs.payer.key)?;
 
-    // Set expiration time for the old set
-    accs.bridge.config.fee = accs.vaa.fee;
+    accs.bridge.config.fee = accs.vaa.fee.as_u64();
+    accs.bridge.config.fee_persistent = accs.vaa.persisted_fee.as_u64();
 
     Ok(())
 }

@@ -1,4 +1,4 @@
-use schemars::JsonSchema;
+use schemars::{JsonSchema, Set};
 use serde::{Deserialize, Serialize};
 
 use cosmwasm_std::{Binary, CanonicalAddr, Coin, HumanAddr, StdResult, Storage, Uint128};
@@ -31,8 +31,10 @@ pub struct ConfigInfo {
     pub gov_chain: u16,
     pub gov_address: Vec<u8>,
 
-    // Asset locking fee
+    // Message sending fee
     pub fee: Coin,
+    // Persisted message sending fee
+    pub fee_persisted: Coin,
 }
 
 // Validator Action Approval(VAA) data
@@ -144,6 +146,7 @@ pub struct GuardianAddress {
     pub bytes: Binary, // 20-byte addresses
 }
 
+use crate::contract::FEE_DENOMINATION;
 #[cfg(test)]
 use hex;
 
@@ -263,7 +266,7 @@ impl GovernancePacket {
     }
 }
 
-// action 1
+// action 2
 pub struct GuardianSetUpgrade {
     pub new_guardian_set_index: u32,
     pub new_guardian_set: GuardianSetInfo,
@@ -303,7 +306,34 @@ impl GuardianSetUpgrade {
     }
 }
 
-// action 2
+// action 3
+pub struct SetFee {
+    pub fee: Coin,
+    pub fee_persistent: Coin,
+}
+
+impl SetFee {
+    pub fn deserialize(data: &Vec<u8>) -> StdResult<Self> {
+        let data = data.as_slice();
+
+        let (_, amount) = data.get_u256(0);
+        let (_, amount_persistent) = data.get_u256(32);
+        let fee = Coin {
+            denom: String::from(FEE_DENOMINATION),
+            amount: Uint128(amount),
+        };
+        let fee_persistent = Coin {
+            denom: String::from(FEE_DENOMINATION),
+            amount: Uint128(amount_persistent),
+        };
+        Ok(SetFee {
+            fee,
+            fee_persistent,
+        })
+    }
+}
+
+// action 4
 pub struct TransferFee {
     pub amount: Coin,
     pub recipient: CanonicalAddr,
@@ -314,12 +344,11 @@ impl TransferFee {
         let data = data.as_slice();
         let recipient = data.get_address(0);
 
-        let amount = Uint128(data.get_u128_be(32));
-        let denom = match String::from_utf8(data[48..].to_vec()) {
-            Ok(s) => s,
-            Err(_) => return ContractError::InvalidVAA.std_err(),
+        let (_, amount) = data.get_u256(32);
+        let amount = Coin {
+            denom: String::from(FEE_DENOMINATION),
+            amount: Uint128(amount),
         };
-        let amount = Coin { denom, amount };
         Ok(TransferFee { amount, recipient })
     }
 }

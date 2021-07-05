@@ -112,7 +112,9 @@ Module [32]byte = "Core"
 Action uint16 = 3
 Chain uint16
 // Message fee in the native token
-Fee uint64
+Fee uint256
+// Persistent message fee in the native token
+FeePersistent uint256
 ```
 
 TransferFees:
@@ -124,7 +126,7 @@ Module [32]byte = "Core"
 Action uint16 = 4
 Chain uint16
 // Amount being transferred (big-endian uint256)
-Amount [32]uint8
+Amount uint256
 // Address of the recipient. Left-zero-padded if shorter than 32 bytes
 To [32]uint8
 ```

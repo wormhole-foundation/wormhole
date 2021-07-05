@@ -74,6 +74,8 @@ pub struct BridgeConfig {
 
     /// Amount of lamports that needs to be paid to the protocol to post a message
     pub fee: u64,
+    /// Amount of lamports that needs to be paid to the protocol to post a persistent message
+    pub fee_persistent: u64,
 }
 
 #[derive(Default, BorshSerialize, BorshDeserialize)]
@@ -220,34 +222,6 @@ impl Owned for ClaimData {
     }
 }
 
-pub struct GovernancePayloadUpgrade {
-    // Address of the new Implementation
-    pub new_contract: Pubkey,
-}
-
-impl DeserializePayload for GovernancePayloadUpgrade
-where
-    Self: DeserializeGovernancePayload,
-{
-    fn deserialize(buf: &mut &[u8]) -> Result<Self, SolitaireError> {
-        let mut c = Cursor::new(buf);
-
-        Self::check_governance_header(&mut c)?;
-
-        let mut addr = [0u8; 32];
-        c.read_exact(&mut addr)?;
-
-        Ok(GovernancePayloadUpgrade {
-            new_contract: Pubkey::new(&addr[..]),
-        })
-    }
-}
-
-impl DeserializeGovernancePayload for GovernancePayloadUpgrade {
-    const MODULE: &'static str = "CORE";
-    const ACTION: u8 = 2;
-}
-
 pub struct GovernancePayloadGuardianSetChange {
     // New GuardianSetIndex
     pub new_guardian_set_index: u32,
@@ -262,7 +236,7 @@ impl SerializePayload for GovernancePayloadGuardianSetChange {
         v.write_u32::<BigEndian>(self.new_guardian_set_index)?;
         v.write_u8(self.new_guardian_set.len() as u8)?;
         for key in self.new_guardian_set.iter() {
-            v.write(key);
+            v.write(key)?;
         }
         Ok(())
     }
@@ -297,15 +271,52 @@ impl DeserializeGovernancePayload for GovernancePayloadGuardianSetChange {
     const ACTION: u8 = 1;
 }
 
+pub struct GovernancePayloadUpgrade {
+    // Address of the new Implementation
+    pub new_contract: Pubkey,
+}
+
+impl DeserializePayload for GovernancePayloadUpgrade
+where
+    Self: DeserializeGovernancePayload,
+{
+    fn deserialize(buf: &mut &[u8]) -> Result<Self, SolitaireError> {
+        let mut c = Cursor::new(buf);
+
+        Self::check_governance_header(&mut c)?;
+
+        let mut addr = [0u8; 32];
+        c.read_exact(&mut addr)?;
+
+        Ok(GovernancePayloadUpgrade {
+            new_contract: Pubkey::new(&addr[..]),
+        })
+    }
+}
+
+impl DeserializeGovernancePayload for GovernancePayloadUpgrade {
+    const MODULE: &'static str = "CORE";
+    const ACTION: u8 = 2;
+}
+
 pub struct GovernancePayloadSetMessageFee {
     // New fee in lamports
-    pub fee: u64,
+    pub fee: U256,
+    // New fee for persisted messages in lamports
+    pub persisted_fee: U256,
 }
 
 impl SerializePayload for GovernancePayloadSetMessageFee {
     fn serialize<W: Write>(&self, v: &mut W) -> std::result::Result<(), SolitaireError> {
         use byteorder::WriteBytesExt;
-        v.write_u64::<BigEndian>(self.fee)?;
+        let mut fee_data = [0u8; 32];
+        self.fee.to_big_endian(&mut fee_data);
+        v.write(&fee_data[..])?;
+
+        let mut fee_persistent_data = [0u8; 32];
+        self.persisted_fee.to_big_endian(&mut fee_persistent_data);
+        v.write(&fee_persistent_data[..])?;
+
         Ok(())
     }
 }
@@ -317,8 +328,18 @@ where
     fn deserialize(buf: &mut &[u8]) -> Result<Self, SolitaireError> {
         let mut c = Cursor::new(buf);
 
-        let fee = c.read_u64::<BigEndian>()?;
-        Ok(GovernancePayloadSetMessageFee { fee })
+        let mut fee_data: [u8; 32] = [0; 32];
+        c.read_exact(&mut fee_data)?;
+        let fee = U256::from_big_endian(&fee_data);
+
+        let mut fee_persisted_data: [u8; 32] = [0; 32];
+        c.read_exact(&mut fee_persisted_data)?;
+        let fee_persisted = U256::from_big_endian(&fee_persisted_data);
+
+        Ok(GovernancePayloadSetMessageFee {
+            fee,
+            persisted_fee: fee_persisted,
+        })
     }
 }
 

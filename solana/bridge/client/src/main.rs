@@ -79,6 +79,7 @@ fn command_deploy_bridge(
     initial_guardians: Vec<[u8; 20]>,
     guardian_expiration: u32,
     message_fee: u64,
+    message_fee_persistent: u64,
 ) -> CommmandResult {
     println!("Initializing Wormhole bridge {}", bridge);
 
@@ -90,6 +91,7 @@ fn command_deploy_bridge(
         *bridge,
         config.owner.pubkey(),
         message_fee,
+        message_fee_persistent,
         guardian_expiration,
         initial_guardians.as_slice(),
     )
@@ -122,12 +124,19 @@ fn command_post_message(
             None, bridge,
         ))?;
     let bridge_config = BridgeData::try_from_slice(bridge_config_account.data.as_slice())?;
-    println!("Message fee: {} lamports", bridge_config.config.fee);
+    let fee = {
+        if persist {
+            bridge_config.config.fee_persistent
+        } else {
+            bridge_config.config.fee
+        }
+    };
+    println!("Message fee: {} lamports", fee);
 
     let transfer_ix = transfer(
         &config.owner.pubkey(),
         &FeeCollector::key(None, bridge),
-        bridge_config.config.fee,
+        fee,
     );
     let (_, ix) = bridge::instructions::post_message(
         *bridge,
@@ -237,6 +246,15 @@ fn main() {
                         .index(4)
                         .required(true)
                         .help("Initial message posting fee"),
+                )
+                .arg(
+                    Arg::with_name("message_fee_persistent")
+                        .validator(is_u64)
+                        .value_name("MESSAGE_FEE_PERSISTENT")
+                        .takes_value(true)
+                        .index(5)
+                        .required(true)
+                        .help("Initial persistent message posting fee"),
                 ),
         )
         .subcommand(
@@ -315,6 +333,7 @@ fn main() {
             let guardian_expiration: u32 =
                 value_of(arg_matches, "guardian_set_expiration").unwrap();
             let msg_fee: u64 = value_of(arg_matches, "message_fee").unwrap();
+            let msg_fee_persistent: u64 = value_of(arg_matches, "message_fee_persistent").unwrap();
 
             let mut guardian = [0u8; 20];
             guardian.copy_from_slice(&initial_data);
@@ -324,6 +343,7 @@ fn main() {
                 vec![guardian],
                 guardian_expiration,
                 msg_fee,
+                msg_fee_persistent,
             )
         }
         ("post-message", Some(arg_matches)) => {

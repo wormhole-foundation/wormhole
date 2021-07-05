@@ -96,6 +96,13 @@ pub fn post_message(
     accs.message
         .verify_derivation(ctx.program_id, &msg_derivation)?;
 
+    let fee = {
+        if data.persist {
+            accs.bridge.config.fee_persistent
+        } else {
+            accs.bridge.config.fee
+        }
+    };
     // Fee handling, checking previously known balance allows us to not care who is the payer of
     // this submission.
     if accs
@@ -103,11 +110,11 @@ pub fn post_message(
         .lamports()
         .checked_sub(accs.bridge.last_lamports)
         .ok_or(MathOverflow)?
-        < accs.bridge.config.fee
+        < fee
     {
         trace!(
             "Expected fee not found: fee, last_lamports, collector: {} {} {}",
-            accs.bridge.config.fee,
+            fee,
             accs.bridge.last_lamports,
             accs.fee_collector.lamports(),
         );

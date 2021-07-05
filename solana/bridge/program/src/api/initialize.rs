@@ -37,6 +37,9 @@ pub struct InitializeData {
     /// Amount of lamports that needs to be paid to the protocol to post a message
     pub fee: u64,
 
+    /// Amount of lamports that needs to be paid to the protocol to post a message
+    pub fee_persistent: u64,
+
     /// Initial Guardian Set
     pub initial_guardians: Vec<[u8; 20]>,
 }
@@ -71,6 +74,7 @@ pub fn initialize(
     accs.bridge.config = BridgeConfig {
         guardian_set_expiration_time: data.guardian_set_expiration_time,
         fee: data.fee,
+        fee_persistent: data.fee_persistent,
     };
 
     // Initialize the fee collector account so it's rent exempt and will keep funds

@@ -16,8 +16,8 @@ use secp256k1::{
 };
 use sha3::Digest;
 use solana_client::{
-    rpc_client::RpcClient,
     client_error::ClientError,
+    rpc_client::RpcClient,
     rpc_config::RpcSendTransactionConfig,
 };
 use solana_program::{
@@ -42,8 +42,8 @@ use solana_sdk::{
     signature::{
         read_keypair_file,
         Keypair,
-        Signer,
         Signature,
+        Signer,
     },
     transaction::Transaction,
 };
@@ -103,16 +103,15 @@ fn execute(
     let mut transaction = Transaction::new_with_payer(instructions, Some(&payer.pubkey()));
     let recent_blockhash = client.get_recent_blockhash().unwrap().0;
     transaction.sign(&signers.to_vec(), recent_blockhash);
-    client
-        .send_and_confirm_transaction_with_spinner_and_config(
-            &transaction,
-            CommitmentConfig::processed(),
-            RpcSendTransactionConfig {
-                skip_preflight: true,
-                preflight_commitment: None,
-                encoding: None,
-            },
-        )
+    client.send_and_confirm_transaction_with_spinner_and_config(
+        &transaction,
+        CommitmentConfig::processed(),
+        RpcSendTransactionConfig {
+            skip_preflight: true,
+            preflight_commitment: None,
+            encoding: None,
+        },
+    )
 }
 
 mod helpers {
@@ -133,7 +132,10 @@ mod helpers {
     }
 
     /// Fetch account data, the loop is there to re-attempt until data is available.
-    pub fn get_account_data<T: BorshDeserialize>(client: &RpcClient, account: &Pubkey) -> Option<T> {
+    pub fn get_account_data<T: BorshDeserialize>(
+        client: &RpcClient,
+        account: &Pubkey,
+    ) -> Option<T> {
         for _ in 0..5 {
             if let Ok(account) = client.get_account(account) {
                 return Some(T::try_from_slice(&account.data).unwrap());
@@ -219,7 +221,12 @@ mod helpers {
         (vaa, body, body_hash)
     }
 
-    pub fn transfer(client: &RpcClient, from: &Keypair, to: &Pubkey, lamports: u64) -> Result<Signature, ClientError> {
+    pub fn transfer(
+        client: &RpcClient,
+        from: &Keypair,
+        to: &Pubkey,
+        lamports: u64,
+    ) -> Result<Signature, ClientError> {
         execute(
             client,
             from,
@@ -257,14 +264,21 @@ mod helpers {
         nonce: u32,
         data: Vec<u8>,
         fee: u64,
+        persist: bool,
     ) -> Result<Pubkey, ClientError> {
         // Transfer money into the fee collector as it needs a balance/must exist.
         let fee_collector = FeeCollector::<'_>::key(None, program);
 
         // Capture the resulting message, later functions will need this.
-        let (message_key, instruction) =
-            instructions::post_message(*program, payer.pubkey(), emitter.pubkey(), nonce, data)
-                .unwrap();
+        let (message_key, instruction) = instructions::post_message(
+            *program,
+            payer.pubkey(),
+            emitter.pubkey(),
+            nonce,
+            data,
+            persist,
+        )
+        .unwrap();
 
         execute(
             client,
@@ -317,7 +331,12 @@ mod helpers {
         Ok(())
     }
 
-    pub fn post_vaa(client: &RpcClient, program: &Pubkey, payer: &Keypair, vaa: PostVAAData) -> Result<Signature, ClientError> {
+    pub fn post_vaa(
+        client: &RpcClient,
+        program: &Pubkey,
+        payer: &Keypair,
+        vaa: PostVAAData,
+    ) -> Result<Signature, ClientError> {
         execute(
             client,
             payer,

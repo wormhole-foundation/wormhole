@@ -12,7 +12,7 @@ use crate::msg::{
 use crate::state::{
     config, config_read, guardian_set_get, guardian_set_set, sequence_read, sequence_set,
     vaa_archive_check, ConfigInfo, GovernancePacket, GuardianAddress, GuardianSetInfo,
-    GuardianSetUpgrade, ParsedVAA, TransferFee,
+    GuardianSetUpgrade, ParsedVAA, SetFee, TransferFee,
 };
 
 use k256::ecdsa::recoverable::Id as RecoverableId;
@@ -30,7 +30,7 @@ const CHAIN_ID: u16 = 3;
 
 // Lock assets fee amount and denomination
 const FEE_AMOUNT: u128 = 10000;
-const FEE_DENOMINATION: &str = "uluna";
+pub const FEE_DENOMINATION: &str = "uluna";
 
 pub fn init<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
@@ -44,6 +44,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
         guardian_set_index: 0,
         guardian_set_expirity: msg.guardian_set_expirity,
         fee: Coin::new(FEE_AMOUNT, FEE_DENOMINATION), // 0.01 Luna (or 10000 uluna) fee by default
+        fee_persisted: Coin::new(FEE_AMOUNT, FEE_DENOMINATION), // 0.01 Luna (or 10000 uluna) fee by default
     };
     config(&mut deps.storage).save(&state)?;
 
@@ -103,9 +104,10 @@ fn handle_governance_payload<S: Storage, A: Api, Q: Querier>(
     }
 
     match gov_packet.action {
-        // 0 is reserved for upgrade / migration
-        1u8 => vaa_update_guardian_set(deps, env, &gov_packet.payload),
-        2u8 => handle_transfer_fee(deps, env, &gov_packet.payload),
+        // 1 is reserved for upgrade / migration
+        2u8 => vaa_update_guardian_set(deps, env, &gov_packet.payload),
+        3u8 => handle_set_fee(deps, env, &gov_packet.payload),
+        4u8 => handle_transfer_fee(deps, env, &gov_packet.payload),
         _ => ContractError::InvalidVAAAction.std_err(),
     }
 }
@@ -230,6 +232,32 @@ fn vaa_update_guardian_set<S: Storage, A: Api, Q: Querier>(
     })
 }
 
+pub fn handle_set_fee<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+    data: &Vec<u8>,
+) -> StdResult<HandleResponse> {
+    let set_fee_msg = SetFee::deserialize(&data)?;
+
+    // Save new fees
+    let mut state = config_read(&mut deps.storage).load()?;
+    state.fee = set_fee_msg.fee;
+    state.fee_persisted = set_fee_msg.fee_persistent;
+    config(&mut deps.storage).save(&state)?;
+
+    Ok(HandleResponse {
+        messages: vec![],
+        log: vec![
+            log("action", "fee_change"),
+            log("new_fee.amount", state.fee.amount),
+            log("new_fee.denom", state.fee.denom),
+            log("new_persisted_fee.amount", state.fee_persisted.amount),
+            log("new_persisted_fee.denom", state.fee_persisted.denom),
+        ],
+        data: None,
+    })
+}
+
 pub fn handle_transfer_fee<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
@@ -256,9 +284,16 @@ fn handle_post_message<S: Storage, A: Api, Q: Querier>(
     persist: bool,
 ) -> StdResult<HandleResponse> {
     let state = config_read(&deps.storage).load()?;
+    let fee = {
+        if persist {
+            state.fee
+        } else {
+            state.fee_persisted
+        }
+    };
 
     // Check fee
-    if !has_coins(env.message.sent_funds.as_ref(), &state.fee) {
+    if !has_coins(env.message.sent_funds.as_ref(), &fee) {
         return ContractError::FeeTooLow.std_err();
     }
 
