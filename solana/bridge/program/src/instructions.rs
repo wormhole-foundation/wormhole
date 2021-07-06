@@ -330,14 +330,20 @@ pub fn set_fees(
     }
 }
 
-pub fn transfer_fees(program_id: Pubkey, payer: Pubkey, recipient: Pubkey) -> Instruction {
+pub fn transfer_fees(
+    program_id: Pubkey,
+    payer: Pubkey,
+    message: Pubkey,
+    emitter: Pubkey,
+    sequence: u64,
+    recipient: Pubkey,
+) -> Instruction {
     let bridge = Bridge::<'_, { AccountState::Uninitialized }>::key(None, &program_id);
-    let payload_message = Pubkey::new_unique();
     let claim = Claim::<'_, { AccountState::Uninitialized }>::key(
         &ClaimDerivationData {
-            emitter_address: [0u8; 32],
+            emitter_address: emitter.to_bytes(),
             emitter_chain: CHAIN_ID_SOLANA,
-            sequence: 0,
+            sequence,
         },
         &program_id,
     );
@@ -350,7 +356,7 @@ pub fn transfer_fees(program_id: Pubkey, payer: Pubkey, recipient: Pubkey) -> In
         accounts: vec![
             AccountMeta::new(payer, true),
             AccountMeta::new(bridge, false),
-            AccountMeta::new(payload_message, false),
+            AccountMeta::new(message, false),
             AccountMeta::new(claim, false),
             AccountMeta::new(fee_collector, false),
             AccountMeta::new(recipient, false),

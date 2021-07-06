@@ -355,6 +355,17 @@ pub struct GovernancePayloadTransferFees {
     pub to: ForeignAddress,
 }
 
+impl SerializePayload for GovernancePayloadTransferFees {
+    fn serialize<W: Write>(&self, v: &mut W) -> std::result::Result<(), SolitaireError> {
+        use byteorder::WriteBytesExt;
+        let mut amount_data = [0u8; 32];
+        self.amount.to_big_endian(&mut amount_data);
+        v.write(&amount_data)?;
+        v.write(&self.to);
+        Ok(())
+    }
+}
+
 impl DeserializePayload for GovernancePayloadTransferFees
 where
     Self: DeserializeGovernancePayload,

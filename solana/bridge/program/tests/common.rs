@@ -125,7 +125,7 @@ mod helpers {
         let payer = read_keypair_file(payer).unwrap();
         let rpc = RpcClient::new(rpc_address);
         let program = env::var("BRIDGE_PROGRAM")
-            .unwrap_or("6mFKdAtUBVbsQ5dgvBrUkn1Pixb7BMTUtVKj4dpwrmQs".to_string())
+            .unwrap_or("Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o".to_string())
             .parse::<Pubkey>()
             .unwrap();
         (payer, rpc, program)
@@ -248,6 +248,7 @@ mod helpers {
             &[instructions::initialize(
                 *program,
                 payer.pubkey(),
+                500,
                 500,
                 2_000_000_000,
                 initial_guardians,
@@ -417,7 +418,10 @@ mod helpers {
         client: &RpcClient,
         program: &Pubkey,
         payer: &Keypair,
-        recipient: &Pubkey,
+        message: Pubkey,
+        emitter: Pubkey,
+        sequence: u64,
+        recipient: Pubkey,
     ) -> Result<Signature, ClientError> {
         execute(
             client,
@@ -426,7 +430,10 @@ mod helpers {
             &[instructions::transfer_fees(
                 *program,
                 payer.pubkey(),
-                *recipient,
+                message,
+                emitter,
+                sequence,
+                recipient,
             )],
         )
     }

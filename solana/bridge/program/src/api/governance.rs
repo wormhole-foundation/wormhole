@@ -220,10 +220,11 @@ pub fn transfer_fees(
         accs.recipient.key,
         accs.vaa.amount.as_u64(),
     );
-    let seeds = accs.fee_collector.self_seeds(None);
-    let s: Vec<&[u8]> = seeds.iter().map(|item| item.as_slice()).collect();
-    let seed_slice = s.as_slice();
-    invoke_signed(&transfer_ix, ctx.accounts, &[seed_slice])?;
+
+    let seeds = accs.fee_collector.self_bumped_seeds(None, ctx.program_id);
+    let seeds: Vec<&[u8]> = seeds.iter().map(|item| item.as_slice()).collect();
+    let seeds = seeds.as_slice();
+    invoke_signed(&transfer_ix, ctx.accounts, &[seeds])?;
 
     Ok(())
 }

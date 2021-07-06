@@ -56,6 +56,7 @@ use bridge::{
         BridgeConfig,
         GovernancePayloadGuardianSetChange,
         GovernancePayloadSetMessageFee,
+        GovernancePayloadTransferFees,
         PostedMessage,
         PostedMessageData,
         SequenceTracker,
@@ -99,6 +100,7 @@ fn run_integration_tests() {
     test_guardian_set_change(&mut context);
     test_guardian_set_change_fails(&mut context);
     test_set_fees(&mut context);
+    test_transfer_fees(&mut context);
 }
 
 fn test_bridge_messages(context: &mut Context) {
@@ -281,6 +283,7 @@ fn test_set_fees(context: &mut Context) {
         false,
     )
     .unwrap();
+
     let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 1);
     common::verify_signatures(client, program, payer, body, body_hash, &context.secret, 1).unwrap();
     common::post_vaa(client, program, payer, vaa).unwrap();
@@ -315,6 +318,46 @@ fn test_set_fees(context: &mut Context) {
         message.clone(),
         100,
         false,
+    )
+    .unwrap();
+}
+
+fn test_transfer_fees(context: &mut Context) {
+    // Initialize a wormhole bridge on Solana to test with.
+    let (ref payer, ref client, ref program) = common::setup();
+    let emitter = Keypair::from_bytes(&GOV_KEY).unwrap();
+
+    let nonce = 12401;
+    let message = GovernancePayloadTransferFees {
+        amount: 100.into(),
+        to: payer.pubkey().to_bytes(),
+    }
+    .try_to_vec()
+    .unwrap();
+
+    let message_key = common::post_message(
+        client,
+        program,
+        payer,
+        &emitter,
+        nonce,
+        message.clone(),
+        10_000,
+        false,
+    )
+    .unwrap();
+
+    let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 1);
+    common::verify_signatures(client, program, payer, body, body_hash, &context.secret, 1).unwrap();
+    common::post_vaa(client, program, payer, vaa).unwrap();
+    common::transfer_fees(
+        client,
+        program,
+        payer,
+        message_key,
+        emitter.pubkey(),
+        4,
+        payer.pubkey(),
     )
     .unwrap();
 }
