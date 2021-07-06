@@ -62,6 +62,26 @@ impl<'a, 'b: 'a, 'c, T: Peel<'a, 'b, 'c>, const Seed: &'static str> Peel<'a, 'b,
     }
 }
 
+/// Peel a Mutable key.
+impl<'a, 'b: 'a, 'c, T: Peel<'a, 'b, 'c>> Peel<'a, 'b, 'c> for Mut<T>
+{
+    fn peel<I>(mut ctx: &'c mut Context<'a, 'b, 'c, I>) -> Result<Self> {
+        ctx.immutable = false;
+        match ctx.info().is_writable {
+            true => T::peel(ctx).map(|v| Mut(v)),
+            _ => Err(SolitaireError::InvalidMutability(*ctx.info().key).into()),
+        }
+    }
+
+    fn deps() -> Vec<Pubkey> {
+        T::deps()
+    }
+
+    fn persist(&self, program_id: &Pubkey) -> Result<()> {
+        T::persist(self, program_id)
+    }
+}
+
 /// Peel a Signer.
 impl<'a, 'b: 'a, 'c, T: Peel<'a, 'b, 'c>> Peel<'a, 'b, 'c> for Signer<T> {
     fn peel<I>(ctx: &'c mut Context<'a, 'b, 'c, I>) -> Result<Self> {
@@ -126,6 +146,10 @@ where
 /// calls here.
 impl<'a, 'b: 'a, 'c> Peel<'a, 'b, 'c> for Info<'b> {
     fn peel<I>(ctx: &'c mut Context<'a, 'b, 'c, I>) -> Result<Self> {
+        if ctx.immutable && ctx.info().is_writable {
+            return Err(SolitaireError::InvalidMutability(*ctx.info().key).into());
+        }
+
         Ok(ctx.info().clone())
     }
     fn deps() -> Vec<Pubkey> {
@@ -147,6 +171,10 @@ impl<
     > Peel<'a, 'b, 'c> for Data<'b, T, IsInitialized>
 {
     fn peel<I>(ctx: &'c mut Context<'a, 'b, 'c, I>) -> Result<Self> {
+        if ctx.immutable && ctx.info().is_writable {
+            return Err(SolitaireError::InvalidMutability(*ctx.info().key).into());
+        }
+
         // If we're initializing the type, we should emit system/rent as deps.
         let (initialized, data): (bool, T) = match IsInitialized {
             AccountState::Uninitialized => {

@@ -12,6 +12,9 @@ pub type ErrBox = Box<dyn std::error::Error>;
 /// There are several places in Solitaire that might fail, we want descriptive errors.
 #[derive(Debug)]
 pub enum SolitaireError {
+    /// The AccountInfo parser expected a mutable key where a readonly was found, or vice versa.
+    InvalidMutability(Pubkey),
+
     /// The AccountInfo parser expected a Signer, but the account did not sign.
     InvalidSigner(Pubkey),
 

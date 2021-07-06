@@ -24,6 +24,9 @@ use borsh::{
 };
 
 #[repr(transparent)]
+pub struct Mut<Next>(pub Next);
+
+#[repr(transparent)]
 pub struct Signer<Next>(pub Next);
 
 #[repr(transparent)]
@@ -43,6 +46,19 @@ impl<T> Deref for Signer<T> {
 }
 
 impl<T> DerefMut for Signer<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        unsafe { std::mem::transmute(&mut self.0) }
+    }
+}
+
+impl<T> Deref for Mut<T> {
+    type Target = T;
+    fn deref(&self) -> &Self::Target {
+        unsafe { std::mem::transmute(&self.0) }
+    }
+}
+
+impl<T> DerefMut for Mut<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         unsafe { std::mem::transmute(&mut self.0) }
     }
