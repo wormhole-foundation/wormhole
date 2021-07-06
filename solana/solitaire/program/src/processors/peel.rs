@@ -230,7 +230,7 @@ impl<
 
         // It is also a malformed program to attempt to write to a non-writeable account.
         if !self.0.is_writable {
-            return Err(SolitaireError::NonWriteableAccount(*self.0.key));
+            return Ok(());
         }
 
         self.1.serialize(&mut *self.0.data.borrow_mut())?;

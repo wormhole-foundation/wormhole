@@ -37,22 +37,23 @@ impl<'a> From<&PostMessage<'a>> for SequenceDerivationData<'a> {
 
 #[derive(FromAccounts)]
 pub struct PostMessage<'b> {
-    pub bridge: Bridge<'b, { AccountState::Initialized }>,
+    /// Bridge config needed for fee calculation.
+    pub bridge: Mut<Bridge<'b, { AccountState::Initialized }>>,
 
     /// Account to store the posted message
-    pub message: UninitializedMessage<'b>,
+    pub message: Mut<UninitializedMessage<'b>>,
 
     /// Emitter of the VAA
     pub emitter: Signer<Info<'b>>,
 
     /// Tracker for the emitter sequence
-    pub sequence: Sequence<'b>,
+    pub sequence: Mut<Sequence<'b>>,
 
     /// Payer for account creation
-    pub payer: Signer<Info<'b>>,
+    pub payer: Mut<Signer<Info<'b>>>,
 
     /// Account to collect tx fee
-    pub fee_collector: FeeCollector<'b>,
+    pub fee_collector: Mut<FeeCollector<'b>>,
 
     pub clock: Sysvar<'b, Clock>,
 }

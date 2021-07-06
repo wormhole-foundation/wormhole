@@ -18,10 +18,17 @@ type Payer<'a> = Signer<Info<'a>>;
 
 #[derive(FromAccounts, ToInstruction)]
 pub struct Initialize<'b> {
-    pub bridge: Bridge<'b, { AccountState::Uninitialized }>,
-    pub guardian_set: GuardianSet<'b, { AccountState::Uninitialized }>,
-    pub fee_collector: FeeCollector<'b>,
-    pub payer: Payer<'b>,
+    /// Bridge config.
+    pub bridge: Mut<Bridge<'b, { AccountState::Uninitialized }>>,
+
+    /// Location the new guardian set will be allocated at.
+    pub guardian_set: Mut<GuardianSet<'b, { AccountState::Uninitialized }>>,
+
+    /// Location of the fee collector that users will need to pay.
+    pub fee_collector: Mut<FeeCollector<'b>>,
+
+    /// Payer for account creation.
+    pub payer: Mut<Payer<'b>>,
 }
 
 impl<'b> InstructionContext<'b> for Initialize<'b> {

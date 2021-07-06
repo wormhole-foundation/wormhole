@@ -74,10 +74,10 @@ pub fn upgrade_contract(
 #[derive(FromAccounts)]
 pub struct UpgradeGuardianSet<'b> {
     /// Payer for account creation (vaa-claim)
-    pub payer: Signer<Info<'b>>,
+    pub payer: Mut<Signer<Info<'b>>>,
 
     /// Bridge config
-    pub bridge: Bridge<'b, { AccountState::Initialized }>,
+    pub bridge: Mut<Bridge<'b, { AccountState::Initialized }>>,
 
     /// GuardianSet change VAA
     pub vaa: ClaimableVAA<'b, GovernancePayloadGuardianSetChange>,
@@ -86,7 +86,7 @@ pub struct UpgradeGuardianSet<'b> {
     pub guardian_set_old: GuardianSet<'b, { AccountState::Initialized }>,
 
     /// New guardian set
-    pub guardian_set_new: GuardianSet<'b, { AccountState::Uninitialized }>,
+    pub guardian_set_new: Mut<GuardianSet<'b, { AccountState::Uninitialized }>>,
 }
 
 impl<'b> InstructionContext<'b> for UpgradeGuardianSet<'b> {
@@ -152,10 +152,10 @@ pub fn upgrade_guardian_set(
 #[derive(FromAccounts)]
 pub struct SetFees<'b> {
     /// Payer for account creation (vaa-claim)
-    pub payer: Signer<Info<'b>>,
+    pub payer: Mut<Signer<Info<'b>>>,
 
     /// Bridge config
-    pub bridge: Bridge<'b, { AccountState::Initialized }>,
+    pub bridge: Mut<Bridge<'b, { AccountState::Initialized }>>,
 
     /// Governance VAA
     pub vaa: ClaimableVAA<'b, GovernancePayloadSetMessageFee>,
@@ -179,7 +179,7 @@ pub fn set_fees(ctx: &ExecutionContext, accs: &mut SetFees, _data: SetFeesData) 
 #[derive(FromAccounts)]
 pub struct TransferFees<'b> {
     /// Payer for account creation (vaa-claim)
-    pub payer: Signer<Info<'b>>,
+    pub payer: Mut<Signer<Info<'b>>>,
 
     /// Bridge config
     pub bridge: Bridge<'b, { AccountState::Initialized }>,
@@ -188,10 +188,10 @@ pub struct TransferFees<'b> {
     pub vaa: ClaimableVAA<'b, GovernancePayloadTransferFees>,
 
     /// Account collecting tx fees
-    pub fee_collector: Derive<Info<'b>, "fee_collector">,
+    pub fee_collector: Mut<Derive<Info<'b>, "fee_collector">>,
 
     /// Fee recipient
-    pub recipient: Info<'b>,
+    pub recipient: Mut<Info<'b>>,
 }
 
 impl<'b> InstructionContext<'b> for TransferFees<'b> {

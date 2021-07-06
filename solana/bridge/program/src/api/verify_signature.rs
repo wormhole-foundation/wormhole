@@ -27,13 +27,13 @@ use std::io::Write;
 #[derive(FromAccounts)]
 pub struct VerifySignatures<'b> {
     /// Payer for account creation
-    pub payer: Signer<Info<'b>>,
+    pub payer: Mut<Signer<Info<'b>>>,
 
     /// Guardian set of the signatures
     pub guardian_set: GuardianSet<'b, { AccountState::Initialized }>,
 
     /// Signature Account
-    pub signature_set: SignatureSet<'b, { AccountState::MaybeInitialized }>,
+    pub signature_set: Mut<SignatureSet<'b, { AccountState::MaybeInitialized }>>,
 
     /// Instruction reflection account (special sysvar)
     pub instruction_acc: Info<'b>,

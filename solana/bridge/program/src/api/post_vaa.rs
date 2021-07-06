@@ -70,10 +70,10 @@ pub struct PostVAA<'b> {
     pub signature_set: SignatureSet<'b, { AccountState::Initialized }>,
 
     /// Message the VAA is associated with.
-    pub message: Message<'b, { AccountState::MaybeInitialized }>,
+    pub message: Mut<Message<'b, { AccountState::MaybeInitialized }>>,
 
     /// Account used to pay for auxillary instructions.
-    pub payer: Info<'b>,
+    pub payer: Mut<Signer<Info<'b>>>,
 
     /// Clock used for timestamping.
     pub clock: Sysvar<'b, Clock>,

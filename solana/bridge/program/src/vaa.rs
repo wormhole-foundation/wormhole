@@ -123,7 +123,7 @@ pub struct ClaimableVAA<'b, T: DeserializePayload> {
     pub message: PayloadMessage<'b, T>,
 
     // Claim account to prevent double spending
-    pub claim: Claim<'b, { AccountState::Uninitialized }>,
+    pub claim: Mut<Claim<'b, { AccountState::Uninitialized }>>,
 }
 
 impl<'b, T: DeserializePayload> Deref for ClaimableVAA<'b, T> {

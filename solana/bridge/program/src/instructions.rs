@@ -110,7 +110,7 @@ pub fn post_message(
             accounts: vec![
                 AccountMeta::new(bridge, false),
                 AccountMeta::new(message, false),
-                AccountMeta::new(emitter, true),
+                AccountMeta::new_readonly(emitter, true),
                 AccountMeta::new(sequence, false),
                 AccountMeta::new(payer, true),
                 AccountMeta::new(fee_collector, false),
@@ -152,7 +152,7 @@ pub fn verify_signatures(
 
         accounts: vec![
             AccountMeta::new(payer, true),
-            AccountMeta::new(guardian_set, false),
+            AccountMeta::new_readonly(guardian_set, false),
             AccountMeta::new(signature_set, false),
             AccountMeta::new_readonly(sysvar::instructions::id(), false),
             AccountMeta::new_readonly(sysvar::rent::id(), false),
@@ -197,9 +197,9 @@ pub fn post_vaa(program_id: Pubkey, payer: Pubkey, vaa: PostVAAData) -> Instruct
         program_id,
 
         accounts: vec![
-            AccountMeta::new(guardian_set, false),
-            AccountMeta::new(bridge, false),
-            AccountMeta::new(signature_set, false),
+            AccountMeta::new_readonly(guardian_set, false),
+            AccountMeta::new_readonly(bridge, false),
+            AccountMeta::new_readonly(signature_set, false),
             AccountMeta::new(message, false),
             AccountMeta::new(payer, true),
             AccountMeta::new_readonly(sysvar::clock::id(), false),
@@ -283,9 +283,9 @@ pub fn upgrade_guardian_set(
         accounts: vec![
             AccountMeta::new(payer, true),
             AccountMeta::new(bridge, false),
-            AccountMeta::new(payload_message, false),
+            AccountMeta::new_readonly(payload_message, false),
             AccountMeta::new(claim, false),
-            AccountMeta::new(guardian_set_old, false),
+            AccountMeta::new_readonly(guardian_set_old, false),
             AccountMeta::new(guardian_set_new, false),
             AccountMeta::new_readonly(solana_program::system_program::id(), false),
         ],
@@ -319,7 +319,7 @@ pub fn set_fees(
         accounts: vec![
             AccountMeta::new(payer, true),
             AccountMeta::new(bridge, false),
-            AccountMeta::new(message, false),
+            AccountMeta::new_readonly(message, false),
             AccountMeta::new(claim, false),
             AccountMeta::new_readonly(solana_program::system_program::id(), false),
         ],
@@ -355,8 +355,8 @@ pub fn transfer_fees(
 
         accounts: vec![
             AccountMeta::new(payer, true),
-            AccountMeta::new(bridge, false),
-            AccountMeta::new(message, false),
+            AccountMeta::new_readonly(bridge, false),
+            AccountMeta::new_readonly(message, false),
             AccountMeta::new(claim, false),
             AccountMeta::new(fee_collector, false),
             AccountMeta::new(recipient, false),
