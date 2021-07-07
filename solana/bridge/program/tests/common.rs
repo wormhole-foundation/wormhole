@@ -150,17 +150,9 @@ mod helpers {
     }
 
     /// Fetch account data, the loop is there to re-attempt until data is available.
-    pub fn get_account_data<T: BorshDeserialize>(
-        client: &RpcClient,
-        account: &Pubkey,
-    ) -> Option<T> {
-        for _ in 0..5 {
-            if let Ok(account) = client.get_account(account) {
-                return Some(T::try_from_slice(&account.data).unwrap());
-            }
-            std::thread::sleep(std::time::Duration::from_millis(2000));
-        }
-        None
+    pub fn get_account_data<T: BorshDeserialize>(client: &RpcClient, account: &Pubkey) -> T {
+        let account = client.get_account(account).unwrap();
+        T::try_from_slice(&account.data).unwrap()
     }
 
     /// Generate `count` secp256k1 private keys, along with their ethereum-styled public key
@@ -260,6 +252,8 @@ mod helpers {
         program: &Pubkey,
         payer: &Keypair,
         initial_guardians: &[[u8; 20]],
+        fee: u64,
+        persistent_fee: u64,
     ) -> Result<Signature, ClientError> {
         execute(
             client,
@@ -268,8 +262,8 @@ mod helpers {
             &[instructions::initialize(
                 *program,
                 payer.pubkey(),
-                500,
-                500,
+                fee,
+                persistent_fee,
                 2_000_000_000,
                 initial_guardians,
             )
