@@ -144,6 +144,7 @@ fn run_integration_tests() {
     test_guardian_set_change_fails(&mut context);
     test_set_fees(&mut context);
     test_set_fees_fails(&mut context);
+    test_free_fees(&mut context);
     test_transfer_fees(&mut context);
 }
 
@@ -663,6 +664,124 @@ fn test_set_fees_fails(context: &mut Context) {
         sequence,
     ).is_err());
     common::sync(client, payer);
+}
+
+fn test_free_fees(context: &mut Context) {
+    // Initialize a wormhole bridge on Solana to test with.
+    let (ref payer, ref client, ref program) = common::setup();
+    let emitter = Keypair::from_bytes(&GOVERNANCE_KEY).unwrap();
+    let sequence = context.seq.next(emitter.pubkey().to_bytes());
+
+    // Set Fees to 0.
+    let nonce = rand::thread_rng().gen();
+    let message = GovernancePayloadSetMessageFee {
+        fee: U256::from(0),
+        persisted_fee: U256::from(0),
+    }
+    .try_to_vec()
+    .unwrap();
+
+    let message_key = common::post_message(
+        client,
+        program,
+        payer,
+        &emitter,
+        nonce,
+        message.clone(),
+        10_000,
+        false,
+    )
+    .unwrap();
+
+    let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 1, 1);
+    common::verify_signatures(client, program, payer, body, body_hash, &context.secret, 1).unwrap();
+    common::post_vaa(client, program, payer, vaa).unwrap();
+    common::set_fees(
+        client,
+        program,
+        payer,
+        message_key,
+        emitter.pubkey(),
+        sequence,
+    )
+    .unwrap();
+    common::sync(client, payer);
+
+    // Fetch Bridge to check on-state value.
+    let bridge_key = Bridge::<'_, { AccountState::Uninitialized }>::key(None, &program);
+    let fee_collector = FeeCollector::key(None, &program);
+    let bridge: BridgeData = common::get_account_data(client, &bridge_key);
+    assert_eq!(bridge.config.fee, 0);
+    assert_eq!(bridge.config.fee_persistent, 0);
+
+    // Check that posting a new message is free.
+    let account_balance = client.get_account(&fee_collector).unwrap().lamports;
+    let emitter = Keypair::new();
+    let sequence = context.seq.next(emitter.pubkey().to_bytes());
+    let nonce = rand::thread_rng().gen();
+    let message = [0u8; 32].to_vec();
+    let message_key = common::post_message(
+        client,
+        program,
+        payer,
+        &emitter,
+        nonce,
+        message.clone(),
+        0,
+        false,
+    )
+    .unwrap();
+
+    let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 1, 1);
+    common::verify_signatures(client, program, payer, body, body_hash, &context.secret, 1).unwrap();
+    common::post_vaa(client, program, payer, vaa).unwrap();
+    common::sync(client, payer);
+
+    // Verify that the fee collector was paid.
+    assert_eq!(
+        client.get_account(&fee_collector).unwrap().lamports,
+        account_balance,
+    );
+
+    // Derive where we expect created accounts to be.
+    let signature_set = SignatureSet::<'_, { AccountState::Uninitialized }>::key(
+        &SignatureSetDerivationData { hash: body_hash },
+        &program,
+    );
+
+    // And that the new message is on chain.
+    let posted_message: PostedMessage = common::get_account_data(client, &message_key);
+    let signatures: SignatureSetData = common::get_account_data(client, &signature_set);
+
+    // Verify on chain Message
+    assert_eq!(posted_message.0.vaa_version, 0);
+    assert_eq!(posted_message.0.persist, false);
+    assert_eq!(posted_message.0.vaa_signature_account, signature_set);
+    assert_eq!(posted_message.0.nonce, nonce);
+    assert_eq!(posted_message.0.sequence, sequence);
+    assert_eq!(posted_message.0.emitter_chain, 1);
+    assert_eq!(posted_message.0.payload, message);
+    assert_eq!(
+        posted_message.0.emitter_address,
+        emitter.pubkey().to_bytes()
+    );
+
+    // Verify on chain Signatures
+    assert_eq!(signatures.hash, body_hash);
+    assert_eq!(signatures.guardian_set_index, 1);
+
+    for (signature, secret_key) in signatures.signatures.iter().zip(context.secret.iter()) {
+        // Sign message locally.
+        let (local_sig, recover_id) = secp256k1::sign(&Secp256k1Message::parse(&body_hash), &secret_key);
+
+        // Combine recoverify with signature to match 65 byte layout.
+        let mut signature_bytes = [0u8; 65];
+        signature_bytes[64] = recover_id.serialize();
+        (&mut signature_bytes[0..64]).copy_from_slice(&local_sig.serialize());
+
+        // Signature stored should on chain be as expected.
+        assert_eq!(*signature, signature_bytes);
+    }
 }
 
 fn test_transfer_fees(context: &mut Context) {
