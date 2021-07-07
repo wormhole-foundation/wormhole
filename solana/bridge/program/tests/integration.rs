@@ -495,10 +495,18 @@ fn test_guardian_set_change(context: &mut Context) {
     // Initialize a wormhole bridge on Solana to test with.
     let (ref payer, ref client, ref program) = common::setup();
 
-    // Upgrade the guardian set with a new set of guardians.
-    let (new_public_keys, new_secret_keys) = common::generate_keys(6);
+    // Use a timestamp from a few seconds earlier for testing to simulate thread::sleep();
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs() - 10;
 
-    let nonce = 12398;
+    // Upgrade the guardian set with a new set of guardians.
+    let (new_public_keys, new_secret_keys) = common::generate_keys(1);
+
+    let nonce = rand::thread_rng().gen();
+    let emitter = Keypair::from_bytes(&GOVERNANCE_KEY).unwrap();
+    let sequence = context.seq.next(emitter.pubkey().to_bytes());
     let message = GovernancePayloadGuardianSetChange {
         new_guardian_set_index: 1,
         new_guardian_set: new_public_keys.clone(),
@@ -529,12 +537,35 @@ fn test_guardian_set_change(context: &mut Context) {
         emitter.pubkey(),
         0,
         1,
-        1,
+        sequence,
     )
     .unwrap();
+    common::sync(client, payer);
+
+    // Derive keys for accounts we want to check.
+    let bridge_key = Bridge::<'_, { AccountState::Uninitialized }>::key(None, &program);
+    let guardian_set_key = GuardianSet::<'_, { AccountState::Uninitialized }>::key(
+        &GuardianSetDerivationData { index: 1 },
+        &program,
+    );
+
+    // Fetch account states.
+    let bridge: BridgeData = common::get_account_data(client, &bridge_key);
+    let guardian_set: GuardianSetData = common::get_account_data(client, &guardian_set_key);
+
+    // Confirm the bridge now has a new guardian set, and no other fields have shifted.
+    assert_eq!(bridge.guardian_set_index, 1);
+    assert_eq!(bridge.config.guardian_set_expiration_time, 2_000_000_000);
+    assert_eq!(bridge.config.fee, 500);
+    assert_eq!(bridge.config.fee_persistent, 5000);
+
+    // Verify Created Guardian Set
+    assert_eq!(guardian_set.index, 1);
+    assert_eq!(guardian_set.keys, new_public_keys);
+    assert!(guardian_set.creation_time as u64 > now);
 
     // Submit the message a second time with a new nonce.
-    let nonce = 12399;
+    let nonce = rand::thread_rng().gen();
     let message_key = common::post_message(
         client,
         program,
@@ -551,9 +582,51 @@ fn test_guardian_set_change(context: &mut Context) {
     context.secret = new_secret_keys;
 
     // Emulate Guardian behaviour, verifying the data and publishing signatures/VAA.
+    let sequence = context.seq.next(emitter.pubkey().to_bytes());
     let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 1, 1);
     common::verify_signatures(client, program, payer, body, body_hash, &context.secret, 1).unwrap();
     common::post_vaa(client, program, payer, vaa).unwrap();
+    common::sync(client, payer);
+
+    // Derive where we expect created accounts to be.
+    let signature_set = SignatureSet::<'_, { AccountState::Uninitialized }>::key(
+        &SignatureSetDerivationData { hash: body_hash },
+        &program,
+    );
+
+    // Fetch chain accounts to verify state.
+    let posted_message: PostedMessage = common::get_account_data(client, &message_key);
+    let signatures: SignatureSetData = common::get_account_data(client, &signature_set);
+
+    // Verify on chain Message
+    assert_eq!(posted_message.0.vaa_version, 0);
+    assert_eq!(posted_message.0.persist, false);
+    assert_eq!(posted_message.0.vaa_signature_account, signature_set);
+    assert_eq!(posted_message.0.nonce, nonce);
+    assert_eq!(posted_message.0.sequence, sequence);
+    assert_eq!(posted_message.0.emitter_chain, 1);
+    assert_eq!(posted_message.0.payload, message);
+    assert_eq!(
+        posted_message.0.emitter_address,
+        emitter.pubkey().to_bytes()
+    );
+
+    // Verify on chain Signatures
+    assert_eq!(signatures.hash, body_hash);
+    assert_eq!(signatures.guardian_set_index, 1);
+
+    for (signature, secret_key) in signatures.signatures.iter().zip(context.secret.iter()) {
+        // Sign message locally.
+        let (local_sig, recover_id) = secp256k1::sign(&Secp256k1Message::parse(&body_hash), &secret_key);
+
+        // Combine recoverify with signature to match 65 byte layout.
+        let mut signature_bytes = [0u8; 65];
+        signature_bytes[64] = recover_id.serialize();
+        (&mut signature_bytes[0..64]).copy_from_slice(&local_sig.serialize());
+
+        // Signature stored should on chain be as expected.
+        assert_eq!(*signature, signature_bytes);
+    }
 }
 
 fn test_guardian_set_change_fails(context: &mut Context) {
