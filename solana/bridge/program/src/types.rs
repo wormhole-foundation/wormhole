@@ -74,6 +74,7 @@ pub struct BridgeConfig {
 
     /// Amount of lamports that needs to be paid to the protocol to post a message
     pub fee: u64,
+
     /// Amount of lamports that needs to be paid to the protocol to post a persistent message
     pub fee_persistent: u64,
 }
@@ -351,6 +352,7 @@ impl DeserializeGovernancePayload for GovernancePayloadSetMessageFee {
 pub struct GovernancePayloadTransferFees {
     // Amount to be transferred
     pub amount: U256,
+
     // Recipient
     pub to: ForeignAddress,
 }

@@ -1,11 +1,9 @@
 use solitaire::*;
 
-use crate::types::{
-    GovernancePayloadSetMessageFee,
-    GovernancePayloadTransferFees,
+use solana_program::{
+    program::invoke_signed,
+    pubkey::Pubkey,
 };
-
-use solana_program::pubkey::Pubkey;
 use solitaire::{
     processors::seeded::Seeded,
     CreationLamports::Exempt,
@@ -19,16 +17,40 @@ use crate::{
     },
     types::{
         GovernancePayloadGuardianSetChange,
+        GovernancePayloadSetMessageFee,
+        GovernancePayloadTransferFees,
         GovernancePayloadUpgrade,
     },
-    vaa::ClaimableVAA,
+    vaa::{
+        ClaimableVAA,
+        DeserializePayload,
+    },
     Error::{
         InvalidFeeRecipient,
         InvalidGovernanceKey,
         InvalidGuardianSetUpgrade,
     },
+    CHAIN_ID_SOLANA,
 };
-use solana_program::program::invoke_signed;
+
+// Confirm that a ClaimableVAA came from the correct chain, signed by the right emitter.
+fn verify_claim<'a, T>(vaa: &ClaimableVAA<'a, T>) -> Result<()>
+where
+    T: DeserializePayload,
+{
+    let expected_emitter = std::env!("EMITTER_ADDRESS");
+    let current_emitter = format!(
+        "{}",
+        Pubkey::new_from_array(vaa.message.meta().emitter_address)
+    );
+
+    // Fail if the emitter is not the known governance key, or the emitting chain is not Solana.
+    if expected_emitter != current_emitter || vaa.message.meta().emitter_chain != CHAIN_ID_SOLANA {
+        Err(InvalidGovernanceKey.into())
+    } else {
+        Ok(())
+    }
+}
 
 #[derive(FromAccounts)]
 pub struct UpgradeContract<'b> {
@@ -56,6 +78,8 @@ pub fn upgrade_contract(
     accs: &mut UpgradeContract,
     _data: UpgradeContractData,
 ) -> Result<()> {
+    verify_claim(&accs.vaa)?;
+
     accs.vaa.claim(ctx, accs.payer.key)?;
 
     let upgrade_ix = solana_program::bpf_loader_upgradeable::upgrade(
@@ -111,15 +135,7 @@ pub fn upgrade_guardian_set(
     accs: &mut UpgradeGuardianSet,
     _data: UpgradeGuardianSetData,
 ) -> Result<()> {
-    // Enforce only the expected governance key.
-    if format!(
-        "{}",
-        Pubkey::new_from_array(accs.vaa.message.meta().emitter_address)
-    ) != std::env!("EMITTER_ADDRESS")
-        || accs.vaa.message.meta().emitter_chain != 1
-    {
-        return Err(InvalidGovernanceKey.into());
-    }
+    verify_claim(&accs.vaa)?;
 
     accs.vaa.claim(ctx, accs.payer.key)?;
 
@@ -168,6 +184,8 @@ impl<'b> InstructionContext<'b> for SetFees<'b> {
 pub struct SetFeesData {}
 
 pub fn set_fees(ctx: &ExecutionContext, accs: &mut SetFees, _data: SetFeesData) -> Result<()> {
+    verify_claim(&accs.vaa)?;
+
     accs.vaa.claim(ctx, accs.payer.key)?;
 
     accs.bridge.config.fee = accs.vaa.fee.as_u64();
@@ -212,6 +230,8 @@ pub fn transfer_fees(
     accs: &mut TransferFees,
     _data: TransferFeesData,
 ) -> Result<()> {
+    verify_claim(&accs.vaa)?;
+
     accs.vaa.claim(ctx, accs.payer.key)?;
 
     // Transfer fees
