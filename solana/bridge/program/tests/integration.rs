@@ -632,11 +632,14 @@ fn test_guardian_set_change(context: &mut Context) {
 fn test_guardian_set_change_fails(context: &mut Context) {
     // Initialize a wormhole bridge on Solana to test with.
     let (ref payer, ref client, ref program) = common::setup();
+
+    // Use a random emitter key to confirm the bridge rejects transactions from non-governance key.
     let emitter = Keypair::new();
+    let sequence = context.seq.next(emitter.pubkey().to_bytes());
 
     // Upgrade the guardian set with a new set of guardians.
     let (new_public_keys, new_secret_keys) = common::generate_keys(6);
-    let nonce = 12400;
+    let nonce = rand::thread_rng().gen();
     let message = GovernancePayloadGuardianSetChange {
         new_guardian_set_index: 2,
         new_guardian_set: new_public_keys.clone(),
@@ -665,7 +668,7 @@ fn test_guardian_set_change_fails(context: &mut Context) {
         emitter.pubkey(),
         1,
         2,
-        0,
+        sequence,
     )
     .is_err());
 }
