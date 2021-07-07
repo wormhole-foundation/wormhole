@@ -623,6 +623,48 @@ fn test_set_fees(context: &mut Context) {
     }
 }
 
+fn test_set_fees_fails(context: &mut Context) {
+    // Initialize a wormhole bridge on Solana to test with.
+    let (ref payer, ref client, ref program) = common::setup();
+
+    // Use a random key to confirm only the governance key is respected.
+    let emitter = Keypair::new();
+    let sequence = context.seq.next(emitter.pubkey().to_bytes());
+
+    let nonce = rand::thread_rng().gen();
+    let message = GovernancePayloadSetMessageFee {
+        fee: U256::from(100),
+        persisted_fee: U256::from(100),
+    }
+    .try_to_vec()
+    .unwrap();
+
+    let message_key = common::post_message(
+        client,
+        program,
+        payer,
+        &emitter,
+        nonce,
+        message.clone(),
+        10_000,
+        false,
+    )
+    .unwrap();
+
+    let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 1, 1);
+    common::verify_signatures(client, program, payer, body, body_hash, &context.secret, 1).unwrap();
+    common::post_vaa(client, program, payer, vaa).unwrap();
+    assert!(common::set_fees(
+        client,
+        program,
+        payer,
+        message_key,
+        emitter.pubkey(),
+        sequence,
+    ).is_err());
+    common::sync(client, payer);
+}
+
 fn test_transfer_fees(context: &mut Context) {
     // Initialize a wormhole bridge on Solana to test with.
     let (ref payer, ref client, ref program) = common::setup();
