@@ -441,8 +441,8 @@ mod helpers {
         payer: &Keypair,
         message: Pubkey,
         emitter: Pubkey,
-        sequence: u64,
         recipient: Pubkey,
+        sequence: u64,
     ) -> Result<Signature, ClientError> {
         execute(
             client,

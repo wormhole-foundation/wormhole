@@ -121,7 +121,6 @@ impl Sequencer {
 
 #[test]
 fn run_integration_tests() {
-    let (ref payer, ref client, ref program) = common::setup();
     let (public_keys, secret_keys) = common::generate_keys(6);
     let mut context = Context {
         public: public_keys,
@@ -138,10 +137,13 @@ fn run_integration_tests() {
     // integration tests so for now we work around it by simply chain-calling our tests.
     test_bridge_messages(&mut context);
     test_foreign_bridge_messages(&mut context);
+    test_persistent_bridge_messages(&mut context);
     test_guardian_set_change(&mut context);
     test_guardian_set_change_fails(&mut context);
     test_set_fees(&mut context);
     test_transfer_fees(&mut context);
+}
+
 fn test_initialize(context: &mut Context) {
     let (ref payer, ref client, ref program) = common::setup();
 
@@ -204,16 +206,36 @@ fn test_bridge_messages(context: &mut Context) {
     common::post_vaa(client, program, payer, vaa).unwrap();
 }
 
-fn test_guardian_set_change(context: &mut Context) {
-    // Initialize a wormhole bridge on Solana to test with.
+fn test_persistent_bridge_messages(context: &mut Context) {
     let (ref payer, ref client, ref program) = common::setup();
 
-    // Data/Nonce used for emitting a message we want to prove exists.
-    let nonce = 12397;
-    let message = b"Prove Me".to_vec();
-    let emitter = Keypair::from_bytes(&GOV_KEY).unwrap();
+    // Generate a message we want to persist.
+    let message = [0u8; 32].to_vec();
+    let emitter = Keypair::new();
+    let nonce = rand::thread_rng().gen();
+    let sequence = context.seq.next(emitter.pubkey().to_bytes());
 
-    // Post the message, publishing the data for guardian consumption.
+    // Confirm that it fails if we try and save a message while paying below the expected fee.
+    assert!(common::post_message(
+        client,
+        program,
+        payer,
+        &emitter,
+        nonce,
+        message.clone(),
+        4999,
+        true,
+    ).is_err());
+
+    // Check current balance to verify the right fee is going to be taken.
+    let fee_collector = FeeCollector::key(None, &program);
+    let account_balance = client.get_account(&fee_collector).unwrap().lamports;
+
+    // Generate a message we want to persist.
+    let message = [0u8; 32].to_vec();
+    let nonce = rand::thread_rng().gen();
+
+    // This time pay enough to confirm the message succeeds.
     let message_key = common::post_message(
         client,
         program,
@@ -221,8 +243,8 @@ fn test_guardian_set_change(context: &mut Context) {
         &emitter,
         nonce,
         message.clone(),
-        10_000,
-        false,
+        5000,
+        true,
     )
     .unwrap();
 
@@ -230,6 +252,58 @@ fn test_guardian_set_change(context: &mut Context) {
     let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 0, 1);
     common::verify_signatures(client, program, payer, body, body_hash, &context.secret, 0).unwrap();
     common::post_vaa(client, program, payer, vaa).unwrap();
+    common::sync(client, payer);
+
+    // Derive where we expect created accounts to be.
+    let signature_set = SignatureSet::<'_, { AccountState::Uninitialized }>::key(
+        &SignatureSetDerivationData { hash: body_hash },
+        &program,
+    );
+
+    // Fetch chain accounts to verify state.
+    let posted_message: PostedMessage = common::get_account_data(client, &message_key);
+    let signatures: SignatureSetData = common::get_account_data(client, &signature_set);
+
+    // Verify on chain Message
+    assert_eq!(posted_message.0.vaa_version, 0);
+    assert_eq!(posted_message.0.persist, true);
+    assert_eq!(posted_message.0.vaa_signature_account, signature_set);
+    assert_eq!(posted_message.0.nonce, nonce);
+    assert_eq!(posted_message.0.sequence, sequence);
+    assert_eq!(posted_message.0.emitter_chain, 1);
+    assert_eq!(posted_message.0.payload, message);
+    assert_eq!(
+        posted_message.0.emitter_address,
+        emitter.pubkey().to_bytes()
+    );
+
+    // Verify on chain Signatures
+    assert_eq!(signatures.hash, body_hash);
+    assert_eq!(signatures.guardian_set_index, 0);
+
+    for (signature, secret_key) in signatures.signatures.iter().zip(context.secret.iter()) {
+        // Sign message locally.
+        let (local_sig, recover_id) = secp256k1::sign(&Secp256k1Message::parse(&body_hash), &secret_key);
+
+        // Combine recoverify with signature to match 65 byte layout.
+        let mut signature_bytes = [0u8; 65];
+        signature_bytes[64] = recover_id.serialize();
+        (&mut signature_bytes[0..64]).copy_from_slice(&local_sig.serialize());
+
+        // Signature stored should on chain be as expected.
+        assert_eq!(*signature, signature_bytes);
+    }
+
+    // Verify fee account gained a persistent fee.
+    assert_eq!(
+        client.get_account(&fee_collector).unwrap().lamports,
+        account_balance + 5000,
+    );
+}
+
+fn test_guardian_set_change(context: &mut Context) {
+    // Initialize a wormhole bridge on Solana to test with.
+    let (ref payer, ref client, ref program) = common::setup();
 
     // Upgrade the guardian set with a new set of guardians.
     let (new_public_keys, new_secret_keys) = common::generate_keys(6);
