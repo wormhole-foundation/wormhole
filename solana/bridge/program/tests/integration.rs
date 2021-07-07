@@ -139,6 +139,7 @@ fn run_integration_tests() {
     test_foreign_bridge_messages(&mut context);
     test_persistent_bridge_messages(&mut context);
     test_invalid_emitter(&mut context);
+    test_duplicate_messages_fail(&mut context);
     test_guardian_set_change(&mut context);
     test_guardian_set_change_fails(&mut context);
     test_set_fees(&mut context);
@@ -338,6 +339,41 @@ fn test_invalid_emitter(context: &mut Context) {
             instruction,
         ],
         solana_sdk::commitment_config::CommitmentConfig::processed(),
+    ).is_err());
+}
+
+fn test_duplicate_messages_fail(context: &mut Context) {
+    let (ref payer, ref client, ref program) = common::setup();
+
+    // We'll use the following nonce/message/emitter/sequence twice.
+    let nonce = rand::thread_rng().gen();
+    let message = [0u8; 32].to_vec();
+    let emitter = Keypair::new();
+    let sequence = context.seq.next(emitter.pubkey().to_bytes());
+
+    // Post the message, publishing the data for guardian consumption.
+    let message_key = common::post_message(
+        client,
+        program,
+        payer,
+        &emitter,
+        nonce,
+        message.clone(),
+        10_000,
+        false,
+    )
+    .unwrap();
+
+    // Second should fail due to duplicate derivations.
+    assert!(common::post_message(
+        client,
+        program,
+        payer,
+        &emitter,
+        nonce,
+        message.clone(),
+        10_000,
+        false,
     ).is_err());
 }
 
