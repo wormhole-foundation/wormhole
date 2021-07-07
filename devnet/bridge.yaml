@@ -44,12 +44,21 @@ spec:
         # mount shared between containers for runtime state
         - name: bridge-rundir
           emptyDir: {}
+        - name: bridge-keysdir
+          secret:
+            secretName: bridge-bigtable-key
+            optional: true
+            items:
+              - key: bigtable-key.json
+                path: bigtable-key.json
       containers:
         - name: guardiand
           image: guardiand-image
           volumeMounts:
             - mountPath: /run/bridge
               name: bridge-rundir
+            - mountPath: /tmp/mounted-keys
+              name: bridge-keysdir
           command:
 # Uncomment this to enable in-place debugging using dlv
 # (not suitable for regular development since the process will no longer restart on its own)
@@ -93,6 +102,12 @@ spec:
             - /tmp/admin.sock
             - --dataDir
             - /tmp/data
+            - --bigTableInstanceName
+            - wormhole-dev
+            - --bigTableTableName
+            - v2Events
+            - --bigTableKeyPath
+            - /tmp/mounted-keys/bigtable-key.json
 #            - --logLevel=debug
           securityContext:
             capabilities:

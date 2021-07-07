@@ -6,6 +6,7 @@
 #
 
 load("ext://namespace", "namespace_create", "namespace_inject")
+load('ext://secret', 'secret_yaml_generic')
 
 # Runtime configuration
 
@@ -17,9 +18,18 @@ config.define_string("num", False, "Number of guardian nodes to run")
 #
 config.define_string("namespace", False, "Kubernetes namespace to use")
 
+# These arguments will enable writing Guardian events to a BigTable instance.
+# Writing to BigTable is optional. These arguments are not required to run the devnet.
+config.define_bool("bigTablePersistence", False, "Enable forwarding guardian events to BigTable")
+config.define_string("gcpProject", False, "GCP project ID for BigTable persistence")
+config.define_string("bigTableKeyPath", False, "Path to BigTable json key file")
+
 cfg = config.parse()
 num_guardians = int(cfg.get("num", "5"))
 namespace = cfg.get("namespace", "wormhole")
+bigTablePersistence = cfg.get("bigTablePersistence", False)
+gcpProject = cfg.get("gcpProject", None)
+bigTableKeyPath = cfg.get("bigTableKeyPath", "./bigtable-writer.json")
 
 # namespace
 
@@ -47,6 +57,14 @@ local_resource(
 
 # bridge
 
+if bigTablePersistence:
+    k8s_yaml_with_ns(
+        secret_yaml_generic(
+            "bridge-bigtable-key",
+            from_file = "bigtable-key.json=" + bigTableKeyPath
+        )
+    )
+
 docker_build(
     ref = "guardiand-image",
     context = "bridge",
@@ -63,6 +81,12 @@ def build_bridge_yaml():
             if container["name"] != "guardiand":
                 fail("container 0 is not guardiand")
             container["command"] += ["--devNumGuardians", str(num_guardians)]
+            if bigTablePersistence:
+                container["command"] += [
+                    "--bigTablePersistenceEnabled",
+                    "--bigTableGCPProject",
+                    gcpProject
+                ]
 
     return encode_yaml_stream(bridge_yaml)
 

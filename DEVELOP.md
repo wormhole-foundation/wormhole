@@ -81,3 +81,10 @@ To Solana as CPI instruction:
 Set the include path:
 
 ![](https://i.imgur.com/bDij6Cu.png)
+
+
+## BigTable event persistence
+
+Guardian events can be persisted to a BigTable instance. Launch the devnet with flags supplying your database info to enable forwarding events:
+
+    tilt up -- --num=1 --bigTablePersistence --gcpProject=your-project-id --bigTableKeyPath=./your-service-account-key.json

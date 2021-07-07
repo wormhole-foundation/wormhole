@@ -8,3 +8,5 @@ target
 /mutagen.sh
 venv
 .env
+bigtable-admin.json
+bigtable-writer.json

@@ -4,6 +4,11 @@
       "Name": "namespace",
       "ExtensionRegistry": "https://github.com/tilt-dev/tilt-extensions",
       "TimeFetched": "2020-12-05T16:06:07.229737938+01:00"
+    },
+    {
+      "Name": "secret",
+      "ExtensionRegistry": "https://github.com/tilt-dev/tilt-extensions",
+      "TimeFetched": "2021-07-01T15:08:09.818136358-05:00"
     }
   ]
 }

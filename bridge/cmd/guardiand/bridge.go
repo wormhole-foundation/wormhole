@@ -79,6 +79,12 @@ var (
 
 	publicRPC  *string
 	publicREST *string
+
+	bigTablePersistenceEnabled *bool
+	bigTableGCPProject         *string
+	bigTableInstanceName       *string
+	bigTableTableName          *string
+	bigTableKeyPath            *string
 )
 
 func init() {
@@ -119,6 +125,12 @@ func init() {
 
 	publicRPC = BridgeCmd.Flags().String("publicRPC", "", "Listen address for public gRPC interface")
 	publicREST = BridgeCmd.Flags().String("publicREST", "", "Listen address for public REST interface")
+
+	bigTablePersistenceEnabled = BridgeCmd.Flags().Bool("bigTablePersistenceEnabled", false, "Turn on forwarding events to BigTable")
+	bigTableGCPProject = BridgeCmd.Flags().String("bigTableGCPProject", "", "Google Cloud project ID for storing events")
+	bigTableInstanceName = BridgeCmd.Flags().String("bigTableInstanceName", "", "BigTable instance name for storing events")
+	bigTableTableName = BridgeCmd.Flags().String("bigTableTableName", "", "BigTable table name to store events in")
+	bigTableKeyPath = BridgeCmd.Flags().String("bigTableKeyPath", "", "Path to json Service Account key")
 }
 
 var (
@@ -310,6 +322,21 @@ func runBridge(cmd *cobra.Command, args []string) {
 	}
 	if *terraContract == "" {
 		logger.Fatal("Please specify --terraContract")
+	}
+
+	if *bigTablePersistenceEnabled {
+		if *bigTableGCPProject == "" {
+			logger.Fatal("Please specify --bigTableGCPProject")
+		}
+		if *bigTableInstanceName == "" {
+			logger.Fatal("Please specify --bigTableInstanceName")
+		}
+		if *bigTableTableName == "" {
+			logger.Fatal("Please specify --bigTableTableName")
+		}
+		if *bigTableKeyPath == "" {
+			logger.Fatal("Please specify --bigTableKeyPath")
+		}
 	}
 
 	ethContractAddr := eth_common.HexToAddress(*ethContract)
