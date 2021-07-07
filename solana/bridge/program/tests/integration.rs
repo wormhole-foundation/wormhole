@@ -975,15 +975,21 @@ fn test_free_fees(context: &mut Context) {
 fn test_transfer_fees(context: &mut Context) {
     // Initialize a wormhole bridge on Solana to test with.
     let (ref payer, ref client, ref program) = common::setup();
-    let emitter = Keypair::from_bytes(&GOV_KEY).unwrap();
+    let emitter = Keypair::from_bytes(&GOVERNANCE_KEY).unwrap();
+    let sequence = context.seq.next(emitter.pubkey().to_bytes());
 
-    let nonce = 12403;
+    let recipient = Keypair::new();
+    let nonce = rand::thread_rng().gen();
     let message = GovernancePayloadTransferFees {
         amount: 100.into(),
         to: payer.pubkey().to_bytes(),
     }
     .try_to_vec()
     .unwrap();
+
+    // Fetch accounts for chain state checking.
+    let fee_collector = FeeCollector::key(None, &program);
+    let account_balance = client.get_account(&fee_collector).unwrap().lamports;
 
     let message_key = common::post_message(
         client,
@@ -1006,10 +1012,11 @@ fn test_transfer_fees(context: &mut Context) {
         payer,
         message_key,
         emitter.pubkey(),
-        4,
         payer.pubkey(),
+        sequence,
     )
     .unwrap();
+    common::sync(client, payer);
 }
 
 fn test_transfer_fees_fails(context: &mut Context) {
@@ -1111,12 +1118,65 @@ fn test_transfer_too_much(context: &mut Context) {
 fn test_foreign_bridge_messages(context: &mut Context) {
     // Initialize a wormhole bridge on Solana to test with.
     let (ref payer, ref client, ref program) = common::setup();
-    let nonce = 13832;
-    let message = b"Prove Me".to_vec();
+    let nonce = rand::thread_rng().gen();
+    let message = [0u8; 32].to_vec();
     let emitter = Keypair::new();
+    let sequence = context.seq.next(emitter.pubkey().to_bytes());
 
     // Verify the VAA generated on a foreign chain.
     let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 0, 2);
+
+    // Derive where we expect created accounts to be.
+    let message_key = Message::<'_, { AccountState::MaybeInitialized }>::key(
+        &MessageDerivationData {
+            emitter_key: emitter.pubkey().to_bytes(),
+            emitter_chain: vaa.emitter_chain,
+            nonce,
+            sequence: Some(vaa.sequence),
+            payload: message.clone(),
+        },
+        &program,
+    );
+
     common::verify_signatures(client, program, payer, body, body_hash, &context.secret, 0).unwrap();
     common::post_vaa(client, program, payer, vaa).unwrap();
+    common::sync(client, payer);
+
+    let signature_set = SignatureSet::<'_, { AccountState::Uninitialized }>::key(
+        &SignatureSetDerivationData { hash: body_hash },
+        &program,
+    );
+
+    // Fetch chain accounts to verify state.
+    let posted_message: PostedMessage = common::get_account_data(client, &message_key);
+    let signatures: SignatureSetData = common::get_account_data(client, &signature_set);
+
+    assert_eq!(posted_message.0.vaa_version, 0);
+    assert_eq!(posted_message.0.persist, false);
+    assert_eq!(posted_message.0.vaa_signature_account, signature_set);
+    assert_eq!(posted_message.0.nonce, nonce);
+    assert_eq!(posted_message.0.sequence, sequence);
+    assert_eq!(posted_message.0.emitter_chain, 2);
+    assert_eq!(posted_message.0.payload, message);
+    assert_eq!(
+        posted_message.0.emitter_address,
+        emitter.pubkey().to_bytes()
+    );
+
+    // Verify on chain Signatures
+    assert_eq!(signatures.hash, body_hash);
+    assert_eq!(signatures.guardian_set_index, 0);
+
+    for (signature, secret_key) in signatures.signatures.iter().zip(context.secret.iter()) {
+        // Sign message locally.
+        let (local_sig, recover_id) = secp256k1::sign(&Secp256k1Message::parse(&body_hash), &secret_key);
+
+        // Combine recoverify with signature to match 65 byte layout.
+        let mut signature_bytes = [0u8; 65];
+        signature_bytes[64] = recover_id.serialize();
+        (&mut signature_bytes[0..64]).copy_from_slice(&local_sig.serialize());
+
+        // Signature stored should on chain be as expected.
+        assert_eq!(*signature, signature_bytes);
+    }
 }
