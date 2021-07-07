@@ -361,6 +361,7 @@ pub fn transfer_fees(
             AccountMeta::new(claim, false),
             AccountMeta::new(fee_collector, false),
             AccountMeta::new(recipient, false),
+            AccountMeta::new_readonly(sysvar::rent::id(), false),
             AccountMeta::new_readonly(solana_program::system_program::id(), false),
         ],
 

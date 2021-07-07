@@ -3,6 +3,7 @@ use solitaire::*;
 use solana_program::{
     program::invoke_signed,
     pubkey::Pubkey,
+    sysvar::rent::Rent,
 };
 use solitaire::{
     processors::seeded::Seeded,
@@ -28,6 +29,7 @@ use crate::{
     Error::{
         InvalidFeeRecipient,
         InvalidGovernanceKey,
+        InvalidGovernanceWithdrawal,
         InvalidGuardianSetUpgrade,
     },
     CHAIN_ID_SOLANA,
@@ -222,6 +224,9 @@ pub struct TransferFees<'b> {
 
     /// Fee recipient
     pub recipient: Mut<Info<'b>>,
+
+    /// Rent calculator to check transfer sizes.
+    pub rent: Sysvar<'b, Rent>,
 }
 
 impl<'b> InstructionContext<'b> for TransferFees<'b> {
@@ -243,6 +248,15 @@ pub fn transfer_fees(
     _data: TransferFeesData,
 ) -> Result<()> {
     verify_claim(&accs.vaa)?;
+
+    if accs
+        .fee_collector
+        .lamports()
+        .saturating_sub(accs.vaa.amount.as_u64())
+        < accs.rent.minimum_balance(accs.fee_collector.data_len())
+    {
+        return Err(InvalidGovernanceWithdrawal.into());
+    }
 
     accs.vaa.claim(ctx, accs.payer.key)?;
 

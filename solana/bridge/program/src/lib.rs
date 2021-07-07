@@ -63,14 +63,15 @@ enum Error {
     InvalidGovernanceChain,
     InvalidGovernanceKey,
     InvalidGovernanceModule,
+    InvalidGovernanceWithdrawal,
     InvalidGuardianSetUpgrade,
     InvalidHash,
     InvalidSecpInstruction,
     MathOverflow,
     PostVAAConsensusFailed,
     PostVAAGuardianSetExpired,
-    VAAAlreadyExecuted,
     TooManyGuardians,
+    VAAAlreadyExecuted,
 }
 
 /// Translate from program specific errors to Solitaire framework errors. Log the error on the way

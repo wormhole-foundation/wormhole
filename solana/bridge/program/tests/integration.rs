@@ -148,6 +148,7 @@ fn run_integration_tests() {
     test_transfer_fees(&mut context);
     test_transfer_fees_fails(&mut context);
     test_transfer_too_much(&mut context);
+    test_transfer_total_fails(&mut context);
 }
 
 fn test_initialize(context: &mut Context) {
@@ -1179,4 +1180,63 @@ fn test_foreign_bridge_messages(context: &mut Context) {
         // Signature stored should on chain be as expected.
         assert_eq!(*signature, signature_bytes);
     }
+}
+
+fn test_transfer_total_fails(context: &mut Context) {
+    // Initialize a wormhole bridge on Solana to test with.
+    let (ref payer, ref client, ref program) = common::setup();
+    let emitter = Keypair::from_bytes(&GOVERNANCE_KEY).unwrap();
+    let sequence = context.seq.next(emitter.pubkey().to_bytes());
+
+    // Be sure any previous tests have fully committed.
+    common::sync(client, payer);
+
+    let fee_collector = FeeCollector::key(None, &program);
+    let account_balance = client.get_account(&fee_collector).unwrap().lamports;
+
+    // Prepare to remove total balance, adding 10_000 to include the fee we're about to pay.
+    let recipient = Keypair::new();
+    let nonce = rand::thread_rng().gen();
+    let message = GovernancePayloadTransferFees {
+        amount: (account_balance + 10_000).into(),
+        to: payer.pubkey().to_bytes(),
+    }
+    .try_to_vec()
+    .unwrap();
+
+    let message_key = common::post_message(
+        client,
+        program,
+        payer,
+        &emitter,
+        nonce,
+        message.clone(),
+        10_000,
+        false,
+    )
+    .unwrap();
+
+    let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 1, 1);
+    common::verify_signatures(client, program, payer, body, body_hash, &context.secret, 1).unwrap();
+    common::post_vaa(client, program, payer, vaa).unwrap();
+
+    // Transferring total fees should fail, to prevent the account being de-allocated.
+    assert!(common::transfer_fees(
+        client,
+        program,
+        payer,
+        message_key,
+        emitter.pubkey(),
+        payer.pubkey(),
+        sequence,
+    )
+    .is_err());
+    common::sync(client, payer);
+
+    // The fee should have been paid, but other than that the balance should be exactly the same,
+    // I.E non-zero.
+    assert_eq!(
+        client.get_account(&fee_collector).unwrap().lamports,
+        account_balance + 10_000
+    );
 }
