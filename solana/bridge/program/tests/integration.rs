@@ -138,6 +138,7 @@ fn run_integration_tests() {
     test_bridge_messages(&mut context);
     test_foreign_bridge_messages(&mut context);
     test_persistent_bridge_messages(&mut context);
+    test_invalid_emitter(&mut context);
     test_guardian_set_change(&mut context);
     test_guardian_set_change_fails(&mut context);
     test_set_fees(&mut context);
@@ -299,6 +300,45 @@ fn test_persistent_bridge_messages(context: &mut Context) {
         client.get_account(&fee_collector).unwrap().lamports,
         account_balance + 5000,
     );
+}
+
+fn test_invalid_emitter(context: &mut Context) {
+    let (ref payer, ref client, ref program) = common::setup();
+
+    // Generate a message we want to persist.
+    let message = [0u8; 32].to_vec();
+    let emitter = Keypair::new();
+    let nonce = rand::thread_rng().gen();
+    let sequence = context.seq.next(emitter.pubkey().to_bytes());
+
+    let fee_collector = FeeCollector::key(None, &program);
+
+    // Manually send a message that isn't signed by the emitter, which should be rejected to
+    // prevent fraudulant transactions sent on behalf of an emitter.
+    let (message_key, mut instruction) = bridge::instructions::post_message(
+        *program,
+        payer.pubkey(),
+        emitter.pubkey(),
+        nonce,
+        message,
+        false,
+    )
+    .unwrap();
+
+    // Modify account list to not require the emitter signs.
+    instruction.accounts[2].is_signer = false;
+
+    // Executing this should fail.
+    assert!(common::execute(
+        client,
+        payer,
+        &[payer],
+        &[
+            system_instruction::transfer(&payer.pubkey(), &fee_collector, 10_000),
+            instruction,
+        ],
+        solana_sdk::commitment_config::CommitmentConfig::processed(),
+    ).is_err());
 }
 
 fn test_guardian_set_change(context: &mut Context) {
