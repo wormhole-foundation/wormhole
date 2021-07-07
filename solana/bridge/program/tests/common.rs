@@ -94,18 +94,19 @@ use solitaire::{
 pub use helpers::*;
 
 /// Simple API wrapper for quickly preparing and sending transactions.
-fn execute(
+pub fn execute(
     client: &RpcClient,
     payer: &Keypair,
     signers: &[&Keypair],
     instructions: &[Instruction],
+    commitment_level: CommitmentConfig,
 ) -> Result<Signature, ClientError> {
     let mut transaction = Transaction::new_with_payer(instructions, Some(&payer.pubkey()));
     let recent_blockhash = client.get_recent_blockhash().unwrap().0;
     transaction.sign(&signers.to_vec(), recent_blockhash);
     client.send_and_confirm_transaction_with_spinner_and_config(
         &transaction,
-        CommitmentConfig::processed(),
+        commitment_level,
         RpcSendTransactionConfig {
             skip_preflight: true,
             preflight_commitment: None,
@@ -129,6 +130,23 @@ mod helpers {
             .parse::<Pubkey>()
             .unwrap();
         (payer, rpc, program)
+    }
+
+    /// Wait for a single transaction to fully finalize, guaranteeing chain state has been
+    /// confirmed. Useful for consistently fetching data during state checks.
+    pub fn sync(client: &RpcClient, payer: &Keypair) {
+        execute(
+            client,
+            payer,
+            &[payer],
+            &[system_instruction::transfer(
+                &payer.pubkey(),
+                &payer.pubkey(),
+                1,
+            )],
+            CommitmentConfig::finalized(),
+        )
+        .unwrap();
     }
 
     /// Fetch account data, the loop is there to re-attempt until data is available.
@@ -233,6 +251,7 @@ mod helpers {
             from,
             &[from],
             &[system_instruction::transfer(&from.pubkey(), to, lamports)],
+            CommitmentConfig::processed(),
         )
     }
 
@@ -255,6 +274,7 @@ mod helpers {
                 initial_guardians,
             )
             .unwrap()],
+            CommitmentConfig::processed(),
         )
     }
 
@@ -290,6 +310,7 @@ mod helpers {
                 system_instruction::transfer(&payer.pubkey(), &fee_collector, fee),
                 instruction,
             ],
+            CommitmentConfig::processed(),
         )?;
 
         Ok(message_key)
@@ -328,6 +349,7 @@ mod helpers {
                     )
                     .unwrap(),
                 ],
+                CommitmentConfig::processed(),
             )?;
         }
         Ok(())
@@ -344,6 +366,7 @@ mod helpers {
             payer,
             &[payer],
             &[instructions::post_vaa(*program, payer.pubkey(), vaa)],
+            CommitmentConfig::processed(),
         )
     }
 
@@ -364,6 +387,7 @@ mod helpers {
                 payload_message,
                 spill,
             )],
+            CommitmentConfig::processed(),
         )
     }
 
@@ -390,6 +414,7 @@ mod helpers {
                 new_index,
                 sequence,
             )],
+            CommitmentConfig::processed(),
         )
     }
 
@@ -412,6 +437,7 @@ mod helpers {
                 emitter,
                 sequence,
             )],
+            CommitmentConfig::processed(),
         )
     }
 
@@ -436,6 +462,7 @@ mod helpers {
                 sequence,
                 recipient,
             )],
+            CommitmentConfig::processed(),
         )
     }
 }
