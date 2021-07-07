@@ -9,6 +9,7 @@ use crate::{
     Error::TooManyGuardians,
     MAX_LEN_GUARDIAN_KEYS,
 };
+use solana_program::sysvar::clock::Clock;
 use solitaire::{
     CreationLamports::Exempt,
     *,
@@ -29,6 +30,9 @@ pub struct Initialize<'b> {
 
     /// Payer for account creation.
     pub payer: Mut<Payer<'b>>,
+
+    /// Clock used for recording the initialization time.
+    pub clock: Sysvar<'b, Clock>,
 }
 
 impl<'b> InstructionContext<'b> for Initialize<'b> {
@@ -62,9 +66,9 @@ pub fn initialize(
         return Err(TooManyGuardians.into());
     }
 
-    // Allocate a default guardian set, with zeroed keys.
+    // Allocate initial guardian set with the provided keys.
     accs.guardian_set.index = index;
-    accs.guardian_set.creation_time = 0;
+    accs.guardian_set.creation_time = accs.clock.unix_timestamp as u32;
     accs.guardian_set.keys.extend(&data.initial_guardians);
 
     // Initialize Guardian Set

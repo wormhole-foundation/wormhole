@@ -62,6 +62,7 @@ pub fn initialize(
             AccountMeta::new(guardian_set, false),
             AccountMeta::new(fee_collector, false),
             AccountMeta::new(payer, true),
+            AccountMeta::new_readonly(sysvar::clock::id(), false),
             AccountMeta::new_readonly(sysvar::rent::id(), false),
             AccountMeta::new_readonly(solana_program::system_program::id(), false),
         ],
