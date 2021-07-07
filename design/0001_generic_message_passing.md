@@ -182,7 +182,7 @@ differently shaped problem, leading to a different design.
 
 IBC specifies a cross-chain communication protocol with high-level semantics like channels, ports, acknowledgements,
 ordering and timeouts. It is a stream abstraction on top of a packet/datagram transport, vaguely similar to the TCP/IP
-protocol. IBC is part of the Cosmos Internet of Blockchain vision scalability vision, with hundreds or even thousands of
+protocol. IBC is part of the Cosmos Internet of Blockchain scalability vision, with hundreds or even thousands of
 sovereign IBC-compatible chains (called "zones") communicating via IBC using a hub-and-spoke topology. Data availability
 is provided by permissionless relayers.
 
