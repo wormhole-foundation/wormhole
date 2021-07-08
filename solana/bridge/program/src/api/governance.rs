@@ -136,6 +136,18 @@ pub fn upgrade_guardian_set(
     _data: UpgradeGuardianSetData,
 ) -> Result<()> {
     verify_claim(&accs.vaa)?;
+    accs.guardian_set_old.verify_derivation(
+        ctx.program_id,
+        &GuardianSetDerivationData {
+            index: accs.vaa.new_guardian_set_index - 1,
+        },
+    )?;
+    accs.guardian_set_new.verify_derivation(
+        ctx.program_id,
+        &GuardianSetDerivationData {
+            index: accs.vaa.new_guardian_set_index,
+        },
+    )?;
 
     accs.vaa.claim(ctx, accs.payer.key)?;
 
