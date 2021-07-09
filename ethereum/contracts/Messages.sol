@@ -101,6 +101,9 @@ contract Messages is Getters {
         vm.sequence = encodedVM.toUint64(index);
         index += 8;
 
+        vm.consistencyLevel = encodedVM.toUint8(index);
+        index += 1;
+
         vm.payload = encodedVM.slice(index, encodedVM.length - index);
     }
 }

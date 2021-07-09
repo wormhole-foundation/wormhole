@@ -133,6 +133,13 @@ VAA struct {
 	// Tracked per (EmitterChain, EmitterAddress) tuple.
 	Sequence uint64 // <-- NEW
 
+    // Level of consistency requested by the emitter.
+    //
+    // The semantic meaning of this field is specific to the target
+    // chain (like a commitment level on Solana, number of
+    // confirmations on Ethereum, or no meaning with instant finality). 
+    ConsistencyLevel uint8 // <-- NEW
+
 	// Payload of the message.
 	Payload []byte // <-- NEW
 }

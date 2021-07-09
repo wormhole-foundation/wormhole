@@ -167,6 +167,9 @@ pub struct PostedMessageData {
     /// Whether the VAA for this message should be persisted
     pub persist: bool,
 
+    /// Level of consistency requested by the emitter
+    pub consistency_level: u8,
+
     /// Time the vaa was submitted
     pub vaa_time: u32,
 
@@ -386,4 +389,11 @@ where
 impl DeserializeGovernancePayload for GovernancePayloadTransferFees {
     const MODULE: &'static str = "CORE";
     const ACTION: u8 = 4;
+}
+
+#[repr(u8)]
+#[derive(BorshSerialize, BorshDeserialize, Clone)]
+pub enum ConsistencyLevel {
+    Confirmed,
+    Finalized,
 }

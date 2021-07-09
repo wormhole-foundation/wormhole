@@ -7,7 +7,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
-	"math/big"
 	"testing"
 	"time"
 )
@@ -18,7 +17,7 @@ func TestSerializeDeserialize(t *testing.T) {
 		vaa  *VAA
 	}{
 		{
-			name: "BodyTransfer",
+			name: "NormalVAA",
 			vaa: &VAA{
 				Version:          1,
 				GuardianSetIndex: 9,
@@ -28,55 +27,13 @@ func TestSerializeDeserialize(t *testing.T) {
 						Signature: [65]byte{},
 					},
 				},
-				Timestamp: time.Unix(2837, 0),
-				Payload: &BodyTransfer{
-					Nonce:         38,
-					SourceChain:   2,
-					TargetChain:   1,
-					SourceAddress: Address{2, 1, 4},
-					TargetAddress: Address{2, 1, 3},
-					Asset: &AssetMeta{
-						Chain:   9,
-						Address: Address{9, 2, 4},
-					},
-					Amount: big.NewInt(29),
-				},
-			},
-		},
-		{
-			name: "GuardianSetUpdate",
-			vaa: &VAA{
-				Version:          1,
-				GuardianSetIndex: 9,
-				Signatures: []*Signature{
-					{
-						Index:     1,
-						Signature: [65]byte{},
-					},
-				},
-				Timestamp: time.Unix(2837, 0),
-				Payload: &BodyGuardianSetUpdate{
-					Keys:     []common.Address{{}, {}},
-					NewIndex: 2,
-				},
-			},
-		},
-		{
-			name: "ContractUpgrade",
-			vaa: &VAA{
-				Version:          1,
-				GuardianSetIndex: 9,
-				Signatures: []*Signature{
-					{
-						Index:     1,
-						Signature: [65]byte{},
-					},
-				},
-				Timestamp: time.Unix(2837, 0),
-				Payload: &BodyContractUpgrade{
-					ChainID:     ChainIDEthereum,
-					NewContract: Address{1, 3, 4, 5, 2, 3},
-				},
+				Timestamp:        time.Unix(2837, 0),
+				Nonce:            10,
+				Sequence:         3,
+				ConsistencyLevel: 5,
+				EmitterChain:     8,
+				EmitterAddress:   Address{1, 2, 3},
+				Payload:          []byte("abc"),
 			},
 		},
 	}
@@ -100,16 +57,12 @@ func TestVerifySignature(t *testing.T) {
 		Version:          8,
 		GuardianSetIndex: 9,
 		Timestamp:        time.Unix(2837, 0),
-		Payload: &BodyTransfer{
-			SourceChain:   2,
-			TargetChain:   1,
-			TargetAddress: Address{2, 1, 3},
-			Asset: &AssetMeta{
-				Chain:   9,
-				Address: Address{9, 2, 4},
-			},
-			Amount: big.NewInt(29),
-		},
+		Nonce:            5,
+		Sequence:         10,
+		ConsistencyLevel: 2,
+		EmitterChain:     2,
+		EmitterAddress:   Address{0, 1, 2, 3, 4},
+		Payload:          []byte("abcd"),
 	}
 
 	data, err := v.SigningMsg()

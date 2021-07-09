@@ -28,6 +28,7 @@ use crate::{
         SignatureSet,
         SignatureSetDerivationData,
     },
+    types::ConsistencyLevel,
     InitializeData,
     PayloadMessage,
     PostMessageData,
@@ -83,6 +84,7 @@ pub fn post_message(
     nonce: u32,
     payload: Vec<u8>,
     persist: bool,
+    commitment: ConsistencyLevel,
 ) -> solitaire::Result<(Pubkey, Instruction)> {
     let bridge = Bridge::<'_, { AccountState::Uninitialized }>::key(None, &program_id);
     let fee_collector = FeeCollector::<'_>::key(None, &program_id);
@@ -124,6 +126,7 @@ pub fn post_message(
                 nonce,
                 payload: payload.clone(),
                 persist,
+                consistency_level: commitment,
             })
             .try_to_vec()?,
         },
@@ -389,6 +392,7 @@ pub fn serialize_vaa(vaa: &PostVAAData) -> Vec<u8> {
     v.write_u16::<BigEndian>(vaa.emitter_chain).unwrap();
     v.write(&vaa.emitter_address).unwrap();
     v.write_u64::<BigEndian>(vaa.sequence).unwrap();
+    v.write_u8(vaa.consistency_level).unwrap();
     v.write(&vaa.payload).unwrap();
     v.into_inner()
 }

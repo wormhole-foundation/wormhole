@@ -29,6 +29,8 @@ type (
 		Nonce uint32
 		// Sequence of the VAA
 		Sequence uint64
+		/// ConsistencyLevel of the VAA
+		ConsistencyLevel uint8
 		// EmitterChain the VAA was emitted on
 		EmitterChain ChainID
 		// EmitterAddress of the contract that emitted the Message
@@ -143,6 +145,15 @@ func Unmarshal(data []byte) (*VAA, error) {
 	if n, err := reader.Read(emitterAddress[:]); err != nil || n != 32 {
 		return nil, fmt.Errorf("failed to read emitter address [%d]: %w", n, err)
 	}
+	v.EmitterAddress = emitterAddress
+
+	if err := binary.Read(reader, binary.BigEndian, &v.Sequence); err != nil {
+		return nil, fmt.Errorf("failed to read sequence: %w", err)
+	}
+
+	if err := binary.Read(reader, binary.BigEndian, &v.ConsistencyLevel); err != nil {
+		return nil, fmt.Errorf("failed to read commitment: %w", err)
+	}
 
 	payload := make([]byte, 1000)
 	n, err := reader.Read(payload)
@@ -231,6 +242,7 @@ func (v *VAA) serializeBody() ([]byte, error) {
 	MustWrite(buf, binary.BigEndian, v.EmitterChain)
 	buf.Write(v.EmitterAddress[:])
 	MustWrite(buf, binary.BigEndian, v.Sequence)
+	MustWrite(buf, binary.BigEndian, v.ConsistencyLevel)
 	buf.Write(v.Payload)
 
 	return buf.Bytes(), nil

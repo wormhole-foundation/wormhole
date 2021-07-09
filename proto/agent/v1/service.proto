@@ -27,9 +27,10 @@ message VAA {
   uint32 EmitterChain = 4;
   bytes EmitterAddress = 5;
   uint64 Sequence = 6;
-  bytes Payload = 7;
-  uint32 GuardianSetIndex = 8;
-  repeated Signature Signatures = 9;
+  uint32 ConsistencyLevel = 7;
+  bytes Payload = 8;
+  uint32 GuardianSetIndex = 9;
+  repeated Signature Signatures = 10;
 }
 
 message Signature{

@@ -213,6 +213,7 @@ func (p *Processor) handleObservation(ctx context.Context, m *gossipv1.SignedObs
 			EmitterChain:     v.EmitterChain,
 			EmitterAddress:   v.EmitterAddress,
 			Payload:          v.Payload,
+			ConsistencyLevel: v.ConsistencyLevel,
 		}
 
 		// 2/3+ majority required for VAA to be valid - wait until we have quorum to submit VAA.

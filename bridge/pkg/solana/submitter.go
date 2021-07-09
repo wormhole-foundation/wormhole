@@ -132,6 +132,7 @@ func (e *SolanaVAASubmitter) Run(ctx context.Context) error {
 					Payload:          v.Payload,
 					GuardianSetIndex: v.GuardianSetIndex,
 					Signatures:       signatures,
+					ConsistencyLevel: uint32(v.ConsistencyLevel),
 				}, SkipPreflight: e.skipPreflight})
 				cancel()
 				if err != nil {

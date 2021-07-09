@@ -111,6 +111,7 @@ pub struct PostVAAData {
     pub emitter_chain: u16,
     pub emitter_address: ForeignAddress,
     pub sequence: u64,
+    pub consistency_level: u8,
     pub payload: Vec<u8>,
 }
 
@@ -167,6 +168,7 @@ pub fn post_vaa(ctx: &ExecutionContext, accs: &mut PostVAA, vaa: PostVAAData) ->
         accs.message.emitter_address = vaa.emitter_address;
         accs.message.sequence = vaa.sequence;
         accs.message.payload = vaa.payload;
+        accs.message.consistency_level = vaa.consistency_level;
         accs.message
             .create(&msg_derivation, ctx, accs.payer.key, Exempt)?;
     }
@@ -218,6 +220,7 @@ fn check_integrity<'r>(
         v.write_u16::<BigEndian>(vaa.emitter_chain)?;
         v.write(&vaa.emitter_address)?;
         v.write_u64::<BigEndian>(vaa.sequence)?;
+        v.write_u8(vaa.consistency_level)?;
         v.write(&vaa.payload)?;
         v.into_inner()
     };

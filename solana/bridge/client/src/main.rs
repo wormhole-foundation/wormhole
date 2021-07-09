@@ -114,6 +114,7 @@ fn command_post_message(
     nonce: u32,
     payload: Vec<u8>,
     persist: bool,
+    commitment: bridge::types::ConsistencyLevel,
 ) -> CommmandResult {
     println!("Posting a message to the wormhole");
 
@@ -138,13 +139,16 @@ fn command_post_message(
         &FeeCollector::key(None, bridge),
         fee,
     );
+
+    let emitter = Keypair::new();
     let (_, ix) = bridge::instructions::post_message(
         *bridge,
         config.owner.pubkey(),
-        config.fee_payer.pubkey(),
+        emitter.pubkey(),
         nonce,
         payload,
         persist,
+        commitment,
     )
     .unwrap();
     let mut transaction =
@@ -152,7 +156,10 @@ fn command_post_message(
 
     let (recent_blockhash, fee_calculator) = config.rpc_client.get_recent_blockhash()?;
     check_fee_payer_balance(config, fee_calculator.calculate_fee(&transaction.message()))?;
-    transaction.sign(&[&config.fee_payer, &config.owner], recent_blockhash);
+    transaction.sign(
+        &[&config.fee_payer, &config.owner, &emitter],
+        recent_blockhash,
+    );
     Ok(Some(transaction))
 }
 
@@ -280,11 +287,19 @@ fn main() {
                         .help("Nonce of the message"),
                 )
                 .arg(
+                    Arg::with_name("consistency_level")
+                        .value_name("CONSISTENCY_LEVEL")
+                        .takes_value(true)
+                        .index(3)
+                        .required(true)
+                        .help("Consistency (Commitment) level at which the VAA should be produced <FINALIZED|CONFIRMED>"),
+                )
+                .arg(
                     Arg::with_name("data")
                         .validator(is_hex)
                         .value_name("DATA")
                         .takes_value(true)
-                        .index(3)
+                        .index(4)
                         .required(true)
                         .help("Payload of the message"),
                 )
@@ -352,8 +367,23 @@ fn main() {
             let data = hex::decode(data_str).unwrap();
             let nonce: u32 = value_of(arg_matches, "nonce").unwrap();
             let persist = arg_matches.is_present("persist");
+            let consistency_level: String = value_of(arg_matches, "consistency_level").unwrap();
 
-            command_post_message(&config, &bridge, nonce, data, persist)
+            command_post_message(
+                &config,
+                &bridge,
+                nonce,
+                data,
+                persist,
+                match consistency_level.to_lowercase().as_str() {
+                    "finalized" => bridge::types::ConsistencyLevel::Finalized,
+                    "confirmed" => bridge::types::ConsistencyLevel::Confirmed,
+                    _ => {
+                        eprintln!("Invalid commitment level");
+                        exit(1);
+                    }
+                },
+            )
         }
 
         _ => unreachable!(),

@@ -17,7 +17,7 @@ use solitaire::{
 
 type Payer<'a> = Signer<Info<'a>>;
 
-#[derive(FromAccounts, ToInstruction)]
+#[derive(FromAccounts)]
 pub struct Initialize<'b> {
     /// Bridge config.
     pub bridge: Mut<Bridge<'b, { AccountState::Uninitialized }>>,

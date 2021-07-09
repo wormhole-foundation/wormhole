@@ -125,6 +125,7 @@ impl Agent for AgentImpl {
                 emitter_chain: vaa.emitter_chain as u16,
                 emitter_address: emitter_address,
                 sequence: vaa.sequence,
+                consistency_level: vaa.consistency_level as u8,
                 payload: vaa.payload.clone(),
             };
 

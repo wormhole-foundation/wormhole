@@ -76,8 +76,6 @@ spec:
             - /tmp/terra.key
             - --agentRPC
             - /run/bridge/agent.sock
-            - --ethConfirmations
-            - '2'
             - --solanaBridgeAddress
             - Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o
             - --solanaWS

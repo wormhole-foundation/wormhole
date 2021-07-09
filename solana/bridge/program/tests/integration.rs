@@ -1,12 +1,12 @@
 #![allow(warnings)]
 
-use rand::Rng;
 use borsh::BorshSerialize;
 use byteorder::{
     BigEndian,
     WriteBytesExt,
 };
 use hex_literal::hex;
+use rand::Rng;
 use secp256k1::{
     Message as Secp256k1Message,
     PublicKey,
@@ -38,6 +38,10 @@ use solana_sdk::{
     },
     transaction::Transaction,
 };
+use solitaire::{
+    processors::seeded::Seeded,
+    AccountState,
+};
 use std::{
     convert::TryInto,
     io::{
@@ -48,10 +52,6 @@ use std::{
         Duration,
         SystemTime,
     },
-};
-use solitaire::{
-    processors::seeded::Seeded,
-    AccountState,
 };
 
 use bridge::{
@@ -125,7 +125,7 @@ fn run_integration_tests() {
     let mut context = Context {
         public: public_keys,
         secret: secret_keys,
-        seq: Sequencer { 
+        seq: Sequencer {
             sequences: std::collections::HashMap::new(),
         },
     };
@@ -158,7 +158,8 @@ fn test_initialize(context: &mut Context) {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
-        .as_secs() - 10;
+        .as_secs()
+        - 10;
 
     common::initialize(client, program, payer, &*context.public.clone(), 500, 5000);
     common::sync(client, payer);
@@ -213,7 +214,8 @@ fn test_bridge_messages(context: &mut Context) {
 
         // Emulate Guardian behaviour, verifying the data and publishing signatures/VAA.
         let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 0, 1);
-        common::verify_signatures(client, program, payer, body, body_hash, &context.secret, 0).unwrap();
+        common::verify_signatures(client, program, payer, body, body_hash, &context.secret, 0)
+            .unwrap();
         common::post_vaa(client, program, payer, vaa).unwrap();
         common::sync(client, payer);
 
@@ -246,7 +248,8 @@ fn test_bridge_messages(context: &mut Context) {
 
         for (signature, secret_key) in signatures.signatures.iter().zip(context.secret.iter()) {
             // Sign message locally.
-            let (local_sig, recover_id) = secp256k1::sign(&Secp256k1Message::parse(&body_hash), &secret_key);
+            let (local_sig, recover_id) =
+                secp256k1::sign(&Secp256k1Message::parse(&body_hash), &secret_key);
 
             // Combine recoverify with signature to match 65 byte layout.
             let mut signature_bytes = [0u8; 65];
@@ -311,7 +314,8 @@ fn test_bridge_messages(context: &mut Context) {
 
     for (signature, secret_key) in signatures.signatures.iter().zip(context.secret.iter()) {
         // Sign message locally.
-        let (local_sig, recover_id) = secp256k1::sign(&Secp256k1Message::parse(&body_hash), &secret_key);
+        let (local_sig, recover_id) =
+            secp256k1::sign(&Secp256k1Message::parse(&body_hash), &secret_key);
 
         // Combine recoverify with signature to match 65 byte layout.
         let mut signature_bytes = [0u8; 65];
@@ -342,7 +346,8 @@ fn test_persistent_bridge_messages(context: &mut Context) {
         message.clone(),
         4999,
         true,
-    ).is_err());
+    )
+    .is_err());
 
     // Check current balance to verify the right fee is going to be taken.
     let fee_collector = FeeCollector::key(None, &program);
@@ -400,7 +405,8 @@ fn test_persistent_bridge_messages(context: &mut Context) {
 
     for (signature, secret_key) in signatures.signatures.iter().zip(context.secret.iter()) {
         // Sign message locally.
-        let (local_sig, recover_id) = secp256k1::sign(&Secp256k1Message::parse(&body_hash), &secret_key);
+        let (local_sig, recover_id) =
+            secp256k1::sign(&Secp256k1Message::parse(&body_hash), &secret_key);
 
         // Combine recoverify with signature to match 65 byte layout.
         let mut signature_bytes = [0u8; 65];
@@ -454,7 +460,8 @@ fn test_invalid_emitter(context: &mut Context) {
             instruction,
         ],
         solana_sdk::commitment_config::CommitmentConfig::processed(),
-    ).is_err());
+    )
+    .is_err());
 }
 
 fn test_duplicate_messages_fail(context: &mut Context) {
@@ -489,7 +496,8 @@ fn test_duplicate_messages_fail(context: &mut Context) {
         message.clone(),
         10_000,
         false,
-    ).is_err());
+    )
+    .is_err());
 }
 
 fn test_guardian_set_change(context: &mut Context) {
@@ -500,7 +508,8 @@ fn test_guardian_set_change(context: &mut Context) {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
-        .as_secs() - 10;
+        .as_secs()
+        - 10;
 
     // Upgrade the guardian set with a new set of guardians.
     let (new_public_keys, new_secret_keys) = common::generate_keys(1);
@@ -618,7 +627,8 @@ fn test_guardian_set_change(context: &mut Context) {
 
     for (signature, secret_key) in signatures.signatures.iter().zip(context.secret.iter()) {
         // Sign message locally.
-        let (local_sig, recover_id) = secp256k1::sign(&Secp256k1Message::parse(&body_hash), &secret_key);
+        let (local_sig, recover_id) =
+            secp256k1::sign(&Secp256k1Message::parse(&body_hash), &secret_key);
 
         // Combine recoverify with signature to match 65 byte layout.
         let mut signature_bytes = [0u8; 65];
@@ -801,7 +811,8 @@ fn test_set_fees(context: &mut Context) {
 
     for (signature, secret_key) in signatures.signatures.iter().zip(context.secret.iter()) {
         // Sign message locally.
-        let (local_sig, recover_id) = secp256k1::sign(&Secp256k1Message::parse(&body_hash), &secret_key);
+        let (local_sig, recover_id) =
+            secp256k1::sign(&Secp256k1Message::parse(&body_hash), &secret_key);
 
         // Combine recoverify with signature to match 65 byte layout.
         let mut signature_bytes = [0u8; 65];
@@ -851,7 +862,8 @@ fn test_set_fees_fails(context: &mut Context) {
         message_key,
         emitter.pubkey(),
         sequence,
-    ).is_err());
+    )
+    .is_err());
     common::sync(client, payer);
 }
 
@@ -961,7 +973,8 @@ fn test_free_fees(context: &mut Context) {
 
     for (signature, secret_key) in signatures.signatures.iter().zip(context.secret.iter()) {
         // Sign message locally.
-        let (local_sig, recover_id) = secp256k1::sign(&Secp256k1Message::parse(&body_hash), &secret_key);
+        let (local_sig, recover_id) =
+            secp256k1::sign(&Secp256k1Message::parse(&body_hash), &secret_key);
 
         // Combine recoverify with signature to match 65 byte layout.
         let mut signature_bytes = [0u8; 65];
@@ -1113,7 +1126,8 @@ fn test_transfer_too_much(context: &mut Context) {
         emitter.pubkey(),
         payer.pubkey(),
         sequence,
-    ).is_err());
+    )
+    .is_err());
 }
 
 fn test_foreign_bridge_messages(context: &mut Context) {
@@ -1170,7 +1184,8 @@ fn test_foreign_bridge_messages(context: &mut Context) {
 
     for (signature, secret_key) in signatures.signatures.iter().zip(context.secret.iter()) {
         // Sign message locally.
-        let (local_sig, recover_id) = secp256k1::sign(&Secp256k1Message::parse(&body_hash), &secret_key);
+        let (local_sig, recover_id) =
+            secp256k1::sign(&Secp256k1Message::parse(&body_hash), &secret_key);
 
         // Combine recoverify with signature to match 65 byte layout.
         let mut signature_bytes = [0u8; 65];

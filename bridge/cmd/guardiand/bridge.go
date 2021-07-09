@@ -51,9 +51,8 @@ var (
 	bridgeKeyPath       *string
 	solanaBridgeAddress *string
 
-	ethRPC           *string
-	ethContract      *string
-	ethConfirmations *uint64
+	ethRPC      *string
+	ethContract *string
 
 	terraSupport  *bool
 	terraWS       *string
@@ -92,7 +91,6 @@ func init() {
 
 	ethRPC = BridgeCmd.Flags().String("ethRPC", "", "Ethereum RPC URL")
 	ethContract = BridgeCmd.Flags().String("ethContract", "", "Ethereum bridge contract address")
-	ethConfirmations = BridgeCmd.Flags().Uint64("ethConfirmations", 15, "Ethereum confirmation count requirement")
 
 	terraSupport = BridgeCmd.Flags().Bool("terra", false, "Turn on support for Terra")
 	terraWS = BridgeCmd.Flags().String("terraWS", "", "Path to terrad root for websocket connection")
@@ -396,7 +394,7 @@ func runBridge(cmd *cobra.Command, args []string) {
 		}
 
 		if err := supervisor.Run(ctx, "ethwatch",
-			ethereum.NewEthBridgeWatcher(*ethRPC, ethContractAddr, *ethConfirmations, lockC, setC).Run); err != nil {
+			ethereum.NewEthBridgeWatcher(*ethRPC, ethContractAddr, lockC, setC).Run); err != nil {
 			return err
 		}
 

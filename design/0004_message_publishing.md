@@ -52,6 +52,10 @@ message submitted.
 The timestamp is derived by the guardian software using the finalized timestamp of the block the message was published
 in.
 
+When a message is posted, the emitter can specify for how many confirmations the guardians should wait before an
+attestation is produced. This allows latency sensitive applications to make sacrifices on safety while critical
+applications can sacrifice latency over safety. Chains with instant finality can omit the argument.
+
 **Persistence:**
 
 In case an emitter chooses to persist a message, the guardian software will publish it to the Solana blockchain where
@@ -89,7 +93,7 @@ bridge tokens back to the chain where the governance and staking contracts are l
 
 Proposed bridge interface:
 
-`postMessage(bytes payload, bool persist)` - Publish a message to be attested by Wormhole.
+`postMessage(bytes payload, bool persist, u8 confirmations)` - Publish a message to be attested by Wormhole.
 
 `postVAA(VAA signed_vaa)` - Persist a VAA on chain (Solana only)
 

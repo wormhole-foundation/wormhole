@@ -11,6 +11,7 @@ use crate::{
         InsufficientFees,
         MathOverflow,
     },
+    types::ConsistencyLevel,
     CHAIN_ID_SOLANA,
 };
 use solana_program::{
@@ -64,7 +65,7 @@ impl<'b> InstructionContext<'b> for PostMessage<'b> {
     }
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Default)]
+#[derive(BorshDeserialize, BorshSerialize)]
 pub struct PostMessageData {
     /// Unique nonce for this message
     pub nonce: u32,
@@ -74,6 +75,9 @@ pub struct PostMessageData {
 
     /// Should the VAA for this message be persisted on-chain
     pub persist: bool,
+
+    /// Commitment Level required for an attestation to be produced
+    pub consistency_level: ConsistencyLevel,
 }
 
 pub fn post_message(
@@ -138,6 +142,10 @@ pub fn post_message(
     accs.message.payload = data.payload;
     accs.message.sequence = accs.sequence.sequence;
     accs.message.persist = data.persist;
+    accs.message.consistency_level = match data.consistency_level {
+        ConsistencyLevel::Confirmed => 1,
+        ConsistencyLevel::Finalized => 32,
+    };
 
     // Create message account
     accs.message

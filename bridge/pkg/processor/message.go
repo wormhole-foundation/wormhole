@@ -65,6 +65,7 @@ func (p *Processor) handleLockup(ctx context.Context, k *common.MessagePublicati
 		EmitterAddress:   k.EmitterAddress,
 		Payload:          k.Payload,
 		Sequence:         k.Sequence,
+		ConsistencyLevel: k.ConsistencyLevel,
 	}
 
 	// Generate digest of the unsigned VAA.

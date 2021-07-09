@@ -211,14 +211,15 @@ func (e *BridgeWatcher) Run(ctx context.Context) error {
 				}
 
 				messagePublication := &common.MessagePublication{
-					TxHash:         txHashValue,
-					Timestamp:      time.Unix(blockTime.Int(), 0),
-					Nonce:          uint32(nonce.Uint()),
-					Sequence:       sequence.Uint(),
-					EmitterChain:   vaa.ChainIDTerra,
-					EmitterAddress: senderAddress,
-					Payload:        payloadValue,
-					Persist:        persist.Bool(),
+					TxHash:           txHashValue,
+					Timestamp:        time.Unix(blockTime.Int(), 0),
+					Nonce:            uint32(nonce.Uint()),
+					Sequence:         sequence.Uint(),
+					EmitterChain:     vaa.ChainIDTerra,
+					EmitterAddress:   senderAddress,
+					Payload:          payloadValue,
+					Persist:          persist.Bool(),
+					ConsistencyLevel: 0, // Instant finality
 				}
 				e.msgChan <- messagePublication
 				terraLockupsConfirmed.Inc()

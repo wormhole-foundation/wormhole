@@ -49,6 +49,7 @@ pub struct ParsedVAA {
     pub emitter_chain: u16,
     pub emitter_address: Vec<u8>,
     pub sequence: u64,
+    pub consistency_level: u8,
     pub payload: Vec<u8>,
 
     pub hash: Vec<u8>,
@@ -72,6 +73,7 @@ impl ParsedVAA {
     12  uint16      emitter_chain
     14  [32]uint8   emitter_address
     46  uint64      sequence
+    46  uint8       consistency_level
     54  []uint8     payload
     */
 
@@ -85,7 +87,8 @@ impl ParsedVAA {
     pub const VAA_EMITTER_CHAIN_POS: usize = 12;
     pub const VAA_EMITTER_ADDRESS_POS: usize = 14;
     pub const VAA_SEQUENCE_POS: usize = 46;
-    pub const VAA_PAYLOAD_POS: usize = 54;
+    pub const VAA_CONSISTENCY_LEVEL_POS: usize = 54;
+    pub const VAA_PAYLOAD_POS: usize = 55;
 
     // Signature data offsets in the signature block
     pub const SIG_DATA_POS: usize = 1;
@@ -123,6 +126,7 @@ impl ParsedVAA {
             .get_bytes32(body_offset + Self::VAA_EMITTER_ADDRESS_POS)
             .to_vec();
         let sequence = data.get_u64(body_offset + Self::VAA_SEQUENCE_POS);
+        let consistency_level = data.get_u8(body_offset + Self::VAA_CONSISTENCY_LEVEL_POS);
         let payload = data[body_offset + Self::VAA_PAYLOAD_POS..].to_vec();
 
         Ok(ParsedVAA {
@@ -134,6 +138,7 @@ impl ParsedVAA {
             emitter_chain,
             emitter_address,
             sequence,
+            consistency_level,
             payload,
             hash,
         })

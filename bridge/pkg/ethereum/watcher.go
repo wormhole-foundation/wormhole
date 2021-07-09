@@ -69,9 +69,8 @@ func init() {
 
 type (
 	EthBridgeWatcher struct {
-		url              string
-		bridge           eth_common.Address
-		minConfirmations uint64
+		url    string
+		bridge eth_common.Address
 
 		pendingLocks      map[eth_common.Hash]*pendingLock
 		pendingLocksGuard sync.Mutex
@@ -86,8 +85,8 @@ type (
 	}
 )
 
-func NewEthBridgeWatcher(url string, bridge eth_common.Address, minConfirmations uint64, lockEvents chan *common.MessagePublication, setEvents chan *common.GuardianSet) *EthBridgeWatcher {
-	return &EthBridgeWatcher{url: url, bridge: bridge, minConfirmations: minConfirmations, lockChan: lockEvents, setChan: setEvents, pendingLocks: map[eth_common.Hash]*pendingLock{}}
+func NewEthBridgeWatcher(url string, bridge eth_common.Address, lockEvents chan *common.MessagePublication, setEvents chan *common.GuardianSet) *EthBridgeWatcher {
+	return &EthBridgeWatcher{url: url, bridge: bridge, lockChan: lockEvents, setChan: setEvents, pendingLocks: map[eth_common.Hash]*pendingLock{}}
 }
 
 func (e *EthBridgeWatcher) Run(ctx context.Context) error {
@@ -180,14 +179,15 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 				}
 
 				lock := &common.MessagePublication{
-					TxHash:         ev.Raw.TxHash,
-					Timestamp:      time.Unix(int64(b.Time()), 0),
-					Nonce:          ev.Nonce,
-					Sequence:       ev.Sequence,
-					EmitterChain:   vaa.ChainIDEthereum,
-					EmitterAddress: PadAddress(ev.Sender),
-					Payload:        ev.Payload,
-					Persist:        ev.PersistMessage,
+					TxHash:           ev.Raw.TxHash,
+					Timestamp:        time.Unix(int64(b.Time()), 0),
+					Nonce:            ev.Nonce,
+					Sequence:         ev.Sequence,
+					EmitterChain:     vaa.ChainIDEthereum,
+					EmitterAddress:   PadAddress(ev.Sender),
+					Payload:          ev.Payload,
+					Persist:          ev.PersistMessage,
+					ConsistencyLevel: ev.Commitment,
 				}
 
 				logger.Info("found new lockup transaction", zap.Stringer("tx", ev.Raw.TxHash),
@@ -259,7 +259,7 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 				for hash, pLock := range e.pendingLocks {
 
 					// Transaction was dropped and never picked up again
-					if pLock.height+4*e.minConfirmations <= blockNumberU {
+					if pLock.height+4*uint64(pLock.lock.ConsistencyLevel) <= blockNumberU {
 						logger.Debug("lockup timed out", zap.Stringer("tx", pLock.lock.TxHash),
 							zap.Stringer("block", ev.Number))
 						delete(e.pendingLocks, hash)
@@ -267,7 +267,7 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 					}
 
 					// Transaction is now ready
-					if pLock.height+e.minConfirmations <= ev.Number.Uint64() {
+					if pLock.height+uint64(pLock.lock.ConsistencyLevel) <= ev.Number.Uint64() {
 						logger.Debug("lockup confirmed", zap.Stringer("tx", pLock.lock.TxHash),
 							zap.Stringer("block", ev.Number))
 						delete(e.pendingLocks, hash)
