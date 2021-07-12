@@ -3,13 +3,13 @@ use crate::{
         Claim,
         ClaimDerivationData,
     },
-    types::PostedMessage,
-    Error::{
+    error::Error::{
         InvalidGovernanceAction,
         InvalidGovernanceChain,
         InvalidGovernanceModule,
         VAAAlreadyExecuted,
     },
+    types::PostedMessage,
     Result,
     CHAIN_ID_SOLANA,
 };

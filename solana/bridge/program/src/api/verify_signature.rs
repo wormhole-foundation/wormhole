@@ -7,7 +7,7 @@ use crate::{
         SignatureSet,
         SignatureSetDerivationData,
     },
-    Error::{
+    error::Error::{
         GuardianSetMismatch,
         InstructionAtWrongIndex,
         InvalidHash,

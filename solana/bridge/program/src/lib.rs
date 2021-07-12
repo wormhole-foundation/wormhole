@@ -2,10 +2,9 @@
 #![allow(non_upper_case_globals)]
 #![allow(incomplete_features)]
 
-use solana_program::msg;
-
 pub mod accounts;
 pub mod api;
+pub mod error;
 pub mod types;
 pub mod vaa;
 
@@ -50,38 +49,7 @@ pub use vaa::{
 };
 
 const MAX_LEN_GUARDIAN_KEYS: usize = 19;
-
 const CHAIN_ID_SOLANA: u16 = 1;
-
-#[derive(Debug)]
-enum Error {
-    GuardianSetMismatch,
-    InstructionAtWrongIndex,
-    InsufficientFees,
-    InvalidFeeRecipient,
-    InvalidGovernanceAction,
-    InvalidGovernanceChain,
-    InvalidGovernanceKey,
-    InvalidGovernanceModule,
-    InvalidGovernanceWithdrawal,
-    InvalidGuardianSetUpgrade,
-    InvalidHash,
-    InvalidSecpInstruction,
-    MathOverflow,
-    PostVAAConsensusFailed,
-    PostVAAGuardianSetExpired,
-    TooManyGuardians,
-    VAAAlreadyExecuted,
-}
-
-/// Translate from program specific errors to Solitaire framework errors. Log the error on the way
-/// out of the program for debugging.
-impl From<Error> for SolitaireError {
-    fn from(e: Error) -> SolitaireError {
-        msg!("ProgramError: {:?}", e);
-        SolitaireError::Custom(e as u64)
-    }
-}
 
 solitaire! {
     Initialize(InitializeData)                  => initialize,

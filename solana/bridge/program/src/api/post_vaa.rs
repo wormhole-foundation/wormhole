@@ -19,8 +19,11 @@ use crate::{
         SignatureSet,
         SignatureSetDerivationData,
     },
-    Error,
-    Error::GuardianSetMismatch,
+    error::Error::{
+        GuardianSetMismatch,
+        PostVAAConsensusFailed,
+        PostVAAGuardianSetExpired,
+    },
     CHAIN_ID_SOLANA,
 };
 use byteorder::{
@@ -29,7 +32,6 @@ use byteorder::{
 };
 use sha3::Digest;
 use solana_program::{
-    msg,
     program_error::ProgramError,
     pubkey::Pubkey,
 };
@@ -155,7 +157,7 @@ pub fn post_vaa(ctx: &ExecutionContext, accs: &mut PostVAA, vaa: PostVAAData) ->
     };
 
     if signature_count < required_consensus_count {
-        return Err(Error::PostVAAConsensusFailed.into());
+        return Err(PostVAAConsensusFailed.into());
     }
 
     // If the VAA originates from another chain we need to create the account and populate all fields
@@ -186,7 +188,7 @@ fn check_active<'r>(
     if guardian_set.expiration_time != 0
         && (guardian_set.expiration_time as i64) < clock.unix_timestamp
     {
-        return Err(Error::PostVAAGuardianSetExpired.into());
+        return Err(PostVAAGuardianSetExpired.into());
     }
     Ok(())
 }

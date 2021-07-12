@@ -16,6 +16,12 @@ use crate::{
         GuardianSet,
         GuardianSetDerivationData,
     },
+    error::Error::{
+        InvalidFeeRecipient,
+        InvalidGovernanceKey,
+        InvalidGovernanceWithdrawal,
+        InvalidGuardianSetUpgrade,
+    },
     types::{
         GovernancePayloadGuardianSetChange,
         GovernancePayloadSetMessageFee,
@@ -25,12 +31,6 @@ use crate::{
     vaa::{
         ClaimableVAA,
         DeserializePayload,
-    },
-    Error::{
-        InvalidFeeRecipient,
-        InvalidGovernanceKey,
-        InvalidGovernanceWithdrawal,
-        InvalidGuardianSetUpgrade,
     },
     CHAIN_ID_SOLANA,
 };

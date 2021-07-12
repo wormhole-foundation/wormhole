@@ -7,14 +7,13 @@ use crate::{
         Sequence,
         SequenceDerivationData,
     },
-    Error::{
+    error::Error::{
         InsufficientFees,
         MathOverflow,
     },
     CHAIN_ID_SOLANA,
 };
 use solana_program::{
-    msg,
     pubkey::Pubkey,
     sysvar::clock::Clock,
 };

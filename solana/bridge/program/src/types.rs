@@ -21,7 +21,6 @@ use solitaire::{
         AccountOwner,
         Owned,
     },
-    trace,
     SolitaireError,
 };
 use std::{
@@ -309,7 +308,6 @@ pub struct GovernancePayloadSetMessageFee {
 
 impl SerializePayload for GovernancePayloadSetMessageFee {
     fn serialize<W: Write>(&self, v: &mut W) -> std::result::Result<(), SolitaireError> {
-        use byteorder::WriteBytesExt;
         let mut fee_data = [0u8; 32];
         self.fee.to_big_endian(&mut fee_data);
         v.write(&fee_data[..])?;
@@ -359,11 +357,10 @@ pub struct GovernancePayloadTransferFees {
 
 impl SerializePayload for GovernancePayloadTransferFees {
     fn serialize<W: Write>(&self, v: &mut W) -> std::result::Result<(), SolitaireError> {
-        use byteorder::WriteBytesExt;
         let mut amount_data = [0u8; 32];
         self.amount.to_big_endian(&mut amount_data);
         v.write(&amount_data)?;
-        v.write(&self.to);
+        v.write(&self.to)?;
         Ok(())
     }
 }

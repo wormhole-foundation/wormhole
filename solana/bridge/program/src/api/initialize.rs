@@ -5,8 +5,8 @@ use crate::{
         GuardianSet,
         GuardianSetDerivationData,
     },
+    error::Error::TooManyGuardians,
     types::*,
-    Error::TooManyGuardians,
     MAX_LEN_GUARDIAN_KEYS,
 };
 use solana_program::sysvar::clock::Clock;
