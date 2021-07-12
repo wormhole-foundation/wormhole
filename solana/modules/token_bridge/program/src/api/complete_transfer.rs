@@ -24,7 +24,7 @@ pub struct CompleteNative<'b> {
     pub payer: Signer<AccountInfo<'b>>,
     pub config: ConfigAccount<'b, { AccountState::Initialized }>,
 
-    pub vaa: ClaimableVAA<'b, PayloadTransfer>,
+    pub vaa: Many<ClaimableVAA<'b, PayloadTransfer>>,
     pub chain_registration: Endpoint<'b, { AccountState::Initialized }>,
 
     pub to: Data<'b, SplAccount, { AccountState::Initialized }>,
@@ -37,8 +37,8 @@ pub struct CompleteNative<'b> {
 impl<'a> From<&CompleteNative<'a>> for EndpointDerivationData {
     fn from(accs: &CompleteNative<'a>) -> Self {
         EndpointDerivationData {
-            emitter_chain: accs.vaa.meta().emitter_chain,
-            emitter_address: accs.vaa.meta().emitter_address,
+            emitter_chain: accs.vaa.0.meta().emitter_chain,
+            emitter_address: accs.vaa.0.meta().emitter_address,
         }
     }
 }
@@ -72,10 +72,10 @@ impl<'b> InstructionContext<'b> for CompleteNative<'b> {
         }
 
         // Verify VAA
-        if self.vaa.token_address != self.mint.info().key.to_bytes() {
+        if self.vaa.0.token_address != self.mint.info().key.to_bytes() {
             return Err(InvalidMint.into());
         }
-        if self.vaa.token_chain != 1 {
+        if self.vaa.0.token_chain != 1 {
             return Err(InvalidChain.into());
         }
 
@@ -92,7 +92,7 @@ pub fn complete_native(
     data: CompleteNativeData,
 ) -> Result<()> {
     // Prevent vaa double signing
-    accs.vaa.claim(ctx, accs.payer.key)?;
+    accs.vaa.0.claim(ctx, accs.payer.key)?;
 
     // Transfer tokens
     let transfer_ix = spl_token::instruction::transfer(
@@ -101,7 +101,7 @@ pub fn complete_native(
         accs.to.info().key,
         accs.custody_signer.key,
         &[],
-        accs.vaa.amount.as_u64(),
+        accs.vaa.0.amount.as_u64(),
     )?;
     invoke_seeded(&transfer_ix, ctx, &accs.custody_signer, None)?;
 
@@ -116,7 +116,7 @@ pub struct CompleteWrapped<'b> {
     pub config: ConfigAccount<'b, { AccountState::Initialized }>,
 
     // Signed message for the transfer
-    pub vaa: ClaimableVAA<'b, PayloadTransfer>,
+    pub vaa: Many<ClaimableVAA<'b, PayloadTransfer>>,
 
     pub chain_registration: Endpoint<'b, { AccountState::Initialized }>,
 
@@ -129,8 +129,8 @@ pub struct CompleteWrapped<'b> {
 impl<'a> From<&CompleteWrapped<'a>> for EndpointDerivationData {
     fn from(accs: &CompleteWrapped<'a>) -> Self {
         EndpointDerivationData {
-            emitter_chain: accs.vaa.meta().emitter_chain,
-            emitter_address: accs.vaa.meta().emitter_address,
+            emitter_chain: accs.vaa.0.meta().emitter_chain,
+            emitter_address: accs.vaa.0.meta().emitter_address,
         }
     }
 }
@@ -138,8 +138,8 @@ impl<'a> From<&CompleteWrapped<'a>> for EndpointDerivationData {
 impl<'a> From<&CompleteWrapped<'a>> for WrappedDerivationData {
     fn from(accs: &CompleteWrapped<'a>) -> Self {
         WrappedDerivationData {
-            token_chain: accs.vaa.token_chain,
-            token_address: accs.vaa.token_address,
+            token_chain: accs.vaa.0.token_chain,
+            token_address: accs.vaa.0.token_address,
         }
     }
 }
@@ -169,7 +169,7 @@ pub fn complete_wrapped(
     accs: &mut CompleteWrapped,
     data: CompleteWrappedData,
 ) -> Result<()> {
-    accs.vaa.claim(ctx, accs.payer.key)?;
+    accs.vaa.0.claim(ctx, accs.payer.key)?;
 
     // Mint tokens
     let mint_ix = spl_token::instruction::mint_to(
@@ -178,7 +178,7 @@ pub fn complete_wrapped(
         accs.to.info().key,
         accs.mint_authority.key,
         &[],
-        accs.vaa.amount.as_u64(),
+        accs.vaa.0.amount.as_u64(),
     )?;
     invoke_seeded(&mint_ix, ctx, &accs.mint_authority, None)?;
 
