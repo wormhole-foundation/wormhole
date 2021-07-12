@@ -121,10 +121,29 @@ impl<const Seed: &'static str, T: BorshSerialize + Owned + Default>
     }
 }
 
+/// Model a cross-program invocation with its program ID and AccountMetas
 #[derive(Debug)]
 pub struct CPICall<T> {
     pub xprog_id: Pubkey,
     pub xprog_accounts: Vec<AccountMeta>,
     /// Helps preserve information about the type of cross program's arguments
     pub callee_type: PhantomData<T>,
+}
+
+/// Model a nested FromAccounts struct
+
+pub struct Many<T>(pub T);
+
+
+impl<T> Deref for Many<T> {
+    type Target = T;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<T> DerefMut for Many<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
 }
