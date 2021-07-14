@@ -83,6 +83,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             amount,
             recipient_chain,
             recipient,
+            fee,
             nonce,
         } => handle_initiate_transfer(
             deps,
@@ -91,6 +92,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             amount,
             recipient_chain,
             recipient.as_slice().to_vec(),
+            fee,
             nonce,
         ),
         HandleMsg::SubmitVaa { data } => submit_vaa(deps, env, &data),
@@ -337,10 +339,13 @@ fn handle_complete_transfer<S: Storage, A: Api, Q: Querier>(
     let token_chain = transfer_info.token_chain;
     let target_address = (&transfer_info.recipient.as_slice()).get_address(0);
 
-    let (not_supported_amount, amount) = transfer_info.amount;
+    let (not_supported_amount, mut amount) = transfer_info.amount;
+    let (not_supported_fee, fee) = transfer_info.fee;
+
+    amount -= fee;
 
     // Check high 128 bit of amount value to be empty
-    if not_supported_amount != 0 {
+    if not_supported_amount != 0 || not_supported_fee != 0 {
         return ContractError::AmountTooHigh.std_err();
     }
 
@@ -359,15 +364,27 @@ fn handle_complete_transfer<S: Storage, A: Api, Q: Querier>(
                 .human_address(&target_address)
                 .or_else(|_| ContractError::WrongTargetAddressFormat.std_err())?;
 
-            Ok(HandleResponse {
-                messages: vec![CosmosMsg::Wasm(WasmMsg::Execute {
+            let mut messages = vec![CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: contract_addr.clone(),
+                msg: to_binary(&WrappedMsg::Mint {
+                    recipient: recipient.clone(),
+                    amount: Uint128::from(amount),
+                })?,
+                send: vec![],
+            })];
+            if fee != 0 {
+                messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
                     contract_addr: contract_addr.clone(),
                     msg: to_binary(&WrappedMsg::Mint {
-                        recipient: recipient.clone(),
-                        amount: Uint128::from(amount),
+                        recipient: env.message.sender.clone(),
+                        amount: Uint128::from(fee),
                     })?,
                     send: vec![],
-                })],
+                }))
+            }
+
+            Ok(HandleResponse {
+                messages,
                 log: vec![
                     log("action", "complete_transfer_wrapped"),
                     log("contract", contract_addr),
@@ -384,15 +401,29 @@ fn handle_complete_transfer<S: Storage, A: Api, Q: Querier>(
 
         let recipient = deps.api.human_address(&target_address)?;
         let contract_addr = deps.api.human_address(&token_address)?;
-        Ok(HandleResponse {
-            messages: vec![CosmosMsg::Wasm(WasmMsg::Execute {
+
+        let mut messages = vec![CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: contract_addr.clone(),
+            msg: to_binary(&TokenMsg::Transfer {
+                recipient: recipient.clone(),
+                amount: Uint128::from(amount),
+            })?,
+            send: vec![],
+        })];
+
+        if fee != 0 {
+            messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: contract_addr.clone(),
                 msg: to_binary(&TokenMsg::Transfer {
-                    recipient: recipient.clone(),
-                    amount: Uint128::from(amount),
+                    recipient: env.message.sender.clone(),
+                    amount: Uint128::from(fee),
                 })?,
                 send: vec![],
-            })],
+            }))
+        }
+
+        Ok(HandleResponse {
+            messages,
             log: vec![
                 log("action", "complete_transfer_native"),
                 log("recipient", recipient),
@@ -411,6 +442,7 @@ fn handle_initiate_transfer<S: Storage, A: Api, Q: Querier>(
     amount: Uint128,
     recipient_chain: u16,
     recipient: Vec<u8>,
+    fee: Uint128,
     nonce: u32,
 ) -> StdResult<HandleResponse> {
     // if recipient_chain == CHAIN_ID {
@@ -419,6 +451,10 @@ fn handle_initiate_transfer<S: Storage, A: Api, Q: Querier>(
 
     if amount.is_zero() {
         return ContractError::AmountTooLow.std_err();
+    }
+
+    if fee > amount {
+        return Err(StdError::generic_err("fee greater than sent amount"))
     }
 
     let asset_chain: u16;
@@ -471,6 +507,7 @@ fn handle_initiate_transfer<S: Storage, A: Api, Q: Querier>(
         amount: (0, amount.u128()),
         recipient_chain,
         recipient: recipient.clone(),
+        fee: (0, fee.u128()),
     };
 
     let token_bridge_message = TokenBridgeMessage {

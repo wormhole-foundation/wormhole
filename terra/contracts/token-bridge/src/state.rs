@@ -89,65 +89,65 @@ impl TokenBridgeMessage {
     }
 }
 
-//     0   u16      token_chain
-//     2   [u8; 32] token_address
-//     34  u256     amount
-//     66  u16      recipient_chain
-//     68  [u8; 32] recipient
+//     0   u256     amount
+//     32  [u8; 32] token_address
+//     64  u16      token_chain
+//     66  [u8; 32] recipient
+//     98  u16      recipient_chain
+//     100 u256     fee
 
 pub struct TransferInfo {
-    pub token_chain: u16,
-    pub token_address: Vec<u8>,
     pub amount: (u128, u128),
+    pub token_address: Vec<u8>,
+    pub token_chain: u16,
     pub recipient_chain: u16,
     pub recipient: Vec<u8>,
+    pub fee: (u128, u128),
 }
 
 impl TransferInfo {
     pub fn deserialize(data: &Vec<u8>) -> StdResult<Self> {
         let data = data.as_slice();
-        let token_chain = data.get_u16(0);
-        let token_address = data.get_bytes32(2).to_vec();
-        let amount = data.get_u256(34);
-        let recipient_chain = data.get_u16(66);
-        let recipient = data.get_bytes32(68).to_vec();
+        let amount = data.get_u256(0);
+        let token_address = data.get_bytes32(32).to_vec();
+        let token_chain = data.get_u16(64);
+        let recipient = data.get_bytes32(66).to_vec();
+        let recipient_chain = data.get_u16(98);
+        let fee = data.get_u256(100);
 
         Ok(TransferInfo {
-            token_chain,
-            token_address,
             amount,
-            recipient_chain,
+            token_address,
+            token_chain,
             recipient,
+            recipient_chain,
+            fee,
         })
     }
     pub fn serialize(&self) -> Vec<u8> {
         [
-            self.token_chain.to_be_bytes().to_vec(),
-            self.token_address.clone(),
             self.amount.0.to_be_bytes().to_vec(),
             self.amount.1.to_be_bytes().to_vec(),
-            self.recipient_chain.to_be_bytes().to_vec(),
+            self.token_address.clone(),
+            self.token_chain.to_be_bytes().to_vec(),
             self.recipient.to_vec(),
+            self.recipient_chain.to_be_bytes().to_vec(),
+            self.fee.0.to_be_bytes().to_vec(),
+            self.fee.1.to_be_bytes().to_vec(),
         ]
         .concat()
     }
 }
 
-//PayloadID uint8 = 2
-// // Address of the token. Left-zero-padded if shorter than 32 bytes
-// TokenAddress [32]uint8
-// // Chain ID of the token
-// TokenChain uint16
-// // Number of decimals of the token
-// Decimals uint8
-// // Symbol of the token (UTF-8)
-// Symbol [32]uint8
-// // Name of the token (UTF-8)
-// Name [32]uint8
+// 0  [32]uint8  TokenAddress
+// 32 uint16     TokenChain
+// 34 uint8      Decimals
+// 35 [32]uint8  Symbol
+// 67 [32]uint8  Name
 
 pub struct AssetMeta {
-    pub token_chain: u16,
     pub token_address: Vec<u8>,
+    pub token_chain: u16,
     pub decimals: u8,
     pub symbol: Vec<u8>,
     pub name: Vec<u8>,
@@ -156,8 +156,8 @@ pub struct AssetMeta {
 impl AssetMeta {
     pub fn deserialize(data: &Vec<u8>) -> StdResult<Self> {
         let data = data.as_slice();
-        let token_chain = data.get_u16(0);
-        let token_address = data.get_bytes32(2).to_vec();
+        let token_address = data.get_bytes32(0).to_vec();
+        let token_chain = data.get_u16(32);
         let decimals = data.get_u8(34);
         let symbol = data.get_bytes32(35).to_vec();
         let name = data.get_bytes32(67).to_vec();
@@ -173,8 +173,8 @@ impl AssetMeta {
 
     pub fn serialize(&self) -> Vec<u8> {
         [
-            self.token_chain.to_be_bytes().to_vec(),
             self.token_address.clone(),
+            self.token_chain.to_be_bytes().to_vec(),
             self.decimals.to_be_bytes().to_vec(),
             self.symbol.clone(),
             self.name.clone(),

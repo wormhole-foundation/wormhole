@@ -42,7 +42,7 @@ pub struct ConfigInfo {
 pub struct ParsedVAA {
     pub version: u8,
     pub guardian_set_index: u32,
-    pub timestamp: u64,
+    pub timestamp: u32,
     pub nonce: u32,
     pub len_signers: u8,
 
@@ -68,13 +68,13 @@ impl ParsedVAA {
     1   [65]uint8   signature
 
     body:
-    0   uint64      timestamp (unix in seconds)
-    8   uint32      nonce
-    12  uint16      emitter_chain
-    14  [32]uint8   emitter_address
-    46  uint64      sequence
-    46  uint8       consistency_level
-    54  []uint8     payload
+    0   uint32      timestamp (unix in seconds)
+    4   uint32      nonce
+    8   uint16      emitter_chain
+    10  [32]uint8   emitter_address
+    42  uint64      sequence
+    50  uint8       consistency_level
+    51  []uint8     payload
     */
 
     pub const HEADER_LEN: usize = 6;
@@ -83,12 +83,12 @@ impl ParsedVAA {
     pub const GUARDIAN_SET_INDEX_POS: usize = 1;
     pub const LEN_SIGNER_POS: usize = 5;
 
-    pub const VAA_NONCE_POS: usize = 8;
-    pub const VAA_EMITTER_CHAIN_POS: usize = 12;
-    pub const VAA_EMITTER_ADDRESS_POS: usize = 14;
-    pub const VAA_SEQUENCE_POS: usize = 46;
-    pub const VAA_CONSISTENCY_LEVEL_POS: usize = 54;
-    pub const VAA_PAYLOAD_POS: usize = 55;
+    pub const VAA_NONCE_POS: usize = 4;
+    pub const VAA_EMITTER_CHAIN_POS: usize = 8;
+    pub const VAA_EMITTER_ADDRESS_POS: usize = 10;
+    pub const VAA_SEQUENCE_POS: usize = 42;
+    pub const VAA_CONSISTENCY_LEVEL_POS: usize = 50;
+    pub const VAA_PAYLOAD_POS: usize = 51;
 
     // Signature data offsets in the signature block
     pub const SIG_DATA_POS: usize = 1;
@@ -124,7 +124,7 @@ impl ParsedVAA {
             return ContractError::InvalidVAA.std_err();
         }
 
-        let timestamp = data.get_u64(body_offset);
+        let timestamp = data.get_u32(body_offset);
         let nonce = data.get_u32(body_offset + Self::VAA_NONCE_POS);
         let emitter_chain = data.get_u16(body_offset + Self::VAA_EMITTER_CHAIN_POS);
         let emitter_address = data
@@ -402,31 +402,29 @@ mod tests {
 
     #[test]
     fn test_deserialize() {
-        let x = vec![
-            1u8, 0u8, 0u8, 0u8, 1u8, 0u8, 0u8, 0u8, 0u8, 0u8, 96u8, 180u8, 80u8, 111u8, 0u8, 0u8,
-            0u8, 1u8, 0u8, 3u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 120u8,
-            73u8, 153u8, 19u8, 90u8, 170u8, 138u8, 60u8, 165u8, 145u8, 68u8, 104u8, 133u8, 47u8,
-            221u8, 219u8, 221u8, 216u8, 120u8, 157u8, 0u8, 91u8, 48u8, 44u8, 48u8, 44u8, 51u8,
-            44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8,
-            44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 53u8, 54u8, 44u8,
-            50u8, 51u8, 51u8, 44u8, 49u8, 44u8, 49u8, 49u8, 49u8, 44u8, 49u8, 54u8, 55u8, 44u8,
-            49u8, 57u8, 48u8, 44u8, 50u8, 48u8, 51u8, 44u8, 49u8, 54u8, 44u8, 49u8, 55u8, 54u8,
-            44u8, 50u8, 49u8, 56u8, 44u8, 50u8, 53u8, 49u8, 44u8, 49u8, 51u8, 49u8, 44u8, 51u8,
-            57u8, 44u8, 49u8, 54u8, 44u8, 49u8, 57u8, 53u8, 44u8, 50u8, 50u8, 55u8, 44u8, 49u8,
-            52u8, 57u8, 44u8, 50u8, 51u8, 54u8, 44u8, 49u8, 57u8, 48u8, 44u8, 50u8, 49u8, 50u8,
-            44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8,
-            44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8,
-            44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8,
-            44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8,
-            44u8, 48u8, 44u8, 48u8, 44u8, 51u8, 44u8, 50u8, 51u8, 50u8, 44u8, 48u8, 44u8, 51u8,
-            44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8,
-            44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 53u8, 51u8, 44u8,
-            49u8, 49u8, 54u8, 44u8, 52u8, 56u8, 44u8, 49u8, 49u8, 54u8, 44u8, 49u8, 52u8, 57u8,
-            44u8, 49u8, 48u8, 56u8, 44u8, 49u8, 49u8, 51u8, 44u8, 56u8, 44u8, 48u8, 44u8, 50u8,
-            51u8, 50u8, 44u8, 52u8, 57u8, 44u8, 49u8, 53u8, 50u8, 44u8, 49u8, 44u8, 50u8, 56u8,
-            44u8, 50u8, 48u8, 51u8, 44u8, 50u8, 49u8, 50u8, 44u8, 50u8, 50u8, 49u8, 44u8, 50u8,
-            52u8, 49u8, 44u8, 56u8, 53u8, 44u8, 49u8, 48u8, 57u8, 93u8,
-        ];
-        ParsedVAA::deserialize(x.as_slice()).unwrap();
+        let x = hex::decode("080000000901007bfa71192f886ab6819fa4862e34b4d178962958d9b2e3d9437338c9e5fde1443b809d2886eaa69e0f0158ea517675d96243c9209c3fe1d94d5b19866654c6980000000b150000000500020001020304000000000000000000000000000000000000000000000000000000000000000000000a0261626364").unwrap();
+        let v = ParsedVAA::deserialize(x.as_slice()).unwrap();
+        assert_eq!(
+            v,
+            ParsedVAA {
+                version: 8,
+                guardian_set_index: 9,
+                timestamp: 2837,
+                nonce: 5,
+                len_signers: 1,
+                emitter_chain: 2,
+                emitter_address: vec![
+                    0, 1, 2, 3, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                    0, 0, 0, 0, 0, 0
+                ],
+                sequence: 10,
+                consistency_level: 2,
+                payload: vec![97, 98, 99, 100],
+                hash: vec![
+                    195, 10, 19, 96, 8, 61, 218, 69, 160, 238, 165, 142, 105, 119, 139, 121, 212,
+                    73, 238, 179, 13, 80, 245, 224, 75, 110, 163, 8, 185, 132, 55, 34
+                ]
+            }
+        );
     }
 }

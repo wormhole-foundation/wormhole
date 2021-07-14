@@ -24,6 +24,7 @@ pub enum HandleMsg {
         amount: Uint128,
         recipient_chain: u16,
         recipient: Binary,
+        fee: Uint128,
         nonce: u32,
     },
 
