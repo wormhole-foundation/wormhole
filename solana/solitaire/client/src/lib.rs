@@ -23,10 +23,7 @@ use borsh::BorshSerialize;
 
 use solitaire::{
     AccountState,
-    CPICall,
-    FromAccounts,
     Info,
-    Mut,
     Sysvar,
 };
 pub use solitaire::{
@@ -55,9 +52,9 @@ pub enum AccEntry {
     SignerRO(Keypair),
 
     /// Program addresses for unprivileged cross calls
-    CPIProgram(Pubkey, Box<dyn ToInstruction>),
+    CPIProgram(Pubkey),
     /// Program addresses for privileged cross calls
-    CPIProgramSigner(Keypair, Box<dyn ToInstruction>),
+    CPIProgramSigner(Keypair),
 
     /// Key decided from SPL constants
     Sysvar(Pubkey),
@@ -74,16 +71,13 @@ pub trait Wrap {
     fn wrap(_: &AccEntry) -> StdResult<Vec<AccountMeta>, ErrBox>;
 
     /// If the implementor wants to sign using other AccEntry
-    /// variants, they should override this. Multiple keypairs may be
-    /// used in multi-account AccEntry variants.
-    fn partial_signer_keypairs(a: &AccEntry) -> Vec<Keypair> {
+    /// variants, they should override this.
+    fn keypair(a: AccEntry) -> Option<Keypair> {
         use AccEntry::*;
         match a {
-            // A panic on unwrap below here would imply solana keypair code does not understand its own bytes
-            Signer(pair) | SignerRO(pair) => {
-                vec![Keypair::from_bytes(pair.to_bytes().to_vec().as_slice()).unwrap()]
-            }
-            _other => vec![],
+            Signer(pair) => Some(pair),
+            SignerRO(pair) => Some(pair),
+            _other => None,
         }
     }
 }
@@ -193,67 +187,11 @@ impl<'b> Wrap for Info<'b> {
     }
 }
 
-impl<'b, T: Wrap> Wrap for Mut<T> {
-    fn wrap(a: &AccEntry) -> StdResult<Vec<AccountMeta>, ErrBox> {
-        match a {
-            AccEntry::Unprivileged(_) | AccEntry::Signer(_) | AccEntry::Derived(_) => {
-                Ok(T::wrap(a)?)
-            }
-            _other => Err(format!(
-                "{} must be passed as a mutable AccEntry, such as Unprivileged, Signer or Derived",
-                std::any::type_name::<Self>()
-            )
-            .into()),
-        }
-    }
-}
-
-impl<'a, 'b: 'a, 'c, T> Wrap for CPICall<T> {
-    fn wrap(a: &AccEntry) -> StdResult<Vec<AccountMeta>, ErrBox> {
-        match a {
-            AccEntry::CPIProgram(xprog_k, xprog_accs) => {
-                let mut v = vec![AccountMeta::new_readonly(xprog_k.clone(), false)];
-                v.append(&mut xprog_accs.acc_metas(&xprog_k)?);
-                Ok(v)
-            }
-            AccEntry::CPIProgramSigner(xprog_pair, xprog_accs) => {
-                let mut v = vec![AccountMeta::new_readonly(
-                    xprog_pair.pubkey().clone(),
-                    false,
-                )];
-                v.append(&mut xprog_accs.acc_metas(&xprog_pair.pubkey())?);
-                Ok(v)
-            }
-            _other => Err(format!(
-                "{} must be passed as CPIProgram or CPIProgramSigner",
-                std::any::type_name::<Self>()
-            )
-            .into()),
-        }
-    }
-
-    fn partial_signer_keypairs(a: &AccEntry) -> Vec<Keypair> {
-        match a {
-            AccEntry::CPIProgram(xprog_k, xprog_accs) => xprog_accs.signer_keypairs(),
-            AccEntry::CPIProgramSigner(xprog_pair, xprog_accs) => {
-                let mut v = vec![Keypair::from_bytes(&xprog_pair.to_bytes()[..]).unwrap()];
-                v.append(&mut xprog_accs.signer_keypairs());
-                v
-            }
-            _other => vec![],
-        }
-    }
-}
-
-/// Trait used on client side to easily validate a program account struct + ix_data for a bare Solana call
-pub trait ToInstruction: std::fmt::Debug {
+/// Trait used on client side to easily validate a program accounts + ix_data for a bare Solana call
+pub trait ToInstruction {
     fn to_ix(
-        &self,
+        self,
         program_id: Pubkey,
         ix_data: &[u8],
     ) -> StdResult<(Instruction, Vec<Keypair>), ErrBox>;
-
-    fn acc_metas(&self, program_id: &Pubkey) -> StdResult<Vec<AccountMeta>, ErrBox>;
-
-    fn signer_keypairs(&self) -> Vec<Keypair>;
 }

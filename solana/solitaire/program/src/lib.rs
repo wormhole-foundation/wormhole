@@ -124,9 +124,6 @@ pub trait FromAccounts<'a, 'b: 'a, 'c> {
     where
         Self: Sized;
 
-    /// How many accounts do we expect to use for reconstructing Self?
-    fn size_in_accounts() -> usize;
-
-    /// Turn a bunch of infos into relevant metas to facilitate CPI calls.
-    fn to_cpi_metas(infos: &'c mut Iter<Info<'b>>) -> Result<Vec<AccountMeta>>;
+    /// Converts the accounts back to vector form to facilitate CPI calls.
+    fn to_cpi_metas(&self) -> Vec<AccountMeta>;
 }

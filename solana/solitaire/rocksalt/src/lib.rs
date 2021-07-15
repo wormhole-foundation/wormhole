@@ -109,7 +109,6 @@ pub fn derive_from_accounts(input: TokenStream) -> TokenStream {
 
     let from_method = generate_from(&name, &input.data);
     let to_cpi_metas_method = generate_to_cpi_metas(&name, &input.data);
-    let size_in_accounts_method = generate_size_in_accounts(&name, &input.data);
     let persist_method = generate_persist(&name, &input.data);
     let deps_method = generate_deps_fields(&name, &input.data);
     let expanded = quote! {
@@ -118,10 +117,7 @@ pub fn derive_from_accounts(input: TokenStream) -> TokenStream {
             fn from<DataType>(pid: &'a solana_program::pubkey::Pubkey, iter: &'c mut std::slice::Iter<'a, solana_program::account_info::AccountInfo<'b>>, data: &'a DataType) -> solitaire::Result<Self> {
                 #from_method
             }
-        fn size_in_accounts() -> usize {
-        #size_in_accounts_method
-        }
-	    fn to_cpi_metas(infos: &'c mut std::slice::Iter<Info<'b>>) -> solitaire::Result<Vec<solana_program::instruction::AccountMeta>> {
+            fn to_cpi_metas(&self) -> Vec<solana_program::instruction::AccountMeta> {
                 #to_cpi_metas_method
             }
         }
@@ -145,12 +141,8 @@ pub fn derive_from_accounts(input: TokenStream) -> TokenStream {
                 solitaire::Persist::persist(self, program_id)
             }
 
-        fn partial_size_in_accounts() -> usize {
-            Self::size_in_accounts()
-        }
-
-	    fn to_partial_cpi_metas(infos: &'c mut std::slice::Iter<Info<'b>>) -> solitaire::Result<Vec<solana_program::instruction::AccountMeta>> {
-                Self::to_cpi_metas(infos)
+            fn to_partial_cpi_meta(&self) -> Vec<solana_program::instruction::AccountMeta> {
+                self.to_cpi_metas()
             }
         }
 
@@ -231,10 +223,10 @@ fn generate_to_cpi_metas(name: &syn::Ident, data: &Data) -> TokenStream2 {
         let v_appends = fields.named.iter().map(|f| {
             // Field name, to assign to.
             let field_name = &f.ident;
-            let field_ty = &f.ty;
+            let ty = &f.ty;
 
             quote! {
-                v.append(&mut <#field_ty as Peel>::to_partial_cpi_metas(infos)?);
+                v.append(&mut self.#field_name.to_partial_cpi_meta());
             }
         });
 
@@ -246,11 +238,8 @@ fn generate_to_cpi_metas(name: &syn::Ident, data: &Data) -> TokenStream2 {
         quote! {
             let mut v = Vec::new();
             #(#v_appends;)*
-	    if v.len() != Self::size_in_accounts() {
-		return Err(solitaire::SolitaireError::ProgramError(solana_program::program_error::ProgramError::InvalidAccountData));
-	    }
-	    Ok(v) 
-	}
+            v
+        }
     } else {
         unimplemented!()
     }
@@ -335,32 +324,5 @@ fn generate_persist(name: &syn::Ident, data: &Data) -> TokenStream2 {
         }
 
         Data::Enum(_) | Data::Union(_) => unimplemented!(),
-    }
-}
-
-fn generate_size_in_accounts(name: &syn::Ident, data: &Data) -> TokenStream2 {
-    if let Data::Struct(DataStruct {
-        fields: Fields::Named(fields),
-        ..
-    }) = data
-    {
-        // For each field, call the relevant partial_size_in_accounts method
-        let size_additions = fields.named.iter().map(|f| {
-            // Field name, to assign to.
-            let field_name = &f.ident;
-            let ty = &f.ty;
-
-            quote! {
-            size += <#ty as Peel>::partial_size_in_accounts(); // #field_name
-                }
-        });
-
-        quote! {
-            let mut size = 0;
-            #(#size_additions;)*
-            size
-        }
-    } else {
-        unimplemented!()
     }
 }

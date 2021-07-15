@@ -156,8 +156,8 @@ macro_rules! data_wrapper {
                 Data::<'_, $embed, { $state }>::persist(self, program_id)
             }
 
-            fn to_partial_cpi_metas(infos: &'c mut std::slice::Iter<solitaire::Info<'b>>) -> solitaire::Result<Vec<solana_program::instruction::AccountMeta>> {
-                solitaire::Data::<'b, $embed, {$state}>::to_partial_cpi_metas(infos)
+            fn to_partial_cpi_meta(&self) -> Vec<solana_program::instruction::AccountMeta> {
+                self.0.to_partial_cpi_meta()
             }
         }
 
