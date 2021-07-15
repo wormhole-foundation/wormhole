@@ -6,7 +6,6 @@
 
 use borsh::BorshDeserialize;
 use solana_program::{
-    instruction::AccountMeta,
     pubkey::Pubkey,
     system_program,
     sysvar::{
@@ -39,9 +38,6 @@ pub trait Peel<'a, 'b: 'a, 'c> {
     fn deps() -> Vec<Pubkey>;
 
     fn persist(&self, program_id: &Pubkey) -> Result<()>;
-
-    /// Special method for turning the type back into AccountMeta for CPI use cases.
-    fn to_partial_cpi_meta(&self) -> Vec<AccountMeta>;
 }
 
 /// Peel a Derived Key
@@ -63,10 +59,6 @@ impl<'a, 'b: 'a, 'c, T: Peel<'a, 'b, 'c>, const Seed: &'static str> Peel<'a, 'b,
 
     fn persist(&self, program_id: &Pubkey) -> Result<()> {
         T::persist(self, program_id)
-    }
-
-    fn to_partial_cpi_meta(&self) -> Vec<AccountMeta> {
-        self.0.to_partial_cpi_meta()
     }
 }
 
@@ -106,10 +98,6 @@ impl<'a, 'b: 'a, 'c, T: Peel<'a, 'b, 'c>> Peel<'a, 'b, 'c> for Signer<T> {
     fn persist(&self, program_id: &Pubkey) -> Result<()> {
         T::persist(self, program_id)
     }
-
-    fn to_partial_cpi_meta(&self) -> Vec<AccountMeta> {
-        self.0.to_partial_cpi_meta()
-    }
 }
 
 /// Expicitly depend upon the System account.
@@ -127,10 +115,6 @@ impl<'a, 'b: 'a, 'c, T: Peel<'a, 'b, 'c>> Peel<'a, 'b, 'c> for System<T> {
 
     fn persist(&self, program_id: &Pubkey) -> Result<()> {
         T::persist(self, program_id)
-    }
-
-    fn to_partial_cpi_meta(&self) -> Vec<AccountMeta> {
-        self.0.to_partial_cpi_meta()
     }
 }
 
@@ -156,10 +140,6 @@ where
     fn persist(&self, _program_id: &Pubkey) -> Result<()> {
         Ok(())
     }
-
-    fn to_partial_cpi_meta(&self) -> Vec<AccountMeta> {
-        self.to_partial_cpi_meta()
-    }
 }
 
 /// This is our structural recursion base case, the trait system will stop generating new nested
@@ -177,16 +157,6 @@ impl<'a, 'b: 'a, 'c> Peel<'a, 'b, 'c> for Info<'b> {
     }
     fn persist(&self, _program_id: &Pubkey) -> Result<()> {
         Ok(())
-    }
-
-    fn to_partial_cpi_meta(&self) -> Vec<AccountMeta> {
-        let meta = if self.is_writable {
-            AccountMeta::new(self.key.clone(), self.is_signer)
-        } else {
-            AccountMeta::new_readonly(self.key.clone(), self.is_signer)
-        };
-
-        vec![meta]
     }
 }
 
@@ -266,9 +236,5 @@ impl<
         self.1.serialize(&mut *self.0.data.borrow_mut())?;
 
         Ok(())
-    }
-
-    fn to_partial_cpi_meta(&self) -> Vec<AccountMeta> {
-        self.0.to_partial_cpi_meta()
     }
 }

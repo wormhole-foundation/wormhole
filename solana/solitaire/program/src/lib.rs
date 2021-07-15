@@ -123,7 +123,4 @@ pub trait FromAccounts<'a, 'b: 'a, 'c> {
     fn from<T>(_: &'a Pubkey, _: &'c mut Iter<'a, AccountInfo<'b>>, _: &'a T) -> Result<Self>
     where
         Self: Sized;
-
-    /// Converts the accounts back to vector form to facilitate CPI calls.
-    fn to_cpi_metas(&self) -> Vec<AccountMeta>;
 }

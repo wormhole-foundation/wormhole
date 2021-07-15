@@ -27,7 +27,6 @@ use syn::{
     parse_quote,
     spanned::Spanned,
     Data,
-    DataStruct,
     DeriveInput,
     Fields,
     GenericParam,
@@ -107,8 +106,7 @@ pub fn derive_from_accounts(input: TokenStream) -> TokenStream {
     }
     let (combined_impl_g, _, _) = combined_generics.split_for_impl();
 
-    let from_method = generate_from(&name, &input.data);
-    let to_cpi_metas_method = generate_to_cpi_metas(&name, &input.data);
+    let from_method = generate_fields(&name, &input.data);
     let persist_method = generate_persist(&name, &input.data);
     let deps_method = generate_deps_fields(&name, &input.data);
     let expanded = quote! {
@@ -117,12 +115,8 @@ pub fn derive_from_accounts(input: TokenStream) -> TokenStream {
             fn from<DataType>(pid: &'a solana_program::pubkey::Pubkey, iter: &'c mut std::slice::Iter<'a, solana_program::account_info::AccountInfo<'b>>, data: &'a DataType) -> solitaire::Result<Self> {
                 #from_method
             }
-            fn to_cpi_metas(&self) -> Vec<solana_program::instruction::AccountMeta> {
-                #to_cpi_metas_method
-            }
         }
 
-        /// Macro generated implementation of Peel by Solitaire.
         impl #combined_impl_g solitaire::Peel<'a, 'b, 'c> for #name #type_g {
             fn peel<I>(ctx: &'c mut Context<'a, 'b, 'c, I>) -> solitaire::Result<Self> where Self: Sized {
                 let v: #name #type_g = FromAccounts::from(ctx.this, ctx.iter, ctx.data)?;
@@ -140,10 +134,6 @@ pub fn derive_from_accounts(input: TokenStream) -> TokenStream {
             fn persist(&self, program_id: &solana_program::pubkey::Pubkey) -> solitaire::Result<()> {
                 solitaire::Persist::persist(self, program_id)
             }
-
-            fn to_partial_cpi_meta(&self) -> Vec<solana_program::instruction::AccountMeta> {
-                self.to_cpi_metas()
-            }
         }
 
         /// Macro generated implementation of Persist by Solitaire.
@@ -159,7 +149,7 @@ pub fn derive_from_accounts(input: TokenStream) -> TokenStream {
 }
 
 /// This function does the heavy lifting of generating the field parsers.
-fn generate_from(name: &syn::Ident, data: &Data) -> TokenStream2 {
+fn generate_fields(name: &syn::Ident, data: &Data) -> TokenStream2 {
     match *data {
         // We only care about structures.
         Data::Struct(ref data) => {
@@ -214,37 +204,6 @@ fn generate_from(name: &syn::Ident, data: &Data) -> TokenStream2 {
     }
 }
 
-fn generate_to_cpi_metas(name: &syn::Ident, data: &Data) -> TokenStream2 {
-    if let Data::Struct(DataStruct {
-        fields: Fields::Named(fields),
-        ..
-    }) = data
-    {
-        let v_appends = fields.named.iter().map(|f| {
-            // Field name, to assign to.
-            let field_name = &f.ident;
-            let ty = &f.ty;
-
-            quote! {
-                v.append(&mut self.#field_name.to_partial_cpi_meta());
-            }
-        });
-
-        let names = fields.named.iter().map(|f| {
-            let name = &f.ident;
-            quote!(#name)
-        });
-
-        quote! {
-            let mut v = Vec::new();
-            #(#v_appends;)*
-            v
-        }
-    } else {
-        unimplemented!()
-    }
-}
-
 /// This function does the heavy lifting of generating the field parsers.
 fn generate_deps_fields(name: &syn::Ident, data: &Data) -> TokenStream2 {
     match *data {
@@ -293,6 +252,9 @@ fn generate_persist(name: &syn::Ident, data: &Data) -> TokenStream2 {
             match data.fields {
                 // For now, we only care about struct { a: T } forms, not struct(T);
                 Fields::Named(ref fields) => {
+                    // For each field, generate an expression that parses an account info field
+                    // from the Solana accounts list. This relies on Verify::verify to do most of
+                    // the work.
                     let recurse = fields.named.iter().map(|f| {
                         // Field name, to assign to.
                         let name = &f.ident;
