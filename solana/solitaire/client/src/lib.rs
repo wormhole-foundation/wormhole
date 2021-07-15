@@ -26,7 +26,6 @@ use solitaire::{
     CPICall,
     FromAccounts,
     Info,
-    Many,
     Mut,
     Sysvar,
 };
@@ -60,9 +59,6 @@ pub enum AccEntry {
     /// Program addresses for privileged cross calls
     CPIProgramSigner(Keypair, Box<dyn ToInstruction>),
 
-    /// General case of nested structs not representing a CPI call
-    Many(Box<dyn ToInstruction>),
-
     /// Key decided from SPL constants
     Sysvar(Pubkey),
 
@@ -72,8 +68,8 @@ pub enum AccEntry {
     DerivedRO(Pubkey),
 }
 
-/// Types implementing Wrap can be used in top-level Solana calls as
-/// the accepted, implementation-dependent AccEntry variants.
+/// Types implementing Wrap are those that can be turned into a
+/// partial account vector for a program call.
 pub trait Wrap {
     fn wrap(_: &AccEntry) -> StdResult<Vec<AccountMeta>, ErrBox>;
 
@@ -147,10 +143,15 @@ where
                 SignerRO(pair) => Ok(vec![AccountMeta::new_readonly(pair.pubkey(), true)]),
                 _other => Err(format!("{} with IsInitialized = {:?} must be passed as Unprivileged, Signer or the respective read-only variant", std::any::type_name::<Self>(), a).into())
             },
-            Uninitialized | MaybeInitialized => match a {
+            Uninitialized => match a {
                 Unprivileged(k) => Ok(vec![AccountMeta::new(*k, false)]),
                 Signer(pair) => Ok(vec![AccountMeta::new(pair.pubkey(), true)]),
-                _other => Err(format!("{} with IsInitialized = {:?} must be passed as Unprivileged or Signer (write access required for initialization)", std::any::type_name::<Self>(), IsInitialized).into())
+                _other => Err(format!("{} with IsInitialized = {:?} must be passed as Unprivileged or Signer (write access required for initialization)", std::any::type_name::<Self>(), a).into())
+            }
+            MaybeInitialized => match a {
+                Unprivileged(k) => Ok(vec![AccountMeta::new(*k, false)]),
+                Signer(pair) => Ok(vec![AccountMeta::new(pair.pubkey(), true)]),
+                _other => Err(format!("{} with IsInitialized = {:?} must be passed as Unprivileged or Signer (write access required in case of initialization)", std::any::type_name::<Self>(), a).into())
             }
         }
     }
@@ -212,7 +213,7 @@ impl<'a, 'b: 'a, 'c, T> Wrap for CPICall<T> {
         match a {
             AccEntry::CPIProgram(xprog_k, xprog_accs) => {
                 let mut v = vec![AccountMeta::new_readonly(xprog_k.clone(), false)];
-                v.append(&mut xprog_accs.gen_client_metas()?);
+                v.append(&mut xprog_accs.acc_metas(&xprog_k)?);
                 Ok(v)
             }
             AccEntry::CPIProgramSigner(xprog_pair, xprog_accs) => {
@@ -220,7 +221,7 @@ impl<'a, 'b: 'a, 'c, T> Wrap for CPICall<T> {
                     xprog_pair.pubkey().clone(),
                     false,
                 )];
-                v.append(&mut xprog_accs.gen_client_metas()?);
+                v.append(&mut xprog_accs.acc_metas(&xprog_pair.pubkey())?);
                 Ok(v)
             }
             _other => Err(format!(
@@ -233,10 +234,10 @@ impl<'a, 'b: 'a, 'c, T> Wrap for CPICall<T> {
 
     fn partial_signer_keypairs(a: &AccEntry) -> Vec<Keypair> {
         match a {
-            AccEntry::CPIProgram(xprog_k, xprog_accs) => xprog_accs.gen_client_signers(),
+            AccEntry::CPIProgram(xprog_k, xprog_accs) => xprog_accs.signer_keypairs(),
             AccEntry::CPIProgramSigner(xprog_pair, xprog_accs) => {
                 let mut v = vec![Keypair::from_bytes(&xprog_pair.to_bytes()[..]).unwrap()];
-                v.append(&mut xprog_accs.gen_client_signers());
+                v.append(&mut xprog_accs.signer_keypairs());
                 v
             }
             _other => vec![],
@@ -244,30 +245,15 @@ impl<'a, 'b: 'a, 'c, T> Wrap for CPICall<T> {
     }
 }
 
-impl<'a, 'b: 'a, 'c, T: FromAccounts<'a, 'b, 'c>> Wrap for Many<T> {
-    fn wrap(a: &AccEntry) -> StdResult<Vec<AccountMeta>, ErrBox> {
-        if let AccEntry::Many(nested_accs) = a {
-            Ok(nested_accs.gen_client_metas()?)
-        } else {
-            Err(format!("{} must be passed as Many", std::any::type_name::<Self>()).into())
-        }
-    }
-}
-
-/// Trait used on top-level client side to easily validate a program account struct + ix_data for a bare Solana call
+/// Trait used on client side to easily validate a program account struct + ix_data for a bare Solana call
 pub trait ToInstruction: std::fmt::Debug {
-    /// Convenience method that will create an Instruction struct and
-    /// a vector of signer keypairs for use in a Solana RPC contract
-    /// call.
-    fn gen_client_ix(
+    fn to_ix(
         &self,
         program_id: Pubkey,
         ix_data: &[u8],
     ) -> StdResult<(Instruction, Vec<Keypair>), ErrBox>;
 
-    /// Serialize the implementor into a vec of appropriate AccountMetas
-    fn gen_client_metas(&self) -> StdResult<Vec<AccountMeta>, ErrBox>;
+    fn acc_metas(&self, program_id: &Pubkey) -> StdResult<Vec<AccountMeta>, ErrBox>;
 
-    /// Gather all keypairs required by the implementor's Solana program call
-    fn gen_client_signers(&self) -> Vec<Keypair>;
+    fn signer_keypairs(&self) -> Vec<Keypair>;
 }

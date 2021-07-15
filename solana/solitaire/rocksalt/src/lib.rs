@@ -126,6 +126,34 @@ pub fn derive_from_accounts(input: TokenStream) -> TokenStream {
             }
         }
 
+        /// Macro generated implementation of Peel by Solitaire.
+        impl #combined_impl_g solitaire::Peel<'a, 'b, 'c> for #name #type_g {
+            fn peel<I>(ctx: &'c mut Context<'a, 'b, 'c, I>) -> solitaire::Result<Self> where Self: Sized {
+                let v: #name #type_g = FromAccounts::from(ctx.this, ctx.iter, ctx.data)?;
+
+                // Verify the instruction constraints
+                solitaire::InstructionContext::verify(&v, ctx.this)?;
+
+                Ok(v)
+            }
+
+            fn deps() -> Vec<solana_program::pubkey::Pubkey> {
+                #deps_method
+            }
+
+            fn persist(&self, program_id: &solana_program::pubkey::Pubkey) -> solitaire::Result<()> {
+                solitaire::Persist::persist(self, program_id)
+            }
+
+        fn partial_size_in_accounts() -> usize {
+            Self::size_in_accounts()
+        }
+
+	    fn to_partial_cpi_metas(infos: &'c mut std::slice::Iter<Info<'b>>) -> solitaire::Result<Vec<solana_program::instruction::AccountMeta>> {
+                Self::to_cpi_metas(infos)
+            }
+        }
+
         /// Macro generated implementation of Persist by Solitaire.
         impl #type_impl_g solitaire::Persist for #name #type_g {
             fn persist(&self, program_id: &solana_program::pubkey::Pubkey) -> solitaire::Result<()> {

@@ -290,7 +290,7 @@ impl<
     }
 }
 
-impl<'a, 'b: 'a, 'c, T: FromAccounts<'a, 'b, 'c>> Peel<'a, 'b, 'c>
+impl<'a, 'b: 'a, 'c, T: Peel<'a, 'b, 'c> + FromAccounts<'a, 'b, 'c>> Peel<'a, 'b, 'c>
     for CPICall<T>
 {
     fn peel<I>(ctx: &'c mut Context<'a, 'b, 'c, I>) -> Result<Self>
@@ -317,7 +317,7 @@ impl<'a, 'b: 'a, 'c, T: FromAccounts<'a, 'b, 'c>> Peel<'a, 'b, 'c>
     }
 
     fn deps() -> Vec<Pubkey> {
-        vec![system_program::id()]
+        todo!()
     }
 
     fn persist(&self, program_id: &Pubkey) -> Result<()> {
@@ -331,31 +331,5 @@ impl<'a, 'b: 'a, 'c, T: FromAccounts<'a, 'b, 'c>> Peel<'a, 'b, 'c>
 
     fn partial_size_in_accounts() -> usize {
         T::size_in_accounts() + 1 // Nested type size + 1 for cross program ID
-    }
-}
-
-impl<'a, 'b: 'a, 'c, T: FromAccounts<'a, 'b, 'c>> Peel<'a, 'b, 'c> for Many<T> {
-    fn peel<I>(ctx: &'c mut Context<'a, 'b, 'c, I>) -> Result<Self>
-    where
-        Self: Sized,
-    {
-        Ok(Self(T::from(ctx.this, ctx.iter, ctx.data)?))
-    }
-
-    fn deps() -> Vec<Pubkey> {
-        // deps handled in peel() using <T as FromAccounts>::from()
-        vec![]
-    }
-
-    fn persist(&self, program_id: &Pubkey) -> Result<()> {
-        self.persist(program_id)
-    }
-
-    fn to_partial_cpi_metas(infos: &'c mut Iter<Info<'b>>) -> Result<Vec<AccountMeta>> {
-        T::to_cpi_metas(infos)
-    }
-
-    fn partial_size_in_accounts() -> usize {
-        T::size_in_accounts()
     }
 }

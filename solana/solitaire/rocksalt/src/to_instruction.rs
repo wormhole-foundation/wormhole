@@ -59,7 +59,7 @@ pub fn generate_to_instruction(
                 #[cfg(feature = "client")]
 		impl #impl_generics  solitaire_client::ToInstruction for #client_struct_ident {
 
-		    fn gen_client_ix(
+		    fn to_ix(
 			&self,
 			program_id: solana_program::pubkey::Pubkey,
 			ix_data: &[u8]) -> std::result::Result<
@@ -86,7 +86,7 @@ pub fn generate_to_instruction(
 
 		    }
 
-		    fn gen_client_metas(&self) -> std::result::Result <Vec<solana_program::instruction::AccountMeta>, solitaire::ErrBox> {
+		    fn acc_metas(&self, aprogram_id: &solana_program::pubkey::Pubkey) -> std::result::Result <Vec<solana_program::instruction::AccountMeta>, solitaire::ErrBox> {
 			let mut #acc_metas_ident = Vec::new();
 
 			#acc_metas_appends
@@ -94,7 +94,7 @@ pub fn generate_to_instruction(
 			Ok(#acc_metas_ident)
 		    }
 
-		    fn gen_client_signers(&self) -> Vec<solitaire_client::solana_sdk::signature::Keypair> {
+		    fn signer_keypairs(&self) -> Vec<solitaire_client::solana_sdk::signature::Keypair> {
 			let mut #signers_ident = Vec::new();
 
 			#signers_appends
