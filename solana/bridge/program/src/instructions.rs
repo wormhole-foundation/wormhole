@@ -29,6 +29,7 @@ use crate::{
         SignatureSetDerivationData,
     },
     InitializeData,
+    PayloadMessage,
     PostMessageData,
     PostVAAData,
     SetFeesData,

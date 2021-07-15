@@ -70,7 +70,7 @@ fn main() -> Result<(), ErrBox> {
 
     let payer = read_keypair_file(&*shellexpand::tilde("~/.config/solana/id.json"))
         .expect("Example requires a keypair file");
-    let (ix, signers) = init.gen_client_ix(program_id, ix_data.as_slice())?;
+    let (ix, signers) = init.to_ix(program_id, ix_data.as_slice())?;
     send_ix_in_tx(&client, ix, &payer, signers.iter().collect())?;
 
     let payer = read_keypair_file(&*shellexpand::tilde("~/.config/solana/id.json"))

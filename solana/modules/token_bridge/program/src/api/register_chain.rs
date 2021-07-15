@@ -15,14 +15,14 @@ pub struct RegisterChain<'b> {
 
     pub endpoint: Endpoint<'b, { AccountState::Uninitialized }>,
 
-    pub vaa: Many<ClaimableVAA<'b, PayloadGovernanceRegisterChain>>,
+    pub vaa: ClaimableVAA<'b, PayloadGovernanceRegisterChain>,
 }
 
 impl<'a> From<&RegisterChain<'a>> for EndpointDerivationData {
     fn from(accs: &RegisterChain<'a>) -> Self {
         EndpointDerivationData {
-            emitter_chain: (*accs.vaa).meta().emitter_chain,
-            emitter_address: (*accs.vaa).meta().emitter_address,
+            emitter_chain: accs.vaa.meta().emitter_chain,
+            emitter_address: accs.vaa.meta().emitter_address,
         }
     }
 }
@@ -43,14 +43,14 @@ pub fn register_chain(
     data: RegisterChainData,
 ) -> Result<()> {
     // Claim VAA
-    (*accs.vaa).claim(ctx, accs.payer.key)?;
+    accs.vaa.claim(ctx, accs.payer.key)?;
 
     // Create endpoint
     accs.endpoint
         .create(&((&*accs).into()), ctx, accs.payer.key, Exempt);
 
-    accs.endpoint.chain = (*accs.vaa).chain;
-    accs.endpoint.contract = (*accs.vaa).endpoint_address;
+    accs.endpoint.chain = accs.vaa.chain;
+    accs.endpoint.contract = accs.vaa.endpoint_address;
 
     Ok(())
 }

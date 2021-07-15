@@ -60,7 +60,7 @@ pub struct UpgradeContract<'b> {
     pub payer: Signer<Info<'b>>,
 
     /// Upgrade VAA
-    pub vaa: Many<ClaimableVAA<'b, GovernancePayloadUpgrade>>,
+    pub vaa: ClaimableVAA<'b, GovernancePayloadUpgrade>,
 
     /// PDA authority for the loader
     pub upgrade_authority: Derive<Info<'b>, "upgrade">,
@@ -80,13 +80,13 @@ pub fn upgrade_contract(
     accs: &mut UpgradeContract,
     _data: UpgradeContractData,
 ) -> Result<()> {
-    verify_claim(&(*accs.vaa))?;
+    verify_claim(&accs.vaa)?;
 
-    (*accs.vaa).claim(ctx, accs.payer.key)?;
+    accs.vaa.claim(ctx, accs.payer.key)?;
 
     let upgrade_ix = solana_program::bpf_loader_upgradeable::upgrade(
         ctx.program_id,
-        &(*accs.vaa).message.new_contract,
+        &accs.vaa.message.new_contract,
         accs.upgrade_authority.key,
         accs.spill.key,
     );
@@ -106,7 +106,7 @@ pub struct UpgradeGuardianSet<'b> {
     pub bridge: Mut<Bridge<'b, { AccountState::Initialized }>>,
 
     /// GuardianSet change VAA
-    pub vaa: Many<ClaimableVAA<'b, GovernancePayloadGuardianSetChange>>,
+    pub vaa: ClaimableVAA<'b, GovernancePayloadGuardianSetChange>,
 
     /// Old guardian set
     pub guardian_set_old: GuardianSet<'b, { AccountState::Initialized }>,
@@ -117,11 +117,11 @@ pub struct UpgradeGuardianSet<'b> {
 
 impl<'b> InstructionContext<'b> for UpgradeGuardianSet<'b> {
     fn verify(&self, _program_id: &Pubkey) -> Result<()> {
-        if self.guardian_set_old.index != (*self.vaa).new_guardian_set_index - 1 {
+        if self.guardian_set_old.index != self.vaa.new_guardian_set_index - 1 {
             return Err(InvalidGuardianSetUpgrade.into());
         }
 
-        if self.bridge.guardian_set_index != (*self.vaa).new_guardian_set_index - 1 {
+        if self.bridge.guardian_set_index != self.vaa.new_guardian_set_index - 1 {
             return Err(InvalidGuardianSetUpgrade.into());
         }
 
@@ -137,30 +137,30 @@ pub fn upgrade_guardian_set(
     accs: &mut UpgradeGuardianSet,
     _data: UpgradeGuardianSetData,
 ) -> Result<()> {
-    verify_claim(&(*accs.vaa))?;
+    verify_claim(&accs.vaa)?;
     accs.guardian_set_old.verify_derivation(
         ctx.program_id,
         &GuardianSetDerivationData {
-            index: (*accs.vaa).new_guardian_set_index - 1,
+            index: accs.vaa.new_guardian_set_index - 1,
         },
     )?;
     accs.guardian_set_new.verify_derivation(
         ctx.program_id,
         &GuardianSetDerivationData {
-            index: (*accs.vaa).new_guardian_set_index,
+            index: accs.vaa.new_guardian_set_index,
         },
     )?;
 
-    (*accs.vaa).claim(ctx, accs.payer.key)?;
+    accs.vaa.claim(ctx, accs.payer.key)?;
 
     // Set expiration time for the old set
     accs.guardian_set_old.expiration_time =
-        (*accs.vaa).meta().vaa_time + accs.bridge.config.guardian_set_expiration_time;
+        accs.vaa.meta().vaa_time + accs.bridge.config.guardian_set_expiration_time;
 
     // Initialize new guardian Set
-    accs.guardian_set_new.index = (*accs.vaa).new_guardian_set_index;
-    accs.guardian_set_new.creation_time = (*accs.vaa).meta().vaa_time;
-    accs.guardian_set_new.keys = (*accs.vaa).new_guardian_set.clone();
+    accs.guardian_set_new.index = accs.vaa.new_guardian_set_index;
+    accs.guardian_set_new.creation_time = accs.vaa.meta().vaa_time;
+    accs.guardian_set_new.keys = accs.vaa.new_guardian_set.clone();
 
     // Create new guardian set
     // This is done after populating it to properly allocate space according to key vec length.
@@ -174,7 +174,7 @@ pub fn upgrade_guardian_set(
     )?;
 
     // Set guardian set index
-    accs.bridge.guardian_set_index = (*accs.vaa).new_guardian_set_index;
+    accs.bridge.guardian_set_index = accs.vaa.new_guardian_set_index;
 
     Ok(())
 }
@@ -188,7 +188,7 @@ pub struct SetFees<'b> {
     pub bridge: Mut<Bridge<'b, { AccountState::Initialized }>>,
 
     /// Governance VAA
-    pub vaa: Many<ClaimableVAA<'b, GovernancePayloadSetMessageFee>>,
+    pub vaa: ClaimableVAA<'b, GovernancePayloadSetMessageFee>,
 }
 
 impl<'b> InstructionContext<'b> for SetFees<'b> {
@@ -198,12 +198,12 @@ impl<'b> InstructionContext<'b> for SetFees<'b> {
 pub struct SetFeesData {}
 
 pub fn set_fees(ctx: &ExecutionContext, accs: &mut SetFees, _data: SetFeesData) -> Result<()> {
-    verify_claim(&(*accs.vaa))?;
+    verify_claim(&accs.vaa)?;
 
-    (*accs.vaa).claim(ctx, accs.payer.key)?;
+    accs.vaa.claim(ctx, accs.payer.key)?;
 
-    accs.bridge.config.fee = (*accs.vaa).fee.as_u64();
-    accs.bridge.config.fee_persistent = (*accs.vaa).persisted_fee.as_u64();
+    accs.bridge.config.fee = accs.vaa.fee.as_u64();
+    accs.bridge.config.fee_persistent = accs.vaa.persisted_fee.as_u64();
 
     Ok(())
 }
@@ -217,7 +217,7 @@ pub struct TransferFees<'b> {
     pub bridge: Bridge<'b, { AccountState::Initialized }>,
 
     /// Governance VAA
-    pub vaa: Many<ClaimableVAA<'b, GovernancePayloadTransferFees>>,
+    pub vaa: ClaimableVAA<'b, GovernancePayloadTransferFees>,
 
     /// Account collecting tx fees
     pub fee_collector: Mut<Derive<Info<'b>, "fee_collector">>,
@@ -231,7 +231,7 @@ pub struct TransferFees<'b> {
 
 impl<'b> InstructionContext<'b> for TransferFees<'b> {
     fn verify(&self, _program_id: &Pubkey) -> Result<()> {
-        if (*self.vaa).to != self.recipient.key.to_bytes() {
+        if self.vaa.to != self.recipient.key.to_bytes() {
             return Err(InvalidFeeRecipient.into());
         }
 
@@ -247,24 +247,24 @@ pub fn transfer_fees(
     accs: &mut TransferFees,
     _data: TransferFeesData,
 ) -> Result<()> {
-    verify_claim(&(*accs.vaa))?;
+    verify_claim(&accs.vaa)?;
 
     if accs
         .fee_collector
         .lamports()
-        .saturating_sub((*accs.vaa).amount.as_u64())
+        .saturating_sub(accs.vaa.amount.as_u64())
         < accs.rent.minimum_balance(accs.fee_collector.data_len())
     {
         return Err(InvalidGovernanceWithdrawal.into());
     }
 
-    (*accs.vaa).claim(ctx, accs.payer.key)?;
+    accs.vaa.claim(ctx, accs.payer.key)?;
 
     // Transfer fees
     let transfer_ix = solana_program::system_instruction::transfer(
         accs.fee_collector.key,
         accs.recipient.key,
-        (*accs.vaa).amount.as_u64(),
+        accs.vaa.amount.as_u64(),
     );
 
     let seeds = accs.fee_collector.self_bumped_seeds(None, ctx.program_id);

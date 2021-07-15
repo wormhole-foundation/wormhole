@@ -23,7 +23,7 @@ pub struct CreateWrapped<'b> {
     pub config: ConfigAccount<'b, { AccountState::Initialized }>,
 
     pub chain_registration: Endpoint<'b, { AccountState::Initialized }>,
-    pub vaa: Many<ClaimableVAA<'b, PayloadAssetMeta>>,
+    pub vaa: ClaimableVAA<'b, PayloadAssetMeta>,
 
     // New Wrapped
     pub mint: WrappedMint<'b, { AccountState::Uninitialized }>,
@@ -35,8 +35,8 @@ pub struct CreateWrapped<'b> {
 impl<'a> From<&CreateWrapped<'a>> for EndpointDerivationData {
     fn from(accs: &CreateWrapped<'a>) -> Self {
         EndpointDerivationData {
-            emitter_chain: accs.vaa.0.meta().emitter_chain,
-            emitter_address: accs.vaa.0.meta().emitter_address,
+            emitter_chain: accs.vaa.meta().emitter_chain,
+            emitter_address: accs.vaa.meta().emitter_address,
         }
     }
 }
@@ -44,8 +44,8 @@ impl<'a> From<&CreateWrapped<'a>> for EndpointDerivationData {
 impl<'a> From<&CreateWrapped<'a>> for WrappedDerivationData {
     fn from(accs: &CreateWrapped<'a>) -> Self {
         WrappedDerivationData {
-            token_chain: accs.vaa.0.token_chain,
-            token_address: accs.vaa.0.token_address,
+            token_chain: accs.vaa.token_chain,
+            token_address: accs.vaa.token_address,
         }
     }
 }
@@ -69,7 +69,7 @@ pub fn create_wrapped(
     accs: &mut CreateWrapped,
     data: CreateWrappedData,
 ) -> Result<()> {
-    accs.vaa.0.claim(ctx, accs.payer.key)?;
+    accs.vaa.claim(ctx, accs.payer.key)?;
 
     // Create mint account
     accs.mint
@@ -90,8 +90,8 @@ pub fn create_wrapped(
         .create(&((&*accs).into()), ctx, accs.payer.key, Exempt);
 
     // Populate meta account
-    accs.meta.chain = accs.vaa.0.token_chain;
-    accs.meta.token_address = accs.vaa.0.token_address;
+    accs.meta.chain = accs.vaa.token_chain;
+    accs.meta.token_address = accs.vaa.token_address;
 
     Ok(())
 }
