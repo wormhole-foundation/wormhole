@@ -25,6 +25,7 @@ pkgs.mkShell {
       hidapi
       libudev
       niv
+      nodejs
       openssl
       pkgconfig
       protobuf
@@ -50,4 +51,5 @@ pkgs.mkShell {
   );
   DOCKER_BUILDKIT = 1;
   PROTOC = "${pkgs.protobuf}/bin/protoc";
+  EMITTER_ADDRESS = "changeme";
 }
