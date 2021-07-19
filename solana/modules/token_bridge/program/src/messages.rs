@@ -94,8 +94,8 @@ pub struct PayloadAssetMeta {
     pub token_address: Address,
     // Chain ID of the token
     pub token_chain: ChainID,
-    // Number of decimals of the token (big-endian uint256)
-    pub decimals: U256,
+    // Number of decimals of the token
+    pub decimals: u8,
     // Symbol of the token
     pub symbol: String,
     // Name of the token
@@ -114,10 +114,7 @@ impl DeserializePayload for PayloadAssetMeta {
         v.read_exact(&mut token_address)?;
 
         let token_chain = v.read_u16::<BigEndian>()?;
-
-        let mut decimals_data: [u8; 32] = [0; 32];
-        v.read_exact(&mut decimals_data)?;
-        let decimals = U256::from_big_endian(&decimals_data);
+        let decimals = v.read_u8()?;
 
         let mut symbol_data: [u8; 32] = [0; 32];
         v.read_exact(&mut symbol_data)?;
@@ -147,9 +144,7 @@ impl SerializePayload for PayloadAssetMeta {
         writer.write(&self.token_address)?;
         writer.write_u16::<BigEndian>(self.token_chain)?;
 
-        let mut decimal_data: [u8; 32] = [0; 32];
-        self.decimals.to_big_endian(&mut decimal_data);
-        writer.write(&decimal_data)?;
+        writer.write_u8(self.decimals)?;
 
         let mut symbol: [u8; 32] = [0; 32];
         for i in 0..self.symbol.len() {

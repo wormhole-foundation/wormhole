@@ -75,7 +75,7 @@ pub fn attest_token(
     let payload = PayloadAssetMeta {
         token_address: accs.mint.info().key.to_bytes(),
         token_chain: 1,
-        decimals: U256::from(accs.mint.decimals),
+        decimals: accs.mint.decimals,
         symbol: "".to_string(), // TODO metadata
         name: "".to_string(),
     };

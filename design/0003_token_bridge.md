@@ -136,8 +136,8 @@ PayloadID uint8 = 2
 TokenAddress [32]uint8
 // Chain ID of the token
 TokenChain uint16
-// Number of decimals of the token (big-endian uint256)
-Decimals [32]uint8
+// Number of decimals of the token
+Decimals uint8
 // Symbol of the token (UTF-8)
 Symbol [32]uint8
 // Name of the token (UTF-8)

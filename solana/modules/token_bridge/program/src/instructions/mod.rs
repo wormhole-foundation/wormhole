@@ -431,7 +431,7 @@ pub fn attest(
     let payload = PayloadAssetMeta {
         token_address: mint.to_bytes(),
         token_chain: 1,
-        decimals: U256::from(mint_data.decimals),
+        decimals: mint_data.decimals,
         symbol: "".to_string(), // TODO metadata
         name: "".to_string(),
     };
