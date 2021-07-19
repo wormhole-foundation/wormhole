@@ -298,7 +298,7 @@ where
 }
 
 impl DeserializeGovernancePayload for GovernancePayloadUpgrade {
-    const MODULE: &'static str = "CORE";
+    const MODULE: &'static str = "Core";
     const ACTION: u8 = 2;
 }
 
@@ -346,7 +346,7 @@ where
 }
 
 impl DeserializeGovernancePayload for GovernancePayloadSetMessageFee {
-    const MODULE: &'static str = "CORE";
+    const MODULE: &'static str = "Core";
     const ACTION: u8 = 3;
 }
 
@@ -387,7 +387,7 @@ where
 }
 
 impl DeserializeGovernancePayload for GovernancePayloadTransferFees {
-    const MODULE: &'static str = "CORE";
+    const MODULE: &'static str = "Core";
     const ACTION: u8 = 4;
 }
 

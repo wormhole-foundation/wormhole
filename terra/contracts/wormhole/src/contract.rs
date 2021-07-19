@@ -99,7 +99,7 @@ fn handle_governance_payload<S: Storage, A: Api, Q: Querier>(
     let module = String::from_utf8(gov_packet.module).unwrap();
     let module: String = module.chars().filter(|c| !c.is_whitespace()).collect();
 
-    if module != "core" {
+    if module != "Core" {
         return Err(StdError::generic_err("this is not a valid module"));
     }
 
