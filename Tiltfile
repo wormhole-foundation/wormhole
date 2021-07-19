@@ -154,26 +154,6 @@ k8s_resource("eth-devnet", port_forwards=[
     port_forward(8545, name="Ganache RPC [:8545]")
 ])
 
-# web frontend
-
-docker_build(
-    ref = "web",
-    context = "./web",
-    dockerfile = "./web/Dockerfile",
-    ignore = ["./web/node_modules"],
-    live_update = [
-        sync("./web/src", "/home/node/app/src"),
-        sync("./web/public", "/home/node/app/public"),
-        sync("./web/contracts", "/home/node/app/contracts"),
-    ],
-)
-
-k8s_yaml_with_ns("devnet/web.yaml")
-
-k8s_resource("web", port_forwards=[
-    port_forward(3000, name="Experimental Web UI [:3000]")
-])
-
 # explorer web app
 
 docker_build(
