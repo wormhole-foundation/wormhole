@@ -37,7 +37,6 @@ contract GovernanceStructs {
         uint16 chain;
 
         uint256 messageFee;
-        uint256 persistedMessageFee;
     }
 
     struct TransferFees {
@@ -117,9 +116,6 @@ contract GovernanceStructs {
         index += 2;
 
         smf.messageFee = encodedSetMessageFee.toUint256(index);
-        index += 32;
-
-        smf.persistedMessageFee = encodedSetMessageFee.toUint256(index);
         index += 32;
 
         require(encodedSetMessageFee.length == index, "invalid SetMessageFee");

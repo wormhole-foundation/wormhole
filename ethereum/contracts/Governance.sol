@@ -47,7 +47,6 @@ abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upg
         setGovernanceActionConsumed(vm.hash);
 
         setMessageFee(upgrade.messageFee);
-        setPersistedMessageFee(upgrade.persistedMessageFee);
     }
 
     function submitNewGuardianSet(bytes memory _vm) public {

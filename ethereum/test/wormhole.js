@@ -107,7 +107,6 @@ contract("Wormhole", function () {
         const log = await initialized.methods.publishMessage(
             "0x123",
             "0x123321",
-            false,
             32
         ).send({
             value: 0, // fees are set to 0 initially
@@ -119,7 +118,6 @@ contract("Wormhole", function () {
         assert.equal(log.events.LogMessagePublished.returnValues.nonce, 291);
         assert.equal(log.events.LogMessagePublished.returnValues.payload.toString(), "0x123321");
         assert.equal(log.events.LogMessagePublished.returnValues.consistencyLevel, 32);
-        assert.equal(log.events.LogMessagePublished.returnValues.persistMessage, false);
     })
 
     it("should increase the sequence for an account", async function () {
@@ -129,7 +127,6 @@ contract("Wormhole", function () {
         const log = await initialized.methods.publishMessage(
             "0x1",
             "0x1",
-            false,
             32
         ).send({
             value: 0, // fees are set to 0 initially
@@ -198,7 +195,6 @@ contract("Wormhole", function () {
         data += [
             web3.eth.abi.encodeParameter("uint16", testChainId).substring(2 + (64 - 4)),
             web3.eth.abi.encodeParameter("uint256", 1111).substring(2),
-            web3.eth.abi.encodeParameter("uint256", 2222).substring(2),
         ].join('')
 
         const vm = await signAndEncodeVM(
@@ -229,25 +225,14 @@ contract("Wormhole", function () {
         assert.notEqual(before, after);
         assert.equal(after, 1111);
 
-        // test non-persisted message
+        // test message publishing
         await initialized.methods.publishMessage(
             "0x123",
             "0x123321",
-            false,
             32
         ).send({
             from: accounts[0],
             value: 1111
-        })
-        // test persisted message
-        await initialized.methods.publishMessage(
-            "0x123",
-            "0x123321",
-            true,
-            32
-        ).send({
-            from: accounts[0],
-            value: 2222
         })
 
         let failed = false;
@@ -255,7 +240,6 @@ contract("Wormhole", function () {
             await initialized.methods.publishMessage(
                 "0x123",
                 "0x123321",
-                false,
                 32
             ).send({
                 value: 1110,

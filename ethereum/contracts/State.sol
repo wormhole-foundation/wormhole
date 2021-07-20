@@ -41,7 +41,6 @@ contract Storage {
         mapping(address => bool) initializedImplementations;
 
         uint256 messageFee;
-        uint256 persistedMessageFee;
     }
 }
 
