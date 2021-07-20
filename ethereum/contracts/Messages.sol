@@ -83,7 +83,7 @@ contract Messages is Getters {
 
         // Hash the body
         bytes memory body = encodedVM.slice(index, encodedVM.length - index);
-        vm.hash = keccak256(body);
+        vm.hash = keccak256(abi.encodePacked(keccak256(body)));
 
         // Parse the body
         vm.timestamp = encodedVM.toUint32(index);

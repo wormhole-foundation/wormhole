@@ -107,7 +107,8 @@ contract("Wormhole", function () {
         const log = await initialized.methods.publishMessage(
             "0x123",
             "0x123321",
-            false
+            false,
+            32
         ).send({
             value: 0, // fees are set to 0 initially
             from: accounts[0]
@@ -117,6 +118,8 @@ contract("Wormhole", function () {
         assert.equal(log.events.LogMessagePublished.returnValues.sequence.toString(), "0");
         assert.equal(log.events.LogMessagePublished.returnValues.nonce, 291);
         assert.equal(log.events.LogMessagePublished.returnValues.payload.toString(), "0x123321");
+        assert.equal(log.events.LogMessagePublished.returnValues.consistencyLevel, 32);
+        assert.equal(log.events.LogMessagePublished.returnValues.persistMessage, false);
     })
 
     it("should increase the sequence for an account", async function () {
@@ -126,7 +129,8 @@ contract("Wormhole", function () {
         const log = await initialized.methods.publishMessage(
             "0x1",
             "0x1",
-            false
+            false,
+            32
         ).send({
             value: 0, // fees are set to 0 initially
             from: accounts[0]
@@ -154,7 +158,8 @@ contract("Wormhole", function () {
             [
                 testSigner1PK,
             ],
-            0
+            0,
+            2
         );
 
         let result
@@ -173,6 +178,7 @@ contract("Wormhole", function () {
         assert.equal(result.vm.payload, data);
         assert.equal(result.vm.guardianSetIndex, 0);
         assert.equal(result.vm.sequence, 1337);
+        assert.equal(result.vm.consistencyLevel, 2);
 
         assert.equal(result.valid, true);
 
@@ -205,7 +211,8 @@ contract("Wormhole", function () {
             [
                 testSigner1PK,
             ],
-            0
+            0,
+            2
         );
 
 
@@ -226,7 +233,8 @@ contract("Wormhole", function () {
         await initialized.methods.publishMessage(
             "0x123",
             "0x123321",
-            false
+            false,
+            32
         ).send({
             from: accounts[0],
             value: 1111
@@ -235,7 +243,8 @@ contract("Wormhole", function () {
         await initialized.methods.publishMessage(
             "0x123",
             "0x123321",
-            true
+            true,
+            32
         ).send({
             from: accounts[0],
             value: 2222
@@ -246,7 +255,8 @@ contract("Wormhole", function () {
             await initialized.methods.publishMessage(
                 "0x123",
                 "0x123321",
-                false
+                false,
+                32
             ).send({
                 value: 1110,
                 from: accounts[0]
@@ -286,7 +296,8 @@ contract("Wormhole", function () {
             [
                 testSigner1PK,
             ],
-            0
+            0,
+            2
         );
 
         let WHBefore = await web3.eth.getBalance(Wormhole.address);
@@ -336,7 +347,8 @@ contract("Wormhole", function () {
             [
                 testSigner1PK,
             ],
-            0
+            0,
+            2
         );
 
         let set = await initialized.methods.submitNewGuardianSet("0x" + vm).send({
@@ -400,7 +412,8 @@ contract("Wormhole", function () {
                 testSigner2PK,
                 testSigner3PK
             ],
-            1
+            1,
+            2
         );
 
         let before = await web3.eth.getStorageAt(Wormhole.address, "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc");
@@ -445,7 +458,8 @@ contract("Wormhole", function () {
             [
                 testSigner1PK,
             ],
-            0
+            0,
+            2
         );
 
         let failed = false;
@@ -480,7 +494,8 @@ contract("Wormhole", function () {
             [
                 testSigner1PK,
             ],
-            0
+            0,
+            2
         );
 
         // this should pass
@@ -518,7 +533,8 @@ contract("Wormhole", function () {
                 testSigner2PK,
                 testSigner3PK,
             ],
-            1
+            1,
+            2
         );
 
         try {
@@ -556,7 +572,8 @@ contract("Wormhole", function () {
                 testSigner2PK,
                 testSigner3PK,
             ],
-            1
+            1,
+            2
         );
 
         try {
@@ -594,7 +611,8 @@ contract("Wormhole", function () {
                 testSigner2PK,
                 testSigner3PK,
             ],
-            1
+            1,
+            2
         );
 
         await initialized.methods.submitTransferFees("0x" + vm).send({
@@ -625,7 +643,8 @@ const signAndEncodeVM = async function (
     sequence,
     data,
     signers,
-    guardianSetIndex
+    guardianSetIndex,
+    consistencyLevel
 ) {
     const body = [
         web3.eth.abi.encodeParameter("uint32", timestamp).substring(2 + (64 - 8)),
@@ -633,10 +652,11 @@ const signAndEncodeVM = async function (
         web3.eth.abi.encodeParameter("uint16", emitterChainId).substring(2 + (64 - 4)),
         web3.eth.abi.encodeParameter("bytes32", emitterAddress).substring(2),
         web3.eth.abi.encodeParameter("uint64", sequence).substring(2 + (64 - 16)),
+        web3.eth.abi.encodeParameter("uint8", consistencyLevel).substring(2 + (64 - 2)),
         data.substr(2)
     ]
 
-    const hash = web3.utils.soliditySha3("0x" + body.join(""))
+    const hash = web3.utils.soliditySha3(web3.utils.soliditySha3("0x" + body.join("")))
 
     let signatures = "";
 
