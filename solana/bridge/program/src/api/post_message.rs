@@ -73,9 +73,6 @@ pub struct PostMessageData {
     /// Message payload
     pub payload: Vec<u8>,
 
-    /// Should the VAA for this message be persisted on-chain
-    pub persist: bool,
-
     /// Commitment Level required for an attestation to be produced
     pub consistency_level: ConsistencyLevel,
 }
@@ -100,13 +97,7 @@ pub fn post_message(
     accs.message
         .verify_derivation(ctx.program_id, &msg_derivation)?;
 
-    let fee = {
-        if data.persist {
-            accs.bridge.config.fee_persistent
-        } else {
-            accs.bridge.config.fee
-        }
-    };
+    let fee = accs.bridge.config.fee;
     // Fee handling, checking previously known balance allows us to not care who is the payer of
     // this submission.
     if accs
@@ -141,7 +132,6 @@ pub fn post_message(
     accs.message.nonce = data.nonce;
     accs.message.payload = data.payload;
     accs.message.sequence = accs.sequence.sequence;
-    accs.message.persist = data.persist;
     accs.message.consistency_level = match data.consistency_level {
         ConsistencyLevel::Confirmed => 1,
         ConsistencyLevel::Finalized => 32,

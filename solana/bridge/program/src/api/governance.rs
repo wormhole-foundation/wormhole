@@ -208,7 +208,6 @@ pub fn set_fees(ctx: &ExecutionContext, accs: &mut SetFees, _data: SetFeesData) 
     accs.vaa.claim(ctx, accs.payer.key)?;
 
     accs.bridge.config.fee = accs.vaa.fee.as_u64();
-    accs.bridge.config.fee_persistent = accs.vaa.persisted_fee.as_u64();
 
     Ok(())
 }

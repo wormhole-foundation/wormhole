@@ -73,9 +73,6 @@ pub struct BridgeConfig {
 
     /// Amount of lamports that needs to be paid to the protocol to post a message
     pub fee: u64,
-
-    /// Amount of lamports that needs to be paid to the protocol to post a persistent message
-    pub fee_persistent: u64,
 }
 
 #[derive(Default, BorshSerialize, BorshDeserialize)]
@@ -163,9 +160,6 @@ impl Clone for PostedMessage {
 pub struct PostedMessageData {
     /// Header of the posted VAA
     pub vaa_version: u8,
-
-    /// Whether the VAA for this message should be persisted
-    pub persist: bool,
 
     /// Level of consistency requested by the emitter
     pub consistency_level: u8,
@@ -312,8 +306,6 @@ impl DeserializeGovernancePayload for GovernancePayloadUpgrade {
 pub struct GovernancePayloadSetMessageFee {
     // New fee in lamports
     pub fee: U256,
-    // New fee for persisted messages in lamports
-    pub persisted_fee: U256,
 }
 
 impl SerializePayload for GovernancePayloadSetMessageFee {
@@ -321,10 +313,6 @@ impl SerializePayload for GovernancePayloadSetMessageFee {
         let mut fee_data = [0u8; 32];
         self.fee.to_big_endian(&mut fee_data);
         v.write(&fee_data[..])?;
-
-        let mut fee_persistent_data = [0u8; 32];
-        self.persisted_fee.to_big_endian(&mut fee_persistent_data);
-        v.write(&fee_persistent_data[..])?;
 
         Ok(())
     }
@@ -342,14 +330,7 @@ where
         c.read_exact(&mut fee_data)?;
         let fee = U256::from_big_endian(&fee_data);
 
-        let mut fee_persisted_data: [u8; 32] = [0; 32];
-        c.read_exact(&mut fee_persisted_data)?;
-        let fee_persisted = U256::from_big_endian(&fee_persisted_data);
-
-        Ok(GovernancePayloadSetMessageFee {
-            fee,
-            persisted_fee: fee_persisted,
-        })
+        Ok(GovernancePayloadSetMessageFee { fee })
     }
 }
 

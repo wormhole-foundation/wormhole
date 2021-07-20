@@ -81,7 +81,6 @@ fn command_deploy_bridge(
     initial_guardians: Vec<[u8; 20]>,
     guardian_expiration: u32,
     message_fee: u64,
-    message_fee_persistent: u64,
 ) -> CommmandResult {
     println!("Initializing Wormhole bridge {}", bridge);
 
@@ -93,7 +92,6 @@ fn command_deploy_bridge(
         *bridge,
         config.owner.pubkey(),
         message_fee,
-        message_fee_persistent,
         guardian_expiration,
         initial_guardians.as_slice(),
     )
@@ -115,7 +113,6 @@ fn command_post_message(
     bridge: &Pubkey,
     nonce: u32,
     payload: Vec<u8>,
-    persist: bool,
     commitment: bridge::types::ConsistencyLevel,
 ) -> CommmandResult {
     println!("Posting a message to the wormhole");
@@ -127,13 +124,7 @@ fn command_post_message(
             None, bridge,
         ))?;
     let bridge_config = BridgeData::try_from_slice(bridge_config_account.data.as_slice())?;
-    let fee = {
-        if persist {
-            bridge_config.config.fee_persistent
-        } else {
-            bridge_config.config.fee
-        }
-    };
+    let fee = bridge_config.config.fee;
     println!("Message fee: {} lamports", fee);
 
     let transfer_ix = transfer(
@@ -149,7 +140,6 @@ fn command_post_message(
         emitter.pubkey(),
         nonce,
         payload,
-        persist,
         commitment,
     )
     .unwrap();
@@ -269,15 +259,6 @@ fn main() {
                         .index(4)
                         .required(true)
                         .help("Initial message posting fee"),
-                )
-                .arg(
-                    Arg::with_name("message_fee_persistent")
-                        .validator(is_u64)
-                        .value_name("MESSAGE_FEE_PERSISTENT")
-                        .takes_value(true)
-                        .index(5)
-                        .required(true)
-                        .help("Initial persistent message posting fee"),
                 ),
         )
         .subcommand(
@@ -318,13 +299,6 @@ fn main() {
                         .index(4)
                         .required(true)
                         .help("Payload of the message"),
-                )
-                .arg(
-                    Arg::with_name("persist")
-                        .short("p")
-                        .long("persist")
-                        .takes_value(false)
-                        .help("Indicates that the VAA should be persisted on-chain"),
                 ),
         )
         .get_matches();
@@ -364,7 +338,6 @@ fn main() {
             let guardian_expiration: u32 =
                 value_of(arg_matches, "guardian_set_expiration").unwrap();
             let msg_fee: u64 = value_of(arg_matches, "message_fee").unwrap();
-            let msg_fee_persistent: u64 = value_of(arg_matches, "message_fee_persistent").unwrap();
 
             let mut guardian = [0u8; 20];
             guardian.copy_from_slice(&initial_data);
@@ -374,7 +347,6 @@ fn main() {
                 vec![guardian],
                 guardian_expiration,
                 msg_fee,
-                msg_fee_persistent,
             )
         }
         ("upgrade-authority", Some(arg_matches)) => {
@@ -389,7 +361,6 @@ fn main() {
             let data_str: String = value_of(arg_matches, "data").unwrap();
             let data = hex::decode(data_str).unwrap();
             let nonce: u32 = value_of(arg_matches, "nonce").unwrap();
-            let persist = arg_matches.is_present("persist");
             let consistency_level: String = value_of(arg_matches, "consistency_level").unwrap();
 
             command_post_message(
@@ -397,7 +368,6 @@ fn main() {
                 &bridge,
                 nonce,
                 data,
-                persist,
                 match consistency_level.to_lowercase().as_str() {
                     "finalized" => bridge::types::ConsistencyLevel::Finalized,
                     "confirmed" => bridge::types::ConsistencyLevel::Confirmed,

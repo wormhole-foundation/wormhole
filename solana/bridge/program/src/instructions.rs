@@ -45,7 +45,6 @@ pub fn initialize(
     program_id: Pubkey,
     payer: Pubkey,
     fee: u64,
-    fee_persistent: u64,
     guardian_set_expiration_time: u32,
     initial_guardians: &[[u8; 20]],
 ) -> solitaire::Result<Instruction> {
@@ -72,7 +71,6 @@ pub fn initialize(
             InitializeData {
                 initial_guardians: initial_guardians.to_vec(),
                 fee,
-                fee_persistent,
                 guardian_set_expiration_time,
             },
         )
@@ -86,7 +84,6 @@ pub fn post_message(
     emitter: Pubkey,
     nonce: u32,
     payload: Vec<u8>,
-    persist: bool,
     commitment: ConsistencyLevel,
 ) -> solitaire::Result<(Pubkey, Instruction)> {
     let bridge = Bridge::<'_, { AccountState::Uninitialized }>::key(None, &program_id);
@@ -130,7 +127,6 @@ pub fn post_message(
                 PostMessageData {
                     nonce,
                     payload: payload.clone(),
-                    persist,
                     consistency_level: commitment,
                 },
             )
