@@ -61,7 +61,9 @@ use solana_sdk::{
 use solitaire::{
     processors::seeded::Seeded,
     AccountState,
+    Info,
 };
+use solitaire_client::Derive;
 
 struct Config {
     rpc_client: RpcClient,
@@ -215,6 +217,20 @@ fn main() {
                 ),
         )
         .subcommand(
+            SubCommand::with_name("upgrade-authority")
+                .about("Get the derived signer used for contract upgrades")
+                .arg(
+                    Arg::with_name("bridge")
+                        .long("bridge")
+                        .value_name("BRIDGE_KEY")
+                        .validator(is_pubkey_or_keypair)
+                        .takes_value(true)
+                        .index(1)
+                        .required(true)
+                        .help("Specify the bridge program address"),
+                )
+        )
+        .subcommand(
             SubCommand::with_name("create-bridge")
                 .about("Create a new bridge")
                 .arg(
@@ -360,6 +376,13 @@ fn main() {
                 msg_fee,
                 msg_fee_persistent,
             )
+        }
+        ("upgrade-authority", Some(arg_matches)) => {
+            let bridge = pubkey_of(arg_matches, "bridge").unwrap();
+            let upgrade_auth = <Derive<Info<'_>, "upgrade">>::key(None, &bridge);
+            println!("Upgrade Key: {}", upgrade_auth);
+
+            Ok(None)
         }
         ("post-message", Some(arg_matches)) => {
             let bridge = pubkey_of(arg_matches, "bridge").unwrap();
