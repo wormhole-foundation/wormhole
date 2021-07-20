@@ -72,6 +72,7 @@ use service::{
     SubmitVaaRequest,
     SubmitVaaResponse,
 };
+use sha3::Digest;
 use solitaire::{
     processors::seeded::Seeded,
     AccountState,
@@ -238,6 +239,11 @@ fn pack_sig_verification_txs<'a>(
     }
 
     let vaa_body = serialize_vaa(vaa);
+    let body_hash: [u8; 32] = {
+        let mut h = sha3::Keccak256::default();
+        h.write(vaa_body.as_slice())?;
+        h.finalize().into()
+    };
 
     let mut verify_txs: Vec<Transaction> = Vec::new();
     for (_tx_index, chunk) in signature_items.chunks(6).enumerate() {
@@ -257,7 +263,7 @@ fn pack_sig_verification_txs<'a>(
             secp_payload.write_u16::<LittleEndian>((data_offset + 85 * i + 65) as u16)?;
             secp_payload.write_u8(0)?;
             secp_payload.write_u16::<LittleEndian>(message_offset as u16)?;
-            secp_payload.write_u16::<LittleEndian>(vaa_body.len() as u16)?;
+            secp_payload.write_u16::<LittleEndian>(body_hash.len() as u16)?;
             secp_payload.write_u8(0)?;
             signature_status[s.index as usize] = i as i8;
         }
@@ -269,7 +275,7 @@ fn pack_sig_verification_txs<'a>(
         }
 
         // Write body
-        secp_payload.write(&vaa_body)?;
+        secp_payload.write(&body_hash)?;
 
         let secp_ix = Instruction {
             program_id: solana_sdk::secp256k1_program::id(),
@@ -281,7 +287,6 @@ fn pack_sig_verification_txs<'a>(
 
         let payload = VerifySignaturesData {
             signers: signature_status,
-            hash: body_hash,
             initial_creation: false,
         };
 
@@ -289,6 +294,7 @@ fn pack_sig_verification_txs<'a>(
             *bridge,
             sender_keypair.pubkey(),
             vaa.guardian_set_index,
+            body_hash,
             payload,
         ) {
             Ok(v) => v,

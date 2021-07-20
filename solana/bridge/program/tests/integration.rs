@@ -217,14 +217,13 @@ fn test_bridge_messages(context: &mut Context) {
 
         // Emulate Guardian behaviour, verifying the data and publishing signatures/VAA.
         let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 0, 1);
-        common::verify_signatures(client, program, payer, body, body_hash, &context.secret, 0)
-            .unwrap();
+        common::verify_signatures(client, program, payer, body, &context.secret, 0).unwrap();
         common::post_vaa(client, program, payer, vaa).unwrap();
         common::sync(client, payer);
 
         // Derive where we expect created accounts to be.
         let signature_set = SignatureSet::<'_, { AccountState::Uninitialized }>::key(
-            &SignatureSetDerivationData { hash: body_hash },
+            &SignatureSetDerivationData { hash: body},
             &program,
         );
 
@@ -246,7 +245,7 @@ fn test_bridge_messages(context: &mut Context) {
         );
 
         // Verify on chain Signatures
-        assert_eq!(signatures.hash, body_hash);
+        assert_eq!(signatures.hash, body);
         assert_eq!(signatures.guardian_set_index, 0);
 
         for (signature, secret_key) in signatures.signatures.iter().zip(context.secret.iter()) {
@@ -284,13 +283,13 @@ fn test_bridge_messages(context: &mut Context) {
 
     // Emulate Guardian behaviour, verifying the data and publishing signatures/VAA.
     let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 0, 1);
-    common::verify_signatures(client, program, payer, body, body_hash, &context.secret, 0).unwrap();
+    common::verify_signatures(client, program, payer, body, &context.secret, 0).unwrap();
     common::post_vaa(client, program, payer, vaa).unwrap();
     common::sync(client, payer);
 
     // Derive where we expect created accounts to be.
     let signature_set = SignatureSet::<'_, { AccountState::Uninitialized }>::key(
-        &SignatureSetDerivationData { hash: body_hash },
+        &SignatureSetDerivationData { hash: body },
         &program,
     );
 
@@ -312,7 +311,7 @@ fn test_bridge_messages(context: &mut Context) {
     );
 
     // Verify on chain Signatures
-    assert_eq!(signatures.hash, body_hash);
+    assert_eq!(signatures.hash, body);
     assert_eq!(signatures.guardian_set_index, 0);
 
     for (signature, secret_key) in signatures.signatures.iter().zip(context.secret.iter()) {
@@ -375,13 +374,13 @@ fn test_persistent_bridge_messages(context: &mut Context) {
 
     // Emulate Guardian behaviour, verifying the data and publishing signatures/VAA.
     let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 0, 1);
-    common::verify_signatures(client, program, payer, body, body_hash, &context.secret, 0).unwrap();
+    common::verify_signatures(client, program, payer, body, &context.secret, 0).unwrap();
     common::post_vaa(client, program, payer, vaa).unwrap();
     common::sync(client, payer);
 
     // Derive where we expect created accounts to be.
     let signature_set = SignatureSet::<'_, { AccountState::Uninitialized }>::key(
-        &SignatureSetDerivationData { hash: body_hash },
+        &SignatureSetDerivationData { hash: body },
         &program,
     );
 
@@ -403,7 +402,7 @@ fn test_persistent_bridge_messages(context: &mut Context) {
     );
 
     // Verify on chain Signatures
-    assert_eq!(signatures.hash, body_hash);
+    assert_eq!(signatures.hash, body);
     assert_eq!(signatures.guardian_set_index, 0);
 
     for (signature, secret_key) in signatures.signatures.iter().zip(context.secret.iter()) {
@@ -541,7 +540,7 @@ fn test_guardian_set_change(context: &mut Context) {
     .unwrap();
 
     let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 0, 1);
-    common::verify_signatures(client, program, payer, body, body_hash, &context.secret, 0).unwrap();
+    common::verify_signatures(client, program, payer, body, &context.secret, 0).unwrap();
     common::post_vaa(client, program, payer, vaa).unwrap();
     common::upgrade_guardian_set(
         client,
@@ -598,13 +597,13 @@ fn test_guardian_set_change(context: &mut Context) {
     // Emulate Guardian behaviour, verifying the data and publishing signatures/VAA.
     let sequence = context.seq.next(emitter.pubkey().to_bytes());
     let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 1, 1);
-    common::verify_signatures(client, program, payer, body, body_hash, &context.secret, 1).unwrap();
+    common::verify_signatures(client, program, payer, body, &context.secret, 1).unwrap();
     common::post_vaa(client, program, payer, vaa).unwrap();
     common::sync(client, payer);
 
     // Derive where we expect created accounts to be.
     let signature_set = SignatureSet::<'_, { AccountState::Uninitialized }>::key(
-        &SignatureSetDerivationData { hash: body_hash },
+        &SignatureSetDerivationData { hash: body },
         &program,
     );
 
@@ -626,7 +625,7 @@ fn test_guardian_set_change(context: &mut Context) {
     );
 
     // Verify on chain Signatures
-    assert_eq!(signatures.hash, body_hash);
+    assert_eq!(signatures.hash, body);
     assert_eq!(signatures.guardian_set_index, 1);
 
     for (signature, secret_key) in signatures.signatures.iter().zip(context.secret.iter()) {
@@ -715,7 +714,7 @@ fn test_set_fees(context: &mut Context) {
     .unwrap();
 
     let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 1, 1);
-    common::verify_signatures(client, program, payer, body, body_hash, &context.secret, 1).unwrap();
+    common::verify_signatures(client, program, payer, body, &context.secret, 1).unwrap();
     common::post_vaa(client, program, payer, vaa).unwrap();
     common::set_fees(
         client,
@@ -776,7 +775,7 @@ fn test_set_fees(context: &mut Context) {
     .unwrap();
 
     let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 1, 1);
-    common::verify_signatures(client, program, payer, body, body_hash, &context.secret, 1).unwrap();
+    common::verify_signatures(client, program, payer, body, &context.secret, 1).unwrap();
     common::post_vaa(client, program, payer, vaa).unwrap();
     common::sync(client, payer);
 
@@ -788,7 +787,7 @@ fn test_set_fees(context: &mut Context) {
 
     // Derive where we expect created accounts to be.
     let signature_set = SignatureSet::<'_, { AccountState::Uninitialized }>::key(
-        &SignatureSetDerivationData { hash: body_hash },
+        &SignatureSetDerivationData { hash: body },
         &program,
     );
 
@@ -810,7 +809,7 @@ fn test_set_fees(context: &mut Context) {
     );
 
     // Verify on chain Signatures
-    assert_eq!(signatures.hash, body_hash);
+    assert_eq!(signatures.hash, body);
     assert_eq!(signatures.guardian_set_index, 1);
 
     for (signature, secret_key) in signatures.signatures.iter().zip(context.secret.iter()) {
@@ -857,7 +856,7 @@ fn test_set_fees_fails(context: &mut Context) {
     .unwrap();
 
     let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 1, 1);
-    common::verify_signatures(client, program, payer, body, body_hash, &context.secret, 1).unwrap();
+    common::verify_signatures(client, program, payer, body,  &context.secret, 1).unwrap();
     common::post_vaa(client, program, payer, vaa).unwrap();
     assert!(common::set_fees(
         client,
@@ -899,7 +898,7 @@ fn test_free_fees(context: &mut Context) {
     .unwrap();
 
     let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 1, 1);
-    common::verify_signatures(client, program, payer, body, body_hash, &context.secret, 1).unwrap();
+    common::verify_signatures(client, program, payer, body, &context.secret, 1).unwrap();
     common::post_vaa(client, program, payer, vaa).unwrap();
     common::set_fees(
         client,
@@ -938,7 +937,7 @@ fn test_free_fees(context: &mut Context) {
     .unwrap();
 
     let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 1, 1);
-    common::verify_signatures(client, program, payer, body, body_hash, &context.secret, 1).unwrap();
+    common::verify_signatures(client, program, payer, body, &context.secret, 1).unwrap();
     common::post_vaa(client, program, payer, vaa).unwrap();
     common::sync(client, payer);
 
@@ -950,7 +949,7 @@ fn test_free_fees(context: &mut Context) {
 
     // Derive where we expect created accounts to be.
     let signature_set = SignatureSet::<'_, { AccountState::Uninitialized }>::key(
-        &SignatureSetDerivationData { hash: body_hash },
+        &SignatureSetDerivationData { hash: body },
         &program,
     );
 
@@ -972,7 +971,7 @@ fn test_free_fees(context: &mut Context) {
     );
 
     // Verify on chain Signatures
-    assert_eq!(signatures.hash, body_hash);
+    assert_eq!(signatures.hash, body);
     assert_eq!(signatures.guardian_set_index, 1);
 
     for (signature, secret_key) in signatures.signatures.iter().zip(context.secret.iter()) {
@@ -1022,7 +1021,7 @@ fn test_transfer_fees(context: &mut Context) {
     .unwrap();
 
     let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 1, 1);
-    common::verify_signatures(client, program, payer, body, body_hash, &context.secret, 1).unwrap();
+    common::verify_signatures(client, program, payer, body, &context.secret, 1).unwrap();
     common::post_vaa(client, program, payer, vaa).unwrap();
     common::transfer_fees(
         client,
@@ -1071,7 +1070,7 @@ fn test_transfer_fees_fails(context: &mut Context) {
     .unwrap();
 
     let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 1, 1);
-    common::verify_signatures(client, program, payer, body, body_hash, &context.secret, 1).unwrap();
+    common::verify_signatures(client, program, payer, body, &context.secret, 1).unwrap();
     common::post_vaa(client, program, payer, vaa).unwrap();
 
     assert!(common::transfer_fees(
@@ -1118,7 +1117,7 @@ fn test_transfer_too_much(context: &mut Context) {
     .unwrap();
 
     let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 1, 1);
-    common::verify_signatures(client, program, payer, body, body_hash, &context.secret, 1).unwrap();
+    common::verify_signatures(client, program, payer, body, &context.secret, 1).unwrap();
     common::post_vaa(client, program, payer, vaa).unwrap();
 
     // Should fail to transfer.
@@ -1157,12 +1156,12 @@ fn test_foreign_bridge_messages(context: &mut Context) {
         &program,
     );
 
-    common::verify_signatures(client, program, payer, body, body_hash, &context.secret, 0).unwrap();
+    common::verify_signatures(client, program, payer, body, &context.secret, 0).unwrap();
     common::post_vaa(client, program, payer, vaa).unwrap();
     common::sync(client, payer);
 
     let signature_set = SignatureSet::<'_, { AccountState::Uninitialized }>::key(
-        &SignatureSetDerivationData { hash: body_hash },
+        &SignatureSetDerivationData { hash: body },
         &program,
     );
 
@@ -1183,7 +1182,7 @@ fn test_foreign_bridge_messages(context: &mut Context) {
     );
 
     // Verify on chain Signatures
-    assert_eq!(signatures.hash, body_hash);
+    assert_eq!(signatures.hash, body);
     assert_eq!(signatures.guardian_set_index, 0);
 
     for (signature, secret_key) in signatures.signatures.iter().zip(context.secret.iter()) {
@@ -1236,7 +1235,7 @@ fn test_transfer_total_fails(context: &mut Context) {
     .unwrap();
 
     let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 1, 1);
-    common::verify_signatures(client, program, payer, body, body_hash, &context.secret, 1).unwrap();
+    common::verify_signatures(client, program, payer, body,  &context.secret, 1).unwrap();
     common::post_vaa(client, program, payer, vaa).unwrap();
 
     // Transferring total fees should fail, to prevent the account being de-allocated.
@@ -1289,7 +1288,7 @@ fn test_upgrade_contract(context: &mut Context) {
     .unwrap();
 
     let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 0, 1);
-    common::verify_signatures(client, program, payer, body, body_hash, &context.secret, 0).unwrap();
+    common::verify_signatures(client, program, payer, body, &context.secret, 0).unwrap();
     common::post_vaa(client, program, payer, vaa).unwrap();
     common::upgrade_contract(
         client,

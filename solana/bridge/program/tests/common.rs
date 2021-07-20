@@ -193,7 +193,7 @@ mod helpers {
         nonce: u32,
         guardian_set_index: u32,
         emitter_chain: u16,
-    ) -> (PostVAAData, Vec<u8>, [u8; 32]) {
+    ) -> (PostVAAData, [u8; 32], [u8; 32]) {
         let mut vaa = PostVAAData {
             version: 0,
             guardian_set_index,
@@ -226,9 +226,15 @@ mod helpers {
 
         // Hash this body, which is expected to be the same as the hash currently stored in the
         // signature account, binding that set of signatures to this VAA.
-        let body_hash: [u8; 32] = {
+        let body: [u8; 32] = {
             let mut h = sha3::Keccak256::default();
             h.write(body.as_slice()).unwrap();
+            h.finalize().into()
+        };
+
+        let body_hash: [u8; 32] = {
+            let mut h = sha3::Keccak256::default();
+            h.write(&body).unwrap();
             h.finalize().into()
         };
 
@@ -318,8 +324,7 @@ mod helpers {
         client: &RpcClient,
         program: &Pubkey,
         payer: &Keypair,
-        body: Vec<u8>,
-        body_hash: [u8; 32],
+        body: [u8; 32],
         secret_keys: &[SecretKey],
         guardian_set_version: u32,
     ) -> Result<(), ClientError> {
@@ -339,8 +344,8 @@ mod helpers {
                         *program,
                         payer.pubkey(),
                         guardian_set_version,
+                        body,
                         VerifySignaturesData {
-                            hash: body_hash,
                             signers,
                         },
                     )

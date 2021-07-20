@@ -16,13 +16,11 @@ use crate::{
     MAX_LEN_GUARDIAN_KEYS,
 };
 use byteorder::ByteOrder;
-use sha3::Digest;
 use solana_program::program_error::ProgramError;
 use solitaire::{
     processors::seeded::Seeded,
     CreationLamports::Exempt,
 };
-use std::io::Write;
 
 #[derive(FromAccounts)]
 pub struct VerifySignatures<'b> {
@@ -58,8 +56,6 @@ impl From<[u8; 32]> for SignatureSetDerivationData {
 
 #[derive(Default, BorshSerialize, BorshDeserialize)]
 pub struct VerifySignaturesData {
-    /// Guardian set of the signatures
-    pub hash: [u8; 32],
     /// instruction indices of signers (-1 for missing)
     pub signers: [i8; MAX_LEN_GUARDIAN_KEYS],
 }
@@ -173,22 +169,18 @@ pub fn verify_signatures(
         return Err(ProgramError::InvalidArgument.into());
     }
 
+    // Data must be a hash
+    if secp_ixs[0].msg_size != 32 {
+        return Err(ProgramError::InvalidArgument.into());
+    }
+
     // Extract message which is encoded in Solana Secp256k1 instruction data.
     let message = &secp_ix.data
         [secp_ixs[0].msg_offset as usize..(secp_ixs[0].msg_offset + secp_ixs[0].msg_size) as usize];
 
     // Hash the message part, which contains the serialized VAA body.
-    let msg_hash: [u8; 32] = {
-        let mut h = sha3::Keccak256::default();
-        if let Err(e) = h.write(message) {
-            return Err(e.into());
-        };
-        h.finalize().into()
-    };
-
-    if msg_hash != data.hash {
-        return Err(InvalidHash.into());
-    }
+    let mut msg_hash: [u8; 32] = [0u8; 32];
+    msg_hash.copy_from_slice(message);
 
     // Confirm at this point that the derivation succeeds, we didn't have a signature set with the
     // correct hash until this point.
@@ -198,7 +190,7 @@ pub fn verify_signatures(
     if !accs.signature_set.is_initialized() {
         accs.signature_set.signatures = vec![[0u8; 65]; 19];
         accs.signature_set.guardian_set_index = accs.guardian_set.index;
-        accs.signature_set.hash = data.hash;
+        accs.signature_set.hash = msg_hash;
         accs.signature_set
             .create(&msg_hash.into(), ctx, accs.payer.key, Exempt)?;
     } else {
@@ -207,7 +199,7 @@ pub fn verify_signatures(
             return Err(GuardianSetMismatch.into());
         }
 
-        if accs.signature_set.hash != data.hash {
+        if accs.signature_set.hash != msg_hash {
             return Err(InvalidHash.into());
         }
     }

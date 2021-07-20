@@ -137,6 +137,7 @@ pub fn verify_signatures(
     program_id: Pubkey,
     payer: Pubkey,
     guardian_set_index: u32,
+    hash: [u8; 32],
     data: VerifySignaturesData,
 ) -> solitaire::Result<Instruction> {
     let guardian_set = GuardianSet::<'_, { AccountState::Uninitialized }>::key(
@@ -147,7 +148,7 @@ pub fn verify_signatures(
     );
 
     let signature_set = SignatureSet::<'_, { AccountState::Uninitialized }>::key(
-        &SignatureSetDerivationData { hash: data.hash },
+        &SignatureSetDerivationData { hash: hash },
         &program_id,
     );
 
