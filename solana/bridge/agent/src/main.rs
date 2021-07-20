@@ -287,7 +287,6 @@ fn pack_sig_verification_txs<'a>(
 
         let payload = VerifySignaturesData {
             signers: signature_status,
-            initial_creation: false,
         };
 
         let verify_ix = match verify_signatures(
