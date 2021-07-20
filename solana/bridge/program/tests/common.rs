@@ -75,6 +75,7 @@ use bridge::{
     instructions,
     types::{
         BridgeConfig,
+        ConsistencyLevel,
         PostedMessage,
         SequenceTracker,
     },
@@ -207,6 +208,7 @@ mod helpers {
                 .unwrap()
                 .as_secs() as u32,
             nonce,
+            consistency_level: ConsistencyLevel::Confirmed as u8,
         };
 
         // Hash data, the thing we wish to actually sign.
@@ -217,6 +219,7 @@ mod helpers {
             v.write_u16::<BigEndian>(vaa.emitter_chain).unwrap();
             v.write(&vaa.emitter_address).unwrap();
             v.write_u64::<BigEndian>(vaa.sequence).unwrap();
+            v.write_u8(vaa.consistency_level).unwrap();
             v.write(&vaa.payload).unwrap();
             v.into_inner()
         };
@@ -293,6 +296,7 @@ mod helpers {
             nonce,
             data,
             persist,
+            ConsistencyLevel::Confirmed,
         )
         .unwrap();
 
@@ -337,7 +341,6 @@ mod helpers {
                         guardian_set_version,
                         VerifySignaturesData {
                             hash: body_hash,
-                            initial_creation: true,
                             signers,
                         },
                     )
@@ -364,27 +367,6 @@ mod helpers {
         )
     }
 
-    pub fn upgrade_contract(
-        client: &RpcClient,
-        program: &Pubkey,
-        payer: &Keypair,
-        payload_message: Pubkey,
-        spill: Pubkey,
-    ) -> Result<Signature, ClientError> {
-        execute(
-            client,
-            payer,
-            &[payer],
-            &[instructions::upgrade_contract(
-                *program,
-                payer.pubkey(),
-                payload_message,
-                spill,
-            )],
-            CommitmentConfig::processed(),
-        )
-    }
-
     pub fn upgrade_guardian_set(
         client: &RpcClient,
         program: &Pubkey,
@@ -407,6 +389,29 @@ mod helpers {
                 old_index,
                 new_index,
                 sequence,
+            )],
+            CommitmentConfig::processed(),
+        )
+    }
+
+    pub fn upgrade_contract(
+        client: &RpcClient,
+        program: &Pubkey,
+        payer: &Keypair,
+        payload_message: Pubkey,
+        emitter: Pubkey,
+        spill: Pubkey,
+        sequence: u64,
+    ) -> Result<Signature, ClientError> {
+        execute(
+            client,
+            payer,
+            &[payer],
+            &[instructions::upgrade_contract(
+                *program,
+                payer.pubkey(),
+                payload_message,
+                spill,
             )],
             CommitmentConfig::processed(),
         )

@@ -240,10 +240,10 @@ pub fn upgrade_contract(
 
         accounts: vec![
             AccountMeta::new(payer, true),
-            AccountMeta::new(payload_message, false),
+            AccountMeta::new_readonly(payload_message, false),
             AccountMeta::new(claim, false),
-            AccountMeta::new(upgrade_authority, false),
-            AccountMeta::new(spill, false),
+            AccountMeta::new_readonly(upgrade_authority, false),
+            AccountMeta::new_readonly(spill, false),
         ],
 
         data: (crate::instruction::Instruction::UpgradeContract, UpgradeContractData {})

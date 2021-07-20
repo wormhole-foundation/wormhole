@@ -39,12 +39,26 @@ use std::{
     ops::Deref,
 };
 
-pub trait SerializePayload: Sized {
+pub trait SerializePayload: Sized + DeserializeGovernancePayload {
     fn serialize<W: Write>(&self, writer: &mut W) -> std::result::Result<(), SolitaireError>;
     fn try_to_vec(&self) -> std::result::Result<Vec<u8>, SolitaireError> {
         let mut result = Vec::with_capacity(256);
+        self.write_governance_header(&mut result)?;
         self.serialize(&mut result)?;
         Ok(result)
+    }
+
+    fn write_governance_header<W: Write>(
+        &self,
+        c: &mut W,
+    ) -> std::result::Result<(), SolitaireError> {
+        use byteorder::WriteBytesExt;
+        let module = format!("{:\0>32}", Self::MODULE);
+        let module = module.as_bytes();
+        c.write(&module)?;
+        c.write_u8(Self::ACTION)?;
+        c.write_u16::<BigEndian>(CHAIN_ID_SOLANA)?;
+        Ok(())
     }
 }
 

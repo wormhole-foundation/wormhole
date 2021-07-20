@@ -57,7 +57,7 @@ where
 #[derive(FromAccounts)]
 pub struct UpgradeContract<'b> {
     /// Payer for account creation (vaa-claim)
-    pub payer: Signer<Info<'b>>,
+    pub payer: Mut<Signer<Info<'b>>>,
 
     /// Upgrade VAA
     pub vaa: ClaimableVAA<'b, GovernancePayloadUpgrade>,
@@ -91,8 +91,10 @@ pub fn upgrade_contract(
         accs.spill.key,
     );
 
-    let _seeds = accs.upgrade_authority.self_seeds(None);
-    invoke_signed(&upgrade_ix, ctx.accounts, &[])?;
+    let seeds = accs.upgrade_authority.self_bumped_seeds(None, ctx.program_id);
+    let seeds: Vec<&[u8]> = seeds.iter().map(|item| item.as_slice()).collect();
+    let seeds = seeds.as_slice();
+    invoke_signed(&upgrade_ix, ctx.accounts, &[seeds])?;
 
     Ok(())
 }
@@ -138,6 +140,7 @@ pub fn upgrade_guardian_set(
     _data: UpgradeGuardianSetData,
 ) -> Result<()> {
     verify_claim(&accs.vaa)?;
+
     accs.guardian_set_old.verify_derivation(
         ctx.program_id,
         &GuardianSetDerivationData {

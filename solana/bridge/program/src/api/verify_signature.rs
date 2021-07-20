@@ -62,8 +62,6 @@ pub struct VerifySignaturesData {
     pub hash: [u8; 32],
     /// instruction indices of signers (-1 for missing)
     pub signers: [i8; MAX_LEN_GUARDIAN_KEYS],
-    /// indicates whether this verification should only succeed if the sig account does not exist
-    pub initial_creation: bool,
 }
 
 /// SigInfo contains metadata about signers in a VerifySignature ix

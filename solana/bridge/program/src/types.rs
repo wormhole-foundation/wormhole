@@ -251,6 +251,7 @@ where
 {
     fn deserialize(buf: &mut &[u8]) -> Result<Self, SolitaireError> {
         let mut c = Cursor::new(buf);
+        Self::check_governance_header(&mut c)?;
 
         let new_index = c.read_u32::<BigEndian>()?;
 
@@ -270,7 +271,7 @@ where
 }
 
 impl DeserializeGovernancePayload for GovernancePayloadGuardianSetChange {
-    const MODULE: &'static str = "CORE";
+    const MODULE: &'static str = "Core";
     const ACTION: u8 = 1;
 }
 
@@ -279,13 +280,19 @@ pub struct GovernancePayloadUpgrade {
     pub new_contract: Pubkey,
 }
 
+impl SerializePayload for GovernancePayloadUpgrade {
+    fn serialize<W: Write>(&self, v: &mut W) -> std::result::Result<(), SolitaireError> {
+        v.write(&self.new_contract.to_bytes())?;
+        Ok(())
+    }
+}
+
 impl DeserializePayload for GovernancePayloadUpgrade
 where
     Self: DeserializeGovernancePayload,
 {
     fn deserialize(buf: &mut &[u8]) -> Result<Self, SolitaireError> {
         let mut c = Cursor::new(buf);
-
         Self::check_governance_header(&mut c)?;
 
         let mut addr = [0u8; 32];
@@ -329,6 +336,7 @@ where
 {
     fn deserialize(buf: &mut &[u8]) -> Result<Self, SolitaireError> {
         let mut c = Cursor::new(buf);
+        Self::check_governance_header(&mut c)?;
 
         let mut fee_data: [u8; 32] = [0; 32];
         c.read_exact(&mut fee_data)?;
@@ -374,6 +382,7 @@ where
 {
     fn deserialize(buf: &mut &[u8]) -> Result<Self, SolitaireError> {
         let mut c = Cursor::new(buf);
+        Self::check_governance_header(&mut c)?;
 
         let mut amount_data: [u8; 32] = [0; 32];
         c.read_exact(&mut amount_data)?;
