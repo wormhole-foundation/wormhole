@@ -107,7 +107,6 @@ func NewProcessor(
 	devnetMode bool,
 	devnetNumGuardians uint,
 	devnetEthRPC string,
-	terraEnabled bool,
 	terraLCD string,
 	terraChainID string,
 	terraContract string,
@@ -125,7 +124,6 @@ func NewProcessor(
 		devnetNumGuardians: devnetNumGuardians,
 		devnetEthRPC:       devnetEthRPC,
 
-		terraEnabled:  terraEnabled,
 		terraLCD:      terraLCD,
 		terraChainID:  terraChainID,
 		terraContract: terraContract,

@@ -54,7 +54,6 @@ var (
 	ethRPC      *string
 	ethContract *string
 
-	terraSupport  *bool
 	terraWS       *string
 	terraLCD      *string
 	terraChainID  *string
@@ -92,7 +91,6 @@ func init() {
 	ethRPC = BridgeCmd.Flags().String("ethRPC", "", "Ethereum RPC URL")
 	ethContract = BridgeCmd.Flags().String("ethContract", "", "Ethereum bridge contract address")
 
-	terraSupport = BridgeCmd.Flags().Bool("terra", false, "Turn on support for Terra")
 	terraWS = BridgeCmd.Flags().String("terraWS", "", "Path to terrad root for websocket connection")
 	terraLCD = BridgeCmd.Flags().String("terraLCD", "", "Path to LCD service root for http calls")
 	terraChainID = BridgeCmd.Flags().String("terraChainID", "", "Terra chain ID, used in LCD client initialization")
@@ -195,9 +193,7 @@ func runBridge(cmd *cobra.Command, args []string) {
 	// Register components for readiness checks.
 	readiness.RegisterComponent(common.ReadinessEthSyncing)
 	readiness.RegisterComponent(common.ReadinessSolanaSyncing)
-	if *terraSupport {
-		readiness.RegisterComponent(common.ReadinessTerraSyncing)
-	}
+	readiness.RegisterComponent(common.ReadinessTerraSyncing)
 
 	if *statusAddr != "" {
 		// Use a custom routing instead of using http.DefaultServeMux directly to avoid accidentally exposing packages
@@ -280,22 +276,20 @@ func runBridge(cmd *cobra.Command, args []string) {
 		logger.Fatal("Please specify --solanaUrl")
 	}
 
-	if *terraSupport {
-		if *terraWS == "" {
-			logger.Fatal("Please specify --terraWS")
-		}
-		if *terraLCD == "" {
-			logger.Fatal("Please specify --terraLCD")
-		}
-		if *terraChainID == "" {
-			logger.Fatal("Please specify --terraChainID")
-		}
-		if *terraContract == "" {
-			logger.Fatal("Please specify --terraContract")
-		}
-		if *terraKeyPath == "" {
-			logger.Fatal("Please specify --terraKey")
-		}
+	if *terraWS == "" {
+		logger.Fatal("Please specify --terraWS")
+	}
+	if *terraLCD == "" {
+		logger.Fatal("Please specify --terraLCD")
+	}
+	if *terraChainID == "" {
+		logger.Fatal("Please specify --terraChainID")
+	}
+	if *terraContract == "" {
+		logger.Fatal("Please specify --terraContract")
+	}
+	if *terraKeyPath == "" {
+		logger.Fatal("Please specify --terraKey")
 	}
 
 	ethContractAddr := eth_common.HexToAddress(*ethContract)
@@ -368,14 +362,12 @@ func runBridge(cmd *cobra.Command, args []string) {
 
 	// Load Terra fee payer key
 	var terraFeePayer string
-	if *terraSupport {
-		if *unsafeDevMode {
-			terra.WriteDevnetKey(*terraKeyPath)
-		}
-		terraFeePayer, err = terra.ReadKey(*terraKeyPath)
-		if err != nil {
-			logger.Fatal("Failed to load Terra fee payer key", zap.Error(err))
-		}
+	if *unsafeDevMode {
+		terra.WriteDevnetKey(*terraKeyPath)
+	}
+	terraFeePayer, err = terra.ReadKey(*terraKeyPath)
+	if err != nil {
+		logger.Fatal("Failed to load Terra fee payer key", zap.Error(err))
 	}
 
 	adminService, err := adminServiceRunnable(logger, *adminSocketPath, injectC)
@@ -399,12 +391,10 @@ func runBridge(cmd *cobra.Command, args []string) {
 		}
 
 		// Start Terra watcher only if configured
-		if *terraSupport {
-			logger.Info("Starting Terra watcher")
-			if err := supervisor.Run(ctx, "terrawatch",
-				terra.NewTerraBridgeWatcher(*terraWS, *terraLCD, *terraContract, lockC, setC).Run); err != nil {
-				return err
-			}
+		logger.Info("Starting Terra watcher")
+		if err := supervisor.Run(ctx, "terrawatch",
+			terra.NewTerraBridgeWatcher(*terraWS, *terraLCD, *terraContract, lockC, setC).Run); err != nil {
+			return err
 		}
 
 		if err := supervisor.Run(ctx, "solvaa",
@@ -429,7 +419,6 @@ func runBridge(cmd *cobra.Command, args []string) {
 			*unsafeDevMode,
 			*devNumGuardians,
 			*ethRPC,
-			*terraSupport,
 			*terraLCD,
 			*terraChainID,
 			*terraContract,
