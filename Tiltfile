@@ -4,29 +4,6 @@
 #  all source code changes result in small, incremental rebuilds. Dockerfiles are written such
 #  that, for example, changing the contract source code won't cause Solana itself to be rebuilt.
 #
-#  Graph of dependencies between Dockerfiles, image refs and k8s StatefulSets:
-#
-#      Dockerfile                    Image ref                      StatefulSet
-#      +------------------------------------------------------------------------------+
-#      rust-1.*
-#       +                                                           +-----------------+
-#       +-> Dockerfile.agent    +->  solana-agent  +--------+-----> | [agent]         |
-#       |                                                   |  +--> |    guardian-N   |
-#       +-> solana/Dockerfile   +->  solana-contract +---+  |  |    +-- --------------+
-#                                                        |  |  |
-#                                                        |  |  |
-#                                                        |  |  |    +-----------------+
-#                                                        +--|-----> |  solana-devnet  |
-#      golang:1.*                                           +-----> | [setup]         |
-#       +                                                      |    +-----------------+
-#       +-> bridge/Dockerfile   +->  guardiand-image +---------+
-#
-#
-#      node:lts-alpine
-#       +                                                           +-----------------+
-#       +-> ethereum/Dockerfile +->  eth-node  +------------------> |    eth-devnet   |
-#                                                                   +-----------------+
-#
 
 load("ext://namespace", "namespace_create", "namespace_inject")
 
