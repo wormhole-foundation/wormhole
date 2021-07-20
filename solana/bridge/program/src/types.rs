@@ -219,6 +219,40 @@ impl Owned for ClaimData {
     }
 }
 
+pub struct GovernancePayloadUpgrade {
+    // Address of the new Implementation
+    pub new_contract: Pubkey,
+}
+
+impl SerializePayload for GovernancePayloadUpgrade {
+    fn serialize<W: Write>(&self, v: &mut W) -> std::result::Result<(), SolitaireError> {
+        v.write(&self.new_contract.to_bytes())?;
+        Ok(())
+    }
+}
+
+impl DeserializePayload for GovernancePayloadUpgrade
+where
+    Self: DeserializeGovernancePayload,
+{
+    fn deserialize(buf: &mut &[u8]) -> Result<Self, SolitaireError> {
+        let mut c = Cursor::new(buf);
+        Self::check_governance_header(&mut c)?;
+
+        let mut addr = [0u8; 32];
+        c.read_exact(&mut addr)?;
+
+        Ok(GovernancePayloadUpgrade {
+            new_contract: Pubkey::new(&addr[..]),
+        })
+    }
+}
+
+impl DeserializeGovernancePayload for GovernancePayloadUpgrade {
+    const MODULE: &'static str = "Core";
+    const ACTION: u8 = 1;
+}
+
 pub struct GovernancePayloadGuardianSetChange {
     // New GuardianSetIndex
     pub new_guardian_set_index: u32,
@@ -265,40 +299,6 @@ where
 }
 
 impl DeserializeGovernancePayload for GovernancePayloadGuardianSetChange {
-    const MODULE: &'static str = "Core";
-    const ACTION: u8 = 1;
-}
-
-pub struct GovernancePayloadUpgrade {
-    // Address of the new Implementation
-    pub new_contract: Pubkey,
-}
-
-impl SerializePayload for GovernancePayloadUpgrade {
-    fn serialize<W: Write>(&self, v: &mut W) -> std::result::Result<(), SolitaireError> {
-        v.write(&self.new_contract.to_bytes())?;
-        Ok(())
-    }
-}
-
-impl DeserializePayload for GovernancePayloadUpgrade
-where
-    Self: DeserializeGovernancePayload,
-{
-    fn deserialize(buf: &mut &[u8]) -> Result<Self, SolitaireError> {
-        let mut c = Cursor::new(buf);
-        Self::check_governance_header(&mut c)?;
-
-        let mut addr = [0u8; 32];
-        c.read_exact(&mut addr)?;
-
-        Ok(GovernancePayloadUpgrade {
-            new_contract: Pubkey::new(&addr[..]),
-        })
-    }
-}
-
-impl DeserializeGovernancePayload for GovernancePayloadUpgrade {
     const MODULE: &'static str = "Core";
     const ACTION: u8 = 2;
 }
