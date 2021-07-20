@@ -44,7 +44,7 @@ spl-token mint "$token" 10000000000 "$account"
 
 # Create the bridge contract at a known address
 # OK to fail on subsequent attempts (already created).
-retry client create-bridge "$bridge_address" "$initial_guardian" 86400 100 200
+retry client create-bridge "$bridge_address" "$initial_guardian" 86400 100
 
 # Let k8s startup probe succeed
 nc -l -p 2000

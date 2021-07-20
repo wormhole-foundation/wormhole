@@ -121,19 +121,13 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 							},
 							{
 								Memcmp: &rpc.RPCFilterMemcmp{
-									Offset: 4,                   // Start of the Persist flag
-									Bytes:  solana.Base58{0x01}, // Only grab messages that need to be persisted
-								},
-							},
-							{
-								Memcmp: &rpc.RPCFilterMemcmp{
-									Offset: 5,                 // Start of the ConsistencyLevel value
+									Offset: 4,                 // Start of the ConsistencyLevel value
 									Bytes:  solana.Base58{32}, // Only grab messages that require max confirmations
 								},
 							},
 							{
 								Memcmp: &rpc.RPCFilterMemcmp{
-									Offset: 6,                         // Offset of VaaTime
+									Offset: 5,                         // Offset of VaaTime
 									Bytes:  solana.Base58{0, 0, 0, 0}, // This means this VAA hasn't been signed yet
 								},
 							},
@@ -158,19 +152,13 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 							},
 							{
 								Memcmp: &rpc.RPCFilterMemcmp{
-									Offset: 4,                   // Start of the Persist flag
-									Bytes:  solana.Base58{0x01}, // Only grab messages that need to be persisted
-								},
-							},
-							{
-								Memcmp: &rpc.RPCFilterMemcmp{
-									Offset: 5,                // Start of the ConsistencyLevel value
+									Offset: 4,                // Start of the ConsistencyLevel value
 									Bytes:  solana.Base58{1}, // Only grab messages that require the Confirmed level
 								},
 							},
 							{
 								Memcmp: &rpc.RPCFilterMemcmp{
-									Offset: 6,                         // Offset of VaaTime
+									Offset: 5,                         // Offset of VaaTime
 									Bytes:  solana.Base58{0, 0, 0, 0}, // This means this VAA hasn't been signed yet
 								},
 							},
@@ -186,7 +174,7 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 					// Merge accounts
 					accounts := append(fAccounts, cAccounts...)
 
-					logger.Debug("fetched transfer proposals without VAA",
+					logger.Info("fetched transfer proposals without VAA",
 						zap.Int("n", len(accounts)),
 						zap.Duration("took", time.Since(start)),
 					)
@@ -220,7 +208,6 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 							EmitterChain:     vaa.ChainIDSolana,
 							EmitterAddress:   proposal.EmitterAddress,
 							Payload:          proposal.Payload,
-							Persist:          proposal.Persist == 1,
 							ConsistencyLevel: proposal.ConsistencyLevel,
 						}
 
@@ -245,7 +232,6 @@ type (
 	MessagePublicationAccount struct {
 		VaaVersion uint8
 		// Borsh does not seem to support booleans, so 0=false / 1=true
-		Persist             uint8
 		ConsistencyLevel    uint8
 		VaaTime             uint32
 		VaaSignatureAccount vaa.Address

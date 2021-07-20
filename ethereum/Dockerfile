@@ -13,6 +13,7 @@ WORKDIR /home/node/app
 # Only invalidate the npm install step if package.json changed
 ADD --chown=node:node package.json .
 ADD --chown=node:node package-lock.json .
+ADD --chown=node:node .env.test .env
 
 # We want to cache node_modules *and* incorporate it into the final image.
 RUN --mount=type=cache,uid=1000,gid=1000,target=/home/node/.npm \
