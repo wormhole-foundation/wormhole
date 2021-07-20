@@ -210,8 +210,6 @@ You'll have to manage the following keys:
    An attacker could potentially use it to censor your messages on the network. Other than that, it's not very
    critical and can be rotated. The node will automatically create a node key at the path you specify if it doesn't exist.
  
- - _\[The **Terra fee payer** account. Terra support is still a work in progress - more details on this later\]._ 
-
 For production, we strongly recommend to either encrypt your disks, and/or take care to never have keys touch the disk.
 One way to accomplish is to store keys on an in-memory ramfs, which can't be swapped out, and restore it from cold
 storage or an HSM/vault whenever the node is rebooted. You might want to disable swap altogether. None of that is

@@ -14,7 +14,6 @@ import (
 	"github.com/certusone/wormhole/bridge/pkg/devnet"
 	gossipv1 "github.com/certusone/wormhole/bridge/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/bridge/pkg/supervisor"
-	"github.com/certusone/wormhole/bridge/pkg/terra"
 	"github.com/certusone/wormhole/bridge/pkg/vaa"
 )
 
@@ -79,7 +78,6 @@ type Processor struct {
 	terraLCD      string
 	terraChainID  string
 	terraContract string
-	terraFeePayer string
 
 	logger *zap.Logger
 
@@ -109,8 +107,7 @@ func NewProcessor(
 	devnetEthRPC string,
 	terraLCD string,
 	terraChainID string,
-	terraContract string,
-	terraFeePayer string) *Processor {
+	terraContract string) *Processor {
 
 	return &Processor{
 		lockC:              lockC,
@@ -127,7 +124,6 @@ func NewProcessor(
 		terraLCD:      terraLCD,
 		terraChainID:  terraChainID,
 		terraContract: terraContract,
-		terraFeePayer: terraFeePayer,
 
 		logger:  supervisor.Logger(ctx),
 		state:   &aggregationState{vaaMap{}},
@@ -184,25 +180,6 @@ func (p *Processor) checkDevModeGuardianSetUpdate(ctx context.Context) error {
 			}
 
 			p.logger.Info("devnet guardian set change submitted to Ethereum", zap.Any("trx", trx), zap.Any("vaa", v))
-
-			if p.terraEnabled {
-				// Submit to Terra
-				go func() {
-					for {
-						timeout, cancel := context.WithTimeout(ctx, 5*time.Second)
-						trxResponse, err := terra.SubmitVAA(timeout, p.terraLCD, p.terraChainID, p.terraContract, p.terraFeePayer, v)
-						if err != nil {
-							cancel()
-							p.logger.Error("failed to submit Terra devnet guardian set change, retrying", zap.Error(err))
-							time.Sleep(1 * time.Second)
-							continue
-						}
-						cancel()
-						p.logger.Info("devnet guardian set change submitted to Terra", zap.Any("trxResponse", trxResponse), zap.Any("vaa", v))
-						break
-					}
-				}()
-			}
 
 			// Submit VAA to Solana as well. This is asynchronous and can fail, leading to inconsistent devnet state.
 			p.vaaC <- v

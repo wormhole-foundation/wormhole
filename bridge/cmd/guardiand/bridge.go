@@ -353,16 +353,6 @@ func runBridge(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	// Load Terra fee payer key
-	var terraFeePayer string
-	if *unsafeDevMode {
-		terra.WriteDevnetKey(*terraKeyPath)
-	}
-	terraFeePayer, err = terra.ReadKey(*terraKeyPath)
-	if err != nil {
-		logger.Fatal("Failed to load Terra fee payer key", zap.Error(err))
-	}
-
 	adminService, err := adminServiceRunnable(logger, *adminSocketPath, injectC)
 	if err != nil {
 		logger.Fatal("failed to create admin service socket", zap.Error(err))
@@ -410,7 +400,6 @@ func runBridge(cmd *cobra.Command, args []string) {
 			*terraLCD,
 			*terraChainID,
 			*terraContract,
-			terraFeePayer,
 		)
 		if err := supervisor.Run(ctx, "processor", p.Run); err != nil {
 			return err
