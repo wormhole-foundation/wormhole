@@ -263,8 +263,8 @@ impl GovernancePacket {
     pub fn deserialize(data: &Vec<u8>) -> StdResult<Self> {
         let data = data.as_slice();
         let module = data.get_bytes32(0).to_vec();
-        let chain = data.get_u16(32);
-        let action = data.get_u8(34);
+        let action = data.get_u8(32);
+        let chain = data.get_u16(33);
         let payload = data[35..].to_vec();
 
         Ok(GovernancePacket {
