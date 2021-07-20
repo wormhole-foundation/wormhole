@@ -114,6 +114,11 @@ impl ParsedVAA {
         hasher.update(body);
         let hash = hasher.finalize().to_vec();
 
+        // Rehash the hash
+        let mut hasher = Keccak256::new();
+        hasher.update(hash);
+        let hash = hasher.finalize().to_vec();
+
         // Signatures valid, apply VAA
         if body_offset + Self::VAA_PAYLOAD_POS > data.len() {
             return ContractError::InvalidVAA.std_err();
