@@ -63,8 +63,6 @@ var (
 	solanaWsRPC *string
 	solanaRPC   *string
 
-	agentRPC *string
-
 	logLevel *string
 
 	unsafeDevMode   *bool
@@ -99,8 +97,6 @@ func init() {
 
 	solanaWsRPC = BridgeCmd.Flags().String("solanaWS", "", "Solana Websocket URL (required")
 	solanaRPC = BridgeCmd.Flags().String("solanaRPC", "", "Solana RPC URL (required")
-
-	agentRPC = BridgeCmd.Flags().String("agentRPC", "", "Solana agent sidecar gRPC socket path")
 
 	logLevel = BridgeCmd.Flags().String("logLevel", "info", "Logging level (debug, info, warn, error, dpanic, panic, fatal)")
 
@@ -253,9 +249,6 @@ func runBridge(cmd *cobra.Command, args []string) {
 	if *adminSocketPath == "" {
 		logger.Fatal("Please specify --adminSocket")
 	}
-	if *agentRPC == "" {
-		logger.Fatal("Please specify --agentRPC")
-	}
 	if *ethRPC == "" {
 		logger.Fatal("Please specify --ethRPC")
 	}
@@ -394,11 +387,6 @@ func runBridge(cmd *cobra.Command, args []string) {
 		logger.Info("Starting Terra watcher")
 		if err := supervisor.Run(ctx, "terrawatch",
 			terra.NewTerraBridgeWatcher(*terraWS, *terraLCD, *terraContract, lockC, setC).Run); err != nil {
-			return err
-		}
-
-		if err := supervisor.Run(ctx, "solvaa",
-			solana.NewSolanaVAASubmitter(*agentRPC, solanaVaaC, false).Run); err != nil {
 			return err
 		}
 

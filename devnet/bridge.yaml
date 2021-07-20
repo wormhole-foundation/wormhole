@@ -74,8 +74,6 @@ spec:
             - terra18eezxhys9jwku67cm4w84xhnzt4xjj77w2qt62
             - --terraKey
             - /tmp/terra.key
-            - --agentRPC
-            - /run/bridge/agent.sock
             - --solanaBridgeAddress
             - Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o
             - --solanaWS
