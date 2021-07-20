@@ -178,11 +178,10 @@ func (e *BridgeWatcher) Run(ctx context.Context) error {
 			nonce := gjson.Get(json, "result.events.from_contract\\.message\\.nonce.0")
 			sequence := gjson.Get(json, "result.events.from_contract\\.message\\.sequence.0")
 			blockTime := gjson.Get(json, "result.events.from_contract\\.message\\.block_time.0")
-			persist := gjson.Get(json, "result.events.from_contract\\.message\\.persist.0")
 			txHash := gjson.Get(json, "result.events.tx\\.hash.0")
 
 			if payload.Exists() && sender.Exists() && chainId.Exists() && nonce.Exists() && sequence.Exists() &&
-				blockTime.Exists() && txHash.Exists() && persist.Exists() {
+				blockTime.Exists() && txHash.Exists() {
 
 				logger.Info("new message detected on terra",
 					zap.String("chainId", chainId.String()),
@@ -191,7 +190,6 @@ func (e *BridgeWatcher) Run(ctx context.Context) error {
 					zap.String("nonce", nonce.String()),
 					zap.String("sequence", sequence.String()),
 					zap.String("blockTime", blockTime.String()),
-					zap.String("persist", persist.String()),
 				)
 
 				senderAddress, err := StringToAddress(sender.String())
@@ -218,7 +216,6 @@ func (e *BridgeWatcher) Run(ctx context.Context) error {
 					EmitterChain:     vaa.ChainIDTerra,
 					EmitterAddress:   senderAddress,
 					Payload:          payloadValue,
-					Persist:          persist.Bool(),
 					ConsistencyLevel: 0, // Instant finality
 				}
 				e.msgChan <- messagePublication

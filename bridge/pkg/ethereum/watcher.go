@@ -186,8 +186,7 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 					EmitterChain:     vaa.ChainIDEthereum,
 					EmitterAddress:   PadAddress(ev.Sender),
 					Payload:          ev.Payload,
-					Persist:          ev.PersistMessage,
-					ConsistencyLevel: ev.Commitment,
+					ConsistencyLevel: ev.ConsistencyLevel,
 				}
 
 				logger.Info("found new lockup transaction", zap.Stringer("tx", ev.Raw.TxHash),
