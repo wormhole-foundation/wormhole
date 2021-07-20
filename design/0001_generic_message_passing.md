@@ -61,7 +61,7 @@ following problems, leaving them for future design iterations:
 
 - The specifics of implementing applications, other than ensuring we provide the right APIs.
 
-- Data availability on chains other than Solana. Delivering the signed message to the target chain is up to the
+- Data availability/persistence. Delivering the signed message to the target chain is up to the
   individual application. Possible implementations include client-side message retrieval and submission, like the
   current Wormhole implementation does for delivering transfer messages on Ethereum, or message relays.
 
@@ -74,8 +74,7 @@ following problems, leaving them for future design iterations:
 
 We simplify the design of Wormhole to only provide generic **signed attestations of finalized chain state**.
 Attestations can be requested by any contract by publishing a message, which is then picked up and signed by the
-Wormhole guardian set. The signed attestation will be published on the Wormhole P2P network and - if requested by the
-message publisher - be persisted, but not executed, on Solana for data availability.
+Wormhole guardian set. The signed attestation will be published on the Wormhole P2P network.
 
 Delivering the message to a contract on the target chain is shifted to the higher-layer protocol.
 

@@ -1,10 +1,10 @@
-# Message Publishing and Persistence
+# Message Publishing
 
 [TOC]
 
 ## Objective
 
-To specify the mechanics and interfaces for publishing messages over Wormhole and how they are persisted.
+To specify the mechanics and interfaces for publishing messages over Wormhole.
 
 ## Background
 
@@ -14,7 +14,6 @@ published needs to be defined clearly for chain endpoints to be built.
 ## Goals
 
 * Specify an interface for posting messages.
-* Define the concept of persisted and non-persisted messages.
 * Specify a fee model for message posting.
 
 ## Non-Goals
@@ -26,9 +25,6 @@ published needs to be defined clearly for chain endpoints to be built.
 
 The core Wormhole contracts on every chain will have a method for posting messages to Wormhole, which will emit an event
 that needs to be observable by guardians running a full node on a given chain.
-
-The method will allow to specify whether the produced VAA shall be persisted onto Solana or just be circulated on the
-P2P network. Persisting messages will incur an increased fee vs. non-persisted attestations.
 
 The fees will be payable in the respective chain's native currency. Fees can be
 claimed by the protocol and collected in a fee pool on Solana where they can be distributed according to protocol rules.
@@ -56,19 +52,6 @@ When a message is posted, the emitter can specify for how many confirmations the
 attestation is produced. This allows latency sensitive applications to make sacrifices on safety while critical
 applications can sacrifice latency over safety. Chains with instant finality can omit the argument.
 
-**Persistence:**
-
-In case an emitter chooses to persist a message, the guardian software will publish it to the Solana blockchain where
-the full VAA including all signatures will be stored with rent exemption (i.e. forever). This is meant to allow a user
-to pick up a signed VAA from a browser with an unreliable connection, instead of having to listen to the P2P network or
-building a separate data availability layer.
-
-The Solana Wormhole program will have a `postVAA` method which will verify and persist a VAA.
-
-If no persistence is chosen, the signatures and VAA will only be constructable by nodes listening to the P2P network.
-This is meant for high-throughput data feeds where reliability is less important than cost-effectiveness, or use cases
-where a sophisticated setup on the receiving/consumer end takes care of data availability.
-
 **Fees:**
 
 In order to incentivize guardians and prevent spamming of the Wormhole network, publishing a message will require a fee
@@ -93,9 +76,7 @@ bridge tokens back to the chain where the governance and staking contracts are l
 
 Proposed bridge interface:
 
-`postMessage(bytes payload, bool persist, u8 confirmations)` - Publish a message to be attested by Wormhole.
-
-`postVAA(VAA signed_vaa)` - Persist a VAA on chain (Solana only)
+`postMessage(bytes payload, u8 confirmations)` - Publish a message to be attested by Wormhole.
 
 `setFees(VAA fee_payload)` - Update the fees using a `SetMessageFee` VAA
 
@@ -117,8 +98,6 @@ Action uint16 = 3
 Chain uint16
 // Message fee in the native token
 Fee uint256
-// Persistent message fee in the native token
-FeePersistent uint256
 ```
 
 TransferFees:
