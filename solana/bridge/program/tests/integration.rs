@@ -223,7 +223,7 @@ fn test_bridge_messages(context: &mut Context) {
 
         // Derive where we expect created accounts to be.
         let signature_set = SignatureSet::<'_, { AccountState::Uninitialized }>::key(
-            &SignatureSetDerivationData { hash: body},
+            &SignatureSetDerivationData { hash: body },
             &program,
         );
 
@@ -856,7 +856,7 @@ fn test_set_fees_fails(context: &mut Context) {
     .unwrap();
 
     let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 1, 1);
-    common::verify_signatures(client, program, payer, body,  &context.secret, 1).unwrap();
+    common::verify_signatures(client, program, payer, body, &context.secret, 1).unwrap();
     common::post_vaa(client, program, payer, vaa).unwrap();
     assert!(common::set_fees(
         client,
@@ -1235,7 +1235,7 @@ fn test_transfer_total_fails(context: &mut Context) {
     .unwrap();
 
     let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 1, 1);
-    common::verify_signatures(client, program, payer, body,  &context.secret, 1).unwrap();
+    common::verify_signatures(client, program, payer, body, &context.secret, 1).unwrap();
     common::post_vaa(client, program, payer, vaa).unwrap();
 
     // Transferring total fees should fail, to prevent the account being de-allocated.

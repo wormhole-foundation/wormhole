@@ -91,7 +91,9 @@ pub fn upgrade_contract(
         accs.spill.key,
     );
 
-    let seeds = accs.upgrade_authority.self_bumped_seeds(None, ctx.program_id);
+    let seeds = accs
+        .upgrade_authority
+        .self_bumped_seeds(None, ctx.program_id);
     let seeds: Vec<&[u8]> = seeds.iter().map(|item| item.as_slice()).collect();
     let seeds = seeds.as_slice();
     invoke_signed(&upgrade_ix, ctx.accounts, &[seeds])?;

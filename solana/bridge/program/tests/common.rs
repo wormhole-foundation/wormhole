@@ -345,9 +345,7 @@ mod helpers {
                         payer.pubkey(),
                         guardian_set_version,
                         body,
-                        VerifySignaturesData {
-                            signers,
-                        },
+                        VerifySignaturesData { signers },
                     )
                     .unwrap(),
                 ],
