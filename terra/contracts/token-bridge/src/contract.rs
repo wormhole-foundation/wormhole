@@ -217,7 +217,6 @@ fn handle_create_asset_meta<S: Storage, A: Api, Q: Querier>(
             msg: to_binary(&WormholeHandleMsg::PostMessage {
                 message: Binary::from(token_bridge_message.serialize()),
                 nonce,
-                persist: true,
             })?,
             // forward coins sent to this message
             send: env.message.sent_funds.clone(),
@@ -454,7 +453,7 @@ fn handle_initiate_transfer<S: Storage, A: Api, Q: Querier>(
     }
 
     if fee > amount {
-        return Err(StdError::generic_err("fee greater than sent amount"))
+        return Err(StdError::generic_err("fee greater than sent amount"));
     }
 
     let asset_chain: u16;
@@ -520,7 +519,6 @@ fn handle_initiate_transfer<S: Storage, A: Api, Q: Querier>(
         msg: to_binary(&WormholeHandleMsg::PostMessage {
             message: Binary::from(token_bridge_message.serialize()),
             nonce,
-            persist: true,
         })?,
         // forward coins sent to this message
         send: env.message.sent_funds.clone(),

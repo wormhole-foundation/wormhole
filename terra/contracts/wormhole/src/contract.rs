@@ -44,7 +44,6 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
         guardian_set_index: 0,
         guardian_set_expirity: msg.guardian_set_expirity,
         fee: Coin::new(FEE_AMOUNT, FEE_DENOMINATION), // 0.01 Luna (or 10000 uluna) fee by default
-        fee_persisted: Coin::new(FEE_AMOUNT, FEE_DENOMINATION), // 0.01 Luna (or 10000 uluna) fee by default
     };
     config(&mut deps.storage).save(&state)?;
 
@@ -64,11 +63,9 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
     msg: HandleMsg,
 ) -> StdResult<HandleResponse> {
     match msg {
-        HandleMsg::PostMessage {
-            message,
-            nonce,
-            persist,
-        } => handle_post_message(deps, env, &message.as_slice(), nonce, persist),
+        HandleMsg::PostMessage { message, nonce } => {
+            handle_post_message(deps, env, &message.as_slice(), nonce)
+        }
         HandleMsg::SubmitVAA { vaa } => handle_submit_vaa(deps, env, vaa.as_slice()),
     }
 }
@@ -242,7 +239,6 @@ pub fn handle_set_fee<S: Storage, A: Api, Q: Querier>(
     // Save new fees
     let mut state = config_read(&mut deps.storage).load()?;
     state.fee = set_fee_msg.fee;
-    state.fee_persisted = set_fee_msg.fee_persistent;
     config(&mut deps.storage).save(&state)?;
 
     Ok(HandleResponse {
@@ -251,8 +247,6 @@ pub fn handle_set_fee<S: Storage, A: Api, Q: Querier>(
             log("action", "fee_change"),
             log("new_fee.amount", state.fee.amount),
             log("new_fee.denom", state.fee.denom),
-            log("new_persisted_fee.amount", state.fee_persisted.amount),
-            log("new_persisted_fee.denom", state.fee_persisted.denom),
         ],
         data: None,
     })
@@ -281,16 +275,9 @@ fn handle_post_message<S: Storage, A: Api, Q: Querier>(
     env: Env,
     message: &[u8],
     nonce: u32,
-    persist: bool,
 ) -> StdResult<HandleResponse> {
     let state = config_read(&deps.storage).load()?;
-    let fee = {
-        if persist {
-            state.fee
-        } else {
-            state.fee_persisted
-        }
-    };
+    let fee = state.fee;
 
     // Check fee
     if !has_coins(env.message.sent_funds.as_ref(), &fee) {
@@ -311,7 +298,6 @@ fn handle_post_message<S: Storage, A: Api, Q: Querier>(
             log("message.nonce", nonce),
             log("message.sequence", sequence),
             log("message.block_time", env.block.time),
-            log("message.persist", persist),
         ],
         data: None,
     })

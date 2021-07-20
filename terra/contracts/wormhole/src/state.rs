@@ -33,8 +33,6 @@ pub struct ConfigInfo {
 
     // Message sending fee
     pub fee: Coin,
-    // Persisted message sending fee
-    pub fee_persisted: Coin,
 }
 
 // Validator Action Approval(VAA) data
@@ -319,7 +317,6 @@ impl GuardianSetUpgrade {
 // action 3
 pub struct SetFee {
     pub fee: Coin,
-    pub fee_persistent: Coin,
 }
 
 impl SetFee {
@@ -327,19 +324,11 @@ impl SetFee {
         let data = data.as_slice();
 
         let (_, amount) = data.get_u256(0);
-        let (_, amount_persistent) = data.get_u256(32);
         let fee = Coin {
             denom: String::from(FEE_DENOMINATION),
             amount: Uint128(amount),
         };
-        let fee_persistent = Coin {
-            denom: String::from(FEE_DENOMINATION),
-            amount: Uint128(amount_persistent),
-        };
-        Ok(SetFee {
-            fee,
-            fee_persistent,
-        })
+        Ok(SetFee { fee })
     }
 }
 

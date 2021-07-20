@@ -16,14 +16,8 @@ pub struct InitMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum HandleMsg {
-    SubmitVAA {
-        vaa: Binary,
-    },
-    PostMessage {
-        message: Binary,
-        nonce: u32,
-        persist: bool,
-    },
+    SubmitVAA { vaa: Binary },
+    PostMessage { message: Binary, nonce: u32 },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
