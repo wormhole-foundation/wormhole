@@ -178,7 +178,9 @@ func (v *VAA) SigningMsg() (common.Hash, error) {
 		return common.Hash{}, fmt.Errorf("failed to serialize signing body: %w", err)
 	}
 
-	hash := crypto.Keccak256Hash(body)
+	// In order to save space in the solana signature verification instruction, we hash twice so we only need to pass in
+	// the first hash (32 bytes) vs the full body data.
+	hash := crypto.Keccak256Hash(crypto.Keccak256Hash(body).Bytes())
 	return hash, nil
 }
 
