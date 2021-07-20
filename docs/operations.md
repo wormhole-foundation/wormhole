@@ -78,15 +78,13 @@ git checkout v0.1.2
 Then, compile the release binaries as an unprivileged build user:
 
 ```bash
-make agent bridge
+make bridge
 ```
     
 You'll end up with the following binaries in `build/`:
 
 - `guardiand` is the main Wormhole bridge node software.
-- `guardiand-solana-agent` is a helper service which runs alongside Wormhole and exposes a gRPC API
-  for Wormhole to interact with Solana and the Wormhole contract on Solana.
-  
+
 Consider these recommendations, not a tutorial to be followed blindly. You'll want to integrate this with your
 existing build pipeline. If you need Dockerfile examples, you can take a look at our devnet deployment.
 
@@ -100,7 +98,7 @@ to disk. Please create a GitHub issue if this extra capability represents an ope
 ## Key Generation
 
 To generate a guardian key, install guardiand first. If you generate the key on a separate machine, you may want to
-compile guardiand only, without compiling the agent or installing it:
+compile guardiand only without installing it:
 
     make bridge
     sudo setcap cap_ipc_lock=+ep ./build/bin/guardiand
@@ -125,7 +123,6 @@ Example systemd unit for `guardiand.service`, including the right capabilities a
 Description=Wormhole Bridge guardian daemon
 Documentation=https://github.com/certusone/wormhole
 Requires=network.target
-Wants=guardiand-solana-agent.service
 After=network.target
 
 [Service]
@@ -140,7 +137,6 @@ ExecStart=/usr/local/bin/guardiand bridge \
     --bridgeKey /path/to/your/guardian.key \
     --ethRPC ws://your-eth-node:8545 \
     --adminSocket /run/guardiand/admin.socket \
-    --agentRPC /run/guardiand/agent.socket \
     --solanaBridgeAddress "<see launch repo>" \
     --solanaRPC http://solana-host:8899 \
     --solanaWS ws://solana-devnet:8900
@@ -158,39 +154,6 @@ Restart=on-failure
 RestartSec=5s
 LimitNOFILE=65536
 LimitMEMLOCK=infinity
-
-[Install]
-WantedBy=multi-user.target
-```
-
-And `guardiand-solana-agent.service`:
-
-```
-# /etc/systemd/system/guardiand-solana-agent.service
-[Unit]
-Description=Wormhole Bridge Solana agent
-Documentation=https://github.com/certusone/wormhole
-Requires=network.target
-
-[Service]
-User=wormhole
-Group=wormhole
-ExecStart=/usr/local/bin/guardiand-solana-agent \
-    --bridge "<see launch repo>" \
-    --rpc http://solana-host:8899 \
-    --ws ws://solana-devnet:8900 \
-    --keypair /path/to/feepayer.key \
-    --socket /run/guardiand/agent.socket
-RuntimeDirectory=guardiand
-RuntimeDirectoryMode=700
-RuntimeDirectoryPreserve=yes
-PermissionsStartOnly=yes
-PrivateTmp=yes
-PrivateDevices=yes
-NoNewPrivileges=yes
-Restart=on-failure 
-RestartSec=5s
-LimitNOFILE=65536
 
 [Install]
 WantedBy=multi-user.target
@@ -247,11 +210,6 @@ You'll have to manage the following keys:
    An attacker could potentially use it to censor your messages on the network. Other than that, it's not very
    critical and can be rotated. The node will automatically create a node key at the path you specify if it doesn't exist.
  
- - The **Solana fee payer** account supplied to wormhole-solana-agent. This is a hot wallet which should hold
-   ~10 SOL to pay for VAA submissions. The Wormhole protocol includes a subsidization mechanism which uses transfer
-   fees to reimburse guardians, so during normal operation, you shouldn't have to top up the account (but by
-   all means, set up monitoring for it!).
-   
  - _\[The **Terra fee payer** account. Terra support is still a work in progress - more details on this later\]._ 
 
 For production, we strongly recommend to either encrypt your disks, and/or take care to never have keys touch the disk.

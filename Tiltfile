@@ -77,13 +77,13 @@ k8s_resource(
     ],
 )
 
-# solana agent and cli (runs alongside bridge)
+# solana client cli (used for devnet setup)
 
 docker_build(
-    ref = "solana-agent",
+    ref = "solana-client",
     context = ".",
     only = ["./proto", "./solana"],
-    dockerfile = "Dockerfile.agent",
+    dockerfile = "Dockerfile.client",
 
     # Ignore target folders from local (non-container) development.
     ignore = ["./solana/target", "./solana/agent/target", "./solana/cli/target"],

@@ -78,7 +78,7 @@ spec:
               port: rpc
               path: /health
         - name: setup
-          image: solana-agent
+          image: solana-client
           command:
             - /usr/src/solana/devnet_setup.sh
           startupProbe:

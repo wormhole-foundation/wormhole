@@ -107,19 +107,3 @@ spec:
             - containerPort: 7070
               name: public-grpc
               protocol: TCP
-        - name: agent
-          image: solana-agent
-          volumeMounts:
-            - mountPath: /run/bridge
-              name: bridge-rundir
-          command:
-            - /usr/local/bin/agent
-            - --bridge=Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o
-            - --rpc=http://solana-devnet:8899
-            - --ws=ws://solana-devnet:8900
-            - --socket=/run/bridge/agent.sock
-            - --keypair=id.json
-          ports:
-            - containerPort: 9000
-              name: grpc
-              protocol: TCP

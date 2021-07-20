@@ -32,11 +32,3 @@ $(BIN)/guardiand: dirs generate
 	cd bridge && go build -ldflags "-X github.com/certusone/wormhole/bridge/pkg/version.version=${VERSION}" \
 	  -mod=readonly -o ../$(BIN)/guardiand \
 	  github.com/certusone/wormhole/bridge
-
-.PHONY: agent
-agent: $(BIN)/guardiand-solana-agent
-
-.PHONY: $(BIN)/guardiand-solana-agent
-$(BIN)/guardiand-solana-agent: dirs
-	cd solana/agent && cargo build --release
-	cp solana/target/release/agent $(BIN)/guardiand-solana-agent

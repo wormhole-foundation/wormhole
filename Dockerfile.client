@@ -19,8 +19,6 @@ RUN --mount=type=cache,target=/usr/local/cargo,from=rust,source=/usr/local/cargo
     cargo install --version =1.7.0 solana-cli && \
     cargo install --version =2.0.12 spl-token-cli && \
     cargo build --manifest-path ./bridge/Cargo.toml --package client --release && \
-    cargo build --manifest-path ./bridge/Cargo.toml --package agent --release && \
     cp /usr/local/cargo/bin/solana /usr/local/bin && \
     cp /usr/local/cargo/bin/spl-token /usr/local/bin && \
-    cp bridge/target/release/client /usr/local/bin && \
-    cp bridge/target/release/agent /usr/local/bin
+    cp bridge/target/release/client /usr/local/bin
