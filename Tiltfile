@@ -28,7 +28,7 @@
 #                                                                   +-----------------+
 #
 
-load('ext://namespace', 'namespace_inject', 'namespace_create')
+load("ext://namespace", "namespace_create", "namespace_inject")
 
 # Runtime configuration
 
@@ -80,31 +80,33 @@ def build_bridge_yaml():
 
     return encode_yaml_stream(bridge_yaml)
 
-
 k8s_yaml_with_ns(build_bridge_yaml())
 
-k8s_resource("guardian", resource_deps=["proto-gen", "solana-devnet"], port_forwards=[
-    port_forward(6060, name="Debug/Status Server [:6060]"),
+k8s_resource("guardian", resource_deps = ["proto-gen", "solana-devnet"], port_forwards = [
+    port_forward(6060, name = "Debug/Status Server [:6060]"),
 ])
 
 # publicRPC proxy that allows grpc over http1, for local development
 
 k8s_yaml_with_ns("./devnet/envoy-proxy.yaml")
 
-k8s_resource("envoy-proxy", resource_deps=["guardian"],
-  objects=['envoy-proxy:ConfigMap:wormhole'],
-  port_forwards=[
-    port_forward(8080, name="gRPC proxy for guardian's publicRPC data [:8080]"),
-    port_forward(9901, name="gRPC proxy admin [:9901]"), # for proxy debugging
-])
+k8s_resource(
+    "envoy-proxy",
+    resource_deps = ["guardian"],
+    objects = ["envoy-proxy:ConfigMap:wormhole"],
+    port_forwards = [
+        port_forward(8080, name = "gRPC proxy for guardian's publicRPC data [:8080]"),
+        port_forward(9901, name = "gRPC proxy admin [:9901]"),  # for proxy debugging
+    ],
+)
 
 # solana agent and cli (runs alongside bridge)
 
 docker_build(
-    ref="solana-agent",
-    context=".",
-    only=["./proto", "./solana"],
-    dockerfile="Dockerfile.agent",
+    ref = "solana-agent",
+    context = ".",
+    only = ["./proto", "./solana"],
+    dockerfile = "Dockerfile.agent",
 
     # Ignore target folders from local (non-container) development.
     ignore = ["./solana/target", "./solana/agent/target", "./solana/cli/target"],
@@ -122,10 +124,10 @@ docker_build(
 
 k8s_yaml_with_ns("devnet/solana-devnet.yaml")
 
-k8s_resource("solana-devnet", port_forwards=[
-    port_forward(8899, name="Solana RPC [:8899]"),
-    port_forward(8900, name="Solana WS [:8900]"),
-    port_forward(9000, name="Solana PubSub [:9000]"),
+k8s_resource("solana-devnet", port_forwards = [
+    port_forward(8899, name = "Solana RPC [:8899]"),
+    port_forward(8900, name = "Solana WS [:8900]"),
+    port_forward(9000, name = "Solana PubSub [:9000]"),
 ])
 
 # eth devnet
@@ -150,8 +152,8 @@ docker_build(
 
 k8s_yaml_with_ns("devnet/eth-devnet.yaml")
 
-k8s_resource("eth-devnet", port_forwards=[
-    port_forward(8545, name="Ganache RPC [:8545]")
+k8s_resource("eth-devnet", port_forwards = [
+    port_forward(8545, name = "Ganache RPC [:8545]"),
 ])
 
 # explorer web app
@@ -169,11 +171,12 @@ docker_build(
 
 k8s_yaml_with_ns("devnet/explorer.yaml")
 
-k8s_resource("explorer",
-    resource_deps=["envoy-proxy"],
-    port_forwards=[
-        port_forward(8001, name="Explorer Web UI [:8001]")
-    ]
+k8s_resource(
+    "explorer",
+    resource_deps = ["envoy-proxy"],
+    port_forwards = [
+        port_forward(8001, name = "Explorer Web UI [:8001]"),
+    ],
 )
 
 # terra devnet
@@ -194,10 +197,10 @@ k8s_yaml_with_ns("devnet/terra-devnet.yaml")
 
 k8s_resource(
     "terra-lcd",
-    port_forwards=[port_forward(1317, name="Terra LCD interface [:1317]")]
+    port_forwards = [port_forward(1317, name = "Terra LCD interface [:1317]")],
 )
 
 k8s_resource(
     "terra-terrad",
-    port_forwards=[port_forward(26657, name="Terra RPC [:26657]")]
+    port_forwards = [port_forward(26657, name = "Terra RPC [:26657]")],
 )
