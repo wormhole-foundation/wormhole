@@ -47,23 +47,25 @@ macro_rules! solitaire {
             /// This Instruction contains a 1-1 mapping for each enum variant to function call. The
             /// function calls can be found below in the `api` module.
 
+            #[repr(u8)]
             #[derive(BorshSerialize, BorshDeserialize)]
             pub enum Instruction {
-                $($row($kind),)*
+                $($row,)*
             }
 
             /// This entrypoint is generated from the enum above, it deserializes incoming bytes
             /// and automatically dispatches to the correct method.
             pub fn dispatch<'a, 'b: 'a, 'c>(p: &Pubkey, a: &'c [AccountInfo<'b>], d: &[u8]) -> Result<()> {
-                match Instruction::try_from_slice(d).map_err(|e| SolitaireError::InstructionDeserializeFailed(e))? {
+                match d[0] {
                     $(
-                        Instruction::$row(ix_data) => {
+                        n if n == Instruction::$row as u8 => {
                             trace!("Dispatch: {}", stringify!($row));
-                            let (mut accounts): ($row) = FromAccounts::from(p, &mut a.iter(), &())?;
+                            let ix_data: $kind = BorshDeserialize::try_from_slice(&d[1..]).map_err(|e| SolitaireError::InstructionDeserializeFailed(e))?;
+                            let mut accounts: $row = FromAccounts::from(p, &mut a.iter(), &())?;
                             $fn(&ExecutionContext{program_id: p, accounts: a}, &mut accounts, ix_data)?;
                             Persist::persist(&accounts, p)?;
                             Ok(())
-                        }
+                        },
                     )*
 
                     _ => {

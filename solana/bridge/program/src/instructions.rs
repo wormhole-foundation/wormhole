@@ -67,7 +67,7 @@ pub fn initialize(
             AccountMeta::new_readonly(sysvar::rent::id(), false),
             AccountMeta::new_readonly(solana_program::system_program::id(), false),
         ],
-        data: crate::instruction::Instruction::Initialize(InitializeData {
+        data: (crate::instruction::Instruction::Initialize, InitializeData {
             initial_guardians: initial_guardians.to_vec(),
             fee,
             fee_persistent,
@@ -122,7 +122,7 @@ pub fn post_message(
                 AccountMeta::new_readonly(solana_program::system_program::id(), false),
             ],
 
-            data: crate::instruction::Instruction::PostMessage(PostMessageData {
+            data: (crate::instruction::Instruction::PostMessage, PostMessageData {
                 nonce,
                 payload: payload.clone(),
                 persist,
@@ -163,7 +163,7 @@ pub fn verify_signatures(
             AccountMeta::new_readonly(solana_program::system_program::id(), false),
         ],
 
-        data: crate::instruction::Instruction::VerifySignatures(data).try_to_vec()?,
+        data: (crate::instruction::Instruction::VerifySignatures, data).try_to_vec()?,
     })
 }
 
@@ -211,7 +211,7 @@ pub fn post_vaa(program_id: Pubkey, payer: Pubkey, vaa: PostVAAData) -> Instruct
             AccountMeta::new_readonly(solana_program::system_program::id(), false),
         ],
 
-        data: crate::instruction::Instruction::PostVAA(vaa)
+        data: (crate::instruction::Instruction::PostVAA, vaa)
             .try_to_vec()
             .unwrap(),
     }
@@ -246,7 +246,7 @@ pub fn upgrade_contract(
             AccountMeta::new(spill, false),
         ],
 
-        data: crate::instruction::Instruction::UpgradeContract(UpgradeContractData {})
+        data: (crate::instruction::Instruction::UpgradeContract, UpgradeContractData {})
             .try_to_vec()
             .unwrap(),
     }
@@ -294,7 +294,7 @@ pub fn upgrade_guardian_set(
             AccountMeta::new_readonly(solana_program::system_program::id(), false),
         ],
 
-        data: crate::instruction::Instruction::UpgradeGuardianSet(UpgradeGuardianSetData {})
+        data: (crate::instruction::Instruction::UpgradeGuardianSet, UpgradeGuardianSetData {})
             .try_to_vec()
             .unwrap(),
     }
@@ -328,7 +328,7 @@ pub fn set_fees(
             AccountMeta::new_readonly(solana_program::system_program::id(), false),
         ],
 
-        data: crate::instruction::Instruction::SetFees(SetFeesData {})
+        data: (crate::instruction::Instruction::SetFees, SetFeesData {})
             .try_to_vec()
             .unwrap(),
     }
@@ -368,7 +368,7 @@ pub fn transfer_fees(
             AccountMeta::new_readonly(solana_program::system_program::id(), false),
         ],
 
-        data: crate::instruction::Instruction::TransferFees(TransferFeesData {})
+        data: (crate::instruction::Instruction::TransferFees, TransferFeesData {})
             .try_to_vec()
             .unwrap(),
     }

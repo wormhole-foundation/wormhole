@@ -148,7 +148,7 @@ pub fn transfer_native(
         to_chain: data.target_chain,
         fee: U256::from(data.fee),
     };
-    let params = bridge::instruction::Instruction::PostMessage(PostMessageData {
+    let params = (bridge::instruction::Instruction::PostMessage, PostMessageData {
         nonce: data.nonce,
         payload: payload.try_to_vec()?,
         persist: true,
@@ -272,7 +272,7 @@ pub fn transfer_wrapped(
         to_chain: data.target_chain,
         fee: U256::from(data.fee),
     };
-    let params = bridge::instruction::Instruction::PostMessage(PostMessageData {
+    let params = (bridge::instruction::Instruction::PostMessage, PostMessageData {
         nonce: data.nonce,
         payload: payload.try_to_vec()?,
         persist: true,

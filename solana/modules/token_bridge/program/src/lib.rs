@@ -1,5 +1,4 @@
 #![feature(const_generics)]
-#![feature(const_generics_defaults)]
 #![allow(warnings)]
 
 // #![cfg(all(target_arch = "bpf", not(feature = "no-entrypoint")))]
@@ -12,7 +11,7 @@ pub mod api;
 pub mod messages;
 pub mod types;
 
-use api::{
+pub use api::{
     attest_token, complete_native, complete_wrapped, create_wrapped, initialize, register_chain,
     transfer_native, transfer_wrapped, AttestToken, AttestTokenData, CompleteNative,
     CompleteNativeData, CompleteWrapped, CompleteWrappedData, CreateWrapped, CreateWrappedData,

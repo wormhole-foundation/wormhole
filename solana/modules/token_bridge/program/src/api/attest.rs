@@ -84,7 +84,7 @@ pub fn attest_token(
         // Populate fields
     }
 
-    let params = bridge::instruction::Instruction::PostMessage(PostMessageData {
+    let params = (bridge::instruction::Instruction::PostMessage, PostMessageData {
         nonce: data.nonce,
         payload: payload.try_to_vec()?,
         persist: true,

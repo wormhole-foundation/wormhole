@@ -43,7 +43,7 @@ pub fn initialize(
             AccountMeta::new(solana_program::sysvar::rent::id(), false),
             AccountMeta::new(solana_program::system_program::id(), false),
         ],
-        data: crate::instruction::Instruction::Initialize(bridge).try_to_vec()?,
+        data: (crate::instruction::Instruction::Initialize, bridge).try_to_vec()?,
     })
 }
 
@@ -90,7 +90,7 @@ pub fn complete_native(
             // Program
             AccountMeta::new_readonly(bridge_id, false),
         ],
-        data: crate::instruction::Instruction::CompleteNative(data).try_to_vec()?,
+        data: (crate::instruction::Instruction::CompleteNative, data).try_to_vec()?,
     })
 }
 
@@ -139,7 +139,7 @@ pub fn complete_wrapped(
             // Program
             AccountMeta::new_readonly(bridge_id, false),
         ],
-        data: crate::instruction::Instruction::CompleteWrapped(data).try_to_vec()?,
+        data: (crate::instruction::Instruction::CompleteWrapped, data).try_to_vec()?,
     })
 }
 
@@ -194,7 +194,7 @@ pub fn create_wrapped(
             // Program
             AccountMeta::new_readonly(bridge_id, false),
         ],
-        data: crate::instruction::Instruction::CreateWrapped(data).try_to_vec()?,
+        data: (crate::instruction::Instruction::CreateWrapped, data).try_to_vec()?,
     })
 }
 
@@ -231,7 +231,7 @@ pub fn register_chain(
             // Program
             AccountMeta::new_readonly(bridge_id, false),
         ],
-        data: crate::instruction::Instruction::RegisterChain(data).try_to_vec()?,
+        data: (crate::instruction::Instruction::RegisterChain, data).try_to_vec()?,
     })
 }
 
@@ -324,7 +324,7 @@ pub fn transfer_native(
             AccountMeta::new_readonly(bridge_id, false),
             AccountMeta::new_readonly(spl_token::id(), false),
         ],
-        data: crate::instruction::Instruction::TransferNative(data).try_to_vec()?,
+        data: (crate::instruction::Instruction::TransferNative, data).try_to_vec()?,
     })
 }
 
@@ -410,7 +410,7 @@ pub fn transfer_wrapped(
             AccountMeta::new_readonly(bridge_id, false),
             AccountMeta::new_readonly(spl_token::id(), false),
         ],
-        data: crate::instruction::Instruction::TransferWrapped(data).try_to_vec()?,
+        data: (crate::instruction::Instruction::TransferWrapped, data).try_to_vec()?,
     })
 }
 
@@ -473,7 +473,7 @@ pub fn attest(
             // Program
             AccountMeta::new_readonly(bridge_id, false),
         ],
-        data: crate::instruction::Instruction::AttestToken(AttestTokenData { nonce })
+        data: (crate::instruction::Instruction::AttestToken, AttestTokenData { nonce })
             .try_to_vec()?,
     })
 }
