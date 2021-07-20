@@ -13,7 +13,8 @@
     "chai": "^4.2.0",
     "mocha": "^8.2.1",
     "truffle": "^5.3.6",
-    "truffle-assertions": "^0.9.2"
+    "truffle-assertions": "^0.9.2",
+    "truffle-plugin-verify": "^0.5.11"
   },
   "scripts": {
     "build": "truffle compile",
@@ -23,6 +24,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "dotenv": "^10.0.0",
     "elliptic": "^6.5.2",
     "ganache-cli": "^6.12.1",
     "jsonfile": "^4.0.0",
