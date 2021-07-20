@@ -4,6 +4,7 @@ use solana_program::{
     program::invoke_signed,
     pubkey::Pubkey,
     sysvar::rent::Rent,
+    sysvar::clock::Clock,
 };
 use solitaire::{
     processors::seeded::Seeded,
@@ -59,14 +60,32 @@ pub struct UpgradeContract<'b> {
     /// Payer for account creation (vaa-claim)
     pub payer: Mut<Signer<Info<'b>>>,
 
-    /// Upgrade VAA
+    /// Bridge config
+    pub bridge: Mut<Bridge<'b, { AccountState::Initialized }>>,
+
+    /// GuardianSet change VAA
     pub vaa: ClaimableVAA<'b, GovernancePayloadUpgrade>,
 
     /// PDA authority for the loader
     pub upgrade_authority: Derive<Info<'b>, "upgrade">,
 
     /// Spill address for the upgrade excess lamports
-    pub spill: Info<'b>,
+    pub spill: Mut<Info<'b>>,
+
+    /// New contract address.
+    pub buffer: Mut<Info<'b>>,
+
+    /// Required by the upgradeable uploader.
+    pub program_data: Mut<Info<'b>>,
+
+    /// Our own address, required by the upgradeable loader.
+    pub own_address: Mut<Info<'b>>,
+
+    // Various sysvar/program accounts needed for the upgradeable loader.
+    pub rent: Sysvar<'b, Rent>,
+    pub clock: Sysvar<'b, Clock>,
+    pub bpf_loader: Info<'b>,
+    pub system: Info<'b>,
 }
 
 impl<'b> InstructionContext<'b> for UpgradeContract<'b> {

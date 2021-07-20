@@ -403,6 +403,7 @@ mod helpers {
         payer: &Keypair,
         payload_message: Pubkey,
         emitter: Pubkey,
+        new_contract: Pubkey,
         spill: Pubkey,
         sequence: u64,
     ) -> Result<Signature, ClientError> {
@@ -414,7 +415,10 @@ mod helpers {
                 *program,
                 payer.pubkey(),
                 payload_message,
+                emitter,
+                new_contract,
                 spill,
+                sequence,
             )],
             CommitmentConfig::processed(),
         )

@@ -137,12 +137,12 @@ fn run_integration_tests() {
 
     // Tests are currently unhygienic as It's difficult to wrap `solana-test-validator` within the
     // integration tests so for now we work around it by simply chain-calling our tests.
+    test_upgrade_contract(&mut context);
     test_bridge_messages(&mut context);
     test_foreign_bridge_messages(&mut context);
     test_persistent_bridge_messages(&mut context);
     test_invalid_emitter(&mut context);
     test_duplicate_messages_fail(&mut context);
-    test_upgrade_contract(&mut context);
     test_guardian_set_change(&mut context);
     test_guardian_set_change_fails(&mut context);
     test_set_fees(&mut context);
@@ -1266,11 +1266,14 @@ fn test_upgrade_contract(context: &mut Context) {
     // Upgrade the guardian set with a new set of guardians.
     let (new_public_keys, new_secret_keys) = common::generate_keys(1);
 
+    // New Contract Address
+    let new_contract = Pubkey::new_unique();
+
     let nonce = rand::thread_rng().gen();
     let emitter = Keypair::from_bytes(&GOVERNANCE_KEY).unwrap();
     let sequence = context.seq.next(emitter.pubkey().to_bytes());
     let message = GovernancePayloadUpgrade {
-        new_contract: Pubkey::new_unique(),
+        new_contract: new_contract.clone(),
     }
     .try_to_vec()
     .unwrap();
@@ -1296,6 +1299,7 @@ fn test_upgrade_contract(context: &mut Context) {
         payer,
         message_key,
         emitter.pubkey(),
+        new_contract,
         Pubkey::new_unique(),
         sequence,
     )

@@ -1,3 +1,4 @@
+use std::str::FromStr;
 use borsh::BorshSerialize;
 use solana_program::{
     instruction::{
@@ -224,29 +225,47 @@ pub fn upgrade_contract(
     program_id: Pubkey,
     payer: Pubkey,
     payload_message: Pubkey,
+    emitter: Pubkey,
+    new_contract: Pubkey,
     spill: Pubkey,
+    sequence: u64,
 ) -> Instruction {
+    let bridge = Bridge::<'_, { AccountState::Initialized }>::key(None, &program_id);
     let claim = Claim::<'_, { AccountState::Uninitialized }>::key(
         &ClaimDerivationData {
-            emitter_address: [0u8; 32],
+            emitter_address: emitter.to_bytes(),
             emitter_chain: CHAIN_ID_SOLANA,
-            sequence: 0,
+            sequence,
         },
         &program_id,
     );
 
-    let (upgrade_authority, _) =
-        Pubkey::find_program_address(&["upgrade_authority".as_bytes()], &program_id);
+    let (upgrade_authority, _) = Pubkey::find_program_address(&["upgrade".as_bytes()], &program_id);
+
+    let (program_data, _) = Pubkey::find_program_address(
+        &[program_id.as_ref()],
+        &solana_program::bpf_loader_upgradeable::id(),
+    );
+
+    let own_address = Pubkey::from_str("Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o").unwrap();
 
     Instruction {
         program_id,
 
         accounts: vec![
             AccountMeta::new(payer, true),
+            AccountMeta::new(bridge, false),
             AccountMeta::new_readonly(payload_message, false),
             AccountMeta::new(claim, false),
             AccountMeta::new_readonly(upgrade_authority, false),
-            AccountMeta::new_readonly(spill, false),
+            AccountMeta::new(spill, false),
+            AccountMeta::new(new_contract, false),
+            AccountMeta::new(program_data, false),
+            AccountMeta::new(own_address, false),
+            AccountMeta::new_readonly(sysvar::rent::id(), false),
+            AccountMeta::new_readonly(sysvar::clock::id(), false),
+            AccountMeta::new_readonly(solana_program::bpf_loader_upgradeable::id(), false),
+            AccountMeta::new_readonly(solana_program::system_program::id(), false),
         ],
 
         data: (
