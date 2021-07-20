@@ -20,15 +20,12 @@ require (
 	github.com/gballet/go-libpcsclite v0.0.0-20191108122812-4678299bea08 // indirect
 	github.com/go-ole/go-ole v1.2.5 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
-	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
 	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e // indirect
-	github.com/golang/protobuf v1.4.3
 	github.com/google/gopacket v1.1.19 // indirect
 	github.com/google/uuid v1.1.5 // indirect
 	github.com/gorilla/mux v1.7.4
 	github.com/gorilla/websocket v1.4.2
 	github.com/hashicorp/errwrap v1.1.0 // indirect
-	github.com/imdario/mergo v0.3.11 // indirect
 	github.com/ipfs/go-log/v2 v2.1.1
 	github.com/karalabe/usb v0.0.0-20191104083709-911d15fe12a9 // indirect
 	github.com/koron/go-ssdp v0.0.2 // indirect
@@ -56,12 +53,12 @@ require (
 	github.com/prometheus/client_golang v1.9.0
 	github.com/prometheus/tsdb v0.10.0 // indirect
 	github.com/shirou/gopsutil v2.20.9+incompatible // indirect
+	github.com/spf13/afero v1.2.2 // indirect
 	github.com/spf13/cast v1.3.1 // indirect
 	github.com/spf13/cobra v1.1.1
 	github.com/spf13/viper v1.7.1
 	github.com/status-im/keycard-go v0.0.0-20200402102358-957c09536969
 	github.com/stretchr/testify v1.6.1
-	github.com/tendermint/tendermint v0.33.9
 	github.com/tendermint/tm-db v0.5.2 // indirect
 	github.com/teris-io/shortid v0.0.0-20201117134242-e59966efd125 // indirect
 	github.com/terra-project/terra.go v1.0.1-0.20201113170042-b3bffdc6fd06
@@ -80,8 +77,4 @@ require (
 	google.golang.org/grpc v1.33.3
 	google.golang.org/protobuf v1.25.0
 	gopkg.in/ini.v1 v1.51.1 // indirect
-	k8s.io/api v0.19.4
-	k8s.io/apimachinery v0.19.4
-	k8s.io/client-go v0.19.4
-	k8s.io/utils v0.0.0-20201110183641-67b214c5f920 // indirect
 )
