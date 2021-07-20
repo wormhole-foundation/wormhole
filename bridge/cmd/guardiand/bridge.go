@@ -332,9 +332,6 @@ func runBridge(cmd *cobra.Command, args []string) {
 	// Inbound observations
 	obsvC := make(chan *gossipv1.SignedObservation, 50)
 
-	// VAAs to submit to Solana
-	solanaVaaC := make(chan *vaa.VAA)
-
 	// Injected VAAs (manually generated rather than created via observation)
 	injectC := make(chan *vaa.VAA)
 
@@ -391,7 +388,6 @@ func runBridge(cmd *cobra.Command, args []string) {
 			setC,
 			sendC,
 			obsvC,
-			solanaVaaC,
 			injectC,
 			gk,
 			*unsafeDevMode,

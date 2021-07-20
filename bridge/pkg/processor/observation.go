@@ -235,12 +235,12 @@ func (p *Processor) handleObservation(ctx context.Context, m *gossipv1.SignedObs
 			}
 
 			// Submit every VAA to Solana for data availability.
-			p.logger.Info("submitting signed VAA to Solana",
+			p.logger.Info("signed VAA with quorum",
 				zap.String("digest", hash),
 				zap.Any("vaa", signed),
 				zap.String("bytes", hex.EncodeToString(vaaBytes)))
-			p.vaaC <- signed
 
+			// TODO: broadcast on p2p and persist
 			p.state.vaaSignatures[hash].submitted = true
 		} else {
 			p.logger.Info("quorum not met or already submitted, doing nothing",

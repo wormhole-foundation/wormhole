@@ -3,7 +3,6 @@ package processor
 import (
 	"context"
 	"crypto/ecdsa"
-	"fmt"
 	"time"
 
 	ethcommon "github.com/ethereum/go-ethereum/common"
@@ -11,7 +10,6 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/certusone/wormhole/bridge/pkg/common"
-	"github.com/certusone/wormhole/bridge/pkg/devnet"
 	gossipv1 "github.com/certusone/wormhole/bridge/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/bridge/pkg/supervisor"
 	"github.com/certusone/wormhole/bridge/pkg/vaa"
@@ -60,9 +58,6 @@ type Processor struct {
 	// obsvC is a channel of inbound decoded observations from p2p
 	obsvC chan *gossipv1.SignedObservation
 
-	// vaaC is a channel of VAAs to submit to store on Solana (either as target, or for data availability)
-	vaaC chan *vaa.VAA
-
 	// injectC is a channel of VAAs injected locally.
 	injectC chan *vaa.VAA
 
@@ -99,7 +94,6 @@ func NewProcessor(
 	setC chan *common.GuardianSet,
 	sendC chan []byte,
 	obsvC chan *gossipv1.SignedObservation,
-	vaaC chan *vaa.VAA,
 	injectC chan *vaa.VAA,
 	gk *ecdsa.PrivateKey,
 	devnetMode bool,
@@ -114,7 +108,6 @@ func NewProcessor(
 		setC:               setC,
 		sendC:              sendC,
 		obsvC:              obsvC,
-		vaaC:               vaaC,
 		injectC:            injectC,
 		gk:                 gk,
 		devnetMode:         devnetMode,
@@ -142,12 +135,6 @@ func (p *Processor) Run(ctx context.Context) error {
 			p.logger.Info("guardian set updated",
 				zap.Strings("set", p.gs.KeysAsHexStrings()),
 				zap.Uint32("index", p.gs.Index))
-
-			// Dev mode guardian set update check (no-op in production)
-			err := p.checkDevModeGuardianSetUpdate(ctx)
-			if err != nil {
-				return err
-			}
 		case k := <-p.lockC:
 			p.handleLockup(ctx, k)
 		case v := <-p.injectC:
@@ -158,33 +145,4 @@ func (p *Processor) Run(ctx context.Context) error {
 			p.handleCleanup(ctx)
 		}
 	}
-}
-
-func (p *Processor) checkDevModeGuardianSetUpdate(ctx context.Context) error {
-	if p.devnetMode {
-		if uint(len(p.gs.Keys)) != p.devnetNumGuardians {
-			v := devnet.DevnetGuardianSetVSS(p.devnetNumGuardians)
-
-			p.logger.Info(fmt.Sprintf("guardian set has %d members, expecting %d - submitting VAA",
-				len(p.gs.Keys), p.devnetNumGuardians),
-				zap.Any("v", v))
-
-			timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
-			defer cancel()
-			trx, err := devnet.SubmitVAA(timeout, p.devnetEthRPC, v)
-			if err != nil {
-				// Either Ethereum is not yet up, or another node has already submitted - bail
-				// and let another node handle it. We only check the guardian set on Ethereum,
-				// so we use that to sequence devnet creation for Terra and Solana as well.
-				return fmt.Errorf("failed to submit Eth devnet guardian set change: %v", err)
-			}
-
-			p.logger.Info("devnet guardian set change submitted to Ethereum", zap.Any("trx", trx), zap.Any("vaa", v))
-
-			// Submit VAA to Solana as well. This is asynchronous and can fail, leading to inconsistent devnet state.
-			p.vaaC <- v
-		}
-	}
-
-	return nil
 }
