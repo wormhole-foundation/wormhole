@@ -16,11 +16,14 @@ In addition to Wormhole itself, you need to run your own verifying node for ever
 
 - **Ethereum**. See below - you need at least a light client. For stability reasons, a full node is recommended.
 
-- \[**Terra** requires a full node and an [LCD server](https://docs.terra.money/terracli/lcd.html#light-client-daemon)
+- **Terra** requires a full node and an [LCD server](https://docs.terra.money/terracli/lcd.html#light-client-daemon)
   pointing to your full node. Refer to the [Terra documentation](https://docs.terra.money/node/join-network.html)
   on how to run a full node. From a security point of view, running only an LCD server with `--trust-node=false` pointed
   to somebody else's full node would be sufficient, but you'd then depend on that single node for availability unless
-  you set up a load balancer pointing to a set of nodes.\]
+  you set up a load balancer pointing to a set of nodes.
+
+- **Binance Smart Chain**: Same requirements as Ethereum. Note that BSC has higher throughput than Ethereum and
+  roughly requires twice as many compute resources.
 
 Do NOT use third-party RPC service providers for any of the chains! You'd fully trust them, and they could lie to you on
 whether an event has actually been observed. The whole point of Wormhole is not to rely on centralized nodes!
@@ -42,31 +45,12 @@ since only very few nodes support the light client protocol.
 Running a full node typically requires ~500G of SSD storage, 8G of RAM and 4-8 CPU threads (depending on clock
 frequency). Light clients have much lower hardware requirements.
 
-## Building
+## Building guardiand
 
-For security reasons, we do not provide pre-built binaries. You need to check out the repo and build the
-Wormhole binaries from source. A Git repo is much harder to tamper with than release binaries.
+For security reasons, we do not provide a pre-built binary. You need to check out the repo and build the
+guardiand binary from source. A Git repo is much harder to tamper with than release binaries.
 
-To build Wormhole, you need:
-
-- [Go](https://golang.org/dl/) >= 1.15.6
-- [Rust](https://www.rust-lang.org/learn/get-started) >= 1.47.0
-
-...plus the same library dependencies as Solana itself:
-
-```bash
-# Debian and friends
-sudo apt-get install libssl-dev libudev-dev pkg-config zlib1g-dev llvm clang
-
-# Red Hat and friends
-sudo yum install openssl-devel pkg-config gcc gcc-c++ clang git make zlib-devel llvm systemd-devel
-```
-
-It is very important to use a sufficiently recent Go version that includes a fix for
-[CVE-2020-28362](https://blog.ethereum.org/2020/11/12/geth_security_release/).
-
-If your Linux distribution has recent enough packages for these, it's preferable to use those and avoid
-the extra third-party build dependency.
+To build the Wormhole node, you need [Go](https://golang.org/dl/) >= 1.15.6.
 
 First, check out the version of the Wormhole repo that you want to deploy:
 
@@ -75,20 +59,18 @@ git clone https://github.com/certusone/wormhole && cd wormhole
 git checkout v0.1.2
 ```
 
-Then, compile the release binaries as an unprivileged build user:
+Then, compile the release binary as an unprivileged build user:
 
 ```bash
 make bridge
 ```
     
-You'll end up with the following binaries in `build/`:
-
-- `guardiand` is the main Wormhole bridge node software.
+You'll end up with a `guardiand` binary in `build/`.
 
 Consider these recommendations, not a tutorial to be followed blindly. You'll want to integrate this with your
 existing build pipeline. If you need Dockerfile examples, you can take a look at our devnet deployment.
 
-If you want to compile and deploy locally, you can run `sudo make install` to install the binaries to /usr/local/bin.
+If you want to compile and deploy locally, you can run `sudo make install` to install the binary to /usr/local/bin.
 
 If you deploy using a custom pipeline, you need to set the `CAP_IPC_LOCK` capability on the binary (e.g. doing the
 equivalent to `sudo setcap cap_ipc_lock=+ep`) to allow it to lock its memory pages to prevent them from being paged out.
