@@ -53,7 +53,7 @@ message Heartbeat {
 // that they observed a given event.
 //
 // Observations always result from an external, final event being observed.
-// Examples are lockups in finalized blocks on a block or guardian set changes
+// Examples are emitted messages in finalized blocks on a block or guardian set changes
 // injected by node operators after reaching off-chain consensus.
 //
 // The event is uniquely identified by its hashed (tx_hash, nonce, values...) tuple.
@@ -65,7 +65,7 @@ message Heartbeat {
 message SignedObservation {
   // Guardian pubkey as truncated eth address.
   bytes addr = 1;
-  // The lockup's deterministic, unique hash.
+  // The observation's deterministic, unique hash.
   bytes hash = 2;
   // ECSDA signature of the hash using the node's guardian key.
   bytes signature = 3;

@@ -32,10 +32,10 @@ var (
 			Name: "wormhole_observations_verification_failures_total",
 			Help: "Total number of observations verification failure, grouped by failure reason",
 		}, []string{"cause"})
-	observationsUnknownLockupTotal = prometheus.NewCounter(
+	observationsUnknownTotal = prometheus.NewCounter(
 		prometheus.CounterOpts{
-			Name: "wormhole_observations_unknown_lockup_total",
-			Help: "Total number of verified VAA observations for a lockup we haven't seen yet",
+			Name: "wormhole_observations_unknown_total",
+			Help: "Total number of verified observations we haven't seen ourselves",
 		})
 	observationsDirectSubmissionsTotal = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
@@ -53,7 +53,7 @@ func init() {
 	prometheus.MustRegister(observationsReceivedTotal)
 	prometheus.MustRegister(observationsReceivedByGuardianAddressTotal)
 	prometheus.MustRegister(observationsFailedTotal)
-	prometheus.MustRegister(observationsUnknownLockupTotal)
+	prometheus.MustRegister(observationsUnknownTotal)
 	prometheus.MustRegister(observationsDirectSubmissionsTotal)
 	prometheus.MustRegister(observationsDirectSubmissionSuccessTotal)
 }
@@ -104,16 +104,16 @@ func (p *Processor) handleObservation(ctx context.Context, m *gossipv1.SignedObs
 
 	// Determine which guardian set to use. The following cases are possible:
 	//
-	//  - We have already seen the lockup and generated ourVAA. In this case, use the guardian set valid at the time,
+	//  - We have already seen the message and generated ourVAA. In this case, use the guardian set valid at the time,
 	//    even if the guardian set was updated. Old guardian sets remain valid for longer than aggregation state,
-	//    and the guardians in the old set stay online and observe and sign lockup for the transition period.
+	//    and the guardians in the old set stay online and observe and sign messages for the transition period.
 	//
-	//  - We have not yet seen the lockup. In this case, we assume the latest guardian set because that's what
-	//    we will store once we do see the lockup.
+	//  - We have not yet seen the message. In this case, we assume the latest guardian set because that's what
+	//    we will store once we do see the message.
 	//
-	// This ensures that during a guardian set update, a node which observed a given lockup with either the old
+	// This ensures that during a guardian set update, a node which observed a given message with either the old
 	// or the new guardian set can achieve consensus, since both the old and the new set would achieve consensus,
-	// assuming that 2/3+ of the old and the new guardian set have seen the lockup and will periodically attempt
+	// assuming that 2/3+ of the old and the new guardian set have seen the message and will periodically attempt
 	// to retransmit their observations such that nodes who initially dropped the signature will get a 2nd chance.
 	//
 	// During an update, vaaState.signatures can contain signatures from *both* guardian sets.
@@ -163,11 +163,11 @@ func (p *Processor) handleObservation(ctx context.Context, m *gossipv1.SignedObs
 		// However, we have established that a valid guardian has signed it, and therefore we can
 		// already start aggregating signatures for it.
 		//
-		// A malicious guardian can potentially DoS this by creating fake lockups at a faster rate than they decay,
+		// A malicious guardian can potentially DoS this by creating fake observations at a faster rate than they decay,
 		// leading to a slow out-of-memory crash. We do not attempt to automatically mitigate spam attacks with valid
 		// signatures - such byzantine behavior would be plainly visible and would be dealt with by kicking them.
 
-		observationsUnknownLockupTotal.Inc()
+		observationsUnknownTotal.Inc()
 
 		p.state.vaaSignatures[hash] = &vaaState{
 			firstObserved: time.Now(),

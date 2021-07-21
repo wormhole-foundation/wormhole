@@ -36,15 +36,15 @@ var (
 			Name: "wormhole_solana_account_updates_skipped_total",
 			Help: "Total number of account updates skipped due to invalid data",
 		}, []string{"reason"})
-	solanaLockupsConfirmed = prometheus.NewCounter(
+	solanaMessagesConfirmed = prometheus.NewCounter(
 		prometheus.CounterOpts{
-			Name: "wormhole_solana_lockups_confirmed_total",
-			Help: "Total number of verified Solana lockups found",
+			Name: "wormhole_solana_observations_confirmed_total",
+			Help: "Total number of verified Solana observations found",
 		})
 	currentSolanaHeight = prometheus.NewGauge(
 		prometheus.GaugeOpts{
 			Name: "wormhole_solana_current_height",
-			Help: "Current Solana slot height (at default commitment level, not the level used for lockups)",
+			Help: "Current Solana slot height (at default commitment level, not the level used for observations)",
 		})
 	queryLatency = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
@@ -56,7 +56,7 @@ var (
 func init() {
 	prometheus.MustRegister(solanaConnectionErrors)
 	prometheus.MustRegister(solanaAccountSkips)
-	prometheus.MustRegister(solanaLockupsConfirmed)
+	prometheus.MustRegister(solanaMessagesConfirmed)
 	prometheus.MustRegister(currentSolanaHeight)
 	prometheus.MustRegister(queryLatency)
 }
@@ -213,8 +213,8 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 							ConsistencyLevel: proposal.ConsistencyLevel,
 						}
 
-						solanaLockupsConfirmed.Inc()
-						logger.Info("found lockup without VAA", zap.Stringer("lockup_address", acc.Pubkey))
+						solanaMessagesConfirmed.Inc()
+						logger.Info("found message account without VAA", zap.Stringer("address", acc.Pubkey))
 						s.messageEvent <- lock
 					}
 				}()

@@ -17,29 +17,29 @@ var (
 	// SECURITY: source_chain/target_chain are untrusted uint8 values. An attacker could cause a maximum of 255**2 label
 	// pairs to be created, which is acceptable.
 
-	lockupsObservedTotal = prometheus.NewCounterVec(
+	messagesObservedTotal = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "wormhole_lockups_observed_total",
-			Help: "Total number of lockups received on-chain",
+			Name: "wormhole_message_observations_total",
+			Help: "Total number of messages observed",
 		},
 		[]string{"emitter_chain"})
 
-	lockupsSignedTotal = prometheus.NewCounterVec(
+	messagesSignedTotal = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "wormhole_lockups_signed_total",
-			Help: "Total number of lockups that were successfully signed",
+			Name: "wormhole_message_observations_signed_total",
+			Help: "Total number of message observations that were successfully signed",
 		},
 		[]string{"emitter_chain"})
 )
 
 func init() {
-	prometheus.MustRegister(lockupsObservedTotal)
-	prometheus.MustRegister(lockupsSignedTotal)
+	prometheus.MustRegister(messagesObservedTotal)
+	prometheus.MustRegister(messagesSignedTotal)
 }
 
-// handleLockup processes a lockup received from a chain and instantiates our deterministic copy of the VAA. A lockup
-// event may be received multiple times until it has been successfully completed.
-func (p *Processor) handleLockup(ctx context.Context, k *common.MessagePublication) {
+// handleMessage processes a message received from a chain and instantiates our deterministic copy of the VAA. An
+// event may be received multiple times and must be handled in an idempotent fashion.
+func (p *Processor) handleMessage(ctx context.Context, k *common.MessagePublication) {
 	supervisor.Logger(ctx).Info("message publication confirmed",
 		zap.Stringer("emitter_chain", k.EmitterChain),
 		zap.Stringer("emitter_address", k.EmitterAddress),
@@ -48,7 +48,7 @@ func (p *Processor) handleLockup(ctx context.Context, k *common.MessagePublicati
 		zap.Time("timestamp", k.Timestamp),
 	)
 
-	lockupsObservedTotal.With(prometheus.Labels{
+	messagesObservedTotal.With(prometheus.Labels{
 		"emitter_chain": k.EmitterChain.String(),
 	}).Add(1)
 
@@ -86,7 +86,7 @@ func (p *Processor) handleLockup(ctx context.Context, k *common.MessagePublicati
 		zap.String("digest", hex.EncodeToString(digest.Bytes())),
 		zap.String("signature", hex.EncodeToString(s)))
 
-	lockupsSignedTotal.With(prometheus.Labels{
+	messagesSignedTotal.With(prometheus.Labels{
 		"emitter_chain": k.EmitterChain.String()}).Add(1)
 
 	p.broadcastSignature(v, s)

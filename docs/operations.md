@@ -25,13 +25,16 @@ In addition to Wormhole itself, you need to run your own verifying node for ever
 - **Binance Smart Chain**: Same requirements as Ethereum. Note that BSC has higher throughput than Ethereum and
   roughly requires twice as many compute resources.
 
-Do NOT use third-party RPC service providers for any of the chains! You'd fully trust them, and they could lie to you on
-whether an event has actually been observed. The whole point of Wormhole is not to rely on centralized nodes!
+**Do NOT use third-party RPC service providers** for any of the chains! You'd fully trust them, and they could lie to
+you on whether an event has actually been observed. The whole point of Wormhole is not to rely on centralized nodes!
+
+We strongly recommend running your own full nodes for both testnet and mainnet (where applicable)
+so you can test changes for your mainnet full nodes and gain operational experience.
 
 ### Ethereum node requirements
 
-In order to observe events on the Ethereum chain, you need access to an Ethereum RPC endpoint. We use geth, but for the
-sake of diversity, you may want to run something that isn't geth.
+In order to observe events on the Ethereum chain, you need access to an Ethereum RPC endpoint. The most common
+choice is geth, but for the sake of diversity, you may want to run something that isn't geth.
 
 With RPC providers such as Alchemy, Infura, etc. you trust those operators to provide you with untampered chain data and
 have no way of verifying correctness. Therefore, Wormhole requires either an Ethereum full-node or a light-client. The
@@ -50,13 +53,13 @@ frequency). Light clients have much lower hardware requirements.
 For security reasons, we do not provide a pre-built binary. You need to check out the repo and build the
 guardiand binary from source. A Git repo is much harder to tamper with than release binaries.
 
-To build the Wormhole node, you need [Go](https://golang.org/dl/) >= 1.15.6.
+To build the Wormhole node, you need [Go](https://golang.org/dl/) >= 1.16.5.
 
 First, check out the version of the Wormhole repo that you want to deploy:
 
 ```bash
 git clone https://github.com/certusone/wormhole && cd wormhole
-git checkout v0.1.2
+git checkout v2.0.x
 ```
 
 Then, compile the release binary as an unprivileged build user:
@@ -97,49 +100,8 @@ The key file includes a human-readable part which includes the public key hashes
 
 We strongly recommend a separate user and systemd services for the Wormhole services.
 
-Example systemd unit for `guardiand.service`, including the right capabilities and best-practice security mitigations:
-
-```
-# /etc/systemd/system/guardiand.service
-[Unit]
-Description=Wormhole Bridge guardian daemon
-Documentation=https://github.com/certusone/wormhole
-Requires=network.target
-After=network.target
-
-[Service]
-User=wormhole
-Group=wormhole
-ExecStart=/usr/local/bin/guardiand bridge \
-    --bootstrap "<see launch repo>" \
-    --network "<see launch repo>" \
-    --ethContract <see launch repo> \
-    --nodeName "my-node-name" \
-    --nodeKey /path/to/your/node.key \
-    --bridgeKey /path/to/your/guardian.key \
-    --ethRPC ws://your-eth-node:8545 \
-    --adminSocket /run/guardiand/admin.socket \
-    --solanaBridgeAddress "<see launch repo>" \
-    --solanaRPC http://solana-host:8899 \
-    --solanaWS ws://solana-devnet:8900
-RuntimeDirectory=guardiand
-RuntimeDirectoryMode=700
-RuntimeDirectoryPreserve=yes
-PermissionsStartOnly=yes
-PrivateTmp=yes
-PrivateDevices=yes
-SecureBits=keep-caps
-AmbientCapabilities=CAP_IPC_LOCK
-CapabilityBoundingSet=CAP_IPC_LOCK
-NoNewPrivileges=yes
-Restart=on-failure 
-RestartSec=5s
-LimitNOFILE=65536
-LimitMEMLOCK=infinity
-
-[Install]
-WantedBy=multi-user.target
-```
+See the separate [wormhole-networks](https://github.com/certusone/wormhole-networks) repository for examples
+on how to set up the guardiand unit for a specific network.
 
 You need to open port 8999/udp in your firewall for the P2P network. Nothing else has to be exposed externally.
 

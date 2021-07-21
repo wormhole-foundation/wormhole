@@ -1,5 +1,5 @@
 package common
 
 type BridgeWatcher interface {
-	WatchLockups(events chan *MessagePublication) error
+	WatchMessages(events chan *MessagePublication) error
 }

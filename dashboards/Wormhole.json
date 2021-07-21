@@ -624,28 +624,28 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "increase(wormhole_eth_lockups_found_total{instance=~\"$instance\"}[$__rate_interval])",
+          "expr": "increase(wormhole_eth_messages_observed_total{instance=~\"$instance\"}[$__rate_interval])",
           "interval": "",
           "legendFormat": "ethereum (found)",
           "queryType": "randomWalk",
           "refId": "A"
         },
         {
-          "expr": "increase(wormhole_eth_lockups_confirmed_total{instance=~\"$instance\"}[$__rate_interval])",
+          "expr": "increase(wormhole_eth_messages_confirmed_total{instance=~\"$instance\"}[$__rate_interval])",
           "interval": "",
           "legendFormat": "ethereum (confirmed)",
           "queryType": "randomWalk",
           "refId": "B"
         },
         {
-          "expr": "increase(wormhole_solana_lockups_confirmed_total{instance=~\"$instance\"}[$__rate_interval])",
+          "expr": "increase(wormhole_solana_observations_confirmed_total{instance=~\"$instance\"}[$__rate_interval])",
           "interval": "",
           "legendFormat": "solana (confirmed)",
           "queryType": "randomWalk",
           "refId": "C"
         },
         {
-          "expr": "increase(wormhole_terra_lockups_confirmed_total{instance=~\"$instance\"}[$__rate_interval])",
+          "expr": "increase(wormhole_terra_messages_confirmed_total{instance=~\"$instance\"}[$__rate_interval])",
           "interval": "",
           "legendFormat": "terra (confirmed)",
           "queryType": "randomWalk",
@@ -656,7 +656,7 @@
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "Lockup Observations",
+      "title": "Observations",
       "tooltip": {
         "shared": true,
         "sort": 0,

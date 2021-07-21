@@ -18,9 +18,9 @@ import (
 type (
 	// vaaState represents the local view of a given VAA
 	vaaState struct {
-		// First time this digest was seen (possibly even before we saw its lockup).
+		// First time this digest was seen (possibly even before we observed it ourselves).
 		firstObserved time.Time
-		// Copy of the VAA we constructed when we saw the lockup.
+		// Copy of the VAA we constructed when we made our own observation.
 		ourVAA *vaa.VAA
 		// Map of signatures seen by guardian. During guardian set updates, this may contain signatures belonging
 		// to either the old or new guardian set.
@@ -35,7 +35,7 @@ type (
 		retryCount uint
 		// Copy of the bytes we submitted (ourVAA, but signed and serialized). Used for retransmissions.
 		ourMsg []byte
-		// Copy of the guardian set valid at lockup/injection time.
+		// Copy of the guardian set valid at observation/injection time.
 		gs *common.GuardianSet
 	}
 
@@ -48,7 +48,7 @@ type (
 )
 
 type Processor struct {
-	// lockC is a channel of observed chain lockups
+	// lockC is a channel of observed emitted messages
 	lockC chan *common.MessagePublication
 	// setC is a channel of guardian set updates
 	setC chan *common.GuardianSet
@@ -136,7 +136,7 @@ func (p *Processor) Run(ctx context.Context) error {
 				zap.Strings("set", p.gs.KeysAsHexStrings()),
 				zap.Uint32("index", p.gs.Index))
 		case k := <-p.lockC:
-			p.handleLockup(ctx, k)
+			p.handleMessage(ctx, k)
 		case v := <-p.injectC:
 			p.handleInjection(ctx, v)
 		case m := <-p.obsvC:

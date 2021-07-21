@@ -41,15 +41,15 @@ var (
 			Name: "wormhole_terra_connection_errors_total",
 			Help: "Total number of Terra connection errors",
 		}, []string{"reason"})
-	terraLockupsConfirmed = prometheus.NewCounter(
+	terraMessagesConfirmed = prometheus.NewCounter(
 		prometheus.CounterOpts{
-			Name: "wormhole_terra_lockups_confirmed_total",
-			Help: "Total number of verified terra lockups found",
+			Name: "wormhole_terra_messages_confirmed_total",
+			Help: "Total number of verified terra messages found",
 		})
 	currentTerraHeight = prometheus.NewGauge(
 		prometheus.GaugeOpts{
 			Name: "wormhole_terra_current_height",
-			Help: "Current terra slot height (at default commitment level, not the level used for lockups)",
+			Help: "Current terra slot height (at default commitment level, not the level used for observations)",
 		})
 	queryLatency = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
@@ -60,7 +60,7 @@ var (
 
 func init() {
 	prometheus.MustRegister(terraConnectionErrors)
-	prometheus.MustRegister(terraLockupsConfirmed)
+	prometheus.MustRegister(terraMessagesConfirmed)
 	prometheus.MustRegister(currentTerraHeight)
 	prometheus.MustRegister(queryLatency)
 }
@@ -219,7 +219,7 @@ func (e *BridgeWatcher) Run(ctx context.Context) error {
 					ConsistencyLevel: 0, // Instant finality
 				}
 				e.msgChan <- messagePublication
-				terraLockupsConfirmed.Inc()
+				terraMessagesConfirmed.Inc()
 			}
 
 			client := &http.Client{

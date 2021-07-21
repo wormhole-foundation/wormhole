@@ -31,15 +31,15 @@ var (
 			Help: "Total number of Ethereum connection errors (either during initial connection or while watching)",
 		}, []string{"reason"})
 
-	ethLockupsFound = prometheus.NewCounter(
+	ethMessagesObserved = prometheus.NewCounter(
 		prometheus.CounterOpts{
-			Name: "wormhole_eth_lockups_found_total",
-			Help: "Total number of Eth lockups found (pre-confirmation)",
+			Name: "wormhole_eth_messages_observed_total",
+			Help: "Total number of Eth messages observed (pre-confirmation)",
 		})
-	ethLockupsConfirmed = prometheus.NewCounter(
+	ethMessagesConfirmed = prometheus.NewCounter(
 		prometheus.CounterOpts{
-			Name: "wormhole_eth_lockups_confirmed_total",
-			Help: "Total number of Eth lockups verified (post-confirmation)",
+			Name: "wormhole_eth_messages_confirmed_total",
+			Help: "Total number of Eth messages verified (post-confirmation)",
 		})
 	guardianSetChangesConfirmed = prometheus.NewCounter(
 		prometheus.CounterOpts{
@@ -60,8 +60,8 @@ var (
 
 func init() {
 	prometheus.MustRegister(ethConnectionErrors)
-	prometheus.MustRegister(ethLockupsFound)
-	prometheus.MustRegister(ethLockupsConfirmed)
+	prometheus.MustRegister(ethMessagesObserved)
+	prometheus.MustRegister(ethMessagesConfirmed)
 	prometheus.MustRegister(guardianSetChangesConfirmed)
 	prometheus.MustRegister(currentEthHeight)
 	prometheus.MustRegister(queryLatency)
@@ -117,12 +117,12 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 	timeout, cancel = context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 
-	// Subscribe to new token lockups
-	tokensLockedC := make(chan *abi.AbiLogMessagePublished, 2)
-	tokensLockedSub, err := f.WatchLogMessagePublished(&bind.WatchOpts{Context: timeout}, tokensLockedC, nil)
+	// Subscribe to new message publications
+	messageC := make(chan *abi.AbiLogMessagePublished, 2)
+	messageSub, err := f.WatchLogMessagePublished(&bind.WatchOpts{Context: timeout}, messageC, nil)
 	if err != nil {
 		ethConnectionErrors.WithLabelValues("subscribe_error").Inc()
-		return fmt.Errorf("failed to subscribe to token lockup events: %w", err)
+		return fmt.Errorf("failed to subscribe to message publication events: %w", err)
 	}
 
 	// Subscribe to guardian set changes
@@ -156,15 +156,15 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 			select {
 			case <-ctx.Done():
 				return
-			case e := <-tokensLockedSub.Err():
+			case e := <-messageSub.Err():
 				ethConnectionErrors.WithLabelValues("subscription_error").Inc()
-				errC <- fmt.Errorf("error while processing token lockup subscription: %w", e)
+				errC <- fmt.Errorf("error while processing message publication subscription: %w", e)
 				return
 			case e := <-guardianSetEvent.Err():
 				ethConnectionErrors.WithLabelValues("subscription_error").Inc()
 				errC <- fmt.Errorf("error while processing guardian set subscription: %w", e)
 				return
-			case ev := <-tokensLockedC:
+			case ev := <-messageC:
 				// Request timestamp for block
 				msm := time.Now()
 				timeout, cancel = context.WithTimeout(ctx, 15*time.Second)
@@ -189,10 +189,10 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 					ConsistencyLevel: ev.ConsistencyLevel,
 				}
 
-				logger.Info("found new lockup transaction", zap.Stringer("tx", ev.Raw.TxHash),
+				logger.Info("found new message publication transaction", zap.Stringer("tx", ev.Raw.TxHash),
 					zap.Uint64("block", ev.Raw.BlockNumber))
 
-				ethLockupsFound.Inc()
+				ethMessagesObserved.Inc()
 
 				e.pendingLocksGuard.Lock()
 				e.pendingLocks[ev.Raw.TxHash] = &pendingLock{
@@ -259,7 +259,7 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 
 					// Transaction was dropped and never picked up again
 					if pLock.height+4*uint64(pLock.lock.ConsistencyLevel) <= blockNumberU {
-						logger.Debug("lockup timed out", zap.Stringer("tx", pLock.lock.TxHash),
+						logger.Debug("observation timed out", zap.Stringer("tx", pLock.lock.TxHash),
 							zap.Stringer("block", ev.Number))
 						delete(e.pendingLocks, hash)
 						continue
@@ -267,11 +267,11 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 
 					// Transaction is now ready
 					if pLock.height+uint64(pLock.lock.ConsistencyLevel) <= ev.Number.Uint64() {
-						logger.Debug("lockup confirmed", zap.Stringer("tx", pLock.lock.TxHash),
+						logger.Debug("observation confirmed", zap.Stringer("tx", pLock.lock.TxHash),
 							zap.Stringer("block", ev.Number))
 						delete(e.pendingLocks, hash)
 						e.lockChan <- pLock.lock
-						ethLockupsConfirmed.Inc()
+						ethMessagesConfirmed.Inc()
 					}
 				}
 

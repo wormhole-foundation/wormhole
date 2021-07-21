@@ -33,7 +33,7 @@ var (
 	aggregationStateUnobserved = prometheus.NewCounter(
 		prometheus.CounterOpts{
 			Name: "wormhole_aggregation_state_unobserved_total",
-			Help: "Total number of aggregation states expired due to no matching local lockup observations",
+			Help: "Total number of aggregation states expired due to no matching local message observations",
 		})
 	aggregationStateFulfillment = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
