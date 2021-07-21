@@ -12,7 +12,7 @@ load("ext://namespace", "namespace_create", "namespace_inject")
 config.define_string("num", False, "Number of guardian nodes to run")
 
 # You do not usually need to set this argument - this argument is for debugging only. If you do use a different
-# namespace, note that the "wormhole" namespace is hardcoded in the e2e test and don't forget specifying the argument
+# namespace, note that the "wormhole" namespace is hardcoded in tests and don't forget specifying the argument
 # when running "tilt down".
 #
 config.define_string("namespace", False, "Kubernetes namespace to use")
@@ -34,6 +34,12 @@ local_resource(
     name = "proto-gen",
     deps = ["./proto", "./generate-protos.sh"],
     cmd = "./generate-protos.sh",
+)
+
+local_resource(
+    name = "proto-gen-web",
+    deps = ["./proto", "./generate-protos-web.sh"],
+    cmd = "./generate-protos-web.sh",
 )
 
 # bridge
@@ -150,7 +156,7 @@ k8s_yaml_with_ns("devnet/explorer.yaml")
 
 k8s_resource(
     "explorer",
-    resource_deps = ["envoy-proxy"],
+    resource_deps = ["envoy-proxy", "proto-gen-web"],
     port_forwards = [
         port_forward(8001, name = "Explorer Web UI [:8001]"),
     ],
