@@ -80,6 +80,11 @@ fn handle_submit_vaa<S: Storage, A: Api, Q: Querier>(
 
     let vaa = parse_and_verify_vaa(&deps.storage, data, env.block.time)?;
     if state.gov_chain == vaa.emitter_chain && state.gov_address == vaa.emitter_address {
+        if state.guardian_set_index != vaa.guardian_set_index {
+            return Err(StdError::generic_err(
+                "governance VAAs must be signed by the current guardian set",
+            ));
+        }
         return handle_governance_payload(deps, env, &vaa.payload);
     }
 
@@ -98,6 +103,12 @@ fn handle_governance_payload<S: Storage, A: Api, Q: Querier>(
 
     if module != "Core" {
         return Err(StdError::generic_err("this is not a valid module"));
+    }
+
+    if gov_packet.chain != 0 && gov_packet.chain != CHAIN_ID {
+        return Err(StdError::generic_err(
+            "the governance VAA is for another chain",
+        ));
     }
 
     match gov_packet.action {
@@ -157,7 +168,7 @@ fn parse_and_verify_vaa<S: Storage>(
             &data[pos + ParsedVAA::SIG_DATA_POS
                 ..pos + ParsedVAA::SIG_DATA_POS + ParsedVAA::SIG_DATA_LEN],
         )
-            .or_else(|_| ContractError::CannotDecodeSignature.std_err())?;
+        .or_else(|_| ContractError::CannotDecodeSignature.std_err())?;
         let id = RecoverableId::new(data.get_u8(pos + ParsedVAA::SIG_RECOVERY_POS))
             .or_else(|_| ContractError::CannotDecodeSignature.std_err())?;
         let recoverable_signature = RecoverableSignature::new(&signature, id)
