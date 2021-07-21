@@ -46,6 +46,8 @@ var (
 
 	adminSocketPath *string
 
+	dataDir *string
+
 	statusAddr *string
 
 	bridgeKeyPath       *string
@@ -81,6 +83,8 @@ func init() {
 	nodeKeyPath = BridgeCmd.Flags().String("nodeKey", "", "Path to node key (will be generated if it doesn't exist)")
 
 	adminSocketPath = BridgeCmd.Flags().String("adminSocket", "", "Admin gRPC service UNIX domain socket path")
+
+	dataDir = BridgeCmd.Flags().String("dataDir", "", "Data directory")
 
 	bridgeKeyPath = BridgeCmd.Flags().String("bridgeKey", "", "Path to guardian key (required)")
 	solanaBridgeAddress = BridgeCmd.Flags().String("solanaBridgeAddress", "", "Address of the Solana Bridge Program (required)")
@@ -246,6 +250,9 @@ func runBridge(cmd *cobra.Command, args []string) {
 	}
 	if *adminSocketPath == "" {
 		logger.Fatal("Please specify --adminSocket")
+	}
+	if *dataDir == "" {
+		logger.Fatal("Please specify --dataDir")
 	}
 	if *ethRPC == "" {
 		logger.Fatal("Please specify --ethRPC")

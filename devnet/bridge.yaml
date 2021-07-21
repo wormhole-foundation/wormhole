@@ -84,6 +84,8 @@ spec:
             - "[::]:7070"
             - --adminSocket
             - /tmp/admin.sock
+            - --dataDir
+            - /tmp/data
 #            - --logLevel=debug
           securityContext:
             capabilities:
