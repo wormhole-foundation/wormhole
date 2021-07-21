@@ -1,3 +1,6 @@
+import sys
+
+from terra_sdk.client.lcd import AsyncLCDClient
 from terra_sdk.client.localterra import AsyncLocalTerra
 from terra_sdk.core.auth import StdFee
 import asyncio
@@ -7,14 +10,40 @@ from terra_sdk.core.wasm import (
     MsgExecuteContract,
     MsgMigrateContract,
 )
+from terra_sdk.key.mnemonic import MnemonicKey
 from terra_sdk.util.contract import get_code_id, get_contract_address, read_file_as_b64
 import os
 import base64
 import pprint
 
+if len(sys.argv) != 8:
+    print(
+        "Usage: deploy.py <lcd_url> <chain_id> <mnemonic> <gov_chain> <gov_address> <initial_guardian> <expiration_time>")
+    exit(1)
+
+gas_prices = {
+    "uluna": "0.15",
+    "usdr": "0.1018",
+    "uusd": "0.15",
+    "ukrw": "178.05",
+    "umnt": "431.6259",
+    "ueur": "0.125",
+    "ucny": "0.97",
+    "ujpy": "16",
+    "ugbp": "0.11",
+    "uinr": "11",
+    "ucad": "0.19",
+    "uchf": "0.13",
+    "uaud": "0.19",
+    "usgd": "0.2",
+}
+
 lt = AsyncLocalTerra(gas_prices={"uusd": "0.15"}, url="http://terra-lcd:1317")
-terra = lt
-deployer = lt.wallets["test1"]
+terra = AsyncLCDClient(
+    sys.argv[1], sys.argv[2], gas_prices=gas_prices
+)
+deployer = terra.wallet(MnemonicKey(
+    mnemonic=sys.argv[3]))
 
 sequence = asyncio.get_event_loop().run_until_complete(deployer.sequence())
 
@@ -139,17 +168,17 @@ async def main():
     print(code_ids)
 
     # fake governance contract on solana
-    GOV_CHAIN = 1
-    GOV_ADDRESS = b"0" * 32
+    GOV_CHAIN = int(sys.argv[4])
+    GOV_ADDRESS = bytes.fromhex(sys.argv[5])
 
     wormhole = await Contract.create(
         code_id=code_ids["wormhole"],
         gov_chain=GOV_CHAIN,
         gov_address=base64.b64encode(GOV_ADDRESS).decode("utf-8"),
-        guardian_set_expirity=10 ** 15,
+        guardian_set_expirity=int(sys.argv[7]),
         initial_guardian_set={
             "addresses": [{"bytes": base64.b64encode(
-                bytearray.fromhex("beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe")).decode("utf-8")}],
+                bytearray.fromhex(sys.argv[6])).decode("utf-8")}],
             "expiration_time": 0},
         migratable=True,
     )
