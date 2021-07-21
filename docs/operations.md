@@ -105,6 +105,8 @@ on how to set up the guardiand unit for a specific network.
 
 You need to open port 8999/udp in your firewall for the P2P network. Nothing else has to be exposed externally.
 
+journalctl can show guardiand's colored output using the `-a` flag for binary output, i.e.: `journalctl -a -f -u guardiand`.
+
 ### Kubernetes
 
 Kubernetes deployment is fully supported.
@@ -124,7 +126,7 @@ This endpoint returns a 200 OK status code once the Wormhole node is ready to se
 considered ready as soon as it has successfully connected to all chains and started processing requests.
 
 This is **only for startup signalling** - it will not tell whether it *stopped*
-processing requests at some later point. Use metrics to figure that out.
+processing requests at some later point. Once it's true, it stays true! Use metrics to figure that out.
 
 #### `/metrics`
 
