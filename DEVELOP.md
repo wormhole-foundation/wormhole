@@ -61,11 +61,6 @@ Generate test Solana -> Ethereum transfers:
 
     scripts/send-solana-lockups.sh
 
-Run end-to-end tests:
-
-    cd bridge
-    go test github.com/certusone/wormhole/bridge/e2e
-
 Adjust number of nodes in running cluster: (this is only useful if you want to test scenarios where the number
 of nodes diverges from the guardian set - otherwise, `tilt down --delete-namespaces` and restart the cluster)
 

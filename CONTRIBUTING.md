@@ -17,10 +17,6 @@ and code reviews are our most important tools to accomplish that.
   
 - Releases are first tested on a testnet. This involves coordination with the mainnet DAO running the nodes.
 
-- We aim for close to 100% test coverage on all critical paths. Most of Wormhole's complexity is in the
-  external interfaces, therefore, we primarily rely on software-in-the-loop E2E testing that exercises
-  the entire path. Where applicable, we also use faster unit tests for invariant checking.
-  
 - Commits should be small and have a meaningful commit message. One commit should, roughly, be "one idea" and
   be as atomic as possible. A feature can consist of many such commits.
   
@@ -50,7 +46,7 @@ The answer is... maybe? The following things are needed in order to fully suppor
 - The smart contract needs to be built and audited. In some cases, existing contracts can be used, like with
   EVM-compatible chains.
   
-- Support for observing the chain needs to be added to guardiand, along with E2E tests.
+- Support for observing the chain needs to be added to guardiand.
 
 - Web wallet integration needs to be built to actually interact with Wormhole.
 
