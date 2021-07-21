@@ -58,7 +58,6 @@ var (
 	terraLCD      *string
 	terraChainID  *string
 	terraContract *string
-	terraKeyPath  *string
 
 	solanaWsRPC *string
 	solanaRPC   *string
@@ -93,7 +92,6 @@ func init() {
 	terraLCD = BridgeCmd.Flags().String("terraLCD", "", "Path to LCD service root for http calls")
 	terraChainID = BridgeCmd.Flags().String("terraChainID", "", "Terra chain ID, used in LCD client initialization")
 	terraContract = BridgeCmd.Flags().String("terraContract", "", "Wormhole contract address on Terra blockchain")
-	terraKeyPath = BridgeCmd.Flags().String("terraKey", "", "Path to mnemonic for account paying gas for submitting transactions to Terra")
 
 	solanaWsRPC = BridgeCmd.Flags().String("solanaWS", "", "Solana Websocket URL (required")
 	solanaRPC = BridgeCmd.Flags().String("solanaRPC", "", "Solana RPC URL (required")
@@ -280,9 +278,6 @@ func runBridge(cmd *cobra.Command, args []string) {
 	}
 	if *terraContract == "" {
 		logger.Fatal("Please specify --terraContract")
-	}
-	if *terraKeyPath == "" {
-		logger.Fatal("Please specify --terraKey")
 	}
 
 	ethContractAddr := eth_common.HexToAddress(*ethContract)
