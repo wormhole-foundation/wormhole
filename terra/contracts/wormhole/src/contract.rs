@@ -94,7 +94,7 @@ fn handle_governance_payload<S: Storage, A: Api, Q: Querier>(
     let gov_packet = GovernancePacket::deserialize(&data)?;
 
     let module = String::from_utf8(gov_packet.module).unwrap();
-    let module: String = module.chars().filter(|c| !c.is_whitespace()).collect();
+    let module: String = module.chars().filter(|c| c != &'\0').collect();
 
     if module != "Core" {
         return Err(StdError::generic_err("this is not a valid module"));
@@ -157,7 +157,7 @@ fn parse_and_verify_vaa<S: Storage>(
             &data[pos + ParsedVAA::SIG_DATA_POS
                 ..pos + ParsedVAA::SIG_DATA_POS + ParsedVAA::SIG_DATA_LEN],
         )
-        .or_else(|_| ContractError::CannotDecodeSignature.std_err())?;
+            .or_else(|_| ContractError::CannotDecodeSignature.std_err())?;
         let id = RecoverableId::new(data.get_u8(pos + ParsedVAA::SIG_RECOVERY_POS))
             .or_else(|_| ContractError::CannotDecodeSignature.std_err())?;
         let recoverable_signature = RecoverableSignature::new(&signature, id)
