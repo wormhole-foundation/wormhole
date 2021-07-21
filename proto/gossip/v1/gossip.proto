@@ -28,15 +28,6 @@ message Heartbeat {
     int64 height = 2;
     // Chain-specific human-readable representation of the bridge contract address.
     string bridge_address = 3;
-
-    // Fee payer account for this network, if present. Some networks like Ethereum do not use fee payer accounts.
-    message FeePayer {
-      // The account's on-chain balance.
-      int64 balance = 1;
-      // Chain-specific human-readable representation of the fee payer account's address.
-      string address = 2;
-    }
-    FeePayer fee_payer = 4;
   }
   repeated Network networks = 4;
 
