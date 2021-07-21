@@ -86,8 +86,11 @@ The new, generic VAA struct would look this this:
 // VAA is a verifiable action approval of the Wormhole protocol.
 // It represents a message observation made by the Wormhole network.
 VAA struct {
-	// PROTOCOL VERSION of the entire VAA. This field has zero value
-	// pre-signing and is not part of the signed digest.
+	// --------------------------------------------------------------------
+	// HEADER - these values are not part of the observation and instead
+	// carry metadata used to interpret the observation. It is not signed.
+	
+	// Protocol version of the entire VAA.
 	Version uint8
 
 	// GuardianSetIndex is the index of the guardian set that signed this VAA.
@@ -100,6 +103,7 @@ VAA struct {
 	// Signatures contain a list of signatures made by the guardian set.
 	Signatures []*Signature
 
+    // --------------------------------------------------------------------
 	// OBSERVATION - these fields are *deterministically* set by the
 	// Guardian nodes when making an observation. They uniquely identify
 	// a message and are used for replay protection.
@@ -112,9 +116,12 @@ VAA struct {
 	// identifies the block that contains the message transaction).
 	Timestamp time.Time
 
-	// Nonce of the VAA, meant to be set to random bytes. Nonces
+	// Nonce of the VAA, must to be set to random bytes. Nonces
 	// prevent collisions where one emitter publishes identical
 	// messages within one block (= timestamp).
+	//
+	// It is not suitable as a global identifier -
+	// use the (chain, emitter, sequence) tuple instead.
 	Nonce uint32 // <-- NEW
 
 	// EmitterChain the VAA was emitted on. Set by the guardian node
