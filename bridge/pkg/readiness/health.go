@@ -49,6 +49,7 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
+	mu.Lock()
 	for k, v := range registry {
 		_, err = fmt.Fprintln(resp, fmt.Sprintf("%s\t%v", k, v))
 		if err != nil {
@@ -59,6 +60,7 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 			ready = false
 		}
 	}
+	mu.Unlock()
 
 	if !ready {
 		w.WriteHeader(http.StatusPreconditionFailed)
