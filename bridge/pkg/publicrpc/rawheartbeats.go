@@ -23,15 +23,16 @@ func init() {
 	prometheus.MustRegister(currentPublicHeartbeatStreamsOpen)
 }
 
-// multiplexing to distribute heartbeat messages to all the open connections
-type PublicRawHeartbeatConnections struct {
+// RawHeartbeatConns holds the multiplexing state required for distribution of
+// heartbeat messages to all the open connections.
+type RawHeartbeatConns struct {
 	mu     sync.RWMutex
 	subs   map[int]chan<- *publicrpcv1.Heartbeat
 	logger *zap.Logger
 }
 
-func HeartbeatStreamMultiplexer(logger *zap.Logger) *PublicRawHeartbeatConnections {
-	ps := &PublicRawHeartbeatConnections{
+func HeartbeatStreamMultiplexer(logger *zap.Logger) *RawHeartbeatConns {
+	ps := &RawHeartbeatConns{
 		subs:   map[int]chan<- *publicrpcv1.Heartbeat{},
 		logger: logger.Named("heartbeatmultiplexer"),
 	}
@@ -39,7 +40,7 @@ func HeartbeatStreamMultiplexer(logger *zap.Logger) *PublicRawHeartbeatConnectio
 }
 
 // getUniqueClientId loops to generate & test integers for existence as key of map. returns an int that is not a key in map.
-func (ps *PublicRawHeartbeatConnections) getUniqueClientId() int {
+func (ps *RawHeartbeatConns) getUniqueClientId() int {
 	clientId := rand.Intn(1e6)
 	found := false
 	for found {
@@ -49,8 +50,8 @@ func (ps *PublicRawHeartbeatConnections) getUniqueClientId() int {
 	return clientId
 }
 
-// subscribeHeartbeats adds a channel to the subscriber map, keyed by arbitary clientId
-func (ps *PublicRawHeartbeatConnections) subscribeHeartbeats(ch chan *publicrpcv1.Heartbeat) int {
+// subscribeHeartbeats adds a channel to the subscriber map, keyed by arbitrary clientId
+func (ps *RawHeartbeatConns) subscribeHeartbeats(ch chan *publicrpcv1.Heartbeat) int {
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
 
@@ -62,7 +63,7 @@ func (ps *PublicRawHeartbeatConnections) subscribeHeartbeats(ch chan *publicrpcv
 }
 
 // PublishHeartbeat sends a message to all channels in the subscription map
-func (ps *PublicRawHeartbeatConnections) PublishHeartbeat(msg *publicrpcv1.Heartbeat) {
+func (ps *RawHeartbeatConns) PublishHeartbeat(msg *publicrpcv1.Heartbeat) {
 	ps.mu.RLock()
 	defer ps.mu.RUnlock()
 
@@ -71,13 +72,13 @@ func (ps *PublicRawHeartbeatConnections) PublishHeartbeat(msg *publicrpcv1.Heart
 		case ch <- msg:
 			ps.logger.Debug("published message to client", zap.Int("client", client))
 		default:
-			ps.logger.Debug("buffer overrrun when attempting to publish message", zap.Int("client", client))
+			ps.logger.Debug("buffer overrun when attempting to publish message", zap.Int("client", client))
 		}
 	}
 }
 
 // unsubscribeHeartbeats removes the client's channel from the subscription map
-func (ps *PublicRawHeartbeatConnections) unsubscribeHeartbeats(clientId int) {
+func (ps *RawHeartbeatConns) unsubscribeHeartbeats(clientId int) {
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
 

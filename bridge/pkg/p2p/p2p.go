@@ -55,7 +55,7 @@ func init() {
 
 func Run(obsvC chan *gossipv1.SignedObservation,
 	sendC chan []byte,
-	rawHeartbeatListeners *publicrpc.PublicRawHeartbeatConnections,
+	rawHeartbeatListeners *publicrpc.RawHeartbeatConns,
 	priv crypto.PrivKey,
 	port uint,
 	networkID string,

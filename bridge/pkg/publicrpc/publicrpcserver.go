@@ -11,14 +11,21 @@ import (
 	"github.com/certusone/wormhole/bridge/pkg/supervisor"
 )
 
-// gRPC server & method for handling streaming proto connection
-type publicrpcServer struct {
+// PublicrpcServer implements the publicrpc gRPC service.
+type PublicrpcServer struct {
 	publicrpcv1.UnimplementedPublicrpcServer
-	rawHeartbeatListeners *PublicRawHeartbeatConnections
+	rawHeartbeatListeners *RawHeartbeatConns
 	logger                *zap.Logger
 }
 
-func (s *publicrpcServer) GetRawHeartbeats(req *publicrpcv1.GetRawHeartbeatsRequest, stream publicrpcv1.Publicrpc_GetRawHeartbeatsServer) error {
+func NewPublicrpcServer(logger *zap.Logger, rawHeartbeatListeners *RawHeartbeatConns) *PublicrpcServer {
+	return &PublicrpcServer{
+		rawHeartbeatListeners: rawHeartbeatListeners,
+		logger:                logger.Named("publicrpcserver"),
+	}
+}
+
+func (s *PublicrpcServer) GetRawHeartbeats(req *publicrpcv1.GetRawHeartbeatsRequest, stream publicrpcv1.Publicrpc_GetRawHeartbeatsServer) error {
 	s.logger.Info("gRPC heartbeat stream opened by client")
 
 	// create a channel and register it for heartbeats
@@ -39,17 +46,14 @@ func (s *publicrpcServer) GetRawHeartbeats(req *publicrpcv1.GetRawHeartbeatsRequ
 	}
 }
 
-func PublicrpcServiceRunnable(logger *zap.Logger, listenAddr string, rawHeartbeatListeners *PublicRawHeartbeatConnections) supervisor.Runnable {
+func PublicrpcServiceRunnable(logger *zap.Logger, listenAddr string, rawHeartbeatListeners *RawHeartbeatConns) supervisor.Runnable {
 	l, err := net.Listen("tcp", listenAddr)
 	if err != nil {
 		logger.Fatal("failed to listen for publicrpc service", zap.Error(err))
 	}
 	logger.Info(fmt.Sprintf("publicrpc server listening on %s", listenAddr))
 
-	rpcServer := &publicrpcServer{
-		rawHeartbeatListeners: rawHeartbeatListeners,
-		logger:                logger.Named("publicrpcserver"),
-	}
+	rpcServer := NewPublicrpcServer(logger, rawHeartbeatListeners)
 
 	grpcServer := grpc.NewServer()
 	publicrpcv1.RegisterPublicrpcServer(grpcServer, rpcServer)
