@@ -147,9 +147,18 @@ Name [32]uint8
 RegisterChain:
 
 ```
-PayloadID uint8 = 3
-// Chain ID
-ChainID uint16
+// Gov Header
+// Module Identifier  ("TokenBridge" left-padded)
+Module [32]byte 
+// Governance Action ID (1 for RegisterChain)
+Action uint8 = 1
+// Target Chain (Where the governance action should be applied)
+// (0 is a valid value for all chains) 
+ChainId uint16
+
+// Packet
+// Emitter Chain ID
+EmitterChainID uint16
 // Emitter address. Left-zero-padded if shorter than 32 bytes
 EmitterAddress [32]uint8
 ```
@@ -157,7 +166,15 @@ EmitterAddress [32]uint8
 UpgradeContract:
 
 ```
-PayloadID uint8 = 4
+// Header
+// Module Identifier  ("TokenBridge" left-padded)
+Module [32]byte 
+// Governance Action ID (2 for UpgradeContract)
+Action uint8 = 2
+// Target Chain  (Where the governance action should be applied)
+ChainId uint16
+
+// Packet
 // Address of the new contract
 NewContract [32]uint8
 ```
