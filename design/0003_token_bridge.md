@@ -90,14 +90,32 @@ The metadata of a token can be attested by calling `attestToken` on its respecti
 wormhole network using the details. A token is identified by the tuple `(chain_id, chain_address)` and metadata should
 be mapped to this identifier. A wrapped asset may only ever be created once for a given identifier and not updated.
 
+### Handling of token amounts and decimals
+
+Due to constrains on some supported chains, all token amounts passed through the token bridge are truncated to a maximum of 8 decimals.
+
+Any chains implementation must make sure that of any token only ever MaxUint64 units (post-shifting) are bridged into the wormhole network at any given time (all target chains combined), even tough the slot is 32 bytes long (theoretically fitting uint256).
+
+Token "dust" that can not be transferred due to truncation during a deposit needs to be refunded back to the user.
+
+**Examples:**
+- The amount "1" of a 18 decimal Ethereum token is originally represented as: `1000000000000000000`, over the wormhole it is passed as: `100000000`.
+- The amount "2" of a 4 decimal token is represented as `20000` and is passed over the wormhole without a decimal shift.
+
+**Handling on the target Chains:**
+
+Implementations on target chains can handle the decimal shift in one of the following ways:
+- In case the chain supports the original decimal amount (known from the `AssetMeta`) it can do a decimal shift back to the original decimal amount. This allows for out-of-the-box interoperability of DeFi protocols across for example different EVM environments.
+- Otherwise the wrapped token should stick to the 8 decimals that the protocol uses.
+
 ### API / database schema
 
 Proposed bridge interface:
 
 `attestToken(address token)` - Produce a `AssetMeta` message for a given token
 
-`transfer(address token, uint256 amount, uint16 recipient_chain, bytes32 recipient, uint256 fee)` - Initiate
-a `Transfer`
+`transfer(address token, uint64-uint256 amount (size depending on chains standards), uint16 recipient_chain, bytes32 recipient, uint256 fee)` - Initiate
+a `Transfer`. Amount in the tokens native decimals.
 
 `createWrapped(Message assetMeta)` - Creates a wrapped asset using `AssetMeta`
 
@@ -115,17 +133,17 @@ Transfer:
 ```
 PayloadID uint8 = 1
 // Amount being transferred (big-endian uint256)
-Amount [32]uint8
+Amount uint256
 // Address of the token. Left-zero-padded if shorter than 32 bytes
-TokenAddress [32]uint8
+TokenAddress bytes32
 // Chain ID of the token
 TokenChain uint16
 // Address of the recipient. Left-zero-padded if shorter than 32 bytes
-To [32]uint8
+To bytes32
 // Chain ID of the recipient
 ToChain uint16
 // Amount of tokens (big-endian uint256) that the user is willing to pay as relayer fee. Must be <= Amount.
-Fee [32]uint8
+Fee uint256
 ```
 
 AssetMeta:
@@ -137,6 +155,7 @@ TokenAddress [32]uint8
 // Chain ID of the token
 TokenChain uint16
 // Number of decimals of the token
+// (the native decimals, not truncated to 8)
 Decimals uint8
 // Symbol of the token (UTF-8)
 Symbol [32]uint8
