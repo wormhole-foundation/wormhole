@@ -89,10 +89,6 @@ certainly shouldn't put your life savings into a Wormhole contract (or any other
 
 - **[docs/](docs/)** — Operator documentation and project specs.
 
-- **[web/](web/)** — User interface for cross-chain transfers. Not yet wired into the local devnet.
-  Uses Metamask and Web3.js to initiate transfers from a browser.
-  Watch [this video](https://youtu.be/9OTTyJ_h4O0) as an introduction.
-  
 - [tools/](tools/) — Reproducible builds for local development tooling like buf and protoc-gen-go. 
   
 - [Tiltfile](Tiltfile),  [devnet/](devnet/) and various Dockerfiles — deployment code and fixtures for local development.
