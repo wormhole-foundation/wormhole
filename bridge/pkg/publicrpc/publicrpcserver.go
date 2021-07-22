@@ -1,14 +1,8 @@
 package publicrpc
 
 import (
-	"fmt"
-	"net"
-
-	"go.uber.org/zap"
-	"google.golang.org/grpc"
-
 	publicrpcv1 "github.com/certusone/wormhole/bridge/pkg/proto/publicrpc/v1"
-	"github.com/certusone/wormhole/bridge/pkg/supervisor"
+	"go.uber.org/zap"
 )
 
 // PublicrpcServer implements the publicrpc gRPC service.
@@ -44,18 +38,4 @@ func (s *PublicrpcServer) GetRawHeartbeats(req *publicrpcv1.GetRawHeartbeatsRequ
 			stream.Send(msg)
 		}
 	}
-}
-
-func PublicrpcServiceRunnable(logger *zap.Logger, listenAddr string, rawHeartbeatListeners *RawHeartbeatConns) supervisor.Runnable {
-	l, err := net.Listen("tcp", listenAddr)
-	if err != nil {
-		logger.Fatal("failed to listen for publicrpc service", zap.Error(err))
-	}
-	logger.Info(fmt.Sprintf("publicrpc server listening on %s", listenAddr))
-
-	rpcServer := NewPublicrpcServer(logger, rawHeartbeatListeners)
-
-	grpcServer := grpc.NewServer()
-	publicrpcv1.RegisterPublicrpcServer(grpcServer, rpcServer)
-	return supervisor.GRPCServer(grpcServer, l, false)
 }

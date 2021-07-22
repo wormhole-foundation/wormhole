@@ -3,6 +3,7 @@ package guardiand
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -352,6 +353,7 @@ func runBridge(cmd *cobra.Command, args []string) {
 		}
 	}
 
+	// local admin service socket
 	adminService, err := adminServiceRunnable(logger, *adminSocketPath, injectC)
 	if err != nil {
 		logger.Fatal("failed to create admin service socket", zap.Error(err))
@@ -359,6 +361,10 @@ func runBridge(cmd *cobra.Command, args []string) {
 
 	// subscriber channel multiplexing for public gPRC streams
 	rawHeartbeatListeners := publicrpc.HeartbeatStreamMultiplexer(logger)
+	publicrpcService, err := publicrpcServiceRunnable(logger, *publicRPC, rawHeartbeatListeners)
+	if err != nil {
+		log.Fatal("failed to create publicrpc service socket", zap.Error(err))
+	}
 
 	// Run supervisor.
 	supervisor.New(rootCtx, logger, func(ctx context.Context) error {
@@ -407,8 +413,7 @@ func runBridge(cmd *cobra.Command, args []string) {
 			return err
 		}
 		if *publicRPC != "" {
-			if err := supervisor.Run(ctx, "publicrpc",
-				publicrpc.PublicrpcServiceRunnable(logger, *publicRPC, rawHeartbeatListeners)); err != nil {
+			if err := supervisor.Run(ctx, "publicrpc", publicrpcService); err != nil {
 				return err
 			}
 		}

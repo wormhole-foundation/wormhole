@@ -1,0 +1,26 @@
+package guardiand
+
+import (
+	"fmt"
+	publicrpcv1 "github.com/certusone/wormhole/bridge/pkg/proto/publicrpc/v1"
+	"github.com/certusone/wormhole/bridge/pkg/publicrpc"
+	"github.com/certusone/wormhole/bridge/pkg/supervisor"
+	"go.uber.org/zap"
+	"google.golang.org/grpc"
+	"net"
+)
+
+func publicrpcServiceRunnable(logger *zap.Logger, listenAddr string, hl *publicrpc.RawHeartbeatConns) (supervisor.Runnable, error) {
+	l, err := net.Listen("tcp", listenAddr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to listen: %w", err)
+	}
+
+	logger.Info("publicrpc server listening", zap.String("addr", l.Addr().String()))
+
+	rpcServer := publicrpc.NewPublicrpcServer(logger, hl)
+	grpcServer := grpc.NewServer()
+	publicrpcv1.RegisterPublicrpcServer(grpcServer, rpcServer)
+
+	return supervisor.GRPCServer(grpcServer, l, false), nil
+}
