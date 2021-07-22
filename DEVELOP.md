@@ -4,7 +4,7 @@
 
 The following dependencies are required for local development:
 
-- [Go](https://golang.org/dl/) >= 1.16.5
+- [Go](https://golang.org/dl/) >= 1.16.6
 - [Docker](https://docs.docker.com/engine/install/) / moby-engine >= 19.03
 - [Tilt](http://tilt.dev/) >= 0.20.8
 - [NodeJS/npm](https://nodejs.org/en/download/) >= 14
