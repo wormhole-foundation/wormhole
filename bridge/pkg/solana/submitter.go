@@ -129,7 +129,8 @@ func (e *SolanaVAASubmitter) Run(ctx context.Context) error {
 						codes.Canceled,
 						// The agent encountered a transient error, likely node unavailability.
 						codes.Unavailable,
-						codes.Aborted:
+						codes.Aborted,
+						codes.DeadlineExceeded:
 
 						solanaConnectionErrors.WithLabelValues("postvaa_transient_error").Inc()
 						logger.Error("transient error, requeuing VAA", zap.Error(err), zap.String("digest", h))
