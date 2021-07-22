@@ -3,6 +3,7 @@ package guardiand
 import (
 	"context"
 	"fmt"
+	publicrpcv1 "github.com/certusone/wormhole/bridge/pkg/proto/publicrpc/v1"
 	"io/ioutil"
 	"log"
 	"time"
@@ -24,9 +25,16 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
+	pf = AdminClientListNodes.Flags()
+	clientSocketPath = pf.String("socket", "", "gRPC admin server socket to connect to")
+	err = cobra.MarkFlagRequired(pf, "socket")
+	if err != nil {
+		panic(err)
+	}
 
 	AdminCmd.AddCommand(AdminClientInjectGuardianSetUpdateCmd)
 	AdminCmd.AddCommand(AdminClientGovernanceVAAVerifyCmd)
+	AdminCmd.AddCommand(AdminClientListNodes)
 }
 
 var AdminCmd = &cobra.Command{
@@ -52,6 +60,17 @@ func getAdminClient(ctx context.Context, addr string) (*grpc.ClientConn, error, 
 	return conn, err, c
 }
 
+func getPublicrpcClient(ctx context.Context, addr string) (*grpc.ClientConn, error, publicrpcv1.PublicrpcClient) {
+	conn, err := grpc.DialContext(ctx, fmt.Sprintf("unix:///%s", addr), grpc.WithInsecure())
+
+	if err != nil {
+		log.Fatalf("failed to connect to %s: %v", addr, err)
+	}
+
+	c := publicrpcv1.NewPublicrpcClient(conn)
+	return conn, err, c
+}
+
 func runInjectGovernanceVAA(cmd *cobra.Command, args []string) {
 	path := args[0]
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -59,6 +78,9 @@ func runInjectGovernanceVAA(cmd *cobra.Command, args []string) {
 
 	conn, err, c := getAdminClient(ctx, *clientSocketPath)
 	defer conn.Close()
+	if err != nil {
+		log.Fatalf("failed to get admin client: %v", err)
+	}
 
 	b, err := ioutil.ReadFile(path)
 	if err != nil {
