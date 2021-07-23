@@ -151,7 +151,7 @@ pub fn verify_signatures(
     );
 
     let signature_set = SignatureSet::<'_, { AccountState::Uninitialized }>::key(
-        &SignatureSetDerivationData { hash: hash },
+        &SignatureSetDerivationData { hash },
         &program_id,
     );
 

@@ -43,8 +43,10 @@ pub use api::{
 };
 
 pub use vaa::{
+    DeserializeGovernancePayload,
     DeserializePayload,
     PayloadMessage,
+    SerializeGovernancePayload,
     SerializePayload,
 };
 

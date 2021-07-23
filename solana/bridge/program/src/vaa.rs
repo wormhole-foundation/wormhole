@@ -39,8 +39,24 @@ use std::{
     ops::Deref,
 };
 
-pub trait SerializePayload: Sized + DeserializeGovernancePayload {
+pub trait SerializePayload: Sized {
     fn serialize<W: Write>(&self, writer: &mut W) -> std::result::Result<(), SolitaireError>;
+
+    fn try_to_vec(&self) -> std::result::Result<Vec<u8>, SolitaireError> {
+        let mut result = Vec::with_capacity(256);
+        self.serialize(&mut result)?;
+        Ok(result)
+    }
+}
+
+pub trait DeserializePayload: Sized {
+    fn deserialize(buf: &mut &[u8]) -> std::result::Result<Self, SolitaireError>;
+}
+
+pub trait SerializeGovernancePayload: SerializePayload {
+    const MODULE: &'static str;
+    const ACTION: u8;
+
     fn try_to_vec(&self) -> std::result::Result<Vec<u8>, SolitaireError> {
         let mut result = Vec::with_capacity(256);
         self.write_governance_header(&mut result)?;
@@ -62,14 +78,7 @@ pub trait SerializePayload: Sized + DeserializeGovernancePayload {
     }
 }
 
-pub trait DeserializePayload: Sized {
-    fn deserialize(buf: &mut &[u8]) -> std::result::Result<Self, SolitaireError>;
-}
-
-pub trait DeserializeGovernancePayload {
-    const MODULE: &'static str;
-    const ACTION: u8;
-
+pub trait DeserializeGovernancePayload: DeserializePayload + SerializeGovernancePayload {
     fn check_governance_header(
         c: &mut Cursor<&mut &[u8]>,
     ) -> std::result::Result<(), SolitaireError> {

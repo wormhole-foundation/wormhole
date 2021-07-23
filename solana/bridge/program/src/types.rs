@@ -1,6 +1,7 @@
 use crate::{
     api::ForeignAddress,
     vaa::{
+        SerializeGovernancePayload,
         DeserializeGovernancePayload,
         DeserializePayload,
         SerializePayload,
@@ -248,9 +249,12 @@ where
     }
 }
 
-impl DeserializeGovernancePayload for GovernancePayloadUpgrade {
+impl SerializeGovernancePayload for GovernancePayloadUpgrade {
     const MODULE: &'static str = "Core";
     const ACTION: u8 = 1;
+}
+
+impl DeserializeGovernancePayload for GovernancePayloadUpgrade {
 }
 
 pub struct GovernancePayloadGuardianSetChange {
@@ -298,9 +302,12 @@ where
     }
 }
 
-impl DeserializeGovernancePayload for GovernancePayloadGuardianSetChange {
+impl SerializeGovernancePayload for GovernancePayloadGuardianSetChange {
     const MODULE: &'static str = "Core";
     const ACTION: u8 = 2;
+}
+
+impl DeserializeGovernancePayload for GovernancePayloadGuardianSetChange {
 }
 
 pub struct GovernancePayloadSetMessageFee {
@@ -334,9 +341,12 @@ where
     }
 }
 
-impl DeserializeGovernancePayload for GovernancePayloadSetMessageFee {
+impl SerializeGovernancePayload for GovernancePayloadSetMessageFee {
     const MODULE: &'static str = "Core";
     const ACTION: u8 = 3;
+}
+
+impl DeserializeGovernancePayload for GovernancePayloadSetMessageFee {
 }
 
 pub struct GovernancePayloadTransferFees {
@@ -376,9 +386,12 @@ where
     }
 }
 
-impl DeserializeGovernancePayload for GovernancePayloadTransferFees {
+impl SerializeGovernancePayload for GovernancePayloadTransferFees {
     const MODULE: &'static str = "Core";
     const ACTION: u8 = 4;
+}
+
+impl DeserializeGovernancePayload for GovernancePayloadTransferFees {
 }
 
 #[repr(u8)]

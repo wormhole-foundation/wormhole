@@ -83,7 +83,7 @@ use bridge::{
     Initialize,
     PostVAA,
     PostVAAData,
-    SerializePayload,
+    SerializeGovernancePayload,
     Signature,
 };
 use primitive_types::U256;
