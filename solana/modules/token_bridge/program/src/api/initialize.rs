@@ -5,8 +5,9 @@ use std::ops::{Deref, DerefMut};
 
 #[derive(FromAccounts)]
 pub struct Initialize<'b> {
-    pub payer: Signer<AccountInfo<'b>>,
-    pub config: ConfigAccount<'b, { AccountState::Uninitialized }>,
+    pub payer: Mut<Signer<AccountInfo<'b>>>,
+
+    pub config: Mut<ConfigAccount<'b, { AccountState::Uninitialized }>>,
 }
 
 impl<'b> InstructionContext<'b> for Initialize<'b> {}
