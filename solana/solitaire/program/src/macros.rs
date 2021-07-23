@@ -34,14 +34,24 @@ macro_rules! solitaire {
     { $($row:ident($kind:ty) => $fn:ident),+ $(,)* } => {
         pub mod instruction {
             use super::*;
-            use borsh::{BorshDeserialize, BorshSerialize};
+            use borsh::{
+                BorshDeserialize,
+                BorshSerialize,
+            };
             use solana_program::{
                 account_info::AccountInfo,
                 entrypoint::ProgramResult,
                 program_error::ProgramError,
                 pubkey::Pubkey,
             };
-            use solitaire::{ExecutionContext, FromAccounts, Persist, Result, trace, SolitaireError};
+            use solitaire::{
+                trace,
+                ExecutionContext,
+                FromAccounts,
+                Persist,
+                Result,
+                SolitaireError,
+            };
 
             /// Generated:
             /// This Instruction contains a 1-1 mapping for each enum variant to function call. The
@@ -69,7 +79,7 @@ macro_rules! solitaire {
                     )*
 
                     _ => {
-                        Ok(())
+                        Err(SolitaireError::UnknownInstruction)
                     }
                 }
             }
