@@ -1190,6 +1190,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 
 [[package]]
+name = "hex-literal"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "21e4590e13640f19f249fe3e4eca5113bc4289f2497710378190e7f4bd96f45b"
+
+[[package]]
 name = "hidapi"
 version = "1.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3442,10 +3448,16 @@ dependencies = [
  "borsh",
  "bridge",
  "byteorder",
+ "hex",
+ "hex-literal",
+ "libsecp256k1",
  "primitive-types",
+ "rand 0.7.3",
  "rocksalt",
  "sha3",
+ "solana-client",
  "solana-program",
+ "solana-sdk",
  "solitaire",
  "solitaire-client",
  "spl-token",

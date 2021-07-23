@@ -311,7 +311,7 @@ pub fn transfer_native(
             AccountMeta::new(custody_key, false),
             AccountMeta::new_readonly(authority_signer_key, false),
             AccountMeta::new_readonly(custody_signer_key, false),
-            AccountMeta::new_readonly(bridge_config, false),
+            AccountMeta::new(bridge_config, false),
             AccountMeta::new(message_key, false),
             AccountMeta::new_readonly(emitter_key, false),
             AccountMeta::new(sequence_key, false),
@@ -461,7 +461,7 @@ pub fn attest(
             AccountMeta::new_readonly(mint, false),
             AccountMeta::new_readonly(mint_meta, false),
             // Bridge accounts
-            AccountMeta::new_readonly(bridge_config, false),
+            AccountMeta::new(bridge_config, false),
             AccountMeta::new(message_key, false),
             AccountMeta::new_readonly(emitter_key, false),
             AccountMeta::new(sequence_key, false),
