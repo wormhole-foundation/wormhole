@@ -13,18 +13,19 @@ import { ReactComponent as TerraIcon } from '~/icons/terra.svg';
 
 import './GuardiansTable.less'
 
-// TODO: find SOT for network enums
-const networkEnums = ['Terra', 'Solana', 'Ethereum']
+const networkEnums = ['', 'Solana', 'Ethereum', 'Terra']
 const networkIcons = [
-  <TerraIcon key="1" style={{ height: 18, margin: '0 4px' }} />,
+  <></>,
   <SolanaIcon key="2" style={{ height: 18, margin: '0 4px' }} />,
-  <EthereumIcon key="3" style={{ height: 24, margin: '0 4px' }} />
+  <EthereumIcon key="3" style={{ height: 24, margin: '0 4px' }} />,
+  <TerraIcon key="1" style={{ height: 18, margin: '0 4px' }} />,
 ]
 
 const expandedRowRender = (intl: IntlShape) => (item: Heartbeat) => {
   const columns: ColumnsType<Heartbeat_Network> = [
     { title: '', dataIndex: 'id', key: 'icon', render: (id: number) => networkIcons[id] },
-    { title: intl.formatMessage({ id: 'network.network' }), dataIndex: 'id', key: 'id', responsive: ['md'],
+    {
+      title: intl.formatMessage({ id: 'network.network' }), dataIndex: 'id', key: 'id', responsive: ['md'],
       render: (id: number) => networkEnums[id]
     },
     { title: intl.formatMessage({ id: 'network.address' }), dataIndex: 'bridgeAddress', key: 'bridgeAddress' },
@@ -43,15 +44,18 @@ const expandedRowRender = (intl: IntlShape) => (item: Heartbeat) => {
 
 const GuardiansTable = ({ heartbeats, intl }: { heartbeats: { [nodeName: string]: Heartbeat }, intl: IntlShape }) => {
   const columns: ColumnsType<Heartbeat> = [
-    { title: intl.formatMessage({ id: 'network.guardian' }), key: 'guardian',
+    {
+      title: intl.formatMessage({ id: 'network.guardian' }), key: 'guardian',
       render: (item: Heartbeat) => <>{item.nodeName}<br />{item.guardianAddr}</>
     },
     { title: intl.formatMessage({ id: 'network.version' }), dataIndex: 'version', key: 'version', responsive: ['lg'] },
-    { title: intl.formatMessage({ id: 'network.networks' }), dataIndex: 'networks', key: 'networks', responsive: ['md'],
+    {
+      title: intl.formatMessage({ id: 'network.networks' }), dataIndex: 'networks', key: 'networks', responsive: ['md'],
       render: (networks: Heartbeat_Network[]) => networks.map(network => networkIcons[network.id])
     },
     { title: intl.formatMessage({ id: 'network.heartbeat' }), dataIndex: 'counter', key: 'counter', responsive: ['xl'] },
-    { title: intl.formatMessage({ id: 'network.lastHeartbeat' }), dataIndex: 'timestamp', key: 'timestamp', responsive: ['sm'],
+    {
+      title: intl.formatMessage({ id: 'network.lastHeartbeat' }), dataIndex: 'timestamp', key: 'timestamp', responsive: ['sm'],
       render: (timestamp: string) =>
         <ReactTimeAgo date={new Date(Number(timestamp.slice(0, -6)))} locale={intl.locale} timeStyle="round" />
     }

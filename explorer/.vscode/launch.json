@@ -20,46 +20,65 @@
             "request": "launch",
             "protocol": "inspector",
             "program": "${workspaceRoot}/node_modules/gatsby/dist/bin/gatsby",
-            "preLaunchTask": {"type": "npm", "script": "clean"},
-            "args": ["develop"],
+            "preLaunchTask": {
+                "type": "npm",
+                "script": "clean"
+            },
+            "args": [
+                "develop"
+            ],
             "stopOnEntry": false,
-            "runtimeArgs": ["--nolazy", "--max-http-header-size=16385"],
+            "runtimeArgs": [
+                "--nolazy",
+                "--max-http-header-size=16385"
+            ],
             "sourceMaps": false,
             "env": {
                 "NODE_OPTIONS": "-r esm"
             }
-          },
-          {
+        },
+        {
             // for debugging gatsby via it's 'debug' command
             "name": "Gatsby debug",
             "type": "node",
             "request": "launch",
             "protocol": "inspector",
             "program": "${workspaceRoot}/node_modules/gatsby/dist/bin/gatsby",
-            "preLaunchTask": {"type": "npm", "script": "clean"},
-            "args": ["debug"],
+            "preLaunchTask": {
+                "type": "npm",
+                "script": "clean"
+            },
+            "args": [
+                "debug"
+            ],
             "stopOnEntry": false,
-            "runtimeArgs": ["--nolazy", "--inspect-brk"],
+            "runtimeArgs": [
+                "--nolazy",
+                "--inspect-brk"
+            ],
             "sourceMaps": false,
             "env": {
                 "NODE_OPTIONS": "-r esm"
             }
-          },
-          {
+        },
+        {
             // for debugging the gatsby build process
             "name": "Gatsby build",
             "type": "node",
             "request": "launch",
             "protocol": "inspector",
             "program": "${workspaceRoot}/node_modules/gatsby/dist/bin/gatsby",
-            "args": ["build"],
+            "args": [
+                "build"
+            ],
             "stopOnEntry": false,
             "sourceMaps": false,
             "env": {
-                "NODE_OPTIONS": "-r esm"
+                "NODE_OPTIONS": "-r esm",
+                "NODE_ENV": "production"
             }
-          },
-          {
+        },
+        {
             "type": "node",
             "request": "launch",
             "name": "translate.ts",

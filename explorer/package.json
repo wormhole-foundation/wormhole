@@ -26,7 +26,7 @@
     "setupTestFrameworkScriptFile": "<rootDir>/setup-test-env.js"
   },
   "scripts": {
-    "build": "NODE_OPTIONS='-r esm' gatsby build",
+    "build": "npm run clean && NODE_ENV=production NODE_OPTIONS='-r esm' gatsby build",
     "clean": "rm -rf public && rm -rf .cache",
     "dev": "npm run clean &&  NODE_OPTIONS='-r esm' node --max-http-header-size=16385 node_modules/.bin/gatsby develop --port=8001",
     "debug": "npm run clean && NODE_OPTIONS='-r esm' node --nolazy --inspect-brk node_modules/.bin/gatsby develop",
@@ -45,9 +45,12 @@
     "storybook": "NODE_OPTIONS='-r esm' gatsby build && NODE_OPTIONS='-r esm' start-storybook",
     "storybook:build": "NODE_OPTIONS='-r esm' gatsby build && build-storybook -c .storybook -o .out",
     "translate:deepl": "node_modules/.bin/json-autotranslate -i src/locales -d -m none --directory-structure ngx-translate --service=deepl -c",
-    "translate:google": "node_modules/.bin/json-autotranslate -i src/locales -d -m none --directory-structure ngx-translate --service=google-translate -c"
+    "translate:google": "node_modules/.bin/json-autotranslate -i src/locales -d -m none --directory-structure ngx-translate --service=google-translate -c",
+    "generate-protos": "../generate-web-protos.sh"
   },
   "dependencies": {
+    "@ant-design/icons": "^4.6.2",
+    "@fontsource/sora": "^4.5.0",
     "@improbable-eng/grpc-web": "^0.14.0",
     "@reach/router": "^1.3.1",
     "@svgr/webpack": "^5.1.0",
@@ -63,6 +66,8 @@
     "gatsby-plugin-less": "4.6.0",
     "gatsby-plugin-react-helmet": "^3.1.22",
     "gatsby-plugin-remove-serviceworker": "^1.0.0",
+    "gatsby-plugin-robots-txt": "^1.6.8",
+    "gatsby-plugin-sitemap": "^2.12.0",
     "gatsby-plugin-svgr": "^2.0.2",
     "gatsby-plugin-typescript": "^2.1.27",
     "react": "^16.12.0",

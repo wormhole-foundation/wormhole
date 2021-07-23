@@ -2,8 +2,59 @@
 @import "~antd/lib/style/themes/dark";
 
 
-.logo {
-    float: left;
-    font-size: 1.6rem;
-    font-weight: 700;
+header, header ul {
+    @media only screen and (min-width: 767px) {
+        border-bottom: 0.5px solid @border-divider-color !important;
+    }
+    @media only screen and (max-width: 767px) {
+        border: none !important;
+    }
+}
+
+svg:hover.external-icon  {
+    path {
+        fill: @primary-color;
+    }
+}
+
+.external-links-left {
+    position: fixed;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: center;
+    top: 0;
+    left: 0;
+    height: 650px;
+    width: 50px;
+    border-bottom: 0.5px solid @border-divider-color;
+    border-right: 0.5px solid @border-divider-color;
+    padding-block-end: 24px;
+    z-index: 10;
+    line-height: normal;
+
+    svg {
+        width: 26px;
+        margin: 8px;
+     }
+
+
+    @media only screen and (max-width: 767px) {
+        display:none;
+    }
+}
+.external-links-bottom {
+    left: 0px;
+    width: 100vw;
+    justify-content: space-evenly;
+
+    svg {
+        height: 26px;
+
+    }
+
+    display: none;
+    @media only screen and (max-width: 767px) {
+        display: flex;
+    }
 }

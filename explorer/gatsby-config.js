@@ -44,6 +44,33 @@ const plugins = [
       },
     },
   },
+  {
+    resolve: 'gatsby-plugin-robots-txt',
+    options: {
+      host: process.env.GATSBY_SITE_URL,
+      sitemap: `${process.env.GATSBY_SITE_URL}/sitemap.xml`,
+      policy: [{ userAgent: '*', allow: '/' }]
+    }
+  },
+  {
+    resolve: "gatsby-plugin-sitemap",
+    options: {
+      serialize: ({ site, allSitePage }) => {
+        // filter out pages that do not include a locale, along with locale specific 404 pages.
+        const edges = allSitePage.edges.filter(page => languages.some(lang => page.node.path.includes(lang)) && !page.node.path.includes('404'))
+        // return sitemap entries
+        return edges.map(page => {
+          return {
+            url: `${site.siteMetadata.siteUrl}${page.node.path}`,
+            // changefreq: `daily`,
+            // priority: 0.7,
+            // lastmod: modifiedGmt,
+          }
+        })
+      },
+      exclude: process.env.ENABLE_NETWORK_PAGE !== 'true' ? ['/*/network/'] : []
+    },
+  },
 ];
 
 // Bundle analyzer, dev only
@@ -51,4 +78,8 @@ if (process.env.ENABLE_BUNDLE_ANALYZER === '1') {
   plugins.push('gatsby-plugin-webpack-bundle-analyser-v2');
 }
 
-export { plugins };
+const siteMetadata = {
+  siteUrl: process.env.GATSBY_SITE_URL,
+}
+
+export { plugins, siteMetadata };

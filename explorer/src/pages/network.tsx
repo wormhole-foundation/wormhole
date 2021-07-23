@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Typography } from 'antd';
-const { Title } = Typography;
+import { Typography, Grid } from 'antd';
+const { Title, Paragraph } = Typography;
+const { useBreakpoint } = Grid
 import { injectIntl, WrappedComponentProps } from 'gatsby-plugin-intl';
 import { grpc } from '@improbable-eng/grpc-web';
 
@@ -13,6 +14,7 @@ import { PublicrpcGetRawHeartbeatsDesc, GetRawHeartbeatsRequest } from '~/proto/
 
 const Network = ({ intl }: WrappedComponentProps) => {
   const [heartbeats, setHeartbeats] = useState<{ [nodeName: string]: Heartbeat }>({})
+  const screens = useBreakpoint()
 
   const addHeartbeat = (hb: grpc.ProtobufMessage) => {
     const hbObj = hb.toObject() as Heartbeat
@@ -41,18 +43,22 @@ const Network = ({ intl }: WrappedComponentProps) => {
         title={intl.formatMessage({ id: 'network.title' })}
         description={intl.formatMessage({ id: 'network.description' })}
       />
-      <div style={{ margin: '1em' }}>
-        <Title level={1}>{intl.formatMessage({ id: 'network.title' })}</Title>
-        {Object.keys(heartbeats).length === 0 ?
-          <Title level={2}>
-            {intl.formatMessage({ id: 'network.listening' })}
-          </Title>
-          :
-          <Title level={2}>
-            {Object.keys(heartbeats).length}&nbsp;
-              {intl.formatMessage({ id: 'network.guardiansFound' })}
-          </Title>
-        }
+      <div
+        style={{
+          padding: screens.md === false ? 'inherit' : '48px 0 0 100px'
+        }} >
+        <div style={{ padding: screens.md === false ? '100px 0 0 16px' : '' }} >
+          <Title level={1} style={{ fontWeight: 'normal' }}>{intl.formatMessage({ id: 'network.title' })}</Title>
+          <Paragraph style={{ fontSize: 24, fontWeight: 400, lineHeight: '36px' }} type="secondary">
+            {Object.keys(heartbeats).length === 0 ? (
+              intl.formatMessage({ id: 'network.listening' })
+            ) :
+              <>
+                {Object.keys(heartbeats).length}&nbsp;
+                {intl.formatMessage({ id: 'network.guardiansFound' })}
+              </>}
+          </Paragraph>
+        </div>
         <GuardiansTable heartbeats={heartbeats} intl={intl} />
       </div>
     </Layout>

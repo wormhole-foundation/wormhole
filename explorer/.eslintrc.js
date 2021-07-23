@@ -58,6 +58,8 @@ module.exports = {
     camelcase: 0,
     // Prevents exclusion of tests from passing lint check
     'no-only-tests/no-only-tests': 'error',
+    // dont enforce semicolon usage either way
+    semi: 0
   },
 
   // https://eslint.org/docs/user-guide/configuring#report-unused-eslint-disable-comments

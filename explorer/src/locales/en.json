@@ -1,24 +1,83 @@
 {
   "homepage": {
-    "title": "Wormhole Bridge",
-    "description": "A decentralized multi-chain event protocol, for DeFi",
-    "subtext": "A new way to bridge between chains and verify layer-1 events"
+    "title": "Wormhole Network",
+    "description": "A decentralized cross-chain messaging protocol, for DeFi",
+    "subtext": "A new way to natively interact with foreign chains",
+    "openForBiz": {
+      "title": "The portal is open.",
+      "body": "Wormhole delivers new communication channels between previously siloed blockchains.",
+      "callToAction": "Explore",
+      "dataLabel": "Transactions processed",
+      "scrollDownAltText": "Go to Wormhole description"
+    },
+    "aboutUs": {
+      "heading": "How it works",
+      "body": "Wormhole is a simple, generic protocol that delivers a pathway for any kind of information—funds, votes, programs and more—from any blockchain in the network to any other.",
+      "callToAction": "About Wormhole"
+    },
+    "network": {
+      "heading": "Network",
+      "title": "A trustless protocol validated by 19 separate guardians.",
+      "body": "Our network of independent validators ensures the Wormhole protocol remains trustless and secure.",
+      "partnersAnimationAltText": "Independent validators run the Guardians that make up the network."
+    },
+    "whatWeDo": {
+      "heading": "Why",
+      "problem": "Recalculating the state of a foreign chain in a smart contract is a redundant and expensive workload.",
+      "title": "Wormhole treats canonical chain state for what it truly is - arbitrary data with well understood tamper-proofing requirements.",
+      "body": "You and your contracts just want to look stuff up. Wormhole makes it easier."
+    }
   },
   "nav": {
+    "homeLinkAltText": "homepage",
+    "aboutLink": "about",
     "networkLink": "network",
-    "codeLink": "code"
+    "codeLink": "code",
+    "discordAltText": "Go to Wormhole's Discord",
+    "githubAltText": "Go to Wormhole's Github",
+    "mediumAltText": "Go to Wormhole's Medium",
+    "telegramAltText": "Go to Wormhole's Telegram",
+    "twitterAltText": "Go to Wormhole's Twitter"
   },
   "footer": {
+    "openSource": "Open Source",
     "createdWith": "Built with"
   },
   "404": {
     "message": "The page you visited does not exist"
   },
+  "about": {
+    "title": "About Wormhole",
+    "description": "Use Wormhole for cross-chain messaging.",
+    "emailUs": "Email us",
+    "brief": {
+      "heading": "About",
+      "title": "Simple, generic, trustless, decentralized, fast.",
+      "body": "The world of blockchain is evolving daily, and evolution requires communication. "
+    },
+    "how": {
+      "body": "Wormhole builds bridges between chains, facilitating fast transfer of any kind of information from one chain to another.",
+      "stepsHeading": "How it works",
+      "steps": {
+        "1": "Send your message to Wormhole",
+        "2": "The Guardian network observes the transaction",
+        "3": "Quorum is achieved in seconds",
+        "4": "Guardians make your attested message publicly available.",
+        "5": "Access your message on a different chain"
+      },
+      "callToAction": "Documentation"
+    },
+    "readMore": {
+      "heading": "The next frontier in blockchain technology is communication.",
+      "title": "Wormhole is the protocol that makes it possible.",
+      "callToAction": "Documentation"
+    }
+  },
   "network": {
     "title": "Wormhole Network",
     "description": "The Wormhole Bridge Guardians",
     "listening": "Listening for Guardian heartbeats...",
-    "guardiansFound": "Guardians currently validating",
+    "guardiansFound": "Guardians currently broadcasting",
     "heartbeat": "Heartbeat #",
     "blockHeight": "Block height",
     "address": "Address",
