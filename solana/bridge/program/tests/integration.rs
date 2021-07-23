@@ -137,10 +137,8 @@ fn run_integration_tests() {
 
     // Tests are currently unhygienic as It's difficult to wrap `solana-test-validator` within the
     // integration tests so for now we work around it by simply chain-calling our tests.
-    test_upgrade_contract(&mut context);
     test_bridge_messages(&mut context);
     test_foreign_bridge_messages(&mut context);
-    test_persistent_bridge_messages(&mut context);
     test_invalid_emitter(&mut context);
     test_duplicate_messages_fail(&mut context);
     test_guardian_set_change(&mut context);
@@ -164,7 +162,7 @@ fn test_initialize(context: &mut Context) {
         .as_secs()
         - 10;
 
-    common::initialize(client, program, payer, &*context.public.clone(), 500, 5000);
+    common::initialize(client, program, payer, &*context.public.clone(), 500);
     common::sync(client, payer);
 
     // Verify the initial bridge state is as expected.
@@ -182,7 +180,6 @@ fn test_initialize(context: &mut Context) {
     assert_eq!(bridge.guardian_set_index, 0);
     assert_eq!(bridge.config.guardian_set_expiration_time, 2_000_000_000);
     assert_eq!(bridge.config.fee, 500);
-    assert_eq!(bridge.config.fee_persistent, 5000);
 
     // Guardian set account must also be as expected.
     assert_eq!(guardian_set.index, 0);
@@ -211,7 +208,6 @@ fn test_bridge_messages(context: &mut Context) {
             nonce,
             message.clone(),
             10_000,
-            false,
         )
         .unwrap();
 
@@ -233,7 +229,6 @@ fn test_bridge_messages(context: &mut Context) {
 
         // Verify on chain Message
         assert_eq!(posted_message.0.vaa_version, 0);
-        assert_eq!(posted_message.0.persist, false);
         assert_eq!(posted_message.0.vaa_signature_account, signature_set);
         assert_eq!(posted_message.0.nonce, nonce);
         assert_eq!(posted_message.0.sequence, sequence);
@@ -277,7 +272,6 @@ fn test_bridge_messages(context: &mut Context) {
         nonce,
         message.clone(),
         10_000,
-        false,
     )
     .unwrap();
 
@@ -299,7 +293,6 @@ fn test_bridge_messages(context: &mut Context) {
 
     // Verify on chain Message
     assert_eq!(posted_message.0.vaa_version, 0);
-    assert_eq!(posted_message.0.persist, false);
     assert_eq!(posted_message.0.vaa_signature_account, signature_set);
     assert_eq!(posted_message.0.nonce, nonce);
     assert_eq!(posted_message.0.sequence, sequence);
@@ -327,103 +320,6 @@ fn test_bridge_messages(context: &mut Context) {
         // Signature stored should on chain be as expected.
         assert_eq!(*signature, signature_bytes);
     }
-}
-
-fn test_persistent_bridge_messages(context: &mut Context) {
-    let (ref payer, ref client, ref program) = common::setup();
-
-    // Generate a message we want to persist.
-    let message = [0u8; 32].to_vec();
-    let emitter = Keypair::new();
-    let nonce = rand::thread_rng().gen();
-    let sequence = context.seq.next(emitter.pubkey().to_bytes());
-
-    // Confirm that it fails if we try and save a message while paying below the expected fee.
-    assert!(common::post_message(
-        client,
-        program,
-        payer,
-        &emitter,
-        nonce,
-        message.clone(),
-        4999,
-        true,
-    )
-    .is_err());
-
-    // Check current balance to verify the right fee is going to be taken.
-    let fee_collector = FeeCollector::key(None, &program);
-    let account_balance = client.get_account(&fee_collector).unwrap().lamports;
-
-    // Generate a message we want to persist.
-    let message = [0u8; 32].to_vec();
-    let nonce = rand::thread_rng().gen();
-
-    // This time pay enough to confirm the message succeeds.
-    let message_key = common::post_message(
-        client,
-        program,
-        payer,
-        &emitter,
-        nonce,
-        message.clone(),
-        5000,
-        true,
-    )
-    .unwrap();
-
-    // Emulate Guardian behaviour, verifying the data and publishing signatures/VAA.
-    let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 0, 1);
-    common::verify_signatures(client, program, payer, body, &context.secret, 0).unwrap();
-    common::post_vaa(client, program, payer, vaa).unwrap();
-    common::sync(client, payer);
-
-    // Derive where we expect created accounts to be.
-    let signature_set = SignatureSet::<'_, { AccountState::Uninitialized }>::key(
-        &SignatureSetDerivationData { hash: body },
-        &program,
-    );
-
-    // Fetch chain accounts to verify state.
-    let posted_message: PostedMessage = common::get_account_data(client, &message_key);
-    let signatures: SignatureSetData = common::get_account_data(client, &signature_set);
-
-    // Verify on chain Message
-    assert_eq!(posted_message.0.vaa_version, 0);
-    assert_eq!(posted_message.0.persist, true);
-    assert_eq!(posted_message.0.vaa_signature_account, signature_set);
-    assert_eq!(posted_message.0.nonce, nonce);
-    assert_eq!(posted_message.0.sequence, sequence);
-    assert_eq!(posted_message.0.emitter_chain, 1);
-    assert_eq!(posted_message.0.payload, message);
-    assert_eq!(
-        posted_message.0.emitter_address,
-        emitter.pubkey().to_bytes()
-    );
-
-    // Verify on chain Signatures
-    assert_eq!(signatures.hash, body);
-    assert_eq!(signatures.guardian_set_index, 0);
-
-    for (signature, secret_key) in signatures.signatures.iter().zip(context.secret.iter()) {
-        // Sign message locally.
-        let (local_sig, recover_id) =
-            secp256k1::sign(&Secp256k1Message::parse(&body_hash), &secret_key);
-
-        // Combine recoverify with signature to match 65 byte layout.
-        let mut signature_bytes = [0u8; 65];
-        signature_bytes[64] = recover_id.serialize();
-        (&mut signature_bytes[0..64]).copy_from_slice(&local_sig.serialize());
-
-        // Signature stored should on chain be as expected.
-        assert_eq!(*signature, signature_bytes);
-    }
-
-    // Verify fee account gained a persistent fee.
-    assert_eq!(
-        client.get_account(&fee_collector).unwrap().lamports,
-        account_balance + 5000,
-    );
 }
 
 fn test_invalid_emitter(context: &mut Context) {
@@ -445,7 +341,6 @@ fn test_invalid_emitter(context: &mut Context) {
         emitter.pubkey(),
         nonce,
         message,
-        false,
         ConsistencyLevel::Confirmed,
     )
     .unwrap();
@@ -485,7 +380,6 @@ fn test_duplicate_messages_fail(context: &mut Context) {
         nonce,
         message.clone(),
         10_000,
-        false,
     )
     .unwrap();
 
@@ -498,7 +392,6 @@ fn test_duplicate_messages_fail(context: &mut Context) {
         nonce,
         message.clone(),
         10_000,
-        false,
     )
     .is_err());
 }
@@ -535,7 +428,6 @@ fn test_guardian_set_change(context: &mut Context) {
         nonce,
         message.clone(),
         10_000,
-        false,
     )
     .unwrap();
 
@@ -570,7 +462,6 @@ fn test_guardian_set_change(context: &mut Context) {
     assert_eq!(bridge.guardian_set_index, 1);
     assert_eq!(bridge.config.guardian_set_expiration_time, 2_000_000_000);
     assert_eq!(bridge.config.fee, 500);
-    assert_eq!(bridge.config.fee_persistent, 5000);
 
     // Verify Created Guardian Set
     assert_eq!(guardian_set.index, 1);
@@ -587,7 +478,6 @@ fn test_guardian_set_change(context: &mut Context) {
         nonce,
         message.clone(),
         10_000,
-        false,
     )
     .unwrap();
 
@@ -613,7 +503,6 @@ fn test_guardian_set_change(context: &mut Context) {
 
     // Verify on chain Message
     assert_eq!(posted_message.0.vaa_version, 0);
-    assert_eq!(posted_message.0.persist, false);
     assert_eq!(posted_message.0.vaa_signature_account, signature_set);
     assert_eq!(posted_message.0.nonce, nonce);
     assert_eq!(posted_message.0.sequence, sequence);
@@ -669,7 +558,6 @@ fn test_guardian_set_change_fails(context: &mut Context) {
         nonce,
         message.clone(),
         10_000,
-        false,
     )
     .unwrap();
     let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 1, 1);
@@ -696,7 +584,6 @@ fn test_set_fees(context: &mut Context) {
     let nonce = rand::thread_rng().gen();
     let message = GovernancePayloadSetMessageFee {
         fee: U256::from(100),
-        persisted_fee: U256::from(100),
     }
     .try_to_vec()
     .unwrap();
@@ -709,7 +596,6 @@ fn test_set_fees(context: &mut Context) {
         nonce,
         message.clone(),
         10_000,
-        false,
     )
     .unwrap();
 
@@ -732,7 +618,6 @@ fn test_set_fees(context: &mut Context) {
     let fee_collector = FeeCollector::key(None, &program);
     let bridge: BridgeData = common::get_account_data(client, &bridge_key);
     assert_eq!(bridge.config.fee, 100);
-    assert_eq!(bridge.config.fee_persistent, 100);
 
     // Check that posting a new message fails with too small a fee.
     let account_balance = client.get_account(&fee_collector).unwrap().lamports;
@@ -747,7 +632,6 @@ fn test_set_fees(context: &mut Context) {
         nonce,
         message.clone(),
         50,
-        false
     )
     .is_err());
     common::sync(client, payer);
@@ -770,7 +654,6 @@ fn test_set_fees(context: &mut Context) {
         nonce,
         message.clone(),
         100,
-        false,
     )
     .unwrap();
 
@@ -797,7 +680,6 @@ fn test_set_fees(context: &mut Context) {
 
     // Verify on chain Message
     assert_eq!(posted_message.0.vaa_version, 0);
-    assert_eq!(posted_message.0.persist, false);
     assert_eq!(posted_message.0.vaa_signature_account, signature_set);
     assert_eq!(posted_message.0.nonce, nonce);
     assert_eq!(posted_message.0.sequence, sequence);
@@ -838,7 +720,6 @@ fn test_set_fees_fails(context: &mut Context) {
     let nonce = rand::thread_rng().gen();
     let message = GovernancePayloadSetMessageFee {
         fee: U256::from(100),
-        persisted_fee: U256::from(100),
     }
     .try_to_vec()
     .unwrap();
@@ -851,7 +732,6 @@ fn test_set_fees_fails(context: &mut Context) {
         nonce,
         message.clone(),
         10_000,
-        false,
     )
     .unwrap();
 
@@ -880,7 +760,6 @@ fn test_free_fees(context: &mut Context) {
     let nonce = rand::thread_rng().gen();
     let message = GovernancePayloadSetMessageFee {
         fee: U256::from(0),
-        persisted_fee: U256::from(0),
     }
     .try_to_vec()
     .unwrap();
@@ -893,7 +772,6 @@ fn test_free_fees(context: &mut Context) {
         nonce,
         message.clone(),
         10_000,
-        false,
     )
     .unwrap();
 
@@ -916,7 +794,6 @@ fn test_free_fees(context: &mut Context) {
     let fee_collector = FeeCollector::key(None, &program);
     let bridge: BridgeData = common::get_account_data(client, &bridge_key);
     assert_eq!(bridge.config.fee, 0);
-    assert_eq!(bridge.config.fee_persistent, 0);
 
     // Check that posting a new message is free.
     let account_balance = client.get_account(&fee_collector).unwrap().lamports;
@@ -932,7 +809,6 @@ fn test_free_fees(context: &mut Context) {
         nonce,
         message.clone(),
         0,
-        false,
     )
     .unwrap();
 
@@ -959,7 +835,6 @@ fn test_free_fees(context: &mut Context) {
 
     // Verify on chain Message
     assert_eq!(posted_message.0.vaa_version, 0);
-    assert_eq!(posted_message.0.persist, false);
     assert_eq!(posted_message.0.vaa_signature_account, signature_set);
     assert_eq!(posted_message.0.nonce, nonce);
     assert_eq!(posted_message.0.sequence, sequence);
@@ -1016,7 +891,6 @@ fn test_transfer_fees(context: &mut Context) {
         nonce,
         message.clone(),
         10_000,
-        false,
     )
     .unwrap();
 
@@ -1065,7 +939,6 @@ fn test_transfer_fees_fails(context: &mut Context) {
         nonce,
         message.clone(),
         10_000,
-        false,
     )
     .unwrap();
 
@@ -1112,7 +985,6 @@ fn test_transfer_too_much(context: &mut Context) {
         nonce,
         message.clone(),
         10_000,
-        false,
     )
     .unwrap();
 
@@ -1170,7 +1042,6 @@ fn test_foreign_bridge_messages(context: &mut Context) {
     let signatures: SignatureSetData = common::get_account_data(client, &signature_set);
 
     assert_eq!(posted_message.0.vaa_version, 0);
-    assert_eq!(posted_message.0.persist, false);
     assert_eq!(posted_message.0.vaa_signature_account, signature_set);
     assert_eq!(posted_message.0.nonce, nonce);
     assert_eq!(posted_message.0.sequence, sequence);
@@ -1230,7 +1101,6 @@ fn test_transfer_total_fails(context: &mut Context) {
         nonce,
         message.clone(),
         10_000,
-        false,
     )
     .unwrap();
 
@@ -1286,7 +1156,6 @@ fn test_upgrade_contract(context: &mut Context) {
         nonce,
         message.clone(),
         10_000,
-        false,
     )
     .unwrap();
 

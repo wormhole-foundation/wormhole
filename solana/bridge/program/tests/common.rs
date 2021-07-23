@@ -262,7 +262,6 @@ mod helpers {
         payer: &Keypair,
         initial_guardians: &[[u8; 20]],
         fee: u64,
-        persistent_fee: u64,
     ) -> Result<Signature, ClientError> {
         execute(
             client,
@@ -272,7 +271,6 @@ mod helpers {
                 *program,
                 payer.pubkey(),
                 fee,
-                persistent_fee,
                 2_000_000_000,
                 initial_guardians,
             )
@@ -289,7 +287,6 @@ mod helpers {
         nonce: u32,
         data: Vec<u8>,
         fee: u64,
-        persist: bool,
     ) -> Result<Pubkey, ClientError> {
         // Transfer money into the fee collector as it needs a balance/must exist.
         let fee_collector = FeeCollector::<'_>::key(None, program);
@@ -301,7 +298,6 @@ mod helpers {
             emitter.pubkey(),
             nonce,
             data,
-            persist,
             ConsistencyLevel::Confirmed,
         )
         .unwrap();
