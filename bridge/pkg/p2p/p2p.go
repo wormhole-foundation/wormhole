@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/certusone/wormhole/bridge/pkg/version"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"strings"
 	"time"
 
@@ -30,28 +31,22 @@ import (
 )
 
 var (
-	p2pHeartbeatsSent = prometheus.NewCounter(
+	p2pHeartbeatsSent = promauto.NewCounter(
 		prometheus.CounterOpts{
 			Name: "wormhole_p2p_heartbeats_sent_total",
 			Help: "Total number of p2p heartbeats sent",
 		})
-	p2pMessagesSent = prometheus.NewCounter(
+	p2pMessagesSent = promauto.NewCounter(
 		prometheus.CounterOpts{
 			Name: "wormhole_p2p_broadcast_messages_sent_total",
 			Help: "Total number of p2p pubsub broadcast messages sent",
 		})
-	p2pMessagesReceived = prometheus.NewCounterVec(
+	p2pMessagesReceived = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "wormhole_p2p_broadcast_messages_received_total",
 			Help: "Total number of p2p pubsub broadcast messages received",
 		}, []string{"type"})
 )
-
-func init() {
-	prometheus.MustRegister(p2pHeartbeatsSent)
-	prometheus.MustRegister(p2pMessagesSent)
-	prometheus.MustRegister(p2pMessagesReceived)
-}
 
 func Run(obsvC chan *gossipv1.SignedObservation,
 	sendC chan []byte,

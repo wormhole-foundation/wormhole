@@ -14,6 +14,7 @@ import (
 	"github.com/mr-tron/base58"
 	"github.com/near/borsh-go"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"go.uber.org/zap"
 	"time"
 )
@@ -26,40 +27,32 @@ type SolanaWatcher struct {
 }
 
 var (
-	solanaConnectionErrors = prometheus.NewCounterVec(
+	solanaConnectionErrors = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "wormhole_solana_connection_errors_total",
 			Help: "Total number of Solana connection errors",
 		}, []string{"reason"})
-	solanaAccountSkips = prometheus.NewCounterVec(
+	solanaAccountSkips = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "wormhole_solana_account_updates_skipped_total",
 			Help: "Total number of account updates skipped due to invalid data",
 		}, []string{"reason"})
-	solanaMessagesConfirmed = prometheus.NewCounter(
+	solanaMessagesConfirmed = promauto.NewCounter(
 		prometheus.CounterOpts{
 			Name: "wormhole_solana_observations_confirmed_total",
 			Help: "Total number of verified Solana observations found",
 		})
-	currentSolanaHeight = prometheus.NewGauge(
+	currentSolanaHeight = promauto.NewGauge(
 		prometheus.GaugeOpts{
 			Name: "wormhole_solana_current_height",
 			Help: "Current Solana slot height (at default commitment level, not the level used for observations)",
 		})
-	queryLatency = prometheus.NewHistogramVec(
+	queryLatency = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name: "wormhole_solana_query_latency",
 			Help: "Latency histogram for Solana RPC calls",
 		}, []string{"operation", "commitment"})
 )
-
-func init() {
-	prometheus.MustRegister(solanaConnectionErrors)
-	prometheus.MustRegister(solanaAccountSkips)
-	prometheus.MustRegister(solanaMessagesConfirmed)
-	prometheus.MustRegister(currentSolanaHeight)
-	prometheus.MustRegister(queryLatency)
-}
 
 func NewSolanaWatcher(wsUrl, rpcUrl string, bridgeAddress solana.PublicKey, messageEvents chan *common.MessagePublication) *SolanaWatcher {
 	return &SolanaWatcher{bridge: bridgeAddress, wsUrl: wsUrl, rpcUrl: rpcUrl, messageEvent: messageEvents}

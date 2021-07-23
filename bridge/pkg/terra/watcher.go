@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/certusone/wormhole/bridge/pkg/p2p"
 	gossipv1 "github.com/certusone/wormhole/bridge/pkg/proto/gossip/v1"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"io/ioutil"
 	"net/http"
 	"time"
@@ -36,34 +37,27 @@ type (
 )
 
 var (
-	terraConnectionErrors = prometheus.NewCounterVec(
+	terraConnectionErrors = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "wormhole_terra_connection_errors_total",
 			Help: "Total number of Terra connection errors",
 		}, []string{"reason"})
-	terraMessagesConfirmed = prometheus.NewCounter(
+	terraMessagesConfirmed = promauto.NewCounter(
 		prometheus.CounterOpts{
 			Name: "wormhole_terra_messages_confirmed_total",
 			Help: "Total number of verified terra messages found",
 		})
-	currentTerraHeight = prometheus.NewGauge(
+	currentTerraHeight = promauto.NewGauge(
 		prometheus.GaugeOpts{
 			Name: "wormhole_terra_current_height",
 			Help: "Current terra slot height (at default commitment level, not the level used for observations)",
 		})
-	queryLatency = prometheus.NewHistogramVec(
+	queryLatency = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name: "wormhole_terra_query_latency",
 			Help: "Latency histogram for terra RPC calls",
 		}, []string{"operation"})
 )
-
-func init() {
-	prometheus.MustRegister(terraConnectionErrors)
-	prometheus.MustRegister(terraMessagesConfirmed)
-	prometheus.MustRegister(currentTerraHeight)
-	prometheus.MustRegister(queryLatency)
-}
 
 type clientRequest struct {
 	JSONRPC string `json:"jsonrpc"`

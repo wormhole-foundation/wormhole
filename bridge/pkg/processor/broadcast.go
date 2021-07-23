@@ -3,6 +3,7 @@ package processor
 import (
 	"encoding/hex"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"time"
 
 	ethcommon "github.com/ethereum/go-ethereum/common"
@@ -14,16 +15,12 @@ import (
 )
 
 var (
-	observationsBroadcastTotal = prometheus.NewCounter(
+	observationsBroadcastTotal = promauto.NewCounter(
 		prometheus.CounterOpts{
 			Name: "wormhole_observations_broadcast_total",
 			Help: "Total number of signed observations queued for broadcast",
 		})
 )
-
-func init() {
-	prometheus.MustRegister(observationsBroadcastTotal)
-}
 
 func (p *Processor) broadcastSignature(v *vaa.VAA, signature []byte) {
 	digest, err := v.SigningMsg()

@@ -4,52 +4,44 @@ import (
 	"context"
 	"github.com/certusone/wormhole/bridge/pkg/common"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"time"
 
 	"go.uber.org/zap"
 )
 
 var (
-	aggregationStateEntries = prometheus.NewGauge(
+	aggregationStateEntries = promauto.NewGauge(
 		prometheus.GaugeOpts{
 			Name: "wormhole_aggregation_state_entries",
 			Help: "Current number of aggregation state entries (including unexpired succeed ones)",
 		})
-	aggregationStateExpiration = prometheus.NewCounter(
+	aggregationStateExpiration = promauto.NewCounter(
 		prometheus.CounterOpts{
 			Name: "wormhole_aggregation_state_expirations_total",
 			Help: "Total number of expired submitted aggregation states",
 		})
-	aggregationStateTimeout = prometheus.NewCounter(
+	aggregationStateTimeout = promauto.NewCounter(
 		prometheus.CounterOpts{
 			Name: "wormhole_aggregation_state_timeout_total",
 			Help: "Total number of aggregation states expired due to timeout after exhausting retries",
 		})
-	aggregationStateRetries = prometheus.NewCounter(
+	aggregationStateRetries = promauto.NewCounter(
 		prometheus.CounterOpts{
 			Name: "wormhole_aggregation_state_retries_total",
 			Help: "Total number of aggregation states queued for resubmission",
 		})
-	aggregationStateUnobserved = prometheus.NewCounter(
+	aggregationStateUnobserved = promauto.NewCounter(
 		prometheus.CounterOpts{
 			Name: "wormhole_aggregation_state_unobserved_total",
 			Help: "Total number of aggregation states expired due to no matching local message observations",
 		})
-	aggregationStateFulfillment = prometheus.NewCounterVec(
+	aggregationStateFulfillment = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "wormhole_aggregation_state_settled_signatures_total",
 			Help: "Total number of signatures produced by a validator, counted after waiting a fixed amount of time",
 		}, []string{"addr", "origin", "status"})
 )
-
-func init() {
-	prometheus.MustRegister(aggregationStateEntries)
-	prometheus.MustRegister(aggregationStateExpiration)
-	prometheus.MustRegister(aggregationStateTimeout)
-	prometheus.MustRegister(aggregationStateRetries)
-	prometheus.MustRegister(aggregationStateUnobserved)
-	prometheus.MustRegister(aggregationStateFulfillment)
-}
 
 // handleCleanup handles periodic retransmissions and cleanup of VAAs
 func (p *Processor) handleCleanup(ctx context.Context) {

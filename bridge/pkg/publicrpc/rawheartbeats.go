@@ -1,6 +1,7 @@
 package publicrpc
 
 import (
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"math/rand"
 	"sync"
 
@@ -12,16 +13,12 @@ import (
 
 // track the number of active connections
 var (
-	currentPublicHeartbeatStreamsOpen = prometheus.NewGauge(
+	currentPublicHeartbeatStreamsOpen = promauto.NewGauge(
 		prometheus.GaugeOpts{
 			Name: "wormhole_publicrpc_rawheartbeat_connections",
 			Help: "Current number of clients consuming gRPC raw heartbeat streams",
 		})
 )
-
-func init() {
-	prometheus.MustRegister(currentPublicHeartbeatStreamsOpen)
-}
 
 // RawHeartbeatConns holds the multiplexing state required for distribution of
 // heartbeat messages to all the open connections.

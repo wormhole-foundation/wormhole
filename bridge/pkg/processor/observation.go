@@ -6,6 +6,7 @@ import (
 	"fmt"
 	bridge_common "github.com/certusone/wormhole/bridge/pkg/common"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -17,46 +18,37 @@ import (
 )
 
 var (
-	observationsReceivedTotal = prometheus.NewCounter(
+	observationsReceivedTotal = promauto.NewCounter(
 		prometheus.CounterOpts{
 			Name: "wormhole_observations_received_total",
 			Help: "Total number of raw VAA observations received from gossip",
 		})
-	observationsReceivedByGuardianAddressTotal = prometheus.NewCounterVec(
+	observationsReceivedByGuardianAddressTotal = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "wormhole_observations_signed_by_guardian_total",
 			Help: "Total number of signed and verified VAA observations grouped by guardian address",
 		}, []string{"addr"})
-	observationsFailedTotal = prometheus.NewCounterVec(
+	observationsFailedTotal = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "wormhole_observations_verification_failures_total",
 			Help: "Total number of observations verification failure, grouped by failure reason",
 		}, []string{"cause"})
-	observationsUnknownTotal = prometheus.NewCounter(
+	observationsUnknownTotal = promauto.NewCounter(
 		prometheus.CounterOpts{
 			Name: "wormhole_observations_unknown_total",
 			Help: "Total number of verified observations we haven't seen ourselves",
 		})
-	observationsDirectSubmissionsTotal = prometheus.NewCounterVec(
+	observationsDirectSubmissionsTotal = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "wormhole_observations_direct_submissions_queued_total",
 			Help: "Total number of observations for a specific target chain that were queued for direct submission",
 		}, []string{"target_chain"})
-	observationsDirectSubmissionSuccessTotal = prometheus.NewCounterVec(
+	observationsDirectSubmissionSuccessTotal = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "wormhole_observations_direct_submission_success_total",
 			Help: "Total number of observations for a specific target chain that succeeded",
 		}, []string{"target_chain"})
 )
-
-func init() {
-	prometheus.MustRegister(observationsReceivedTotal)
-	prometheus.MustRegister(observationsReceivedByGuardianAddressTotal)
-	prometheus.MustRegister(observationsFailedTotal)
-	prometheus.MustRegister(observationsUnknownTotal)
-	prometheus.MustRegister(observationsDirectSubmissionsTotal)
-	prometheus.MustRegister(observationsDirectSubmissionSuccessTotal)
-}
 
 // handleObservation processes a remote VAA observation, verifies it, checks whether the VAA has met quorum,
 // and assembles and submits a valid VAA if possible.

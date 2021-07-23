@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"go.uber.org/zap"
@@ -17,25 +18,20 @@ var (
 	// SECURITY: source_chain/target_chain are untrusted uint8 values. An attacker could cause a maximum of 255**2 label
 	// pairs to be created, which is acceptable.
 
-	messagesObservedTotal = prometheus.NewCounterVec(
+	messagesObservedTotal = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "wormhole_message_observations_total",
 			Help: "Total number of messages observed",
 		},
 		[]string{"emitter_chain"})
 
-	messagesSignedTotal = prometheus.NewCounterVec(
+	messagesSignedTotal = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "wormhole_message_observations_signed_total",
 			Help: "Total number of message observations that were successfully signed",
 		},
 		[]string{"emitter_chain"})
 )
-
-func init() {
-	prometheus.MustRegister(messagesObservedTotal)
-	prometheus.MustRegister(messagesSignedTotal)
-}
 
 // handleMessage processes a message received from a chain and instantiates our deterministic copy of the VAA. An
 // event may be received multiple times and must be handled in an idempotent fashion.

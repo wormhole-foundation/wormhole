@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/certusone/wormhole/bridge/pkg/p2p"
 	gossipv1 "github.com/certusone/wormhole/bridge/pkg/proto/gossip/v1"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"math/big"
 	"sync"
 	"time"
@@ -25,47 +26,38 @@ import (
 )
 
 var (
-	ethConnectionErrors = prometheus.NewCounterVec(
+	ethConnectionErrors = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "wormhole_eth_connection_errors_total",
 			Help: "Total number of Ethereum connection errors (either during initial connection or while watching)",
 		}, []string{"reason"})
 
-	ethMessagesObserved = prometheus.NewCounter(
+	ethMessagesObserved = promauto.NewCounter(
 		prometheus.CounterOpts{
 			Name: "wormhole_eth_messages_observed_total",
 			Help: "Total number of Eth messages observed (pre-confirmation)",
 		})
-	ethMessagesConfirmed = prometheus.NewCounter(
+	ethMessagesConfirmed = promauto.NewCounter(
 		prometheus.CounterOpts{
 			Name: "wormhole_eth_messages_confirmed_total",
 			Help: "Total number of Eth messages verified (post-confirmation)",
 		})
-	guardianSetChangesConfirmed = prometheus.NewCounter(
+	guardianSetChangesConfirmed = promauto.NewCounter(
 		prometheus.CounterOpts{
 			Name: "wormhole_eth_guardian_set_changes_confirmed_total",
 			Help: "Total number of guardian set changes verified (we only see confirmed ones to begin with)",
 		})
-	currentEthHeight = prometheus.NewGauge(
+	currentEthHeight = promauto.NewGauge(
 		prometheus.GaugeOpts{
 			Name: "wormhole_eth_current_height",
 			Help: "Current Ethereum block height",
 		})
-	queryLatency = prometheus.NewHistogramVec(
+	queryLatency = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name: "wormhole_eth_query_latency",
 			Help: "Latency histogram for Ethereum calls (note that most interactions are streaming queries, NOT calls, and we cannot measure latency for those",
 		}, []string{"operation"})
 )
-
-func init() {
-	prometheus.MustRegister(ethConnectionErrors)
-	prometheus.MustRegister(ethMessagesObserved)
-	prometheus.MustRegister(ethMessagesConfirmed)
-	prometheus.MustRegister(guardianSetChangesConfirmed)
-	prometheus.MustRegister(currentEthHeight)
-	prometheus.MustRegister(queryLatency)
-}
 
 type (
 	EthBridgeWatcher struct {
