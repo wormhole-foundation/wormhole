@@ -50,8 +50,8 @@ pub use vaa::{
     SerializePayload,
 };
 
-const MAX_LEN_GUARDIAN_KEYS: usize = 19;
-const CHAIN_ID_SOLANA: u16 = 1;
+pub const MAX_LEN_GUARDIAN_KEYS: usize = 19;
+pub const CHAIN_ID_SOLANA: u16 = 1;
 
 solitaire! {
     Initialize(InitializeData)                  => initialize,
