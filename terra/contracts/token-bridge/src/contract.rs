@@ -270,14 +270,20 @@ fn handle_governance_payload<S: Storage, A: Api, Q: Querier>(
     let gov_packet = GovernancePacket::deserialize(&data)?;
 
     let module = String::from_utf8(gov_packet.module).unwrap();
-    let module: String = module.chars().filter(|c| !c.is_whitespace()).collect();
+    let module: String = module.chars().filter(|c| c != &'\0').collect();
 
-    if module != "token_bridge" {
+    if module != "TokenBridge" {
         return Err(StdError::generic_err("this is not a valid module"));
     }
 
+    if gov_packet.chain != 0 && gov_packet.chain != CHAIN_ID {
+        return Err(StdError::generic_err(
+            "the governance VAA is for another chain",
+        ));
+    }
+
     match gov_packet.action {
-        0u8 => handle_register_chain(deps, env, &gov_packet.payload),
+        1u8 => handle_register_chain(deps, env, &gov_packet.payload),
         _ => ContractError::InvalidVAAAction.std_err(),
     }
 }
