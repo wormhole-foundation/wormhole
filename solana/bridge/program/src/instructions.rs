@@ -1,4 +1,3 @@
-use std::str::FromStr;
 use borsh::BorshSerialize;
 use solana_program::{
     instruction::{
@@ -8,6 +7,7 @@ use solana_program::{
     pubkey::Pubkey,
     sysvar,
 };
+use std::str::FromStr;
 
 use solitaire::{
     processors::seeded::Seeded,
@@ -27,7 +27,6 @@ use crate::{
         Sequence,
         SequenceDerivationData,
         SignatureSet,
-        SignatureSetDerivationData,
     },
     types::ConsistencyLevel,
     InitializeData,
@@ -140,7 +139,7 @@ pub fn verify_signatures(
     program_id: Pubkey,
     payer: Pubkey,
     guardian_set_index: u32,
-    hash: [u8; 32],
+    signature_set: Pubkey,
     data: VerifySignaturesData,
 ) -> solitaire::Result<Instruction> {
     let guardian_set = GuardianSet::<'_, { AccountState::Uninitialized }>::key(
@@ -150,18 +149,13 @@ pub fn verify_signatures(
         &program_id,
     );
 
-    let signature_set = SignatureSet::<'_, { AccountState::Uninitialized }>::key(
-        &SignatureSetDerivationData { hash },
-        &program_id,
-    );
-
     Ok(Instruction {
         program_id,
 
         accounts: vec![
             AccountMeta::new(payer, true),
             AccountMeta::new_readonly(guardian_set, false),
-            AccountMeta::new(signature_set, false),
+            AccountMeta::new(signature_set, true),
             AccountMeta::new_readonly(sysvar::instructions::id(), false),
             AccountMeta::new_readonly(sysvar::rent::id(), false),
             AccountMeta::new_readonly(solana_program::system_program::id(), false),
@@ -171,18 +165,16 @@ pub fn verify_signatures(
     })
 }
 
-pub fn post_vaa(program_id: Pubkey, payer: Pubkey, vaa: PostVAAData) -> Instruction {
+pub fn post_vaa(
+    program_id: Pubkey,
+    payer: Pubkey,
+    signature_set: Pubkey,
+    vaa: PostVAAData,
+) -> Instruction {
     let bridge = Bridge::<'_, { AccountState::Uninitialized }>::key(None, &program_id);
     let guardian_set = GuardianSet::<'_, { AccountState::Uninitialized }>::key(
         &GuardianSetDerivationData {
             index: vaa.guardian_set_index,
-        },
-        &program_id,
-    );
-
-    let signature_set = SignatureSet::<'_, { AccountState::Uninitialized }>::key(
-        &SignatureSetDerivationData {
-            hash: hash_vaa(&vaa),
         },
         &program_id,
     );

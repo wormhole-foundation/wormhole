@@ -3,8 +3,10 @@ use solitaire::*;
 use solana_program::{
     program::invoke_signed,
     pubkey::Pubkey,
-    sysvar::rent::Rent,
-    sysvar::clock::Clock,
+    sysvar::{
+        clock::Clock,
+        rent::Rent,
+    },
 };
 use solitaire::{
     processors::seeded::Seeded,

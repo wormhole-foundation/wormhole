@@ -1,9 +1,9 @@
 use crate::{
     api::ForeignAddress,
     vaa::{
-        SerializeGovernancePayload,
         DeserializeGovernancePayload,
         DeserializePayload,
+        SerializeGovernancePayload,
         SerializePayload,
     },
 };

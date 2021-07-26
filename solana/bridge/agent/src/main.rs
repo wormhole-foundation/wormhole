@@ -130,11 +130,11 @@ impl Agent for AgentImpl {
                 payload: vaa.payload.clone(),
             };
 
-            let verify_txs =
+            let (verify_txs, signature_set) =
                 pack_sig_verification_txs(&rpc, &bridge, &post_data, &vaa.signatures, &key)?;
 
             // Strip signatures
-            let ix = post_vaa(bridge, key.pubkey(), post_data);
+            let ix = post_vaa(bridge, key.pubkey(), signature_set, post_data);
 
             for mut tx in verify_txs {
                 match sign_and_send(&rpc, &mut tx, vec![&key], request.get_ref().skip_preflight) {
@@ -204,7 +204,8 @@ fn pack_sig_verification_txs<'a>(
     vaa: &PostVAAData,
     signatures: &Vec<service::Signature>,
     sender_keypair: &'a Keypair,
-) -> Result<Vec<Transaction>, Status> {
+) -> Result<(Vec<Transaction>, Pubkey), Status> {
+    let signature_set = Keypair::new();
     // Load guardian set
     let guardian_key = GuardianSet::<'_, { AccountState::Initialized }>::key(
         &GuardianSetDerivationData {
@@ -293,7 +294,7 @@ fn pack_sig_verification_txs<'a>(
             *bridge,
             sender_keypair.pubkey(),
             vaa.guardian_set_index,
-            body_hash,
+            signature_set.pubkey(),
             payload,
         ) {
             Ok(v) => v,
@@ -311,7 +312,7 @@ fn pack_sig_verification_txs<'a>(
         ))
     }
 
-    Ok(verify_txs)
+    Ok((verify_txs, signature_set.pubkey()))
 }
 
 fn sign_and_send(

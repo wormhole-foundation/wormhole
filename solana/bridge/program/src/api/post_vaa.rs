@@ -17,7 +17,6 @@ use crate::{
         Message,
         MessageDerivationData,
         SignatureSet,
-        SignatureSetDerivationData,
     },
     error::Error::{
         GuardianSetMismatch,
@@ -43,14 +42,6 @@ use std::io::{
     Cursor,
     Write,
 };
-
-impl<'a> From<&PostVAA<'a>> for SignatureSetDerivationData {
-    fn from(accs: &PostVAA<'a>) -> Self {
-        SignatureSetDerivationData {
-            hash: accs.signature_set.hash,
-        }
-    }
-}
 
 impl From<&PostVAAData> for GuardianSetDerivationData {
     fn from(data: &PostVAAData) -> Self {
@@ -82,9 +73,7 @@ pub struct PostVAA<'b> {
 }
 
 impl<'b> InstructionContext<'b> for PostVAA<'b> {
-    fn verify(&self, program_id: &Pubkey) -> Result<()> {
-        self.signature_set
-            .verify_derivation(program_id, &self.into())?;
+    fn verify(&self, _program_id: &Pubkey) -> Result<()> {
         Ok(())
     }
 }

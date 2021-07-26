@@ -69,7 +69,6 @@ use bridge::{
         Sequence,
         SequenceDerivationData,
         SignatureSet,
-        SignatureSetDerivationData,
     },
     instruction,
     instructions,
@@ -323,7 +322,9 @@ mod helpers {
         body: [u8; 32],
         secret_keys: &[SecretKey],
         guardian_set_version: u32,
-    ) -> Result<(), ClientError> {
+    ) -> Result<Pubkey, ClientError> {
+        let signature_set = Keypair::new();
+        let tx_signers = &[payer, &signature_set];
         // Push Secp256k1 instructions for each signature we want to verify.
         for (i, key) in secret_keys.iter().enumerate() {
             // Set this signers signature position as present at 0.
@@ -333,14 +334,14 @@ mod helpers {
             execute(
                 client,
                 payer,
-                &[payer],
+                tx_signers,
                 &vec![
                     new_secp256k1_instruction(&key, &body),
                     instructions::verify_signatures(
                         *program,
                         payer.pubkey(),
                         guardian_set_version,
-                        body,
+                        signature_set.pubkey(),
                         VerifySignaturesData { signers },
                     )
                     .unwrap(),
@@ -348,20 +349,26 @@ mod helpers {
                 CommitmentConfig::processed(),
             )?;
         }
-        Ok(())
+        Ok(signature_set.pubkey())
     }
 
     pub fn post_vaa(
         client: &RpcClient,
         program: &Pubkey,
         payer: &Keypair,
+        signature_set: Pubkey,
         vaa: PostVAAData,
     ) -> Result<Signature, ClientError> {
         execute(
             client,
             payer,
             &[payer],
-            &[instructions::post_vaa(*program, payer.pubkey(), vaa)],
+            &[instructions::post_vaa(
+                *program,
+                payer.pubkey(),
+                signature_set,
+                vaa,
+            )],
             CommitmentConfig::processed(),
         )
     }

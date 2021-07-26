@@ -5,7 +5,6 @@ use crate::{
         GuardianSet,
         GuardianSetDerivationData,
         SignatureSet,
-        SignatureSetDerivationData,
     },
     error::Error::{
         GuardianSetMismatch,
@@ -31,7 +30,7 @@ pub struct VerifySignatures<'b> {
     pub guardian_set: GuardianSet<'b, { AccountState::Initialized }>,
 
     /// Signature Account
-    pub signature_set: Mut<SignatureSet<'b, { AccountState::MaybeInitialized }>>,
+    pub signature_set: Mut<Signer<SignatureSet<'b, { AccountState::MaybeInitialized }>>>,
 
     /// Instruction reflection account (special sysvar)
     pub instruction_acc: Info<'b>,
@@ -45,12 +44,6 @@ impl From<&VerifySignatures<'_>> for GuardianSetDerivationData {
         GuardianSetDerivationData {
             index: data.guardian_set.index,
         }
-    }
-}
-
-impl From<[u8; 32]> for SignatureSetDerivationData {
-    fn from(hash: [u8; 32]) -> Self {
-        SignatureSetDerivationData { hash }
     }
 }
 
@@ -182,17 +175,20 @@ pub fn verify_signatures(
     let mut msg_hash: [u8; 32] = [0u8; 32];
     msg_hash.copy_from_slice(message);
 
-    // Confirm at this point that the derivation succeeds, we didn't have a signature set with the
-    // correct hash until this point.
-    accs.signature_set
-        .verify_derivation(ctx.program_id, &msg_hash.into())?;
-
     if !accs.signature_set.is_initialized() {
         accs.signature_set.signatures = vec![[0u8; 65]; 19];
         accs.signature_set.guardian_set_index = accs.guardian_set.index;
         accs.signature_set.hash = msg_hash;
-        accs.signature_set
-            .create(&msg_hash.into(), ctx, accs.payer.key, Exempt)?;
+
+        let size = accs.signature_set.size();
+        let ix = solana_program::system_instruction::create_account(
+            accs.payer.key,
+            accs.signature_set.info().key,
+            Exempt.amount(size),
+            size as u64,
+            ctx.program_id,
+        );
+        solana_program::program::invoke(&ix, ctx.accounts)?;
     } else {
         // If the account already existed, check that the parameters match
         if accs.signature_set.guardian_set_index != accs.guardian_set.index {
