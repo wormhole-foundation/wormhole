@@ -11,6 +11,12 @@ pub mod vaa;
 #[cfg(feature = "no-entrypoint")]
 pub mod instructions;
 
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+extern crate wasm_bindgen;
+
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+pub mod wasm;
+
 use solitaire::*;
 
 pub use api::{

@@ -9,9 +9,18 @@ use solana_program::{
 };
 use std::str::FromStr;
 
+use byteorder::{
+    BigEndian,
+    WriteBytesExt,
+};
+use sha3::Digest;
 use solitaire::{
     processors::seeded::Seeded,
     AccountState,
+};
+use std::io::{
+    Cursor,
+    Write,
 };
 
 use crate::{
@@ -398,15 +407,6 @@ pub fn transfer_fees(
 // Convert a full VAA structure into the serialization of its unique components, this structure is
 // what is hashed and verified by Guardians.
 pub fn serialize_vaa(vaa: &PostVAAData) -> Vec<u8> {
-    use byteorder::{
-        BigEndian,
-        WriteBytesExt,
-    };
-    use std::io::{
-        Cursor,
-        Write,
-    };
-
     let mut v = Cursor::new(Vec::new());
     v.write_u32::<BigEndian>(vaa.timestamp).unwrap();
     v.write_u32::<BigEndian>(vaa.nonce).unwrap();
@@ -420,9 +420,6 @@ pub fn serialize_vaa(vaa: &PostVAAData) -> Vec<u8> {
 
 // Hash a VAA, this combines serialization and hashing.
 pub fn hash_vaa(vaa: &PostVAAData) -> [u8; 32] {
-    use sha3::Digest;
-    use std::io::Write;
-
     let body = serialize_vaa(vaa);
     let mut h = sha3::Keccak256::default();
     h.write(body.as_slice()).unwrap();

@@ -36,8 +36,12 @@ use std::{
     },
     str::FromStr,
 };
+use serde::{
+    Deserialize,
+    Serialize,
+};
 
-#[derive(Default, BorshSerialize, BorshDeserialize)]
+#[derive(Default, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
 pub struct GuardianSetData {
     /// Version number of this guardian set.
     pub index: u32,
@@ -65,7 +69,7 @@ impl Owned for GuardianSetData {
     }
 }
 
-#[derive(Default, BorshSerialize, BorshDeserialize)]
+#[derive(Default, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
 pub struct BridgeConfig {
     /// Period for how long a guardian set is valid after it has been replaced by a new one.  This
     /// guarantees that VAAs issued by that set can still be submitted for a certain period.  In
@@ -76,7 +80,7 @@ pub struct BridgeConfig {
     pub fee: u64,
 }
 
-#[derive(Default, BorshSerialize, BorshDeserialize)]
+#[derive(Default, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
 pub struct BridgeData {
     /// The current guardian set index, used to decide which signature sets to accept.
     pub guardian_set_index: u32,
@@ -157,7 +161,7 @@ impl Clone for PostedMessage {
     }
 }
 
-#[derive(Default, BorshSerialize, BorshDeserialize, Clone)]
+#[derive(Default, BorshSerialize, BorshDeserialize, Clone, Serialize, Deserialize)]
 pub struct PostedMessageData {
     /// Header of the posted VAA
     pub vaa_version: u8,
@@ -209,7 +213,7 @@ impl Owned for SequenceTracker {
     }
 }
 
-#[derive(Default, Clone, Copy, BorshDeserialize, BorshSerialize)]
+#[derive(Default, Clone, Copy, BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
 pub struct ClaimData {
     pub claimed: bool,
 }
@@ -233,8 +237,8 @@ impl SerializePayload for GovernancePayloadUpgrade {
 }
 
 impl DeserializePayload for GovernancePayloadUpgrade
-where
-    Self: DeserializeGovernancePayload,
+    where
+        Self: DeserializeGovernancePayload,
 {
     fn deserialize(buf: &mut &[u8]) -> Result<Self, SolitaireError> {
         let mut c = Cursor::new(buf);
@@ -278,8 +282,8 @@ impl SerializePayload for GovernancePayloadGuardianSetChange {
 }
 
 impl DeserializePayload for GovernancePayloadGuardianSetChange
-where
-    Self: DeserializeGovernancePayload,
+    where
+        Self: DeserializeGovernancePayload,
 {
     fn deserialize(buf: &mut &[u8]) -> Result<Self, SolitaireError> {
         let mut c = Cursor::new(buf);
@@ -326,8 +330,8 @@ impl SerializePayload for GovernancePayloadSetMessageFee {
 }
 
 impl DeserializePayload for GovernancePayloadSetMessageFee
-where
-    Self: DeserializeGovernancePayload,
+    where
+        Self: DeserializeGovernancePayload,
 {
     fn deserialize(buf: &mut &[u8]) -> Result<Self, SolitaireError> {
         let mut c = Cursor::new(buf);
@@ -368,8 +372,8 @@ impl SerializePayload for GovernancePayloadTransferFees {
 }
 
 impl DeserializePayload for GovernancePayloadTransferFees
-where
-    Self: DeserializeGovernancePayload,
+    where
+        Self: DeserializeGovernancePayload,
 {
     fn deserialize(buf: &mut &[u8]) -> Result<Self, SolitaireError> {
         let mut c = Cursor::new(buf);
@@ -395,7 +399,7 @@ impl DeserializeGovernancePayload for GovernancePayloadTransferFees {
 }
 
 #[repr(u8)]
-#[derive(BorshSerialize, BorshDeserialize, Clone)]
+#[derive(BorshSerialize, BorshDeserialize, Clone, Serialize, Deserialize)]
 pub enum ConsistencyLevel {
     Confirmed,
     Finalized,

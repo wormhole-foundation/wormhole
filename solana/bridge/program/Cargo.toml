@@ -21,8 +21,10 @@ byteorder = "1.4.3"
 primitive-types = { version = "0.9.0", default-features = false }
 sha3 = "0.9.1"
 solana-program = "=1.7.0"
-solitaire-client = { path = "../../solitaire/client", optional = true}
-solitaire = { path = "../../solitaire/program"}
+solitaire-client = { path = "../../solitaire/client", optional = true }
+solitaire = { path = "../../solitaire/program" }
+wasm-bindgen = { version = "0.2.74", features = ["serde-serialize"] }
+serde = { version = "1.0", features = ["derive"] }
 
 [dev-dependencies]
 hex = "*"

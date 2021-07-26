@@ -1,0 +1,17 @@
+# syntax=docker.io/docker/dockerfile:experimental@sha256:de85b2f3a3e8a2f7fe48e8e84a65f6fdd5cd5183afa6412fff9caa6871649c44
+FROM docker.io/library/rust:1.49@sha256:a50165ea96983c21832578afb1c8c028674c965bc1ed43b607871b1f362e06a5
+
+RUN apt-get update && apt-get install -y libssl-dev libudev-dev pkg-config zlib1g-dev llvm clang
+RUN rustup component add rustfmt
+RUN rustup default nightly
+
+WORKDIR /usr/src/bridge
+
+RUN cargo install wasm-pack
+
+ENV RUST_LOG="solana_runtime::system_instruction_processor=trace,solana_runtime::message_processor=trace,solana_bpf_loader=debug,solana_rbpf=debug"
+ENV EMITTER_ADDRESS="11111111111111111111111111111115"
+
+COPY bridge bridge
+COPY modules modules
+COPY solitaire solitaire

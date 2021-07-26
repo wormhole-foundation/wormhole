@@ -38,6 +38,8 @@ use std::{
     },
     ops::Deref,
 };
+use crate::api::ForeignAddress;
+use serde::{Deserialize, Serialize};
 
 pub trait SerializePayload: Sized {
     fn serialize<W: Write>(&self, writer: &mut W) -> std::result::Result<(), SolitaireError>;
@@ -109,8 +111,8 @@ pub struct PayloadMessage<'b, T: DeserializePayload>(
 
 impl<'a, 'b: 'a, 'c, T: DeserializePayload> Peel<'a, 'b, 'c> for PayloadMessage<'b, T> {
     fn peel<I>(ctx: &'c mut Context<'a, 'b, 'c, I>) -> Result<Self>
-    where
-        Self: Sized,
+        where
+            Self: Sized,
     {
         // Deserialize wrapped payload
         let data: Data<'b, PostedMessage, { AccountState::Initialized }> = Data::peel(ctx)?;
@@ -199,5 +201,75 @@ impl<'b, T: DeserializePayload> ClaimableVAA<'b, T> {
         self.claim.claimed = true;
 
         Ok(())
+    }
+}
+
+pub struct SignatureItem {
+    pub signature: Vec<u8>,
+    pub key: [u8; 20],
+    pub index: u8,
+}
+
+#[derive(Serialize, Deserialize, Default)]
+pub struct VAASignature {
+    pub signature: Vec<u8>,
+    pub guardian_index: u8,
+}
+
+#[derive(Serialize, Deserialize, Default)]
+pub struct VAA {
+    // Header part
+    pub version: u8,
+    pub guardian_set_index: u32,
+    pub signatures: Vec<VAASignature>,
+    // Body part
+    pub timestamp: u32,
+    pub nonce: u32,
+    pub emitter_chain: u16,
+    pub emitter_address: ForeignAddress,
+    pub sequence: u64,
+    pub consistency_level: u8,
+    pub payload: Vec<u8>,
+}
+
+impl VAA {
+    pub const HEADER_LEN: usize = 6;
+    pub const SIGNATURE_LEN: usize = 66;
+
+    pub fn deserialize(data: &[u8]) -> std::result::Result<VAA, std::io::Error> {
+        let mut rdr = Cursor::new(data);
+        let mut v = VAA::default();
+
+        v.version = rdr.read_u8()?;
+        v.guardian_set_index = rdr.read_u32::<BigEndian>()?;
+
+        let len_sig = rdr.read_u8()?;
+        let mut sigs: Vec<VAASignature> = Vec::with_capacity(len_sig as usize);
+        for _i in 0..len_sig {
+            let mut sig = VAASignature::default();
+
+            sig.guardian_index = rdr.read_u8()?;
+            let mut signature_data = [0u8; 65];
+            rdr.read_exact(&mut signature_data)?;
+            sig.signature = signature_data.to_vec();
+
+            sigs.push(sig);
+        }
+        v.signatures = sigs;
+
+        v.timestamp = rdr.read_u32::<BigEndian>()?;
+        v.nonce = rdr.read_u32::<BigEndian>()?;
+        v.emitter_chain = rdr.read_u16::<BigEndian>()?;
+
+        let mut emitter_address = [0u8; 32];
+        rdr.read_exact(&mut emitter_address)?;
+        v.emitter_address = emitter_address;
+
+        v.sequence = rdr.read_u64::<BigEndian>()?;
+        v.consistency_level = rdr.read_u8()?;
+
+        rdr.read_to_end(&mut v.payload)?;
+
+        Ok(v)
     }
 }
