@@ -114,10 +114,13 @@ func writeGuardianKey(key *ecdsa.PrivateKey, description string, filename string
 		return fmt.Errorf("failed to open file: %w", err)
 	}
 
-	a, err := armor.Encode(f, GuardianKeyArmoredBlock, map[string]string{
-		"Description": description,
-		"PublicKey":   ethcrypto.PubkeyToAddress(key.PublicKey).String(),
-	})
+	headers := map[string]string{
+		"PublicKey": ethcrypto.PubkeyToAddress(key.PublicKey).String(),
+	}
+	if description != "" {
+		headers["Description"] = description
+	}
+	a, err := armor.Encode(f, GuardianKeyArmoredBlock, headers)
 	if err != nil {
 		panic(err)
 	}
