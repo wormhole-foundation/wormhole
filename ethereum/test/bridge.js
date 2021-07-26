@@ -79,7 +79,10 @@ contract("Bridge", function () {
         const accounts = await web3.eth.getAccounts();
 
         let data = [
-            "0x03",
+            "0x",
+            "000000000000000000000000000000000000000000546f6b656e427269646765",
+            "01",
+            "0000",
             web3.eth.abi.encodeParameter("uint16", testForeignChainId).substring(2 + (64 - 4)),
             web3.eth.abi.encodeParameter("bytes32", testForeignBridgeContract).substring(2),
         ].join('')
@@ -121,7 +124,9 @@ contract("Bridge", function () {
         const mock = await MockBridgeImplementation.new();
 
         let data = [
-            "0x04",
+            "0x",
+            "000000000000000000000000000000000000000000546f6b656e427269646765",
+            "02",
             web3.eth.abi.encodeParameter("uint16", testChainId).substring(2 + (64 - 4)),
             web3.eth.abi.encodeParameter("address", mock.address).substring(2),
         ].join('')
