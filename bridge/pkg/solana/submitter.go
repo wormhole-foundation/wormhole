@@ -145,7 +145,18 @@ func (e *SolanaVAASubmitter) Run(ctx context.Context) error {
 						// This VAA has already been executed on chain, successfully or not.
 						// TODO: dissect InstructionError in agent and convert this to the proper gRPC code
 						if strings.Contains(st.Message(), "custom program error: 0xb") { // AlreadyExists
+							solanaConnectionErrors.WithLabelValues("postvaa_already_exists").Inc()
 							logger.Info("VAA already submitted on-chain, ignoring", zap.Error(err), zap.String("digest", h))
+							break
+						}
+
+						if strings.Contains(st.Message(), "tx sending failed: unable to confirm transaction") { // Unavailable
+							solanaConnectionErrors.WithLabelValues("postvaa_tx_sending_failed").Inc()
+							logger.Error("tx sending failed, requeuing VAA", zap.Error(err), zap.String("digest", h))
+							go func(v *vaa.VAA) {
+								time.Sleep(1 * time.Second)
+								e.vaaChan <- v
+							}(v)
 							break
 						}
 
