@@ -131,7 +131,8 @@ Other advantages of Gerrit include:
 
 ### Quickstart
 
-You can log into Gerrit using your GitHub or Google account.
+You can log into Gerrit using your Google account. **If you're contributing on behalf of a company, make
+sure that your Git email address reflects your affiliation!**
 
 First, add your SSH keys to Gerrit in your [profile settings](https://forge.certus.one/settings/#SSHKeys).
 Alternatively, you can generate an HTTP Password and store it in your [Git credentials store of
