@@ -100,6 +100,7 @@ pub fn execute(
 }
 
 mod helpers {
+    use bridge::types::PostedMessage;
     use token_bridge::{CompleteNativeData, TransferNativeData};
 
     use super::*;
@@ -165,6 +166,98 @@ mod helpers {
                 50,
                 2_000_000_000,
                 initial_guardians,
+            )
+            .unwrap()],
+            CommitmentConfig::processed(),
+        )
+    }
+
+    pub fn transfer(
+        client: &RpcClient,
+        from: &Keypair,
+        to: &Pubkey,
+        lamports: u64,
+    ) -> Result<Signature, ClientError> {
+        execute(
+            client,
+            from,
+            &[from],
+            &[system_instruction::transfer(&from.pubkey(), to, lamports)],
+            CommitmentConfig::processed(),
+        )
+    }
+
+    pub fn initialize(
+        client: &RpcClient,
+        program: &Pubkey,
+        payer: &Keypair,
+        bridge: &Pubkey,
+    ) -> Result<Signature, ClientError> {
+        execute(
+            client,
+            payer,
+            &[payer],
+            &[instructions::initialize(*program, payer.pubkey(), *bridge).unwrap()],
+            CommitmentConfig::processed(),
+        )
+    }
+
+    pub fn attest(
+        client: &RpcClient,
+        program: &Pubkey,
+        bridge: &Pubkey,
+        payer: &Keypair,
+        mint: Pubkey,
+        mint_meta: Pubkey,
+        nonce: u32,
+    ) -> Result<Signature, ClientError> {
+        let mint_data = Mint::unpack(
+            &client.get_account(&mint)?.data
+        ).expect("Could not unpack Mint");
+
+        execute(
+            client,
+            payer,
+            &[payer],
+            &[instructions::attest(
+                *program,
+                *bridge,
+                payer.pubkey(),
+                mint,
+                mint_data,
+                mint_meta,
+                nonce,
+            )
+            .unwrap()],
+            CommitmentConfig::processed(),
+        )
+    }
+
+    pub fn transfer_native(
+        client: &RpcClient,
+        program: &Pubkey,
+        bridge: &Pubkey,
+        payer: &Keypair,
+        from: &Keypair,
+        mint: Pubkey,
+    ) -> Result<Signature, ClientError> {
+        execute(
+            client,
+            payer,
+            &[payer],
+            &[instructions::transfer_native(
+                *program,
+                *bridge,
+                payer.pubkey(),
+                from.pubkey(),
+                mint,
+                TransferNativeData {
+                    nonce: 0,
+                    amount: 0,
+                    fee: 0,
+                    target_address: [0u8; 32],
+                    target_chain: 1,
+                },
             )
             .unwrap()],
             CommitmentConfig::processed(),

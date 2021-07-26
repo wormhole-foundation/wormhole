@@ -316,7 +316,7 @@ pub fn transfer_native(
             AccountMeta::new_readonly(emitter_key, false),
             AccountMeta::new(sequence_key, false),
             AccountMeta::new(fee_collector_key, false),
-            AccountMeta::new(solana_program::sysvar::clock::id(), false),
+            AccountMeta::new_readonly(solana_program::sysvar::clock::id(), false),
             // Dependencies
             AccountMeta::new(solana_program::sysvar::rent::id(), false),
             AccountMeta::new(solana_program::system_program::id(), false),

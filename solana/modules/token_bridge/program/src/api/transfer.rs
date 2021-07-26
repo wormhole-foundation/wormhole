@@ -11,6 +11,7 @@ use crate::{
 };
 use bridge::{
     api::{PostMessage, PostMessageData},
+    types::ConsistencyLevel,
     vaa::SerializePayload,
 };
 use primitive_types::U256;
@@ -36,33 +37,36 @@ use std::ops::{Deref, DerefMut};
 
 #[derive(FromAccounts)]
 pub struct TransferNative<'b> {
-    pub payer: Signer<AccountInfo<'b>>,
-    pub config: ConfigAccount<'b, { AccountState::Initialized }>,
+    pub payer: Mut<Signer<AccountInfo<'b>>>,
 
-    pub from: Data<'b, SplAccount, { AccountState::Initialized }>,
-    pub mint: Data<'b, SplMint, { AccountState::Initialized }>,
+    pub config: Mut<ConfigAccount<'b, { AccountState::Initialized }>>,
 
-    pub custody: CustodyAccount<'b, { AccountState::MaybeInitialized }>,
+    pub from: Mut<Data<'b, SplAccount, { AccountState::Initialized }>>,
+
+    pub mint: Mut<Data<'b, SplMint, { AccountState::Initialized }>>,
+
+    pub custody: Mut<CustodyAccount<'b, { AccountState::MaybeInitialized }>>,
 
     // This could allow someone to race someone else's tx if they do the approval in a separate tx.
-    // Therefore the approval must be set in the same tx
+    // Therefore the approval must be set in the same tx.
     pub authority_signer: AuthoritySigner<'b>,
+
     pub custody_signer: CustodySigner<'b>,
 
     /// CPI Context
-    pub bridge: Info<'b>,
+    pub bridge: Mut<Info<'b>>,
 
     /// Account to store the posted message
-    pub message: Info<'b>,
+    pub message: Mut<Info<'b>>,
 
     /// Emitter of the VAA
     pub emitter: EmitterAccount<'b>,
 
     /// Tracker for the emitter sequence
-    pub sequence: Info<'b>,
+    pub sequence: Mut<Info<'b>>,
 
     /// Account to collect tx fee
-    pub fee_collector: Info<'b>,
+    pub fee_collector: Mut<Info<'b>>,
 
     pub clock: Sysvar<'b, Clock>,
 }
@@ -151,14 +155,14 @@ pub fn transfer_native(
     let params = (bridge::instruction::Instruction::PostMessage, PostMessageData {
         nonce: data.nonce,
         payload: payload.try_to_vec()?,
-        persist: true,
+        consistency_level: ConsistencyLevel::Confirmed,
     });
 
     let ix = Instruction::new_with_bytes(
         accs.config.wormhole_bridge,
         params.try_to_vec()?.as_slice(),
         vec![
-            AccountMeta::new_readonly(*accs.bridge.key, false),
+            AccountMeta::new(*accs.bridge.key, false),
             AccountMeta::new(*accs.message.key, false),
             AccountMeta::new_readonly(*accs.emitter.key, true),
             AccountMeta::new(*accs.sequence.key, false),
@@ -275,7 +279,7 @@ pub fn transfer_wrapped(
     let params = (bridge::instruction::Instruction::PostMessage, PostMessageData {
         nonce: data.nonce,
         payload: payload.try_to_vec()?,
-        persist: true,
+        consistency_level: ConsistencyLevel::Confirmed,
     });
 
     let ix = Instruction::new_with_bytes(

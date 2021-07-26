@@ -181,6 +181,79 @@ fn run_integration_tests() {
 
     // Initialize the bridge and verify the bridges state.
     test_initialize(&mut context);
+    test_transfer_native(&mut context);
+    test_attest(&mut context);
+    test_complete_native(&mut context);
+    //test_transfer_wrapped(&mut context);
+    //test_complete_wrapped(&mut context);
+    //test_register_chain(&mut context);
+    //test_create_wrapped(&mut context);
+}
+
+fn test_attest(context: &mut Context) -> () {
+    println!("Attest");
+    use token_bridge::{
+        accounts::ConfigAccount,
+        types::{
+            Config,
+            FeeStructure,
+        },
+    };
+
+    let Context {
+        ref payer,
+        ref client,
+        ref bridge,
+        ref token_bridge,
+        ref mint_authority,
+        ref mint,
+        ref mint_meta,
+        ..
+    } = context;
+
+    common::attest(
+        client,
+        token_bridge,
+        bridge,
+        payer,
+        mint.pubkey(),
+        mint_meta.pubkey(),
+        0,
+    )
+    .unwrap();
+}
+
+fn test_transfer_native(context: &mut Context) -> () {
+    println!("Transfer Native");
+    use token_bridge::{
+        accounts::ConfigAccount,
+        types::{
+            Config,
+            FeeStructure,
+        },
+    };
+
+    let Context {
+        ref payer,
+        ref client,
+        ref bridge,
+        ref token_bridge,
+        ref mint_authority,
+        ref mint,
+        ref mint_meta,
+        ref token_account,
+        ..
+    } = context;
+
+    common::transfer_native(
+        client,
+        token_bridge,
+        bridge,
+        payer,
+        token_account,
+        mint.pubkey(),
+    )
+    .unwrap();
 }
 
 fn test_initialize(context: &mut Context) {
