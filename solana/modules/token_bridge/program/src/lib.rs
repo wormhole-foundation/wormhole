@@ -6,6 +6,14 @@
 #[cfg(feature = "no-entrypoint")]
 pub mod instructions;
 
+#[cfg(feature = "wasm")]
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+extern crate wasm_bindgen;
+
+#[cfg(feature = "wasm")]
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+pub mod wasm;
+
 pub mod accounts;
 pub mod api;
 pub mod messages;
@@ -20,6 +28,7 @@ pub use api::{
     register_chain,
     transfer_native,
     transfer_wrapped,
+    upgrade_contract,
     AttestToken,
     AttestTokenData,
     CompleteNative,
@@ -38,7 +47,6 @@ pub use api::{
     TransferWrappedData,
     UpgradeContract,
     UpgradeContractData,
-    upgrade_contract
 };
 
 use solitaire::*;

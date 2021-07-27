@@ -42,6 +42,10 @@ use std::io::{
     Cursor,
     Write,
 };
+use serde::{
+    Deserialize,
+    Serialize
+};
 
 impl From<&PostVAAData> for GuardianSetDerivationData {
     fn from(data: &PostVAAData) -> Self {
@@ -88,7 +92,7 @@ pub struct Signature {
 
 pub type ForeignAddress = [u8; 32];
 
-#[derive(Default, BorshSerialize, BorshDeserialize, Clone)]
+#[derive(Default, BorshSerialize, BorshDeserialize, Clone, Serialize, Deserialize)]
 pub struct PostVAAData {
     // Header part
     pub version: u8,
