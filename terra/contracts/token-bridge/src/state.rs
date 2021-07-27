@@ -1,7 +1,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use cosmwasm_std::{Binary, HumanAddr, StdResult, Storage};
+use cosmwasm_std::{CanonicalAddr, HumanAddr, StdError, StdResult, Storage, Uint128};
 use cosmwasm_storage::{
     bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket, ReadonlySingleton,
     Singleton,
@@ -13,6 +13,7 @@ pub static CONFIG_KEY: &[u8] = b"config";
 pub static WRAPPED_ASSET_KEY: &[u8] = b"wrapped_asset";
 pub static WRAPPED_ASSET_ADDRESS_KEY: &[u8] = b"wrapped_asset_address";
 pub static BRIDGE_CONTRACTS: &[u8] = b"bridge_contracts";
+pub static NATIVE_COUNTER: &[u8] = b"native_counter";
 
 // Guardian set information
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -55,6 +56,34 @@ pub fn wrapped_asset_address<S: Storage>(storage: &mut S) -> Bucket<S, Vec<u8>> 
 
 pub fn wrapped_asset_address_read<S: Storage>(storage: &S) -> ReadonlyBucket<S, Vec<u8>> {
     bucket_read(WRAPPED_ASSET_ADDRESS_KEY, storage)
+}
+
+pub fn send_native<S: Storage>(
+    storage: &mut S,
+    asset_address: &CanonicalAddr,
+    amount: Uint128,
+) -> StdResult<()> {
+    let mut counter_bucket = bucket(NATIVE_COUNTER, storage);
+    let new_total = amount
+        + counter_bucket
+            .load(asset_address.as_slice())
+            .unwrap_or(Uint128::zero());
+    if new_total > Uint128(u64::MAX as u128) {
+        return Err(StdError::generic_err(
+            "transfer exceeds max outstanding bridged token amount",
+        ));
+    }
+    counter_bucket.save(asset_address.as_slice(), &new_total)
+}
+
+pub fn receive_native<S: Storage>(
+    storage: &mut S,
+    asset_address: &CanonicalAddr,
+    amount: Uint128,
+) -> StdResult<()> {
+    let mut counter_bucket = bucket(NATIVE_COUNTER, storage);
+    let total: Uint128 = counter_bucket.load(asset_address.as_slice())?;
+    counter_bucket.save(asset_address.as_slice(), &(total - amount)?)
 }
 
 pub struct Action;

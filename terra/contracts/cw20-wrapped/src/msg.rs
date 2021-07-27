@@ -7,6 +7,8 @@ use cw20::Expiration;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InitMsg {
+    pub name: String,
+    pub symbol: String,
     pub asset_chain: u16,
     pub asset_address: Binary,
     pub decimals: u8,

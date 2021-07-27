@@ -65,3 +65,12 @@ pub fn extend_string_to_32(s: &String) -> StdResult<Vec<u8>> {
     result.extend(bytes);
     Ok(result)
 }
+
+pub fn get_string_from_32(v: &Vec<u8>) -> StdResult<String> {
+    let mut idx = 31usize;
+    while v[idx] == 0 {
+        idx -= 1
+    }
+    String::from_utf8(v[..idx + 1].to_vec())
+        .or_else(|_| Err(StdError::generic_err("could not parse string")))
+}

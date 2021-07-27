@@ -1,17 +1,14 @@
 use crate::msg::WrappedRegistryResponse;
-use cosmwasm_std::{
-    log, to_binary, Api, Binary, CanonicalAddr, CosmosMsg, Env, Extern, HandleResponse, HumanAddr,
-    InitResponse, Querier, QueryRequest, StdError, StdResult, Storage, Uint128, WasmMsg, WasmQuery,
-};
+use cosmwasm_std::{log, to_binary, Api, CanonicalAddr, CosmosMsg, Env, Extern, HandleResponse, HumanAddr, InitResponse, Querier, QueryRequest, StdError, StdResult, Storage, Uint128, WasmMsg, WasmQuery, Binary};
 
 use crate::msg::{HandleMsg, InitMsg, QueryMsg};
 use crate::state::{
-    bridge_contracts, bridge_contracts_read, config, config_read, wrapped_asset,
-    wrapped_asset_address, wrapped_asset_address_read, wrapped_asset_read, Action, AssetMeta,
-    ConfigInfo, RegisterChain, TokenBridgeMessage, TransferInfo,
+    bridge_contracts, bridge_contracts_read, config, config_read, receive_native, send_native,
+    wrapped_asset, wrapped_asset_address, wrapped_asset_address_read, wrapped_asset_read, Action,
+    AssetMeta, ConfigInfo, RegisterChain, TokenBridgeMessage, TransferInfo,
 };
-use wormhole::byte_utils::ByteUtils;
 use wormhole::byte_utils::{extend_address_to_32, extend_string_to_32};
+use wormhole::byte_utils::{get_string_from_32, ByteUtils};
 use wormhole::error::ContractError;
 
 use cw20_base::msg::HandleMsg as TokenMsg;
@@ -30,6 +27,7 @@ use cw20_wrapped::msg::QueryMsg as WrappedQuery;
 use cw20_wrapped::msg::{InitHook, WrappedAssetInfoResponse};
 
 use sha3::{Digest, Keccak256};
+use std::cmp::{min, max};
 
 // Chain ID of Terra
 const CHAIN_ID: u16 = 3;
@@ -163,9 +161,11 @@ fn handle_attest_meta<S: Storage, A: Api, Q: Querier>(
         messages: vec![CosmosMsg::Wasm(WasmMsg::Instantiate {
             code_id: cfg.wrapped_asset_code_id,
             msg: to_binary(&WrappedInit {
+                name: get_string_from_32(&meta.name)?,
+                symbol: get_string_from_32(&meta.symbol)?,
                 asset_chain: meta.token_chain,
                 asset_address: meta.token_address.to_vec().into(),
-                decimals: meta.decimals,
+                decimals: min(meta.decimals, 8u8),
                 mint: None,
                 init_hook: Some(InitHook {
                     contract_addr: env.contract.address,
@@ -190,13 +190,13 @@ fn handle_create_asset_meta<S: Storage, A: Api, Q: Querier>(
 ) -> StdResult<HandleResponse> {
     let cfg = config_read(&deps.storage).load()?;
 
-    let request = QueryRequest::<()>::Wasm(WasmQuery::Smart {
+    let request = QueryRequest::Wasm(WasmQuery::Smart {
         contract_addr: asset_address.clone(),
         msg: to_binary(&TokenQuery::TokenInfo {})?,
     });
 
     let asset_canonical = deps.api.canonical_address(asset_address)?;
-    let token_info: TokenInfoResponse = deps.querier.custom_query(&request)?;
+    let token_info: TokenInfoResponse = deps.querier.query(&request)?;
 
     let meta: AssetMeta = AssetMeta {
         token_chain: CHAIN_ID,
@@ -345,7 +345,7 @@ fn handle_complete_transfer<S: Storage, A: Api, Q: Querier>(
     let target_address = (&transfer_info.recipient.as_slice()).get_address(0);
 
     let (not_supported_amount, mut amount) = transfer_info.amount;
-    let (not_supported_fee, fee) = transfer_info.fee;
+    let (not_supported_fee, mut fee) = transfer_info.fee;
 
     amount -= fee;
 
@@ -407,6 +407,20 @@ fn handle_complete_transfer<S: Storage, A: Api, Q: Querier>(
         let recipient = deps.api.human_address(&target_address)?;
         let contract_addr = deps.api.human_address(&token_address)?;
 
+        receive_native(&mut deps.storage, &token_address, Uint128(amount + fee))?;
+
+        // undo normalization to 8 decimals
+        let token_info: TokenInfoResponse =
+            deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
+                contract_addr: contract_addr.clone(),
+                msg: to_binary(&TokenQuery::TokenInfo {})?,
+            }))?;
+
+        let decimals = token_info.decimals;
+        let multiplier = 10u128.pow((max(decimals, 8u8) - 8u8) as u32);
+        amount *= multiplier;
+        fee *= multiplier;
+
         let mut messages = vec![CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: contract_addr.clone(),
             msg: to_binary(&TokenMsg::Transfer {
@@ -444,15 +458,15 @@ fn handle_initiate_transfer<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
     asset: HumanAddr,
-    amount: Uint128,
+    mut amount: Uint128,
     recipient_chain: u16,
     recipient: Vec<u8>,
-    fee: Uint128,
+    mut fee: Uint128,
     nonce: u32,
 ) -> StdResult<HandleResponse> {
-    // if recipient_chain == CHAIN_ID {
-    //     return ContractError::SameSourceAndTarget.std_err();
-    // }
+    if recipient_chain == CHAIN_ID {
+        return ContractError::SameSourceAndTarget.std_err();
+    }
 
     if amount.is_zero() {
         return ContractError::AmountTooLow.std_err();
@@ -491,6 +505,19 @@ fn handle_initiate_transfer<S: Storage, A: Api, Q: Querier>(
             asset_address = wrapped_token_info.asset_address.as_slice().to_vec();
         }
         Err(_) => {
+            // normalize amount to 8 decimals when it sent over the wormhole
+            let token_info: TokenInfoResponse =
+                deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
+                    contract_addr: asset.clone(),
+                    msg: to_binary(&TokenQuery::TokenInfo {})?,
+                }))?;
+
+            let decimals = token_info.decimals;
+            let multiplier = 10u128.pow((max(decimals, 8u8) - 8u8) as u32);
+            // chop off dust
+            amount = Uint128(amount.u128() - (amount.u128() % multiplier));
+            fee = Uint128(fee.u128() - (fee.u128() % multiplier));
+
             // This is a regular asset, transfer its balance
             messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: asset,
@@ -503,6 +530,12 @@ fn handle_initiate_transfer<S: Storage, A: Api, Q: Querier>(
             }));
             asset_address = extend_address_to_32(&asset_canonical);
             asset_chain = CHAIN_ID;
+
+            // convert to normalized amounts before recording & posting vaa
+            amount = Uint128(amount.u128() / multiplier);
+            fee = Uint128(fee.u128() / multiplier);
+
+            send_native(&mut deps.storage, &asset_canonical, amount)?;
         }
     };
 

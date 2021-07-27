@@ -23,8 +23,8 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
 ) -> StdResult<InitResponse> {
     // store token info using cw20-base format
     let data = TokenInfo {
-        name: String::from("Wormhole Wrapped"),
-        symbol: String::from("WWT"),
+        name: msg.name,
+        symbol: msg.symbol,
         decimals: msg.decimals,
         total_supply: Uint128(0),
         // set creator as minter
