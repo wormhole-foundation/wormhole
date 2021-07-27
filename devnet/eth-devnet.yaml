@@ -51,7 +51,7 @@ spec:
           command:
             - /bin/sh
             - -c
-            - "npm run migrate && nc -l -p 2000 && sleep infinity"
+            - "npm run migrate && npx truffle exec scripts/deploy_test_token.js && nc -l -p 2000 && sleep infinity"
           startupProbe:
             periodSeconds: 1
             failureThreshold: 60
