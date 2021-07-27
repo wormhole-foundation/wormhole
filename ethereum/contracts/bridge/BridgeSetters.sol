@@ -48,5 +48,10 @@ contract BridgeSetters is BridgeState {
 
     function setWrappedAsset(uint16 tokenChainId, bytes32 tokenAddress, address wrapper) internal {
         _state.wrappedAssets[tokenChainId][tokenAddress] = wrapper;
+        _state.isWrappedAsset[wrapper] = true;
+    }
+
+    function setOutstandingBridged(address token, uint256 outstanding) internal {
+        _state.outstandingBridged[token] = outstanding;
     }
 }

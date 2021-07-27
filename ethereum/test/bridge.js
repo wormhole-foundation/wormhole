@@ -303,6 +303,8 @@ contract("Bridge", function () {
 
         const wrappedAddress = await initialized.methods.wrappedAsset("0x0001", "0x000000000000000000000000b7a2211e8165943192ad04f5dd21bedc29ff003e").call();
 
+        assert.ok(await initialized.methods.isWrappedAsset(wrappedAddress).call())
+
         const initializedWrappedAsset = new web3.eth.Contract(TokenImplementation.abi, wrappedAddress);
 
         const symbol = await initializedWrappedAsset.methods.symbol().call();
@@ -324,6 +326,7 @@ contract("Bridge", function () {
     it("should deposit and log transfers correctly", async function() {
         const accounts = await web3.eth.getAccounts();
         const amount = "1000000000000000000";
+        const fee = "100000000000000000";
 
         // mint and approve tokens
         const token = new web3.eth.Contract(TokenImplementation.abi, TokenImplementation.address);
@@ -348,12 +351,11 @@ contract("Bridge", function () {
         assert.equal(bridgeBalanceBefore.toString(10), "0");
 
         await initialized.methods.transferTokens(
-            testChainId,
-            web3.eth.abi.encodeParameter("address", TokenImplementation.address),
+            TokenImplementation.address,
             amount,
             "10",
             "0x000000000000000000000000b7a2211e8165943192ad04f5dd21bedc29ff003e",
-            "123",
+            fee,
             "234"
         ).send({
             value : 0,
@@ -381,7 +383,7 @@ contract("Bridge", function () {
         assert.equal(log.payload.substr(2, 2), "01");
 
         // amount
-        assert.equal(log.payload.substr(4, 64), web3.eth.abi.encodeParameter("uint256", amount).substring(2));
+        assert.equal(log.payload.substr(4, 64), web3.eth.abi.encodeParameter("uint256", new BigNumber(amount).div(1e10).toString()).substring(2));
 
         // token
         assert.equal(log.payload.substr(68, 64), web3.eth.abi.encodeParameter("address", TokenImplementation.address).substring(2));
@@ -396,7 +398,7 @@ contract("Bridge", function () {
         assert.equal(log.payload.substr(200, 4), web3.eth.abi.encodeParameter("uint16", 10).substring(2 + 64 - 4))
 
         // fee
-        assert.equal(log.payload.substr(204, 64), web3.eth.abi.encodeParameter("uint256", 123).substring(2))
+        assert.equal(log.payload.substr(204, 64), web3.eth.abi.encodeParameter("uint256", new BigNumber(fee).div(1e10).toString()).substring(2))
     })
 
     it("should transfer out locked assets for a valid transfer vm", async function() {
@@ -416,7 +418,7 @@ contract("Bridge", function () {
         const data = "0x" +
             "01" +
             // amount
-            "0000000000000000000000000000000000000000000000000de0b6b3a7640000" +
+            web3.eth.abi.encodeParameter("uint256", new BigNumber(amount).div(1e10).toString()).substring(2) +
             // tokenaddress
             web3.eth.abi.encodeParameter("address", TokenImplementation.address).substr(2) +
             // tokenchain
@@ -427,8 +429,6 @@ contract("Bridge", function () {
             web3.eth.abi.encodeParameter("uint16", testChainId).substring(2 + (64 - 4)) +
             // fee
             "0000000000000000000000000000000000000000000000000000000000000000";
-
-        // console.log(data)
 
         const vm = await signAndEncodeVM(
             0,
@@ -473,7 +473,7 @@ contract("Bridge", function () {
         const data = "0x" +
             "01" +
             // amount
-            "0000000000000000000000000000000000000000000000000de0b6b3a7640000" +
+            web3.eth.abi.encodeParameter("uint256", new BigNumber(amount).div(1e10).toString()).substring(2) +
             // tokenaddress
             testBridgedAssetAddress +
             // tokenchain
@@ -534,8 +534,7 @@ contract("Bridge", function () {
         assert.equal(accountBalanceBefore.toString(10), amount);
 
         await initialized.methods.transferTokens(
-            "0x"+testBridgedAssetChain,
-            "0x"+testBridgedAssetAddress,
+            wrappedAddress,
             amount,
             "11",
             "0x000000000000000000000000b7a2211e8165943192ad04f5dd21bedc29ff003e",
@@ -560,6 +559,7 @@ contract("Bridge", function () {
     it("should handle ETH deposits correctly", async function() {
         const accounts = await web3.eth.getAccounts();
         const amount = "100000000000000000";
+        const fee = "10000000000000000";
 
         // mint and approve tokens
         WETH = (await MockWETH9.new()).address;
@@ -584,7 +584,7 @@ contract("Bridge", function () {
         await initialized.methods.wrapAndTransferETH(
             "10",
             "0x000000000000000000000000b7a2211e8165943192ad04f5dd21bedc29ff003e",
-            "123",
+            fee,
             "234"
         ).send({
             value : amount,
@@ -612,7 +612,7 @@ contract("Bridge", function () {
         assert.equal(log.payload.substr(2, 2), "01");
 
         // amount
-        assert.equal(log.payload.substr(4, 64), web3.eth.abi.encodeParameter("uint256", amount).substring(2));
+        assert.equal(log.payload.substr(4, 64), web3.eth.abi.encodeParameter("uint256", new BigNumber(amount).div(1e10).toString()).substring(2));
 
         // token
         assert.equal(log.payload.substr(68, 64), web3.eth.abi.encodeParameter("address", WETH).substring(2));
@@ -627,7 +627,7 @@ contract("Bridge", function () {
         assert.equal(log.payload.substr(200, 4), web3.eth.abi.encodeParameter("uint16", 10).substring(2 + 64 - 4))
 
         // fee
-        assert.equal(log.payload.substr(204, 64), web3.eth.abi.encodeParameter("uint256", 123).substring(2))
+        assert.equal(log.payload.substr(204, 64), web3.eth.abi.encodeParameter("uint256", new BigNumber(fee).div(1e10).toString()).substring(2))
     })
 
     it("should handle ETH withdrawals and fees correctly", async function() {
@@ -649,7 +649,7 @@ contract("Bridge", function () {
         const data = "0x" +
             "01" +
             // amount
-            web3.eth.abi.encodeParameter("uint256", amount).substr(2) +
+            web3.eth.abi.encodeParameter("uint256", new BigNumber(amount).div(1e10).toString()).substring(2) +
             // tokenaddress
             web3.eth.abi.encodeParameter("address", WETH).substr(2) +
             // tokenchain
@@ -659,7 +659,7 @@ contract("Bridge", function () {
             // receiving chain
             web3.eth.abi.encodeParameter("uint16", testChainId).substring(2 + (64 - 4)) +
             // fee
-            web3.eth.abi.encodeParameter("uint256", fee).substr(2);
+            web3.eth.abi.encodeParameter("uint256", new BigNumber(fee).div(1e10).toString()).substring(2);
 
         const vm = await signAndEncodeVM(
             0,
@@ -688,6 +688,62 @@ contract("Bridge", function () {
 
         assert.equal((new BigNumber(accountBalanceAfter)).minus(accountBalanceBefore).toString(10), (new BigNumber(amount)).minus(fee).toString(10))
         assert.ok((new BigNumber(feeRecipientBalanceAfter)).gt(feeRecipientBalanceBefore))
+    })
+
+    it("should revert on transfer out of a total of > max(uint64) tokens", async function() {
+        const accounts = await web3.eth.getAccounts();
+        const supply = "184467440737095516160000000000";
+        const firstTransfer = "1000000000000";
+
+        // mint and approve tokens
+        const token = new web3.eth.Contract(TokenImplementation.abi, TokenImplementation.address);
+        await token.methods.mint(accounts[0], supply).send({
+            value : 0,
+            from : accounts[0],
+            gasLimit : 2000000
+        });
+        await token.methods.approve(TokenBridge.address, supply).send({
+            value : 0,
+            from : accounts[0],
+            gasLimit : 2000000
+        });
+
+        // deposit tokens
+        const initialized = new web3.eth.Contract(BridgeImplementationFullABI, TokenBridge.address);
+
+        await initialized.methods.transferTokens(
+            TokenImplementation.address,
+            firstTransfer,
+            "10",
+            "0x000000000000000000000000b7a2211e8165943192ad04f5dd21bedc29ff003e",
+            "0",
+            "0"
+        ).send({
+            value : 0,
+            from : accounts[0],
+            gasLimit : 2000000
+        });
+
+        let failed = false;
+        try {
+            await initialized.methods.transferTokens(
+                TokenImplementation.address,
+                new BigNumber(supply).minus(firstTransfer).toString(10),
+                "10",
+                "0x000000000000000000000000b7a2211e8165943192ad04f5dd21bedc29ff003e",
+                "0",
+                "0"
+            ).send({
+                value : 0,
+                from : accounts[0],
+                gasLimit : 2000000
+            });
+        } catch(error) {
+            assert.equal(error.message, "Returned error: VM Exception while processing transaction: revert transfer exceeds max outstanding bridged token amount")
+            failed = true
+        }
+
+        assert.ok(failed)
     })
 });
 

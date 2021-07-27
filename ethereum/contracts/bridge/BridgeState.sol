@@ -13,6 +13,11 @@ contract BridgeStorage {
         address WETH;
     }
 
+    struct Asset {
+        uint16 chainId;
+        bytes32 assetAddress;
+    }
+
     struct State {
         address payable wormhole;
         address tokenImplementation;
@@ -30,6 +35,12 @@ contract BridgeStorage {
 
         // Mapping of wrapped assets (chainID => nativeAddress => wrappedAddress)
         mapping(uint16 => mapping(bytes32 => address)) wrappedAssets;
+
+        // Mapping to safely identify wrapped assets
+        mapping(address => bool) isWrappedAsset;
+
+        // Mapping of native assets to amount outstanding on other chains
+        mapping(address => uint256) outstandingBridged;
 
         // Mapping of bridge contracts on other chains
         mapping(uint16 => bytes32) bridgeImplementations;

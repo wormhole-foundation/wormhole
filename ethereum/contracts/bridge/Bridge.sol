@@ -60,32 +60,77 @@ contract Bridge is BridgeGovernance {
         }(nonce, encoded, 15);
     }
 
-    function wrapAndTransferETH(uint16 recipientChain, bytes32 recipient, uint256 fee, uint32 nonce) public payable returns (uint64 sequence) {
+    function wrapAndTransferETH(uint16 recipientChain, bytes32 recipient, uint256 arbiterFee, uint32 nonce) public payable returns (uint64 sequence) {
         uint wormholeFee = wormhole().messageFee();
 
         require(wormholeFee < msg.value, "value is smaller than wormhole fee");
 
+        uint amount = msg.value - wormholeFee;
+
+        require(arbiterFee <= amount, "fee is bigger than amount minus wormhole fee");
+
+        uint normalizedAmount = amount / (10**10);
+        uint normalizedArbiterFee = arbiterFee / (10**10);
+
+        // refund dust
+        uint dust = amount - (normalizedAmount * (10**10));
+        if (dust > 0) {
+           payable(msg.sender).transfer(dust);
+        }
+
+        // deposit into WETH
         WETH().deposit{
-            value : msg.value - wormholeFee
+            value : amount - dust
         }();
 
-        sequence = logTransfer(chainId(), bytes32(uint256(uint160(address(WETH())))), msg.value, recipientChain, recipient, fee, wormholeFee, nonce);
+        // track and check outstanding token amounts
+        bridgeOut(address(WETH()), normalizedAmount);
+
+        sequence = logTransfer(chainId(), bytes32(uint256(uint160(address(WETH())))), normalizedAmount, recipientChain, recipient, normalizedArbiterFee, wormholeFee, nonce);
     }
 
     // Initiate a Transfer
-    function transferTokens(uint16 tokenChain, bytes32 tokenAddress, uint256 amount, uint16 recipientChain, bytes32 recipient, uint256 fee, uint32 nonce) public payable returns (uint64 sequence) {
-        if(tokenChain == chainId()){
-            SafeERC20.safeTransferFrom(IERC20(address(uint160(uint256(tokenAddress)))), msg.sender, address(this), amount);
-        } else {
-            address wrapped = wrappedAsset(tokenChain, tokenAddress);
-            require(wrapped != address(0), "no wrapper for this token created yet");
-
-            SafeERC20.safeTransferFrom(IERC20(wrapped), msg.sender, address(this), amount);
-
-            TokenImplementation(wrapped).burn(address(this), amount);
+    function transferTokens(address token, uint256 amount, uint16 recipientChain, bytes32 recipient, uint256 arbiterFee, uint32 nonce) public payable returns (uint64 sequence) {
+        // determine token parameters
+        uint16 tokenChain;
+        bytes32 tokenAddress;
+        if(isWrappedAsset(token)){
+            tokenChain = TokenImplementation(token).chainId();
+            tokenAddress = TokenImplementation(token).nativeContract();
+        }else{
+            tokenChain = chainId();
+            tokenAddress = bytes32(uint256(uint160(token)));
         }
 
-        sequence = logTransfer(tokenChain, tokenAddress, amount, recipientChain, recipient, fee, msg.value, nonce);
+        // query tokens decimals
+        (,bytes memory queriedDecimals) = token.staticcall(abi.encodeWithSignature("decimals()"));
+        uint8 decimals = abi.decode(queriedDecimals, (uint8));
+
+        // adjust decimals
+        uint256 normalizedAmount = amount;
+        uint256 normalizedArbiterFee = arbiterFee;
+        if(decimals > 8) {
+            uint multiplier = 10**(decimals - 8);
+
+            normalizedAmount /= multiplier;
+            normalizedArbiterFee /= multiplier;
+
+            // don't deposit dust that can not be bridged due to the decimal shift
+            amount = normalizedAmount * multiplier;
+        }
+
+        if(tokenChain == chainId()){
+            SafeERC20.safeTransferFrom(IERC20(token), msg.sender, address(this), amount);
+
+            // track and check outstanding token amounts
+            bridgeOut(token, normalizedAmount);
+        } else {
+            SafeERC20.safeTransferFrom(IERC20(token), msg.sender, address(this), amount);
+
+            TokenImplementation(token).burn(address(this), amount);
+        }
+
+        sequence = logTransfer(tokenChain, tokenAddress, normalizedAmount, recipientChain, recipient, normalizedArbiterFee, msg.value, nonce);
     }
 
     function logTransfer(uint16 tokenChain, bytes32 tokenAddress, uint256 amount, uint16 recipientChain, bytes32 recipient, uint256 fee, uint256 callValue, uint32 nonce) internal returns (uint64 sequence) {
@@ -180,37 +225,70 @@ contract Bridge is BridgeGovernance {
         IERC20 transferToken;
         if(transfer.tokenChain == chainId()){
             transferToken = IERC20(address(uint160(uint256(transfer.tokenAddress))));
+
+            // track outstanding token amounts
+            bridgedIn(address(transferToken), transfer.amount);
         } else {
             address wrapped = wrappedAsset(transfer.tokenChain, transfer.tokenAddress);
             require(wrapped != address(0), "no wrapper for this token created yet");
 
-            TokenImplementation(wrapped).mint(address(this), transfer.amount);
-
             transferToken = IERC20(wrapped);
         }
 
-        if(transfer.fee > 0) {
-            require(transfer.fee <= transfer.amount, "fee higher than transferred amount");
+        require(unwrapWETH == false || address(transferToken) == address(WETH()), "invalid token, can only unwrap WETH");
+
+        // query decimals
+        (,bytes memory queriedDecimals) = address(transferToken).staticcall(abi.encodeWithSignature("decimals()"));
+        uint8 decimals = abi.decode(queriedDecimals, (uint8));
+
+        // adjust decimals
+        uint256 nativeAmount = transfer.amount;
+        uint256 nativeFee = transfer.fee;
+        if(decimals > 8) {
+            uint multiplier = 10**(decimals - 8);
+            nativeAmount *= multiplier;
+            nativeFee *= multiplier;
+        }
+
+        // mint wrapped asset
+        if(transfer.tokenChain != chainId()) {
+            TokenImplementation(address(transferToken)).mint(address(this), nativeAmount);
+        }
+
+        // transfer fee to arbiter
+        if(nativeFee > 0) {
+            require(nativeFee <= nativeAmount, "fee higher than transferred amount");
 
             if (unwrapWETH) {
-                require(address(transferToken) == address(WETH()), "invalid token, can only unwrap ETH");
-                WETH().withdraw(transfer.fee);
-                payable(msg.sender).transfer(transfer.fee);
+                WETH().withdraw(nativeFee);
+
+                payable(msg.sender).transfer(nativeFee);
             } else {
-                SafeERC20.safeTransfer(transferToken, msg.sender, transfer.fee);
+                SafeERC20.safeTransfer(transferToken, msg.sender, nativeFee);
             }
         }
 
-        uint transferAmount = transfer.amount - transfer.fee;
-        address payable transferRecipient = payable(address(uint160(uint256(transfer.to))));
+        // transfer bridged amount to recipient
+        uint transferAmount = nativeAmount - nativeFee;
+        address transferRecipient = address(uint160(uint256(transfer.to)));
 
         if (unwrapWETH) {
-            require(address(transferToken) == address(WETH()), "invalid token, can only unwrap ETH");
             WETH().withdraw(transferAmount);
-            transferRecipient.transfer(transferAmount);
+
+            payable(transferRecipient).transfer(transferAmount);
         } else {
             SafeERC20.safeTransfer(transferToken, transferRecipient, transferAmount);
         }
+    }
+
+    function bridgeOut(address token, uint normalizedAmount) internal {
+        uint outstanding = outstandingBridged(token);
+        require(outstanding + normalizedAmount <= type(uint64).max, "transfer exceeds max outstanding bridged token amount");
+        setOutstandingBridged(token, outstanding + normalizedAmount);
+    }
+
+    function bridgedIn(address token, uint normalizedAmount) internal {
+        setOutstandingBridged(token, outstandingBridged(token) - normalizedAmount);
     }
 
     function verifyBridgeVM(IWormhole.VM memory vm) internal view returns (bool){

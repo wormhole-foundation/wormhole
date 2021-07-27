@@ -53,6 +53,14 @@ contract BridgeGetters is BridgeState {
     function WETH() public view returns (IWETH){
         return IWETH(_state.provider.WETH);
     }
+
+    function outstandingBridged(address token) public view returns (uint256){
+        return _state.outstandingBridged[token];
+    }
+
+    function isWrappedAsset(address token) public view returns (bool){
+        return _state.isWrappedAsset[token];
+    }
 }
 
 interface IWETH is IERC20 {
