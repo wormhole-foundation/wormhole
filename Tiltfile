@@ -187,3 +187,8 @@ k8s_resource(
     "terra-terrad",
     port_forwards = [port_forward(26657, name = "Terra RPC [:26657]")],
 )
+
+k8s_resource(
+    "terra-fcd",
+    port_forwards = [port_forward(3060, name = "Terra FCD [:3060]")],
+)

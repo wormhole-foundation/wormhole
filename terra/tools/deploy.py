@@ -184,6 +184,26 @@ async def main():
     )
     print("Wormhole contract: {}".format(wormhole.address))
 
+    token_bridge = await Contract.create(
+        code_id=code_ids["token_bridge"],
+        owner=deployer.key.acc_address,
+        gov_chain=GOV_CHAIN,
+        gov_address=base64.b64encode(GOV_ADDRESS).decode("utf-8"),
+        wormhole_contract=wormhole,
+        wrapped_asset_code_id=int(code_ids["cw20_wrapped"]),
+    )
+    print("Token Bridge contract: {}".format(token_bridge.address))
+
+    mock_token = await Contract.create(
+        code_id=code_ids["cw20_base"],
+        name="MOCK",
+        symbol="MCK",
+        decimals=6,
+        initial_balances=[{"address": deployer.key.acc_address, "amount": "100000000"}],
+        mint=None,
+    )
+    print("Example Token contract: {}".format(mock_token.address))
+
 
 if __name__ == "__main__":
     asyncio.get_event_loop().run_until_complete(main())
