@@ -252,8 +252,8 @@ pub fn wrapped_asset_address_read<S: Storage>(storage: &S) -> ReadonlyBucket<S, 
 
 pub struct GovernancePacket {
     pub module: Vec<u8>,
-    pub chain: u16,
     pub action: u8,
+    pub chain: u16,
     pub payload: Vec<u8>,
 }
 
@@ -267,8 +267,8 @@ impl GovernancePacket {
 
         Ok(GovernancePacket {
             module,
-            chain,
             action,
+            chain,
             payload,
         })
     }

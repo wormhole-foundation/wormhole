@@ -268,9 +268,7 @@ fn handle_governance_payload<S: Storage, A: Api, Q: Querier>(
     data: &Vec<u8>,
 ) -> StdResult<HandleResponse> {
     let gov_packet = GovernancePacket::deserialize(&data)?;
-
-    let module = String::from_utf8(gov_packet.module).unwrap();
-    let module: String = module.chars().filter(|c| c != &'\0').collect();
+    let module = get_string_from_32(&gov_packet.module)?;
 
     if module != "TokenBridge" {
         return Err(StdError::generic_err("this is not a valid module"));
@@ -407,6 +405,8 @@ fn handle_complete_transfer<S: Storage, A: Api, Q: Querier>(
         let recipient = deps.api.human_address(&target_address)?;
         let contract_addr = deps.api.human_address(&token_address)?;
 
+        // note -- here the amount is the amount the recipient will receive;
+        // amount + fee is the total sent
         receive_native(&mut deps.storage, &token_address, Uint128(amount + fee))?;
 
         // undo normalization to 8 decimals

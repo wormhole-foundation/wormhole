@@ -61,16 +61,12 @@ pub fn extend_string_to_32(s: &String) -> StdResult<Vec<u8>> {
         return Err(StdError::generic_err("string more than 32 "));
     }
 
-    let mut result = vec![0; 32 - bytes.len()];
-    result.extend(bytes);
-    Ok(result)
+    let result = vec![0; 32 - bytes.len()];
+    Ok([bytes.to_vec(), result].concat())
 }
 
 pub fn get_string_from_32(v: &Vec<u8>) -> StdResult<String> {
-    let mut idx = 31usize;
-    while v[idx] == 0 {
-        idx -= 1
-    }
-    String::from_utf8(v[..idx + 1].to_vec())
-        .or_else(|_| Err(StdError::generic_err("could not parse string")))
+    let s = String::from_utf8(v.clone())
+        .or_else(|_| Err(StdError::generic_err("could not parse string")))?;
+    Ok(s.chars().filter(|c| c != &'\0').collect())
 }
