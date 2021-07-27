@@ -22,5 +22,7 @@ RUN --mount=type=cache,target=/usr/local,from=rust,source=/usr/local \
     --mount=type=cache,target=target \
     --mount=type=cache,target=bin,from=rust,source=bin \
     cargo build-bpf --manifest-path "bridge/program/Cargo.toml" && \
+    cargo build-bpf --manifest-path "modules/token_bridge/program/Cargo.toml" && \
     mkdir -p /opt/solana/deps && \
-    cp bridge/target/deploy/bridge.so /opt/solana/deps/bridge.so
+    cp bridge/target/deploy/bridge.so /opt/solana/deps/bridge.so && \
+    cp modules/token_bridge/target/deploy/token_bridge.so /opt/solana/deps/token_bridge.so

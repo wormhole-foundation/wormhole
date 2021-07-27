@@ -1,7 +1,14 @@
 use crate::{
     accounts::{
-        ConfigAccount, CustodyAccount, CustodyAccountDerivationData, CustodySigner, Endpoint,
-        EndpointDerivationData, MintSigner, WrappedDerivationData, WrappedMint,
+        ConfigAccount,
+        CustodyAccount,
+        CustodyAccountDerivationData,
+        CustodySigner,
+        Endpoint,
+        EndpointDerivationData,
+        MintSigner,
+        WrappedDerivationData,
+        WrappedMint,
     },
     messages::PayloadTransfer,
     types::*,
@@ -9,26 +16,38 @@ use crate::{
 };
 use bridge::vaa::ClaimableVAA;
 use solana_program::{
-    account_info::AccountInfo, program::invoke_signed, program_error::ProgramError, pubkey::Pubkey,
+    account_info::AccountInfo,
+    program::invoke_signed,
+    program_error::ProgramError,
+    pubkey::Pubkey,
 };
 use solitaire::{
-    processors::seeded::{invoke_seeded, Seeded},
+    processors::seeded::{
+        invoke_seeded,
+        Seeded,
+    },
     CreationLamports::Exempt,
     *,
 };
-use spl_token::state::{Account, Mint};
-use std::ops::{Deref, DerefMut};
+use spl_token::state::{
+    Account,
+    Mint,
+};
+use std::ops::{
+    Deref,
+    DerefMut,
+};
 
 #[derive(FromAccounts)]
 pub struct CompleteNative<'b> {
-    pub payer: Signer<AccountInfo<'b>>,
+    pub payer: Mut<Signer<AccountInfo<'b>>>,
     pub config: ConfigAccount<'b, { AccountState::Initialized }>,
 
     pub vaa: ClaimableVAA<'b, PayloadTransfer>,
     pub chain_registration: Endpoint<'b, { AccountState::Initialized }>,
 
-    pub to: Data<'b, SplAccount, { AccountState::Initialized }>,
-    pub custody: CustodyAccount<'b, { AccountState::Initialized }>,
+    pub to: Mut<Data<'b, SplAccount, { AccountState::Initialized }>>,
+    pub custody: Mut<CustodyAccount<'b, { AccountState::Initialized }>>,
     pub mint: Data<'b, SplMint, { AccountState::Initialized }>,
 
     pub custody_signer: CustodySigner<'b>,
@@ -94,6 +113,13 @@ pub fn complete_native(
     // Prevent vaa double signing
     accs.vaa.claim(ctx, accs.payer.key)?;
 
+    let mut amount = accs.vaa.amount.as_u64();
+
+    // Wormhole always caps transfers at 8 decimals; un-truncate if the local token has more
+    if accs.mint.decimals > 8 {
+        amount *= 10u64.pow((accs.mint.decimals - 8) as u32)
+    }
+
     // Transfer tokens
     let transfer_ix = spl_token::instruction::transfer(
         &spl_token::id(),
@@ -101,7 +127,7 @@ pub fn complete_native(
         accs.to.info().key,
         accs.custody_signer.key,
         &[],
-        accs.vaa.amount.as_u64(),
+        amount,
     )?;
     invoke_seeded(&transfer_ix, ctx, &accs.custody_signer, None)?;
 
@@ -112,7 +138,7 @@ pub fn complete_native(
 
 #[derive(FromAccounts)]
 pub struct CompleteWrapped<'b> {
-    pub payer: Signer<AccountInfo<'b>>,
+    pub payer: Mut<Signer<AccountInfo<'b>>>,
     pub config: ConfigAccount<'b, { AccountState::Initialized }>,
 
     // Signed message for the transfer
@@ -120,8 +146,8 @@ pub struct CompleteWrapped<'b> {
 
     pub chain_registration: Endpoint<'b, { AccountState::Initialized }>,
 
-    pub to: Data<'b, SplAccount, { AccountState::Initialized }>,
-    pub mint: WrappedMint<'b, { AccountState::Initialized }>,
+    pub to: Mut<Data<'b, SplAccount, { AccountState::Initialized }>>,
+    pub mint: Mut<WrappedMint<'b, { AccountState::Initialized }>>,
 
     pub mint_authority: MintSigner<'b>,
 }

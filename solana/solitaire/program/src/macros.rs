@@ -69,12 +69,14 @@ macro_rules! solitaire {
                 match d[0] {
                     $(
                         n if n == Instruction::$row as u8 => {
-                            trace!("Dispatch: {}", stringify!($row));
-                            let ix_data: $kind = BorshDeserialize::try_from_slice(&d[1..]).map_err(|e| SolitaireError::InstructionDeserializeFailed(e))?;
-                            let mut accounts: $row = FromAccounts::from(p, &mut a.iter(), &())?;
-                            $fn(&ExecutionContext{program_id: p, accounts: a}, &mut accounts, ix_data)?;
-                            Persist::persist(&accounts, p)?;
-                            Ok(())
+                            (move || {
+                                trace!("Dispatch: {}", stringify!($row));
+                                let ix_data: $kind = BorshDeserialize::try_from_slice(&d[1..]).map_err(|e| SolitaireError::InstructionDeserializeFailed(e))?;
+                                let mut accounts: $row = FromAccounts::from(p, &mut a.iter(), &())?;
+                                $fn(&ExecutionContext{program_id: p, accounts: a}, &mut accounts, ix_data)?;
+                                Persist::persist(&accounts, p)?;
+                                Ok(())
+                            })()
                         },
                     )*
 

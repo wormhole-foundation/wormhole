@@ -1,33 +1,54 @@
 use crate::{
     accounts::{
-        ConfigAccount, Endpoint, EndpointDerivationData, MintSigner, WrappedDerivationData,
-        WrappedMint, WrappedTokenMeta,
+        ConfigAccount,
+        Endpoint,
+        EndpointDerivationData,
+        MintSigner,
+        WrappedDerivationData,
+        WrappedMint,
+        WrappedTokenMeta,
     },
     messages::PayloadAssetMeta,
     types::*,
 };
 use bridge::vaa::ClaimableVAA;
 use solana_program::{
-    account_info::AccountInfo, program::invoke_signed, program_error::ProgramError, pubkey::Pubkey,
+    account_info::AccountInfo,
+    program::invoke_signed,
+    program_error::ProgramError,
+    pubkey::Pubkey,
 };
-use solitaire::{processors::seeded::Seeded, CreationLamports::Exempt, *};
+use solitaire::{
+    processors::seeded::Seeded,
+    CreationLamports::Exempt,
+    *,
+};
 use spl_token::{
     error::TokenError::OwnerMismatch,
-    state::{Account, Mint},
+    state::{
+        Account,
+        Mint,
+    },
 };
-use std::ops::{Deref, DerefMut};
+use std::{
+    cmp::min,
+    ops::{
+        Deref,
+        DerefMut,
+    },
+};
 
 #[derive(FromAccounts)]
 pub struct CreateWrapped<'b> {
-    pub payer: Signer<AccountInfo<'b>>,
+    pub payer: Mut<Signer<AccountInfo<'b>>>,
     pub config: ConfigAccount<'b, { AccountState::Initialized }>,
 
     pub chain_registration: Endpoint<'b, { AccountState::Initialized }>,
     pub vaa: ClaimableVAA<'b, PayloadAssetMeta>,
 
     // New Wrapped
-    pub mint: WrappedMint<'b, { AccountState::Uninitialized }>,
-    pub meta: WrappedTokenMeta<'b, { AccountState::Uninitialized }>,
+    pub mint: Mut<WrappedMint<'b, { AccountState::Uninitialized }>>,
+    pub meta: Mut<WrappedTokenMeta<'b, { AccountState::Uninitialized }>>,
 
     pub mint_authority: MintSigner<'b>,
 }
@@ -81,7 +102,7 @@ pub fn create_wrapped(
         accs.mint.info().key,
         accs.mint_authority.key,
         None,
-        8,
+        min(8, accs.vaa.decimals), // Limit to 8 decimals, truncation is handled on the other side
     )?;
     invoke_signed(&init_ix, ctx.accounts, &[])?;
 

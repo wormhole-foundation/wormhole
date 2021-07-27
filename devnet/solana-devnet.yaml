@@ -41,6 +41,9 @@ spec:
             - --bpf-program
             - Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o
             - /opt/solana/deps/bridge.so
+            - --bpf-program
+            - B6RHG3mfcckmrYN1UhmJzyS1XX3fZKbkeUcpJe9Sy3FE
+            - /opt/solana/deps/token_bridge.so
             - --log
           ports:
             - containerPort: 8001

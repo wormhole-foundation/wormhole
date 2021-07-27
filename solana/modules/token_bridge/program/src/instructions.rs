@@ -1,32 +1,74 @@
 use crate::{
     accounts::{
-        AuthoritySigner, ConfigAccount, CustodyAccount, CustodyAccountDerivationData,
-        CustodySigner, EmitterAccount, Endpoint, EndpointDerivationData, MintSigner,
-        WrappedDerivationData, WrappedMint, WrappedTokenMeta,
+        AuthoritySigner,
+        ConfigAccount,
+        CustodyAccount,
+        CustodyAccountDerivationData,
+        CustodySigner,
+        EmitterAccount,
+        Endpoint,
+        EndpointDerivationData,
+        MintSigner,
+        WrappedDerivationData,
+        WrappedMint,
+        WrappedTokenMeta,
     },
     api::{
-        complete_transfer::{CompleteNativeData, CompleteWrappedData},
-        AttestTokenData, CreateWrappedData, RegisterChainData, TransferNativeData,
+        complete_transfer::{
+            CompleteNativeData,
+            CompleteWrappedData,
+        },
+        AttestTokenData,
+        CreateWrappedData,
+        RegisterChainData,
+        TransferNativeData,
         TransferWrappedData,
+        UpgradeContractData,
     },
-    messages::{PayloadAssetMeta, PayloadGovernanceRegisterChain, PayloadTransfer},
+    messages::{
+        PayloadAssetMeta,
+        PayloadGovernanceRegisterChain,
+        PayloadTransfer,
+    },
 };
 use borsh::BorshSerialize;
-use bridge::vaa::SerializePayload;
 use bridge::{
     accounts::{
-        Bridge, Claim, ClaimDerivationData, FeeCollector, Message, MessageDerivationData, Sequence,
+        Bridge,
+        Claim,
+        ClaimDerivationData,
+        FeeCollector,
+        Message,
+        MessageDerivationData,
+        Sequence,
         SequenceDerivationData,
     },
     api::ForeignAddress,
-    types::{BridgeConfig, PostedMessage},
-    vaa::{ClaimableVAA, PayloadMessage},
+    types::{
+        BridgeConfig,
+        PostedMessage,
+    },
+    vaa::{
+        ClaimableVAA,
+        PayloadMessage,
+        SerializePayload,
+    },
+    PostVAA,
+    PostVAAData,
+    CHAIN_ID_SOLANA,
 };
 use primitive_types::U256;
 use solana_program::instruction::Instruction;
-use solitaire::{processors::seeded::Seeded, AccountState};
-use solitaire_client::{AccountMeta, Keypair, Pubkey};
+use solitaire::{
+    processors::seeded::Seeded,
+    AccountState,
+};
+use solana_program::instruction::{
+    AccountMeta,
+};
+use solana_program::pubkey::Pubkey;
 use spl_token::state::Mint;
+use std::str::FromStr;
 
 pub fn initialize(
     program_id: Pubkey,
@@ -52,17 +94,17 @@ pub fn complete_native(
     bridge_id: Pubkey,
     payer: Pubkey,
     message_key: Pubkey,
-    message: PostedMessage,
+    vaa: PostVAAData,
     to: Pubkey,
     mint: Pubkey,
     data: CompleteNativeData,
 ) -> solitaire::Result<Instruction> {
     let config_key = ConfigAccount::<'_, { AccountState::Uninitialized }>::key(None, &program_id);
-    let (message_acc, claim_acc) = claimable_vaa(bridge_id, message_key, message.clone());
+    let (message_acc, claim_acc) = claimable_vaa(program_id, message_key, vaa.clone());
     let endpoint = Endpoint::<'_, { AccountState::Initialized }>::key(
         &EndpointDerivationData {
-            emitter_chain: message.emitter_chain,
-            emitter_address: message.emitter_address,
+            emitter_chain: vaa.emitter_chain,
+            emitter_address: vaa.emitter_address,
         },
         &program_id,
     );
@@ -76,7 +118,7 @@ pub fn complete_native(
         program_id,
         accounts: vec![
             AccountMeta::new(payer, true),
-            AccountMeta::new(config_key, false),
+            AccountMeta::new_readonly(config_key, false),
             message_acc,
             claim_acc,
             AccountMeta::new_readonly(endpoint, false),
@@ -85,10 +127,11 @@ pub fn complete_native(
             AccountMeta::new_readonly(mint, false),
             AccountMeta::new_readonly(custody_signer_key, false),
             // Dependencies
-            AccountMeta::new(solana_program::sysvar::rent::id(), false),
-            AccountMeta::new(solana_program::system_program::id(), false),
+            AccountMeta::new_readonly(solana_program::sysvar::rent::id(), false),
+            AccountMeta::new_readonly(solana_program::system_program::id(), false),
             // Program
             AccountMeta::new_readonly(bridge_id, false),
+            AccountMeta::new_readonly(spl_token::id(), false),
         ],
         data: (crate::instruction::Instruction::CompleteNative, data).try_to_vec()?,
     })
@@ -99,19 +142,19 @@ pub fn complete_wrapped(
     bridge_id: Pubkey,
     payer: Pubkey,
     message_key: Pubkey,
-    message: PostedMessage,
+    vaa: PostVAAData,
     payload: PayloadTransfer,
     to: Pubkey,
     data: CompleteWrappedData,
 ) -> solitaire::Result<Instruction> {
     let config_key = ConfigAccount::<'_, { AccountState::Uninitialized }>::key(None, &program_id);
-    let (message_acc, claim_acc) = claimable_vaa(bridge_id, message_key, message.clone());
+    let (message_acc, claim_acc) = claimable_vaa(program_id, message_key, vaa.clone());
     let endpoint = Endpoint::<'_, { AccountState::Initialized }>::key(
         &EndpointDerivationData {
-            emitter_chain: message.emitter_chain,
-            emitter_address: message.emitter_address,
+            emitter_chain: vaa.emitter_chain,
+            emitter_address: vaa.emitter_address,
         },
-        &bridge_id,
+        &program_id,
     );
     let mint_key = WrappedMint::<'_, { AccountState::Uninitialized }>::key(
         &WrappedDerivationData {
@@ -126,18 +169,19 @@ pub fn complete_wrapped(
         program_id,
         accounts: vec![
             AccountMeta::new(payer, true),
-            AccountMeta::new(config_key, false),
+            AccountMeta::new_readonly(config_key, false),
             message_acc,
             claim_acc,
             AccountMeta::new_readonly(endpoint, false),
             AccountMeta::new(to, false),
-            AccountMeta::new_readonly(mint_key, false),
+            AccountMeta::new(mint_key, false),
             AccountMeta::new_readonly(mint_authority_key, false),
             // Dependencies
-            AccountMeta::new(solana_program::sysvar::rent::id(), false),
-            AccountMeta::new(solana_program::system_program::id(), false),
+            AccountMeta::new_readonly(solana_program::sysvar::rent::id(), false),
+            AccountMeta::new_readonly(solana_program::system_program::id(), false),
             // Program
             AccountMeta::new_readonly(bridge_id, false),
+            AccountMeta::new_readonly(spl_token::id(), false),
         ],
         data: (crate::instruction::Instruction::CompleteWrapped, data).try_to_vec()?,
     })
@@ -148,18 +192,18 @@ pub fn create_wrapped(
     bridge_id: Pubkey,
     payer: Pubkey,
     message_key: Pubkey,
-    message: PostedMessage,
+    vaa: PostVAAData,
     payload: PayloadAssetMeta,
     data: CreateWrappedData,
 ) -> solitaire::Result<Instruction> {
     let config_key = ConfigAccount::<'_, { AccountState::Uninitialized }>::key(None, &program_id);
-    let (message_acc, claim_acc) = claimable_vaa(bridge_id, message_key, message.clone());
+    let (message_acc, claim_acc) = claimable_vaa(program_id, message_key, vaa.clone());
     let endpoint = Endpoint::<'_, { AccountState::Initialized }>::key(
         &EndpointDerivationData {
-            emitter_chain: message.emitter_chain,
-            emitter_address: message.emitter_address,
+            emitter_chain: vaa.emitter_chain,
+            emitter_address: vaa.emitter_address,
         },
-        &bridge_id,
+        &program_id,
     );
     let mint_key = WrappedMint::<'_, { AccountState::Uninitialized }>::key(
         &WrappedDerivationData {
@@ -181,7 +225,7 @@ pub fn create_wrapped(
         program_id,
         accounts: vec![
             AccountMeta::new(payer, true),
-            AccountMeta::new(config_key, false),
+            AccountMeta::new_readonly(config_key, false),
             AccountMeta::new_readonly(endpoint, false),
             message_acc,
             claim_acc,
@@ -189,10 +233,11 @@ pub fn create_wrapped(
             AccountMeta::new(mint_meta_key, false),
             AccountMeta::new_readonly(mint_authority_key, false),
             // Dependencies
-            AccountMeta::new(solana_program::sysvar::rent::id(), false),
-            AccountMeta::new(solana_program::system_program::id(), false),
+            AccountMeta::new_readonly(solana_program::sysvar::rent::id(), false),
+            AccountMeta::new_readonly(solana_program::system_program::id(), false),
             // Program
             AccountMeta::new_readonly(bridge_id, false),
+            AccountMeta::new_readonly(spl_token::id(), false),
         ],
         data: (crate::instruction::Instruction::CreateWrapped, data).try_to_vec()?,
     })
@@ -203,26 +248,26 @@ pub fn register_chain(
     bridge_id: Pubkey,
     payer: Pubkey,
     message_key: Pubkey,
-    message: PostedMessage,
+    vaa: PostVAAData,
     payload: PayloadGovernanceRegisterChain,
     data: RegisterChainData,
 ) -> solitaire::Result<Instruction> {
     let config_key = ConfigAccount::<'_, { AccountState::Uninitialized }>::key(None, &program_id);
-    let (message_acc, claim_acc) = claimable_vaa(bridge_id, message_key, message.clone());
+    let (message_acc, claim_acc) = claimable_vaa(program_id, message_key, vaa);
     let endpoint = Endpoint::<'_, { AccountState::Initialized }>::key(
         &EndpointDerivationData {
-            emitter_chain: message.emitter_chain,
-            emitter_address: message.emitter_address,
+            emitter_chain: payload.chain,
+            emitter_address: payload.endpoint_address,
         },
-        &bridge_id,
+        &program_id,
     );
 
     Ok(Instruction {
         program_id,
         accounts: vec![
             AccountMeta::new(payer, true),
-            AccountMeta::new(config_key, false),
-            AccountMeta::new_readonly(endpoint, false),
+            AccountMeta::new_readonly(config_key, false),
+            AccountMeta::new(endpoint, false),
             message_acc,
             claim_acc,
             // Dependencies
@@ -238,13 +283,13 @@ pub fn register_chain(
 fn claimable_vaa(
     bridge_id: Pubkey,
     message_key: Pubkey,
-    message: PostedMessage,
+    vaa: PostVAAData,
 ) -> (AccountMeta, AccountMeta) {
     let claim_key = Claim::<'_, { AccountState::Initialized }>::key(
         &ClaimDerivationData {
-            emitter_address: message.emitter_address,
-            emitter_chain: message.emitter_chain,
-            sequence: message.sequence,
+            emitter_address: vaa.emitter_address,
+            emitter_chain: vaa.emitter_chain,
+            sequence: vaa.sequence,
         },
         &bridge_id,
     );
@@ -305,7 +350,7 @@ pub fn transfer_native(
         program_id,
         accounts: vec![
             AccountMeta::new(payer, true),
-            AccountMeta::new(config_key, false),
+            AccountMeta::new_readonly(config_key, false),
             AccountMeta::new(from, false),
             AccountMeta::new(mint, false),
             AccountMeta::new(custody_key, false),
@@ -318,8 +363,8 @@ pub fn transfer_native(
             AccountMeta::new(fee_collector_key, false),
             AccountMeta::new_readonly(solana_program::sysvar::clock::id(), false),
             // Dependencies
-            AccountMeta::new(solana_program::sysvar::rent::id(), false),
-            AccountMeta::new(solana_program::system_program::id(), false),
+            AccountMeta::new_readonly(solana_program::sysvar::rent::id(), false),
+            AccountMeta::new_readonly(solana_program::system_program::id(), false),
             // Program
             AccountMeta::new_readonly(bridge_id, false),
             AccountMeta::new_readonly(spl_token::id(), false),
@@ -337,7 +382,6 @@ pub fn transfer_wrapped(
     token_chain: u16,
     token_address: ForeignAddress,
     data: TransferWrappedData,
-    sequence: u64,
 ) -> solitaire::Result<Instruction> {
     let config_key = ConfigAccount::<'_, { AccountState::Uninitialized }>::key(None, &program_id);
 
@@ -356,7 +400,7 @@ pub fn transfer_wrapped(
         &program_id,
     );
 
-    let mint_authority_key = MintSigner::key(None, &program_id);
+    let authority_signer = AuthoritySigner::key(None, &program_id);
     let emitter_key = EmitterAccount::key(None, &program_id);
 
     // Bridge keys
@@ -391,21 +435,21 @@ pub fn transfer_wrapped(
         program_id,
         accounts: vec![
             AccountMeta::new(payer, true),
-            AccountMeta::new(config_key, false),
+            AccountMeta::new_readonly(config_key, false),
             AccountMeta::new(from, false),
-            AccountMeta::new(from_owner, true),
-            AccountMeta::new_readonly(wrapped_mint_key, false),
+            AccountMeta::new_readonly(from_owner, true),
+            AccountMeta::new(wrapped_mint_key, false),
             AccountMeta::new_readonly(wrapped_meta_key, false),
-            AccountMeta::new_readonly(mint_authority_key, false),
-            AccountMeta::new_readonly(bridge_config, false),
+            AccountMeta::new_readonly(authority_signer, false),
+            AccountMeta::new(bridge_config, false),
             AccountMeta::new(message_key, false),
             AccountMeta::new_readonly(emitter_key, false),
             AccountMeta::new(sequence_key, false),
             AccountMeta::new(fee_collector_key, false),
             AccountMeta::new_readonly(solana_program::sysvar::clock::id(), false),
             // Dependencies
-            AccountMeta::new(solana_program::sysvar::rent::id(), false),
-            AccountMeta::new(solana_program::system_program::id(), false),
+            AccountMeta::new_readonly(solana_program::sysvar::rent::id(), false),
+            AccountMeta::new_readonly(solana_program::system_program::id(), false),
             // Program
             AccountMeta::new_readonly(bridge_id, false),
             AccountMeta::new_readonly(spl_token::id(), false),
@@ -419,7 +463,7 @@ pub fn attest(
     bridge_id: Pubkey,
     payer: Pubkey,
     mint: Pubkey,
-    mint_data: Mint,
+    decimals: u8,
     mint_meta: Pubkey,
     nonce: u32,
 ) -> solitaire::Result<Instruction> {
@@ -431,7 +475,7 @@ pub fn attest(
     let payload = PayloadAssetMeta {
         token_address: mint.to_bytes(),
         token_chain: 1,
-        decimals: mint_data.decimals,
+        decimals,
         symbol: "".to_string(), // TODO metadata
         name: "".to_string(),
     };
@@ -473,7 +517,62 @@ pub fn attest(
             // Program
             AccountMeta::new_readonly(bridge_id, false),
         ],
-        data: (crate::instruction::Instruction::AttestToken, AttestTokenData { nonce })
+        data: (
+            crate::instruction::Instruction::AttestToken,
+            AttestTokenData { nonce },
+        )
             .try_to_vec()?,
     })
+}
+
+pub fn upgrade_contract(
+    program_id: Pubkey,
+    payer: Pubkey,
+    payload_message: Pubkey,
+    emitter: Pubkey,
+    new_contract: Pubkey,
+    spill: Pubkey,
+    sequence: u64,
+) -> Instruction {
+    let claim = Claim::<'_, { AccountState::Uninitialized }>::key(
+        &ClaimDerivationData {
+            emitter_address: emitter.to_bytes(),
+            emitter_chain: CHAIN_ID_SOLANA,
+            sequence,
+        },
+        &program_id,
+    );
+
+    let (upgrade_authority, _) = Pubkey::find_program_address(&["upgrade".as_bytes()], &program_id);
+
+    let (program_data, _) = Pubkey::find_program_address(
+        &[program_id.as_ref()],
+        &solana_program::bpf_loader_upgradeable::id(),
+    );
+
+    Instruction {
+        program_id,
+
+        accounts: vec![
+            AccountMeta::new(payer, true),
+            AccountMeta::new_readonly(payload_message, false),
+            AccountMeta::new(claim, false),
+            AccountMeta::new_readonly(upgrade_authority, false),
+            AccountMeta::new(spill, false),
+            AccountMeta::new(new_contract, false),
+            AccountMeta::new(program_data, false),
+            AccountMeta::new(program_id, false),
+            AccountMeta::new_readonly(solana_program::sysvar::rent::id(), false),
+            AccountMeta::new_readonly(solana_program::sysvar::clock::id(), false),
+            AccountMeta::new_readonly(solana_program::bpf_loader_upgradeable::id(), false),
+            AccountMeta::new_readonly(solana_program::system_program::id(), false),
+        ],
+
+        data: (
+            crate::instruction::Instruction::UpgradeContract,
+            UpgradeContractData {},
+        )
+            .try_to_vec()
+            .unwrap(),
+    }
 }

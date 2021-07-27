@@ -43,25 +43,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "anchor-bridge-client"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "borsh",
- "bridge",
- "clap 3.0.0-beta.2",
- "rand 0.7.3",
- "shellexpand",
- "solana-client",
- "solana-program",
- "solana-sdk",
- "solitaire",
- "solitaire-client",
- "spl-token",
- "token-bridge",
-]
-
-[[package]]
 name = "ansi_term"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -273,7 +254,6 @@ dependencies = [
  "sha3",
  "solana-program",
  "solitaire",
- "solitaire-client",
 ]
 
 [[package]]
@@ -398,42 +378,10 @@ dependencies = [
  "ansi_term",
  "atty",
  "bitflags",
- "strsim 0.8.0",
- "textwrap 0.11.0",
+ "strsim",
+ "textwrap",
  "unicode-width",
  "vec_map",
-]
-
-[[package]]
-name = "clap"
-version = "3.0.0-beta.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4bd1061998a501ee7d4b6d449020df3266ca3124b941ec56cf2005c3779ca142"
-dependencies = [
- "atty",
- "bitflags",
- "clap_derive",
- "indexmap",
- "lazy_static",
- "os_str_bytes",
- "strsim 0.10.0",
- "termcolor",
- "textwrap 0.12.1",
- "unicode-width",
- "vec_map",
-]
-
-[[package]]
-name = "clap_derive"
-version = "3.0.0-beta.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "370f715b81112975b1b69db93e0b56ea4cd4e5002ac43b2da8474106a54096a1"
-dependencies = [
- "heck",
- "proc-macro-error",
- "proc-macro2 1.0.27",
- "quote 1.0.9",
- "syn 1.0.73",
 ]
 
 [[package]]
@@ -1166,15 +1114,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "heck"
-version = "0.3.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6d621efb26863f0e9924c6ac577e8275e5e6b77455db64ffa6c65c904e9e132c"
-dependencies = [
- "unicode-segmentation",
-]
-
-[[package]]
 name = "hermit-abi"
 version = "0.1.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1847,12 +1786,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "os_str_bytes"
-version = "2.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "afb2e1c3ee07430c2cf76151675e583e0f19985fa6efae47d6848a3e2c824f85"
-
-[[package]]
 name = "ouroboros"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2023,30 +1956,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1d6ea3c4595b96363c13943497db34af4460fb474a95c43f4446ad341b8c9785"
 dependencies = [
  "toml",
-]
-
-[[package]]
-name = "proc-macro-error"
-version = "1.0.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "da25490ff9892aab3fcf7c36f08cfb902dd3e71ca0f9f9517bea02a73a5ce38c"
-dependencies = [
- "proc-macro-error-attr",
- "proc-macro2 1.0.27",
- "quote 1.0.9",
- "syn 1.0.73",
- "version_check",
-]
-
-[[package]]
-name = "proc-macro-error-attr"
-version = "1.0.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a1be40180e52ecc98ad80b184934baf3d0d29f979574e439af5a55274b35f869"
-dependencies = [
- "proc-macro2 1.0.27",
- "quote 1.0.9",
- "version_check",
 ]
 
 [[package]]
@@ -2587,15 +2496,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "shellexpand"
-version = "2.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "83bdb7831b2d85ddf4a7b148aa19d0587eddbe8671a436b7bd1182eaad0f2829"
-dependencies = [
- "dirs-next",
-]
-
-[[package]]
 name = "signal-hook-registry"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2683,7 +2583,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "484288242b2b175bf2b7554497318e39b23ee921989f976387dbe48e60b2f256"
 dependencies = [
  "chrono",
- "clap 2.33.3",
+ "clap",
  "rpassword",
  "solana-remote-wallet",
  "solana-sdk",
@@ -2716,7 +2616,7 @@ dependencies = [
  "base64 0.13.0",
  "bincode",
  "bs58",
- "clap 2.33.3",
+ "clap",
  "indicatif",
  "jsonrpc-core",
  "log",
@@ -2789,7 +2689,7 @@ checksum = "ed5e6adf551ca4e761c3395bb684ba5d907a051007a6dbf2d57cb99d2691e031"
 dependencies = [
  "bincode",
  "byteorder",
- "clap 2.33.3",
+ "clap",
  "log",
  "serde",
  "serde_derive",
@@ -2879,7 +2779,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fa68e25fb6452b85733cf5c301988b56fd2d5d5a8e93c75cf38cbec06efc2eae"
 dependencies = [
  "bincode",
- "clap 2.33.3",
+ "clap",
  "log",
  "nix",
  "rand 0.7.3",
@@ -3249,12 +3149,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8ea5119cdb4c55b55d432abb513a0429384878c15dde60cc77b1c99de1a95a6a"
 
 [[package]]
-name = "strsim"
-version = "0.10.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "73473c0e59e6d5812c5dfe2a064a6444949f089e20eec9a2e5506596494e4623"
-
-[[package]]
 name = "subtle"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3369,15 +3263,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "textwrap"
-version = "0.12.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "203008d98caf094106cfaba70acfed15e18ed3ddb7d94e49baec153a2b462789"
-dependencies = [
- "unicode-width",
-]
-
-[[package]]
 name = "thiserror"
 version = "1.0.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3454,6 +3339,7 @@ dependencies = [
  "primitive-types",
  "rand 0.7.3",
  "rocksalt",
+ "serde",
  "sha3",
  "solana-client",
  "solana-program",
@@ -3461,6 +3347,7 @@ dependencies = [
  "solitaire",
  "solitaire-client",
  "spl-token",
+ "wasm-bindgen",
 ]
 
 [[package]]
@@ -3803,12 +3690,6 @@ checksum = "d54590932941a9e9266f0832deed84ebe1bf2e4c9e4a3554d393d18f5e854bf9"
 dependencies = [
  "tinyvec",
 ]
-
-[[package]]
-name = "unicode-segmentation"
-version = "1.7.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bb0d2e7be6ae3a5fa87eed5fb451aff96f2573d2694942e40543ae0bbe19c796"
 
 [[package]]
 name = "unicode-width"

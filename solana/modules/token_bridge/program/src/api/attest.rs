@@ -1,29 +1,53 @@
 use crate::{
-    accounts::{ConfigAccount, EmitterAccount},
-    messages::{PayloadAssetMeta, PayloadTransfer},
+    accounts::{
+        ConfigAccount,
+        EmitterAccount,
+    },
+    messages::{
+        PayloadAssetMeta,
+        PayloadTransfer,
+    },
     types::*,
 };
 use bridge::{
-    api::{PostMessage, PostMessageData},
-    vaa::SerializePayload,
+    api::{
+        PostMessage,
+        PostMessageData,
+    },
     types::ConsistencyLevel,
+    vaa::SerializePayload,
 };
 use primitive_types::U256;
 use solana_program::{
     account_info::AccountInfo,
-    instruction::{AccountMeta, Instruction},
-    program::{invoke, invoke_signed},
+    instruction::{
+        AccountMeta,
+        Instruction,
+    },
+    program::{
+        invoke,
+        invoke_signed,
+    },
     program_error::ProgramError,
     pubkey::Pubkey,
     sysvar::clock::Clock,
 };
-use solitaire::processors::seeded::invoke_seeded;
-use solitaire::{CreationLamports::Exempt, *};
+use solitaire::{
+    processors::seeded::invoke_seeded,
+    CreationLamports::Exempt,
+    *,
+};
 use spl_token::{
     error::TokenError::OwnerMismatch,
-    state::{Account, Mint},
+    state::{
+        Account,
+        Mint,
+    },
 };
-use std::ops::{Deref, DerefMut};
+use std::ops::{
+    Deref,
+    DerefMut,
+};
 
 #[derive(FromAccounts)]
 pub struct AttestToken<'b> {
@@ -86,11 +110,14 @@ pub fn attest_token(
         // Populate fields
     }
 
-    let params = (bridge::instruction::Instruction::PostMessage, PostMessageData {
-        nonce: data.nonce,
-        payload: payload.try_to_vec()?,
-        consistency_level: ConsistencyLevel::Confirmed,
-    });
+    let params = (
+        bridge::instruction::Instruction::PostMessage,
+        PostMessageData {
+            nonce: data.nonce,
+            payload: payload.try_to_vec()?,
+            consistency_level: ConsistencyLevel::Confirmed,
+        },
+    );
 
     let ix = Instruction::new_with_bytes(
         accs.config.wormhole_bridge,

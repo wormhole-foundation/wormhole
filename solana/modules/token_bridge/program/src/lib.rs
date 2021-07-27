@@ -12,11 +12,33 @@ pub mod messages;
 pub mod types;
 
 pub use api::{
-    attest_token, complete_native, complete_wrapped, create_wrapped, initialize, register_chain,
-    transfer_native, transfer_wrapped, AttestToken, AttestTokenData, CompleteNative,
-    CompleteNativeData, CompleteWrapped, CompleteWrappedData, CreateWrapped, CreateWrappedData,
-    Initialize, RegisterChain, RegisterChainData, TransferNative, TransferNativeData,
-    TransferWrapped, TransferWrappedData,
+    attest_token,
+    complete_native,
+    complete_wrapped,
+    create_wrapped,
+    initialize,
+    register_chain,
+    transfer_native,
+    transfer_wrapped,
+    AttestToken,
+    AttestTokenData,
+    CompleteNative,
+    CompleteNativeData,
+    CompleteWrapped,
+    CompleteWrappedData,
+    CreateWrapped,
+    CreateWrappedData,
+    Initialize,
+    InitializeData,
+    RegisterChain,
+    RegisterChainData,
+    TransferNative,
+    TransferNativeData,
+    TransferWrapped,
+    TransferWrappedData,
+    UpgradeContract,
+    UpgradeContractData,
+    upgrade_contract
 };
 
 use solitaire::*;
@@ -31,6 +53,7 @@ pub enum TokenBridgeError {
     AlreadyExecuted,
     InvalidChain,
     TokenNotNative,
+    InvalidGovernanceKey,
 }
 
 impl<T: Error> From<T> for TokenBridgeError {
@@ -46,7 +69,7 @@ impl Into<SolitaireError> for TokenBridgeError {
 }
 
 solitaire! {
-    Initialize(Pubkey) => initialize,
+    Initialize(InitializeData) => initialize,
     AttestToken(AttestTokenData) => attest_token,
     CompleteNative(CompleteNativeData) => complete_native,
     CompleteWrapped(CompleteWrappedData) => complete_wrapped,
@@ -54,4 +77,5 @@ solitaire! {
     TransferNative(TransferNativeData) => transfer_native,
     RegisterChain(RegisterChainData) => register_chain,
     CreateWrapped(CreateWrappedData) => create_wrapped,
+    UpgradeContract(UpgradeContractData) => upgrade_contract,
 }

@@ -88,7 +88,7 @@ pub struct Signature {
 
 pub type ForeignAddress = [u8; 32];
 
-#[derive(Default, BorshSerialize, BorshDeserialize)]
+#[derive(Default, BorshSerialize, BorshDeserialize, Clone)]
 pub struct PostVAAData {
     // Header part
     pub version: u8,

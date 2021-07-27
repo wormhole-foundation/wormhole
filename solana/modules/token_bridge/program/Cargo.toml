@@ -9,7 +9,7 @@ crate-type = ["cdylib", "lib"]
 name = "token_bridge"
 
 [features]
-no-entrypoint = ["solitaire/no-entrypoint"]
+no-entrypoint = ["solitaire/no-entrypoint", "rand"]
 trace = ["solitaire/trace"]
 client = ["solitaire-client", "solitaire/client", "no-entrypoint"]
 cpi = ["no-entrypoint"]
@@ -26,12 +26,14 @@ solana-program = "*"
 spl-token = { version = "=3.1.0", features = ["no-entrypoint"] }
 primitive-types = { version = "0.9.0", default-features = false }
 solitaire-client = { path = "../../../solitaire/client", optional = true }
+wasm-bindgen = { version = "0.2.74", features = ["serde-serialize"] }
+serde = { version = "1.0", features = ["derive"] }
+rand = { version = "0.7.3", optional = true }
 
 [dev-dependencies]
 hex = "*"
 hex-literal = "0.3.1"
 libsecp256k1 = { version = "0.3.5", features = [] }
-rand = "0.7.3"
 solana-client = "1.7.0"
 solana-sdk = "=1.7.0"
 spl-token = { version = "=3.1.0", features = ["no-entrypoint"] }

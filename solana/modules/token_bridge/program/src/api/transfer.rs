@@ -1,7 +1,14 @@
 use crate::{
     accounts::{
-        AuthoritySigner, ConfigAccount, CustodyAccount, CustodyAccountDerivationData,
-        CustodySigner, EmitterAccount, MintSigner, WrappedDerivationData, WrappedMint,
+        AuthoritySigner,
+        ConfigAccount,
+        CustodyAccount,
+        CustodyAccountDerivationData,
+        CustodySigner,
+        EmitterAccount,
+        MintSigner,
+        WrappedDerivationData,
+        WrappedMint,
         WrappedTokenMeta,
     },
     messages::PayloadTransfer,
@@ -10,36 +17,54 @@ use crate::{
     TokenBridgeError::WrongAccountOwner,
 };
 use bridge::{
-    api::{PostMessage, PostMessageData},
+    api::{
+        PostMessage,
+        PostMessageData,
+    },
     types::ConsistencyLevel,
     vaa::SerializePayload,
 };
 use primitive_types::U256;
 use solana_program::{
     account_info::AccountInfo,
-    instruction::{AccountMeta, Instruction},
-    program::{invoke, invoke_signed},
+    instruction::{
+        AccountMeta,
+        Instruction,
+    },
+    program::{
+        invoke,
+        invoke_signed,
+    },
     program_error::ProgramError,
     program_option::COption,
     pubkey::Pubkey,
     sysvar::clock::Clock,
 };
 use solitaire::{
-    processors::seeded::{invoke_seeded, Seeded},
+    processors::seeded::{
+        invoke_seeded,
+        Seeded,
+    },
     CreationLamports::Exempt,
     *,
 };
 use spl_token::{
     error::TokenError::OwnerMismatch,
-    state::{Account, Mint},
+    state::{
+        Account,
+        Mint,
+    },
 };
-use std::ops::{Deref, DerefMut};
+use std::ops::{
+    Deref,
+    DerefMut,
+};
 
 #[derive(FromAccounts)]
 pub struct TransferNative<'b> {
     pub payer: Mut<Signer<AccountInfo<'b>>>,
 
-    pub config: Mut<ConfigAccount<'b, { AccountState::Initialized }>>,
+    pub config: ConfigAccount<'b, { AccountState::Initialized }>,
 
     pub from: Mut<Data<'b, SplAccount, { AccountState::Initialized }>>,
 
@@ -152,11 +177,14 @@ pub fn transfer_native(
         to_chain: data.target_chain,
         fee: U256::from(data.fee),
     };
-    let params = (bridge::instruction::Instruction::PostMessage, PostMessageData {
-        nonce: data.nonce,
-        payload: payload.try_to_vec()?,
-        consistency_level: ConsistencyLevel::Confirmed,
-    });
+    let params = (
+        bridge::instruction::Instruction::PostMessage,
+        PostMessageData {
+            nonce: data.nonce,
+            payload: payload.try_to_vec()?,
+            consistency_level: ConsistencyLevel::Confirmed,
+        },
+    );
 
     let ix = Instruction::new_with_bytes(
         accs.config.wormhole_bridge,
@@ -180,30 +208,30 @@ pub fn transfer_native(
 
 #[derive(FromAccounts)]
 pub struct TransferWrapped<'b> {
-    pub payer: Signer<AccountInfo<'b>>,
+    pub payer: Mut<Signer<AccountInfo<'b>>>,
     pub config: ConfigAccount<'b, { AccountState::Initialized }>,
 
-    pub from: Data<'b, SplAccount, { AccountState::Initialized }>,
+    pub from: Mut<Data<'b, SplAccount, { AccountState::Initialized }>>,
     pub from_owner: Signer<Info<'b>>,
-    pub mint: WrappedMint<'b, { AccountState::Initialized }>,
+    pub mint: Mut<WrappedMint<'b, { AccountState::Initialized }>>,
     pub wrapped_meta: WrappedTokenMeta<'b, { AccountState::Initialized }>,
 
-    pub mint_authority: MintSigner<'b>,
+    pub authority_signer: AuthoritySigner<'b>,
 
     /// CPI Context
-    pub bridge: Info<'b>,
+    pub bridge: Mut<Info<'b>>,
 
     /// Account to store the posted message
-    pub message: Info<'b>,
+    pub message: Mut<Info<'b>>,
 
     /// Emitter of the VAA
     pub emitter: EmitterAccount<'b>,
 
     /// Tracker for the emitter sequence
-    pub sequence: Info<'b>,
+    pub sequence: Mut<Info<'b>>,
 
     /// Account to collect tx fee
-    pub fee_collector: Info<'b>,
+    pub fee_collector: Mut<Info<'b>>,
 
     pub clock: Sysvar<'b, Clock>,
 }
@@ -256,11 +284,11 @@ pub fn transfer_wrapped(
         &spl_token::id(),
         accs.from.info().key,
         accs.mint.info().key,
-        accs.mint_authority.key,
+        accs.authority_signer.key,
         &[],
         data.amount,
     )?;
-    invoke_seeded(&burn_ix, ctx, &accs.mint_authority, None)?;
+    invoke_seeded(&burn_ix, ctx, &accs.authority_signer, None)?;
 
     // Pay fee
     let transfer_ix =
@@ -276,17 +304,20 @@ pub fn transfer_wrapped(
         to_chain: data.target_chain,
         fee: U256::from(data.fee),
     };
-    let params = (bridge::instruction::Instruction::PostMessage, PostMessageData {
-        nonce: data.nonce,
-        payload: payload.try_to_vec()?,
-        consistency_level: ConsistencyLevel::Confirmed,
-    });
+    let params = (
+        bridge::instruction::Instruction::PostMessage,
+        PostMessageData {
+            nonce: data.nonce,
+            payload: payload.try_to_vec()?,
+            consistency_level: ConsistencyLevel::Confirmed,
+        },
+    );
 
     let ix = Instruction::new_with_bytes(
         accs.config.wormhole_bridge,
         params.try_to_vec()?.as_slice(),
         vec![
-            AccountMeta::new_readonly(*accs.bridge.key, false),
+            AccountMeta::new(*accs.bridge.key, false),
             AccountMeta::new(*accs.message.key, false),
             AccountMeta::new_readonly(*accs.emitter.key, true),
             AccountMeta::new(*accs.sequence.key, false),
