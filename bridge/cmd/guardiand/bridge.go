@@ -57,6 +57,9 @@ var (
 	ethRPC      *string
 	ethContract *string
 
+	bscRPC      *string
+	bscContract *string
+
 	terraWS       *string
 	terraLCD      *string
 	terraChainID  *string
@@ -92,6 +95,9 @@ func init() {
 
 	ethRPC = BridgeCmd.Flags().String("ethRPC", "", "Ethereum RPC URL")
 	ethContract = BridgeCmd.Flags().String("ethContract", "", "Ethereum bridge contract address")
+
+	bscRPC = BridgeCmd.Flags().String("bscRPC", "", "Binance Smart Chain RPC URL")
+	bscContract = BridgeCmd.Flags().String("bscContract", "", "Binance Smart Chain bridge contract address")
 
 	terraWS = BridgeCmd.Flags().String("terraWS", "", "Path to terrad root for websocket connection")
 	terraLCD = BridgeCmd.Flags().String("terraLCD", "", "Path to LCD service root for http calls")
@@ -231,6 +237,7 @@ func runBridge(cmd *cobra.Command, args []string) {
 
 		// Deterministic ganache ETH devnet address.
 		*ethContract = devnet.GanacheBridgeContractAddress.Hex()
+		*bscContract = devnet.GanacheBridgeContractAddress.Hex()
 
 		// Use the hostname as nodeName. For production, we don't want to do this to
 		// prevent accidentally leaking sensitive hostnames.
@@ -261,6 +268,12 @@ func runBridge(cmd *cobra.Command, args []string) {
 	if *ethContract == "" {
 		logger.Fatal("Please specify --ethContract")
 	}
+	if *bscRPC == "" {
+		logger.Fatal("Please specify --bscRPC")
+	}
+	if *bscContract == "" {
+		logger.Fatal("Please specify --bscContract")
+	}
 	if *nodeName == "" {
 		logger.Fatal("Please specify --nodeName")
 	}
@@ -289,6 +302,7 @@ func runBridge(cmd *cobra.Command, args []string) {
 	}
 
 	ethContractAddr := eth_common.HexToAddress(*ethContract)
+	bscContractAddr := eth_common.HexToAddress(*bscContract)
 	solBridgeAddress, err := solana_types.PublicKeyFromBase58(*solanaBridgeAddress)
 	if err != nil {
 		logger.Fatal("invalid Solana bridge address", zap.Error(err))
@@ -375,6 +389,11 @@ func runBridge(cmd *cobra.Command, args []string) {
 
 		if err := supervisor.Run(ctx, "ethwatch",
 			ethereum.NewEthBridgeWatcher(*ethRPC, ethContractAddr, "eth", vaa.ChainIDEthereum, lockC, setC).Run); err != nil {
+			return err
+		}
+
+		if err := supervisor.Run(ctx, "bscwatch",
+			ethereum.NewEthBridgeWatcher(*bscRPC, bscContractAddr, "bsc", vaa.ChainIDBSC, lockC, nil).Run); err != nil {
 			return err
 		}
 
