@@ -1,0 +1,23 @@
+{
+  "name": "wormhole-client-solana",
+  "version": "1.0.0",
+  "dependencies": {
+    "@solana/web3.js": "^1.22.0",
+    "bn.js": "^5.2.0",
+    "bs58": "^4.0.1",
+    "buffer-layout": "^1.2.2",
+    "npm": "^7.20.0",
+    "yargs": "^17.0.1"
+  },
+  "scripts": {
+    "start": "tsc && node main.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "devDependencies": {
+    "@types/bs58": "^4.0.1",
+    "@types/bn.js": "^5.1.0",
+    "@types/yargs": "^17.0.2",
+    "bridge": "file:./pkg",
+    "typescript": "^4.3.5"
+  }
+}
