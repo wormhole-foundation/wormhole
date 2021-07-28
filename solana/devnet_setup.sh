@@ -47,7 +47,4 @@ spl-token mint "$token" 10000000000 "$account"
 retry client create-bridge "$bridge_address" "$initial_guardian" 86400 100
 
 # Let k8s startup probe succeed
-nc -l -p 2000
-
-# Keep the container alive for interactive CLI usage
-sleep infinity
+nc -k -l -p 2000

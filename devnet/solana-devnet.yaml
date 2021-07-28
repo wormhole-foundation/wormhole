@@ -77,11 +77,12 @@ spec:
             httpGet:
               port: rpc
               path: /health
+            periodSeconds: 1
         - name: setup
           image: solana-client
           command:
             - /usr/src/solana/devnet_setup.sh
-          startupProbe:
+          readinessProbe:
             tcpSocket:
               port: 2000
             periodSeconds: 1
