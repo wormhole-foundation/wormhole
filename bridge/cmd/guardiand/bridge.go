@@ -374,7 +374,7 @@ func runBridge(cmd *cobra.Command, args []string) {
 		}
 
 		if err := supervisor.Run(ctx, "ethwatch",
-			ethereum.NewEthBridgeWatcher(*ethRPC, ethContractAddr, lockC, setC).Run); err != nil {
+			ethereum.NewEthBridgeWatcher(*ethRPC, ethContractAddr, "eth", vaa.ChainIDEthereum, true, lockC, setC).Run); err != nil {
 			return err
 		}
 
