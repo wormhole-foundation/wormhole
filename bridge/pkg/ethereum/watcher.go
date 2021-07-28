@@ -69,18 +69,19 @@ type (
 		networkName string
 		// VAA ChainID of the network we're connecting to.
 		chainID vaa.ChainID
-		// Whether to publish a message to setChan whenever the guardian set changes.
+
+		// Channel to send new messages to.
+		msgChan chan *common.MessagePublication
+
+		// Channel to send guardian set changes to.
+		// setChan can be set to nil if no guardian set changes are needed.
+		//
 		// We currently only fetch the guardian set from one primary chain, which should
 		// have this flag set to true, and false on all others.
 		//
 		// The current primary chain is Ethereum (a mostly arbitrary decision because it
 		// has the best API - we might want to switch the primary chain to Solana once
 		// the governance mechanism lives there),
-		emitGuardianSet bool
-
-		// Channel to send new messages to.
-		msgChan chan *common.MessagePublication
-		// Channel to send guardian set changes to.
 		setChan chan *common.GuardianSet
 
 		pending   map[eth_common.Hash]*pendingMessage
@@ -98,18 +99,16 @@ func NewEthBridgeWatcher(
 	bridge eth_common.Address,
 	networkName string,
 	chainID vaa.ChainID,
-	emitGuardianSet bool,
 	messageEvents chan *common.MessagePublication,
 	setEvents chan *common.GuardianSet) *EthBridgeWatcher {
 	return &EthBridgeWatcher{
-		url:             url,
-		bridge:          bridge,
-		networkName:     networkName,
-		emitGuardianSet: emitGuardianSet,
-		chainID:         chainID,
-		msgChan:         messageEvents,
-		setChan:         setEvents,
-		pending:         map[eth_common.Hash]*pendingMessage{}}
+		url:         url,
+		bridge:      bridge,
+		networkName: networkName,
+		chainID:     chainID,
+		msgChan:     messageEvents,
+		setChan:     setEvents,
+		pending:     map[eth_common.Hash]*pendingMessage{}}
 }
 
 func (e *EthBridgeWatcher) Run(ctx context.Context) error {
@@ -170,7 +169,7 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 		zap.Any("value", gs), zap.Uint32("index", idx),
 		zap.String("eth_network", e.networkName))
 
-	if e.emitGuardianSet {
+	if e.setChan != nil {
 		e.setChan <- &common.GuardianSet{
 			Keys:  gs.Keys,
 			Index: idx,
@@ -249,7 +248,7 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 					zap.Any("value", gs), zap.Uint32("index", ev.Index),
 					zap.String("eth_network", e.networkName))
 
-				if e.emitGuardianSet {
+				if e.setChan != nil {
 					e.setChan <- &common.GuardianSet{
 						Keys:  gs.Keys,
 						Index: ev.Index,
