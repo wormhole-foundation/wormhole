@@ -9,7 +9,7 @@ import (
 	"os"
 	"syscall"
 
-	solana_types "github.com/dfuse-io/solana-go"
+	solana_types "github.com/gagliardetto/solana-go"
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 

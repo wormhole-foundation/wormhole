@@ -8,9 +8,9 @@ import (
 	"github.com/certusone/wormhole/bridge/pkg/readiness"
 	"github.com/certusone/wormhole/bridge/pkg/supervisor"
 	"github.com/certusone/wormhole/bridge/pkg/vaa"
-	"github.com/dfuse-io/solana-go"
-	"github.com/dfuse-io/solana-go/rpc"
 	eth_common "github.com/ethereum/go-ethereum/common"
+	"github.com/gagliardetto/solana-go"
+	"github.com/gagliardetto/solana-go/rpc"
 	"github.com/mr-tron/base58"
 	"github.com/near/borsh-go"
 	"github.com/prometheus/client_golang/prometheus"
@@ -65,7 +65,7 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 		BridgeAddress: bridgeAddr,
 	})
 
-	rpcClient := rpc.NewClient(s.rpcUrl)
+	rpcClient := rpc.New(s.rpcUrl)
 	logger := supervisor.Logger(ctx)
 	errC := make(chan error)
 
@@ -105,8 +105,8 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 					start = time.Now()
 
 					// Get finalized accounts
-					fAccounts, err := rpcClient.GetProgramAccounts(rCtx, s.bridge, &rpc.GetProgramAccountsOpts{
-						Commitment: rpc.CommitmentMax, // TODO: deprecated, use Finalized
+					fAccounts, err := rpcClient.GetProgramAccountsWithOpts(rCtx, s.bridge, &rpc.GetProgramAccountsOpts{
+						Commitment: rpc.CommitmentFinalized,
 						Filters: []rpc.RPCFilter{
 							{
 								Memcmp: &rpc.RPCFilterMemcmp{
@@ -136,8 +136,8 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 					}
 
 					// Get confirmed accounts
-					cAccounts, err := rpcClient.GetProgramAccounts(rCtx, s.bridge, &rpc.GetProgramAccountsOpts{
-						Commitment: rpc.CommitmentSingle, // TODO: deprecated, use Confirmed
+					cAccounts, err := rpcClient.GetProgramAccountsWithOpts(rCtx, s.bridge, &rpc.GetProgramAccountsOpts{
+						Commitment: rpc.CommitmentConfirmed,
 						Filters: []rpc.RPCFilter{
 							{
 								Memcmp: &rpc.RPCFilterMemcmp{
@@ -175,7 +175,7 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 					)
 
 					for _, acc := range accounts {
-						proposal, err := ParseTransferOutProposal(acc.Account.Data)
+						proposal, err := ParseTransferOutProposal(acc.Account.Data.GetBinary())
 						if err != nil {
 							solanaAccountSkips.WithLabelValues("parse_transfer_out").Inc()
 							logger.Warn(

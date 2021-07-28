@@ -5,8 +5,8 @@ go 1.16
 require (
 	github.com/cenkalti/backoff/v4 v4.1.1
 	github.com/davecgh/go-spew v1.1.1
-	github.com/dfuse-io/solana-go v0.2.0
 	github.com/ethereum/go-ethereum v1.10.6
+	github.com/gagliardetto/solana-go v0.3.5-0.20210727215348-0cf016734976
 	github.com/gorilla/mux v1.7.4
 	github.com/gorilla/websocket v1.4.2
 	github.com/ipfs/go-log/v2 v2.3.0
@@ -30,8 +30,8 @@ require (
 	github.com/terra-project/terra.go v1.0.1-0.20210129055710-7a586e5e027a
 	github.com/tidwall/gjson v1.8.1
 	go.uber.org/zap v1.16.0
-	golang.org/x/crypto v0.0.0-20210506145944-38f3c27a63bf
-	golang.org/x/sys v0.0.0-20210511113859-b0526f3d8744
+	golang.org/x/crypto v0.0.0-20210513164829-c07d793c2f9a
+	golang.org/x/sys v0.0.0-20210514084401-e8d321eab015
 	google.golang.org/genproto v0.0.0-20200526211855-cb27e3aa2013
 	google.golang.org/grpc v1.33.2
 	google.golang.org/protobuf v1.26.0
