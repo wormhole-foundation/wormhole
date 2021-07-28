@@ -31,6 +31,22 @@ you on whether an event has actually been observed. The whole point of Wormhole 
 We strongly recommend running your own full nodes for both testnet and mainnet (where applicable)
 so you can test changes for your mainnet full nodes and gain operational experience.
 
+### Solana node requirements
+
+Your Solana RPC node needs the following parameters enabled:
+
+```
+--enable-rpc-transaction-history
+--enable-cpi-and-log-storage
+```
+
+`--enable-rpc-transaction-history` enables historic transactions to be retrieved via the *getConfirmedBlock* API, which is required for Wormhole to find transactions.
+
+`--enable-cpi-and-log-storage` stores metadata about CPI calls.
+
+Note that these indexes require extra disk space and may slow down catchup. The first startup after
+adding these parameters will be slow since Solana needs to recreate all indexes.
+
 ### Ethereum node requirements
 
 In order to observe events on the Ethereum chain, you need access to an Ethereum RPC endpoint. The most common
