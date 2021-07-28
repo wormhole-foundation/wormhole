@@ -54,7 +54,7 @@ spec:
             - "npm run migrate && npx truffle exec scripts/deploy_test_token.js && nc -l -p 2000 && sleep infinity"
           startupProbe:
             periodSeconds: 1
-            failureThreshold: 60
+            failureThreshold: 300
             tcpSocket:
               port: 2000
         - name: mine
