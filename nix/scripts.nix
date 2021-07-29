@@ -6,7 +6,7 @@ final: prev: {
   # * Docker supports BuildKit
   whcluster = final.writeShellScriptBin "whcluster" ''
     set -e
-    default_minikube_args="--cpus=10 --memory=10gb --disk-size=200gb"
+    default_minikube_args="--cpus=10 --memory=10gb --disk-size=200gb --driver=kvm2"
     export MINIKUBE_ARGS=''${MINIKUBE_ARGS:-$default_minikube_args}
     ${final.minikube}/bin/minikube start $MINIKUBE_ARGS
     ${final.whinotify}/bin/whinotify
@@ -53,7 +53,7 @@ final: prev: {
     ${final.mutagen}/bin/mutagen sync flush whremote-sync
 
     # Use larger cpu-count and memory values on the remote
-    export MINIKUBE_ARGS=''${MINIKUBE_ARGS:='--cpus=30 --memory=110g --disk-size=1000gb'}
+    export MINIKUBE_ARGS=''${MINIKUBE_ARGS:='--cpus=30 --memory=110g --disk-size=500gb --driver=kvm2'}
 
     # Set up/update the remote minikube cluster with whcluster
     ssh $remote_machine \
