@@ -114,6 +114,7 @@ fn command_post_message(
     nonce: u32,
     payload: Vec<u8>,
     commitment: bridge::types::ConsistencyLevel,
+    proxy: Option<Pubkey>,
 ) -> CommmandResult {
     println!("Posting a message to the wormhole");
 
@@ -134,15 +135,33 @@ fn command_post_message(
     );
 
     let emitter = Keypair::new();
-    let (_, ix) = bridge::instructions::post_message(
-        *bridge,
-        config.owner.pubkey(),
-        emitter.pubkey(),
-        nonce,
-        payload,
-        commitment,
-    )
-    .unwrap();
+    let ix = match proxy {
+        Some(p) => {
+            cpi_poster::instructions::post_message(
+                p,
+                *bridge,
+                config.owner.pubkey(),
+                emitter.pubkey(),
+                nonce,
+                payload,
+                commitment,
+            )
+            .unwrap()
+            .1
+        }
+        None => {
+            bridge::instructions::post_message(
+                *bridge,
+                config.owner.pubkey(),
+                emitter.pubkey(),
+                nonce,
+                payload,
+                commitment,
+            )
+            .unwrap()
+            .1
+        }
+    };
     let mut transaction =
         Transaction::new_with_payer(&[transfer_ix, ix], Some(&config.fee_payer.pubkey()));
 
@@ -299,6 +318,14 @@ fn main() {
                         .index(4)
                         .required(true)
                         .help("Payload of the message"),
+                )
+                .arg(
+                    Arg::with_name("proxy")
+                        .long("proxy")
+                        .validator(is_pubkey_or_keypair)
+                        .value_name("PROXY")
+                        .takes_value(true)
+                        .help("CPI Proxy to use"),
                 ),
         )
         .get_matches();
@@ -362,6 +389,7 @@ fn main() {
             let data = hex::decode(data_str).unwrap();
             let nonce: u32 = value_of(arg_matches, "nonce").unwrap();
             let consistency_level: String = value_of(arg_matches, "consistency_level").unwrap();
+            let proxy = pubkey_of(arg_matches, "proxy");
 
             command_post_message(
                 &config,
@@ -376,6 +404,7 @@ fn main() {
                         exit(1);
                     }
                 },
+                proxy,
             )
         }
 

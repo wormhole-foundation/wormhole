@@ -1,5 +1,5 @@
 [workspace]
-members = ["agent", "program", "client", "program_stub"]
+members = ["agent", "program", "client", "program_stub", "cpi_poster"]
 
 [patch.crates-io]
 memmap2 = { path = "memmap2-rs" }

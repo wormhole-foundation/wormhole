@@ -8,6 +8,7 @@ edition = "2018"
 anyhow = "1.0.40"
 borsh = "0.8.1"
 bridge = { path = "../program", features = ["client"] }
+cpi-poster = { path = "../cpi_poster", features = ["no-entrypoint"] }
 clap = "2.33.0"
 rand = "0.7.3"
 shellexpand = "2.1.0"

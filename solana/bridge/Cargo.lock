@@ -503,6 +503,7 @@ dependencies = [
  "borsh",
  "bridge",
  "clap",
+ "cpi-poster",
  "hex",
  "rand 0.7.3",
  "shellexpand",
@@ -577,6 +578,26 @@ name = "core-foundation-sys"
 version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ea221b5284a47e40033bf9b66f35f984ec0ea2931eb03505246cd27a963f981b"
+
+[[package]]
+name = "cpi-poster"
+version = "0.1.0"
+dependencies = [
+ "borsh",
+ "bridge",
+ "byteorder",
+ "hex",
+ "hex-literal",
+ "libsecp256k1",
+ "primitive-types 0.9.1",
+ "rand 0.7.3",
+ "sha3",
+ "solana-client",
+ "solana-program",
+ "solana-sdk",
+ "solitaire",
+ "solitaire-client",
+]
 
 [[package]]
 name = "cpufeatures"
