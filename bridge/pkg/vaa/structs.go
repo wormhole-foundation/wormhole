@@ -78,13 +78,13 @@ func (c ChainID) String() string {
 
 const (
 	// ChainIDSolana is the ChainID of Solana
-	ChainIDSolana = 1
+	ChainIDSolana ChainID = 1
 	// ChainIDEthereum is the ChainID of Ethereum
-	ChainIDEthereum = 2
+	ChainIDEthereum ChainID = 2
 	// ChainIDTerra is the ChainID of Terra
-	ChainIDTerra = 3
+	ChainIDTerra ChainID = 3
 	// ChainIDBSC is the ChainID of Binance Smart Chain
-	ChainIDBSC = 4
+	ChainIDBSC ChainID = 4
 
 	minVAALength        = 1 + 4 + 52 + 4 + 1 + 1
 	SupportedVAAVersion = 0x01

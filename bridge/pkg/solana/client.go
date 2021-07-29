@@ -332,7 +332,7 @@ func (s *SolanaWatcher) processMessageAccount(logger *zap.Logger, data []byte, a
 	var txHash eth_common.Hash
 	copy(txHash[:], acc[:])
 
-	lock := &common.MessagePublication{
+	observation := &common.MessagePublication{
 		TxHash:           txHash,
 		Timestamp:        time.Unix(int64(proposal.SubmissionTime), 0),
 		Nonce:            proposal.Nonce,
@@ -346,9 +346,17 @@ func (s *SolanaWatcher) processMessageAccount(logger *zap.Logger, data []byte, a
 	solanaMessagesConfirmed.Inc()
 
 	logger.Info("message observed",
-		zap.Stringer("account", acc))
+		zap.Stringer("account", acc),
+		zap.Time("timestamp", observation.Timestamp),
+		zap.Uint32("nonce", observation.Nonce),
+		zap.Uint64("sequence", observation.Sequence),
+		zap.Stringer("emitter_chain", observation.EmitterChain),
+		zap.Stringer("emitter_address", observation.EmitterAddress),
+		zap.Binary("payload", observation.Payload),
+		zap.Uint8("consistency_level", observation.ConsistencyLevel),
+	)
 
-	s.messageEvent <- lock
+	s.messageEvent <- observation
 }
 
 type (
