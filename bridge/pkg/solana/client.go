@@ -230,7 +230,10 @@ OUTER:
 		rCtx, cancel := context.WithTimeout(ctx, rpcTimeout)
 		defer cancel()
 		start := time.Now()
-		tr, err := rpcClient.GetConfirmedTransaction(rCtx, signature)
+		tr, err := rpcClient.GetConfirmedTransactionWithOpts(rCtx, signature, &rpc.GetTransactionOpts{
+			Encoding:   "json",
+			Commitment: commitment,
+		})
 		queryLatency.WithLabelValues("get_confirmed_transaction", string(commitment)).Observe(time.Since(start).Seconds())
 		if err != nil {
 			solanaConnectionErrors.WithLabelValues("get_confirmed_transaction_error").Inc()

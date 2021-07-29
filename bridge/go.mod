@@ -36,3 +36,7 @@ require (
 	google.golang.org/grpc v1.33.2
 	google.golang.org/protobuf v1.26.0
 )
+
+// Temporary fork that adds GetConfirmedTransactionWithOpts. Can be removed
+// once Solana mainnet has upgraded to v1.7.x.
+replace github.com/gagliardetto/solana-go => github.com/certusone/solana-go v0.3.7-0.20210729105530-67b495e4e529
