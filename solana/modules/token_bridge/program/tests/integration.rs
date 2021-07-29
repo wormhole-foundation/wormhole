@@ -293,7 +293,7 @@ fn test_transfer_native(context: &mut Context) -> () {
 }
 
 fn test_transfer_wrapped(context: &mut Context, token_account: Pubkey) -> () {
-    println!("Transfer Wrapped");
+    println!("TransferWrapped");
     use token_bridge::{
         accounts::ConfigAccount,
         types::Config,
@@ -401,7 +401,7 @@ fn test_transfer_native_in(context: &mut Context) -> () {
     let (vaa, _, _) = common::generate_vaa([0u8; 32], 2, message, nonce, 1);
     let message_key = common::post_vaa(client, bridge, payer, vaa.clone()).unwrap();
 
-    common::complete_transfer_native(
+    common::complete_native(
         client,
         token_bridge,
         bridge,
@@ -414,7 +414,7 @@ fn test_transfer_native_in(context: &mut Context) -> () {
 }
 
 fn test_transfer_wrapped_in(context: &mut Context, to: Pubkey) -> () {
-    println!("TransferWrapped");
+    println!("TransferWrappedIn");
     use token_bridge::{
         accounts::ConfigAccount,
         types::Config,

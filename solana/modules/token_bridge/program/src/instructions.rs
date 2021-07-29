@@ -10,6 +10,7 @@ use crate::{
         EndpointDerivationData,
         MintSigner,
         WrappedDerivationData,
+        WrappedMetaDerivationData,
         WrappedMint,
         WrappedTokenMeta,
     },
@@ -215,9 +216,8 @@ pub fn create_wrapped(
         &program_id,
     );
     let mint_meta_key = WrappedTokenMeta::<'_, { AccountState::Uninitialized }>::key(
-        &WrappedDerivationData {
-            token_chain: payload.token_chain,
-            token_address: payload.token_address,
+        &WrappedMetaDerivationData {
+            mint_key,
         },
         &program_id,
     );
@@ -395,9 +395,8 @@ pub fn transfer_wrapped(
         &program_id,
     );
     let wrapped_meta_key = WrappedTokenMeta::<'_, { AccountState::Uninitialized }>::key(
-        &WrappedDerivationData {
-            token_chain,
-            token_address,
+        &WrappedMetaDerivationData {
+            mint_key: wrapped_mint_key,
         },
         &program_id,
     );

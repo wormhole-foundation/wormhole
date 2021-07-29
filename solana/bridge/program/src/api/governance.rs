@@ -2,6 +2,7 @@ use solitaire::*;
 
 use solana_program::{
     program::invoke_signed,
+    pubkey::Pubkey,
     sysvar::{
         clock::Clock,
         rent::Rent,
@@ -20,6 +21,7 @@ use crate::{
     },
     error::Error::{
         InvalidFeeRecipient,
+        InvalidGovernanceKey,
         InvalidGovernanceWithdrawal,
         InvalidGuardianSetUpgrade,
     },
@@ -30,7 +32,26 @@ use crate::{
         GovernancePayloadUpgrade,
     },
     vaa::ClaimableVAA,
+    DeserializePayload,
+    CHAIN_ID_SOLANA,
 };
+
+fn verify_governance<'a, T>(vaa: &ClaimableVAA<'a, T>) -> Result<()>
+where
+    T: DeserializePayload,
+{
+    let expected_emitter = std::env!("EMITTER_ADDRESS");
+    let current_emitter = format!(
+        "{}",
+        Pubkey::new_from_array(vaa.message.meta().emitter_address)
+    );
+    // Fail if the emitter is not the known governance key, or the emitting chain is not Solana.
+    if expected_emitter != current_emitter || vaa.message.meta().emitter_chain != CHAIN_ID_SOLANA {
+        Err(InvalidGovernanceKey.into())
+    } else {
+        Ok(())
+    }
+}
 
 #[derive(FromAccounts)]
 pub struct UpgradeContract<'b> {
@@ -76,6 +97,7 @@ pub fn upgrade_contract(
     accs: &mut UpgradeContract,
     _data: UpgradeContractData,
 ) -> Result<()> {
+    verify_governance(&accs.vaa)?;
     accs.vaa.verify(ctx.program_id)?;
     accs.vaa.claim(ctx, accs.payer.key)?;
 
@@ -135,6 +157,7 @@ pub fn upgrade_guardian_set(
         return Err(InvalidGuardianSetUpgrade.into());
     }
 
+    verify_governance(&accs.vaa)?;
     accs.vaa.verify(ctx.program_id)?;
     accs.guardian_set_old.verify_derivation(
         ctx.program_id,
@@ -196,6 +219,7 @@ impl<'b> InstructionContext<'b> for SetFees<'b> {
 pub struct SetFeesData {}
 
 pub fn set_fees(ctx: &ExecutionContext, accs: &mut SetFees, _data: SetFeesData) -> Result<()> {
+    verify_governance(&accs.vaa)?;
     accs.vaa.verify(ctx.program_id)?;
     accs.vaa.claim(ctx, accs.payer.key)?;
     accs.bridge.config.fee = accs.vaa.fee.as_u64();
@@ -240,6 +264,7 @@ pub fn transfer_fees(
         return Err(InvalidFeeRecipient.into());
     }
 
+    verify_governance(&accs.vaa)?;
     accs.vaa.verify(ctx.program_id)?;
 
     if accs

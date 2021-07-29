@@ -90,14 +90,14 @@ pub fn complete_native(
     accs.custody.verify_derivation(ctx.program_id, &derivation_data)?;
 
     // Verify mints
-    if accs.mint.info().key != accs.to.info().key {
+    if *accs.mint.info().key != accs.to.mint {
         return Err(InvalidMint.into());
     }
-    if accs.mint.info().key != accs.custody.info().key {
+    if *accs.mint.info().key != accs.custody.mint {
         return Err(InvalidMint.into());
     }
-    if &accs.custody.owner != accs.custody_signer.key {
-        return Err(InvalidMint.into());
+    if *accs.custody_signer.key != accs.custody.owner {
+        return Err(WrongAccountOwner.into());
     }
 
     // Verify VAA
@@ -109,6 +109,7 @@ pub fn complete_native(
     }
 
     // Prevent vaa double signing
+    accs.vaa.verify(ctx.program_id)?;
     accs.vaa.claim(ctx, accs.payer.key)?;
 
     let mut amount = accs.vaa.amount.as_u64();
@@ -189,10 +190,11 @@ pub fn complete_wrapped(
     accs.mint.verify_derivation(ctx.program_id, &derivation_data)?;
 
     // Verify mints
-    if accs.mint.info().key != accs.to.info().key {
+    if *accs.mint.info().key != accs.to.mint {
         return Err(InvalidMint.into());
     }
 
+    accs.vaa.verify(ctx.program_id)?;
     accs.vaa.claim(ctx, accs.payer.key)?;
 
     // Mint tokens

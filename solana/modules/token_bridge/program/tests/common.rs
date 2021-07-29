@@ -381,7 +381,7 @@ mod helpers {
         )
     }
 
-    pub fn complete_transfer_native(
+    pub fn complete_native(
         client: &RpcClient,
         program: &Pubkey,
         bridge: &Pubkey,

@@ -8,6 +8,7 @@ use crate::{
         EmitterAccount,
         MintSigner,
         WrappedDerivationData,
+        WrappedMetaDerivationData,
         WrappedMint,
         WrappedTokenMeta,
     },
@@ -123,10 +124,11 @@ pub fn transfer_native(
 ) -> Result<()> {
     // Verify that the custody account is derived correctly
     let derivation_data: CustodyAccountDerivationData = (&*accs).into();
-    accs.custody.verify_derivation(ctx.program_id, &derivation_data)?;
+    accs.custody
+        .verify_derivation(ctx.program_id, &derivation_data)?;
 
     // Verify mints
-    if accs.mint.info().key != accs.from.info().key {
+    if accs.from.mint != *accs.mint.info().key {
         return Err(TokenBridgeError::InvalidMint.into());
     }
 
@@ -243,6 +245,14 @@ impl<'a> From<&TransferWrapped<'a>> for WrappedDerivationData {
     }
 }
 
+impl<'a> From<&TransferWrapped<'a>> for WrappedMetaDerivationData {
+    fn from(accs: &TransferWrapped<'a>) -> Self {
+        WrappedMetaDerivationData {
+            mint_key: *accs.mint.info().key,
+        }
+    }
+}
+
 impl<'b> InstructionContext<'b> for TransferWrapped<'b> {
 }
 
@@ -271,8 +281,11 @@ pub fn transfer_wrapped(
     }
 
     // Verify that meta is correct
-    accs.wrapped_meta
-        .verify_derivation(ctx.program_id, &(&*accs).into())?;
+    let derivation_data: WrappedMetaDerivationData = (&*accs).into();
+    accs.wrapped_meta.verify_derivation(
+        ctx.program_id,
+        &derivation_data,
+    )?;
 
     // Burn tokens
     let burn_ix = spl_token::instruction::burn(

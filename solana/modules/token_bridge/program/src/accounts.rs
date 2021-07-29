@@ -54,14 +54,17 @@ impl<'b, const State: AccountState> Seeded<&WrappedDerivationData> for WrappedMi
 
 pub type WrappedTokenMeta<'b, const State: AccountState> = Data<'b, WrappedMeta, { State }>;
 
-impl<'b, const State: AccountState> Seeded<&WrappedDerivationData>
+pub struct WrappedMetaDerivationData {
+    pub mint_key: Pubkey,
+}
+
+impl<'b, const State: AccountState> Seeded<&WrappedMetaDerivationData>
     for WrappedTokenMeta<'b, { State }>
 {
-    fn seeds(data: &WrappedDerivationData) -> Vec<Vec<u8>> {
+    fn seeds(data: &WrappedMetaDerivationData) -> Vec<Vec<u8>> {
         vec![
             String::from("meta").as_bytes().to_vec(),
-            data.token_chain.to_be_bytes().to_vec(),
-            data.token_address.to_vec(),
+            data.mint_key.to_bytes().to_vec(),
         ]
     }
 }

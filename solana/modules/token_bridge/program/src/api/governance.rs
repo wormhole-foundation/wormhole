@@ -40,7 +40,7 @@ use std::ops::{
 };
 
 // Confirm that a ClaimableVAA came from the correct chain, signed by the right emitter.
-fn verify_claim<'a, T>(vaa: &ClaimableVAA<'a, T>) -> Result<()>
+fn verify_governance<'a, T>(vaa: &ClaimableVAA<'a, T>) -> Result<()>
 where
     T: DeserializePayload,
 {
@@ -49,7 +49,6 @@ where
         "{}",
         Pubkey::new_from_array(vaa.message.meta().emitter_address)
     );
-
     // Fail if the emitter is not the known governance key, or the emitting chain is not Solana.
     if expected_emitter != current_emitter || vaa.message.meta().emitter_chain != CHAIN_ID_SOLANA {
         Err(InvalidGovernanceKey.into())
@@ -99,7 +98,8 @@ pub fn upgrade_contract(
     accs: &mut UpgradeContract,
     _data: UpgradeContractData,
 ) -> Result<()> {
-    verify_claim(&accs.vaa)?;
+    verify_governance(&accs.vaa);
+    accs.vaa.verify(&ctx.program_id)?;
 
     accs.vaa.claim(ctx, accs.payer.key)?;
 
@@ -154,6 +154,8 @@ pub fn register_chain(
     accs.endpoint.verify_derivation(ctx.program_id, &derivation_data)?;
 
     // Claim VAA
+    verify_governance(&accs.vaa);
+    accs.vaa.verify(&ctx.program_id)?;
     accs.vaa.claim(ctx, accs.payer.key)?;
 
     // Create endpoint
