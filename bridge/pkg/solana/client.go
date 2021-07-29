@@ -2,6 +2,7 @@ package solana
 
 import (
 	"context"
+	"fmt"
 	"github.com/certusone/wormhole/bridge/pkg/common"
 	"github.com/certusone/wormhole/bridge/pkg/p2p"
 	gossipv1 "github.com/certusone/wormhole/bridge/pkg/proto/gossip/v1"
@@ -57,11 +58,37 @@ var (
 
 const rpcTimeout = time.Second * 5
 
+type ConsistencyLevel uint8
+
 // Mappings from consistency levels constants to commitment level.
 const (
-	consistencyLevelConfirmed = 1
-	consistencyLevelFinalized = 32
+	consistencyLevelConfirmed ConsistencyLevel = 0
+	consistencyLevelFinalized ConsistencyLevel = 1
 )
+
+func (c ConsistencyLevel) Commitment() (rpc.CommitmentType, error) {
+	switch c {
+	case consistencyLevelConfirmed:
+		return rpc.CommitmentConfirmed, nil
+	case consistencyLevelFinalized:
+		return rpc.CommitmentFinalized, nil
+	default:
+		return "", fmt.Errorf("unsupported consistency level: %d", c)
+	}
+}
+
+const (
+	postMessageInstructionNumAccounts = 9
+	postMessageInstructionID          = 0x01
+)
+
+// PostMessageData represents the user-supplied, untrusted instruction data
+// for message publications. We use this to determine consistency level before fetching accounts.
+type PostMessageData struct {
+	Nonce            uint32
+	Payload          []byte
+	ConsistencyLevel ConsistencyLevel
+}
 
 func NewSolanaWatcher(
 	wsUrl, rpcUrl string,
@@ -223,19 +250,17 @@ OUTER:
 
 		// Find top-level instructions
 		for _, inst := range tx.Transaction.Message.Instructions {
-			if inst.ProgramIDIndex == programIndex {
-				// The second account in a well-formed Wormhole instruction is the
-				// VAA program account.
-				if len(inst.Accounts) != 9 {
-					logger.Error("malformed Wormhole instruction: wrong number of accounts",
-						zap.Stringer("signature", signature),
-						zap.Uint64("slot", slot),
-						zap.String("commitment", string(commitment)))
-					continue OUTER
-				}
-
-				acc := tx.Transaction.Message.AccountKeys[inst.Accounts[1]]
-				go s.fetchMessageAccount(ctx, logger, acc, rpcClient, commitment, slot)
+			found, err := s.processInstruction(ctx, logger, commitment, rpcClient, slot, inst, programIndex, tx)
+			if err != nil {
+				logger.Error("malformed Wormhole instruction",
+					zap.Error(err),
+					zap.Stringer("signature", signature),
+					zap.Uint64("slot", slot),
+					zap.String("commitment", string(commitment)),
+					zap.Binary("data", inst.Data))
+				continue OUTER
+			}
+			if found {
 				continue OUTER
 			}
 		}
@@ -267,22 +292,55 @@ OUTER:
 
 		for _, inner := range tr.Meta.InnerInstructions {
 			for _, inst := range inner.Instructions {
-				if inst.ProgramIDIndex == programIndex {
-					if len(inst.Accounts) != 9 {
-						logger.Error("malformed Wormhole instruction: wrong number of accounts",
-							zap.Stringer("signature", signature),
-							zap.Uint64("slot", slot),
-							zap.String("commitment", string(commitment)))
-						continue OUTER
-					}
-
-					acc := tx.Transaction.Message.AccountKeys[inst.Accounts[1]]
-					go s.fetchMessageAccount(ctx, logger, acc, rpcClient, commitment, slot)
-					continue OUTER
+				_, err := s.processInstruction(ctx, logger, commitment, rpcClient, slot, inst, programIndex, tx)
+				if err != nil {
+					logger.Error("malformed Wormhole instruction",
+						zap.Error(err),
+						zap.Stringer("signature", signature),
+						zap.Uint64("slot", slot),
+						zap.String("commitment", string(commitment)))
 				}
 			}
 		}
 	}
+}
+
+func (s *SolanaWatcher) processInstruction(ctx context.Context, logger *zap.Logger, commitment rpc.CommitmentType, rpcClient *rpc.Client, slot uint64, inst solana.CompiledInstruction, programIndex uint16, tx rpc.TransactionWithMeta) (bool, error) {
+	if inst.ProgramIDIndex != programIndex {
+		return false, nil
+	}
+
+	if len(inst.Accounts) != postMessageInstructionNumAccounts {
+		return false, fmt.Errorf("invalid number of accounts: %d instead of %d",
+			len(inst.Accounts), postMessageInstructionNumAccounts)
+	}
+
+	if inst.Data[0] != postMessageInstructionID {
+		return false, fmt.Errorf("invalid postMessage instruction ID, got: %d", inst.Data[0])
+	}
+
+	// Decode instruction data (UNTRUSTED)
+	var data PostMessageData
+	if err := borsh.Deserialize(&data, inst.Data[1:]); err != nil {
+		return false, fmt.Errorf("failed to deserialize instruction data: %w", err)
+	}
+
+	logger.Info("post message data", zap.Any("deserialized_data", data))
+
+	level, err := data.ConsistencyLevel.Commitment()
+	if err != nil {
+		return false, fmt.Errorf("failed to determine commitment: %w", err)
+	}
+
+	if level != commitment {
+		return true, nil
+	}
+
+	// The second account in a well-formed Wormhole instruction is the VAA program account.
+	acc := tx.Transaction.Message.AccountKeys[inst.Accounts[1]]
+	go s.fetchMessageAccount(ctx, logger, acc, rpcClient, commitment, slot)
+
+	return true, nil
 }
 
 func (s *SolanaWatcher) fetchMessageAccount(ctx context.Context, logger *zap.Logger, acc solana.PublicKey, rpcClient *rpc.Client, commitment rpc.CommitmentType, slot uint64) {
