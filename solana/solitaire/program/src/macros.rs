@@ -80,8 +80,8 @@ macro_rules! solitaire {
                         },
                     )*
 
-                    _ => {
-                        Err(SolitaireError::UnknownInstruction)
+                    other => {
+                        Err(SolitaireError::UnknownInstruction(other))
                     }
                 }
             }

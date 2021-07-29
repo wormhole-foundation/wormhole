@@ -46,7 +46,7 @@ pub enum SolitaireError {
     AlreadyInitialized(Pubkey),
 
     /// An instruction that wasn't recognised was sent.
-    UnknownInstruction,
+    UnknownInstruction(u8),
 
     Custom(u64),
 }
