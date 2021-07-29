@@ -110,10 +110,6 @@ impl CreationLamports {
 }
 
 pub trait InstructionContext<'a> {
-    fn verify(&self, program_id: &Pubkey) -> Result<()> {
-        Ok(())
-    }
-
     fn deps(&self) -> Vec<Pubkey> {
         vec![]
     }

@@ -6,6 +6,7 @@ use crate::{
     error::Error::{
         InvalidGovernanceAction,
         InvalidGovernanceChain,
+        InvalidGovernanceKey,
         InvalidGovernanceModule,
         VAAAlreadyExecuted,
     },
@@ -25,7 +26,6 @@ use solitaire::{
     CreationLamports::Exempt,
     Data,
     ExecutionContext,
-    InstructionContext,
     Peel,
     SolitaireError,
     *,
@@ -158,12 +158,25 @@ impl<'b, T: DeserializePayload> Deref for ClaimableVAA<'b, T> {
     }
 }
 
-impl<'b, T: DeserializePayload> InstructionContext<'b> for ClaimableVAA<'b, T> {
-    fn verify(&self, program_id: &Pubkey) -> Result<()> {
+impl<'b, T: DeserializePayload> ClaimableVAA<'b, T> {
+    pub fn verify(&self, program_id: &Pubkey) -> Result<()> {
+        trace!("Seq: {}", self.message.meta().sequence);
+
         // Do the Posted Message verification
+        let (expected_emitter, current_emitter) = (
+            std::env!("EMITTER_ADDRESS"),
+            format!(
+                "{}",
+                Pubkey::new_from_array(self.message.meta().emitter_address)
+            ),
+        );
+
+        // Fail if the emitter is not the known governance key, or the emitting chain is not Solana.
+        if expected_emitter != current_emitter || self.message.meta().emitter_chain != CHAIN_ID_SOLANA {
+            return Err(InvalidGovernanceKey.into());
+        }
 
         // Verify that the claim account is derived correctly
-        trace!("Seq: {}", self.message.meta().sequence);
         self.claim.verify_derivation(
             program_id,
             &ClaimDerivationData {

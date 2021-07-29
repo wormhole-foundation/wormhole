@@ -105,24 +105,6 @@ impl<'a> From<&TransferNative<'a>> for CustodyAccountDerivationData {
 }
 
 impl<'b> InstructionContext<'b> for TransferNative<'b> {
-    fn verify(&self, program_id: &Pubkey) -> Result<()> {
-        // Verify that the custody account is derived correctly
-        self.custody.verify_derivation(program_id, &self.into())?;
-
-        // Verify mints
-        if self.mint.info().key != self.from.info().key {
-            return Err(TokenBridgeError::InvalidMint.into());
-        }
-
-        // Verify that the token is not a wrapped token
-        if let COption::Some(mint_authority) = self.mint.mint_authority {
-            if mint_authority == MintSigner::key(None, program_id) {
-                return Err(TokenBridgeError::TokenNotNative.into());
-            }
-        }
-
-        Ok(())
-    }
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Default)]
@@ -139,6 +121,22 @@ pub fn transfer_native(
     accs: &mut TransferNative,
     data: TransferNativeData,
 ) -> Result<()> {
+    // Verify that the custody account is derived correctly
+    let derivation_data: CustodyAccountDerivationData = (&*accs).into();
+    accs.custody.verify_derivation(ctx.program_id, &derivation_data)?;
+
+    // Verify mints
+    if accs.mint.info().key != accs.from.info().key {
+        return Err(TokenBridgeError::InvalidMint.into());
+    }
+
+    // Verify that the token is not a wrapped token
+    if let COption::Some(mint_authority) = accs.mint.mint_authority {
+        if mint_authority == MintSigner::key(None, ctx.program_id) {
+            return Err(TokenBridgeError::TokenNotNative.into());
+        }
+    }
+
     if !accs.custody.is_initialized() {
         accs.custody
             .create(&(&*accs).into(), ctx, accs.payer.key, Exempt)?;
@@ -246,23 +244,6 @@ impl<'a> From<&TransferWrapped<'a>> for WrappedDerivationData {
 }
 
 impl<'b> InstructionContext<'b> for TransferWrapped<'b> {
-    fn verify(&self, program_id: &Pubkey) -> Result<()> {
-        // Verify that the from account is owned by the from_owner
-        if &self.from.owner != self.from_owner.key {
-            return Err(WrongAccountOwner.into());
-        }
-
-        // Verify mints
-        if self.mint.info().key != &self.from.mint {
-            return Err(TokenBridgeError::InvalidMint.into());
-        }
-
-        // Verify that meta is correct
-        self.wrapped_meta
-            .verify_derivation(program_id, &self.into())?;
-
-        Ok(())
-    }
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Default)]
@@ -279,6 +260,20 @@ pub fn transfer_wrapped(
     accs: &mut TransferWrapped,
     data: TransferWrappedData,
 ) -> Result<()> {
+    // Verify that the from account is owned by the from_owner
+    if &accs.from.owner != accs.from_owner.key {
+        return Err(WrongAccountOwner.into());
+    }
+
+    // Verify mints
+    if accs.mint.info().key != &accs.from.mint {
+        return Err(TokenBridgeError::InvalidMint.into());
+    }
+
+    // Verify that meta is correct
+    accs.wrapped_meta
+        .verify_derivation(ctx.program_id, &(&*accs).into())?;
+
     // Burn tokens
     let burn_ix = spl_token::instruction::burn(
         &spl_token::id(),

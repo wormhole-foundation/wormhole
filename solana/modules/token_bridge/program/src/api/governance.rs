@@ -140,10 +140,6 @@ impl<'a> From<&RegisterChain<'a>> for EndpointDerivationData {
 }
 
 impl<'b> InstructionContext<'b> for RegisterChain<'b> {
-    fn verify(&self, program_id: &Pubkey) -> Result<()> {
-        self.endpoint.verify_derivation(program_id, &self.into())?;
-        Ok(())
-    }
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Default)]
@@ -154,6 +150,9 @@ pub fn register_chain(
     accs: &mut RegisterChain,
     data: RegisterChainData,
 ) -> Result<()> {
+    let derivation_data: EndpointDerivationData = (&*accs).into();
+    accs.endpoint.verify_derivation(ctx.program_id, &derivation_data)?;
+
     // Claim VAA
     accs.vaa.claim(ctx, accs.payer.key)?;
 

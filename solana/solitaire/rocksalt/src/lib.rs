@@ -120,10 +120,6 @@ pub fn derive_from_accounts(input: TokenStream) -> TokenStream {
         impl #combined_impl_g solitaire::Peel<'a, 'b, 'c> for #name #type_g {
             fn peel<I>(ctx: &'c mut Context<'a, 'b, 'c, I>) -> solitaire::Result<Self> where Self: Sized {
                 let v: #name #type_g = FromAccounts::from(ctx.this, ctx.iter, ctx.data)?;
-
-                // Verify the instruction constraints
-                solitaire::InstructionContext::verify(&v, ctx.this)?;
-
                 Ok(v)
             }
 

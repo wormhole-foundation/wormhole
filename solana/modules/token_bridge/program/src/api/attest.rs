@@ -78,9 +78,6 @@ pub struct AttestToken<'b> {
 }
 
 impl<'b> InstructionContext<'b> for AttestToken<'b> {
-    fn verify(&self, _: &Pubkey) -> Result<()> {
-        Ok(())
-    }
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Default)]

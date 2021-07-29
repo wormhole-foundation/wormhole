@@ -18,7 +18,6 @@ use bridge::{
     },
     CHAIN_ID_SOLANA,
 };
-use solana_program::pubkey::Pubkey;
 use solitaire::{
     processors::seeded::Seeded,
     CreationLamports::Exempt,
@@ -54,9 +53,6 @@ pub struct PostVAA<'b> {
 }
 
 impl<'b> InstructionContext<'b> for PostVAA<'b> {
-    fn verify(&self, _program_id: &Pubkey) -> Result<()> {
-        Ok(())
-    }
 }
 
 #[derive(Default, BorshSerialize, BorshDeserialize)]

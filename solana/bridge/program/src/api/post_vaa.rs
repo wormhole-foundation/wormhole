@@ -30,10 +30,7 @@ use byteorder::{
     WriteBytesExt,
 };
 use sha3::Digest;
-use solana_program::{
-    program_error::ProgramError,
-    pubkey::Pubkey,
-};
+use solana_program::program_error::ProgramError;
 use solitaire::{
     processors::seeded::Seeded,
     CreationLamports::Exempt,
@@ -77,9 +74,6 @@ pub struct PostVAA<'b> {
 }
 
 impl<'b> InstructionContext<'b> for PostVAA<'b> {
-    fn verify(&self, _program_id: &Pubkey) -> Result<()> {
-        Ok(())
-    }
 }
 
 #[derive(Default, BorshSerialize, BorshDeserialize)]

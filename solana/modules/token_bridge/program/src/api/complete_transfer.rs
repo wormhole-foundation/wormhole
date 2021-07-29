@@ -71,35 +71,6 @@ impl<'a> From<&CompleteNative<'a>> for CustodyAccountDerivationData {
 }
 
 impl<'b> InstructionContext<'b> for CompleteNative<'b> {
-    fn verify(&self, program_id: &Pubkey) -> Result<()> {
-        // Verify the chain registration
-        self.chain_registration
-            .verify_derivation(program_id, &(self.into()))?;
-
-        // Verify that the custody account is derived correctly
-        self.custody.verify_derivation(program_id, &(self.into()))?;
-
-        // Verify mints
-        if self.mint.info().key != self.to.info().key {
-            return Err(InvalidMint.into());
-        }
-        if self.mint.info().key != self.custody.info().key {
-            return Err(InvalidMint.into());
-        }
-        if &self.custody.owner != self.custody_signer.key {
-            return Err(InvalidMint.into());
-        }
-
-        // Verify VAA
-        if self.vaa.token_address != self.mint.info().key.to_bytes() {
-            return Err(InvalidMint.into());
-        }
-        if self.vaa.token_chain != 1 {
-            return Err(InvalidChain.into());
-        }
-
-        Ok(())
-    }
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Default)]
@@ -110,6 +81,33 @@ pub fn complete_native(
     accs: &mut CompleteNative,
     data: CompleteNativeData,
 ) -> Result<()> {
+    // Verify the chain registration
+    let derivation_data: EndpointDerivationData = (&*accs).into();
+    accs.chain_registration.verify_derivation(ctx.program_id, &derivation_data)?;
+
+    // Verify that the custody account is derived correctly
+    let derivation_data: CustodyAccountDerivationData = (&*accs).into();
+    accs.custody.verify_derivation(ctx.program_id, &derivation_data)?;
+
+    // Verify mints
+    if accs.mint.info().key != accs.to.info().key {
+        return Err(InvalidMint.into());
+    }
+    if accs.mint.info().key != accs.custody.info().key {
+        return Err(InvalidMint.into());
+    }
+    if &accs.custody.owner != accs.custody_signer.key {
+        return Err(InvalidMint.into());
+    }
+
+    // Verify VAA
+    if accs.vaa.token_address != accs.mint.info().key.to_bytes() {
+        return Err(InvalidMint.into());
+    }
+    if accs.vaa.token_chain != 1 {
+        return Err(InvalidChain.into());
+    }
+
     // Prevent vaa double signing
     accs.vaa.claim(ctx, accs.payer.key)?;
 
@@ -171,20 +169,6 @@ impl<'a> From<&CompleteWrapped<'a>> for WrappedDerivationData {
 }
 
 impl<'b> InstructionContext<'b> for CompleteWrapped<'b> {
-    fn verify(&self, program_id: &Pubkey) -> Result<()> {
-        // Verify the chain registration
-        self.chain_registration
-            .verify_derivation(program_id, &(self.into()))?;
-
-        // Verify mint
-        self.mint.verify_derivation(program_id, &(self.into()))?;
-
-        // Verify mints
-        if self.mint.info().key != self.to.info().key {
-            return Err(InvalidMint.into());
-        }
-        Ok(())
-    }
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Default)]
@@ -195,6 +179,20 @@ pub fn complete_wrapped(
     accs: &mut CompleteWrapped,
     data: CompleteWrappedData,
 ) -> Result<()> {
+    // Verify the chain registration
+    let derivation_data: EndpointDerivationData = (&*accs).into();
+    accs.chain_registration
+        .verify_derivation(ctx.program_id, &derivation_data)?;
+
+    // Verify mint
+    let derivation_data: WrappedDerivationData = (&*accs).into();
+    accs.mint.verify_derivation(ctx.program_id, &derivation_data)?;
+
+    // Verify mints
+    if accs.mint.info().key != accs.to.info().key {
+        return Err(InvalidMint.into());
+    }
+
     accs.vaa.claim(ctx, accs.payer.key)?;
 
     // Mint tokens

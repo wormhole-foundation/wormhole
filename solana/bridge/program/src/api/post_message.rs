@@ -15,7 +15,6 @@ use crate::{
     CHAIN_ID_SOLANA,
 };
 use solana_program::{
-    pubkey::Pubkey,
     sysvar::clock::Clock,
 };
 use solitaire::{
@@ -59,10 +58,6 @@ pub struct PostMessage<'b> {
 }
 
 impl<'b> InstructionContext<'b> for PostMessage<'b> {
-    fn verify(&self, program_id: &Pubkey) -> Result<()> {
-        self.sequence.verify_derivation(program_id, &self.into())?;
-        Ok(())
-    }
 }
 
 #[derive(BorshDeserialize, BorshSerialize)]
@@ -85,6 +80,8 @@ pub fn post_message(
     trace!("Message Address: {}", accs.message.info().key);
     trace!("Emitter Address: {}", accs.emitter.info().key);
     trace!("Nonce: {}", data.nonce);
+
+    accs.sequence.verify_derivation(ctx.program_id, &(&*accs).into())?;
 
     let msg_derivation = MessageDerivationData {
         emitter_key: accs.emitter.key.to_bytes(),

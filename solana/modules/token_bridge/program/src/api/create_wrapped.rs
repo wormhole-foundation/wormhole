@@ -72,14 +72,6 @@ impl<'a> From<&CreateWrapped<'a>> for WrappedDerivationData {
 }
 
 impl<'b> InstructionContext<'b> for CreateWrapped<'b> {
-    fn verify(&self, program_id: &Pubkey) -> Result<()> {
-        self.mint.verify_derivation(program_id, &(self.into()))?;
-        self.meta.verify_derivation(program_id, &(self.into()))?;
-        self.chain_registration
-            .verify_derivation(program_id, &(self.into()))?;
-
-        Ok(())
-    }
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Default)]
@@ -90,6 +82,13 @@ pub fn create_wrapped(
     accs: &mut CreateWrapped,
     data: CreateWrappedData,
 ) -> Result<()> {
+    let derivation_data: WrappedDerivationData = (&*accs).into();
+    accs.mint.verify_derivation(ctx.program_id, &derivation_data)?;
+    accs.meta.verify_derivation(ctx.program_id, &derivation_data)?;
+
+    let derivation_data: EndpointDerivationData = (&*accs).into();
+    accs.chain_registration.verify_derivation(ctx.program_id, &derivation_data)?;
+
     accs.vaa.claim(ctx, accs.payer.key)?;
 
     // Create mint account

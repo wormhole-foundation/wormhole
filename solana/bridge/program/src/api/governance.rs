@@ -2,7 +2,6 @@ use solitaire::*;
 
 use solana_program::{
     program::invoke_signed,
-    pubkey::Pubkey,
     sysvar::{
         clock::Clock,
         rent::Rent,
@@ -21,7 +20,6 @@ use crate::{
     },
     error::Error::{
         InvalidFeeRecipient,
-        InvalidGovernanceKey,
         InvalidGovernanceWithdrawal,
         InvalidGuardianSetUpgrade,
     },
@@ -31,31 +29,8 @@ use crate::{
         GovernancePayloadTransferFees,
         GovernancePayloadUpgrade,
     },
-    vaa::{
-        ClaimableVAA,
-        DeserializePayload,
-    },
-    CHAIN_ID_SOLANA,
+    vaa::ClaimableVAA,
 };
-
-// Confirm that a ClaimableVAA came from the correct chain, signed by the right emitter.
-fn verify_claim<'a, T>(vaa: &ClaimableVAA<'a, T>) -> Result<()>
-where
-    T: DeserializePayload,
-{
-    let expected_emitter = std::env!("EMITTER_ADDRESS");
-    let current_emitter = format!(
-        "{}",
-        Pubkey::new_from_array(vaa.message.meta().emitter_address)
-    );
-
-    // Fail if the emitter is not the known governance key, or the emitting chain is not Solana.
-    if expected_emitter != current_emitter || vaa.message.meta().emitter_chain != CHAIN_ID_SOLANA {
-        Err(InvalidGovernanceKey.into())
-    } else {
-        Ok(())
-    }
-}
 
 #[derive(FromAccounts)]
 pub struct UpgradeContract<'b> {
@@ -101,8 +76,7 @@ pub fn upgrade_contract(
     accs: &mut UpgradeContract,
     _data: UpgradeContractData,
 ) -> Result<()> {
-    verify_claim(&accs.vaa)?;
-
+    accs.vaa.verify(ctx.program_id)?;
     accs.vaa.claim(ctx, accs.payer.key)?;
 
     let upgrade_ix = solana_program::bpf_loader_upgradeable::upgrade(
@@ -141,17 +115,6 @@ pub struct UpgradeGuardianSet<'b> {
 }
 
 impl<'b> InstructionContext<'b> for UpgradeGuardianSet<'b> {
-    fn verify(&self, _program_id: &Pubkey) -> Result<()> {
-        if self.guardian_set_old.index != self.vaa.new_guardian_set_index - 1 {
-            return Err(InvalidGuardianSetUpgrade.into());
-        }
-
-        if self.bridge.guardian_set_index != self.vaa.new_guardian_set_index - 1 {
-            return Err(InvalidGuardianSetUpgrade.into());
-        }
-
-        Ok(())
-    }
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Default)]
@@ -162,8 +125,17 @@ pub fn upgrade_guardian_set(
     accs: &mut UpgradeGuardianSet,
     _data: UpgradeGuardianSetData,
 ) -> Result<()> {
-    verify_claim(&accs.vaa)?;
+    // Enforce single increments when upgrading.
+    if accs.guardian_set_old.index != accs.vaa.new_guardian_set_index - 1 {
+        return Err(InvalidGuardianSetUpgrade.into());
+    }
 
+    // Confirm that the version the bridge has active is the previous version.
+    if accs.bridge.guardian_set_index != accs.vaa.new_guardian_set_index - 1 {
+        return Err(InvalidGuardianSetUpgrade.into());
+    }
+
+    accs.vaa.verify(ctx.program_id)?;
     accs.guardian_set_old.verify_derivation(
         ctx.program_id,
         &GuardianSetDerivationData {
@@ -224,10 +196,8 @@ impl<'b> InstructionContext<'b> for SetFees<'b> {
 pub struct SetFeesData {}
 
 pub fn set_fees(ctx: &ExecutionContext, accs: &mut SetFees, _data: SetFeesData) -> Result<()> {
-    verify_claim(&accs.vaa)?;
-
+    accs.vaa.verify(ctx.program_id)?;
     accs.vaa.claim(ctx, accs.payer.key)?;
-
     accs.bridge.config.fee = accs.vaa.fee.as_u64();
 
     Ok(())
@@ -255,13 +225,6 @@ pub struct TransferFees<'b> {
 }
 
 impl<'b> InstructionContext<'b> for TransferFees<'b> {
-    fn verify(&self, _program_id: &Pubkey) -> Result<()> {
-        if self.vaa.to != self.recipient.key.to_bytes() {
-            return Err(InvalidFeeRecipient.into());
-        }
-
-        Ok(())
-    }
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Default)]
@@ -272,7 +235,12 @@ pub fn transfer_fees(
     accs: &mut TransferFees,
     _data: TransferFeesData,
 ) -> Result<()> {
-    verify_claim(&accs.vaa)?;
+    // Make sure the account loaded to receive funds is equal to the one the VAA requested.
+    if accs.vaa.to != accs.recipient.key.to_bytes() {
+        return Err(InvalidFeeRecipient.into());
+    }
+
+    accs.vaa.verify(ctx.program_id)?;
 
     if accs
         .fee_collector
