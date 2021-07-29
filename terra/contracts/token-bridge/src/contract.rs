@@ -17,7 +17,7 @@ use cw20_base::msg::QueryMsg as TokenQuery;
 use wormhole::msg::HandleMsg as WormholeHandleMsg;
 use wormhole::msg::QueryMsg as WormholeQueryMsg;
 
-use wormhole::state::{GovernancePacket, ParsedVAA};
+use wormhole::state::{GovernancePacket, ParsedVAA, vaa_archive_add, vaa_archive_check};
 
 use cw20::TokenInfoResponse;
 
@@ -245,6 +245,11 @@ fn submit_vaa<S: Storage, A: Api, Q: Querier>(
     if state.gov_chain == vaa.emitter_chain && state.gov_address == vaa.emitter_address {
         return handle_governance_payload(deps, env, &data);
     }
+
+    if vaa_archive_check(&deps.storage, vaa.hash.as_slice()) {
+        return ContractError::VaaAlreadyExecuted.std_err();
+    }
+    vaa_archive_add(&mut deps.storage, vaa.hash.as_slice())?;
 
     let message = TokenBridgeMessage::deserialize(&data)?;
 

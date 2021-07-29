@@ -11,8 +11,8 @@ use crate::msg::{
 };
 use crate::state::{
     config, config_read, guardian_set_get, guardian_set_set, sequence_read, sequence_set,
-    vaa_archive_check, ConfigInfo, GovernancePacket, GuardianAddress, GuardianSetInfo,
-    GuardianSetUpgrade, ParsedVAA, SetFee, TransferFee,
+    vaa_archive_add, vaa_archive_check, ConfigInfo, GovernancePacket, GuardianAddress,
+    GuardianSetInfo, GuardianSetUpgrade, ParsedVAA, SetFee, TransferFee,
 };
 
 use k256::ecdsa::recoverable::Id as RecoverableId;
@@ -79,6 +79,8 @@ fn handle_submit_vaa<S: Storage, A: Api, Q: Querier>(
     let state = config_read(&deps.storage).load()?;
 
     let vaa = parse_and_verify_vaa(&deps.storage, data, env.block.time)?;
+    vaa_archive_add(&mut deps.storage, vaa.hash.as_slice())?;
+
     if state.gov_chain == vaa.emitter_chain && state.gov_address == vaa.emitter_address {
         if state.guardian_set_index != vaa.guardian_set_index {
             return Err(StdError::generic_err(
