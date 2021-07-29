@@ -3,6 +3,7 @@ package guardiand
 import (
 	"context"
 	"fmt"
+	"github.com/gagliardetto/solana-go/rpc"
 	"log"
 	"net/http"
 	_ "net/http/pprof"
@@ -404,8 +405,13 @@ func runBridge(cmd *cobra.Command, args []string) {
 			return err
 		}
 
-		if err := supervisor.Run(ctx, "solwatch",
-			solana.NewSolanaWatcher(*solanaWsRPC, *solanaRPC, solBridgeAddress, lockC).Run); err != nil {
+		if err := supervisor.Run(ctx, "solwatch-confirmed",
+			solana.NewSolanaWatcher(*solanaWsRPC, *solanaRPC, solBridgeAddress, lockC, rpc.CommitmentConfirmed).Run); err != nil {
+			return err
+		}
+
+		if err := supervisor.Run(ctx, "solwatch-finalized",
+			solana.NewSolanaWatcher(*solanaWsRPC, *solanaRPC, solBridgeAddress, lockC, rpc.CommitmentFinalized).Run); err != nil {
 			return err
 		}
 
