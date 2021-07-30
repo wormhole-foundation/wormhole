@@ -3,6 +3,7 @@ package processor
 import (
 	"context"
 	"crypto/ecdsa"
+	"github.com/certusone/wormhole/bridge/pkg/db"
 	"time"
 
 	ethcommon "github.com/ethereum/go-ethereum/common"
@@ -76,6 +77,8 @@ type Processor struct {
 
 	logger *zap.Logger
 
+	db *db.Database
+
 	// Runtime state
 
 	// gs is the currently valid guardian set
@@ -90,6 +93,7 @@ type Processor struct {
 
 func NewProcessor(
 	ctx context.Context,
+	db *db.Database,
 	lockC chan *common.MessagePublication,
 	setC chan *common.GuardianSet,
 	sendC chan []byte,
@@ -113,6 +117,7 @@ func NewProcessor(
 		devnetMode:         devnetMode,
 		devnetNumGuardians: devnetNumGuardians,
 		devnetEthRPC:       devnetEthRPC,
+		db:                 db,
 
 		terraLCD:      terraLCD,
 		terraChainID:  terraChainID,

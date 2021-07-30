@@ -3,11 +3,13 @@ package guardiand
 import (
 	"context"
 	"fmt"
+	"github.com/certusone/wormhole/bridge/pkg/db"
 	"github.com/gagliardetto/solana-go/rpc"
 	"log"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
+	"path"
 	"syscall"
 
 	solana_types "github.com/gagliardetto/solana-go"
@@ -322,6 +324,17 @@ func runBridge(cmd *cobra.Command, args []string) {
 		}
 	}
 
+	// Database
+	dbPath := path.Join(*dataDir, "db")
+	if err := os.MkdirAll(dbPath, 0700); err != nil {
+		logger.Fatal("failed to create database directory", zap.Error(err))
+	}
+	db, err := db.Open(dbPath)
+	if err != nil {
+		logger.Fatal("failed to open database", zap.Error(err))
+	}
+	defer db.Close()
+
 	// Guardian key
 	gk, err := loadGuardianKey(*bridgeKeyPath)
 	if err != nil {
@@ -417,6 +430,7 @@ func runBridge(cmd *cobra.Command, args []string) {
 
 		// TODO: this thing has way too many arguments at this point - make it an options struct
 		p := processor.NewProcessor(ctx,
+			db,
 			lockC,
 			setC,
 			sendC,

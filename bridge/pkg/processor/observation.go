@@ -226,13 +226,15 @@ func (p *Processor) handleObservation(ctx context.Context, m *gossipv1.SignedObs
 				panic(err)
 			}
 
-			// Submit every VAA to Solana for data availability.
+			// Store signed VAA in database.
 			p.logger.Info("signed VAA with quorum",
 				zap.String("digest", hash),
 				zap.Any("vaa", signed),
 				zap.String("bytes", hex.EncodeToString(vaaBytes)))
 
-			// TODO: broadcast on p2p and persist
+			if err := p.db.StoreSignedVAA(signed); err != nil {
+				p.logger.Error("failed to store signed VAA", zap.Error(err))
+			}
 			p.state.vaaSignatures[hash].submitted = true
 		} else {
 			p.logger.Info("quorum not met or already submitted, doing nothing",
