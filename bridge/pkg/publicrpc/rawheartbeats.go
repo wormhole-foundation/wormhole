@@ -1,14 +1,13 @@
 package publicrpc
 
 import (
+	gossipv1 "github.com/certusone/wormhole/bridge/pkg/proto/gossip/v1"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"math/rand"
 	"sync"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/zap"
-
-	publicrpcv1 "github.com/certusone/wormhole/bridge/pkg/proto/publicrpc/v1"
 )
 
 // track the number of active connections
@@ -24,13 +23,13 @@ var (
 // heartbeat messages to all the open connections.
 type RawHeartbeatConns struct {
 	mu     sync.RWMutex
-	subs   map[int]chan<- *publicrpcv1.Heartbeat
+	subs   map[int]chan<- *gossipv1.Heartbeat
 	logger *zap.Logger
 }
 
 func HeartbeatStreamMultiplexer(logger *zap.Logger) *RawHeartbeatConns {
 	ps := &RawHeartbeatConns{
-		subs:   map[int]chan<- *publicrpcv1.Heartbeat{},
+		subs:   map[int]chan<- *gossipv1.Heartbeat{},
 		logger: logger.Named("heartbeatmultiplexer"),
 	}
 	return ps
@@ -48,7 +47,7 @@ func (ps *RawHeartbeatConns) getUniqueClientId() int {
 }
 
 // subscribeHeartbeats adds a channel to the subscriber map, keyed by arbitrary clientId
-func (ps *RawHeartbeatConns) subscribeHeartbeats(ch chan *publicrpcv1.Heartbeat) int {
+func (ps *RawHeartbeatConns) subscribeHeartbeats(ch chan *gossipv1.Heartbeat) int {
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
 
@@ -60,7 +59,7 @@ func (ps *RawHeartbeatConns) subscribeHeartbeats(ch chan *publicrpcv1.Heartbeat)
 }
 
 // PublishHeartbeat sends a message to all channels in the subscription map
-func (ps *RawHeartbeatConns) PublishHeartbeat(msg *publicrpcv1.Heartbeat) {
+func (ps *RawHeartbeatConns) PublishHeartbeat(msg *gossipv1.Heartbeat) {
 	ps.mu.RLock()
 	defer ps.mu.RUnlock()
 

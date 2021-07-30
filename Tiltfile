@@ -30,15 +30,18 @@ def k8s_yaml_with_ns(objects):
 
 # protos
 
+proto_deps = ["./proto", "./generate-protos.sh", "buf.yaml", "buf.gen.yaml"]
+
 local_resource(
     name = "proto-gen",
-    deps = ["./proto", "./generate-protos.sh"],
+    deps = proto_deps,
     cmd = "./generate-protos.sh",
 )
 
 local_resource(
     name = "proto-gen-web",
-    deps = ["./proto", "./generate-protos-web.sh"],
+    deps = proto_deps,
+    resource_deps = ["proto-gen"],
     cmd = "./generate-protos-web.sh",
 )
 
@@ -67,6 +70,7 @@ k8s_yaml_with_ns(build_bridge_yaml())
 
 k8s_resource("guardian", resource_deps = ["proto-gen", "solana-devnet"], port_forwards = [
     port_forward(6060, name = "Debug/Status Server [:6060]"),
+    port_forward(7070, name = "Public RPC [:7070]"),
 ])
 
 # publicRPC proxy that allows grpc over http1, for local development

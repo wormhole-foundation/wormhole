@@ -1,0 +1,18 @@
+version: v1beta1
+plugins:
+  - name: go
+    out: bridge/pkg/proto
+    path: tools/bin/protoc-gen-go
+    opt:
+      - paths=source_relative
+  - name: go-grpc
+    out: bridge/pkg/proto
+    path: tools/bin/protoc-gen-go-grpc
+    opt:
+      - paths=source_relative
+  - name: grpc-gateway
+    out: bridge/pkg/proto
+    path: tools/bin/protoc-gen-grpc-gateway
+    opt:
+      - paths=source_relative
+      - generate_unbound_methods=true

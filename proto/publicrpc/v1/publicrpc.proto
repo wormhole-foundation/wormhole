@@ -1,13 +1,10 @@
 syntax = "proto3";
 
-// only relevant for protobuf namespace
 package publicrpc.v1;
 
-// only relevant for Go namespace
 option go_package = "github.com/certusone/wormhole/bridge/pkg/proto/publicrpc/v1;publicrpcv1";
 
-// public import will include the required types in the Go output
-import public "gossip/v1/gossip.proto";
+import "gossip/v1/gossip.proto";
 
 // Publicrpc service exposes endpoints to be consumed externally; GUIs, historical record keeping, etc.
 service Publicrpc {

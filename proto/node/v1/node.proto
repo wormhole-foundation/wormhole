@@ -4,8 +4,6 @@ package node.v1;
 
 option go_package = "github.com/certusone/wormhole/bridge/pkg/proto/node/v1;nodev1";
 
-import "google/api/annotations.proto";
-
 // NodePrivileged exposes an administrative API. It runs on a UNIX socket and is authenticated
 // using Linux filesystem permissions.
 service NodePrivileged {
@@ -67,7 +65,7 @@ message GuardianKey {
   // data is the binary representation of the secp256k1 private key.
   bytes data = 1;
   // Whether this key is deterministically generated and unsuitable for production mode.
-  bool unsafeDeterministicKey = 2;
+  bool unsafe_deterministic_key = 2;
 }
 
 // ContractUpgrade represents a Wormhole contract update to be submitted to and signed by the node.

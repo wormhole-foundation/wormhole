@@ -74,3 +74,10 @@ To Solana:
 To Solana as CPI instruction:
 
     kubectl exec solana-devnet-0 -c setup -- client post-message --proxy CP1co2QMMoDPbsmV7PGcUTLFwyhgCgTXt25gLQ5LewE1 Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o 1 confirmed ffff
+
+
+## IntelliJ Protobuf Autocompletion
+
+Set the include path:
+
+![](https://i.imgur.com/bDij6Cu.png)

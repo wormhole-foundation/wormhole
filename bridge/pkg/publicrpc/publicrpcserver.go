@@ -1,6 +1,7 @@
 package publicrpc
 
 import (
+	gossipv1 "github.com/certusone/wormhole/bridge/pkg/proto/gossip/v1"
 	publicrpcv1 "github.com/certusone/wormhole/bridge/pkg/proto/publicrpc/v1"
 	"go.uber.org/zap"
 )
@@ -23,7 +24,7 @@ func (s *PublicrpcServer) GetRawHeartbeats(req *publicrpcv1.GetRawHeartbeatsRequ
 	s.logger.Info("gRPC heartbeat stream opened by client")
 
 	// create a channel and register it for heartbeats
-	receiveChan := make(chan *publicrpcv1.Heartbeat, 50)
+	receiveChan := make(chan *gossipv1.Heartbeat, 50)
 	// clientId is the reference to the subscription that we will use for unsubscribing when the client disconnects.
 	clientId := s.rawHeartbeatListeners.subscribeHeartbeats(receiveChan)
 
