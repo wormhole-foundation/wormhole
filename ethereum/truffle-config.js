@@ -24,6 +24,14 @@ module.exports = {
             gas: 4465030,
             gasPrice: 10000000000,
         },
+        binance: {
+            provider: () => {
+                return new HDWalletProvider(process.env.MNEMONIC, 'https://bsc-dataseed.binance.org/')
+            },
+            network_id: '56',
+            gas: 80000000,
+            gasPrice: 8000000000,
+        },
     },
 
     compilers: {
