@@ -214,7 +214,7 @@ func (s *SolanaWatcher) fetchBlock(ctx context.Context, slot uint64) {
 
 	queryLatency.WithLabelValues("get_confirmed_block", string(s.commitment)).Observe(time.Since(start).Seconds())
 	if err != nil {
-		solanaConnectionErrors.WithLabelValues("get_confirmed_block_error").Inc()
+		solanaConnectionErrors.WithLabelValues(string(s.commitment), "get_confirmed_block_error").Inc()
 		s.logger.Error("failed to request block", zap.Error(err), zap.Uint64("slot", slot),
 			zap.String("commitment", string(s.commitment)))
 		return
@@ -277,7 +277,7 @@ OUTER:
 		})
 		queryLatency.WithLabelValues("get_confirmed_transaction", string(s.commitment)).Observe(time.Since(start).Seconds())
 		if err != nil {
-			solanaConnectionErrors.WithLabelValues("get_confirmed_transaction_error").Inc()
+			solanaConnectionErrors.WithLabelValues(string(s.commitment), "get_confirmed_transaction_error").Inc()
 			s.logger.Error("failed to request transaction",
 				zap.Error(err),
 				zap.Uint64("slot", slot),
@@ -356,7 +356,7 @@ func (s *SolanaWatcher) fetchMessageAccount(ctx context.Context, acc solana.Publ
 	})
 	queryLatency.WithLabelValues("get_account_info", string(s.commitment)).Observe(time.Since(start).Seconds())
 	if err != nil {
-		solanaConnectionErrors.WithLabelValues("get_account_info_error").Inc()
+		solanaConnectionErrors.WithLabelValues(string(s.commitment), "get_account_info_error").Inc()
 		s.logger.Error("failed to request account",
 			zap.Error(err),
 			zap.Uint64("slot", slot),
@@ -366,7 +366,7 @@ func (s *SolanaWatcher) fetchMessageAccount(ctx context.Context, acc solana.Publ
 	}
 
 	if !info.Value.Owner.Equals(s.bridge) {
-		solanaConnectionErrors.WithLabelValues("account_owner_mismatch").Inc()
+		solanaConnectionErrors.WithLabelValues(string(s.commitment), "account_owner_mismatch").Inc()
 		s.logger.Error("account has invalid owner",
 			zap.Uint64("slot", slot),
 			zap.String("commitment", string(s.commitment)),
@@ -377,7 +377,7 @@ func (s *SolanaWatcher) fetchMessageAccount(ctx context.Context, acc solana.Publ
 
 	data := info.Value.Data.GetBinary()
 	if string(data[:3]) != "msg" {
-		solanaConnectionErrors.WithLabelValues("bad_account_data").Inc()
+		solanaConnectionErrors.WithLabelValues(string(s.commitment), "bad_account_data").Inc()
 		s.logger.Error("account is not a message account",
 			zap.Uint64("slot", slot),
 			zap.String("commitment", string(s.commitment)),
