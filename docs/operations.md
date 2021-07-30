@@ -44,6 +44,33 @@ Your Solana RPC node needs the following parameters enabled:
 
 `--enable-cpi-and-log-storage` stores metadata about CPI calls.
 
+Be aware that these require extra disk space!
+
+#### Account index
+
+If you use the same RPC node for Wormhole v1, you also need the following additional parameters to speed up `getProgramAccount` queries:
+
+```
+[... see above for other required parameters ...]
+
+--account-index program-id
+--account-index-include-key WormT3McKhFJ2RkiGpdw9GKvNCrB2aB54gb2uV9MfQC   # for mainnet
+--account-index-include-key 5gQf5AUhAgWYgUCt9ouShm9H7dzzXUsLdssYwe5krKhg  # for testnet
+```
+
+Alternatively, if you want to run a general-purpose RPC node with indexes for all programs instead of only Wormhole, leave out the filtering:
+
+```
+--account-index program-id
+```
+
+On mainnet, we strongly recommend blacklisting KIN and the token program to speed up catchup:
+
+```
+--account-index-exclude-key kinXdEcpDQeHPEuQnqmUgtYykqKGVFq6CeVX5iAHJq6  # Mainnet only
+--account-index-exclude-key TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA  # Mainnet only
+```
+
 Note that these indexes require extra disk space and may slow down catchup. The first startup after
 adding these parameters will be slow since Solana needs to recreate all indexes.
 
