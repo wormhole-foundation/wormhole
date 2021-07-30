@@ -10,6 +10,7 @@ require (
 	github.com/gagliardetto/solana-go v0.3.5-0.20210727215348-0cf016734976
 	github.com/gorilla/mux v1.7.4
 	github.com/gorilla/websocket v1.4.2
+	github.com/grpc-ecosystem/grpc-gateway/v2 v2.5.0
 	github.com/ipfs/go-log/v2 v2.3.0
 	github.com/libp2p/go-libp2p v0.14.4
 	github.com/libp2p/go-libp2p-connmgr v0.2.4
@@ -33,8 +34,8 @@ require (
 	go.uber.org/zap v1.16.0
 	golang.org/x/crypto v0.0.0-20210513164829-c07d793c2f9a
 	golang.org/x/sys v0.0.0-20210514084401-e8d321eab015
-	google.golang.org/genproto v0.0.0-20200526211855-cb27e3aa2013
-	google.golang.org/grpc v1.33.2
+	google.golang.org/genproto v0.0.0-20210617175327-b9e0b3197ced
+	google.golang.org/grpc v1.38.0
 	google.golang.org/protobuf v1.26.0
 )
 

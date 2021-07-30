@@ -70,7 +70,8 @@ k8s_yaml_with_ns(build_bridge_yaml())
 
 k8s_resource("guardian", resource_deps = ["proto-gen", "solana-devnet"], port_forwards = [
     port_forward(6060, name = "Debug/Status Server [:6060]"),
-    port_forward(7070, name = "Public RPC [:7070]"),
+    port_forward(7070, name = "Public gRPC [:7070]"),
+    port_forward(7071, name = "Public REST [:7071]"),
 ])
 
 # publicRPC proxy that allows grpc over http1, for local development

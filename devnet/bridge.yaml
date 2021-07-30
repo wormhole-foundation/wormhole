@@ -13,6 +13,9 @@ spec:
     - port: 7070
       name: public-grpc
       protocol: TCP
+    - port: 7071
+      name: public-rest
+      protocol: TCP
   clusterIP: None
   selector:
     app: guardian
@@ -84,6 +87,8 @@ spec:
             - /tmp/bridge.key
             - --publicRPC
             - "[::]:7070"
+            - --publicREST
+            - "[::]:7071"
             - --adminSocket
             - /tmp/admin.sock
             - --dataDir

@@ -77,7 +77,8 @@ var (
 	devNumGuardians *uint
 	nodeName        *string
 
-	publicRPC *string
+	publicRPC  *string
+	publicREST *string
 )
 
 func init() {
@@ -117,6 +118,7 @@ func init() {
 	nodeName = BridgeCmd.Flags().String("nodeName", "", "Node name to announce in gossip heartbeats")
 
 	publicRPC = BridgeCmd.Flags().String("publicRPC", "", "Listen address for public gRPC interface")
+	publicREST = BridgeCmd.Flags().String("publicREST", "", "Listen address for public REST interface")
 }
 
 var (
@@ -394,6 +396,11 @@ func runBridge(cmd *cobra.Command, args []string) {
 		logger.Fatal("failed to create admin service socket", zap.Error(err))
 	}
 
+	publicrestService, err := publicrestServiceRunnable(logger, *publicREST, *adminSocketPath)
+	if err != nil {
+		log.Fatal("failed to create publicrpc service socket", zap.Error(err))
+	}
+
 	// Run supervisor.
 	supervisor.New(rootCtx, logger, func(ctx context.Context) error {
 		if err := supervisor.Run(ctx, "p2p", p2p.Run(
@@ -453,6 +460,11 @@ func runBridge(cmd *cobra.Command, args []string) {
 		}
 		if *publicRPC != "" {
 			if err := supervisor.Run(ctx, "publicrpc", publicrpcService); err != nil {
+				return err
+			}
+		}
+		if *publicREST != "" {
+			if err := supervisor.Run(ctx, "publicrest", publicrestService); err != nil {
 				return err
 			}
 		}

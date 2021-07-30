@@ -5,15 +5,19 @@ package publicrpc.v1;
 option go_package = "github.com/certusone/wormhole/bridge/pkg/proto/publicrpc/v1;publicrpcv1";
 
 import "gossip/v1/gossip.proto";
+import "google/api/annotations.proto";
 
 // Publicrpc service exposes endpoints to be consumed externally; GUIs, historical record keeping, etc.
 service Publicrpc {
   // GetRawHeartbeats rpc endpoint returns a stream of the p2p heartbeat messages received.
   // The GetRawHeartbeats stream will include all messages received by the guardian,
   // without any filtering or verification of message content.
-  rpc GetRawHeartbeats (GetRawHeartbeatsRequest) returns (stream gossip.v1.Heartbeat);
+  rpc GetRawHeartbeats (GetRawHeartbeatsRequest) returns (stream gossip.v1.Heartbeat) {
+    option (google.api.http) = {
+      get: "/v1/heartbeats:stream_raw"
+    };
+  };
 }
 
-// GetRawHeartbeatsRequest is an empty request, sent as part of a request to start a stream.
 message GetRawHeartbeatsRequest {
 }
