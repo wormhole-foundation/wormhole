@@ -216,9 +216,7 @@ pub fn create_wrapped(
         &program_id,
     );
     let mint_meta_key = WrappedTokenMeta::<'_, { AccountState::Uninitialized }>::key(
-        &WrappedMetaDerivationData {
-            mint_key,
-        },
+        &WrappedMetaDerivationData { mint_key },
         &program_id,
     );
     let mint_authority_key = MintSigner::key(None, &program_id);

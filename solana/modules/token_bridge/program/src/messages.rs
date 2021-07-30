@@ -25,7 +25,10 @@ use byteorder::{
 use primitive_types::U256;
 use solana_program::{
     native_token::Sol,
-    program_error::ProgramError,
+    program_error::{
+        ProgramError,
+        ProgramError::InvalidAccountData,
+    },
     pubkey::Pubkey,
 };
 use solitaire::SolitaireError;
@@ -81,6 +84,10 @@ impl DeserializePayload for PayloadTransfer {
         let mut fee_data: [u8; 32] = [0; 32];
         v.read_exact(&mut fee_data)?;
         let fee = U256::from_big_endian(&fee_data);
+
+        if v.position() != v.into_inner().len() as u64 {
+            return Err(InvalidAccountData.into());
+        }
 
         Ok(PayloadTransfer {
             amount,
@@ -155,6 +162,10 @@ impl DeserializePayload for PayloadAssetMeta {
             .map_err::<SolitaireError, _>(|_| TokenBridgeError::InvalidUTF8String.into())?;
         name = name.chars().filter(|c| c != &'\0').collect();
 
+        if v.position() != v.into_inner().len() as u64 {
+            return Err(InvalidAccountData.into());
+        }
+
         Ok(PayloadAssetMeta {
             token_address,
             token_chain,
@@ -219,6 +230,10 @@ where
         let mut endpoint_address = [0u8; 32];
         v.read_exact(&mut endpoint_address)?;
 
+        if v.position() != v.into_inner().len() as u64 {
+            return Err(InvalidAccountData.into());
+        }
+
         Ok(PayloadGovernanceRegisterChain {
             chain,
             endpoint_address,
@@ -264,6 +279,10 @@ where
 
         let mut addr = [0u8; 32];
         c.read_exact(&mut addr)?;
+
+        if c.position() != c.into_inner().len() as u64 {
+            return Err(InvalidAccountData.into());
+        }
 
         Ok(GovernancePayloadUpgrade {
             new_contract: Pubkey::new(&addr[..]),

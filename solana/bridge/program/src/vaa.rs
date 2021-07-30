@@ -3,6 +3,7 @@ use crate::{
         Claim,
         ClaimDerivationData,
     },
+    api::ForeignAddress,
     error::Error::{
         InvalidGovernanceAction,
         InvalidGovernanceChain,
@@ -16,6 +17,10 @@ use crate::{
 use byteorder::{
     BigEndian,
     ReadBytesExt,
+};
+use serde::{
+    Deserialize,
+    Serialize,
 };
 use solana_program::pubkey::Pubkey;
 use solitaire::{
@@ -37,8 +42,6 @@ use std::{
     },
     ops::Deref,
 };
-use crate::api::ForeignAddress;
-use serde::{Deserialize, Serialize};
 
 pub trait SerializePayload: Sized {
     fn serialize<W: Write>(&self, writer: &mut W) -> std::result::Result<(), SolitaireError>;
@@ -110,8 +113,8 @@ pub struct PayloadMessage<'b, T: DeserializePayload>(
 
 impl<'a, 'b: 'a, 'c, T: DeserializePayload> Peel<'a, 'b, 'c> for PayloadMessage<'b, T> {
     fn peel<I>(ctx: &'c mut Context<'a, 'b, 'c, I>) -> Result<Self>
-        where
-            Self: Sized,
+    where
+        Self: Sized,
     {
         // Deserialize wrapped payload
         let data: Data<'b, PostedMessage, { AccountState::Initialized }> = Data::peel(ctx)?;

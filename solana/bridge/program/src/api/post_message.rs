@@ -14,9 +14,7 @@ use crate::{
     types::ConsistencyLevel,
     CHAIN_ID_SOLANA,
 };
-use solana_program::{
-    sysvar::clock::Clock,
-};
+use solana_program::sysvar::clock::Clock;
 use solitaire::{
     processors::seeded::Seeded,
     trace,
@@ -81,7 +79,8 @@ pub fn post_message(
     trace!("Emitter Address: {}", accs.emitter.info().key);
     trace!("Nonce: {}", data.nonce);
 
-    accs.sequence.verify_derivation(ctx.program_id, &(&*accs).into())?;
+    accs.sequence
+        .verify_derivation(ctx.program_id, &(&*accs).into())?;
 
     let msg_derivation = MessageDerivationData {
         emitter_key: accs.emitter.key.to_bytes(),
@@ -121,7 +120,7 @@ pub fn post_message(
             .create(&(&*accs).into(), ctx, accs.payer.key, Exempt)?;
     }
 
-	trace!("Sequence: {}", accs.sequence.sequence);
+    trace!("Sequence: {}", accs.sequence.sequence);
 
     // Initialize transfer
     trace!("Setting Message Details");

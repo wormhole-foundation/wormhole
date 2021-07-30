@@ -16,7 +16,14 @@ use byteorder::{
     ReadBytesExt,
 };
 use primitive_types::U256;
-use solana_program::pubkey::Pubkey;
+use serde::{
+    Deserialize,
+    Serialize,
+};
+use solana_program::{
+    program_error::ProgramError::InvalidAccountData,
+    pubkey::Pubkey,
+};
 use solitaire::{
     processors::seeded::{
         AccountOwner,
@@ -35,10 +42,6 @@ use std::{
         DerefMut,
     },
     str::FromStr,
-};
-use serde::{
-    Deserialize,
-    Serialize,
 };
 
 #[derive(Default, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
@@ -237,8 +240,8 @@ impl SerializePayload for GovernancePayloadUpgrade {
 }
 
 impl DeserializePayload for GovernancePayloadUpgrade
-    where
-        Self: DeserializeGovernancePayload,
+where
+    Self: DeserializeGovernancePayload,
 {
     fn deserialize(buf: &mut &[u8]) -> Result<Self, SolitaireError> {
         let mut c = Cursor::new(buf);
@@ -246,6 +249,10 @@ impl DeserializePayload for GovernancePayloadUpgrade
 
         let mut addr = [0u8; 32];
         c.read_exact(&mut addr)?;
+
+        if c.position() != c.into_inner().len() as u64 {
+            return Err(InvalidAccountData.into());
+        }
 
         Ok(GovernancePayloadUpgrade {
             new_contract: Pubkey::new(&addr[..]),
@@ -282,8 +289,8 @@ impl SerializePayload for GovernancePayloadGuardianSetChange {
 }
 
 impl DeserializePayload for GovernancePayloadGuardianSetChange
-    where
-        Self: DeserializeGovernancePayload,
+where
+    Self: DeserializeGovernancePayload,
 {
     fn deserialize(buf: &mut &[u8]) -> Result<Self, SolitaireError> {
         let mut c = Cursor::new(buf);
@@ -297,6 +304,10 @@ impl DeserializePayload for GovernancePayloadGuardianSetChange
             let mut key: [u8; 20] = [0; 20];
             c.read(&mut key)?;
             keys.push(key);
+        }
+
+        if c.position() != c.into_inner().len() as u64 {
+            return Err(InvalidAccountData.into());
         }
 
         Ok(GovernancePayloadGuardianSetChange {
@@ -330,8 +341,8 @@ impl SerializePayload for GovernancePayloadSetMessageFee {
 }
 
 impl DeserializePayload for GovernancePayloadSetMessageFee
-    where
-        Self: DeserializeGovernancePayload,
+where
+    Self: DeserializeGovernancePayload,
 {
     fn deserialize(buf: &mut &[u8]) -> Result<Self, SolitaireError> {
         let mut c = Cursor::new(buf);
@@ -340,6 +351,10 @@ impl DeserializePayload for GovernancePayloadSetMessageFee
         let mut fee_data: [u8; 32] = [0; 32];
         c.read_exact(&mut fee_data)?;
         let fee = U256::from_big_endian(&fee_data);
+
+        if c.position() != c.into_inner().len() as u64 {
+            return Err(InvalidAccountData.into());
+        }
 
         Ok(GovernancePayloadSetMessageFee { fee })
     }
@@ -372,8 +387,8 @@ impl SerializePayload for GovernancePayloadTransferFees {
 }
 
 impl DeserializePayload for GovernancePayloadTransferFees
-    where
-        Self: DeserializeGovernancePayload,
+where
+    Self: DeserializeGovernancePayload,
 {
     fn deserialize(buf: &mut &[u8]) -> Result<Self, SolitaireError> {
         let mut c = Cursor::new(buf);
@@ -385,6 +400,10 @@ impl DeserializePayload for GovernancePayloadTransferFees
 
         let mut to = ForeignAddress::default();
         c.read_exact(&mut to)?;
+
+        if c.position() != c.into_inner().len() as u64 {
+            return Err(InvalidAccountData.into());
+        }
 
         Ok(GovernancePayloadTransferFees { amount, to })
     }

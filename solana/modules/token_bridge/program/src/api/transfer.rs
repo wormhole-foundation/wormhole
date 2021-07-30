@@ -282,10 +282,8 @@ pub fn transfer_wrapped(
 
     // Verify that meta is correct
     let derivation_data: WrappedMetaDerivationData = (&*accs).into();
-    accs.wrapped_meta.verify_derivation(
-        ctx.program_id,
-        &derivation_data,
-    )?;
+    accs.wrapped_meta
+        .verify_derivation(ctx.program_id, &derivation_data)?;
 
     // Burn tokens
     let burn_ix = spl_token::instruction::burn(

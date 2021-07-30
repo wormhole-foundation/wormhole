@@ -14,7 +14,10 @@ use crate::{
     types::*,
     TokenBridgeError::*,
 };
-use bridge::vaa::ClaimableVAA;
+use bridge::{
+    vaa::ClaimableVAA,
+    CHAIN_ID_SOLANA,
+};
 use solana_program::{
     account_info::AccountInfo,
     program::invoke_signed,
@@ -83,11 +86,13 @@ pub fn complete_native(
 ) -> Result<()> {
     // Verify the chain registration
     let derivation_data: EndpointDerivationData = (&*accs).into();
-    accs.chain_registration.verify_derivation(ctx.program_id, &derivation_data)?;
+    accs.chain_registration
+        .verify_derivation(ctx.program_id, &derivation_data)?;
 
     // Verify that the custody account is derived correctly
     let derivation_data: CustodyAccountDerivationData = (&*accs).into();
-    accs.custody.verify_derivation(ctx.program_id, &derivation_data)?;
+    accs.custody
+        .verify_derivation(ctx.program_id, &derivation_data)?;
 
     // Verify mints
     if *accs.mint.info().key != accs.to.mint {
@@ -105,6 +110,9 @@ pub fn complete_native(
         return Err(InvalidMint.into());
     }
     if accs.vaa.token_chain != 1 {
+        return Err(InvalidChain.into());
+    }
+    if accs.vaa.to_chain != CHAIN_ID_SOLANA {
         return Err(InvalidChain.into());
     }
 
@@ -187,11 +195,17 @@ pub fn complete_wrapped(
 
     // Verify mint
     let derivation_data: WrappedDerivationData = (&*accs).into();
-    accs.mint.verify_derivation(ctx.program_id, &derivation_data)?;
+    accs.mint
+        .verify_derivation(ctx.program_id, &derivation_data)?;
 
     // Verify mints
     if *accs.mint.info().key != accs.to.mint {
         return Err(InvalidMint.into());
+    }
+
+    // Verify VAA
+    if accs.vaa.to_chain != CHAIN_ID_SOLANA {
+        return Err(InvalidChain.into());
     }
 
     accs.vaa.verify(ctx.program_id)?;

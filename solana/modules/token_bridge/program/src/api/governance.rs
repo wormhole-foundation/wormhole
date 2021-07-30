@@ -9,7 +9,10 @@ use crate::{
         PayloadGovernanceRegisterChain,
     },
     types::*,
-    TokenBridgeError::InvalidGovernanceKey,
+    TokenBridgeError::{
+        InvalidChain,
+        InvalidGovernanceKey,
+    },
 };
 use bridge::{
     vaa::{
@@ -151,12 +154,17 @@ pub fn register_chain(
     data: RegisterChainData,
 ) -> Result<()> {
     let derivation_data: EndpointDerivationData = (&*accs).into();
-    accs.endpoint.verify_derivation(ctx.program_id, &derivation_data)?;
+    accs.endpoint
+        .verify_derivation(ctx.program_id, &derivation_data)?;
 
     // Claim VAA
     verify_governance(&accs.vaa);
     accs.vaa.verify(&ctx.program_id)?;
     accs.vaa.claim(ctx, accs.payer.key)?;
+
+    if accs.vaa.chain == CHAIN_ID_SOLANA {
+        return Err(InvalidChain.into());
+    }
 
     // Create endpoint
     accs.endpoint

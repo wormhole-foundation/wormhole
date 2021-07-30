@@ -4,8 +4,8 @@ use crate::{
         Endpoint,
         EndpointDerivationData,
         MintSigner,
-        WrappedMetaDerivationData,
         WrappedDerivationData,
+        WrappedMetaDerivationData,
         WrappedMint,
         WrappedTokenMeta,
     },
@@ -92,13 +92,16 @@ pub fn create_wrapped(
     data: CreateWrappedData,
 ) -> Result<()> {
     let derivation_data: WrappedDerivationData = (&*accs).into();
-    accs.mint.verify_derivation(ctx.program_id, &derivation_data)?;
+    accs.mint
+        .verify_derivation(ctx.program_id, &derivation_data)?;
 
     let meta_derivation_data: WrappedMetaDerivationData = (&*accs).into();
-    accs.meta.verify_derivation(ctx.program_id, &meta_derivation_data)?;
+    accs.meta
+        .verify_derivation(ctx.program_id, &meta_derivation_data)?;
 
     let derivation_data: EndpointDerivationData = (&*accs).into();
-    accs.chain_registration.verify_derivation(ctx.program_id, &derivation_data)?;
+    accs.chain_registration
+        .verify_derivation(ctx.program_id, &derivation_data)?;
 
     accs.vaa.verify(ctx.program_id)?;
     accs.vaa.claim(ctx, accs.payer.key)?;

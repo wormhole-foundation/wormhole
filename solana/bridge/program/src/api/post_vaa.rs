@@ -29,6 +29,10 @@ use byteorder::{
     BigEndian,
     WriteBytesExt,
 };
+use serde::{
+    Deserialize,
+    Serialize,
+};
 use sha3::Digest;
 use solana_program::program_error::ProgramError;
 use solitaire::{
@@ -38,10 +42,6 @@ use solitaire::{
 use std::io::{
     Cursor,
     Write,
-};
-use serde::{
-    Deserialize,
-    Serialize
 };
 
 impl From<&PostVAAData> for GuardianSetDerivationData {
