@@ -83,6 +83,10 @@ type Processor struct {
 
 	// gs is the currently valid guardian set
 	gs *common.GuardianSet
+	// gst is managed by the processor and allows concurrent access to the
+	// guardian set by other components.
+	gst *common.GuardianSetState
+
 	// state is the current runtime VAA view
 	state *aggregationState
 	// gk pk as eth address
@@ -100,6 +104,7 @@ func NewProcessor(
 	obsvC chan *gossipv1.SignedObservation,
 	injectC chan *vaa.VAA,
 	gk *ecdsa.PrivateKey,
+	gst *common.GuardianSetState,
 	devnetMode bool,
 	devnetNumGuardians uint,
 	devnetEthRPC string,
@@ -114,6 +119,7 @@ func NewProcessor(
 		obsvC:              obsvC,
 		injectC:            injectC,
 		gk:                 gk,
+		gst:                gst,
 		devnetMode:         devnetMode,
 		devnetNumGuardians: devnetNumGuardians,
 		devnetEthRPC:       devnetEthRPC,
@@ -140,6 +146,7 @@ func (p *Processor) Run(ctx context.Context) error {
 			p.logger.Info("guardian set updated",
 				zap.Strings("set", p.gs.KeysAsHexStrings()),
 				zap.Uint32("index", p.gs.Index))
+			p.gst.Set(p.gs)
 		case k := <-p.lockC:
 			p.handleMessage(ctx, k)
 		case v := <-p.injectC:

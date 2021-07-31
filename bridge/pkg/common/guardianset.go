@@ -2,6 +2,7 @@ package common
 
 import (
 	"github.com/ethereum/go-ethereum/common"
+	"sync"
 )
 
 // Matching constants:
@@ -38,4 +39,23 @@ func (g *GuardianSet) KeyIndex(addr common.Address) (int, bool) {
 	}
 
 	return -1, false
+}
+
+type GuardianSetState struct {
+	mu      sync.Mutex
+	current *GuardianSet
+}
+
+func (st *GuardianSetState) Set(set *GuardianSet) {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+
+	st.current = set
+}
+
+func (st *GuardianSetState) Get() *GuardianSet {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+
+	return st.current
 }

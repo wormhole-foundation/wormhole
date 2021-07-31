@@ -3,7 +3,9 @@ package p2p
 import (
 	"context"
 	"crypto/ecdsa"
+	"errors"
 	"fmt"
+	bridge_common "github.com/certusone/wormhole/bridge/pkg/common"
 	"github.com/certusone/wormhole/bridge/pkg/version"
 	"github.com/ethereum/go-ethereum/common"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
@@ -57,17 +59,7 @@ func heartbeatDigest(b []byte) common.Hash {
 	return ethcrypto.Keccak256Hash(append(heartbeatMessagePrefix, b...))
 }
 
-func Run(
-	obsvC chan *gossipv1.SignedObservation,
-	sendC chan []byte, rawHeartbeatListeners *publicrpc.RawHeartbeatConns,
-	priv crypto.PrivKey,
-	gk *ecdsa.PrivateKey,
-	port uint,
-	networkID string,
-	bootstrapPeers string,
-	nodeName string,
-	rootCtxCancel context.CancelFunc) func(ctx context.Context) error {
-
+func Run(obsvC chan *gossipv1.SignedObservation, sendC chan []byte, rawHeartbeatListeners *publicrpc.RawHeartbeatConns, priv crypto.PrivKey, gk *ecdsa.PrivateKey, gst *bridge_common.GuardianSetState, port uint, networkID string, bootstrapPeers string, nodeName string, rootCtxCancel context.CancelFunc) func(ctx context.Context) error {
 	return func(ctx context.Context) (re error) {
 		logger := supervisor.Logger(ctx)
 
@@ -301,9 +293,16 @@ func Run(
 				p2pMessagesReceived.WithLabelValues("heartbeat").Inc()
 			case *gossipv1.GossipMessage_SignedHeartbeat:
 				s := m.SignedHeartbeat
-				if heartbeat, err := processSignedHeartbeat(s); err != nil {
+				gs := gst.Get()
+				if gs == nil {
+					// No valid guardian set yet - dropping heartbeat
+					logger.Debug("skipping heartbeat - no guardian set",
+						zap.Any("value", s),
+						zap.String("from", envelope.GetFrom().String()))
+					break
+				}
+				if heartbeat, err := processSignedHeartbeat(s, gs); err != nil {
 					p2pMessagesReceived.WithLabelValues("invalid_heartbeat").Inc()
-
 					logger.Warn("invalid signed heartbeat received",
 						zap.Error(err),
 						zap.Any("payload", msg.Message),
@@ -331,11 +330,29 @@ func Run(
 	}
 }
 
-func processSignedHeartbeat(s *gossipv1.SignedHeartbeat) (*gossipv1.Heartbeat, error) {
-	// TODO: verify signature here
+func processSignedHeartbeat(s *gossipv1.SignedHeartbeat, gs *bridge_common.GuardianSet) (*gossipv1.Heartbeat, error) {
+	envelopeAddr := common.BytesToAddress(s.GuardianAddr)
+	idx, ok := gs.KeyIndex(envelopeAddr)
+	if !ok {
+		return nil, fmt.Errorf("invalid message: %s not in guardian set", envelopeAddr)
+	}
+
+	pk := gs.Keys[idx]
+
+	digest := heartbeatDigest(s.Heartbeat)
+
+	pubKey, err := ethcrypto.Ecrecover(digest.Bytes(), s.Signature)
+	if err != nil {
+		return nil, errors.New("failed to recover public key")
+	}
+
+	signerAddr := common.BytesToAddress(ethcrypto.Keccak256(pubKey[1:])[12:])
+	if pk != signerAddr {
+		return nil, fmt.Errorf("invalid signer: %v", signerAddr)
+	}
 
 	var h gossipv1.Heartbeat
-	err := proto.Unmarshal(s.Heartbeat, &h)
+	err = proto.Unmarshal(s.Heartbeat, &h)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal heartbeat: %w", err)
 	}
