@@ -435,7 +435,6 @@ func runBridge(cmd *cobra.Command, args []string) {
 			return err
 		}
 
-		// TODO: this thing has way too many arguments at this point - make it an options struct
 		p := processor.NewProcessor(ctx,
 			db,
 			lockC,

@@ -101,7 +101,7 @@ func Run(
 			libp2p.Routing(func(h host.Host) (routing.PeerRouting, error) {
 				// TODO(leo): Persistent data store (i.e. address book)
 				idht, err := dht.New(ctx, h, dht.Mode(dht.ModeServer),
-					// TODO(leo): This intentionally makes us incompatible with the global IPFS DHT
+					// This intentionally makes us incompatible with the global IPFS DHT
 					dht.ProtocolPrefix(protocol.ID("/"+networkID)),
 				)
 				return idht, err

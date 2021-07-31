@@ -53,11 +53,25 @@ type (
 		// Index of the validator
 		Index uint8
 		// Signature data
-		Signature [65]byte // TODO: hex marshaller
+		Signature SignatureData
 	}
+
+	SignatureData [65]byte
 )
 
+func (a Address) MarshalJSON() ([]byte, error) {
+	return []byte(fmt.Sprintf(`"%s"`, a)), nil
+}
+
 func (a Address) String() string {
+	return hex.EncodeToString(a[:])
+}
+
+func (a SignatureData) MarshalJSON() ([]byte, error) {
+	return []byte(fmt.Sprintf(`"%s"`, a)), nil
+}
+
+func (a SignatureData) String() string {
 	return hex.EncodeToString(a[:])
 }
 
