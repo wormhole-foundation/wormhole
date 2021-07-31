@@ -2,8 +2,11 @@ package p2p
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"fmt"
 	"github.com/certusone/wormhole/bridge/pkg/version"
+	"github.com/ethereum/go-ethereum/common"
+	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"strings"
@@ -48,10 +51,17 @@ var (
 		}, []string{"type"})
 )
 
-func Run(obsvC chan *gossipv1.SignedObservation,
-	sendC chan []byte,
-	rawHeartbeatListeners *publicrpc.RawHeartbeatConns,
+var heartbeatMessagePrefix = []byte("heartbeat|")
+
+func heartbeatDigest(b []byte) common.Hash {
+	return ethcrypto.Keccak256Hash(append(heartbeatMessagePrefix, b...))
+}
+
+func Run(
+	obsvC chan *gossipv1.SignedObservation,
+	sendC chan []byte, rawHeartbeatListeners *publicrpc.RawHeartbeatConns,
 	priv crypto.PrivKey,
+	gk *ecdsa.PrivateKey,
 	port uint,
 	networkID string,
 	bootstrapPeers string,
@@ -190,23 +200,42 @@ func Run(obsvC chan *gossipv1.SignedObservation,
 						networks = append(networks, v)
 					}
 
-					msg := gossipv1.GossipMessage{Message: &gossipv1.GossipMessage_Heartbeat{
-						Heartbeat: &gossipv1.Heartbeat{
-							NodeName:     nodeName,
-							Counter:      ctr,
-							Timestamp:    time.Now().UnixNano(),
-							Networks:     networks,
-							Version:      version.Version(),
-							GuardianAddr: DefaultRegistry.guardianAddress,
-						}}}
+					heartbeat := &gossipv1.Heartbeat{
+						NodeName:     nodeName,
+						Counter:      ctr,
+						Timestamp:    time.Now().UnixNano(),
+						Networks:     networks,
+						Version:      version.Version(),
+						GuardianAddr: DefaultRegistry.guardianAddress,
+					}
 
-					rawHeartbeatListeners.PublishHeartbeat(msg.GetHeartbeat())
+					rawHeartbeatListeners.PublishHeartbeat(heartbeat)
 
-					b, err := proto.Marshal(&msg)
+					b, err := proto.Marshal(heartbeat)
 					if err != nil {
 						panic(err)
 					}
+
 					DefaultRegistry.mu.Unlock()
+
+					// Sign the heartbeat using our node's guardian key.
+					digest := heartbeatDigest(b)
+					sig, err := ethcrypto.Sign(digest.Bytes(), gk)
+					if err != nil {
+						panic(err)
+					}
+
+					msg := gossipv1.GossipMessage{Message: &gossipv1.GossipMessage_SignedHeartbeat{
+						SignedHeartbeat: &gossipv1.SignedHeartbeat{
+							Heartbeat:    b,
+							Signature:    sig,
+							GuardianAddr: ethcrypto.PubkeyToAddress(gk.PublicKey).Bytes(),
+						}}}
+
+					b, err = proto.Marshal(&msg)
+					if err != nil {
+						panic(err)
+					}
 
 					err = th.Publish(ctx, b)
 					if err != nil {
@@ -263,12 +292,31 @@ func Run(obsvC chan *gossipv1.SignedObservation,
 				zap.String("from", envelope.GetFrom().String()))
 
 			switch m := msg.Message.(type) {
+			// TODO(leo): remove Heartbeat support after upgrade
 			case *gossipv1.GossipMessage_Heartbeat:
-				logger.Debug("heartbeat received",
+				logger.Debug("unsigned heartbeat received",
 					zap.Any("value", m.Heartbeat),
 					zap.String("from", envelope.GetFrom().String()))
 				rawHeartbeatListeners.PublishHeartbeat(msg.GetHeartbeat())
 				p2pMessagesReceived.WithLabelValues("heartbeat").Inc()
+			case *gossipv1.GossipMessage_SignedHeartbeat:
+				s := m.SignedHeartbeat
+				if heartbeat, err := processSignedHeartbeat(s); err != nil {
+					p2pMessagesReceived.WithLabelValues("invalid_heartbeat").Inc()
+
+					logger.Warn("invalid signed heartbeat received",
+						zap.Error(err),
+						zap.Any("payload", msg.Message),
+						zap.Any("value", s),
+						zap.Binary("raw", envelope.Data),
+						zap.String("from", envelope.GetFrom().String()))
+				} else {
+					p2pMessagesReceived.WithLabelValues("valid_heartbeat").Inc()
+					logger.Debug("valid signed heartbeat received",
+						zap.Any("value", heartbeat),
+						zap.String("from", envelope.GetFrom().String()))
+					rawHeartbeatListeners.PublishHeartbeat(heartbeat)
+				}
 			case *gossipv1.GossipMessage_SignedObservation:
 				obsvC <- m.SignedObservation
 				p2pMessagesReceived.WithLabelValues("observation").Inc()
@@ -281,4 +329,16 @@ func Run(obsvC chan *gossipv1.SignedObservation,
 			}
 		}
 	}
+}
+
+func processSignedHeartbeat(s *gossipv1.SignedHeartbeat) (*gossipv1.Heartbeat, error) {
+	// TODO: verify signature here
+
+	var h gossipv1.Heartbeat
+	err := proto.Unmarshal(s.Heartbeat, &h)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal heartbeat: %w", err)
+	}
+
+	return &h, nil
 }

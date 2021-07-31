@@ -6,12 +6,27 @@ option go_package = "github.com/certusone/wormhole/bridge/pkg/proto/gossip/v1;go
 
 message GossipMessage {
   oneof message {
+    // Deprecated: use SignedHeartbeat.
     Heartbeat heartbeat = 1;
     SignedObservation signed_observation = 2;
+    SignedHeartbeat signed_heartbeat = 3;
   }
 }
 
-// P2P gossip heartbeats for network introspection purposes. ALL FIELDS ARE UNTRUSTED.
+message SignedHeartbeat {
+  // Serialized Heartbeat message.
+  bytes heartbeat = 1;
+
+  // ECDSA signature using the node's guardian public key.
+  bytes signature = 2;
+
+  // Guardian address that signed this payload (truncated Eth address).
+  // This is already contained in Heartbeat, however, we want to verify
+  // the payload before we deserialize it.
+  bytes guardian_addr = 3;
+}
+
+// P2P gossip heartbeats for network introspection purposes.
 message Heartbeat {
   // The node's arbitrarily chosen, untrusted nodeName.
   string node_name = 1;
@@ -35,8 +50,6 @@ message Heartbeat {
 
   // Human-readable representation of the guardian key's address.
   string guardian_addr = 6;
-
-  // TODO: include signed statement of gk public key?
 }
 
 // A SignedObservation is a signed statement by a given guardian node
