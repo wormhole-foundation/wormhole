@@ -7,6 +7,24 @@ option go_package = "github.com/certusone/wormhole/bridge/pkg/proto/publicrpc/v1
 import "gossip/v1/gossip.proto";
 import "google/api/annotations.proto";
 
+enum EmitterChain {
+  CHAIN_ID_UNKNOWN = 0;
+  CHAIN_ID_SOLANA = 1;
+  CHAIN_ID_ETHEREUM = 2;
+  CHAIN_ID_TERRA = 3;
+  CHAIN_ID_BSC = 4;
+}
+
+// MessageID is a VAA's globally unique identifier (see data availability design document).
+message MessageID {
+  // Emitter chain ID.
+  EmitterChain emitter_chain = 1;
+  // Hex-encoded emitter address.
+  string emitter_address = 2;
+  // Sequence number for (emitter_chain, emitter_address).
+  int64 sequence = 3;
+}
+
 // Publicrpc service exposes endpoints to be consumed externally; GUIs, historical record keeping, etc.
 service Publicrpc {
   // GetRawHeartbeats rpc endpoint returns a stream of the p2p heartbeat messages received.
@@ -17,7 +35,21 @@ service Publicrpc {
       get: "/v1/heartbeats:stream_raw"
     };
   };
+
+  rpc GetSignedVAA (GetSignedVAARequest) returns (GetSignedVAAResponse) {
+    option (google.api.http) = {
+      get: "/v1/signed_vaa/{message_id.emitter_chain}/{message_id.emitter_address}/{message_id.sequence}"
+    };
+  }
 }
 
 message GetRawHeartbeatsRequest {
+}
+
+message GetSignedVAARequest {
+  MessageID message_id = 1;
+}
+
+message GetSignedVAAResponse {
+  bytes vaa_bytes = 1;
 }

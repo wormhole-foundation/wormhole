@@ -385,13 +385,13 @@ func runBridge(cmd *cobra.Command, args []string) {
 
 	// subscriber channel multiplexing for public gPRC streams
 	rawHeartbeatListeners := publicrpc.HeartbeatStreamMultiplexer(logger)
-	publicrpcService, err := publicrpcServiceRunnable(logger, *publicRPC, rawHeartbeatListeners)
+	publicrpcService, err := publicrpcServiceRunnable(logger, *publicRPC, rawHeartbeatListeners, db)
 	if err != nil {
 		log.Fatal("failed to create publicrpc service socket", zap.Error(err))
 	}
 
 	// local admin service socket
-	adminService, err := adminServiceRunnable(logger, *adminSocketPath, injectC, rawHeartbeatListeners)
+	adminService, err := adminServiceRunnable(logger, *adminSocketPath, injectC, rawHeartbeatListeners, db)
 	if err != nil {
 		logger.Fatal("failed to create admin service socket", zap.Error(err))
 	}

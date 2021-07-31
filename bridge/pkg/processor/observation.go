@@ -230,7 +230,8 @@ func (p *Processor) handleObservation(ctx context.Context, m *gossipv1.SignedObs
 			p.logger.Info("signed VAA with quorum",
 				zap.String("digest", hash),
 				zap.Any("vaa", signed),
-				zap.String("bytes", hex.EncodeToString(vaaBytes)))
+				zap.String("bytes", hex.EncodeToString(vaaBytes)),
+				zap.String("message_id", signed.MessageID()))
 
 			if err := p.db.StoreSignedVAA(signed); err != nil {
 				p.logger.Error("failed to store signed VAA", zap.Error(err))

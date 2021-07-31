@@ -54,6 +54,8 @@ func (d *Database) StoreSignedVAA(v *vaa.VAA) error {
 
 	b, _ := v.Marshal()
 
+	// TODO: panic if same VAA is stored with different value
+
 	err := d.db.Update(func(txn *badger.Txn) error {
 		if err := txn.Set(vaaIDFromVAA(v).Bytes(), b); err != nil {
 			return err
@@ -74,11 +76,16 @@ func (d *Database) GetSignedVAABytes(id VAAID) (b []byte, err error) {
 		if err != nil {
 			return err
 		}
-		if _, err := item.ValueCopy(b); err != nil {
+		if val, err := item.ValueCopy(nil); err != nil {
 			return err
+		} else {
+			b = val
 		}
 		return nil
 	}); err != nil {
+		if err == badger.ErrKeyNotFound {
+			return nil, ErrVAANotFound
+		}
 		return nil, err
 	}
 	return
