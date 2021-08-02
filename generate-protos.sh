@@ -11,6 +11,5 @@ rm -rf third_party/googleapis
 
 rm -rf bridge/pkg/proto
 
-tools/bin/buf mod update
 tools/bin/buf lint
 tools/bin/buf generate
