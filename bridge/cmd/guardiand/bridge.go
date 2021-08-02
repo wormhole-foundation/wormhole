@@ -418,12 +418,12 @@ func runBridge(cmd *cobra.Command, args []string) {
 		}
 
 		if err := supervisor.Run(ctx, "ethwatch",
-			ethereum.NewEthBridgeWatcher(*ethRPC, ethContractAddr, "eth", vaa.ChainIDEthereum, lockC, setC).Run); err != nil {
+			ethereum.NewEthBridgeWatcher(*ethRPC, ethContractAddr, "eth", common.ReadinessEthSyncing, vaa.ChainIDEthereum, lockC, setC).Run); err != nil {
 			return err
 		}
 
 		if err := supervisor.Run(ctx, "bscwatch",
-			ethereum.NewEthBridgeWatcher(*bscRPC, bscContractAddr, "bsc", vaa.ChainIDBSC, lockC, nil).Run); err != nil {
+			ethereum.NewEthBridgeWatcher(*bscRPC, bscContractAddr, "bsc", common.ReadinessBSCSyncing, vaa.ChainIDBSC, lockC, nil).Run); err != nil {
 			return err
 		}
 

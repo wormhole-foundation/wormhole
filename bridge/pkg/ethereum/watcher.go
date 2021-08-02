@@ -67,6 +67,8 @@ type (
 		bridge eth_common.Address
 		// Human-readable name of the Eth network, for logging and monitoring.
 		networkName string
+		// Readiness component
+		readiness readiness.Component
 		// VAA ChainID of the network we're connecting to.
 		chainID vaa.ChainID
 
@@ -98,6 +100,7 @@ func NewEthBridgeWatcher(
 	url string,
 	bridge eth_common.Address,
 	networkName string,
+	readiness readiness.Component,
 	chainID vaa.ChainID,
 	messageEvents chan *common.MessagePublication,
 	setEvents chan *common.GuardianSet) *EthBridgeWatcher {
@@ -105,6 +108,7 @@ func NewEthBridgeWatcher(
 		url:         url,
 		bridge:      bridge,
 		networkName: networkName,
+		readiness:   readiness,
 		chainID:     chainID,
 		msgChan:     messageEvents,
 		setChan:     setEvents,
@@ -278,7 +282,7 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 				logger.Info("processing new header", zap.Stringer("block", ev.Number),
 					zap.String("eth_network", e.networkName))
 				currentEthHeight.WithLabelValues(e.networkName).Set(float64(ev.Number.Int64()))
-				readiness.SetReady(common.ReadinessEthSyncing)
+				readiness.SetReady(e.readiness)
 				p2p.DefaultRegistry.SetNetworkStats(e.chainID, &gossipv1.Heartbeat_Network{
 					Height:        ev.Number.Int64(),
 					BridgeAddress: e.bridge.Hex(),
