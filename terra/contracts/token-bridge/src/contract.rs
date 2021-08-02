@@ -370,7 +370,7 @@ fn handle_complete_transfer<S: Storage, A: Api, Q: Querier>(
     let (not_supported_amount, mut amount) = transfer_info.amount;
     let (not_supported_fee, mut fee) = transfer_info.fee;
 
-    amount -= fee;
+    amount = amount.checked_sub(fee).unwrap();
 
     // Check high 128 bit of amount value to be empty
     if not_supported_amount != 0 || not_supported_fee != 0 {
@@ -443,8 +443,8 @@ fn handle_complete_transfer<S: Storage, A: Api, Q: Querier>(
 
         let decimals = token_info.decimals;
         let multiplier = 10u128.pow((max(decimals, 8u8) - 8u8) as u32);
-        amount *= multiplier;
-        fee *= multiplier;
+        amount = amount.checked_mul(multiplier).unwrap();
+        fee = fee.checked_mul(multiplier).unwrap();
 
         let mut messages = vec![CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: contract_addr.clone(),
@@ -540,8 +540,15 @@ fn handle_initiate_transfer<S: Storage, A: Api, Q: Querier>(
             let decimals = token_info.decimals;
             let multiplier = 10u128.pow((max(decimals, 8u8) - 8u8) as u32);
             // chop off dust
-            amount = Uint128(amount.u128() - (amount.u128() % multiplier));
-            fee = Uint128(fee.u128() - (fee.u128() % multiplier));
+            amount = Uint128(
+                amount
+                    .u128()
+                    .checked_sub(amount.u128().checked_rem(multiplier).unwrap()).unwrap(),
+            );
+            fee = Uint128(
+                fee.u128()
+                    .checked_sub(fee.u128().checked_rem(multiplier).unwrap()).unwrap(),
+            );
 
             // This is a regular asset, transfer its balance
             messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
@@ -557,8 +564,8 @@ fn handle_initiate_transfer<S: Storage, A: Api, Q: Querier>(
             asset_chain = CHAIN_ID;
 
             // convert to normalized amounts before recording & posting vaa
-            amount = Uint128(amount.u128() / multiplier);
-            fee = Uint128(fee.u128() / multiplier);
+            amount = Uint128(amount.u128().checked_div(multiplier).unwrap());
+            fee = Uint128(fee.u128().checked_div(multiplier).unwrap());
 
             send_native(&mut deps.storage, &asset_canonical, amount)?;
         }
