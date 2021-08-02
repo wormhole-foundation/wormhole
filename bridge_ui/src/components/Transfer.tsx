@@ -100,6 +100,11 @@ function Transfer() {
   const provider = useEthereumProvider();
   const { wallet } = useSolanaWallet();
   const solPK = wallet?.publicKey;
+  const {
+    tokenAccount: solTokenPK,
+    decimals: solDecimals,
+    uiAmount: solBalance,
+  } = useSolanaBalance(assetAddress, solPK, fromChain === CHAIN_ID_SOLANA);
   // TODO: dynamically get "to" wallet
   const handleClick = useCallback(() => {
     // TODO: more generic way of calling these
@@ -121,27 +126,35 @@ function Transfer() {
         transferFrom[fromChain] === transferFromSolana
       ) {
         transferFromSolana(
+          wallet,
           solPK?.toString(),
+          solTokenPK?.toString(),
           assetAddress,
           amount,
+          solDecimals,
           provider,
           toChain
         );
       }
     }
-  }, [fromChain, provider, solPK, assetAddress, amount, toChain]);
+  }, [
+    fromChain,
+    provider,
+    wallet,
+    solPK,
+    solTokenPK,
+    assetAddress,
+    amount,
+    solDecimals,
+    toChain,
+  ]);
   // update this as we develop, just setting expectations with the button state
   const ethBalance = useEthereumBalance(
     assetAddress,
     provider,
     fromChain === CHAIN_ID_ETH
   );
-  const solBalance = useSolanaBalance(
-    assetAddress,
-    solPK,
-    fromChain === CHAIN_ID_SOLANA
-  );
-  const balance = Number(ethBalance) || Number(solBalance);
+  const balance = Number(ethBalance) || solBalance;
   const isTransferImplemented = !!transferFrom[fromChain];
   const isProviderConnected = !!provider;
   const isRecipientAvailable = !!solPK;

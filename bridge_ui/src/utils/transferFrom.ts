@@ -1,12 +1,39 @@
+import Wallet from "@project-serum/sol-wallet-adapter";
+import {
+  AccountMeta,
+  Connection,
+  PublicKey,
+  SystemProgram,
+  Transaction,
+  TransactionInstruction,
+} from "@solana/web3.js";
+import { Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { ethers } from "ethers";
-import { arrayify, formatUnits, parseUnits } from "ethers/lib/utils";
-import { Bridge__factory, TokenImplementation__factory } from "../ethers-contracts";
-import { ChainId, CHAIN_ID_ETH, CHAIN_ID_SOLANA, ETH_TOKEN_BRIDGE_ADDRESS, SOL_TOKEN_BRIDGE_ADDRESS } from "./consts";
+import { arrayify, formatUnits, parseUnits, zeroPad } from "ethers/lib/utils";
+import {
+  Bridge__factory,
+  TokenImplementation__factory,
+} from "../ethers-contracts";
+import {
+  ChainId,
+  CHAIN_ID_ETH,
+  CHAIN_ID_SOLANA,
+  ETH_TOKEN_BRIDGE_ADDRESS,
+  SOLANA_HOST,
+  SOL_BRIDGE_ADDRESS,
+  SOL_TOKEN_BRIDGE_ADDRESS,
+} from "./consts";
 
 // TODO: this should probably be extended from the context somehow so that the signatures match
 // TODO: allow for / handle cancellation?
 // TODO: overall better input checking and error handling
-export function transferFromEth(provider: ethers.providers.Web3Provider | undefined, tokenAddress: string, amount: string, recipientChain: ChainId, recipientAddress: Uint8Array | undefined) {
+export function transferFromEth(
+  provider: ethers.providers.Web3Provider | undefined,
+  tokenAddress: string,
+  amount: string,
+  recipientChain: ChainId,
+  recipientAddress: Uint8Array | undefined
+) {
   if (!provider || !recipientAddress) return;
   const signer = provider.getSigner();
   if (!signer) return;
@@ -16,11 +43,8 @@ export function transferFromEth(provider: ethers.providers.Web3Provider | undefi
   const amountParsed = parseUnits(amount, 18);
   signer.getAddress().then((signerAddress) => {
     console.log("Signer:", signerAddress);
-    console.log("Token:", tokenAddress)
-    const token = TokenImplementation__factory.connect(
-      tokenAddress,
-      signer
-    );
+    console.log("Token:", tokenAddress);
+    const token = TokenImplementation__factory.connect(tokenAddress, signer);
     token
       .allowance(signerAddress, ETH_TOKEN_BRIDGE_ADDRESS)
       .then((allowance) => {
@@ -59,41 +83,132 @@ export function transferFromEth(provider: ethers.providers.Web3Provider | undefi
   });
 }
 
+// TODO: should we share this with client? ooh, should client use the SDK ;)
+// begin from clients\solana\main.ts
+function ixFromRust(data: any): TransactionInstruction {
+  let keys: Array<AccountMeta> = data.accounts.map(accountMetaFromRust);
+  return new TransactionInstruction({
+    programId: new PublicKey(data.program_id),
+    data: Buffer.from(data.data),
+    keys: keys,
+  });
+}
+
+function accountMetaFromRust(meta: any): AccountMeta {
+  return {
+    pubkey: new PublicKey(meta.pubkey),
+    isSigner: meta.is_signer,
+    isWritable: meta.is_writable,
+  };
+}
+// end from clients\solana\main.ts
+
 // TODO: need to check transfer native vs transfer wrapped
 // TODO: switch out targetProvider for generic address (this likely involves getting these in their respective contexts)
-export function transferFromSolana(fromAddress: string | undefined, tokenAddress: string, amount: string, targetProvider: ethers.providers.Web3Provider | undefined, targetChain: ChainId) {
-  if (!fromAddress || !targetProvider) return;
+export function transferFromSolana(
+  wallet: Wallet | undefined,
+  payerAddress: string | undefined, //TODO: we may not need this since we have wallet
+  fromAddress: string | undefined,
+  mintAddress: string,
+  amount: string,
+  decimals: number,
+  targetProvider: ethers.providers.Web3Provider | undefined,
+  targetChain: ChainId
+) {
+  if (
+    !wallet ||
+    !wallet.publicKey ||
+    !payerAddress ||
+    !fromAddress ||
+    !targetProvider
+  )
+    return;
   const targetSigner = targetProvider.getSigner();
   if (!targetSigner) return;
-  targetSigner.getAddress().then(targetAddressStr => {
-    const targetAddress = arrayify(targetAddressStr)
+  (async () => {
+    const targetAddressStr = await targetSigner.getAddress();
+    const targetAddress = zeroPad(arrayify(targetAddressStr), 32);
     const nonceConst = Math.random() * 100000;
     const nonceBuffer = Buffer.alloc(4);
     nonceBuffer.writeUInt32LE(nonceConst, 0);
-    const nonce = nonceBuffer.readUInt32LE(0)
-    // TODO: check decimals
-    // should we avoid BigInt?
-    const amountParsed = BigInt(amount)
-    const fee = BigInt(0)  // for now, this won't do anything, we may add later
-    console.log('bridge:',SOL_TOKEN_BRIDGE_ADDRESS)
-    console.log('from:',fromAddress)
-    console.log('token:',tokenAddress)
-    console.log('nonce:',nonce)
-    console.log('amount:',amountParsed)
-    console.log('fee:',fee)
-    console.log('target:',targetAddressStr,targetAddress)
-    console.log('chain:',targetChain)
-    // TODO: program_id vs bridge_id?
-    import("token-bridge").then(({transfer_native_ix})=>{
-      const ix = transfer_native_ix(SOL_TOKEN_BRIDGE_ADDRESS,SOL_TOKEN_BRIDGE_ADDRESS,fromAddress,fromAddress,tokenAddress,nonce,amountParsed,fee,targetAddress,targetChain)
-      console.log(ix)
-    })
-  })
+    const nonce = nonceBuffer.readUInt32LE(0);
+    const amountParsed = parseUnits(amount, decimals).toBigInt();
+    const fee = BigInt(0); // for now, this won't do anything, we may add later
+    console.log("program:", SOL_TOKEN_BRIDGE_ADDRESS);
+    console.log("bridge:", SOL_BRIDGE_ADDRESS);
+    console.log("payer:", payerAddress);
+    console.log("from:", fromAddress);
+    console.log("token:", mintAddress);
+    console.log("nonce:", nonce);
+    console.log("amount:", amountParsed);
+    console.log("fee:", fee);
+    console.log("target:", targetAddressStr, targetAddress);
+    console.log("chain:", targetChain);
+    const bridge = await import("bridge");
+    const feeAccount = await bridge.fee_collector_address(SOL_BRIDGE_ADDRESS);
+    const bridgeStatePK = new PublicKey(
+      bridge.state_address(SOL_BRIDGE_ADDRESS)
+    );
+    const connection = new Connection(SOLANA_HOST, "confirmed");
+    const bridgeStateAccountInfo = await connection.getAccountInfo(
+      bridgeStatePK
+    );
+    if (bridgeStateAccountInfo?.data === undefined) {
+      throw new Error("bridge state not found");
+    }
+    const bridgeState = bridge.parse_state(
+      new Uint8Array(bridgeStateAccountInfo?.data)
+    );
+    const transferIx = SystemProgram.transfer({
+      fromPubkey: new PublicKey(payerAddress),
+      toPubkey: new PublicKey(feeAccount),
+      lamports: bridgeState.config.fee,
+    });
+    // TODO: pass in connection
+    // Add transfer instruction to transaction
+    const { transfer_native_ix, approval_authority_address } = await import(
+      "token-bridge"
+    );
+    const approvalIx = Token.createApproveInstruction(
+      TOKEN_PROGRAM_ID,
+      new PublicKey(fromAddress),
+      new PublicKey(approval_authority_address(SOL_TOKEN_BRIDGE_ADDRESS)),
+      new PublicKey(payerAddress),
+      [],
+      Number(amountParsed)
+    );
+    const ix = ixFromRust(
+      transfer_native_ix(
+        SOL_TOKEN_BRIDGE_ADDRESS,
+        SOL_BRIDGE_ADDRESS,
+        payerAddress,
+        fromAddress,
+        mintAddress,
+        nonce,
+        amountParsed,
+        fee,
+        targetAddress,
+        targetChain
+      )
+    );
+    console.log(ix);
+    const transaction = new Transaction().add(transferIx, approvalIx, ix);
+    const { blockhash } = await connection.getRecentBlockhash();
+    transaction.recentBlockhash = blockhash;
+    transaction.feePayer = new PublicKey(payerAddress);
+    // Sign transaction, broadcast, and confirm
+    const signed = await wallet.signTransaction(transaction);
+    console.log("SIGNED", signed);
+    const txid = await connection.sendRawTransaction(signed.serialize());
+    console.log("SENT", txid);
+    await connection.confirmTransaction(txid);
+    console.log("CONFIRMED");
+  })();
 }
 
 const transferFrom = {
   [CHAIN_ID_ETH]: transferFromEth,
-  [CHAIN_ID_SOLANA]: transferFromSolana
-}
+  [CHAIN_ID_SOLANA]: transferFromSolana,
+};
 
-export default transferFrom
+export default transferFrom;

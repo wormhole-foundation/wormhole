@@ -2,20 +2,46 @@ import { Connection, PublicKey } from "@solana/web3.js";
 import { useEffect, useState } from "react";
 import { SOLANA_HOST } from "../utils/consts";
 
+export interface Balance {
+  tokenAccount: PublicKey | undefined;
+  amount: string;
+  decimals: number;
+  uiAmount: number;
+  uiAmountString: string;
+}
+
+function createBalance(
+  tokenAccount: PublicKey | undefined,
+  amount: string,
+  decimals: number,
+  uiAmount: number,
+  uiAmountString: string
+) {
+  return {
+    tokenAccount,
+    amount,
+    decimals,
+    uiAmount,
+    uiAmountString,
+  };
+}
+
 function useSolanaBalance(
   tokenAddress: string | undefined,
   ownerAddress: PublicKey | null | undefined,
   shouldCalculate?: boolean
 ) {
   //TODO: should connection happen in a context?
-  const [balance, setBalance] = useState<string>("");
+  const [balance, setBalance] = useState<Balance>(
+    createBalance(undefined, "", 0, 0, "")
+  );
   useEffect(() => {
     if (!tokenAddress || !ownerAddress || !shouldCalculate) {
-      setBalance("");
+      setBalance(createBalance(undefined, "", 0, 0, ""));
       return;
     }
     let cancelled = false;
-    const connection = new Connection(SOLANA_HOST);
+    const connection = new Connection(SOLANA_HOST, "finalized");
     connection
       .getParsedTokenAccountsByOwner(ownerAddress, {
         mint: new PublicKey(tokenAddress),
@@ -23,18 +49,23 @@ function useSolanaBalance(
       .then(({ value }) => {
         if (!cancelled) {
           if (value.length) {
-            console.log(value[0].account.data.parsed);
             setBalance(
-              value[0].account.data.parsed?.info?.tokenAmount?.uiAmountString
+              createBalance(
+                value[0].pubkey,
+                value[0].account.data.parsed?.info?.tokenAmount?.amount,
+                value[0].account.data.parsed?.info?.tokenAmount?.decimals,
+                value[0].account.data.parsed?.info?.tokenAmount?.uiAmount,
+                value[0].account.data.parsed?.info?.tokenAmount?.uiAmountString
+              )
             );
           } else {
-            setBalance("0");
+            setBalance(createBalance(undefined, "0", 0, 0, "0"));
           }
         }
       })
       .catch(() => {
         if (!cancelled) {
-          setBalance("");
+          setBalance(createBalance(undefined, "", 0, 0, ""));
         }
       });
     return () => {

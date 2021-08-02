@@ -23,7 +23,7 @@ function KeyAndBalance({
   );
   const { wallet: solWallet } = useSolanaWallet();
   const solPK = solWallet?.publicKey;
-  const solBalance = useSolanaBalance(
+  const { uiAmountString: solBalance } = useSolanaBalance(
     tokenAddress,
     solPK,
     chainId === CHAIN_ID_SOLANA
