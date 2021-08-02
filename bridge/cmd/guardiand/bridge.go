@@ -186,6 +186,12 @@ func runBridge(cmd *cobra.Command, args []string) {
 	lockMemory()
 	setRestrictiveUmask()
 
+	// Refuse to run as root in production mode.
+	if !*unsafeDevMode && os.Geteuid() == 0 {
+		fmt.Println("can't run as uid 0")
+		os.Exit(1)
+	}
+
 	// Set up logging. The go-log zap wrapper that libp2p uses is compatible with our
 	// usage of zap in supervisor, which is nice.
 	lvl, err := ipfslog.LevelFromString(*logLevel)
