@@ -1,5 +1,8 @@
 use crate::msg::WrappedRegistryResponse;
-use cosmwasm_std::{log, to_binary, Api, CanonicalAddr, CosmosMsg, Env, Extern, HandleResponse, HumanAddr, InitResponse, Querier, QueryRequest, StdError, StdResult, Storage, Uint128, WasmMsg, WasmQuery, Binary};
+use cosmwasm_std::{
+    log, to_binary, Api, Binary, CanonicalAddr, CosmosMsg, Env, Extern, HandleResponse, HumanAddr,
+    InitResponse, Querier, QueryRequest, StdError, StdResult, Storage, Uint128, WasmMsg, WasmQuery,
+};
 
 use crate::msg::{HandleMsg, InitMsg, QueryMsg};
 use crate::state::{
@@ -17,7 +20,7 @@ use cw20_base::msg::QueryMsg as TokenQuery;
 use wormhole::msg::HandleMsg as WormholeHandleMsg;
 use wormhole::msg::QueryMsg as WormholeQueryMsg;
 
-use wormhole::state::{GovernancePacket, ParsedVAA, vaa_archive_add, vaa_archive_check};
+use wormhole::state::{vaa_archive_add, vaa_archive_check, GovernancePacket, ParsedVAA};
 
 use cw20::TokenInfoResponse;
 
@@ -27,7 +30,7 @@ use cw20_wrapped::msg::QueryMsg as WrappedQuery;
 use cw20_wrapped::msg::{InitHook, WrappedAssetInfoResponse};
 
 use sha3::{Digest, Keccak256};
-use std::cmp::{min, max};
+use std::cmp::{max, min};
 
 // Chain ID of Terra
 const CHAIN_ID: u16 = 3;
@@ -134,9 +137,20 @@ fn handle_register_asset<S: Storage, A: Api, Q: Querier>(
 fn handle_attest_meta<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
+    emitter_chain: u16,
+    emitter_address: Vec<u8>,
     data: &Vec<u8>,
 ) -> StdResult<HandleResponse> {
     let meta = AssetMeta::deserialize(data)?;
+
+    let expected_contract =
+        bridge_contracts_read(&deps.storage).load(&emitter_chain.to_be_bytes())?;
+
+    // must be sent by a registered token bridge contract
+    if expected_contract != emitter_address {
+        return Err(StdError::unauthorized());
+    }
+
     if CHAIN_ID == meta.token_chain {
         return Err(StdError::generic_err(
             "this asset is native to this chain and should not be attested",
@@ -261,7 +275,13 @@ fn submit_vaa<S: Storage, A: Api, Q: Querier>(
             vaa.emitter_address,
             &message.payload,
         ),
-        Action::ATTEST_META => handle_attest_meta(deps, env, &message.payload),
+        Action::ATTEST_META => handle_attest_meta(
+            deps,
+            env,
+            vaa.emitter_chain,
+            vaa.emitter_address,
+            &message.payload,
+        ),
         _ => ContractError::InvalidVAAAction.std_err(),
     };
     return result;
