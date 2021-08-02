@@ -10,16 +10,21 @@ import { useCallback, useState } from "react";
 import { useEthereumProvider } from "../contexts/EthereumProviderContext";
 import { useSolanaWallet } from "../contexts/SolanaWalletContext";
 import useEthereumBalance from "../hooks/useEthereumBalance";
+import useSolanaBalance from "../hooks/useSolanaBalance";
 import {
   ChainId,
   CHAINS,
+  CHAINS_BY_ID,
   CHAIN_ID_ETH,
   CHAIN_ID_SOLANA,
   ETH_TEST_TOKEN_ADDRESS,
+  SOL_TEST_TOKEN_ADDRESS,
 } from "../utils/consts";
-import transferFrom from "../utils/transferFrom";
-import EthereumSignerKey from "./EthereumSignerKey";
-import SolanaWalletKey from "./SolanaWalletKey";
+import transferFrom, {
+  transferFromEth,
+  transferFromSolana,
+} from "../utils/transferFrom";
+import KeyAndBalance from "./KeyAndBalance";
 
 const useStyles = makeStyles((theme) => ({
   transferBox: {
@@ -57,6 +62,13 @@ function Transfer() {
   const handleFromChange = useCallback(
     (event) => {
       setFromChain(event.target.value);
+      // TODO: remove or check env - for testing purposes
+      if (event.target.value === CHAIN_ID_ETH) {
+        setAssetAddress(ETH_TEST_TOKEN_ADDRESS);
+      }
+      if (event.target.value === CHAIN_ID_SOLANA) {
+        setAssetAddress(SOL_TEST_TOKEN_ADDRESS);
+      }
       if (toChain === event.target.value) {
         setToChain(fromChain);
       }
@@ -68,6 +80,13 @@ function Transfer() {
       setToChain(event.target.value);
       if (fromChain === event.target.value) {
         setFromChain(toChain);
+        // TODO: remove or check env - for testing purposes
+        if (toChain === CHAIN_ID_ETH) {
+          setAssetAddress(ETH_TEST_TOKEN_ADDRESS);
+        }
+        if (toChain === CHAIN_ID_SOLANA) {
+          setAssetAddress(SOL_TEST_TOKEN_ADDRESS);
+        }
       }
     },
     [fromChain, toChain]
@@ -79,22 +98,56 @@ function Transfer() {
     setAmount(event.target.value);
   }, []);
   const provider = useEthereumProvider();
-  const ethBalance = useEthereumBalance(assetAddress, provider);
   const { wallet } = useSolanaWallet();
-  const solPK = wallet?.publicKey?.toBytes();
+  const solPK = wallet?.publicKey;
   // TODO: dynamically get "to" wallet
   const handleClick = useCallback(() => {
+    // TODO: more generic way of calling these
     if (transferFrom[fromChain]) {
-      transferFrom[fromChain](provider, assetAddress, amount, toChain, solPK);
+      if (
+        fromChain === CHAIN_ID_ETH &&
+        transferFrom[fromChain] === transferFromEth
+      ) {
+        transferFromEth(
+          provider,
+          assetAddress,
+          amount,
+          toChain,
+          solPK?.toBytes()
+        );
+      }
+      if (
+        fromChain === CHAIN_ID_SOLANA &&
+        transferFrom[fromChain] === transferFromSolana
+      ) {
+        transferFromSolana(
+          solPK?.toString(),
+          assetAddress,
+          amount,
+          provider,
+          toChain
+        );
+      }
     }
   }, [fromChain, provider, solPK, assetAddress, amount, toChain]);
   // update this as we develop, just setting expectations with the button state
+  const ethBalance = useEthereumBalance(
+    assetAddress,
+    provider,
+    fromChain === CHAIN_ID_ETH
+  );
+  const solBalance = useSolanaBalance(
+    assetAddress,
+    solPK,
+    fromChain === CHAIN_ID_SOLANA
+  );
+  const balance = Number(ethBalance) || Number(solBalance);
   const isTransferImplemented = !!transferFrom[fromChain];
   const isProviderConnected = !!provider;
   const isRecipientAvailable = !!solPK;
   const isAddressDefined = !!assetAddress;
   const isAmountPositive = Number(amount) > 0; // TODO: this needs per-chain, bn parsing
-  const isBalanceAtLeastAmount = Number(ethBalance) >= Number(amount); // TODO: ditto
+  const isBalanceAtLeastAmount = balance >= Number(amount); // TODO: ditto
   const canAttemptTransfer =
     isTransferImplemented &&
     isProviderConnected &&
@@ -106,7 +159,7 @@ function Transfer() {
     <div className={classes.transferBox}>
       <Grid container>
         <Grid item xs={4}>
-          <Typography>To</Typography>
+          <Typography>From</Typography>
           <TextField
             select
             fullWidth
@@ -119,14 +172,13 @@ function Transfer() {
               </MenuItem>
             ))}
           </TextField>
-          <EthereumSignerKey />
-          <Typography>{ethBalance}</Typography>
+          <KeyAndBalance chainId={fromChain} tokenAddress={assetAddress} />
         </Grid>
         <Grid item xs={4} className={classes.arrow}>
           &rarr;
         </Grid>
         <Grid item xs={4}>
-          <Typography>From</Typography>
+          <Typography>To</Typography>
           <TextField select fullWidth value={toChain} onChange={handleToChange}>
             {CHAINS.map(({ id, name }) => (
               <MenuItem key={id} value={id}>
@@ -134,7 +186,8 @@ function Transfer() {
               </MenuItem>
             ))}
           </TextField>
-          <SolanaWalletKey />
+          {/* TODO: determine "to" token address */}
+          <KeyAndBalance chainId={toChain} />
         </Grid>
       </Grid>
       <TextField
@@ -164,7 +217,7 @@ function Transfer() {
       {canAttemptTransfer ? null : (
         <Typography variant="body2" color="error">
           {!isTransferImplemented
-            ? `Transfer is not yet implemented for ${CHAINS[fromChain]}`
+            ? `Transfer is not yet implemented for ${CHAINS_BY_ID[fromChain].name}`
             : !isProviderConnected
             ? "The source wallet is not connected"
             : !isRecipientAvailable
@@ -173,8 +226,6 @@ function Transfer() {
             ? "Please provide an asset address"
             : !isAmountPositive
             ? "The amount must be positive"
-            : !isBalanceAtLeastAmount
-            ? "The amount may not be greater than the balance"
             : !isBalanceAtLeastAmount
             ? "The amount may not be greater than the balance"
             : ""}

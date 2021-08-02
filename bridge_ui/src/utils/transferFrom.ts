@@ -1,12 +1,12 @@
 import { ethers } from "ethers";
-import { formatUnits, parseUnits } from "ethers/lib/utils";
+import { arrayify, formatUnits, parseUnits } from "ethers/lib/utils";
 import { Bridge__factory, TokenImplementation__factory } from "../ethers-contracts";
-import { ChainId, CHAIN_ID_ETH, ETH_TOKEN_BRIDGE_ADDRESS } from "./consts";
+import { ChainId, CHAIN_ID_ETH, CHAIN_ID_SOLANA, ETH_TOKEN_BRIDGE_ADDRESS, SOL_TOKEN_BRIDGE_ADDRESS } from "./consts";
 
 // TODO: this should probably be extended from the context somehow so that the signatures match
 // TODO: allow for / handle cancellation?
 // TODO: overall better input checking and error handling
-function transferFromEth(provider: ethers.providers.Web3Provider | undefined, tokenAddress: string, amount: string, recipientChain: ChainId, recipientAddress: Uint8Array | undefined) {
+export function transferFromEth(provider: ethers.providers.Web3Provider | undefined, tokenAddress: string, amount: string, recipientChain: ChainId, recipientAddress: Uint8Array | undefined) {
   if (!provider || !recipientAddress) return;
   const signer = provider.getSigner();
   if (!signer) return;
@@ -59,8 +59,41 @@ function transferFromEth(provider: ethers.providers.Web3Provider | undefined, to
   });
 }
 
+// TODO: need to check transfer native vs transfer wrapped
+// TODO: switch out targetProvider for generic address (this likely involves getting these in their respective contexts)
+export function transferFromSolana(fromAddress: string | undefined, tokenAddress: string, amount: string, targetProvider: ethers.providers.Web3Provider | undefined, targetChain: ChainId) {
+  if (!fromAddress || !targetProvider) return;
+  const targetSigner = targetProvider.getSigner();
+  if (!targetSigner) return;
+  targetSigner.getAddress().then(targetAddressStr => {
+    const targetAddress = arrayify(targetAddressStr)
+    const nonceConst = Math.random() * 100000;
+    const nonceBuffer = Buffer.alloc(4);
+    nonceBuffer.writeUInt32LE(nonceConst, 0);
+    const nonce = nonceBuffer.readUInt32LE(0)
+    // TODO: check decimals
+    // should we avoid BigInt?
+    const amountParsed = BigInt(amount)
+    const fee = BigInt(0)  // for now, this won't do anything, we may add later
+    console.log('bridge:',SOL_TOKEN_BRIDGE_ADDRESS)
+    console.log('from:',fromAddress)
+    console.log('token:',tokenAddress)
+    console.log('nonce:',nonce)
+    console.log('amount:',amountParsed)
+    console.log('fee:',fee)
+    console.log('target:',targetAddressStr,targetAddress)
+    console.log('chain:',targetChain)
+    // TODO: program_id vs bridge_id?
+    import("token-bridge").then(({transfer_native_ix})=>{
+      const ix = transfer_native_ix(SOL_TOKEN_BRIDGE_ADDRESS,SOL_TOKEN_BRIDGE_ADDRESS,fromAddress,fromAddress,tokenAddress,nonce,amountParsed,fee,targetAddress,targetChain)
+      console.log(ix)
+    })
+  })
+}
+
 const transferFrom = {
-  [CHAIN_ID_ETH]: transferFromEth
+  [CHAIN_ID_ETH]: transferFromEth,
+  [CHAIN_ID_SOLANA]: transferFromSolana
 }
 
 export default transferFrom

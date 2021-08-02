@@ -25,6 +25,8 @@ export const CHAINS = [
     name: 'Terra'
   },
 ]
+export type ChainsById = {[key in ChainId]: ChainInfo}
+export const CHAINS_BY_ID: ChainsById = CHAINS.reduce((obj, chain)=>{obj[chain.id]=chain;return obj},{} as ChainsById)
 export const SOLANA_HOST = 'http://localhost:8899'
 export const ETH_TEST_TOKEN_ADDRESS = "0x0290FB167208Af455bB137780163b7B7a9a10C16"
 export const ETH_TOKEN_BRIDGE_ADDRESS = "0xe982e462b094850f12af94d21d470e21be9d0e9c"
