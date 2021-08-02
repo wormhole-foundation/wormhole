@@ -255,6 +255,7 @@ dependencies = [
  "sha3",
  "solana-program",
  "solitaire",
+ "solitaire-client",
  "wasm-bindgen",
 ]
 
@@ -2078,6 +2079,7 @@ name = "pyth2wormhole-client"
 version = "0.1.0"
 dependencies = [
  "borsh",
+ "bridge",
  "clap 3.0.0-beta.2",
  "env_logger",
  "log",

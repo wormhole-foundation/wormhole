@@ -21,17 +21,19 @@ pub use solana_sdk::{
 
 use borsh::BorshSerialize;
 
-use solitaire::{
-    AccountState,
-    Info,
-    Sysvar,
-};
 pub use solitaire::{
+    processors::seeded::Seeded,
     Data,
     Derive,
     Keyed,
     Owned,
     Signer,
+};
+use solitaire::{
+    AccountState,
+    Info,
+    Mut,
+    Sysvar,
 };
 
 type StdResult<T, E> = std::result::Result<T, E>;
@@ -104,12 +106,12 @@ impl<'a, 'b: 'a, T, const Seed: &'static str> Wrap for Derive<T, Seed> {
     fn wrap(a: &AccEntry) -> StdResult<Vec<AccountMeta>, ErrBox> {
         match a {
             AccEntry::Derived(program_id) => {
-                let (k, extra_seed) = Pubkey::find_program_address(&[Seed.as_bytes()], &program_id);
+                let k = Self::key(None, program_id);
 
                 Ok(vec![AccountMeta::new(k, false)])
             }
             AccEntry::DerivedRO(program_id) => {
-                let (k, extra_seed) = Pubkey::find_program_address(&[Seed.as_bytes()], &program_id);
+                let k = Self::key(None, program_id);
 
                 Ok(vec![AccountMeta::new_readonly(k, false)])
             }
@@ -180,6 +182,21 @@ impl<'b> Wrap for Info<'b> {
             AccEntry::Unprivileged(k) => Ok(vec![AccountMeta::new(k.clone(), false)]),
             _other => Err(format!(
                 "{} must be passed as Unprivileged or UnprivilegedRO",
+                std::any::type_name::<Self>()
+            )
+            .into()),
+        }
+    }
+}
+
+impl<T: Wrap> Wrap for Mut<T> {
+    fn wrap(a: &AccEntry) -> StdResult<Vec<AccountMeta>, ErrBox> {
+        match a {
+            AccEntry::Unprivileged(_) | AccEntry::Signer(_) | AccEntry::Derived(_) => {
+                Ok(T::wrap(a)?)
+            }
+            _other => Err(format!(
+                "{} must be passed as Unprivileged, Signer or Derived (Must be mutable on-chain)",
                 std::any::type_name::<Self>()
             )
             .into()),

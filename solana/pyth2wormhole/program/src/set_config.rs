@@ -8,10 +8,11 @@ use crate::config::{P2WConfigAccount, Pyth2WormholeConfig};
 
 #[derive(FromAccounts, ToInstruction)]
 pub struct SetConfig<'b> {
-    /// New config to apply to the program
+    /// Current config used by the program
     pub config: P2WConfigAccount<'b, { AccountState::Initialized }>,
     /// Current owner authority of the program
     pub current_owner: Signer<Info<'b>>,
+    /// Payer account for updating the account data
     pub payer: Signer<Info<'b>>,
 }
 

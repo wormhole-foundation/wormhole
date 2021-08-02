@@ -24,7 +24,11 @@ pub struct Cli {
     pub payer: String,
     #[clap(long, default_value = "http://localhost:8899")]
     pub rpc_url: String,
+    #[clap(long)]
     pub p2w_addr: Pubkey,
+    /// The bridge program account
+    #[clap(long = "wh-prog")]
+    pub wh_prog: Pubkey,
     #[clap(subcommand)]
     pub action: Action,
 }
@@ -35,16 +39,18 @@ pub enum Action {
     Init {
         #[clap(long = "owner")]
         new_owner_addr: Pubkey,
-        #[clap(long = "wormhole")]
-        wormhole_addr: Pubkey,
-        #[clap(long = "pyth")]
+        #[clap(long = "pyth-owner")]
         pyth_owner_addr: Pubkey,
     },
     #[clap(
-        about = "Use an existing pyth2wormhole program to forward product price information to another chain"
+        about = "Use an existing pyth2wormhole program to attest product price information to another chain"
     )]
-    Forward {
+    Attest {
         #[clap(long = "product")]
         product_addr: Pubkey,
+        #[clap(long = "price")]
+        price_addr: Pubkey,
+        #[clap(long)]
+	nonce: u32,
     },
 }

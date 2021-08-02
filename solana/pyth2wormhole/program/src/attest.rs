@@ -54,7 +54,6 @@ pub struct Attest<'b> {
     pub payer: Mut<Signer<Info<'b>>>,
     pub system_program: Info<'b>,
     pub config: P2WConfigAccount<'b, { AccountState::Initialized }>,
-    pub wormhole_program: Info<'b>,
     pub pyth_product: Info<'b>,
     pub pyth_price: Info<'b>,
     pub clock: Sysvar<'b, Clock>,
