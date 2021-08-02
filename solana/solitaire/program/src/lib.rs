@@ -72,10 +72,12 @@ pub use crate::{
         peel::Peel,
         persist::Persist,
         seeded::{
+            invoke_seeded,
             AccountOwner,
             AccountSize,
             Creatable,
             Owned,
+            Seeded,
         },
     },
     types::*,

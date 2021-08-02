@@ -1,17 +1,13 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::pubkey::Pubkey;
-use solitaire::{
-    data_wrapper,
-    processors::seeded::{AccountOwner, Seeded},
-    AccountState, Data, Derive, Owned,
-};
+use solitaire::{processors::seeded::AccountOwner, AccountState, Data, Derive, Owned};
 
 #[derive(Default, BorshDeserialize, BorshSerialize)]
 pub struct Pyth2WormholeConfig {
     ///  Authority owning this contract
     pub owner: Pubkey,
     /// Wormhole bridge program
-    pub wormhole_program_addr: Pubkey,
+    pub wh_prog: Pubkey,
     /// Authority owning Pyth price data
     pub pyth_owner: Pubkey,
 }

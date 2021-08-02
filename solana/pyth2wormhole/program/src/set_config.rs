@@ -1,6 +1,6 @@
 use solana_program::{msg, pubkey::Pubkey};
 use solitaire::{
-    AccountState, Context, ExecutionContext, FromAccounts, Info, InstructionContext, Keyed, Peel,
+    AccountState, ExecutionContext, FromAccounts, Info, InstructionContext, Keyed, Peel,
     Result as SoliResult, Signer, SolitaireError, ToInstruction,
 };
 

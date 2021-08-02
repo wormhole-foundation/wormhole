@@ -71,7 +71,7 @@ impl Owned for GuardianSetData {
     }
 }
 
-#[derive(Default, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
+#[derive(Clone, Default, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
 pub struct BridgeConfig {
     /// Period for how long a guardian set is valid after it has been replaced by a new one.  This
     /// guarantees that VAAs issued by that set can still be submitted for a certain period.  In
@@ -82,7 +82,7 @@ pub struct BridgeConfig {
     pub fee: u64,
 }
 
-#[derive(Default, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
+#[derive(Clone, Default, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
 pub struct BridgeData {
     /// The current guardian set index, used to decide which signature sets to accept.
     pub guardian_set_index: u32,

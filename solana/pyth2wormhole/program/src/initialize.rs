@@ -1,22 +1,15 @@
 use solana_program::pubkey::Pubkey;
-use solitaire::{
-    AccountState, Context, Creatable, CreationLamports, ExecutionContext, FromAccounts, Info,
-    InstructionContext, Keyed, Peel, Result as SoliResult, Signer, ToInstruction,
-};
+use solitaire::{AccountState, CreationLamports, ExecutionContext, FromAccounts, Info, InstructionContext, Keyed, Mut, Peel, Result as SoliResult, Signer, ToInstruction};
 
 use crate::config::{P2WConfigAccount, Pyth2WormholeConfig};
 
 #[derive(FromAccounts, ToInstruction)]
 pub struct Initialize<'b> {
-    pub new_config: P2WConfigAccount<'b, {AccountState::Uninitialized}>,
-    pub payer: Signer<Info<'b>>,
+    pub new_config: Mut<P2WConfigAccount<'b, {AccountState::Uninitialized}>>,
+    pub payer: Mut<Signer<Info<'b>>>,
 }
 
 impl<'b> InstructionContext<'b> for Initialize<'b> {
-    fn verify(&self, _program_id: &Pubkey) -> SoliResult<()> {
-        Ok(())
-    }
-
     fn deps(&self) -> Vec<Pubkey> {
         vec![]
     }

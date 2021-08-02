@@ -10,13 +10,15 @@ name = "pyth2wormhole"
 
 [features]
 client = ["solitaire/client", "solitaire-client", "no-entrypoint"]
+trace = ["solitaire/trace", "bridge/trace"]
 no-entrypoint = []
 
 [dependencies]
 bridge = {path = "../../bridge/program"}
 solitaire = { path = "../../solitaire/program" }
 solitaire-client = { path = "../../solitaire/client", optional = true }
-pyth-client = {git = "https://github.com/drozdziak1/pyth-client-rs", branch = "v2-clone-and-debug"}
 rocksalt = { path = "../../solitaire/rocksalt" }
 solana-program = "=1.7.0"
 borsh = "0.8.1"
+# NOTE: We're following bleeding edge to encounter format changes more easily
+pyth-client = {git = "https://github.com/pyth-network/pyth-client-rs", branch = "v2"}
