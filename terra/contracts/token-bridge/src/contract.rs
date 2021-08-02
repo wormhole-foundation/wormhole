@@ -255,15 +255,15 @@ fn submit_vaa<S: Storage, A: Api, Q: Querier>(
     let vaa = parse_vaa(deps, env.block.time, data)?;
     let data = vaa.payload;
 
-    // check if vaa is from governance
-    if state.gov_chain == vaa.emitter_chain && state.gov_address == vaa.emitter_address {
-        return handle_governance_payload(deps, env, &data);
-    }
-
     if vaa_archive_check(&deps.storage, vaa.hash.as_slice()) {
         return ContractError::VaaAlreadyExecuted.std_err();
     }
     vaa_archive_add(&mut deps.storage, vaa.hash.as_slice())?;
+
+    // check if vaa is from governance
+    if state.gov_chain == vaa.emitter_chain && state.gov_address == vaa.emitter_address {
+        return handle_governance_payload(deps, env, &data);
+    }
 
     let message = TokenBridgeMessage::deserialize(&data)?;
 
