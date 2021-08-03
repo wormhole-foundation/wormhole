@@ -7,7 +7,7 @@ mkdir -p ~/.config/solana/cli
 cat <<EOF > ~/.config/solana/cli/config.yml
 json_rpc_url: "http://127.0.0.1:8899"
 websocket_url: ""
-keypair_path: /usr/src/solana/id.json
+keypair_path: /usr/src/solana/keys/solana-devnet.json
 EOF
 
 # Static key for the mint so it always has the same address
@@ -29,7 +29,7 @@ retry () {
   done
 }
 
-# Fund our account (as seen in id.json).
+# Fund our account (as seen in solana-devnet.json).
 retry solana airdrop 1000 --faucet-port 9900 --faucet-host 127.0.0.1
 
 # Create a new SPL token
