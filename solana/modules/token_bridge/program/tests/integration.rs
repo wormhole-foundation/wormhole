@@ -31,6 +31,7 @@ use solana_program::{
     sysvar,
 };
 use solana_sdk::{
+    commitment_config::CommitmentConfig,
     signature::{
         read_keypair_file,
         Keypair,
@@ -42,6 +43,7 @@ use solitaire::{
     processors::seeded::Seeded,
     AccountState,
 };
+use spl_token::state::Mint;
 use std::{
     convert::TryInto,
     io::{
@@ -91,6 +93,7 @@ use std::{
 };
 use token_bridge::{
     accounts::{
+        EmitterAccount,
         WrappedDerivationData,
         WrappedMint,
     },
@@ -130,11 +133,12 @@ struct Context {
     /// Keypairs for mint information, required in multiple tests.
     mint_authority: Keypair,
     mint: Keypair,
-    mint_meta: Keypair,
+    mint_meta: Pubkey,
 
     /// Keypairs for test token accounts.
     token_authority: Keypair,
     token_account: Keypair,
+    metadata_account: Pubkey,
 }
 
 /// Small helper to track and provide sequences during tests. This is in particular needed for
@@ -164,6 +168,31 @@ fn run_integration_tests() {
     common::initialize_bridge(&client, &bridge, &payer);
 
     // Context for test environment.
+    let mint = Keypair::new();
+    let mint_pubkey = mint.pubkey();
+    let metadata_pubkey = Pubkey::from_str("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s").unwrap();
+
+    // SPL Token Meta
+    let metadata_seeds = &[
+        "metadata".as_bytes(),
+        metadata_pubkey.as_ref(),
+        mint_pubkey.as_ref(),
+    ];
+
+    let (metadata_key, metadata_bump_seed) = Pubkey::find_program_address(
+        metadata_seeds,
+        &Pubkey::from_str("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s").unwrap(),
+    );
+
+    // Token Bridge Meta
+    use token_bridge::accounts::WrappedTokenMeta;
+    let metadata_account = WrappedTokenMeta::<'_, { AccountState::Uninitialized }>::key(
+        &token_bridge::accounts::WrappedMetaDerivationData {
+            mint_key: mint_pubkey.clone(),
+        },
+        &token_bridge,
+    );
+
     let mut context = Context {
         seq: Sequencer {
             sequences: HashMap::new(),
@@ -173,10 +202,11 @@ fn run_integration_tests() {
         payer,
         token_bridge,
         mint_authority: Keypair::new(),
-        mint: Keypair::new(),
-        mint_meta: Keypair::new(),
+        mint,
+        mint_meta: metadata_account,
         token_account: Keypair::new(),
         token_authority: Keypair::new(),
+        metadata_account: metadata_key,
     };
 
     // Create a mint for use within tests.
@@ -215,6 +245,20 @@ fn run_integration_tests() {
     test_attest(&mut context);
     test_register_chain(&mut context);
     test_transfer_native_in(&mut context);
+
+    // Create an SPL Metadata account to test attestations for wrapped tokens.
+    common::create_spl_metadata(
+        &context.client,
+        &context.payer,
+        &context.metadata_account,
+        &context.mint_authority,
+        &context.mint,
+        &context.payer.pubkey(),
+        "BTC".to_string(),
+        "Bitcoin".to_string(),
+    )
+    .unwrap();
+
     let wrapped = test_create_wrapped(&mut context);
     let wrapped_acc = Keypair::new();
     common::create_token_account(
@@ -244,6 +288,7 @@ fn test_attest(context: &mut Context) -> () {
         ref mint_authority,
         ref mint,
         ref mint_meta,
+        ref metadata_account,
         ..
     } = context;
 
@@ -253,10 +298,42 @@ fn test_attest(context: &mut Context) -> () {
         bridge,
         payer,
         mint.pubkey(),
-        mint_meta.pubkey(),
+        *mint_meta,
+        *metadata_account,
+        "".to_string(),
+        "".to_string(),
         0,
     )
     .unwrap();
+
+    let emitter_key = EmitterAccount::key(None, &token_bridge);
+    let mint_data = Mint::unpack(
+        &client
+            .get_account_with_commitment(&mint.pubkey(), CommitmentConfig::processed())
+            .unwrap()
+            .value
+            .unwrap()
+            .data,
+    )
+    .unwrap();
+    let payload = PayloadAssetMeta {
+        token_address: mint.pubkey().to_bytes(),
+        token_chain: 1,
+        decimals: mint_data.decimals,
+        symbol: "USD".to_string(),
+        name: "Bitcoin".to_string(),
+    };
+    let payload = payload.try_to_vec().unwrap();
+    let message_key = Message::<'_, { AccountState::Uninitialized }>::key(
+        &MessageDerivationData {
+            emitter_key: emitter_key.to_bytes(),
+            emitter_chain: 1,
+            nonce: 0,
+            sequence: None,
+            payload: payload.clone(),
+        },
+        &token_bridge,
+    );
 }
 
 fn test_transfer_native(context: &mut Context) -> () {
@@ -533,6 +610,6 @@ fn test_initialize(context: &mut Context) {
 
     // Verify Token Bridge State
     let config_key = ConfigAccount::<'_, { AccountState::Uninitialized }>::key(None, &token_bridge);
-    let config: Config = common::get_account_data(client, &config_key);
+    let config: Config = common::get_account_data(client, &config_key).unwrap();
     assert_eq!(config.wormhole_bridge, *bridge);
 }

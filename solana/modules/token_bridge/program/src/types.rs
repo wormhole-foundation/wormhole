@@ -18,6 +18,8 @@ use spl_token::state::{
     Account,
     Mint,
 };
+use spl_token_metadata::state::Metadata;
+use std::str::FromStr;
 
 pub type Address = [u8; 32];
 pub type ChainID = u16;

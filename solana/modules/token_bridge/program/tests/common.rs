@@ -168,11 +168,11 @@ mod helpers {
     }
 
     /// Fetch account data, the loop is there to re-attempt until data is available.
-    pub fn get_account_data<T: BorshDeserialize>(client: &RpcClient, account: &Pubkey) -> T {
+    pub fn get_account_data<T: BorshDeserialize>(client: &RpcClient, account: &Pubkey) -> Option<T> {
         let account = client
             .get_account_with_commitment(account, CommitmentConfig::processed())
             .unwrap();
-        T::try_from_slice(&account.value.unwrap().data).unwrap()
+        T::try_from_slice(&account.value.unwrap().data).ok()
     }
 
     pub fn initialize_bridge(
@@ -233,7 +233,10 @@ mod helpers {
         bridge: &Pubkey,
         payer: &Keypair,
         mint: Pubkey,
-        mint_meta: Pubkey,
+        wrapped_meta: Pubkey,
+        spl_metadata: Pubkey,
+        symbol: String,
+        name: String,
         nonce: u32,
     ) -> Result<Signature, ClientError> {
         let mint_data = Mint::unpack(
@@ -255,7 +258,10 @@ mod helpers {
                 payer.pubkey(),
                 mint,
                 mint_data.decimals,
-                mint_meta,
+                wrapped_meta,
+                spl_metadata,
+                symbol,
+                name,
                 nonce,
             )
             .unwrap()],
@@ -491,6 +497,41 @@ mod helpers {
                     0,
                 )
                 .unwrap(),
+            ],
+            CommitmentConfig::processed(),
+        )
+    }
+
+    pub fn create_spl_metadata(
+        client: &RpcClient,
+        payer: &Keypair,
+        metadata_account: &Pubkey,
+        mint_authority: &Keypair,
+        mint: &Keypair,
+        update_authority: &Pubkey,
+        name: String,
+        symbol: String,
+    ) -> Result<Signature, ClientError> {
+        execute(
+            client,
+            payer,
+            &[payer, mint_authority],
+            &[
+                spl_token_metadata::instruction::create_metadata_accounts(
+                    spl_token_metadata::id(),
+                    *metadata_account,
+                    mint.pubkey(),
+                    mint_authority.pubkey(),
+                    payer.pubkey(),
+                    *update_authority,
+                    name,
+                    symbol,
+                    "https://token.org".to_string(),
+                    None,
+                    0,
+                    false,
+                    false,
+                )
             ],
             CommitmentConfig::processed(),
         )

@@ -464,6 +464,9 @@ pub fn attest(
     mint: Pubkey,
     decimals: u8,
     mint_meta: Pubkey,
+    spl_metadata: Pubkey,
+    symbol: String,
+    name: String,
     nonce: u32,
 ) -> solitaire::Result<Instruction> {
     let config_key = ConfigAccount::<'_, { AccountState::Uninitialized }>::key(None, &program_id);
@@ -475,16 +478,16 @@ pub fn attest(
         token_address: mint.to_bytes(),
         token_chain: 1,
         decimals,
-        symbol: "".to_string(), // TODO metadata
-        name: "".to_string(),
+        symbol,
+        name,
     };
     let message_key = Message::<'_, { AccountState::Uninitialized }>::key(
         &MessageDerivationData {
             emitter_key: emitter_key.to_bytes(),
             emitter_chain: 1,
             nonce,
-            sequence: None,
             payload: payload.try_to_vec().unwrap(),
+            sequence: None,
         },
         &bridge_id,
     );
@@ -503,6 +506,7 @@ pub fn attest(
             AccountMeta::new(config_key, false),
             AccountMeta::new_readonly(mint, false),
             AccountMeta::new_readonly(mint_meta, false),
+            AccountMeta::new_readonly(spl_metadata, false),
             // Bridge accounts
             AccountMeta::new(bridge_config, false),
             AccountMeta::new(message_key, false),

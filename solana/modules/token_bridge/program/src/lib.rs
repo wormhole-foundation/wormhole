@@ -53,26 +53,21 @@ use solitaire::*;
 use std::error::Error;
 
 pub enum TokenBridgeError {
-    InvalidPayload,
-    Unknown(String),
-    InvalidMint,
-    WrongAccountOwner,
-    InvalidUTF8String,
     AlreadyExecuted,
     InvalidChain,
-    TokenNotNative,
     InvalidGovernanceKey,
+    InvalidMetadata,
+    InvalidMint,
+    InvalidPayload,
+    InvalidUTF8String,
+    TokenNotNative,
+    UninitializedMint,
+    WrongAccountOwner,
 }
 
-impl<T: Error> From<T> for TokenBridgeError {
-    fn from(t: T) -> Self {
-        return TokenBridgeError::Unknown(t.to_string());
-    }
-}
-
-impl Into<SolitaireError> for TokenBridgeError {
-    fn into(self) -> SolitaireError {
-        SolitaireError::Custom(0)
+impl From<TokenBridgeError> for SolitaireError {
+    fn from(t: TokenBridgeError) -> SolitaireError {
+        SolitaireError::Custom(t as u64)
     }
 }
 

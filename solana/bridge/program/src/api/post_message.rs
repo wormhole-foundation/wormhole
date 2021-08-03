@@ -123,8 +123,6 @@ pub fn post_message(
             .create(&(&*accs).into(), ctx, accs.payer.key, Exempt)?;
     }
 
-    msg!("Sequence: {}", accs.sequence.sequence);
-
     // Initialize transfer
     trace!("Setting Message Details");
     accs.message.submission_time = accs.clock.unix_timestamp as u32;

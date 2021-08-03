@@ -2,12 +2,18 @@ use crate::{
     accounts::{
         ConfigAccount,
         EmitterAccount,
+        WrappedMetaDerivationData,
+        WrappedTokenMeta,
     },
     messages::{
         PayloadAssetMeta,
         PayloadTransfer,
     },
     types::*,
+    TokenBridgeError::{
+        self,
+        *,
+    },
 };
 use bridge::{
     api::{
@@ -33,7 +39,11 @@ use solana_program::{
     sysvar::clock::Clock,
 };
 use solitaire::{
-    processors::seeded::invoke_seeded,
+    processors::seeded::{
+        invoke_seeded,
+        Owned,
+        Seeded,
+    },
     CreationLamports::Exempt,
     *,
 };
@@ -44,6 +54,7 @@ use spl_token::{
         Mint,
     },
 };
+use spl_token_metadata::state::Metadata;
 use std::ops::{
     Deref,
     DerefMut,
@@ -57,7 +68,10 @@ pub struct AttestToken<'b> {
 
     /// Mint to attest
     pub mint: Data<'b, SplMint, { AccountState::Initialized }>,
-    pub mint_meta: Data<'b, SplMint, { AccountState::MaybeInitialized }>,
+    pub wrapped_meta: WrappedTokenMeta<'b, { AccountState::Uninitialized }>,
+
+    /// SPL Metadata for the associated Mint
+    pub spl_metadata: Info<'b>,
 
     /// CPI Context
     pub bridge: Mut<Info<'b>>,
@@ -80,6 +94,14 @@ pub struct AttestToken<'b> {
 impl<'b> InstructionContext<'b> for AttestToken<'b> {
 }
 
+impl<'a> From<&AttestToken<'a>> for WrappedMetaDerivationData {
+    fn from(accs: &AttestToken<'a>) -> Self {
+        WrappedMetaDerivationData {
+            mint_key: *accs.mint.info().key,
+        }
+    }
+}
+
 #[derive(BorshDeserialize, BorshSerialize, Default)]
 pub struct AttestTokenData {
     pub nonce: u32,
@@ -93,18 +115,33 @@ pub fn attest_token(
     // Pay fee
     let transfer_ix =
         solana_program::system_instruction::transfer(accs.payer.key, accs.fee_collector.key, 1000);
+
     invoke(&transfer_ix, ctx.accounts)?;
 
-    let payload = PayloadAssetMeta {
+    // Enfoce wrapped meta to be uninitialized.
+    let derivation_data: WrappedMetaDerivationData = (&*accs).into();
+    accs.wrapped_meta
+        .verify_derivation(ctx.program_id, &derivation_data)?;
+
+    // Create Asset Metadata
+    let mut payload = PayloadAssetMeta {
         token_address: accs.mint.info().key.to_bytes(),
         token_chain: 1,
         decimals: accs.mint.decimals,
-        symbol: "".to_string(), // TODO metadata
+        symbol: "".to_string(),
         name: "".to_string(),
     };
 
-    if accs.mint_meta.is_initialized() {
-        // Populate fields
+    // Assign metadata if an SPL Metadata account exists for the SPL token in question.
+    if !accs.spl_metadata.data_is_empty() {
+        if *accs.spl_metadata.owner != spl_token_metadata::id() {
+            return Err(WrongAccountOwner.into());
+        }
+
+        let metadata: Metadata =
+            Metadata::from_account_info(accs.spl_metadata.info()).ok_or(InvalidMetadata)?;
+        payload.name = metadata.data.name.clone();
+        payload.symbol = metadata.data.symbol.clone();
     }
 
     let params = (

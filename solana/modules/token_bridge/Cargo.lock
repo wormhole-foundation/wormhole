@@ -3160,6 +3160,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "spl-token-metadata"
+version = "0.0.1"
+dependencies = [
+ "borsh",
+ "solana-program",
+ "spl-token",
+]
+
+[[package]]
 name = "stable_deref_trait"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3376,6 +3385,7 @@ dependencies = [
  "solitaire",
  "solitaire-client",
  "spl-token",
+ "spl-token-metadata",
  "wasm-bindgen",
 ]
 
