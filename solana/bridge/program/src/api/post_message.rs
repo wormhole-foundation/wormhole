@@ -14,7 +14,10 @@ use crate::{
     types::ConsistencyLevel,
     CHAIN_ID_SOLANA,
 };
-use solana_program::sysvar::clock::Clock;
+use solana_program::{
+    msg,
+    sysvar::clock::Clock,
+};
 use solitaire::{
     processors::seeded::Seeded,
     trace,
@@ -120,7 +123,7 @@ pub fn post_message(
             .create(&(&*accs).into(), ctx, accs.payer.key, Exempt)?;
     }
 
-    trace!("Sequence: {}", accs.sequence.sequence);
+    msg!("Sequence: {}", accs.sequence.sequence);
 
     // Initialize transfer
     trace!("Setting Message Details");
