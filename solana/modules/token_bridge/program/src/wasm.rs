@@ -1,4 +1,11 @@
 use crate::{
+    accounts::{
+        AuthoritySigner,
+        WrappedDerivationData,
+        WrappedMetaDerivationData,
+        WrappedMint,
+        WrappedTokenMeta,
+    },
     instructions::{
         attest,
         complete_native,
@@ -15,6 +22,10 @@ use crate::{
         PayloadGovernanceRegisterChain,
         PayloadTransfer,
     },
+    types::{
+        EndpointRegistration,
+        WrappedMeta,
+    },
     CompleteNativeData,
     CompleteWrappedData,
     CreateWrappedData,
@@ -22,6 +33,7 @@ use crate::{
     TransferNativeData,
     TransferWrappedData,
 };
+use borsh::BorshDeserialize;
 use bridge::{
     accounts::MessageDerivationData,
     vaa::VAA,
@@ -371,4 +383,52 @@ pub fn register_chain_ix(
     )
     .unwrap();
     return JsValue::from_serde(&ix).unwrap();
+}
+
+#[wasm_bindgen]
+pub fn approval_authority_address(program_id: String) -> Vec<u8> {
+    let program_id = Pubkey::from_str(program_id.as_str()).unwrap();
+    let approval_authority = AuthoritySigner::key(None, &program_id);
+
+    approval_authority.to_bytes().to_vec()
+}
+
+#[wasm_bindgen]
+pub fn wrapped_address(program_id: String, token_address: Vec<u8>, token_chain: u16) -> Vec<u8> {
+    let program_id = Pubkey::from_str(program_id.as_str()).unwrap();
+    let mut t_addr = [0u8; 32];
+    t_addr.copy_from_slice(&token_address);
+
+    let wrapped_addr = WrappedMint::<'_, { AccountState::Initialized }>::key(
+        &WrappedDerivationData {
+            token_address: t_addr,
+            token_chain,
+        },
+        &program_id,
+    );
+
+    wrapped_addr.to_bytes().to_vec()
+}
+
+#[wasm_bindgen]
+pub fn wrapped_meta_address(program_id: String, mint_address: Vec<u8>) -> Vec<u8> {
+    let program_id = Pubkey::from_str(program_id.as_str()).unwrap();
+    let mint_key = Pubkey::new(mint_address.as_slice());
+
+    let wrapped_meta_addr = WrappedTokenMeta::<'_, { AccountState::Initialized }>::key(
+        &WrappedMetaDerivationData { mint_key },
+        &program_id,
+    );
+
+    wrapped_meta_addr.to_bytes().to_vec()
+}
+
+#[wasm_bindgen]
+pub fn parse_wrapped_meta(data: Vec<u8>) -> JsValue {
+    JsValue::from_serde(&WrappedMeta::try_from_slice(data.as_slice()).unwrap()).unwrap()
+}
+
+#[wasm_bindgen]
+pub fn parse_endpoint_registration(data: Vec<u8>) -> JsValue {
+    JsValue::from_serde(&EndpointRegistration::try_from_slice(data.as_slice()).unwrap()).unwrap()
 }

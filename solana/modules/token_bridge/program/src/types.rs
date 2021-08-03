@@ -2,6 +2,10 @@ use borsh::{
     BorshDeserialize,
     BorshSerialize,
 };
+use serde::{
+    Deserialize,
+    Serialize,
+};
 use solana_program::pubkey::Pubkey;
 use solitaire::{
     pack_type,
@@ -18,7 +22,7 @@ use spl_token::state::{
 pub type Address = [u8; 32];
 pub type ChainID = u16;
 
-#[derive(Default, Clone, Copy, BorshDeserialize, BorshSerialize)]
+#[derive(Default, Clone, Copy, BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
 pub struct Config {
     pub wormhole_bridge: Pubkey,
 }
@@ -29,7 +33,7 @@ impl Owned for Config {
     }
 }
 
-#[derive(Default, Clone, Copy, BorshDeserialize, BorshSerialize)]
+#[derive(Default, Clone, Copy, BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
 pub struct EndpointRegistration {
     pub chain: ChainID,
     pub contract: Address,
@@ -41,7 +45,7 @@ impl Owned for EndpointRegistration {
     }
 }
 
-#[derive(Default, Clone, Copy, BorshDeserialize, BorshSerialize)]
+#[derive(Default, Clone, Copy, BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
 pub struct WrappedMeta {
     pub chain: ChainID,
     pub token_address: Address,
