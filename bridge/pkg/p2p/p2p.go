@@ -301,7 +301,7 @@ func Run(obsvC chan *gossipv1.SignedObservation, sendC chan []byte, rawHeartbeat
 						zap.String("from", envelope.GetFrom().String()))
 					break
 				}
-				if heartbeat, err := processSignedHeartbeat(s, gs); err != nil {
+				if heartbeat, err := processSignedHeartbeat(s, gs, gst); err != nil {
 					p2pMessagesReceived.WithLabelValues("invalid_heartbeat").Inc()
 					logger.Warn("invalid signed heartbeat received",
 						zap.Error(err),
@@ -330,7 +330,7 @@ func Run(obsvC chan *gossipv1.SignedObservation, sendC chan []byte, rawHeartbeat
 	}
 }
 
-func processSignedHeartbeat(s *gossipv1.SignedHeartbeat, gs *bridge_common.GuardianSet) (*gossipv1.Heartbeat, error) {
+func processSignedHeartbeat(s *gossipv1.SignedHeartbeat, gs *bridge_common.GuardianSet, gst *bridge_common.GuardianSetState) (*gossipv1.Heartbeat, error) {
 	envelopeAddr := common.BytesToAddress(s.GuardianAddr)
 	idx, ok := gs.KeyIndex(envelopeAddr)
 	if !ok {
@@ -356,6 +356,9 @@ func processSignedHeartbeat(s *gossipv1.SignedHeartbeat, gs *bridge_common.Guard
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal heartbeat: %w", err)
 	}
+
+	// Store verified heartbeat in global guardian set state.
+	gst.SetHeartBeat(signerAddr, &h)
 
 	return &h, nil
 }

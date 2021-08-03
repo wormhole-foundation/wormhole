@@ -36,6 +36,15 @@ service Publicrpc {
     };
   };
 
+  // GetLastHeartbeats returns the last heartbeat received for each guardian node in the
+  // node's active guardian set. Heartbeats received by nodes not in the guardian set are ignored.
+  // The heartbeat value is null if no heartbeat has yet been received.
+  rpc GetLastHeartbeats (GetLastHeartbeatRequest) returns (GetLastHeartbeatResponse) {
+    option (google.api.http) = {
+      get: "/v1/heartbeats"
+    };
+  }
+
   rpc GetSignedVAA (GetSignedVAARequest) returns (GetSignedVAAResponse) {
     option (google.api.http) = {
       get: "/v1/signed_vaa/{message_id.emitter_chain}/{message_id.emitter_address}/{message_id.sequence}"
@@ -52,4 +61,12 @@ message GetSignedVAARequest {
 
 message GetSignedVAAResponse {
   bytes vaa_bytes = 1;
+}
+
+message GetLastHeartbeatRequest {
+}
+
+message GetLastHeartbeatResponse {
+  // Mapping of hex-encoded guardian addresses to raw heartbeat messages.
+  map<string, gossip.v1.Heartbeat> raw_heartbeats = 1;
 }

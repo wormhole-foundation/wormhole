@@ -1,10 +1,13 @@
 package common
 
 import (
+	gossipv1 "github.com/certusone/wormhole/bridge/pkg/proto/gossip/v1"
 	"github.com/ethereum/go-ethereum/common"
 	"sync"
 )
 
+// MaxGuardianCount specifies the maximum number of guardians supported by on-chain contracts.
+//
 // Matching constants:
 //  - MAX_LEN_GUARDIAN_KEYS in Solana contract (limited by transaction size - 19 is the maximum amount possible)
 //
@@ -29,7 +32,7 @@ func (g *GuardianSet) KeysAsHexStrings() []string {
 	return r
 }
 
-// Get a given address index from the guardian set. Returns (-1, false)
+// KeyIndex returns a given address index from the guardian set. Returns (-1, false)
 // if the address wasn't found and (addr, true) otherwise.
 func (g *GuardianSet) KeyIndex(addr common.Address) (int, bool) {
 	for n, k := range g.Keys {
@@ -44,6 +47,16 @@ func (g *GuardianSet) KeyIndex(addr common.Address) (int, bool) {
 type GuardianSetState struct {
 	mu      sync.Mutex
 	current *GuardianSet
+
+	// Last heartbeat message received per guardian. Maintained
+	// across guardian set updates - these values don't change.
+	lastHeartbeat map[common.Address]*gossipv1.Heartbeat
+}
+
+func NewGuardianSetState() *GuardianSetState {
+	return &GuardianSetState{
+		lastHeartbeat: map[common.Address]*gossipv1.Heartbeat{},
+	}
 }
 
 func (st *GuardianSetState) Set(set *GuardianSet) {
@@ -58,4 +71,19 @@ func (st *GuardianSetState) Get() *GuardianSet {
 	defer st.mu.Unlock()
 
 	return st.current
+}
+
+// LastHeartbeat returns the most recent heartbeat message received for
+// a given guardian node, or nil if none have been received.
+func (st *GuardianSetState) LastHeartbeat(addr common.Address) *gossipv1.Heartbeat {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	return st.lastHeartbeat[addr]
+}
+
+// SetHeartBeat stores a verified heartbeat observed by a given guardian.
+func (st *GuardianSetState) SetHeartBeat(addr common.Address, hb *gossipv1.Heartbeat) {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	st.lastHeartbeat[addr] = hb
 }

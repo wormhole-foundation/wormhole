@@ -375,7 +375,7 @@ func runBridge(cmd *cobra.Command, args []string) {
 	injectC := make(chan *vaa.VAA)
 
 	// Guardian set state managed by processor
-	gst := &common.GuardianSetState{}
+	gst := common.NewGuardianSetState()
 
 	// Load p2p private key
 	var priv crypto.PrivKey
@@ -394,13 +394,13 @@ func runBridge(cmd *cobra.Command, args []string) {
 
 	// subscriber channel multiplexing for public gPRC streams
 	rawHeartbeatListeners := publicrpc.HeartbeatStreamMultiplexer(logger)
-	publicrpcService, err := publicrpcServiceRunnable(logger, *publicRPC, rawHeartbeatListeners, db)
+	publicrpcService, err := publicrpcServiceRunnable(logger, *publicRPC, rawHeartbeatListeners, db, gst)
 	if err != nil {
 		log.Fatal("failed to create publicrpc service socket", zap.Error(err))
 	}
 
 	// local admin service socket
-	adminService, err := adminServiceRunnable(logger, *adminSocketPath, injectC, rawHeartbeatListeners, db)
+	adminService, err := adminServiceRunnable(logger, *adminSocketPath, injectC, rawHeartbeatListeners, db, gst)
 	if err != nil {
 		logger.Fatal("failed to create admin service socket", zap.Error(err))
 	}

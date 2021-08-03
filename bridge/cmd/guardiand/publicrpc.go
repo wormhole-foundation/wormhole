@@ -2,6 +2,7 @@ package guardiand
 
 import (
 	"fmt"
+	"github.com/certusone/wormhole/bridge/pkg/common"
 	"github.com/certusone/wormhole/bridge/pkg/db"
 	publicrpcv1 "github.com/certusone/wormhole/bridge/pkg/proto/publicrpc/v1"
 	"github.com/certusone/wormhole/bridge/pkg/publicrpc"
@@ -11,7 +12,7 @@ import (
 	"net"
 )
 
-func publicrpcServiceRunnable(logger *zap.Logger, listenAddr string, hl *publicrpc.RawHeartbeatConns, db *db.Database) (supervisor.Runnable, error) {
+func publicrpcServiceRunnable(logger *zap.Logger, listenAddr string, hl *publicrpc.RawHeartbeatConns, db *db.Database, gst *common.GuardianSetState) (supervisor.Runnable, error) {
 	l, err := net.Listen("tcp", listenAddr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to listen: %w", err)
@@ -19,7 +20,7 @@ func publicrpcServiceRunnable(logger *zap.Logger, listenAddr string, hl *publicr
 
 	logger.Info("publicrpc server listening", zap.String("addr", l.Addr().String()))
 
-	rpcServer := publicrpc.NewPublicrpcServer(logger, hl, db)
+	rpcServer := publicrpc.NewPublicrpcServer(logger, hl, db, gst)
 	grpcServer := grpc.NewServer()
 	publicrpcv1.RegisterPublicrpcServer(grpcServer, rpcServer)
 

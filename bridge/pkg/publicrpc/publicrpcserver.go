@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"github.com/certusone/wormhole/bridge/pkg/common"
 	"github.com/certusone/wormhole/bridge/pkg/db"
 	gossipv1 "github.com/certusone/wormhole/bridge/pkg/proto/gossip/v1"
 	publicrpcv1 "github.com/certusone/wormhole/bridge/pkg/proto/publicrpc/v1"
@@ -19,14 +20,39 @@ type PublicrpcServer struct {
 	rawHeartbeatListeners *RawHeartbeatConns
 	logger                *zap.Logger
 	db                    *db.Database
+	gst                   *common.GuardianSetState
 }
 
-func NewPublicrpcServer(logger *zap.Logger, rawHeartbeatListeners *RawHeartbeatConns, db *db.Database) *PublicrpcServer {
+func NewPublicrpcServer(
+	logger *zap.Logger,
+	rawHeartbeatListeners *RawHeartbeatConns,
+	db *db.Database,
+	gst *common.GuardianSetState,
+) *PublicrpcServer {
 	return &PublicrpcServer{
 		rawHeartbeatListeners: rawHeartbeatListeners,
 		logger:                logger.Named("publicrpcserver"),
 		db:                    db,
+		gst:                   gst,
 	}
+}
+
+func (s *PublicrpcServer) GetLastHeartbeats(ctx context.Context, req *publicrpcv1.GetLastHeartbeatRequest) (*publicrpcv1.GetLastHeartbeatResponse, error) {
+	gs := s.gst.Get()
+	if gs == nil {
+		return nil, status.Error(codes.Unavailable, "guardian set not fetched from chain yet")
+	}
+
+	resp := &publicrpcv1.GetLastHeartbeatResponse{
+		RawHeartbeats: make(map[string]*gossipv1.Heartbeat),
+	}
+
+	for _, addr := range gs.Keys {
+		hb := s.gst.LastHeartbeat(addr)
+		resp.RawHeartbeats[addr.Hex()] = hb
+	}
+
+	return resp, nil
 }
 
 func (s *PublicrpcServer) GetRawHeartbeats(req *publicrpcv1.GetRawHeartbeatsRequest, stream publicrpcv1.Publicrpc_GetRawHeartbeatsServer) error {
