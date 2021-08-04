@@ -50,6 +50,9 @@ spec:
             - --bpf-program
             - metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s
             - /opt/solana/deps/spl_token_metadata.so
+            - --bpf-program
+            - gMYYig2utAxVoXnM9UhtTWrt8e7x2SVBZqsWZJeT5Gw # Derived from pyth_program.json
+            - /opt/solana/deps/pyth_oracle.so
             - --log
           ports:
             - containerPort: 8001

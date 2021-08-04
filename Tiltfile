@@ -98,6 +98,15 @@ k8s_resource("guardian", resource_deps = ["proto-gen", "solana-devnet"], port_fo
     port_forward(7071, name = "Public REST [:7071]"),
 ])
 
+docker_build(
+    ref = "pyth",
+    context = ".",
+    dockerfile = "third_party/pyth/Dockerfile"
+)
+k8s_yaml_with_ns("./devnet/pyth.yaml")
+
+k8s_resource("pyth", resource_deps = ["solana-devnet"])
+
 # publicRPC proxy that allows grpc over http1, for local development
 
 k8s_yaml_with_ns("./devnet/envoy-proxy.yaml")

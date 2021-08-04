@@ -251,9 +251,11 @@ dependencies = [
  "borsh",
  "byteorder",
  "primitive-types",
+ "serde",
  "sha3",
  "solana-program",
  "solitaire",
+ "wasm-bindgen",
 ]
 
 [[package]]
