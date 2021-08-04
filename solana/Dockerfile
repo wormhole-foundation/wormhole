@@ -12,9 +12,7 @@ ENV PATH="/root/.local/share/solana/install/active_release/bin:$PATH"
 ENV RUST_LOG="solana_runtime::system_instruction_processor=trace,solana_runtime::message_processor=trace,solana_bpf_loader=debug,solana_rbpf=debug"
 ENV EMITTER_ADDRESS="11111111111111111111111111111115"
 
-COPY bridge bridge
-COPY modules modules
-COPY solitaire solitaire
+ADD . .
 
 RUN --mount=type=cache,target=/usr/local,from=rust,source=/usr/local \
     --mount=type=cache,target=/root/.cache \
