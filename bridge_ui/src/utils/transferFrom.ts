@@ -183,9 +183,8 @@ export function transferFromSolana(
     });
     // TODO: pass in connection
     // Add transfer instruction to transaction
-    const { transfer_native_ix, approval_authority_address } = await import(
-      "token-bridge"
-    );
+    const { transfer_native_ix, approval_authority_address, emitter_address } =
+      await import("token-bridge");
     const approvalIx = Token.createApproveInstruction(
       TOKEN_PROGRAM_ID,
       new PublicKey(fromAddress),
@@ -208,7 +207,6 @@ export function transferFromSolana(
         targetChain
       )
     );
-    console.log(ix);
     const transaction = new Transaction().add(transferIx, approvalIx, ix);
     const { blockhash } = await connection.getRecentBlockhash();
     transaction.recentBlockhash = blockhash;
@@ -220,6 +218,29 @@ export function transferFromSolana(
     console.log("SENT", txid);
     const conf = await connection.confirmTransaction(txid);
     console.log("CONFIRMED", conf);
+    const info = await connection.getTransaction(txid);
+    console.log("INFO", info);
+    // TODO: better parsing, safer
+    const SEQ_LOG = "Program log: Sequence: ";
+    const sequence = info?.meta?.logMessages
+      ?.filter((msg) => msg.startsWith(SEQ_LOG))[0]
+      .replace(SEQ_LOG, "");
+    if (!sequence) {
+      throw new Error("sequence not found");
+    }
+    console.log("SEQ", sequence);
+    const emitterAddress = Buffer.from(
+      zeroPad(
+        new PublicKey(emitter_address(SOL_TOKEN_BRIDGE_ADDRESS)).toBytes(),
+        32
+      )
+    ).toString("hex");
+    const { vaaBytes } = await getSignedVAA(
+      CHAIN_ID_SOLANA,
+      emitterAddress,
+      sequence
+    );
+    console.log("SIGNED VAA:", vaaBytes);
   })();
 }
 

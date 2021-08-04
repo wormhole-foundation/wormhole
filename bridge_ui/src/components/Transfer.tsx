@@ -7,6 +7,7 @@ import {
   TextField,
   Typography,
 } from "@material-ui/core";
+import { ethers } from "ethers";
 import { useCallback, useState } from "react";
 import { useEthereumProvider } from "../contexts/EthereumProviderContext";
 import { useSolanaWallet } from "../contexts/SolanaWalletContext";
@@ -50,6 +51,7 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
+// TODO: ensure that both wallets are connected to the same known network
 // TODO: loaders and such, navigation block?
 // TODO: refresh displayed token amount after transfer somehow, could be resolved by having different components appear
 // TODO: warn if amount exceeds balance
@@ -116,7 +118,7 @@ function Transfer() {
   console.log(isCheckingWrapped, wrappedAsset);
   // TODO: make a helper function for this
   const isWrapped = true;
-  //wrappedAsset && wrappedAsset !== ethers.constants.AddressZero;
+  // wrappedAsset && wrappedAsset !== ethers.constants.AddressZero;
   // TODO: dynamically get "to" wallet
   const handleTransferClick = useCallback(() => {
     // TODO: more generic way of calling these
