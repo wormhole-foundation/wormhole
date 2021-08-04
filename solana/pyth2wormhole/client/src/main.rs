@@ -1,8 +1,8 @@
 pub mod cli;
 
-use borsh::BorshSerialize;
+use borsh::{BorshDeserialize, BorshSerialize};
 use clap::Clap;
-use log::LevelFilter;
+use log::{LevelFilter, error};
 use solana_client::rpc_client::RpcClient;
 use solana_program::{
     hash::Hash,
@@ -54,6 +54,7 @@ use bridge::{
 use pyth2wormhole::{
     config::P2WConfigAccount,
     initialize::InitializeAccounts,
+    set_config::SetConfigAccounts,
     types::PriceAttestation,
     AttestData,
     Pyth2WormholeConfig,
@@ -74,14 +75,29 @@ fn main() -> Result<(), ErrBox> {
 
     let tx = match cli.action {
         Action::Init {
-            new_owner_addr,
+            owner_addr,
             pyth_owner_addr,
+            wh_prog,
         } => handle_init(
             payer,
             p2w_addr,
-            new_owner_addr,
-            cli.wh_prog,
+            owner_addr,
+            wh_prog,
             pyth_owner_addr,
+            recent_blockhash,
+        )?,
+        Action::SetConfig {
+            owner,
+            new_owner_addr,
+            new_wh_prog,
+            new_pyth_owner_addr,
+        } => handle_set_config(
+            payer,
+            p2w_addr,
+            read_keypair_file(&*shellexpand::tilde(&owner))?,
+            new_owner_addr,
+            new_wh_prog,
+            new_pyth_owner_addr,
             recent_blockhash,
         )?,
         Action::Attest {
@@ -139,6 +155,45 @@ fn handle_init(
     Ok(tx_signed)
 }
 
+fn handle_set_config(
+    payer: Keypair,
+    p2w_addr: Pubkey,
+    owner: Keypair,
+    new_owner_addr: Pubkey,
+    new_wh_prog: Pubkey,
+    new_pyth_owner_addr: Pubkey,
+    recent_blockhash: Hash,
+) -> Result<Transaction, ErrBox> {
+    use AccEntry::*;
+
+    let payer_pubkey = payer.pubkey();
+
+    println!("Canary!");
+
+    let accs = SetConfigAccounts {
+        payer: Signer(payer),
+        current_owner: Signer(owner),
+        config: Derived(p2w_addr),
+    };
+
+    let config = Pyth2WormholeConfig {
+        owner: new_owner_addr,
+        wh_prog: new_wh_prog,
+        pyth_owner: new_pyth_owner_addr,
+    };
+    let ix_data = (pyth2wormhole::instruction::Instruction::SetConfig, config);
+
+    let (ix, signers) = accs.to_ix(p2w_addr, ix_data.try_to_vec()?.as_slice())?;
+
+    let tx_signed = Transaction::new_signed_with_payer::<Vec<&Keypair>>(
+        &[ix],
+        Some(&payer_pubkey),
+        signers.iter().collect::<Vec<_>>().as_ref(),
+        recent_blockhash,
+    );
+    Ok(tx_signed)
+}
+
 fn handle_attest(
     rpc: &RpcClient, // Needed for reading Pyth account data
     payer: Keypair,
@@ -148,16 +203,19 @@ fn handle_attest(
     nonce: u32,
     recent_blockhash: Hash,
 ) -> Result<Transaction, ErrBox> {
-
     let emitter_keypair = Keypair::new();
     let message_keypair = Keypair::new();
+
+    let p2w_config_addr = P2WConfigAccount::<{ AccountState::Initialized }>::key(None, &p2w_addr);
+
+    let config = Pyth2WormholeConfig::try_from_slice(rpc.get_account_data(&p2w_config_addr)?.as_slice())?;
 
     // Derive dynamic seeded accounts
     let seq_addr = Sequence::key(
         &SequenceDerivationData {
             emitter_key: &emitter_keypair.pubkey(),
         },
-        &wh_prog,
+        &config.wh_prog,
     );
 
     // Arrange Attest accounts
@@ -168,7 +226,7 @@ fn handle_attest(
         AccountMeta::new_readonly(system_program::id(), false),
         // config
         AccountMeta::new_readonly(
-            P2WConfigAccount::<{ AccountState::Initialized }>::key(None, &p2w_addr),
+	    p2w_config_addr,
             false,
         ),
         // pyth_product
@@ -177,13 +235,11 @@ fn handle_attest(
         AccountMeta::new_readonly(price_addr, false),
         // clock
         AccountMeta::new_readonly(clock::id(), false),
-
-	// wh_prog
-	AccountMeta::new_readonly(wh_prog, false),
-
+        // wh_prog
+        AccountMeta::new_readonly(config.wh_prog, false),
         // wh_bridge
         AccountMeta::new(
-            Bridge::<{ AccountState::Initialized }>::key(None, &wh_prog),
+            Bridge::<{ AccountState::Initialized }>::key(None, &config.wh_prog),
             false,
         ),
         // wh_message
@@ -193,7 +249,7 @@ fn handle_attest(
         // wh_sequence
         AccountMeta::new(seq_addr, false),
         // wh_fee_collector
-        AccountMeta::new(FeeCollector::<'_>::key(None, &wh_prog), false),
+        AccountMeta::new(FeeCollector::<'_>::key(None, &config.wh_prog), false),
         AccountMeta::new_readonly(rent::id(), false),
     ];
 

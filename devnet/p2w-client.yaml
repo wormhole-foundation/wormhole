@@ -2,49 +2,44 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: pyth
+  name: p2w-client
   labels:
-    app: pyth
+    app: p2w-client
 spec:
+  ports:
+    - port: 8001
+      name: http
+      protocol: TCP
   clusterIP: None
   selector:
-    app: pyth
-  ports:
-    - port: 8898
-      name: pyth-tx
-      protocol: TCP
-    - port: 4242
-      name: pyth-accounts
-      protocol: TCP
+    app: p2w-client
 ---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: pyth
+  name: p2w-client
 spec:
   selector:
     matchLabels:
-      app: pyth
-  serviceName: pyth
+      app: p2w-client
+  serviceName: p2w-client
+  replicas: 1
   template:
     metadata:
       labels:
-        app: pyth
+        app: p2w-client
     spec:
       restartPolicy: Always
       terminationGracePeriodSeconds: 0
       containers:
-        - name: pyth-publisher
-          image: pyth
+        - name: p2w-client
+          image: p2w-client
           command:
             - python3
-            - /opt/pyth/pyth_publisher.py
+            - /usr/src/pyth/p2w_autoattest.py
+          tty: true
           readinessProbe:
             tcpSocket:
               port: 2000
             periodSeconds: 1
             failureThreshold: 300
-          ports:
-            - containerPort: 4242
-              name: pyth-accounts
-              protocol: TCP

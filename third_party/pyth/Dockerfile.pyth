@@ -26,7 +26,7 @@ RUN cp /opt/solana/keys/pyth_publisher.json publish_key_pair.json && \
 ENV PYTH_SRC_REV=31e3188bbf52ec1a25f71e4ab969378b27415b0a
 ENV PYTH_SRC_ROOT=/home/pyth/pyth-client
 
-ADD https://github.com/drozdziak1/pyth-client/archive/$PYTH_SRC_REV.tar.gz .
+ADD https://github.com/pyth-network/pyth-client/archive/$PYTH_SRC_REV.tar.gz .
 RUN tar -xvf *.tar.gz && \
     rm -rf $PYTH_SRC_ROOT *.tar.gz && \
     mv pyth-client-$PYTH_SRC_REV $PYTH_SRC_ROOT/
@@ -36,7 +36,9 @@ WORKDIR $PYTH_SRC_ROOT/build
 RUN cmake .. && make
 
 # Prepare setup script
-ADD third_party/pyth/ /opt/pyth/
+ADD third_party/pyth/pyth_utils.py /opt/pyth/pyth_utils.py
+ADD third_party/pyth/pyth_publisher.py /opt/pyth/pyth_publisher.py
+
 RUN chmod a+rx /opt/pyth/*.py
 USER pyth
 

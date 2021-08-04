@@ -1,19 +1,35 @@
-use solana_program::{msg, pubkey::Pubkey};
+use solana_program::{
+    msg,
+    pubkey::Pubkey,
+};
 use solitaire::{
-    AccountState, ExecutionContext, FromAccounts, Info, InstructionContext, Keyed, Peel,
-    Result as SoliResult, Signer, SolitaireError, ToInstruction,
+    AccountState,
+    ExecutionContext,
+    FromAccounts,
+    Info,
+    InstructionContext,
+    Keyed,
+    Mut,
+    Peel,
+    Result as SoliResult,
+    Signer,
+    SolitaireError,
+    ToInstruction,
 };
 
-use crate::config::{P2WConfigAccount, Pyth2WormholeConfig};
+use crate::config::{
+    P2WConfigAccount,
+    Pyth2WormholeConfig,
+};
 
 #[derive(FromAccounts, ToInstruction)]
 pub struct SetConfig<'b> {
     /// Current config used by the program
-    pub config: P2WConfigAccount<'b, { AccountState::Initialized }>,
+    pub config: Mut<P2WConfigAccount<'b, { AccountState::Initialized }>>,
     /// Current owner authority of the program
-    pub current_owner: Signer<Info<'b>>,
+    pub current_owner: Mut<Signer<Info<'b>>>,
     /// Payer account for updating the account data
-    pub payer: Signer<Info<'b>>,
+    pub payer: Mut<Signer<Info<'b>>>,
 }
 
 impl<'b> InstructionContext<'b> for SetConfig<'b> {

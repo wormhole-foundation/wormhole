@@ -3,13 +3,16 @@ FROM docker.io/library/rust:1.49@sha256:a50165ea96983c21832578afb1c8c028674c965b
 
 RUN apt-get update && apt-get install -yq libssl-dev libudev-dev pkg-config zlib1g-dev llvm clang ncat
 RUN curl -fsSL https://deb.nodesource.com/setup_16.x | bash - && apt-get install -y nodejs
+RUN curl -sSfL https://release.solana.com/v1.7.8/install | sh
 
 RUN rustup default nightly-2021-08-01
 RUN rustup component add rustfmt
 
 RUN --mount=type=cache,target=/root/.cache \
-    cargo install --version =1.7.0 solana-cli && \
     cargo install --version =2.0.12 spl-token-cli
+
+ENV SOLANA_BIN_PATH="/root/.local/share/solana/install/active_release/bin"
+ENV PATH="$SOLANA_BIN_PATH:$PATH"
 
 ADD ethereum /usr/src/ethereum
 WORKDIR /usr/src/ethereum
@@ -26,10 +29,15 @@ RUN --mount=type=cache,target=/root/.cache \
 	npm run build-contracts && \
 	npm run build
 
+
 ADD solana /usr/src/solana
-ADD proto  /usr/src/proto
+ADD proto /usr/src/proto
 
 WORKDIR /usr/src/solana
+
+RUN solana config set --keypair "/usr/src/solana/keys/solana-devnet.json"
+RUN solana config set --url "http://solana-devnet:8899"
+
 ENV EMITTER_ADDRESS="11111111111111111111111111111115"
 ENV BRIDGE_ADDRESS="Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o"
 
@@ -39,7 +47,5 @@ RUN --mount=type=cache,target=/root/.cache \
 	set -xe && \
     cargo build --manifest-path ./bridge/Cargo.toml --package client --release && \
     cargo build --manifest-path ./modules/token_bridge/Cargo.toml --package client --release && \
-    cp /usr/local/cargo/bin/solana /usr/local/bin && \
-    cp /usr/local/cargo/bin/spl-token /usr/local/bin && \
     cp bridge/target/release/client /usr/local/bin && \
     cp modules/token_bridge/target/release/client /usr/local/bin/token-bridge-client

@@ -43,7 +43,7 @@ RUN mkdir -p /opt/solana/deps
 ENV EMITTER_ADDRESS="11111111111111111111111111111115"
 ENV BRIDGE_ADDRESS="Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o"
 
-# Build Wormhole Solana progrms
+# Build Wormhole Solana programs
 RUN --mount=type=cache,target=bridge/target \
     --mount=type=cache,target=modules/token_bridge/target \
     --mount=type=cache,target=pyth2wormhole/target \

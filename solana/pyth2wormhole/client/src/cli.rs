@@ -26,9 +26,6 @@ pub struct Cli {
     pub rpc_url: String,
     #[clap(long)]
     pub p2w_addr: Pubkey,
-    /// The bridge program account
-    #[clap(long = "wh-prog")]
-    pub wh_prog: Pubkey,
     #[clap(subcommand)]
     pub action: Action,
 }
@@ -37,8 +34,11 @@ pub struct Cli {
 pub enum Action {
     #[clap(about = "Initialize a pyth2wormhole program freshly deployed under <p2w_addr>")]
     Init {
-        #[clap(long = "owner")]
-        new_owner_addr: Pubkey,
+	/// The bridge program account
+	#[clap(long = "wh-prog")]
+	wh_prog: Pubkey,
+	#[clap(long = "owner")]
+        owner_addr: Pubkey,
         #[clap(long = "pyth-owner")]
         pyth_owner_addr: Pubkey,
     },
@@ -52,5 +52,18 @@ pub enum Action {
         price_addr: Pubkey,
         #[clap(long)]
 	nonce: u32,
+    },
+    #[clap(about = "Update an existing pyth2wormhole program's settings (currently set owner only)")]
+    SetConfig {
+	/// Current owner keypair path
+        #[clap(long = "owner", default_value = "~/.config/solana/id.json")]
+	owner: String,
+	/// New owner to set 
+        #[clap(long = "new-owner")]
+	new_owner_addr: Pubkey,
+        #[clap(long = "new-wh-prog")]
+	new_wh_prog: Pubkey,
+        #[clap(long = "new-pyth-owner")]
+	new_pyth_owner_addr: Pubkey,
     },
 }

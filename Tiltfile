@@ -113,7 +113,7 @@ k8s_resource("guardian", resource_deps = ["proto-gen", "solana-devnet"], port_fo
 docker_build(
     ref = "pyth",
     context = ".",
-    dockerfile = "third_party/pyth/Dockerfile",
+    dockerfile = "third_party/pyth/Dockerfile.pyth",
 )
 k8s_yaml_with_ns("./devnet/pyth.yaml")
 
@@ -136,13 +136,12 @@ k8s_resource(
 # solana client cli (used for devnet setup)
 
 docker_build(
-    ref = "solana-client",
+    ref = "bridge-client",
     context = ".",
-    only = ["./proto", "./solana", "./ethereum", "./clients/token_bridge"],
+    only = ["./proto", "./solana", "./ethereum", "./clients"],
     dockerfile = "Dockerfile.client",
-
     # Ignore target folders from local (non-container) development.
-    ignore = ["./solana/target", "./solana/agent/target", "./solana/cli/target"],
+    ignore = ["./solana/*/target"],
 )
 
 # solana smart contract
@@ -165,6 +164,25 @@ k8s_resource(
         port_forward(8900, name = "Solana WS [:8900]"),
         port_forward(9000, name = "Solana PubSub [:9000]"),
     ],
+)
+
+# pyth2wormhole client
+
+docker_build(
+    ref = "p2w-client",
+    context = ".",
+    only = ["./solana", "./third_party"],
+    dockerfile = "./third_party/pyth/Dockerfile.p2w-client",
+
+    # Ignore target folders from local (non-container) development.
+    ignore = ["./solana/*/target"],
+)
+
+k8s_yaml_with_ns("devnet/p2w-client.yaml")
+
+k8s_resource("p2w-client",
+    resource_deps=["solana-devnet", "pyth"],
+    port_forwards=[]
 )
 
 # eth devnet

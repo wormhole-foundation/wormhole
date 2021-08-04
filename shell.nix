@@ -34,6 +34,7 @@ pkgs.mkShell {
       pkgconfig
       protobuf
       python3
+      python3Packages.autopep8
       whcluster
       whinotify
       whkube
