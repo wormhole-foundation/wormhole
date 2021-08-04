@@ -8,7 +8,7 @@ export const theme = responsiveFontSizes(
         default: "#010114",
         paper: "#010114",
       },
-      divider: "#FFFFFF",
+      divider: "#4e4e54",
       primary: {
         main: "#0074FF",
       },

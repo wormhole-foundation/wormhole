@@ -1,5 +1,6 @@
 import {
   Button,
+  CircularProgress,
   Grid,
   makeStyles,
   MenuItem,
@@ -11,6 +12,7 @@ import { useEthereumProvider } from "../contexts/EthereumProviderContext";
 import { useSolanaWallet } from "../contexts/SolanaWalletContext";
 import useEthereumBalance from "../hooks/useEthereumBalance";
 import useSolanaBalance from "../hooks/useSolanaBalance";
+import useWrappedAsset from "../hooks/useWrappedAsset";
 import {
   ChainId,
   CHAINS,
@@ -105,8 +107,18 @@ function Transfer() {
     decimals: solDecimals,
     uiAmount: solBalance,
   } = useSolanaBalance(assetAddress, solPK, fromChain === CHAIN_ID_SOLANA);
+  const { isLoading: isCheckingWrapped, wrappedAsset } = useWrappedAsset(
+    toChain,
+    fromChain,
+    assetAddress,
+    provider
+  );
+  console.log(isCheckingWrapped, wrappedAsset);
+  // TODO: make a helper function for this
+  const isWrapped = true;
+  //wrappedAsset && wrappedAsset !== ethers.constants.AddressZero;
   // TODO: dynamically get "to" wallet
-  const handleClick = useCallback(() => {
+  const handleTransferClick = useCallback(() => {
     // TODO: more generic way of calling these
     if (transferFrom[fromChain]) {
       if (
@@ -210,39 +222,77 @@ function Transfer() {
         value={assetAddress}
         onChange={handleAssetChange}
       />
-      <TextField
-        placeholder="Amount"
-        type="number"
-        fullWidth
-        className={classes.transferField}
-        value={amount}
-        onChange={handleAmountChange}
-      />
-      <Button
-        color="primary"
-        variant="contained"
-        className={classes.transferButton}
-        onClick={handleClick}
-        disabled={!canAttemptTransfer}
-      >
-        Transfer
-      </Button>
-      {canAttemptTransfer ? null : (
-        <Typography variant="body2" color="error">
-          {!isTransferImplemented
-            ? `Transfer is not yet implemented for ${CHAINS_BY_ID[fromChain].name}`
-            : !isProviderConnected
-            ? "The source wallet is not connected"
-            : !isRecipientAvailable
-            ? "The receiving wallet is not connected"
-            : !isAddressDefined
-            ? "Please provide an asset address"
-            : !isAmountPositive
-            ? "The amount must be positive"
-            : !isBalanceAtLeastAmount
-            ? "The amount may not be greater than the balance"
-            : ""}
-        </Typography>
+      {isWrapped ? (
+        <>
+          <TextField
+            placeholder="Amount"
+            type="number"
+            fullWidth
+            className={classes.transferField}
+            value={amount}
+            onChange={handleAmountChange}
+          />
+          <Button
+            color="primary"
+            variant="contained"
+            className={classes.transferButton}
+            onClick={handleTransferClick}
+            disabled={!canAttemptTransfer}
+          >
+            Transfer
+          </Button>
+          {canAttemptTransfer ? null : (
+            <Typography variant="body2" color="error">
+              {!isTransferImplemented
+                ? `Transfer is not yet implemented for ${CHAINS_BY_ID[fromChain].name}`
+                : !isProviderConnected
+                ? "The source wallet is not connected"
+                : !isRecipientAvailable
+                ? "The receiving wallet is not connected"
+                : !isAddressDefined
+                ? "Please provide an asset address"
+                : !isAmountPositive
+                ? "The amount must be positive"
+                : !isBalanceAtLeastAmount
+                ? "The amount may not be greater than the balance"
+                : ""}
+            </Typography>
+          )}
+        </>
+      ) : (
+        <>
+          <div style={{ position: "relative" }}>
+            <Button
+              color="primary"
+              variant="contained"
+              disabled={isCheckingWrapped}
+              className={classes.transferButton}
+            >
+              Attest
+            </Button>
+            {isCheckingWrapped ? (
+              <CircularProgress
+                size={24}
+                color="inherit"
+                style={{
+                  position: "absolute",
+                  bottom: 0,
+                  left: "50%",
+                  marginLeft: -12,
+                  marginBottom: 6,
+                }}
+              />
+            ) : null}
+          </div>
+          {isCheckingWrapped ? null : (
+            <Typography variant="body2">
+              <br />
+              This token does not exist on {CHAINS_BY_ID[toChain].name}. Someone
+              must attest the the token to the target chain before it can be
+              transferred.
+            </Typography>
+          )}
+        </>
       )}
     </div>
   );

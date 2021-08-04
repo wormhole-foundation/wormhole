@@ -20,12 +20,10 @@ function useEthereumBalance(
     token
       .decimals()
       .then((decimals) => {
-        console.log(decimals);
         provider
           ?.getSigner()
           .getAddress()
           .then((pk) => {
-            console.log(pk);
             token.balanceOf(pk).then((n) => {
               if (!cancelled) {
                 setBalance(formatUnits(n, decimals));

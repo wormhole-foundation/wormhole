@@ -19,4 +19,4 @@ plugins:
       - env=browser
       - forceLong=string
       - outputClientImpl=grpc-web
-      - explorer/src/proto
+      - bridge_ui/src/proto

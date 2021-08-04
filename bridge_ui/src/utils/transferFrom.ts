@@ -1,4 +1,5 @@
 import Wallet from "@project-serum/sol-wallet-adapter";
+import { Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import {
   AccountMeta,
   Connection,
@@ -7,17 +8,19 @@ import {
   Transaction,
   TransactionInstruction,
 } from "@solana/web3.js";
-import { Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { ethers } from "ethers";
 import { arrayify, formatUnits, parseUnits, zeroPad } from "ethers/lib/utils";
 import {
   Bridge__factory,
+  Implementation__factory,
   TokenImplementation__factory,
 } from "../ethers-contracts";
+import { getSignedVAA } from "../sdk";
 import {
   ChainId,
   CHAIN_ID_ETH,
   CHAIN_ID_SOLANA,
+  ETH_BRIDGE_ADDRESS,
   ETH_TOKEN_BRIDGE_ADDRESS,
   SOLANA_HOST,
   SOL_BRIDGE_ADDRESS,
@@ -41,46 +44,60 @@ export function transferFromEth(
   //TODO: don't hardcode, fetch decimals / share them with balance, how do we determine recipient chain?
   //TODO: more catches
   const amountParsed = parseUnits(amount, 18);
-  signer.getAddress().then((signerAddress) => {
+  (async () => {
+    const signerAddress = await signer.getAddress();
     console.log("Signer:", signerAddress);
     console.log("Token:", tokenAddress);
     const token = TokenImplementation__factory.connect(tokenAddress, signer);
-    token
-      .allowance(signerAddress, ETH_TOKEN_BRIDGE_ADDRESS)
-      .then((allowance) => {
-        console.log("Allowance", allowance.toString()); //TODO: should we check that this is zero and warn if it isn't?
-        token
-          .approve(ETH_TOKEN_BRIDGE_ADDRESS, amountParsed)
-          .then((transaction) => {
-            console.log(transaction);
-            const fee = 0; // for now, this won't do anything, we may add later
-            const nonceConst = Math.random() * 100000;
-            const nonceBuffer = Buffer.alloc(4);
-            nonceBuffer.writeUInt32LE(nonceConst, 0);
-            console.log("Initiating transfer");
-            console.log("Amount:", formatUnits(amountParsed, 18));
-            console.log("To chain:", recipientChain);
-            console.log("To address:", recipientAddress);
-            console.log("Fees:", fee);
-            console.log("Nonce:", nonceBuffer);
-            const bridge = Bridge__factory.connect(
-              ETH_TOKEN_BRIDGE_ADDRESS,
-              signer
-            );
-            bridge
-              .transferTokens(
-                tokenAddress,
-                amountParsed,
-                recipientChain,
-                recipientAddress,
-                fee,
-                nonceBuffer
-              )
-              .then((v) => console.log("Success:", v))
-              .catch((r) => console.error(r)); //TODO: integrate toast messages
-          });
-      });
-  });
+    const allowance = await token.allowance(
+      signerAddress,
+      ETH_TOKEN_BRIDGE_ADDRESS
+    );
+    console.log("Allowance", allowance.toString()); //TODO: should we check that this is zero and warn if it isn't?
+    const transaction = await token.approve(
+      ETH_TOKEN_BRIDGE_ADDRESS,
+      amountParsed
+    );
+    console.log(transaction);
+    const fee = 0; // for now, this won't do anything, we may add later
+    const nonceConst = Math.random() * 100000;
+    const nonceBuffer = Buffer.alloc(4);
+    nonceBuffer.writeUInt32LE(nonceConst, 0);
+    console.log("Initiating transfer");
+    console.log("Amount:", formatUnits(amountParsed, 18));
+    console.log("To chain:", recipientChain);
+    console.log("To address:", recipientAddress);
+    console.log("Fees:", fee);
+    console.log("Nonce:", nonceBuffer);
+    const bridge = Bridge__factory.connect(ETH_TOKEN_BRIDGE_ADDRESS, signer);
+    const v = await bridge.transferTokens(
+      tokenAddress,
+      amountParsed,
+      recipientChain,
+      recipientAddress,
+      fee,
+      nonceBuffer
+    );
+    const receipt = await v.wait();
+    // TODO: dangerous!(?)
+    const bridgeLog = receipt.logs.filter((l) => {
+      console.log(l.address, ETH_BRIDGE_ADDRESS);
+      return l.address === ETH_BRIDGE_ADDRESS;
+    })[0];
+    const {
+      args: { sender, sequence },
+    } = Implementation__factory.createInterface().parseLog(bridgeLog);
+    console.log(sender, sequence);
+    const emitterAddress = Buffer.from(
+      zeroPad(arrayify(ETH_TOKEN_BRIDGE_ADDRESS), 32)
+    ).toString("hex");
+    const { vaaBytes } = await getSignedVAA(
+      CHAIN_ID_ETH,
+      emitterAddress,
+      sequence
+    );
+    console.log("SIGNED VAA:", vaaBytes);
+  })();
 }
 
 // TODO: should we share this with client? ooh, should client use the SDK ;)
@@ -201,8 +218,8 @@ export function transferFromSolana(
     console.log("SIGNED", signed);
     const txid = await connection.sendRawTransaction(signed.serialize());
     console.log("SENT", txid);
-    await connection.confirmTransaction(txid);
-    console.log("CONFIRMED");
+    const conf = await connection.confirmTransaction(txid);
+    console.log("CONFIRMED", conf);
   })();
 }
 
