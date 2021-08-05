@@ -244,7 +244,7 @@ func runBridge(cmd *cobra.Command, args []string) {
 
 		go func() {
 			logger.Info("status server listening on [::]:6060")
-			logger.Error("status server crashed", zap.Error(http.ListenAndServe("[::]:6060", router)))
+			logger.Error("status server crashed", zap.Error(http.ListenAndServe(*statusAddr, router)))
 		}()
 	}
 
