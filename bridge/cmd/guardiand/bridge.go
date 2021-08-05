@@ -80,6 +80,8 @@ var (
 	publicRPC  *string
 	publicREST *string
 
+	disableHeartbeatVerify *bool
+
 	bigTablePersistenceEnabled *bool
 	bigTableGCPProject         *string
 	bigTableInstanceName       *string
@@ -125,6 +127,9 @@ func init() {
 
 	publicRPC = BridgeCmd.Flags().String("publicRPC", "", "Listen address for public gRPC interface")
 	publicREST = BridgeCmd.Flags().String("publicREST", "", "Listen address for public REST interface")
+
+	disableHeartbeatVerify = BridgeCmd.Flags().Bool("disableHeartbeatVerify", false,
+		"Disable heartbeat signature verification (useful during network startup)")
 
 	bigTablePersistenceEnabled = BridgeCmd.Flags().Bool("bigTablePersistenceEnabled", false, "Turn on forwarding events to BigTable")
 	bigTableGCPProject = BridgeCmd.Flags().String("bigTableGCPProject", "", "Google Cloud project ID for storing events")
@@ -440,7 +445,7 @@ func runBridge(cmd *cobra.Command, args []string) {
 	// Run supervisor.
 	supervisor.New(rootCtx, logger, func(ctx context.Context) error {
 		if err := supervisor.Run(ctx, "p2p", p2p.Run(
-			obsvC, sendC, rawHeartbeatListeners, priv, gk, gst, *p2pPort, *p2pNetworkID, *p2pBootstrap, *nodeName, rootCtxCancel)); err != nil {
+			obsvC, sendC, rawHeartbeatListeners, priv, gk, gst, *p2pPort, *p2pNetworkID, *p2pBootstrap, *nodeName, *disableHeartbeatVerify, rootCtxCancel)); err != nil {
 			return err
 		}
 

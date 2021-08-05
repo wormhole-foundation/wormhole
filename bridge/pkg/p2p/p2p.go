@@ -59,7 +59,7 @@ func heartbeatDigest(b []byte) common.Hash {
 	return ethcrypto.Keccak256Hash(append(heartbeatMessagePrefix, b...))
 }
 
-func Run(obsvC chan *gossipv1.SignedObservation, sendC chan []byte, rawHeartbeatListeners *publicrpc.RawHeartbeatConns, priv crypto.PrivKey, gk *ecdsa.PrivateKey, gst *bridge_common.GuardianSetState, port uint, networkID string, bootstrapPeers string, nodeName string, rootCtxCancel context.CancelFunc) func(ctx context.Context) error {
+func Run(obsvC chan *gossipv1.SignedObservation, sendC chan []byte, rawHeartbeatListeners *publicrpc.RawHeartbeatConns, priv crypto.PrivKey, gk *ecdsa.PrivateKey, gst *bridge_common.GuardianSetState, port uint, networkID string, bootstrapPeers string, nodeName string, disableHeartbeatVerify bool, rootCtxCancel context.CancelFunc) func(ctx context.Context) error {
 	return func(ctx context.Context) (re error) {
 		logger := supervisor.Logger(ctx)
 
@@ -301,7 +301,7 @@ func Run(obsvC chan *gossipv1.SignedObservation, sendC chan []byte, rawHeartbeat
 						zap.String("from", envelope.GetFrom().String()))
 					break
 				}
-				if heartbeat, err := processSignedHeartbeat(s, gs, gst); err != nil {
+				if heartbeat, err := processSignedHeartbeat(s, gs, gst, disableHeartbeatVerify); err != nil {
 					p2pMessagesReceived.WithLabelValues("invalid_heartbeat").Inc()
 					logger.Warn("invalid signed heartbeat received",
 						zap.Error(err),
@@ -330,14 +330,17 @@ func Run(obsvC chan *gossipv1.SignedObservation, sendC chan []byte, rawHeartbeat
 	}
 }
 
-func processSignedHeartbeat(s *gossipv1.SignedHeartbeat, gs *bridge_common.GuardianSet, gst *bridge_common.GuardianSetState) (*gossipv1.Heartbeat, error) {
+func processSignedHeartbeat(s *gossipv1.SignedHeartbeat, gs *bridge_common.GuardianSet, gst *bridge_common.GuardianSetState, disableVerify bool) (*gossipv1.Heartbeat, error) {
 	envelopeAddr := common.BytesToAddress(s.GuardianAddr)
 	idx, ok := gs.KeyIndex(envelopeAddr)
+	var pk common.Address
 	if !ok {
-		return nil, fmt.Errorf("invalid message: %s not in guardian set", envelopeAddr)
+		if !disableVerify {
+			return nil, fmt.Errorf("invalid message: %s not in guardian set", envelopeAddr)
+		}
+	} else {
+		pk = gs.Keys[idx]
 	}
-
-	pk := gs.Keys[idx]
 
 	digest := heartbeatDigest(s.Heartbeat)
 
@@ -347,7 +350,7 @@ func processSignedHeartbeat(s *gossipv1.SignedHeartbeat, gs *bridge_common.Guard
 	}
 
 	signerAddr := common.BytesToAddress(ethcrypto.Keccak256(pubKey[1:])[12:])
-	if pk != signerAddr {
+	if pk != signerAddr && !disableVerify {
 		return nil, fmt.Errorf("invalid signer: %v", signerAddr)
 	}
 
