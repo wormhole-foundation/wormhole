@@ -8,6 +8,15 @@ module.exports = {
             port: 8545,
             network_id: "*",
         },
+        mainnet: {
+            provider: () => new HDWalletProvider(process.env.MNEMONIC, `https://mainnet.infura.io/v3/`+process.env.INFURA_KEY),
+            network_id: 1,
+            gas: 10000000,
+            gasPrice: 101000000000,
+            confirmations: 1,
+            timeoutBlocks: 200,
+            skipDryRun: false
+        },
         rinkeby: {
             provider: () => new HDWalletProvider(process.env.MNEMONIC, `https://rinkeby.infura.io/v3/`+process.env.INFURA_KEY),
             network_id: 4,
@@ -29,7 +38,7 @@ module.exports = {
                 return new HDWalletProvider(process.env.MNEMONIC, 'https://bsc-dataseed.binance.org/')
             },
             network_id: '56',
-            gas: 80000000,
+            gas: 70000000,
             gasPrice: 8000000000,
         },
     },
