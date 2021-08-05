@@ -1,10 +1,13 @@
 import { ethers } from "ethers";
 import { useEffect, useState } from "react";
-import { ChainId, CHAIN_ID_ETH } from "../utils/consts";
-import { wrappedAssetEth } from "../utils/wrappedAsset";
-
+import { ChainId, CHAIN_ID_ETH, CHAIN_ID_SOLANA } from "../utils/consts";
+import {
+  getAttestedAssetEth,
+  getAttestedAssetSol,
+} from "../utils/getAttestedAsset";
 export interface WrappedAssetState {
   isLoading: boolean;
+  isWrapped: boolean;
   wrappedAsset: string | null;
 }
 
@@ -16,19 +19,38 @@ function useWrappedAsset(
 ) {
   const [state, setState] = useState<WrappedAssetState>({
     isLoading: false,
+    isWrapped: false,
     wrappedAsset: null,
   });
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      if (provider && checkChain === CHAIN_ID_ETH) {
-        setState({ isLoading: true, wrappedAsset: null });
-        const asset = await wrappedAssetEth(provider, originChain, originAsset);
+      if (checkChain === CHAIN_ID_ETH && provider) {
+        setState({ isLoading: true, isWrapped: false, wrappedAsset: null });
+        const asset = await getAttestedAssetEth(
+          provider,
+          originChain,
+          originAsset
+        );
         if (!cancelled) {
-          setState({ isLoading: false, wrappedAsset: asset });
+          setState({
+            isLoading: false,
+            isWrapped: !!asset && asset !== ethers.constants.AddressZero,
+            wrappedAsset: asset,
+          });
+        }
+      } else if (checkChain === CHAIN_ID_SOLANA) {
+        setState({ isLoading: true, isWrapped: false, wrappedAsset: null });
+        const asset = await getAttestedAssetSol(originChain, originAsset);
+        if (!cancelled) {
+          setState({
+            isLoading: false,
+            isWrapped: !!asset,
+            wrappedAsset: asset,
+          });
         }
       } else {
-        setState({ isLoading: false, wrappedAsset: null });
+        setState({ isLoading: false, isWrapped: false, wrappedAsset: null });
       }
     })();
     return () => {

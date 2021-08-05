@@ -7,13 +7,16 @@ import {
   TextField,
   Typography,
 } from "@material-ui/core";
-import { ethers } from "ethers";
 import { useCallback, useState } from "react";
 import { useEthereumProvider } from "../contexts/EthereumProviderContext";
 import { useSolanaWallet } from "../contexts/SolanaWalletContext";
 import useEthereumBalance from "../hooks/useEthereumBalance";
 import useSolanaBalance from "../hooks/useSolanaBalance";
 import useWrappedAsset from "../hooks/useWrappedAsset";
+import attestFrom, {
+  attestFromEth,
+  attestFromSolana,
+} from "../utils/attestFrom";
 import {
   ChainId,
   CHAINS,
@@ -109,16 +112,29 @@ function Transfer() {
     decimals: solDecimals,
     uiAmount: solBalance,
   } = useSolanaBalance(assetAddress, solPK, fromChain === CHAIN_ID_SOLANA);
-  const { isLoading: isCheckingWrapped, wrappedAsset } = useWrappedAsset(
-    toChain,
-    fromChain,
-    assetAddress,
-    provider
-  );
-  console.log(isCheckingWrapped, wrappedAsset);
-  // TODO: make a helper function for this
-  const isWrapped = true;
-  // wrappedAsset && wrappedAsset !== ethers.constants.AddressZero;
+  const {
+    isLoading: isCheckingWrapped,
+    isWrapped,
+    wrappedAsset,
+  } = useWrappedAsset(toChain, fromChain, assetAddress, provider);
+  console.log(isCheckingWrapped, isWrapped, wrappedAsset);
+  const handleAttestClick = useCallback(() => {
+    // TODO: more generic way of calling these
+    if (attestFrom[fromChain]) {
+      if (
+        fromChain === CHAIN_ID_ETH &&
+        attestFrom[fromChain] === attestFromEth
+      ) {
+        attestFromEth(provider, assetAddress);
+      }
+      if (
+        fromChain === CHAIN_ID_SOLANA &&
+        attestFrom[fromChain] === attestFromSolana
+      ) {
+        attestFromSolana(wallet, solPK?.toString(), assetAddress, solDecimals);
+      }
+    }
+  }, [fromChain, provider, wallet, solPK, assetAddress, solDecimals]);
   // TODO: dynamically get "to" wallet
   const handleTransferClick = useCallback(() => {
     // TODO: more generic way of calling these
@@ -169,12 +185,18 @@ function Transfer() {
     fromChain === CHAIN_ID_ETH
   );
   const balance = Number(ethBalance) || solBalance;
+  const isAttestImplemented = !!attestFrom[fromChain];
   const isTransferImplemented = !!transferFrom[fromChain];
   const isProviderConnected = !!provider;
   const isRecipientAvailable = !!solPK;
   const isAddressDefined = !!assetAddress;
   const isAmountPositive = Number(amount) > 0; // TODO: this needs per-chain, bn parsing
   const isBalanceAtLeastAmount = balance >= Number(amount); // TODO: ditto
+  const canAttemptAttest =
+    isAttestImplemented &&
+    isProviderConnected &&
+    isRecipientAvailable &&
+    isAddressDefined;
   const canAttemptTransfer =
     isTransferImplemented &&
     isProviderConnected &&
@@ -267,7 +289,8 @@ function Transfer() {
             <Button
               color="primary"
               variant="contained"
-              disabled={isCheckingWrapped}
+              disabled={isCheckingWrapped || !canAttemptAttest}
+              onClick={handleAttestClick}
               className={classes.transferButton}
             >
               Attest
@@ -286,12 +309,24 @@ function Transfer() {
               />
             ) : null}
           </div>
-          {isCheckingWrapped ? null : (
+          {isCheckingWrapped ? null : canAttemptAttest ? (
             <Typography variant="body2">
               <br />
               This token does not exist on {CHAINS_BY_ID[toChain].name}. Someone
               must attest the the token to the target chain before it can be
               transferred.
+            </Typography>
+          ) : (
+            <Typography variant="body2" color="error">
+              {!isAttestImplemented
+                ? `Transfer is not yet implemented for ${CHAINS_BY_ID[fromChain].name}`
+                : !isProviderConnected
+                ? "The source wallet is not connected"
+                : !isRecipientAvailable
+                ? "The receiving wallet is not connected"
+                : !isAddressDefined
+                ? "Please provide an asset address"
+                : ""}
             </Typography>
           )}
         </>
