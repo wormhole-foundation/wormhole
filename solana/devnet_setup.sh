@@ -29,8 +29,8 @@ retry () {
   done
 }
 
-# Fund our account (as seen in solana-devnet.json).
-retry solana airdrop 1000 --faucet-port 9900 --faucet-host 127.0.0.1
+# Fund our account (as defined in solana/keys/solana-devnet.json).
+retry solana airdrop 1000
 
 # Create a new SPL token
 token=$(spl-token create-token -- token.json | grep 'Creating token' | awk '{ print $3 }')

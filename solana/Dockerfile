@@ -38,7 +38,6 @@ RUN tar -xvf *.tar.gz && rm -rf *.tar.gz && mv pyth-client-$PYTH_SRC_REV pyth-cl
 WORKDIR /usr/src/bridge
 
 ADD . .
-
 RUN mkdir -p /opt/solana/deps
 
 ENV EMITTER_ADDRESS="11111111111111111111111111111115"
@@ -47,15 +46,16 @@ ENV BRIDGE_ADDRESS="Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o"
 # Build Wormhole Solana progrms
 RUN --mount=type=cache,target=bridge/target \
     --mount=type=cache,target=modules/token_bridge/target \
-    --mount=type=cache,target=target \
-    --mount=type=cache,target=bin,from=rust,source=bin \
+    --mount=type=cache,target=pyth2wormhole/target \
     cargo build-bpf --manifest-path "bridge/program/Cargo.toml" && \
     cargo build-bpf --manifest-path "bridge/cpi_poster/Cargo.toml" && \
     cargo build-bpf --manifest-path "modules/token_bridge/program/Cargo.toml" && \
+    cargo build-bpf --manifest-path "pyth2wormhole/program/Cargo.toml" && \
     cp bridge/target/deploy/bridge.so /opt/solana/deps/bridge.so && \
     cp bridge/target/deploy/cpi_poster.so /opt/solana/deps/cpi_poster.so && \
     cp modules/token_bridge/target/deploy/token_bridge.so /opt/solana/deps/token_bridge.so && \
-    cp modules/token_bridge/token-metadata/spl_token_metadata.so /opt/solana/deps/spl_token_metadata.so
+    cp modules/token_bridge/token-metadata/spl_token_metadata.so /opt/solana/deps/spl_token_metadata.so && \
+    cp pyth2wormhole/target/deploy/pyth2wormhole.so /opt/solana/deps/pyth2wormhole.so
 
 # Build the Pyth Solana program
 WORKDIR $PYTH_DIR/pyth-client/program

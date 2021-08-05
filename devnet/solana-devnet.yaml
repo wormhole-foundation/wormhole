@@ -53,6 +53,9 @@ spec:
             - --bpf-program
             - gMYYig2utAxVoXnM9UhtTWrt8e7x2SVBZqsWZJeT5Gw # Derived from pyth_program.json
             - /opt/solana/deps/pyth_oracle.so
+            - --bpf-program
+            - P2WH424242424242424242424242424242424242424
+            - /opt/solana/deps/pyth2wormhole.so
             - --log
           ports:
             - containerPort: 8001

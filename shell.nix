@@ -33,6 +33,7 @@ pkgs.mkShell {
       openssl
       pkgconfig
       protobuf
+      python3
       whcluster
       whinotify
       whkube
