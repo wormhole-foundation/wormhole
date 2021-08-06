@@ -3,16 +3,30 @@ import { formatUnits } from "ethers/lib/utils";
 import { useEffect, useState } from "react";
 import { TokenImplementation__factory } from "../ethers-contracts";
 
+// TODO: can this be shared with other balances
+export interface Balance {
+  decimals: number;
+  uiAmountString: string;
+}
+
+function createBalance(decimals: number, uiAmountString: string) {
+  return {
+    decimals,
+    uiAmountString,
+  };
+}
+
 function useEthereumBalance(
   address: string | undefined,
+  ownerAddress: string | undefined,
   provider: ethers.providers.Web3Provider | undefined,
   shouldCalculate?: boolean
 ) {
   //TODO: should this check allowance too or subtract allowance?
-  const [balance, setBalance] = useState<string>("");
+  const [balance, setBalance] = useState<Balance>(createBalance(0, ""));
   useEffect(() => {
-    if (!address || !provider || !shouldCalculate) {
-      setBalance("");
+    if (!address || !ownerAddress || !provider || !shouldCalculate) {
+      setBalance(createBalance(0, ""));
       return;
     }
     let cancelled = false;
@@ -20,26 +34,21 @@ function useEthereumBalance(
     token
       .decimals()
       .then((decimals) => {
-        provider
-          ?.getSigner()
-          .getAddress()
-          .then((pk) => {
-            token.balanceOf(pk).then((n) => {
-              if (!cancelled) {
-                setBalance(formatUnits(n, decimals));
-              }
-            });
-          });
+        token.balanceOf(ownerAddress).then((n) => {
+          if (!cancelled) {
+            setBalance(createBalance(decimals, formatUnits(n, decimals)));
+          }
+        });
       })
       .catch(() => {
         if (!cancelled) {
-          setBalance("");
+          setBalance(createBalance(0, ""));
         }
       });
     return () => {
       cancelled = true;
     };
-  }, [address, provider, shouldCalculate]);
+  }, [address, ownerAddress, provider, shouldCalculate]);
   return balance;
 }
 

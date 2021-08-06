@@ -19,14 +19,18 @@ export async function getAttestedAssetEth(
     ETH_TOKEN_BRIDGE_ADDRESS,
     provider
   );
-  // TODO: address conversion may be more complex than this
-  const originAssetBytes = zeroPad(
-    originChain === CHAIN_ID_SOLANA
-      ? new PublicKey(originAsset).toBytes()
-      : arrayify(originAsset),
-    32
-  );
-  return await tokenBridge.wrappedAsset(originChain, originAssetBytes);
+  try {
+    // TODO: address conversion may be more complex than this
+    const originAssetBytes = zeroPad(
+      originChain === CHAIN_ID_SOLANA
+        ? new PublicKey(originAsset).toBytes()
+        : arrayify(originAsset),
+      32
+    );
+    return await tokenBridge.wrappedAsset(originChain, originAssetBytes);
+  } catch (e) {
+    return ethers.constants.AddressZero;
+  }
 }
 
 export async function getAttestedAssetSol(

@@ -40,12 +40,17 @@ function useSolanaBalance(
       setBalance(createBalance(undefined, "", 0, 0, ""));
       return;
     }
+    let mint;
+    try {
+      mint = new PublicKey(tokenAddress);
+    } catch (e) {
+      setBalance(createBalance(undefined, "", 0, 0, ""));
+      return;
+    }
     let cancelled = false;
     const connection = new Connection(SOLANA_HOST, "finalized");
     connection
-      .getParsedTokenAccountsByOwner(ownerAddress, {
-        mint: new PublicKey(tokenAddress),
-      })
+      .getParsedTokenAccountsByOwner(ownerAddress, { mint })
       .then(({ value }) => {
         if (!cancelled) {
           if (value.length) {

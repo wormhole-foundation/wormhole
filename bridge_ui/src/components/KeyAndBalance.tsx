@@ -15,9 +15,10 @@ function KeyAndBalance({
   tokenAddress?: string;
 }) {
   // TODO: more generic way to get balance
-  const provider = useEthereumProvider();
-  const ethBalance = useEthereumBalance(
+  const { provider, signerAddress } = useEthereumProvider();
+  const { uiAmountString: ethBalance } = useEthereumBalance(
     tokenAddress,
+    signerAddress,
     provider,
     chainId === CHAIN_ID_ETH
   );

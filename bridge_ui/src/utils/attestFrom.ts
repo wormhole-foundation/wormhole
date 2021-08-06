@@ -19,16 +19,14 @@ import {
   SOL_TOKEN_BRIDGE_ADDRESS,
 } from "./consts";
 
-// TODO: this should probably be extended from the context somehow so that the signatures match
 // TODO: allow for / handle cancellation?
 // TODO: overall better input checking and error handling
 export function attestFromEth(
   provider: ethers.providers.Web3Provider | undefined,
+  signer: ethers.Signer | undefined,
   tokenAddress: string
 ) {
-  if (!provider) return;
-  const signer = provider.getSigner();
-  if (!signer) return;
+  if (!provider || !signer) return;
   //TODO: more catches
   (async () => {
     const signerAddress = await signer.getAddress();

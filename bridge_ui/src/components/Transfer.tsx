@@ -104,7 +104,14 @@ function Transfer() {
   const handleAmountChange = useCallback((event) => {
     setAmount(event.target.value);
   }, []);
-  const provider = useEthereumProvider();
+  const { provider, signer, signerAddress } = useEthereumProvider();
+  const { decimals: ethDecimals, uiAmountString: ethBalance } =
+    useEthereumBalance(
+      assetAddress,
+      signerAddress,
+      provider,
+      fromChain === CHAIN_ID_ETH
+    );
   const { wallet } = useSolanaWallet();
   const solPK = wallet?.publicKey;
   const {
@@ -125,7 +132,7 @@ function Transfer() {
         fromChain === CHAIN_ID_ETH &&
         attestFrom[fromChain] === attestFromEth
       ) {
-        attestFromEth(provider, assetAddress);
+        attestFromEth(provider, signer, assetAddress);
       }
       if (
         fromChain === CHAIN_ID_SOLANA &&
@@ -134,7 +141,7 @@ function Transfer() {
         attestFromSolana(wallet, solPK?.toString(), assetAddress, solDecimals);
       }
     }
-  }, [fromChain, provider, wallet, solPK, assetAddress, solDecimals]);
+  }, [fromChain, provider, signer, wallet, solPK, assetAddress, solDecimals]);
   // TODO: dynamically get "to" wallet
   const handleTransferClick = useCallback(() => {
     // TODO: more generic way of calling these
@@ -145,7 +152,9 @@ function Transfer() {
       ) {
         transferFromEth(
           provider,
+          signer,
           assetAddress,
+          ethDecimals,
           amount,
           toChain,
           solPK?.toBytes()
@@ -162,7 +171,7 @@ function Transfer() {
           assetAddress,
           amount,
           solDecimals,
-          provider,
+          signerAddress,
           toChain
         );
       }
@@ -170,20 +179,18 @@ function Transfer() {
   }, [
     fromChain,
     provider,
+    signer,
+    signerAddress,
     wallet,
     solPK,
     solTokenPK,
     assetAddress,
     amount,
+    ethDecimals,
     solDecimals,
     toChain,
   ]);
   // update this as we develop, just setting expectations with the button state
-  const ethBalance = useEthereumBalance(
-    assetAddress,
-    provider,
-    fromChain === CHAIN_ID_ETH
-  );
   const balance = Number(ethBalance) || solBalance;
   const isAttestImplemented = !!attestFrom[fromChain];
   const isTransferImplemented = !!transferFrom[fromChain];

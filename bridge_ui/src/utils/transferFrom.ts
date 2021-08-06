@@ -25,24 +25,22 @@ import {
   SOL_TOKEN_BRIDGE_ADDRESS,
 } from "./consts";
 
-// TODO: this should probably be extended from the context somehow so that the signatures match
 // TODO: allow for / handle cancellation?
 // TODO: overall better input checking and error handling
 export function transferFromEth(
   provider: ethers.providers.Web3Provider | undefined,
-  // TODO: specify signer
+  signer: ethers.Signer | undefined,
   tokenAddress: string,
+  decimals: number,
   amount: string,
   recipientChain: ChainId,
   recipientAddress: Uint8Array | undefined
 ) {
-  if (!provider || !recipientAddress) return;
-  const signer = provider.getSigner();
-  if (!signer) return;
+  if (!provider || !signer || !recipientAddress) return;
   //TODO: check if token attestation exists on the target chain
   //TODO: don't hardcode, fetch decimals / share them with balance, how do we determine recipient chain?
   //TODO: more catches
-  const amountParsed = parseUnits(amount, 18);
+  const amountParsed = parseUnits(amount, decimals);
   (async () => {
     const signerAddress = await signer.getAddress();
     console.log("Signer:", signerAddress);
@@ -63,7 +61,7 @@ export function transferFromEth(
     const nonceBuffer = Buffer.alloc(4);
     nonceBuffer.writeUInt32LE(nonceConst, 0);
     console.log("Initiating transfer");
-    console.log("Amount:", formatUnits(amountParsed, 18));
+    console.log("Amount:", formatUnits(amountParsed, decimals));
     console.log("To chain:", recipientChain);
     console.log("To address:", recipientAddress);
     console.log("Fees:", fee);
@@ -108,7 +106,7 @@ export function transferFromSolana(
   mintAddress: string,
   amount: string,
   decimals: number,
-  targetProvider: ethers.providers.Web3Provider | undefined,
+  targetAddressStr: string | undefined,
   targetChain: ChainId
 ) {
   if (
@@ -116,13 +114,10 @@ export function transferFromSolana(
     !wallet.publicKey ||
     !payerAddress ||
     !fromAddress ||
-    !targetProvider
+    !targetAddressStr
   )
     return;
-  const targetSigner = targetProvider.getSigner();
-  if (!targetSigner) return;
   (async () => {
-    const targetAddressStr = await targetSigner.getAddress();
     const targetAddress = zeroPad(arrayify(targetAddressStr), 32);
     const nonceConst = Math.random() * 100000;
     const nonceBuffer = Buffer.alloc(4);
