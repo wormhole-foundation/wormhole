@@ -149,7 +149,7 @@ pub fn post_vaa(ctx: &ExecutionContext, accs: &mut PostVAA, vaa: PostVAAData) ->
     }
 
     // If the VAA originates from another chain we need to create the account and populate all fields
-    if vaa.emitter_chain != CHAIN_ID_SOLANA {
+    if !accs.message.is_initialized() {
         accs.message.nonce = vaa.nonce;
         accs.message.emitter_chain = vaa.emitter_chain;
         accs.message.emitter_address = vaa.emitter_address;
