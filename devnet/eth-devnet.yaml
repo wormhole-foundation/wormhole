@@ -52,7 +52,7 @@ spec:
           command:
             - /bin/sh
             - -c
-            - "npm run migrate && npx truffle exec scripts/deploy_test_token.js && nc -lkp 2000 0.0.0.0"
+            - "npm run migrate && npx truffle exec scripts/deploy_test_token.js && npx truffle exec scripts/register_solana_chain.js && nc -lkp 2000 0.0.0.0"
           readinessProbe:
             periodSeconds: 1
             failureThreshold: 300

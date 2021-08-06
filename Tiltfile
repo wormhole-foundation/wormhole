@@ -117,7 +117,7 @@ k8s_resource(
 docker_build(
     ref = "solana-client",
     context = ".",
-    only = ["./proto", "./solana"],
+    only = ["./proto", "./solana", "./ethereum", "./clients/token_bridge"],
     dockerfile = "Dockerfile.client",
 
     # Ignore target folders from local (non-container) development.

@@ -47,6 +47,7 @@ use solitaire::{
 };
 use std::str::FromStr;
 use wasm_bindgen::prelude::*;
+use crate::accounts::EmitterAccount;
 
 #[wasm_bindgen]
 pub fn attest_ix(
@@ -385,6 +386,14 @@ pub fn register_chain_ix(
     )
     .unwrap();
     return JsValue::from_serde(&ix).unwrap();
+}
+
+#[wasm_bindgen]
+pub fn emitter_address(program_id: String) -> Vec<u8> {
+    let program_id = Pubkey::from_str(program_id.as_str()).unwrap();
+    let emitter = EmitterAccount::key(None, &program_id);
+
+    emitter.to_bytes().to_vec()
 }
 
 #[wasm_bindgen]

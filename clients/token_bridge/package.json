@@ -14,6 +14,7 @@
   },
   "scripts": {
     "start": "tsc && node main.js",
+    "build": "tsc",
     "test": "echo \"Error: no test specified\" && exit 1",
     "build-contracts": "npm run build --prefix ../../ethereum && node scripts/copyContracts.js && typechain --target=ethers-v5 --out-dir=src/ethers-contracts contracts/*.json"
   },

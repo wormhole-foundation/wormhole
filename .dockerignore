@@ -3,3 +3,4 @@ bin
 solana/bridge/target
 solana/solitaire/target
 solana/modules/token_bridge/target
+node_modules
