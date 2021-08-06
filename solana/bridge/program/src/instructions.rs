@@ -7,7 +7,6 @@ use solana_program::{
     pubkey::Pubkey,
     sysvar,
 };
-use std::str::FromStr;
 
 use byteorder::{
     BigEndian,
@@ -246,8 +245,6 @@ pub fn upgrade_contract(
         &solana_program::bpf_loader_upgradeable::id(),
     );
 
-    let own_address = Pubkey::from_str("Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o").unwrap();
-
     Instruction {
         program_id,
 
@@ -260,7 +257,7 @@ pub fn upgrade_contract(
             AccountMeta::new(spill, false),
             AccountMeta::new(new_contract, false),
             AccountMeta::new(program_data, false),
-            AccountMeta::new(own_address, false),
+            AccountMeta::new(program_id, false),
             AccountMeta::new_readonly(sysvar::rent::id(), false),
             AccountMeta::new_readonly(sysvar::clock::id(), false),
             AccountMeta::new_readonly(solana_program::bpf_loader_upgradeable::id(), false),

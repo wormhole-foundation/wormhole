@@ -41,7 +41,6 @@ use std::{
         Deref,
         DerefMut,
     },
-    str::FromStr,
 };
 
 #[derive(Default, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
@@ -199,9 +198,7 @@ pub struct PostedMessageData {
 
 impl Owned for PostedMessage {
     fn owner(&self) -> AccountOwner {
-        AccountOwner::Other(
-            Pubkey::from_str("Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o").unwrap(),
-        )
+        AccountOwner::This
     }
 }
 
