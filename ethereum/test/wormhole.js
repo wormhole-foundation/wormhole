@@ -58,7 +58,7 @@ contract("Wormhole", function () {
     const testSigner2 = web3.eth.accounts.privateKeyToAccount(testSigner2PK);
     const testSigner3 = web3.eth.accounts.privateKeyToAccount(testSigner3PK);
     const testChainId = "2";
-    const testGovernanceChainId = "3";
+    const testGovernanceChainId = "1";
     const testGovernanceContract = "0x0000000000000000000000000000000000000000000000000000000000000004";
 
     it("should be initialized with the correct signers and values", async function () {

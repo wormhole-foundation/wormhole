@@ -17,4 +17,5 @@ set -euo pipefail
     -e EMITTER_ADDRESS=11111111111111111111111111111115 \
     localhost/certusone/wormhole-wasmpack:latest \
     /usr/local/cargo/bin/wasm-pack build --target nodejs -- --features wasm
+  cp $(pwd)/../bridge_ui/rust_modules/. $(pwd)/../clients/token_bridge/pkg -R
 )

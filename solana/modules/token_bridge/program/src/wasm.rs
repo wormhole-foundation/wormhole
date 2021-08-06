@@ -309,11 +309,13 @@ pub fn create_wrapped_ix(
 #[wasm_bindgen]
 pub fn upgrade_contract_ix(
     program_id: String,
+    bridge_id: String,
     payer: String,
     spill: String,
     vaa: Vec<u8>,
 ) -> JsValue {
     let program_id = Pubkey::from_str(program_id.as_str()).unwrap();
+    let bridge_id = Pubkey::from_str(bridge_id.as_str()).unwrap();
     let spill = Pubkey::from_str(spill.as_str()).unwrap();
     let vaa = VAA::deserialize(vaa.as_slice()).unwrap();
     let payload = GovernancePayloadUpgrade::deserialize(&mut vaa.payload.as_slice()).unwrap();
@@ -325,7 +327,7 @@ pub fn upgrade_contract_ix(
             payload: vaa.payload,
             sequence: None,
         },
-        &program_id,
+        &bridge_id,
     );
     let ix = upgrade_contract(
         program_id,
@@ -359,7 +361,7 @@ pub fn register_chain_ix(
             payload: vaa.payload.clone(),
             sequence: None,
         },
-        &program_id,
+        &bridge_id,
     );
     let post_vaa_data = PostVAAData {
         version: vaa.version,
