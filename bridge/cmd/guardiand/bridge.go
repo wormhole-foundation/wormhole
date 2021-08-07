@@ -3,14 +3,15 @@ package guardiand
 import (
 	"context"
 	"fmt"
-	"github.com/certusone/wormhole/bridge/pkg/db"
-	"github.com/gagliardetto/solana-go/rpc"
 	"log"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"path"
 	"syscall"
+
+	"github.com/certusone/wormhole/bridge/pkg/db"
+	"github.com/gagliardetto/solana-go/rpc"
 
 	solana_types "github.com/gagliardetto/solana-go"
 	"github.com/gorilla/mux"
@@ -94,7 +95,7 @@ func init() {
 	p2pPort = BridgeCmd.Flags().Uint("port", 8999, "P2P UDP listener port")
 	p2pBootstrap = BridgeCmd.Flags().String("bootstrap", "", "P2P bootstrap peers (comma-separated)")
 
-	statusAddr = BridgeCmd.Flags().String("statusAddr", "Listen address for status server (disabled if blank)", "[::1]:6060")
+	statusAddr = BridgeCmd.Flags().String("statusAddr", "[::]:6060", "Listen address for status server (disabled if blank)")
 
 	nodeKeyPath = BridgeCmd.Flags().String("nodeKey", "", "Path to node key (will be generated if it doesn't exist)")
 
