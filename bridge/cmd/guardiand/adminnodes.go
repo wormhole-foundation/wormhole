@@ -14,13 +14,13 @@ import (
 // How to test in container:
 //    kubectl exec guardian-0 -- /guardiand admin list-nodes --socket /tmp/admin.sock
 
-var AdminClientListNodes = &cobra.Command{
-	Use:   "list-nodes",
-	Short: "Listens to heartbeats and displays an aggregated list of nodes (UNTRUSTED)",
-	Run:   runListNodes,
+var AdminClientListNodesStream = &cobra.Command{
+	Use:   "list-nodes-stream",
+	Short: "Listens to heartbeats and displays an aggregated real-time list of guardian nodes",
+	Run:   runListNodesStream,
 }
 
-func runListNodes(cmd *cobra.Command, args []string) {
+func runListNodesStream(cmd *cobra.Command, args []string) {
 	ctx := context.Background()
 	conn, err, c := getPublicrpcClient(ctx, *clientSocketPath)
 	defer conn.Close()

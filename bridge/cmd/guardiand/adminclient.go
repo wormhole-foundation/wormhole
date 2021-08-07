@@ -25,7 +25,7 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
-	pf = AdminClientListNodes.Flags()
+	pf = AdminClientListNodesStream.Flags()
 	clientSocketPath = pf.String("socket", "", "gRPC admin server socket to connect to")
 	err = cobra.MarkFlagRequired(pf, "socket")
 	if err != nil {
@@ -34,7 +34,7 @@ func init() {
 
 	AdminCmd.AddCommand(AdminClientInjectGuardianSetUpdateCmd)
 	AdminCmd.AddCommand(AdminClientGovernanceVAAVerifyCmd)
-	AdminCmd.AddCommand(AdminClientListNodes)
+	AdminCmd.AddCommand(AdminClientListNodesStream)
 }
 
 var AdminCmd = &cobra.Command{
