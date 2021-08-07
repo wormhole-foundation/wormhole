@@ -3,6 +3,7 @@ package common
 import (
 	gossipv1 "github.com/certusone/wormhole/bridge/pkg/proto/gossip/v1"
 	"github.com/ethereum/go-ethereum/common"
+	"google.golang.org/protobuf/proto"
 	"sync"
 )
 
@@ -86,4 +87,19 @@ func (st *GuardianSetState) SetHeartBeat(addr common.Address, hb *gossipv1.Heart
 	st.mu.Lock()
 	defer st.mu.Unlock()
 	st.lastHeartbeat[addr] = hb
+}
+
+// GetAll returns all stored heartbeats.
+func (st *GuardianSetState) GetAll() map[common.Address]*gossipv1.Heartbeat {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+
+	ret := make(map[common.Address]*gossipv1.Heartbeat)
+
+	// Deep copy
+	for k, v := range st.lastHeartbeat {
+		ret[k] = proto.Clone(v).(*gossipv1.Heartbeat)
+	}
+
+	return ret
 }
