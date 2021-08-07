@@ -47,8 +47,16 @@ func (s *PublicrpcServer) GetLastHeartbeats(ctx context.Context, req *publicrpcv
 		RawHeartbeats: make(map[string]*gossipv1.Heartbeat),
 	}
 
+	// Request heartbeat for every guardian set entry. This ensures that
+	// offline guardians will be listed with a null heartbeat.
 	for _, addr := range gs.Keys {
 		hb := s.gst.LastHeartbeat(addr)
+		resp.RawHeartbeats[addr.Hex()] = hb
+	}
+
+	// Fetch all heartbeats (including from nodes not in the guardian set - which
+	// can happen either with --disableHeartbeatVerify or when the guardian set changes)
+	for addr, hb := range s.gst.GetAll() {
 		resp.RawHeartbeats[addr.Hex()] = hb
 	}
 

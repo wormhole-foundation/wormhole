@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	publicrpcv1 "github.com/certusone/wormhole/bridge/pkg/proto/publicrpc/v1"
+	"github.com/spf13/pflag"
 	"io/ioutil"
 	"log"
 	"time"
@@ -16,25 +17,27 @@ import (
 	nodev1 "github.com/certusone/wormhole/bridge/pkg/proto/node/v1"
 )
 
-var clientSocketPath *string
+var (
+	clientSocketPath *string
+)
 
 func init() {
-	pf := AdminClientInjectGuardianSetUpdateCmd.Flags()
+	// Shared flags for all admin commands
+	pf := pflag.NewFlagSet("commonAdminFlags", pflag.ContinueOnError)
 	clientSocketPath = pf.String("socket", "", "gRPC admin server socket to connect to")
 	err := cobra.MarkFlagRequired(pf, "socket")
 	if err != nil {
 		panic(err)
 	}
-	pf = AdminClientListNodesStream.Flags()
-	clientSocketPath = pf.String("socket", "", "gRPC admin server socket to connect to")
-	err = cobra.MarkFlagRequired(pf, "socket")
-	if err != nil {
-		panic(err)
-	}
+
+	AdminClientInjectGuardianSetUpdateCmd.Flags().AddFlagSet(pf)
+	AdminClientListNodesStream.Flags().AddFlagSet(pf)
+	AdminClientListNodes.Flags().AddFlagSet(pf)
 
 	AdminCmd.AddCommand(AdminClientInjectGuardianSetUpdateCmd)
 	AdminCmd.AddCommand(AdminClientGovernanceVAAVerifyCmd)
 	AdminCmd.AddCommand(AdminClientListNodesStream)
+	AdminCmd.AddCommand(AdminClientListNodes)
 }
 
 var AdminCmd = &cobra.Command{
