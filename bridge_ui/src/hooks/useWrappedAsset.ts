@@ -41,13 +41,24 @@ function useWrappedAsset(
         }
       } else if (checkChain === CHAIN_ID_SOLANA) {
         setState({ isLoading: true, isWrapped: false, wrappedAsset: null });
-        const asset = await getAttestedAssetSol(originChain, originAsset);
-        if (!cancelled) {
-          setState({
-            isLoading: false,
-            isWrapped: !!asset,
-            wrappedAsset: asset,
-          });
+        try {
+          const asset = await getAttestedAssetSol(originChain, originAsset);
+          if (!cancelled) {
+            setState({
+              isLoading: false,
+              isWrapped: !!asset,
+              wrappedAsset: asset,
+            });
+          }
+        } catch (e) {
+          if (!cancelled) {
+            // TODO: warning for this
+            setState({
+              isLoading: false,
+              isWrapped: false,
+              wrappedAsset: null,
+            });
+          }
         }
       } else {
         setState({ isLoading: false, isWrapped: false, wrappedAsset: null });

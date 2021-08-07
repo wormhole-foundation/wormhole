@@ -1,4 +1,4 @@
-import { AppBar, Link, makeStyles, Toolbar } from "@material-ui/core";
+import { AppBar, makeStyles, Toolbar } from "@material-ui/core";
 import Transfer from "./components/Transfer";
 import wormholeLogo from "./icons/wormhole.svg";
 
@@ -6,8 +6,8 @@ const useStyles = makeStyles((theme) => ({
   appBar: {
     borderBottom: `.5px solid ${theme.palette.divider}`,
     "& > .MuiToolbar-root": {
-      height: 82,
       margin: "auto",
+      width: "100%",
       maxWidth: 1100,
     },
   },
@@ -19,18 +19,13 @@ const useStyles = makeStyles((theme) => ({
     color: theme.palette.text.primary,
     marginLeft: theme.spacing(6),
   },
-  sideBar: {
-    position: "fixed",
-    top: 0,
-    left: 0,
-    height: 733,
-    maxHeight: "80vh",
-    width: 50,
-    borderRight: `.5px solid ${theme.palette.divider}`,
-    borderBottom: `.5px solid ${theme.palette.divider}`,
-  },
   content: {
-    margin: theme.spacing(10.5, 8),
+    [theme.breakpoints.up("sm")]: {
+      margin: theme.spacing(2, 0),
+    },
+    [theme.breakpoints.up("md")]: {
+      margin: theme.spacing(4, 0),
+    },
   },
 }));
 
@@ -42,12 +37,8 @@ function App() {
         <Toolbar>
           <img src={wormholeLogo} alt="Wormhole Logo" />
           <div className={classes.spacer} />
-          <Link className={classes.link}>Placeholder</Link>
-          <Link className={classes.link}>Placeholder</Link>
-          <Link className={classes.link}>Placeholder</Link>
         </Toolbar>
       </AppBar>
-      <div className={classes.sideBar}></div>
       <div className={classes.content}>
         <Transfer />
       </div>

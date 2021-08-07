@@ -1,40 +1,18 @@
-import { Button, Tooltip, Typography } from "@material-ui/core";
+import { Typography } from "@material-ui/core";
 import { useEthereumProvider } from "../contexts/EthereumProviderContext";
+import ToggleConnectedButton from "./ToggleConnectedButton";
 
 const EthereumSignerKey = () => {
   const { connect, disconnect, signerAddress, providerError } =
     useEthereumProvider();
   return (
     <>
-      {signerAddress ? (
-        <>
-          <Tooltip title={signerAddress}>
-            <Typography>
-              {signerAddress.substring(0, 6)}...
-              {signerAddress.substr(signerAddress.length - 4)}
-            </Typography>
-          </Tooltip>
-          <Button
-            color="secondary"
-            variant="contained"
-            size="small"
-            onClick={disconnect}
-            style={{ width: "100%", textTransform: "none" }}
-          >
-            Disconnect
-          </Button>
-        </>
-      ) : (
-        <Button
-          color="primary"
-          variant="contained"
-          size="small"
-          onClick={connect}
-          style={{ width: "100%", textTransform: "none" }}
-        >
-          Connect
-        </Button>
-      )}
+      <ToggleConnectedButton
+        connect={connect}
+        disconnect={disconnect}
+        connected={!!signerAddress}
+        pk={signerAddress || ""}
+      />
       {providerError ? (
         <Typography variant="body2" color="error">
           {providerError}

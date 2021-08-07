@@ -1,24 +1,41 @@
 import {
   Button,
   CircularProgress,
-  Grid,
+  Container,
   makeStyles,
   MenuItem,
+  Step,
+  StepButton,
+  StepContent,
+  Stepper,
   TextField,
   Typography,
 } from "@material-ui/core";
 import { useCallback, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import { useEthereumProvider } from "../contexts/EthereumProviderContext";
 import { useSolanaWallet } from "../contexts/SolanaWalletContext";
 import useEthereumBalance from "../hooks/useEthereumBalance";
 import useSolanaBalance from "../hooks/useSolanaBalance";
 import useWrappedAsset from "../hooks/useWrappedAsset";
+import {
+  selectActiveStep,
+  selectSignedVAA,
+  selectSourceChain,
+  selectTargetChain,
+} from "../store/selectors";
+import {
+  incrementStep,
+  setSignedVAA,
+  setSourceChain,
+  setStep,
+  setTargetChain,
+} from "../store/transferSlice";
 import attestFrom, {
   attestFromEth,
   attestFromSolana,
 } from "../utils/attestFrom";
 import {
-  ChainId,
   CHAINS,
   CHAINS_BY_ID,
   CHAIN_ID_ETH,
@@ -26,6 +43,7 @@ import {
   ETH_TEST_TOKEN_ADDRESS,
   SOL_TEST_TOKEN_ADDRESS,
 } from "../utils/consts";
+import redeemOn, { redeemOnEth } from "../utils/redeemOn";
 import transferFrom, {
   transferFromEth,
   transferFromSolana,
@@ -48,7 +66,7 @@ const useStyles = makeStyles((theme) => ({
     marginTop: theme.spacing(5),
   },
   transferButton: {
-    marginTop: theme.spacing(7.5),
+    marginTop: theme.spacing(2),
     textTransform: "none",
     width: "100%",
   },
@@ -61,14 +79,15 @@ const useStyles = makeStyles((theme) => ({
 
 function Transfer() {
   const classes = useStyles();
-  //TODO: don't attempt to connect to any wallets until the user clicks a connect button
-  const [fromChain, setFromChain] = useState<ChainId>(CHAIN_ID_ETH);
-  const [toChain, setToChain] = useState<ChainId>(CHAIN_ID_SOLANA);
-  const [assetAddress, setAssetAddress] = useState(ETH_TEST_TOKEN_ADDRESS);
+  const dispatch = useDispatch();
+  const activeStep = useSelector(selectActiveStep);
+  const fromChain = useSelector(selectSourceChain);
+  const toChain = useSelector(selectTargetChain);
+  const [assetAddress, setAssetAddress] = useState(SOL_TEST_TOKEN_ADDRESS);
   const [amount, setAmount] = useState("");
   const handleFromChange = useCallback(
     (event) => {
-      setFromChain(event.target.value);
+      dispatch(setSourceChain(event.target.value));
       // TODO: remove or check env - for testing purposes
       if (event.target.value === CHAIN_ID_ETH) {
         setAssetAddress(ETH_TEST_TOKEN_ADDRESS);
@@ -77,16 +96,16 @@ function Transfer() {
         setAssetAddress(SOL_TEST_TOKEN_ADDRESS);
       }
       if (toChain === event.target.value) {
-        setToChain(fromChain);
+        dispatch(setTargetChain(fromChain));
       }
     },
-    [fromChain, toChain]
+    [dispatch, fromChain, toChain]
   );
   const handleToChange = useCallback(
     (event) => {
-      setToChain(event.target.value);
+      dispatch(setTargetChain(event.target.value));
       if (fromChain === event.target.value) {
-        setFromChain(toChain);
+        dispatch(setSourceChain(toChain));
         // TODO: remove or check env - for testing purposes
         if (toChain === CHAIN_ID_ETH) {
           setAssetAddress(ETH_TEST_TOKEN_ADDRESS);
@@ -96,7 +115,7 @@ function Transfer() {
         }
       }
     },
-    [fromChain, toChain]
+    [dispatch, fromChain, toChain]
   );
   const handleAssetChange = useCallback((event) => {
     setAssetAddress(event.target.value);
@@ -121,9 +140,10 @@ function Transfer() {
   } = useSolanaBalance(assetAddress, solPK, fromChain === CHAIN_ID_SOLANA);
   const {
     isLoading: isCheckingWrapped,
-    isWrapped,
+    // isWrapped,
     wrappedAsset,
   } = useWrappedAsset(toChain, fromChain, assetAddress, provider);
+  const isWrapped = true;
   console.log(isCheckingWrapped, isWrapped, wrappedAsset);
   const handleAttestClick = useCallback(() => {
     // TODO: more generic way of calling these
@@ -132,13 +152,26 @@ function Transfer() {
         fromChain === CHAIN_ID_ETH &&
         attestFrom[fromChain] === attestFromEth
       ) {
-        attestFromEth(provider, signer, assetAddress);
+        //TODO: just for testing, this should eventually use the store to communicate between steps
+        (async () => {
+          const vaaBytes = await attestFromEth(provider, signer, assetAddress);
+          console.log("bytes in transfer", vaaBytes);
+        })();
       }
       if (
         fromChain === CHAIN_ID_SOLANA &&
         attestFrom[fromChain] === attestFromSolana
       ) {
-        attestFromSolana(wallet, solPK?.toString(), assetAddress, solDecimals);
+        //TODO: just for testing, this should eventually use the store to communicate between steps
+        (async () => {
+          const vaaBytes = await attestFromSolana(
+            wallet,
+            solPK?.toString(),
+            assetAddress,
+            solDecimals
+          );
+          console.log("bytes in transfer", vaaBytes);
+        })();
       }
     }
   }, [fromChain, provider, signer, wallet, solPK, assetAddress, solDecimals]);
@@ -150,33 +183,44 @@ function Transfer() {
         fromChain === CHAIN_ID_ETH &&
         transferFrom[fromChain] === transferFromEth
       ) {
-        transferFromEth(
-          provider,
-          signer,
-          assetAddress,
-          ethDecimals,
-          amount,
-          toChain,
-          solPK?.toBytes()
-        );
+        //TODO: just for testing, this should eventually use the store to communicate between steps
+        (async () => {
+          const vaaBytes = await transferFromEth(
+            provider,
+            signer,
+            assetAddress,
+            ethDecimals,
+            amount,
+            toChain,
+            solPK?.toBytes()
+          );
+          console.log("bytes in transfer", vaaBytes);
+          vaaBytes && dispatch(setSignedVAA(vaaBytes));
+        })();
       }
       if (
         fromChain === CHAIN_ID_SOLANA &&
         transferFrom[fromChain] === transferFromSolana
       ) {
-        transferFromSolana(
-          wallet,
-          solPK?.toString(),
-          solTokenPK?.toString(),
-          assetAddress,
-          amount,
-          solDecimals,
-          signerAddress,
-          toChain
-        );
+        //TODO: just for testing, this should eventually use the store to communicate between steps
+        (async () => {
+          const vaaBytes = await transferFromSolana(
+            wallet,
+            solPK?.toString(),
+            solTokenPK?.toString(),
+            assetAddress,
+            amount,
+            solDecimals,
+            signerAddress,
+            toChain
+          );
+          console.log("bytes in transfer", vaaBytes);
+          vaaBytes && dispatch(setSignedVAA(vaaBytes));
+        })();
       }
     }
   }, [
+    dispatch,
     fromChain,
     provider,
     signer,
@@ -190,6 +234,16 @@ function Transfer() {
     solDecimals,
     toChain,
   ]);
+  const signedVAA = useSelector(selectSignedVAA);
+  const handleRedeemClick = useCallback(() => {
+    if (
+      toChain === CHAIN_ID_ETH &&
+      redeemOn[toChain] === redeemOnEth &&
+      signedVAA
+    ) {
+      redeemOnEth(provider, signer, signedVAA);
+    }
+  }, [toChain, provider, signer, signedVAA]);
   // update this as we develop, just setting expectations with the button state
   const balance = Number(ethBalance) || solBalance;
   const isAttestImplemented = !!attestFrom[fromChain];
@@ -211,134 +265,186 @@ function Transfer() {
     isAddressDefined &&
     isAmountPositive &&
     isBalanceAtLeastAmount;
+  const handleNextClick = useCallback(() => {
+    dispatch(incrementStep());
+  }, [dispatch]);
   return (
-    <div className={classes.transferBox}>
-      <Grid container>
-        <Grid item xs={4}>
-          <Typography>From</Typography>
-          <TextField
-            select
-            fullWidth
-            value={fromChain}
-            onChange={handleFromChange}
+    <Container maxWidth="md">
+      <Stepper activeStep={activeStep} orientation="vertical">
+        <Step>
+          <StepButton onClick={() => dispatch(setStep(0))}>
+            Select a source
+          </StepButton>
+          <StepContent>
+            <TextField
+              select
+              fullWidth
+              value={fromChain}
+              onChange={handleFromChange}
+            >
+              {CHAINS.map(({ id, name }) => (
+                <MenuItem key={id} value={id}>
+                  {name}
+                </MenuItem>
+              ))}
+            </TextField>
+            <KeyAndBalance chainId={fromChain} tokenAddress={assetAddress} />
+            <TextField
+              placeholder="Asset"
+              fullWidth
+              className={classes.transferField}
+              value={assetAddress}
+              onChange={handleAssetChange}
+            />
+            <TextField
+              placeholder="Amount"
+              type="number"
+              fullWidth
+              className={classes.transferField}
+              value={amount}
+              onChange={handleAmountChange}
+            />
+            <Button
+              onClick={handleNextClick}
+              variant="contained"
+              color="primary"
+            >
+              Next
+            </Button>
+          </StepContent>
+        </Step>
+        <Step>
+          <StepButton onClick={() => dispatch(setStep(1))}>
+            Select a target
+          </StepButton>
+          <StepContent>
+            <TextField
+              select
+              fullWidth
+              value={toChain}
+              onChange={handleToChange}
+            >
+              {CHAINS.map(({ id, name }) => (
+                <MenuItem key={id} value={id}>
+                  {name}
+                </MenuItem>
+              ))}
+            </TextField>
+            {/* TODO: determine "to" token address */}
+            <KeyAndBalance chainId={toChain} />
+            <Button
+              onClick={handleNextClick}
+              variant="contained"
+              color="primary"
+            >
+              Next
+            </Button>
+          </StepContent>
+        </Step>
+        <Step>
+          <StepButton onClick={() => dispatch(setStep(2))}>
+            Send tokens
+          </StepButton>
+          <StepContent>
+            {isWrapped ? (
+              <>
+                <Button
+                  color="primary"
+                  variant="contained"
+                  className={classes.transferButton}
+                  onClick={handleTransferClick}
+                  disabled={!canAttemptTransfer}
+                >
+                  Transfer
+                </Button>
+                {canAttemptTransfer ? null : (
+                  <Typography variant="body2" color="error">
+                    {!isTransferImplemented
+                      ? `Transfer is not yet implemented for ${CHAINS_BY_ID[fromChain].name}`
+                      : !isProviderConnected
+                      ? "The source wallet is not connected"
+                      : !isRecipientAvailable
+                      ? "The receiving wallet is not connected"
+                      : !isAddressDefined
+                      ? "Please provide an asset address"
+                      : !isAmountPositive
+                      ? "The amount must be positive"
+                      : !isBalanceAtLeastAmount
+                      ? "The amount may not be greater than the balance"
+                      : ""}
+                  </Typography>
+                )}
+              </>
+            ) : (
+              <>
+                <div style={{ position: "relative" }}>
+                  <Button
+                    color="primary"
+                    variant="contained"
+                    disabled={isCheckingWrapped || !canAttemptAttest}
+                    onClick={handleAttestClick}
+                    className={classes.transferButton}
+                  >
+                    Attest
+                  </Button>
+                  {isCheckingWrapped ? (
+                    <CircularProgress
+                      size={24}
+                      color="inherit"
+                      style={{
+                        position: "absolute",
+                        bottom: 0,
+                        left: "50%",
+                        marginLeft: -12,
+                        marginBottom: 6,
+                      }}
+                    />
+                  ) : null}
+                </div>
+                {isCheckingWrapped ? null : canAttemptAttest ? (
+                  <Typography variant="body2">
+                    <br />
+                    This token does not exist on {CHAINS_BY_ID[toChain].name}.
+                    Someone must attest the the token to the target chain before
+                    it can be transferred.
+                  </Typography>
+                ) : (
+                  <Typography variant="body2" color="error">
+                    {!isAttestImplemented
+                      ? `Transfer is not yet implemented for ${CHAINS_BY_ID[fromChain].name}`
+                      : !isProviderConnected
+                      ? "The source wallet is not connected"
+                      : !isRecipientAvailable
+                      ? "The receiving wallet is not connected"
+                      : !isAddressDefined
+                      ? "Please provide an asset address"
+                      : ""}
+                  </Typography>
+                )}
+              </>
+            )}
+          </StepContent>
+        </Step>
+        <Step>
+          <StepButton
+            onClick={() => dispatch(setStep(3))}
+            disabled={!signedVAA}
           >
-            {CHAINS.map(({ id, name }) => (
-              <MenuItem key={id} value={id}>
-                {name}
-              </MenuItem>
-            ))}
-          </TextField>
-          <KeyAndBalance chainId={fromChain} tokenAddress={assetAddress} />
-        </Grid>
-        <Grid item xs={4} className={classes.arrow}>
-          &rarr;
-        </Grid>
-        <Grid item xs={4}>
-          <Typography>To</Typography>
-          <TextField select fullWidth value={toChain} onChange={handleToChange}>
-            {CHAINS.map(({ id, name }) => (
-              <MenuItem key={id} value={id}>
-                {name}
-              </MenuItem>
-            ))}
-          </TextField>
-          {/* TODO: determine "to" token address */}
-          <KeyAndBalance chainId={toChain} />
-        </Grid>
-      </Grid>
-      <TextField
-        placeholder="Asset"
-        fullWidth
-        className={classes.transferField}
-        value={assetAddress}
-        onChange={handleAssetChange}
-      />
-      {isWrapped ? (
-        <>
-          <TextField
-            placeholder="Amount"
-            type="number"
-            fullWidth
-            className={classes.transferField}
-            value={amount}
-            onChange={handleAmountChange}
-          />
-          <Button
-            color="primary"
-            variant="contained"
-            className={classes.transferButton}
-            onClick={handleTransferClick}
-            disabled={!canAttemptTransfer}
-          >
-            Transfer
-          </Button>
-          {canAttemptTransfer ? null : (
-            <Typography variant="body2" color="error">
-              {!isTransferImplemented
-                ? `Transfer is not yet implemented for ${CHAINS_BY_ID[fromChain].name}`
-                : !isProviderConnected
-                ? "The source wallet is not connected"
-                : !isRecipientAvailable
-                ? "The receiving wallet is not connected"
-                : !isAddressDefined
-                ? "Please provide an asset address"
-                : !isAmountPositive
-                ? "The amount must be positive"
-                : !isBalanceAtLeastAmount
-                ? "The amount may not be greater than the balance"
-                : ""}
-            </Typography>
-          )}
-        </>
-      ) : (
-        <>
-          <div style={{ position: "relative" }}>
+            Redeem tokens
+          </StepButton>
+          <StepContent>
             <Button
               color="primary"
               variant="contained"
-              disabled={isCheckingWrapped || !canAttemptAttest}
-              onClick={handleAttestClick}
               className={classes.transferButton}
+              onClick={handleRedeemClick}
             >
-              Attest
+              Redeem
             </Button>
-            {isCheckingWrapped ? (
-              <CircularProgress
-                size={24}
-                color="inherit"
-                style={{
-                  position: "absolute",
-                  bottom: 0,
-                  left: "50%",
-                  marginLeft: -12,
-                  marginBottom: 6,
-                }}
-              />
-            ) : null}
-          </div>
-          {isCheckingWrapped ? null : canAttemptAttest ? (
-            <Typography variant="body2">
-              <br />
-              This token does not exist on {CHAINS_BY_ID[toChain].name}. Someone
-              must attest the the token to the target chain before it can be
-              transferred.
-            </Typography>
-          ) : (
-            <Typography variant="body2" color="error">
-              {!isAttestImplemented
-                ? `Transfer is not yet implemented for ${CHAINS_BY_ID[fromChain].name}`
-                : !isProviderConnected
-                ? "The source wallet is not connected"
-                : !isRecipientAvailable
-                ? "The receiving wallet is not connected"
-                : !isAddressDefined
-                ? "Please provide an asset address"
-                : ""}
-            </Typography>
-          )}
-        </>
-      )}
-    </div>
+          </StepContent>
+        </Step>
+      </Stepper>
+    </Container>
   );
 }
 
