@@ -201,7 +201,9 @@ func Run(obsvC chan *gossipv1.SignedObservation, sendC chan []byte, rawHeartbeat
 						GuardianAddr: DefaultRegistry.guardianAddress,
 					}
 
+					ourAddr := ethcrypto.PubkeyToAddress(gk.PublicKey)
 					rawHeartbeatListeners.PublishHeartbeat(heartbeat)
+					gst.SetHeartBeat(ourAddr, heartbeat)
 
 					b, err := proto.Marshal(heartbeat)
 					if err != nil {
@@ -221,7 +223,7 @@ func Run(obsvC chan *gossipv1.SignedObservation, sendC chan []byte, rawHeartbeat
 						SignedHeartbeat: &gossipv1.SignedHeartbeat{
 							Heartbeat:    b,
 							Signature:    sig,
-							GuardianAddr: ethcrypto.PubkeyToAddress(gk.PublicKey).Bytes(),
+							GuardianAddr: ourAddr.Bytes(),
 						}}}
 
 					b, err = proto.Marshal(&msg)
