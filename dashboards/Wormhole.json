@@ -52,7 +52,7 @@
   "gnetId": null,
   "graphTooltip": 1,
   "id": null,
-  "iteration": 1612457186185,
+  "iteration": 1628433032700,
   "links": [],
   "panels": [
     {
@@ -71,7 +71,7 @@
       "fillGradient": 0,
       "gridPos": {
         "h": 8,
-        "w": 8,
+        "w": 6,
         "x": 0,
         "y": 0
       },
@@ -103,7 +103,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "rate(wormhole_eth_current_height{instance=~\"$instance\"}[$__rate_interval])",
+          "expr": "rate(wormhole_eth_current_height{instance=~\"$instance\", eth_network=\"eth\"}[$__rate_interval])",
           "instant": false,
           "interval": "",
           "legendFormat": "",
@@ -170,8 +170,8 @@
       "fillGradient": 0,
       "gridPos": {
         "h": 8,
-        "w": 8,
-        "x": 8,
+        "w": 6,
+        "x": 6,
         "y": 0
       },
       "hiddenSeries": false,
@@ -268,8 +268,8 @@
       "fillGradient": 0,
       "gridPos": {
         "h": 8,
-        "w": 8,
-        "x": 16,
+        "w": 6,
+        "x": 12,
         "y": 0
       },
       "hiddenSeries": false,
@@ -365,10 +365,505 @@
       "fill": 1,
       "fillGradient": 0,
       "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 18,
+        "y": 0
+      },
+      "hiddenSeries": false,
+      "id": 25,
+      "legend": {
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "show": true,
+        "total": false,
+        "values": false
+      },
+      "lines": true,
+      "linewidth": 1,
+      "nullPointMode": "null",
+      "options": {
+        "alertThreshold": true
+      },
+      "percentage": false,
+      "pluginVersion": "7.3.6",
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "expr": "rate(wormhole_eth_current_height{instance=~\"$instance\", eth_network=\"bsc\"}[$__rate_interval])",
+          "instant": false,
+          "interval": "",
+          "legendFormat": "",
+          "queryType": "randomWalk",
+          "refId": "A"
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "BSC Blocks/s",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "$$hashKey": "object:153",
+          "format": "short",
+          "label": null,
+          "logBase": 2,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "$$hashKey": "object:154",
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "${DS_MAIN_PROMETHEUS}",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {}
+        },
+        "overrides": []
+      },
+      "fill": 0,
+      "fillGradient": 0,
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 0,
+        "y": 8
+      },
+      "hiddenSeries": false,
+      "id": 21,
+      "legend": {
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "show": true,
+        "total": false,
+        "values": false
+      },
+      "lines": true,
+      "linewidth": 1,
+      "nullPointMode": "null",
+      "options": {
+        "alertThreshold": true
+      },
+      "percentage": false,
+      "pluginVersion": "7.3.6",
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "expr": "wormhole_network_node_height{instance=~\"$instance\", network=\"ethereum\"} > 0",
+          "instant": false,
+          "interval": "",
+          "legendFormat": "{{ node_name }}",
+          "queryType": "randomWalk",
+          "refId": "A"
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "Network ETH Height",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "$$hashKey": "object:153",
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "$$hashKey": "object:154",
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": false
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "${DS_MAIN_PROMETHEUS}",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {}
+        },
+        "overrides": []
+      },
+      "fill": 0,
+      "fillGradient": 0,
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 6,
+        "y": 8
+      },
+      "hiddenSeries": false,
+      "id": 22,
+      "legend": {
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "show": true,
+        "total": false,
+        "values": false
+      },
+      "lines": true,
+      "linewidth": 1,
+      "nullPointMode": "null",
+      "options": {
+        "alertThreshold": true
+      },
+      "percentage": false,
+      "pluginVersion": "7.3.6",
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "expr": "wormhole_network_node_height{instance=~\"$instance\", network=\"solana\"} > 0",
+          "instant": false,
+          "interval": "",
+          "legendFormat": "{{ node_name }}",
+          "queryType": "randomWalk",
+          "refId": "A"
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "Network Solana Height",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "$$hashKey": "object:153",
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "$$hashKey": "object:154",
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": false
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "${DS_MAIN_PROMETHEUS}",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {}
+        },
+        "overrides": []
+      },
+      "fill": 0,
+      "fillGradient": 0,
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 12,
+        "y": 8
+      },
+      "hiddenSeries": false,
+      "id": 23,
+      "legend": {
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "show": true,
+        "total": false,
+        "values": false
+      },
+      "lines": true,
+      "linewidth": 1,
+      "nullPointMode": "null",
+      "options": {
+        "alertThreshold": true
+      },
+      "percentage": false,
+      "pluginVersion": "7.3.6",
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "expr": "wormhole_network_node_height{instance=~\"$instance\", network=\"terra\"} > 0",
+          "instant": false,
+          "interval": "",
+          "legendFormat": "{{ node_name }}",
+          "queryType": "randomWalk",
+          "refId": "A"
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "Network Terra Height",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "$$hashKey": "object:153",
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "$$hashKey": "object:154",
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": false
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "${DS_MAIN_PROMETHEUS}",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {}
+        },
+        "overrides": []
+      },
+      "fill": 0,
+      "fillGradient": 0,
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 18,
+        "y": 8
+      },
+      "hiddenSeries": false,
+      "id": 24,
+      "legend": {
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "show": true,
+        "total": false,
+        "values": false
+      },
+      "lines": true,
+      "linewidth": 1,
+      "nullPointMode": "null",
+      "options": {
+        "alertThreshold": true
+      },
+      "percentage": false,
+      "pluginVersion": "7.3.6",
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "expr": "wormhole_network_node_height{instance=~\"$instance\", network=\"bsc\"} > 0",
+          "instant": false,
+          "interval": "",
+          "legendFormat": "{{ node_name }}",
+          "queryType": "randomWalk",
+          "refId": "A"
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "Network BSC Height",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "$$hashKey": "object:153",
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "$$hashKey": "object:154",
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": false
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "${DS_MAIN_PROMETHEUS}",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {}
+        },
+        "overrides": []
+      },
+      "fill": 1,
+      "fillGradient": 0,
+      "gridPos": {
         "h": 6,
         "w": 8,
         "x": 0,
-        "y": 8
+        "y": 16
       },
       "hiddenSeries": false,
       "id": 4,
@@ -496,7 +991,7 @@
         "h": 6,
         "w": 8,
         "x": 8,
-        "y": 8
+        "y": 16
       },
       "hiddenSeries": false,
       "id": 6,
@@ -594,7 +1089,7 @@
         "h": 6,
         "w": 8,
         "x": 16,
-        "y": 8
+        "y": 16
       },
       "hiddenSeries": false,
       "id": 7,
@@ -656,7 +1151,7 @@
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "Observations",
+      "title": "Message Observations",
       "tooltip": {
         "shared": true,
         "sort": 0,
@@ -713,7 +1208,7 @@
         "h": 9,
         "w": 12,
         "x": 0,
-        "y": 20
+        "y": 22
       },
       "hiddenSeries": false,
       "id": 17,
@@ -795,7 +1290,7 @@
     },
     {
       "aliasColors": {},
-      "bars": false,
+      "bars": true,
       "dashLength": 10,
       "dashes": false,
       "datasource": "${DS_MAIN_PROMETHEUS}",
@@ -811,7 +1306,7 @@
         "h": 9,
         "w": 12,
         "x": 12,
-        "y": 20
+        "y": 22
       },
       "hiddenSeries": false,
       "id": 18,
@@ -824,7 +1319,7 @@
         "total": false,
         "values": false
       },
-      "lines": true,
+      "lines": false,
       "linewidth": 1,
       "nullPointMode": "null",
       "options": {
@@ -841,22 +1336,22 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "rate(wormhole_eth_connection_errors_total{instance=~\"$instance\"}[$__rate_interval])",
-          "interval": "",
-          "legendFormat": "[Ethereum] {{ reason }}",
+          "expr": "increase(wormhole_eth_connection_errors_total{instance=~\"$instance\"}[$__rate_interval])",
+          "interval": "1m",
+          "legendFormat": "[Ethereum] {{eth_network}} {{ reason }}",
           "queryType": "randomWalk",
           "refId": "A"
         },
         {
-          "expr": "rate(wormhole_solana_connection_errors_total{instance=~\"$instance\"}[$__rate_interval])",
-          "interval": "",
+          "expr": "increase(wormhole_solana_connection_errors_total{instance=~\"$instance\"}[$__rate_interval])",
+          "interval": "1m",
           "legendFormat": "[Solana] {{ reason }}",
           "queryType": "randomWalk",
           "refId": "B"
         },
         {
           "expr": "rate(wormhole_terra_connection_errors_total{instance=~\"$instance\"}[$__rate_interval])",
-          "interval": "",
+          "interval": "1m",
           "legendFormat": "[Terra] {{ reason }}",
           "queryType": "randomWalk",
           "refId": "C"
@@ -866,7 +1361,7 @@
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "Watcher Error Rate",
+      "title": "Watcher Error Count",
       "tooltip": {
         "shared": true,
         "sort": 0,
@@ -923,7 +1418,7 @@
         "h": 9,
         "w": 24,
         "x": 0,
-        "y": 29
+        "y": 31
       },
       "hiddenSeries": false,
       "id": 16,
@@ -957,7 +1452,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "increase(wormhole_observations_signed_by_guardian_total{instance=~\"$instance\"}[$__rate_interval])",
+          "expr": "increase(wormhole_observations_signed_by_guardian_total{instance=~\"$instance\", instance=~\"$instance\"}[$__rate_interval])",
           "interval": "",
           "legendFormat": "{{ addr }}",
           "queryType": "randomWalk",
@@ -1025,7 +1520,7 @@
         "h": 9,
         "w": 24,
         "x": 0,
-        "y": 38
+        "y": 40
       },
       "hiddenSeries": false,
       "id": 10,
@@ -1033,13 +1528,13 @@
         "alignAsTable": true,
         "avg": false,
         "current": false,
-        "max": true,
+        "max": false,
         "min": false,
         "rightSide": true,
         "show": true,
-        "sort": "max",
-        "sortDesc": false,
-        "total": false,
+        "sort": "total",
+        "sortDesc": true,
+        "total": true,
         "values": true
       },
       "lines": true,
@@ -1059,7 +1554,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "increase(wormhole_aggregation_state_settled_signatures_total{status!=\"present\"}[$__rate_interval])",
+          "expr": "increase(wormhole_aggregation_state_settled_signatures_total{status!=\"present\", instance=~\"$instance\"}[1h])",
           "interval": "",
           "legendFormat": "{{ addr }} [from {{ origin }}]",
           "queryType": "randomWalk",
@@ -1071,6 +1566,108 @@
       "timeRegions": [],
       "timeShift": null,
       "title": "Missing Signatures",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "$$hashKey": "object:4284",
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "$$hashKey": "object:4285",
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "${DS_MAIN_PROMETHEUS}",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {}
+        },
+        "overrides": []
+      },
+      "fill": 1,
+      "fillGradient": 0,
+      "gridPos": {
+        "h": 9,
+        "w": 24,
+        "x": 0,
+        "y": 49
+      },
+      "hiddenSeries": false,
+      "id": 20,
+      "legend": {
+        "alignAsTable": true,
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "rightSide": true,
+        "show": true,
+        "sort": "total",
+        "sortDesc": true,
+        "total": true,
+        "values": true
+      },
+      "lines": true,
+      "linewidth": 1,
+      "nullPointMode": "null",
+      "options": {
+        "alertThreshold": true
+      },
+      "percentage": false,
+      "pluginVersion": "7.3.6",
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "expr": "increase(wormhole_aggregation_state_settled_signatures_total{status!=\"present\", origin!=\"unknown\", instance=~\"$instance\"}[1h])",
+          "interval": "",
+          "legendFormat": "{{ addr }} [from {{ origin }}]",
+          "queryType": "randomWalk",
+          "refId": "A"
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "Missing Signatures (except unknown)",
       "tooltip": {
         "shared": true,
         "sort": 0,
@@ -1130,10 +1727,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
-        "w": 8,
+        "h": 7,
+        "w": 6,
         "x": 0,
-        "y": 47
+        "y": 58
       },
       "heatmap": {},
       "hideZeroBuckets": false,
@@ -1146,7 +1743,7 @@
       "reverseYBuckets": false,
       "targets": [
         {
-          "expr": "sum(increase(wormhole_solana_query_latency_bucket[$__interval])) by (le)",
+          "expr": "sum(increase(wormhole_solana_query_latency_bucket{instance=~\"$instance\"}[$__interval])) by (le)",
           "interval": "",
           "legendFormat": "",
           "queryType": "randomWalk",
@@ -1200,10 +1797,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 8,
-        "y": 47
+        "h": 7,
+        "w": 6,
+        "x": 6,
+        "y": 58
       },
       "heatmap": {},
       "hideZeroBuckets": false,
@@ -1216,7 +1813,7 @@
       "reverseYBuckets": false,
       "targets": [
         {
-          "expr": "sum(increase(wormhole_eth_query_latency_bucket[$__interval])) by (le)",
+          "expr": "sum(increase(wormhole_eth_query_latency_bucket{instance=~\"$instance\"}[$__interval])) by (le)",
           "interval": "",
           "legendFormat": "",
           "queryType": "randomWalk",
@@ -1270,10 +1867,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 16,
-        "y": 47
+        "h": 7,
+        "w": 6,
+        "x": 12,
+        "y": 58
       },
       "heatmap": {},
       "hideZeroBuckets": false,
@@ -1286,7 +1883,7 @@
       "reverseYBuckets": false,
       "targets": [
         {
-          "expr": "sum(increase(wormhole_terra_query_latency_bucket[$__interval])) by (le)",
+          "expr": "sum(increase(wormhole_terra_query_latency_bucket{instance=~\"$instance\"}[$__interval])) by (le)",
           "interval": "",
           "legendFormat": "",
           "queryType": "randomWalk",
@@ -1296,6 +1893,76 @@
       "timeFrom": null,
       "timeShift": null,
       "title": "Terra Query Latency",
+      "tooltip": {
+        "show": true,
+        "showHistogram": false
+      },
+      "type": "heatmap",
+      "xAxis": {
+        "show": true
+      },
+      "xBucketNumber": null,
+      "xBucketSize": null,
+      "yAxis": {
+        "decimals": null,
+        "format": "short",
+        "logBase": 1,
+        "max": null,
+        "min": null,
+        "show": true,
+        "splitFactor": null
+      },
+      "yBucketBound": "auto",
+      "yBucketNumber": null,
+      "yBucketSize": null
+    },
+    {
+      "cards": {
+        "cardPadding": null,
+        "cardRound": null
+      },
+      "color": {
+        "cardColor": "#b4ff00",
+        "colorScale": "sqrt",
+        "colorScheme": "interpolateTurbo",
+        "exponent": 0.5,
+        "mode": "spectrum"
+      },
+      "dataFormat": "timeseries",
+      "datasource": "${DS_MAIN_PROMETHEUS}",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {}
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 6,
+        "x": 18,
+        "y": 58
+      },
+      "heatmap": {},
+      "hideZeroBuckets": false,
+      "highlightCards": true,
+      "id": 26,
+      "legend": {
+        "show": false
+      },
+      "pluginVersion": "7.3.6",
+      "reverseYBuckets": false,
+      "targets": [
+        {
+          "expr": "sum(increase(wormhole_eth_query_latency_bucket{instance=~\"$instance\", eth_network=\"bsc\"}[$__interval])) by (le)",
+          "interval": "",
+          "legendFormat": "",
+          "queryType": "randomWalk",
+          "refId": "A"
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Ethereum Query Latency",
       "tooltip": {
         "show": true,
         "showHistogram": false
@@ -1330,7 +1997,7 @@
         "allValue": null,
         "current": {},
         "datasource": "${DS_MAIN_PROMETHEUS}",
-        "definition": "label_values(wormhole_eth_current_height, instance)",
+        "definition": "label_values(wormhole_network_node_height, instance)",
         "error": null,
         "hide": 0,
         "includeAll": true,
@@ -1338,7 +2005,7 @@
         "multi": false,
         "name": "instance",
         "options": [],
-        "query": "label_values(wormhole_eth_current_height, instance)",
+        "query": "label_values(wormhole_network_node_height, instance)",
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,
@@ -1352,12 +2019,12 @@
     ]
   },
   "time": {
-    "from": "now-3h",
+    "from": "now-30m",
     "to": "now"
   },
   "timepicker": {},
   "timezone": "",
-  "title": "Wormhole",
-  "uid": "CVGqeaYMz",
-  "version": 37
+  "title": "Wormhole v2",
+  "uid": "-GcztLMnz",
+  "version": 16
 }
