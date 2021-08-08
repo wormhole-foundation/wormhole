@@ -209,6 +209,7 @@ func Run(obsvC chan *gossipv1.SignedObservation, sendC chan []byte, rawHeartbeat
 					if err := gst.SetHeartbeat(ourAddr, h.ID(), heartbeat); err != nil {
 						panic(err)
 					}
+					collectNodeMetrics(ourAddr, h.ID(), heartbeat)
 
 					b, err := proto.Marshal(heartbeat)
 					if err != nil {
@@ -371,6 +372,8 @@ func processSignedHeartbeat(from peer.ID, s *gossipv1.SignedHeartbeat, gs *bridg
 	if err := gst.SetHeartbeat(signerAddr, from, &h); err != nil {
 		return nil, fmt.Errorf("failed to store in guardian set state: %w", err)
 	}
+
+	collectNodeMetrics(signerAddr, from, &h)
 
 	return &h, nil
 }
