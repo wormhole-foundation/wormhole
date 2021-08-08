@@ -292,13 +292,6 @@ func Run(obsvC chan *gossipv1.SignedObservation, sendC chan []byte, rawHeartbeat
 				zap.String("from", envelope.GetFrom().String()))
 
 			switch m := msg.Message.(type) {
-			// TODO(leo): remove Heartbeat support after upgrade
-			case *gossipv1.GossipMessage_Heartbeat:
-				logger.Debug("unsigned heartbeat received",
-					zap.Any("value", m.Heartbeat),
-					zap.String("from", envelope.GetFrom().String()))
-				rawHeartbeatListeners.PublishHeartbeat(msg.GetHeartbeat())
-				p2pMessagesReceived.WithLabelValues("heartbeat").Inc()
 			case *gossipv1.GossipMessage_SignedHeartbeat:
 				s := m.SignedHeartbeat
 				gs := gst.Get()
