@@ -3,6 +3,10 @@ import { RootState } from ".";
 export const selectActiveStep = (state: RootState) => state.transfer.activeStep;
 export const selectSourceChain = (state: RootState) =>
   state.transfer.sourceChain;
+export const selectSourceAsset = (state: RootState) =>
+  state.transfer.sourceAsset;
+export const selectAmount = (state: RootState) => state.transfer.amount;
 export const selectTargetChain = (state: RootState) =>
   state.transfer.targetChain;
-export const selectSignedVAA = (state: RootState) => state.transfer.signedVAA; //TODO: deserialize
+export const selectSignedVAAHex = (state: RootState) =>
+  state.transfer.signedVAAHex;

@@ -1,5 +1,11 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { ChainId, CHAIN_ID_ETH, CHAIN_ID_SOLANA } from "../utils/consts";
+import {
+  ChainId,
+  CHAIN_ID_ETH,
+  CHAIN_ID_SOLANA,
+  ETH_TEST_TOKEN_ADDRESS,
+  SOL_TEST_TOKEN_ADDRESS,
+} from "../utils/consts";
 
 const LAST_STEP = 3;
 
@@ -8,15 +14,19 @@ type Steps = 0 | 1 | 2 | 3;
 export interface TransferState {
   activeStep: Steps;
   sourceChain: ChainId;
+  sourceAsset: string;
+  amount: string;
   targetChain: ChainId;
-  signedVAA: Uint8Array | undefined;
+  signedVAAHex: string | undefined;
 }
 
 const initialState: TransferState = {
   activeStep: 0,
   sourceChain: CHAIN_ID_SOLANA,
+  sourceAsset: SOL_TEST_TOKEN_ADDRESS,
+  amount: "",
   targetChain: CHAIN_ID_ETH,
-  signedVAA: undefined,
+  signedVAAHex: undefined,
 };
 
 export const transferSlice = createSlice({
@@ -33,13 +43,42 @@ export const transferSlice = createSlice({
       state.activeStep = action.payload;
     },
     setSourceChain: (state, action: PayloadAction<ChainId>) => {
+      const prevSourceChain = state.sourceChain;
       state.sourceChain = action.payload;
+      // TODO: remove or check env - for testing purposes
+      if (action.payload === CHAIN_ID_ETH) {
+        state.sourceAsset = ETH_TEST_TOKEN_ADDRESS;
+      }
+      if (action.payload === CHAIN_ID_SOLANA) {
+        state.sourceAsset = SOL_TEST_TOKEN_ADDRESS;
+      }
+      if (state.targetChain === action.payload) {
+        state.targetChain = prevSourceChain;
+      }
+    },
+    setSourceAsset: (state, action: PayloadAction<string>) => {
+      state.sourceAsset = action.payload;
+    },
+    setAmount: (state, action: PayloadAction<string>) => {
+      state.amount = action.payload;
     },
     setTargetChain: (state, action: PayloadAction<ChainId>) => {
+      const prevTargetChain = state.targetChain;
       state.targetChain = action.payload;
+      if (state.sourceChain === action.payload) {
+        state.sourceChain = prevTargetChain;
+        state.activeStep = 0;
+        // TODO: remove or check env - for testing purposes
+        if (state.targetChain === CHAIN_ID_ETH) {
+          state.sourceAsset = ETH_TEST_TOKEN_ADDRESS;
+        }
+        if (state.targetChain === CHAIN_ID_SOLANA) {
+          state.sourceAsset = SOL_TEST_TOKEN_ADDRESS;
+        }
+      }
     },
-    setSignedVAA: (state, action: PayloadAction<Uint8Array>) => {
-      state.signedVAA = action.payload; //TODO: serialize
+    setSignedVAAHex: (state, action: PayloadAction<string>) => {
+      state.signedVAAHex = action.payload;
       state.activeStep = 3;
     },
   },
@@ -50,8 +89,10 @@ export const {
   decrementStep,
   setStep,
   setSourceChain,
+  setSourceAsset,
+  setAmount,
   setTargetChain,
-  setSignedVAA,
+  setSignedVAAHex,
 } = transferSlice.actions;
 
 export default transferSlice.reducer;
