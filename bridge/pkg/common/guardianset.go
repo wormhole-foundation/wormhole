@@ -1,9 +1,10 @@
 package common
 
 import (
+	"fmt"
 	gossipv1 "github.com/certusone/wormhole/bridge/pkg/proto/gossip/v1"
 	"github.com/ethereum/go-ethereum/common"
-	"google.golang.org/protobuf/proto"
+	"github.com/libp2p/go-libp2p-core/peer"
 	"sync"
 )
 
@@ -15,6 +16,13 @@ import (
 // The Eth and Terra contracts do not specify a maximum number and support more than that,
 // but presumably, chain-specific transaction size limits will apply at some point (untested).
 const MaxGuardianCount = 19
+
+// MaxNodesPerGuardian specifies the maximum amount of nodes per guardian key that we'll accept
+// whenever we maintain any per-guardian, per-node state.
+//
+// There currently isn't any state clean up, so the value is on the high side to prevent
+// accidentally reaching the limit due to operational mistakes.
+const MaxNodesPerGuardian = 15
 
 type GuardianSet struct {
 	// Guardian's public key hashes truncated by the ETH standard hashing mechanism (20 bytes).
@@ -49,14 +57,14 @@ type GuardianSetState struct {
 	mu      sync.Mutex
 	current *GuardianSet
 
-	// Last heartbeat message received per guardian. Maintained
+	// Last heartbeat message received per guardian per p2p node. Maintained
 	// across guardian set updates - these values don't change.
-	lastHeartbeat map[common.Address]*gossipv1.Heartbeat
+	lastHeartbeats map[common.Address]map[peer.ID]*gossipv1.Heartbeat
 }
 
 func NewGuardianSetState() *GuardianSetState {
 	return &GuardianSetState{
-		lastHeartbeat: map[common.Address]*gossipv1.Heartbeat{},
+		lastHeartbeats: map[common.Address]map[peer.ID]*gossipv1.Heartbeat{},
 	}
 }
 
@@ -76,29 +84,50 @@ func (st *GuardianSetState) Get() *GuardianSet {
 
 // LastHeartbeat returns the most recent heartbeat message received for
 // a given guardian node, or nil if none have been received.
-func (st *GuardianSetState) LastHeartbeat(addr common.Address) *gossipv1.Heartbeat {
+func (st *GuardianSetState) LastHeartbeat(addr common.Address) map[peer.ID]*gossipv1.Heartbeat {
 	st.mu.Lock()
 	defer st.mu.Unlock()
-	return st.lastHeartbeat[addr]
+	ret := make(map[peer.ID]*gossipv1.Heartbeat)
+	for k, v := range st.lastHeartbeats[addr] {
+		ret[k] = v
+	}
+	return ret
 }
 
-// SetHeartBeat stores a verified heartbeat observed by a given guardian.
-func (st *GuardianSetState) SetHeartBeat(addr common.Address, hb *gossipv1.Heartbeat) {
+// SetHeartbeat stores a verified heartbeat observed by a given guardian.
+func (st *GuardianSetState) SetHeartbeat(addr common.Address, peerId peer.ID, hb *gossipv1.Heartbeat) error {
 	st.mu.Lock()
 	defer st.mu.Unlock()
-	st.lastHeartbeat[addr] = hb
+
+	v, ok := st.lastHeartbeats[addr]
+
+	if !ok {
+		v = make(map[peer.ID]*gossipv1.Heartbeat)
+		st.lastHeartbeats[addr] = v
+	} else {
+		if len(v) >= MaxNodesPerGuardian {
+			// TODO: age out old entries?
+			return fmt.Errorf("too many nodes (%d) for guardian, cannot store entry", len(v))
+		}
+	}
+
+	v[peerId] = hb
+	return nil
 }
 
 // GetAll returns all stored heartbeats.
-func (st *GuardianSetState) GetAll() map[common.Address]*gossipv1.Heartbeat {
+func (st *GuardianSetState) GetAll() map[common.Address]map[peer.ID]*gossipv1.Heartbeat {
 	st.mu.Lock()
 	defer st.mu.Unlock()
 
-	ret := make(map[common.Address]*gossipv1.Heartbeat)
+	ret := make(map[common.Address]map[peer.ID]*gossipv1.Heartbeat)
 
 	// Deep copy
-	for k, v := range st.lastHeartbeat {
-		ret[k] = proto.Clone(v).(*gossipv1.Heartbeat)
+	for addr, v := range st.lastHeartbeats {
+		ret[addr] = make(map[peer.ID]*gossipv1.Heartbeat)
+		for peerId, hb := range v {
+			ret[addr][peerId] = hb
+		}
 	}
 
 	return ret

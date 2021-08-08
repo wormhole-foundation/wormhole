@@ -203,7 +203,9 @@ func Run(obsvC chan *gossipv1.SignedObservation, sendC chan []byte, rawHeartbeat
 
 					ourAddr := ethcrypto.PubkeyToAddress(gk.PublicKey)
 					rawHeartbeatListeners.PublishHeartbeat(heartbeat)
-					gst.SetHeartBeat(ourAddr, heartbeat)
+					if err := gst.SetHeartbeat(ourAddr, h.ID(), heartbeat); err != nil {
+						panic(err)
+					}
 
 					b, err := proto.Marshal(heartbeat)
 					if err != nil {
@@ -303,7 +305,7 @@ func Run(obsvC chan *gossipv1.SignedObservation, sendC chan []byte, rawHeartbeat
 						zap.String("from", envelope.GetFrom().String()))
 					break
 				}
-				if heartbeat, err := processSignedHeartbeat(s, gs, gst, disableHeartbeatVerify); err != nil {
+				if heartbeat, err := processSignedHeartbeat(envelope.GetFrom(), s, gs, gst, disableHeartbeatVerify); err != nil {
 					p2pMessagesReceived.WithLabelValues("invalid_heartbeat").Inc()
 					logger.Warn("invalid signed heartbeat received",
 						zap.Error(err),
@@ -332,7 +334,7 @@ func Run(obsvC chan *gossipv1.SignedObservation, sendC chan []byte, rawHeartbeat
 	}
 }
 
-func processSignedHeartbeat(s *gossipv1.SignedHeartbeat, gs *bridge_common.GuardianSet, gst *bridge_common.GuardianSetState, disableVerify bool) (*gossipv1.Heartbeat, error) {
+func processSignedHeartbeat(from peer.ID, s *gossipv1.SignedHeartbeat, gs *bridge_common.GuardianSet, gst *bridge_common.GuardianSetState, disableVerify bool) (*gossipv1.Heartbeat, error) {
 	envelopeAddr := common.BytesToAddress(s.GuardianAddr)
 	idx, ok := gs.KeyIndex(envelopeAddr)
 	var pk common.Address
@@ -363,7 +365,9 @@ func processSignedHeartbeat(s *gossipv1.SignedHeartbeat, gs *bridge_common.Guard
 	}
 
 	// Store verified heartbeat in global guardian set state.
-	gst.SetHeartBeat(signerAddr, &h)
+	if err := gst.SetHeartbeat(signerAddr, from, &h); err != nil {
+		return nil, fmt.Errorf("failed to store in guardian set state: %w", err)
+	}
 
 	return &h, nil
 }
