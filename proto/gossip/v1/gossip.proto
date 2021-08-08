@@ -50,6 +50,9 @@ message Heartbeat {
 
   // Human-readable representation of the guardian key's address.
   string guardian_addr = 6;
+
+  // UNIX boot timestamp.
+  int64 boot_timestamp = 7;
 }
 
 // A SignedObservation is a signed statement by a given guardian node

@@ -176,6 +176,8 @@ func Run(obsvC chan *gossipv1.SignedObservation, sendC chan []byte, rawHeartbeat
 		logger.Info("Node has been started", zap.String("peer_id", h.ID().String()),
 			zap.String("addrs", fmt.Sprintf("%v", h.Addrs())))
 
+		bootTime := time.Now()
+
 		go func() {
 			ctr := int64(0)
 			tick := time.NewTicker(15 * time.Second)
@@ -193,12 +195,13 @@ func Run(obsvC chan *gossipv1.SignedObservation, sendC chan []byte, rawHeartbeat
 					}
 
 					heartbeat := &gossipv1.Heartbeat{
-						NodeName:     nodeName,
-						Counter:      ctr,
-						Timestamp:    time.Now().UnixNano(),
-						Networks:     networks,
-						Version:      version.Version(),
-						GuardianAddr: DefaultRegistry.guardianAddress,
+						NodeName:      nodeName,
+						Counter:       ctr,
+						Timestamp:     time.Now().UnixNano(),
+						Networks:      networks,
+						Version:       version.Version(),
+						GuardianAddr:  DefaultRegistry.guardianAddress,
+						BootTimestamp: bootTime.UnixNano(),
 					}
 
 					ourAddr := ethcrypto.PubkeyToAddress(gk.PublicKey)
