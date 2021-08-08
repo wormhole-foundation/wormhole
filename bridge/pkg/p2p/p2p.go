@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	bridge_common "github.com/certusone/wormhole/bridge/pkg/common"
+	"github.com/certusone/wormhole/bridge/pkg/vaa"
 	"github.com/certusone/wormhole/bridge/pkg/version"
 	"github.com/ethereum/go-ethereum/common"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
@@ -191,6 +192,8 @@ func Run(obsvC chan *gossipv1.SignedObservation, sendC chan []byte, rawHeartbeat
 					DefaultRegistry.mu.Lock()
 					networks := make([]*gossipv1.Heartbeat_Network, 0, len(DefaultRegistry.networkStats))
 					for _, v := range DefaultRegistry.networkStats {
+						errCtr := DefaultRegistry.GetErrorCount(vaa.ChainID(v.Id))
+						v.ErrorCount = errCtr
 						networks = append(networks, v)
 					}
 

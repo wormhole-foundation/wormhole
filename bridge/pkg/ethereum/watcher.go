@@ -128,6 +128,7 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 	c, err := ethclient.DialContext(timeout, e.url)
 	if err != nil {
 		ethConnectionErrors.WithLabelValues(e.networkName, "dial_error").Inc()
+		p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
 		return fmt.Errorf("dialing eth client failed: %w", err)
 	}
 
@@ -150,6 +151,7 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 	messageSub, err := f.WatchLogMessagePublished(&bind.WatchOpts{Context: timeout}, messageC, nil)
 	if err != nil {
 		ethConnectionErrors.WithLabelValues(e.networkName, "subscribe_error").Inc()
+		p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
 		return fmt.Errorf("failed to subscribe to message publication events: %w", err)
 	}
 
@@ -158,6 +160,7 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 	guardianSetEvent, err := f.WatchGuardianSetAdded(&bind.WatchOpts{Context: timeout}, guardianSetC, nil)
 	if err != nil {
 		ethConnectionErrors.WithLabelValues(e.networkName, "subscribe_error").Inc()
+		p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
 		return fmt.Errorf("failed to subscribe to guardian set events: %w", err)
 	}
 
@@ -167,6 +170,7 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 	idx, gs, err := FetchCurrentGuardianSet(timeout, e.url, e.bridge)
 	if err != nil {
 		ethConnectionErrors.WithLabelValues(e.networkName, "guardian_set_fetch_error").Inc()
+		p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
 		return fmt.Errorf("failed requesting guardian set from Ethereum: %w", err)
 	}
 	logger.Info("initial guardian set fetched",
@@ -189,10 +193,12 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 			case err := <-messageSub.Err():
 				ethConnectionErrors.WithLabelValues(e.networkName, "subscription_error").Inc()
 				errC <- fmt.Errorf("error while processing message publication subscription: %w", err)
+				p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
 				return
 			case err := <-guardianSetEvent.Err():
 				ethConnectionErrors.WithLabelValues(e.networkName, "subscription_error").Inc()
 				errC <- fmt.Errorf("error while processing guardian set subscription: %w", err)
+				p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
 				return
 			case ev := <-messageC:
 				// Request timestamp for block
@@ -204,6 +210,7 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 
 				if err != nil {
 					ethConnectionErrors.WithLabelValues(e.networkName, "block_by_number_error").Inc()
+					p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
 					errC <- fmt.Errorf("failed to request timestamp for block %d: %w", ev.Raw.BlockNumber, err)
 					return
 				}
@@ -266,6 +273,8 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 	headSink := make(chan *types.Header, 2)
 	headerSubscription, err := c.SubscribeNewHead(ctx, headSink)
 	if err != nil {
+		ethConnectionErrors.WithLabelValues(e.networkName, "header_subscribe_error").Inc()
+		p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
 		return fmt.Errorf("failed to subscribe to header events: %w", err)
 	}
 
@@ -274,8 +283,10 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 			select {
 			case <-ctx.Done():
 				return
-			case e := <-headerSubscription.Err():
-				errC <- fmt.Errorf("error while processing header subscription: %w", e)
+			case err := <-headerSubscription.Err():
+				ethConnectionErrors.WithLabelValues(e.networkName, "header_subscription_error").Inc()
+				errC <- fmt.Errorf("error while processing header subscription: %w", err)
+				p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
 				return
 			case ev := <-headSink:
 				start := time.Now()

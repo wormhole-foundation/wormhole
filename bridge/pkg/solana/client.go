@@ -133,6 +133,7 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 				slot, err := s.rpcClient.GetSlot(rCtx, s.commitment)
 				queryLatency.WithLabelValues("get_slot", string(s.commitment)).Observe(time.Since(start).Seconds())
 				if err != nil {
+					p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDSolana, 1)
 					solanaConnectionErrors.WithLabelValues(string(s.commitment), "get_slot_error").Inc()
 					errC <- err
 					return
@@ -165,6 +166,7 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 				slots, err := s.rpcClient.GetConfirmedBlocks(rCtx, rangeStart, &rangeEnd, s.commitment)
 				queryLatency.WithLabelValues("get_confirmed_blocks", string(s.commitment)).Observe(time.Since(start).Seconds())
 				if err != nil {
+					p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDSolana, 1)
 					solanaConnectionErrors.WithLabelValues(string(s.commitment), "get_confirmed_blocks_error").Inc()
 					errC <- err
 					return
@@ -214,6 +216,7 @@ func (s *SolanaWatcher) fetchBlock(ctx context.Context, slot uint64) {
 
 	queryLatency.WithLabelValues("get_confirmed_block", string(s.commitment)).Observe(time.Since(start).Seconds())
 	if err != nil {
+		p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDSolana, 1)
 		solanaConnectionErrors.WithLabelValues(string(s.commitment), "get_confirmed_block_error").Inc()
 		s.logger.Error("failed to request block", zap.Error(err), zap.Uint64("slot", slot),
 			zap.String("commitment", string(s.commitment)))
@@ -221,8 +224,10 @@ func (s *SolanaWatcher) fetchBlock(ctx context.Context, slot uint64) {
 	}
 
 	if out == nil {
+		solanaConnectionErrors.WithLabelValues(string(s.commitment), "get_confirmed_block_error").Inc()
 		s.logger.Error("nil response when requesting block", zap.Error(err), zap.Uint64("slot", slot),
 			zap.String("commitment", string(s.commitment)))
+		p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDSolana, 1)
 		return
 	}
 
@@ -277,6 +282,7 @@ OUTER:
 		})
 		queryLatency.WithLabelValues("get_confirmed_transaction", string(s.commitment)).Observe(time.Since(start).Seconds())
 		if err != nil {
+			p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDSolana, 1)
 			solanaConnectionErrors.WithLabelValues(string(s.commitment), "get_confirmed_transaction_error").Inc()
 			s.logger.Error("failed to request transaction",
 				zap.Error(err),
@@ -356,6 +362,7 @@ func (s *SolanaWatcher) fetchMessageAccount(ctx context.Context, acc solana.Publ
 	})
 	queryLatency.WithLabelValues("get_account_info", string(s.commitment)).Observe(time.Since(start).Seconds())
 	if err != nil {
+		p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDSolana, 1)
 		solanaConnectionErrors.WithLabelValues(string(s.commitment), "get_account_info_error").Inc()
 		s.logger.Error("failed to request account",
 			zap.Error(err),
@@ -366,6 +373,7 @@ func (s *SolanaWatcher) fetchMessageAccount(ctx context.Context, acc solana.Publ
 	}
 
 	if !info.Value.Owner.Equals(s.bridge) {
+		p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDSolana, 1)
 		solanaConnectionErrors.WithLabelValues(string(s.commitment), "account_owner_mismatch").Inc()
 		s.logger.Error("account has invalid owner",
 			zap.Uint64("slot", slot),
@@ -377,6 +385,7 @@ func (s *SolanaWatcher) fetchMessageAccount(ctx context.Context, acc solana.Publ
 
 	data := info.Value.Data.GetBinary()
 	if string(data[:3]) != "msg" {
+		p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDSolana, 1)
 		solanaConnectionErrors.WithLabelValues(string(s.commitment), "bad_account_data").Inc()
 		s.logger.Error("account is not a message account",
 			zap.Uint64("slot", slot),

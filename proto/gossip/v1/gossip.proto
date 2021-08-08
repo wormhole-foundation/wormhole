@@ -42,6 +42,8 @@ message Heartbeat {
     int64 height = 2;
     // Chain-specific human-readable representation of the bridge contract address.
     string bridge_address = 3;
+    // Connection error count
+    uint64 error_count = 4;
   }
   repeated Network networks = 4;
 

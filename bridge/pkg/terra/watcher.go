@@ -88,6 +88,7 @@ func (e *BridgeWatcher) Run(ctx context.Context) error {
 
 	c, _, err := websocket.DefaultDialer.DialContext(ctx, e.urlWS, nil)
 	if err != nil {
+		p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDTerra, 1)
 		terraConnectionErrors.WithLabelValues("websocket_dial_error").Inc()
 		return fmt.Errorf("websocket dial failed: %w", err)
 	}
@@ -103,6 +104,7 @@ func (e *BridgeWatcher) Run(ctx context.Context) error {
 	}
 	err = c.WriteJSON(command)
 	if err != nil {
+		p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDTerra, 1)
 		terraConnectionErrors.WithLabelValues("websocket_subscription_error").Inc()
 		return fmt.Errorf("websocket subscription failed: %w", err)
 	}
@@ -110,6 +112,7 @@ func (e *BridgeWatcher) Run(ctx context.Context) error {
 	// Wait for the success response
 	_, _, err = c.ReadMessage()
 	if err != nil {
+		p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDTerra, 1)
 		terraConnectionErrors.WithLabelValues("event_subscription_error").Inc()
 		return fmt.Errorf("event subscription failed: %w", err)
 	}
@@ -158,6 +161,7 @@ func (e *BridgeWatcher) Run(ctx context.Context) error {
 		for {
 			_, message, err := c.ReadMessage()
 			if err != nil {
+				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDTerra, 1)
 				terraConnectionErrors.WithLabelValues("channel_read_error").Inc()
 				logger.Error("error reading channel", zap.Error(err))
 				errC <- err
@@ -224,6 +228,7 @@ func (e *BridgeWatcher) Run(ctx context.Context) error {
 			requestURL := fmt.Sprintf("%s/wasm/contracts/%s/store?query_msg={\"guardian_set_info\":{}}", e.urlLCD, e.bridge)
 			req, err := http.NewRequestWithContext(ctx, http.MethodGet, requestURL, nil)
 			if err != nil {
+				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDTerra, 1)
 				terraConnectionErrors.WithLabelValues("guardian_set_req_error").Inc()
 				logger.Error("query guardian set request error", zap.Error(err))
 				errC <- err
@@ -233,6 +238,7 @@ func (e *BridgeWatcher) Run(ctx context.Context) error {
 			msm := time.Now()
 			resp, err := client.Do(req)
 			if err != nil {
+				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDTerra, 1)
 				logger.Error("query guardian set response error", zap.Error(err))
 				errC <- err
 				return
@@ -241,6 +247,7 @@ func (e *BridgeWatcher) Run(ctx context.Context) error {
 			body, err := ioutil.ReadAll(resp.Body)
 			queryLatency.WithLabelValues("guardian_set_info").Observe(time.Since(msm).Seconds())
 			if err != nil {
+				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDTerra, 1)
 				logger.Error("query guardian set error", zap.Error(err))
 				errC <- err
 				resp.Body.Close()
