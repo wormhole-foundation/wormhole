@@ -35,6 +35,8 @@ See the section about [deployment](https://facebook.github.io/create-react-app/d
 
 ### `npm run build-contracts`
 
+_Note: this requires `/ethereum` to have been installed; you may see an error if you have not yet run `npm ci` there_
+
 This runs the build in the ethereum folder, copies the compiled contracts, and runs typechain on them. This is automatically run on `postinstall`
 
 ### `npm run eject`
