@@ -1,9 +1,11 @@
 import { Button, makeStyles, MenuItem, TextField } from "@material-ui/core";
 import { useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import useGetBalanceEffect from "../../hooks/useGetBalanceEffect";
 import {
   selectAmount,
   selectSourceAsset,
+  selectSourceBalanceString,
   selectSourceChain,
 } from "../../store/selectors";
 import {
@@ -24,8 +26,10 @@ const useStyles = makeStyles((theme) => ({
 function Source() {
   const classes = useStyles();
   const dispatch = useDispatch();
+  useGetBalanceEffect();
   const sourceChain = useSelector(selectSourceChain);
   const sourceAsset = useSelector(selectSourceAsset);
+  const uiAmountString = useSelector(selectSourceBalanceString);
   const amount = useSelector(selectAmount);
   const handleSourceChange = useCallback(
     (event) => {
@@ -65,7 +69,7 @@ function Source() {
           </MenuItem>
         ))}
       </TextField>
-      <KeyAndBalance chainId={sourceChain} tokenAddress={sourceAsset} />
+      <KeyAndBalance chainId={sourceChain} balance={uiAmountString} />
       <TextField
         placeholder="Asset"
         fullWidth

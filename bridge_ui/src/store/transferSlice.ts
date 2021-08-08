@@ -11,10 +11,19 @@ const LAST_STEP = 3;
 
 type Steps = 0 | 1 | 2 | 3;
 
+export interface ParsedTokenAccount {
+  publicKey: string | undefined;
+  amount: string;
+  decimals: number;
+  uiAmount: number;
+  uiAmountString: string;
+}
+
 export interface TransferState {
   activeStep: Steps;
   sourceChain: ChainId;
   sourceAsset: string;
+  sourceParsedTokenAccount: ParsedTokenAccount | undefined;
   amount: string;
   targetChain: ChainId;
   signedVAAHex: string | undefined;
@@ -24,6 +33,7 @@ const initialState: TransferState = {
   activeStep: 0,
   sourceChain: CHAIN_ID_SOLANA,
   sourceAsset: SOL_TEST_TOKEN_ADDRESS,
+  sourceParsedTokenAccount: undefined,
   amount: "",
   targetChain: CHAIN_ID_ETH,
   signedVAAHex: undefined,
@@ -59,6 +69,12 @@ export const transferSlice = createSlice({
     setSourceAsset: (state, action: PayloadAction<string>) => {
       state.sourceAsset = action.payload;
     },
+    setSourceParsedTokenAccount: (
+      state,
+      action: PayloadAction<ParsedTokenAccount | undefined>
+    ) => {
+      state.sourceParsedTokenAccount = action.payload;
+    },
     setAmount: (state, action: PayloadAction<string>) => {
       state.amount = action.payload;
     },
@@ -90,6 +106,7 @@ export const {
   setStep,
   setSourceChain,
   setSourceAsset,
+  setSourceParsedTokenAccount,
   setAmount,
   setTargetChain,
   setSignedVAAHex,

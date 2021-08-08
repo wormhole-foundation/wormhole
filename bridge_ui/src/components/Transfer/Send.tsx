@@ -8,13 +8,12 @@ import { useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useEthereumProvider } from "../../contexts/EthereumProviderContext";
 import { useSolanaWallet } from "../../contexts/SolanaWalletContext";
-import useEthereumBalance from "../../hooks/useEthereumBalance";
-import useSolanaBalance from "../../hooks/useSolanaBalance";
 import useWrappedAsset from "../../hooks/useWrappedAsset";
 import {
   selectAmount,
   selectSourceAsset,
   selectSourceChain,
+  selectSourceParsedTokenAccount,
   selectTargetChain,
 } from "../../store/selectors";
 import { setSignedVAAHex } from "../../store/transferSlice";
@@ -51,20 +50,12 @@ function Send() {
   const amount = useSelector(selectAmount);
   const targetChain = useSelector(selectTargetChain);
   const { provider, signer, signerAddress } = useEthereumProvider();
-  const { decimals: ethDecimals, uiAmountString: ethBalance } =
-    useEthereumBalance(
-      sourceAsset,
-      signerAddress,
-      provider,
-      sourceChain === CHAIN_ID_ETH
-    );
   const { wallet } = useSolanaWallet();
   const solPK = wallet?.publicKey;
-  const {
-    tokenAccount: solTokenPK,
-    decimals: solDecimals,
-    uiAmount: solBalance,
-  } = useSolanaBalance(sourceAsset, solPK, sourceChain === CHAIN_ID_SOLANA);
+  const sourceParsedTokenAccount = useSelector(selectSourceParsedTokenAccount);
+  const tokenPK = sourceParsedTokenAccount?.publicKey;
+  const decimals = sourceParsedTokenAccount?.decimals;
+  const uiAmountString = sourceParsedTokenAccount?.uiAmountString;
   const {
     isLoading: isCheckingWrapped,
     // isWrapped,
@@ -88,7 +79,8 @@ function Send() {
       }
       if (
         sourceChain === CHAIN_ID_SOLANA &&
-        attestFrom[sourceChain] === attestFromSolana
+        attestFrom[sourceChain] === attestFromSolana &&
+        decimals
       ) {
         //TODO: just for testing, this should eventually use the store to communicate between steps
         (async () => {
@@ -96,20 +88,21 @@ function Send() {
             wallet,
             solPK?.toString(),
             sourceAsset,
-            solDecimals
+            decimals
           );
           console.log("bytes in transfer", vaaBytes);
         })();
       }
     }
-  }, [sourceChain, provider, signer, wallet, solPK, sourceAsset, solDecimals]);
+  }, [sourceChain, provider, signer, wallet, solPK, sourceAsset, decimals]);
   // TODO: dynamically get "to" wallet
   const handleTransferClick = useCallback(() => {
     // TODO: more generic way of calling these
     if (transferFrom[sourceChain]) {
       if (
         sourceChain === CHAIN_ID_ETH &&
-        transferFrom[sourceChain] === transferFromEth
+        transferFrom[sourceChain] === transferFromEth &&
+        decimals
       ) {
         //TODO: just for testing, this should eventually use the store to communicate between steps
         (async () => {
@@ -117,7 +110,7 @@ function Send() {
             provider,
             signer,
             sourceAsset,
-            ethDecimals,
+            decimals,
             amount,
             targetChain,
             solPK?.toBytes()
@@ -128,17 +121,18 @@ function Send() {
       }
       if (
         sourceChain === CHAIN_ID_SOLANA &&
-        transferFrom[sourceChain] === transferFromSolana
+        transferFrom[sourceChain] === transferFromSolana &&
+        decimals
       ) {
         //TODO: just for testing, this should eventually use the store to communicate between steps
         (async () => {
           const vaaBytes = await transferFromSolana(
             wallet,
             solPK?.toString(),
-            solTokenPK?.toString(),
+            tokenPK,
             sourceAsset,
             amount,
-            solDecimals,
+            decimals,
             signerAddress,
             targetChain
           );
@@ -155,15 +149,15 @@ function Send() {
     signerAddress,
     wallet,
     solPK,
-    solTokenPK,
+    tokenPK,
     sourceAsset,
     amount,
-    ethDecimals,
-    solDecimals,
+    decimals,
     targetChain,
   ]);
   // update this as we develop, just setting expectations with the button state
-  const balance = Number(ethBalance) || solBalance;
+  const hasDecimals = decimals !== undefined;
+  const balance = Number(uiAmountString);
   const isAttestImplemented = !!attestFrom[sourceChain];
   const isTransferImplemented = !!transferFrom[sourceChain];
   const isProviderConnected = !!provider;
@@ -172,11 +166,13 @@ function Send() {
   const isAmountPositive = Number(amount) > 0; // TODO: this needs per-chain, bn parsing
   const isBalanceAtLeastAmount = balance >= Number(amount); // TODO: ditto
   const canAttemptAttest =
+    hasDecimals &&
     isAttestImplemented &&
     isProviderConnected &&
     isRecipientAvailable &&
     isAddressDefined;
   const canAttemptTransfer =
+    hasDecimals &&
     isTransferImplemented &&
     isProviderConnected &&
     isRecipientAvailable &&

@@ -1,39 +1,20 @@
 import { Typography } from "@material-ui/core";
-import { useEthereumProvider } from "../contexts/EthereumProviderContext";
-import { useSolanaWallet } from "../contexts/SolanaWalletContext";
-import useEthereumBalance from "../hooks/useEthereumBalance";
-import useSolanaBalance from "../hooks/useSolanaBalance";
 import { ChainId, CHAIN_ID_ETH, CHAIN_ID_SOLANA } from "../utils/consts";
 import EthereumSignerKey from "./EthereumSignerKey";
 import SolanaWalletKey from "./SolanaWalletKey";
 
 function KeyAndBalance({
   chainId,
-  tokenAddress,
+  balance,
 }: {
   chainId: ChainId;
-  tokenAddress?: string;
+  balance?: string;
 }) {
-  // TODO: more generic way to get balance
-  const { provider, signerAddress } = useEthereumProvider();
-  const { uiAmountString: ethBalance } = useEthereumBalance(
-    tokenAddress,
-    signerAddress,
-    provider,
-    chainId === CHAIN_ID_ETH
-  );
-  const { wallet: solWallet } = useSolanaWallet();
-  const solPK = solWallet?.publicKey;
-  const { uiAmountString: solBalance } = useSolanaBalance(
-    tokenAddress,
-    solPK,
-    chainId === CHAIN_ID_SOLANA
-  );
   if (chainId === CHAIN_ID_ETH) {
     return (
       <>
         <EthereumSignerKey />
-        <Typography>{ethBalance}</Typography>
+        <Typography>{balance}</Typography>
       </>
     );
   }
@@ -41,7 +22,7 @@ function KeyAndBalance({
     return (
       <>
         <SolanaWalletKey />
-        <Typography>{solBalance}</Typography>
+        <Typography>{balance}</Typography>
       </>
     );
   }
