@@ -6,6 +6,7 @@ const TokenImplementation = artifacts.require("TokenImplementation");
 const BridgeImplementationFullABI = jsonfile.readFileSync("../build/contracts/BridgeImplementation.json").abi
 
 module.exports = async function (callback) {
+    const accounts = await web3.eth.getAccounts();
     const initialized = new web3.eth.Contract(BridgeImplementationFullABI, TokenBridge.address);
 
     // Register the Solana endpoint
