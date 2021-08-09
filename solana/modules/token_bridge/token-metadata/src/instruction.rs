@@ -1,13 +1,21 @@
-use {
-    crate::{
-        state::{Creator, Data, EDITION, EDITION_MARKER_BIT_SIZE, PREFIX},
+use crate::state::{
+    Creator,
+    Data,
+    EDITION,
+    EDITION_MARKER_BIT_SIZE,
+    PREFIX,
+};
+use borsh::{
+    BorshDeserialize,
+    BorshSerialize,
+};
+use solana_program::{
+    instruction::{
+        AccountMeta,
+        Instruction,
     },
-    borsh::{BorshDeserialize, BorshSerialize},
-    solana_program::{
-        instruction::{AccountMeta, Instruction},
-        pubkey::Pubkey,
-        sysvar,
-    },
+    pubkey::Pubkey,
+    sysvar,
 };
 
 #[repr(C)]

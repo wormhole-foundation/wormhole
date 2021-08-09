@@ -1,6 +1,4 @@
-use crate::{
-    utils::try_from_slice_checked,
-};
+use crate::utils::try_from_slice_checked;
 use borsh::{
     BorshDeserialize,
     BorshSerialize,

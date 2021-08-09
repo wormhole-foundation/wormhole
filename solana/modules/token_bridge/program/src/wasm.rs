@@ -57,7 +57,6 @@ pub fn attest_ix(
     payer: String,
     message: String,
     mint: String,
-    decimals: u8,
     nonce: u32,
 ) -> JsValue {
     let program_id = Pubkey::from_str(program_id.as_str()).unwrap();
@@ -66,16 +65,7 @@ pub fn attest_ix(
     let message = Pubkey::from_str(message.as_str()).unwrap();
     let mint = Pubkey::from_str(mint.as_str()).unwrap();
 
-    let ix = attest(
-        program_id,
-        bridge_id,
-        payer,
-        message,
-        mint,
-        decimals,
-        nonce,
-    )
-    .unwrap();
+    let ix = attest(program_id, bridge_id, payer, message, mint, nonce).unwrap();
 
     JsValue::from_serde(&ix).unwrap()
 }

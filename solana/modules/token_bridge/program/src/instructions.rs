@@ -448,7 +448,6 @@ pub fn attest(
     payer: Pubkey,
     message_key: Pubkey,
     mint: Pubkey,
-    decimals: u8,
     nonce: u32,
 ) -> solitaire::Result<Instruction> {
     let config_key = ConfigAccount::<'_, { AccountState::Uninitialized }>::key(None, &program_id);
@@ -462,9 +461,7 @@ pub fn attest(
 
     // Mint Metadata
     let mint_meta = WrappedTokenMeta::<'_, { AccountState::Uninitialized }>::key(
-        &WrappedMetaDerivationData {
-            mint_key: mint,
-        },
+        &WrappedMetaDerivationData { mint_key: mint },
         &bridge_id,
     );
 

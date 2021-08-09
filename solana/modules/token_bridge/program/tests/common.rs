@@ -168,7 +168,10 @@ mod helpers {
     }
 
     /// Fetch account data, the loop is there to re-attempt until data is available.
-    pub fn get_account_data<T: BorshDeserialize>(client: &RpcClient, account: &Pubkey) -> Option<T> {
+    pub fn get_account_data<T: BorshDeserialize>(
+        client: &RpcClient,
+        account: &Pubkey,
+    ) -> Option<T> {
         let account = client
             .get_account_with_commitment(account, CommitmentConfig::processed())
             .unwrap();
@@ -516,23 +519,21 @@ mod helpers {
             client,
             payer,
             &[payer, mint_authority],
-            &[
-                spl_token_metadata::instruction::create_metadata_accounts(
-                    spl_token_metadata::id(),
-                    *metadata_account,
-                    mint.pubkey(),
-                    mint_authority.pubkey(),
-                    payer.pubkey(),
-                    *update_authority,
-                    name,
-                    symbol,
-                    "https://token.org".to_string(),
-                    None,
-                    0,
-                    false,
-                    false,
-                )
-            ],
+            &[spl_token_metadata::instruction::create_metadata_accounts(
+                spl_token_metadata::id(),
+                *metadata_account,
+                mint.pubkey(),
+                mint_authority.pubkey(),
+                payer.pubkey(),
+                *update_authority,
+                name,
+                symbol,
+                "https://token.org".to_string(),
+                None,
+                0,
+                false,
+                false,
+            )],
             CommitmentConfig::processed(),
         )
     }

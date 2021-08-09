@@ -83,7 +83,7 @@ pub struct TransferNative<'b> {
     pub bridge: Mut<Info<'b>>,
 
     /// Account to store the posted message
-    pub message: Mut<Info<'b>>,
+    pub message: Signer<Mut<Info<'b>>>,
 
     /// Emitter of the VAA
     pub emitter: EmitterAccount<'b>,
@@ -191,7 +191,7 @@ pub fn transfer_native(
         params.try_to_vec()?.as_slice(),
         vec![
             AccountMeta::new(*accs.bridge.key, false),
-            AccountMeta::new(*accs.message.key, false),
+            AccountMeta::new(*accs.message.key, true),
             AccountMeta::new_readonly(*accs.emitter.key, true),
             AccountMeta::new(*accs.sequence.key, false),
             AccountMeta::new(*accs.payer.key, true),
@@ -222,7 +222,7 @@ pub struct TransferWrapped<'b> {
     pub bridge: Mut<Info<'b>>,
 
     /// Account to store the posted message
-    pub message: Mut<Info<'b>>,
+    pub message: Signer<Mut<Info<'b>>>,
 
     /// Emitter of the VAA
     pub emitter: EmitterAccount<'b>,
@@ -324,7 +324,7 @@ pub fn transfer_wrapped(
         params.try_to_vec()?.as_slice(),
         vec![
             AccountMeta::new(*accs.bridge.key, false),
-            AccountMeta::new(*accs.message.key, false),
+            AccountMeta::new(*accs.message.key, true),
             AccountMeta::new_readonly(*accs.emitter.key, true),
             AccountMeta::new(*accs.sequence.key, false),
             AccountMeta::new(*accs.payer.key, true),
