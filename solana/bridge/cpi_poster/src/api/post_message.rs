@@ -11,7 +11,7 @@ pub struct PostMessage<'b> {
     pub bridge: Mut<Info<'b>>,
 
     /// Account to store the posted message
-    pub message: Mut<Info<'b>>,
+    pub message: Signer<Mut<Info<'b>>>,
 
     /// Emitter of the VAA
     pub emitter: Info<'b>,
@@ -50,10 +50,11 @@ pub fn post_message(
     accs: &mut PostMessage,
     data: PostMessageData,
 ) -> Result<()> {
-    let (_, ix) = bridge::instructions::post_message(
+    let ix = bridge::instructions::post_message(
         *accs.bridge_program.key,
         *accs.payer.key,
         *accs.emitter.key,
+        *accs.message.key,
         data.nonce,
         data.payload,
         data.consistency_level,

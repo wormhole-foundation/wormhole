@@ -39,15 +39,16 @@ use bridge::{
         Claim,
         ClaimDerivationData,
         FeeCollector,
-        Message,
-        MessageDerivationData,
+        PostedVAA,
+        PostedVAADerivationData,
         Sequence,
         SequenceDerivationData,
     },
     api::ForeignAddress,
+    instructions::hash_vaa,
     types::{
         BridgeConfig,
-        PostedMessage,
+        PostedVAAData,
     },
     vaa::{
         ClaimableVAA,
@@ -304,6 +305,7 @@ pub fn transfer_native(
     program_id: Pubkey,
     bridge_id: Pubkey,
     payer: Pubkey,
+    message_key: Pubkey,
     from: Pubkey,
     mint: Pubkey,
     data: TransferNativeData,
@@ -328,16 +330,6 @@ pub fn transfer_native(
         to_chain: data.target_chain,
         fee: U256::from(data.fee),
     };
-    let message_key = Message::<'_, { AccountState::Uninitialized }>::key(
-        &MessageDerivationData {
-            emitter_key: emitter_key.to_bytes(),
-            emitter_chain: 1,
-            nonce: data.nonce,
-            payload: payload.try_to_vec().unwrap(),
-            sequence: None,
-        },
-        &bridge_id,
-    );
     let sequence_key = Sequence::key(
         &SequenceDerivationData {
             emitter_key: &emitter_key,
@@ -357,7 +349,7 @@ pub fn transfer_native(
             AccountMeta::new_readonly(authority_signer_key, false),
             AccountMeta::new_readonly(custody_signer_key, false),
             AccountMeta::new(bridge_config, false),
-            AccountMeta::new(message_key, false),
+            AccountMeta::new(message_key, true),
             AccountMeta::new_readonly(emitter_key, false),
             AccountMeta::new(sequence_key, false),
             AccountMeta::new(fee_collector_key, false),
@@ -377,6 +369,7 @@ pub fn transfer_wrapped(
     program_id: Pubkey,
     bridge_id: Pubkey,
     payer: Pubkey,
+    message_key: Pubkey,
     from: Pubkey,
     from_owner: Pubkey,
     token_chain: u16,
@@ -412,16 +405,6 @@ pub fn transfer_wrapped(
         to_chain: data.target_chain,
         fee: U256::from(data.fee),
     };
-    let message_key = Message::<'_, { AccountState::Uninitialized }>::key(
-        &MessageDerivationData {
-            emitter_key: emitter_key.to_bytes(),
-            emitter_chain: 1,
-            nonce: data.nonce,
-            payload: payload.try_to_vec().unwrap(),
-            sequence: None,
-        },
-        &bridge_id,
-    );
     let sequence_key = Sequence::key(
         &SequenceDerivationData {
             emitter_key: &emitter_key,
@@ -441,7 +424,7 @@ pub fn transfer_wrapped(
             AccountMeta::new_readonly(wrapped_meta_key, false),
             AccountMeta::new_readonly(authority_signer, false),
             AccountMeta::new(bridge_config, false),
-            AccountMeta::new(message_key, false),
+            AccountMeta::new(message_key, true),
             AccountMeta::new_readonly(emitter_key, false),
             AccountMeta::new(sequence_key, false),
             AccountMeta::new(fee_collector_key, false),
@@ -461,6 +444,7 @@ pub fn attest(
     program_id: Pubkey,
     bridge_id: Pubkey,
     payer: Pubkey,
+    message_key: Pubkey,
     mint: Pubkey,
     decimals: u8,
     mint_meta: Pubkey,
@@ -481,16 +465,6 @@ pub fn attest(
         symbol,
         name,
     };
-    let message_key = Message::<'_, { AccountState::Uninitialized }>::key(
-        &MessageDerivationData {
-            emitter_key: emitter_key.to_bytes(),
-            emitter_chain: 1,
-            nonce,
-            payload: payload.try_to_vec().unwrap(),
-            sequence: None,
-        },
-        &bridge_id,
-    );
     let sequence_key = Sequence::key(
         &SequenceDerivationData {
             emitter_key: &emitter_key,
@@ -509,7 +483,7 @@ pub fn attest(
             AccountMeta::new_readonly(spl_metadata, false),
             // Bridge accounts
             AccountMeta::new(bridge_config, false),
-            AccountMeta::new(message_key, false),
+            AccountMeta::new(message_key, true),
             AccountMeta::new_readonly(emitter_key, false),
             AccountMeta::new(sequence_key, false),
             AccountMeta::new(fee_collector_key, false),

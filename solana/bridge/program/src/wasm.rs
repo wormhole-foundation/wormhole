@@ -22,8 +22,8 @@ use crate::{
     accounts::{
         GuardianSet,
         GuardianSetDerivationData,
-        Message,
-        MessageDerivationData,
+        PostedVAA,
+        PostedVAADerivationData,
     },
     types::ConsistencyLevel,
     PostVAAData,
@@ -36,6 +36,7 @@ use crate::{
         FeeCollector,
     },
     instructions::{
+        hash_vaa,
         post_message,
         post_vaa,
         set_fees,
@@ -50,7 +51,7 @@ use crate::{
         GovernancePayloadTransferFees,
         GovernancePayloadUpgrade,
         GuardianSetData,
-        PostedMessage,
+        PostedVAAData,
     },
 };
 use byteorder::LittleEndian;
@@ -61,6 +62,7 @@ pub fn post_message_ix(
     program_id: String,
     payer: String,
     emitter: String,
+    message: String,
     nonce: u32,
     msg: Vec<u8>,
     consistency: String,
@@ -70,10 +72,11 @@ pub fn post_message_ix(
         "FINALIZED" => ConsistencyLevel::Finalized,
         _ => panic!("invalid consistency level"),
     };
-    let (_, ix) = post_message(
+    let ix = post_message(
         Pubkey::from_str(program_id.as_str()).unwrap(),
         Pubkey::from_str(payer.as_str()).unwrap(),
         Pubkey::from_str(emitter.as_str()).unwrap(),
+        Pubkey::from_str(message.as_str()).unwrap(),
         nonce,
         msg,
         consistency_level,
@@ -116,13 +119,9 @@ pub fn update_guardian_set_ix(program_id: String, payer: String, vaa: Vec<u8>) -
     let vaa = VAA::deserialize(vaa.as_slice()).unwrap();
     let payload =
         GovernancePayloadGuardianSetChange::deserialize(&mut vaa.payload.as_slice()).unwrap();
-    let message_key = Message::<'_, { AccountState::Uninitialized }>::key(
-        &MessageDerivationData {
-            emitter_key: vaa.emitter_address,
-            emitter_chain: vaa.emitter_chain,
-            nonce: vaa.nonce,
-            payload: vaa.payload,
-            sequence: None,
+    let message_key = PostedVAA::<'_, { AccountState::Uninitialized }>::key(
+        &PostedVAADerivationData {
+            payload_hash: hash_vaa(&vaa.clone().into()).to_vec(),
         },
         &program_id,
     );
@@ -142,13 +141,9 @@ pub fn update_guardian_set_ix(program_id: String, payer: String, vaa: Vec<u8>) -
 pub fn set_fees_ix(program_id: String, payer: String, vaa: Vec<u8>) -> JsValue {
     let program_id = Pubkey::from_str(program_id.as_str()).unwrap();
     let vaa = VAA::deserialize(vaa.as_slice()).unwrap();
-    let message_key = Message::<'_, { AccountState::Uninitialized }>::key(
-        &MessageDerivationData {
-            emitter_key: vaa.emitter_address,
-            emitter_chain: vaa.emitter_chain,
-            nonce: vaa.nonce,
-            payload: vaa.payload,
-            sequence: None,
+    let message_key = PostedVAA::<'_, { AccountState::Uninitialized }>::key(
+        &PostedVAADerivationData {
+            payload_hash: hash_vaa(&vaa.clone().into()).to_vec(),
         },
         &program_id,
     );
@@ -167,13 +162,9 @@ pub fn transfer_fees_ix(program_id: String, payer: String, vaa: Vec<u8>) -> JsVa
     let program_id = Pubkey::from_str(program_id.as_str()).unwrap();
     let vaa = VAA::deserialize(vaa.as_slice()).unwrap();
     let payload = GovernancePayloadTransferFees::deserialize(&mut vaa.payload.as_slice()).unwrap();
-    let message_key = Message::<'_, { AccountState::Uninitialized }>::key(
-        &MessageDerivationData {
-            emitter_key: vaa.emitter_address,
-            emitter_chain: vaa.emitter_chain,
-            nonce: vaa.nonce,
-            payload: vaa.payload,
-            sequence: None,
+    let message_key = PostedVAA::<'_, { AccountState::Uninitialized }>::key(
+        &PostedVAADerivationData {
+            payload_hash: hash_vaa(&vaa.clone().into()).to_vec(),
         },
         &program_id,
     );
@@ -199,13 +190,9 @@ pub fn upgrade_contract_ix(
     let spill = Pubkey::from_str(spill.as_str()).unwrap();
     let vaa = VAA::deserialize(vaa.as_slice()).unwrap();
     let payload = GovernancePayloadUpgrade::deserialize(&mut vaa.payload.as_slice()).unwrap();
-    let message_key = Message::<'_, { AccountState::Uninitialized }>::key(
-        &MessageDerivationData {
-            emitter_key: vaa.emitter_address,
-            emitter_chain: vaa.emitter_chain,
-            nonce: vaa.nonce,
-            payload: vaa.payload,
-            sequence: None,
+    let message_key = PostedVAA::<'_, { AccountState::Uninitialized }>::key(
+        &PostedVAADerivationData {
+            payload_hash: hash_vaa(&vaa.clone().into()).to_vec(),
         },
         &program_id,
     );
@@ -362,36 +349,8 @@ pub fn fee_collector_address(bridge: String) -> Vec<u8> {
 }
 
 #[wasm_bindgen]
-pub fn posted_message_address(
-    bridge: String,
-    emitter_key: Vec<u8>,
-    emitter_chain: u16,
-    nonce: u32,
-    payload: Vec<u8>,
-    sequence: Option<u64>,
-) -> Vec<u8> {
-    let program_id = Pubkey::from_str(bridge.as_str()).unwrap();
-
-    let mut ek = [0u8; 32];
-    ek.copy_from_slice(emitter_key.as_slice());
-
-    let message_key = Message::<'_, { AccountState::Initialized }>::key(
-        &MessageDerivationData {
-            emitter_key: ek,
-            emitter_chain,
-            nonce,
-            payload,
-            sequence,
-        },
-        &program_id,
-    );
-
-    message_key.to_bytes().to_vec()
-}
-
-#[wasm_bindgen]
 pub fn parse_posted_message(data: Vec<u8>) -> JsValue {
-    JsValue::from_serde(&PostedMessage::try_from_slice(data.as_slice()).unwrap().0).unwrap()
+    JsValue::from_serde(&PostedVAAData::try_from_slice(data.as_slice()).unwrap().0).unwrap()
 }
 
 #[wasm_bindgen]

@@ -15,10 +15,11 @@ pub use api::{
     PostMessage,
     PostMessageData,
     PostVAA,
-    PostVAAData,
     Signature,
     UninitializedMessage,
 };
+
+use bridge::PostVAAData;
 
 solitaire! {
     Initialize(InitializeData)                  => initialize,

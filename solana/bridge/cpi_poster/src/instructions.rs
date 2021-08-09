@@ -12,23 +12,22 @@ pub fn post_message(
     bridge_id: Pubkey,
     payer: Pubkey,
     emitter: Pubkey,
+    message: Pubkey,
     nonce: u32,
     payload: Vec<u8>,
     commitment: ConsistencyLevel,
-) -> solitaire::Result<(Pubkey, Instruction)> {
-    let (k, ix) =
-        bridge::instructions::post_message(bridge_id, payer, emitter, nonce, payload, commitment)?;
+) -> solitaire::Result<Instruction> {
+    let ix = bridge::instructions::post_message(
+        bridge_id, payer, emitter, message, nonce, payload, commitment,
+    )?;
     let mut accounts = ix.accounts;
     accounts.insert(7, AccountMeta::new_readonly(bridge_id, false));
     let mut data = ix.data;
     data[0] = 0;
 
-    Ok((
-        k,
-        Instruction {
-            program_id,
-            accounts,
-            data,
-        },
-    ))
+    Ok(Instruction {
+        program_id,
+        accounts,
+        data,
+    })
 }

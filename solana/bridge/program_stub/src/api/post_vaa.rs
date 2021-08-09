@@ -13,23 +13,17 @@ use bridge::{
     accounts::{
         Bridge,
         GuardianSetDerivationData,
-        Message,
-        MessageDerivationData,
+        PostedVAA,
+        PostedVAADerivationData,
     },
+    instructions::hash_vaa,
+    PostVAAData,
     CHAIN_ID_SOLANA,
 };
 use solitaire::{
     processors::seeded::Seeded,
     CreationLamports::Exempt,
 };
-
-impl From<&PostVAAData> for GuardianSetDerivationData {
-    fn from(data: &PostVAAData) -> Self {
-        GuardianSetDerivationData {
-            index: data.guardian_set_index,
-        }
-    }
-}
 
 #[derive(FromAccounts)]
 pub struct PostVAA<'b> {
@@ -43,7 +37,7 @@ pub struct PostVAA<'b> {
     pub signature_set: Info<'b>,
 
     /// Message the VAA is associated with.
-    pub message: Mut<Message<'b, { AccountState::MaybeInitialized }>>,
+    pub message: Mut<PostedVAA<'b, { AccountState::MaybeInitialized }>>,
 
     /// Account used to pay for auxillary instructions.
     pub payer: Mut<Signer<Info<'b>>>,
@@ -65,33 +59,10 @@ pub struct Signature {
 
 pub type ForeignAddress = [u8; 32];
 
-#[derive(Default, BorshSerialize, BorshDeserialize)]
-pub struct PostVAAData {
-    // Header part
-    pub version: u8,
-    pub guardian_set_index: u32,
-
-    // Body part
-    pub timestamp: u32,
-    pub nonce: u32,
-    pub emitter_chain: u16,
-    pub emitter_address: ForeignAddress,
-    pub sequence: u64,
-    pub consistency_level: u8,
-    pub payload: Vec<u8>,
-}
-
 pub fn post_vaa(ctx: &ExecutionContext, accs: &mut PostVAA, vaa: PostVAAData) -> Result<()> {
-    let mut msg_derivation = MessageDerivationData {
-        emitter_key: vaa.emitter_address,
-        emitter_chain: vaa.emitter_chain,
-        nonce: vaa.nonce,
-        payload: vaa.payload.clone(),
-        sequence: None,
+    let mut msg_derivation = PostedVAADerivationData {
+        payload_hash: hash_vaa(&vaa).to_vec(),
     };
-    if vaa.emitter_chain != CHAIN_ID_SOLANA {
-        msg_derivation.sequence = Some(vaa.sequence)
-    }
 
     accs.message
         .verify_derivation(ctx.program_id, &msg_derivation)?;

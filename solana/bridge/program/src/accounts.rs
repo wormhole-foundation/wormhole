@@ -2,7 +2,8 @@ use crate::{
     types,
     types::{
         BridgeData,
-        PostedMessage,
+        PostedMessageData,
+        PostedVAAData,
         SequenceTracker,
     },
 };
@@ -55,29 +56,17 @@ impl<'b, const State: AccountState> Seeded<&ClaimDerivationData> for Claim<'b, {
 
 pub type SignatureSet<'b, const State: AccountState> = Data<'b, types::SignatureSet, { State }>;
 
-pub type Message<'b, const State: AccountState> = Data<'b, PostedMessage, { State }>;
+pub type PostedMessage<'b, const State: AccountState> = Data<'b, PostedMessageData, { State }>;
 
-pub struct MessageDerivationData {
-    pub emitter_key: [u8; 32],
-    pub emitter_chain: u16,
-    pub nonce: u32,
-    pub payload: Vec<u8>,
-    // This field is only used when a VAA from a foreign chain is posted
-    pub sequence: Option<u64>,
+pub type PostedVAA<'b, const State: AccountState> = Data<'b, PostedVAAData, { State }>;
+
+pub struct PostedVAADerivationData {
+    pub payload_hash: Vec<u8>,
 }
 
-impl<'b, const State: AccountState> Seeded<&MessageDerivationData> for Message<'b, { State }> {
-    fn seeds(data: &MessageDerivationData) -> Vec<Vec<u8>> {
-        let mut seeds = vec![
-            data.emitter_key.to_vec(),
-            data.emitter_chain.to_be_bytes().to_vec(),
-            data.nonce.to_be_bytes().to_vec(),
-        ];
-        if let Some(seq) = data.sequence {
-            seeds.push(seq.to_be_bytes().to_vec())
-        }
-        seeds.append(&mut data.payload.chunks(32).map(|v| v.to_vec()).collect());
-        seeds
+impl<'b, const State: AccountState> Seeded<&PostedVAADerivationData> for PostedVAA<'b, { State }> {
+    fn seeds(data: &PostedVAADerivationData) -> Vec<Vec<u8>> {
+        vec!["PostedVAA".as_bytes().to_vec(), data.payload_hash.to_vec()]
     }
 }
 
@@ -89,6 +78,9 @@ pub struct SequenceDerivationData<'a> {
 
 impl<'b> Seeded<&SequenceDerivationData<'b>> for Sequence<'b> {
     fn seeds(data: &SequenceDerivationData) -> Vec<Vec<u8>> {
-        vec![data.emitter_key.to_bytes().to_vec()]
+        vec![
+            "Sequence".as_bytes().to_vec(),
+            data.emitter_key.to_bytes().to_vec(),
+        ]
     }
 }

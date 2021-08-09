@@ -65,7 +65,7 @@ use bridge::{
         FeeCollector,
         GuardianSet,
         GuardianSetDerivationData,
-        MessageDerivationData,
+        PostedVAADerivationData,
         Sequence,
         SequenceDerivationData,
         SignatureSet,
@@ -75,7 +75,7 @@ use bridge::{
     types::{
         BridgeConfig,
         ConsistencyLevel,
-        PostedMessage,
+        PostedVAAData,
         SequenceTracker,
     },
     Initialize,
@@ -290,11 +290,14 @@ mod helpers {
         // Transfer money into the fee collector as it needs a balance/must exist.
         let fee_collector = FeeCollector::<'_>::key(None, program);
 
+        let message = Keypair::new();
+
         // Capture the resulting message, later functions will need this.
-        let (message_key, instruction) = instructions::post_message(
+        let instruction = instructions::post_message(
             *program,
             payer.pubkey(),
             emitter.pubkey(),
+            message.pubkey(),
             nonce,
             data,
             ConsistencyLevel::Confirmed,
@@ -304,7 +307,7 @@ mod helpers {
         execute(
             client,
             payer,
-            &[payer, emitter],
+            &[payer, emitter, message],
             &[
                 system_instruction::transfer(&payer.pubkey(), &fee_collector, fee),
                 instruction,
@@ -312,7 +315,7 @@ mod helpers {
             CommitmentConfig::processed(),
         )?;
 
-        Ok(message_key)
+        Ok(message.pubkey())
     }
 
     pub fn verify_signatures(

@@ -14,8 +14,8 @@ use crate::{
         Bridge,
         GuardianSet,
         GuardianSetDerivationData,
-        Message,
-        MessageDerivationData,
+        PostedVAA,
+        PostedVAADerivationData,
         SignatureSet,
     },
     error::Error::{
@@ -64,7 +64,7 @@ pub struct PostVAA<'b> {
     pub signature_set: SignatureSet<'b, { AccountState::Initialized }>,
 
     /// Message the VAA is associated with.
-    pub message: Mut<Message<'b, { AccountState::MaybeInitialized }>>,
+    pub message: Mut<PostedVAA<'b, { AccountState::MaybeInitialized }>>,
 
     /// Account used to pay for auxillary instructions.
     pub payer: Mut<Signer<Info<'b>>>,
@@ -103,21 +103,18 @@ pub struct PostVAAData {
 }
 
 pub fn post_vaa(ctx: &ExecutionContext, accs: &mut PostVAA, vaa: PostVAAData) -> Result<()> {
-    let mut msg_derivation = MessageDerivationData {
-        emitter_key: vaa.emitter_address,
-        emitter_chain: vaa.emitter_chain,
-        nonce: vaa.nonce,
-        payload: vaa.payload.clone(),
-        sequence: None,
+    let msg_derivation = PostedVAADerivationData {
+        payload_hash: accs.signature_set.hash.to_vec(),
     };
-    if vaa.emitter_chain != CHAIN_ID_SOLANA {
-        msg_derivation.sequence = Some(vaa.sequence)
-    }
 
     accs.message
         .verify_derivation(ctx.program_id, &msg_derivation)?;
     accs.guardian_set
         .verify_derivation(ctx.program_id, &(&vaa).into())?;
+
+    if accs.message.is_initialized() {
+        return Ok(());
+    }
 
     // Verify any required invariants before we process the instruction.
     check_active(&accs.guardian_set, &accs.clock)?;
@@ -148,22 +145,18 @@ pub fn post_vaa(ctx: &ExecutionContext, accs: &mut PostVAA, vaa: PostVAAData) ->
         return Err(PostVAAConsensusFailed.into());
     }
 
-    // If the VAA originates from another chain we need to create the account and populate all fields
-    if !accs.message.is_initialized() {
-        accs.message.nonce = vaa.nonce;
-        accs.message.emitter_chain = vaa.emitter_chain;
-        accs.message.emitter_address = vaa.emitter_address;
-        accs.message.sequence = vaa.sequence;
-        accs.message.payload = vaa.payload;
-        accs.message.consistency_level = vaa.consistency_level;
-        accs.message
-            .create(&msg_derivation, ctx, accs.payer.key, Exempt)?;
-    }
-
-    // Store VAA data in associated message.
+    // Persist VAA data
+    accs.message.nonce = vaa.nonce;
+    accs.message.emitter_chain = vaa.emitter_chain;
+    accs.message.emitter_address = vaa.emitter_address;
+    accs.message.sequence = vaa.sequence;
+    accs.message.payload = vaa.payload;
+    accs.message.consistency_level = vaa.consistency_level;
     accs.message.vaa_version = vaa.version;
     accs.message.vaa_time = vaa.timestamp;
     accs.message.vaa_signature_account = *accs.signature_set.info().key;
+    accs.message
+        .create(&msg_derivation, ctx, accs.payer.key, Exempt)?;
 
     Ok(())
 }

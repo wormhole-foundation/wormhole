@@ -102,7 +102,7 @@ pub fn execute(
 mod helpers {
     use bridge::types::{
         ConsistencyLevel,
-        PostedMessage,
+        PostedVAAData,
     };
     use token_bridge::{
         CompleteNativeData,
@@ -117,7 +117,7 @@ mod helpers {
     use bridge::{
         accounts::{
             FeeCollector,
-            MessageDerivationData,
+            PostedVAADerivationData,
         },
         PostVAAData,
     };
@@ -654,8 +654,8 @@ mod helpers {
         payer: &Keypair,
         vaa: PostVAAData,
     ) -> Result<Pubkey, ClientError> {
-        let msg_key = bridge::accounts::Message::<'_, { AccountState::Initialized }>::key(
-            &MessageDerivationData {
+        let msg_key = bridge::accounts::PostedVAA::<'_, { AccountState::Initialized }>::key(
+            &PostedVAADerivationData {
                 emitter_key: vaa.emitter_address,
                 emitter_chain: vaa.emitter_chain,
                 nonce: vaa.nonce,

@@ -1,6 +1,7 @@
 use crate::{
     accounts::{
         AuthoritySigner,
+        EmitterAccount,
         WrappedDerivationData,
         WrappedMetaDerivationData,
         WrappedMint,
@@ -35,7 +36,8 @@ use crate::{
 };
 use borsh::BorshDeserialize;
 use bridge::{
-    accounts::MessageDerivationData,
+    accounts::PostedVAADerivationData,
+    instructions::hash_vaa,
     vaa::VAA,
     DeserializePayload,
     PostVAAData,
@@ -47,13 +49,13 @@ use solitaire::{
 };
 use std::str::FromStr;
 use wasm_bindgen::prelude::*;
-use crate::accounts::EmitterAccount;
 
 #[wasm_bindgen]
 pub fn attest_ix(
     program_id: String,
     bridge_id: String,
     payer: String,
+    message: String,
     mint: String,
     decimals: u8,
     mint_meta: String,
@@ -62,11 +64,12 @@ pub fn attest_ix(
     let program_id = Pubkey::from_str(program_id.as_str()).unwrap();
     let bridge_id = Pubkey::from_str(bridge_id.as_str()).unwrap();
     let payer = Pubkey::from_str(payer.as_str()).unwrap();
+    let message = Pubkey::from_str(message.as_str()).unwrap();
     let mint = Pubkey::from_str(mint.as_str()).unwrap();
     let mint_meta = Pubkey::from_str(mint_meta.as_str()).unwrap();
 
     let ix = attest(
-        program_id, bridge_id, payer, mint, decimals, mint_meta, nonce,
+        program_id, bridge_id, payer, message, mint, decimals, mint_meta, nonce,
     )
     .unwrap();
 
@@ -78,6 +81,7 @@ pub fn transfer_native_ix(
     program_id: String,
     bridge_id: String,
     payer: String,
+    message: String,
     from: String,
     mint: String,
     nonce: u32,
@@ -89,6 +93,7 @@ pub fn transfer_native_ix(
     let program_id = Pubkey::from_str(program_id.as_str()).unwrap();
     let bridge_id = Pubkey::from_str(bridge_id.as_str()).unwrap();
     let payer = Pubkey::from_str(payer.as_str()).unwrap();
+    let message = Pubkey::from_str(message.as_str()).unwrap();
     let from = Pubkey::from_str(from.as_str()).unwrap();
     let mint = Pubkey::from_str(mint.as_str()).unwrap();
 
@@ -99,6 +104,7 @@ pub fn transfer_native_ix(
         program_id,
         bridge_id,
         payer,
+        message,
         from,
         mint,
         TransferNativeData {
@@ -119,6 +125,7 @@ pub fn transfer_wrapped_ix(
     program_id: String,
     bridge_id: String,
     payer: String,
+    message: String,
     from: String,
     from_owner: String,
     token_chain: u16,
@@ -132,6 +139,7 @@ pub fn transfer_wrapped_ix(
     let program_id = Pubkey::from_str(program_id.as_str()).unwrap();
     let bridge_id = Pubkey::from_str(bridge_id.as_str()).unwrap();
     let payer = Pubkey::from_str(payer.as_str()).unwrap();
+    let message = Pubkey::from_str(message.as_str()).unwrap();
     let from = Pubkey::from_str(from.as_str()).unwrap();
     let from_owner = Pubkey::from_str(from_owner.as_str()).unwrap();
 
@@ -144,6 +152,7 @@ pub fn transfer_wrapped_ix(
         program_id,
         bridge_id,
         payer,
+        message,
         from,
         from_owner,
         token_chain,
@@ -173,13 +182,9 @@ pub fn complete_transfer_native_ix(
     let payer = Pubkey::from_str(payer.as_str()).unwrap();
     let vaa = VAA::deserialize(vaa.as_slice()).unwrap();
     let payload = PayloadTransfer::deserialize(&mut vaa.payload.as_slice()).unwrap();
-    let message_key = bridge::accounts::Message::<'_, { AccountState::Uninitialized }>::key(
-        &MessageDerivationData {
-            emitter_key: vaa.emitter_address,
-            emitter_chain: vaa.emitter_chain,
-            nonce: vaa.nonce,
-            payload: vaa.payload.clone(),
-            sequence: None,
+    let message_key = bridge::accounts::PostedVAA::<'_, { AccountState::Uninitialized }>::key(
+        &PostedVAADerivationData {
+            payload_hash: hash_vaa(&vaa.clone().into()).to_vec(),
         },
         &program_id,
     );
@@ -222,13 +227,9 @@ pub fn complete_transfer_wrapped_ix(
     let payer = Pubkey::from_str(payer.as_str()).unwrap();
     let vaa = VAA::deserialize(vaa.as_slice()).unwrap();
     let payload = PayloadTransfer::deserialize(&mut vaa.payload.as_slice()).unwrap();
-    let message_key = bridge::accounts::Message::<'_, { AccountState::Uninitialized }>::key(
-        &MessageDerivationData {
-            emitter_key: vaa.emitter_address,
-            emitter_chain: vaa.emitter_chain,
-            nonce: vaa.nonce,
-            payload: vaa.payload.clone(),
-            sequence: None,
+    let message_key = bridge::accounts::PostedVAA::<'_, { AccountState::Uninitialized }>::key(
+        &PostedVAADerivationData {
+            payload_hash: hash_vaa(&vaa.clone().into()).to_vec(),
         },
         &program_id,
     );
@@ -271,13 +272,9 @@ pub fn create_wrapped_ix(
     let payer = Pubkey::from_str(payer.as_str()).unwrap();
     let vaa = VAA::deserialize(vaa.as_slice()).unwrap();
     let payload = PayloadAssetMeta::deserialize(&mut vaa.payload.as_slice()).unwrap();
-    let message_key = bridge::accounts::Message::<'_, { AccountState::Uninitialized }>::key(
-        &MessageDerivationData {
-            emitter_key: vaa.emitter_address,
-            emitter_chain: vaa.emitter_chain,
-            nonce: vaa.nonce,
-            payload: vaa.payload.clone(),
-            sequence: None,
+    let message_key = bridge::accounts::PostedVAA::<'_, { AccountState::Uninitialized }>::key(
+        &PostedVAADerivationData {
+            payload_hash: hash_vaa(&vaa.clone().into()).to_vec(),
         },
         &program_id,
     );
@@ -320,13 +317,9 @@ pub fn upgrade_contract_ix(
     let spill = Pubkey::from_str(spill.as_str()).unwrap();
     let vaa = VAA::deserialize(vaa.as_slice()).unwrap();
     let payload = GovernancePayloadUpgrade::deserialize(&mut vaa.payload.as_slice()).unwrap();
-    let message_key = bridge::accounts::Message::<'_, { AccountState::Uninitialized }>::key(
-        &MessageDerivationData {
-            emitter_key: vaa.emitter_address,
-            emitter_chain: vaa.emitter_chain,
-            nonce: vaa.nonce,
-            payload: vaa.payload,
-            sequence: None,
+    let message_key = bridge::accounts::PostedVAA::<'_, { AccountState::Uninitialized }>::key(
+        &PostedVAADerivationData {
+            payload_hash: hash_vaa(&vaa.clone().into()).to_vec(),
         },
         &bridge_id,
     );
@@ -354,13 +347,9 @@ pub fn register_chain_ix(
     let payer = Pubkey::from_str(payer.as_str()).unwrap();
     let vaa = VAA::deserialize(vaa.as_slice()).unwrap();
     let payload = PayloadGovernanceRegisterChain::deserialize(&mut vaa.payload.as_slice()).unwrap();
-    let message_key = bridge::accounts::Message::<'_, { AccountState::Uninitialized }>::key(
-        &MessageDerivationData {
-            emitter_key: vaa.emitter_address,
-            emitter_chain: vaa.emitter_chain,
-            nonce: vaa.nonce,
-            payload: vaa.payload.clone(),
-            sequence: None,
+    let message_key = bridge::accounts::PostedVAA::<'_, { AccountState::Uninitialized }>::key(
+        &PostedVAADerivationData {
+            payload_hash: hash_vaa(&vaa.clone().into()).to_vec(),
         },
         &bridge_id,
     );

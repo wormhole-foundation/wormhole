@@ -31,6 +31,7 @@ yargs(hideBin(process.argv))
         // Generate a new random public key
         let from = web3.Keypair.generate();
         let emitter = web3.Keypair.generate();
+        let message = web3.Keypair.generate();
         let airdropSignature = await connection.requestAirdrop(
             from.publicKey,
             web3.LAMPORTS_PER_SOL,
@@ -49,7 +50,7 @@ yargs(hideBin(process.argv))
             throw new Error("invalid consistency level")
         }
 
-        let ix = ixFromRust(post_message_ix(bridge_id.toString(), from.publicKey.toString(), emitter.publicKey.toString(), argv.nonce, Buffer.from(argv.message, "hex"), argv.consistency));
+        let ix = ixFromRust(post_message_ix(bridge_id.toString(), from.publicKey.toString(), emitter.publicKey.toString(), message.publicKey.toString(), argv.nonce, Buffer.from(argv.message, "hex"), argv.consistency));
         // Add transfer instruction to transaction
         let transaction = new web3.Transaction().add(transferIx, ix);
 
@@ -57,7 +58,7 @@ yargs(hideBin(process.argv))
         let signature = await web3.sendAndConfirmTransaction(
             connection,
             transaction,
-            [from, emitter],
+            [from, emitter, message],
             {
                 skipPreflight: true
             }

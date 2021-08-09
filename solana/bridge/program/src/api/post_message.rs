@@ -2,8 +2,7 @@ use crate::{
     accounts::{
         Bridge,
         FeeCollector,
-        Message,
-        MessageDerivationData,
+        PostedMessage,
         Sequence,
         SequenceDerivationData,
     },
@@ -25,7 +24,7 @@ use solitaire::{
     *,
 };
 
-pub type UninitializedMessage<'b> = Message<'b, { AccountState::Uninitialized }>;
+pub type UninitializedMessage<'b> = PostedMessage<'b, { AccountState::Uninitialized }>;
 
 impl<'a> From<&PostMessage<'a>> for SequenceDerivationData<'a> {
     fn from(accs: &PostMessage<'a>) -> Self {
@@ -41,7 +40,7 @@ pub struct PostMessage<'b> {
     pub bridge: Mut<Bridge<'b, { AccountState::Initialized }>>,
 
     /// Account to store the posted message
-    pub message: Mut<UninitializedMessage<'b>>,
+    pub message: Signer<Mut<UninitializedMessage<'b>>>,
 
     /// Emitter of the VAA
     pub emitter: Signer<Info<'b>>,
@@ -85,17 +84,6 @@ pub fn post_message(
     accs.sequence
         .verify_derivation(ctx.program_id, &(&*accs).into())?;
 
-    let msg_derivation = MessageDerivationData {
-        emitter_key: accs.emitter.key.to_bytes(),
-        emitter_chain: CHAIN_ID_SOLANA,
-        nonce: data.nonce,
-        payload: data.payload.clone(),
-        sequence: None,
-    };
-
-    accs.message
-        .verify_derivation(ctx.program_id, &msg_derivation)?;
-
     let fee = accs.bridge.config.fee;
     // Fee handling, checking previously known balance allows us to not care who is the payer of
     // this submission.
@@ -137,8 +125,15 @@ pub fn post_message(
     };
 
     // Create message account
-    accs.message
-        .create(&msg_derivation, ctx, accs.payer.key, Exempt)?;
+    let size = accs.message.size();
+    let ix = solana_program::system_instruction::create_account(
+        accs.payer.key,
+        accs.message.info().key,
+        Exempt.amount(size),
+        size as u64,
+        ctx.program_id,
+    );
+    solana_program::program::invoke(&ix, ctx.accounts)?;
 
     // Bump sequence number
     trace!("New Sequence: {}", accs.sequence.sequence + 1);

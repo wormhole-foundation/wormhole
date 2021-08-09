@@ -30,8 +30,8 @@ use crate::{
         FeeCollector,
         GuardianSet,
         GuardianSetDerivationData,
-        Message,
-        MessageDerivationData,
+        PostedVAA,
+        PostedVAADerivationData,
         Sequence,
         SequenceDerivationData,
     },
@@ -88,10 +88,11 @@ pub fn post_message(
     program_id: Pubkey,
     payer: Pubkey,
     emitter: Pubkey,
+    message: Pubkey,
     nonce: u32,
     payload: Vec<u8>,
     commitment: ConsistencyLevel,
-) -> solitaire::Result<(Pubkey, Instruction)> {
+) -> solitaire::Result<Instruction> {
     let bridge = Bridge::<'_, { AccountState::Uninitialized }>::key(None, &program_id);
     let fee_collector = FeeCollector::<'_>::key(None, &program_id);
     let sequence = Sequence::<'_>::key(
@@ -100,45 +101,32 @@ pub fn post_message(
         },
         &program_id,
     );
-    let message = Message::<'_, { AccountState::MaybeInitialized }>::key(
-        &MessageDerivationData {
-            emitter_key: emitter.to_bytes(),
-            emitter_chain: CHAIN_ID_SOLANA,
-            nonce,
-            sequence: None,
-            payload: payload.clone(),
-        },
-        &program_id,
-    );
 
-    Ok((
-        message,
-        Instruction {
-            program_id,
+    Ok(Instruction {
+        program_id,
 
-            accounts: vec![
-                AccountMeta::new(bridge, false),
-                AccountMeta::new(message, false),
-                AccountMeta::new_readonly(emitter, true),
-                AccountMeta::new(sequence, false),
-                AccountMeta::new(payer, true),
-                AccountMeta::new(fee_collector, false),
-                AccountMeta::new_readonly(sysvar::clock::id(), false),
-                AccountMeta::new_readonly(sysvar::rent::id(), false),
-                AccountMeta::new_readonly(solana_program::system_program::id(), false),
-            ],
+        accounts: vec![
+            AccountMeta::new(bridge, false),
+            AccountMeta::new(message, true),
+            AccountMeta::new_readonly(emitter, true),
+            AccountMeta::new(sequence, false),
+            AccountMeta::new(payer, true),
+            AccountMeta::new(fee_collector, false),
+            AccountMeta::new_readonly(sysvar::clock::id(), false),
+            AccountMeta::new_readonly(sysvar::rent::id(), false),
+            AccountMeta::new_readonly(solana_program::system_program::id(), false),
+        ],
 
-            data: (
-                crate::instruction::Instruction::PostMessage,
-                PostMessageData {
-                    nonce,
-                    payload: payload.clone(),
-                    consistency_level: commitment,
-                },
-            )
-                .try_to_vec()?,
-        },
-    ))
+        data: (
+            crate::instruction::Instruction::PostMessage,
+            PostMessageData {
+                nonce,
+                payload: payload.clone(),
+                consistency_level: commitment,
+            },
+        )
+            .try_to_vec()?,
+    })
 }
 
 pub fn verify_signatures(
@@ -185,19 +173,12 @@ pub fn post_vaa(
         &program_id,
     );
 
-    let mut msg_derivation_data = MessageDerivationData {
-        emitter_key: vaa.emitter_address,
-        emitter_chain: vaa.emitter_chain,
-        nonce: vaa.nonce,
-        sequence: None,
-        payload: vaa.payload.clone(),
+    let mut msg_derivation_data = &PostedVAADerivationData {
+        payload_hash: hash_vaa(&vaa).to_vec(),
     };
-    if vaa.emitter_chain != CHAIN_ID_SOLANA {
-        msg_derivation_data.sequence = Some(vaa.sequence);
-    }
 
     let message =
-        Message::<'_, { AccountState::MaybeInitialized }>::key(&msg_derivation_data, &program_id);
+        PostedVAA::<'_, { AccountState::MaybeInitialized }>::key(&msg_derivation_data, &program_id);
 
     Instruction {
         program_id,

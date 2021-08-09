@@ -119,53 +119,116 @@ impl Owned for SignatureSet {
     }
 }
 
+// This is using the same payload as the PostedVAA for backwards compatibility.
+// This will be deprecated in a future release.
 #[repr(transparent)]
-pub struct PostedMessage(pub PostedMessageData);
+pub struct PostedMessageData(pub MessageData);
 
-impl BorshSerialize for PostedMessage {
+impl BorshSerialize for PostedMessageData {
     fn serialize<W: Write>(&self, writer: &mut W) -> std::io::Result<()> {
         writer.write(b"msg")?;
         BorshSerialize::serialize(&self.0, writer)
     }
 }
 
-impl BorshDeserialize for PostedMessage {
+impl BorshDeserialize for PostedMessageData {
     fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
         *buf = &buf[3..];
-        Ok(PostedMessage(
-            <PostedMessageData as BorshDeserialize>::deserialize(buf)?,
+        Ok(PostedMessageData(
+            <MessageData as BorshDeserialize>::deserialize(buf)?,
         ))
     }
 }
 
-impl Deref for PostedMessage {
-    type Target = PostedMessageData;
+impl Deref for PostedMessageData {
+    type Target = MessageData;
 
     fn deref(&self) -> &Self::Target {
         unsafe { std::mem::transmute(&self.0) }
     }
 }
 
-impl DerefMut for PostedMessage {
+impl DerefMut for PostedMessageData {
     fn deref_mut(&mut self) -> &mut Self::Target {
         unsafe { std::mem::transmute(&mut self.0) }
     }
 }
 
-impl Default for PostedMessage {
+impl Default for PostedMessageData {
     fn default() -> Self {
-        PostedMessage(PostedMessageData::default())
+        PostedMessageData(MessageData::default())
     }
 }
 
-impl Clone for PostedMessage {
+impl Clone for PostedMessageData {
     fn clone(&self) -> Self {
-        PostedMessage(self.0.clone())
+        PostedMessageData(self.0.clone())
+    }
+}
+
+#[cfg(not(feature = "cpi"))]
+impl Owned for PostedMessageData {
+    fn owner(&self) -> AccountOwner {
+        AccountOwner::This
+    }
+}
+
+#[cfg(feature = "cpi")]
+impl Owned for PostedMessageData {
+    fn owner(&self) -> AccountOwner {
+        AccountOwner::Other(
+            Pubkey::from_str("Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o").unwrap(),
+        )
+    }
+}
+
+#[repr(transparent)]
+pub struct PostedVAAData(pub MessageData);
+
+impl BorshSerialize for PostedVAAData {
+    fn serialize<W: Write>(&self, writer: &mut W) -> std::io::Result<()> {
+        writer.write(b"vaa")?;
+        BorshSerialize::serialize(&self.0, writer)
+    }
+}
+
+impl BorshDeserialize for PostedVAAData {
+    fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
+        *buf = &buf[3..];
+        Ok(PostedVAAData(
+            <MessageData as BorshDeserialize>::deserialize(buf)?,
+        ))
+    }
+}
+
+impl Deref for PostedVAAData {
+    type Target = MessageData;
+
+    fn deref(&self) -> &Self::Target {
+        unsafe { std::mem::transmute(&self.0) }
+    }
+}
+
+impl DerefMut for PostedVAAData {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        unsafe { std::mem::transmute(&mut self.0) }
+    }
+}
+
+impl Default for PostedVAAData {
+    fn default() -> Self {
+        PostedVAAData(MessageData::default())
+    }
+}
+
+impl Clone for PostedVAAData {
+    fn clone(&self) -> Self {
+        PostedVAAData(self.0.clone())
     }
 }
 
 #[derive(Default, BorshSerialize, BorshDeserialize, Clone, Serialize, Deserialize)]
-pub struct PostedMessageData {
+pub struct MessageData {
     /// Header of the posted VAA
     pub vaa_version: u8,
 
@@ -198,14 +261,14 @@ pub struct PostedMessageData {
 }
 
 #[cfg(not(feature = "cpi"))]
-impl Owned for PostedMessage {
+impl Owned for PostedVAAData {
     fn owner(&self) -> AccountOwner {
         AccountOwner::This
     }
 }
 
 #[cfg(feature = "cpi")]
-impl Owned for PostedMessage {
+impl Owned for PostedVAAData {
     fn owner(&self) -> AccountOwner {
         AccountOwner::Other(
             Pubkey::from_str("Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o").unwrap(),

@@ -3,14 +3,17 @@ use crate::{
         Claim,
         ClaimDerivationData,
     },
-    api::ForeignAddress,
+    api::{
+        post_vaa::PostVAAData,
+        ForeignAddress,
+    },
     error::Error::{
         InvalidGovernanceAction,
         InvalidGovernanceChain,
         InvalidGovernanceModule,
         VAAAlreadyExecuted,
     },
-    types::PostedMessage,
+    types::PostedVAAData,
     Result,
     CHAIN_ID_SOLANA,
 };
@@ -107,7 +110,7 @@ pub trait DeserializeGovernancePayload: DeserializePayload + SerializeGovernance
 }
 
 pub struct PayloadMessage<'b, T: DeserializePayload>(
-    Data<'b, PostedMessage, { AccountState::Initialized }>,
+    Data<'b, PostedVAAData, { AccountState::Initialized }>,
     T,
 );
 
@@ -117,13 +120,13 @@ impl<'a, 'b: 'a, 'c, T: DeserializePayload> Peel<'a, 'b, 'c> for PayloadMessage<
         Self: Sized,
     {
         // Deserialize wrapped payload
-        let data: Data<'b, PostedMessage, { AccountState::Initialized }> = Data::peel(ctx)?;
+        let data: Data<'b, PostedVAAData, { AccountState::Initialized }> = Data::peel(ctx)?;
         let payload = DeserializePayload::deserialize(&mut &data.payload[..])?;
         Ok(PayloadMessage(data, payload))
     }
 
     fn deps() -> Vec<Pubkey> {
-        Data::<'b, PostedMessage, { AccountState::Initialized }>::deps()
+        Data::<'b, PostedVAAData, { AccountState::Initialized }>::deps()
     }
 
     fn persist(&self, program_id: &Pubkey) -> Result<()> {
@@ -139,7 +142,7 @@ impl<'b, T: DeserializePayload> Deref for PayloadMessage<'b, T> {
 }
 
 impl<'b, T: DeserializePayload> PayloadMessage<'b, T> {
-    pub fn meta(&self) -> &PostedMessage {
+    pub fn meta(&self) -> &PostedVAAData {
         &self.0
     }
 }
@@ -211,13 +214,13 @@ pub struct SignatureItem {
     pub index: u8,
 }
 
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Serialize, Deserialize, Default, Clone)]
 pub struct VAASignature {
     pub signature: Vec<u8>,
     pub guardian_index: u8,
 }
 
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Serialize, Deserialize, Default, Clone)]
 pub struct VAA {
     // Header part
     pub version: u8,
@@ -272,5 +275,21 @@ impl VAA {
         rdr.read_to_end(&mut v.payload)?;
 
         Ok(v)
+    }
+}
+
+impl From<VAA> for PostVAAData {
+    fn from(vaa: VAA) -> Self {
+        PostVAAData {
+            version: vaa.version,
+            guardian_set_index: vaa.guardian_set_index,
+            timestamp: vaa.timestamp,
+            nonce: vaa.nonce,
+            emitter_chain: vaa.emitter_chain,
+            emitter_address: vaa.emitter_address,
+            sequence: vaa.sequence,
+            consistency_level: vaa.consistency_level,
+            payload: vaa.payload,
+        }
     }
 }

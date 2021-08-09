@@ -60,11 +60,12 @@ use bridge::{
         FeeCollector,
         GuardianSet,
         GuardianSetDerivationData,
-        Message,
-        MessageDerivationData,
+        PostedVAA,
+        PostedVAADerivationData,
         SignatureSet,
     },
     instruction,
+    instructions::hash_vaa,
     types::{
         BridgeConfig,
         BridgeData,
@@ -74,8 +75,8 @@ use bridge::{
         GovernancePayloadTransferFees,
         GovernancePayloadUpgrade,
         GuardianSetData,
-        PostedMessage,
-        PostedMessageData,
+        MessageData,
+        PostedVAAData,
         SequenceTracker,
         SignatureSet as SignatureSetData,
     },
@@ -86,6 +87,7 @@ use bridge::{
     Signature,
 };
 use primitive_types::U256;
+use solana_sdk::hash::hashv;
 
 mod common;
 
@@ -218,7 +220,7 @@ fn test_bridge_messages(context: &mut Context) {
         common::sync(client, payer);
 
         // Fetch chain accounts to verify state.
-        let posted_message: PostedMessage = common::get_account_data(client, &message_key);
+        let posted_message: PostedVAAData = common::get_account_data(client, &message_key);
         let signatures: SignatureSetData = common::get_account_data(client, &signature_set);
 
         // Verify on chain Message
@@ -277,7 +279,7 @@ fn test_bridge_messages(context: &mut Context) {
     common::sync(client, payer);
 
     // Fetch chain accounts to verify state.
-    let posted_message: PostedMessage = common::get_account_data(client, &message_key);
+    let posted_message: PostedVAAData = common::get_account_data(client, &message_key);
     let signatures: SignatureSetData = common::get_account_data(client, &signature_set);
 
     // Verify on chain Message
@@ -322,12 +324,14 @@ fn test_invalid_emitter(context: &mut Context) {
 
     let fee_collector = FeeCollector::key(None, &program);
 
+    let msg_account = Keypair::new();
     // Manually send a message that isn't signed by the emitter, which should be rejected to
     // prevent fraudulant transactions sent on behalf of an emitter.
-    let (message_key, mut instruction) = bridge::instructions::post_message(
+    let mut instruction = bridge::instructions::post_message(
         *program,
         payer.pubkey(),
         emitter.pubkey(),
+        msg_account.pubkey(),
         nonce,
         message,
         ConsistencyLevel::Confirmed,
@@ -484,7 +488,7 @@ fn test_guardian_set_change(context: &mut Context) {
     common::sync(client, payer);
 
     // Fetch chain accounts to verify state.
-    let posted_message: PostedMessage = common::get_account_data(client, &message_key);
+    let posted_message: PostedVAAData = common::get_account_data(client, &message_key);
     let signatures: SignatureSetData = common::get_account_data(client, &signature_set);
 
     // Verify on chain Message
@@ -650,7 +654,7 @@ fn test_set_fees(context: &mut Context) {
     );
 
     // And that the new message is on chain.
-    let posted_message: PostedMessage = common::get_account_data(client, &message_key);
+    let posted_message: PostedVAAData = common::get_account_data(client, &message_key);
     let signatures: SignatureSetData = common::get_account_data(client, &signature_set);
 
     // Verify on chain Message
@@ -792,7 +796,7 @@ fn test_free_fees(context: &mut Context) {
     );
 
     // And that the new message is on chain.
-    let posted_message: PostedMessage = common::get_account_data(client, &message_key);
+    let posted_message: PostedVAAData = common::get_account_data(client, &message_key);
     let signatures: SignatureSetData = common::get_account_data(client, &signature_set);
 
     // Verify on chain Message
@@ -982,13 +986,9 @@ fn test_foreign_bridge_messages(context: &mut Context) {
     let (vaa, body, body_hash) = common::generate_vaa(&emitter, message.clone(), nonce, 0, 2);
 
     // Derive where we expect created accounts to be.
-    let message_key = Message::<'_, { AccountState::MaybeInitialized }>::key(
-        &MessageDerivationData {
-            emitter_key: emitter.pubkey().to_bytes(),
-            emitter_chain: vaa.emitter_chain,
-            nonce,
-            sequence: Some(vaa.sequence),
-            payload: message.clone(),
+    let message_key = PostedVAA::<'_, { AccountState::MaybeInitialized }>::key(
+        &PostedVAADerivationData {
+            payload_hash: hash_vaa(&vaa).to_vec(),
         },
         &program,
     );
@@ -999,7 +999,7 @@ fn test_foreign_bridge_messages(context: &mut Context) {
     common::sync(client, payer);
 
     // Fetch chain accounts to verify state.
-    let posted_message: PostedMessage = common::get_account_data(client, &message_key);
+    let posted_message: PostedVAAData = common::get_account_data(client, &message_key);
     let signatures: SignatureSetData = common::get_account_data(client, &signature_set);
 
     assert_eq!(posted_message.0.vaa_version, 0);
