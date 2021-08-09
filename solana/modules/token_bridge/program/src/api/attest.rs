@@ -2,6 +2,8 @@ use crate::{
     accounts::{
         ConfigAccount,
         EmitterAccount,
+        SplTokenMeta,
+        SplTokenMetaDerivationData,
         WrappedMetaDerivationData,
         WrappedTokenMeta,
     },
@@ -71,7 +73,7 @@ pub struct AttestToken<'b> {
     pub wrapped_meta: WrappedTokenMeta<'b, { AccountState::Uninitialized }>,
 
     /// SPL Metadata for the associated Mint
-    pub spl_metadata: Info<'b>,
+    pub spl_metadata: SplTokenMeta<'b>,
 
     /// CPI Context
     pub bridge: Mut<Info<'b>>,
@@ -98,6 +100,14 @@ impl<'a> From<&AttestToken<'a>> for WrappedMetaDerivationData {
     fn from(accs: &AttestToken<'a>) -> Self {
         WrappedMetaDerivationData {
             mint_key: *accs.mint.info().key,
+        }
+    }
+}
+
+impl<'a> From<&AttestToken<'a>> for SplTokenMetaDerivationData {
+    fn from(accs: &AttestToken<'a>) -> Self {
+        SplTokenMetaDerivationData {
+            mint: *accs.mint.info().key,
         }
     }
 }
@@ -134,6 +144,10 @@ pub fn attest_token(
 
     // Assign metadata if an SPL Metadata account exists for the SPL token in question.
     if !accs.spl_metadata.data_is_empty() {
+        let derivation_data: SplTokenMetaDerivationData = (&*accs).into();
+        accs.spl_metadata
+            .verify_derivation(&spl_token_metadata::id(), &derivation_data)?;
+
         if *accs.spl_metadata.owner != spl_token_metadata::id() {
             return Err(WrongAccountOwner.into());
         }

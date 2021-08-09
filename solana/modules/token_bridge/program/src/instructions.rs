@@ -9,6 +9,8 @@ use crate::{
         Endpoint,
         EndpointDerivationData,
         MintSigner,
+        SplTokenMeta,
+        SplTokenMetaDerivationData,
         WrappedDerivationData,
         WrappedMetaDerivationData,
         WrappedMint,
@@ -447,24 +449,27 @@ pub fn attest(
     message_key: Pubkey,
     mint: Pubkey,
     decimals: u8,
-    mint_meta: Pubkey,
-    spl_metadata: Pubkey,
-    symbol: String,
-    name: String,
     nonce: u32,
 ) -> solitaire::Result<Instruction> {
     let config_key = ConfigAccount::<'_, { AccountState::Uninitialized }>::key(None, &program_id);
     let emitter_key = EmitterAccount::key(None, &program_id);
 
-    // Bridge keys
+    // SPL Metadata
+    let spl_metadata = SplTokenMeta::key(
+        &SplTokenMetaDerivationData { mint },
+        &spl_token_metadata::id(),
+    );
+
+    // Mint Metadata
+    let mint_meta = WrappedTokenMeta::<'_, { AccountState::Uninitialized }>::key(
+        &WrappedMetaDerivationData {
+            mint_key: mint,
+        },
+        &bridge_id,
+    );
+
+    // Bridge Keys
     let bridge_config = Bridge::<'_, { AccountState::Uninitialized }>::key(None, &bridge_id);
-    let payload = PayloadAssetMeta {
-        token_address: mint.to_bytes(),
-        token_chain: 1,
-        decimals,
-        symbol,
-        name,
-    };
     let sequence_key = Sequence::key(
         &SequenceDerivationData {
             emitter_key: &emitter_key,

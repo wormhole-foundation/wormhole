@@ -86,3 +86,19 @@ impl<'b, const State: AccountState> Seeded<&EndpointDerivationData> for Endpoint
         ]
     }
 }
+
+pub type SplTokenMeta<'b> = Info<'b>;
+
+pub struct SplTokenMetaDerivationData {
+    pub mint: Pubkey,
+}
+
+impl<'b> Seeded<&SplTokenMetaDerivationData> for SplTokenMeta<'b> {
+    fn seeds(data: &SplTokenMetaDerivationData) -> Vec<Vec<u8>> {
+        vec![
+            "metadata".as_bytes().to_vec(),
+            spl_token_metadata::id().as_ref().to_vec(),
+            data.mint.as_ref().to_vec(),
+        ]
+    }
+}
