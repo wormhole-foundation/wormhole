@@ -57,8 +57,7 @@ pub struct PostMessage<'b> {
     pub clock: Sysvar<'b, Clock>,
 }
 
-impl<'b> InstructionContext<'b> for PostMessage<'b> {
-}
+impl<'b> InstructionContext<'b> for PostMessage<'b> {}
 
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct PostMessageData {
@@ -110,6 +109,9 @@ pub fn post_message(
         accs.sequence
             .create(&(&*accs).into(), ctx, accs.payer.key, Exempt)?;
     }
+
+    // DO NOT REMOVE - CRITICAL OUTPUT
+    msg!("Sequence: {}", accs.sequence.sequence);
 
     // Initialize transfer
     trace!("Setting Message Details");
