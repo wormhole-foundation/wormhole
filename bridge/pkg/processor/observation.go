@@ -121,7 +121,7 @@ func (p *Processor) handleObservation(ctx context.Context, m *gossipv1.SignedObs
 	// May as well not have received it/been offline - drop it and wait for the guardian set.
 	if gs == nil {
 		p.logger.Warn("dropping observations since we haven't initialized our guardian set yet",
-			zap.String("digest", their_addr.Hex()),
+			zap.String("digest", hash),
 			zap.String("their_addr", their_addr.Hex()),
 		)
 		observationsFailedTotal.WithLabelValues("uninitialized_guardian_set").Inc()
@@ -133,7 +133,7 @@ func (p *Processor) handleObservation(ctx context.Context, m *gossipv1.SignedObs
 	_, ok := gs.KeyIndex(their_addr)
 	if !ok {
 		p.logger.Warn("received observation by unknown guardian - is our guardian set outdated?",
-			zap.String("digest", their_addr.Hex()),
+			zap.String("digest", hash),
 			zap.String("their_addr", their_addr.Hex()),
 			zap.Uint32("index", gs.Index),
 			zap.Any("keys", gs.KeysAsHexStrings()),
