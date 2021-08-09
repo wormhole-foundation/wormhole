@@ -1,6 +1,6 @@
 import Wallet from "@project-serum/sol-wallet-adapter";
 import {
-  Connection,
+  Connection, Keypair,
   PublicKey,
   SystemProgram,
   Transaction,
@@ -99,24 +99,22 @@ export async function attestFromSolana(
   // TODO: pass in connection
   // Add transfer instruction to transaction
   const { attest_ix, emitter_address } = await import("token-bridge");
+  const messageKey = Keypair.generate();
   const ix = ixFromRust(
     attest_ix(
       SOL_TOKEN_BRIDGE_ADDRESS,
       SOL_BRIDGE_ADDRESS,
       payerAddress,
-      mintAddress,
-      decimals,
+      messageKey.publicKey.toString(),
       mintAddress, // TODO: mint_metadata: what address is this supposed to be?
-      mintAddress, // TODO: spl_metadata: what address is this supposed to be?
-      "", // TODO: lookup symbol
-      "", //: TODO: lookup name
-      nonce
+      nonce,
     )
   );
   const transaction = new Transaction().add(transferIx, ix);
   const { blockhash } = await connection.getRecentBlockhash();
   transaction.recentBlockhash = blockhash;
   transaction.feePayer = new PublicKey(payerAddress);
+  transaction.partialSign(messageKey);
   // Sign transaction, broadcast, and confirm
   const signed = await wallet.signTransaction(transaction);
   console.log("SIGNED", signed);

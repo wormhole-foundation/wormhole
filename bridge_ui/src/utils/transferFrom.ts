@@ -1,7 +1,7 @@
 import Wallet from "@project-serum/sol-wallet-adapter";
 import { Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import {
-  Connection,
+  Connection, Keypair,
   PublicKey,
   SystemProgram,
   Transaction,
@@ -163,11 +163,14 @@ export async function transferFromSolana(
     [],
     Number(amountParsed)
   );
+
+  let messageKey = Keypair.generate();
   const ix = ixFromRust(
     transfer_native_ix(
       SOL_TOKEN_BRIDGE_ADDRESS,
       SOL_BRIDGE_ADDRESS,
       payerAddress,
+      messageKey.publicKey.toString(),
       fromAddress,
       mintAddress,
       nonce,
@@ -181,6 +184,7 @@ export async function transferFromSolana(
   const { blockhash } = await connection.getRecentBlockhash();
   transaction.recentBlockhash = blockhash;
   transaction.feePayer = new PublicKey(payerAddress);
+  transaction.partialSign(messageKey);
   // Sign transaction, broadcast, and confirm
   const signed = await wallet.signTransaction(transaction);
   console.log("SIGNED", signed);
