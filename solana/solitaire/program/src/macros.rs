@@ -70,7 +70,7 @@ macro_rules! solitaire {
                     $(
                         n if n == Instruction::$row as u8 => {
                             (move || {
-                                trace!("Dispatch: {}", stringify!($row));
+                                solana_program::msg!("Dispatch: {}", stringify!($row));
                                 let ix_data: $kind = BorshDeserialize::try_from_slice(&d[1..]).map_err(|e| SolitaireError::InstructionDeserializeFailed(e))?;
                                 let mut accounts: $row = FromAccounts::from(p, &mut a.iter(), &())?;
                                 $fn(&ExecutionContext{program_id: p, accounts: a}, &mut accounts, ix_data)?;
@@ -89,7 +89,7 @@ macro_rules! solitaire {
             pub fn solitaire<'a, 'b: 'a>(p: &Pubkey, a: &'a [AccountInfo<'b>], d: &[u8]) -> ProgramResult {
                 trace!("{} {} built with {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"), solitaire::PKG_NAME_VERSION);
                 if let Err(err) = dispatch(p, a, d) {
-                    trace!("Error: {:?}", err);
+                    solana_program::msg!("Error: {:?}", err);
                     return Err(err.into());
                 }
                 Ok(())
