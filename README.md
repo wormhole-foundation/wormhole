@@ -7,7 +7,7 @@ See [DEVELOP.md](DEVELOP.md) for instructions on how to set up a local devnet, a
 
 See [docs/operations.md](docs/operations.md) for node operator instructions.
 
-![](docs/images/overview.svg)
+![](docs/images/overview.svg) 
 
 ⚠ **Wormhole v2 is in active development - see "main" branch for the v1 mainnet version** ⚠
 
