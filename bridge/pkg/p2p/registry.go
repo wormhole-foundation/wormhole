@@ -4,7 +4,6 @@ import (
 	gossipv1 "github.com/certusone/wormhole/bridge/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/bridge/pkg/vaa"
 	"sync"
-	"sync/atomic"
 )
 
 // The p2p package implements a simple global metrics registry singleton for node status values transmitted on-chain.
@@ -15,8 +14,9 @@ type registry struct {
 	// Mapping of chain IDs to network status messages.
 	networkStats map[vaa.ChainID]*gossipv1.Heartbeat_Network
 
-	// Atomic per-chain error counters
-	errorCounters map[vaa.ChainID]uint64
+	// Per-chain error counters
+	errorCounters  map[vaa.ChainID]uint64
+	errorCounterMu sync.Mutex
 
 	// Value of Heartbeat.guardian_addr.
 	guardianAddress string
@@ -51,11 +51,13 @@ func (r *registry) SetNetworkStats(chain vaa.ChainID, data *gossipv1.Heartbeat_N
 }
 
 func (r *registry) AddErrorCount(chain vaa.ChainID, delta uint64) {
-	ctr := r.errorCounters[chain]
-	atomic.AddUint64(&ctr, delta)
+	r.errorCounterMu.Lock()
+	defer r.errorCounterMu.Unlock()
+	r.errorCounters[chain] += 1
 }
 
 func (r *registry) GetErrorCount(chain vaa.ChainID) uint64 {
-	ctr := r.errorCounters[chain]
-	return atomic.LoadUint64(&ctr)
+	r.errorCounterMu.Lock()
+	defer r.errorCounterMu.Unlock()
+	return r.errorCounters[chain]
 }
