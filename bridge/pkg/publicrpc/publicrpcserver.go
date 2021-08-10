@@ -113,3 +113,23 @@ func (s *PublicrpcServer) GetSignedVAA(ctx context.Context, req *publicrpcv1.Get
 		VaaBytes: b,
 	}, nil
 }
+
+func (s *PublicrpcServer) GetCurrentGuardianSet(ctx context.Context, req *publicrpcv1.GetCurrentGuardianSetRequest) (*publicrpcv1.GetCurrentGuardianSetResponse, error) {
+	gs := s.gst.Get()
+	if gs == nil {
+		return nil, status.Error(codes.Unavailable, "guardian set not fetched from chain yet")
+	}
+
+	resp := &publicrpcv1.GetCurrentGuardianSetResponse{
+		GuardianSet: &publicrpcv1.GuardianSet{
+			Index:     gs.Index,
+			Addresses: make([]string, len(gs.Keys)),
+		},
+	}
+
+	for i, v := range gs.Keys {
+		resp.GuardianSet.Addresses[i] = v.Hex()
+	}
+
+	return resp, nil
+}

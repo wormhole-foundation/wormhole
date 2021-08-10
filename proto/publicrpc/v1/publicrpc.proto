@@ -50,6 +50,13 @@ service Publicrpc {
       get: "/v1/signed_vaa/{message_id.emitter_chain}/{message_id.emitter_address}/{message_id.sequence}"
     };
   }
+
+  rpc GetCurrentGuardianSet (GetCurrentGuardianSetRequest) returns (GetCurrentGuardianSetResponse) {
+    option (google.api.http) = {
+      get: "/v1/guardianset/current"
+    };
+  }
+
 }
 
 message GetRawHeartbeatsRequest {
@@ -83,4 +90,18 @@ message GetLastHeartbeatResponse {
   }
 
   repeated Entry entries = 1;
+}
+
+message GetCurrentGuardianSetRequest {
+}
+
+message GetCurrentGuardianSetResponse {
+  GuardianSet guardian_set = 1;
+}
+
+message GuardianSet {
+  // Guardian set index
+  uint32 index = 1;
+  // List of guardian addresses as human-readable hex-encoded (leading 0x) addresses.
+  repeated string addresses = 2;
 }
