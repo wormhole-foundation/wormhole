@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	bridge_common "github.com/certusone/wormhole/bridge/pkg/common"
+	"github.com/certusone/wormhole/bridge/pkg/reporter"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"time"
@@ -208,6 +209,19 @@ func (p *Processor) handleObservation(ctx context.Context, m *gossipv1.SignedObs
 			ConsistencyLevel: v.ConsistencyLevel,
 		}
 
+		// report the individual signature
+		signatureReport := &reporter.VerifiedPeerSignature{
+			GuardianAddress: their_addr,
+			Signature:       m.Signature,
+			EmitterChain:    v.EmitterChain,
+			EmitterAddress:  v.EmitterAddress,
+			Sequence:        v.Sequence,
+		}
+		p.attestationEvents.ReportVerifiedPeerSignature(signatureReport)
+
+		// report the current VAAState
+		p.attestationEvents.ReportVAAStateUpdate(signed)
+
 		// 2/3+ majority required for VAA to be valid - wait until we have quorum to submit VAA.
 		quorum := CalculateQuorum(len(gs.Keys))
 
@@ -236,6 +250,7 @@ func (p *Processor) handleObservation(ctx context.Context, m *gossipv1.SignedObs
 			if err := p.db.StoreSignedVAA(signed); err != nil {
 				p.logger.Error("failed to store signed VAA", zap.Error(err))
 			}
+			p.attestationEvents.ReportVAAQuorum(signed)
 			p.state.vaaSignatures[hash].submitted = true
 		} else {
 			p.logger.Info("quorum not met or already submitted, doing nothing",

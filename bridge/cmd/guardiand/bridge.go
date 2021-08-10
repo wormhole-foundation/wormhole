@@ -32,6 +32,7 @@ import (
 	"github.com/certusone/wormhole/bridge/pkg/processor"
 	gossipv1 "github.com/certusone/wormhole/bridge/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/bridge/pkg/readiness"
+	"github.com/certusone/wormhole/bridge/pkg/reporter"
 	solana "github.com/certusone/wormhole/bridge/pkg/solana"
 	"github.com/certusone/wormhole/bridge/pkg/supervisor"
 	"github.com/certusone/wormhole/bridge/pkg/vaa"
@@ -431,7 +432,11 @@ func runBridge(cmd *cobra.Command, args []string) {
 		}
 	}
 
+	// provides methods for reporting progress toward message attestation, and channels for receiving attestation lifecyclye events.
+	attestationEvents := reporter.EventListener(logger)
+
 	publicrpcService, publicrpcServer, err := publicrpcServiceRunnable(logger, *publicRPC, db, gst)
+
 	if err != nil {
 		log.Fatal("failed to create publicrpc service socket", zap.Error(err))
 	}
@@ -497,6 +502,7 @@ func runBridge(cmd *cobra.Command, args []string) {
 			*terraLCD,
 			*terraChainID,
 			*terraContract,
+			attestationEvents,
 		)
 		if err := supervisor.Run(ctx, "processor", p.Run); err != nil {
 			return err
@@ -512,6 +518,18 @@ func runBridge(cmd *cobra.Command, args []string) {
 		}
 		if *publicWeb != "" {
 			if err := supervisor.Run(ctx, "publicweb", publicwebService); err != nil {
+				return err
+			}
+		}
+
+		if *bigTablePersistenceEnabled {
+			bigTableConnection := &reporter.BigTableConnectionConfig{
+				GcpProjectID:    *bigTableGCPProject,
+				GcpInstanceName: *bigTableInstanceName,
+				TableName:       *bigTableTableName,
+				GcpKeyFilePath:  *bigTableKeyPath,
+			}
+			if err := supervisor.Run(ctx, "bigtable", reporter.BigTableWriter(attestationEvents, bigTableConnection)); err != nil {
 				return err
 			}
 		}

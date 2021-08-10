@@ -3,6 +3,7 @@ module github.com/certusone/wormhole/bridge
 go 1.16
 
 require (
+	cloud.google.com/go/bigtable v1.10.1
 	github.com/cenkalti/backoff/v4 v4.1.1
 	github.com/coreos/go-systemd v0.0.0-20190321100706-95778dfbb74e
 	github.com/davecgh/go-spew v1.1.1
@@ -39,7 +40,8 @@ require (
 	github.com/tidwall/gjson v1.8.1
 	go.uber.org/zap v1.16.0
 	golang.org/x/crypto v0.0.0-20210513164829-c07d793c2f9a
-	golang.org/x/sys v0.0.0-20210514084401-e8d321eab015
+	golang.org/x/sys v0.0.0-20210601080250-7ecdf8ef093b
+	google.golang.org/api v0.47.0
 	google.golang.org/genproto v0.0.0-20210617175327-b9e0b3197ced
 	google.golang.org/grpc v1.38.0
 	google.golang.org/protobuf v1.26.0

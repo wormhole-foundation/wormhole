@@ -3,6 +3,7 @@ package processor
 import (
 	"context"
 	"encoding/hex"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 
@@ -10,6 +11,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/certusone/wormhole/bridge/pkg/common"
+	"github.com/certusone/wormhole/bridge/pkg/reporter"
 	"github.com/certusone/wormhole/bridge/pkg/supervisor"
 	"github.com/certusone/wormhole/bridge/pkg/vaa"
 )
@@ -84,6 +86,8 @@ func (p *Processor) handleMessage(ctx context.Context, k *common.MessagePublicat
 
 	messagesSignedTotal.With(prometheus.Labels{
 		"emitter_chain": k.EmitterChain.String()}).Add(1)
+
+	p.attestationEvents.ReportMessagePublication(&reporter.MessagePublication{VAA: *v, InitiatingTxID: k.TxHash})
 
 	p.broadcastSignature(v, s)
 }

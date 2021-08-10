@@ -3,8 +3,9 @@ package processor
 import (
 	"context"
 	"crypto/ecdsa"
-	"github.com/certusone/wormhole/bridge/pkg/db"
 	"time"
+
+	"github.com/certusone/wormhole/bridge/pkg/db"
 
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/certusone/wormhole/bridge/pkg/common"
 	gossipv1 "github.com/certusone/wormhole/bridge/pkg/proto/gossip/v1"
+	"github.com/certusone/wormhole/bridge/pkg/reporter"
 	"github.com/certusone/wormhole/bridge/pkg/supervisor"
 	"github.com/certusone/wormhole/bridge/pkg/vaa"
 )
@@ -70,10 +72,11 @@ type Processor struct {
 	devnetNumGuardians uint
 	devnetEthRPC       string
 
-	terraEnabled  bool
 	terraLCD      string
 	terraChainID  string
 	terraContract string
+
+	attestationEvents *reporter.AttestationEventReporter
 
 	logger *zap.Logger
 
@@ -110,7 +113,8 @@ func NewProcessor(
 	devnetEthRPC string,
 	terraLCD string,
 	terraChainID string,
-	terraContract string) *Processor {
+	terraContract string,
+	attestationEvents *reporter.AttestationEventReporter) *Processor {
 
 	return &Processor{
 		lockC:              lockC,
@@ -128,6 +132,8 @@ func NewProcessor(
 		terraLCD:      terraLCD,
 		terraChainID:  terraChainID,
 		terraContract: terraContract,
+
+		attestationEvents: attestationEvents,
 
 		logger:  supervisor.Logger(ctx),
 		state:   &aggregationState{vaaMap{}},
