@@ -59,6 +59,14 @@ func runListNodesStream(cmd *cobra.Command, args []string) {
 	}
 }
 
+var (
+	showDetails bool
+)
+
+func init() {
+	AdminClientListNodes.Flags().BoolVar(&showDetails, "showDetails", false, "Show error counter and contract addresses")
+}
+
 var AdminClientListNodes = &cobra.Command{
 	Use:   "list-nodes",
 	Short: "Fetches an aggregated list of guardian nodes",
@@ -99,7 +107,11 @@ func runListNodes(cmd *cobra.Command, args []string) {
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 8, 2, ' ', 0)
 
-	w.Write([]byte("Node key\tGuardian key\tNode name\tVersion\tLast seen\tUptime\tSolana\tEthereum\tTerra\tBSC\n"))
+	if showDetails {
+		w.Write([]byte("Node key\tGuardian key\tNode name\tVersion\tLast seen\tUptime\tSolana\tEthereum\tTerra\tBSC\n"))
+	} else {
+		w.Write([]byte("Node key\tGuardian key\tNode name\tVersion\tLast seen\tSolana\tEthereum\tTerra\tBSC\n"))
+	}
 
 	for _, h := range nodes {
 		if h.RawHeartbeat == nil {
@@ -107,25 +119,57 @@ func runListNodes(cmd *cobra.Command, args []string) {
 		}
 
 		last := time.Unix(0, h.RawHeartbeat.Timestamp)
+		boot := time.Unix(0, h.RawHeartbeat.BootTimestamp)
 
 		heights := map[vaa.ChainID]int64{}
+		truncAddrs := make(map[vaa.ChainID]string)
+		errors := map[vaa.ChainID]uint64{}
 		for _, n := range h.RawHeartbeat.Networks {
 			heights[vaa.ChainID(n.Id)] = n.Height
+			errors[vaa.ChainID(n.Id)] = n.ErrorCount
+			if len(n.BridgeAddress) >= 16 {
+				truncAddrs[vaa.ChainID(n.Id)] = n.BridgeAddress[:16]
+			} else {
+				truncAddrs[vaa.ChainID(n.Id)] = "INVALID"
+			}
 		}
 
-		fmt.Fprintf(w,
-			"%s\t%s\t%s\t%s\t%s\t%d\t%d\t%d\t%d\t%d\n",
-			h.P2PNodeAddr,
-			h.RawHeartbeat.GuardianAddr,
-			h.RawHeartbeat.NodeName,
-			h.RawHeartbeat.Version,
-			time.Since(last),
-			h.RawHeartbeat.Counter,
-			heights[vaa.ChainIDSolana],
-			heights[vaa.ChainIDEthereum],
-			heights[vaa.ChainIDTerra],
-			heights[vaa.ChainIDBSC],
-		)
+		if showDetails {
+			fmt.Fprintf(w,
+				"%s\t%s\t%s\t%s\t%s\t%s\t%s %d (%d)\t%s %d (%d)\t%s %d (%d)\t%s %d (%d)\n",
+				h.P2PNodeAddr,
+				h.RawHeartbeat.GuardianAddr,
+				h.RawHeartbeat.NodeName,
+				h.RawHeartbeat.Version,
+				time.Since(last),
+				time.Since(boot),
+				truncAddrs[vaa.ChainIDSolana],
+				heights[vaa.ChainIDSolana],
+				errors[vaa.ChainIDSolana],
+				truncAddrs[vaa.ChainIDEthereum],
+				heights[vaa.ChainIDEthereum],
+				errors[vaa.ChainIDEthereum],
+				truncAddrs[vaa.ChainIDTerra],
+				heights[vaa.ChainIDTerra],
+				errors[vaa.ChainIDTerra],
+				truncAddrs[vaa.ChainIDBSC],
+				heights[vaa.ChainIDBSC],
+				errors[vaa.ChainIDBSC],
+			)
+		} else {
+			fmt.Fprintf(w,
+				"%s\t%s\t%s\t%s\t%s\t%d\t%d\t%d\t%d\n",
+				h.P2PNodeAddr,
+				h.RawHeartbeat.GuardianAddr,
+				h.RawHeartbeat.NodeName,
+				h.RawHeartbeat.Version,
+				time.Since(last),
+				heights[vaa.ChainIDSolana],
+				heights[vaa.ChainIDEthereum],
+				heights[vaa.ChainIDTerra],
+				heights[vaa.ChainIDBSC],
+			)
+		}
 	}
 
 	w.Flush()
