@@ -78,6 +78,14 @@ func runListNodes(cmd *cobra.Command, args []string) {
 		log.Fatalf("failed to list nodes: %v", err)
 	}
 
+	gs, err := c.GetCurrentGuardianSet(ctx, &publicrpcv1.GetCurrentGuardianSetRequest{})
+	if err != nil {
+		log.Fatalf("failed to list current guardian get: %v", err)
+	}
+
+	log.Printf("current guardian set index: %d (%d guardians)",
+		gs.GuardianSet.Index, len(gs.GuardianSet.Addresses))
+
 	nodes := lastHeartbeats.Entries
 
 	sort.Slice(nodes, func(i, j int) bool {
@@ -121,4 +129,18 @@ func runListNodes(cmd *cobra.Command, args []string) {
 	}
 
 	w.Flush()
+	fmt.Print("\n")
+
+	for _, addr := range gs.GuardianSet.Addresses {
+		var found bool
+		for _, h := range nodes {
+			if h.VerifiedGuardianAddr == addr {
+				found = true
+			}
+		}
+
+		if !found {
+			fmt.Printf("Missing guardian: %s\n", addr)
+		}
+	}
 }
