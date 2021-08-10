@@ -27,7 +27,7 @@ By default, the devnet is deployed to the `wormhole` namespace rather than `defa
 entire deployment by simply removing the namespace, which isn't possible with `default`. Change your default namespace
 to avoid having to specify `-n wormhole` for all commands:
 
-    kubectl config set-context --current --namespace=wormhole
+    kubectl config set-context --current --namespace=wormhole 
 
 After installing all dependencies, just run `tilt up`.
 Whenever you modify a file, the devnet is automatically rebuilt and a rolling update is done.
