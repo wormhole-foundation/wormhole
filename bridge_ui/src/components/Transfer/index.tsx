@@ -6,6 +6,7 @@ import {
   Stepper,
 } from "@material-ui/core";
 import { useDispatch, useSelector } from "react-redux";
+import useGetBalanceEffect from "../../hooks/useGetBalanceEffect";
 import { selectActiveStep, selectSignedVAAHex } from "../../store/selectors";
 import { setStep } from "../../store/transferSlice";
 import Redeem from "./Redeem";
@@ -19,6 +20,7 @@ import Target from "./Target";
 // TODO: warn if amount exceeds balance
 
 function Transfer() {
+  useGetBalanceEffect();
   const dispatch = useDispatch();
   const activeStep = useSelector(selectActiveStep);
   const signedVAAHex = useSelector(selectSignedVAAHex);

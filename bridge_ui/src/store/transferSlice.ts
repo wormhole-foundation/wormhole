@@ -27,6 +27,8 @@ export interface TransferState {
   amount: string;
   targetChain: ChainId;
   signedVAAHex: string | undefined;
+  isSending: boolean;
+  isRedeeming: boolean;
 }
 
 const initialState: TransferState = {
@@ -37,6 +39,8 @@ const initialState: TransferState = {
   amount: "",
   targetChain: CHAIN_ID_ETH,
   signedVAAHex: undefined,
+  isSending: false,
+  isRedeeming: false,
 };
 
 export const transferSlice = createSlice({
@@ -95,7 +99,14 @@ export const transferSlice = createSlice({
     },
     setSignedVAAHex: (state, action: PayloadAction<string>) => {
       state.signedVAAHex = action.payload;
+      state.isSending = false;
       state.activeStep = 3;
+    },
+    setIsSending: (state, action: PayloadAction<boolean>) => {
+      state.isSending = action.payload;
+    },
+    setIsRedeeming: (state, action: PayloadAction<boolean>) => {
+      state.isRedeeming = action.payload;
     },
   },
 });
@@ -110,6 +121,8 @@ export const {
   setAmount,
   setTargetChain,
   setSignedVAAHex,
+  setIsSending,
+  setIsRedeeming,
 } = transferSlice.actions;
 
 export default transferSlice.reducer;

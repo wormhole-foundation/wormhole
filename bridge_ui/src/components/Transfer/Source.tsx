@@ -1,9 +1,10 @@
 import { Button, makeStyles, MenuItem, TextField } from "@material-ui/core";
 import { useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import useGetBalanceEffect from "../../hooks/useGetBalanceEffect";
 import {
   selectAmount,
+  selectIsSourceComplete,
+  selectShouldLockFields,
   selectSourceAsset,
   selectSourceBalanceString,
   selectSourceChain,
@@ -26,11 +27,12 @@ const useStyles = makeStyles((theme) => ({
 function Source() {
   const classes = useStyles();
   const dispatch = useDispatch();
-  useGetBalanceEffect();
   const sourceChain = useSelector(selectSourceChain);
   const sourceAsset = useSelector(selectSourceAsset);
   const uiAmountString = useSelector(selectSourceBalanceString);
   const amount = useSelector(selectAmount);
+  const isSourceComplete = useSelector(selectIsSourceComplete);
+  const shouldLockFields = useSelector(selectShouldLockFields);
   const handleSourceChange = useCallback(
     (event) => {
       dispatch(setSourceChain(event.target.value));
@@ -62,6 +64,7 @@ function Source() {
         fullWidth
         value={sourceChain}
         onChange={handleSourceChange}
+        disabled={shouldLockFields}
       >
         {CHAINS.map(({ id, name }) => (
           <MenuItem key={id} value={id}>
@@ -76,6 +79,7 @@ function Source() {
         className={classes.transferField}
         value={sourceAsset}
         onChange={handleAssetChange}
+        disabled={shouldLockFields}
       />
       <TextField
         placeholder="Amount"
@@ -84,8 +88,14 @@ function Source() {
         className={classes.transferField}
         value={amount}
         onChange={handleAmountChange}
+        disabled={shouldLockFields}
       />
-      <Button onClick={handleNextClick} variant="contained" color="primary">
+      <Button
+        disabled={!isSourceComplete}
+        onClick={handleNextClick}
+        variant="contained"
+        color="primary"
+      >
         Next
       </Button>
     </>
