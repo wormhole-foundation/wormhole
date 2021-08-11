@@ -1,4 +1,5 @@
 import { AppBar, makeStyles, Toolbar } from "@material-ui/core";
+import Attest from "./components/Attest";
 import Transfer from "./components/Transfer";
 import wormholeLogo from "./icons/wormhole.svg";
 
@@ -40,6 +41,7 @@ function App() {
         </Toolbar>
       </AppBar>
       <div className={classes.content}>
+        <Attest />
         <Transfer />
       </div>
     </>

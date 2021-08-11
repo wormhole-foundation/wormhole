@@ -3,7 +3,10 @@ import { useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useEthereumProvider } from "../../contexts/EthereumProviderContext";
 import useTransferSignedVAA from "../../hooks/useTransferSignedVAA";
-import { selectIsRedeeming, selectTargetChain } from "../../store/selectors";
+import {
+  selectTransferIsRedeeming,
+  selectTransferTargetChain,
+} from "../../store/selectors";
 import { setIsRedeeming } from "../../store/transferSlice";
 import { CHAIN_ID_ETH } from "../../utils/consts";
 import redeemOn, { redeemOnEth } from "../../utils/redeemOn";
@@ -19,10 +22,10 @@ const useStyles = makeStyles((theme) => ({
 function Redeem() {
   const dispatch = useDispatch();
   const classes = useStyles();
-  const targetChain = useSelector(selectTargetChain);
+  const targetChain = useSelector(selectTransferTargetChain);
   const { provider, signer } = useEthereumProvider();
   const signedVAA = useTransferSignedVAA();
-  const isRedeeming = useSelector(selectIsRedeeming);
+  const isRedeeming = useSelector(selectTransferIsRedeeming);
   const handleRedeemClick = useCallback(() => {
     if (
       targetChain === CHAIN_ID_ETH &&

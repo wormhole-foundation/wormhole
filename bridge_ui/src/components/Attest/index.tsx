@@ -8,25 +8,22 @@ import {
 import { useDispatch, useSelector } from "react-redux";
 import useGetBalanceEffect from "../../hooks/useGetBalanceEffect";
 import {
-  selectTransferActiveStep,
-  selectTransferSignedVAAHex,
+  selectAttestActiveStep,
+  selectAttestSignedVAAHex,
 } from "../../store/selectors";
-import { setStep } from "../../store/transferSlice";
-import Redeem from "./Redeem";
+import { setStep } from "../../store/attestSlice";
+import Create from "./Create";
 import Send from "./Send";
 import Source from "./Source";
 import Target from "./Target";
 
 // TODO: ensure that both wallets are connected to the same known network
-// TODO: loaders and such, navigation block?
-// TODO: refresh displayed token amount after transfer somehow, could be resolved by having different components appear
-// TODO: warn if amount exceeds balance
 
-function Transfer() {
+function Attest() {
   useGetBalanceEffect();
   const dispatch = useDispatch();
-  const activeStep = useSelector(selectTransferActiveStep);
-  const signedVAAHex = useSelector(selectTransferSignedVAAHex);
+  const activeStep = useSelector(selectAttestActiveStep);
+  const signedVAAHex = useSelector(selectAttestSignedVAAHex);
   return (
     <Container maxWidth="md">
       <Stepper activeStep={activeStep} orientation="vertical">
@@ -48,7 +45,7 @@ function Transfer() {
         </Step>
         <Step>
           <StepButton onClick={() => dispatch(setStep(2))}>
-            Send tokens
+            Send attestation
           </StepButton>
           <StepContent>
             <Send />
@@ -59,10 +56,10 @@ function Transfer() {
             onClick={() => dispatch(setStep(3))}
             disabled={!signedVAAHex}
           >
-            Redeem tokens
+            Create wrapper
           </StepButton>
           <StepContent>
-            <Redeem />
+            <Create />
           </StepContent>
         </Step>
       </Stepper>
@@ -70,4 +67,4 @@ function Transfer() {
   );
 }
 
-export default Transfer;
+export default Attest;

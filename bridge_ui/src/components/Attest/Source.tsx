@@ -2,19 +2,16 @@ import { Button, makeStyles, MenuItem, TextField } from "@material-ui/core";
 import { useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
-  selectTransferAmount,
-  selectTransferIsSourceComplete,
-  selectTransferShouldLockFields,
-  selectTransferSourceAsset,
-  selectTransferSourceBalanceString,
-  selectTransferSourceChain,
+  selectAttestIsSourceComplete,
+  selectAttestShouldLockFields,
+  selectAttestSourceAsset,
+  selectAttestSourceChain,
 } from "../../store/selectors";
 import {
   incrementStep,
-  setAmount,
   setSourceAsset,
   setSourceChain,
-} from "../../store/transferSlice";
+} from "../../store/attestSlice";
 import { CHAINS } from "../../utils/consts";
 import KeyAndBalance from "../KeyAndBalance";
 
@@ -27,12 +24,10 @@ const useStyles = makeStyles((theme) => ({
 function Source() {
   const classes = useStyles();
   const dispatch = useDispatch();
-  const sourceChain = useSelector(selectTransferSourceChain);
-  const sourceAsset = useSelector(selectTransferSourceAsset);
-  const uiAmountString = useSelector(selectTransferSourceBalanceString);
-  const amount = useSelector(selectTransferAmount);
-  const isSourceComplete = useSelector(selectTransferIsSourceComplete);
-  const shouldLockFields = useSelector(selectTransferShouldLockFields);
+  const sourceChain = useSelector(selectAttestSourceChain);
+  const sourceAsset = useSelector(selectAttestSourceAsset);
+  const isSourceComplete = useSelector(selectAttestIsSourceComplete);
+  const shouldLockFields = useSelector(selectAttestShouldLockFields);
   const handleSourceChange = useCallback(
     (event) => {
       dispatch(setSourceChain(event.target.value));
@@ -42,12 +37,6 @@ function Source() {
   const handleAssetChange = useCallback(
     (event) => {
       dispatch(setSourceAsset(event.target.value));
-    },
-    [dispatch]
-  );
-  const handleAmountChange = useCallback(
-    (event) => {
-      dispatch(setAmount(event.target.value));
     },
     [dispatch]
   );
@@ -72,22 +61,13 @@ function Source() {
           </MenuItem>
         ))}
       </TextField>
-      <KeyAndBalance chainId={sourceChain} balance={uiAmountString} />
+      <KeyAndBalance chainId={sourceChain} />
       <TextField
         placeholder="Asset"
         fullWidth
         className={classes.transferField}
         value={sourceAsset}
         onChange={handleAssetChange}
-        disabled={shouldLockFields}
-      />
-      <TextField
-        placeholder="Amount"
-        type="number"
-        fullWidth
-        className={classes.transferField}
-        value={amount}
-        onChange={handleAmountChange}
         disabled={shouldLockFields}
       />
       <Button

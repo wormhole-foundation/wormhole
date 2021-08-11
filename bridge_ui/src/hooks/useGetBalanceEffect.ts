@@ -5,7 +5,10 @@ import { useDispatch, useSelector } from "react-redux";
 import { useEthereumProvider } from "../contexts/EthereumProviderContext";
 import { useSolanaWallet } from "../contexts/SolanaWalletContext";
 import { TokenImplementation__factory } from "../ethers-contracts";
-import { selectSourceAsset, selectSourceChain } from "../store/selectors";
+import {
+  selectTransferSourceAsset,
+  selectTransferSourceChain,
+} from "../store/selectors";
 import { setSourceParsedTokenAccount } from "../store/transferSlice";
 import { CHAIN_ID_ETH, CHAIN_ID_SOLANA, SOLANA_HOST } from "../utils/consts";
 
@@ -27,8 +30,8 @@ function createParsedTokenAccount(
 
 function useGetBalanceEffect() {
   const dispatch = useDispatch();
-  const sourceChain = useSelector(selectSourceChain);
-  const sourceAsset = useSelector(selectSourceAsset);
+  const sourceChain = useSelector(selectTransferSourceChain);
+  const sourceAsset = useSelector(selectTransferSourceAsset);
   const { wallet } = useSolanaWallet();
   const solPK = wallet?.publicKey;
   const { provider, signerAddress } = useEthereumProvider();

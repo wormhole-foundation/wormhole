@@ -1,6 +1,7 @@
 import Wallet from "@project-serum/sol-wallet-adapter";
 import {
-  Connection, Keypair,
+  Connection,
+  Keypair,
   PublicKey,
   SystemProgram,
   Transaction,
@@ -66,8 +67,7 @@ export async function attestFromEth(
 export async function attestFromSolana(
   wallet: Wallet | undefined,
   payerAddress: string | undefined, //TODO: we may not need this since we have wallet
-  mintAddress: string,
-  decimals: number
+  mintAddress: string
 ) {
   if (!wallet || !wallet.publicKey || !payerAddress) return;
   const nonceConst = Math.random() * 100000;
@@ -106,8 +106,8 @@ export async function attestFromSolana(
       SOL_BRIDGE_ADDRESS,
       payerAddress,
       messageKey.publicKey.toString(),
-      mintAddress, // TODO: mint_metadata: what address is this supposed to be?
-      nonce,
+      mintAddress,
+      nonce
     )
   );
   const transaction = new Transaction().add(transferIx, ix);

@@ -2,25 +2,25 @@ import { Button, MenuItem, TextField } from "@material-ui/core";
 import { useCallback, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
-  selectTransferIsTargetComplete,
-  selectTransferShouldLockFields,
-  selectTransferSourceChain,
-  selectTransferTargetChain,
+  selectAttestIsTargetComplete,
+  selectAttestShouldLockFields,
+  selectAttestSourceChain,
+  selectAttestTargetChain,
 } from "../../store/selectors";
-import { incrementStep, setTargetChain } from "../../store/transferSlice";
+import { incrementStep, setTargetChain } from "../../store/attestSlice";
 import { CHAINS } from "../../utils/consts";
 import KeyAndBalance from "../KeyAndBalance";
 
 function Target() {
   const dispatch = useDispatch();
-  const sourceChain = useSelector(selectTransferSourceChain);
+  const sourceChain = useSelector(selectAttestSourceChain);
   const chains = useMemo(
     () => CHAINS.filter((c) => c.id !== sourceChain),
     [sourceChain]
   );
-  const targetChain = useSelector(selectTransferTargetChain);
-  const isTargetComplete = useSelector(selectTransferIsTargetComplete);
-  const shouldLockFields = useSelector(selectTransferShouldLockFields);
+  const targetChain = useSelector(selectAttestTargetChain);
+  const isTargetComplete = useSelector(selectAttestIsTargetComplete);
+  const shouldLockFields = useSelector(selectAttestShouldLockFields);
   const handleTargetChange = useCallback(
     (event) => {
       dispatch(setTargetChain(event.target.value));
