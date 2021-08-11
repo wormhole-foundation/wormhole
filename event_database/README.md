@@ -26,7 +26,7 @@ go run . \
   -project wormhole-315720 \
   -instance wormhole-dev \
   -keyFilePath ./bigtable-admin.json \
-  -queryRowKey ethereum:0xf15fe0e6dedef169a25696c577bfddf3d35707210ac641108646d7cfe507f174
+  -queryRowKey 2:000000000000000000000000e982e462b094850f12af94d21d470e21be9d0e9:6
 ```
 
 Lookup all rows with a timestamp >= `queryPreviousMinutes` ago:
