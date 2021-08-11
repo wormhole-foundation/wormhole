@@ -221,11 +221,18 @@ mod helpers {
         payer: &Keypair,
         bridge: &Pubkey,
     ) -> Result<Signature, ClientError> {
+        let instruction = instructions::initialize(*program, payer.pubkey(), *bridge)
+            .expect("Could not create Initialize instruction");
+
+        for account in instruction.accounts.iter().enumerate() {
+            println!("{}: {}", account.0, account.1.pubkey);
+        }
+
         execute(
             client,
             payer,
             &[payer],
-            &[instructions::initialize(*program, payer.pubkey(), *bridge).unwrap()],
+            &[instruction],
             CommitmentConfig::processed(),
         )
     }
@@ -235,11 +242,8 @@ mod helpers {
         program: &Pubkey,
         bridge: &Pubkey,
         payer: &Keypair,
+        message: &Keypair,
         mint: Pubkey,
-        wrapped_meta: Pubkey,
-        spl_metadata: Pubkey,
-        symbol: String,
-        name: String,
         nonce: u32,
     ) -> Result<Signature, ClientError> {
         let mint_data = Mint::unpack(
@@ -251,23 +255,25 @@ mod helpers {
         )
         .expect("Could not unpack Mint");
 
+        let instruction = instructions::attest(
+            *program,
+            *bridge,
+            payer.pubkey(),
+            message.pubkey(),
+            mint,
+            nonce,
+        )
+        .expect("Could not create Attest instruction");
+
+        for account in instruction.accounts.iter().enumerate() {
+            println!("{}: {}", account.0, account.1.pubkey);
+        }
+
         execute(
             client,
             payer,
-            &[payer],
-            &[instructions::attest(
-                *program,
-                *bridge,
-                payer.pubkey(),
-                mint,
-                mint_data.decimals,
-                wrapped_meta,
-                spl_metadata,
-                symbol,
-                name,
-                nonce,
-            )
-            .unwrap()],
+            &[payer, message],
+            &[instruction],
             CommitmentConfig::processed(),
         )
     }
@@ -277,15 +283,37 @@ mod helpers {
         program: &Pubkey,
         bridge: &Pubkey,
         payer: &Keypair,
+        message: &Keypair,
         from: &Keypair,
         from_owner: &Keypair,
         mint: Pubkey,
         amount: u64,
     ) -> Result<Signature, ClientError> {
+        let instruction = instructions::transfer_native(
+            *program,
+            *bridge,
+            payer.pubkey(),
+            message.pubkey(),
+            from.pubkey(),
+            mint,
+            TransferNativeData {
+                nonce: 0,
+                amount,
+                fee: 0,
+                target_address: [0u8; 32],
+                target_chain: 2,
+            },
+        )
+        .expect("Could not create Transfer Native");
+
+        for account in instruction.accounts.iter().enumerate() {
+            println!("{}: {}", account.0, account.1.pubkey);
+        }
+
         execute(
             client,
             payer,
-            &[payer, from_owner],
+            &[payer, from_owner, message],
             &[
                 spl_token::instruction::approve(
                     &spl_token::id(),
@@ -296,21 +324,7 @@ mod helpers {
                     amount,
                 )
                 .unwrap(),
-                instructions::transfer_native(
-                    *program,
-                    *bridge,
-                    payer.pubkey(),
-                    from.pubkey(),
-                    mint,
-                    TransferNativeData {
-                        nonce: 0,
-                        amount,
-                        fee: 0,
-                        target_address: [0u8; 32],
-                        target_chain: 2,
-                    },
-                )
-                .unwrap(),
+                instruction,
             ],
             CommitmentConfig::processed(),
         )
@@ -321,16 +335,40 @@ mod helpers {
         program: &Pubkey,
         bridge: &Pubkey,
         payer: &Keypair,
+        message: &Keypair,
         from: Pubkey,
         from_owner: &Keypair,
         token_chain: u16,
         token_address: Address,
         amount: u64,
     ) -> Result<Signature, ClientError> {
+        let instruction = instructions::transfer_wrapped(
+            *program,
+            *bridge,
+            payer.pubkey(),
+            message.pubkey(),
+            from,
+            from_owner.pubkey(),
+            token_chain,
+            token_address,
+            TransferWrappedData {
+                nonce: 0,
+                amount,
+                fee: 0,
+                target_address: [5u8; 32],
+                target_chain: 2,
+            },
+        )
+        .expect("Could not create Transfer Native");
+
+        for account in instruction.accounts.iter().enumerate() {
+            println!("{}: {}", account.0, account.1.pubkey);
+        }
+
         execute(
             client,
             payer,
-            &[payer, from_owner],
+            &[payer, from_owner, message],
             &[
                 spl_token::instruction::approve(
                     &spl_token::id(),
@@ -341,23 +379,7 @@ mod helpers {
                     amount,
                 )
                 .unwrap(),
-                instructions::transfer_wrapped(
-                    *program,
-                    *bridge,
-                    payer.pubkey(),
-                    from,
-                    from_owner.pubkey(),
-                    token_chain,
-                    token_address,
-                    TransferWrappedData {
-                        nonce: 0,
-                        amount,
-                        fee: 0,
-                        target_address: [5u8; 32],
-                        target_chain: 2,
-                    },
-                )
-                .unwrap(),
+                instruction,
             ],
             CommitmentConfig::processed(),
         )
@@ -372,20 +394,26 @@ mod helpers {
         payload: PayloadGovernanceRegisterChain,
         payer: &Keypair,
     ) -> Result<Signature, ClientError> {
+        let instruction = instructions::register_chain(
+            *program,
+            *bridge,
+            payer.pubkey(),
+            *message_acc,
+            vaa,
+            payload,
+            RegisterChainData {},
+        )
+        .expect("Could not create Transfer Native");
+
+        for account in instruction.accounts.iter().enumerate() {
+            println!("{}: {}", account.0, account.1.pubkey);
+        }
+
         execute(
             client,
             payer,
             &[payer],
-            &[instructions::register_chain(
-                *program,
-                *bridge,
-                payer.pubkey(),
-                *message_acc,
-                vaa,
-                payload,
-                RegisterChainData {},
-            )
-            .unwrap()],
+            &[instruction],
             CommitmentConfig::processed(),
         )
     }
@@ -399,21 +427,27 @@ mod helpers {
         payload: PayloadTransfer,
         payer: &Keypair,
     ) -> Result<Signature, ClientError> {
+        let instruction = instructions::complete_native(
+            *program,
+            *bridge,
+            payer.pubkey(),
+            *message_acc,
+            vaa,
+            Pubkey::new(&payload.to[..]),
+            Pubkey::new(&payload.token_address[..]),
+            CompleteNativeData {},
+        )
+        .expect("Could not create Complete Native instruction");
+
+        for account in instruction.accounts.iter().enumerate() {
+            println!("{}: {}", account.0, account.1.pubkey);
+        }
+
         execute(
             client,
             payer,
             &[payer],
-            &[instructions::complete_native(
-                *program,
-                *bridge,
-                payer.pubkey(),
-                *message_acc,
-                vaa,
-                Pubkey::new(&payload.to[..]),
-                Pubkey::new(&payload.token_address[..]),
-                CompleteNativeData {},
-            )
-            .unwrap()],
+            &[instruction],
             CommitmentConfig::processed(),
         )
     }
@@ -428,21 +462,28 @@ mod helpers {
         payer: &Keypair,
     ) -> Result<Signature, ClientError> {
         let to = Pubkey::new(&payload.to[..]);
+
+        let instruction = instructions::complete_wrapped(
+            *program,
+            *bridge,
+            payer.pubkey(),
+            *message_acc,
+            vaa,
+            payload,
+            to,
+            CompleteWrappedData {},
+        )
+        .expect("Could not create Complete Wrapped instruction");
+
+        for account in instruction.accounts.iter().enumerate() {
+            println!("{}: {}", account.0, account.1.pubkey);
+        }
+
         execute(
             client,
             payer,
             &[payer],
-            &[instructions::complete_wrapped(
-                *program,
-                *bridge,
-                payer.pubkey(),
-                *message_acc,
-                vaa,
-                payload,
-                to,
-                CompleteWrappedData {},
-            )
-            .unwrap()],
+            &[instruction],
             CommitmentConfig::processed(),
         )
     }
@@ -456,20 +497,26 @@ mod helpers {
         payload: PayloadAssetMeta,
         payer: &Keypair,
     ) -> Result<Signature, ClientError> {
+        let instruction = instructions::create_wrapped(
+            *program,
+            *bridge,
+            payer.pubkey(),
+            *message_acc,
+            vaa,
+            payload,
+            CreateWrappedData {},
+        )
+        .expect("Could not create Create Wrapped instruction");
+
+        for account in instruction.accounts.iter().enumerate() {
+            println!("{}: {}", account.0, account.1.pubkey);
+        }
+
         execute(
             client,
             payer,
             &[payer],
-            &[instructions::create_wrapped(
-                *program,
-                *bridge,
-                payer.pubkey(),
-                *message_acc,
-                vaa,
-                payload,
-                CreateWrappedData {},
-            )
-            .unwrap()],
+            &[instruction],
             CommitmentConfig::processed(),
         )
     }
@@ -654,37 +701,23 @@ mod helpers {
         program: &Pubkey,
         payer: &Keypair,
         vaa: PostVAAData,
-    ) -> Result<Pubkey, ClientError> {
-        let msg_key = bridge::accounts::PostedVAA::<'_, { AccountState::Initialized }>::key(
-            &PostedVAADerivationData {
-                emitter_key: vaa.emitter_address,
-                emitter_chain: vaa.emitter_chain,
-                nonce: vaa.nonce,
-                payload: vaa.payload.clone(),
-                sequence: {
-                    if vaa.emitter_chain == 1 {
-                        None
-                    } else {
-                        Some(vaa.sequence)
-                    }
-                },
-            },
-            program,
-        );
+    ) -> Result<(), ClientError> {
+        let instruction =
+            bridge::instructions::post_vaa(*program, payer.pubkey(), Pubkey::new_unique(), vaa);
+
+        for account in instruction.accounts.iter().enumerate() {
+            println!("{}: {}", account.0, account.1.pubkey);
+        }
+
         execute(
             client,
             payer,
             &[payer],
-            &[bridge::instructions::post_vaa(
-                *program,
-                payer.pubkey(),
-                Pubkey::new_unique(),
-                vaa,
-            )],
+            &[instruction],
             CommitmentConfig::processed(),
         )?;
 
-        Ok(msg_key)
+        Ok(())
     }
 
     pub fn post_message(
@@ -692,28 +725,34 @@ mod helpers {
         program: &Pubkey,
         payer: &Keypair,
         emitter: &Keypair,
+        message: &Keypair,
         nonce: u32,
         data: Vec<u8>,
         fee: u64,
-    ) -> Result<Pubkey, ClientError> {
+    ) -> Result<(), ClientError> {
         // Transfer money into the fee collector as it needs a balance/must exist.
         let fee_collector = FeeCollector::<'_>::key(None, program);
 
         // Capture the resulting message, later functions will need this.
-        let (message_key, instruction) = bridge::instructions::post_message(
+        let instruction = bridge::instructions::post_message(
             *program,
             payer.pubkey(),
             emitter.pubkey(),
+            message.pubkey(),
             nonce,
             data,
             ConsistencyLevel::Confirmed,
         )
         .unwrap();
 
+        for account in instruction.accounts.iter().enumerate() {
+            println!("{}: {}", account.0, account.1.pubkey);
+        }
+
         execute(
             client,
             payer,
-            &[payer, emitter],
+            &[payer, emitter, message],
             &[
                 system_instruction::transfer(&payer.pubkey(), &fee_collector, fee),
                 instruction,
@@ -721,6 +760,6 @@ mod helpers {
             CommitmentConfig::processed(),
         )?;
 
-        Ok(message_key)
+        Ok(())
     }
 }

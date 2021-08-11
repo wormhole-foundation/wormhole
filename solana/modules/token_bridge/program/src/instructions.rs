@@ -462,7 +462,7 @@ pub fn attest(
     // Mint Metadata
     let mint_meta = WrappedTokenMeta::<'_, { AccountState::Uninitialized }>::key(
         &WrappedMetaDerivationData { mint_key: mint },
-        &bridge_id,
+        &program_id,
     );
 
     // Bridge Keys

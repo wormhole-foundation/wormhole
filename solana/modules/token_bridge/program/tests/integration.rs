@@ -292,16 +292,15 @@ fn test_attest(context: &mut Context) -> () {
         ..
     } = context;
 
+    let message = &Keypair::new();
+
     common::attest(
         client,
         token_bridge,
         bridge,
         payer,
+        message,
         mint.pubkey(),
-        *mint_meta,
-        *metadata_account,
-        "".to_string(),
-        "".to_string(),
         0,
     )
     .unwrap();
@@ -324,16 +323,6 @@ fn test_attest(context: &mut Context) -> () {
         name: "Bitcoin".to_string(),
     };
     let payload = payload.try_to_vec().unwrap();
-    let message_key = Message::<'_, { AccountState::Uninitialized }>::key(
-        &MessageDerivationData {
-            emitter_key: emitter_key.to_bytes(),
-            emitter_chain: 1,
-            nonce: 0,
-            sequence: None,
-            payload: payload.clone(),
-        },
-        &token_bridge,
-    );
 }
 
 fn test_transfer_native(context: &mut Context) -> () {
@@ -356,11 +345,14 @@ fn test_transfer_native(context: &mut Context) -> () {
         ..
     } = context;
 
+    let message = &Keypair::new();
+
     common::transfer_native(
         client,
         token_bridge,
         bridge,
         payer,
+        message,
         token_account,
         token_authority,
         mint.pubkey(),
@@ -386,11 +378,14 @@ fn test_transfer_wrapped(context: &mut Context, token_account: Pubkey) -> () {
         ..
     } = context;
 
+    let message = &Keypair::new();
+
     common::transfer_wrapped(
         client,
         token_bridge,
         bridge,
         payer,
+        message,
         token_account,
         token_authority,
         2,
@@ -429,7 +424,13 @@ fn test_register_chain(context: &mut Context) -> () {
     let message = payload.try_to_vec().unwrap();
 
     let (vaa, _, _) = common::generate_vaa(emitter.pubkey().to_bytes(), 1, message, nonce, 0);
-    let message_key = common::post_vaa(client, bridge, payer, vaa.clone()).unwrap();
+    common::post_vaa(client, bridge, payer, vaa.clone()).unwrap();
+
+    let mut msg_derivation_data = &PostedVAADerivationData {
+        payload_hash: bridge::instructions::hash_vaa(&vaa).to_vec(),
+    };
+    let message_key =
+        PostedVAA::<'_, { AccountState::MaybeInitialized }>::key(&msg_derivation_data, &bridge);
 
     common::register_chain(
         client,
@@ -476,7 +477,12 @@ fn test_transfer_native_in(context: &mut Context) -> () {
     let message = payload.try_to_vec().unwrap();
 
     let (vaa, _, _) = common::generate_vaa([0u8; 32], 2, message, nonce, 1);
-    let message_key = common::post_vaa(client, bridge, payer, vaa.clone()).unwrap();
+    common::post_vaa(client, bridge, payer, vaa.clone()).unwrap();
+    let mut msg_derivation_data = &PostedVAADerivationData {
+        payload_hash: bridge::instructions::hash_vaa(&vaa).to_vec(),
+    };
+    let message_key =
+        PostedVAA::<'_, { AccountState::MaybeInitialized }>::key(&msg_derivation_data, &bridge);
 
     common::complete_native(
         client,
@@ -523,7 +529,12 @@ fn test_transfer_wrapped_in(context: &mut Context, to: Pubkey) -> () {
     let message = payload.try_to_vec().unwrap();
 
     let (vaa, _, _) = common::generate_vaa([0u8; 32], 2, message, nonce, rand::thread_rng().gen());
-    let message_key = common::post_vaa(client, bridge, payer, vaa.clone()).unwrap();
+    common::post_vaa(client, bridge, payer, vaa.clone()).unwrap();
+    let mut msg_derivation_data = &PostedVAADerivationData {
+        payload_hash: bridge::instructions::hash_vaa(&vaa).to_vec(),
+    };
+    let message_key =
+        PostedVAA::<'_, { AccountState::MaybeInitialized }>::key(&msg_derivation_data, &bridge);
 
     common::complete_transfer_wrapped(
         client,
@@ -569,7 +580,12 @@ fn test_create_wrapped(context: &mut Context) -> (Pubkey) {
     let message = payload.try_to_vec().unwrap();
 
     let (vaa, _, _) = common::generate_vaa([0u8; 32], 2, message, nonce, 2);
-    let message_key = common::post_vaa(client, bridge, payer, vaa.clone()).unwrap();
+    common::post_vaa(client, bridge, payer, vaa.clone()).unwrap();
+    let mut msg_derivation_data = &PostedVAADerivationData {
+        payload_hash: bridge::instructions::hash_vaa(&vaa).to_vec(),
+    };
+    let message_key =
+        PostedVAA::<'_, { AccountState::MaybeInitialized }>::key(&msg_derivation_data, &bridge);
 
     common::create_wrapped(
         client,
