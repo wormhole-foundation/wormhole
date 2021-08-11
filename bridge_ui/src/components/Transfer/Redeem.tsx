@@ -46,7 +46,7 @@ function Redeem() {
       dispatch(setIsRedeeming(true));
       redeemOnSolana(wallet, solPK?.toString(), signedVAA);
     }
-  }, [dispatch, targetChain, provider, signer, signedVAA]);
+  }, [dispatch, targetChain, provider, signer, signedVAA, wallet, solPK]);
   return (
     <div style={{ position: "relative" }}>
       <Button

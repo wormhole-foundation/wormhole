@@ -51,7 +51,7 @@ function Create() {
         createWrappedOnEth(provider, signer, signedVAA);
       })();
     }
-  }, [dispatch, targetChain, wallet, solPK, signedVAA]);
+  }, [dispatch, targetChain, wallet, solPK, signedVAA, provider, signer]);
   return (
     <div style={{ position: "relative" }}>
       <Button
