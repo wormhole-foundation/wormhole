@@ -180,7 +180,7 @@ pub fn complete_transfer_native_ix(
         &PostedVAADerivationData {
             payload_hash: hash_vaa(&vaa.clone().into()).to_vec(),
         },
-        &program_id,
+        &bridge_id,
     );
     let post_vaa_data = PostVAAData {
         version: vaa.version,
@@ -225,7 +225,7 @@ pub fn complete_transfer_wrapped_ix(
         &PostedVAADerivationData {
             payload_hash: hash_vaa(&vaa.clone().into()).to_vec(),
         },
-        &program_id,
+        &bridge_id,
     );
     let post_vaa_data = PostVAAData {
         version: vaa.version,
@@ -270,7 +270,7 @@ pub fn create_wrapped_ix(
         &PostedVAADerivationData {
             payload_hash: hash_vaa(&vaa.clone().into()).to_vec(),
         },
-        &program_id,
+        &bridge_id,
     );
     let post_vaa_data = PostVAAData {
         version: vaa.version,
