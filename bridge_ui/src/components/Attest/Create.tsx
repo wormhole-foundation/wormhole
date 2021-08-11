@@ -8,10 +8,12 @@ import {
   selectAttestIsCreating,
   selectAttestTargetChain,
 } from "../../store/selectors";
-import { CHAIN_ID_SOLANA } from "../../utils/consts";
+import { CHAIN_ID_ETH, CHAIN_ID_SOLANA } from "../../utils/consts";
 import createWrappedOn, {
+  createWrappedOnEth,
   createWrappedOnSolana,
 } from "../../utils/createWrappedOn";
+import { useEthereumProvider } from "../../contexts/EthereumProviderContext";
 
 const useStyles = makeStyles((theme) => ({
   transferButton: {
@@ -29,6 +31,7 @@ function Create() {
   const solPK = wallet?.publicKey;
   const signedVAA = useAttestSignedVAA();
   const isCreating = useSelector(selectAttestIsCreating);
+  const { provider, signer } = useEthereumProvider();
   const handleCreateClick = useCallback(() => {
     if (
       targetChain === CHAIN_ID_SOLANA &&
@@ -37,6 +40,16 @@ function Create() {
     ) {
       dispatch(setIsCreating(true));
       createWrappedOnSolana(wallet, solPK?.toString(), signedVAA);
+    }
+    if (
+      targetChain === CHAIN_ID_ETH &&
+      createWrappedOn[targetChain] === createWrappedOnEth &&
+      signedVAA
+    ) {
+      (async () => {
+        dispatch(setIsCreating(true));
+        createWrappedOnEth(provider, signer, signedVAA);
+      })();
     }
   }, [dispatch, targetChain, wallet, solPK, signedVAA]);
   return (

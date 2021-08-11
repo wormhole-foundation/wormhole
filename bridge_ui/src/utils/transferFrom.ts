@@ -1,7 +1,8 @@
 import Wallet from "@project-serum/sol-wallet-adapter";
 import { Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import {
-  Connection, Keypair,
+  Connection,
+  Keypair,
   PublicKey,
   SystemProgram,
   Transaction,
@@ -91,7 +92,7 @@ export async function transferFromEth(
   const { vaaBytes } = await getSignedVAA(
     CHAIN_ID_ETH,
     emitterAddress,
-    sequence
+    sequence.toString()
   );
   console.log("SIGNED VAA:", vaaBytes);
   return vaaBytes;

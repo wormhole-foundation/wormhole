@@ -143,7 +143,7 @@ export async function attestFromSolana(
   const { vaaBytes } = await getSignedVAA(
     CHAIN_ID_SOLANA,
     emitterAddress,
-    sequence
+    sequence.toString()
   );
   console.log("SIGNED VAA:", vaaBytes);
   return vaaBytes;
