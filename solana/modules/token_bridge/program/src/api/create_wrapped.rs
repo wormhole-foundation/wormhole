@@ -4,6 +4,8 @@ use crate::{
         Endpoint,
         EndpointDerivationData,
         MintSigner,
+        SplTokenMeta,
+        SplTokenMetaDerivationData,
         WrappedDerivationData,
         WrappedMetaDerivationData,
         WrappedMint,
@@ -20,7 +22,10 @@ use solana_program::{
     pubkey::Pubkey,
 };
 use solitaire::{
-    processors::seeded::Seeded,
+    processors::seeded::{
+        invoke_seeded,
+        Seeded,
+    },
     CreationLamports::Exempt,
     *,
 };
@@ -50,6 +55,9 @@ pub struct CreateWrapped<'b> {
     // New Wrapped
     pub mint: Mut<WrappedMint<'b, { AccountState::Uninitialized }>>,
     pub meta: Mut<WrappedTokenMeta<'b, { AccountState::Uninitialized }>>,
+
+    /// SPL Metadata for the associated Mint
+    pub spl_metadata: Mut<SplTokenMeta<'b>>,
 
     pub mint_authority: MintSigner<'b>,
 }
@@ -123,6 +131,31 @@ pub fn create_wrapped(
     // Create meta account
     accs.meta
         .create(&((&*accs).into()), ctx, accs.payer.key, Exempt);
+
+    // Initialize spl meta
+    accs.spl_metadata.verify_derivation(
+        &spl_token_metadata::id(),
+        &SplTokenMetaDerivationData {
+            mint: *accs.mint.info().key,
+        },
+    )?;
+
+    let spl_token_metadata_ix = spl_token_metadata::instruction::create_metadata_accounts(
+        spl_token_metadata::id(),
+        *accs.spl_metadata.key,
+        *accs.mint.info().key,
+        *accs.mint_authority.info().key,
+        *accs.payer.info().key,
+        *accs.mint_authority.info().key,
+        accs.vaa.name.clone(),
+        accs.vaa.symbol.clone(),
+        String::from(""),
+        None,
+        0,
+        false,
+        true,
+    );
+    invoke_seeded(&spl_token_metadata_ix, ctx, &accs.mint_authority, None)?;
 
     // Populate meta account
     accs.meta.chain = accs.vaa.token_chain;

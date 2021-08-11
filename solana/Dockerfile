@@ -26,4 +26,5 @@ RUN --mount=type=cache,target=/usr/local,from=rust,source=/usr/local \
     mkdir -p /opt/solana/deps && \
     cp bridge/target/deploy/bridge.so /opt/solana/deps/bridge.so && \
     cp bridge/target/deploy/cpi_poster.so /opt/solana/deps/cpi_poster.so && \
-    cp modules/token_bridge/target/deploy/token_bridge.so /opt/solana/deps/token_bridge.so
+    cp modules/token_bridge/target/deploy/token_bridge.so /opt/solana/deps/token_bridge.so && \
+    cp modules/token_bridge/token-metadata/spl_token_metadata.so /opt/solana/deps/spl_token_metadata.so

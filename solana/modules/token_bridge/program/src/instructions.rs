@@ -223,6 +223,11 @@ pub fn create_wrapped(
         &program_id,
     );
     let mint_authority_key = MintSigner::key(None, &program_id);
+    // SPL Metadata
+    let spl_metadata = SplTokenMeta::key(
+        &SplTokenMetaDerivationData { mint: mint_key },
+        &spl_token_metadata::id(),
+    );
 
     Ok(Instruction {
         program_id,
@@ -234,6 +239,7 @@ pub fn create_wrapped(
             claim_acc,
             AccountMeta::new(mint_key, false),
             AccountMeta::new(mint_meta_key, false),
+            AccountMeta::new(spl_metadata, false),
             AccountMeta::new_readonly(mint_authority_key, false),
             // Dependencies
             AccountMeta::new_readonly(solana_program::sysvar::rent::id(), false),
@@ -241,6 +247,7 @@ pub fn create_wrapped(
             // Program
             AccountMeta::new_readonly(bridge_id, false),
             AccountMeta::new_readonly(spl_token::id(), false),
+            AccountMeta::new_readonly(spl_token_metadata::id(), false),
         ],
         data: (crate::instruction::Instruction::CreateWrapped, data).try_to_vec()?,
     })
