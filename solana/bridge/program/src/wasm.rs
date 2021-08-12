@@ -245,7 +245,7 @@ pub fn verify_signatures_ix(
     };
 
     let mut verify_txs: Vec<Vec<Instruction>> = Vec::new();
-    for (_tx_index, chunk) in signature_items.chunks(6).enumerate() {
+    for (_tx_index, chunk) in signature_items.chunks(7).enumerate() {
         let mut secp_payload = Vec::new();
         let mut signature_status = [-1i8; 19];
 
