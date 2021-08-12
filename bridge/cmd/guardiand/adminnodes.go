@@ -187,4 +187,6 @@ func runListNodes(cmd *cobra.Command, args []string) {
 			fmt.Printf("Missing guardian: %s\n", addr)
 		}
 	}
+
+	fmt.Println("\n[do not parse - use the gRPC or REST API for scripting]")
 }
