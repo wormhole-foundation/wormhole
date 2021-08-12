@@ -73,6 +73,7 @@ function Source() {
         ))}
       </TextField>
       <KeyAndBalance chainId={sourceChain} balance={uiAmountString} />
+      {/* TODO: token list for eth, check own */}
       <TextField
         placeholder="Asset"
         fullWidth

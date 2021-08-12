@@ -1,6 +1,7 @@
+import { ethers } from "ethers";
 import { parseUnits } from "ethers/lib/utils";
 import { RootState } from ".";
-import { CHAIN_ID_SOLANA } from "../utils/consts";
+import { CHAIN_ID_ETH, CHAIN_ID_SOLANA } from "../utils/consts";
 
 /*
  * Attest
@@ -43,6 +44,12 @@ export const selectTransferSourceChain = (state: RootState) =>
   state.transfer.sourceChain;
 export const selectTransferSourceAsset = (state: RootState) =>
   state.transfer.sourceAsset;
+export const selectTransferIsSourceAssetWormholeWrapped = (state: RootState) =>
+  state.transfer.isSourceAssetWormholeWrapped;
+export const selectTransferOriginChain = (state: RootState) =>
+  state.transfer.originChain;
+export const selectTransferOriginAsset = (state: RootState) =>
+  state.transfer.originAsset;
 export const selectTransferSourceParsedTokenAccount = (state: RootState) =>
   state.transfer.sourceParsedTokenAccount;
 export const selectTransferSourceBalanceString = (state: RootState) =>
@@ -50,6 +57,12 @@ export const selectTransferSourceBalanceString = (state: RootState) =>
 export const selectTransferAmount = (state: RootState) => state.transfer.amount;
 export const selectTransferTargetChain = (state: RootState) =>
   state.transfer.targetChain;
+export const selectTransferTargetAsset = (state: RootState) =>
+  state.transfer.targetAsset;
+export const selectTransferTargetParsedTokenAccount = (state: RootState) =>
+  state.transfer.targetParsedTokenAccount;
+export const selectTransferTargetBalanceString = (state: RootState) =>
+  state.transfer.targetParsedTokenAccount?.uiAmountString || "";
 export const selectTransferSignedVAAHex = (state: RootState) =>
   state.transfer.signedVAAHex;
 export const selectTransferIsSending = (state: RootState) =>
@@ -79,7 +92,15 @@ export const selectTransferIsSourceComplete = (state: RootState) =>
   );
 // TODO: check wrapped asset exists or is native transfer
 export const selectTransferIsTargetComplete = (state: RootState) =>
-  selectTransferIsSourceComplete(state) && !!state.transfer.targetChain;
+  selectTransferIsSourceComplete(state) &&
+  !!state.transfer.targetChain &&
+  !!state.transfer.targetAsset &&
+  (state.transfer.targetChain !== CHAIN_ID_ETH ||
+    state.transfer.targetAsset !== ethers.constants.AddressZero); //&&
+// Associated Token Account exists
+// (state.transfer.targetChain !== CHAIN_ID_SOLANA ||
+//   (!!state.transfer.targetParsedTokenAccount &&
+//     !!state.transfer.targetParsedTokenAccount.publicKey));
 export const selectTransferIsSendComplete = (state: RootState) =>
   !!selectTransferSignedVAAHex(state);
 export const selectTransferShouldLockFields = (state: RootState) =>

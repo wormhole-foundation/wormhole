@@ -8,8 +8,14 @@ import { TokenImplementation__factory } from "../ethers-contracts";
 import {
   selectTransferSourceAsset,
   selectTransferSourceChain,
+  selectTransferTargetAsset,
+  selectTransferTargetChain,
 } from "../store/selectors";
-import { setSourceParsedTokenAccount } from "../store/transferSlice";
+import {
+  setSourceParsedTokenAccount,
+  setTargetParsedTokenAccount,
+} from "../store/transferSlice";
+import { hexToUint8Array } from "../utils/array";
 import { CHAIN_ID_ETH, CHAIN_ID_SOLANA, SOLANA_HOST } from "../utils/consts";
 
 function createParsedTokenAccount(
@@ -28,24 +34,44 @@ function createParsedTokenAccount(
   };
 }
 
-function useGetBalanceEffect() {
+/**
+ * Fetches the balance of an asset for the connected wallet
+ * @param sourceOrTarget determines whether this will fetch balance for the source or target account. Not intended to be switched on the same hook!
+ */
+function useGetBalanceEffect(sourceOrTarget: "source" | "target") {
   const dispatch = useDispatch();
-  const sourceChain = useSelector(selectTransferSourceChain);
-  const sourceAsset = useSelector(selectTransferSourceAsset);
+  const setAction =
+    sourceOrTarget === "source"
+      ? setSourceParsedTokenAccount
+      : setTargetParsedTokenAccount;
+  const lookupChain = useSelector(
+    sourceOrTarget === "source"
+      ? selectTransferSourceChain
+      : selectTransferTargetChain
+  );
+  const lookupAsset = useSelector(
+    sourceOrTarget === "source"
+      ? selectTransferSourceAsset
+      : selectTransferTargetAsset
+  );
   const { wallet } = useSolanaWallet();
   const solPK = wallet?.publicKey;
   const { provider, signerAddress } = useEthereumProvider();
   useEffect(() => {
     // TODO: loading state
-    dispatch(setSourceParsedTokenAccount(undefined));
-    if (!sourceAsset) {
+    dispatch(setAction(undefined));
+    if (!lookupAsset) {
       return;
     }
     let cancelled = false;
-    if (sourceChain === CHAIN_ID_SOLANA && solPK) {
+    if (lookupChain === CHAIN_ID_SOLANA && solPK) {
       let mint;
       try {
-        mint = new PublicKey(sourceAsset);
+        mint = new PublicKey(
+          sourceOrTarget === "source"
+            ? lookupAsset
+            : hexToUint8Array(lookupAsset)
+        );
       } catch (e) {
         return;
       }
@@ -54,9 +80,11 @@ function useGetBalanceEffect() {
         .getParsedTokenAccountsByOwner(solPK, { mint })
         .then(({ value }) => {
           if (!cancelled) {
+            console.log("parsed token accounts", value);
             if (value.length) {
+              // TODO: allow selection between these target accounts
               dispatch(
-                setSourceParsedTokenAccount(
+                setAction(
                   createParsedTokenAccount(
                     value[0].pubkey,
                     value[0].account.data.parsed?.info?.tokenAmount?.amount,
@@ -78,15 +106,15 @@ function useGetBalanceEffect() {
           }
         });
     }
-    if (sourceChain === CHAIN_ID_ETH && provider && signerAddress) {
-      const token = TokenImplementation__factory.connect(sourceAsset, provider);
+    if (lookupChain === CHAIN_ID_ETH && provider && signerAddress) {
+      const token = TokenImplementation__factory.connect(lookupAsset, provider);
       token
         .decimals()
         .then((decimals) => {
           token.balanceOf(signerAddress).then((n) => {
             if (!cancelled) {
               dispatch(
-                setSourceParsedTokenAccount(
+                setAction(
                   // TODO: verify accuracy
                   createParsedTokenAccount(
                     undefined,
@@ -109,7 +137,16 @@ function useGetBalanceEffect() {
     return () => {
       cancelled = true;
     };
-  }, [dispatch, sourceChain, sourceAsset, solPK, provider, signerAddress]);
+  }, [
+    dispatch,
+    sourceOrTarget,
+    setAction,
+    lookupChain,
+    lookupAsset,
+    solPK,
+    provider,
+    signerAddress,
+  ]);
 }
 
 export default useGetBalanceEffect;

@@ -1,18 +1,28 @@
 import { Button, CircularProgress, makeStyles } from "@material-ui/core";
-import { useCallback } from "react";
+import {
+  ASSOCIATED_TOKEN_PROGRAM_ID,
+  Token,
+  TOKEN_PROGRAM_ID,
+} from "@solana/spl-token";
+import { PublicKey } from "@solana/web3.js";
+import { zeroPad } from "ethers/lib/utils";
+import { useCallback, useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useEthereumProvider } from "../../contexts/EthereumProviderContext";
 import { useSolanaWallet } from "../../contexts/SolanaWalletContext";
-import useWrappedAsset from "../../hooks/useWrappedAsset";
 import {
   selectTransferAmount,
   selectTransferIsSendComplete,
   selectTransferIsSending,
   selectTransferIsTargetComplete,
+  selectTransferOriginAsset,
+  selectTransferOriginChain,
   selectTransferSourceAsset,
   selectTransferSourceChain,
   selectTransferSourceParsedTokenAccount,
+  selectTransferTargetAsset,
   selectTransferTargetChain,
+  selectTransferTargetParsedTokenAccount,
 } from "../../store/selectors";
 import { setIsSending, setSignedVAAHex } from "../../store/transferSlice";
 import { uint8ArrayToHex } from "../../utils/array";
@@ -37,8 +47,11 @@ function Send() {
   const dispatch = useDispatch();
   const sourceChain = useSelector(selectTransferSourceChain);
   const sourceAsset = useSelector(selectTransferSourceAsset);
+  const originChain = useSelector(selectTransferOriginChain);
+  const originAsset = useSelector(selectTransferOriginAsset);
   const amount = useSelector(selectTransferAmount);
   const targetChain = useSelector(selectTransferTargetChain);
+  const targetAsset = useSelector(selectTransferTargetAsset);
   const isTargetComplete = useSelector(selectTransferIsTargetComplete);
   const isSending = useSelector(selectTransferIsSending);
   const isSendComplete = useSelector(selectTransferIsSendComplete);
@@ -48,16 +61,43 @@ function Send() {
   const sourceParsedTokenAccount = useSelector(
     selectTransferSourceParsedTokenAccount
   );
-  const tokenPK = sourceParsedTokenAccount?.publicKey;
+  const sourceTokenPublicKey = sourceParsedTokenAccount?.publicKey;
   const decimals = sourceParsedTokenAccount?.decimals;
-  const {
-    isLoading: isCheckingWrapped,
-    // isWrapped,
-    wrappedAsset,
-  } = useWrappedAsset(targetChain, sourceChain, sourceAsset, provider);
-  // TODO: check this and send to separate flow
-  const isWrapped = true;
-  console.log(isCheckingWrapped, isWrapped, wrappedAsset);
+  const targetParsedTokenAccount = useSelector(
+    selectTransferTargetParsedTokenAccount
+  );
+  // TODO: we probably shouldn't get here if we don't have this public key
+  // TODO: also this is just for solana... send help(ers)
+  const targetTokenAccountPublicKey = targetParsedTokenAccount?.publicKey;
+  console.log(
+    "Sending to:",
+    targetTokenAccountPublicKey,
+    targetTokenAccountPublicKey &&
+      new PublicKey(targetTokenAccountPublicKey).toBytes()
+  );
+  // TODO: AVOID THIS DANGEROUS CACOPHONY
+  const tpkRef = useRef<undefined | Uint8Array>(undefined);
+  useEffect(() => {
+    (async () => {
+      if (targetChain === CHAIN_ID_SOLANA) {
+        tpkRef.current = targetTokenAccountPublicKey
+          ? zeroPad(new PublicKey(targetTokenAccountPublicKey).toBytes(), 32) // use the target's TokenAccount if it exists
+          : solPK && targetAsset // otherwise, use the associated token account (which we create in the case it doesn't exist)
+          ? zeroPad(
+              (
+                await Token.getAssociatedTokenAddress(
+                  ASSOCIATED_TOKEN_PROGRAM_ID,
+                  TOKEN_PROGRAM_ID,
+                  new PublicKey(targetAsset),
+                  solPK
+                )
+              ).toBytes(),
+              32
+            )
+          : undefined;
+      } else tpkRef.current = undefined;
+    })();
+  }, [targetChain, solPK, targetAsset, targetTokenAccountPublicKey]);
   // TODO: dynamically get "to" wallet
   const handleTransferClick = useCallback(() => {
     // TODO: we should separate state for transaction vs fetching vaa
@@ -72,6 +112,7 @@ function Send() {
         (async () => {
           dispatch(setIsSending(true));
           try {
+            console.log("actually sending", tpkRef.current);
             const vaaBytes = await transferFromEth(
               provider,
               signer,
@@ -79,7 +120,7 @@ function Send() {
               decimals,
               amount,
               targetChain,
-              solPK?.toBytes()
+              tpkRef.current
             );
             console.log("bytes in transfer", vaaBytes);
             vaaBytes && dispatch(setSignedVAAHex(uint8ArrayToHex(vaaBytes)));
@@ -101,12 +142,14 @@ function Send() {
             const vaaBytes = await transferFromSolana(
               wallet,
               solPK?.toString(),
-              tokenPK,
+              sourceTokenPublicKey,
               sourceAsset,
-              amount,
+              amount, //TODO: avoid decimals, pass in parsed amount
               decimals,
               signerAddress,
-              targetChain
+              targetChain,
+              originAsset,
+              originChain
             );
             console.log("bytes in transfer", vaaBytes);
             vaaBytes && dispatch(setSignedVAAHex(uint8ArrayToHex(vaaBytes)));
@@ -125,11 +168,13 @@ function Send() {
     signerAddress,
     wallet,
     solPK,
-    tokenPK,
+    sourceTokenPublicKey,
     sourceAsset,
     amount,
     decimals,
     targetChain,
+    originAsset,
+    originChain,
   ]);
   return (
     <>

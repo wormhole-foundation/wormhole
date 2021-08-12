@@ -15,6 +15,7 @@ import {
   TokenImplementation__factory,
 } from "../ethers-contracts";
 import { getSignedVAA, ixFromRust } from "../sdk";
+import { hexToUint8Array } from "./array";
 import {
   ChainId,
   CHAIN_ID_ETH,
@@ -108,14 +109,17 @@ export async function transferFromSolana(
   amount: string,
   decimals: number,
   targetAddressStr: string | undefined,
-  targetChain: ChainId
+  targetChain: ChainId,
+  originAddress?: string,
+  originChain?: ChainId
 ) {
   if (
     !wallet ||
     !wallet.publicKey ||
     !payerAddress ||
     !fromAddress ||
-    !targetAddressStr
+    !targetAddressStr ||
+    (originChain && !originAddress)
   )
     return;
   const targetAddress = zeroPad(arrayify(targetAddressStr), 32);
@@ -154,8 +158,12 @@ export async function transferFromSolana(
   });
   // TODO: pass in connection
   // Add transfer instruction to transaction
-  const { transfer_native_ix, approval_authority_address, emitter_address } =
-    await import("token-bridge");
+  const {
+    transfer_native_ix,
+    transfer_wrapped_ix,
+    approval_authority_address,
+    emitter_address,
+  } = await import("token-bridge");
   const approvalIx = Token.createApproveInstruction(
     TOKEN_PROGRAM_ID,
     new PublicKey(fromAddress),
@@ -166,20 +174,39 @@ export async function transferFromSolana(
   );
 
   let messageKey = Keypair.generate();
+  const isSolanaNative =
+    originChain === undefined || originChain === CHAIN_ID_SOLANA;
+  console.log(isSolanaNative ? "SENDING NATIVE" : "SENDING WRAPPED");
   const ix = ixFromRust(
-    transfer_native_ix(
-      SOL_TOKEN_BRIDGE_ADDRESS,
-      SOL_BRIDGE_ADDRESS,
-      payerAddress,
-      messageKey.publicKey.toString(),
-      fromAddress,
-      mintAddress,
-      nonce,
-      amountParsed,
-      fee,
-      targetAddress,
-      targetChain
-    )
+    isSolanaNative
+      ? transfer_native_ix(
+          SOL_TOKEN_BRIDGE_ADDRESS,
+          SOL_BRIDGE_ADDRESS,
+          payerAddress,
+          messageKey.publicKey.toString(),
+          fromAddress,
+          mintAddress,
+          nonce,
+          amountParsed,
+          fee,
+          targetAddress,
+          targetChain
+        )
+      : transfer_wrapped_ix(
+          SOL_TOKEN_BRIDGE_ADDRESS,
+          SOL_BRIDGE_ADDRESS,
+          payerAddress,
+          messageKey.publicKey.toString(),
+          fromAddress,
+          payerAddress,
+          originChain as number, // checked by isSolanaNative
+          zeroPad(hexToUint8Array(originAddress as string), 32), // checked by initial check
+          nonce,
+          amountParsed,
+          fee,
+          targetAddress,
+          targetChain
+        )
   );
   const transaction = new Transaction().add(transferIx, approvalIx, ix);
   const { blockhash } = await connection.getRecentBlockhash();

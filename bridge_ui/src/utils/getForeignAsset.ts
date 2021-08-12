@@ -10,7 +10,14 @@ import {
   SOL_TOKEN_BRIDGE_ADDRESS,
 } from "./consts";
 
-export async function getAttestedAssetEth(
+/**
+ * Returns a foreign asset address on Ethereum for a provided native chain and asset address
+ * @param provider
+ * @param originChain
+ * @param originAsset
+ * @returns
+ */
+export async function getForeignAssetEth(
   provider: ethers.providers.Web3Provider,
   originChain: ChainId,
   originAsset: string
@@ -33,7 +40,13 @@ export async function getAttestedAssetEth(
   }
 }
 
-export async function getAttestedAssetSol(
+/**
+ * Returns a foreign asset address on Solana for a provided native chain and asset address
+ * @param originChain
+ * @param originAsset
+ * @returns
+ */
+export async function getForeignAssetSol(
   originChain: ChainId,
   originAsset: string
 ) {

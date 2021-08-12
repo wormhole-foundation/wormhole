@@ -56,7 +56,7 @@ export async function attestFromEth(
   const { vaaBytes } = await getSignedVAA(
     CHAIN_ID_ETH,
     emitterAddress,
-    sequence
+    sequence.toString()
   );
   console.log("SIGNED VAA:", vaaBytes);
   return vaaBytes;

@@ -1,17 +1,29 @@
-import { Button, MenuItem, TextField } from "@material-ui/core";
+import { Button, makeStyles, MenuItem, TextField } from "@material-ui/core";
+import { PublicKey } from "@solana/web3.js";
 import { useCallback, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
+  selectTransferIsSourceAssetWormholeWrapped,
   selectTransferIsTargetComplete,
   selectTransferShouldLockFields,
   selectTransferSourceChain,
+  selectTransferTargetAsset,
+  selectTransferTargetBalanceString,
   selectTransferTargetChain,
 } from "../../store/selectors";
 import { incrementStep, setTargetChain } from "../../store/transferSlice";
-import { CHAINS } from "../../utils/consts";
+import { hexToUint8Array } from "../../utils/array";
+import { CHAINS, CHAIN_ID_SOLANA } from "../../utils/consts";
 import KeyAndBalance from "../KeyAndBalance";
 
+const useStyles = makeStyles((theme) => ({
+  transferField: {
+    marginTop: theme.spacing(5),
+  },
+}));
+
 function Target() {
+  const classes = useStyles();
   const dispatch = useDispatch();
   const sourceChain = useSelector(selectTransferSourceChain);
   const chains = useMemo(
@@ -19,6 +31,19 @@ function Target() {
     [sourceChain]
   );
   const targetChain = useSelector(selectTransferTargetChain);
+  const targetAsset = useSelector(selectTransferTargetAsset);
+  const isSourceAssetWormholeWrapped = useSelector(
+    selectTransferIsSourceAssetWormholeWrapped
+  );
+  // TODO: wrapped stuff in hex, but native in not hex?
+  const readableTargetAsset =
+    isSourceAssetWormholeWrapped &&
+    targetChain === CHAIN_ID_SOLANA &&
+    targetAsset
+      ? new PublicKey(hexToUint8Array(targetAsset)).toString()
+      : targetAsset || "";
+  // TODO: why doesn't this show up for solana wrapped?
+  const uiAmountString = useSelector(selectTransferTargetBalanceString);
   const isTargetComplete = useSelector(selectTransferIsTargetComplete);
   const shouldLockFields = useSelector(selectTransferShouldLockFields);
   const handleTargetChange = useCallback(
@@ -48,8 +73,14 @@ function Target() {
           </MenuItem>
         ))}
       </TextField>
-      {/* TODO: determine "to" token address */}
-      <KeyAndBalance chainId={targetChain} />
+      <KeyAndBalance chainId={targetChain} balance={uiAmountString} />
+      <TextField
+        placeholder="Asset"
+        fullWidth
+        className={classes.transferField}
+        value={readableTargetAsset}
+        disabled={true}
+      />
       <Button
         disabled={!isTargetComplete}
         onClick={handleNextClick}

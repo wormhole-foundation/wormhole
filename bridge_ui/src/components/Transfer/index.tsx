@@ -6,6 +6,8 @@ import {
   Stepper,
 } from "@material-ui/core";
 import { useDispatch, useSelector } from "react-redux";
+import useCheckIfWormholeWrapped from "../../hooks/useCheckIfWormholeWrapped";
+import useFetchTargetAsset from "../../hooks/useFetchTargetAsset";
 import useGetBalanceEffect from "../../hooks/useGetBalanceEffect";
 import {
   selectTransferActiveStep,
@@ -23,7 +25,10 @@ import Target from "./Target";
 // TODO: warn if amount exceeds balance
 
 function Transfer() {
-  useGetBalanceEffect();
+  useGetBalanceEffect("source");
+  useCheckIfWormholeWrapped();
+  useFetchTargetAsset();
+  useGetBalanceEffect("target");
   const dispatch = useDispatch();
   const activeStep = useSelector(selectTransferActiveStep);
   const signedVAAHex = useSelector(selectTransferSignedVAAHex);

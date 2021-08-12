@@ -3,7 +3,6 @@ import { useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useEthereumProvider } from "../../contexts/EthereumProviderContext";
 import { useSolanaWallet } from "../../contexts/SolanaWalletContext";
-import useWrappedAsset from "../../hooks/useWrappedAsset";
 import { setIsSending, setSignedVAAHex } from "../../store/attestSlice";
 import {
   selectAttestIsSendComplete,
@@ -11,7 +10,6 @@ import {
   selectAttestIsTargetComplete,
   selectAttestSourceAsset,
   selectAttestSourceChain,
-  selectAttestTargetChain,
 } from "../../store/selectors";
 import { uint8ArrayToHex } from "../../utils/array";
 import attestFrom, {
@@ -35,21 +33,12 @@ function Send() {
   const dispatch = useDispatch();
   const sourceChain = useSelector(selectAttestSourceChain);
   const sourceAsset = useSelector(selectAttestSourceAsset);
-  const targetChain = useSelector(selectAttestTargetChain);
   const isTargetComplete = useSelector(selectAttestIsTargetComplete);
   const isSending = useSelector(selectAttestIsSending);
   const isSendComplete = useSelector(selectAttestIsSendComplete);
   const { provider, signer } = useEthereumProvider();
   const { wallet } = useSolanaWallet();
   const solPK = wallet?.publicKey;
-  const {
-    isLoading: isCheckingWrapped,
-    // isWrapped,
-    wrappedAsset,
-  } = useWrappedAsset(targetChain, sourceChain, sourceAsset, provider);
-  // TODO: check this and send to separate flow
-  const isWrapped = true;
-  console.log(isCheckingWrapped, isWrapped, wrappedAsset);
   // TODO: dynamically get "to" wallet
   const handleAttestClick = useCallback(() => {
     // TODO: more generic way of calling these

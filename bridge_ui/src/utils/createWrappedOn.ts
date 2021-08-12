@@ -57,6 +57,7 @@ export async function createWrappedOnSolana(
       signedVAA
     )
   );
+  console.log(ix.keys.map((x) => x.pubkey.toString()));
   const transaction = new Transaction().add(ix);
   const { blockhash } = await connection.getRecentBlockhash();
   transaction.recentBlockhash = blockhash;

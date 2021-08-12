@@ -6,6 +6,7 @@ import {
   ETH_TEST_TOKEN_ADDRESS,
   SOL_TEST_TOKEN_ADDRESS,
 } from "../utils/consts";
+import { WormholeWrappedInfo } from "../utils/getOriginalAsset";
 
 const LAST_STEP = 3;
 
@@ -23,9 +24,14 @@ export interface TransferState {
   activeStep: Steps;
   sourceChain: ChainId;
   sourceAsset: string;
+  isSourceAssetWormholeWrapped: boolean | undefined;
+  originChain: ChainId | undefined;
+  originAsset: string | undefined;
   sourceParsedTokenAccount: ParsedTokenAccount | undefined;
   amount: string;
   targetChain: ChainId;
+  targetAsset: string | null | undefined;
+  targetParsedTokenAccount: ParsedTokenAccount | undefined;
   signedVAAHex: string | undefined;
   isSending: boolean;
   isRedeeming: boolean;
@@ -35,9 +41,14 @@ const initialState: TransferState = {
   activeStep: 0,
   sourceChain: CHAIN_ID_SOLANA,
   sourceAsset: SOL_TEST_TOKEN_ADDRESS,
+  isSourceAssetWormholeWrapped: false,
   sourceParsedTokenAccount: undefined,
+  originChain: undefined,
+  originAsset: undefined,
   amount: "",
   targetChain: CHAIN_ID_ETH,
+  targetAsset: undefined,
+  targetParsedTokenAccount: undefined,
   signedVAAHex: undefined,
   isSending: false,
   isRedeeming: false,
@@ -73,6 +84,20 @@ export const transferSlice = createSlice({
     setSourceAsset: (state, action: PayloadAction<string>) => {
       state.sourceAsset = action.payload;
     },
+    setSourceWormholeWrappedInfo: (
+      state,
+      action: PayloadAction<WormholeWrappedInfo | undefined>
+    ) => {
+      if (action.payload) {
+        state.isSourceAssetWormholeWrapped = action.payload.isWrapped;
+        state.originChain = action.payload.chainId;
+        state.originAsset = action.payload.assetAddress;
+      } else {
+        state.isSourceAssetWormholeWrapped = undefined;
+        state.originChain = undefined;
+        state.originAsset = undefined;
+      }
+    },
     setSourceParsedTokenAccount: (
       state,
       action: PayloadAction<ParsedTokenAccount | undefined>
@@ -97,6 +122,18 @@ export const transferSlice = createSlice({
         }
       }
     },
+    setTargetAsset: (
+      state,
+      action: PayloadAction<string | null | undefined>
+    ) => {
+      state.targetAsset = action.payload;
+    },
+    setTargetParsedTokenAccount: (
+      state,
+      action: PayloadAction<ParsedTokenAccount | undefined>
+    ) => {
+      state.targetParsedTokenAccount = action.payload;
+    },
     setSignedVAAHex: (state, action: PayloadAction<string>) => {
       state.signedVAAHex = action.payload;
       state.isSending = false;
@@ -117,9 +154,12 @@ export const {
   setStep,
   setSourceChain,
   setSourceAsset,
+  setSourceWormholeWrappedInfo,
   setSourceParsedTokenAccount,
   setAmount,
   setTargetChain,
+  setTargetAsset,
+  setTargetParsedTokenAccount,
   setSignedVAAHex,
   setIsSending,
   setIsRedeeming,

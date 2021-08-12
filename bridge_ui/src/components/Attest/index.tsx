@@ -20,7 +20,7 @@ import Target from "./Target";
 // TODO: ensure that both wallets are connected to the same known network
 
 function Attest() {
-  useGetBalanceEffect();
+  useGetBalanceEffect("source");
   const dispatch = useDispatch();
   const activeStep = useSelector(selectAttestActiveStep);
   const signedVAAHex = useSelector(selectAttestSignedVAAHex);
