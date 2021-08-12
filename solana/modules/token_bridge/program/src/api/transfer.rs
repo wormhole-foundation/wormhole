@@ -215,7 +215,7 @@ pub struct TransferWrapped<'b> {
     pub config: ConfigAccount<'b, { AccountState::Initialized }>,
 
     pub from: Mut<Data<'b, SplAccount, { AccountState::Initialized }>>,
-    pub from_owner: Signer<Info<'b>>,
+    pub from_owner: MaybeMut<Signer<Info<'b>>>,
     pub mint: Mut<WrappedMint<'b, { AccountState::Initialized }>>,
     pub wrapped_meta: WrappedTokenMeta<'b, { AccountState::Initialized }>,
 

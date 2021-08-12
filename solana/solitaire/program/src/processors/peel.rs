@@ -22,6 +22,7 @@ use crate::{
         Owned,
     },
     types::*,
+    AccountState::MaybeInitialized,
     Context,
     Result,
     SolitaireError,
@@ -70,6 +71,21 @@ impl<'a, 'b: 'a, 'c, T: Peel<'a, 'b, 'c>> Peel<'a, 'b, 'c> for Mut<T> {
             true => T::peel(ctx).map(|v| Mut(v)),
             _ => Err(SolitaireError::InvalidMutability(*ctx.info().key).into()),
         }
+    }
+
+    fn deps() -> Vec<Pubkey> {
+        T::deps()
+    }
+
+    fn persist(&self, program_id: &Pubkey) -> Result<()> {
+        T::persist(self, program_id)
+    }
+}
+
+impl<'a, 'b: 'a, 'c, T: Peel<'a, 'b, 'c>> Peel<'a, 'b, 'c> for MaybeMut<T> {
+    fn peel<I>(mut ctx: &'c mut Context<'a, 'b, 'c, I>) -> Result<Self> {
+        ctx.immutable = !ctx.info().is_writable;
+        T::peel(ctx).map(|v| MaybeMut(v))
     }
 
     fn deps() -> Vec<Pubkey> {
