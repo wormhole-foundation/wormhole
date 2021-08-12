@@ -152,6 +152,9 @@ pub fn transfer_native(
         invoke_signed(&init_ix, ctx.accounts, &[])?;
     }
 
+    // Truncate to 8 decimals
+    let amount: u64 = data.amount / (10u64.pow(8.max(accs.mint.decimals as u32) - 8));
+
     // Transfer tokens
     let transfer_ix = spl_token::instruction::transfer(
         &spl_token::id(),
@@ -159,7 +162,7 @@ pub fn transfer_native(
         accs.custody.info().key,
         accs.authority_signer.key,
         &[],
-        data.amount,
+        amount,
     )?;
     invoke_seeded(&transfer_ix, ctx, &accs.authority_signer, None)?;
 
@@ -170,7 +173,7 @@ pub fn transfer_native(
 
     // Post message
     let payload = PayloadTransfer {
-        amount: U256::from(data.amount),
+        amount: U256::from(amount),
         token_address: accs.mint.info().key.to_bytes(),
         token_chain: 1,
         to: data.target_address,
