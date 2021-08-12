@@ -1,5 +1,2 @@
-target
 bin
-bridge/target
-solitaire/target
-modules/token_bridge/target
+**/target
