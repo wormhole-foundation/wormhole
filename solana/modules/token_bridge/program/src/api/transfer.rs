@@ -152,8 +152,11 @@ pub fn transfer_native(
         invoke_signed(&init_ix, ctx.accounts, &[])?;
     }
 
+    let trunc_divisor = 10u64.pow(8.max(accs.mint.decimals as u32) - 8);
     // Truncate to 8 decimals
-    let amount: u64 = data.amount / (10u64.pow(8.max(accs.mint.decimals as u32) - 8));
+    let amount: u64 = data.amount / trunc_divisor;
+    // Untruncate the amount to drop the remainder so we don't  "burn" user's funds.
+    let amount_trunc: u64 = amount * trunc_divisor;
 
     // Transfer tokens
     let transfer_ix = spl_token::instruction::transfer(
@@ -162,7 +165,7 @@ pub fn transfer_native(
         accs.custody.info().key,
         accs.authority_signer.key,
         &[],
-        amount,
+        amount_trunc,
     )?;
     invoke_seeded(&transfer_ix, ctx, &accs.authority_signer, None)?;
 
