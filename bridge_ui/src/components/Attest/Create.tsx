@@ -1,6 +1,8 @@
+import { CHAIN_ID_ETH, CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
 import { Button, CircularProgress, makeStyles } from "@material-ui/core";
 import { useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { useEthereumProvider } from "../../contexts/EthereumProviderContext";
 import { useSolanaWallet } from "../../contexts/SolanaWalletContext";
 import useAttestSignedVAA from "../../hooks/useAttestSignedVAA";
 import { setIsCreating } from "../../store/attestSlice";
@@ -8,12 +10,10 @@ import {
   selectAttestIsCreating,
   selectAttestTargetChain,
 } from "../../store/selectors";
-import { CHAIN_ID_ETH, CHAIN_ID_SOLANA } from "../../utils/consts";
 import createWrappedOn, {
   createWrappedOnEth,
   createWrappedOnSolana,
 } from "../../utils/createWrappedOn";
-import { useEthereumProvider } from "../../contexts/EthereumProviderContext";
 
 const useStyles = makeStyles((theme) => ({
   transferButton: {

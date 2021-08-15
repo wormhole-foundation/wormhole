@@ -1,3 +1,4 @@
+import { CHAIN_ID_ETH, CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
 import { Button, CircularProgress, makeStyles } from "@material-ui/core";
 import { useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
@@ -12,7 +13,6 @@ import {
   selectTransferTargetChain,
 } from "../../store/selectors";
 import { setIsRedeeming } from "../../store/transferSlice";
-import { CHAIN_ID_ETH, CHAIN_ID_SOLANA } from "../../utils/consts";
 import redeemOn, { redeemOnEth, redeemOnSolana } from "../../utils/redeemOn";
 
 const useStyles = makeStyles((theme) => ({

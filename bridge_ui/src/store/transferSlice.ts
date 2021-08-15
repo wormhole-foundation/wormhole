@@ -1,8 +1,10 @@
-import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import {
   ChainId,
   CHAIN_ID_ETH,
   CHAIN_ID_SOLANA,
+} from "@certusone/wormhole-sdk";
+import { createSlice, PayloadAction } from "@reduxjs/toolkit";
+import {
   ETH_TEST_TOKEN_ADDRESS,
   SOL_TEST_TOKEN_ADDRESS,
 } from "../utils/consts";

@@ -11,7 +11,7 @@ plugins:
       - outputClientImpl=grpc-web
       - explorer/src/proto
   - name: tsproto
-    out: bridge_ui/src/proto
+    out: sdk/js/src/proto
     path: tools/node_modules/.bin/protoc-gen-ts_proto
     opt:
       - paths=source_relative

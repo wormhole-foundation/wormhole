@@ -6,7 +6,7 @@ import {
   TransactionInstruction,
 } from "@solana/web3.js";
 import Wallet from "@project-serum/sol-wallet-adapter";
-import { ixFromRust } from "../sdk";
+import { ixFromRust } from "@certusone/wormhole-sdk";
 
 export async function postVaa(
   connection: Connection,

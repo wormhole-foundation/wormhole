@@ -1,15 +1,14 @@
+import {
+  ChainId,
+  CHAIN_ID_ETH,
+  CHAIN_ID_SOLANA,
+} from "@certusone/wormhole-sdk";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { ethers } from "ethers";
 import { arrayify } from "ethers/lib/utils";
 import { TokenImplementation__factory } from "../ethers-contracts";
 import { uint8ArrayToHex } from "./array";
-import {
-  ChainId,
-  CHAIN_ID_ETH,
-  CHAIN_ID_SOLANA,
-  SOLANA_HOST,
-  SOL_TOKEN_BRIDGE_ADDRESS,
-} from "./consts";
+import { SOLANA_HOST, SOL_TOKEN_BRIDGE_ADDRESS } from "./consts";
 import { getIsWrappedAssetEth } from "./getIsWrappedAsset";
 
 export interface WormholeWrappedInfo {

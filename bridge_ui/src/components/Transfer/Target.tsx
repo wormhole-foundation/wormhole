@@ -1,3 +1,4 @@
+import { CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
 import { Button, makeStyles, MenuItem, TextField } from "@material-ui/core";
 import { PublicKey } from "@solana/web3.js";
 import { useCallback, useMemo } from "react";
@@ -13,7 +14,7 @@ import {
 } from "../../store/selectors";
 import { incrementStep, setTargetChain } from "../../store/transferSlice";
 import { hexToUint8Array } from "../../utils/array";
-import { CHAINS, CHAIN_ID_SOLANA } from "../../utils/consts";
+import { CHAINS } from "../../utils/consts";
 import KeyAndBalance from "../KeyAndBalance";
 
 const useStyles = makeStyles((theme) => ({

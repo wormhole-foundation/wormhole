@@ -1,7 +1,7 @@
+import { CHAIN_ID_ETH, CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
 import { ethers } from "ethers";
 import { parseUnits } from "ethers/lib/utils";
 import { RootState } from ".";
-import { CHAIN_ID_ETH, CHAIN_ID_SOLANA } from "../utils/consts";
 
 /*
  * Attest

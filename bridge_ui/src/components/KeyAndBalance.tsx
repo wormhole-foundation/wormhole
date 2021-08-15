@@ -1,5 +1,9 @@
+import {
+  ChainId,
+  CHAIN_ID_ETH,
+  CHAIN_ID_SOLANA,
+} from "@certusone/wormhole-sdk";
 import { Typography } from "@material-ui/core";
-import { ChainId, CHAIN_ID_ETH, CHAIN_ID_SOLANA } from "../utils/consts";
 import EthereumSignerKey from "./EthereumSignerKey";
 import SolanaWalletKey from "./SolanaWalletKey";
 

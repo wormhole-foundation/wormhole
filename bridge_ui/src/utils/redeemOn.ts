@@ -1,8 +1,6 @@
 import { ethers } from "ethers";
 import { Bridge__factory } from "../ethers-contracts";
 import {
-  CHAIN_ID_ETH,
-  CHAIN_ID_SOLANA,
   ETH_TOKEN_BRIDGE_ADDRESS,
   SOL_BRIDGE_ADDRESS,
   SOL_TOKEN_BRIDGE_ADDRESS,
@@ -11,12 +9,13 @@ import {
 import Wallet from "@project-serum/sol-wallet-adapter";
 import { Connection, PublicKey, Transaction } from "@solana/web3.js";
 import { postVaa } from "./postVaa";
-import { ixFromRust } from "../sdk";
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   Token,
   TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
+import { CHAIN_ID_ETH, CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
+import { ixFromRust } from "@certusone/wormhole-sdk";
 
 export async function redeemOnEth(
   provider: ethers.providers.Web3Provider | undefined,

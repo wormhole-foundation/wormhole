@@ -1,17 +1,16 @@
 import Wallet from "@project-serum/sol-wallet-adapter";
 import { Connection, PublicKey, Transaction } from "@solana/web3.js";
-import { ixFromRust } from "../sdk";
 import {
-  CHAIN_ID_SOLANA,
   SOLANA_HOST,
   SOL_BRIDGE_ADDRESS,
   SOL_TOKEN_BRIDGE_ADDRESS,
   ETH_TOKEN_BRIDGE_ADDRESS,
-  CHAIN_ID_ETH,
 } from "./consts";
 import { ethers } from "ethers";
 import { Bridge__factory } from "../ethers-contracts";
 import { postVaa } from "./postVaa";
+import { CHAIN_ID_ETH, CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
+import { ixFromRust } from "@certusone/wormhole-sdk";
 
 export async function createWrappedOnEth(
   provider: ethers.providers.Web3Provider | undefined,

@@ -1,3 +1,9 @@
+import { getSignedVAA, ixFromRust } from "@certusone/wormhole-sdk";
+import {
+  ChainId,
+  CHAIN_ID_ETH,
+  CHAIN_ID_SOLANA,
+} from "@certusone/wormhole-sdk";
 import Wallet from "@project-serum/sol-wallet-adapter";
 import { Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import {
@@ -14,12 +20,8 @@ import {
   Implementation__factory,
   TokenImplementation__factory,
 } from "../ethers-contracts";
-import { getSignedVAA, ixFromRust } from "../sdk";
 import { hexToUint8Array } from "./array";
 import {
-  ChainId,
-  CHAIN_ID_ETH,
-  CHAIN_ID_SOLANA,
   ETH_BRIDGE_ADDRESS,
   ETH_TOKEN_BRIDGE_ADDRESS,
   SOLANA_HOST,

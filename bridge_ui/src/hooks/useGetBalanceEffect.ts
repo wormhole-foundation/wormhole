@@ -1,3 +1,4 @@
+import { CHAIN_ID_ETH, CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { formatUnits } from "ethers/lib/utils";
 import { useEffect } from "react";
@@ -16,7 +17,7 @@ import {
   setTargetParsedTokenAccount,
 } from "../store/transferSlice";
 import { hexToUint8Array } from "../utils/array";
-import { CHAIN_ID_ETH, CHAIN_ID_SOLANA, SOLANA_HOST } from "../utils/consts";
+import { SOLANA_HOST } from "../utils/consts";
 
 function createParsedTokenAccount(
   publicKey: PublicKey | undefined,

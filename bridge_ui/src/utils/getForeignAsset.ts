@@ -1,10 +1,9 @@
+import { ChainId, CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { ethers } from "ethers";
 import { arrayify, isHexString, zeroPad } from "ethers/lib/utils";
 import { Bridge__factory } from "../ethers-contracts";
 import {
-  ChainId,
-  CHAIN_ID_SOLANA,
   ETH_TOKEN_BRIDGE_ADDRESS,
   SOLANA_HOST,
   SOL_TOKEN_BRIDGE_ADDRESS,

@@ -1,3 +1,4 @@
+import { CHAIN_ID_ETH, CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
 import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useEthereumProvider } from "../contexts/EthereumProviderContext";
@@ -10,7 +11,6 @@ import {
   selectTransferTargetChain,
 } from "../store/selectors";
 import { setTargetAsset } from "../store/transferSlice";
-import { CHAIN_ID_ETH, CHAIN_ID_SOLANA } from "../utils/consts";
 import {
   getForeignAssetEth,
   getForeignAssetSol,

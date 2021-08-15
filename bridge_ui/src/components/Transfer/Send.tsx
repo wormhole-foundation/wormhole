@@ -1,3 +1,4 @@
+import { CHAIN_ID_ETH, CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
 import { Button, CircularProgress, makeStyles } from "@material-ui/core";
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -26,7 +27,6 @@ import {
 } from "../../store/selectors";
 import { setIsSending, setSignedVAAHex } from "../../store/transferSlice";
 import { uint8ArrayToHex } from "../../utils/array";
-import { CHAIN_ID_ETH, CHAIN_ID_SOLANA } from "../../utils/consts";
 import transferFrom, {
   transferFromEth,
   transferFromSolana,
