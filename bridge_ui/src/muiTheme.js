@@ -14,6 +14,7 @@ export const theme = responsiveFontSizes(
       },
       secondary: {
         main: "rgb(0,239,216,0.8)", // #00EFD8
+        light: "rgb(51, 242, 223, 1)",
       },
       error: {
         main: "#FD3503",
