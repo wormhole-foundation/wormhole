@@ -1,18 +1,31 @@
-# syntax=docker.io/docker/dockerfile:experimental@sha256:de85b2f3a3e8a2f7fe48e8e84a65f6fdd5cd5183afa6412fff9caa6871649c44
+#syntax=docker/dockerfile:1.2@sha256:e2a8561e419ab1ba6b2fe6cbdf49fd92b95912df1cf7d313c3e2230a333fdbcc
 FROM docker.io/library/rust:1.49@sha256:a50165ea96983c21832578afb1c8c028674c965bc1ed43b607871b1f362e06a5
 
 RUN apt-get update && apt-get install -yq libssl-dev libudev-dev pkg-config zlib1g-dev llvm clang ncat
 RUN curl -fsSL https://deb.nodesource.com/setup_16.x | bash - && apt-get install -y nodejs
-RUN rustup default nightly
+
+RUN rustup default nightly-2021-08-01
 RUN rustup component add rustfmt
 
-ADD clients/token_bridge /usr/src/clients/token_bridge
-ADD ethereum /usr/src/ethereum
+RUN --mount=type=cache,target=/root/.cache \
+    cargo install --version =1.7.0 solana-cli && \
+    cargo install --version =2.0.12 spl-token-cli
 
+ADD ethereum /usr/src/ethereum
+WORKDIR /usr/src/ethereum
+RUN --mount=type=cache,target=/usr/src/ethereum/node_modules \
+    npm install
+
+ADD clients/token_bridge /usr/src/clients/token_bridge
 WORKDIR /usr/src/clients/token_bridge
-RUN npm install
-RUN npm run build-contracts
-RUN npm run build
+RUN --mount=type=cache,target=/usr/src/ethereum/node_modules \
+    --mount=type=cache,target=/usr/src/clients/token_bridge/node_modules \
+    npm install && \
+    npm run build-contracts && \
+    npm run build && \
+    cp -r node_modules node_modules_cached
+
+RUN rm -rf node_modules && mv node_modules_cached node_modules # Make cached node_modules part of the image
 
 ADD solana /usr/src/solana
 ADD proto  /usr/src/proto
@@ -20,13 +33,10 @@ ADD proto  /usr/src/proto
 WORKDIR /usr/src/solana
 ENV EMITTER_ADDRESS="11111111111111111111111111111115"
 
-RUN --mount=type=cache,target=/usr/local/cargo,from=rust,source=/usr/local/cargo \
-    --mount=type=cache,target=/root/.cache \
+RUN --mount=type=cache,target=/root/.cache \
     --mount=type=cache,target=target \
     --mount=type=cache,target=bridge/target \
     --mount=type=cache,target=modules/token_bridge/target \
-    cargo install --version =1.7.0 solana-cli && \
-    cargo install --version =2.0.12 spl-token-cli && \
     cargo build --manifest-path ./bridge/Cargo.toml --package client --release && \
     cargo build --manifest-path ./modules/token_bridge/Cargo.toml --package client --release && \
     cp /usr/local/cargo/bin/solana /usr/local/bin && \
