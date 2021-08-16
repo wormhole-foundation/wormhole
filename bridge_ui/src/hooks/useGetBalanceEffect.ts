@@ -1,11 +1,14 @@
-import { CHAIN_ID_ETH, CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
+import {
+  CHAIN_ID_ETH,
+  CHAIN_ID_SOLANA,
+  TokenImplementation__factory,
+} from "@certusone/wormhole-sdk";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { formatUnits } from "ethers/lib/utils";
 import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useEthereumProvider } from "../contexts/EthereumProviderContext";
 import { useSolanaWallet } from "../contexts/SolanaWalletContext";
-import { TokenImplementation__factory } from "../ethers-contracts";
 import {
   selectTransferSourceAsset,
   selectTransferSourceChain,

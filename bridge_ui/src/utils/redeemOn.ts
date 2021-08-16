@@ -1,21 +1,24 @@
-import { ethers } from "ethers";
-import { Bridge__factory } from "../ethers-contracts";
 import {
-  ETH_TOKEN_BRIDGE_ADDRESS,
-  SOL_BRIDGE_ADDRESS,
-  SOL_TOKEN_BRIDGE_ADDRESS,
-  SOLANA_HOST,
-} from "./consts";
+  Bridge__factory,
+  CHAIN_ID_ETH,
+  CHAIN_ID_SOLANA,
+  ixFromRust,
+} from "@certusone/wormhole-sdk";
 import Wallet from "@project-serum/sol-wallet-adapter";
-import { Connection, PublicKey, Transaction } from "@solana/web3.js";
-import { postVaa } from "./postVaa";
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   Token,
   TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
-import { CHAIN_ID_ETH, CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
-import { ixFromRust } from "@certusone/wormhole-sdk";
+import { Connection, PublicKey, Transaction } from "@solana/web3.js";
+import { ethers } from "ethers";
+import {
+  ETH_TOKEN_BRIDGE_ADDRESS,
+  SOLANA_HOST,
+  SOL_BRIDGE_ADDRESS,
+  SOL_TOKEN_BRIDGE_ADDRESS,
+} from "./consts";
+import { postVaa } from "./postVaa";
 
 export async function redeemOnEth(
   provider: ethers.providers.Web3Provider | undefined,
@@ -47,7 +50,7 @@ export async function redeemOnSolana(
   // TODO: share connection in context?
   const connection = new Connection(SOLANA_HOST, "confirmed");
   const { complete_transfer_wrapped_ix, complete_transfer_native_ix } =
-    await import("token-bridge");
+    await import("@certusone/wormhole-sdk/lib/solana/token/token_bridge");
 
   await postVaa(
     connection,

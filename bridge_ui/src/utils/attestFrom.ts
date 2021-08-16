@@ -1,5 +1,11 @@
-import { getSignedVAA, ixFromRust } from "@certusone/wormhole-sdk";
-import { CHAIN_ID_ETH, CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
+import {
+  CHAIN_ID_ETH,
+  CHAIN_ID_SOLANA,
+  getSignedVAA,
+  ixFromRust,
+  Bridge__factory,
+  Implementation__factory,
+} from "@certusone/wormhole-sdk";
 import Wallet from "@project-serum/sol-wallet-adapter";
 import {
   Connection,
@@ -10,7 +16,6 @@ import {
 } from "@solana/web3.js";
 import { ethers } from "ethers";
 import { arrayify, zeroPad } from "ethers/lib/utils";
-import { Bridge__factory, Implementation__factory } from "../ethers-contracts";
 import {
   ETH_BRIDGE_ADDRESS,
   ETH_TOKEN_BRIDGE_ADDRESS,
@@ -78,7 +83,7 @@ export async function attestFromSolana(
   console.log("payer:", payerAddress);
   console.log("token:", mintAddress);
   console.log("nonce:", nonce);
-  const bridge = await import("bridge");
+  const bridge = await import("@certusone/wormhole-sdk/lib/solana/core/bridge");
   const feeAccount = await bridge.fee_collector_address(SOL_BRIDGE_ADDRESS);
   const bridgeStatePK = new PublicKey(bridge.state_address(SOL_BRIDGE_ADDRESS));
   // TODO: share connection in context?
@@ -97,7 +102,9 @@ export async function attestFromSolana(
   });
   // TODO: pass in connection
   // Add transfer instruction to transaction
-  const { attest_ix, emitter_address } = await import("token-bridge");
+  const { attest_ix, emitter_address } = await import(
+    "@certusone/wormhole-sdk/lib/solana/token/token_bridge"
+  );
   const messageKey = Keypair.generate();
   const ix = ixFromRust(
     attest_ix(

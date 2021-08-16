@@ -1,8 +1,11 @@
-import { ChainId, CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
+import {
+  ChainId,
+  CHAIN_ID_SOLANA,
+  Bridge__factory,
+} from "@certusone/wormhole-sdk";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { ethers } from "ethers";
 import { arrayify, isHexString, zeroPad } from "ethers/lib/utils";
-import { Bridge__factory } from "../ethers-contracts";
 import {
   ETH_TOKEN_BRIDGE_ADDRESS,
   SOLANA_HOST,
@@ -50,7 +53,9 @@ export async function getForeignAssetSol(
   originAsset: string
 ) {
   if (!isHexString(originAsset)) return null;
-  const { wrapped_address } = await import("token-bridge");
+  const { wrapped_address } = await import(
+    "@certusone/wormhole-sdk/lib/solana/token/token_bridge"
+  );
   // TODO: address conversion may be more complex than this
   const originAssetBytes = zeroPad(
     arrayify(originAsset, { hexPad: "left" }),

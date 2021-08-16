@@ -20,7 +20,7 @@ export async function postVaa(
     parse_guardian_set,
     verify_signatures_ix,
     post_vaa_ix,
-  } = await import("bridge");
+  } = await import("@certusone/wormhole-sdk/lib/solana/core/bridge");
   let bridge_state = await getBridgeState(connection, bridge_id);
   let guardian_addr = new PublicKey(
     guardian_set_address(bridge_id, bridge_state.guardianSetIndex)
@@ -80,7 +80,9 @@ async function getBridgeState(
   connection: Connection,
   bridge_id: string
 ): Promise<BridgeState> {
-  const { parse_state, state_address } = await import("bridge");
+  const { parse_state, state_address } = await import(
+    "@certusone/wormhole-sdk/lib/solana/core/bridge"
+  );
   let bridge_state = new PublicKey(state_address(bridge_id));
   let acc = await connection.getAccountInfo(bridge_state);
   if (acc?.data === undefined) {

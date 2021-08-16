@@ -7,10 +7,13 @@ import {
   ETH_TOKEN_BRIDGE_ADDRESS,
 } from "./consts";
 import { ethers } from "ethers";
-import { Bridge__factory } from "../ethers-contracts";
 import { postVaa } from "./postVaa";
-import { CHAIN_ID_ETH, CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
-import { ixFromRust } from "@certusone/wormhole-sdk";
+import {
+  CHAIN_ID_ETH,
+  CHAIN_ID_SOLANA,
+  ixFromRust,
+  Bridge__factory,
+} from "@certusone/wormhole-sdk";
 
 export async function createWrappedOnEth(
   provider: ethers.providers.Web3Provider | undefined,
@@ -39,7 +42,9 @@ export async function createWrappedOnSolana(
   console.log("VAA:", signedVAA);
   // TODO: share connection in context?
   const connection = new Connection(SOLANA_HOST, "confirmed");
-  const { create_wrapped_ix } = await import("token-bridge");
+  const { create_wrapped_ix } = await import(
+    "@certusone/wormhole-sdk/lib/solana/token/token_bridge"
+  );
 
   await postVaa(
     connection,

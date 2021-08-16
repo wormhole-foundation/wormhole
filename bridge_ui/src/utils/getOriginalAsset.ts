@@ -2,11 +2,11 @@ import {
   ChainId,
   CHAIN_ID_ETH,
   CHAIN_ID_SOLANA,
+  TokenImplementation__factory,
 } from "@certusone/wormhole-sdk";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { ethers } from "ethers";
 import { arrayify } from "ethers/lib/utils";
-import { TokenImplementation__factory } from "../ethers-contracts";
 import { uint8ArrayToHex } from "./array";
 import { SOLANA_HOST, SOL_TOKEN_BRIDGE_ADDRESS } from "./consts";
 import { getIsWrappedAssetEth } from "./getIsWrappedAsset";
@@ -55,7 +55,7 @@ export async function getOriginalAssetSol(
   if (mintAddress) {
     // TODO: share some of this with getIsWrappedAssetSol, like a getWrappedMetaAccountAddress or something
     const { parse_wrapped_meta, wrapped_meta_address } = await import(
-      "token-bridge"
+      "@certusone/wormhole-sdk/lib/solana/token/token_bridge"
     );
     const wrappedMetaAddress = wrapped_meta_address(
       SOL_TOKEN_BRIDGE_ADDRESS,

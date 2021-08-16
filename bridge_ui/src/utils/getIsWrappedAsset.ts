@@ -1,6 +1,6 @@
+import { Bridge__factory } from "@certusone/wormhole-sdk";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { ethers } from "ethers";
-import { Bridge__factory } from "../ethers-contracts";
 import {
   ETH_TOKEN_BRIDGE_ADDRESS,
   SOLANA_HOST,
@@ -32,7 +32,9 @@ export async function getIsWrappedAssetEth(
  */
 export async function getIsWrappedAssetSol(mintAddress: string) {
   if (!mintAddress) return false;
-  const { wrapped_meta_address } = await import("token-bridge");
+  const { wrapped_meta_address } = await import(
+    "@certusone/wormhole-sdk/lib/solana/token/token_bridge"
+  );
   const wrappedMetaAddress = wrapped_meta_address(
     SOL_TOKEN_BRIDGE_ADDRESS,
     new PublicKey(mintAddress).toBytes()
