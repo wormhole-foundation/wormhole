@@ -1,5 +1,6 @@
 require('dotenv').config({ path: "../.env" });
 
+const Setup = artifacts.require("Setup");
 const Implementation = artifacts.require("Implementation");
 const Wormhole = artifacts.require("Wormhole");
 
@@ -10,20 +11,22 @@ const governanceChainId = process.env.INIT_GOV_CHAIN_ID;
 const governanceContract = process.env.INIT_GOV_CONTRACT; // bytes32
 
 module.exports = async function (deployer) {
+    // deploy setup
+    await deployer.deploy(Setup);
+
     // deploy implementation
     await deployer.deploy(Implementation);
 
     // encode initialisation data
-    const impl = new web3.eth.Contract(Implementation.abi, Implementation.address);
-    const initData = impl.methods.initialize(
+    const setup = new web3.eth.Contract(Setup.abi, Setup.address);
+    const initData = setup.methods.setup(
+        Implementation.address,
         initialSigners,
         chainId,
         governanceChainId,
         governanceContract
     ).encodeABI();
 
-    // console.log(initData)
-
     // deploy proxy
-    await deployer.deploy(Wormhole, Implementation.address, initData);
+    await deployer.deploy(Wormhole, Setup.address, initData);
 };

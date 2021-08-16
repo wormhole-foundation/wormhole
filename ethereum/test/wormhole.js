@@ -85,21 +85,6 @@ contract("Wormhole", function () {
         assert.equal(governanceContract, testGovernanceContract);
     })
 
-    it("initialize should be non-reentrant", async function () {
-        const initialized = new web3.eth.Contract(ImplementationFullABI, Wormhole.address);
-
-        try {
-            await initialized.methods.initialize([
-                testSigner1.address
-            ], testChainId, testGovernanceChainId, testGovernanceContract).estimateGas();
-        } catch (error) {
-            assert.equal(error.message, "Returned error: VM Exception while processing transaction: revert already initialized")
-            return
-        }
-
-        assert.fail("did not fail")
-    })
-
     it("should log a published message correctly", async function () {
         const initialized = new web3.eth.Contract(ImplementationFullABI, Wormhole.address);
         const accounts = await web3.eth.getAccounts();
