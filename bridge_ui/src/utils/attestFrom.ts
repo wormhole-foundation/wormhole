@@ -1,7 +1,6 @@
 import {
   CHAIN_ID_ETH,
   CHAIN_ID_SOLANA,
-  getSignedVAA,
   ixFromRust,
   Bridge__factory,
   Implementation__factory,
@@ -23,6 +22,7 @@ import {
   SOL_BRIDGE_ADDRESS,
   SOL_TOKEN_BRIDGE_ADDRESS,
 } from "./consts";
+import { getSignedVAAWithRetry } from "./getSignedVAAWithRetry";
 
 // TODO: allow for / handle cancellation?
 // TODO: overall better input checking and error handling
@@ -57,7 +57,7 @@ export async function attestFromEth(
   const emitterAddress = Buffer.from(
     zeroPad(arrayify(ETH_TOKEN_BRIDGE_ADDRESS), 32)
   ).toString("hex");
-  const { vaaBytes } = await getSignedVAA(
+  const { vaaBytes } = await getSignedVAAWithRetry(
     CHAIN_ID_ETH,
     emitterAddress,
     sequence.toString()
@@ -146,7 +146,7 @@ export async function attestFromSolana(
       32
     )
   ).toString("hex");
-  const { vaaBytes } = await getSignedVAA(
+  const { vaaBytes } = await getSignedVAAWithRetry(
     CHAIN_ID_SOLANA,
     emitterAddress,
     sequence.toString()

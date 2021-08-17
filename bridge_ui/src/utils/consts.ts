@@ -34,6 +34,7 @@ export const CHAINS_BY_ID: ChainsById = CHAINS.reduce((obj, chain) => {
   obj[chain.id] = chain;
   return obj;
 }, {} as ChainsById);
+export const WORMHOLE_RPC_HOST = "http://localhost:8080";
 export const SOLANA_HOST = "http://localhost:8899";
 export const ETH_TEST_TOKEN_ADDRESS = getAddress(
   "0x0290FB167208Af455bB137780163b7B7a9a10C16"
