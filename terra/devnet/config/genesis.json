@@ -1,6 +1,6 @@
 {
   "genesis_time": "2020-08-24T08:43:02.336889Z",
-  "chain_id": "localterra",
+  "chain_id": "columbus-4",
   "consensus_params": {
     "block": {
       "max_bytes": "22020096",
@@ -511,9 +511,9 @@
                 "type": "staking/MsgCreateValidator",
                 "value": {
                   "description": {
-                    "moniker": "localterra",
+                    "moniker": "d",
                     "identity": "",
-                    "website": "https://github.com/terra-project/LocalTerra",
+                    "website": "",
                     "security_contact": "",
                     "details": ""
                   },
@@ -543,10 +543,10 @@
                   "type": "tendermint/PubKeySecp256k1",
                   "value": "An4JQUJX6KTbh6CvqmDLPhe6knWdqfKYjDvkCl2QE1oc"
                 },
-                "signature": "mj0RNoIqzPCfTjWwA0R7jcUBA5Yr820vgk5sFiN98Vx4ifKTU6qtVRCpXExR6B9pDHZ/1PXyGXMp8DEGZQ/Vxg=="
+                "signature": "dDs9zf26tQFb1zICJwlT5z+cfcdJFvWWIdsHqf+FYhllMbvtL+Mh+KEuidZ+DKW7EsjUOX4wslYIJB3DQ0LkMQ=="
               }
             ],
-            "memo": "e9059223d8b9a9539394a05f996f63ce7bb3a405@10.10.20.74:26656"
+            "memo": ""
           }
         }
       ]
