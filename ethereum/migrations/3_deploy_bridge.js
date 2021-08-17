@@ -2,6 +2,7 @@ require('dotenv').config({ path: "../.env" });
 
 const TokenBridge = artifacts.require("TokenBridge");
 const BridgeImplementation = artifacts.require("BridgeImplementation");
+const BridgeSetup = artifacts.require("BridgeSetup");
 const TokenImplementation = artifacts.require("TokenImplementation");
 const Wormhole = artifacts.require("Wormhole");
 
@@ -14,12 +15,16 @@ module.exports = async function (deployer) {
     // deploy token implementation
     await deployer.deploy(TokenImplementation);
 
+    // deploy setup
+    await deployer.deploy(BridgeSetup);
+
     // deploy implementation
     await deployer.deploy(BridgeImplementation);
 
     // encode initialisation data
-    const impl = new web3.eth.Contract(BridgeImplementation.abi, BridgeImplementation.address);
-    const initData = impl.methods.initialize(
+    const setup = new web3.eth.Contract(BridgeSetup.abi, BridgeSetup.address);
+    const initData = setup.methods.setup(
+        BridgeImplementation.address,
         chainId,
         (await Wormhole.deployed()).address,
         governanceChainId,
@@ -29,5 +34,5 @@ module.exports = async function (deployer) {
     ).encodeABI();
 
     // deploy proxy
-    await deployer.deploy(TokenBridge, BridgeImplementation.address, initData);
+    await deployer.deploy(TokenBridge, BridgeSetup.address, initData);
 };

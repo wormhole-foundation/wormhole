@@ -53,27 +53,6 @@ contract("Bridge", function () {
         assert.equal(governanceContract, testGovernanceContract);
     })
 
-    it("initialize should be non-reentrant", async function(){
-        const initialized = new web3.eth.Contract(BridgeImplementationFullABI, TokenBridge.address);
-
-        try{
-            await initialized.methods.initialize(
-                1,
-                Wormhole.address,
-                1,
-                testGovernanceContract,
-                TokenImplementation.address,
-                WETH
-            ).estimateGas();
-        }  catch (error) {
-            assert.equal(error.message, "Returned error: VM Exception while processing transaction: revert already initialized")
-            return
-        }
-
-        assert.fail("did not fail")
-    })
-
-
     it("should register a foreign bridge implementation correctly", async function() {
         const initialized = new web3.eth.Contract(BridgeImplementationFullABI, TokenBridge.address);
         const accounts = await web3.eth.getAccounts();
