@@ -6,3 +6,5 @@ export const headingStyles = {
 }
 export const titleStyles = { fontWeight: 400 }
 export const bodyStyles = { fontSize: 26, fontWeight: 400, lineHeight: '36px' }
+
+export const buttonStylesLg = { width: 160, height: 40, fontSize: 16, border: "1.5px solid" }

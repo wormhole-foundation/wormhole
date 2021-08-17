@@ -49,7 +49,14 @@ const plugins = [
     options: {
       host: process.env.GATSBY_SITE_URL,
       sitemap: `${process.env.GATSBY_SITE_URL}/sitemap.xml`,
-      policy: [{ userAgent: '*', allow: '/' }]
+      env: {
+        development: {
+          policy: [{ userAgent: '*', disallow: ['/'] }]
+        },
+        production: {
+          policy: [{ userAgent: '*', allow: '/' }]
+        }
+      }
     }
   },
   {
@@ -68,7 +75,16 @@ const plugins = [
           }
         })
       },
-      exclude: process.env.ENABLE_NETWORK_PAGE !== 'true' ? ['/*/network/'] : []
+      exclude: [
+        process.env.ENABLE_NETWORK_PAGE !== 'true' ? '/*/network/' : '/',
+        process.env.ENABLE_EXPLORER_PAGE !== 'true' ? '/*/explorer/' : '/',
+      ]
+    },
+  },
+  {
+    resolve: `gatsby-plugin-google-gtag`,
+    options: {
+      trackingIds: [String(process.env.GATSBY_GA_TAG)],
     },
   },
 ];

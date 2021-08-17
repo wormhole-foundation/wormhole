@@ -32,7 +32,11 @@
     "homeLinkAltText": "homepage",
     "aboutLink": "about",
     "networkLink": "network",
+    "explorerLink": "explorer",
+    "documentationLink": "documentation",
+    "partnersLink": "partners",
     "codeLink": "code",
+    "jobsLink": "jobs",
     "discordAltText": "Go to Wormhole's Discord",
     "githubAltText": "Go to Wormhole's Github",
     "mediumAltText": "Go to Wormhole's Medium",
@@ -75,7 +79,7 @@
   },
   "network": {
     "title": "Wormhole Network",
-    "description": "The Wormhole Bridge Guardians",
+    "description": "Live Wormhole Guardian statuses",
     "listening": "Listening for Guardian heartbeats...",
     "guardiansFound": "Guardians currently broadcasting",
     "heartbeat": "Heartbeat #",
@@ -86,5 +90,30 @@
     "version": "Version",
     "lastHeartbeat": "Last Heartbeat",
     "guardian": "Guardian"
+  },
+  "explorer": {
+    "title": "Wormhole Explorer",
+    "description": "Real time Wormhole message explorer",
+    "lookupPrompt": "Lookup a message",
+    "emitterChain": "Emitter Chain",
+    "emitterChainHelp": "The chain where transaction took place.",
+    "emitterAddress": "Emitter Address",
+    "emitterAddressHelp": "The contract you interacted with",
+    "sequence": "Sequence number",
+    "sequenceHelp": "The sequence number from your contract interaction",
+    "messageSummary": "Message Summary",
+    "failedFetching": "Something went wrong. Please check your data and try again.",
+    "notFound": "Nothing found for that query. Please check your data and try again.",
+    "listening": "Listening for Updates",
+    "lastUpdated": "Last updated",
+    "refresh": "refresh"
+  },
+  "partners": {
+    "title": "Wormhole Partners",
+    "description": "The Wormhole network consists of guardians that are run independently by community leaders."
+  },
+  "documentation": {
+    "title": "Wormhole Documentation",
+    "description": "Wormhole technical reference"
   }
 }

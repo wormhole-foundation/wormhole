@@ -1,6 +1,7 @@
 import React from 'react'
 
 import { IntlShape } from 'gatsby-plugin-intl';
+import { OutboundLink } from "gatsby-plugin-google-gtag"
 import { ReactComponent as DiscordIcon } from '~/icons/Discord.svg';
 import { ReactComponent as GithubIcon } from '~/icons/Github.svg';
 import { ReactComponent as MediumIcon } from '~/icons/Medium.svg';
@@ -38,7 +39,7 @@ const externalLinkProps = { target: "_blank", rel: "noopener noreferrer", classN
 
 
 const socialAnchorArray = (intl: IntlShape, linkStyles: any = {}, iconStyle: any = {}) =>
-    Object.entries(externalLinks).map(([url, Icon]) => <a
+    Object.entries(externalLinks).map(([url, Icon]) => <OutboundLink
         href={url}
         key={url}
         {...externalLinkProps}
@@ -46,6 +47,6 @@ const socialAnchorArray = (intl: IntlShape, linkStyles: any = {}, iconStyle: any
         title={intl.formatMessage({ id: `nav.${linkToService[url]}AltText` })}
     >
         <Icon style={iconStyle} className="external-icon" />
-    </a>)
+    </OutboundLink>)
 
 export { socialLinks, socialIcons, externalLinks, linkToService, socialAnchorArray }

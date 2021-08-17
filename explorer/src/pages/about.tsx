@@ -3,7 +3,8 @@ import { Typography, Grid, Button, Steps } from 'antd'
 const { Title, Paragraph } = Typography
 const { Step } = Steps;
 import { useIntl, FormattedMessage, IntlShape } from 'gatsby-plugin-intl';
-import { bodyStyles, headingStyles, titleStyles } from '~/styles'
+import { OutboundLink } from "gatsby-plugin-google-gtag"
+import { bodyStyles, buttonStylesLg, headingStyles, titleStyles } from '~/styles'
 
 import { Layout } from '~/components/Layout';
 import { SEO } from '~/components/SEO';
@@ -87,14 +88,14 @@ const HowSection = ({ intl, smScreen }: { intl: IntlShape, smScreen: boolean }) 
         <Paragraph style={{ ...bodyStyles, maxWidth: smScreen ? '100%' : '80%', marginBottom: 50 }} >
           <FormattedMessage id="about.how.body" />
         </Paragraph>
-        <a
+        <OutboundLink
           href="https://github.com/certusone/wormhole/blob/dev.v2/design/navbar.md"
           target="_blank" rel="noopener noreferrer" className="no-external-icon"
         >
-          <Button style={{ width: 255, height: 38, border: "1.5px solid", marginBottom: 50 }} size="large">
+          <Button style={{ ...buttonStylesLg, marginBottom: 50 }} size="large">
             <FormattedMessage id="about.how.callToAction" />
           </Button>
-        </a>
+        </OutboundLink>
 
       </div>
 
@@ -163,15 +164,15 @@ const ReadMoreSection = ({ smScreen }: { intl: IntlShape, smScreen: boolean }) =
         </Title>
         {/* Placeholder link to Documentation page */}
         {/* <Link to={`/${intl.locale}/documentation`}>
-          <Button ghost style={{ width: 255, height: 38, border: "1.5px solid", marginTop: 30 }} size="large">
+          <Button ghost style={{ ...buttonStylesLg, width: 255, marginTop: 30 }} size="large">
             <FormattedMessage id="about.readMore.callToAction" />
           </Button>
         </Link> */}
-        {/* <a href="mailto:contact@wormholenetwork.com" target="_blank" rel="noopener noreferrer" >
-          <Button ghost style={{ width: 255, height: 38, border: "1.5px solid", marginTop: 30 }} size="large">
+        {/* <OutboundLink href="mailto:contact@wormholenetwork.com" target="_blank" rel="noopener noreferrer" >
+          <Button ghost style={{ ...buttonStylesLg, width: 255, marginTop: 30 }} size="large">
             <FormattedMessage id="about.emailUs" />
           </Button>
-        </a> */}
+        </OutboundLink> */}
       </div>
       {smScreen ? null : (
         <div style={{ position: 'absolute', right: 0, height: '100%', display: 'flex', alignItems: 'center' }}>

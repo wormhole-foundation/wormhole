@@ -7,18 +7,20 @@ import ReactTimeAgo from 'react-time-ago'
 
 import { Heartbeat, Heartbeat_Network } from '~/proto/gossip/v1/gossip'
 
+import { ReactComponent as BinanceChainIcon } from '~/icons/binancechain.svg';
 import { ReactComponent as EthereumIcon } from '~/icons/ethereum.svg';
 import { ReactComponent as SolanaIcon } from '~/icons/solana.svg';
 import { ReactComponent as TerraIcon } from '~/icons/terra.svg';
 
 import './GuardiansTable.less'
 
-const networkEnums = ['', 'Solana', 'Ethereum', 'Terra']
+const networkEnums = ['', 'Solana', 'Ethereum', 'Terra', 'BSC']
 const networkIcons = [
   <></>,
-  <SolanaIcon key="2" style={{ height: 18, margin: '0 4px' }} />,
-  <EthereumIcon key="3" style={{ height: 24, margin: '0 4px' }} />,
-  <TerraIcon key="1" style={{ height: 18, margin: '0 4px' }} />,
+  <SolanaIcon key="1" style={{ height: 18, maxWidth: 18, margin: '0 4px' }} />,
+  <EthereumIcon key="2" style={{ height: 24, margin: '0 4px' }} />,
+  <TerraIcon key="3" style={{ height: 18, margin: '0 4px' }} />,
+  <BinanceChainIcon key="4" style={{ height: 18, margin: '0 4px' }} />,
 ]
 
 const expandedRowRender = (intl: IntlShape) => (item: Heartbeat) => {

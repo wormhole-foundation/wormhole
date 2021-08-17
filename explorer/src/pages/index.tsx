@@ -6,7 +6,7 @@ import { Link } from 'gatsby'
 
 import { Layout } from '~/components/Layout';
 import { SEO } from '~/components/SEO';
-import { bodyStyles, headingStyles, titleStyles } from '~/styles'
+import { bodyStyles, buttonStylesLg, headingStyles, titleStyles } from '~/styles'
 
 const { useBreakpoint } = Grid
 
@@ -45,7 +45,7 @@ const OpenForBizSection = ({ intl, smScreen, howAnchor }: { intl: IntlShape, smS
 
         {/* Placeholder: call to action from designs- to explorer or elsewhere */}
         {/* <Link to={`/${intl.locale}/explorer`}>
-              <Button ghost style={{ width: 160, height: 36, border: "1.5px solid" }} size="large">
+              <Button ghost style={buttonStylesLg} size="large">
                 <FormattedMessage id="homepage.openForBiz.callToAction" />
               </Button>
             </Link> */}
@@ -103,7 +103,7 @@ const AboutUsSection = ({ intl, smScreen, howAnchor }: { intl: IntlShape, smScre
           <FormattedMessage id="homepage.aboutUs.body" />
         </Paragraph>
         <Link to={`/${intl.locale}/about`}>
-          <Button style={{ width: 160, height: 36, border: "1.5px solid" }} size="large">
+          <Button style={buttonStylesLg} size="large">
             <FormattedMessage id="homepage.aboutUs.callToAction" />
           </Button>
         </Link>

@@ -46,7 +46,8 @@
     "storybook:build": "NODE_OPTIONS='-r esm' gatsby build && build-storybook -c .storybook -o .out",
     "translate:deepl": "node_modules/.bin/json-autotranslate -i src/locales -d -m none --directory-structure ngx-translate --service=deepl -c",
     "translate:google": "node_modules/.bin/json-autotranslate -i src/locales -d -m none --directory-structure ngx-translate --service=google-translate -c",
-    "generate-protos": "../generate-web-protos.sh"
+    "generate-protos": "../generate-web-protos.sh",
+    "generate-wasm": "./generate-wasm.sh"
   },
   "dependencies": {
     "@ant-design/icons": "^4.6.2",
@@ -56,12 +57,15 @@
     "@svgr/webpack": "^5.1.0",
     "antd": "^4.15.4",
     "babel-plugin-module-resolver": "^4.0.0",
+    "bridge": "file:./wasm/core",
     "core-js": "2.6.10",
     "dotenv": "^8.2.0",
     "esm": "^3.2.25",
+    "ethers": "^5.4.4",
     "gatsby": "^2.19.19",
     "gatsby-image": "^2.2.41",
     "gatsby-plugin-antd": "^2.2.0",
+    "gatsby-plugin-google-gtag": "^2.8.0",
     "gatsby-plugin-intl": "0.3.3",
     "gatsby-plugin-less": "4.6.0",
     "gatsby-plugin-react-helmet": "^3.1.22",
@@ -73,7 +77,8 @@
     "react": "^16.12.0",
     "react-dom": "^16.12.0",
     "react-helmet": "^5.2.1",
-    "react-time-ago": "^6.2.2"
+    "react-time-ago": "^6.2.2",
+    "token_bridge": "file:./wasm/token"
   },
   "devDependencies": {
     "@babel/core": "^7.8.4",
@@ -127,6 +132,7 @@
     "ts-essentials": "^6.0.1",
     "ts-jest": "^25.2.1",
     "ts-loader": "^6.2.1",
-    "typescript": "^3.8.2"
+    "typescript": "^3.8.2",
+    "wasm-loader": "^1.3.0"
   }
 }

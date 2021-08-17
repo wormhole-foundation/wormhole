@@ -24,6 +24,23 @@ export const onCreateWebpackConfig = function addPathMapping({
     devtool: 'eval-source-map',
   });
 
+  actions.setWebpackConfig({
+    module: {
+      rules: [
+        {
+          test: /\.wasm$/,
+          use: [
+            'wasm-loader'
+          ],
+          type: "javascript/auto"
+        }
+      ]
+    }
+  });
+  const config = getConfig();
+  config.resolve.extensions.push(".wasm");
+  actions.replaceWebpackConfig(config);
+
   // Attempt to improve webpack vender code splitting
   if (stage === 'build-javascript') {
     const config = getConfig();

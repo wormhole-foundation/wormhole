@@ -224,28 +224,26 @@ k8s_resource(
 
 # explorer web app
 
-# TOOD: the explorer web app does not currently build
-if not ci:
-    docker_build(
-        ref = "explorer",
-        context = "./explorer",
-        dockerfile = "./explorer/Dockerfile",
-        ignore = ["./explorer/node_modules"],
-        live_update = [
-            sync("./explorer/src", "/home/node/app/src"),
-            sync("./explorer/public", "/home/node/app/public"),
-        ],
-    )
+docker_build(
+    ref = "explorer",
+    context = "./explorer",
+    dockerfile = "./explorer/Dockerfile",
+    ignore = ["./explorer/node_modules"],
+    live_update = [
+        sync("./explorer/src", "/home/node/app/src"),
+        sync("./explorer/public", "/home/node/app/public"),
+    ],
+)
 
-    k8s_yaml_with_ns("devnet/explorer.yaml")
+k8s_yaml_with_ns("devnet/explorer.yaml")
 
-    k8s_resource(
-        "explorer",
-        resource_deps = ["envoy-proxy", "proto-gen-web"],
-        port_forwards = [
-            port_forward(8001, name = "Explorer Web UI [:8001]"),
-        ],
-    )
+k8s_resource(
+    "explorer",
+    resource_deps = ["proto-gen-web"],
+    port_forwards = [
+        port_forward(8001, name = "Explorer Web UI [:8001]"),
+    ],
+)
 
 # terra devnet
 

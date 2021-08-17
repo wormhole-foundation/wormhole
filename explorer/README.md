@@ -88,3 +88,14 @@ With your Service Account [credentials](https://github.com/leolabs/json-autotran
 
     npm run translate:google -- ./your-GCP-service-account.json
 
+### Protobuf generation
+
+You'll need to generate proto files by running:
+
+    npm run generate-protos
+
+### WASM generation
+
+To generate WASM files run:
+
+    npm run generate-wasm

@@ -5,11 +5,12 @@ const { Header, Content, Footer } = Layout;
 const { useBreakpoint } = Grid
 import { MenuOutlined } from '@ant-design/icons';
 import { useIntl, FormattedMessage } from 'gatsby-plugin-intl';
+import { OutboundLink } from "gatsby-plugin-google-gtag"
 import { useLocation } from '@reach/router';
 import { Link } from 'gatsby'
 import './DefaultLayout.less'
 
-import { socialLinks, socialAnchorArray } from '~/utils/misc/socials';
+import { externalLinks, linkToService, socialLinks, socialAnchorArray } from '~/utils/misc/socials';
 
 // brand assets
 import { ReactComponent as AvatarAndName } from '~/icons/FullLogo_DarkBackground.svg';
@@ -24,7 +25,7 @@ const DefaultLayout: React.FC<{}> = ({
   const intl = useIntl()
   const location = useLocation()
   const screens = useBreakpoint();
-  const menuItemProps: { style: { textAlign: CanvasTextAlign } } = { style: { textAlign: 'center' } }
+  const menuItemProps: { style: { textAlign: CanvasTextAlign, padding: number } } = { style: { textAlign: 'center', padding: 0 } }
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
@@ -60,24 +61,55 @@ const DefaultLayout: React.FC<{}> = ({
             </Menu.Item>
             {String(process.env.ENABLE_NETWORK_PAGE) === 'true' ? (
               <Menu.Item key="network" {...menuItemProps}>
-                <Link to={`/${intl.locale}/network/`}>{intl.formatMessage({ id: "nav.networkLink" })}</Link>
+                <Link to={`/${intl.locale}/network/`}>
+                  <FormattedMessage id="nav.networkLink" />
+                </Link>
+              </Menu.Item>
+            ) : null}
+            {String(process.env.ENABLE_EXPLORER_PAGE) === 'true' ? (
+              <Menu.Item key="explorer" {...menuItemProps}>
+                <Link to={`/${intl.locale}/explorer`}>
+                  <FormattedMessage id="nav.explorerLink" />
+                </Link>
               </Menu.Item>
             ) : null}
             <Menu.Item key="code" {...menuItemProps}>
-              <a
+              <OutboundLink
                 href={socialLinks['github']}
                 target="_blank"
                 rel="noopener noreferrer"
               >
                 {intl.formatMessage({ id: "nav.codeLink" })}
-              </a>
+              </OutboundLink>
+            </Menu.Item>
+            <Menu.Item key="jobs" {...menuItemProps}>
+              <OutboundLink
+                href={"https://boards.greenhouse.io/wormhole"}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {intl.formatMessage({ id: "nav.jobsLink" })}
+              </OutboundLink>
             </Menu.Item>
 
             {screens.md === false ? (
-              <Menu.Item key="external" style={{ margin: '12px 0' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-evenly', width: '100vw' }}>
-                  {socialAnchorArray(intl, { zIndex: 2 }, { height: 26 })}
-                </div>
+              <Menu.Item style={{ height: '100%', padding: 0 }}>
+                <Menu
+                  mode="horizontal"
+                  style={{ display: 'flex', justifyContent: 'space-between', width: '98vw', borderStyle: 'none' }}
+                  selectedKeys={[]} >
+                  {Object.entries(externalLinks).map(([url, Icon]) => <Menu.Item key={url} {...menuItemProps} style={{ margin: '12px 0' }} >
+                    <div style={{ display: 'flex', justifyContent: 'space-evenly', width: '100%' }}>
+                      <OutboundLink
+                        href={url}
+                        {...externalLinkProps}
+                        title={intl.formatMessage({ id: `nav.${linkToService[url]}AltText` })}
+                      >
+                        <Icon style={{ height: 26 }} className="external-icon" />
+                      </OutboundLink>
+                    </div>
+                  </Menu.Item>)}
+                </Menu>
               </Menu.Item>
             ) : null}
           </Menu>
@@ -113,14 +145,12 @@ const DefaultLayout: React.FC<{}> = ({
         }}>
           <Avatar style={{ maxHeight: 58 }} />
           <div style={{ lineHeight: '1.5em' }}>
-            <a href={socialLinks['github']} {...externalLinkProps} style={{ color: 'white' }}>
+            <OutboundLink href={socialLinks['github']} {...externalLinkProps} style={{ color: 'white' }}>
               {intl.formatMessage({ id: "footer.openSource" })}
-            </a>
+            </OutboundLink>
             <br />
             {intl.formatMessage({ id: "footer.createdWith" })}&nbsp;
-            <a href="https://certus.one/" {...externalLinkProps} style={{ color: 'white' }}>
-              <span style={{ fontSize: '1.4em' }}>♥</span>
-            </a>
+            <span style={{ fontSize: '1.4em' }}>♥</span>
             <br />
             ©{new Date().getFullYear()}
           </div>
