@@ -436,9 +436,10 @@ contract("Bridge", function () {
         assert.equal(bridgeBalanceAfter.toString(10), "0");
     })
 
-    it("should mint bridged assets wrappers on transfer from another chain", async function() {
+    it("should mint bridged assets wrappers on transfer from another chain and handle fees correctly", async function() {
         const accounts = await web3.eth.getAccounts();
         const amount = "1000000000000000000";
+        const fee = "1000000000000000";
 
         const initialized = new web3.eth.Contract(BridgeImplementationFullABI, TokenBridge.address);
 
@@ -462,7 +463,7 @@ contract("Bridge", function () {
             // receiving chain
             web3.eth.abi.encodeParameter("uint16", testChainId).substring(2 + (64 - 4)) +
             // fee
-            "0000000000000000000000000000000000000000000000000000000000000000";
+            web3.eth.abi.encodeParameter("uint256", new BigNumber(fee).div(1e10).toString()).substring(2);
 
         const vm = await signAndEncodeVM(
             0,
@@ -480,15 +481,23 @@ contract("Bridge", function () {
 
         await initialized.methods.completeTransfer("0x" + vm).send({
             value : 0,
-            from : accounts[0],
+            from : accounts[1],
             gasLimit : 2000000
         });
 
         const accountBalanceAfter = await wrappedAsset.methods.balanceOf(accounts[0]).call();
+        const senderBalanceAfter = await wrappedAsset.methods.balanceOf(accounts[1]).call();
         const totalSupplyAfter = await wrappedAsset.methods.totalSupply().call();
 
-        assert.equal(accountBalanceAfter.toString(10), amount);
+        assert.equal(accountBalanceAfter.toString(10), new BigNumber(amount).minus(fee).toString(10));
+        assert.equal(senderBalanceAfter.toString(10), fee);
         assert.equal(totalSupplyAfter.toString(10), amount);
+
+        await wrappedAsset.methods.transfer(accounts[0], fee).send({
+            value : 0,
+            from : accounts[1],
+            gasLimit : 2000000
+        });
     })
 
     it("should burn bridged assets wrappers on transfer to another chain", async function() {

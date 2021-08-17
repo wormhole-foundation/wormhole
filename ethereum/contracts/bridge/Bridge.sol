@@ -250,11 +250,6 @@ contract Bridge is BridgeGovernance {
             nativeFee *= multiplier;
         }
 
-        // mint wrapped asset
-        if(transfer.tokenChain != chainId()) {
-            TokenImplementation(address(transferToken)).mint(address(this), nativeAmount);
-        }
-
         // transfer fee to arbiter
         if(nativeFee > 0) {
             require(nativeFee <= nativeAmount, "fee higher than transferred amount");
@@ -264,7 +259,12 @@ contract Bridge is BridgeGovernance {
 
                 payable(msg.sender).transfer(nativeFee);
             } else {
-                SafeERC20.safeTransfer(transferToken, msg.sender, nativeFee);
+                if(transfer.tokenChain != chainId()) {
+                    // mint wrapped asset
+                    TokenImplementation(address(transferToken)).mint(msg.sender, nativeFee);
+                }else{
+                    SafeERC20.safeTransfer(transferToken, msg.sender, nativeFee);
+                }
             }
         }
 
@@ -277,7 +277,12 @@ contract Bridge is BridgeGovernance {
 
             payable(transferRecipient).transfer(transferAmount);
         } else {
-            SafeERC20.safeTransfer(transferToken, transferRecipient, transferAmount);
+            if(transfer.tokenChain != chainId()) {
+                // mint wrapped asset
+                TokenImplementation(address(transferToken)).mint(transferRecipient, transferAmount);
+            }else{
+                SafeERC20.safeTransfer(transferToken, transferRecipient, transferAmount);
+            }
         }
     }
 
