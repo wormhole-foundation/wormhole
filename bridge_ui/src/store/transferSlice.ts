@@ -8,7 +8,7 @@ import {
   ETH_TEST_TOKEN_ADDRESS,
   SOL_TEST_TOKEN_ADDRESS,
 } from "../utils/consts";
-import { WormholeWrappedInfo } from "../utils/getOriginalAsset";
+import { StateSafeWormholeWrappedInfo } from "../utils/getOriginalAsset";
 
 const LAST_STEP = 3;
 
@@ -88,7 +88,7 @@ export const transferSlice = createSlice({
     },
     setSourceWormholeWrappedInfo: (
       state,
-      action: PayloadAction<WormholeWrappedInfo | undefined>
+      action: PayloadAction<StateSafeWormholeWrappedInfo | undefined>
     ) => {
       if (action.payload) {
         state.isSourceAssetWormholeWrapped = action.payload.isWrapped;

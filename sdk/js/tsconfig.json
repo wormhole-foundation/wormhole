@@ -1,7 +1,8 @@
 {
   "compilerOptions": {
     "target": "es5",
-    "module": "commonjs",
+    "module": "esnext",
+    "moduleResolution": "node",
     "declaration": true,
     "outDir": "./lib",
     "strict": true,
@@ -9,6 +10,6 @@
     "downlevelIteration": true,
     "allowJs": true
   },
-  "include": ["src"],
+  "include": ["src", "types"],
   "exclude": ["node_modules", "**/__tests__/*"]
 }

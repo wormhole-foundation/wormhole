@@ -13,7 +13,7 @@ import {
   selectTransferTargetChain,
 } from "../../store/selectors";
 import { setIsRedeeming } from "../../store/transferSlice";
-import redeemOn, { redeemOnEth, redeemOnSolana } from "../../utils/redeemOn";
+import { redeemOnEth, redeemOnSolana } from "../../utils/redeemOn";
 
 const useStyles = makeStyles((theme) => ({
   transferButton: {
@@ -34,23 +34,15 @@ function Redeem() {
   const targetAsset = useSelector(selectTransferTargetAsset);
   const { wallet } = useSolanaWallet();
   const solPK = wallet?.publicKey;
-  const { provider, signer } = useEthereumProvider();
+  const { signer } = useEthereumProvider();
   const signedVAA = useTransferSignedVAA();
   const isRedeeming = useSelector(selectTransferIsRedeeming);
   const handleRedeemClick = useCallback(() => {
-    if (
-      targetChain === CHAIN_ID_ETH &&
-      redeemOn[targetChain] === redeemOnEth &&
-      signedVAA
-    ) {
+    if (targetChain === CHAIN_ID_ETH && signedVAA) {
       dispatch(setIsRedeeming(true));
-      redeemOnEth(provider, signer, signedVAA);
+      redeemOnEth(signer, signedVAA);
     }
-    if (
-      targetChain === CHAIN_ID_SOLANA &&
-      redeemOn[targetChain] === redeemOnSolana &&
-      signedVAA
-    ) {
+    if (targetChain === CHAIN_ID_SOLANA && signedVAA) {
       dispatch(setIsRedeeming(true));
       redeemOnSolana(
         wallet,
@@ -63,7 +55,6 @@ function Redeem() {
   }, [
     dispatch,
     targetChain,
-    provider,
     signer,
     signedVAA,
     wallet,

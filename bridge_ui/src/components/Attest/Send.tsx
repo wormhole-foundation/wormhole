@@ -13,10 +13,7 @@ import {
   selectAttestSourceChain,
 } from "../../store/selectors";
 import { uint8ArrayToHex } from "../../utils/array";
-import attestFrom, {
-  attestFromEth,
-  attestFromSolana,
-} from "../../utils/attestFrom";
+import { attestFromEth, attestFromSolana } from "../../utils/attestFrom";
 
 const useStyles = makeStyles((theme) => ({
   transferButton: {
@@ -36,53 +33,43 @@ function Send() {
   const isTargetComplete = useSelector(selectAttestIsTargetComplete);
   const isSending = useSelector(selectAttestIsSending);
   const isSendComplete = useSelector(selectAttestIsSendComplete);
-  const { provider, signer } = useEthereumProvider();
+  const { signer } = useEthereumProvider();
   const { wallet } = useSolanaWallet();
   const solPK = wallet?.publicKey;
   // TODO: dynamically get "to" wallet
   const handleAttestClick = useCallback(() => {
-    // TODO: more generic way of calling these
-    if (attestFrom[sourceChain]) {
-      if (
-        sourceChain === CHAIN_ID_ETH &&
-        attestFrom[sourceChain] === attestFromEth
-      ) {
-        //TODO: just for testing, this should eventually use the store to communicate between steps
-        (async () => {
-          dispatch(setIsSending(true));
-          try {
-            const vaaBytes = await attestFromEth(provider, signer, sourceAsset);
-            console.log("bytes in attest", vaaBytes);
-            vaaBytes && dispatch(setSignedVAAHex(uint8ArrayToHex(vaaBytes)));
-          } catch (e) {
-            console.error(e);
-            dispatch(setIsSending(false));
-          }
-        })();
-      }
-      if (
-        sourceChain === CHAIN_ID_SOLANA &&
-        attestFrom[sourceChain] === attestFromSolana
-      ) {
-        //TODO: just for testing, this should eventually use the store to communicate between steps
-        (async () => {
-          dispatch(setIsSending(true));
-          try {
-            const vaaBytes = await attestFromSolana(
-              wallet,
-              solPK?.toString(),
-              sourceAsset
-            );
-            console.log("bytes in attest", vaaBytes);
-            vaaBytes && dispatch(setSignedVAAHex(uint8ArrayToHex(vaaBytes)));
-          } catch (e) {
-            console.error(e);
-            dispatch(setIsSending(false));
-          }
-        })();
-      }
+    if (sourceChain === CHAIN_ID_ETH) {
+      //TODO: just for testing, this should eventually use the store to communicate between steps
+      (async () => {
+        dispatch(setIsSending(true));
+        try {
+          const vaaBytes = await attestFromEth(signer, sourceAsset);
+          console.log("bytes in attest", vaaBytes);
+          vaaBytes && dispatch(setSignedVAAHex(uint8ArrayToHex(vaaBytes)));
+        } catch (e) {
+          console.error(e);
+          dispatch(setIsSending(false));
+        }
+      })();
+    } else if (sourceChain === CHAIN_ID_SOLANA) {
+      //TODO: just for testing, this should eventually use the store to communicate between steps
+      (async () => {
+        dispatch(setIsSending(true));
+        try {
+          const vaaBytes = await attestFromSolana(
+            wallet,
+            solPK?.toString(),
+            sourceAsset
+          );
+          console.log("bytes in attest", vaaBytes);
+          vaaBytes && dispatch(setSignedVAAHex(uint8ArrayToHex(vaaBytes)));
+        } catch (e) {
+          console.error(e);
+          dispatch(setIsSending(false));
+        }
+      })();
     }
-  }, [dispatch, sourceChain, provider, signer, wallet, solPK, sourceAsset]);
+  }, [dispatch, sourceChain, signer, wallet, solPK, sourceAsset]);
   return (
     <>
       <div style={{ position: "relative" }}>

@@ -37,7 +37,9 @@
     "@openzeppelin/contracts": "^4.2.0",
     "@typechain/ethers-v5": "^7.0.1",
     "@types/long": "^4.0.1",
+    "@types/node": "^16.6.1",
     "copy-dir": "^1.3.0",
+    "ethers": "^5.4.4",
     "prettier": "^2.3.2",
     "tslint": "^6.1.3",
     "tslint-config-prettier": "^1.18.0",
@@ -45,6 +47,8 @@
   },
   "dependencies": {
     "@improbable-eng/grpc-web": "^0.14.0",
+    "@project-serum/sol-wallet-adapter": "^0.2.5",
+    "@solana/spl-token": "^0.1.8",
     "@solana/web3.js": "^1.24.0",
     "protobufjs": "^6.11.2",
     "rxjs": "^7.3.0"

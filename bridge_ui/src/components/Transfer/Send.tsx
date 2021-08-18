@@ -27,10 +27,7 @@ import {
 } from "../../store/selectors";
 import { setIsSending, setSignedVAAHex } from "../../store/transferSlice";
 import { uint8ArrayToHex } from "../../utils/array";
-import transferFrom, {
-  transferFromEth,
-  transferFromSolana,
-} from "../../utils/transferFrom";
+import { transferFromEth, transferFromSolana } from "../../utils/transferFrom";
 
 const useStyles = makeStyles((theme) => ({
   transferButton: {
@@ -55,7 +52,7 @@ function Send() {
   const isTargetComplete = useSelector(selectTransferIsTargetComplete);
   const isSending = useSelector(selectTransferIsSending);
   const isSendComplete = useSelector(selectTransferIsSendComplete);
-  const { provider, signer, signerAddress } = useEthereumProvider();
+  const { signer, signerAddress } = useEthereumProvider();
   const { wallet } = useSolanaWallet();
   const solPK = wallet?.publicKey;
   const sourceParsedTokenAccount = useSelector(
@@ -102,68 +99,56 @@ function Send() {
   const handleTransferClick = useCallback(() => {
     // TODO: we should separate state for transaction vs fetching vaa
     // TODO: more generic way of calling these
-    if (transferFrom[sourceChain]) {
-      if (
-        sourceChain === CHAIN_ID_ETH &&
-        transferFrom[sourceChain] === transferFromEth &&
-        decimals
-      ) {
-        //TODO: just for testing, this should eventually use the store to communicate between steps
-        (async () => {
-          dispatch(setIsSending(true));
-          try {
-            console.log("actually sending", tpkRef.current);
-            const vaaBytes = await transferFromEth(
-              provider,
-              signer,
-              sourceAsset,
-              decimals,
-              amount,
-              targetChain,
-              tpkRef.current
-            );
-            console.log("bytes in transfer", vaaBytes);
-            vaaBytes && dispatch(setSignedVAAHex(uint8ArrayToHex(vaaBytes)));
-          } catch (e) {
-            console.error(e);
-            dispatch(setIsSending(false));
-          }
-        })();
-      }
-      if (
-        sourceChain === CHAIN_ID_SOLANA &&
-        transferFrom[sourceChain] === transferFromSolana &&
-        decimals
-      ) {
-        //TODO: just for testing, this should eventually use the store to communicate between steps
-        (async () => {
-          dispatch(setIsSending(true));
-          try {
-            const vaaBytes = await transferFromSolana(
-              wallet,
-              solPK?.toString(),
-              sourceTokenPublicKey,
-              sourceAsset,
-              amount, //TODO: avoid decimals, pass in parsed amount
-              decimals,
-              signerAddress,
-              targetChain,
-              originAsset,
-              originChain
-            );
-            console.log("bytes in transfer", vaaBytes);
-            vaaBytes && dispatch(setSignedVAAHex(uint8ArrayToHex(vaaBytes)));
-          } catch (e) {
-            console.error(e);
-            dispatch(setIsSending(false));
-          }
-        })();
-      }
+    if (sourceChain === CHAIN_ID_ETH && decimals) {
+      //TODO: just for testing, this should eventually use the store to communicate between steps
+      (async () => {
+        dispatch(setIsSending(true));
+        try {
+          console.log("actually sending", tpkRef.current);
+          const vaaBytes = await transferFromEth(
+            signer,
+            sourceAsset,
+            decimals,
+            amount,
+            targetChain,
+            tpkRef.current
+          );
+          console.log("bytes in transfer", vaaBytes);
+          vaaBytes && dispatch(setSignedVAAHex(uint8ArrayToHex(vaaBytes)));
+        } catch (e) {
+          console.error(e);
+          dispatch(setIsSending(false));
+        }
+      })();
+    }
+    if (sourceChain === CHAIN_ID_SOLANA && decimals) {
+      //TODO: just for testing, this should eventually use the store to communicate between steps
+      (async () => {
+        dispatch(setIsSending(true));
+        try {
+          const vaaBytes = await transferFromSolana(
+            wallet,
+            solPK?.toString(),
+            sourceTokenPublicKey,
+            sourceAsset,
+            amount, //TODO: avoid decimals, pass in parsed amount
+            decimals,
+            signerAddress,
+            targetChain,
+            originAsset,
+            originChain
+          );
+          console.log("bytes in transfer", vaaBytes);
+          vaaBytes && dispatch(setSignedVAAHex(uint8ArrayToHex(vaaBytes)));
+        } catch (e) {
+          console.error(e);
+          dispatch(setIsSending(false));
+        }
+      })();
     }
   }, [
     dispatch,
     sourceChain,
-    provider,
     signer,
     signerAddress,
     wallet,

@@ -6,8 +6,9 @@ import {
   TransactionInstruction,
 } from "@solana/web3.js";
 import Wallet from "@project-serum/sol-wallet-adapter";
-import { ixFromRust } from "@certusone/wormhole-sdk";
+import { ixFromRust } from "./rust";
 
+// is there a better pattern for this?
 export async function postVaa(
   connection: Connection,
   wallet: Wallet,
@@ -20,7 +21,7 @@ export async function postVaa(
     parse_guardian_set,
     verify_signatures_ix,
     post_vaa_ix,
-  } = await import("@certusone/wormhole-sdk/lib/solana/core/bridge");
+  } = await import("./core/bridge");
   let bridge_state = await getBridgeState(connection, bridge_id);
   let guardian_addr = new PublicKey(
     guardian_set_address(bridge_id, bridge_state.guardianSetIndex)
@@ -53,11 +54,8 @@ export async function postVaa(
 
     // Sign transaction, broadcast, and confirm
     const signed = await wallet.signTransaction(transaction);
-    console.log("SIGNED", signed);
     const txid = await connection.sendRawTransaction(signed.serialize());
-    console.log("SENT", txid);
-    const conf = await connection.confirmTransaction(txid);
-    console.log("CONFIRMED", conf);
+    await connection.confirmTransaction(txid);
   }
 
   let ix = ixFromRust(
@@ -69,20 +67,15 @@ export async function postVaa(
   transaction.feePayer = new PublicKey(payer);
 
   const signed = await wallet.signTransaction(transaction);
-  console.log("SIGNED", signed);
   const txid = await connection.sendRawTransaction(signed.serialize());
-  console.log("SENT", txid);
-  const conf = await connection.confirmTransaction(txid);
-  console.log("CONFIRMED", conf);
+  await connection.confirmTransaction(txid);
 }
 
 async function getBridgeState(
   connection: Connection,
   bridge_id: string
 ): Promise<BridgeState> {
-  const { parse_state, state_address } = await import(
-    "@certusone/wormhole-sdk/lib/solana/core/bridge"
-  );
+  const { parse_state, state_address } = await import("./core/bridge");
   let bridge_state = new PublicKey(state_address(bridge_id));
   let acc = await connection.getAccountInfo(bridge_state);
   if (acc?.data === undefined) {

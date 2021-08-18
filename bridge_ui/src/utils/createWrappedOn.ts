@@ -1,32 +1,25 @@
-import Wallet from "@project-serum/sol-wallet-adapter";
-import { Connection, PublicKey, Transaction } from "@solana/web3.js";
 import {
+  postVaaSolana,
+  createWrappedOnEth as createWrappedOnEthTx,
+  createWrappedOnSolana as createWrappedOnSolanaTx,
+} from "@certusone/wormhole-sdk";
+import Wallet from "@project-serum/sol-wallet-adapter";
+import { Connection } from "@solana/web3.js";
+import { ethers } from "ethers";
+import {
+  ETH_TOKEN_BRIDGE_ADDRESS,
   SOLANA_HOST,
   SOL_BRIDGE_ADDRESS,
   SOL_TOKEN_BRIDGE_ADDRESS,
-  ETH_TOKEN_BRIDGE_ADDRESS,
 } from "./consts";
-import { ethers } from "ethers";
-import { postVaa } from "./postVaa";
-import {
-  CHAIN_ID_ETH,
-  CHAIN_ID_SOLANA,
-  ixFromRust,
-  Bridge__factory,
-} from "@certusone/wormhole-sdk";
+import { signSendAndConfirm } from "./solana";
 
 export async function createWrappedOnEth(
-  provider: ethers.providers.Web3Provider | undefined,
   signer: ethers.Signer | undefined,
   signedVAA: Uint8Array
 ) {
-  console.log(provider, signer, signedVAA);
-  if (!provider || !signer) return;
-  console.log("creating wrapped");
-  const bridge = Bridge__factory.connect(ETH_TOKEN_BRIDGE_ADDRESS, signer);
-  const v = await bridge.createWrapped(signedVAA);
-  const receipt = await v.wait();
-  console.log(receipt);
+  if (!signer) return;
+  await createWrappedOnEthTx(ETH_TOKEN_BRIDGE_ADDRESS, signer, signedVAA);
 }
 
 export async function createWrappedOnSolana(
@@ -35,51 +28,21 @@ export async function createWrappedOnSolana(
   signedVAA: Uint8Array
 ) {
   if (!wallet || !wallet.publicKey || !payerAddress) return;
-  console.log("creating wrapped");
-  console.log("PROGRAM:", SOL_TOKEN_BRIDGE_ADDRESS);
-  console.log("BRIDGE:", SOL_BRIDGE_ADDRESS);
-  console.log("PAYER:", payerAddress);
-  console.log("VAA:", signedVAA);
   // TODO: share connection in context?
   const connection = new Connection(SOLANA_HOST, "confirmed");
-  const { create_wrapped_ix } = await import(
-    "@certusone/wormhole-sdk/lib/solana/token/token_bridge"
-  );
-
-  await postVaa(
+  await postVaaSolana(
     connection,
     wallet,
     SOL_BRIDGE_ADDRESS,
     payerAddress,
     Buffer.from(signedVAA)
   );
-  const ix = ixFromRust(
-    create_wrapped_ix(
-      SOL_TOKEN_BRIDGE_ADDRESS,
-      SOL_BRIDGE_ADDRESS,
-      payerAddress,
-      signedVAA
-    )
+  const transaction = await createWrappedOnSolanaTx(
+    connection,
+    SOL_BRIDGE_ADDRESS,
+    SOL_TOKEN_BRIDGE_ADDRESS,
+    payerAddress,
+    signedVAA
   );
-  console.log(ix.keys.map((x) => x.pubkey.toString()));
-  const transaction = new Transaction().add(ix);
-  const { blockhash } = await connection.getRecentBlockhash();
-  transaction.recentBlockhash = blockhash;
-  transaction.feePayer = new PublicKey(payerAddress);
-  // Sign transaction, broadcast, and confirm
-  const signed = await wallet.signTransaction(transaction);
-  console.log("SIGNED", signed);
-  const txid = await connection.sendRawTransaction(signed.serialize());
-  console.log("SENT", txid);
-  const conf = await connection.confirmTransaction(txid);
-  console.log("CONFIRMED", conf);
-  const info = await connection.getTransaction(txid);
-  console.log("INFO", info);
+  await signSendAndConfirm(wallet, connection, transaction);
 }
-
-const createWrappedOn = {
-  [CHAIN_ID_SOLANA]: createWrappedOnSolana,
-  [CHAIN_ID_ETH]: createWrappedOnEth,
-};
-
-export default createWrappedOn;

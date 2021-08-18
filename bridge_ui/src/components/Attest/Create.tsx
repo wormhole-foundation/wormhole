@@ -10,7 +10,7 @@ import {
   selectAttestIsCreating,
   selectAttestTargetChain,
 } from "../../store/selectors";
-import createWrappedOn, {
+import {
   createWrappedOnEth,
   createWrappedOnSolana,
 } from "../../utils/createWrappedOn";
@@ -31,27 +31,19 @@ function Create() {
   const solPK = wallet?.publicKey;
   const signedVAA = useAttestSignedVAA();
   const isCreating = useSelector(selectAttestIsCreating);
-  const { provider, signer } = useEthereumProvider();
+  const { signer } = useEthereumProvider();
   const handleCreateClick = useCallback(() => {
-    if (
-      targetChain === CHAIN_ID_SOLANA &&
-      createWrappedOn[targetChain] === createWrappedOnSolana &&
-      signedVAA
-    ) {
+    if (targetChain === CHAIN_ID_SOLANA && signedVAA) {
       dispatch(setIsCreating(true));
       createWrappedOnSolana(wallet, solPK?.toString(), signedVAA);
     }
-    if (
-      targetChain === CHAIN_ID_ETH &&
-      createWrappedOn[targetChain] === createWrappedOnEth &&
-      signedVAA
-    ) {
+    if (targetChain === CHAIN_ID_ETH && signedVAA) {
       (async () => {
         dispatch(setIsCreating(true));
-        createWrappedOnEth(provider, signer, signedVAA);
+        createWrappedOnEth(signer, signedVAA);
       })();
     }
-  }, [dispatch, targetChain, wallet, solPK, signedVAA, provider, signer]);
+  }, [dispatch, targetChain, wallet, solPK, signedVAA, signer]);
   return (
     <div style={{ position: "relative" }}>
       <Button
