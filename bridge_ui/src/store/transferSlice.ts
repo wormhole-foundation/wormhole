@@ -147,6 +147,7 @@ export const transferSlice = createSlice({
     setIsRedeeming: (state, action: PayloadAction<boolean>) => {
       state.isRedeeming = action.payload;
     },
+    reset: () => initialState,
   },
 });
 
@@ -165,6 +166,7 @@ export const {
   setSignedVAAHex,
   setIsSending,
   setIsRedeeming,
+  reset,
 } = transferSlice.actions;
 
 export default transferSlice.reducer;

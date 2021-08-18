@@ -12,7 +12,7 @@ import {
   selectTransferTargetAsset,
   selectTransferTargetChain,
 } from "../../store/selectors";
-import { setIsRedeeming } from "../../store/transferSlice";
+import { reset, setIsRedeeming } from "../../store/transferSlice";
 import { redeemOnEth, redeemOnSolana } from "../../utils/redeemOn";
 
 const useStyles = makeStyles((theme) => ({
@@ -39,18 +39,24 @@ function Redeem() {
   const isRedeeming = useSelector(selectTransferIsRedeeming);
   const handleRedeemClick = useCallback(() => {
     if (targetChain === CHAIN_ID_ETH && signedVAA) {
-      dispatch(setIsRedeeming(true));
-      redeemOnEth(signer, signedVAA);
+      (async () => {
+        dispatch(setIsRedeeming(true));
+        await redeemOnEth(signer, signedVAA);
+        dispatch(reset());
+      })();
     }
     if (targetChain === CHAIN_ID_SOLANA && signedVAA) {
-      dispatch(setIsRedeeming(true));
-      redeemOnSolana(
-        wallet,
-        solPK?.toString(),
-        signedVAA,
-        !!isSourceAssetWormholeWrapped && originChain === CHAIN_ID_SOLANA,
-        targetAsset || undefined
-      );
+      (async () => {
+        dispatch(setIsRedeeming(true));
+        await redeemOnSolana(
+          wallet,
+          solPK?.toString(),
+          signedVAA,
+          !!isSourceAssetWormholeWrapped && originChain === CHAIN_ID_SOLANA,
+          targetAsset || undefined
+        );
+        dispatch(reset());
+      })();
     }
   }, [
     dispatch,

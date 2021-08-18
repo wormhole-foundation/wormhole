@@ -5,7 +5,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { useEthereumProvider } from "../../contexts/EthereumProviderContext";
 import { useSolanaWallet } from "../../contexts/SolanaWalletContext";
 import useAttestSignedVAA from "../../hooks/useAttestSignedVAA";
-import { setIsCreating } from "../../store/attestSlice";
+import { reset, setIsCreating } from "../../store/attestSlice";
 import {
   selectAttestIsCreating,
   selectAttestTargetChain,
@@ -34,13 +34,17 @@ function Create() {
   const { signer } = useEthereumProvider();
   const handleCreateClick = useCallback(() => {
     if (targetChain === CHAIN_ID_SOLANA && signedVAA) {
-      dispatch(setIsCreating(true));
-      createWrappedOnSolana(wallet, solPK?.toString(), signedVAA);
+      (async () => {
+        dispatch(setIsCreating(true));
+        await createWrappedOnSolana(wallet, solPK?.toString(), signedVAA);
+        dispatch(reset());
+      })();
     }
     if (targetChain === CHAIN_ID_ETH && signedVAA) {
       (async () => {
         dispatch(setIsCreating(true));
-        createWrappedOnEth(signer, signedVAA);
+        await createWrappedOnEth(signer, signedVAA);
+        dispatch(reset());
       })();
     }
   }, [dispatch, targetChain, wallet, solPK, signedVAA, signer]);

@@ -89,6 +89,7 @@ export const attestSlice = createSlice({
     setIsCreating: (state, action: PayloadAction<boolean>) => {
       state.isCreating = action.payload;
     },
+    reset: () => initialState,
   },
 });
 
@@ -102,6 +103,7 @@ export const {
   setSignedVAAHex,
   setIsSending,
   setIsCreating,
+  reset,
 } = attestSlice.actions;
 
 export default attestSlice.reducer;
