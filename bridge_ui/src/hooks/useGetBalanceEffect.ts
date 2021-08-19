@@ -1,6 +1,7 @@
 import {
   CHAIN_ID_ETH,
   CHAIN_ID_SOLANA,
+  CHAIN_ID_TERRA,
   TokenImplementation__factory,
 } from "@certusone/wormhole-sdk";
 import { Connection, PublicKey } from "@solana/web3.js";
@@ -68,6 +69,13 @@ function useGetBalanceEffect(sourceOrTarget: "source" | "target") {
       return;
     }
     let cancelled = false;
+    if (lookupChain === CHAIN_ID_TERRA && wallet) {
+      dispatch(
+        setSourceParsedTokenAccount(
+          createParsedTokenAccount(undefined, "0", 0, 0, "0")
+        )
+      );
+    }
     if (lookupChain === CHAIN_ID_SOLANA && solPK) {
       let mint;
       try {
@@ -143,6 +151,7 @@ function useGetBalanceEffect(sourceOrTarget: "source" | "target") {
     };
   }, [
     dispatch,
+    wallet,
     sourceOrTarget,
     setAction,
     lookupChain,

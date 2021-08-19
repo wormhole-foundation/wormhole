@@ -2,11 +2,13 @@ import {
   ChainId,
   CHAIN_ID_ETH,
   CHAIN_ID_SOLANA,
+  CHAIN_ID_TERRA,
 } from "@certusone/wormhole-sdk";
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import {
   ETH_TEST_TOKEN_ADDRESS,
   SOL_TEST_TOKEN_ADDRESS,
+  TERRA_TEST_TOKEN_ADDRESS,
 } from "../utils/consts";
 import { StateSafeWormholeWrappedInfo } from "../utils/getOriginalAsset";
 
@@ -79,6 +81,9 @@ export const transferSlice = createSlice({
       if (action.payload === CHAIN_ID_SOLANA) {
         state.sourceAsset = SOL_TEST_TOKEN_ADDRESS;
       }
+      if (action.payload === CHAIN_ID_TERRA) {
+        state.sourceAsset = TERRA_TEST_TOKEN_ADDRESS;
+      }
       if (state.targetChain === action.payload) {
         state.targetChain = prevSourceChain;
       }
@@ -121,6 +126,9 @@ export const transferSlice = createSlice({
         }
         if (state.targetChain === CHAIN_ID_SOLANA) {
           state.sourceAsset = SOL_TEST_TOKEN_ADDRESS;
+        }
+        if (state.targetChain === CHAIN_ID_TERRA) {
+          state.sourceAsset = TERRA_TEST_TOKEN_ADDRESS;
         }
       }
     },

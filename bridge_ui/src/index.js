@@ -7,6 +7,7 @@ import App from "./App";
 import RadialGradient from "./components/RadialGradient";
 import { EthereumProviderProvider } from "./contexts/EthereumProviderContext";
 import { SolanaWalletProvider } from "./contexts/SolanaWalletContext.tsx";
+import { TerraWalletProvider } from "./contexts/TerraWalletContext.tsx";
 import { theme } from "./muiTheme";
 import { store } from "./store";
 
@@ -17,9 +18,11 @@ ReactDOM.render(
       <RadialGradient />
       <SolanaWalletProvider>
         <EthereumProviderProvider>
-          <HashRouter>
-            <App />
-          </HashRouter>
+          <TerraWalletProvider>
+            <HashRouter>
+              <App />
+            </HashRouter>
+          </TerraWalletProvider>
         </EthereumProviderProvider>
       </SolanaWalletProvider>
     </ThemeProvider>

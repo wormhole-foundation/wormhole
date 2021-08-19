@@ -1,4 +1,4 @@
-import { CHAIN_ID_ETH, CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
+import { CHAIN_ID_TERRA, CHAIN_ID_ETH, CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
 import { Button, CircularProgress, makeStyles } from "@material-ui/core";
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -27,7 +27,11 @@ import {
 } from "../../store/selectors";
 import { setIsSending, setSignedVAAHex } from "../../store/transferSlice";
 import { uint8ArrayToHex } from "../../utils/array";
-import { transferFromEth, transferFromSolana } from "../../utils/transferFrom";
+import {
+  transferFromEth,
+  transferFromSolana,
+  transferFromTerra,
+} from "../../utils/transferFrom";
 
 const useStyles = makeStyles((theme) => ({
   transferButton: {
@@ -138,6 +142,19 @@ function Send() {
             originAsset,
             originChain
           );
+          console.log("bytes in transfer", vaaBytes);
+          vaaBytes && dispatch(setSignedVAAHex(uint8ArrayToHex(vaaBytes)));
+        } catch (e) {
+          console.error(e);
+          dispatch(setIsSending(false));
+        }
+      })();
+    }
+    if (sourceChain === CHAIN_ID_TERRA && decimals) {
+      (async () => {
+        dispatch(setIsSending(true));
+        try {
+          const vaaBytes = await transferFromTerra(undefined);
           console.log("bytes in transfer", vaaBytes);
           vaaBytes && dispatch(setSignedVAAHex(uint8ArrayToHex(vaaBytes)));
         } catch (e) {

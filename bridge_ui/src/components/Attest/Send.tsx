@@ -1,9 +1,10 @@
-import { CHAIN_ID_ETH, CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
+import { CHAIN_ID_TERRA, CHAIN_ID_ETH, CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
 import { Button, CircularProgress, makeStyles } from "@material-ui/core";
 import { useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useEthereumProvider } from "../../contexts/EthereumProviderContext";
 import { useSolanaWallet } from "../../contexts/SolanaWalletContext";
+import { useConnectedWallet } from "@terra-money/wallet-provider";
 import { setIsSending, setSignedVAAHex } from "../../store/attestSlice";
 import {
   selectAttestIsSendComplete,
@@ -13,7 +14,11 @@ import {
   selectAttestSourceChain,
 } from "../../store/selectors";
 import { uint8ArrayToHex } from "../../utils/array";
-import { attestFromEth, attestFromSolana } from "../../utils/attestFrom";
+import {
+  attestFromEth,
+  attestFromSolana,
+  attestFromTerra,
+} from "../../utils/attestFrom";
 
 const useStyles = makeStyles((theme) => ({
   transferButton: {
@@ -35,6 +40,7 @@ function Send() {
   const isSendComplete = useSelector(selectAttestIsSendComplete);
   const { signer } = useEthereumProvider();
   const { wallet } = useSolanaWallet();
+  const terraWallet = useConnectedWallet();
   const solPK = wallet?.publicKey;
   // TODO: dynamically get "to" wallet
   const handleAttestClick = useCallback(() => {
@@ -68,7 +74,20 @@ function Send() {
           dispatch(setIsSending(false));
         }
       })();
-    }
+    } else if (sourceChain === CHAIN_ID_TERRA) {
+        //TODO: just for testing, this should eventually use the store to communicate between steps
+        (async () => {
+          dispatch(setIsSending(true));
+          try {
+            const vaaBytes = await attestFromTerra(terraWallet, sourceAsset);
+            console.log("bytes in attest", vaaBytes);
+            vaaBytes && dispatch(setSignedVAAHex(uint8ArrayToHex(vaaBytes)));
+          } catch (e) {
+            console.error(e);
+            dispatch(setIsSending(false));
+          }
+        })();
+      }
   }, [dispatch, sourceChain, signer, wallet, solPK, sourceAsset]);
   return (
     <>

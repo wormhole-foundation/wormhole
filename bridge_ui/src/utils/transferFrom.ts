@@ -1,6 +1,7 @@
 import {
   ChainId,
   CHAIN_ID_ETH,
+  CHAIN_ID_TERRA,
   CHAIN_ID_SOLANA,
   getEmitterAddressEth,
   getEmitterAddressSolana,
@@ -9,6 +10,7 @@ import {
   transferFromEth as transferFromEthTx,
   transferFromSolana as transferFromSolanaTx,
 } from "@certusone/wormhole-sdk";
+import { Wallet as TerraWallet } from "@terra-money/wallet-provider";
 import Wallet from "@project-serum/sol-wallet-adapter";
 import { Connection } from "@solana/web3.js";
 import { ethers } from "ethers";
@@ -109,4 +111,10 @@ export async function transferFromSolana(
     sequence
   );
   return vaaBytes;
+}
+
+export async function transferFromTerra(
+  wallet: TerraWallet | undefined,
+) {
+    return null;
 }

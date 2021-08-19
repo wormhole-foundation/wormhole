@@ -3,6 +3,7 @@ import {
   attestFromSolana as attestSolanaTx,
   CHAIN_ID_ETH,
   CHAIN_ID_SOLANA,
+  CHAIN_ID_TERRA,
   getEmitterAddressEth,
   getEmitterAddressSolana,
   parseSequenceFromLogEth,
@@ -10,10 +11,13 @@ import {
 } from "@certusone/wormhole-sdk";
 import Wallet from "@project-serum/sol-wallet-adapter";
 import { Connection } from "@solana/web3.js";
+import { MsgExecuteContract } from "@terra-money/terra.js";
+import { ConnectedWallet as TerraConnectedWallet } from "@terra-money/wallet-provider";
 import { ethers } from "ethers";
 import {
   ETH_BRIDGE_ADDRESS,
   ETH_TOKEN_BRIDGE_ADDRESS,
+  TERRA_TOKEN_BRIDGE_ADDRESS,
   SOLANA_HOST,
   SOL_BRIDGE_ADDRESS,
   SOL_TOKEN_BRIDGE_ADDRESS,
@@ -70,4 +74,30 @@ export async function attestFromSolana(
     sequence
   );
   return vaaBytes;
+}
+
+export async function attestFromTerra(
+  wallet: TerraConnectedWallet | undefined,
+  asset: string | undefined
+) {
+  const nonceConst = Math.random() * 100000;
+  const nonceBuffer = Buffer.alloc(4);
+  nonceBuffer.writeUInt32LE(nonceConst, 0);
+  wallet &&
+    (await wallet.post({
+      msgs: [
+        new MsgExecuteContract(
+          wallet.terraAddress,
+          TERRA_TOKEN_BRIDGE_ADDRESS,
+          {
+            register_asset_hook: {
+              asset_id: asset,
+            },
+          },
+          { uluna: 1000 }
+        ),
+      ],
+      memo: "Create Wrapped",
+    }));
+  return null;
 }

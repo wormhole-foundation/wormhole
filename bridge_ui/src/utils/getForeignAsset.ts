@@ -56,3 +56,16 @@ export async function getForeignAssetSol(
     originAssetBytes
   );
 }
+
+/**
+ * Returns a foreign asset address on Terra for a provided native chain and asset address
+ * @param originChain
+ * @param originAsset
+ * @returns
+ */
+export async function getForeignAssetTerra(
+  originChain: ChainId,
+  originAsset: string
+) {
+    return null;
+}

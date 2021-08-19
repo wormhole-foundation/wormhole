@@ -52,3 +52,13 @@ export async function getOriginalAssetSol(
     )
   );
 }
+
+export async function getOriginalAssetTerra(
+  mintAddress: string
+): Promise<StateSafeWormholeWrappedInfo> {
+  return {
+    assetAddress: "",
+    chainId: 3,
+    isWrapped: false,
+  };
+}

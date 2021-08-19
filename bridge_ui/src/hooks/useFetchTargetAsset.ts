@@ -1,4 +1,4 @@
-import { CHAIN_ID_ETH, CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
+import { CHAIN_ID_TERRA, CHAIN_ID_ETH, CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
 import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useEthereumProvider } from "../contexts/EthereumProviderContext";
@@ -14,6 +14,7 @@ import { setTargetAsset } from "../store/transferSlice";
 import {
   getForeignAssetEth,
   getForeignAssetSol,
+  getForeignAssetTerra,
 } from "../utils/getForeignAsset";
 
 function useFetchTargetAsset() {
@@ -51,11 +52,25 @@ function useFetchTargetAsset() {
         if (!cancelled) {
           dispatch(setTargetAsset(asset));
         }
-      } else if (targetChain === CHAIN_ID_SOLANA) {
+      }
+      if (targetChain === CHAIN_ID_SOLANA) {
         try {
           const asset = await getForeignAssetSol(sourceChain, sourceAsset);
           if (!cancelled) {
             console.log("solana target asset", asset);
+            dispatch(setTargetAsset(asset));
+          }
+        } catch (e) {
+          if (!cancelled) {
+            // TODO: warning for this
+          }
+        }
+      }
+      if (targetChain === CHAIN_ID_TERRA) {
+        try {
+          const asset = await getForeignAssetTerra(sourceChain, sourceAsset);
+          if (!cancelled) {
+            console.log("terra target asset", asset);
             dispatch(setTargetAsset(asset));
           }
         } catch (e) {

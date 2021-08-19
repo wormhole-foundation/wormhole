@@ -29,9 +29,11 @@ function Transfer() {
   useCheckIfWormholeWrapped();
   useFetchTargetAsset();
   useGetBalanceEffect("target");
+
   const dispatch = useDispatch();
   const activeStep = useSelector(selectTransferActiveStep);
   const signedVAAHex = useSelector(selectTransferSignedVAAHex);
+
   return (
     <Container maxWidth="md">
       <Stepper activeStep={activeStep} orientation="vertical">
