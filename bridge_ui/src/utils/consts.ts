@@ -37,13 +37,13 @@ export const CHAINS_BY_ID: ChainsById = CHAINS.reduce((obj, chain) => {
 export const WORMHOLE_RPC_HOST = "http://localhost:8080";
 export const SOLANA_HOST = "http://localhost:8899";
 export const ETH_TEST_TOKEN_ADDRESS = getAddress(
-  "0x0290FB167208Af455bB137780163b7B7a9a10C16"
+  "0x67B5656d60a809915323Bf2C40A8bEF15A152e3e"
 );
 export const ETH_BRIDGE_ADDRESS = getAddress(
-  "0x254dffcd3277c0b1660f6d42efbb754edababc2b"
+  "0xC89Ce4735882C9F0f0FE26686c53074E09B0D550"
 );
 export const ETH_TOKEN_BRIDGE_ADDRESS = getAddress(
-  "0xe982e462b094850f12af94d21d470e21be9d0e9c"
+  "0x0290FB167208Af455bB137780163b7B7a9a10C16"
 );
 export const SOL_TEST_TOKEN_ADDRESS =
   "2WDq7wSs9zYrpx2kbHDA4RUTRch2CCTP6ZWaH4GNfnQQ";

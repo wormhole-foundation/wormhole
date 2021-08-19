@@ -193,7 +193,7 @@ yargs(hideBin(process.argv))
                 alias: 't',
                 type: 'string',
                 description: 'Token Bridge address',
-                default: "0xe982e462b094850f12af94d21d470e21be9d0e9c"
+                default: "0x0290FB167208Af455bB137780163b7B7a9a10C16"
             })
             .option('key', {
                 alias: 'k',
