@@ -1,7 +1,8 @@
 use crate::msg::WrappedRegistryResponse;
 use cosmwasm_std::{
-    log, to_binary, Api, Binary, CanonicalAddr, CosmosMsg, Env, Extern, HandleResponse, HumanAddr,
-    InitResponse, Querier, QueryRequest, StdError, StdResult, Storage, Uint128, WasmMsg, WasmQuery,
+    log, to_binary, Api, Binary, CanonicalAddr, Coin, CosmosMsg, Env, Extern, HandleResponse,
+    HumanAddr, InitResponse, Querier, QueryRequest, StdError, StdResult, Storage, Uint128, WasmMsg,
+    WasmQuery,
 };
 
 use crate::msg::{HandleMsg, InitMsg, QueryMsg};
@@ -28,6 +29,7 @@ use cw20_wrapped::msg::HandleMsg as WrappedMsg;
 use cw20_wrapped::msg::InitMsg as WrappedInit;
 use cw20_wrapped::msg::QueryMsg as WrappedQuery;
 use cw20_wrapped::msg::{InitHook, WrappedAssetInfoResponse};
+use terraswap::asset::{Asset, AssetInfo};
 
 use sha3::{Digest, Keccak256};
 use std::cmp::{max, min};
@@ -52,6 +54,23 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     config(&mut deps.storage).save(&state)?;
 
     Ok(InitResponse::default())
+}
+
+pub fn coins_after_tax<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    coins: Vec<Coin>,
+) -> StdResult<Vec<Coin>> {
+    let mut res = vec![];
+    for coin in coins {
+        let asset = Asset {
+            amount: coin.amount.clone(),
+            info: AssetInfo::NativeToken {
+                denom: coin.denom.clone(),
+            },
+        };
+        res.push(asset.deduct_tax(&deps)?);
+    }
+    Ok(res)
 }
 
 pub fn parse_vaa<S: Storage, A: Api, Q: Querier>(
@@ -233,7 +252,7 @@ fn handle_create_asset_meta<S: Storage, A: Api, Q: Querier>(
                 nonce,
             })?,
             // forward coins sent to this message
-            send: env.message.sent_funds.clone(),
+            send: coins_after_tax(deps, env.message.sent_funds.clone())?,
         })],
         log: vec![
             log("meta.token_chain", CHAIN_ID),
@@ -592,7 +611,7 @@ fn handle_initiate_transfer<S: Storage, A: Api, Q: Querier>(
             nonce,
         })?,
         // forward coins sent to this message
-        send: env.message.sent_funds.clone(),
+        send: coins_after_tax(deps, env.message.sent_funds.clone())?,
     }));
 
     Ok(HandleResponse {

@@ -21,6 +21,7 @@ serde = { version = "1.0.103", default-features = false, features = ["derive"] }
 cw20 = "0.2.2"
 cw20-base = { version = "0.2.2", features = ["library"] }
 cw20-wrapped = { path = "../cw20-wrapped", features = ["library"] }
+terraswap = "1.1.0"
 wormhole = { path = "../wormhole", features = ["library"] }
 
 thiserror = { version = "1.0.20" }
