@@ -1,14 +1,19 @@
 import yargs from "yargs";
 
 const {hideBin} = require('yargs/helpers')
+
 import * as bridge from "bridge";
+import * as elliptic from "elliptic";
+import * as ethers from "ethers";
 import * as token_bridge from "token-bridge";
 import * as web3s from '@solana/web3.js';
-import {PublicKey, TransactionInstruction, AccountMeta, Keypair, Connection} from "@solana/web3.js";
-import * as ethers from "ethers";
-import * as elliptic from "elliptic";
-import {solidityKeccak256} from "ethers/lib/utils";
+
+import {fromUint8Array} from "js-base64";
 import {BridgeImplementation__factory} from "./src/ethers-contracts";
+import {LCDClient, MnemonicKey} from '@terra-money/terra.js';
+import {MsgExecuteContract} from "@terra-money/terra.js";
+import {PublicKey, TransactionInstruction, AccountMeta, Keypair, Connection} from "@solana/web3.js";
+import {solidityKeccak256} from "ethers/lib/utils";
 
 const signAndEncodeVM = function (
     timestamp,
@@ -107,6 +112,59 @@ yargs(hideBin(process.argv))
         );
 
         console.log(vm)
+    })
+    .command('terra execute_governance_vaa [vaa]', 'execute a governance VAA on Terra', (yargs) => {
+        return yargs
+            .positional('vaa', {
+                describe: 'vaa to post',
+                type: "string",
+                required: true
+            })
+            .option('rpc', {
+                alias: 'u',
+                type: 'string',
+                description: 'URL of the Terra RPC',
+                default: "http://localhost:1317"
+            })
+            .option('token_bridge', {
+                alias: 't',
+                type: 'string',
+                description: 'Token Bridge address',
+                default: "terra10pyejy66429refv3g35g2t7am0was7ya7kz2a4"
+            })
+    }, async (argv: any) => {
+      const terra = new LCDClient({
+        URL: argv.rpc,
+        chainID: 'columbus-4'
+      });
+
+      const wallet = terra.wallet(new MnemonicKey({
+        mnemonic: 'notice oak worry limit wrap speak medal online prefer cluster roof addict wrist behave treat actual wasp year salad speed social layer crew genius',
+      }));
+
+      // create a simple message that moves coin balances
+      const vaa = Buffer.from(argv.vaa, "hex");
+      const transaction = new MsgExecuteContract(
+          wallet.key.accAddress,
+          argv.token_bridge,
+          {
+              submit_vaa: {
+                  data: fromUint8Array(vaa)
+              },
+          },
+          { uluna: 1000 }
+      );
+
+      wallet
+        .createAndSignTx({
+          msgs: [transaction],
+          memo: '',
+        })
+        .then(tx => terra.tx.broadcast(tx))
+        .then(result => {
+          console.log(result);
+          console.log(`TX hash: ${result.txhash}`);
+        });
     })
     .command('solana execute_governance_vaa [vaa]', 'execute a governance VAA on Solana', (yargs) => {
         return yargs
