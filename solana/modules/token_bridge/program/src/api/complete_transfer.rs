@@ -50,6 +50,7 @@ pub struct CompleteNative<'b> {
     pub chain_registration: Endpoint<'b, { AccountState::Initialized }>,
 
     pub to: Mut<Data<'b, SplAccount, { AccountState::Initialized }>>,
+    pub to_fees: Mut<Data<'b, SplAccount, { AccountState::Initialized }>>,
     pub custody: Mut<CustodyAccount<'b, { AccountState::Initialized }>>,
     pub mint: Data<'b, SplMint, { AccountState::Initialized }>,
 
@@ -98,6 +99,9 @@ pub fn complete_native(
     if *accs.mint.info().key != accs.to.mint {
         return Err(InvalidMint.into());
     }
+    if *accs.mint.info().key != accs.to_fees.mint {
+        return Err(InvalidMint.into());
+    }
     if *accs.mint.info().key != accs.custody.mint {
         return Err(InvalidMint.into());
     }
@@ -121,10 +125,12 @@ pub fn complete_native(
     accs.vaa.claim(ctx, accs.payer.key)?;
 
     let mut amount = accs.vaa.amount.as_u64();
+    let mut fee = accs.vaa.fee.as_u64();
 
     // Wormhole always caps transfers at 8 decimals; un-truncate if the local token has more
     if accs.mint.decimals > 8 {
-        amount *= 10u64.pow((accs.mint.decimals - 8) as u32)
+        amount *= 10u64.pow((accs.mint.decimals - 8) as u32);
+        fee *= 10u64.pow((accs.mint.decimals - 8) as u32);
     }
 
     // Transfer tokens
@@ -134,11 +140,20 @@ pub fn complete_native(
         accs.to.info().key,
         accs.custody_signer.key,
         &[],
-        amount,
+        amount - fee,
     )?;
     invoke_seeded(&transfer_ix, ctx, &accs.custody_signer, None)?;
 
-    // TODO fee
+    // Transfer fees
+    let transfer_ix = spl_token::instruction::transfer(
+        &spl_token::id(),
+        accs.custody.info().key,
+        accs.to_fees.info().key,
+        accs.custody_signer.key,
+        &[],
+        fee,
+    )?;
+    invoke_seeded(&transfer_ix, ctx, &accs.custody_signer, None)?;
 
     Ok(())
 }
@@ -154,6 +169,7 @@ pub struct CompleteWrapped<'b> {
     pub chain_registration: Endpoint<'b, { AccountState::Initialized }>,
 
     pub to: Mut<Data<'b, SplAccount, { AccountState::Initialized }>>,
+    pub to_fees: Mut<Data<'b, SplAccount, { AccountState::Initialized }>>,
     pub mint: Mut<WrappedMint<'b, { AccountState::Initialized }>>,
 
     pub mint_authority: MintSigner<'b>,
@@ -202,6 +218,9 @@ pub fn complete_wrapped(
     if *accs.mint.info().key != accs.to.mint {
         return Err(InvalidMint.into());
     }
+    if *accs.mint.info().key != accs.to_fees.mint {
+        return Err(InvalidMint.into());
+    }
 
     // Verify VAA
     if accs.vaa.to_chain != CHAIN_ID_SOLANA {
@@ -218,11 +237,20 @@ pub fn complete_wrapped(
         accs.to.info().key,
         accs.mint_authority.key,
         &[],
-        accs.vaa.amount.as_u64(),
+        accs.vaa.amount.as_u64() - accs.vaa.fee.as_u64(),
     )?;
     invoke_seeded(&mint_ix, ctx, &accs.mint_authority, None)?;
 
-    // TODO fee
+    // Mint fees
+    let mint_ix = spl_token::instruction::mint_to(
+        &spl_token::id(),
+        accs.mint.info().key,
+        accs.to_fees.info().key,
+        accs.mint_authority.key,
+        &[],
+        accs.vaa.fee.as_u64(),
+    )?;
+    invoke_seeded(&mint_ix, ctx, &accs.mint_authority, None)?;
 
     Ok(())
 }

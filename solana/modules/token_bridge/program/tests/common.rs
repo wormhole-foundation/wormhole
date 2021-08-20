@@ -434,6 +434,7 @@ mod helpers {
             *message_acc,
             vaa,
             Pubkey::new(&payload.to[..]),
+            None,
             Pubkey::new(&payload.token_address[..]),
             CompleteNativeData {},
         )
@@ -471,6 +472,7 @@ mod helpers {
             vaa,
             payload,
             to,
+            None,
             CompleteWrappedData {},
         )
         .expect("Could not create Complete Wrapped instruction");

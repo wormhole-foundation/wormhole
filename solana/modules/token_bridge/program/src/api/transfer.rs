@@ -155,6 +155,7 @@ pub fn transfer_native(
     let trunc_divisor = 10u64.pow(8.max(accs.mint.decimals as u32) - 8);
     // Truncate to 8 decimals
     let amount: u64 = data.amount / trunc_divisor;
+    let fee: u64 = data.fee / trunc_divisor;
     // Untruncate the amount to drop the remainder so we don't  "burn" user's funds.
     let amount_trunc: u64 = amount * trunc_divisor;
 
@@ -181,7 +182,7 @@ pub fn transfer_native(
         token_chain: 1,
         to: data.target_address,
         to_chain: data.target_chain,
-        fee: U256::from(data.fee),
+        fee: U256::from(fee),
     };
     let params = (
         bridge::instruction::Instruction::PostMessage,

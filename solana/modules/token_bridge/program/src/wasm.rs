@@ -170,6 +170,7 @@ pub fn complete_transfer_native_ix(
     bridge_id: String,
     payer: String,
     vaa: Vec<u8>,
+    fee_recipient: Option<String>,
 ) -> JsValue {
     let program_id = Pubkey::from_str(program_id.as_str()).unwrap();
     let bridge_id = Pubkey::from_str(bridge_id.as_str()).unwrap();
@@ -201,6 +202,11 @@ pub fn complete_transfer_native_ix(
         message_key,
         post_vaa_data,
         Pubkey::new(&payload.to[..]),
+        if let Some(fee_r) = fee_recipient {
+            Some(Pubkey::from_str(fee_r.as_str()).unwrap())
+        } else {
+            None
+        },
         Pubkey::new(&payload.token_address),
         CompleteNativeData {},
     )
@@ -215,6 +221,7 @@ pub fn complete_transfer_wrapped_ix(
     bridge_id: String,
     payer: String,
     vaa: Vec<u8>,
+    fee_recipient: Option<String>,
 ) -> JsValue {
     let program_id = Pubkey::from_str(program_id.as_str()).unwrap();
     let bridge_id = Pubkey::from_str(bridge_id.as_str()).unwrap();
@@ -247,6 +254,11 @@ pub fn complete_transfer_wrapped_ix(
         post_vaa_data,
         payload.clone(),
         Pubkey::new(&payload.to),
+        if let Some(fee_r) = fee_recipient {
+            Some(Pubkey::from_str(fee_r.as_str()).unwrap())
+        } else {
+            None
+        },
         CompleteWrappedData {},
     )
     .unwrap();

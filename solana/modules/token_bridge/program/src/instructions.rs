@@ -102,6 +102,7 @@ pub fn complete_native(
     message_key: Pubkey,
     vaa: PostVAAData,
     to: Pubkey,
+    fee_recipient: Option<Pubkey>,
     mint: Pubkey,
     data: CompleteNativeData,
 ) -> solitaire::Result<Instruction> {
@@ -129,6 +130,11 @@ pub fn complete_native(
             claim_acc,
             AccountMeta::new_readonly(endpoint, false),
             AccountMeta::new(to, false),
+            if let Some(fee_r) = fee_recipient {
+                AccountMeta::new(fee_r, false)
+            } else {
+                AccountMeta::new(to, false)
+            },
             AccountMeta::new(custody_key, false),
             AccountMeta::new_readonly(mint, false),
             AccountMeta::new_readonly(custody_signer_key, false),
@@ -151,6 +157,7 @@ pub fn complete_wrapped(
     vaa: PostVAAData,
     payload: PayloadTransfer,
     to: Pubkey,
+    fee_recipient: Option<Pubkey>,
     data: CompleteWrappedData,
 ) -> solitaire::Result<Instruction> {
     let config_key = ConfigAccount::<'_, { AccountState::Uninitialized }>::key(None, &program_id);
@@ -180,6 +187,11 @@ pub fn complete_wrapped(
             claim_acc,
             AccountMeta::new_readonly(endpoint, false),
             AccountMeta::new(to, false),
+            if let Some(fee_r) = fee_recipient {
+                AccountMeta::new(fee_r, false)
+            } else {
+                AccountMeta::new(to, false)
+            },
             AccountMeta::new(mint_key, false),
             AccountMeta::new_readonly(mint_authority_key, false),
             // Dependencies
