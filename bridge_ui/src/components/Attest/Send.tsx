@@ -1,28 +1,5 @@
-import {
-  CHAIN_ID_TERRA,
-  CHAIN_ID_ETH,
-  CHAIN_ID_SOLANA,
-} from "@certusone/wormhole-sdk";
 import { Button, CircularProgress, makeStyles } from "@material-ui/core";
-import { useCallback } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import { useEthereumProvider } from "../../contexts/EthereumProviderContext";
-import { useSolanaWallet } from "../../contexts/SolanaWalletContext";
-import { useConnectedWallet } from "@terra-money/wallet-provider";
-import { setIsSending, setSignedVAAHex } from "../../store/attestSlice";
-import {
-  selectAttestIsSendComplete,
-  selectAttestIsSending,
-  selectAttestIsTargetComplete,
-  selectAttestSourceAsset,
-  selectAttestSourceChain,
-} from "../../store/selectors";
-import { uint8ArrayToHex } from "../../utils/array";
-import {
-  attestFromEth,
-  attestFromSolana,
-  attestFromTerra,
-} from "../../utils/attestFrom";
+import { useHandleAttest } from "../../hooks/useHandleAttest";
 
 const useStyles = makeStyles((theme) => ({
   transferButton: {
@@ -32,67 +9,9 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-// TODO: move attest to its own workflow
-
 function Send() {
   const classes = useStyles();
-  const dispatch = useDispatch();
-  const sourceChain = useSelector(selectAttestSourceChain);
-  const sourceAsset = useSelector(selectAttestSourceAsset);
-  const isTargetComplete = useSelector(selectAttestIsTargetComplete);
-  const isSending = useSelector(selectAttestIsSending);
-  const isSendComplete = useSelector(selectAttestIsSendComplete);
-  const { signer } = useEthereumProvider();
-  const solanaWallet = useSolanaWallet();
-  const terraWallet = useConnectedWallet();
-  const solPK = solanaWallet?.publicKey;
-  // TODO: dynamically get "to" wallet
-  const handleAttestClick = useCallback(() => {
-    if (sourceChain === CHAIN_ID_ETH) {
-      //TODO: just for testing, this should eventually use the store to communicate between steps
-      (async () => {
-        dispatch(setIsSending(true));
-        try {
-          const vaaBytes = await attestFromEth(signer, sourceAsset);
-          console.log("bytes in attest", vaaBytes);
-          vaaBytes && dispatch(setSignedVAAHex(uint8ArrayToHex(vaaBytes)));
-        } catch (e) {
-          console.error(e);
-          dispatch(setIsSending(false));
-        }
-      })();
-    } else if (sourceChain === CHAIN_ID_SOLANA) {
-      //TODO: just for testing, this should eventually use the store to communicate between steps
-      (async () => {
-        dispatch(setIsSending(true));
-        try {
-          const vaaBytes = await attestFromSolana(
-            solanaWallet,
-            solPK?.toString(),
-            sourceAsset
-          );
-          console.log("bytes in attest", vaaBytes);
-          vaaBytes && dispatch(setSignedVAAHex(uint8ArrayToHex(vaaBytes)));
-        } catch (e) {
-          console.error(e);
-          dispatch(setIsSending(false));
-        }
-      })();
-    } else if (sourceChain === CHAIN_ID_TERRA) {
-      //TODO: just for testing, this should eventually use the store to communicate between steps
-      (async () => {
-        dispatch(setIsSending(true));
-        try {
-          const vaaBytes = await attestFromTerra(terraWallet, sourceAsset);
-          console.log("bytes in attest", vaaBytes);
-          vaaBytes && dispatch(setSignedVAAHex(uint8ArrayToHex(vaaBytes)));
-        } catch (e) {
-          console.error(e);
-          dispatch(setIsSending(false));
-        }
-      })();
-    }
-  }, [dispatch, sourceChain, signer, solanaWallet, solPK, sourceAsset]);
+  const { handleClick, disabled, showLoader } = useHandleAttest();
   return (
     <>
       <div style={{ position: "relative" }}>
@@ -100,12 +19,12 @@ function Send() {
           color="primary"
           variant="contained"
           className={classes.transferButton}
-          onClick={handleAttestClick}
-          disabled={!isTargetComplete || isSending || isSendComplete}
+          onClick={handleClick}
+          disabled={disabled}
         >
           Attest
         </Button>
-        {isSending ? (
+        {showLoader ? (
           <CircularProgress
             size={24}
             color="inherit"

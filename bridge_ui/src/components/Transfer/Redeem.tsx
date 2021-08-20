@@ -1,28 +1,5 @@
-import {
-  CHAIN_ID_TERRA,
-  CHAIN_ID_ETH,
-  CHAIN_ID_SOLANA,
-} from "@certusone/wormhole-sdk";
 import { Button, CircularProgress, makeStyles } from "@material-ui/core";
-import { useCallback } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import { useConnectedWallet } from "@terra-money/wallet-provider";
-import { useEthereumProvider } from "../../contexts/EthereumProviderContext";
-import { useSolanaWallet } from "../../contexts/SolanaWalletContext";
-import useTransferSignedVAA from "../../hooks/useTransferSignedVAA";
-import {
-  selectTransferIsRedeeming,
-  selectTransferIsSourceAssetWormholeWrapped,
-  selectTransferOriginChain,
-  selectTransferTargetAsset,
-  selectTransferTargetChain,
-} from "../../store/selectors";
-import { reset, setIsRedeeming } from "../../store/transferSlice";
-import {
-  redeemOnEth,
-  redeemOnSolana,
-  redeemOnTerra,
-} from "../../utils/redeemOn";
+import { useHandleRedeem } from "../../hooks/useHandleRedeem";
 
 const useStyles = makeStyles((theme) => ({
   transferButton: {
@@ -33,69 +10,20 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 function Redeem() {
-  const dispatch = useDispatch();
   const classes = useStyles();
-  const isSourceAssetWormholeWrapped = useSelector(
-    selectTransferIsSourceAssetWormholeWrapped
-  );
-  const originChain = useSelector(selectTransferOriginChain);
-  const targetChain = useSelector(selectTransferTargetChain);
-  const targetAsset = useSelector(selectTransferTargetAsset);
-  const solanaWallet = useSolanaWallet();
-  const solPK = solanaWallet?.publicKey;
-  const { signer } = useEthereumProvider();
-  const terraWallet = useConnectedWallet();
-  const signedVAA = useTransferSignedVAA();
-  const isRedeeming = useSelector(selectTransferIsRedeeming);
-  const handleRedeemClick = useCallback(() => {
-    if (targetChain === CHAIN_ID_ETH && signedVAA) {
-      (async () => {
-        dispatch(setIsRedeeming(true));
-        await redeemOnEth(signer, signedVAA);
-        dispatch(reset());
-      })();
-    }
-    if (targetChain === CHAIN_ID_SOLANA && signedVAA) {
-      (async () => {
-        dispatch(setIsRedeeming(true));
-        await redeemOnSolana(
-          solanaWallet,
-          solPK?.toString(),
-          signedVAA,
-          !!isSourceAssetWormholeWrapped && originChain === CHAIN_ID_SOLANA,
-          targetAsset || undefined
-        );
-        dispatch(reset());
-      })();
-    }
-    if (targetChain === CHAIN_ID_TERRA && signedVAA) {
-      dispatch(setIsRedeeming(true));
-      redeemOnTerra(terraWallet, signedVAA);
-    }
-  }, [
-    dispatch,
-    terraWallet,
-    targetChain,
-    signer,
-    signedVAA,
-    solanaWallet,
-    solPK,
-    isSourceAssetWormholeWrapped,
-    originChain,
-    targetAsset,
-  ]);
+  const { handleClick, disabled, showLoader } = useHandleRedeem();
   return (
     <div style={{ position: "relative" }}>
       <Button
         color="primary"
         variant="contained"
         className={classes.transferButton}
-        disabled={isRedeeming}
-        onClick={handleRedeemClick}
+        disabled={disabled}
+        onClick={handleClick}
       >
         Redeem
       </Button>
-      {isRedeeming ? (
+      {showLoader ? (
         <CircularProgress
           size={24}
           color="inherit"

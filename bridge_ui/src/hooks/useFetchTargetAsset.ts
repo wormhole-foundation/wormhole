@@ -26,14 +26,9 @@ function useFetchTargetAsset() {
   );
   const originChain = useSelector(selectTransferOriginChain);
   const originAsset = useSelector(selectTransferOriginAsset);
-  console.log(
-    "WH Wrapped?",
-    isSourceAssetWormholeWrapped,
-    originChain,
-    originAsset
-  );
   const targetChain = useSelector(selectTransferTargetChain);
   const { provider } = useEthereumProvider();
+  // TODO: this may not cover wrapped to wrapped, should always use origin?
   useEffect(() => {
     if (isSourceAssetWormholeWrapped && originChain === targetChain) {
       dispatch(setTargetAsset(originAsset));
@@ -57,7 +52,6 @@ function useFetchTargetAsset() {
         try {
           const asset = await getForeignAssetSol(sourceChain, sourceAsset);
           if (!cancelled) {
-            console.log("solana target asset", asset);
             dispatch(setTargetAsset(asset));
           }
         } catch (e) {

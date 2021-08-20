@@ -96,7 +96,6 @@ function useGetBalanceEffect(sourceOrTarget: "source" | "target") {
         .getParsedTokenAccountsByOwner(solPK, { mint })
         .then(({ value }) => {
           if (!cancelled) {
-            console.log("parsed token accounts", value);
             if (value.length) {
               // TODO: allow selection between these target accounts
               dispatch(

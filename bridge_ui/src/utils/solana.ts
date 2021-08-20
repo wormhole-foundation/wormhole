@@ -11,12 +11,3 @@ export async function signSendAndConfirm(
   await connection.confirmTransaction(txid);
   return txid;
 }
-
-export async function signSendConfirmAndGet(
-  wallet: WalletContextState,
-  connection: Connection,
-  transaction: Transaction
-) {
-  const txid = await signSendAndConfirm(wallet, connection, transaction);
-  return await connection.getTransaction(txid);
-}

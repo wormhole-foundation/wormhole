@@ -25,6 +25,7 @@
     "@terra-money/wallet-provider": "^1.4.0-alpha.1",
     "ethers": "^5.4.1",
     "js-base64": "^3.6.1",
+    "notistack": "^1.0.10",
     "react": "^17.0.2",
     "react-dom": "^17.0.2",
     "react-redux": "^7.2.4",

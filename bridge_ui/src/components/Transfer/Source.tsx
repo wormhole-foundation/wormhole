@@ -31,7 +31,7 @@ function Source() {
   const sourceAsset = useSelector(selectTransferSourceAsset);
   const uiAmountString = useSelector(selectTransferSourceBalanceString);
   const amount = useSelector(selectTransferAmount);
-  const isSourceComplete = true; // useSelector(selectTransferIsSourceComplete);
+  const isSourceComplete = useSelector(selectTransferIsSourceComplete);
   const shouldLockFields = useSelector(selectTransferShouldLockFields);
   const handleSourceChange = useCallback(
     (event) => {

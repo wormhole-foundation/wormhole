@@ -32,7 +32,6 @@ export async function redeemOnSolana(
     await import("../solana/token/token_bridge");
   const ixs = [];
   if (isSolanaNative) {
-    console.log("COMPLETE TRANSFER NATIVE");
     ixs.push(
       ixFromRust(
         complete_transfer_native_ix(

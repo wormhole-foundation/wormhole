@@ -1,5 +1,6 @@
 import { CssBaseline } from "@material-ui/core";
 import { ThemeProvider } from "@material-ui/core/styles";
+import { SnackbarProvider } from "notistack";
 import ReactDOM from "react-dom";
 import { Provider } from "react-redux";
 import { HashRouter } from "react-router-dom";
@@ -16,15 +17,17 @@ ReactDOM.render(
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <RadialGradient />
-      <SolanaWalletProvider>
-        <EthereumProviderProvider>
-          <TerraWalletProvider>
-            <HashRouter>
-              <App />
-            </HashRouter>
-          </TerraWalletProvider>
-        </EthereumProviderProvider>
-      </SolanaWalletProvider>
+      <SnackbarProvider maxSnack={3}>
+        <SolanaWalletProvider>
+          <EthereumProviderProvider>
+            <TerraWalletProvider>
+              <HashRouter>
+                <App />
+              </HashRouter>
+            </TerraWalletProvider>
+          </EthereumProviderProvider>
+        </SolanaWalletProvider>
+      </SnackbarProvider>
     </ThemeProvider>
   </Provider>,
   document.getElementById("root")

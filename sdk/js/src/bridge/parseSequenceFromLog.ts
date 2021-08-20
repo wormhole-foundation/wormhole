@@ -9,7 +9,6 @@ export function parseSequenceFromLogEth(
 ): string {
   // TODO: dangerous!(?)
   const bridgeLog = receipt.logs.filter((l) => {
-    console.log(l.address, bridgeAddress);
     return l.address === bridgeAddress;
   })[0];
   const {
