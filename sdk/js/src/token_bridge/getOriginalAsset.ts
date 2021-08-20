@@ -2,8 +2,9 @@ import { Connection, PublicKey } from "@solana/web3.js";
 import { ethers } from "ethers";
 import { arrayify } from "ethers/lib/utils";
 import { TokenImplementation__factory } from "../ethers-contracts";
-import { ChainId, CHAIN_ID_ETH, CHAIN_ID_SOLANA } from "../utils";
+import { ChainId, CHAIN_ID_ETH, CHAIN_ID_SOLANA, CHAIN_ID_TERRA } from "../utils";
 import { getIsWrappedAssetEth } from "./getIsWrappedAsset";
+import { ConnectedWallet as TerraConnectedWallet } from "@terra-money/wallet-provider";
 
 export interface WormholeWrappedInfo {
   isWrapped: boolean;
@@ -45,6 +46,18 @@ export async function getOriginalAssetEth(
     isWrapped: false,
     chainId: CHAIN_ID_ETH,
     assetAddress: arrayify(wrappedAddress),
+  };
+}
+
+export async function getOriginalAssetTerra(
+  tokenBridgeAddress: string,
+  wallet: TerraConnectedWallet,
+  wrappedAddress: string
+): Promise<WormholeWrappedInfo> {
+  return {
+    isWrapped: false,
+    chainId: CHAIN_ID_TERRA,
+    assetAddress: arrayify(""),
   };
 }
 

@@ -1,7 +1,10 @@
 import { Connection, PublicKey, Transaction } from "@solana/web3.js";
 import { ethers } from "ethers";
 import { Bridge__factory } from "../ethers-contracts";
+import { ConnectedWallet as TerraConnectedWallet } from "@terra-money/wallet-provider";
+import { MsgExecuteContract } from "@terra-money/terra.js";
 import { ixFromRust } from "../solana";
+import { fromUint8Array } from "js-base64";
 
 export async function createWrappedOnEth(
   tokenBridgeAddress: string,
@@ -12,6 +15,31 @@ export async function createWrappedOnEth(
   const v = await bridge.createWrapped(signedVAA);
   const receipt = await v.wait();
   return receipt;
+}
+
+export async function createWrappedOnTerra(
+  tokenBridgeAddress: string,
+  wallet: TerraConnectedWallet,
+  signedVAA: Uint8Array,
+) {
+  console.log(tokenBridgeAddress);
+  console.log(wallet.terraAddress);
+  console.log(signedVAA);
+  await wallet.post({
+      msgs: [
+        new MsgExecuteContract(
+          wallet.terraAddress,
+          tokenBridgeAddress,
+          {
+            submit_vaa: {
+              data: fromUint8Array(signedVAA),
+            },
+          },
+          { uluna: 1000 }
+        ),
+      ],
+      memo: "Create Wrapped",
+  });
 }
 
 export async function createWrappedOnSolana(

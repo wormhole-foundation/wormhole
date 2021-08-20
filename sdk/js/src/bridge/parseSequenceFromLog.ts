@@ -1,5 +1,6 @@
 import { TransactionResponse } from "@solana/web3.js";
 import { ContractReceipt } from "ethers";
+import { TxResult } from "@terra-money/wallet-provider";
 import { Implementation__factory } from "../ethers-contracts";
 
 export function parseSequenceFromLogEth(
@@ -14,6 +15,24 @@ export function parseSequenceFromLogEth(
   const {
     args: { sequence },
   } = Implementation__factory.createInterface().parseLog(bridgeLog);
+  return sequence.toString();
+}
+
+export function parseSequenceFromLogTerra(result: TxResult): string {
+  // Scan for the Sequence attribute in all the outputs of the transaction.
+  // TODO: Make this not horrible.
+  let sequence = "";
+  const jsonLog = JSON.parse(result.result.raw_log);
+  jsonLog.map((row: any) => {
+      row.events.map((event: any) => {
+          event.attributes.map((attribute: any) => {
+              if(attribute.key === "message.sequence") {
+                  sequence = attribute.value;
+              }
+          });
+      });
+  });
+  console.log('Terra Sequence: ', sequence);
   return sequence.toString();
 }
 

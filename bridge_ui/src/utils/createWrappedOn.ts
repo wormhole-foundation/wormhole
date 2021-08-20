@@ -2,12 +2,11 @@ import {
   postVaaSolana,
   createWrappedOnEth as createWrappedOnEthTx,
   createWrappedOnSolana as createWrappedOnSolanaTx,
+  createWrappedOnTerra as createWrappedOnTerraTx,
 } from "@certusone/wormhole-sdk";
 import Wallet from "@project-serum/sol-wallet-adapter";
 import { Connection } from "@solana/web3.js";
 import { ethers } from "ethers";
-import { fromUint8Array } from "js-base64";
-import { MsgExecuteContract } from "@terra-money/terra.js";
 import { ConnectedWallet as TerraConnectedWallet } from "@terra-money/wallet-provider";
 import {
   ETH_TOKEN_BRIDGE_ADDRESS,
@@ -31,26 +30,12 @@ export async function createWrappedOnTerra(
   wallet: TerraConnectedWallet | undefined,
   signedVAA: Uint8Array
 ) {
-  console.log("creating wrapped");
-  console.log("PROGRAM:", TERRA_TOKEN_BRIDGE_ADDRESS);
-  console.log("BRIDGE:", TERRA_BRIDGE_ADDRESS);
-  console.log("VAA:", signedVAA);
-  wallet &&
-    (await wallet.post({
-      msgs: [
-        new MsgExecuteContract(
-          wallet.terraAddress,
-          TERRA_TOKEN_BRIDGE_ADDRESS,
-          {
-            submit_vaa: {
-              data: fromUint8Array(signedVAA),
-            },
-          },
-          { uluna: 1000 }
-        ),
-      ],
-      memo: "Create Wrapped",
-    }));
+  if (!wallet) return;
+  await createWrappedOnTerraTx(
+    TERRA_TOKEN_BRIDGE_ADDRESS,
+    wallet,
+    signedVAA
+  );
 }
 
 export async function createWrappedOnSolana(

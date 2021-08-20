@@ -3,6 +3,8 @@ import { ethers } from "ethers";
 import { Bridge__factory } from "../ethers-contracts";
 import { getBridgeFeeIx, ixFromRust } from "../solana";
 import { createNonce } from "../utils/createNonce";
+import { ConnectedWallet as TerraConnectedWallet } from "@terra-money/wallet-provider";
+import { MsgExecuteContract } from "@terra-money/terra.js";
 
 export async function attestFromEth(
   tokenBridgeAddress: string,
@@ -13,6 +15,30 @@ export async function attestFromEth(
   const v = await bridge.attestToken(tokenAddress, createNonce());
   const receipt = await v.wait();
   return receipt;
+}
+
+export async function attestFromTerra(
+  tokenBridgeAddress: string,
+  wallet: TerraConnectedWallet,
+  asset: string,
+) {
+  const nonce = Math.round(Math.random() * 100000);
+  return await wallet.post({
+    msgs: [
+      new MsgExecuteContract(
+        wallet.terraAddress,
+        tokenBridgeAddress,
+        {
+          create_asset_meta: {
+            asset_address: asset,
+            nonce: nonce,
+          },
+        },
+        { uluna: 10000 }
+      ),
+    ],
+    memo: "Create Wrapped",
+  });
 }
 
 export async function attestFromSolana(

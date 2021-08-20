@@ -13,3 +13,9 @@ export async function getEmitterAddressSolana(programAddress: string) {
     zeroPad(new PublicKey(emitter_address(programAddress)).toBytes(), 32)
   ).toString("hex");
 }
+
+export async function getEmitterAddressTerra(programAddress: string) {
+  // Testnet Hardcoded
+  // TODO: HumanAddr -> CanonicalAddr
+  return "000000000000000000000000784999135aaa8a3ca5914468852fdddbddd8789d";
+}

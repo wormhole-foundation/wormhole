@@ -1,17 +1,19 @@
 import {
   attestFromEth as attestEthTx,
   attestFromSolana as attestSolanaTx,
+  attestFromTerra as attestTerraTx,
   CHAIN_ID_ETH,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
   getEmitterAddressEth,
   getEmitterAddressSolana,
+  getEmitterAddressTerra,
   parseSequenceFromLogEth,
   parseSequenceFromLogSolana,
+  parseSequenceFromLogTerra,
 } from "@certusone/wormhole-sdk";
 import Wallet from "@project-serum/sol-wallet-adapter";
 import { Connection } from "@solana/web3.js";
-import { MsgExecuteContract } from "@terra-money/terra.js";
 import { ConnectedWallet as TerraConnectedWallet } from "@terra-money/wallet-provider";
 import { ethers } from "ethers";
 import {
@@ -24,6 +26,7 @@ import {
 } from "./consts";
 import { getSignedVAAWithRetry } from "./getSignedVAAWithRetry";
 import { signSendConfirmAndGet } from "./solana";
+import { waitForTerraExecution } from "./terra";
 
 export async function attestFromEth(
   signer: ethers.Signer | undefined,
@@ -80,24 +83,21 @@ export async function attestFromTerra(
   wallet: TerraConnectedWallet | undefined,
   asset: string | undefined
 ) {
-  const nonceConst = Math.random() * 100000;
-  const nonceBuffer = Buffer.alloc(4);
-  nonceBuffer.writeUInt32LE(nonceConst, 0);
-  wallet &&
-    (await wallet.post({
-      msgs: [
-        new MsgExecuteContract(
-          wallet.terraAddress,
-          TERRA_TOKEN_BRIDGE_ADDRESS,
-          {
-            register_asset_hook: {
-              asset_id: asset,
-            },
-          },
-          { uluna: 1000 }
-        ),
-      ],
-      memo: "Create Wrapped",
-    }));
-  return null;
+  if (!wallet || !asset) return;
+  const infoMaybe = await attestTerraTx(
+    TERRA_TOKEN_BRIDGE_ADDRESS,
+    wallet,
+    asset
+  );
+  const info = await waitForTerraExecution(wallet, infoMaybe);
+  const sequence = parseSequenceFromLogTerra(info);
+  const emitterAddress = await getEmitterAddressTerra(
+    TERRA_TOKEN_BRIDGE_ADDRESS
+  );
+  const result = await getSignedVAAWithRetry(
+    CHAIN_ID_TERRA,
+    emitterAddress,
+    sequence
+  );
+  return result && result.vaaBytes;
 }

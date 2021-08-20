@@ -7,6 +7,8 @@ import {
 } from "../ethers-contracts";
 import { getBridgeFeeIx, ixFromRust } from "../solana";
 import { ChainId, CHAIN_ID_SOLANA, createNonce } from "../utils";
+import { ConnectedWallet as TerraConnectedWallet } from "@terra-money/wallet-provider";
+import { MsgExecuteContract } from "@terra-money/terra.js";
 
 export async function transferFromEth(
   tokenBridgeAddress: string,
@@ -37,6 +39,37 @@ export async function transferFromEth(
   );
   const receipt = await v.wait();
   return receipt;
+}
+
+export async function transferFromTerra(
+  wallet: TerraConnectedWallet,
+  tokenBridgeAddress: string,
+  tokenAddress: string,
+  amount: ethers.BigNumberish,
+  recipientChain: ChainId,
+  recipientAddress: Uint8Array
+) {
+  const nonce = Math.round(Math.random() * 100000);
+  return await wallet.post({
+    msgs: [
+      new MsgExecuteContract(
+        wallet.terraAddress,
+        tokenBridgeAddress,
+        {
+          initiate_transfer: {
+            asset: tokenAddress,
+            amount: amount,
+            recipient_chain: recipientChain,
+            recipient: recipientAddress,
+            fee: 1000,
+            nonce: nonce,
+          },
+        },
+        { uluna: 10000 }
+      ),
+    ],
+    memo: "Complete Transfer",
+  });
 }
 
 export async function transferFromSolana(

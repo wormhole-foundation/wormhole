@@ -7,12 +7,15 @@ import {
   getEmitterAddressSolana,
   parseSequenceFromLogEth,
   parseSequenceFromLogSolana,
+  parseSequenceFromLogTerra,
   transferFromEth as transferFromEthTx,
   transferFromSolana as transferFromSolanaTx,
 } from "@certusone/wormhole-sdk";
-import { Wallet as TerraWallet } from "@terra-money/wallet-provider";
+import { fromUint8Array } from 'js-base64';
+import { ConnectedWallet as TerraConnectedWallet, TxResult } from "@terra-money/wallet-provider";
 import Wallet from "@project-serum/sol-wallet-adapter";
 import { Connection } from "@solana/web3.js";
+import { MsgExecuteContract } from "@terra-money/terra.js";
 import { ethers } from "ethers";
 import { arrayify, parseUnits, zeroPad } from "ethers/lib/utils";
 import { hexToUint8Array } from "./array";
@@ -22,6 +25,8 @@ import {
   SOLANA_HOST,
   SOL_BRIDGE_ADDRESS,
   SOL_TOKEN_BRIDGE_ADDRESS,
+  TERRA_TOKEN_BRIDGE_ADDRESS,
+  TERRA_TEST_TOKEN_ADDRESS,
 } from "./consts";
 import { getSignedVAAWithRetry } from "./getSignedVAAWithRetry";
 import { signSendConfirmAndGet } from "./solana";
@@ -114,7 +119,44 @@ export async function transferFromSolana(
 }
 
 export async function transferFromTerra(
-  wallet: TerraWallet | undefined,
+  wallet: TerraConnectedWallet | undefined,
+  asset: string,
+  amount: string,
+  targetAddressStr: string | undefined,
+  targetChain: ChainId,
 ) {
-    return null;
+  if (!wallet) return;
+  const result: TxResult = wallet && await wallet.post({
+    msgs: [
+      new MsgExecuteContract(
+        wallet.terraAddress,
+        TERRA_TOKEN_BRIDGE_ADDRESS,
+        {
+          initiate_transfer: {
+            asset: TERRA_TEST_TOKEN_ADDRESS,
+            amount: amount,
+            recipient_chain: targetChain,
+            recipient: targetAddressStr,
+            fee: 1000,
+            nonce: 0,
+          },
+        },
+        { uluna: 1000 }
+      ),
+    ],
+    memo: "Complete Transfer",
+  });
+  console.log(result);
+  const sequence = parseSequenceFromLogTerra(result);
+  console.log(sequence);
+  const emitterAddress = await getEmitterAddressSolana(
+    SOL_TOKEN_BRIDGE_ADDRESS
+  );
+  console.log(emitterAddress);
+  const { vaaBytes } = await getSignedVAAWithRetry(
+    CHAIN_ID_TERRA,
+    emitterAddress,
+    sequence
+  );
+  return vaaBytes;
 }

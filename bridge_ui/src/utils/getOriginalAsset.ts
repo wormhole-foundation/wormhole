@@ -11,6 +11,7 @@ import {
   ETH_TOKEN_BRIDGE_ADDRESS,
   SOLANA_HOST,
   SOL_TOKEN_BRIDGE_ADDRESS,
+  TERRA_TEST_TOKEN_ADDRESS,
 } from "./consts";
 
 export interface StateSafeWormholeWrappedInfo {
@@ -57,7 +58,7 @@ export async function getOriginalAssetTerra(
   mintAddress: string
 ): Promise<StateSafeWormholeWrappedInfo> {
   return {
-    assetAddress: "",
+    assetAddress: TERRA_TEST_TOKEN_ADDRESS,
     chainId: 3,
     isWrapped: false,
   };

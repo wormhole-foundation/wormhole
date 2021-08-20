@@ -10,6 +10,7 @@ import { zeroPad } from "ethers/lib/utils";
 import { useCallback, useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useEthereumProvider } from "../../contexts/EthereumProviderContext";
+import { useConnectedWallet } from "@terra-money/wallet-provider";
 import { useSolanaWallet } from "../../contexts/SolanaWalletContext";
 import {
   selectTransferAmount,
@@ -58,6 +59,7 @@ function Send() {
   const isSendComplete = useSelector(selectTransferIsSendComplete);
   const { signer, signerAddress } = useEthereumProvider();
   const { wallet } = useSolanaWallet();
+  const terraWallet = useConnectedWallet();
   const solPK = wallet?.publicKey;
   const sourceParsedTokenAccount = useSelector(
     selectTransferSourceParsedTokenAccount
@@ -154,7 +156,13 @@ function Send() {
       (async () => {
         dispatch(setIsSending(true));
         try {
-          const vaaBytes = await transferFromTerra(undefined);
+          const vaaBytes = await transferFromTerra(
+            terraWallet,
+            sourceAsset,
+            amount,
+            "",
+            targetChain,
+          );
           console.log("bytes in transfer", vaaBytes);
           vaaBytes && dispatch(setSignedVAAHex(uint8ArrayToHex(vaaBytes)));
         } catch (e) {
