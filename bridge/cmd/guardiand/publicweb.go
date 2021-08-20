@@ -44,7 +44,7 @@ func corsPreflightHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Methods", strings.Join(methods, ","))
 }
 
-func publicrestServiceRunnable(
+func publicwebServiceRunnable(
 	logger *zap.Logger,
 	listenAddr string,
 	upstreamAddr string,
@@ -112,7 +112,7 @@ func publicrestServiceRunnable(
 		supervisor.Signal(ctx, supervisor.SignalHealthy)
 		errC := make(chan error)
 		go func() {
-			logger.Info("publicrest server listening", zap.String("addr", srv.Addr))
+			logger.Info("publicweb server listening", zap.String("addr", srv.Addr))
 			if tlsHostname != "" {
 				errC <- srv.ListenAndServeTLS("", "")
 			} else {

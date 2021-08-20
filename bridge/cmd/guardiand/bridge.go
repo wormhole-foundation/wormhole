@@ -78,8 +78,8 @@ var (
 	devNumGuardians *uint
 	nodeName        *string
 
-	publicRPC  *string
-	publicREST *string
+	publicRPC *string
+	publicWeb *string
 
 	tlsHostname *string
 	tlsProdEnv  *bool
@@ -130,9 +130,9 @@ func init() {
 	nodeName = BridgeCmd.Flags().String("nodeName", "", "Node name to announce in gossip heartbeats")
 
 	publicRPC = BridgeCmd.Flags().String("publicRPC", "", "Listen address for public gRPC interface")
-	publicREST = BridgeCmd.Flags().String("publicREST", "", "Listen address for public REST and gRPC Web interface")
+	publicWeb = BridgeCmd.Flags().String("publicWeb", "", "Listen address for public REST and gRPC Web interface")
 
-	tlsHostname = BridgeCmd.Flags().String("tlsHostname", "", "If set, serve publicREST as TLS with this hostname using Let's Encrypt")
+	tlsHostname = BridgeCmd.Flags().String("tlsHostname", "", "If set, serve publicWeb as TLS with this hostname using Let's Encrypt")
 	tlsProdEnv = BridgeCmd.Flags().Bool("tlsProdEnv", false,
 		"Use the production Let's Encrypt environment instead of staging")
 
@@ -445,7 +445,7 @@ func runBridge(cmd *cobra.Command, args []string) {
 		logger.Fatal("failed to create admin service socket", zap.Error(err))
 	}
 
-	publicrestService, err := publicrestServiceRunnable(logger, *publicREST, *adminSocketPath, publicrpcServer,
+	publicwebService, err := publicwebServiceRunnable(logger, *publicWeb, *adminSocketPath, publicrpcServer,
 		*tlsHostname, *tlsProdEnv, path.Join(*dataDir, "autocert"))
 	if err != nil {
 		log.Fatal("failed to create publicrpc service socket", zap.Error(err))
@@ -513,8 +513,8 @@ func runBridge(cmd *cobra.Command, args []string) {
 				return err
 			}
 		}
-		if *publicREST != "" {
-			if err := supervisor.Run(ctx, "publicrest", publicrestService); err != nil {
+		if *publicWeb != "" {
+			if err := supervisor.Run(ctx, "publicweb", publicwebService); err != nil {
 				return err
 			}
 		}
