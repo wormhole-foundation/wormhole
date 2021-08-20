@@ -12,10 +12,10 @@ import (
 	"net"
 )
 
-func publicrpcServiceRunnable(logger *zap.Logger, listenAddr string, hl *publicrpc.RawHeartbeatConns, db *db.Database, gst *common.GuardianSetState) (supervisor.Runnable, error) {
+func publicrpcServiceRunnable(logger *zap.Logger, listenAddr string, hl *publicrpc.RawHeartbeatConns, db *db.Database, gst *common.GuardianSetState) (supervisor.Runnable, *grpc.Server, error) {
 	l, err := net.Listen("tcp", listenAddr)
 	if err != nil {
-		return nil, fmt.Errorf("failed to listen: %w", err)
+		return nil, nil, fmt.Errorf("failed to listen: %w", err)
 	}
 
 	logger.Info("publicrpc server listening", zap.String("addr", l.Addr().String()))
@@ -24,5 +24,5 @@ func publicrpcServiceRunnable(logger *zap.Logger, listenAddr string, hl *publicr
 	grpcServer := grpc.NewServer()
 	publicrpcv1.RegisterPublicrpcServer(grpcServer, rpcServer)
 
-	return supervisor.GRPCServer(grpcServer, l, false), nil
+	return supervisor.GRPCServer(grpcServer, l, false), grpcServer, nil
 }
