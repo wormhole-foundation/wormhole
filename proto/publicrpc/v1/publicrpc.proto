@@ -7,8 +7,8 @@ option go_package = "github.com/certusone/wormhole/bridge/pkg/proto/publicrpc/v1
 import "gossip/v1/gossip.proto";
 import "google/api/annotations.proto";
 
-enum EmitterChain {
-  CHAIN_ID_UNKNOWN = 0;
+enum ChainID {
+  CHAIN_ID_UNSPECIFIED = 0;
   CHAIN_ID_SOLANA = 1;
   CHAIN_ID_ETHEREUM = 2;
   CHAIN_ID_TERRA = 3;
@@ -18,19 +18,19 @@ enum EmitterChain {
 // MessageID is a VAA's globally unique identifier (see data availability design document).
 message MessageID {
   // Emitter chain ID.
-  EmitterChain emitter_chain = 1;
+  ChainID emitter_chain = 1;
   // Hex-encoded (without leading 0x) emitter address.
   string emitter_address = 2;
   // Sequence number for (emitter_chain, emitter_address).
   int64 sequence = 3;
 }
 
-// Publicrpc service exposes endpoints to be consumed externally; GUIs, historical record keeping, etc.
-service Publicrpc {
+// PublicRPCService service exposes endpoints to be consumed externally; GUIs, historical record keeping, etc.
+service PublicRPCService {
   // GetLastHeartbeats returns the last heartbeat received for each guardian node in the
   // node's active guardian set. Heartbeats received by nodes not in the guardian set are ignored.
   // The heartbeat value is null if no heartbeat has yet been received.
-  rpc GetLastHeartbeats (GetLastHeartbeatRequest) returns (GetLastHeartbeatResponse) {
+  rpc GetLastHeartbeats (GetLastHeartbeatsRequest) returns (GetLastHeartbeatsResponse) {
     option (google.api.http) = {
       get: "/v1/heartbeats"
     };
@@ -58,10 +58,10 @@ message GetSignedVAAResponse {
   bytes vaa_bytes = 1;
 }
 
-message GetLastHeartbeatRequest {
+message GetLastHeartbeatsRequest {
 }
 
-message GetLastHeartbeatResponse {
+message GetLastHeartbeatsResponse {
   message Entry {
     // Verified, hex-encoded (with leading 0x) guardian address. This is the guardian address
     // which signed this heartbeat. The GuardianAddr field inside the heartbeat

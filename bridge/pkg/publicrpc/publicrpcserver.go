@@ -15,7 +15,7 @@ import (
 
 // PublicrpcServer implements the publicrpc gRPC service.
 type PublicrpcServer struct {
-	publicrpcv1.UnimplementedPublicrpcServer
+	publicrpcv1.UnsafePublicRPCServiceServer
 	logger *zap.Logger
 	db     *db.Database
 	gst    *common.GuardianSetState
@@ -33,21 +33,21 @@ func NewPublicrpcServer(
 	}
 }
 
-func (s *PublicrpcServer) GetLastHeartbeats(ctx context.Context, req *publicrpcv1.GetLastHeartbeatRequest) (*publicrpcv1.GetLastHeartbeatResponse, error) {
+func (s *PublicrpcServer) GetLastHeartbeats(ctx context.Context, req *publicrpcv1.GetLastHeartbeatsRequest) (*publicrpcv1.GetLastHeartbeatsResponse, error) {
 	gs := s.gst.Get()
 	if gs == nil {
 		return nil, status.Error(codes.Unavailable, "guardian set not fetched from chain yet")
 	}
 
-	resp := &publicrpcv1.GetLastHeartbeatResponse{
-		Entries: make([]*publicrpcv1.GetLastHeartbeatResponse_Entry, 0),
+	resp := &publicrpcv1.GetLastHeartbeatsResponse{
+		Entries: make([]*publicrpcv1.GetLastHeartbeatsResponse_Entry, 0),
 	}
 
 	// Fetch all heartbeats (including from nodes not in the guardian set - which
 	// can happen either with --disableHeartbeatVerify or when the guardian set changes)
 	for addr, v := range s.gst.GetAll() {
 		for peerId, hb := range v {
-			resp.Entries = append(resp.Entries, &publicrpcv1.GetLastHeartbeatResponse_Entry{
+			resp.Entries = append(resp.Entries, &publicrpcv1.GetLastHeartbeatsResponse_Entry{
 				VerifiedGuardianAddr: addr.Hex(),
 				P2PNodeAddr:          peerId.Pretty(),
 				RawHeartbeat:         hb,

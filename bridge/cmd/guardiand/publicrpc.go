@@ -22,7 +22,7 @@ func publicrpcServiceRunnable(logger *zap.Logger, listenAddr string, db *db.Data
 
 	rpcServer := publicrpc.NewPublicrpcServer(logger, db, gst)
 	grpcServer := newGRPCServer(logger)
-	publicrpcv1.RegisterPublicrpcServer(grpcServer, rpcServer)
+	publicrpcv1.RegisterPublicRPCServiceServer(grpcServer, rpcServer)
 
 	return supervisor.GRPCServer(grpcServer, l, false), grpcServer, nil
 }

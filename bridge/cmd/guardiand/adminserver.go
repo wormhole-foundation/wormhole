@@ -29,7 +29,7 @@ import (
 )
 
 type nodePrivilegedService struct {
-	nodev1.UnimplementedNodePrivilegedServer
+	nodev1.UnimplementedNodePrivilegedServiceServer
 	injectC chan<- *vaa.VAA
 	logger  *zap.Logger
 }
@@ -173,8 +173,8 @@ func adminServiceRunnable(logger *zap.Logger, socketPath string, injectC chan<- 
 	publicrpcService := publicrpc.NewPublicrpcServer(logger, db, gst)
 
 	grpcServer := newGRPCServer(logger)
-	nodev1.RegisterNodePrivilegedServer(grpcServer, nodeService)
-	publicrpcv1.RegisterPublicrpcServer(grpcServer, publicrpcService)
+	nodev1.RegisterNodePrivilegedServiceServer(grpcServer, nodeService)
+	publicrpcv1.RegisterPublicRPCServiceServer(grpcServer, publicrpcService)
 	return supervisor.GRPCServer(grpcServer, l, false), nil
 }
 

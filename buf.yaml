@@ -9,8 +9,9 @@ build:
     - proto
 lint:
   use:
-    - BASIC
-    - FILE_LOWER_SNAKE_CASE
+    - DEFAULT
+    # https://github.com/twitchtv/twirp/issues/70#issuecomment-470367807
+    - UNARY_RPC
 breaking:
   use:
     - WIRE_JSON

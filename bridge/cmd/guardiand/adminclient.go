@@ -50,25 +50,25 @@ var AdminClientInjectGuardianSetUpdateCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 }
 
-func getAdminClient(ctx context.Context, addr string) (*grpc.ClientConn, error, nodev1.NodePrivilegedClient) {
+func getAdminClient(ctx context.Context, addr string) (*grpc.ClientConn, error, nodev1.NodePrivilegedServiceClient) {
 	conn, err := grpc.DialContext(ctx, fmt.Sprintf("unix:///%s", addr), grpc.WithInsecure())
 
 	if err != nil {
 		log.Fatalf("failed to connect to %s: %v", addr, err)
 	}
 
-	c := nodev1.NewNodePrivilegedClient(conn)
+	c := nodev1.NewNodePrivilegedServiceClient(conn)
 	return conn, err, c
 }
 
-func getPublicrpcClient(ctx context.Context, addr string) (*grpc.ClientConn, error, publicrpcv1.PublicrpcClient) {
+func getPublicRPCServiceClient(ctx context.Context, addr string) (*grpc.ClientConn, error, publicrpcv1.PublicRPCServiceClient) {
 	conn, err := grpc.DialContext(ctx, fmt.Sprintf("unix:///%s", addr), grpc.WithInsecure())
 
 	if err != nil {
 		log.Fatalf("failed to connect to %s: %v", addr, err)
 	}
 
-	c := publicrpcv1.NewPublicrpcClient(conn)
+	c := publicrpcv1.NewPublicRPCServiceClient(conn)
 	return conn, err, c
 }
 

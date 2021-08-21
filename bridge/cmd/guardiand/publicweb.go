@@ -64,7 +64,7 @@ func publicwebServiceRunnable(
 		}
 
 		gwmux := runtime.NewServeMux()
-		err = publicrpcv1.RegisterPublicrpcHandler(ctx, gwmux, conn)
+		err = publicrpcv1.RegisterPublicRPCServiceHandler(ctx, gwmux, conn)
 		if err != nil {
 			panic(err)
 		}

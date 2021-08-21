@@ -4,9 +4,9 @@ package node.v1;
 
 option go_package = "github.com/certusone/wormhole/bridge/pkg/proto/node/v1;nodev1";
 
-// NodePrivileged exposes an administrative API. It runs on a UNIX socket and is authenticated
+// NodePrivilegedService exposes an administrative API. It runs on a UNIX socket and is authenticated
 // using Linux filesystem permissions.
-service NodePrivileged {
+service NodePrivilegedService {
   // InjectGovernanceVAA injects a governance VAA into the guardian node.
   // The node will inject the VAA into the aggregator and sign/broadcast the VAA signature.
   //
