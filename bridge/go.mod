@@ -4,6 +4,7 @@ go 1.16
 
 require (
 	github.com/cenkalti/backoff/v4 v4.1.1
+	github.com/coreos/go-systemd v0.0.0-20190321100706-95778dfbb74e
 	github.com/davecgh/go-spew v1.1.1
 	github.com/desertbit/timer v0.0.0-20180107155436-c41aec40b27f // indirect
 	github.com/dgraph-io/badger/v3 v3.2103.1
@@ -11,10 +12,10 @@ require (
 	github.com/gagliardetto/solana-go v0.3.5-0.20210727215348-0cf016734976
 	github.com/gorilla/mux v1.7.4
 	github.com/gorilla/websocket v1.4.2
-	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0 // indirect
-	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0 // indirect
+	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
+	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.5.0
-	github.com/improbable-eng/grpc-web v0.14.0 // indirect
+	github.com/improbable-eng/grpc-web v0.14.0
 	github.com/ipfs/go-log/v2 v2.3.0
 	github.com/libp2p/go-libp2p v0.14.4
 	github.com/libp2p/go-libp2p-connmgr v0.2.4

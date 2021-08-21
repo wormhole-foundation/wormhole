@@ -12,6 +12,7 @@ import (
 	"golang.org/x/crypto/acme/autocert"
 	"google.golang.org/grpc"
 	"log"
+	"net"
 	"net/http"
 	"strings"
 )
@@ -80,7 +81,6 @@ func publicwebServiceRunnable(
 		})))
 
 		srv := &http.Server{
-			Addr:     listenAddr,
 			ErrorLog: log.Default(),
 			Handler:  mux,
 		}
@@ -109,14 +109,45 @@ func publicwebServiceRunnable(
 			logger.Info("certificate provisioning configured")
 		}
 
+		var listener net.Listener
+
+		// If listenAddr is prefixed by "sd:", look for a matching systemd socket.
+		if strings.HasPrefix(listenAddr, "sd:") {
+			listeners, err := getSDListeners()
+			if err != nil {
+				return fmt.Errorf("failed to get systemd listeners: %w", err)
+			}
+
+			addr := listenAddr[3:]
+			for _, v := range listeners {
+				logger.Debug("found systemd socket", zap.String("addr", v.Addr().String()))
+				if v.Addr().String() == addr {
+					listener = v
+				}
+			}
+
+			if listener == nil {
+				all := make([]string, len(listeners))
+				for i := range listeners {
+					all[i] = listeners[i].Addr().String()
+				}
+				return fmt.Errorf("no valid systemd listeners, got: %s", strings.Join(all, ","))
+			}
+		} else {
+			listener, err = net.Listen("tcp", listenAddr)
+			if err != nil {
+				return fmt.Errorf("failed to listen: %v", err)
+			}
+		}
+
 		supervisor.Signal(ctx, supervisor.SignalHealthy)
 		errC := make(chan error)
 		go func() {
 			logger.Info("publicweb server listening", zap.String("addr", srv.Addr))
 			if tlsHostname != "" {
-				errC <- srv.ListenAndServeTLS("", "")
+				errC <- srv.ServeTLS(listener, "", "")
 			} else {
-				errC <- srv.ListenAndServe()
+				errC <- srv.Serve(listener)
 			}
 		}()
 		select {
