@@ -83,6 +83,9 @@ type (
 
 		pending   map[eth_common.Hash]*pendingMessage
 		pendingMu sync.Mutex
+
+		// 0 is a valid guardian set, so we need a nil value here
+		currentGuardianSet *uint32
 	}
 
 	pendingMessage struct {
@@ -150,8 +153,10 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 		return fmt.Errorf("failed to subscribe to message publication events: %w", err)
 	}
 
-	// 0 is a valid guardian set, so we need a nil value here
-	var currentGuardianSet *uint32
+	// Fetch initial guardian set
+	if err := e.fetchAndUpdateGuardianSet(logger, ctx, caller); err != nil {
+		return fmt.Errorf("failed to request guardian set: %v", err)
+	}
 
 	// Poll for guardian set.
 	go func() {
@@ -162,38 +167,9 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 			case <-ctx.Done():
 				return
 			case <-t.C:
-				msm := time.Now()
-				logger.Info("fetching guardian set")
-				timeout, cancel = context.WithTimeout(ctx, 15*time.Second)
-				idx, gs, err := fetchCurrentGuardianSet(timeout, caller)
-				if err != nil {
-					ethConnectionErrors.WithLabelValues(e.networkName, "guardian_set_fetch_error").Inc()
-					p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
-					logger.Error("failed requesting guardian set",
+				if err := e.fetchAndUpdateGuardianSet(logger, ctx, caller); err != nil {
+					logger.Error("failed updating guardian set",
 						zap.Error(err), zap.String("eth_network", e.networkName))
-					cancel()
-					continue
-				}
-
-				queryLatency.WithLabelValues(e.networkName, "get_guardian_set").Observe(time.Since(msm).Seconds())
-
-				cancel()
-
-				if currentGuardianSet != nil && *currentGuardianSet == idx {
-					continue
-				}
-
-				logger.Info("updated guardian set found",
-					zap.Any("value", gs), zap.Uint32("index", idx),
-					zap.String("eth_network", e.networkName))
-
-				currentGuardianSet = &idx
-
-				if e.setChan != nil {
-					e.setChan <- &common.GuardianSet{
-						Keys:  gs.Keys,
-						Index: idx,
-					}
 				}
 			}
 		}
@@ -317,6 +293,44 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 	case err := <-errC:
 		return err
 	}
+}
+
+func (e *EthBridgeWatcher) fetchAndUpdateGuardianSet(
+	logger *zap.Logger,
+	ctx context.Context,
+	caller *abi.AbiCaller,
+) error {
+	msm := time.Now()
+	logger.Info("fetching guardian set")
+	timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+	idx, gs, err := fetchCurrentGuardianSet(timeout, caller)
+	if err != nil {
+		ethConnectionErrors.WithLabelValues(e.networkName, "guardian_set_fetch_error").Inc()
+		p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
+		return err
+	}
+
+	queryLatency.WithLabelValues(e.networkName, "get_guardian_set").Observe(time.Since(msm).Seconds())
+
+	if e.currentGuardianSet != nil && *(e.currentGuardianSet) == idx {
+		return nil
+	}
+
+	logger.Info("updated guardian set found",
+		zap.Any("value", gs), zap.Uint32("index", idx),
+		zap.String("eth_network", e.networkName))
+
+	e.currentGuardianSet = &idx
+
+	if e.setChan != nil {
+		e.setChan <- &common.GuardianSet{
+			Keys:  gs.Keys,
+			Index: idx,
+		}
+	}
+
+	return nil
 }
 
 // Fetch the current guardian set ID and guardian set from the chain.
