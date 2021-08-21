@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/certusone/wormhole/bridge/pkg/common"
 	"github.com/certusone/wormhole/bridge/pkg/db"
-	gossipv1 "github.com/certusone/wormhole/bridge/pkg/proto/gossip/v1"
 	publicrpcv1 "github.com/certusone/wormhole/bridge/pkg/proto/publicrpc/v1"
 	"github.com/certusone/wormhole/bridge/pkg/vaa"
 	"go.uber.org/zap"
@@ -17,23 +16,20 @@ import (
 // PublicrpcServer implements the publicrpc gRPC service.
 type PublicrpcServer struct {
 	publicrpcv1.UnimplementedPublicrpcServer
-	rawHeartbeatListeners *RawHeartbeatConns
-	logger                *zap.Logger
-	db                    *db.Database
-	gst                   *common.GuardianSetState
+	logger *zap.Logger
+	db     *db.Database
+	gst    *common.GuardianSetState
 }
 
 func NewPublicrpcServer(
 	logger *zap.Logger,
-	rawHeartbeatListeners *RawHeartbeatConns,
 	db *db.Database,
 	gst *common.GuardianSetState,
 ) *PublicrpcServer {
 	return &PublicrpcServer{
-		rawHeartbeatListeners: rawHeartbeatListeners,
-		logger:                logger.Named("publicrpcserver"),
-		db:                    db,
-		gst:                   gst,
+		logger: logger.Named("publicrpcserver"),
+		db:     db,
+		gst:    gst,
 	}
 }
 
@@ -60,27 +56,6 @@ func (s *PublicrpcServer) GetLastHeartbeats(ctx context.Context, req *publicrpcv
 	}
 
 	return resp, nil
-}
-
-func (s *PublicrpcServer) GetRawHeartbeats(req *publicrpcv1.GetRawHeartbeatsRequest, stream publicrpcv1.Publicrpc_GetRawHeartbeatsServer) error {
-	s.logger.Info("gRPC heartbeat stream opened by client")
-
-	// create a channel and register it for heartbeats
-	receiveChan := make(chan *gossipv1.Heartbeat, 50)
-	// clientId is the reference to the subscription that we will use for unsubscribing when the client disconnects.
-	clientId := s.rawHeartbeatListeners.subscribeHeartbeats(receiveChan)
-
-	for {
-		select {
-		// Exit on stream context done
-		case <-stream.Context().Done():
-			s.logger.Info("raw heartbeat stream closed by client", zap.Int("clientId", clientId))
-			s.rawHeartbeatListeners.unsubscribeHeartbeats(clientId)
-			return stream.Context().Err()
-		case msg := <-receiveChan:
-			stream.Send(msg)
-		}
-	}
 }
 
 func (s *PublicrpcServer) GetSignedVAA(ctx context.Context, req *publicrpcv1.GetSignedVAARequest) (*publicrpcv1.GetSignedVAAResponse, error) {

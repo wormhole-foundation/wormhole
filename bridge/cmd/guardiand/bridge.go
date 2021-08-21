@@ -31,7 +31,6 @@ import (
 	"github.com/certusone/wormhole/bridge/pkg/p2p"
 	"github.com/certusone/wormhole/bridge/pkg/processor"
 	gossipv1 "github.com/certusone/wormhole/bridge/pkg/proto/gossip/v1"
-	"github.com/certusone/wormhole/bridge/pkg/publicrpc"
 	"github.com/certusone/wormhole/bridge/pkg/readiness"
 	solana "github.com/certusone/wormhole/bridge/pkg/solana"
 	"github.com/certusone/wormhole/bridge/pkg/supervisor"
@@ -432,15 +431,13 @@ func runBridge(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	// subscriber channel multiplexing for public gPRC streams
-	rawHeartbeatListeners := publicrpc.HeartbeatStreamMultiplexer(logger)
-	publicrpcService, publicrpcServer, err := publicrpcServiceRunnable(logger, *publicRPC, rawHeartbeatListeners, db, gst)
+	publicrpcService, publicrpcServer, err := publicrpcServiceRunnable(logger, *publicRPC, db, gst)
 	if err != nil {
 		log.Fatal("failed to create publicrpc service socket", zap.Error(err))
 	}
 
 	// local admin service socket
-	adminService, err := adminServiceRunnable(logger, *adminSocketPath, injectC, rawHeartbeatListeners, db, gst)
+	adminService, err := adminServiceRunnable(logger, *adminSocketPath, injectC, db, gst)
 	if err != nil {
 		logger.Fatal("failed to create admin service socket", zap.Error(err))
 	}
@@ -454,7 +451,7 @@ func runBridge(cmd *cobra.Command, args []string) {
 	// Run supervisor.
 	supervisor.New(rootCtx, logger, func(ctx context.Context) error {
 		if err := supervisor.Run(ctx, "p2p", p2p.Run(
-			obsvC, sendC, rawHeartbeatListeners, priv, gk, gst, *p2pPort, *p2pNetworkID, *p2pBootstrap, *nodeName, *disableHeartbeatVerify, rootCtxCancel)); err != nil {
+			obsvC, sendC, priv, gk, gst, *p2pPort, *p2pNetworkID, *p2pBootstrap, *nodeName, *disableHeartbeatVerify, rootCtxCancel)); err != nil {
 			return err
 		}
 

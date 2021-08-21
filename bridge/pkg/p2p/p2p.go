@@ -32,7 +32,6 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	gossipv1 "github.com/certusone/wormhole/bridge/pkg/proto/gossip/v1"
-	"github.com/certusone/wormhole/bridge/pkg/publicrpc"
 	"github.com/certusone/wormhole/bridge/pkg/supervisor"
 )
 
@@ -60,7 +59,7 @@ func heartbeatDigest(b []byte) common.Hash {
 	return ethcrypto.Keccak256Hash(append(heartbeatMessagePrefix, b...))
 }
 
-func Run(obsvC chan *gossipv1.SignedObservation, sendC chan []byte, rawHeartbeatListeners *publicrpc.RawHeartbeatConns, priv crypto.PrivKey, gk *ecdsa.PrivateKey, gst *bridge_common.GuardianSetState, port uint, networkID string, bootstrapPeers string, nodeName string, disableHeartbeatVerify bool, rootCtxCancel context.CancelFunc) func(ctx context.Context) error {
+func Run(obsvC chan *gossipv1.SignedObservation, sendC chan []byte, priv crypto.PrivKey, gk *ecdsa.PrivateKey, gst *bridge_common.GuardianSetState, port uint, networkID string, bootstrapPeers string, nodeName string, disableHeartbeatVerify bool, rootCtxCancel context.CancelFunc) func(ctx context.Context) error {
 	return func(ctx context.Context) (re error) {
 		logger := supervisor.Logger(ctx)
 
@@ -208,7 +207,6 @@ func Run(obsvC chan *gossipv1.SignedObservation, sendC chan []byte, rawHeartbeat
 					}
 
 					ourAddr := ethcrypto.PubkeyToAddress(gk.PublicKey)
-					rawHeartbeatListeners.PublishHeartbeat(heartbeat)
 					if err := gst.SetHeartbeat(ourAddr, h.ID(), heartbeat); err != nil {
 						panic(err)
 					}
@@ -318,7 +316,6 @@ func Run(obsvC chan *gossipv1.SignedObservation, sendC chan []byte, rawHeartbeat
 					logger.Debug("valid signed heartbeat received",
 						zap.Any("value", heartbeat),
 						zap.String("from", envelope.GetFrom().String()))
-					rawHeartbeatListeners.PublishHeartbeat(heartbeat)
 				}
 			case *gossipv1.GossipMessage_SignedObservation:
 				obsvC <- m.SignedObservation

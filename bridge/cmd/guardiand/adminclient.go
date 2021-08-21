@@ -31,12 +31,10 @@ func init() {
 	}
 
 	AdminClientInjectGuardianSetUpdateCmd.Flags().AddFlagSet(pf)
-	AdminClientListNodesStream.Flags().AddFlagSet(pf)
 	AdminClientListNodes.Flags().AddFlagSet(pf)
 
 	AdminCmd.AddCommand(AdminClientInjectGuardianSetUpdateCmd)
 	AdminCmd.AddCommand(AdminClientGovernanceVAAVerifyCmd)
-	AdminCmd.AddCommand(AdminClientListNodesStream)
 	AdminCmd.AddCommand(AdminClientListNodes)
 }
 

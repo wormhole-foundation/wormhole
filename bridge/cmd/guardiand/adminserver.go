@@ -136,7 +136,7 @@ func (s *nodePrivilegedService) InjectGovernanceVAA(ctx context.Context, req *no
 	return &nodev1.InjectGovernanceVAAResponse{Digest: digest.Bytes()}, nil
 }
 
-func adminServiceRunnable(logger *zap.Logger, socketPath string, injectC chan<- *vaa.VAA, hl *publicrpc.RawHeartbeatConns, db *db.Database, gst *common.GuardianSetState) (supervisor.Runnable, error) {
+func adminServiceRunnable(logger *zap.Logger, socketPath string, injectC chan<- *vaa.VAA, db *db.Database, gst *common.GuardianSetState) (supervisor.Runnable, error) {
 	// Delete existing UNIX socket, if present.
 	fi, err := os.Stat(socketPath)
 	if err == nil {
@@ -170,7 +170,7 @@ func adminServiceRunnable(logger *zap.Logger, socketPath string, injectC chan<- 
 		logger:  logger.Named("adminservice"),
 	}
 
-	publicrpcService := publicrpc.NewPublicrpcServer(logger, hl, db, gst)
+	publicrpcService := publicrpc.NewPublicrpcServer(logger, db, gst)
 
 	grpcServer := newGRPCServer(logger)
 	nodev1.RegisterNodePrivilegedServer(grpcServer, nodeService)

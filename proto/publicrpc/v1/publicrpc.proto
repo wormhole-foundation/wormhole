@@ -27,15 +27,6 @@ message MessageID {
 
 // Publicrpc service exposes endpoints to be consumed externally; GUIs, historical record keeping, etc.
 service Publicrpc {
-  // GetRawHeartbeats rpc endpoint returns a stream of the p2p heartbeat messages received.
-  // The GetRawHeartbeats stream will include all messages received by the guardian,
-  // without any filtering or verification of message content.
-  rpc GetRawHeartbeats (GetRawHeartbeatsRequest) returns (stream gossip.v1.Heartbeat) {
-    option (google.api.http) = {
-      get: "/v1/heartbeats:stream_raw"
-    };
-  };
-
   // GetLastHeartbeats returns the last heartbeat received for each guardian node in the
   // node's active guardian set. Heartbeats received by nodes not in the guardian set are ignored.
   // The heartbeat value is null if no heartbeat has yet been received.
@@ -57,9 +48,6 @@ service Publicrpc {
     };
   }
 
-}
-
-message GetRawHeartbeatsRequest {
 }
 
 message GetSignedVAARequest {
