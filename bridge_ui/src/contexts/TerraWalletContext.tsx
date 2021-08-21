@@ -51,7 +51,7 @@ export const TerraWalletWrapper = ({
 }) => {
   // TODO: Use wallet instead of useConnectedWallet.
   const terraWallet = useWallet();
-  const [wallet, setWallet] = useState<Wallet | undefined>(undefined);
+  const [, setWallet] = useState<Wallet | undefined>(undefined);
   const [connected, setConnected] = useState(false);
 
   const connect = useCallback(() => {

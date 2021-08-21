@@ -1,8 +1,8 @@
-import Wallet from "@project-serum/sol-wallet-adapter";
+import { WalletContextState } from "@solana/wallet-adapter-react";
 import { Connection, Transaction } from "@solana/web3.js";
 
 export async function signSendAndConfirm(
-  wallet: Wallet,
+  wallet: WalletContextState,
   connection: Connection,
   transaction: Transaction
 ) {
@@ -13,7 +13,7 @@ export async function signSendAndConfirm(
 }
 
 export async function signSendConfirmAndGet(
-  wallet: Wallet,
+  wallet: WalletContextState,
   connection: Connection,
   transaction: Transaction
 ) {

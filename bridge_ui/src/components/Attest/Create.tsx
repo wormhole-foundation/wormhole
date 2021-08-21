@@ -1,4 +1,8 @@
-import { CHAIN_ID_TERRA, CHAIN_ID_ETH, CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
+import {
+  CHAIN_ID_TERRA,
+  CHAIN_ID_ETH,
+  CHAIN_ID_SOLANA,
+} from "@certusone/wormhole-sdk";
 import { Button, CircularProgress, makeStyles } from "@material-ui/core";
 import { useCallback } from "react";
 import { useConnectedWallet } from "@terra-money/wallet-provider";
@@ -29,8 +33,8 @@ function Create() {
   const dispatch = useDispatch();
   const classes = useStyles();
   const targetChain = useSelector(selectAttestTargetChain);
-  const { wallet } = useSolanaWallet();
-  const solPK = wallet?.publicKey;
+  const solanaWallet = useSolanaWallet();
+  const solPK = solanaWallet?.publicKey;
   const signedVAA = useAttestSignedVAA();
   const isCreating = useSelector(selectAttestIsCreating);
   const { signer } = useEthereumProvider();
@@ -39,7 +43,7 @@ function Create() {
     if (targetChain === CHAIN_ID_SOLANA && signedVAA) {
       (async () => {
         dispatch(setIsCreating(true));
-        await createWrappedOnSolana(wallet, solPK?.toString(), signedVAA);
+        await createWrappedOnSolana(solanaWallet, solPK?.toString(), signedVAA);
         dispatch(reset());
       })();
     }
@@ -56,7 +60,7 @@ function Create() {
         createWrappedOnTerra(terraWallet, signedVAA);
       })();
     }
-  }, [dispatch, targetChain, wallet, solPK, signedVAA, signer]);
+  }, [dispatch, targetChain, solanaWallet, solPK, signedVAA, signer]);
   return (
     <div style={{ position: "relative" }}>
       <Button

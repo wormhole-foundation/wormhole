@@ -5,13 +5,12 @@ import {
   Transaction,
   TransactionInstruction,
 } from "@solana/web3.js";
-import Wallet from "@project-serum/sol-wallet-adapter";
 import { ixFromRust } from "./rust";
 
 // is there a better pattern for this?
 export async function postVaa(
   connection: Connection,
-  wallet: Wallet,
+  signTransaction: (transaction: Transaction) => any,
   bridge_id: string,
   payer: string,
   vaa: Buffer
@@ -53,7 +52,7 @@ export async function postVaa(
     transaction.partialSign(signature_set);
 
     // Sign transaction, broadcast, and confirm
-    const signed = await wallet.signTransaction(transaction);
+    const signed = await signTransaction(transaction);
     const txid = await connection.sendRawTransaction(signed.serialize());
     await connection.confirmTransaction(txid);
   }
@@ -66,7 +65,7 @@ export async function postVaa(
   transaction.recentBlockhash = blockhash;
   transaction.feePayer = new PublicKey(payer);
 
-  const signed = await wallet.signTransaction(transaction);
+  const signed = await signTransaction(transaction);
   const txid = await connection.sendRawTransaction(signed.serialize());
   await connection.confirmTransaction(txid);
 }

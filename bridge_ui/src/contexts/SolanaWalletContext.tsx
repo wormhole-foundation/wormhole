@@ -1,59 +1,34 @@
-import Wallet from "@project-serum/sol-wallet-adapter";
-import React, {
-  ReactChildren,
-  useCallback,
-  useContext,
-  useMemo,
-  useState,
-} from "react";
-import { SOLANA_HOST } from "../utils/consts";
+import { WalletDialogProvider } from "@solana/wallet-adapter-material-ui";
+import { useWallet, WalletProvider } from "@solana/wallet-adapter-react";
+import {
+  getPhantomWallet,
+  getSolletWallet,
+} from "@solana/wallet-adapter-wallets";
+import React, { FC, useMemo } from "react";
 
-interface ISolanaWalletContext {
-  connect(): void;
-  disconnect(): void;
-  connected: boolean;
-  wallet: Wallet | undefined;
-}
-
-const SolanaWalletContext = React.createContext<ISolanaWalletContext>({
-  connect: () => {},
-  disconnect: () => {},
-  connected: false,
-  wallet: undefined,
-});
-export const SolanaWalletProvider = ({
-  children,
-}: {
-  children: ReactChildren;
-}) => {
-  const [wallet, setWallet] = useState<Wallet | undefined>(undefined);
-  const [connected, setConnected] = useState(false);
-  const connect = useCallback(() => {
-    const wallet = new Wallet("https://www.sollet.io", SOLANA_HOST);
-    setWallet(wallet);
-    wallet.on("connect", () => {
-      setConnected(true);
-    });
-    wallet.on("disconnect", () => {
-      console.log("disconnected");
-      setConnected(false);
-      setWallet(undefined);
-    });
-    wallet.connect();
+export const SolanaWalletProvider: FC = (props) => {
+  // @solana/wallet-adapter-wallets includes all the adapters but supports tree shaking --
+  // Only the wallets you want to instantiate here will be compiled into your application
+  const wallets = useMemo(() => {
+    console.log("running wallets memo again");
+    return [
+      getPhantomWallet(),
+      // getSolflareWallet(),
+      // getTorusWallet({
+      //     options: { clientId: 'Go to https://developer.tor.us and create a client ID' }
+      // }),
+      // getLedgerWallet(),
+      // getSolongWallet(),
+      // getMathWallet(),
+      getSolletWallet(),
+    ];
   }, []);
-  const disconnect = useCallback(() => {
-    wallet?.disconnect();
-  }, [wallet]);
-  const contextValue = useMemo(
-    () => ({ connect, disconnect, connected, wallet }),
-    [connect, disconnect, wallet, connected]
-  );
+
   return (
-    <SolanaWalletContext.Provider value={contextValue}>
-      {children}
-    </SolanaWalletContext.Provider>
+    <WalletProvider wallets={wallets}>
+      <WalletDialogProvider>{props.children}</WalletDialogProvider>
+    </WalletProvider>
   );
 };
-export const useSolanaWallet = () => {
-  return useContext(SolanaWalletContext);
-};
+
+export const useSolanaWallet = useWallet;

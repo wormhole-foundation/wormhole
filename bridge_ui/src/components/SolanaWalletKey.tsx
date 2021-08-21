@@ -1,16 +1,25 @@
+import { Toolbar, Typography } from "@material-ui/core";
+import DisconnectIcon from "@material-ui/icons/LinkOff";
+import {
+  WalletDisconnectButton,
+  WalletMultiButton,
+} from "@solana/wallet-adapter-material-ui";
+import { useWallet } from "@solana/wallet-adapter-react";
+import React, { FC } from "react";
 import { useSolanaWallet } from "../contexts/SolanaWalletContext";
-import ToggleConnectedButton from "./ToggleConnectedButton";
 
 const SolanaWalletKey = () => {
-  const { connect, disconnect, connected, wallet } = useSolanaWallet();
-  const pk = wallet?.publicKey?.toString() || "";
+  const wallet = useSolanaWallet();
   return (
-    <ToggleConnectedButton
-      connect={connect}
-      disconnect={disconnect}
-      connected={connected}
-      pk={pk}
-    />
+    <Toolbar style={{ display: "flex" }}>
+      <WalletMultiButton />
+      {wallet && (
+        <WalletDisconnectButton
+          startIcon={<DisconnectIcon />}
+          style={{ marginLeft: 8 }}
+        />
+      )}
+    </Toolbar>
   );
 };
 

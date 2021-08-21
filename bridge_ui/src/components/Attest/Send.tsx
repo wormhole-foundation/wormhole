@@ -1,4 +1,8 @@
-import { CHAIN_ID_TERRA, CHAIN_ID_ETH, CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
+import {
+  CHAIN_ID_TERRA,
+  CHAIN_ID_ETH,
+  CHAIN_ID_SOLANA,
+} from "@certusone/wormhole-sdk";
 import { Button, CircularProgress, makeStyles } from "@material-ui/core";
 import { useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
@@ -39,9 +43,9 @@ function Send() {
   const isSending = useSelector(selectAttestIsSending);
   const isSendComplete = useSelector(selectAttestIsSendComplete);
   const { signer } = useEthereumProvider();
-  const { wallet } = useSolanaWallet();
+  const solanaWallet = useSolanaWallet();
   const terraWallet = useConnectedWallet();
-  const solPK = wallet?.publicKey;
+  const solPK = solanaWallet?.publicKey;
   // TODO: dynamically get "to" wallet
   const handleAttestClick = useCallback(() => {
     if (sourceChain === CHAIN_ID_ETH) {
@@ -63,7 +67,7 @@ function Send() {
         dispatch(setIsSending(true));
         try {
           const vaaBytes = await attestFromSolana(
-            wallet,
+            solanaWallet,
             solPK?.toString(),
             sourceAsset
           );
@@ -75,20 +79,20 @@ function Send() {
         }
       })();
     } else if (sourceChain === CHAIN_ID_TERRA) {
-        //TODO: just for testing, this should eventually use the store to communicate between steps
-        (async () => {
-          dispatch(setIsSending(true));
-          try {
-            const vaaBytes = await attestFromTerra(terraWallet, sourceAsset);
-            console.log("bytes in attest", vaaBytes);
-            vaaBytes && dispatch(setSignedVAAHex(uint8ArrayToHex(vaaBytes)));
-          } catch (e) {
-            console.error(e);
-            dispatch(setIsSending(false));
-          }
-        })();
-      }
-  }, [dispatch, sourceChain, signer, wallet, solPK, sourceAsset]);
+      //TODO: just for testing, this should eventually use the store to communicate between steps
+      (async () => {
+        dispatch(setIsSending(true));
+        try {
+          const vaaBytes = await attestFromTerra(terraWallet, sourceAsset);
+          console.log("bytes in attest", vaaBytes);
+          vaaBytes && dispatch(setSignedVAAHex(uint8ArrayToHex(vaaBytes)));
+        } catch (e) {
+          console.error(e);
+          dispatch(setIsSending(false));
+        }
+      })();
+    }
+  }, [dispatch, sourceChain, signer, solanaWallet, solPK, sourceAsset]);
   return (
     <>
       <div style={{ position: "relative" }}>

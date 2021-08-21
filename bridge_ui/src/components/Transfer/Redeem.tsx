@@ -41,8 +41,8 @@ function Redeem() {
   const originChain = useSelector(selectTransferOriginChain);
   const targetChain = useSelector(selectTransferTargetChain);
   const targetAsset = useSelector(selectTransferTargetAsset);
-  const { wallet } = useSolanaWallet();
-  const solPK = wallet?.publicKey;
+  const solanaWallet = useSolanaWallet();
+  const solPK = solanaWallet?.publicKey;
   const { signer } = useEthereumProvider();
   const terraWallet = useConnectedWallet();
   const signedVAA = useTransferSignedVAA();
@@ -59,7 +59,7 @@ function Redeem() {
       (async () => {
         dispatch(setIsRedeeming(true));
         await redeemOnSolana(
-          wallet,
+          solanaWallet,
           solPK?.toString(),
           signedVAA,
           !!isSourceAssetWormholeWrapped && originChain === CHAIN_ID_SOLANA,
@@ -78,7 +78,7 @@ function Redeem() {
     targetChain,
     signer,
     signedVAA,
-    wallet,
+    solanaWallet,
     solPK,
     isSourceAssetWormholeWrapped,
     originChain,

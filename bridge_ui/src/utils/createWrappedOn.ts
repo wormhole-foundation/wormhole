@@ -4,7 +4,6 @@ import {
   createWrappedOnSolana as createWrappedOnSolanaTx,
   createWrappedOnTerra as createWrappedOnTerraTx,
 } from "@certusone/wormhole-sdk";
-import Wallet from "@project-serum/sol-wallet-adapter";
 import { Connection } from "@solana/web3.js";
 import { ethers } from "ethers";
 import { ConnectedWallet as TerraConnectedWallet } from "@terra-money/wallet-provider";
@@ -17,6 +16,7 @@ import {
   TERRA_BRIDGE_ADDRESS,
 } from "./consts";
 import { signSendAndConfirm } from "./solana";
+import { WalletContextState } from "@solana/wallet-adapter-react";
 
 export async function createWrappedOnEth(
   signer: ethers.Signer | undefined,
@@ -39,7 +39,7 @@ export async function createWrappedOnTerra(
 }
 
 export async function createWrappedOnSolana(
-  wallet: Wallet | undefined,
+  wallet: WalletContextState | undefined,
   payerAddress: string | undefined, //TODO: we may not need this since we have wallet
   signedVAA: Uint8Array
 ) {
@@ -48,11 +48,12 @@ export async function createWrappedOnSolana(
   const connection = new Connection(SOLANA_HOST, "confirmed");
   await postVaaSolana(
     connection,
-    wallet,
+    wallet.signTransaction,
     SOL_BRIDGE_ADDRESS,
     payerAddress,
     Buffer.from(signedVAA)
   );
+
   const transaction = await createWrappedOnSolanaTx(
     connection,
     SOL_BRIDGE_ADDRESS,

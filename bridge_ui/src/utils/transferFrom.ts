@@ -1,8 +1,8 @@
 import {
   ChainId,
   CHAIN_ID_ETH,
-  CHAIN_ID_TERRA,
   CHAIN_ID_SOLANA,
+  CHAIN_ID_TERRA,
   getEmitterAddressEth,
   getEmitterAddressSolana,
   parseSequenceFromLogEth,
@@ -11,9 +11,11 @@ import {
   transferFromEth as transferFromEthTx,
   transferFromSolana as transferFromSolanaTx,
 } from "@certusone/wormhole-sdk";
-import { fromUint8Array } from 'js-base64';
-import { ConnectedWallet as TerraConnectedWallet, TxResult } from "@terra-money/wallet-provider";
-import Wallet from "@project-serum/sol-wallet-adapter";
+import { fromUint8Array } from "js-base64";
+import {
+  ConnectedWallet as TerraConnectedWallet,
+  TxResult,
+} from "@terra-money/wallet-provider";
 import { Connection } from "@solana/web3.js";
 import { MsgExecuteContract } from "@terra-money/terra.js";
 import { ethers } from "ethers";
@@ -30,6 +32,7 @@ import {
 } from "./consts";
 import { getSignedVAAWithRetry } from "./getSignedVAAWithRetry";
 import { signSendConfirmAndGet } from "./solana";
+import { WalletContextState } from "@solana/wallet-adapter-react";
 
 // TODO: overall better input checking and error handling
 export async function transferFromEth(
@@ -62,7 +65,7 @@ export async function transferFromEth(
 }
 
 export async function transferFromSolana(
-  wallet: Wallet | undefined,
+  wallet: WalletContextState | undefined,
   payerAddress: string | undefined, //TODO: we may not need this since we have wallet
   fromAddress: string | undefined,
   mintAddress: string,
@@ -123,29 +126,31 @@ export async function transferFromTerra(
   asset: string,
   amount: string,
   targetAddressStr: string | undefined,
-  targetChain: ChainId,
+  targetChain: ChainId
 ) {
   if (!wallet) return;
-  const result: TxResult = wallet && await wallet.post({
-    msgs: [
-      new MsgExecuteContract(
-        wallet.terraAddress,
-        TERRA_TOKEN_BRIDGE_ADDRESS,
-        {
-          initiate_transfer: {
-            asset: TERRA_TEST_TOKEN_ADDRESS,
-            amount: amount,
-            recipient_chain: targetChain,
-            recipient: targetAddressStr,
-            fee: 1000,
-            nonce: 0,
+  const result: TxResult =
+    wallet &&
+    (await wallet.post({
+      msgs: [
+        new MsgExecuteContract(
+          wallet.terraAddress,
+          TERRA_TOKEN_BRIDGE_ADDRESS,
+          {
+            initiate_transfer: {
+              asset: TERRA_TEST_TOKEN_ADDRESS,
+              amount: amount,
+              recipient_chain: targetChain,
+              recipient: targetAddressStr,
+              fee: 1000,
+              nonce: 0,
+            },
           },
-        },
-        { uluna: 1000 }
-      ),
-    ],
-    memo: "Complete Transfer",
-  });
+          { uluna: 1000 }
+        ),
+      ],
+      memo: "Complete Transfer",
+    }));
   console.log(result);
   const sequence = parseSequenceFromLogTerra(result);
   console.log(sequence);

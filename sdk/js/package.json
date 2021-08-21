@@ -48,7 +48,6 @@
   },
   "dependencies": {
     "@improbable-eng/grpc-web": "^0.14.0",
-    "@project-serum/sol-wallet-adapter": "^0.2.5",
     "@solana/spl-token": "^0.1.8",
     "@solana/web3.js": "^1.24.0",
     "@terra-money/terra.js": "^1.8.10",

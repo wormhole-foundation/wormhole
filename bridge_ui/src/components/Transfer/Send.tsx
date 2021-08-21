@@ -1,4 +1,8 @@
-import { CHAIN_ID_TERRA, CHAIN_ID_ETH, CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
+import {
+  CHAIN_ID_TERRA,
+  CHAIN_ID_ETH,
+  CHAIN_ID_SOLANA,
+} from "@certusone/wormhole-sdk";
 import { Button, CircularProgress, makeStyles } from "@material-ui/core";
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -58,9 +62,9 @@ function Send() {
   const isSending = useSelector(selectTransferIsSending);
   const isSendComplete = useSelector(selectTransferIsSendComplete);
   const { signer, signerAddress } = useEthereumProvider();
-  const { wallet } = useSolanaWallet();
   const terraWallet = useConnectedWallet();
-  const solPK = wallet?.publicKey;
+  const solanaWallet = useSolanaWallet();
+  const solPK = solanaWallet?.publicKey;
   const sourceParsedTokenAccount = useSelector(
     selectTransferSourceParsedTokenAccount
   );
@@ -133,7 +137,7 @@ function Send() {
         dispatch(setIsSending(true));
         try {
           const vaaBytes = await transferFromSolana(
-            wallet,
+            solanaWallet,
             solPK?.toString(),
             sourceTokenPublicKey,
             sourceAsset,
@@ -161,7 +165,7 @@ function Send() {
             sourceAsset,
             amount,
             "",
-            targetChain,
+            targetChain
           );
           console.log("bytes in transfer", vaaBytes);
           vaaBytes && dispatch(setSignedVAAHex(uint8ArrayToHex(vaaBytes)));
@@ -176,7 +180,7 @@ function Send() {
     sourceChain,
     signer,
     signerAddress,
-    wallet,
+    solanaWallet,
     solPK,
     sourceTokenPublicKey,
     sourceAsset,

@@ -10,6 +10,8 @@ import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useEthereumProvider } from "../contexts/EthereumProviderContext";
 import { useSolanaWallet } from "../contexts/SolanaWalletContext";
+import { useConnectedWallet } from "@terra-money/wallet-provider";
+
 import {
   selectTransferSourceAsset,
   selectTransferSourceChain,
@@ -59,8 +61,9 @@ function useGetBalanceEffect(sourceOrTarget: "source" | "target") {
       ? selectTransferSourceAsset
       : selectTransferTargetAsset
   );
-  const { wallet } = useSolanaWallet();
-  const solPK = wallet?.publicKey;
+  const solanaWallet = useSolanaWallet();
+  const solPK = solanaWallet?.publicKey;
+  const terraWallet = useConnectedWallet();
   const { provider, signerAddress } = useEthereumProvider();
   useEffect(() => {
     // TODO: loading state
@@ -69,7 +72,8 @@ function useGetBalanceEffect(sourceOrTarget: "source" | "target") {
       return;
     }
     let cancelled = false;
-    if (lookupChain === CHAIN_ID_TERRA && wallet) {
+
+    if (lookupChain === CHAIN_ID_TERRA && terraWallet) {
       dispatch(
         setSourceParsedTokenAccount(
           createParsedTokenAccount(undefined, "0", 0, 0, "0")
@@ -151,7 +155,8 @@ function useGetBalanceEffect(sourceOrTarget: "source" | "target") {
     };
   }, [
     dispatch,
-    wallet,
+    solanaWallet,
+    terraWallet,
     sourceOrTarget,
     setAction,
     lookupChain,

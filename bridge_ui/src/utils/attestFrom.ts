@@ -12,7 +12,7 @@ import {
   parseSequenceFromLogSolana,
   parseSequenceFromLogTerra,
 } from "@certusone/wormhole-sdk";
-import Wallet from "@project-serum/sol-wallet-adapter";
+import { WalletContextState } from "@solana/wallet-adapter-react";
 import { Connection } from "@solana/web3.js";
 import { ConnectedWallet as TerraConnectedWallet } from "@terra-money/wallet-provider";
 import { ethers } from "ethers";
@@ -49,7 +49,7 @@ export async function attestFromEth(
 }
 
 export async function attestFromSolana(
-  wallet: Wallet | undefined,
+  wallet: WalletContextState,
   payerAddress: string | undefined, //TODO: we may not need this since we have wallet
   mintAddress: string
 ) {
