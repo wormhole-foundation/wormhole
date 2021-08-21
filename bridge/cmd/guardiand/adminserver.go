@@ -7,6 +7,10 @@ import (
 	"github.com/certusone/wormhole/bridge/pkg/db"
 	publicrpcv1 "github.com/certusone/wormhole/bridge/pkg/proto/publicrpc/v1"
 	"github.com/certusone/wormhole/bridge/pkg/publicrpc"
+	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
+	grpc_zap "github.com/grpc-ecosystem/go-grpc-middleware/logging/zap"
+	grpc_ctxtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
+	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"math"
 	"net"
 	"os"
@@ -168,8 +172,28 @@ func adminServiceRunnable(logger *zap.Logger, socketPath string, injectC chan<- 
 
 	publicrpcService := publicrpc.NewPublicrpcServer(logger, hl, db, gst)
 
-	grpcServer := grpc.NewServer()
+	grpcServer := newGRPCServer(logger)
 	nodev1.RegisterNodePrivilegedServer(grpcServer, nodeService)
 	publicrpcv1.RegisterPublicrpcServer(grpcServer, publicrpcService)
 	return supervisor.GRPCServer(grpcServer, l, false), nil
+}
+
+func newGRPCServer(logger *zap.Logger) *grpc.Server {
+	server := grpc.NewServer(
+		grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(
+			grpc_ctxtags.StreamServerInterceptor(),
+			grpc_prometheus.StreamServerInterceptor,
+			grpc_zap.StreamServerInterceptor(logger),
+		)),
+		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
+			grpc_ctxtags.UnaryServerInterceptor(),
+			grpc_prometheus.UnaryServerInterceptor,
+			grpc_zap.UnaryServerInterceptor(logger),
+		)),
+	)
+
+	grpc_prometheus.EnableHandlingTimeHistogram()
+	grpc_prometheus.Register(server)
+
+	return server
 }
