@@ -13,19 +13,18 @@ RUN --mount=type=cache,target=/root/.cache \
 
 ADD ethereum /usr/src/ethereum
 WORKDIR /usr/src/ethereum
-RUN --mount=type=cache,target=/usr/src/ethereum/node_modules \
-    npm install
+RUN --mount=type=cache,target=/root/.cache \
+	--mount=type=cache,target=/root/.npm \
+    npm ci
 
 ADD clients/token_bridge /usr/src/clients/token_bridge
 WORKDIR /usr/src/clients/token_bridge
-RUN --mount=type=cache,target=/usr/src/ethereum/node_modules \
-    --mount=type=cache,target=/usr/src/clients/token_bridge/node_modules \
-    npm install && \
-    npm run build-contracts && \
-    npm run build && \
-    cp -r node_modules node_modules_cached
-
-RUN rm -rf node_modules && mv node_modules_cached node_modules # Make cached node_modules part of the image
+RUN --mount=type=cache,target=/root/.cache \
+	--mount=type=cache,target=/root/.npm \
+	set -xe && \
+	npm ci && \
+	npm run build-contracts && \
+	npm run build
 
 ADD solana /usr/src/solana
 ADD proto  /usr/src/proto
@@ -35,9 +34,9 @@ ENV EMITTER_ADDRESS="11111111111111111111111111111115"
 ENV BRIDGE_ADDRESS="Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o"
 
 RUN --mount=type=cache,target=/root/.cache \
-    --mount=type=cache,target=target \
     --mount=type=cache,target=bridge/target \
     --mount=type=cache,target=modules/token_bridge/target \
+	set -xe && \
     cargo build --manifest-path ./bridge/Cargo.toml --package client --release && \
     cargo build --manifest-path ./modules/token_bridge/Cargo.toml --package client --release && \
     cp /usr/local/cargo/bin/solana /usr/local/bin && \

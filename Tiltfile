@@ -6,9 +6,15 @@
 #
 
 load("ext://namespace", "namespace_create", "namespace_inject")
-load('ext://secret', 'secret_yaml_generic')
+load("ext://secret", "secret_yaml_generic")
+
+allow_k8s_contexts("ci")
+
+# Disable telemetry by default
+analytics_settings(False)
 
 # Runtime configuration
+config.define_bool("ci", False, "We are running in CI")
 
 config.define_string("num", False, "Number of guardian nodes to run")
 
@@ -30,10 +36,12 @@ namespace = cfg.get("namespace", "wormhole")
 bigTablePersistence = cfg.get("bigTablePersistence", False)
 gcpProject = cfg.get("gcpProject", None)
 bigTableKeyPath = cfg.get("bigTableKeyPath", "./bigtable-writer.json")
+ci = cfg.get("ci", False)
 
 # namespace
 
-namespace_create(namespace)
+if not ci:
+    namespace_create(namespace)
 
 def k8s_yaml_with_ns(objects):
     return k8s_yaml(namespace_inject(objects, namespace))
@@ -61,8 +69,8 @@ if bigTablePersistence:
     k8s_yaml_with_ns(
         secret_yaml_generic(
             "bridge-bigtable-key",
-            from_file = "bigtable-key.json=" + bigTableKeyPath
-        )
+            from_file = "bigtable-key.json=" + bigTableKeyPath,
+        ),
     )
 
 docker_build(
@@ -85,7 +93,7 @@ def build_bridge_yaml():
                 container["command"] += [
                     "--bigTablePersistenceEnabled",
                     "--bigTableGCPProject",
-                    gcpProject
+                    gcpProject,
                 ]
 
     return encode_yaml_stream(bridge_yaml)
@@ -101,7 +109,7 @@ k8s_resource("guardian", resource_deps = ["proto-gen", "solana-devnet"], port_fo
 docker_build(
     ref = "pyth",
     context = ".",
-    dockerfile = "third_party/pyth/Dockerfile"
+    dockerfile = "third_party/pyth/Dockerfile",
 )
 k8s_yaml_with_ns("./devnet/pyth.yaml")
 
@@ -114,7 +122,7 @@ k8s_yaml_with_ns("./devnet/envoy-proxy.yaml")
 k8s_resource(
     "envoy-proxy",
     resource_deps = ["guardian"],
-    objects = ["envoy-proxy:ConfigMap:wormhole"],
+    objects = ["envoy-proxy:ConfigMap"],
     port_forwards = [
         port_forward(8080, name = "gRPC proxy for guardian's publicRPC data [:8080]"),
         port_forward(9901, name = "gRPC proxy admin [:9901]"),  # for proxy debugging
@@ -179,26 +187,28 @@ k8s_resource("eth-devnet", port_forwards = [
 
 # explorer web app
 
-docker_build(
-    ref = "explorer",
-    context = "./explorer",
-    dockerfile = "./explorer/Dockerfile",
-    ignore = ["./explorer/node_modules"],
-    live_update = [
-        sync("./explorer/src", "/home/node/app/src"),
-        sync("./explorer/public", "/home/node/app/public"),
-    ],
-)
+# TOOD: the explorer web app does not currently build
+if not ci:
+    docker_build(
+        ref = "explorer",
+        context = "./explorer",
+        dockerfile = "./explorer/Dockerfile",
+        ignore = ["./explorer/node_modules"],
+        live_update = [
+            sync("./explorer/src", "/home/node/app/src"),
+            sync("./explorer/public", "/home/node/app/public"),
+        ],
+    )
 
-k8s_yaml_with_ns("devnet/explorer.yaml")
+    k8s_yaml_with_ns("devnet/explorer.yaml")
 
-k8s_resource(
-    "explorer",
-    resource_deps = ["envoy-proxy", "proto-gen-web"],
-    port_forwards = [
-        port_forward(8001, name = "Explorer Web UI [:8001]"),
-    ],
-)
+    k8s_resource(
+        "explorer",
+        resource_deps = ["envoy-proxy", "proto-gen-web"],
+        port_forwards = [
+            port_forward(8001, name = "Explorer Web UI [:8001]"),
+        ],
+    )
 
 # terra devnet
 

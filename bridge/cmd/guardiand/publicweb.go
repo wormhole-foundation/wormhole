@@ -11,7 +11,6 @@ import (
 	"golang.org/x/crypto/acme"
 	"golang.org/x/crypto/acme/autocert"
 	"google.golang.org/grpc"
-	"log"
 	"net"
 	"net/http"
 	"strings"

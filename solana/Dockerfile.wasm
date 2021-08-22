@@ -1,5 +1,5 @@
 # syntax=docker.io/docker/dockerfile:experimental@sha256:de85b2f3a3e8a2f7fe48e8e84a65f6fdd5cd5183afa6412fff9caa6871649c44
-FROM docker.io/library/rust:1.49@sha256:a50165ea96983c21832578afb1c8c028674c965bc1ed43b607871b1f362e06a5
+FROM docker.io/library/rust:1.49@sha256:a50165ea96983c21832578afb1c8c028674c965bc1ed43b607871b1f362e06a5 AS build
 
 RUN apt-get update && apt-get install -y libssl-dev libudev-dev pkg-config zlib1g-dev llvm clang
 RUN rustup component add rustfmt
@@ -11,7 +11,35 @@ RUN cargo install wasm-pack
 
 ENV RUST_LOG="solana_runtime::system_instruction_processor=trace,solana_runtime::message_processor=trace,solana_bpf_loader=debug,solana_rbpf=debug"
 ENV EMITTER_ADDRESS="11111111111111111111111111111115"
+ENV BRIDGE_ADDRESS="Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o"
 
 COPY bridge bridge
 COPY modules modules
 COPY solitaire solitaire
+
+# Compile Wormhole
+RUN --mount=type=cache,target=/root/.cache \
+	--mount=type=cache,target=bridge/target \
+    cd bridge/program && /usr/local/cargo/bin/wasm-pack build --target bundler -d bundler -- --features wasm
+
+RUN --mount=type=cache,target=/root/.cache \
+	--mount=type=cache,target=bridge/target \
+    cd bridge/program && /usr/local/cargo/bin/wasm-pack build --target nodejs -d nodejs -- --features wasm
+
+# Compile Token Bridge
+RUN --mount=type=cache,target=/root/.cache \
+	--mount=type=cache,target=modules/token_bridge/target \
+    cd modules/token_bridge/program && /usr/local/cargo/bin/wasm-pack build --target bundler -d bundler -- --features wasm
+
+RUN --mount=type=cache,target=/root/.cache \
+	--mount=type=cache,target=modules/token_bridge/target \
+    cd modules/token_bridge/program && /usr/local/cargo/bin/wasm-pack build --target nodejs -d nodejs -- --features wasm
+
+FROM scratch AS export
+
+COPY --from=build /usr/src/bridge/bridge/program/bundler sdk/js/src/solana/core
+COPY --from=build /usr/src/bridge/modules/token_bridge/program/bundler sdk/js/src/solana/token
+
+COPY --from=build /usr/src/bridge/bridge/program/nodejs clients/solana/pkg
+COPY --from=build /usr/src/bridge/bridge/program/nodejs clients/token_bridge/pkg/core
+COPY --from=build /usr/src/bridge/modules/token_bridge/program/nodejs clients/token_bridge/pkg/token
