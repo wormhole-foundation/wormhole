@@ -94,9 +94,18 @@ pub struct BridgeData {
     pub config: BridgeConfig,
 }
 
+#[cfg(not(feature = "cpi"))]
 impl Owned for BridgeData {
     fn owner(&self) -> AccountOwner {
         AccountOwner::This
+    }
+}
+
+#[cfg(feature = "cpi")]
+impl Owned for BridgeData {
+    fn owner(&self) -> AccountOwner {
+        use std::str::FromStr;
+        AccountOwner::Other(Pubkey::from_str(env!("BRIDGE_ADDRESS")).unwrap())
     }
 }
 

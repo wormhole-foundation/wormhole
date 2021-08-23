@@ -18,6 +18,7 @@ use crate::{
     TokenBridgeError::WrongAccountOwner,
 };
 use bridge::{
+    accounts::Bridge,
     api::{
         PostMessage,
         PostMessageData,
@@ -80,7 +81,7 @@ pub struct TransferNative<'b> {
     pub custody_signer: CustodySigner<'b>,
 
     /// CPI Context
-    pub bridge: Mut<Info<'b>>,
+    pub bridge: Mut<Bridge<'b, { AccountState::Initialized }>>,
 
     /// Account to store the posted message
     pub message: Signer<Mut<Info<'b>>>,
@@ -171,8 +172,11 @@ pub fn transfer_native(
     invoke_seeded(&transfer_ix, ctx, &accs.authority_signer, None)?;
 
     // Pay fee
-    let transfer_ix =
-        solana_program::system_instruction::transfer(accs.payer.key, accs.fee_collector.key, 1000);
+    let transfer_ix = solana_program::system_instruction::transfer(
+        accs.payer.key,
+        accs.fee_collector.key,
+        accs.bridge.config.fee,
+    );
     invoke(&transfer_ix, ctx.accounts)?;
 
     // Post message
@@ -197,7 +201,7 @@ pub fn transfer_native(
         accs.config.wormhole_bridge,
         params.try_to_vec()?.as_slice(),
         vec![
-            AccountMeta::new(*accs.bridge.key, false),
+            AccountMeta::new(*accs.bridge.info().key, false),
             AccountMeta::new(*accs.message.key, true),
             AccountMeta::new_readonly(*accs.emitter.key, true),
             AccountMeta::new(*accs.sequence.key, false),
@@ -226,7 +230,7 @@ pub struct TransferWrapped<'b> {
     pub authority_signer: AuthoritySigner<'b>,
 
     /// CPI Context
-    pub bridge: Mut<Info<'b>>,
+    pub bridge: Mut<Bridge<'b, { AccountState::Initialized }>>,
 
     /// Account to store the posted message
     pub message: Signer<Mut<Info<'b>>>,
@@ -304,8 +308,12 @@ pub fn transfer_wrapped(
     invoke_seeded(&burn_ix, ctx, &accs.authority_signer, None)?;
 
     // Pay fee
-    let transfer_ix =
-        solana_program::system_instruction::transfer(accs.payer.key, accs.fee_collector.key, 1000);
+    let transfer_ix = solana_program::system_instruction::transfer(
+        accs.payer.key,
+        accs.fee_collector.key,
+        accs.bridge.config.fee,
+    );
+
     invoke(&transfer_ix, ctx.accounts)?;
 
     // Post message
@@ -330,7 +338,7 @@ pub fn transfer_wrapped(
         accs.config.wormhole_bridge,
         params.try_to_vec()?.as_slice(),
         vec![
-            AccountMeta::new(*accs.bridge.key, false),
+            AccountMeta::new(*accs.bridge.info().key, false),
             AccountMeta::new(*accs.message.key, true),
             AccountMeta::new_readonly(*accs.emitter.key, true),
             AccountMeta::new(*accs.sequence.key, false),
