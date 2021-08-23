@@ -53,7 +53,7 @@ function App() {
     <>
       <AppBar position="static" color="inherit" className={classes.appBar}>
         <Toolbar>
-          <img src={wormholeLogo} alt="Wormhole Logo" style={{ height: 45 }} />
+          <img src={wormholeLogo} alt="Wormhole Logo" style={{ height: 52 }} />
           <div className={classes.spacer} />
           <Hidden implementation="css" xsDown>
             <div style={{ display: "flex", alignItems: "center" }}>
