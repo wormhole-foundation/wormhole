@@ -32,6 +32,7 @@ ADD proto  /usr/src/proto
 
 WORKDIR /usr/src/solana
 ENV EMITTER_ADDRESS="11111111111111111111111111111115"
+ENV BRIDGE_ADDRESS="Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o"
 
 RUN --mount=type=cache,target=/root/.cache \
     --mount=type=cache,target=target \

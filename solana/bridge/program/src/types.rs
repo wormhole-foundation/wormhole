@@ -177,7 +177,7 @@ impl Owned for PostedMessageData {
 impl Owned for PostedMessageData {
     fn owner(&self) -> AccountOwner {
         AccountOwner::Other(
-            Pubkey::from_str("Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o").unwrap(),
+            Pubkey::from_str(env!("BRIDGE_ADDRESS")).unwrap(),
         )
     }
 }
@@ -271,7 +271,7 @@ impl Owned for PostedVAAData {
 impl Owned for PostedVAAData {
     fn owner(&self) -> AccountOwner {
         AccountOwner::Other(
-            Pubkey::from_str("Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o").unwrap(),
+            Pubkey::from_str(env!("BRIDGE_ADDRESS")).unwrap(),
         )
     }
 }
@@ -311,8 +311,8 @@ impl SerializePayload for GovernancePayloadUpgrade {
 }
 
 impl DeserializePayload for GovernancePayloadUpgrade
-where
-    Self: DeserializeGovernancePayload,
+    where
+        Self: DeserializeGovernancePayload,
 {
     fn deserialize(buf: &mut &[u8]) -> Result<Self, SolitaireError> {
         let mut c = Cursor::new(buf);
@@ -336,8 +336,7 @@ impl SerializeGovernancePayload for GovernancePayloadUpgrade {
     const ACTION: u8 = 1;
 }
 
-impl DeserializeGovernancePayload for GovernancePayloadUpgrade {
-}
+impl DeserializeGovernancePayload for GovernancePayloadUpgrade {}
 
 pub struct GovernancePayloadGuardianSetChange {
     // New GuardianSetIndex
@@ -360,8 +359,8 @@ impl SerializePayload for GovernancePayloadGuardianSetChange {
 }
 
 impl DeserializePayload for GovernancePayloadGuardianSetChange
-where
-    Self: DeserializeGovernancePayload,
+    where
+        Self: DeserializeGovernancePayload,
 {
     fn deserialize(buf: &mut &[u8]) -> Result<Self, SolitaireError> {
         let mut c = Cursor::new(buf);
@@ -393,8 +392,7 @@ impl SerializeGovernancePayload for GovernancePayloadGuardianSetChange {
     const ACTION: u8 = 2;
 }
 
-impl DeserializeGovernancePayload for GovernancePayloadGuardianSetChange {
-}
+impl DeserializeGovernancePayload for GovernancePayloadGuardianSetChange {}
 
 pub struct GovernancePayloadSetMessageFee {
     // New fee in lamports
@@ -412,8 +410,8 @@ impl SerializePayload for GovernancePayloadSetMessageFee {
 }
 
 impl DeserializePayload for GovernancePayloadSetMessageFee
-where
-    Self: DeserializeGovernancePayload,
+    where
+        Self: DeserializeGovernancePayload,
 {
     fn deserialize(buf: &mut &[u8]) -> Result<Self, SolitaireError> {
         let mut c = Cursor::new(buf);
@@ -436,8 +434,7 @@ impl SerializeGovernancePayload for GovernancePayloadSetMessageFee {
     const ACTION: u8 = 3;
 }
 
-impl DeserializeGovernancePayload for GovernancePayloadSetMessageFee {
-}
+impl DeserializeGovernancePayload for GovernancePayloadSetMessageFee {}
 
 pub struct GovernancePayloadTransferFees {
     // Amount to be transferred
@@ -458,8 +455,8 @@ impl SerializePayload for GovernancePayloadTransferFees {
 }
 
 impl DeserializePayload for GovernancePayloadTransferFees
-where
-    Self: DeserializeGovernancePayload,
+    where
+        Self: DeserializeGovernancePayload,
 {
     fn deserialize(buf: &mut &[u8]) -> Result<Self, SolitaireError> {
         let mut c = Cursor::new(buf);
@@ -485,8 +482,7 @@ impl SerializeGovernancePayload for GovernancePayloadTransferFees {
     const ACTION: u8 = 4;
 }
 
-impl DeserializeGovernancePayload for GovernancePayloadTransferFees {
-}
+impl DeserializeGovernancePayload for GovernancePayloadTransferFees {}
 
 #[repr(u8)]
 #[derive(BorshSerialize, BorshDeserialize, Clone, Serialize, Deserialize)]
