@@ -2,6 +2,7 @@ use crate::{
     accounts::{
         AuthoritySigner,
         ConfigAccount,
+        CoreBridge,
         CustodyAccount,
         CustodyAccountDerivationData,
         CustodySigner,
@@ -81,7 +82,7 @@ pub struct TransferNative<'b> {
     pub custody_signer: CustodySigner<'b>,
 
     /// CPI Context
-    pub bridge: Mut<Bridge<'b, { AccountState::Initialized }>>,
+    pub bridge: Mut<CoreBridge<'b, { AccountState::Initialized }>>,
 
     /// Account to store the posted message
     pub message: Signer<Mut<Info<'b>>>,
@@ -230,7 +231,7 @@ pub struct TransferWrapped<'b> {
     pub authority_signer: AuthoritySigner<'b>,
 
     /// CPI Context
-    pub bridge: Mut<Bridge<'b, { AccountState::Initialized }>>,
+    pub bridge: Mut<CoreBridge<'b, { AccountState::Initialized }>>,
 
     /// Account to store the posted message
     pub message: Signer<Mut<Info<'b>>>,

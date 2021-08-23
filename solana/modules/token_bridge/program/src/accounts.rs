@@ -1,6 +1,7 @@
 use crate::types::*;
 use bridge::{
     api::ForeignAddress,
+    types::BridgeData,
     vaa::{
         DeserializePayload,
         PayloadMessage,
@@ -15,6 +16,8 @@ use solitaire::{
 pub type AuthoritySigner<'b> = Derive<Info<'b>, "authority_signer">;
 pub type CustodySigner<'b> = Derive<Info<'b>, "custody_signer">;
 pub type MintSigner<'b> = Derive<Info<'b>, "mint_signer">;
+
+pub type CoreBridge<'a, const State: AccountState> = Data<'a, BridgeData, { State }>;
 
 pub type EmitterAccount<'b> = Derive<Info<'b>, "emitter">;
 

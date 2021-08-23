@@ -1,6 +1,7 @@
 use crate::{
     accounts::{
         ConfigAccount,
+        CoreBridge,
         EmitterAccount,
         SplTokenMeta,
         SplTokenMetaDerivationData,
@@ -77,7 +78,7 @@ pub struct AttestToken<'b> {
     pub spl_metadata: SplTokenMeta<'b>,
 
     /// CPI Context
-    pub bridge: Mut<Bridge<'b, { AccountState::Initialized }>>,
+    pub bridge: Mut<CoreBridge<'b, { AccountState::Initialized }>>,
 
     /// Account to store the posted message
     pub message: Signer<Mut<Info<'b>>>,
