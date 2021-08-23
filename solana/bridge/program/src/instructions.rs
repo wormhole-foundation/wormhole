@@ -173,7 +173,7 @@ pub fn post_vaa(
         &program_id,
     );
 
-    let mut msg_derivation_data = &PostedVAADerivationData {
+    let msg_derivation_data = &PostedVAADerivationData {
         payload_hash: hash_vaa(&vaa).to_vec(),
     };
 

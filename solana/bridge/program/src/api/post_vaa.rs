@@ -23,7 +23,6 @@ use crate::{
         PostVAAConsensusFailed,
         PostVAAGuardianSetExpired,
     },
-    CHAIN_ID_SOLANA,
 };
 use byteorder::{
     BigEndian,
