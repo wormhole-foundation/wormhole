@@ -53,10 +53,30 @@ macro_rules! solitaire {
                 SolitaireError,
             };
 
+            $(
+                // Generated module wrapping instruction handler.
+                //
+                // These are needed to force the compiler to generate a new function that has not
+                // been inlined, this provides a new stack frame. Without this, the stack frame for
+                // deserialization and the handler is the same as that used by solitaire, leading
+                // to bust stacks.
+                pub mod $row {
+                    use super::*;
+
+                    #[inline(never)]
+                    pub fn execute<'a, 'b: 'a, 'c>(p: &Pubkey, a: &'c [AccountInfo<'b>], d: &[u8]) -> Result<()> {
+                        let ix_data: $kind = BorshDeserialize::try_from_slice(d).map_err(|e| SolitaireError::InstructionDeserializeFailed(e))?;
+                        let mut accounts = FromAccounts::from(p, &mut a.iter(), &())?;
+                        $fn(&ExecutionContext{program_id: p, accounts: a}, &mut accounts, ix_data)?;
+                        Persist::persist(&accounts, p)?;
+                        Ok(())
+                    }
+                }
+            )*
+
             /// Generated:
             /// This Instruction contains a 1-1 mapping for each enum variant to function call. The
             /// function calls can be found below in the `api` module.
-
             #[repr(u8)]
             #[derive(BorshSerialize, BorshDeserialize)]
             pub enum Instruction {
@@ -68,16 +88,7 @@ macro_rules! solitaire {
             pub fn dispatch<'a, 'b: 'a, 'c>(p: &Pubkey, a: &'c [AccountInfo<'b>], d: &[u8]) -> Result<()> {
                 match d[0] {
                     $(
-                        n if n == Instruction::$row as u8 => {
-                            (move || {
-                                trace!("Dispatch: {}", stringify!($row));
-                                let ix_data: $kind = BorshDeserialize::try_from_slice(&d[1..]).map_err(|e| SolitaireError::InstructionDeserializeFailed(e))?;
-                                let mut accounts: $row = FromAccounts::from(p, &mut a.iter(), &())?;
-                                $fn(&ExecutionContext{program_id: p, accounts: a}, &mut accounts, ix_data)?;
-                                Persist::persist(&accounts, p)?;
-                                Ok(())
-                            })()
-                        },
+                        n if n == Instruction::$row as u8 => $row::execute(p, a, &d[1..]),
                     )*
 
                     other => {
