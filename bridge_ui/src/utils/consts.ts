@@ -77,11 +77,11 @@ export const SOL_TEST_TOKEN_ADDRESS =
     : "2WDq7wSs9zYrpx2kbHDA4RUTRch2CCTP6ZWaH4GNfnQQ";
 export const SOL_BRIDGE_ADDRESS =
   process.env.REACT_APP_CLUSTER === "testnet"
-    ? "H3SjyXYezgWj1ktCrazLkD8ydj9gzmEi4w9zRCXg2G4R"
+    ? "Brdguy7BmNB4qwEbcqqMbyV5CyJd2sxQNUn6NEpMSsUb"
     : "Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o";
 export const SOL_TOKEN_BRIDGE_ADDRESS =
   process.env.REACT_APP_CLUSTER === "testnet"
-    ? "ToknwtcmUawaJk2pxSwZzJRrgReH52a3QRDE1Mgid9b"
+    ? "A4Us8EhCC76XdGAN17L4KpRNEK423nMivVHZzZqFqqBg"
     : "B6RHG3mfcckmrYN1UhmJzyS1XX3fZKbkeUcpJe9Sy3FE";
 export const TERRA_TEST_TOKEN_ADDRESS =
   "terra13nkgqrfymug724h8pprpexqj9h629sa3ncw7sh";
