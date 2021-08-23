@@ -134,14 +134,13 @@ fn command_post_message(
         fee,
     );
 
-    let emitter = Keypair::new();
     let message = Keypair::new();
     let ix = match proxy {
         Some(p) => cpi_poster::instructions::post_message(
             p,
             *bridge,
             config.owner.pubkey(),
-            emitter.pubkey(),
+            config.owner.pubkey(),
             message.pubkey(),
             nonce,
             payload,
@@ -151,7 +150,7 @@ fn command_post_message(
         None => bridge::instructions::post_message(
             *bridge,
             config.owner.pubkey(),
-            emitter.pubkey(),
+            config.owner.pubkey(),
             message.pubkey(),
             nonce,
             payload,
@@ -165,7 +164,7 @@ fn command_post_message(
     let (recent_blockhash, fee_calculator) = config.rpc_client.get_recent_blockhash()?;
     check_fee_payer_balance(config, fee_calculator.calculate_fee(&transaction.message()))?;
     transaction.sign(
-        &[&config.fee_payer, &config.owner, &emitter, &message],
+        &[&config.fee_payer, &config.owner, &message],
         recent_blockhash,
     );
     Ok(Some(transaction))
