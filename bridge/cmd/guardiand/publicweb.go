@@ -81,8 +81,7 @@ func publicwebServiceRunnable(
 		})))
 
 		srv := &http.Server{
-			ErrorLog: log.Default(),
-			Handler:  mux,
+			Handler: mux,
 		}
 
 		// TLS setup

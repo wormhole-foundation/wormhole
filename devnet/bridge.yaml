@@ -96,7 +96,7 @@ spec:
             - /tmp/bridge.key
             - --publicRPC
             - "[::]:7070"
-            - --publicREST
+            - --publicWeb
             - "[::]:7071"
             - --adminSocket
             - /tmp/admin.sock
