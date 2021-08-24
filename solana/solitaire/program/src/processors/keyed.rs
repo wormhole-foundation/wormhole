@@ -9,6 +9,7 @@ use crate::{
     Data,
     Derive,
     Info,
+    Mut,
     Signer,
     System,
     Sysvar,
@@ -51,6 +52,15 @@ where
 }
 
 impl<'a, 'b: 'a, T, const Seed: &'static str> Keyed<'a, 'b> for Derive<T, Seed>
+where
+    T: Keyed<'a, 'b>,
+{
+    fn info(&'a self) -> &'a Info<'b> {
+        self.0.info()
+    }
+}
+
+impl<'a, 'b: 'a, T> Keyed<'a, 'b> for Mut<T>
 where
     T: Keyed<'a, 'b>,
 {
