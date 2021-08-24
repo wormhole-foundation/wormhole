@@ -85,6 +85,7 @@ Set the include path:
 
 ## BigTable event persistence
 
-Guardian events can be persisted to a BigTable instance. Launch the devnet with flags supplying your database info to enable forwarding events:
+Guardian events can be persisted to a cloud BigTable instance by passing a GCP project and service account key to Tilt.
+Launch the devnet with flags supplying your database info to forward events to your cloud BigTable, rather than the local devnet BigTable emulator:
 
-    tilt up -- --num=1 --bigTablePersistence --gcpProject=your-project-id --bigTableKeyPath=./your-service-account-key.json
+    tilt up -- --num=1  --gcpProject=your-project-id --bigTableKeyPath=./your-service-account-key.json

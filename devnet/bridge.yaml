@@ -59,6 +59,9 @@ spec:
               name: bridge-rundir
             - mountPath: /tmp/mounted-keys
               name: bridge-keysdir
+          env:
+            - name: BIGTABLE_EMULATOR_HOST
+              value: bigtable-emulator:8086
           command:
 # Uncomment this to enable in-place debugging using dlv
 # (not suitable for regular development since the process will no longer restart on its own)
@@ -102,8 +105,9 @@ spec:
             - /tmp/admin.sock
             - --dataDir
             - /tmp/data
+            - --bigTablePersistenceEnabled
             - --bigTableInstanceName
-            - wormhole-dev
+            - wormhole
             - --bigTableTableName
             - v2Events
             - --bigTableKeyPath

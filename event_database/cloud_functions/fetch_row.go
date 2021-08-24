@@ -5,9 +5,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"html"
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 
@@ -90,6 +92,14 @@ func ReadRow(w http.ResponseWriter, r *http.Request) {
 		emitterAddress := queryParams.Get("emitterAddress")
 		sequence := queryParams.Get("sequence")
 
+		readyCheck := queryParams.Get("readyCheck")
+		if readyCheck != "" {
+			// for running in devnet
+			w.WriteHeader(http.StatusOK)
+			fmt.Fprint(w, html.EscapeString("ready"))
+			return
+		}
+
 		// check for empty values
 		if emitterChain == "" || emitterAddress == "" || sequence == "" {
 			fmt.Fprint(w, "body values cannot be empty")
@@ -134,7 +144,8 @@ func ReadRow(w http.ResponseWriter, r *http.Request) {
 	clientOnce.Do(func() {
 		// Declare a separate err variable to avoid shadowing client.
 		var err error
-		client, err = bigtable.NewClient(context.Background(), "wormhole-315720", "wormhole-dev")
+		project := os.Getenv("GCP_PROJECT")
+		client, err = bigtable.NewClient(context.Background(), project, "wormhole")
 		if err != nil {
 			http.Error(w, "Error initializing client", http.StatusInternalServerError)
 			log.Printf("bigtable.NewClient: %v", err)

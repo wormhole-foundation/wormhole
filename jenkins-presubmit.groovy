@@ -20,7 +20,7 @@ pipeline {
 
                         sh """
                         kubectl config set-context ci --namespace=$DEPLOY_NS
-                        kubectl config use-context ci                        
+                        kubectl config use-context ci
                         """
 
                         sh kubeCleanup

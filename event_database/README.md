@@ -1,4 +1,4 @@
-## Initializing BigTable instance
+## Initializing a cloud BigTable instance
 
 Once you've created a BigTable instance and a Service Account key, these Go scripts can create the table and column families to save event data.
 
@@ -17,14 +17,14 @@ go run . \
   -setupDB
 ```
 
-## Querying BigTable
+## Querying cloud BigTable
 
 Lookup a row by the `EmitterChain:TxID`:
 
 ```bash
 go run . \
   -project wormhole-315720 \
-  -instance wormhole-dev \
+  -instance wormhole \
   -keyFilePath ./bigtable-admin.json \
   -queryRowKey 2:000000000000000000000000e982e462b094850f12af94d21d470e21be9d0e9:6
 ```
@@ -34,7 +34,7 @@ Lookup all rows with a timestamp >= `queryPreviousMinutes` ago:
 ```bash
 go run . \
   -project wormhole-315720 \
-  -instance wormhole-dev \
+  -instance wormhole \
   -keyFilePath ./bigtable-admin.json \
   -queryPreviousMinutes 120
 ```

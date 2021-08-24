@@ -1,0 +1,106 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: bigtable-emulator
+  name: bigtable-emulator
+spec:
+  ports:
+  - name: clients
+    port: 8086
+    targetPort: clients
+    protocol: TCP
+  selector:
+    app: bigtable-emulator
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app: bigtable-emulator
+  name: bigtable-emulator
+spec:
+  serviceName: bigtable-emulator
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bigtable-emulator
+  template:
+    metadata:
+      labels:
+        app: bigtable-emulator
+    spec:
+      containers:
+        - name: bigtable-emulator
+          image: google/cloud-sdk:353.0.0-alpine@sha256:594278737ce111f7922afa8722b4b526c19938e74b9ab931d23c4d2755802d3a
+          env:
+            - name: BIGTABLE_EMULATOR_HOST
+              value: localhost:8086
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo project = local-dev > ~/.cbtrc
+              echo instance = wormhole >> ~/.cbtrc
+              echo {} > ~/.empty-key.json
+              echo creds = ~/empty-key.json >> ~/.cbtrc
+              gcloud --quiet components install beta cbt bigtable
+              gcloud --quiet beta emulators bigtable start --host-port=0.0.0.0:8086 &
+              sleep 3
+              cbt createtable v2Events "families=MessagePublication,Signatures,VAAState,QuorumState"
+              nc -lkp 2000 0.0.0.0
+
+          readinessProbe:
+            periodSeconds: 2
+            failureThreshold: 300
+            tcpSocket:
+              port: 2000
+          ports:
+            - containerPort: 8086
+              name: clients
+              protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: bigtable-readrow
+  name: bigtable-readrow
+spec:
+  ports:
+  - name: readrow
+    port: 8090
+    targetPort: readrow
+    protocol: TCP
+  selector:
+    app: bigtable-readrow
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app: bigtable-readrow
+  name: bigtable-readrow
+spec:
+  serviceName: bigtable-readrow
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bigtable-readrow
+  template:
+    metadata:
+      labels:
+        app: bigtable-readrow
+    spec:
+      containers:
+        - name: bigtable-readrow
+          image: cloud-function-readrow
+          env:
+            - name: BIGTABLE_EMULATOR_HOST
+              value: bigtable-emulator:8086
+            - name: GCP_PROJECT
+              value: local-dev
+          ports:
+            - containerPort: 8080
+              name: readrow
+              protocol: TCP

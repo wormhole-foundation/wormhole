@@ -24,18 +24,17 @@ config.define_string("num", False, "Number of guardian nodes to run")
 #
 config.define_string("namespace", False, "Kubernetes namespace to use")
 
-# These arguments will enable writing Guardian events to a BigTable instance.
-# Writing to BigTable is optional. These arguments are not required to run the devnet.
-config.define_bool("bigTablePersistence", False, "Enable forwarding guardian events to BigTable")
+
+# These arguments will enable writing Guardian events to a cloud BigTable instance.
+# Writing to a cloud BigTable is optional. These arguments are not required to run the devnet.
 config.define_string("gcpProject", False, "GCP project ID for BigTable persistence")
 config.define_string("bigTableKeyPath", False, "Path to BigTable json key file")
 
 cfg = config.parse()
 num_guardians = int(cfg.get("num", "5"))
 namespace = cfg.get("namespace", "wormhole")
-bigTablePersistence = cfg.get("bigTablePersistence", False)
-gcpProject = cfg.get("gcpProject", None)
-bigTableKeyPath = cfg.get("bigTableKeyPath", "./bigtable-writer.json")
+gcpProject = cfg.get("gcpProject", "local-dev")
+bigTableKeyPath = cfg.get("bigTableKeyPath", "./event_database/devnet_key.json")
 ci = cfg.get("ci", False)
 
 # namespace
@@ -65,13 +64,12 @@ local_resource(
 
 # bridge
 
-if bigTablePersistence:
-    k8s_yaml_with_ns(
-        secret_yaml_generic(
-            "bridge-bigtable-key",
-            from_file = "bigtable-key.json=" + bigTableKeyPath,
-        ),
-    )
+k8s_yaml_with_ns(
+    secret_yaml_generic(
+        "bridge-bigtable-key",
+        from_file = "bigtable-key.json=" + bigTableKeyPath,
+    ),
+)
 
 docker_build(
     ref = "guardiand-image",
@@ -89,12 +87,7 @@ def build_bridge_yaml():
             if container["name"] != "guardiand":
                 fail("container 0 is not guardiand")
             container["command"] += ["--devNumGuardians", str(num_guardians)]
-            if bigTablePersistence:
-                container["command"] += [
-                    "--bigTablePersistenceEnabled",
-                    "--bigTableGCPProject",
-                    gcpProject,
-                ]
+            container["command"] += ["--bigTableGCPProject", gcpProject]
 
     return encode_yaml_stream(bridge_yaml)
 
@@ -184,6 +177,50 @@ k8s_yaml_with_ns("devnet/eth-devnet.yaml")
 k8s_resource("eth-devnet", port_forwards = [
     port_forward(8545, name = "Ganache RPC [:8545]"),
 ])
+
+# bigtable
+
+def build_cloud_function(container_name, go_func_name, path, builder):
+    # Invokes Tilt's custom_build(), with a Pack command.
+    # inspired by https://github.com/tilt-dev/tilt-extensions/tree/master/pack
+    caching_ref = container_name + ":tilt-build-pack-caching"
+    pack_build_cmd = " ".join([
+        "./tools/bin/pack build",
+        caching_ref,
+        "--path " + path,
+        "--builder " + builder,
+        "--env " + "GOOGLE_FUNCTION_TARGET=%s" % go_func_name,
+        "--env " + "GOOGLE_FUNCTION_SIGNATURE_TYPE=http",
+    ])
+
+    if ci:
+        # inherit the DOCKER_HOST socket provided by custom_build.
+        pack_build_cmd = pack_build_cmd + " --docker-host inherit"
+
+    docker_tag_cmd = "docker tag " + caching_ref + " $EXPECTED_REF"
+    custom_build(
+        container_name,
+        pack_build_cmd + " && " + docker_tag_cmd,
+        [path],
+    )
+
+build_cloud_function(
+    container_name = "cloud-function-readrow",
+    go_func_name = "ReadRow",
+    path = "./event_database/cloud_functions",
+    builder = "gcr.io/buildpacks/builder:v1",
+)
+
+k8s_yaml_with_ns("devnet/bigtable.yaml")
+
+k8s_resource("bigtable-emulator", port_forwards = [
+    port_forward(8086, name = "BigTable clients [:8086]")
+])
+k8s_resource(
+    "bigtable-readrow",
+    resource_deps = ["proto-gen"],
+    port_forwards = [port_forward(8090, name = "ReadRow [:8090]")],
+)
 
 # explorer web app
 
