@@ -1,3 +1,4 @@
+//go:build tools
 // +build tools
 
 // package tool pins a number of Go dependencies that we use. Go builds really fast,
@@ -7,6 +8,7 @@ package main
 //noinspection ALL
 import (
 	_ "github.com/bufbuild/buf/cmd/buf"
+	_ "github.com/buildpacks/pack/cmd/pack"
 	_ "github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway"
 	_ "github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2"
 	_ "github.com/spf13/cobra/cobra"
