@@ -49,6 +49,9 @@ final: prev: {
     remote_machine=$1
     tilt_port=''${2:-10350}
 
+    explorer_port=''${EXPLORER_PORT:-8001}
+    guardian_grpc_port=''${GUARDIAN_GRPC_PORT:-8080}
+
     # Use Mutagen to watch local repo and sync it with remote_machine's ~/wormhole
     ${final.mutagen}/bin/mutagen sync terminate whremote-sync || true
     ${final.mutagen}/bin/mutagen sync create -n whremote-sync . $remote_machine:~/wormhole
@@ -64,9 +67,13 @@ final: prev: {
        nix-shell --option sandbox false --command ' MINIKUBE_ARGS=\"$MINIKUBE_ARGS\" whcluster'"
 
     # Run tilt using whtilt on the remote and forward its default port to localhost
-    ssh -L $tilt_port:127.0.0.1:$tilt_port $remote_machine \
+    ssh \
+      -L $tilt_port:127.0.0.1:$tilt_port \
+      -L $explorer_port:127.0.0.1:$explorer_port \
+      -L $guardian_grpc_port:127.0.0.1:$guardian_grpc_port \
+      $remote_machine \
       ". ~/.bash_profile; . ~/.zprofile; . ~/.profile; \
-          cd wormhole && \
-          nix-shell --option sandbox false --command 'whtilt $tilt_port $n_guardians'"
+        cd wormhole && \
+        nix-shell --option sandbox false --command 'whtilt $tilt_port $n_guardians'"
   '';
 }
