@@ -226,7 +226,7 @@ impl<
             };
         }
 
-        Ok(Data(ctx.info().clone(), data))
+        Ok(Data(Box::new(ctx.info().clone()), data))
     }
 
     fn deps() -> Vec<Pubkey> {
