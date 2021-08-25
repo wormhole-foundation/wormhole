@@ -11,22 +11,17 @@ import {
   transferFromEth,
   transferFromSolana,
 } from "@certusone/wormhole-sdk";
-import {
-  ASSOCIATED_TOKEN_PROGRAM_ID,
-  Token,
-  TOKEN_PROGRAM_ID,
-} from "@solana/spl-token";
 import { WalletContextState } from "@solana/wallet-adapter-react";
-import { Connection, PublicKey } from "@solana/web3.js";
+import { Connection } from "@solana/web3.js";
 import { MsgExecuteContract } from "@terra-money/terra.js";
 import {
   ConnectedWallet,
   useConnectedWallet,
 } from "@terra-money/wallet-provider";
 import { Signer } from "ethers";
-import { arrayify, parseUnits, zeroPad } from "ethers/lib/utils";
+import { parseUnits, zeroPad } from "ethers/lib/utils";
 import { useSnackbar } from "notistack";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useEthereumProvider } from "../contexts/EthereumProviderContext";
 import { useSolanaWallet } from "../contexts/SolanaWalletContext";
@@ -40,9 +35,7 @@ import {
   selectTransferSourceAsset,
   selectTransferSourceChain,
   selectTransferSourceParsedTokenAccount,
-  selectTransferTargetAsset,
   selectTransferTargetChain,
-  selectTransferTargetParsedTokenAccount,
 } from "../store/selectors";
 import { setIsSending, setSignedVAAHex } from "../store/transferSlice";
 import { hexToUint8Array, uint8ArrayToHex } from "../utils/array";
@@ -56,6 +49,7 @@ import {
 } from "../utils/consts";
 import { getSignedVAAWithRetry } from "../utils/getSignedVAAWithRetry";
 import { signSendAndConfirm } from "../utils/solana";
+import useTransferTargetAddressHex from "./useTransferTargetAddress";
 
 async function eth(
   dispatch: any,
@@ -104,8 +98,8 @@ async function solana(
   mintAddress: string,
   amount: string,
   decimals: number,
-  targetAddressStr: string,
   targetChain: ChainId,
+  targetAddress: Uint8Array,
   originAddressStr?: string,
   originChain?: ChainId
 ) {
@@ -114,7 +108,6 @@ async function solana(
     //TODO: check if token attestation exists on the target chain
     // TODO: share connection in context?
     const connection = new Connection(SOLANA_HOST, "confirmed");
-    const targetAddress = zeroPad(arrayify(targetAddressStr), 32);
     const amountParsed = parseUnits(amount, decimals).toBigInt();
     const originAddress = originAddressStr
       ? zeroPad(hexToUint8Array(originAddressStr), 32)
@@ -164,8 +157,8 @@ async function terra(
   wallet: ConnectedWallet,
   asset: string,
   amount: string,
-  targetAddressStr: string,
-  targetChain: ChainId
+  targetChain: ChainId,
+  targetAddress: Uint8Array
 ) {
   dispatch(setIsSending(true));
   try {
@@ -180,7 +173,7 @@ async function terra(
               asset: asset,
               amount: amount,
               recipient_chain: targetChain,
-              recipient: targetAddressStr,
+              recipient: targetAddress,
               fee: 1000,
               nonce: 0,
             },
@@ -221,11 +214,11 @@ export function useHandleTransfer() {
   const originAsset = useSelector(selectTransferOriginAsset);
   const amount = useSelector(selectTransferAmount);
   const targetChain = useSelector(selectTransferTargetChain);
-  const targetAsset = useSelector(selectTransferTargetAsset);
+  const targetAddress = useTransferTargetAddressHex();
   const isTargetComplete = useSelector(selectTransferIsTargetComplete);
   const isSending = useSelector(selectTransferIsSending);
   const isSendComplete = useSelector(selectTransferIsSendComplete);
-  const { signer, signerAddress } = useEthereumProvider();
+  const { signer } = useEthereumProvider();
   const solanaWallet = useSolanaWallet();
   const solPK = solanaWallet?.publicKey;
   const terraWallet = useConnectedWallet();
@@ -234,37 +227,7 @@ export function useHandleTransfer() {
   );
   const sourceTokenPublicKey = sourceParsedTokenAccount?.publicKey;
   const decimals = sourceParsedTokenAccount?.decimals;
-  const targetParsedTokenAccount = useSelector(
-    selectTransferTargetParsedTokenAccount
-  );
   const disabled = !isTargetComplete || isSending || isSendComplete;
-  // TODO: we probably shouldn't get here if we don't have this public key
-  // TODO: also this is just for solana... send help(ers)
-  const targetTokenAccountPublicKey = targetParsedTokenAccount?.publicKey;
-  // TODO: AVOID THIS DANGEROUS CACOPHONY
-  const tpkRef = useRef<undefined | Uint8Array>(undefined);
-  useEffect(() => {
-    (async () => {
-      if (targetChain === CHAIN_ID_SOLANA) {
-        tpkRef.current = targetTokenAccountPublicKey
-          ? zeroPad(new PublicKey(targetTokenAccountPublicKey).toBytes(), 32) // use the target's TokenAccount if it exists
-          : solPK && targetAsset // otherwise, use the associated token account (which we create in the case it doesn't exist)
-          ? zeroPad(
-              (
-                await Token.getAssociatedTokenAddress(
-                  ASSOCIATED_TOKEN_PROGRAM_ID,
-                  TOKEN_PROGRAM_ID,
-                  new PublicKey(targetAsset),
-                  solPK
-                )
-              ).toBytes(),
-              32
-            )
-          : undefined;
-      } else tpkRef.current = undefined;
-    })();
-  }, [targetChain, solPK, targetAsset, targetTokenAccountPublicKey]);
-  // TODO: dynamically get "to" wallet
   const handleTransferClick = useCallback(() => {
     // TODO: we should separate state for transaction vs fetching vaa
     // TODO: more generic way of calling these
@@ -272,7 +235,7 @@ export function useHandleTransfer() {
       sourceChain === CHAIN_ID_ETH &&
       !!signer &&
       decimals !== undefined &&
-      !!tpkRef.current
+      !!targetAddress
     ) {
       eth(
         dispatch,
@@ -282,14 +245,14 @@ export function useHandleTransfer() {
         decimals,
         amount,
         targetChain,
-        tpkRef.current
+        targetAddress
       );
     } else if (
       sourceChain === CHAIN_ID_SOLANA &&
       !!solanaWallet &&
       !!solPK &&
       !!sourceTokenPublicKey &&
-      !!signerAddress &&
+      !!targetAddress &&
       decimals !== undefined
     ) {
       solana(
@@ -299,10 +262,10 @@ export function useHandleTransfer() {
         solPK.toString(),
         sourceTokenPublicKey,
         sourceAsset,
-        amount, //TODO: avoid decimals, pass in parsed amount
+        amount,
         decimals,
-        signerAddress,
         targetChain,
+        targetAddress,
         originAsset,
         originChain
       );
@@ -310,7 +273,7 @@ export function useHandleTransfer() {
       sourceChain === CHAIN_ID_TERRA &&
       !!terraWallet &&
       decimals !== undefined &&
-      !!signerAddress
+      !!targetAddress
     ) {
       terra(
         dispatch,
@@ -318,8 +281,8 @@ export function useHandleTransfer() {
         terraWallet,
         sourceAsset,
         amount,
-        signerAddress, // TODO: only works for Eth
-        targetChain
+        targetChain,
+        targetAddress
       );
     } else {
       // enqueueSnackbar("Transfers from this chain are not yet supported", {
@@ -331,7 +294,6 @@ export function useHandleTransfer() {
     enqueueSnackbar,
     sourceChain,
     signer,
-    signerAddress,
     solanaWallet,
     solPK,
     terraWallet,
@@ -340,6 +302,7 @@ export function useHandleTransfer() {
     amount,
     decimals,
     targetChain,
+    targetAddress,
     originAsset,
     originChain,
   ]);

@@ -57,6 +57,8 @@ export const selectTransferSourceBalanceString = (state: RootState) =>
 export const selectTransferAmount = (state: RootState) => state.transfer.amount;
 export const selectTransferTargetChain = (state: RootState) =>
   state.transfer.targetChain;
+export const selectTransferTargetAddressHex = (state: RootState) =>
+  state.transfer.targetAddressHex;
 export const selectTransferTargetAsset = (state: RootState) =>
   state.transfer.targetAsset;
 export const selectTransferTargetParsedTokenAccount = (state: RootState) =>
@@ -96,11 +98,8 @@ export const selectTransferIsTargetComplete = (state: RootState) =>
   !!state.transfer.targetChain &&
   !!state.transfer.targetAsset &&
   (state.transfer.targetChain !== CHAIN_ID_ETH ||
-    state.transfer.targetAsset !== ethers.constants.AddressZero); //&&
-// Associated Token Account exists
-// (state.transfer.targetChain !== CHAIN_ID_SOLANA ||
-//   (!!state.transfer.targetParsedTokenAccount &&
-//     !!state.transfer.targetParsedTokenAccount.publicKey));
+    state.transfer.targetAsset !== ethers.constants.AddressZero) &&
+  !!state.transfer.targetAddressHex;
 export const selectTransferIsSendComplete = (state: RootState) =>
   !!selectTransferSignedVAAHex(state);
 export const selectTransferShouldLockFields = (state: RootState) =>

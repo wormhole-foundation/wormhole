@@ -23,6 +23,7 @@
     "@solana/wallet-base": "^0.0.1",
     "@solana/web3.js": "^1.22.0",
     "@terra-money/wallet-provider": "^1.4.0-alpha.1",
+    "bech32": "^1.1.4",
     "ethers": "^5.4.1",
     "js-base64": "^3.6.1",
     "notistack": "^1.0.10",

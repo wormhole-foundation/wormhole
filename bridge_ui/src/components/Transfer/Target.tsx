@@ -3,11 +3,13 @@ import { Button, makeStyles, MenuItem, TextField } from "@material-ui/core";
 import { PublicKey } from "@solana/web3.js";
 import { useCallback, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import useSyncTargetAddress from "../../hooks/useSyncTargetAddress";
 import {
   selectTransferIsSourceAssetWormholeWrapped,
   selectTransferIsTargetComplete,
   selectTransferShouldLockFields,
   selectTransferSourceChain,
+  selectTransferTargetAddressHex,
   selectTransferTargetAsset,
   selectTransferTargetBalanceString,
   selectTransferTargetChain,
@@ -32,6 +34,7 @@ function Target() {
     [sourceChain]
   );
   const targetChain = useSelector(selectTransferTargetChain);
+  const targetAddressHex = useSelector(selectTransferTargetAddressHex); // TODO: make readable
   const targetAsset = useSelector(selectTransferTargetAsset);
   const isSourceAssetWormholeWrapped = useSelector(
     selectTransferIsSourceAssetWormholeWrapped
@@ -47,6 +50,7 @@ function Target() {
   const uiAmountString = useSelector(selectTransferTargetBalanceString);
   const isTargetComplete = useSelector(selectTransferIsTargetComplete);
   const shouldLockFields = useSelector(selectTransferShouldLockFields);
+  useSyncTargetAddress(!shouldLockFields);
   const handleTargetChange = useCallback(
     (event) => {
       dispatch(setTargetChain(event.target.value));
@@ -76,7 +80,14 @@ function Target() {
       </TextField>
       <KeyAndBalance chainId={targetChain} balance={uiAmountString} />
       <TextField
-        placeholder="Asset"
+        label="Address"
+        fullWidth
+        className={classes.transferField}
+        value={targetAddressHex || ""}
+        disabled={true}
+      />
+      <TextField
+        label="Asset"
         fullWidth
         className={classes.transferField}
         value={readableTargetAsset}

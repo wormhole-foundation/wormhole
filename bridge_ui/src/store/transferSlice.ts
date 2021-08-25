@@ -34,6 +34,7 @@ export interface TransferState {
   sourceParsedTokenAccount: ParsedTokenAccount | undefined;
   amount: string;
   targetChain: ChainId;
+  targetAddressHex: string | undefined;
   targetAsset: string | null | undefined;
   targetParsedTokenAccount: ParsedTokenAccount | undefined;
   signedVAAHex: string | undefined;
@@ -51,6 +52,7 @@ const initialState: TransferState = {
   originAsset: undefined,
   amount: "",
   targetChain: CHAIN_ID_ETH,
+  targetAddressHex: undefined,
   targetAsset: undefined,
   targetParsedTokenAccount: undefined,
   signedVAAHex: undefined,
@@ -86,6 +88,7 @@ export const transferSlice = createSlice({
       }
       if (state.targetChain === action.payload) {
         state.targetChain = prevSourceChain;
+        state.targetAddressHex = undefined;
       }
     },
     setSourceAsset: (state, action: PayloadAction<string>) => {
@@ -117,6 +120,8 @@ export const transferSlice = createSlice({
     setTargetChain: (state, action: PayloadAction<ChainId>) => {
       const prevTargetChain = state.targetChain;
       state.targetChain = action.payload;
+      state.targetAddressHex = undefined;
+      // targetAsset is handled by useFetchTargetAsset
       if (state.sourceChain === action.payload) {
         state.sourceChain = prevTargetChain;
         state.activeStep = 0;
@@ -131,6 +136,9 @@ export const transferSlice = createSlice({
           state.sourceAsset = TERRA_TEST_TOKEN_ADDRESS;
         }
       }
+    },
+    setTargetAddressHex: (state, action: PayloadAction<string | undefined>) => {
+      state.targetAddressHex = action.payload;
     },
     setTargetAsset: (
       state,
@@ -169,6 +177,7 @@ export const {
   setSourceParsedTokenAccount,
   setAmount,
   setTargetChain,
+  setTargetAddressHex,
   setTargetAsset,
   setTargetParsedTokenAccount,
   setSignedVAAHex,

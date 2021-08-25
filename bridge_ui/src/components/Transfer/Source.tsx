@@ -75,7 +75,7 @@ function Source() {
       <KeyAndBalance chainId={sourceChain} balance={uiAmountString} />
       {/* TODO: token list for eth, check own */}
       <TextField
-        placeholder="Asset"
+        label="Asset"
         fullWidth
         className={classes.transferField}
         value={sourceAsset}
@@ -83,7 +83,7 @@ function Source() {
         disabled={shouldLockFields}
       />
       <TextField
-        placeholder="Amount"
+        label="Amount"
         type="number"
         fullWidth
         className={classes.transferField}
