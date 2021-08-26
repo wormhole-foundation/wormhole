@@ -2,7 +2,8 @@ import { Connection, PublicKey } from "@solana/web3.js";
 import { ethers } from "ethers";
 import { Bridge__factory } from "../ethers-contracts";
 import { ChainId } from "../utils";
-import { ConnectedWallet as TerraConnectedWallet } from "@terra-money/wallet-provider";
+import { LCDClient } from "@terra-money/terra.js";
+import { fromUint8Array } from "js-base64";
 
 /**
  * Returns a foreign asset address on Ethereum for a provided native chain and asset address, AddressZero if it does not exist
@@ -28,11 +29,17 @@ export async function getForeignAssetEth(
 
 export async function getForeignAssetTerra(
   tokenBridgeAddress: string,
-  wallet: TerraConnectedWallet,
+  client: LCDClient,
   originChain: ChainId,
   originAsset: Uint8Array
 ) {
-  return null;
+  const result: { address: string } = await client.wasm.contractQuery(tokenBridgeAddress, {
+    wrapped_registry: {
+      chain: originChain,
+      address: fromUint8Array(originAsset),
+    },
+  });
+  return result.address;
 }
 
 /**
