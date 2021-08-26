@@ -51,14 +51,26 @@ proto_deps = ["./proto", "./generate-protos.sh", "buf.yaml", "buf.gen.yaml"]
 local_resource(
     name = "proto-gen",
     deps = proto_deps,
-    cmd = "./generate-protos.sh",
+    cmd = "tilt docker build -- --target go-export -f Dockerfile.proto -o type=local,dest=node .",
+    env = {"DOCKER_BUILDKIT": "1"},
 )
 
 local_resource(
     name = "proto-gen-web",
     deps = proto_deps,
     resource_deps = ["proto-gen"],
-    cmd = "./generate-protos-web.sh",
+    cmd = "tilt docker build -- --target node-export -f Dockerfile.proto -o type=local,dest=. .",
+    env = {"DOCKER_BUILDKIT": "1"},
+)
+
+# wasm
+
+local_resource(
+    name = "wasm-gen",
+    deps = ["solana"],
+    dir = "solana",
+    cmd = "tilt docker build -- -f Dockerfile.wasm -o type=local,dest=.. .",
+    env = {"DOCKER_BUILDKIT": "1"},
 )
 
 # bridge
@@ -145,11 +157,15 @@ docker_build(
 
 k8s_yaml_with_ns("devnet/solana-devnet.yaml")
 
-k8s_resource("solana-devnet", port_forwards = [
-    port_forward(8899, name = "Solana RPC [:8899]"),
-    port_forward(8900, name = "Solana WS [:8900]"),
-    port_forward(9000, name = "Solana PubSub [:9000]"),
-])
+k8s_resource(
+    "solana-devnet",
+    resource_deps = ["wasm-gen"],
+    port_forwards = [
+        port_forward(8899, name = "Solana RPC [:8899]"),
+        port_forward(8900, name = "Solana WS [:8900]"),
+        port_forward(9000, name = "Solana PubSub [:9000]"),
+    ],
+)
 
 # eth devnet
 
