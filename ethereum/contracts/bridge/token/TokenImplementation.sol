@@ -34,11 +34,11 @@ contract TokenImplementation is TokenState, Context {
     }
 
     function name() public view returns (string memory) {
-        return _state.name;
+        return string(abi.encodePacked("Wormhole: ", _state.name));
     }
 
     function symbol() public view returns (string memory) {
-        return _state.symbol;
+        return string(abi.encodePacked("wh", _state.symbol));
     }
 
     function owner() public view returns (address) {
