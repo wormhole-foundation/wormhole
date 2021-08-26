@@ -43,6 +43,9 @@ echo "Created token account $account"
 # Mint new tokens owned by our CLI account
 spl-token mint "$token" 10000000000 "$account"
 
+# Create meta for token
+token-bridge-client create-meta "$token" "Solana Test Token" "SOLT"
+
 # Create the bridge contract at a known address
 # OK to fail on subsequent attempts (already created).
 retry client create-bridge "$bridge_address" "$initial_guardian" 86400 100

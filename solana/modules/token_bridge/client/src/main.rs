@@ -89,6 +89,46 @@ fn command_init_bridge(config: &Config, bridge: &Pubkey, core_bridge: &Pubkey) -
     Ok(Some(transaction))
 }
 
+fn command_create_meta(
+    config: &Config,
+    mint: &Pubkey,
+    name: String,
+    symbol: String,
+) -> CommmandResult {
+    println!("Creating meta for mint {}", mint);
+
+    let meta_acc = Pubkey::find_program_address(
+        &[
+            "metadata".as_bytes(),
+            spl_token_metadata::id().as_ref(),
+            mint.as_ref(),
+        ],
+        &spl_token_metadata::id(),
+    )
+    .0;
+    println!("Meta account: {}", meta_acc);
+    let ix = spl_token_metadata::instruction::create_metadata_accounts(
+        spl_token_metadata::id(),
+        meta_acc,
+        *mint,
+        config.owner.pubkey(),
+        config.owner.pubkey(),
+        config.owner.pubkey(),
+        name,
+        symbol,
+        String::from(""),
+        None,
+        0,
+        false,
+        false,
+    );
+    let mut transaction = Transaction::new_with_payer(&[ix], Some(&config.fee_payer.pubkey()));
+
+    let (recent_blockhash, _) = config.rpc_client.get_recent_blockhash()?;
+    transaction.sign(&[&config.fee_payer, &config.owner], recent_blockhash);
+    Ok(Some(transaction))
+}
+
 fn main() {
     let matches = App::new(crate_name!())
         .about(crate_description!())
@@ -163,6 +203,38 @@ fn main() {
                         .help("Address of the Wormhole core bridge program"),
                 ),
         )
+        .subcommand(
+            SubCommand::with_name("create-meta")
+                .about("Create token metadata")
+                .arg(
+                    Arg::with_name("mint")
+                        .long("mint")
+                        .value_name("MINT")
+                        .validator(is_pubkey_or_keypair)
+                        .takes_value(true)
+                        .index(1)
+                        .required(true)
+                        .help("Specify the mint address"),
+                )
+                .arg(
+                    Arg::with_name("name")
+                        .long("name")
+                        .value_name("NAME")
+                        .takes_value(true)
+                        .index(2)
+                        .required(true)
+                        .help("Name of the token"),
+                )
+                .arg(
+                    Arg::with_name("symbol")
+                        .long("symbol")
+                        .value_name("SYMBOL")
+                        .takes_value(true)
+                        .index(3)
+                        .required(true)
+                        .help("Symbol of the token"),
+                ),
+        )
         .get_matches();
 
     let config = {
@@ -198,6 +270,13 @@ fn main() {
             let core_bridge = pubkey_of(arg_matches, "core-bridge").unwrap();
 
             command_init_bridge(&config, &bridge, &core_bridge)
+        }
+        ("create-meta", Some(arg_matches)) => {
+            let mint = pubkey_of(arg_matches, "mint").unwrap();
+            let name: String = value_of(arg_matches, "name").unwrap();
+            let symbol: String = value_of(arg_matches, "symbol").unwrap();
+
+            command_create_meta(&config, &mint, name, symbol)
         }
 
         _ => unreachable!(),

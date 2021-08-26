@@ -403,6 +403,7 @@ dependencies = [
  "solana-sdk",
  "solitaire",
  "solitaire-client",
+ "spl-token-metadata",
  "token-bridge",
 ]
 

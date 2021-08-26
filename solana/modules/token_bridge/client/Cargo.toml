@@ -18,3 +18,4 @@ solitaire = { path = "../../../solitaire/program" }
 solitaire-client = { path = "../../../solitaire/client" }
 solana-clap-utils = "=1.7.0"
 hex = "0.4.3"
+spl-token-metadata = { path = "../token-metadata" }
