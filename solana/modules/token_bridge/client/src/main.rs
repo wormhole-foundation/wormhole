@@ -204,6 +204,20 @@ fn main() {
                 ),
         )
         .subcommand(
+            SubCommand::with_name("emitter")
+                .about("Get the derived emitter used for contract messages")
+                .arg(
+                    Arg::with_name("bridge")
+                        .long("bridge")
+                        .value_name("BRIDGE_KEY")
+                        .validator(is_pubkey_or_keypair)
+                        .takes_value(true)
+                        .index(1)
+                        .required(true)
+                        .help("Specify the token bridge program address"),
+                    ),
+        )
+        .subcommand(
             SubCommand::with_name("create-meta")
                 .about("Create token metadata")
                 .arg(
@@ -277,6 +291,13 @@ fn main() {
             let symbol: String = value_of(arg_matches, "symbol").unwrap();
 
             command_create_meta(&config, &mint, name, symbol)
+        }
+        ("emitter", Some(arg_matches)) => {
+            let bridge = pubkey_of(arg_matches, "bridge").unwrap();
+            let emitter = <Derive<Info<'_>, "emitter">>::key(None, &bridge);
+            println!("Emitter Key: {}", emitter);
+
+            Ok(None)
         }
 
         _ => unreachable!(),
