@@ -30,6 +30,12 @@
     },
     {
       "type": "panel",
+      "id": "state-timeline",
+      "name": "State timeline",
+      "version": ""
+    },
+    {
+      "type": "panel",
       "id": "timeseries",
       "name": "Time series",
       "version": ""
@@ -54,104 +60,30 @@
       }
     ]
   },
-  "description": "",
   "editable": true,
   "gnetId": null,
   "graphTooltip": 1,
   "id": null,
-  "iteration": 1629455457902,
+  "iteration": 1629991654379,
   "links": [],
   "panels": [
     {
-      "datasource": "${DS_PROMETHEUS}",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "spanNulls": true,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "short"
-        },
-        "overrides": []
-      },
+      "collapsed": false,
+      "datasource": null,
       "gridPos": {
-        "h": 8,
-        "w": 8,
+        "h": 1,
+        "w": 24,
         "x": 0,
         "y": 0
       },
-      "id": 2,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "multi"
-        }
-      },
-      "pluginVersion": "8.1.0",
-      "targets": [
-        {
-          "exemplar": true,
-          "expr": "rate(wormhole_eth_current_height{instance=~\"$instance\"}[$__rate_interval])",
-          "hide": false,
-          "instant": false,
-          "interval": "",
-          "legendFormat": "{{eth_network}} - {{instance}}",
-          "queryType": "randomWalk",
-          "refId": "A"
-        }
-      ],
-      "timeFrom": null,
-      "timeShift": null,
-      "title": "ETH Blocks/s",
-      "type": "timeseries"
+      "id": 34,
+      "panels": [],
+      "title": "Height info",
+      "type": "row"
     },
     {
       "datasource": "${DS_PROMETHEUS}",
+      "description": "Current Ethereum block height",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -163,92 +95,6 @@
             "barAlignment": 0,
             "drawStyle": "line",
             "fillOpacity": 10,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 8,
-        "y": 0
-      },
-      "id": 3,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "multi"
-        }
-      },
-      "pluginVersion": "8.1.0",
-      "targets": [
-        {
-          "exemplar": true,
-          "expr": "rate(wormhole_solana_current_height{instance=~\"$instance\"}[$__rate_interval])",
-          "interval": "",
-          "legendFormat": "{{commitment}} - {{instance}}",
-          "queryType": "randomWalk",
-          "refId": "A"
-        }
-      ],
-      "timeFrom": null,
-      "timeShift": null,
-      "title": "Solana Slots/s",
-      "type": "timeseries"
-    },
-    {
-      "datasource": "${DS_PROMETHEUS}",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 15,
             "gradientMode": "none",
             "hideFrom": {
               "legend": false,
@@ -263,293 +109,6 @@
             },
             "showPoints": "never",
             "spanNulls": true,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 16,
-        "y": 0
-      },
-      "id": 14,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "multi"
-        }
-      },
-      "pluginVersion": "8.1.0",
-      "targets": [
-        {
-          "exemplar": true,
-          "expr": "rate(wormhole_terra_current_height{instance=~\"$instance\"}[$__rate_interval])",
-          "interval": "",
-          "legendFormat": "{{instance}}",
-          "queryType": "randomWalk",
-          "refId": "A"
-        }
-      ],
-      "timeFrom": null,
-      "timeShift": null,
-      "title": "Terra Slots/s",
-      "type": "timeseries"
-    },
-    {
-      "datasource": "${DS_PROMETHEUS}",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 0,
-        "y": 8
-      },
-      "id": 4,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "single"
-        }
-      },
-      "pluginVersion": "8.1.0",
-      "targets": [
-        {
-          "exemplar": true,
-          "expr": "increase(wormhole_aggregation_state_unobserved_total{instance=~\"$instance\"}[$__rate_interval])",
-          "interval": "",
-          "legendFormat": "unobserved - {{instance}}",
-          "queryType": "randomWalk",
-          "refId": "A"
-        },
-        {
-          "exemplar": true,
-          "expr": "increase(wormhole_aggregation_state_expirations_total{instance=~\"$instance\"}[$__rate_interval])",
-          "hide": false,
-          "interval": "",
-          "legendFormat": "expirations - {{instance}}",
-          "refId": "B"
-        },
-        {
-          "exemplar": true,
-          "expr": "increase(wormhole_aggregation_state_retries_total{instance=~\"$instance\"}[$__rate_interval])",
-          "interval": "",
-          "legendFormat": "retries  - {{instance}}",
-          "refId": "C"
-        },
-        {
-          "exemplar": true,
-          "expr": "sum without (addr, origin, status)(increase(wormhole_aggregation_state_settled_signatures_total{instance=~\"$instance\"}[$__rate_interval]))",
-          "interval": "",
-          "legendFormat": "settled  - {{instance}}",
-          "refId": "D"
-        },
-        {
-          "exemplar": true,
-          "expr": "increase(wormhole_aggregation_state_timeout_total{instance=~\"$instance\"}[$__rate_interval])",
-          "interval": "",
-          "legendFormat": "timeout  - {{instance}}",
-          "refId": "E"
-        }
-      ],
-      "timeFrom": null,
-      "timeShift": null,
-      "title": "Aggregation Cleanup State Machine",
-      "type": "timeseries"
-    },
-    {
-      "datasource": "${DS_PROMETHEUS}",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 51,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "spanNulls": true,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 8,
-        "y": 8
-      },
-      "id": 6,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "multi"
-        }
-      },
-      "pluginVersion": "8.1.0",
-      "targets": [
-        {
-          "exemplar": true,
-          "expr": "wormhole_aggregation_state_entries{instance=~\"$instance\"}",
-          "interval": "",
-          "legendFormat": "count - {{instance}}",
-          "queryType": "randomWalk",
-          "refId": "A"
-        }
-      ],
-      "timeFrom": null,
-      "timeShift": null,
-      "title": "Aggregation State Size",
-      "type": "timeseries"
-    },
-    {
-      "datasource": "${DS_PROMETHEUS}",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "spanNulls": false,
             "stacking": {
               "group": "A",
               "mode": "none"
@@ -579,121 +138,11 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 8,
-        "x": 16,
-        "y": 8
-      },
-      "id": 7,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "multi"
-        }
-      },
-      "pluginVersion": "8.1.0",
-      "targets": [
-        {
-          "exemplar": true,
-          "expr": "increase(wormhole_eth_lockups_found_total{instance=~\"$instance\"}[$__rate_interval])",
-          "interval": "",
-          "legendFormat": "ethereum (found) - {{instance}}",
-          "queryType": "randomWalk",
-          "refId": "A"
-        },
-        {
-          "exemplar": true,
-          "expr": "increase(wormhole_eth_lockups_confirmed_total{instance=~\"$instance\"}[$__rate_interval])",
-          "interval": "",
-          "legendFormat": "ethereum (confirmed) - {{instance}}",
-          "queryType": "randomWalk",
-          "refId": "B"
-        },
-        {
-          "exemplar": true,
-          "expr": "increase(wormhole_solana_lockups_confirmed_total{instance=~\"$instance\"}[$__rate_interval])",
-          "interval": "",
-          "legendFormat": "solana (confirmed) - {{instance}}",
-          "queryType": "randomWalk",
-          "refId": "C"
-        },
-        {
-          "exemplar": true,
-          "expr": "increase(wormhole_terra_lockups_confirmed_total{instance=~\"$instance\"}[$__rate_interval])",
-          "interval": "",
-          "legendFormat": "terra (confirmed)  - {{instance}}",
-          "queryType": "randomWalk",
-          "refId": "D"
-        }
-      ],
-      "timeFrom": null,
-      "timeShift": null,
-      "title": "Lockup Observations",
-      "type": "timeseries"
-    },
-    {
-      "datasource": "${DS_PROMETHEUS}",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 40,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "spanNulls": true,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 6,
-        "w": 12,
+        "w": 6,
         "x": 0,
-        "y": 16
+        "y": 1
       },
-      "id": 8,
+      "id": 2,
       "options": {
         "legend": {
           "calcs": [],
@@ -708,192 +157,22 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "wormhole_solana_fee_account_balance_lamports{instance=~\"$instance\"}",
+          "expr": "rate(wormhole_eth_current_height{instance=~\"$instance\", eth_network=\"eth\"}[$__rate_interval])",
+          "instant": false,
           "interval": "",
-          "legendFormat": "lamport (1B = 1 SOL) - {{instance}}",
+          "legendFormat": "{{instance}} - {{eth_network}}",
           "queryType": "randomWalk",
           "refId": "A"
         }
       ],
       "timeFrom": null,
       "timeShift": null,
-      "title": "Solana Fee Payer Balance",
+      "title": "ETH Blocks/s",
       "type": "timeseries"
     },
     {
       "datasource": "${DS_PROMETHEUS}",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 50,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "spanNulls": true,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 6,
-        "w": 12,
-        "x": 12,
-        "y": 16
-      },
-      "id": 19,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "single"
-        }
-      },
-      "pluginVersion": "8.1.0",
-      "targets": [
-        {
-          "exemplar": true,
-          "expr": "wormhole_terra_fee_account_balance_lamports{instance=~\"$instance\"}",
-          "interval": "",
-          "legendFormat": "token - {{instance}}",
-          "queryType": "randomWalk",
-          "refId": "A"
-        }
-      ],
-      "timeFrom": null,
-      "timeShift": null,
-      "title": "Terra Fee Payer Balance",
-      "type": "timeseries"
-    },
-    {
-      "datasource": "${DS_PROMETHEUS}",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 15,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "spanNulls": true,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 9,
-        "w": 12,
-        "x": 0,
-        "y": 22
-      },
-      "id": 17,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "multi"
-        }
-      },
-      "pluginVersion": "8.1.0",
-      "targets": [
-        {
-          "exemplar": true,
-          "expr": "rate(wormhole_p2p_broadcast_messages_received_total{instance=~\"$instance\"}[$__rate_interval])",
-          "interval": "",
-          "legendFormat": "{{type}}  - {{instance}}",
-          "queryType": "randomWalk",
-          "refId": "A"
-        }
-      ],
-      "timeFrom": null,
-      "timeShift": null,
-      "title": "P2P Messages Received/s",
-      "type": "timeseries"
-    },
-    {
-      "datasource": "${DS_PROMETHEUS}",
+      "description": "Current Solana slot height",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -927,6 +206,7 @@
               "mode": "off"
             }
           },
+          "decimals": 2,
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
@@ -946,12 +226,276 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 9,
-        "w": 12,
-        "x": 12,
-        "y": 22
+        "h": 8,
+        "w": 6,
+        "x": 6,
+        "y": 1
       },
-      "id": 18,
+      "id": 3,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "pluginVersion": "8.1.0",
+      "targets": [
+        {
+          "exemplar": true,
+          "expr": "rate(wormhole_solana_current_height{instance=~\"$instance\"}[$__rate_interval])",
+          "interval": "",
+          "legendFormat": "{{instance}} - {{commitment}}",
+          "queryType": "randomWalk",
+          "refId": "A"
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Solana Slots/s",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "${DS_PROMETHEUS}",
+      "description": "Current Terra slot height (at default commitment level, not the level used for observations)",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "decimals": 2,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 12,
+        "y": 1
+      },
+      "id": 14,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "pluginVersion": "8.1.0",
+      "targets": [
+        {
+          "exemplar": true,
+          "expr": "rate(wormhole_terra_current_height{instance=~\"$instance\"}[$__rate_interval])",
+          "interval": "",
+          "legendFormat": "{{instance}} ",
+          "queryType": "randomWalk",
+          "refId": "A"
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Terra Slots/s",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "${DS_PROMETHEUS}",
+      "description": "Current Ethereum block height",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "decimals": 2,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 18,
+        "y": 1
+      },
+      "id": 25,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "pluginVersion": "8.1.0",
+      "targets": [
+        {
+          "exemplar": true,
+          "expr": "rate(wormhole_eth_current_height{instance=~\"$instance\", eth_network=\"bsc\"}[$__rate_interval])",
+          "instant": false,
+          "interval": "",
+          "legendFormat": "{{instance}} - {{eth_network}}",
+          "queryType": "randomWalk",
+          "refId": "A"
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "BSC Blocks/s",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "${DS_PROMETHEUS}",
+      "description": "Network height of the given guardian node per network(ethereum)",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 0,
+        "y": 9
+      },
+      "id": 21,
       "options": {
         "legend": {
           "calcs": [],
@@ -966,36 +510,23 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "rate(wormhole_eth_connection_errors_total{instance=~\"$instance\"}[$__rate_interval])",
+          "expr": "wormhole_network_node_height{instance=~\"$instance\", network=\"ethereum\", node_name=~\"$node_name\"} > 0",
+          "hide": false,
+          "instant": false,
           "interval": "",
-          "legendFormat": "[Ethereum] {{reason}} - {{instance}}",
+          "legendFormat": "{{ node_name }}",
           "queryType": "randomWalk",
           "refId": "A"
-        },
-        {
-          "exemplar": true,
-          "expr": "rate(wormhole_solana_connection_errors_total{instance=~\"$instance\"}[$__rate_interval])",
-          "interval": "",
-          "legendFormat": "[Solana] {{reason}} - {{instance}}",
-          "queryType": "randomWalk",
-          "refId": "B"
-        },
-        {
-          "exemplar": true,
-          "expr": "rate(wormhole_terra_connection_errors_total{instance=~\"$instance\"}[$__rate_interval])",
-          "interval": "",
-          "legendFormat": "[Terra] {{ reason }} - {{instance}}",
-          "queryType": "randomWalk",
-          "refId": "C"
         }
       ],
       "timeFrom": null,
       "timeShift": null,
-      "title": "Watcher Error Rate",
+      "title": "Network ETH Height",
       "type": "timeseries"
     },
     {
       "datasource": "${DS_PROMETHEUS}",
+      "description": "Network height of the given guardian node per network(solana)",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1006,7 +537,7 @@
             "axisPlacement": "auto",
             "barAlignment": 0,
             "drawStyle": "line",
-            "fillOpacity": 15,
+            "fillOpacity": 0,
             "gradientMode": "none",
             "hideFrom": {
               "legend": false,
@@ -1043,47 +574,47 @@
               }
             ]
           },
-          "unit": "short"
+          "unit": "none"
         },
         "overrides": []
       },
       "gridPos": {
         "h": 8,
-        "w": 24,
-        "x": 0,
-        "y": 31
+        "w": 6,
+        "x": 6,
+        "y": 9
       },
-      "id": 16,
+      "id": 22,
       "options": {
         "legend": {
-          "calcs": [
-            "max"
-          ],
-          "displayMode": "table",
-          "placement": "right"
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
         },
         "tooltip": {
-          "mode": "single"
+          "mode": "multi"
         }
       },
       "pluginVersion": "8.1.0",
       "targets": [
         {
           "exemplar": true,
-          "expr": "increase(wormhole_observations_signed_by_guardian_total{instance=~\"$instance\"}[$__rate_interval])",
+          "expr": "wormhole_network_node_height{instance=~\"$instance\", network=\"solana\", node_name=~\"$node_name\"} > 0",
+          "instant": false,
           "interval": "",
-          "legendFormat": "{{ addr }} - {{instance}}",
+          "legendFormat": "{{ node_name }}",
           "queryType": "randomWalk",
           "refId": "A"
         }
       ],
       "timeFrom": null,
       "timeShift": null,
-      "title": "Observations by Guardian",
+      "title": "Network Solana Height",
       "type": "timeseries"
     },
     {
       "datasource": "${DS_PROMETHEUS}",
+      "description": "Network height of the given guardian node per network(terra)",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1094,7 +625,7 @@
             "axisPlacement": "auto",
             "barAlignment": 0,
             "drawStyle": "line",
-            "fillOpacity": 15,
+            "fillOpacity": 0,
             "gradientMode": "none",
             "hideFrom": {
               "legend": false,
@@ -1131,239 +662,1817 @@
               }
             ]
           },
-          "unit": "short"
+          "unit": "none"
         },
         "overrides": []
       },
       "gridPos": {
         "h": 8,
-        "w": 24,
-        "x": 0,
-        "y": 39
+        "w": 6,
+        "x": 12,
+        "y": 9
       },
-      "id": 10,
+      "id": 23,
       "options": {
         "legend": {
-          "calcs": [
-            "max"
-          ],
-          "displayMode": "table",
-          "placement": "right"
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
         },
         "tooltip": {
-          "mode": "single"
+          "mode": "multi"
         }
       },
       "pluginVersion": "8.1.0",
       "targets": [
         {
           "exemplar": true,
-          "expr": "increase(wormhole_aggregation_state_settled_signatures_total{instance=~\"$instance\",status!=\"present\"}[$__rate_interval])",
+          "expr": "wormhole_network_node_height{instance=~\"$instance\", network=\"terra\", node_name=~\"$node_name\"} > 0",
+          "instant": false,
           "interval": "",
-          "legendFormat": "{{addr}} [from {{ origin }}]",
+          "legendFormat": "{{ node_name }}",
           "queryType": "randomWalk",
           "refId": "A"
         }
       ],
       "timeFrom": null,
       "timeShift": null,
-      "title": "Missing Signatures",
+      "title": "Network Terra Height",
       "type": "timeseries"
     },
     {
-      "cards": {
-        "cardPadding": null,
-        "cardRound": null
-      },
-      "color": {
-        "cardColor": "#b4ff00",
-        "colorScale": "sqrt",
-        "colorScheme": "interpolateTurbo",
-        "exponent": 0.5,
-        "mode": "spectrum"
-      },
-      "dataFormat": "timeseries",
       "datasource": "${DS_PROMETHEUS}",
+      "description": "Network height of the given guardian node per network(bsc)",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
       "gridPos": {
         "h": 8,
-        "w": 8,
+        "w": 6,
+        "x": 18,
+        "y": 9
+      },
+      "id": 24,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "pluginVersion": "8.1.0",
+      "targets": [
+        {
+          "exemplar": true,
+          "expr": "wormhole_network_node_height{instance=~\"$instance\", network=\"bsc\", node_name=~\"$node_name\"} > 0",
+          "instant": false,
+          "interval": "",
+          "legendFormat": "{{ node_name }}",
+          "queryType": "randomWalk",
+          "refId": "A"
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Network BSC Height",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": true,
+      "datasource": null,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
         "x": 0,
-        "y": 47
+        "y": 17
       },
-      "heatmap": {},
-      "hideZeroBuckets": false,
-      "highlightCards": true,
-      "id": 12,
-      "legend": {
-        "show": false
-      },
-      "pluginVersion": "7.3.6",
-      "reverseYBuckets": false,
-      "targets": [
+      "id": 36,
+      "panels": [
         {
-          "exemplar": true,
-          "expr": "sum(increase(wormhole_solana_query_latency_bucket{instance=~\"$instance\"}[$__interval])) by (le)",
-          "interval": "",
-          "legendFormat": "",
-          "queryType": "randomWalk",
-          "refId": "A"
+          "datasource": "${DS_PROMETHEUS}",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": true,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 7,
+            "w": 8,
+            "x": 0,
+            "y": 2
+          },
+          "id": 4,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "single"
+            }
+          },
+          "pluginVersion": "8.1.0",
+          "targets": [
+            {
+              "exemplar": true,
+              "expr": "increase(wormhole_aggregation_state_unobserved_total{instance=~\"$instance\"}[$__rate_interval])",
+              "interval": "",
+              "legendFormat": "unobserved - {{instance}}",
+              "queryType": "randomWalk",
+              "refId": "A"
+            },
+            {
+              "exemplar": true,
+              "expr": "increase(wormhole_aggregation_state_expirations_total{instance=~\"$instance\"}[$__rate_interval])",
+              "interval": "",
+              "legendFormat": "expirations - {{instance}}",
+              "refId": "B"
+            },
+            {
+              "exemplar": true,
+              "expr": "increase(wormhole_aggregation_state_retries_total{instance=~\"$instance\"}[$__rate_interval])",
+              "interval": "",
+              "legendFormat": "retries - {{instance}}",
+              "refId": "C"
+            },
+            {
+              "exemplar": true,
+              "expr": "sum without (addr, origin, status)(increase(wormhole_aggregation_state_settled_signatures_total{instance=~\"$instance\"}[$__rate_interval]))",
+              "interval": "",
+              "legendFormat": "settled - {{instance}}",
+              "refId": "D"
+            },
+            {
+              "exemplar": true,
+              "expr": "increase(wormhole_aggregation_state_timeout_total{instance=~\"$instance\"}[$__rate_interval])",
+              "interval": "",
+              "legendFormat": "timeout - {{instance}}",
+              "refId": "E"
+            },
+            {
+              "exemplar": true,
+              "expr": "increase(wormhole_aggregation_state_timeout_total{instance=~\"$instance\"}[$__rate_interval])",
+              "interval": "",
+              "legendFormat": "timeout - {{instance}}",
+              "refId": "F"
+            }
+          ],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "Aggregation Cleanup State Machine",
+          "type": "timeseries"
+        },
+        {
+          "datasource": "${DS_PROMETHEUS}",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": true,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 7,
+            "w": 8,
+            "x": 8,
+            "y": 2
+          },
+          "id": 6,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "single"
+            }
+          },
+          "pluginVersion": "8.1.0",
+          "targets": [
+            {
+              "exemplar": true,
+              "expr": "wormhole_aggregation_state_entries{instance=~\"$instance\"}",
+              "interval": "",
+              "legendFormat": "count - {{instance}}",
+              "queryType": "randomWalk",
+              "refId": "A"
+            }
+          ],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "Aggregation State Size",
+          "type": "timeseries"
+        },
+        {
+          "datasource": "${DS_PROMETHEUS}",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": true,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 7,
+            "w": 8,
+            "x": 16,
+            "y": 2
+          },
+          "id": 7,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "single"
+            }
+          },
+          "pluginVersion": "8.1.0",
+          "targets": [
+            {
+              "exemplar": true,
+              "expr": "increase(wormhole_eth_messages_observed_total{instance=~\"$instance\"}[$__rate_interval])",
+              "interval": "",
+              "legendFormat": "ethereum (found) - {{instance}}",
+              "queryType": "randomWalk",
+              "refId": "A"
+            },
+            {
+              "exemplar": true,
+              "expr": "increase(wormhole_eth_messages_confirmed_total{instance=~\"$instance\"}[$__rate_interval])",
+              "interval": "",
+              "legendFormat": "ethereum (confirmed) - {{instance}}",
+              "queryType": "randomWalk",
+              "refId": "B"
+            },
+            {
+              "exemplar": true,
+              "expr": "increase(wormhole_solana_observations_confirmed_total{instance=~\"$instance\"}[$__rate_interval])",
+              "interval": "",
+              "legendFormat": "solana (confirmed) - {{instance}}",
+              "queryType": "randomWalk",
+              "refId": "C"
+            },
+            {
+              "exemplar": true,
+              "expr": "increase(wormhole_terra_messages_confirmed_total{instance=~\"$instance\"}[$__rate_interval])",
+              "interval": "",
+              "legendFormat": "terra (confirmed) - {{instance}}",
+              "queryType": "randomWalk",
+              "refId": "D"
+            }
+          ],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "Message Observations",
+          "type": "timeseries"
         }
       ],
-      "timeFrom": null,
-      "timeShift": null,
-      "title": "Solana Query Latency",
-      "tooltip": {
-        "show": true,
-        "showHistogram": false
-      },
-      "type": "heatmap",
-      "xAxis": {
-        "show": true
-      },
-      "xBucketNumber": null,
-      "xBucketSize": null,
-      "yAxis": {
-        "decimals": null,
-        "format": "short",
-        "logBase": 1,
-        "max": null,
-        "min": null,
-        "show": true,
-        "splitFactor": null
-      },
-      "yBucketBound": "auto",
-      "yBucketNumber": null,
-      "yBucketSize": null
+      "title": "Aggregation info",
+      "type": "row"
     },
     {
-      "cards": {
-        "cardPadding": null,
-        "cardRound": null
-      },
-      "color": {
-        "cardColor": "#b4ff00",
-        "colorScale": "sqrt",
-        "colorScheme": "interpolateTurbo",
-        "exponent": 0.5,
-        "mode": "spectrum"
-      },
-      "dataFormat": "timeseries",
-      "datasource": "${DS_PROMETHEUS}",
+      "collapsed": true,
+      "datasource": null,
       "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 8,
-        "y": 47
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 18
       },
-      "heatmap": {},
-      "hideZeroBuckets": false,
-      "highlightCards": true,
-      "id": 13,
-      "legend": {
-        "show": false
-      },
-      "pluginVersion": "7.3.6",
-      "reverseYBuckets": false,
-      "targets": [
+      "id": 42,
+      "panels": [
         {
-          "exemplar": true,
-          "expr": "sum(increase(wormhole_eth_query_latency_bucket{instance=~\"$instance\"}[$__interval])) by (le)",
-          "interval": "",
-          "legendFormat": "",
-          "queryType": "randomWalk",
-          "refId": "A"
+          "datasource": "${DS_PROMETHEUS}",
+          "description": "Total number of p2p pubsub broadcast messages received",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": true,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 9,
+            "w": 12,
+            "x": 0,
+            "y": 3
+          },
+          "id": 17,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "single"
+            }
+          },
+          "pluginVersion": "8.1.0",
+          "targets": [
+            {
+              "exemplar": true,
+              "expr": "rate(wormhole_p2p_broadcast_messages_received_total{instance=~\"$instance\"}[$__rate_interval])",
+              "interval": "",
+              "legendFormat": "{{ type }}",
+              "queryType": "randomWalk",
+              "refId": "A"
+            }
+          ],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "P2P Messages Received/s",
+          "type": "timeseries"
+        },
+        {
+          "datasource": "${DS_PROMETHEUS}",
+          "description": "Total number connection errors",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "bars",
+                "fillOpacity": 100,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": true,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 9,
+            "w": 12,
+            "x": 12,
+            "y": 3
+          },
+          "id": 18,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "single"
+            }
+          },
+          "pluginVersion": "8.1.0",
+          "targets": [
+            {
+              "exemplar": true,
+              "expr": "increase(wormhole_eth_connection_errors_total{instance=~\"$instance\"}[$__rate_interval])",
+              "interval": "1m",
+              "legendFormat": "{{eth_network}} - {{ reason }}",
+              "queryType": "randomWalk",
+              "refId": "A"
+            },
+            {
+              "exemplar": true,
+              "expr": "increase(wormhole_solana_connection_errors_total{instance=~\"$instance\"}[$__rate_interval])",
+              "interval": "1m",
+              "legendFormat": "Solana - {{ reason }}",
+              "queryType": "randomWalk",
+              "refId": "B"
+            },
+            {
+              "exemplar": true,
+              "expr": "rate(wormhole_terra_connection_errors_total{instance=~\"$instance\"}[$__rate_interval])",
+              "interval": "1m",
+              "legendFormat": "Terra - {{ reason }}",
+              "queryType": "randomWalk",
+              "refId": "C"
+            }
+          ],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "Watcher Error Count",
+          "type": "timeseries"
         }
       ],
-      "timeFrom": null,
-      "timeShift": null,
-      "title": "Ethereum Query Latency",
-      "tooltip": {
-        "show": true,
-        "showHistogram": false
-      },
-      "type": "heatmap",
-      "xAxis": {
-        "show": true
-      },
-      "xBucketNumber": null,
-      "xBucketSize": null,
-      "yAxis": {
-        "decimals": null,
-        "format": "short",
-        "logBase": 1,
-        "max": null,
-        "min": null,
-        "show": true,
-        "splitFactor": null
-      },
-      "yBucketBound": "auto",
-      "yBucketNumber": null,
-      "yBucketSize": null
+      "title": "Connection info",
+      "type": "row"
     },
     {
-      "cards": {
-        "cardPadding": null,
-        "cardRound": null
-      },
-      "color": {
-        "cardColor": "#b4ff00",
-        "colorScale": "sqrt",
-        "colorScheme": "interpolateTurbo",
-        "exponent": 0.5,
-        "mode": "spectrum"
-      },
-      "dataFormat": "timeseries",
-      "datasource": "${DS_PROMETHEUS}",
+      "collapsed": true,
+      "datasource": null,
       "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 16,
-        "y": 47
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 19
       },
-      "heatmap": {},
-      "hideZeroBuckets": false,
-      "highlightCards": true,
-      "id": 15,
-      "legend": {
-        "show": false
-      },
-      "pluginVersion": "7.3.6",
-      "reverseYBuckets": false,
-      "targets": [
+      "id": 38,
+      "panels": [
         {
-          "exemplar": true,
-          "expr": "sum(increase(wormhole_terra_query_latency_bucket{instance=~\"$instance\"}[$__interval])) by (le)",
-          "interval": "",
-          "legendFormat": "",
-          "queryType": "randomWalk",
-          "refId": "A"
+          "datasource": null,
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 40,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": true,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 0,
+            "y": 13
+          },
+          "id": 28,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "single"
+            }
+          },
+          "targets": [
+            {
+              "exemplar": true,
+              "expr": "wormhole_solana_fee_account_balance_lamports{instance=~\"$instance\"}",
+              "interval": "",
+              "legendFormat": "lamport (1B = 1 SOL) - {{instance}}",
+              "refId": "A"
+            }
+          ],
+          "title": "Solana Fee Payer Balance",
+          "type": "timeseries"
+        },
+        {
+          "datasource": null,
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 12,
+            "y": 13
+          },
+          "id": 30,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "single"
+            }
+          },
+          "targets": [
+            {
+              "exemplar": true,
+              "expr": "wormhole_terra_fee_account_balance_lamports{instance=~\"$instance\"}",
+              "interval": "",
+              "legendFormat": "token - {{instance}}",
+              "refId": "A"
+            }
+          ],
+          "title": "Terra Fee Payer Balance",
+          "type": "timeseries"
         }
       ],
-      "timeFrom": null,
-      "timeShift": null,
-      "title": "Terra Query Latency",
-      "tooltip": {
-        "show": true,
-        "showHistogram": false
+      "title": "Balance info",
+      "type": "row"
+    },
+    {
+      "collapsed": true,
+      "datasource": null,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 20
       },
-      "type": "heatmap",
-      "xAxis": {
-        "show": true
+      "id": 40,
+      "panels": [
+        {
+          "datasource": "${DS_PROMETHEUS}",
+          "description": "Total number of signed and verified VAA observations grouped by guardian address",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": true,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 5
+          },
+          "id": 16,
+          "options": {
+            "legend": {
+              "calcs": [
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "right"
+            },
+            "tooltip": {
+              "mode": "single"
+            }
+          },
+          "pluginVersion": "8.1.0",
+          "targets": [
+            {
+              "exemplar": true,
+              "expr": "increase(wormhole_observations_signed_by_guardian_total{instance=~\"$instance\", addr=~\"$addr\"}[$__rate_interval])",
+              "interval": "",
+              "legendFormat": "{{ addr }}",
+              "queryType": "randomWalk",
+              "refId": "A"
+            }
+          ],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "Observations by Guardian",
+          "type": "timeseries"
+        },
+        {
+          "datasource": "${DS_PROMETHEUS}",
+          "description": "Total number of signatures produced by a validator, counted after waiting a fixed amount of time",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": true,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 13
+          },
+          "id": 10,
+          "options": {
+            "legend": {
+              "calcs": [
+                "sum"
+              ],
+              "displayMode": "table",
+              "placement": "right"
+            },
+            "tooltip": {
+              "mode": "single"
+            }
+          },
+          "pluginVersion": "8.1.0",
+          "targets": [
+            {
+              "exemplar": true,
+              "expr": "increase(wormhole_aggregation_state_settled_signatures_total{status!=\"present\", instance=~\"$instance\", addr=~\"$addr\"}[1h])",
+              "interval": "",
+              "legendFormat": "{{ addr }} - from {{ origin }}",
+              "queryType": "randomWalk",
+              "refId": "A"
+            }
+          ],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "Missing Signatures",
+          "type": "timeseries"
+        },
+        {
+          "datasource": "${DS_PROMETHEUS}",
+          "description": "Total number of signatures produced by a validator, counted after waiting a fixed amount of time",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": true,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 21
+          },
+          "id": 20,
+          "options": {
+            "legend": {
+              "calcs": [
+                "sum"
+              ],
+              "displayMode": "table",
+              "placement": "right"
+            },
+            "tooltip": {
+              "mode": "single"
+            }
+          },
+          "pluginVersion": "8.1.0",
+          "targets": [
+            {
+              "exemplar": true,
+              "expr": "increase(wormhole_aggregation_state_settled_signatures_total{status!=\"present\", origin!=\"unknown\", instance=~\"$instance\", addr=~\"$addr\"}[1h])",
+              "interval": "",
+              "legendFormat": "{{ addr }} - from {{ origin }}",
+              "queryType": "randomWalk",
+              "refId": "A"
+            }
+          ],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "Missing Signatures (except unknown)",
+          "type": "timeseries"
+        }
+      ],
+      "title": "Signatures info (set instance filter)",
+      "type": "row"
+    },
+    {
+      "collapsed": true,
+      "datasource": null,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 21
       },
-      "xBucketNumber": null,
-      "xBucketSize": null,
-      "yAxis": {
-        "decimals": null,
-        "format": "short",
-        "logBase": 1,
-        "max": null,
-        "min": null,
-        "show": true,
-        "splitFactor": null
+      "id": 32,
+      "panels": [
+        {
+          "cards": {
+            "cardPadding": null,
+            "cardRound": null
+          },
+          "color": {
+            "cardColor": "#b4ff00",
+            "colorScale": "sqrt",
+            "colorScheme": "interpolateTurbo",
+            "exponent": 0.5,
+            "mode": "spectrum"
+          },
+          "dataFormat": "timeseries",
+          "datasource": "${DS_PROMETHEUS}",
+          "gridPos": {
+            "h": 7,
+            "w": 6,
+            "x": 0,
+            "y": 10
+          },
+          "heatmap": {},
+          "hideZeroBuckets": false,
+          "highlightCards": true,
+          "id": 12,
+          "legend": {
+            "show": false
+          },
+          "pluginVersion": "7.3.6",
+          "reverseYBuckets": false,
+          "targets": [
+            {
+              "expr": "sum(increase(wormhole_solana_query_latency_bucket{instance=~\"$instance\"}[$__interval])) by (le)",
+              "interval": "",
+              "legendFormat": "",
+              "queryType": "randomWalk",
+              "refId": "A"
+            }
+          ],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "Solana Query Latency",
+          "tooltip": {
+            "show": true,
+            "showHistogram": false
+          },
+          "type": "heatmap",
+          "xAxis": {
+            "show": true
+          },
+          "xBucketNumber": null,
+          "xBucketSize": null,
+          "yAxis": {
+            "decimals": null,
+            "format": "short",
+            "logBase": 1,
+            "max": null,
+            "min": null,
+            "show": true,
+            "splitFactor": null
+          },
+          "yBucketBound": "auto",
+          "yBucketNumber": null,
+          "yBucketSize": null
+        },
+        {
+          "cards": {
+            "cardPadding": null,
+            "cardRound": null
+          },
+          "color": {
+            "cardColor": "#b4ff00",
+            "colorScale": "sqrt",
+            "colorScheme": "interpolateTurbo",
+            "exponent": 0.5,
+            "mode": "spectrum"
+          },
+          "dataFormat": "timeseries",
+          "datasource": "${DS_PROMETHEUS}",
+          "gridPos": {
+            "h": 7,
+            "w": 6,
+            "x": 6,
+            "y": 10
+          },
+          "heatmap": {},
+          "hideZeroBuckets": false,
+          "highlightCards": true,
+          "id": 13,
+          "legend": {
+            "show": false
+          },
+          "pluginVersion": "7.3.6",
+          "reverseYBuckets": false,
+          "targets": [
+            {
+              "expr": "sum(increase(wormhole_eth_query_latency_bucket{instance=~\"$instance\"}[$__interval])) by (le)",
+              "interval": "",
+              "legendFormat": "",
+              "queryType": "randomWalk",
+              "refId": "A"
+            }
+          ],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "Ethereum Query Latency",
+          "tooltip": {
+            "show": true,
+            "showHistogram": false
+          },
+          "type": "heatmap",
+          "xAxis": {
+            "show": true
+          },
+          "xBucketNumber": null,
+          "xBucketSize": null,
+          "yAxis": {
+            "decimals": null,
+            "format": "short",
+            "logBase": 1,
+            "max": null,
+            "min": null,
+            "show": true,
+            "splitFactor": null
+          },
+          "yBucketBound": "auto",
+          "yBucketNumber": null,
+          "yBucketSize": null
+        },
+        {
+          "cards": {
+            "cardPadding": null,
+            "cardRound": null
+          },
+          "color": {
+            "cardColor": "#b4ff00",
+            "colorScale": "sqrt",
+            "colorScheme": "interpolateTurbo",
+            "exponent": 0.5,
+            "mode": "spectrum"
+          },
+          "dataFormat": "timeseries",
+          "datasource": "${DS_PROMETHEUS}",
+          "gridPos": {
+            "h": 7,
+            "w": 6,
+            "x": 12,
+            "y": 10
+          },
+          "heatmap": {},
+          "hideZeroBuckets": false,
+          "highlightCards": true,
+          "id": 15,
+          "legend": {
+            "show": false
+          },
+          "pluginVersion": "7.3.6",
+          "reverseYBuckets": false,
+          "targets": [
+            {
+              "exemplar": true,
+              "expr": "sum(increase(wormhole_terra_query_latency_bucket{instance=~\"$instance\"}[$__interval])) by (le)",
+              "interval": "",
+              "legendFormat": "",
+              "queryType": "randomWalk",
+              "refId": "A"
+            }
+          ],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "Terra Query Latency",
+          "tooltip": {
+            "show": true,
+            "showHistogram": false
+          },
+          "type": "heatmap",
+          "xAxis": {
+            "show": true
+          },
+          "xBucketNumber": null,
+          "xBucketSize": null,
+          "yAxis": {
+            "decimals": null,
+            "format": "short",
+            "logBase": 1,
+            "max": null,
+            "min": null,
+            "show": true,
+            "splitFactor": null
+          },
+          "yBucketBound": "auto",
+          "yBucketNumber": null,
+          "yBucketSize": null
+        },
+        {
+          "cards": {
+            "cardPadding": null,
+            "cardRound": null
+          },
+          "color": {
+            "cardColor": "#b4ff00",
+            "colorScale": "sqrt",
+            "colorScheme": "interpolateTurbo",
+            "exponent": 0.5,
+            "mode": "spectrum"
+          },
+          "dataFormat": "timeseries",
+          "datasource": "${DS_PROMETHEUS}",
+          "gridPos": {
+            "h": 7,
+            "w": 6,
+            "x": 18,
+            "y": 10
+          },
+          "heatmap": {},
+          "hideZeroBuckets": false,
+          "highlightCards": true,
+          "id": 26,
+          "legend": {
+            "show": false
+          },
+          "pluginVersion": "7.3.6",
+          "reverseYBuckets": false,
+          "targets": [
+            {
+              "expr": "sum(increase(wormhole_eth_query_latency_bucket{instance=~\"$instance\", eth_network=\"bsc\"}[$__interval])) by (le)",
+              "interval": "",
+              "legendFormat": "",
+              "queryType": "randomWalk",
+              "refId": "A"
+            }
+          ],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "Ethereum Query Latency",
+          "tooltip": {
+            "show": true,
+            "showHistogram": false
+          },
+          "type": "heatmap",
+          "xAxis": {
+            "show": true
+          },
+          "xBucketNumber": null,
+          "xBucketSize": null,
+          "yAxis": {
+            "decimals": null,
+            "format": "short",
+            "logBase": 1,
+            "max": null,
+            "min": null,
+            "show": true,
+            "splitFactor": null
+          },
+          "yBucketBound": "auto",
+          "yBucketNumber": null,
+          "yBucketSize": null
+        }
+      ],
+      "title": "Query Latency",
+      "type": "row"
+    },
+    {
+      "collapsed": true,
+      "datasource": null,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 22
       },
-      "yBucketBound": "auto",
-      "yBucketNumber": null,
-      "yBucketSize": null
+      "id": 46,
+      "panels": [
+        {
+          "datasource": null,
+          "description": "",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "continuous-GrYlRd"
+              },
+              "custom": {
+                "fillOpacity": 70,
+                "lineWidth": 0
+              },
+              "mappings": [
+                {
+                  "options": {
+                    "0": {
+                      "color": "red",
+                      "index": 1,
+                      "text": "Down"
+                    },
+                    "1": {
+                      "color": "green",
+                      "index": 0,
+                      "text": "Up"
+                    }
+                  },
+                  "type": "value"
+                },
+                {
+                  "options": {
+                    "match": "null+nan",
+                    "result": {
+                      "color": "purple",
+                      "index": 2,
+                      "text": "N/A"
+                    }
+                  },
+                  "type": "special"
+                },
+                {
+                  "options": {
+                    "match": "empty",
+                    "result": {
+                      "color": "purple",
+                      "index": 3,
+                      "text": "N/A"
+                    }
+                  },
+                  "type": "special"
+                }
+              ],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 5,
+            "w": 12,
+            "x": 0,
+            "y": 23
+          },
+          "id": 44,
+          "options": {
+            "alignValue": "center",
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "mergeValues": true,
+            "rowHeight": 0.9,
+            "showValue": "always",
+            "tooltip": {
+              "mode": "single"
+            }
+          },
+          "targets": [
+            {
+              "exemplar": true,
+              "expr": "up{job=\"wormhole\"}",
+              "interval": "",
+              "legendFormat": "{{instance}}",
+              "refId": "A"
+            }
+          ],
+          "title": "Prometheus target status ",
+          "type": "state-timeline"
+        },
+        {
+          "datasource": null,
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 100,
+                "gradientMode": "opacity",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 1,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "days"
+            },
+            "overrides": [
+              {
+                "__systemRef": "hideSeriesFrom",
+                "matcher": {
+                  "id": "byNames",
+                  "options": {
+                    "mode": "exclude",
+                    "names": [
+                      "testnet_v2 "
+                    ],
+                    "prefix": "All except:",
+                    "readOnly": true
+                  }
+                },
+                "properties": [
+                  {
+                    "id": "custom.hideFrom",
+                    "value": {
+                      "legend": false,
+                      "tooltip": false,
+                      "viz": true
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 5,
+            "w": 12,
+            "x": 12,
+            "y": 23
+          },
+          "id": 52,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "single"
+            }
+          },
+          "targets": [
+            {
+              "exemplar": true,
+              "expr": "(time() - process_start_time_seconds{instance=~\"$instance\"}) /86400",
+              "interval": "",
+              "legendFormat": "{{instance}} ",
+              "refId": "A"
+            }
+          ],
+          "title": "Node uptime",
+          "type": "timeseries"
+        },
+        {
+          "datasource": null,
+          "description": "",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "__systemRef": "hideSeriesFrom",
+                "matcher": {
+                  "id": "byNames",
+                  "options": {
+                    "mode": "exclude",
+                    "names": [
+                      "quic_connection_errors_total{error_code=\"APPLICATION_ERROR\", instance=\"testnet_v2\", job=\"wormhole\", side=\"remote\"}",
+                      "quic_connection_errors_total{error_code=\"CRYPTO_ERROR (0x12a)\", instance=\"mainnet_v2\", job=\"wormhole\", side=\"local\"}",
+                      "quic_connection_errors_total{error_code=\"CRYPTO_ERROR (0x12a)\", instance=\"mainnet_v2\", job=\"wormhole\", side=\"remote\"}",
+                      "quic_connection_errors_total{error_code=\"idle_timeout\", instance=\"mainnet_v2\", job=\"wormhole\", side=\"local\"}",
+                      "quic_connection_errors_total{error_code=\"idle_timeout\", instance=\"testnet_v2\", job=\"wormhole\", side=\"local\"}",
+                      "quic_connection_errors_total{error_code=\"stateless_reset\", instance=\"mainnet_v2\", job=\"wormhole\", side=\"remote\"}",
+                      "quic_connection_errors_total{error_code=\"stateless_reset\", instance=\"testnet_v2\", job=\"wormhole\", side=\"remote\"}"
+                    ],
+                    "prefix": "All except:",
+                    "readOnly": true
+                  }
+                },
+                "properties": [
+                  {
+                    "id": "custom.hideFrom",
+                    "value": {
+                      "legend": false,
+                      "tooltip": false,
+                      "viz": true
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 28
+          },
+          "id": 48,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "single"
+            }
+          },
+          "targets": [
+            {
+              "exemplar": true,
+              "expr": "quic_connection_errors_total{instance=~\"$instance\"}",
+              "interval": "",
+              "legendFormat": "{{instance}} - {{error_code}} - {{side}}",
+              "refId": "A"
+            }
+          ],
+          "title": "QUIC connection errors",
+          "type": "timeseries"
+        },
+        {
+          "datasource": null,
+          "description": "",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 100,
+                "gradientMode": "opacity",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineStyle": {
+                  "fill": "solid"
+                },
+                "lineWidth": 1,
+                "pointSize": 1,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "decbytes"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 28
+          },
+          "id": 50,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "single"
+            }
+          },
+          "targets": [
+            {
+              "exemplar": true,
+              "expr": "process_resident_memory_bytes{instance=~\"$instance\"}",
+              "interval": "",
+              "legendFormat": "{{instance}}",
+              "refId": "A"
+            }
+          ],
+          "title": "Resident memory size in bytes.",
+          "type": "timeseries"
+        }
+      ],
+      "title": "Debug",
+      "type": "row"
     }
   ],
   "refresh": "",
@@ -1387,7 +2496,7 @@
         "options": [],
         "query": {
           "query": "label_values(wormhole_eth_current_height, instance)",
-          "refId": "Prometheus-instance-Variable-Query"
+          "refId": "StandardVariableQuery"
         },
         "refresh": 1,
         "regex": "",
@@ -1397,16 +2506,62 @@
         "tagsQuery": "",
         "type": "query",
         "useTags": false
+      },
+      {
+        "allValue": null,
+        "current": {},
+        "datasource": "${DS_PROMETHEUS}",
+        "definition": "label_values(wormhole_network_node_height, node_name)",
+        "description": null,
+        "error": null,
+        "hide": 0,
+        "includeAll": true,
+        "label": "node_name",
+        "multi": true,
+        "name": "node_name",
+        "options": [],
+        "query": {
+          "query": "label_values(wormhole_network_node_height, node_name)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      },
+      {
+        "allValue": null,
+        "current": {},
+        "datasource": "${DS_PROMETHEUS}",
+        "definition": "label_values(wormhole_observations_signed_by_guardian_total, addr)",
+        "description": null,
+        "error": null,
+        "hide": 0,
+        "includeAll": true,
+        "label": "addr",
+        "multi": true,
+        "name": "addr",
+        "options": [],
+        "query": {
+          "query": "label_values(wormhole_observations_signed_by_guardian_total, addr)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
       }
     ]
   },
   "time": {
-    "from": "now-3h",
+    "from": "now-1h",
     "to": "now"
   },
   "timepicker": {},
   "timezone": "",
-  "title": "Wormhole",
-  "uid": "CVGqeaYMz",
-  "version": 20
+  "title": "Wormhole v2",
+  "uid": "2N0GYz47123",
+  "version": 47
 }
