@@ -8,4 +8,4 @@ require (
 	github.com/spf13/cobra v1.1.1
 )
 
-replace github.com/certusone/wormhole/node => ../../bridge
+replace github.com/certusone/wormhole/node => ../../node
