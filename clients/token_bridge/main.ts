@@ -132,14 +132,31 @@ yargs(hideBin(process.argv))
                 description: 'Token Bridge address',
                 default: "terra10pyejy66429refv3g35g2t7am0was7ya7kz2a4"
             })
+            .option('chain_id', {
+                alias: 'c',
+                type: 'string',
+                description: 'Chain ID',
+		// Should be localterra in theory, however Terra Station will
+		// assume columbus-4 when localterra is set, while our current
+		// dev environment is based on columbus-4. Should change when
+		// change ID within terra/devnet/config/genesis.json is also
+		// changed.
+                default: 'columbus-4' 
+            })
+            .option('mnemonic', {
+                alias: 'm',
+                type: 'string',
+                description: 'Wallet Mnemonic',
+                default: 'notice oak worry limit wrap speak medal online prefer cluster roof addict wrist behave treat actual wasp year salad speed social layer crew genius',
+            })
     }, async (argv: any) => {
       const terra = new LCDClient({
         URL: argv.rpc,
-        chainID: 'columbus-4'
+        chainID: argv.chain_id,
       });
 
       const wallet = terra.wallet(new MnemonicKey({
-        mnemonic: 'notice oak worry limit wrap speak medal online prefer cluster roof addict wrist behave treat actual wasp year salad speed social layer crew genius',
+        mnemonic: argv.mnemonic
       }));
 
       // create a simple message that moves coin balances
