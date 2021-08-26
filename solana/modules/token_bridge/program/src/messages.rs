@@ -188,13 +188,13 @@ impl SerializePayload for PayloadAssetMeta {
 
         let mut symbol: [u8; 32] = [0; 32];
         for i in 0..self.symbol.len() {
-            symbol[(32 - self.symbol.len()) + i] = self.symbol.as_bytes()[i];
+            symbol[i] = self.symbol.as_bytes()[i];
         }
         writer.write(&symbol);
 
         let mut name: [u8; 32] = [0; 32];
         for i in 0..self.name.len() {
-            name[(32 - self.name.len()) + i] = self.name.as_bytes()[i];
+            name[i] = self.name.as_bytes()[i];
         }
         writer.write(&name);
 
