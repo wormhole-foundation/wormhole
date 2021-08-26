@@ -22,7 +22,9 @@ install:
 
 .PHONY: generate
 generate: dirs
-	./generate-protos.sh
+	cd tools && ./build.sh
+	rm -rf node/pkg/proto
+	tools/bin/buf generate
 
 .PHONY: node
 node: $(BIN)/guardiand

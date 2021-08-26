@@ -1,0 +1,47 @@
+# syntax=docker.io/docker/dockerfile:experimental@sha256:de85b2f3a3e8a2f7fe48e8e84a65f6fdd5cd5183afa6412fff9caa6871649c44
+FROM docker.io/golang:1.17.0@sha256:06e92e576fc7a7067a268d47727f3083c0a564331bfcbfdde633157fc91fb17d AS go-tools
+
+RUN mkdir /app
+
+ADD tools/build.sh /app/tools/
+ADD tools/go.* /app/tools/
+
+RUN --mount=type=cache,target=/root/.cache --mount=type=cache,target=/go \
+	cd /app/tools && CGO_ENABLED=0 ./build.sh
+
+# syntax=docker.io/docker/dockerfile:experimental@sha256:de85b2f3a3e8a2f7fe48e8e84a65f6fdd5cd5183afa6412fff9caa6871649c44
+FROM docker.io/golang:1.17.0@sha256:06e92e576fc7a7067a268d47727f3083c0a564331bfcbfdde633157fc91fb17d AS go-build
+
+COPY --from=go-tools /app /app
+
+ADD buf.* /app
+ADD proto /app/proto
+
+RUN --mount=type=cache,target=/root/.cache \
+	cd /app && \
+	tools/bin/buf lint && \
+	tools/bin/buf generate
+
+FROM node:16-alpine@sha256:004dbac84fed48e20f9888a23e32fa7cf83c2995e174a78d41d9a9dd1e051a20 AS node-build
+
+COPY --from=go-tools /app /app
+
+ADD buf.* /app
+ADD proto /app/proto
+
+ADD tools/package.json /app/tools/
+ADD tools/package-lock.json /app/tools/
+
+RUN --mount=type=cache,target=/root/.cache --mount=type=cache,target=/root/.npm \
+ 	cd /app/tools && npm ci
+
+RUN --mount=type=cache,target=/root/.cache \
+	cd /app && \
+	tools/bin/buf generate --template buf.gen.web.yaml
+
+FROM scratch AS go-export
+COPY --from=go-build /app/node/pkg/proto pkg/proto
+
+FROM scratch AS node-export
+COPY --from=node-build /app/sdk/js/src/proto sdk/js/src/proto
+COPY --from=node-build /app/explorer/src/proto explorer/src/proto

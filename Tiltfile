@@ -210,6 +210,12 @@ build_cloud_function(
     builder = "gcr.io/buildpacks/builder:v1",
 )
 
+local_resource(
+    name = "pack-bin",
+    cmd = "go build -mod=readonly -o bin/pack github.com/buildpacks/pack/cmd/pack",
+    dir = "tools",
+)
+
 k8s_yaml_with_ns("devnet/bigtable.yaml")
 
 k8s_resource("bigtable-emulator", port_forwards = [

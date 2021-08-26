@@ -1,11 +1,5 @@
 #!/usr/bin/env bash
 
-(
-  cd tools/
-  npm ci
-)
+rm -rf explorer/src/proto sdk/js/src/proto
 
-rm -rf explorer/src/proto
-mkdir -p explorer/src/proto
-
-tools/bin/buf generate --template buf.gen.web.yaml
+DOCKER_BUILDKIT=1 tilt docker build -- --target node-export -f Dockerfile.proto -o type=local,dest=. .

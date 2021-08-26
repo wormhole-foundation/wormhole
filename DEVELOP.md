@@ -5,11 +5,12 @@
 The following dependencies are required for local development:
 
 - [Go](https://golang.org/dl/) >= 1.16.6
-- [Docker](https://docs.docker.com/engine/install/) / moby-engine >= 19.03
 - [Tilt](http://tilt.dev/) >= 0.20.8
-- [NodeJS/npm](https://nodejs.org/en/download/) >= 14
 - Any of the local Kubernetes clusters supported by Tilt.
-  We recommend [minikube](https://kubernetes.io/docs/setup/learning-environment/minikube/) >= v1.21.0 with the kvm2 driver.
+  We strongly recommend [minikube](https://kubernetes.io/docs/setup/learning-environment/minikube/) >= 
+  v1.21.0 with the kvm2 driver.
+  - Tilt will use Minikube's embedded Docker server. If Minikube is not used, a local instance of
+    [Docker](https://docs.docker.com/engine/install/) / moby-engine >= 19.03 is required.
 
 See the [Tilt docs](https://docs.tilt.dev/install.html) docs on how to set up your local cluster -
 it won't take more than a few minutes to set up! Example minikube invocation, adjust limits as needed:
