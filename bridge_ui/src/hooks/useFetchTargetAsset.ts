@@ -1,4 +1,8 @@
-import { CHAIN_ID_TERRA, CHAIN_ID_ETH, CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
+import {
+  CHAIN_ID_ETH,
+  CHAIN_ID_SOLANA,
+  CHAIN_ID_TERRA,
+} from "@certusone/wormhole-sdk";
 import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useEthereumProvider } from "../contexts/EthereumProviderContext";
@@ -11,6 +15,7 @@ import {
   selectTransferTargetChain,
 } from "../store/selectors";
 import { setTargetAsset } from "../store/transferSlice";
+import { hexToNativeString } from "../utils/array";
 import {
   getForeignAssetEth,
   getForeignAssetSol,
@@ -31,7 +36,7 @@ function useFetchTargetAsset() {
   // TODO: this may not cover wrapped to wrapped, should always use origin?
   useEffect(() => {
     if (isSourceAssetWormholeWrapped && originChain === targetChain) {
-      dispatch(setTargetAsset(originAsset));
+      dispatch(setTargetAsset(hexToNativeString(originAsset, originChain)));
       return;
     }
     // TODO: loading state, error state

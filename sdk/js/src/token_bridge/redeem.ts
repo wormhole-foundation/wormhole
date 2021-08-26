@@ -28,6 +28,12 @@ export async function redeemOnSolana(
   isSolanaNative: boolean,
   mintAddress?: string // TODO: read the signedVAA and create the account if it doesn't exist
 ) {
+  // TODO: this gets the target account off the vaa, but is there a way to do this via wasm?
+  // also, would this always be safe to do?
+  // should we rely on this function to create accounts at all?
+  // const { parse_vaa } = await import("../solana/core/bridge")
+  // const parsedVAA = parse_vaa(signedVAA);
+  // const targetAddress = new PublicKey(parsedVAA.payload.slice(67, 67 + 32)).toString()
   const { complete_transfer_wrapped_ix, complete_transfer_native_ix } =
     await import("../solana/token/token_bridge");
   const ixs = [];

@@ -5,13 +5,12 @@ import {
   TokenImplementation__factory,
 } from "@certusone/wormhole-sdk";
 import { Connection, PublicKey } from "@solana/web3.js";
+import { useConnectedWallet } from "@terra-money/wallet-provider";
 import { formatUnits } from "ethers/lib/utils";
 import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useEthereumProvider } from "../contexts/EthereumProviderContext";
 import { useSolanaWallet } from "../contexts/SolanaWalletContext";
-import { useConnectedWallet } from "@terra-money/wallet-provider";
-
 import {
   selectTransferSourceAsset,
   selectTransferSourceChain,
@@ -22,7 +21,6 @@ import {
   setSourceParsedTokenAccount,
   setTargetParsedTokenAccount,
 } from "../store/transferSlice";
-import { hexToUint8Array } from "../utils/array";
 import { SOLANA_HOST } from "../utils/consts";
 
 function createParsedTokenAccount(
@@ -83,11 +81,7 @@ function useGetBalanceEffect(sourceOrTarget: "source" | "target") {
     if (lookupChain === CHAIN_ID_SOLANA && solPK) {
       let mint;
       try {
-        mint = new PublicKey(
-          sourceOrTarget === "source"
-            ? lookupAsset
-            : hexToUint8Array(lookupAsset)
-        );
+        mint = new PublicKey(lookupAsset);
       } catch (e) {
         return;
       }
