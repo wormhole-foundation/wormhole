@@ -3,8 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/certusone/wormhole/bridge/pkg/ethereum/abi"
-	"github.com/certusone/wormhole/bridge/pkg/vaa"
+	"github.com/certusone/wormhole/node/pkg/ethereum/abi"
+	"github.com/certusone/wormhole/node/pkg/vaa"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"

@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package node.v1;
 
-option go_package = "github.com/certusone/wormhole/bridge/pkg/proto/node/v1;nodev1";
+option go_package = "github.com/certusone/wormhole/node/pkg/proto/node/v1;nodev1";
 
 // NodePrivilegedService exposes an administrative API. It runs on a UNIX socket and is authenticated
 // using Linux filesystem permissions.

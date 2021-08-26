@@ -108,7 +108,7 @@ git checkout v2.0.x
 Then, compile the release binary as an unprivileged build user:
 
 ```bash
-make bridge
+make node
 ```
     
 You'll end up with a `guardiand` binary in `build/`.
@@ -128,7 +128,7 @@ to disk. Please create a GitHub issue if this extra capability represents an ope
 To generate a guardian key, install guardiand first. If you generate the key on a separate machine, you may want to
 compile guardiand only without installing it:
 
-    make bridge
+    make node
     sudo setcap cap_ipc_lock=+ep ./build/bin/guardiand
 
 Otherwise, use the same guardiand binary that you compiled using the regular instructions above.

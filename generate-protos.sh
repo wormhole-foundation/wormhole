@@ -7,9 +7,9 @@ set -euo pipefail
 )
 
 # TODO(leo): remove after a while
-rm -rf third_party/googleapis
+rm -rf bridge
 
-rm -rf bridge/pkg/proto
+rm -rf node/pkg/proto
 
 tools/bin/buf lint
 tools/bin/buf generate

@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package publicrpc.v1;
 
-option go_package = "github.com/certusone/wormhole/bridge/pkg/proto/publicrpc/v1;publicrpcv1";
+option go_package = "github.com/certusone/wormhole/node/pkg/proto/publicrpc/v1;publicrpcv1";
 
 import "gossip/v1/gossip.proto";
 import "google/api/annotations.proto";

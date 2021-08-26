@@ -24,7 +24,6 @@ config.define_string("num", False, "Number of guardian nodes to run")
 #
 config.define_string("namespace", False, "Kubernetes namespace to use")
 
-
 # These arguments will enable writing Guardian events to a cloud BigTable instance.
 # Writing to a cloud BigTable is optional. These arguments are not required to run the devnet.
 config.define_string("gcpProject", False, "GCP project ID for BigTable persistence")
@@ -73,8 +72,8 @@ k8s_yaml_with_ns(
 
 docker_build(
     ref = "guardiand-image",
-    context = "bridge",
-    dockerfile = "bridge/Dockerfile",
+    context = "node",
+    dockerfile = "node/Dockerfile",
 )
 
 def build_bridge_yaml():
@@ -214,7 +213,7 @@ build_cloud_function(
 k8s_yaml_with_ns("devnet/bigtable.yaml")
 
 k8s_resource("bigtable-emulator", port_forwards = [
-    port_forward(8086, name = "BigTable clients [:8086]")
+    port_forward(8086, name = "BigTable clients [:8086]"),
 ])
 k8s_resource(
     "bigtable-readrow",

@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package gossip.v1;
 
-option go_package = "github.com/certusone/wormhole/bridge/pkg/proto/gossip/v1;gossipv1";
+option go_package = "github.com/certusone/wormhole/node/pkg/proto/gossip/v1;gossipv1";
 
 message GossipMessage {
   oneof message {

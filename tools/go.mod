@@ -1,4 +1,4 @@
-module github.com/certusone/wormhole/bridge/tools
+module github.com/certusone/wormhole/node/tools
 
 go 1.16
 
