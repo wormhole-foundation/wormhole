@@ -6,10 +6,14 @@
 let
   scripts-olay = import ./nix/scripts.nix;
   cargo2nix-olay = import "${cargo2nix}/overlay";
+  tilt-olay = final: prev: {
+    tilt = prev.callPackage ./nix/tilt.nix {};
+  };
   pkgs = import nixpkgs {
     overlays = [
       # cargo2nix-olay
       rust-olay
+      tilt-olay
       scripts-olay
     ];
   };
