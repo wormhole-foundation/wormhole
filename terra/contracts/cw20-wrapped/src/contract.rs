@@ -7,13 +7,12 @@ use cw20_base::allowances::{
     handle_burn_from, handle_decrease_allowance, handle_increase_allowance, handle_send_from,
     handle_transfer_from, query_allowance,
 };
-use cw20_base::contract::{
-    handle_mint, handle_send, handle_transfer, query_balance, query_token_info,
-};
-use cw20_base::state::{token_info, MinterData, TokenInfo};
+use cw20_base::contract::{handle_mint, handle_send, handle_transfer, query_balance};
+use cw20_base::state::{token_info, token_info_read, MinterData, TokenInfo};
 
 use crate::msg::{HandleMsg, InitMsg, QueryMsg, WrappedAssetInfoResponse};
 use crate::state::{wrapped_asset_info, wrapped_asset_info_read, WrappedAssetInfo};
+use cw20::TokenInfoResponse;
 use std::string::String;
 
 pub fn init<S: Storage, A: Api, Q: Querier>(
@@ -23,8 +22,8 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
 ) -> StdResult<InitResponse> {
     // store token info using cw20-base format
     let data = TokenInfo {
-        name: String::from("Wormhole:") + msg.name.as_str(),
-        symbol: String::from("wh") + msg.symbol.as_str(),
+        name: msg.name,
+        symbol: msg.symbol,
         decimals: msg.decimals,
         total_supply: Uint128(0),
         // set creator as minter
@@ -135,6 +134,19 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
             to_binary(&query_allowance(deps, owner, spender)?)
         }
     }
+}
+
+pub fn query_token_info<S: Storage, A: Api, Q: Querier>(
+    deps: &Extern<S, A, Q>,
+) -> StdResult<TokenInfoResponse> {
+    let info = token_info_read(&deps.storage).load()?;
+    let res = TokenInfoResponse {
+        name: String::from("Wormhole:") + info.name.as_str(),
+        symbol: String::from("wh") + info.symbol.as_str(),
+        decimals: info.decimals,
+        total_supply: info.total_supply,
+    };
+    Ok(res)
 }
 
 pub fn query_wrapped_asset_info<S: Storage, A: Api, Q: Querier>(
