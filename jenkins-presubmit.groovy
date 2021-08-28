@@ -28,6 +28,10 @@ pipeline {
                         timeout(time: 60, unit: 'MINUTES') {
                             sh "tilt ci -- --ci --namespace=$DEPLOY_NS --num=1"
                         }
+
+                        timeout(time: 1, unit: 'MINUTES') {
+                            sh "make node"
+                        }
                     }
                     post {
                         success {
