@@ -28,7 +28,9 @@
 #                                                                   +-----------------+
 #
 
-load('ext://namespace', 'namespace_inject', 'namespace_create')
+load("ext://namespace", "namespace_create", "namespace_inject")
+
+allow_k8s_contexts("ci")
 
 # Runtime configuration
 
@@ -40,13 +42,17 @@ config.define_string("num", False, "Number of guardian nodes to run")
 #
 config.define_string("namespace", False, "Kubernetes namespace to use")
 
+config.define_bool("ci", False, "We are running in CI")
+
 cfg = config.parse()
 num_guardians = int(cfg.get("num", "5"))
 namespace = cfg.get("namespace", "wormhole")
+ci = cfg.get("ci", False)
 
 # namespace
 
-namespace_create(namespace)
+if not ci:
+    namespace_create(namespace)
 
 def k8s_yaml_with_ns(objects):
     return k8s_yaml(namespace_inject(objects, namespace))
@@ -80,20 +86,19 @@ def build_bridge_yaml():
 
     return encode_yaml_stream(bridge_yaml)
 
-
 k8s_yaml_with_ns(build_bridge_yaml())
 
-k8s_resource("guardian", resource_deps=["proto-gen", "solana-devnet"], port_forwards=[
-    port_forward(6060, name="Debug/Status Server [:6060]"),
+k8s_resource("guardian", resource_deps = ["proto-gen", "solana-devnet"], port_forwards = [
+    port_forward(6060, name = "Debug/Status Server [:6060]"),
 ])
 
 # solana agent and cli (runs alongside bridge)
 
 docker_build(
-    ref="solana-agent",
-    context=".",
-    only=["./proto", "./solana"],
-    dockerfile="Dockerfile.agent",
+    ref = "solana-agent",
+    context = ".",
+    only = ["./proto", "./solana"],
+    dockerfile = "Dockerfile.agent",
 
     # Ignore target folders from local (non-container) development.
     ignore = ["./solana/target", "./solana/agent/target", "./solana/cli/target"],
@@ -111,10 +116,10 @@ docker_build(
 
 k8s_yaml_with_ns("devnet/solana-devnet.yaml")
 
-k8s_resource("solana-devnet", port_forwards=[
-    port_forward(8899, name="Solana RPC [:8899]"),
-    port_forward(8900, name="Solana WS [:8900]"),
-    port_forward(9000, name="Solana PubSub [:9000]"),
+k8s_resource("solana-devnet", port_forwards = [
+    port_forward(8899, name = "Solana RPC [:8899]"),
+    port_forward(8900, name = "Solana WS [:8900]"),
+    port_forward(9000, name = "Solana PubSub [:9000]"),
 ])
 
 # eth devnet
@@ -139,8 +144,8 @@ docker_build(
 
 k8s_yaml_with_ns("devnet/eth-devnet.yaml")
 
-k8s_resource("eth-devnet", port_forwards=[
-    port_forward(8545, name="Ganache RPC [:8545]")
+k8s_resource("eth-devnet", port_forwards = [
+    port_forward(8545, name = "Ganache RPC [:8545]"),
 ])
 
 # terra devnet
@@ -161,10 +166,10 @@ k8s_yaml_with_ns("devnet/terra-devnet.yaml")
 
 k8s_resource(
     "terra-lcd",
-    port_forwards=[port_forward(1317, name="Terra LCD interface [:1317]")]
+    port_forwards = [port_forward(1317, name = "Terra LCD interface [:1317]")],
 )
 
 k8s_resource(
     "terra-terrad",
-    port_forwards=[port_forward(26657, name="Terra RPC [:26657]")]
+    port_forwards = [port_forward(26657, name = "Terra RPC [:26657]")],
 )
