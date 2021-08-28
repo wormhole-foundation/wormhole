@@ -97,7 +97,7 @@ impl Agent for AgentImpl {
                     Err(e) => {
                         return Err(Status::new(
                             Code::Internal,
-                            format!("tx sending failed: {}", e),
+                            format!("verify tx sending failed: {:?}", e),
                         ));
                     }
                 };
@@ -110,7 +110,7 @@ impl Agent for AgentImpl {
                 })),
                 Err(e) => Err(Status::new(
                     Code::Internal,
-                    format!("tx sending failed: {:?}", e),
+                    format!("submit tx sending failed: {:?}", e),
                 )),
             }
         })
