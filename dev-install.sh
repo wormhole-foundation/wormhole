@@ -43,7 +43,7 @@ export PATH=/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/sbin:/bin
 
 # Install Go binaries.
 ARCH=amd64
-GO=1.15.6
+GO=1.17.0
 # TODO(leo): verify checksum
 
 (

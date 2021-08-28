@@ -49,7 +49,7 @@ Wormhole binaries from source. A Git repo is much harder to tamper with than rel
 
 To build Wormhole, you need:
 
-- [Go](https://golang.org/dl/) >= 1.15.6
+- [Go](https://golang.org/dl/) >= 1.17.0
 - [Rust](https://www.rust-lang.org/learn/get-started) >= 1.47.0
 
 ...plus the same library dependencies as Solana itself:
