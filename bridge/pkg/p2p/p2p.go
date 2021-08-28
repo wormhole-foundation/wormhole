@@ -25,7 +25,6 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	gossipv1 "github.com/certusone/wormhole/bridge/pkg/proto/gossip/v1"
-	"github.com/certusone/wormhole/bridge/pkg/publicrpc"
 	"github.com/certusone/wormhole/bridge/pkg/supervisor"
 )
 
@@ -55,7 +54,6 @@ func init() {
 
 func Run(obsvC chan *gossipv1.SignedObservation,
 	sendC chan []byte,
-	rawHeartbeatListeners *publicrpc.PublicRawHeartbeatConnections,
 	priv crypto.PrivKey,
 	port uint,
 	networkID string,
@@ -205,8 +203,6 @@ func Run(obsvC chan *gossipv1.SignedObservation,
 							GuardianAddr: DefaultRegistry.guardianAddress,
 						}}}
 
-					rawHeartbeatListeners.PublishHeartbeat(msg.GetHeartbeat())
-
 					b, err := proto.Marshal(&msg)
 					if err != nil {
 						panic(err)
@@ -272,7 +268,6 @@ func Run(obsvC chan *gossipv1.SignedObservation,
 				logger.Debug("heartbeat received",
 					zap.Any("value", m.Heartbeat),
 					zap.String("from", envelope.GetFrom().String()))
-				rawHeartbeatListeners.PublishHeartbeat(msg.GetHeartbeat())
 				p2pMessagesReceived.WithLabelValues("heartbeat").Inc()
 			case *gossipv1.GossipMessage_SignedObservation:
 				obsvC <- m.SignedObservation

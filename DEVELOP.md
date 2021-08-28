@@ -7,7 +7,6 @@ The following dependencies are required for local development:
 - [Go](https://golang.org/dl/) >= 1.15.6
 - [Docker](https://docs.docker.com/engine/install/) / moby-engine >= 19.03
 - [Tilt](http://tilt.dev/) >= 0.20.8
-- [NodeJS/npm](https://nodejs.org/en/download/) >= 14
 - Any of the local Kubernetes clusters supported by Tilt.
   We recommend [minikube](https://kubernetes.io/docs/setup/learning-environment/minikube/) >= v1.21.0 with the kvm2 driver.
 
@@ -30,6 +29,7 @@ to avoid having to specify `-n wormhole` for all commands:
     kubectl config set-context --current --namespace=wormhole
 
 After installing all dependencies, just run `tilt up`.
+
 Whenever you modify a file, the devnet is automatically rebuilt and a rolling update is done.
 
 Launch the devnet while specifying the number of guardians nodes to run (default is five):
@@ -44,7 +44,7 @@ you won't have to wait for k8s to restart all pods.
 Watch pod status in your cluster:
 
     kubectl get pod -A -w
-
+    
 Get logs for single guardian node:
 
     kubectl logs guardian-0
@@ -56,7 +56,7 @@ Restart a specific pod:
 Generate test Ethereum -> Solana transfers once the cluster is up:
 
     scripts/send-eth-lockups.sh
-
+   
 Generate test Solana -> Ethereum transfers:
 
     scripts/send-solana-lockups.sh
