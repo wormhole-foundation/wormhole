@@ -1,4 +1,15 @@
 import {
+  ChainId,
+  CHAIN_ID_BSC,
+  CHAIN_ID_ETH,
+  CHAIN_ID_SOLANA,
+  getEmitterAddressEth,
+  getEmitterAddressSolana,
+  getSignedVAA,
+  parseSequenceFromLogEth,
+  parseSequenceFromLogSolana,
+} from "@certusone/wormhole-sdk";
+import {
   Box,
   Button,
   Dialog,
@@ -8,21 +19,40 @@ import {
   Divider,
   Fab,
   makeStyles,
+  MenuItem,
   TextField,
+  Typography,
 } from "@material-ui/core";
-import { Alert } from "@material-ui/lab";
 import { Restore } from "@material-ui/icons";
+import { Alert } from "@material-ui/lab";
+import { Connection } from "@solana/web3.js";
+import { BigNumber, ethers } from "ethers";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { useEthereumProvider } from "../../contexts/EthereumProviderContext";
+import {
+  selectTransferSignedVAAHex,
+  selectTransferSourceChain,
+} from "../../store/selectors";
 import {
   setSignedVAAHex,
   setStep,
   setTargetChain,
 } from "../../store/transferSlice";
-import { selectTransferSignedVAAHex } from "../../store/selectors";
-import { hexToNativeString, hexToUint8Array } from "../../utils/array";
-import { ChainId } from "@certusone/wormhole-sdk";
-import { BigNumber } from "ethers";
+import {
+  hexToNativeString,
+  hexToUint8Array,
+  uint8ArrayToHex,
+} from "../../utils/array";
+import {
+  CHAINS,
+  ETH_BRIDGE_ADDRESS,
+  ETH_TOKEN_BRIDGE_ADDRESS,
+  SOLANA_HOST,
+  SOL_TOKEN_BRIDGE_ADDRESS,
+  WORMHOLE_RPC_HOST,
+} from "../../utils/consts";
+import KeyAndBalance from "../KeyAndBalance";
 
 const useStyles = makeStyles((theme) => ({
   fab: {
@@ -31,6 +61,48 @@ const useStyles = makeStyles((theme) => ({
     right: theme.spacing(2),
   },
 }));
+
+async function eth(provider: ethers.providers.Web3Provider, tx: string) {
+  try {
+    const receipt = await provider.getTransactionReceipt(tx);
+    const sequence = parseSequenceFromLogEth(receipt, ETH_BRIDGE_ADDRESS);
+    const emitterAddress = getEmitterAddressEth(ETH_TOKEN_BRIDGE_ADDRESS);
+    const { vaaBytes } = await getSignedVAA(
+      WORMHOLE_RPC_HOST,
+      CHAIN_ID_ETH,
+      emitterAddress,
+      sequence.toString()
+    );
+    return uint8ArrayToHex(vaaBytes);
+  } catch (e) {
+    console.error(e);
+  }
+  return "";
+}
+
+async function solana(tx: string) {
+  try {
+    const connection = new Connection(SOLANA_HOST, "confirmed");
+    const info = await connection.getTransaction(tx);
+    if (!info) {
+      throw new Error("An error occurred while fetching the transaction info");
+    }
+    const sequence = parseSequenceFromLogSolana(info);
+    const emitterAddress = await getEmitterAddressSolana(
+      SOL_TOKEN_BRIDGE_ADDRESS
+    );
+    const { vaaBytes } = await getSignedVAA(
+      WORMHOLE_RPC_HOST,
+      CHAIN_ID_SOLANA,
+      emitterAddress,
+      sequence.toString()
+    );
+    return uint8ArrayToHex(vaaBytes);
+  } catch (e) {
+    console.error(e);
+  }
+  return "";
+}
 
 //     0   u256     amount
 //     32  [u8; 32] token_address
@@ -50,9 +122,53 @@ const parsePayload = (arr: Buffer) => ({
 
 function RecoveryDialogContent({ onClose }: { onClose: () => void }) {
   const dispatch = useDispatch();
+  const { provider } = useEthereumProvider();
+  const currentSourceChain = useSelector(selectTransferSourceChain);
+  const [recoverySourceChain, setRecoverySourceChain] =
+    useState(currentSourceChain);
+  const [recoverySourceTx, setRecoverySourceTx] = useState("");
   const currentSignedVAA = useSelector(selectTransferSignedVAAHex);
   const [recoverySignedVAA, setRecoverySignedVAA] = useState(currentSignedVAA);
   const [recoveryParsedVAA, setRecoveryParsedVAA] = useState<any>(null);
+  useEffect(() => {
+    if (!recoverySignedVAA) {
+      setRecoverySourceTx("");
+      setRecoverySourceChain(currentSourceChain);
+    }
+  }, [recoverySignedVAA, currentSourceChain]);
+  useEffect(() => {
+    if (recoverySourceTx) {
+      let cancelled = false;
+      if (recoverySourceChain === CHAIN_ID_ETH && provider) {
+        (async () => {
+          const vaa = await eth(provider, recoverySourceTx);
+          if (!cancelled) {
+            setRecoverySignedVAA(vaa);
+          }
+        })();
+      } else if (recoverySourceChain === CHAIN_ID_SOLANA) {
+        (async () => {
+          const vaa = await solana(recoverySourceTx);
+          if (!cancelled) {
+            setRecoverySignedVAA(vaa);
+          }
+        })();
+      }
+      return () => {
+        cancelled = true;
+      };
+    }
+  }, [recoverySourceChain, recoverySourceTx, provider]);
+  useEffect(() => {
+    setRecoverySignedVAA(currentSignedVAA);
+  }, [currentSignedVAA]);
+  const handleSourceChainChange = useCallback((event) => {
+    setRecoverySourceTx("");
+    setRecoverySourceChain(event.target.value);
+  }, []);
+  const handleSourceTxChange = useCallback((event) => {
+    setRecoverySourceTx(event.target.value);
+  }, []);
   const handleSignedVAAChange = useCallback((event) => {
     setRecoverySignedVAA(event.target.value);
   }, []);
@@ -111,6 +227,38 @@ function RecoveryDialogContent({ onClose }: { onClose: () => void }) {
           If you have sent your tokens but have not redeemed them, you may paste
           the signed VAA here to resume from the redeem step.
         </Alert>
+        <TextField
+          select
+          label="Source Chain"
+          disabled={!!recoverySignedVAA}
+          value={recoverySourceChain}
+          onChange={handleSourceChainChange}
+          fullWidth
+          margin="normal"
+        >
+          {CHAINS.filter(
+            (x) => x.id === CHAIN_ID_ETH || x.id === CHAIN_ID_SOLANA
+          ).map(({ id, name }) => (
+            <MenuItem key={id} value={id}>
+              {name}
+            </MenuItem>
+          ))}
+        </TextField>
+        {recoverySourceChain === CHAIN_ID_ETH ||
+        recoverySourceChain === CHAIN_ID_BSC ? (
+          <KeyAndBalance chainId={recoverySourceChain} />
+        ) : null}
+        <TextField
+          label="Source Tx"
+          disabled={!!recoverySignedVAA}
+          value={recoverySourceTx}
+          onChange={handleSourceTxChange}
+          fullWidth
+          margin="normal"
+        />
+        <Box mt={4}>
+          <Typography>or</Typography>
+        </Box>
         <TextField
           label="Signed VAA (Hex)"
           value={recoverySignedVAA || ""}
