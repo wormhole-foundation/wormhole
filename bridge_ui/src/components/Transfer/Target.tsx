@@ -1,6 +1,7 @@
 import { Button, makeStyles, MenuItem, TextField } from "@material-ui/core";
 import { useCallback, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
 import useSyncTargetAddress from "../../hooks/useSyncTargetAddress";
 import {
   selectTransferIsTargetComplete,
@@ -15,6 +16,7 @@ import { incrementStep, setTargetChain } from "../../store/transferSlice";
 import { hexToNativeString } from "../../utils/array";
 import { CHAINS } from "../../utils/consts";
 import KeyAndBalance from "../KeyAndBalance";
+import SolanaCreateAssociatedAddress from "../SolanaCreateAssociatedAddress";
 
 const useStyles = makeStyles((theme) => ({
   transferField: {
@@ -74,6 +76,12 @@ function Target() {
         value={readableTargetAddress}
         disabled={true}
       />
+      {targetChain === CHAIN_ID_SOLANA && targetAsset ? (
+        <SolanaCreateAssociatedAddress
+          mintAddress={targetAsset}
+          readableTargetAddress={readableTargetAddress}
+        />
+      ) : null}
       <TextField
         label="Asset"
         fullWidth

@@ -14,6 +14,7 @@ import {
   selectTransferSignedVAAHex,
 } from "../../store/selectors";
 import { setStep } from "../../store/transferSlice";
+import Recovery from "./Recovery";
 import Redeem from "./Redeem";
 import Send from "./Send";
 import Source from "./Source";
@@ -73,6 +74,7 @@ function Transfer() {
           </StepContent>
         </Step>
       </Stepper>
+      <Recovery />
     </Container>
   );
 }

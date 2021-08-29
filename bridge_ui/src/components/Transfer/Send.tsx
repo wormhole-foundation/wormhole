@@ -1,43 +1,22 @@
-import { Button, CircularProgress, makeStyles } from "@material-ui/core";
+import { useSelector } from "react-redux";
 import { useHandleTransfer } from "../../hooks/useHandleTransfer";
-
-const useStyles = makeStyles((theme) => ({
-  transferButton: {
-    marginTop: theme.spacing(2),
-    textTransform: "none",
-    width: "100%",
-  },
-}));
+import { selectTransferSourceChain } from "../../store/selectors";
+import ButtonWithLoader from "../ButtonWithLoader";
+import KeyAndBalance from "../KeyAndBalance";
 
 function Send() {
-  const classes = useStyles();
   const { handleClick, disabled, showLoader } = useHandleTransfer();
+  const sourceChain = useSelector(selectTransferSourceChain);
   return (
     <>
-      <div style={{ position: "relative" }}>
-        <Button
-          color="primary"
-          variant="contained"
-          className={classes.transferButton}
-          onClick={handleClick}
-          disabled={disabled}
-        >
-          Transfer
-        </Button>
-        {showLoader ? (
-          <CircularProgress
-            size={24}
-            color="inherit"
-            style={{
-              position: "absolute",
-              bottom: 0,
-              left: "50%",
-              marginLeft: -12,
-              marginBottom: 6,
-            }}
-          />
-        ) : null}
-      </div>
+      <KeyAndBalance chainId={sourceChain} />
+      <ButtonWithLoader
+        disabled={disabled}
+        onClick={handleClick}
+        showLoader={showLoader}
+      >
+        Transfer
+      </ButtonWithLoader>
     </>
   );
 }

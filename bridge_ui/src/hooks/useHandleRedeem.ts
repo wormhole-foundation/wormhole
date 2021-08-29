@@ -23,9 +23,6 @@ import { useSolanaWallet } from "../contexts/SolanaWalletContext";
 import useTransferSignedVAA from "../hooks/useTransferSignedVAA";
 import {
   selectTransferIsRedeeming,
-  selectTransferIsSourceAssetWormholeWrapped,
-  selectTransferOriginChain,
-  selectTransferTargetAsset,
   selectTransferTargetChain,
 } from "../store/selectors";
 import { reset, setIsRedeeming } from "../store/transferSlice";
@@ -61,9 +58,7 @@ async function solana(
   enqueueSnackbar: any,
   wallet: WalletContextState,
   payerAddress: string, //TODO: we may not need this since we have wallet
-  signedVAA: Uint8Array,
-  isSolanaNative: boolean,
-  mintAddress?: string // TODO: read the signedVAA and create the account if it doesn't exist
+  signedVAA: Uint8Array
 ) {
   dispatch(setIsRedeeming(true));
   try {
@@ -82,9 +77,7 @@ async function solana(
       SOL_BRIDGE_ADDRESS,
       SOL_TOKEN_BRIDGE_ADDRESS,
       payerAddress,
-      signedVAA,
-      isSolanaNative,
-      mintAddress
+      signedVAA
     );
     await signSendAndConfirm(wallet, connection, transaction);
     dispatch(reset());
@@ -129,12 +122,7 @@ async function terra(
 export function useHandleRedeem() {
   const dispatch = useDispatch();
   const { enqueueSnackbar } = useSnackbar();
-  const isSourceAssetWormholeWrapped = useSelector(
-    selectTransferIsSourceAssetWormholeWrapped
-  );
-  const originChain = useSelector(selectTransferOriginChain);
   const targetChain = useSelector(selectTransferTargetChain);
-  const targetAsset = useSelector(selectTransferTargetAsset);
   const solanaWallet = useSolanaWallet();
   const solPK = solanaWallet?.publicKey;
   const { signer } = useEthereumProvider();
@@ -155,9 +143,7 @@ export function useHandleRedeem() {
         enqueueSnackbar,
         solanaWallet,
         solPK.toString(),
-        signedVAA,
-        !!isSourceAssetWormholeWrapped && originChain === CHAIN_ID_SOLANA,
-        targetAsset || undefined
+        signedVAA
       );
     } else if (targetChain === CHAIN_ID_TERRA && !!terraWallet && signedVAA) {
       terra(dispatch, enqueueSnackbar, terraWallet, signedVAA);
@@ -175,9 +161,6 @@ export function useHandleRedeem() {
     solanaWallet,
     solPK,
     terraWallet,
-    isSourceAssetWormholeWrapped,
-    originChain,
-    targetAsset,
   ]);
   return useMemo(
     () => ({

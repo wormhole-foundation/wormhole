@@ -1,12 +1,8 @@
-import {
-  ASSOCIATED_TOKEN_PROGRAM_ID,
-  Token,
-  TOKEN_PROGRAM_ID,
-} from "@solana/spl-token";
 import { Connection, PublicKey, Transaction } from "@solana/web3.js";
 import { ethers } from "ethers";
 import { Bridge__factory } from "../ethers-contracts";
 import { ixFromRust } from "../solana";
+import { CHAIN_ID_SOLANA } from "../utils";
 
 export async function redeemOnEth(
   tokenBridgeAddress: string,
@@ -24,16 +20,13 @@ export async function redeemOnSolana(
   bridgeAddress: string,
   tokenBridgeAddress: string,
   payerAddress: string,
-  signedVAA: Uint8Array,
-  isSolanaNative: boolean,
-  mintAddress?: string // TODO: read the signedVAA and create the account if it doesn't exist
+  signedVAA: Uint8Array
 ) {
-  // TODO: this gets the target account off the vaa, but is there a way to do this via wasm?
-  // also, would this always be safe to do?
-  // should we rely on this function to create accounts at all?
-  // const { parse_vaa } = await import("../solana/core/bridge")
-  // const parsedVAA = parse_vaa(signedVAA);
-  // const targetAddress = new PublicKey(parsedVAA.payload.slice(67, 67 + 32)).toString()
+  const { parse_vaa } = await import("../solana/core/bridge");
+  const parsedVAA = parse_vaa(signedVAA);
+  const isSolanaNative =
+    Buffer.from(new Uint8Array(parsedVAA.payload)).readUInt16BE(65) ===
+    CHAIN_ID_SOLANA;
   const { complete_transfer_wrapped_ix, complete_transfer_native_ix } =
     await import("../solana/token/token_bridge");
   const ixs = [];
@@ -49,33 +42,6 @@ export async function redeemOnSolana(
       )
     );
   } else {
-    // TODO: we should always do this, they could buy wrapped somewhere else and transfer it back for the first time, but again, do it based on vaa
-    if (mintAddress) {
-      const mintPublicKey = new PublicKey(mintAddress);
-      // TODO: re: todo above, this should be swapped for the address from the vaa (may not be the same as the payer)
-      const payerPublicKey = new PublicKey(payerAddress);
-      const associatedAddress = await Token.getAssociatedTokenAddress(
-        ASSOCIATED_TOKEN_PROGRAM_ID,
-        TOKEN_PROGRAM_ID,
-        mintPublicKey,
-        payerPublicKey
-      );
-      const associatedAddressInfo = await connection.getAccountInfo(
-        associatedAddress
-      );
-      if (!associatedAddressInfo) {
-        ixs.push(
-          await Token.createAssociatedTokenAccountInstruction(
-            ASSOCIATED_TOKEN_PROGRAM_ID,
-            TOKEN_PROGRAM_ID,
-            mintPublicKey,
-            associatedAddress,
-            payerPublicKey, // owner
-            payerPublicKey // payer
-          )
-        );
-      }
-    }
     ixs.push(
       ixFromRust(
         complete_transfer_wrapped_ix(

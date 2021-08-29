@@ -1,42 +1,23 @@
-import { Button, CircularProgress, makeStyles } from "@material-ui/core";
+import { useSelector } from "react-redux";
 import { useHandleRedeem } from "../../hooks/useHandleRedeem";
-
-const useStyles = makeStyles((theme) => ({
-  transferButton: {
-    marginTop: theme.spacing(2),
-    textTransform: "none",
-    width: "100%",
-  },
-}));
+import { selectTransferTargetChain } from "../../store/selectors";
+import ButtonWithLoader from "../ButtonWithLoader";
+import KeyAndBalance from "../KeyAndBalance";
 
 function Redeem() {
-  const classes = useStyles();
   const { handleClick, disabled, showLoader } = useHandleRedeem();
+  const targetChain = useSelector(selectTransferTargetChain);
   return (
-    <div style={{ position: "relative" }}>
-      <Button
-        color="primary"
-        variant="contained"
-        className={classes.transferButton}
+    <>
+      <KeyAndBalance chainId={targetChain} />
+      <ButtonWithLoader
         disabled={disabled}
         onClick={handleClick}
+        showLoader={showLoader}
       >
         Redeem
-      </Button>
-      {showLoader ? (
-        <CircularProgress
-          size={24}
-          color="inherit"
-          style={{
-            position: "absolute",
-            bottom: 0,
-            left: "50%",
-            marginLeft: -12,
-            marginBottom: 6,
-          }}
-        />
-      ) : null}
-    </div>
+      </ButtonWithLoader>
+    </>
   );
 }
 
