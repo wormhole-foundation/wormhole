@@ -15,7 +15,7 @@ function gen() {
 
   kubectl exec -c tests eth-devnet-0 -- cat abigenBindings/abi/${name}.abi | \
     docker run --rm -i localhost/certusone/wormhole-abigen:latest /bin/abigen --abi - --pkg ${pkg} > \
-    bridge/pkg/ethereum/${pkg}/abi.go
+    node/pkg/ethereum/${pkg}/abi.go
 }
 
 gen Wormhole abi

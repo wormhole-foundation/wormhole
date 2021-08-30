@@ -45,21 +45,21 @@ certainly shouldn't put your life savings into a Wormhole contract (or any other
 
 ### Repo overview
 
-- **[bridge/](bridge/)** — The guardian node which connects to both chains, observes lockups and submits VAAs.
+- **[node/](node/)** — The guardian node which connects to both chains, observes lockups and submits VAAs.
   Written in pure Go.
   
-  - [cmd/](bridge/cmd/) - CLI entry point, deals with the mechanics of parsing command line flags and loading keys.
-  - **[pkg/processor](bridge/pkg/processor)** — Most of the business logic for cross-chain communication
+  - [cmd/](node/cmd/) - CLI entry point, deals with the mechanics of parsing command line flags and loading keys.
+  - **[pkg/processor](node/pkg/processor)** — Most of the business logic for cross-chain communication
     lives here. Talks to multiple loosely coupled services communicating via Go channels.
-  - [pkg/p2p](bridge/pkg/p2p) — libp2p-based gossip network.
-  - [pkg/devnet](bridge/pkg/devnet) — Constants and helper functions for the deterministic local devnet.
-  - [pkg/ethereum](bridge/pkg/ethereum) — Ethereum chain interface with auto-generated contract ABI.
+  - [pkg/p2p](node/pkg/p2p) — libp2p-based gossip network.
+  - [pkg/devnet](node/pkg/devnet) — Constants and helper functions for the deterministic local devnet.
+  - [pkg/ethereum](node/pkg/ethereum) — Ethereum chain interface with auto-generated contract ABI.
     Uses go-ethereum to directly connect to an Eth node.
-  - [pkg/solana](bridge/pkg/ethereum) — Solana chain interface. Light gRPC wrapper around a Rust agent (see below)
+  - [pkg/solana](node/pkg/ethereum) — Solana chain interface. Light gRPC wrapper around a Rust agent (see below)
     which actually talks to Solana.  
-  - [pkg/supervisor](bridge/pkg/supervisor) — Erlang-inspired process supervision tree imported from Certus One's
-    internal code base. We use this everywhere in the bridge code for fault tolerance and fast convergence.
-  - [pkg/vaa](bridge/pkg/vaa) — Go implementation of our VAA structure, including serialization code.
+  - [pkg/supervisor](node/pkg/supervisor) — Erlang-inspired process supervision tree imported from Certus One's
+    internal code base. We use this everywhere in the node code for fault tolerance and fast convergence.
+  - [pkg/vaa](node/pkg/vaa) — Go implementation of our VAA structure, including serialization code.
   
 - **[ethereum/](ethereum/)** — Ethereum wormhole contract, tests and fixtures.
 
@@ -74,7 +74,7 @@ certainly shouldn't put your life savings into a Wormhole contract (or any other
   - **[agent/](solana/agent/)** — Rust agent sidecar deployed alongside each Guardian node. It serves
     a local gRPC API to interface with the Solana blockchain. This is far easier to maintain than a
     pure-Go Solana client.
-  - **[bridge/](solana/bridge/)** — Solana Wormhole smart contract code. 
+  - **[node/](solana/node/)** — Solana Wormhole smart contract code. 
   - [cli/](solana/cli/) — Wormhole user CLI tool for interaction with the smart contract. 
   - [devnet_setup.sh](solana/devnet_setup.sh) — Devnet initialization and lockup generator
     (the Solana equivalent to the Ganache migration + send-lockups.js). Runs as a sidecar alongside the Solana devnet. 

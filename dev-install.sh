@@ -2,7 +2,7 @@
 set -euo pipefail
 #
 # This script downloads and installs development dependencies required for
-# bridge development on Linux.
+# node development on Linux.
 #
 # Tested on amd64 with CentOS 8, Debian 10 and Ubuntu 20.04. Likely works on other distros as well.
 #

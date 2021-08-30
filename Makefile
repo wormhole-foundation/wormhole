@@ -29,9 +29,9 @@ bridge: $(BIN)/guardiand
 
 .PHONY: $(BIN)/guardiand
 $(BIN)/guardiand: dirs generate
-	cd bridge && go build -ldflags "-X github.com/certusone/wormhole/bridge/pkg/version.version=${VERSION}" \
+	cd node && go build -ldflags "-X github.com/certusone/wormhole/node/pkg/version.version=${VERSION}" \
 	  -mod=readonly -o ../$(BIN)/guardiand \
-	  github.com/certusone/wormhole/bridge
+	  github.com/certusone/wormhole/node
 
 .PHONY: agent
 agent: $(BIN)/guardiand-solana-agent

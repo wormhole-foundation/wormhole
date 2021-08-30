@@ -19,7 +19,7 @@
 #                                                        +--|-----> |  solana-devnet  |
 #      golang:1.*                                           +-----> | [setup]         |
 #       +                                                      |    +-----------------+
-#       +-> bridge/Dockerfile   +->  guardiand-image +---------+
+#       +-> node/Dockerfile     +->  guardiand-image +---------+
 #
 #
 #      node:lts-alpine
@@ -65,18 +65,18 @@ local_resource(
     cmd = "./generate-protos.sh",
 )
 
-# bridge
+# node
 
 docker_build(
     ref = "guardiand-image",
-    context = "bridge",
-    dockerfile = "bridge/Dockerfile",
+    context = "node",
+    dockerfile = "node/Dockerfile",
 )
 
-def build_bridge_yaml():
-    bridge_yaml = read_yaml_stream("devnet/bridge.yaml")
+def build_node_yaml():
+    node_yaml = read_yaml_stream("devnet/node.yaml")
 
-    for obj in bridge_yaml:
+    for obj in node_yaml:
         if obj["kind"] == "StatefulSet" and obj["metadata"]["name"] == "guardian":
             obj["spec"]["replicas"] = num_guardians
             container = obj["spec"]["template"]["spec"]["containers"][0]
@@ -84,15 +84,15 @@ def build_bridge_yaml():
                 fail("container 0 is not guardiand")
             container["command"] += ["--devNumGuardians", str(num_guardians)]
 
-    return encode_yaml_stream(bridge_yaml)
+    return encode_yaml_stream(node_yaml)
 
-k8s_yaml_with_ns(build_bridge_yaml())
+k8s_yaml_with_ns(build_node_yaml())
 
 k8s_resource("guardian", resource_deps = ["proto-gen", "solana-devnet"], port_forwards = [
     port_forward(6060, name = "Debug/Status Server [:6060]"),
 ])
 
-# solana agent and cli (runs alongside bridge)
+# solana agent and cli (runs alongside node)
 
 docker_build(
     ref = "solana-agent",

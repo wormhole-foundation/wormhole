@@ -16,10 +16,10 @@ tools/bin/buf protoc \
   -Iproto \
   -Ithird_party/googleapis \
   --plugin tools/bin/protoc-gen-go \
-  --go_out=bridge/pkg/ proto/**/**/**
+  --go_out=node/pkg/ proto/**/**/**
 
 tools/bin/buf protoc \
   -Iproto \
   -Ithird_party/googleapis \
   --plugin tools/bin/protoc-gen-go-grpc \
-  --go-grpc_out=bridge/pkg/ proto/**/**/**
+  --go-grpc_out=node/pkg/ proto/**/**/**
