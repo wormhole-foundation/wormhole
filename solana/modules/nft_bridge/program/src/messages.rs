@@ -1,0 +1,320 @@
+use crate::{
+    types::{
+        Address,
+        ChainID,
+    },
+    TokenBridgeError,
+};
+use borsh::{
+    BorshDeserialize,
+    BorshSerialize,
+};
+use bridge::{
+    vaa::{
+        DeserializePayload,
+        SerializePayload,
+    },
+    DeserializeGovernancePayload,
+    SerializeGovernancePayload,
+};
+use byteorder::{
+    BigEndian,
+    ReadBytesExt,
+    WriteBytesExt,
+};
+use primitive_types::U256;
+use solana_program::{
+    native_token::Sol,
+    program_error::{
+        ProgramError,
+        ProgramError::InvalidAccountData,
+    },
+    pubkey::Pubkey,
+};
+use solitaire::SolitaireError;
+use std::{
+    error::Error,
+    io::{
+        Cursor,
+        Read,
+        Write,
+    },
+    str::Utf8Error,
+    string::FromUtf8Error,
+};
+
+pub const MODULE: &str = "NFTBridge";
+
+#[derive(PartialEq, Debug, Clone)]
+pub struct PayloadTransfer {
+    // Address of the token. Left-zero-padded if shorter than 32 bytes
+    pub token_address: Address,
+    // Chain ID of the token
+    pub token_chain: ChainID,
+    // Symbol of the token
+    pub symbol: String,
+    // Name of the token
+    pub name: String,
+    // TokenID of the token (big-endian uint256)
+    pub token_id: U256,
+    // URI of the token metadata
+    pub uri: String,
+    // Address of the recipient. Left-zero-padded if shorter than 32 bytes
+    pub to: Address,
+    // Chain ID of the recipient
+    pub to_chain: ChainID,
+}
+
+impl DeserializePayload for PayloadTransfer {
+    fn deserialize(buf: &mut &[u8]) -> Result<Self, SolitaireError> {
+        let mut v = Cursor::new(buf);
+
+        if v.read_u8()? != 1 {
+            return Err(SolitaireError::Custom(0));
+        };
+
+        let mut token_address = Address::default();
+        v.read_exact(&mut token_address)?;
+
+        let token_chain = v.read_u16::<BigEndian>()?;
+
+        let mut symbol_data: [u8; 32] = [0; 32];
+        v.read_exact(&mut symbol_data)?;
+        let mut symbol = String::from_utf8(symbol_data.to_vec())
+            .map_err::<SolitaireError, _>(|_| TokenBridgeError::InvalidUTF8String.into())?;
+        symbol = symbol.chars().filter(|c| c != &'\0').collect();
+
+        let mut name_data: [u8; 32] = [0; 32];
+        v.read_exact(&mut name_data)?;
+        let mut name = String::from_utf8(name_data.to_vec())
+            .map_err::<SolitaireError, _>(|_| TokenBridgeError::InvalidUTF8String.into())?;
+        name = name.chars().filter(|c| c != &'\0').collect();
+
+        let mut id_data: [u8; 32] = [0; 32];
+        v.read_exact(&mut id_data)?;
+        let token_id = U256::from_big_endian(&id_data);
+
+        let uri_len = v.read_u8()?;
+        let mut uri_bytes = vec![0u8; uri_len as usize];
+        v.read_exact(uri_bytes.as_mut_slice())?;
+        let uri = String::from_utf8(uri_bytes).unwrap();
+
+        let mut to = Address::default();
+        v.read_exact(&mut to)?;
+
+        let to_chain = v.read_u16::<BigEndian>()?;
+
+        if v.position() != v.into_inner().len() as u64 {
+            return Err(InvalidAccountData.into());
+        }
+
+        Ok(PayloadTransfer {
+            token_address,
+            token_chain,
+            to,
+            to_chain,
+            symbol,
+            name,
+            token_id,
+            uri,
+        })
+    }
+}
+
+impl SerializePayload for PayloadTransfer {
+    fn serialize<W: Write>(&self, writer: &mut W) -> Result<(), SolitaireError> {
+        // Payload ID
+        writer.write_u8(1)?;
+
+        writer.write(&self.token_address)?;
+        writer.write_u16::<BigEndian>(self.token_chain)?;
+
+        let mut symbol: [u8; 32] = [0; 32];
+        for i in 0..self.symbol.len() {
+            symbol[i] = self.symbol.as_bytes()[i];
+        }
+        writer.write(&symbol);
+
+        let mut name: [u8; 32] = [0; 32];
+        for i in 0..self.name.len() {
+            name[i] = self.name.as_bytes()[i];
+        }
+        writer.write(&name);
+
+        let mut id_data: [u8; 32] = [0; 32];
+        self.token_id.to_big_endian(&mut id_data);
+        writer.write(&id_data)?;
+
+        writer.write_u8(self.uri.len() as u8)?;
+        writer.write(self.uri.as_bytes())?;
+
+        writer.write(&self.to)?;
+        writer.write_u16::<BigEndian>(self.to_chain)?;
+
+        Ok(())
+    }
+}
+
+#[derive(PartialEq, Debug)]
+pub struct PayloadGovernanceRegisterChain {
+    // Chain ID of the chain to be registered
+    pub chain: ChainID,
+    // Address of the endpoint on the chain
+    pub endpoint_address: Address,
+}
+
+impl SerializeGovernancePayload for PayloadGovernanceRegisterChain {
+    const MODULE: &'static str = MODULE;
+    const ACTION: u8 = 1;
+}
+
+impl DeserializeGovernancePayload for PayloadGovernanceRegisterChain {
+}
+
+impl DeserializePayload for PayloadGovernanceRegisterChain
+where
+    Self: DeserializeGovernancePayload,
+{
+    fn deserialize(buf: &mut &[u8]) -> Result<Self, SolitaireError> {
+        let mut v = Cursor::new(buf);
+        Self::check_governance_header(&mut v)?;
+
+        let chain = v.read_u16::<BigEndian>()?;
+        let mut endpoint_address = [0u8; 32];
+        v.read_exact(&mut endpoint_address)?;
+
+        if v.position() != v.into_inner().len() as u64 {
+            return Err(InvalidAccountData.into());
+        }
+
+        Ok(PayloadGovernanceRegisterChain {
+            chain,
+            endpoint_address,
+        })
+    }
+}
+
+impl SerializePayload for PayloadGovernanceRegisterChain
+where
+    Self: SerializeGovernancePayload,
+{
+    fn serialize<W: Write>(&self, writer: &mut W) -> Result<(), SolitaireError> {
+        self.write_governance_header(writer);
+        // Payload ID
+        writer.write_u16::<BigEndian>(self.chain)?;
+        writer.write(&self.endpoint_address[..])?;
+
+        Ok(())
+    }
+}
+
+#[derive(PartialEq, Debug)]
+pub struct GovernancePayloadUpgrade {
+    // Address of the new Implementation
+    pub new_contract: Pubkey,
+}
+
+impl SerializePayload for GovernancePayloadUpgrade {
+    fn serialize<W: Write>(&self, v: &mut W) -> std::result::Result<(), SolitaireError> {
+        self.write_governance_header(v);
+        v.write(&self.new_contract.to_bytes())?;
+        Ok(())
+    }
+}
+
+impl DeserializePayload for GovernancePayloadUpgrade
+where
+    Self: DeserializeGovernancePayload,
+{
+    fn deserialize(buf: &mut &[u8]) -> Result<Self, SolitaireError> {
+        let mut c = Cursor::new(buf);
+        Self::check_governance_header(&mut c)?;
+
+        let mut addr = [0u8; 32];
+        c.read_exact(&mut addr)?;
+
+        if c.position() != c.into_inner().len() as u64 {
+            return Err(InvalidAccountData.into());
+        }
+
+        Ok(GovernancePayloadUpgrade {
+            new_contract: Pubkey::new(&addr[..]),
+        })
+    }
+}
+
+impl SerializeGovernancePayload for GovernancePayloadUpgrade {
+    const MODULE: &'static str = MODULE;
+    const ACTION: u8 = 2;
+}
+
+impl DeserializeGovernancePayload for GovernancePayloadUpgrade {
+}
+
+#[cfg(feature = "no-entrypoint")]
+mod tests {
+    use crate::messages::{
+        GovernancePayloadUpgrade,
+        PayloadGovernanceRegisterChain,
+        PayloadTransfer,
+    };
+    use bridge::{
+        DeserializePayload,
+        SerializePayload,
+    };
+    use primitive_types::U256;
+    use rand::RngCore;
+    use solana_program::pubkey::Pubkey;
+
+    #[test]
+    pub fn test_serde_transfer() {
+        let mut token_address = [0u8; 32];
+        rand::thread_rng().fill_bytes(&mut token_address);
+        let mut to = [0u8; 32];
+        rand::thread_rng().fill_bytes(&mut to);
+
+        let transfer_original = PayloadTransfer {
+            token_address,
+            token_chain: 8,
+            to,
+            to_chain: 1,
+            name: String::from("Token Token"),
+            symbol: String::from("TEST"),
+            uri: String::from("https://abc.abc.abc.com"),
+            token_id: U256::from(1234),
+        };
+
+        let mut data = transfer_original.try_to_vec().unwrap();
+        let transfer_deser = PayloadTransfer::deserialize(&mut data.as_slice()).unwrap();
+
+        assert_eq!(transfer_original, transfer_deser);
+    }
+
+    #[test]
+    pub fn test_serde_gov_upgrade() {
+        let original = GovernancePayloadUpgrade {
+            new_contract: Pubkey::new_unique(),
+        };
+
+        let mut data = original.try_to_vec().unwrap();
+        let deser = GovernancePayloadUpgrade::deserialize(&mut data.as_slice()).unwrap();
+
+        assert_eq!(original, deser);
+    }
+
+    #[test]
+    pub fn test_serde_gov_register_chain() {
+        let mut endpoint_address = [0u8; 32];
+        rand::thread_rng().fill_bytes(&mut endpoint_address);
+
+        let original = PayloadGovernanceRegisterChain {
+            chain: 8,
+            endpoint_address,
+        };
+
+        let mut data = original.try_to_vec().unwrap();
+        let deser = PayloadGovernanceRegisterChain::deserialize(&mut data.as_slice()).unwrap();
+
+        assert_eq!(original, deser);
+    }
+}

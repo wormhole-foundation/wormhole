@@ -94,6 +94,7 @@ fn command_create_meta(
     mint: &Pubkey,
     name: String,
     symbol: String,
+    uri: String,
 ) -> CommmandResult {
     println!("Creating meta for mint {}", mint);
 
@@ -116,7 +117,7 @@ fn command_create_meta(
         config.owner.pubkey(),
         name,
         symbol,
-        String::from(""),
+        uri,
         None,
         0,
         false,
@@ -247,6 +248,15 @@ fn main() {
                         .index(3)
                         .required(true)
                         .help("Symbol of the token"),
+                )
+                .arg(
+                    Arg::with_name("uri")
+                        .long("uri")
+                        .value_name("URI")
+                        .takes_value(true)
+                        .index(4)
+                        .required(true)
+                        .help("URI of the token metadata"),
                 ),
         )
         .get_matches();
@@ -289,8 +299,9 @@ fn main() {
             let mint = pubkey_of(arg_matches, "mint").unwrap();
             let name: String = value_of(arg_matches, "name").unwrap();
             let symbol: String = value_of(arg_matches, "symbol").unwrap();
+            let uri: String = value_of(arg_matches, "uri").unwrap();
 
-            command_create_meta(&config, &mint, name, symbol)
+            command_create_meta(&config, &mint, name, symbol, uri)
         }
         ("emitter", Some(arg_matches)) => {
             let bridge = pubkey_of(arg_matches, "bridge").unwrap();

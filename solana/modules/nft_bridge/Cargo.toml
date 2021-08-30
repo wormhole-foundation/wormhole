@@ -1,0 +1,5 @@
+[workspace]
+members = ["program"]
+
+[patch.crates-io]
+memmap2 = { path = "../../bridge/memmap2-rs" }
