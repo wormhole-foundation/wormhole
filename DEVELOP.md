@@ -4,7 +4,7 @@
 
 The following dependencies are required for local development:
 
-- [Go](https://golang.org/dl/) >= 1.16.6
+- [Go](https://golang.org/dl/) >= 1.17.0
 - [Tilt](http://tilt.dev/) >= 0.20.8
 - Any of the local Kubernetes clusters supported by Tilt.
   We strongly recommend [minikube](https://kubernetes.io/docs/setup/learning-environment/minikube/) >= 
@@ -22,7 +22,7 @@ The minikube default is too low, adjust it like this:
 
     minikube ssh 'echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p'
 
-This should work on Linux, MacOS and possibly even Windows.
+This should work on Linux, MacOS and Windows.
 
 By default, the devnet is deployed to the `wormhole` namespace rather than `default`. This makes it easy to clean up the
 entire deployment by simply removing the namespace, which isn't possible with `default`. Change your default namespace

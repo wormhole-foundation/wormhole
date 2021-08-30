@@ -1,6 +1,6 @@
 module github.com/certusone/wormhole/node/tools
 
-go 1.16
+go 1.17
 
 require (
 	github.com/bufbuild/buf v0.48.2

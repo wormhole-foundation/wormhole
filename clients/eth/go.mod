@@ -1,6 +1,6 @@
 module github.com/certusone/wormhole/clients/eth
 
-go 1.16
+go 1.17
 
 require (
 	github.com/certusone/wormhole/node v0.0.0-20210722131135-a191017d22d0
