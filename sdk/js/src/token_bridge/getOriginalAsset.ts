@@ -4,7 +4,7 @@ import { arrayify } from "ethers/lib/utils";
 import { TokenImplementation__factory } from "../ethers-contracts";
 import { ChainId, CHAIN_ID_ETH, CHAIN_ID_SOLANA, CHAIN_ID_TERRA } from "../utils";
 import { getIsWrappedAssetEth } from "./getIsWrappedAsset";
-import { ConnectedWallet as TerraConnectedWallet } from "@terra-money/wallet-provider";
+import { LCDClient } from "@terra-money/terra.js";
 
 export interface WormholeWrappedInfo {
   isWrapped: boolean;
@@ -50,15 +50,28 @@ export async function getOriginalAssetEth(
 }
 
 export async function getOriginalAssetTerra(
-  tokenBridgeAddress: string,
-  wallet: TerraConnectedWallet,
+  client: LCDClient,
   wrappedAddress: string
 ): Promise<WormholeWrappedInfo> {
+  const result: {
+    asset_address: string,
+    asset_chain: ChainId,
+    bridge: string,
+  } = await client.wasm.contractQuery(wrappedAddress, {
+    wrapped_asset_info: {},
+  });
+  if (result) {
+    return {
+      isWrapped: true,
+      chainId: result.asset_chain,
+      assetAddress: arrayify(result.asset_address),
+    };
+  }
   return {
-    isWrapped: false,
-    chainId: CHAIN_ID_TERRA,
-    assetAddress: arrayify(""),
-  };
+      isWrapped: false,
+      chainId: CHAIN_ID_TERRA,
+      assetAddress: arrayify(wrappedAddress),
+  }
 }
 
 /**

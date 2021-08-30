@@ -14,7 +14,6 @@ import {
   useConnectedWallet,
 } from "@terra-money/wallet-provider";
 import { Signer } from "ethers";
-import { fromUint8Array } from "js-base64";
 import { useSnackbar } from "notistack";
 import { useCallback, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";

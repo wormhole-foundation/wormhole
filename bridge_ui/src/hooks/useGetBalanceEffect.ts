@@ -48,7 +48,6 @@ function useGetBalanceEffect(sourceOrTarget: "source" | "target") {
   const solanaWallet = useSolanaWallet();
   const solPK = solanaWallet?.publicKey;
   const terraWallet = useConnectedWallet();
-  const lcd = new LCDClient(TERRA_HOST);
   const { provider, signerAddress } = useEthereumProvider();
   useEffect(() => {
     // source is now handled by getsourceparsedtokenaccounts
@@ -61,6 +60,7 @@ function useGetBalanceEffect(sourceOrTarget: "source" | "target") {
     let cancelled = false;
 
     if (lookupChain === CHAIN_ID_TERRA && terraWallet) {
+      const lcd = new LCDClient(TERRA_HOST);
       lcd.wasm
         .contractQuery(lookupAsset, {
           token_info: {},
@@ -161,7 +161,6 @@ function useGetBalanceEffect(sourceOrTarget: "source" | "target") {
     };
   }, [
     dispatch,
-    lcd,
     lookupAsset,
     lookupChain,
     provider,
