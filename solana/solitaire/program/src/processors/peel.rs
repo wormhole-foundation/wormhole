@@ -69,7 +69,9 @@ impl<'a, 'b: 'a, 'c, T: Peel<'a, 'b, 'c>> Peel<'a, 'b, 'c> for Mut<T> {
         ctx.immutable = false;
         match ctx.info().is_writable {
             true => T::peel(ctx).map(|v| Mut(v)),
-            _ => Err(SolitaireError::InvalidMutability(*ctx.info().key).into()),
+            _ => Err(
+                SolitaireError::InvalidMutability(*ctx.info().key, ctx.info().is_writable).into(),
+            ),
         }
     }
 
@@ -162,7 +164,9 @@ where
 impl<'a, 'b: 'a, 'c> Peel<'a, 'b, 'c> for Info<'b> {
     fn peel<I>(ctx: &'c mut Context<'a, 'b, 'c, I>) -> Result<Self> {
         if ctx.immutable && ctx.info().is_writable {
-            return Err(SolitaireError::InvalidMutability(*ctx.info().key).into());
+            return Err(
+                SolitaireError::InvalidMutability(*ctx.info().key, ctx.info().is_writable).into(),
+            );
         }
 
         Ok(ctx.info().clone())
@@ -187,7 +191,9 @@ impl<
 {
     fn peel<I>(ctx: &'c mut Context<'a, 'b, 'c, I>) -> Result<Self> {
         if ctx.immutable && ctx.info().is_writable {
-            return Err(SolitaireError::InvalidMutability(*ctx.info().key).into());
+            return Err(
+                SolitaireError::InvalidMutability(*ctx.info().key, ctx.info().is_writable).into(),
+            );
         }
 
         // If we're initializing the type, we should emit system/rent as deps.
