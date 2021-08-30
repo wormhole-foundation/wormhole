@@ -94,6 +94,7 @@ export const selectTransferIsSourceComplete = (state: RootState) =>
       state.transfer.sourceParsedTokenAccount.decimals
     )
   );
+
 // TODO: check wrapped asset exists or is native transfer
 export const selectTransferIsTargetComplete = (state: RootState) =>
   selectTransferIsSourceComplete(state) &&

@@ -82,7 +82,7 @@ function useSyncTargetAddress(shouldFire: boolean) {
           setTargetAddressHex(
             uint8ArrayToHex(
               zeroPad(
-                new Uint8Array(bech32.decode(terraWallet.walletAddress).words),
+                new Uint8Array(bech32.fromWords(bech32.decode(terraWallet.walletAddress).words)),
                 32
               )
             )

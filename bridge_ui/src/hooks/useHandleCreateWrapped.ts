@@ -94,7 +94,15 @@ async function terra(
 ) {
   dispatch(setIsCreating(true));
   try {
-    await createWrappedOnTerra(TERRA_TOKEN_BRIDGE_ADDRESS, wallet, signedVAA);
+    const msg = await createWrappedOnTerra(
+      TERRA_TOKEN_BRIDGE_ADDRESS,
+      wallet.terraAddress,
+      signedVAA
+    );
+    await wallet.post({
+      msgs: [msg],
+      memo: "Wormhole - Create Wrapped",
+    });
     dispatch(reset());
     enqueueSnackbar("Transaction confirmed", { variant: "success" });
   } catch (e) {

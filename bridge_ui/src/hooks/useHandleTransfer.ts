@@ -5,15 +5,17 @@ import {
   CHAIN_ID_TERRA,
   getEmitterAddressEth,
   getEmitterAddressSolana,
+  getEmitterAddressTerra,
   parseSequenceFromLogEth,
   parseSequenceFromLogSolana,
   parseSequenceFromLogTerra,
   transferFromEth,
   transferFromSolana,
+  transferFromTerra,
 } from "@certusone/wormhole-sdk";
 import { WalletContextState } from "@solana/wallet-adapter-react";
 import { Connection } from "@solana/web3.js";
-import { MsgExecuteContract } from "@terra-money/terra.js";
+import * as bech32 from "bech32";
 import {
   ConnectedWallet,
   useConnectedWallet,
@@ -162,33 +164,24 @@ async function terra(
 ) {
   dispatch(setIsSending(true));
   try {
-    // TODO: SDK
+    const msg = await transferFromTerra(
+      wallet.terraAddress,
+      TERRA_TOKEN_BRIDGE_ADDRESS,
+      asset,
+      amount,
+      targetChain,
+      targetAddress
+    );
     const result = await wallet.post({
-      msgs: [
-        new MsgExecuteContract(
-          wallet.terraAddress,
-          TERRA_TOKEN_BRIDGE_ADDRESS,
-          {
-            initiate_transfer: {
-              asset: asset,
-              amount: amount,
-              recipient_chain: targetChain,
-              recipient: targetAddress,
-              fee: 1000,
-              nonce: 0,
-            },
-          },
-          { uluna: 1000 }
-        ),
-      ],
-      memo: "Complete Transfer",
+      msgs: [msg],
+      memo: "Wormhole - Initiate Transfer",
     });
     enqueueSnackbar("Transaction confirmed", { variant: "success" });
     console.log(result);
     const sequence = parseSequenceFromLogTerra(result);
     console.log(sequence);
-    const emitterAddress = await getEmitterAddressSolana(
-      SOL_TOKEN_BRIDGE_ADDRESS
+    const emitterAddress = await getEmitterAddressTerra(
+      TERRA_TOKEN_BRIDGE_ADDRESS
     );
     console.log(emitterAddress);
     enqueueSnackbar("Fetching VAA", { variant: "info" });

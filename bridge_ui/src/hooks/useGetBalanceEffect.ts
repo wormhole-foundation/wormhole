@@ -6,6 +6,7 @@ import {
 } from "@certusone/wormhole-sdk";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { useConnectedWallet } from "@terra-money/wallet-provider";
+import { LCDClient } from "@terra-money/terra.js";
 import { formatUnits } from "ethers/lib/utils";
 import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
@@ -21,7 +22,7 @@ import {
   setSourceParsedTokenAccount,
   setTargetParsedTokenAccount,
 } from "../store/transferSlice";
-import { SOLANA_HOST } from "../utils/consts";
+import { SOLANA_HOST, TERRA_HOST } from "../utils/consts";
 import { createParsedTokenAccount } from "./useGetSourceParsedTokenAccounts";
 
 /**
@@ -47,6 +48,7 @@ function useGetBalanceEffect(sourceOrTarget: "source" | "target") {
   const solanaWallet = useSolanaWallet();
   const solPK = solanaWallet?.publicKey;
   const terraWallet = useConnectedWallet();
+  const lcd = new LCDClient(TERRA_HOST);
   const { provider, signerAddress } = useEthereumProvider();
   useEffect(() => {
     // source is now handled by getsourceparsedtokenaccounts
@@ -59,9 +61,29 @@ function useGetBalanceEffect(sourceOrTarget: "source" | "target") {
     let cancelled = false;
 
     if (lookupChain === CHAIN_ID_TERRA && terraWallet) {
+      lcd.bank.balance(terraWallet.terraAddress).then((value) => {
+        console.log(lookupAsset);
+        console.log(value.toIntCoins());
+      });
+
       dispatch(
-        setSourceParsedTokenAccount(
-          createParsedTokenAccount("", "", "0", 0, 0, "0")
+        setAction(
+          // TODO: Replace with the following once LCD lookup in place.
+          // createParsedTokenAccount(
+          //   undefined,
+          //   n.toString(),
+          //   decimals,
+          //   Number(formatUnits(n, decimals)),
+          //   formatUnits(n, decimals)
+          // )
+          createParsedTokenAccount(
+            "",
+            "",
+            "100000",
+            5,
+            Number(formatUnits(100000, 5)),
+            formatUnits(100000, 5)
+          )
         )
       );
     }

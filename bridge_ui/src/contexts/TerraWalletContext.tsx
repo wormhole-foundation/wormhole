@@ -22,7 +22,7 @@ const mainnet = {
 const localnet = {
   name: "localnet",
   chainID: "localnet",
-  lcd: TERRA_HOST,
+  lcd: TERRA_HOST.URL,
 };
 
 const walletConnectChainIds: Record<number, NetworkInfo> = {

@@ -1,4 +1,11 @@
+import {
+  ASSOCIATED_TOKEN_PROGRAM_ID,
+  Token,
+  TOKEN_PROGRAM_ID,
+} from "@solana/spl-token";
+import { MsgExecuteContract } from "@terra-money/terra.js";
 import { Connection, PublicKey, Transaction } from "@solana/web3.js";
+import { fromUint8Array } from "js-base64";
 import { ethers } from "ethers";
 import { Bridge__factory } from "../ethers-contracts";
 import { ixFromRust } from "../solana";
@@ -13,6 +20,23 @@ export async function redeemOnEth(
   const v = await bridge.completeTransfer(signedVAA);
   const receipt = await v.wait();
   return receipt;
+}
+
+export async function redeemOnTerra(
+  tokenBridgeAddress: string,
+  walletAddress: string,
+  signedVAA: Uint8Array
+) {
+  return new MsgExecuteContract(
+    walletAddress,
+    tokenBridgeAddress,
+    {
+      submit_vaa: {
+        data: fromUint8Array(signedVAA),
+      },
+    },
+    { uluna: 1000 }
+  );
 }
 
 export async function redeemOnSolana(

@@ -42,7 +42,7 @@ export async function transferFromEth(
 }
 
 export async function transferFromTerra(
-  wallet: TerraConnectedWallet,
+  walletAddress: string,
   tokenBridgeAddress: string,
   tokenAddress: string,
   amount: ethers.BigNumberish,
@@ -50,26 +50,21 @@ export async function transferFromTerra(
   recipientAddress: Uint8Array
 ) {
   const nonce = Math.round(Math.random() * 100000);
-  return await wallet.post({
-    msgs: [
-      new MsgExecuteContract(
-        wallet.terraAddress,
-        tokenBridgeAddress,
-        {
-          initiate_transfer: {
-            asset: tokenAddress,
-            amount: amount,
-            recipient_chain: recipientChain,
-            recipient: recipientAddress,
-            fee: 1000,
-            nonce: nonce,
-          },
-        },
-        { uluna: 10000 }
-      ),
-    ],
-    memo: "Complete Transfer",
-  });
+  return new MsgExecuteContract(
+    walletAddress,
+    tokenBridgeAddress,
+    {
+      initiate_transfer: {
+        asset: tokenAddress,
+        amount: amount,
+        recipient_chain: recipientChain,
+        recipient: recipientAddress,
+        fee: 1000,
+        nonce: nonce,
+      },
+    },
+    { uluna: 10000 }
+  );
 }
 
 export async function transferFromSolana(

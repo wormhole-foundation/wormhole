@@ -19,27 +19,19 @@ export async function createWrappedOnEth(
 
 export async function createWrappedOnTerra(
   tokenBridgeAddress: string,
-  wallet: TerraConnectedWallet,
-  signedVAA: Uint8Array,
+  walletAddress: string,
+  signedVAA: Uint8Array
 ) {
-  console.log(tokenBridgeAddress);
-  console.log(wallet.terraAddress);
-  console.log(signedVAA);
-  await wallet.post({
-      msgs: [
-        new MsgExecuteContract(
-          wallet.terraAddress,
-          tokenBridgeAddress,
-          {
-            submit_vaa: {
-              data: fromUint8Array(signedVAA),
-            },
-          },
-          { uluna: 1000 }
-        ),
-      ],
-      memo: "Create Wrapped",
-  });
+  return new MsgExecuteContract(
+    walletAddress,
+    tokenBridgeAddress,
+    {
+      submit_vaa: {
+        data: fromUint8Array(signedVAA),
+      },
+    },
+    { uluna: 1000 }
+  );
 }
 
 export async function createWrappedOnSolana(

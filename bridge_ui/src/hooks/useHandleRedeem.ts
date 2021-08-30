@@ -5,10 +5,10 @@ import {
   postVaaSolana,
   redeemOnEth,
   redeemOnSolana,
+  redeemOnTerra,
 } from "@certusone/wormhole-sdk";
 import { WalletContextState } from "@solana/wallet-adapter-react";
 import { Connection } from "@solana/web3.js";
-import { MsgExecuteContract } from "@terra-money/terra.js";
 import {
   ConnectedWallet,
   useConnectedWallet,
@@ -96,20 +96,14 @@ async function terra(
 ) {
   dispatch(setIsRedeeming(true));
   try {
+    const msg = await redeemOnTerra(
+      TERRA_TOKEN_BRIDGE_ADDRESS,
+      wallet.terraAddress,
+      signedVAA
+    );
     await wallet.post({
-      msgs: [
-        new MsgExecuteContract(
-          wallet.terraAddress,
-          TERRA_TOKEN_BRIDGE_ADDRESS,
-          {
-            submit_vaa: {
-              data: fromUint8Array(signedVAA),
-            },
-          },
-          { uluna: 1000 }
-        ),
-      ],
-      memo: "Complete Transfer",
+      msgs: [msg],
+      memo: "Wormhole - Complete Transfer",
     });
     dispatch(reset());
     enqueueSnackbar("Transaction confirmed", { variant: "success" });

@@ -50,7 +50,7 @@ export async function getForeignAssetTerra(
  * @param originAsset zero pad to 32 bytes
  * @returns
  */
-export async function getForeignAssetSol(
+export async function getForeignAssetSolana(
   connection: Connection,
   tokenBridgeAddress: string,
   originChain: ChainId,
