@@ -22,7 +22,7 @@ import {
 } from "../store/selectors";
 import { setTargetAddressHex } from "../store/transferSlice";
 import { uint8ArrayToHex } from "../utils/array";
-import bech32 from "bech32";
+import { canonicalAddress } from "../utils/terra";
 
 function useSyncTargetAddress(shouldFire: boolean) {
   const dispatch = useDispatch();
@@ -81,10 +81,7 @@ function useSyncTargetAddress(shouldFire: boolean) {
         dispatch(
           setTargetAddressHex(
             uint8ArrayToHex(
-              zeroPad(
-                new Uint8Array(bech32.fromWords(bech32.decode(terraWallet.walletAddress).words)),
-                32
-              )
+              zeroPad(canonicalAddress(terraWallet.walletAddress), 32)
             )
           )
         );
