@@ -56,6 +56,7 @@ retry token-bridge-client create-bridge "$token_bridge_address" "$bridge_address
 # Register the Solana Endpoint on ETH
 pushd /usr/src/clients/token_bridge
 node main.js solana execute_governance_vaa $(node main.js generate_register_chain_vaa 2 0x0000000000000000000000000290FB167208Af455bB137780163b7B7a9a10C16)
+node main.js solana execute_governance_vaa $(node main.js generate_register_chain_vaa 3 0x000000000000000000000000784999135aaa8a3ca5914468852fdddbddd8789d)
 popd
 
 # Let k8s startup probe succeed
