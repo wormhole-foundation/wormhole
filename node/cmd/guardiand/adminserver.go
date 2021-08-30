@@ -158,6 +158,9 @@ func adminServiceRunnable(logger *zap.Logger, socketPath string, injectC chan<- 
 	// The umask avoids a race condition between file creation and chmod.
 
 	laddr, err := net.ResolveUnixAddr("unix", socketPath)
+	if err != nil {
+		return nil, fmt.Errorf("invalid listen address: %v", err)
+	}
 	l, err := net.ListenUnix("unix", laddr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to listen on %s: %w", socketPath, err)

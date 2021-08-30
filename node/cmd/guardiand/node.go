@@ -536,18 +536,14 @@ func runNode(cmd *cobra.Command, args []string) {
 
 		logger.Info("Started internal services")
 
-		select {
-		case <-ctx.Done():
-			return nil
-		}
+		<-ctx.Done()
+		return nil
 	},
 		// It's safer to crash and restart the process in case we encounter a panic,
 		// rather than attempting to reschedule the runnable.
 		supervisor.WithPropagatePanic)
 
-	select {
-	case <-rootCtx.Done():
-		logger.Info("root context cancelled, exiting...")
-		// TODO: wait for things to shut down gracefully
-	}
+	<-rootCtx.Done()
+	logger.Info("root context cancelled, exiting...")
+	// TODO: wait for things to shut down gracefully
 }

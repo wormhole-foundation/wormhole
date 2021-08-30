@@ -562,11 +562,13 @@ fn handle_initiate_transfer<S: Storage, A: Api, Q: Querier>(
             amount = Uint128(
                 amount
                     .u128()
-                    .checked_sub(amount.u128().checked_rem(multiplier).unwrap()).unwrap(),
+                    .checked_sub(amount.u128().checked_rem(multiplier).unwrap())
+                    .unwrap(),
             );
             fee = Uint128(
                 fee.u128()
-                    .checked_sub(fee.u128().checked_rem(multiplier).unwrap()).unwrap(),
+                    .checked_sub(fee.u128().checked_rem(multiplier).unwrap())
+                    .unwrap(),
             );
 
             // This is a regular asset, transfer its balance

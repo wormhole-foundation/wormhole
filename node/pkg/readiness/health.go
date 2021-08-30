@@ -55,7 +55,7 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 
 	mu.Lock()
 	for k, v := range registry {
-		_, err = fmt.Fprintln(resp, fmt.Sprintf("%s\t%v", k, v))
+		_, err = fmt.Fprintf(resp, "%s\t%v\n", k, v)
 		if err != nil {
 			panic(err)
 		}

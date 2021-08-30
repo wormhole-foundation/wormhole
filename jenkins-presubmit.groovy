@@ -4,6 +4,7 @@ pipeline {
     agent none
     stages {
         stage('Parallel') {
+            failFast true
             parallel {
                 stage('Test') {
                     agent {
@@ -35,17 +36,49 @@ pipeline {
                     }
                     post {
                         success {
-                            gerritReview labels: [Verified: 1]
                             gerritCheck checks: ['jenkins:test': 'SUCCESSFUL']
                         }
                         unsuccessful {
-                            gerritReview labels: [Verified: -1]
                             gerritCheck checks: ['jenkins:test': 'FAILED']
                         }
                         cleanup {
                             sh kubeCleanup
                         }
                     }
+                }
+                stage('Lint') {
+                    agent {
+                        node {
+                            label ""
+                            customWorkspace '/home/ci/wormhole'
+                        }
+                    }
+                    steps {
+                        gerritCheck checks: ['jenkins:linters': 'RUNNING'], message: "Running on ${env.NODE_NAME}"
+
+                        echo "Gerrit change: ${GERRIT_CHANGE_URL}"
+
+                        timeout(time: 1, unit: 'MINUTES') {
+                            sh "make generate"
+                            sh "./lint.sh"
+                        }
+                    }
+                    post {
+                        success {
+                            gerritCheck checks: ['jenkins:linters': 'SUCCESSFUL']
+                        }
+                        unsuccessful {
+                            gerritCheck checks: ['jenkins:linters': 'FAILED']
+                        }
+                    }
+                }
+            }
+            post {
+                success {
+                    gerritReview labels: [Verified: 1]
+                }
+                unsuccessful {
+                    gerritReview labels: [Verified: -1]
                 }
             }
         }

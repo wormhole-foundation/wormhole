@@ -39,16 +39,6 @@ var (
 			Name: "wormhole_observations_unknown_total",
 			Help: "Total number of verified observations we haven't seen ourselves",
 		})
-	observationsDirectSubmissionsTotal = promauto.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "wormhole_observations_direct_submissions_queued_total",
-			Help: "Total number of observations for a specific target chain that were queued for direct submission",
-		}, []string{"target_chain"})
-	observationsDirectSubmissionSuccessTotal = promauto.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "wormhole_observations_direct_submission_success_total",
-			Help: "Total number of observations for a specific target chain that succeeded",
-		}, []string{"target_chain"})
 )
 
 // handleObservation processes a remote VAA observation, verifies it, checks whether the VAA has met quorum,

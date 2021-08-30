@@ -49,7 +49,7 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 	aggregationStateEntries.Set(float64(len(p.state.vaaSignatures)))
 
 	for hash, s := range p.state.vaaSignatures {
-		delta := time.Now().Sub(s.firstObserved)
+		delta := time.Since(s.firstObserved)
 
 		switch {
 		case !s.settled && delta.Seconds() >= 30:
