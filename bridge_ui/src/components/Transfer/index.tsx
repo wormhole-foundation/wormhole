@@ -26,7 +26,6 @@ import Target from "./Target";
 // TODO: warn if amount exceeds balance
 
 function Transfer() {
-  useGetBalanceEffect("source");
   useCheckIfWormholeWrapped();
   useFetchTargetAsset();
   useGetBalanceEffect("target");

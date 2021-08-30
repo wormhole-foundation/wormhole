@@ -43,7 +43,7 @@ function useFetchTargetAsset() {
     dispatch(setTargetAsset(undefined));
     let cancelled = false;
     (async () => {
-      if (targetChain === CHAIN_ID_ETH && provider) {
+      if (targetChain === CHAIN_ID_ETH && provider && sourceAsset) {
         const asset = await getForeignAssetEth(
           provider,
           sourceChain,
@@ -53,7 +53,7 @@ function useFetchTargetAsset() {
           dispatch(setTargetAsset(asset));
         }
       }
-      if (targetChain === CHAIN_ID_SOLANA) {
+      if (targetChain === CHAIN_ID_SOLANA && sourceAsset) {
         try {
           const asset = await getForeignAssetSol(sourceChain, sourceAsset);
           if (!cancelled) {
@@ -65,7 +65,7 @@ function useFetchTargetAsset() {
           }
         }
       }
-      if (targetChain === CHAIN_ID_TERRA) {
+      if (targetChain === CHAIN_ID_TERRA && sourceAsset) {
         try {
           const asset = await getForeignAssetTerra(sourceChain, sourceAsset);
           if (!cancelled) {

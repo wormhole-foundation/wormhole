@@ -42,8 +42,9 @@ export const selectTransferActiveStep = (state: RootState) =>
   state.transfer.activeStep;
 export const selectTransferSourceChain = (state: RootState) =>
   state.transfer.sourceChain;
-export const selectTransferSourceAsset = (state: RootState) =>
-  state.transfer.sourceAsset;
+export const selectTransferSourceAsset = (state: RootState) => {
+  return state.transfer.sourceParsedTokenAccount?.mintKey || undefined;
+};
 export const selectTransferIsSourceAssetWormholeWrapped = (state: RootState) =>
   state.transfer.isSourceAssetWormholeWrapped;
 export const selectTransferOriginChain = (state: RootState) =>
@@ -52,6 +53,8 @@ export const selectTransferOriginAsset = (state: RootState) =>
   state.transfer.originAsset;
 export const selectTransferSourceParsedTokenAccount = (state: RootState) =>
   state.transfer.sourceParsedTokenAccount;
+export const selectTransferSourceParsedTokenAccounts = (state: RootState) =>
+  state.transfer.sourceParsedTokenAccounts;
 export const selectTransferSourceBalanceString = (state: RootState) =>
   state.transfer.sourceParsedTokenAccount?.uiAmountString || "";
 export const selectTransferAmount = (state: RootState) => state.transfer.amount;
@@ -76,7 +79,6 @@ export const selectTransferIsRedeeming = (state: RootState) =>
 // TODO: could make this return a string with a user informative message
 export const selectTransferIsSourceComplete = (state: RootState) =>
   !!state.transfer.sourceChain &&
-  !!state.transfer.sourceAsset &&
   !!state.transfer.sourceParsedTokenAccount &&
   !!state.transfer.amount &&
   (state.transfer.sourceChain !== CHAIN_ID_SOLANA ||
@@ -104,3 +106,7 @@ export const selectTransferIsSendComplete = (state: RootState) =>
   !!selectTransferSignedVAAHex(state);
 export const selectTransferShouldLockFields = (state: RootState) =>
   selectTransferIsSending(state) || selectTransferIsSendComplete(state);
+
+export const selectSolanaTokenMap = (state: RootState) => {
+  return state.tokens.solanaTokenMap;
+};

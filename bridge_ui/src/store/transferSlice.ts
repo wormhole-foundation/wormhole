@@ -2,22 +2,24 @@ import {
   ChainId,
   CHAIN_ID_ETH,
   CHAIN_ID_SOLANA,
-  CHAIN_ID_TERRA,
 } from "@certusone/wormhole-sdk";
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import {
-  ETH_TEST_TOKEN_ADDRESS,
-  SOL_TEST_TOKEN_ADDRESS,
-  TERRA_TEST_TOKEN_ADDRESS,
-} from "../utils/consts";
 import { StateSafeWormholeWrappedInfo } from "../utils/getOriginalAsset";
+import {
+  DataWrapper,
+  errorDataWrapper,
+  fetchDataWrapper,
+  getEmptyDataWrapper,
+  receiveDataWrapper,
+} from "./helpers";
 
 const LAST_STEP = 3;
 
 type Steps = 0 | 1 | 2 | 3;
 
 export interface ParsedTokenAccount {
-  publicKey: string | undefined;
+  publicKey: string;
+  mintKey: string;
   amount: string;
   decimals: number;
   uiAmount: number;
@@ -27,11 +29,11 @@ export interface ParsedTokenAccount {
 export interface TransferState {
   activeStep: Steps;
   sourceChain: ChainId;
-  sourceAsset: string;
   isSourceAssetWormholeWrapped: boolean | undefined;
   originChain: ChainId | undefined;
   originAsset: string | undefined;
   sourceParsedTokenAccount: ParsedTokenAccount | undefined;
+  sourceParsedTokenAccounts: DataWrapper<ParsedTokenAccount[]>;
   amount: string;
   targetChain: ChainId;
   targetAddressHex: string | undefined;
@@ -45,9 +47,9 @@ export interface TransferState {
 const initialState: TransferState = {
   activeStep: 0,
   sourceChain: CHAIN_ID_SOLANA,
-  sourceAsset: SOL_TEST_TOKEN_ADDRESS,
   isSourceAssetWormholeWrapped: false,
   sourceParsedTokenAccount: undefined,
+  sourceParsedTokenAccounts: getEmptyDataWrapper(),
   originChain: undefined,
   originAsset: undefined,
   amount: "",
@@ -76,23 +78,12 @@ export const transferSlice = createSlice({
     setSourceChain: (state, action: PayloadAction<ChainId>) => {
       const prevSourceChain = state.sourceChain;
       state.sourceChain = action.payload;
-      // TODO: remove or check env - for testing purposes
-      if (action.payload === CHAIN_ID_ETH) {
-        state.sourceAsset = ETH_TEST_TOKEN_ADDRESS;
-      }
-      if (action.payload === CHAIN_ID_SOLANA) {
-        state.sourceAsset = SOL_TEST_TOKEN_ADDRESS;
-      }
-      if (action.payload === CHAIN_ID_TERRA) {
-        state.sourceAsset = TERRA_TEST_TOKEN_ADDRESS;
-      }
+      state.sourceParsedTokenAccount = undefined;
+      state.sourceParsedTokenAccounts = getEmptyDataWrapper();
       if (state.targetChain === action.payload) {
         state.targetChain = prevSourceChain;
         state.targetAddressHex = undefined;
       }
-    },
-    setSourceAsset: (state, action: PayloadAction<string>) => {
-      state.sourceAsset = action.payload;
     },
     setSourceWormholeWrappedInfo: (
       state,
@@ -114,6 +105,23 @@ export const transferSlice = createSlice({
     ) => {
       state.sourceParsedTokenAccount = action.payload;
     },
+    fetchSourceParsedTokenAccounts: (state) => {
+      state.sourceParsedTokenAccounts = fetchDataWrapper();
+    },
+    errorSourceParsedTokenAccounts: (
+      state,
+      action: PayloadAction<string | undefined>
+    ) => {
+      state.sourceParsedTokenAccounts = errorDataWrapper(
+        action.payload || "An unknown error occurred."
+      );
+    },
+    receiveSourceParsedTokenAccounts: (
+      state,
+      action: PayloadAction<ParsedTokenAccount[]>
+    ) => {
+      state.sourceParsedTokenAccounts = receiveDataWrapper(action.payload);
+    },
     setAmount: (state, action: PayloadAction<string>) => {
       state.amount = action.payload;
     },
@@ -125,16 +133,8 @@ export const transferSlice = createSlice({
       if (state.sourceChain === action.payload) {
         state.sourceChain = prevTargetChain;
         state.activeStep = 0;
-        // TODO: remove or check env - for testing purposes
-        if (state.targetChain === CHAIN_ID_ETH) {
-          state.sourceAsset = ETH_TEST_TOKEN_ADDRESS;
-        }
-        if (state.targetChain === CHAIN_ID_SOLANA) {
-          state.sourceAsset = SOL_TEST_TOKEN_ADDRESS;
-        }
-        if (state.targetChain === CHAIN_ID_TERRA) {
-          state.sourceAsset = TERRA_TEST_TOKEN_ADDRESS;
-        }
+        state.sourceParsedTokenAccount = undefined;
+        state.sourceParsedTokenAccounts = getEmptyDataWrapper();
       }
     },
     setTargetAddressHex: (state, action: PayloadAction<string | undefined>) => {
@@ -172,9 +172,11 @@ export const {
   decrementStep,
   setStep,
   setSourceChain,
-  setSourceAsset,
   setSourceWormholeWrappedInfo,
   setSourceParsedTokenAccount,
+  receiveSourceParsedTokenAccounts,
+  errorSourceParsedTokenAccounts,
+  fetchSourceParsedTokenAccounts,
   setAmount,
   setTargetChain,
   setTargetAddressHex,

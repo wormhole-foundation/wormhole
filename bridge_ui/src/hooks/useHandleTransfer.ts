@@ -234,6 +234,7 @@ export function useHandleTransfer() {
     if (
       sourceChain === CHAIN_ID_ETH &&
       !!signer &&
+      !!sourceAsset &&
       decimals !== undefined &&
       !!targetAddress
     ) {
@@ -251,6 +252,7 @@ export function useHandleTransfer() {
       sourceChain === CHAIN_ID_SOLANA &&
       !!solanaWallet &&
       !!solPK &&
+      !!sourceAsset &&
       !!sourceTokenPublicKey &&
       !!targetAddress &&
       decimals !== undefined
@@ -272,6 +274,7 @@ export function useHandleTransfer() {
     } else if (
       sourceChain === CHAIN_ID_TERRA &&
       !!terraWallet &&
+      !!sourceAsset &&
       decimals !== undefined &&
       !!targetAddress
     ) {

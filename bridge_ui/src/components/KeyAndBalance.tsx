@@ -16,11 +16,12 @@ function KeyAndBalance({
   chainId: ChainId;
   balance?: string;
 }) {
+  const balanceString = balance ? "Balance: " + balance : balance;
   if (chainId === CHAIN_ID_ETH) {
     return (
       <>
         <EthereumSignerKey />
-        <Typography>{balance}</Typography>
+        <Typography>{balanceString}</Typography>
       </>
     );
   }
@@ -28,7 +29,7 @@ function KeyAndBalance({
     return (
       <>
         <SolanaWalletKey />
-        <Typography>{balance}</Typography>
+        <Typography>{balanceString}</Typography>
       </>
     );
   }
@@ -36,7 +37,7 @@ function KeyAndBalance({
     return (
       <>
         <TerraWalletKey />
-        <Typography>{balance}</Typography>
+        <Typography>{balanceString}</Typography>
       </>
     );
   }

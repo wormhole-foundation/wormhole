@@ -6,7 +6,6 @@ import {
   Stepper,
 } from "@material-ui/core";
 import { useDispatch, useSelector } from "react-redux";
-import useGetBalanceEffect from "../../hooks/useGetBalanceEffect";
 import {
   selectAttestActiveStep,
   selectAttestSignedVAAHex,
@@ -20,7 +19,6 @@ import Target from "./Target";
 // TODO: ensure that both wallets are connected to the same known network
 
 function Attest() {
-  useGetBalanceEffect("source");
   const dispatch = useDispatch();
   const activeStep = useSelector(selectAttestActiveStep);
   const signedVAAHex = useSelector(selectAttestSignedVAAHex);

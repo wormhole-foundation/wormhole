@@ -55,6 +55,7 @@ export const SOLANA_HOST =
   process.env.REACT_APP_CLUSTER === "testnet"
     ? clusterApiUrl("testnet")
     : "http://localhost:8899";
+
 export const TERRA_HOST = "http://localhost:1317";
 export const ETH_TEST_TOKEN_ADDRESS = getAddress(
   process.env.REACT_APP_CLUSTER === "testnet"

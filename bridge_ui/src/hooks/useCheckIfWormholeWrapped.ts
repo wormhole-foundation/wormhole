@@ -1,4 +1,8 @@
-import { CHAIN_ID_ETH, CHAIN_ID_SOLANA, CHAIN_ID_TERRA } from "@certusone/wormhole-sdk";
+import {
+  CHAIN_ID_ETH,
+  CHAIN_ID_SOLANA,
+  CHAIN_ID_TERRA,
+} from "@certusone/wormhole-sdk";
 import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useEthereumProvider } from "../contexts/EthereumProviderContext";
@@ -26,13 +30,13 @@ function useCheckIfWormholeWrapped() {
     dispatch(setSourceWormholeWrappedInfo(undefined));
     let cancelled = false;
     (async () => {
-      if (sourceChain === CHAIN_ID_ETH && provider) {
+      if (sourceChain === CHAIN_ID_ETH && provider && sourceAsset) {
         const wrappedInfo = await getOriginalAssetEth(provider, sourceAsset);
         if (!cancelled) {
           dispatch(setSourceWormholeWrappedInfo(wrappedInfo));
         }
       }
-      if (sourceChain === CHAIN_ID_SOLANA) {
+      if (sourceChain === CHAIN_ID_SOLANA && sourceAsset) {
         try {
           const wrappedInfo = await getOriginalAssetSol(sourceAsset);
           if (!cancelled) {
@@ -40,7 +44,7 @@ function useCheckIfWormholeWrapped() {
           }
         } catch (e) {}
       }
-      if (sourceChain === CHAIN_ID_TERRA) {
+      if (sourceChain === CHAIN_ID_TERRA && sourceAsset) {
         try {
           const wrappedInfo = await getOriginalAssetTerra(sourceAsset);
           if (!cancelled) {

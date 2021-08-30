@@ -22,22 +22,7 @@ import {
   setTargetParsedTokenAccount,
 } from "../store/transferSlice";
 import { SOLANA_HOST } from "../utils/consts";
-
-function createParsedTokenAccount(
-  publicKey: PublicKey | undefined,
-  amount: string,
-  decimals: number,
-  uiAmount: number,
-  uiAmountString: string
-) {
-  return {
-    publicKey: publicKey?.toString(),
-    amount,
-    decimals,
-    uiAmount,
-    uiAmountString,
-  };
-}
+import { createParsedTokenAccount } from "./useGetSourceParsedTokenAccounts";
 
 /**
  * Fetches the balance of an asset for the connected wallet
@@ -64,8 +49,10 @@ function useGetBalanceEffect(sourceOrTarget: "source" | "target") {
   const terraWallet = useConnectedWallet();
   const { provider, signerAddress } = useEthereumProvider();
   useEffect(() => {
-    // TODO: loading state
+    // source is now handled by getsourceparsedtokenaccounts
+    if (sourceOrTarget === "source") return;
     dispatch(setAction(undefined));
+
     if (!lookupAsset) {
       return;
     }
@@ -74,7 +61,7 @@ function useGetBalanceEffect(sourceOrTarget: "source" | "target") {
     if (lookupChain === CHAIN_ID_TERRA && terraWallet) {
       dispatch(
         setSourceParsedTokenAccount(
-          createParsedTokenAccount(undefined, "0", 0, 0, "0")
+          createParsedTokenAccount("", "", "0", 0, 0, "0")
         )
       );
     }
@@ -91,11 +78,11 @@ function useGetBalanceEffect(sourceOrTarget: "source" | "target") {
         .then(({ value }) => {
           if (!cancelled) {
             if (value.length) {
-              // TODO: allow selection between these target accounts
               dispatch(
                 setAction(
                   createParsedTokenAccount(
-                    value[0].pubkey,
+                    value[0].pubkey.toString(),
+                    value[0].account.data.parsed?.info?.mint,
                     value[0].account.data.parsed?.info?.tokenAmount?.amount,
                     value[0].account.data.parsed?.info?.tokenAmount?.decimals,
                     value[0].account.data.parsed?.info?.tokenAmount?.uiAmount,
@@ -126,7 +113,8 @@ function useGetBalanceEffect(sourceOrTarget: "source" | "target") {
                 setAction(
                   // TODO: verify accuracy
                   createParsedTokenAccount(
-                    undefined,
+                    signerAddress,
+                    token.address,
                     n.toString(),
                     decimals,
                     Number(formatUnits(n, decimals)),
