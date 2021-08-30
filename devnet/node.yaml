@@ -42,11 +42,11 @@ spec:
       terminationGracePeriodSeconds: 0
       volumes:
         # mount shared between containers for runtime state
-        - name: bridge-rundir
+        - name: node-rundir
           emptyDir: {}
-        - name: bridge-keysdir
+        - name: node-keysdir
           secret:
-            secretName: bridge-bigtable-key
+            secretName: node-bigtable-key
             optional: true
             items:
               - key: bigtable-key.json
@@ -55,10 +55,10 @@ spec:
         - name: guardiand
           image: guardiand-image
           volumeMounts:
-            - mountPath: /run/bridge
-              name: bridge-rundir
+            - mountPath: /run/node
+              name: node-rundir
             - mountPath: /tmp/mounted-keys
-              name: bridge-keysdir
+              name: node-keysdir
           env:
             - name: BIGTABLE_EMULATOR_HOST
               value: bigtable-emulator:8086
@@ -75,7 +75,7 @@ spec:
 #            - exec
             - /guardiand
 #            - --
-            - bridge
+            - node
             - --ethRPC
             - ws://eth-devnet:8545
             - --bscRPC
@@ -88,14 +88,14 @@ spec:
             - localterra
             - --terraContract
             - terra18eezxhys9jwku67cm4w84xhnzt4xjj77w2qt62
-            - --solanaBridgeAddress
+            - --solanaContract
             - Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o
             - --solanaWS
             - ws://solana-devnet:8900
             - --solanaRPC
             - http://solana-devnet:8899
             - --unsafeDevMode
-            - --bridgeKey
+            - --guardianKey
             - /tmp/bridge.key
             - --publicRPC
             - "[::]:7070"

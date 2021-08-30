@@ -19,7 +19,7 @@ var cfgFile string
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "guardiand",
-	Short: "Wormhole bridge server",
+	Short: "Wormhole guardian node",
 }
 
 // Top-level version subcommand
@@ -44,7 +44,7 @@ func init() {
 	cobra.OnInitialize(initConfig)
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.guardiand.yaml)")
-	rootCmd.AddCommand(guardiand.BridgeCmd)
+	rootCmd.AddCommand(guardiand.NodeCmd)
 	rootCmd.AddCommand(guardiand.KeygenCmd)
 	rootCmd.AddCommand(guardiand.AdminCmd)
 	rootCmd.AddCommand(guardiand.TemplateCmd)

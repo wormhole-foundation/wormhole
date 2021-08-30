@@ -25,11 +25,11 @@ import (
 )
 
 type (
-	// BridgeWatcher is responsible for looking over Terra blockchain and reporting new transactions to the bridge
-	BridgeWatcher struct {
-		urlWS  string
-		urlLCD string
-		bridge string
+	// Watcher is responsible for looking over Terra blockchain and reporting new transactions to the contract
+	Watcher struct {
+		urlWS    string
+		urlLCD   string
+		contract string
 
 		msgChan chan *common.MessagePublication
 		setChan chan *common.GuardianSet
@@ -70,15 +70,14 @@ type clientRequest struct {
 	ID uint64 `json:"id"`
 }
 
-// NewTerraBridgeWatcher creates a new terra bridge watcher
-func NewTerraBridgeWatcher(urlWS string, urlLCD string, bridge string, lockEvents chan *common.MessagePublication, setEvents chan *common.GuardianSet) *BridgeWatcher {
-	return &BridgeWatcher{urlWS: urlWS, urlLCD: urlLCD, bridge: bridge, msgChan: lockEvents, setChan: setEvents}
+// NewWatcher creates a new Terra contract watcher
+func NewWatcher(urlWS string, urlLCD string, contract string, lockEvents chan *common.MessagePublication, setEvents chan *common.GuardianSet) *Watcher {
+	return &Watcher{urlWS: urlWS, urlLCD: urlLCD, contract: contract, msgChan: lockEvents, setChan: setEvents}
 }
 
-// Run is the main Terra Bridge run cycle
-func (e *BridgeWatcher) Run(ctx context.Context) error {
+func (e *Watcher) Run(ctx context.Context) error {
 	p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDTerra, &gossipv1.Heartbeat_Network{
-		BridgeAddress: e.bridge,
+		ContractAddress: e.contract,
 	})
 
 	errC := make(chan error)
@@ -95,7 +94,7 @@ func (e *BridgeWatcher) Run(ctx context.Context) error {
 	defer c.Close()
 
 	// Subscribe to smart contract transactions
-	params := [...]string{fmt.Sprintf("tm.event='Tx' AND execute_contract.contract_address='%s'", e.bridge)}
+	params := [...]string{fmt.Sprintf("tm.event='Tx' AND execute_contract.contract_address='%s'", e.contract)}
 	command := &clientRequest{
 		JSONRPC: "2.0",
 		Method:  "subscribe",
@@ -150,7 +149,7 @@ func (e *BridgeWatcher) Run(ctx context.Context) error {
 			currentTerraHeight.Set(float64(latestBlock.Int()))
 			p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDTerra, &gossipv1.Heartbeat_Network{
 				Height:        latestBlock.Int(),
-				BridgeAddress: e.bridge,
+				ContractAddress: e.contract,
 			})
 		}
 	}()
@@ -225,7 +224,7 @@ func (e *BridgeWatcher) Run(ctx context.Context) error {
 			}
 
 			// Query and report guardian set status
-			requestURL := fmt.Sprintf("%s/wasm/contracts/%s/store?query_msg={\"guardian_set_info\":{}}", e.urlLCD, e.bridge)
+			requestURL := fmt.Sprintf("%s/wasm/contracts/%s/store?query_msg={\"guardian_set_info\":{}}", e.urlLCD, e.contract)
 			req, err := http.NewRequestWithContext(ctx, http.MethodGet, requestURL, nil)
 			if err != nil {
 				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDTerra, 1)

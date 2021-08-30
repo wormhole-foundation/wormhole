@@ -5,7 +5,7 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
-	bridge_common "github.com/certusone/wormhole/node/pkg/common"
+	node_common "github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/vaa"
 	"github.com/certusone/wormhole/node/pkg/version"
 	"github.com/ethereum/go-ethereum/common"
@@ -59,7 +59,7 @@ func heartbeatDigest(b []byte) common.Hash {
 	return ethcrypto.Keccak256Hash(append(heartbeatMessagePrefix, b...))
 }
 
-func Run(obsvC chan *gossipv1.SignedObservation, sendC chan []byte, priv crypto.PrivKey, gk *ecdsa.PrivateKey, gst *bridge_common.GuardianSetState, port uint, networkID string, bootstrapPeers string, nodeName string, disableHeartbeatVerify bool, rootCtxCancel context.CancelFunc) func(ctx context.Context) error {
+func Run(obsvC chan *gossipv1.SignedObservation, sendC chan []byte, priv crypto.PrivKey, gk *ecdsa.PrivateKey, gst *node_common.GuardianSetState, port uint, networkID string, bootstrapPeers string, nodeName string, disableHeartbeatVerify bool, rootCtxCancel context.CancelFunc) func(ctx context.Context) error {
 	return func(ctx context.Context) (re error) {
 		logger := supervisor.Logger(ctx)
 
@@ -331,7 +331,7 @@ func Run(obsvC chan *gossipv1.SignedObservation, sendC chan []byte, priv crypto.
 	}
 }
 
-func processSignedHeartbeat(from peer.ID, s *gossipv1.SignedHeartbeat, gs *bridge_common.GuardianSet, gst *bridge_common.GuardianSetState, disableVerify bool) (*gossipv1.Heartbeat, error) {
+func processSignedHeartbeat(from peer.ID, s *gossipv1.SignedHeartbeat, gs *node_common.GuardianSet, gst *node_common.GuardianSetState, disableVerify bool) (*gossipv1.Heartbeat, error) {
 	envelopeAddr := common.BytesToAddress(s.GuardianAddr)
 	idx, ok := gs.KeyIndex(envelopeAddr)
 	var pk common.Address

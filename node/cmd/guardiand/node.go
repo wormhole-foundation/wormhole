@@ -55,8 +55,8 @@ var (
 
 	statusAddr *string
 
-	bridgeKeyPath       *string
-	solanaBridgeAddress *string
+	guardianKeyPath *string
+	solanaContract  *string
 
 	ethRPC      *string
 	ethContract *string
@@ -94,56 +94,56 @@ var (
 )
 
 func init() {
-	p2pNetworkID = BridgeCmd.Flags().String("network", "/wormhole/dev", "P2P network identifier")
-	p2pPort = BridgeCmd.Flags().Uint("port", 8999, "P2P UDP listener port")
-	p2pBootstrap = BridgeCmd.Flags().String("bootstrap", "", "P2P bootstrap peers (comma-separated)")
+	p2pNetworkID = NodeCmd.Flags().String("network", "/wormhole/dev", "P2P network identifier")
+	p2pPort = NodeCmd.Flags().Uint("port", 8999, "P2P UDP listener port")
+	p2pBootstrap = NodeCmd.Flags().String("bootstrap", "", "P2P bootstrap peers (comma-separated)")
 
-	statusAddr = BridgeCmd.Flags().String("statusAddr", "[::]:6060", "Listen address for status server (disabled if blank)")
+	statusAddr = NodeCmd.Flags().String("statusAddr", "[::]:6060", "Listen address for status server (disabled if blank)")
 
-	nodeKeyPath = BridgeCmd.Flags().String("nodeKey", "", "Path to node key (will be generated if it doesn't exist)")
+	nodeKeyPath = NodeCmd.Flags().String("nodeKey", "", "Path to node key (will be generated if it doesn't exist)")
 
-	adminSocketPath = BridgeCmd.Flags().String("adminSocket", "", "Admin gRPC service UNIX domain socket path")
+	adminSocketPath = NodeCmd.Flags().String("adminSocket", "", "Admin gRPC service UNIX domain socket path")
 
-	dataDir = BridgeCmd.Flags().String("dataDir", "", "Data directory")
+	dataDir = NodeCmd.Flags().String("dataDir", "", "Data directory")
 
-	bridgeKeyPath = BridgeCmd.Flags().String("bridgeKey", "", "Path to guardian key (required)")
-	solanaBridgeAddress = BridgeCmd.Flags().String("solanaBridgeAddress", "", "Address of the Solana Bridge Program (required)")
+	guardianKeyPath = NodeCmd.Flags().String("guardianKey", "", "Path to guardian key (required)")
+	solanaContract = NodeCmd.Flags().String("solanaContract", "", "Address of the Solana program (required)")
 
-	ethRPC = BridgeCmd.Flags().String("ethRPC", "", "Ethereum RPC URL")
-	ethContract = BridgeCmd.Flags().String("ethContract", "", "Ethereum bridge contract address")
+	ethRPC = NodeCmd.Flags().String("ethRPC", "", "Ethereum RPC URL")
+	ethContract = NodeCmd.Flags().String("ethContract", "", "Ethereum contract address")
 
-	bscRPC = BridgeCmd.Flags().String("bscRPC", "", "Binance Smart Chain RPC URL")
-	bscContract = BridgeCmd.Flags().String("bscContract", "", "Binance Smart Chain bridge contract address")
+	bscRPC = NodeCmd.Flags().String("bscRPC", "", "Binance Smart Chain RPC URL")
+	bscContract = NodeCmd.Flags().String("bscContract", "", "Binance Smart Chain contract address")
 
-	terraWS = BridgeCmd.Flags().String("terraWS", "", "Path to terrad root for websocket connection")
-	terraLCD = BridgeCmd.Flags().String("terraLCD", "", "Path to LCD service root for http calls")
-	terraChainID = BridgeCmd.Flags().String("terraChainID", "", "Terra chain ID, used in LCD client initialization")
-	terraContract = BridgeCmd.Flags().String("terraContract", "", "Wormhole contract address on Terra blockchain")
+	terraWS = NodeCmd.Flags().String("terraWS", "", "Path to terrad root for websocket connection")
+	terraLCD = NodeCmd.Flags().String("terraLCD", "", "Path to LCD service root for http calls")
+	terraChainID = NodeCmd.Flags().String("terraChainID", "", "Terra chain ID, used in LCD client initialization")
+	terraContract = NodeCmd.Flags().String("terraContract", "", "Wormhole contract address on Terra blockchain")
 
-	solanaWsRPC = BridgeCmd.Flags().String("solanaWS", "", "Solana Websocket URL (required")
-	solanaRPC = BridgeCmd.Flags().String("solanaRPC", "", "Solana RPC URL (required")
+	solanaWsRPC = NodeCmd.Flags().String("solanaWS", "", "Solana Websocket URL (required")
+	solanaRPC = NodeCmd.Flags().String("solanaRPC", "", "Solana RPC URL (required")
 
-	logLevel = BridgeCmd.Flags().String("logLevel", "info", "Logging level (debug, info, warn, error, dpanic, panic, fatal)")
+	logLevel = NodeCmd.Flags().String("logLevel", "info", "Logging level (debug, info, warn, error, dpanic, panic, fatal)")
 
-	unsafeDevMode = BridgeCmd.Flags().Bool("unsafeDevMode", false, "Launch node in unsafe, deterministic devnet mode")
-	devNumGuardians = BridgeCmd.Flags().Uint("devNumGuardians", 5, "Number of devnet guardians to include in guardian set")
-	nodeName = BridgeCmd.Flags().String("nodeName", "", "Node name to announce in gossip heartbeats")
+	unsafeDevMode = NodeCmd.Flags().Bool("unsafeDevMode", false, "Launch node in unsafe, deterministic devnet mode")
+	devNumGuardians = NodeCmd.Flags().Uint("devNumGuardians", 5, "Number of devnet guardians to include in guardian set")
+	nodeName = NodeCmd.Flags().String("nodeName", "", "Node name to announce in gossip heartbeats")
 
-	publicRPC = BridgeCmd.Flags().String("publicRPC", "", "Listen address for public gRPC interface")
-	publicWeb = BridgeCmd.Flags().String("publicWeb", "", "Listen address for public REST and gRPC Web interface")
+	publicRPC = NodeCmd.Flags().String("publicRPC", "", "Listen address for public gRPC interface")
+	publicWeb = NodeCmd.Flags().String("publicWeb", "", "Listen address for public REST and gRPC Web interface")
 
-	tlsHostname = BridgeCmd.Flags().String("tlsHostname", "", "If set, serve publicWeb as TLS with this hostname using Let's Encrypt")
-	tlsProdEnv = BridgeCmd.Flags().Bool("tlsProdEnv", false,
+	tlsHostname = NodeCmd.Flags().String("tlsHostname", "", "If set, serve publicWeb as TLS with this hostname using Let's Encrypt")
+	tlsProdEnv = NodeCmd.Flags().Bool("tlsProdEnv", false,
 		"Use the production Let's Encrypt environment instead of staging")
 
-	disableHeartbeatVerify = BridgeCmd.Flags().Bool("disableHeartbeatVerify", false,
+	disableHeartbeatVerify = NodeCmd.Flags().Bool("disableHeartbeatVerify", false,
 		"Disable heartbeat signature verification (useful during network startup)")
 
-	bigTablePersistenceEnabled = BridgeCmd.Flags().Bool("bigTablePersistenceEnabled", false, "Turn on forwarding events to BigTable")
-	bigTableGCPProject = BridgeCmd.Flags().String("bigTableGCPProject", "", "Google Cloud project ID for storing events")
-	bigTableInstanceName = BridgeCmd.Flags().String("bigTableInstanceName", "", "BigTable instance name for storing events")
-	bigTableTableName = BridgeCmd.Flags().String("bigTableTableName", "", "BigTable table name to store events in")
-	bigTableKeyPath = BridgeCmd.Flags().String("bigTableKeyPath", "", "Path to json Service Account key")
+	bigTablePersistenceEnabled = NodeCmd.Flags().Bool("bigTablePersistenceEnabled", false, "Turn on forwarding events to BigTable")
+	bigTableGCPProject = NodeCmd.Flags().String("bigTableGCPProject", "", "Google Cloud project ID for storing events")
+	bigTableInstanceName = NodeCmd.Flags().String("bigTableInstanceName", "", "BigTable instance name for storing events")
+	bigTableTableName = NodeCmd.Flags().String("bigTableTableName", "", "BigTable table name to store events in")
+	bigTableKeyPath = NodeCmd.Flags().String("bigTableKeyPath", "", "Path to json Service Account key")
 }
 
 var (
@@ -196,14 +196,14 @@ func setRestrictiveUmask() {
 	syscall.Umask(0077) // cannot fail
 }
 
-// BridgeCmd represents the bridge command
-var BridgeCmd = &cobra.Command{
-	Use:   "bridge",
-	Short: "Run the bridge server",
-	Run:   runBridge,
+// NodeCmd represents the node command
+var NodeCmd = &cobra.Command{
+	Use:   "node",
+	Short: "Run the guardiand node",
+	Run:   runNode,
 }
 
-func runBridge(cmd *cobra.Command, args []string) {
+func runNode(cmd *cobra.Command, args []string) {
 	if *unsafeDevMode {
 		fmt.Print(devwarning)
 	}
@@ -272,8 +272,8 @@ func runBridge(cmd *cobra.Command, args []string) {
 		*p2pBootstrap = fmt.Sprintf("/dns4/guardian-0.guardian/udp/%d/quic/p2p/%s", *p2pPort, g0key.String())
 
 		// Deterministic ganache ETH devnet address.
-		*ethContract = devnet.GanacheBridgeContractAddress.Hex()
-		*bscContract = devnet.GanacheBridgeContractAddress.Hex()
+		*ethContract = devnet.GanacheWormholeContractAddress.Hex()
+		*bscContract = devnet.GanacheWormholeContractAddress.Hex()
 
 		// Use the hostname as nodeName. For production, we don't want to do this to
 		// prevent accidentally leaking sensitive hostnames.
@@ -289,8 +289,8 @@ func runBridge(cmd *cobra.Command, args []string) {
 	if *nodeKeyPath == "" && !*unsafeDevMode { // In devnet mode, keys are deterministically generated.
 		logger.Fatal("Please specify --nodeKey")
 	}
-	if *bridgeKeyPath == "" {
-		logger.Fatal("Please specify --bridgeKey")
+	if *guardianKeyPath == "" {
+		logger.Fatal("Please specify --guardianKey")
 	}
 	if *adminSocketPath == "" {
 		logger.Fatal("Please specify --adminSocket")
@@ -314,8 +314,8 @@ func runBridge(cmd *cobra.Command, args []string) {
 		logger.Fatal("Please specify --nodeName")
 	}
 
-	if *solanaBridgeAddress == "" {
-		logger.Fatal("Please specify --solanaBridgeAddress")
+	if *solanaContract == "" {
+		logger.Fatal("Please specify --solanaContract")
 	}
 	if *solanaWsRPC == "" {
 		logger.Fatal("Please specify --solanaWsUrl")
@@ -354,9 +354,9 @@ func runBridge(cmd *cobra.Command, args []string) {
 
 	ethContractAddr := eth_common.HexToAddress(*ethContract)
 	bscContractAddr := eth_common.HexToAddress(*bscContract)
-	solBridgeAddress, err := solana_types.PublicKeyFromBase58(*solanaBridgeAddress)
+	solAddress, err := solana_types.PublicKeyFromBase58(*solanaContract)
 	if err != nil {
-		logger.Fatal("invalid Solana bridge address", zap.Error(err))
+		logger.Fatal("invalid Solana contract address", zap.Error(err))
 	}
 
 	// In devnet mode, we generate a deterministic guardian key and write it to disk.
@@ -366,7 +366,7 @@ func runBridge(cmd *cobra.Command, args []string) {
 			logger.Fatal("failed to generate devnet guardian key", zap.Error(err))
 		}
 
-		err = writeGuardianKey(gk, "auto-generated deterministic devnet key", *bridgeKeyPath, true)
+		err = writeGuardianKey(gk, "auto-generated deterministic devnet key", *guardianKeyPath, true)
 		if err != nil {
 			logger.Fatal("failed to write devnet guardian key", zap.Error(err))
 		}
@@ -384,7 +384,7 @@ func runBridge(cmd *cobra.Command, args []string) {
 	defer db.Close()
 
 	// Guardian key
-	gk, err := loadGuardianKey(*bridgeKeyPath)
+	gk, err := loadGuardianKey(*guardianKeyPath)
 	if err != nil {
 		logger.Fatal("failed to load guardian key", zap.Error(err))
 	}
@@ -461,29 +461,29 @@ func runBridge(cmd *cobra.Command, args []string) {
 		}
 
 		if err := supervisor.Run(ctx, "ethwatch",
-			ethereum.NewEthBridgeWatcher(*ethRPC, ethContractAddr, "eth", common.ReadinessEthSyncing, vaa.ChainIDEthereum, lockC, setC).Run); err != nil {
+			ethereum.NewEthWatcher(*ethRPC, ethContractAddr, "eth", common.ReadinessEthSyncing, vaa.ChainIDEthereum, lockC, setC).Run); err != nil {
 			return err
 		}
 
 		if err := supervisor.Run(ctx, "bscwatch",
-			ethereum.NewEthBridgeWatcher(*bscRPC, bscContractAddr, "bsc", common.ReadinessBSCSyncing, vaa.ChainIDBSC, lockC, nil).Run); err != nil {
+			ethereum.NewEthWatcher(*bscRPC, bscContractAddr, "bsc", common.ReadinessBSCSyncing, vaa.ChainIDBSC, lockC, nil).Run); err != nil {
 			return err
 		}
 
 		// Start Terra watcher only if configured
 		logger.Info("Starting Terra watcher")
 		if err := supervisor.Run(ctx, "terrawatch",
-			terra.NewTerraBridgeWatcher(*terraWS, *terraLCD, *terraContract, lockC, setC).Run); err != nil {
+			terra.NewWatcher(*terraWS, *terraLCD, *terraContract, lockC, setC).Run); err != nil {
 			return err
 		}
 
 		if err := supervisor.Run(ctx, "solwatch-confirmed",
-			solana.NewSolanaWatcher(*solanaWsRPC, *solanaRPC, solBridgeAddress, lockC, rpc.CommitmentConfirmed).Run); err != nil {
+			solana.NewSolanaWatcher(*solanaWsRPC, *solanaRPC, solAddress, lockC, rpc.CommitmentConfirmed).Run); err != nil {
 			return err
 		}
 
 		if err := supervisor.Run(ctx, "solwatch-finalized",
-			solana.NewSolanaWatcher(*solanaWsRPC, *solanaRPC, solBridgeAddress, lockC, rpc.CommitmentFinalized).Run); err != nil {
+			solana.NewSolanaWatcher(*solanaWsRPC, *solanaRPC, solAddress, lockC, rpc.CommitmentFinalized).Run); err != nil {
 			return err
 		}
 

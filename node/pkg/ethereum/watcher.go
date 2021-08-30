@@ -55,11 +55,11 @@ var (
 )
 
 type (
-	EthBridgeWatcher struct {
+	Watcher struct {
 		// Ethereum RPC url
 		url string
-		// Address of the Eth bridge contract
-		bridge eth_common.Address
+		// Address of the Eth contract contract
+		contract eth_common.Address
 		// Human-readable name of the Eth network, for logging and monitoring.
 		networkName string
 		// Readiness component
@@ -94,17 +94,17 @@ type (
 	}
 )
 
-func NewEthBridgeWatcher(
+func NewEthWatcher(
 	url string,
-	bridge eth_common.Address,
+	contract eth_common.Address,
 	networkName string,
 	readiness readiness.Component,
 	chainID vaa.ChainID,
 	messageEvents chan *common.MessagePublication,
-	setEvents chan *common.GuardianSet) *EthBridgeWatcher {
-	return &EthBridgeWatcher{
+	setEvents chan *common.GuardianSet) *Watcher {
+	return &Watcher{
 		url:         url,
-		bridge:      bridge,
+		contract:    contract,
 		networkName: networkName,
 		readiness:   readiness,
 		chainID:     chainID,
@@ -113,12 +113,12 @@ func NewEthBridgeWatcher(
 		pending:     map[eth_common.Hash]*pendingMessage{}}
 }
 
-func (e *EthBridgeWatcher) Run(ctx context.Context) error {
+func (e *Watcher) Run(ctx context.Context) error {
 	logger := supervisor.Logger(ctx)
 
 	// Initialize gossip metrics (we want to broadcast the address even if we're not yet syncing)
 	p2p.DefaultRegistry.SetNetworkStats(e.chainID, &gossipv1.Heartbeat_Network{
-		BridgeAddress: e.bridge.Hex(),
+		ContractAddress: e.contract.Hex(),
 	})
 
 	timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
@@ -130,12 +130,12 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 		return fmt.Errorf("dialing eth client failed: %w", err)
 	}
 
-	f, err := abi.NewAbiFilterer(e.bridge, c)
+	f, err := abi.NewAbiFilterer(e.contract, c)
 	if err != nil {
-		return fmt.Errorf("could not create wormhole bridge filter: %w", err)
+		return fmt.Errorf("could not create wormhole contract filter: %w", err)
 	}
 
-	caller, err := abi.NewAbiCaller(e.bridge, c)
+	caller, err := abi.NewAbiCaller(e.contract, c)
 	if err != nil {
 		panic(err)
 	}
@@ -254,7 +254,7 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 				readiness.SetReady(e.readiness)
 				p2p.DefaultRegistry.SetNetworkStats(e.chainID, &gossipv1.Heartbeat_Network{
 					Height:        ev.Number.Int64(),
-					BridgeAddress: e.bridge.Hex(),
+					ContractAddress: e.contract.Hex(),
 				})
 
 				e.pendingMu.Lock()
@@ -295,7 +295,7 @@ func (e *EthBridgeWatcher) Run(ctx context.Context) error {
 	}
 }
 
-func (e *EthBridgeWatcher) fetchAndUpdateGuardianSet(
+func (e *Watcher) fetchAndUpdateGuardianSet(
 	logger *zap.Logger,
 	ctx context.Context,
 	caller *abi.AbiCaller,

@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	bridge_common "github.com/certusone/wormhole/node/pkg/common"
+	node_common "github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/reporter"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
@@ -111,7 +111,7 @@ func (p *Processor) handleObservation(ctx context.Context, m *gossipv1.SignedObs
 	//
 	// During an update, vaaState.signatures can contain signatures from *both* guardian sets.
 	//
-	var gs *bridge_common.GuardianSet
+	var gs *node_common.GuardianSet
 	if p.state.vaaSignatures[hash] != nil && p.state.vaaSignatures[hash].gs != nil {
 		gs = p.state.vaaSignatures[hash].gs
 	} else {

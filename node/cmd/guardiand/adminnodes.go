@@ -84,8 +84,8 @@ func runListNodes(cmd *cobra.Command, args []string) {
 		for _, n := range h.RawHeartbeat.Networks {
 			heights[vaa.ChainID(n.Id)] = n.Height
 			errors[vaa.ChainID(n.Id)] = n.ErrorCount
-			if len(n.BridgeAddress) >= 16 {
-				truncAddrs[vaa.ChainID(n.Id)] = n.BridgeAddress[:16]
+			if len(n.ContractAddress) >= 16 {
+				truncAddrs[vaa.ChainID(n.Id)] = n.ContractAddress[:16]
 			} else {
 				truncAddrs[vaa.ChainID(n.Id)] = "INVALID"
 			}

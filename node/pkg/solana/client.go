@@ -21,7 +21,7 @@ import (
 )
 
 type SolanaWatcher struct {
-	bridge       solana.PublicKey
+	contract     solana.PublicKey
 	wsUrl        string
 	rpcUrl       string
 	commitment   rpc.CommitmentType
@@ -94,12 +94,12 @@ type PostMessageData struct {
 
 func NewSolanaWatcher(
 	wsUrl, rpcUrl string,
-	bridgeAddress solana.PublicKey,
+	contractAddress solana.PublicKey,
 	messageEvents chan *common.MessagePublication,
 	commitment rpc.CommitmentType) *SolanaWatcher {
 	return &SolanaWatcher{
-		bridge: bridgeAddress,
-		wsUrl:  wsUrl, rpcUrl: rpcUrl,
+		contract: contractAddress,
+		wsUrl:    wsUrl, rpcUrl: rpcUrl,
 		messageEvent: messageEvents,
 		commitment:   commitment,
 		rpcClient:    rpc.New(rpcUrl),
@@ -108,9 +108,9 @@ func NewSolanaWatcher(
 
 func (s *SolanaWatcher) Run(ctx context.Context) error {
 	// Initialize gossip metrics (we want to broadcast the address even if we're not yet syncing)
-	bridgeAddr := base58.Encode(s.bridge[:])
+	contractAddr := base58.Encode(s.contract[:])
 	p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDSolana, &gossipv1.Heartbeat_Network{
-		BridgeAddress: bridgeAddr,
+		ContractAddress: contractAddr,
 	})
 
 	s.logger = supervisor.Logger(ctx)
@@ -144,8 +144,8 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 				currentSolanaHeight.WithLabelValues(string(s.commitment)).Set(float64(slot))
 				readiness.SetReady(common.ReadinessSolanaSyncing)
 				p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDSolana, &gossipv1.Heartbeat_Network{
-					Height:        int64(slot),
-					BridgeAddress: bridgeAddr,
+					Height:          int64(slot),
+					ContractAddress: contractAddr,
 				})
 				s.logger.Info("fetched current Solana height",
 					zap.String("commitment", string(s.commitment)),
@@ -242,7 +242,7 @@ OUTER:
 		signature := tx.Transaction.Signatures[0]
 		var programIndex uint16
 		for n, key := range tx.Transaction.Message.AccountKeys {
-			if key.Equals(s.bridge) {
+			if key.Equals(s.contract) {
 				programIndex = uint16(n)
 			}
 		}
@@ -372,7 +372,7 @@ func (s *SolanaWatcher) fetchMessageAccount(ctx context.Context, acc solana.Publ
 		return
 	}
 
-	if !info.Value.Owner.Equals(s.bridge) {
+	if !info.Value.Owner.Equals(s.contract) {
 		p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDSolana, 1)
 		solanaConnectionErrors.WithLabelValues(string(s.commitment), "account_owner_mismatch").Inc()
 		s.logger.Error("account has invalid owner",

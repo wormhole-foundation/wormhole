@@ -55,7 +55,7 @@ func SubmitVAA(ctx context.Context, rpcURL string, vaa *vaa.VAA) (*types.Transac
 	}
 
 	kt := GetKeyedTransactor(ctx)
-	bridge, err := abi.NewAbi(GanacheBridgeContractAddress, c)
+	contract, err := abi.NewAbi(GanacheWormholeContractAddress, c)
 	if err != nil {
 		panic(err)
 	}
@@ -67,7 +67,7 @@ func SubmitVAA(ctx context.Context, rpcURL string, vaa *vaa.VAA) (*types.Transac
 
 	supervisor.Logger(ctx).Info("submitted VAA to Ethereum devnet", zap.Binary("binary", b))
 
-	tx, err := bridge.SubmitNewGuardianSet(kt, b)
+	tx, err := contract.SubmitNewGuardianSet(kt, b)
 	if err != nil {
 		return nil, err
 	}
