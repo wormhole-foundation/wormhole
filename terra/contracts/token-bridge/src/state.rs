@@ -129,8 +129,8 @@ pub struct TransferInfo {
     pub amount: (u128, u128),
     pub token_address: Vec<u8>,
     pub token_chain: u16,
-    pub recipient_chain: u16,
     pub recipient: Vec<u8>,
+    pub recipient_chain: u16,
     pub fee: (u128, u128),
 }
 
