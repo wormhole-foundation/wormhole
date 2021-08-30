@@ -2,6 +2,7 @@ import {
   ChainId,
   getOriginalAssetEth as getOriginalAssetEthTx,
   getOriginalAssetSol as getOriginalAssetSolTx,
+  getOriginalAssetTerra as getOriginalAssetTerraTx,
   WormholeWrappedInfo,
 } from "@certusone/wormhole-sdk";
 import { Connection } from "@solana/web3.js";
@@ -11,8 +12,10 @@ import {
   ETH_TOKEN_BRIDGE_ADDRESS,
   SOLANA_HOST,
   SOL_TOKEN_BRIDGE_ADDRESS,
+  TERRA_HOST,
   TERRA_TEST_TOKEN_ADDRESS,
 } from "./consts";
+import { LCDClient } from "@terra-money/terra.js";
 
 export interface StateSafeWormholeWrappedInfo {
   isWrapped: boolean;
@@ -57,9 +60,6 @@ export async function getOriginalAssetSol(
 export async function getOriginalAssetTerra(
   mintAddress: string
 ): Promise<StateSafeWormholeWrappedInfo> {
-  return {
-    assetAddress: TERRA_TEST_TOKEN_ADDRESS,
-    chainId: 3,
-    isWrapped: false,
-  };
+  const lcd = new LCDClient(TERRA_HOST);
+  return makeStateSafe(await getOriginalAssetTerraTx(lcd, mintAddress));
 }

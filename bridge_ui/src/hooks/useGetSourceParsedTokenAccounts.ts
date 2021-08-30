@@ -89,7 +89,6 @@ const getMetaplexData = async (mintAddresses: string[]) => {
     connection,
     metaAddresses.map((pair) => pair && pair[0])
   );
-  console.log(results, "metaplex results");
 
   const output = results.map((account) => {
     if (account === null) {
@@ -109,7 +108,6 @@ const getMetaplexData = async (mintAddresses: string[]) => {
     }
   });
 
-  console.log(output, "metaplex output");
   return output;
 };
 
