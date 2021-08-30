@@ -15,7 +15,6 @@ import {
 } from "@certusone/wormhole-sdk";
 import { WalletContextState } from "@solana/wallet-adapter-react";
 import { Connection } from "@solana/web3.js";
-import * as bech32 from "bech32";
 import {
   ConnectedWallet,
   useConnectedWallet,

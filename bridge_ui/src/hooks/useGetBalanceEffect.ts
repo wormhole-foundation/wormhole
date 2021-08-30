@@ -61,31 +61,34 @@ function useGetBalanceEffect(sourceOrTarget: "source" | "target") {
     let cancelled = false;
 
     if (lookupChain === CHAIN_ID_TERRA && terraWallet) {
-      lcd.bank.balance(terraWallet.terraAddress).then((value) => {
-        console.log(lookupAsset);
-        console.log(value.toIntCoins());
-      });
-
-      dispatch(
-        setAction(
-          // TODO: Replace with the following once LCD lookup in place.
-          // createParsedTokenAccount(
-          //   undefined,
-          //   n.toString(),
-          //   decimals,
-          //   Number(formatUnits(n, decimals)),
-          //   formatUnits(n, decimals)
-          // )
-          createParsedTokenAccount(
-            "",
-            "",
-            "100000",
-            5,
-            Number(formatUnits(100000, 5)),
-            formatUnits(100000, 5)
-          )
-        )
-      );
+      lcd.wasm
+        .contractQuery(lookupAsset, {
+          token_info: {},
+        })
+        .then((info: any) =>
+          lcd.wasm
+            .contractQuery(lookupAsset, {
+              balance: {
+                address: terraWallet.walletAddress,
+              },
+            })
+            .then((balance: any) => {
+              if (balance && info) {
+                dispatch(
+                  setAction(
+                    createParsedTokenAccount(
+                      "",
+                      "",
+                      balance.balance.toString(),
+                      info.decimals,
+                      Number(formatUnits(balance.balance, info.decimals)),
+                      formatUnits(balance.balance, info.decimals)
+                    )
+                  )
+                );
+              }
+            })
+        );
     }
     if (lookupChain === CHAIN_ID_SOLANA && solPK) {
       let mint;
@@ -158,15 +161,16 @@ function useGetBalanceEffect(sourceOrTarget: "source" | "target") {
     };
   }, [
     dispatch,
-    solanaWallet,
-    terraWallet,
-    sourceOrTarget,
-    setAction,
-    lookupChain,
+    lcd,
     lookupAsset,
-    solPK,
+    lookupChain,
     provider,
+    setAction,
     signerAddress,
+    solanaWallet,
+    solPK,
+    sourceOrTarget,
+    terraWallet,
   ]);
 }
 
