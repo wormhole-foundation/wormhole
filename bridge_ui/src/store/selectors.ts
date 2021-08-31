@@ -77,23 +77,37 @@ export const selectTransferIsRedeeming = (state: RootState) =>
 
 // safety checks
 // TODO: could make this return a string with a user informative message
-export const selectTransferIsSourceComplete = (state: RootState) =>
-  !!state.transfer.sourceChain &&
-  !!state.transfer.sourceParsedTokenAccount &&
-  !!state.transfer.amount &&
-  (state.transfer.sourceChain !== CHAIN_ID_SOLANA ||
-    !!state.transfer.sourceParsedTokenAccount.publicKey) &&
-  !!state.transfer.sourceParsedTokenAccount.uiAmountString &&
-  // TODO: make safe with too many decimals
-  parseUnits(
-    state.transfer.amount,
-    state.transfer.sourceParsedTokenAccount.decimals
-  ).lte(
-    parseUnits(
-      state.transfer.sourceParsedTokenAccount.uiAmountString,
-      state.transfer.sourceParsedTokenAccount.decimals
-    )
-  );
+export const selectTransferIsSourceComplete = (state: RootState) => {
+  try {
+    return (
+      !!state.transfer.sourceChain &&
+      !!state.transfer.sourceParsedTokenAccount &&
+      !!state.transfer.amount &&
+      (state.transfer.sourceChain !== CHAIN_ID_SOLANA ||
+        !!state.transfer.sourceParsedTokenAccount.publicKey) &&
+      !!state.transfer.sourceParsedTokenAccount.uiAmountString &&
+      !!state.transfer.sourceParsedTokenAccount.decimals &&
+      state.transfer.sourceParsedTokenAccount.decimals > 0 && // TODO: more advanced NFT check
+      // may trigger error: fractional component exceeds decimals
+      parseUnits(
+        state.transfer.amount,
+        state.transfer.sourceParsedTokenAccount.decimals
+      ).gt(0) &&
+      // may trigger error: fractional component exceeds decimals
+      parseUnits(
+        state.transfer.amount,
+        state.transfer.sourceParsedTokenAccount.decimals
+      ).lte(
+        parseUnits(
+          state.transfer.sourceParsedTokenAccount.uiAmountString,
+          state.transfer.sourceParsedTokenAccount.decimals
+        )
+      )
+    );
+  } catch (e) {
+    return false;
+  }
+};
 
 // TODO: check wrapped asset exists or is native transfer
 export const selectTransferIsTargetComplete = (state: RootState) =>
