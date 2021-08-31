@@ -3,11 +3,14 @@ import {
   CHAIN_ID_BSC,
   CHAIN_ID_ETH,
   CHAIN_ID_SOLANA,
+  CHAIN_ID_TERRA,
   getEmitterAddressEth,
   getEmitterAddressSolana,
+  getEmitterAddressTerra,
   getSignedVAA,
   parseSequenceFromLogEth,
   parseSequenceFromLogSolana,
+  parseSequenceFromLogTerra,
 } from "@certusone/wormhole-sdk";
 import {
   Box,
@@ -26,6 +29,7 @@ import {
 import { Restore } from "@material-ui/icons";
 import { Alert } from "@material-ui/lab";
 import { Connection } from "@solana/web3.js";
+import { LCDClient } from "@terra-money/terra.js";
 import { BigNumber, ethers } from "ethers";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
@@ -50,6 +54,8 @@ import {
   ETH_TOKEN_BRIDGE_ADDRESS,
   SOLANA_HOST,
   SOL_TOKEN_BRIDGE_ADDRESS,
+  TERRA_HOST,
+  TERRA_TOKEN_BRIDGE_ADDRESS,
   WORMHOLE_RPC_HOST,
 } from "../../utils/consts";
 import KeyAndBalance from "../KeyAndBalance";
@@ -104,6 +110,31 @@ async function solana(tx: string) {
   return "";
 }
 
+async function terra(tx: string) {
+  try {
+    const lcd = new LCDClient(TERRA_HOST);
+    const info = await lcd.tx.txInfo(tx);
+    const sequence = parseSequenceFromLogTerra(info);
+    if (!sequence) {
+      throw new Error("Sequence not found");
+    }
+    const emitterAddress = await getEmitterAddressTerra(
+      TERRA_TOKEN_BRIDGE_ADDRESS
+    );
+    console.log(emitterAddress);
+    const { vaaBytes } = await getSignedVAA(
+      WORMHOLE_RPC_HOST,
+      CHAIN_ID_TERRA,
+      emitterAddress,
+      sequence
+    );
+    return uint8ArrayToHex(vaaBytes);
+  } catch (e) {
+    console.error(e);
+  }
+  return "";
+}
+
 //     0   u256     amount
 //     32  [u8; 32] token_address
 //     64  u16      token_chain
@@ -149,6 +180,13 @@ function RecoveryDialogContent({ onClose }: { onClose: () => void }) {
       } else if (recoverySourceChain === CHAIN_ID_SOLANA) {
         (async () => {
           const vaa = await solana(recoverySourceTx);
+          if (!cancelled) {
+            setRecoverySignedVAA(vaa);
+          }
+        })();
+      } else if (recoverySourceChain === CHAIN_ID_TERRA) {
+        (async () => {
+          const vaa = await terra(recoverySourceTx);
           if (!cancelled) {
             setRecoverySignedVAA(vaa);
           }
@@ -236,9 +274,7 @@ function RecoveryDialogContent({ onClose }: { onClose: () => void }) {
           fullWidth
           margin="normal"
         >
-          {CHAINS.filter(
-            (x) => x.id === CHAIN_ID_ETH || x.id === CHAIN_ID_SOLANA
-          ).map(({ id, name }) => (
+          {CHAINS.map(({ id, name }) => (
             <MenuItem key={id} value={id}>
               {name}
             </MenuItem>

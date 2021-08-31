@@ -163,7 +163,7 @@ export default function SolanaSourceTokenSelector(
       }}
       getOptionLabel={(option) => {
         const symbol = getSymbol(option);
-        return `${symbol ? symbol : "Unknown"} ( Account: ${shortenAddress(
+        return `${symbol ? symbol : "Unknown"} (Account: ${shortenAddress(
           option.publicKey
         )}, Mint: ${shortenAddress(option.mintKey)})`;
       }}

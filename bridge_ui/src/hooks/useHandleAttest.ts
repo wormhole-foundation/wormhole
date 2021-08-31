@@ -71,6 +71,7 @@ async function eth(
     dispatch(setSignedVAAHex(uint8ArrayToHex(vaaBytes)));
     enqueueSnackbar("Fetched Signed VAA", { variant: "success" });
   } catch (e) {
+    console.error(e);
     enqueueSnackbar(parseError(e), { variant: "error" });
     dispatch(setIsSending(false));
   }
@@ -114,6 +115,7 @@ async function solana(
     dispatch(setSignedVAAHex(uint8ArrayToHex(vaaBytes)));
     enqueueSnackbar("Fetched Signed VAA", { variant: "success" });
   } catch (e) {
+    console.error(e);
     enqueueSnackbar(parseError(e), { variant: "error" });
     dispatch(setIsSending(false));
   }
@@ -127,14 +129,17 @@ async function terra(
 ) {
   dispatch(setIsSending(true));
   try {
-    const infoMaybe = await attestFromTerra(
+    const result = await attestFromTerra(
       TERRA_TOKEN_BRIDGE_ADDRESS,
       wallet,
       asset
     );
-    const info = await waitForTerraExecution(wallet, infoMaybe);
+    const info = await waitForTerraExecution(result);
     enqueueSnackbar("Transaction confirmed", { variant: "success" });
     const sequence = parseSequenceFromLogTerra(info);
+    if (!sequence) {
+      throw new Error("Sequence not found");
+    }
     const emitterAddress = await getEmitterAddressTerra(
       TERRA_TOKEN_BRIDGE_ADDRESS
     );
@@ -148,6 +153,7 @@ async function terra(
     enqueueSnackbar("Fetched Signed VAA", { variant: "success" });
   } catch (e) {
     console.error(e);
+    enqueueSnackbar(parseError(e), { variant: "error" });
     dispatch(setIsSending(false));
   }
 }

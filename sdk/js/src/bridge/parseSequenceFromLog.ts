@@ -1,6 +1,6 @@
 import { TransactionResponse } from "@solana/web3.js";
+import { TxInfo } from "@terra-money/terra.js";
 import { ContractReceipt } from "ethers";
-import { TxResult } from "@terra-money/wallet-provider";
 import { Implementation__factory } from "../ethers-contracts";
 
 export function parseSequenceFromLogEth(
@@ -17,21 +17,21 @@ export function parseSequenceFromLogEth(
   return sequence.toString();
 }
 
-export function parseSequenceFromLogTerra(result: TxResult): string {
+export function parseSequenceFromLogTerra(info: TxInfo): string {
   // Scan for the Sequence attribute in all the outputs of the transaction.
   // TODO: Make this not horrible.
   let sequence = "";
-  const jsonLog = JSON.parse(result.result.raw_log);
+  const jsonLog = JSON.parse(info.raw_log);
   jsonLog.map((row: any) => {
-      row.events.map((event: any) => {
-          event.attributes.map((attribute: any) => {
-              if(attribute.key === "message.sequence") {
-                  sequence = attribute.value;
-              }
-          });
+    row.events.map((event: any) => {
+      event.attributes.map((attribute: any) => {
+        if (attribute.key === "message.sequence") {
+          sequence = attribute.value;
+        }
       });
+    });
   });
-  console.log('Terra Sequence: ', sequence);
+  console.log("Terra Sequence: ", sequence);
   return sequence.toString();
 }
 

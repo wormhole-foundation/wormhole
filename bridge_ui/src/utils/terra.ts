@@ -1,18 +1,17 @@
-import {
-  TxResult,
-  ConnectedWallet as TerraConnectedWallet,
-} from "@terra-money/wallet-provider";
 import { LCDClient } from "@terra-money/terra.js";
+import { TxResult } from "@terra-money/wallet-provider";
+import { TERRA_HOST } from "./consts";
 
-// TODO: Loop txInfo for timed out transactions.
-// lcd.tx.txInfo(transaction.result.txhash);
-export async function waitForTerraExecution(
-  wallet: TerraConnectedWallet,
-  transaction: TxResult
-) {
-  new LCDClient({
-    URL: wallet.network.lcd,
-    chainID: "columbus-4",
-  });
-  return transaction;
+export async function waitForTerraExecution(transaction: TxResult) {
+  const lcd = new LCDClient(TERRA_HOST);
+  let info;
+  while (!info) {
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    try {
+      info = await lcd.tx.txInfo(transaction.result.txhash);
+    } catch (e) {
+      console.error(e);
+    }
+  }
+  return info;
 }

@@ -17,7 +17,7 @@ export async function getSignedVAAWithRetry(
         sequence
       );
     } catch (e) {
-      console.log(e);
+      console.error(e);
     }
   }
   return result;

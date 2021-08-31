@@ -49,7 +49,9 @@ import {
   TERRA_TOKEN_BRIDGE_ADDRESS,
 } from "../utils/consts";
 import { getSignedVAAWithRetry } from "../utils/getSignedVAAWithRetry";
+import parseError from "../utils/parseError";
 import { signSendAndConfirm } from "../utils/solana";
+import { waitForTerraExecution } from "../utils/terra";
 import useTransferTargetAddressHex from "./useTransferTargetAddress";
 
 async function eth(
@@ -86,6 +88,7 @@ async function eth(
     enqueueSnackbar("Fetched Signed VAA", { variant: "success" });
   } catch (e) {
     console.error(e);
+    enqueueSnackbar(parseError(e), { variant: "error" });
     dispatch(setIsSending(false));
   }
 }
@@ -148,6 +151,7 @@ async function solana(
     enqueueSnackbar("Fetched Signed VAA", { variant: "success" });
   } catch (e) {
     console.error(e);
+    enqueueSnackbar(parseError(e), { variant: "error" });
     dispatch(setIsSending(false));
   }
 }
@@ -177,10 +181,15 @@ async function terra(
       msgs: [...msgs],
       memo: "Wormhole - Initiate Transfer",
     });
-    enqueueSnackbar("Transaction confirmed", { variant: "success" });
     console.log(result);
-    const sequence = parseSequenceFromLogTerra(result);
+    const info = await waitForTerraExecution(result);
+    console.log(info);
+    enqueueSnackbar("Transaction confirmed", { variant: "success" });
+    const sequence = parseSequenceFromLogTerra(info);
     console.log(sequence);
+    if (!sequence) {
+      throw new Error("Sequence not found");
+    }
     const emitterAddress = await getEmitterAddressTerra(
       TERRA_TOKEN_BRIDGE_ADDRESS
     );
@@ -195,6 +204,7 @@ async function terra(
     dispatch(setSignedVAAHex(uint8ArrayToHex(vaaBytes)));
   } catch (e) {
     console.error(e);
+    enqueueSnackbar(parseError(e), { variant: "error" });
     dispatch(setIsSending(false));
   }
 }
