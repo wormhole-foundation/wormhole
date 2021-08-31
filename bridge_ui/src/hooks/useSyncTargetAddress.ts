@@ -2,6 +2,7 @@ import {
   CHAIN_ID_ETH,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
+  canonicalAddress,
 } from "@certusone/wormhole-sdk";
 import { arrayify, zeroPad } from "@ethersproject/bytes";
 import {
@@ -22,7 +23,6 @@ import {
 } from "../store/selectors";
 import { setTargetAddressHex } from "../store/transferSlice";
 import { uint8ArrayToHex } from "../utils/array";
-import { canonicalAddress } from "../utils/terra";
 
 function useSyncTargetAddress(shouldFire: boolean) {
   const dispatch = useDispatch();

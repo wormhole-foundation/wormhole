@@ -6,6 +6,7 @@ import {
   WormholeWrappedInfo,
 } from "@certusone/wormhole-sdk";
 import { Connection } from "@solana/web3.js";
+import { LCDClient } from "@terra-money/terra.js";
 import { ethers } from "ethers";
 import { uint8ArrayToHex } from "./array";
 import {
@@ -13,9 +14,7 @@ import {
   SOLANA_HOST,
   SOL_TOKEN_BRIDGE_ADDRESS,
   TERRA_HOST,
-  TERRA_TEST_TOKEN_ADDRESS,
 } from "./consts";
-import { LCDClient } from "@terra-money/terra.js";
 
 export interface StateSafeWormholeWrappedInfo {
   isWrapped: boolean;

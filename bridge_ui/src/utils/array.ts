@@ -3,10 +3,10 @@ import {
   CHAIN_ID_ETH,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
+  humanAddress,
 } from "@certusone/wormhole-sdk";
 import { PublicKey } from "@solana/web3.js";
 import { hexValue } from "ethers/lib/utils";
-import { humanAddress } from "./terra";
 
 export const uint8ArrayToHex = (a: Uint8Array) =>
   Buffer.from(a).toString("hex");

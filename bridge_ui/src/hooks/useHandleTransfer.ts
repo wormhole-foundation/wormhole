@@ -158,21 +158,23 @@ async function terra(
   wallet: ConnectedWallet,
   asset: string,
   amount: string,
+  decimals: number,
   targetChain: ChainId,
   targetAddress: Uint8Array
 ) {
   dispatch(setIsSending(true));
   try {
-    const msg = await transferFromTerra(
+    const amountParsed = parseUnits(amount, decimals).toString();
+    const msgs = await transferFromTerra(
       wallet.terraAddress,
       TERRA_TOKEN_BRIDGE_ADDRESS,
       asset,
-      amount,
+      amountParsed,
       targetChain,
       targetAddress
     );
     const result = await wallet.post({
-      msgs: [msg],
+      msgs: [...msgs],
       memo: "Wormhole - Initiate Transfer",
     });
     enqueueSnackbar("Transaction confirmed", { variant: "success" });
@@ -276,6 +278,7 @@ export function useHandleTransfer() {
         terraWallet,
         sourceAsset,
         amount,
+        decimals,
         targetChain,
         targetAddress
       );

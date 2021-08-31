@@ -1,10 +1,16 @@
 import { Connection, PublicKey } from "@solana/web3.js";
 import { ethers } from "ethers";
-import { arrayify } from "ethers/lib/utils";
+import { arrayify, zeroPad } from "ethers/lib/utils";
 import { TokenImplementation__factory } from "../ethers-contracts";
-import { ChainId, CHAIN_ID_ETH, CHAIN_ID_SOLANA, CHAIN_ID_TERRA } from "../utils";
+import {
+  ChainId,
+  CHAIN_ID_ETH,
+  CHAIN_ID_SOLANA,
+  CHAIN_ID_TERRA,
+} from "../utils";
 import { getIsWrappedAssetEth } from "./getIsWrappedAsset";
 import { LCDClient } from "@terra-money/terra.js";
+import { canonicalAddress } from "../terra";
 
 export interface WormholeWrappedInfo {
   isWrapped: boolean;
@@ -54,9 +60,9 @@ export async function getOriginalAssetTerra(
   wrappedAddress: string
 ): Promise<WormholeWrappedInfo> {
   const result: {
-    asset_address: string,
-    asset_chain: ChainId,
-    bridge: string,
+    asset_address: string;
+    asset_chain: ChainId;
+    bridge: string;
   } = await client.wasm.contractQuery(wrappedAddress, {
     wrapped_asset_info: {},
   });
@@ -64,14 +70,14 @@ export async function getOriginalAssetTerra(
     return {
       isWrapped: true,
       chainId: result.asset_chain,
-      assetAddress: arrayify(result.asset_address),
+      assetAddress: new Uint8Array(Buffer.from(result.asset_address, "base64")),
     };
   }
   return {
-      isWrapped: false,
-      chainId: CHAIN_ID_TERRA,
-      assetAddress: arrayify(wrappedAddress),
-  }
+    isWrapped: false,
+    chainId: CHAIN_ID_TERRA,
+    assetAddress: zeroPad(canonicalAddress(wrappedAddress), 32),
+  };
 }
 
 /**

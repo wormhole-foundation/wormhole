@@ -1,5 +1,6 @@
 import { Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { Connection, Keypair, PublicKey, Transaction } from "@solana/web3.js";
+import { MsgExecuteContract } from "@terra-money/terra.js";
 import { ethers } from "ethers";
 import {
   Bridge__factory,
@@ -7,8 +8,6 @@ import {
 } from "../ethers-contracts";
 import { getBridgeFeeIx, ixFromRust } from "../solana";
 import { ChainId, CHAIN_ID_SOLANA, createNonce } from "../utils";
-import { ConnectedWallet as TerraConnectedWallet } from "@terra-money/wallet-provider";
-import { MsgExecuteContract } from "@terra-money/terra.js";
 
 export async function transferFromEth(
   tokenBridgeAddress: string,
@@ -45,26 +44,42 @@ export async function transferFromTerra(
   walletAddress: string,
   tokenBridgeAddress: string,
   tokenAddress: string,
-  amount: ethers.BigNumberish,
+  amount: string,
   recipientChain: ChainId,
   recipientAddress: Uint8Array
 ) {
   const nonce = Math.round(Math.random() * 100000);
-  return new MsgExecuteContract(
-    walletAddress,
-    tokenBridgeAddress,
-    {
-      initiate_transfer: {
-        asset: tokenAddress,
-        amount: amount,
-        recipient_chain: recipientChain,
-        recipient: recipientAddress,
-        fee: 1000,
-        nonce: nonce,
+  return [
+    new MsgExecuteContract(
+      walletAddress,
+      tokenAddress,
+      {
+        increase_allowance: {
+          spender: tokenBridgeAddress,
+          amount: amount,
+          expires: {
+            never: {},
+          },
+        },
       },
-    },
-    { uluna: 10000 }
-  );
+      { uluna: 10000 }
+    ),
+    new MsgExecuteContract(
+      walletAddress,
+      tokenBridgeAddress,
+      {
+        initiate_transfer: {
+          asset: tokenAddress,
+          amount: amount,
+          recipient_chain: recipientChain,
+          recipient: Buffer.from(recipientAddress).toString("base64"),
+          fee: "0",
+          nonce: nonce,
+        },
+      },
+      { uluna: 10000 }
+    ),
+  ];
 }
 
 export async function transferFromSolana(
