@@ -13,3 +13,5 @@ contract-query-gas-limit = "3000000"
 # the cost of increased memory usage. We cannot pick universal 
 # parameters for this, so we should allow node operators to set it.
 lru-size = "0"
+
+contract-logging-whitelist = "*"
