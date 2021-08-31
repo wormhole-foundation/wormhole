@@ -29,6 +29,14 @@ RUN --mount=type=cache,target=/root/.cache \
 	npm run build-contracts && \
 	npm run build
 
+ADD clients/nft_bridge /usr/src/clients/nft_bridge
+WORKDIR /usr/src/clients/nft_bridge
+RUN --mount=type=cache,target=/root/.cache \
+	--mount=type=cache,target=/root/.npm \
+	set -xe && \
+	npm ci && \
+	npm run build-contracts && \
+	npm run build
 
 ADD solana /usr/src/solana
 ADD proto /usr/src/proto

@@ -51,9 +51,11 @@ RUN --mount=type=cache,target=bridge/target \
     cargo build-bpf --manifest-path "bridge/cpi_poster/Cargo.toml" && \
     cargo build-bpf --manifest-path "modules/token_bridge/program/Cargo.toml" && \
     cargo build-bpf --manifest-path "pyth2wormhole/program/Cargo.toml" && \
+    cargo build-bpf --manifest-path "modules/nft_bridge/program/Cargo.toml" && \
     cp bridge/target/deploy/bridge.so /opt/solana/deps/bridge.so && \
     cp bridge/target/deploy/cpi_poster.so /opt/solana/deps/cpi_poster.so && \
     cp modules/token_bridge/target/deploy/token_bridge.so /opt/solana/deps/token_bridge.so && \
+    cp modules/nft_bridge/target/deploy/nft_bridge.so /opt/solana/deps/nft_bridge.so && \
     cp modules/token_bridge/token-metadata/spl_token_metadata.so /opt/solana/deps/spl_token_metadata.so && \
     cp pyth2wormhole/target/deploy/pyth2wormhole.so /opt/solana/deps/pyth2wormhole.so
 

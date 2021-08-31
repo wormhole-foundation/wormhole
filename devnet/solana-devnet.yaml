@@ -45,6 +45,9 @@ spec:
             - B6RHG3mfcckmrYN1UhmJzyS1XX3fZKbkeUcpJe9Sy3FE
             - /opt/solana/deps/token_bridge.so
             - --bpf-program
+            - NFTWqJR8YnRVqPDvTJrYuLrQDitTG5AScqbeghi4zSA
+            - /opt/solana/deps/nft_bridge.so
+            - --bpf-program
             - CP1co2QMMoDPbsmV7PGcUTLFwyhgCgTXt25gLQ5LewE1
             - /opt/solana/deps/cpi_poster.so
             - --bpf-program

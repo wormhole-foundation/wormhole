@@ -82,7 +82,7 @@ export const TERRA_HOST =
 export const ETH_TEST_TOKEN_ADDRESS = getAddress(
   CLUSTER === "testnet"
     ? "0xcEE940033DA197F551BBEdED7F4aA55Ee55C582B"
-    : "0x67B5656d60a809915323Bf2C40A8bEF15A152e3e"
+    : "0x0E696947A06550DEf604e82C26fd9E493e576337"
 );
 export const ETH_BRIDGE_ADDRESS = getAddress(
   CLUSTER === "testnet"

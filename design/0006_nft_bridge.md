@@ -94,10 +94,10 @@ PayloadID uint8 = 1
 NFTAddress [32]uint8
 // Chain ID of the NFT
 NFTChain uint16
+// Symbol of the NFT
+Symbol [32]uint8
 // Name of the NFT
 Name [32]uint8
-// Symbol of the NFT
-Symbol [10]uint8
 // ID of the token (big-endian uint256)
 TokenID [32]uint8
 // URL of the NFT
