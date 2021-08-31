@@ -25,7 +25,7 @@ export async function transferFromEth(
   //   signerAddress,
   //   tokenBridgeAddress
   // );
-  await token.approve(tokenBridgeAddress, amount);
+  await (await token.approve(tokenBridgeAddress, amount)).wait();
   const fee = 0; // for now, this won't do anything, we may add later
   const bridge = Bridge__factory.connect(tokenBridgeAddress, signer);
   const v = await bridge.transferTokens(
