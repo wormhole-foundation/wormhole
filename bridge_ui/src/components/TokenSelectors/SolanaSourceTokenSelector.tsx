@@ -137,6 +137,17 @@ export default function SolanaSourceTokenSelector(
   const isLoading =
     props.metaplexData.isFetching || props.solanaTokenMap?.isFetching;
 
+  //This exists to remove NFTs from the list of potential options. It requires reading the metaplex data, so it would be
+  //difficult to do before this point.
+  const filteredOptions = useMemo(() => {
+    return props.accounts.filter((x) => {
+      //TODO, do a better check which likely involves supply or checking masterEdition.
+      const isNFT =
+        x.decimals === 0 && memoizedMetaplex.get(x.mintKey)?.data?.uri;
+      return !isNFT;
+    });
+  }, [memoizedMetaplex, props.accounts]);
+
   const autoComplete = (
     <Autocomplete
       autoComplete
@@ -151,7 +162,7 @@ export default function SolanaSourceTokenSelector(
         onChange(newValue);
       }}
       disabled={disabled}
-      options={props.accounts}
+      options={filteredOptions}
       renderInput={(params) => (
         <TextField {...params} label="Token Account" variant="outlined" />
       )}
