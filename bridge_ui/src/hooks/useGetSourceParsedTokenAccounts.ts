@@ -1,8 +1,4 @@
-import {
-  CHAIN_ID_ETH,
-  CHAIN_ID_SOLANA,
-  TokenImplementation__factory,
-} from "@certusone/wormhole-sdk";
+import { CHAIN_ID_ETH, CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
 import { Dispatch } from "@reduxjs/toolkit";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { ENV, TokenListProvider } from "@solana/spl-token-registry";
@@ -12,6 +8,7 @@ import {
   ParsedAccountData,
   PublicKey,
 } from "@solana/web3.js";
+import axios from "axios";
 import { formatUnits } from "ethers/lib/utils";
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
@@ -33,9 +30,8 @@ import {
   fetchSourceParsedTokenAccounts,
   ParsedTokenAccount,
   receiveSourceParsedTokenAccounts,
-  setSourceParsedTokenAccount,
 } from "../store/transferSlice";
-import { ETH_TEST_TOKEN_ADDRESS, SOLANA_HOST } from "../utils/consts";
+import { COVALENT_GET_TOKENS_URL, SOLANA_HOST } from "../utils/consts";
 import {
   decodeMetadata,
   getMetadataAddress,
@@ -73,6 +69,62 @@ const createParsedTokenAccountFromInfo = (
     uiAmount: item.data.parsed?.info?.tokenAmount?.uiAmount,
     uiAmountString: item.data.parsed?.info?.tokenAmount?.uiAmountString,
   };
+};
+
+const createParsedTokenAccountFromCovalent = (
+  walletAddress: string,
+  covalent: CovalentData
+): ParsedTokenAccount => {
+  return {
+    publicKey: walletAddress,
+    mintKey: covalent.contract_address,
+    amount: covalent.balance,
+    decimals: covalent.contract_decimals,
+    uiAmount: Number(formatUnits(covalent.balance, covalent.contract_decimals)),
+    uiAmountString: formatUnits(covalent.balance, covalent.contract_decimals),
+  };
+};
+
+export type CovalentData = {
+  contract_decimals: number;
+  contract_ticker_symbol: string;
+  contract_name: string;
+  contract_address: string;
+  logo_url: string | undefined;
+  balance: string;
+  quote: number | undefined;
+  quote_rate: number | undefined;
+};
+
+const getEthereumAccountsCovalent = async (
+  walletAddress: string
+): Promise<CovalentData[]> => {
+  const url = COVALENT_GET_TOKENS_URL(CHAIN_ID_ETH, walletAddress);
+
+  try {
+    const output = [] as CovalentData[];
+    const response = await axios.get(url);
+    const tokens = response.data.data.items;
+
+    if (tokens instanceof Array && tokens.length) {
+      for (const item of tokens) {
+        if (
+          item.contract_decimals &&
+          item.contract_ticker_symbol &&
+          item.contract_address &&
+          item.balance &&
+          item.supports_erc?.includes("erc20")
+        ) {
+          output.push({ ...item } as CovalentData);
+        }
+      }
+    }
+
+    return output;
+  } catch (error) {
+    console.error(error);
+    return Promise.reject("Unable to retrieve your Ethereum Tokens.");
+  }
 };
 
 const environment =
@@ -166,9 +218,15 @@ function useGetAvailableTokens() {
   //const terraWallet = useConnectedWallet(); //TODO
   const { provider, signerAddress } = useEthereumProvider();
 
-  const [metaplex, setMetaplex] = useState(undefined as any);
+  const [metaplex, setMetaplex] = useState<any>(undefined);
   const [metaplexLoading, setMetaplexLoading] = useState(false);
   const [metaplexError, setMetaplexError] = useState(null);
+
+  const [covalent, setCovalent] = useState<any>(undefined);
+  const [covalentLoading, setCovalentLoading] = useState(false);
+  const [covalentError, setCovalentError] = useState<string | undefined>(
+    undefined
+  );
 
   // Solana metaplex load
   useEffect(() => {
@@ -234,51 +292,42 @@ function useGetAvailableTokens() {
   //Ethereum accounts load
   //TODO actual load from covalent. This is just a hardcoded testing load
   useEffect(() => {
+    //const testWallet = "0xf60c2ea62edbfe808163751dd0d8693dcb30019c";
     let cancelled = false;
-    if (lookupChain === CHAIN_ID_ETH && provider && signerAddress) {
-      const token = TokenImplementation__factory.connect(
-        ETH_TEST_TOKEN_ADDRESS,
-        provider
-      );
-      token
-        .decimals()
-        .then((decimals) => {
-          token.balanceOf(signerAddress).then((n) => {
-            if (!cancelled) {
-              dispatch(
-                setSourceParsedTokenAccount(
-                  createParsedTokenAccount(
-                    signerAddress,
-                    ETH_TEST_TOKEN_ADDRESS,
-                    n.toString(),
-                    decimals,
-                    Number(formatUnits(n, decimals)),
-                    formatUnits(n, decimals)
-                  )
-                )
-              );
-              dispatch(
-                receiveSourceParsedTokenAccounts([
-                  createParsedTokenAccount(
-                    signerAddress,
-                    ETH_TEST_TOKEN_ADDRESS,
-                    n.toString(),
-                    decimals,
-                    Number(formatUnits(n, decimals)),
-                    formatUnits(n, decimals)
-                  ),
-                ])
-              );
-            }
-          });
-        })
-        .catch((e) => {
-          if (!cancelled) {
-            // TODO: error state
-            console.error(e);
-          }
-        });
+    const walletAddress = signerAddress;
+    if (!walletAddress) {
+      return;
     }
+    //TODO less cancel
+    !cancelled && setCovalentLoading(true);
+    !cancelled && dispatch(fetchSourceParsedTokenAccounts());
+    getEthereumAccountsCovalent(walletAddress).then(
+      (accounts) => {
+        !cancelled && setCovalentLoading(false);
+        !cancelled && setCovalentError(undefined);
+        !cancelled && setCovalent(accounts);
+        !cancelled &&
+          dispatch(
+            receiveSourceParsedTokenAccounts(
+              accounts.map((x) =>
+                createParsedTokenAccountFromCovalent(walletAddress, x)
+              )
+            )
+          );
+      },
+      () => {
+        !cancelled &&
+          dispatch(
+            errorSourceParsedTokenAccounts(
+              "Cannot load your Ethereum tokens at the moment."
+            )
+          );
+        !cancelled &&
+          setCovalentError("Cannot load your Ethereum tokens at the moment.");
+        !cancelled && setCovalentLoading(false);
+      }
+    );
+
     return () => {
       cancelled = true;
     };
@@ -300,6 +349,16 @@ function useGetAvailableTokens() {
           error: metaplexError,
           receivedAt: null, //TODO
         } as DataWrapper<Metadata[]>,
+      }
+    : lookupChain === CHAIN_ID_ETH
+    ? {
+        tokenAccounts: tokenAccounts,
+        covalent: {
+          data: covalent,
+          isFetching: covalentLoading,
+          error: covalentError,
+          receivedAt: null, //TODO
+        },
       }
     : undefined;
 }

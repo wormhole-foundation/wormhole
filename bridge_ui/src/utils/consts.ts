@@ -93,3 +93,21 @@ export const TERRA_BRIDGE_ADDRESS =
   "terra18vd8fpwxzck93qlwghaj6arh4p7c5n896xzem5";
 export const TERRA_TOKEN_BRIDGE_ADDRESS =
   "terra10pyejy66429refv3g35g2t7am0was7ya7kz2a4";
+
+export const COVALENT_API_KEY = process.env.REACT_APP_COVALENT_API_KEY
+  ? process.env.REACT_APP_COVALENT_API_KEY
+  : "";
+
+export const COVALENT_GET_TOKENS_URL = (
+  chainId: ChainId,
+  walletAddress: string
+) => {
+  let chainNum = "";
+  if (chainId === CHAIN_ID_ETH) {
+    chainNum = COVALENT_ETHEREUM_MAINNET;
+  }
+
+  return `https://api.covalenthq.com/v1/${chainNum}/address/${walletAddress}/balances_v2/?key=${COVALENT_API_KEY}`;
+};
+
+export const COVALENT_ETHEREUM_MAINNET = "1";

@@ -1,23 +1,75 @@
-import { Button, TextField, Typography } from "@material-ui/core";
+import {
+  Button,
+  CircularProgress,
+  createStyles,
+  makeStyles,
+  TextField,
+  Typography,
+} from "@material-ui/core";
+import { Autocomplete, createFilterOptions } from "@material-ui/lab";
 import React, { useCallback, useEffect, useState } from "react";
 import { useEthereumProvider } from "../../contexts/EthereumProviderContext";
+import { CovalentData } from "../../hooks/useGetSourceParsedTokenAccounts";
+import { DataWrapper } from "../../store/helpers";
 import { ParsedTokenAccount } from "../../store/transferSlice";
 import {
   ethTokenToParsedTokenAccount,
   getEthereumToken,
   isValidEthereumAddress,
 } from "../../utils/ethereum";
+import { shortenAddress } from "../../utils/solana";
+
+const useStyles = makeStyles(() =>
+  createStyles({
+    selectInput: { minWidth: "10rem" },
+    tokenOverviewContainer: {
+      display: "flex",
+      "& div": {
+        margin: ".5rem",
+      },
+    },
+    tokenImage: {
+      maxHeight: "2.5rem", //Eyeballing this based off the text size
+    },
+  })
+);
 
 type EthereumSourceTokenSelectorProps = {
   value: ParsedTokenAccount | null;
   onChange: (newValue: ParsedTokenAccount | null) => void;
+  covalent: DataWrapper<CovalentData[]> | undefined;
+  tokenAccounts: DataWrapper<ParsedTokenAccount[]> | undefined;
+};
+
+const renderAccount = (
+  account: ParsedTokenAccount,
+  covalentData: CovalentData | undefined,
+  classes: any
+) => {
+  const mintPrettyString = shortenAddress(account.mintKey);
+  const uri = covalentData?.logo_url;
+  const symbol = covalentData?.contract_ticker_symbol || "Unknown";
+  return (
+    <div className={classes.tokenOverviewContainer}>
+      <div>
+        {uri && <img alt="" className={classes.tokenImage} src={uri} />}
+      </div>
+      <div>
+        <Typography variant="subtitle1">{symbol}</Typography>
+      </div>
+      <div>
+        <Typography variant="body1">{mintPrettyString}</Typography>
+      </div>
+    </div>
+  );
 };
 
 export default function EthereumSourceTokenSelector(
   props: EthereumSourceTokenSelectorProps
 ) {
-  const { onChange, value } = props;
-  const advancedMode = true; //const [advancedMode, setAdvancedMode] = useState(true);
+  const { value, onChange, covalent, tokenAccounts } = props;
+  const classes = useStyles();
+  const [advancedMode, setAdvancedMode] = useState(false);
   const [advancedModeLoading, setAdvancedModeLoading] = useState(false);
   const [advancedModeSymbol, setAdvancedModeSymbol] = useState("");
   const [advancedModeHolderString, setAdvancedModeHolderString] = useState("");
@@ -91,8 +143,6 @@ export default function EthereumSourceTokenSelector(
     onChange,
   ]);
 
-  const symbolString = advancedModeSymbol ? advancedModeSymbol + " " : "";
-
   const handleClick = useCallback(() => {
     onChange(null);
     setAdvancedModeHolderString("");
@@ -103,16 +153,88 @@ export default function EthereumSourceTokenSelector(
     []
   );
 
+  const getSymbol = (account: ParsedTokenAccount | null) => {
+    if (!account) {
+      return undefined;
+    }
+    return covalent?.data?.find((x) => x.contract_address === account.mintKey);
+  };
+
+  const filterConfig = createFilterOptions({
+    matchFrom: "any",
+    stringify: (option: ParsedTokenAccount) => {
+      const symbol = getSymbol(option) + " " || "";
+      const mint = option.mintKey + " ";
+
+      return symbol + mint;
+    },
+  });
+
+  const toggleAdvancedMode = () => {
+    setAdvancedMode(!advancedMode);
+  };
+
+  const isLoading =
+    props.covalent?.isFetching || props.tokenAccounts?.isFetching;
+
+  const symbolString = advancedModeSymbol
+    ? advancedModeSymbol + " "
+    : getSymbol(value)
+    ? getSymbol(value)?.contract_ticker_symbol + " "
+    : "";
+
+  const autoComplete = (
+    <Autocomplete
+      autoComplete
+      autoHighlight
+      autoSelect
+      blurOnSelect
+      clearOnBlur
+      fullWidth={false}
+      filterOptions={filterConfig}
+      value={value}
+      onChange={(event, newValue) => {
+        onChange(newValue);
+      }}
+      noOptionsText={"No ERC20 tokens found at the moment."}
+      options={tokenAccounts?.data || []}
+      renderInput={(params) => (
+        <TextField {...params} label="Token Account" variant="outlined" />
+      )}
+      renderOption={(option) => {
+        return renderAccount(
+          option,
+          covalent?.data?.find((x) => x.contract_address === option.mintKey),
+          classes
+        );
+      }}
+      getOptionLabel={(option) => {
+        const symbol = getSymbol(option);
+        return `${symbol ? symbol : "Unknown"} (Account: ${shortenAddress(
+          option.publicKey
+        )}, Address: ${shortenAddress(option.mintKey)})`;
+      }}
+    />
+  );
+
+  const advancedModeToggleButton = (
+    <Button onClick={toggleAdvancedMode}>
+      {advancedMode ? "Toggle Token Picker" : "Toggle Override"}
+    </Button>
+  );
+
   const content = value ? (
     <>
       <Typography>{symbolString + value.mintKey}</Typography>
       <Button onClick={handleClick}>Clear</Button>
     </>
-  ) : (
+  ) : isLoading ? (
+    <CircularProgress />
+  ) : advancedMode ? (
     <>
       <TextField
         fullWidth
-        label="Asset Address"
+        label="Enter an asset address"
         value={advancedModeHolderString}
         onChange={handleOnChange}
         error={
@@ -124,7 +246,14 @@ export default function EthereumSourceTokenSelector(
         disabled={advancedModeLoading}
       />
     </>
+  ) : (
+    autoComplete
   );
 
-  return <React.Fragment>{content}</React.Fragment>;
+  return (
+    <React.Fragment>
+      {content}
+      {!value && !isLoading && advancedModeToggleButton}
+    </React.Fragment>
+  );
 }

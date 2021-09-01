@@ -43,7 +43,10 @@ export const TokenSelector = (props: TokenSelectorProps) => {
   const maps = useGetSourceParsedTokens();
 
   //This is only for errors so bad that we shouldn't even mount the component
-  const fatalError = maps?.tokenAccounts?.error;
+  const fatalError =
+    maps?.tokenAccounts?.error &&
+    !(lookupChain === CHAIN_ID_ETH) &&
+    !(lookupChain === CHAIN_ID_TERRA); //Terra & ETH can proceed because it has advanced mode
 
   const content = fatalError ? (
     <Typography>{fatalError}</Typography>
@@ -59,6 +62,8 @@ export const TokenSelector = (props: TokenSelectorProps) => {
     <EthereumSourceTokenSelector
       value={sourceParsedTokenAccount || null}
       onChange={handleSolanaOnChange}
+      covalent={maps?.covalent || undefined}
+      tokenAccounts={maps?.tokenAccounts} //TODO standardize
     />
   ) : lookupChain === CHAIN_ID_TERRA ? (
     <TerraSourceTokenSelector
