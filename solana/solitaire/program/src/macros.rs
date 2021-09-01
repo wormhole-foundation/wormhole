@@ -60,6 +60,7 @@ macro_rules! solitaire {
                 // been inlined, this provides a new stack frame. Without this, the stack frame for
                 // deserialization and the handler is the same as that used by solitaire, leading
                 // to bust stacks.
+                #[allow(non_snake_case)]
                 pub mod $row {
                     use super::*;
 
