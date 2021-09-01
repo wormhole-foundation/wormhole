@@ -23,7 +23,10 @@ import Redeem from "./Redeem";
 import Send from "./Send";
 import Source from "./Source";
 import Target from "./Target";
-
+import SourcePreview from "./SourcePreview";
+import TargetPreview from "./TargetPreview";
+import SendPreview from "./SendPreview";
+import RedeemPreview from "./RedeemPreview";
 // TODO: ensure that both wallets are connected to the same known network
 // TODO: loaders and such, navigation block?
 // TODO: refresh displayed token amount after transfer somehow, could be resolved by having different components appear
@@ -62,27 +65,31 @@ function Transfer() {
         orientation="vertical"
         className={classes.rootContainer}
       >
-        <Step>
+        <Step expanded={activeStep >= 0} disabled={preventNavigation}>
           <StepButton onClick={() => dispatch(setStep(0))}>Source</StepButton>
           <StepContent>
-            <Source setIsRecoveryOpen={setIsRecoveryOpen} />
+            {activeStep === 0 ? (
+              <Source setIsRecoveryOpen={setIsRecoveryOpen} />
+            ) : (
+              <SourcePreview />
+            )}
           </StepContent>
         </Step>
-        <Step>
+        <Step expanded={activeStep >= 1} disabled={preventNavigation}>
           <StepButton onClick={() => dispatch(setStep(1))}>Target</StepButton>
           <StepContent>
-            <Target />
+            {activeStep === 1 ? <Target /> : <TargetPreview />}
           </StepContent>
         </Step>
-        <Step>
+        <Step expanded={activeStep >= 2}>
           <StepButton onClick={() => dispatch(setStep(2))}>
             Send tokens
           </StepButton>
           <StepContent>
-            <Send />
+            {activeStep === 2 ? <Send /> : <SendPreview />}
           </StepContent>
         </Step>
-        <Step>
+        <Step expanded={activeStep >= 3}>
           <StepButton
             onClick={() => dispatch(setStep(3))}
             disabled={!isSendComplete}
@@ -90,11 +97,15 @@ function Transfer() {
             Redeem tokens
           </StepButton>
           <StepContent>
-            <Redeem />
+            {activeStep === 3 ? <Redeem /> : <RedeemPreview />}
           </StepContent>
         </Step>
       </Stepper>
-      <Recovery open={isRecoveryOpen} setOpen={setIsRecoveryOpen} />
+      <Recovery
+        open={isRecoveryOpen}
+        setOpen={setIsRecoveryOpen}
+        disabled={preventNavigation}
+      />
     </Container>
   );
 }

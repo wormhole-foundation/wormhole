@@ -151,7 +151,13 @@ const parsePayload = (arr: Buffer) => ({
   targetChain: arr.readUInt16BE(99) as ChainId,
 });
 
-function RecoveryDialogContent({ onClose }: { onClose: () => void }) {
+function RecoveryDialogContent({
+  onClose,
+  disabled,
+}: {
+  onClose: () => void;
+  disabled: boolean;
+}) {
   const dispatch = useDispatch();
   const { provider } = useEthereumProvider();
   const currentSourceChain = useSelector(selectTransferSourceChain);
@@ -408,7 +414,7 @@ function RecoveryDialogContent({ onClose }: { onClose: () => void }) {
           onClick={handleRecoverClick}
           variant="contained"
           color="primary"
-          disabled={!enableRecovery}
+          disabled={!enableRecovery || disabled}
         >
           Recover
         </Button>
@@ -420,9 +426,11 @@ function RecoveryDialogContent({ onClose }: { onClose: () => void }) {
 export default function Recovery({
   open,
   setOpen,
+  disabled,
 }: {
   open: boolean;
   setOpen: (open: boolean) => void;
+  disabled: boolean;
 }) {
   const classes = useStyles();
   const handleOpenClick = useCallback(() => {
@@ -438,7 +446,7 @@ export default function Recovery({
       </Fab>
       <Dialog open={open} onClose={handleCloseClick} maxWidth="md" fullWidth>
         <DialogTitle>Recovery</DialogTitle>
-        <RecoveryDialogContent onClose={handleCloseClick} />
+        <RecoveryDialogContent onClose={handleCloseClick} disabled={disabled} />
       </Dialog>
     </>
   );
