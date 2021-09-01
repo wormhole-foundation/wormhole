@@ -30,6 +30,7 @@ type SolanaSourceTokenSelectorProps = {
   accounts: ParsedTokenAccount[];
   solanaTokenMap: DataWrapper<TokenInfo[]> | undefined;
   metaplexData: any; //DataWrapper<(Metadata | undefined)[]> | undefined | null;
+  disabled: boolean;
 };
 
 const renderAccount = (
@@ -69,7 +70,7 @@ const renderAccount = (
 export default function SolanaSourceTokenSelector(
   props: SolanaSourceTokenSelectorProps
 ) {
-  const { value, onChange } = props;
+  const { value, onChange, disabled } = props;
   const classes = useStyles();
 
   const memoizedTokenMap: Map<String, TokenInfo> = useMemo(() => {
@@ -149,6 +150,7 @@ export default function SolanaSourceTokenSelector(
       onChange={(event, newValue) => {
         onChange(newValue);
       }}
+      disabled={disabled}
       options={props.accounts}
       renderInput={(params) => (
         <TextField {...params} label="Token Account" variant="outlined" />

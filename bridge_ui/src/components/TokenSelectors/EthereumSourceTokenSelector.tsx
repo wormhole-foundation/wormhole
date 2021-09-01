@@ -1,5 +1,4 @@
 import {
-  Button,
   CircularProgress,
   createStyles,
   makeStyles,
@@ -18,6 +17,7 @@ import {
   isValidEthereumAddress,
 } from "../../utils/ethereum";
 import { shortenAddress } from "../../utils/solana";
+import OffsetButton from "./OffsetButton";
 
 const useStyles = makeStyles(() =>
   createStyles({
@@ -39,6 +39,7 @@ type EthereumSourceTokenSelectorProps = {
   onChange: (newValue: ParsedTokenAccount | null) => void;
   covalent: DataWrapper<CovalentData[]> | undefined;
   tokenAccounts: DataWrapper<ParsedTokenAccount[]> | undefined;
+  disabled: boolean;
 };
 
 const renderAccount = (
@@ -67,7 +68,7 @@ const renderAccount = (
 export default function EthereumSourceTokenSelector(
   props: EthereumSourceTokenSelectorProps
 ) {
-  const { value, onChange, covalent, tokenAccounts } = props;
+  const { value, onChange, covalent, tokenAccounts, disabled } = props;
   const classes = useStyles();
   const [advancedMode, setAdvancedMode] = useState(false);
   const [advancedModeLoading, setAdvancedModeLoading] = useState(false);
@@ -196,6 +197,7 @@ export default function EthereumSourceTokenSelector(
       onChange={(event, newValue) => {
         onChange(newValue);
       }}
+      disabled={disabled}
       noOptionsText={"No ERC20 tokens found at the moment."}
       options={tokenAccounts?.data || []}
       renderInput={(params) => (
@@ -218,15 +220,17 @@ export default function EthereumSourceTokenSelector(
   );
 
   const advancedModeToggleButton = (
-    <Button onClick={toggleAdvancedMode}>
+    <OffsetButton onClick={toggleAdvancedMode} disabled={disabled}>
       {advancedMode ? "Toggle Token Picker" : "Toggle Override"}
-    </Button>
+    </OffsetButton>
   );
 
   const content = value ? (
     <>
       <Typography>{symbolString + value.mintKey}</Typography>
-      <Button onClick={handleClick}>Clear</Button>
+      <OffsetButton onClick={handleClick} disabled={disabled}>
+        Clear
+      </OffsetButton>
     </>
   ) : isLoading ? (
     <CircularProgress />
@@ -243,7 +247,7 @@ export default function EthereumSourceTokenSelector(
           !!advancedModeError
         }
         helperText={advancedModeError === "" ? undefined : advancedModeError}
-        disabled={advancedModeLoading}
+        disabled={disabled || advancedModeLoading}
       />
     </>
   ) : (

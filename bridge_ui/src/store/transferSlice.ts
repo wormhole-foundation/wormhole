@@ -83,6 +83,8 @@ export const transferSlice = createSlice({
       if (state.targetChain === action.payload) {
         state.targetChain = prevSourceChain;
         state.targetAddressHex = undefined;
+        // clear targetAsset so that components that fire before useFetchTargetAsset don't get stale data
+        state.targetAsset = undefined;
       }
     },
     setSourceWormholeWrappedInfo: (
@@ -129,7 +131,8 @@ export const transferSlice = createSlice({
       const prevTargetChain = state.targetChain;
       state.targetChain = action.payload;
       state.targetAddressHex = undefined;
-      // targetAsset is handled by useFetchTargetAsset
+      // clear targetAsset so that components that fire before useFetchTargetAsset don't get stale data
+      state.targetAsset = undefined;
       if (state.sourceChain === action.payload) {
         state.sourceChain = prevTargetChain;
         state.activeStep = 0;

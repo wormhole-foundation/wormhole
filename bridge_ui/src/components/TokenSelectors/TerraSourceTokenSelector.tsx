@@ -1,4 +1,4 @@
-import { Button, TextField, Typography } from "@material-ui/core";
+import { TextField, Typography } from "@material-ui/core";
 import { LCDClient } from "@terra-money/terra.js";
 import {
   ConnectedWallet,
@@ -9,10 +9,12 @@ import React, { useCallback, useState } from "react";
 import { createParsedTokenAccount } from "../../hooks/useGetSourceParsedTokenAccounts";
 import { ParsedTokenAccount } from "../../store/transferSlice";
 import { TERRA_HOST } from "../../utils/consts";
+import OffsetButton from "./OffsetButton";
 
 type TerraSourceTokenSelectorProps = {
   value: ParsedTokenAccount | null;
   onChange: (newValue: ParsedTokenAccount | null) => void;
+  disabled: boolean;
 };
 
 //TODO move elsewhere
@@ -56,7 +58,7 @@ const lookupTerraAddress = (
 export default function TerraSourceTokenSelector(
   props: TerraSourceTokenSelectorProps
 ) {
-  const { onChange, value } = props;
+  const { onChange, value, disabled } = props;
   //const advancedMode = true; //const [advancedMode, setAdvancedMode] = useState(true);
   const [advancedModeHolderString, setAdvancedModeHolderString] = useState("");
   const [advancedModeError, setAdvancedModeError] = useState("");
@@ -91,7 +93,9 @@ export default function TerraSourceTokenSelector(
   const content = value ? (
     <>
       <Typography>{value.mintKey}</Typography>
-      <Button onClick={handleClick}>Clear</Button>
+      <OffsetButton onClick={handleClick} disabled={disabled}>
+        Clear
+      </OffsetButton>
     </>
   ) : (
     <>
@@ -100,10 +104,13 @@ export default function TerraSourceTokenSelector(
         label="Asset Address"
         value={advancedModeHolderString}
         onChange={handleOnChange}
+        disabled={disabled}
         error={advancedModeHolderString !== "" && !!advancedModeError}
         helperText={advancedModeError === "" ? undefined : advancedModeError}
       />
-      <Button onClick={handleConfirm}>Confirm</Button>
+      <OffsetButton onClick={handleConfirm} disabled={disabled}>
+        Confirm
+      </OffsetButton>
     </>
   );
 

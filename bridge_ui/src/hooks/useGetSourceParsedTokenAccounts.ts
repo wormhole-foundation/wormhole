@@ -290,12 +290,11 @@ function useGetAvailableTokens() {
   ]);
 
   //Ethereum accounts load
-  //TODO actual load from covalent. This is just a hardcoded testing load
   useEffect(() => {
     //const testWallet = "0xf60c2ea62edbfe808163751dd0d8693dcb30019c";
     let cancelled = false;
     const walletAddress = signerAddress;
-    if (!walletAddress) {
+    if (!walletAddress || lookupChain !== CHAIN_ID_ETH) {
       return;
     }
     //TODO less cancel

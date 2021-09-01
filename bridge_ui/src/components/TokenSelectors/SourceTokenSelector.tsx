@@ -25,6 +25,7 @@ type TokenSelectorProps = {
 };
 
 export const TokenSelector = (props: TokenSelectorProps) => {
+  const { disabled } = props;
   const dispatch = useDispatch();
 
   const lookupChain = useSelector(selectTransferSourceChain);
@@ -54,6 +55,7 @@ export const TokenSelector = (props: TokenSelectorProps) => {
     <SolanaSourceTokenSelector
       value={sourceParsedTokenAccount || null}
       onChange={handleSolanaOnChange}
+      disabled={disabled}
       accounts={maps?.tokenAccounts?.data || []}
       solanaTokenMap={maps?.tokenMap}
       metaplexData={maps?.metaplex}
@@ -61,6 +63,7 @@ export const TokenSelector = (props: TokenSelectorProps) => {
   ) : lookupChain === CHAIN_ID_ETH ? (
     <EthereumSourceTokenSelector
       value={sourceParsedTokenAccount || null}
+      disabled={disabled}
       onChange={handleSolanaOnChange}
       covalent={maps?.covalent || undefined}
       tokenAccounts={maps?.tokenAccounts} //TODO standardize
@@ -68,6 +71,7 @@ export const TokenSelector = (props: TokenSelectorProps) => {
   ) : lookupChain === CHAIN_ID_TERRA ? (
     <TerraSourceTokenSelector
       value={sourceParsedTokenAccount || null}
+      disabled={disabled}
       onChange={handleSolanaOnChange}
     />
   ) : (

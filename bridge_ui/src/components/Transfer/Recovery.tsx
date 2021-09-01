@@ -401,7 +401,7 @@ function RecoveryDialogContent({ onClose }: { onClose: () => void }) {
         </Box>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose} variant="contained" color="default">
+        <Button onClick={onClose} variant="outlined" color="default">
           Cancel
         </Button>
         <Button

@@ -91,7 +91,7 @@ export const selectTransferSourceError = (state: RootState) => {
     return "Token amount unavailable";
   }
   if (state.transfer.sourceParsedTokenAccount.decimals === 0) {
-    // TODO: more advanced NFT check
+    // TODO: more advanced NFT check - also check supply and uri
     return "NFTs are not currently supported";
   }
   try {

@@ -86,6 +86,7 @@ export async function getForeignAssetTerra(
       originAssetBytes
     );
   } catch (e) {
+    // TODO: better return for this
     return ethers.constants.AddressZero;
   }
 }
