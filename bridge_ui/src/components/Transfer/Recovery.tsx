@@ -263,7 +263,7 @@ function RecoveryDialogContent({ onClose }: { onClose: () => void }) {
       <DialogContent>
         <Alert severity="info">
           If you have sent your tokens but have not redeemed them, you may paste
-          the signed VAA here to resume from the redeem step.
+          in the Source Transaction ID (from Step 3) to resume your transfer.
         </Alert>
         <TextField
           select

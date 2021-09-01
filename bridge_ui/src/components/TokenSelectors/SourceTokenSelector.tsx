@@ -45,9 +45,9 @@ export const TokenSelector = (props: TokenSelectorProps) => {
 
   //This is only for errors so bad that we shouldn't even mount the component
   const fatalError =
-    maps?.tokenAccounts?.error &&
-    !(lookupChain === CHAIN_ID_ETH) &&
-    !(lookupChain === CHAIN_ID_TERRA); //Terra & ETH can proceed because it has advanced mode
+    lookupChain !== CHAIN_ID_ETH &&
+    lookupChain !== CHAIN_ID_TERRA &&
+    maps?.tokenAccounts?.error; //Terra & ETH can proceed because it has advanced mode
 
   const content = fatalError ? (
     <Typography>{fatalError}</Typography>

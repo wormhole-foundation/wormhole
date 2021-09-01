@@ -6,7 +6,7 @@ export const theme = responsiveFontSizes(
       type: "dark",
       background: {
         default: "#010114",
-        paper: "#010114",
+        paper: "rgba(0, 0, 0, 0.2)",
       },
       divider: "#4e4e54",
       primary: {
