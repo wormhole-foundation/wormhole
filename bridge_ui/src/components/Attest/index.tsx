@@ -1,5 +1,6 @@
 import {
   Container,
+  makeStyles,
   Step,
   StepButton,
   StepContent,
@@ -19,7 +20,14 @@ import { Alert } from "@material-ui/lab";
 
 // TODO: ensure that both wallets are connected to the same known network
 
+const useStyles = makeStyles(() => ({
+  rootContainer: {
+    backgroundColor: "rgba(0,0,0,0.2)",
+  },
+}));
+
 function Attest() {
+  const classes = useStyles();
   const dispatch = useDispatch();
   const activeStep = useSelector(selectAttestActiveStep);
   const signedVAAHex = useSelector(selectAttestSignedVAAHex);
@@ -29,7 +37,11 @@ function Attest() {
         This form allows you to register a token on a new foreign chain. Tokens
         must be registered before they can be transferred.
       </Alert>
-      <Stepper activeStep={activeStep} orientation="vertical">
+      <Stepper
+        activeStep={activeStep}
+        orientation="vertical"
+        className={classes.rootContainer}
+      >
         <Step>
           <StepButton onClick={() => dispatch(setStep(0))}>
             Select a source

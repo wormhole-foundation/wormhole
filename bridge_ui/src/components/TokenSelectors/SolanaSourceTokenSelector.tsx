@@ -63,6 +63,10 @@ const renderAccount = (
           {"Account :" + accountAddressPrettyString}
         </Typography>
       </div>
+      <div>
+        <Typography variant="body2">{"Balance"}</Typography>
+        <Typography variant="h6">{account.uiAmountString}</Typography>
+      </div>
     </div>
   );
 };

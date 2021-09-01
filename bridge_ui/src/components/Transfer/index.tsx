@@ -1,5 +1,6 @@
 import {
   Container,
+  makeStyles,
   Step,
   StepButton,
   StepContent,
@@ -28,7 +29,14 @@ import Target from "./Target";
 // TODO: refresh displayed token amount after transfer somehow, could be resolved by having different components appear
 // TODO: warn if amount exceeds balance
 
+const useStyles = makeStyles(() => ({
+  rootContainer: {
+    backgroundColor: "rgba(0,0,0,0.2)",
+  },
+}));
+
 function Transfer() {
+  const classes = useStyles();
   useCheckIfWormholeWrapped();
   useFetchTargetAsset();
   useGetBalanceEffect("target");
@@ -49,7 +57,11 @@ function Transfer() {
   }, [preventNavigation]);
   return (
     <Container maxWidth="md">
-      <Stepper activeStep={activeStep} orientation="vertical">
+      <Stepper
+        activeStep={activeStep}
+        orientation="vertical"
+        className={classes.rootContainer}
+      >
         <Step>
           <StepButton onClick={() => dispatch(setStep(0))}>Source</StepButton>
           <StepContent>

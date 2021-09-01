@@ -29,7 +29,7 @@ const useStyles = makeStyles(() =>
       },
     },
     tokenImage: {
-      maxHeight: "2.5rem", //Eyeballing this based off the text size
+      maxHeight: "2.5rem",
     },
   })
 );
@@ -60,6 +60,10 @@ const renderAccount = (
       </div>
       <div>
         <Typography variant="body1">{mintPrettyString}</Typography>
+      </div>
+      <div>
+        <Typography variant="body2">{"Balance"}</Typography>
+        <Typography variant="h6">{account.uiAmountString}</Typography>
       </div>
     </div>
   );
