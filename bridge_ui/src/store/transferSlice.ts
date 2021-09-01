@@ -26,6 +26,11 @@ export interface ParsedTokenAccount {
   uiAmountString: string;
 }
 
+export interface Transaction {
+  id: string;
+  block: number;
+}
+
 export interface TransferState {
   activeStep: Steps;
   sourceChain: ChainId;
@@ -39,6 +44,7 @@ export interface TransferState {
   targetAddressHex: string | undefined;
   targetAsset: string | null | undefined;
   targetParsedTokenAccount: ParsedTokenAccount | undefined;
+  transferTx: Transaction | undefined;
   signedVAAHex: string | undefined;
   isSending: boolean;
   isRedeeming: boolean;
@@ -57,6 +63,7 @@ const initialState: TransferState = {
   targetAddressHex: undefined,
   targetAsset: undefined,
   targetParsedTokenAccount: undefined,
+  transferTx: undefined,
   signedVAAHex: undefined,
   isSending: false,
   isRedeeming: false,
@@ -155,6 +162,9 @@ export const transferSlice = createSlice({
     ) => {
       state.targetParsedTokenAccount = action.payload;
     },
+    setTransferTx: (state, action: PayloadAction<Transaction>) => {
+      state.transferTx = action.payload;
+    },
     setSignedVAAHex: (state, action: PayloadAction<string>) => {
       state.signedVAAHex = action.payload;
       state.isSending = false;
@@ -185,6 +195,7 @@ export const {
   setTargetAddressHex,
   setTargetAsset,
   setTargetParsedTokenAccount,
+  setTransferTx,
   setSignedVAAHex,
   setIsSending,
   setIsRedeeming,

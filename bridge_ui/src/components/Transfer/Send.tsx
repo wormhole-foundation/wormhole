@@ -10,6 +10,7 @@ import { CHAINS_BY_ID } from "../../utils/consts";
 import ButtonWithLoader from "../ButtonWithLoader";
 import KeyAndBalance from "../KeyAndBalance";
 import StepDescription from "../StepDescription";
+import TransferProgress from "./TransferProgress";
 
 function Send() {
   const { handleClick, disabled, showLoader } = useHandleTransfer();
@@ -36,6 +37,7 @@ function Send() {
       >
         Transfer
       </ButtonWithLoader>
+      <TransferProgress />
     </>
   );
 }

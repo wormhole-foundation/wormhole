@@ -38,7 +38,11 @@ import {
   selectTransferSourceParsedTokenAccount,
   selectTransferTargetChain,
 } from "../store/selectors";
-import { setIsSending, setSignedVAAHex } from "../store/transferSlice";
+import {
+  setIsSending,
+  setSignedVAAHex,
+  setTransferTx,
+} from "../store/transferSlice";
 import { hexToUint8Array, uint8ArrayToHex } from "../utils/array";
 import {
   ETH_BRIDGE_ADDRESS,
@@ -74,6 +78,9 @@ async function eth(
       amountParsed,
       recipientChain,
       recipientAddress
+    );
+    dispatch(
+      setTransferTx({ id: receipt.transactionHash, block: receipt.blockNumber })
     );
     enqueueSnackbar("Transaction confirmed", { variant: "success" });
     const sequence = parseSequenceFromLogEth(receipt, ETH_BRIDGE_ADDRESS);
@@ -135,6 +142,7 @@ async function solana(
     if (!info) {
       throw new Error("An error occurred while fetching the transaction info");
     }
+    dispatch(setTransferTx({ id: txid, block: info.slot }));
     enqueueSnackbar("Transaction confirmed", { variant: "success" });
     const sequence = parseSequenceFromLogSolana(info);
     const emitterAddress = await getEmitterAddressSolana(
@@ -184,6 +192,7 @@ async function terra(
     console.log(result);
     const info = await waitForTerraExecution(result);
     console.log(info);
+    dispatch(setTransferTx({ id: info.txhash, block: info.height }));
     enqueueSnackbar("Transaction confirmed", { variant: "success" });
     const sequence = parseSequenceFromLogTerra(info);
     console.log(sequence);
