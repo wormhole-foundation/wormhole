@@ -1,5 +1,6 @@
 import { useSelector } from "react-redux";
 import { useHandleTransfer } from "../../hooks/useHandleTransfer";
+import useIsWalletReady from "../../hooks/useIsWalletReady";
 import {
   selectTransferSourceChain,
   selectTransferTargetError,
@@ -11,14 +12,15 @@ function Send() {
   const { handleClick, disabled, showLoader } = useHandleTransfer();
   const sourceChain = useSelector(selectTransferSourceChain);
   const error = useSelector(selectTransferTargetError);
+  const { isReady, statusMessage } = useIsWalletReady(sourceChain);
   return (
     <>
       <KeyAndBalance chainId={sourceChain} />
       <ButtonWithLoader
-        disabled={disabled}
+        disabled={!isReady || disabled}
         onClick={handleClick}
         showLoader={showLoader}
-        error={error}
+        error={statusMessage || error}
       >
         Transfer
       </ButtonWithLoader>

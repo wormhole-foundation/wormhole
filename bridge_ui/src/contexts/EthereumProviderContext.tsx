@@ -1,5 +1,5 @@
 import detectEthereumProvider from "@metamask/detect-provider";
-import { ethers } from "ethers";
+import { BigNumber, ethers } from "ethers";
 import React, {
   ReactChildren,
   useCallback,
@@ -10,13 +10,12 @@ import React, {
 
 type Provider = ethers.providers.Web3Provider | undefined;
 type Signer = ethers.Signer | undefined;
-type Network = ethers.providers.Network | undefined;
 
 interface IEthereumProviderContext {
   connect(): void;
   disconnect(): void;
   provider: Provider;
-  network: Network;
+  chainId: number | undefined;
   signer: Signer;
   signerAddress: string | undefined;
   providerError: string | null;
@@ -26,7 +25,7 @@ const EthereumProviderContext = React.createContext<IEthereumProviderContext>({
   connect: () => {},
   disconnect: () => {},
   provider: undefined,
-  network: undefined,
+  chainId: undefined,
   signer: undefined,
   signerAddress: undefined,
   providerError: null,
@@ -38,7 +37,7 @@ export const EthereumProviderProvider = ({
 }) => {
   const [providerError, setProviderError] = useState<string | null>(null);
   const [provider, setProvider] = useState<Provider>(undefined);
-  const [network, setNetwork] = useState<Network>(undefined);
+  const [chainId, setChainId] = useState<number | undefined>(undefined);
   const [signer, setSigner] = useState<Signer>(undefined);
   const [signerAddress, setSignerAddress] = useState<string | undefined>(
     undefined
@@ -51,7 +50,7 @@ export const EthereumProviderProvider = ({
           const provider = new ethers.providers.Web3Provider(
             // @ts-ignore
             detectedProvider,
-            "any" //TODO: should we only allow homestead? env perhaps?
+            "any"
           );
           provider
             .send("eth_requestAccounts", [])
@@ -61,7 +60,7 @@ export const EthereumProviderProvider = ({
               provider
                 .getNetwork()
                 .then((network) => {
-                  setNetwork(network);
+                  setChainId(network.chainId);
                 })
                 .catch(() => {
                   setProviderError(
@@ -80,6 +79,16 @@ export const EthereumProviderProvider = ({
                     "An error occurred while getting the signer address"
                   );
                 });
+              // TODO: try using ethers directly
+              // @ts-ignore
+              if (detectedProvider && detectedProvider.on) {
+                // @ts-ignore
+                detectedProvider.on("chainChanged", (chainId) => {
+                  try {
+                    setChainId(BigNumber.from(chainId).toNumber());
+                  } catch (e) {}
+                });
+              }
             })
             .catch(() => {
               setProviderError(
@@ -97,7 +106,7 @@ export const EthereumProviderProvider = ({
   const disconnect = useCallback(() => {
     setProviderError(null);
     setProvider(undefined);
-    setNetwork(undefined);
+    setChainId(undefined);
     setSigner(undefined);
     setSignerAddress(undefined);
   }, []);
@@ -107,7 +116,7 @@ export const EthereumProviderProvider = ({
       connect,
       disconnect,
       provider,
-      network,
+      chainId,
       signer,
       signerAddress,
       providerError,
@@ -116,7 +125,7 @@ export const EthereumProviderProvider = ({
       connect,
       disconnect,
       provider,
-      network,
+      chainId,
       signer,
       signerAddress,
       providerError,

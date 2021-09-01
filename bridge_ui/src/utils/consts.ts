@@ -51,6 +51,12 @@ export const WORMHOLE_RPC_HOST =
   process.env.REACT_APP_CLUSTER === "testnet"
     ? "https://wormhole-v2-testnet-api.certus.one"
     : "http://localhost:8080";
+export const ETH_NETWORK_CHAIN_ID =
+  process.env.REACT_APP_CLUSTER === "mainnet"
+    ? 1
+    : process.env.REACT_APP_CLUSTER === "testnet"
+    ? 5
+    : 1337;
 export const SOLANA_HOST =
   process.env.REACT_APP_CLUSTER === "testnet"
     ? clusterApiUrl("testnet")
@@ -92,7 +98,8 @@ export const TERRA_TEST_TOKEN_ADDRESS =
 export const TERRA_BRIDGE_ADDRESS =
   "terra18vd8fpwxzck93qlwghaj6arh4p7c5n896xzem5";
 export const TERRA_TOKEN_BRIDGE_ADDRESS =
-  "terra10pyejy66429refv3g35g2t7am0was7ya7kz2a4";
+  "terra174kgn5rtw4kf6f938wm7kwh70h2v4vcfd26jlc";
+// "terra10pyejy66429refv3g35g2t7am0was7ya7kz2a4";
 
 export const COVALENT_API_KEY = process.env.REACT_APP_COVALENT_API_KEY
   ? process.env.REACT_APP_COVALENT_API_KEY

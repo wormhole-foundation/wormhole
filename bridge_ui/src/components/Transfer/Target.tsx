@@ -2,6 +2,7 @@ import { CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
 import { makeStyles, MenuItem, TextField } from "@material-ui/core";
 import { useCallback, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import useIsWalletReady from "../../hooks/useIsWalletReady";
 import useSyncTargetAddress from "../../hooks/useSyncTargetAddress";
 import {
   selectTransferIsTargetComplete,
@@ -43,6 +44,7 @@ function Target() {
   const error = useSelector(selectTransferTargetError);
   const isTargetComplete = useSelector(selectTransferIsTargetComplete);
   const shouldLockFields = useSelector(selectTransferShouldLockFields);
+  const { statusMessage } = useIsWalletReady(targetChain);
   useSyncTargetAddress(!shouldLockFields);
   const handleTargetChange = useCallback(
     (event) => {
@@ -93,7 +95,7 @@ function Target() {
         disabled={!isTargetComplete}
         onClick={handleNextClick}
         showLoader={false}
-        error={error}
+        error={statusMessage || error}
       >
         Next
       </ButtonWithLoader>

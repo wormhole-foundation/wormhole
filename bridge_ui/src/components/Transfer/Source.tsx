@@ -35,7 +35,7 @@ function Source() {
   const error = useSelector(selectTransferSourceError);
   const isSourceComplete = useSelector(selectTransferIsSourceComplete);
   const shouldLockFields = useSelector(selectTransferShouldLockFields);
-  const isWalletReady = useIsWalletReady(sourceChain);
+  const { isReady, statusMessage } = useIsWalletReady(sourceChain);
   const handleSourceChange = useCallback(
     (event) => {
       dispatch(setSourceChain(event.target.value));
@@ -67,7 +67,7 @@ function Source() {
         ))}
       </TextField>
       <KeyAndBalance chainId={sourceChain} balance={uiAmountString} />
-      {isWalletReady || uiAmountString ? (
+      {isReady || uiAmountString ? (
         <div className={classes.transferField}>
           <TokenSelector disabled={shouldLockFields} />
         </div>
@@ -86,7 +86,7 @@ function Source() {
         disabled={!isSourceComplete}
         onClick={handleNextClick}
         showLoader={false}
-        error={error}
+        error={statusMessage || error}
       >
         Next
       </ButtonWithLoader>
