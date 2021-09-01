@@ -417,15 +417,20 @@ function RecoveryDialogContent({ onClose }: { onClose: () => void }) {
   );
 }
 
-export default function Recovery() {
+export default function Recovery({
+  open,
+  setOpen,
+}: {
+  open: boolean;
+  setOpen: (open: boolean) => void;
+}) {
   const classes = useStyles();
-  const [open, setOpen] = useState(false);
   const handleOpenClick = useCallback(() => {
     setOpen(true);
-  }, []);
+  }, [setOpen]);
   const handleCloseClick = useCallback(() => {
     setOpen(false);
-  }, []);
+  }, [setOpen]);
   return (
     <>
       <Fab className={classes.fab} onClick={handleOpenClick}>

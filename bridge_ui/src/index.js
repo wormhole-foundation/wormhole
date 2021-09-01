@@ -9,26 +9,31 @@ import RadialGradient from "./components/RadialGradient";
 import { EthereumProviderProvider } from "./contexts/EthereumProviderContext";
 import { SolanaWalletProvider } from "./contexts/SolanaWalletContext.tsx";
 import { TerraWalletProvider } from "./contexts/TerraWalletContext.tsx";
+import ErrorBoundary from "./ErrorBoundary";
 import { theme } from "./muiTheme";
 import { store } from "./store";
 
 ReactDOM.render(
-  <Provider store={store}>
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <RadialGradient />
-      <SnackbarProvider maxSnack={3}>
-        <SolanaWalletProvider>
-          <EthereumProviderProvider>
-            <TerraWalletProvider>
-              <HashRouter>
-                <App />
-              </HashRouter>
-            </TerraWalletProvider>
-          </EthereumProviderProvider>
-        </SolanaWalletProvider>
-      </SnackbarProvider>
-    </ThemeProvider>
-  </Provider>,
+  <ErrorBoundary>
+    <Provider store={store}>
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <RadialGradient />
+        <ErrorBoundary>
+          <SnackbarProvider maxSnack={3}>
+            <SolanaWalletProvider>
+              <EthereumProviderProvider>
+                <TerraWalletProvider>
+                  <HashRouter>
+                    <App />
+                  </HashRouter>
+                </TerraWalletProvider>
+              </EthereumProviderProvider>
+            </SolanaWalletProvider>
+          </SnackbarProvider>
+        </ErrorBoundary>
+      </ThemeProvider>
+    </Provider>
+  </ErrorBoundary>,
   document.getElementById("root")
 );

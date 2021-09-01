@@ -1,4 +1,5 @@
-import { makeStyles, MenuItem, TextField } from "@material-ui/core";
+import { Button, makeStyles, MenuItem, TextField } from "@material-ui/core";
+import { Restore } from "@material-ui/icons";
 import { useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import useIsWalletReady from "../../hooks/useIsWalletReady";
@@ -18,6 +19,7 @@ import {
 import { CHAINS } from "../../utils/consts";
 import ButtonWithLoader from "../ButtonWithLoader";
 import KeyAndBalance from "../KeyAndBalance";
+import StepDescription from "../StepDescription";
 import { TokenSelector } from "../TokenSelectors/SourceTokenSelector";
 
 const useStyles = makeStyles((theme) => ({
@@ -26,7 +28,11 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-function Source() {
+function Source({
+  setIsRecoveryOpen,
+}: {
+  setIsRecoveryOpen: (open: boolean) => void;
+}) {
   const classes = useStyles();
   const dispatch = useDispatch();
   const sourceChain = useSelector(selectTransferSourceChain);
@@ -53,6 +59,20 @@ function Source() {
   }, [dispatch]);
   return (
     <>
+      <StepDescription>
+        <div style={{ display: "flex", alignItems: "center" }}>
+          Select tokens to send through the worm bridge.
+          <div style={{ flexGrow: 1 }} />
+          <Button
+            onClick={() => setIsRecoveryOpen(true)}
+            size="small"
+            variant="outlined"
+            endIcon={<Restore />}
+          >
+            Perform Recovery
+          </Button>
+        </div>
+      </StepDescription>
       <TextField
         select
         fullWidth
@@ -72,7 +92,6 @@ function Source() {
           <TokenSelector disabled={shouldLockFields} />
         </div>
       ) : null}
-      {/* TODO: token list for eth, check own */}
       <TextField
         label="Amount"
         type="number"

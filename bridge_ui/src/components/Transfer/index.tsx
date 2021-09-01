@@ -5,13 +5,16 @@ import {
   StepContent,
   Stepper,
 } from "@material-ui/core";
+import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import useCheckIfWormholeWrapped from "../../hooks/useCheckIfWormholeWrapped";
 import useFetchTargetAsset from "../../hooks/useFetchTargetAsset";
 import useGetBalanceEffect from "../../hooks/useGetBalanceEffect";
 import {
   selectTransferActiveStep,
-  selectTransferSignedVAAHex,
+  selectTransferIsRedeeming,
+  selectTransferIsSendComplete,
+  selectTransferIsSending,
 } from "../../store/selectors";
 import { setStep } from "../../store/transferSlice";
 import Recovery from "./Recovery";
@@ -29,26 +32,32 @@ function Transfer() {
   useCheckIfWormholeWrapped();
   useFetchTargetAsset();
   useGetBalanceEffect("target");
-
+  const [isRecoveryOpen, setIsRecoveryOpen] = useState(false);
   const dispatch = useDispatch();
   const activeStep = useSelector(selectTransferActiveStep);
-  const signedVAAHex = useSelector(selectTransferSignedVAAHex);
-
+  const isSending = useSelector(selectTransferIsSending);
+  const isSendComplete = useSelector(selectTransferIsSendComplete);
+  const isRedeeming = useSelector(selectTransferIsRedeeming);
+  const preventNavigation = isSending || isSendComplete || isRedeeming;
+  useEffect(() => {
+    if (preventNavigation) {
+      window.onbeforeunload = () => true;
+      return () => {
+        window.onbeforeunload = null;
+      };
+    }
+  }, [preventNavigation]);
   return (
     <Container maxWidth="md">
       <Stepper activeStep={activeStep} orientation="vertical">
         <Step>
-          <StepButton onClick={() => dispatch(setStep(0))}>
-            Select a source
-          </StepButton>
+          <StepButton onClick={() => dispatch(setStep(0))}>Source</StepButton>
           <StepContent>
-            <Source />
+            <Source setIsRecoveryOpen={setIsRecoveryOpen} />
           </StepContent>
         </Step>
         <Step>
-          <StepButton onClick={() => dispatch(setStep(1))}>
-            Select a target
-          </StepButton>
+          <StepButton onClick={() => dispatch(setStep(1))}>Target</StepButton>
           <StepContent>
             <Target />
           </StepContent>
@@ -64,7 +73,7 @@ function Transfer() {
         <Step>
           <StepButton
             onClick={() => dispatch(setStep(3))}
-            disabled={!signedVAAHex}
+            disabled={!isSendComplete}
           >
             Redeem tokens
           </StepButton>
@@ -73,7 +82,7 @@ function Transfer() {
           </StepContent>
         </Step>
       </Stepper>
-      <Recovery />
+      <Recovery open={isRecoveryOpen} setOpen={setIsRecoveryOpen} />
     </Container>
   );
 }

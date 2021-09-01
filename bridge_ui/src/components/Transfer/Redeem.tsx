@@ -4,6 +4,7 @@ import useIsWalletReady from "../../hooks/useIsWalletReady";
 import { selectTransferTargetChain } from "../../store/selectors";
 import ButtonWithLoader from "../ButtonWithLoader";
 import KeyAndBalance from "../KeyAndBalance";
+import StepDescription from "../StepDescription";
 
 function Redeem() {
   const { handleClick, disabled, showLoader } = useHandleRedeem();
@@ -11,6 +12,7 @@ function Redeem() {
   const { isReady, statusMessage } = useIsWalletReady(targetChain);
   return (
     <>
+      <StepDescription>Receive the tokens on the target chain</StepDescription>
       <KeyAndBalance chainId={targetChain} />
       <ButtonWithLoader
         disabled={!isReady || disabled}

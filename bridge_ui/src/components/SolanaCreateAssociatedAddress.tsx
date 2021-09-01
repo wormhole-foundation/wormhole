@@ -1,3 +1,4 @@
+import { ChainId, CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
 import { Typography } from "@material-ui/core";
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -5,26 +6,29 @@ import {
   TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
 import { Connection, PublicKey, Transaction } from "@solana/web3.js";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSolanaWallet } from "../contexts/SolanaWalletContext";
 import { SOLANA_HOST } from "../utils/consts";
 import { signSendAndConfirm } from "../utils/solana";
 import ButtonWithLoader from "./ButtonWithLoader";
 
-export default function SolanaCreateAssociatedAddress({
-  mintAddress,
-  readableTargetAddress,
-}: {
-  mintAddress: string;
-  readableTargetAddress: string;
-}) {
-  const [isCreating, setIsCreating] = useState(false);
+export function useAssociatedAccountExistsState(
+  targetChain: ChainId,
+  mintAddress: string | null | undefined,
+  readableTargetAddress: string
+) {
   const [associatedAccountExists, setAssociatedAccountExists] = useState(true); // for now, assume it exists until we confirm it doesn't
   const solanaWallet = useSolanaWallet();
   const solPK = solanaWallet?.publicKey;
   useEffect(() => {
     setAssociatedAccountExists(true);
-    if (!mintAddress || !readableTargetAddress || !solPK) return;
+    if (
+      targetChain !== CHAIN_ID_SOLANA ||
+      !mintAddress ||
+      !readableTargetAddress ||
+      !solPK
+    )
+      return;
     let cancelled = false;
     (async () => {
       // TODO: share connection in context?
@@ -52,7 +56,27 @@ export default function SolanaCreateAssociatedAddress({
     return () => {
       cancelled = true;
     };
-  }, [mintAddress, readableTargetAddress, solPK]);
+  }, [targetChain, mintAddress, readableTargetAddress, solPK]);
+  return useMemo(
+    () => ({ associatedAccountExists, setAssociatedAccountExists }),
+    [associatedAccountExists]
+  );
+}
+
+export default function SolanaCreateAssociatedAddress({
+  mintAddress,
+  readableTargetAddress,
+  associatedAccountExists,
+  setAssociatedAccountExists,
+}: {
+  mintAddress: string;
+  readableTargetAddress: string;
+  associatedAccountExists: boolean;
+  setAssociatedAccountExists: (associatedAccountExists: boolean) => void;
+}) {
+  const [isCreating, setIsCreating] = useState(false);
+  const solanaWallet = useSolanaWallet();
+  const solPK = solanaWallet?.publicKey;
   const handleClick = useCallback(() => {
     if (
       associatedAccountExists ||
@@ -100,6 +124,7 @@ export default function SolanaCreateAssociatedAddress({
     })();
   }, [
     associatedAccountExists,
+    setAssociatedAccountExists,
     mintAddress,
     solPK,
     readableTargetAddress,

@@ -5,6 +5,8 @@ import {
   Link,
   makeStyles,
   Toolbar,
+  Tooltip,
+  Typography,
 } from "@material-ui/core";
 import { GitHub, Publish, Send } from "@material-ui/icons";
 import { NavLink, Redirect, Route, Switch } from "react-router-dom";
@@ -30,6 +32,9 @@ const useStyles = makeStyles((theme) => ({
     ...theme.typography.body1,
     color: theme.palette.text.primary,
     marginLeft: theme.spacing(6),
+    [theme.breakpoints.down("sm")]: {
+      marginLeft: theme.spacing(4),
+    },
     [theme.breakpoints.down("xs")]: {
       marginLeft: theme.spacing(2),
     },
@@ -57,39 +62,65 @@ function App() {
           <div className={classes.spacer} />
           <Hidden implementation="css" xsDown>
             <div style={{ display: "flex", alignItems: "center" }}>
-              <Link component={NavLink} to="/transfer" className={classes.link}>
-                Transfer
-              </Link>
-              <Link component={NavLink} to="/attest" className={classes.link}>
-                Attest
-              </Link>
-              <IconButton
-                href="https://github.com/certusone/wormhole"
-                target="_blank"
-                size="small"
-                className={classes.link}
-              >
-                <GitHub />
-              </IconButton>
+              <Tooltip title="Coming Soon">
+                <Typography
+                  className={classes.link}
+                  style={{ color: "#ffffff80", cursor: "default" }}
+                >
+                  NFTs
+                </Typography>
+              </Tooltip>
+              <Tooltip title="Transfer tokens to another blockchain">
+                <Link
+                  component={NavLink}
+                  to="/transfer"
+                  className={classes.link}
+                >
+                  Transfer
+                </Link>
+              </Tooltip>
+              <Tooltip title="Register a new wrapped token">
+                <Link
+                  component={NavLink}
+                  to="/register"
+                  className={classes.link}
+                >
+                  Register
+                </Link>
+              </Tooltip>
+              <Tooltip title="View the source code">
+                <IconButton
+                  href="https://github.com/certusone/wormhole"
+                  target="_blank"
+                  size="small"
+                  className={classes.link}
+                >
+                  <GitHub />
+                </IconButton>
+              </Tooltip>
             </div>
           </Hidden>
           <Hidden implementation="css" smUp>
-            <IconButton
-              component={NavLink}
-              to="/transfer"
-              size="small"
-              className={classes.link}
-            >
-              <Send />
-            </IconButton>
-            <IconButton
-              component={NavLink}
-              to="/attest"
-              size="small"
-              className={classes.link}
-            >
-              <Publish />
-            </IconButton>
+            <Tooltip title="Transfer tokens to another blockchain">
+              <IconButton
+                component={NavLink}
+                to="/transfer"
+                size="small"
+                className={classes.link}
+              >
+                <Send />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Register a new wrapped token">
+              <IconButton
+                component={NavLink}
+                to="/register"
+                size="small"
+                className={classes.link}
+              >
+                <Publish />
+              </IconButton>
+            </Tooltip>
           </Hidden>
         </Toolbar>
       </AppBar>
@@ -98,7 +129,7 @@ function App() {
           <Route exact path="/transfer">
             <Transfer />
           </Route>
-          <Route exact path="/attest">
+          <Route exact path="/register">
             <Attest />
           </Route>
           <Route>

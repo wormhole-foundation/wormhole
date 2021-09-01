@@ -71,7 +71,9 @@ export const selectTransferIsSending = (state: RootState) =>
   state.transfer.isSending;
 export const selectTransferIsRedeeming = (state: RootState) =>
   state.transfer.isRedeeming;
-export const selectTransferSourceError = (state: RootState) => {
+export const selectTransferSourceError = (
+  state: RootState
+): string | undefined => {
   if (!state.transfer.sourceChain) {
     return "Select a source chain";
   }
@@ -127,6 +129,8 @@ export const selectTransferSourceError = (state: RootState) => {
 };
 export const selectTransferIsSourceComplete = (state: RootState) =>
   !selectTransferSourceError(state);
+export const UNREGISTERED_ERROR_MESSAGE =
+  "Target asset unavailable. Is the token registered?";
 export const selectTransferTargetError = (state: RootState) => {
   const sourceError = selectTransferSourceError(state);
   if (sourceError) {
@@ -136,13 +140,13 @@ export const selectTransferTargetError = (state: RootState) => {
     return "Select a target chain";
   }
   if (!state.transfer.targetAsset) {
-    return "Target asset unavailable. Is the token attested?";
+    return UNREGISTERED_ERROR_MESSAGE;
   }
   if (
     state.transfer.targetChain === CHAIN_ID_ETH &&
     state.transfer.targetAsset === ethers.constants.AddressZero
   ) {
-    return "Target asset unavailable. Is the token attested?";
+    return UNREGISTERED_ERROR_MESSAGE;
   }
   if (!state.transfer.targetAddressHex) {
     return "Target account unavailable";

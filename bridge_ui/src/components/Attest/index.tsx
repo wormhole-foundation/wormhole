@@ -15,6 +15,7 @@ import Create from "./Create";
 import Send from "./Send";
 import Source from "./Source";
 import Target from "./Target";
+import { Alert } from "@material-ui/lab";
 
 // TODO: ensure that both wallets are connected to the same known network
 
@@ -24,6 +25,10 @@ function Attest() {
   const signedVAAHex = useSelector(selectAttestSignedVAAHex);
   return (
     <Container maxWidth="md">
+      <Alert severity="info">
+        This form allows you to register a token on a new foreign chain. Tokens
+        must be registered before they can be transferred.
+      </Alert>
       <Stepper activeStep={activeStep} orientation="vertical">
         <Step>
           <StepButton onClick={() => dispatch(setStep(0))}>
@@ -54,7 +59,7 @@ function Attest() {
             onClick={() => dispatch(setStep(3))}
             disabled={!signedVAAHex}
           >
-            Create wrapper
+            Create wrapped token
           </StepButton>
           <StepContent>
             <Create />

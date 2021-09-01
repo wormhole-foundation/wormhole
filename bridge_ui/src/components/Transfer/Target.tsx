@@ -13,13 +13,18 @@ import {
   selectTransferTargetBalanceString,
   selectTransferTargetChain,
   selectTransferTargetError,
+  UNREGISTERED_ERROR_MESSAGE,
 } from "../../store/selectors";
 import { incrementStep, setTargetChain } from "../../store/transferSlice";
 import { hexToNativeString } from "../../utils/array";
 import { CHAINS } from "../../utils/consts";
 import ButtonWithLoader from "../ButtonWithLoader";
 import KeyAndBalance from "../KeyAndBalance";
-import SolanaCreateAssociatedAddress from "../SolanaCreateAssociatedAddress";
+import SolanaCreateAssociatedAddress, {
+  useAssociatedAccountExistsState,
+} from "../SolanaCreateAssociatedAddress";
+import StepDescription from "../StepDescription";
+import RegisterNowButton from "./RegisterNowButton";
 
 const useStyles = makeStyles((theme) => ({
   transferField: {
@@ -45,6 +50,12 @@ function Target() {
   const isTargetComplete = useSelector(selectTransferIsTargetComplete);
   const shouldLockFields = useSelector(selectTransferShouldLockFields);
   const { statusMessage } = useIsWalletReady(targetChain);
+  const { associatedAccountExists, setAssociatedAccountExists } =
+    useAssociatedAccountExistsState(
+      targetChain,
+      targetAsset,
+      readableTargetAddress
+    );
   useSyncTargetAddress(!shouldLockFields);
   const handleTargetChange = useCallback(
     (event) => {
@@ -57,6 +68,7 @@ function Target() {
   }, [dispatch]);
   return (
     <>
+      <StepDescription>Select a recipient chain and address.</StepDescription>
       <TextField
         select
         fullWidth
@@ -72,7 +84,7 @@ function Target() {
       </TextField>
       <KeyAndBalance chainId={targetChain} balance={uiAmountString} />
       <TextField
-        label="Address"
+        label="Recipient Address"
         fullWidth
         className={classes.transferField}
         value={readableTargetAddress}
@@ -82,23 +94,28 @@ function Target() {
         <SolanaCreateAssociatedAddress
           mintAddress={targetAsset}
           readableTargetAddress={readableTargetAddress}
+          associatedAccountExists={associatedAccountExists}
+          setAssociatedAccountExists={setAssociatedAccountExists}
         />
       ) : null}
       <TextField
-        label="Asset"
+        label="Token Address"
         fullWidth
         className={classes.transferField}
         value={targetAsset || ""}
         disabled={true}
       />
       <ButtonWithLoader
-        disabled={!isTargetComplete}
+        disabled={!isTargetComplete || !associatedAccountExists}
         onClick={handleNextClick}
         showLoader={false}
         error={statusMessage || error}
       >
         Next
       </ButtonWithLoader>
+      {!statusMessage && error === UNREGISTERED_ERROR_MESSAGE ? (
+        <RegisterNowButton />
+      ) : null}
     </>
   );
 }

@@ -108,6 +108,7 @@ const getEthereumAccountsCovalent = async (
 
     if (tokens instanceof Array && tokens.length) {
       for (const item of tokens) {
+        // TODO: filter?
         if (
           item.contract_decimals &&
           item.contract_ticker_symbol &&
