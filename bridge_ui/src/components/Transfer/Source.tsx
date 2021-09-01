@@ -1,4 +1,4 @@
-import { Button, makeStyles, MenuItem, TextField } from "@material-ui/core";
+import { makeStyles, MenuItem, TextField } from "@material-ui/core";
 import { useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import useIsWalletReady from "../../hooks/useIsWalletReady";
@@ -8,6 +8,7 @@ import {
   selectTransferShouldLockFields,
   selectTransferSourceBalanceString,
   selectTransferSourceChain,
+  selectTransferSourceError,
 } from "../../store/selectors";
 import {
   incrementStep,
@@ -15,6 +16,7 @@ import {
   setSourceChain,
 } from "../../store/transferSlice";
 import { CHAINS } from "../../utils/consts";
+import ButtonWithLoader from "../ButtonWithLoader";
 import KeyAndBalance from "../KeyAndBalance";
 import { TokenSelector } from "../TokenSelectors/SourceTokenSelector";
 
@@ -30,6 +32,7 @@ function Source() {
   const sourceChain = useSelector(selectTransferSourceChain);
   const uiAmountString = useSelector(selectTransferSourceBalanceString);
   const amount = useSelector(selectTransferAmount);
+  const error = useSelector(selectTransferSourceError);
   const isSourceComplete = useSelector(selectTransferIsSourceComplete);
   const shouldLockFields = useSelector(selectTransferShouldLockFields);
   const isWalletReady = useIsWalletReady(sourceChain);
@@ -45,12 +48,9 @@ function Source() {
     },
     [dispatch]
   );
-  const handleNextClick = useCallback(
-    (event) => {
-      dispatch(incrementStep());
-    },
-    [dispatch]
-  );
+  const handleNextClick = useCallback(() => {
+    dispatch(incrementStep());
+  }, [dispatch]);
   return (
     <>
       <TextField
@@ -82,14 +82,14 @@ function Source() {
         onChange={handleAmountChange}
         disabled={shouldLockFields}
       />
-      <Button
+      <ButtonWithLoader
         disabled={!isSourceComplete}
         onClick={handleNextClick}
-        variant="contained"
-        color="primary"
+        showLoader={false}
+        error={error}
       >
         Next
-      </Button>
+      </ButtonWithLoader>
     </>
   );
 }

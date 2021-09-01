@@ -9,6 +9,7 @@ const useStyles = makeStyles((theme) => ({
     bottom: 0,
     left: 0,
     background: `radial-gradient(100% 100% at 100% 125%,${theme.palette.secondary.dark} 0,rgba(255,255,255,0) 100%)`,
+    zIndex: -1,
   },
   hole: {
     position: "fixed",
@@ -16,6 +17,7 @@ const useStyles = makeStyles((theme) => ({
     right: 0,
     opacity: 0.3,
     filter: "blur(1px)",
+    zIndex: -1,
   },
 }));
 

@@ -1,14 +1,15 @@
-import { Button, MenuItem, TextField } from "@material-ui/core";
+import { MenuItem, TextField } from "@material-ui/core";
 import { useCallback, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { incrementStep, setTargetChain } from "../../store/attestSlice";
 import {
   selectAttestIsTargetComplete,
   selectAttestShouldLockFields,
   selectAttestSourceChain,
   selectAttestTargetChain,
 } from "../../store/selectors";
-import { incrementStep, setTargetChain } from "../../store/attestSlice";
 import { CHAINS } from "../../utils/consts";
+import ButtonWithLoader from "../ButtonWithLoader";
 import KeyAndBalance from "../KeyAndBalance";
 
 function Target() {
@@ -27,12 +28,9 @@ function Target() {
     },
     [dispatch]
   );
-  const handleNextClick = useCallback(
-    (event) => {
-      dispatch(incrementStep());
-    },
-    [dispatch]
-  );
+  const handleNextClick = useCallback(() => {
+    dispatch(incrementStep());
+  }, [dispatch]);
   return (
     <>
       <TextField
@@ -50,14 +48,13 @@ function Target() {
       </TextField>
       {/* TODO: determine "to" token address */}
       <KeyAndBalance chainId={targetChain} />
-      <Button
+      <ButtonWithLoader
         disabled={!isTargetComplete}
         onClick={handleNextClick}
-        variant="contained"
-        color="primary"
+        showLoader={false}
       >
         Next
-      </Button>
+      </ButtonWithLoader>
     </>
   );
 }

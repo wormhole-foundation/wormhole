@@ -59,19 +59,22 @@ function useSyncTargetAddress(shouldFire: boolean) {
       } else if (targetChain === CHAIN_ID_SOLANA && solPK && targetAsset) {
         // otherwise, use the associated token account (which we create in the case it doesn't exist)
         (async () => {
-          const associatedTokenAccount = await Token.getAssociatedTokenAddress(
-            ASSOCIATED_TOKEN_PROGRAM_ID,
-            TOKEN_PROGRAM_ID,
-            new PublicKey(targetAsset),
-            solPK
-          );
-          if (!cancelled) {
-            dispatch(
-              setTargetAddressHex(
-                uint8ArrayToHex(zeroPad(associatedTokenAccount.toBytes(), 32))
-              )
-            );
-          }
+          try {
+            const associatedTokenAccount =
+              await Token.getAssociatedTokenAddress(
+                ASSOCIATED_TOKEN_PROGRAM_ID,
+                TOKEN_PROGRAM_ID,
+                new PublicKey(targetAsset), // this might error
+                solPK
+              );
+            if (!cancelled) {
+              dispatch(
+                setTargetAddressHex(
+                  uint8ArrayToHex(zeroPad(associatedTokenAccount.toBytes(), 32))
+                )
+              );
+            }
+          } catch (e) {}
         })();
       } else if (
         targetChain === CHAIN_ID_TERRA &&

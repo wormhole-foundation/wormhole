@@ -1,7 +1,7 @@
-import { Button, makeStyles, MenuItem, TextField } from "@material-ui/core";
+import { CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
+import { makeStyles, MenuItem, TextField } from "@material-ui/core";
 import { useCallback, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
 import useSyncTargetAddress from "../../hooks/useSyncTargetAddress";
 import {
   selectTransferIsTargetComplete,
@@ -11,10 +11,12 @@ import {
   selectTransferTargetAsset,
   selectTransferTargetBalanceString,
   selectTransferTargetChain,
+  selectTransferTargetError,
 } from "../../store/selectors";
 import { incrementStep, setTargetChain } from "../../store/transferSlice";
 import { hexToNativeString } from "../../utils/array";
 import { CHAINS } from "../../utils/consts";
+import ButtonWithLoader from "../ButtonWithLoader";
 import KeyAndBalance from "../KeyAndBalance";
 import SolanaCreateAssociatedAddress from "../SolanaCreateAssociatedAddress";
 
@@ -33,11 +35,12 @@ function Target() {
     [sourceChain]
   );
   const targetChain = useSelector(selectTransferTargetChain);
-  const targetAddressHex = useSelector(selectTransferTargetAddressHex); // TODO: make readable
+  const targetAddressHex = useSelector(selectTransferTargetAddressHex);
   const targetAsset = useSelector(selectTransferTargetAsset);
   const readableTargetAddress =
     hexToNativeString(targetAddressHex, targetChain) || "";
   const uiAmountString = useSelector(selectTransferTargetBalanceString);
+  const error = useSelector(selectTransferTargetError);
   const isTargetComplete = useSelector(selectTransferIsTargetComplete);
   const shouldLockFields = useSelector(selectTransferShouldLockFields);
   useSyncTargetAddress(!shouldLockFields);
@@ -47,12 +50,9 @@ function Target() {
     },
     [dispatch]
   );
-  const handleNextClick = useCallback(
-    (event) => {
-      dispatch(incrementStep());
-    },
-    [dispatch]
-  );
+  const handleNextClick = useCallback(() => {
+    dispatch(incrementStep());
+  }, [dispatch]);
   return (
     <>
       <TextField
@@ -89,14 +89,14 @@ function Target() {
         value={targetAsset || ""}
         disabled={true}
       />
-      <Button
+      <ButtonWithLoader
         disabled={!isTargetComplete}
         onClick={handleNextClick}
-        variant="contained"
-        color="primary"
+        showLoader={false}
+        error={error}
       >
         Next
-      </Button>
+      </ButtonWithLoader>
     </>
   );
 }

@@ -21,9 +21,6 @@ export const selectAttestIsSending = (state: RootState) =>
   state.attest.isSending;
 export const selectAttestIsCreating = (state: RootState) =>
   state.attest.isCreating;
-
-// safety checks
-// TODO: could make this return a string with a user informative message
 export const selectAttestIsSourceComplete = (state: RootState) =>
   !!state.attest.sourceChain && !!state.attest.sourceAsset;
 // TODO: check wrapped asset exists or is native attest
@@ -74,49 +71,85 @@ export const selectTransferIsSending = (state: RootState) =>
   state.transfer.isSending;
 export const selectTransferIsRedeeming = (state: RootState) =>
   state.transfer.isRedeeming;
-
-// safety checks
-// TODO: could make this return a string with a user informative message
-export const selectTransferIsSourceComplete = (state: RootState) => {
+export const selectTransferSourceError = (state: RootState) => {
+  if (!state.transfer.sourceChain) {
+    return "Select a source chain";
+  }
+  if (!state.transfer.sourceParsedTokenAccount) {
+    return "Select a token";
+  }
+  if (!state.transfer.amount) {
+    return "Enter an amount";
+  }
+  if (
+    state.transfer.sourceChain === CHAIN_ID_SOLANA &&
+    !state.transfer.sourceParsedTokenAccount.publicKey
+  ) {
+    return "Token account unavailable";
+  }
+  if (!state.transfer.sourceParsedTokenAccount.uiAmountString) {
+    return "Token amount unavailable";
+  }
+  if (state.transfer.sourceParsedTokenAccount.decimals === 0) {
+    // TODO: more advanced NFT check
+    return "NFTs are not currently supported";
+  }
   try {
-    return (
-      !!state.transfer.sourceChain &&
-      !!state.transfer.sourceParsedTokenAccount &&
-      !!state.transfer.amount &&
-      (state.transfer.sourceChain !== CHAIN_ID_SOLANA ||
-        !!state.transfer.sourceParsedTokenAccount.publicKey) &&
-      !!state.transfer.sourceParsedTokenAccount.uiAmountString &&
-      !!state.transfer.sourceParsedTokenAccount.decimals &&
-      state.transfer.sourceParsedTokenAccount.decimals > 0 && // TODO: more advanced NFT check
-      // may trigger error: fractional component exceeds decimals
+    // these may trigger error: fractional component exceeds decimals
+    if (
       parseUnits(
         state.transfer.amount,
         state.transfer.sourceParsedTokenAccount.decimals
-      ).gt(0) &&
-      // may trigger error: fractional component exceeds decimals
+      ).lte(0)
+    ) {
+      return "Amount must be greater than zero";
+    }
+    if (
       parseUnits(
         state.transfer.amount,
         state.transfer.sourceParsedTokenAccount.decimals
-      ).lte(
+      ).gt(
         parseUnits(
           state.transfer.sourceParsedTokenAccount.uiAmountString,
           state.transfer.sourceParsedTokenAccount.decimals
         )
       )
-    );
+    ) {
+      return "Amount may not be greater than balance";
+    }
   } catch (e) {
-    return false;
+    if (e?.message) {
+      return e.message.substring(0, e.message.indexOf("("));
+    }
+    return "Invalid amount";
+  }
+  return undefined;
+};
+export const selectTransferIsSourceComplete = (state: RootState) =>
+  !selectTransferSourceError(state);
+export const selectTransferTargetError = (state: RootState) => {
+  const sourceError = selectTransferSourceError(state);
+  if (sourceError) {
+    return `Error in source: ${sourceError}`;
+  }
+  if (!state.transfer.targetChain) {
+    return "Select a target chain";
+  }
+  if (!state.transfer.targetAsset) {
+    return "Target asset unavailable. Is the token attested?";
+  }
+  if (
+    state.transfer.targetChain === CHAIN_ID_ETH &&
+    state.transfer.targetAsset === ethers.constants.AddressZero
+  ) {
+    return "Target asset unavailable. Is the token attested?";
+  }
+  if (!state.transfer.targetAddressHex) {
+    return "Target account unavailable";
   }
 };
-
-// TODO: check wrapped asset exists or is native transfer
 export const selectTransferIsTargetComplete = (state: RootState) =>
-  selectTransferIsSourceComplete(state) &&
-  !!state.transfer.targetChain &&
-  !!state.transfer.targetAsset &&
-  (state.transfer.targetChain !== CHAIN_ID_ETH ||
-    state.transfer.targetAsset !== ethers.constants.AddressZero) &&
-  !!state.transfer.targetAddressHex;
+  !selectTransferTargetError(state);
 export const selectTransferIsSendComplete = (state: RootState) =>
   !!selectTransferSignedVAAHex(state);
 export const selectTransferShouldLockFields = (state: RootState) =>

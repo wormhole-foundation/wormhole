@@ -1,4 +1,4 @@
-import { Toolbar } from "@material-ui/core";
+import { makeStyles } from "@material-ui/core";
 import DisconnectIcon from "@material-ui/icons/LinkOff";
 import {
   WalletDisconnectButton,
@@ -6,18 +6,31 @@ import {
 } from "@solana/wallet-adapter-material-ui";
 import { useSolanaWallet } from "../contexts/SolanaWalletContext";
 
+const useStyles = makeStyles((theme) => ({
+  root: {
+    textAlign: "center",
+    margin: `${theme.spacing(1)}px auto`,
+    width: "100%",
+    maxWidth: 400,
+  },
+  disconnectButton: {
+    marginLeft: theme.spacing(1),
+  },
+}));
+
 const SolanaWalletKey = () => {
+  const classes = useStyles();
   const wallet = useSolanaWallet();
   return (
-    <Toolbar style={{ display: "flex" }}>
+    <div className={classes.root}>
       <WalletMultiButton />
       {wallet && (
         <WalletDisconnectButton
           startIcon={<DisconnectIcon />}
-          style={{ marginLeft: 8 }}
+          className={classes.disconnectButton}
         />
       )}
-    </Toolbar>
+    </div>
   );
 };
 

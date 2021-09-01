@@ -1,18 +1,19 @@
-import { Button, makeStyles, MenuItem, TextField } from "@material-ui/core";
+import { makeStyles, MenuItem, TextField } from "@material-ui/core";
 import { useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import {
+  incrementStep,
+  setSourceAsset,
+  setSourceChain,
+} from "../../store/attestSlice";
 import {
   selectAttestIsSourceComplete,
   selectAttestShouldLockFields,
   selectAttestSourceAsset,
   selectAttestSourceChain,
 } from "../../store/selectors";
-import {
-  incrementStep,
-  setSourceAsset,
-  setSourceChain,
-} from "../../store/attestSlice";
 import { CHAINS } from "../../utils/consts";
+import ButtonWithLoader from "../ButtonWithLoader";
 import KeyAndBalance from "../KeyAndBalance";
 
 const useStyles = makeStyles((theme) => ({
@@ -40,12 +41,9 @@ function Source() {
     },
     [dispatch]
   );
-  const handleNextClick = useCallback(
-    (event) => {
-      dispatch(incrementStep());
-    },
-    [dispatch]
-  );
+  const handleNextClick = useCallback(() => {
+    dispatch(incrementStep());
+  }, [dispatch]);
   return (
     <>
       <TextField
@@ -70,14 +68,13 @@ function Source() {
         onChange={handleAssetChange}
         disabled={shouldLockFields}
       />
-      <Button
+      <ButtonWithLoader
         disabled={!isSourceComplete}
         onClick={handleNextClick}
-        variant="contained"
-        color="primary"
+        showLoader={false}
       >
         Next
-      </Button>
+      </ButtonWithLoader>
     </>
   );
 }

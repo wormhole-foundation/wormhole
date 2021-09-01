@@ -69,7 +69,6 @@ function useFetchTargetAsset() {
         try {
           const asset = await getForeignAssetTerra(sourceChain, sourceAsset);
           if (!cancelled) {
-            console.log("terra target asset", asset);
             dispatch(setTargetAsset(asset));
           }
         } catch (e) {
