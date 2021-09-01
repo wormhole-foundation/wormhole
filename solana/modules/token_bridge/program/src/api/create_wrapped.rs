@@ -140,9 +140,10 @@ pub fn create_wrapped(
         },
     )?;
 
-    let mut name = String::from("Wormhole: ") + accs.vaa.name.as_str();
-    name.truncate(32);
-    let mut symbol = String::from("wh") + accs.vaa.symbol.as_str();
+    let mut name = accs.vaa.name.clone();
+    name.truncate(32 - 11);
+    name += " (Wormhole)";
+    let mut symbol = accs.vaa.symbol.clone();
     symbol.truncate(10);
 
     let spl_token_metadata_ix = spl_token_metadata::instruction::create_metadata_accounts(
