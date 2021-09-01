@@ -130,7 +130,7 @@ pub struct UpgradeGuardianSet<'b> {
     pub vaa: ClaimableVAA<'b, GovernancePayloadGuardianSetChange>,
 
     /// Old guardian set
-    pub guardian_set_old: GuardianSet<'b, { AccountState::Initialized }>,
+    pub guardian_set_old: Mut<GuardianSet<'b, { AccountState::Initialized }>>,
 
     /// New guardian set
     pub guardian_set_new: Mut<GuardianSet<'b, { AccountState::Uninitialized }>>,

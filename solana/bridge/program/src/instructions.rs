@@ -291,7 +291,7 @@ pub fn upgrade_guardian_set(
             AccountMeta::new(bridge, false),
             AccountMeta::new_readonly(payload_message, false),
             AccountMeta::new(claim, false),
-            AccountMeta::new_readonly(guardian_set_old, false),
+            AccountMeta::new(guardian_set_old, false),
             AccountMeta::new(guardian_set_new, false),
             AccountMeta::new_readonly(solana_program::system_program::id(), false),
         ],
