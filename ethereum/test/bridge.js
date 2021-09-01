@@ -29,7 +29,7 @@ contract("Bridge", function () {
     const testBridgedAssetAddress = "000000000000000000000000b7a2211e8165943192ad04f5dd21bedc29ff003e";
 
 
-    it("should be initialized with the correct signers and values", async function(){
+    it("should be initialized with the correct signers and values", async function () {
         const initialized = new web3.eth.Contract(BridgeImplementationFullABI, TokenBridge.address);
 
         const weth = await initialized.methods.WETH().call();
@@ -53,7 +53,7 @@ contract("Bridge", function () {
         assert.equal(governanceContract, testGovernanceContract);
     })
 
-    it("should register a foreign bridge implementation correctly", async function() {
+    it("should register a foreign bridge implementation correctly", async function () {
         const initialized = new web3.eth.Contract(BridgeImplementationFullABI, TokenBridge.address);
         const accounts = await web3.eth.getAccounts();
 
@@ -86,9 +86,9 @@ contract("Bridge", function () {
         assert.equal(before, "0x0000000000000000000000000000000000000000000000000000000000000000");
 
         await initialized.methods.registerChain("0x" + vm).send({
-            value : 0,
-            from : accounts[0],
-            gasLimit : 2000000
+            value: 0,
+            from: accounts[0],
+            gasLimit: 2000000
         });
 
         let after = await initialized.methods.bridgeContracts(testForeignChainId).call();
@@ -96,7 +96,7 @@ contract("Bridge", function () {
         assert.equal(after, testForeignBridgeContract);
     })
 
-    it("should accept a valid upgrade", async function() {
+    it("should accept a valid upgrade", async function () {
         const initialized = new web3.eth.Contract(BridgeImplementationFullABI, TokenBridge.address);
         const accounts = await web3.eth.getAccounts();
 
@@ -129,9 +129,9 @@ contract("Bridge", function () {
         assert.equal(before.toLowerCase(), BridgeImplementation.address.toLowerCase());
 
         await initialized.methods.upgrade("0x" + vm).send({
-            value : 0,
-            from : accounts[0],
-            gasLimit : 2000000
+            value: 0,
+            from: accounts[0],
+            gasLimit: 2000000
         });
 
         let after = await web3.eth.getStorageAt(TokenBridge.address, "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc");
@@ -145,7 +145,7 @@ contract("Bridge", function () {
         assert.ok(isUpgraded);
     })
 
-    it("bridged tokens should only be mint- and burn-able by owner", async function() {
+    it("bridged tokens should only be mint- and burn-able by owner", async function () {
         const accounts = await web3.eth.getAccounts();
 
         // initialize our template token contract
@@ -155,34 +155,35 @@ contract("Bridge", function () {
             "TestToken",
             "TT",
             18,
+            0,
 
             accounts[0],
 
             0,
             "0x0"
         ).send({
-            value : 0,
-            from : accounts[0],
-            gasLimit : 2000000
+            value: 0,
+            from: accounts[0],
+            gasLimit: 2000000
         });
 
         await token.methods.mint(accounts[0], 10).send({
-            from : accounts[0],
-            gasLimit : 2000000
+            from: accounts[0],
+            gasLimit: 2000000
         });
 
         await token.methods.burn(accounts[0], 5).send({
-            from : accounts[0],
-            gasLimit : 2000000
+            from: accounts[0],
+            gasLimit: 2000000
         });
 
         let failed = false
         try {
             await token.methods.mint(accounts[0], 10).send({
-                from : accounts[1],
-                gasLimit : 2000000
+                from: accounts[1],
+                gasLimit: 2000000
             });
-        } catch(e) {
+        } catch (e) {
             failed = true
         }
         assert.ok(failed)
@@ -190,35 +191,35 @@ contract("Bridge", function () {
         failed = false
         try {
             await token.methods.burn(accounts[0], 5).send({
-                from : accounts[1],
-                gasLimit : 2000000
+                from: accounts[1],
+                gasLimit: 2000000
             });
-        } catch(e) {
+        } catch (e) {
             failed = true
         }
         assert.ok(failed)
 
         await token.methods.burn(accounts[0], 5).send({
-            from : accounts[0],
-            gasLimit : 2000000
+            from: accounts[0],
+            gasLimit: 2000000
         });
     })
 
-    it("should attest a token correctly", async function() {
+    it("should attest a token correctly", async function () {
         const accounts = await web3.eth.getAccounts();
 
         const initialized = new web3.eth.Contract(BridgeImplementationFullABI, TokenBridge.address);
 
         await initialized.methods.attestToken(TokenImplementation.address, "234").send({
-            value : 0,
-            from : accounts[0],
-            gasLimit : 2000000
+            value: 0,
+            from: accounts[0],
+            gasLimit: 2000000
         });
 
         const wormhole = new web3.eth.Contract(WormholeImplementationFullABI, Wormhole.address);
 
         const log = (await wormhole.getPastEvents('LogMessagePublished', {
-            fromBlock : 'latest'
+            fromBlock: 'latest'
         }))[0].returnValues
 
         assert.equal(log.sender, TokenBridge.address)
@@ -240,11 +241,11 @@ contract("Bridge", function () {
         // symbol (TT)
         assert.equal(log.payload.substr(74, 64), "5454000000000000000000000000000000000000000000000000000000000000")
 
-        // name (TestToken)
-        assert.equal(log.payload.substr(138, 64), "54657374546f6b656e0000000000000000000000000000000000000000000000")
+        // name (TestToken (Wormhole))
+        assert.equal(log.payload.substr(138, 64), "54657374546f6b656e2028576f726d686f6c6529000000000000000000000000")
     })
 
-    it("should correctly deploy a wrapped asset for a token attestation", async function() {
+    it("should correctly deploy a wrapped asset for a token attestation", async function () {
         const initialized = new web3.eth.Contract(BridgeImplementationFullABI, TokenBridge.address);
         const accounts = await web3.eth.getAccounts();
 
@@ -275,9 +276,9 @@ contract("Bridge", function () {
         );
 
         await initialized.methods.createWrapped("0x" + vm).send({
-            value : 0,
-            from : accounts[0],
-            gasLimit : 2000000
+            value: 0,
+            from: accounts[0],
+            gasLimit: 2000000
         });
 
         const wrappedAddress = await initialized.methods.wrappedAsset("0x0001", "0x000000000000000000000000b7a2211e8165943192ad04f5dd21bedc29ff003e").call();
@@ -290,7 +291,7 @@ contract("Bridge", function () {
         assert.equal(symbol, "TT");
 
         const name = await initializedWrappedAsset.methods.name().call();
-        assert.equal(name, "TestToken");
+        assert.equal(name, "TestToken (Wormhole)");
 
         const decimals = await initializedWrappedAsset.methods.decimals().call();
         assert.equal(decimals, 18);
@@ -302,7 +303,92 @@ contract("Bridge", function () {
         assert.equal(nativeContract, "0x000000000000000000000000b7a2211e8165943192ad04f5dd21bedc29ff003e");
     })
 
-    it("should deposit and log transfers correctly", async function() {
+    it("should correctly update a wrapped asset for a token attestation", async function () {
+        const initialized = new web3.eth.Contract(BridgeImplementationFullABI, TokenBridge.address);
+        const accounts = await web3.eth.getAccounts();
+
+        const data = "0x02" +
+            // tokenAddress
+            testBridgedAssetAddress +
+            // tokenchain
+            testBridgedAssetChain +
+            // decimals
+            "12" +
+            // symbol
+            "5555000000000000000000000000000000000000000000000000000000000000" +
+            // name
+            "5472656500000000000000000000000000000000000000000000000000000000";
+
+        let vm = await signAndEncodeVM(
+            0,
+            0,
+            testForeignChainId,
+            testForeignBridgeContract,
+            0,
+            data,
+            [
+                testSigner1PK
+            ],
+            0,
+            0
+        );
+
+        let failed = false;
+        try {
+            await initialized.methods.updateWrapped("0x" + vm).send({
+                value: 0,
+                from: accounts[0],
+                gasLimit: 2000000
+            });
+        } catch (error) {
+            assert.equal(error.message, "Returned error: VM Exception while processing transaction: revert current metadata is up to date")
+            failed = true
+        }
+        assert.ok(failed)
+
+        vm = await signAndEncodeVM(
+            0,
+            0,
+            testForeignChainId,
+            testForeignBridgeContract,
+            1,
+            data,
+            [
+                testSigner1PK
+            ],
+            0,
+            0
+        );
+
+        await initialized.methods.updateWrapped("0x" + vm).send({
+            value: 0,
+            from: accounts[0],
+            gasLimit: 2000000
+        });
+
+        const wrappedAddress = await initialized.methods.wrappedAsset("0x0001", "0x000000000000000000000000b7a2211e8165943192ad04f5dd21bedc29ff003e").call();
+
+        assert.ok(await initialized.methods.isWrappedAsset(wrappedAddress).call())
+
+        const initializedWrappedAsset = new web3.eth.Contract(TokenImplementation.abi, wrappedAddress);
+
+        const symbol = await initializedWrappedAsset.methods.symbol().call();
+        assert.equal(symbol, "UU");
+
+        const name = await initializedWrappedAsset.methods.name().call();
+        assert.equal(name, "Tree (Wormhole)");
+
+        const decimals = await initializedWrappedAsset.methods.decimals().call();
+        assert.equal(decimals, 18);
+
+        const chainId = await initializedWrappedAsset.methods.chainId().call();
+        assert.equal(chainId, 1);
+
+        const nativeContract = await initializedWrappedAsset.methods.nativeContract().call();
+        assert.equal(nativeContract, "0x000000000000000000000000b7a2211e8165943192ad04f5dd21bedc29ff003e");
+    })
+
+    it("should deposit and log transfers correctly", async function () {
         const accounts = await web3.eth.getAccounts();
         const amount = "1000000000000000000";
         const fee = "100000000000000000";
@@ -310,14 +396,14 @@ contract("Bridge", function () {
         // mint and approve tokens
         const token = new web3.eth.Contract(TokenImplementation.abi, TokenImplementation.address);
         await token.methods.mint(accounts[0], amount).send({
-            value : 0,
-            from : accounts[0],
-            gasLimit : 2000000
+            value: 0,
+            from: accounts[0],
+            gasLimit: 2000000
         });
         await token.methods.approve(TokenBridge.address, amount).send({
-            value : 0,
-            from : accounts[0],
-            gasLimit : 2000000
+            value: 0,
+            from: accounts[0],
+            gasLimit: 2000000
         });
 
         // deposit tokens
@@ -337,9 +423,9 @@ contract("Bridge", function () {
             fee,
             "234"
         ).send({
-            value : 0,
-            from : accounts[0],
-            gasLimit : 2000000
+            value: 0,
+            from: accounts[0],
+            gasLimit: 2000000
         });
 
         const accountBalanceAfter = await token.methods.balanceOf(accounts[0]).call();
@@ -351,7 +437,7 @@ contract("Bridge", function () {
         // check transfer log
         const wormhole = new web3.eth.Contract(WormholeImplementationFullABI, Wormhole.address);
         const log = (await wormhole.getPastEvents('LogMessagePublished', {
-            fromBlock : 'latest'
+            fromBlock: 'latest'
         }))[0].returnValues
 
         assert.equal(log.sender, TokenBridge.address)
@@ -380,7 +466,7 @@ contract("Bridge", function () {
         assert.equal(log.payload.substr(204, 64), web3.eth.abi.encodeParameter("uint256", new BigNumber(fee).div(1e10).toString()).substring(2))
     })
 
-    it("should transfer out locked assets for a valid transfer vm", async function() {
+    it("should transfer out locked assets for a valid transfer vm", async function () {
         const accounts = await web3.eth.getAccounts();
         const amount = "1000000000000000000";
 
@@ -424,9 +510,9 @@ contract("Bridge", function () {
         );
 
         await initialized.methods.completeTransfer("0x" + vm).send({
-            value : 0,
-            from : accounts[0],
-            gasLimit : 2000000
+            value: 0,
+            from: accounts[0],
+            gasLimit: 2000000
         });
 
         const accountBalanceAfter = await token.methods.balanceOf(accounts[0]).call();
@@ -436,14 +522,14 @@ contract("Bridge", function () {
         assert.equal(bridgeBalanceAfter.toString(10), "0");
     })
 
-    it("should mint bridged assets wrappers on transfer from another chain and handle fees correctly", async function() {
+    it("should mint bridged assets wrappers on transfer from another chain and handle fees correctly", async function () {
         const accounts = await web3.eth.getAccounts();
         const amount = "1000000000000000000";
         const fee = "1000000000000000";
 
         const initialized = new web3.eth.Contract(BridgeImplementationFullABI, TokenBridge.address);
 
-        const wrappedAddress = await initialized.methods.wrappedAsset("0x"+testBridgedAssetChain, "0x"+testBridgedAssetAddress).call();
+        const wrappedAddress = await initialized.methods.wrappedAsset("0x" + testBridgedAssetChain, "0x" + testBridgedAssetAddress).call();
         const wrappedAsset = new web3.eth.Contract(TokenImplementation.abi, wrappedAddress);
 
         const totalSupply = await wrappedAsset.methods.totalSupply().call();
@@ -480,9 +566,9 @@ contract("Bridge", function () {
         );
 
         await initialized.methods.completeTransfer("0x" + vm).send({
-            value : 0,
-            from : accounts[1],
-            gasLimit : 2000000
+            value: 0,
+            from: accounts[1],
+            gasLimit: 2000000
         });
 
         const accountBalanceAfter = await wrappedAsset.methods.balanceOf(accounts[0]).call();
@@ -494,25 +580,25 @@ contract("Bridge", function () {
         assert.equal(totalSupplyAfter.toString(10), amount);
 
         await wrappedAsset.methods.transfer(accounts[0], fee).send({
-            value : 0,
-            from : accounts[1],
-            gasLimit : 2000000
+            value: 0,
+            from: accounts[1],
+            gasLimit: 2000000
         });
     })
 
-    it("should burn bridged assets wrappers on transfer to another chain", async function() {
+    it("should burn bridged assets wrappers on transfer to another chain", async function () {
 
         const accounts = await web3.eth.getAccounts();
         const initialized = new web3.eth.Contract(BridgeImplementationFullABI, TokenBridge.address);
         const amount = "1000000000000000000";
 
-        const wrappedAddress = await initialized.methods.wrappedAsset("0x"+testBridgedAssetChain, "0x"+testBridgedAssetAddress).call();
+        const wrappedAddress = await initialized.methods.wrappedAsset("0x" + testBridgedAssetChain, "0x" + testBridgedAssetAddress).call();
         const wrappedAsset = new web3.eth.Contract(TokenImplementation.abi, wrappedAddress);
 
         await wrappedAsset.methods.approve(TokenBridge.address, amount).send({
-            value : 0,
-            from : accounts[0],
-            gasLimit : 2000000
+            value: 0,
+            from: accounts[0],
+            gasLimit: 2000000
         });
 
         // deposit tokens
@@ -529,9 +615,9 @@ contract("Bridge", function () {
             "0",
             "234"
         ).send({
-            value : 0,
-            from : accounts[0],
-            gasLimit : 2000000
+            value: 0,
+            from: accounts[0],
+            gasLimit: 2000000
         });
 
         const accountBalanceAfter = await wrappedAsset.methods.balanceOf(accounts[0]).call();
@@ -544,7 +630,7 @@ contract("Bridge", function () {
         assert.equal(totalSupplyAfter.toString(10), "0");
     })
 
-    it("should handle ETH deposits correctly", async function() {
+    it("should handle ETH deposits correctly", async function () {
         const accounts = await web3.eth.getAccounts();
         const amount = "100000000000000000";
         const fee = "10000000000000000";
@@ -556,8 +642,8 @@ contract("Bridge", function () {
         // set WETH contract
         const mock = new web3.eth.Contract(MockBridgeImplementation.abi, TokenBridge.address);
         mock.methods.testUpdateWETHAddress(WETH).send({
-            from : accounts[0],
-            gasLimit : 2000000
+            from: accounts[0],
+            gasLimit: 2000000
         });
 
         // deposit tokens
@@ -575,9 +661,9 @@ contract("Bridge", function () {
             fee,
             "234"
         ).send({
-            value : amount,
-            from : accounts[0],
-            gasLimit : 2000000
+            value: amount,
+            from: accounts[0],
+            gasLimit: 2000000
         });
 
         const totalWETHSupplyAfter = await token.methods.totalSupply().call();
@@ -589,7 +675,7 @@ contract("Bridge", function () {
         // check transfer log
         const wormhole = new web3.eth.Contract(WormholeImplementationFullABI, Wormhole.address);
         const log = (await wormhole.getPastEvents('LogMessagePublished', {
-            fromBlock : 'latest'
+            fromBlock: 'latest'
         }))[0].returnValues
 
         assert.equal(log.sender, TokenBridge.address)
@@ -618,7 +704,7 @@ contract("Bridge", function () {
         assert.equal(log.payload.substr(204, 64), web3.eth.abi.encodeParameter("uint256", new BigNumber(fee).div(1e10).toString()).substring(2))
     })
 
-    it("should handle ETH withdrawals and fees correctly", async function() {
+    it("should handle ETH withdrawals and fees correctly", async function () {
         const accounts = await web3.eth.getAccounts();
         const amount = "100000000000000000";
         const fee = "50000000000000000";
@@ -664,8 +750,8 @@ contract("Bridge", function () {
         );
 
         const transferTX = await initialized.methods.completeTransferAndUnwrapETH("0x" + vm).send({
-            from : accounts[0],
-            gasLimit : 2000000
+            from: accounts[0],
+            gasLimit: 2000000
         });
 
         const totalSupplyAfter = await token.methods.totalSupply().call();
@@ -678,7 +764,7 @@ contract("Bridge", function () {
         assert.ok((new BigNumber(feeRecipientBalanceAfter)).gt(feeRecipientBalanceBefore))
     })
 
-    it("should revert on transfer out of a total of > max(uint64) tokens", async function() {
+    it("should revert on transfer out of a total of > max(uint64) tokens", async function () {
         const accounts = await web3.eth.getAccounts();
         const supply = "184467440737095516160000000000";
         const firstTransfer = "1000000000000";
@@ -686,14 +772,14 @@ contract("Bridge", function () {
         // mint and approve tokens
         const token = new web3.eth.Contract(TokenImplementation.abi, TokenImplementation.address);
         await token.methods.mint(accounts[0], supply).send({
-            value : 0,
-            from : accounts[0],
-            gasLimit : 2000000
+            value: 0,
+            from: accounts[0],
+            gasLimit: 2000000
         });
         await token.methods.approve(TokenBridge.address, supply).send({
-            value : 0,
-            from : accounts[0],
-            gasLimit : 2000000
+            value: 0,
+            from: accounts[0],
+            gasLimit: 2000000
         });
 
         // deposit tokens
@@ -707,9 +793,9 @@ contract("Bridge", function () {
             "0",
             "0"
         ).send({
-            value : 0,
-            from : accounts[0],
-            gasLimit : 2000000
+            value: 0,
+            from: accounts[0],
+            gasLimit: 2000000
         });
 
         let failed = false;
@@ -722,11 +808,11 @@ contract("Bridge", function () {
                 "0",
                 "0"
             ).send({
-                value : 0,
-                from : accounts[0],
-                gasLimit : 2000000
+                value: 0,
+                from: accounts[0],
+                gasLimit: 2000000
             });
-        } catch(error) {
+        } catch (error) {
             assert.equal(error.message, "Returned error: VM Exception while processing transaction: revert transfer exceeds max outstanding bridged token amount")
             failed = true
         }
