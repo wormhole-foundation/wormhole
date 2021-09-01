@@ -215,7 +215,7 @@ fn main() {
                         .index(1)
                         .required(true)
                         .help("Specify the token bridge program address"),
-                    ),
+                ),
         )
         .subcommand(
             SubCommand::with_name("create-meta")

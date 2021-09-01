@@ -136,7 +136,7 @@ macro_rules! pack_type {
             fn serialize<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
                 let mut data = [0u8; <$embed as solana_program::program_pack::Pack>::LEN];
                 solana_program::program_pack::Pack::pack_into_slice(&self.0, &mut data);
-                writer.write(&data);
+                writer.write(&data)?;
 
                 Ok(())
             }

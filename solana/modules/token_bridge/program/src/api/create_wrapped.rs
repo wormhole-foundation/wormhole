@@ -116,7 +116,7 @@ pub fn create_wrapped(
 
     // Create mint account
     accs.mint
-        .create(&((&*accs).into()), ctx, accs.payer.key, Exempt);
+        .create(&((&*accs).into()), ctx, accs.payer.key, Exempt)?;
 
     // Initialize mint
     let init_ix = spl_token::instruction::initialize_mint(
@@ -130,7 +130,7 @@ pub fn create_wrapped(
 
     // Create meta account
     accs.meta
-        .create(&((&*accs).into()), ctx, accs.payer.key, Exempt);
+        .create(&((&*accs).into()), ctx, accs.payer.key, Exempt)?;
 
     // Initialize spl meta
     accs.spl_metadata.verify_derivation(

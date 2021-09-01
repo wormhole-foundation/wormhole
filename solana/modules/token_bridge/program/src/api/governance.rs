@@ -101,8 +101,8 @@ pub fn upgrade_contract(
     accs: &mut UpgradeContract,
     _data: UpgradeContractData,
 ) -> Result<()> {
-    verify_governance(&accs.vaa);
-    accs.vaa.verify(&ctx.program_id)?;
+    verify_governance(&accs.vaa)?;
+    accs.vaa.verify(ctx.program_id)?;
 
     accs.vaa.claim(ctx, accs.payer.key)?;
 
@@ -158,8 +158,8 @@ pub fn register_chain(
         .verify_derivation(ctx.program_id, &derivation_data)?;
 
     // Claim VAA
-    verify_governance(&accs.vaa);
-    accs.vaa.verify(&ctx.program_id)?;
+    verify_governance(&accs.vaa)?;
+    accs.vaa.verify(ctx.program_id)?;
     accs.vaa.claim(ctx, accs.payer.key)?;
 
     if accs.vaa.chain == CHAIN_ID_SOLANA {
@@ -168,7 +168,7 @@ pub fn register_chain(
 
     // Create endpoint
     accs.endpoint
-        .create(&((&*accs).into()), ctx, accs.payer.key, Exempt);
+        .create(&((&*accs).into()), ctx, accs.payer.key, Exempt)?;
 
     accs.endpoint.chain = accs.vaa.chain;
     accs.endpoint.contract = accs.vaa.endpoint_address;
