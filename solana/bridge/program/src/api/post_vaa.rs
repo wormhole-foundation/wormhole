@@ -121,12 +121,7 @@ pub fn post_vaa(ctx: &ExecutionContext, accs: &mut PostVAA, vaa: PostVAAData) ->
     check_integrity(&vaa, &accs.signature_set)?;
 
     // Count the number of signatures currently present.
-    let signature_count: usize = accs
-        .signature_set
-        .signatures
-        .iter()
-        .filter(|v| v.iter().filter(|v| **v != 0).count() != 0)
-        .count();
+    let signature_count: usize = accs.signature_set.signatures.iter().filter(|v| **v).count();
 
     // Calculate how many signatures are required to reach consensus. This calculation is in
     // expanded form to ease auditing.

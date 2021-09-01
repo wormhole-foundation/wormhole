@@ -112,7 +112,7 @@ impl Owned for BridgeData {
 #[derive(Default, BorshSerialize, BorshDeserialize)]
 pub struct SignatureSet {
     /// Signatures of validators
-    pub signatures: Vec<[u8; 65]>,
+    pub signatures: Vec<bool>,
 
     /// Hash of the data
     pub hash: [u8; 32],

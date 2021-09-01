@@ -36,8 +36,7 @@ pub struct VerifySignatures<'b> {
     pub instruction_acc: Info<'b>,
 }
 
-impl<'b> InstructionContext<'b> for VerifySignatures<'b> {
-}
+impl<'b> InstructionContext<'b> for VerifySignatures<'b> {}
 
 impl From<&VerifySignatures<'_>> for GuardianSetDerivationData {
     fn from(data: &VerifySignatures<'_>) -> Self {
@@ -63,10 +62,10 @@ struct SigInfo {
 
 struct SecpInstructionPart<'a> {
     address: &'a [u8],
-    signature: &'a [u8],
     msg_offset: u16,
     msg_size: u16,
 }
+
 
 pub fn verify_signatures(
     ctx: &ExecutionContext,
@@ -105,7 +104,7 @@ pub fn verify_signatures(
         secp_ix_index as usize,
         &accs.instruction_acc.try_borrow_mut_data()?,
     )
-    .map_err(|_| ProgramError::InvalidAccountData)?;
+        .map_err(|_| ProgramError::InvalidAccountData)?;
 
     // Check that the instruction is actually for the secp program
     if secp_ix.program_id != solana_program::secp256k1_program::id() {
@@ -122,7 +121,7 @@ pub fn verify_signatures(
 
     let mut secp_ixs: Vec<SecpInstructionPart> = Vec::with_capacity(sig_len as usize);
     for i in 0..sig_len {
-        let sig_offset = byteorder::LE::read_u16(&secp_ix.data[index..index + 2]) as usize;
+        let _sig_offset = byteorder::LE::read_u16(&secp_ix.data[index..index + 2]) as usize;
         index += 2;
         let sig_ix = secp_ix.data[index];
         index += 1;
@@ -142,7 +141,6 @@ pub fn verify_signatures(
         }
 
         let address: &[u8] = &secp_ix.data[address_offset..address_offset + 20];
-        let signature: &[u8] = &secp_ix.data[sig_offset..sig_offset + 65];
 
         // Make sure that all messages are equal
         if i > 0 {
@@ -152,7 +150,6 @@ pub fn verify_signatures(
         }
         secp_ixs.push(SecpInstructionPart {
             address,
-            signature,
             msg_offset,
             msg_size,
         });
@@ -176,7 +173,7 @@ pub fn verify_signatures(
     msg_hash.copy_from_slice(message);
 
     if !accs.signature_set.is_initialized() {
-        accs.signature_set.signatures = vec![[0u8; 65]; 19];
+        accs.signature_set.signatures = vec![false; accs.guardian_set.keys.len()];
         accs.signature_set.guardian_set_index = accs.guardian_set.index;
         accs.signature_set.hash = msg_hash;
 
@@ -217,8 +214,7 @@ pub fn verify_signatures(
         }
 
         // Overwritten content should be zeros except double signs by the signer or harmless replays
-        accs.signature_set.signatures[s.signer_index as usize]
-            .copy_from_slice(&secp_ixs[s.sig_index as usize].signature);
+        accs.signature_set.signatures[s.signer_index as usize] = true;
     }
 
     Ok(())
