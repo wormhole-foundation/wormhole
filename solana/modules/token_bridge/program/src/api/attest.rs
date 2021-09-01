@@ -168,7 +168,7 @@ pub fn attest_token(
         PostMessageData {
             nonce: data.nonce,
             payload: payload.try_to_vec()?,
-            consistency_level: ConsistencyLevel::Confirmed,
+            consistency_level: ConsistencyLevel::Finalized,
         },
     );
 

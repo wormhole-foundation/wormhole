@@ -194,7 +194,7 @@ pub fn transfer_native(
         PostMessageData {
             nonce: data.nonce,
             payload: payload.try_to_vec()?,
-            consistency_level: ConsistencyLevel::Confirmed,
+            consistency_level: ConsistencyLevel::Finalized,
         },
     );
 
@@ -331,7 +331,7 @@ pub fn transfer_wrapped(
         PostMessageData {
             nonce: data.nonce,
             payload: payload.try_to_vec()?,
-            consistency_level: ConsistencyLevel::Confirmed,
+            consistency_level: ConsistencyLevel::Finalized,
         },
     );
 
