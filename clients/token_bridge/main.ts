@@ -102,7 +102,7 @@ yargs(hideBin(process.argv))
             1,
             1,
             "0x0000000000000000000000000000000000000000000000000000000000000004",
-            0,
+            Math.floor(Math.random() * 100000000),
             data,
             [
                 "cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0"
@@ -136,12 +136,12 @@ yargs(hideBin(process.argv))
                 alias: 'c',
                 type: 'string',
                 description: 'Chain ID',
-		// Should be localterra in theory, however Terra Station will
-		// assume columbus-4 when localterra is set, while our current
-		// dev environment is based on columbus-4. Should change when
-		// change ID within terra/devnet/config/genesis.json is also
-		// changed.
-                default: 'columbus-4' 
+                // Should be localterra in theory, however Terra Station will
+                // assume columbus-4 when localterra is set, while our current
+                // dev environment is based on columbus-4. Should change when
+                // change ID within terra/devnet/config/genesis.json is also
+                // changed.
+                default: 'columbus-4'
             })
             .option('mnemonic', {
                 alias: 'm',
@@ -150,38 +150,38 @@ yargs(hideBin(process.argv))
                 default: 'notice oak worry limit wrap speak medal online prefer cluster roof addict wrist behave treat actual wasp year salad speed social layer crew genius',
             })
     }, async (argv: any) => {
-      const terra = new LCDClient({
-        URL: argv.rpc,
-        chainID: argv.chain_id,
-      });
-
-      const wallet = terra.wallet(new MnemonicKey({
-        mnemonic: argv.mnemonic
-      }));
-
-      // create a simple message that moves coin balances
-      const vaa = Buffer.from(argv.vaa, "hex");
-      const transaction = new MsgExecuteContract(
-          wallet.key.accAddress,
-          argv.token_bridge,
-          {
-              submit_vaa: {
-                  data: fromUint8Array(vaa)
-              },
-          },
-          { uluna: 1000 }
-      );
-
-      wallet
-        .createAndSignTx({
-          msgs: [transaction],
-          memo: '',
-        })
-        .then(tx => terra.tx.broadcast(tx))
-        .then(result => {
-          console.log(result);
-          console.log(`TX hash: ${result.txhash}`);
+        const terra = new LCDClient({
+            URL: argv.rpc,
+            chainID: argv.chain_id,
         });
+
+        const wallet = terra.wallet(new MnemonicKey({
+            mnemonic: argv.mnemonic
+        }));
+
+        // create a simple message that moves coin balances
+        const vaa = Buffer.from(argv.vaa, "hex");
+        const transaction = new MsgExecuteContract(
+            wallet.key.accAddress,
+            argv.token_bridge,
+            {
+                submit_vaa: {
+                    data: fromUint8Array(vaa)
+                },
+            },
+            {uluna: 1000}
+        );
+
+        wallet
+            .createAndSignTx({
+                msgs: [transaction],
+                memo: '',
+            })
+            .then(tx => terra.tx.broadcast(tx))
+            .then(result => {
+                console.log(result);
+                console.log(`TX hash: ${result.txhash}`);
+            });
     })
     .command('solana execute_governance_vaa [vaa]', 'execute a governance VAA on Solana', (yargs) => {
         return yargs
