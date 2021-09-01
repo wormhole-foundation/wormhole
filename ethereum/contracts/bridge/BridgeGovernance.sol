@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache 2
 
 pragma solidity ^0.8.0;
+
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Upgrade.sol";
@@ -54,7 +55,7 @@ contract BridgeGovernance is BridgeGetters, BridgeSetters, ERC1967Upgrade {
     function verifyGovernanceVM(bytes memory encodedVM) internal view returns (IWormhole.VM memory parsedVM, bool isValid, string memory invalidReason){
         (IWormhole.VM memory vm, bool valid, string memory reason) = wormhole().parseAndVerifyVM(encodedVM);
 
-        if(!valid){
+        if (!valid) {
             return (vm, valid, reason);
         }
 
@@ -65,7 +66,7 @@ contract BridgeGovernance is BridgeGetters, BridgeSetters, ERC1967Upgrade {
             return (vm, false, "wrong governance contract");
         }
 
-        if(governanceActionIsConsumed(vm.hash)){
+        if (governanceActionIsConsumed(vm.hash)) {
             return (vm, false, "governance action already consumed");
         }
 
@@ -73,6 +74,7 @@ contract BridgeGovernance is BridgeGetters, BridgeSetters, ERC1967Upgrade {
     }
 
     event ContractUpgraded(address indexed oldContract, address indexed newContract);
+
     function upgradeImplementation(address newImplementation) internal {
         address currentImplementation = _getImplementation();
 
@@ -86,7 +88,7 @@ contract BridgeGovernance is BridgeGetters, BridgeSetters, ERC1967Upgrade {
         emit ContractUpgraded(currentImplementation, newImplementation);
     }
 
-    function parseRegisterChain(bytes memory encoded) public pure returns(BridgeStructs.RegisterChain memory chain) {
+    function parseRegisterChain(bytes memory encoded) public pure returns (BridgeStructs.RegisterChain memory chain) {
         uint index = 0;
 
         // governance header
@@ -113,7 +115,7 @@ contract BridgeGovernance is BridgeGetters, BridgeSetters, ERC1967Upgrade {
         require(encoded.length == index, "invalid RegisterChain: wrong length");
     }
 
-    function parseUpgrade(bytes memory encoded) public pure returns(BridgeStructs.UpgradeContract memory chain) {
+    function parseUpgrade(bytes memory encoded) public pure returns (BridgeStructs.UpgradeContract memory chain) {
         uint index = 0;
 
         // governance header

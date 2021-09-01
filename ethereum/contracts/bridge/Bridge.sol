@@ -34,29 +34,29 @@ contract Bridge is BridgeGovernance {
         bytes32 symbol;
         bytes32 name;
         assembly {
-            // first 32 bytes hold string length
+        // first 32 bytes hold string length
             symbol := mload(add(symbolString, 32))
             name := mload(add(nameString, 32))
         }
 
         BridgeStructs.AssetMeta memory meta = BridgeStructs.AssetMeta({
-            payloadID : 2,
-            // Address of the token. Left-zero-padded if shorter than 32 bytes
-            tokenAddress : bytes32(uint256(uint160(tokenAddress))),
-            // Chain ID of the token
-            tokenChain : chainId(),
-            // Number of decimals of the token (big-endian uint8)
-            decimals : decimals,
-            // Symbol of the token (UTF-8)
-            symbol : symbol,
-            // Name of the token (UTF-8)
-            name : name
+        payloadID : 2,
+        // Address of the token. Left-zero-padded if shorter than 32 bytes
+        tokenAddress : bytes32(uint256(uint160(tokenAddress))),
+        // Chain ID of the token
+        tokenChain : chainId(),
+        // Number of decimals of the token (big-endian uint8)
+        decimals : decimals,
+        // Symbol of the token (UTF-8)
+        symbol : symbol,
+        // Name of the token (UTF-8)
+        name : name
         });
 
         bytes memory encoded = encodeAssetMeta(meta);
 
         sequence = wormhole().publishMessage{
-            value : msg.value
+        value : msg.value
         }(nonce, encoded, 15);
     }
 
@@ -69,18 +69,18 @@ contract Bridge is BridgeGovernance {
 
         require(arbiterFee <= amount, "fee is bigger than amount minus wormhole fee");
 
-        uint normalizedAmount = amount / (10**10);
-        uint normalizedArbiterFee = arbiterFee / (10**10);
+        uint normalizedAmount = amount / (10 ** 10);
+        uint normalizedArbiterFee = arbiterFee / (10 ** 10);
 
         // refund dust
-        uint dust = amount - (normalizedAmount * (10**10));
+        uint dust = amount - (normalizedAmount * (10 ** 10));
         if (dust > 0) {
-           payable(msg.sender).transfer(dust);
+            payable(msg.sender).transfer(dust);
         }
 
         // deposit into WETH
         WETH().deposit{
-            value : amount - dust
+        value : amount - dust
         }();
 
         // track and check outstanding token amounts
@@ -94,10 +94,10 @@ contract Bridge is BridgeGovernance {
         // determine token parameters
         uint16 tokenChain;
         bytes32 tokenAddress;
-        if(isWrappedAsset(token)){
+        if (isWrappedAsset(token)) {
             tokenChain = TokenImplementation(token).chainId();
             tokenAddress = TokenImplementation(token).nativeContract();
-        }else{
+        } else {
             tokenChain = chainId();
             tokenAddress = bytes32(uint256(uint160(token)));
         }
@@ -109,8 +109,8 @@ contract Bridge is BridgeGovernance {
         // adjust decimals
         uint256 normalizedAmount = amount;
         uint256 normalizedArbiterFee = arbiterFee;
-        if(decimals > 8) {
-            uint multiplier = 10**(decimals - 8);
+        if (decimals > 8) {
+            uint multiplier = 10 ** (decimals - 8);
 
             normalizedAmount /= multiplier;
             normalizedArbiterFee /= multiplier;
@@ -119,7 +119,7 @@ contract Bridge is BridgeGovernance {
             amount = normalizedAmount * multiplier;
         }
 
-        if(tokenChain == chainId()){
+        if (tokenChain == chainId()) {
             SafeERC20.safeTransferFrom(IERC20(token), msg.sender, address(this), amount);
 
             // track and check outstanding token amounts
@@ -137,20 +137,40 @@ contract Bridge is BridgeGovernance {
         require(fee <= amount, "fee exceeds amount");
 
         BridgeStructs.Transfer memory transfer = BridgeStructs.Transfer({
-            payloadID    : 1,
-            amount       : amount,
-            tokenAddress : tokenAddress,
-            tokenChain   : tokenChain,
-            to           : recipient,
-            toChain      : recipientChain,
-            fee          : fee
+        payloadID : 1,
+        amount : amount,
+        tokenAddress : tokenAddress,
+        tokenChain : tokenChain,
+        to : recipient,
+        toChain : recipientChain,
+        fee : fee
         });
 
         bytes memory encoded = encodeTransfer(transfer);
 
         sequence = wormhole().publishMessage{
-            value : callValue
+        value : callValue
         }(nonce, encoded, 15);
+    }
+
+    function updateWrapped(bytes memory encodedVm) external returns (address token) {
+        (IWormhole.VM memory vm, bool valid, string memory reason) = wormhole().parseAndVerifyVM(encodedVm);
+
+        require(valid, reason);
+        require(verifyBridgeVM(vm), "invalid emitter");
+
+        BridgeStructs.AssetMeta memory meta = parseAssetMeta(vm.payload);
+        return _updateWrapped(meta, vm.sequence);
+    }
+
+    function _updateWrapped(BridgeStructs.AssetMeta memory meta, uint64 sequence) internal returns (address token) {
+        address wrapped = wrappedAsset(meta.tokenChain, meta.tokenAddress);
+        require(wrapped != address(0), "wrapped asset does not exists");
+
+        // Update metadata
+        TokenImplementation(wrapped).updateDetails(bytes32ToString(meta.name), bytes32ToString(meta.symbol), sequence);
+
+        return wrapped;
     }
 
     function createWrapped(bytes memory encodedVm) external returns (address token) {
@@ -160,11 +180,11 @@ contract Bridge is BridgeGovernance {
         require(verifyBridgeVM(vm), "invalid emitter");
 
         BridgeStructs.AssetMeta memory meta = parseAssetMeta(vm.payload);
-        return _createWrapped(meta);
+        return _createWrapped(meta, vm.sequence);
     }
 
-        // Creates a wrapped asset using AssetMeta
-    function _createWrapped(BridgeStructs.AssetMeta memory meta) internal returns (address token) {
+    // Creates a wrapped asset using AssetMeta
+    function _createWrapped(BridgeStructs.AssetMeta memory meta, uint64 sequence) internal returns (address token) {
         require(meta.tokenChain != chainId(), "can only wrap tokens from foreign chains");
         require(wrappedAsset(meta.tokenChain, meta.tokenAddress) == address(0), "wrapped asset already exists");
 
@@ -174,6 +194,7 @@ contract Bridge is BridgeGovernance {
             bytes32ToString(meta.name),
             bytes32ToString(meta.symbol),
             meta.decimals,
+            sequence,
 
             address(this),
 
@@ -223,7 +244,7 @@ contract Bridge is BridgeGovernance {
         require(transfer.toChain == chainId(), "invalid target chain");
 
         IERC20 transferToken;
-        if(transfer.tokenChain == chainId()){
+        if (transfer.tokenChain == chainId()) {
             transferToken = IERC20(address(uint160(uint256(transfer.tokenAddress))));
 
             // track outstanding token amounts
@@ -244,14 +265,14 @@ contract Bridge is BridgeGovernance {
         // adjust decimals
         uint256 nativeAmount = transfer.amount;
         uint256 nativeFee = transfer.fee;
-        if(decimals > 8) {
-            uint multiplier = 10**(decimals - 8);
+        if (decimals > 8) {
+            uint multiplier = 10 ** (decimals - 8);
             nativeAmount *= multiplier;
             nativeFee *= multiplier;
         }
 
         // transfer fee to arbiter
-        if(nativeFee > 0) {
+        if (nativeFee > 0) {
             require(nativeFee <= nativeAmount, "fee higher than transferred amount");
 
             if (unwrapWETH) {
@@ -259,10 +280,10 @@ contract Bridge is BridgeGovernance {
 
                 payable(msg.sender).transfer(nativeFee);
             } else {
-                if(transfer.tokenChain != chainId()) {
+                if (transfer.tokenChain != chainId()) {
                     // mint wrapped asset
                     TokenImplementation(address(transferToken)).mint(msg.sender, nativeFee);
-                }else{
+                } else {
                     SafeERC20.safeTransfer(transferToken, msg.sender, nativeFee);
                 }
             }
@@ -277,10 +298,10 @@ contract Bridge is BridgeGovernance {
 
             payable(transferRecipient).transfer(transferAmount);
         } else {
-            if(transfer.tokenChain != chainId()) {
+            if (transfer.tokenChain != chainId()) {
                 // mint wrapped asset
                 TokenImplementation(address(transferToken)).mint(transferRecipient, transferAmount);
-            }else{
+            } else {
                 SafeERC20.safeTransfer(transferToken, transferRecipient, transferAmount);
             }
         }
@@ -304,7 +325,7 @@ contract Bridge is BridgeGovernance {
         return false;
     }
 
-    function encodeAssetMeta(BridgeStructs.AssetMeta memory meta) public pure returns(bytes memory encoded) {
+    function encodeAssetMeta(BridgeStructs.AssetMeta memory meta) public pure returns (bytes memory encoded) {
         encoded = abi.encodePacked(
             meta.payloadID,
             meta.tokenAddress,
@@ -327,7 +348,7 @@ contract Bridge is BridgeGovernance {
         );
     }
 
-    function parseAssetMeta(bytes memory encoded) public pure returns(BridgeStructs.AssetMeta memory meta) {
+    function parseAssetMeta(bytes memory encoded) public pure returns (BridgeStructs.AssetMeta memory meta) {
         uint index = 0;
 
         meta.payloadID = encoded.toUint8(index);
@@ -353,7 +374,7 @@ contract Bridge is BridgeGovernance {
         require(encoded.length == index, "invalid AssetMeta");
     }
 
-    function parseTransfer(bytes memory encoded) public pure returns(BridgeStructs.Transfer memory transfer) {
+    function parseTransfer(bytes memory encoded) public pure returns (BridgeStructs.Transfer memory transfer) {
         uint index = 0;
 
         transfer.payloadID = encoded.toUint8(index);
@@ -384,7 +405,7 @@ contract Bridge is BridgeGovernance {
 
     function bytes32ToString(bytes32 input) internal pure returns (string memory) {
         uint256 i;
-        while(i < 32 && input[i] != 0) {
+        while (i < 32 && input[i] != 0) {
             i++;
         }
         bytes memory array = new bytes(i);

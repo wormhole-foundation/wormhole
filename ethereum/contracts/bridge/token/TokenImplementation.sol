@@ -17,6 +17,7 @@ contract TokenImplementation is TokenState, Context {
         string memory name_,
         string memory symbol_,
         uint8 decimals_,
+        uint64 sequence_,
 
         address owner_,
 
@@ -26,6 +27,7 @@ contract TokenImplementation is TokenState, Context {
         _state.name = name_;
         _state.symbol = symbol_;
         _state.decimals = decimals_;
+        _state.metaLastUpdatedSequence = sequence_;
 
         _state.owner = owner_;
 
@@ -34,11 +36,11 @@ contract TokenImplementation is TokenState, Context {
     }
 
     function name() public view returns (string memory) {
-        return string(abi.encodePacked("Wormhole: ", _state.name));
+        return string(abi.encodePacked(_state.name, " (Wormhole)"));
     }
 
     function symbol() public view returns (string memory) {
-        return string(abi.encodePacked("wh", _state.symbol));
+        return _state.symbol;
     }
 
     function owner() public view returns (address) {
@@ -147,6 +149,14 @@ contract TokenImplementation is TokenState, Context {
 
         _state.allowances[owner_][spender_] = amount_;
         emit Approval(owner_, spender_, amount_);
+    }
+
+    function updateDetails(string memory name_, string memory symbol_, uint64 sequence_) public onlyOwner {
+        require(_state.metaLastUpdatedSequence < sequence_, "current metadata is up to date");
+
+        _state.name = name_;
+        _state.symbol = symbol_;
+        _state.metaLastUpdatedSequence = sequence_;
     }
 
     modifier onlyOwner() {

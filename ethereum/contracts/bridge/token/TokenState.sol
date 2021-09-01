@@ -8,12 +8,14 @@ contract TokenStorage {
         string name;
         string symbol;
 
+        uint64 metaLastUpdatedSequence;
+
         uint256 totalSupply;
         uint8 decimals;
 
-        mapping (address => uint256) balances;
+        mapping(address => uint256) balances;
 
-        mapping (address => mapping (address => uint256)) allowances;
+        mapping(address => mapping(address => uint256)) allowances;
 
         address owner;
 
