@@ -18,7 +18,9 @@ function Send() {
   const { isReady, statusMessage } = useIsWalletReady(sourceChain);
   return (
     <>
-      <StepDescription>Transfer the tokens to the worm bridge.</StepDescription>
+      <StepDescription>
+        Transfer the tokens to the Wormhole Token Bridge.
+      </StepDescription>
       <KeyAndBalance chainId={sourceChain} />
       <Alert severity="warning">
         This will initiate the transfer on {CHAINS_BY_ID[sourceChain].name} and

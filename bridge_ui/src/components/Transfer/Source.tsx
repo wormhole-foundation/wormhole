@@ -61,7 +61,7 @@ function Source({
     <>
       <StepDescription>
         <div style={{ display: "flex", alignItems: "center" }}>
-          Select tokens to send through the worm bridge.
+          Select tokens to send through the Wormhole Token Bridge.
           <div style={{ flexGrow: 1 }} />
           <Button
             onClick={() => setIsRecoveryOpen(true)}
