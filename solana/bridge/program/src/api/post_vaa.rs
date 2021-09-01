@@ -161,6 +161,11 @@ fn check_active<'r>(
     guardian_set: &GuardianSet<'r, { AccountState::Initialized }>,
     clock: &Sysvar<'r, Clock>,
 ) -> Result<()> {
+    // IMPORTANT - this is a fix for mainnet wormhole
+    // The initial guardian set was never expired so we block it here.
+    if guardian_set.index == 0 && guardian_set.creation_time == 1628099186 {
+        return Err(PostVAAGuardianSetExpired.into());
+    }
     if guardian_set.expiration_time != 0
         && (guardian_set.expiration_time as i64) < clock.unix_timestamp
     {
