@@ -73,6 +73,8 @@ export const selectTransferIsSending = (state: RootState) =>
   state.transfer.isSending;
 export const selectTransferIsRedeeming = (state: RootState) =>
   state.transfer.isRedeeming;
+export const selectTransferRedeemTx = (state: RootState) =>
+  state.transfer.redeemTx;
 export const selectTransferSourceError = (
   state: RootState
 ): string | undefined => {
@@ -158,6 +160,8 @@ export const selectTransferIsTargetComplete = (state: RootState) =>
   !selectTransferTargetError(state);
 export const selectTransferIsSendComplete = (state: RootState) =>
   !!selectTransferSignedVAAHex(state);
+export const selectTransferIsRedeemComplete = (state: RootState) =>
+  !!selectTransferRedeemTx(state);
 export const selectTransferShouldLockFields = (state: RootState) =>
   selectTransferIsSending(state) || selectTransferIsSendComplete(state);
 

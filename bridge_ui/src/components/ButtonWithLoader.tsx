@@ -35,9 +35,9 @@ export default function ButtonWithLoader({
   error,
   children,
 }: {
-  disabled: boolean;
+  disabled?: boolean;
   onClick: () => void;
-  showLoader: boolean;
+  showLoader?: boolean;
   error?: string;
   children: ReactChild;
 }) {

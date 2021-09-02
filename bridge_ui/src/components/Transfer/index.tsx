@@ -13,6 +13,7 @@ import useFetchTargetAsset from "../../hooks/useFetchTargetAsset";
 import useGetBalanceEffect from "../../hooks/useGetBalanceEffect";
 import {
   selectTransferActiveStep,
+  selectTransferIsRedeemComplete,
   selectTransferIsRedeeming,
   selectTransferIsSendComplete,
   selectTransferIsSending,
@@ -20,13 +21,13 @@ import {
 import { setStep } from "../../store/transferSlice";
 import Recovery from "./Recovery";
 import Redeem from "./Redeem";
-import Send from "./Send";
-import Source from "./Source";
-import Target from "./Target";
-import SourcePreview from "./SourcePreview";
-import TargetPreview from "./TargetPreview";
-import SendPreview from "./SendPreview";
 import RedeemPreview from "./RedeemPreview";
+import Send from "./Send";
+import SendPreview from "./SendPreview";
+import Source from "./Source";
+import SourcePreview from "./SourcePreview";
+import Target from "./Target";
+import TargetPreview from "./TargetPreview";
 // TODO: ensure that both wallets are connected to the same known network
 // TODO: loaders and such, navigation block?
 // TODO: refresh displayed token amount after transfer somehow, could be resolved by having different components appear
@@ -49,6 +50,7 @@ function Transfer() {
   const isSending = useSelector(selectTransferIsSending);
   const isSendComplete = useSelector(selectTransferIsSendComplete);
   const isRedeeming = useSelector(selectTransferIsRedeeming);
+  const isRedeemComplete = useSelector(selectTransferIsRedeemComplete);
   const preventNavigation = isSending || isSendComplete || isRedeeming;
   useEffect(() => {
     if (preventNavigation) {
@@ -65,7 +67,10 @@ function Transfer() {
         orientation="vertical"
         className={classes.rootContainer}
       >
-        <Step expanded={activeStep >= 0} disabled={preventNavigation}>
+        <Step
+          expanded={activeStep >= 0}
+          disabled={preventNavigation || isRedeemComplete}
+        >
           <StepButton onClick={() => dispatch(setStep(0))}>Source</StepButton>
           <StepContent>
             {activeStep === 0 ? (
@@ -75,13 +80,16 @@ function Transfer() {
             )}
           </StepContent>
         </Step>
-        <Step expanded={activeStep >= 1} disabled={preventNavigation}>
+        <Step
+          expanded={activeStep >= 1}
+          disabled={preventNavigation || isRedeemComplete}
+        >
           <StepButton onClick={() => dispatch(setStep(1))}>Target</StepButton>
           <StepContent>
             {activeStep === 1 ? <Target /> : <TargetPreview />}
           </StepContent>
         </Step>
-        <Step expanded={activeStep >= 2}>
+        <Step expanded={activeStep >= 2} disabled={isSendComplete}>
           <StepButton onClick={() => dispatch(setStep(2))}>
             Send tokens
           </StepButton>
@@ -97,7 +105,7 @@ function Transfer() {
             Redeem tokens
           </StepButton>
           <StepContent>
-            {activeStep === 3 ? <Redeem /> : <RedeemPreview />}
+            {isRedeemComplete ? <RedeemPreview /> : <Redeem />}
           </StepContent>
         </Step>
       </Stepper>

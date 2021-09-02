@@ -8,7 +8,7 @@ import { useConnectedWallet } from "@terra-money/wallet-provider";
 import { useMemo } from "react";
 import { useEthereumProvider } from "../contexts/EthereumProviderContext";
 import { useSolanaWallet } from "../contexts/SolanaWalletContext";
-import { ETH_NETWORK_CHAIN_ID } from "../utils/consts";
+import { CLUSTER, ETH_NETWORK_CHAIN_ID } from "../utils/consts";
 
 const createWalletStatus = (isReady: boolean, statusMessage: string = "") => ({
   isReady,
@@ -45,7 +45,7 @@ function useIsWalletReady(chainId: ChainId): {
       } else {
         return createWalletStatus(
           false,
-          `Wallet is not connected to ${process.env.REACT_APP_CLUSTER}. Expected Chain ID: ${ETH_NETWORK_CHAIN_ID}`
+          `Wallet is not connected to ${CLUSTER}. Expected Chain ID: ${ETH_NETWORK_CHAIN_ID}`
         );
       }
     }

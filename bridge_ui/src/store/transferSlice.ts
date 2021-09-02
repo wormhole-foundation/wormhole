@@ -48,6 +48,7 @@ export interface TransferState {
   signedVAAHex: string | undefined;
   isSending: boolean;
   isRedeeming: boolean;
+  redeemTx: Transaction | undefined;
 }
 
 const initialState: TransferState = {
@@ -67,6 +68,7 @@ const initialState: TransferState = {
   signedVAAHex: undefined,
   isSending: false,
   isRedeeming: false,
+  redeemTx: undefined,
 };
 
 export const transferSlice = createSlice({
@@ -176,6 +178,9 @@ export const transferSlice = createSlice({
     setIsRedeeming: (state, action: PayloadAction<boolean>) => {
       state.isRedeeming = action.payload;
     },
+    setRedeemTx: (state, action: PayloadAction<Transaction>) => {
+      state.redeemTx = action.payload;
+    },
     reset: () => initialState,
   },
 });
@@ -199,6 +204,7 @@ export const {
   setSignedVAAHex,
   setIsSending,
   setIsRedeeming,
+  setRedeemTx,
   reset,
 } = transferSlice.actions;
 

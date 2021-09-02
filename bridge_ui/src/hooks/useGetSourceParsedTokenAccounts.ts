@@ -31,7 +31,7 @@ import {
   ParsedTokenAccount,
   receiveSourceParsedTokenAccounts,
 } from "../store/transferSlice";
-import { COVALENT_GET_TOKENS_URL, SOLANA_HOST } from "../utils/consts";
+import { CLUSTER, COVALENT_GET_TOKENS_URL, SOLANA_HOST } from "../utils/consts";
 import {
   decodeMetadata,
   getMetadataAddress,
@@ -128,8 +128,7 @@ const getEthereumAccountsCovalent = async (
   }
 };
 
-const environment =
-  process.env.REACT_APP_CLUSTER === "testnet" ? ENV.Testnet : ENV.MainnetBeta;
+const environment = CLUSTER === "testnet" ? ENV.Testnet : ENV.MainnetBeta;
 
 const getMetaplexData = async (mintAddresses: string[]) => {
   const promises = [];
@@ -176,6 +175,7 @@ const getSolanaParsedTokenAccounts = (
     })
     .then(
       (result) => {
+        console.log(result);
         const mappedItems = result.value.map((item) =>
           createParsedTokenAccountFromInfo(item.pubkey, item.account)
         );

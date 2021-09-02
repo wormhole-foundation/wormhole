@@ -24,7 +24,7 @@ import {
   selectTransferIsRedeeming,
   selectTransferTargetChain,
 } from "../store/selectors";
-import { reset, setIsRedeeming } from "../store/transferSlice";
+import { setIsRedeeming, setRedeemTx } from "../store/transferSlice";
 import {
   ETH_TOKEN_BRIDGE_ADDRESS,
   SOLANA_HOST,
@@ -43,8 +43,14 @@ async function eth(
 ) {
   dispatch(setIsRedeeming(true));
   try {
-    await redeemOnEth(ETH_TOKEN_BRIDGE_ADDRESS, signer, signedVAA);
-    dispatch(reset());
+    const receipt = await redeemOnEth(
+      ETH_TOKEN_BRIDGE_ADDRESS,
+      signer,
+      signedVAA
+    );
+    dispatch(
+      setRedeemTx({ id: receipt.transactionHash, block: receipt.blockNumber })
+    );
     enqueueSnackbar("Transaction confirmed", { variant: "success" });
   } catch (e) {
     enqueueSnackbar(parseError(e), { variant: "error" });
@@ -78,8 +84,9 @@ async function solana(
       payerAddress,
       signedVAA
     );
-    await signSendAndConfirm(wallet, connection, transaction);
-    dispatch(reset());
+    const txid = await signSendAndConfirm(wallet, connection, transaction);
+    // TODO: didn't want to make an info call we didn't need, can we get the block without it by modifying the above call?
+    dispatch(setRedeemTx({ id: txid, block: 1 }));
     enqueueSnackbar("Transaction confirmed", { variant: "success" });
   } catch (e) {
     enqueueSnackbar(parseError(e), { variant: "error" });
@@ -100,11 +107,13 @@ async function terra(
       wallet.terraAddress,
       signedVAA
     );
-    await wallet.post({
+    const result = await wallet.post({
       msgs: [msg],
       memo: "Wormhole - Complete Transfer",
     });
-    dispatch(reset());
+    dispatch(
+      setRedeemTx({ id: result.result.txhash, block: result.result.height })
+    );
     enqueueSnackbar("Transaction confirmed", { variant: "success" });
   } catch (e) {
     enqueueSnackbar(parseError(e), { variant: "error" });

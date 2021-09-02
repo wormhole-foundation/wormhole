@@ -143,7 +143,6 @@ async function solana(
       throw new Error("An error occurred while fetching the transaction info");
     }
     dispatch(setTransferTx({ id: txid, block: info.slot }));
-    enqueueSnackbar("Transaction confirmed", { variant: "success" });
     const sequence = parseSequenceFromLogSolana(info);
     const emitterAddress = await getEmitterAddressSolana(
       SOL_TOKEN_BRIDGE_ADDRESS
