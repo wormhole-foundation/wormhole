@@ -36,9 +36,13 @@ spec:
           command:
             - /usr/local/bin/npm
             - run
-            - build-and-serve
+            - serve
           tty: true
           ports:
             - containerPort: 8001
               name: gatsbyserver
               protocol: TCP
+          readinessProbe:
+            httpGet:
+              port: gatsbyserver
+              path: /

@@ -6,10 +6,16 @@ FROM node:16-alpine@sha256:004dbac84fed48e20f9888a23e32fa7cf83c2995e174a78d41d9a
 RUN mkdir -p /app
 WORKDIR /app
 
+ADD package.json .
+ADD package-lock.json .
+RUN --mount=type=cache,uid=1000,gid=1000,target=/home/node/.npm \
+  npm ci
+
 ADD . .
 
 # create .env files from .env.sample, if they do not already exist.
 RUN [[ ! -f .env.development ]] && cp .env.sample .env.development
 RUN [[ ! -f .env.production ]] && cp .env.sample .env.production
 
-RUN npm ci
+RUN --mount=type=cache,uid=1000,gid=1000,target=/home/node/.npm \
+  npm run build

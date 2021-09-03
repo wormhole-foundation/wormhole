@@ -26,11 +26,11 @@
     "setupTestFrameworkScriptFile": "<rootDir>/setup-test-env.js"
   },
   "scripts": {
-    "build": "npm run clean && NODE_ENV=production NODE_OPTIONS='-r esm' gatsby build",
+    "build": "NODE_ENV=production NODE_OPTIONS='-r esm' gatsby build",
     "clean": "rm -rf public && rm -rf .cache",
     "dev": "npm run clean &&  NODE_OPTIONS='-r esm' node --max-http-header-size=16385 node_modules/.bin/gatsby develop --port=8001",
     "debug": "npm run clean && NODE_OPTIONS='-r esm' node --nolazy --inspect-brk node_modules/.bin/gatsby develop",
-    "serve": "NODE_OPTIONS='-r esm' node --max-http-header-size=16385 node_modules/.bin/gatsby serve --port=8001",
+    "serve": "NODE_OPTIONS='-r esm' node --max-http-header-size=16385 node_modules/.bin/gatsby serve --port=8001 --host=0.0.0.0",
     "build-and-serve": "npm run build && npm run serve",
     "lint": "npm run lint:js && npm run lint:ts",
     "lint:js": "./node_modules/.bin/eslint --color --ext .js,.jsx .",
@@ -45,9 +45,7 @@
     "storybook": "NODE_OPTIONS='-r esm' gatsby build && NODE_OPTIONS='-r esm' start-storybook",
     "storybook:build": "NODE_OPTIONS='-r esm' gatsby build && build-storybook -c .storybook -o .out",
     "translate:deepl": "node_modules/.bin/json-autotranslate -i src/locales -d -m none --directory-structure ngx-translate --service=deepl -c",
-    "translate:google": "node_modules/.bin/json-autotranslate -i src/locales -d -m none --directory-structure ngx-translate --service=google-translate -c",
-    "generate-protos": "../generate-web-protos.sh",
-    "generate-wasm": "./generate-wasm.sh"
+    "translate:google": "node_modules/.bin/json-autotranslate -i src/locales -d -m none --directory-structure ngx-translate --service=google-translate -c"
   },
   "dependencies": {
     "@ant-design/icons": "^4.6.2",

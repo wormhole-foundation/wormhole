@@ -9,10 +9,10 @@ import { SEO } from '~/components/SEO';
 import { GuardiansTable } from '~/components/GuardiansTable'
 
 import { Heartbeat } from '~/proto/gossip/v1/gossip'
-import { GrpcWebImpl, PublicrpcClientImpl } from '~/proto/publicrpc/v1/publicrpc'
+import { GrpcWebImpl, PublicRPCServiceClientImpl } from '~/proto/publicrpc/v1/publicrpc'
 
 const rpc = new GrpcWebImpl(String(process.env.GATSBY_APP_RPC_URL), {});
-const publicRpc = new PublicrpcClientImpl(rpc)
+const publicRpc = new PublicRPCServiceClientImpl(rpc)
 
 const Network = ({ intl }: WrappedComponentProps) => {
   const [heartbeats, setHeartbeats] = useState<{ [nodeName: string]: Heartbeat }>({})
