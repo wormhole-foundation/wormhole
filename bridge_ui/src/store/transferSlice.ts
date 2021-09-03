@@ -181,7 +181,11 @@ export const transferSlice = createSlice({
     setRedeemTx: (state, action: PayloadAction<Transaction>) => {
       state.redeemTx = action.payload;
     },
-    reset: () => initialState,
+    reset: (state) => ({
+      ...initialState,
+      sourceChain: state.sourceChain,
+      targetChain: state.targetChain,
+    }),
   },
 });
 

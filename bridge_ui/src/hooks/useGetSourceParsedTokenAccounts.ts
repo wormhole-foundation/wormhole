@@ -175,7 +175,6 @@ const getSolanaParsedTokenAccounts = (
     })
     .then(
       (result) => {
-        console.log(result);
         const mappedItems = result.value.map((item) =>
           createParsedTokenAccountFromInfo(item.pubkey, item.account)
         );

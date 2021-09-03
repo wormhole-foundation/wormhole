@@ -4,6 +4,7 @@ import {
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
 } from "@certusone/wormhole-sdk";
+import { hexlify, hexStripZeros } from "@ethersproject/bytes";
 import { useConnectedWallet } from "@terra-money/wallet-provider";
 import { useMemo } from "react";
 import { useEthereumProvider } from "../contexts/EthereumProviderContext";
@@ -43,6 +44,13 @@ function useIsWalletReady(chainId: ChainId): {
       if (hasCorrectEthNetwork) {
         return createWalletStatus(true);
       } else {
+        if (provider) {
+          try {
+            provider.send("wallet_switchEthereumChain", [
+              { chainId: hexStripZeros(hexlify(ETH_NETWORK_CHAIN_ID)) },
+            ]);
+          } catch (e) {}
+        }
         return createWalletStatus(
           false,
           `Wallet is not connected to ${CLUSTER}. Expected Chain ID: ${ETH_NETWORK_CHAIN_ID}`
@@ -51,7 +59,14 @@ function useIsWalletReady(chainId: ChainId): {
     }
     //TODO bsc
     return createWalletStatus(false, "Wallet not connected");
-  }, [chainId, hasTerraWallet, solPK, hasEthInfo, hasCorrectEthNetwork]);
+  }, [
+    chainId,
+    hasTerraWallet,
+    solPK,
+    hasEthInfo,
+    hasCorrectEthNetwork,
+    provider,
+  ]);
 }
 
 export default useIsWalletReady;

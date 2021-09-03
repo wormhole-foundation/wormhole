@@ -24,6 +24,7 @@ import {
   makeStyles,
   MenuItem,
   TextField,
+  Tooltip,
   Typography,
 } from "@material-ui/core";
 import { Restore } from "@material-ui/icons";
@@ -121,7 +122,6 @@ async function terra(tx: string) {
     const emitterAddress = await getEmitterAddressTerra(
       TERRA_TOKEN_BRIDGE_ADDRESS
     );
-    console.log(emitterAddress);
     const { vaaBytes } = await getSignedVAA(
       WORMHOLE_RPC_HOST,
       CHAIN_ID_TERRA,
@@ -441,9 +441,11 @@ export default function Recovery({
   }, [setOpen]);
   return (
     <>
-      <Fab className={classes.fab} onClick={handleOpenClick}>
-        <Restore />
-      </Fab>
+      <Tooltip title="Open Recovery Dialog">
+        <Fab className={classes.fab} onClick={handleOpenClick}>
+          <Restore />
+        </Fab>
+      </Tooltip>
       <Dialog open={open} onClose={handleCloseClick} maxWidth="md" fullWidth>
         <DialogTitle>Recovery</DialogTitle>
         <RecoveryDialogContent onClose={handleCloseClick} disabled={disabled} />

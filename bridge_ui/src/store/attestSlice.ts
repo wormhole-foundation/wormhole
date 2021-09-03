@@ -2,14 +2,8 @@ import {
   ChainId,
   CHAIN_ID_ETH,
   CHAIN_ID_SOLANA,
-  CHAIN_ID_TERRA,
 } from "@certusone/wormhole-sdk";
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import {
-  ETH_TEST_TOKEN_ADDRESS,
-  SOL_TEST_TOKEN_ADDRESS,
-  TERRA_TEST_TOKEN_ADDRESS,
-} from "../utils/consts";
 
 const LAST_STEP = 3;
 
@@ -28,7 +22,7 @@ export interface AttestState {
 const initialState: AttestState = {
   activeStep: 0,
   sourceChain: CHAIN_ID_SOLANA,
-  sourceAsset: SOL_TEST_TOKEN_ADDRESS,
+  sourceAsset: "",
   targetChain: CHAIN_ID_ETH,
   signedVAAHex: undefined,
   isSending: false,
@@ -51,16 +45,7 @@ export const attestSlice = createSlice({
     setSourceChain: (state, action: PayloadAction<ChainId>) => {
       const prevSourceChain = state.sourceChain;
       state.sourceChain = action.payload;
-      // TODO: remove or check env - for testing purposes
-      if (action.payload === CHAIN_ID_ETH) {
-        state.sourceAsset = ETH_TEST_TOKEN_ADDRESS;
-      }
-      if (action.payload === CHAIN_ID_SOLANA) {
-        state.sourceAsset = SOL_TEST_TOKEN_ADDRESS;
-      }
-      if (action.payload === CHAIN_ID_TERRA) {
-        state.sourceAsset = TERRA_TEST_TOKEN_ADDRESS;
-      }
+      state.sourceAsset = "";
       if (state.targetChain === action.payload) {
         state.targetChain = prevSourceChain;
       }
@@ -74,16 +59,7 @@ export const attestSlice = createSlice({
       if (state.sourceChain === action.payload) {
         state.sourceChain = prevTargetChain;
         state.activeStep = 0;
-        // TODO: remove or check env - for testing purposes
-        if (state.targetChain === CHAIN_ID_ETH) {
-          state.sourceAsset = ETH_TEST_TOKEN_ADDRESS;
-        }
-        if (state.targetChain === CHAIN_ID_SOLANA) {
-          state.sourceAsset = SOL_TEST_TOKEN_ADDRESS;
-        }
-        if (state.targetChain === CHAIN_ID_TERRA) {
-          state.sourceAsset = TERRA_TEST_TOKEN_ADDRESS;
-        }
+        state.sourceAsset = "";
       }
     },
     setSignedVAAHex: (state, action: PayloadAction<string>) => {
@@ -97,7 +73,11 @@ export const attestSlice = createSlice({
     setIsCreating: (state, action: PayloadAction<boolean>) => {
       state.isCreating = action.payload;
     },
-    reset: () => initialState,
+    reset: (state) => ({
+      ...initialState,
+      sourceChain: state.sourceChain,
+      targetChain: state.targetChain,
+    }),
   },
 });
 
