@@ -31,7 +31,6 @@ export function useAssociatedAccountExistsState(
       return;
     let cancelled = false;
     (async () => {
-      // TODO: share connection in context?
       const connection = new Connection(SOLANA_HOST, "confirmed");
       const mintPublicKey = new PublicKey(mintAddress);
       const payerPublicKey = new PublicKey(solPK); // currently assumes the wallet is the owner
@@ -86,7 +85,6 @@ export default function SolanaCreateAssociatedAddress({
     )
       return;
     (async () => {
-      // TODO: share connection in context?
       const connection = new Connection(SOLANA_HOST, "confirmed");
       const mintPublicKey = new PublicKey(mintAddress);
       const payerPublicKey = new PublicKey(solPK); // currently assumes the wallet is the owner

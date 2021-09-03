@@ -17,7 +17,7 @@ const useStyles = makeStyles((theme) => ({
 export default function TargetPreview() {
   const classes = useStyles();
   const targetChain = useSelector(selectTransferTargetChain);
-  const targetAddress = useSelector(selectTransferTargetAddressHex); //TODO convert to readable
+  const targetAddress = useSelector(selectTransferTargetAddressHex);
   const targetAddressNative = hexToNativeString(targetAddress, targetChain);
 
   const explainerString = targetAddressNative

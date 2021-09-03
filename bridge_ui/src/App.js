@@ -9,8 +9,15 @@ import {
   Typography,
 } from "@material-ui/core";
 import { GitHub, Publish, Send } from "@material-ui/icons";
-import { NavLink, Redirect, Route, Switch } from "react-router-dom";
+import {
+  Link as RouterLink,
+  NavLink,
+  Redirect,
+  Route,
+  Switch,
+} from "react-router-dom";
 import Attest from "./components/Attest";
+import Home from "./components/Home";
 import Transfer from "./components/Transfer";
 import wormholeLogo from "./icons/wormhole.svg";
 
@@ -58,7 +65,13 @@ function App() {
     <>
       <AppBar position="static" color="inherit" className={classes.appBar}>
         <Toolbar>
-          <img src={wormholeLogo} alt="Wormhole Logo" style={{ height: 52 }} />
+          <RouterLink to="/">
+            <img
+              src={wormholeLogo}
+              alt="Wormhole Logo"
+              style={{ height: 52 }}
+            />
+          </RouterLink>
           <div className={classes.spacer} />
           <Hidden implementation="css" xsDown>
             <div style={{ display: "flex", alignItems: "center" }}>
@@ -132,8 +145,11 @@ function App() {
           <Route exact path="/register">
             <Attest />
           </Route>
+          <Route exact path="/">
+            <Home />
+          </Route>
           <Route>
-            <Redirect to="/transfer" />
+            <Redirect to="/" />
           </Route>
         </Switch>
       </div>

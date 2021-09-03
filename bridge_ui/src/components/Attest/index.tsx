@@ -18,8 +18,6 @@ import Source from "./Source";
 import Target from "./Target";
 import { Alert } from "@material-ui/lab";
 
-// TODO: ensure that both wallets are connected to the same known network
-
 const useStyles = makeStyles(() => ({
   rootContainer: {
     backgroundColor: "rgba(0,0,0,0.2)",

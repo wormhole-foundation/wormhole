@@ -61,7 +61,6 @@ async function solana(
 ) {
   dispatch(setIsCreating(true));
   try {
-    // TODO: share connection in context?
     const connection = new Connection(SOLANA_HOST, "confirmed");
     await postVaaSolana(
       connection,

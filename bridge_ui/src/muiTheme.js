@@ -9,6 +9,9 @@ export const theme = responsiveFontSizes(
         paper: "#010114",
       },
       divider: "#4e4e54",
+      text: {
+        primary: "rgba(255,255,255,0.98)",
+      },
       primary: {
         main: "rgba(0, 116, 255, 0.8)", // #0074FF
       },
@@ -19,6 +22,9 @@ export const theme = responsiveFontSizes(
       error: {
         main: "#FD3503",
       },
+    },
+    typography: {
+      fontFamily: "'Sora', sans-serif",
     },
     overrides: {
       MuiButton: {

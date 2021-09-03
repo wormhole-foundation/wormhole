@@ -51,7 +51,6 @@ export async function getForeignAssetSol(
     arrayify(originAsset, { hexPad: "left" }),
     32
   );
-  // TODO: share connection in context?
   const connection = new Connection(SOLANA_HOST, "confirmed");
   return await getForeignAssetSolanaTx(
     connection,

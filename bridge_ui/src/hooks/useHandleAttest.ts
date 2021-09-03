@@ -86,7 +86,6 @@ async function solana(
 ) {
   dispatch(setIsSending(true));
   try {
-    // TODO: share connection in context?
     const connection = new Connection(SOLANA_HOST, "confirmed");
     const transaction = await attestFromSolana(
       connection,

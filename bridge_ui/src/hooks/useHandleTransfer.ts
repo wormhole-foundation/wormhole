@@ -116,8 +116,6 @@ async function solana(
 ) {
   dispatch(setIsSending(true));
   try {
-    //TODO: check if token attestation exists on the target chain
-    // TODO: share connection in context?
     const connection = new Connection(SOLANA_HOST, "confirmed");
     const amountParsed = parseUnits(amount, decimals).toBigInt();
     const originAddress = originAddressStr
@@ -242,7 +240,6 @@ export function useHandleTransfer() {
   const disabled = !isTargetComplete || isSending || isSendComplete;
   const handleTransferClick = useCallback(() => {
     // TODO: we should separate state for transaction vs fetching vaa
-    // TODO: more generic way of calling these
     if (
       sourceChain === CHAIN_ID_ETH &&
       !!signer &&

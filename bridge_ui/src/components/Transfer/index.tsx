@@ -28,10 +28,6 @@ import Source from "./Source";
 import SourcePreview from "./SourcePreview";
 import Target from "./Target";
 import TargetPreview from "./TargetPreview";
-// TODO: ensure that both wallets are connected to the same known network
-// TODO: loaders and such, navigation block?
-// TODO: refresh displayed token amount after transfer somehow, could be resolved by having different components appear
-// TODO: warn if amount exceeds balance
 
 const useStyles = makeStyles(() => ({
   rootContainer: {

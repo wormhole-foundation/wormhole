@@ -46,7 +46,6 @@ function Target() {
           </MenuItem>
         ))}
       </TextField>
-      {/* TODO: determine "to" token address */}
       <KeyAndBalance chainId={targetChain} />
       <ButtonWithLoader
         disabled={!isTargetComplete}

@@ -45,7 +45,6 @@ export async function getOriginalAssetEth(
 export async function getOriginalAssetSol(
   mintAddress: string
 ): Promise<StateSafeWormholeWrappedInfo> {
-  // TODO: share connection in context?
   const connection = new Connection(SOLANA_HOST, "confirmed");
   return makeStateSafe(
     await getOriginalAssetSolTx(

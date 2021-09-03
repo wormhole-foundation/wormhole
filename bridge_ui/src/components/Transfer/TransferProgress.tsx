@@ -48,7 +48,6 @@ export default function TransferProgress() {
     }
     if (sourceChain === CHAIN_ID_SOLANA) {
       (async () => {
-        // TODO: share connection in context?
         const connection = new Connection(SOLANA_HOST, "confirmed");
         while (!cancelled) {
           await new Promise((resolve) => setTimeout(resolve, 200));

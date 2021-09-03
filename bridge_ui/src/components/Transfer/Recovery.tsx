@@ -145,8 +145,8 @@ async function terra(tx: string) {
 // TODO: move to wasm / sdk, share with solana
 const parsePayload = (arr: Buffer) => ({
   amount: BigNumber.from(arr.slice(1, 1 + 32)).toBigInt(),
-  originAddress: arr.slice(33, 33 + 32).toString("hex"), // TODO: is this origin or source?
-  originChain: arr.readUInt16BE(65) as ChainId, // TODO: is this origin or source?
+  originAddress: arr.slice(33, 33 + 32).toString("hex"),
+  originChain: arr.readUInt16BE(65) as ChainId,
   targetAddress: arr.slice(67, 67 + 32).toString("hex"),
   targetChain: arr.readUInt16BE(99) as ChainId,
 });
