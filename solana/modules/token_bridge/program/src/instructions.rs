@@ -176,6 +176,10 @@ pub fn complete_wrapped(
         },
         &program_id,
     );
+    let meta_key = WrappedTokenMeta::<'_, { AccountState::Uninitialized }>::key(
+        &WrappedMetaDerivationData { mint_key },
+        &program_id,
+    );
     let mint_authority_key = MintSigner::key(None, &program_id);
 
     Ok(Instruction {
@@ -193,6 +197,7 @@ pub fn complete_wrapped(
                 AccountMeta::new(to, false)
             },
             AccountMeta::new(mint_key, false),
+            AccountMeta::new_readonly(meta_key, false),
             AccountMeta::new_readonly(mint_authority_key, false),
             // Dependencies
             AccountMeta::new_readonly(solana_program::sysvar::rent::id(), false),

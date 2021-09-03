@@ -8,7 +8,9 @@ use crate::{
         EndpointDerivationData,
         MintSigner,
         WrappedDerivationData,
+        WrappedMetaDerivationData,
         WrappedMint,
+        WrappedTokenMeta,
     },
     messages::PayloadTransfer,
     types::*,
@@ -171,6 +173,7 @@ pub struct CompleteWrapped<'b> {
     pub to: Mut<Data<'b, SplAccount, { AccountState::Initialized }>>,
     pub to_fees: Mut<Data<'b, SplAccount, { AccountState::Initialized }>>,
     pub mint: Mut<WrappedMint<'b, { AccountState::Initialized }>>,
+    pub wrapped_meta: WrappedTokenMeta<'b, { AccountState::Initialized }>,
 
     pub mint_authority: MintSigner<'b>,
 }
@@ -210,9 +213,17 @@ pub fn complete_wrapped(
         .verify_derivation(ctx.program_id, &derivation_data)?;
 
     // Verify mint
-    let derivation_data: WrappedDerivationData = (&*accs).into();
-    accs.mint
-        .verify_derivation(ctx.program_id, &derivation_data)?;
+    accs.wrapped_meta.verify_derivation(
+        ctx.program_id,
+        &WrappedMetaDerivationData {
+            mint_key: *accs.mint.info().key,
+        },
+    )?;
+    if accs.wrapped_meta.token_address != accs.vaa.token_address
+        || accs.wrapped_meta.chain != accs.vaa.token_chain
+    {
+        return Err(InvalidMint.into());
+    }
 
     // Verify mints
     if *accs.mint.info().key != accs.to.mint {
