@@ -28,7 +28,7 @@ func init() {
 const githubMessage = `
 The transaction was successfully processed by the Wormhole network, but the client-side transaction submission may have failed. Try clearing your cache and reloading wormholebridge.com to see if the transaction can be completed there. Make sure both wallets are connected.
 
-If wormholebridge.com doesn't work, you can manually submit the signed VAA bytes below to the submitVAA method on the Wormhole contract: 1https://etherscan.io/address/0xf92cd566ea4864356c5491c177a430c222d7e678#writeContract
+If wormholebridge.com doesn't work, you can manually submit the signed VAA bytes below to the submitVAA method on the Wormhole contract: https://etherscan.io/address/0xf92cd566ea4864356c5491c177a430c222d7e678#writeContract
 
 ---
 
