@@ -1,26 +1,72 @@
 use cosmwasm_std::{
-    has_coins, log, to_binary, Api, BankMsg, Binary, Coin, CosmosMsg, Env, Extern, HandleResponse,
-    HumanAddr, InitResponse, Querier, StdError, StdResult, Storage,
+    has_coins,
+    log,
+    to_binary,
+    Api,
+    BankMsg,
+    Binary,
+    Coin,
+    CosmosMsg,
+    Env,
+    Extern,
+    HandleResponse,
+    HumanAddr,
+    InitResponse,
+    Querier,
+    StdError,
+    StdResult,
+    Storage,
 };
 
-use crate::byte_utils::extend_address_to_32;
-use crate::byte_utils::ByteUtils;
-use crate::error::ContractError;
-use crate::msg::{
-    GetAddressHexResponse, GetStateResponse, GuardianSetInfoResponse, HandleMsg, InitMsg, QueryMsg,
-};
-use crate::state::{
-    config, config_read, guardian_set_get, guardian_set_set, sequence_read, sequence_set,
-    vaa_archive_add, vaa_archive_check, ConfigInfo, GovernancePacket, GuardianAddress,
-    GuardianSetInfo, GuardianSetUpgrade, ParsedVAA, SetFee, TransferFee,
+use crate::{
+    byte_utils::{
+        extend_address_to_32,
+        ByteUtils,
+    },
+    error::ContractError,
+    msg::{
+        GetAddressHexResponse,
+        GetStateResponse,
+        GuardianSetInfoResponse,
+        HandleMsg,
+        InitMsg,
+        QueryMsg,
+    },
+    state::{
+        config,
+        config_read,
+        guardian_set_get,
+        guardian_set_set,
+        sequence_read,
+        sequence_set,
+        vaa_archive_add,
+        vaa_archive_check,
+        ConfigInfo,
+        GovernancePacket,
+        GuardianAddress,
+        GuardianSetInfo,
+        GuardianSetUpgrade,
+        ParsedVAA,
+        SetFee,
+        TransferFee,
+    },
 };
 
-use k256::ecdsa::recoverable::Id as RecoverableId;
-use k256::ecdsa::recoverable::Signature as RecoverableSignature;
-use k256::ecdsa::Signature;
-use k256::ecdsa::VerifyKey;
-use k256::EncodedPoint;
-use sha3::{Digest, Keccak256};
+use k256::{
+    ecdsa::{
+        recoverable::{
+            Id as RecoverableId,
+            Signature as RecoverableSignature,
+        },
+        Signature,
+        VerifyKey,
+    },
+    EncodedPoint,
+};
+use sha3::{
+    Digest,
+    Keccak256,
+};
 
 use generic_array::GenericArray;
 use std::convert::TryFrom;

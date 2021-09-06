@@ -1,6 +1,13 @@
-use cosmwasm_std::{Binary, HumanAddr, Uint128};
+use cosmwasm_std::{
+    Binary,
+    HumanAddr,
+    Uint128,
+};
 use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use serde::{
+    Deserialize,
+    Serialize,
+};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InitMsg {

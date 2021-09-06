@@ -1,8 +1,15 @@
 #![allow(clippy::field_reassign_with_default)]
 use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use serde::{
+    Deserialize,
+    Serialize,
+};
 
-use cosmwasm_std::{Binary, HumanAddr, Uint128};
+use cosmwasm_std::{
+    Binary,
+    HumanAddr,
+    Uint128,
+};
 use cw20::Expiration;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

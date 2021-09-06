@@ -1,17 +1,57 @@
 use cosmwasm_std::{
-    to_binary, Api, Binary, CosmosMsg, Env, Extern, HandleResponse, HumanAddr, InitResponse,
-    Querier, StdError, StdResult, Storage, Uint128, WasmMsg,
+    to_binary,
+    Api,
+    Binary,
+    CosmosMsg,
+    Env,
+    Extern,
+    HandleResponse,
+    HumanAddr,
+    InitResponse,
+    Querier,
+    StdError,
+    StdResult,
+    Storage,
+    Uint128,
+    WasmMsg,
 };
 
-use cw20_base::allowances::{
-    handle_burn_from, handle_decrease_allowance, handle_increase_allowance, handle_send_from,
-    handle_transfer_from, query_allowance,
+use cw20_base::{
+    allowances::{
+        handle_burn_from,
+        handle_decrease_allowance,
+        handle_increase_allowance,
+        handle_send_from,
+        handle_transfer_from,
+        query_allowance,
+    },
+    contract::{
+        handle_mint,
+        handle_send,
+        handle_transfer,
+        query_balance,
+    },
+    state::{
+        token_info,
+        token_info_read,
+        MinterData,
+        TokenInfo,
+    },
 };
-use cw20_base::contract::{handle_mint, handle_send, handle_transfer, query_balance};
-use cw20_base::state::{token_info, token_info_read, MinterData, TokenInfo};
 
-use crate::msg::{HandleMsg, InitMsg, QueryMsg, WrappedAssetInfoResponse};
-use crate::state::{wrapped_asset_info, wrapped_asset_info_read, WrappedAssetInfo};
+use crate::{
+    msg::{
+        HandleMsg,
+        InitMsg,
+        QueryMsg,
+        WrappedAssetInfoResponse,
+    },
+    state::{
+        wrapped_asset_info,
+        wrapped_asset_info_read,
+        WrappedAssetInfo,
+    },
+};
 use cw20::TokenInfoResponse;
 use std::string::String;
 
@@ -164,8 +204,13 @@ pub fn query_wrapped_asset_info<S: Storage, A: Api, Q: Querier>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cosmwasm_std::testing::{mock_dependencies, mock_env};
-    use cosmwasm_std::HumanAddr;
+    use cosmwasm_std::{
+        testing::{
+            mock_dependencies,
+            mock_env,
+        },
+        HumanAddr,
+    };
     use cw20::TokenInfoResponse;
 
     const CANONICAL_LENGTH: usize = 20;

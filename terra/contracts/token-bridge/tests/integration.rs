@@ -1,12 +1,36 @@
 static WASM: &[u8] = include_bytes!("../../../target/wasm32-unknown-unknown/release/wormhole.wasm");
 
-use cosmwasm_std::{from_slice, Coin, Env, HumanAddr, InitResponse};
+use cosmwasm_std::{
+    from_slice,
+    Coin,
+    Env,
+    HumanAddr,
+    InitResponse,
+};
 use cosmwasm_storage::to_length_prefixed;
-use cosmwasm_vm::testing::{init, mock_env, mock_instance, MockApi, MockQuerier, MockStorage};
-use cosmwasm_vm::{Api, Instance, Storage};
+use cosmwasm_vm::{
+    testing::{
+        init,
+        mock_env,
+        mock_instance,
+        MockApi,
+        MockQuerier,
+        MockStorage,
+    },
+    Api,
+    Instance,
+    Storage,
+};
 
-use wormhole::msg::InitMsg;
-use wormhole::state::{ConfigInfo, GuardianAddress, GuardianSetInfo, CONFIG_KEY};
+use wormhole::{
+    msg::InitMsg,
+    state::{
+        ConfigInfo,
+        GuardianAddress,
+        GuardianSetInfo,
+        CONFIG_KEY,
+    },
+};
 
 use hex;
 

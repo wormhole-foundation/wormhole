@@ -1,8 +1,18 @@
-use cosmwasm_std::{Binary, Coin, HumanAddr};
+use cosmwasm_std::{
+    Binary,
+    Coin,
+    HumanAddr,
+};
 use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use serde::{
+    Deserialize,
+    Serialize,
+};
 
-use crate::state::{GuardianAddress, GuardianSetInfo};
+use crate::state::{
+    GuardianAddress,
+    GuardianSetInfo,
+};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InitMsg {

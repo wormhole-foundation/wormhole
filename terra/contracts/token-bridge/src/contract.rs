@@ -1,38 +1,101 @@
 use crate::msg::WrappedRegistryResponse;
 use cosmwasm_std::{
-    log, to_binary, Api, Binary, CanonicalAddr, Coin, CosmosMsg, Env, Extern, HandleResponse,
-    HumanAddr, InitResponse, Querier, QueryRequest, StdError, StdResult, Storage, Uint128, WasmMsg,
+    log,
+    to_binary,
+    Api,
+    Binary,
+    CanonicalAddr,
+    Coin,
+    CosmosMsg,
+    Env,
+    Extern,
+    HandleResponse,
+    HumanAddr,
+    InitResponse,
+    Querier,
+    QueryRequest,
+    StdError,
+    StdResult,
+    Storage,
+    Uint128,
+    WasmMsg,
     WasmQuery,
 };
 
-use crate::msg::{HandleMsg, InitMsg, QueryMsg};
-use crate::state::{
-    bridge_contracts, bridge_contracts_read, config, config_read, receive_native, send_native,
-    wrapped_asset, wrapped_asset_address, wrapped_asset_address_read, wrapped_asset_read, Action,
-    AssetMeta, ConfigInfo, RegisterChain, TokenBridgeMessage, TransferInfo,
+use crate::{
+    msg::{
+        HandleMsg,
+        InitMsg,
+        QueryMsg,
+    },
+    state::{
+        bridge_contracts,
+        bridge_contracts_read,
+        config,
+        config_read,
+        receive_native,
+        send_native,
+        wrapped_asset,
+        wrapped_asset_address,
+        wrapped_asset_address_read,
+        wrapped_asset_read,
+        Action,
+        AssetMeta,
+        ConfigInfo,
+        RegisterChain,
+        TokenBridgeMessage,
+        TransferInfo,
+    },
 };
-use wormhole::byte_utils::{extend_address_to_32, extend_string_to_32};
-use wormhole::byte_utils::{get_string_from_32, ByteUtils};
-use wormhole::error::ContractError;
+use wormhole::{
+    byte_utils::{
+        extend_address_to_32,
+        extend_string_to_32,
+        get_string_from_32,
+        ByteUtils,
+    },
+    error::ContractError,
+};
 
-use cw20_base::msg::HandleMsg as TokenMsg;
-use cw20_base::msg::QueryMsg as TokenQuery;
+use cw20_base::msg::{
+    HandleMsg as TokenMsg,
+    QueryMsg as TokenQuery,
+};
 
-use wormhole::msg::HandleMsg as WormholeHandleMsg;
-use wormhole::msg::QueryMsg as WormholeQueryMsg;
+use wormhole::msg::{
+    HandleMsg as WormholeHandleMsg,
+    QueryMsg as WormholeQueryMsg,
+};
 
-use wormhole::state::{vaa_archive_add, vaa_archive_check, GovernancePacket, ParsedVAA};
+use wormhole::state::{
+    vaa_archive_add,
+    vaa_archive_check,
+    GovernancePacket,
+    ParsedVAA,
+};
 
 use cw20::TokenInfoResponse;
 
-use cw20_wrapped::msg::HandleMsg as WrappedMsg;
-use cw20_wrapped::msg::InitMsg as WrappedInit;
-use cw20_wrapped::msg::QueryMsg as WrappedQuery;
-use cw20_wrapped::msg::{InitHook, WrappedAssetInfoResponse};
-use terraswap::asset::{Asset, AssetInfo};
+use cw20_wrapped::msg::{
+    HandleMsg as WrappedMsg,
+    InitHook,
+    InitMsg as WrappedInit,
+    QueryMsg as WrappedQuery,
+    WrappedAssetInfoResponse,
+};
+use terraswap::asset::{
+    Asset,
+    AssetInfo,
+};
 
-use sha3::{Digest, Keccak256};
-use std::cmp::{max, min};
+use sha3::{
+    Digest,
+    Keccak256,
+};
+use std::cmp::{
+    max,
+    min,
+};
 
 // Chain ID of Terra
 const CHAIN_ID: u16 = 3;
@@ -673,7 +736,11 @@ fn build_asset_id(chain: u16, address: &[u8]) -> Vec<u8> {
 
 #[cfg(test)]
 mod tests {
-    use cosmwasm_std::{to_binary, Binary, StdResult};
+    use cosmwasm_std::{
+        to_binary,
+        Binary,
+        StdResult,
+    };
 
     #[test]
     fn test_me() -> StdResult<()> {

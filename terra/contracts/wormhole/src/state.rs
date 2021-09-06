@@ -1,16 +1,41 @@
-use schemars::{JsonSchema, Set};
-use serde::{Deserialize, Serialize};
+use schemars::{
+    JsonSchema,
+    Set,
+};
+use serde::{
+    Deserialize,
+    Serialize,
+};
 
-use cosmwasm_std::{Binary, CanonicalAddr, Coin, HumanAddr, StdResult, Storage, Uint128};
+use cosmwasm_std::{
+    Binary,
+    CanonicalAddr,
+    Coin,
+    HumanAddr,
+    StdResult,
+    Storage,
+    Uint128,
+};
 use cosmwasm_storage::{
-    bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket, ReadonlySingleton,
+    bucket,
+    bucket_read,
+    singleton,
+    singleton_read,
+    Bucket,
+    ReadonlyBucket,
+    ReadonlySingleton,
     Singleton,
 };
 
-use crate::byte_utils::ByteUtils;
-use crate::error::ContractError;
+use crate::{
+    byte_utils::ByteUtils,
+    error::ContractError,
+};
 
-use sha3::{Digest, Keccak256};
+use sha3::{
+    Digest,
+    Keccak256,
+};
 
 pub static CONFIG_KEY: &[u8] = b"config";
 pub static GUARDIAN_SET_KEY: &[u8] = b"guardian_set";

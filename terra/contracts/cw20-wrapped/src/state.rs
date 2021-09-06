@@ -1,8 +1,21 @@
 use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use serde::{
+    Deserialize,
+    Serialize,
+};
 
-use cosmwasm_std::{Binary, CanonicalAddr, ReadonlyStorage, Storage};
-use cosmwasm_storage::{singleton, singleton_read, ReadonlySingleton, Singleton};
+use cosmwasm_std::{
+    Binary,
+    CanonicalAddr,
+    ReadonlyStorage,
+    Storage,
+};
+use cosmwasm_storage::{
+    singleton,
+    singleton_read,
+    ReadonlySingleton,
+    Singleton,
+};
 
 pub const KEY_WRAPPED_ASSET: &[u8] = b"wrappedAsset";
 

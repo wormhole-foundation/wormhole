@@ -1,4 +1,8 @@
-use cosmwasm_std::{CanonicalAddr, StdError, StdResult};
+use cosmwasm_std::{
+    CanonicalAddr,
+    StdError,
+    StdResult,
+};
 
 pub trait ByteUtils {
     fn get_u8(&self, index: usize) -> u8;

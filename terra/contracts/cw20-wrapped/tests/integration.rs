@@ -2,17 +2,43 @@ static WASM: &[u8] =
     include_bytes!("../../../target/wasm32-unknown-unknown/release/cw20_wrapped.wasm");
 
 use cosmwasm_std::{
-    from_slice, Binary, Env, HandleResponse, HandleResult, HumanAddr, InitResponse, Uint128,
+    from_slice,
+    Binary,
+    Env,
+    HandleResponse,
+    HandleResult,
+    HumanAddr,
+    InitResponse,
+    Uint128,
 };
 use cosmwasm_storage::to_length_prefixed;
-use cosmwasm_vm::testing::{
-    handle, init, mock_env, mock_instance, query, MockApi, MockQuerier, MockStorage,
+use cosmwasm_vm::{
+    testing::{
+        handle,
+        init,
+        mock_env,
+        mock_instance,
+        query,
+        MockApi,
+        MockQuerier,
+        MockStorage,
+    },
+    Api,
+    Instance,
+    Storage,
 };
-use cosmwasm_vm::{Api, Instance, Storage};
-use cw20_wrapped::msg::{HandleMsg, InitMsg, QueryMsg};
-use cw20_wrapped::state::WrappedAssetInfo;
-use cw20_wrapped::state::KEY_WRAPPED_ASSET;
-use cw20_wrapped::ContractError;
+use cw20_wrapped::{
+    msg::{
+        HandleMsg,
+        InitMsg,
+        QueryMsg,
+    },
+    state::{
+        WrappedAssetInfo,
+        KEY_WRAPPED_ASSET,
+    },
+    ContractError,
+};
 
 enum TestAddress {
     INITIALIZER,
