@@ -104,7 +104,6 @@ impl ContractError {
     pub fn std(&self) -> StdError {
         StdError::GenericErr {
             msg: format!("{}", self),
-            backtrace: None,
         }
     }
 
