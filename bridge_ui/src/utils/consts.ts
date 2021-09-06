@@ -30,6 +30,10 @@ export const CHAINS =
           id: CHAIN_ID_SOLANA,
           name: "Solana",
         },
+        {
+          id: CHAIN_ID_TERRA,
+          name: "Terra",
+        },
       ]
     : [
         {
@@ -62,11 +66,19 @@ export const ETH_NETWORK_CHAIN_ID =
   CLUSTER === "mainnet" ? 1 : CLUSTER === "testnet" ? 5 : 1337;
 export const SOLANA_HOST =
   CLUSTER === "testnet" ? clusterApiUrl("testnet") : "http://localhost:8899";
-export const TERRA_HOST = {
-  URL: "http://localhost:1317",
-  chainID: "columbus-4",
-  name: "localterra",
-};
+
+export const TERRA_HOST =
+  CLUSTER === "testnet"
+    ? {
+        URL: "https://tequila-lcd.terra.dev",
+        chainID: "tequila-0004",
+        name: "testnet",
+      }
+    : {
+        URL: "http://localhost:1317",
+        chainID: "columbus-4",
+        name: "localterra",
+      };
 export const ETH_TEST_TOKEN_ADDRESS = getAddress(
   CLUSTER === "testnet"
     ? "0xcEE940033DA197F551BBEdED7F4aA55Ee55C582B"
@@ -119,3 +131,24 @@ export const COVALENT_GET_TOKENS_URL = (
 };
 
 export const COVALENT_ETHEREUM_MAINNET = "1";
+
+export const WORMHOLE_V1_ETH_ADDRESS =
+  CLUSTER === "testnet"
+    ? "0xdae0Cba01eFc4bfEc1F7Fece73Fe8b8d2Eda65B0"
+    : CLUSTER === "mainnet"
+    ? "0xf92cD566Ea4864356C5491c177A430C222d7e678"
+    : "0xf92cD566Ea4864356C5491c177A430C222d7e678"; //TODO something that doesn't explode in localhost
+export const WORMHOLE_V1_SOLANA_ADDRESS =
+  CLUSTER === "testnet"
+    ? "BrdgiFmZN3BKkcY3danbPYyxPKwb8RhQzpM2VY5L97ED"
+    : "WormT3McKhFJ2RkiGpdw9GKvNCrB2aB54gb2uV9MfQC";
+
+export const TERRA_TOKEN_METADATA_URL =
+  "https://assets.terra.money/cw20/tokens.json";
+
+export const WORMHOLE_V1_MINT_AUTHORITY =
+  CLUSTER === "mainnet"
+    ? "9zyPU1mjgzaVyQsYwKJJ7AhVz5bgx5uc1NPABvAcUXsT"
+    : CLUSTER === "testnet"
+    ? "BJa7dq3bRP216zaTdw4cdcV71WkPc1HXvmnGeFVDi5DC"
+    : "";

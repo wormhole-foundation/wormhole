@@ -8,6 +8,7 @@ import { TextField, Typography } from "@material-ui/core";
 import { useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import useGetSourceParsedTokens from "../../hooks/useGetSourceParsedTokenAccounts";
+import useIsWalletReady from "../../hooks/useIsWalletReady";
 import {
   selectTransferSourceChain,
   selectTransferSourceParsedTokenAccount,
@@ -15,6 +16,7 @@ import {
 import {
   ParsedTokenAccount,
   setSourceParsedTokenAccount,
+  setSourceWalletAddress,
 } from "../../store/transferSlice";
 import EthereumSourceTokenSelector from "./EthereumSourceTokenSelector";
 import SolanaSourceTokenSelector from "./SolanaSourceTokenSelector";
@@ -32,13 +34,19 @@ export const TokenSelector = (props: TokenSelectorProps) => {
   const sourceParsedTokenAccount = useSelector(
     selectTransferSourceParsedTokenAccount
   );
-  const handleSolanaOnChange = useCallback(
+  const walletIsReady = useIsWalletReady(lookupChain);
+
+  const handleOnChange = useCallback(
     (newTokenAccount: ParsedTokenAccount | null) => {
-      if (newTokenAccount !== undefined) {
-        dispatch(setSourceParsedTokenAccount(newTokenAccount || undefined));
+      if (!newTokenAccount) {
+        dispatch(setSourceParsedTokenAccount(undefined));
+        dispatch(setSourceWalletAddress(undefined));
+      } else if (newTokenAccount !== undefined && walletIsReady.walletAddress) {
+        dispatch(setSourceParsedTokenAccount(newTokenAccount));
+        dispatch(setSourceWalletAddress(walletIsReady.walletAddress));
       }
     },
-    [dispatch]
+    [dispatch, walletIsReady]
   );
 
   const maps = useGetSourceParsedTokens();
@@ -54,17 +62,18 @@ export const TokenSelector = (props: TokenSelectorProps) => {
   ) : lookupChain === CHAIN_ID_SOLANA ? (
     <SolanaSourceTokenSelector
       value={sourceParsedTokenAccount || null}
-      onChange={handleSolanaOnChange}
+      onChange={handleOnChange}
       disabled={disabled}
       accounts={maps?.tokenAccounts?.data || []}
       solanaTokenMap={maps?.tokenMap}
       metaplexData={maps?.metaplex}
+      mintAccounts={maps?.mintAccounts}
     />
   ) : lookupChain === CHAIN_ID_ETH ? (
     <EthereumSourceTokenSelector
       value={sourceParsedTokenAccount || null}
       disabled={disabled}
-      onChange={handleSolanaOnChange}
+      onChange={handleOnChange}
       covalent={maps?.covalent || undefined}
       tokenAccounts={maps?.tokenAccounts} //TODO standardize
     />
@@ -72,7 +81,8 @@ export const TokenSelector = (props: TokenSelectorProps) => {
     <TerraSourceTokenSelector
       value={sourceParsedTokenAccount || null}
       disabled={disabled}
-      onChange={handleSolanaOnChange}
+      onChange={handleOnChange}
+      tokenMap={maps?.terraTokenMap}
     />
   ) : (
     <TextField

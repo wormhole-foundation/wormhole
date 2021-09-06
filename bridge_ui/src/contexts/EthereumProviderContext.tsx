@@ -8,8 +8,8 @@ import React, {
   useState,
 } from "react";
 
-type Provider = ethers.providers.Web3Provider | undefined;
-type Signer = ethers.Signer | undefined;
+export type Provider = ethers.providers.Web3Provider | undefined;
+export type Signer = ethers.Signer | undefined;
 
 interface IEthereumProviderContext {
   connect(): void;

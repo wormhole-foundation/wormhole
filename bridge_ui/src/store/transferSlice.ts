@@ -37,6 +37,7 @@ export interface TransferState {
   isSourceAssetWormholeWrapped: boolean | undefined;
   originChain: ChainId | undefined;
   originAsset: string | undefined;
+  sourceWalletAddress: string | undefined;
   sourceParsedTokenAccount: ParsedTokenAccount | undefined;
   sourceParsedTokenAccounts: DataWrapper<ParsedTokenAccount[]>;
   amount: string;
@@ -55,6 +56,7 @@ const initialState: TransferState = {
   activeStep: 0,
   sourceChain: CHAIN_ID_SOLANA,
   isSourceAssetWormholeWrapped: false,
+  sourceWalletAddress: undefined,
   sourceParsedTokenAccount: undefined,
   sourceParsedTokenAccounts: getEmptyDataWrapper(),
   originChain: undefined,
@@ -110,11 +112,25 @@ export const transferSlice = createSlice({
         state.originAsset = undefined;
       }
     },
+    setSourceWalletAddress: (
+      state,
+      action: PayloadAction<string | undefined>
+    ) => {
+      state.sourceWalletAddress = action.payload;
+    },
     setSourceParsedTokenAccount: (
       state,
       action: PayloadAction<ParsedTokenAccount | undefined>
     ) => {
       state.sourceParsedTokenAccount = action.payload;
+    },
+    setSourceParsedTokenAccounts: (
+      state,
+      action: PayloadAction<ParsedTokenAccount[] | undefined>
+    ) => {
+      state.sourceParsedTokenAccounts = action.payload
+        ? receiveDataWrapper(action.payload)
+        : getEmptyDataWrapper();
     },
     fetchSourceParsedTokenAccounts: (state) => {
       state.sourceParsedTokenAccounts = fetchDataWrapper();
@@ -195,7 +211,9 @@ export const {
   setStep,
   setSourceChain,
   setSourceWormholeWrappedInfo,
+  setSourceWalletAddress,
   setSourceParsedTokenAccount,
+  setSourceParsedTokenAccounts,
   receiveSourceParsedTokenAccounts,
   errorSourceParsedTokenAccounts,
   fetchSourceParsedTokenAccounts,

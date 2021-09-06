@@ -3,6 +3,7 @@ import { useSelector } from "react-redux";
 import { useHandleTransfer } from "../../hooks/useHandleTransfer";
 import useIsWalletReady from "../../hooks/useIsWalletReady";
 import {
+  selectSourceWalletAddress,
   selectTransferSourceChain,
   selectTransferTargetError,
 } from "../../store/selectors";
@@ -16,7 +17,18 @@ function Send() {
   const { handleClick, disabled, showLoader } = useHandleTransfer();
   const sourceChain = useSelector(selectTransferSourceChain);
   const error = useSelector(selectTransferTargetError);
-  const { isReady, statusMessage } = useIsWalletReady(sourceChain);
+  const { isReady, statusMessage, walletAddress } =
+    useIsWalletReady(sourceChain);
+  const sourceWalletAddress = useSelector(selectSourceWalletAddress);
+  //The chain ID compare is handled implicitly, as the isWalletReady hook should report !isReady if the wallet is on the wrong chain.
+  const isWrongWallet =
+    sourceWalletAddress &&
+    walletAddress &&
+    sourceWalletAddress !== walletAddress;
+  const isDisabled = !isReady || isWrongWallet || disabled;
+  const errorMessage = isWrongWallet
+    ? "A different wallet is connected than in Step 1."
+    : statusMessage || error || undefined;
   return (
     <>
       <StepDescription>
@@ -30,10 +42,10 @@ function Send() {
         complete the transfer.
       </Alert>
       <ButtonWithLoader
-        disabled={!isReady || disabled}
+        disabled={isDisabled}
         onClick={handleClick}
         showLoader={showLoader}
-        error={statusMessage || error}
+        error={errorMessage}
       >
         Transfer
       </ButtonWithLoader>

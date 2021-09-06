@@ -1,3 +1,4 @@
+import { MintLayout } from "@solana/spl-token";
 import { WalletContextState } from "@solana/wallet-adapter-react";
 import {
   AccountInfo,
@@ -15,6 +16,19 @@ export async function signSendAndConfirm(
   const txid = await connection.sendRawTransaction(signed.serialize());
   await connection.confirmTransaction(txid);
   return txid;
+}
+
+export function extractMintAuthorityInfo(
+  account: AccountInfo<Buffer>
+): string | null {
+  const data = Buffer.from(account.data);
+  const mintInfo = MintLayout.decode(data);
+
+  const uintArray = mintInfo?.mintAuthority;
+  const pubkey = new PublicKey(uintArray);
+  const output = pubkey?.toString();
+
+  return output || null;
 }
 
 export async function getMultipleAccountsRPC(

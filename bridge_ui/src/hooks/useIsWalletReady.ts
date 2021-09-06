@@ -11,14 +11,20 @@ import { useEthereumProvider } from "../contexts/EthereumProviderContext";
 import { useSolanaWallet } from "../contexts/SolanaWalletContext";
 import { CLUSTER, ETH_NETWORK_CHAIN_ID } from "../utils/consts";
 
-const createWalletStatus = (isReady: boolean, statusMessage: string = "") => ({
+const createWalletStatus = (
+  isReady: boolean,
+  statusMessage: string = "",
+  walletAddress?: string
+) => ({
   isReady,
   statusMessage,
+  walletAddress,
 });
 
 function useIsWalletReady(chainId: ChainId): {
   isReady: boolean;
   statusMessage: string;
+  walletAddress?: string;
 } {
   const solanaWallet = useSolanaWallet();
   const solPK = solanaWallet?.publicKey;
@@ -33,16 +39,20 @@ function useIsWalletReady(chainId: ChainId): {
   const hasCorrectEthNetwork = ethChainId === ETH_NETWORK_CHAIN_ID;
 
   return useMemo(() => {
-    if (chainId === CHAIN_ID_TERRA && hasTerraWallet) {
+    if (
+      chainId === CHAIN_ID_TERRA &&
+      hasTerraWallet &&
+      terraWallet?.walletAddress
+    ) {
       // TODO: terraWallet does not update on wallet changes
-      return createWalletStatus(true);
+      return createWalletStatus(true, undefined, terraWallet.walletAddress);
     }
     if (chainId === CHAIN_ID_SOLANA && solPK) {
-      return createWalletStatus(true);
+      return createWalletStatus(true, undefined, solPK.toString());
     }
-    if (chainId === CHAIN_ID_ETH && hasEthInfo) {
+    if (chainId === CHAIN_ID_ETH && hasEthInfo && signerAddress) {
       if (hasCorrectEthNetwork) {
-        return createWalletStatus(true);
+        return createWalletStatus(true, undefined, signerAddress);
       } else {
         if (provider) {
           try {
@@ -53,7 +63,8 @@ function useIsWalletReady(chainId: ChainId): {
         }
         return createWalletStatus(
           false,
-          `Wallet is not connected to ${CLUSTER}. Expected Chain ID: ${ETH_NETWORK_CHAIN_ID}`
+          `Wallet is not connected to ${CLUSTER}. Expected Chain ID: ${ETH_NETWORK_CHAIN_ID}`,
+          undefined
         );
       }
     }
@@ -66,6 +77,8 @@ function useIsWalletReady(chainId: ChainId): {
     hasEthInfo,
     hasCorrectEthNetwork,
     provider,
+    signerAddress,
+    terraWallet,
   ]);
 }
 

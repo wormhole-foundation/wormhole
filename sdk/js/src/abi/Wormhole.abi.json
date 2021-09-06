@@ -1,0 +1,388 @@
+[
+  {
+    "inputs": [
+      {
+        "components": [
+          {
+            "internalType": "address[]",
+            "name": "keys",
+            "type": "address[]"
+          },
+          {
+            "internalType": "uint32",
+            "name": "expiration_time",
+            "type": "uint32"
+          }
+        ],
+        "internalType": "struct Wormhole.GuardianSet",
+        "name": "initial_guardian_set",
+        "type": "tuple"
+      },
+      {
+        "internalType": "address",
+        "name": "wrapped_asset_master",
+        "type": "address"
+      },
+      {
+        "internalType": "uint32",
+        "name": "_guardian_set_expirity",
+        "type": "uint32"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint32",
+        "name": "oldGuardianIndex",
+        "type": "uint32"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint32",
+        "name": "newGuardianIndex",
+        "type": "uint32"
+      }
+    ],
+    "name": "LogGuardianSetChanged",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint8",
+        "name": "target_chain",
+        "type": "uint8"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint8",
+        "name": "token_chain",
+        "type": "uint8"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint8",
+        "name": "token_decimals",
+        "type": "uint8"
+      },
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "token",
+        "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "sender",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "recipient",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint32",
+        "name": "nonce",
+        "type": "uint32"
+      }
+    ],
+    "name": "LogTokensLocked",
+    "type": "event"
+  },
+  {
+    "stateMutability": "payable",
+    "type": "fallback"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "name": "consumedVAAs",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint32",
+        "name": "idx",
+        "type": "uint32"
+      }
+    ],
+    "name": "getGuardianSet",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "address[]",
+            "name": "keys",
+            "type": "address[]"
+          },
+          {
+            "internalType": "uint32",
+            "name": "expiration_time",
+            "type": "uint32"
+          }
+        ],
+        "internalType": "struct Wormhole.GuardianSet",
+        "name": "gs",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "guardian_set_expirity",
+    "outputs": [
+      {
+        "internalType": "uint32",
+        "name": "",
+        "type": "uint32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "guardian_set_index",
+    "outputs": [
+      {
+        "internalType": "uint32",
+        "name": "",
+        "type": "uint32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint32",
+        "name": "",
+        "type": "uint32"
+      }
+    ],
+    "name": "guardian_sets",
+    "outputs": [
+      {
+        "internalType": "uint32",
+        "name": "expiration_time",
+        "type": "uint32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "name": "isWrappedAsset",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "asset",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "recipient",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "uint8",
+        "name": "target_chain",
+        "type": "uint8"
+      },
+      {
+        "internalType": "uint32",
+        "name": "nonce",
+        "type": "uint32"
+      },
+      {
+        "internalType": "bool",
+        "name": "refund_dust",
+        "type": "bool"
+      }
+    ],
+    "name": "lockAssets",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "recipient",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "uint8",
+        "name": "target_chain",
+        "type": "uint8"
+      },
+      {
+        "internalType": "uint32",
+        "name": "nonce",
+        "type": "uint32"
+      }
+    ],
+    "name": "lockETH",
+    "outputs": [],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes",
+        "name": "vaa",
+        "type": "bytes"
+      }
+    ],
+    "name": "parseAndVerifyVAA",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint8",
+            "name": "version",
+            "type": "uint8"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "hash",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "uint32",
+            "name": "guardian_set_index",
+            "type": "uint32"
+          },
+          {
+            "internalType": "uint32",
+            "name": "timestamp",
+            "type": "uint32"
+          },
+          {
+            "internalType": "uint8",
+            "name": "action",
+            "type": "uint8"
+          },
+          {
+            "internalType": "bytes",
+            "name": "payload",
+            "type": "bytes"
+          }
+        ],
+        "internalType": "struct Wormhole.ParsedVAA",
+        "name": "parsed_vaa",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes",
+        "name": "vaa",
+        "type": "bytes"
+      }
+    ],
+    "name": "submitVAA",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "wrappedAssetMaster",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "name": "wrappedAssets",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "stateMutability": "payable",
+    "type": "receive"
+  }
+]

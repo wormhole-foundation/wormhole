@@ -48,6 +48,8 @@ export const selectTransferOriginChain = (state: RootState) =>
   state.transfer.originChain;
 export const selectTransferOriginAsset = (state: RootState) =>
   state.transfer.originAsset;
+export const selectSourceWalletAddress = (state: RootState) =>
+  state.transfer.sourceWalletAddress;
 export const selectTransferSourceParsedTokenAccount = (state: RootState) =>
   state.transfer.sourceParsedTokenAccount;
 export const selectTransferSourceParsedTokenAccounts = (state: RootState) =>
@@ -167,4 +169,8 @@ export const selectTransferShouldLockFields = (state: RootState) =>
 
 export const selectSolanaTokenMap = (state: RootState) => {
   return state.tokens.solanaTokenMap;
+};
+
+export const selectTerraTokenMap = (state: RootState) => {
+  return state.tokens.terraTokenMap;
 };

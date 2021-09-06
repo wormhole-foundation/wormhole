@@ -1,4 +1,8 @@
-import { CHAIN_ID_ETH, CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
+import {
+  CHAIN_ID_ETH,
+  CHAIN_ID_SOLANA,
+  CHAIN_ID_TERRA,
+} from "@certusone/wormhole-sdk";
 import { Dispatch } from "@reduxjs/toolkit";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { ENV, TokenListProvider } from "@solana/spl-token-registry";
@@ -17,27 +21,44 @@ import { useSolanaWallet } from "../contexts/SolanaWalletContext";
 import { DataWrapper } from "../store/helpers";
 import {
   selectSolanaTokenMap,
+  selectSourceWalletAddress,
+  selectTerraTokenMap,
   selectTransferSourceChain,
   selectTransferSourceParsedTokenAccounts,
 } from "../store/selectors";
 import {
   errorSolanaTokenMap,
+  errorTerraTokenMap,
   fetchSolanaTokenMap,
+  fetchTerraTokenMap,
   receiveSolanaTokenMap,
+  receiveTerraTokenMap,
 } from "../store/tokenSlice";
 import {
   errorSourceParsedTokenAccounts,
   fetchSourceParsedTokenAccounts,
   ParsedTokenAccount,
   receiveSourceParsedTokenAccounts,
+  setAmount,
+  setSourceParsedTokenAccount,
+  setSourceParsedTokenAccounts,
+  setSourceWalletAddress,
 } from "../store/transferSlice";
-import { CLUSTER, COVALENT_GET_TOKENS_URL, SOLANA_HOST } from "../utils/consts";
+import {
+  CLUSTER,
+  COVALENT_GET_TOKENS_URL,
+  SOLANA_HOST,
+  TERRA_TOKEN_METADATA_URL,
+} from "../utils/consts";
 import {
   decodeMetadata,
   getMetadataAddress,
   Metadata,
 } from "../utils/metaplex";
-import { getMultipleAccountsRPC } from "../utils/solana";
+import {
+  extractMintAuthorityInfo,
+  getMultipleAccountsRPC,
+} from "../utils/solana";
 
 export function createParsedTokenAccount(
   publicKey: string,
@@ -56,6 +77,19 @@ export function createParsedTokenAccount(
     uiAmountString,
   };
 }
+
+export type TerraTokenMetadata = {
+  protocol: string;
+  symbol: string;
+  token: string;
+  icon: string;
+};
+
+export type TerraTokenMap = {
+  mainnet: {
+    [address: string]: TerraTokenMetadata;
+  };
+};
 
 const createParsedTokenAccountFromInfo = (
   pubkey: PublicKey,
@@ -211,6 +245,7 @@ function useGetAvailableTokens() {
 
   const tokenAccounts = useSelector(selectTransferSourceParsedTokenAccounts);
   const solanaTokenMap = useSelector(selectSolanaTokenMap);
+  const terraTokenMap = useSelector(selectTerraTokenMap);
 
   const lookupChain = useSelector(selectTransferSourceChain);
   const solanaWallet = useSolanaWallet();
@@ -227,6 +262,38 @@ function useGetAvailableTokens() {
   const [covalentError, setCovalentError] = useState<string | undefined>(
     undefined
   );
+
+  const [solanaMintAccounts, setSolanaMintAccounts] = useState<any>(undefined);
+  const [solanaMintAccountsLoading, setSolanaMintAccountsLoading] =
+    useState(false);
+  const [solanaMintAccountsError, setSolanaMintAccountsError] = useState<
+    string | undefined
+  >(undefined);
+
+  const selectedSourceWalletAddress = useSelector(selectSourceWalletAddress);
+  const currentSourceWalletAddress: string | undefined =
+    lookupChain === CHAIN_ID_ETH
+      ? signerAddress
+      : lookupChain === CHAIN_ID_SOLANA
+      ? solPK?.toString()
+      : undefined;
+
+  //TODO this useEffect could be somewhere else in the codebase
+  //It resets the SourceParsedTokens accounts when the wallet changes
+  useEffect(() => {
+    if (
+      selectedSourceWalletAddress !== undefined &&
+      currentSourceWalletAddress !== undefined &&
+      currentSourceWalletAddress !== selectedSourceWalletAddress
+    ) {
+      dispatch(setSourceWalletAddress(undefined));
+      dispatch(setSourceParsedTokenAccount(undefined));
+      dispatch(setSourceParsedTokenAccounts(undefined));
+      dispatch(setAmount(""));
+      return;
+    } else {
+    }
+  }, [selectedSourceWalletAddress, currentSourceWalletAddress, dispatch]);
 
   // Solana metaplex load
   useEffect(() => {
@@ -289,6 +356,53 @@ function useGetAvailableTokens() {
     solanaTokenMap,
   ]);
 
+  //Solana Mint Accounts lookup
+  useEffect(() => {
+    if (lookupChain !== CHAIN_ID_SOLANA || !tokenAccounts.data?.length) {
+      return () => {};
+    }
+
+    let cancelled = false;
+    setSolanaMintAccountsLoading(true);
+    setSolanaMintAccountsError(undefined);
+    const mintAddresses = tokenAccounts.data.map((x) => x.mintKey);
+    //This is a known wormhole v1 token on testnet
+    //mintAddresses.push("4QixXecTZ4zdZGa39KH8gVND5NZ2xcaB12wiBhE4S7rn");
+
+    const connection = new Connection(SOLANA_HOST, "finalized");
+    getMultipleAccountsRPC(
+      connection,
+      mintAddresses.map((x) => new PublicKey(x))
+    ).then(
+      (results) => {
+        if (!cancelled) {
+          const output = new Map<String, string | null>();
+
+          results.forEach((result, index) =>
+            output.set(
+              mintAddresses[index],
+              (result && extractMintAuthorityInfo(result)) || null
+            )
+          );
+
+          setSolanaMintAccounts(output);
+          setSolanaMintAccountsLoading(false);
+        }
+      },
+      (error) => {
+        if (!cancelled) {
+          setSolanaMintAccounts(undefined);
+          setSolanaMintAccountsLoading(false);
+          setSolanaMintAccountsError(
+            "Could not retrieve Solana mint accounts."
+          );
+        }
+      }
+    );
+
+    return () => (cancelled = true);
+  }, [tokenAccounts.data, lookupChain]);
+
   //Ethereum accounts load
   useEffect(() => {
     //const testWallet = "0xf60c2ea62edbfe808163751dd0d8693dcb30019c";
@@ -333,10 +447,38 @@ function useGetAvailableTokens() {
   }, [lookupChain, provider, signerAddress, dispatch]);
 
   //Terra accounts load
+  //At present, we don't have any mechanism for doing this.
   useEffect(() => {}, []);
 
   //Terra metadata load
-  useEffect(() => {}, []);
+  useEffect(() => {
+    let cancelled = false;
+
+    if (terraTokenMap.data || lookupChain !== CHAIN_ID_TERRA) {
+      return; //So we don't fetch the whole list on every mount.
+    }
+
+    dispatch(fetchTerraTokenMap());
+    axios.get(TERRA_TOKEN_METADATA_URL).then(
+      (response) => {
+        if (!cancelled) {
+          //TODO parse this in a safer manner
+          dispatch(receiveTerraTokenMap(response.data as TerraTokenMap));
+        }
+      },
+      (error) => {
+        if (!cancelled) {
+          dispatch(
+            errorTerraTokenMap("Failed to retrieve the Terra Token List.")
+          );
+        }
+      }
+    );
+
+    return () => {
+      cancelled = true;
+    };
+  }, [lookupChain, terraTokenMap.data, dispatch]);
 
   return lookupChain === CHAIN_ID_SOLANA
     ? {
@@ -348,6 +490,12 @@ function useGetAvailableTokens() {
           error: metaplexError,
           receivedAt: null, //TODO
         } as DataWrapper<Metadata[]>,
+        mintAccounts: {
+          data: solanaMintAccounts,
+          isFetching: solanaMintAccountsLoading,
+          error: solanaMintAccountsError,
+          receivedAt: null, //TODO
+        },
       }
     : lookupChain === CHAIN_ID_ETH
     ? {
@@ -358,6 +506,10 @@ function useGetAvailableTokens() {
           error: covalentError,
           receivedAt: null, //TODO
         },
+      }
+    : lookupChain === CHAIN_ID_TERRA
+    ? {
+        terraTokenMap: terraTokenMap,
       }
     : undefined;
 }
