@@ -7,7 +7,6 @@ use serde::{
 use cosmwasm_std::{
     Binary,
     CanonicalAddr,
-    ReadonlyStorage,
     Storage,
 };
 use cosmwasm_storage::{
@@ -27,12 +26,12 @@ pub struct WrappedAssetInfo {
     pub bridge: CanonicalAddr, // Bridge address, authorized to mint and burn wrapped tokens
 }
 
-pub fn wrapped_asset_info<S: Storage>(storage: &mut S) -> Singleton<S, WrappedAssetInfo> {
+pub fn wrapped_asset_info(storage: &mut dyn Storage) -> Singleton<WrappedAssetInfo> {
     singleton(storage, KEY_WRAPPED_ASSET)
 }
 
-pub fn wrapped_asset_info_read<S: ReadonlyStorage>(
-    storage: &S,
-) -> ReadonlySingleton<S, WrappedAssetInfo> {
+pub fn wrapped_asset_info_read(
+    storage: &dyn Storage,
+) -> ReadonlySingleton<WrappedAssetInfo> {
     singleton_read(storage, KEY_WRAPPED_ASSET)
 }
