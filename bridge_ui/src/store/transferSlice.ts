@@ -96,6 +96,7 @@ export const transferSlice = createSlice({
         state.targetAddressHex = undefined;
         // clear targetAsset so that components that fire before useFetchTargetAsset don't get stale data
         state.targetAsset = undefined;
+        state.targetParsedTokenAccount = undefined;
       }
     },
     setSourceWormholeWrappedInfo: (
@@ -158,6 +159,7 @@ export const transferSlice = createSlice({
       state.targetAddressHex = undefined;
       // clear targetAsset so that components that fire before useFetchTargetAsset don't get stale data
       state.targetAsset = undefined;
+      state.targetParsedTokenAccount = undefined;
       if (state.sourceChain === action.payload) {
         state.sourceChain = prevTargetChain;
         state.activeStep = 0;
@@ -196,6 +198,7 @@ export const transferSlice = createSlice({
     },
     setRedeemTx: (state, action: PayloadAction<Transaction>) => {
       state.redeemTx = action.payload;
+      state.isRedeeming = false;
     },
     reset: (state) => ({
       ...initialState,

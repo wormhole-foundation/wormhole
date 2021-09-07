@@ -10,29 +10,32 @@ import {
 } from "../../store/attestSlice";
 import {
   selectAttestSignedVAAHex,
-  selectTransferSourceAsset,
-  selectTransferSourceChain,
+  selectTransferOriginAsset,
+  selectTransferOriginChain,
   selectTransferTargetChain,
 } from "../../store/selectors";
+import { hexToNativeString } from "../../utils/array";
 
 export default function RegisterNowButton() {
   const dispatch = useDispatch();
   const history = useHistory();
-  const sourceChain = useSelector(selectTransferSourceChain);
-  const sourceAsset = useSelector(selectTransferSourceAsset);
+  const originChain = useSelector(selectTransferOriginChain);
+  const originAsset = useSelector(selectTransferOriginAsset);
   const targetChain = useSelector(selectTransferTargetChain);
   // user might be in the middle of a different attest
   const signedVAAHex = useSelector(selectAttestSignedVAAHex);
-  const canSwitch = sourceAsset && !signedVAAHex;
+  const canSwitch = originChain && originAsset && !signedVAAHex;
   const handleClick = useCallback(() => {
-    if (sourceAsset && canSwitch) {
-      dispatch(setSourceChain(sourceChain));
-      dispatch(setSourceAsset(sourceAsset));
+    const nativeAsset =
+      originChain && hexToNativeString(originAsset, originChain);
+    if (originChain && originAsset && nativeAsset && canSwitch) {
+      dispatch(setSourceChain(originChain));
+      dispatch(setSourceAsset(nativeAsset));
       dispatch(setTargetChain(targetChain));
       dispatch(setStep(2));
       history.push("/register");
     }
-  }, [dispatch, canSwitch, sourceChain, sourceAsset, targetChain, history]);
+  }, [dispatch, canSwitch, originChain, originAsset, targetChain, history]);
   if (!canSwitch) return null;
   return (
     <Button

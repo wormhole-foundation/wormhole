@@ -1,19 +1,18 @@
 import {
   ChainId,
-  CHAIN_ID_SOLANA,
   getForeignAssetEth as getForeignAssetEthTx,
   getForeignAssetSolana as getForeignAssetSolanaTx,
   getForeignAssetTerra as getForeignAssetTerraTx,
 } from "@certusone/wormhole-sdk";
-import { Connection, PublicKey } from "@solana/web3.js";
-import { ethers } from "ethers";
-import { arrayify, isHexString, zeroPad } from "ethers/lib/utils";
+import { Connection } from "@solana/web3.js";
 import { LCDClient } from "@terra-money/terra.js";
+import { ethers } from "ethers";
+import { hexToUint8Array } from "./array";
 import {
   ETH_TOKEN_BRIDGE_ADDRESS,
   SOLANA_HOST,
-  TERRA_HOST,
   SOL_TOKEN_BRIDGE_ADDRESS,
+  TERRA_HOST,
   TERRA_TOKEN_BRIDGE_ADDRESS,
 } from "./consts";
 
@@ -23,21 +22,14 @@ export async function getForeignAssetEth(
   originAsset: string
 ) {
   try {
-    // TODO: address conversion may be more complex than this
-    const originAssetBytes = zeroPad(
-      originChain === CHAIN_ID_SOLANA
-        ? new PublicKey(originAsset).toBytes()
-        : arrayify(originAsset),
-      32
-    );
     return await getForeignAssetEthTx(
       ETH_TOKEN_BRIDGE_ADDRESS,
       provider,
       originChain,
-      originAssetBytes
+      hexToUint8Array(originAsset)
     );
   } catch (e) {
-    return ethers.constants.AddressZero;
+    return null;
   }
 }
 
@@ -45,18 +37,12 @@ export async function getForeignAssetSol(
   originChain: ChainId,
   originAsset: string
 ) {
-  if (!isHexString(originAsset)) return null;
-  // TODO: address conversion may be more complex than this
-  const originAssetBytes = zeroPad(
-    arrayify(originAsset, { hexPad: "left" }),
-    32
-  );
   const connection = new Connection(SOLANA_HOST, "confirmed");
   return await getForeignAssetSolanaTx(
     connection,
     SOL_TOKEN_BRIDGE_ADDRESS,
     originChain,
-    originAssetBytes
+    hexToUint8Array(originAsset)
   );
 }
 
@@ -71,21 +57,14 @@ export async function getForeignAssetTerra(
   originAsset: string
 ) {
   try {
-    const originAssetBytes = zeroPad(
-      originChain === CHAIN_ID_SOLANA
-        ? new PublicKey(originAsset).toBytes()
-        : arrayify(originAsset),
-      32
-    );
     const lcd = new LCDClient(TERRA_HOST);
     return await getForeignAssetTerraTx(
       TERRA_TOKEN_BRIDGE_ADDRESS,
       lcd,
       originChain,
-      originAssetBytes
+      hexToUint8Array(originAsset)
     );
   } catch (e) {
-    // TODO: better return for this
-    return ethers.constants.AddressZero;
+    return null;
   }
 }

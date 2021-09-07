@@ -23,7 +23,7 @@ export async function getForeignAssetEth(
   try {
     return await tokenBridge.wrappedAsset(originChain, originAsset);
   } catch (e) {
-    return ethers.constants.AddressZero;
+    return null;
   }
 }
 
@@ -33,13 +33,20 @@ export async function getForeignAssetTerra(
   originChain: ChainId,
   originAsset: Uint8Array
 ) {
-  const result: { address: string } = await client.wasm.contractQuery(tokenBridgeAddress, {
-    wrapped_registry: {
-      chain: originChain,
-      address: fromUint8Array(originAsset),
-    },
-  });
-  return result.address;
+  try {
+    const result: { address: string } = await client.wasm.contractQuery(
+      tokenBridgeAddress,
+      {
+        wrapped_registry: {
+          chain: originChain,
+          address: fromUint8Array(originAsset),
+        },
+      }
+    );
+    return result.address;
+  } catch (e) {
+    return null;
+  }
 }
 
 /**

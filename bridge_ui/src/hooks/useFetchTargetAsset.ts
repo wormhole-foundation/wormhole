@@ -10,8 +10,6 @@ import {
   selectTransferIsSourceAssetWormholeWrapped,
   selectTransferOriginAsset,
   selectTransferOriginChain,
-  selectTransferSourceAsset,
-  selectTransferSourceChain,
   selectTransferTargetChain,
 } from "../store/selectors";
 import { setTargetAsset } from "../store/transferSlice";
@@ -24,8 +22,6 @@ import {
 
 function useFetchTargetAsset() {
   const dispatch = useDispatch();
-  const sourceChain = useSelector(selectTransferSourceChain);
-  const sourceAsset = useSelector(selectTransferSourceAsset);
   const isSourceAssetWormholeWrapped = useSelector(
     selectTransferIsSourceAssetWormholeWrapped
   );
@@ -33,7 +29,6 @@ function useFetchTargetAsset() {
   const originAsset = useSelector(selectTransferOriginAsset);
   const targetChain = useSelector(selectTransferTargetChain);
   const { provider } = useEthereumProvider();
-  // TODO: this may not cover wrapped to wrapped, should always use origin?
   useEffect(() => {
     if (isSourceAssetWormholeWrapped && originChain === targetChain) {
       dispatch(setTargetAsset(hexToNativeString(originAsset, originChain)));
@@ -43,19 +38,24 @@ function useFetchTargetAsset() {
     dispatch(setTargetAsset(undefined));
     let cancelled = false;
     (async () => {
-      if (targetChain === CHAIN_ID_ETH && provider && sourceAsset) {
+      if (
+        targetChain === CHAIN_ID_ETH &&
+        provider &&
+        originChain &&
+        originAsset
+      ) {
         const asset = await getForeignAssetEth(
           provider,
-          sourceChain,
-          sourceAsset
+          originChain,
+          originAsset
         );
         if (!cancelled) {
           dispatch(setTargetAsset(asset));
         }
       }
-      if (targetChain === CHAIN_ID_SOLANA && sourceAsset) {
+      if (targetChain === CHAIN_ID_SOLANA && originChain && originAsset) {
         try {
-          const asset = await getForeignAssetSol(sourceChain, sourceAsset);
+          const asset = await getForeignAssetSol(originChain, originAsset);
           if (!cancelled) {
             dispatch(setTargetAsset(asset));
           }
@@ -65,9 +65,9 @@ function useFetchTargetAsset() {
           }
         }
       }
-      if (targetChain === CHAIN_ID_TERRA && sourceAsset) {
+      if (targetChain === CHAIN_ID_TERRA && originChain && originAsset) {
         try {
-          const asset = await getForeignAssetTerra(sourceChain, sourceAsset);
+          const asset = await getForeignAssetTerra(originChain, originAsset);
           if (!cancelled) {
             dispatch(setTargetAsset(asset));
           }
@@ -87,8 +87,6 @@ function useFetchTargetAsset() {
     originChain,
     originAsset,
     targetChain,
-    sourceChain,
-    sourceAsset,
     provider,
   ]);
 }

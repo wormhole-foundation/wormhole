@@ -51,7 +51,7 @@ export async function getOriginalAssetEth(
   return {
     isWrapped: false,
     chainId: CHAIN_ID_ETH,
-    assetAddress: arrayify(wrappedAddress),
+    assetAddress: zeroPad(arrayify(wrappedAddress), 32),
   };
 }
 
@@ -59,20 +59,24 @@ export async function getOriginalAssetTerra(
   client: LCDClient,
   wrappedAddress: string
 ): Promise<WormholeWrappedInfo> {
-  const result: {
-    asset_address: string;
-    asset_chain: ChainId;
-    bridge: string;
-  } = await client.wasm.contractQuery(wrappedAddress, {
-    wrapped_asset_info: {},
-  });
-  if (result) {
-    return {
-      isWrapped: true,
-      chainId: result.asset_chain,
-      assetAddress: new Uint8Array(Buffer.from(result.asset_address, "base64")),
-    };
-  }
+  try {
+    const result: {
+      asset_address: string;
+      asset_chain: ChainId;
+      bridge: string;
+    } = await client.wasm.contractQuery(wrappedAddress, {
+      wrapped_asset_info: {},
+    });
+    if (result) {
+      return {
+        isWrapped: true,
+        chainId: result.asset_chain,
+        assetAddress: new Uint8Array(
+          Buffer.from(result.asset_address, "base64")
+        ),
+      };
+    }
+  } catch (e) {}
   return {
     isWrapped: false,
     chainId: CHAIN_ID_TERRA,
@@ -114,6 +118,13 @@ export async function getOriginalAssetSol(
       };
     }
   }
+  try {
+    return {
+      isWrapped: false,
+      chainId: CHAIN_ID_SOLANA,
+      assetAddress: new PublicKey(mintAddress).toBytes(),
+    };
+  } catch (e) {}
   return {
     isWrapped: false,
     chainId: CHAIN_ID_SOLANA,

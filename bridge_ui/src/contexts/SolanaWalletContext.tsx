@@ -24,7 +24,7 @@ export const SolanaWalletProvider: FC = (props) => {
   }, []);
 
   return (
-    <WalletProvider wallets={wallets} autoConnect>
+    <WalletProvider wallets={wallets}>
       <WalletDialogProvider>{props.children}</WalletDialogProvider>
     </WalletProvider>
   );
