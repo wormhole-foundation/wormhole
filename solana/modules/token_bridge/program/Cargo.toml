@@ -32,6 +32,7 @@ wasm-bindgen = { version = "0.2.74", features = ["serde-serialize"] }
 serde = { version = "1.0", features = ["derive"] }
 rand = { version = "0.7.3", optional = true }
 hex = "0.4.3"
+phf = { version = "0.9", default-features = false, features=["macros"] }
 
 [dev-dependencies]
 hex = "*"
