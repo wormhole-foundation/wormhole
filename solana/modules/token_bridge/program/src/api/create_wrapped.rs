@@ -101,6 +101,7 @@ impl<'b> InstructionContext<'b> for CreateWrapped<'b> {
 #[derive(BorshDeserialize, BorshSerialize, Default)]
 pub struct CreateWrappedData {}
 
+#[cfg(not(feature = "test"))]
 pub static SOLLET_MINTS: phf::Map<&str, (u16, &str)> = phf_map! {
         // "WETH",
         "000000000000000000000000c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2" => (2, "2FPyTwcZLUg1MDrwsyoP4D6s1tM7hAkHYRjkNb5w6Pxk"),
@@ -146,6 +147,12 @@ pub static SOLLET_MINTS: phf::Map<&str, (u16, &str)> = phf_map! {
         "000000000000000000000000c00e94cb662c3520282e6f5717214004a7f26888" => (2, "Avz2fmevhhu87WYtWQCFj9UjKRjF9Z9QWwN2ih9yF95G"),
         // "PAXG",
         "00000000000000000000000045804880De22913dAFE09f4980848ECE6EcbAf78" => (2, "9wRD14AhdZ3qV8et3eBQVsrb3UoBZDUbJGyFckpTg8sj"),
+};
+
+#[cfg(feature = "test")]
+pub static SOLLET_MINTS: phf::Map<&str, (u16, &str)> = phf_map! {
+        // "TEST",
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" => (2, "FDhdMYh3KsF64Jxzh8tnx9rJXQTcN461rguUK9z9zm64"),
 };
 
 pub fn derive_mint_for_token(

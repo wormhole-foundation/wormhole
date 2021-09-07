@@ -94,9 +94,11 @@ use std::{
 use token_bridge::{
     accounts::{
         EmitterAccount,
+        MintSigner,
         WrappedDerivationData,
         WrappedMint,
     },
+    api::SOLLET_MINTS,
     messages::{
         PayloadAssetMeta,
         PayloadGovernanceRegisterChain,
@@ -271,6 +273,9 @@ fn run_integration_tests() {
     .unwrap();
     test_transfer_wrapped_in(&mut context, wrapped_acc.pubkey());
     test_transfer_wrapped(&mut context, wrapped_acc.pubkey());
+
+    // Sollet specific tests
+    test_create_wrapped_preexisting(&mut context);
 }
 
 fn test_attest(context: &mut Context) -> () {
@@ -602,6 +607,84 @@ fn test_create_wrapped(context: &mut Context) -> (Pubkey) {
         &WrappedDerivationData {
             token_chain: 2,
             token_address: [1u8; 32],
+        },
+        token_bridge,
+    );
+}
+
+fn test_create_wrapped_preexisting(context: &mut Context) -> (Pubkey) {
+    println!("CreateWrappedPreexisting");
+    use token_bridge::{
+        accounts::ConfigAccount,
+        types::Config,
+    };
+
+    let Context {
+        ref payer,
+        ref client,
+        ref bridge,
+        ref token_bridge,
+        ref mint_authority,
+        ref mint,
+        ref mint_meta,
+        ref token_account,
+        ref token_authority,
+        ..
+    } = context;
+
+    // FDhdMYh3KsF64Jxzh8tnx9rJXQTcN461rguUK9z9zm64
+    let mint_keypair = Keypair::from_bytes(&[
+        78, 244, 23, 240, 92, 61, 31, 184, 188, 176, 28, 188, 143, 230, 185, 139, 23, 32, 60, 221,
+        166, 209, 15, 175, 243, 160, 174, 226, 190, 8, 124, 115, 211, 68, 134, 6, 252, 30, 9, 108,
+        54, 236, 74, 254, 5, 8, 178, 146, 14, 182, 243, 214, 1, 108, 184, 93, 66, 224, 100, 135,
+        16, 120, 69, 93,
+    ])
+    .unwrap();
+    // Create a wrapped mint
+    common::create_mint(
+        client,
+        payer,
+        &MintSigner::key(None, token_bridge),
+        &mint_keypair,
+    );
+
+    let nonce = rand::thread_rng().gen();
+    println!("{}", hex::encode([0xaau8; 32]));
+    println!("{:?}", SOLLET_MINTS);
+    println!("{:?}", SOLLET_MINTS.get(hex::encode([0xaau8; 32]).as_str()));
+
+    let payload = PayloadAssetMeta {
+        token_address: [0xaau8; 32],
+        token_chain: 2,
+        decimals: 7,
+        symbol: "".to_string(),
+        name: "".to_string(),
+    };
+    let message = payload.try_to_vec().unwrap();
+
+    let (vaa, _, _) = common::generate_vaa([0u8; 32], 2, message, nonce, 120);
+    common::post_vaa(client, bridge, payer, vaa.clone()).unwrap();
+    let mut msg_derivation_data = &PostedVAADerivationData {
+        payload_hash: bridge::instructions::hash_vaa(&vaa).to_vec(),
+    };
+    let message_key =
+        PostedVAA::<'_, { AccountState::MaybeInitialized }>::key(&msg_derivation_data, &bridge);
+
+    common::create_wrapped(
+        client,
+        token_bridge,
+        bridge,
+        &message_key,
+        vaa,
+        payload,
+        payer,
+    )
+    .unwrap();
+
+    return WrappedMint::<'_, { AccountState::Initialized }>::key(
+        &WrappedDerivationData {
+            token_chain: 2,
+            token_address: [0xaau8; 32],
         },
         token_bridge,
     );

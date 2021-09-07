@@ -395,8 +395,7 @@ pub fn transfer_wrapped(
 ) -> solitaire::Result<Instruction> {
     let config_key = ConfigAccount::<'_, { AccountState::Uninitialized }>::key(None, &program_id);
 
-    let wrapped_mint_key =
-        derive_mint_for_token(&program_id, token_address, token_chain).0;
+    let wrapped_mint_key = derive_mint_for_token(&program_id, token_address, token_chain).0;
     let wrapped_meta_key = WrappedTokenMeta::<'_, { AccountState::Uninitialized }>::key(
         &WrappedMetaDerivationData {
             mint_key: wrapped_mint_key,
