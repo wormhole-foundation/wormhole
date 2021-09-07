@@ -336,15 +336,19 @@ pub fn transfer_wrapped(
         accs.wrapped_meta.token_address,
         accs.wrapped_meta.chain,
     );
-    let (amount, fee) = if is_external && accs.wrapped_meta.original_decimals > 6 {
-        // Sollet assets are truncated to 6 decimals, however Wormhole uses 8 and assumes
-        // wire-truncation to 8 decimals.
+
+    // When dealing with external adopted mints, we check if the asset in question is larger than
+    // the mint in question. If it is, we truncate to the mints size. For example, sollet assets
+    // are truncated to 6 decimals, however Wormhole uses 8 and assumes wire-truncation to 8
+    // decimals. Larger mints are unsupported.
+    let (amount, fee) = if is_external && accs.wrapped_meta.original_decimals > accs.mint.decimals {
+        let difference = 8u32.checked_sub(accs.mint.decimals.into()).unwrap();
         (
             data.amount
-                .checked_mul(10u64.pow(2.min(accs.wrapped_meta.original_decimals as u32 - 6)))
+                .checked_mul(10u64.pow(difference.min(accs.wrapped_meta.original_decimals as u32 - 6)))
                 .unwrap(),
             data.fee
-                .checked_mul(10u64.pow(2.min(accs.wrapped_meta.original_decimals as u32 - 6)))
+                .checked_mul(10u64.pow(difference.min(accs.wrapped_meta.original_decimals as u32 - 6)))
                 .unwrap(),
         )
     } else {

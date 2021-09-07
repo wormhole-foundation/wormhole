@@ -244,19 +244,23 @@ pub fn complete_wrapped(
 
     let (_, is_external) =
         derive_mint_for_token(ctx.program_id, accs.vaa.token_address, accs.vaa.token_chain);
-    let (amount, fee) = if is_external && accs.wrapped_meta.original_decimals > 6 {
-        // Sollet assets are truncated to 6 decimals, however Wormhole uses 8 and assumes
-        // wire-truncation to 8 decimals.
+
+    // When dealing with external adopted mints, we check if the asset in question is larger than
+    // the mint in question. If it is, we truncate to the mints size. For example, sollet assets
+    // are truncated to 6 decimals, however Wormhole uses 8 and assumes wire-truncation to 8
+    // decimals.
+    let (amount, fee) = if is_external && accs.wrapped_meta.original_decimals > accs.mint.decimals {
+        let difference = 8u32.checked_sub(accs.mint.decimals.into()).unwrap();
         (
             accs.vaa
                 .amount
                 .as_u64()
-                .checked_div(10u64.pow(2.min(accs.wrapped_meta.original_decimals as u32 - 6)))
+                .checked_div(10u64.pow(difference.min(accs.wrapped_meta.original_decimals as u32 - 6)))
                 .unwrap(),
             accs.vaa
                 .fee
                 .as_u64()
-                .checked_div(10u64.pow(2.min(accs.wrapped_meta.original_decimals as u32 - 6)))
+                .checked_div(10u64.pow(difference.min(accs.wrapped_meta.original_decimals as u32 - 6)))
                 .unwrap(),
         )
     } else {
