@@ -12,6 +12,7 @@ use crate::{
         WrappedMint,
         WrappedTokenMeta,
     },
+    api::derive_mint_for_token,
     messages::PayloadTransfer,
     types::*,
     TokenBridgeError::*,
@@ -241,6 +242,27 @@ pub fn complete_wrapped(
     accs.vaa.verify(ctx.program_id)?;
     accs.vaa.claim(ctx, accs.payer.key)?;
 
+    let (_, is_sollet) =
+        derive_mint_for_token(ctx.program_id, accs.vaa.token_address, accs.vaa.token_chain);
+    let (amount, fee) = if is_sollet && accs.wrapped_meta.original_decimals > 6 {
+        // Sollet assets are truncated to 6 decimals, however Wormhole uses 8 and assumes
+        // wire-truncation to 8 decimals.
+        (
+            accs.vaa
+                .amount
+                .as_u64()
+                .checked_div(10u64.pow(2.min(accs.wrapped_meta.original_decimals as u32 - 6)))
+                .unwrap(),
+            accs.vaa
+                .fee
+                .as_u64()
+                .checked_div(10u64.pow(2.min(accs.wrapped_meta.original_decimals as u32 - 6)))
+                .unwrap(),
+        )
+    } else {
+        (accs.vaa.amount.as_u64(), accs.vaa.fee.as_u64())
+    };
+
     // Mint tokens
     let mint_ix = spl_token::instruction::mint_to(
         &spl_token::id(),
@@ -248,7 +270,7 @@ pub fn complete_wrapped(
         accs.to.info().key,
         accs.mint_authority.key,
         &[],
-        accs.vaa.amount.as_u64() - accs.vaa.fee.as_u64(),
+        amount - fee,
     )?;
     invoke_seeded(&mint_ix, ctx, &accs.mint_authority, None)?;
 
