@@ -50,6 +50,7 @@ impl Owned for EndpointRegistration {
 pub struct WrappedMeta {
     pub chain: ChainID,
     pub token_address: Address,
+    pub original_decimals: u8,
 }
 
 impl Owned for WrappedMeta {
