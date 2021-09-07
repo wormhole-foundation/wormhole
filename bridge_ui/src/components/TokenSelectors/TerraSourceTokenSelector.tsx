@@ -167,6 +167,7 @@ export default function TerraSourceTokenSelector(
 
   const toggleAdvancedMode = () => {
     setAdvancedMode(!advancedMode);
+    setAdvancedModeError("");
   };
 
   const advancedModeToggleButton = (

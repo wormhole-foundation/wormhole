@@ -1,4 +1,5 @@
 import { PublicKey } from "@solana/web3.js";
+import { bech32 } from "bech32";
 import { arrayify, BytesLike, Hexable, zeroPad } from "ethers/lib/utils";
 
 export function getEmitterAddressEth(
@@ -15,7 +16,7 @@ export async function getEmitterAddressSolana(programAddress: string) {
 }
 
 export async function getEmitterAddressTerra(programAddress: string) {
-  // Testnet Hardcoded
-  // TODO: HumanAddr -> CanonicalAddr
-  return "000000000000000000000000784999135aaa8a3ca5914468852fdddbddd8789d";
+  return Buffer.from(
+    zeroPad(bech32.fromWords(bech32.decode(programAddress).words), 32)
+  ).toString("hex");
 }

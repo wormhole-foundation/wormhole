@@ -78,8 +78,9 @@ async def store_contract(contract_name):
 async def store_contracts():
     parent_dir = os.path.dirname(__file__)
     contract_names = [
-        i[:-5] for i in os.listdir(f"{parent_dir}/../artifacts") if i.endswith(".wasm")
+        i[:-5] for i in sorted(os.listdir(f"{parent_dir}/../artifacts"), reverse = True) if i.endswith(".wasm")
     ]
+    
 
     return {
         contract_name: await store_contract(contract_name)
