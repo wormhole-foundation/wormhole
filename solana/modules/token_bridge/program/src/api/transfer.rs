@@ -16,7 +16,10 @@ use crate::{
     messages::PayloadTransfer,
     types::*,
     TokenBridgeError,
-    TokenBridgeError::WrongAccountOwner,
+    TokenBridgeError::{
+        InvalidFee,
+        WrongAccountOwner,
+    },
 };
 use bridge::{
     accounts::Bridge,
@@ -132,6 +135,11 @@ pub fn transfer_native(
     // Verify mints
     if accs.from.mint != *accs.mint.info().key {
         return Err(TokenBridgeError::InvalidMint.into());
+    }
+
+    // Fee must be less than amount
+    if data.fee > data.amount {
+        return Err(InvalidFee.into());
     }
 
     // Verify that the token is not a wrapped token
@@ -290,6 +298,11 @@ pub fn transfer_wrapped(
     // Verify mints
     if accs.mint.info().key != &accs.from.mint {
         return Err(TokenBridgeError::InvalidMint.into());
+    }
+
+    // Fee must be less than amount
+    if data.fee > data.amount {
+        return Err(InvalidFee.into());
     }
 
     // Verify that meta is correct

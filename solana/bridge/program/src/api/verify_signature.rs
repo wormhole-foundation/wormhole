@@ -36,7 +36,8 @@ pub struct VerifySignatures<'b> {
     pub instruction_acc: Info<'b>,
 }
 
-impl<'b> InstructionContext<'b> for VerifySignatures<'b> {}
+impl<'b> InstructionContext<'b> for VerifySignatures<'b> {
+}
 
 impl From<&VerifySignatures<'_>> for GuardianSetDerivationData {
     fn from(data: &VerifySignatures<'_>) -> Self {
@@ -65,7 +66,6 @@ struct SecpInstructionPart<'a> {
     msg_offset: u16,
     msg_size: u16,
 }
-
 
 pub fn verify_signatures(
     ctx: &ExecutionContext,
@@ -104,7 +104,7 @@ pub fn verify_signatures(
         secp_ix_index as usize,
         &accs.instruction_acc.try_borrow_mut_data()?,
     )
-        .map_err(|_| ProgramError::InvalidAccountData)?;
+    .map_err(|_| ProgramError::InvalidAccountData)?;
 
     // Check that the instruction is actually for the secp program
     if secp_ix.program_id != solana_program::secp256k1_program::id() {

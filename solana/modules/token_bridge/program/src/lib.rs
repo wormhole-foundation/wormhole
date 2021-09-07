@@ -63,6 +63,7 @@ pub enum TokenBridgeError {
     TokenNotNative,
     UninitializedMint,
     WrongAccountOwner,
+    InvalidFee,
 }
 
 impl From<TokenBridgeError> for SolitaireError {

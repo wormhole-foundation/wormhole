@@ -142,7 +142,7 @@ pub fn complete_native(
         accs.to.info().key,
         accs.custody_signer.key,
         &[],
-        amount - fee,
+        amount.checked_sub(fee).unwrap(),
     )?;
     invoke_seeded(&transfer_ix, ctx, &accs.custody_signer, None)?;
 
@@ -248,7 +248,11 @@ pub fn complete_wrapped(
         accs.to.info().key,
         accs.mint_authority.key,
         &[],
-        accs.vaa.amount.as_u64() - accs.vaa.fee.as_u64(),
+        accs.vaa
+            .amount
+            .as_u64()
+            .checked_sub(accs.vaa.fee.as_u64())
+            .unwrap(),
     )?;
     invoke_seeded(&mint_ix, ctx, &accs.mint_authority, None)?;
 
