@@ -83,6 +83,7 @@ use bridge::{
     PostVAA,
     PostVAAData,
     SerializePayload,
+    DeserializePayload,
     Signature,
 };
 use primitive_types::U256;
@@ -140,6 +141,7 @@ struct Context {
     /// Keypairs for test token accounts.
     token_authority: Keypair,
     token_account: Keypair,
+    external_token_account: Keypair,
     metadata_account: Pubkey,
 }
 
@@ -207,6 +209,7 @@ fn run_integration_tests() {
         mint,
         mint_meta: metadata_account,
         token_account: Keypair::new(),
+        external_token_account: Keypair::new(),
         token_authority: Keypair::new(),
         metadata_account: metadata_key,
     };
@@ -276,6 +279,9 @@ fn run_integration_tests() {
 
     // Sollet specific tests
     test_create_wrapped_preexisting(&mut context);
+    test_transfer_in_wrapped_preexisting(&mut context);
+    test_transfer_in_wrapped_preexisting_invalid(&mut context);
+    test_transfer_wrapped_preexisting(&mut context);
 }
 
 fn test_attest(context: &mut Context) -> () {
@@ -711,4 +717,211 @@ fn test_initialize(context: &mut Context) {
     let config_key = ConfigAccount::<'_, { AccountState::Uninitialized }>::key(None, &token_bridge);
     let config: Config = common::get_account_data(client, &config_key).unwrap();
     assert_eq!(config.wormhole_bridge, *bridge);
+}
+
+fn test_transfer_in_wrapped_preexisting(context: &mut Context) {
+    println!("TransferInPreexisting");
+    use token_bridge::{
+        accounts::ConfigAccount,
+        types::Config,
+    };
+
+    let Context {
+        ref payer,
+        ref client,
+        ref bridge,
+        ref token_bridge,
+        ref mint_authority,
+        ref mint,
+        ref mint_meta,
+        ref external_token_account,
+        ref token_authority,
+        ..
+    } = context;
+
+    // FDhdMYh3KsF64Jxzh8tnx9rJXQTcN461rguUK9z9zm64
+    let mint_keypair = Keypair::from_bytes(&[
+        78, 244, 23, 240, 92, 61, 31, 184, 188, 176, 28, 188, 143, 230, 185, 139, 23, 32, 60, 221,
+        166, 209, 15, 175, 243, 160, 174, 226, 190, 8, 124, 115, 211, 68, 134, 6, 252, 30, 9, 108,
+        54, 236, 74, 254, 5, 8, 178, 146, 14, 182, 243, 214, 1, 108, 184, 93, 66, 224, 100, 135,
+        16, 120, 69, 93,
+    ])
+    .unwrap();
+
+    // Create Token accounts for use within tests.
+    common::create_token_account(
+        &context.client,
+        &context.payer,
+        &external_token_account,
+        context.token_authority.pubkey(),
+        mint_keypair.pubkey(),
+    )
+    .unwrap();
+
+    let nonce = rand::thread_rng().gen();
+    let payload = PayloadTransfer {
+        amount: U256::from(10000),
+        token_address: [0xaau8; 32],
+        token_chain: 2,
+        to: external_token_account.pubkey().to_bytes(),
+        to_chain: 1,
+        fee: U256::from(0),
+    };
+
+    let message = payload.try_to_vec().unwrap();
+    let (vaa, _, _) = common::generate_vaa(
+        [0u8; 32],
+        2,
+        message,
+        nonce,
+        0
+    );
+    common::post_vaa(client, bridge, payer, vaa.clone()).unwrap();
+
+    let mut msg_derivation_data = &PostedVAADerivationData {
+        payload_hash: bridge::instructions::hash_vaa(&vaa).to_vec(),
+    };
+    let message_key =
+        PostedVAA::<'_, { AccountState::MaybeInitialized }>::key(&msg_derivation_data, &bridge);
+
+    common::complete_transfer_wrapped(
+        client,
+        token_bridge,
+        bridge,
+        &message_key,
+        vaa,
+        payload,
+        payer,
+    )
+    .unwrap();
+}
+
+fn test_transfer_wrapped_preexisting(context: &mut Context) {
+    println!("TransferOutPreexisting");
+    use token_bridge::{
+        accounts::ConfigAccount,
+        types::Config,
+    };
+
+    let Context {
+        ref payer,
+        ref client,
+        ref bridge,
+        ref token_bridge,
+        ref mint_authority,
+        ref mint,
+        ref mint_meta,
+        ref external_token_account,
+        ref token_authority,
+        ..
+    } = context;
+
+    // FDhdMYh3KsF64Jxzh8tnx9rJXQTcN461rguUK9z9zm64
+    let mint_keypair = Keypair::from_bytes(&[
+        78, 244, 23, 240, 92, 61, 31, 184, 188, 176, 28, 188, 143, 230, 185, 139, 23, 32, 60, 221,
+        166, 209, 15, 175, 243, 160, 174, 226, 190, 8, 124, 115, 211, 68, 134, 6, 252, 30, 9, 108,
+        54, 236, 74, 254, 5, 8, 178, 146, 14, 182, 243, 214, 1, 108, 184, 93, 66, 224, 100, 135,
+        16, 120, 69, 93,
+    ])
+    .unwrap();
+
+    let message = &Keypair::new();
+
+    common::transfer_wrapped(
+        client,
+        token_bridge,
+        bridge,
+        payer,
+        message,
+        external_token_account.pubkey(),
+        token_authority,
+        2,
+        [0xaau8; 32],
+        1000,
+    );
+
+    let account_data = Account::unpack(
+        &client
+            .get_account_with_commitment(&external_token_account.pubkey(), CommitmentConfig::processed())
+            .unwrap()
+            .value
+            .unwrap()
+            .data,
+    )
+    .unwrap();
+
+    // Check truncation for external asset shrinks by the correct amount.
+    assert_eq!(0, account_data.amount);
+
+    let posted_message: PostedVAAData = common::get_account_data(client, &message.pubkey()).unwrap();
+    let mut transfer = posted_message.0.payload.clone();
+    let transfer = &mut &transfer[0..];
+    let transfer: PayloadTransfer = PayloadTransfer::deserialize(transfer).unwrap();
+    assert_eq!(transfer.amount, U256::from(10000));
+}
+
+fn test_transfer_in_wrapped_preexisting_invalid(context: &mut Context) {
+    println!("TransferInPreexisting");
+    use token_bridge::{
+        accounts::ConfigAccount,
+        types::Config,
+    };
+
+    let Context {
+        ref payer,
+        ref client,
+        ref bridge,
+        ref token_bridge,
+        ref mint_authority,
+        ref mint,
+        ref mint_meta,
+        ref external_token_account,
+        ref token_authority,
+        ..
+    } = context;
+
+    // FDhdMYh3KsF64Jxzh8tnx9rJXQTcN461rguUK9z9zm64
+    let mint_keypair = Keypair::from_bytes(&[
+        78, 244, 23, 240, 92, 61, 31, 184, 188, 176, 28, 188, 143, 230, 185, 139, 23, 32, 60, 221,
+        166, 209, 15, 175, 243, 160, 174, 226, 190, 8, 124, 115, 211, 68, 134, 6, 252, 30, 9, 108,
+        54, 236, 74, 254, 5, 8, 178, 146, 14, 182, 243, 214, 1, 108, 184, 93, 66, 224, 100, 135,
+        16, 120, 69, 93,
+    ])
+    .unwrap();
+
+    let nonce = rand::thread_rng().gen();
+    let payload = PayloadTransfer {
+        amount: U256::from(10000),
+        token_address: [0xabu8; 32],
+        token_chain: 2,
+        to: external_token_account.pubkey().to_bytes(),
+        to_chain: 1,
+        fee: U256::from(0),
+    };
+
+    let message = payload.try_to_vec().unwrap();
+    let (vaa, _, _) = common::generate_vaa(
+        [0u8; 32],
+        2,
+        message,
+        nonce,
+        0
+    );
+    common::post_vaa(client, bridge, payer, vaa.clone()).unwrap();
+
+    let mut msg_derivation_data = &PostedVAADerivationData {
+        payload_hash: bridge::instructions::hash_vaa(&vaa).to_vec(),
+    };
+    let message_key =
+        PostedVAA::<'_, { AccountState::MaybeInitialized }>::key(&msg_derivation_data, &bridge);
+
+    assert!(common::complete_transfer_wrapped(
+        client,
+        token_bridge,
+        bridge,
+        &message_key,
+        vaa,
+        payload,
+        payer,
+    ).is_err());
 }
