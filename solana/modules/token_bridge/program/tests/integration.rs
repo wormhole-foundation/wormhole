@@ -98,7 +98,7 @@ use token_bridge::{
         WrappedDerivationData,
         WrappedMint,
     },
-    api::SOLLET_MINTS,
+    api::EXTERNAL_MINTS,
     messages::{
         PayloadAssetMeta,
         PayloadGovernanceRegisterChain,
@@ -650,8 +650,8 @@ fn test_create_wrapped_preexisting(context: &mut Context) -> (Pubkey) {
 
     let nonce = rand::thread_rng().gen();
     println!("{}", hex::encode([0xaau8; 32]));
-    println!("{:?}", SOLLET_MINTS);
-    println!("{:?}", SOLLET_MINTS.get(hex::encode([0xaau8; 32]).as_str()));
+    println!("{:?}", EXTERNAL_MINTS);
+    println!("{:?}", EXTERNAL_MINTS.get(hex::encode([0xaau8; 32]).as_str()));
 
     let payload = PayloadAssetMeta {
         token_address: [0xaau8; 32],
