@@ -60,7 +60,7 @@ pub struct CreateWrapped<'b> {
     pub vaa: ClaimableVAA<'b, PayloadAssetMeta>,
 
     // New Wrapped
-    pub mint: Mut<WrappedMint<'b, { AccountState::Uninitialized }>>,
+    pub mint: Mut<WrappedMint<'b, { AccountState::MaybeInitialized }>>,
     pub meta: Mut<WrappedTokenMeta<'b, { AccountState::Uninitialized }>>,
 
     /// SPL Metadata for the associated Mint
