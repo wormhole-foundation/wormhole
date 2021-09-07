@@ -43,7 +43,7 @@ use solitaire::{
     processors::seeded::Seeded,
     AccountState,
 };
-use spl_token::state::Mint;
+use spl_token::state::{Account, Mint};
 use std::{
     convert::TryInto,
     io::{
@@ -794,6 +794,19 @@ fn test_transfer_in_wrapped_preexisting(context: &mut Context) {
         payer,
     )
     .unwrap();
+
+    let account_data = Account::unpack(
+        &client
+            .get_account_with_commitment(&external_token_account.pubkey(), CommitmentConfig::processed())
+            .unwrap()
+            .value
+            .unwrap()
+            .data,
+    )
+    .unwrap();
+
+    // Check truncation for external asset shrinks by the correct amount.
+    assert_eq!(1000, account_data.amount);
 }
 
 fn test_transfer_wrapped_preexisting(context: &mut Context) {
