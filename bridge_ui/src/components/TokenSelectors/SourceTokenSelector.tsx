@@ -91,6 +91,7 @@ export const TokenSelector = (props: TokenSelectorProps) => {
       solanaTokenMap={maps?.tokenMap}
       metaplexData={maps?.metaplex}
       mintAccounts={maps?.mintAccounts}
+      resetAccounts={maps?.resetAccounts}
       nft={nft}
     />
   ) : lookupChain === CHAIN_ID_ETH ? (
@@ -99,7 +100,8 @@ export const TokenSelector = (props: TokenSelectorProps) => {
       disabled={disabled}
       onChange={handleOnChange}
       covalent={maps?.covalent || undefined}
-      tokenAccounts={maps?.tokenAccounts} //TODO standardize
+      tokenAccounts={maps?.tokenAccounts}
+      resetAccounts={maps?.resetAccounts}
       nft={nft}
     />
   ) : lookupChain === CHAIN_ID_TERRA ? (
@@ -108,6 +110,7 @@ export const TokenSelector = (props: TokenSelectorProps) => {
       disabled={disabled}
       onChange={handleOnChange}
       tokenMap={maps?.terraTokenMap}
+      resetAccounts={maps?.resetAccounts}
     />
   ) : (
     <TextField

@@ -14,7 +14,7 @@ import {
 } from "@solana/web3.js";
 import axios from "axios";
 import { formatUnits } from "ethers/lib/utils";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useEthereumProvider } from "../contexts/EthereumProviderContext";
 import { useSolanaWallet } from "../contexts/SolanaWalletContext";
@@ -381,6 +381,28 @@ function useGetAvailableTokens(nft: boolean = false) {
       ? solPK?.toString()
       : undefined;
 
+  const resetSourceAccounts = useCallback(() => {
+    dispatch(
+      nft
+        ? setSourceWalletAddressNFT(undefined)
+        : setSourceWalletAddress(undefined)
+    );
+    dispatch(
+      nft
+        ? setSourceParsedTokenAccountNFT(undefined)
+        : setSourceParsedTokenAccount(undefined)
+    );
+    dispatch(
+      nft
+        ? setSourceParsedTokenAccountsNFT(undefined)
+        : setSourceParsedTokenAccounts(undefined)
+    );
+    !nft && dispatch(setAmount(""));
+    setCovalent(undefined); //These need to be included in the reset because they have balances on them.
+    setCovalentLoading(false);
+    setCovalentError("");
+  }, [setCovalent, dispatch, nft]);
+
   //TODO this useEffect could be somewhere else in the codebase
   //It resets the SourceParsedTokens accounts when the wallet changes
   useEffect(() => {
@@ -389,26 +411,16 @@ function useGetAvailableTokens(nft: boolean = false) {
       currentSourceWalletAddress !== undefined &&
       currentSourceWalletAddress !== selectedSourceWalletAddress
     ) {
-      dispatch(
-        nft
-          ? setSourceWalletAddressNFT(undefined)
-          : setSourceWalletAddress(undefined)
-      );
-      dispatch(
-        nft
-          ? setSourceParsedTokenAccountNFT(undefined)
-          : setSourceParsedTokenAccount(undefined)
-      );
-      dispatch(
-        nft
-          ? setSourceParsedTokenAccountsNFT(undefined)
-          : setSourceParsedTokenAccounts(undefined)
-      );
-      !nft && dispatch(setAmount(""));
+      resetSourceAccounts();
       return;
     } else {
     }
-  }, [selectedSourceWalletAddress, currentSourceWalletAddress, dispatch, nft]);
+  }, [
+    selectedSourceWalletAddress,
+    currentSourceWalletAddress,
+    dispatch,
+    resetSourceAccounts,
+  ]);
 
   // Solana metaplex load
   useEffect(() => {
@@ -526,69 +538,68 @@ function useGetAvailableTokens(nft: boolean = false) {
     // const nftTestWallet2 = "0x98ed231428088eb440e8edb5cc8d66dcf913b86e";
     let cancelled = false;
     const walletAddress = signerAddress;
-    if (!walletAddress || lookupChain !== CHAIN_ID_ETH) {
-      return;
-    }
-    //TODO less cancel
-    !cancelled && setCovalentLoading(true);
-    !cancelled &&
-      dispatch(
-        nft
-          ? fetchSourceParsedTokenAccountsNFT()
-          : fetchSourceParsedTokenAccounts()
-      );
-    getEthereumAccountsCovalent(walletAddress, nft).then(
-      (accounts) => {
-        !cancelled && setCovalentLoading(false);
-        !cancelled && setCovalentError(undefined);
-        !cancelled && setCovalent(accounts);
-        !cancelled &&
-          dispatch(
-            nft
-              ? receiveSourceParsedTokenAccountsNFT(
-                  accounts.reduce((arr, current) => {
-                    if (current.nft_data) {
-                      current.nft_data.forEach((x) =>
-                        arr.push(
-                          createNFTParsedTokenAccountFromCovalent(
-                            walletAddress,
-                            current,
-                            x
+    if (walletAddress && lookupChain === CHAIN_ID_ETH && !tokenAccounts.data) {
+      //TODO less cancel
+      !cancelled && setCovalentLoading(true);
+      !cancelled &&
+        dispatch(
+          nft
+            ? fetchSourceParsedTokenAccountsNFT()
+            : fetchSourceParsedTokenAccounts()
+        );
+      getEthereumAccountsCovalent(walletAddress, nft).then(
+        (accounts) => {
+          !cancelled && setCovalentLoading(false);
+          !cancelled && setCovalentError(undefined);
+          !cancelled && setCovalent(accounts);
+          !cancelled &&
+            dispatch(
+              nft
+                ? receiveSourceParsedTokenAccountsNFT(
+                    accounts.reduce((arr, current) => {
+                      if (current.nft_data) {
+                        current.nft_data.forEach((x) =>
+                          arr.push(
+                            createNFTParsedTokenAccountFromCovalent(
+                              walletAddress,
+                              current,
+                              x
+                            )
                           )
-                        )
-                      );
-                    }
-                    return arr;
-                  }, [] as NFTParsedTokenAccount[])
-                )
-              : receiveSourceParsedTokenAccounts(
-                  accounts.map((x) =>
-                    createParsedTokenAccountFromCovalent(walletAddress, x)
+                        );
+                      }
+                      return arr;
+                    }, [] as NFTParsedTokenAccount[])
                   )
-                )
-          );
-      },
-      () => {
-        !cancelled &&
-          dispatch(
-            nft
-              ? errorSourceParsedTokenAccountsNFT(
-                  "Cannot load your Ethereum NFTs at the moment."
-                )
-              : errorSourceParsedTokenAccounts(
-                  "Cannot load your Ethereum tokens at the moment."
-                )
-          );
-        !cancelled &&
-          setCovalentError("Cannot load your Ethereum tokens at the moment.");
-        !cancelled && setCovalentLoading(false);
-      }
-    );
+                : receiveSourceParsedTokenAccounts(
+                    accounts.map((x) =>
+                      createParsedTokenAccountFromCovalent(walletAddress, x)
+                    )
+                  )
+            );
+        },
+        () => {
+          !cancelled &&
+            dispatch(
+              nft
+                ? errorSourceParsedTokenAccountsNFT(
+                    "Cannot load your Ethereum NFTs at the moment."
+                  )
+                : errorSourceParsedTokenAccounts(
+                    "Cannot load your Ethereum tokens at the moment."
+                  )
+            );
+          !cancelled &&
+            setCovalentError("Cannot load your Ethereum tokens at the moment.");
+          !cancelled && setCovalentLoading(false);
+        }
+      );
 
-    return () => {
-      cancelled = true;
-    };
-  }, [lookupChain, provider, signerAddress, dispatch, nft]);
+      return () => {
+        cancelled = true;
+      };
+    }
+  }, [lookupChain, provider, signerAddress, dispatch, nft, tokenAccounts.data]);
 
   //Terra accounts load
   //At present, we don't have any mechanism for doing this.
@@ -640,6 +651,7 @@ function useGetAvailableTokens(nft: boolean = false) {
           error: solanaMintAccountsError,
           receivedAt: null, //TODO
         },
+        resetAccounts: resetSourceAccounts,
       }
     : lookupChain === CHAIN_ID_ETH
     ? {
@@ -650,10 +662,12 @@ function useGetAvailableTokens(nft: boolean = false) {
           error: covalentError,
           receivedAt: null, //TODO
         },
+        resetAccounts: resetSourceAccounts,
       }
     : lookupChain === CHAIN_ID_TERRA
     ? {
         terraTokenMap: terraTokenMap,
+        resetAccounts: resetSourceAccounts,
       }
     : undefined;
 }

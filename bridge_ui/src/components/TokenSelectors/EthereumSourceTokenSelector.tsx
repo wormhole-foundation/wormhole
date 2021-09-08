@@ -1,3 +1,4 @@
+import { WormholeAbi__factory } from "@certusone/wormhole-sdk/lib/ethers-contracts/abi";
 import {
   CircularProgress,
   createStyles,
@@ -11,6 +12,7 @@ import { useEthereumProvider } from "../../contexts/EthereumProviderContext";
 import { CovalentData } from "../../hooks/useGetSourceParsedTokenAccounts";
 import { DataWrapper } from "../../store/helpers";
 import { ParsedTokenAccount } from "../../store/transferSlice";
+import { WORMHOLE_V1_ETH_ADDRESS } from "../../utils/consts";
 import {
   ethNFTToNFTParsedTokenAccount,
   ethTokenToParsedTokenAccount,
@@ -21,11 +23,10 @@ import {
 } from "../../utils/ethereum";
 import { shortenAddress } from "../../utils/solana";
 import OffsetButton from "./OffsetButton";
-import { WormholeAbi__factory } from "@certusone/wormhole-sdk/lib/ethers-contracts/abi";
-import { WORMHOLE_V1_ETH_ADDRESS } from "../../utils/consts";
 import { NFTParsedTokenAccount } from "../../store/nftSlice";
 import NFTViewer from "./NFTViewer";
 import { useDebounce } from "use-debounce/lib";
+import RefreshButtonWrapper from "./RefreshButtonWrapper";
 
 const useStyles = makeStyles(() =>
   createStyles({
@@ -56,6 +57,7 @@ type EthereumSourceTokenSelectorProps = {
   covalent: DataWrapper<CovalentData[]> | undefined;
   tokenAccounts: DataWrapper<ParsedTokenAccount[]> | undefined;
   disabled: boolean;
+  resetAccounts: (() => void) | undefined;
   nft?: boolean;
 };
 
@@ -116,7 +118,15 @@ const renderNFTAccount = (
 export default function EthereumSourceTokenSelector(
   props: EthereumSourceTokenSelectorProps
 ) {
-  const { value, onChange, covalent, tokenAccounts, disabled, nft } = props;
+  const {
+    value,
+    onChange,
+    covalent,
+    tokenAccounts,
+    disabled,
+    resetAccounts,
+    nft,
+  } = props;
   const classes = useStyles();
   const [advancedMode, setAdvancedMode] = useState(false);
   const [advancedModeLoading, setAdvancedModeLoading] = useState(false);
@@ -138,6 +148,14 @@ export default function EthereumSourceTokenSelector(
 
   // const wrappedTestToken = "0x8bf3c393b588bb6ad021e154654493496139f06d";
   // const notWrappedTestToken = "0xaaaebe6fe48e54f431b0c390cfaf0b017d09d42d";
+
+  const resetAccountWrapper = useCallback(() => {
+    setAdvancedModeHolderString("");
+    setAutocompleteHolder(null);
+    setAdvancedModeError("");
+    setAutocompleteError("");
+    resetAccounts && resetAccounts();
+  }, [resetAccounts]);
 
   useEffect(() => {
     //If we receive a push from our parent, usually on component mount, we set our internal value to synchronize
@@ -394,6 +412,8 @@ export default function EthereumSourceTokenSelector(
     setAdvancedModeHolderString("");
     setAdvancedModeError("");
     setAdvancedModeSymbol("");
+    setAutocompleteHolder(null);
+    setAutocompleteError("");
     setAdvancedMode(!advancedMode);
   };
 
@@ -412,7 +432,7 @@ export default function EthereumSourceTokenSelector(
         autoSelect
         blurOnSelect
         clearOnBlur
-        fullWidth={false}
+        fullWidth={true}
         filterOptions={nft ? filterConfigNFT : filterConfig}
         value={autocompleteHolder}
         onChange={(event, newValue) => {
@@ -454,15 +474,18 @@ export default function EthereumSourceTokenSelector(
           })`;
         }}
       />
-      {autocompleteError && (
-        <Typography color="error">{autocompleteError}</Typography>
-      )}
     </>
   );
 
   const advancedModeToggleButton = (
     <OffsetButton onClick={toggleAdvancedMode} disabled={disabled}>
-      {advancedMode ? "Toggle Token Picker" : "Toggle Override"}
+      {advancedMode ? "Toggle Token Picker" : "Toggle Manual Entry"}
+    </OffsetButton>
+  );
+
+  const clearButton = (
+    <OffsetButton onClick={handleClick} disabled={disabled}>
+      Clear
     </OffsetButton>
   );
 
@@ -473,16 +496,12 @@ export default function EthereumSourceTokenSelector(
       {nft ? (
         <NFTViewer symbol={symbol} value={value} />
       ) : (
-        <Typography>{(symbol ? symbol + " " : "") + value.mintKey}</Typography>
+        <RefreshButtonWrapper callback={resetAccountWrapper}>
+          <Typography>
+            {(symbol ? symbol + " " : "") + value.mintKey}
+          </Typography>
+        </RefreshButtonWrapper>
       )}
-      <OffsetButton onClick={handleClick} disabled={disabled}>
-        Clear
-      </OffsetButton>
-      {!advancedMode && autocompleteError ? (
-        <Typography color="error">{autocompleteError}</Typography>
-      ) : advancedMode && advancedModeError ? (
-        <Typography color="error">{advancedModeError}</Typography>
-      ) : null}
     </>
   ) : advancedMode ? (
     <>
@@ -496,7 +515,11 @@ export default function EthereumSourceTokenSelector(
             !isValidEthereumAddress(advancedModeHolderString)) ||
           !!advancedModeError
         }
-        helperText={advancedModeError === "" ? undefined : advancedModeError}
+        helperText={
+          advancedModeHolderString &&
+          !isValidEthereumAddress(advancedModeHolderString) &&
+          "Invalid Ethereum address"
+        }
         disabled={disabled || advancedModeLoading}
       />
       {nft ? (
@@ -515,13 +538,20 @@ export default function EthereumSourceTokenSelector(
       {nft ? "Loading (this may take a while)..." : "Loading..."}
     </Typography>
   ) : (
-    autoComplete
+    <RefreshButtonWrapper callback={resetAccountWrapper}>
+      {autoComplete}
+    </RefreshButtonWrapper>
   );
 
   return (
-    <React.Fragment>
+    <>
       {content}
-      {!value && advancedModeToggleButton}
-    </React.Fragment>
+      {!advancedMode && autocompleteError ? (
+        <Typography color="error">{autocompleteError}</Typography>
+      ) : advancedMode && advancedModeError ? (
+        <Typography color="error">{advancedModeError}</Typography>
+      ) : null}
+      {value ? clearButton : advancedModeToggleButton}
+    </>
   );
 }

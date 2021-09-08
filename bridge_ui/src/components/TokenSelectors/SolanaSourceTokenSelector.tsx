@@ -9,6 +9,7 @@ import { ParsedTokenAccount } from "../../store/transferSlice";
 import { WORMHOLE_V1_MINT_AUTHORITY } from "../../utils/consts";
 import { Metadata } from "../../utils/metaplex";
 import { shortenAddress } from "../../utils/solana";
+import RefreshButtonWrapper from "./RefreshButtonWrapper";
 
 const useStyles = makeStyles((theme: Theme) =>
   createStyles({
@@ -33,14 +34,17 @@ type SolanaSourceTokenSelectorProps = {
   metaplexData: any; //DataWrapper<(Metadata | undefined)[]> | undefined | null;
   disabled: boolean;
   mintAccounts: DataWrapper<Map<String, string | null>> | undefined;
+  resetAccounts: (() => void) | undefined;
   nft?: boolean;
 };
 
 export default function SolanaSourceTokenSelector(
   props: SolanaSourceTokenSelectorProps
 ) {
-  const { value, onChange, disabled, nft } = props;
+  const { value, onChange, disabled, resetAccounts, nft } = props;
   const classes = useStyles();
+
+  const resetAccountWrapper = resetAccounts || (() => {}); //This should never happen.
 
   const memoizedTokenMap: Map<String, TokenInfo> = useMemo(() => {
     const output = new Map<String, TokenInfo>();
@@ -245,9 +249,15 @@ export default function SolanaSourceTokenSelector(
     />
   );
 
+  const wrappedContent = (
+    <RefreshButtonWrapper callback={resetAccountWrapper}>
+      {autoComplete}
+    </RefreshButtonWrapper>
+  );
+
   return (
     <React.Fragment>
-      {isLoading ? <CircularProgress /> : autoComplete}
+      {isLoading ? <CircularProgress /> : wrappedContent}
       {error && <Typography color="error">{error}</Typography>}
     </React.Fragment>
   );

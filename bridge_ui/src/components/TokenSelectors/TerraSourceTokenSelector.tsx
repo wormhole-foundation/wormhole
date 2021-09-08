@@ -1,4 +1,5 @@
 import {
+  CircularProgress,
   createStyles,
   makeStyles,
   TextField,
@@ -22,6 +23,7 @@ import { ParsedTokenAccount } from "../../store/transferSlice";
 import { TERRA_HOST } from "../../utils/consts";
 import { shortenAddress } from "../../utils/solana";
 import OffsetButton from "./OffsetButton";
+import RefreshButtonWrapper from "./RefreshButtonWrapper";
 
 const useStyles = makeStyles(() =>
   createStyles({
@@ -43,6 +45,7 @@ type TerraSourceTokenSelectorProps = {
   onChange: (newValue: ParsedTokenAccount | null) => void;
   disabled: boolean;
   tokenMap: DataWrapper<TerraTokenMap> | undefined; //TODO better type
+  resetAccounts: (() => void) | undefined;
 };
 
 //TODO move elsewhere
@@ -87,11 +90,27 @@ export default function TerraSourceTokenSelector(
   props: TerraSourceTokenSelectorProps
 ) {
   const classes = useStyles();
-  const { onChange, value, disabled, tokenMap } = props;
+  const { onChange, value, disabled, tokenMap, resetAccounts } = props;
   const [advancedMode, setAdvancedMode] = useState(false);
   const [advancedModeHolderString, setAdvancedModeHolderString] = useState("");
   const [advancedModeError, setAdvancedModeError] = useState("");
   const terraWallet = useConnectedWallet();
+
+  const [autocompleteString, setAutocompleteString] = useState("");
+
+  const handleAutocompleteChange = useCallback(
+    (event) => {
+      setAutocompleteString(event?.target?.value);
+    },
+    [setAutocompleteString]
+  );
+
+  const resetAccountWrapper = useCallback(() => {
+    setAdvancedModeHolderString("");
+    setAdvancedModeError("");
+    setAutocompleteString("");
+    resetAccounts && resetAccounts();
+  }, [resetAccounts]);
 
   const isLoading = tokenMap?.isFetching || false;
 
@@ -102,7 +121,7 @@ export default function TerraSourceTokenSelector(
   }, [props.tokenMap]);
 
   const valueToOption = (fromProps: ParsedTokenAccount | undefined | null) => {
-    if (!fromProps) return undefined;
+    if (!fromProps) return null;
     else {
       return terraTokenArray.find((x) => x.token === fromProps.mintKey);
     }
@@ -113,7 +132,7 @@ export default function TerraSourceTokenSelector(
   }, [onChange]);
 
   const handleOnChange = useCallback(
-    (event) => setAdvancedModeHolderString(event.target.value),
+    (event) => setAdvancedModeHolderString(event?.target?.value),
     []
   );
 
@@ -128,7 +147,7 @@ export default function TerraSourceTokenSelector(
         onChange(result);
       },
       (error) => {
-        setAdvancedModeError("Unable to retrieve this address.");
+        setAdvancedModeError("Unable to retrieve that address.");
       }
     );
     setAdvancedModeError("");
@@ -172,9 +191,11 @@ export default function TerraSourceTokenSelector(
 
   const advancedModeToggleButton = (
     <OffsetButton onClick={toggleAdvancedMode} disabled={disabled}>
-      {advancedMode ? "Toggle Token Picker" : "Toggle Override"}
+      {advancedMode ? "Toggle Token Picker" : "Toggle Manual Entry"}
     </OffsetButton>
   );
+
+  const selectedValue = valueToOption(value);
 
   const autoComplete = (
     <>
@@ -186,10 +207,12 @@ export default function TerraSourceTokenSelector(
         clearOnBlur
         fullWidth={false}
         filterOptions={filterConfig}
-        value={valueToOption(value)}
+        value={selectedValue}
         onChange={(event, newValue) => {
           handleConfirm(newValue?.token);
         }}
+        inputValue={autocompleteString}
+        onInputChange={handleAutocompleteChange}
         disabled={disabled}
         noOptionsText={"No CW20 tokens found at the moment."}
         options={terraTokenArray}
@@ -199,18 +222,18 @@ export default function TerraSourceTokenSelector(
         renderOption={renderOption}
         getOptionLabel={renderOptionLabel}
       />
-      {advancedModeError && (
-        <Typography color="error">{advancedModeError}</Typography>
-      )}
     </>
+  );
+
+  const clearButton = (
+    <OffsetButton onClick={handleClick} disabled={disabled}>
+      Clear
+    </OffsetButton>
   );
 
   const content = value ? (
     <>
       <Typography>{value.mintKey}</Typography>
-      <OffsetButton onClick={handleClick} disabled={disabled}>
-        Clear
-      </OffsetButton>
     </>
   ) : !advancedMode ? (
     autoComplete
@@ -223,21 +246,37 @@ export default function TerraSourceTokenSelector(
         onChange={handleOnChange}
         disabled={disabled}
         error={advancedModeHolderString !== "" && !!advancedModeError}
-        helperText={advancedModeError === "" ? undefined : advancedModeError}
       />
-      <OffsetButton
-        onClick={() => handleConfirm(advancedModeHolderString)}
-        disabled={disabled}
-      >
-        Confirm
-      </OffsetButton>
     </>
+  );
+
+  const wrappedContent = (
+    <RefreshButtonWrapper callback={resetAccountWrapper}>
+      {content}
+    </RefreshButtonWrapper>
+  );
+
+  const confirmButton = (
+    <OffsetButton
+      onClick={() => handleConfirm(advancedModeHolderString)}
+      disabled={disabled}
+    >
+      Confirm
+    </OffsetButton>
   );
 
   return (
     <React.Fragment>
-      {content}
-      {!value && !isLoading && advancedModeToggleButton}
+      {isLoading && <CircularProgress />}
+      {wrappedContent}
+      {advancedModeError && (
+        <Typography color="error">{advancedModeError}</Typography>
+      )}
+      <div>
+        {advancedMode && !value && confirmButton}
+        {!value && !isLoading && advancedModeToggleButton}
+        {value && clearButton}
+      </div>
     </React.Fragment>
   );
 }
