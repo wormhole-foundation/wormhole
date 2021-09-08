@@ -88,6 +88,23 @@ export const EthereumProviderProvider = ({
                     setChainId(BigNumber.from(chainId).toNumber());
                   } catch (e) {}
                 });
+                // @ts-ignore
+                detectedProvider.on("accountsChanged", (accounts) => {
+                  try {
+                    const signer = provider.getSigner();
+                    setSigner(signer);
+                    signer
+                      .getAddress()
+                      .then((address) => {
+                        setSignerAddress(address);
+                      })
+                      .catch(() => {
+                        setProviderError(
+                          "An error occurred while getting the signer address"
+                        );
+                      });
+                  } catch (e) {}
+                });
               }
             })
             .catch(() => {
@@ -110,7 +127,6 @@ export const EthereumProviderProvider = ({
     setSigner(undefined);
     setSignerAddress(undefined);
   }, []);
-  //TODO: detect account change
   const contextValue = useMemo(
     () => ({
       connect,
