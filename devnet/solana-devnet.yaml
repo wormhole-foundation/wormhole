@@ -59,6 +59,9 @@ spec:
             - --bpf-program
             - P2WH424242424242424242424242424242424242424
             - /opt/solana/deps/pyth2wormhole.so
+            - --bpf-program
+            - Ex9bCdVMSfx7EzB3pgSi2R4UHwJAXvTw18rBQm5YQ8gK
+            - /opt/solana/deps/wormhole_migration.so
             - --log
           ports:
             - containerPort: 8001

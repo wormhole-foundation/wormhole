@@ -1,0 +1,41 @@
+[package]
+name = "wormhole-migration"
+version = "0.1.0"
+description = "Created with Rocksalt"
+edition = "2018"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "wormhole_migration"
+
+[features]
+no-entrypoint = ["solitaire/no-entrypoint", "rand"]
+trace = ["solitaire/trace"]
+wasm = ["no-entrypoint"]
+client = ["solitaire-client", "solitaire/client", "no-entrypoint"]
+cpi = ["no-entrypoint"]
+default = []
+
+[dependencies]
+borsh = "0.8.1"
+byteorder = "1.4.3"
+rocksalt = { path = "../solitaire/rocksalt" }
+solitaire = { path = "../solitaire/program" }
+sha3 = "0.9.1"
+solana-program = "*"
+spl-token = { version = "=3.1.0", features = ["no-entrypoint"] }
+solitaire-client = { path = "../solitaire/client", optional = true }
+wasm-bindgen = { version = "0.2.74", features = ["serde-serialize"] }
+serde = { version = "1.0", features = ["derive"] }
+rand = { version = "0.7.3", optional = true }
+
+[dev-dependencies]
+hex = "*"
+hex-literal = "0.3.1"
+libsecp256k1 = { version = "0.3.5", features = [] }
+solana-client = "1.7.0"
+solana-sdk = "=1.7.0"
+spl-token = { version = "=3.1.0", features = ["no-entrypoint"] }
+
+[patch.crates-io]
+memmap2 = { path = "../bridge/memmap2-rs" }
