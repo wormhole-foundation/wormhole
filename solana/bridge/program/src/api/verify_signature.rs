@@ -1,11 +1,9 @@
 use solitaire::*;
 
 use crate::{
-    accounts::{
-        GuardianSet,
-        GuardianSetDerivationData,
-        SignatureSet,
-    },
+    GuardianSet,
+    GuardianSetDerivationData,
+    SignatureSet,
     error::Error::{
         GuardianSetMismatch,
         InstructionAtWrongIndex,

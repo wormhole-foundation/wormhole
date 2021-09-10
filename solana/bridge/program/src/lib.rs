@@ -2,11 +2,10 @@
 #![allow(non_upper_case_globals)]
 #![allow(incomplete_features)]
 
-pub mod accounts;
-pub mod api;
-pub mod error;
-pub mod types;
-pub mod vaa;
+use solitaire::*;
+
+pub const MAX_LEN_GUARDIAN_KEYS: usize = 19;
+pub const CHAIN_ID_SOLANA: u16 = 1;
 
 #[cfg(feature = "no-entrypoint")]
 pub mod instructions;
@@ -19,8 +18,30 @@ extern crate wasm_bindgen;
 #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
 pub mod wasm;
 
-use solitaire::*;
+pub mod accounts;
+pub use accounts::{
+    BridgeConfig,
+    BridgeData,
+    Claim,
+    ClaimData,
+    ClaimDerivationData, 
+    FeeCollector,
+    GuardianSet,
+    GuardianSetData,
+    GuardianSetDerivationData,
+    PostedMessage,
+    PostedMessageData,
+    MessageData,
+    PostedVAA,
+    PostedVAAData,
+    Sequence,
+    SequenceTracker,
+    SequenceDerivationData,
+    SignatureSet,
+    SignatureSetData,
+};
 
+pub mod api;
 pub use api::{
     initialize,
     post_message,
@@ -50,6 +71,10 @@ pub use api::{
     VerifySignaturesData,
 };
 
+pub mod error;
+pub mod types;
+pub mod vaa;
+
 pub use vaa::{
     DeserializeGovernancePayload,
     DeserializePayload,
@@ -57,9 +82,6 @@ pub use vaa::{
     SerializeGovernancePayload,
     SerializePayload,
 };
-
-pub const MAX_LEN_GUARDIAN_KEYS: usize = 19;
-pub const CHAIN_ID_SOLANA: u16 = 1;
 
 solitaire! {
     Initialize(InitializeData)                  => initialize,

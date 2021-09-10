@@ -22,10 +22,8 @@ use solana_program::{
 };
 
 use bridge::{
-    types::{
-        BridgeData,
-        ConsistencyLevel,
-    },
+    accounts::BridgeData,
+    types::ConsistencyLevel,
     PostMessageData,
 };
 

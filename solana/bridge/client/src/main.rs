@@ -11,9 +11,9 @@ use borsh::BorshDeserialize;
 use bridge::{
     accounts::{
         Bridge,
+        BridgeData,
         FeeCollector,
     },
-    types::BridgeData,
 };
 use clap::{
     crate_description,

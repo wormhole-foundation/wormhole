@@ -1,8 +1,4 @@
 use crate::{
-    accounts::{
-        Claim,
-        ClaimDerivationData,
-    },
     api::{
         post_vaa::PostVAAData,
         ForeignAddress,
@@ -13,7 +9,9 @@ use crate::{
         InvalidGovernanceModule,
         VAAAlreadyExecuted,
     },
-    types::PostedVAAData,
+    Claim,
+    ClaimDerivationData,
+    PostedVAAData,
     Result,
     CHAIN_ID_SOLANA,
 };

@@ -38,20 +38,18 @@ use borsh::BorshSerialize;
 use bridge::{
     accounts::{
         Bridge,
+        BridgeConfig,
         Claim,
         ClaimDerivationData,
         FeeCollector,
         PostedVAA,
+        PostedVAAData,
         PostedVAADerivationData,
         Sequence,
         SequenceDerivationData,
     },
     api::ForeignAddress,
     instructions::hash_vaa,
-    types::{
-        BridgeConfig,
-        PostedVAAData,
-    },
     vaa::{
         ClaimableVAA,
         PayloadMessage,

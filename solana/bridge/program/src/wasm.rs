@@ -20,20 +20,15 @@ use std::io::Write;
 
 use crate::{
     accounts::{
+        Bridge,
+        BridgeData,
+        FeeCollector,
         GuardianSet,
+        GuardianSetData,
         GuardianSetDerivationData,
         PostedVAA,
+        PostedVAAData,
         PostedVAADerivationData,
-    },
-    types::ConsistencyLevel,
-    PostVAAData,
-    VerifySignaturesData,
-};
-
-use crate::{
-    accounts::{
-        Bridge,
-        FeeCollector,
     },
     instructions::{
         hash_vaa,
@@ -46,13 +41,13 @@ use crate::{
         verify_signatures,
     },
     types::{
-        BridgeData,
+        ConsistencyLevel,
         GovernancePayloadGuardianSetChange,
         GovernancePayloadTransferFees,
         GovernancePayloadUpgrade,
-        GuardianSetData,
-        PostedVAAData,
     },
+    PostVAAData,
+    VerifySignaturesData,
 };
 use byteorder::LittleEndian;
 use wasm_bindgen::prelude::*;

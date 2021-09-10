@@ -1,7 +1,7 @@
 use crate::types::*;
 use bridge::{
+    accounts::BridgeData,
     api::ForeignAddress,
-    types::BridgeData,
     vaa::{
         DeserializePayload,
         PayloadMessage,

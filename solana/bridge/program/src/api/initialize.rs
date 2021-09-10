@@ -1,12 +1,12 @@
 use crate::{
     accounts::{
         Bridge,
+        BridgeConfig,
         FeeCollector,
         GuardianSet,
         GuardianSetDerivationData,
     },
     error::Error::TooManyGuardians,
-    types::*,
     MAX_LEN_GUARDIAN_KEYS,
 };
 use solana_program::sysvar::clock::Clock;
