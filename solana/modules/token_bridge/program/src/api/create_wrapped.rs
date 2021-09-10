@@ -166,6 +166,7 @@ pub fn create_wrapped(
     // Populate meta account
     accs.meta.chain = accs.vaa.token_chain;
     accs.meta.token_address = accs.vaa.token_address;
+    accs.meta.original_decimals = accs.vaa.decimals;
 
     Ok(())
 }
