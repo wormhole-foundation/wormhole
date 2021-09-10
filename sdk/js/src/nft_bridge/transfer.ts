@@ -41,7 +41,8 @@ export async function transferFromSolana(
     targetAddress: Uint8Array,
     targetChain: ChainId,
     originAddress?: Uint8Array,
-    originChain?: ChainId
+    originChain?: ChainId,
+    originTokenId?: Uint8Array
 ) {
     const nonce = createNonce().readUInt32LE(0);
     const transferIx = await getBridgeFeeIx(
@@ -65,8 +66,8 @@ export async function transferFromSolana(
     let messageKey = Keypair.generate();
     const isSolanaNative =
         originChain === undefined || originChain === CHAIN_ID_SOLANA;
-    if (!isSolanaNative && !originAddress) {
-        throw new Error("originAddress is required when specifying originChain");
+    if (!isSolanaNative && !originAddress && !originTokenId) {
+        throw new Error("originAddress and originTokenId are required when specifying originChain");
     }
     const ix = ixFromRust(
         isSolanaNative
@@ -90,6 +91,7 @@ export async function transferFromSolana(
                 payerAddress,
                 originChain as number, // checked by isSolanaNative
                 originAddress as Uint8Array, // checked by throw
+                originTokenId as Uint8Array, // checked by throw
                 nonce,
                 targetAddress,
                 targetChain

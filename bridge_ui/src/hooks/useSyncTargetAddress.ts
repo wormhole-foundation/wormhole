@@ -17,25 +17,35 @@ import { useDispatch, useSelector } from "react-redux";
 import { useEthereumProvider } from "../contexts/EthereumProviderContext";
 import { useSolanaWallet } from "../contexts/SolanaWalletContext";
 import {
+  selectNFTTargetAsset,
+  selectNFTTargetChain,
   selectTransferTargetAsset,
   selectTransferTargetChain,
   selectTransferTargetParsedTokenAccount,
 } from "../store/selectors";
-import { setTargetAddressHex } from "../store/transferSlice";
+import { setTargetAddressHex as setNFTTargetAddressHex } from "../store/nftSlice";
+import { setTargetAddressHex as setTransferTargetAddressHex } from "../store/transferSlice";
 import { uint8ArrayToHex } from "../utils/array";
 
-function useSyncTargetAddress(shouldFire: boolean) {
+function useSyncTargetAddress(shouldFire: boolean, nft?: boolean) {
   const dispatch = useDispatch();
-  const targetChain = useSelector(selectTransferTargetChain);
+  const targetChain = useSelector(
+    nft ? selectNFTTargetChain : selectTransferTargetChain
+  );
   const { signerAddress } = useEthereumProvider();
   const solanaWallet = useSolanaWallet();
   const solPK = solanaWallet?.publicKey;
-  const targetAsset = useSelector(selectTransferTargetAsset);
+  const targetAsset = useSelector(
+    nft ? selectNFTTargetAsset : selectTransferTargetAsset
+  );
   const targetParsedTokenAccount = useSelector(
     selectTransferTargetParsedTokenAccount
   );
   const targetTokenAccountPublicKey = targetParsedTokenAccount?.publicKey;
   const terraWallet = useConnectedWallet();
+  const setTargetAddressHex = nft
+    ? setNFTTargetAddressHex
+    : setTransferTargetAddressHex;
   useEffect(() => {
     if (shouldFire) {
       let cancelled = false;
@@ -47,7 +57,11 @@ function useSyncTargetAddress(shouldFire: boolean) {
         );
       }
       // TODO: have the user explicitly select an account on solana
-      else if (targetChain === CHAIN_ID_SOLANA && targetTokenAccountPublicKey) {
+      else if (
+        !nft && // only support existing, non-derived token accounts for token transfers (nft flow doesn't check balance)
+        targetChain === CHAIN_ID_SOLANA &&
+        targetTokenAccountPublicKey
+      ) {
         // use the target's TokenAccount if it exists
         dispatch(
           setTargetAddressHex(
@@ -74,7 +88,11 @@ function useSyncTargetAddress(shouldFire: boolean) {
                 )
               );
             }
-          } catch (e) {}
+          } catch (e) {
+            if (!cancelled) {
+              dispatch(setTargetAddressHex(undefined));
+            }
+          }
         })();
       } else if (
         targetChain === CHAIN_ID_TERRA &&
@@ -104,6 +122,8 @@ function useSyncTargetAddress(shouldFire: boolean) {
     targetAsset,
     targetTokenAccountPublicKey,
     terraWallet,
+    nft,
+    setTargetAddressHex,
   ]);
 }
 

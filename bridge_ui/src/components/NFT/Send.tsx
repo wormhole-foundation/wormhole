@@ -1,11 +1,11 @@
 import { Alert } from "@material-ui/lab";
 import { useSelector } from "react-redux";
-import { useHandleTransfer } from "../../hooks/useHandleTransfer";
+import { useHandleNFTTransfer } from "../../hooks/useHandleNFTTransfer";
 import useIsWalletReady from "../../hooks/useIsWalletReady";
 import {
-  selectSourceWalletAddress,
-  selectTransferSourceChain,
-  selectTransferTargetError,
+  selectNFTSourceWalletAddress,
+  selectNFTSourceChain,
+  selectNFTTargetError,
 } from "../../store/selectors";
 import { CHAINS_BY_ID } from "../../utils/consts";
 import ButtonWithLoader from "../ButtonWithLoader";
@@ -14,12 +14,12 @@ import StepDescription from "../StepDescription";
 import TransferProgress from "../TransferProgress";
 
 function Send() {
-  const { handleClick, disabled, showLoader } = useHandleTransfer();
-  const sourceChain = useSelector(selectTransferSourceChain);
-  const error = useSelector(selectTransferTargetError);
+  const { handleClick, disabled, showLoader } = useHandleNFTTransfer();
+  const sourceChain = useSelector(selectNFTSourceChain);
+  const error = useSelector(selectNFTTargetError);
   const { isReady, statusMessage, walletAddress } =
     useIsWalletReady(sourceChain);
-  const sourceWalletAddress = useSelector(selectSourceWalletAddress);
+  const sourceWalletAddress = useSelector(selectNFTSourceWalletAddress);
   //The chain ID compare is handled implicitly, as the isWalletReady hook should report !isReady if the wallet is on the wrong chain.
   const isWrongWallet =
     sourceWalletAddress &&
@@ -32,7 +32,7 @@ function Send() {
   return (
     <>
       <StepDescription>
-        Transfer the tokens to the Wormhole Token Bridge.
+        Transfer the NFT to the Wormhole Token Bridge.
       </StepDescription>
       <KeyAndBalance chainId={sourceChain} />
       <Alert severity="warning">

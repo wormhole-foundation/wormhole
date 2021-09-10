@@ -30,10 +30,10 @@ export const CHAINS =
           id: CHAIN_ID_SOLANA,
           name: "Solana",
         },
-        {
-          id: CHAIN_ID_TERRA,
-          name: "Terra",
-        },
+        // {
+        //   id: CHAIN_ID_TERRA,
+        //   name: "Terra",
+        // },
       ]
     : [
         {
@@ -89,6 +89,11 @@ export const ETH_BRIDGE_ADDRESS = getAddress(
     ? "0x44F3e7c20850B3B5f3031114726A9240911D912a"
     : "0xC89Ce4735882C9F0f0FE26686c53074E09B0D550"
 );
+export const ETH_NFT_BRIDGE_ADDRESS = getAddress(
+  CLUSTER === "testnet"
+    ? "0x26b4afb60d6c903165150c6f0aa14f8016be4aec" // TODO: test address
+    : "0x26b4afb60d6c903165150c6f0aa14f8016be4aec"
+);
 export const ETH_TOKEN_BRIDGE_ADDRESS = getAddress(
   CLUSTER === "testnet"
     ? "0xa6CDAddA6e4B6704705b065E01E52e2486c0FBf6"
@@ -102,6 +107,10 @@ export const SOL_BRIDGE_ADDRESS =
   CLUSTER === "testnet"
     ? "Brdguy7BmNB4qwEbcqqMbyV5CyJd2sxQNUn6NEpMSsUb"
     : "Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o";
+export const SOL_NFT_BRIDGE_ADDRESS =
+  CLUSTER === "testnet"
+    ? "NFTWqJR8YnRVqPDvTJrYuLrQDitTG5AScqbeghi4zSA" // TODO: test address
+    : "NFTWqJR8YnRVqPDvTJrYuLrQDitTG5AScqbeghi4zSA";
 export const SOL_TOKEN_BRIDGE_ADDRESS =
   CLUSTER === "testnet"
     ? "A4Us8EhCC76XdGAN17L4KpRNEK423nMivVHZzZqFqqBg"
@@ -119,14 +128,17 @@ export const COVALENT_API_KEY = process.env.REACT_APP_COVALENT_API_KEY
 
 export const COVALENT_GET_TOKENS_URL = (
   chainId: ChainId,
-  walletAddress: string
+  walletAddress: string,
+  nft?: boolean
 ) => {
   let chainNum = "";
   if (chainId === CHAIN_ID_ETH) {
     chainNum = COVALENT_ETHEREUM_MAINNET;
   }
-
-  return `https://api.covalenthq.com/v1/${chainNum}/address/${walletAddress}/balances_v2/?key=${COVALENT_API_KEY}`;
+  // https://www.covalenthq.com/docs/api/#get-/v1/{chain_id}/address/{address}/balances_v2/
+  return `https://api.covalenthq.com/v1/${chainNum}/address/${walletAddress}/balances_v2/?key=${COVALENT_API_KEY}${
+    nft ? "&nft=true" : ""
+  }`;
 };
 
 export const COVALENT_ETHEREUM_MAINNET = "1";

@@ -1,15 +1,15 @@
 import { Connection, PublicKey } from "@solana/web3.js";
 import { ethers } from "ethers";
-import { arrayify } from "ethers/lib/utils";
+import { arrayify, zeroPad } from "ethers/lib/utils";
 import { TokenImplementation__factory } from "../ethers-contracts";
-import { ChainId, CHAIN_ID_ETH, CHAIN_ID_SOLANA, CHAIN_ID_TERRA } from "../utils";
+import { ChainId, CHAIN_ID_ETH, CHAIN_ID_SOLANA } from "../utils";
 import { getIsWrappedAssetEth } from "./getIsWrappedAsset";
-import { ConnectedWallet as TerraConnectedWallet } from "@terra-money/wallet-provider";
 
-export interface WormholeWrappedInfo {
+export interface WormholeWrappedNFTInfo {
   isWrapped: boolean;
   chainId: ChainId;
   assetAddress: Uint8Array;
+  tokenId?: string;
 }
 
 /**
@@ -22,8 +22,9 @@ export interface WormholeWrappedInfo {
 export async function getOriginalAssetEth(
   tokenBridgeAddress: string,
   provider: ethers.providers.Web3Provider,
-  wrappedAddress: string
-): Promise<WormholeWrappedInfo> {
+  wrappedAddress: string,
+  tokenId: string
+): Promise<WormholeWrappedNFTInfo> {
   const isWrapped = await getIsWrappedAssetEth(
     tokenBridgeAddress,
     provider,
@@ -36,6 +37,7 @@ export async function getOriginalAssetEth(
     );
     const chainId = (await token.chainId()) as ChainId; // origin chain
     const assetAddress = await token.nativeContract(); // origin address
+    // TODO: tokenId
     return {
       isWrapped: true,
       chainId,
@@ -45,19 +47,8 @@ export async function getOriginalAssetEth(
   return {
     isWrapped: false,
     chainId: CHAIN_ID_ETH,
-    assetAddress: arrayify(wrappedAddress),
-  };
-}
-
-export async function getOriginalAssetTerra(
-  tokenBridgeAddress: string,
-  wallet: TerraConnectedWallet,
-  wrappedAddress: string
-): Promise<WormholeWrappedInfo> {
-  return {
-    isWrapped: false,
-    chainId: CHAIN_ID_TERRA,
-    assetAddress: arrayify(""),
+    assetAddress: zeroPad(arrayify(wrappedAddress), 32),
+    tokenId,
   };
 }
 
@@ -72,7 +63,7 @@ export async function getOriginalAssetSol(
   connection: Connection,
   tokenBridgeAddress: string,
   mintAddress: string
-): Promise<WormholeWrappedInfo> {
+): Promise<WormholeWrappedNFTInfo> {
   if (mintAddress) {
     // TODO: share some of this with getIsWrappedAssetSol, like a getWrappedMetaAccountAddress or something
     const { parse_wrapped_meta, wrapped_meta_address } = await import(
@@ -92,9 +83,17 @@ export async function getOriginalAssetSol(
         isWrapped: true,
         chainId: parsed.chain,
         assetAddress: parsed.token_address,
+        tokenId: parsed.token_id,
       };
     }
   }
+  try {
+    return {
+      isWrapped: false,
+      chainId: CHAIN_ID_SOLANA,
+      assetAddress: new PublicKey(mintAddress).toBytes(),
+    };
+  } catch (e) {}
   return {
     isWrapped: false,
     chainId: CHAIN_ID_SOLANA,

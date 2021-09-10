@@ -33,12 +33,13 @@ type SolanaSourceTokenSelectorProps = {
   metaplexData: any; //DataWrapper<(Metadata | undefined)[]> | undefined | null;
   disabled: boolean;
   mintAccounts: DataWrapper<Map<String, string | null>> | undefined;
+  nft?: boolean;
 };
 
 export default function SolanaSourceTokenSelector(
   props: SolanaSourceTokenSelectorProps
 ) {
-  const { value, onChange, disabled } = props;
+  const { value, onChange, disabled, nft } = props;
   const classes = useStyles();
 
   const memoizedTokenMap: Map<String, TokenInfo> = useMemo(() => {
@@ -196,9 +197,9 @@ export default function SolanaSourceTokenSelector(
       //TODO, do a better check which likely involves supply or checking masterEdition.
       const isNFT =
         x.decimals === 0 && memoizedMetaplex.get(x.mintKey)?.data?.uri;
-      return !isNFT;
+      return nft ? isNFT : !isNFT;
     });
-  }, [memoizedMetaplex, props.accounts]);
+  }, [memoizedMetaplex, nft, props.accounts]);
 
   const isOptionDisabled = useMemo(() => {
     return (value: ParsedTokenAccount) => isWormholev1(value.mintKey);
@@ -220,7 +221,11 @@ export default function SolanaSourceTokenSelector(
       disabled={disabled}
       options={filteredOptions}
       renderInput={(params) => (
-        <TextField {...params} label="Token Account" variant="outlined" />
+        <TextField
+          {...params}
+          label={nft ? "NFT Account" : "Token Account"}
+          variant="outlined"
+        />
       )}
       renderOption={(option) => {
         return renderAccount(

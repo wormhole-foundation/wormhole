@@ -20,6 +20,18 @@ import { useEthereumProvider } from "../contexts/EthereumProviderContext";
 import { useSolanaWallet } from "../contexts/SolanaWalletContext";
 import { DataWrapper } from "../store/helpers";
 import {
+  errorSourceParsedTokenAccounts as errorSourceParsedTokenAccountsNFT,
+  fetchSourceParsedTokenAccounts as fetchSourceParsedTokenAccountsNFT,
+  NFTParsedTokenAccount,
+  receiveSourceParsedTokenAccounts as receiveSourceParsedTokenAccountsNFT,
+  setSourceParsedTokenAccount as setSourceParsedTokenAccountNFT,
+  setSourceParsedTokenAccounts as setSourceParsedTokenAccountsNFT,
+  setSourceWalletAddress as setSourceWalletAddressNFT,
+} from "../store/nftSlice";
+import {
+  selectNFTSourceChain,
+  selectNFTSourceParsedTokenAccounts,
+  selectNFTSourceWalletAddress,
   selectSolanaTokenMap,
   selectSourceWalletAddress,
   selectTerraTokenMap,
@@ -78,6 +90,36 @@ export function createParsedTokenAccount(
   };
 }
 
+export function createNFTParsedTokenAccount(
+  publicKey: string,
+  mintKey: string,
+  amount: string,
+  decimals: number,
+  uiAmount: number,
+  uiAmountString: string,
+  tokenId: string,
+  animation_url?: string,
+  external_url?: string,
+  image?: string,
+  image_256?: string,
+  name?: string
+): NFTParsedTokenAccount {
+  return {
+    publicKey,
+    mintKey,
+    amount,
+    decimals,
+    uiAmount,
+    uiAmountString,
+    tokenId,
+    animation_url,
+    external_url,
+    image,
+    image_256,
+    name,
+  };
+}
+
 export type TerraTokenMetadata = {
   protocol: string;
   symbol: string;
@@ -119,6 +161,32 @@ const createParsedTokenAccountFromCovalent = (
   };
 };
 
+const createNFTParsedTokenAccountFromCovalent = (
+  walletAddress: string,
+  covalent: CovalentData,
+  nft_data: CovalentNFTData
+): NFTParsedTokenAccount => {
+  return {
+    publicKey: walletAddress,
+    mintKey: covalent.contract_address,
+    amount: nft_data.token_balance,
+    decimals: covalent.contract_decimals,
+    uiAmount: Number(
+      formatUnits(nft_data.token_balance, covalent.contract_decimals)
+    ),
+    uiAmountString: formatUnits(
+      nft_data.token_balance,
+      covalent.contract_decimals
+    ),
+    tokenId: nft_data.token_id,
+    animation_url: nft_data.external_data.animation_url,
+    external_url: nft_data.external_data.external_url,
+    image: nft_data.external_data.image,
+    image_256: nft_data.external_data.image_256,
+    name: nft_data.external_data.name,
+  };
+};
+
 export type CovalentData = {
   contract_decimals: number;
   contract_ticker_symbol: string;
@@ -128,12 +196,28 @@ export type CovalentData = {
   balance: string;
   quote: number | undefined;
   quote_rate: number | undefined;
+  nft_data?: CovalentNFTData[];
+};
+
+export type CovalentNFTExternalData = {
+  animation_url: string | null;
+  external_url: string | null;
+  image: string;
+  image_256: string;
+  name: string;
+};
+
+export type CovalentNFTData = {
+  token_id: string;
+  token_balance: string;
+  external_data: CovalentNFTExternalData;
 };
 
 const getEthereumAccountsCovalent = async (
-  walletAddress: string
+  walletAddress: string,
+  nft?: boolean
 ): Promise<CovalentData[]> => {
-  const url = COVALENT_GET_TOKENS_URL(CHAIN_ID_ETH, walletAddress);
+  const url = COVALENT_GET_TOKENS_URL(CHAIN_ID_ETH, walletAddress, nft);
 
   try {
     const output = [] as CovalentData[];
@@ -144,11 +228,13 @@ const getEthereumAccountsCovalent = async (
       for (const item of tokens) {
         // TODO: filter?
         if (
-          item.contract_decimals &&
+          item.contract_decimals !== undefined &&
           item.contract_ticker_symbol &&
           item.contract_address &&
           item.balance &&
-          item.supports_erc?.includes("erc20")
+          (nft
+            ? item.supports_erc?.includes("erc721")
+            : item.supports_erc?.includes("erc20"))
         ) {
           output.push({ ...item } as CovalentData);
         }
@@ -199,10 +285,13 @@ const getMetaplexData = async (mintAddresses: string[]) => {
 
 const getSolanaParsedTokenAccounts = (
   walletAddress: string,
-  dispatch: Dispatch
+  dispatch: Dispatch,
+  nft: boolean
 ) => {
   const connection = new Connection(SOLANA_HOST, "finalized");
-  dispatch(fetchSourceParsedTokenAccounts());
+  dispatch(
+    nft ? fetchSourceParsedTokenAccountsNFT() : fetchSourceParsedTokenAccounts()
+  );
   return connection
     .getParsedTokenAccountsByOwner(new PublicKey(walletAddress), {
       programId: new PublicKey(TOKEN_PROGRAM_ID),
@@ -212,11 +301,17 @@ const getSolanaParsedTokenAccounts = (
         const mappedItems = result.value.map((item) =>
           createParsedTokenAccountFromInfo(item.pubkey, item.account)
         );
-        dispatch(receiveSourceParsedTokenAccounts(mappedItems));
+        dispatch(
+          nft
+            ? receiveSourceParsedTokenAccountsNFT(mappedItems)
+            : receiveSourceParsedTokenAccounts(mappedItems)
+        );
       },
       (error) => {
         dispatch(
-          errorSourceParsedTokenAccounts("Failed to load token metadata.")
+          nft
+            ? errorSourceParsedTokenAccountsNFT("Failed to load NFT metadata")
+            : errorSourceParsedTokenAccounts("Failed to load token metadata.")
         );
       }
     );
@@ -240,14 +335,20 @@ const getSolanaTokenMap = (dispatch: Dispatch) => {
  * Fetches the balance of an asset for the connected wallet
  * This should handle every type of chain in the future, but only reads the Transfer state.
  */
-function useGetAvailableTokens() {
+function useGetAvailableTokens(nft: boolean = false) {
   const dispatch = useDispatch();
 
-  const tokenAccounts = useSelector(selectTransferSourceParsedTokenAccounts);
+  const tokenAccounts = useSelector(
+    nft
+      ? selectNFTSourceParsedTokenAccounts
+      : selectTransferSourceParsedTokenAccounts
+  );
   const solanaTokenMap = useSelector(selectSolanaTokenMap);
   const terraTokenMap = useSelector(selectTerraTokenMap);
 
-  const lookupChain = useSelector(selectTransferSourceChain);
+  const lookupChain = useSelector(
+    nft ? selectNFTSourceChain : selectTransferSourceChain
+  );
   const solanaWallet = useSolanaWallet();
   const solPK = solanaWallet?.publicKey;
   //const terraWallet = useConnectedWallet(); //TODO
@@ -270,7 +371,9 @@ function useGetAvailableTokens() {
     string | undefined
   >(undefined);
 
-  const selectedSourceWalletAddress = useSelector(selectSourceWalletAddress);
+  const selectedSourceWalletAddress = useSelector(
+    nft ? selectNFTSourceWalletAddress : selectSourceWalletAddress
+  );
   const currentSourceWalletAddress: string | undefined =
     lookupChain === CHAIN_ID_ETH
       ? signerAddress
@@ -286,14 +389,26 @@ function useGetAvailableTokens() {
       currentSourceWalletAddress !== undefined &&
       currentSourceWalletAddress !== selectedSourceWalletAddress
     ) {
-      dispatch(setSourceWalletAddress(undefined));
-      dispatch(setSourceParsedTokenAccount(undefined));
-      dispatch(setSourceParsedTokenAccounts(undefined));
-      dispatch(setAmount(""));
+      dispatch(
+        nft
+          ? setSourceWalletAddressNFT(undefined)
+          : setSourceWalletAddress(undefined)
+      );
+      dispatch(
+        nft
+          ? setSourceParsedTokenAccountNFT(undefined)
+          : setSourceParsedTokenAccount(undefined)
+      );
+      dispatch(
+        nft
+          ? setSourceParsedTokenAccountsNFT(undefined)
+          : setSourceParsedTokenAccounts(undefined)
+      );
+      !nft && dispatch(setAmount(""));
       return;
     } else {
     }
-  }, [selectedSourceWalletAddress, currentSourceWalletAddress, dispatch]);
+  }, [selectedSourceWalletAddress, currentSourceWalletAddress, dispatch, nft]);
 
   // Solana metaplex load
   useEffect(() => {
@@ -333,7 +448,7 @@ function useGetAvailableTokens() {
       if (
         !(tokenAccounts.data || tokenAccounts.isFetching || tokenAccounts.error)
       ) {
-        getSolanaParsedTokenAccounts(solPK.toString(), dispatch);
+        getSolanaParsedTokenAccounts(solPK.toString(), dispatch, nft);
       }
       if (
         !(
@@ -354,6 +469,7 @@ function useGetAvailableTokens() {
     solPK,
     tokenAccounts,
     solanaTokenMap,
+    nft,
   ]);
 
   //Solana Mint Accounts lookup
@@ -406,6 +522,8 @@ function useGetAvailableTokens() {
   //Ethereum accounts load
   useEffect(() => {
     //const testWallet = "0xf60c2ea62edbfe808163751dd0d8693dcb30019c";
+    // const nftTestWallet1 = "0x3f304c6721f35ff9af00fd32650c8e0a982180ab";
+    // const nftTestWallet2 = "0x98ed231428088eb440e8edb5cc8d66dcf913b86e";
     let cancelled = false;
     const walletAddress = signerAddress;
     if (!walletAddress || lookupChain !== CHAIN_ID_ETH) {
@@ -413,27 +531,53 @@ function useGetAvailableTokens() {
     }
     //TODO less cancel
     !cancelled && setCovalentLoading(true);
-    !cancelled && dispatch(fetchSourceParsedTokenAccounts());
-    getEthereumAccountsCovalent(walletAddress).then(
+    !cancelled &&
+      dispatch(
+        nft
+          ? fetchSourceParsedTokenAccountsNFT()
+          : fetchSourceParsedTokenAccounts()
+      );
+    getEthereumAccountsCovalent(walletAddress, nft).then(
       (accounts) => {
         !cancelled && setCovalentLoading(false);
         !cancelled && setCovalentError(undefined);
         !cancelled && setCovalent(accounts);
         !cancelled &&
           dispatch(
-            receiveSourceParsedTokenAccounts(
-              accounts.map((x) =>
-                createParsedTokenAccountFromCovalent(walletAddress, x)
-              )
-            )
+            nft
+              ? receiveSourceParsedTokenAccountsNFT(
+                  accounts.reduce((arr, current) => {
+                    if (current.nft_data) {
+                      current.nft_data.forEach((x) =>
+                        arr.push(
+                          createNFTParsedTokenAccountFromCovalent(
+                            walletAddress,
+                            current,
+                            x
+                          )
+                        )
+                      );
+                    }
+                    return arr;
+                  }, [] as NFTParsedTokenAccount[])
+                )
+              : receiveSourceParsedTokenAccounts(
+                  accounts.map((x) =>
+                    createParsedTokenAccountFromCovalent(walletAddress, x)
+                  )
+                )
           );
       },
       () => {
         !cancelled &&
           dispatch(
-            errorSourceParsedTokenAccounts(
-              "Cannot load your Ethereum tokens at the moment."
-            )
+            nft
+              ? errorSourceParsedTokenAccountsNFT(
+                  "Cannot load your Ethereum NFTs at the moment."
+                )
+              : errorSourceParsedTokenAccounts(
+                  "Cannot load your Ethereum tokens at the moment."
+                )
           );
         !cancelled &&
           setCovalentError("Cannot load your Ethereum tokens at the moment.");
@@ -444,7 +588,7 @@ function useGetAvailableTokens() {
     return () => {
       cancelled = true;
     };
-  }, [lookupChain, provider, signerAddress, dispatch]);
+  }, [lookupChain, provider, signerAddress, dispatch, nft]);
 
   //Terra accounts load
   //At present, we don't have any mechanism for doing this.

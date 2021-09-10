@@ -2,32 +2,62 @@ import {
   CHAIN_ID_ETH,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
+  getForeignAssetEth,
+  getForeignAssetSolana,
+  getForeignAssetTerra,
 } from "@certusone/wormhole-sdk";
+import {
+  getForeignAssetEth as getForeignAssetEthNFT,
+  getForeignAssetSol as getForeignAssetSolNFT,
+} from "@certusone/wormhole-sdk/lib/nft_bridge";
+import { Connection } from "@solana/web3.js";
+import { LCDClient } from "@terra-money/terra.js";
 import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useEthereumProvider } from "../contexts/EthereumProviderContext";
+import { setTargetAsset as setNFTTargetAsset } from "../store/nftSlice";
 import {
+  selectNFTIsSourceAssetWormholeWrapped,
+  selectNFTOriginAsset,
+  selectNFTOriginChain,
+  selectNFTOriginTokenId,
+  selectNFTTargetChain,
   selectTransferIsSourceAssetWormholeWrapped,
   selectTransferOriginAsset,
   selectTransferOriginChain,
   selectTransferTargetChain,
 } from "../store/selectors";
-import { setTargetAsset } from "../store/transferSlice";
-import { hexToNativeString } from "../utils/array";
+import { setTargetAsset as setTransferTargetAsset } from "../store/transferSlice";
+import { hexToNativeString, hexToUint8Array } from "../utils/array";
 import {
-  getForeignAssetEth,
-  getForeignAssetSol,
-  getForeignAssetTerra,
-} from "../utils/getForeignAsset";
+  ETH_NFT_BRIDGE_ADDRESS,
+  ETH_TOKEN_BRIDGE_ADDRESS,
+  SOLANA_HOST,
+  SOL_NFT_BRIDGE_ADDRESS,
+  SOL_TOKEN_BRIDGE_ADDRESS,
+  TERRA_HOST,
+  TERRA_TOKEN_BRIDGE_ADDRESS,
+} from "../utils/consts";
 
-function useFetchTargetAsset() {
+function useFetchTargetAsset(nft?: boolean) {
   const dispatch = useDispatch();
   const isSourceAssetWormholeWrapped = useSelector(
-    selectTransferIsSourceAssetWormholeWrapped
+    nft
+      ? selectNFTIsSourceAssetWormholeWrapped
+      : selectTransferIsSourceAssetWormholeWrapped
   );
-  const originChain = useSelector(selectTransferOriginChain);
-  const originAsset = useSelector(selectTransferOriginAsset);
-  const targetChain = useSelector(selectTransferTargetChain);
+  const originChain = useSelector(
+    nft ? selectNFTOriginChain : selectTransferOriginChain
+  );
+  const originAsset = useSelector(
+    nft ? selectNFTOriginAsset : selectTransferOriginAsset
+  );
+  const originTokenId = useSelector(selectNFTOriginTokenId);
+  const tokenId = originTokenId || ""; // this should exist by this step for NFT transfers
+  const targetChain = useSelector(
+    nft ? selectNFTTargetChain : selectTransferTargetChain
+  );
+  const setTargetAsset = nft ? setNFTTargetAsset : setTransferTargetAsset;
   const { provider } = useEthereumProvider();
   useEffect(() => {
     if (isSourceAssetWormholeWrapped && originChain === targetChain) {
@@ -44,36 +74,74 @@ function useFetchTargetAsset() {
         originChain &&
         originAsset
       ) {
-        const asset = await getForeignAssetEth(
-          provider,
-          originChain,
-          originAsset
-        );
-        if (!cancelled) {
-          dispatch(setTargetAsset(asset));
-        }
-      }
-      if (targetChain === CHAIN_ID_SOLANA && originChain && originAsset) {
         try {
-          const asset = await getForeignAssetSol(originChain, originAsset);
+          const asset = await (nft
+            ? getForeignAssetEthNFT(
+                ETH_NFT_BRIDGE_ADDRESS,
+                provider,
+                originChain,
+                hexToUint8Array(originAsset)
+              )
+            : getForeignAssetEth(
+                ETH_TOKEN_BRIDGE_ADDRESS,
+                provider,
+                originChain,
+                hexToUint8Array(originAsset)
+              ));
           if (!cancelled) {
             dispatch(setTargetAsset(asset));
           }
         } catch (e) {
           if (!cancelled) {
             // TODO: warning for this
+            dispatch(setTargetAsset(null));
+          }
+        }
+      }
+      if (targetChain === CHAIN_ID_SOLANA && originChain && originAsset) {
+        try {
+          const connection = new Connection(SOLANA_HOST, "confirmed");
+          const asset = await (nft
+            ? getForeignAssetSolNFT(
+                SOL_NFT_BRIDGE_ADDRESS,
+                originChain,
+                hexToUint8Array(originAsset),
+                new Uint8Array([0, 0, 0, 0]) //tokenId // TODO: string
+              )
+            : getForeignAssetSolana(
+                connection,
+                SOL_TOKEN_BRIDGE_ADDRESS,
+                originChain,
+                hexToUint8Array(originAsset)
+              ));
+          console.log("asset", asset);
+          if (!cancelled) {
+            dispatch(setTargetAsset(asset));
+          }
+        } catch (e) {
+          console.log(e);
+          if (!cancelled) {
+            // TODO: warning for this
+            dispatch(setTargetAsset(null));
           }
         }
       }
       if (targetChain === CHAIN_ID_TERRA && originChain && originAsset) {
         try {
-          const asset = await getForeignAssetTerra(originChain, originAsset);
+          const lcd = new LCDClient(TERRA_HOST);
+          const asset = await getForeignAssetTerra(
+            TERRA_TOKEN_BRIDGE_ADDRESS,
+            lcd,
+            originChain,
+            hexToUint8Array(originAsset)
+          );
           if (!cancelled) {
             dispatch(setTargetAsset(asset));
           }
         } catch (e) {
           if (!cancelled) {
             // TODO: warning for this
+            dispatch(setTargetAsset(null));
           }
         }
       }
@@ -88,6 +156,9 @@ function useFetchTargetAsset() {
     originAsset,
     targetChain,
     provider,
+    nft,
+    setTargetAsset,
+    tokenId,
   ]);
 }
 

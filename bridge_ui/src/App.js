@@ -6,7 +6,6 @@ import {
   makeStyles,
   Toolbar,
   Tooltip,
-  Typography,
 } from "@material-ui/core";
 import { GitHub, Publish, Send } from "@material-ui/icons";
 import {
@@ -18,6 +17,7 @@ import {
 } from "react-router-dom";
 import Attest from "./components/Attest";
 import Home from "./components/Home";
+import NFT from "./components/NFT";
 import Transfer from "./components/Transfer";
 import wormholeLogo from "./icons/wormhole.svg";
 
@@ -75,13 +75,10 @@ function App() {
           <div className={classes.spacer} />
           <Hidden implementation="css" xsDown>
             <div style={{ display: "flex", alignItems: "center" }}>
-              <Tooltip title="Coming Soon">
-                <Typography
-                  className={classes.link}
-                  style={{ color: "#ffffff80", cursor: "default" }}
-                >
+              <Tooltip title="Transfer NFTs to another blockchain">
+                <Link component={NavLink} to="/nft" className={classes.link}>
                   NFTs
-                </Typography>
+                </Link>
               </Tooltip>
               <Tooltip title="Transfer tokens to another blockchain">
                 <Link
@@ -139,6 +136,9 @@ function App() {
       </AppBar>
       <div className={classes.content}>
         <Switch>
+          <Route exact path="/nft">
+            <NFT />
+          </Route>
           <Route exact path="/transfer">
             <Transfer />
           </Route>

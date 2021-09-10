@@ -1,12 +1,7 @@
-import {
-  ASSOCIATED_TOKEN_PROGRAM_ID,
-  Token,
-  TOKEN_PROGRAM_ID,
-} from "@solana/spl-token";
-import { MsgExecuteContract } from "@terra-money/terra.js";
 import { Connection, PublicKey, Transaction } from "@solana/web3.js";
-import { fromUint8Array } from "js-base64";
+import { MsgExecuteContract } from "@terra-money/terra.js";
 import { ethers } from "ethers";
+import { fromUint8Array } from "js-base64";
 import { Bridge__factory } from "../ethers-contracts";
 import { ixFromRust } from "../solana";
 import { CHAIN_ID_SOLANA } from "../utils";

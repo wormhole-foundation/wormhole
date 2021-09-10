@@ -3,13 +3,13 @@ import { LinearProgress, makeStyles, Typography } from "@material-ui/core";
 import { Connection } from "@solana/web3.js";
 import { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
-import { useEthereumProvider } from "../../contexts/EthereumProviderContext";
+import { useEthereumProvider } from "../contexts/EthereumProviderContext";
 import {
   selectTransferIsSendComplete,
   selectTransferSourceChain,
   selectTransferTransferTx,
-} from "../../store/selectors";
-import { CHAINS_BY_ID, SOLANA_HOST } from "../../utils/consts";
+} from "../store/selectors";
+import { CHAINS_BY_ID, SOLANA_HOST } from "../utils/consts";
 
 const useStyles = makeStyles((theme) => ({
   root: {

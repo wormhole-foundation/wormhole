@@ -1,9 +1,7 @@
-import { Connection, PublicKey } from "@solana/web3.js";
+import { PublicKey } from "@solana/web3.js";
 import { ethers } from "ethers";
 import { Bridge__factory } from "../ethers-contracts";
 import { ChainId } from "../utils";
-import { LCDClient } from "@terra-money/terra.js";
-import { fromUint8Array } from "js-base64";
 
 /**
  * Returns a foreign asset address on Ethereum for a provided native chain and asset address, AddressZero if it does not exist
@@ -23,48 +21,30 @@ export async function getForeignAssetEth(
   try {
     return await tokenBridge.wrappedAsset(originChain, originAsset);
   } catch (e) {
-    return ethers.constants.AddressZero;
+    return null;
   }
 }
-
-export async function getForeignAssetTerra(
-  tokenBridgeAddress: string,
-  client: LCDClient,
-  originChain: ChainId,
-  originAsset: Uint8Array
-) {
-  const result: { address: string } = await client.wasm.contractQuery(tokenBridgeAddress, {
-    wrapped_registry: {
-      chain: originChain,
-      address: fromUint8Array(originAsset),
-    },
-  });
-  return result.address;
-}
-
 /**
  * Returns a foreign asset address on Solana for a provided native chain and asset address
- * @param connection
  * @param tokenBridgeAddress
  * @param originChain
  * @param originAsset zero pad to 32 bytes
  * @returns
  */
 export async function getForeignAssetSol(
-  connection: Connection,
   tokenBridgeAddress: string,
   originChain: ChainId,
-  originAsset: Uint8Array
+  originAsset: Uint8Array,
+  tokenId: Uint8Array
 ) {
   const { wrapped_address } = await import("../solana/nft/nft_bridge");
   const wrappedAddress = wrapped_address(
     tokenBridgeAddress,
     originAsset,
-    originChain
+    originChain,
+    tokenId
   );
   const wrappedAddressPK = new PublicKey(wrappedAddress);
-  const wrappedAssetAccountInfo = await connection.getAccountInfo(
-    wrappedAddressPK
-  );
-  return wrappedAssetAccountInfo ? wrappedAddressPK.toString() : null;
+  // we don't require NFT accounts to exist, so don't check them.
+  return wrappedAddressPK.toString();
 }

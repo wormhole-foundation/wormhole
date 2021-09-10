@@ -12,14 +12,20 @@ import { CovalentData } from "../../hooks/useGetSourceParsedTokenAccounts";
 import { DataWrapper } from "../../store/helpers";
 import { ParsedTokenAccount } from "../../store/transferSlice";
 import {
+  ethNFTToNFTParsedTokenAccount,
   ethTokenToParsedTokenAccount,
+  getEthereumNFT,
   getEthereumToken,
+  isNFT,
   isValidEthereumAddress,
 } from "../../utils/ethereum";
 import { shortenAddress } from "../../utils/solana";
 import OffsetButton from "./OffsetButton";
 import { WormholeAbi__factory } from "@certusone/wormhole-sdk/lib/ethers-contracts/abi";
 import { WORMHOLE_V1_ETH_ADDRESS } from "../../utils/consts";
+import { NFTParsedTokenAccount } from "../../store/nftSlice";
+import NFTViewer from "./NFTViewer";
+import { useDebounce } from "use-debounce/lib";
 
 const useStyles = makeStyles(() =>
   createStyles({
@@ -50,6 +56,7 @@ type EthereumSourceTokenSelectorProps = {
   covalent: DataWrapper<CovalentData[]> | undefined;
   tokenAccounts: DataWrapper<ParsedTokenAccount[]> | undefined;
   disabled: boolean;
+  nft?: boolean;
 };
 
 const renderAccount = (
@@ -79,15 +86,48 @@ const renderAccount = (
   );
 };
 
+const renderNFTAccount = (
+  account: NFTParsedTokenAccount,
+  covalentData: CovalentData | undefined,
+  classes: any
+) => {
+  const mintPrettyString = shortenAddress(account.mintKey);
+  const tokenId = account.tokenId;
+  const uri = account.image_256;
+  const symbol = covalentData?.contract_ticker_symbol || "Unknown";
+  const name = account.name || "Unknown";
+  return (
+    <div className={classes.tokenOverviewContainer}>
+      <div>
+        {uri && <img alt="" className={classes.tokenImage} src={uri} />}
+      </div>
+      <div>
+        <Typography>{symbol}</Typography>
+        <Typography>{name}</Typography>
+      </div>
+      <div>
+        <Typography>{mintPrettyString}</Typography>
+        <Typography>{tokenId}</Typography>
+      </div>
+    </div>
+  );
+};
+
 export default function EthereumSourceTokenSelector(
   props: EthereumSourceTokenSelectorProps
 ) {
-  const { value, onChange, covalent, tokenAccounts, disabled } = props;
+  const { value, onChange, covalent, tokenAccounts, disabled, nft } = props;
   const classes = useStyles();
   const [advancedMode, setAdvancedMode] = useState(false);
   const [advancedModeLoading, setAdvancedModeLoading] = useState(false);
   const [advancedModeSymbol, setAdvancedModeSymbol] = useState("");
   const [advancedModeHolderString, setAdvancedModeHolderString] = useState("");
+  const [advancedModeHolderTokenIdRaw, setAdvancedModeHolderTokenId] =
+    useState("");
+  const [advancedModeHolderTokenId] = useDebounce(
+    advancedModeHolderTokenIdRaw,
+    500
+  );
   const [advancedModeError, setAdvancedModeError] = useState("");
 
   const [autocompleteHolder, setAutocompleteHolder] =
@@ -104,11 +144,23 @@ export default function EthereumSourceTokenSelector(
     //This also kicks off the metadata load.
     if (advancedMode && value && advancedModeHolderString !== value.mintKey) {
       setAdvancedModeHolderString(value.mintKey);
+      // @ts-ignore // TODO: could be NFTParsedTokenAccount which has a tokenId, nicer way to represent this?
+      if (nft && advancedModeHolderTokenId !== value.tokenId) {
+        // @ts-ignore
+        setAdvancedModeHolderTokenId(value.tokenId || "");
+      }
     }
     if (!advancedMode && value && !autocompleteHolder) {
       setAutocompleteHolder(value);
     }
-  }, [value, advancedMode, advancedModeHolderString, autocompleteHolder]);
+  }, [
+    value,
+    advancedMode,
+    advancedModeHolderString,
+    autocompleteHolder,
+    nft,
+    advancedModeHolderTokenId,
+  ]);
 
   //This effect is watching the autocomplete selection.
   //It checks to make sure the token is a valid choice before putting it on the state.
@@ -119,6 +171,10 @@ export default function EthereumSourceTokenSelector(
     } else {
       let cancelled = false;
       setAutocompleteError("");
+      if (nft) {
+        onChange(autocompleteHolder);
+        return;
+      }
       isWormholev1(provider, autocompleteHolder.mintKey).then(
         (result) => {
           if (!cancelled) {
@@ -143,7 +199,7 @@ export default function EthereumSourceTokenSelector(
         cancelled = true;
       };
     }
-  }, [autocompleteHolder, provider, advancedMode, onChange]);
+  }, [autocompleteHolder, provider, advancedMode, onChange, nft]);
 
   //This effect watches the advancedModeString, and checks that the selected asset is valid before putting
   // it on the state.
@@ -162,68 +218,111 @@ export default function EthereumSourceTokenSelector(
       !cancelled && setAdvancedModeError("");
       !cancelled && setAdvancedModeSymbol("");
       try {
-        //Validate that the token is not a wormhole v1 asset
-        const isWormholePromise = isWormholev1(
-          provider,
-          advancedModeHolderString
-        ).then(
-          (result) => {
-            if (result && !cancelled) {
-              setAdvancedModeError(
-                "Wormhole v1 assets are not eligible for transfer."
-              );
-              setAdvancedModeLoading(false);
-              return Promise.reject();
-            } else {
-              return Promise.resolve();
-            }
-          },
-          (error) => {
-            !cancelled &&
-              setAdvancedModeError(
-                "Warning: please verify if this is a Wormhole v1 token address. V1 tokens should not be transferred with this bridge"
-              );
-            !cancelled && setAdvancedModeLoading(false);
-            return Promise.resolve(); //Don't allow an error here to tank the workflow
-          }
-        );
-
-        //Then fetch the asset's information & transform to a parsed token account
-        isWormholePromise.then(() =>
-          getEthereumToken(advancedModeHolderString, provider).then(
-            (token) => {
-              ethTokenToParsedTokenAccount(token, signerAddress).then(
-                (parsedTokenAccount) => {
-                  !cancelled && onChange(parsedTokenAccount);
-                  !cancelled && setAdvancedModeLoading(false);
-                },
-                (error) => {
-                  //These errors can maybe be consolidated
+        if (nft) {
+          getEthereumNFT(advancedModeHolderString, provider)
+            .then((token) => {
+              isNFT(token)
+                .then((result) => {
+                  if (result) {
+                    ethNFTToNFTParsedTokenAccount(
+                      token,
+                      advancedModeHolderTokenId,
+                      signerAddress
+                    )
+                      .then((parsedTokenAccount) => {
+                        !cancelled && onChange(parsedTokenAccount);
+                        !cancelled && setAdvancedModeLoading(false);
+                      })
+                      .catch((error) => {
+                        !cancelled &&
+                          setAdvancedModeError(
+                            "Failed to find the specified tokenId"
+                          );
+                        !cancelled && setAdvancedModeLoading(false);
+                      });
+                  } else {
+                    !cancelled &&
+                      setAdvancedModeError(
+                        "This token does not support ERC-721"
+                      );
+                    !cancelled && setAdvancedModeLoading(false);
+                  }
+                })
+                .catch((error) => {
                   !cancelled &&
-                    setAdvancedModeError(
-                      "Failed to find the specified address"
-                    );
+                    setAdvancedModeError("This token does not support ERC-721");
                   !cancelled && setAdvancedModeLoading(false);
-                }
-              );
-
-              //Also attempt to store off the symbol
-              token.symbol().then(
-                (result) => {
-                  !cancelled && setAdvancedModeSymbol(result);
-                },
-                (error) => {
-                  !cancelled &&
-                    setAdvancedModeError(
-                      "Failed to find the specified address"
-                    );
-                  !cancelled && setAdvancedModeLoading(false);
-                }
-              );
+                });
+            })
+            .catch((error) => {
+              !cancelled &&
+                setAdvancedModeError("This token does not support ERC-721");
+              !cancelled && setAdvancedModeLoading(false);
+            });
+        } else {
+          //Validate that the token is not a wormhole v1 asset
+          const isWormholePromise = isWormholev1(
+            provider,
+            advancedModeHolderString
+          ).then(
+            (result) => {
+              if (result && !cancelled) {
+                setAdvancedModeError(
+                  "Wormhole v1 assets are not eligible for transfer."
+                );
+                setAdvancedModeLoading(false);
+                return Promise.reject();
+              } else {
+                return Promise.resolve();
+              }
             },
-            (error) => {}
-          )
-        );
+            (error) => {
+              !cancelled &&
+                setAdvancedModeError(
+                  "Warning: please verify if this is a Wormhole v1 token address. V1 tokens should not be transferred with this bridge"
+                );
+              !cancelled && setAdvancedModeLoading(false);
+              return Promise.resolve(); //Don't allow an error here to tank the workflow
+            }
+          );
+
+          //Then fetch the asset's information & transform to a parsed token account
+          isWormholePromise.then(() =>
+            getEthereumToken(advancedModeHolderString, provider).then(
+              (token) => {
+                ethTokenToParsedTokenAccount(token, signerAddress).then(
+                  (parsedTokenAccount) => {
+                    !cancelled && onChange(parsedTokenAccount);
+                    !cancelled && setAdvancedModeLoading(false);
+                  },
+                  (error) => {
+                    //These errors can maybe be consolidated
+                    !cancelled &&
+                      setAdvancedModeError(
+                        "Failed to find the specified address"
+                      );
+                    !cancelled && setAdvancedModeLoading(false);
+                  }
+                );
+
+                //Also attempt to store off the symbol
+                token.symbol().then(
+                  (result) => {
+                    !cancelled && setAdvancedModeSymbol(result);
+                  },
+                  (error) => {
+                    !cancelled &&
+                      setAdvancedModeError(
+                        "Failed to find the specified address"
+                      );
+                    !cancelled && setAdvancedModeLoading(false);
+                  }
+                );
+              },
+              (error) => {}
+            )
+          );
+        }
       } catch (e) {
         !cancelled &&
           setAdvancedModeError("Failed to find the specified address");
@@ -239,15 +338,23 @@ export default function EthereumSourceTokenSelector(
     provider,
     signerAddress,
     onChange,
+    nft,
+    advancedModeHolderTokenId,
   ]);
 
   const handleClick = useCallback(() => {
     onChange(null);
     setAdvancedModeHolderString("");
+    setAdvancedModeHolderTokenId("");
   }, [onChange]);
 
   const handleOnChange = useCallback(
     (event) => setAdvancedModeHolderString(event.target.value),
+    []
+  );
+
+  const handleTokenIdOnChange = useCallback(
+    (event) => setAdvancedModeHolderTokenId(event.target.value),
     []
   );
 
@@ -268,6 +375,18 @@ export default function EthereumSourceTokenSelector(
       const mint = option.mintKey + " ";
 
       return symbol + mint;
+    },
+  });
+
+  const filterConfigNFT = createFilterOptions({
+    matchFrom: "any",
+    stringify: (option: NFTParsedTokenAccount) => {
+      const symbol = getSymbol(option) + " " || "";
+      const mint = option.mintKey + " ";
+      const name = option.name ? option.name + " " : "";
+      const id = option.tokenId ? option.tokenId + " " : "";
+
+      return symbol + mint + name + id;
     },
   });
 
@@ -294,29 +413,45 @@ export default function EthereumSourceTokenSelector(
         blurOnSelect
         clearOnBlur
         fullWidth={false}
-        filterOptions={filterConfig}
+        filterOptions={nft ? filterConfigNFT : filterConfig}
         value={autocompleteHolder}
         onChange={(event, newValue) => {
           handleAutocompleteChange(newValue);
         }}
         disabled={disabled}
-        noOptionsText={"No ERC20 tokens found at the moment."}
+        noOptionsText={
+          nft
+            ? "No ERC-721 tokens found at the moment."
+            : "No ERC-20 tokens found at the moment."
+        }
         options={tokenAccounts?.data || []}
         renderInput={(params) => (
           <TextField {...params} label="Token Account" variant="outlined" />
         )}
         renderOption={(option) => {
-          return renderAccount(
-            option,
-            covalent?.data?.find((x) => x.contract_address === option.mintKey),
-            classes
-          );
+          return nft
+            ? renderNFTAccount(
+                option,
+                covalent?.data?.find(
+                  (x) => x.contract_address === option.mintKey
+                ),
+                classes
+              )
+            : renderAccount(
+                option,
+                covalent?.data?.find(
+                  (x) => x.contract_address === option.mintKey
+                ),
+                classes
+              );
         }}
         getOptionLabel={(option) => {
           const symbol = getSymbol(option);
-          return `${symbol ? symbol : "Unknown"} (Address: ${shortenAddress(
-            option.mintKey
-          )})`;
+          return `${symbol ? symbol : "Unknown"} ${
+            nft && option.name ? option.name : ""
+          } (Address: ${shortenAddress(option.mintKey)}${
+            nft ? `, ID: ${option.tokenId}` : ""
+          })`;
         }}
       />
       {autocompleteError && (
@@ -335,7 +470,11 @@ export default function EthereumSourceTokenSelector(
 
   const content = value ? (
     <>
-      <Typography>{(symbol ? symbol + " " : "") + value.mintKey}</Typography>
+      {nft ? (
+        <NFTViewer symbol={symbol} value={value} />
+      ) : (
+        <Typography>{(symbol ? symbol + " " : "") + value.mintKey}</Typography>
+      )}
       <OffsetButton onClick={handleClick} disabled={disabled}>
         Clear
       </OffsetButton>
@@ -345,8 +484,6 @@ export default function EthereumSourceTokenSelector(
         <Typography color="error">{advancedModeError}</Typography>
       ) : null}
     </>
-  ) : isLoading ? (
-    <CircularProgress />
   ) : advancedMode ? (
     <>
       <TextField
@@ -362,7 +499,21 @@ export default function EthereumSourceTokenSelector(
         helperText={advancedModeError === "" ? undefined : advancedModeError}
         disabled={disabled || advancedModeLoading}
       />
+      {nft ? (
+        <TextField
+          fullWidth
+          label="Enter a tokenId"
+          value={advancedModeHolderTokenIdRaw}
+          onChange={handleTokenIdOnChange}
+          disabled={disabled || advancedModeLoading}
+        />
+      ) : null}
     </>
+  ) : isLoading ? (
+    <Typography component="div">
+      <CircularProgress size={"1em"} />{" "}
+      {nft ? "Loading (this may take a while)..." : "Loading..."}
+    </Typography>
   ) : (
     autoComplete
   );
@@ -370,7 +521,7 @@ export default function EthereumSourceTokenSelector(
   return (
     <React.Fragment>
       {content}
-      {!value && !isLoading && advancedModeToggleButton}
+      {!value && advancedModeToggleButton}
     </React.Fragment>
   );
 }

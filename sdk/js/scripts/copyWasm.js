@@ -8,6 +8,14 @@ fs.copyFileSync(
   "lib/solana/core/bridge_bg.wasm.d.ts"
 );
 fs.copyFileSync(
+  "src/solana/nft/nft_bridge_bg.wasm",
+  "lib/solana/nft/nft_bridge_bg.wasm"
+);
+fs.copyFileSync(
+  "src/solana/nft/nft_bridge_bg.wasm.d.ts",
+  "lib/solana/nft/nft_bridge_bg.wasm.d.ts"
+);
+fs.copyFileSync(
   "src/solana/token/token_bridge_bg.wasm",
   "lib/solana/token/token_bridge_bg.wasm"
 );

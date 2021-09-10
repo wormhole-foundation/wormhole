@@ -12,39 +12,36 @@ import {
   getEmptyDataWrapper,
   receiveDataWrapper,
 } from "./helpers";
+import { ParsedTokenAccount, Transaction } from "./transferSlice";
 
 const LAST_STEP = 3;
 
 type Steps = 0 | 1 | 2 | 3;
 
-export interface ParsedTokenAccount {
-  publicKey: string;
-  mintKey: string;
-  amount: string;
-  decimals: number;
-  uiAmount: number;
-  uiAmountString: string;
+// these all are optional so NFT could share TokenSelectors
+export interface NFTParsedTokenAccount extends ParsedTokenAccount {
+  tokenId?: string;
+  animation_url?: string | null;
+  external_url?: string | null;
+  image?: string;
+  image_256?: string;
+  name?: string;
 }
 
-export interface Transaction {
-  id: string;
-  block: number;
-}
-
-export interface TransferState {
+export interface NFTState {
   activeStep: Steps;
   sourceChain: ChainId;
   isSourceAssetWormholeWrapped: boolean | undefined;
   originChain: ChainId | undefined;
   originAsset: string | undefined;
+  originTokenId: string | undefined;
   sourceWalletAddress: string | undefined;
-  sourceParsedTokenAccount: ParsedTokenAccount | undefined;
-  sourceParsedTokenAccounts: DataWrapper<ParsedTokenAccount[]>;
-  amount: string;
+  sourceParsedTokenAccount: NFTParsedTokenAccount | undefined;
+  sourceParsedTokenAccounts: DataWrapper<NFTParsedTokenAccount[]>;
   targetChain: ChainId;
   targetAddressHex: string | undefined;
   targetAsset: string | null | undefined;
-  targetParsedTokenAccount: ParsedTokenAccount | undefined;
+  targetParsedTokenAccount: NFTParsedTokenAccount | undefined;
   transferTx: Transaction | undefined;
   signedVAAHex: string | undefined;
   isSending: boolean;
@@ -52,7 +49,7 @@ export interface TransferState {
   redeemTx: Transaction | undefined;
 }
 
-const initialState: TransferState = {
+const initialState: NFTState = {
   activeStep: 0,
   sourceChain: CHAIN_ID_SOLANA,
   isSourceAssetWormholeWrapped: false,
@@ -61,7 +58,7 @@ const initialState: TransferState = {
   sourceParsedTokenAccounts: getEmptyDataWrapper(),
   originChain: undefined,
   originAsset: undefined,
-  amount: "",
+  originTokenId: undefined,
   targetChain: CHAIN_ID_ETH,
   targetAddressHex: undefined,
   targetAsset: undefined,
@@ -73,8 +70,8 @@ const initialState: TransferState = {
   redeemTx: undefined,
 };
 
-export const transferSlice = createSlice({
-  name: "transfer",
+export const nftSlice = createSlice({
+  name: "nft",
   initialState,
   reducers: {
     incrementStep: (state) => {
@@ -107,10 +104,12 @@ export const transferSlice = createSlice({
         state.isSourceAssetWormholeWrapped = action.payload.isWrapped;
         state.originChain = action.payload.chainId;
         state.originAsset = action.payload.assetAddress;
+        state.originTokenId = action.payload.tokenId;
       } else {
         state.isSourceAssetWormholeWrapped = undefined;
         state.originChain = undefined;
         state.originAsset = undefined;
+        state.originTokenId = undefined;
       }
     },
     setSourceWalletAddress: (
@@ -121,13 +120,13 @@ export const transferSlice = createSlice({
     },
     setSourceParsedTokenAccount: (
       state,
-      action: PayloadAction<ParsedTokenAccount | undefined>
+      action: PayloadAction<NFTParsedTokenAccount | undefined>
     ) => {
       state.sourceParsedTokenAccount = action.payload;
     },
     setSourceParsedTokenAccounts: (
       state,
-      action: PayloadAction<ParsedTokenAccount[] | undefined>
+      action: PayloadAction<NFTParsedTokenAccount[] | undefined>
     ) => {
       state.sourceParsedTokenAccounts = action.payload
         ? receiveDataWrapper(action.payload)
@@ -146,12 +145,9 @@ export const transferSlice = createSlice({
     },
     receiveSourceParsedTokenAccounts: (
       state,
-      action: PayloadAction<ParsedTokenAccount[]>
+      action: PayloadAction<NFTParsedTokenAccount[]>
     ) => {
       state.sourceParsedTokenAccounts = receiveDataWrapper(action.payload);
-    },
-    setAmount: (state, action: PayloadAction<string>) => {
-      state.amount = action.payload;
     },
     setTargetChain: (state, action: PayloadAction<ChainId>) => {
       const prevTargetChain = state.targetChain;
@@ -178,7 +174,7 @@ export const transferSlice = createSlice({
     },
     setTargetParsedTokenAccount: (
       state,
-      action: PayloadAction<ParsedTokenAccount | undefined>
+      action: PayloadAction<NFTParsedTokenAccount | undefined>
     ) => {
       state.targetParsedTokenAccount = action.payload;
     },
@@ -220,7 +216,6 @@ export const {
   receiveSourceParsedTokenAccounts,
   errorSourceParsedTokenAccounts,
   fetchSourceParsedTokenAccounts,
-  setAmount,
   setTargetChain,
   setTargetAddressHex,
   setTargetAsset,
@@ -231,6 +226,6 @@ export const {
   setIsRedeeming,
   setRedeemTx,
   reset,
-} = transferSlice.actions;
+} = nftSlice.actions;
 
-export default transferSlice.reducer;
+export default nftSlice.reducer;
