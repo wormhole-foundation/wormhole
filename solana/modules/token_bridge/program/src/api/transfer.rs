@@ -13,7 +13,6 @@ use crate::{
         WrappedMint,
         WrappedTokenMeta,
     },
-    api::derive_mint_for_token,
     messages::PayloadTransfer,
     types::*,
     TokenBridgeError,
@@ -331,34 +330,14 @@ pub fn transfer_wrapped(
 
     invoke(&transfer_ix, ctx.accounts)?;
 
-    let (_, is_sollet) = derive_mint_for_token(
-        ctx.program_id,
-        accs.wrapped_meta.token_address,
-        accs.wrapped_meta.chain,
-    );
-    let (amount, fee) = if is_sollet && accs.wrapped_meta.original_decimals > 6 {
-        // Sollet assets are truncated to 6 decimals, however Wormhole uses 8 and assumes
-        // wire-truncation to 8 decimals.
-        (
-            data.amount
-                .checked_mul(10u64.pow(2.min(accs.wrapped_meta.original_decimals as u32 - 6)))
-                .unwrap(),
-            data.fee
-                .checked_mul(10u64.pow(2.min(accs.wrapped_meta.original_decimals as u32 - 6)))
-                .unwrap(),
-        )
-    } else {
-        (data.amount, data.fee)
-    };
-
     // Post message
     let payload = PayloadTransfer {
-        amount: U256::from(amount),
+        amount: U256::from(data.amount),
         token_address: accs.wrapped_meta.token_address,
         token_chain: accs.wrapped_meta.chain,
         to: data.target_address,
         to_chain: data.target_chain,
-        fee: U256::from(fee),
+        fee: U256::from(data.fee),
     };
     let params = (
         bridge::instruction::Instruction::PostMessage,

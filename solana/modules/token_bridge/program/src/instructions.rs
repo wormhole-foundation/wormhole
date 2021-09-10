@@ -21,14 +21,12 @@ use crate::{
             CompleteNativeData,
             CompleteWrappedData,
         },
-        derive_mint_for_token,
         AttestTokenData,
         CreateWrappedData,
         RegisterChainData,
         TransferNativeData,
         TransferWrappedData,
         UpgradeContractData,
-        SOLLET_MINTS,
     },
     messages::{
         PayloadAssetMeta,
@@ -171,8 +169,13 @@ pub fn complete_wrapped(
         },
         &program_id,
     );
-
-    let mint_key = derive_mint_for_token(&program_id, payload.token_address, payload.token_chain).0;
+    let mint_key = WrappedMint::<'_, { AccountState::Uninitialized }>::key(
+        &WrappedDerivationData {
+            token_chain: payload.token_chain,
+            token_address: payload.token_address,
+        },
+        &program_id,
+    );
     let meta_key = WrappedTokenMeta::<'_, { AccountState::Uninitialized }>::key(
         &WrappedMetaDerivationData { mint_key },
         &program_id,
@@ -225,7 +228,13 @@ pub fn create_wrapped(
         },
         &program_id,
     );
-    let mint_key = derive_mint_for_token(&program_id, payload.token_address, payload.token_chain).0;
+    let mint_key = WrappedMint::<'_, { AccountState::Uninitialized }>::key(
+        &WrappedDerivationData {
+            token_chain: payload.token_chain,
+            token_address: payload.token_address,
+        },
+        &program_id,
+    );
     let mint_meta_key = WrappedTokenMeta::<'_, { AccountState::Uninitialized }>::key(
         &WrappedMetaDerivationData { mint_key },
         &program_id,
@@ -395,7 +404,13 @@ pub fn transfer_wrapped(
 ) -> solitaire::Result<Instruction> {
     let config_key = ConfigAccount::<'_, { AccountState::Uninitialized }>::key(None, &program_id);
 
-    let wrapped_mint_key = derive_mint_for_token(&program_id, token_address, token_chain).0;
+    let wrapped_mint_key = WrappedMint::<'_, { AccountState::Uninitialized }>::key(
+        &WrappedDerivationData {
+            token_chain,
+            token_address,
+        },
+        &program_id,
+    );
     let wrapped_meta_key = WrappedTokenMeta::<'_, { AccountState::Uninitialized }>::key(
         &WrappedMetaDerivationData {
             mint_key: wrapped_mint_key,
