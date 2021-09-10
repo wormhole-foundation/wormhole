@@ -29,7 +29,7 @@ pkgs.mkShell {
       hidapi
       libudev
       niv
-      nodejs
+      nodejs-16_x
       openssl
       pkgconfig
       protobuf
