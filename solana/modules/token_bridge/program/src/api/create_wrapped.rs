@@ -102,7 +102,7 @@ impl<'b> InstructionContext<'b> for CreateWrapped<'b> {
 pub struct CreateWrappedData {}
 
 #[cfg(not(feature = "test"))]
-pub static EXTERNAL_MINTS: phf::Map<&str, (u16, &str)> = phf_map! {
+pub static SOLLET_MINTS: phf::Map<&str, (u16, &str)> = phf_map! {
         // "WETH",
         "000000000000000000000000c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2" => (2, "2FPyTwcZLUg1MDrwsyoP4D6s1tM7hAkHYRjkNb5w6Pxk"),
         // "YFI",
@@ -150,7 +150,7 @@ pub static EXTERNAL_MINTS: phf::Map<&str, (u16, &str)> = phf_map! {
 };
 
 #[cfg(feature = "test")]
-pub static EXTERNAL_MINTS: phf::Map<&str, (u16, &str)> = phf_map! {
+pub static SOLLET_MINTS: phf::Map<&str, (u16, &str)> = phf_map! {
         // "TEST",
         "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" => (2, "FDhdMYh3KsF64Jxzh8tnx9rJXQTcN461rguUK9z9zm64"),
 };
@@ -160,8 +160,8 @@ pub fn derive_mint_for_token(
     token_address: Address,
     token_chain: ChainID,
 ) -> (Pubkey, bool) {
-    let mut external_mint = EXTERNAL_MINTS.get(hex::encode(token_address).as_str());
-    if let Some(mint) = external_mint {
+    let mut sollet_mint = SOLLET_MINTS.get(hex::encode(token_address).as_str());
+    if let Some(mint) = sollet_mint {
         if mint.0 == token_chain {
             return (Pubkey::from_str(mint.1).unwrap(), true);
         }
@@ -184,7 +184,7 @@ pub fn create_wrapped(
     accs: &mut CreateWrapped,
     data: CreateWrappedData,
 ) -> Result<()> {
-    let (mint, is_external) =
+    let (mint, is_sollet) =
         derive_mint_for_token(ctx.program_id, accs.vaa.token_address, accs.vaa.token_chain);
     if *accs.mint.info().key != mint {
         return Err(InvalidMint.into());
@@ -201,7 +201,7 @@ pub fn create_wrapped(
     accs.vaa.verify(ctx.program_id)?;
     accs.vaa.claim(ctx, accs.payer.key)?;
 
-    if !is_external {
+    if !is_sollet {
         // Create mint account
         accs.mint
             .create(&((&*accs).into()), ctx, accs.payer.key, Exempt)?;

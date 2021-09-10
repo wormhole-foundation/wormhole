@@ -331,12 +331,12 @@ pub fn transfer_wrapped(
 
     invoke(&transfer_ix, ctx.accounts)?;
 
-    let (_, is_external) = derive_mint_for_token(
+    let (_, is_sollet) = derive_mint_for_token(
         ctx.program_id,
         accs.wrapped_meta.token_address,
         accs.wrapped_meta.chain,
     );
-    let (amount, fee) = if is_external && accs.wrapped_meta.original_decimals > 6 {
+    let (amount, fee) = if is_sollet && accs.wrapped_meta.original_decimals > 6 {
         // Sollet assets are truncated to 6 decimals, however Wormhole uses 8 and assumes
         // wire-truncation to 8 decimals.
         (

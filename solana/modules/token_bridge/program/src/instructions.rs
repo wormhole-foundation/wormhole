@@ -28,7 +28,7 @@ use crate::{
         TransferNativeData,
         TransferWrappedData,
         UpgradeContractData,
-        EXTERNAL_MINTS,
+        SOLLET_MINTS,
     },
     messages::{
         PayloadAssetMeta,
