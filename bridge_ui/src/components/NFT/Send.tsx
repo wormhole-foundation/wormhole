@@ -49,7 +49,7 @@ function Send() {
       >
         Transfer
       </ButtonWithLoader>
-      <TransferProgress />
+      <TransferProgress nft />
     </>
   );
 }

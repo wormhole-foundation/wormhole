@@ -22,12 +22,16 @@ module.exports = async function(callback) {
 
     const nftAddress = (
       await ERC721.new(
-        "Not an APE",
-        "APE",
+        "Not an APE 🐒",
+        "APE🐒",
         "https://cloudflare-ipfs.com/ipfs/QmeSjSinHpPnmXmspMjwiXyN6zS4E9zccariGR3jxcaWtq/"
       )
     ).address;
     const nft = new web3.eth.Contract(ERC721.abi, nftAddress);
+    await nft.methods.mint(accounts[0]).send({
+      from: accounts[0],
+      gas: 1000000,
+    });
     await nft.methods.mint(accounts[0]).send({
       from: accounts[0],
       gas: 1000000,

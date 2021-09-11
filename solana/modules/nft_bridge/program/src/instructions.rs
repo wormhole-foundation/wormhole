@@ -206,6 +206,7 @@ pub fn complete_wrapped(
             AccountMeta::new_readonly(bridge_id, false),
             AccountMeta::new_readonly(spl_token::id(), false),
             AccountMeta::new_readonly(spl_associated_token_account::id(), false),
+            AccountMeta::new_readonly(spl_token_metadata::id(), false),
         ],
         data: (crate::instruction::Instruction::CompleteWrapped, data).try_to_vec()?,
     })

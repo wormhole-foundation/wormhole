@@ -5,6 +5,9 @@ import { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import { useEthereumProvider } from "../contexts/EthereumProviderContext";
 import {
+  selectNFTIsSendComplete,
+  selectNFTSourceChain,
+  selectNFTTransferTx,
   selectTransferIsSendComplete,
   selectTransferSourceChain,
   selectTransferTransferTx,
@@ -21,11 +24,17 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-export default function TransferProgress() {
+export default function TransferProgress({ nft }: { nft?: boolean }) {
   const classes = useStyles();
-  const sourceChain = useSelector(selectTransferSourceChain);
-  const transferTx = useSelector(selectTransferTransferTx);
-  const isSendComplete = useSelector(selectTransferIsSendComplete);
+  const sourceChain = useSelector(
+    nft ? selectNFTSourceChain : selectTransferSourceChain
+  );
+  const transferTx = useSelector(
+    nft ? selectNFTTransferTx : selectTransferTransferTx
+  );
+  const isSendComplete = useSelector(
+    nft ? selectNFTIsSendComplete : selectTransferIsSendComplete
+  );
   const { provider } = useEthereumProvider();
   const [currentBlock, setCurrentBlock] = useState(0);
   useEffect(() => {

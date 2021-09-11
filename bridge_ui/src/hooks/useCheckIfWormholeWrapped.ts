@@ -75,7 +75,6 @@ function useCheckIfWormholeWrapped(nft?: boolean) {
     let cancelled = false;
     (async () => {
       if (sourceChain === CHAIN_ID_ETH && provider && sourceAsset) {
-        console.log("getting wrapped info");
         const wrappedInfo = makeStateSafe(
           await (nft
             ? getOriginalAssetEthNFT(
@@ -90,7 +89,6 @@ function useCheckIfWormholeWrapped(nft?: boolean) {
                 sourceAsset
               ))
         );
-        console.log(wrappedInfo);
         if (!cancelled) {
           dispatch(setSourceWormholeWrappedInfo(wrappedInfo));
         }

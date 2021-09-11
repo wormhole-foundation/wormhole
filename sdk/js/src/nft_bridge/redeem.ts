@@ -25,7 +25,7 @@ export async function redeemOnSolana(
   const { parse_vaa } = await import("../solana/core/bridge");
   const parsedVAA = parse_vaa(signedVAA);
   const isSolanaNative =
-    Buffer.from(new Uint8Array(parsedVAA.payload)).readUInt16BE(65) ===
+    Buffer.from(new Uint8Array(parsedVAA.payload)).readUInt16BE(33) ===
     CHAIN_ID_SOLANA;
   const { complete_transfer_wrapped_ix, complete_transfer_native_ix } =
     await import("../solana/nft/nft_bridge");
@@ -37,6 +37,7 @@ export async function redeemOnSolana(
           tokenBridgeAddress,
           bridgeAddress,
           payerAddress,
+          payerAddress, //TODO: allow for a different address than payer
           signedVAA
         )
       )
@@ -48,6 +49,7 @@ export async function redeemOnSolana(
           tokenBridgeAddress,
           bridgeAddress,
           payerAddress,
+          payerAddress, //TODO: allow for a different address than payer
           signedVAA
         )
       )

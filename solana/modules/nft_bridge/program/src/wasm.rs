@@ -113,7 +113,7 @@ pub fn transfer_wrapped_ix(
     target_addr.copy_from_slice(target_address.as_slice());
     let mut token_addr = [0u8; 32];
     token_addr.copy_from_slice(token_address.as_slice());
-    let token_id = U256::from_little_endian(token_id.as_slice());
+    let token_id = U256::from_big_endian(token_id.as_slice());
 
     let ix = transfer_wrapped(
         program_id,
@@ -329,7 +329,7 @@ pub fn wrapped_address(
     let program_id = Pubkey::from_str(program_id.as_str()).unwrap();
     let mut t_addr = [0u8; 32];
     t_addr.copy_from_slice(&token_address);
-    let token_id = U256::from_little_endian(token_id.as_slice());
+    let token_id = U256::from_big_endian(token_id.as_slice());
 
     let wrapped_addr = WrappedMint::<'_, { AccountState::Initialized }>::key(
         &WrappedDerivationData {

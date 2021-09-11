@@ -64,7 +64,7 @@ echo "Created NFT account $nft_account"
 spl-token mint "$nft" 1 "$nft_account"
 
 # Create meta for token
-token-bridge-client create-meta "$nft" "Not a PUNK" "PUNK" "https://wrappedpunks.com:3000/api/punks/metadata/39"
+token-bridge-client create-meta "$nft" "Not a PUNK🎸" "PUNK🎸" "https://wrappedpunks.com:3000/api/punks/metadata/39"
 
 # Create the bridge contract at a known address
 # OK to fail on subsequent attempts (already created).

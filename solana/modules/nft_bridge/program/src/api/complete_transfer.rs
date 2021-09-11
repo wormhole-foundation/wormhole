@@ -129,7 +129,7 @@ pub fn complete_native(
             accs.to_authority.info().key,
             accs.mint.info().key,
         );
-        if *accs.to_authority.info().key != associated_addr {
+        if *accs.to.info().key != associated_addr {
             return Err(InvalidAssociatedAccount.into());
         }
         // Create associated token account
@@ -294,7 +294,7 @@ pub fn complete_wrapped(
             accs.to_authority.info().key,
             accs.mint.info().key,
         );
-        if *accs.to_authority.info().key != associated_addr {
+        if *accs.to.info().key != associated_addr {
             return Err(InvalidAssociatedAccount.into());
         }
         // Create associated token account
@@ -303,7 +303,7 @@ pub fn complete_wrapped(
             accs.to_authority.info().key,
             accs.mint.info().key,
         );
-        invoke(&ix, ctx.accounts)?;
+        invoke_signed(&ix, ctx.accounts, &[])?;
     } else if *accs.mint.info().key != accs.to.mint {
         return Err(InvalidMint.into());
     }

@@ -154,7 +154,7 @@ pub fn transfer_native(
     }
 
     // Token must have metadata
-    if !accs.spl_metadata.data_is_empty() {
+    if accs.spl_metadata.data_is_empty() {
         return Err(TokenNotNFT.into());
     }
 
@@ -348,7 +348,7 @@ pub fn transfer_wrapped(
         .verify_derivation(ctx.program_id, &derivation_data)?;
 
     // Token must have metadata
-    if !accs.spl_metadata.data_is_empty() {
+    if accs.spl_metadata.data_is_empty() {
         return Err(TokenNotNFT.into());
     }
 

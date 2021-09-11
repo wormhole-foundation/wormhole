@@ -1,11 +1,14 @@
 import { CHAIN_ID_ETH, CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
 import { makeStyles, MenuItem, TextField } from "@material-ui/core";
 import { useCallback, useMemo } from "react";
+import { ethers } from "ethers";
 import { useDispatch, useSelector } from "react-redux";
 import useIsWalletReady from "../../hooks/useIsWalletReady";
 import useSyncTargetAddress from "../../hooks/useSyncTargetAddress";
+import { incrementStep, setTargetChain } from "../../store/nftSlice";
 import {
   selectNFTIsTargetComplete,
+  selectNFTOriginTokenId,
   selectNFTShouldLockFields,
   selectNFTSourceChain,
   selectNFTTargetAddressHex,
@@ -14,14 +17,10 @@ import {
   selectNFTTargetChain,
   selectNFTTargetError,
 } from "../../store/selectors";
-import { incrementStep, setTargetChain } from "../../store/nftSlice";
 import { hexToNativeString } from "../../utils/array";
 import { CHAINS } from "../../utils/consts";
 import ButtonWithLoader from "../ButtonWithLoader";
 import KeyAndBalance from "../KeyAndBalance";
-import SolanaCreateAssociatedAddress, {
-  useAssociatedAccountExistsState,
-} from "../SolanaCreateAssociatedAddress";
 import StepDescription from "../StepDescription";
 
 const useStyles = makeStyles((theme) => ({
@@ -41,6 +40,7 @@ function Target() {
   const targetChain = useSelector(selectNFTTargetChain);
   const targetAddressHex = useSelector(selectNFTTargetAddressHex);
   const targetAsset = useSelector(selectNFTTargetAsset);
+  const originTokenId = useSelector(selectNFTOriginTokenId);
   const readableTargetAddress =
     hexToNativeString(targetAddressHex, targetChain) || "";
   const uiAmountString = useSelector(selectNFTTargetBalanceString);
@@ -48,12 +48,6 @@ function Target() {
   const isTargetComplete = useSelector(selectNFTIsTargetComplete);
   const shouldLockFields = useSelector(selectNFTShouldLockFields);
   const { statusMessage } = useIsWalletReady(targetChain);
-  const { associatedAccountExists, setAssociatedAccountExists } =
-    useAssociatedAccountExistsState(
-      targetChain,
-      targetAsset,
-      readableTargetAddress
-    );
   useSyncTargetAddress(!shouldLockFields, true);
   const handleTargetChange = useCallback(
     (event) => {
@@ -90,21 +84,26 @@ function Target() {
         value={readableTargetAddress}
         disabled={true}
       />
-      {targetChain === CHAIN_ID_SOLANA && targetAsset ? (
-        <SolanaCreateAssociatedAddress
-          mintAddress={targetAsset}
-          readableTargetAddress={readableTargetAddress}
-          associatedAccountExists={associatedAccountExists}
-          setAssociatedAccountExists={setAssociatedAccountExists}
-        />
+      {targetAsset !== ethers.constants.AddressZero ? (
+        <>
+          <TextField
+            label="Token Address"
+            fullWidth
+            className={classes.transferField}
+            value={targetAsset || ""}
+            disabled={true}
+          />
+          {targetChain === CHAIN_ID_ETH ? (
+            <TextField
+              label="TokenId"
+              fullWidth
+              className={classes.transferField}
+              value={originTokenId || ""}
+              disabled={true}
+            />
+          ) : null}
+        </>
       ) : null}
-      <TextField
-        label="Token Address"
-        fullWidth
-        className={classes.transferField}
-        value={targetAsset || ""}
-        disabled={true}
-      />
       <ButtonWithLoader
         disabled={!isTargetComplete} //|| !associatedAccountExists}
         onClick={handleNextClick}

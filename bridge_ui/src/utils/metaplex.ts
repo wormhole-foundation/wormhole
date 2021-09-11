@@ -5,7 +5,7 @@ import { BinaryReader, BinaryWriter } from "borsh";
 const base58: any = require("bs58");
 
 // eslint-disable-next-line
-const METADATA_REPLACE = new RegExp("\u0000", "g");
+export const METADATA_REPLACE = new RegExp("\u0000", "g");
 export const EDITION_MARKER_BIT_SIZE = 248;
 export const METADATA_PREFIX = "metadata";
 export const EDITION = "edition";

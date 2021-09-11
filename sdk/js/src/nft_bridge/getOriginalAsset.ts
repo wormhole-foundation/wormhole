@@ -1,5 +1,5 @@
 import { Connection, PublicKey } from "@solana/web3.js";
-import { ethers } from "ethers";
+import { BigNumber, ethers } from "ethers";
 import { arrayify, zeroPad } from "ethers/lib/utils";
 import { TokenImplementation__factory } from "../ethers-contracts";
 import { ChainId, CHAIN_ID_ETH, CHAIN_ID_SOLANA } from "../utils";
@@ -37,11 +37,11 @@ export async function getOriginalAssetEth(
     );
     const chainId = (await token.chainId()) as ChainId; // origin chain
     const assetAddress = await token.nativeContract(); // origin address
-    // TODO: tokenId
     return {
       isWrapped: true,
       chainId,
       assetAddress: arrayify(assetAddress),
+      tokenId, // tokenIds are maintained across EVM chains
     };
   }
   return {
@@ -79,11 +79,13 @@ export async function getOriginalAssetSol(
     );
     if (wrappedMetaAccountInfo) {
       const parsed = parse_wrapped_meta(wrappedMetaAccountInfo.data);
+      const token_id_arr = parsed.token_id as BigUint64Array;
+      const token_id = BigNumber.from(token_id_arr.reverse()).toString();
       return {
         isWrapped: true,
         chainId: parsed.chain,
         assetAddress: parsed.token_address,
-        tokenId: parsed.token_id,
+        tokenId: token_id,
       };
     }
   }

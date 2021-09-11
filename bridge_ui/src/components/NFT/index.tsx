@@ -6,7 +6,7 @@ import {
   StepContent,
   Stepper,
 } from "@material-ui/core";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import useCheckIfWormholeWrapped from "../../hooks/useCheckIfWormholeWrapped";
 import useFetchTargetAsset from "../../hooks/useFetchTargetAsset";
@@ -18,7 +18,7 @@ import {
   selectNFTIsSending,
 } from "../../store/selectors";
 import { setStep } from "../../store/nftSlice";
-// import Recovery from "./Recovery";
+import Recovery from "./Recovery";
 import Redeem from "./Redeem";
 import RedeemPreview from "./RedeemPreview";
 import Send from "./Send";
@@ -38,7 +38,7 @@ function NFT() {
   const classes = useStyles();
   useCheckIfWormholeWrapped(true);
   useFetchTargetAsset(true);
-  // const [isRecoveryOpen, setIsRecoveryOpen] = useState(false);
+  const [isRecoveryOpen, setIsRecoveryOpen] = useState(false);
   const dispatch = useDispatch();
   const activeStep = useSelector(selectNFTActiveStep);
   const isSending = useSelector(selectNFTIsSending);
@@ -68,9 +68,7 @@ function NFT() {
           <StepButton onClick={() => dispatch(setStep(0))}>Source</StepButton>
           <StepContent>
             {activeStep === 0 ? (
-              <Source
-              // setIsRecoveryOpen={setIsRecoveryOpen}
-              />
+              <Source setIsRecoveryOpen={setIsRecoveryOpen} />
             ) : (
               <SourcePreview />
             )}
@@ -103,11 +101,11 @@ function NFT() {
           </StepContent>
         </Step>
       </Stepper>
-      {/* <Recovery
+      <Recovery
         open={isRecoveryOpen}
         setOpen={setIsRecoveryOpen}
         disabled={preventNavigation}
-      /> */}
+      />
     </Container>
   );
 }

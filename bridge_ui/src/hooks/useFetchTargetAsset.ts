@@ -10,6 +10,8 @@ import {
   getForeignAssetEth as getForeignAssetEthNFT,
   getForeignAssetSol as getForeignAssetSolNFT,
 } from "@certusone/wormhole-sdk/lib/nft_bridge";
+import { BigNumber } from "@ethersproject/bignumber";
+import { arrayify } from "@ethersproject/bytes";
 import { Connection } from "@solana/web3.js";
 import { LCDClient } from "@terra-money/terra.js";
 import { useEffect } from "react";
@@ -106,7 +108,7 @@ function useFetchTargetAsset(nft?: boolean) {
                 SOL_NFT_BRIDGE_ADDRESS,
                 originChain,
                 hexToUint8Array(originAsset),
-                new Uint8Array([0, 0, 0, 0]) //tokenId // TODO: string
+                arrayify(BigNumber.from(tokenId || "0"))
               )
             : getForeignAssetSolana(
                 connection,
@@ -114,12 +116,10 @@ function useFetchTargetAsset(nft?: boolean) {
                 originChain,
                 hexToUint8Array(originAsset)
               ));
-          console.log("asset", asset);
           if (!cancelled) {
             dispatch(setTargetAsset(asset));
           }
         } catch (e) {
-          console.log(e);
           if (!cancelled) {
             // TODO: warning for this
             dispatch(setTargetAsset(null));

@@ -13,8 +13,8 @@ import {
 } from "@certusone/wormhole-sdk/lib/nft_bridge";
 import { WalletContextState } from "@solana/wallet-adapter-react";
 import { Connection } from "@solana/web3.js";
-import { Signer } from "ethers";
-import { zeroPad } from "ethers/lib/utils";
+import { BigNumber, Signer } from "ethers";
+import { arrayify, zeroPad } from "ethers/lib/utils";
 import { useSnackbar } from "notistack";
 import { useCallback, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
@@ -120,7 +120,7 @@ async function solana(
       targetChain,
       originAddress,
       originChain,
-      new Uint8Array([0, 0, 0, 0]) //originTokenId //TODO: string
+      arrayify(BigNumber.from(originTokenId || "0"))
     );
     const txid = await signSendAndConfirm(wallet, connection, transaction);
     enqueueSnackbar("Transaction confirmed", { variant: "success" });

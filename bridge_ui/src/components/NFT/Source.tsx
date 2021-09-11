@@ -1,5 +1,6 @@
 import { CHAIN_ID_ETH, CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
-import { makeStyles, MenuItem, TextField } from "@material-ui/core";
+import { Button, makeStyles, MenuItem, TextField } from "@material-ui/core";
+import { Restore } from "@material-ui/icons";
 import { useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import useIsWalletReady from "../../hooks/useIsWalletReady";
@@ -24,7 +25,11 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-function Source() {
+function Source({
+  setIsRecoveryOpen,
+}: {
+  setIsRecoveryOpen: (open: boolean) => void;
+}) {
   const classes = useStyles();
   const dispatch = useDispatch();
   const sourceChain = useSelector(selectNFTSourceChain);
@@ -48,14 +53,14 @@ function Source() {
         <div style={{ display: "flex", alignItems: "center" }}>
           Select an NFT to send through the Wormhole NFT Bridge.
           <div style={{ flexGrow: 1 }} />
-          {/* <Button
+          <Button
             onClick={() => setIsRecoveryOpen(true)}
             size="small"
             variant="outlined"
             endIcon={<Restore />}
           >
             Perform Recovery
-          </Button> */}
+          </Button>
         </div>
       </StepDescription>
       <TextField
