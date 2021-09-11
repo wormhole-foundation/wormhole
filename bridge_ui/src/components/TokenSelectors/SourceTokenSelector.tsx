@@ -88,8 +88,6 @@ export const TokenSelector = (props: TokenSelectorProps) => {
       onChange={handleOnChange}
       disabled={disabled}
       accounts={maps?.tokenAccounts?.data || []}
-      solanaTokenMap={maps?.tokenMap}
-      metaplexData={maps?.metaplex}
       mintAccounts={maps?.mintAccounts}
       resetAccounts={maps?.resetAccounts}
       nft={nft}
@@ -109,7 +107,6 @@ export const TokenSelector = (props: TokenSelectorProps) => {
       value={sourceParsedTokenAccount || null}
       disabled={disabled}
       onChange={handleOnChange}
-      tokenMap={maps?.terraTokenMap}
       resetAccounts={maps?.resetAccounts}
     />
   ) : (

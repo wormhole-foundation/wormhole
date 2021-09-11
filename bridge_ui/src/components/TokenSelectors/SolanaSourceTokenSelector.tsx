@@ -4,6 +4,8 @@ import { Autocomplete } from "@material-ui/lab";
 import { createFilterOptions } from "@material-ui/lab/Autocomplete";
 import { TokenInfo } from "@solana/spl-token-registry";
 import React, { useCallback, useMemo } from "react";
+import useMetaplexData from "../../hooks/useMetaplexData";
+import useSolanaTokenMap from "../../hooks/useSolanaTokenMap";
 import { DataWrapper } from "../../store/helpers";
 import { ParsedTokenAccount } from "../../store/transferSlice";
 import { WORMHOLE_V1_MINT_AUTHORITY } from "../../utils/consts";
@@ -30,10 +32,8 @@ type SolanaSourceTokenSelectorProps = {
   value: ParsedTokenAccount | null;
   onChange: (newValue: ParsedTokenAccount | null) => void;
   accounts: ParsedTokenAccount[];
-  solanaTokenMap: DataWrapper<TokenInfo[]> | undefined;
-  metaplexData: any; //DataWrapper<(Metadata | undefined)[]> | undefined | null;
   disabled: boolean;
-  mintAccounts: DataWrapper<Map<String, string | null>> | undefined;
+  mintAccounts: DataWrapper<Map<string, string | null>> | undefined;
   resetAccounts: (() => void) | undefined;
   nft?: boolean;
 };
@@ -41,16 +41,27 @@ type SolanaSourceTokenSelectorProps = {
 export default function SolanaSourceTokenSelector(
   props: SolanaSourceTokenSelectorProps
 ) {
-  const { value, onChange, disabled, resetAccounts, nft } = props;
+  const { value, onChange, disabled, resetAccounts, nft, mintAccounts } = props;
   const classes = useStyles();
 
   const resetAccountWrapper = resetAccounts || (() => {}); //This should never happen.
+  const solanaTokenMap = useSolanaTokenMap();
+
+  const mintAddresses = useMemo(() => {
+    const output: string[] = [];
+    mintAccounts?.data?.forEach(
+      (mintAuth, mintAddress) => mintAddress && output.push(mintAddress)
+    );
+    return output;
+  }, [mintAccounts?.data]);
+
+  const metaplex = useMetaplexData(mintAddresses);
 
   const memoizedTokenMap: Map<String, TokenInfo> = useMemo(() => {
     const output = new Map<String, TokenInfo>();
 
-    if (props.solanaTokenMap?.data) {
-      for (const data of props.solanaTokenMap.data) {
+    if (solanaTokenMap.data) {
+      for (const data of solanaTokenMap.data) {
         if (data && data.address) {
           output.set(data.address, data);
         }
@@ -58,26 +69,12 @@ export default function SolanaSourceTokenSelector(
     }
 
     return output;
-  }, [props.solanaTokenMap]);
-
-  const memoizedMetaplex: Map<String, Metadata> = useMemo(() => {
-    const output = new Map<String, Metadata>();
-
-    if (props.metaplexData.data) {
-      for (const data of props.metaplexData.data) {
-        if (data && data.mint) {
-          output.set(data.mint, data);
-        }
-      }
-    }
-
-    return output;
-  }, [props.metaplexData]);
+  }, [solanaTokenMap]);
 
   const getSymbol = (account: ParsedTokenAccount) => {
     return (
       memoizedTokenMap.get(account.mintKey)?.symbol ||
-      memoizedMetaplex.get(account.mintKey)?.data?.symbol ||
+      metaplex.data?.get(account.mintKey)?.data?.symbol ||
       undefined
     );
   };
@@ -85,7 +82,7 @@ export default function SolanaSourceTokenSelector(
   const getName = (account: ParsedTokenAccount) => {
     return (
       memoizedTokenMap.get(account.mintKey)?.name ||
-      memoizedMetaplex.get(account.mintKey)?.data?.name ||
+      metaplex.data?.get(account.mintKey)?.data?.name ||
       undefined
     );
   };
@@ -130,11 +127,11 @@ export default function SolanaSourceTokenSelector(
   const renderAccount = (
     account: ParsedTokenAccount,
     solanaTokenMap: Map<String, TokenInfo>,
-    metaplexData: Map<String, Metadata>,
+    metaplexData: Map<String, Metadata | undefined> | null | undefined,
     classes: any
   ) => {
     const tokenMapData = solanaTokenMap.get(account.mintKey);
-    const metaplexValue = metaplexData.get(account.mintKey);
+    const metaplexValue = metaplexData?.get(account.mintKey);
 
     const mintPrettyString = shortenAddress(account.mintKey);
     const accountAddressPrettyString = shortenAddress(account.publicKey);
@@ -185,13 +182,12 @@ export default function SolanaSourceTokenSelector(
   //Thus we should wait for the metadata to arrive before rendering it.
   //TODO This can flicker dependent on how fast the useEffects in the getSourceAccounts hook complete.
   const isLoading =
-    props.metaplexData.isFetching ||
-    props.solanaTokenMap?.isFetching ||
+    metaplex.isFetching ||
+    solanaTokenMap.isFetching ||
     props.mintAccounts?.isFetching;
 
   const accountLoadError =
-    !(props.mintAccounts?.isFetching || props.mintAccounts?.data) &&
-    "Unable to retrieve your token accounts";
+    props.mintAccounts?.error && "Unable to retrieve your token accounts";
   const error = accountLoadError;
 
   //This exists to remove NFTs from the list of potential options. It requires reading the metaplex data, so it would be
@@ -200,10 +196,10 @@ export default function SolanaSourceTokenSelector(
     return props.accounts.filter((x) => {
       //TODO, do a better check which likely involves supply or checking masterEdition.
       const isNFT =
-        x.decimals === 0 && memoizedMetaplex.get(x.mintKey)?.data?.uri;
+        x.decimals === 0 && metaplex.data?.get(x.mintKey)?.data?.uri;
       return nft ? isNFT : !isNFT;
     });
-  }, [memoizedMetaplex, nft, props.accounts]);
+  }, [metaplex.data, nft, props.accounts]);
 
   const isOptionDisabled = useMemo(() => {
     return (value: ParsedTokenAccount) => isWormholev1(value.mintKey);
@@ -232,12 +228,7 @@ export default function SolanaSourceTokenSelector(
         />
       )}
       renderOption={(option) => {
-        return renderAccount(
-          option,
-          memoizedTokenMap,
-          memoizedMetaplex,
-          classes
-        );
+        return renderAccount(option, memoizedTokenMap, metaplex.data, classes);
       }}
       getOptionDisabled={isOptionDisabled}
       getOptionLabel={(option) => {

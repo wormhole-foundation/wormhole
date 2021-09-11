@@ -24,6 +24,9 @@ export interface ParsedTokenAccount {
   decimals: number;
   uiAmount: number;
   uiAmountString: string;
+  symbol?: string;
+  name?: string;
+  logo?: string;
 }
 
 export interface Transaction {

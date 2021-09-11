@@ -5,7 +5,6 @@ import {
 } from "@certusone/wormhole-sdk";
 import { Dispatch } from "@reduxjs/toolkit";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
-import { ENV, TokenListProvider } from "@solana/spl-token-registry";
 import {
   AccountInfo,
   Connection,
@@ -18,7 +17,6 @@ import { useCallback, useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useEthereumProvider } from "../contexts/EthereumProviderContext";
 import { useSolanaWallet } from "../contexts/SolanaWalletContext";
-import { DataWrapper } from "../store/helpers";
 import {
   errorSourceParsedTokenAccounts as errorSourceParsedTokenAccountsNFT,
   fetchSourceParsedTokenAccounts as fetchSourceParsedTokenAccountsNFT,
@@ -32,20 +30,10 @@ import {
   selectNFTSourceChain,
   selectNFTSourceParsedTokenAccounts,
   selectNFTSourceWalletAddress,
-  selectSolanaTokenMap,
   selectSourceWalletAddress,
-  selectTerraTokenMap,
   selectTransferSourceChain,
   selectTransferSourceParsedTokenAccounts,
 } from "../store/selectors";
-import {
-  errorSolanaTokenMap,
-  errorTerraTokenMap,
-  fetchSolanaTokenMap,
-  fetchTerraTokenMap,
-  receiveSolanaTokenMap,
-  receiveTerraTokenMap,
-} from "../store/tokenSlice";
 import {
   errorSourceParsedTokenAccounts,
   fetchSourceParsedTokenAccounts,
@@ -56,17 +44,7 @@ import {
   setSourceParsedTokenAccounts,
   setSourceWalletAddress,
 } from "../store/transferSlice";
-import {
-  CLUSTER,
-  COVALENT_GET_TOKENS_URL,
-  SOLANA_HOST,
-  TERRA_TOKEN_METADATA_URL,
-} from "../utils/consts";
-import {
-  decodeMetadata,
-  getMetadataAddress,
-  Metadata,
-} from "../utils/metaplex";
+import { COVALENT_GET_TOKENS_URL, SOLANA_HOST } from "../utils/consts";
 import {
   extractMintAuthorityInfo,
   getMultipleAccountsRPC,
@@ -120,19 +98,6 @@ export function createNFTParsedTokenAccount(
   };
 }
 
-export type TerraTokenMetadata = {
-  protocol: string;
-  symbol: string;
-  token: string;
-  icon: string;
-};
-
-export type TerraTokenMap = {
-  mainnet: {
-    [address: string]: TerraTokenMetadata;
-  };
-};
-
 const createParsedTokenAccountFromInfo = (
   pubkey: PublicKey,
   item: AccountInfo<ParsedAccountData>
@@ -158,6 +123,9 @@ const createParsedTokenAccountFromCovalent = (
     decimals: covalent.contract_decimals,
     uiAmount: Number(formatUnits(covalent.balance, covalent.contract_decimals)),
     uiAmountString: formatUnits(covalent.balance, covalent.contract_decimals),
+    symbol: covalent.contract_ticker_symbol,
+    name: covalent.contract_name,
+    logo: covalent.logo_url,
   };
 };
 
@@ -243,44 +211,8 @@ const getEthereumAccountsCovalent = async (
 
     return output;
   } catch (error) {
-    console.error(error);
     return Promise.reject("Unable to retrieve your Ethereum Tokens.");
   }
-};
-
-const environment = CLUSTER === "testnet" ? ENV.Testnet : ENV.MainnetBeta;
-
-const getMetaplexData = async (mintAddresses: string[]) => {
-  const promises = [];
-  for (const address of mintAddresses) {
-    promises.push(getMetadataAddress(address));
-  }
-  const metaAddresses = await Promise.all(promises);
-  const connection = new Connection(SOLANA_HOST, "finalized");
-  const results = await getMultipleAccountsRPC(
-    connection,
-    metaAddresses.map((pair) => pair && pair[0])
-  );
-
-  const output = results.map((account) => {
-    if (account === null) {
-      return undefined;
-    } else {
-      if (account.data) {
-        try {
-          const MetadataParsed = decodeMetadata(account.data);
-          return MetadataParsed;
-        } catch (e) {
-          console.error(e);
-          return undefined;
-        }
-      } else {
-        return undefined;
-      }
-    }
-  });
-
-  return output;
 };
 
 const getSolanaParsedTokenAccounts = (
@@ -317,20 +249,6 @@ const getSolanaParsedTokenAccounts = (
     );
 };
 
-const getSolanaTokenMap = (dispatch: Dispatch) => {
-  dispatch(fetchSolanaTokenMap());
-
-  new TokenListProvider().resolve().then(
-    (tokens) => {
-      const tokenList = tokens.filterByChainId(environment).getList();
-      dispatch(receiveSolanaTokenMap(tokenList));
-    },
-    (error) => {
-      console.error(error);
-      dispatch(errorSolanaTokenMap("Failed to retrieve the Solana token map."));
-    }
-  );
-};
 /**
  * Fetches the balance of an asset for the connected wallet
  * This should handle every type of chain in the future, but only reads the Transfer state.
@@ -343,20 +261,13 @@ function useGetAvailableTokens(nft: boolean = false) {
       ? selectNFTSourceParsedTokenAccounts
       : selectTransferSourceParsedTokenAccounts
   );
-  const solanaTokenMap = useSelector(selectSolanaTokenMap);
-  const terraTokenMap = useSelector(selectTerraTokenMap);
 
   const lookupChain = useSelector(
     nft ? selectNFTSourceChain : selectTransferSourceChain
   );
   const solanaWallet = useSolanaWallet();
   const solPK = solanaWallet?.publicKey;
-  //const terraWallet = useConnectedWallet(); //TODO
   const { provider, signerAddress } = useEthereumProvider();
-
-  const [metaplex, setMetaplex] = useState<any>(undefined);
-  const [metaplexLoading, setMetaplexLoading] = useState(false);
-  const [metaplexError, setMetaplexError] = useState(null);
 
   const [covalent, setCovalent] = useState<any>(undefined);
   const [covalentLoading, setCovalentLoading] = useState(false);
@@ -422,39 +333,7 @@ function useGetAvailableTokens(nft: boolean = false) {
     resetSourceAccounts,
   ]);
 
-  // Solana metaplex load
-  useEffect(() => {
-    let cancelled = false;
-    if (tokenAccounts.data && lookupChain === CHAIN_ID_SOLANA) {
-      setMetaplexLoading(true);
-      const accounts = tokenAccounts.data.map((account) => account.mintKey);
-      accounts.filter((x) => !!x);
-      getMetaplexData(accounts as string[]).then(
-        (results) => {
-          if (!cancelled) {
-            setMetaplex(results);
-            setMetaplexLoading(false);
-          } else {
-          }
-        },
-        (error) => {
-          if (!cancelled) {
-            console.error(error);
-            setMetaplexLoading(false);
-            setMetaplexError(error);
-          } else {
-          }
-        }
-      );
-    } else {
-    }
-
-    return () => {
-      cancelled = true;
-    };
-  }, [tokenAccounts, lookupChain]);
-
-  //Solana token map & accountinfos load
+  //Solana accountinfos load
   useEffect(() => {
     if (lookupChain === CHAIN_ID_SOLANA && solPK) {
       if (
@@ -462,27 +341,10 @@ function useGetAvailableTokens(nft: boolean = false) {
       ) {
         getSolanaParsedTokenAccounts(solPK.toString(), dispatch, nft);
       }
-      if (
-        !(
-          solanaTokenMap.data ||
-          solanaTokenMap.isFetching ||
-          solanaTokenMap.error
-        )
-      ) {
-        getSolanaTokenMap(dispatch);
-      }
     }
 
     return () => {};
-  }, [
-    dispatch,
-    solanaWallet,
-    lookupChain,
-    solPK,
-    tokenAccounts,
-    solanaTokenMap,
-    nft,
-  ]);
+  }, [dispatch, solanaWallet, lookupChain, solPK, tokenAccounts, nft]);
 
   //Solana Mint Accounts lookup
   useEffect(() => {
@@ -605,46 +467,9 @@ function useGetAvailableTokens(nft: boolean = false) {
   //At present, we don't have any mechanism for doing this.
   useEffect(() => {}, []);
 
-  //Terra metadata load
-  useEffect(() => {
-    let cancelled = false;
-
-    if (terraTokenMap.data || lookupChain !== CHAIN_ID_TERRA) {
-      return; //So we don't fetch the whole list on every mount.
-    }
-
-    dispatch(fetchTerraTokenMap());
-    axios.get(TERRA_TOKEN_METADATA_URL).then(
-      (response) => {
-        if (!cancelled) {
-          //TODO parse this in a safer manner
-          dispatch(receiveTerraTokenMap(response.data as TerraTokenMap));
-        }
-      },
-      (error) => {
-        if (!cancelled) {
-          dispatch(
-            errorTerraTokenMap("Failed to retrieve the Terra Token List.")
-          );
-        }
-      }
-    );
-
-    return () => {
-      cancelled = true;
-    };
-  }, [lookupChain, terraTokenMap.data, dispatch]);
-
   return lookupChain === CHAIN_ID_SOLANA
     ? {
-        tokenMap: solanaTokenMap,
         tokenAccounts: tokenAccounts,
-        metaplex: {
-          data: metaplex,
-          isFetching: metaplexLoading,
-          error: metaplexError,
-          receivedAt: null, //TODO
-        } as DataWrapper<Metadata[]>,
         mintAccounts: {
           data: solanaMintAccounts,
           isFetching: solanaMintAccountsLoading,
@@ -666,7 +491,6 @@ function useGetAvailableTokens(nft: boolean = false) {
       }
     : lookupChain === CHAIN_ID_TERRA
     ? {
-        terraTokenMap: terraTokenMap,
         resetAccounts: resetSourceAccounts,
       }
     : undefined;

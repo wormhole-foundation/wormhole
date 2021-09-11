@@ -1,6 +1,6 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { TokenInfo } from "@solana/spl-token-registry";
-import { TerraTokenMap } from "../hooks/useGetSourceParsedTokenAccounts";
+import { TerraTokenMap } from "../hooks/useTerraTokenMap";
 import {
   DataWrapper,
   errorDataWrapper,

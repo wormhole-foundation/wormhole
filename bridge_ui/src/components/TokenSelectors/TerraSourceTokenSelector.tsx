@@ -13,12 +13,10 @@ import {
 } from "@terra-money/wallet-provider";
 import { formatUnits } from "ethers/lib/utils";
 import React, { useCallback, useMemo, useState } from "react";
-import {
-  createParsedTokenAccount,
-  TerraTokenMap,
+import { createParsedTokenAccount } from "../../hooks/useGetSourceParsedTokenAccounts";
+import useTerraTokenMap, {
   TerraTokenMetadata,
-} from "../../hooks/useGetSourceParsedTokenAccounts";
-import { DataWrapper } from "../../store/helpers";
+} from "../../hooks/useTerraTokenMap";
 import { ParsedTokenAccount } from "../../store/transferSlice";
 import { TERRA_HOST } from "../../utils/consts";
 import { shortenAddress } from "../../utils/solana";
@@ -44,7 +42,6 @@ type TerraSourceTokenSelectorProps = {
   value: ParsedTokenAccount | null;
   onChange: (newValue: ParsedTokenAccount | null) => void;
   disabled: boolean;
-  tokenMap: DataWrapper<TerraTokenMap> | undefined; //TODO better type
   resetAccounts: (() => void) | undefined;
 };
 
@@ -90,7 +87,8 @@ export default function TerraSourceTokenSelector(
   props: TerraSourceTokenSelectorProps
 ) {
   const classes = useStyles();
-  const { onChange, value, disabled, tokenMap, resetAccounts } = props;
+  const { onChange, value, disabled, resetAccounts } = props;
+  const tokenMap = useTerraTokenMap();
   const [advancedMode, setAdvancedMode] = useState(false);
   const [advancedModeHolderString, setAdvancedModeHolderString] = useState("");
   const [advancedModeError, setAdvancedModeError] = useState("");
@@ -115,10 +113,10 @@ export default function TerraSourceTokenSelector(
   const isLoading = tokenMap?.isFetching || false;
 
   const terraTokenArray = useMemo(() => {
-    const values = props.tokenMap?.data?.mainnet;
+    const values = tokenMap.data?.mainnet;
     const items = Object.values(values || {});
     return items || [];
-  }, [props.tokenMap]);
+  }, [tokenMap]);
 
   const valueToOption = (fromProps: ParsedTokenAccount | undefined | null) => {
     if (!fromProps) return null;
