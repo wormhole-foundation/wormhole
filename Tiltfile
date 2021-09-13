@@ -29,12 +29,18 @@ config.define_string("namespace", False, "Kubernetes namespace to use")
 config.define_string("gcpProject", False, "GCP project ID for BigTable persistence")
 config.define_string("bigTableKeyPath", False, "Path to BigTable json key file")
 
+# Components
+config.define_bool("pyth", False, "Enable Pyth-to-Wormhole component")
+config.define_bool("explorer", False, "Enable explorer component")
+
 cfg = config.parse()
 num_guardians = int(cfg.get("num", "5"))
 namespace = cfg.get("namespace", "wormhole")
 gcpProject = cfg.get("gcpProject", "local-dev")
 bigTableKeyPath = cfg.get("bigTableKeyPath", "./event_database/devnet_key.json")
 ci = cfg.get("ci", False)
+pyth = cfg.get("pyth", ci)
+explorer = cfg.get("explorer", ci)
 
 # namespace
 
@@ -75,12 +81,13 @@ local_resource(
 
 # node
 
-k8s_yaml_with_ns(
-    secret_yaml_generic(
-        "bridge-bigtable-key",
-        from_file = "bigtable-key.json=" + bigTableKeyPath,
-    ),
-)
+if explorer:
+    k8s_yaml_with_ns(
+        secret_yaml_generic(
+            "bridge-bigtable-key",
+            from_file = "bigtable-key.json=" + bigTableKeyPath,
+        ),
+    )
 
 docker_build(
     ref = "guardiand-image",
@@ -98,7 +105,19 @@ def build_node_yaml():
             if container["name"] != "guardiand":
                 fail("container 0 is not guardiand")
             container["command"] += ["--devNumGuardians", str(num_guardians)]
-            container["command"] += ["--bigTableGCPProject", gcpProject]
+
+            if explorer:
+                container["command"] += [
+                    "--bigTablePersistenceEnabled",
+                    "--bigTableInstanceName",
+                    "wormhole",
+                    "--bigTableTableName",
+                    "v2Events",
+                    "--bigTableKeyPath",
+                    "/tmp/mounted-keys/bigtable-key.json",
+                    "--bigTableGCPProject",
+                    gcpProject,
+                ]
 
     return encode_yaml_stream(node_yaml)
 
@@ -110,14 +129,15 @@ k8s_resource("guardian", resource_deps = ["proto-gen", "solana-devnet"], port_fo
     port_forward(7071, name = "Public REST [:7071]"),
 ])
 
-docker_build(
-    ref = "pyth",
-    context = ".",
-    dockerfile = "third_party/pyth/Dockerfile.pyth",
-)
-k8s_yaml_with_ns("./devnet/pyth.yaml")
+if pyth:
+    docker_build(
+        ref = "pyth",
+        context = ".",
+        dockerfile = "third_party/pyth/Dockerfile.pyth",
+    )
+    k8s_yaml_with_ns("./devnet/pyth.yaml")
 
-k8s_resource("pyth", resource_deps = ["solana-devnet"])
+    k8s_resource("pyth", resource_deps = ["solana-devnet"])
 
 # publicRPC proxy that allows grpc over http1, for local development
 
@@ -168,22 +188,24 @@ k8s_resource(
 
 # pyth2wormhole client
 
-docker_build(
-    ref = "p2w-client",
-    context = ".",
-    only = ["./solana", "./third_party"],
-    dockerfile = "./third_party/pyth/Dockerfile.p2w-client",
+if pyth:
+    docker_build(
+        ref = "p2w-client",
+        context = ".",
+        only = ["./solana", "./third_party"],
+        dockerfile = "./third_party/pyth/Dockerfile.p2w-client",
 
-    # Ignore target folders from local (non-container) development.
-    ignore = ["./solana/*/target"],
-)
+        # Ignore target folders from local (non-container) development.
+        ignore = ["./solana/*/target"],
+    )
 
-k8s_yaml_with_ns("devnet/p2w-client.yaml")
+    k8s_yaml_with_ns("devnet/p2w-client.yaml")
 
-k8s_resource("p2w-client",
-    resource_deps=["solana-devnet", "pyth"],
-    port_forwards=[]
-)
+    k8s_resource(
+        "p2w-client",
+        resource_deps = ["solana-devnet", "pyth"],
+        port_forwards = [],
+    )
 
 # eth devnet
 
@@ -237,51 +259,52 @@ def build_cloud_function(container_name, go_func_name, path, builder):
         [path],
     )
 
-build_cloud_function(
-    container_name = "cloud-function-readrow",
-    go_func_name = "ReadRow",
-    path = "./event_database/cloud_functions",
-    builder = "gcr.io/buildpacks/builder:v1",
-)
+if explorer:
+    build_cloud_function(
+        container_name = "cloud-function-readrow",
+        go_func_name = "ReadRow",
+        path = "./event_database/cloud_functions",
+        builder = "gcr.io/buildpacks/builder:v1",
+    )
 
-local_resource(
-    name = "pack-bin",
-    cmd = "go build -mod=readonly -o bin/pack github.com/buildpacks/pack/cmd/pack",
-    dir = "tools",
-)
+    local_resource(
+        name = "pack-bin",
+        cmd = "go build -mod=readonly -o bin/pack github.com/buildpacks/pack/cmd/pack",
+        dir = "tools",
+    )
 
-k8s_yaml_with_ns("devnet/bigtable.yaml")
+    k8s_yaml_with_ns("devnet/bigtable.yaml")
 
-k8s_resource("bigtable-emulator", port_forwards = [
-    port_forward(8086, name = "BigTable clients [:8086]"),
-])
-k8s_resource(
-    "bigtable-readrow",
-    resource_deps = ["proto-gen"],
-    port_forwards = [port_forward(8090, name = "ReadRow [:8090]")],
-)
+    k8s_resource("bigtable-emulator", port_forwards = [
+        port_forward(8086, name = "BigTable clients [:8086]"),
+    ])
+    k8s_resource(
+        "bigtable-readrow",
+        resource_deps = ["proto-gen"],
+        port_forwards = [port_forward(8090, name = "ReadRow [:8090]")],
+    )
 
-# explorer web app
-docker_build(
-    ref = "explorer",
-    context = "./explorer",
-    dockerfile = "./explorer/Dockerfile",
-    ignore = ["./explorer/node_modules"],
-    live_update = [
-        sync("./explorer/src", "/home/node/app/src"),
-        sync("./explorer/public", "/home/node/app/public"),
-    ],
-)
+    # explorer web app
+    docker_build(
+        ref = "explorer",
+        context = "./explorer",
+        dockerfile = "./explorer/Dockerfile",
+        ignore = ["./explorer/node_modules"],
+        live_update = [
+            sync("./explorer/src", "/home/node/app/src"),
+            sync("./explorer/public", "/home/node/app/public"),
+        ],
+    )
 
-k8s_yaml_with_ns("devnet/explorer.yaml")
+    k8s_yaml_with_ns("devnet/explorer.yaml")
 
-k8s_resource(
-    "explorer",
-    resource_deps = ["proto-gen-web"],
-    port_forwards = [
-        port_forward(8001, name = "Explorer Web UI [:8001]"),
-    ],
-)
+    k8s_resource(
+        "explorer",
+        resource_deps = ["proto-gen-web"],
+        port_forwards = [
+            port_forward(8001, name = "Explorer Web UI [:8001]"),
+        ],
+    )
 
 # terra devnet
 

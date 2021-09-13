@@ -105,13 +105,6 @@ spec:
             - /tmp/admin.sock
             - --dataDir
             - /tmp/data
-            - --bigTablePersistenceEnabled
-            - --bigTableInstanceName
-            - wormhole
-            - --bigTableTableName
-            - v2Events
-            - --bigTableKeyPath
-            - /tmp/mounted-keys/bigtable-key.json
 #            - --logLevel=debug
           securityContext:
             capabilities:
