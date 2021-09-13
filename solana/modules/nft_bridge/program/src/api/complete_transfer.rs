@@ -215,6 +215,8 @@ pub fn complete_wrapped(
     accs: &mut CompleteWrapped,
     data: CompleteWrappedData,
 ) -> Result<()> {
+    use bstr::ByteSlice;
+
     // Verify the chain registration
     let derivation_data: EndpointDerivationData = (&*accs).into();
     accs.chain_registration
@@ -261,10 +263,12 @@ pub fn complete_wrapped(
             },
         )?;
 
-        let mut name = accs.vaa.name.clone();
-        name.truncate(32);
-        let mut symbol = accs.vaa.symbol.clone();
+        let name = accs.vaa.name.clone();
+        let mut symbol: Vec<u8> = accs.vaa.symbol.clone().as_bytes().to_vec();
         symbol.truncate(10);
+        let mut symbol: Vec<char> = symbol.chars().collect();
+        symbol.retain(|&c| c != '\u{FFFD}');
+        let symbol: String = symbol.iter().collect();
 
         let spl_token_metadata_ix = spl_token_metadata::instruction::create_metadata_accounts(
             spl_token_metadata::id(),

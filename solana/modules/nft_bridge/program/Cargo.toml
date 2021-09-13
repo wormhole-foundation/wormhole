@@ -19,6 +19,7 @@ default = []
 [dependencies]
 bridge = { path = "../../../bridge/program", features = ["no-entrypoint", "cpi"] }
 borsh = "0.8.1"
+bstr = "0.2.16"
 byteorder = "1.4.3"
 rocksalt = { path = "../../../solitaire/rocksalt" }
 solitaire = { path = "../../../solitaire/program" }
