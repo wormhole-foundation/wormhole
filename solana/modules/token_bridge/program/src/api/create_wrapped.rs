@@ -149,7 +149,7 @@ pub fn create_wrapped(
     let mut name: String = name.iter().collect();
     name += " (Wormhole)";
 
-    let mut symbol = accs.vaa.symbol.clone();
+    let mut symbol = accs.vaa.symbol.clone().as_bytes().to_vec();
     symbol.truncate(10);
     let mut symbol: Vec<char> = symbol.chars().collect();
     symbol.retain(|&c| c != '\u{FFFD}');
