@@ -23,6 +23,7 @@ install:
 .PHONY: generate
 generate: dirs
 	cd tools && ./build.sh
+	rm -rf bridge
 	rm -rf node/pkg/proto
 	tools/bin/buf generate
 
