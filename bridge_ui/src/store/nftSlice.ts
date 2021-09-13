@@ -21,6 +21,7 @@ type Steps = 0 | 1 | 2 | 3;
 // these all are optional so NFT could share TokenSelectors
 export interface NFTParsedTokenAccount extends ParsedTokenAccount {
   tokenId?: string;
+  uri?: string;
   animation_url?: string | null;
   external_url?: string | null;
   image?: string;

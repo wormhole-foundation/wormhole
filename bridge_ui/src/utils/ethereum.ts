@@ -26,13 +26,17 @@ export async function ethTokenToParsedTokenAccount(
 ) {
   const decimals = await token.decimals();
   const balance = await token.balanceOf(signerAddress);
+  const symbol = await token.symbol();
+  const name = await token.name();
   return createParsedTokenAccount(
     signerAddress,
     token.address,
     balance.toString(),
     decimals,
     Number(formatUnits(balance, decimals)),
-    formatUnits(balance, decimals)
+    formatUnits(balance, decimals),
+    symbol,
+    name
   );
 }
 
@@ -61,7 +65,8 @@ export async function ethNFTToNFTParsedTokenAccount(
 ) {
   const decimals = 0;
   const balance = (await token.ownerOf(tokenId)) === signerAddress ? 1 : 0;
-  // const uri = await token.tokenURI(tokenId);
+  const symbol = await token.symbol();
+  const uri = await token.tokenURI(tokenId);
   return createNFTParsedTokenAccount(
     signerAddress,
     token.address,
@@ -69,7 +74,9 @@ export async function ethNFTToNFTParsedTokenAccount(
     decimals,
     Number(formatUnits(balance, decimals)),
     formatUnits(balance, decimals),
-    tokenId
+    tokenId,
+    symbol,
+    uri
   );
 }
 

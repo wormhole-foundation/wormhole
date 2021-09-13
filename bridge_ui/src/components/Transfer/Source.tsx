@@ -10,6 +10,7 @@ import {
   selectTransferSourceBalanceString,
   selectTransferSourceChain,
   selectTransferSourceError,
+  selectTransferSourceParsedTokenAccount,
 } from "../../store/selectors";
 import {
   incrementStep,
@@ -36,6 +37,10 @@ function Source({
   const classes = useStyles();
   const dispatch = useDispatch();
   const sourceChain = useSelector(selectTransferSourceChain);
+  const parsedTokenAccount = useSelector(
+    selectTransferSourceParsedTokenAccount
+  );
+  const hasParsedTokenAccount = !!parsedTokenAccount;
   const uiAmountString = useSelector(selectTransferSourceBalanceString);
   const amount = useSelector(selectTransferAmount);
   const error = useSelector(selectTransferSourceError);
@@ -92,15 +97,17 @@ function Source({
           <TokenSelector disabled={shouldLockFields} />
         </div>
       ) : null}
-      <TextField
-        label="Amount"
-        type="number"
-        fullWidth
-        className={classes.transferField}
-        value={amount}
-        onChange={handleAmountChange}
-        disabled={shouldLockFields}
-      />
+      {hasParsedTokenAccount ? (
+        <TextField
+          label="Amount"
+          type="number"
+          fullWidth
+          className={classes.transferField}
+          value={amount}
+          onChange={handleAmountChange}
+          disabled={shouldLockFields}
+        />
+      ) : null}
       <ButtonWithLoader
         disabled={!isSourceComplete}
         onClick={handleNextClick}

@@ -17,6 +17,7 @@ const useStyles = makeStyles(() =>
         margin: ".5rem",
       },
       display: "flex",
+      alignItems: "center",
     },
   })
 );

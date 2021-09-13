@@ -56,7 +56,10 @@ export function createParsedTokenAccount(
   amount: string,
   decimals: number,
   uiAmount: number,
-  uiAmountString: string
+  uiAmountString: string,
+  symbol?: string,
+  name?: string,
+  logo?: string
 ): ParsedTokenAccount {
   return {
     publicKey: publicKey,
@@ -65,6 +68,9 @@ export function createParsedTokenAccount(
     decimals,
     uiAmount,
     uiAmountString,
+    symbol,
+    name,
+    logo,
   };
 }
 
@@ -76,6 +82,8 @@ export function createNFTParsedTokenAccount(
   uiAmount: number,
   uiAmountString: string,
   tokenId: string,
+  symbol?: string,
+  uri?: string,
   animation_url?: string,
   external_url?: string,
   image?: string,
@@ -90,10 +98,12 @@ export function createNFTParsedTokenAccount(
     uiAmount,
     uiAmountString,
     tokenId,
+    uri,
     animation_url,
     external_url,
     image,
     image_256,
+    symbol,
     name,
   };
 }
@@ -146,7 +156,10 @@ const createNFTParsedTokenAccountFromCovalent = (
       nft_data.token_balance,
       covalent.contract_decimals
     ),
+    symbol: covalent.contract_ticker_symbol,
+    logo: covalent.logo_url,
     tokenId: nft_data.token_id,
+    uri: nft_data.token_url,
     animation_url: nft_data.external_data.animation_url,
     external_url: nft_data.external_data.external_url,
     image: nft_data.external_data.image,
@@ -179,6 +192,7 @@ export type CovalentNFTData = {
   token_id: string;
   token_balance: string;
   external_data: CovalentNFTExternalData;
+  token_url: string;
 };
 
 const getEthereumAccountsCovalent = async (

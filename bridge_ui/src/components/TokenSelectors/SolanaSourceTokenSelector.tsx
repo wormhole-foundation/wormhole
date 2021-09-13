@@ -9,8 +9,8 @@ import useSolanaTokenMap from "../../hooks/useSolanaTokenMap";
 import { DataWrapper } from "../../store/helpers";
 import { ParsedTokenAccount } from "../../store/transferSlice";
 import { WORMHOLE_V1_MINT_AUTHORITY } from "../../utils/consts";
-import { Metadata } from "../../utils/metaplex";
 import { shortenAddress } from "../../utils/solana";
+import NFTViewer from "./NFTViewer";
 import RefreshButtonWrapper from "./RefreshButtonWrapper";
 
 const useStyles = makeStyles((theme: Theme) =>
@@ -37,6 +37,11 @@ type SolanaSourceTokenSelectorProps = {
   resetAccounts: (() => void) | undefined;
   nft?: boolean;
 };
+
+const getOptionSelected = (
+  option: ParsedTokenAccount,
+  value: ParsedTokenAccount
+) => option.mintKey === value.mintKey && option.publicKey === value.publicKey;
 
 export default function SolanaSourceTokenSelector(
   props: SolanaSourceTokenSelectorProps
@@ -71,21 +76,38 @@ export default function SolanaSourceTokenSelector(
     return output;
   }, [solanaTokenMap]);
 
-  const getSymbol = (account: ParsedTokenAccount) => {
-    return (
-      memoizedTokenMap.get(account.mintKey)?.symbol ||
-      metaplex.data?.get(account.mintKey)?.data?.symbol ||
-      undefined
-    );
-  };
+  const getLogo = useCallback(
+    (account: ParsedTokenAccount) => {
+      return (
+        memoizedTokenMap.get(account.mintKey)?.logoURI ||
+        metaplex.data?.get(account.mintKey)?.data?.uri ||
+        undefined
+      );
+    },
+    [memoizedTokenMap, metaplex]
+  );
 
-  const getName = (account: ParsedTokenAccount) => {
-    return (
-      memoizedTokenMap.get(account.mintKey)?.name ||
-      metaplex.data?.get(account.mintKey)?.data?.name ||
-      undefined
-    );
-  };
+  const getSymbol = useCallback(
+    (account: ParsedTokenAccount) => {
+      return (
+        memoizedTokenMap.get(account.mintKey)?.symbol ||
+        metaplex.data?.get(account.mintKey)?.data?.symbol ||
+        undefined
+      );
+    },
+    [memoizedTokenMap, metaplex]
+  );
+
+  const getName = useCallback(
+    (account: ParsedTokenAccount) => {
+      return (
+        memoizedTokenMap.get(account.mintKey)?.name ||
+        metaplex.data?.get(account.mintKey)?.data?.name ||
+        undefined
+      );
+    },
+    [memoizedTokenMap, metaplex]
+  );
 
   //I wish there was a way  to make this more intelligent,
   //but the autocomplete filterConfig options seem pretty limiting.
@@ -124,59 +146,53 @@ export default function SolanaSourceTokenSelector(
     [props.mintAccounts]
   );
 
-  const renderAccount = (
-    account: ParsedTokenAccount,
-    solanaTokenMap: Map<String, TokenInfo>,
-    metaplexData: Map<String, Metadata | undefined> | null | undefined,
-    classes: any
-  ) => {
-    const tokenMapData = solanaTokenMap.get(account.mintKey);
-    const metaplexValue = metaplexData?.get(account.mintKey);
+  const renderAccount = useCallback(
+    (account: ParsedTokenAccount) => {
+      const mintPrettyString = shortenAddress(account.mintKey);
+      const accountAddressPrettyString = shortenAddress(account.publicKey);
+      const uri = getLogo(account);
+      const symbol = getSymbol(account) || "Unknown";
+      const name = getName(account) || "--";
 
-    const mintPrettyString = shortenAddress(account.mintKey);
-    const accountAddressPrettyString = shortenAddress(account.publicKey);
-    const uri = tokenMapData?.logoURI || metaplexValue?.data?.uri || undefined;
-    const symbol =
-      tokenMapData?.symbol || metaplexValue?.data.symbol || "Unknown";
-    const name = tokenMapData?.name || metaplexValue?.data?.name || "--";
+      const content = (
+        <>
+          <div className={classes.tokenOverviewContainer}>
+            <div>
+              {uri && <img alt="" className={classes.tokenImage} src={uri} />}
+            </div>
+            <div>
+              <Typography variant="subtitle1">{symbol}</Typography>
+              <Typography variant="subtitle2">{name}</Typography>
+            </div>
+            <div>
+              <Typography variant="body1">
+                {"Mint : " + mintPrettyString}
+              </Typography>
+              <Typography variant="body1">
+                {"Account :" + accountAddressPrettyString}
+              </Typography>
+            </div>
+            <div>
+              <Typography variant="body2">{"Balance"}</Typography>
+              <Typography variant="h6">{account.uiAmountString}</Typography>
+            </div>
+          </div>
+        </>
+      );
 
-    const content = (
-      <>
-        <div className={classes.tokenOverviewContainer}>
-          <div>
-            {uri && <img alt="" className={classes.tokenImage} src={uri} />}
-          </div>
-          <div>
-            <Typography variant="subtitle1">{symbol}</Typography>
-            <Typography variant="subtitle2">{name}</Typography>
-          </div>
-          <div>
-            <Typography variant="body1">
-              {"Mint : " + mintPrettyString}
-            </Typography>
-            <Typography variant="body1">
-              {"Account :" + accountAddressPrettyString}
-            </Typography>
-          </div>
-          <div>
-            <Typography variant="body2">{"Balance"}</Typography>
-            <Typography variant="h6">{account.uiAmountString}</Typography>
-          </div>
+      const v1Warning = (
+        <div>
+          <Typography variant="body2">
+            Wormhole v1 tokens are not eligible for transfer.
+          </Typography>
+          <div>{content}</div>
         </div>
-      </>
-    );
+      );
 
-    const v1Warning = (
-      <div>
-        <Typography variant="body2">
-          Wormhole v1 tokens are not eligible for transfer.
-        </Typography>
-        <div>{content}</div>
-      </div>
-    );
-
-    return isWormholev1(account.mintKey) ? v1Warning : content;
-  };
+      return isWormholev1(account.mintKey) ? v1Warning : content;
+    },
+    [getLogo, getSymbol, getName, classes, isWormholev1]
+  );
 
   //The autocomplete doesn't rerender the option label unless the value changes.
   //Thus we should wait for the metadata to arrive before rendering it.
@@ -205,6 +221,44 @@ export default function SolanaSourceTokenSelector(
     return (value: ParsedTokenAccount) => isWormholev1(value.mintKey);
   }, [isWormholev1]);
 
+  const onAutocompleteChange = useCallback(
+    (event, newValue) => {
+      const symbol = getSymbol(newValue);
+      const name = getName(newValue);
+      const logo = getLogo(newValue);
+      // TODO: more nft data
+      onChange({
+        ...newValue,
+        symbol,
+        name,
+        logo: nft ? undefined : logo,
+        uri: nft ? logo : undefined,
+      });
+    },
+    [getSymbol, getName, getLogo, onChange, nft]
+  );
+
+  const renderInput = useCallback(
+    (params) => (
+      <TextField
+        {...params}
+        label={nft ? "NFT Account" : "Token Account"}
+        variant="outlined"
+      />
+    ),
+    [nft]
+  );
+
+  const getOptionLabel = useCallback(
+    (option) => {
+      const symbol = getSymbol(option);
+      return `${symbol ? symbol : "Unknown"} (Account: ${shortenAddress(
+        option.publicKey
+      )}, Mint: ${shortenAddress(option.mintKey)})`;
+    },
+    [getSymbol]
+  );
+
   const autoComplete = (
     <Autocomplete
       autoComplete
@@ -215,28 +269,14 @@ export default function SolanaSourceTokenSelector(
       fullWidth={false}
       filterOptions={filterConfig}
       value={value}
-      onChange={(event, newValue) => {
-        onChange(newValue);
-      }}
+      onChange={onAutocompleteChange}
       disabled={disabled}
       options={filteredOptions}
-      renderInput={(params) => (
-        <TextField
-          {...params}
-          label={nft ? "NFT Account" : "Token Account"}
-          variant="outlined"
-        />
-      )}
-      renderOption={(option) => {
-        return renderAccount(option, memoizedTokenMap, metaplex.data, classes);
-      }}
+      renderInput={renderInput}
+      renderOption={renderAccount}
       getOptionDisabled={isOptionDisabled}
-      getOptionLabel={(option) => {
-        const symbol = getSymbol(option);
-        return `${symbol ? symbol : "Unknown"} (Account: ${shortenAddress(
-          option.publicKey
-        )}, Mint: ${shortenAddress(option.mintKey)})`;
-      }}
+      getOptionLabel={getOptionLabel}
+      getOptionSelected={getOptionSelected}
     />
   );
 
@@ -250,6 +290,7 @@ export default function SolanaSourceTokenSelector(
     <React.Fragment>
       {isLoading ? <CircularProgress /> : wrappedContent}
       {error && <Typography color="error">{error}</Typography>}
+      {nft && value ? <NFTViewer value={value} /> : null}
     </React.Fragment>
   );
 }

@@ -494,7 +494,7 @@ export default function EthereumSourceTokenSelector(
   const content = value ? (
     <>
       {nft ? (
-        <NFTViewer symbol={symbol} value={value} />
+        <NFTViewer value={value} />
       ) : (
         <RefreshButtonWrapper callback={resetAccountWrapper}>
           <Typography>
