@@ -240,6 +240,8 @@ func (p *Processor) handleObservation(ctx context.Context, m *gossipv1.SignedObs
 			if err := p.db.StoreSignedVAA(signed); err != nil {
 				p.logger.Error("failed to store signed VAA", zap.Error(err))
 			}
+
+			p.broadcastSignedVAA(signed)
 			p.attestationEvents.ReportVAAQuorum(signed)
 			p.state.vaaSignatures[hash].submitted = true
 		} else {

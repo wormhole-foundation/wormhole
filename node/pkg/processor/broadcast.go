@@ -63,3 +63,21 @@ func (p *Processor) broadcastSignature(v *vaa.VAA, signature []byte) {
 
 	observationsBroadcastTotal.Inc()
 }
+
+func (p *Processor) broadcastSignedVAA(v *vaa.VAA) {
+	b, err := v.Marshal()
+	if err != nil {
+		panic(err)
+	}
+
+	w := gossipv1.GossipMessage{Message: &gossipv1.GossipMessage_SignedVaaWithQuorum{
+		SignedVaaWithQuorum: &gossipv1.SignedVAAWithQuorum{Vaa: b},
+	}}
+
+	msg, err := proto.Marshal(&w)
+	if err != nil {
+		panic(err)
+	}
+
+	p.sendC <- msg
+}

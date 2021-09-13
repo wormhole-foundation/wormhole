@@ -10,6 +10,7 @@ message GossipMessage {
     Heartbeat heartbeat = 1;
     SignedObservation signed_observation = 2;
     SignedHeartbeat signed_heartbeat = 3;
+    SignedVAAWithQuorum signed_vaa_with_quorum = 4;
   }
 }
 
@@ -77,4 +78,11 @@ message SignedObservation {
   bytes hash = 2;
   // ECSDA signature of the hash using the node's guardian key.
   bytes signature = 3;
+}
+
+// A SignedVAAWithQuorum message is sent by nodes whenever one of the VAAs they observed
+// reached a 2/3+ quorum to be considered valid. Signed VAAs are broadcasted to the gossip
+// network to allow nodes to persist them even if they failed to observe the signature.
+message SignedVAAWithQuorum {
+  bytes vaa = 1;
 }
