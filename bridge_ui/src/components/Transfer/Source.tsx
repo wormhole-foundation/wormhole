@@ -3,6 +3,7 @@ import { Restore } from "@material-ui/icons";
 import { useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import useIsWalletReady from "../../hooks/useIsWalletReady";
+import useTokenBlacklistWarning from "../../hooks/useTokenBlacklistWarning";
 import {
   selectTransferAmount,
   selectTransferIsSourceComplete,
@@ -47,6 +48,10 @@ function Source({
   const isSourceComplete = useSelector(selectTransferIsSourceComplete);
   const shouldLockFields = useSelector(selectTransferShouldLockFields);
   const { isReady, statusMessage } = useIsWalletReady(sourceChain);
+  const tokenBlacklistWarning = useTokenBlacklistWarning(
+    sourceChain,
+    parsedTokenAccount?.mintKey
+  );
   const handleSourceChange = useCallback(
     (event) => {
       dispatch(setSourceChain(event.target.value));
@@ -112,7 +117,7 @@ function Source({
         disabled={!isSourceComplete}
         onClick={handleNextClick}
         showLoader={false}
-        error={statusMessage || error}
+        error={statusMessage || error || tokenBlacklistWarning}
       >
         Next
       </ButtonWithLoader>
