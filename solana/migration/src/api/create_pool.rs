@@ -18,7 +18,6 @@ use borsh::{
 };
 use solana_program::program::invoke_signed;
 use solitaire::{
-    processors::seeded::Seeded,
     CreationLamports::Exempt,
     *,
 };

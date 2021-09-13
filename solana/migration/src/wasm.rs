@@ -51,6 +51,34 @@ pub fn add_liquidity(
 }
 
 #[wasm_bindgen]
+pub fn remove_liquidity(
+    program_id: String,
+    from_mint: String,
+    to_mint: String,
+    liquidity_token_account: String,
+    lp_share_token_account: String,
+    amount: u64,
+) -> JsValue {
+    let program_id = Pubkey::from_str(program_id.as_str()).unwrap();
+    let from_mint = Pubkey::from_str(from_mint.as_str()).unwrap();
+    let to_mint = Pubkey::from_str(to_mint.as_str()).unwrap();
+    let liquidity_token_account = Pubkey::from_str(liquidity_token_account.as_str()).unwrap();
+    let lp_share_token_account = Pubkey::from_str(lp_share_token_account.as_str()).unwrap();
+
+    let ix = instructions::remove_liquidity(
+        program_id,
+        from_mint,
+        to_mint,
+        liquidity_token_account,
+        lp_share_token_account,
+        amount,
+    )
+    .unwrap();
+
+    JsValue::from_serde(&ix).unwrap()
+}
+
+#[wasm_bindgen]
 pub fn claim_shares(
     program_id: String,
     from_mint: String,

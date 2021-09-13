@@ -8,10 +8,7 @@ use crate::{
         ShareMintDerivationData,
         ToCustodyTokenAccount,
     },
-    types::{
-        SplAccount,
-        SplMint,
-    },
+    types::SplAccount,
     MigrationError::WrongMint,
 };
 use borsh::{
@@ -31,7 +28,6 @@ use solitaire::{
 #[derive(FromAccounts)]
 pub struct ClaimShares<'b> {
     pub pool: Mut<MigrationPool<'b, { AccountState::Initialized }>>,
-    pub to_mint: Data<'b, SplMint, { AccountState::Initialized }>,
     pub from_token_custody: Mut<ToCustodyTokenAccount<'b, { AccountState::Initialized }>>,
     pub share_mint: Mut<ShareMint<'b, { AccountState::Initialized }>>,
 
@@ -51,9 +47,6 @@ pub fn claim_shares(
     accs: &mut ClaimShares,
     data: ClaimSharesData,
 ) -> Result<()> {
-    if *accs.to_mint.info().key != accs.pool.to {
-        return Err(WrongMint.into());
-    }
     if accs.lp_share_acc.mint != *accs.share_mint.info().key {
         return Err(WrongMint.into());
     }

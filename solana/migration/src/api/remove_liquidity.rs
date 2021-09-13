@@ -2,9 +2,10 @@ use crate::{
     accounts::{
         AuthoritySigner,
         CustodySigner,
-        FromCustodyTokenAccount,
-        FromCustodyTokenAccountDerivationData,
         MigrationPool,
+        MigrationPoolDerivationData,
+        ShareMint,
+        ShareMintDerivationData,
         ToCustodyTokenAccount,
         ToCustodyTokenAccountDerivationData,
     },
@@ -18,8 +19,6 @@ use borsh::{
     BorshDeserialize,
     BorshSerialize,
 };
-
-use crate::accounts::MigrationPoolDerivationData;
 use solitaire::{
     processors::seeded::{
         invoke_seeded,
@@ -29,28 +28,28 @@ use solitaire::{
 };
 
 #[derive(FromAccounts)]
-pub struct MigrateTokens<'b> {
+pub struct RemoveLiquidity<'b> {
     pub pool: Mut<MigrationPool<'b, { AccountState::Initialized }>>,
     pub from_mint: Data<'b, SplMint, { AccountState::Initialized }>,
     pub to_mint: Data<'b, SplMint, { AccountState::Initialized }>,
     pub to_token_custody: Mut<ToCustodyTokenAccount<'b, { AccountState::Initialized }>>,
-    pub from_token_custody: Mut<FromCustodyTokenAccount<'b, { AccountState::Initialized }>>,
+    pub share_mint: Mut<ShareMint<'b, { AccountState::Initialized }>>,
 
-    pub user_from_acc: Mut<Data<'b, SplAccount, { AccountState::Initialized }>>,
-    pub user_to_acc: Mut<Data<'b, SplAccount, { AccountState::Initialized }>>,
+    pub to_lp_acc: Mut<Data<'b, SplAccount, { AccountState::Initialized }>>,
+    pub lp_share_acc: Mut<Data<'b, SplAccount, { AccountState::Initialized }>>,
     pub custody_signer: CustodySigner<'b>,
     pub authority_signer: AuthoritySigner<'b>,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Default)]
-pub struct MigrateTokensData {
+pub struct RemoveLiquidityData {
     pub amount: u64,
 }
 
-pub fn migrate_tokens(
+pub fn remove_liquidity(
     ctx: &ExecutionContext,
-    accs: &mut MigrateTokens,
-    data: MigrateTokensData,
+    accs: &mut RemoveLiquidity,
+    data: RemoveLiquidityData,
 ) -> Result<()> {
     if *accs.from_mint.info().key != accs.pool.from {
         return Err(WrongMint.into());
@@ -58,10 +57,7 @@ pub fn migrate_tokens(
     if *accs.to_mint.info().key != accs.pool.to {
         return Err(WrongMint.into());
     }
-    if accs.user_from_acc.mint != accs.pool.from {
-        return Err(WrongMint.into());
-    }
-    if accs.user_to_acc.mint != accs.pool.to {
+    if accs.lp_share_acc.mint != *accs.share_mint.info().key {
         return Err(WrongMint.into());
     }
     accs.to_token_custody.verify_derivation(
@@ -70,9 +66,9 @@ pub fn migrate_tokens(
             pool: *accs.pool.info().key,
         },
     )?;
-    accs.from_token_custody.verify_derivation(
+    accs.share_mint.verify_derivation(
         ctx.program_id,
-        &FromCustodyTokenAccountDerivationData {
+        &ShareMintDerivationData {
             pool: *accs.pool.info().key,
         },
     )?;
@@ -83,17 +79,6 @@ pub fn migrate_tokens(
             to: accs.pool.to,
         },
     )?;
-
-    // Transfer in-tokens in
-    let transfer_ix = spl_token::instruction::transfer(
-        &spl_token::id(),
-        accs.user_from_acc.info().key,
-        accs.from_token_custody.info().key,
-        accs.authority_signer.key,
-        &[],
-        data.amount,
-    )?;
-    invoke_seeded(&transfer_ix, ctx, &accs.authority_signer, None)?;
 
     // The out amount needs to be decimal adjusted
     let out_amount = if accs.from_mint.decimals > accs.to_mint.decimals {
@@ -106,16 +91,27 @@ pub fn migrate_tokens(
             .unwrap()
     };
 
-    // Transfer out-tokens to user
+    // Transfer removed liquidity to LP
     let transfer_ix = spl_token::instruction::transfer(
         &spl_token::id(),
         accs.to_token_custody.info().key,
-        accs.user_to_acc.info().key,
+        accs.to_lp_acc.info().key,
         accs.custody_signer.key,
         &[],
         out_amount,
     )?;
     invoke_seeded(&transfer_ix, ctx, &accs.custody_signer, None)?;
+
+    // Burn LP shares
+    let mint_ix = spl_token::instruction::burn(
+        &spl_token::id(),
+        accs.lp_share_acc.info().key,
+        accs.share_mint.info().key,
+        accs.authority_signer.key,
+        &[],
+        data.amount,
+    )?;
+    invoke_seeded(&mint_ix, ctx, &accs.authority_signer, None)?;
 
     Ok(())
 }

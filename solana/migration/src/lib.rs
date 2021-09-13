@@ -6,6 +6,7 @@ use api::{
     claim_shares::*,
     create_pool::*,
     migrate_tokens::*,
+    remove_liquidity::*,
 };
 use solitaire::{
     solitaire,
@@ -39,6 +40,7 @@ impl From<MigrationError> for SolitaireError {
 
 solitaire! {
     AddLiquidity(AddLiquidityData) => add_liquidity,
+    RemoveLiquidity(RemoveLiquidityData) => remove_liquidity,
     ClaimShares(ClaimSharesData) => claim_shares,
     CreatePool(CreatePoolData) => create_pool,
     MigrateTokens(MigrateTokensData) => migrate_tokens,

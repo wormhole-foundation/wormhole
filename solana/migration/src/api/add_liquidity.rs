@@ -78,7 +78,8 @@ pub fn add_liquidity(
     let to_tokens_in = if accs.from_mint.decimals > accs.to_mint.decimals {
         data.amount
     } else {
-        data.amount - (data.amount % 10u64.pow((accs.to_mint.decimals - accs.from_mint.decimals) as u32))
+        data.amount
+            - (data.amount % 10u64.pow((accs.to_mint.decimals - accs.from_mint.decimals) as u32))
     };
 
     // Transfer out-tokens in
