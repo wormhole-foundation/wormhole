@@ -34,7 +34,7 @@ config.define_bool("pyth", False, "Enable Pyth-to-Wormhole component")
 config.define_bool("explorer", False, "Enable explorer component")
 
 cfg = config.parse()
-num_guardians = int(cfg.get("num", "5"))
+num_guardians = int(cfg.get("num", "1"))
 namespace = cfg.get("namespace", "wormhole")
 gcpProject = cfg.get("gcpProject", "local-dev")
 bigTableKeyPath = cfg.get("bigTableKeyPath", "./event_database/devnet_key.json")
