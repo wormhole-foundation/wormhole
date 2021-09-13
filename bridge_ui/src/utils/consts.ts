@@ -15,12 +15,24 @@ export const CLUSTER: Cluster =
     : process.env.REACT_APP_CLUSTER === "testnet"
     ? "testnet"
     : "devnet";
+export const ENABLE_NFT = CLUSTER !== "mainnet";
 export interface ChainInfo {
   id: ChainId;
   name: string;
 }
 export const CHAINS =
-  CLUSTER === "testnet"
+  CLUSTER === "mainnet"
+    ? [
+        {
+          id: CHAIN_ID_ETH,
+          name: "Ethereum",
+        },
+        {
+          id: CHAIN_ID_SOLANA,
+          name: "Solana",
+        },
+      ]
+    : CLUSTER === "testnet"
     ? [
         {
           id: CHAIN_ID_ETH,
@@ -59,13 +71,19 @@ export const CHAINS_BY_ID: ChainsById = CHAINS.reduce((obj, chain) => {
   return obj;
 }, {} as ChainsById);
 export const WORMHOLE_RPC_HOSTS =
-  CLUSTER === "testnet"
+  CLUSTER === "mainnet"
+    ? ["https://wormhole-v2-mainnet-api.certus.one"]
+    : CLUSTER === "testnet"
     ? ["https://wormhole-v2-testnet-api.certus.one"]
     : ["http://localhost:8080"];
 export const ETH_NETWORK_CHAIN_ID =
   CLUSTER === "mainnet" ? 1 : CLUSTER === "testnet" ? 5 : 1337;
 export const SOLANA_HOST =
-  CLUSTER === "testnet" ? clusterApiUrl("testnet") : "http://localhost:8899";
+  CLUSTER === "mainnet"
+    ? clusterApiUrl("mainnet-beta")
+    : CLUSTER === "testnet"
+    ? clusterApiUrl("testnet")
+    : "http://localhost:8899";
 
 export const TERRA_HOST =
   CLUSTER === "testnet"
@@ -79,13 +97,10 @@ export const TERRA_HOST =
         chainID: "columbus-4",
         name: "localterra",
       };
-export const ETH_TEST_TOKEN_ADDRESS = getAddress(
-  CLUSTER === "testnet"
-    ? "0xcEE940033DA197F551BBEdED7F4aA55Ee55C582B"
-    : "0x0E696947A06550DEf604e82C26fd9E493e576337"
-);
 export const ETH_BRIDGE_ADDRESS = getAddress(
-  CLUSTER === "testnet"
+  CLUSTER === "mainnet"
+    ? "0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B"
+    : CLUSTER === "testnet"
     ? "0x44F3e7c20850B3B5f3031114726A9240911D912a"
     : "0xC89Ce4735882C9F0f0FE26686c53074E09B0D550"
 );
@@ -95,16 +110,16 @@ export const ETH_NFT_BRIDGE_ADDRESS = getAddress(
     : "0x26b4afb60d6c903165150c6f0aa14f8016be4aec"
 );
 export const ETH_TOKEN_BRIDGE_ADDRESS = getAddress(
-  CLUSTER === "testnet"
+  CLUSTER === "mainnet"
+    ? "0x3ee18B2214AFF97000D974cf647E7C347E8fa585"
+    : CLUSTER === "testnet"
     ? "0xa6CDAddA6e4B6704705b065E01E52e2486c0FBf6"
     : "0x0290FB167208Af455bB137780163b7B7a9a10C16"
 );
-export const SOL_TEST_TOKEN_ADDRESS =
-  CLUSTER === "testnet"
-    ? "6uzMjLkcTwhYo5Fwx9DtVtQ7VRrCQ7bTUd7rHXTiPDXp"
-    : "2WDq7wSs9zYrpx2kbHDA4RUTRch2CCTP6ZWaH4GNfnQQ";
 export const SOL_BRIDGE_ADDRESS =
-  CLUSTER === "testnet"
+  CLUSTER === "mainnet"
+    ? "worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth"
+    : CLUSTER === "testnet"
     ? "Brdguy7BmNB4qwEbcqqMbyV5CyJd2sxQNUn6NEpMSsUb"
     : "Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o";
 export const SOL_NFT_BRIDGE_ADDRESS =
@@ -112,7 +127,9 @@ export const SOL_NFT_BRIDGE_ADDRESS =
     ? "NFTWqJR8YnRVqPDvTJrYuLrQDitTG5AScqbeghi4zSA" // TODO: test address
     : "NFTWqJR8YnRVqPDvTJrYuLrQDitTG5AScqbeghi4zSA";
 export const SOL_TOKEN_BRIDGE_ADDRESS =
-  CLUSTER === "testnet"
+  CLUSTER === "mainnet"
+    ? "wormDTUJ6AWPNvk59vGQbDvGJmqbDTdgWgAqcLBCgUb"
+    : CLUSTER === "testnet"
     ? "A4Us8EhCC76XdGAN17L4KpRNEK423nMivVHZzZqFqqBg"
     : "B6RHG3mfcckmrYN1UhmJzyS1XX3fZKbkeUcpJe9Sy3FE";
 export const TERRA_TEST_TOKEN_ADDRESS =
@@ -126,6 +143,7 @@ export const COVALENT_API_KEY = process.env.REACT_APP_COVALENT_API_KEY
   ? process.env.REACT_APP_COVALENT_API_KEY
   : "";
 
+export const COVALENT_ETHEREUM_MAINNET = "1";
 export const COVALENT_GET_TOKENS_URL = (
   chainId: ChainId,
   walletAddress: string,
@@ -141,18 +159,18 @@ export const COVALENT_GET_TOKENS_URL = (
   }`;
 };
 
-export const COVALENT_ETHEREUM_MAINNET = "1";
-
 export const WORMHOLE_V1_ETH_ADDRESS =
-  CLUSTER === "testnet"
-    ? "0xdae0Cba01eFc4bfEc1F7Fece73Fe8b8d2Eda65B0"
-    : CLUSTER === "mainnet"
+  CLUSTER === "mainnet"
     ? "0xf92cD566Ea4864356C5491c177A430C222d7e678"
+    : CLUSTER === "testnet"
+    ? "0xdae0Cba01eFc4bfEc1F7Fece73Fe8b8d2Eda65B0"
     : "0xf92cD566Ea4864356C5491c177A430C222d7e678"; //TODO something that doesn't explode in localhost
 export const WORMHOLE_V1_SOLANA_ADDRESS =
-  CLUSTER === "testnet"
+  CLUSTER === "mainnet"
+    ? "WormT3McKhFJ2RkiGpdw9GKvNCrB2aB54gb2uV9MfQC"
+    : CLUSTER === "testnet"
     ? "BrdgiFmZN3BKkcY3danbPYyxPKwb8RhQzpM2VY5L97ED"
-    : "WormT3McKhFJ2RkiGpdw9GKvNCrB2aB54gb2uV9MfQC";
+    : "";
 
 export const TERRA_TOKEN_METADATA_URL =
   "https://assets.terra.money/cw20/tokens.json";
