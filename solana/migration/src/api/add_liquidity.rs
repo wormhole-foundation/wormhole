@@ -75,6 +75,12 @@ pub fn add_liquidity(
         },
     )?;
 
+    let to_tokens_in = if accs.from_mint.decimals > accs.to_mint.decimals {
+        data.amount
+    } else {
+        data.amount - (data.amount % 10u64.pow((accs.to_mint.decimals - accs.from_mint.decimals) as u32))
+    };
+
     // Transfer out-tokens in
     let transfer_ix = spl_token::instruction::transfer(
         &spl_token::id(),
@@ -82,7 +88,7 @@ pub fn add_liquidity(
         accs.to_token_custody.info().key,
         accs.authority_signer.key,
         &[],
-        data.amount,
+        to_tokens_in,
     )?;
     invoke_seeded(&transfer_ix, ctx, &accs.authority_signer, None)?;
 
