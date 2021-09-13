@@ -45,7 +45,8 @@ function NFT() {
   const isSendComplete = useSelector(selectNFTIsSendComplete);
   const isRedeeming = useSelector(selectNFTIsRedeeming);
   const isRedeemComplete = useSelector(selectNFTIsRedeemComplete);
-  const preventNavigation = isSending || isSendComplete || isRedeeming;
+  const preventNavigation =
+    (isSending || isSendComplete || isRedeeming) && !isRedeemComplete;
   useEffect(() => {
     if (preventNavigation) {
       window.onbeforeunload = () => true;
