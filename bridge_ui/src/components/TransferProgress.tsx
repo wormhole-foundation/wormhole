@@ -39,8 +39,8 @@ export default function TransferProgress({ nft }: { nft?: boolean }) {
   const [currentBlock, setCurrentBlock] = useState(0);
   useEffect(() => {
     if (isSendComplete || !transferTx) return;
-    let cancelled = false;
     if (sourceChain === CHAIN_ID_ETH && provider) {
+      let cancelled = false;
       (async () => {
         while (!cancelled) {
           await new Promise((resolve) => setTimeout(resolve, 500));
@@ -54,26 +54,23 @@ export default function TransferProgress({ nft }: { nft?: boolean }) {
           }
         }
       })();
+      return () => {
+        cancelled = true;
+      };
     }
     if (sourceChain === CHAIN_ID_SOLANA) {
-      (async () => {
-        const connection = new Connection(SOLANA_HOST, "confirmed");
-        while (!cancelled) {
-          await new Promise((resolve) => setTimeout(resolve, 200));
-          try {
-            const newBlock = await connection.getSlot();
-            if (!cancelled) {
-              setCurrentBlock(newBlock);
-            }
-          } catch (e) {
-            console.error(e);
-          }
+      let cancelled = false;
+      const connection = new Connection(SOLANA_HOST, "confirmed");
+      const sub = connection.onSlotChange((slotInfo) => {
+        if (!cancelled) {
+          setCurrentBlock(slotInfo.slot);
         }
-      })();
+      });
+      return () => {
+        cancelled = true;
+        connection.removeSlotChangeListener(sub);
+      };
     }
-    return () => {
-      cancelled = true;
-    };
   }, [isSendComplete, sourceChain, provider, transferTx]);
   const blockDiff =
     transferTx && transferTx.block && currentBlock
