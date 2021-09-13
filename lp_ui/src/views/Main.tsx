@@ -16,6 +16,7 @@ import {
   Paper,
   TextField,
   Typography,
+  CircularProgress,
 } from "@material-ui/core";
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -97,16 +98,23 @@ function Main() {
   const { log } = useLogger();
   const connection = useMemo(() => new Connection(SOLANA_URL, "confirmed"), []);
 
-  const [fromMint, setFromMint] = useState("");
+  const [fromMintHolder, setFromMintHolder] = useState("");
   const [fromMintDecimals, setFromMintDecimals] = useState<number | undefined>(
     undefined
   );
-  const [toMint, setToMint] = useState("");
+  const [toMintHolder, setToMintHolder] = useState("");
   const [toMintDecimals, setToMintDecimals] = useState<any>(undefined);
   const [shareMintAddress, setShareMintAddress] = useState<string | undefined>(
     undefined
   );
   const [shareMintDecimals, setShareMintDecimals] = useState<any>(undefined);
+
+  let fromMint: string = "";
+  let toMint: string = "";
+  try {
+    fromMint = fromMintHolder && new PublicKey(fromMintHolder).toString();
+    toMint = toMintHolder && new PublicKey(toMintHolder).toString();
+  } catch (e) {}
 
   const [poolAddress, setPoolAddress] = useState("");
   const [poolExists, setPoolExists] = useState<boolean | undefined>(undefined);
@@ -161,6 +169,11 @@ function Main() {
   const [migrationAmount, setMigrationAmount] = useState("");
   const [redeemAmount, setRedeemAmount] = useState("");
 
+  const [liquidityIsProcessing, setLiquidityIsProcessing] = useState(false);
+  const [migrationIsProcessing, setMigrationIsProcessing] = useState(false);
+  const [redeemIsProcessing, setRedeemIsProcessing] = useState(false);
+  const [createPoolIsProcessing, setCreatePoolIsProcessing] = useState(false);
+
   /*
   Effects***
 
@@ -211,6 +224,9 @@ function Main() {
   useEffect(() => {
     if (toMint && fromMint) {
       setPoolAddress("");
+      setPoolExists(undefined);
+      setPoolAccountInfo(undefined);
+      setParsedPoolData(undefined);
       getPoolAddress(MIGRATION_PROGRAM_ADDRESS, fromMint, toMint).then(
         (result) => {
           const key = new PublicKey(result).toString();
@@ -224,13 +240,18 @@ function Main() {
 
   //Retrieve the poolAccount every time the pool address changes.
   useEffect(() => {
+    console.log(
+      "fired the poolAccountInfo effect",
+      poolAddress,
+      poolAccountInfo
+    );
     if (poolAddress && poolAccountInfo === undefined) {
       setPoolExists(undefined);
       try {
         getMultipleAccounts(
           connection,
           [new PublicKey(poolAddress)],
-          "finalized"
+          "confirmed"
         ).then((result) => {
           if (result.length && result[0] !== null) {
             setPoolAccountInfo(result[0]);
@@ -353,21 +374,24 @@ function Main() {
         fromMint,
         toMint
       );
-
+      setCreatePoolIsProcessing(true);
       signSendAndConfirm(wallet, connection, instruction).then(
         (transaction: any) => {
           setPoolExists(undefined); //Set these to null to force a fetch on them
           setPoolAccountInfo(undefined);
           log("Successfully created the pool.");
+          setCreatePoolIsProcessing(false);
         },
         (error) => {
           log("Could not create the pool");
           console.error(error);
+          setCreatePoolIsProcessing(false);
         }
       );
     } catch (e) {
       log("Failed to create the pool.");
       console.error(e);
+      setCreatePoolIsProcessing(false);
     }
   }, [connection, fromMint, toMint, wallet, log]);
 
@@ -383,6 +407,7 @@ function Main() {
         shareTokenAccount || "",
         parseUnits(liquidityAmount, toMintDecimals).toBigInt()
       );
+      setLiquidityIsProcessing(true);
       signSendAndConfirm(wallet, connection, instruction).then(
         (transaction: any) => {
           log("Successfully added liquidity to the pool.");
@@ -393,15 +418,18 @@ function Main() {
             log
           );
           getBalance(connection, toCustodyAddress, setToCustodyBalance, log);
+          setLiquidityIsProcessing(false);
         },
         (error) => {
           log("Could not complete the addLiquidity transaction");
           console.error(error);
+          setLiquidityIsProcessing(false);
         }
       );
     } catch (e) {
       log("Could not complete the addLiquidity transaction");
       console.error(e);
+      setLiquidityIsProcessing(false);
     }
   }, [
     connection,
@@ -429,7 +457,7 @@ function Main() {
         toTokenAccount || "",
         parseUnits(migrationAmount, fromMintDecimals).toBigInt()
       );
-
+      setMigrationIsProcessing(true);
       signSendAndConfirm(wallet, connection, instruction).then(
         (transaction: any) => {
           log("Successfully migrated the tokens.");
@@ -440,15 +468,18 @@ function Main() {
             log
           );
           getBalance(connection, toCustodyAddress, setToCustodyBalance, log);
+          setMigrationIsProcessing(false);
         },
         (error) => {
           log("Could not complete the migrateTokens transaction.");
           console.error(error);
+          setMigrationIsProcessing(false);
         }
       );
     } catch (e) {
       log("Could not complete the migrateTokens transaction.");
       console.error(e);
+      setMigrationIsProcessing(false);
     }
   }, [
     connection,
@@ -476,7 +507,7 @@ function Main() {
         shareTokenAccount || "",
         parseUnits(redeemAmount, shareMintDecimals).toBigInt()
       );
-
+      setRedeemIsProcessing(true);
       signSendAndConfirm(wallet, connection, instruction).then(
         (transaction: any) => {
           log("Successfully redeemed the shares.");
@@ -487,15 +518,18 @@ function Main() {
             log
           );
           getBalance(connection, toCustodyAddress, setToCustodyBalance, log);
+          setRedeemIsProcessing(false);
         },
         (error) => {
           log("Could not complete the claimShares transaction.");
           console.error(error);
+          setRedeemIsProcessing(false);
         }
       );
     } catch (e) {
       log("Could not complete the claimShares transaction.");
       console.error(e);
+      setRedeemIsProcessing(false);
     }
   }, [
     connection,
@@ -521,15 +555,15 @@ function Main() {
         interested in.
       </Typography>
       <TextField
-        value={fromMint}
-        onChange={(event) => setFromMint(event.target.value)}
+        value={fromMintHolder}
+        onChange={(event) => setFromMintHolder(event.target.value)}
         label={"From Token"}
         fullWidth
         style={{ display: "block" }}
       ></TextField>
       <TextField
-        value={toMint}
-        onChange={(event) => setToMint(event.target.value)}
+        value={toMintHolder}
+        onChange={(event) => setToMintHolder(event.target.value)}
         label={"To Token"}
         fullWidth
         style={{ display: "block" }}
@@ -542,12 +576,13 @@ function Main() {
       <Button
         variant="contained"
         onClick={() => createPool()}
-        disabled={poolExists}
+        disabled={poolExists || createPoolIsProcessing}
       >
         {poolExists
           ? "This Pool is instantiated."
           : "This pool has not been instantiated! Click here to create it."}
       </Button>
+      {createPoolIsProcessing ? <CircularProgress /> : null}
     </div>
   );
 
@@ -564,9 +599,14 @@ function Main() {
         onChange={(event) => setLiquidityAmount(event.target.value)}
         label={"Amount to add"}
       ></TextField>
-      <Button variant="contained" onClick={addLiquidity}>
+      <Button
+        variant="contained"
+        onClick={addLiquidity}
+        disabled={liquidityIsProcessing}
+      >
         Add Liquidity
       </Button>
+      {liquidityIsProcessing ? <CircularProgress /> : null}
     </>
   );
 
@@ -583,9 +623,14 @@ function Main() {
         onChange={(event) => setMigrationAmount(event.target.value)}
         label={"Amount to migrate"}
       ></TextField>
-      <Button variant="contained" onClick={migrateTokens}>
+      <Button
+        variant="contained"
+        onClick={migrateTokens}
+        disabled={migrationIsProcessing}
+      >
         Migrate Tokens
       </Button>
+      {migrationIsProcessing ? <CircularProgress /> : null}
     </>
   );
 
@@ -602,9 +647,14 @@ function Main() {
         onChange={(event) => setRedeemAmount(event.target.value)}
         label={"Amount to redeem"}
       ></TextField>
-      <Button variant="contained" onClick={redeemShares}>
+      <Button
+        variant="contained"
+        onClick={redeemShares}
+        disabled={redeemIsProcessing}
+      >
         Redeem Shares
       </Button>
+      {redeemIsProcessing ? <CircularProgress /> : null}
     </>
   );
 
