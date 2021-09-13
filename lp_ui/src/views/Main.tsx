@@ -1,6 +1,7 @@
 import addLiquidityTx from "@certusone/wormhole-sdk/lib/migration/addLiquidity";
 import getAuthorityAddress from "@certusone/wormhole-sdk/lib/migration/authorityAddress";
 import claimSharesTx from "@certusone/wormhole-sdk/lib/migration/claimShares";
+import removeLiquidityTx from "@certusone/wormhole-sdk/lib/migration/removeLiquidity";
 import createPoolAccount from "@certusone/wormhole-sdk/lib/migration/createPool";
 import getFromCustodyAddress from "@certusone/wormhole-sdk/lib/migration/fromCustodyAddress";
 import migrateTokensTx from "@certusone/wormhole-sdk/lib/migration/migrateTokens";
@@ -166,10 +167,13 @@ function Main() {
   const [toggleAllData, setToggleAllData] = useState(false);
 
   const [liquidityAmount, setLiquidityAmount] = useState("");
+  const [removeLiquidityAmount, setRemoveLiquidityAmount] = useState("");
   const [migrationAmount, setMigrationAmount] = useState("");
   const [redeemAmount, setRedeemAmount] = useState("");
 
   const [liquidityIsProcessing, setLiquidityIsProcessing] = useState(false);
+  const [removeLiquidityIsProcessing, setRemoveLiquidityIsProcessing] =
+    useState(false);
   const [migrationIsProcessing, setMigrationIsProcessing] = useState(false);
   const [redeemIsProcessing, setRedeemIsProcessing] = useState(false);
   const [createPoolIsProcessing, setCreatePoolIsProcessing] = useState(false);
@@ -445,6 +449,56 @@ function Main() {
     toCustodyAddress,
   ]);
 
+  const removeLiquidity = useCallback(async () => {
+    try {
+      const instruction = await removeLiquidityTx(
+        connection,
+        wallet?.publicKey?.toString() || "",
+        MIGRATION_PROGRAM_ADDRESS,
+        fromMint,
+        toMint,
+        toTokenAccount || "",
+        shareTokenAccount || "",
+        parseUnits(removeLiquidityAmount, shareMintDecimals).toBigInt()
+      );
+      setRemoveLiquidityIsProcessing(true);
+      signSendAndConfirm(wallet, connection, instruction).then(
+        (transaction: any) => {
+          log("Successfully removed liquidity to the pool.");
+          getBalance(
+            connection,
+            fromCustodyAddress,
+            setFromCustodyBalance,
+            log
+          );
+          getBalance(connection, toCustodyAddress, setToCustodyBalance, log);
+          setRemoveLiquidityIsProcessing(false);
+        },
+        (error) => {
+          log("Could not complete the removeLiquidity transaction");
+          console.error(error);
+          setRemoveLiquidityIsProcessing(false);
+        }
+      );
+    } catch (e) {
+      log("Could not complete the removeLiquidity transaction");
+      console.error(e);
+      setRemoveLiquidityIsProcessing(false);
+    }
+  }, [
+    connection,
+    fromMint,
+    removeLiquidityAmount,
+    shareTokenAccount,
+    toMint,
+    toTokenAccount,
+    wallet,
+    log,
+    shareMintDecimals,
+    fromCustodyAddress,
+    toCustodyAddress,
+  ]);
+
   const migrateTokens = useCallback(async () => {
     try {
       const instruction = await migrateTokensTx(
@@ -610,6 +664,30 @@ function Main() {
     </>
   );
 
+  const removeLiquidityUI = (
+    <>
+      <Typography variant="h4">Remove Liquidity</Typography>
+      <Typography variant="body1">
+        This will remove 'Share' tokens from your wallet, and give you an equal
+        number of 'To' tokens.
+      </Typography>
+      <TextField
+        value={removeLiquidityAmount}
+        type="number"
+        onChange={(event) => setRemoveLiquidityAmount(event.target.value)}
+        label={"Amount to remove"}
+      ></TextField>
+      <Button
+        variant="contained"
+        onClick={removeLiquidity}
+        disabled={removeLiquidityIsProcessing}
+      >
+        Remove Liquidity
+      </Button>
+      {removeLiquidityIsProcessing ? <CircularProgress /> : null}
+    </>
+  );
+
   const migrateTokensUI = (
     <>
       <Typography variant="h4">Migrate Tokens</Typography>
@@ -735,6 +813,8 @@ function Main() {
       {relevantTokenAccounts}
       <Divider className={classes.divider} />
       {addLiquidityUI}
+      <Divider className={classes.divider} />
+      {removeLiquidityUI}
       <Divider className={classes.divider} />
       {redeemSharesUI}
       <Divider className={classes.divider} />
