@@ -106,7 +106,7 @@ pub fn add_liquidity(
     // Mint LP shares
     let mint_ix = spl_token::instruction::mint_to(
         &spl_token::id(),
-        accs.from_mint.info().key,
+        accs.share_mint.info().key,
         accs.lp_share_acc.info().key,
         accs.custody_signer.key,
         &[],
