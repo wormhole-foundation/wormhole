@@ -23,7 +23,7 @@ export async function postVaa(
   } = await import("./core/bridge");
   let bridge_state = await getBridgeState(connection, bridge_id);
   let guardian_addr = new PublicKey(
-    guardian_set_address(bridge_id, bridge_state.guardianSetIndex)
+    guardian_set_address(bridge_id, bridge_state.guardian_set_index)
   );
   let acc = await connection.getAccountInfo(guardian_addr);
   if (acc?.data === undefined) {
@@ -35,7 +35,7 @@ export async function postVaa(
   let txs = verify_signatures_ix(
     bridge_id,
     payer,
-    bridge_state.guardianSetIndex,
+    bridge_state.guardian_set_index,
     guardian_data,
     signature_set.publicKey.toString(),
     vaa
@@ -85,10 +85,10 @@ async function getBridgeState(
 
 interface BridgeState {
   // The current guardian set index, used to decide which signature sets to accept.
-  guardianSetIndex: number;
+  guardian_set_index: number;
 
   // Lamports in the collection account
-  lastLamports: number;
+  last_lamports: number;
 
   // Bridge configuration, which is set once upon initialization.
   config: BridgeConfig;
@@ -98,7 +98,7 @@ interface BridgeConfig {
   // Period for how long a guardian set is valid after it has been replaced by a new one.  This
   // guarantees that VAAs issued by that set can still be submitted for a certain period.  In
   // this period we still trust the old guardian set.
-  guardianSetExpirationTime: number;
+  guardian_set_expiration_time: number;
 
   // Amount of lamports that needs to be paid to the protocol to post a message
   fee: number;
