@@ -1,4 +1,3 @@
-import { ChainId, CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
 import { Typography } from "@material-ui/core";
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,

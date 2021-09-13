@@ -1,3 +1,4 @@
+import { Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { Connection, PublicKey, Transaction } from "@solana/web3.js";
 import { ixFromRust } from "../solana";
 
@@ -11,8 +12,16 @@ export default async function addLiquidity(
   lp_share_token_account: string,
   amount: BigInt
 ) {
-  const { add_liquidity } = await import(
+  const { authority_address, add_liquidity } = await import(
     "../solana/migration/wormhole_migration"
+  );
+  const approvalIx = Token.createApproveInstruction(
+    TOKEN_PROGRAM_ID,
+    new PublicKey(liquidity_token_account),
+    new PublicKey(authority_address(program_id)),
+    new PublicKey(payerAddress),
+    [],
+    Number(amount)
   );
   const ix = ixFromRust(
     add_liquidity(
@@ -24,7 +33,7 @@ export default async function addLiquidity(
       amount
     )
   );
-  const transaction = new Transaction().add(ix);
+  const transaction = new Transaction().add(approvalIx, ix);
   const { blockhash } = await connection.getRecentBlockhash();
   transaction.recentBlockhash = blockhash;
   transaction.feePayer = new PublicKey(payerAddress);

@@ -1,43 +1,40 @@
+import addLiquidityTx from "@certusone/wormhole-sdk/lib/migration/addLiquidity";
+import getAuthorityAddress from "@certusone/wormhole-sdk/lib/migration/authorityAddress";
+import claimSharesTx from "@certusone/wormhole-sdk/lib/migration/claimShares";
+import createPoolAccount from "@certusone/wormhole-sdk/lib/migration/createPool";
+import getFromCustodyAddress from "@certusone/wormhole-sdk/lib/migration/fromCustodyAddress";
+import migrateTokensTx from "@certusone/wormhole-sdk/lib/migration/migrateTokens";
+import parsePool from "@certusone/wormhole-sdk/lib/migration/parsePool";
+import getPoolAddress from "@certusone/wormhole-sdk/lib/migration/poolAddress";
+import getShareMintAddress from "@certusone/wormhole-sdk/lib/migration/shareMintAddress";
+import getToCustodyAddress from "@certusone/wormhole-sdk/lib/migration/toCustodyAddress";
 import {
+  Button,
   Container,
+  Divider,
   makeStyles,
-  Typography,
   Paper,
   TextField,
-  Button,
-  Divider,
+  Typography,
 } from "@material-ui/core";
-//import { pool_address } from "@certusone/wormhole-sdk/lib/solana/migration/wormhole_migration";
-import { useCallback, useEffect, useState } from "react";
-import LogWatcher from "../components/LogWatcher";
-import SolanaWalletKey from "../components/SolanaWalletKey";
-import { useSolanaWallet } from "../contexts/SolanaWalletContext";
-import TabContext from "@material-ui/lab/TabContext";
-import TabList from "@material-ui/lab/TabList";
-import TabPanel from "@material-ui/lab/TabPanel";
-import { MIGRATION_PROGRAM_ADDRESS, SOLANA_URL } from "../utils/consts";
-import { PublicKey, Connection } from "@solana/web3.js";
-import { useLogger } from "../contexts/Logger";
-import { getMultipleAccounts, signSendAndConfirm } from "../utils/solana";
-import getAuthorityAddress from "@certusone/wormhole-sdk/lib/migration/authorityAddress";
-import createPoolAccount from "@certusone/wormhole-sdk/lib/migration/createPool";
-import getPoolAddress from "@certusone/wormhole-sdk/lib/migration/poolAddress";
-import getFromCustodyAddress from "@certusone/wormhole-sdk/lib/migration/fromCustodyAddress";
-import getToCustodyAddress from "@certusone/wormhole-sdk/lib/migration/toCustodyAddress";
-import getShareMintAddress from "@certusone/wormhole-sdk/lib/migration/shareMintAddress";
-import parsePool from "@certusone/wormhole-sdk/lib/migration/parsePool";
-import addLiquidityTx from "@certusone/wormhole-sdk/lib/migration/addLiquidity";
-import claimSharesTx from "@certusone/wormhole-sdk/lib/migration/claimShares";
-import migrateTokensTx from "@certusone/wormhole-sdk/lib/migration/migrateTokens";
-
-import SolanaCreateAssociatedAddress, {
-  useAssociatedAccountExistsState,
-} from "../components/SolanaCreateAssociatedAddress";
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   Token,
   TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
+import { Connection, PublicKey } from "@solana/web3.js";
+//import { pool_address } from "@certusone/wormhole-sdk/lib/solana/migration/wormhole_migration";
+import { parseUnits } from "ethers/lib/utils";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import LogWatcher from "../components/LogWatcher";
+import SolanaCreateAssociatedAddress, {
+  useAssociatedAccountExistsState,
+} from "../components/SolanaCreateAssociatedAddress";
+import SolanaWalletKey from "../components/SolanaWalletKey";
+import { useLogger } from "../contexts/Logger";
+import { useSolanaWallet } from "../contexts/SolanaWalletContext";
+import { MIGRATION_PROGRAM_ADDRESS, SOLANA_URL } from "../utils/consts";
+import { getMultipleAccounts, signSendAndConfirm } from "../utils/solana";
 
 const useStyles = makeStyles(() => ({
   rootContainer: {},
@@ -52,21 +49,68 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
+const getDecimals = async (
+  connection: Connection,
+  mint: string,
+  setter: (decimals: number | undefined) => void,
+  log: (value: string) => void
+) => {
+  setter(undefined);
+  if (mint) {
+    try {
+      const pk = new PublicKey(mint);
+      const info = await connection.getParsedAccountInfo(pk);
+      // @ts-ignore
+      const decimals = info.value?.data.parsed.info.decimals;
+      log(`${mint} has ${decimals} decimals`);
+      setter(decimals);
+    } catch (e) {
+      log(`Unable to determine decimals of ${mint}`);
+    }
+  }
+};
+
+const getBalance = async (
+  connection: Connection,
+  address: string | undefined,
+  setter: (balance: string | undefined) => void,
+  log: (value: string) => void
+) => {
+  setter(undefined);
+  if (address) {
+    try {
+      const pk = new PublicKey(address);
+      const info = await connection.getParsedAccountInfo(pk);
+      // @ts-ignore
+      const balance = info.value?.data.parsed.info.tokenAmount.uiAmountString;
+      log(`${address} has a balance of ${balance}`);
+      setter(balance);
+    } catch (e) {
+      log(`Unable to determine balance of ${address}`);
+    }
+  }
+};
+
 function Main() {
   const classes = useStyles();
   const wallet = useSolanaWallet();
-  const logger = useLogger();
-  const connection = new Connection(SOLANA_URL, "finalized");
+  const { log } = useLogger();
+  const connection = useMemo(() => new Connection(SOLANA_URL, "confirmed"), []);
 
   const [fromMint, setFromMint] = useState("");
+  const [fromMintDecimals, setFromMintDecimals] = useState<number | undefined>(
+    undefined
+  );
   const [toMint, setToMint] = useState("");
+  const [toMintDecimals, setToMintDecimals] = useState<any>(undefined);
   const [shareMintAddress, setShareMintAddress] = useState<string | undefined>(
     undefined
   );
+  const [shareMintDecimals, setShareMintDecimals] = useState<any>(undefined);
 
   const [poolAddress, setPoolAddress] = useState("");
   const [poolExists, setPoolExists] = useState<boolean | undefined>(undefined);
-  const [poolAccountInfo, setPoolAccountInfo] = useState(undefined);
+  const [poolAccountInfo, setPoolAccountInfo] = useState<any>(undefined);
   const [parsedPoolData, setParsedPoolData] = useState(undefined);
 
   //These are the user's personal token accounts corresponding to the mints for the connected wallet
@@ -101,7 +145,13 @@ function Main() {
   const [fromCustodyAddress, setFromCustodyAddress] = useState<
     string | undefined
   >(undefined);
+  const [fromCustodyBalance, setFromCustodyBalance] = useState<
+    string | undefined
+  >(undefined);
   const [toCustodyAddress, setToCustodyAddress] = useState<string | undefined>(
+    undefined
+  );
+  const [toCustodyBalance, setToCustodyBalance] = useState<string | undefined>(
     undefined
   );
 
@@ -117,6 +167,46 @@ function Main() {
   These are generally data fetchers which fire when requisite data populates.
 
   */
+  //Retrieve from mint information when fromMint changes
+  useEffect(() => {
+    getDecimals(connection, fromMint, setFromMintDecimals, log);
+  }, [connection, fromMint, log]);
+
+  //Retrieve to mint information when fromMint changes
+  useEffect(() => {
+    getDecimals(connection, toMint, setToMintDecimals, log);
+  }, [connection, toMint, log]);
+
+  //Retrieve to mint information when shareMint changes
+  useEffect(() => {
+    // TODO: cancellable
+    if (shareMintAddress) {
+      getDecimals(connection, shareMintAddress, setShareMintDecimals, log);
+    } else {
+      setShareMintDecimals(undefined);
+    }
+  }, [connection, shareMintAddress, log]);
+
+  //Retrieve from custody balance when fromCustodyAccount changes
+  useEffect(() => {
+    // TODO: cancellable
+    if (fromCustodyAddress) {
+      getBalance(connection, fromCustodyAddress, setFromCustodyBalance, log);
+    } else {
+      setFromCustodyBalance(undefined);
+    }
+  }, [connection, fromCustodyAddress, log]);
+
+  //Retrieve from custody balance when toCustodyAccount changes
+  useEffect(() => {
+    // TODO: cancellable
+    if (toCustodyAddress) {
+      getBalance(connection, toCustodyAddress, setToCustodyBalance, log);
+    } else {
+      setFromCustodyBalance(undefined);
+    }
+  }, [connection, toCustodyAddress, log]);
+
   //Retrieve pool address on selectedTokens change
   useEffect(() => {
     if (toMint && fromMint) {
@@ -124,18 +214,17 @@ function Main() {
       getPoolAddress(MIGRATION_PROGRAM_ADDRESS, fromMint, toMint).then(
         (result) => {
           const key = new PublicKey(result).toString();
-          logger.log("Calculated the pool address at: " + key);
+          log("Calculated the pool address at: " + key);
           setPoolAddress(key);
         },
-        (error) => logger.log("ERROR, could not calculate pool address.")
+        (error) => log("ERROR, could not calculate pool address.")
       );
     }
-  }, [toMint, fromMint, setPoolAddress]);
+  }, [log, toMint, fromMint, setPoolAddress]);
 
   //Retrieve the poolAccount every time the pool address changes.
   useEffect(() => {
-    if (poolAddress) {
-      setPoolAccountInfo(undefined);
+    if (poolAddress && poolAccountInfo === undefined) {
       setPoolExists(undefined);
       try {
         getMultipleAccounts(
@@ -148,26 +237,27 @@ function Main() {
             parsePool(result[0].data).then(
               (parsed) => setParsedPoolData(parsed),
               (error) => {
-                logger.log("Failed to parse the pool data.");
+                log("Failed to parse the pool data.");
                 console.error(error);
               }
             );
             setPoolExists(true);
-            logger.log("Successfully found account info for the pool.");
+            log("Successfully found account info for the pool.");
           } else if (result.length && result[0] === null) {
-            logger.log("Confirmed that the pool does not exist.");
+            log("Confirmed that the pool does not exist.");
             setPoolExists(false);
+            setPoolAccountInfo(null);
           } else {
-            logger.log(
+            log(
               "unexpected error in fetching pool address. Please reload and try again"
             );
           }
         });
       } catch (e) {
-        logger.log("Could not fetch pool address");
+        log("Could not fetch pool address");
       }
     }
-  }, [poolAddress]);
+  }, [connection, log, poolAddress, poolAccountInfo]);
 
   //Set all the addresses which derive from poolAddress
   useEffect(() => {
@@ -245,7 +335,7 @@ function Main() {
   and then potentially update something on the state.
 
   */
-  const createPool = async () => {
+  const createPool = useCallback(async () => {
     console.log(
       "createPool with these args",
       connection,
@@ -268,20 +358,20 @@ function Main() {
         (transaction: any) => {
           setPoolExists(undefined); //Set these to null to force a fetch on them
           setPoolAccountInfo(undefined);
-          logger.log("Successfully created the pool.");
+          log("Successfully created the pool.");
         },
         (error) => {
-          logger.log("Could not create the pool");
+          log("Could not create the pool");
           console.error(error);
         }
       );
     } catch (e) {
-      logger.log("Failed to create the pool.");
+      log("Failed to create the pool.");
       console.error(e);
     }
-  };
+  }, [connection, fromMint, toMint, wallet, log]);
 
-  const addLiquidity = async () => {
+  const addLiquidity = useCallback(async () => {
     try {
       const instruction = await addLiquidityTx(
         connection,
@@ -291,27 +381,43 @@ function Main() {
         toMint,
         toTokenAccount || "",
         shareTokenAccount || "",
-        BigInt(liquidityAmount)
+        parseUnits(liquidityAmount, toMintDecimals).toBigInt()
       );
-
       signSendAndConfirm(wallet, connection, instruction).then(
         (transaction: any) => {
-          setPoolExists(undefined); //Set these to null to force a fetch on them
-          setPoolAccountInfo(undefined);
-          logger.log("Successfully added liquidity to the pool.");
+          log("Successfully added liquidity to the pool.");
+          getBalance(
+            connection,
+            fromCustodyAddress,
+            setFromCustodyBalance,
+            log
+          );
+          getBalance(connection, toCustodyAddress, setToCustodyBalance, log);
         },
         (error) => {
-          logger.log("Could not complete the addLiquidity transaction");
+          log("Could not complete the addLiquidity transaction");
           console.error(error);
         }
       );
     } catch (e) {
-      logger.log("Could not complete the addLiquidity transaction");
+      log("Could not complete the addLiquidity transaction");
       console.error(e);
     }
-  };
+  }, [
+    connection,
+    fromMint,
+    liquidityAmount,
+    shareTokenAccount,
+    toMint,
+    toTokenAccount,
+    wallet,
+    log,
+    toMintDecimals,
+    fromCustodyAddress,
+    toCustodyAddress,
+  ]);
 
-  const migrateTokens = async () => {
+  const migrateTokens = useCallback(async () => {
     try {
       const instruction = await migrateTokensTx(
         connection,
@@ -321,27 +427,44 @@ function Main() {
         toMint,
         fromTokenAccount || "",
         toTokenAccount || "",
-        BigInt(migrationAmount)
+        parseUnits(migrationAmount, fromMintDecimals).toBigInt()
       );
 
       signSendAndConfirm(wallet, connection, instruction).then(
         (transaction: any) => {
-          setPoolExists(undefined); //Set these to null to force a fetch on them
-          setPoolAccountInfo(undefined);
-          logger.log("Successfully migrated the tokens.");
+          log("Successfully migrated the tokens.");
+          getBalance(
+            connection,
+            fromCustodyAddress,
+            setFromCustodyBalance,
+            log
+          );
+          getBalance(connection, toCustodyAddress, setToCustodyBalance, log);
         },
         (error) => {
-          logger.log("Could not complete the migrateTokens transaction.");
+          log("Could not complete the migrateTokens transaction.");
           console.error(error);
         }
       );
     } catch (e) {
-      logger.log("Could not complete the migrateTokens transaction.");
+      log("Could not complete the migrateTokens transaction.");
       console.error(e);
     }
-  };
+  }, [
+    connection,
+    fromMint,
+    fromTokenAccount,
+    log,
+    migrationAmount,
+    toMint,
+    toTokenAccount,
+    wallet,
+    fromMintDecimals,
+    fromCustodyAddress,
+    toCustodyAddress,
+  ]);
 
-  const redeemShares = async () => {
+  const redeemShares = useCallback(async () => {
     try {
       const instruction = await claimSharesTx(
         connection,
@@ -349,27 +472,44 @@ function Main() {
         MIGRATION_PROGRAM_ADDRESS,
         fromMint,
         toMint,
-        toTokenAccount || "",
+        fromTokenAccount || "",
         shareTokenAccount || "",
-        BigInt(redeemAmount)
+        parseUnits(redeemAmount, shareMintDecimals).toBigInt()
       );
 
       signSendAndConfirm(wallet, connection, instruction).then(
         (transaction: any) => {
-          setPoolExists(undefined); //Set these to null to force a fetch on them
-          setPoolAccountInfo(undefined);
-          logger.log("Successfully redeemed the shares.");
+          log("Successfully redeemed the shares.");
+          getBalance(
+            connection,
+            fromCustodyAddress,
+            setFromCustodyBalance,
+            log
+          );
+          getBalance(connection, toCustodyAddress, setToCustodyBalance, log);
         },
         (error) => {
-          logger.log("Could not complete the claimShares transaction.");
+          log("Could not complete the claimShares transaction.");
           console.error(error);
         }
       );
     } catch (e) {
-      logger.log("Could not complete the claimShares transaction.");
+      log("Could not complete the claimShares transaction.");
       console.error(e);
     }
-  };
+  }, [
+    connection,
+    fromMint,
+    log,
+    redeemAmount,
+    shareTokenAccount,
+    toMint,
+    fromTokenAccount,
+    wallet,
+    shareMintDecimals,
+    fromCustodyAddress,
+    toCustodyAddress,
+  ]);
   /*
   End actions!
   */
@@ -441,7 +581,7 @@ function Main() {
         value={migrationAmount}
         type="number"
         onChange={(event) => setMigrationAmount(event.target.value)}
-        label={"Amount to add"}
+        label={"Amount to migrate"}
       ></TextField>
       <Button variant="contained" onClick={migrateTokens}>
         Migrate Tokens
@@ -460,7 +600,7 @@ function Main() {
         type="number"
         value={redeemAmount}
         onChange={(event) => setRedeemAmount(event.target.value)}
-        label={"Amount to add"}
+        label={"Amount to redeem"}
       ></TextField>
       <Button variant="contained" onClick={redeemShares}>
         Redeem Shares
@@ -537,6 +677,10 @@ function Main() {
       <Divider className={classes.divider} />
       {poolInfo}
       {createPoolButton}
+      <Typography>'From' Balance In Pool</Typography>
+      <Typography>{fromCustodyBalance}</Typography>
+      <Typography>'To' Balance In Pool</Typography>
+      <Typography>{toCustodyBalance}</Typography>
       <Divider className={classes.divider} />
       {relevantTokenAccounts}
       <Divider className={classes.divider} />

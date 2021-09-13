@@ -1,3 +1,4 @@
+import { Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { Connection, PublicKey, Transaction } from "@solana/web3.js";
 import { ixFromRust } from "../solana";
 
@@ -11,8 +12,16 @@ export default async function migrateTokens(
   output_token_account: string,
   amount: BigInt
 ) {
-  const { migrate_tokens } = await import(
+  const { authority_address, migrate_tokens } = await import(
     "../solana/migration/wormhole_migration"
+  );
+  const approvalIx = Token.createApproveInstruction(
+    TOKEN_PROGRAM_ID,
+    new PublicKey(input_token_account),
+    new PublicKey(authority_address(program_id)),
+    new PublicKey(payerAddress),
+    [],
+    Number(amount)
   );
   const ix = ixFromRust(
     migrate_tokens(
@@ -24,7 +33,7 @@ export default async function migrateTokens(
       amount
     )
   );
-  const transaction = new Transaction().add(ix);
+  const transaction = new Transaction().add(approvalIx, ix);
   const { blockhash } = await connection.getRecentBlockhash();
   transaction.recentBlockhash = blockhash;
   transaction.feePayer = new PublicKey(payerAddress);

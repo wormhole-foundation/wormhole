@@ -23,11 +23,9 @@ export const LoggerProvider = ({ children }: { children: ReactChildren }) => {
   const clear = useCallback(() => setLogs([]), [setLogs]);
   const log = useCallback(
     (value: string) => {
-      const newLogs = logs.slice();
-      newLogs.push(value);
-      setLogs(newLogs);
+      setLogs((logs) => [...logs, value]);
     },
-    [logs, setLogs]
+    [setLogs]
   );
 
   const contextValue = useMemo(

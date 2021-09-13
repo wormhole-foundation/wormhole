@@ -1,23 +1,13 @@
-import {
-  Container,
-  makeStyles,
-  Typography,
-  Paper,
-  Button,
-} from "@material-ui/core";
+import { Button, Paper, Typography } from "@material-ui/core";
 import { useEffect } from "react";
-import SolanaWalletKey from "../components/SolanaWalletKey";
 import { useLogger } from "../contexts/Logger";
-import { useSolanaWallet } from "../contexts/SolanaWalletContext";
-
-const useStyles = makeStyles(() => ({}));
 
 function LogWatcher() {
   const { logs, clear, log } = useLogger();
 
   useEffect(() => {
     log("Instantiated the logger.");
-  }, []);
+  }, [log]);
 
   return (
     <Paper style={{ padding: "1rem", maxHeight: "600px", overflow: "auto" }}>
