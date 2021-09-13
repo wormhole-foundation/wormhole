@@ -47,10 +47,11 @@ import {
   ETH_NFT_BRIDGE_ADDRESS,
   SOLANA_HOST,
   SOL_NFT_BRIDGE_ADDRESS,
-  WORMHOLE_RPC_HOST,
+  WORMHOLE_RPC_HOSTS,
 } from "../../utils/consts";
 import KeyAndBalance from "../KeyAndBalance";
 import { METADATA_REPLACE } from "../../utils/metaplex";
+import { getNextRpcHost } from "../../utils/getSignedVAAWithRetry";
 
 const useStyles = makeStyles((theme) => ({
   fab: {
@@ -66,7 +67,7 @@ async function eth(provider: ethers.providers.Web3Provider, tx: string) {
     const sequence = parseSequenceFromLogEth(receipt, ETH_BRIDGE_ADDRESS);
     const emitterAddress = getEmitterAddressEth(ETH_NFT_BRIDGE_ADDRESS);
     const { vaaBytes } = await getSignedVAA(
-      WORMHOLE_RPC_HOST,
+      WORMHOLE_RPC_HOSTS[getNextRpcHost()],
       CHAIN_ID_ETH,
       emitterAddress,
       sequence.toString()
@@ -90,7 +91,7 @@ async function solana(tx: string) {
       SOL_NFT_BRIDGE_ADDRESS
     );
     const { vaaBytes } = await getSignedVAA(
-      WORMHOLE_RPC_HOST,
+      WORMHOLE_RPC_HOSTS[getNextRpcHost()],
       CHAIN_ID_SOLANA,
       emitterAddress,
       sequence.toString()

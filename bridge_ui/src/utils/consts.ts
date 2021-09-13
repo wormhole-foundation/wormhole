@@ -58,10 +58,10 @@ export const CHAINS_BY_ID: ChainsById = CHAINS.reduce((obj, chain) => {
   obj[chain.id] = chain;
   return obj;
 }, {} as ChainsById);
-export const WORMHOLE_RPC_HOST =
+export const WORMHOLE_RPC_HOSTS =
   CLUSTER === "testnet"
-    ? "https://wormhole-v2-testnet-api.certus.one"
-    : "http://localhost:8080";
+    ? ["https://wormhole-v2-testnet-api.certus.one"]
+    : ["http://localhost:8080"];
 export const ETH_NETWORK_CHAIN_ID =
   CLUSTER === "mainnet" ? 1 : CLUSTER === "testnet" ? 5 : 1337;
 export const SOLANA_HOST =

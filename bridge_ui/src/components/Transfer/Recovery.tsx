@@ -57,8 +57,9 @@ import {
   SOL_TOKEN_BRIDGE_ADDRESS,
   TERRA_HOST,
   TERRA_TOKEN_BRIDGE_ADDRESS,
-  WORMHOLE_RPC_HOST,
+  WORMHOLE_RPC_HOSTS,
 } from "../../utils/consts";
+import { getNextRpcHost } from "../../utils/getSignedVAAWithRetry";
 import KeyAndBalance from "../KeyAndBalance";
 
 const useStyles = makeStyles((theme) => ({
@@ -75,7 +76,7 @@ async function eth(provider: ethers.providers.Web3Provider, tx: string) {
     const sequence = parseSequenceFromLogEth(receipt, ETH_BRIDGE_ADDRESS);
     const emitterAddress = getEmitterAddressEth(ETH_TOKEN_BRIDGE_ADDRESS);
     const { vaaBytes } = await getSignedVAA(
-      WORMHOLE_RPC_HOST,
+      WORMHOLE_RPC_HOSTS[getNextRpcHost()],
       CHAIN_ID_ETH,
       emitterAddress,
       sequence.toString()
@@ -99,7 +100,7 @@ async function solana(tx: string) {
       SOL_TOKEN_BRIDGE_ADDRESS
     );
     const { vaaBytes } = await getSignedVAA(
-      WORMHOLE_RPC_HOST,
+      WORMHOLE_RPC_HOSTS[getNextRpcHost()],
       CHAIN_ID_SOLANA,
       emitterAddress,
       sequence.toString()
@@ -123,7 +124,7 @@ async function terra(tx: string) {
       TERRA_TOKEN_BRIDGE_ADDRESS
     );
     const { vaaBytes } = await getSignedVAA(
-      WORMHOLE_RPC_HOST,
+      WORMHOLE_RPC_HOSTS[getNextRpcHost()],
       CHAIN_ID_TERRA,
       emitterAddress,
       sequence
