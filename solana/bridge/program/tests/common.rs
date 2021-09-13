@@ -62,22 +62,20 @@ use std::{
 
 use bridge::{
     accounts::{
+        BridgeConfig,
         FeeCollector,
         GuardianSet,
         GuardianSetDerivationData,
+        PostedVAAData,
         PostedVAADerivationData,
         Sequence,
         SequenceDerivationData,
+        SequenceTracker,
         SignatureSet,
     },
     instruction,
     instructions,
-    types::{
-        BridgeConfig,
-        ConsistencyLevel,
-        PostedVAAData,
-        SequenceTracker,
-    },
+    types::ConsistencyLevel,
     Initialize,
     InitializeData,
     PostMessageData,
@@ -307,7 +305,7 @@ mod helpers {
         execute(
             client,
             payer,
-            &[payer, emitter, message],
+            &[payer, emitter, &message],
             &[
                 system_instruction::transfer(&payer.pubkey(), &fee_collector, fee),
                 instruction,

@@ -57,28 +57,28 @@ use std::{
 use bridge::{
     accounts::{
         Bridge,
+        BridgeConfig,
+        BridgeData,
         FeeCollector,
         GuardianSet,
+        GuardianSetData,
         GuardianSetDerivationData,
+        MessageData,
         PostedVAA,
+        PostedVAAData,
         PostedVAADerivationData,
+        SequenceTracker,
         SignatureSet,
+        SignatureSetData,
     },
     instruction,
     instructions::hash_vaa,
     types::{
-        BridgeConfig,
-        BridgeData,
         ConsistencyLevel,
         GovernancePayloadGuardianSetChange,
         GovernancePayloadSetMessageFee,
         GovernancePayloadTransferFees,
         GovernancePayloadUpgrade,
-        GuardianSetData,
-        MessageData,
-        PostedVAAData,
-        SequenceTracker,
-        SignatureSet as SignatureSetData,
     },
     Initialize,
     PostVAA,
@@ -240,17 +240,7 @@ fn test_bridge_messages(context: &mut Context) {
         assert_eq!(signatures.guardian_set_index, 0);
 
         for (signature, secret_key) in signatures.signatures.iter().zip(context.secret.iter()) {
-            // Sign message locally.
-            let (local_sig, recover_id) =
-                secp256k1::sign(&Secp256k1Message::parse(&body_hash), &secret_key);
-
-            // Combine recoverify with signature to match 65 byte layout.
-            let mut signature_bytes = [0u8; 65];
-            signature_bytes[64] = recover_id.serialize();
-            (&mut signature_bytes[0..64]).copy_from_slice(&local_sig.serialize());
-
-            // Signature stored should on chain be as expected.
-            assert_eq!(*signature, signature_bytes);
+            assert_eq!(*signature, true);
         }
     }
 
@@ -299,17 +289,7 @@ fn test_bridge_messages(context: &mut Context) {
     assert_eq!(signatures.guardian_set_index, 0);
 
     for (signature, secret_key) in signatures.signatures.iter().zip(context.secret.iter()) {
-        // Sign message locally.
-        let (local_sig, recover_id) =
-            secp256k1::sign(&Secp256k1Message::parse(&body_hash), &secret_key);
-
-        // Combine recoverify with signature to match 65 byte layout.
-        let mut signature_bytes = [0u8; 65];
-        signature_bytes[64] = recover_id.serialize();
-        (&mut signature_bytes[0..64]).copy_from_slice(&local_sig.serialize());
-
-        // Signature stored should on chain be as expected.
-        assert_eq!(*signature, signature_bytes);
+        assert_eq!(*signature, true);
     }
 }
 
@@ -508,17 +488,7 @@ fn test_guardian_set_change(context: &mut Context) {
     assert_eq!(signatures.guardian_set_index, 1);
 
     for (signature, secret_key) in signatures.signatures.iter().zip(context.secret.iter()) {
-        // Sign message locally.
-        let (local_sig, recover_id) =
-            secp256k1::sign(&Secp256k1Message::parse(&body_hash), &secret_key);
-
-        // Combine recoverify with signature to match 65 byte layout.
-        let mut signature_bytes = [0u8; 65];
-        signature_bytes[64] = recover_id.serialize();
-        (&mut signature_bytes[0..64]).copy_from_slice(&local_sig.serialize());
-
-        // Signature stored should on chain be as expected.
-        assert_eq!(*signature, signature_bytes);
+        assert_eq!(*signature, true);
     }
 }
 
@@ -674,17 +644,7 @@ fn test_set_fees(context: &mut Context) {
     assert_eq!(signatures.guardian_set_index, 1);
 
     for (signature, secret_key) in signatures.signatures.iter().zip(context.secret.iter()) {
-        // Sign message locally.
-        let (local_sig, recover_id) =
-            secp256k1::sign(&Secp256k1Message::parse(&body_hash), &secret_key);
-
-        // Combine recoverify with signature to match 65 byte layout.
-        let mut signature_bytes = [0u8; 65];
-        signature_bytes[64] = recover_id.serialize();
-        (&mut signature_bytes[0..64]).copy_from_slice(&local_sig.serialize());
-
-        // Signature stored should on chain be as expected.
-        assert_eq!(*signature, signature_bytes);
+        assert_eq!(*signature, true);
     }
 }
 
@@ -816,17 +776,7 @@ fn test_free_fees(context: &mut Context) {
     assert_eq!(signatures.guardian_set_index, 1);
 
     for (signature, secret_key) in signatures.signatures.iter().zip(context.secret.iter()) {
-        // Sign message locally.
-        let (local_sig, recover_id) =
-            secp256k1::sign(&Secp256k1Message::parse(&body_hash), &secret_key);
-
-        // Combine recoverify with signature to match 65 byte layout.
-        let mut signature_bytes = [0u8; 65];
-        signature_bytes[64] = recover_id.serialize();
-        (&mut signature_bytes[0..64]).copy_from_slice(&local_sig.serialize());
-
-        // Signature stored should on chain be as expected.
-        assert_eq!(*signature, signature_bytes);
+        assert_eq!(*signature, true);
     }
 }
 
@@ -1018,17 +968,7 @@ fn test_foreign_bridge_messages(context: &mut Context) {
     assert_eq!(signatures.guardian_set_index, 0);
 
     for (signature, secret_key) in signatures.signatures.iter().zip(context.secret.iter()) {
-        // Sign message locally.
-        let (local_sig, recover_id) =
-            secp256k1::sign(&Secp256k1Message::parse(&body_hash), &secret_key);
-
-        // Combine recoverify with signature to match 65 byte layout.
-        let mut signature_bytes = [0u8; 65];
-        signature_bytes[64] = recover_id.serialize();
-        (&mut signature_bytes[0..64]).copy_from_slice(&local_sig.serialize());
-
-        // Signature stored should on chain be as expected.
-        assert_eq!(*signature, signature_bytes);
+        assert_eq!(*signature, true);
     }
 }
 
