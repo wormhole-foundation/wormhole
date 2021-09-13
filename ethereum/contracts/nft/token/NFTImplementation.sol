@@ -14,7 +14,7 @@ import "@openzeppelin/contracts/token/ERC721/extensions/IERC721Metadata.sol";
 import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
 
-// Based on the OpenZepplin ERC20 implementation, licensed under MIT
+// Based on the OpenZepplin ERC721 implementation, licensed under MIT
 contract NFTImplementation is NFTState, Context, IERC721, IERC721Metadata, ERC165 {
     using Address for address;
     using Strings for uint256;
@@ -167,8 +167,6 @@ contract NFTImplementation is NFTState, Context, IERC721, IERC721Metadata, ERC16
         require(to != address(0), "ERC721: mint to the zero address");
         require(!_exists(tokenId), "ERC721: token already minted");
 
-        _beforeTokenTransfer(address(0), to, tokenId);
-
         _state.balances[to] += 1;
         _state.owners[tokenId] = to;
         _state.tokenURIs[tokenId] = uri;
@@ -182,8 +180,6 @@ contract NFTImplementation is NFTState, Context, IERC721, IERC721Metadata, ERC16
 
     function _burn(uint256 tokenId) internal {
         address owner_ = NFTImplementation.ownerOf(tokenId);
-
-        _beforeTokenTransfer(owner_, address(0), tokenId);
 
         // Clear approvals
         _approve(address(0), tokenId);
@@ -201,8 +197,6 @@ contract NFTImplementation is NFTState, Context, IERC721, IERC721Metadata, ERC16
     ) internal {
         require(NFTImplementation.ownerOf(tokenId) == from, "ERC721: transfer of token that is not own");
         require(to != address(0), "ERC721: transfer to the zero address");
-
-        _beforeTokenTransfer(from, to, tokenId);
 
         // Clear approvals from the previous owner
         _approve(address(0), tokenId);
@@ -241,12 +235,6 @@ contract NFTImplementation is NFTState, Context, IERC721, IERC721Metadata, ERC16
             return true;
         }
     }
-
-    function _beforeTokenTransfer(
-        address from,
-        address to,
-        uint256 tokenId
-    ) internal {}
 
     modifier onlyOwner() {
         require(owner() == _msgSender(), "caller is not the owner");

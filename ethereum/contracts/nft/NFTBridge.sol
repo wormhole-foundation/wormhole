@@ -5,7 +5,6 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import "../libraries/external/BytesLib.sol";
 
@@ -40,7 +39,6 @@ contract NFTBridge is NFTBridgeGovernance {
         string memory nameString;
         string memory uriString;
         {
-            // decimals, symbol & token are not part of the core ERC20 token standard, so we need to support contracts that dont implement them
             (,bytes memory queriedSymbol) = token.staticcall(abi.encodeWithSignature("symbol()"));
             (,bytes memory queriedName) = token.staticcall(abi.encodeWithSignature("name()"));
             (,bytes memory queriedURI) = token.staticcall(abi.encodeWithSignature("tokenURI(uint256)", tokenID));
@@ -53,11 +51,10 @@ contract NFTBridge is NFTBridgeGovernance {
         bytes32 symbol;
         bytes32 name;
         assembly {
-        // first 32 bytes hold string length
+            // first 32 bytes hold string length
             symbol := mload(add(symbolString, 32))
             name := mload(add(nameString, 32))
         }
-
 
         if (tokenChain == chainId()) {
             IERC721(token).safeTransferFrom(msg.sender, address(this), tokenID);
@@ -65,25 +62,23 @@ contract NFTBridge is NFTBridgeGovernance {
             NFTImplementation(token).burn(tokenID);
         }
 
-        sequence = logTransfer(NFTBridgeStructs.Transfer(
-            {
+        sequence = logTransfer(NFTBridgeStructs.Transfer({
             tokenAddress : tokenAddress,
-            tokenChain : tokenChain,
-            name : name,
-            symbol : symbol,
-            tokenID : tokenID,
-            uri : uriString,
-            to : recipient,
-            toChain : recipientChain
-            }
-            ), msg.value, nonce);
+            tokenChain   : tokenChain,
+            name         : name,
+            symbol       : symbol,
+            tokenID      : tokenID,
+            uri          : uriString,
+            to           : recipient,
+            toChain      : recipientChain
+        }), msg.value, nonce);
     }
 
     function logTransfer(NFTBridgeStructs.Transfer memory transfer, uint256 callValue, uint32 nonce) internal returns (uint64 sequence) {
         bytes memory encoded = encodeTransfer(transfer);
 
         sequence = wormhole().publishMessage{
-        value : callValue
+            value : callValue
         }(nonce, encoded, 15);
     }
 
@@ -248,7 +243,4 @@ contract NFTBridge is NFTBridgeGovernance {
         }
         return string(array);
     }
-
-    // we need to accept ETH sends to unwrap WETH
-    receive() external payable {}
 }
