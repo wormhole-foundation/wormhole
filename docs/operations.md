@@ -40,7 +40,8 @@ Your Solana RPC node needs the following parameters enabled:
 --enable-cpi-and-log-storage
 ```
 
-`--enable-rpc-transaction-history` enables historic transactions to be retrieved via the *getConfirmedBlock* API, which is required for Wormhole to find transactions.
+`--enable-rpc-transaction-history` enables historic transactions to be retrieved via the *getConfirmedBlock* API,
+which is required for Wormhole to find transactions.
 
 `--enable-cpi-and-log-storage` stores metadata about CPI calls.
 
@@ -48,7 +49,8 @@ Be aware that these require extra disk space!
 
 #### Account index
 
-If you use the same RPC node for Wormhole v1, you also need the following additional parameters to speed up `getProgramAccount` queries:
+If you use the same RPC node for Wormhole v1, you also need the following additional parameters to speed up
+`getProgramAccount` queries:
 
 ```
 [... see above for other required parameters ...]
@@ -58,7 +60,8 @@ If you use the same RPC node for Wormhole v1, you also need the following additi
 --account-index-include-key 5gQf5AUhAgWYgUCt9ouShm9H7dzzXUsLdssYwe5krKhg  # for testnet
 ```
 
-Alternatively, if you want to run a general-purpose RPC node with indexes for all programs instead of only Wormhole, leave out the filtering:
+Alternatively, if you want to run a general-purpose RPC node with indexes for all programs instead of only Wormhole,
+leave out the filtering:
 
 ```
 --account-index program-id
@@ -184,6 +187,69 @@ See [Wormhole.json](../dashboards/Wormhole.json) for an example Grafana dashboar
 
 **NOTE:** Parsing the log output for monitoring is NOT recommended. Log output is meant for human consumption and are
 not considered a stable API. Log messages may be added, modified or removed without notice. Use the metrics :-)
+
+## Running a public API endpoint
+
+Wormhole v2 no longer uses Solana as a data availability layer (see [design document](../design/0005_data_availability.md)).
+Instead, it relies on Guardian nodes exposing an API which web wallets and other clients can use to retrieve the signed VAA
+message for a given transaction.
+
+Guardian nodes are **strongly encouraged** to expose a public API endpoint to improve the protocol's robustness.
+
+guardiand comes with a built-in REST and grpc-web server which can be enabled using the `--publicWeb` flag:
+
+```
+--publicWeb=[::]:443
+```
+
+For usage with web wallets, TLS needs to be supported. guardiand has built-in Let's Encrypt support:
+
+```
+--tlsHostname=wormhole-v2-mainnet-api.example.com
+--tlsProdEnv=true
+```
+
+Alternatively, you can use a managed reverse proxy like CloudFlare to terminate TLS.
+
+It is safe to expose the publicWeb port on signing nodes. For better resiliency against denial of service attacks,
+future guardiand releases will include listen-only mode such that multiple guardiand instances without guardian keys
+can be operated behind a load balancer.
+
+### systemd socket activation
+
+guardiand optionally supports systemd socket activation for unprivileged binding to port 443 and restarts
+with minimal downtime.
+
+It can be enabled by prefixing your `--publicWeb` endpoint by `sd:`. guardiand will then use the specified
+socket provided by systemd (e.g. `--publicWeb=sd:[::]:443`).
+
+You'll need a second systemd unit bound to your main `guardiand.service`:
+
+```
+# /etc/systemd/system/guardiand-web.socket
+
+[Socket]
+ListenStream=443
+Service=guardiand.service
+
+[Install]
+WantedBy=sockets.target
+```
+
+... and enable it: `systemctl enable --now guardiand-web.socket`. You need to restart `guardiand.service` as well.
+
+### Binding to privileged ports
+
+If you want to bind `--publicWeb` to a port <1024 **without** using socket activation as described above, you need to assign
+the CAP_NET_BIND_SERVICE capability. This can be accomplished by either adding the capability to the binary
+(like in non-systemd environments):
+
+     sudo setcap cap_net_bind_service=+ep guardiand
+
+...or by extending the capability set in `guardiand.service`:
+
+    AmbientCapabilities=CAP_IPC_LOCK CAP_NET_BIND_SERVICE
+    CapabilityBoundingSet=CAP_IPC_LOCK CAP_NET_BIND_SERVICE
 
 ## Key Management
 
