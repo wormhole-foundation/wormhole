@@ -17,7 +17,7 @@ type VAAID struct {
 	Sequence       uint64
 }
 
-func vaaIDFromVAA(v *vaa.VAA) *VAAID {
+func VaaIDFromVAA(v *vaa.VAA) *VAAID {
 	return &VAAID{
 		EmitterChain:   v.EmitterChain,
 		EmitterAddress: v.EmitterAddress,
@@ -57,7 +57,7 @@ func (d *Database) StoreSignedVAA(v *vaa.VAA) error {
 	// TODO: panic if same VAA is stored with different value
 
 	err := d.db.Update(func(txn *badger.Txn) error {
-		if err := txn.Set(vaaIDFromVAA(v).Bytes(), b); err != nil {
+		if err := txn.Set(VaaIDFromVAA(v).Bytes(), b); err != nil {
 			return err
 		}
 		return nil

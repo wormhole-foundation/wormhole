@@ -411,6 +411,9 @@ func runNode(cmd *cobra.Command, args []string) {
 	// Inbound observations
 	obsvC := make(chan *gossipv1.SignedObservation, 50)
 
+	// Inbound signed VAAs
+	signedInC := make(chan *gossipv1.SignedVAAWithQuorum, 50)
+
 	// Injected VAAs (manually generated rather than created via observation)
 	injectC := make(chan *vaa.VAA)
 
@@ -456,7 +459,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	// Run supervisor.
 	supervisor.New(rootCtx, logger, func(ctx context.Context) error {
 		if err := supervisor.Run(ctx, "p2p", p2p.Run(
-			obsvC, sendC, priv, gk, gst, *p2pPort, *p2pNetworkID, *p2pBootstrap, *nodeName, *disableHeartbeatVerify, rootCtxCancel)); err != nil {
+			obsvC, sendC, signedInC, priv, gk, gst, *p2pPort, *p2pNetworkID, *p2pBootstrap, *nodeName, *disableHeartbeatVerify, rootCtxCancel)); err != nil {
 			return err
 		}
 
@@ -494,6 +497,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			sendC,
 			obsvC,
 			injectC,
+			signedInC,
 			gk,
 			gst,
 			*unsafeDevMode,

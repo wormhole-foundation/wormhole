@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	node_common "github.com/certusone/wormhole/node/pkg/common"
+	"github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/reporter"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
@@ -253,5 +254,84 @@ func (p *Processor) handleObservation(ctx context.Context, m *gossipv1.SignedObs
 			zap.String("digest", hash),
 			zap.Bools("aggregation", agg))
 
+	}
+}
+
+func (p *Processor) handleInboundSignedVAAWithQuorum(ctx context.Context, m *gossipv1.SignedVAAWithQuorum) {
+	v, err := vaa.Unmarshal(m.Vaa)
+	if err != nil {
+		p.logger.Warn("received invalid VAA in SignedVAAWithQuorum message",
+			zap.Error(err), zap.Any("message", m))
+		return
+	}
+
+	// Calculate digest for logging
+	digest, err := v.SigningMsg()
+	if err != nil {
+		panic(err)
+	}
+	hash := hex.EncodeToString(digest.Bytes())
+
+	if p.gs == nil {
+		p.logger.Warn("dropping SignedVAAWithQuorum message since we haven't initialized our guardian set yet",
+			zap.String("digest", hash),
+			zap.Any("message", m),
+		)
+		return
+	}
+
+	// Verify VAA signature to prevent a DoS attack on our local store.
+	if !v.VerifySignatures(p.gs.Keys) {
+		p.logger.Warn("received SignedVAAWithQuorum message with invalid VAA signatures",
+			zap.String("digest", hash),
+			zap.Any("message", m),
+			zap.Any("vaa", v),
+		)
+		return
+	}
+
+	quorum := CalculateQuorum(len(p.gs.Keys))
+
+	if len(v.Signatures) < quorum {
+		p.logger.Warn("received SignedVAAWithQuorum message without quorum",
+			zap.String("digest", hash),
+			zap.Any("message", m),
+			zap.Any("vaa", v),
+			zap.Int("wanted_sigs", quorum),
+			zap.Int("got_sigs", len(v.Signatures)),
+		)
+		return
+	}
+
+	// We now established that:
+	//  - all signatures on the VAA are valid
+	//  - the signature's addresses match the node's current guardian set
+	//  - enough signatures are present for the VAA to reach quorum
+
+	// Check if we already store this VAA
+	_, err = p.db.GetSignedVAABytes(*db.VaaIDFromVAA(v))
+	if err == nil {
+		p.logger.Debug("ignored SignedVAAWithQuorum message for VAA we already store",
+			zap.String("digest", hash),
+		)
+		return
+	} else if err != db.ErrVAANotFound {
+		p.logger.Error("failed to look up VAA in database",
+			zap.String("digest", hash),
+			zap.Error(err),
+		)
+		return
+	}
+
+	// Store signed VAA in database.
+	p.logger.Info("storing inbound signed VAA with quorum",
+		zap.String("digest", hash),
+		zap.Any("vaa", v),
+		zap.String("bytes", hex.EncodeToString(m.Vaa)),
+		zap.String("message_id", v.MessageID()))
+
+	if err := p.db.StoreSignedVAA(v); err != nil {
+		p.logger.Error("failed to store signed VAA", zap.Error(err))
+		return
 	}
 }

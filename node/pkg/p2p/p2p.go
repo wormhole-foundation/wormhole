@@ -59,7 +59,7 @@ func heartbeatDigest(b []byte) common.Hash {
 	return ethcrypto.Keccak256Hash(append(heartbeatMessagePrefix, b...))
 }
 
-func Run(obsvC chan *gossipv1.SignedObservation, sendC chan []byte, priv crypto.PrivKey, gk *ecdsa.PrivateKey, gst *node_common.GuardianSetState, port uint, networkID string, bootstrapPeers string, nodeName string, disableHeartbeatVerify bool, rootCtxCancel context.CancelFunc) func(ctx context.Context) error {
+func Run(obsvC chan *gossipv1.SignedObservation, sendC chan []byte, signedInC chan *gossipv1.SignedVAAWithQuorum, priv crypto.PrivKey, gk *ecdsa.PrivateKey, gst *node_common.GuardianSetState, port uint, networkID string, bootstrapPeers string, nodeName string, disableHeartbeatVerify bool, rootCtxCancel context.CancelFunc) func(ctx context.Context) error {
 	return func(ctx context.Context) (re error) {
 		logger := supervisor.Logger(ctx)
 
@@ -320,6 +320,9 @@ func Run(obsvC chan *gossipv1.SignedObservation, sendC chan []byte, priv crypto.
 			case *gossipv1.GossipMessage_SignedObservation:
 				obsvC <- m.SignedObservation
 				p2pMessagesReceived.WithLabelValues("observation").Inc()
+			case *gossipv1.GossipMessage_SignedVaaWithQuorum:
+				signedInC <- m.SignedVaaWithQuorum
+				p2pMessagesReceived.WithLabelValues("signed_vaa_with_quorum").Inc()
 			default:
 				p2pMessagesReceived.WithLabelValues("unknown").Inc()
 				logger.Warn("received unknown message type (running outdated software?)",

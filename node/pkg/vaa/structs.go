@@ -202,7 +202,8 @@ func (v *VAA) SigningMsg() (common.Hash, error) {
 	return hash, nil
 }
 
-// VerifySignature verifies the signature of the VAA given the signer addresses.
+// VerifySignatures verifies the signature of the VAA given the signer addresses.
+// Returns true if the signatures were verified successfully.
 func (v *VAA) VerifySignatures(addresses []common.Address) bool {
 	if len(addresses) < len(v.Signatures) {
 		return false

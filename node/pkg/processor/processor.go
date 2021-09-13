@@ -60,6 +60,8 @@ type Processor struct {
 	sendC chan []byte
 	// obsvC is a channel of inbound decoded observations from p2p
 	obsvC chan *gossipv1.SignedObservation
+	// signedInC is a channel of inbound signed VAA observations from p2p
+	signedInC chan *gossipv1.SignedVAAWithQuorum
 
 	// injectC is a channel of VAAs injected locally.
 	injectC chan *vaa.VAA
@@ -106,6 +108,7 @@ func NewProcessor(
 	sendC chan []byte,
 	obsvC chan *gossipv1.SignedObservation,
 	injectC chan *vaa.VAA,
+	signedInC chan *gossipv1.SignedVAAWithQuorum,
 	gk *ecdsa.PrivateKey,
 	gst *common.GuardianSetState,
 	devnetMode bool,
@@ -114,13 +117,15 @@ func NewProcessor(
 	terraLCD string,
 	terraChainID string,
 	terraContract string,
-	attestationEvents *reporter.AttestationEventReporter) *Processor {
+	attestationEvents *reporter.AttestationEventReporter,
+) *Processor {
 
 	return &Processor{
 		lockC:              lockC,
 		setC:               setC,
 		sendC:              sendC,
 		obsvC:              obsvC,
+		signedInC:          signedInC,
 		injectC:            injectC,
 		gk:                 gk,
 		gst:                gst,
@@ -159,6 +164,8 @@ func (p *Processor) Run(ctx context.Context) error {
 			p.handleInjection(ctx, v)
 		case m := <-p.obsvC:
 			p.handleObservation(ctx, m)
+		case m := <-p.signedInC:
+			p.handleInboundSignedVAAWithQuorum(ctx, m)
 		case <-p.cleanup.C:
 			p.handleCleanup(ctx)
 		}
