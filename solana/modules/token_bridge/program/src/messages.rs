@@ -138,6 +138,8 @@ pub struct PayloadAssetMeta {
 
 impl DeserializePayload for PayloadAssetMeta {
     fn deserialize(buf: &mut &[u8]) -> Result<Self, SolitaireError> {
+        use bstr::ByteSlice;
+
         let mut v = Cursor::new(buf);
 
         if v.read_u8()? != 2 {
@@ -150,17 +152,19 @@ impl DeserializePayload for PayloadAssetMeta {
         let token_chain = v.read_u16::<BigEndian>()?;
         let decimals = v.read_u8()?;
 
-        let mut symbol_data: [u8; 32] = [0; 32];
+        let mut symbol_data = vec![0u8; 32];
         v.read_exact(&mut symbol_data)?;
-        let mut symbol = String::from_utf8(symbol_data.to_vec())
-            .map_err::<SolitaireError, _>(|_| TokenBridgeError::InvalidUTF8String.into())?;
-        symbol = symbol.chars().filter(|c| c != &'\0').collect();
+        symbol_data.retain(|&c| c != 0);
+        let mut symbol: Vec<char> = symbol_data.chars().collect();
+        symbol.retain(|&c| c != '\u{FFFD}');
+        let symbol: String = symbol.iter().collect();
 
-        let mut name_data: [u8; 32] = [0; 32];
+        let mut name_data = vec![0u8; 32];
         v.read_exact(&mut name_data)?;
-        let mut name = String::from_utf8(name_data.to_vec())
-            .map_err::<SolitaireError, _>(|_| TokenBridgeError::InvalidUTF8String.into())?;
-        name = name.chars().filter(|c| c != &'\0').collect();
+        name_data.retain(|&c| c != 0);
+        let mut name: Vec<char> = name_data.chars().collect();
+        name.retain(|&c| c != '\u{FFFD}');
+        let name: String = name.iter().collect();
 
         if v.position() != v.into_inner().len() as u64 {
             return Err(InvalidAccountData.into());

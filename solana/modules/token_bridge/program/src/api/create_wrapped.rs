@@ -99,6 +99,8 @@ pub fn create_wrapped(
     accs: &mut CreateWrapped,
     data: CreateWrappedData,
 ) -> Result<()> {
+    use bstr::ByteSlice;
+
     let derivation_data: WrappedDerivationData = (&*accs).into();
     accs.mint
         .verify_derivation(ctx.program_id, &derivation_data)?;
@@ -140,11 +142,18 @@ pub fn create_wrapped(
         },
     )?;
 
-    let mut name = accs.vaa.name.clone();
+    let mut name = accs.vaa.name.clone().as_bytes().to_vec();
     name.truncate(32 - 11);
+    let mut name: Vec<char> = name.chars().collect();
+    name.retain(|&c| c != '\u{FFFD}');
+    let mut name: String = name.iter().collect();
     name += " (Wormhole)";
+
     let mut symbol = accs.vaa.symbol.clone();
     symbol.truncate(10);
+    let mut symbol: Vec<char> = symbol.chars().collect();
+    symbol.retain(|&c| c != '\u{FFFD}');
+    let symbol: String = symbol.iter().collect();
 
     let spl_token_metadata_ix = spl_token_metadata::instruction::create_metadata_accounts(
         spl_token_metadata::id(),
