@@ -46,6 +46,7 @@ ENV BRIDGE_ADDRESS="Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o"
 # Build Wormhole Solana programs
 RUN --mount=type=cache,target=bridge/target \
     --mount=type=cache,target=modules/token_bridge/target \
+    --mount=type=cache,target=modules/nft_bridge/target \
     --mount=type=cache,target=pyth2wormhole/target \
     cargo build-bpf --manifest-path "bridge/program/Cargo.toml" && \
     cargo build-bpf --manifest-path "bridge/cpi_poster/Cargo.toml" && \
