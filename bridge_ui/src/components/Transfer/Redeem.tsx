@@ -5,6 +5,7 @@ import { selectTransferTargetChain } from "../../store/selectors";
 import ButtonWithLoader from "../ButtonWithLoader";
 import KeyAndBalance from "../KeyAndBalance";
 import StepDescription from "../StepDescription";
+import WaitingForWalletMessage from "./WaitingForWalletMessage";
 
 function Redeem() {
   const { handleClick, disabled, showLoader } = useHandleRedeem();
@@ -22,6 +23,7 @@ function Redeem() {
       >
         Redeem
       </ButtonWithLoader>
+      <WaitingForWalletMessage />
     </>
   );
 }

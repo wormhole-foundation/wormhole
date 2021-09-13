@@ -12,6 +12,7 @@ import ButtonWithLoader from "../ButtonWithLoader";
 import KeyAndBalance from "../KeyAndBalance";
 import StepDescription from "../StepDescription";
 import TransferProgress from "../TransferProgress";
+import WaitingForWalletMessage from "./WaitingForWalletMessage";
 
 function Send() {
   const { handleClick, disabled, showLoader } = useHandleTransfer();
@@ -49,6 +50,7 @@ function Send() {
       >
         Transfer
       </ButtonWithLoader>
+      <WaitingForWalletMessage />
       <TransferProgress />
     </>
   );
