@@ -23,3 +23,11 @@ fs.copyFileSync(
   "src/solana/token/token_bridge_bg.wasm.d.ts",
   "lib/solana/token/token_bridge_bg.wasm.d.ts"
 );
+fs.copyFileSync(
+  "src/solana/migration/wormhole_migration_bg.wasm",
+  "lib/solana/migration/wormhole_migration_bg.wasm"
+);
+fs.copyFileSync(
+  "src/solana/migration/wormhole_migration_bg.wasm.d.ts",
+  "lib/solana/migration/wormhole_migration_bg.wasm.d.ts"
+);
