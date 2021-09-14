@@ -15,7 +15,7 @@ import ButtonWithLoader from "./ButtonWithLoader";
 export function useAssociatedAccountExistsState(
   targetChain: ChainId,
   mintAddress: string | null | undefined,
-  readableTargetAddress: string
+  readableTargetAddress: string | undefined
 ) {
   const [associatedAccountExists, setAssociatedAccountExists] = useState(true); // for now, assume it exists until we confirm it doesn't
   const solanaWallet = useSolanaWallet();

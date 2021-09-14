@@ -1,5 +1,5 @@
 import { Connection } from "@solana/web3.js";
-import { useLayoutEffect, useState } from "react";
+import { useLayoutEffect, useMemo, useState } from "react";
 import { DataWrapper } from "../store/helpers";
 import { SOLANA_HOST } from "../utils/consts";
 import {
@@ -97,12 +97,16 @@ const useMetaplexData = (
     };
   }, [addresses, setResults, setIsLoading, setError]);
 
-  return {
-    data: results,
-    isFetching: isLoading,
-    error,
-    receivedAt,
-  };
+  const output = useMemo(
+    () => ({
+      data: results,
+      isFetching: isLoading,
+      error,
+      receivedAt,
+    }),
+    [results, isLoading, error, receivedAt]
+  );
+  return output;
 };
 
 export default useMetaplexData;

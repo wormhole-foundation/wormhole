@@ -210,3 +210,17 @@ export const ETH_TOKENS_THAT_EXIST_ELSEWHERE = [
   getAddress("0x1c5db575e2ff833e46a2e9864c22f4b22e0b37c2"), // renZEC
   getAddress("0xD5147bc8e386d91Cc5DBE72099DAC6C9b99276F5"), // renFIL
 ];
+
+export const MIGRATION_PROGRAM_ADDRESS =
+  process.env.REACT_APP_CLUSTER === "mainnet"
+    ? "whmRZnmyxdr2TkHXcZoFdtvNYRLQ5Jtbkf6ZbGkJjdk"
+    : process.env.REACT_APP_CLUSTER === "testnet"
+    ? ""
+    : "Ex9bCdVMSfx7EzB3pgSi2R4UHwJAXvTw18rBQm5YQ8gK";
+
+export const MIGRATION_ASSET_MAP = new Map<string, string>([
+  [
+    "2WDq7wSs9zYrpx2kbHDA4RUTRch2CCTP6ZWaH4GNfnQQ",
+    "ApgUoB1467PXXofoLWFELH2Kz9DKB8WXdU2szGSsFKhX",
+  ],
+]);

@@ -40,7 +40,7 @@ export default function ShowTx({
 
   return (
     <div className={classes.tx}>
-      <Typography component="div" variant="body2">
+      <Typography noWrap component="div" variant="body2">
         {tx.id}
       </Typography>
       {showExplorerLink && explorerAddress ? (
