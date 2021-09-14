@@ -17,6 +17,7 @@ COPY bridge bridge
 COPY modules modules
 COPY solitaire solitaire
 COPY migration migration
+COPY pyth2wormhole pyth2wormhole
 
 # Compile Wormhole
 RUN --mount=type=cache,target=/root/.cache \
@@ -50,12 +51,24 @@ RUN --mount=type=cache,target=/root/.cache \
 	--mount=type=cache,target=modules/nft_bridge/target \
     cd modules/nft_bridge/program && /usr/local/cargo/bin/wasm-pack build --target nodejs -d nodejs -- --features wasm
 
+# Compile pyth2wormhole
+RUN --mount=type=cache,target=/root/.cache \
+	--mount=type=cache,target=pyth2wormhole/target \
+    cd pyth2wormhole/program \
+    && /usr/local/cargo/bin/wasm-pack build --target bundler -d bundler -- --features wasm
+
+RUN --mount=type=cache,target=/root/.cache \
+	--mount=type=cache,target=pyth2wormhole/target \
+    cd pyth2wormhole/program \
+    && /usr/local/cargo/bin/wasm-pack build --target nodejs -d nodejs -- --features wasm
+
 FROM scratch AS export
 
 COPY --from=build /usr/src/bridge/bridge/program/bundler sdk/js/src/solana/core
 COPY --from=build /usr/src/bridge/modules/token_bridge/program/bundler sdk/js/src/solana/token
 COPY --from=build /usr/src/bridge/migration/bundler sdk/js/src/solana/migration
 COPY --from=build /usr/src/bridge/modules/nft_bridge/program/bundler sdk/js/src/solana/nft
+COPY --from=build /usr/src/bridge/pyth2wormhole/program/bundler third_party/pyth/p2w-sdk/src/solana/p2w-core
 
 COPY --from=build /usr/src/bridge/bridge/program/nodejs clients/solana/pkg
 COPY --from=build /usr/src/bridge/bridge/program/nodejs clients/token_bridge/pkg/core

@@ -129,16 +129,6 @@ k8s_resource("guardian", resource_deps = ["proto-gen", "solana-devnet"], port_fo
     port_forward(7071, name = "Public REST [:7071]"),
 ])
 
-if pyth:
-    docker_build(
-        ref = "pyth",
-        context = ".",
-        dockerfile = "third_party/pyth/Dockerfile.pyth",
-    )
-    k8s_yaml_with_ns("./devnet/pyth.yaml")
-
-    k8s_resource("pyth", resource_deps = ["solana-devnet"])
-
 # publicRPC proxy that allows grpc over http1, for local development
 
 k8s_yaml_with_ns("./devnet/envoy-proxy.yaml")
@@ -186,26 +176,6 @@ k8s_resource(
     ],
 )
 
-# pyth2wormhole client
-
-if pyth:
-    docker_build(
-        ref = "p2w-client",
-        context = ".",
-        only = ["./solana", "./third_party"],
-        dockerfile = "./third_party/pyth/Dockerfile.p2w-client",
-
-        # Ignore target folders from local (non-container) development.
-        ignore = ["./solana/*/target"],
-    )
-
-    k8s_yaml_with_ns("devnet/p2w-client.yaml")
-
-    k8s_resource(
-        "p2w-client",
-        resource_deps = ["solana-devnet", "pyth"],
-        port_forwards = [],
-    )
 
 # eth devnet
 
@@ -226,6 +196,43 @@ docker_build(
         sync("./ethereum/src", "/home/node/app/src"),
     ],
 )
+
+if pyth:
+    # pyth autopublisher
+    docker_build(
+        ref = "pyth",
+        context = ".",
+        dockerfile = "third_party/pyth/Dockerfile.pyth",
+    )
+    k8s_yaml_with_ns("./devnet/pyth.yaml")
+
+    k8s_resource("pyth", resource_deps = ["solana-devnet"])
+
+    # pyth2wormhole client autoattester
+    docker_build(
+        ref = "p2w-client",
+        context = ".",
+        only = ["./solana", "./third_party"],
+        dockerfile = "./third_party/pyth/Dockerfile.p2w-client",
+        ignore = ["./solana/*/target"],
+    )
+
+    k8s_yaml_with_ns("devnet/p2w-client.yaml")
+
+    k8s_resource(
+        "p2w-client",
+        resource_deps = ["solana-devnet", "pyth"],
+        port_forwards = [],
+    )
+
+    # pyth2wormhole JS SDK test
+    local_resource(
+	name = "p2w-sdk-test",
+	resource_deps = ["wasm-gen"],
+	deps = ["third_party/pyth", "ethereum", "sdk"],
+	cmd = "tilt docker build -- -f ./third_party/pyth/p2w-sdk/Dockerfile .",
+	env = {"DOCKER_BUILDKIT": "1"},
+    )
 
 k8s_yaml_with_ns("devnet/eth-devnet.yaml")
 

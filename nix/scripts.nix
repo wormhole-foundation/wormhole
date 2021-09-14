@@ -22,7 +22,7 @@ final: prev: {
     n_guardians=''${2:-5}
     echo "Starting Tilt with $n_guardians guardians"
     ${final.killall}/bin/killall tilt
-    ${final.tilt}/bin/tilt up --update-mode exec --port $tilt_port -- --num=$n_guardians
+    ${final.tilt}/bin/tilt up --update-mode exec --port $tilt_port -- --num=$n_guardians --pyth --explorer 
   '';
 
   # increase sysctl value for inotify watch count to sufficient level

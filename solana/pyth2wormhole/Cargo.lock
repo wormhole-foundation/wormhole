@@ -1538,8 +1538,6 @@ checksum = "b16bd47d9e329435e309c58469fe0791c2d0d1ba96ec0954152a5ae2b04387dc"
 [[package]]
 name = "memmap2"
 version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d9b70ca2a6103ac8b665dc150b142ef0e4e89df640c9e6cf295d189c3caebe5a"
 dependencies = [
  "libc",
 ]
@@ -2072,6 +2070,7 @@ dependencies = [
  "solana-program",
  "solitaire",
  "solitaire-client",
+ "wasm-bindgen",
 ]
 
 [[package]]
