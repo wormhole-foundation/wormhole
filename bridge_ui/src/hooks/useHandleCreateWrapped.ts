@@ -20,7 +20,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { useEthereumProvider } from "../contexts/EthereumProviderContext";
 import { useSolanaWallet } from "../contexts/SolanaWalletContext";
 import useAttestSignedVAA from "../hooks/useAttestSignedVAA";
-import { reset, setIsCreating } from "../store/attestSlice";
+import { setCreateTx, setIsCreating } from "../store/attestSlice";
 import {
   selectAttestIsCreating,
   selectAttestTargetChain,
@@ -43,8 +43,14 @@ async function eth(
 ) {
   dispatch(setIsCreating(true));
   try {
-    await createWrappedOnEth(ETH_TOKEN_BRIDGE_ADDRESS, signer, signedVAA);
-    dispatch(reset());
+    const receipt = await createWrappedOnEth(
+      ETH_TOKEN_BRIDGE_ADDRESS,
+      signer,
+      signedVAA
+    );
+    dispatch(
+      setCreateTx({ id: receipt.transactionHash, block: receipt.blockNumber })
+    );
     enqueueSnackbar("Transaction confirmed", { variant: "success" });
   } catch (e) {
     enqueueSnackbar(parseError(e), { variant: "error" });
@@ -76,8 +82,9 @@ async function solana(
       payerAddress,
       signedVAA
     );
-    await signSendAndConfirm(wallet, connection, transaction);
-    dispatch(reset());
+    const txid = await signSendAndConfirm(wallet, connection, transaction);
+    // TODO: didn't want to make an info call we didn't need, can we get the block without it by modifying the above call?
+    dispatch(setCreateTx({ id: txid, block: 1 }));
     enqueueSnackbar("Transaction confirmed", { variant: "success" });
   } catch (e) {
     enqueueSnackbar(parseError(e), { variant: "error" });
@@ -98,11 +105,13 @@ async function terra(
       wallet.terraAddress,
       signedVAA
     );
-    await wallet.post({
+    const result = await wallet.post({
       msgs: [msg],
       memo: "Wormhole - Create Wrapped",
     });
-    dispatch(reset());
+    dispatch(
+      setCreateTx({ id: result.result.txhash, block: result.result.height })
+    );
     enqueueSnackbar("Transaction confirmed", { variant: "success" });
   } catch (e) {
     enqueueSnackbar(parseError(e), { variant: "error" });

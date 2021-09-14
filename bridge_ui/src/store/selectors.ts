@@ -15,12 +15,14 @@ export const selectAttestSourceAsset = (state: RootState) =>
   state.attest.sourceAsset;
 export const selectAttestTargetChain = (state: RootState) =>
   state.attest.targetChain;
+export const selectAttestAttestTx = (state: RootState) => state.attest.attestTx;
 export const selectAttestSignedVAAHex = (state: RootState) =>
   state.attest.signedVAAHex;
 export const selectAttestIsSending = (state: RootState) =>
   state.attest.isSending;
 export const selectAttestIsCreating = (state: RootState) =>
   state.attest.isCreating;
+export const selectAttestCreateTx = (state: RootState) => state.attest.createTx;
 export const selectAttestIsSourceComplete = (state: RootState) =>
   !!state.attest.sourceChain && !!state.attest.sourceAsset;
 // TODO: check wrapped asset exists or is native attest
@@ -28,6 +30,8 @@ export const selectAttestIsTargetComplete = (state: RootState) =>
   selectAttestIsSourceComplete(state) && !!state.attest.targetChain;
 export const selectAttestIsSendComplete = (state: RootState) =>
   !!selectAttestSignedVAAHex(state);
+export const selectAttestIsCreateComplete = (state: RootState) =>
+  !!selectAttestCreateTx(state);
 export const selectAttestShouldLockFields = (state: RootState) =>
   selectAttestIsSending(state) || selectAttestIsSendComplete(state);
 

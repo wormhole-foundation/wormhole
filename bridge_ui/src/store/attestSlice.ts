@@ -4,6 +4,7 @@ import {
   CHAIN_ID_SOLANA,
 } from "@certusone/wormhole-sdk";
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
+import { Transaction } from "./transferSlice";
 
 const LAST_STEP = 3;
 
@@ -14,9 +15,11 @@ export interface AttestState {
   sourceChain: ChainId;
   sourceAsset: string;
   targetChain: ChainId;
+  attestTx: Transaction | undefined;
   signedVAAHex: string | undefined;
   isSending: boolean;
   isCreating: boolean;
+  createTx: Transaction | undefined;
 }
 
 const initialState: AttestState = {
@@ -24,9 +27,11 @@ const initialState: AttestState = {
   sourceChain: CHAIN_ID_SOLANA,
   sourceAsset: "",
   targetChain: CHAIN_ID_ETH,
+  attestTx: undefined,
   signedVAAHex: undefined,
   isSending: false,
   isCreating: false,
+  createTx: undefined,
 };
 
 export const attestSlice = createSlice({
@@ -62,6 +67,9 @@ export const attestSlice = createSlice({
         state.sourceAsset = "";
       }
     },
+    setAttestTx: (state, action: PayloadAction<Transaction>) => {
+      state.attestTx = action.payload;
+    },
     setSignedVAAHex: (state, action: PayloadAction<string>) => {
       state.signedVAAHex = action.payload;
       state.isSending = false;
@@ -72,6 +80,10 @@ export const attestSlice = createSlice({
     },
     setIsCreating: (state, action: PayloadAction<boolean>) => {
       state.isCreating = action.payload;
+    },
+    setCreateTx: (state, action: PayloadAction<Transaction>) => {
+      state.createTx = action.payload;
+      state.isCreating = false;
     },
     reset: (state) => ({
       ...initialState,
@@ -88,9 +100,11 @@ export const {
   setSourceChain,
   setSourceAsset,
   setTargetChain,
+  setAttestTx,
   setSignedVAAHex,
   setIsSending,
   setIsCreating,
+  setCreateTx,
   reset,
 } = attestSlice.actions;
 

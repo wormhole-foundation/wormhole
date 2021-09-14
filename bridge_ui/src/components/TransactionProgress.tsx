@@ -1,17 +1,13 @@
-import { CHAIN_ID_ETH, CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
+import {
+  ChainId,
+  CHAIN_ID_ETH,
+  CHAIN_ID_SOLANA,
+} from "@certusone/wormhole-sdk";
 import { LinearProgress, makeStyles, Typography } from "@material-ui/core";
 import { Connection } from "@solana/web3.js";
 import { useEffect, useState } from "react";
-import { useSelector } from "react-redux";
 import { useEthereumProvider } from "../contexts/EthereumProviderContext";
-import {
-  selectNFTIsSendComplete,
-  selectNFTSourceChain,
-  selectNFTTransferTx,
-  selectTransferIsSendComplete,
-  selectTransferSourceChain,
-  selectTransferTransferTx,
-} from "../store/selectors";
+import { Transaction } from "../store/transferSlice";
 import { CHAINS_BY_ID, SOLANA_HOST } from "../utils/consts";
 
 const useStyles = makeStyles((theme) => ({
@@ -24,22 +20,21 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-export default function TransferProgress({ nft }: { nft?: boolean }) {
+export default function TransactionProgress({
+  chainId,
+  tx,
+  isSendComplete,
+}: {
+  chainId: ChainId;
+  tx: Transaction | undefined;
+  isSendComplete: boolean;
+}) {
   const classes = useStyles();
-  const sourceChain = useSelector(
-    nft ? selectNFTSourceChain : selectTransferSourceChain
-  );
-  const transferTx = useSelector(
-    nft ? selectNFTTransferTx : selectTransferTransferTx
-  );
-  const isSendComplete = useSelector(
-    nft ? selectNFTIsSendComplete : selectTransferIsSendComplete
-  );
   const { provider } = useEthereumProvider();
   const [currentBlock, setCurrentBlock] = useState(0);
   useEffect(() => {
-    if (isSendComplete || !transferTx) return;
-    if (sourceChain === CHAIN_ID_ETH && provider) {
+    if (isSendComplete || !tx) return;
+    if (chainId === CHAIN_ID_ETH && provider) {
       let cancelled = false;
       (async () => {
         while (!cancelled) {
@@ -58,7 +53,7 @@ export default function TransferProgress({ nft }: { nft?: boolean }) {
         cancelled = true;
       };
     }
-    if (sourceChain === CHAIN_ID_SOLANA) {
+    if (chainId === CHAIN_ID_SOLANA) {
       let cancelled = false;
       const connection = new Connection(SOLANA_HOST, "confirmed");
       const sub = connection.onSlotChange((slotInfo) => {
@@ -71,20 +66,14 @@ export default function TransferProgress({ nft }: { nft?: boolean }) {
         connection.removeSlotChangeListener(sub);
       };
     }
-  }, [isSendComplete, sourceChain, provider, transferTx]);
+  }, [isSendComplete, chainId, provider, tx]);
   const blockDiff =
-    transferTx && transferTx.block && currentBlock
-      ? currentBlock - transferTx.block
-      : undefined;
+    tx && tx.block && currentBlock ? currentBlock - tx.block : undefined;
   const expectedBlocks =
-    sourceChain === CHAIN_ID_SOLANA
-      ? 32
-      : sourceChain === CHAIN_ID_ETH
-      ? 15
-      : 1;
+    chainId === CHAIN_ID_SOLANA ? 32 : chainId === CHAIN_ID_ETH ? 15 : 1;
   if (
     !isSendComplete &&
-    (sourceChain === CHAIN_ID_SOLANA || sourceChain === CHAIN_ID_ETH) &&
+    (chainId === CHAIN_ID_SOLANA || chainId === CHAIN_ID_ETH) &&
     blockDiff !== undefined
   ) {
     return (
@@ -97,7 +86,7 @@ export default function TransferProgress({ nft }: { nft?: boolean }) {
         />
         <Typography variant="body2" className={classes.message}>
           {blockDiff < expectedBlocks
-            ? `Waiting for ${blockDiff} / ${expectedBlocks} confirmations on ${CHAINS_BY_ID[sourceChain].name}...`
+            ? `Waiting for ${blockDiff} / ${expectedBlocks} confirmations on ${CHAINS_BY_ID[chainId].name}...`
             : `Waiting for Wormhole Network consensus...`}
         </Typography>
       </div>

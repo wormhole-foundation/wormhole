@@ -6,17 +6,25 @@ import {
   StepContent,
   Stepper,
 } from "@material-ui/core";
+import { Alert } from "@material-ui/lab";
+import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { setStep } from "../../store/attestSlice";
 import {
   selectAttestActiveStep,
-  selectAttestSignedVAAHex,
+  selectAttestIsCreateComplete,
+  selectAttestIsCreating,
+  selectAttestIsSendComplete,
+  selectAttestIsSending,
 } from "../../store/selectors";
-import { setStep } from "../../store/attestSlice";
 import Create from "./Create";
+import CreatePreview from "./CreatePreview";
 import Send from "./Send";
+import SendPreview from "./SendPreview";
 import Source from "./Source";
+import SourcePreview from "./SourcePreview";
 import Target from "./Target";
-import { Alert } from "@material-ui/lab";
+import TargetPreview from "./TargetPreview";
 
 const useStyles = makeStyles(() => ({
   rootContainer: {
@@ -28,7 +36,20 @@ function Attest() {
   const classes = useStyles();
   const dispatch = useDispatch();
   const activeStep = useSelector(selectAttestActiveStep);
-  const signedVAAHex = useSelector(selectAttestSignedVAAHex);
+  const isSending = useSelector(selectAttestIsSending);
+  const isSendComplete = useSelector(selectAttestIsSendComplete);
+  const isCreating = useSelector(selectAttestIsCreating);
+  const isCreateComplete = useSelector(selectAttestIsCreateComplete);
+  const preventNavigation =
+    (isSending || isSendComplete || isCreating) && !isCreateComplete;
+  useEffect(() => {
+    if (preventNavigation) {
+      window.onbeforeunload = () => true;
+      return () => {
+        window.onbeforeunload = null;
+      };
+    }
+  }, [preventNavigation]);
   return (
     <Container maxWidth="md">
       <Alert severity="info">
@@ -40,39 +61,41 @@ function Attest() {
         orientation="vertical"
         className={classes.rootContainer}
       >
-        <Step>
-          <StepButton onClick={() => dispatch(setStep(0))}>
-            Select a source
-          </StepButton>
+        <Step
+          expanded={activeStep >= 0}
+          disabled={preventNavigation || isCreateComplete}
+        >
+          <StepButton onClick={() => dispatch(setStep(0))}>Source</StepButton>
           <StepContent>
-            <Source />
+            {activeStep === 0 ? <Source /> : <SourcePreview />}
           </StepContent>
         </Step>
-        <Step>
-          <StepButton onClick={() => dispatch(setStep(1))}>
-            Select a target
-          </StepButton>
+        <Step
+          expanded={activeStep >= 1}
+          disabled={preventNavigation || isCreateComplete}
+        >
+          <StepButton onClick={() => dispatch(setStep(1))}>Target</StepButton>
           <StepContent>
-            <Target />
+            {activeStep === 1 ? <Target /> : <TargetPreview />}
           </StepContent>
         </Step>
-        <Step>
+        <Step expanded={activeStep >= 2} disabled={isSendComplete}>
           <StepButton onClick={() => dispatch(setStep(2))}>
             Send attestation
           </StepButton>
           <StepContent>
-            <Send />
+            {activeStep === 2 ? <Send /> : <SendPreview />}
           </StepContent>
         </Step>
-        <Step>
+        <Step expanded={activeStep >= 3}>
           <StepButton
             onClick={() => dispatch(setStep(3))}
-            disabled={!signedVAAHex}
+            disabled={!isSendComplete}
           >
             Create wrapped token
           </StepButton>
           <StepContent>
-            <Create />
+            {isCreateComplete ? <CreatePreview /> : <Create />}
           </StepContent>
         </Step>
       </Stepper>

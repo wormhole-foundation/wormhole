@@ -24,7 +24,11 @@ import { useDispatch, useSelector } from "react-redux";
 import { Signer } from "../../../sdk/js/node_modules/ethers/lib";
 import { useEthereumProvider } from "../contexts/EthereumProviderContext";
 import { useSolanaWallet } from "../contexts/SolanaWalletContext";
-import { setIsSending, setSignedVAAHex } from "../store/attestSlice";
+import {
+  setAttestTx,
+  setIsSending,
+  setSignedVAAHex,
+} from "../store/attestSlice";
 import {
   selectAttestIsSendComplete,
   selectAttestIsSending,
@@ -58,6 +62,9 @@ async function eth(
       ETH_TOKEN_BRIDGE_ADDRESS,
       signer,
       sourceAsset
+    );
+    dispatch(
+      setAttestTx({ id: receipt.transactionHash, block: receipt.blockNumber })
     );
     enqueueSnackbar("Transaction confirmed", { variant: "success" });
     const sequence = parseSequenceFromLogEth(receipt, ETH_BRIDGE_ADDRESS);
@@ -101,6 +108,7 @@ async function solana(
       // TODO: error state
       throw new Error("An error occurred while fetching the transaction info");
     }
+    dispatch(setAttestTx({ id: txid, block: info.slot }));
     const sequence = parseSequenceFromLogSolana(info);
     const emitterAddress = await getEmitterAddressSolana(
       SOL_TOKEN_BRIDGE_ADDRESS
@@ -134,6 +142,7 @@ async function terra(
       asset
     );
     const info = await waitForTerraExecution(result);
+    dispatch(setAttestTx({ id: info.txhash, block: info.height }));
     enqueueSnackbar("Transaction confirmed", { variant: "success" });
     const sequence = parseSequenceFromLogTerra(info);
     if (!sequence) {

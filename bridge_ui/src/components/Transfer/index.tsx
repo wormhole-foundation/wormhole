@@ -51,10 +51,8 @@ function Transfer() {
     (isSending || isSendComplete || isRedeeming) && !isRedeemComplete;
   useEffect(() => {
     if (preventNavigation) {
-      console.log("add onbeforeunload");
       window.onbeforeunload = () => true;
       return () => {
-        console.log("remove onbeforeunload");
         window.onbeforeunload = null;
       };
     }

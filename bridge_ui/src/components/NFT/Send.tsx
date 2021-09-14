@@ -6,12 +6,15 @@ import {
   selectNFTSourceWalletAddress,
   selectNFTSourceChain,
   selectNFTTargetError,
+  selectNFTTransferTx,
+  selectNFTIsSendComplete,
 } from "../../store/selectors";
 import { CHAINS_BY_ID } from "../../utils/consts";
 import ButtonWithLoader from "../ButtonWithLoader";
 import KeyAndBalance from "../KeyAndBalance";
 import StepDescription from "../StepDescription";
-import TransferProgress from "../TransferProgress";
+import TransactionProgress from "../TransactionProgress";
+import WaitingForWalletMessage from "./WaitingForWalletMessage";
 
 function Send() {
   const { handleClick, disabled, showLoader } = useHandleNFTTransfer();
@@ -20,6 +23,8 @@ function Send() {
   const { isReady, statusMessage, walletAddress } =
     useIsWalletReady(sourceChain);
   const sourceWalletAddress = useSelector(selectNFTSourceWalletAddress);
+  const transferTx = useSelector(selectNFTTransferTx);
+  const isSendComplete = useSelector(selectNFTIsSendComplete);
   //The chain ID compare is handled implicitly, as the isWalletReady hook should report !isReady if the wallet is on the wrong chain.
   const isWrongWallet =
     sourceWalletAddress &&
@@ -49,7 +54,12 @@ function Send() {
       >
         Transfer
       </ButtonWithLoader>
-      <TransferProgress nft />
+      <WaitingForWalletMessage />
+      <TransactionProgress
+        chainId={sourceChain}
+        tx={transferTx}
+        isSendComplete={isSendComplete}
+      />
     </>
   );
 }

@@ -4,6 +4,7 @@ import useIsWalletReady from "../../hooks/useIsWalletReady";
 import { selectAttestTargetChain } from "../../store/selectors";
 import ButtonWithLoader from "../ButtonWithLoader";
 import KeyAndBalance from "../KeyAndBalance";
+import WaitingForWalletMessage from "./WaitingForWalletMessage";
 
 function Create() {
   const { handleClick, disabled, showLoader } = useHandleCreateWrapped();
@@ -20,6 +21,7 @@ function Create() {
       >
         Create
       </ButtonWithLoader>
+      <WaitingForWalletMessage />
     </>
   );
 }

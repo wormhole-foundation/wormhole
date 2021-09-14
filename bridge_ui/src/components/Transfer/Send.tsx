@@ -11,16 +11,18 @@ import useIsWalletReady from "../../hooks/useIsWalletReady";
 import {
   selectSourceWalletAddress,
   selectTransferAmount,
+  selectTransferIsSendComplete,
   selectTransferSourceAsset,
   selectTransferSourceChain,
   selectTransferSourceParsedTokenAccount,
   selectTransferTargetError,
+  selectTransferTransferTx,
 } from "../../store/selectors";
 import { CHAINS_BY_ID } from "../../utils/consts";
 import ButtonWithLoader from "../ButtonWithLoader";
 import KeyAndBalance from "../KeyAndBalance";
 import StepDescription from "../StepDescription";
-import TransferProgress from "../TransferProgress";
+import TransactionProgress from "../TransactionProgress";
 import WaitingForWalletMessage from "./WaitingForWalletMessage";
 
 function Send() {
@@ -41,6 +43,8 @@ function Send() {
     sourceDecimals !== undefined &&
     sourceDecimals !== null &&
     parseUnits("1", sourceDecimals).toBigInt();
+  const transferTx = useSelector(selectTransferTransferTx);
+  const isSendComplete = useSelector(selectTransferIsSendComplete);
 
   const error = useSelector(selectTransferTargetError);
   const [allowanceError, setAllowanceError] = useState("");
@@ -149,7 +153,11 @@ function Send() {
         </ButtonWithLoader>
       )}
       <WaitingForWalletMessage />
-      <TransferProgress />
+      <TransactionProgress
+        chainId={sourceChain}
+        tx={transferTx}
+        isSendComplete={isSendComplete}
+      />
     </>
   );
 }
