@@ -1,6 +1,6 @@
 import { CircularProgress, TextField, Typography } from "@material-ui/core";
 import { createStyles, makeStyles, Theme } from "@material-ui/core/styles";
-import { Autocomplete } from "@material-ui/lab";
+import { Alert, Autocomplete } from "@material-ui/lab";
 import { createFilterOptions } from "@material-ui/lab/Autocomplete";
 import { TokenInfo } from "@solana/spl-token-registry";
 import React, { useCallback, useMemo } from "react";
@@ -8,7 +8,10 @@ import useMetaplexData from "../../hooks/useMetaplexData";
 import useSolanaTokenMap from "../../hooks/useSolanaTokenMap";
 import { DataWrapper } from "../../store/helpers";
 import { ParsedTokenAccount } from "../../store/transferSlice";
-import { WORMHOLE_V1_MINT_AUTHORITY } from "../../utils/consts";
+import {
+  MIGRATION_ASSET_MAP,
+  WORMHOLE_V1_MINT_AUTHORITY,
+} from "../../utils/consts";
 import { shortenAddress } from "../../utils/solana";
 import NFTViewer from "./NFTViewer";
 import RefreshButtonWrapper from "./RefreshButtonWrapper";
@@ -146,6 +149,10 @@ export default function SolanaSourceTokenSelector(
     [props.mintAccounts]
   );
 
+  const isMigrationEligible = useCallback((address: string) => {
+    return !!MIGRATION_ASSET_MAP.get(address);
+  }, []);
+
   const renderAccount = useCallback(
     (account: ParsedTokenAccount) => {
       const mintPrettyString = shortenAddress(account.mintKey);
@@ -189,9 +196,24 @@ export default function SolanaSourceTokenSelector(
         </div>
       );
 
-      return isWormholev1(account.mintKey) ? v1Warning : content;
+      const migrationRender = (
+        <div>
+          <Alert severity="warning">
+            <Typography variant="body2">
+              This is a legacy asset eligible for migration.
+            </Typography>
+            <div>{content}</div>
+          </Alert>
+        </div>
+      );
+
+      return isMigrationEligible(account.mintKey)
+        ? migrationRender
+        : isWormholev1(account.mintKey)
+        ? v1Warning
+        : content;
     },
-    [getLogo, getSymbol, getName, classes, isWormholev1]
+    [getLogo, getSymbol, getName, classes, isWormholev1, isMigrationEligible]
   );
 
   //The autocomplete doesn't rerender the option label unless the value changes.
@@ -218,8 +240,10 @@ export default function SolanaSourceTokenSelector(
   }, [metaplex.data, nft, props.accounts]);
 
   const isOptionDisabled = useMemo(() => {
-    return (value: ParsedTokenAccount) => isWormholev1(value.mintKey);
-  }, [isWormholev1]);
+    return (value: ParsedTokenAccount) => {
+      return isWormholev1(value.mintKey) && !isMigrationEligible(value.mintKey);
+    };
+  }, [isWormholev1, isMigrationEligible]);
 
   const onAutocompleteChange = useCallback(
     (event, newValue) => {

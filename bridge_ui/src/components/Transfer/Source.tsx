@@ -1,7 +1,9 @@
+import { CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
 import { Button, makeStyles, MenuItem, TextField } from "@material-ui/core";
 import { Restore } from "@material-ui/icons";
 import { useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { useHistory } from "react-router";
 import useIsWalletReady from "../../hooks/useIsWalletReady";
 import useTokenBlacklistWarning from "../../hooks/useTokenBlacklistWarning";
 import {
@@ -18,7 +20,7 @@ import {
   setAmount,
   setSourceChain,
 } from "../../store/transferSlice";
-import { CHAINS } from "../../utils/consts";
+import { CHAINS, MIGRATION_ASSET_MAP } from "../../utils/consts";
 import ButtonWithLoader from "../ButtonWithLoader";
 import KeyAndBalance from "../KeyAndBalance";
 import StepDescription from "../StepDescription";
@@ -37,11 +39,16 @@ function Source({
 }) {
   const classes = useStyles();
   const dispatch = useDispatch();
+  const history = useHistory();
   const sourceChain = useSelector(selectTransferSourceChain);
   const parsedTokenAccount = useSelector(
     selectTransferSourceParsedTokenAccount
   );
   const hasParsedTokenAccount = !!parsedTokenAccount;
+  const isMigrationAsset =
+    sourceChain === CHAIN_ID_SOLANA &&
+    !!parsedTokenAccount &&
+    !!MIGRATION_ASSET_MAP.get(parsedTokenAccount.mintKey);
   const uiAmountString = useSelector(selectTransferSourceBalanceString);
   const amount = useSelector(selectTransferAmount);
   const error = useSelector(selectTransferSourceError);
@@ -52,6 +59,10 @@ function Source({
     sourceChain,
     parsedTokenAccount?.mintKey
   );
+  const handleMigrationClick = useCallback(() => {
+    parsedTokenAccount?.mintKey &&
+      history.push("/migrate/" + parsedTokenAccount.mintKey);
+  }, [history, parsedTokenAccount]);
   const handleSourceChange = useCallback(
     (event) => {
       dispatch(setSourceChain(event.target.value));
@@ -102,25 +113,38 @@ function Source({
           <TokenSelector disabled={shouldLockFields} />
         </div>
       ) : null}
-      {hasParsedTokenAccount ? (
-        <TextField
-          label="Amount"
-          type="number"
+      {isMigrationAsset ? (
+        <Button
+          variant="contained"
+          color="primary"
           fullWidth
-          className={classes.transferField}
-          value={amount}
-          onChange={handleAmountChange}
-          disabled={shouldLockFields}
-        />
-      ) : null}
-      <ButtonWithLoader
-        disabled={!isSourceComplete}
-        onClick={handleNextClick}
-        showLoader={false}
-        error={statusMessage || error || tokenBlacklistWarning}
-      >
-        Next
-      </ButtonWithLoader>
+          onClick={handleMigrationClick}
+        >
+          Go to Migration Page
+        </Button>
+      ) : (
+        <>
+          {hasParsedTokenAccount ? (
+            <TextField
+              label="Amount"
+              type="number"
+              fullWidth
+              className={classes.transferField}
+              value={amount}
+              onChange={handleAmountChange}
+              disabled={shouldLockFields}
+            />
+          ) : null}
+          <ButtonWithLoader
+            disabled={!isSourceComplete}
+            onClick={handleNextClick}
+            showLoader={false}
+            error={statusMessage || error || tokenBlacklistWarning}
+          >
+            Next
+          </ButtonWithLoader>
+        </>
+      )}
     </>
   );
 }
