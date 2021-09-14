@@ -181,6 +181,8 @@ export const selectTransferIsRedeeming = (state: RootState) =>
   state.transfer.isRedeeming;
 export const selectTransferRedeemTx = (state: RootState) =>
   state.transfer.redeemTx;
+export const selectTransferIsApproving = (state: RootState) =>
+  state.transfer.isApproving;
 export const selectTransferSourceError = (
   state: RootState
 ): string | undefined => {

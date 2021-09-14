@@ -1,11 +1,11 @@
-import { CHAIN_ID_ETH, CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
-import { Typography, makeStyles } from "@material-ui/core";
+import { CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
+import { makeStyles, Typography } from "@material-ui/core";
 import { useSelector } from "react-redux";
 import {
+  selectTransferIsApproving,
   selectTransferIsRedeeming,
   selectTransferIsSending,
   selectTransferRedeemTx,
-  selectTransferSourceChain,
   selectTransferTargetChain,
   selectTransferTransferTx,
 } from "../../store/selectors";
@@ -22,20 +22,19 @@ const WAITING_FOR_WALLET = "Waiting for wallet approval (likely in a popup)...";
 
 export default function WaitingForWalletMessage() {
   const classes = useStyles();
-  const sourceChain = useSelector(selectTransferSourceChain);
+  const isApproving = useSelector(selectTransferIsApproving);
   const isSending = useSelector(selectTransferIsSending);
   const transferTx = useSelector(selectTransferTransferTx);
   const targetChain = useSelector(selectTransferTargetChain);
   const isRedeeming = useSelector(selectTransferIsRedeeming);
   const redeemTx = useSelector(selectTransferRedeemTx);
-  const showWarning = (isSending && !transferTx) || (isRedeeming && !redeemTx);
+  const showWarning =
+    isApproving || (isSending && !transferTx) || (isRedeeming && !redeemTx);
   return showWarning ? (
     <Typography className={classes.message} variant="body2">
       {WAITING_FOR_WALLET}{" "}
       {targetChain === CHAIN_ID_SOLANA && isRedeeming
         ? "Note: there will be several transactions"
-        : sourceChain === CHAIN_ID_ETH && isSending
-        ? "Note: there will be two transactions"
         : null}
     </Typography>
   ) : null;

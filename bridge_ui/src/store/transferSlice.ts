@@ -53,6 +53,7 @@ export interface TransferState {
   isSending: boolean;
   isRedeeming: boolean;
   redeemTx: Transaction | undefined;
+  isApproving: boolean;
 }
 
 const initialState: TransferState = {
@@ -74,6 +75,7 @@ const initialState: TransferState = {
   isSending: false,
   isRedeeming: false,
   redeemTx: undefined,
+  isApproving: false,
 };
 
 export const transferSlice = createSlice({
@@ -203,6 +205,9 @@ export const transferSlice = createSlice({
       state.redeemTx = action.payload;
       state.isRedeeming = false;
     },
+    setIsApproving: (state, action: PayloadAction<boolean>) => {
+      state.isApproving = action.payload;
+    },
     reset: (state) => ({
       ...initialState,
       sourceChain: state.sourceChain,
@@ -233,6 +238,7 @@ export const {
   setIsSending,
   setIsRedeeming,
   setRedeemTx,
+  setIsApproving,
   reset,
 } = transferSlice.actions;
 

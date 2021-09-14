@@ -9,6 +9,28 @@ import {
 import { getBridgeFeeIx, ixFromRust } from "../solana";
 import { ChainId, CHAIN_ID_SOLANA, createNonce } from "../utils";
 
+export async function getAllowanceEth(
+  tokenBridgeAddress: string,
+  tokenAddress: string,
+  signer: ethers.Signer
+) {
+  const token = TokenImplementation__factory.connect(tokenAddress, signer);
+  const signerAddress = await signer.getAddress();
+  const allowance = await token.allowance(signerAddress, tokenBridgeAddress);
+
+  return allowance;
+}
+
+export async function approveEth(
+  tokenBridgeAddress: string,
+  tokenAddress: string,
+  signer: ethers.Signer,
+  amount: ethers.BigNumberish
+) {
+  const token = TokenImplementation__factory.connect(tokenAddress, signer);
+  return await (await token.approve(tokenBridgeAddress, amount)).wait();
+}
+
 export async function transferFromEth(
   tokenBridgeAddress: string,
   signer: ethers.Signer,
@@ -19,13 +41,6 @@ export async function transferFromEth(
 ) {
   //TODO: should we check if token attestation exists on the target chain
   const token = TokenImplementation__factory.connect(tokenAddress, signer);
-  //TODO: implement / separate allowance check
-  // const signerAddress = await signer.getAddress();
-  // const allowance = await token.allowance(
-  //   signerAddress,
-  //   tokenBridgeAddress
-  // );
-  await (await token.approve(tokenBridgeAddress, amount)).wait();
   const fee = 0; // for now, this won't do anything, we may add later
   const bridge = Bridge__factory.connect(tokenBridgeAddress, signer);
   const v = await bridge.transferTokens(
