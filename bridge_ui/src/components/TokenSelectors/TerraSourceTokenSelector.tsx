@@ -18,7 +18,7 @@ import useTerraTokenMap, {
   TerraTokenMetadata,
 } from "../../hooks/useTerraTokenMap";
 import { ParsedTokenAccount } from "../../store/transferSlice";
-import { TERRA_HOST } from "../../utils/consts";
+import { TERRA_HOST, CLUSTER } from "../../utils/consts";
 import { shortenAddress } from "../../utils/solana";
 import OffsetButton from "./OffsetButton";
 import RefreshButtonWrapper from "./RefreshButtonWrapper";
@@ -113,7 +113,8 @@ export default function TerraSourceTokenSelector(
   const isLoading = tokenMap?.isFetching || false;
 
   const terraTokenArray = useMemo(() => {
-    const values = tokenMap.data?.mainnet;
+    const values =
+      CLUSTER === "mainnet" ? tokenMap.data?.mainnet : tokenMap.data?.testnet;
     const items = Object.values(values || {});
     return items || [];
   }, [tokenMap]);
