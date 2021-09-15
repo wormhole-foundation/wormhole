@@ -18,7 +18,8 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-const WAITING_FOR_WALLET = "Waiting for wallet approval (likely in a popup)...";
+export const WAITING_FOR_WALLET_AND_CONF =
+  "Waiting for wallet approval (likely in a popup) and confirmation...";
 
 export default function WaitingForWalletMessage() {
   const classes = useStyles();
@@ -32,7 +33,7 @@ export default function WaitingForWalletMessage() {
     isApproving || (isSending && !transferTx) || (isRedeeming && !redeemTx);
   return showWarning ? (
     <Typography className={classes.message} variant="body2">
-      {WAITING_FOR_WALLET}{" "}
+      {WAITING_FOR_WALLET_AND_CONF}{" "}
       {targetChain === CHAIN_ID_SOLANA && isRedeeming
         ? "Note: there will be several transactions"
         : null}
