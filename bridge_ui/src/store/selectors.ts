@@ -102,7 +102,7 @@ export const selectNFTSourceError = (state: RootState): string | undefined => {
     ) {
       return "Balance must be greater than zero";
     }
-  } catch (e) {
+  } catch (e: any) {
     if (e?.message) {
       return e.message.substring(0, e.message.indexOf("("));
     }
@@ -235,7 +235,7 @@ export const selectTransferSourceError = (
     ) {
       return "Amount may not be greater than balance";
     }
-  } catch (e) {
+  } catch (e: any) {
     if (e?.message) {
       return e.message.substring(0, e.message.indexOf("("));
     }

@@ -26,3 +26,27 @@ npm ci
 ```bash
 npm start
 ```
+
+## Build for local tilt network
+
+```bash
+npm run build
+```
+
+## Build for testnet
+
+```bash
+REACT_APP_CLUSTER=testnet npm run build
+```
+
+## Build for mainnet
+
+```bash
+REACT_APP_CLUSTER=mainnet npm run build
+```
+
+## Test Server
+
+```bash
+npx serve -s build
+```

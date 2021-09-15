@@ -67,6 +67,9 @@ async function solana(
 ) {
   dispatch(setIsRedeeming(true));
   try {
+    if (!wallet.signTransaction) {
+      throw new Error("wallet.signTransaction is undefined");
+    }
     const connection = new Connection(SOLANA_HOST, "confirmed");
     await postVaaSolana(
       connection,
