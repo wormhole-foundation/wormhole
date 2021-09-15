@@ -1,4 +1,4 @@
-import { Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import { Token, TOKEN_PROGRAM_ID, u64 } from "@solana/spl-token";
 import { Connection, PublicKey, Transaction } from "@solana/web3.js";
 import { ixFromRust } from "../solana";
 
@@ -21,7 +21,7 @@ export default async function claimShares(
     new PublicKey(authority_address(program_id)),
     new PublicKey(payerAddress),
     [],
-    Number(amount)
+    new u64(amount.toString(16), 16)
   );
   const ix = ixFromRust(
     claim_shares(

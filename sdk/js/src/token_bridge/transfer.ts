@@ -1,4 +1,4 @@
-import { Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import { Token, TOKEN_PROGRAM_ID, u64 } from "@solana/spl-token";
 import { Connection, Keypair, PublicKey, Transaction } from "@solana/web3.js";
 import { MsgExecuteContract } from "@terra-money/terra.js";
 import { ethers } from "ethers";
@@ -128,7 +128,7 @@ export async function transferFromSolana(
     new PublicKey(approval_authority_address(tokenBridgeAddress)),
     new PublicKey(payerAddress),
     [],
-    Number(amount)
+    new u64(amount.toString(16), 16)
   );
   let messageKey = Keypair.generate();
   const isSolanaNative =
