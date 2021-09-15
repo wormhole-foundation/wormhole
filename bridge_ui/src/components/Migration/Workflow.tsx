@@ -84,7 +84,6 @@ const getBalance = async (
       const info = await connection.getParsedAccountInfo(pk);
       // @ts-ignore
       const balance = info.value?.data.parsed.info.tokenAmount.uiAmountString;
-      console.log(`${address} has a balance of ${balance}`);
       setter(balance);
     } catch (e) {
       console.log(`Unable to determine balance of ${address}`);
@@ -194,7 +193,7 @@ export default function Workflow({
     if (toCustodyAddress) {
       getBalance(connection, toCustodyAddress, setToCustodyBalance);
     } else {
-      setToCustodyAddress(undefined);
+      setToCustodyBalance(undefined);
     }
   }, [connection, toCustodyAddress, setToCustodyBalance]);
 
@@ -242,9 +241,17 @@ export default function Workflow({
 
   //Set relevant information derived from poolAddress
   useEffect(() => {
-    getToCustodyAddress(MIGRATION_PROGRAM_ADDRESS, poolAddress).then(
-      (result: any) => setToCustodyAddress(new PublicKey(result).toString())
-    );
+    if (poolAddress) {
+      getToCustodyAddress(MIGRATION_PROGRAM_ADDRESS, poolAddress)
+        .then((result: any) =>
+          setToCustodyAddress(new PublicKey(result).toString())
+        )
+        .catch((e) => {
+          setToCustodyAddress(undefined);
+        });
+    } else {
+      setToCustodyAddress(undefined);
+    }
   }, [poolAddress]);
 
   //Set the associated token accounts when the designated mint changes
@@ -338,8 +345,6 @@ export default function Workflow({
     fromParse(migrationAmount) <= fromParse(fromTokenAccountBalance) &&
     parseFloat(migrationAmount) <= parseFloat(toCustodyBalance);
 
-  console.log("rendered");
-
   const isReadyToTransfer =
     isReady && sufficientBalances && accountsReady && hasRequisiteData;
 
@@ -429,6 +434,21 @@ export default function Workflow({
               associatedAccountExists={toTokenAccountExists}
               setAssociatedAccountExists={setToTokenAccountExists}
             />
+            {poolAddress && toCustodyAddress && toCustodyBalance ? (
+              <>
+                <div className={classes.spacer} />
+                <Typography variant="body2">
+                  Using pool {shortenAddress(poolAddress)} holding tokens in
+                  this account:
+                </Typography>
+                <Typography variant="h5">
+                  {shortenAddress(toCustodyAddress) +
+                    ` (Balance: ${toCustodyBalance}${
+                      toMetadata.symbol && " " + toMetadata.symbol
+                    })`}
+                </Typography>
+              </>
+            ) : null}
           </>
         ) : null}
         <div className={classes.spacer} />

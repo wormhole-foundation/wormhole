@@ -27,6 +27,7 @@ import {
 import EthereumSourceTokenSelector from "./EthereumSourceTokenSelector";
 import SolanaSourceTokenSelector from "./SolanaSourceTokenSelector";
 import TerraSourceTokenSelector from "./TerraSourceTokenSelector";
+import RefreshButtonWrapper from "./RefreshButtonWrapper";
 
 type TokenSelectorProps = {
   disabled: boolean;
@@ -73,6 +74,7 @@ export const TokenSelector = (props: TokenSelectorProps) => {
   );
 
   const maps = useGetSourceParsedTokens(nft);
+  const resetAccountWrapper = maps?.resetAccounts || (() => {}); //This should never happen.
 
   //This is only for errors so bad that we shouldn't even mount the component
   const fatalError =
@@ -81,7 +83,9 @@ export const TokenSelector = (props: TokenSelectorProps) => {
     maps?.tokenAccounts?.error; //Terra & ETH can proceed because it has advanced mode
 
   const content = fatalError ? (
-    <Typography>{fatalError}</Typography>
+    <RefreshButtonWrapper callback={resetAccountWrapper}>
+      <Typography>{fatalError}</Typography>
+    </RefreshButtonWrapper>
   ) : lookupChain === CHAIN_ID_SOLANA ? (
     <SolanaSourceTokenSelector
       value={sourceParsedTokenAccount || null}

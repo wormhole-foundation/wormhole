@@ -25,7 +25,11 @@ const MigrationRoot: React.FC<Migration> = (props) => {
   if (fromMint && toMint) {
     return <Workflow fromMint={fromMint} toMint={toMint} />;
   } else {
-    return <Typography>This asset is not eligible for migration.</Typography>;
+    return (
+      <Typography style={{ textAlign: "center" }}>
+        This asset is not eligible for migration.
+      </Typography>
+    );
   }
 };
 
