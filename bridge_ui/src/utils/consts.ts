@@ -212,9 +212,9 @@ export const ETH_TOKENS_THAT_EXIST_ELSEWHERE = [
 ];
 
 export const MIGRATION_PROGRAM_ADDRESS =
-  process.env.REACT_APP_CLUSTER === "mainnet"
+  CLUSTER === "mainnet"
     ? "whmRZnmyxdr2TkHXcZoFdtvNYRLQ5Jtbkf6ZbGkJjdk"
-    : process.env.REACT_APP_CLUSTER === "testnet"
+    : CLUSTER === "testnet"
     ? ""
     : "Ex9bCdVMSfx7EzB3pgSi2R4UHwJAXvTw18rBQm5YQ8gK";
 

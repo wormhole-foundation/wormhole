@@ -18,6 +18,7 @@ import {
   TextField,
   Typography,
   CircularProgress,
+  AppBar,
 } from "@material-ui/core";
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -35,7 +36,11 @@ import SolanaCreateAssociatedAddress, {
 import SolanaWalletKey from "../components/SolanaWalletKey";
 import { useLogger } from "../contexts/Logger";
 import { useSolanaWallet } from "../contexts/SolanaWalletContext";
-import { MIGRATION_PROGRAM_ADDRESS, SOLANA_URL } from "../utils/consts";
+import {
+  CLUSTER,
+  MIGRATION_PROGRAM_ADDRESS,
+  SOLANA_URL,
+} from "../utils/consts";
 import { getMultipleAccounts, signSendAndConfirm } from "../utils/solana";
 
 const useStyles = makeStyles(() => ({
@@ -831,13 +836,22 @@ function Main() {
   );
 
   return (
-    <Container maxWidth="md" className={classes.rootContainer}>
-      <Paper className={classes.mainPaper}>
-        <SolanaWalletKey />
-        {content}
-      </Paper>
-      <LogWatcher />
-    </Container>
+    <>
+      {CLUSTER === "mainnet" ? null : (
+        <AppBar position="static" color="secondary">
+          <Typography style={{ textAlign: "center" }}>
+            Caution! You are using the {CLUSTER} build of this app.
+          </Typography>
+        </AppBar>
+      )}
+      <Container maxWidth="md" className={classes.rootContainer}>
+        <Paper className={classes.mainPaper}>
+          <SolanaWalletKey />
+          {content}
+        </Paper>
+        <LogWatcher />
+      </Container>
+    </>
   );
 }
 
