@@ -233,6 +233,10 @@ export default function SolanaSourceTokenSelector(
   const filteredOptions = useMemo(() => {
     return props.accounts.filter((x) => {
       //TODO, do a better check which likely involves supply or checking masterEdition.
+      const zeroBalance = x.amount === "0";
+      if (zeroBalance) {
+        return false;
+      }
       const isNFT =
         x.decimals === 0 && metaplex.data?.get(x.mintKey)?.data?.uri;
       return nft ? isNFT : !isNFT;

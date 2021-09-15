@@ -214,6 +214,7 @@ const getEthereumAccountsCovalent = async (
           item.contract_ticker_symbol &&
           item.contract_address &&
           item.balance &&
+          item.balance !== "0" &&
           (nft
             ? item.supports_erc?.includes("erc721")
             : item.supports_erc?.includes("erc20"))
@@ -416,7 +417,7 @@ function useGetAvailableTokens(nft: boolean = false) {
     // const nftTestWallet2 = "0x98ed231428088eb440e8edb5cc8d66dcf913b86e";
     let cancelled = false;
     const walletAddress = signerAddress;
-    if (walletAddress && lookupChain === CHAIN_ID_ETH && !tokenAccounts.data) {
+    if (walletAddress && lookupChain === CHAIN_ID_ETH && !covalent) {
       //TODO less cancel
       !cancelled && setCovalentLoading(true);
       !cancelled &&
@@ -477,7 +478,7 @@ function useGetAvailableTokens(nft: boolean = false) {
         cancelled = true;
       };
     }
-  }, [lookupChain, provider, signerAddress, dispatch, nft, tokenAccounts.data]);
+  }, [lookupChain, provider, signerAddress, dispatch, nft, covalent]);
 
   //Terra accounts load
   //At present, we don't have any mechanism for doing this.
