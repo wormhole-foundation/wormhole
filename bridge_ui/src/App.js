@@ -22,7 +22,7 @@ import NFT from "./components/NFT";
 import Transfer from "./components/Transfer";
 import Migration from "./components/Migration";
 import wormholeLogo from "./icons/wormhole.svg";
-import { ENABLE_NFT } from "./utils/consts";
+import { CLUSTER, ENABLE_NFT } from "./utils/consts";
 
 const useStyles = makeStyles((theme) => ({
   appBar: {
@@ -148,6 +148,13 @@ function App() {
           </Hidden>
         </Toolbar>
       </AppBar>
+      {CLUSTER === "mainnet" ? null : (
+        <AppBar position="static" color="secondary">
+          <Typography style={{ textAlign: "center" }}>
+            Caution! You are using the {CLUSTER} build of this app.
+          </Typography>
+        </AppBar>
+      )}
       <div className={classes.content}>
         <Switch>
           {ENABLE_NFT ? (
