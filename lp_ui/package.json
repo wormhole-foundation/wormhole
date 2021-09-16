@@ -26,7 +26,6 @@
     "typescript": "^4.4.2"
   },
   "scripts": {
-    "preinstall": "npm ci --prefix ../sdk/js && npm run build --prefix ../sdk/js",
     "start": "craco start",
     "build": "craco build",
     "test": "craco test",

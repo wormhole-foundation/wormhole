@@ -42,7 +42,6 @@
     "use-debounce": "^7.0.0"
   },
   "scripts": {
-    "preinstall": "npm ci --prefix ../sdk/js && npm run build --prefix ../sdk/js",
     "start": "craco start",
     "build": "craco build",
     "test": "craco test",
