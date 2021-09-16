@@ -6,14 +6,17 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import { LoggerProvider } from "./contexts/Logger";
 import { SolanaWalletProvider } from "./contexts/SolanaWalletContext";
 import { theme } from "./muiTheme";
+import { SnackbarProvider } from "notistack";
 ReactDOM.render(
   <ErrorBoundary>
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <SolanaWalletProvider>
-        <LoggerProvider>
-          <App />
-        </LoggerProvider>
+        <SnackbarProvider maxSnack={3}>
+          <LoggerProvider>
+            <App />
+          </LoggerProvider>
+        </SnackbarProvider>
       </SolanaWalletProvider>
     </ThemeProvider>
   </ErrorBoundary>,

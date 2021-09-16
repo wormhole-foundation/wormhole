@@ -5,15 +5,16 @@ import React, {
   useMemo,
   useState,
 } from "react";
+import { useSnackbar } from "notistack";
 
 interface LoggerContext {
-  log: (value: string) => void;
+  log: (value: string, type?: "error" | "info" | "success" | undefined) => void;
   clear: () => void;
   logs: string[];
 }
 
 const LoggerProviderContext = React.createContext<LoggerContext>({
-  log: (value: string) => {},
+  log: (value: string, type?: "error" | "info" | "success" | undefined) => {},
   clear: () => {},
   logs: [],
 });
@@ -21,11 +22,25 @@ const LoggerProviderContext = React.createContext<LoggerContext>({
 export const LoggerProvider = ({ children }: { children: ReactChildren }) => {
   const [logs, setLogs] = useState<string[]>([]);
   const clear = useCallback(() => setLogs([]), [setLogs]);
+  const { enqueueSnackbar } = useSnackbar();
+
   const log = useCallback(
-    (value: string) => {
-      setLogs((logs) => [...logs, value]);
+    (value: string, type?: "error" | "info" | "success" | undefined) => {
+      setLogs((logs: any) => [...logs, value]);
+      if (type === "error") {
+        console.error(value);
+        enqueueSnackbar(value, { variant: "error" });
+      } else if (type === "success") {
+        console.log(value);
+        enqueueSnackbar(value, { variant: "success" });
+      } else if (type === "info") {
+        console.log(value);
+        enqueueSnackbar(value, { variant: "info" });
+      } else {
+        console.log(value);
+      }
     },
-    [setLogs]
+    [setLogs, enqueueSnackbar]
   );
 
   const contextValue = useMemo(

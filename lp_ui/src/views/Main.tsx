@@ -54,13 +54,36 @@ const useStyles = makeStyles(() => ({
   divider: {
     margin: "2rem",
   },
+  spacer: {
+    height: "1rem",
+  },
 }));
+
+const compareWithDecimalOffset = (
+  valueA: string,
+  decimalsA: number,
+  valueB: string,
+  decimalsB: number
+) => {
+  //find which is larger, and offset by that amount
+  const decimalsBasis = decimalsA > decimalsB ? decimalsA : decimalsB;
+  const normalizedA = parseUnits(valueA, decimalsBasis).toBigInt();
+  const normalizedB = parseUnits(valueB, decimalsBasis).toBigInt();
+
+  if (normalizedA < normalizedB) {
+    return -1;
+  } else if (normalizedA === normalizedB) {
+    return 0;
+  } else {
+    return 1;
+  }
+};
 
 const getDecimals = async (
   connection: Connection,
   mint: string,
   setter: (decimals: number | undefined) => void,
-  log: (value: string) => void
+  log: (value: string, type?: "error" | "info" | "success" | undefined) => void
 ) => {
   setter(undefined);
   if (mint) {
@@ -81,7 +104,7 @@ const getBalance = async (
   connection: Connection,
   address: string | undefined,
   setter: (balance: string | undefined) => void,
-  log: (value: string) => void
+  log: (value: string, type?: "error" | "info" | "success" | undefined) => void
 ) => {
   setter(undefined);
   if (address) {
@@ -93,7 +116,7 @@ const getBalance = async (
       log(`${address} has a balance of ${balance}`);
       setter(balance);
     } catch (e) {
-      log(`Unable to determine balance of ${address}`);
+      log(`Unable to determine balance of ${address}`, "error");
     }
   }
 };
@@ -109,7 +132,9 @@ function Main() {
     undefined
   );
   const [toMintHolder, setToMintHolder] = useState("");
-  const [toMintDecimals, setToMintDecimals] = useState<any>(undefined);
+  const [toMintDecimals, setToMintDecimals] = useState<number | undefined>(
+    undefined
+  );
   const [shareMintAddress, setShareMintAddress] = useState<string | undefined>(
     undefined
   );
@@ -131,12 +156,21 @@ function Main() {
   const [fromTokenAccount, setFromTokenAccount] = useState<string | undefined>(
     undefined
   );
+  const [fromTokenAccountBalance, setFromTokenAccountBalance] = useState<
+    string | undefined
+  >();
   const [toTokenAccount, setToTokenAccount] = useState<string | undefined>(
     undefined
   );
+  const [toTokenAccountBalance, setToTokenAccountBalance] = useState<
+    string | undefined
+  >();
   const [shareTokenAccount, setShareTokenAccount] = useState<
     string | undefined
   >(undefined);
+  const [shareTokenAccountBalance, setShareTokenAccountBalance] = useState<
+    string | undefined
+  >();
 
   //These hooks detect if the connected wallet has the requisite token accounts
   const {
@@ -229,6 +263,27 @@ function Main() {
     }
   }, [connection, toCustodyAddress, log]);
 
+  useEffect(() => {
+    if (fromTokenAccountExists) {
+      getBalance(connection, fromTokenAccount, setFromTokenAccountBalance, log);
+    }
+  }, [connection, fromTokenAccount, fromTokenAccountExists, log]);
+  useEffect(() => {
+    if (toTokenAccountExists) {
+      getBalance(connection, toTokenAccount, setToTokenAccountBalance, log);
+    }
+  }, [connection, toTokenAccount, toTokenAccountExists, log]);
+  useEffect(() => {
+    if (shareTokenAccountExists) {
+      getBalance(
+        connection,
+        shareTokenAccount,
+        setShareTokenAccountBalance,
+        log
+      );
+    }
+  }, [connection, shareTokenAccount, shareTokenAccountExists, log]);
+
   //Retrieve pool address on selectedTokens change
   useEffect(() => {
     if (toMint && fromMint) {
@@ -242,7 +297,7 @@ function Main() {
           log("Calculated the pool address at: " + key);
           setPoolAddress(key);
         },
-        (error) => log("ERROR, could not calculate pool address.")
+        (error) => log("Could not calculate pool address.", "error")
       );
     }
   }, [log, toMint, fromMint, setPoolAddress]);
@@ -267,7 +322,7 @@ function Main() {
             parsePool(result[0].data).then(
               (parsed) => setParsedPoolData(parsed),
               (error) => {
-                log("Failed to parse the pool data.");
+                log("Failed to parse the pool data.", "error");
                 console.error(error);
               }
             );
@@ -279,12 +334,13 @@ function Main() {
             setPoolAccountInfo(null);
           } else {
             log(
-              "unexpected error in fetching pool address. Please reload and try again"
+              "unexpected error in fetching pool address. Please reload and try again",
+              "error"
             );
           }
         });
       } catch (e) {
-        log("Could not fetch pool address");
+        log("Could not fetch pool address", "error");
       }
     }
   }, [connection, log, poolAddress, poolAccountInfo]);
@@ -365,6 +421,37 @@ function Main() {
   and then potentially update something on the state.
 
   */
+  const refreshPoolBalances = useCallback(() => {
+    getBalance(connection, fromCustodyAddress, setFromCustodyBalance, log);
+    getBalance(connection, toCustodyAddress, setToCustodyBalance, log);
+  }, [connection, fromCustodyAddress, toCustodyAddress, log]);
+
+  const refreshWalletBalances = useCallback(() => {
+    if (fromTokenAccountExists) {
+      getBalance(connection, fromTokenAccount, setFromTokenAccountBalance, log);
+    }
+    if (toTokenAccountExists) {
+      getBalance(connection, toTokenAccount, setToTokenAccountBalance, log);
+    }
+    if (shareTokenAccountExists) {
+      getBalance(
+        connection,
+        shareTokenAccount,
+        setShareTokenAccountBalance,
+        log
+      );
+    }
+  }, [
+    connection,
+    fromTokenAccount,
+    toTokenAccount,
+    shareTokenAccount,
+    fromTokenAccountExists,
+    toTokenAccountExists,
+    shareTokenAccountExists,
+    log,
+  ]);
+
   const createPool = useCallback(async () => {
     console.log(
       "createPool with these args",
@@ -388,17 +475,17 @@ function Main() {
         (transaction: any) => {
           setPoolExists(undefined); //Set these to null to force a fetch on them
           setPoolAccountInfo(undefined);
-          log("Successfully created the pool.");
+          log("Successfully created the pool.", "success");
           setCreatePoolIsProcessing(false);
         },
         (error) => {
-          log("Could not create the pool");
+          log("Could not create the pool", "error");
           console.error(error);
           setCreatePoolIsProcessing(false);
         }
       );
     } catch (e) {
-      log("Failed to create the pool.");
+      log("Failed to create the pool.", "error");
       console.error(e);
       setCreatePoolIsProcessing(false);
     }
@@ -419,7 +506,7 @@ function Main() {
       setLiquidityIsProcessing(true);
       signSendAndConfirm(wallet, connection, instruction).then(
         (transaction: any) => {
-          log("Successfully added liquidity to the pool.");
+          log("Successfully added liquidity to the pool.", "success");
           getBalance(
             connection,
             fromCustodyAddress,
@@ -427,16 +514,17 @@ function Main() {
             log
           );
           getBalance(connection, toCustodyAddress, setToCustodyBalance, log);
+          refreshWalletBalances();
           setLiquidityIsProcessing(false);
         },
         (error) => {
-          log("Could not complete the addLiquidity transaction");
+          log("Could not complete the addLiquidity transaction", "error");
           console.error(error);
           setLiquidityIsProcessing(false);
         }
       );
     } catch (e) {
-      log("Could not complete the addLiquidity transaction");
+      log("Could not complete the addLiquidity transaction", "error");
       console.error(e);
       setLiquidityIsProcessing(false);
     }
@@ -452,6 +540,7 @@ function Main() {
     toMintDecimals,
     fromCustodyAddress,
     toCustodyAddress,
+    refreshWalletBalances,
   ]);
 
   const removeLiquidity = useCallback(async () => {
@@ -469,7 +558,7 @@ function Main() {
       setRemoveLiquidityIsProcessing(true);
       signSendAndConfirm(wallet, connection, instruction).then(
         (transaction: any) => {
-          log("Successfully removed liquidity to the pool.");
+          log("Successfully removed liquidity to the pool.", "success");
           getBalance(
             connection,
             fromCustodyAddress,
@@ -477,16 +566,17 @@ function Main() {
             log
           );
           getBalance(connection, toCustodyAddress, setToCustodyBalance, log);
+          refreshWalletBalances();
           setRemoveLiquidityIsProcessing(false);
         },
         (error) => {
-          log("Could not complete the removeLiquidity transaction");
+          log("Could not complete the removeLiquidity transaction", "error");
           console.error(error);
           setRemoveLiquidityIsProcessing(false);
         }
       );
     } catch (e) {
-      log("Could not complete the removeLiquidity transaction");
+      log("Could not complete the removeLiquidity transaction", "error");
       console.error(e);
       setRemoveLiquidityIsProcessing(false);
     }
@@ -502,6 +592,7 @@ function Main() {
     shareMintDecimals,
     fromCustodyAddress,
     toCustodyAddress,
+    refreshWalletBalances,
   ]);
 
   const migrateTokens = useCallback(async () => {
@@ -519,7 +610,7 @@ function Main() {
       setMigrationIsProcessing(true);
       signSendAndConfirm(wallet, connection, instruction).then(
         (transaction: any) => {
-          log("Successfully migrated the tokens.");
+          log("Successfully migrated the tokens.", "success");
           getBalance(
             connection,
             fromCustodyAddress,
@@ -527,16 +618,17 @@ function Main() {
             log
           );
           getBalance(connection, toCustodyAddress, setToCustodyBalance, log);
+          refreshWalletBalances();
           setMigrationIsProcessing(false);
         },
         (error) => {
-          log("Could not complete the migrateTokens transaction.");
+          log("Could not complete the migrateTokens transaction.", "error");
           console.error(error);
           setMigrationIsProcessing(false);
         }
       );
     } catch (e) {
-      log("Could not complete the migrateTokens transaction.");
+      log("Could not complete the migrateTokens transaction.", "error");
       console.error(e);
       setMigrationIsProcessing(false);
     }
@@ -552,6 +644,7 @@ function Main() {
     fromMintDecimals,
     fromCustodyAddress,
     toCustodyAddress,
+    refreshWalletBalances,
   ]);
 
   const redeemShares = useCallback(async () => {
@@ -569,7 +662,7 @@ function Main() {
       setRedeemIsProcessing(true);
       signSendAndConfirm(wallet, connection, instruction).then(
         (transaction: any) => {
-          log("Successfully redeemed the shares.");
+          log("Successfully redeemed the shares.", "success");
           getBalance(
             connection,
             fromCustodyAddress,
@@ -577,16 +670,17 @@ function Main() {
             log
           );
           getBalance(connection, toCustodyAddress, setToCustodyBalance, log);
+          refreshWalletBalances();
           setRedeemIsProcessing(false);
         },
         (error) => {
-          log("Could not complete the claimShares transaction.");
+          log("Could not complete the claimShares transaction.", "error");
           console.error(error);
           setRedeemIsProcessing(false);
         }
       );
     } catch (e) {
-      log("Could not complete the claimShares transaction.");
+      log("Could not complete the claimShares transaction.", "error");
       console.error(e);
       setRedeemIsProcessing(false);
     }
@@ -602,6 +696,7 @@ function Main() {
     shareMintDecimals,
     fromCustodyAddress,
     toCustodyAddress,
+    refreshWalletBalances,
   ]);
   /*
   End actions!
@@ -645,6 +740,18 @@ function Main() {
     </div>
   );
 
+  const addLiquidityIsReady =
+    poolExists &&
+    shareTokenAccountExists &&
+    toTokenAccountBalance &&
+    liquidityAmount &&
+    toMintDecimals &&
+    compareWithDecimalOffset(
+      liquidityAmount,
+      toMintDecimals,
+      toTokenAccountBalance,
+      toMintDecimals
+    ) !== 1;
   const addLiquidityUI = (
     <>
       <Typography variant="h4">Add Liquidity</Typography>
@@ -661,7 +768,7 @@ function Main() {
       <Button
         variant="contained"
         onClick={addLiquidity}
-        disabled={liquidityIsProcessing}
+        disabled={liquidityIsProcessing || !addLiquidityIsReady}
       >
         Add Liquidity
       </Button>
@@ -669,6 +776,19 @@ function Main() {
     </>
   );
 
+  const removeLiquidityIsReady =
+    poolExists &&
+    shareTokenAccountBalance &&
+    toCustodyBalance &&
+    removeLiquidityAmount &&
+    toMintDecimals &&
+    shareMintDecimals &&
+    compareWithDecimalOffset(
+      removeLiquidityAmount,
+      shareMintDecimals,
+      toCustodyBalance,
+      toMintDecimals
+    ) !== 1;
   const removeLiquidityUI = (
     <>
       <Typography variant="h4">Remove Liquidity</Typography>
@@ -685,7 +805,7 @@ function Main() {
       <Button
         variant="contained"
         onClick={removeLiquidity}
-        disabled={removeLiquidityIsProcessing}
+        disabled={removeLiquidityIsProcessing || !removeLiquidityIsReady}
       >
         Remove Liquidity
       </Button>
@@ -693,6 +813,19 @@ function Main() {
     </>
   );
 
+  const migrateIsReady =
+    poolExists &&
+    fromTokenAccountBalance &&
+    toCustodyBalance &&
+    migrationAmount &&
+    toMintDecimals &&
+    fromMintDecimals &&
+    compareWithDecimalOffset(
+      migrationAmount,
+      fromMintDecimals,
+      toCustodyBalance,
+      toMintDecimals
+    ) !== 1;
   const migrateTokensUI = (
     <>
       <Typography variant="h4">Migrate Tokens</Typography>
@@ -709,7 +842,7 @@ function Main() {
       <Button
         variant="contained"
         onClick={migrateTokens}
-        disabled={migrationIsProcessing}
+        disabled={migrationIsProcessing || !migrateIsReady}
       >
         Migrate Tokens
       </Button>
@@ -717,6 +850,19 @@ function Main() {
     </>
   );
 
+  const redeemIsReady =
+    poolExists &&
+    fromCustodyBalance &&
+    shareTokenAccountBalance &&
+    redeemAmount &&
+    shareMintDecimals &&
+    fromMintDecimals &&
+    compareWithDecimalOffset(
+      redeemAmount,
+      shareMintDecimals,
+      fromCustodyBalance,
+      fromMintDecimals
+    ) !== 1;
   const redeemSharesUI = (
     <>
       <Typography variant="h4">Redeem Shares</Typography>
@@ -733,7 +879,7 @@ function Main() {
       <Button
         variant="contained"
         onClick={redeemShares}
-        disabled={redeemIsProcessing}
+        disabled={redeemIsProcessing || !redeemIsReady}
       >
         Redeem Shares
       </Button>
@@ -753,6 +899,10 @@ function Main() {
         associatedAccountExists={fromTokenAccountExists}
         setAssociatedAccountExists={setFromTokenAccountExists}
       />
+      {fromTokenAccountExists ? (
+        <Typography>Balance: {fromTokenAccountBalance}</Typography>
+      ) : null}
+      <div className={classes.spacer} />
       <Typography variant="body1">
         {"'To' SPL Token Account: " + toTokenAccount}
       </Typography>
@@ -762,6 +912,10 @@ function Main() {
         associatedAccountExists={toTokenAccountExists}
         setAssociatedAccountExists={setToTokenAccountExists}
       />
+      {toTokenAccountExists ? (
+        <Typography>Balance: {toTokenAccountBalance}</Typography>
+      ) : null}
+      <div className={classes.spacer} />
       <Typography variant="body1">
         {"Share SPL Token Account: " + shareTokenAccount}
       </Typography>
@@ -771,6 +925,13 @@ function Main() {
         associatedAccountExists={shareTokenAccountExists}
         setAssociatedAccountExists={setShareTokenAccountExists}
       />
+      {shareTokenAccountExists ? (
+        <Typography>Balance: {shareTokenAccountBalance}</Typography>
+      ) : null}
+      <div className={classes.spacer} />
+      <Button variant="outlined" onClick={refreshWalletBalances}>
+        Refresh Account Balances
+      </Button>
     </>
   );
 
@@ -810,12 +971,16 @@ function Main() {
       <Divider className={classes.divider} />
       {poolInfo}
       {createPoolButton}
+      <Divider className={classes.divider} />
+      {relevantTokenAccounts}
+      <Divider className={classes.divider} />
       <Typography>'From' Balance In Pool</Typography>
       <Typography>{fromCustodyBalance}</Typography>
       <Typography>'To' Balance In Pool</Typography>
       <Typography>{toCustodyBalance}</Typography>
-      <Divider className={classes.divider} />
-      {relevantTokenAccounts}
+      <Button variant="outlined" onClick={refreshPoolBalances}>
+        Reload Balances
+      </Button>
       <Divider className={classes.divider} />
       {addLiquidityUI}
       <Divider className={classes.divider} />
