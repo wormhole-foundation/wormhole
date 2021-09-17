@@ -66,6 +66,9 @@ func (s *PublicrpcServer) GetSignedVAA(ctx context.Context, req *publicrpcv1.Get
 	if len(address) != 32 {
 		return nil, status.Error(codes.InvalidArgument, "address must be 32 bytes")
 	}
+	if req.MessageId == nil {
+		return nil, status.Error(codes.InvalidArgument, "no message ID specified")
+	}
 
 	addr := vaa.Address{}
 	copy(addr[:], address)
