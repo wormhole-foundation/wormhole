@@ -45,6 +45,23 @@ function Home() {
         <Typography variant="h3" className={classes.header}>
           The portal is open.
         </Typography>
+        <Typography variant="h5" gutterBottom>
+          Wormhole v2 is here!
+        </Typography>
+        <Typography variant="subtitle1" gutterBottom>
+          If you transferred assets using the previous version of Wormhole, most
+          assets can be migrated to v2 on the{" "}
+          <Link component={RouterLink} to="/transfer" color="secondary">
+            transfer page
+          </Link>
+          .
+        </Typography>
+        <Typography variant="subtitle1" className={classes.header}>
+          For assets that don't support the migration, the v1 UI can be found at{" "}
+          <Link href="https://v1.wormholebridge.com" color="secondary">
+            v1.wormholebridge.com
+          </Link>
+        </Typography>
         <Typography variant="h6" className={classes.description}>
           The Wormhole Token Bridge allows you to seamlessly transfer tokenized
           assets across Solana and Ethereum.
