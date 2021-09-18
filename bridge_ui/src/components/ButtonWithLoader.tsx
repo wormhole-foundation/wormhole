@@ -63,7 +63,7 @@ export default function ButtonWithLoader({
         ) : null}
       </div>
       {error ? (
-        <Typography color="error" className={classes.error}>
+        <Typography variant="body2" color="error" className={classes.error}>
           {error}
         </Typography>
       ) : null}

@@ -7,6 +7,7 @@ import {
 } from "../../store/selectors";
 import { CHAINS_BY_ID } from "../../utils/consts";
 import { shortenAddress } from "../../utils/solana";
+import TokenBlacklistWarning from "./TokenBlacklistWarning";
 
 const useStyles = makeStyles((theme) => ({
   description: {
@@ -35,12 +36,19 @@ export default function SourcePreview() {
     : "Step complete.";
 
   return (
-    <Typography
-      component="div"
-      variant="subtitle2"
-      className={classes.description}
-    >
-      {explainerString}
-    </Typography>
+    <>
+      <Typography
+        component="div"
+        variant="subtitle2"
+        className={classes.description}
+      >
+        {explainerString}
+      </Typography>
+      <TokenBlacklistWarning
+        sourceChain={sourceChain}
+        tokenAddress={sourceParsedTokenAccount?.mintKey}
+        symbol={sourceParsedTokenAccount?.symbol}
+      />
+    </>
   );
 }

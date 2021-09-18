@@ -197,11 +197,12 @@ export const SOLANA_TOKENS_THAT_EXIST_ELSEWHERE = [
   "ArUkYE2XDKzqy77PRRGjo4wREWwqk6RXTfM9NeqzPvjU", // renDOGE
   "E99CQ2gFMmbiyK2bwiaFNWUUmwz4r8k2CVEFxwuvQ7ue", // renZEC
   "De2bU64vsXKU9jq4bCjeDxNRGPn8nr3euaTK8jBYmD3J", // renFIL
+  "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB", // USDT
 ];
 export const ETH_TOKENS_THAT_EXIST_ELSEWHERE = [
-  getAddress("0x476c5E26a75bd202a9683ffD34359C0CC15be0fF"), //  SRM
-  getAddress("0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"), //  USDC
-  getAddress("0x818fc6c2ec5986bc6e2cbf00939d90556ab12ce5"), //  KIN
+  getAddress("0x476c5E26a75bd202a9683ffD34359C0CC15be0fF"), // SRM
+  getAddress("0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"), // USDC
+  getAddress("0x818fc6c2ec5986bc6e2cbf00939d90556ab12ce5"), // KIN
   getAddress("0xeb4c2781e4eba804ce9a9803c67d0893436bb27d"), // renBTC
   getAddress("0x52d87F22192131636F93c5AB18d0127Ea52CB641"), // renLUNA
   getAddress("0x459086f2376525bdceba5bdda135e4e9d3fef5bf"), // renBCH
@@ -209,6 +210,7 @@ export const ETH_TOKENS_THAT_EXIST_ELSEWHERE = [
   getAddress("0x3832d2F059E55934220881F831bE501D180671A7"), // renDOGE
   getAddress("0x1c5db575e2ff833e46a2e9864c22f4b22e0b37c2"), // renZEC
   getAddress("0xD5147bc8e386d91Cc5DBE72099DAC6C9b99276F5"), // renFIL
+  getAddress("0xdac17f958d2ee523a2206206994597c13d831ec7"), // USDT
 ];
 
 export const MIGRATION_PROGRAM_ADDRESS =

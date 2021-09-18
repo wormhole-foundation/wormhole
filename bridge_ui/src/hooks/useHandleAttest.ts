@@ -21,7 +21,7 @@ import {
 import { useSnackbar } from "notistack";
 import { useCallback, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { Signer } from "../../../sdk/js/node_modules/ethers/lib";
+import { Signer } from "ethers";
 import { useEthereumProvider } from "../contexts/EthereumProviderContext";
 import { useSolanaWallet } from "../contexts/SolanaWalletContext";
 import {

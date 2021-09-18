@@ -11,7 +11,8 @@ import {
 
 export default function useTokenBlacklistWarning(
   chainId: ChainId,
-  tokenAddress: string | undefined
+  tokenAddress: string | undefined,
+  symbol: string | undefined
 ) {
   return useMemo(
     () =>
@@ -20,8 +21,12 @@ export default function useTokenBlacklistWarning(
         SOLANA_TOKENS_THAT_EXIST_ELSEWHERE.includes(tokenAddress)) ||
         (chainId === CHAIN_ID_ETH &&
           ETH_TOKENS_THAT_EXIST_ELSEWHERE.includes(tokenAddress)))
-        ? "This token exists on multiple chains! Bridging the token via Wormhole will produce a wrapped version which might have no liquidity on the target chain."
+        ? `Bridging ${
+            symbol ? symbol : "the token"
+          } via Wormhole will not produce native ${
+            symbol ? symbol : "assets"
+          }. It will produce a wrapped version which might have no liquidity or utility on the target chain.`
         : undefined,
-    [chainId, tokenAddress]
+    [chainId, tokenAddress, symbol]
   );
 }

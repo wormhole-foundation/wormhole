@@ -40,7 +40,7 @@ function Send() {
         Transfer the NFT to the Wormhole Token Bridge.
       </StepDescription>
       <KeyAndBalance chainId={sourceChain} />
-      <Alert severity="warning">
+      <Alert severity="info">
         This will initiate the transfer on {CHAINS_BY_ID[sourceChain].name} and
         wait for finalization. If you navigate away from this page before
         completing Step 4, you will have to perform the recovery workflow to

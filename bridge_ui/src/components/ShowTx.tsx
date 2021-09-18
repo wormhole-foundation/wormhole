@@ -25,7 +25,10 @@ export default function ShowTx({
   tx: Transaction;
 }) {
   const classes = useStyles();
-  const showExplorerLink = CLUSTER === "testnet" || CLUSTER === "mainnet";
+  const showExplorerLink =
+    CLUSTER === "testnet" ||
+    CLUSTER === "mainnet" ||
+    (CLUSTER === "devnet" && chainId === CHAIN_ID_SOLANA);
   const explorerAddress =
     chainId === CHAIN_ID_ETH
       ? `https://${CLUSTER === "testnet" ? "goerli." : ""}etherscan.io/tx/${
@@ -33,7 +36,11 @@ export default function ShowTx({
         }`
       : chainId === CHAIN_ID_SOLANA
       ? `https://explorer.solana.com/tx/${tx?.id}${
-          CLUSTER === "testnet" ? "?cluster=testnet" : ""
+          CLUSTER === "testnet"
+            ? "?cluster=testnet"
+            : CLUSTER === "devnet"
+            ? "?cluster=custom&customUrl=http%3A%2F%2Flocalhost%3A8899"
+            : ""
         }`
       : undefined;
   const explorerName = chainId === CHAIN_ID_ETH ? "Etherscan" : "Explorer";

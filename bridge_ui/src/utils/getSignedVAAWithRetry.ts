@@ -9,10 +9,13 @@ export const getNextRpcHost = () =>
 export async function getSignedVAAWithRetry(
   emitterChain: ChainId,
   emitterAddress: string,
-  sequence: string
+  sequence: string,
+  retryAttempts?: number
 ) {
   let result;
+  let attempts = 0;
   while (!result) {
+    attempts++;
     await new Promise((resolve) => setTimeout(resolve, 1000));
     try {
       result = await getSignedVAA(
@@ -22,7 +25,10 @@ export async function getSignedVAAWithRetry(
         sequence
       );
     } catch (e) {
-      console.log(e);
+      console.log(`Attempt ${attempts}: `, e);
+      if (retryAttempts !== undefined && attempts > retryAttempts) {
+        throw e;
+      }
     }
   }
   return result;

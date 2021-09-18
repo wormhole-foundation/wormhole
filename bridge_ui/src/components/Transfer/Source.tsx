@@ -5,7 +5,6 @@ import { useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useHistory } from "react-router";
 import useIsWalletReady from "../../hooks/useIsWalletReady";
-import useTokenBlacklistWarning from "../../hooks/useTokenBlacklistWarning";
 import {
   selectTransferAmount,
   selectTransferIsSourceComplete,
@@ -25,6 +24,7 @@ import ButtonWithLoader from "../ButtonWithLoader";
 import KeyAndBalance from "../KeyAndBalance";
 import StepDescription from "../StepDescription";
 import { TokenSelector } from "../TokenSelectors/SourceTokenSelector";
+import TokenBlacklistWarning from "./TokenBlacklistWarning";
 
 const useStyles = makeStyles((theme) => ({
   transferField: {
@@ -55,10 +55,6 @@ function Source({
   const isSourceComplete = useSelector(selectTransferIsSourceComplete);
   const shouldLockFields = useSelector(selectTransferShouldLockFields);
   const { isReady, statusMessage } = useIsWalletReady(sourceChain);
-  const tokenBlacklistWarning = useTokenBlacklistWarning(
-    sourceChain,
-    parsedTokenAccount?.mintKey
-  );
   const handleMigrationClick = useCallback(() => {
     parsedTokenAccount?.mintKey &&
       history.push("/migrate/" + parsedTokenAccount.mintKey);
@@ -124,6 +120,11 @@ function Source({
         </Button>
       ) : (
         <>
+          <TokenBlacklistWarning
+            sourceChain={sourceChain}
+            tokenAddress={parsedTokenAccount?.mintKey}
+            symbol={parsedTokenAccount?.symbol}
+          />
           {hasParsedTokenAccount ? (
             <TextField
               label="Amount"
@@ -139,7 +140,7 @@ function Source({
             disabled={!isSourceComplete}
             onClick={handleNextClick}
             showLoader={false}
-            error={statusMessage || error || tokenBlacklistWarning}
+            error={statusMessage || error}
           >
             Next
           </ButtonWithLoader>

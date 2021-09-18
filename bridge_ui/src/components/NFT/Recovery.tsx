@@ -5,7 +5,6 @@ import {
   CHAIN_ID_SOLANA,
   getEmitterAddressEth,
   getEmitterAddressSolana,
-  getSignedVAA,
   parseSequenceFromLogEth,
   parseSequenceFromLogSolana,
 } from "@certusone/wormhole-sdk";
@@ -31,11 +30,11 @@ import { BigNumber, ethers } from "ethers";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useEthereumProvider } from "../../contexts/EthereumProviderContext";
+import { setSignedVAAHex, setStep, setTargetChain } from "../../store/nftSlice";
 import {
   selectNFTSignedVAAHex,
   selectNFTSourceChain,
 } from "../../store/selectors";
-import { setSignedVAAHex, setStep, setTargetChain } from "../../store/nftSlice";
 import {
   hexToNativeString,
   hexToUint8Array,
@@ -49,9 +48,9 @@ import {
   SOL_NFT_BRIDGE_ADDRESS,
   WORMHOLE_RPC_HOSTS,
 } from "../../utils/consts";
-import KeyAndBalance from "../KeyAndBalance";
+import { getSignedVAAWithRetry } from "../../utils/getSignedVAAWithRetry";
 import { METADATA_REPLACE } from "../../utils/metaplex";
-import { getNextRpcHost } from "../../utils/getSignedVAAWithRetry";
+import KeyAndBalance from "../KeyAndBalance";
 
 const useStyles = makeStyles((theme) => ({
   fab: {
@@ -66,11 +65,11 @@ async function eth(provider: ethers.providers.Web3Provider, tx: string) {
     const receipt = await provider.getTransactionReceipt(tx);
     const sequence = parseSequenceFromLogEth(receipt, ETH_BRIDGE_ADDRESS);
     const emitterAddress = getEmitterAddressEth(ETH_NFT_BRIDGE_ADDRESS);
-    const { vaaBytes } = await getSignedVAA(
-      WORMHOLE_RPC_HOSTS[getNextRpcHost()],
+    const { vaaBytes } = await getSignedVAAWithRetry(
       CHAIN_ID_ETH,
       emitterAddress,
-      sequence.toString()
+      sequence.toString(),
+      WORMHOLE_RPC_HOSTS.length
     );
     return uint8ArrayToHex(vaaBytes);
   } catch (e) {
@@ -90,11 +89,11 @@ async function solana(tx: string) {
     const emitterAddress = await getEmitterAddressSolana(
       SOL_NFT_BRIDGE_ADDRESS
     );
-    const { vaaBytes } = await getSignedVAA(
-      WORMHOLE_RPC_HOSTS[getNextRpcHost()],
+    const { vaaBytes } = await getSignedVAAWithRetry(
       CHAIN_ID_SOLANA,
       emitterAddress,
-      sequence.toString()
+      sequence.toString(),
+      WORMHOLE_RPC_HOSTS.length
     );
     return uint8ArrayToHex(vaaBytes);
   } catch (e) {
@@ -199,10 +198,10 @@ function RecoveryDialogContent({
     setRecoverySourceChain(event.target.value);
   }, []);
   const handleSourceTxChange = useCallback((event) => {
-    setRecoverySourceTx(event.target.value);
+    setRecoverySourceTx(event.target.value.trim());
   }, []);
   const handleSignedVAAChange = useCallback((event) => {
-    setRecoverySignedVAA(event.target.value);
+    setRecoverySignedVAA(event.target.value.trim());
   }, []);
   useEffect(() => {
     let cancelled = false;
