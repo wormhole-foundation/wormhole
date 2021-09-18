@@ -215,34 +215,10 @@ It is safe to expose the publicWeb port on signing nodes. For better resiliency 
 future guardiand releases will include listen-only mode such that multiple guardiand instances without guardian keys
 can be operated behind a load balancer.
 
-### systemd socket activation
-
-guardiand optionally supports systemd socket activation for unprivileged binding to port 443 and restarts
-with minimal downtime.
-
-It can be enabled by prefixing your `--publicWeb` endpoint by `sd:`. guardiand will then use the specified
-socket provided by systemd (e.g. `--publicWeb=sd:[::]:443`).
-
-You'll need a second systemd unit bound to your main `guardiand.service`:
-
-```
-# /etc/systemd/system/guardiand-web.socket
-
-[Socket]
-ListenStream=443
-Service=guardiand.service
-
-[Install]
-WantedBy=sockets.target
-```
-
-... and enable it: `systemctl enable --now guardiand-web.socket`. You need to restart `guardiand.service` as well.
-
 ### Binding to privileged ports
 
-If you want to bind `--publicWeb` to a port <1024 **without** using socket activation as described above, you need to assign
-the CAP_NET_BIND_SERVICE capability. This can be accomplished by either adding the capability to the binary
-(like in non-systemd environments):
+If you want to bind `--publicWeb` to a port <1024, you need to assign the CAP_NET_BIND_SERVICE capability.
+This can be accomplished by either adding the capability to the binary (like in non-systemd environments):
 
      sudo setcap cap_net_bind_service=+ep guardiand
 
