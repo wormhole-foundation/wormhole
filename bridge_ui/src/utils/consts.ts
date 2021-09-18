@@ -74,7 +74,7 @@ export const WORMHOLE_RPC_HOSTS =
   CLUSTER === "mainnet"
     ? [
         "https://wormhole-v2-mainnet-api.certus.one",
-        "https://wormhole.inotel.ro/",
+        "https://wormhole.inotel.ro",
       ]
     : CLUSTER === "testnet"
     ? ["https://wormhole-v2-testnet-api.certus.one"]
