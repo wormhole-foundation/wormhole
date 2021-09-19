@@ -22,6 +22,7 @@ import { useSolanaWallet } from "../../contexts/SolanaWalletContext";
 import useIsWalletReady from "../../hooks/useIsWalletReady";
 import useMetaplexData from "../../hooks/useMetaplexData";
 import useSolanaTokenMap from "../../hooks/useSolanaTokenMap";
+import { COLORS } from "../../muiTheme";
 import { MIGRATION_PROGRAM_ADDRESS, SOLANA_HOST } from "../../utils/consts";
 import { getMultipleAccounts, signSendAndConfirm } from "../../utils/solana";
 import ButtonWithLoader from "../ButtonWithLoader";
@@ -35,6 +36,7 @@ import SolanaWalletKey from "../SolanaWalletKey";
 
 const useStyles = makeStyles(() => ({
   mainPaper: {
+    backgroundColor: COLORS.nearBlackWithMinorTransparency,
     textAlign: "center",
     padding: "2rem",
     "& > h, p ": {

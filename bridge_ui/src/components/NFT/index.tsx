@@ -27,10 +27,11 @@ import Source from "./Source";
 import SourcePreview from "./SourcePreview";
 import Target from "./Target";
 import TargetPreview from "./TargetPreview";
+import { COLORS } from "../../muiTheme";
 
 const useStyles = makeStyles(() => ({
   rootContainer: {
-    backgroundColor: "rgba(0,0,0,0.2)",
+    backgroundColor: COLORS.nearBlackWithMinorTransparency,
   },
 }));
 

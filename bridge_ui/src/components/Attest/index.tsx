@@ -9,6 +9,7 @@ import {
 import { Alert } from "@material-ui/lab";
 import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { COLORS } from "../../muiTheme";
 import { setStep } from "../../store/attestSlice";
 import {
   selectAttestActiveStep,
@@ -28,7 +29,7 @@ import TargetPreview from "./TargetPreview";
 
 const useStyles = makeStyles(() => ({
   rootContainer: {
-    backgroundColor: "rgba(0,0,0,0.2)",
+    backgroundColor: COLORS.nearBlackWithMinorTransparency,
   },
 }));
 

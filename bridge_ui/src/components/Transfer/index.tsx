@@ -11,6 +11,7 @@ import { useDispatch, useSelector } from "react-redux";
 import useCheckIfWormholeWrapped from "../../hooks/useCheckIfWormholeWrapped";
 import useFetchTargetAsset from "../../hooks/useFetchTargetAsset";
 import useGetBalanceEffect from "../../hooks/useGetBalanceEffect";
+import { COLORS } from "../../muiTheme";
 import {
   selectTransferActiveStep,
   selectTransferIsRedeemComplete,
@@ -31,7 +32,7 @@ import TargetPreview from "./TargetPreview";
 
 const useStyles = makeStyles(() => ({
   rootContainer: {
-    backgroundColor: "rgba(0,0,0,0.2)",
+    backgroundColor: COLORS.nearBlackWithMinorTransparency,
   },
 }));
 
