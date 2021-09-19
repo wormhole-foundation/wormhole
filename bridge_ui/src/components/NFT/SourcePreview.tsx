@@ -5,7 +5,7 @@ import {
   selectNFTSourceParsedTokenAccount,
 } from "../../store/selectors";
 import { CHAINS_BY_ID } from "../../utils/consts";
-import { shortenAddress } from "../../utils/solana";
+import SmartAddress from "../SmartAddress";
 import NFTViewer from "../TokenSelectors/NFTViewer";
 
 const useStyles = makeStyles((theme) => ({
@@ -21,13 +21,24 @@ export default function SourcePreview() {
     selectNFTSourceParsedTokenAccount
   );
 
-  const explainerString = sourceParsedTokenAccount
-    ? `You will transfer 1 NFT of ${shortenAddress(
-        sourceParsedTokenAccount?.mintKey
-      )}, from ${shortenAddress(sourceParsedTokenAccount?.publicKey)} on ${
-        CHAINS_BY_ID[sourceChain].name
-      }`
-    : "Step complete.";
+  const explainerContent =
+    sourceChain && sourceParsedTokenAccount ? (
+      <>
+        <span>You will transfer 1 NFT of</span>
+        <SmartAddress
+          chainId={sourceChain}
+          parsedTokenAccount={sourceParsedTokenAccount}
+        />
+        <span>from</span>
+        <SmartAddress
+          chainId={sourceChain}
+          address={sourceParsedTokenAccount?.publicKey}
+        />
+        <span>on {CHAINS_BY_ID[sourceChain].name}</span>
+      </>
+    ) : (
+      ""
+    );
 
   return (
     <>
@@ -36,7 +47,7 @@ export default function SourcePreview() {
         variant="subtitle2"
         className={classes.description}
       >
-        {explainerString}
+        {explainerContent}
       </Typography>
       {sourceParsedTokenAccount ? (
         <NFTViewer value={sourceParsedTokenAccount} />

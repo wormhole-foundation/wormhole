@@ -5,7 +5,7 @@ import {
   selectAttestSourceChain,
 } from "../../store/selectors";
 import { CHAINS_BY_ID } from "../../utils/consts";
-import { shortenAddress } from "../../utils/solana";
+import SmartAddress from "../SmartAddress";
 
 const useStyles = makeStyles((theme) => ({
   description: {
@@ -18,11 +18,16 @@ export default function SourcePreview() {
   const sourceChain = useSelector(selectAttestSourceChain);
   const sourceAsset = useSelector(selectAttestSourceAsset);
 
-  const explainerString = sourceAsset
-    ? `You will attest ${shortenAddress(sourceAsset)} on ${
-        CHAINS_BY_ID[sourceChain].name
-      }`
-    : "Step complete.";
+  const explainerContent =
+    sourceChain && sourceAsset ? (
+      <>
+        <span>You will attest</span>
+        <SmartAddress chainId={sourceChain} address={sourceAsset} />
+        <span>on {CHAINS_BY_ID[sourceChain].name}</span>
+      </>
+    ) : (
+      ""
+    );
 
   return (
     <Typography
@@ -30,7 +35,7 @@ export default function SourcePreview() {
       variant="subtitle2"
       className={classes.description}
     >
-      {explainerString}
+      {explainerContent}
     </Typography>
   );
 }

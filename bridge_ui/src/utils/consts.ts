@@ -317,7 +317,7 @@ export const MIGRATION_ASSET_MAP = new Map<string, string>(
     : [
         // [
         //   "2WDq7wSs9zYrpx2kbHDA4RUTRch2CCTP6ZWaH4GNfnQQ",
-        //   "ApgUoB1467PXXofoLWFELH2Kz9DKB8WXdU2szGSsFKhX",
+        //   "GcdupcwxkmVGM6s9F8bHSjNoznXAb3hRJTioABNYkn31",
         // ],
       ]
 );

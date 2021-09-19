@@ -6,7 +6,7 @@ import {
 } from "../../store/selectors";
 import { hexToNativeString } from "../../utils/array";
 import { CHAINS_BY_ID } from "../../utils/consts";
-import { shortenAddress } from "../../utils/solana";
+import SmartAddress from "../SmartAddress";
 
 const useStyles = makeStyles((theme) => ({
   description: {
@@ -20,11 +20,16 @@ export default function TargetPreview() {
   const targetAddress = useSelector(selectTransferTargetAddressHex);
   const targetAddressNative = hexToNativeString(targetAddress, targetChain);
 
-  const explainerString = targetAddressNative
-    ? `to ${shortenAddress(targetAddressNative)} on ${
-        CHAINS_BY_ID[targetChain].name
-      }`
-    : "Step complete.";
+  const explainerContent =
+    targetChain && targetAddressNative ? (
+      <>
+        <span>to</span>
+        <SmartAddress chainId={targetChain} address={targetAddressNative} />
+        <span>on {CHAINS_BY_ID[targetChain].name}</span>
+      </>
+    ) : (
+      ""
+    );
 
   return (
     <Typography
@@ -32,7 +37,7 @@ export default function TargetPreview() {
       variant="subtitle2"
       className={classes.description}
     >
-      {explainerString}
+      {explainerContent}
     </Typography>
   );
 }

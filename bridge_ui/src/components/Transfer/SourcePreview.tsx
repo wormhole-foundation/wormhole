@@ -6,7 +6,7 @@ import {
   selectTransferSourceParsedTokenAccount,
 } from "../../store/selectors";
 import { CHAINS_BY_ID } from "../../utils/consts";
-import { shortenAddress } from "../../utils/solana";
+import SmartAddress from "../SmartAddress";
 import TokenBlacklistWarning from "./TokenBlacklistWarning";
 
 const useStyles = makeStyles((theme) => ({
@@ -23,22 +23,19 @@ export default function SourcePreview() {
   );
   const sourceAmount = useSelector(selectTransferAmount);
 
-  const plural = parseInt(sourceAmount) !== 1;
-
-  const tokenExplainer = !sourceParsedTokenAccount
-    ? ""
-    : sourceParsedTokenAccount.isNativeAsset
-    ? sourceParsedTokenAccount.symbol
-    : `token${plural ? "s" : ""} of ${
-        sourceParsedTokenAccount.symbol ||
-        shortenAddress(sourceParsedTokenAccount.mintKey)
-      }`;
-
-  const explainerString = sourceParsedTokenAccount
-    ? `You will transfer ${sourceAmount} ${tokenExplainer}, from ${shortenAddress(
-        sourceParsedTokenAccount?.publicKey
-      )} on ${CHAINS_BY_ID[sourceChain].name}`
-    : "";
+  const explainerContent =
+    sourceChain && sourceParsedTokenAccount ? (
+      <>
+        <span>You will transfer {sourceAmount}</span>
+        <SmartAddress
+          chainId={sourceChain}
+          parsedTokenAccount={sourceParsedTokenAccount}
+        />
+        <span>from {CHAINS_BY_ID[sourceChain].name}</span>
+      </>
+    ) : (
+      ""
+    );
 
   return (
     <>
@@ -47,7 +44,7 @@ export default function SourcePreview() {
         variant="subtitle2"
         className={classes.description}
       >
-        {explainerString}
+        {explainerContent}
       </Typography>
       <TokenBlacklistWarning
         sourceChain={sourceChain}
