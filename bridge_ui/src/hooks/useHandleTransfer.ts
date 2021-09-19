@@ -10,6 +10,7 @@ import {
   parseSequenceFromLogSolana,
   parseSequenceFromLogTerra,
   transferFromEth,
+  transferFromEthNative,
   transferFromSolana,
   transferFromTerra,
 } from "@certusone/wormhole-sdk";
@@ -66,19 +67,28 @@ async function eth(
   decimals: number,
   amount: string,
   recipientChain: ChainId,
-  recipientAddress: Uint8Array
+  recipientAddress: Uint8Array,
+  isNative: boolean
 ) {
   dispatch(setIsSending(true));
   try {
     const amountParsed = parseUnits(amount, decimals);
-    const receipt = await transferFromEth(
-      ETH_TOKEN_BRIDGE_ADDRESS,
-      signer,
-      tokenAddress,
-      amountParsed,
-      recipientChain,
-      recipientAddress
-    );
+    const receipt = isNative
+      ? await transferFromEthNative(
+          ETH_TOKEN_BRIDGE_ADDRESS,
+          signer,
+          amountParsed,
+          recipientChain,
+          recipientAddress
+        )
+      : await transferFromEth(
+          ETH_TOKEN_BRIDGE_ADDRESS,
+          signer,
+          tokenAddress,
+          amountParsed,
+          recipientChain,
+          recipientAddress
+        );
     dispatch(
       setTransferTx({ id: receipt.transactionHash, block: receipt.blockNumber })
     );
@@ -237,6 +247,7 @@ export function useHandleTransfer() {
   );
   const sourceTokenPublicKey = sourceParsedTokenAccount?.publicKey;
   const decimals = sourceParsedTokenAccount?.decimals;
+  const isNative = sourceParsedTokenAccount?.isNativeAsset || false;
   const disabled = !isTargetComplete || isSending || isSendComplete;
   const handleTransferClick = useCallback(() => {
     // TODO: we should separate state for transaction vs fetching vaa
@@ -255,7 +266,8 @@ export function useHandleTransfer() {
         decimals,
         amount,
         targetChain,
-        targetAddress
+        targetAddress,
+        isNative
       );
     } else if (
       sourceChain === CHAIN_ID_SOLANA &&
@@ -318,6 +330,7 @@ export function useHandleTransfer() {
     targetAddress,
     originAsset,
     originChain,
+    isNative,
   ]);
   return useMemo(
     () => ({

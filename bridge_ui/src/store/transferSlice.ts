@@ -27,6 +27,7 @@ export interface ParsedTokenAccount {
   symbol?: string;
   name?: string;
   logo?: string;
+  isNativeAsset?: boolean;
 }
 
 export interface Transaction {

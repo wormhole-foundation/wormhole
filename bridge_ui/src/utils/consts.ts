@@ -162,6 +162,14 @@ export const COVALENT_GET_TOKENS_URL = (
   }`;
 };
 
+export const WETH_ADDRESS =
+  CLUSTER === "mainnet"
+    ? "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
+    : CLUSTER === "testnet"
+    ? ""
+    : "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E";
+export const WETH_DECIMALS = 18;
+
 export const WORMHOLE_V1_ETH_ADDRESS =
   CLUSTER === "mainnet"
     ? "0xf92cD566Ea4864356C5491c177A430C222d7e678"

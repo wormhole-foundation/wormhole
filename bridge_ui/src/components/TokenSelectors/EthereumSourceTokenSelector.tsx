@@ -43,6 +43,20 @@ const useStyles = makeStyles(() =>
   })
 );
 
+const getSymbol = (account: ParsedTokenAccount | null) => {
+  if (!account) {
+    return undefined;
+  }
+  return account.symbol;
+};
+
+const getLogo = (account: ParsedTokenAccount | null) => {
+  if (!account) {
+    return undefined;
+  }
+  return account.logo;
+};
+
 const isWormholev1 = (provider: any, address: string) => {
   const connection = WormholeAbi__factory.connect(
     WORMHOLE_V1_ETH_ADDRESS,
@@ -67,8 +81,8 @@ const renderAccount = (
   classes: any
 ) => {
   const mintPrettyString = shortenAddress(account.mintKey);
-  const uri = covalentData?.logo_url;
-  const symbol = covalentData?.contract_ticker_symbol || "Unknown";
+  const uri = getLogo(account);
+  const symbol = getSymbol(account) || "Unknown";
   return (
     <div className={classes.tokenOverviewContainer}>
       <div>
@@ -78,7 +92,11 @@ const renderAccount = (
         <Typography variant="subtitle1">{symbol}</Typography>
       </div>
       <div>
-        <Typography variant="body1">{mintPrettyString}</Typography>
+        {
+          <Typography variant="body1">
+            {account.isNativeAsset ? "Native" : mintPrettyString}
+          </Typography>
+        }
       </div>
       <div>
         <Typography variant="body2">{"Balance"}</Typography>
@@ -190,6 +208,10 @@ export default function EthereumSourceTokenSelector(
       let cancelled = false;
       setAutocompleteError("");
       if (nft) {
+        onChange(autocompleteHolder);
+        return;
+      }
+      if (autocompleteHolder.isNativeAsset) {
         onChange(autocompleteHolder);
         return;
       }
@@ -376,16 +398,6 @@ export default function EthereumSourceTokenSelector(
     []
   );
 
-  const getSymbol = (account: ParsedTokenAccount | null) => {
-    if (!account) {
-      return undefined;
-    }
-    const item = covalent?.data?.find(
-      (x) => x.contract_address === account.mintKey
-    );
-    return item ? item.contract_ticker_symbol : undefined;
-  };
-
   const filterConfig = createFilterOptions({
     matchFrom: "any",
     stringify: (option: ParsedTokenAccount) => {
@@ -498,7 +510,9 @@ export default function EthereumSourceTokenSelector(
       ) : (
         <RefreshButtonWrapper callback={resetAccountWrapper}>
           <Typography>
-            {(symbol ? symbol + " " : "") + value.mintKey}
+            {value.isNativeAsset
+              ? value.symbol
+              : (symbol ? symbol + " " : "") + value.mintKey}
           </Typography>
         </RefreshButtonWrapper>
       )}

@@ -17,6 +17,17 @@ export async function redeemOnEth(
   return receipt;
 }
 
+export async function redeemOnEthNative(
+  tokenBridgeAddress: string,
+  signer: ethers.Signer,
+  signedVAA: Uint8Array
+) {
+  const bridge = Bridge__factory.connect(tokenBridgeAddress, signer);
+  const v = await bridge.completeTransferAndUnwrapETH(signedVAA);
+  const receipt = await v.wait();
+  return receipt;
+}
+
 export async function redeemOnTerra(
   tokenBridgeAddress: string,
   walletAddress: string,

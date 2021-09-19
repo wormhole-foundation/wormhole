@@ -1,8 +1,10 @@
 import {
+  Bridge__factory,
   CHAIN_ID_ETH,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
 } from "@certusone/wormhole-sdk";
+import { ethers } from "@certusone/wormhole-sdk/node_modules/ethers";
 import { Dispatch } from "@reduxjs/toolkit";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import {
@@ -13,9 +15,12 @@ import {
 } from "@solana/web3.js";
 import axios from "axios";
 import { formatUnits } from "ethers/lib/utils";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { useEthereumProvider } from "../contexts/EthereumProviderContext";
+import {
+  Provider,
+  useEthereumProvider,
+} from "../contexts/EthereumProviderContext";
 import { useSolanaWallet } from "../contexts/SolanaWalletContext";
 import {
   errorSourceParsedTokenAccounts as errorSourceParsedTokenAccountsNFT,
@@ -44,7 +49,13 @@ import {
   setSourceParsedTokenAccounts,
   setSourceWalletAddress,
 } from "../store/transferSlice";
-import { COVALENT_GET_TOKENS_URL, SOLANA_HOST } from "../utils/consts";
+import {
+  COVALENT_GET_TOKENS_URL,
+  ETH_TOKEN_BRIDGE_ADDRESS,
+  SOLANA_HOST,
+  WETH_ADDRESS,
+  WETH_DECIMALS,
+} from "../utils/consts";
 import {
   extractMintAuthorityInfo,
   getMultipleAccountsRPC,
@@ -59,7 +70,8 @@ export function createParsedTokenAccount(
   uiAmountString: string,
   symbol?: string,
   name?: string,
-  logo?: string
+  logo?: string,
+  isNativeAsset?: boolean
 ): ParsedTokenAccount {
   return {
     publicKey: publicKey,
@@ -71,6 +83,7 @@ export function createParsedTokenAccount(
     symbol,
     name,
     logo,
+    isNativeAsset,
   };
 }
 
@@ -137,6 +150,29 @@ const createParsedTokenAccountFromCovalent = (
     name: covalent.contract_name,
     logo: covalent.logo_url,
   };
+};
+
+const createNativeEthParsedTokenAccount = (
+  provider: Provider,
+  signerAddress: string | undefined
+) => {
+  return !(provider && signerAddress)
+    ? Promise.reject()
+    : provider.getBalance(signerAddress).then((balanceInWei) => {
+        const balanceInEth = ethers.utils.formatEther(balanceInWei);
+        return createParsedTokenAccount(
+          signerAddress, //public key
+          WETH_ADDRESS, //Mint key, On the other side this will be WETH, so this is hopefully a white lie.
+          balanceInWei.toString(), //amount, in wei
+          WETH_DECIMALS, //Luckily both ETH and WETH have 18 decimals, so this should not be an issue.
+          parseFloat(balanceInEth), //This loses precision, but is a limitation of the current datamodel. This field is essentially deprecated
+          balanceInEth.toString(), //This is the actual display field, which has full precision.
+          "ETH", //A white lie for display purposes
+          "Ethereum", //A white lie for display purposes
+          undefined, //TODO logo
+          true //isNativeAsset
+        );
+      });
 };
 
 const createNFTParsedTokenAccountFromCovalent = (
@@ -282,13 +318,19 @@ function useGetAvailableTokens(nft: boolean = false) {
   );
   const solanaWallet = useSolanaWallet();
   const solPK = solanaWallet?.publicKey;
-  const { provider, signerAddress } = useEthereumProvider();
+  const { provider, signer, signerAddress } = useEthereumProvider();
 
   const [covalent, setCovalent] = useState<any>(undefined);
   const [covalentLoading, setCovalentLoading] = useState(false);
   const [covalentError, setCovalentError] = useState<string | undefined>(
     undefined
   );
+
+  const [ethNativeAccount, setEthNativeAccount] = useState<any>(undefined);
+  const [ethNativeAccountLoading, setEthNativeAccountLoading] = useState(false);
+  const [ethNativeAccountError, setEthNativeAccountError] = useState<
+    string | undefined
+  >(undefined);
 
   const [solanaMintAccounts, setSolanaMintAccounts] = useState<any>(undefined);
   const [solanaMintAccountsLoading, setSolanaMintAccountsLoading] =
@@ -327,6 +369,10 @@ function useGetAvailableTokens(nft: boolean = false) {
     setCovalent(undefined); //These need to be included in the reset because they have balances on them.
     setCovalentLoading(false);
     setCovalentError("");
+
+    setEthNativeAccount(undefined);
+    setEthNativeAccountLoading(false);
+    setEthNativeAccountError("");
   }, [setCovalent, dispatch, nft]);
 
   //TODO this useEffect could be somewhere else in the codebase
@@ -410,7 +456,41 @@ function useGetAvailableTokens(nft: boolean = false) {
     return () => (cancelled = true);
   }, [tokenAccounts.data, lookupChain]);
 
-  //Ethereum accounts load
+  //Ethereum native asset load
+  useEffect(() => {
+    let cancelled = false;
+    if (
+      signerAddress &&
+      lookupChain === CHAIN_ID_ETH &&
+      !ethNativeAccount &&
+      !nft
+    ) {
+      setEthNativeAccountLoading(true);
+      createNativeEthParsedTokenAccount(provider, signerAddress).then(
+        (result) => {
+          console.log("create native account returned with value", result);
+          if (!cancelled) {
+            setEthNativeAccount(result);
+            setEthNativeAccountLoading(false);
+            setEthNativeAccountError("");
+          }
+        },
+        (error) => {
+          if (!cancelled) {
+            setEthNativeAccount(undefined);
+            setEthNativeAccountLoading(false);
+            setEthNativeAccountError("Unable to retrieve your ETH balance.");
+          }
+        }
+      );
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [lookupChain, provider, signerAddress, nft, ethNativeAccount]);
+
+  //Ethereum covalent accounts load
   useEffect(() => {
     //const testWallet = "0xf60c2ea62edbfe808163751dd0d8693dcb30019c";
     // const nftTestWallet1 = "0x3f304c6721f35ff9af00fd32650c8e0a982180ab";
@@ -484,6 +564,20 @@ function useGetAvailableTokens(nft: boolean = false) {
   //At present, we don't have any mechanism for doing this.
   useEffect(() => {}, []);
 
+  const ethAccounts = useMemo(() => {
+    const output = { ...tokenAccounts };
+    output.data = output.data?.slice() || [];
+    output.isFetching = output.isFetching || ethNativeAccountLoading;
+    output.error = output.error || ethNativeAccountError;
+    ethNativeAccount && output.data && output.data.unshift(ethNativeAccount);
+    return output;
+  }, [
+    ethNativeAccount,
+    ethNativeAccountLoading,
+    ethNativeAccountError,
+    tokenAccounts,
+  ]);
+
   return lookupChain === CHAIN_ID_SOLANA
     ? {
         tokenAccounts: tokenAccounts,
@@ -497,7 +591,7 @@ function useGetAvailableTokens(nft: boolean = false) {
       }
     : lookupChain === CHAIN_ID_ETH
     ? {
-        tokenAccounts: tokenAccounts,
+        tokenAccounts: ethAccounts,
         covalent: {
           data: covalent,
           isFetching: covalentLoading,

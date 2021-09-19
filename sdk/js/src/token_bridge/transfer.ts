@@ -39,8 +39,6 @@ export async function transferFromEth(
   recipientChain: ChainId,
   recipientAddress: Uint8Array
 ) {
-  //TODO: should we check if token attestation exists on the target chain
-  const token = TokenImplementation__factory.connect(tokenAddress, signer);
   const fee = 0; // for now, this won't do anything, we may add later
   const bridge = Bridge__factory.connect(tokenBridgeAddress, signer);
   const v = await bridge.transferTokens(
@@ -50,6 +48,28 @@ export async function transferFromEth(
     recipientAddress,
     fee,
     createNonce()
+  );
+  const receipt = await v.wait();
+  return receipt;
+}
+
+export async function transferFromEthNative(
+  tokenBridgeAddress: string,
+  signer: ethers.Signer,
+  amount: ethers.BigNumberish,
+  recipientChain: ChainId,
+  recipientAddress: Uint8Array
+) {
+  const fee = 0; // for now, this won't do anything, we may add later
+  const bridge = Bridge__factory.connect(tokenBridgeAddress, signer);
+  const v = await bridge.wrapAndTransferETH(
+    recipientChain,
+    recipientAddress,
+    fee,
+    createNonce(),
+    {
+      value: amount,
+    }
   );
   const receipt = await v.wait();
   return receipt;

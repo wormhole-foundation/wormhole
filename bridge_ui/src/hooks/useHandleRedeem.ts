@@ -4,6 +4,7 @@ import {
   CHAIN_ID_TERRA,
   postVaaSolana,
   redeemOnEth,
+  redeemOnEthNative,
   redeemOnSolana,
   redeemOnTerra,
 } from "@certusone/wormhole-sdk";
@@ -39,15 +40,14 @@ async function eth(
   dispatch: any,
   enqueueSnackbar: any,
   signer: Signer,
-  signedVAA: Uint8Array
+  signedVAA: Uint8Array,
+  isNative: boolean
 ) {
   dispatch(setIsRedeeming(true));
   try {
-    const receipt = await redeemOnEth(
-      ETH_TOKEN_BRIDGE_ADDRESS,
-      signer,
-      signedVAA
-    );
+    const receipt = isNative
+      ? await redeemOnEthNative(ETH_TOKEN_BRIDGE_ADDRESS, signer, signedVAA)
+      : await redeemOnEth(ETH_TOKEN_BRIDGE_ADDRESS, signer, signedVAA);
     dispatch(
       setRedeemTx({ id: receipt.transactionHash, block: receipt.blockNumber })
     );
@@ -135,7 +135,7 @@ export function useHandleRedeem() {
   const isRedeeming = useSelector(selectTransferIsRedeeming);
   const handleRedeemClick = useCallback(() => {
     if (targetChain === CHAIN_ID_ETH && !!signer && signedVAA) {
-      eth(dispatch, enqueueSnackbar, signer, signedVAA);
+      eth(dispatch, enqueueSnackbar, signer, signedVAA, false);
     } else if (
       targetChain === CHAIN_ID_SOLANA &&
       !!solanaWallet &&
@@ -166,12 +166,48 @@ export function useHandleRedeem() {
     solPK,
     terraWallet,
   ]);
+
+  const handleRedeemNativeClick = useCallback(() => {
+    if (targetChain === CHAIN_ID_ETH && !!signer && signedVAA) {
+      eth(dispatch, enqueueSnackbar, signer, signedVAA, true);
+    } else if (
+      targetChain === CHAIN_ID_SOLANA &&
+      !!solanaWallet &&
+      !!solPK &&
+      signedVAA
+    ) {
+      solana(
+        dispatch,
+        enqueueSnackbar,
+        solanaWallet,
+        solPK.toString(),
+        signedVAA
+      );
+    } else if (targetChain === CHAIN_ID_TERRA && !!terraWallet && signedVAA) {
+      terra(dispatch, enqueueSnackbar, terraWallet, signedVAA); //TODO isNative = true
+    } else {
+      // enqueueSnackbar("Redeeming on this chain is not yet supported", {
+      //   variant: "error",
+      // });
+    }
+  }, [
+    dispatch,
+    enqueueSnackbar,
+    targetChain,
+    signer,
+    signedVAA,
+    solanaWallet,
+    solPK,
+    terraWallet,
+  ]);
+
   return useMemo(
     () => ({
+      handleNativeClick: handleRedeemNativeClick,
       handleClick: handleRedeemClick,
       disabled: !!isRedeeming,
       showLoader: !!isRedeeming,
     }),
-    [handleRedeemClick, isRedeeming]
+    [handleRedeemClick, isRedeeming, handleRedeemNativeClick]
   );
 }

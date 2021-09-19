@@ -25,15 +25,20 @@ export default function SourcePreview() {
 
   const plural = parseInt(sourceAmount) !== 1;
 
+  const tokenExplainer = !sourceParsedTokenAccount
+    ? ""
+    : sourceParsedTokenAccount.isNativeAsset
+    ? sourceParsedTokenAccount.symbol
+    : `token${plural ? "s" : ""} of ${
+        sourceParsedTokenAccount.symbol ||
+        shortenAddress(sourceParsedTokenAccount.mintKey)
+      }`;
+
   const explainerString = sourceParsedTokenAccount
-    ? `You will transfer ${sourceAmount} token${
-        plural ? "s" : ""
-      } of ${shortenAddress(
-        sourceParsedTokenAccount?.mintKey
-      )}, from ${shortenAddress(sourceParsedTokenAccount?.publicKey)} on ${
-        CHAINS_BY_ID[sourceChain].name
-      }`
-    : "Step complete.";
+    ? `You will transfer ${sourceAmount} ${tokenExplainer}, from ${shortenAddress(
+        sourceParsedTokenAccount?.publicKey
+      )} on ${CHAINS_BY_ID[sourceChain].name}`
+    : "";
 
   return (
     <>
