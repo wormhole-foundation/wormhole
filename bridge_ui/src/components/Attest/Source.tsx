@@ -15,6 +15,7 @@ import {
 import { CHAINS } from "../../utils/consts";
 import ButtonWithLoader from "../ButtonWithLoader";
 import KeyAndBalance from "../KeyAndBalance";
+import LowBalanceWarning from "../LowBalanceWarning";
 
 const useStyles = makeStyles((theme) => ({
   transferField: {
@@ -68,6 +69,7 @@ function Source() {
         onChange={handleAssetChange}
         disabled={shouldLockFields}
       />
+      <LowBalanceWarning chainId={sourceChain} />
       <ButtonWithLoader
         disabled={!isSourceComplete}
         onClick={handleNextClick}

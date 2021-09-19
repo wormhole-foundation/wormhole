@@ -1,4 +1,5 @@
-import { MenuItem, TextField } from "@material-ui/core";
+import { makeStyles, MenuItem, TextField } from "@material-ui/core";
+import { Alert } from "@material-ui/lab";
 import { useCallback, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { incrementStep, setTargetChain } from "../../store/attestSlice";
@@ -8,11 +9,20 @@ import {
   selectAttestSourceChain,
   selectAttestTargetChain,
 } from "../../store/selectors";
-import { CHAINS } from "../../utils/consts";
+import { CHAINS, CHAINS_BY_ID } from "../../utils/consts";
 import ButtonWithLoader from "../ButtonWithLoader";
 import KeyAndBalance from "../KeyAndBalance";
+import LowBalanceWarning from "../LowBalanceWarning";
+
+const useStyles = makeStyles((theme) => ({
+  alert: {
+    marginTop: theme.spacing(1),
+    marginBottom: theme.spacing(1),
+  },
+}));
 
 function Target() {
+  const classes = useStyles();
   const dispatch = useDispatch();
   const sourceChain = useSelector(selectAttestSourceChain);
   const chains = useMemo(
@@ -47,6 +57,11 @@ function Target() {
         ))}
       </TextField>
       <KeyAndBalance chainId={targetChain} />
+      <Alert severity="info" className={classes.alert}>
+        You will have to pay transaction fees on{" "}
+        {CHAINS_BY_ID[targetChain].name} to attest this token.
+      </Alert>
+      <LowBalanceWarning chainId={targetChain} />
       <ButtonWithLoader
         disabled={!isTargetComplete}
         onClick={handleNextClick}

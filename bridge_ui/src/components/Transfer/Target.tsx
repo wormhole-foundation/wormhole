@@ -1,5 +1,6 @@
 import { CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
 import { makeStyles, MenuItem, TextField } from "@material-ui/core";
+import { Alert } from "@material-ui/lab";
 import { useCallback, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import useIsWalletReady from "../../hooks/useIsWalletReady";
@@ -17,9 +18,10 @@ import {
 } from "../../store/selectors";
 import { incrementStep, setTargetChain } from "../../store/transferSlice";
 import { hexToNativeString } from "../../utils/array";
-import { CHAINS } from "../../utils/consts";
+import { CHAINS, CHAINS_BY_ID } from "../../utils/consts";
 import ButtonWithLoader from "../ButtonWithLoader";
 import KeyAndBalance from "../KeyAndBalance";
+import LowBalanceWarning from "../LowBalanceWarning";
 import SolanaCreateAssociatedAddress, {
   useAssociatedAccountExistsState,
 } from "../SolanaCreateAssociatedAddress";
@@ -29,6 +31,10 @@ import RegisterNowButton from "./RegisterNowButton";
 const useStyles = makeStyles((theme) => ({
   transferField: {
     marginTop: theme.spacing(5),
+  },
+  alert: {
+    marginTop: theme.spacing(1),
+    marginBottom: theme.spacing(1),
   },
 }));
 
@@ -105,6 +111,11 @@ function Target() {
         value={targetAsset || ""}
         disabled={true}
       />
+      <Alert severity="info" className={classes.alert}>
+        You will have to pay transaction fees on{" "}
+        {CHAINS_BY_ID[targetChain].name} to redeem your tokens.
+      </Alert>
+      <LowBalanceWarning chainId={targetChain} />
       <ButtonWithLoader
         disabled={!isTargetComplete || !associatedAccountExists}
         onClick={handleNextClick}

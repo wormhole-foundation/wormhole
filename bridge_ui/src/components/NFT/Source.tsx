@@ -18,6 +18,7 @@ import KeyAndBalance from "../KeyAndBalance";
 import StepDescription from "../StepDescription";
 import { TokenSelector } from "../TokenSelectors/SourceTokenSelector";
 import { Alert } from "@material-ui/lab";
+import LowBalanceWarning from "../LowBalanceWarning";
 
 const useStyles = makeStyles((theme) => ({
   transferField: {
@@ -89,6 +90,7 @@ function Source({
           <TokenSelector disabled={shouldLockFields} nft={true} />
         </div>
       ) : null}
+      <LowBalanceWarning chainId={sourceChain} />
       <ButtonWithLoader
         disabled={!isSourceComplete}
         onClick={handleNextClick}

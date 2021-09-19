@@ -22,6 +22,7 @@ import {
 import { CHAINS, MIGRATION_ASSET_MAP } from "../../utils/consts";
 import ButtonWithLoader from "../ButtonWithLoader";
 import KeyAndBalance from "../KeyAndBalance";
+import LowBalanceWarning from "../LowBalanceWarning";
 import StepDescription from "../StepDescription";
 import { TokenSelector } from "../TokenSelectors/SourceTokenSelector";
 import TokenBlacklistWarning from "./TokenBlacklistWarning";
@@ -125,6 +126,7 @@ function Source({
             tokenAddress={parsedTokenAccount?.mintKey}
             symbol={parsedTokenAccount?.symbol}
           />
+          <LowBalanceWarning chainId={sourceChain} />
           {hasParsedTokenAccount ? (
             <TextField
               label="Amount"

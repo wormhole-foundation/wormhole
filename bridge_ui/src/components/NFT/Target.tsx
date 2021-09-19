@@ -18,14 +18,20 @@ import {
   selectNFTTargetError,
 } from "../../store/selectors";
 import { hexToNativeString } from "../../utils/array";
-import { CHAINS } from "../../utils/consts";
+import { CHAINS, CHAINS_BY_ID } from "../../utils/consts";
 import ButtonWithLoader from "../ButtonWithLoader";
 import KeyAndBalance from "../KeyAndBalance";
 import StepDescription from "../StepDescription";
+import LowBalanceWarning from "../LowBalanceWarning";
+import { Alert } from "@material-ui/lab";
 
 const useStyles = makeStyles((theme) => ({
   transferField: {
     marginTop: theme.spacing(5),
+  },
+  alert: {
+    marginTop: theme.spacing(1),
+    marginBottom: theme.spacing(1),
   },
 }));
 
@@ -104,6 +110,11 @@ function Target() {
           ) : null}
         </>
       ) : null}
+      <Alert severity="info" className={classes.alert}>
+        You will have to pay transaction fees on{" "}
+        {CHAINS_BY_ID[targetChain].name} to redeem your NFT.
+      </Alert>
+      <LowBalanceWarning chainId={targetChain} />
       <ButtonWithLoader
         disabled={!isTargetComplete} //|| !associatedAccountExists}
         onClick={handleNextClick}

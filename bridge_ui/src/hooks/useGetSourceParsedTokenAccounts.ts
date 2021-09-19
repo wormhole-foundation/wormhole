@@ -1,5 +1,4 @@
 import {
-  Bridge__factory,
   CHAIN_ID_ETH,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
@@ -51,7 +50,6 @@ import {
 } from "../store/transferSlice";
 import {
   COVALENT_GET_TOKENS_URL,
-  ETH_TOKEN_BRIDGE_ADDRESS,
   SOLANA_HOST,
   WETH_ADDRESS,
   WETH_DECIMALS,
@@ -318,7 +316,7 @@ function useGetAvailableTokens(nft: boolean = false) {
   );
   const solanaWallet = useSolanaWallet();
   const solPK = solanaWallet?.publicKey;
-  const { provider, signer, signerAddress } = useEthereumProvider();
+  const { provider, signerAddress } = useEthereumProvider();
 
   const [covalent, setCovalent] = useState<any>(undefined);
   const [covalentLoading, setCovalentLoading] = useState(false);

@@ -29,6 +29,7 @@ import {
   signSendAndConfirm,
 } from "../../utils/solana";
 import ButtonWithLoader from "../ButtonWithLoader";
+import LowBalanceWarning from "../LowBalanceWarning";
 import ShowTx from "../ShowTx";
 import SolanaCreateAssociatedAddress, {
   useAssociatedAccountExistsState,
@@ -402,6 +403,7 @@ export default function Workflow({
         <Divider className={classes.divider} />
 
         <SolanaWalletKey />
+        <LowBalanceWarning chainId={CHAIN_ID_SOLANA} />
         {fromTokenAccount && toTokenAccount && fromTokenAccountBalance ? (
           <>
             <Typography variant="body2">
