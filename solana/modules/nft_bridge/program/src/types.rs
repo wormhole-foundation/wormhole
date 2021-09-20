@@ -2,7 +2,6 @@ use borsh::{
     BorshDeserialize,
     BorshSerialize,
 };
-use primitive_types::U256;
 use serde::{
     Deserialize,
     Serialize,
@@ -19,7 +18,6 @@ use spl_token::state::{
     Account,
     Mint,
 };
-use spl_token_metadata::state::Metadata;
 
 pub type Address = [u8; 32];
 pub type ChainID = u16;

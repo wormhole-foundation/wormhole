@@ -8,7 +8,6 @@ use crate::{
         GovernancePayloadUpgrade,
         PayloadGovernanceRegisterChain,
     },
-    types::*,
     TokenBridgeError::{
         InvalidChain,
         InvalidGovernanceKey,
@@ -18,14 +17,12 @@ use bridge::{
     vaa::{
         ClaimableVAA,
         DeserializePayload,
-        PayloadMessage,
     },
     CHAIN_ID_SOLANA,
 };
 use solana_program::{
     account_info::AccountInfo,
     program::invoke_signed,
-    program_error::ProgramError,
     pubkey::Pubkey,
     sysvar::{
         clock::Clock,
@@ -36,10 +33,6 @@ use solitaire::{
     processors::seeded::Seeded,
     CreationLamports::Exempt,
     *,
-};
-use std::ops::{
-    Deref,
-    DerefMut,
 };
 
 // Confirm that a ClaimableVAA came from the correct chain, signed by the right emitter.
@@ -151,7 +144,7 @@ pub struct RegisterChainData {}
 pub fn register_chain(
     ctx: &ExecutionContext,
     accs: &mut RegisterChain,
-    data: RegisterChainData,
+    _data: RegisterChainData,
 ) -> Result<()> {
     let derivation_data: EndpointDerivationData = (&*accs).into();
     accs.endpoint
@@ -168,7 +161,7 @@ pub fn register_chain(
 
     // Create endpoint
     accs.endpoint
-        .create(&((&*accs).into()), ctx, accs.payer.key, Exempt);
+        .create(&((&*accs).into()), ctx, accs.payer.key, Exempt)?;
 
     accs.endpoint.chain = accs.vaa.chain;
     accs.endpoint.contract = accs.vaa.endpoint_address;

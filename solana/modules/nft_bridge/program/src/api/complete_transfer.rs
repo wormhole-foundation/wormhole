@@ -28,8 +28,6 @@ use solana_program::{
         invoke,
         invoke_signed,
     },
-    program_error::ProgramError,
-    pubkey::Pubkey,
 };
 use solitaire::{
     processors::seeded::{
@@ -38,14 +36,6 @@ use solitaire::{
     },
     CreationLamports::Exempt,
     *,
-};
-use spl_token::state::{
-    Account,
-    Mint,
-};
-use std::ops::{
-    Deref,
-    DerefMut,
 };
 
 #[derive(FromAccounts)]
@@ -81,7 +71,8 @@ impl<'a> From<&CompleteNative<'a>> for CustodyAccountDerivationData {
     }
 }
 
-impl<'b> InstructionContext<'b> for CompleteNative<'b> {}
+impl<'b> InstructionContext<'b> for CompleteNative<'b> {
+}
 
 #[derive(BorshDeserialize, BorshSerialize, Default)]
 pub struct CompleteNativeData {}
@@ -89,7 +80,7 @@ pub struct CompleteNativeData {}
 pub fn complete_native(
     ctx: &ExecutionContext,
     accs: &mut CompleteNative,
-    data: CompleteNativeData,
+    _data: CompleteNativeData,
 ) -> Result<()> {
     // Verify the chain registration
     let derivation_data: EndpointDerivationData = (&*accs).into();
@@ -205,7 +196,8 @@ impl<'a> From<&CompleteWrapped<'a>> for WrappedMetaDerivationData {
     }
 }
 
-impl<'b> InstructionContext<'b> for CompleteWrapped<'b> {}
+impl<'b> InstructionContext<'b> for CompleteWrapped<'b> {
+}
 
 #[derive(BorshDeserialize, BorshSerialize, Default)]
 pub struct CompleteWrappedData {}
@@ -213,7 +205,7 @@ pub struct CompleteWrappedData {}
 pub fn complete_wrapped(
     ctx: &ExecutionContext,
     accs: &mut CompleteWrapped,
-    data: CompleteWrappedData,
+    _data: CompleteWrappedData,
 ) -> Result<()> {
     use bstr::ByteSlice;
 
@@ -239,7 +231,7 @@ pub fn complete_wrapped(
     if !accs.meta.is_initialized() {
         // Create mint account
         accs.mint
-            .create(&((&*accs).into()), ctx, accs.payer.key, Exempt);
+            .create(&((&*accs).into()), ctx, accs.payer.key, Exempt)?;
 
         // Initialize mint
         let init_ix = spl_token::instruction::initialize_mint(
@@ -253,7 +245,7 @@ pub fn complete_wrapped(
 
         // Create meta account
         accs.meta
-            .create(&((&*accs).into()), ctx, accs.payer.key, Exempt);
+            .create(&((&*accs).into()), ctx, accs.payer.key, Exempt)?;
 
         // Initialize spl meta
         accs.spl_metadata.verify_derivation(

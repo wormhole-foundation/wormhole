@@ -1,13 +1,6 @@
-use crate::{
-    types::{
-        Address,
-        ChainID,
-    },
-    TokenBridgeError,
-};
-use borsh::{
-    BorshDeserialize,
-    BorshSerialize,
+use crate::types::{
+    Address,
+    ChainID,
 };
 use bridge::{
     vaa::{
@@ -24,23 +17,14 @@ use byteorder::{
 };
 use primitive_types::U256;
 use solana_program::{
-    native_token::Sol,
-    program_error::{
-        ProgramError,
-        ProgramError::InvalidAccountData,
-    },
+    program_error::ProgramError::InvalidAccountData,
     pubkey::Pubkey,
 };
 use solitaire::SolitaireError;
-use std::{
-    error::Error,
-    io::{
-        Cursor,
-        Read,
-        Write,
-    },
-    str::Utf8Error,
-    string::FromUtf8Error,
+use std::io::{
+    Cursor,
+    Read,
+    Write,
 };
 
 pub const MODULE: &str = "NFTBridge";
@@ -140,13 +124,13 @@ impl SerializePayload for PayloadTransfer {
         for i in 0..self.symbol.len() {
             symbol[i] = self.symbol.as_bytes()[i];
         }
-        writer.write(&symbol);
+        writer.write(&symbol)?;
 
         let mut name: [u8; 32] = [0; 32];
         for i in 0..self.name.len() {
             name[i] = self.name.as_bytes()[i];
         }
-        writer.write(&name);
+        writer.write(&name)?;
 
         let mut id_data: [u8; 32] = [0; 32];
         self.token_id.to_big_endian(&mut id_data);
@@ -206,7 +190,7 @@ where
     Self: SerializeGovernancePayload,
 {
     fn serialize<W: Write>(&self, writer: &mut W) -> Result<(), SolitaireError> {
-        self.write_governance_header(writer);
+        self.write_governance_header(writer)?;
         // Payload ID
         writer.write_u16::<BigEndian>(self.chain)?;
         writer.write(&self.endpoint_address[..])?;
@@ -223,7 +207,7 @@ pub struct GovernancePayloadUpgrade {
 
 impl SerializePayload for GovernancePayloadUpgrade {
     fn serialize<W: Write>(&self, v: &mut W) -> std::result::Result<(), SolitaireError> {
-        self.write_governance_header(v);
+        self.write_governance_header(v)?;
         v.write(&self.new_contract.to_bytes())?;
         Ok(())
     }

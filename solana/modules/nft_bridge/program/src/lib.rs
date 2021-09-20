@@ -1,6 +1,6 @@
 #![feature(const_generics)]
-#![allow(warnings)]
-
+#![allow(incomplete_features)]
+#![deny(unused_must_use)]
 // #![cfg(all(target_arch = "bpf", not(feature = "no-entrypoint")))]
 
 #[cfg(feature = "no-entrypoint")]
@@ -44,7 +44,6 @@ pub use api::{
 };
 
 use solitaire::*;
-use std::error::Error;
 
 pub enum TokenBridgeError {
     AlreadyExecuted,
