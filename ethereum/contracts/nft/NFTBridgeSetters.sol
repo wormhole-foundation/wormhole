@@ -46,4 +46,12 @@ contract NFTBridgeSetters is NFTBridgeState {
         _state.wrappedAssets[tokenChainId][tokenAddress] = wrapper;
         _state.isWrappedAsset[wrapper] = true;
     }
+
+    function setSplCache(uint256 tokenId, NFTBridgeStorage.SPLCache memory cache) internal {
+        _state.splCache[tokenId] = cache;
+    }
+
+    function clearSplCache(uint256 tokenId) internal {
+        delete _state.splCache[tokenId];
+    }
 }

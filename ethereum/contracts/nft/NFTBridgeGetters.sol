@@ -53,4 +53,8 @@ contract NFTBridgeGetters is NFTBridgeState {
     function isWrappedAsset(address token) public view returns (bool){
         return _state.isWrappedAsset[token];
     }
+
+    function splCache(uint256 tokenId) public view returns (NFTBridgeStorage.SPLCache memory) {
+        return _state.splCache[tokenId];
+    }
 }

@@ -17,6 +17,11 @@ contract NFTBridgeStorage {
         bytes32 assetAddress;
     }
 
+    struct SPLCache {
+        bytes32 name;
+        bytes32 symbol;
+    }
+
     struct State {
         address payable wormhole;
         address tokenImplementation;
@@ -40,6 +45,9 @@ contract NFTBridgeStorage {
 
         // Mapping of bridge contracts on other chains
         mapping(uint16 => bytes32) bridgeImplementations;
+
+        // Mapping of spl token info caches (chainID => nativeAddress => SPLCache)
+        mapping(uint256 => SPLCache) splCache;
     }
 }
 

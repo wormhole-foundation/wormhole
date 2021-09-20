@@ -39,21 +39,31 @@ contract NFTBridge is NFTBridgeGovernance {
         string memory nameString;
         string memory uriString;
         {
-            (,bytes memory queriedSymbol) = token.staticcall(abi.encodeWithSignature("symbol()"));
-            (,bytes memory queriedName) = token.staticcall(abi.encodeWithSignature("name()"));
-            (,bytes memory queriedURI) = token.staticcall(abi.encodeWithSignature("tokenURI(uint256)", tokenID));
+            if (tokenChain != 1) { // SPL tokens use cache
+                (,bytes memory queriedSymbol) = token.staticcall(abi.encodeWithSignature("symbol()"));
+                (,bytes memory queriedName) = token.staticcall(abi.encodeWithSignature("name()"));
+                symbolString = abi.decode(queriedSymbol, (string));
+                nameString = abi.decode(queriedName, (string));
+            }
 
-            symbolString = abi.decode(queriedSymbol, (string));
-            nameString = abi.decode(queriedName, (string));
+            (,bytes memory queriedURI) = token.staticcall(abi.encodeWithSignature("tokenURI(uint256)", tokenID));
             uriString = abi.decode(queriedURI, (string));
         }
 
         bytes32 symbol;
         bytes32 name;
-        assembly {
+        if (tokenChain == 1) {
+            // use cached SPL token info, as the contracts uses unified values
+            NFTBridgeStorage.SPLCache memory cache = splCache(tokenID);
+            symbol = cache.symbol;
+            name = cache.name;
+            clearSplCache(tokenID);
+        } else {
+            assembly {
             // first 32 bytes hold string length
-            symbol := mload(add(symbolString, 32))
-            name := mload(add(nameString, 32))
+                symbol := mload(add(symbolString, 32))
+                name := mload(add(nameString, 32))
+            }
         }
 
         if (tokenChain == chainId()) {
@@ -118,6 +128,14 @@ contract NFTBridge is NFTBridgeGovernance {
         address transferRecipient = address(uint160(uint256(transfer.to)));
 
         if (transfer.tokenChain != chainId()) {
+            if (transfer.tokenChain == 1) {
+                // Cache SPL token info which otherwise would get lost
+                setSplCache(transfer.tokenID, NFTBridgeStorage.SPLCache({
+                    name : transfer.name,
+                    symbol : transfer.symbol
+                }));
+            }
+
             // mint wrapped asset
             NFTImplementation(address(transferToken)).mint(transferRecipient, transfer.tokenID, transfer.uri);
         } else {
@@ -129,6 +147,14 @@ contract NFTBridge is NFTBridgeGovernance {
     function _createWrapped(uint16 tokenChain, bytes32 tokenAddress, bytes32 name, bytes32 symbol) internal returns (address token) {
         require(tokenChain != chainId(), "can only wrap tokens from foreign chains");
         require(wrappedAsset(tokenChain, tokenAddress) == address(0), "wrapped asset already exists");
+
+        // SPL NFTs all use the same NFT contract, so unify the name
+        if (tokenChain == 1) {
+            // "Wormhole Bridged Solana-NFT" - right-padded
+            name =   0x576f726d686f6c65204272696467656420536f6c616e612d4e46540000000000;
+            // "WORMSPLNFT" - right-padded
+            symbol = 0x574f524d53504c4e465400000000000000000000000000000000000000000000;
+        }
 
         // initialize the NFTImplementation
         bytes memory initialisationArgs = abi.encodeWithSelector(

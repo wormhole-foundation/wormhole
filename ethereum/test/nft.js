@@ -24,7 +24,7 @@ contract("NFT", function () {
     let WETH = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
     const testForeignChainId = "1";
     const testForeignBridgeContract = "0x000000000000000000000000000000000000000000000000000000000000ffff";
-    const testBridgedAssetChain = "0001";
+    const testBridgedAssetChain = "0003";
     const testBridgedAssetAddress = "000000000000000000000000b7a2211e8165943192ad04f5dd21bedc29ff003e";
 
 
@@ -406,7 +406,7 @@ contract("NFT", function () {
         assert.equal(name, "Foreign Chain NFT");
 
         const chainId = await wrappedAsset.methods.chainId().call();
-        assert.equal(chainId, 1);
+        assert.equal(chainId, Number(testBridgedAssetChain));
 
         const nativeContract = await wrappedAsset.methods.nativeContract().call();
         assert.equal(nativeContract, "0x000000000000000000000000b7a2211e8165943192ad04f5dd21bedc29ff003e");
@@ -456,6 +456,99 @@ contract("NFT", function () {
 
         ownerAfter = await wrappedAsset.methods.ownerOf(tokenId + 1).call();
         assert.equal(ownerAfter, accounts[0]);
+    })
+
+    it("should mint bridged assets from solana under unified name, caching the original", async function () {
+        const accounts = await web3.eth.getAccounts();
+        let tokenId = "1000000000000000001";
+
+        const initialized = new web3.eth.Contract(BridgeImplementationFullABI, NFTBridge.address);
+
+        // we are using the asset where we created a wrapper in the previous test
+        let data = "0x" +
+            "01" +
+            // tokenaddress
+            testBridgedAssetAddress +
+            // tokenchain
+            "0001" +
+            // symbol
+            "464f520000000000000000000000000000000000000000000000000000000000" +
+            // name
+            "466f726569676e20436861696e204e4654000000000000000000000000000000" +
+            // tokenID
+            web3.eth.abi.encodeParameter("uint256", new BigNumber(tokenId).toString()).substring(2) +
+            // url length
+            "00" +
+            // no URL
+            "" +
+            // receiver
+            web3.eth.abi.encodeParameter("address", accounts[0]).substr(2) +
+            // receiving chain
+            web3.eth.abi.encodeParameter("uint16", testChainId).substring(2 + (64 - 4));
+
+        let vm = await signAndEncodeVM(
+            0,
+            0,
+            testForeignChainId,
+            testForeignBridgeContract,
+            0,
+            data,
+            [
+                testSigner1PK
+            ],
+            0,
+            0
+        );
+
+        await initialized.methods.completeTransfer("0x" + vm).send({
+            value: 0,
+            from: accounts[1],
+            gasLimit: 2000000
+        });
+
+        const cache = await initialized.methods.splCache(tokenId).call()
+        assert.equal(cache.symbol, "0x464f520000000000000000000000000000000000000000000000000000000000");
+        assert.equal(cache.name, "0x466f726569676e20436861696e204e4654000000000000000000000000000000");
+
+        const wrappedAddress = await initialized.methods.wrappedAsset("0x0001", "0x" + testBridgedAssetAddress).call();
+        const wrappedAsset = new web3.eth.Contract(NFTImplementation.abi, wrappedAddress);
+
+        const symbol = await wrappedAsset.methods.symbol().call();
+        assert.equal(symbol, "WORMSPLNFT");
+
+        const name = await wrappedAsset.methods.name().call();
+        assert.equal(name, "Wormhole Bridged Solana-NFT");
+    })
+
+    it("cached SPL names are loaded when transferring out, cache is cleared", async function () {
+        const accounts = await web3.eth.getAccounts();
+        let tokenId = "1000000000000000001";
+
+        const initialized = new web3.eth.Contract(BridgeImplementationFullABI, NFTBridge.address);
+
+        const wrappedAddress = await initialized.methods.wrappedAsset("0x0001", "0x" + testBridgedAssetAddress).call();
+
+        const transfer =         await initialized.methods.transferNFT(
+            wrappedAddress,
+            tokenId,
+            "10",
+            "0x000000000000000000000000b7a2211e8165943192ad04f5dd21bedc29ff003e",
+            "2345"
+        ).send({
+            value: 0,
+            from: accounts[0],
+            gasLimit: 2000000
+        });
+
+        // symbol
+        assert.ok(transfer.events[2].raw.data.includes('464f520000000000000000000000000000000000000000000000000000000000'))
+        // name
+        assert.ok(transfer.events[2].raw.data.includes('466f726569676e20436861696e204e4654000000000000000000000000000000'))
+
+        // check if cache is cleared
+        const cache = await initialized.methods.splCache(tokenId).call()
+        assert.equal(cache.symbol, "0x0000000000000000000000000000000000000000000000000000000000000000");
+        assert.equal(cache.name, "0x0000000000000000000000000000000000000000000000000000000000000000");
     })
 
     it("should burn bridged assets wrappers on transfer to another chain", async function () {
