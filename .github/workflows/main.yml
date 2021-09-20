@@ -1,0 +1,22 @@
+name: CI
+on: [push]
+jobs:
+  build-sdk:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v2
+      - name: Use Node 14.x
+        uses: actions/setup-node@v2
+        with:
+          node-version: 14.x
+      - run: docker build --target node-export -f Dockerfile.proto -o type=local,dest=. .
+        env:
+          DOCKER_BUILDKIT: "1"
+      - run: docker build -f solana/Dockerfile.wasm -o type=local,dest=. solana
+        env:
+          DOCKER_BUILDKIT: "1"
+      - run: npm ci --prefix ethereum
+      - run: npm ci --prefix sdk/js
+      - run: npm run build --prefix sdk/js
