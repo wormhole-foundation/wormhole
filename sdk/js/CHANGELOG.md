@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 0.0.4
+
+### Added
+
+redeemOnEthNative
+transferFromEthNative
+
 ## 0.0.3
 
 ### Added
