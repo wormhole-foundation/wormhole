@@ -2,7 +2,9 @@ import { WalletDialogProvider } from "@solana/wallet-adapter-material-ui";
 import { useWallet, WalletProvider } from "@solana/wallet-adapter-react";
 import {
   getPhantomWallet,
+  getSolflareWallet,
   getSolletWallet,
+  getMathWallet,
 } from "@solana/wallet-adapter-wallets";
 import React, { FC, useMemo } from "react";
 
@@ -12,13 +14,13 @@ export const SolanaWalletProvider: FC = (props) => {
   const wallets = useMemo(() => {
     return [
       getPhantomWallet(),
-      // getSolflareWallet(),
+      getSolflareWallet(),
       // getTorusWallet({
       //     options: { clientId: 'Go to https://developer.tor.us and create a client ID' }
       // }),
       // getLedgerWallet(),
       // getSolongWallet(),
-      // getMathWallet(),
+      getMathWallet(),
       getSolletWallet(),
     ];
   }, []);

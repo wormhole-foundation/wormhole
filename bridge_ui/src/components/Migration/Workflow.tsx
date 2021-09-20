@@ -332,21 +332,33 @@ export default function Workflow({
   ]);
 
   const fromParse = (amount: string) => {
-    return parseUnits(amount, fromMintDecimals).toBigInt();
+    try {
+      return parseUnits(amount, fromMintDecimals).toBigInt();
+    } catch (e) {
+      return BigInt(0);
+    }
   };
 
   const hasRequisiteData = fromMint && toMint && poolAddress && poolExists;
   const accountsReady =
     fromTokenAccountExists && toTokenAccountExists && poolExists;
-  const sufficientBalances =
-    toCustodyBalance &&
+  const amountGreaterThanZero = fromParse(migrationAmount) > BigInt(0);
+  const sufficientFromTokens =
     fromTokenAccountBalance &&
     migrationAmount &&
-    fromParse(migrationAmount) <= fromParse(fromTokenAccountBalance) &&
+    fromParse(migrationAmount) <= fromParse(fromTokenAccountBalance);
+  const sufficientPoolBalance =
+    toCustodyBalance &&
+    migrationAmount &&
     parseFloat(migrationAmount) <= parseFloat(toCustodyBalance);
 
   const isReadyToTransfer =
-    isReady && sufficientBalances && accountsReady && hasRequisiteData;
+    isReady &&
+    amountGreaterThanZero &&
+    sufficientFromTokens &&
+    sufficientPoolBalance &&
+    accountsReady &&
+    hasRequisiteData;
 
   const getNotReadyCause = () => {
     if (!fromMint || !toMint || !poolAddress || !poolExists) {
@@ -357,8 +369,12 @@ export default function Workflow({
       return "You have not created the necessary token accounts.";
     } else if (!migrationAmount) {
       return "Enter an amount to transfer.";
-    } else if (!sufficientBalances) {
-      return "There are not sufficient funds for this transfer.";
+    } else if (!amountGreaterThanZero) {
+      return "Enter an amount greater than zero.";
+    } else if (!sufficientFromTokens) {
+      return "There are not sufficient funds in your wallet for this transfer.";
+    } else if (!sufficientPoolBalance) {
+      return "There are not sufficient funds in the pool for this transfer.";
     } else {
       return "";
     }
