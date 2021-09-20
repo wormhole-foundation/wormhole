@@ -6,12 +6,22 @@ import {
 } from "@certusone/wormhole-sdk";
 import { Provider } from "@certusone/wormhole-sdk/node_modules/@ethersproject/abstract-provider";
 import { formatUnits } from "@ethersproject/units";
+import { Typography } from "@material-ui/core";
+import { LocalGasStation } from "@material-ui/icons";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useEthereumProvider } from "../contexts/EthereumProviderContext";
 import { SOLANA_HOST } from "../utils/consts";
 import { getMultipleAccountsRPC } from "../utils/solana";
 import useIsWalletReady from "./useIsWalletReady";
+
+export type GasEstimate = {
+  currentGasPrice: string;
+  lowEstimate: string;
+  highEstimate: string;
+};
+
+export type MethodType = "nft" | "createWrapped" | "transfer";
 
 //It's difficult to project how many fees the user will accrue during the
 //workflow, as a variable number of transactions can be sent, and different
@@ -130,4 +140,110 @@ export default function useTransactionFees(chainId: ChainId) {
   }, [balance, chainId, isLoading, error]);
 
   return results;
+}
+
+export function useEthereumGasPrice(contract: MethodType) {
+  const { provider } = useEthereumProvider();
+  const { isReady } = useIsWalletReady(CHAIN_ID_ETH);
+  const [estimateResults, setEstimateResults] = useState<GasEstimate | null>(
+    null
+  );
+
+  useEffect(() => {
+    if (provider && isReady && !estimateResults) {
+      getGasEstimates(provider, contract).then(
+        (results) => {
+          setEstimateResults(results);
+        },
+        (error) => {
+          console.log(error);
+        }
+      );
+    }
+  }, [provider, isReady, estimateResults, contract]);
+
+  const results = useMemo(() => estimateResults, [estimateResults]);
+  return results;
+}
+
+export function EthGasEstimateSummary({
+  methodType,
+}: {
+  methodType: MethodType;
+}) {
+  const estimate = useEthereumGasPrice(methodType);
+  if (!estimate) {
+    return null;
+  }
+
+  return (
+    <Typography
+      component="div"
+      style={{
+        display: "flex",
+        alignItems: "center",
+        marginTop: 8,
+        flexWrap: "wrap",
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center" }}>
+        <LocalGasStation fontSize="inherit" />
+        &nbsp;{estimate.currentGasPrice}
+      </div>
+      <div>&nbsp;&nbsp;&nbsp;</div>
+      <div>
+        Est. Fees: {estimate.lowEstimate} - {estimate.highEstimate} ETH
+      </div>
+    </Typography>
+  );
+}
+
+const estimatesByContract = {
+  transfer: {
+    lowGasEstimate: BigInt(80000),
+    highGasEstimate: BigInt(130000),
+  },
+  nft: {
+    lowGasEstimate: BigInt(350000),
+    highGasEstimate: BigInt(500000),
+  },
+  createWrapped: {
+    lowGasEstimate: BigInt(450000),
+    highGasEstimate: BigInt(700000),
+  },
+};
+
+export async function getGasEstimates(
+  provider: Provider,
+  contract: MethodType
+): Promise<GasEstimate | null> {
+  const lowEstimateGasAmount = estimatesByContract[contract].lowGasEstimate;
+  const highEstimateGasAmount = estimatesByContract[contract].highGasEstimate;
+
+  let lowEstimate;
+  let highEstimate;
+  let currentGasPrice;
+  if (provider) {
+    const priceInWei = await provider.getGasPrice();
+    if (priceInWei) {
+      lowEstimate = parseFloat(
+        formatUnits(lowEstimateGasAmount * priceInWei.toBigInt(), "ether")
+      ).toFixed(4);
+      highEstimate = parseFloat(
+        formatUnits(highEstimateGasAmount * priceInWei.toBigInt(), "ether")
+      ).toFixed(4);
+      currentGasPrice = parseFloat(formatUnits(priceInWei, "gwei")).toFixed(0);
+    }
+  }
+
+  const output =
+    currentGasPrice && highEstimate && lowEstimate
+      ? {
+          currentGasPrice,
+          lowEstimate,
+          highEstimate,
+        }
+      : null;
+
+  return output;
 }

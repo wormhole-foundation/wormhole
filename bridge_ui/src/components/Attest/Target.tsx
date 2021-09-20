@@ -1,7 +1,9 @@
-import { makeStyles, MenuItem, TextField } from "@material-ui/core";
+import { CHAIN_ID_ETH } from "@certusone/wormhole-sdk";
+import { makeStyles, MenuItem, TextField, Typography } from "@material-ui/core";
 import { Alert } from "@material-ui/lab";
 import { useCallback, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { EthGasEstimateSummary } from "../../hooks/useTransactionFees";
 import { incrementStep, setTargetChain } from "../../store/attestSlice";
 import {
   selectAttestIsTargetComplete,
@@ -58,8 +60,13 @@ function Target() {
       </TextField>
       <KeyAndBalance chainId={targetChain} />
       <Alert severity="info" className={classes.alert}>
-        You will have to pay transaction fees on{" "}
-        {CHAINS_BY_ID[targetChain].name} to attest this token.
+        <Typography>
+          You will have to pay transaction fees on{" "}
+          {CHAINS_BY_ID[targetChain].name} to attest this token.{" "}
+        </Typography>
+        {targetChain === CHAIN_ID_ETH && (
+          <EthGasEstimateSummary methodType="createWrapped" />
+        )}
       </Alert>
       <LowBalanceWarning chainId={targetChain} />
       <ButtonWithLoader

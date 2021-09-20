@@ -1,5 +1,5 @@
 import { CHAIN_ID_ETH, CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
-import { makeStyles, MenuItem, TextField } from "@material-ui/core";
+import { makeStyles, MenuItem, TextField, Typography } from "@material-ui/core";
 import { useCallback, useMemo } from "react";
 import { ethers } from "ethers";
 import { useDispatch, useSelector } from "react-redux";
@@ -24,6 +24,7 @@ import KeyAndBalance from "../KeyAndBalance";
 import StepDescription from "../StepDescription";
 import LowBalanceWarning from "../LowBalanceWarning";
 import { Alert } from "@material-ui/lab";
+import { EthGasEstimateSummary } from "../../hooks/useTransactionFees";
 
 const useStyles = makeStyles((theme) => ({
   transferField: {
@@ -111,8 +112,13 @@ function Target() {
         </>
       ) : null}
       <Alert severity="info" className={classes.alert}>
-        You will have to pay transaction fees on{" "}
-        {CHAINS_BY_ID[targetChain].name} to redeem your NFT.
+        <Typography>
+          You will have to pay transaction fees on{" "}
+          {CHAINS_BY_ID[targetChain].name} to redeem your NFT.
+        </Typography>
+        {targetChain === CHAIN_ID_ETH && (
+          <EthGasEstimateSummary methodType="nft" />
+        )}
       </Alert>
       <LowBalanceWarning chainId={targetChain} />
       <ButtonWithLoader
