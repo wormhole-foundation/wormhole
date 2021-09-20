@@ -101,7 +101,13 @@ pub fn complete_native(
     }
 
     // Verify VAA
-    if accs.vaa.token_address != accs.mint.info().key.to_bytes() {
+    // Please refer to transfer.rs for why the token id is used to store the mint
+    if accs.vaa.token_address != [1u8; 32] {
+        return Err(InvalidMint.into());
+    }
+    let mut token_id_bytes = [0u8; 32];
+    accs.vaa.token_id.to_big_endian(&mut token_id_bytes);
+    if token_id_bytes != accs.mint.info().key.to_bytes() {
         return Err(InvalidMint.into());
     }
     if accs.vaa.token_chain != CHAIN_ID_SOLANA {

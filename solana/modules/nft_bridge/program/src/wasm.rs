@@ -168,6 +168,8 @@ pub fn complete_transfer_native_ix(
         payload: vaa.payload,
     };
 
+    let mut mint_bytes = [0u8; 32];
+    payload.token_id.to_big_endian(&mut mint_bytes);
     let ix = complete_native(
         program_id,
         bridge_id,
@@ -175,7 +177,7 @@ pub fn complete_transfer_native_ix(
         message_key,
         post_vaa_data,
         to_authority,
-        Pubkey::new(&payload.token_address),
+        Pubkey::new(&mint_bytes),
         CompleteNativeData {},
     )
     .unwrap();
