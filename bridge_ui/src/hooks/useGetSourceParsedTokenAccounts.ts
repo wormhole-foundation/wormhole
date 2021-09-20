@@ -245,7 +245,6 @@ const getEthereumAccountsCovalent = async (
         // TODO: filter?
         if (
           item.contract_decimals !== undefined &&
-          item.contract_ticker_symbol &&
           item.contract_address &&
           item.balance &&
           item.balance !== "0" &&
