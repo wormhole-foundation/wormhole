@@ -40,7 +40,7 @@ export async function getOriginalAssetEth(
     return {
       isWrapped: true,
       chainId,
-      assetAddress: arrayify(assetAddress),
+      assetAddress: chainId === CHAIN_ID_SOLANA ? arrayify(BigNumber.from(tokenId)) : arrayify(assetAddress),
       tokenId, // tokenIds are maintained across EVM chains
     };
   }
