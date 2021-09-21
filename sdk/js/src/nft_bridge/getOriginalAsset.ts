@@ -40,7 +40,10 @@ export async function getOriginalAssetEth(
     return {
       isWrapped: true,
       chainId,
-      assetAddress: chainId === CHAIN_ID_SOLANA ? arrayify(BigNumber.from(tokenId)) : arrayify(assetAddress),
+      assetAddress:
+        chainId === CHAIN_ID_SOLANA
+          ? arrayify(BigNumber.from(tokenId))
+          : arrayify(assetAddress),
       tokenId, // tokenIds are maintained across EVM chains
     };
   }
@@ -80,7 +83,11 @@ export async function getOriginalAssetSol(
     if (wrappedMetaAccountInfo) {
       const parsed = parse_wrapped_meta(wrappedMetaAccountInfo.data);
       const token_id_arr = parsed.token_id as BigUint64Array;
-      const token_id = BigNumber.from(token_id_arr.reverse()).toString();
+      const token_id_bytes = [];
+      for (let elem of token_id_arr.reverse()) {
+        token_id_bytes.push(...bigToUint8Array(elem));
+      }
+      const token_id = BigNumber.from(token_id_bytes).toString();
       return {
         isWrapped: true,
         chainId: parsed.chain,
@@ -101,4 +108,34 @@ export async function getOriginalAssetSol(
     chainId: CHAIN_ID_SOLANA,
     assetAddress: new Uint8Array(32),
   };
+}
+
+// Derived from https://www.jackieli.dev/posts/bigint-to-uint8array/
+const big0 = BigInt(0);
+const big1 = BigInt(1);
+const big8 = BigInt(8);
+
+function bigToUint8Array(big: bigint) {
+  if (big < big0) {
+    const bits: bigint = (BigInt(big.toString(2).length) / big8 + big1) * big8;
+    const prefix1: bigint = big1 << bits;
+    big += prefix1;
+  }
+  let hex = big.toString(16);
+  if (hex.length % 2) {
+    hex = "0" + hex;
+  } else if (hex[0] === "8") {
+    // maximum positive need to prepend 0 otherwise resuts in negative number
+    hex = "00" + hex;
+  }
+  const len = hex.length / 2;
+  const u8 = new Uint8Array(len);
+  var i = 0;
+  var j = 0;
+  while (i < len) {
+    u8[i] = parseInt(hex.slice(j, j + 2), 16);
+    i += 1;
+    j += 2;
+  }
+  return u8;
 }
