@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## 0.0.5
+
+### Added
+
+NFT Bridge Support
+getClaimAddressSolana
+createMetaOnSolana
+
 ## 0.0.4
 
 ### Added

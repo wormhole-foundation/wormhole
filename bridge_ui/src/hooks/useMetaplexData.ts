@@ -15,7 +15,7 @@ const getMetaplexData = async (mintAddresses: string[]) => {
     promises.push(getMetadataAddress(address));
   }
   const metaAddresses = await Promise.all(promises);
-  const connection = new Connection(SOLANA_HOST, "finalized");
+  const connection = new Connection(SOLANA_HOST, "confirmed");
   const results = await getMultipleAccountsRPC(
     connection,
     metaAddresses.map((pair) => pair && pair[0])

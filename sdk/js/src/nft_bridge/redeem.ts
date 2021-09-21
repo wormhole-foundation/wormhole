@@ -15,6 +15,15 @@ export async function redeemOnEth(
   return receipt;
 }
 
+export async function isNFTVAASolanaNative(signedVAA: Uint8Array) {
+  const { parse_vaa } = await import("../solana/core/bridge");
+  const parsedVAA = parse_vaa(signedVAA);
+  const isSolanaNative =
+    Buffer.from(new Uint8Array(parsedVAA.payload)).readUInt16BE(33) ===
+    CHAIN_ID_SOLANA;
+  return isSolanaNative;
+}
+
 export async function redeemOnSolana(
   connection: Connection,
   bridgeAddress: string,
@@ -22,11 +31,7 @@ export async function redeemOnSolana(
   payerAddress: string,
   signedVAA: Uint8Array
 ) {
-  const { parse_vaa } = await import("../solana/core/bridge");
-  const parsedVAA = parse_vaa(signedVAA);
-  const isSolanaNative =
-    Buffer.from(new Uint8Array(parsedVAA.payload)).readUInt16BE(33) ===
-    CHAIN_ID_SOLANA;
+  const isSolanaNative = await isNFTVAASolanaNative(signedVAA);
   const { complete_transfer_wrapped_ix, complete_transfer_native_ix } =
     await import("../solana/nft/nft_bridge");
   const ixs = [];
@@ -56,6 +61,31 @@ export async function redeemOnSolana(
     );
   }
   const transaction = new Transaction().add(...ixs);
+  const { blockhash } = await connection.getRecentBlockhash();
+  transaction.recentBlockhash = blockhash;
+  transaction.feePayer = new PublicKey(payerAddress);
+  return transaction;
+}
+
+export async function createMetaOnSolana(
+  connection: Connection,
+  bridgeAddress: string,
+  tokenBridgeAddress: string,
+  payerAddress: string,
+  signedVAA: Uint8Array
+) {
+  const { complete_transfer_wrapped_meta_ix } = await import(
+    "../solana/nft/nft_bridge"
+  );
+  const ix = ixFromRust(
+    complete_transfer_wrapped_meta_ix(
+      tokenBridgeAddress,
+      bridgeAddress,
+      payerAddress,
+      signedVAA
+    )
+  );
+  const transaction = new Transaction().add(ix);
   const { blockhash } = await connection.getRecentBlockhash();
   transaction.recentBlockhash = blockhash;
   transaction.feePayer = new PublicKey(payerAddress);

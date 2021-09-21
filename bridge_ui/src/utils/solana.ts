@@ -38,7 +38,7 @@ export async function getMultipleAccountsRPC(
   connection: Connection,
   pubkeys: PublicKey[]
 ): Promise<(AccountInfo<Buffer> | null)[]> {
-  return getMultipleAccounts(connection, pubkeys, "finalized");
+  return getMultipleAccounts(connection, pubkeys, "confirmed");
 }
 
 export const getMultipleAccounts = async (

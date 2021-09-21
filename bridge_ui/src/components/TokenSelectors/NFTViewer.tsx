@@ -173,7 +173,7 @@ export default function NFTViewer({
         cancelled = true;
       };
     }
-  }, [uri, metadata.image]);
+  }, [uri]);
   const classes = useStyles();
   const animLower = metadata.animation_url?.toLowerCase();
   // const has3DModel = animLower?.endsWith('gltf') || animLower?.endsWith('glb')

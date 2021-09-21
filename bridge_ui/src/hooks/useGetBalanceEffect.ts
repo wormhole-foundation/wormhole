@@ -97,7 +97,7 @@ function useGetBalanceEffect(sourceOrTarget: "source" | "target") {
       } catch (e) {
         return;
       }
-      const connection = new Connection(SOLANA_HOST, "finalized");
+      const connection = new Connection(SOLANA_HOST, "confirmed");
       connection
         .getParsedTokenAccountsByOwner(solPK, { mint })
         .then(({ value }) => {

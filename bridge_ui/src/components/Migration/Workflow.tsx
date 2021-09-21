@@ -103,7 +103,7 @@ export default function Workflow({
   const connection = useMemo(
     () => new Connection(SOLANA_HOST, "confirmed"),
     []
-  ); //TODO confirmed or finalized?
+  );
   const wallet = useSolanaWallet();
   const { isReady } = useIsWalletReady(CHAIN_ID_SOLANA);
   const solanaTokenMap = useSolanaTokenMap();

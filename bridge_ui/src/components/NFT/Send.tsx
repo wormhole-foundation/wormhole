@@ -12,6 +12,7 @@ import {
 import { CHAINS_BY_ID } from "../../utils/consts";
 import ButtonWithLoader from "../ButtonWithLoader";
 import KeyAndBalance from "../KeyAndBalance";
+import ShowTx from "../ShowTx";
 import StepDescription from "../StepDescription";
 import TransactionProgress from "../TransactionProgress";
 import WaitingForWalletMessage from "./WaitingForWalletMessage";
@@ -55,6 +56,7 @@ function Send() {
         Transfer
       </ButtonWithLoader>
       <WaitingForWalletMessage />
+      {transferTx ? <ShowTx chainId={sourceChain} tx={transferTx} /> : null}
       <TransactionProgress
         chainId={sourceChain}
         tx={transferTx}

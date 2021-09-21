@@ -11,6 +11,7 @@ import {
 import {
   Box,
   Button,
+  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -27,6 +28,7 @@ import { Restore } from "@material-ui/icons";
 import { Alert } from "@material-ui/lab";
 import { Connection } from "@solana/web3.js";
 import { BigNumber, ethers } from "ethers";
+import { useSnackbar } from "notistack";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useEthereumProvider } from "../../contexts/EthereumProviderContext";
@@ -50,6 +52,7 @@ import {
 } from "../../utils/consts";
 import { getSignedVAAWithRetry } from "../../utils/getSignedVAAWithRetry";
 import { METADATA_REPLACE } from "../../utils/metaplex";
+import parseError from "../../utils/parseError";
 import KeyAndBalance from "../KeyAndBalance";
 
 const useStyles = makeStyles((theme) => ({
@@ -60,7 +63,11 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-async function eth(provider: ethers.providers.Web3Provider, tx: string) {
+async function eth(
+  provider: ethers.providers.Web3Provider,
+  tx: string,
+  enqueueSnackbar: any
+) {
   try {
     const receipt = await provider.getTransactionReceipt(tx);
     const sequence = parseSequenceFromLogEth(receipt, ETH_BRIDGE_ADDRESS);
@@ -71,14 +78,15 @@ async function eth(provider: ethers.providers.Web3Provider, tx: string) {
       sequence.toString(),
       WORMHOLE_RPC_HOSTS.length
     );
-    return uint8ArrayToHex(vaaBytes);
+    return { vaa: uint8ArrayToHex(vaaBytes), error: null };
   } catch (e) {
     console.error(e);
+    enqueueSnackbar(parseError(e), { variant: "error" });
+    return { vaa: null, error: parseError(e) };
   }
-  return "";
 }
 
-async function solana(tx: string) {
+async function solana(tx: string, enqueueSnackbar: any) {
   try {
     const connection = new Connection(SOLANA_HOST, "confirmed");
     const info = await connection.getTransaction(tx);
@@ -95,11 +103,12 @@ async function solana(tx: string) {
       sequence.toString(),
       WORMHOLE_RPC_HOSTS.length
     );
-    return uint8ArrayToHex(vaaBytes);
+    return { vaa: uint8ArrayToHex(vaaBytes), error: null };
   } catch (e) {
     console.error(e);
+    enqueueSnackbar(parseError(e), { variant: "error" });
+    return { vaa: null, error: parseError(e) };
   }
-  return "";
 }
 
 // note: actual first byte is message type
@@ -114,7 +123,7 @@ async function solana(tx: string) {
 //     ?   u16      recipient_chain
 
 // TODO: move to wasm / sdk, share with solana
-const parsePayload = (arr: Buffer) => {
+export const parsePayload = (arr: Buffer) => {
   const originAddress = arr.slice(1, 1 + 32).toString("hex");
   const originChain = arr.readUInt16BE(33) as ChainId;
   const symbol = Buffer.from(arr.slice(35, 35 + 32))
@@ -152,12 +161,16 @@ function RecoveryDialogContent({
   onClose: () => void;
   disabled: boolean;
 }) {
+  const { enqueueSnackbar } = useSnackbar();
   const dispatch = useDispatch();
   const { provider } = useEthereumProvider();
   const currentSourceChain = useSelector(selectNFTSourceChain);
   const [recoverySourceChain, setRecoverySourceChain] =
     useState(currentSourceChain);
   const [recoverySourceTx, setRecoverySourceTx] = useState("");
+  const [recoverySourceTxIsLoading, setRecoverySourceTxIsLoading] =
+    useState(false);
+  const [recoverySourceTxError, setRecoverySourceTxError] = useState("");
   const currentSignedVAA = useSelector(selectNFTSignedVAAHex);
   const [recoverySignedVAA, setRecoverySignedVAA] = useState(currentSignedVAA);
   const [recoveryParsedVAA, setRecoveryParsedVAA] = useState<any>(null);
@@ -171,17 +184,40 @@ function RecoveryDialogContent({
     if (recoverySourceTx) {
       let cancelled = false;
       if (recoverySourceChain === CHAIN_ID_ETH && provider) {
+        setRecoverySourceTxError("");
+        setRecoverySourceTxIsLoading(true);
         (async () => {
-          const vaa = await eth(provider, recoverySourceTx);
+          const { vaa, error } = await eth(
+            provider,
+            recoverySourceTx,
+            enqueueSnackbar
+          );
           if (!cancelled) {
-            setRecoverySignedVAA(vaa);
+            setRecoverySourceTxIsLoading(false);
+            if (vaa) {
+              setRecoverySignedVAA(vaa);
+            }
+            if (error) {
+              setRecoverySourceTxError(error);
+            }
           }
         })();
       } else if (recoverySourceChain === CHAIN_ID_SOLANA) {
+        setRecoverySourceTxError("");
+        setRecoverySourceTxIsLoading(true);
         (async () => {
-          const vaa = await solana(recoverySourceTx);
+          const { vaa, error } = await solana(
+            recoverySourceTx,
+            enqueueSnackbar
+          );
           if (!cancelled) {
-            setRecoverySignedVAA(vaa);
+            setRecoverySourceTxIsLoading(false);
+            if (vaa) {
+              setRecoverySignedVAA(vaa);
+            }
+            if (error) {
+              setRecoverySourceTxError(error);
+            }
           }
         })();
       }
@@ -189,7 +225,7 @@ function RecoveryDialogContent({
         cancelled = true;
       };
     }
-  }, [recoverySourceChain, recoverySourceTx, provider]);
+  }, [recoverySourceChain, recoverySourceTx, provider, enqueueSnackbar]);
   useEffect(() => {
     setRecoverySignedVAA(currentSignedVAA);
   }, [currentSignedVAA]);
@@ -280,23 +316,45 @@ function RecoveryDialogContent({
           <KeyAndBalance chainId={recoverySourceChain} />
         ) : null}
         <TextField
-          label="Source Tx"
-          disabled={!!recoverySignedVAA}
+          label="Source Tx (paste here)"
+          disabled={!!recoverySignedVAA || recoverySourceTxIsLoading}
           value={recoverySourceTx}
           onChange={handleSourceTxChange}
+          error={!!recoverySourceTxError}
+          helperText={recoverySourceTxError}
           fullWidth
           margin="normal"
         />
-        <Box mt={4}>
-          <Typography>or</Typography>
+        <Box position="relative">
+          <Box mt={4}>
+            <Typography>or</Typography>
+          </Box>
+          <TextField
+            label="Signed VAA (Hex)"
+            disabled={recoverySourceTxIsLoading}
+            value={recoverySignedVAA || ""}
+            onChange={handleSignedVAAChange}
+            fullWidth
+            margin="normal"
+          />
+          {recoverySourceTxIsLoading ? (
+            <Box
+              position="absolute"
+              style={{
+                top: 0,
+                right: 0,
+                left: 0,
+                bottom: 0,
+                backgroundColor: "rgba(0,0,0,0.5)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <CircularProgress />
+            </Box>
+          ) : null}
         </Box>
-        <TextField
-          label="Signed VAA (Hex)"
-          value={recoverySignedVAA || ""}
-          onChange={handleSignedVAAChange}
-          fullWidth
-          margin="normal"
-        />
         <Box my={4}>
           <Divider />
         </Box>

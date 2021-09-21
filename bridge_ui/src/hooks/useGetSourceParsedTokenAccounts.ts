@@ -275,7 +275,7 @@ const getSolanaParsedTokenAccounts = (
   dispatch: Dispatch,
   nft: boolean
 ) => {
-  const connection = new Connection(SOLANA_HOST, "finalized");
+  const connection = new Connection(SOLANA_HOST, "confirmed");
   dispatch(
     nft ? fetchSourceParsedTokenAccountsNFT() : fetchSourceParsedTokenAccounts()
   );
@@ -426,7 +426,7 @@ function useGetAvailableTokens(nft: boolean = false) {
     //SOLT devnet token
     // mintAddresses.push("2WDq7wSs9zYrpx2kbHDA4RUTRch2CCTP6ZWaH4GNfnQQ");
 
-    const connection = new Connection(SOLANA_HOST, "finalized");
+    const connection = new Connection(SOLANA_HOST, "confirmed");
     getMultipleAccountsRPC(
       connection,
       mintAddresses.map((x) => new PublicKey(x))

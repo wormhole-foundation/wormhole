@@ -1,28 +1,36 @@
 import {
   CHAIN_ID_ETH,
   CHAIN_ID_SOLANA,
+  getClaimAddressSolana,
   postVaaSolana,
 } from "@certusone/wormhole-sdk";
 import {
+  createMetaOnSolana,
+  getForeignAssetSol,
+  isNFTVAASolanaNative,
   redeemOnEth,
   redeemOnSolana,
 } from "@certusone/wormhole-sdk/lib/nft_bridge";
+import { arrayify } from "@ethersproject/bytes";
 import { WalletContextState } from "@solana/wallet-adapter-react";
 import { Connection } from "@solana/web3.js";
 import { Signer } from "ethers";
 import { useSnackbar } from "notistack";
 import { useCallback, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { parsePayload } from "../components/NFT/Recovery";
 import { useEthereumProvider } from "../contexts/EthereumProviderContext";
 import { useSolanaWallet } from "../contexts/SolanaWalletContext";
 import { setIsRedeeming, setRedeemTx } from "../store/nftSlice";
 import { selectNFTIsRedeeming, selectNFTTargetChain } from "../store/selectors";
+import { hexToUint8Array } from "../utils/array";
 import {
   ETH_NFT_BRIDGE_ADDRESS,
   SOLANA_HOST,
   SOL_BRIDGE_ADDRESS,
   SOL_NFT_BRIDGE_ADDRESS,
 } from "../utils/consts";
+import { getMetadataAddress } from "../utils/metaplex";
 import parseError from "../utils/parseError";
 import { signSendAndConfirm } from "../utils/solana";
 import useNFTSignedVAA from "./useNFTSignedVAA";
@@ -63,24 +71,60 @@ async function solana(
       throw new Error("wallet.signTransaction is undefined");
     }
     const connection = new Connection(SOLANA_HOST, "confirmed");
-    await postVaaSolana(
-      connection,
-      wallet.signTransaction,
-      SOL_BRIDGE_ADDRESS,
-      payerAddress,
-      Buffer.from(signedVAA)
-    );
-    // TODO: how do we retry in between these steps
-    const transaction = await redeemOnSolana(
-      connection,
-      SOL_BRIDGE_ADDRESS,
+    const claimAddress = await getClaimAddressSolana(
       SOL_NFT_BRIDGE_ADDRESS,
-      payerAddress,
       signedVAA
     );
-    const txid = await signSendAndConfirm(wallet, connection, transaction);
-    // TODO: didn't want to make an info call we didn't need, can we get the block without it by modifying the above call?
-    dispatch(setRedeemTx({ id: txid, block: 1 }));
+    const claimInfo = await connection.getAccountInfo(claimAddress);
+    let txid;
+    if (!claimInfo) {
+      await postVaaSolana(
+        connection,
+        wallet.signTransaction,
+        SOL_BRIDGE_ADDRESS,
+        payerAddress,
+        Buffer.from(signedVAA)
+      );
+      // TODO: how do we retry in between these steps
+      const transaction = await redeemOnSolana(
+        connection,
+        SOL_BRIDGE_ADDRESS,
+        SOL_NFT_BRIDGE_ADDRESS,
+        payerAddress,
+        signedVAA
+      );
+      txid = await signSendAndConfirm(wallet, connection, transaction);
+      // TODO: didn't want to make an info call we didn't need, can we get the block without it by modifying the above call?
+    }
+    const isNative = await isNFTVAASolanaNative(signedVAA);
+    if (!isNative) {
+      const { parse_vaa } = await import(
+        "@certusone/wormhole-sdk/lib/solana/core/bridge"
+      );
+      const parsedVAA = parse_vaa(signedVAA);
+      const { originChain, originAddress, tokenId } = parsePayload(
+        Buffer.from(new Uint8Array(parsedVAA.payload))
+      );
+      const mintAddress = await getForeignAssetSol(
+        SOL_NFT_BRIDGE_ADDRESS,
+        originChain,
+        hexToUint8Array(originAddress),
+        arrayify(tokenId)
+      );
+      const [metadataAddress] = await getMetadataAddress(mintAddress);
+      const metadata = await connection.getAccountInfo(metadataAddress);
+      if (!metadata) {
+        const transaction = await createMetaOnSolana(
+          connection,
+          SOL_BRIDGE_ADDRESS,
+          SOL_NFT_BRIDGE_ADDRESS,
+          payerAddress,
+          signedVAA
+        );
+        txid = await signSendAndConfirm(wallet, connection, transaction);
+      }
+    }
+    dispatch(setRedeemTx({ id: txid || "", block: 1 }));
     enqueueSnackbar("Transaction confirmed", { variant: "success" });
   } catch (e) {
     enqueueSnackbar(parseError(e), { variant: "error" });
