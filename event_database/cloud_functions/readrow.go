@@ -11,64 +11,11 @@ import (
 	"net/http"
 	"os"
 	"strings"
-	"sync"
 
 	"cloud.google.com/go/bigtable"
 )
 
-// client is a global Bigtable client, to avoid initializing a new client for
-// every request.
-var client *bigtable.Client
-var clientOnce sync.Once
-
-var columnFamilies = []string{"MessagePublication", "Signatures", "VAAState", "QuorumState"}
-
-type (
-	MessagePub struct {
-		InitiatingTxID string
-		Payload        []byte
-	}
-	Summary struct {
-		Message           MessagePub
-		GuardianAddresses []string
-		SignedVAA         []byte
-		QuorumTime        string
-	}
-)
-
-func makeSummary(row bigtable.Row) *Summary {
-	summary := &Summary{}
-	if _, ok := row[columnFamilies[0]]; ok {
-
-		message := &MessagePub{}
-		for _, item := range row[columnFamilies[0]] {
-			switch item.Column {
-			case "MessagePublication:InitiatingTxID":
-				message.InitiatingTxID = string(item.Value)
-			case "MessagePublication:Payload":
-				message.Payload = item.Value
-			}
-		}
-		summary.Message = *message
-	}
-	if _, ok := row[columnFamilies[1]]; ok {
-		for _, item := range row[columnFamilies[1]] {
-			column := strings.Split(item.Column, ":")
-			summary.GuardianAddresses = append(summary.GuardianAddresses, column[1])
-		}
-	}
-	if _, ok := row[columnFamilies[3]]; ok {
-
-		for _, item := range row[columnFamilies[3]] {
-			if item.Column == "QuorumState:SignedVAA" {
-				summary.SignedVAA = item.Value
-				summary.QuorumTime = item.Timestamp.Time().String()
-			}
-		}
-	}
-	return summary
-}
-
+// fetch a single row by the row key
 func ReadRow(w http.ResponseWriter, r *http.Request) {
 	// Set CORS headers for the preflight request
 	if r.Method == http.MethodOptions {
@@ -82,15 +29,15 @@ func ReadRow(w http.ResponseWriter, r *http.Request) {
 	// Set CORS headers for the main request.
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
-	var rowKey string
+	var emitterChain, emitterAddress, sequence, rowKey string
 
 	// allow GET requests with querystring params, or POST requests with json body.
 	switch r.Method {
 	case http.MethodGet:
 		queryParams := r.URL.Query()
-		emitterChain := queryParams.Get("emitterChain")
-		emitterAddress := queryParams.Get("emitterAddress")
-		sequence := queryParams.Get("sequence")
+		emitterChain = queryParams.Get("emitterChain")
+		emitterAddress = queryParams.Get("emitterAddress")
+		sequence = queryParams.Get("sequence")
 
 		readyCheck := queryParams.Get("readyCheck")
 		if readyCheck != "" {
@@ -102,11 +49,10 @@ func ReadRow(w http.ResponseWriter, r *http.Request) {
 
 		// check for empty values
 		if emitterChain == "" || emitterAddress == "" || sequence == "" {
-			fmt.Fprint(w, "body values cannot be empty")
+			fmt.Fprint(w, "query params ['emitterChain', 'emitterAddress', 'sequence'] cannot be empty")
 			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 			return
 		}
-		rowKey = emitterChain + ":" + emitterAddress + ":" + sequence
 	case http.MethodPost:
 		// declare request body properties
 		var d struct {
@@ -130,22 +76,44 @@ func ReadRow(w http.ResponseWriter, r *http.Request) {
 
 		// check for empty values
 		if d.EmitterChain == "" || d.EmitterAddress == "" || d.Sequence == "" {
-			fmt.Fprint(w, "body values cannot be empty")
+			fmt.Fprint(w, "body values ['emitterChain', 'emitterAddress', 'sequence'] cannot be empty")
 			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 			return
 		}
-		rowKey = d.EmitterChain + ":" + d.EmitterAddress + ":" + d.Sequence
+		emitterChain = d.EmitterChain
+		emitterAddress = d.EmitterAddress
+		sequence = d.Sequence
 	default:
 		http.Error(w, "405 - Method Not Allowed", http.StatusMethodNotAllowed)
 		log.Println("Method Not Allowed")
 		return
 	}
 
+	// pad sequence to 16 characters
+	if len(sequence) <= 15 {
+		sequence = fmt.Sprintf("%016s", sequence)
+	}
+	// convert chain name to chainID
+	if len(emitterChain) > 1 {
+		chainNameMap := map[string]string{
+			"solana":   "1",
+			"ethereum": "2",
+			"terra":    "3",
+			"bsc":      "4",
+		}
+		lowercaseChain := strings.ToLower(emitterChain)
+		if _, ok := chainNameMap[lowercaseChain]; ok {
+			emitterChain = chainNameMap[lowercaseChain]
+		}
+	}
+	rowKey = emitterChain + ":" + emitterAddress + ":" + sequence
+
 	clientOnce.Do(func() {
 		// Declare a separate err variable to avoid shadowing client.
 		var err error
 		project := os.Getenv("GCP_PROJECT")
-		client, err = bigtable.NewClient(context.Background(), project, "wormhole")
+		instance := os.Getenv("BIGTABLE_INSTANCE")
+		client, err = bigtable.NewClient(context.Background(), project, instance)
 		if err != nil {
 			http.Error(w, "Error initializing client", http.StatusInternalServerError)
 			log.Printf("bigtable.NewClient: %v", err)

@@ -84,7 +84,7 @@ local_resource(
 if explorer:
     k8s_yaml_with_ns(
         secret_yaml_generic(
-            "bridge-bigtable-key",
+            "node-bigtable-key",
             from_file = "bigtable-key.json=" + bigTableKeyPath,
         ),
     )
@@ -235,50 +235,76 @@ k8s_resource("eth-devnet2", port_forwards = [
 def build_cloud_function(container_name, go_func_name, path, builder):
     # Invokes Tilt's custom_build(), with a Pack command.
     # inspired by https://github.com/tilt-dev/tilt-extensions/tree/master/pack
-    caching_ref = container_name + ":tilt-build-pack-caching"
+    tag = "latest"
+    caching_ref = container_name + ":" + tag
+
     pack_build_cmd = " ".join([
         "./tools/bin/pack build",
         caching_ref,
         "--path " + path,
         "--builder " + builder,
+        "--run-image devnet-cloud-function",
         "--env " + "GOOGLE_FUNCTION_TARGET=%s" % go_func_name,
         "--env " + "GOOGLE_FUNCTION_SIGNATURE_TYPE=http",
     ])
 
+    disable_push = True
+    skips_local_docker = True
     if ci:
         # inherit the DOCKER_HOST socket provided by custom_build.
         pack_build_cmd = pack_build_cmd + " --docker-host inherit"
+        # do not attempt to access Docker cache in CI
+        # pack_build_cmd = pack_build_cmd + " --clear-cache"
+        # don't try to pull previous container versions in CI
+        pack_build_cmd = pack_build_cmd + " --pull-policy never"
+        # push to kubernetes registry
+        disable_push = False
+        skips_local_docker = False
 
-    docker_tag_cmd = "docker tag " + caching_ref + " $EXPECTED_REF"
+    docker_tag_cmd  = "tilt docker -- tag " + caching_ref + " $EXPECTED_REF"
     custom_build(
         container_name,
         pack_build_cmd + " && " + docker_tag_cmd,
         [path],
+        tag=tag,
+        skips_local_docker=skips_local_docker,
+        disable_push=disable_push,
     )
 
 if explorer:
-    build_cloud_function(
-        container_name = "cloud-function-readrow",
-        go_func_name = "ReadRow",
-        path = "./event_database/cloud_functions",
-        builder = "gcr.io/buildpacks/builder:v1",
+
+    local_resource(
+        name = "devnet-cloud-function",
+        cmd = "tilt docker -- build -f ./event_database/cloud_functions/Dockerfile.run . -t devnet-cloud-function --label builtby=tilt",
+        env = {"DOCKER_BUILDKIT": "1"},
+        labels = ["explorer"],
     )
 
     local_resource(
         name = "pack-bin",
         cmd = "go build -mod=readonly -o bin/pack github.com/buildpacks/pack/cmd/pack",
         dir = "tools",
+        labels = ["explorer"],
     )
 
     k8s_yaml_with_ns("devnet/bigtable.yaml")
 
-    k8s_resource("bigtable-emulator", port_forwards = [
-        port_forward(8086, name = "BigTable clients [:8086]"),
-    ])
+    k8s_resource("bigtable-emulator",
+        port_forwards = [port_forward(8086, name = "BigTable clients [:8086]")],
+        labels = ["explorer"],
+    )
+
+    build_cloud_function(
+        container_name = "bigtable-functions",
+        go_func_name = "Entry",
+        path = "./event_database/cloud_functions",
+        builder = "gcr.io/buildpacks/builder:v1",
+    )
     k8s_resource(
-        "bigtable-readrow",
-        resource_deps = ["proto-gen"],
-        port_forwards = [port_forward(8090, name = "ReadRow [:8090]")],
+        "bigtable-functions",
+        resource_deps = ["proto-gen", "bigtable-emulator"],
+        port_forwards = [port_forward(8090, name = "BigTable Functions [:8090]")],
+        labels = ["explorer"]
     )
 
     # explorer web app
@@ -301,6 +327,7 @@ if explorer:
         port_forwards = [
             port_forward(8001, name = "Explorer Web UI [:8001]"),
         ],
+        labels = ["explorer"],
     )
 
 # terra devnet

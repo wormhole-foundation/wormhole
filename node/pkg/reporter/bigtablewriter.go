@@ -29,7 +29,8 @@ type bigTableWriter struct {
 
 // rowKey returns a string with the input vales delimited by colons.
 func makeRowKey(emitterChain vaa.ChainID, emitterAddress vaa.Address, sequence uint64) string {
-	return fmt.Sprintf("%d:%s:%d", emitterChain, emitterAddress, sequence)
+	// left-pad the sequence with zeros to 16 characters, because bigtable keys are stored lexicographically
+	return fmt.Sprintf("%d:%s:%016d", emitterChain, emitterAddress, sequence)
 }
 
 func BigTableWriter(events *AttestationEventReporter, connectionConfig *BigTableConnectionConfig) func(ctx context.Context) error {

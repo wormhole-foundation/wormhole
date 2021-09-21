@@ -64,43 +64,49 @@ apiVersion: v1
 kind: Service
 metadata:
   labels:
-    app: bigtable-readrow
-  name: bigtable-readrow
+    app: bigtable-functions
+  name: bigtable-functions
 spec:
   ports:
-  - name: readrow
+  - name: functions
     port: 8090
-    targetPort: readrow
+    targetPort: functions
     protocol: TCP
   selector:
-    app: bigtable-readrow
+    app: bigtable-functions
 ---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   labels:
-    app: bigtable-readrow
-  name: bigtable-readrow
+    app: bigtable-functions
+  name: bigtable-functions
 spec:
-  serviceName: bigtable-readrow
+  serviceName: bigtable-functions
   replicas: 1
   selector:
     matchLabels:
-      app: bigtable-readrow
+      app: bigtable-functions
   template:
     metadata:
       labels:
-        app: bigtable-readrow
+        app: bigtable-functions
     spec:
       containers:
-        - name: bigtable-readrow
-          image: cloud-function-readrow
+        - name: bigtable-functions
+          image: bigtable-functions
           env:
             - name: BIGTABLE_EMULATOR_HOST
               value: bigtable-emulator:8086
             - name: GCP_PROJECT
               value: local-dev
+            - name: BIGTABLE_INSTANCE
+              value: wormhole
           ports:
             - containerPort: 8080
-              name: readrow
+              name: functions
               protocol: TCP
+          readinessProbe:
+            httpGet:
+              port: 8080
+              path: /readyz
