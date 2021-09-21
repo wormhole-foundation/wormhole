@@ -46,6 +46,8 @@ use crate::{
         GovernancePayloadTransferFees,
         GovernancePayloadUpgrade,
     },
+    Claim,
+    ClaimDerivationData,
     PostVAAData,
     VerifySignaturesData,
 };
@@ -341,6 +343,22 @@ pub fn fee_collector_address(bridge: String) -> Vec<u8> {
     let bridge_key = FeeCollector::key(None, &program_id);
 
     bridge_key.to_bytes().to_vec()
+}
+
+#[wasm_bindgen]
+pub fn claim_address(program_id: String, vaa: Vec<u8>) -> Vec<u8> {
+    let program_id = Pubkey::from_str(program_id.as_str()).unwrap();
+
+    let vaa = VAA::deserialize(vaa.as_slice()).unwrap();
+    let claim_key = Claim::<'_, { AccountState::Initialized }>::key(
+        &ClaimDerivationData {
+            emitter_address: vaa.emitter_address,
+            emitter_chain: vaa.emitter_chain,
+            sequence: vaa.sequence,
+        },
+        &program_id,
+    );
+    claim_key.to_bytes().to_vec()
 }
 
 #[wasm_bindgen]

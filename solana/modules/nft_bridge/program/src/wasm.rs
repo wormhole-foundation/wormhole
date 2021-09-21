@@ -2,6 +2,8 @@ use crate::{
     accounts::{
         AuthoritySigner,
         EmitterAccount,
+        SplTokenMeta,
+        SplTokenMetaDerivationData,
         WrappedDerivationData,
         WrappedMetaDerivationData,
         WrappedMint,
@@ -402,6 +404,18 @@ pub fn wrapped_meta_address(program_id: String, mint_address: Vec<u8>) -> Vec<u8
     );
 
     wrapped_meta_addr.to_bytes().to_vec()
+}
+
+#[wasm_bindgen]
+pub fn spl_meta_address(mint_address: Vec<u8>) -> Vec<u8> {
+    let mint_key = Pubkey::new(mint_address.as_slice());
+
+    let spl_metadata = SplTokenMeta::key(
+        &SplTokenMetaDerivationData { mint: mint_key },
+        &spl_token_metadata::id(),
+    );
+
+    spl_metadata.to_bytes().to_vec()
 }
 
 #[wasm_bindgen]
