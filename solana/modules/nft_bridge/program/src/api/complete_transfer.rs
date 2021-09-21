@@ -20,6 +20,7 @@ use crate::{
 };
 use bridge::{
     vaa::ClaimableVAA,
+    PayloadMessage,
     CHAIN_ID_SOLANA,
 };
 use solana_program::{
@@ -169,9 +170,6 @@ pub struct CompleteWrapped<'b> {
     pub mint: Mut<WrappedMint<'b, { AccountState::MaybeInitialized }>>,
     pub meta: Mut<WrappedTokenMeta<'b, { AccountState::MaybeInitialized }>>,
 
-    /// SPL Metadata for the associated Mint
-    pub spl_metadata: Mut<SplTokenMeta<'b>>,
-
     pub mint_authority: MintSigner<'b>,
 }
 
@@ -253,38 +251,6 @@ pub fn complete_wrapped(
         accs.meta
             .create(&((&*accs).into()), ctx, accs.payer.key, Exempt)?;
 
-        // Initialize spl meta
-        accs.spl_metadata.verify_derivation(
-            &spl_token_metadata::id(),
-            &SplTokenMetaDerivationData {
-                mint: *accs.mint.info().key,
-            },
-        )?;
-
-        let name = accs.vaa.name.clone();
-        let mut symbol: Vec<u8> = accs.vaa.symbol.clone().as_bytes().to_vec();
-        symbol.truncate(10);
-        let mut symbol: Vec<char> = symbol.chars().collect();
-        symbol.retain(|&c| c != '\u{FFFD}');
-        let symbol: String = symbol.iter().collect();
-
-        let spl_token_metadata_ix = spl_token_metadata::instruction::create_metadata_accounts(
-            spl_token_metadata::id(),
-            *accs.spl_metadata.key,
-            *accs.mint.info().key,
-            *accs.mint_authority.info().key,
-            *accs.payer.info().key,
-            *accs.mint_authority.info().key,
-            name,
-            symbol,
-            accs.vaa.uri.clone(),
-            None,
-            0,
-            false,
-            true,
-        );
-        invoke_seeded(&spl_token_metadata_ix, ctx, &accs.mint_authority, None)?;
-
         // Populate meta account
         accs.meta.chain = accs.vaa.token_chain;
         accs.meta.token_address = accs.vaa.token_address;
@@ -320,6 +286,120 @@ pub fn complete_wrapped(
         1,
     )?;
     invoke_seeded(&mint_ix, ctx, &accs.mint_authority, None)?;
+
+    Ok(())
+}
+
+#[derive(FromAccounts)]
+pub struct CompleteWrappedMeta<'b> {
+    pub payer: Mut<Signer<AccountInfo<'b>>>,
+    pub config: ConfigAccount<'b, { AccountState::Initialized }>,
+
+    // VAA for the transfer; this does not need to get claimed
+    pub vaa: PayloadMessage<'b, PayloadTransfer>,
+
+    pub chain_registration: Endpoint<'b, { AccountState::Initialized }>,
+
+    pub mint: WrappedMint<'b, { AccountState::Initialized }>,
+    pub meta: WrappedTokenMeta<'b, { AccountState::Initialized }>,
+
+    /// SPL Metadata for the associated Mint
+    pub spl_metadata: Mut<SplTokenMeta<'b>>,
+
+    pub mint_authority: MintSigner<'b>,
+}
+
+impl<'a> From<&CompleteWrappedMeta<'a>> for EndpointDerivationData {
+    fn from(accs: &CompleteWrappedMeta<'a>) -> Self {
+        EndpointDerivationData {
+            emitter_chain: accs.vaa.meta().emitter_chain,
+            emitter_address: accs.vaa.meta().emitter_address,
+        }
+    }
+}
+
+impl<'a> From<&CompleteWrappedMeta<'a>> for WrappedDerivationData {
+    fn from(accs: &CompleteWrappedMeta<'a>) -> Self {
+        WrappedDerivationData {
+            token_chain: accs.vaa.token_chain,
+            token_address: accs.vaa.token_address,
+            token_id: accs.vaa.token_id,
+        }
+    }
+}
+
+impl<'a> From<&CompleteWrappedMeta<'a>> for WrappedMetaDerivationData {
+    fn from(accs: &CompleteWrappedMeta<'a>) -> Self {
+        WrappedMetaDerivationData {
+            mint_key: *accs.mint.info().key,
+        }
+    }
+}
+
+impl<'b> InstructionContext<'b> for CompleteWrappedMeta<'b> {
+}
+
+#[derive(BorshDeserialize, BorshSerialize, Default)]
+pub struct CompleteWrappedMetaData {}
+
+pub fn complete_wrapped_meta(
+    ctx: &ExecutionContext,
+    accs: &mut CompleteWrappedMeta,
+    _data: CompleteWrappedMetaData,
+) -> Result<()> {
+    use bstr::ByteSlice;
+
+    // Verify the chain registration
+    let derivation_data: EndpointDerivationData = (&*accs).into();
+    accs.chain_registration
+        .verify_derivation(ctx.program_id, &derivation_data)?;
+
+    // Verify mint
+    let derivation_data: WrappedDerivationData = (&*accs).into();
+    accs.mint
+        .verify_derivation(ctx.program_id, &derivation_data)?;
+
+    // Verify VAA
+    if accs.vaa.to_chain != CHAIN_ID_SOLANA {
+        return Err(InvalidChain.into());
+    }
+
+    // Make sure the metadata hasn't been initialized yet
+    if !accs.spl_metadata.data_is_empty() {
+        return Err(AlreadyExecuted.into());
+    }
+
+    // Initialize spl meta
+    accs.spl_metadata.verify_derivation(
+        &spl_token_metadata::id(),
+        &SplTokenMetaDerivationData {
+            mint: *accs.mint.info().key,
+        },
+    )?;
+
+    let name = accs.vaa.name.clone();
+    let mut symbol: Vec<u8> = accs.vaa.symbol.clone().as_bytes().to_vec();
+    symbol.truncate(10);
+    let mut symbol: Vec<char> = symbol.chars().collect();
+    symbol.retain(|&c| c != '\u{FFFD}');
+    let symbol: String = symbol.iter().collect();
+
+    let spl_token_metadata_ix = spl_token_metadata::instruction::create_metadata_accounts(
+        spl_token_metadata::id(),
+        *accs.spl_metadata.key,
+        *accs.mint.info().key,
+        *accs.mint_authority.info().key,
+        *accs.payer.info().key,
+        *accs.mint_authority.info().key,
+        name,
+        symbol,
+        accs.vaa.uri.clone(),
+        None,
+        0,
+        false,
+        true,
+    );
+    invoke_seeded(&spl_token_metadata_ix, ctx, &accs.mint_authority, None)?;
 
     Ok(())
 }

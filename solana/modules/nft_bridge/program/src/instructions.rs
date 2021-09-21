@@ -30,6 +30,7 @@ use crate::{
         PayloadGovernanceRegisterChain,
         PayloadTransfer,
     },
+    CompleteWrappedMetaData,
 };
 use borsh::BorshSerialize;
 use bridge::{
@@ -175,11 +176,6 @@ pub fn complete_wrapped(
         &WrappedMetaDerivationData { mint_key },
         &program_id,
     );
-    // SPL Metadata
-    let spl_metadata = SplTokenMeta::key(
-        &SplTokenMetaDerivationData { mint: mint_key },
-        &spl_token_metadata::id(),
-    );
     let associated_addr =
         spl_associated_token_account::get_associated_token_address(&to_authority, &mint_key);
 
@@ -195,7 +191,6 @@ pub fn complete_wrapped(
             AccountMeta::new_readonly(to_authority, false),
             AccountMeta::new(mint_key, false),
             AccountMeta::new(mint_meta_key, false),
-            AccountMeta::new(spl_metadata, false),
             AccountMeta::new_readonly(mint_authority_key, false),
             // Dependencies
             AccountMeta::new_readonly(solana_program::sysvar::rent::id(), false),
@@ -207,6 +202,68 @@ pub fn complete_wrapped(
             AccountMeta::new_readonly(spl_token_metadata::id(), false),
         ],
         data: (crate::instruction::Instruction::CompleteWrapped, data).try_to_vec()?,
+    })
+}
+
+pub fn complete_wrapped_meta(
+    program_id: Pubkey,
+    bridge_id: Pubkey,
+    payer: Pubkey,
+    message_key: Pubkey,
+    vaa: PostVAAData,
+    payload: PayloadTransfer,
+    data: CompleteWrappedMetaData,
+) -> solitaire::Result<Instruction> {
+    let config_key = ConfigAccount::<'_, { AccountState::Uninitialized }>::key(None, &program_id);
+    let (message_acc, claim_acc) = claimable_vaa(program_id, message_key, vaa.clone());
+    let endpoint = Endpoint::<'_, { AccountState::Initialized }>::key(
+        &EndpointDerivationData {
+            emitter_chain: vaa.emitter_chain,
+            emitter_address: vaa.emitter_address,
+        },
+        &program_id,
+    );
+    let mint_key = WrappedMint::<'_, { AccountState::Uninitialized }>::key(
+        &WrappedDerivationData {
+            token_chain: payload.token_chain,
+            token_address: payload.token_address,
+            token_id: payload.token_id,
+        },
+        &program_id,
+    );
+    let mint_authority_key = MintSigner::key(None, &program_id);
+
+    let mint_meta_key = WrappedTokenMeta::<'_, { AccountState::Uninitialized }>::key(
+        &WrappedMetaDerivationData { mint_key },
+        &program_id,
+    );
+    // SPL Metadata
+    let spl_metadata = SplTokenMeta::key(
+        &SplTokenMetaDerivationData { mint: mint_key },
+        &spl_token_metadata::id(),
+    );
+
+    Ok(Instruction {
+        program_id,
+        accounts: vec![
+            AccountMeta::new(payer, true),
+            AccountMeta::new_readonly(config_key, false),
+            message_acc,
+            AccountMeta::new_readonly(endpoint, false),
+            AccountMeta::new_readonly(mint_key, false),
+            AccountMeta::new_readonly(mint_meta_key, false),
+            AccountMeta::new(spl_metadata, false),
+            AccountMeta::new_readonly(mint_authority_key, false),
+            // Dependencies
+            AccountMeta::new_readonly(solana_program::sysvar::rent::id(), false),
+            AccountMeta::new_readonly(solana_program::system_program::id(), false),
+            // Program
+            AccountMeta::new_readonly(bridge_id, false),
+            AccountMeta::new_readonly(spl_token::id(), false),
+            AccountMeta::new_readonly(spl_associated_token_account::id(), false),
+            AccountMeta::new_readonly(spl_token_metadata::id(), false),
+        ],
+        data: (crate::instruction::Instruction::CompleteWrappedMeta, data).try_to_vec()?,
     })
 }
 
