@@ -94,12 +94,14 @@ export function createNFTParsedTokenAccount(
   uiAmountString: string,
   tokenId: string,
   symbol?: string,
+  name?: string,
   uri?: string,
   animation_url?: string,
   external_url?: string,
   image?: string,
   image_256?: string,
-  name?: string
+  nftName?: string,
+  description?: string
 ): NFTParsedTokenAccount {
   return {
     publicKey,
@@ -116,6 +118,8 @@ export function createNFTParsedTokenAccount(
     image_256,
     symbol,
     name,
+    nftName,
+    description,
   };
 }
 
@@ -191,6 +195,7 @@ const createNFTParsedTokenAccountFromCovalent = (
       covalent.contract_decimals
     ),
     symbol: covalent.contract_ticker_symbol,
+    name: covalent.contract_name,
     logo: covalent.logo_url,
     tokenId: nft_data.token_id,
     uri: nft_data.token_url,
@@ -198,7 +203,8 @@ const createNFTParsedTokenAccountFromCovalent = (
     external_url: nft_data.external_data.external_url,
     image: nft_data.external_data.image,
     image_256: nft_data.external_data.image_256,
-    name: nft_data.external_data.name,
+    nftName: nft_data.external_data.name,
+    description: nft_data.external_data.description,
   };
 };
 
@@ -220,6 +226,7 @@ export type CovalentNFTExternalData = {
   image: string;
   image_256: string;
   name: string;
+  description: string;
 };
 
 export type CovalentNFTData = {
@@ -492,6 +499,7 @@ function useGetAvailableTokens(nft: boolean = false) {
     //const testWallet = "0xf60c2ea62edbfe808163751dd0d8693dcb30019c";
     // const nftTestWallet1 = "0x3f304c6721f35ff9af00fd32650c8e0a982180ab";
     // const nftTestWallet2 = "0x98ed231428088eb440e8edb5cc8d66dcf913b86e";
+    // const nftTestWallet3 = "0xb1fadf677a7e9b90e9d4f31c8ffb3dc18c138c6f";
     let cancelled = false;
     const walletAddress = signerAddress;
     if (walletAddress && lookupChain === CHAIN_ID_ETH && !covalent) {

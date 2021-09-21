@@ -52,10 +52,11 @@ export async function getEthereumNFT(
 export async function isNFT(token: NFTImplementation) {
   const erc721 = "0x80ac58cd";
   const erc721metadata = "0x5b5e139f";
-  return (
-    (await token.supportsInterface(arrayify(erc721))) &&
-    (await token.supportsInterface(arrayify(erc721metadata)))
+  const supportsErc721 = await token.supportsInterface(arrayify(erc721));
+  const supportsErc721Metadata = await token.supportsInterface(
+    arrayify(erc721metadata)
   );
+  return supportsErc721 && supportsErc721Metadata;
 }
 
 export async function ethNFTToNFTParsedTokenAccount(
@@ -66,6 +67,7 @@ export async function ethNFTToNFTParsedTokenAccount(
   const decimals = 0;
   const balance = (await token.ownerOf(tokenId)) === signerAddress ? 1 : 0;
   const symbol = await token.symbol();
+  const name = await token.name();
   const uri = await token.tokenURI(tokenId);
   return createNFTParsedTokenAccount(
     signerAddress,
@@ -76,6 +78,7 @@ export async function ethNFTToNFTParsedTokenAccount(
     formatUnits(balance, decimals),
     tokenId,
     symbol,
+    name,
     uri
   );
 }

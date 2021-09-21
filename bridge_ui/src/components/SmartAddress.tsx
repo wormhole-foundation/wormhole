@@ -4,13 +4,13 @@ import {
   CHAIN_ID_SOLANA,
 } from "@certusone/wormhole-sdk";
 import { Button, makeStyles, Tooltip, Typography } from "@material-ui/core";
+import { FileCopy, OpenInNew } from "@material-ui/icons";
 import { withStyles } from "@material-ui/styles";
-import { useSnackbar } from "notistack";
-import { useCallback } from "react";
+import clsx from "clsx";
+import useCopyToClipboard from "../hooks/useCopyToClipboard";
 import { ParsedTokenAccount } from "../store/transferSlice";
 import { CLUSTER } from "../utils/consts";
 import { shortenAddress } from "../utils/solana";
-import { FileCopy, OpenInNew } from "@material-ui/icons";
 
 const useStyles = makeStyles((theme) => ({
   mainTypog: {
@@ -20,19 +20,18 @@ const useStyles = makeStyles((theme) => ({
     textDecoration: "underline",
     textUnderlineOffset: "2px",
   },
+  noGutter: {
+    marginLeft: 0,
+    marginRight: 0,
+  },
+  noUnderline: {
+    textDecoration: "none",
+  },
   buttons: {
     marginLeft: ".5rem",
     marginRight: ".5rem",
   },
 }));
-
-function pushToClipboard(content: any) {
-  if (!navigator.clipboard) {
-    // Clipboard API not available
-    return;
-  }
-  return navigator.clipboard.writeText(content);
-}
 
 const tooltipStyles = {
   tooltip: {
@@ -54,6 +53,8 @@ export default function SmartAddress({
   symbol,
   tokenName,
   variant,
+  noGutter,
+  noUnderline,
 }: {
   chainId: ChainId;
   parsedTokenAccount?: ParsedTokenAccount;
@@ -62,13 +63,14 @@ export default function SmartAddress({
   tokenName?: string;
   symbol?: string;
   variant?: any;
+  noGutter?: boolean;
+  noUnderline?: boolean;
 }) {
   const classes = useStyles();
   const useableAddress = parsedTokenAccount?.mintKey || address || "";
   const useableSymbol = parsedTokenAccount?.symbol || symbol || "";
   const isNative = parsedTokenAccount?.isNativeAsset || false;
   const addressShort = shortenAddress(useableAddress) || "";
-  const { enqueueSnackbar } = useSnackbar();
 
   const useableName = isNative
     ? "Native Currency"
@@ -95,11 +97,7 @@ export default function SmartAddress({
     : undefined;
   const explorerName = chainId === CHAIN_ID_ETH ? "Etherscan" : "Explorer";
 
-  const copyToClipboard = useCallback(() => {
-    pushToClipboard(useableAddress)?.then(() => {
-      enqueueSnackbar("Copied address to clipboard.", { variant: "success" });
-    });
-  }, [useableAddress, enqueueSnackbar]);
+  const copyToClipboard = useCopyToClipboard(useableAddress);
 
   const explorerButton = !explorerAddress ? null : (
     <Button
@@ -149,7 +147,10 @@ export default function SmartAddress({
     >
       <Typography
         variant={variant || "body1"}
-        className={classes.mainTypog}
+        className={clsx(classes.mainTypog, {
+          [classes.noGutter]: noGutter,
+          [classes.noUnderline]: noUnderline,
+        })}
         component="div"
       >
         {useableSymbol || addressShort}

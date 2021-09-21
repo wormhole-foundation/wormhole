@@ -26,7 +26,8 @@ export interface NFTParsedTokenAccount extends ParsedTokenAccount {
   external_url?: string | null;
   image?: string;
   image_256?: string;
-  name?: string;
+  nftName?: string;
+  description?: string;
 }
 
 export interface NFTState {

@@ -1,3 +1,4 @@
+import { CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
 import { CircularProgress, TextField, Typography } from "@material-ui/core";
 import { createStyles, makeStyles, Theme } from "@material-ui/core/styles";
 import { Alert, Autocomplete } from "@material-ui/lab";
@@ -318,7 +319,9 @@ export default function SolanaSourceTokenSelector(
     <React.Fragment>
       {isLoading ? <CircularProgress /> : wrappedContent}
       {error && <Typography color="error">{error}</Typography>}
-      {nft && value ? <NFTViewer value={value} /> : null}
+      {nft && value ? (
+        <NFTViewer value={value} chainId={CHAIN_ID_SOLANA} />
+      ) : null}
     </React.Fragment>
   );
 }

@@ -27,6 +27,7 @@ import { NFTParsedTokenAccount } from "../../store/nftSlice";
 import NFTViewer from "./NFTViewer";
 import { useDebounce } from "use-debounce/lib";
 import RefreshButtonWrapper from "./RefreshButtonWrapper";
+import { CHAIN_ID_ETH } from "@certusone/wormhole-sdk";
 
 const useStyles = makeStyles(() =>
   createStyles({
@@ -281,22 +282,29 @@ export default function EthereumSourceTokenSelector(
                         !cancelled && setAdvancedModeLoading(false);
                       });
                   } else {
+                    console.error("no NFT result");
                     !cancelled &&
                       setAdvancedModeError(
-                        "This token does not support ERC-721"
+                        "This token does not support ERC-165, ERC-721, and ERC-721 metadata"
                       );
                     !cancelled && setAdvancedModeLoading(false);
                   }
                 })
                 .catch((error) => {
+                  console.error("isNFT", error);
                   !cancelled &&
-                    setAdvancedModeError("This token does not support ERC-721");
+                    setAdvancedModeError(
+                      "This token does not support ERC-165, ERC-721, and ERC-721 metadata"
+                    );
                   !cancelled && setAdvancedModeLoading(false);
                 });
             })
             .catch((error) => {
+              console.error("getEthereumNFT", error);
               !cancelled &&
-                setAdvancedModeError("This token does not support ERC-721");
+                setAdvancedModeError(
+                  "This token does not support ERC-165, ERC-721, and ERC-721 metadata"
+                );
               !cancelled && setAdvancedModeLoading(false);
             });
         } else {
@@ -506,7 +514,7 @@ export default function EthereumSourceTokenSelector(
   const content = value ? (
     <>
       {nft ? (
-        <NFTViewer value={value} />
+        <NFTViewer value={value} chainId={CHAIN_ID_ETH} />
       ) : (
         <RefreshButtonWrapper callback={resetAccountWrapper}>
           <Typography>

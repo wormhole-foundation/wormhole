@@ -50,7 +50,7 @@ export default function SourcePreview() {
         {explainerContent}
       </Typography>
       {sourceParsedTokenAccount ? (
-        <NFTViewer value={sourceParsedTokenAccount} />
+        <NFTViewer value={sourceParsedTokenAccount} chainId={sourceChain} />
       ) : null}
     </>
   );
