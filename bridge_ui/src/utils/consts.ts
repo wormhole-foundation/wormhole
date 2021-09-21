@@ -15,7 +15,7 @@ export const CLUSTER: Cluster =
     : process.env.REACT_APP_CLUSTER === "testnet"
     ? "testnet"
     : "devnet";
-export const ENABLE_NFT = CLUSTER !== "mainnet";
+export const ENABLE_NFT = true;
 export interface ChainInfo {
   id: ChainId;
   name: string;
@@ -108,7 +108,9 @@ export const ETH_BRIDGE_ADDRESS = getAddress(
     : "0xC89Ce4735882C9F0f0FE26686c53074E09B0D550"
 );
 export const ETH_NFT_BRIDGE_ADDRESS = getAddress(
-  CLUSTER === "testnet"
+  CLUSTER === "mainnet"
+    ? "0x6FFd7EdE62328b3Af38FCD61461Bbfc52F5651fE"
+    : CLUSTER === "testnet"
     ? "0x26b4afb60d6c903165150c6f0aa14f8016be4aec" // TODO: test address
     : "0x26b4afb60d6c903165150c6f0aa14f8016be4aec"
 );
@@ -126,7 +128,9 @@ export const SOL_BRIDGE_ADDRESS =
     ? "Brdguy7BmNB4qwEbcqqMbyV5CyJd2sxQNUn6NEpMSsUb"
     : "Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o";
 export const SOL_NFT_BRIDGE_ADDRESS =
-  CLUSTER === "testnet"
+  CLUSTER === "mainnet"
+    ? "WnFt12ZrnzZrFZkt2xsNsaNWoQribnuQ5B5FrDbwDhD"
+    : CLUSTER === "testnet"
     ? "NFTWqJR8YnRVqPDvTJrYuLrQDitTG5AScqbeghi4zSA" // TODO: test address
     : "NFTWqJR8YnRVqPDvTJrYuLrQDitTG5AScqbeghi4zSA";
 export const SOL_TOKEN_BRIDGE_ADDRESS =
