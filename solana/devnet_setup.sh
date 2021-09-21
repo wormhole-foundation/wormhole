@@ -20,6 +20,11 @@ cat <<EOF > nft.json
 [155,117,110,235,96,214,56,128,109,79,49,209,212,13,134,5,43,123,213,68,21,156,128,100,95,8,43,51,188,230,21,197,156,0,108,72,200,203,243,56,73,203,7,163,249,54,21,156,197,35,249,89,28,177,153,154,189,69,137,14,197,254,233,183]
 EOF
 
+# Static key for the 2nd NFT mint so it always has the same address
+cat <<EOF > nft2.json
+[40,74,92,250,81,56,202,67,129,124,193,219,24,161,198,98,191,214,136,7,112,26,72,17,33,249,24,225,183,237,27,216,11,179,26,170,82,220,3,253,152,185,151,186,12,21,138,161,175,46,180,3,167,165,70,51,128,45,237,143,146,49,34,180]
+EOF
+
 # Constants
 cli_address=6sbzC1eH4FTujJXWj51eQe25cYvr4xfXbJ1vAj7j2k5J
 bridge_address=Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o
@@ -65,6 +70,16 @@ spl-token mint "$nft" 1 "$nft_account"
 
 # Create meta for token
 token-bridge-client create-meta "$nft" "Not a PUNK🎸" "PUNK🎸" "https://wrappedpunks.com:3000/api/punks/metadata/39"
+
+nft=$(spl-token create-token --decimals 0 -- nft2.json | grep 'Creating token' | awk '{ print $3 }')
+echo "Created NFT $nft"
+
+nft_account=$(spl-token create-account "$nft" | grep 'Creating account' | awk '{ print $3 }')
+echo "Created NFT account $nft_account"
+
+spl-token mint "$nft" 1 "$nft_account"
+
+token-bridge-client create-meta "$nft" "Not a PUNK 2🎸" "PUNK2🎸" "https://wrappedpunks.com:3000/api/punks/metadata/51"
 
 # Create the bridge contract at a known address
 # OK to fail on subsequent attempts (already created).
