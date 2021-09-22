@@ -26,7 +26,6 @@ import { COLORS } from "../../muiTheme";
 import { MIGRATION_PROGRAM_ADDRESS, SOLANA_HOST } from "../../utils/consts";
 import { getMultipleAccounts, signSendAndConfirm } from "../../utils/solana";
 import ButtonWithLoader from "../ButtonWithLoader";
-import LowBalanceWarning from "../LowBalanceWarning";
 import ShowTx from "../ShowTx";
 import SmartAddress from "../SmartAddress";
 import SolanaCreateAssociatedAddress, {
@@ -94,9 +93,11 @@ const getBalance = async (
 export default function Workflow({
   fromMint,
   toMint,
+  fromTokenAccount,
 }: {
   fromMint: string;
   toMint: string;
+  fromTokenAccount: string;
 }) {
   const classes = useStyles();
 
@@ -112,9 +113,6 @@ export default function Workflow({
 
   const [poolAddress, setPoolAddress] = useState("");
   const [poolExists, setPoolExists] = useState<boolean | undefined>(undefined);
-  const [fromTokenAccount, setFromTokenAccount] = useState<string | undefined>(
-    undefined
-  );
   const [fromTokenAccountBalance, setFromTokenAccountBalance] = useState<
     string | undefined
   >(undefined);
@@ -253,23 +251,6 @@ export default function Workflow({
       setToCustodyAddress(undefined);
     }
   }, [poolAddress]);
-
-  //Set the associated token accounts when the designated mint changes
-  useEffect(() => {
-    if (wallet?.publicKey && fromMint) {
-      Token.getAssociatedTokenAddress(
-        ASSOCIATED_TOKEN_PROGRAM_ID,
-        TOKEN_PROGRAM_ID,
-        new PublicKey(fromMint),
-        wallet?.publicKey || new PublicKey([])
-      ).then(
-        (result) => {
-          setFromTokenAccount(result.toString());
-        },
-        (error) => {}
-      );
-    }
-  }, [fromMint, wallet?.publicKey]);
 
   useEffect(() => {
     if (wallet?.publicKey && toMint) {
@@ -426,12 +407,11 @@ export default function Workflow({
           Convert assets from legacy bridges to Wormhole V2 tokens
         </Typography>
         <Divider className={classes.divider} />
-
         <SolanaWalletKey />
-        <LowBalanceWarning chainId={CHAIN_ID_SOLANA} />
-        {fromTokenAccount && toTokenAccount && fromTokenAccountBalance ? (
+        <div className={classes.spacer} />
+        {fromTokenAccount && toTokenAccount ? (
           <>
-            <Typography variant="body2">
+            <Typography variant="body2" component="div">
               <span>This will migrate</span>
               {fromMintPretty}
               <span>tokens in this account:</span>
@@ -446,7 +426,7 @@ export default function Workflow({
               })`}
             </Typography>
             <div className={classes.spacer} />
-            <Typography variant="body2">
+            <Typography variant="body2" component="div">
               <span>into </span>
               {toMintPretty}
               <span> tokens in this account:</span>
@@ -476,7 +456,7 @@ export default function Workflow({
             {poolAddress && toCustodyAddress && toCustodyBalance ? (
               <>
                 <div className={classes.spacer} />
-                <Typography variant="body2">
+                <Typography variant="body2" component="div">
                   <span>Using pool </span>
                   <SmartAddress
                     address={poolAddress}

@@ -168,7 +168,7 @@ function App() {
           <Route exact path="/register">
             <Attest />
           </Route>
-          <Route exact path="/migrate/:legacyAsset">
+          <Route exact path="/migrate/:legacyAsset/:fromTokenAccount">
             <Migration />
           </Route>
           <Route exact path="/">

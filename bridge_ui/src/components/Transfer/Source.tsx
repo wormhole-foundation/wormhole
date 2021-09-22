@@ -57,8 +57,9 @@ function Source({
   const shouldLockFields = useSelector(selectTransferShouldLockFields);
   const { isReady, statusMessage } = useIsWalletReady(sourceChain);
   const handleMigrationClick = useCallback(() => {
-    parsedTokenAccount?.mintKey &&
-      history.push("/migrate/" + parsedTokenAccount.mintKey);
+    history.push(
+      `/migrate/${parsedTokenAccount?.mintKey}/${parsedTokenAccount?.publicKey}`
+    );
   }, [history, parsedTokenAccount]);
   const handleSourceChange = useCallback(
     (event) => {
