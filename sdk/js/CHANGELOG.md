@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Changed
+
+Fixed nft_bridge getForeignAssetEth
+
 ## 0.0.5
 
 ### Added

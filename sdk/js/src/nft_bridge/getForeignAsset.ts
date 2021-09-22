@@ -1,6 +1,7 @@
 import { PublicKey } from "@solana/web3.js";
 import { ethers } from "ethers";
-import { Bridge__factory } from "../ethers-contracts";
+import { CHAIN_ID_SOLANA } from "..";
+import { NFTBridge__factory } from "../ethers-contracts";
 import { ChainId } from "../utils";
 
 /**
@@ -17,8 +18,17 @@ export async function getForeignAssetEth(
   originChain: ChainId,
   originAsset: Uint8Array
 ) {
-  const tokenBridge = Bridge__factory.connect(tokenBridgeAddress, provider);
+  const tokenBridge = NFTBridge__factory.connect(tokenBridgeAddress, provider);
   try {
+    if (originChain === CHAIN_ID_SOLANA) {
+      // All NFTs from Solana are minted to the same address, the originAsset is encoded as the tokenId as
+      // BigNumber.from(new PublicKey(originAsset).toBytes()).toString()
+      const addr = await tokenBridge.wrappedAsset(
+        originChain,
+        "0x0101010101010101010101010101010101010101010101010101010101010101"
+      );
+      return addr;
+    }
     return await tokenBridge.wrappedAsset(originChain, originAsset);
   } catch (e) {
     return null;
