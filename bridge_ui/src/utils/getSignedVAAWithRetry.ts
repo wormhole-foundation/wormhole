@@ -25,7 +25,6 @@ export async function getSignedVAAWithRetry(
         sequence
       );
     } catch (e) {
-      console.log(`Attempt ${attempts}: `, e);
       if (retryAttempts !== undefined && attempts > retryAttempts) {
         throw e;
       }

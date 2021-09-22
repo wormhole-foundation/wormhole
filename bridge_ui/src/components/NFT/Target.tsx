@@ -1,13 +1,18 @@
 import { CHAIN_ID_ETH, CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
 import { makeStyles, MenuItem, TextField, Typography } from "@material-ui/core";
+import { Alert } from "@material-ui/lab";
+import { PublicKey } from "@solana/web3.js";
+import { BigNumber, ethers } from "ethers";
 import { useCallback, useMemo } from "react";
-import { ethers } from "ethers";
 import { useDispatch, useSelector } from "react-redux";
 import useIsWalletReady from "../../hooks/useIsWalletReady";
 import useSyncTargetAddress from "../../hooks/useSyncTargetAddress";
+import { EthGasEstimateSummary } from "../../hooks/useTransactionFees";
 import { incrementStep, setTargetChain } from "../../store/nftSlice";
 import {
   selectNFTIsTargetComplete,
+  selectNFTOriginAsset,
+  selectNFTOriginChain,
   selectNFTOriginTokenId,
   selectNFTShouldLockFields,
   selectNFTSourceChain,
@@ -17,14 +22,12 @@ import {
   selectNFTTargetChain,
   selectNFTTargetError,
 } from "../../store/selectors";
-import { hexToNativeString } from "../../utils/array";
+import { hexToNativeString, hexToUint8Array } from "../../utils/array";
 import { CHAINS, CHAINS_BY_ID } from "../../utils/consts";
 import ButtonWithLoader from "../ButtonWithLoader";
 import KeyAndBalance from "../KeyAndBalance";
-import StepDescription from "../StepDescription";
 import LowBalanceWarning from "../LowBalanceWarning";
-import { Alert } from "@material-ui/lab";
-import { EthGasEstimateSummary } from "../../hooks/useTransactionFees";
+import StepDescription from "../StepDescription";
 
 const useStyles = makeStyles((theme) => ({
   transferField: {
@@ -47,7 +50,20 @@ function Target() {
   const targetChain = useSelector(selectNFTTargetChain);
   const targetAddressHex = useSelector(selectNFTTargetAddressHex);
   const targetAsset = useSelector(selectNFTTargetAsset);
+  const originChain = useSelector(selectNFTOriginChain);
+  const originAsset = useSelector(selectNFTOriginAsset);
   const originTokenId = useSelector(selectNFTOriginTokenId);
+  let tokenId;
+  try {
+    tokenId =
+      originChain === CHAIN_ID_SOLANA && originAsset
+        ? BigNumber.from(
+            new PublicKey(hexToUint8Array(originAsset)).toBytes()
+          ).toString()
+        : originTokenId;
+  } catch (e) {
+    tokenId = originTokenId;
+  }
   const readableTargetAddress =
     hexToNativeString(targetAddressHex, targetChain) || "";
   const uiAmountString = useSelector(selectNFTTargetBalanceString);
@@ -105,7 +121,7 @@ function Target() {
               label="TokenId"
               fullWidth
               className={classes.transferField}
-              value={originTokenId || ""}
+              value={tokenId || ""}
               disabled={true}
             />
           ) : null}
