@@ -9,7 +9,7 @@ import {
 } from "../utils/metaplex";
 import { getMultipleAccountsRPC } from "../utils/solana";
 
-const getMetaplexData = async (mintAddresses: string[]) => {
+export const getMetaplexData = async (mintAddresses: string[]) => {
   const promises = [];
   for (const address of mintAddresses) {
     promises.push(getMetadataAddress(address));

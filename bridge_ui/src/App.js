@@ -18,11 +18,12 @@ import {
 } from "react-router-dom";
 import Attest from "./components/Attest";
 import Home from "./components/Home";
-import NFT from "./components/NFT";
-import Transfer from "./components/Transfer";
 import Migration from "./components/Migration";
+import NFT from "./components/NFT";
+import NFTOriginVerifier from "./components/NFTOriginVerifier";
+import Transfer from "./components/Transfer";
 import wormholeLogo from "./icons/wormhole.svg";
-import { CLUSTER, ENABLE_NFT } from "./utils/consts";
+import { CLUSTER } from "./utils/consts";
 
 const useStyles = makeStyles((theme) => ({
   appBar: {
@@ -78,22 +79,11 @@ function App() {
           <div className={classes.spacer} />
           <Hidden implementation="css" xsDown>
             <div style={{ display: "flex", alignItems: "center" }}>
-              {ENABLE_NFT ? (
-                <Tooltip title="Transfer NFTs to another blockchain">
-                  <Link component={NavLink} to="/nft" className={classes.link}>
-                    NFTs
-                  </Link>
-                </Tooltip>
-              ) : (
-                <Tooltip title="Coming Soon">
-                  <Typography
-                    className={classes.link}
-                    style={{ color: "#ffffff80", cursor: "default" }}
-                  >
-                    NFTs
-                  </Typography>
-                </Tooltip>
-              )}
+              <Tooltip title="Transfer NFTs to another blockchain">
+                <Link component={NavLink} to="/nft" className={classes.link}>
+                  NFTs
+                </Link>
+              </Tooltip>
               <Tooltip title="Transfer tokens to another blockchain">
                 <Link
                   component={NavLink}
@@ -157,11 +147,12 @@ function App() {
       )}
       <div className={classes.content}>
         <Switch>
-          {ENABLE_NFT ? (
-            <Route exact path="/nft">
-              <NFT />
-            </Route>
-          ) : null}
+          <Route exact path="/nft">
+            <NFT />
+          </Route>
+          <Route exact path="/nft-origin-verifier">
+            <NFTOriginVerifier />
+          </Route>
           <Route exact path="/transfer">
             <Transfer />
           </Route>

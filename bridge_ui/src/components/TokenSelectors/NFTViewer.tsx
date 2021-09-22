@@ -110,6 +110,9 @@ const useStyles = makeStyles((theme) => ({
   },
   mediaContent: {
     display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
     background: "transparent",
     border: "1px solid #ffb347",
     margin: theme.spacing(0, 2),

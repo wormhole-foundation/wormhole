@@ -1,6 +1,6 @@
 import { CHAIN_ID_ETH, CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
 import { Button, makeStyles, MenuItem, TextField } from "@material-ui/core";
-import { Restore } from "@material-ui/icons";
+import { Restore, VerifiedUser } from "@material-ui/icons";
 import { useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import useIsWalletReady from "../../hooks/useIsWalletReady";
@@ -19,10 +19,17 @@ import StepDescription from "../StepDescription";
 import { TokenSelector } from "../TokenSelectors/SourceTokenSelector";
 import { Alert } from "@material-ui/lab";
 import LowBalanceWarning from "../LowBalanceWarning";
+import { Link } from "react-router-dom";
 
 const useStyles = makeStyles((theme) => ({
   transferField: {
     marginTop: theme.spacing(5),
+  },
+  buttonWrapper: {
+    textAlign: "right",
+  },
+  nftOriginVerifierButton: {
+    marginTop: theme.spacing(0.5),
   },
 }));
 
@@ -54,14 +61,30 @@ function Source({
         <div style={{ display: "flex", alignItems: "center" }}>
           Select an NFT to send through the Wormhole NFT Bridge.
           <div style={{ flexGrow: 1 }} />
-          <Button
-            onClick={() => setIsRecoveryOpen(true)}
-            size="small"
-            variant="outlined"
-            endIcon={<Restore />}
-          >
-            Perform Recovery
-          </Button>
+          <div>
+            <div className={classes.buttonWrapper}>
+              <Button
+                onClick={() => setIsRecoveryOpen(true)}
+                size="small"
+                variant="outlined"
+                endIcon={<Restore />}
+              >
+                Perform Recovery
+              </Button>
+            </div>
+            <div className={classes.buttonWrapper}>
+              <Button
+                component={Link}
+                to="/nft-origin-verifier"
+                size="small"
+                variant="outlined"
+                endIcon={<VerifiedUser />}
+                className={classes.nftOriginVerifierButton}
+              >
+                NFT Origin Verifier
+              </Button>
+            </div>
+          </div>
         </div>
       </StepDescription>
       <TextField

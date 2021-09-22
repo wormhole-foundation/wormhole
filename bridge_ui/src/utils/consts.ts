@@ -15,7 +15,6 @@ export const CLUSTER: Cluster =
     : process.env.REACT_APP_CLUSTER === "testnet"
     ? "testnet"
     : "devnet";
-export const ENABLE_NFT = true;
 export interface ChainInfo {
   id: ChainId;
   name: string;
