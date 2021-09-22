@@ -18,7 +18,7 @@ export async function transferFromEth(
 ) {
     //TODO: should we check if token attestation exists on the target chain
     const token = NFTImplementation__factory.connect(tokenAddress, signer);
-    await token.approve(tokenBridgeAddress, tokenID);
+    await (await token.approve(tokenBridgeAddress, tokenID)).wait();
     const bridge = NFTBridge__factory.connect(tokenBridgeAddress, signer);
     const v = await bridge.transferNFT(
         tokenAddress,
