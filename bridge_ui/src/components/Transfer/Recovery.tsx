@@ -1,5 +1,4 @@
 import {
-  ChainId,
   CHAIN_ID_BSC,
   CHAIN_ID_ETH,
   CHAIN_ID_SOLANA,
@@ -7,9 +6,13 @@ import {
   getEmitterAddressEth,
   getEmitterAddressSolana,
   getEmitterAddressTerra,
+  hexToNativeString,
+  hexToUint8Array,
   parseSequenceFromLogEth,
   parseSequenceFromLogSolana,
   parseSequenceFromLogTerra,
+  parseTransferPayload,
+  uint8ArrayToHex,
 } from "@certusone/wormhole-sdk";
 import {
   Box,
@@ -31,7 +34,7 @@ import { Restore } from "@material-ui/icons";
 import { Alert } from "@material-ui/lab";
 import { Connection } from "@solana/web3.js";
 import { LCDClient } from "@terra-money/terra.js";
-import { BigNumber, ethers } from "ethers";
+import { ethers } from "ethers";
 import { useSnackbar } from "notistack";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
@@ -45,11 +48,6 @@ import {
   setStep,
   setTargetChain,
 } from "../../store/transferSlice";
-import {
-  hexToNativeString,
-  hexToUint8Array,
-  uint8ArrayToHex,
-} from "../../utils/array";
 import {
   CHAINS,
   ETH_BRIDGE_ADDRESS,
@@ -144,22 +142,6 @@ async function terra(tx: string, enqueueSnackbar: any) {
     return { vaa: null, error: parseError(e) };
   }
 }
-
-//     0   u256     amount
-//     32  [u8; 32] token_address
-//     64  u16      token_chain
-//     66  [u8; 32] recipient
-//     98  u16      recipient_chain
-//     100 u256     fee
-
-// TODO: move to wasm / sdk, share with solana
-const parsePayload = (arr: Buffer) => ({
-  amount: BigNumber.from(arr.slice(1, 1 + 32)).toBigInt(),
-  originAddress: arr.slice(33, 33 + 32).toString("hex"),
-  originChain: arr.readUInt16BE(65) as ChainId,
-  targetAddress: arr.slice(67, 67 + 32).toString("hex"),
-  targetChain: arr.readUInt16BE(99) as ChainId,
-});
 
 function RecoveryDialogContent({
   onClose,
@@ -288,7 +270,9 @@ function RecoveryDialogContent({
   const parsedPayload = useMemo(
     () =>
       recoveryParsedVAA?.payload
-        ? parsePayload(Buffer.from(new Uint8Array(recoveryParsedVAA.payload)))
+        ? parseTransferPayload(
+            Buffer.from(new Uint8Array(recoveryParsedVAA.payload))
+          )
         : null,
     [recoveryParsedVAA]
   );

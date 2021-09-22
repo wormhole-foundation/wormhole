@@ -2,6 +2,8 @@ import {
   CHAIN_ID_ETH,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
+  WSOL_ADDRESS,
+  WSOL_DECIMALS,
 } from "@certusone/wormhole-sdk";
 import { ethers } from "@certusone/wormhole-sdk/node_modules/ethers";
 import { Dispatch } from "@reduxjs/toolkit";
@@ -155,6 +157,31 @@ const createParsedTokenAccountFromCovalent = (
   };
 };
 
+const createNativeSolParsedTokenAccount = async (
+  connection: Connection,
+  walletAddress: string
+) => {
+  const fetchAccounts = await getMultipleAccountsRPC(connection, [
+    new PublicKey(walletAddress),
+  ]);
+  if (!fetchAccounts || !fetchAccounts.length || !fetchAccounts[0]) {
+    return null;
+  } else {
+    return createParsedTokenAccount(
+      walletAddress, //publicKey
+      WSOL_ADDRESS, //Mint key
+      fetchAccounts[0].lamports.toString(), //amount
+      WSOL_DECIMALS, //decimals, 9
+      parseFloat(formatUnits(fetchAccounts[0].lamports, WSOL_DECIMALS)),
+      formatUnits(fetchAccounts[0].lamports, WSOL_DECIMALS).toString(),
+      "SOL",
+      "Solana",
+      undefined, //TODO logo. It's in the solana token map, so we could potentially use that URL.
+      true
+    );
+  }
+};
+
 const createNativeEthParsedTokenAccount = (
   provider: Provider,
   signerAddress: string | undefined
@@ -271,7 +298,7 @@ const getEthereumAccountsCovalent = async (
   }
 };
 
-const getSolanaParsedTokenAccounts = (
+const getSolanaParsedTokenAccounts = async (
   walletAddress: string,
   dispatch: Dispatch,
   nft: boolean
@@ -280,29 +307,40 @@ const getSolanaParsedTokenAccounts = (
   dispatch(
     nft ? fetchSourceParsedTokenAccountsNFT() : fetchSourceParsedTokenAccounts()
   );
-  return connection
-    .getParsedTokenAccountsByOwner(new PublicKey(walletAddress), {
-      programId: new PublicKey(TOKEN_PROGRAM_ID),
-    })
-    .then(
-      (result) => {
-        const mappedItems = result.value.map((item) =>
+  try {
+    //No matter what, we retrieve the spl tokens associated to this address.
+    let splParsedTokenAccounts = await connection
+      .getParsedTokenAccountsByOwner(new PublicKey(walletAddress), {
+        programId: new PublicKey(TOKEN_PROGRAM_ID),
+      })
+      .then((result) => {
+        return result.value.map((item) =>
           createParsedTokenAccountFromInfo(item.pubkey, item.account)
         );
-        dispatch(
-          nft
-            ? receiveSourceParsedTokenAccountsNFT(mappedItems)
-            : receiveSourceParsedTokenAccounts(mappedItems)
-        );
-      },
-      (error) => {
-        dispatch(
-          nft
-            ? errorSourceParsedTokenAccountsNFT("Failed to load NFT metadata")
-            : errorSourceParsedTokenAccounts("Failed to load token metadata.")
-        );
+      });
+
+    if (nft) {
+      //In the case of NFTs, we are done, and we set the accounts in redux
+      dispatch(receiveSourceParsedTokenAccountsNFT(splParsedTokenAccounts));
+    } else {
+      //In the transfer case, we also pull the SOL balance of the wallet, and prepend it at the beginning of the list.
+      const nativeAccount = await createNativeSolParsedTokenAccount(
+        connection,
+        walletAddress
+      );
+      if (nativeAccount !== null) {
+        splParsedTokenAccounts.unshift(nativeAccount);
       }
+      dispatch(receiveSourceParsedTokenAccounts(splParsedTokenAccounts));
+    }
+  } catch (e) {
+    console.error(e);
+    dispatch(
+      nft
+        ? errorSourceParsedTokenAccountsNFT("Failed to load NFT metadata")
+        : errorSourceParsedTokenAccounts("Failed to load token metadata.")
     );
+  }
 };
 
 /**

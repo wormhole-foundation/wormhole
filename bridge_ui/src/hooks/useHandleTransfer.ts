@@ -12,7 +12,10 @@ import {
   transferFromEth,
   transferFromEthNative,
   transferFromSolana,
+  transferNativeSol,
   transferFromTerra,
+  hexToUint8Array,
+  uint8ArrayToHex,
 } from "@certusone/wormhole-sdk";
 import { WalletContextState } from "@solana/wallet-adapter-react";
 import { Connection } from "@solana/web3.js";
@@ -44,7 +47,6 @@ import {
   setSignedVAAHex,
   setTransferTx,
 } from "../store/transferSlice";
-import { hexToUint8Array, uint8ArrayToHex } from "../utils/array";
 import {
   ETH_BRIDGE_ADDRESS,
   ETH_TOKEN_BRIDGE_ADDRESS,
@@ -121,6 +123,7 @@ async function solana(
   decimals: number,
   targetChain: ChainId,
   targetAddress: Uint8Array,
+  isNative: boolean,
   originAddressStr?: string,
   originChain?: ChainId
 ) {
@@ -131,19 +134,30 @@ async function solana(
     const originAddress = originAddressStr
       ? zeroPad(hexToUint8Array(originAddressStr), 32)
       : undefined;
-    const transaction = await transferFromSolana(
-      connection,
-      SOL_BRIDGE_ADDRESS,
-      SOL_TOKEN_BRIDGE_ADDRESS,
-      payerAddress,
-      fromAddress,
-      mintAddress,
-      amountParsed,
-      targetAddress,
-      targetChain,
-      originAddress,
-      originChain
-    );
+    const promise = isNative
+      ? transferNativeSol(
+          connection,
+          SOL_BRIDGE_ADDRESS,
+          SOL_TOKEN_BRIDGE_ADDRESS,
+          payerAddress,
+          amountParsed,
+          targetAddress,
+          targetChain
+        )
+      : transferFromSolana(
+          connection,
+          SOL_BRIDGE_ADDRESS,
+          SOL_TOKEN_BRIDGE_ADDRESS,
+          payerAddress,
+          fromAddress,
+          mintAddress,
+          amountParsed,
+          targetAddress,
+          targetChain,
+          originAddress,
+          originChain
+        );
+    const transaction = await promise;
     const txid = await signSendAndConfirm(wallet, connection, transaction);
     enqueueSnackbar("Transaction confirmed", { variant: "success" });
     const info = await connection.getTransaction(txid);
@@ -289,6 +303,7 @@ export function useHandleTransfer() {
         decimals,
         targetChain,
         targetAddress,
+        isNative,
         originAsset,
         originChain
       );

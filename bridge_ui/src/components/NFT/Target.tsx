@@ -1,4 +1,9 @@
-import { CHAIN_ID_ETH, CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
+import {
+  CHAIN_ID_ETH,
+  CHAIN_ID_SOLANA,
+  hexToNativeString,
+  hexToUint8Array,
+} from "@certusone/wormhole-sdk";
 import { makeStyles, MenuItem, TextField, Typography } from "@material-ui/core";
 import { Alert } from "@material-ui/lab";
 import { PublicKey } from "@solana/web3.js";
@@ -22,7 +27,6 @@ import {
   selectNFTTargetChain,
   selectNFTTargetError,
 } from "../../store/selectors";
-import { hexToNativeString, hexToUint8Array } from "../../utils/array";
 import { CHAINS, CHAINS_BY_ID } from "../../utils/consts";
 import ButtonWithLoader from "../ButtonWithLoader";
 import KeyAndBalance from "../KeyAndBalance";

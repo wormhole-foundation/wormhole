@@ -3,6 +3,7 @@ import {
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
   canonicalAddress,
+  uint8ArrayToHex,
 } from "@certusone/wormhole-sdk";
 import { arrayify, zeroPad } from "@ethersproject/bytes";
 import {
@@ -25,7 +26,6 @@ import {
 } from "../store/selectors";
 import { setTargetAddressHex as setNFTTargetAddressHex } from "../store/nftSlice";
 import { setTargetAddressHex as setTransferTargetAddressHex } from "../store/transferSlice";
-import { uint8ArrayToHex } from "../utils/array";
 
 function useSyncTargetAddress(shouldFire: boolean, nft?: boolean) {
   const dispatch = useDispatch();

@@ -5,6 +5,8 @@ import {
   getForeignAssetEth,
   getForeignAssetSolana,
   getForeignAssetTerra,
+  hexToNativeString,
+  hexToUint8Array,
 } from "@certusone/wormhole-sdk";
 import {
   getForeignAssetEth as getForeignAssetEthNFT,
@@ -30,7 +32,6 @@ import {
   selectTransferTargetChain,
 } from "../store/selectors";
 import { setTargetAsset as setTransferTargetAsset } from "../store/transferSlice";
-import { hexToNativeString, hexToUint8Array } from "../utils/array";
 import {
   ETH_NFT_BRIDGE_ADDRESS,
   ETH_TOKEN_BRIDGE_ADDRESS,

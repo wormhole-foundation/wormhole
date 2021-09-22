@@ -1,4 +1,8 @@
-import { CHAIN_ID_ETH } from "@certusone/wormhole-sdk";
+import {
+  CHAIN_ID_ETH,
+  CHAIN_ID_SOLANA,
+  WSOL_ADDRESS,
+} from "@certusone/wormhole-sdk";
 import { Checkbox, FormControlLabel } from "@material-ui/core";
 import { useCallback, useState } from "react";
 import { useSelector } from "react-redux";
@@ -18,13 +22,18 @@ function Redeem() {
   const { handleClick, handleNativeClick, disabled, showLoader } =
     useHandleRedeem();
   const targetChain = useSelector(selectTransferTargetChain);
-  const targetAssetHex = useSelector(selectTransferTargetAsset);
+  const targetAsset = useSelector(selectTransferTargetAsset);
   const { isReady, statusMessage } = useIsWalletReady(targetChain);
   //TODO better check, probably involving a hook & the VAA
-  const isNativeEligible =
+  const isEthNative =
     targetChain === CHAIN_ID_ETH &&
-    targetAssetHex &&
-    targetAssetHex.toLowerCase() === WETH_ADDRESS.toLowerCase();
+    targetAsset &&
+    targetAsset.toLowerCase() === WETH_ADDRESS.toLowerCase();
+  const isSolNative =
+    targetChain === CHAIN_ID_SOLANA &&
+    targetAsset &&
+    targetAsset === WSOL_ADDRESS;
+  const isNativeEligible = isEthNative || isSolNative;
   const [useNativeRedeem, setUseNativeRedeem] = useState(true);
   const toggleNativeRedeem = useCallback(() => {
     setUseNativeRedeem(!useNativeRedeem);

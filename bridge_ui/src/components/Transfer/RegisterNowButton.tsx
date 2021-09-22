@@ -14,7 +14,7 @@ import {
   selectTransferOriginChain,
   selectTransferTargetChain,
 } from "../../store/selectors";
-import { hexToNativeString } from "../../utils/array";
+import { hexToNativeString } from "@certusone/wormhole-sdk";
 
 export default function RegisterNowButton() {
   const dispatch = useDispatch();

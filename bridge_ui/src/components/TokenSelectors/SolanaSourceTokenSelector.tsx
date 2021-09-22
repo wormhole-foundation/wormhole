@@ -85,6 +85,7 @@ export default function SolanaSourceTokenSelector(
   const getLogo = useCallback(
     (account: ParsedTokenAccount) => {
       return (
+        (account.isNativeAsset && account.logo) ||
         memoizedTokenMap.get(account.mintKey)?.logoURI ||
         metaplex.data?.get(account.mintKey)?.data?.uri ||
         undefined
@@ -96,6 +97,7 @@ export default function SolanaSourceTokenSelector(
   const getSymbol = useCallback(
     (account: ParsedTokenAccount) => {
       return (
+        (account.isNativeAsset && account.symbol) ||
         memoizedTokenMap.get(account.mintKey)?.symbol ||
         metaplex.data?.get(account.mintKey)?.data?.symbol ||
         undefined
@@ -107,6 +109,7 @@ export default function SolanaSourceTokenSelector(
   const getName = useCallback(
     (account: ParsedTokenAccount) => {
       return (
+        (account.isNativeAsset && account.name) ||
         memoizedTokenMap.get(account.mintKey)?.name ||
         metaplex.data?.get(account.mintKey)?.data?.name ||
         undefined
@@ -175,12 +178,18 @@ export default function SolanaSourceTokenSelector(
               <Typography variant="subtitle2">{name}</Typography>
             </div>
             <div>
-              <Typography variant="body1">
-                {"Mint : " + mintPrettyString}
-              </Typography>
-              <Typography variant="body1">
-                {"Account :" + accountAddressPrettyString}
-              </Typography>
+              {account.isNativeAsset ? (
+                <Typography>{"Native"}</Typography>
+              ) : (
+                <>
+                  <Typography variant="body1">
+                    {"Mint : " + mintPrettyString}
+                  </Typography>
+                  <Typography variant="body1">
+                    {"Account :" + accountAddressPrettyString}
+                  </Typography>
+                </>
+              )}
             </div>
             <div>
               <Typography variant="body2">{"Balance"}</Typography>
@@ -282,11 +291,15 @@ export default function SolanaSourceTokenSelector(
   );
 
   const getOptionLabel = useCallback(
-    (option) => {
+    (option: ParsedTokenAccount) => {
       const symbol = getSymbol(option);
-      return `${symbol ? symbol : "Unknown"} (Account: ${shortenAddress(
-        option.publicKey
-      )}, Mint: ${shortenAddress(option.mintKey)})`;
+      const label = option.isNativeAsset
+        ? symbol || "" //default for non-null guarantee
+        : `${symbol ? symbol : "Unknown"} (Account: ${shortenAddress(
+            option.publicKey
+          )}, Mint: ${shortenAddress(option.mintKey)})`;
+
+      return label;
     },
     [getSymbol]
   );

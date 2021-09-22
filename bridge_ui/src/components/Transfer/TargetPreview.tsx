@@ -1,10 +1,10 @@
+import { hexToNativeString } from "@certusone/wormhole-sdk";
 import { makeStyles, Typography } from "@material-ui/core";
 import { useSelector } from "react-redux";
 import {
   selectTransferTargetAddressHex,
   selectTransferTargetChain,
 } from "../../store/selectors";
-import { hexToNativeString } from "../../utils/array";
 import { CHAINS_BY_ID } from "../../utils/consts";
 import SmartAddress from "../SmartAddress";
 

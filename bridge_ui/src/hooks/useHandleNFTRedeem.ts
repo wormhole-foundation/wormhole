@@ -3,6 +3,8 @@ import {
   CHAIN_ID_SOLANA,
   getClaimAddressSolana,
   postVaaSolana,
+  parseNFTPayload,
+  hexToUint8Array,
 } from "@certusone/wormhole-sdk";
 import {
   createMetaOnSolana,
@@ -18,12 +20,10 @@ import { Signer } from "ethers";
 import { useSnackbar } from "notistack";
 import { useCallback, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { parsePayload } from "../components/NFT/Recovery";
 import { useEthereumProvider } from "../contexts/EthereumProviderContext";
 import { useSolanaWallet } from "../contexts/SolanaWalletContext";
 import { setIsRedeeming, setRedeemTx } from "../store/nftSlice";
 import { selectNFTIsRedeeming, selectNFTTargetChain } from "../store/selectors";
-import { hexToUint8Array } from "../utils/array";
 import {
   ETH_NFT_BRIDGE_ADDRESS,
   SOLANA_HOST,
@@ -102,7 +102,7 @@ async function solana(
         "@certusone/wormhole-sdk/lib/solana/core/bridge"
       );
       const parsedVAA = parse_vaa(signedVAA);
-      const { originChain, originAddress, tokenId } = parsePayload(
+      const { originChain, originAddress, tokenId } = parseNFTPayload(
         Buffer.from(new Uint8Array(parsedVAA.payload))
       );
       const mintAddress = await getForeignAssetSol(

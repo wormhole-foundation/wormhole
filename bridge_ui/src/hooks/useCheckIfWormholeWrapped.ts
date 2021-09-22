@@ -7,6 +7,7 @@ import {
   getOriginalAssetSol,
   getOriginalAssetTerra,
   WormholeWrappedInfo,
+  uint8ArrayToHex,
 } from "@certusone/wormhole-sdk";
 import {
   getOriginalAssetEth as getOriginalAssetEthNFT,
@@ -26,7 +27,6 @@ import {
 } from "../store/selectors";
 import { setSourceWormholeWrappedInfo as setNFTSourceWormholeWrappedInfo } from "../store/nftSlice";
 import { setSourceWormholeWrappedInfo as setTransferSourceWormholeWrappedInfo } from "../store/transferSlice";
-import { uint8ArrayToHex } from "../utils/array";
 import {
   ETH_NFT_BRIDGE_ADDRESS,
   ETH_TOKEN_BRIDGE_ADDRESS,

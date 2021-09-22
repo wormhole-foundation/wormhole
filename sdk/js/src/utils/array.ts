@@ -3,8 +3,8 @@ import {
   CHAIN_ID_ETH,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
-  humanAddress,
-} from "@certusone/wormhole-sdk";
+} from "./consts";
+import { humanAddress } from "../terra";
 import { PublicKey } from "@solana/web3.js";
 import { hexValue, hexZeroPad } from "ethers/lib/utils";
 
