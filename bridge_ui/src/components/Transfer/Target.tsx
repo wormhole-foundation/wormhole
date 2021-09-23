@@ -8,6 +8,7 @@ import { Alert } from "@material-ui/lab";
 import { useCallback, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import useIsWalletReady from "../../hooks/useIsWalletReady";
+import useMetadata from "../../hooks/useMetadata";
 import useSyncTargetAddress from "../../hooks/useSyncTargetAddress";
 import { EthGasEstimateSummary } from "../../hooks/useTransactionFees";
 import {
@@ -20,12 +21,14 @@ import {
   selectTransferTargetChain,
   selectTransferTargetError,
   UNREGISTERED_ERROR_MESSAGE,
+  selectTransferAmount,
 } from "../../store/selectors";
 import { incrementStep, setTargetChain } from "../../store/transferSlice";
 import { CHAINS, CHAINS_BY_ID } from "../../utils/consts";
 import ButtonWithLoader from "../ButtonWithLoader";
 import KeyAndBalance from "../KeyAndBalance";
 import LowBalanceWarning from "../LowBalanceWarning";
+import SmartAddress from "../SmartAddress";
 import SolanaCreateAssociatedAddress, {
   useAssociatedAccountExistsState,
 } from "../SolanaCreateAssociatedAddress";
@@ -53,9 +56,21 @@ function Target() {
   const targetChain = useSelector(selectTransferTargetChain);
   const targetAddressHex = useSelector(selectTransferTargetAddressHex);
   const targetAsset = useSelector(selectTransferTargetAsset);
+  const targetAssetArrayed = useMemo(
+    () => (targetAsset ? [targetAsset] : []),
+    [targetAsset]
+  );
+  const metadata = useMetadata(targetChain, targetAssetArrayed);
+  const tokenName =
+    (targetAsset && metadata.data?.get(targetAsset)?.tokenName) || undefined;
+  const symbol =
+    (targetAsset && metadata.data?.get(targetAsset)?.symbol) || undefined;
+  const logo =
+    (targetAsset && metadata.data?.get(targetAsset)?.logo) || undefined;
   const readableTargetAddress =
     hexToNativeString(targetAddressHex, targetChain) || "";
   const uiAmountString = useSelector(selectTransferTargetBalanceString);
+  const transferAmount = useSelector(selectTransferAmount);
   const error = useSelector(selectTransferTargetError);
   const isTargetComplete = useSelector(selectTransferIsTargetComplete);
   const shouldLockFields = useSelector(selectTransferShouldLockFields);
@@ -93,13 +108,37 @@ function Target() {
         ))}
       </TextField>
       <KeyAndBalance chainId={targetChain} balance={uiAmountString} />
-      <TextField
-        label="Recipient Address"
-        fullWidth
-        className={classes.transferField}
-        value={readableTargetAddress}
-        disabled={true}
-      />
+      {readableTargetAddress ? (
+        <>
+          {targetAsset ? (
+            <div className={classes.transferField}>
+              <Typography variant="subtitle2">Bridged tokens:</Typography>
+              <Typography component="div">
+                <SmartAddress
+                  chainId={targetChain}
+                  address={targetAsset}
+                  symbol={symbol}
+                  tokenName={tokenName}
+                  logo={logo}
+                  variant="h6"
+                />
+                {`(Amount: ${transferAmount})`}
+              </Typography>
+            </div>
+          ) : null}
+          <div className={classes.transferField}>
+            <Typography variant="subtitle2">Sent to:</Typography>
+            <Typography component="div">
+              <SmartAddress
+                chainId={targetChain}
+                address={readableTargetAddress}
+                variant="h6"
+              />
+              {`(Current balance: ${uiAmountString || "0"})`}
+            </Typography>
+          </div>
+        </>
+      ) : null}
       {targetChain === CHAIN_ID_SOLANA && targetAsset ? (
         <SolanaCreateAssociatedAddress
           mintAddress={targetAsset}
@@ -108,13 +147,6 @@ function Target() {
           setAssociatedAccountExists={setAssociatedAccountExists}
         />
       ) : null}
-      <TextField
-        label="Token Address"
-        fullWidth
-        className={classes.transferField}
-        value={targetAsset || ""}
-        disabled={true}
-      />
       <Alert severity="info" className={classes.alert}>
         <Typography>
           You will have to pay transaction fees on{" "}
