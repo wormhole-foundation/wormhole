@@ -8,6 +8,7 @@ import React, { useCallback, useMemo } from "react";
 import useMetaplexData from "../../hooks/useMetaplexData";
 import useSolanaTokenMap from "../../hooks/useSolanaTokenMap";
 import { DataWrapper } from "../../store/helpers";
+import { NFTParsedTokenAccount } from "../../store/nftSlice";
 import { ParsedTokenAccount } from "../../store/transferSlice";
 import {
   MIGRATION_ASSET_MAP,
@@ -34,7 +35,7 @@ const useStyles = makeStyles((theme: Theme) =>
 
 type SolanaSourceTokenSelectorProps = {
   value: ParsedTokenAccount | null;
-  onChange: (newValue: ParsedTokenAccount | null) => void;
+  onChange: (newValue: NFTParsedTokenAccount | null) => void;
   accounts: ParsedTokenAccount[];
   disabled: boolean;
   mintAccounts:
@@ -263,11 +264,16 @@ export default function SolanaSourceTokenSelector(
   }, [isWormholev1, isMigrationEligible]);
 
   const onAutocompleteChange = useCallback(
-    (event, newValue) => {
+    (event, newValue: NFTParsedTokenAccount | null) => {
+      if (!newValue) {
+        onChange(null);
+        return;
+      }
       const symbol = getSymbol(newValue);
       const name = getName(newValue);
       const logo = getLogo(newValue);
       // TODO: more nft data
+
       onChange({
         ...newValue,
         symbol,
