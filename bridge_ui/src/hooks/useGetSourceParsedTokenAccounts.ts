@@ -55,7 +55,8 @@ import {
   WETH_DECIMALS,
 } from "../utils/consts";
 import {
-  extractMintAuthorityInfo,
+  ExtractedMintInfo,
+  extractMintInfo,
   getMultipleAccountsRPC,
 } from "../utils/solana";
 
@@ -336,7 +337,9 @@ function useGetAvailableTokens(nft: boolean = false) {
     string | undefined
   >(undefined);
 
-  const [solanaMintAccounts, setSolanaMintAccounts] = useState<any>(undefined);
+  const [solanaMintAccounts, setSolanaMintAccounts] = useState<
+    Map<string, ExtractedMintInfo | null> | undefined
+  >(undefined);
   const [solanaMintAccountsLoading, setSolanaMintAccountsLoading] =
     useState(false);
   const [solanaMintAccountsError, setSolanaMintAccountsError] = useState<
@@ -425,6 +428,10 @@ function useGetAvailableTokens(nft: boolean = false) {
     // mintAddresses.push("4QixXecTZ4zdZGa39KH8gVND5NZ2xcaB12wiBhE4S7rn");
     //SOLT devnet token
     // mintAddresses.push("2WDq7wSs9zYrpx2kbHDA4RUTRch2CCTP6ZWaH4GNfnQQ");
+    // bad monkey "NFT"
+    // mintAddresses.push("5FJeEJR8576YxXFdGRAu4NBBFcyfmtjsZrXHSsnzNPdS");
+    // degenerate monkey NFT
+    // mintAddresses.push("EzYsbigNNGbNuANRJ3mnnyJYU2Bk7mBYVsxuonUwAX7r");
 
     const connection = new Connection(SOLANA_HOST, "confirmed");
     getMultipleAccountsRPC(
@@ -433,12 +440,12 @@ function useGetAvailableTokens(nft: boolean = false) {
     ).then(
       (results) => {
         if (!cancelled) {
-          const output = new Map<String, string | null>();
+          const output = new Map<string, ExtractedMintInfo | null>();
 
           results.forEach((result, index) =>
             output.set(
               mintAddresses[index],
-              (result && extractMintAuthorityInfo(result)) || null
+              (result && extractMintInfo(result)) || null
             )
           );
 

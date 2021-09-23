@@ -1,3 +1,4 @@
+import { BigNumber } from "@ethersproject/bignumber";
 import { MintLayout } from "@solana/spl-token";
 import { WalletContextState } from "@solana/wallet-adapter-react";
 import {
@@ -21,17 +22,26 @@ export async function signSendAndConfirm(
   return txid;
 }
 
-export function extractMintAuthorityInfo(
+export interface ExtractedMintInfo {
+  mintAuthority?: string;
+  supply?: string;
+}
+
+export function extractMintInfo(
   account: AccountInfo<Buffer>
-): string | null {
+): ExtractedMintInfo {
   const data = Buffer.from(account.data);
   const mintInfo = MintLayout.decode(data);
 
   const uintArray = mintInfo?.mintAuthority;
   const pubkey = new PublicKey(uintArray);
-  const output = pubkey?.toString();
+  const supply = BigNumber.from(mintInfo?.supply.reverse()).toString();
+  const output = {
+    mintAuthority: pubkey?.toString(),
+    supply: supply.toString(),
+  };
 
-  return output || null;
+  return output;
 }
 
 export async function getMultipleAccountsRPC(

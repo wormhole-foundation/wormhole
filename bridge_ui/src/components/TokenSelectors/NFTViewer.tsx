@@ -236,7 +236,7 @@ export default function NFTViewer({
           })}
         >
           {hasVideo ? (
-            <video autoPlay controls style={{ maxWidth: "100%" }}>
+            <video autoPlay controls loop style={{ maxWidth: "100%" }}>
               <source src={safeIPFS(metadata.animation_url || "")} />
               {image}
             </video>

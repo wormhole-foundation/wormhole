@@ -13,7 +13,7 @@ import {
   MIGRATION_ASSET_MAP,
   WORMHOLE_V1_MINT_AUTHORITY,
 } from "../../utils/consts";
-import { shortenAddress } from "../../utils/solana";
+import { ExtractedMintInfo, shortenAddress } from "../../utils/solana";
 import NFTViewer from "./NFTViewer";
 import RefreshButtonWrapper from "./RefreshButtonWrapper";
 
@@ -37,7 +37,9 @@ type SolanaSourceTokenSelectorProps = {
   onChange: (newValue: ParsedTokenAccount | null) => void;
   accounts: ParsedTokenAccount[];
   disabled: boolean;
-  mintAccounts: DataWrapper<Map<string, string | null>> | undefined;
+  mintAccounts:
+    | DataWrapper<Map<string, ExtractedMintInfo | null> | undefined>
+    | undefined;
   resetAccounts: (() => void) | undefined;
   nft?: boolean;
 };
@@ -135,13 +137,13 @@ export default function SolanaSourceTokenSelector(
       if (!props.mintAccounts?.data) {
         return true; //These should never be null by this point
       }
-      const mintInfo = props.mintAccounts.data.get(address);
+      const mintAuthority = props.mintAccounts.data.get(address)?.mintAuthority;
 
-      if (!mintInfo) {
+      if (!mintAuthority) {
         return true; //We should never fail to pull the mint of an account.
       }
 
-      if (mintInfo === WORMHOLE_V1_MINT_AUTHORITY) {
+      if (mintAuthority === WORMHOLE_V1_MINT_AUTHORITY) {
         return true; //This means the mint was created by the wormhole v1 contract, and we want to disallow its transfer.
       }
 
@@ -233,16 +235,17 @@ export default function SolanaSourceTokenSelector(
   //difficult to do before this point.
   const filteredOptions = useMemo(() => {
     return props.accounts.filter((x) => {
-      //TODO, do a better check which likely involves supply or checking masterEdition.
       const zeroBalance = x.amount === "0";
       if (zeroBalance) {
         return false;
       }
       const isNFT =
-        x.decimals === 0 && metaplex.data?.get(x.mintKey)?.data?.uri;
+        x.decimals === 0 &&
+        metaplex.data?.get(x.mintKey)?.data?.uri &&
+        mintAccounts?.data?.get(x.mintKey)?.supply === "1";
       return nft ? isNFT : !isNFT;
     });
-  }, [metaplex.data, nft, props.accounts]);
+  }, [mintAccounts?.data, metaplex.data, nft, props.accounts]);
 
   const isOptionDisabled = useMemo(() => {
     return (value: ParsedTokenAccount) => {
