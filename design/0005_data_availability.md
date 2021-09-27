@@ -50,6 +50,8 @@ Our data availability requirements do not actually require messages to be posted
 
 - Optimization for very large state (dozens to hundreds of GB).
 
+- State synchronization that would allow offline nodes to "catch up" on signed VAA broadcasts they missed due to downtime. Operators can instead run multiple nodes for high availability to ensure they do not miss broadcasts.
+
 ## Overview
 
 Instead of submitting signed VAAs to Solana, guardians instead broadcast them on the gossip network and persist the signed VAAs locally.
@@ -58,11 +60,7 @@ Guardians that failed to observe the message (and therefore cannot reconstruct t
 
 A public API endpoint is added to guardiand, exposing an API which allows clients to retrieve the signed VAA for any (chain, emitter, sequence) tuple. Guardians can use this API to serve a public, load-balanced public service for web wallets and other clients to use.
 
-Since all transactions per (chain, emitter) are ordered by a gapless sequence number, we can implement an efficient state synchronization protocol for a finite set of well-known emitter addresses. Nodes will publish the highest slot for each emitter address in their signed heartbeat messages. When a node encounters missing data, either by observing a higher slot number published by a majority of the network or by observing gaps, it can send unicast sync requests to other nodes on the network and efficiently download ranges of missing state data.
-
-Well-known emitter addresses are hardcoded in the node software. Emitters that aren't part of this well-known list can still use the protocol, but with lesser data availability guarantees. In this initial design, this list is subject to off-protocol governance processes, and can be migrated to on-chain governance with proper incentives in the future. Only some uses cases like token bridges would benefit from stronger data availability - it would be unnecessary for others, like short-lived price feeds. Nodes can choose to prune local data for these emphemeral emitters.
-
-State synchronization is not possible across guardian set boundaries, since nodes won't be able to trust data signed by non-current guardian sets.
+Clients will rely on public API endpoints operated by different guardian node operators or third party service providers when polling for signed VAA messsages.
 
 ## Detailed Design
 
@@ -76,7 +74,11 @@ Instead, each node will now locally persist the full signed VAA and broadcast it
 
 Locally persisted state is crucial to maintain data availability across the network - it is used to serve API queries (if enabled) and rebroadcast signed VAAs to other guardians that missed them.
 
-We can't rely on gossip to provide atomic or reliable broadcast - messages may be lost, or nodes may be down. We need to assume that nodes can and will lose all of their local state, and be down for maintenance, including nodes used to serve a public API. We therefore need a mechanism for API nodes to backfill missing data.
+We can't rely on gossip to provide atomic or reliable broadcast - messages may be lost, or nodes may be down. We need to assume that nodes can and will lose all of their local state, and be down for maintenance, including nodes used to serve a public API. Clients relying on the API therefore have to rely on multiple nodes to provide fault tolerance. Typically, clients would implement this by rotating through a set of known API endpoints operated by different service providers, alternating or randomizing them while polling for VAA completion.
+
+Each individual API endpoint may in turn be backed by multiple nodes operated behind a load balancer operated by each API endpoint's service provider.  
+
+To facilitate this, a new "non-voting" mode will be added to guardiand to allow operators to run read-only nodes that listen to the gossip network and locally persist any signed VAA they receive.
 
 We use the (chain, emitter, sequence) tuple as global identifier. The digest is not suitable as a global identifier, since it is not known at message publication time. Instead, all contracts make the sequence number available to the caller when publishing a message, which the caller then surfaces to the client. Chain and emitter address are static.
 
@@ -90,17 +92,21 @@ No changes are required to smart contracts.
 
 ## Alternatives considered
 
-### Provider-side redundancy instead of state sync
+### Single-provider redundancy
 
-Instead of implementing the state synchronization mechanism, we could instead make it the API provider's responsibility to maintain a complete record of VAAs by running multiple nodes listening to the gossip network.
+Instead of client side redundancy, we could instead make it an API provider's responsibility to maintain a complete record of VAAs by running multiple nodes listening to the gossip network.
 
 Nodes could do idempotent writes to a single shared K/V store (like Bigtable or Redis), doing fallthrough API requests against other nodes in the cluster, or retry on the LB level.
 
-While such features will likely be implemented in the future to improve scalability, we decided to design and implement state synchronization first:
+However, we decided against this approach:
 
-- We want to mitigate gossip message propagation issues or operational mistakes that could affect many nodes. With state synchronization, a message can be retrieved as long as at least one node has a copy.
+- It creates a false sense of security by allowing clients to rely on a single API service provider, reducing the network's overall level of fault tolerance. 
+
+- We want to mitigate gossip message propagation issues or operational mistakes that could affect many nodes.
 
 - For decentralization reasons, it should be possible to serve a fully-functional public API using a single node without requiring complex external dependencies or multiple nodes in separate failure domains.
+
+- The necessary client-side logic is trivial to implement - clients already need to poll for VAAs.
 
 ### Direct P2P connectivity
 
@@ -116,15 +122,11 @@ Directly connecting to the gossip network remains a possible design for future f
 
 ## Caveats
 
-### "Leechers"
+### Stochastic failure
 
-We do not specify an explicit incentive for nodes to maintain historic state. If a large fraction of the network fails to properly persist local state (like by running in ephemeral containers), we risk relying on insufficiently small number of nodes to serve state to others.
+Unless every guardian node on the network exposes an API endpoint, it is theoretically possible that 2/3+ nodes observe and sign a message, but all the nodes belonging to public API endpoints missed it.
 
-We believe that this is not an issue at this time due to the small amount of storage required (~1KiB per VAA) and data loss will occur infrequently, like when a node fails. The state synchronization protocol is much slower than listening to the initial gossip transmissions, providing little incentive for API operators to misuse the mechanism.
-
-### Gossip performance
-
-This proposal significantly increases the amount of data broadcasted via the gossip network (signed message broadcast and state synchronization), which may affect latency and throughput of signature broadcast. Unicast libp2p communication for state sync may cause head-of-line blocking and affect consensus. 
+The risk of this is insignificant with libp2p pubsub in a decentralized network, and manual recovery would be possible (any of the nodes in the 2/3+ set could retrieve the VAA and manually deliver it).
 
 ### Decentralization concerns
 
@@ -138,8 +140,10 @@ This proposal affects only data availability of data that was already validated 
 
 ### Denial of service
 
-We allow any node on the network to request state synchronization, which could be abused for denial-of-service attacks against the network.
+API endpoints may be subject to denial of service attacks. If an attacker manages to take down all public API endpoints, clients would be unable to retrieve signed messages.
 
-Rate-limiting and blacklisting mechanism can be implemented to enable guardians to respond to such attacks.
+VAAs would still be persisted locally during such an attack and can be requested once availability is restored. 
 
-(this assumes that libp2p itself is safe against pubsub flooding by non-guardian nodes - this an open question tracked in https://github.com/certusone/wormhole/issues/22 as well as the [official libp2p docs](https://docs.libp2p.io/concepts/security-considerations/)).
+We believe this risk is easily mitigated - protecting web APIs from denial of service attacks is a well-understood problem, with a robust ecosystem of both technological solutions and service providers.
+
+(robustness of libp2p pubsub itself against flooding by non-guardian nodes is an orthogonal concern tracked in https://github.com/certusone/wormhole/issues/22 as well as the [official libp2p docs](https://docs.libp2p.io/concepts/security-considerations/))
