@@ -23,17 +23,31 @@ import { shortenAddress } from "../../utils/solana";
 import OffsetButton from "./OffsetButton";
 import RefreshButtonWrapper from "./RefreshButtonWrapper";
 
-const useStyles = makeStyles(() =>
+const useStyles = makeStyles((theme) =>
   createStyles({
     selectInput: { minWidth: "10rem" },
     tokenOverviewContainer: {
       display: "flex",
+      width: "100%",
+      alignItems: "center",
       "& div": {
-        margin: ".5rem",
+        margin: theme.spacing(1),
+        "&$tokenImageContainer": {
+          maxWidth: 40,
+        },
       },
     },
+    tokenImageContainer: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      width: 40,
+    },
     tokenImage: {
-      maxHeight: "2.5rem",
+      maxHeight: "2.5rem", //Eyeballing this based off the text size
+    },
+    tokenSymbolContainer: {
+      flexBasis: 112,
     },
   })
 );
@@ -168,10 +182,10 @@ export default function TerraSourceTokenSelector(
   const renderOption = (option: TerraTokenMetadata) => {
     return (
       <div className={classes.tokenOverviewContainer}>
-        <div>
+        <div className={classes.tokenImageContainer}>
           <img alt="" className={classes.tokenImage} src={option.icon} />
         </div>
-        <div>
+        <div className={classes.tokenSymbolContainer}>
           <Typography variant="h6">{option.symbol}</Typography>
           <Typography variant="body2">{option.protocol}</Typography>
         </div>
@@ -200,7 +214,6 @@ export default function TerraSourceTokenSelector(
       <Autocomplete
         autoComplete
         autoHighlight
-        autoSelect
         blurOnSelect
         clearOnBlur
         fullWidth={false}

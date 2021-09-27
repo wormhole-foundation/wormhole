@@ -7,7 +7,7 @@ import {
   Typography,
 } from "@material-ui/core";
 import { Autocomplete, createFilterOptions } from "@material-ui/lab";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useEthereumProvider } from "../../contexts/EthereumProviderContext";
 import { CovalentData } from "../../hooks/useGetSourceParsedTokenAccounts";
 import { DataWrapper } from "../../store/helpers";
@@ -28,18 +28,34 @@ import NFTViewer from "./NFTViewer";
 import { useDebounce } from "use-debounce/lib";
 import RefreshButtonWrapper from "./RefreshButtonWrapper";
 import { CHAIN_ID_ETH } from "@certusone/wormhole-sdk";
+import { sortParsedTokenAccounts } from "../../utils/sort";
 
-const useStyles = makeStyles(() =>
+const useStyles = makeStyles((theme) =>
   createStyles({
     selectInput: { minWidth: "10rem" },
     tokenOverviewContainer: {
       display: "flex",
+      width: "100%",
+      alignItems: "center",
       "& div": {
-        margin: ".5rem",
+        margin: theme.spacing(1),
+        flexBasis: "33%",
+        "&$tokenImageContainer": {
+          maxWidth: 40,
+        },
+        "&:last-child": {
+          textAlign: "right",
+        },
       },
     },
+    tokenImageContainer: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      width: 40,
+    },
     tokenImage: {
-      maxHeight: "2.5rem",
+      maxHeight: "2.5rem", //Eyeballing this based off the text size
     },
   })
 );
@@ -86,7 +102,7 @@ const renderAccount = (
   const symbol = getSymbol(account) || "Unknown";
   return (
     <div className={classes.tokenOverviewContainer}>
-      <div>
+      <div className={classes.tokenImageContainer}>
         {uri && <img alt="" className={classes.tokenImage} src={uri} />}
       </div>
       <div>
@@ -119,7 +135,7 @@ const renderNFTAccount = (
   const name = account.name || "Unknown";
   return (
     <div className={classes.tokenOverviewContainer}>
-      <div>
+      <div className={classes.tokenImageContainer}>
         {uri && <img alt="" className={classes.tokenImage} src={uri} />}
       </div>
       <div>
@@ -437,9 +453,19 @@ export default function EthereumSourceTokenSelector(
     setAdvancedMode(!advancedMode);
   };
 
-  const handleAutocompleteChange = (newValue: ParsedTokenAccount | null) => {
-    setAutocompleteHolder(newValue);
-  };
+  const handleAutocompleteChange = useCallback(
+    (event, newValue: ParsedTokenAccount | null) => {
+      setAutocompleteHolder(newValue);
+    },
+    []
+  );
+
+  const tokenAccountsData = tokenAccounts?.data;
+  const sortedOptions = useMemo(() => {
+    const options = tokenAccountsData || [];
+    options.sort(sortParsedTokenAccounts);
+    return options;
+  }, [tokenAccountsData]);
 
   const isLoading =
     props.covalent?.isFetching || props.tokenAccounts?.isFetching;
@@ -449,22 +475,19 @@ export default function EthereumSourceTokenSelector(
       <Autocomplete
         autoComplete
         autoHighlight
-        autoSelect
         blurOnSelect
         clearOnBlur
         fullWidth={true}
         filterOptions={nft ? filterConfigNFT : filterConfig}
         value={autocompleteHolder}
-        onChange={(event, newValue) => {
-          handleAutocompleteChange(newValue);
-        }}
+        onChange={handleAutocompleteChange}
         disabled={disabled}
         noOptionsText={
           nft
             ? "No ERC-721 tokens found at the moment."
             : "No ERC-20 tokens found at the moment."
         }
-        options={tokenAccounts?.data || []}
+        options={sortedOptions}
         renderInput={(params) => (
           <TextField {...params} label="Token Account" variant="outlined" />
         )}
