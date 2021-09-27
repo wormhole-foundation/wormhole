@@ -240,8 +240,10 @@ You'll have to manage the following keys:
    node key. It is used by the peer-to-peer network for routing and transport layer encryption.
    An attacker could potentially use it to censor your messages on the network. Other than that, it's not very
    critical and can be rotated. The node will automatically create a node key at the path you specify if it doesn't exist.
+   While the node key can be replaced, we recommend using a persistent node key. This will make it easier to identify your
+   node in monitoring data and improves p2p connectivity.
  
-For production, we strongly recommend to either encrypt your disks, and/or take care to never have keys touch the disk.
+For production, we strongly recommend to either encrypt your disks, and/or take care to never have hot guardian keys touch the disk.
 One way to accomplish is to store keys on an in-memory ramfs, which can't be swapped out, and restore it from cold
 storage or an HSM/vault whenever the node is rebooted. You might want to disable swap altogether. None of that is
 specific to Wormhole - this applies to any hot keys.
