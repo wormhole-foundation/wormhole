@@ -35,6 +35,7 @@ use solana_client::{
     rpc_client::RpcClient,
     rpc_config::RpcSendTransactionConfig,
 };
+use solana_program::account_info::AccountInfo;
 use solana_sdk::{
     commitment_config::{
         CommitmentConfig,
@@ -219,6 +220,20 @@ fn main() {
                 ),
         )
         .subcommand(
+            SubCommand::with_name("metadata")
+                .about("Get the derived metadata associated with token mints")
+                .arg(
+                    Arg::with_name("mint")
+                        .long("mint")
+                        .value_name("MINT_KEY")
+                        .validator(is_pubkey_or_keypair)
+                        .takes_value(true)
+                        .index(1)
+                        .required(true)
+                        .help("Specify the token mint to derive metadata for"),
+                ),
+        )
+        .subcommand(
             SubCommand::with_name("create-meta")
                 .about("Create token metadata")
                 .arg(
@@ -307,6 +322,30 @@ fn main() {
             let bridge = pubkey_of(arg_matches, "bridge").unwrap();
             let emitter = <Derive<Info<'_>, "emitter">>::key(None, &bridge);
             println!("Emitter Key: {}", emitter);
+
+            Ok(None)
+        }
+        ("metadata", Some(arg_matches)) => {
+            let mint = pubkey_of(arg_matches, "mint").unwrap();
+            let meta_acc = Pubkey::find_program_address(
+                &[
+                    "metadata".as_bytes(),
+                    spl_token_metadata::id().as_ref(),
+                    mint.as_ref(),
+                ],
+                &spl_token_metadata::id(),
+            )
+            .0;
+            let meta_info = config.rpc_client.get_account(&meta_acc).unwrap();
+            let meta_info = spl_token_metadata::state::Metadata::from_bytes(&meta_info.data).unwrap();
+            println!("Key: {:?}", meta_info.key);
+            println!("Mint: {}", meta_info.mint);
+            println!("Metadata Key: {}", meta_acc);
+            println!("Update Authority: {}", meta_info.update_authority);
+            println!("Name: {}", meta_info.data.name);
+            println!("Symbol: {}", meta_info.data.symbol);
+            println!("URI: {}", meta_info.data.uri);
+            println!("Mutable: {}", meta_info.is_mutable);
 
             Ok(None)
         }

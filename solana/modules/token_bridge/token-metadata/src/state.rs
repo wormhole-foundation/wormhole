@@ -107,6 +107,10 @@ pub struct Metadata {
 }
 
 impl Metadata {
+    pub fn from_bytes(a: &[u8]) -> Option<Metadata> {
+        try_from_slice_checked(a, Key::MetadataV1, MAX_METADATA_LEN)
+    }
+
     pub fn from_account_info(a: &AccountInfo) -> Option<Metadata> {
         try_from_slice_checked(&a.data.borrow_mut(), Key::MetadataV1, MAX_METADATA_LEN)
     }
