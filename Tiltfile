@@ -240,6 +240,10 @@ k8s_resource("eth-devnet", port_forwards = [
     port_forward(8545, name = "Ganache RPC [:8545]"),
 ])
 
+k8s_resource("eth-devnet2", port_forwards = [
+    port_forward(8546, name = "Ganache RPC [:8546]"),
+])
+
 # bigtable
 
 def build_cloud_function(container_name, go_func_name, path, builder):

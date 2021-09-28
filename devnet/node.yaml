@@ -79,7 +79,7 @@ spec:
             - --ethRPC
             - ws://eth-devnet:8545
             - --bscRPC
-            - ws://eth-devnet:8545
+            - ws://eth-devnet2:8545
             - --terraWS
             - ws://terra-terrad:26657/websocket
             - --terraLCD
