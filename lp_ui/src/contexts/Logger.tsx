@@ -20,7 +20,7 @@ const LoggerProviderContext = React.createContext<LoggerContext>({
 });
 
 export const LoggerProvider = ({ children }: { children: ReactChildren }) => {
-  const [logs, setLogs] = useState<string[]>([]);
+  const [logs, setLogs] = useState<string[]>(["Instantiated the logger."]);
   const clear = useCallback(() => setLogs([]), [setLogs]);
   const { enqueueSnackbar } = useSnackbar();
 

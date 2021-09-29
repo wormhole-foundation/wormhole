@@ -1,24 +1,23 @@
 import addLiquidityTx from "@certusone/wormhole-sdk/lib/migration/addLiquidity";
 import getAuthorityAddress from "@certusone/wormhole-sdk/lib/migration/authorityAddress";
 import claimSharesTx from "@certusone/wormhole-sdk/lib/migration/claimShares";
-import removeLiquidityTx from "@certusone/wormhole-sdk/lib/migration/removeLiquidity";
 import createPoolAccount from "@certusone/wormhole-sdk/lib/migration/createPool";
 import getFromCustodyAddress from "@certusone/wormhole-sdk/lib/migration/fromCustodyAddress";
 import migrateTokensTx from "@certusone/wormhole-sdk/lib/migration/migrateTokens";
 import parsePool from "@certusone/wormhole-sdk/lib/migration/parsePool";
 import getPoolAddress from "@certusone/wormhole-sdk/lib/migration/poolAddress";
+import removeLiquidityTx from "@certusone/wormhole-sdk/lib/migration/removeLiquidity";
 import getShareMintAddress from "@certusone/wormhole-sdk/lib/migration/shareMintAddress";
 import getToCustodyAddress from "@certusone/wormhole-sdk/lib/migration/toCustodyAddress";
 import {
   Button,
+  CircularProgress,
   Container,
   Divider,
   makeStyles,
   Paper,
   TextField,
   Typography,
-  CircularProgress,
-  AppBar,
 } from "@material-ui/core";
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -36,11 +35,7 @@ import SolanaCreateAssociatedAddress, {
 import SolanaWalletKey from "../components/SolanaWalletKey";
 import { useLogger } from "../contexts/Logger";
 import { useSolanaWallet } from "../contexts/SolanaWalletContext";
-import {
-  CLUSTER,
-  MIGRATION_PROGRAM_ADDRESS,
-  SOLANA_URL,
-} from "../utils/consts";
+import { MIGRATION_PROGRAM_ADDRESS, SOLANA_URL } from "../utils/consts";
 import { getMultipleAccounts, signSendAndConfirm } from "../utils/solana";
 
 const useStyles = makeStyles(() => ({
@@ -59,7 +54,7 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-const compareWithDecimalOffset = (
+export const compareWithDecimalOffset = (
   valueA: string,
   decimalsA: number,
   valueB: string,
@@ -1002,13 +997,6 @@ function Main() {
 
   return (
     <>
-      {CLUSTER === "mainnet" ? null : (
-        <AppBar position="static" color="secondary">
-          <Typography style={{ textAlign: "center" }}>
-            Caution! You are using the {CLUSTER} build of this app.
-          </Typography>
-        </AppBar>
-      )}
       <Container maxWidth="md" className={classes.rootContainer}>
         <Paper className={classes.mainPaper}>
           <SolanaWalletKey />

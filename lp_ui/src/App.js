@@ -1,7 +1,7 @@
-import Main from "./views/Main";
+import Home from "./views/Home";
 
 function App() {
-  return <Main />;
+  return <Home />;
 }
 
 export default App;

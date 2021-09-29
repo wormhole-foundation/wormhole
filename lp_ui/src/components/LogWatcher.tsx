@@ -1,13 +1,8 @@
 import { Button, Paper, Typography } from "@material-ui/core";
-import { useEffect } from "react";
 import { useLogger } from "../contexts/Logger";
 
 function LogWatcher() {
-  const { logs, clear, log } = useLogger();
-
-  useEffect(() => {
-    log("Instantiated the logger.");
-  }, [log]);
+  const { logs, clear } = useLogger();
 
   return (
     <Paper style={{ padding: "1rem", maxHeight: "600px", overflow: "auto" }}>

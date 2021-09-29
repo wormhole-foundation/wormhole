@@ -7,16 +7,19 @@ import { LoggerProvider } from "./contexts/Logger";
 import { SolanaWalletProvider } from "./contexts/SolanaWalletContext";
 import { theme } from "./muiTheme";
 import { SnackbarProvider } from "notistack";
+import { EthereumProviderProvider } from "./contexts/EthereumProviderContext";
 ReactDOM.render(
   <ErrorBoundary>
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <SolanaWalletProvider>
-        <SnackbarProvider maxSnack={3}>
-          <LoggerProvider>
-            <App />
-          </LoggerProvider>
-        </SnackbarProvider>
+        <EthereumProviderProvider>
+          <SnackbarProvider maxSnack={3}>
+            <LoggerProvider>
+              <App />
+            </LoggerProvider>
+          </SnackbarProvider>
+        </EthereumProviderProvider>
       </SolanaWalletProvider>
     </ThemeProvider>
   </ErrorBoundary>,
