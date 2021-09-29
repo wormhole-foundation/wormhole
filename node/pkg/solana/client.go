@@ -216,6 +216,8 @@ func (s *SolanaWatcher) retryFetchBlock(ctx context.Context, slot uint64, retry 
 			return
 		}
 
+		time.Sleep(5 * time.Second)
+
 		s.logger.Info("retrying block",
 			zap.Uint64("slot", slot),
 			zap.String("commitment", string(s.commitment)),
