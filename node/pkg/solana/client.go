@@ -124,10 +124,24 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 		timer := time.NewTicker(time.Second * 1)
 		defer timer.Stop()
 
+		recovery := time.NewTimer(recoveryDate.Sub(time.Now().UTC()))
+
 		for {
 			select {
 			case <-ctx.Done():
 				return
+			case <-recovery.C:
+				if s.commitment != rpc.CommitmentFinalized {
+					continue
+				}
+				s.logger.Info("executing scheduled recovery", zap.Any("accounts", recoveryAccounts))
+
+				rCtx, cancel := context.WithTimeout(ctx, rpcTimeout)
+				defer cancel()
+
+				for _, acc := range recoveryAccounts {
+					s.fetchMessageAccount(rCtx, solana.MustPublicKeyFromBase58(acc), 0)
+				}
 			case <-timer.C:
 				// Get current slot height
 				rCtx, cancel := context.WithTimeout(ctx, rpcTimeout)
