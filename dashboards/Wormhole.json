@@ -64,7 +64,7 @@
   "gnetId": null,
   "graphTooltip": 1,
   "id": null,
-  "iteration": 1629991654379,
+  "iteration": 1632923310956,
   "links": [],
   "panels": [
     {
@@ -160,7 +160,7 @@
           "expr": "rate(wormhole_eth_current_height{instance=~\"$instance\", eth_network=\"eth\"}[$__rate_interval])",
           "instant": false,
           "interval": "",
-          "legendFormat": "{{instance}} - {{eth_network}}",
+          "legendFormat": "",
           "queryType": "randomWalk",
           "refId": "A"
         }
@@ -223,7 +223,32 @@
           },
           "unit": "short"
         },
-        "overrides": []
+        "overrides": [
+          {
+            "__systemRef": "hideSeriesFrom",
+            "matcher": {
+              "id": "byNames",
+              "options": {
+                "mode": "exclude",
+                "names": [
+                  "mainnet_v2 - confirmed"
+                ],
+                "prefix": "All except:",
+                "readOnly": true
+              }
+            },
+            "properties": [
+              {
+                "id": "custom.hideFrom",
+                "value": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": true
+                }
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 8,
@@ -487,7 +512,32 @@
           },
           "unit": "none"
         },
-        "overrides": []
+        "overrides": [
+          {
+            "__systemRef": "hideSeriesFrom",
+            "matcher": {
+              "id": "byNames",
+              "options": {
+                "mode": "exclude",
+                "names": [
+                  "wormhole_network_node_height{guardian_addr=\"0xAF45Ced136b9D9e24903464AE889F5C8a723FC14\", instance=\"mainnet_v2\", job=\"wormhole\", network=\"ethereum\", node_id=\"12D3KooWMhh7UJkSXnWeE49Rcor97KK4Qnu14xgxTDmAEHidySq9\", node_name=\"MoonletWallet\"}"
+                ],
+                "prefix": "All except:",
+                "readOnly": true
+              }
+            },
+            "properties": [
+              {
+                "id": "custom.hideFrom",
+                "value": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": true
+                }
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 8,
@@ -514,7 +564,7 @@
           "hide": false,
           "instant": false,
           "interval": "",
-          "legendFormat": "{{ node_name }}",
+          "legendFormat": "{{ node_name }} - {{instance}}",
           "queryType": "randomWalk",
           "refId": "A"
         }
@@ -602,7 +652,7 @@
           "expr": "wormhole_network_node_height{instance=~\"$instance\", network=\"solana\", node_name=~\"$node_name\"} > 0",
           "instant": false,
           "interval": "",
-          "legendFormat": "{{ node_name }}",
+          "legendFormat": "{{ node_name }} - {{instance}}",
           "queryType": "randomWalk",
           "refId": "A"
         }
@@ -690,7 +740,7 @@
           "expr": "wormhole_network_node_height{instance=~\"$instance\", network=\"terra\", node_name=~\"$node_name\"} > 0",
           "instant": false,
           "interval": "",
-          "legendFormat": "{{ node_name }}",
+          "legendFormat": "{{ node_name }} - {{instance}}",
           "queryType": "randomWalk",
           "refId": "A"
         }
@@ -778,7 +828,7 @@
           "expr": "wormhole_network_node_height{instance=~\"$instance\", network=\"bsc\", node_name=~\"$node_name\"} > 0",
           "instant": false,
           "interval": "",
-          "legendFormat": "{{ node_name }}",
+          "legendFormat": "{{ node_name }} - {{instance}}",
           "queryType": "randomWalk",
           "refId": "A"
         }
@@ -856,7 +906,7 @@
             "h": 7,
             "w": 8,
             "x": 0,
-            "y": 2
+            "y": 18
           },
           "id": 4,
           "options": {
@@ -873,7 +923,7 @@
           "targets": [
             {
               "exemplar": true,
-              "expr": "increase(wormhole_aggregation_state_unobserved_total{instance=~\"$instance\"}[$__rate_interval])",
+              "expr": "increase(wormhole_network_node_errors_count{instance=~\"$instance\"}[$__rate_interval])",
               "interval": "",
               "legendFormat": "unobserved - {{instance}}",
               "queryType": "randomWalk",
@@ -882,6 +932,7 @@
             {
               "exemplar": true,
               "expr": "increase(wormhole_aggregation_state_expirations_total{instance=~\"$instance\"}[$__rate_interval])",
+              "hide": true,
               "interval": "",
               "legendFormat": "expirations - {{instance}}",
               "refId": "B"
@@ -889,6 +940,7 @@
             {
               "exemplar": true,
               "expr": "increase(wormhole_aggregation_state_retries_total{instance=~\"$instance\"}[$__rate_interval])",
+              "hide": true,
               "interval": "",
               "legendFormat": "retries - {{instance}}",
               "refId": "C"
@@ -896,6 +948,7 @@
             {
               "exemplar": true,
               "expr": "sum without (addr, origin, status)(increase(wormhole_aggregation_state_settled_signatures_total{instance=~\"$instance\"}[$__rate_interval]))",
+              "hide": true,
               "interval": "",
               "legendFormat": "settled - {{instance}}",
               "refId": "D"
@@ -903,6 +956,7 @@
             {
               "exemplar": true,
               "expr": "increase(wormhole_aggregation_state_timeout_total{instance=~\"$instance\"}[$__rate_interval])",
+              "hide": true,
               "interval": "",
               "legendFormat": "timeout - {{instance}}",
               "refId": "E"
@@ -910,6 +964,7 @@
             {
               "exemplar": true,
               "expr": "increase(wormhole_aggregation_state_timeout_total{instance=~\"$instance\"}[$__rate_interval])",
+              "hide": true,
               "interval": "",
               "legendFormat": "timeout - {{instance}}",
               "refId": "F"
@@ -917,7 +972,7 @@
           ],
           "timeFrom": null,
           "timeShift": null,
-          "title": "Aggregation Cleanup State Machine",
+          "title": "Number of errors the given guardian node encountered per network",
           "type": "timeseries"
         },
         {
@@ -977,7 +1032,7 @@
             "h": 7,
             "w": 8,
             "x": 8,
-            "y": 2
+            "y": 18
           },
           "id": 6,
           "options": {
@@ -987,7 +1042,7 @@
               "placement": "bottom"
             },
             "tooltip": {
-              "mode": "single"
+              "mode": "multi"
             }
           },
           "pluginVersion": "8.1.0",
@@ -1063,7 +1118,7 @@
             "h": 7,
             "w": 8,
             "x": 16,
-            "y": 2
+            "y": 18
           },
           "id": 7,
           "options": {
@@ -1114,6 +1169,227 @@
           "timeFrom": null,
           "timeShift": null,
           "title": "Message Observations",
+          "type": "timeseries"
+        },
+        {
+          "datasource": "${DS_PROMETHEUS}",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": true,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 0,
+            "y": 25
+          },
+          "id": 53,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          },
+          "pluginVersion": "8.1.0",
+          "targets": [
+            {
+              "exemplar": true,
+              "expr": "increase(wormhole_eth_messages_observed_total{instance=~\"$instance\"}[$__rate_interval])",
+              "interval": "",
+              "legendFormat": "ethereum (found) - {{instance}}",
+              "queryType": "randomWalk",
+              "refId": "A"
+            },
+            {
+              "exemplar": true,
+              "expr": "increase(wormhole_eth_lockups_confirmed_total{instance=~\"$instance\"}[$__rate_interval])",
+              "interval": "",
+              "legendFormat": "ethereum (confirmed) - {{instance}}",
+              "queryType": "randomWalk",
+              "refId": "B"
+            },
+            {
+              "exemplar": true,
+              "expr": "increase(wormhole_solana_lockups_confirmed_total{instance=~\"$instance\"}[$__rate_interval])",
+              "interval": "",
+              "legendFormat": "solana (confirmed) - {{instance}}",
+              "queryType": "randomWalk",
+              "refId": "C"
+            },
+            {
+              "exemplar": true,
+              "expr": "increase(wormhole_terra_lockups_confirmed_total{instance=~\"$instance\"}[$__rate_interval])",
+              "interval": "",
+              "legendFormat": "terra (confirmed)  - {{instance}}",
+              "queryType": "randomWalk",
+              "refId": "D"
+            }
+          ],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "Lockup Observations (increase)",
+          "type": "timeseries"
+        },
+        {
+          "datasource": "${DS_PROMETHEUS}",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "bars",
+                "fillOpacity": 60,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": true,
+                "stacking": {
+                  "group": "A",
+                  "mode": "normal"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 12,
+            "y": 25
+          },
+          "id": 54,
+          "interval": "1d",
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          },
+          "pluginVersion": "8.1.0",
+          "targets": [
+            {
+              "exemplar": true,
+              "expr": "wormhole_eth_messages_observed_total{instance=~\"$instance\"}",
+              "interval": "",
+              "legendFormat": "ethereum (found) - {{instance}}",
+              "queryType": "randomWalk",
+              "refId": "A"
+            },
+            {
+              "exemplar": true,
+              "expr": "wormhole_eth_lockups_confirmed_total{instance=~\"$instance\"}",
+              "interval": "",
+              "legendFormat": "ethereum (confirmed) - {{instance}}",
+              "queryType": "randomWalk",
+              "refId": "B"
+            },
+            {
+              "exemplar": true,
+              "expr": "wormhole_solana_lockups_confirmed_total{instance=~\"$instance\"}",
+              "interval": "",
+              "legendFormat": "solana (confirmed) - {{instance}}",
+              "queryType": "randomWalk",
+              "refId": "C"
+            },
+            {
+              "exemplar": true,
+              "expr": "wormhole_terra_lockups_confirmed_total{instance=~\"$instance\"}",
+              "interval": "",
+              "legendFormat": "terra (confirmed)  - {{instance}}",
+              "queryType": "randomWalk",
+              "refId": "D"
+            }
+          ],
+          "timeFrom": "30d",
+          "timeShift": null,
+          "title": "Lockup Observations ",
           "type": "timeseries"
         }
       ],
@@ -1208,7 +1484,7 @@
               "exemplar": true,
               "expr": "rate(wormhole_p2p_broadcast_messages_received_total{instance=~\"$instance\"}[$__rate_interval])",
               "interval": "",
-              "legendFormat": "{{ type }}",
+              "legendFormat": "{{ type }} - {{instance}}",
               "queryType": "randomWalk",
               "refId": "A"
             }
@@ -1295,7 +1571,7 @@
               "exemplar": true,
               "expr": "increase(wormhole_eth_connection_errors_total{instance=~\"$instance\"}[$__rate_interval])",
               "interval": "1m",
-              "legendFormat": "{{eth_network}} - {{ reason }}",
+              "legendFormat": "{{eth_network}} - {{ reason }} - {{instance}}",
               "queryType": "randomWalk",
               "refId": "A"
             },
@@ -1303,7 +1579,7 @@
               "exemplar": true,
               "expr": "increase(wormhole_solana_connection_errors_total{instance=~\"$instance\"}[$__rate_interval])",
               "interval": "1m",
-              "legendFormat": "Solana - {{ reason }}",
+              "legendFormat": "Solana - {{ reason }} - {{instance}}",
               "queryType": "randomWalk",
               "refId": "B"
             },
@@ -1311,7 +1587,7 @@
               "exemplar": true,
               "expr": "rate(wormhole_terra_connection_errors_total{instance=~\"$instance\"}[$__rate_interval])",
               "interval": "1m",
-              "legendFormat": "Terra - {{ reason }}",
+              "legendFormat": "Terra - {{ reason }} - {{instance}}",
               "queryType": "randomWalk",
               "refId": "C"
             }
@@ -1319,6 +1595,362 @@
           "timeFrom": null,
           "timeShift": null,
           "title": "Watcher Error Count",
+          "type": "timeseries"
+        },
+        {
+          "datasource": "${DS_PROMETHEUS}",
+          "description": "",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "bars",
+                "fillOpacity": 100,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": true,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 12
+          },
+          "id": 55,
+          "options": {
+            "legend": {
+              "calcs": [
+                "last"
+              ],
+              "displayMode": "table",
+              "placement": "right"
+            },
+            "tooltip": {
+              "mode": "single"
+            }
+          },
+          "pluginVersion": "8.1.0",
+          "targets": [
+            {
+              "exemplar": true,
+              "expr": "wormhole_network_node_errors_count{instance=~\"$instance\", network=~\"solana\", node_name=~\"$node_name\"}",
+              "interval": "1m",
+              "legendFormat": "{{ node_name }}  - {{instance}}",
+              "queryType": "randomWalk",
+              "refId": "A"
+            }
+          ],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "Number of errors the given guardian node encountered on Solana",
+          "type": "timeseries"
+        },
+        {
+          "datasource": "${DS_PROMETHEUS}",
+          "description": "",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "bars",
+                "fillOpacity": 100,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": true,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 20
+          },
+          "id": 56,
+          "options": {
+            "legend": {
+              "calcs": [
+                "last"
+              ],
+              "displayMode": "table",
+              "placement": "right"
+            },
+            "tooltip": {
+              "mode": "single"
+            }
+          },
+          "pluginVersion": "8.1.0",
+          "targets": [
+            {
+              "exemplar": true,
+              "expr": "wormhole_network_node_errors_count{instance=~\"$instance\", network=~\"ethereum\", node_name=~\"$node_name\"}",
+              "interval": "1m",
+              "legendFormat": "{{ node_name }} - {{instance}}",
+              "queryType": "randomWalk",
+              "refId": "A"
+            }
+          ],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "Number of errors the given guardian node encountered on Ethereum",
+          "type": "timeseries"
+        },
+        {
+          "datasource": "${DS_PROMETHEUS}",
+          "description": "",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "bars",
+                "fillOpacity": 100,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": true,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 28
+          },
+          "id": 57,
+          "options": {
+            "legend": {
+              "calcs": [
+                "last"
+              ],
+              "displayMode": "table",
+              "placement": "right"
+            },
+            "tooltip": {
+              "mode": "single"
+            }
+          },
+          "pluginVersion": "8.1.0",
+          "targets": [
+            {
+              "exemplar": true,
+              "expr": "wormhole_network_node_errors_count{instance=~\"$instance\", network=~\"bsc\", node_name=~\"$node_name\"}",
+              "interval": "1m",
+              "legendFormat": "{{ node_name }} - {{instance}}",
+              "queryType": "randomWalk",
+              "refId": "A"
+            }
+          ],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "Number of errors the given guardian node encountered on BSC",
+          "type": "timeseries"
+        },
+        {
+          "datasource": "${DS_PROMETHEUS}",
+          "description": "",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "bars",
+                "fillOpacity": 100,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": true,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 36
+          },
+          "id": 58,
+          "options": {
+            "legend": {
+              "calcs": [
+                "last"
+              ],
+              "displayMode": "table",
+              "placement": "right"
+            },
+            "tooltip": {
+              "mode": "single"
+            }
+          },
+          "pluginVersion": "8.1.0",
+          "targets": [
+            {
+              "exemplar": true,
+              "expr": "wormhole_network_node_errors_count{instance=~\"$instance\", network=~\"terra\", node_name=~\"$node_name\"}",
+              "interval": "1m",
+              "legendFormat": "{{ node_name }} - {{instance}}",
+              "queryType": "randomWalk",
+              "refId": "A"
+            }
+          ],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "Number of errors the given guardian node encountered on Terra",
           "type": "timeseries"
         }
       ],
@@ -1393,7 +2025,7 @@
             "h": 7,
             "w": 12,
             "x": 0,
-            "y": 13
+            "y": 75
           },
           "id": 28,
           "options": {
@@ -1475,7 +2107,7 @@
             "h": 7,
             "w": 12,
             "x": 12,
-            "y": 13
+            "y": 75
           },
           "id": 30,
           "options": {
@@ -1573,7 +2205,7 @@
             "h": 8,
             "w": 24,
             "x": 0,
-            "y": 5
+            "y": 83
           },
           "id": 16,
           "options": {
@@ -1662,7 +2294,7 @@
             "h": 8,
             "w": 24,
             "x": 0,
-            "y": 13
+            "y": 91
           },
           "id": 10,
           "options": {
@@ -1751,7 +2383,7 @@
             "h": 8,
             "w": 24,
             "x": 0,
-            "y": 21
+            "y": 99
           },
           "id": 20,
           "options": {
@@ -1815,7 +2447,7 @@
             "h": 7,
             "w": 6,
             "x": 0,
-            "y": 10
+            "y": 77
           },
           "heatmap": {},
           "hideZeroBuckets": false,
@@ -1879,7 +2511,7 @@
             "h": 7,
             "w": 6,
             "x": 6,
-            "y": 10
+            "y": 77
           },
           "heatmap": {},
           "hideZeroBuckets": false,
@@ -1943,7 +2575,7 @@
             "h": 7,
             "w": 6,
             "x": 12,
-            "y": 10
+            "y": 77
           },
           "heatmap": {},
           "hideZeroBuckets": false,
@@ -2008,7 +2640,7 @@
             "h": 7,
             "w": 6,
             "x": 18,
-            "y": 10
+            "y": 77
           },
           "heatmap": {},
           "hideZeroBuckets": false,
@@ -2030,7 +2662,7 @@
           ],
           "timeFrom": null,
           "timeShift": null,
-          "title": "Ethereum Query Latency",
+          "title": "BSC Query Latency",
           "tooltip": {
             "show": true,
             "showHistogram": false
@@ -2491,7 +3123,7 @@
         "hide": 0,
         "includeAll": true,
         "label": "Instance",
-        "multi": false,
+        "multi": true,
         "name": "instance",
         "options": [],
         "query": {
@@ -2556,12 +3188,12 @@
     ]
   },
   "time": {
-    "from": "now-1h",
+    "from": "now-6h",
     "to": "now"
   },
   "timepicker": {},
   "timezone": "",
   "title": "Wormhole v2",
   "uid": "2N0GYz47123",
-  "version": 47
+  "version": 67
 }
