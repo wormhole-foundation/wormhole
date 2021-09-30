@@ -1,6 +1,6 @@
 #pragma version 5
 // ================================================================================================
-// Price-Reference Program 
+// Pricecaster Program 
 // ================================================================================================
 //
 // This contract has the following invariants at
@@ -9,11 +9,11 @@
 // TMPL_VALIDATOR Unique data validator address that signs and sends the incoming message
 //
 // App-globals:
-// symbol   : pair supported by this app.
-// nonce    : last sequence ID
-// price    : current price 
-// stdev    : current confidence (standard deviation)
-// ts       : timestamp
+// symbol   : byte[] pair supported by this app.
+// nonce    : uint64 last sequence ID
+// price    : byte[] current price 
+// stdev    : byte[] current confidence (standard deviation)
+// ts       : uint64 timestamp
 //
 // Slots:
 // 0        Input message block 
@@ -22,17 +22,17 @@
 // The Message format must have the packed fields:
 // 
 //  Field size
-//  10          header      Literal "PRICE_DATA"
+//  9           header      Literal "PRICEDATA"
 //  1           version     int8 (Must be 1)
 //  8           dest        This appId 
 //  8           nonce       uint64 Sequence identifier 
 //  16          symbol      String filled with spaces e.g ("ALGO/USD        ")
-//  8           price       uint64 encoded price
-//  8           conf        uint64 encoded confidence (kind of SD) 
+//  8           price       Price. 64bit float encoded as big-endian.
+//  8           conf        Confidence (standard-deviation?). 64bit float encoded as big-endian. 
 //  8           ts          timestamp of this price
-//  32          r           Signature r-component
-//  32          s           Signature s-component 
-//  1           v           Signature v-component 
+//  32          s           Signature s-component
+//  32          r           Signature r-component 
+//  1           v           Signature v-component (ignored)
 //
 //  Size: 131 bytes. 
 //
