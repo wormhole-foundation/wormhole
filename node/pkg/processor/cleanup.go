@@ -82,7 +82,7 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 			p.logger.Info("expiring submitted VAA", zap.String("digest", hash), zap.Duration("delta", delta))
 			delete(p.state.vaaSignatures, hash)
 			aggregationStateExpiration.Inc()
-		case !s.submitted && s.retryCount >= 10:
+		case !s.submitted && ((s.ourMsg != nil && s.retryCount >= 2880 /* 24 hours */) || (s.ourMsg == nil && s.retryCount >= 10 /* 5 minutes */)):
 			// Clearly, this horse is dead and continued beatings won't bring it closer to quorum.
 			p.logger.Info("expiring unsubmitted VAA after exhausting retries", zap.String("digest", hash), zap.Duration("delta", delta))
 			delete(p.state.vaaSignatures, hash)
@@ -97,7 +97,7 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 				p.logger.Info("resubmitting VAA observation",
 					zap.String("digest", hash),
 					zap.Duration("delta", delta),
-					zap.Int("retry", 1))
+					zap.Uint("retry", s.retryCount))
 				p.sendC <- s.ourMsg
 				s.retryCount += 1
 				aggregationStateRetries.Inc()
