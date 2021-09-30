@@ -1,0 +1,192 @@
+#pragma version 5
+// ================================================================================================
+// Price-Reference Program 
+// ================================================================================================
+//
+// This contract has the following invariants at
+// deployment stage:
+//
+// TMPL_VALIDATOR Unique data validator address that signs and sends the incoming message
+//
+// App-globals:
+// symbol   : pair supported by this app.
+// nonce    : last sequence ID
+// price    : current price 
+// stdev    : current confidence (standard deviation)
+// ts       : timestamp
+//
+// Slots:
+// 0        Input message block 
+// 1        SHA256-Hashed message 
+// 
+// The Message format must have the packed fields:
+// 
+//  Field size
+//  10          header      Literal "PRICE_DATA"
+//  1           version     int8 (Must be 1)
+//  8           dest        This appId 
+//  8           nonce       uint64 Sequence identifier 
+//  16          symbol      String filled with spaces e.g ("ALGO/USD        ")
+//  8           price       uint64 encoded price
+//  8           conf        uint64 encoded confidence (kind of SD) 
+//  8           ts          timestamp of this price
+//  32          r           Signature r-component
+//  32          s           Signature s-component 
+//  1           v           Signature v-component 
+//
+//  Size: 131 bytes. 
+//
+// ------------------------------------------------------------------------------------------------
+
+
+// Application creation.
+int 0
+txn ApplicationID
+==
+bnz success
+
+// Handle app call: send price message
+txn OnCompletion
+int NoOp
+==
+bnz handle_call
+
+// Fail otherwise
+err
+
+// -----------------------------------------------------
+// Receive price message 
+// -----------------------------------------------------
+
+handle_call:
+
+// Verify if sender is the data validator
+txn Sender 
+addr PIQHXRVFDP4KSEZUPW6TB4UCDVJ5GJ3YYJIQWKWMEW2AUHJJCHPB4GPNCU
+==
+assert
+
+// Retrieve message, store in slot 0
+txn ApplicationArgs 0
+store 0
+
+// ------------------------------------------------------
+// Validate message 
+// ------------------------------------------------------
+
+// Check length
+
+load 0
+len
+int 131
+==
+assert
+
+// Check header
+
+load 0
+byte "PRICEDATA"
+extract 0 9
+==
+assert
+
+// Check version - must be 1.
+
+load 0
+extract 9 1
+byte 0x01
+==
+assert
+
+// Check destination - must be this appId.
+
+load 0
+extract 10 8
+btoi
+txn ApplicationID
+==
+assert 
+
+// Check nonce 
+
+load 0
+extract 18 8
+btoi
+byte "nonce"
+app_global_get
+>
+assert
+
+// Check timestamp  order
+
+load 0 
+extract 58 8
+btoi 
+global LatestTimestamp
+<=
+assert 
+
+// Hash message block  
+
+load 0
+extract 0 65
+sha512_256
+store 1
+
+// push data, followed by signature S, signature R, pubkey X, pubkey Y
+load 0
+dup
+extract 66 32
+load 0
+extract 98 32
+
+// Unpack pubkey X,Y components
+ecdsa_pk_decompress Secp256k1
+
+// Verify signature 
+ecdsa_verify Secp256k1
+int 1
+==
+assert
+
+// ----------------------------------------------------------------------------
+// Verified. Store data to app globals.
+// ----------------------------------------------------------------------------
+
+byte "nonce"
+load 0
+extract 18 8
+app_global_put
+
+byte "ts"
+load 0 
+extract 58 8
+btoi 
+app_global_put
+
+byte "price"
+load 0
+extract 42 8 
+btoi 
+app_global_put
+
+byte "stdev"
+load 0
+extract 50 8
+btoi
+app_global_put
+
+b success
+
+// ----------------------------------------------------------------------------
+
+fail: 
+int 0
+return 
+
+success:
+int 1 
+return
+
+
+
