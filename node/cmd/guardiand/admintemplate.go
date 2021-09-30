@@ -2,6 +2,7 @@ package guardiand
 
 import (
 	"fmt"
+	"github.com/tendermint/tendermint/libs/rand"
 	"io/ioutil"
 	"log"
 
@@ -22,6 +23,7 @@ func init() {
 
 	TemplateCmd.AddCommand(AdminClientGuardianSetTemplateCmd)
 	TemplateCmd.AddCommand(AdminClientContractUpgradeTemplateCmd)
+	TemplateCmd.AddCommand(AdminClientTokenBridgeRegisterChainCmd)
 }
 
 var TemplateCmd = &cobra.Command{
@@ -43,6 +45,13 @@ var AdminClientContractUpgradeTemplateCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 }
 
+var AdminClientTokenBridgeRegisterChainCmd = &cobra.Command{
+	Use:   "token-bridge-register-chain [FILENAME]",
+	Short: "Generate an empty token bridge chain registration template at specified path (offline)",
+	Run:   runTokenBridgeRegisterChainTemplate,
+	Args:  cobra.ExactArgs(1),
+}
+
 func runGuardianSetTemplate(cmd *cobra.Command, args []string) {
 	path := args[0]
 
@@ -58,9 +67,8 @@ func runGuardianSetTemplate(cmd *cobra.Command, args []string) {
 
 	m := &nodev1.InjectGovernanceVAARequest{
 		CurrentSetIndex: uint32(*templateGuardianIndex),
-		// Timestamp is hardcoded to make it reproducible on different devnet nodes.
-		// In production, a real UNIX timestamp should be used (see node.proto).
-		Timestamp: 1605744545,
+		Sequence: 1234,
+		Nonce: rand.Uint32(),
 		Payload: &nodev1.InjectGovernanceVAARequest_GuardianSet{
 			GuardianSet: &nodev1.GuardianSetUpdate{Guardians: guardians},
 		},
@@ -82,13 +90,37 @@ func runContractUpgradeTemplate(cmd *cobra.Command, args []string) {
 
 	m := &nodev1.InjectGovernanceVAARequest{
 		CurrentSetIndex: uint32(*templateGuardianIndex),
-		// Timestamp is hardcoded to make it reproducible on different devnet nodes.
-		// In production, a real UNIX timestamp should be used (see node.proto).
-		Timestamp: 1605744545,
+		Sequence: 1234,
+		Nonce: rand.Uint32(),
 		Payload: &nodev1.InjectGovernanceVAARequest_ContractUpgrade{
 			ContractUpgrade: &nodev1.ContractUpgrade{
 				ChainId:     1,
 				NewContract: make([]byte, 32),
+			},
+		},
+	}
+
+	b, err := prototext.MarshalOptions{Multiline: true}.Marshal(m)
+	if err != nil {
+		panic(err)
+	}
+
+	err = ioutil.WriteFile(path, b, 0640)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+func runTokenBridgeRegisterChainTemplate(cmd *cobra.Command, args []string) {
+	path := args[0]
+
+	m := &nodev1.InjectGovernanceVAARequest{
+		CurrentSetIndex: uint32(*templateGuardianIndex),
+		Sequence: rand.Uint64(),
+		Nonce: rand.Uint32(),
+		Payload: &nodev1.InjectGovernanceVAARequest_TokenBridgeRegisterChain{
+			TokenBridgeRegisterChain: &nodev1.TokenBridgeRegisterChain{
+				ChainId:        5,
+				EmitterAddress: "0000000000000000000000000290FB167208Af455bB137780163b7B7a9a10C16",
 			},
 		},
 	}

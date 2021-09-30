@@ -2,25 +2,24 @@ package guardiand
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"github.com/certusone/wormhole/node/pkg/db"
 	publicrpcv1 "github.com/certusone/wormhole/node/pkg/proto/publicrpc/v1"
 	"github.com/certusone/wormhole/node/pkg/publicrpc"
+	ethcommon "github.com/ethereum/go-ethereum/common"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_zap "github.com/grpc-ecosystem/go-grpc-middleware/logging/zap"
 	grpc_ctxtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
-	"math"
-	"net"
-	"os"
-	"time"
-
-	ethcommon "github.com/ethereum/go-ethereum/common"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"math"
+	"net"
+	"os"
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	nodev1 "github.com/certusone/wormhole/node/pkg/proto/node/v1"
@@ -36,7 +35,7 @@ type nodePrivilegedService struct {
 
 // adminGuardianSetUpdateToVAA converts a nodev1.GuardianSetUpdate message to its canonical VAA representation.
 // Returns an error if the data is invalid.
-func adminGuardianSetUpdateToVAA(req *nodev1.GuardianSetUpdate, guardianSetIndex uint32, timestamp uint32) (*vaa.VAA, error) {
+func adminGuardianSetUpdateToVAA(req *nodev1.GuardianSetUpdate, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) {
 	if len(req.Guardians) == 0 {
 		return nil, errors.New("empty guardian set specified")
 	}
@@ -61,22 +60,18 @@ func adminGuardianSetUpdateToVAA(req *nodev1.GuardianSetUpdate, guardianSetIndex
 		addrs[i] = ethAddr
 	}
 
-	v := &vaa.VAA{
-		Version:          vaa.SupportedVAAVersion,
-		GuardianSetIndex: guardianSetIndex,
-		Timestamp:        time.Unix(int64(timestamp), 0),
-		Payload: vaa.BodyGuardianSetUpdate{
+	v := vaa.CreateGovernanceVAA(nonce, sequence, guardianSetIndex,
+		vaa.BodyGuardianSetUpdate{
 			Keys:     addrs,
 			NewIndex: guardianSetIndex + 1,
-		}.Serialize(),
-	}
+		}.Serialize())
 
 	return v, nil
 }
 
 // adminContractUpgradeToVAA converts a nodev1.ContractUpgrade message to its canonical VAA representation.
 // Returns an error if the data is invalid.
-func adminContractUpgradeToVAA(req *nodev1.ContractUpgrade, guardianSetIndex uint32, timestamp uint32) (*vaa.VAA, error) {
+func adminContractUpgradeToVAA(req *nodev1.ContractUpgrade, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) {
 	if len(req.NewContract) != 32 {
 		return nil, errors.New("invalid new_contract address")
 	}
@@ -88,15 +83,39 @@ func adminContractUpgradeToVAA(req *nodev1.ContractUpgrade, guardianSetIndex uin
 	newContractAddress := vaa.Address{}
 	copy(newContractAddress[:], req.NewContract)
 
-	v := &vaa.VAA{
-		Version:          vaa.SupportedVAAVersion,
-		GuardianSetIndex: guardianSetIndex,
-		Timestamp:        time.Unix(int64(timestamp), 0),
-		Payload: vaa.BodyContractUpgrade{
+	v := vaa.CreateGovernanceVAA(nonce, sequence, guardianSetIndex,
+		vaa.BodyContractUpgrade{
 			ChainID:     vaa.ChainID(req.ChainId),
 			NewContract: newContractAddress,
-		}.Serialize(),
+		}.Serialize())
+
+	return v, nil
+}
+
+// tokenBridgeRegisterChain converts a nodev1.TokenBridgeRegisterChain message to its canonical VAA representation.
+// Returns an error if the data is invalid.
+func tokenBridgeRegisterChain(req *nodev1.TokenBridgeRegisterChain, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) {
+	if req.ChainId > math.MaxUint8 {
+		return nil, errors.New("invalid chain_id")
 	}
+
+	b, err := hex.DecodeString(req.EmitterAddress)
+	if err != nil {
+		return nil, errors.New("invalid emitter address encoding (expected hex)")
+	}
+
+	if len(b) != 32 {
+		return nil, errors.New("invalid emitter address (expected 32 bytes)")
+	}
+
+	emitterAddress := vaa.Address{}
+	copy(emitterAddress[:], req.EmitterAddress)
+
+	v := vaa.CreateGovernanceVAA(nonce, sequence, guardianSetIndex,
+		vaa.BodyTokenBridgeRegisterChain{
+			ChainID:        vaa.ChainID(req.ChainId),
+			EmitterAddress: emitterAddress,
+		}.Serialize())
 
 	return v, nil
 }
@@ -110,9 +129,11 @@ func (s *nodePrivilegedService) InjectGovernanceVAA(ctx context.Context, req *no
 	)
 	switch payload := req.Payload.(type) {
 	case *nodev1.InjectGovernanceVAARequest_GuardianSet:
-		v, err = adminGuardianSetUpdateToVAA(payload.GuardianSet, req.CurrentSetIndex, req.Timestamp)
+		v, err = adminGuardianSetUpdateToVAA(payload.GuardianSet, req.CurrentSetIndex, req.Nonce, req.Sequence)
 	case *nodev1.InjectGovernanceVAARequest_ContractUpgrade:
-		v, err = adminContractUpgradeToVAA(payload.ContractUpgrade, req.CurrentSetIndex, req.Timestamp)
+		v, err = adminContractUpgradeToVAA(payload.ContractUpgrade, req.CurrentSetIndex, req.Nonce, req.Sequence)
+	case *nodev1.InjectGovernanceVAARequest_TokenBridgeRegisterChain:
+		v, err = tokenBridgeRegisterChain(payload.TokenBridgeRegisterChain, req.CurrentSetIndex, req.Nonce, req.Sequence)
 	default:
 		panic(fmt.Sprintf("unsupported VAA type: %T", payload))
 	}

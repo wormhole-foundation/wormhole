@@ -1,6 +1,7 @@
 package guardiand
 
 import (
+	"fmt"
 	"github.com/certusone/wormhole/node/pkg/vaa"
 	"io/ioutil"
 	"log"
@@ -38,9 +39,13 @@ func runGovernanceVAAVerify(cmd *cobra.Command, args []string) {
 	)
 	switch payload := msg.Payload.(type) {
 	case *nodev1.InjectGovernanceVAARequest_GuardianSet:
-		v, err = adminGuardianSetUpdateToVAA(payload.GuardianSet, msg.CurrentSetIndex, msg.Timestamp)
+		v, err = adminGuardianSetUpdateToVAA(payload.GuardianSet, msg.CurrentSetIndex, msg.Nonce, msg.Sequence)
 	case *nodev1.InjectGovernanceVAARequest_ContractUpgrade:
-		v, err = adminContractUpgradeToVAA(payload.ContractUpgrade, msg.CurrentSetIndex, msg.Timestamp)
+		v, err = adminContractUpgradeToVAA(payload.ContractUpgrade, msg.CurrentSetIndex, msg.Nonce, msg.Sequence)
+	case *nodev1.InjectGovernanceVAARequest_TokenBridgeRegisterChain:
+		v, err = tokenBridgeRegisterChain(payload.TokenBridgeRegisterChain, msg.CurrentSetIndex, msg.Nonce, msg.Sequence)
+	default:
+		panic(fmt.Sprintf("unsupported VAA type: %T", payload))
 	}
 	if err != nil {
 		log.Fatalf("invalid update: %v", err)

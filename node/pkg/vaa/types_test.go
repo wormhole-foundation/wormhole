@@ -92,8 +92,7 @@ func TestBodyRegisterChain_Serialize(t *testing.T) {
 
 	var headerB [32]byte
 	copy(headerB[:], header)
-	msg := &BodyRegisterChain{
-		Header:         headerB,
+	msg := &BodyTokenBridgeRegisterChain{
 		ChainID:        8,
 		EmitterAddress: Address{1, 2, 3, 4},
 	}

@@ -20,23 +20,20 @@ message InjectGovernanceVAARequest {
   // Index of the current guardian set.
   uint32 current_set_index = 1;
 
-  // UNIX timestamp (s) of the VAA to be created. The timestamp is informational and will be part
-  // of the VAA submitted to the chain. It's part of the VAA digest and has to be identical across nodes and
-  // is critical for replay protection - a given event may only ever be observed with the same timestamp,
-  // otherwise, it may be possible to execute it multiple times.
+  // Sequence number. This is critical for replay protection - make sure the sequence number
+  // is unique for every new manually injected governance VAA. Sequences are tracked
+  // by emitter, and manually injected VAAs all use a single hardcoded emitter.
   //
-  // For messages, the timestamp identifies the block that the message belongs to.
+  // We use random sequence numbers for the manual emitter.
+  uint64 sequence = 2;
 
-  // For governance VAAs, guardians inject the VAA manually. Best practice is to pick a timestamp which roughly matches
-  // the timing of the off-chain ceremony used to achieve consensus. For guardian set updates, the actual on-chain
-  // guardian set creation timestamp will be set when the VAA is accepted on each chain.
-  //
-  // This is a uint32 to match the on-chain timestamp representation. This becomes a problem in 2106 (sorry).
-  uint32 timestamp = 2;
+  // Random nonce for disambiguation. Must be identical across all nodes.
+  uint32 nonce = 3;
 
   oneof payload{
-    GuardianSetUpdate guardian_set = 3;
-    ContractUpgrade contract_upgrade = 4;
+    GuardianSetUpdate guardian_set = 10;
+    ContractUpgrade contract_upgrade = 11;
+    TokenBridgeRegisterChain token_bridge_register_chain = 12;
   }
 }
 
@@ -66,6 +63,14 @@ message GuardianKey {
   bytes data = 1;
   // Whether this key is deterministically generated and unsuitable for production mode.
   bool unsafe_deterministic_key = 2;
+}
+
+message TokenBridgeRegisterChain {
+  // ID of the chain to be registered.
+  uint32 chain_id = 1;
+
+  // Hex-encoded emitter address to be registered (without leading 0x).
+  string emitter_address = 2;
 }
 
 // ContractUpgrade represents a Wormhole contract update to be submitted to and signed by the node.
