@@ -215,7 +215,6 @@ export const SOLANA_TOKENS_THAT_EXIST_ELSEWHERE = [
 ];
 export const ETH_TOKENS_THAT_EXIST_ELSEWHERE = [
   getAddress("0x476c5E26a75bd202a9683ffD34359C0CC15be0fF"), // SRM
-  getAddress("0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"), // USDC
   getAddress("0x818fc6c2ec5986bc6e2cbf00939d90556ab12ce5"), // KIN
   getAddress("0xeb4c2781e4eba804ce9a9803c67d0893436bb27d"), // renBTC
   getAddress("0x52d87F22192131636F93c5AB18d0127Ea52CB641"), // renLUNA
@@ -224,6 +223,9 @@ export const ETH_TOKENS_THAT_EXIST_ELSEWHERE = [
   getAddress("0x3832d2F059E55934220881F831bE501D180671A7"), // renDOGE
   getAddress("0x1c5db575e2ff833e46a2e9864c22f4b22e0b37c2"), // renZEC
   getAddress("0xD5147bc8e386d91Cc5DBE72099DAC6C9b99276F5"), // renFIL
+];
+export const ETH_TOKENS_THAT_CAN_BE_SWAPPED_ON_SOLANA = [
+  getAddress("0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"), // USDC
   getAddress("0xdac17f958d2ee523a2206206994597c13d831ec7"), // USDT
 ];
 
