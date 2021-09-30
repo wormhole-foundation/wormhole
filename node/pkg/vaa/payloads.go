@@ -21,6 +21,13 @@ type (
 		Keys     []common.Address
 		NewIndex uint32
 	}
+
+	// BodyRegisterChain is a governance message to register a chain on the token bridge
+	BodyRegisterChain struct {
+		Header         [32]byte
+		ChainID        ChainID
+		EmitterAddress Address
+	}
 )
 
 func (b BodyContractUpgrade) Serialize() []byte {
@@ -53,6 +60,23 @@ func (b BodyGuardianSetUpdate) Serialize() []byte {
 	for _, k := range b.Keys {
 		buf.Write(k[:])
 	}
+
+	return buf.Bytes()
+}
+
+func (r BodyRegisterChain) Serialize() []byte {
+	buf := &bytes.Buffer{}
+
+	// Write token bridge header
+	buf.Write(r.Header[:])
+	// Write action ID
+	MustWrite(buf, binary.BigEndian, uint8(1))
+	// Write target chain (0 = universal)
+	MustWrite(buf, binary.BigEndian, uint16(0))
+	// Write chain to be registered
+	MustWrite(buf, binary.BigEndian, r.ChainID)
+	// Write emitter address of chain to be registered
+	buf.Write(r.EmitterAddress[:])
 
 	return buf.Bytes()
 }
