@@ -133,12 +133,19 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 				if s.commitment != rpc.CommitmentFinalized {
 					continue
 				}
-				logger.Info("executing scheduled recovery", zap.Any("accounts", recoveryAccounts))
+				logger.Info("executing scheduled recovery")
 
 				rCtx, cancel := context.WithTimeout(ctx, rpcTimeout)
 				defer cancel()
 
-				for _, acc := range recoveryAccounts {
+				accs, err := fetchRecoveryConfig()
+				if err != nil {
+					logger.Error("failed to fetch recovery config", zap.Error(err))
+				}
+
+				logger.Info("fetched recovery accounts", zap.Strings("accounts", accs))
+
+				for _, acc := range accs {
 					s.fetchMessageAccount(rCtx, logger, solana.MustPublicKeyFromBase58(acc), 0)
 				}
 			case <-timer.C:
