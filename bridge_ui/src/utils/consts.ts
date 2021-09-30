@@ -80,12 +80,13 @@ export const WORMHOLE_RPC_HOSTS =
     : ["http://localhost:8080"];
 export const ETH_NETWORK_CHAIN_ID =
   CLUSTER === "mainnet" ? 1 : CLUSTER === "testnet" ? 5 : 1337;
-export const SOLANA_HOST =
-  CLUSTER === "mainnet"
-    ? clusterApiUrl("mainnet-beta")
-    : CLUSTER === "testnet"
-    ? clusterApiUrl("testnet")
-    : "http://localhost:8899";
+export const SOLANA_HOST = process.env.REACT_APP_SOLANA_API_URL
+  ? process.env.REACT_APP_SOLANA_API_URL
+  : CLUSTER === "mainnet"
+  ? clusterApiUrl("mainnet-beta")
+  : CLUSTER === "testnet"
+  ? clusterApiUrl("testnet")
+  : "http://localhost:8899";
 
 export const TERRA_HOST =
   CLUSTER === "testnet"

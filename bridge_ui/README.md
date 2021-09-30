@@ -45,7 +45,7 @@ REACT_APP_CLUSTER=testnet npm run build
 ## Build for mainnet
 
 ```bash
-REACT_APP_CLUSTER=mainnet REACT_APP_COVALENT_API_KEY=YOUR_API_KEY npm run build
+REACT_APP_CLUSTER=mainnet REACT_APP_COVALENT_API_KEY=YOUR_API_KEY REACT_APP_SOLANA_API_URL=YOUR_CUSTOM_RPC npm run build
 ```
 
 ## Test Server
