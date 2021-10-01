@@ -3,6 +3,7 @@ package processor
 import (
 	"context"
 	"github.com/certusone/wormhole/node/pkg/common"
+	"github.com/certusone/wormhole/node/pkg/vaa"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"time"
@@ -57,7 +58,6 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 			// arrive, barring special circumstances. This is a better time to count misses than submission,
 			// because we submit right when we quorum rather than waiting for all observations to arrive.
 			s.settled = true
-			p.logger.Info("VAA considered settled", zap.String("digest", hash))
 
 			// Use either the most recent (in case of a VAA we haven't seen) or stored gs, if available.
 			var gs *common.GuardianSet
@@ -66,6 +66,23 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 			} else {
 				gs = p.gs
 			}
+
+			hasSigs := len(s.signatures)
+			wantSigs := CalculateQuorum(len(gs.Keys))
+
+			var chain vaa.ChainID
+			if s.ourVAA != nil {
+				chain = s.ourVAA.EmitterChain
+			}
+
+			p.logger.Info("VAA considered settled",
+				zap.String("digest", hash),
+				zap.Duration("delta", delta),
+				zap.Int("have_sigs", hasSigs),
+				zap.Int("required_sigs", wantSigs),
+				zap.Bool("quorum", hasSigs >= wantSigs),
+				zap.Stringer("emitter_chain", chain),
+			)
 
 			for _, k := range gs.Keys {
 				if _, ok := s.signatures[k]; ok {

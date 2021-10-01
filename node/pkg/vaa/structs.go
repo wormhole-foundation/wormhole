@@ -81,6 +81,8 @@ func (a SignatureData) String() string {
 
 func (c ChainID) String() string {
 	switch c {
+	case 0:
+		return "unset"
 	case ChainIDSolana:
 		return "solana"
 	case ChainIDEthereum:
