@@ -3,6 +3,7 @@ package processor
 import (
 	"context"
 	"encoding/hex"
+	"github.com/mr-tron/base58"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
@@ -81,7 +82,15 @@ func (p *Processor) handleMessage(ctx context.Context, k *common.MessagePublicat
 	p.logger.Info("observed and signed confirmed message publication",
 		zap.Stringer("source_chain", k.EmitterChain),
 		zap.Stringer("txhash", k.TxHash),
+		zap.String("txhash_b58", base58.Encode(k.TxHash.Bytes())),
 		zap.String("digest", hex.EncodeToString(digest.Bytes())),
+		zap.Uint32("nonce", k.Nonce),
+		zap.Uint64("sequence", k.Sequence),
+		zap.Stringer("emitter_chain", k.EmitterChain),
+		zap.Stringer("emitter_address", k.EmitterAddress),
+		zap.String("emitter_address_b58", base58.Encode(k.EmitterAddress.Bytes())),
+		zap.Uint8("consistency_level", k.ConsistencyLevel),
+		zap.String("message_id", v.MessageID()),
 		zap.String("signature", hex.EncodeToString(s)))
 
 	messagesSignedTotal.With(prometheus.Labels{
