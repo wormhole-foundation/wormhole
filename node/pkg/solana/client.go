@@ -375,14 +375,15 @@ func (s *SolanaWatcher) processInstruction(ctx context.Context, logger *zap.Logg
 		return false, nil
 	}
 
+	if inst.Data[0] != postMessageInstructionID {
+		return false, nil
+	}
+
 	if len(inst.Accounts) != postMessageInstructionNumAccounts {
 		return false, fmt.Errorf("invalid number of accounts: %d instead of %d",
 			len(inst.Accounts), postMessageInstructionNumAccounts)
 	}
 
-	if inst.Data[0] != postMessageInstructionID {
-		return false, fmt.Errorf("invalid postMessage instruction ID, got: %d", inst.Data[0])
-	}
 
 	// Decode instruction data (UNTRUSTED)
 	var data PostMessageData
