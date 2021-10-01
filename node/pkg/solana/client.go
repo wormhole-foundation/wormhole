@@ -207,7 +207,7 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 }
 
 func (s *SolanaWatcher) retryFetchBlock(ctx context.Context, logger *zap.Logger, slot uint64, retry uint) {
-	ok := s.fetchBlock(ctx, logger, slot)
+	ok := s.fetchBlock(ctx, logger, slot, false)
 
 	if !ok {
 		if retry >= maxRetries {
@@ -229,8 +229,11 @@ func (s *SolanaWatcher) retryFetchBlock(ctx context.Context, logger *zap.Logger,
 	}
 }
 
-func (s *SolanaWatcher) fetchBlock(ctx context.Context, logger *zap.Logger, slot uint64) bool {
-	logger.Debug("requesting block", zap.Uint64("slot", slot), zap.String("commitment", string(s.commitment)))
+func (s *SolanaWatcher) fetchBlock(ctx context.Context, logger *zap.Logger, slot uint64, emptyRetry bool) (ok bool) {
+	logger.Debug("requesting block",
+		zap.Uint64("slot", slot),
+		zap.String("commitment", string(s.commitment)),
+		zap.Bool("is_empty_retry", emptyRetry))
 	rCtx, cancel := context.WithTimeout(ctx, rpcTimeout)
 	defer cancel()
 	start := time.Now()
@@ -247,7 +250,17 @@ func (s *SolanaWatcher) fetchBlock(ctx context.Context, logger *zap.Logger, slot
 		var rpcErr *jsonrpc.RPCError
 		if errors.As(err, &rpcErr) && (rpcErr.Code == -32007 /* SLOT_SKIPPED */ || rpcErr.Code == -32004 /* BLOCK_NOT_AVAILABLE */) {
 			logger.Info("empty slot", zap.Uint64("slot", slot),
+				zap.Int("code", rpcErr.Code),
 				zap.String("commitment", string(s.commitment)))
+
+			// Schedule a single retry just in case the Solana node was confused about the block being missing.
+			if !emptyRetry {
+				go func() {
+					time.Sleep(1 * time.Minute)
+					s.fetchBlock(ctx, logger, slot, true)
+				}()
+			}
+			return true
 		} else {
 			logger.Error("failed to request block", zap.Error(err), zap.Uint64("slot", slot),
 				zap.String("commitment", string(s.commitment)))
@@ -346,6 +359,12 @@ OUTER:
 				}
 			}
 		}
+	}
+
+	if emptyRetry {
+		logger.Error("SOLANA BUG: skipped or unavailable block retrieved on second attempt",
+			zap.Uint64("slot", slot),
+			zap.String("commitment", string(s.commitment)))
 	}
 
 	return true
