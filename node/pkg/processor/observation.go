@@ -227,6 +227,7 @@ func (p *Processor) handleObservation(ctx context.Context, m *gossipv1.SignedObs
 			zap.Bools("aggregation", agg),
 			zap.Int("required_sigs", quorum),
 			zap.Int("have_sigs", len(sigs)),
+			zap.Bool("quorum", len(sigs) >= quorum),
 		)
 
 		if len(sigs) >= quorum && !p.state.vaaSignatures[hash].submitted {

@@ -102,7 +102,19 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 				s.retryCount += 1
 				aggregationStateRetries.Inc()
 			} else {
-				p.logger.Info("expiring unsubmitted nil VAA", zap.String("digest", hash), zap.Duration("delta", delta))
+				// For nil state entries, we log the quorum to determine whether the
+				// network reached consensus without us. We don't know the correct guardian
+				// set, so we simply use the most recent one.
+				hasSigs := len(s.signatures)
+				wantSigs := CalculateQuorum(len(p.gs.Keys))
+
+				p.logger.Info("expiring unsubmitted nil VAA",
+					zap.String("digest", hash),
+					zap.Duration("delta", delta),
+					zap.Int("have_sigs", hasSigs),
+					zap.Int("required_sigs", wantSigs),
+					zap.Bool("quorum", hasSigs >= wantSigs),
+				)
 				delete(p.state.vaaSignatures, hash)
 				aggregationStateUnobserved.Inc()
 			}
