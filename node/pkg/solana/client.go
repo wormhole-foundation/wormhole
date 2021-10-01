@@ -303,11 +303,12 @@ OUTER:
 			zap.String("commitment", string(s.commitment)))
 
 		// Find top-level instructions
-		for _, inst := range tx.Transaction.Message.Instructions {
-			found, err := s.processInstruction(ctx, logger, slot, inst, programIndex, tx)
+		for i, inst := range tx.Transaction.Message.Instructions {
+			found, err := s.processInstruction(ctx, logger, slot, inst, programIndex, tx, signature, i)
 			if err != nil {
 				logger.Error("malformed Wormhole instruction",
 					zap.Error(err),
+					zap.Int("idx", i),
 					zap.Stringer("signature", signature),
 					zap.Uint64("slot", slot),
 					zap.String("commitment", string(s.commitment)),
@@ -346,11 +347,12 @@ OUTER:
 			zap.Duration("took", time.Since(start)))
 
 		for _, inner := range tr.Meta.InnerInstructions {
-			for _, inst := range inner.Instructions {
-				_, err := s.processInstruction(ctx, logger, slot, inst, programIndex, tx)
+			for i, inst := range inner.Instructions {
+				_, err := s.processInstruction(ctx, logger, slot, inst, programIndex, tx, signature, i)
 				if err != nil {
 					logger.Error("malformed Wormhole instruction",
 						zap.Error(err),
+						zap.Int("idx", i),
 						zap.Stringer("signature", signature),
 						zap.Uint64("slot", slot),
 						zap.String("commitment", string(s.commitment)))
@@ -362,7 +364,7 @@ OUTER:
 	return true
 }
 
-func (s *SolanaWatcher) processInstruction(ctx context.Context, logger *zap.Logger, slot uint64, inst solana.CompiledInstruction, programIndex uint16, tx rpc.TransactionWithMeta) (bool, error) {
+func (s *SolanaWatcher) processInstruction(ctx context.Context, logger *zap.Logger, slot uint64, inst solana.CompiledInstruction, programIndex uint16, tx rpc.TransactionWithMeta, signature solana.Signature, idx int) (bool, error) {
 	if inst.ProgramIDIndex != programIndex {
 		return false, nil
 	}
@@ -382,7 +384,8 @@ func (s *SolanaWatcher) processInstruction(ctx context.Context, logger *zap.Logg
 		return false, fmt.Errorf("failed to deserialize instruction data: %w", err)
 	}
 
-	logger.Info("post message data", zap.Any("deserialized_data", data))
+	logger.Info("post message data", zap.Any("deserialized_data", data),
+		zap.Stringer("signature", signature), zap.Uint64("slot", slot), zap.Int("idx", idx))
 
 	level, err := data.ConsistencyLevel.Commitment()
 	if err != nil {
@@ -395,6 +398,10 @@ func (s *SolanaWatcher) processInstruction(ctx context.Context, logger *zap.Logg
 
 	// The second account in a well-formed Wormhole instruction is the VAA program account.
 	acc := tx.Transaction.Message.AccountKeys[inst.Accounts[1]]
+
+	logger.Info("fetching VAA account", zap.Stringer("acc", acc),
+		zap.Stringer("signature", signature), zap.Uint64("slot", slot), zap.Int("idx", idx))
+
 	go s.retryFetchMessageAccount(ctx, logger, acc, slot, 0)
 
 	return true, nil
