@@ -2,6 +2,7 @@ package solana
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/p2p"
@@ -12,6 +13,7 @@ import (
 	eth_common "github.com/ethereum/go-ethereum/common"
 	"github.com/gagliardetto/solana-go"
 	"github.com/gagliardetto/solana-go/rpc"
+	"github.com/gagliardetto/solana-go/rpc/jsonrpc"
 	"github.com/mr-tron/base58"
 	"github.com/near/borsh-go"
 	"github.com/prometheus/client_golang/prometheus"
@@ -178,37 +180,16 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 					zap.Uint64("pendingSlots", slot-lastSlot),
 					zap.Duration("took", time.Since(start)))
 
-				// Determine which slots we're missing
-				//
-				// Get list of confirmed blocks since the last request. The result
-				// won't contain skipped slots.
 				rangeStart := lastSlot + 1
 				rangeEnd := slot
-				rCtx, cancel = context.WithTimeout(ctx, rpcTimeout)
-				defer cancel()
-				start = time.Now()
-				slots, err := s.rpcClient.GetConfirmedBlocks(rCtx, rangeStart, &rangeEnd, s.commitment)
-				queryLatency.WithLabelValues("get_confirmed_blocks", string(s.commitment)).Observe(time.Since(start).Seconds())
-				if err != nil {
-					p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDSolana, 1)
-					solanaConnectionErrors.WithLabelValues(string(s.commitment), "get_confirmed_blocks_error").Inc()
-					errC <- err
-					return
-				}
 
-				logger.Info("fetched slots in range",
+				logger.Info("fetching slots in range",
 					zap.Uint64("from", rangeStart), zap.Uint64("to", rangeEnd),
 					zap.Duration("took", time.Since(start)),
 					zap.String("commitment", string(s.commitment)))
 
 				// Requesting each slot
-				for _, slot := range slots {
-					if slot <= lastSlot {
-						// Skip out-of-range result
-						// https://github.com/solana-labs/solana/issues/18946
-						continue
-					}
-
+				for slot := rangeStart; slot <= rangeEnd; slot++ {
 					go s.retryFetchBlock(ctx, logger, slot, 0)
 				}
 
@@ -263,10 +244,16 @@ func (s *SolanaWatcher) fetchBlock(ctx context.Context, logger *zap.Logger, slot
 
 	queryLatency.WithLabelValues("get_confirmed_block", string(s.commitment)).Observe(time.Since(start).Seconds())
 	if err != nil {
-		p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDSolana, 1)
-		solanaConnectionErrors.WithLabelValues(string(s.commitment), "get_confirmed_block_error").Inc()
-		logger.Error("failed to request block", zap.Error(err), zap.Uint64("slot", slot),
-			zap.String("commitment", string(s.commitment)))
+		var rpcErr *jsonrpc.RPCError
+		if errors.As(err, &rpcErr) && (rpcErr.Code == -32007 /* SLOT_SKIPPED */ || rpcErr.Code == -32004 /* BLOCK_NOT_AVAILABLE */) {
+			logger.Info("empty slot", zap.Uint64("slot", slot),
+				zap.String("commitment", string(s.commitment)))
+		} else {
+			logger.Error("failed to request block", zap.Error(err), zap.Uint64("slot", slot),
+				zap.String("commitment", string(s.commitment)))
+			p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDSolana, 1)
+			solanaConnectionErrors.WithLabelValues(string(s.commitment), "get_confirmed_block_error").Inc()
+		}
 		return false
 	}
 
