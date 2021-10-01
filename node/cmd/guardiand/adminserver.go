@@ -109,7 +109,7 @@ func tokenBridgeRegisterChain(req *nodev1.BridgeRegisterChain, guardianSetIndex 
 	}
 
 	emitterAddress := vaa.Address{}
-	copy(emitterAddress[:], req.EmitterAddress)
+	copy(emitterAddress[:], b)
 
 	v := vaa.CreateGovernanceVAA(nonce, sequence, guardianSetIndex,
 		vaa.BodyTokenBridgeRegisterChain{
