@@ -7,6 +7,7 @@ import (
 	node_common "github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/reporter"
+	"github.com/mr-tron/base58"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"time"
@@ -55,7 +56,10 @@ func (p *Processor) handleObservation(ctx context.Context, m *gossipv1.SignedObs
 	p.logger.Info("received observation",
 		zap.String("digest", hash),
 		zap.String("signature", hex.EncodeToString(m.Signature)),
-		zap.String("addr", hex.EncodeToString(m.Addr)))
+		zap.String("addr", hex.EncodeToString(m.Addr)),
+		zap.String("txhash", hex.EncodeToString(m.TxHash)),
+		zap.String("txhash_b58", base58.Encode(m.TxHash)),
+		)
 
 	observationsReceivedTotal.Inc()
 

@@ -98,5 +98,5 @@ func (p *Processor) handleMessage(ctx context.Context, k *common.MessagePublicat
 
 	p.attestationEvents.ReportMessagePublication(&reporter.MessagePublication{VAA: *v, InitiatingTxID: k.TxHash})
 
-	p.broadcastSignature(v, s)
+	p.broadcastSignature(v, s, k.TxHash.Bytes())
 }
