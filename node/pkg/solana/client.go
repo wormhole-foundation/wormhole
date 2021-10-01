@@ -362,7 +362,7 @@ OUTER:
 	}
 
 	if emptyRetry {
-		logger.Error("SOLANA BUG: skipped or unavailable block retrieved on second attempt",
+		logger.Warn("SOLANA BUG: skipped or unavailable block retrieved on second attempt",
 			zap.Uint64("slot", slot),
 			zap.String("commitment", string(s.commitment)))
 	}
