@@ -9,9 +9,6 @@ import (
 // CoreModule is the identifier of the Core module (which is used for governance messages)
 var CoreModule = []byte{00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 0x43, 0x6f, 0x72, 0x65}
 
-// TokenBridgeModule is the identifier of the token bridge module ("TokenBridge")
-var TokenBridgeModule = []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x54, 0x6f, 0x6b, 0x65, 0x6e, 0x42, 0x72, 0x69, 0x64, 0x67, 0x65}
-
 type (
 	// BodyContractUpgrade is a governance message to perform a contract upgrade of the core module
 	BodyContractUpgrade struct {
@@ -27,6 +24,7 @@ type (
 
 	// BodyTokenBridgeRegisterChain is a governance message to register a chain on the token bridge
 	BodyTokenBridgeRegisterChain struct {
+		Module         string
 		ChainID        ChainID
 		EmitterAddress Address
 	}
@@ -67,10 +65,17 @@ func (b BodyGuardianSetUpdate) Serialize() []byte {
 }
 
 func (r BodyTokenBridgeRegisterChain) Serialize() []byte {
+	if len(r.Module) > 32 {
+		panic("module longer than 32 byte")
+	}
+
 	buf := &bytes.Buffer{}
 
 	// Write token bridge header
-	buf.Write(TokenBridgeModule)
+	for i := 0; i < (32 - len(r.Module)); i++ {
+		buf.WriteByte(0x00)
+	}
+	buf.Write([]byte(r.Module))
 	// Write action ID
 	MustWrite(buf, binary.BigEndian, uint8(1))
 	// Write target chain (0 = universal)
