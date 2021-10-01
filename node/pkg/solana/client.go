@@ -207,7 +207,7 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 }
 
 func (s *SolanaWatcher) retryFetchBlock(ctx context.Context, logger *zap.Logger, slot uint64, retry uint) {
-	ok := s.fetchBlock(ctx, logger, slot, false)
+	ok := s.fetchBlock(ctx, logger, slot, 0)
 
 	if !ok {
 		if retry >= maxRetries {
@@ -229,11 +229,11 @@ func (s *SolanaWatcher) retryFetchBlock(ctx context.Context, logger *zap.Logger,
 	}
 }
 
-func (s *SolanaWatcher) fetchBlock(ctx context.Context, logger *zap.Logger, slot uint64, emptyRetry bool) (ok bool) {
+func (s *SolanaWatcher) fetchBlock(ctx context.Context, logger *zap.Logger, slot uint64, emptyRetry uint) (ok bool) {
 	logger.Debug("requesting block",
 		zap.Uint64("slot", slot),
 		zap.String("commitment", string(s.commitment)),
-		zap.Bool("is_empty_retry", emptyRetry))
+		zap.Uint("empty_retry", emptyRetry))
 	rCtx, cancel := context.WithTimeout(ctx, rpcTimeout)
 	defer cancel()
 	start := time.Now()
@@ -253,11 +253,20 @@ func (s *SolanaWatcher) fetchBlock(ctx context.Context, logger *zap.Logger, slot
 				zap.Int("code", rpcErr.Code),
 				zap.String("commitment", string(s.commitment)))
 
+			// TODO(leo): clean this up once we know what's happening
+			// https://github.com/solana-labs/solana/issues/20370
+			var maxEmptyRetry uint
+			if s.commitment == rpc.CommitmentFinalized {
+				maxEmptyRetry = 5
+			} else {
+				maxEmptyRetry = 1
+			}
+
 			// Schedule a single retry just in case the Solana node was confused about the block being missing.
-			if !emptyRetry {
+			if emptyRetry < maxEmptyRetry {
 				go func() {
-					time.Sleep(1 * time.Minute)
-					s.fetchBlock(ctx, logger, slot, true)
+					time.Sleep(retryDelay)
+					s.fetchBlock(ctx, logger, slot, emptyRetry + 1)
 				}()
 			}
 			return true
@@ -361,8 +370,9 @@ OUTER:
 		}
 	}
 
-	if emptyRetry {
-		logger.Warn("SOLANA BUG: skipped or unavailable block retrieved on second attempt",
+	if emptyRetry > 0 {
+		logger.Warn("SOLANA BUG: skipped or unavailable block retrieved on retry attempt",
+			zap.Uint("empty_retry", emptyRetry),
 			zap.Uint64("slot", slot),
 			zap.String("commitment", string(s.commitment)))
 	}
