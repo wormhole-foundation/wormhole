@@ -14,7 +14,7 @@ pub struct PostMessage<'b> {
     pub message: Signer<Mut<Info<'b>>>,
 
     /// Emitter of the VAA
-    pub emitter: Info<'b>,
+    pub emitter: MaybeMut<Info<'b>>,
 
     /// Tracker for the emitter sequence
     pub sequence: Mut<Info<'b>>,
