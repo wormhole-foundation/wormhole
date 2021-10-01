@@ -1,15 +1,11 @@
 #pragma version 5
 // ================================================================================================
-// Pricecaster Program 
+// PriceKeeper Approval Program 
 // ================================================================================================
 //
-// This contract has the following invariants at
-// deployment stage:
-//
-// TMPL_VALIDATOR Unique data validator address that signs and sends the incoming message
-//
 // App-globals:
-// symbol   : byte[] pair supported by this app.
+// sym      : byte[] Symbol to keep price for   
+// vaddr    : byte[] Validator account          
 // nonce    : uint64 last sequence ID
 // price    : byte[] current price 
 // stdev    : byte[] current confidence (standard deviation)
@@ -43,7 +39,7 @@
 int 0
 txn ApplicationID
 ==
-bnz success
+bnz handle_create
 
 // Handle app call: send price message
 txn OnCompletion
@@ -51,8 +47,36 @@ int NoOp
 ==
 bnz handle_call
 
+// Handle deletion.
+txn OnCompletion
+int DeleteApplication
+==
+bnz success
+
 // Fail otherwise
 err
+
+handle_create:
+// -----------------------------------------------------
+// Handle creation 
+// Arg 0: Validator address 
+// Arg 1: Symbol to keep price data 
+// -----------------------------------------------------
+
+byte "vaddr"
+txn ApplicationArgs 0
+app_global_put
+
+byte "sym"
+txn ApplicationArgs 1
+dup
+len
+int 16
+==
+assert
+app_global_put
+
+b success
 
 // -----------------------------------------------------
 // Receive price message 
@@ -62,7 +86,8 @@ handle_call:
 
 // Verify if sender is the data validator
 txn Sender 
-addr PIQHXRVFDP4KSEZUPW6TB4UCDVJ5GJ3YYJIQWKWMEW2AUHJJCHPB4GPNCU
+byte "vaddr"
+app_global_get
 ==
 assert
 
@@ -141,6 +166,8 @@ load 0
 extract 98 32
 
 // Unpack pubkey X,Y components
+byte "vaddr"
+app_global_get
 ecdsa_pk_decompress Secp256k1
 
 // Verify signature 
