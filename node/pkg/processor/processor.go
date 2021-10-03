@@ -75,7 +75,6 @@ type Processor struct {
 	devnetEthRPC       string
 
 	terraLCD      string
-	terraChainID  string
 	terraContract string
 
 	attestationEvents *reporter.AttestationEventReporter
@@ -115,7 +114,6 @@ func NewProcessor(
 	devnetNumGuardians uint,
 	devnetEthRPC string,
 	terraLCD string,
-	terraChainID string,
 	terraContract string,
 	attestationEvents *reporter.AttestationEventReporter,
 ) *Processor {
@@ -135,7 +133,6 @@ func NewProcessor(
 		db:                 db,
 
 		terraLCD:      terraLCD,
-		terraChainID:  terraChainID,
 		terraContract: terraContract,
 
 		attestationEvents: attestationEvents,

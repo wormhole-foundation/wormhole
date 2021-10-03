@@ -66,7 +66,6 @@ var (
 
 	terraWS       *string
 	terraLCD      *string
-	terraChainID  *string
 	terraContract *string
 
 	solanaWsRPC *string
@@ -117,7 +116,6 @@ func init() {
 
 	terraWS = NodeCmd.Flags().String("terraWS", "", "Path to terrad root for websocket connection")
 	terraLCD = NodeCmd.Flags().String("terraLCD", "", "Path to LCD service root for http calls")
-	terraChainID = NodeCmd.Flags().String("terraChainID", "", "Terra chain ID, used in LCD client initialization")
 	terraContract = NodeCmd.Flags().String("terraContract", "", "Wormhole contract address on Terra blockchain")
 
 	solanaWsRPC = NodeCmd.Flags().String("solanaWS", "", "Solana Websocket URL (required")
@@ -330,9 +328,6 @@ func runNode(cmd *cobra.Command, args []string) {
 	if *terraLCD == "" {
 		logger.Fatal("Please specify --terraLCD")
 	}
-	if *terraChainID == "" {
-		logger.Fatal("Please specify --terraChainID")
-	}
 	if *terraContract == "" {
 		logger.Fatal("Please specify --terraContract")
 	}
@@ -504,7 +499,6 @@ func runNode(cmd *cobra.Command, args []string) {
 			*devNumGuardians,
 			*ethRPC,
 			*terraLCD,
-			*terraChainID,
 			*terraContract,
 			attestationEvents,
 		)
