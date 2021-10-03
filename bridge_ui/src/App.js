@@ -24,6 +24,8 @@ import NFTOriginVerifier from "./components/NFTOriginVerifier";
 import Transfer from "./components/Transfer";
 import wormholeLogo from "./icons/wormhole.svg";
 import { CLUSTER } from "./utils/consts";
+import EthereumQuickMigrate from "./components/Migration/EthereumQuickMigrate";
+import { CHAIN_ID_ETH, CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
 
 const useStyles = makeStyles((theme) => ({
   appBar: {
@@ -185,8 +187,14 @@ function App() {
           <Route exact path="/register">
             <Attest />
           </Route>
-          <Route exact path="/migrate/:legacyAsset/:fromTokenAccount">
-            <Migration />
+          <Route exact path="/migrate/Solana/:legacyAsset/:fromTokenAccount">
+            <Migration chainId={CHAIN_ID_SOLANA} />
+          </Route>
+          <Route exact path="/migrate/Ethereum/:legacyAsset/">
+            <Migration chainId={CHAIN_ID_ETH} />
+          </Route>
+          <Route exact path="/migrate/Ethereum/">
+            <EthereumQuickMigrate />
           </Route>
           <Route exact path="/">
             <Home />

@@ -2,14 +2,7 @@ import { CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
 import migrateTokensTx from "@certusone/wormhole-sdk/lib/migration/migrateTokens";
 import getPoolAddress from "@certusone/wormhole-sdk/lib/migration/poolAddress";
 import getToCustodyAddress from "@certusone/wormhole-sdk/lib/migration/toCustodyAddress";
-import {
-  Container,
-  Divider,
-  makeStyles,
-  Paper,
-  TextField,
-  Typography,
-} from "@material-ui/core";
+import { makeStyles, TextField, Typography } from "@material-ui/core";
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   Token,
@@ -400,119 +393,106 @@ export default function Workflow({
   );
 
   return (
-    <Container maxWidth="md">
-      <Paper className={classes.mainPaper}>
-        <Typography variant="h5">Migrate Legacy Assets</Typography>
-        <Typography variant="subtitle2">
-          Convert assets from legacy bridges to Wormhole V2 tokens
-        </Typography>
-        <Divider className={classes.divider} />
-        <SolanaWalletKey />
-        <div className={classes.spacer} />
-        {fromTokenAccount && toTokenAccount ? (
-          <>
-            <Typography variant="body2" component="div">
-              <span>This will migrate</span>
-              {fromMintPretty}
-              <span>tokens in this account:</span>
-            </Typography>
-            <Typography variant="h5">
-              <SmartAddress
-                address={fromTokenAccount}
-                chainId={CHAIN_ID_SOLANA}
-              />
-              {`(Balance: ${fromTokenAccountBalance}${
-                fromMetadata.symbol && " " + fromMetadata.symbol
-              })`}
-            </Typography>
-            <div className={classes.spacer} />
-            <Typography variant="body2" component="div">
-              <span>into </span>
-              {toMintPretty}
-              <span> tokens in this account:</span>
-            </Typography>
-            <Typography
-              variant="h5"
-              color={toTokenAccountExists ? "textPrimary" : "textSecondary"}
-            >
-              <SmartAddress
-                address={toTokenAccount}
-                chainId={CHAIN_ID_SOLANA}
-              />
-              <span>
-                {toTokenAccountExists
-                  ? ` (Balance: ${toTokenAccountBalance}${
-                      (toMetadata.symbol && " " + toMetadata.symbol) || ""
-                    })`
-                  : " (Not created yet)"}
-              </span>
-            </Typography>
-            <SolanaCreateAssociatedAddress
-              mintAddress={toMint}
-              readableTargetAddress={toTokenAccount}
-              associatedAccountExists={toTokenAccountExists}
-              setAssociatedAccountExists={setToTokenAccountExists}
-            />
-            {poolAddress && toCustodyAddress && toCustodyBalance ? (
-              <>
-                <div className={classes.spacer} />
-                <Typography variant="body2" component="div">
-                  <span>Using pool </span>
-                  <SmartAddress
-                    address={poolAddress}
-                    chainId={CHAIN_ID_SOLANA}
-                  />
-                  <span> holding tokens in this account:</span>
-                </Typography>
-                <Typography variant="h5">
-                  <SmartAddress
-                    address={toCustodyAddress}
-                    chainId={CHAIN_ID_SOLANA}
-                  />
-                  <span>{` (Balance: ${toCustodyBalance}${
-                    toMetadata.symbol && " " + toMetadata.symbol
-                  })`}</span>
-                </Typography>
-              </>
-            ) : null}
-          </>
-        ) : null}
-        <div className={classes.spacer} />
-        <TextField
-          value={migrationAmount}
-          type="number"
-          onChange={handleAmountChange}
-          label={"Amount"}
-          disabled={!!migrationIsProcessing || !!transaction}
-        ></TextField>
-
-        {!transaction && (
-          <ButtonWithLoader
-            disabled={!isReadyToTransfer || migrationIsProcessing}
-            showLoader={migrationIsProcessing}
-            onClick={migrateTokens}
-          >
-            {migrationAmount && isReadyToTransfer
-              ? "Migrate " + migrationAmount + " Tokens"
-              : "Migrate"}
-          </ButtonWithLoader>
-        )}
-        {(error || !isReadyToTransfer) && (
-          <Typography color="error">{error || getNotReadyCause()}</Typography>
-        )}
-        {transaction ? (
-          <>
-            <Typography>
-              Successfully migrated your tokens! They will be available once
-              this transaction confirms.
-            </Typography>
-            <ShowTx
-              tx={{ id: transaction, block: 1 }}
+    <div>
+      <SolanaWalletKey />
+      <div className={classes.spacer} />
+      {fromTokenAccount && toTokenAccount ? (
+        <>
+          <Typography variant="body2" component="div">
+            <span>This will migrate</span>
+            {fromMintPretty}
+            <span>tokens in this account:</span>
+          </Typography>
+          <Typography variant="h5">
+            <SmartAddress
+              address={fromTokenAccount}
               chainId={CHAIN_ID_SOLANA}
             />
-          </>
-        ) : null}
-      </Paper>
-    </Container>
+            {`(Balance: ${fromTokenAccountBalance}${
+              fromMetadata.symbol && " " + fromMetadata.symbol
+            })`}
+          </Typography>
+          <div className={classes.spacer} />
+          <Typography variant="body2" component="div">
+            <span>into </span>
+            {toMintPretty}
+            <span> tokens in this account:</span>
+          </Typography>
+          <Typography
+            variant="h5"
+            color={toTokenAccountExists ? "textPrimary" : "textSecondary"}
+          >
+            <SmartAddress address={toTokenAccount} chainId={CHAIN_ID_SOLANA} />
+            <span>
+              {toTokenAccountExists
+                ? ` (Balance: ${toTokenAccountBalance}${
+                    (toMetadata.symbol && " " + toMetadata.symbol) || ""
+                  })`
+                : " (Not created yet)"}
+            </span>
+          </Typography>
+          <SolanaCreateAssociatedAddress
+            mintAddress={toMint}
+            readableTargetAddress={toTokenAccount}
+            associatedAccountExists={toTokenAccountExists}
+            setAssociatedAccountExists={setToTokenAccountExists}
+          />
+          {poolAddress && toCustodyAddress && toCustodyBalance ? (
+            <>
+              <div className={classes.spacer} />
+              <Typography variant="body2" component="div">
+                <span>Using pool </span>
+                <SmartAddress address={poolAddress} chainId={CHAIN_ID_SOLANA} />
+                <span> holding tokens in this account:</span>
+              </Typography>
+              <Typography variant="h5">
+                <SmartAddress
+                  address={toCustodyAddress}
+                  chainId={CHAIN_ID_SOLANA}
+                />
+                <span>{` (Balance: ${toCustodyBalance}${
+                  toMetadata.symbol && " " + toMetadata.symbol
+                })`}</span>
+              </Typography>
+            </>
+          ) : null}
+        </>
+      ) : null}
+      <div className={classes.spacer} />
+      <TextField
+        value={migrationAmount}
+        type="number"
+        onChange={handleAmountChange}
+        label={"Amount"}
+        disabled={!!migrationIsProcessing || !!transaction}
+      ></TextField>
+
+      {!transaction && (
+        <ButtonWithLoader
+          disabled={!isReadyToTransfer || migrationIsProcessing}
+          showLoader={migrationIsProcessing}
+          onClick={migrateTokens}
+        >
+          {migrationAmount && isReadyToTransfer
+            ? "Migrate " + migrationAmount + " Tokens"
+            : "Migrate"}
+        </ButtonWithLoader>
+      )}
+      {(error || !isReadyToTransfer) && (
+        <Typography color="error">{error || getNotReadyCause()}</Typography>
+      )}
+      {transaction ? (
+        <>
+          <Typography>
+            Successfully migrated your tokens! They will be available once this
+            transaction confirms.
+          </Typography>
+          <ShowTx
+            tx={{ id: transaction, block: 1 }}
+            chainId={CHAIN_ID_SOLANA}
+          />
+        </>
+      ) : null}
+    </div>
   );
 }

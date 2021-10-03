@@ -336,3 +336,16 @@ export const MIGRATION_ASSET_MAP = new Map<string, string>(
         // ],
       ]
 );
+
+export const ETH_MIGRATION_ASSET_MAP = new Map<string, string>(
+  CLUSTER === "mainnet"
+    ? []
+    : CLUSTER === "testnet"
+    ? []
+    : [
+        // [
+        //   "0x2D8BE6BF0baA74e0A907016679CaE9190e80dD0A",
+        //   "0xFcCeD5E997E7fb1D0594518D3eD57245bB8ed17E",
+        // ],
+      ]
+);

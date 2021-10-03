@@ -6,13 +6,16 @@ import {
   TextField,
   Typography,
 } from "@material-ui/core";
-import { Autocomplete, createFilterOptions } from "@material-ui/lab";
+import { Alert, Autocomplete, createFilterOptions } from "@material-ui/lab";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useEthereumProvider } from "../../contexts/EthereumProviderContext";
 import { CovalentData } from "../../hooks/useGetSourceParsedTokenAccounts";
 import { DataWrapper } from "../../store/helpers";
 import { ParsedTokenAccount } from "../../store/transferSlice";
-import { WORMHOLE_V1_ETH_ADDRESS } from "../../utils/consts";
+import {
+  ETH_MIGRATION_ASSET_MAP,
+  WORMHOLE_V1_ETH_ADDRESS,
+} from "../../utils/consts";
 import {
   ethNFTToNFTParsedTokenAccount,
   ethTokenToParsedTokenAccount,
@@ -57,6 +60,12 @@ const useStyles = makeStyles((theme) =>
     tokenImage: {
       maxHeight: "2.5rem", //Eyeballing this based off the text size
     },
+    migrationAlert: {
+      width: "100%",
+      "& .MuiAlert-message": {
+        width: "100%",
+      },
+    },
   })
 );
 
@@ -82,6 +91,10 @@ const isWormholev1 = (provider: any, address: string) => {
   return connection.isWrappedAsset(address);
 };
 
+const isMigrationEligible = (address: string) => {
+  return !!ETH_MIGRATION_ASSET_MAP.get(address);
+};
+
 type EthereumSourceTokenSelectorProps = {
   value: ParsedTokenAccount | null;
   onChange: (newValue: ParsedTokenAccount | null) => void;
@@ -100,7 +113,7 @@ const renderAccount = (
   const mintPrettyString = shortenAddress(account.mintKey);
   const uri = getLogo(account);
   const symbol = getSymbol(account) || "Unknown";
-  return (
+  const content = (
     <div className={classes.tokenOverviewContainer}>
       <div className={classes.tokenImageContainer}>
         {uri && <img alt="" className={classes.tokenImage} src={uri} />}
@@ -121,6 +134,19 @@ const renderAccount = (
       </div>
     </div>
   );
+
+  const migrationRender = (
+    <div className={classes.migrationAlert}>
+      <Alert severity="warning">
+        <Typography variant="body2">
+          This is a legacy asset eligible for migration.
+        </Typography>
+        <div>{content}</div>
+      </Alert>
+    </div>
+  );
+
+  return isMigrationEligible(account.mintKey) ? migrationRender : content;
 };
 
 const renderNFTAccount = (

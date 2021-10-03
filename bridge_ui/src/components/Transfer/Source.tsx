@@ -1,4 +1,4 @@
-import { CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
+import { CHAIN_ID_ETH, CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
 import { Button, makeStyles, MenuItem, TextField } from "@material-ui/core";
 import { Restore } from "@material-ui/icons";
 import { useCallback } from "react";
@@ -19,7 +19,11 @@ import {
   setAmount,
   setSourceChain,
 } from "../../store/transferSlice";
-import { CHAINS, MIGRATION_ASSET_MAP } from "../../utils/consts";
+import {
+  CHAINS,
+  ETH_MIGRATION_ASSET_MAP,
+  MIGRATION_ASSET_MAP,
+} from "../../utils/consts";
 import ButtonWithLoader from "../ButtonWithLoader";
 import KeyAndBalance from "../KeyAndBalance";
 import LowBalanceWarning from "../LowBalanceWarning";
@@ -46,10 +50,15 @@ function Source({
     selectTransferSourceParsedTokenAccount
   );
   const hasParsedTokenAccount = !!parsedTokenAccount;
-  const isMigrationAsset =
+  const isSolanaMigration =
     sourceChain === CHAIN_ID_SOLANA &&
     !!parsedTokenAccount &&
     !!MIGRATION_ASSET_MAP.get(parsedTokenAccount.mintKey);
+  const isEthereumMigration =
+    sourceChain === CHAIN_ID_ETH &&
+    !!parsedTokenAccount &&
+    !!ETH_MIGRATION_ASSET_MAP.get(parsedTokenAccount.mintKey);
+  const isMigrationAsset = isSolanaMigration || isEthereumMigration;
   const uiAmountString = useSelector(selectTransferSourceBalanceString);
   const amount = useSelector(selectTransferAmount);
   const error = useSelector(selectTransferSourceError);
@@ -57,10 +66,14 @@ function Source({
   const shouldLockFields = useSelector(selectTransferShouldLockFields);
   const { isReady, statusMessage } = useIsWalletReady(sourceChain);
   const handleMigrationClick = useCallback(() => {
-    history.push(
-      `/migrate/${parsedTokenAccount?.mintKey}/${parsedTokenAccount?.publicKey}`
-    );
-  }, [history, parsedTokenAccount]);
+    if (sourceChain === CHAIN_ID_SOLANA) {
+      history.push(
+        `/migrate/Solana/${parsedTokenAccount?.mintKey}/${parsedTokenAccount?.publicKey}`
+      );
+    } else if (sourceChain === CHAIN_ID_ETH) {
+      history.push(`/migrate/Ethereum/${parsedTokenAccount?.mintKey}`);
+    }
+  }, [history, parsedTokenAccount, sourceChain]);
   const handleSourceChange = useCallback(
     (event) => {
       dispatch(setSourceChain(event.target.value));
