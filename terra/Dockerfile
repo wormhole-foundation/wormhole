@@ -1,6 +1,6 @@
 # This is a multi-stage docker file, first stage builds contracts
 # And the second one creates node.js environment to deploy them
-FROM cosmwasm/workspace-optimizer:0.10.4@sha256:a976db4ee7add887a6af26724b804bbd9e9d534554506447e72ac57e65357db9 AS builder
+FROM cosmwasm/workspace-optimizer:0.12.1@sha256:1508cf7545f4b656ecafa34e29c1acf200cdab47fced85c2bc076c0c158b1338 AS builder
 ADD Cargo.lock /code/
 ADD Cargo.toml /code/
 ADD contracts /code/contracts

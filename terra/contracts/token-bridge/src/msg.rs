@@ -1,13 +1,18 @@
-use cosmwasm_std::{Binary, HumanAddr, Uint128};
-use schemars::JsonSchema;
+use cosmwasm_std::{
+    Binary,
+    Uint128,
+};
 use terraswap::asset::{Asset, AssetInfo};
+use schemars::JsonSchema;
 use serde::{
     Deserialize,
     Serialize,
 };
 
+type HumanAddr = String;
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct InitMsg {
+pub struct InstantiateMsg {
     // governance contract details
     pub gov_chain: u16,
     pub gov_address: Binary,
@@ -18,7 +23,7 @@ pub struct InitMsg {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
-pub enum HandleMsg {
+pub enum ExecuteMsg {
     RegisterAssetHook {
         asset_id: Binary,
     },
@@ -27,6 +32,7 @@ pub enum HandleMsg {
     WithdrawTokens {
         asset: AssetInfo,
     },
+
 
     InitiateTransfer {
         asset: Asset,

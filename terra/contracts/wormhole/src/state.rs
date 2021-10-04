@@ -1,6 +1,5 @@
 use schemars::{
     JsonSchema,
-    Set,
 };
 use serde::{
     Deserialize,
@@ -11,7 +10,6 @@ use cosmwasm_std::{
     Binary,
     CanonicalAddr,
     Coin,
-    HumanAddr,
     StdResult,
     Storage,
     Uint128,
@@ -36,6 +34,8 @@ use sha3::{
     Digest,
     Keccak256,
 };
+
+type HumanAddr = String;
 
 pub static CONFIG_KEY: &[u8] = b"config";
 pub static GUARDIAN_SET_KEY: &[u8] = b"guardian_set";
@@ -217,62 +217,62 @@ pub struct WormholeInfo {
     pub guardian_set_expirity: u64,
 }
 
-pub fn config<S: Storage>(storage: &mut S) -> Singleton<S, ConfigInfo> {
+pub fn config(storage: &mut dyn Storage) -> Singleton<ConfigInfo> {
     singleton(storage, CONFIG_KEY)
 }
 
-pub fn config_read<S: Storage>(storage: &S) -> ReadonlySingleton<S, ConfigInfo> {
+pub fn config_read(storage: &dyn Storage) -> ReadonlySingleton<ConfigInfo> {
     singleton_read(storage, CONFIG_KEY)
 }
 
-pub fn guardian_set_set<S: Storage>(
-    storage: &mut S,
+pub fn guardian_set_set(
+    storage: &mut dyn Storage,
     index: u32,
     data: &GuardianSetInfo,
 ) -> StdResult<()> {
-    bucket(GUARDIAN_SET_KEY, storage).save(&index.to_be_bytes(), data)
+    bucket(storage, GUARDIAN_SET_KEY).save(&index.to_be_bytes(), data)
 }
 
-pub fn guardian_set_get<S: Storage>(storage: &S, index: u32) -> StdResult<GuardianSetInfo> {
-    bucket_read(GUARDIAN_SET_KEY, storage).load(&index.to_be_bytes())
+pub fn guardian_set_get(storage: &dyn Storage, index: u32) -> StdResult<GuardianSetInfo> {
+    bucket_read(storage, GUARDIAN_SET_KEY).load(&index.to_be_bytes())
 }
 
-pub fn sequence_set<S: Storage>(storage: &mut S, emitter: &[u8], sequence: u64) -> StdResult<()> {
-    bucket(SEQUENCE_KEY, storage).save(emitter, &sequence)
+pub fn sequence_set(storage: &mut dyn Storage, emitter: &[u8], sequence: u64) -> StdResult<()> {
+    bucket(storage, SEQUENCE_KEY).save(emitter, &sequence)
 }
 
-pub fn sequence_read<S: Storage>(storage: &S, emitter: &[u8]) -> u64 {
-    bucket_read(SEQUENCE_KEY, storage)
+pub fn sequence_read(storage: &dyn Storage, emitter: &[u8]) -> u64 {
+    bucket_read(storage, SEQUENCE_KEY)
         .load(&emitter)
         .or::<u64>(Ok(0))
         .unwrap()
 }
 
-pub fn vaa_archive_add<S: Storage>(storage: &mut S, hash: &[u8]) -> StdResult<()> {
-    bucket(GUARDIAN_SET_KEY, storage).save(hash, &true)
+pub fn vaa_archive_add(storage: &mut dyn Storage, hash: &[u8]) -> StdResult<()> {
+    bucket(storage, GUARDIAN_SET_KEY).save(hash, &true)
 }
 
-pub fn vaa_archive_check<S: Storage>(storage: &S, hash: &[u8]) -> bool {
-    bucket_read(GUARDIAN_SET_KEY, storage)
+pub fn vaa_archive_check(storage: &dyn Storage, hash: &[u8]) -> bool {
+    bucket_read(storage, GUARDIAN_SET_KEY)
         .load(&hash)
         .or::<bool>(Ok(false))
         .unwrap()
 }
 
-pub fn wrapped_asset<S: Storage>(storage: &mut S) -> Bucket<S, HumanAddr> {
-    bucket(WRAPPED_ASSET_KEY, storage)
+pub fn wrapped_asset(storage: &mut dyn Storage) -> Bucket<HumanAddr> {
+    bucket(storage, WRAPPED_ASSET_KEY)
 }
 
-pub fn wrapped_asset_read<S: Storage>(storage: &S) -> ReadonlyBucket<S, HumanAddr> {
-    bucket_read(WRAPPED_ASSET_KEY, storage)
+pub fn wrapped_asset_read(storage: &dyn Storage) -> ReadonlyBucket<HumanAddr> {
+    bucket_read(storage, WRAPPED_ASSET_KEY)
 }
 
-pub fn wrapped_asset_address<S: Storage>(storage: &mut S) -> Bucket<S, Vec<u8>> {
-    bucket(WRAPPED_ASSET_ADDRESS_KEY, storage)
+pub fn wrapped_asset_address(storage: &mut dyn Storage) -> Bucket<Vec<u8>> {
+    bucket(storage, WRAPPED_ASSET_ADDRESS_KEY)
 }
 
-pub fn wrapped_asset_address_read<S: Storage>(storage: &S) -> ReadonlyBucket<S, Vec<u8>> {
-    bucket_read(WRAPPED_ASSET_ADDRESS_KEY, storage)
+pub fn wrapped_asset_address_read(storage: &dyn Storage) -> ReadonlyBucket<Vec<u8>> {
+    bucket_read(storage, WRAPPED_ASSET_ADDRESS_KEY)
 }
 
 pub struct GovernancePacket {
@@ -299,10 +299,25 @@ impl GovernancePacket {
     }
 }
 
+// action 1
+pub struct ContractUpgrade  {
+    pub new_contract: u64,
+}
+
 // action 2
 pub struct GuardianSetUpgrade {
     pub new_guardian_set_index: u32,
     pub new_guardian_set: GuardianSetInfo,
+}
+
+impl ContractUpgrade {
+    pub fn deserialize(data: &Vec<u8>) -> StdResult<Self> {
+        let data = data.as_slice();
+        let new_contract = data.get_u64(24);
+        Ok(ContractUpgrade {
+            new_contract,
+        })
+    }
 }
 
 impl GuardianSetUpgrade {
@@ -351,7 +366,7 @@ impl SetFee {
         let (_, amount) = data.get_u256(0);
         let fee = Coin {
             denom: String::from(FEE_DENOMINATION),
-            amount: Uint128(amount),
+            amount: Uint128::new(amount),
         };
         Ok(SetFee { fee })
     }
@@ -371,7 +386,7 @@ impl TransferFee {
         let (_, amount) = data.get_u256(32);
         let amount = Coin {
             denom: String::from(FEE_DENOMINATION),
-            amount: Uint128(amount),
+            amount: Uint128::new(amount),
         };
         Ok(TransferFee { amount, recipient })
     }

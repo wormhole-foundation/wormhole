@@ -6,7 +6,6 @@ use serde::{
 
 use cosmwasm_std::{
     CanonicalAddr,
-    HumanAddr,
     StdError,
     StdResult,
     Storage,
@@ -24,6 +23,8 @@ use cosmwasm_storage::{
 };
 
 use wormhole::byte_utils::ByteUtils;
+
+type HumanAddr = String;
 
 pub static CONFIG_KEY: &[u8] = b"config";
 pub static WRAPPED_ASSET_KEY: &[u8] = b"wrapped_asset";
@@ -43,57 +44,57 @@ pub struct ConfigInfo {
     pub wrapped_asset_code_id: u64,
 }
 
-pub fn config<S: Storage>(storage: &mut S) -> Singleton<S, ConfigInfo> {
+pub fn config(storage: &mut dyn Storage) -> Singleton<ConfigInfo> {
     singleton(storage, CONFIG_KEY)
 }
 
-pub fn config_read<S: Storage>(storage: &S) -> ReadonlySingleton<S, ConfigInfo> {
+pub fn config_read(storage: &dyn Storage) -> ReadonlySingleton<ConfigInfo> {
     singleton_read(storage, CONFIG_KEY)
 }
 
-pub fn bridge_deposit<S: Storage>(storage: &mut S) -> Bucket<S, Uint128> {
-    bucket(BRIDGE_DEPOSITS, storage)
+pub fn bridge_deposit(storage: &mut dyn Storage) -> Bucket<Uint128> {
+    bucket(storage, BRIDGE_DEPOSITS)
 }
 
-pub fn bridge_deposit_read<S: Storage>(storage: &S) -> ReadonlyBucket<S, Uint128> {
-    bucket_read(BRIDGE_DEPOSITS, storage)
+pub fn bridge_deposit_read(storage: &dyn Storage) -> ReadonlyBucket<Uint128> {
+    bucket_read(storage, BRIDGE_DEPOSITS)
 }
 
-pub fn bridge_contracts<S: Storage>(storage: &mut S) -> Bucket<S, Vec<u8>> {
-    bucket(BRIDGE_CONTRACTS, storage)
+pub fn bridge_contracts(storage: &mut dyn Storage) -> Bucket<Vec<u8>> {
+    bucket(storage, BRIDGE_CONTRACTS)
 }
 
-pub fn bridge_contracts_read<S: Storage>(storage: &S) -> ReadonlyBucket<S, Vec<u8>> {
-    bucket_read(BRIDGE_CONTRACTS, storage)
+pub fn bridge_contracts_read(storage: &dyn Storage) -> ReadonlyBucket<Vec<u8>> {
+    bucket_read(storage, BRIDGE_CONTRACTS)
 }
 
-pub fn wrapped_asset<S: Storage>(storage: &mut S) -> Bucket<S, HumanAddr> {
-    bucket(WRAPPED_ASSET_KEY, storage)
+pub fn wrapped_asset(storage: &mut dyn Storage) -> Bucket<HumanAddr> {
+    bucket(storage, WRAPPED_ASSET_KEY)
 }
 
-pub fn wrapped_asset_read<S: Storage>(storage: &S) -> ReadonlyBucket<S, HumanAddr> {
-    bucket_read(WRAPPED_ASSET_KEY, storage)
+pub fn wrapped_asset_read(storage: &dyn Storage) -> ReadonlyBucket<HumanAddr> {
+    bucket_read(storage, WRAPPED_ASSET_KEY)
 }
 
-pub fn wrapped_asset_address<S: Storage>(storage: &mut S) -> Bucket<S, Vec<u8>> {
-    bucket(WRAPPED_ASSET_ADDRESS_KEY, storage)
+pub fn wrapped_asset_address(storage: &mut dyn Storage) -> Bucket<Vec<u8>> {
+    bucket(storage, WRAPPED_ASSET_ADDRESS_KEY)
 }
 
-pub fn wrapped_asset_address_read<S: Storage>(storage: &S) -> ReadonlyBucket<S, Vec<u8>> {
-    bucket_read(WRAPPED_ASSET_ADDRESS_KEY, storage)
+pub fn wrapped_asset_address_read(storage: &dyn Storage) -> ReadonlyBucket<Vec<u8>> {
+    bucket_read(storage, WRAPPED_ASSET_ADDRESS_KEY)
 }
 
-pub fn send_native<S: Storage>(
-    storage: &mut S,
+pub fn send_native(
+    storage: &mut dyn Storage,
     asset_address: &CanonicalAddr,
     amount: Uint128,
 ) -> StdResult<()> {
-    let mut counter_bucket = bucket(NATIVE_COUNTER, storage);
+    let mut counter_bucket = bucket(storage, NATIVE_COUNTER);
     let new_total = amount
         + counter_bucket
             .load(asset_address.as_slice())
             .unwrap_or(Uint128::zero());
-    if new_total > Uint128(u64::MAX as u128) {
+    if new_total > Uint128::new(u64::MAX as u128) {
         return Err(StdError::generic_err(
             "transfer exceeds max outstanding bridged token amount",
         ));
@@ -101,14 +102,15 @@ pub fn send_native<S: Storage>(
     counter_bucket.save(asset_address.as_slice(), &new_total)
 }
 
-pub fn receive_native<S: Storage>(
-    storage: &mut S,
+pub fn receive_native(
+    storage: &mut dyn Storage,
     asset_address: &CanonicalAddr,
     amount: Uint128,
 ) -> StdResult<()> {
-    let mut counter_bucket = bucket(NATIVE_COUNTER, storage);
+    let mut counter_bucket = bucket(storage, NATIVE_COUNTER);
     let total: Uint128 = counter_bucket.load(asset_address.as_slice())?;
-    counter_bucket.save(asset_address.as_slice(), &(total - amount)?)
+    let result = total.checked_sub(amount)?;
+    counter_bucket.save(asset_address.as_slice(), &result)
 }
 
 pub struct Action;

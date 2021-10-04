@@ -1,7 +1,6 @@
 use cosmwasm_std::{
     Binary,
     Coin,
-    HumanAddr,
 };
 use schemars::JsonSchema;
 use serde::{
@@ -14,8 +13,10 @@ use crate::state::{
     GuardianSetInfo,
 };
 
+type HumanAddr = String;
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct InitMsg {
+pub struct InstantiateMsg {
     pub gov_chain: u16,
     pub gov_address: Binary,
 
@@ -25,9 +26,14 @@ pub struct InitMsg {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
-pub enum HandleMsg {
+pub enum ExecuteMsg {
     SubmitVAA { vaa: Binary },
     PostMessage { message: Binary, nonce: u32 },
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct MigrateMsg {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
