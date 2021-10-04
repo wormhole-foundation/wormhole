@@ -8,7 +8,7 @@ import {
   Tooltip,
   Typography,
 } from "@material-ui/core";
-import { GitHub, Publish, Send } from "@material-ui/icons";
+import { GitHub, Help, Publish, Send } from "@material-ui/icons";
 import {
   Link as RouterLink,
   NavLink,
@@ -30,7 +30,6 @@ const useStyles = makeStyles((theme) => ({
     borderBottom: `1px solid ${theme.palette.divider}`,
     "& > .MuiToolbar-root": {
       margin: "auto",
-      height: 69,
       width: "100%",
       maxWidth: 1100,
     },
@@ -39,15 +38,22 @@ const useStyles = makeStyles((theme) => ({
     flex: 1,
     width: "100vw",
   },
+  logo: {
+    verticalAlign: "middle",
+    height: 52,
+    [theme.breakpoints.down("xs")]: {
+      height: 42,
+    },
+  },
   link: {
     ...theme.typography.body1,
     color: theme.palette.text.primary,
     marginLeft: theme.spacing(6),
     [theme.breakpoints.down("sm")]: {
-      marginLeft: theme.spacing(4),
+      marginLeft: theme.spacing(2.5),
     },
     [theme.breakpoints.down("xs")]: {
-      marginLeft: theme.spacing(2),
+      marginLeft: theme.spacing(1),
     },
     "&.active": {
       color: theme.palette.secondary.light,
@@ -73,7 +79,7 @@ function App() {
             <img
               src={wormholeLogo}
               alt="Wormhole Logo"
-              style={{ height: 52 }}
+              className={classes.logo}
             />
           </RouterLink>
           <div className={classes.spacer} />
@@ -112,6 +118,16 @@ function App() {
                   <GitHub />
                 </IconButton>
               </Tooltip>
+              <Tooltip title="View the FAQ">
+                <IconButton
+                  href="https://docs.wormholenetwork.com/wormhole/faqs"
+                  target="_blank"
+                  size="small"
+                  className={classes.link}
+                >
+                  <Help />
+                </IconButton>
+              </Tooltip>
             </div>
           </Hidden>
           <Hidden implementation="css" smUp>
@@ -133,6 +149,16 @@ function App() {
                 className={classes.link}
               >
                 <Publish />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="View the FAQ">
+              <IconButton
+                href="https://docs.wormholenetwork.com/wormhole/faqs"
+                target="_blank"
+                size="small"
+                className={classes.link}
+              >
+                <Help />
               </IconButton>
             </Tooltip>
           </Hidden>
