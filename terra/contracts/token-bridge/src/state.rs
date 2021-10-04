@@ -29,6 +29,7 @@ pub static CONFIG_KEY: &[u8] = b"config";
 pub static WRAPPED_ASSET_KEY: &[u8] = b"wrapped_asset";
 pub static WRAPPED_ASSET_ADDRESS_KEY: &[u8] = b"wrapped_asset_address";
 pub static BRIDGE_CONTRACTS: &[u8] = b"bridge_contracts";
+pub static BRIDGE_DEPOSITS: &[u8] = b"bridge_deposits";
 pub static NATIVE_COUNTER: &[u8] = b"native_counter";
 
 // Guardian set information
@@ -48,6 +49,14 @@ pub fn config<S: Storage>(storage: &mut S) -> Singleton<S, ConfigInfo> {
 
 pub fn config_read<S: Storage>(storage: &S) -> ReadonlySingleton<S, ConfigInfo> {
     singleton_read(storage, CONFIG_KEY)
+}
+
+pub fn bridge_deposit<S: Storage>(storage: &mut S) -> Bucket<S, Uint128> {
+    bucket(BRIDGE_DEPOSITS, storage)
+}
+
+pub fn bridge_deposit_read<S: Storage>(storage: &S) -> ReadonlyBucket<S, Uint128> {
+    bucket_read(BRIDGE_DEPOSITS, storage)
 }
 
 pub fn bridge_contracts<S: Storage>(storage: &mut S) -> Bucket<S, Vec<u8>> {

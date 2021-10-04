@@ -1,9 +1,6 @@
-use cosmwasm_std::{
-    Binary,
-    HumanAddr,
-    Uint128,
-};
+use cosmwasm_std::{Binary, HumanAddr, Uint128};
 use schemars::JsonSchema;
+use terraswap::asset::{Asset, AssetInfo};
 use serde::{
     Deserialize,
     Serialize,
@@ -26,9 +23,13 @@ pub enum HandleMsg {
         asset_id: Binary,
     },
 
+    DepositTokens,
+    WithdrawTokens {
+        asset: AssetInfo,
+    },
+
     InitiateTransfer {
-        asset: HumanAddr,
-        amount: Uint128,
+        asset: Asset,
         recipient_chain: u16,
         recipient: Binary,
         fee: Uint128,
@@ -40,7 +41,7 @@ pub enum HandleMsg {
     },
 
     CreateAssetMeta {
-        asset_address: HumanAddr,
+        asset_info: AssetInfo,
         nonce: u32,
     },
 }

@@ -1,8 +1,10 @@
 use crate::msg::WrappedRegistryResponse;
 use cosmwasm_std::{
+    coin,
     log,
     to_binary,
     Api,
+    BankMsg,
     Binary,
     CanonicalAddr,
     Coin,
@@ -33,6 +35,7 @@ use crate::{
         bridge_contracts_read,
         config,
         config_read,
+        bridge_deposit,
         receive_native,
         send_native,
         wrapped_asset,
@@ -163,7 +166,6 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         }
         HandleMsg::InitiateTransfer {
             asset,
-            amount,
             recipient_chain,
             recipient,
             fee,
@@ -172,18 +174,74 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             deps,
             env,
             asset,
-            amount,
             recipient_chain,
             recipient.as_slice().to_vec(),
             fee,
             nonce,
         ),
+        HandleMsg::DepositTokens => deposit_tokens(deps, env),
+        HandleMsg::WithdrawTokens { asset } => withdraw_tokens(deps, env, asset),
         HandleMsg::SubmitVaa { data } => submit_vaa(deps, env, &data),
         HandleMsg::CreateAssetMeta {
-            asset_address,
+            asset_info,
             nonce,
-        } => handle_create_asset_meta(deps, env, &asset_address, nonce),
+        } => handle_create_asset_meta(deps, env, asset_info, nonce),
     }
+}
+
+fn deposit_tokens<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+) -> StdResult<HandleResponse> {
+    for fund in env.message.sent_funds {
+        let deposit_key = format!("{}:{}", env.message.sender, fund.denom);
+        bridge_deposit(&mut deps.storage).update(deposit_key.as_bytes(), |amount: Option<Uint128>| {
+            match amount {
+                Some(v) => Ok(v + fund.amount),
+                None => Ok(fund.amount)
+            }
+        })?;
+    }
+
+    Ok(HandleResponse {
+        messages: vec![],
+        log: vec![
+            log("action", "deposit_tokens"),
+        ],
+        data: None,
+    })
+}
+
+fn withdraw_tokens<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+    data: AssetInfo,
+) -> StdResult<HandleResponse> {
+    let mut messages: Vec<CosmosMsg> = vec![];
+    if let AssetInfo::NativeToken { denom } = data {
+        let deposit_key = format!("{}:{}", env.message.sender, denom);
+        bridge_deposit(&mut deps.storage).update(deposit_key.as_bytes(), |current: Option<Uint128>| {
+            match current {
+                Some(v) => {
+                    messages.push(CosmosMsg::Bank(BankMsg::Send {
+                        from_address: env.contract.address.clone(),
+                        to_address: env.message.sender.clone(),
+                        amount: vec![coin(v.u128(), &denom)],
+                    }));
+                    Ok(Uint128(0))
+                }
+                None => Err(StdError::generic_err("no deposit found to withdraw"))
+            }
+        })?;
+    }
+
+    Ok(HandleResponse {
+        messages: vec![],
+        log: vec![
+            log("action", "withdraw_tokens"),
+        ],
+        data: None,
+    })
 }
 
 /// Handle wrapped asset registration messages
@@ -281,7 +339,29 @@ fn handle_attest_meta<S: Storage, A: Api, Q: Querier>(
 fn handle_create_asset_meta<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
-    asset_address: &HumanAddr,
+    asset_info: AssetInfo,
+    nonce: u32,
+) -> StdResult<HandleResponse> {
+    match asset_info {
+        AssetInfo::Token { contract_addr } => handle_create_asset_meta_token(
+            deps,
+            env,
+            contract_addr,
+            nonce,
+        ),
+        AssetInfo::NativeToken { ref denom } => handle_create_asset_meta_native_token(
+            deps,
+            env,
+            denom.clone(),
+            nonce,
+        )
+    }
+}
+
+fn handle_create_asset_meta_token<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+    asset_address: HumanAddr,
     nonce: u32,
 ) -> StdResult<HandleResponse> {
     let cfg = config_read(&deps.storage).load()?;
@@ -291,7 +371,7 @@ fn handle_create_asset_meta<S: Storage, A: Api, Q: Querier>(
         msg: to_binary(&TokenQuery::TokenInfo {})?,
     });
 
-    let asset_canonical = deps.api.canonical_address(asset_address)?;
+    let asset_canonical = deps.api.canonical_address(&asset_address)?;
     let token_info: TokenInfoResponse = deps.querier.query(&request)?;
 
     let meta: AssetMeta = AssetMeta {
@@ -320,6 +400,63 @@ fn handle_create_asset_meta<S: Storage, A: Api, Q: Querier>(
         log: vec![
             log("meta.token_chain", CHAIN_ID),
             log("meta.token", asset_address),
+            log("meta.nonce", nonce),
+            log("meta.block_time", env.block.time),
+        ],
+        data: None,
+    })
+}
+
+/// All ISO-4217 currency codes are 3 letters, so we can safely slice anything that is not ULUNA.
+/// https://www.xe.com/iso4217.php
+fn format_native_denom_symbol(denom: &str) -> String {
+  if denom == "uluna" {
+      return "LUNA".to_string();
+  }
+  // UUSD -> US -> UST
+  denom.to_uppercase()[1..3].to_string() + "T"
+}
+
+fn handle_create_asset_meta_native_token<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+    denom: String,
+    nonce: u32,
+) -> StdResult<HandleResponse> {
+    let cfg = config_read(&deps.storage).load()?;
+
+    let mut asset_id = extend_address_to_32(&build_native_id(&denom).into());
+    asset_id[0] = 1;
+
+    let symbol = format_native_denom_symbol(&denom);
+
+    let meta: AssetMeta = AssetMeta {
+        token_chain: CHAIN_ID,
+        token_address: asset_id.clone(),
+        decimals: 6,
+        symbol: extend_string_to_32(&symbol)?,
+        name: extend_string_to_32(&symbol)?,
+    };
+
+    let token_bridge_message = TokenBridgeMessage {
+        action: Action::ATTEST_META,
+        payload: meta.serialize().to_vec(),
+    };
+
+    Ok(HandleResponse {
+        messages: vec![CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: cfg.wormhole_contract,
+            msg: to_binary(&WormholeHandleMsg::PostMessage {
+                message: Binary::from(token_bridge_message.serialize()),
+                nonce,
+            })?,
+            // forward coins sent to this message
+            send: coins_after_tax(deps, env.message.sent_funds.clone())?,
+        })],
+        log: vec![
+            log("meta.token_chain", CHAIN_ID),
+            log("meta.symbol", symbol),
+            log("meta.asset_id", hex::encode(asset_id)),
             log("meta.nonce", nonce),
             log("meta.block_time", env.block.time),
         ],
@@ -395,7 +532,7 @@ fn handle_governance_payload<S: Storage, A: Api, Q: Querier>(
 
 fn handle_register_chain<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
-    env: Env,
+    _env: Env,
     data: &Vec<u8>,
 ) -> StdResult<HandleResponse> {
     let RegisterChain {
@@ -432,6 +569,23 @@ fn handle_complete_transfer<S: Storage, A: Api, Q: Querier>(
 ) -> StdResult<HandleResponse> {
     let transfer_info = TransferInfo::deserialize(&data)?;
 
+    // All terra token addresses are 20 bytes, and so start with 12 0's, if the address begins with
+    // a 1 we can identify it as a fully native token.
+    match transfer_info.token_address.as_slice()[0] {
+        1 => handle_complete_transfer_token_native(deps, env, emitter_chain, emitter_address, data),
+        _ => handle_complete_transfer_token(deps, env, emitter_chain, emitter_address, data),
+    }
+}
+
+fn handle_complete_transfer_token<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+    emitter_chain: u16,
+    emitter_address: Vec<u8>,
+    data: &Vec<u8>,
+) -> StdResult<HandleResponse> {
+    let transfer_info = TransferInfo::deserialize(&data)?;
+
     let expected_contract =
         bridge_contracts_read(&deps.storage).load(&emitter_chain.to_be_bytes())?;
 
@@ -439,15 +593,14 @@ fn handle_complete_transfer<S: Storage, A: Api, Q: Querier>(
     if expected_contract != emitter_address {
         return Err(StdError::unauthorized());
     }
-
     if transfer_info.recipient_chain != CHAIN_ID {
         return Err(StdError::generic_err(
             "this transfer is not directed at this chain",
         ));
     }
 
-    let token_chain = transfer_info.token_chain;
     let target_address = (&transfer_info.recipient.as_slice()).get_address(0);
+    let token_chain = transfer_info.token_chain;
 
     let (not_supported_amount, mut amount) = transfer_info.amount;
     let (not_supported_fee, mut fee) = transfer_info.fee;
@@ -551,7 +704,7 @@ fn handle_complete_transfer<S: Storage, A: Api, Q: Querier>(
         Ok(HandleResponse {
             messages,
             log: vec![
-                log("action", "complete_transfer_native"),
+                log("action", "complete_transfer_token"),
                 log("recipient", recipient),
                 log("contract", contract_addr),
                 log("amount", amount),
@@ -561,7 +714,117 @@ fn handle_complete_transfer<S: Storage, A: Api, Q: Querier>(
     }
 }
 
+fn handle_complete_transfer_token_native<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+    emitter_chain: u16,
+    emitter_address: Vec<u8>,
+    data: &Vec<u8>,
+) -> StdResult<HandleResponse> {
+    let transfer_info = TransferInfo::deserialize(&data)?;
+
+    let expected_contract =
+        bridge_contracts_read(&deps.storage).load(&emitter_chain.to_be_bytes())?;
+
+    // must be sent by a registered token bridge contract
+    if expected_contract != emitter_address {
+        return Err(StdError::unauthorized());
+    }
+    if transfer_info.recipient_chain != CHAIN_ID {
+        return Err(StdError::generic_err(
+            "this transfer is not directed at this chain",
+        ));
+    }
+
+    let target_address = (&transfer_info.recipient.as_slice()).get_address(0);
+
+    let (not_supported_amount, mut amount) = transfer_info.amount;
+    let (not_supported_fee, fee) = transfer_info.fee;
+
+    amount = amount.checked_sub(fee).unwrap();
+
+    // Check high 128 bit of amount value to be empty
+    if not_supported_amount != 0 || not_supported_fee != 0 {
+        return ContractError::AmountTooHigh.std_err();
+    }
+
+    // Wipe the native byte marker and extract the serialized denom.
+    let mut token_address = transfer_info.token_address.clone();
+    let token_address = token_address.as_mut_slice();
+    token_address[0] = 0;
+
+    let mut denom = token_address.to_vec();
+    denom.retain(|&c| c != 0);
+    let denom = String::from_utf8(denom).unwrap();
+
+    // note -- here the amount is the amount the recipient will receive;
+    // amount + fee is the total sent
+    let recipient = deps.api.human_address(&target_address)?;
+    let token_address = (&*token_address).get_address(0);
+    receive_native(&mut deps.storage, &token_address, Uint128(amount + fee))?;
+
+    let mut messages = vec![CosmosMsg::Bank(BankMsg::Send {
+        from_address: env.contract.address.clone(),
+        to_address: recipient.clone(),
+        amount: vec![coin(amount, &denom)],
+    })];
+
+    if fee != 0 {
+        messages.push(CosmosMsg::Bank(BankMsg::Send {
+            from_address: env.contract.address.clone(),
+            to_address: recipient.clone(),
+            amount: vec![coin(fee, &denom)],
+        }));
+    }
+
+    Ok(HandleResponse {
+        messages,
+        log: vec![
+            log("action", "complete_transfer_token_native"),
+            log("recipient", recipient),
+            log("denom", denom),
+            log("amount", amount),
+        ],
+        data: None,
+    })
+}
+
 fn handle_initiate_transfer<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+    asset: Asset,
+    recipient_chain: u16,
+    recipient: Vec<u8>,
+    fee: Uint128,
+    nonce: u32,
+) -> StdResult<HandleResponse> {
+    match asset.info {
+        AssetInfo::Token { contract_addr } => handle_initiate_transfer_token(
+            deps,
+            env,
+            contract_addr,
+            asset.amount,
+            recipient_chain,
+            recipient,
+            fee,
+            nonce,
+        ),
+        AssetInfo::NativeToken { ref denom } => {
+            handle_initiate_transfer_native_token(
+                deps,
+                env,
+                denom.clone(),
+                asset.amount,
+                recipient_chain,
+                recipient,
+                fee,
+                nonce,
+            )
+        }
+    }
+}
+
+fn handle_initiate_transfer_token<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
     asset: HumanAddr,
@@ -574,11 +837,9 @@ fn handle_initiate_transfer<S: Storage, A: Api, Q: Querier>(
     if recipient_chain == CHAIN_ID {
         return ContractError::SameSourceAndTarget.std_err();
     }
-
     if amount.is_zero() {
         return ContractError::AmountTooLow.std_err();
     }
-
     if fee > amount {
         return Err(StdError::generic_err("fee greater than sent amount"));
     }
@@ -700,6 +961,90 @@ fn handle_initiate_transfer<S: Storage, A: Api, Q: Querier>(
     })
 }
 
+fn handle_initiate_transfer_native_token<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+    denom: String,
+    amount: Uint128,
+    recipient_chain: u16,
+    recipient: Vec<u8>,
+    fee: Uint128,
+    nonce: u32,
+) -> StdResult<HandleResponse> {
+    if recipient_chain == CHAIN_ID {
+        return ContractError::SameSourceAndTarget.std_err();
+    }
+    if amount.is_zero() {
+        return ContractError::AmountTooLow.std_err();
+    }
+    if fee > amount {
+        return Err(StdError::generic_err("fee greater than sent amount"));
+    }
+
+    let deposit_key = format!("{}:{}", env.message.sender, denom);
+    bridge_deposit(&mut deps.storage).update(deposit_key.as_bytes(), |current: Option<Uint128>| {
+        match current {
+            Some(v) => Ok((v - amount)?),
+            None => Err(StdError::generic_err("no deposit found to transfer"))
+        }
+    })?;
+
+    let cfg: ConfigInfo = config_read(&deps.storage).load()?;
+    let mut messages: Vec<CosmosMsg> = vec![];
+
+    let asset_chain: u16 = CHAIN_ID;
+    let mut asset_address: Vec<u8> = build_native_id(&denom);
+
+    send_native(&mut deps.storage, &asset_address[..].into(), amount)?;
+
+    // Mark the first byte of the address to distinguish it as native.
+    asset_address = extend_address_to_32(&asset_address.into());
+    asset_address[0] = 1;
+
+    let transfer_info = TransferInfo {
+        token_chain: asset_chain,
+        token_address: asset_address.to_vec(),
+        amount: (0, amount.u128()),
+        recipient_chain,
+        recipient: recipient.clone(),
+        fee: (0, fee.u128()),
+    };
+
+    let token_bridge_message = TokenBridgeMessage {
+        action: Action::TRANSFER,
+        payload: transfer_info.serialize(),
+    };
+
+    messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
+        contract_addr: cfg.wormhole_contract,
+        msg: to_binary(&WormholeHandleMsg::PostMessage {
+            message: Binary::from(token_bridge_message.serialize()),
+            nonce,
+        })?,
+        send: coins_after_tax(deps, env.message.sent_funds.clone())?,
+    }));
+
+    Ok(HandleResponse {
+        messages,
+        log: vec![
+            log("transfer.token_chain", asset_chain),
+            log("transfer.token", hex::encode(asset_address)),
+            log(
+                "transfer.sender",
+                hex::encode(extend_address_to_32(
+                    &deps.api.canonical_address(&env.message.sender)?,
+                )),
+            ),
+            log("transfer.recipient_chain", recipient_chain),
+            log("transfer.recipient", hex::encode(recipient)),
+            log("transfer.amount", amount),
+            log("transfer.nonce", nonce),
+            log("transfer.block_time", env.block.time),
+        ],
+        data: None,
+    })
+}
+
 pub fn query<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
     msg: QueryMsg,
@@ -732,6 +1077,16 @@ fn build_asset_id(chain: u16, address: &[u8]) -> Vec<u8> {
     let mut hasher = Keccak256::new();
     hasher.update(asset_id);
     hasher.finalize().to_vec()
+}
+
+// Produce a 20 byte asset "address" from a native terra denom.
+fn build_native_id(denom: &str) -> Vec<u8> {
+    let mut asset_address: Vec<u8> = denom.clone().as_bytes().to_vec();
+    asset_address.reverse();
+    asset_address.extend(vec![0u8; 20 - denom.len()]);
+    asset_address.reverse();
+    assert_eq!(asset_address.len(), 20);
+    asset_address
 }
 
 #[cfg(test)]
