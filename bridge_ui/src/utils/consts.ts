@@ -75,11 +75,13 @@ export const WORMHOLE_RPC_HOSTS =
         "https://wormhole-v2-mainnet-api.certus.one",
         "https://wormhole.inotel.ro",
         "https://wormhole-v2-mainnet-api.mcf.rocks",
+        "https://wormhole-v2-mainnet-api.chainlayer.network",
       ]
     : CLUSTER === "testnet"
     ? [
         "https://wormhole-v2-testnet-api.certus.one",
         "https://wormhole-v2-testnet-api.mcf.rocks",
+        "https://wormhole-v2-testnet-api.chainlayer.network"
       ]
     : ["http://localhost:8080"];
 export const ETH_NETWORK_CHAIN_ID =
