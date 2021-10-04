@@ -58,7 +58,7 @@ import {
 import { getSignedVAAWithRetry } from "../utils/getSignedVAAWithRetry";
 import parseError from "../utils/parseError";
 import { signSendAndConfirm } from "../utils/solana";
-import { waitForTerraExecution, calculateTerraTax } from "../utils/terra";
+import { waitForTerraExecution } from "../utils/terra";
 import useTransferTargetAddressHex from "./useTransferTargetAddress";
 
 async function eth(
@@ -198,13 +198,11 @@ async function terra(
   dispatch(setIsSending(true));
   try {
     const amountParsed = parseUnits(amount, decimals).toString();
-    const amountTaxed = await calculateTerraTax(amountParsed, asset);
     const msgs = await transferFromTerra(
       wallet.terraAddress,
       TERRA_TOKEN_BRIDGE_ADDRESS,
       asset,
       amountParsed,
-      amountTaxed,
       targetChain,
       targetAddress
     );
@@ -212,20 +210,16 @@ async function terra(
       msgs: [...msgs],
       memo: "Wormhole - Initiate Transfer",
     });
-    console.log(result);
     const info = await waitForTerraExecution(result);
-    console.log(info);
     dispatch(setTransferTx({ id: info.txhash, block: info.height }));
     enqueueSnackbar("Transaction confirmed", { variant: "success" });
     const sequence = parseSequenceFromLogTerra(info);
-    console.log(sequence);
     if (!sequence) {
       throw new Error("Sequence not found");
     }
     const emitterAddress = await getEmitterAddressTerra(
       TERRA_TOKEN_BRIDGE_ADDRESS
     );
-    console.log(emitterAddress);
     enqueueSnackbar("Fetching VAA", { variant: "info" });
     const { vaaBytes } = await getSignedVAAWithRetry(
       CHAIN_ID_TERRA,

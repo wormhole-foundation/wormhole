@@ -120,7 +120,6 @@ function EthereumMigrationLineItem({
 
   useEffect(() => {
     if (!loaded && (poolInfo.data || poolInfo.error)) {
-      console.log("mounted & finished loading");
       onLoadComplete();
       setLoaded(true);
     }
@@ -217,7 +216,7 @@ function EthereumMigrationLineItem({
                 ? "The swap pool has insufficient funds."
                 : ""
             }
-            disabled={!sufficientPoolBalance}
+            disabled={!sufficientPoolBalance || migrationIsProcessing}
           >
             Convert
           </ButtonWithLoader>

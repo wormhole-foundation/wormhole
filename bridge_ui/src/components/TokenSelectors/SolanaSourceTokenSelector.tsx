@@ -301,7 +301,6 @@ export default function SolanaSourceTokenSelector(
     tokenList.sort(sortParsedTokenAccounts);
     return tokenList;
   }, [mintAccounts?.data, metaplex.data, nft, props.accounts, getSymbol]);
-  console.log(filteredOptions);
 
   const isOptionDisabled = useMemo(() => {
     return (value: ParsedTokenAccount) => {
