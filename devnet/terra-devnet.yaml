@@ -1,18 +1,3 @@
----
-apiVersion: v1
-kind: Service
-metadata:
-  labels:
-    app: terra-lcd
-  name: terra-lcd
-spec:
-  ports:
-  - name: lcd
-    port: 1317
-    protocol: TCP
-  selector:
-    app: terra-lcd
----
 apiVersion: v1
 kind: Service
 metadata:
@@ -23,6 +8,9 @@ spec:
   ports:
   - name: rpc
     port: 26657
+    protocol: TCP
+  - name: rest
+    port: 1317
     protocol: TCP
   selector:
     app: terra-terrad
@@ -40,40 +28,6 @@ spec:
       protocol: TCP
   selector:
     app: terra-fcd
----
-apiVersion: apps/v1
-kind: StatefulSet
-metadata:
-  labels:
-    app: terra-lcd
-  name: terra-lcd
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: terra-lcd
-  template:
-    metadata:
-      labels:
-        app: terra-lcd
-    spec:
-      containers:
-      - args:
-        - terracli
-        - rest-server
-        - --laddr=tcp://0.0.0.0:1317
-        - --node=tcp://terra-terrad:26657
-        - --trust-node=true
-        - --unsafe-cors
-        image: terra-image
-        name: terra-lcd
-        ports:
-        - containerPort: 1317
-        readinessProbe:
-          tcpSocket:
-            port: 1317
-      restartPolicy: Always
-  serviceName: terra-lcd
 ---
 apiVersion: apps/v1
 kind: StatefulSet
@@ -99,6 +53,7 @@ spec:
         name: terra-terrad
         ports:
         - containerPort: 26657
+        - containerPort: 1317
         readinessProbe:
           httpGet:
             port: 26657
@@ -137,7 +92,7 @@ spec:
               value: dev
             - name: POSTGRES_DB
               value: fcd
-        - image: terramoney/fcd:0.10.8
+        - image: terramoney/fcd:bombay
           name: fcd-collector
           args:
             - collector
@@ -146,9 +101,9 @@ spec:
             - name: CHAIN_ID
               value: localterra
             - name: LCD_URI
-              value: http://terra-lcd:1317
+              value: http://terra-terrad:1317
             - name: BYPASS_URI
-              value: http://terra-lcd:1317
+              value: http://terra-terrad:1317
             - name: RPC_URI
               value: http://terra-terrad:26657
             - name: TYPEORM_CONNECTION
@@ -167,7 +122,7 @@ spec:
               value: "false"
             - name: TYPEORM_ENTITIES
               value: "src/orm/*Entity.ts"
-        - image: terramoney/fcd:0.10.8
+        - image: terramoney/fcd:bombay
           name: fcd-api
           args:
             - start
@@ -178,9 +133,9 @@ spec:
             - name: CHAIN_ID
               value: localterra
             - name: LCD_URI
-              value: http://terra-lcd:1317
+              value: http://terra-terrad:1317
             - name: BYPASS_URI
-              value: http://terra-lcd:1317
+              value: http://terra-terrad:1317
             - name: RPC_URI
               value: http://terra-terrad:26657
             - name: TYPEORM_CONNECTION

@@ -1,3 +1,3 @@
-FROM terramoney/localterra-core:0.4.9@sha256:0bf371656e2d8b13c8809835d81fcc7ca2c9fb15bcb715bfd9d5a24d863f7e64
+FROM terramoney/localterra-core:bombay@sha256:0f93576ae0716f835b2adbd5ac550ef90063b536e99c4dd682b6dd905927f261
 
-ADD config /root/.terrad/config
+ADD config /root/.terra/config
