@@ -51,6 +51,8 @@ final: prev: {
 
     explorer_port=''${EXPLORER_PORT:-8001}
     guardian_grpc_port=''${GUARDIAN_GRPC_PORT:-8080}
+    eth_jsonrpc_port=''${ETH_JSONRPC_PORT:-8545}
+    envoy_admin_port=''${ENVOY_PROXY_ADMIN_PORT:-9901}
 
     # Use Mutagen to watch local repo and sync it with remote_machine's ~/wormhole
     ${final.mutagen}/bin/mutagen sync terminate whremote-sync || true
@@ -58,7 +60,7 @@ final: prev: {
     ${final.mutagen}/bin/mutagen sync flush whremote-sync
 
     # Use larger cpu-count and memory values on the remote
-    export MINIKUBE_ARGS=''${MINIKUBE_ARGS:='--cpus=15 --memory=55g --disk-size=250gb --driver=kvm2 -p minikube-$USER'}
+    export MINIKUBE_ARGS=''${MINIKUBE_ARGS:='--cpus=30 --memory=110g --disk-size=500gb --driver=kvm2 -p minikube-$USER'}
 
     # Set up/update the remote minikube cluster with whcluster
     ssh $remote_machine \
@@ -71,6 +73,8 @@ final: prev: {
       -L $tilt_port:127.0.0.1:$tilt_port \
       -L $explorer_port:127.0.0.1:$explorer_port \
       -L $guardian_grpc_port:127.0.0.1:$guardian_grpc_port \
+      -L $eth_jsonrpc_port:127.0.0.1:$eth_jsonrpc_port \
+      -L $envoy_admin_port:127.0.0.1:$envoy_admin_port \
       $remote_machine \
       ". ~/.bash_profile; . ~/.zprofile; . ~/.profile; \
         cd wormhole && \
