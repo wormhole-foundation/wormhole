@@ -11,7 +11,7 @@ import threading
 import time
 
 
-class P2WAccEndpoint(BaseHTTPRequestHandler):
+class PythAccEndpoint(BaseHTTPRequestHandler):
     """
     A dumb endpoint to respond with a JSON containing Pyth account addresses
     """
@@ -38,7 +38,7 @@ def publisher_random_update(price_pubkey):
     Update the specified price with random values
     """
     value = random.randrange(1024)
-    confidence = 1
+    confidence = 5
     pyth_run_or_die("upd_price_val", args=[
         price_pubkey, str(value), str(confidence), "trading"
     ])
@@ -51,7 +51,7 @@ def accounts_endpoint():
     mapping/product/price account addresses
     """
     server_address = ('', 4242)
-    httpd = HTTPServer(server_address, P2WAccEndpoint)
+    httpd = HTTPServer(server_address, PythAccEndpoint)
     httpd.serve_forever()
 
 
