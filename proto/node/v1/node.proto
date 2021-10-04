@@ -14,6 +14,13 @@ service NodePrivilegedService {
   // VAA timeout window for it to reach consensus.
   //
   rpc InjectGovernanceVAA (InjectGovernanceVAARequest) returns (InjectGovernanceVAAResponse);
+
+  // FindMissingMessages will detect message sequence gaps in the local VAA store for a
+  // specific emitter chain and address. Start and end slots are the lowest and highest
+  // sequence numbers available in the local store, respectively.
+  //
+  // An error is returned if more than 1000 gaps are found.
+  rpc FindMissingMessages (FindMissingMessagesRequest) returns (FindMissingMessagesResponse);
 }
 
 message InjectGovernanceVAARequest {
@@ -88,4 +95,20 @@ message ContractUpgrade {
 
   // Address of the new program/contract.
   bytes new_contract = 2;
+}
+
+message FindMissingMessagesRequest {
+  // Emitter chain ID to iterate.
+  uint32 emitter_chain = 1;
+  // Hex-encoded (without leading 0x) emitter address to iterate.
+  string emitter_address = 2;
+}
+
+message FindMissingMessagesResponse {
+  // List of missing sequence numbers.
+  repeated string missing_messages = 1;
+
+  // Range processed
+  uint64 first_sequence = 2;
+  uint64 last_sequence = 3;
 }

@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/pflag"
 	"io/ioutil"
 	"log"
+	"strconv"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -31,9 +32,11 @@ func init() {
 	}
 
 	AdminClientInjectGuardianSetUpdateCmd.Flags().AddFlagSet(pf)
+	AdminClientFindMissingMessagesCmd.Flags().AddFlagSet(pf)
 	AdminClientListNodes.Flags().AddFlagSet(pf)
 
 	AdminCmd.AddCommand(AdminClientInjectGuardianSetUpdateCmd)
+	AdminCmd.AddCommand(AdminClientFindMissingMessagesCmd)
 	AdminCmd.AddCommand(AdminClientGovernanceVAAVerifyCmd)
 	AdminCmd.AddCommand(AdminClientListNodes)
 }
@@ -48,6 +51,13 @@ var AdminClientInjectGuardianSetUpdateCmd = &cobra.Command{
 	Short: "Inject and sign a governance VAA from a prototxt file (see docs!)",
 	Run:   runInjectGovernanceVAA,
 	Args:  cobra.ExactArgs(1),
+}
+
+var AdminClientFindMissingMessagesCmd = &cobra.Command{
+	Use:   "find-missing-messages [CHAIN_ID] [EMITTER_ADDRESS_HEX]",
+	Short: "Find sequence number gaps for the given chain ID and emitter address",
+	Run:   runFindMissingMessages,
+	Args:  cobra.ExactArgs(2),
 }
 
 func getAdminClient(ctx context.Context, addr string) (*grpc.ClientConn, error, nodev1.NodePrivilegedServiceClient) {
@@ -100,4 +110,37 @@ func runInjectGovernanceVAA(cmd *cobra.Command, args []string) {
 	}
 
 	log.Printf("VAA successfully injected with digest %s", hexutils.BytesToHex(resp.Digest))
+}
+
+func runFindMissingMessages(cmd *cobra.Command, args []string) {
+	chainID, err := strconv.Atoi(args[0])
+	if err != nil {
+		log.Fatalf("invalid chain ID: %v", err)
+	}
+	emitterAddress := args[1]
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	conn, err, c := getAdminClient(ctx, *clientSocketPath)
+	defer conn.Close()
+	if err != nil {
+		log.Fatalf("failed to get admin client: %v", err)
+	}
+
+	msg := nodev1.FindMissingMessagesRequest{
+		EmitterChain:   uint32(chainID),
+		EmitterAddress: emitterAddress,
+	}
+	resp, err := c.FindMissingMessages(ctx, &msg)
+	if err != nil {
+		log.Fatalf("failed to run find FindMissingMessages RPC: %v", err)
+	}
+
+	for _, id := range resp.MissingMessages {
+		fmt.Println(id)
+	}
+
+	log.Printf("processed %s sequences %d to %d (%d gaps)",
+		emitterAddress, resp.FirstSequence, resp.LastSequence, len(resp.MissingMessages))
 }

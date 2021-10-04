@@ -29,6 +29,7 @@ import (
 
 type nodePrivilegedService struct {
 	nodev1.UnimplementedNodePrivilegedServiceServer
+	db      *db.Database
 	injectC chan<- *vaa.VAA
 	logger  *zap.Logger
 }
@@ -158,6 +159,33 @@ func (s *nodePrivilegedService) InjectGovernanceVAA(ctx context.Context, req *no
 	return &nodev1.InjectGovernanceVAAResponse{Digest: digest.Bytes()}, nil
 }
 
+func (s *nodePrivilegedService) FindMissingMessages(ctx context.Context, req *nodev1.FindMissingMessagesRequest) (*nodev1.FindMissingMessagesResponse, error) {
+	b, err := hex.DecodeString(req.EmitterAddress)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid emitter address encoding: %v", err)
+	}
+	emitterAddress := vaa.Address{}
+	copy(emitterAddress[:], b)
+
+	ids, first, last, err := s.db.FindEmitterSequenceGap(db.VAAID{
+		EmitterChain:   vaa.ChainID(req.EmitterChain),
+		EmitterAddress: emitterAddress,
+	})
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "database operation failed: %v", err)
+	}
+
+	resp := make([]string, len(ids))
+	for i, v := range ids {
+		resp[i] = fmt.Sprintf("%d/%s/%d", req.EmitterChain, emitterAddress, v)
+	}
+	return &nodev1.FindMissingMessagesResponse{
+		MissingMessages: resp,
+		FirstSequence:   first,
+		LastSequence:    last,
+	}, nil
+}
+
 func adminServiceRunnable(logger *zap.Logger, socketPath string, injectC chan<- *vaa.VAA, db *db.Database, gst *common.GuardianSetState) (supervisor.Runnable, error) {
 	// Delete existing UNIX socket, if present.
 	fi, err := os.Stat(socketPath)
@@ -192,6 +220,7 @@ func adminServiceRunnable(logger *zap.Logger, socketPath string, injectC chan<- 
 
 	nodeService := &nodePrivilegedService{
 		injectC: injectC,
+		db:      db,
 		logger:  logger.Named("adminservice"),
 	}
 
