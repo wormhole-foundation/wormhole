@@ -28,9 +28,8 @@
 //  8           ts          timestamp of this price
 //  32          s           Signature s-component
 //  32          r           Signature r-component 
-//  1           v           Signature v-component (ignored)
 //
-//  Size: 131 bytes. 
+//  Size: 130 bytes. 
 //
 // ------------------------------------------------------------------------------------------------
 
@@ -76,6 +75,10 @@ int 16
 assert
 app_global_put
 
+byte "nonce"
+int 0
+app_global_put
+
 b success
 
 // -----------------------------------------------------
@@ -103,7 +106,7 @@ store 0
 
 load 0
 len
-int 131
+int 130
 ==
 assert
 
@@ -151,27 +154,23 @@ global LatestTimestamp
 <=
 assert 
 
-// Hash message block  
+// ed25519verify args in stack:
 
+// data (hash of message)
 load 0
 extract 0 65
 sha512_256
-store 1
 
-// push data, followed by signature S, signature R, pubkey X, pubkey Y
+// (B) signature 
 load 0
-dup
-extract 66 32
-load 0
-extract 98 32
+extract 66 64
 
-// Unpack pubkey X,Y components
+// validator-address
 byte "vaddr"
 app_global_get
-ecdsa_pk_decompress Secp256k1
 
-// Verify signature 
-ecdsa_verify Secp256k1
+// Verify signature
+ed25519verify
 int 1
 ==
 assert

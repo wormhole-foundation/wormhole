@@ -1,6 +1,9 @@
 const PricecasterLib = require('../lib/pricecaster')
 const tools = require('../tools/app-tools')
 const algosdk = require('algosdk')
+const { expect } = require('chai')
+const chai = require('chai')
+chai.use(require('chai-as-promised'))
 // Test general configuration for Betanet
 
 const validatorAddr = 'OPDM7ACAW64Q4VBWAL77Z5SHSJVZZ44V3BAN7W44U43SUXEOUENZMZYOQU'
@@ -41,10 +44,15 @@ describe('Price-Keeper contract tests', function () {
     const txId = await pclib.createApp(validatorAddr, validatorAddr, symbol, signCallback)
     const txResponse = await pclib.waitForTransactionResponse(txId)
     const appId = pclib.appIdFromCreateAppResponse(txResponse)
-    pclib.setAppId(appId);
+    pclib.setAppId(appId)
     console.log('App Id: %d', appId)
   })
-  it('x', function () {
-
+  it('Must fail to create app with bad symbol', async function () {
+    await expect(pclib.createApp(validatorAddr, validatorAddr, 'XXXXX', signCallback)).to.be.rejectedWith('Bad Request')
+  })
+  it('Must accept valid message and store data', async function () {
+    const msgb64 = pclib.createMessage(BigInt(1), 'BTC/USD         ', 48526.50, 8.99999967, signatures[validatorAddr].sk)
+    console.log(msgb64)
+    await expect(pclib.submitMessage(validatorAddr, msgb64, signCallback)).to.eventually.have.length(52)
   })
 })
