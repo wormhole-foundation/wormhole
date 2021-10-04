@@ -5,6 +5,7 @@ import { getBridgeFeeIx, ixFromRust } from "../solana";
 import { createNonce } from "../utils/createNonce";
 import { ConnectedWallet as TerraConnectedWallet } from "@terra-money/wallet-provider";
 import { MsgExecuteContract } from "@terra-money/terra.js";
+import { isNativeDenom } from "..";
 
 export async function attestFromEth(
   tokenBridgeAddress: string,
@@ -20,9 +21,10 @@ export async function attestFromEth(
 export async function attestFromTerra(
   tokenBridgeAddress: string,
   wallet: TerraConnectedWallet,
-  asset: string,
+  asset: string
 ) {
   const nonce = Math.round(Math.random() * 100000);
+  const isNativeAsset = isNativeDenom(asset);
   return await wallet.post({
     msgs: [
       new MsgExecuteContract(
@@ -30,7 +32,15 @@ export async function attestFromTerra(
         tokenBridgeAddress,
         {
           create_asset_meta: {
-            asset_address: asset,
+            asset_info: isNativeAsset
+              ? {
+                  native_token: { denom: asset },
+                }
+              : {
+                  token: {
+                    contract_addr: asset,
+                  },
+                },
             nonce: nonce,
           },
         },

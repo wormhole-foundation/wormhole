@@ -1,3 +1,4 @@
+import { isNativeDenom } from "@certusone/wormhole-sdk";
 import {
   CircularProgress,
   createStyles,
@@ -14,12 +15,19 @@ import {
 import { formatUnits } from "ethers/lib/utils";
 import React, { useCallback, useMemo, useState } from "react";
 import { createParsedTokenAccount } from "../../hooks/useGetSourceParsedTokenAccounts";
+import useTerraNativeBalances from "../../hooks/useTerraNativeBalances";
 import useTerraTokenMap, {
   TerraTokenMetadata,
 } from "../../hooks/useTerraTokenMap";
 import { ParsedTokenAccount } from "../../store/transferSlice";
 import { TERRA_HOST } from "../../utils/consts";
 import { shortenAddress } from "../../utils/solana";
+import {
+  formatNativeDenom,
+  formatTerraNativeBalance,
+  getNativeTerraIcon,
+  NATIVE_TERRA_DECIMALS,
+} from "../../utils/terra";
 import OffsetButton from "./OffsetButton";
 import RefreshButtonWrapper from "./RefreshButtonWrapper";
 
@@ -126,11 +134,25 @@ export default function TerraSourceTokenSelector(
 
   const isLoading = tokenMap?.isFetching || false;
 
+  const { balances } = useTerraNativeBalances(terraWallet?.walletAddress);
+
   const terraTokenArray = useMemo(() => {
+    const balancesItems = balances
+      ? Object.keys(balances).map(
+          (denom) =>
+            ({
+              protocol: "native",
+              symbol: formatNativeDenom(denom),
+              token: denom,
+              icon: getNativeTerraIcon(formatNativeDenom(denom)),
+              balance: balances[denom],
+            } as TerraTokenMetadata)
+        )
+      : [];
     const values = tokenMap.data?.mainnet;
-    const items = Object.values(values || {});
-    return items || [];
-  }, [tokenMap]);
+    const tokenMapItems = Object.values(values || {}) || [];
+    return [...balancesItems, ...tokenMapItems];
+  }, [balances, tokenMap]);
 
   const valueToOption = (fromProps: ParsedTokenAccount | undefined | null) => {
     if (!fromProps) return null;
@@ -154,15 +176,32 @@ export default function TerraSourceTokenSelector(
       return;
     }
     setAdvancedModeError("");
-    lookupTerraAddress(address, terraWallet).then(
-      (result) => {
-        onChange(result);
-      },
-      (error) => {
+    if (isNativeDenom(address)) {
+      if (balances && balances[address]) {
+        onChange(
+          createParsedTokenAccount(
+            terraWallet.walletAddress,
+            address,
+            balances[address],
+            NATIVE_TERRA_DECIMALS,
+            Number(formatUnits(balances[address], NATIVE_TERRA_DECIMALS)),
+            formatUnits(balances[address], NATIVE_TERRA_DECIMALS),
+            formatNativeDenom(address)
+          )
+        );
+      } else {
         setAdvancedModeError("Unable to retrieve that address.");
       }
-    );
-    setAdvancedModeError("");
+    } else {
+      lookupTerraAddress(address, terraWallet).then(
+        (result) => {
+          onChange(result);
+        },
+        (error) => {
+          setAdvancedModeError("Unable to retrieve that address.");
+        }
+      );
+    }
   };
 
   const filterConfig = createFilterOptions({
@@ -191,6 +230,11 @@ export default function TerraSourceTokenSelector(
         </div>
         <div>
           <Typography variant="body1">{option.token}</Typography>
+          {option.balance ? (
+            <Typography variant="h6">
+              {formatTerraNativeBalance(option.balance)}
+            </Typography>
+          ) : null}
         </div>
       </div>
     );
