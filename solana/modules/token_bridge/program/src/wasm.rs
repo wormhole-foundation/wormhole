@@ -1,6 +1,7 @@
 use crate::{
     accounts::{
         AuthoritySigner,
+        CustodySigner,
         EmitterAccount,
         WrappedDerivationData,
         WrappedMetaDerivationData,
@@ -389,6 +390,14 @@ pub fn emitter_address(program_id: String) -> Vec<u8> {
     let emitter = EmitterAccount::key(None, &program_id);
 
     emitter.to_bytes().to_vec()
+}
+
+#[wasm_bindgen]
+pub fn custody_signer(program_id: String) -> Vec<u8> {
+    let program_id = Pubkey::from_str(program_id.as_str()).unwrap();
+    let custody_signer = CustodySigner::key(None, &program_id);
+
+    custody_signer.to_bytes().to_vec()
 }
 
 #[wasm_bindgen]
