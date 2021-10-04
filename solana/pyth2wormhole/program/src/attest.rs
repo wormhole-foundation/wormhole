@@ -40,11 +40,14 @@ use solitaire::{
     Peel,
     Result as SoliResult,
     Seeded,
+    invoke_seeded,
     Signer,
     SolitaireError,
     Sysvar,
     ToInstruction,
 };
+
+pub type P2WEmitter<'b> = Derive<Info<'b>, "p2w-emitter">;
 
 #[derive(FromAccounts, ToInstruction)]
 pub struct Attest<'b> {
@@ -67,7 +70,7 @@ pub struct Attest<'b> {
     pub wh_message: Signer<Mut<Info<'b>>>,
 
     /// Emitter of the VAA
-    pub wh_emitter: Info<'b>,
+    pub wh_emitter: P2WEmitter<'b>,
 
     /// Tracker for the emitter sequence
     pub wh_sequence: Mut<Info<'b>>,
@@ -163,7 +166,8 @@ pub fn attest(ctx: &ExecutionContext, accs: &mut Attest, data: AttestData) -> So
     );
 
     trace!("Before cross-call");
-    invoke(&ix, ctx.accounts)?;
+
+    invoke_seeded(&ix, ctx, &accs.wh_emitter, None)?;
 
     Ok(())
 }

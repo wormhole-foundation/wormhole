@@ -2067,6 +2067,9 @@ dependencies = [
  "bridge",
  "pyth-client",
  "rocksalt",
+ "serde",
+ "serde_derive",
+ "serde_json",
  "solana-program",
  "solitaire",
  "solitaire-client",
@@ -2087,6 +2090,7 @@ dependencies = [
  "solana-client",
  "solana-program",
  "solana-sdk",
+ "solana-transaction-status",
  "solitaire",
  "solitaire-client",
 ]

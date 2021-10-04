@@ -1,8 +1,14 @@
 pub mod cli;
 
-use borsh::{BorshDeserialize, BorshSerialize};
+use borsh::{
+    BorshDeserialize,
+    BorshSerialize,
+};
 use clap::Clap;
-use log::{LevelFilter, error};
+use log::{
+    warn,
+    LevelFilter,
+};
 use solana_client::rpc_client::RpcClient;
 use solana_program::{
     hash::Hash,
@@ -22,6 +28,7 @@ use solana_sdk::{
     signature::read_keypair_file,
     transaction::Transaction,
 };
+use solana_transaction_status::UiTransactionEncoding;
 use solitaire::{
     processors::seeded::Seeded,
     AccountState,
@@ -52,6 +59,7 @@ use bridge::{
 };
 
 use pyth2wormhole::{
+    attest::P2WEmitter,
     config::P2WConfigAccount,
     initialize::InitializeAccounts,
     set_config::SetConfigAccounts,
@@ -61,6 +69,8 @@ use pyth2wormhole::{
 };
 
 pub type ErrBox = Box<dyn std::error::Error>;
+
+pub const SEQNO_PREFIX: &'static str = "Program log: Sequence: ";
 
 fn main() -> Result<(), ErrBox> {
     let cli = Cli::parse();
@@ -87,7 +97,7 @@ fn main() -> Result<(), ErrBox> {
             recent_blockhash,
         )?,
         Action::SetConfig {
-            owner,
+            ref owner,
             new_owner_addr,
             new_wh_prog,
             new_pyth_owner_addr,
@@ -115,7 +125,23 @@ fn main() -> Result<(), ErrBox> {
         )?,
     };
 
-    rpc_client.send_and_confirm_transaction_with_spinner(&tx)?;
+    let sig = rpc_client.send_and_confirm_transaction_with_spinner(&tx)?;
+
+    // To complete attestation, retrieve sequence number from transaction logs
+    if let Action::Attest { .. } = cli.action {
+        let this_tx = rpc_client.get_transaction(&sig, UiTransactionEncoding::Json)?;
+
+        if let Some(logs) = this_tx.transaction.meta.and_then(|meta| meta.log_messages) {
+	    for log in logs {
+		if log.starts_with(SEQNO_PREFIX) {
+		    let seqno = log.replace(SEQNO_PREFIX, "");
+		    println!("Sequence number: {}", seqno);
+		}
+	    }
+        } else {
+            warn!("Could not get program logs for attestation");
+        }
+    }
 
     Ok(())
 }
@@ -203,17 +229,19 @@ fn handle_attest(
     nonce: u32,
     recent_blockhash: Hash,
 ) -> Result<Transaction, ErrBox> {
-    let emitter_keypair = Keypair::new();
     let message_keypair = Keypair::new();
+
+    let emitter_addr = P2WEmitter::key(None, &p2w_addr);
 
     let p2w_config_addr = P2WConfigAccount::<{ AccountState::Initialized }>::key(None, &p2w_addr);
 
-    let config = Pyth2WormholeConfig::try_from_slice(rpc.get_account_data(&p2w_config_addr)?.as_slice())?;
+    let config =
+        Pyth2WormholeConfig::try_from_slice(rpc.get_account_data(&p2w_config_addr)?.as_slice())?;
 
     // Derive dynamic seeded accounts
     let seq_addr = Sequence::key(
         &SequenceDerivationData {
-            emitter_key: &emitter_keypair.pubkey(),
+            emitter_key: &emitter_addr,
         },
         &config.wh_prog,
     );
@@ -225,10 +253,7 @@ fn handle_attest(
         // system_program
         AccountMeta::new_readonly(system_program::id(), false),
         // config
-        AccountMeta::new_readonly(
-	    p2w_config_addr,
-            false,
-        ),
+        AccountMeta::new_readonly(p2w_config_addr, false),
         // pyth_product
         AccountMeta::new_readonly(product_addr, false),
         // pyth_price
@@ -245,7 +270,7 @@ fn handle_attest(
         // wh_message
         AccountMeta::new(message_keypair.pubkey(), true),
         // wh_emitter
-        AccountMeta::new_readonly(emitter_keypair.pubkey(), true),
+        AccountMeta::new_readonly(emitter_addr, false),
         // wh_sequence
         AccountMeta::new(seq_addr, false),
         // wh_fee_collector
@@ -264,7 +289,7 @@ fn handle_attest(
     let ix = Instruction::new_with_bytes(p2w_addr, ix_data.try_to_vec()?.as_slice(), acc_metas);
 
     // Signers that use off-chain keypairs
-    let signer_keypairs = vec![&payer, &message_keypair, &emitter_keypair];
+    let signer_keypairs = vec![&payer, &message_keypair];
 
     let tx_signed = Transaction::new_signed_with_payer::<Vec<&Keypair>>(
         &[ix],
