@@ -73,5 +73,7 @@ export function chunks<T>(array: T[], size: number): T[][] {
 }
 
 export function shortenAddress(address: string) {
-  return `${address.slice(0, 4)}...${address.slice(-4)}`;
+  return address.length > 10
+    ? `${address.slice(0, 4)}...${address.slice(-4)}`
+    : address;
 }

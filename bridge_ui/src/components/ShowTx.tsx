@@ -2,6 +2,7 @@ import {
   ChainId,
   CHAIN_ID_ETH,
   CHAIN_ID_SOLANA,
+  CHAIN_ID_TERRA,
 } from "@certusone/wormhole-sdk";
 import { Button, makeStyles, Typography } from "@material-ui/core";
 import { Transaction } from "../store/transferSlice";
@@ -28,7 +29,8 @@ export default function ShowTx({
   const showExplorerLink =
     CLUSTER === "testnet" ||
     CLUSTER === "mainnet" ||
-    (CLUSTER === "devnet" && chainId === CHAIN_ID_SOLANA);
+    (CLUSTER === "devnet" &&
+      (chainId === CHAIN_ID_SOLANA || chainId === CHAIN_ID_TERRA));
   const explorerAddress =
     chainId === CHAIN_ID_ETH
       ? `https://${CLUSTER === "testnet" ? "goerli." : ""}etherscan.io/tx/${
@@ -42,8 +44,21 @@ export default function ShowTx({
             ? "?cluster=custom&customUrl=http%3A%2F%2Flocalhost%3A8899"
             : ""
         }`
+      : chainId === CHAIN_ID_TERRA
+      ? `https://finder.terra.money/${
+          CLUSTER === "devnet"
+            ? "localterra"
+            : CLUSTER === "testnet"
+            ? "bombay-12"
+            : "columbus-5"
+        }/tx/${tx?.id}`
       : undefined;
-  const explorerName = chainId === CHAIN_ID_ETH ? "Etherscan" : "Explorer";
+  const explorerName =
+    chainId === CHAIN_ID_ETH
+      ? "Etherscan"
+      : chainId === CHAIN_ID_TERRA
+      ? "Finder"
+      : "Explorer";
 
   return (
     <div className={classes.tx}>

@@ -2,6 +2,7 @@ import {
   ChainId,
   CHAIN_ID_ETH,
   CHAIN_ID_SOLANA,
+  CHAIN_ID_TERRA,
 } from "@certusone/wormhole-sdk";
 import { Button, makeStyles, Tooltip, Typography } from "@material-ui/core";
 import { FileCopy, OpenInNew } from "@material-ui/icons";
@@ -79,7 +80,6 @@ export default function SmartAddress({
     : tokenName
     ? tokenName
     : "";
-  //TODO terra
   const explorerAddress = isNative
     ? null
     : chainId === CHAIN_ID_ETH
@@ -94,8 +94,21 @@ export default function SmartAddress({
           ? "?cluster=custom&customUrl=http%3A%2F%2Flocalhost%3A8899"
           : ""
       }`
+    : chainId === CHAIN_ID_TERRA
+    ? `https://finder.terra.money/${
+        CLUSTER === "devnet"
+          ? "localterra"
+          : CLUSTER === "testnet"
+          ? "bombay-12"
+          : "columbus-5"
+      }/address/${useableAddress}`
     : undefined;
-  const explorerName = chainId === CHAIN_ID_ETH ? "Etherscan" : "Explorer";
+  const explorerName =
+    chainId === CHAIN_ID_ETH
+      ? "Etherscan"
+      : chainId === CHAIN_ID_TERRA
+      ? "Finder"
+      : "Explorer";
 
   const copyToClipboard = useCopyToClipboard(useableAddress);
 
