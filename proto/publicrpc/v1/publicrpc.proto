@@ -22,7 +22,7 @@ message MessageID {
   // Hex-encoded (without leading 0x) emitter address.
   string emitter_address = 2;
   // Sequence number for (emitter_chain, emitter_address).
-  int64 sequence = 3;
+  uint64 sequence = 3;
 }
 
 // PublicRPCService service exposes endpoints to be consumed externally; GUIs, historical record keeping, etc.
