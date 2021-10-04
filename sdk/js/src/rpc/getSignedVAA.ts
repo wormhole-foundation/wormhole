@@ -8,9 +8,10 @@ export async function getSignedVAA(
   host: string,
   emitterChain: ChainId,
   emitterAddress: string,
-  sequence: string
+  sequence: string,
+  extraGrpcOpts = {}
 ) {
-  const rpc = new GrpcWebImpl(host, {});
+  const rpc = new GrpcWebImpl(host, extraGrpcOpts);
   const api = new PublicRPCServiceClientImpl(rpc);
   return await api.GetSignedVAA({
     messageId: {
