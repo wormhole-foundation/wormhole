@@ -81,7 +81,7 @@ func (a SignatureData) String() string {
 
 func (c ChainID) String() string {
 	switch c {
-	case 0:
+	case ChainIDUnset:
 		return "unset"
 	case ChainIDSolana:
 		return "solana"
@@ -97,6 +97,7 @@ func (c ChainID) String() string {
 }
 
 const (
+	ChainIDUnset ChainID = 0
 	// ChainIDSolana is the ChainID of Solana
 	ChainIDSolana ChainID = 1
 	// ChainIDEthereum is the ChainID of Ethereum
