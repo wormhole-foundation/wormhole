@@ -193,14 +193,18 @@ fn deposit_tokens<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
 ) -> StdResult<HandleResponse> {
-    for fund in env.message.sent_funds {
-        let deposit_key = format!("{}:{}", env.message.sender, fund.denom);
-        bridge_deposit(&mut deps.storage).update(deposit_key.as_bytes(), |amount: Option<Uint128>| {
-            match amount {
-                Some(v) => Ok(v + fund.amount),
-                None => Ok(fund.amount)
-            }
-        })?;
+    for coin in env.message.sent_funds {
+        let asset = Asset {
+            amount: coin.amount.clone(),
+            info: AssetInfo::NativeToken {
+                denom: coin.denom.clone(),
+            },
+        };
+        let deducted_amount = asset.deduct_tax(&deps)?.amount;
+        let deposit_key = format!("{}:{}", env.message.sender, coin.denom);
+        bridge_deposit(&mut deps.storage).update(deposit_key.as_bytes(), |amount: Option<Uint128>|
+            Ok(amount.unwrap_or(Uint128(0)) + deducted_amount)
+        )?;
     }
 
     Ok(HandleResponse {

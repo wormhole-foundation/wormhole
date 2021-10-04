@@ -58,7 +58,7 @@ import {
 import { getSignedVAAWithRetry } from "../utils/getSignedVAAWithRetry";
 import parseError from "../utils/parseError";
 import { signSendAndConfirm } from "../utils/solana";
-import { waitForTerraExecution } from "../utils/terra";
+import { waitForTerraExecution, calculateTerraTax } from "../utils/terra";
 import useTransferTargetAddressHex from "./useTransferTargetAddress";
 
 async function eth(
@@ -198,11 +198,13 @@ async function terra(
   dispatch(setIsSending(true));
   try {
     const amountParsed = parseUnits(amount, decimals).toString();
+    const amountTaxed = await calculateTerraTax(amountParsed, asset);
     const msgs = await transferFromTerra(
       wallet.terraAddress,
       TERRA_TOKEN_BRIDGE_ADDRESS,
       asset,
       amountParsed,
+      amountTaxed,
       targetChain,
       targetAddress
     );

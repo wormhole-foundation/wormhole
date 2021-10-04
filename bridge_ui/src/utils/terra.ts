@@ -1,6 +1,6 @@
 import { isNativeTerra } from "@certusone/wormhole-sdk";
 import { formatUnits } from "@ethersproject/units";
-import { LCDClient } from "@terra-money/terra.js";
+import { LCDClient, Dec, Int } from "@terra-money/terra.js";
 import { TxResult } from "@terra-money/wallet-provider";
 // import { TerraTokenMetadata } from "../hooks/useTerraTokenMap";
 import { TERRA_HOST } from "./consts";
@@ -36,4 +36,25 @@ export async function waitForTerraExecution(transaction: TxResult) {
     }
   }
   return info;
+}
+
+export async function calculateTerraTax(
+  amount: string,
+  denom: string
+): Promise<string> {
+  try {
+    // Fetch terra tax state from current chain height.
+    const lcd = new LCDClient(TERRA_HOST);
+    const taxRate = await lcd.treasury.taxRate();
+    const taxCap = await lcd.treasury.taxCap(denom);
+
+    // Calculate tax rate for the current denomination.
+    const untaxed = new Int(amount);
+    const tax = untaxed.toDec().mul(taxRate);
+    const cap = (taxCap.amount as Int).toDec();
+    const min = new Dec((tax.constructor as any).min(tax, cap));
+    return untaxed.sub(min.toInt()).toString();
+  } catch(e) {
+    return "0";
+  }
 }
