@@ -98,6 +98,14 @@ export async function transferFromTerra(
           walletAddress,
           tokenBridgeAddress,
           {
+            deposit_tokens: {},
+          },
+          { [tokenAddress]: amount }
+        ),
+        new MsgExecuteContract(
+          walletAddress,
+          tokenBridgeAddress,
+          {
             initiate_transfer: {
               asset: {
                 amount: amount,
@@ -115,7 +123,6 @@ export async function transferFromTerra(
           },
           {
             uluna: BigNumber.from("10000")
-              .add(BigNumber.from(amount))
               .toString(),
           }
         ),

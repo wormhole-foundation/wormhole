@@ -23,7 +23,7 @@ pub enum HandleMsg {
         asset_id: Binary,
     },
 
-    DepositTokens,
+    DepositTokens {},
     WithdrawTokens {
         asset: AssetInfo,
     },

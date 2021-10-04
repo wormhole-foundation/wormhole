@@ -179,7 +179,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             fee,
             nonce,
         ),
-        HandleMsg::DepositTokens => deposit_tokens(deps, env),
+        HandleMsg::DepositTokens {} => deposit_tokens(deps, env),
         HandleMsg::WithdrawTokens { asset } => withdraw_tokens(deps, env, asset),
         HandleMsg::SubmitVaa { data } => submit_vaa(deps, env, &data),
         HandleMsg::CreateAssetMeta {
