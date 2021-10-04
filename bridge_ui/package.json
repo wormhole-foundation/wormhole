@@ -24,7 +24,7 @@
     "@solana/wallet-adapter-wallets": "^0.9.0",
     "@solana/wallet-base": "^0.0.1",
     "@solana/web3.js": "^1.24.1",
-    "@terra-money/wallet-provider": "^1.4.0-alpha.1",
+    "@terra-money/wallet-provider": "^2.2.0",
     "axios": "^0.21.1",
     "bech32": "^1.1.4",
     "bn.js": "^5.1.3",
