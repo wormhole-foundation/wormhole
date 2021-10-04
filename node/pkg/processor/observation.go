@@ -59,7 +59,8 @@ func (p *Processor) handleObservation(ctx context.Context, m *gossipv1.SignedObs
 		zap.String("addr", hex.EncodeToString(m.Addr)),
 		zap.String("txhash", hex.EncodeToString(m.TxHash)),
 		zap.String("txhash_b58", base58.Encode(m.TxHash)),
-		)
+		zap.String("message_id", m.MessageId),
+	)
 
 	observationsReceivedTotal.Inc()
 

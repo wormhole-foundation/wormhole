@@ -81,6 +81,9 @@ message SignedObservation {
   // Transaction hash this observation was made from.
   // Optional, included for observability.
   bytes tx_hash = 4;
+  // Message ID (chain/emitter/seq) for this observation.
+  // Optional, included for observability.
+  string message_id = 5;
 }
 
 // A SignedVAAWithQuorum message is sent by nodes whenever one of the VAAs they observed

@@ -33,6 +33,7 @@ func (p *Processor) broadcastSignature(v *vaa.VAA, signature []byte, txhash []by
 		Hash:      digest.Bytes(),
 		Signature: signature,
 		TxHash:    txhash,
+		MessageId: v.MessageID(),
 	}
 
 	w := gossipv1.GossipMessage{Message: &gossipv1.GossipMessage_SignedObservation{SignedObservation: &obsv}}
