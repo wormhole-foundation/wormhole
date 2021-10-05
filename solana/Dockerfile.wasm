@@ -69,6 +69,9 @@ COPY --from=build /usr/src/bridge/modules/token_bridge/program/bundler sdk/js/sr
 COPY --from=build /usr/src/bridge/migration/bundler sdk/js/src/solana/migration
 COPY --from=build /usr/src/bridge/modules/nft_bridge/program/bundler sdk/js/src/solana/nft
 COPY --from=build /usr/src/bridge/pyth2wormhole/program/bundler third_party/pyth/p2w-sdk/src/solana/p2w-core
+COPY --from=build /usr/src/bridge/bridge/program/bundler explorer/wasm/core
+COPY --from=build /usr/src/bridge/modules/token_bridge/program/bundler explorer/wasm/token
+COPY --from=build /usr/src/bridge/modules/nft_bridge/program/bundler explorer/wasm/nft
 
 COPY --from=build /usr/src/bridge/bridge/program/nodejs clients/solana/pkg
 COPY --from=build /usr/src/bridge/bridge/program/nodejs clients/token_bridge/pkg/core

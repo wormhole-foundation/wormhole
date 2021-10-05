@@ -24,22 +24,38 @@ export const onCreateWebpackConfig = function addPathMapping({
     devtool: 'eval-source-map',
   });
 
+  const wasmExtensionRegExp = /\.wasm$/;
+
   actions.setWebpackConfig({
     module: {
       rules: [
         {
-          test: /\.wasm$/,
-          use: [
-            'wasm-loader'
-          ],
+          test: wasmExtensionRegExp,
+          include: /node_modules\/(bridge|token-bridge|nft)/,
+          use: ['wasm-loader'],
           type: "javascript/auto"
         }
       ]
     }
   });
-  const config = getConfig();
-  config.resolve.extensions.push(".wasm");
-  actions.replaceWebpackConfig(config);
+
+  if (stage === 'build-html') {
+    // exclude wasm from SSR
+    actions.setWebpackConfig({
+      externals: getConfig().externals.concat(function (context, request, callback) {
+        const regex = wasmExtensionRegExp;
+        // exclude wasm from being bundled in SSR html, it will be loaded async at runtime.
+        if (regex.test(request)) {
+          return callback(null, 'commonjs ' + request); // use commonjs for wasm modules
+        }
+        const bridge = new RegExp('/wormhole-sdk/')
+        if (bridge.test(request)) {
+          return callback(null, 'commonjs ' + request);
+        }
+        callback();
+      })
+    });
+  }
 
   // Attempt to improve webpack vender code splitting
   if (stage === 'build-javascript') {

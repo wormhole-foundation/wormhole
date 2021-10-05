@@ -3,14 +3,19 @@ import { Button, Spin, Typography } from 'antd'
 const { Title } = Typography
 import { useIntl, FormattedMessage } from 'gatsby-plugin-intl'
 import { BigTableMessage } from '~/components/ExplorerQuery/ExplorerQuery';
-// import { WasmTest } from '~/components/wasm'
+import { DecodePayload } from '~/components/Payload'
 import ReactTimeAgo from 'react-time-ago'
-import { buttonStylesLg, titleStyles } from '~/styles';
+import { titleStyles } from '~/styles';
+import { CloseOutlined, ReloadOutlined } from '@ant-design/icons';
+import { Link } from 'gatsby';
+import { contractNameFormatter, nativeExplorerUri } from '../ExplorerStats/utils';
+import { OutboundLink } from 'gatsby-plugin-google-gtag';
 
 interface SummaryProps {
-    emitterChain: number,
-    emitterAddress: string,
-    sequence: string
+    emitterChain?: number,
+    emitterAddress?: string,
+    sequence?: string
+    txId?: string
     message: BigTableMessage
     polling?: boolean
     lastFetched?: number
@@ -20,10 +25,7 @@ interface SummaryProps {
 const Summary = (props: SummaryProps) => {
 
     const intl = useIntl()
-
-    useEffect(() => {
-        // TODO: decode the payload. if applicable lookup other relevant messages.
-    }, [props])
+    const { SignedVAA, ...message } = props.message
 
     return (
         <>
@@ -36,11 +38,42 @@ const Summary = (props: SummaryProps) => {
                         <Title level={2} style={titleStyles}><FormattedMessage id="explorer.listening" /></Title>
                     </>
                 ) : (
-                    <Button style={buttonStylesLg} onClick={props.refetch} size="large"><FormattedMessage id="explorer.refresh" /></Button>
+                    <div>
+                        <Button onClick={props.refetch} icon={<ReloadOutlined />} size="large" shape="round" >refresh</Button>
+                        <Link to={`/${intl.locale}/explorer`} style={{ marginLeft: 8 }}>
+                            <Button icon={<CloseOutlined />} size='large' shape="round">clear</Button>
+                        </Link>
+                    </div>
                 )}
             </div>
-            <pre>{JSON.stringify(props.message, undefined, 2)}</pre>
-            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <div className="styled-scrollbar">
+                <pre
+                    style={{ fontSize: 14, marginBottom: 20 }}
+                >{JSON.stringify(message, undefined, 2)}</pre>
+            </div>
+            <DecodePayload
+                base64VAA={props.message.SignedVAABytes}
+                emitterChainName={props.message.EmitterChain}
+                emitterAddress={props.message.EmitterAddress}
+                showPayload={true}
+            />
+            <div className="styled-scrollbar">
+                <Title level={3} style={titleStyles}>Signed VAA</Title>
+                <pre
+                    style={{ fontSize: 12, marginBottom: 20 }}
+                >{JSON.stringify(SignedVAA, undefined, 2)}</pre>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+
+                {props.emitterChain && props.emitterAddress && nativeExplorerUri(props.emitterChain, props.emitterAddress) ?
+                    <OutboundLink
+                        href={nativeExplorerUri(props.emitterChain, props.emitterAddress)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ fontSize: 16 }}
+                    >
+                        {'View "'}{contractNameFormatter(props.emitterAddress, props.emitterChain)}{'" emitter contract on native explorer'}
+                    </OutboundLink> : <div />}
 
                 {props.lastFetched ? (
                     <span>
@@ -50,7 +83,6 @@ const Summary = (props: SummaryProps) => {
 
                 ) : null}
             </div>
-            {/* <WasmTest base64VAA={props.message.SignedVAA} /> */}
         </>
     )
 }

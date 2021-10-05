@@ -18,6 +18,9 @@ export default {
   'menu-inline-submenu-bg': '@layout-body-background',
   'menu-popup-bg': '@layout-body-background',
 
+  // shadow when hovering a card
+  'card-shadow': '0 0px 0px rgba(0, 239, 216, 0.80), 0 5px 32px 0 rgba(0, 239, 216, 0.60), 0 4px 12px 4px rgba(0, 239, 216, 0.4)',
+
   // table styles
   'table-header-bg': '#212130',
   'table-row-hover-bg': '#212130',

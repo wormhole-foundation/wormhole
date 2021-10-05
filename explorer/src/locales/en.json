@@ -85,6 +85,8 @@
     "heartbeat": "Heartbeat #",
     "blockHeight": "Block height",
     "address": "Address",
+    "contractAddress": "Contract Address",
+    "errorCount": "errorCount",
     "network": "Network",
     "networks": "Networks",
     "version": "Version",
@@ -100,13 +102,34 @@
     "emitterAddress": "Emitter Address",
     "emitterAddressHelp": "The contract you interacted with",
     "sequence": "Sequence number",
-    "sequenceHelp": "The sequence number from your contract interaction",
+    "sequenceHelp": "The sequence number from the contract interaction",
+    "txId": "Transaction ID",
+    "txIdHelp": "The transaction identifier from the on-chain interaction",
     "messageSummary": "Message Summary",
     "failedFetching": "Something went wrong. Please check your data and try again.",
     "notFound": "Nothing found for that query. Please check your data and try again.",
     "listening": "Listening for Updates",
     "lastUpdated": "Last updated",
-    "refresh": "refresh"
+    "refresh": "refresh",
+    "clickToView": "View chain",
+    "comingSoon": "Coming soon",
+    "stats": {
+      "heading": "Recent activity",
+      "refresh": "refresh",
+      "failedFetchingRecent": "Something went wrong. Please refresh.",
+      "failedFetchingTotals": "Something went wrong. Please refresh."
+    },
+    "queryByMessageId": "search by message data",
+    "queryByTxId": "search by transaction ID",
+    "payloads": {
+      "tokenTransfer": "Token Transfer",
+      "nftTransfer": "NFT Transfer",
+      "assetMeta": "AssetMeta",
+      "governance": "Governance",
+      "pyth": "Pyth Data",
+      "unknown": "unknown",
+      "unknownMessage": "unknown"
+    }
   },
   "partners": {
     "title": "Wormhole Partners",
@@ -115,5 +138,11 @@
   "documentation": {
     "title": "Wormhole Documentation",
     "description": "Wormhole technical reference"
+  },
+  "networks": {
+    "network": "network",
+    "devnet": "devent",
+    "testnet": "testnet",
+    "mainnet": "mainnet"
   }
 }

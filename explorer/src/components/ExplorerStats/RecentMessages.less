@@ -1,0 +1,17 @@
+// import theme to get antd less variables + overrides from AntdTheme.js
+@import "~antd/lib/style/themes/dark";
+
+
+.highlight-new-row {
+    animation: highlight-row 1500ms ease-out;
+}
+@keyframes highlight-row {
+  0% {
+    color: black;
+    background: darken(@primary-color, 5%);
+  }
+  100% {
+    color: @text-color;
+    background: @body-background;
+  }
+}

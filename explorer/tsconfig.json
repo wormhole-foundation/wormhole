@@ -1,8 +1,8 @@
 {
   "compileOnSave": false,
   "compilerOptions": {
-    "target": "es5",
-    "module": "es6",
+    "target": "es2020",
+    "module": "es2020",
     "types": [
       "node",
       "jest",
@@ -36,7 +36,8 @@
     "baseUrl": "./",
     "paths": {
       "~/*": [
-        "src/*"
+        "src/*",
+        "wasm/*"
       ],
     }
   },

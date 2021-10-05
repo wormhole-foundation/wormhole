@@ -1,0 +1,15 @@
+// import theme to get antd less variables + overrides from AntdTheme.js
+@import "~antd/lib/style/themes/dark";
+
+
+.highlight-new-val {
+    animation: highlight 2000ms ease-out;
+}
+@keyframes highlight {
+  0% {
+    color: @primary-color;
+  }
+  100% {
+    color: @text-color;
+  }
+}

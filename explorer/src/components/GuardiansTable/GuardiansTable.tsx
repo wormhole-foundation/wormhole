@@ -11,16 +11,18 @@ import { ReactComponent as BinanceChainIcon } from '~/icons/binancechain.svg';
 import { ReactComponent as EthereumIcon } from '~/icons/ethereum.svg';
 import { ReactComponent as SolanaIcon } from '~/icons/solana.svg';
 import { ReactComponent as TerraIcon } from '~/icons/terra.svg';
+import { ReactComponent as PolygonIcon } from '~/icons/polygon.svg'
 
 import './GuardiansTable.less'
+import { ChainID } from '~/utils/misc/constants';
 
-const networkEnums = ['', 'Solana', 'Ethereum', 'Terra', 'BSC']
 const networkIcons = [
   <></>,
   <SolanaIcon key="1" style={{ height: 18, maxWidth: 18, margin: '0 4px' }} />,
   <EthereumIcon key="2" style={{ height: 24, margin: '0 4px' }} />,
   <TerraIcon key="3" style={{ height: 18, margin: '0 4px' }} />,
   <BinanceChainIcon key="4" style={{ height: 18, margin: '0 4px' }} />,
+  <PolygonIcon key="5" style={{ height: 18, margin: '0 4px' }} />,
 ]
 
 const expandedRowRender = (intl: IntlShape) => (item: Heartbeat) => {
@@ -28,10 +30,11 @@ const expandedRowRender = (intl: IntlShape) => (item: Heartbeat) => {
     { title: '', dataIndex: 'id', key: 'icon', render: (id: number) => networkIcons[id] },
     {
       title: intl.formatMessage({ id: 'network.network' }), dataIndex: 'id', key: 'id', responsive: ['md'],
-      render: (id: number) => networkEnums[id]
+      render: (id: number) => ChainID[id]
     },
-    { title: intl.formatMessage({ id: 'network.address' }), dataIndex: 'bridgeAddress', key: 'bridgeAddress' },
-    { title: intl.formatMessage({ id: 'network.blockHeight' }), dataIndex: 'height', key: 'height', responsive: ['md'], }
+    { title: intl.formatMessage({ id: 'network.contractAddress' }), dataIndex: 'contractAddress', key: 'contractAddress' },
+    { title: intl.formatMessage({ id: 'network.blockHeight' }), dataIndex: 'height', key: 'height', responsive: ['md'], },
+    { title: intl.formatMessage({ id: 'network.errorCount' }), dataIndex: 'errorCount', key: 'errorCount', responsive: ['lg'], },
   ];
 
   return (

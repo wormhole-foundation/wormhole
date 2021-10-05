@@ -45,7 +45,36 @@ not including links to the current domain */
         padding: 0px 16px 0px 16px;
     }
 }
+.wider-responsive-padding {
+    // small left padding for mobile, more left padding for larger screens.
+    @media only screen and (min-width: 767px) {
+        padding: 0px 16px 0px 80px;
+    }
+    @media only screen and (max-width: 767px) {
+        padding: 0px 16px 0px 16px;
+    }
+}
 
 .background-mask-from-left {
     background: linear-gradient(to right, @body-background, rgba(@body-background, 0));
+}
+
+.hover-z-index:hover {
+    z-index: 10;
+}
+
+// scroll bar styles for wide <pre></pre> elements (ExplorerSummary)
+.styled-scrollbar{
+    pre::-webkit-scrollbar {
+      width: 1em;
+    }
+
+    pre::-webkit-scrollbar-track {
+      box-shadow: inset 0 0 6px darken(@primary-color, 20%);
+    }
+
+    pre::-webkit-scrollbar-thumb {
+      background-color: darken(@primary-color, 12%);
+      outline: 1px solid darken(@primary-color, 10%);
+    }
 }
