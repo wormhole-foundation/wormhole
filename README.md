@@ -2,6 +2,11 @@
 
 This service consumes prices from Pyth and feeds a TEAL program with messages containing signed price data. The program code validates signature and message validity, and if successful, subsequently stores the price information in the global application information for other contracts to retrieve.
 
+## System Overview
+
+![PRICECASTER](https://user-images.githubusercontent.com/4740613/136037362-bed34a49-6b83-42e1-821d-1df3d9a41477.png)
+
+
 ## Backend Configuration
 
 The fetcher will get information as soon as Pyth reports a price-change. Since publishing to the pricekeeper contract will be much slower, a buffered is approach is taken where a last set of prices is kept.
