@@ -3,6 +3,7 @@ package processor
 import (
 	"context"
 	"crypto/ecdsa"
+	"github.com/certusone/wormhole/node/pkg/notify/discord"
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/db"
@@ -97,6 +98,8 @@ type Processor struct {
 	ourAddr ethcommon.Address
 	// cleanup triggers periodic state cleanup
 	cleanup *time.Ticker
+
+	notifier *discord.DiscordNotifier
 }
 
 func NewProcessor(
@@ -116,6 +119,7 @@ func NewProcessor(
 	terraLCD string,
 	terraContract string,
 	attestationEvents *reporter.AttestationEventReporter,
+	notifier *discord.DiscordNotifier,
 ) *Processor {
 
 	return &Processor{
@@ -136,6 +140,8 @@ func NewProcessor(
 		terraContract: terraContract,
 
 		attestationEvents: attestationEvents,
+
+		notifier: notifier,
 
 		logger:  supervisor.Logger(ctx),
 		state:   &aggregationState{vaaMap{}},

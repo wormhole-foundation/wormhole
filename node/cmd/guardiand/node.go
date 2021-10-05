@@ -3,6 +3,7 @@ package guardiand
 import (
 	"context"
 	"fmt"
+	"github.com/certusone/wormhole/node/pkg/notify/discord"
 	"log"
 	"net/http"
 	_ "net/http/pprof"
@@ -85,6 +86,9 @@ var (
 
 	disableHeartbeatVerify *bool
 
+	discordToken   *string
+	discordChannel *string
+
 	bigTablePersistenceEnabled *bool
 	bigTableGCPProject         *string
 	bigTableInstanceName       *string
@@ -136,6 +140,9 @@ func init() {
 
 	disableHeartbeatVerify = NodeCmd.Flags().Bool("disableHeartbeatVerify", false,
 		"Disable heartbeat signature verification (useful during network startup)")
+
+	discordToken = NodeCmd.Flags().String("discordToken", "", "Discord bot token (optional)")
+	discordChannel = NodeCmd.Flags().String("discordChannel", "", "Discord channel name (optional)")
 
 	bigTablePersistenceEnabled = NodeCmd.Flags().Bool("bigTablePersistenceEnabled", false, "Turn on forwarding events to BigTable")
 	bigTableGCPProject = NodeCmd.Flags().String("bigTableGCPProject", "", "Google Cloud project ID for storing events")
@@ -415,6 +422,14 @@ func runNode(cmd *cobra.Command, args []string) {
 	// Guardian set state managed by processor
 	gst := common.NewGuardianSetState()
 
+	var notifier *discord.DiscordNotifier
+	if *discordToken != "" {
+		notifier, err = discord.NewDiscordNotifier(*discordToken, *discordChannel, logger)
+		if err != nil {
+			logger.Error("failed to initialize Discord bot", zap.Error(err))
+		}
+	}
+
 	// Load p2p private key
 	var priv crypto.PrivKey
 	if *unsafeDevMode {
@@ -501,6 +516,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			*terraLCD,
 			*terraContract,
 			attestationEvents,
+			notifier,
 		)
 		if err := supervisor.Run(ctx, "processor", p.Run); err != nil {
 			return err

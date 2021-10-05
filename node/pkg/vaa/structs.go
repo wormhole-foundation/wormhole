@@ -268,6 +268,15 @@ func (v *VAA) MessageID() string {
 	return fmt.Sprintf("%d/%s/%d", v.EmitterChain, v.EmitterAddress, v.Sequence)
 }
 
+// HexDigest returns the hex-encoded digest.
+func (v *VAA) HexDigest() string {
+	b, err := v.SigningMsg()
+	if err != nil {
+		panic(err)
+	}
+	return hex.EncodeToString(b.Bytes())
+}
+
 func (v *VAA) serializeBody() ([]byte, error) {
 	buf := new(bytes.Buffer)
 	MustWrite(buf, binary.BigEndian, uint32(v.Timestamp.Unix()))

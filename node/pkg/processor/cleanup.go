@@ -2,6 +2,7 @@ package processor
 
 import (
 	"context"
+	"encoding/hex"
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/vaa"
 	"github.com/prometheus/client_golang/prometheus"
@@ -69,10 +70,39 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 
 			hasSigs := len(s.signatures)
 			wantSigs := CalculateQuorum(len(gs.Keys))
+			quorum := hasSigs >= wantSigs
 
 			var chain vaa.ChainID
 			if s.ourVAA != nil {
 				chain = s.ourVAA.EmitterChain
+
+				// If a notifier is configured, send a notification for any missing signatures.
+				//
+				// Only send a notification if we have a VAA. Otherwise, bogus observations
+				// could cause invalid alerts.
+				if p.notifier != nil && hasSigs < len(gs.Keys) {
+					p.logger.Info("sending miss notification", zap.String("digest", hash))
+					// Find names of missing validators
+					missing := make([]string, 0, len(gs.Keys))
+					for _, k := range gs.Keys {
+						if s.signatures[k] == nil {
+							name := hex.EncodeToString(k.Bytes())
+							h := p.gst.LastHeartbeat(k)
+							// Pick first node if there are multiple peers.
+							for _, hb := range h {
+								name = hb.NodeName
+								break
+							}
+							missing = append(missing, name)
+						}
+					}
+
+					go func(v *vaa.VAA, hasSigs, wantSigs int, quorum bool, missing []string) {
+						if err := p.notifier.MissingSignaturesOnTransaction(v, hasSigs, wantSigs, quorum, missing); err != nil {
+							p.logger.Error("failed to send notification", zap.Error(err))
+						}
+					}(s.ourVAA, hasSigs, wantSigs, quorum, missing)
+				}
 			}
 
 			p.logger.Info("VAA considered settled",
@@ -80,7 +110,7 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 				zap.Duration("delta", delta),
 				zap.Int("have_sigs", hasSigs),
 				zap.Int("required_sigs", wantSigs),
-				zap.Bool("quorum", hasSigs >= wantSigs),
+				zap.Bool("quorum", quorum),
 				zap.Stringer("emitter_chain", chain),
 			)
 
