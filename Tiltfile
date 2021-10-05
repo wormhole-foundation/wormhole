@@ -127,6 +127,7 @@ k8s_resource("guardian", resource_deps = ["proto-gen", "solana-devnet"], port_fo
     port_forward(6060, name = "Debug/Status Server [:6060]"),
     port_forward(7070, name = "Public gRPC [:7070]"),
     port_forward(7071, name = "Public REST [:7071]"),
+    port_forward(2345, name = "Debugger [:2345]"),
 ])
 
 # publicRPC proxy that allows grpc over http1, for local development
@@ -175,7 +176,6 @@ k8s_resource(
         port_forward(9000, name = "Solana PubSub [:9000]"),
     ],
 )
-
 
 # eth devnet
 
@@ -227,11 +227,11 @@ if pyth:
 
     # pyth2wormhole JS SDK test
     local_resource(
-	name = "p2w-sdk-test",
-	resource_deps = ["wasm-gen"],
-	deps = ["third_party/pyth", "ethereum", "sdk"],
-	cmd = "tilt docker build -- -f ./third_party/pyth/p2w-sdk/Dockerfile .",
-	env = {"DOCKER_BUILDKIT": "1"},
+        name = "p2w-sdk-test",
+        resource_deps = ["wasm-gen"],
+        deps = ["third_party/pyth", "ethereum", "sdk"],
+        cmd = "tilt docker build -- -f ./third_party/pyth/p2w-sdk/Dockerfile .",
+        env = {"DOCKER_BUILDKIT": "1"},
     )
 
 k8s_yaml_with_ns("devnet/eth-devnet.yaml")

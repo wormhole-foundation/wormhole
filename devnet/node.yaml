@@ -67,7 +67,7 @@ spec:
 # (not suitable for regular development since the process will no longer restart on its own)
 #
 #            - /dlv
-#            - --listen=:2345
+#            - --listen=0.0.0.0:2345
 #            - --accept-multiclient
 #            - --headless=true
 #            - --api-version=2
@@ -122,4 +122,7 @@ spec:
               protocol: TCP
             - containerPort: 7070
               name: public-grpc
+              protocol: TCP
+            - containerPort: 2345
+              name: debugger
               protocol: TCP
