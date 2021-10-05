@@ -26,6 +26,7 @@ use crate::{
     msg::{
         ExecuteMsg,
         InstantiateMsg,
+        MigrateMsg,
         QueryMsg,
     },
     state::{
@@ -46,6 +47,7 @@ use crate::{
         RegisterChain,
         TokenBridgeMessage,
         TransferInfo,
+        UpgradeContract,
     },
 };
 use wormhole::{
@@ -104,6 +106,11 @@ type HumanAddr = String;
 const CHAIN_ID: u16 = 3;
 
 const WRAPPED_ASSET_UPDATING: &str = "updating";
+
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Response> {
+    Ok(Response::default())
+}
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -473,8 +480,21 @@ fn handle_governance_payload(deps: DepsMut, env: Env, data: &Vec<u8>) -> StdResu
 
     match gov_packet.action {
         1u8 => handle_register_chain(deps, env, &gov_packet.payload),
+        2u8 => handle_upgrade_contract(deps, env, &gov_packet.payload),
         _ => ContractError::InvalidVAAAction.std_err(),
     }
+}
+
+fn handle_upgrade_contract(_deps: DepsMut, env: Env, data: &Vec<u8>) -> StdResult<Response> {
+    let UpgradeContract { new_contract } = UpgradeContract::deserialize(&data)?;
+
+    Ok(Response::new()
+        .add_message(CosmosMsg::Wasm(WasmMsg::Migrate {
+            contract_addr: env.contract.address.to_string(),
+            new_code_id: new_contract,
+            msg: to_binary(&MigrateMsg {})?,
+        }))
+        .add_attribute("action", "contract_upgrade"))
 }
 
 fn handle_register_chain(deps: DepsMut, _env: Env, data: &Vec<u8>) -> StdResult<Response> {
@@ -508,7 +528,14 @@ fn handle_complete_transfer(
 ) -> StdResult<Response> {
     let transfer_info = TransferInfo::deserialize(&data)?;
     match transfer_info.token_address.as_slice()[0] {
-        1 => handle_complete_transfer_token_native(deps, env, info, emitter_chain, emitter_address, data),
+        1 => handle_complete_transfer_token_native(
+            deps,
+            env,
+            info,
+            emitter_chain,
+            emitter_address,
+            data,
+        ),
         _ => handle_complete_transfer_token(deps, env, info, emitter_chain, emitter_address, data),
     }
 }
@@ -643,7 +670,6 @@ fn handle_complete_transfer_token(
     }
 }
 
-
 fn handle_complete_transfer_token_native(
     deps: DepsMut,
     _env: Env,
@@ -659,9 +685,7 @@ fn handle_complete_transfer_token_native(
 
     // must be sent by a registered token bridge contract
     if expected_contract != emitter_address {
-        return Err(StdError::generic_err(
-            "invalid emitter",
-        ));
+        return Err(StdError::generic_err("invalid emitter"));
     }
 
     if transfer_info.recipient_chain != CHAIN_ID {
@@ -716,7 +740,6 @@ fn handle_complete_transfer_token_native(
         .add_attribute("denom", denom)
         .add_attribute("amount", amount.to_string()))
 }
-
 
 fn handle_initiate_transfer(
     deps: DepsMut,

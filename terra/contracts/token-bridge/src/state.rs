@@ -239,9 +239,23 @@ impl AssetMeta {
     }
 }
 
+pub struct UpgradeContract {
+    pub new_contract: u64,
+}
+
 pub struct RegisterChain {
     pub chain_id: u16,
     pub chain_address: Vec<u8>,
+}
+
+impl UpgradeContract {
+    pub fn deserialize(data: &Vec<u8>) -> StdResult<Self> {
+        let data = data.as_slice();
+        let new_contract = data.get_u64(24);
+        Ok(UpgradeContract {
+            new_contract,
+        })
+    }
 }
 
 impl RegisterChain {
