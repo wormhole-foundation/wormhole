@@ -1,6 +1,5 @@
 import {
   ChainId,
-  CHAIN_ID_ETH,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
 } from "@certusone/wormhole-sdk";
@@ -9,7 +8,8 @@ import { useConnectedWallet } from "@terra-money/wallet-provider";
 import { useMemo } from "react";
 import { useEthereumProvider } from "../contexts/EthereumProviderContext";
 import { useSolanaWallet } from "../contexts/SolanaWalletContext";
-import { CLUSTER, ETH_NETWORK_CHAIN_ID } from "../utils/consts";
+import { CLUSTER, getEvmChainId } from "../utils/consts";
+import { isEVMChain } from "../utils/ethereum";
 
 const createWalletStatus = (
   isReady: boolean,
@@ -33,10 +33,11 @@ function useIsWalletReady(chainId: ChainId): {
   const {
     provider,
     signerAddress,
-    chainId: ethChainId,
+    chainId: evmChainId,
   } = useEthereumProvider();
   const hasEthInfo = !!provider && !!signerAddress;
-  const hasCorrectEthNetwork = ethChainId === ETH_NETWORK_CHAIN_ID;
+  const correctEvmNetwork = getEvmChainId(chainId);
+  const hasCorrectEvmNetwork = evmChainId === correctEvmNetwork;
 
   return useMemo(() => {
     if (
@@ -50,20 +51,20 @@ function useIsWalletReady(chainId: ChainId): {
     if (chainId === CHAIN_ID_SOLANA && solPK) {
       return createWalletStatus(true, undefined, solPK.toString());
     }
-    if (chainId === CHAIN_ID_ETH && hasEthInfo && signerAddress) {
-      if (hasCorrectEthNetwork) {
+    if (isEVMChain(chainId) && hasEthInfo && signerAddress) {
+      if (hasCorrectEvmNetwork) {
         return createWalletStatus(true, undefined, signerAddress);
       } else {
-        if (provider) {
+        if (provider && correctEvmNetwork) {
           try {
             provider.send("wallet_switchEthereumChain", [
-              { chainId: hexStripZeros(hexlify(ETH_NETWORK_CHAIN_ID)) },
+              { chainId: hexStripZeros(hexlify(correctEvmNetwork)) },
             ]);
           } catch (e) {}
         }
         return createWalletStatus(
           false,
-          `Wallet is not connected to ${CLUSTER}. Expected Chain ID: ${ETH_NETWORK_CHAIN_ID}`,
+          `Wallet is not connected to ${CLUSTER}. Expected Chain ID: ${correctEvmNetwork}`,
           undefined
         );
       }
@@ -75,7 +76,8 @@ function useIsWalletReady(chainId: ChainId): {
     hasTerraWallet,
     solPK,
     hasEthInfo,
-    hasCorrectEthNetwork,
+    correctEvmNetwork,
+    hasCorrectEvmNetwork,
     provider,
     signerAddress,
     terraWallet,

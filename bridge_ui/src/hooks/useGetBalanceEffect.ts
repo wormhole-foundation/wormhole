@@ -1,12 +1,11 @@
 import {
-  CHAIN_ID_ETH,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
   TokenImplementation__factory,
 } from "@certusone/wormhole-sdk";
 import { Connection, PublicKey } from "@solana/web3.js";
-import { useConnectedWallet } from "@terra-money/wallet-provider";
 import { LCDClient } from "@terra-money/terra.js";
+import { useConnectedWallet } from "@terra-money/wallet-provider";
 import { formatUnits } from "ethers/lib/utils";
 import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
@@ -22,8 +21,11 @@ import {
   setSourceParsedTokenAccount,
   setTargetParsedTokenAccount,
 } from "../store/transferSlice";
-import { SOLANA_HOST, TERRA_HOST } from "../utils/consts";
+import { getEvmChainId, SOLANA_HOST, TERRA_HOST } from "../utils/consts";
+import { isEVMChain } from "../utils/ethereum";
 import { createParsedTokenAccount } from "./useGetSourceParsedTokenAccounts";
+
+// TODO: we only ever use this for target, could clean up and rename
 
 /**
  * Fetches the balance of an asset for the connected wallet
@@ -48,7 +50,12 @@ function useGetBalanceEffect(sourceOrTarget: "source" | "target") {
   const solanaWallet = useSolanaWallet();
   const solPK = solanaWallet?.publicKey;
   const terraWallet = useConnectedWallet();
-  const { provider, signerAddress } = useEthereumProvider();
+  const {
+    provider,
+    signerAddress,
+    chainId: evmChainId,
+  } = useEthereumProvider();
+  const hasCorrectEvmNetwork = evmChainId === getEvmChainId(lookupChain);
   useEffect(() => {
     // source is now handled by getsourceparsedtokenaccounts
     if (sourceOrTarget === "source") return;
@@ -127,7 +134,12 @@ function useGetBalanceEffect(sourceOrTarget: "source" | "target") {
           }
         });
     }
-    if (lookupChain === CHAIN_ID_ETH && provider && signerAddress) {
+    if (
+      isEVMChain(lookupChain) &&
+      provider &&
+      signerAddress &&
+      hasCorrectEvmNetwork
+    ) {
       const token = TokenImplementation__factory.connect(lookupAsset, provider);
       token
         .decimals()
@@ -170,6 +182,7 @@ function useGetBalanceEffect(sourceOrTarget: "source" | "target") {
     solPK,
     sourceOrTarget,
     terraWallet,
+    hasCorrectEvmNetwork,
   ]);
 }
 

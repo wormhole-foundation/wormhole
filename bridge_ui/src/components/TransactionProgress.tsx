@@ -9,6 +9,7 @@ import { useEffect, useState } from "react";
 import { useEthereumProvider } from "../contexts/EthereumProviderContext";
 import { Transaction } from "../store/transferSlice";
 import { CHAINS_BY_ID, SOLANA_HOST } from "../utils/consts";
+import { isEVMChain } from "../utils/ethereum";
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -34,7 +35,7 @@ export default function TransactionProgress({
   const [currentBlock, setCurrentBlock] = useState(0);
   useEffect(() => {
     if (isSendComplete || !tx) return;
-    if (chainId === CHAIN_ID_ETH && provider) {
+    if (isEVMChain(chainId) && provider) {
       let cancelled = false;
       (async () => {
         while (!cancelled) {
@@ -73,7 +74,7 @@ export default function TransactionProgress({
     chainId === CHAIN_ID_SOLANA ? 32 : chainId === CHAIN_ID_ETH ? 15 : 1;
   if (
     !isSendComplete &&
-    (chainId === CHAIN_ID_SOLANA || chainId === CHAIN_ID_ETH) &&
+    (chainId === CHAIN_ID_SOLANA || isEVMChain(chainId)) &&
     blockDiff !== undefined
   ) {
     return (

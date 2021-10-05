@@ -1,9 +1,11 @@
-import { CHAIN_ID_ETH, CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
 import { Button, makeStyles, MenuItem, TextField } from "@material-ui/core";
 import { Restore, VerifiedUser } from "@material-ui/icons";
+import { Alert } from "@material-ui/lab";
 import { useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { Link } from "react-router-dom";
 import useIsWalletReady from "../../hooks/useIsWalletReady";
+import { incrementStep, setSourceChain } from "../../store/nftSlice";
 import {
   selectNFTIsSourceComplete,
   selectNFTShouldLockFields,
@@ -11,15 +13,13 @@ import {
   selectNFTSourceChain,
   selectNFTSourceError,
 } from "../../store/selectors";
-import { incrementStep, setSourceChain } from "../../store/nftSlice";
-import { CHAINS } from "../../utils/consts";
+import { CHAINS_WITH_NFT_SUPPORT } from "../../utils/consts";
+import { isEVMChain } from "../../utils/ethereum";
 import ButtonWithLoader from "../ButtonWithLoader";
 import KeyAndBalance from "../KeyAndBalance";
+import LowBalanceWarning from "../LowBalanceWarning";
 import StepDescription from "../StepDescription";
 import { TokenSelector } from "../TokenSelectors/SourceTokenSelector";
-import { Alert } from "@material-ui/lab";
-import LowBalanceWarning from "../LowBalanceWarning";
-import { Link } from "react-router-dom";
 
 const useStyles = makeStyles((theme) => ({
   transferField: {
@@ -94,15 +94,13 @@ function Source({
         onChange={handleSourceChange}
         disabled={shouldLockFields}
       >
-        {CHAINS.filter(
-          ({ id }) => id === CHAIN_ID_ETH || id === CHAIN_ID_SOLANA
-        ).map(({ id, name }) => (
+        {CHAINS_WITH_NFT_SUPPORT.map(({ id, name }) => (
           <MenuItem key={id} value={id}>
             {name}
           </MenuItem>
         ))}
       </TextField>
-      {sourceChain === CHAIN_ID_ETH ? (
+      {isEVMChain(sourceChain) ? (
         <Alert severity="info">
           Only NFTs which implement ERC-721 are supported.
         </Alert>

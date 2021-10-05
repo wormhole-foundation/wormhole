@@ -1,4 +1,4 @@
-import { CHAIN_ID_ETH } from "@certusone/wormhole-sdk";
+import { ChainId } from "@certusone/wormhole-sdk";
 import { ethers } from "@certusone/wormhole-sdk/node_modules/ethers";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -6,9 +6,10 @@ import {
   useEthereumProvider,
 } from "../contexts/EthereumProviderContext";
 import { DataWrapper } from "../store/helpers";
+import { isEVMChain } from "../utils/ethereum";
 import useIsWalletReady from "./useIsWalletReady";
 
-export type EthMetadata = {
+export type EvmMetadata = {
   symbol?: string;
   logo?: string;
   tokenName?: string;
@@ -28,7 +29,7 @@ const handleError = () => {
 const fetchSingleMetadata = async (
   address: string,
   provider: Provider
-): Promise<EthMetadata> => {
+): Promise<EvmMetadata> => {
   const contract = new ethers.Contract(address, ERC20_BASIC_ABI, provider);
   const [name, symbol, decimals] = await Promise.all([
     contract.name().catch(handleError),
@@ -39,12 +40,12 @@ const fetchSingleMetadata = async (
 };
 
 const fetchEthMetadata = async (addresses: string[], provider: Provider) => {
-  const promises: Promise<EthMetadata>[] = [];
+  const promises: Promise<EvmMetadata>[] = [];
   addresses.forEach((address) => {
     promises.push(fetchSingleMetadata(address, provider));
   });
   const resultsArray = await Promise.all(promises);
-  const output = new Map<string, EthMetadata>();
+  const output = new Map<string, EvmMetadata>();
   addresses.forEach((address, index) => {
     output.set(address, resultsArray[index]);
   });
@@ -52,19 +53,20 @@ const fetchEthMetadata = async (addresses: string[], provider: Provider) => {
   return output;
 };
 
-function useEthMetadata(
-  addresses: string[]
-): DataWrapper<Map<string, EthMetadata>> {
-  const { isReady } = useIsWalletReady(CHAIN_ID_ETH);
+function useEvmMetadata(
+  addresses: string[],
+  chainId: ChainId
+): DataWrapper<Map<string, EvmMetadata>> {
+  const { isReady } = useIsWalletReady(chainId);
   const { provider } = useEthereumProvider();
 
   const [isFetching, setIsFetching] = useState(false);
   const [error, setError] = useState("");
-  const [data, setData] = useState<Map<string, EthMetadata> | null>(null);
+  const [data, setData] = useState<Map<string, EvmMetadata> | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    if (addresses.length && provider && isReady) {
+    if (addresses.length && provider && isReady && isEVMChain(chainId)) {
       setIsFetching(true);
       setError("");
       setData(null);
@@ -86,7 +88,7 @@ function useEthMetadata(
     return () => {
       cancelled = true;
     };
-  }, [addresses, provider, isReady]);
+  }, [addresses, provider, isReady, chainId]);
 
   return useMemo(
     () => ({
@@ -99,4 +101,4 @@ function useEthMetadata(
   );
 }
 
-export default useEthMetadata;
+export default useEvmMetadata;

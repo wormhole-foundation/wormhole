@@ -1,7 +1,8 @@
-import { CHAIN_ID_ETH, CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
+import { CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
 import { ethers } from "ethers";
 import { parseUnits } from "ethers/lib/utils";
 import { RootState } from ".";
+import { isEVMChain } from "../utils/ethereum";
 
 /*
  * Attest
@@ -259,7 +260,7 @@ export const selectTransferTargetError = (state: RootState) => {
     return UNREGISTERED_ERROR_MESSAGE;
   }
   if (
-    state.transfer.targetChain === CHAIN_ID_ETH &&
+    isEVMChain(state.transfer.targetChain) &&
     state.transfer.targetAsset === ethers.constants.AddressZero
   ) {
     return UNREGISTERED_ERROR_MESSAGE;

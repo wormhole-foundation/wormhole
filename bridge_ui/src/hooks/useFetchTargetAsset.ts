@@ -1,5 +1,4 @@
 import {
-  CHAIN_ID_ETH,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
   getForeignAssetEth,
@@ -33,14 +32,16 @@ import {
 } from "../store/selectors";
 import { setTargetAsset as setTransferTargetAsset } from "../store/transferSlice";
 import {
-  ETH_NFT_BRIDGE_ADDRESS,
-  ETH_TOKEN_BRIDGE_ADDRESS,
+  getEvmChainId,
+  getNFTBridgeAddressForChain,
+  getTokenBridgeAddressForChain,
   SOLANA_HOST,
   SOL_NFT_BRIDGE_ADDRESS,
   SOL_TOKEN_BRIDGE_ADDRESS,
   TERRA_HOST,
   TERRA_TOKEN_BRIDGE_ADDRESS,
 } from "../utils/consts";
+import { isEVMChain } from "../utils/ethereum";
 
 function useFetchTargetAsset(nft?: boolean) {
   const dispatch = useDispatch();
@@ -61,32 +62,35 @@ function useFetchTargetAsset(nft?: boolean) {
     nft ? selectNFTTargetChain : selectTransferTargetChain
   );
   const setTargetAsset = nft ? setNFTTargetAsset : setTransferTargetAsset;
-  const { provider } = useEthereumProvider();
+  const { provider, chainId: evmChainId } = useEthereumProvider();
+  const correctEvmNetwork = getEvmChainId(targetChain);
+  const hasCorrectEvmNetwork = evmChainId === correctEvmNetwork;
   useEffect(() => {
     if (isSourceAssetWormholeWrapped && originChain === targetChain) {
       dispatch(setTargetAsset(hexToNativeString(originAsset, originChain)));
       return;
     }
     // TODO: loading state, error state
-    dispatch(setTargetAsset(undefined));
     let cancelled = false;
     (async () => {
       if (
-        targetChain === CHAIN_ID_ETH &&
+        isEVMChain(targetChain) &&
         provider &&
+        hasCorrectEvmNetwork &&
         originChain &&
         originAsset
       ) {
+        dispatch(setTargetAsset(undefined));
         try {
           const asset = await (nft
             ? getForeignAssetEthNFT(
-                ETH_NFT_BRIDGE_ADDRESS,
+                getNFTBridgeAddressForChain(targetChain),
                 provider,
                 originChain,
                 hexToUint8Array(originAsset)
               )
             : getForeignAssetEth(
-                ETH_TOKEN_BRIDGE_ADDRESS,
+                getTokenBridgeAddressForChain(targetChain),
                 provider,
                 originChain,
                 hexToUint8Array(originAsset)
@@ -102,6 +106,7 @@ function useFetchTargetAsset(nft?: boolean) {
         }
       }
       if (targetChain === CHAIN_ID_SOLANA && originChain && originAsset) {
+        dispatch(setTargetAsset(undefined));
         try {
           const connection = new Connection(SOLANA_HOST, "confirmed");
           const asset = await (nft
@@ -128,6 +133,7 @@ function useFetchTargetAsset(nft?: boolean) {
         }
       }
       if (targetChain === CHAIN_ID_TERRA && originChain && originAsset) {
+        dispatch(setTargetAsset(undefined));
         try {
           const lcd = new LCDClient(TERRA_HOST);
           const asset = await getForeignAssetTerra(
@@ -160,6 +166,7 @@ function useFetchTargetAsset(nft?: boolean) {
     nft,
     setTargetAsset,
     tokenId,
+    hasCorrectEvmNetwork,
   ]);
 }
 

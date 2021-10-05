@@ -30,7 +30,7 @@ import { NFTParsedTokenAccount } from "../../store/nftSlice";
 import NFTViewer from "./NFTViewer";
 import { useDebounce } from "use-debounce/lib";
 import RefreshButtonWrapper from "./RefreshButtonWrapper";
-import { CHAIN_ID_ETH } from "@certusone/wormhole-sdk";
+import { ChainId, CHAIN_ID_ETH } from "@certusone/wormhole-sdk";
 import { sortParsedTokenAccounts } from "../../utils/sort";
 
 const useStyles = makeStyles((theme) =>
@@ -83,7 +83,10 @@ const getLogo = (account: ParsedTokenAccount | null) => {
   return account.logo;
 };
 
-const isWormholev1 = (provider: any, address: string) => {
+const isWormholev1 = (provider: any, address: string, chainId: ChainId) => {
+  if (chainId !== CHAIN_ID_ETH) {
+    return Promise.resolve(false);
+  }
   const connection = WormholeAbi__factory.connect(
     WORMHOLE_V1_ETH_ADDRESS,
     provider
@@ -102,6 +105,7 @@ type EthereumSourceTokenSelectorProps = {
   tokenAccounts: DataWrapper<ParsedTokenAccount[]> | undefined;
   disabled: boolean;
   resetAccounts: (() => void) | undefined;
+  chainId: ChainId;
   nft?: boolean;
 };
 
@@ -186,6 +190,7 @@ export default function EthereumSourceTokenSelector(
     tokenAccounts,
     disabled,
     resetAccounts,
+    chainId,
     nft,
   } = props;
   const classes = useStyles();
@@ -258,7 +263,7 @@ export default function EthereumSourceTokenSelector(
         onChange(autocompleteHolder);
         return;
       }
-      isWormholev1(provider, autocompleteHolder.mintKey).then(
+      isWormholev1(provider, autocompleteHolder.mintKey, chainId).then(
         (result) => {
           if (!cancelled) {
             result
@@ -282,7 +287,7 @@ export default function EthereumSourceTokenSelector(
         cancelled = true;
       };
     }
-  }, [autocompleteHolder, provider, advancedMode, onChange, nft]);
+  }, [autocompleteHolder, provider, advancedMode, onChange, nft, chainId]);
 
   //This effect watches the advancedModeString, and checks that the selected asset is valid before putting
   // it on the state.
@@ -353,7 +358,8 @@ export default function EthereumSourceTokenSelector(
           //Validate that the token is not a wormhole v1 asset
           const isWormholePromise = isWormholev1(
             provider,
-            advancedModeHolderString
+            advancedModeHolderString,
+            chainId
           ).then(
             (result) => {
               if (result && !cancelled) {
@@ -430,6 +436,7 @@ export default function EthereumSourceTokenSelector(
     onChange,
     nft,
     advancedModeHolderTokenId,
+    chainId,
   ]);
 
   const handleClick = useCallback(() => {
@@ -563,7 +570,7 @@ export default function EthereumSourceTokenSelector(
   const content = value ? (
     <>
       {nft ? (
-        <NFTViewer value={value} chainId={CHAIN_ID_ETH} />
+        <NFTViewer value={value} chainId={chainId} />
       ) : (
         <RefreshButtonWrapper callback={resetAccountWrapper}>
           <Typography>

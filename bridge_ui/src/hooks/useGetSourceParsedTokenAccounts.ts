@@ -1,4 +1,6 @@
 import {
+  ChainId,
+  CHAIN_ID_BSC,
   CHAIN_ID_ETH,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
@@ -53,9 +55,12 @@ import {
 import {
   COVALENT_GET_TOKENS_URL,
   SOLANA_HOST,
+  WBNB_ADDRESS,
+  WBNB_DECIMALS,
   WETH_ADDRESS,
   WETH_DECIMALS,
 } from "../utils/consts";
+import { isEVMChain } from "../utils/ethereum";
 import {
   ExtractedMintInfo,
   extractMintInfo,
@@ -205,6 +210,29 @@ const createNativeEthParsedTokenAccount = (
       });
 };
 
+const createNativeBscParsedTokenAccount = (
+  provider: Provider,
+  signerAddress: string | undefined
+) => {
+  return !(provider && signerAddress)
+    ? Promise.reject()
+    : provider.getBalance(signerAddress).then((balanceInWei) => {
+        const balanceInEth = ethers.utils.formatEther(balanceInWei);
+        return createParsedTokenAccount(
+          signerAddress, //public key
+          WBNB_ADDRESS, //Mint key, On the other side this will be WBNB, so this is hopefully a white lie.
+          balanceInWei.toString(), //amount, in wei
+          WBNB_DECIMALS, //Luckily both BNB and WBNB have 18 decimals, so this should not be an issue.
+          parseFloat(balanceInEth), //This loses precision, but is a limitation of the current datamodel. This field is essentially deprecated
+          balanceInEth.toString(), //This is the actual display field, which has full precision.
+          "BNB", //A white lie for display purposes
+          "Binance Coin", //A white lie for display purposes
+          undefined, //TODO logo
+          true //isNativeAsset
+        );
+      });
+};
+
 const createNFTParsedTokenAccountFromCovalent = (
   walletAddress: string,
   covalent: CovalentData,
@@ -266,9 +294,10 @@ export type CovalentNFTData = {
 
 const getEthereumAccountsCovalent = async (
   walletAddress: string,
-  nft?: boolean
+  nft: boolean,
+  chainId: ChainId
 ): Promise<CovalentData[]> => {
-  const url = COVALENT_GET_TOKENS_URL(CHAIN_ID_ETH, walletAddress, nft);
+  const url = COVALENT_GET_TOKENS_URL(chainId, walletAddress, nft);
 
   try {
     const output = [] as CovalentData[];
@@ -387,12 +416,11 @@ function useGetAvailableTokens(nft: boolean = false) {
   const selectedSourceWalletAddress = useSelector(
     nft ? selectNFTSourceWalletAddress : selectSourceWalletAddress
   );
-  const currentSourceWalletAddress: string | undefined =
-    lookupChain === CHAIN_ID_ETH
-      ? signerAddress
-      : lookupChain === CHAIN_ID_SOLANA
-      ? solPK?.toString()
-      : undefined;
+  const currentSourceWalletAddress: string | undefined = isEVMChain(lookupChain)
+    ? signerAddress
+    : lookupChain === CHAIN_ID_SOLANA
+    ? solPK?.toString()
+    : undefined;
 
   const resetSourceAccounts = useCallback(() => {
     dispatch(
@@ -539,15 +567,50 @@ function useGetAvailableTokens(nft: boolean = false) {
     };
   }, [lookupChain, provider, signerAddress, nft, ethNativeAccount]);
 
+  //Binance Smart Chain native asset load
+  useEffect(() => {
+    let cancelled = false;
+    if (
+      signerAddress &&
+      lookupChain === CHAIN_ID_BSC &&
+      !ethNativeAccount &&
+      !nft
+    ) {
+      setEthNativeAccountLoading(true);
+      createNativeBscParsedTokenAccount(provider, signerAddress).then(
+        (result) => {
+          console.log("create native account returned with value", result);
+          if (!cancelled) {
+            setEthNativeAccount(result);
+            setEthNativeAccountLoading(false);
+            setEthNativeAccountError("");
+          }
+        },
+        (error) => {
+          if (!cancelled) {
+            setEthNativeAccount(undefined);
+            setEthNativeAccountLoading(false);
+            setEthNativeAccountError("Unable to retrieve your BSC balance.");
+          }
+        }
+      );
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [lookupChain, provider, signerAddress, nft, ethNativeAccount]);
+
   //Ethereum covalent accounts load
   useEffect(() => {
     //const testWallet = "0xf60c2ea62edbfe808163751dd0d8693dcb30019c";
     // const nftTestWallet1 = "0x3f304c6721f35ff9af00fd32650c8e0a982180ab";
     // const nftTestWallet2 = "0x98ed231428088eb440e8edb5cc8d66dcf913b86e";
     // const nftTestWallet3 = "0xb1fadf677a7e9b90e9d4f31c8ffb3dc18c138c6f";
+    // const nftBscTestWallet1 = "0x5f464a652bd1991df0be37979b93b3306d64a909";
     let cancelled = false;
     const walletAddress = signerAddress;
-    if (walletAddress && lookupChain === CHAIN_ID_ETH && !covalent) {
+    if (walletAddress && isEVMChain(lookupChain) && !covalent) {
       //TODO less cancel
       !cancelled && setCovalentLoading(true);
       !cancelled &&
@@ -556,7 +619,7 @@ function useGetAvailableTokens(nft: boolean = false) {
             ? fetchSourceParsedTokenAccountsNFT()
             : fetchSourceParsedTokenAccounts()
         );
-      getEthereumAccountsCovalent(walletAddress, nft).then(
+      getEthereumAccountsCovalent(walletAddress, nft, lookupChain).then(
         (accounts) => {
           !cancelled && setCovalentLoading(false);
           !cancelled && setCovalentError(undefined);
@@ -639,7 +702,7 @@ function useGetAvailableTokens(nft: boolean = false) {
         },
         resetAccounts: resetSourceAccounts,
       }
-    : lookupChain === CHAIN_ID_ETH
+    : isEVMChain(lookupChain)
     ? {
         tokenAccounts: ethAccounts,
         covalent: {

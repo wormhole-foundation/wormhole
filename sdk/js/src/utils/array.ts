@@ -1,5 +1,6 @@
 import {
   ChainId,
+  CHAIN_ID_BSC,
   CHAIN_ID_ETH,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
@@ -21,7 +22,7 @@ export const hexToNativeString = (h: string | undefined, c: ChainId) => {
       ? undefined
       : c === CHAIN_ID_SOLANA
       ? new PublicKey(hexToUint8Array(h)).toString()
-      : c === CHAIN_ID_ETH
+      : c === CHAIN_ID_ETH || c === CHAIN_ID_BSC
       ? hexZeroPad(hexValue(hexToUint8Array(h)), 20)
       : c === CHAIN_ID_TERRA
       ? isHexNativeTerra(h)

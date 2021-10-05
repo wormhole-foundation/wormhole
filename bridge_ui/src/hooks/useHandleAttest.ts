@@ -2,7 +2,7 @@ import {
   attestFromEth,
   attestFromSolana,
   attestFromTerra,
-  CHAIN_ID_ETH,
+  ChainId,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
   getEmitterAddressEth,
@@ -19,10 +19,10 @@ import {
   ConnectedWallet,
   useConnectedWallet,
 } from "@terra-money/wallet-provider";
+import { Signer } from "ethers";
 import { useSnackbar } from "notistack";
 import { useCallback, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { Signer } from "ethers";
 import { useEthereumProvider } from "../contexts/EthereumProviderContext";
 import { useSolanaWallet } from "../contexts/SolanaWalletContext";
 import {
@@ -38,28 +38,30 @@ import {
   selectAttestSourceChain,
 } from "../store/selectors";
 import {
-  ETH_BRIDGE_ADDRESS,
-  ETH_TOKEN_BRIDGE_ADDRESS,
+  getBridgeAddressForChain,
+  getTokenBridgeAddressForChain,
   SOLANA_HOST,
   SOL_BRIDGE_ADDRESS,
   SOL_TOKEN_BRIDGE_ADDRESS,
   TERRA_TOKEN_BRIDGE_ADDRESS,
 } from "../utils/consts";
+import { isEVMChain } from "../utils/ethereum";
 import { getSignedVAAWithRetry } from "../utils/getSignedVAAWithRetry";
 import parseError from "../utils/parseError";
 import { signSendAndConfirm } from "../utils/solana";
 import { waitForTerraExecution } from "../utils/terra";
 
-async function eth(
+async function evm(
   dispatch: any,
   enqueueSnackbar: any,
   signer: Signer,
-  sourceAsset: string
+  sourceAsset: string,
+  chainId: ChainId
 ) {
   dispatch(setIsSending(true));
   try {
     const receipt = await attestFromEth(
-      ETH_TOKEN_BRIDGE_ADDRESS,
+      getTokenBridgeAddressForChain(chainId),
       signer,
       sourceAsset
     );
@@ -67,11 +69,16 @@ async function eth(
       setAttestTx({ id: receipt.transactionHash, block: receipt.blockNumber })
     );
     enqueueSnackbar("Transaction confirmed", { variant: "success" });
-    const sequence = parseSequenceFromLogEth(receipt, ETH_BRIDGE_ADDRESS);
-    const emitterAddress = getEmitterAddressEth(ETH_TOKEN_BRIDGE_ADDRESS);
+    const sequence = parseSequenceFromLogEth(
+      receipt,
+      getBridgeAddressForChain(chainId)
+    );
+    const emitterAddress = getEmitterAddressEth(
+      getTokenBridgeAddressForChain(chainId)
+    );
     enqueueSnackbar("Fetching VAA", { variant: "info" });
     const { vaaBytes } = await getSignedVAAWithRetry(
-      CHAIN_ID_ETH,
+      chainId,
       emitterAddress,
       sequence
     );
@@ -180,8 +187,8 @@ export function useHandleAttest() {
   const terraWallet = useConnectedWallet();
   const disabled = !isTargetComplete || isSending || isSendComplete;
   const handleAttestClick = useCallback(() => {
-    if (sourceChain === CHAIN_ID_ETH && !!signer) {
-      eth(dispatch, enqueueSnackbar, signer, sourceAsset);
+    if (isEVMChain(sourceChain) && !!signer) {
+      evm(dispatch, enqueueSnackbar, signer, sourceAsset, sourceChain);
     } else if (sourceChain === CHAIN_ID_SOLANA && !!solanaWallet && !!solPK) {
       solana(dispatch, enqueueSnackbar, solPK, sourceAsset, solanaWallet);
     } else if (sourceChain === CHAIN_ID_TERRA && !!terraWallet) {

@@ -1,5 +1,5 @@
 import {
-  CHAIN_ID_ETH,
+  ChainId,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
   createWrappedOnEth,
@@ -26,25 +26,27 @@ import {
   selectAttestTargetChain,
 } from "../store/selectors";
 import {
-  ETH_TOKEN_BRIDGE_ADDRESS,
+  getTokenBridgeAddressForChain,
   SOLANA_HOST,
   SOL_BRIDGE_ADDRESS,
   SOL_TOKEN_BRIDGE_ADDRESS,
   TERRA_TOKEN_BRIDGE_ADDRESS,
 } from "../utils/consts";
+import { isEVMChain } from "../utils/ethereum";
 import parseError from "../utils/parseError";
 import { signSendAndConfirm } from "../utils/solana";
 
-async function eth(
+async function evm(
   dispatch: any,
   enqueueSnackbar: any,
   signer: Signer,
-  signedVAA: Uint8Array
+  signedVAA: Uint8Array,
+  chainId: ChainId
 ) {
   dispatch(setIsCreating(true));
   try {
     const receipt = await createWrappedOnEth(
-      ETH_TOKEN_BRIDGE_ADDRESS,
+      getTokenBridgeAddressForChain(chainId),
       signer,
       signedVAA
     );
@@ -133,8 +135,8 @@ export function useHandleCreateWrapped() {
   const { signer } = useEthereumProvider();
   const terraWallet = useConnectedWallet();
   const handleCreateClick = useCallback(() => {
-    if (targetChain === CHAIN_ID_ETH && !!signer && !!signedVAA) {
-      eth(dispatch, enqueueSnackbar, signer, signedVAA);
+    if (isEVMChain(targetChain) && !!signer && !!signedVAA) {
+      evm(dispatch, enqueueSnackbar, signer, signedVAA, targetChain);
     } else if (
       targetChain === CHAIN_ID_SOLANA &&
       !!solanaWallet &&

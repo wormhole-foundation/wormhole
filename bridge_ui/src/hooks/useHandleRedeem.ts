@@ -1,5 +1,5 @@
 import {
-  CHAIN_ID_ETH,
+  ChainId,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
   postVaaSolana,
@@ -28,27 +28,37 @@ import {
 } from "../store/selectors";
 import { setIsRedeeming, setRedeemTx } from "../store/transferSlice";
 import {
-  ETH_TOKEN_BRIDGE_ADDRESS,
+  getTokenBridgeAddressForChain,
   SOLANA_HOST,
   SOL_BRIDGE_ADDRESS,
   SOL_TOKEN_BRIDGE_ADDRESS,
   TERRA_TOKEN_BRIDGE_ADDRESS,
 } from "../utils/consts";
+import { isEVMChain } from "../utils/ethereum";
 import parseError from "../utils/parseError";
 import { signSendAndConfirm } from "../utils/solana";
 
-async function eth(
+async function evm(
   dispatch: any,
   enqueueSnackbar: any,
   signer: Signer,
   signedVAA: Uint8Array,
-  isNative: boolean
+  isNative: boolean,
+  chainId: ChainId
 ) {
   dispatch(setIsRedeeming(true));
   try {
     const receipt = isNative
-      ? await redeemOnEthNative(ETH_TOKEN_BRIDGE_ADDRESS, signer, signedVAA)
-      : await redeemOnEth(ETH_TOKEN_BRIDGE_ADDRESS, signer, signedVAA);
+      ? await redeemOnEthNative(
+          getTokenBridgeAddressForChain(chainId),
+          signer,
+          signedVAA
+        )
+      : await redeemOnEth(
+          getTokenBridgeAddressForChain(chainId),
+          signer,
+          signedVAA
+        );
     dispatch(
       setRedeemTx({ id: receipt.transactionHash, block: receipt.blockNumber })
     );
@@ -144,8 +154,8 @@ export function useHandleRedeem() {
   const signedVAA = useTransferSignedVAA();
   const isRedeeming = useSelector(selectTransferIsRedeeming);
   const handleRedeemClick = useCallback(() => {
-    if (targetChain === CHAIN_ID_ETH && !!signer && signedVAA) {
-      eth(dispatch, enqueueSnackbar, signer, signedVAA, false);
+    if (isEVMChain(targetChain) && !!signer && signedVAA) {
+      evm(dispatch, enqueueSnackbar, signer, signedVAA, false, targetChain);
     } else if (
       targetChain === CHAIN_ID_SOLANA &&
       !!solanaWallet &&
@@ -179,8 +189,8 @@ export function useHandleRedeem() {
   ]);
 
   const handleRedeemNativeClick = useCallback(() => {
-    if (targetChain === CHAIN_ID_ETH && !!signer && signedVAA) {
-      eth(dispatch, enqueueSnackbar, signer, signedVAA, true);
+    if (isEVMChain(targetChain) && !!signer && signedVAA) {
+      evm(dispatch, enqueueSnackbar, signer, signedVAA, true, targetChain);
     } else if (
       targetChain === CHAIN_ID_SOLANA &&
       !!solanaWallet &&

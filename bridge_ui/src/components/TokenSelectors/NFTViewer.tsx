@@ -13,10 +13,12 @@ import { NFTParsedTokenAccount } from "../../store/nftSlice";
 import clsx from "clsx";
 import {
   ChainId,
+  CHAIN_ID_BSC,
   CHAIN_ID_ETH,
   CHAIN_ID_SOLANA,
 } from "@certusone/wormhole-sdk";
 import SmartAddress from "../SmartAddress";
+import bscIcon from "../../icons/bsc.svg";
 import ethIcon from "../../icons/eth.svg";
 import solanaIcon from "../../icons/solana.svg";
 import useCopyToClipboard from "../../hooks/useCopyToClipboard";
@@ -52,6 +54,18 @@ const LogoIcon = ({ chainId }: { chainId: ChainId }) =>
       }}
       src={ethIcon}
       alt="Ethereum"
+    />
+  ) : chainId === CHAIN_ID_BSC ? (
+    <Avatar
+      style={{
+        backgroundColor: "rgb(20, 21, 26)",
+        height: "1em",
+        width: "1em",
+        marginLeft: "4px",
+        padding: "2px",
+      }}
+      src={bscIcon}
+      alt="Binance Smart Chain"
     />
   ) : null;
 
@@ -126,6 +140,12 @@ const useStyles = makeStyles((theme) => ({
     backgroundColor: "rgb(69,74,117)",
     background:
       "linear-gradient(160deg, rgba(69,74,117,1) 0%, rgba(138,146,178,1) 33%, rgba(69,74,117,1) 66%, rgba(98,104,143,1) 100%)",
+  },
+  bsc: {
+    // color from binance background rgb(20, 21, 26), 2 and 1 tint lighter
+    backgroundColor: "#F0B90B",
+    background:
+      "linear-gradient(160deg, rgb(20, 21, 26) 0%, #4A4D57 33%, rgb(20, 21, 26) 66%, #2C2F3B 100%)",
   },
   solana: {
     // colors from https://solana.com/branding/new/exchange/exchange-sq-black.svg
@@ -211,6 +231,7 @@ export default function NFTViewer({
       <div
         className={clsx(classes.cardInset, {
           [classes.eth]: chainId === CHAIN_ID_ETH,
+          [classes.bsc]: chainId === CHAIN_ID_BSC,
           [classes.solana]: chainId === CHAIN_ID_SOLANA,
         })}
       >

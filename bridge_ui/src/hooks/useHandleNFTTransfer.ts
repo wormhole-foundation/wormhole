@@ -1,12 +1,11 @@
 import {
   ChainId,
-  CHAIN_ID_ETH,
   CHAIN_ID_SOLANA,
   getEmitterAddressEth,
   getEmitterAddressSolana,
+  hexToUint8Array,
   parseSequenceFromLogEth,
   parseSequenceFromLogSolana,
-  hexToUint8Array,
   uint8ArrayToHex,
 } from "@certusone/wormhole-sdk";
 import {
@@ -40,30 +39,32 @@ import {
   selectNFTTargetChain,
 } from "../store/selectors";
 import {
-  ETH_BRIDGE_ADDRESS,
-  ETH_NFT_BRIDGE_ADDRESS,
+  getBridgeAddressForChain,
+  getNFTBridgeAddressForChain,
   SOLANA_HOST,
   SOL_BRIDGE_ADDRESS,
   SOL_NFT_BRIDGE_ADDRESS,
 } from "../utils/consts";
+import { isEVMChain } from "../utils/ethereum";
 import { getSignedVAAWithRetry } from "../utils/getSignedVAAWithRetry";
 import parseError from "../utils/parseError";
 import { signSendAndConfirm } from "../utils/solana";
 import useNFTTargetAddressHex from "./useNFTTargetAddress";
 
-async function eth(
+async function evm(
   dispatch: any,
   enqueueSnackbar: any,
   signer: Signer,
   tokenAddress: string,
   tokenId: string,
   recipientChain: ChainId,
-  recipientAddress: Uint8Array
+  recipientAddress: Uint8Array,
+  chainId: ChainId
 ) {
   dispatch(setIsSending(true));
   try {
     const receipt = await transferFromEth(
-      ETH_NFT_BRIDGE_ADDRESS,
+      getNFTBridgeAddressForChain(chainId),
       signer,
       tokenAddress,
       tokenId,
@@ -74,11 +75,16 @@ async function eth(
       setTransferTx({ id: receipt.transactionHash, block: receipt.blockNumber })
     );
     enqueueSnackbar("Transaction confirmed", { variant: "success" });
-    const sequence = parseSequenceFromLogEth(receipt, ETH_BRIDGE_ADDRESS);
-    const emitterAddress = getEmitterAddressEth(ETH_NFT_BRIDGE_ADDRESS);
+    const sequence = parseSequenceFromLogEth(
+      receipt,
+      getBridgeAddressForChain(chainId)
+    );
+    const emitterAddress = getEmitterAddressEth(
+      getNFTBridgeAddressForChain(chainId)
+    );
     enqueueSnackbar("Fetching VAA", { variant: "info" });
     const { vaaBytes } = await getSignedVAAWithRetry(
-      CHAIN_ID_ETH,
+      chainId,
       emitterAddress,
       sequence.toString()
     );
@@ -178,20 +184,21 @@ export function useHandleNFTTransfer() {
   const handleTransferClick = useCallback(() => {
     // TODO: we should separate state for transaction vs fetching vaa
     if (
-      sourceChain === CHAIN_ID_ETH &&
+      isEVMChain(sourceChain) &&
       !!signer &&
       !!sourceAsset &&
       !!sourceTokenId &&
       !!targetAddress
     ) {
-      eth(
+      evm(
         dispatch,
         enqueueSnackbar,
         signer,
         sourceAsset,
         sourceTokenId,
         targetChain,
-        targetAddress
+        targetAddress,
+        sourceChain
       );
     } else if (
       sourceChain === CHAIN_ID_SOLANA &&

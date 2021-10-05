@@ -1,14 +1,14 @@
 //import Autocomplete from '@material-ui/lab/Autocomplete';
-import {
-  CHAIN_ID_ETH,
-  CHAIN_ID_SOLANA,
-  CHAIN_ID_TERRA,
-} from "@certusone/wormhole-sdk";
+import { CHAIN_ID_SOLANA, CHAIN_ID_TERRA } from "@certusone/wormhole-sdk";
 import { TextField, Typography } from "@material-ui/core";
 import { useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import useGetSourceParsedTokens from "../../hooks/useGetSourceParsedTokenAccounts";
 import useIsWalletReady from "../../hooks/useIsWalletReady";
+import {
+  setSourceParsedTokenAccount as setNFTSourceParsedTokenAccount,
+  setSourceWalletAddress as setNFTSourceWalletAddress,
+} from "../../store/nftSlice";
 import {
   selectNFTSourceChain,
   selectNFTSourceParsedTokenAccount,
@@ -20,14 +20,11 @@ import {
   setSourceParsedTokenAccount as setTransferSourceParsedTokenAccount,
   setSourceWalletAddress as setTransferSourceWalletAddress,
 } from "../../store/transferSlice";
-import {
-  setSourceParsedTokenAccount as setNFTSourceParsedTokenAccount,
-  setSourceWalletAddress as setNFTSourceWalletAddress,
-} from "../../store/nftSlice";
+import { isEVMChain } from "../../utils/ethereum";
 import EthereumSourceTokenSelector from "./EthereumSourceTokenSelector";
+import RefreshButtonWrapper from "./RefreshButtonWrapper";
 import SolanaSourceTokenSelector from "./SolanaSourceTokenSelector";
 import TerraSourceTokenSelector from "./TerraSourceTokenSelector";
-import RefreshButtonWrapper from "./RefreshButtonWrapper";
 
 type TokenSelectorProps = {
   disabled: boolean;
@@ -78,7 +75,7 @@ export const TokenSelector = (props: TokenSelectorProps) => {
 
   //This is only for errors so bad that we shouldn't even mount the component
   const fatalError =
-    lookupChain !== CHAIN_ID_ETH &&
+    isEVMChain(lookupChain) &&
     lookupChain !== CHAIN_ID_TERRA &&
     maps?.tokenAccounts?.error; //Terra & ETH can proceed because it has advanced mode
 
@@ -96,7 +93,7 @@ export const TokenSelector = (props: TokenSelectorProps) => {
       resetAccounts={maps?.resetAccounts}
       nft={nft}
     />
-  ) : lookupChain === CHAIN_ID_ETH ? (
+  ) : isEVMChain(lookupChain) ? (
     <EthereumSourceTokenSelector
       value={sourceParsedTokenAccount || null}
       disabled={disabled}
@@ -104,6 +101,7 @@ export const TokenSelector = (props: TokenSelectorProps) => {
       covalent={maps?.covalent || undefined}
       tokenAccounts={maps?.tokenAccounts}
       resetAccounts={maps?.resetAccounts}
+      chainId={lookupChain}
       nft={nft}
     />
   ) : lookupChain === CHAIN_ID_TERRA ? (

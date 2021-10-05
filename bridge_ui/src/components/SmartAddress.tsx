@@ -1,5 +1,6 @@
 import {
   ChainId,
+  CHAIN_ID_BSC,
   CHAIN_ID_ETH,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
@@ -10,7 +11,7 @@ import { withStyles } from "@material-ui/styles";
 import clsx from "clsx";
 import useCopyToClipboard from "../hooks/useCopyToClipboard";
 import { ParsedTokenAccount } from "../store/transferSlice";
-import { CLUSTER } from "../utils/consts";
+import { CLUSTER, getExplorerName } from "../utils/consts";
 import { shortenAddress } from "../utils/solana";
 
 const useStyles = makeStyles((theme) => ({
@@ -86,6 +87,8 @@ export default function SmartAddress({
     ? `https://${
         CLUSTER === "testnet" ? "goerli." : ""
       }etherscan.io/address/${useableAddress}`
+    : chainId === CHAIN_ID_BSC
+    ? `https://bscscan.com/address/${useableAddress}`
     : chainId === CHAIN_ID_SOLANA
     ? `https://explorer.solana.com/address/${useableAddress}${
         CLUSTER === "testnet"
@@ -103,12 +106,7 @@ export default function SmartAddress({
           : "columbus-5"
       }/address/${useableAddress}`
     : undefined;
-  const explorerName =
-    chainId === CHAIN_ID_ETH
-      ? "Etherscan"
-      : chainId === CHAIN_ID_TERRA
-      ? "Finder"
-      : "Explorer";
+  const explorerName = getExplorerName(chainId);
 
   const copyToClipboard = useCopyToClipboard(useableAddress);
 

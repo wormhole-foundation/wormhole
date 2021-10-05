@@ -1,13 +1,12 @@
 import {
   ChainId,
-  CHAIN_ID_ETH,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
   getOriginalAssetEth,
   getOriginalAssetSol,
   getOriginalAssetTerra,
-  WormholeWrappedInfo,
   uint8ArrayToHex,
+  WormholeWrappedInfo,
 } from "@certusone/wormhole-sdk";
 import {
   getOriginalAssetEth as getOriginalAssetEthNFT,
@@ -18,6 +17,7 @@ import { LCDClient } from "@terra-money/terra.js";
 import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useEthereumProvider } from "../contexts/EthereumProviderContext";
+import { setSourceWormholeWrappedInfo as setNFTSourceWormholeWrappedInfo } from "../store/nftSlice";
 import {
   selectNFTSourceAsset,
   selectNFTSourceChain,
@@ -25,16 +25,16 @@ import {
   selectTransferSourceAsset,
   selectTransferSourceChain,
 } from "../store/selectors";
-import { setSourceWormholeWrappedInfo as setNFTSourceWormholeWrappedInfo } from "../store/nftSlice";
 import { setSourceWormholeWrappedInfo as setTransferSourceWormholeWrappedInfo } from "../store/transferSlice";
 import {
-  ETH_NFT_BRIDGE_ADDRESS,
-  ETH_TOKEN_BRIDGE_ADDRESS,
+  getNFTBridgeAddressForChain,
+  getTokenBridgeAddressForChain,
   SOLANA_HOST,
   SOL_NFT_BRIDGE_ADDRESS,
   SOL_TOKEN_BRIDGE_ADDRESS,
   TERRA_HOST,
 } from "../utils/consts";
+import { isEVMChain } from "../utils/ethereum";
 
 export interface StateSafeWormholeWrappedInfo {
   isWrapped: boolean;
@@ -74,19 +74,21 @@ function useCheckIfWormholeWrapped(nft?: boolean) {
     dispatch(setSourceWormholeWrappedInfo(undefined));
     let cancelled = false;
     (async () => {
-      if (sourceChain === CHAIN_ID_ETH && provider && sourceAsset) {
+      if (isEVMChain(sourceChain) && provider && sourceAsset) {
         const wrappedInfo = makeStateSafe(
           await (nft
             ? getOriginalAssetEthNFT(
-                ETH_NFT_BRIDGE_ADDRESS,
+                getNFTBridgeAddressForChain(sourceChain),
                 provider,
                 sourceAsset,
-                tokenId
+                tokenId,
+                sourceChain
               )
             : getOriginalAssetEth(
-                ETH_TOKEN_BRIDGE_ADDRESS,
+                getTokenBridgeAddressForChain(sourceChain),
                 provider,
-                sourceAsset
+                sourceAsset,
+                sourceChain
               ))
         );
         if (!cancelled) {

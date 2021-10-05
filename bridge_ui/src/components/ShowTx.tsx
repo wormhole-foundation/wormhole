@@ -1,12 +1,13 @@
 import {
   ChainId,
+  CHAIN_ID_BSC,
   CHAIN_ID_ETH,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
 } from "@certusone/wormhole-sdk";
 import { Button, makeStyles, Typography } from "@material-ui/core";
 import { Transaction } from "../store/transferSlice";
-import { CLUSTER } from "../utils/consts";
+import { CLUSTER, getExplorerName } from "../utils/consts";
 
 const useStyles = makeStyles((theme) => ({
   tx: {
@@ -36,6 +37,8 @@ export default function ShowTx({
       ? `https://${CLUSTER === "testnet" ? "goerli." : ""}etherscan.io/tx/${
           tx?.id
         }`
+      : chainId === CHAIN_ID_BSC
+      ? `https://bscscan.com/tx/${tx?.id}`
       : chainId === CHAIN_ID_SOLANA
       ? `https://explorer.solana.com/tx/${tx?.id}${
           CLUSTER === "testnet"
@@ -53,12 +56,7 @@ export default function ShowTx({
             : "columbus-5"
         }/tx/${tx?.id}`
       : undefined;
-  const explorerName =
-    chainId === CHAIN_ID_ETH
-      ? "Etherscan"
-      : chainId === CHAIN_ID_TERRA
-      ? "Finder"
-      : "Explorer";
+  const explorerName = getExplorerName(chainId);
 
   return (
     <div className={classes.tx}>

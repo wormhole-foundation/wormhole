@@ -1,4 +1,3 @@
-import { CHAIN_ID_ETH } from "@certusone/wormhole-sdk";
 import { Button, makeStyles } from "@material-ui/core";
 import detectEthereumProvider from "@metamask/detect-provider";
 import { useCallback } from "react";
@@ -8,9 +7,11 @@ import {
   selectTransferTargetAsset,
   selectTransferTargetChain,
 } from "../../store/selectors";
+import { getEvmChainId } from "../../utils/consts";
 import {
   ethTokenToParsedTokenAccount,
   getEthereumToken,
+  isEVMChain,
 } from "../../utils/ethereum";
 
 const useStyles = makeStyles((theme) => ({
@@ -24,9 +25,14 @@ export default function AddToMetamask() {
   const classes = useStyles();
   const targetChain = useSelector(selectTransferTargetChain);
   const targetAsset = useSelector(selectTransferTargetAsset);
-  const { provider, signerAddress } = useEthereumProvider();
+  const {
+    provider,
+    signerAddress,
+    chainId: evmChainId,
+  } = useEthereumProvider();
+  const hasCorrectEvmNetwork = evmChainId === getEvmChainId(targetChain);
   const handleClick = useCallback(() => {
-    if (provider && targetAsset && signerAddress) {
+    if (provider && targetAsset && signerAddress && hasCorrectEvmNetwork) {
       (async () => {
         try {
           const token = await getEthereumToken(targetAsset, provider);
@@ -52,11 +58,12 @@ export default function AddToMetamask() {
         }
       })();
     }
-  }, [provider, targetAsset, signerAddress]);
+  }, [provider, targetAsset, signerAddress, hasCorrectEvmNetwork]);
   return provider &&
     signerAddress &&
     targetAsset &&
-    targetChain === CHAIN_ID_ETH ? (
+    isEVMChain(targetChain) &&
+    hasCorrectEvmNetwork ? (
     <Button
       onClick={handleClick}
       size="small"

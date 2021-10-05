@@ -1,6 +1,5 @@
 import {
-  CHAIN_ID_BSC,
-  CHAIN_ID_ETH,
+  ChainId,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
   getEmitterAddressEth,
@@ -50,14 +49,15 @@ import {
 } from "../../store/transferSlice";
 import {
   CHAINS,
-  ETH_BRIDGE_ADDRESS,
-  ETH_TOKEN_BRIDGE_ADDRESS,
+  getBridgeAddressForChain,
+  getTokenBridgeAddressForChain,
   SOLANA_HOST,
   SOL_TOKEN_BRIDGE_ADDRESS,
   TERRA_HOST,
   TERRA_TOKEN_BRIDGE_ADDRESS,
   WORMHOLE_RPC_HOSTS,
 } from "../../utils/consts";
+import { isEVMChain } from "../../utils/ethereum";
 import { getSignedVAAWithRetry } from "../../utils/getSignedVAAWithRetry";
 import parseError from "../../utils/parseError";
 import KeyAndBalance from "../KeyAndBalance";
@@ -70,17 +70,23 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-async function eth(
+async function evm(
   provider: ethers.providers.Web3Provider,
   tx: string,
-  enqueueSnackbar: any
+  enqueueSnackbar: any,
+  chainId: ChainId
 ) {
   try {
     const receipt = await provider.getTransactionReceipt(tx);
-    const sequence = parseSequenceFromLogEth(receipt, ETH_BRIDGE_ADDRESS);
-    const emitterAddress = getEmitterAddressEth(ETH_TOKEN_BRIDGE_ADDRESS);
+    const sequence = parseSequenceFromLogEth(
+      receipt,
+      getBridgeAddressForChain(chainId)
+    );
+    const emitterAddress = getEmitterAddressEth(
+      getTokenBridgeAddressForChain(chainId)
+    );
     const { vaaBytes } = await getSignedVAAWithRetry(
-      CHAIN_ID_ETH,
+      chainId,
       emitterAddress,
       sequence.toString(),
       WORMHOLE_RPC_HOSTS.length
@@ -172,14 +178,15 @@ function RecoveryDialogContent({
   useEffect(() => {
     if (recoverySourceTx) {
       let cancelled = false;
-      if (recoverySourceChain === CHAIN_ID_ETH && provider) {
+      if (isEVMChain(recoverySourceChain) && provider) {
         setRecoverySourceTxError("");
         setRecoverySourceTxIsLoading(true);
         (async () => {
-          const { vaa, error } = await eth(
+          const { vaa, error } = await evm(
             provider,
             recoverySourceTx,
-            enqueueSnackbar
+            enqueueSnackbar,
+            recoverySourceChain
           );
           if (!cancelled) {
             setRecoverySourceTxIsLoading(false);
@@ -315,8 +322,7 @@ function RecoveryDialogContent({
             </MenuItem>
           ))}
         </TextField>
-        {recoverySourceChain === CHAIN_ID_ETH ||
-        recoverySourceChain === CHAIN_ID_BSC ? (
+        {isEVMChain(recoverySourceChain) ? (
           <KeyAndBalance chainId={recoverySourceChain} />
         ) : null}
         <TextField

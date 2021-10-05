@@ -1,4 +1,3 @@
-import { CHAIN_ID_ETH } from "@certusone/wormhole-sdk";
 import { makeStyles, MenuItem, TextField, Typography } from "@material-ui/core";
 import { Alert } from "@material-ui/lab";
 import { useCallback, useMemo } from "react";
@@ -12,6 +11,7 @@ import {
   selectAttestTargetChain,
 } from "../../store/selectors";
 import { CHAINS, CHAINS_BY_ID } from "../../utils/consts";
+import { isEVMChain } from "../../utils/ethereum";
 import ButtonWithLoader from "../ButtonWithLoader";
 import KeyAndBalance from "../KeyAndBalance";
 import LowBalanceWarning from "../LowBalanceWarning";
@@ -64,8 +64,11 @@ function Target() {
           You will have to pay transaction fees on{" "}
           {CHAINS_BY_ID[targetChain].name} to attest this token.{" "}
         </Typography>
-        {targetChain === CHAIN_ID_ETH && (
-          <EthGasEstimateSummary methodType="createWrapped" />
+        {isEVMChain(targetChain) && (
+          <EthGasEstimateSummary
+            methodType="createWrapped"
+            chainId={targetChain}
+          />
         )}
       </Alert>
       <LowBalanceWarning chainId={targetChain} />

@@ -2,7 +2,7 @@ import { Connection, PublicKey } from "@solana/web3.js";
 import { BigNumber, ethers } from "ethers";
 import { arrayify, zeroPad } from "ethers/lib/utils";
 import { TokenImplementation__factory } from "../ethers-contracts";
-import { ChainId, CHAIN_ID_ETH, CHAIN_ID_SOLANA } from "../utils";
+import { ChainId, CHAIN_ID_SOLANA } from "../utils";
 import { getIsWrappedAssetEth } from "./getIsWrappedAsset";
 
 export interface WormholeWrappedNFTInfo {
@@ -23,7 +23,8 @@ export async function getOriginalAssetEth(
   tokenBridgeAddress: string,
   provider: ethers.providers.Web3Provider,
   wrappedAddress: string,
-  tokenId: string
+  tokenId: string,
+  lookupChainId: ChainId
 ): Promise<WormholeWrappedNFTInfo> {
   const isWrapped = await getIsWrappedAssetEth(
     tokenBridgeAddress,
@@ -49,7 +50,7 @@ export async function getOriginalAssetEth(
   }
   return {
     isWrapped: false,
-    chainId: CHAIN_ID_ETH,
+    chainId: lookupChainId,
     assetAddress: zeroPad(arrayify(wrappedAddress), 32),
     tokenId,
   };

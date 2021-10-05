@@ -1,4 +1,3 @@
-import { CHAIN_ID_ETH } from "@certusone/wormhole-sdk";
 import { Checkbox, FormControlLabel } from "@material-ui/core";
 import { Alert } from "@material-ui/lab";
 import { ethers } from "ethers";
@@ -19,6 +18,7 @@ import {
   selectTransferTransferTx,
 } from "../../store/selectors";
 import { CHAINS_BY_ID } from "../../utils/consts";
+import { isEVMChain } from "../../utils/ethereum";
 import ButtonWithLoader from "../ButtonWithLoader";
 import KeyAndBalance from "../KeyAndBalance";
 import ShowTx from "../ShowTx";
@@ -70,8 +70,7 @@ function Send() {
     approveAmount,
   } = useAllowance(sourceChain, sourceAsset, sourceAmountParsed || undefined);
 
-  const approveButtonNeeded =
-    sourceChain === CHAIN_ID_ETH && !sufficientAllowance;
+  const approveButtonNeeded = isEVMChain(sourceChain) && !sufficientAllowance;
   const notOne = shouldApproveUnlimited || sourceAmountParsed !== oneParsed;
   const isDisabled =
     !isReady ||

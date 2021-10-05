@@ -1,14 +1,14 @@
 import {
   ChainId,
-  CHAIN_ID_ETH,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
 } from "@certusone/wormhole-sdk";
 import { TokenInfo } from "@solana/spl-token-registry";
 import { useMemo } from "react";
 import { DataWrapper, getEmptyDataWrapper } from "../store/helpers";
+import { isEVMChain } from "../utils/ethereum";
 import { Metadata } from "../utils/metaplex";
-import useEthMetadata, { EthMetadata } from "./useEthMetadata";
+import useEvmMetadata, { EvmMetadata } from "./useEvmMetadata";
 import useMetaplexData from "./useMetaplexData";
 import useSolanaTokenMap from "./useSolanaTokenMap";
 import useTerraTokenMap, { TerraTokenMap } from "./useTerraTokenMap";
@@ -80,7 +80,7 @@ const constructTerraMetadata = (
 
 const constructEthMetadata = (
   addresses: string[],
-  metadataMap: DataWrapper<Map<string, EthMetadata> | null>
+  metadataMap: DataWrapper<Map<string, EvmMetadata> | null>
 ) => {
   const isFetching = metadataMap.isFetching;
   const error = metadataMap.error;
@@ -119,17 +119,17 @@ export default function useMetadata(
     return chainId === CHAIN_ID_TERRA ? addresses : [];
   }, [chainId, addresses]);
   const ethereumAddresses = useMemo(() => {
-    return chainId === CHAIN_ID_ETH ? addresses : [];
+    return isEVMChain(chainId) ? addresses : [];
   }, [chainId, addresses]);
 
   const metaplexData = useMetaplexData(solanaAddresses);
-  const ethMetadata = useEthMetadata(ethereumAddresses);
+  const ethMetadata = useEvmMetadata(ethereumAddresses, chainId);
 
   const output: DataWrapper<Map<string, GenericMetadata>> = useMemo(
     () =>
       chainId === CHAIN_ID_SOLANA
         ? constructSolanaMetadata(solanaAddresses, solanaTokenMap, metaplexData)
-        : chainId === CHAIN_ID_ETH
+        : isEVMChain(chainId)
         ? constructEthMetadata(ethereumAddresses, ethMetadata)
         : chainId === CHAIN_ID_TERRA
         ? constructTerraMetadata(terraAddresses, terraTokenMap)
