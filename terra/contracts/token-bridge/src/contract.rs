@@ -190,18 +190,11 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
 
 fn deposit_tokens(deps: DepsMut, _env: Env, info: MessageInfo) -> StdResult<Response> {
     for coin in info.funds {
-        let asset = Asset {
-            amount: coin.amount.clone(),
-            info: AssetInfo::NativeToken {
-                denom: coin.denom.clone(),
-            },
-        };
-        let deducted_amount = asset.deduct_tax(&deps.querier)?.amount;
         let deposit_key = format!("{}:{}", info.sender, coin.denom);
         bridge_deposit(deps.storage).update(
             deposit_key.as_bytes(),
             |amount: Option<Uint128>| -> StdResult<Uint128> {
-                Ok(amount.unwrap_or(Uint128::new(0)) + deducted_amount)
+                Ok(amount.unwrap_or(Uint128::new(0)) + coin.amount)
             },
         )?;
     }
@@ -233,7 +226,9 @@ fn withdraw_tokens(
         )?;
     }
 
-    Ok(Response::new().add_attribute("action", "withdraw_tokens"))
+    Ok(Response::new()
+        .add_messages(messages)
+        .add_attribute("action", "withdraw_tokens"))
 }
 
 /// Handle wrapped asset registration messages
@@ -671,9 +666,9 @@ fn handle_complete_transfer_token(
 }
 
 fn handle_complete_transfer_token_native(
-    deps: DepsMut,
+    mut deps: DepsMut,
     _env: Env,
-    info: MessageInfo,
+    _info: MessageInfo,
     emitter_chain: u16,
     emitter_address: Vec<u8>,
     data: &Vec<u8>,
@@ -723,13 +718,13 @@ fn handle_complete_transfer_token_native(
 
     let mut messages = vec![CosmosMsg::Bank(BankMsg::Send {
         to_address: recipient.to_string(),
-        amount: vec![coin(amount, &denom)],
+        amount: coins_after_tax(deps.branch(), vec![coin(amount, &denom)])?,
     })];
 
     if fee != 0 {
         messages.push(CosmosMsg::Bank(BankMsg::Send {
             to_address: recipient.to_string(),
-            amount: vec![coin(fee, &denom)],
+            amount: coins_after_tax(deps, vec![coin(fee, &denom)])?,
         }));
     }
 
