@@ -82,10 +82,23 @@ app_global_put
 b success
 
 // -----------------------------------------------------
-// Receive price message 
+// Handle app call
 // -----------------------------------------------------
 
 handle_call:
+// Group size must be 3 to raise computational allowance to 2100
+
+
+global GroupSize
+int 3
+==
+assert
+
+// if this is one of dummy transactions(0 or 1), exit with success
+txn GroupIndex
+int 2
+!=
+bnz success
 
 // Verify if sender is the data validator
 txn Sender 
