@@ -182,6 +182,7 @@ assert
 byte "nonce"
 load 0
 extract 18 8
+btoi 
 app_global_put
 
 byte "ts"
@@ -193,13 +194,11 @@ app_global_put
 byte "price"
 load 0
 extract 42 8 
-btoi 
 app_global_put
 
 byte "stdev"
 load 0
 extract 50 8
-btoi
 app_global_put
 
 b success
