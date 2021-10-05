@@ -83,7 +83,7 @@ export const WORMHOLE_RPC_HOSTS =
         "https://wormhole-v2-testnet-api.mcf.rocks",
         "https://wormhole-v2-testnet-api.chainlayer.network"
       ]
-    : ["http://localhost:8080"];
+    : ["http://localhost:7071"];
 export const ETH_NETWORK_CHAIN_ID =
   CLUSTER === "mainnet" ? 1 : CLUSTER === "testnet" ? 5 : 1337;
 export const SOLANA_HOST = process.env.REACT_APP_SOLANA_API_URL

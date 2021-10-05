@@ -130,20 +130,6 @@ k8s_resource("guardian", resource_deps = ["proto-gen", "solana-devnet"], port_fo
     port_forward(2345, name = "Debugger [:2345]"),
 ])
 
-# publicRPC proxy that allows grpc over http1, for local development
-
-k8s_yaml_with_ns("./devnet/envoy-proxy.yaml")
-
-k8s_resource(
-    "envoy-proxy",
-    resource_deps = ["guardian"],
-    objects = ["envoy-proxy:ConfigMap"],
-    port_forwards = [
-        port_forward(8080, name = "gRPC proxy for guardian's publicRPC data [:8080]"),
-        port_forward(9901, name = "gRPC proxy admin [:9901]"),  # for proxy debugging
-    ],
-)
-
 # solana client cli (used for devnet setup)
 
 docker_build(

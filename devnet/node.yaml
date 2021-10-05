@@ -123,6 +123,9 @@ spec:
             - containerPort: 7070
               name: public-grpc
               protocol: TCP
+            - containerPort: 7071
+              name: public-grpcweb
+              protocol: TCP
             - containerPort: 2345
               name: debugger
               protocol: TCP
