@@ -13,7 +13,7 @@ import {
   Tooltip,
   Typography,
 } from "@material-ui/core";
-import { HelpOutline, Send } from "@material-ui/icons";
+import { BarChart, HelpOutline, Send } from "@material-ui/icons";
 import clsx from "clsx";
 import { useCallback } from "react";
 import { useHistory, useLocation, useRouteMatch } from "react-router";
@@ -36,6 +36,7 @@ import Transfer from "./components/Transfer";
 import { useBetaContext } from "./contexts/BetaContext";
 import { COLORS } from "./muiTheme";
 import { CLUSTER } from "./utils/consts";
+import Stats from "./components/Stats";
 
 const useStyles = makeStyles((theme) => ({
   appBar: {
@@ -93,6 +94,17 @@ const useStyles = makeStyles((theme) => ({
     MozTextFillColor: "transparent",
     letterSpacing: "3px",
   },
+  iconButton: {
+    [theme.breakpoints.up("md")]: {
+      marginRight: theme.spacing(2.5),
+    },
+    [theme.breakpoints.down("sm")]: {
+      marginRight: theme.spacing(2.5),
+    },
+    [theme.breakpoints.down("xs")]: {
+      marginRight: theme.spacing(1),
+    },
+  },
   gradientButton: {
     backgroundImage: `linear-gradient(45deg, ${COLORS.blue} 0%, ${COLORS.nearBlack}20 50%,  ${COLORS.blue}30 62%, ${COLORS.nearBlack}50  120%)`,
     transition: "0.75s",
@@ -113,6 +125,7 @@ function App() {
   const classes = useStyles();
   const isBeta = useBetaContext();
   const isHomepage = useRouteMatch({ path: "/", exact: true });
+  const isStats = useRouteMatch({ path: "/stats", exact: true });
   const isOriginVerifier = useRouteMatch({
     path: "/nft-origin-verifier",
     exact: true,
@@ -140,16 +153,28 @@ function App() {
           <Hidden implementation="css" xsDown>
             <div style={{ display: "flex", alignItems: "center" }}>
               {isHomepage ? (
-                <Button
-                  component={RouterLink}
-                  to="/transfer"
-                  variant="contained"
-                  color="primary"
-                  size="large"
-                  className={classes.gradientButton}
-                >
-                  Transfer Tokens
-                </Button>
+                <>
+                  <Tooltip title="View wormhole network stats">
+                    <IconButton
+                      component={NavLink}
+                      to="/stats"
+                      size="small"
+                      className={clsx(classes.link, classes.iconButton)}
+                    >
+                      <BarChart />
+                    </IconButton>
+                  </Tooltip>
+                  <Button
+                    component={RouterLink}
+                    to="/transfer"
+                    variant="contained"
+                    color="primary"
+                    size="large"
+                    className={classes.gradientButton}
+                  >
+                    Transfer Tokens
+                  </Button>
+                </>
               ) : (
                 <Tooltip title="View the FAQ">
                   <Button
@@ -167,16 +192,28 @@ function App() {
           </Hidden>
           <Hidden implementation="css" smUp>
             {isHomepage ? (
-              <Tooltip title="Transfer tokens to another blockchain">
-                <IconButton
-                  component={NavLink}
-                  to="/transfer"
-                  size="small"
-                  className={classes.link}
-                >
-                  <Send />
-                </IconButton>
-              </Tooltip>
+              <>
+                <Tooltip title="View wormhole network stats">
+                  <IconButton
+                    component={NavLink}
+                    to="/stats"
+                    size="small"
+                    className={classes.link + " " + classes.iconButton}
+                  >
+                    <BarChart />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Transfer tokens to another blockchain">
+                  <IconButton
+                    component={NavLink}
+                    to="/transfer"
+                    size="small"
+                    className={classes.link}
+                  >
+                    <Send />
+                  </IconButton>
+                </Tooltip>
+              </>
             ) : (
               <Tooltip title="View the FAQ">
                 <IconButton
@@ -209,7 +246,7 @@ function App() {
         </AppBar>
       ) : null}
       <div className={classes.content}>
-        {isHomepage || isOriginVerifier ? null : (
+        {isHomepage || isOriginVerifier || isStats ? null : (
           <Container maxWidth="md" style={{ paddingBottom: 24 }}>
             <Tabs
               value={
@@ -251,6 +288,9 @@ function App() {
           </Route>
           <Route exact path="/migrate/Ethereum/">
             <EthereumQuickMigrate />
+          </Route>
+          <Route exact path="/stats">
+            <Stats />
           </Route>
           <Route exact path="/">
             <Home />
