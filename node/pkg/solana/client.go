@@ -126,16 +126,20 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 		timer := time.NewTicker(time.Second * 1)
 		defer timer.Stop()
 
-		recovery := time.NewTimer(recoveryDate.Sub(time.Now().UTC()))
+		var recovery <-chan time.Time
+		date := recoveryDate.Sub(time.Now().UTC())
+		if date >= 0 && s.commitment == rpc.CommitmentFinalized {
+			logger.Info("waiting for scheduled recovery", zap.Duration("until", date))
+			recovery = time.NewTimer(date).C
+		} else {
+			recovery = make(<-chan time.Time)
+		}
 
 		for {
 			select {
 			case <-ctx.Done():
 				return
-			case <-recovery.C:
-				if s.commitment != rpc.CommitmentFinalized {
-					continue
-				}
+			case <-recovery:
 				logger.Info("executing scheduled recovery")
 
 				rCtx, cancel := context.WithTimeout(ctx, rpcTimeout)
@@ -266,7 +270,7 @@ func (s *SolanaWatcher) fetchBlock(ctx context.Context, logger *zap.Logger, slot
 			if emptyRetry < maxEmptyRetry {
 				go func() {
 					time.Sleep(retryDelay)
-					s.fetchBlock(ctx, logger, slot, emptyRetry + 1)
+					s.fetchBlock(ctx, logger, slot, emptyRetry+1)
 				}()
 			}
 			return true
@@ -393,7 +397,6 @@ func (s *SolanaWatcher) processInstruction(ctx context.Context, logger *zap.Logg
 		return false, fmt.Errorf("invalid number of accounts: %d instead of %d",
 			len(inst.Accounts), postMessageInstructionNumAccounts)
 	}
-
 
 	// Decode instruction data (UNTRUSTED)
 	var data PostMessageData
