@@ -6,12 +6,11 @@
 // App-globals:
 // sym      : byte[] Symbol to keep price for   
 // vaddr    : byte[] Validator account          
-// nonce    : uint64 last sequence ID
 // price    : uint64 current price 
 // stdev    : uint64 current confidence (standard deviation)
 // slot     : uint64 slot of this onchain publication
 // exp      : uint64 exponent (fixed point position)
-// ts       : uint64 timestamp
+// ts       : uint64 last timestamp
 //
 // Slots:
 // 0        Input message block 
@@ -23,7 +22,6 @@
 //  9           header      Literal "PRICEDATA"
 //  1           version     int8 (Must be 1)
 //  8           dest        This appId 
-//  8           nonce       uint64 Sequence identifier 
 //  16          symbol      String filled with spaces e.g ("ALGO/USD        ")
 //  8           price       Price. 64bit integer.
 //  8           priceexp    Price exponent (fixed point position). 
@@ -33,7 +31,7 @@
 //  32          s           Signature s-component
 //  32          r           Signature r-component 
 //
-//  Size: 146 bytes. 
+//  Size: 138 bytes. 
 //
 // ------------------------------------------------------------------------------------------------
 
@@ -79,8 +77,8 @@ int 16
 assert
 app_global_put
 
-byte "nonce"
-int 0
+byte "ts"
+global LatestTimestamp
 app_global_put
 
 b success
@@ -97,7 +95,7 @@ int 4
 ==
 assert
 
-// if this is one of dummy transactions(0 or 1), exit with success
+// if this is one of dummy transactions(0, 1 or 2), exit with success
 txn GroupIndex
 int 3
 !=
@@ -122,7 +120,7 @@ store 0
 
 load 0
 len
-int 146
+int 138
 ==
 assert
 
@@ -151,19 +149,9 @@ txn ApplicationID
 ==
 assert 
 
-// Check nonce 
-
-load 0
-extract 18 8
-btoi
-byte "nonce"
-app_global_get
->
-assert
-
 // Reject zero price 
 load 0
-extract 42 8
+extract 34 8
 btoi
 int 0
 !=
@@ -171,7 +159,7 @@ assert
 
 // Reject zero slot
 load 0
-extract 66 8
+extract 58 8
 btoi
 int 0 
 !=
@@ -179,41 +167,42 @@ assert
 
 // Reject out-of-range exponent
 load 0
-extract 50 8
+extract 42 8
 btoi 
 int 18
 <=
 assert
 
-// Check timestamp  order, must be +/-10 secs from last block ts
+// Check timestamp: 
+// * must be higher than ts recorded in global state
+// * must be lower than current block stamp + 10s
 // (TODO: check this again)
 load 0 
-extract 74 8
+extract 66 8
 btoi 
+dup
 dup
 global LatestTimestamp
 int 10
--
-<
-//assert 
-global LatestTimestamp
-int 10
 +
-swap
+<
+assert 
+byte "ts"
+app_global_get
 >
-//assert
+assert
 
 
 // ed25519verify args in stack:
 
 // data (hash of message)
 load 0
-extract 0 82
+extract 0 74
 sha512_256
 
 // (B) signature 
 load 0
-extract 82 64
+extract 74 64
 
 // validator-address
 byte "vaddr"
@@ -223,45 +212,39 @@ app_global_get
 ed25519verify
 int 1
 ==
-//assert
+assert
 
 // ----------------------------------------------------------------------------
 // Verified. Store data to app globals.
 // ----------------------------------------------------------------------------
 
-byte "nonce"
-load 0
-extract 18 8
-btoi 
-app_global_put
-
 byte "ts"
 load 0 
-extract 74 8
+extract 66 8
 btoi 
 app_global_put
 
 byte "price"
 load 0
-extract 42 8 
+extract 34 8 
 btoi
 app_global_put
 
 byte "exp"
 load 0
-extract 50 8 
+extract 42 8 
 btoi
 app_global_put
 
-byte "stdev"
+byte "conf"
 load 0
-extract 58 8
+extract 50 8
 btoi
 app_global_put
 
 byte "slot"
 load 0
-extract 66 8
+extract 58 8
 btoi
 app_global_put
 
