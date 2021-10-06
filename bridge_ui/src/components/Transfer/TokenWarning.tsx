@@ -10,7 +10,6 @@ import {
   ETH_TOKENS_THAT_CAN_BE_SWAPPED_ON_SOLANA,
   ETH_TOKENS_THAT_EXIST_ELSEWHERE,
   SOLANA_TOKENS_THAT_EXIST_ELSEWHERE,
-  WETH_ADDRESS,
 } from "../../utils/consts";
 
 export default function TokenWarning({
@@ -39,10 +38,13 @@ export default function TokenWarning({
   );
   return tokenConflictingNativeWarning ? (
     <Alert severity="warning">{tokenConflictingNativeWarning}</Alert>
-  ) : sourceChain === CHAIN_ID_ETH && tokenAddress === WETH_ADDRESS ? (
+  ) : sourceChain === CHAIN_ID_ETH &&
+    tokenAddress &&
+    getAddress(tokenAddress) ===
+      getAddress("0xae7ab96520de3a18e5e111b5eaab095312d7fe84") ? ( // stETH (Lido)
     <Alert severity="warning">
-      As of 2021-09-30, markets for Wormhole v2 wrapped WETH have not yet been
-      created.
+      Lido stETH rewards can only be received on Ethereum. Use the value
+      accruing wrapper token wstETH instead.
     </Alert>
   ) : sourceChain === CHAIN_ID_ETH &&
     tokenAddress &&

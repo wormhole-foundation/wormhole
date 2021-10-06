@@ -1,6 +1,5 @@
 import { makeStyles } from "@material-ui/core";
-import { useRouteMatch } from "react-router";
-import holev2 from "../images/holev2.svg";
+// import { useRouteMatch } from "react-router";
 
 const useStyles = makeStyles((theme) => ({
   holeOuterContainer: {
@@ -31,19 +30,11 @@ const useStyles = makeStyles((theme) => ({
 
 const BackgroundImage = () => {
   const classes = useStyles();
-  const isHomepage = useRouteMatch({ path: "/", exact: true });
+  // const isHomepage = useRouteMatch({ path: "/", exact: true });
 
   return (
     <div className={classes.holeOuterContainer}>
-      <div className={classes.holeInnerContainer}>
-        <img
-          src={holev2}
-          alt=""
-          className={
-            classes.holeImage + (isHomepage ? "" : " " + classes.blurred)
-          }
-        />
-      </div>
+      <div className={classes.holeInnerContainer}></div>
     </div>
   );
 };

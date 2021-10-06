@@ -9,6 +9,7 @@ import { PublicKey } from "@solana/web3.js";
 import { BigNumber, ethers } from "ethers";
 import { useCallback, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { useBetaContext } from "../../contexts/BetaContext";
 import useIsWalletReady from "../../hooks/useIsWalletReady";
 import useSyncTargetAddress from "../../hooks/useSyncTargetAddress";
 import { EthGasEstimateSummary } from "../../hooks/useTransactionFees";
@@ -26,7 +27,11 @@ import {
   selectNFTTargetChain,
   selectNFTTargetError,
 } from "../../store/selectors";
-import { CHAINS_BY_ID, CHAINS_WITH_NFT_SUPPORT } from "../../utils/consts";
+import {
+  BETA_CHAINS,
+  CHAINS_BY_ID,
+  CHAINS_WITH_NFT_SUPPORT,
+} from "../../utils/consts";
 import { isEVMChain } from "../../utils/ethereum";
 import ButtonWithLoader from "../ButtonWithLoader";
 import KeyAndBalance from "../KeyAndBalance";
@@ -46,6 +51,7 @@ const useStyles = makeStyles((theme) => ({
 function Target() {
   const classes = useStyles();
   const dispatch = useDispatch();
+  const isBeta = useBetaContext();
   const sourceChain = useSelector(selectNFTSourceChain);
   const chains = useMemo(
     () => CHAINS_WITH_NFT_SUPPORT.filter((c) => c.id !== sourceChain),
@@ -91,19 +97,23 @@ function Target() {
       <TextField
         select
         fullWidth
+        variant="outlined"
         value={targetChain}
         onChange={handleTargetChange}
       >
-        {chains.map(({ id, name }) => (
-          <MenuItem key={id} value={id}>
-            {name}
-          </MenuItem>
-        ))}
+        {chains
+          .filter(({ id }) => (isBeta ? true : !BETA_CHAINS.includes(id)))
+          .map(({ id, name }) => (
+            <MenuItem key={id} value={id}>
+              {name}
+            </MenuItem>
+          ))}
       </TextField>
       <KeyAndBalance chainId={targetChain} balance={uiAmountString} />
       <TextField
         label="Recipient Address"
         fullWidth
+        variant="outlined"
         className={classes.transferField}
         value={readableTargetAddress}
         disabled={true}
@@ -113,12 +123,14 @@ function Target() {
           <TextField
             label="Token Address"
             fullWidth
+            variant="outlined"
             className={classes.transferField}
             value={targetAsset || ""}
             disabled={true}
           />
           {isEVMChain(targetChain) ? (
             <TextField
+              variant="outlined"
               label="TokenId"
               fullWidth
               className={classes.transferField}

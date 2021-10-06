@@ -1,6 +1,5 @@
 import {
   Container,
-  makeStyles,
   Step,
   StepButton,
   StepContent,
@@ -9,7 +8,6 @@ import {
 import { Alert } from "@material-ui/lab";
 import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { COLORS } from "../../muiTheme";
 import { setStep } from "../../store/attestSlice";
 import {
   selectAttestActiveStep,
@@ -27,14 +25,7 @@ import SourcePreview from "./SourcePreview";
 import Target from "./Target";
 import TargetPreview from "./TargetPreview";
 
-const useStyles = makeStyles(() => ({
-  rootContainer: {
-    backgroundColor: COLORS.nearBlackWithMinorTransparency,
-  },
-}));
-
 function Attest() {
-  const classes = useStyles();
   const dispatch = useDispatch();
   const activeStep = useSelector(selectAttestActiveStep);
   const isSending = useSelector(selectAttestIsSending);
@@ -57,11 +48,7 @@ function Attest() {
         This form allows you to register a token on a new foreign chain. Tokens
         must be registered before they can be transferred.
       </Alert>
-      <Stepper
-        activeStep={activeStep}
-        orientation="vertical"
-        className={classes.rootContainer}
-      >
+      <Stepper activeStep={activeStep} orientation="vertical">
         <Step
           expanded={activeStep >= 0}
           disabled={preventNavigation || isCreateComplete}

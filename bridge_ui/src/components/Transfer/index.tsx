@@ -1,17 +1,15 @@
 import {
   Container,
-  makeStyles,
   Step,
   StepButton,
   StepContent,
   Stepper,
 } from "@material-ui/core";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import useCheckIfWormholeWrapped from "../../hooks/useCheckIfWormholeWrapped";
 import useFetchTargetAsset from "../../hooks/useFetchTargetAsset";
 import useGetBalanceEffect from "../../hooks/useGetBalanceEffect";
-import { COLORS } from "../../muiTheme";
 import {
   selectTransferActiveStep,
   selectTransferIsRedeemComplete,
@@ -20,7 +18,6 @@ import {
   selectTransferIsSending,
 } from "../../store/selectors";
 import { setStep } from "../../store/transferSlice";
-import Recovery from "./Recovery";
 import Redeem from "./Redeem";
 import RedeemPreview from "./RedeemPreview";
 import Send from "./Send";
@@ -30,18 +27,10 @@ import SourcePreview from "./SourcePreview";
 import Target from "./Target";
 import TargetPreview from "./TargetPreview";
 
-const useStyles = makeStyles(() => ({
-  rootContainer: {
-    backgroundColor: COLORS.nearBlackWithMinorTransparency,
-  },
-}));
-
 function Transfer() {
-  const classes = useStyles();
   useCheckIfWormholeWrapped();
   useFetchTargetAsset();
   useGetBalanceEffect("target");
-  const [isRecoveryOpen, setIsRecoveryOpen] = useState(false);
   const dispatch = useDispatch();
   const activeStep = useSelector(selectTransferActiveStep);
   const isSending = useSelector(selectTransferIsSending);
@@ -60,22 +49,14 @@ function Transfer() {
   }, [preventNavigation]);
   return (
     <Container maxWidth="md">
-      <Stepper
-        activeStep={activeStep}
-        orientation="vertical"
-        className={classes.rootContainer}
-      >
+      <Stepper activeStep={activeStep} orientation="vertical">
         <Step
           expanded={activeStep >= 0}
           disabled={preventNavigation || isRedeemComplete}
         >
           <StepButton onClick={() => dispatch(setStep(0))}>Source</StepButton>
           <StepContent>
-            {activeStep === 0 ? (
-              <Source setIsRecoveryOpen={setIsRecoveryOpen} />
-            ) : (
-              <SourcePreview />
-            )}
+            {activeStep === 0 ? <Source /> : <SourcePreview />}
           </StepContent>
         </Step>
         <Step
@@ -107,11 +88,6 @@ function Transfer() {
           </StepContent>
         </Step>
       </Stepper>
-      <Recovery
-        open={isRecoveryOpen}
-        setOpen={setIsRecoveryOpen}
-        disabled={preventNavigation}
-      />
     </Container>
   );
 }

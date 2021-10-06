@@ -296,6 +296,7 @@ export default function TerraSourceTokenSelector(
     <>
       <TextField
         fullWidth
+        variant="outlined"
         label="Enter an asset address"
         value={advancedModeHolderString}
         onChange={handleOnChange}

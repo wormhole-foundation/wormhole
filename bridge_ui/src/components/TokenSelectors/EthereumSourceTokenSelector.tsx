@@ -584,6 +584,7 @@ export default function EthereumSourceTokenSelector(
   ) : advancedMode ? (
     <>
       <TextField
+        variant="outlined"
         fullWidth
         label="Enter an asset address"
         value={advancedModeHolderString}
@@ -602,6 +603,7 @@ export default function EthereumSourceTokenSelector(
       />
       {nft ? (
         <TextField
+          variant="outlined"
           fullWidth
           label="Enter a tokenId"
           value={advancedModeHolderTokenIdRaw}

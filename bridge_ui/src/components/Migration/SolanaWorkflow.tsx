@@ -460,6 +460,7 @@ export default function Workflow({
       ) : null}
       <div className={classes.spacer} />
       <TextField
+        variant="outlined"
         value={migrationAmount}
         type="number"
         onChange={handleAmountChange}

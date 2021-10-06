@@ -31,7 +31,7 @@ export default function CreatePreview() {
   }, [dispatch, push]);
 
   const explainerString =
-    "Success! The redeem transaction was submitted. The tokens will become available once the transaction confirms.";
+    "Success! The create wrapped transaction was submitted.";
 
   return (
     <>

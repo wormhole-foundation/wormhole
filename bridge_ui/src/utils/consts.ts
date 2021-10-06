@@ -22,6 +22,10 @@ export interface ChainInfo {
 export const CHAINS =
   CLUSTER === "mainnet"
     ? [
+        // {
+        //   id: CHAIN_ID_BSC,
+        //   name: "Binance Smart Chain",
+        // },
         {
           id: CHAIN_ID_ETH,
           name: "Ethereum",
@@ -30,6 +34,10 @@ export const CHAINS =
           id: CHAIN_ID_SOLANA,
           name: "Solana",
         },
+        // {
+        //   id: CHAIN_ID_TERRA,
+        //   name: "Terra",
+        // },
       ]
     : CLUSTER === "testnet"
     ? [
@@ -64,6 +72,8 @@ export const CHAINS =
           name: "Terra",
         },
       ];
+export const BETA_CHAINS =
+  CLUSTER === "mainnet" ? [CHAIN_ID_BSC, CHAIN_ID_TERRA] : [];
 export const CHAINS_WITH_NFT_SUPPORT = CHAINS.filter(
   ({ id }) =>
     id === CHAIN_ID_ETH || id === CHAIN_ID_BSC || id === CHAIN_ID_SOLANA
@@ -202,13 +212,13 @@ export const SOL_CUSTODY_ADDRESS =
 export const TERRA_TEST_TOKEN_ADDRESS =
   "terra13nkgqrfymug724h8pprpexqj9h629sa3ncw7sh";
 export const TERRA_BRIDGE_ADDRESS =
-CLUSTER === "mainnet"
+  CLUSTER === "mainnet"
     ? "terra1dq03ugtd40zu9hcgdzrsq6z2z4hwhc9tqk2uy5"
     : CLUSTER === "testnet"
     ? "terra18vd8fpwxzck93qlwghaj6arh4p7c5n896xzem5"
     : "terra18vd8fpwxzck93qlwghaj6arh4p7c5n896xzem5";
 export const TERRA_TOKEN_BRIDGE_ADDRESS =
-CLUSTER === "mainnet"
+  CLUSTER === "mainnet"
     ? "terra10nmmwe8r3g99a9newtqa7a75xfgs2e8z87r2sf"
     : CLUSTER === "testnet"
     ? "terra10pyejy66429refv3g35g2t7am0was7ya7kz2a4"

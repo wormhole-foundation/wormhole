@@ -182,6 +182,7 @@ export default function EthereumWorkflow({
       {explainerContent}
       <div className={classes.spacer} />
       <TextField
+        variant="outlined"
         value={migrationAmount}
         type="number"
         onChange={handleAmountChange}

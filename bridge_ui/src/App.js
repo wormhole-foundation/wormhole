@@ -1,14 +1,22 @@
+import { CHAIN_ID_ETH, CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
 import {
   AppBar,
+  Button,
+  Container,
   Hidden,
   IconButton,
   Link,
   makeStyles,
+  Tab,
+  Tabs,
   Toolbar,
   Tooltip,
   Typography,
 } from "@material-ui/core";
-import { GitHub, Help, Publish, Send } from "@material-ui/icons";
+import { HelpOutline, Send } from "@material-ui/icons";
+import clsx from "clsx";
+import { useCallback } from "react";
+import { useHistory, useLocation, useRouteMatch } from "react-router";
 import {
   Link as RouterLink,
   NavLink,
@@ -19,17 +27,18 @@ import {
 import Attest from "./components/Attest";
 import Home from "./components/Home";
 import Migration from "./components/Migration";
+import EthereumQuickMigrate from "./components/Migration/EthereumQuickMigrate";
 import NFT from "./components/NFT";
 import NFTOriginVerifier from "./components/NFTOriginVerifier";
+import Recovery from "./components/Recovery";
 import Transfer from "./components/Transfer";
-import wormholeLogo from "./icons/wormhole.svg";
+import { useBetaContext } from "./contexts/BetaContext";
+import { COLORS } from "./muiTheme";
 import { CLUSTER } from "./utils/consts";
-import EthereumQuickMigrate from "./components/Migration/EthereumQuickMigrate";
-import { CHAIN_ID_ETH, CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
 
 const useStyles = makeStyles((theme) => ({
   appBar: {
-    borderBottom: `1px solid ${theme.palette.divider}`,
+    background: COLORS.nearBlackWithMinorTransparency,
     "& > .MuiToolbar-root": {
       margin: "auto",
       width: "100%",
@@ -39,13 +48,6 @@ const useStyles = makeStyles((theme) => ({
   spacer: {
     flex: 1,
     width: "100vw",
-  },
-  logo: {
-    verticalAlign: "middle",
-    height: 52,
-    [theme.breakpoints.down("xs")]: {
-      height: 42,
-    },
   },
   link: {
     ...theme.typography.body1,
@@ -58,8 +60,13 @@ const useStyles = makeStyles((theme) => ({
       marginLeft: theme.spacing(1),
     },
     "&.active": {
-      color: theme.palette.secondary.light,
+      color: theme.palette.primary.light,
     },
+  },
+  bg: {
+    minHeight: "100vh",
+    background:
+      "linear-gradient(160deg, rgba(69,74,117,.1) 0%, rgba(138,146,178,.1) 33%, rgba(69,74,117,.1) 66%, rgba(98,104,143,.1) 100%), linear-gradient(45deg, rgba(153,69,255,.1) 0%, rgba(121,98,231,.1) 20%, rgba(0,209,140,.1) 100%)",
   },
   content: {
     [theme.breakpoints.up("sm")]: {
@@ -69,57 +76,104 @@ const useStyles = makeStyles((theme) => ({
       margin: theme.spacing(4, 0),
     },
   },
+  brandText: {
+    ...theme.typography.h5,
+    [theme.breakpoints.down("xs")]: {
+      fontSize: 22,
+    },
+    fontWeight: "500",
+    background: `linear-gradient(160deg, rgba(255,255,255,1) 0%, rgba(255,255,255,0.5) 100%);`,
+    WebkitBackgroundClip: "text",
+    backgroundClip: "text",
+    WebkitTextFillColor: "transparent",
+    MozBackgroundClip: "text",
+    MozTextFillColor: "transparent",
+    letterSpacing: "3px",
+  },
+  gradientButton: {
+    backgroundImage: `linear-gradient(45deg, ${COLORS.blue} 0%, ${COLORS.nearBlack}20 50%,  ${COLORS.blue}30 62%, ${COLORS.nearBlack}50  120%)`,
+    transition: "0.75s",
+    backgroundSize: "200% auto",
+    boxShadow: "0 0 20px #222",
+    "&:hover": {
+      backgroundPosition:
+        "right center" /* change the direction of the change here */,
+    },
+  },
+  betaBanner: {
+    background: `linear-gradient(to left, ${COLORS.blue}40, ${COLORS.green}40);`,
+    padding: theme.spacing(1, 0),
+  },
 }));
 
 function App() {
   const classes = useStyles();
+  const isBeta = useBetaContext();
+  const isHomepage = useRouteMatch({ path: "/", exact: true });
+  const isOriginVerifier = useRouteMatch({
+    path: "/nft-origin-verifier",
+    exact: true,
+  });
+  const { push } = useHistory();
+  const { pathname } = useLocation();
+  const handleTabChange = useCallback(
+    (event, value) => {
+      push(value);
+    },
+    [push]
+  );
   return (
-    <>
+    <div className={classes.bg}>
       <AppBar position="static" color="inherit" className={classes.appBar}>
         <Toolbar>
-          <RouterLink to="/">
-            <img
-              src={wormholeLogo}
-              alt="Wormhole Logo"
-              className={classes.logo}
-            />
-          </RouterLink>
+          <Link
+            component={RouterLink}
+            to="/"
+            className={clsx(classes.link, classes.brandText)}
+          >
+            wormhole
+          </Link>
           <div className={classes.spacer} />
           <Hidden implementation="css" xsDown>
             <div style={{ display: "flex", alignItems: "center" }}>
-              <Tooltip title="Transfer NFTs to another blockchain">
-                <Link component={NavLink} to="/nft" className={classes.link}>
-                  NFTs
-                </Link>
-              </Tooltip>
+              {isHomepage ? (
+                <Button
+                  component={RouterLink}
+                  to="/transfer"
+                  variant="contained"
+                  color="primary"
+                  size="large"
+                  className={classes.gradientButton}
+                >
+                  Transfer Tokens
+                </Button>
+              ) : (
+                <Tooltip title="View the FAQ">
+                  <Button
+                    href="https://docs.wormholenetwork.com/wormhole/faqs"
+                    target="_blank"
+                    variant="outlined"
+                    endIcon={<HelpOutline />}
+                  >
+                    FAQ
+                  </Button>
+                </Tooltip>
+              )}
+            </div>
+          </Hidden>
+          <Hidden implementation="css" smUp>
+            {isHomepage ? (
               <Tooltip title="Transfer tokens to another blockchain">
-                <Link
+                <IconButton
                   component={NavLink}
                   to="/transfer"
-                  className={classes.link}
-                >
-                  Transfer
-                </Link>
-              </Tooltip>
-              <Tooltip title="Register a new wrapped token">
-                <Link
-                  component={NavLink}
-                  to="/register"
-                  className={classes.link}
-                >
-                  Register
-                </Link>
-              </Tooltip>
-              <Tooltip title="View the source code">
-                <IconButton
-                  href="https://github.com/certusone/wormhole"
-                  target="_blank"
                   size="small"
                   className={classes.link}
                 >
-                  <GitHub />
+                  <Send />
                 </IconButton>
               </Tooltip>
+            ) : (
               <Tooltip title="View the FAQ">
                 <IconButton
                   href="https://docs.wormholenetwork.com/wormhole/faqs"
@@ -127,53 +181,47 @@ function App() {
                   size="small"
                   className={classes.link}
                 >
-                  <Help />
+                  <HelpOutline />
                 </IconButton>
               </Tooltip>
-            </div>
-          </Hidden>
-          <Hidden implementation="css" smUp>
-            <Tooltip title="Transfer tokens to another blockchain">
-              <IconButton
-                component={NavLink}
-                to="/transfer"
-                size="small"
-                className={classes.link}
-              >
-                <Send />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="Register a new wrapped token">
-              <IconButton
-                component={NavLink}
-                to="/register"
-                size="small"
-                className={classes.link}
-              >
-                <Publish />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="View the FAQ">
-              <IconButton
-                href="https://docs.wormholenetwork.com/wormhole/faqs"
-                target="_blank"
-                size="small"
-                className={classes.link}
-              >
-                <Help />
-              </IconButton>
-            </Tooltip>
+            )}
           </Hidden>
         </Toolbar>
       </AppBar>
       {CLUSTER === "mainnet" ? null : (
-        <AppBar position="static" color="secondary">
+        <AppBar position="static" className={classes.betaBanner}>
           <Typography style={{ textAlign: "center" }}>
             Caution! You are using the {CLUSTER} build of this app.
           </Typography>
         </AppBar>
       )}
+      {isBeta ? (
+        <AppBar position="static" className={classes.betaBanner}>
+          <Typography style={{ textAlign: "center" }}>
+            Caution! You have enabled the beta. Enter the secret code again to
+            disable.
+          </Typography>
+        </AppBar>
+      ) : null}
       <div className={classes.content}>
+        {isHomepage || isOriginVerifier ? null : (
+          <Container maxWidth="md" style={{ paddingBottom: 24 }}>
+            <Tabs
+              value={
+                ["/transfer", "/nft", "/redeem"].includes(pathname)
+                  ? pathname
+                  : "/transfer"
+              }
+              variant="fullWidth"
+              onChange={handleTabChange}
+              indicatorColor="primary"
+            >
+              <Tab label="Tokens" value="/transfer" />
+              <Tab label="NFTs" value="/nft" />
+              <Tab label="Redeem" value="/redeem" to="/redeem" />
+            </Tabs>
+          </Container>
+        )}
         <Switch>
           <Route exact path="/nft">
             <NFT />
@@ -183,6 +231,9 @@ function App() {
           </Route>
           <Route exact path="/transfer">
             <Transfer />
+          </Route>
+          <Route exact path="/redeem">
+            <Recovery />
           </Route>
           <Route exact path="/register">
             <Attest />
@@ -204,7 +255,7 @@ function App() {
           </Route>
         </Switch>
       </div>
-    </>
+    </div>
   );
 }
 
