@@ -319,6 +319,7 @@ export default function NFTOriginVerifier() {
                   <Button
                     href={`https://solscan.io/token/${readableAddress}`}
                     target="_blank"
+                    rel="noopener noreferrer"
                     endIcon={<Launch />}
                     className={classes.viewButton}
                     variant="outlined"
@@ -329,6 +330,7 @@ export default function NFTOriginVerifier() {
                   <Button
                     href={`https://bscscan.com/token/${readableAddress}?a=${originInfo.tokenId}`}
                     target="_blank"
+                    rel="noopener noreferrer"
                     endIcon={<Launch />}
                     className={classes.viewButton}
                     variant="outlined"
@@ -339,6 +341,7 @@ export default function NFTOriginVerifier() {
                   <Button
                     href={`https://opensea.io/assets/${readableAddress}/${originInfo.tokenId}`}
                     target="_blank"
+                    rel="noopener noreferrer"
                     endIcon={<Launch />}
                     className={classes.viewButton}
                     variant="outlined"

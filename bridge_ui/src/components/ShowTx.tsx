@@ -67,6 +67,7 @@ export default function ShowTx({
         <Button
           href={explorerAddress}
           target="_blank"
+          rel="noopener noreferrer"
           size="small"
           variant="outlined"
           className={classes.viewButton}

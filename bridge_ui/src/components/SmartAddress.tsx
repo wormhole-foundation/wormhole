@@ -118,6 +118,7 @@ export default function SmartAddress({
       className={classes.buttons}
       href={explorerAddress}
       target="_blank"
+      rel="noopener noreferrer"
     >
       {"View on " + explorerName}
     </Button>

@@ -25,6 +25,7 @@ import {
   Switch,
 } from "react-router-dom";
 import Attest from "./components/Attest";
+import Footer from "./components/Footer";
 import Home from "./components/Home";
 import Migration from "./components/Migration";
 import EthereumQuickMigrate from "./components/Migration/EthereumQuickMigrate";
@@ -64,9 +65,11 @@ const useStyles = makeStyles((theme) => ({
     },
   },
   bg: {
-    minHeight: "100vh",
     background:
       "linear-gradient(160deg, rgba(69,74,117,.1) 0%, rgba(138,146,178,.1) 33%, rgba(69,74,117,.1) 66%, rgba(98,104,143,.1) 100%), linear-gradient(45deg, rgba(153,69,255,.1) 0%, rgba(121,98,231,.1) 20%, rgba(0,209,140,.1) 100%)",
+    display: "flex",
+    flexDirection: "column",
+    minHeight: "100vh",
   },
   content: {
     [theme.breakpoints.up("sm")]: {
@@ -152,6 +155,7 @@ function App() {
                   <Button
                     href="https://docs.wormholenetwork.com/wormhole/faqs"
                     target="_blank"
+                    rel="noopener noreferrer"
                     variant="outlined"
                     endIcon={<HelpOutline />}
                   >
@@ -178,6 +182,7 @@ function App() {
                 <IconButton
                   href="https://docs.wormholenetwork.com/wormhole/faqs"
                   target="_blank"
+                  rel="noopener noreferrer"
                   size="small"
                   className={classes.link}
                 >
@@ -255,6 +260,8 @@ function App() {
           </Route>
         </Switch>
       </div>
+      <div className={classes.spacer} />
+      <Footer />
     </div>
   );
 }
