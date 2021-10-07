@@ -2,11 +2,14 @@ use cosmwasm_std::{
     Binary,
     Uint128,
 };
-use terraswap::asset::{Asset, AssetInfo};
 use schemars::JsonSchema;
 use serde::{
     Deserialize,
     Serialize,
+};
+use terraswap::asset::{
+    Asset,
+    AssetInfo,
 };
 
 type HumanAddr = String;
@@ -33,7 +36,6 @@ pub enum ExecuteMsg {
         asset: AssetInfo,
     },
 
-
     InitiateTransfer {
         asset: Asset,
         recipient_chain: u16,
@@ -54,8 +56,7 @@ pub enum ExecuteMsg {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
-pub struct MigrateMsg {
-}
+pub struct MigrateMsg {}
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]

@@ -252,9 +252,7 @@ impl UpgradeContract {
     pub fn deserialize(data: &Vec<u8>) -> StdResult<Self> {
         let data = data.as_slice();
         let new_contract = data.get_u64(24);
-        Ok(UpgradeContract {
-            new_contract,
-        })
+        Ok(UpgradeContract { new_contract })
     }
 }
 

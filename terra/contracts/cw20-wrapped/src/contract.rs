@@ -164,6 +164,9 @@ pub fn execute(
         } => Ok(execute_send_from(
             deps, env, info, owner, contract, amount, msg,
         )?),
+        ExecuteMsg::UpdateMetadata { name, symbol } => {
+            Ok(execute_update_metadata(deps, env, info, name, symbol)?)
+        }
     }
 }
 
@@ -181,6 +184,26 @@ fn execute_mint_wrapped(
     }
 
     Ok(execute_mint(deps, env, info, recipient, amount)?)
+}
+
+fn execute_update_metadata(
+    deps: DepsMut,
+    _env: Env,
+    info: MessageInfo,
+    name: String,
+    symbol: String,
+) -> Result<Response, ContractError> {
+    // Only bridge can update.
+    let wrapped_info = wrapped_asset_info_read(deps.storage).load()?;
+    if wrapped_info.bridge != deps.api.addr_canonicalize(&info.sender.as_str())? {
+        return Err(ContractError::Unauthorized {});
+    }
+
+    let mut state = TOKEN_INFO.load(deps.storage)?;
+    state.name = name;
+    state.symbol = symbol;
+    TOKEN_INFO.save(deps.storage, &state)?;
+    Ok(Response::default())
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]

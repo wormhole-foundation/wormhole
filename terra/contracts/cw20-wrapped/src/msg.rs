@@ -93,6 +93,8 @@ pub enum ExecuteMsg {
     },
     /// Implements CW20 "approval" extension. Destroys tokens forever
     BurnFrom { owner: HumanAddr, amount: Uint128 },
+    /// Extend Interface with the ability to update token metadata.
+    UpdateMetadata { name: String, symbol: String },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
