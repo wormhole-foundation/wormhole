@@ -1,4 +1,4 @@
-import algosdk, { signBytes } from 'algosdk'
+import algosdk from 'algosdk'
 import { Buffer } from 'buffer'
 import { writeFileSync } from 'fs'
 
@@ -7,13 +7,13 @@ const mnemo = 'assault approve result rare float sugar power float soul kind gal
 
 const appId = BigInt(0x123456789)
 const nonce = BigInt(0x1000)
-const symbol = "BTC/USD         "
+const symbol = 'BTC/USD         '
 const price = 45278.65
 const sd = 8.00000000004
 
 // Create message
 const buf = Buffer.alloc(131)
-buf.write('PRICEDATA',0)
+buf.write('PRICEDATA', 0)
 // v
 buf.writeInt8(1, 9)
 // dest
@@ -22,7 +22,7 @@ buf.writeBigUInt64BE(appId, 10)
 buf.writeBigUInt64BE(nonce, 18)
 // symbol
 buf.write(symbol, 26)
-// price 
+// price
 buf.writeDoubleBE(price, 42)
 // sd
 buf.writeDoubleBE(sd, 50)

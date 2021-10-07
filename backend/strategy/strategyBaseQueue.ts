@@ -6,15 +6,15 @@
  * (c) 2021 Randlabs, Inc.
  */
 
-import { PriceData } from '@pythnetwork/client'
+import { PriceTicker } from '../PriceTicker'
 import { StrategyBase } from './strategyBase'
 
 /**
  * A base class for queue-based buffer strategies
  */
 export abstract class StrategyBaseQueue extends StrategyBase {
-  private buffer: PriceData[]
-  private bufSize: number
+  protected buffer: PriceTicker[] = []
+  private bufSize: number = 0
 
   createBuffer (maxSize: number): void {
     this.bufSize = maxSize
@@ -24,13 +24,13 @@ export abstract class StrategyBaseQueue extends StrategyBase {
     this.buffer.length = 0
   }
 
-  put (priceData: PriceData): boolean {
+  put (ticker: PriceTicker): boolean {
     if (this.buffer.length === this.bufSize) {
       this.buffer.shift()
     }
-    this.buffer.push(priceData)
+    this.buffer.push(ticker)
     return true
   }
 
-  abstract getPrice(): number
+  abstract getPrice(): PriceTicker
 }

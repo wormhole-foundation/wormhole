@@ -14,10 +14,6 @@ const SIGNATURES = {}
 SIGNATURES[VALIDATOR_ADDR] = algosdk.mnemonicToSecretKey(VALIDATOR_MNEMO)
 SIGNATURES[OTHER_ADDR] = algosdk.mnemonicToSecretKey(OTHER_MNEMO)
 
-function getRandomInt(min, max) {
-  return Math.floor(Math.random() * (max - min)) + min;
-}
-
 const VALID_SYMBOL = 'BTC/USD         '
 const VALID_PRICE = BigInt(485265555)
 const VALID_EXPONENT = BigInt(4)
@@ -72,7 +68,7 @@ describe('Price-Keeper contract tests', function () {
     const txid = await pclib.submitMessage(VALIDATOR_ADDR, msgBuffer, signCallback)
     expect(txid).to.have.length(52)
     await pclib.waitForTransactionResponse(txid)
-    //console.log(await tools.printAppGlobalState(algodClient, appId, VALIDATOR_ADDR))
+    // console.log(await tools.printAppGlobalState(algodClient, appId, VALIDATOR_ADDR))
     const stPrice = await tools.readAppGlobalStateByKey(algodClient, appId, VALIDATOR_ADDR, 'price')
     const stExp = await tools.readAppGlobalStateByKey(algodClient, appId, VALIDATOR_ADDR, 'exp')
     const stConf = await tools.readAppGlobalStateByKey(algodClient, appId, VALIDATOR_ADDR, 'conf')

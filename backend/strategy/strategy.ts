@@ -6,7 +6,7 @@
  * (c) 2021 Randlabs, Inc.
  */
 
-import { PriceData } from '@pythnetwork/client'
+import { PriceTicker } from '../PriceTicker'
 
 /**
  * Implements a strategy for obtaining an asset price from
@@ -29,10 +29,10 @@ export interface IStrategy {
      * @param priceData  The price data to put
      * @returns true if successful.
      */
-    put(priceData: PriceData): boolean
+    put(ticker: PriceTicker): boolean
 
     /**
      * Get the calculated price according to selected strategy.
      */
-    getPrice(): number
+    getPrice(): PriceTicker
 }
