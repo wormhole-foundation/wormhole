@@ -24,6 +24,7 @@ func init() {
 	TemplateCmd.AddCommand(AdminClientGuardianSetTemplateCmd)
 	TemplateCmd.AddCommand(AdminClientContractUpgradeTemplateCmd)
 	TemplateCmd.AddCommand(AdminClientTokenBridgeRegisterChainCmd)
+	TemplateCmd.AddCommand(AdminClientTokenBridgeUpgradeContractCmd)
 }
 
 var TemplateCmd = &cobra.Command{
@@ -49,6 +50,13 @@ var AdminClientTokenBridgeRegisterChainCmd = &cobra.Command{
 	Use:   "token-bridge-register-chain [FILENAME]",
 	Short: "Generate an empty token bridge chain registration template at specified path (offline)",
 	Run:   runTokenBridgeRegisterChainTemplate,
+	Args:  cobra.ExactArgs(1),
+}
+
+var AdminClientTokenBridgeUpgradeContractCmd = &cobra.Command{
+	Use:   "token-bridge-upgrade-contract [FILENAME]",
+	Short: "Generate an empty token bridge contract upgrade template at specified path (offline)",
+	Run:   runTokenBridgeUpgradeContractTemplate,
 	Args:  cobra.ExactArgs(1),
 }
 
@@ -122,6 +130,33 @@ func runTokenBridgeRegisterChainTemplate(cmd *cobra.Command, args []string) {
 				Module:         "TokenBridge",
 				ChainId:        5,
 				EmitterAddress: "0000000000000000000000000290FB167208Af455bB137780163b7B7a9a10C16",
+			},
+		},
+	}
+
+	b, err := prototext.MarshalOptions{Multiline: true}.Marshal(m)
+	if err != nil {
+		panic(err)
+	}
+
+	err = ioutil.WriteFile(path, b, 0640)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func runTokenBridgeUpgradeContractTemplate(cmd *cobra.Command, args []string) {
+	path := args[0]
+
+	m := &nodev1.InjectGovernanceVAARequest{
+		CurrentSetIndex: uint32(*templateGuardianIndex),
+		Sequence:        rand.Uint64(),
+		Nonce:           rand.Uint32(),
+		Payload: &nodev1.InjectGovernanceVAARequest_BridgeContractUpgrade{
+			BridgeContractUpgrade: &nodev1.BridgeUpgradeContract{
+				Module:        "TokenBridge",
+				TargetChainId: 5,
+				NewContract:   "0000000000000000000000000290FB167208Af455bB137780163b7B7a9a10C16",
 			},
 		},
 	}

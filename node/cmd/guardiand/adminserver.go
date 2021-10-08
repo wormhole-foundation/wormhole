@@ -122,6 +122,35 @@ func tokenBridgeRegisterChain(req *nodev1.BridgeRegisterChain, guardianSetIndex 
 	return v, nil
 }
 
+// tokenBridgeUpgradeContract converts a nodev1.TokenBridgeRegisterChain message to its canonical VAA representation.
+// Returns an error if the data is invalid.
+func tokenBridgeUpgradeContract(req *nodev1.BridgeUpgradeContract, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) {
+	if req.TargetChainId > math.MaxUint16 {
+		return nil, errors.New("invalid target_chain_id")
+	}
+
+	b, err := hex.DecodeString(req.NewContract)
+	if err != nil {
+		return nil, errors.New("invalid new contract address (expected hex)")
+	}
+
+	if len(b) != 32 {
+		return nil, errors.New("invalid new contract address (expected 32 bytes)")
+	}
+
+	newContract := vaa.Address{}
+	copy(newContract[:], b)
+
+	v := vaa.CreateGovernanceVAA(nonce, sequence, guardianSetIndex,
+		vaa.BodyTokenBridgeUpgradeContract{
+			Module:        req.Module,
+			TargetChainID: vaa.ChainID(req.TargetChainId),
+			NewContract:   newContract,
+		}.Serialize())
+
+	return v, nil
+}
+
 func (s *nodePrivilegedService) InjectGovernanceVAA(ctx context.Context, req *nodev1.InjectGovernanceVAARequest) (*nodev1.InjectGovernanceVAAResponse, error) {
 	s.logger.Info("governance VAA injected via admin socket", zap.String("request", req.String()))
 
@@ -136,6 +165,8 @@ func (s *nodePrivilegedService) InjectGovernanceVAA(ctx context.Context, req *no
 		v, err = adminContractUpgradeToVAA(payload.ContractUpgrade, req.CurrentSetIndex, req.Nonce, req.Sequence)
 	case *nodev1.InjectGovernanceVAARequest_BridgeRegisterChain:
 		v, err = tokenBridgeRegisterChain(payload.BridgeRegisterChain, req.CurrentSetIndex, req.Nonce, req.Sequence)
+	case *nodev1.InjectGovernanceVAARequest_BridgeContractUpgrade:
+		v, err = tokenBridgeUpgradeContract(payload.BridgeContractUpgrade, req.CurrentSetIndex, req.Nonce, req.Sequence)
 	default:
 		panic(fmt.Sprintf("unsupported VAA type: %T", payload))
 	}

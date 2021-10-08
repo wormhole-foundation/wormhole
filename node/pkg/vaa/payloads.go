@@ -28,6 +28,13 @@ type (
 		ChainID        ChainID
 		EmitterAddress Address
 	}
+
+	// BodyTokenBridgeUpgradeContract is a governance message to upgrade the token bridge.
+	BodyTokenBridgeUpgradeContract struct {
+		Module        string
+		TargetChainID ChainID
+		NewContract   Address
+	}
 )
 
 func (b BodyContractUpgrade) Serialize() []byte {
@@ -84,6 +91,28 @@ func (r BodyTokenBridgeRegisterChain) Serialize() []byte {
 	MustWrite(buf, binary.BigEndian, r.ChainID)
 	// Write emitter address of chain to be registered
 	buf.Write(r.EmitterAddress[:])
+
+	return buf.Bytes()
+}
+
+func (r BodyTokenBridgeUpgradeContract) Serialize() []byte {
+	if len(r.Module) > 32 {
+		panic("module longer than 32 byte")
+	}
+
+	buf := &bytes.Buffer{}
+
+	// Write token bridge header
+	for i := 0; i < (32 - len(r.Module)); i++ {
+		buf.WriteByte(0x00)
+	}
+	buf.Write([]byte(r.Module))
+	// Write action ID
+	MustWrite(buf, binary.BigEndian, uint8(2))
+	// Write target chain
+	MustWrite(buf, binary.BigEndian, r.TargetChainID)
+	// Write emitter address of chain to be registered
+	buf.Write(r.NewContract[:])
 
 	return buf.Bytes()
 }

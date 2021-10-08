@@ -46,6 +46,7 @@ message InjectGovernanceVAARequest {
     // Token bridge and NFT module
 
     BridgeRegisterChain bridge_register_chain = 12;
+    BridgeUpgradeContract bridge_contract_upgrade = 13;
   }
 }
 
@@ -95,6 +96,17 @@ message ContractUpgrade {
 
   // Address of the new program/contract.
   bytes new_contract = 2;
+}
+
+message BridgeUpgradeContract {
+  // Module identifier of the token or NFT bridge (typically "TokenBridge" or "NFTBridge").
+  string module = 1;
+
+  // ID of the chain where the bridge contract should be updated (uint16).
+  uint32 target_chain_id = 2;
+
+  // Address of the new program/contract.
+  string new_contract = 3;
 }
 
 message FindMissingMessagesRequest {
