@@ -22,10 +22,10 @@ export interface ChainInfo {
 export const CHAINS =
   CLUSTER === "mainnet"
     ? [
-        // {
-        //   id: CHAIN_ID_BSC,
-        //   name: "Binance Smart Chain",
-        // },
+        {
+          id: CHAIN_ID_BSC,
+          name: "Binance Smart Chain",
+        },
         {
           id: CHAIN_ID_ETH,
           name: "Ethereum",
@@ -141,7 +141,7 @@ export const TERRA_HOST =
         chainID: "columbus-5",
         name: "mainnet",
       }
-  : CLUSTER === "testnet"
+    : CLUSTER === "testnet"
     ? {
         URL: "https://tequila-lcd.terra.dev",
         chainID: "tequila-0004",
