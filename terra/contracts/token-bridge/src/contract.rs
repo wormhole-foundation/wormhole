@@ -41,6 +41,8 @@ use crate::{
         wrapped_asset_address,
         wrapped_asset_address_read,
         wrapped_asset_read,
+        wrapped_asset_seq,
+        wrapped_asset_seq_read,
         Action,
         AssetMeta,
         ConfigInfo,
@@ -273,6 +275,7 @@ fn handle_attest_meta(
     env: Env,
     emitter_chain: u16,
     emitter_address: Vec<u8>,
+    sequence: u64,
     data: &Vec<u8>,
 ) -> StdResult<Response> {
     let meta = AssetMeta::deserialize(data)?;
@@ -294,16 +297,26 @@ fn handle_attest_meta(
     let cfg = config_read(deps.storage).load()?;
     let asset_id = build_asset_id(meta.token_chain, &meta.token_address.as_slice());
 
-    if wrapped_asset_read(deps.storage).load(&asset_id).is_ok() {
-        return Err(StdError::generic_err(
-            "this asset has already been attested",
-        ));
-    }
-
-    wrapped_asset(deps.storage).save(&asset_id, &HumanAddr::from(WRAPPED_ASSET_UPDATING))?;
-
-    Ok(
-        Response::new().add_message(CosmosMsg::Wasm(WasmMsg::Instantiate {
+    // If a CW20 wrapped already exists and this message has a newer sequence ID
+    // we allow updating the metadata. If not, we create a brand new token.
+    let message = if let Ok(contract) = wrapped_asset_read(deps.storage).load(&asset_id) {
+        // Prevent anyone from re-attesting with old VAAs.
+        if sequence <= wrapped_asset_seq_read(deps.storage).load(&asset_id)? {
+            return Err(StdError::generic_err(
+                "this asset has already been attested",
+            ));
+        }
+        CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: contract,
+            msg: to_binary(&WrappedMsg::UpdateMetadata {
+                name: get_string_from_32(&meta.name)?,
+                symbol: get_string_from_32(&meta.symbol)?,
+            })?,
+            funds: vec![],
+        })
+    } else {
+        wrapped_asset(deps.storage).save(&asset_id, &HumanAddr::from(WRAPPED_ASSET_UPDATING))?;
+        CosmosMsg::Wasm(WasmMsg::Instantiate {
             admin: Some(env.contract.address.to_string()),
             code_id: cfg.wrapped_asset_code_id,
             msg: to_binary(&WrappedInit {
@@ -322,8 +335,10 @@ fn handle_attest_meta(
             })?,
             funds: vec![],
             label: String::new(),
-        })),
-    )
+        })
+    };
+    wrapped_asset_seq(deps.storage).save(&asset_id, &sequence)?;
+    Ok(Response::new().add_message(message))
 }
 
 fn handle_create_asset_meta(
@@ -465,6 +480,7 @@ fn submit_vaa(
             env,
             vaa.emitter_chain,
             vaa.emitter_address,
+            vaa.sequence,
             &message.payload,
         ),
         _ => ContractError::InvalidVAAAction.std_err(),

@@ -28,6 +28,7 @@ type HumanAddr = String;
 
 pub static CONFIG_KEY: &[u8] = b"config";
 pub static WRAPPED_ASSET_KEY: &[u8] = b"wrapped_asset";
+pub static WRAPPED_ASSET_SEQ_KEY: &[u8] = b"wrapped_seq_asset";
 pub static WRAPPED_ASSET_ADDRESS_KEY: &[u8] = b"wrapped_asset_address";
 pub static BRIDGE_CONTRACTS: &[u8] = b"bridge_contracts";
 pub static BRIDGE_DEPOSITS: &[u8] = b"bridge_deposits";
@@ -74,6 +75,14 @@ pub fn wrapped_asset(storage: &mut dyn Storage) -> Bucket<HumanAddr> {
 
 pub fn wrapped_asset_read(storage: &dyn Storage) -> ReadonlyBucket<HumanAddr> {
     bucket_read(storage, WRAPPED_ASSET_KEY)
+}
+
+pub fn wrapped_asset_seq(storage: &mut dyn Storage) -> Bucket<u64> {
+    bucket(storage, WRAPPED_ASSET_SEQ_KEY)
+}
+
+pub fn wrapped_asset_seq_read(storage: &mut dyn Storage) -> ReadonlyBucket<u64> {
+    bucket_read(storage, WRAPPED_ASSET_SEQ_KEY)
 }
 
 pub fn wrapped_asset_address(storage: &mut dyn Storage) -> Bucket<Vec<u8>> {
