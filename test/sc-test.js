@@ -60,9 +60,6 @@ describe('Price-Keeper contract tests', function () {
     expect(Buffer.from(stSym, 'base64').toString()).to.equal(VALID_SYMBOL)
     expect(stVAddr.toString()).to.equal(VALIDATOR_ADDR)
   })
-  it('Must fail to create app with bad symbol', async function () {
-    await expect(pclib.createApp(VALIDATOR_ADDR, VALIDATOR_ADDR, 'XXXXX', signCallback)).to.be.rejectedWith('Bad Request')
-  })
   it('Must accept valid message and store data', async function () {
     const msgBuffer = pclib.createMessage(VALID_SYMBOL, VALID_PRICE, VALID_EXPONENT, VALID_CONF, VALID_SLOT, SIGNATURES[VALIDATOR_ADDR].sk)
     const txid = await pclib.submitMessage(VALIDATOR_ADDR, msgBuffer, signCallback)
@@ -74,7 +71,7 @@ describe('Price-Keeper contract tests', function () {
     const stConf = await tools.readAppGlobalStateByKey(algodClient, appId, VALIDATOR_ADDR, 'conf')
     const stSlot = await tools.readAppGlobalStateByKey(algodClient, appId, VALIDATOR_ADDR, 'slot')
     expect(stPrice.toString()).to.equal(VALID_PRICE.toString())
-    expect(stExp.toString()).to.equal(VALID_EXPONENT.toString())
+    expect((Buffer.from(stExp, 'base64')).readBigInt64BE()).to.equal(VALID_EXPONENT)
     expect(stSlot.toString()).to.equal(VALID_SLOT.toString())
     expect(stConf.toString()).to.equal(VALID_CONF.toString())
   })
@@ -88,10 +85,20 @@ describe('Price-Keeper contract tests', function () {
     const stConf = await tools.readAppGlobalStateByKey(algodClient, appId, VALIDATOR_ADDR, 'conf')
     const stSlot = await tools.readAppGlobalStateByKey(algodClient, appId, VALIDATOR_ADDR, 'slot')
     expect(stPrice.toString()).to.equal((VALID_PRICE + BigInt(400)).toString())
-    expect(stExp.toString()).to.equal((VALID_EXPONENT + BigInt(3)).toString())
+    expect((Buffer.from(stExp, 'base64')).readBigInt64BE()).to.equal(VALID_EXPONENT + BigInt(3))
     expect(stSlot.toString()).to.equal((VALID_SLOT + BigInt(100)).toString())
     expect(stConf.toString()).to.equal((VALID_CONF + BigInt(2)).toString())
     lastTs = await tools.readAppGlobalStateByKey(algodClient, appId, VALIDATOR_ADDR, 'ts')
+  })
+  it('Must accept negative exponent, stored as 2-complement 64bit', async function () {
+    const msgBuffer = pclib.createMessage(VALID_SYMBOL, VALID_PRICE, BigInt(-9), VALID_CONF, VALID_SLOT, SIGNATURES[VALIDATOR_ADDR].sk)
+    const txid = await pclib.submitMessage(VALIDATOR_ADDR, msgBuffer, signCallback)
+    expect(txid).to.have.length(52)
+    await pclib.waitForTransactionResponse(txid)
+    const stExp = await tools.readAppGlobalStateByKey(algodClient, appId, VALIDATOR_ADDR, 'exp')
+    const bufExp = Buffer.from(stExp, 'base64')
+    const val = bufExp.readBigInt64BE()
+    expect(val.toString()).to.equal('-9')
   })
   it('Must reject non-validator as signer', async function () {
     const msgBuffer = pclib.createMessage(VALID_SYMBOL, VALID_PRICE, VALID_EXPONENT, VALID_CONF, VALID_SLOT, SIGNATURES[OTHER_ADDR].sk)
@@ -106,15 +113,11 @@ describe('Price-Keeper contract tests', function () {
     await expect(pclib.submitMessage(VALIDATOR_ADDR, msgBuffer, signCallback)).to.be.rejectedWith('Bad Request')
   })
   it('Must reject old timestamp', async function () {
-    const msgBuffer = pclib.createMessage(VALID_SYMBOL, VALID_PRICE, VALID_EXPONENT, VALID_CONF,VALID_SLOT, SIGNATURES[VALIDATOR_ADDR].sk, undefined, undefined, undefined, BigInt(lastTs - 999999))
+    const msgBuffer = pclib.createMessage(VALID_SYMBOL, VALID_PRICE, VALID_EXPONENT, VALID_CONF, VALID_SLOT, SIGNATURES[VALIDATOR_ADDR].sk, undefined, undefined, undefined, BigInt(lastTs - 999999))
     await expect(pclib.submitMessage(VALIDATOR_ADDR, msgBuffer, signCallback)).to.be.rejectedWith('Bad Request')
   })
   it('Must reject zero-priced message', async function () {
     const msgBuffer = pclib.createMessage(VALID_SYMBOL, BigInt(0), VALID_EXPONENT, VALID_CONF, VALID_SLOT, SIGNATURES[VALIDATOR_ADDR].sk)
-    await expect(pclib.submitMessage(VALIDATOR_ADDR, msgBuffer, signCallback)).to.be.rejectedWith('Bad Request')
-  })
-  it('Must reject out-of-range exponent', async function () {
-    const msgBuffer = pclib.createMessage(VALID_SYMBOL, VALID_PRICE, BigInt(1000000), VALID_CONF, VALID_SLOT, SIGNATURES[VALIDATOR_ADDR].sk)
     await expect(pclib.submitMessage(VALIDATOR_ADDR, msgBuffer, signCallback)).to.be.rejectedWith('Bad Request')
   })
   it('Must reject zero slot', async function () {

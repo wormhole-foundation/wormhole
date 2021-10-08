@@ -9,7 +9,7 @@
 // price    : uint64 current price 
 // stdev    : uint64 current confidence (standard deviation)
 // slot     : uint64 slot of this onchain publication
-// exp      : uint64 exponent (fixed point position)
+// exp      : byte[] exponent. Interpret as two-compliment, Big-Endian 64bit
 // ts       : uint64 last timestamp
 //
 // Slots:
@@ -24,7 +24,7 @@
 //  8           dest        This appId 
 //  16          symbol      String filled with spaces e.g ("ALGO/USD        ")
 //  8           price       Price. 64bit integer.
-//  8           priceexp    Price exponent (fixed point position). 
+//  8           priceexp    Price exponent. Interpret as two-compliment, Big-Endian 64bit
 //  8           conf        Confidence (stdev). 64bit integer. 
 //  8           slot        Valid-slot of this aggregate price.
 //  8           ts          timestamp of this price submitted by PriceFetcher service
@@ -165,14 +165,6 @@ int 0
 !=
 assert 
 
-// Reject out-of-range exponent
-load 0
-extract 42 8
-btoi 
-int 18
-<=
-assert
-
 // Check timestamp: 
 // * must be higher than ts recorded in global state
 // * must be lower than current block stamp + 10s
@@ -233,7 +225,6 @@ app_global_put
 byte "exp"
 load 0
 extract 42 8 
-btoi
 app_global_put
 
 byte "conf"
