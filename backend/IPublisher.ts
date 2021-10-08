@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 /**
  * Pricecaster Service.
  *
@@ -7,12 +8,18 @@
  */
 
 import { PriceTicker } from './PriceTicker'
+import { StatusCode } from './statusCodes'
 
-export class PublishInfo {
-    block: BigInt = BigInt(0)
-    txid: string = ''
+export type PublishInfo = {
+    status: StatusCode,
+    reason?: '',
+    msgb64?: '',
+    block?: BigInt
+    txid?: string
 }
 
 export interface IPublisher {
+    start(): void
+    stop(): void
     publish(tick: PriceTicker): Promise<PublishInfo>
 }

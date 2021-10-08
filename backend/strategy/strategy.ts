@@ -25,6 +25,11 @@ export interface IStrategy {
     clearBuffer(): void
 
     /**
+     * Returns the current number of items in buffer
+     */
+    bufferCount(): number
+
+    /**
      * Put a new price in buffer.
      * @param priceData  The price data to put
      * @returns true if successful.
@@ -34,5 +39,5 @@ export interface IStrategy {
     /**
      * Get the calculated price according to selected strategy.
      */
-    getPrice(): PriceTicker
+    getPrice(): PriceTicker | undefined
 }

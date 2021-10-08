@@ -1,5 +1,5 @@
 import { PriceTicker } from '../PriceTicker'
-import { StrategyBaseQueue } from './strategyBaseQueue'
+import { StrategyBase } from './strategyBase'
 /**
  * Pricecaster Service.
  *
@@ -12,12 +12,10 @@ import { StrategyBaseQueue } from './strategyBaseQueue'
  * This strategy just caches the last provided price,
  * acting as a single-item buffer.
  */
-export class StrategyLastPrice extends StrategyBaseQueue {
-  constructor () {
-    super(1)
-  }
-
-  getPrice (): PriceTicker {
-    return this.buffer[0]
+export class StrategyLastPrice extends StrategyBase {
+  getPrice (): PriceTicker | undefined {
+    const ret = this.buffer[this.buffer.length - 1]
+    this.clearBuffer()
+    return ret
   }
 }

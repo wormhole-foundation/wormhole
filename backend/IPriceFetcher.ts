@@ -7,19 +7,21 @@
  */
 
 import { PriceTicker } from './PriceTicker'
+import { IStrategy } from './strategy/strategy'
 
 export interface IPriceFetcher {
     start(): void
     stop(): void
+    hasData(): boolean
 
     /**
      * Set price aggregation strategy for this fetcher.
      * @param IStrategy The local price aggregation strategy
      */
-    setStrategy(IStrategy)
+    setStrategy(s: IStrategy)
 
     /**
      * Get the current price, according to running strategy.
      */
-    queryTicker(): PriceTicker
+    queryTicker(): PriceTicker | undefined
 }

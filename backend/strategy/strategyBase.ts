@@ -9,13 +9,37 @@
 import { PriceTicker } from '../PriceTicker'
 import { IStrategy } from './strategy'
 
+/**
+ * A base class for queue-based buffer strategies
+ */
 export abstract class StrategyBase implements IStrategy {
+  protected buffer!: PriceTicker[]
+  protected bufSize!: number
+
   constructor (bufSize: number = 10) {
     this.createBuffer(bufSize)
   }
 
-  abstract put(priceData: PriceTicker): boolean
-  abstract createBuffer(size: number): void
-  abstract clearBuffer(): void
-  abstract getPrice(): PriceTicker
+  createBuffer (maxSize: number): void {
+    this.buffer = []
+    this.bufSize = maxSize
+  }
+
+  clearBuffer (): void {
+    this.buffer.length = 0
+  }
+
+  bufferCount (): number {
+    return this.buffer.length
+  }
+
+  put (ticker: PriceTicker): boolean {
+    if (this.buffer.length === this.bufSize) {
+      this.buffer.shift()
+    }
+    this.buffer.push(ticker)
+    return true
+  }
+
+  abstract getPrice(): PriceTicker | undefined
 }

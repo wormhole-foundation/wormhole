@@ -27,8 +27,8 @@ export class PythPriceFetcher implements IPriceFetcher {
     this.symbol = symbol
   }
 
-  start (): void {
-    this.pythConnection.start()
+  async start () {
+    await this.pythConnection.start()
     this.pythConnection.onPriceChange((product: Product, price: PriceData) => {
       if (product.symbol === this.symbol) {
         this.onPriceChange(price)
@@ -37,14 +37,18 @@ export class PythPriceFetcher implements IPriceFetcher {
   }
 
   stop (): void {
-    throw new Error('Method not implemented.')
+    this.pythConnection.stop()
   }
 
   setStrategy (s: IStrategy) {
     this.strategy = s
   }
 
-  queryTicker (): PriceTicker {
+  hasData (): boolean {
+    return this.strategy.bufferCount() > 0
+  }
+
+  queryTicker (): PriceTicker | undefined {
     return this.strategy.getPrice()
   }
 
