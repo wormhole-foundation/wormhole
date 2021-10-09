@@ -73,9 +73,7 @@ const useStyles = makeStyles((theme) => ({
     minHeight: "100vh",
   },
   content: {
-    [theme.breakpoints.up("sm")]: {
-      margin: theme.spacing(2, 0),
-    },
+    margin: theme.spacing(2, 0),
     [theme.breakpoints.up("md")]: {
       margin: theme.spacing(4, 0),
     },

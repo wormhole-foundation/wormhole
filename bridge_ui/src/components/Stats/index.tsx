@@ -12,6 +12,8 @@ import { CHAINS } from "../../utils/consts";
 import SmartAddress from "../SmartAddress";
 import MuiReactTable from "./tableComponents/MuiReactTable";
 import numeral from "numeral";
+import clsx from "clsx";
+import { ChainId } from "@certusone/wormhole-sdk";
 
 const useStyles = makeStyles((theme) => ({
   logoPositioner: {
@@ -39,19 +41,27 @@ const useStyles = makeStyles((theme) => ({
     display: "flex",
     alignItems: "flex-end",
     marginBottom: theme.spacing(1),
-  },
-  inline: {
-    display: "inline",
-    marginRight: theme.spacing(1),
-    whiteSpace: "nowrap",
+    textAlign: "left",
+    [theme.breakpoints.down("sm")]: {
+      flexDirection: "column",
+      alignItems: "unset",
+    },
   },
   grower: {
     flexGrow: 1,
   },
   explainerContainer: {},
-  rightAlign: {
-    textAlign: "right",
-    display: "inline-block",
+  totalContainer: {
+    display: "flex",
+    alignItems: "flex-end",
+    paddingBottom: 1, // line up with left text bottom
+    [theme.breakpoints.down("sm")]: {
+      marginTop: theme.spacing(1),
+    },
+  },
+  totalValue: {
+    marginLeft: theme.spacing(0.5),
+    marginBottom: "-.125em", // line up number with label
   },
 }));
 
@@ -84,31 +94,33 @@ const StatsRoot: React.FC<any> = () => {
           logo: value.logo,
           assetAddress: value.assetAddress,
         }),
-        Cell: (value: any) => {
-          return (
-            <div className={classes.tokenContainer}>
-              <div className={classes.logoPositioner}>
-                {value.row?.original?.logo ? (
-                  <img
-                    src={value.row?.original?.logo}
-                    alt=""
-                    className={classes.logo}
-                  />
-                ) : null}
-              </div>
-              <SmartAddress
-                chainId={value.row?.original?.chainId}
-                address={value.row?.original?.assetAddress}
-                symbol={value.row?.original?.symbol}
-                tokenName={value.row?.original?.name}
-              />
+        Cell: (value: any) => (
+          <div className={classes.tokenContainer}>
+            <div className={classes.logoPositioner}>
+              {value.row?.original?.logo ? (
+                <img
+                  src={value.row?.original?.logo}
+                  alt=""
+                  className={classes.logo}
+                />
+              ) : null}
             </div>
-          );
-        },
+            <SmartAddress
+              chainId={
+                CHAINS.find((x) => x.name === value.originChain)?.id as ChainId
+              }
+              address={value.row?.original?.assetAddress}
+              symbol={value.row?.original?.symbol}
+              tokenName={value.row?.original?.name}
+            />
+          </div>
+        ),
       },
+      { Header: "Chain", accessor: "originChain" },
       {
         Header: "Amount",
         accessor: "amount",
+        align: "right",
         Cell: (value: any) =>
           value.row?.original?.amount !== undefined
             ? numeral(value.row?.original?.amount).format("0,0.00")
@@ -117,6 +129,7 @@ const StatsRoot: React.FC<any> = () => {
       {
         Header: "Total Value (USD)",
         accessor: "totalValue",
+        align: "right",
         Cell: (value: any) =>
           value.row?.original?.totalValue !== undefined
             ? numeral(value.row?.original?.totalValue).format("0.0 a")
@@ -125,13 +138,12 @@ const StatsRoot: React.FC<any> = () => {
       {
         Header: "Unit Price (USD)",
         accessor: "quotePrice",
+        align: "right",
         Cell: (value: any) =>
           value.row?.original?.quotePrice !== undefined
             ? numeral(value.row?.original?.quotePrice).format("0,0.00")
             : "",
       },
-
-      { Header: "Chain", accessor: "originChain" },
     ];
   }, [
     classes.logo,
@@ -167,15 +179,26 @@ const StatsRoot: React.FC<any> = () => {
                 </Typography>
               </div>
               <div className={classes.grower} />
-              <div className={classes.explainerContainer}>
+              <div
+                className={clsx(
+                  classes.explainerContainer,
+                  classes.totalContainer
+                )}
+              >
                 <Typography
                   variant="body2"
                   color="textSecondary"
-                  className={classes.inline}
+                  component="div"
+                  noWrap
                 >
                   {"Total (USD)"}
                 </Typography>
-                <Typography variant="h3" className={classes.inline}>
+                <Typography
+                  variant="h3"
+                  component="div"
+                  noWrap
+                  className={classes.totalValue}
+                >
                   {tvlString}
                 </Typography>
               </div>

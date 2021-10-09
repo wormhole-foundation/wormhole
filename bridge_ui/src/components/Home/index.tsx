@@ -5,6 +5,7 @@ import {
   makeStyles,
   Typography,
 } from "@material-ui/core";
+import clsx from "clsx";
 import { Link as RouterLink } from "react-router-dom";
 import { COLORS } from "../../muiTheme";
 
@@ -57,8 +58,8 @@ function Home() {
     <div>
       <Container maxWidth="md">
         <div className={classes.centeredContainer}>
-          <Typography variant="h1" className={classes.header}>
-            <span className={classes.linearGradient}>The Portal is Open</span>
+          <Typography variant="h1" className={clsx(classes.header, classes.linearGradient)}>
+            The Portal is Open
           </Typography>
         </div>
       </Container>

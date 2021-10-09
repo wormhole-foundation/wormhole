@@ -1,3 +1,4 @@
+import { TableFooter } from "@material-ui/core";
 import MaUTable from "@material-ui/core/Table";
 import TableBody from "@material-ui/core/TableBody";
 import TableCell from "@material-ui/core/TableCell";
@@ -35,11 +36,11 @@ const EnhancedTable = ({ columns, data, skipPageReset }) => {
     usePagination
   );
 
-  const handleChangePage = (event, newPage) => {
+  const handlePageChange = (event, newPage) => {
     gotoPage(newPage);
   };
 
-  const handleChangeRowsPerPage = (event) => {
+  const handleRowsPerPageChange = (event) => {
     setPageSize(Number(event.target.value));
   };
 
@@ -56,15 +57,23 @@ const EnhancedTable = ({ columns, data, skipPageReset }) => {
                     {...(column.id === "selection"
                       ? column.getHeaderProps()
                       : column.getHeaderProps(column.getSortByToggleProps()))}
+                    align={
+                      // TODO: better way to get column?
+                      columns.find((c) => c.Header === column.Header)?.align ||
+                      "left"
+                    }
                   >
-                    {column.render("Header")}
                     {column.id !== "selection" ? (
                       <TableSortLabel
                         active={column.isSorted}
                         // react-table has a unsorted state which is not treated here
                         direction={column.isSortedDesc ? "desc" : "asc"}
-                      />
-                    ) : null}
+                      >
+                        {column.render("Header")}
+                      </TableSortLabel>
+                    ) : (
+                      column.render("Header")
+                    )}
                   </TableCell>
                 ))}
               </TableRow>
@@ -77,7 +86,10 @@ const EnhancedTable = ({ columns, data, skipPageReset }) => {
                 <TableRow {...row.getRowProps()}>
                   {row.cells.map((cell) => {
                     return (
-                      <TableCell {...cell.getCellProps()}>
+                      <TableCell
+                        {...cell.getCellProps()}
+                        align={cell.column.align || "left"}
+                      >
                         {cell.render("Cell")}
                       </TableCell>
                     );
@@ -86,23 +98,31 @@ const EnhancedTable = ({ columns, data, skipPageReset }) => {
               );
             })}
           </TableBody>
+          <TableFooter>
+            <TableRow>
+              <TablePagination
+                rowsPerPageOptions={[
+                  5,
+                  10,
+                  25,
+                  { label: "All", value: data.length },
+                ]}
+                colSpan={columns.length}
+                count={data.length}
+                rowsPerPage={pageSize}
+                page={pageIndex}
+                SelectProps={{
+                  inputProps: { "aria-label": "rows per page" },
+                  native: true,
+                }}
+                onPageChange={handlePageChange}
+                onRowsPerPageChange={handleRowsPerPageChange}
+                ActionsComponent={TablePaginationActions}
+              />
+            </TableRow>
+          </TableFooter>
         </MaUTable>
       </TableContainer>
-      <TablePagination
-        style={{ display: "flex", justifyContent: "flex-end" }}
-        rowsPerPageOptions={[5, 10, 25, { label: "All", value: data.length }]}
-        colSpan={3}
-        count={data.length}
-        rowsPerPage={pageSize}
-        page={pageIndex}
-        SelectProps={{
-          inputProps: { "aria-label": "rows per page" },
-          native: true,
-        }}
-        onChangePage={handleChangePage}
-        onChangeRowsPerPage={handleChangeRowsPerPage}
-        ActionsComponent={TablePaginationActions}
-      />
     </>
   );
 };

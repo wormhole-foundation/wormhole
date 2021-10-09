@@ -23,6 +23,7 @@ import {
 import { Launch } from "@material-ui/icons";
 import { Alert } from "@material-ui/lab";
 import { Connection } from "@solana/web3.js";
+import clsx from "clsx";
 import { useCallback, useEffect, useState } from "react";
 import { useBetaContext } from "../contexts/BetaContext";
 import { useEthereumProvider } from "../contexts/EthereumProviderContext";
@@ -70,7 +71,7 @@ const useStyles = makeStyles((theme) => ({
     // filter: `drop-shadow( 0px 0px 8px ${COLORS.nearBlack}) drop-shadow( 0px 0px 14px ${COLORS.nearBlack}) drop-shadow( 0px 0px 24px ${COLORS.nearBlack})`,
   },
   mainCard: {
-    padding: theme.spacing(1),
+    padding: theme.spacing(2),
     backgroundColor: COLORS.nearBlackWithMinorTransparency,
   },
   originHeader: {
@@ -234,8 +235,11 @@ export default function NFTOriginVerifier() {
     <div>
       <Container maxWidth="md">
         <div className={classes.centeredContainer}>
-          <Typography variant="h1" className={classes.header}>
-            <span className={classes.linearGradient}>NFT Origin Verifier</span>
+          <Typography
+            variant="h1"
+            className={clsx(classes.header, classes.linearGradient)}
+          >
+            NFT Origin Verifier
           </Typography>
         </div>
       </Container>
@@ -284,7 +288,9 @@ export default function NFTOriginVerifier() {
             />
           ) : null}
           {displayError ? (
-            <Typography color="error">{displayError}</Typography>
+            <Typography align="center" color="error">
+              {displayError}
+            </Typography>
           ) : null}
           {isLoading ? (
             <div className={classes.loaderWrapper}>
