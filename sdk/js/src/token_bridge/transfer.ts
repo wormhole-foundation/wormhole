@@ -121,9 +121,7 @@ export async function transferFromTerra(
               nonce: nonce,
             },
           },
-          {
-            uluna: BigNumber.from("10000").toString(),
-          }
+          {}
         ),
       ]
     : [
@@ -139,7 +137,7 @@ export async function transferFromTerra(
               },
             },
           },
-          { uluna: 10000 }
+          {}
         ),
         new MsgExecuteContract(
           walletAddress,
@@ -160,7 +158,7 @@ export async function transferFromTerra(
               nonce: nonce,
             },
           },
-          { uluna: 10000 }
+          {}
         ),
       ];
 }
