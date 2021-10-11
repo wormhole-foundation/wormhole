@@ -3,6 +3,7 @@ import { createTheme, responsiveFontSizes } from "@material-ui/core";
 export const COLORS = {
   blue: "#1975e6",
   blueWithTransparency: "rgba(25, 117, 230, 0.8)",
+  gray: "#4e4e54",
   green: "#0ac2af",
   greenWithTransparency: "rgba(10, 194, 175, 0.8)",
   lightGreen: "rgba(51, 242, 223, 1)",
@@ -21,7 +22,7 @@ export const theme = responsiveFontSizes(
         default: COLORS.nearBlack,
         paper: COLORS.nearBlack,
       },
-      divider: "#4e4e54",
+      divider: COLORS.gray,
       text: {
         primary: "rgba(255,255,255,0.98)",
       },
@@ -50,6 +51,27 @@ export const theme = responsiveFontSizes(
       },
     },
     overrides: {
+      MuiCssBaseline: {
+        "@global": {
+          "*": {
+            scrollbarWidth: "thin",
+            scrollbarColor: `${COLORS.gray} ${COLORS.nearBlackWithMinorTransparency}`,
+          },
+          "*::-webkit-scrollbar": {
+            width: "8px",
+            height: "8px",
+            backgroundColor: COLORS.nearBlackWithMinorTransparency,
+          },
+          "*::-webkit-scrollbar-thumb": {
+            backgroundColor: COLORS.gray,
+            borderRadius: "4px",
+          },
+          "*::-webkit-scrollbar-corner": {
+            // this hides an annoying white box which appears when both scrollbars are present
+            backgroundColor: "transparent",
+          },
+        },
+      },
       MuiAccordion: {
         root: {
           backgroundColor: COLORS.nearBlackWithMinorTransparency,
