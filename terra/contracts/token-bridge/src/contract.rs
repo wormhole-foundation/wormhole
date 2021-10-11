@@ -113,7 +113,7 @@ const WRAPPED_ASSET_UPDATING: &str = "updating";
 pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Response> {
     // Switch CW20 Code ID to include assets with updatable metadata.
     let mut state = config(deps.storage).load()?;
-    state.wrapped_asset_code_id = 0;
+    state.wrapped_asset_code_id = 556;
     config(deps.storage).save(&state)?;
 
     // Remove registered asset with old code ID.
