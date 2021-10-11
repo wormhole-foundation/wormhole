@@ -183,7 +183,6 @@ export default function NFTViewer({
       (async () => {
         const result = await axios.get(uri);
         if (!cancelled && result && result.data) {
-          console.log(result.data);
           setMetadata({
             image: result.data.image,
             animation_url: result.data.animation_url,

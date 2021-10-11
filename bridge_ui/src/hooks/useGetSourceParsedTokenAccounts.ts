@@ -66,6 +66,8 @@ import {
   extractMintInfo,
   getMultipleAccountsRPC,
 } from "../utils/solana";
+import bnbIcon from "../icons/bnb.svg";
+import ethIcon from "../icons/eth.svg";
 
 export function createParsedTokenAccount(
   publicKey: string,
@@ -205,7 +207,7 @@ const createNativeEthParsedTokenAccount = (
           balanceInEth.toString(), //This is the actual display field, which has full precision.
           "ETH", //A white lie for display purposes
           "Ethereum", //A white lie for display purposes
-          undefined, //TODO logo
+          ethIcon, //TODO logo
           true //isNativeAsset
         );
       });
@@ -228,7 +230,7 @@ const createNativeBscParsedTokenAccount = (
           balanceInEth.toString(), //This is the actual display field, which has full precision.
           "BNB", //A white lie for display purposes
           "Binance Coin", //A white lie for display purposes
-          undefined, //TODO logo
+          bnbIcon, //TODO logo
           true //isNativeAsset
         );
       });

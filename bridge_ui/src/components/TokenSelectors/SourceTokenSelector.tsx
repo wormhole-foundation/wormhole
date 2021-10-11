@@ -21,9 +21,9 @@ import {
   setSourceWalletAddress as setTransferSourceWalletAddress,
 } from "../../store/transferSlice";
 import { isEVMChain } from "../../utils/ethereum";
-import EthereumSourceTokenSelector from "./EthereumSourceTokenSelector";
+import EvmTokenPicker from "./EvmTokenPicker";
 import RefreshButtonWrapper from "./RefreshButtonWrapper";
-import SolanaSourceTokenSelector from "./SolanaSourceTokenSelector";
+import SolanaTokenPicker from "./SolanaTokenPicker";
 import TerraSourceTokenSelector from "./TerraSourceTokenSelector";
 
 type TokenSelectorProps = {
@@ -84,21 +84,20 @@ export const TokenSelector = (props: TokenSelectorProps) => {
       <Typography>{fatalError}</Typography>
     </RefreshButtonWrapper>
   ) : lookupChain === CHAIN_ID_SOLANA ? (
-    <SolanaSourceTokenSelector
+    <SolanaTokenPicker
       value={sourceParsedTokenAccount || null}
       onChange={handleOnChange}
       disabled={disabled}
-      accounts={maps?.tokenAccounts?.data || []}
+      accounts={maps?.tokenAccounts}
       mintAccounts={maps?.mintAccounts}
       resetAccounts={maps?.resetAccounts}
       nft={nft}
     />
   ) : isEVMChain(lookupChain) ? (
-    <EthereumSourceTokenSelector
+    <EvmTokenPicker
       value={sourceParsedTokenAccount || null}
       disabled={disabled}
       onChange={handleOnChange}
-      covalent={maps?.covalent || undefined}
       tokenAccounts={maps?.tokenAccounts}
       resetAccounts={maps?.resetAccounts}
       chainId={lookupChain}

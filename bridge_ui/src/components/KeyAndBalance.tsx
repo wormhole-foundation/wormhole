@@ -21,7 +21,6 @@ function KeyAndBalance({
     return (
       <>
         <EthereumSignerKey />
-        <Typography>{balanceString}</Typography>
       </>
     );
   }
@@ -29,7 +28,6 @@ function KeyAndBalance({
     return (
       <>
         <SolanaWalletKey />
-        <Typography>{balanceString}</Typography>
       </>
     );
   }
