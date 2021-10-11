@@ -149,7 +149,7 @@ async function main() {
             gov_chain: govChain,
             gov_address: Buffer.from(govAddress, "hex").toString("base64"),
             wormhole_contract: addresses["wormhole.wasm"],
-            wrapped_asset_code_id: 2,
+            wrapped_asset_code_id: codeIds["cw20_wrapped.wasm"],
           }
         ),
       ],

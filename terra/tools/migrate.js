@@ -72,6 +72,24 @@ async function main() {
     .then((tx) => terra.tx.broadcast(tx))
     .then((rs) => console.log(rs));
 
+  await wallet
+    .createAndSignTx({
+      msgs: [
+        new MsgMigrateContract(
+          wallet.key.accAddress,
+          "terra10pyejy66429refv3g35g2t7am0was7ya7kz2a4",
+          codeIds["token_bridge.wasm"],
+          {
+              "action": ""
+          },
+          { uluna: 1000 }
+        ),
+      ],
+      memo: "",
+    })
+    .then((tx) => terra.tx.broadcast(tx))
+    .then((rs) => console.log(rs));
+
   // Set the Admin to the contract.
   await wallet
     .createAndSignTx({
