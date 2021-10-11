@@ -317,7 +317,7 @@ fn handle_attest_meta(
     } else {
         wrapped_asset(deps.storage).save(&asset_id, &HumanAddr::from(WRAPPED_ASSET_UPDATING))?;
         CosmosMsg::Wasm(WasmMsg::Instantiate {
-            admin: Some(env.contract.address.to_string()),
+            admin: Some(env.contract.address.clone().into_string()),
             code_id: cfg.wrapped_asset_code_id,
             msg: to_binary(&WrappedInit {
                 name: get_string_from_32(&meta.name)?,

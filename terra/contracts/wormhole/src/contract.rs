@@ -82,7 +82,10 @@ const FEE_AMOUNT: u128 = 10000;
 pub const FEE_DENOMINATION: &str = "uluna";
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Response> {
+pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Response> {
+    let mut state = config_read(deps.storage).load()?;
+    state.fee = Coin::new(0, FEE_DENOMINATION);
+    config(deps.storage).save(&state)?;
     Ok(Response::default())
 }
 
@@ -329,7 +332,7 @@ fn handle_post_message(
     let fee = state.fee;
 
     // Check fee
-    if !has_coins(info.funds.as_ref(), &fee) {
+    if fee.amount.u128() > 0 && !has_coins(info.funds.as_ref(), &fee) {
         return ContractError::FeeTooLow.std_err();
     }
 
