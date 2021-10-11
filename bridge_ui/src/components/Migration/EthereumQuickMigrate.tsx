@@ -12,6 +12,7 @@ import {
   Typography,
 } from "@material-ui/core";
 import ArrowRightAltIcon from "@material-ui/icons/ArrowRightAlt";
+import { Alert } from "@material-ui/lab";
 import { parseUnits } from "ethers/lib/utils";
 import { useSnackbar } from "notistack";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -128,7 +129,9 @@ function EthereumMigrationLineItem({
   //TODO use transaction loader
   const migrateTokens = useCallback(async () => {
     if (!poolInfo.data) {
-      enqueueSnackbar("Could not migrate the tokens.", { variant: "error" }); //Should never be hit
+      enqueueSnackbar(null, {
+        content: <Alert severity="error">Could not migrate the tokens.</Alert>,
+      }); //Should never be hit
       return;
     }
     try {
@@ -146,13 +149,17 @@ function EthereumMigrationLineItem({
       );
       await transaction.wait();
       setTransaction(transaction.hash);
-      enqueueSnackbar(`Successfully migrated the tokens.`, {
-        variant: "success",
+      enqueueSnackbar(null, {
+        content: (
+          <Alert severity="success">Successfully migrated the tokens.</Alert>
+        ),
       });
       setMigrationIsProcessing(false);
     } catch (e) {
       console.error(e);
-      enqueueSnackbar("Could not migrate the tokens.", { variant: "error" });
+      enqueueSnackbar(null, {
+        content: <Alert severity="error">Could not migrate the tokens.</Alert>,
+      });
       setMigrationIsProcessing(false);
       setError("Failed to send the transaction.");
     }

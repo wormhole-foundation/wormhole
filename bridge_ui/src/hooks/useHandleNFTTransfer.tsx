@@ -12,6 +12,7 @@ import {
   transferFromEth,
   transferFromSolana,
 } from "@certusone/wormhole-sdk/lib/nft_bridge";
+import { Alert } from "@material-ui/lab";
 import { WalletContextState } from "@solana/wallet-adapter-react";
 import { Connection } from "@solana/web3.js";
 import { BigNumber, Signer } from "ethers";
@@ -74,7 +75,9 @@ async function evm(
     dispatch(
       setTransferTx({ id: receipt.transactionHash, block: receipt.blockNumber })
     );
-    enqueueSnackbar("Transaction confirmed", { variant: "success" });
+    enqueueSnackbar(null, {
+      content: <Alert severity="success">Transaction confirmed</Alert>,
+    });
     const sequence = parseSequenceFromLogEth(
       receipt,
       getBridgeAddressForChain(chainId)
@@ -82,17 +85,23 @@ async function evm(
     const emitterAddress = getEmitterAddressEth(
       getNFTBridgeAddressForChain(chainId)
     );
-    enqueueSnackbar("Fetching VAA", { variant: "info" });
+    enqueueSnackbar(null, {
+      content: <Alert severity="info">Fetching VAA</Alert>,
+    });
     const { vaaBytes } = await getSignedVAAWithRetry(
       chainId,
       emitterAddress,
       sequence.toString()
     );
     dispatch(setSignedVAAHex(uint8ArrayToHex(vaaBytes)));
-    enqueueSnackbar("Fetched Signed VAA", { variant: "success" });
+    enqueueSnackbar(null, {
+      content: <Alert severity="success">Fetched Signed VAA</Alert>,
+    });
   } catch (e) {
     console.error(e);
-    enqueueSnackbar(parseError(e), { variant: "error" });
+    enqueueSnackbar(null, {
+      content: <Alert severity="error">{parseError(e)}</Alert>,
+    });
     dispatch(setIsSending(false));
   }
 }
@@ -130,7 +139,9 @@ async function solana(
       arrayify(BigNumber.from(originTokenId || "0"))
     );
     const txid = await signSendAndConfirm(wallet, connection, transaction);
-    enqueueSnackbar("Transaction confirmed", { variant: "success" });
+    enqueueSnackbar(null, {
+      content: <Alert severity="success">Transaction confirmed</Alert>,
+    });
     const info = await connection.getTransaction(txid);
     if (!info) {
       throw new Error("An error occurred while fetching the transaction info");
@@ -140,7 +151,9 @@ async function solana(
     const emitterAddress = await getEmitterAddressSolana(
       SOL_NFT_BRIDGE_ADDRESS
     );
-    enqueueSnackbar("Fetching VAA", { variant: "info" });
+    enqueueSnackbar(null, {
+      content: <Alert severity="info">Fetching VAA</Alert>,
+    });
     const { vaaBytes } = await getSignedVAAWithRetry(
       CHAIN_ID_SOLANA,
       emitterAddress,
@@ -148,10 +161,14 @@ async function solana(
     );
 
     dispatch(setSignedVAAHex(uint8ArrayToHex(vaaBytes)));
-    enqueueSnackbar("Fetched Signed VAA", { variant: "success" });
+    enqueueSnackbar(null, {
+      content: <Alert severity="success">Fetched Signed VAA</Alert>,
+    });
   } catch (e) {
     console.error(e);
-    enqueueSnackbar(parseError(e), { variant: "error" });
+    enqueueSnackbar(null, {
+      content: <Alert severity="error">{parseError(e)}</Alert>,
+    });
     dispatch(setIsSending(false));
   }
 }
@@ -222,9 +239,6 @@ export function useHandleNFTTransfer() {
         originTokenId
       );
     } else {
-      // enqueueSnackbar("Transfers from this chain are not yet supported", {
-      //   variant: "error",
-      // });
     }
   }, [
     dispatch,

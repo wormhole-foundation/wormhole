@@ -25,7 +25,7 @@ function LowBalanceWarning({ chainId }: { chainId: ChainId }) {
   )} balance and may not be able to pay for the upcoming transaction fees.`;
 
   const content = (
-    <Alert severity="warning" className={classes.alert}>
+    <Alert severity="warning" variant="outlined" className={classes.alert}>
       <Typography variant="body1">{warningMessage}</Typography>
       <Typography variant="body1">
         {"Current balance: " + transactionFeeWarning.balanceString}

@@ -106,7 +106,9 @@ async function evm(
     return { vaa: uint8ArrayToHex(vaaBytes), error: null };
   } catch (e) {
     console.error(e);
-    enqueueSnackbar(parseError(e), { variant: "error" });
+    enqueueSnackbar(null, {
+      content: <Alert severity="error">{parseError(e)}</Alert>,
+    });
     return { vaa: null, error: parseError(e) };
   }
 }
@@ -131,7 +133,9 @@ async function solana(tx: string, enqueueSnackbar: any, nft: boolean) {
     return { vaa: uint8ArrayToHex(vaaBytes), error: null };
   } catch (e) {
     console.error(e);
-    enqueueSnackbar(parseError(e), { variant: "error" });
+    enqueueSnackbar(null, {
+      content: <Alert severity="error">{parseError(e)}</Alert>,
+    });
     return { vaa: null, error: parseError(e) };
   }
 }
@@ -156,7 +160,9 @@ async function terra(tx: string, enqueueSnackbar: any) {
     return { vaa: uint8ArrayToHex(vaaBytes), error: null };
   } catch (e) {
     console.error(e);
-    enqueueSnackbar(parseError(e), { variant: "error" });
+    enqueueSnackbar(null, {
+      content: <Alert severity="error">{parseError(e)}</Alert>,
+    });
     return { vaa: null, error: parseError(e) };
   }
 }
@@ -329,7 +335,7 @@ export default function Recovery() {
   return (
     <Container maxWidth="md">
       <Card className={classes.mainCard}>
-        <Alert severity="info">
+        <Alert severity="info" variant="outlined">
           If you have sent your tokens but have not redeemed them, you may paste
           in the Source Transaction ID (from Step 3) to resume your transfer.
         </Alert>

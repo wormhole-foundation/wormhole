@@ -83,7 +83,7 @@ function Source() {
         ))}
       </TextField>
       {isEVMChain(sourceChain) ? (
-        <Alert severity="info">
+        <Alert severity="info" variant="outlined">
           Only NFTs which implement ERC-721 are supported.
         </Alert>
       ) : null}

@@ -13,6 +13,7 @@ import {
   parseSequenceFromLogTerra,
   uint8ArrayToHex,
 } from "@certusone/wormhole-sdk";
+import { Alert } from "@material-ui/lab";
 import { WalletContextState } from "@solana/wallet-adapter-react";
 import { Connection, PublicKey } from "@solana/web3.js";
 import {
@@ -68,7 +69,9 @@ async function evm(
     dispatch(
       setAttestTx({ id: receipt.transactionHash, block: receipt.blockNumber })
     );
-    enqueueSnackbar("Transaction confirmed", { variant: "success" });
+    enqueueSnackbar(null, {
+      content: <Alert severity="success">Transaction confirmed</Alert>,
+    });
     const sequence = parseSequenceFromLogEth(
       receipt,
       getBridgeAddressForChain(chainId)
@@ -76,17 +79,23 @@ async function evm(
     const emitterAddress = getEmitterAddressEth(
       getTokenBridgeAddressForChain(chainId)
     );
-    enqueueSnackbar("Fetching VAA", { variant: "info" });
+    enqueueSnackbar(null, {
+      content: <Alert severity="info">Fetching VAA</Alert>,
+    });
     const { vaaBytes } = await getSignedVAAWithRetry(
       chainId,
       emitterAddress,
       sequence
     );
     dispatch(setSignedVAAHex(uint8ArrayToHex(vaaBytes)));
-    enqueueSnackbar("Fetched Signed VAA", { variant: "success" });
+    enqueueSnackbar(null, {
+      content: <Alert severity="success">Fetched Signed VAA</Alert>,
+    });
   } catch (e) {
     console.error(e);
-    enqueueSnackbar(parseError(e), { variant: "error" });
+    enqueueSnackbar(null, {
+      content: <Alert severity="error">{parseError(e)}</Alert>,
+    });
     dispatch(setIsSending(false));
   }
 }
@@ -109,7 +118,9 @@ async function solana(
       sourceAsset
     );
     const txid = await signSendAndConfirm(wallet, connection, transaction);
-    enqueueSnackbar("Transaction confirmed", { variant: "success" });
+    enqueueSnackbar(null, {
+      content: <Alert severity="success">Transaction confirmed</Alert>,
+    });
     const info = await connection.getTransaction(txid);
     if (!info) {
       // TODO: error state
@@ -120,17 +131,23 @@ async function solana(
     const emitterAddress = await getEmitterAddressSolana(
       SOL_TOKEN_BRIDGE_ADDRESS
     );
-    enqueueSnackbar("Fetching VAA", { variant: "info" });
+    enqueueSnackbar(null, {
+      content: <Alert severity="info">Fetching VAA</Alert>,
+    });
     const { vaaBytes } = await getSignedVAAWithRetry(
       CHAIN_ID_SOLANA,
       emitterAddress,
       sequence
     );
     dispatch(setSignedVAAHex(uint8ArrayToHex(vaaBytes)));
-    enqueueSnackbar("Fetched Signed VAA", { variant: "success" });
+    enqueueSnackbar(null, {
+      content: <Alert severity="success">Fetched Signed VAA</Alert>,
+    });
   } catch (e) {
     console.error(e);
-    enqueueSnackbar(parseError(e), { variant: "error" });
+    enqueueSnackbar(null, {
+      content: <Alert severity="error">{parseError(e)}</Alert>,
+    });
     dispatch(setIsSending(false));
   }
 }
@@ -150,7 +167,9 @@ async function terra(
     );
     const info = await waitForTerraExecution(result);
     dispatch(setAttestTx({ id: info.txhash, block: info.height }));
-    enqueueSnackbar("Transaction confirmed", { variant: "success" });
+    enqueueSnackbar(null, {
+      content: <Alert severity="success">Transaction confirmed</Alert>,
+    });
     const sequence = parseSequenceFromLogTerra(info);
     if (!sequence) {
       throw new Error("Sequence not found");
@@ -158,17 +177,23 @@ async function terra(
     const emitterAddress = await getEmitterAddressTerra(
       TERRA_TOKEN_BRIDGE_ADDRESS
     );
-    enqueueSnackbar("Fetching VAA", { variant: "info" });
+    enqueueSnackbar(null, {
+      content: <Alert severity="info">Fetching VAA</Alert>,
+    });
     const { vaaBytes } = await getSignedVAAWithRetry(
       CHAIN_ID_TERRA,
       emitterAddress,
       sequence
     );
     dispatch(setSignedVAAHex(uint8ArrayToHex(vaaBytes)));
-    enqueueSnackbar("Fetched Signed VAA", { variant: "success" });
+    enqueueSnackbar(null, {
+      content: <Alert severity="success">Fetched Signed VAA</Alert>,
+    });
   } catch (e) {
     console.error(e);
-    enqueueSnackbar(parseError(e), { variant: "error" });
+    enqueueSnackbar(null, {
+      content: <Alert severity="error">{parseError(e)}</Alert>,
+    });
     dispatch(setIsSending(false));
   }
 }
@@ -194,9 +219,6 @@ export function useHandleAttest() {
     } else if (sourceChain === CHAIN_ID_TERRA && !!terraWallet) {
       terra(dispatch, enqueueSnackbar, terraWallet, sourceAsset);
     } else {
-      // enqueueSnackbar("Attesting from this chain is not yet supported", {
-      //   variant: "error",
-      // });
     }
   }, [
     dispatch,

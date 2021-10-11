@@ -5,6 +5,7 @@ import {
   TextField,
   Typography,
 } from "@material-ui/core";
+import { Alert } from "@material-ui/lab";
 import { parseUnits } from "ethers/lib/utils";
 import { useSnackbar } from "notistack";
 import { useCallback, useState } from "react";
@@ -106,7 +107,9 @@ export default function EthereumWorkflow({
 
   const migrateTokens = useCallback(async () => {
     if (!poolInfo.data) {
-      enqueueSnackbar("Could not migrate the tokens.", { variant: "error" }); //Should never be hit
+      enqueueSnackbar(null, {
+        content: <Alert severity="error">Could not migrate the tokens.</Alert>,
+      }); //Should never be hit
       return;
     }
     try {
@@ -122,13 +125,17 @@ export default function EthereumWorkflow({
       await transaction.wait();
       setTransaction(transaction.hash);
       forceRefresh();
-      enqueueSnackbar(`Successfully migrated the tokens.`, {
-        variant: "success",
+      enqueueSnackbar(null, {
+        content: (
+          <Alert severity="success">Successfully migrated the tokens.</Alert>
+        ),
       });
       setMigrationIsProcessing(false);
     } catch (e) {
       console.error(e);
-      enqueueSnackbar("Could not migrate the tokens.", { variant: "error" });
+      enqueueSnackbar(null, {
+        content: <Alert severity="error">Could not migrate the tokens.</Alert>,
+      });
       setMigrationIsProcessing(false);
       setError("Failed to send the transaction.");
     }

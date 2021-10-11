@@ -19,7 +19,7 @@ import { useCallback, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useEthereumProvider } from "../contexts/EthereumProviderContext";
 import { useSolanaWallet } from "../contexts/SolanaWalletContext";
-import useAttestSignedVAA from "../hooks/useAttestSignedVAA";
+import useAttestSignedVAA from "./useAttestSignedVAA";
 import { setCreateTx, setIsCreating } from "../store/attestSlice";
 import {
   selectAttestIsCreating,
@@ -35,6 +35,7 @@ import {
 import { isEVMChain } from "../utils/ethereum";
 import parseError from "../utils/parseError";
 import { signSendAndConfirm } from "../utils/solana";
+import { Alert } from "@material-ui/lab";
 
 async function evm(
   dispatch: any,
@@ -53,9 +54,13 @@ async function evm(
     dispatch(
       setCreateTx({ id: receipt.transactionHash, block: receipt.blockNumber })
     );
-    enqueueSnackbar("Transaction confirmed", { variant: "success" });
+    enqueueSnackbar(null, {
+      content: <Alert severity="success">Transaction confirmed</Alert>,
+    });
   } catch (e) {
-    enqueueSnackbar(parseError(e), { variant: "error" });
+    enqueueSnackbar(null, {
+      content: <Alert severity="error">{parseError(e)}</Alert>,
+    });
     dispatch(setIsCreating(false));
   }
 }
@@ -90,9 +95,13 @@ async function solana(
     const txid = await signSendAndConfirm(wallet, connection, transaction);
     // TODO: didn't want to make an info call we didn't need, can we get the block without it by modifying the above call?
     dispatch(setCreateTx({ id: txid, block: 1 }));
-    enqueueSnackbar("Transaction confirmed", { variant: "success" });
+    enqueueSnackbar(null, {
+      content: <Alert severity="success">Transaction confirmed</Alert>,
+    });
   } catch (e) {
-    enqueueSnackbar(parseError(e), { variant: "error" });
+    enqueueSnackbar(null, {
+      content: <Alert severity="error">{parseError(e)}</Alert>,
+    });
     dispatch(setIsCreating(false));
   }
 }
@@ -117,9 +126,13 @@ async function terra(
     dispatch(
       setCreateTx({ id: result.result.txhash, block: result.result.height })
     );
-    enqueueSnackbar("Transaction confirmed", { variant: "success" });
+    enqueueSnackbar(null, {
+      content: <Alert severity="success">Transaction confirmed</Alert>,
+    });
   } catch (e) {
-    enqueueSnackbar(parseError(e), { variant: "error" });
+    enqueueSnackbar(null, {
+      content: <Alert severity="error">{parseError(e)}</Alert>,
+    });
     dispatch(setIsCreating(false));
   }
 }

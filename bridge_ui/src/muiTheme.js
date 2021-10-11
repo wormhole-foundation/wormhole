@@ -68,6 +68,12 @@ export const theme = responsiveFontSizes(
           },
         },
       },
+      MuiAlert: {
+        root: {
+          borderRadius: "8px",
+          border: "1px solid",
+        },
+      },
       MuiButton: {
         root: {
           borderRadius: "5px",

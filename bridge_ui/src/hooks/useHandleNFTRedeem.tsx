@@ -14,6 +14,7 @@ import {
   redeemOnSolana,
 } from "@certusone/wormhole-sdk/lib/nft_bridge";
 import { arrayify } from "@ethersproject/bytes";
+import { Alert } from "@material-ui/lab";
 import { WalletContextState } from "@solana/wallet-adapter-react";
 import { Connection } from "@solana/web3.js";
 import { Signer } from "ethers";
@@ -53,9 +54,13 @@ async function evm(
     dispatch(
       setRedeemTx({ id: receipt.transactionHash, block: receipt.blockNumber })
     );
-    enqueueSnackbar("Transaction confirmed", { variant: "success" });
+    enqueueSnackbar(null, {
+      content: <Alert severity="success">Transaction confirmed</Alert>,
+    });
   } catch (e) {
-    enqueueSnackbar(parseError(e), { variant: "error" });
+    enqueueSnackbar(null, {
+      content: <Alert severity="error">{parseError(e)}</Alert>,
+    });
     dispatch(setIsRedeeming(false));
   }
 }
@@ -127,9 +132,13 @@ async function solana(
       }
     }
     dispatch(setRedeemTx({ id: txid || "", block: 1 }));
-    enqueueSnackbar("Transaction confirmed", { variant: "success" });
+    enqueueSnackbar(null, {
+      content: <Alert severity="success">Transaction confirmed</Alert>,
+    });
   } catch (e) {
-    enqueueSnackbar(parseError(e), { variant: "error" });
+    enqueueSnackbar(null, {
+      content: <Alert severity="error">{parseError(e)}</Alert>,
+    });
     dispatch(setIsRedeeming(false));
   }
 }
@@ -160,9 +169,6 @@ export function useHandleNFTRedeem() {
         signedVAA
       );
     } else {
-      // enqueueSnackbar("Redeeming on this chain is not yet supported", {
-      //   variant: "error",
-      // });
     }
   }, [
     dispatch,

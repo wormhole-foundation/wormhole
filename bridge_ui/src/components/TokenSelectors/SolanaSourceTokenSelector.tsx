@@ -241,7 +241,7 @@ export default function SolanaSourceTokenSelector(
 
       const migrationRender = (
         <div className={classes.migrationAlert}>
-          <Alert severity="warning">
+          <Alert severity="warning" variant="outlined">
             <Typography variant="body2">
               This is a legacy asset eligible for migration.
             </Typography>

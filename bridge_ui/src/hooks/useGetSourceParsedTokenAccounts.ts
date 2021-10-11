@@ -166,6 +166,7 @@ const createNativeSolParsedTokenAccount = async (
   connection: Connection,
   walletAddress: string
 ) => {
+  // const walletAddress = "H69q3Q8E74xm7swmMQpsJLVp2Q9JuBwBbxraAMX5Drzm" // known solana mainnet wallet with tokens
   const fetchAccounts = await getMultipleAccountsRPC(connection, [
     new PublicKey(walletAddress),
   ]);

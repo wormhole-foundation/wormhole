@@ -37,12 +37,14 @@ export default function TokenWarning({
     [sourceChain, tokenAddress, symbol]
   );
   return tokenConflictingNativeWarning ? (
-    <Alert severity="warning">{tokenConflictingNativeWarning}</Alert>
+    <Alert severity="warning" variant="outlined">
+      {tokenConflictingNativeWarning}
+    </Alert>
   ) : sourceChain === CHAIN_ID_ETH &&
     tokenAddress &&
     getAddress(tokenAddress) ===
       getAddress("0xae7ab96520de3a18e5e111b5eaab095312d7fe84") ? ( // stETH (Lido)
-    <Alert severity="warning">
+    <Alert severity="warning" variant="outlined">
       Lido stETH rewards can only be received on Ethereum. Use the value
       accruing wrapper token wstETH instead.
     </Alert>
@@ -52,7 +54,7 @@ export default function TokenWarning({
       getAddress(tokenAddress)
     ) ? (
     //TODO: will this be accurate with Terra support?
-    <Alert severity="info">
+    <Alert severity="info" variant="outlined">
       Bridging {symbol ? symbol : "the token"} via Wormhole will not produce
       native {symbol ? symbol : "assets"}. It will produce a wrapped version
       which can be swapped using a stable swap protocol.
