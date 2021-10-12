@@ -94,8 +94,8 @@ message ContractUpgrade {
   // ID of the chain where the Wormhole contract should be updated (uint8).
   uint32 chain_id = 1;
 
-  // Address of the new program/contract.
-  bytes new_contract = 2;
+  // Hex-encoded address (without leading 0x) address of the new program/contract.
+  string new_contract = 2;
 }
 
 message BridgeUpgradeContract {
@@ -105,7 +105,7 @@ message BridgeUpgradeContract {
   // ID of the chain where the bridge contract should be updated (uint16).
   uint32 target_chain_id = 2;
 
-  // Address of the new program/contract.
+  // Hex-encoded address (without leading 0x) of the new program/contract.
   string new_contract = 3;
 }
 

@@ -98,12 +98,12 @@ func runContractUpgradeTemplate(cmd *cobra.Command, args []string) {
 
 	m := &nodev1.InjectGovernanceVAARequest{
 		CurrentSetIndex: uint32(*templateGuardianIndex),
-		Sequence:        1234,
+		Sequence:        rand.Uint64(),
 		Nonce:           rand.Uint32(),
 		Payload: &nodev1.InjectGovernanceVAARequest_ContractUpgrade{
 			ContractUpgrade: &nodev1.ContractUpgrade{
 				ChainId:     1,
-				NewContract: make([]byte, 32),
+				NewContract: "0000000000000000000000000290FB167208Af455bB137780163b7B7a9a10C16",
 			},
 		},
 	}
