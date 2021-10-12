@@ -34,10 +34,10 @@ export const CHAINS =
           id: CHAIN_ID_SOLANA,
           name: "Solana",
         },
-        // {
-        //   id: CHAIN_ID_TERRA,
-        //   name: "Terra",
-        // },
+        {
+          id: CHAIN_ID_TERRA,
+          name: "Terra",
+        },
       ]
     : CLUSTER === "testnet"
     ? [
