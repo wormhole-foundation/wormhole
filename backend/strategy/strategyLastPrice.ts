@@ -1,4 +1,4 @@
-import { PriceTicker } from '../PriceTicker'
+import { PriceTicker } from '../common/priceTicker'
 import { StrategyBase } from './strategyBase'
 /**
  * Pricecaster Service.

@@ -7,19 +7,20 @@
  * (c) 2021 Randlabs, Inc.
  */
 
-import { PythPriceFetcher } from './PythPriceFetcher'
-import { StdAlgoPublisher } from './publisher/StdAlgoPublisher'
+import * as Config from '@randlabs/js-config-reader'
+import { PythPriceFetcher } from './fetcher/PythPriceFetcher'
+import { StdAlgoPublisher } from './publisher/stdAlgoPublisher'
 import { StrategyLastPrice } from './strategy/strategyLastPrice'
-import { IPriceFetcher } from './IPriceFetcher'
-import { IPublisher, PublishInfo } from './IPublisher'
-import { PriceTicker } from './PriceTicker'
-import { StatusCode } from './statusCodes'
-import Status from 'algosdk/dist/types/src/client/v2/algod/status'
-const settings = require('../settings')
+import { IPriceFetcher } from './fetcher/IPriceFetcher'
+import { IPublisher, PublishInfo } from './publisher/IPublisher'
+import { PriceTicker } from './common/priceTicker'
+import { StatusCode } from './common/statusCodes'
+import { IAppSettings } from './common/settings'
+import { exit } from 'process'
 const algosdk = require('algosdk')
 const charm = require('charm')()
 
-export function sleep (ms: number) {
+function sleep (ms: number) {
   return new Promise((resolve) => {
     setTimeout(resolve, ms)
   })
@@ -44,16 +45,38 @@ async function workerRoutine (fetcher: IPriceFetcher, publisher: IPublisher): Pr
 (async () => {
   charm.pipe(process.stdout)
   charm.reset()
+  charm.foreground('cyan').display('bright')
   console.log('Pricecaster Service Fetcher  -- (c) 2021 Randlabs.io\n')
-  const params = settings.params
-  console.log(`Setting up fetcher/publisher for ${params.symbol} for PriceKeeper App ${params.priceKeeperAppId}, interval ${params.publishIntervalSecs} secs`)
+  charm.foreground('white')
 
-  const publisher = new StdAlgoPublisher(params.symbol,
-    params.priceKeeperAppId,
-    params.validator,
-    (algosdk.mnemonicToSecretKey(params.mnemo)).sk
+  let settings: IAppSettings
+  try {
+    await Config.initialize<IAppSettings>({ envVar: 'PRICECASTER_SETTINGS' })
+    settings = Config.get<IAppSettings>()
+  } catch (e: any) {
+    console.error('Cannot initialize configuration: ' + e.toString())
+    exit(1)
+  }
+
+  charm.write('Setting up for')
+    .foreground('yellow')
+    .write(` ${settings.params.symbol} `)
+    .foreground('white')
+    .write('for PriceKeeper App')
+    .foreground('yellow')
+    .write(` ${settings.params.priceKeeperAppId} `)
+    .foreground('white')
+    .write(`interval ${settings.params.publishIntervalSecs} secs\n`)
+
+  const publisher = new StdAlgoPublisher(settings.params.symbol,
+    settings.params.priceKeeperAppId,
+    settings.params.validator,
+    (algosdk.mnemonicToSecretKey(settings.params.mnemo)).sk,
+    settings.algo.token,
+    settings.algo.api,
+    settings.algo.port
   )
-  const fetcher = new PythPriceFetcher(params.symbol, new StrategyLastPrice(params.bufferSize))
+  const fetcher = new PythPriceFetcher(settings.params.symbol, new StrategyLastPrice(settings.params.bufferSize), settings.pyth?.solanaClusterName!)
   await fetcher.start()
 
   console.log('Waiting for fetcher to boot...')
@@ -65,24 +88,26 @@ async function workerRoutine (fetcher: IPriceFetcher, publisher: IPublisher): Pr
   console.log('Starting worker.')
 
   let active = true
+  charm.removeAllListeners('^C')
   charm.on('^C', () => {
     console.log('CTRL+C: Aborted by user.')
     active = false
   })
-  // eslint-disable-next-line no-unmodified-loop-condition
   let pubCount = 0
+  // eslint-disable-next-line no-unmodified-loop-condition
   while (active) {
     const wrs = await workerRoutine(fetcher, publisher)
     switch (wrs.status) {
-      case StatusCode.OK:
-        console.log(`[PUB ${pubCount++}] ${wrs.tick!.price}±${wrs.tick!.confidence} t:${wrs.tick!.networkTime} TXID:${wrs.pub!.txid})`)
+      case StatusCode.OK: {
+        console.log(`[PUB ${pubCount++}] ${wrs.tick!.price}±${wrs.tick!.confidence} exp:${wrs.tick!.exponent}  t:${wrs.tick!.networkTime} TXID:${wrs.pub!.txid}`)
         break
+      }
       case StatusCode.NO_TICKER:
         console.log('No ticker available from fetcher data source')
         break
       default:
         console.log('Error. Reason: ' + wrs.reason)
     }
-    await sleep(params.publishIntervalSecs * 1000)
+    await sleep(settings.params.publishIntervalSecs * 1000)
   }
 })()

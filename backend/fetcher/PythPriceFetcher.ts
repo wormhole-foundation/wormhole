@@ -7,19 +7,18 @@
  */
 
 import { IPriceFetcher } from './IPriceFetcher'
-import { IStrategy } from './strategy/strategy'
+import { IStrategy } from '../strategy/strategy'
 import { getPythProgramKeyForCluster, PriceData, Product, PythConnection } from '@pythnetwork/client'
 import { Cluster, clusterApiUrl, Connection } from '@solana/web3.js'
-import { PriceTicker } from './PriceTicker'
-const settings = require('../settings')
+import { PriceTicker } from '../common/priceTicker'
 
 export class PythPriceFetcher implements IPriceFetcher {
   private strategy: IStrategy
   private symbol: string
   private pythConnection: PythConnection
 
-  constructor (symbol: string, strategy: IStrategy) {
-    const SOLANA_CLUSTER_NAME: Cluster = settings.pyth.solanaClusterName as Cluster
+  constructor (symbol: string, strategy: IStrategy, solanaClusterName: string) {
+    const SOLANA_CLUSTER_NAME: Cluster = solanaClusterName as Cluster
     const connection = new Connection(clusterApiUrl(SOLANA_CLUSTER_NAME))
     const pythPublicKey = getPythProgramKeyForCluster(SOLANA_CLUSTER_NAME)
     this.pythConnection = new PythConnection(connection, pythPublicKey)

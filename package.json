@@ -1,31 +1,38 @@
 {
-  "name": "pyth-exp",
+  "name": "pricecaster",
   "version": "1.0.0",
-  "description": "Experimentation with pyth",
+  "description": "Pricecaster Service",
   "main": "index.js",
   "scripts": {
-    "start": "npx ts-node backend/main.ts",
+    "compile": "tsc",
+    "build": "rimraf build && npm run compile",
+    "prepack": "npm run build",
+    "start": "npm run compile && cross-env PRICECASTER_SETTINGS=./settings/settings-btc.js node build/main.js",
     "test": "mocha --timeout 60000"
   },
-  "author": "",
+  "author": "Randlabs inc",
   "license": "ISC",
   "dependencies": {
     "@pythnetwork/client": "^2.3.1",
+    "@randlabs/js-config-reader": "^1.1.0",
     "algosdk": "^1.11.1",
     "charm": "^1.0.2",
     "fastpriorityqueue": "^0.7.1",
     "js-sha512": "^0.8.0"
   },
   "devDependencies": {
+    "@types/superagent": "^4.1.13",
     "@typescript-eslint/eslint-plugin": "^4.32.0",
     "@typescript-eslint/parser": "^4.32.0",
     "chai": "^4.3.4",
     "chai-as-promised": "^7.1.1",
+    "cross-env": "^7.0.3",
     "eslint": "^7.32.0",
     "eslint-config-standard": "^16.0.3",
     "eslint-plugin-import": "^2.24.2",
     "eslint-plugin-node": "^11.1.0",
     "eslint-plugin-promise": "^5.1.0",
-    "mocha": "^9.1.2"
+    "mocha": "^9.1.2",
+    "rimraf": "^3.0.2"
   }
 }

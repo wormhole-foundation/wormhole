@@ -6,7 +6,7 @@
  * (c) 2021 Randlabs, Inc.
  */
 
-import { PriceTicker } from '../PriceTicker'
+import { PriceTicker } from '../common/priceTicker'
 
 /**
  * Implements a strategy for obtaining an asset price from

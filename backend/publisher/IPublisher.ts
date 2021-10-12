@@ -7,8 +7,8 @@
  * (c) 2021 Randlabs, Inc.
  */
 
-import { PriceTicker } from './PriceTicker'
-import { StatusCode } from './statusCodes'
+import { PriceTicker } from '../common/priceTicker'
+import { StatusCode } from '../common/statusCodes'
 
 export type PublishInfo = {
     status: StatusCode,

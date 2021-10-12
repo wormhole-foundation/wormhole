@@ -1,20 +1,22 @@
 import algosdk from 'algosdk'
-import { IPublisher, PublishInfo } from '../IPublisher'
-import { PriceTicker } from '../PriceTicker'
-import { StatusCode } from '../statusCodes'
+import { IPublisher, PublishInfo } from '../publisher/IPublisher'
+import { PriceTicker } from '../common/priceTicker'
+import { StatusCode } from '../common/statusCodes'
 const PricecasterLib = require('../../lib/pricecaster')
-const settings = require('../../settings')
 
 export class StdAlgoPublisher implements IPublisher {
   private pclib: any
   private symbol: string
   private signKey: Uint8Array
   private validator: string
-  constructor (symbol: string, appId: BigInt, validator: string, signKey: Uint8Array) {
+  constructor (symbol: string, appId: BigInt, validator: string, signKey: Uint8Array,
+    algoClientToken: string,
+    algoClientServer: string,
+    algoClientPort: string) {
     this.symbol = symbol
     this.signKey = signKey
     this.validator = validator
-    const algodClient = new algosdk.Algodv2(settings.algo.token, settings.algo.api, settings.algo.port)
+    const algodClient = new algosdk.Algodv2(algoClientToken, algoClientServer, algoClientPort)
     this.pclib = new PricecasterLib.PricecasterLib(algodClient)
     this.pclib.setAppId(appId)
   }
