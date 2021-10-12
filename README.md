@@ -1,25 +1,28 @@
 # Pricecaster Service
 
-This service consumes prices from Pyth and feeds a TEAL program with messages containing signed price data. The program code validates signature and message validity, and if successful, subsequently stores the price information in the global application information for other contracts to retrieve.
+This service consumes prices from "price fetchers" and feeds blockchain publishers. In case of Algorand publisher class, a TEAL program with messages containing signed price data. The program code validates signature and message validity, and if successful, subsequently stores the price information in the global application information for other contracts to retrieve.
+
+All gathered price information is stored in a buffer by the Fetcher component -with a maximum size determined by settings-.  The price to get from that buffer is selected by the **IStrategy** class implementation; the default implementation being to get the most recent price and clear the buffer for new items to arrive. 
+
+Alternative strategies for different purposes, such as getting averages and forecasting, can be implemented easily.
 
 ## System Overview
 
-![PRICECASTER](https://user-images.githubusercontent.com/4740613/136037362-bed34a49-6b83-42e1-821d-1df3d9a41477.png)
+The Pricecaster backend can be configured with any class implementing **IPriceFetcher** and **IPublisher** interfaces. The following diagram shows the service operating with a fetcher from ![Pyth Network](https://pyth.network/), feeding the Algorand chain through the `StdAlgoPublisher` class.
 
+![PRICECASTER](https://user-images.githubusercontent.com/4740613/136037362-bed34a49-6b83-42e1-821d-1df3d9a41477.png)
 
 ## Backend Configuration
 
-The fetcher will get information as soon as Pyth reports a price-change. Since publishing to the pricekeeper contract will be much slower, a buffered is approach is taken where a last set of prices is kept.
+The backend will read configuration from a `settings.ts` file pointed by the `PRICECASTER_SETTINGS` environment variable.
 
-The number of prices kept is controlled by the `buffersize` setting.
+## Tests
 
-The ratio of message publications currently is to publish again as soon as the last call finished and there is any buffer data available. This is configured with the `ratio` setting.
+At this time, there is a TEAL contract test that can be run with 
 
-As prices may vary greatly in markets in short periods of time between publications, a set of strategies are provided to decide how to select data from the buffer.
+`npm run test`
 
-Available strategies are:  
-* `avg` Select the average price in-buffer.
-* `wavg` Select the weighted-by-confidence average prices in buffer.
-* `maxconf` Select the price with the maximum confidence (lowest deviation between publishers)
+Backend tests will come shortly.
 
-Enabling the 'phony' setting will **simulate** publications but no real calls will be made. Just useful for debugging.
+
+

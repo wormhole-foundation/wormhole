@@ -7,7 +7,9 @@
     "compile": "tsc",
     "build": "rimraf build && npm run compile",
     "prepack": "npm run build",
-    "start": "npm run compile && cross-env PRICECASTER_SETTINGS=./settings/settings-btc.js node build/main.js",
+    "start-btc": "npm run compile && cross-env PRICECASTER_SETTINGS=./settings/settings-btc.js node build/main.js",
+    "start-eth": "npm run compile && cross-env PRICECASTER_SETTINGS=./settings/settings-eth.js node build/main.js",
+    "start-doge": "npm run compile && cross-env PRICECASTER_SETTINGS=./settings/settings-doge.js node build/main.js",
     "test": "mocha --timeout 60000"
   },
   "author": "Randlabs inc",
