@@ -129,7 +129,7 @@ func (p *Processor) handleObservation(ctx context.Context, m *gossipv1.SignedObs
 	// who have the outdated guardian set, we'll just wait for the message to be retransmitted eventually.
 	_, ok := gs.KeyIndex(their_addr)
 	if !ok {
-		p.logger.Warn("received observation by unknown guardian - is our guardian set outdated?",
+		p.logger.Debug("received observation by unknown guardian - is our guardian set outdated?",
 			zap.String("digest", hash),
 			zap.String("their_addr", their_addr.Hex()),
 			zap.Uint32("index", gs.Index),
