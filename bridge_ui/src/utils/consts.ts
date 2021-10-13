@@ -463,3 +463,5 @@ export const ETH_MIGRATION_ASSET_MAP = new Map<string, string>(
         // ],
       ]
 );
+
+export const SUPPORTED_TERRA_TOKENS = ["uluna", "uusd"];

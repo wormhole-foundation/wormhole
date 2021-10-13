@@ -1,15 +1,27 @@
 import { LCDClient } from "@terra-money/terra.js";
-import { useEffect, useMemo, useState } from "react";
+import { MutableRefObject, useEffect, useMemo, useState } from "react";
 import { TERRA_HOST } from "../utils/consts";
 
 export interface TerraNativeBalances {
   [index: string]: string;
 }
 
-export default function useTerraNativeBalances(walletAddress?: string) {
+export default function useTerraNativeBalances(
+  walletAddress?: string,
+  refreshRef?: MutableRefObject<() => void>
+) {
   const [isLoading, setIsLoading] = useState(true);
   const [balances, setBalances] = useState<TerraNativeBalances | undefined>({});
+  const [refresh, setRefresh] = useState(false);
   useEffect(() => {
+    if (refreshRef) {
+      refreshRef.current = () => {
+        setRefresh(true);
+      };
+    }
+  }, [refreshRef]);
+  useEffect(() => {
+    setRefresh(false);
     if (walletAddress) {
       setIsLoading(true);
       setBalances(undefined);
@@ -37,7 +49,7 @@ export default function useTerraNativeBalances(walletAddress?: string) {
       setIsLoading(false);
       setBalances(undefined);
     }
-  }, [walletAddress]);
+  }, [walletAddress, refresh]);
   const value = useMemo(() => ({ isLoading, balances }), [isLoading, balances]);
   return value;
 }

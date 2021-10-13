@@ -13,14 +13,12 @@ import {
   useConnectedWallet,
 } from "@terra-money/wallet-provider";
 import { formatUnits } from "ethers/lib/utils";
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import { createParsedTokenAccount } from "../../hooks/useGetSourceParsedTokenAccounts";
 import useTerraNativeBalances from "../../hooks/useTerraNativeBalances";
-import useTerraTokenMap, {
-  TerraTokenMetadata,
-} from "../../hooks/useTerraTokenMap";
+import { TerraTokenMetadata } from "../../hooks/useTerraTokenMap";
 import { ParsedTokenAccount } from "../../store/transferSlice";
-import { TERRA_HOST } from "../../utils/consts";
+import { SUPPORTED_TERRA_TOKENS, TERRA_HOST } from "../../utils/consts";
 import { shortenAddress } from "../../utils/solana";
 import {
   formatNativeDenom,
@@ -110,7 +108,7 @@ export default function TerraSourceTokenSelector(
 ) {
   const classes = useStyles();
   const { onChange, value, disabled, resetAccounts } = props;
-  const tokenMap = useTerraTokenMap();
+  // const tokenMap = useTerraTokenMap();
   const [advancedMode, setAdvancedMode] = useState(false);
   const [advancedModeHolderString, setAdvancedModeHolderString] = useState("");
   const [advancedModeError, setAdvancedModeError] = useState("");
@@ -125,16 +123,22 @@ export default function TerraSourceTokenSelector(
     [setAutocompleteString]
   );
 
+  const nativeRefresh = useRef<() => void>(() => {});
+
+  const { balances, isLoading: nativeIsLoading } = useTerraNativeBalances(
+    terraWallet?.walletAddress,
+    nativeRefresh
+  );
+
   const resetAccountWrapper = useCallback(() => {
     setAdvancedModeHolderString("");
     setAdvancedModeError("");
     setAutocompleteString("");
     resetAccounts && resetAccounts();
+    nativeRefresh.current();
   }, [resetAccounts]);
 
-  const isLoading = tokenMap?.isFetching || false;
-
-  const { balances } = useTerraNativeBalances(terraWallet?.walletAddress);
+  const isLoading = nativeIsLoading; // || (tokenMap?.isFetching || false);
 
   const terraTokenArray = useMemo(() => {
     const balancesItems = balances
@@ -149,10 +153,16 @@ export default function TerraSourceTokenSelector(
             } as TerraTokenMetadata)
         )
       : [];
-    const values = tokenMap.data?.mainnet;
-    const tokenMapItems = Object.values(values || {}) || [];
-    return [...balancesItems, ...tokenMapItems];
-  }, [balances, tokenMap]);
+    return balancesItems.filter((metadata) =>
+      SUPPORTED_TERRA_TOKENS.includes(metadata.token)
+    );
+    // const values = tokenMap.data?.mainnet;
+    // const tokenMapItems = Object.values(values || {}) || [];
+    // return [...balancesItems, ...tokenMapItems];
+  }, [
+    balances,
+    // tokenMap
+  ]);
 
   const valueToOption = (fromProps: ParsedTokenAccount | undefined | null) => {
     if (!fromProps) return null;
@@ -323,8 +333,11 @@ export default function TerraSourceTokenSelector(
 
   return (
     <React.Fragment>
-      {isLoading && <CircularProgress />}
-      {wrappedContent}
+      {isLoading && !value && !advancedMode ? (
+        <CircularProgress />
+      ) : (
+        wrappedContent
+      )}
       {advancedModeError && (
         <Typography color="error">{advancedModeError}</Typography>
       )}
