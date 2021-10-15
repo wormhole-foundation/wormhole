@@ -32,6 +32,7 @@ import { useDebounce } from "use-debounce/lib";
 import RefreshButtonWrapper from "./RefreshButtonWrapper";
 import { ChainId, CHAIN_ID_ETH } from "@certusone/wormhole-sdk";
 import { sortParsedTokenAccounts } from "../../utils/sort";
+import { getAddress } from "@ethersproject/address";
 
 const useStyles = makeStyles((theme) =>
   createStyles({
@@ -96,7 +97,7 @@ const isWormholev1 = (provider: any, address: string, chainId: ChainId) => {
 
 const isMigrationEligible = (chainId: ChainId, address: string) => {
   const assetMap = getMigrationAssetMap(chainId);
-  return !!assetMap.get(address);
+  return !!assetMap.get(getAddress(address));
 };
 
 type EthereumSourceTokenSelectorProps = {
