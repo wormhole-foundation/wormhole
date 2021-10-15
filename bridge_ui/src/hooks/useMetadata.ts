@@ -109,7 +109,7 @@ export default function useMetadata(
   chainId: ChainId,
   addresses: string[]
 ): DataWrapper<Map<string, GenericMetadata>> {
-  const terraTokenMap = useTerraTokenMap();
+  const terraTokenMap = useTerraTokenMap(chainId === CHAIN_ID_TERRA);
   const solanaTokenMap = useSolanaTokenMap();
 
   const solanaAddresses = useMemo(() => {

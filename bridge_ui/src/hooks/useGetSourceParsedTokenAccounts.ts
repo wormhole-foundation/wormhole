@@ -349,6 +349,17 @@ const getSolanaParsedTokenAccounts = async (
         );
       });
 
+    // uncomment to test token account in picker, useful for debugging
+    // splParsedTokenAccounts.push({
+    //   amount: "1",
+    //   decimals: 8,
+    //   mintKey: "2Xf2yAXJfg82sWwdLUo2x9mZXy6JCdszdMZkcF1Hf4KV",
+    //   publicKey: "2Xf2yAXJfg82sWwdLUo2x9mZXy6JCdszdMZkcF1Hf4KV",
+    //   uiAmount: 1,
+    //   uiAmountString: "1",
+    //   isNativeAsset: false,
+    // });
+
     if (nft) {
       //In the case of NFTs, we are done, and we set the accounts in redux
       dispatch(receiveSourceParsedTokenAccountsNFT(splParsedTokenAccounts));

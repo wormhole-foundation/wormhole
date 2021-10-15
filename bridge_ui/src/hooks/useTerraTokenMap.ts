@@ -25,18 +25,19 @@ export type TerraTokenMap = {
   };
 };
 
-const useTerraTokenMap = (): DataWrapper<TerraTokenMap> => {
+const useTerraTokenMap = (shouldFire: boolean): DataWrapper<TerraTokenMap> => {
   const terraTokenMap = useSelector(selectTerraTokenMap);
   const dispatch = useDispatch();
-  const shouldFire =
-    terraTokenMap.data === undefined ||
-    (terraTokenMap.data === null && !terraTokenMap.isFetching);
+  const internalShouldFire =
+    shouldFire &&
+    (terraTokenMap.data === undefined ||
+      (terraTokenMap.data === null && !terraTokenMap.isFetching));
 
   useEffect(() => {
-    if (shouldFire) {
+    if (internalShouldFire) {
       getTerraTokenMap(dispatch);
     }
-  }, [shouldFire, dispatch]);
+  }, [internalShouldFire, dispatch]);
 
   return terraTokenMap;
 };

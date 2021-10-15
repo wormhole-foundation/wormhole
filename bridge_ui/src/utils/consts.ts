@@ -5,7 +5,6 @@ import {
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
 } from "@certusone/wormhole-sdk";
-import { ChainID } from "@certusone/wormhole-sdk/lib/proto/publicrpc/v1/publicrpc";
 import { clusterApiUrl } from "@solana/web3.js";
 import { getAddress } from "ethers/lib/utils";
 
@@ -391,15 +390,25 @@ export const MIGRATION_ASSET_MAP = new Map<string, string>(
           "2kycGCD8tJbrjJJqWN2Qz5ysN9iB4Bth3Uic4mSB7uak",
           "43m2ewFV5nDepieFjT9EmAQnc1HRtAF247RBpLGFem5F",
         ],
+        // [
+        //   // UST
+        //   "CXLBjMMcwkc17GfJtBos6rQCo1ypeH6eDbB82Kby4MRm",
+        //   "5Un6AdG9GBjxVhTSvvt2x6X6vtN1zrDxkkDpDcShnHfF",
+        // ],
         [
           // UST
           "CXLBjMMcwkc17GfJtBos6rQCo1ypeH6eDbB82Kby4MRm",
-          "5Un6AdG9GBjxVhTSvvt2x6X6vtN1zrDxkkDpDcShnHfF",
+          "9vMJfxuKxXBoEa7rM12mYLMwTacLMLDJqHozw96WQL8i",
         ],
+        // [
+        //   // Wrapped LUNA
+        //   "2Xf2yAXJfg82sWwdLUo2x9mZXy6JCdszdMZkcF1Hf4KV",
+        //   "EQTV1LW23Mgtjb5LXSg9NGw1J32oqTV4HCPmHCVSGmqD",
+        // ],
         [
           // Wrapped LUNA
           "2Xf2yAXJfg82sWwdLUo2x9mZXy6JCdszdMZkcF1Hf4KV",
-          "EQTV1LW23Mgtjb5LXSg9NGw1J32oqTV4HCPmHCVSGmqD",
+          "F6v4wfAdJB8D8p77bMXZgYt8TDKsYxLYxH5AFhUkYx9W",
         ],
         [
           // FTT
@@ -454,7 +463,18 @@ export const MIGRATION_ASSET_MAP = new Map<string, string>(
 
 export const ETH_MIGRATION_ASSET_MAP = new Map<string, string>(
   CLUSTER === "mainnet"
-    ? []
+    ? [
+        [
+          // LUNA
+          "0xd2877702675e6cEb975b4A1dFf9fb7BAF4C91ea9",
+          "0xe76820F1DB773B1d62a3D22F47259705cC5fA4E6",
+        ],
+        [
+          // UST
+          "0xa47c8bf37f92aBed4A126BDA807A7b7498661acD",
+          "0xF39C29d8f6851d87c40c83b61078EB7384f7Cb51",
+        ],
+      ]
     : CLUSTER === "testnet"
     ? []
     : [
@@ -467,22 +487,29 @@ export const ETH_MIGRATION_ASSET_MAP = new Map<string, string>(
 
 export const BSC_MIGRATION_ASSET_MAP = new Map<string, string>(
   CLUSTER === "mainnet"
-    ? []
+    ? [
+        [
+          // LUNA
+          "0xECCF35F941Ab67FfcAA9A1265C2fF88865caA005",
+          "0x355A116ef1Cf566B12Ef3a8e409A64e303c53740",
+        ],
+        [
+          // UST
+          "0x23396cF899Ca06c4472205fC903bDB4de249D6fC",
+          "0x0F98AB919D04a291838B3b075c57181057D4CF75",
+        ],
+      ]
     : CLUSTER === "testnet"
     ? []
     : [
         // [
         //   "0x2D8BE6BF0baA74e0A907016679CaE9190e80dD0A",
-        //   "0x4bf3A7dFB3b76b5B3E169ACE65f888A4b4FCa5Ee",
-        // ],
-        // [
-        //   "0x68d1569d1a6968f194b4d93f8d0b416c123a599f",
         //   "0xFcCeD5E997E7fb1D0594518D3eD57245bB8ed17E",
         // ],
       ]
 );
 
-export const getMigrationAssetMap = (chainId: ChainID) => {
+export const getMigrationAssetMap = (chainId: ChainId) => {
   if (chainId === CHAIN_ID_BSC) {
     return BSC_MIGRATION_ASSET_MAP;
   } else if (chainId === CHAIN_ID_ETH) {
