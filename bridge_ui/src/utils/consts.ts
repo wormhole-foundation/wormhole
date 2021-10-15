@@ -349,6 +349,12 @@ export const ETH_TOKENS_THAT_CAN_BE_SWAPPED_ON_SOLANA = [
   getAddress("0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"), // USDC
   getAddress("0xdac17f958d2ee523a2206206994597c13d831ec7"), // USDT
 ];
+export const BSC_MARKET_WARNINGS = [
+  getAddress(WBNB_ADDRESS),
+  getAddress("0xe9e7cea3dedca5984780bafc599bd69add087d56"), // BUSD
+  getAddress("0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"), // USDC
+  getAddress("0x55d398326f99059ff775485246999027b3197955"), // BSC-USD
+];
 
 export const MIGRATION_PROGRAM_ADDRESS =
   CLUSTER === "mainnet"

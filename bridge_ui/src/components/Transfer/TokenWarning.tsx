@@ -9,10 +9,10 @@ import { getAddress } from "@ethersproject/address";
 import { Alert } from "@material-ui/lab";
 import { useMemo } from "react";
 import {
+  BSC_MARKET_WARNINGS,
   ETH_TOKENS_THAT_CAN_BE_SWAPPED_ON_SOLANA,
   ETH_TOKENS_THAT_EXIST_ELSEWHERE,
   SOLANA_TOKENS_THAT_EXIST_ELSEWHERE,
-  WBNB_ADDRESS,
 } from "../../utils/consts";
 
 export default function TokenWarning({
@@ -43,7 +43,11 @@ export default function TokenWarning({
     let show = false;
     if (sourceChain === CHAIN_ID_SOLANA && tokenAddress === WSOL_ADDRESS) {
       show = true;
-    } else if (sourceChain === CHAIN_ID_BSC && tokenAddress === WBNB_ADDRESS) {
+    } else if (
+      sourceChain === CHAIN_ID_BSC &&
+      tokenAddress &&
+      BSC_MARKET_WARNINGS.includes(getAddress(tokenAddress))
+    ) {
       show = true;
     }
     if (show) {
