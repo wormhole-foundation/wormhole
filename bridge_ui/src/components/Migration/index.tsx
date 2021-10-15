@@ -18,6 +18,7 @@ import {
   CHAIN_ID_BSC,
 } from "@certusone/wormhole-sdk";
 import EvmWorkflow from "./EvmWorkflow";
+import { getAddress } from "@ethersproject/address";
 
 const useStyles = makeStyles(() => ({
   mainPaper: {
@@ -90,7 +91,7 @@ const SolanaRoot: React.FC<Migration> = (props) => {
 const EthereumRoot: React.FC<Migration> = (props) => {
   const legacyAsset: string = props.match.params.legacyAsset;
   const assetMap = getMigrationAssetMap(props.chainId);
-  const targetPool = assetMap.get(legacyAsset);
+  const targetPool = assetMap.get(getAddress(legacyAsset));
 
   let content = null;
   if (!legacyAsset || !targetPool) {

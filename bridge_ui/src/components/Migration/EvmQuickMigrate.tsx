@@ -1,5 +1,6 @@
 import { ChainId, TokenImplementation__factory } from "@certusone/wormhole-sdk";
 import { Signer } from "@ethersproject/abstract-signer";
+import { getAddress } from "@ethersproject/address";
 import { BigNumber } from "@ethersproject/bignumber";
 import {
   CircularProgress,
@@ -301,7 +302,9 @@ export default function EvmQuickMigrate({ chainId }: { chainId: ChainId }) {
             const migratorAddresses = [];
             for (const tokenAddress of result.keys()) {
               if (result.get(tokenAddress) && result.get(tokenAddress)?.gt(0)) {
-                const migratorAddress = migrationMap.get(tokenAddress);
+                const migratorAddress = migrationMap.get(
+                  getAddress(tokenAddress)
+                );
                 if (migratorAddress) {
                   migratorAddresses.push(migratorAddress);
                 }

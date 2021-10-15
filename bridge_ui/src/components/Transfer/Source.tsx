@@ -3,6 +3,7 @@ import {
   CHAIN_ID_ETH,
   CHAIN_ID_SOLANA,
 } from "@certusone/wormhole-sdk";
+import { getAddress } from "@ethersproject/address";
 import { Button, makeStyles, MenuItem, TextField } from "@material-ui/core";
 import { useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
@@ -60,11 +61,11 @@ function Source() {
   const isEthereumMigration =
     sourceChain === CHAIN_ID_ETH &&
     !!parsedTokenAccount &&
-    !!ETH_MIGRATION_ASSET_MAP.get(parsedTokenAccount.mintKey);
+    !!ETH_MIGRATION_ASSET_MAP.get(getAddress(parsedTokenAccount.mintKey));
   const isBscMigration =
     sourceChain === CHAIN_ID_BSC &&
     !!parsedTokenAccount &&
-    !!BSC_MIGRATION_ASSET_MAP.get(parsedTokenAccount.mintKey);
+    !!BSC_MIGRATION_ASSET_MAP.get(getAddress(parsedTokenAccount.mintKey));
   const isMigrationAsset =
     isSolanaMigration || isEthereumMigration || isBscMigration;
   const uiAmountString = useSelector(selectTransferSourceBalanceString);
