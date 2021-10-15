@@ -24,6 +24,7 @@ in
 pkgs.mkShell {
   nativeBuildInputs = (
     with pkgs; [
+      go-ethereum
       go
       gopls
       hidapi
