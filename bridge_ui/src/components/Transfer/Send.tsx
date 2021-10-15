@@ -24,10 +24,22 @@ import KeyAndBalance from "../KeyAndBalance";
 import ShowTx from "../ShowTx";
 import StepDescription from "../StepDescription";
 import TransactionProgress from "../TransactionProgress";
+import SendConfirmationDialog from "./SendConfirmationDialog";
 import WaitingForWalletMessage from "./WaitingForWalletMessage";
 
 function Send() {
   const { handleClick, disabled, showLoader } = useHandleTransfer();
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const handleTransferClick = useCallback(() => {
+    setIsConfirmOpen(true);
+  }, []);
+  const handleConfirmClick = useCallback(() => {
+    handleClick();
+    setIsConfirmOpen(false);
+  }, [handleClick]);
+  const handleConfirmClose = useCallback(() => {
+    setIsConfirmOpen(false);
+  }, []);
 
   const sourceChain = useSelector(selectTransferSourceChain);
   const sourceAsset = useSelector(selectTransferSourceAsset);
@@ -143,14 +155,21 @@ function Send() {
           </ButtonWithLoader>
         </>
       ) : (
-        <ButtonWithLoader
-          disabled={isDisabled}
-          onClick={handleClick}
-          showLoader={showLoader}
-          error={errorMessage}
-        >
-          Transfer
-        </ButtonWithLoader>
+        <>
+          <ButtonWithLoader
+            disabled={isDisabled}
+            onClick={handleTransferClick}
+            showLoader={showLoader}
+            error={errorMessage}
+          >
+            Transfer
+          </ButtonWithLoader>
+          <SendConfirmationDialog
+            open={isConfirmOpen}
+            onClick={handleConfirmClick}
+            onClose={handleConfirmClose}
+          />
+        </>
       )}
       <WaitingForWalletMessage />
       {transferTx ? <ShowTx chainId={sourceChain} tx={transferTx} /> : null}

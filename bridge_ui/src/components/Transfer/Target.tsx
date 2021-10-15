@@ -43,15 +43,7 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-function Target() {
-  const classes = useStyles();
-  const dispatch = useDispatch();
-  const isBeta = useBetaContext();
-  const sourceChain = useSelector(selectTransferSourceChain);
-  const chains = useMemo(
-    () => CHAINS.filter((c) => c.id !== sourceChain),
-    [sourceChain]
-  );
+export const useTargetInfo = () => {
   const targetChain = useSelector(selectTransferTargetChain);
   const targetAddressHex = useSelector(selectTransferTargetAddressHex);
   const targetAsset = useSelector(selectTransferTargetAsset);
@@ -68,6 +60,36 @@ function Target() {
     (targetAsset && metadata.data?.get(targetAsset)?.logo) || undefined;
   const readableTargetAddress =
     hexToNativeString(targetAddressHex, targetChain) || "";
+  return useMemo(
+    () => ({
+      targetChain,
+      targetAsset,
+      tokenName,
+      symbol,
+      logo,
+      readableTargetAddress,
+    }),
+    [targetChain, targetAsset, tokenName, symbol, logo, readableTargetAddress]
+  );
+};
+
+function Target() {
+  const classes = useStyles();
+  const dispatch = useDispatch();
+  const isBeta = useBetaContext();
+  const sourceChain = useSelector(selectTransferSourceChain);
+  const chains = useMemo(
+    () => CHAINS.filter((c) => c.id !== sourceChain),
+    [sourceChain]
+  );
+  const {
+    targetChain,
+    targetAsset,
+    tokenName,
+    symbol,
+    logo,
+    readableTargetAddress,
+  } = useTargetInfo();
   const uiAmountString = useSelector(selectTransferTargetBalanceString);
   const transferAmount = useSelector(selectTransferAmount);
   const error = useSelector(selectTransferTargetError);
