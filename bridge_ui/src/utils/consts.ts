@@ -5,6 +5,7 @@ import {
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
 } from "@certusone/wormhole-sdk";
+import { ChainID } from "@certusone/wormhole-sdk/lib/proto/publicrpc/v1/publicrpc";
 import { clusterApiUrl } from "@solana/web3.js";
 import { getAddress } from "ethers/lib/utils";
 
@@ -463,5 +464,34 @@ export const ETH_MIGRATION_ASSET_MAP = new Map<string, string>(
         // ],
       ]
 );
+
+export const BSC_MIGRATION_ASSET_MAP = new Map<string, string>(
+  CLUSTER === "mainnet"
+    ? []
+    : CLUSTER === "testnet"
+    ? []
+    : [
+        // [
+        //   "0x2D8BE6BF0baA74e0A907016679CaE9190e80dD0A",
+        //   "0x4bf3A7dFB3b76b5B3E169ACE65f888A4b4FCa5Ee",
+        // ],
+        // [
+        //   "0x68d1569d1a6968f194b4d93f8d0b416c123a599f",
+        //   "0xFcCeD5E997E7fb1D0594518D3eD57245bB8ed17E",
+        // ],
+      ]
+);
+
+export const getMigrationAssetMap = (chainId: ChainID) => {
+  if (chainId === CHAIN_ID_BSC) {
+    return BSC_MIGRATION_ASSET_MAP;
+  } else if (chainId === CHAIN_ID_ETH) {
+    return ETH_MIGRATION_ASSET_MAP;
+  } else if (chainId === CHAIN_ID_SOLANA) {
+    return MIGRATION_ASSET_MAP;
+  } else {
+    return new Map<string, string>();
+  }
+};
 
 export const SUPPORTED_TERRA_TOKENS = ["uluna", "uusd"];

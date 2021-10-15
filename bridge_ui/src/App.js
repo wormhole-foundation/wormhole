@@ -1,4 +1,8 @@
-import { CHAIN_ID_ETH, CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
+import {
+  CHAIN_ID_BSC,
+  CHAIN_ID_ETH,
+  CHAIN_ID_SOLANA,
+} from "@certusone/wormhole-sdk";
 import {
   AppBar,
   Button,
@@ -28,7 +32,7 @@ import Attest from "./components/Attest";
 import Footer from "./components/Footer";
 import Home from "./components/Home";
 import Migration from "./components/Migration";
-import EthereumQuickMigrate from "./components/Migration/EthereumQuickMigrate";
+import EvmQuickMigrate from "./components/Migration/EvmQuickMigrate";
 import NFT from "./components/NFT";
 import NFTOriginVerifier from "./components/NFTOriginVerifier";
 import Recovery from "./components/Recovery";
@@ -124,6 +128,7 @@ function App() {
   const isBeta = useBetaContext();
   const isHomepage = useRouteMatch({ path: "/", exact: true });
   const isStats = useRouteMatch({ path: "/stats", exact: true });
+  const isMigrate = useRouteMatch({ path: "/migrate" });
   const isOriginVerifier = useRouteMatch({
     path: "/nft-origin-verifier",
     exact: true,
@@ -244,7 +249,7 @@ function App() {
         </AppBar>
       ) : null}
       <div className={classes.content}>
-        {isHomepage || isOriginVerifier || isStats ? null : (
+        {isHomepage || isOriginVerifier || isStats || isMigrate ? null : (
           <Container maxWidth="md" style={{ paddingBottom: 24 }}>
             <Tabs
               value={
@@ -284,8 +289,14 @@ function App() {
           <Route exact path="/migrate/Ethereum/:legacyAsset/">
             <Migration chainId={CHAIN_ID_ETH} />
           </Route>
+          <Route exact path="/migrate/BinanceSmartChain/:legacyAsset/">
+            <Migration chainId={CHAIN_ID_BSC} />
+          </Route>
           <Route exact path="/migrate/Ethereum/">
-            <EthereumQuickMigrate />
+            <EvmQuickMigrate chainId={CHAIN_ID_ETH} />
+          </Route>
+          <Route exact path="/migrate/BinanceSmartChain/">
+            <EvmQuickMigrate chainId={CHAIN_ID_BSC} />
           </Route>
           <Route exact path="/stats">
             <Stats />

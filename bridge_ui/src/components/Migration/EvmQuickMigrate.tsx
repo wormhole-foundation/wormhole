@@ -1,7 +1,4 @@
-import {
-  CHAIN_ID_ETH,
-  TokenImplementation__factory,
-} from "@certusone/wormhole-sdk";
+import { ChainId, TokenImplementation__factory } from "@certusone/wormhole-sdk";
 import { Signer } from "@ethersproject/abstract-signer";
 import { BigNumber } from "@ethersproject/bignumber";
 import {
@@ -20,7 +17,7 @@ import { useEthereumProvider } from "../../contexts/EthereumProviderContext";
 import useEthereumMigratorInformation from "../../hooks/useEthereumMigratorInformation";
 import useIsWalletReady from "../../hooks/useIsWalletReady";
 import { COLORS } from "../../muiTheme";
-import { ETH_MIGRATION_ASSET_MAP } from "../../utils/consts";
+import { CHAINS, getMigrationAssetMap } from "../../utils/consts";
 import ButtonWithLoader from "../ButtonWithLoader";
 import EthereumSignerKey from "../EthereumSignerKey";
 import ShowTx from "../ShowTx";
@@ -89,10 +86,12 @@ export const compareWithDecimalOffset = (
   }
 };
 
-function EthereumMigrationLineItem({
+function EvmMigrationLineItem({
+  chainId,
   migratorAddress,
   onLoadComplete,
 }: {
+  chainId: ChainId;
   migratorAddress: string;
   onLoadComplete: () => void;
 }) {
@@ -175,7 +174,7 @@ function EthereumMigrationLineItem({
             Successfully migrated your tokens. They will become available once
             this transaction confirms.
           </Typography>
-          <ShowTx chainId={CHAIN_ID_ETH} tx={{ id: transaction, block: 1 }} />
+          <ShowTx chainId={chainId} tx={{ id: transaction, block: 1 }} />
         </div>
       </div>
     );
@@ -189,10 +188,7 @@ function EthereumMigrationLineItem({
           <Typography className={classes.balance}>
             {poolInfo.data.fromWalletBalance}
           </Typography>
-          <SmartAddress
-            chainId={CHAIN_ID_ETH}
-            address={poolInfo.data.fromAddress}
-          />
+          <SmartAddress chainId={chainId} address={poolInfo.data.fromAddress} />
         </div>
         <div>
           <Typography variant="body2" color="textSecondary">
@@ -207,10 +203,7 @@ function EthereumMigrationLineItem({
           <Typography className={classes.balance}>
             {poolInfo.data.fromWalletBalance}
           </Typography>
-          <SmartAddress
-            chainId={CHAIN_ID_ETH}
-            address={poolInfo.data.toAddress}
-          />
+          <SmartAddress chainId={chainId} address={poolInfo.data.toAddress} />
         </div>
         <div className={classes.convertButton}>
           <ButtonWithLoader
@@ -261,13 +254,14 @@ const getAddressBalances = async (
   }
 };
 
-export default function EthereumQuickMigrate() {
+export default function EvmQuickMigrate({ chainId }: { chainId: ChainId }) {
   const classes = useStyles();
   const { signer, signerAddress } = useEthereumProvider();
-  const { isReady } = useIsWalletReady(CHAIN_ID_ETH);
+  const { isReady } = useIsWalletReady(chainId);
+  const migrationMap = useMemo(() => getMigrationAssetMap(chainId), [chainId]);
   const eligibleTokens = useMemo(
-    () => Array.from(ETH_MIGRATION_ASSET_MAP.keys()),
-    []
+    () => Array.from(migrationMap.keys()),
+    [migrationMap]
   );
   const [migrators, setMigrators] = useState<string[] | null>(null);
   const [migratorsError, setMigratorsError] = useState("");
@@ -297,8 +291,7 @@ export default function EthereumQuickMigrate() {
             const migratorAddresses = [];
             for (const tokenAddress of result.keys()) {
               if (result.get(tokenAddress) && result.get(tokenAddress)?.gt(0)) {
-                const migratorAddress =
-                  ETH_MIGRATION_ASSET_MAP.get(tokenAddress);
+                const migratorAddress = migrationMap.get(tokenAddress);
                 if (migratorAddress) {
                   migratorAddresses.push(migratorAddress);
                 }
@@ -323,15 +316,18 @@ export default function EthereumQuickMigrate() {
         cancelled = true;
       };
     }
-  }, [isReady, signer, signerAddress, eligibleTokens]);
+  }, [isReady, signer, signerAddress, eligibleTokens, migrationMap]);
 
   const hasEligibleAssets = migrators && migrators.length > 0;
+  const chainName = CHAINS[chainId]?.name;
 
   const content = (
     <div className={classes.containerDiv}>
       <Typography variant="h5">
-        This page allows you to convert certain wrapped tokens on Ethereum into
-        Wormhole V2 tokens.
+        {`This page allows you to convert certain wrapped tokens ${
+          chainName ? "on " + chainName : ""
+        } into
+        Wormhole V2 tokens.`}
       </Typography>
       <EthereumSignerKey />
       {!isReady ? (
@@ -351,8 +347,9 @@ export default function EthereumQuickMigrate() {
             <div className={classes.spacer} />
             {migrators?.map((address) => {
               return (
-                <EthereumMigrationLineItem
+                <EvmMigrationLineItem
                   key={address}
+                  chainId={chainId}
                   migratorAddress={address}
                   onLoadComplete={reportLoadComplete}
                 />

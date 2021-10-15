@@ -1,4 +1,8 @@
-import { CHAIN_ID_ETH, CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
+import {
+  CHAIN_ID_BSC,
+  CHAIN_ID_ETH,
+  CHAIN_ID_SOLANA,
+} from "@certusone/wormhole-sdk";
 import { Button, makeStyles, MenuItem, TextField } from "@material-ui/core";
 import { useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
@@ -21,6 +25,7 @@ import {
 } from "../../store/transferSlice";
 import {
   BETA_CHAINS,
+  BSC_MIGRATION_ASSET_MAP,
   CHAINS,
   ETH_MIGRATION_ASSET_MAP,
   MIGRATION_ASSET_MAP,
@@ -56,7 +61,12 @@ function Source() {
     sourceChain === CHAIN_ID_ETH &&
     !!parsedTokenAccount &&
     !!ETH_MIGRATION_ASSET_MAP.get(parsedTokenAccount.mintKey);
-  const isMigrationAsset = isSolanaMigration || isEthereumMigration;
+  const isBscMigration =
+    sourceChain === CHAIN_ID_BSC &&
+    !!parsedTokenAccount &&
+    !!BSC_MIGRATION_ASSET_MAP.get(parsedTokenAccount.mintKey);
+  const isMigrationAsset =
+    isSolanaMigration || isEthereumMigration || isBscMigration;
   const uiAmountString = useSelector(selectTransferSourceBalanceString);
   const amount = useSelector(selectTransferAmount);
   const error = useSelector(selectTransferSourceError);
@@ -70,6 +80,8 @@ function Source() {
       );
     } else if (sourceChain === CHAIN_ID_ETH) {
       history.push(`/migrate/Ethereum/${parsedTokenAccount?.mintKey}`);
+    } else if (sourceChain === CHAIN_ID_BSC) {
+      history.push(`/migrate/BinanceSmartChain/${parsedTokenAccount?.mintKey}`);
     }
   }, [history, parsedTokenAccount, sourceChain]);
   const handleSourceChange = useCallback(

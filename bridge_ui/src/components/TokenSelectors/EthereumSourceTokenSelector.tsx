@@ -13,7 +13,7 @@ import { CovalentData } from "../../hooks/useGetSourceParsedTokenAccounts";
 import { DataWrapper } from "../../store/helpers";
 import { ParsedTokenAccount } from "../../store/transferSlice";
 import {
-  ETH_MIGRATION_ASSET_MAP,
+  getMigrationAssetMap,
   WORMHOLE_V1_ETH_ADDRESS,
 } from "../../utils/consts";
 import {
@@ -94,8 +94,9 @@ const isWormholev1 = (provider: any, address: string, chainId: ChainId) => {
   return connection.isWrappedAsset(address);
 };
 
-const isMigrationEligible = (address: string) => {
-  return !!ETH_MIGRATION_ASSET_MAP.get(address);
+const isMigrationEligible = (chainId: ChainId, address: string) => {
+  const assetMap = getMigrationAssetMap(chainId);
+  return !!assetMap.get(address);
 };
 
 type EthereumSourceTokenSelectorProps = {
@@ -110,6 +111,7 @@ type EthereumSourceTokenSelectorProps = {
 };
 
 const renderAccount = (
+  chainId: ChainId,
   account: ParsedTokenAccount,
   covalentData: CovalentData | undefined,
   classes: any
@@ -150,7 +152,9 @@ const renderAccount = (
     </div>
   );
 
-  return isMigrationEligible(account.mintKey) ? migrationRender : content;
+  return isMigrationEligible(chainId, account.mintKey)
+    ? migrationRender
+    : content;
 };
 
 const renderNFTAccount = (
@@ -534,6 +538,7 @@ export default function EthereumSourceTokenSelector(
                 classes
               )
             : renderAccount(
+                chainId,
                 option,
                 covalent?.data?.find(
                   (x) => x.contract_address === option.mintKey

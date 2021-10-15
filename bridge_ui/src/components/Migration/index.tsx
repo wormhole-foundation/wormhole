@@ -7,10 +7,7 @@ import {
 } from "@material-ui/core";
 import { PublicKey } from "@solana/web3.js";
 import { RouteComponentProps } from "react-router-dom";
-import {
-  ETH_MIGRATION_ASSET_MAP,
-  MIGRATION_ASSET_MAP,
-} from "../../utils/consts";
+import { getMigrationAssetMap, MIGRATION_ASSET_MAP } from "../../utils/consts";
 import SolanaWorkflow from "./SolanaWorkflow";
 import { withRouter } from "react-router";
 import { COLORS } from "../../muiTheme";
@@ -18,8 +15,9 @@ import {
   ChainId,
   CHAIN_ID_ETH,
   CHAIN_ID_SOLANA,
+  CHAIN_ID_BSC,
 } from "@certusone/wormhole-sdk";
-import EthereumWorkflow from "./EthereumWorkflow";
+import EvmWorkflow from "./EvmWorkflow";
 
 const useStyles = makeStyles(() => ({
   mainPaper: {
@@ -91,7 +89,8 @@ const SolanaRoot: React.FC<Migration> = (props) => {
 
 const EthereumRoot: React.FC<Migration> = (props) => {
   const legacyAsset: string = props.match.params.legacyAsset;
-  const targetPool = ETH_MIGRATION_ASSET_MAP.get(legacyAsset);
+  const assetMap = getMigrationAssetMap(props.chainId);
+  const targetPool = assetMap.get(legacyAsset);
 
   let content = null;
   if (!legacyAsset || !targetPool) {
@@ -101,7 +100,9 @@ const EthereumRoot: React.FC<Migration> = (props) => {
       </Typography>
     );
   } else {
-    content = <EthereumWorkflow migratorAddress={targetPool} />;
+    content = (
+      <EvmWorkflow migratorAddress={targetPool} chainId={props.chainId} />
+    );
   }
 
   return content;
@@ -113,7 +114,7 @@ const MigrationRoot: React.FC<Migration> = (props) => {
 
   if (props.chainId === CHAIN_ID_SOLANA) {
     content = <SolanaRoot {...props} />;
-  } else if (props.chainId === CHAIN_ID_ETH) {
+  } else if (props.chainId === CHAIN_ID_ETH || props.chainId === CHAIN_ID_BSC) {
     content = <EthereumRoot {...props} />;
   }
 

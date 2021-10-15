@@ -1,4 +1,4 @@
-import { CHAIN_ID_ETH } from "@certusone/wormhole-sdk";
+import { ChainId } from "@certusone/wormhole-sdk";
 import {
   CircularProgress,
   makeStyles,
@@ -27,15 +27,17 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-export default function EthereumWorkflow({
+export default function EvmWorkflow({
+  chainId,
   migratorAddress,
 }: {
+  chainId: ChainId;
   migratorAddress: string;
 }) {
   const classes = useStyles();
   const { enqueueSnackbar } = useSnackbar();
   const { signer, signerAddress } = useEthereumProvider();
-  const { isReady } = useIsWalletReady(CHAIN_ID_ETH);
+  const { isReady } = useIsWalletReady(chainId);
   const [toggleRefresh, setToggleRefresh] = useState(false);
   const forceRefresh = useCallback(
     () => setToggleRefresh((prevState) => !prevState),
@@ -144,20 +146,20 @@ export default function EthereumWorkflow({
   //TODO tokenName
   const toTokenPretty = (
     <SmartAddress
-      chainId={CHAIN_ID_ETH}
+      chainId={chainId}
       address={poolInfo.data?.toAddress}
       symbol={poolInfo.data?.toSymbol}
     />
   );
   const fromTokenPretty = (
     <SmartAddress
-      chainId={CHAIN_ID_ETH}
+      chainId={chainId}
       address={poolInfo.data?.fromAddress}
       symbol={poolInfo.data?.fromSymbol}
     />
   );
   const poolPretty = (
-    <SmartAddress chainId={CHAIN_ID_ETH} address={poolInfo.data?.poolAddress} />
+    <SmartAddress chainId={chainId} address={poolInfo.data?.poolAddress} />
   );
 
   const fatalError = poolInfo.error
@@ -218,7 +220,7 @@ export default function EthereumWorkflow({
             Successfully migrated your tokens! They will be available once this
             transaction confirms.
           </Typography>
-          <ShowTx tx={{ id: transaction, block: 1 }} chainId={CHAIN_ID_ETH} />
+          <ShowTx tx={{ id: transaction, block: 1 }} chainId={chainId} />
         </>
       ) : null}
     </>
