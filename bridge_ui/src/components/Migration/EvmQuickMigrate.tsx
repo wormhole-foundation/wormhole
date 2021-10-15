@@ -108,6 +108,8 @@ function EvmMigrationLineItem({
   const [migrationIsProcessing, setMigrationIsProcessing] = useState(false);
   const [transaction, setTransaction] = useState("");
   const [error, setError] = useState("");
+  const fromSymbol = poolInfo?.data?.fromSymbol;
+  const toSymbol = poolInfo?.data?.toSymbol;
 
   const sufficientPoolBalance =
     poolInfo.data &&
@@ -188,7 +190,11 @@ function EvmMigrationLineItem({
           <Typography className={classes.balance}>
             {poolInfo.data.fromWalletBalance}
           </Typography>
-          <SmartAddress chainId={chainId} address={poolInfo.data.fromAddress} />
+          <SmartAddress
+            chainId={chainId}
+            address={poolInfo.data.fromAddress}
+            symbol={fromSymbol || undefined}
+          />
         </div>
         <div>
           <Typography variant="body2" color="textSecondary">
@@ -203,7 +209,11 @@ function EvmMigrationLineItem({
           <Typography className={classes.balance}>
             {poolInfo.data.fromWalletBalance}
           </Typography>
-          <SmartAddress chainId={chainId} address={poolInfo.data.toAddress} />
+          <SmartAddress
+            chainId={chainId}
+            address={poolInfo.data.toAddress}
+            symbol={toSymbol || undefined}
+          />
         </div>
         <div className={classes.convertButton}>
           <ButtonWithLoader
