@@ -16,6 +16,7 @@ import {
   selectAttestIsSendComplete,
   selectAttestIsSending,
 } from "../../store/selectors";
+import HeaderText from "../HeaderText";
 import Create from "./Create";
 import CreatePreview from "./CreatePreview";
 import Send from "./Send";
@@ -44,6 +45,7 @@ function Attest() {
   }, [preventNavigation]);
   return (
     <Container maxWidth="md">
+      <HeaderText>Token Registration</HeaderText>
       <Alert severity="info">
         This form allows you to register a token on a new foreign chain. Tokens
         must be registered before they can be transferred.

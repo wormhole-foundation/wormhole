@@ -127,12 +127,6 @@ function App() {
   const classes = useStyles();
   const isBeta = useBetaContext();
   const isHomepage = useRouteMatch({ path: "/", exact: true });
-  const isStats = useRouteMatch({ path: "/stats", exact: true });
-  const isMigrate = useRouteMatch({ path: "/migrate" });
-  const isOriginVerifier = useRouteMatch({
-    path: "/nft-origin-verifier",
-    exact: true,
-  });
   const { push } = useHistory();
   const { pathname } = useLocation();
   const handleTabChange = useCallback(
@@ -249,14 +243,10 @@ function App() {
         </AppBar>
       ) : null}
       <div className={classes.content}>
-        {isHomepage || isOriginVerifier || isStats || isMigrate ? null : (
+        {["/transfer", "/nft", "/redeem"].includes(pathname) ? (
           <Container maxWidth="md" style={{ paddingBottom: 24 }}>
             <Tabs
-              value={
-                ["/transfer", "/nft", "/redeem"].includes(pathname)
-                  ? pathname
-                  : "/transfer"
-              }
+              value={pathname}
               variant="fullWidth"
               onChange={handleTabChange}
               indicatorColor="primary"
@@ -266,19 +256,19 @@ function App() {
               <Tab label="Redeem" value="/redeem" to="/redeem" />
             </Tabs>
           </Container>
-        )}
+        ) : null}
         <Switch>
-          <Route exact path="/nft">
-            <NFT />
-          </Route>
-          <Route exact path="/nft-origin-verifier">
-            <NFTOriginVerifier />
-          </Route>
           <Route exact path="/transfer">
             <Transfer />
           </Route>
+          <Route exact path="/nft">
+            <NFT />
+          </Route>
           <Route exact path="/redeem">
             <Recovery />
+          </Route>
+          <Route exact path="/nft-origin-verifier">
+            <NFTOriginVerifier />
           </Route>
           <Route exact path="/register">
             <Attest />

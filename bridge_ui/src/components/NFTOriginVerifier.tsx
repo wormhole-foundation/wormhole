@@ -23,7 +23,6 @@ import {
 import { Launch } from "@material-ui/icons";
 import { Alert } from "@material-ui/lab";
 import { Connection } from "@solana/web3.js";
-import clsx from "clsx";
 import { useCallback, useEffect, useState } from "react";
 import { useBetaContext } from "../contexts/BetaContext";
 import { useEthereumProvider } from "../contexts/EthereumProviderContext";
@@ -46,30 +45,11 @@ import {
   isNFT,
   isValidEthereumAddress,
 } from "../utils/ethereum";
+import HeaderText from "./HeaderText";
 import KeyAndBalance from "./KeyAndBalance";
 import NFTViewer from "./TokenSelectors/NFTViewer";
 
 const useStyles = makeStyles((theme) => ({
-  centeredContainer: {
-    textAlign: "center",
-    width: "100%",
-  },
-  header: {
-    marginTop: theme.spacing(12),
-    marginBottom: theme.spacing(4),
-    [theme.breakpoints.down("sm")]: {
-      marginBottom: theme.spacing(4),
-    },
-  },
-  linearGradient: {
-    background: `linear-gradient(to left, ${COLORS.blue}, ${COLORS.green});`,
-    WebkitBackgroundClip: "text",
-    backgroundClip: "text",
-    WebkitTextFillColor: "transparent",
-    MozBackgroundClip: "text",
-    MozTextFillColor: "transparent",
-    // filter: `drop-shadow( 0px 0px 8px ${COLORS.nearBlack}) drop-shadow( 0px 0px 14px ${COLORS.nearBlack}) drop-shadow( 0px 0px 24px ${COLORS.nearBlack})`,
-  },
   mainCard: {
     padding: theme.spacing(2),
     backgroundColor: COLORS.nearBlackWithMinorTransparency,
@@ -234,14 +214,7 @@ export default function NFTOriginVerifier() {
   return (
     <div>
       <Container maxWidth="md">
-        <div className={classes.centeredContainer}>
-          <Typography
-            variant="h1"
-            className={clsx(classes.header, classes.linearGradient)}
-          >
-            NFT Origin Verifier
-          </Typography>
-        </div>
+        <HeaderText>NFT Origin Verifier</HeaderText>
       </Container>
       <Container maxWidth="sm">
         <Card className={classes.mainCard}>

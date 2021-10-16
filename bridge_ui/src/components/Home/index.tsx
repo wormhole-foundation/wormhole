@@ -5,30 +5,17 @@ import {
   makeStyles,
   Typography,
 } from "@material-ui/core";
-import clsx from "clsx";
 import { Link as RouterLink } from "react-router-dom";
 import { COLORS } from "../../muiTheme";
+import HeaderText from "../HeaderText";
 
 const useStyles = makeStyles((theme) => ({
-  centeredContainer: {
-    textAlign: "center",
-    width: "100%",
-  },
   header: {
     marginTop: theme.spacing(12),
     marginBottom: theme.spacing(15),
     [theme.breakpoints.down("sm")]: {
       marginBottom: theme.spacing(6),
     },
-  },
-  linearGradient: {
-    background: `linear-gradient(to left, ${COLORS.blue}, ${COLORS.green});`,
-    WebkitBackgroundClip: "text",
-    backgroundClip: "text",
-    WebkitTextFillColor: "transparent",
-    MozBackgroundClip: "text",
-    MozTextFillColor: "transparent",
-    // filter: `drop-shadow( 0px 0px 8px ${COLORS.nearBlack}) drop-shadow( 0px 0px 14px ${COLORS.nearBlack}) drop-shadow( 0px 0px 24px ${COLORS.nearBlack})`,
   },
   description: {
     marginBottom: theme.spacing(2),
@@ -57,10 +44,8 @@ function Home() {
   return (
     <div>
       <Container maxWidth="md">
-        <div className={classes.centeredContainer}>
-          <Typography variant="h1" className={clsx(classes.header, classes.linearGradient)}>
-            The Portal is Open
-          </Typography>
+        <div className={classes.header}>
+          <HeaderText>The Portal is Open</HeaderText>
         </div>
       </Container>
       <Container maxWidth="md">
