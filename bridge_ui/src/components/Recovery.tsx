@@ -36,7 +36,6 @@ import { useSnackbar } from "notistack";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useDispatch } from "react-redux";
 import { useHistory } from "react-router";
-import { useBetaContext } from "../contexts/BetaContext";
 import { useEthereumProvider } from "../contexts/EthereumProviderContext";
 import { COLORS } from "../muiTheme";
 import {
@@ -50,7 +49,6 @@ import {
   setTargetChain,
 } from "../store/transferSlice";
 import {
-  BETA_CHAINS,
   CHAINS,
   CHAINS_WITH_NFT_SUPPORT,
   getBridgeAddressForChain,
@@ -67,6 +65,7 @@ import { isEVMChain } from "../utils/ethereum";
 import { getSignedVAAWithRetry } from "../utils/getSignedVAAWithRetry";
 import parseError from "../utils/parseError";
 import ButtonWithLoader from "./ButtonWithLoader";
+import ChainSelect from "./ChainSelect";
 import KeyAndBalance from "./KeyAndBalance";
 
 const useStyles = makeStyles((theme) => ({
@@ -169,7 +168,6 @@ async function terra(tx: string, enqueueSnackbar: any) {
 
 export default function Recovery() {
   const classes = useStyles();
-  const isBeta = useBetaContext();
   const { push } = useHistory();
   const { enqueueSnackbar } = useSnackbar();
   const dispatch = useDispatch();
@@ -352,7 +350,7 @@ export default function Recovery() {
           <MenuItem value="Token">Token</MenuItem>
           <MenuItem value="NFT">NFT</MenuItem>
         </TextField>
-        <TextField
+        <ChainSelect
           select
           variant="outlined"
           label="Source Chain"
@@ -361,15 +359,8 @@ export default function Recovery() {
           onChange={handleSourceChainChange}
           fullWidth
           margin="normal"
-        >
-          {(isNFT ? CHAINS_WITH_NFT_SUPPORT : CHAINS)
-            .filter(({ id }) => (isBeta ? true : !BETA_CHAINS.includes(id)))
-            .map(({ id, name }) => (
-              <MenuItem key={id} value={id}>
-                {name}
-              </MenuItem>
-            ))}
-        </TextField>
+          chains={isNFT ? CHAINS_WITH_NFT_SUPPORT : CHAINS}
+        />
         {isEVMChain(recoverySourceChain) ? (
           <KeyAndBalance chainId={recoverySourceChain} />
         ) : null}

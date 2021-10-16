@@ -7,6 +7,10 @@ import {
 } from "@certusone/wormhole-sdk";
 import { clusterApiUrl } from "@solana/web3.js";
 import { getAddress } from "ethers/lib/utils";
+import bscIcon from "../icons/bsc.svg";
+import ethIcon from "../icons/eth.svg";
+import solanaIcon from "../icons/solana.svg";
+import terraIcon from "../icons/terra.svg";
 
 export type Cluster = "devnet" | "testnet" | "mainnet";
 export const CLUSTER: Cluster =
@@ -18,6 +22,7 @@ export const CLUSTER: Cluster =
 export interface ChainInfo {
   id: ChainId;
   name: string;
+  logo: string;
 }
 export const CHAINS =
   CLUSTER === "mainnet"
@@ -25,18 +30,22 @@ export const CHAINS =
         {
           id: CHAIN_ID_BSC,
           name: "Binance Smart Chain",
+          logo: bscIcon,
         },
         {
           id: CHAIN_ID_ETH,
           name: "Ethereum",
+          logo: ethIcon,
         },
         {
           id: CHAIN_ID_SOLANA,
           name: "Solana",
+          logo: solanaIcon,
         },
         {
           id: CHAIN_ID_TERRA,
           name: "Terra",
+          logo: terraIcon,
         },
       ]
     : CLUSTER === "testnet"
@@ -44,32 +53,34 @@ export const CHAINS =
         {
           id: CHAIN_ID_ETH,
           name: "Ethereum",
+          logo: ethIcon,
         },
         {
           id: CHAIN_ID_SOLANA,
           name: "Solana",
+          logo: solanaIcon,
         },
-        // {
-        //   id: CHAIN_ID_TERRA,
-        //   name: "Terra",
-        // },
       ]
     : [
         {
           id: CHAIN_ID_BSC,
           name: "Binance Smart Chain",
+          logo: bscIcon,
         },
         {
           id: CHAIN_ID_ETH,
           name: "Ethereum",
+          logo: ethIcon,
         },
         {
           id: CHAIN_ID_SOLANA,
           name: "Solana",
+          logo: solanaIcon,
         },
         {
           id: CHAIN_ID_TERRA,
           name: "Terra",
+          logo: terraIcon,
         },
       ];
 export const BETA_CHAINS = CLUSTER === "mainnet" ? [CHAIN_ID_TERRA] : [];

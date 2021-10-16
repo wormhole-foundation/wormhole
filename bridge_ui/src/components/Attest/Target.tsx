@@ -1,8 +1,7 @@
-import { makeStyles, MenuItem, TextField, Typography } from "@material-ui/core";
+import { makeStyles, Typography } from "@material-ui/core";
 import { Alert } from "@material-ui/lab";
 import { useCallback, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { useBetaContext } from "../../contexts/BetaContext";
 import { EthGasEstimateSummary } from "../../hooks/useTransactionFees";
 import { incrementStep, setTargetChain } from "../../store/attestSlice";
 import {
@@ -11,9 +10,10 @@ import {
   selectAttestSourceChain,
   selectAttestTargetChain,
 } from "../../store/selectors";
-import { BETA_CHAINS, CHAINS, CHAINS_BY_ID } from "../../utils/consts";
+import { CHAINS, CHAINS_BY_ID } from "../../utils/consts";
 import { isEVMChain } from "../../utils/ethereum";
 import ButtonWithLoader from "../ButtonWithLoader";
+import ChainSelect from "../ChainSelect";
 import KeyAndBalance from "../KeyAndBalance";
 import LowBalanceWarning from "../LowBalanceWarning";
 
@@ -27,7 +27,6 @@ const useStyles = makeStyles((theme) => ({
 function Target() {
   const classes = useStyles();
   const dispatch = useDispatch();
-  const isBeta = useBetaContext();
   const sourceChain = useSelector(selectAttestSourceChain);
   const chains = useMemo(
     () => CHAINS.filter((c) => c.id !== sourceChain),
@@ -47,22 +46,15 @@ function Target() {
   }, [dispatch]);
   return (
     <>
-      <TextField
+      <ChainSelect
         select
         variant="outlined"
         fullWidth
         value={targetChain}
         onChange={handleTargetChange}
         disabled={shouldLockFields}
-      >
-        {chains
-          .filter(({ id }) => (isBeta ? true : !BETA_CHAINS.includes(id)))
-          .map(({ id, name }) => (
-            <MenuItem key={id} value={id}>
-              {name}
-            </MenuItem>
-          ))}
-      </TextField>
+        chains={chains}
+      />
       <KeyAndBalance chainId={targetChain} />
       <Alert severity="info" variant="outlined" className={classes.alert}>
         <Typography>

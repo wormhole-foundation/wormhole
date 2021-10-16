@@ -1,7 +1,6 @@
-import { makeStyles, MenuItem, TextField } from "@material-ui/core";
+import { makeStyles, TextField } from "@material-ui/core";
 import { useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { useBetaContext } from "../../contexts/BetaContext";
 import {
   incrementStep,
   setSourceAsset,
@@ -13,8 +12,9 @@ import {
   selectAttestSourceAsset,
   selectAttestSourceChain,
 } from "../../store/selectors";
-import { BETA_CHAINS, CHAINS } from "../../utils/consts";
+import { CHAINS } from "../../utils/consts";
 import ButtonWithLoader from "../ButtonWithLoader";
+import ChainSelect from "../ChainSelect";
 import KeyAndBalance from "../KeyAndBalance";
 import LowBalanceWarning from "../LowBalanceWarning";
 
@@ -27,7 +27,6 @@ const useStyles = makeStyles((theme) => ({
 function Source() {
   const classes = useStyles();
   const dispatch = useDispatch();
-  const isBeta = useBetaContext();
   const sourceChain = useSelector(selectAttestSourceChain);
   const sourceAsset = useSelector(selectAttestSourceAsset);
   const isSourceComplete = useSelector(selectAttestIsSourceComplete);
@@ -49,22 +48,15 @@ function Source() {
   }, [dispatch]);
   return (
     <>
-      <TextField
+      <ChainSelect
         select
         variant="outlined"
         fullWidth
         value={sourceChain}
         onChange={handleSourceChange}
         disabled={shouldLockFields}
-      >
-        {CHAINS.filter(({ id }) =>
-          isBeta ? true : !BETA_CHAINS.includes(id)
-        ).map(({ id, name }) => (
-          <MenuItem key={id} value={id}>
-            {name}
-          </MenuItem>
-        ))}
-      </TextField>
+        chains={CHAINS}
+      />
       <KeyAndBalance chainId={sourceChain} />
       <TextField
         label="Asset"

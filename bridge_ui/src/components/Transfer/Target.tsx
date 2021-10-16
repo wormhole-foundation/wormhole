@@ -1,9 +1,8 @@
 import { CHAIN_ID_SOLANA, hexToNativeString } from "@certusone/wormhole-sdk";
-import { makeStyles, MenuItem, TextField, Typography } from "@material-ui/core";
+import { makeStyles, Typography } from "@material-ui/core";
 import { Alert } from "@material-ui/lab";
 import { useCallback, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { useBetaContext } from "../../contexts/BetaContext";
 import useIsWalletReady from "../../hooks/useIsWalletReady";
 import useMetadata from "../../hooks/useMetadata";
 import useSyncTargetAddress from "../../hooks/useSyncTargetAddress";
@@ -21,9 +20,10 @@ import {
   UNREGISTERED_ERROR_MESSAGE,
 } from "../../store/selectors";
 import { incrementStep, setTargetChain } from "../../store/transferSlice";
-import { BETA_CHAINS, CHAINS, CHAINS_BY_ID } from "../../utils/consts";
+import { CHAINS, CHAINS_BY_ID } from "../../utils/consts";
 import { isEVMChain } from "../../utils/ethereum";
 import ButtonWithLoader from "../ButtonWithLoader";
+import ChainSelect from "../ChainSelect";
 import KeyAndBalance from "../KeyAndBalance";
 import LowBalanceWarning from "../LowBalanceWarning";
 import SmartAddress from "../SmartAddress";
@@ -76,7 +76,6 @@ export const useTargetInfo = () => {
 function Target() {
   const classes = useStyles();
   const dispatch = useDispatch();
-  const isBeta = useBetaContext();
   const sourceChain = useSelector(selectTransferSourceChain);
   const chains = useMemo(
     () => CHAINS.filter((c) => c.id !== sourceChain),
@@ -115,22 +114,15 @@ function Target() {
   return (
     <>
       <StepDescription>Select a recipient chain and address.</StepDescription>
-      <TextField
+      <ChainSelect
         variant="outlined"
         select
         fullWidth
         value={targetChain}
         onChange={handleTargetChange}
         disabled={shouldLockFields}
-      >
-        {chains
-          .filter(({ id }) => (isBeta ? true : !BETA_CHAINS.includes(id)))
-          .map(({ id, name }) => (
-            <MenuItem key={id} value={id}>
-              {name}
-            </MenuItem>
-          ))}
-      </TextField>
+        chains={chains}
+      />
       <KeyAndBalance chainId={targetChain} balance={uiAmountString} />
       {readableTargetAddress ? (
         <>

@@ -3,13 +3,12 @@ import {
   hexToNativeString,
   hexToUint8Array,
 } from "@certusone/wormhole-sdk";
-import { makeStyles, MenuItem, TextField, Typography } from "@material-ui/core";
+import { makeStyles, TextField, Typography } from "@material-ui/core";
 import { Alert } from "@material-ui/lab";
 import { PublicKey } from "@solana/web3.js";
 import { BigNumber, ethers } from "ethers";
 import { useCallback, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { useBetaContext } from "../../contexts/BetaContext";
 import useIsWalletReady from "../../hooks/useIsWalletReady";
 import useSyncTargetAddress from "../../hooks/useSyncTargetAddress";
 import { EthGasEstimateSummary } from "../../hooks/useTransactionFees";
@@ -27,13 +26,10 @@ import {
   selectNFTTargetChain,
   selectNFTTargetError,
 } from "../../store/selectors";
-import {
-  BETA_CHAINS,
-  CHAINS_BY_ID,
-  CHAINS_WITH_NFT_SUPPORT,
-} from "../../utils/consts";
+import { CHAINS_BY_ID, CHAINS_WITH_NFT_SUPPORT } from "../../utils/consts";
 import { isEVMChain } from "../../utils/ethereum";
 import ButtonWithLoader from "../ButtonWithLoader";
+import ChainSelect from "../ChainSelect";
 import KeyAndBalance from "../KeyAndBalance";
 import LowBalanceWarning from "../LowBalanceWarning";
 import StepDescription from "../StepDescription";
@@ -51,7 +47,6 @@ const useStyles = makeStyles((theme) => ({
 function Target() {
   const classes = useStyles();
   const dispatch = useDispatch();
-  const isBeta = useBetaContext();
   const sourceChain = useSelector(selectNFTSourceChain);
   const chains = useMemo(
     () => CHAINS_WITH_NFT_SUPPORT.filter((c) => c.id !== sourceChain),
@@ -94,21 +89,14 @@ function Target() {
   return (
     <>
       <StepDescription>Select a recipient chain and address.</StepDescription>
-      <TextField
+      <ChainSelect
         select
         fullWidth
         variant="outlined"
         value={targetChain}
         onChange={handleTargetChange}
-      >
-        {chains
-          .filter(({ id }) => (isBeta ? true : !BETA_CHAINS.includes(id)))
-          .map(({ id, name }) => (
-            <MenuItem key={id} value={id}>
-              {name}
-            </MenuItem>
-          ))}
-      </TextField>
+        chains={chains}
+      />
       <KeyAndBalance chainId={targetChain} balance={uiAmountString} />
       <TextField
         label="Recipient Address"

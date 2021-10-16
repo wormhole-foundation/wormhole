@@ -4,11 +4,10 @@ import {
   CHAIN_ID_SOLANA,
 } from "@certusone/wormhole-sdk";
 import { getAddress } from "@ethersproject/address";
-import { Button, makeStyles, MenuItem, TextField } from "@material-ui/core";
+import { Button, makeStyles, TextField } from "@material-ui/core";
 import { useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useHistory } from "react-router";
-import { useBetaContext } from "../../contexts/BetaContext";
 import useIsWalletReady from "../../hooks/useIsWalletReady";
 import {
   selectTransferAmount,
@@ -25,13 +24,13 @@ import {
   setSourceChain,
 } from "../../store/transferSlice";
 import {
-  BETA_CHAINS,
   BSC_MIGRATION_ASSET_MAP,
   CHAINS,
   ETH_MIGRATION_ASSET_MAP,
   MIGRATION_ASSET_MAP,
 } from "../../utils/consts";
 import ButtonWithLoader from "../ButtonWithLoader";
+import ChainSelect from "../ChainSelect";
 import KeyAndBalance from "../KeyAndBalance";
 import LowBalanceWarning from "../LowBalanceWarning";
 import StepDescription from "../StepDescription";
@@ -47,7 +46,6 @@ const useStyles = makeStyles((theme) => ({
 function Source() {
   const classes = useStyles();
   const dispatch = useDispatch();
-  const isBeta = useBetaContext();
   const history = useHistory();
   const sourceChain = useSelector(selectTransferSourceChain);
   const parsedTokenAccount = useSelector(
@@ -105,22 +103,15 @@ function Source() {
       <StepDescription>
         Select tokens to send through the Wormhole Token Bridge.
       </StepDescription>
-      <TextField
+      <ChainSelect
         select
         variant="outlined"
         fullWidth
         value={sourceChain}
         onChange={handleSourceChange}
         disabled={shouldLockFields}
-      >
-        {CHAINS.filter(({ id }) =>
-          isBeta ? true : !BETA_CHAINS.includes(id)
-        ).map(({ id, name }) => (
-          <MenuItem key={id} value={id}>
-            {name}
-          </MenuItem>
-        ))}
-      </TextField>
+        chains={CHAINS}
+      />
       <KeyAndBalance chainId={sourceChain} balance={uiAmountString} />
       {isReady || uiAmountString ? (
         <div className={classes.transferField}>

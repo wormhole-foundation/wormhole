@@ -1,10 +1,9 @@
-import { Button, makeStyles, MenuItem, TextField } from "@material-ui/core";
+import { Button, makeStyles } from "@material-ui/core";
 import { VerifiedUser } from "@material-ui/icons";
 import { Alert } from "@material-ui/lab";
 import { useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Link } from "react-router-dom";
-import { useBetaContext } from "../../contexts/BetaContext";
 import useIsWalletReady from "../../hooks/useIsWalletReady";
 import { incrementStep, setSourceChain } from "../../store/nftSlice";
 import {
@@ -14,9 +13,10 @@ import {
   selectNFTSourceChain,
   selectNFTSourceError,
 } from "../../store/selectors";
-import { BETA_CHAINS, CHAINS_WITH_NFT_SUPPORT } from "../../utils/consts";
+import { CHAINS_WITH_NFT_SUPPORT } from "../../utils/consts";
 import { isEVMChain } from "../../utils/ethereum";
 import ButtonWithLoader from "../ButtonWithLoader";
+import ChainSelect from "../ChainSelect";
 import KeyAndBalance from "../KeyAndBalance";
 import LowBalanceWarning from "../LowBalanceWarning";
 import StepDescription from "../StepDescription";
@@ -31,7 +31,6 @@ const useStyles = makeStyles((theme) => ({
 function Source() {
   const classes = useStyles();
   const dispatch = useDispatch();
-  const isBeta = useBetaContext();
   const sourceChain = useSelector(selectNFTSourceChain);
   const uiAmountString = useSelector(selectNFTSourceBalanceString);
   const error = useSelector(selectNFTSourceError);
@@ -66,22 +65,15 @@ function Source() {
           </div>
         </div>
       </StepDescription>
-      <TextField
+      <ChainSelect
         variant="outlined"
         select
         fullWidth
         value={sourceChain}
         onChange={handleSourceChange}
         disabled={shouldLockFields}
-      >
-        {CHAINS_WITH_NFT_SUPPORT.filter(({ id }) =>
-          isBeta ? true : !BETA_CHAINS.includes(id)
-        ).map(({ id, name }) => (
-          <MenuItem key={id} value={id}>
-            {name}
-          </MenuItem>
-        ))}
-      </TextField>
+        chains={CHAINS_WITH_NFT_SUPPORT}
+      />
       {isEVMChain(sourceChain) ? (
         <Alert severity="info" variant="outlined">
           Only NFTs which implement ERC-721 are supported.
