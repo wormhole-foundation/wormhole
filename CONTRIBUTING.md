@@ -53,12 +53,9 @@ The answer is... maybe? The following things are needed in order to fully suppor
 The hard parts are (1) convincing the DAO to run the nodes, and (2) convincing the core development team to
 either build the integration, or work with an external team to build it.
 
-You should first open a GitHub issue with more details.
-
-<!--
-TODO: how to contact the DAO? most of the communication today happens in a Telegram group, we should move this
-somewhere better-suited for public inquiries (Discourse forum?)
--->
+Please do not open a GitHub issue about new networks - this repository is only a reference implementation for
+Wormhole, just like go-ethereum is a reference implementation for Ethereum. Instead, reach out to the
+[Wormhole Network](https://wormholenetwork.com).
 
 ### Do you support \<random blockchain innovation\>?
 
