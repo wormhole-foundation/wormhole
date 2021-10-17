@@ -75,8 +75,7 @@ advantage of dealing with a stack of individual commits, rather than reviewing a
 much easier to review large features by breaking them down into smaller pieces, and puts a large emphasis on
 clean commits with meaningful commit messages. This workflow helps us write better software.
 
-We also accept contributions via **GitHub PRs**, but we strongly recommend to give Gerrit a try. Gerrit has
-somewhat of a learning curve, but offers a much nicer experience (think of it as Vim vs. Notepad).
+We do not currently accept GitHub pull requests.
 
 The GitHub repository is a mirror of the Gerrit repository. GitHub has a global CDN for Git, so if you plan
 to clone the Wormhole repo a lot in an automated fashion, please clone it from GitHub.
