@@ -18,7 +18,7 @@ import { useEthereumProvider } from "../../contexts/EthereumProviderContext";
 import useEthereumMigratorInformation from "../../hooks/useEthereumMigratorInformation";
 import useIsWalletReady from "../../hooks/useIsWalletReady";
 import { COLORS } from "../../muiTheme";
-import { CHAINS, getMigrationAssetMap } from "../../utils/consts";
+import { CHAINS_BY_ID, getMigrationAssetMap } from "../../utils/consts";
 import ButtonWithLoader from "../ButtonWithLoader";
 import EthereumSignerKey from "../EthereumSignerKey";
 import ShowTx from "../ShowTx";
@@ -332,7 +332,7 @@ export default function EvmQuickMigrate({ chainId }: { chainId: ChainId }) {
   }, [isReady, signer, signerAddress, eligibleTokens, migrationMap]);
 
   const hasEligibleAssets = migrators && migrators.length > 0;
-  const chainName = CHAINS[chainId]?.name;
+  const chainName = CHAINS_BY_ID[chainId]?.name;
 
   const content = (
     <div className={classes.containerDiv}>
