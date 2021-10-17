@@ -95,7 +95,7 @@ const useStyles = makeStyles((theme) =>
   })
 );
 
-const balancePretty = (uiString: string) => {
+export const balancePretty = (uiString: string) => {
   const numberString = uiString.split(".")[0];
   const bignum = BigNumber.from(numberString);
   if (bignum.gte(1000000)) {

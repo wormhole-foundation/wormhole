@@ -1,4 +1,4 @@
-import { TableFooter } from "@material-ui/core";
+import { IconButton, TableFooter } from "@material-ui/core";
 import MaUTable from "@material-ui/core/Table";
 import TableBody from "@material-ui/core/TableBody";
 import TableCell from "@material-ui/core/TableCell";
@@ -7,14 +7,26 @@ import TableHead from "@material-ui/core/TableHead";
 import TablePagination from "@material-ui/core/TablePagination";
 import TableRow from "@material-ui/core/TableRow";
 import TableSortLabel from "@material-ui/core/TableSortLabel";
+import {
+  AddCircleOutline,
+  KeyboardArrowDown,
+  KeyboardArrowRight,
+  RemoveCircleOutline,
+} from "@material-ui/icons";
 import React from "react";
 import {
+  useExpanded,
   useGlobalFilter,
+  useGroupBy,
   usePagination,
   useSortBy,
   useTable,
 } from "react-table";
 import TablePaginationActions from "./TablePaginationActions";
+
+const stopProp = (e) => {
+  e.stopPropagation();
+};
 
 const EnhancedTable = ({ columns, data, skipPageReset }) => {
   const {
@@ -32,7 +44,9 @@ const EnhancedTable = ({ columns, data, skipPageReset }) => {
       autoResetPage: !skipPageReset,
     },
     useGlobalFilter,
+    useGroupBy,
     useSortBy,
+    useExpanded,
     usePagination
   );
 
@@ -74,6 +88,21 @@ const EnhancedTable = ({ columns, data, skipPageReset }) => {
                     ) : (
                       column.render("Header")
                     )}
+                    {column.canGroupBy ? (
+                      // If the column can be grouped, let's add a toggle
+                      <span onClick={stopProp}>
+                        <IconButton
+                          size="small"
+                          {...column.getGroupByToggleProps()}
+                        >
+                          {column.isGrouped ? (
+                            <RemoveCircleOutline fontSize="inherit" />
+                          ) : (
+                            <AddCircleOutline fontSize="inherit" />
+                          )}
+                        </IconButton>
+                      </span>
+                    ) : null}
                   </TableCell>
                 ))}
               </TableRow>
@@ -90,7 +119,29 @@ const EnhancedTable = ({ columns, data, skipPageReset }) => {
                         {...cell.getCellProps()}
                         align={cell.column.align || "left"}
                       >
-                        {cell.render("Cell")}
+                        {cell.isGrouped ? (
+                          // If it's a grouped cell, add an expander and row count
+                          <>
+                            <IconButton
+                              size="small"
+                              {...row.getToggleRowExpandedProps()}
+                            >
+                              {row.isExpanded ? (
+                                <KeyboardArrowDown fontSize="inherit" />
+                              ) : (
+                                <KeyboardArrowRight fontSize="inherit" />
+                              )}
+                            </IconButton>{" "}
+                            {cell.render("Cell")} ({row.subRows.length})
+                          </>
+                        ) : cell.isAggregated ? (
+                          // If the cell is aggregated, use the Aggregated
+                          // renderer for cell
+                          cell.render("Aggregated")
+                        ) : cell.isPlaceholder ? null : ( // For cells with repeated values, render null
+                          // Otherwise, just render the regular cell
+                          cell.render("Cell")
+                        )}
                       </TableCell>
                     );
                   })}

@@ -1,3 +1,5 @@
+import { BigNumber } from "@ethersproject/bignumber";
+import { formatUnits, parseUnits } from "@ethersproject/units";
 import {
   CircularProgress,
   Container,
@@ -5,23 +7,26 @@ import {
   Paper,
   Typography,
 } from "@material-ui/core";
+import clsx from "clsx";
+import numeral from "numeral";
 import { useMemo } from "react";
 import useTVL from "../../hooks/useTVL";
 import { COLORS } from "../../muiTheme";
-import { CHAINS } from "../../utils/consts";
 import SmartAddress from "../SmartAddress";
+import { balancePretty } from "../TokenSelectors/TokenPicker";
 import MuiReactTable from "./tableComponents/MuiReactTable";
-import numeral from "numeral";
-import clsx from "clsx";
-import { ChainId } from "@certusone/wormhole-sdk";
 
 const useStyles = makeStyles((theme) => ({
   logoPositioner: {
+    height: "30px",
     width: "30px",
     maxWidth: "30px",
     marginRight: theme.spacing(1),
+    display: "flex",
+    alignItems: "center",
   },
   logo: {
+    maxHeight: "100%",
     maxWidth: "100%",
   },
   tokenContainer: {
@@ -87,13 +92,17 @@ const StatsRoot: React.FC<any> = () => {
         Header: "Token",
         id: "assetAddress",
         sortType: sortTokens,
+        disableGroupBy: true,
         accessor: (value: any) => ({
-          chainId: CHAINS.find((x) => x.name === value.originChain)?.id,
+          chainId: value.originChainId,
           symbol: value.symbol,
           name: value.name,
           logo: value.logo,
           assetAddress: value.assetAddress,
         }),
+        aggregate: (leafValues: any) => leafValues.length,
+        Aggregated: ({ value }: { value: any }) =>
+          `${value} Token${value === 1 ? "" : "s"}`,
         Cell: (value: any) => (
           <div className={classes.tokenContainer}>
             <div className={classes.logoPositioner}>
@@ -106,9 +115,7 @@ const StatsRoot: React.FC<any> = () => {
               ) : null}
             </div>
             <SmartAddress
-              chainId={
-                CHAINS.find((x) => x.name === value.originChain)?.id as ChainId
-              }
+              chainId={value.originChainId}
               address={value.row?.original?.assetAddress}
               symbol={value.row?.original?.symbol}
               tokenName={value.row?.original?.name}
@@ -121,6 +128,7 @@ const StatsRoot: React.FC<any> = () => {
         Header: "Amount",
         accessor: "amount",
         align: "right",
+        disableGroupBy: true,
         Cell: (value: any) =>
           value.row?.original?.amount !== undefined
             ? numeral(value.row?.original?.amount).format("0,0.00")
@@ -130,6 +138,19 @@ const StatsRoot: React.FC<any> = () => {
         Header: "Total Value (USD)",
         accessor: "totalValue",
         align: "right",
+        disableGroupBy: true,
+        aggregate: (leafValues: any) =>
+          balancePretty(
+            formatUnits(
+              leafValues.reduce(
+                (p: BigNumber, v: number | null | undefined) =>
+                  v ? p.add(parseUnits(v.toFixed(18).toString(), 18)) : p,
+                BigNumber.from(0)
+              ),
+              18
+            )
+          ),
+        Aggregated: ({ value }: { value: any }) => value,
         Cell: (value: any) =>
           value.row?.original?.totalValue !== undefined
             ? numeral(value.row?.original?.totalValue).format("0.0 a")
@@ -139,6 +160,7 @@ const StatsRoot: React.FC<any> = () => {
         Header: "Unit Price (USD)",
         accessor: "quotePrice",
         align: "right",
+        disableGroupBy: true,
         Cell: (value: any) =>
           value.row?.original?.quotePrice !== undefined
             ? numeral(value.row?.original?.quotePrice).format("0,0.00")
