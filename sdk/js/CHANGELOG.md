@@ -1,9 +1,12 @@
 # Changelog
 
-## Unreleased
+## 0.0.6
 
 ### Changed
 
+Allow separate payer and owner for Solana transfers
+Support multiple EVM chains
+Support native Terra tokens
 Fixed nft_bridge getForeignAssetEth
 
 ## 0.0.5
