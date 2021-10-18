@@ -9,6 +9,7 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"path"
+	"strings"
 	"syscall"
 
 	"github.com/certusone/wormhole/node/pkg/db"
@@ -352,6 +353,28 @@ func runNode(cmd *cobra.Command, args []string) {
 		if *bigTableKeyPath == "" {
 			logger.Fatal("Please specify --bigTableKeyPath")
 		}
+	}
+
+	// Complain about Infura on mainnet.
+	//
+	// As it turns out, Infura has a bug where it would sometimes incorrectly round
+	// block timestamps, which causes consensus issues - the timestamp is part of
+	// the VAA and nodes using Infura would sometimes derive an incorrect VAA,
+	// accidentally attacking the network by signing a conflicting VAA.
+	//
+	// Node operators do not usually rely on Infura in the first place - doing
+	// so is insecure, since nodes blindly trust the connected nodes to verify
+	// on-chain message proofs. However, node operators sometimes used
+	// Infura during migrations where their primary node was offline, causing
+	// the aforementioned consensus oddities which were eventually found to
+	// be Infura-related. This is generally to the detriment of network security
+	// and a judgement call made by individual operators. In the case of Infura,
+	// we know it's actively dangerous so let's make an opinionated argument.
+	//
+	// Insert "I'm a sign, not a cop" meme.
+	//
+	if strings.HasSuffix(*ethRPC, "mainnet.infura.io") {
+		logger.Fatal("Infura is known to send incorrect blocks - please use your own nodes")
 	}
 
 	ethContractAddr := eth_common.HexToAddress(*ethContract)
