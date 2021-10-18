@@ -65,9 +65,9 @@ func runListNodes(cmd *cobra.Command, args []string) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 8, 2, ' ', 0)
 
 	if showDetails {
-		_, _ = w.Write([]byte("Node key\tGuardian key\tNode name\tVersion\tLast seen\tUptime\tSolana\tEthereum\tTerra\tBSC\n"))
+		_, _ = w.Write([]byte("Node key\tGuardian key\tNode name\tVersion\tLast seen\tUptime\tSolana\tEthereum\tTerra\tBSC\nPolygon\n"))
 	} else {
-		_, _ = w.Write([]byte("Node key\tGuardian key\tNode name\tVersion\tLast seen\tSolana\tEthereum\tTerra\tBSC\n"))
+		_, _ = w.Write([]byte("Node key\tGuardian key\tNode name\tVersion\tLast seen\tSolana\tEthereum\tTerra\tBSC\nPolygon\n"))
 	}
 
 	for _, h := range nodes {
@@ -93,7 +93,7 @@ func runListNodes(cmd *cobra.Command, args []string) {
 
 		if showDetails {
 			fmt.Fprintf(w,
-				"%s\t%s\t%s\t%s\t%s\t%s\t%s %d (%d)\t%s %d (%d)\t%s %d (%d)\t%s %d (%d)\n",
+				"%s\t%s\t%s\t%s\t%s\t%s\t%s %d (%d)\t%s %d (%d)\t%s %d (%d)\t%s %d (%d)\t%s %d (%d)\n",
 				h.P2PNodeAddr,
 				h.RawHeartbeat.GuardianAddr,
 				h.RawHeartbeat.NodeName,
@@ -112,10 +112,13 @@ func runListNodes(cmd *cobra.Command, args []string) {
 				truncAddrs[vaa.ChainIDBSC],
 				heights[vaa.ChainIDBSC],
 				errors[vaa.ChainIDBSC],
+				truncAddrs[vaa.ChainIDPolygon],
+				heights[vaa.ChainIDPolygon],
+				errors[vaa.ChainIDPolygon],
 			)
 		} else {
 			fmt.Fprintf(w,
-				"%s\t%s\t%s\t%s\t%s\t%d\t%d\t%d\t%d\n",
+				"%s\t%s\t%s\t%s\t%s\t%d\t%d\t%d\t%d\t%d\n",
 				h.P2PNodeAddr,
 				h.RawHeartbeat.GuardianAddr,
 				h.RawHeartbeat.NodeName,
@@ -125,6 +128,7 @@ func runListNodes(cmd *cobra.Command, args []string) {
 				heights[vaa.ChainIDEthereum],
 				heights[vaa.ChainIDTerra],
 				heights[vaa.ChainIDBSC],
+				heights[vaa.ChainIDPolygon],
 			)
 		}
 	}

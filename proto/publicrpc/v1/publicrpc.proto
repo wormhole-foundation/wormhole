@@ -13,6 +13,7 @@ enum ChainID {
   CHAIN_ID_ETHEREUM = 2;
   CHAIN_ID_TERRA = 3;
   CHAIN_ID_BSC = 4;
+  CHAIN_ID_POLYGON = 5;
 }
 
 // MessageID is a VAA's globally unique identifier (see data availability design document).

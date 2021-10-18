@@ -100,6 +100,7 @@ func ReadRow(w http.ResponseWriter, r *http.Request) {
 			"ethereum": "2",
 			"terra":    "3",
 			"bsc":      "4",
+			"polygon":  "5",
 		}
 		lowercaseChain := strings.ToLower(emitterChain)
 		if _, ok := chainNameMap[lowercaseChain]; ok {
