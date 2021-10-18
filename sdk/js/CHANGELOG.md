@@ -5,8 +5,11 @@
 ### Changed
 
 Allow separate payer and owner for Solana transfers
+
 Support multiple EVM chains
+
 Support native Terra tokens
+
 Fixed nft_bridge getForeignAssetEth
 
 ## 0.0.5
@@ -14,7 +17,9 @@ Fixed nft_bridge getForeignAssetEth
 ### Added
 
 NFT Bridge Support
+
 getClaimAddressSolana
+
 createMetaOnSolana
 
 ## 0.0.4
@@ -22,6 +27,7 @@ createMetaOnSolana
 ### Added
 
 redeemOnEthNative
+
 transferFromEthNative
 
 ## 0.0.3
@@ -29,11 +35,13 @@ transferFromEthNative
 ### Added
 
 Migration
+
 NFT Bridge
 
 ### Changed
 
 Fixed number overflow
+
 Fixed guardian set index
 
 ## 0.0.2

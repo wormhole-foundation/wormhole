@@ -75,7 +75,13 @@ const StatsRoot: React.FC<any> = () => {
   const tvl = useTVL();
   const sortTokens = useMemo(() => {
     return (rowA: any, rowB: any) => {
-      if (rowA.original.symbol && !rowB.original.symbol) {
+      if (rowA.isGrouped && rowB.isGrouped) {
+        return rowA.values.assetAddress > rowB.values.assetAddress ? 1 : -1;
+      } else if (rowA.isGrouped && !rowB.isGrouped) {
+        return 1;
+      } else if (!rowA.isGrouped && rowB.isGrouped) {
+        return -1;
+      } else if (rowA.original.symbol && !rowB.original.symbol) {
         return 1;
       } else if (rowB.original.symbol && !rowA.original.symbol) {
         return -1;

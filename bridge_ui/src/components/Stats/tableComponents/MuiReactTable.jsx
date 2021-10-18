@@ -36,6 +36,7 @@ const EnhancedTable = ({ columns, data, skipPageReset }) => {
     page,
     gotoPage,
     setPageSize,
+    rows,
     state: { pageIndex, pageSize },
   } = useTable(
     {
@@ -156,10 +157,10 @@ const EnhancedTable = ({ columns, data, skipPageReset }) => {
                   5,
                   10,
                   25,
-                  { label: "All", value: data.length },
+                  { label: "All", value: rows.length },
                 ]}
                 colSpan={columns.length}
-                count={data.length}
+                count={rows.length}
                 rowsPerPage={pageSize}
                 page={pageIndex}
                 SelectProps={{
