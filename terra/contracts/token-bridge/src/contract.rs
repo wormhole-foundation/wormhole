@@ -110,19 +110,7 @@ const CHAIN_ID: u16 = 3;
 const WRAPPED_ASSET_UPDATING: &str = "updating";
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Response> {
-    // Switch CW20 Code ID to include assets with updatable metadata.
-    let mut state = config(deps.storage).load()?;
-    state.wrapped_asset_code_id = 556;
-    config(deps.storage).save(&state)?;
-
-    // Remove registered asset with old code ID.
-    let asset_id = build_asset_id(
-        1,
-        &hex::decode("069b8857feab8184fb687f634618c035dac439dc1aeb3b5598a0f00000000001").unwrap(),
-    );
-    wrapped_asset(deps.storage).remove(&asset_id);
-    assert!(wrapped_asset(deps.storage).load(&asset_id).is_err());
+pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Response> {
     Ok(Response::default())
 }
 

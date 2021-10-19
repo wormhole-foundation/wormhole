@@ -78,14 +78,11 @@ type HumanAddr = String;
 const CHAIN_ID: u16 = 3;
 
 // Lock assets fee amount and denomination
-const FEE_AMOUNT: u128 = 10000;
+const FEE_AMOUNT: u128 = 0;
 pub const FEE_DENOMINATION: &str = "uluna";
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Response> {
-    let mut state = config_read(deps.storage).load()?;
-    state.fee = Coin::new(0, FEE_DENOMINATION);
-    config(deps.storage).save(&state)?;
+pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Response> {
     Ok(Response::default())
 }
 
