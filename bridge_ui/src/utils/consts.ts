@@ -291,6 +291,8 @@ export const COVALENT_GET_TOKENS_URL = (
     nft ? "&nft=true" : ""
   }`;
 };
+export const TERRA_SWAPRATE_URL =
+  "https://fcd.terra.dev/v1/market/swaprate/uusd";
 
 export const WETH_ADDRESS =
   CLUSTER === "mainnet"

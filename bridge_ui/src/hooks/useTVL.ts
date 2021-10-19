@@ -3,6 +3,7 @@ import {
   CHAIN_ID_BSC,
   CHAIN_ID_ETH,
   CHAIN_ID_SOLANA,
+  CHAIN_ID_TERRA,
 } from "@certusone/wormhole-sdk";
 import { formatUnits } from "@ethersproject/units";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
@@ -22,8 +23,16 @@ import {
   ETH_TOKEN_BRIDGE_ADDRESS,
   SOLANA_HOST,
   SOL_CUSTODY_ADDRESS,
+  TERRA_SWAPRATE_URL,
+  TERRA_TOKEN_BRIDGE_ADDRESS,
 } from "../utils/consts";
+import {
+  formatNativeDenom,
+  getNativeTerraIcon,
+  NATIVE_TERRA_DECIMALS,
+} from "../utils/terra";
 import useMetadata, { GenericMetadata } from "./useMetadata";
+import useTerraNativeBalances from "./useTerraNativeBalances";
 
 export type TVL = {
   logo?: string;
@@ -98,6 +107,74 @@ const calcSolanaTVL = (
   return output;
 };
 
+const useTerraTVL = () => {
+  const { isLoading: isTerraNativeLoading, balances: terraNativeBalances } =
+    useTerraNativeBalances(TERRA_TOKEN_BRIDGE_ADDRESS);
+  const [terraSwaprates, setTerraSwaprates] = useState<any[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const result = await axios.get(TERRA_SWAPRATE_URL);
+        if (!cancelled && result && result.data) {
+          setTerraSwaprates(result.data);
+        }
+      } catch (e) {}
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  const terraTVL = useMemo(() => {
+    const arr: TVL[] = [];
+    if (terraNativeBalances) {
+      const denoms = Object.keys(terraNativeBalances);
+      denoms.forEach((denom) => {
+        const amount = formatUnits(
+          terraNativeBalances[denom],
+          NATIVE_TERRA_DECIMALS
+        );
+        const symbol = formatNativeDenom(denom);
+        let matchingSwap = undefined;
+        let quotePrice = 0;
+        let totalValue = 0;
+        try {
+          matchingSwap = terraSwaprates.find((swap) => swap.denom === denom);
+          quotePrice =
+            denom === "uusd"
+              ? 1
+              : matchingSwap
+              ? 1 / Number(matchingSwap.swaprate)
+              : 0;
+          totalValue =
+            denom === "uusd"
+              ? Number(
+                  formatUnits(terraNativeBalances[denom], NATIVE_TERRA_DECIMALS)
+                )
+              : matchingSwap
+              ? Number(amount) / Number(matchingSwap.swaprate)
+              : 0;
+        } catch (e) {}
+        arr.push({
+          amount,
+          assetAddress: denom,
+          originChain: CHAINS_BY_ID[CHAIN_ID_TERRA].name,
+          originChainId: CHAIN_ID_TERRA,
+          quotePrice,
+          totalValue,
+          logo: getNativeTerraIcon(symbol),
+          symbol,
+        });
+      });
+    }
+    return arr;
+  }, [terraNativeBalances, terraSwaprates]);
+  return useMemo(
+    () => ({ terraTVL, isLoading: isTerraNativeLoading }),
+    [isTerraNativeLoading, terraTVL]
+  );
+};
+
 const useTVL = (): DataWrapper<TVL[]> => {
   const [ethCovalentData, setEthCovalentData] = useState(undefined);
   const [ethCovalentIsLoading, setEthCovalentIsLoading] = useState(false);
@@ -125,6 +202,8 @@ const useTVL = (): DataWrapper<TVL[]> => {
   }, [solanaCustodyTokens]);
 
   const solanaMetadata = useMetadata(CHAIN_ID_SOLANA, mintAddresses);
+
+  const { isLoading: isTerraLoading, terraTVL } = useTerraTVL();
 
   const solanaTVL = useMemo(
     () => calcSolanaTVL(solanaCustodyTokens, solanaMetadata),
@@ -211,13 +290,14 @@ const useTVL = (): DataWrapper<TVL[]> => {
   }, []);
 
   return useMemo(() => {
-    const tvlArray = [...ethTVL, ...bscTVL, ...solanaTVL];
+    const tvlArray = [...ethTVL, ...bscTVL, ...solanaTVL, ...terraTVL];
 
     return {
       isFetching:
         ethCovalentIsLoading ||
         bscCovalentIsLoading ||
-        solanaCustodyTokensLoading,
+        solanaCustodyTokensLoading ||
+        isTerraLoading,
       error: ethCovalentError || bscCovalentError || solanaCustodyTokensError,
       receivedAt: null,
       data: tvlArray,
@@ -232,6 +312,8 @@ const useTVL = (): DataWrapper<TVL[]> => {
     solanaTVL,
     solanaCustodyTokensError,
     solanaCustodyTokensLoading,
+    isTerraLoading,
+    terraTVL,
   ]);
 };
 
