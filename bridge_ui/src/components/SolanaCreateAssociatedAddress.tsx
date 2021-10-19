@@ -5,13 +5,15 @@ import {
   hexToNativeString,
   hexToUint8Array,
 } from "@certusone/wormhole-sdk";
-import { Typography } from "@material-ui/core";
+import { Button, Typography } from "@material-ui/core";
+import { Alert } from "@material-ui/lab";
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   Token,
   TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
 import { Connection, PublicKey, Transaction } from "@solana/web3.js";
+import { useSnackbar } from "notistack";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSelector } from "react-redux";
 import { useSolanaWallet } from "../contexts/SolanaWalletContext";
@@ -21,6 +23,7 @@ import {
   selectTransferTargetAddressHex,
 } from "../store/selectors";
 import { SOLANA_HOST, SOL_TOKEN_BRIDGE_ADDRESS } from "../utils/consts";
+import parseError from "../utils/parseError";
 import { signSendAndConfirm } from "../utils/solana";
 import ButtonWithLoader from "./ButtonWithLoader";
 import SmartAddress from "./SmartAddress";
@@ -163,6 +166,7 @@ export default function SolanaCreateAssociatedAddress({
 }
 
 export function SolanaCreateAssociatedAddressAlternate() {
+  const { enqueueSnackbar } = useSnackbar();
   const originChain = useSelector(selectTransferOriginChain);
   const originAsset = useSelector(selectTransferOriginAsset);
   const addressHex = useSelector(selectTransferTargetAddressHex);
@@ -215,7 +219,62 @@ export function SolanaCreateAssociatedAddressAlternate() {
       base58TargetAddress
     );
 
-  return targetAsset && !associatedAccountExists ? (
+  const solanaWallet = useSolanaWallet();
+  const solPK = solanaWallet?.publicKey;
+  const handleForceCreateClick = useCallback(() => {
+    if (!targetAsset || !base58TargetAddress || !solPK) return;
+    (async () => {
+      const connection = new Connection(SOLANA_HOST, "confirmed");
+      const mintPublicKey = new PublicKey(targetAsset);
+      const payerPublicKey = new PublicKey(solPK); // currently assumes the wallet is the owner
+      const associatedAddress = await Token.getAssociatedTokenAddress(
+        ASSOCIATED_TOKEN_PROGRAM_ID,
+        TOKEN_PROGRAM_ID,
+        mintPublicKey,
+        payerPublicKey
+      );
+      const match = associatedAddress.toString() === base58TargetAddress;
+      if (match) {
+        try {
+          const transaction = new Transaction().add(
+            await Token.createAssociatedTokenAccountInstruction(
+              ASSOCIATED_TOKEN_PROGRAM_ID,
+              TOKEN_PROGRAM_ID,
+              mintPublicKey,
+              associatedAddress,
+              payerPublicKey, // owner
+              payerPublicKey // payer
+            )
+          );
+          const { blockhash } = await connection.getRecentBlockhash();
+          transaction.recentBlockhash = blockhash;
+          transaction.feePayer = new PublicKey(payerPublicKey);
+          await signSendAndConfirm(solanaWallet, connection, transaction);
+          setAssociatedAccountExists(true);
+          enqueueSnackbar(null, {
+            content: (
+              <Alert severity="success">
+                Successfully created associated token account
+              </Alert>
+            ),
+          });
+        } catch (e) {
+          enqueueSnackbar(null, {
+            content: <Alert severity="error">{parseError(e)}</Alert>,
+          });
+        }
+      }
+    })();
+  }, [
+    setAssociatedAccountExists,
+    targetAsset,
+    solPK,
+    base58TargetAddress,
+    solanaWallet,
+    enqueueSnackbar,
+  ]);
+
+  return targetAsset ? (
     <div style={{ textAlign: "center" }}>
       <Typography variant="subtitle2">Recipient Address:</Typography>
       <Typography component="div">
@@ -223,15 +282,26 @@ export function SolanaCreateAssociatedAddressAlternate() {
           chainId={CHAIN_ID_SOLANA}
           address={base58TargetAddress}
           variant="h6"
+          extraContent={
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={handleForceCreateClick}
+              disabled={!targetAsset || !base58TargetAddress || !solPK}
+            >
+              Force Create Account
+            </Button>
+          }
         />
       </Typography>
-
-      <SolanaCreateAssociatedAddress
-        mintAddress={targetAsset}
-        readableTargetAddress={base58TargetAddress}
-        associatedAccountExists={associatedAccountExists}
-        setAssociatedAccountExists={setAssociatedAccountExists}
-      />
+      {associatedAccountExists ? null : (
+        <SolanaCreateAssociatedAddress
+          mintAddress={targetAsset}
+          readableTargetAddress={base58TargetAddress}
+          associatedAccountExists={associatedAccountExists}
+          setAssociatedAccountExists={setAssociatedAccountExists}
+        />
+      )}
     </div>
   ) : null;
 }

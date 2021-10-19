@@ -9,6 +9,7 @@ import { Button, makeStyles, Tooltip, Typography } from "@material-ui/core";
 import { FileCopy, OpenInNew } from "@material-ui/icons";
 import { withStyles } from "@material-ui/styles";
 import clsx from "clsx";
+import { ReactChild } from "react";
 import useCopyToClipboard from "../hooks/useCopyToClipboard";
 import { ParsedTokenAccount } from "../store/transferSlice";
 import { CLUSTER, getExplorerName } from "../utils/consts";
@@ -57,6 +58,7 @@ export default function SmartAddress({
   variant,
   noGutter,
   noUnderline,
+  extraContent,
 }: {
   chainId: ChainId;
   parsedTokenAccount?: ParsedTokenAccount;
@@ -67,6 +69,7 @@ export default function SmartAddress({
   variant?: any;
   noGutter?: boolean;
   noUnderline?: boolean;
+  extraContent?: ReactChild;
 }) {
   const classes = useStyles();
   const useableAddress = parsedTokenAccount?.mintKey || address || "";
@@ -148,6 +151,7 @@ export default function SmartAddress({
         {explorerButton}
         {copyButton}
       </div>
+      {extraContent ? extraContent : null}
     </>
   );
 
