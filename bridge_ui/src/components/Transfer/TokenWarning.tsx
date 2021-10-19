@@ -6,6 +6,7 @@ import {
   WSOL_ADDRESS,
 } from "@certusone/wormhole-sdk";
 import { getAddress } from "@ethersproject/address";
+import { makeStyles } from "@material-ui/core";
 import { Alert } from "@material-ui/lab";
 import { useMemo } from "react";
 import {
@@ -14,6 +15,13 @@ import {
   ETH_TOKENS_THAT_EXIST_ELSEWHERE,
   SOLANA_TOKENS_THAT_EXIST_ELSEWHERE,
 } from "../../utils/consts";
+
+const useStyles = makeStyles((theme) => ({
+  container: {
+    marginTop: theme.spacing(2),
+    marginBottom: theme.spacing(2),
+  },
+}));
 
 export default function TokenWarning({
   sourceChain,
@@ -24,6 +32,7 @@ export default function TokenWarning({
   tokenAddress: string | undefined;
   symbol: string | undefined;
 }) {
+  const classes = useStyles();
   const tokenConflictingNativeWarning = useMemo(
     () =>
       tokenAddress &&
@@ -59,7 +68,7 @@ export default function TokenWarning({
     }
   }, [sourceChain, tokenAddress, symbol]);
 
-  return tokenConflictingNativeWarning ? (
+  const content = tokenConflictingNativeWarning ? (
     <Alert severity="warning" variant="outlined">
       {tokenConflictingNativeWarning}
     </Alert>
@@ -87,4 +96,6 @@ export default function TokenWarning({
       which can be swapped using a stable swap protocol.
     </Alert>
   ) : null;
+
+  return content ? <div className={classes.container}>{content}</div> : null;
 }
