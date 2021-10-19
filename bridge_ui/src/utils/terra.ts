@@ -1,4 +1,8 @@
-import { isNativeTerra } from "@certusone/wormhole-sdk";
+import {
+  canonicalAddress,
+  isNativeDenom,
+  isNativeTerra,
+} from "@certusone/wormhole-sdk";
 import { formatUnits } from "@ethersproject/units";
 import { LCDClient } from "@terra-money/terra.js";
 import { TxResult } from "@terra-money/wallet-provider";
@@ -37,3 +41,17 @@ export async function waitForTerraExecution(transaction: TxResult) {
   }
   return info;
 }
+
+export const isValidTerraAddress = (address: string) => {
+  if (isNativeDenom(address)) {
+    return true;
+  }
+  try {
+    const startsWithTerra = address && address.startsWith("terra");
+    const isParseable = canonicalAddress(address);
+    const isLength20 = isParseable.length === 20;
+    return !!(startsWithTerra && isParseable && isLength20);
+  } catch (error) {
+    return false;
+  }
+};

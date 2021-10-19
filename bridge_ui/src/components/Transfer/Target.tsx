@@ -123,7 +123,7 @@ function Target() {
         disabled={shouldLockFields}
         chains={chains}
       />
-      <KeyAndBalance chainId={targetChain} balance={uiAmountString} />
+      <KeyAndBalance chainId={targetChain} />
       {readableTargetAddress ? (
         <>
           {targetAsset ? (

@@ -3,20 +3,12 @@ import {
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
 } from "@certusone/wormhole-sdk";
-import { Typography } from "@material-ui/core";
 import { isEVMChain } from "../utils/ethereum";
 import EthereumSignerKey from "./EthereumSignerKey";
 import SolanaWalletKey from "./SolanaWalletKey";
 import TerraWalletKey from "./TerraWalletKey";
 
-function KeyAndBalance({
-  chainId,
-  balance,
-}: {
-  chainId: ChainId;
-  balance?: string;
-}) {
-  const balanceString = balance ? "Balance: " + balance : balance;
+function KeyAndBalance({ chainId }: { chainId: ChainId }) {
   if (isEVMChain(chainId)) {
     return (
       <>
@@ -35,7 +27,6 @@ function KeyAndBalance({
     return (
       <>
         <TerraWalletKey />
-        <Typography>{balanceString}</Typography>
       </>
     );
   }

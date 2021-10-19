@@ -24,7 +24,7 @@ import { isEVMChain } from "../../utils/ethereum";
 import EvmTokenPicker from "./EvmTokenPicker";
 import RefreshButtonWrapper from "./RefreshButtonWrapper";
 import SolanaTokenPicker from "./SolanaTokenPicker";
-import TerraSourceTokenSelector from "./TerraSourceTokenSelector";
+import TerraTokenPicker from "./TerraTokenPicker";
 
 type TokenSelectorProps = {
   disabled: boolean;
@@ -104,11 +104,12 @@ export const TokenSelector = (props: TokenSelectorProps) => {
       nft={nft}
     />
   ) : lookupChain === CHAIN_ID_TERRA ? (
-    <TerraSourceTokenSelector
+    <TerraTokenPicker
       value={sourceParsedTokenAccount || null}
       disabled={disabled}
       onChange={handleOnChange}
       resetAccounts={maps?.resetAccounts}
+      tokenAccounts={maps?.tokenAccounts}
     />
   ) : (
     <TextField

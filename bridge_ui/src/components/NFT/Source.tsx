@@ -79,7 +79,7 @@ function Source() {
           Only NFTs which implement ERC-721 are supported.
         </Alert>
       ) : null}
-      <KeyAndBalance chainId={sourceChain} balance={uiAmountString} />
+      <KeyAndBalance chainId={sourceChain} />
       {isReady || uiAmountString ? (
         <div className={classes.transferField}>
           <TokenSelector disabled={shouldLockFields} nft={true} />

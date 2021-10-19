@@ -112,7 +112,7 @@ function Source() {
         disabled={shouldLockFields}
         chains={CHAINS}
       />
-      <KeyAndBalance chainId={sourceChain} balance={uiAmountString} />
+      <KeyAndBalance chainId={sourceChain} />
       {isReady || uiAmountString ? (
         <div className={classes.transferField}>
           <TokenSelector disabled={shouldLockFields} />

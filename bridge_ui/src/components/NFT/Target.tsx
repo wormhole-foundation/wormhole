@@ -22,7 +22,6 @@ import {
   selectNFTSourceChain,
   selectNFTTargetAddressHex,
   selectNFTTargetAsset,
-  selectNFTTargetBalanceString,
   selectNFTTargetChain,
   selectNFTTargetError,
 } from "../../store/selectors";
@@ -71,7 +70,6 @@ function Target() {
   }
   const readableTargetAddress =
     hexToNativeString(targetAddressHex, targetChain) || "";
-  const uiAmountString = useSelector(selectNFTTargetBalanceString);
   const error = useSelector(selectNFTTargetError);
   const isTargetComplete = useSelector(selectNFTIsTargetComplete);
   const shouldLockFields = useSelector(selectNFTShouldLockFields);
@@ -97,7 +95,7 @@ function Target() {
         onChange={handleTargetChange}
         chains={chains}
       />
-      <KeyAndBalance chainId={targetChain} balance={uiAmountString} />
+      <KeyAndBalance chainId={targetChain} />
       <TextField
         label="Recipient Address"
         fullWidth
