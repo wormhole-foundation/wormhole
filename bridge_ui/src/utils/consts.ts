@@ -83,7 +83,7 @@ export const CHAINS =
           logo: terraIcon,
         },
       ];
-export const BETA_CHAINS = CLUSTER === "mainnet" ? [CHAIN_ID_TERRA] : [];
+export const BETA_CHAINS: ChainId[] = CLUSTER === "mainnet" ? [] : [];
 export const CHAINS_WITH_NFT_SUPPORT = CHAINS.filter(
   ({ id }) =>
     id === CHAIN_ID_ETH || id === CHAIN_ID_BSC || id === CHAIN_ID_SOLANA
