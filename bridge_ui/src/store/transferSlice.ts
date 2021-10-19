@@ -55,6 +55,7 @@ export interface TransferState {
   isRedeeming: boolean;
   redeemTx: Transaction | undefined;
   isApproving: boolean;
+  isRecovery: boolean;
 }
 
 const initialState: TransferState = {
@@ -77,6 +78,7 @@ const initialState: TransferState = {
   isRedeeming: false,
   redeemTx: undefined,
   isApproving: false,
+  isRecovery: false,
 };
 
 export const transferSlice = createSlice({
@@ -214,6 +216,26 @@ export const transferSlice = createSlice({
       sourceChain: state.sourceChain,
       targetChain: state.targetChain,
     }),
+    setRecoveryVaa: (
+      state,
+      action: PayloadAction<{
+        vaa: any;
+        parsedPayload: {
+          targetChain: ChainId;
+          targetAddress: string;
+          originChain: ChainId;
+          originAddress: string;
+        };
+      }>
+    ) => {
+      state.signedVAAHex = action.payload.vaa;
+      state.targetChain = action.payload.parsedPayload.targetChain;
+      state.targetAddressHex = action.payload.parsedPayload.targetAddress;
+      state.originChain = action.payload.parsedPayload.originChain;
+      state.originAsset = action.payload.parsedPayload.originAddress;
+      state.activeStep = 3;
+      state.isRecovery = true;
+    },
   },
 });
 
@@ -241,6 +263,7 @@ export const {
   setRedeemTx,
   setIsApproving,
   reset,
+  setRecoveryVaa,
 } = transferSlice.actions;
 
 export default transferSlice.reducer;

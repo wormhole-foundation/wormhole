@@ -38,16 +38,8 @@ import { useDispatch } from "react-redux";
 import { useHistory } from "react-router";
 import { useEthereumProvider } from "../contexts/EthereumProviderContext";
 import { COLORS } from "../muiTheme";
-import {
-  setSignedVAAHex as setNFTSignedVAAHex,
-  setStep as setNFTStep,
-  setTargetChain as setNFTTargetChain,
-} from "../store/nftSlice";
-import {
-  setSignedVAAHex,
-  setStep,
-  setTargetChain,
-} from "../store/transferSlice";
+import { setRecoveryVaa as setRecoveryNFTVaa } from "../store/nftSlice";
+import { setRecoveryVaa } from "../store/transferSlice";
 import {
   CHAINS,
   CHAINS_WITH_NFT_SUPPORT,
@@ -311,14 +303,30 @@ export default function Recovery() {
     if (enableRecovery && recoverySignedVAA && parsedPayloadTargetChain) {
       // TODO: make recovery reducer
       if (isNFT) {
-        dispatch(setNFTSignedVAAHex(recoverySignedVAA));
-        dispatch(setNFTTargetChain(parsedPayloadTargetChain));
-        dispatch(setNFTStep(3));
+        dispatch(
+          setRecoveryNFTVaa({
+            vaa: recoverySignedVAA,
+            parsedPayload: {
+              targetChain: parsedPayload.targetChain,
+              targetAddress: parsedPayload.targetAddress,
+              originChain: parsedPayload.originChain,
+              originAddress: parsedPayload.originAddress,
+            },
+          })
+        );
         push("/nft");
       } else {
-        dispatch(setSignedVAAHex(recoverySignedVAA));
-        dispatch(setTargetChain(parsedPayloadTargetChain));
-        dispatch(setStep(3));
+        dispatch(
+          setRecoveryVaa({
+            vaa: recoverySignedVAA,
+            parsedPayload: {
+              targetChain: parsedPayload.targetChain,
+              targetAddress: parsedPayload.targetAddress,
+              originChain: parsedPayload.originChain,
+              originAddress: parsedPayload.originAddress,
+            },
+          })
+        );
         push("/transfer");
       }
     }
@@ -327,6 +335,7 @@ export default function Recovery() {
     enableRecovery,
     recoverySignedVAA,
     parsedPayloadTargetChain,
+    parsedPayload,
     isNFT,
     push,
   ]);

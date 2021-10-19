@@ -139,7 +139,7 @@ export const selectNFTIsRedeemComplete = (state: RootState) =>
   !!selectNFTRedeemTx(state);
 export const selectNFTShouldLockFields = (state: RootState) =>
   selectNFTIsSending(state) || selectNFTIsSendComplete(state);
-
+export const selectNFTIsRecovery = (state: RootState) => state.nft.isRecovery;
 /*
  * Transfer
  */
@@ -277,6 +277,8 @@ export const selectTransferIsRedeemComplete = (state: RootState) =>
   !!selectTransferRedeemTx(state);
 export const selectTransferShouldLockFields = (state: RootState) =>
   selectTransferIsSending(state) || selectTransferIsSendComplete(state);
+export const selectTransferIsRecovery = (state: RootState) =>
+  state.transfer.isRecovery;
 
 export const selectSolanaTokenMap = (state: RootState) => {
   return state.tokens.solanaTokenMap;

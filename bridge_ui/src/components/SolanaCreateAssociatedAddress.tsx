@@ -1,4 +1,10 @@
-import { ChainId, CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
+import {
+  ChainId,
+  CHAIN_ID_SOLANA,
+  getForeignAssetSolana,
+  hexToNativeString,
+  hexToUint8Array,
+} from "@certusone/wormhole-sdk";
 import { Typography } from "@material-ui/core";
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -7,10 +13,17 @@ import {
 } from "@solana/spl-token";
 import { Connection, PublicKey, Transaction } from "@solana/web3.js";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSelector } from "react-redux";
 import { useSolanaWallet } from "../contexts/SolanaWalletContext";
-import { SOLANA_HOST } from "../utils/consts";
+import {
+  selectTransferOriginAsset,
+  selectTransferOriginChain,
+  selectTransferTargetAddressHex,
+} from "../store/selectors";
+import { SOLANA_HOST, SOL_TOKEN_BRIDGE_ADDRESS } from "../utils/consts";
 import { signSendAndConfirm } from "../utils/solana";
 import ButtonWithLoader from "./ButtonWithLoader";
+import SmartAddress from "./SmartAddress";
 
 export function useAssociatedAccountExistsState(
   targetChain: ChainId,
@@ -117,6 +130,8 @@ export default function SolanaCreateAssociatedAddress({
           await signSendAndConfirm(solanaWallet, connection, transaction);
           setIsCreating(false);
           setAssociatedAccountExists(true);
+        } else {
+          console.log("Account already exists.");
         }
       }
     })();
@@ -145,4 +160,78 @@ export default function SolanaCreateAssociatedAddress({
       </ButtonWithLoader>
     </>
   );
+}
+
+export function SolanaCreateAssociatedAddressAlternate() {
+  const originChain = useSelector(selectTransferOriginChain);
+  const originAsset = useSelector(selectTransferOriginAsset);
+  const addressHex = useSelector(selectTransferTargetAddressHex);
+  const base58TargetAddress = useMemo(
+    () => hexToNativeString(addressHex, CHAIN_ID_SOLANA) || "",
+    [addressHex]
+  );
+  const base58OriginAddress = useMemo(
+    () => hexToNativeString(originAsset, CHAIN_ID_SOLANA) || "",
+    [originAsset]
+  );
+  const connection = useMemo(() => new Connection(SOLANA_HOST), []);
+  const [targetAsset, setTargetAsset] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!(originChain && originAsset && addressHex && base58TargetAddress)) {
+      setTargetAsset(null);
+    } else if (originChain === CHAIN_ID_SOLANA && base58OriginAddress) {
+      setTargetAsset(base58OriginAddress);
+    } else {
+      getForeignAssetSolana(
+        connection,
+        SOL_TOKEN_BRIDGE_ADDRESS,
+        originChain,
+        hexToUint8Array(originAsset)
+      ).then((result) => {
+        if (!cancelled) {
+          setTargetAsset(result);
+        }
+      });
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    originChain,
+    originAsset,
+    addressHex,
+    base58TargetAddress,
+    connection,
+    base58OriginAddress,
+  ]);
+
+  const { associatedAccountExists, setAssociatedAccountExists } =
+    useAssociatedAccountExistsState(
+      CHAIN_ID_SOLANA,
+      targetAsset,
+      base58TargetAddress
+    );
+
+  return targetAsset && !associatedAccountExists ? (
+    <div style={{ textAlign: "center" }}>
+      <Typography variant="subtitle2">Recipient Address:</Typography>
+      <Typography component="div">
+        <SmartAddress
+          chainId={CHAIN_ID_SOLANA}
+          address={base58TargetAddress}
+          variant="h6"
+        />
+      </Typography>
+
+      <SolanaCreateAssociatedAddress
+        mintAddress={targetAsset}
+        readableTargetAddress={base58TargetAddress}
+        associatedAccountExists={associatedAccountExists}
+        setAssociatedAccountExists={setAssociatedAccountExists}
+      />
+    </div>
+  ) : null;
 }

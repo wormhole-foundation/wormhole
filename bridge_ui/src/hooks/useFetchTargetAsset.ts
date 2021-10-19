@@ -20,11 +20,13 @@ import { useDispatch, useSelector } from "react-redux";
 import { useEthereumProvider } from "../contexts/EthereumProviderContext";
 import { setTargetAsset as setNFTTargetAsset } from "../store/nftSlice";
 import {
+  selectNFTIsRecovery,
   selectNFTIsSourceAssetWormholeWrapped,
   selectNFTOriginAsset,
   selectNFTOriginChain,
   selectNFTOriginTokenId,
   selectNFTTargetChain,
+  selectTransferIsRecovery,
   selectTransferIsSourceAssetWormholeWrapped,
   selectTransferOriginAsset,
   selectTransferOriginChain,
@@ -65,7 +67,13 @@ function useFetchTargetAsset(nft?: boolean) {
   const { provider, chainId: evmChainId } = useEthereumProvider();
   const correctEvmNetwork = getEvmChainId(targetChain);
   const hasCorrectEvmNetwork = evmChainId === correctEvmNetwork;
+  const isRecovery = useSelector(
+    nft ? selectNFTIsRecovery : selectTransferIsRecovery
+  );
   useEffect(() => {
+    if (isRecovery) {
+      return;
+    }
     if (isSourceAssetWormholeWrapped && originChain === targetChain) {
       dispatch(setTargetAsset(hexToNativeString(originAsset, originChain)));
       return;
@@ -158,6 +166,7 @@ function useFetchTargetAsset(nft?: boolean) {
     };
   }, [
     dispatch,
+    isRecovery,
     isSourceAssetWormholeWrapped,
     originChain,
     originAsset,

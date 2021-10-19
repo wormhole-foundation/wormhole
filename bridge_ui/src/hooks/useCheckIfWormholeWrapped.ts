@@ -19,9 +19,11 @@ import { useDispatch, useSelector } from "react-redux";
 import { useEthereumProvider } from "../contexts/EthereumProviderContext";
 import { setSourceWormholeWrappedInfo as setNFTSourceWormholeWrappedInfo } from "../store/nftSlice";
 import {
+  selectNFTIsRecovery,
   selectNFTSourceAsset,
   selectNFTSourceChain,
   selectNFTSourceParsedTokenAccount,
+  selectTransferIsRecovery,
   selectTransferSourceAsset,
   selectTransferSourceChain,
 } from "../store/selectors";
@@ -69,7 +71,13 @@ function useCheckIfWormholeWrapped(nft?: boolean) {
     ? setNFTSourceWormholeWrappedInfo
     : setTransferSourceWormholeWrappedInfo;
   const { provider } = useEthereumProvider();
+  const isRecovery = useSelector(
+    nft ? selectNFTIsRecovery : selectTransferIsRecovery
+  );
   useEffect(() => {
+    if (isRecovery) {
+      return;
+    }
     // TODO: loading state, error state
     dispatch(setSourceWormholeWrappedInfo(undefined));
     let cancelled = false;
@@ -133,6 +141,7 @@ function useCheckIfWormholeWrapped(nft?: boolean) {
     };
   }, [
     dispatch,
+    isRecovery,
     sourceChain,
     sourceAsset,
     provider,

@@ -49,6 +49,7 @@ export interface NFTState {
   isSending: boolean;
   isRedeeming: boolean;
   redeemTx: Transaction | undefined;
+  isRecovery: boolean;
 }
 
 const initialState: NFTState = {
@@ -70,6 +71,7 @@ const initialState: NFTState = {
   isSending: false,
   isRedeeming: false,
   redeemTx: undefined,
+  isRecovery: false,
 };
 
 export const nftSlice = createSlice({
@@ -203,6 +205,26 @@ export const nftSlice = createSlice({
       sourceChain: state.sourceChain,
       targetChain: state.targetChain,
     }),
+    setRecoveryVaa: (
+      state,
+      action: PayloadAction<{
+        vaa: any;
+        parsedPayload: {
+          targetChain: ChainId;
+          targetAddress: string;
+          originChain: ChainId;
+          originAddress: string; //TODO maximum amount of fields
+        };
+      }>
+    ) => {
+      state.signedVAAHex = action.payload.vaa;
+      state.targetChain = action.payload.parsedPayload.targetChain;
+      state.targetAddressHex = action.payload.parsedPayload.targetAddress;
+      state.originChain = action.payload.parsedPayload.originChain;
+      state.originAsset = action.payload.parsedPayload.originAddress;
+      state.activeStep = 3;
+      state.isRecovery = true;
+    },
   },
 });
 
@@ -228,6 +250,7 @@ export const {
   setIsRedeeming,
   setRedeemTx,
   reset,
+  setRecoveryVaa,
 } = nftSlice.actions;
 
 export default nftSlice.reducer;

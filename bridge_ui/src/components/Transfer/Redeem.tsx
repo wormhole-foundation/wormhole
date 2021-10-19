@@ -16,6 +16,7 @@ import {
 import { WBNB_ADDRESS, WETH_ADDRESS } from "../../utils/consts";
 import ButtonWithLoader from "../ButtonWithLoader";
 import KeyAndBalance from "../KeyAndBalance";
+import { SolanaCreateAssociatedAddressAlternate } from "../SolanaCreateAssociatedAddress";
 import StepDescription from "../StepDescription";
 import WaitingForWalletMessage from "./WaitingForWalletMessage";
 
@@ -60,8 +61,12 @@ function Redeem() {
           label="Automatically unwrap to native currency"
         />
       )}
+      {targetChain === CHAIN_ID_SOLANA ? (
+        <SolanaCreateAssociatedAddressAlternate />
+      ) : null}
 
       <ButtonWithLoader
+        //TODO disable when the associated token account is confirmed to not exist
         disabled={!isReady || disabled}
         onClick={
           isNativeEligible && useNativeRedeem ? handleNativeClick : handleClick
