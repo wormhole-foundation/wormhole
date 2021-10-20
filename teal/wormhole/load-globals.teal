@@ -1,0 +1,105 @@
+#pragma version 5
+// ================================================================================================
+//
+// Load global data in scratch space.
+//
+// (c) 2021 Randlabs, Inc.
+// 
+// ------------------------------------------------------------------------------------------------
+//
+// This program allows us to load globals in a VAA-verification and process group transactions
+// 
+// This must be the first transaction in group 
+//
+// ------------------------------------------------------------------------------------------------
+//
+// Global state:
+//
+// "gsexptime":  Guardian set expiration time
+// "gssize"   :  Guardian set size (number of items)
+// key N:  address of guardian N
+// 
+// ------------------------------------------------------------------------------------------------
+// Stores in scratch: 
+// SLOT 255:  number of guardians in set 
+// SLOT 0..n:  key of guardian i
+// ================================================================================================
+
+
+// Application creation.
+int 0
+txn ApplicationID
+==
+bnz handle_create
+
+// Handle app call:  store globals
+
+txn OnCompletion
+int NoOp
+==
+bnz handle_call
+
+// Handle deletion.
+
+txn OnCompletion
+int DeleteApplication
+==
+bnz success
+
+// Fail otherwise
+err
+
+
+handle_create:
+// -----------------------------------------------------
+// Handle creation 
+// -----------------------------------------------------
+
+b success
+
+// -------------------------------------------------------------------------------------------------
+handle_call:
+
+// Group size must be at least 2 (this + one VAA verify program)
+
+global GroupSize
+int 2
+>=
+assert
+
+// This must be first transaction in group
+
+txn GroupIndex
+int 0
+==
+assert
+
+// Store size in slot 255
+
+byte "gssize"
+app_global_get
+dup                 // st: size size
+int 255             // st: size size 255
+swap                // st: size 255 size 
+stores              // st: size       
+                    // op: slot[255] = size
+
+// Store each in slots 0..N
+
+loop:
+dup                 // st: size cindex 
+dup                 // st: size size cindex
+app_global_get      // st: size size key_at_cindex
+stores              // st: size 
+                    // op: slot[size] = key_at_cindex
+dup 
+int 0               // st: size size 0 
+==                  // st: size (size == 0)
+bnz success
+
+int 1               // st: size 1
+-                   // st: (size-1)
+b loop              
+
+success:
+int 1
