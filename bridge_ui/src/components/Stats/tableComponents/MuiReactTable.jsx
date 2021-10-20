@@ -28,7 +28,7 @@ const stopProp = (e) => {
   e.stopPropagation();
 };
 
-const EnhancedTable = ({ columns, data, skipPageReset }) => {
+const EnhancedTable = ({ columns, data, skipPageReset, initialState = {} }) => {
   const {
     getTableProps,
     headerGroups,
@@ -43,6 +43,7 @@ const EnhancedTable = ({ columns, data, skipPageReset }) => {
       columns,
       data,
       autoResetPage: !skipPageReset,
+      initialState,
     },
     useGlobalFilter,
     useGroupBy,

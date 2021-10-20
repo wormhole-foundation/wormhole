@@ -142,6 +142,7 @@ const StatsRoot: React.FC<any> = () => {
       },
       {
         Header: "Total Value (USD)",
+        id: "totalValue",
         accessor: "totalValue",
         align: "right",
         disableGroupBy: true,
@@ -235,6 +236,7 @@ const StatsRoot: React.FC<any> = () => {
               columns={tvlColumns}
               data={tvl.data}
               skipPageReset={false}
+              initialState={{ sortBy: [{ id: "totalValue", desc: true }] }}
             />
           </>
         )}

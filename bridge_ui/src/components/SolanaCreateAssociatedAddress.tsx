@@ -263,6 +263,15 @@ export function SolanaCreateAssociatedAddressAlternate() {
             content: <Alert severity="error">{parseError(e)}</Alert>,
           });
         }
+      } else {
+        enqueueSnackbar(null, {
+          content: (
+            <Alert severity="error">
+              Derived address does not match the target address. Do you have the
+              same wallet connected?
+            </Alert>
+          ),
+        });
       }
     })();
   }, [
