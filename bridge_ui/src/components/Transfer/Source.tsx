@@ -4,7 +4,7 @@ import {
   CHAIN_ID_SOLANA,
 } from "@certusone/wormhole-sdk";
 import { getAddress } from "@ethersproject/address";
-import { Button, makeStyles, TextField } from "@material-ui/core";
+import { Button, makeStyles } from "@material-ui/core";
 import { useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useHistory } from "react-router";
@@ -33,6 +33,7 @@ import ButtonWithLoader from "../ButtonWithLoader";
 import ChainSelect from "../ChainSelect";
 import KeyAndBalance from "../KeyAndBalance";
 import LowBalanceWarning from "../LowBalanceWarning";
+import NumberTextField from "../NumberTextField";
 import StepDescription from "../StepDescription";
 import { TokenSelector } from "../TokenSelectors/SourceTokenSelector";
 import TokenWarning from "./TokenWarning";
@@ -95,6 +96,11 @@ function Source() {
     },
     [dispatch]
   );
+  const handleMaxClick = useCallback(() => {
+    if (uiAmountString) {
+      dispatch(setAmount(uiAmountString));
+    }
+  }, [dispatch, uiAmountString]);
   const handleNextClick = useCallback(() => {
     dispatch(incrementStep());
   }, [dispatch]);
@@ -136,15 +142,15 @@ function Source() {
           />
           <LowBalanceWarning chainId={sourceChain} />
           {hasParsedTokenAccount ? (
-            <TextField
+            <NumberTextField
               variant="outlined"
               label="Amount"
-              type="number"
               fullWidth
               className={classes.transferField}
               value={amount}
               onChange={handleAmountChange}
               disabled={shouldLockFields}
+              onMaxClick={uiAmountString ? handleMaxClick : undefined}
             />
           ) : null}
           <ButtonWithLoader

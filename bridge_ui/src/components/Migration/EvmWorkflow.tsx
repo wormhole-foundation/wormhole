@@ -1,10 +1,5 @@
 import { ChainId } from "@certusone/wormhole-sdk";
-import {
-  CircularProgress,
-  makeStyles,
-  TextField,
-  Typography,
-} from "@material-ui/core";
+import { CircularProgress, makeStyles, Typography } from "@material-ui/core";
 import { Alert } from "@material-ui/lab";
 import { parseUnits } from "ethers/lib/utils";
 import { useSnackbar } from "notistack";
@@ -14,6 +9,7 @@ import useEthereumMigratorInformation from "../../hooks/useEthereumMigratorInfor
 import useIsWalletReady from "../../hooks/useIsWalletReady";
 import ButtonWithLoader from "../ButtonWithLoader";
 import EthereumSignerKey from "../EthereumSignerKey";
+import NumberTextField from "../NumberTextField";
 import ShowTx from "../ShowTx";
 import SmartAddress from "../SmartAddress";
 
@@ -49,6 +45,7 @@ export default function EvmWorkflow({
     signerAddress,
     toggleRefresh
   );
+  const fromWalletBalance = poolInfo.data?.fromWalletBalance;
 
   const [migrationAmount, setMigrationAmount] = useState("");
   const [migrationIsProcessing, setMigrationIsProcessing] = useState(false);
@@ -69,9 +66,9 @@ export default function EvmWorkflow({
   const hasRequisiteData = poolInfo.data;
   const amountGreaterThanZero = fromParse(migrationAmount) > BigInt(0);
   const sufficientFromTokens =
-    poolInfo.data?.fromWalletBalance &&
+    fromWalletBalance &&
     migrationAmount &&
-    fromParse(migrationAmount) <= fromParse(poolInfo.data.fromWalletBalance);
+    fromParse(migrationAmount) <= fromParse(fromWalletBalance);
   const sufficientPoolBalance =
     poolInfo.data?.toPoolBalance &&
     migrationAmount &&
@@ -106,6 +103,11 @@ export default function EvmWorkflow({
     (event) => setMigrationAmount(event.target.value),
     [setMigrationAmount]
   );
+  const handleMaxClick = useCallback(() => {
+    if (fromWalletBalance) {
+      setMigrationAmount(fromWalletBalance);
+    }
+  }, [fromWalletBalance]);
 
   const migrateTokens = useCallback(async () => {
     if (!poolInfo.data) {
@@ -170,8 +172,7 @@ export default function EvmWorkflow({
     <div>
       <Typography>This action will convert</Typography>
       <Typography variant="h6">
-        {fromTokenPretty}{" "}
-        {`(Balance: ${poolInfo.data?.fromWalletBalance || ""})`}
+        {fromTokenPretty} {`(Balance: ${fromWalletBalance || ""})`}
       </Typography>
       <div className={classes.spacer} />
       <Typography>to</Typography>
@@ -190,14 +191,14 @@ export default function EvmWorkflow({
     <>
       {explainerContent}
       <div className={classes.spacer} />
-      <TextField
+      <NumberTextField
         variant="outlined"
         value={migrationAmount}
-        type="number"
         onChange={handleAmountChange}
         label={"Amount"}
         disabled={!!migrationIsProcessing || !!transaction}
-      ></TextField>
+        onMaxClick={fromWalletBalance ? handleMaxClick : undefined}
+      />
 
       {!transaction && (
         <ButtonWithLoader

@@ -2,7 +2,7 @@ import { CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
 import migrateTokensTx from "@certusone/wormhole-sdk/lib/migration/migrateTokens";
 import getPoolAddress from "@certusone/wormhole-sdk/lib/migration/poolAddress";
 import getToCustodyAddress from "@certusone/wormhole-sdk/lib/migration/toCustodyAddress";
-import { makeStyles, TextField, Typography } from "@material-ui/core";
+import { makeStyles, Typography } from "@material-ui/core";
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   Token,
@@ -19,6 +19,7 @@ import { COLORS } from "../../muiTheme";
 import { MIGRATION_PROGRAM_ADDRESS, SOLANA_HOST } from "../../utils/consts";
 import { getMultipleAccounts, signSendAndConfirm } from "../../utils/solana";
 import ButtonWithLoader from "../ButtonWithLoader";
+import NumberTextField from "../NumberTextField";
 import ShowTx from "../ShowTx";
 import SmartAddress from "../SmartAddress";
 import SolanaCreateAssociatedAddress, {
@@ -358,6 +359,11 @@ export default function Workflow({
     (event) => setMigrationAmount(event.target.value),
     [setMigrationAmount]
   );
+  const handleMaxClick = useCallback(() => {
+    if (fromTokenAccountBalance) {
+      setMigrationAmount(fromTokenAccountBalance);
+    }
+  }, [fromTokenAccountBalance]);
 
   const getMetadata = (address: string) => {
     const tokenMapItem = solanaTokenMap.data?.find(
@@ -459,14 +465,14 @@ export default function Workflow({
         </>
       ) : null}
       <div className={classes.spacer} />
-      <TextField
+      <NumberTextField
         variant="outlined"
         value={migrationAmount}
-        type="number"
         onChange={handleAmountChange}
         label={"Amount"}
         disabled={!!migrationIsProcessing || !!transaction}
-      ></TextField>
+        onMaxClick={fromTokenAccountBalance ? handleMaxClick : undefined}
+      />
 
       {!transaction && (
         <ButtonWithLoader
