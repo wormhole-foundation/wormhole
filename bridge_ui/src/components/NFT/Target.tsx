@@ -11,7 +11,7 @@ import { useCallback, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import useIsWalletReady from "../../hooks/useIsWalletReady";
 import useSyncTargetAddress from "../../hooks/useSyncTargetAddress";
-import { EthGasEstimateSummary } from "../../hooks/useTransactionFees";
+import { GasEstimateSummary } from "../../hooks/useTransactionFees";
 import { incrementStep, setTargetChain } from "../../store/nftSlice";
 import {
   selectNFTIsTargetComplete,
@@ -132,7 +132,7 @@ function Target() {
           {CHAINS_BY_ID[targetChain].name} to redeem your NFT.
         </Typography>
         {isEVMChain(targetChain) && (
-          <EthGasEstimateSummary methodType="nft" chainId={targetChain} />
+          <GasEstimateSummary methodType="nft" chainId={targetChain} />
         )}
       </Alert>
       <LowBalanceWarning chainId={targetChain} />

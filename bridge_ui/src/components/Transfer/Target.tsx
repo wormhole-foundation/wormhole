@@ -1,4 +1,8 @@
-import { CHAIN_ID_SOLANA, hexToNativeString } from "@certusone/wormhole-sdk";
+import {
+  CHAIN_ID_SOLANA,
+  CHAIN_ID_TERRA,
+  hexToNativeString,
+} from "@certusone/wormhole-sdk";
 import { makeStyles, Typography } from "@material-ui/core";
 import { Alert } from "@material-ui/lab";
 import { useCallback, useMemo } from "react";
@@ -6,7 +10,7 @@ import { useDispatch, useSelector } from "react-redux";
 import useIsWalletReady from "../../hooks/useIsWalletReady";
 import useMetadata from "../../hooks/useMetadata";
 import useSyncTargetAddress from "../../hooks/useSyncTargetAddress";
-import { EthGasEstimateSummary } from "../../hooks/useTransactionFees";
+import { GasEstimateSummary } from "../../hooks/useTransactionFees";
 import {
   selectTransferAmount,
   selectTransferIsTargetComplete,
@@ -168,8 +172,8 @@ function Target() {
           You will have to pay transaction fees on{" "}
           {CHAINS_BY_ID[targetChain].name} to redeem your tokens.
         </Typography>
-        {isEVMChain(targetChain) && (
-          <EthGasEstimateSummary methodType="transfer" chainId={targetChain} />
+        {(isEVMChain(targetChain) || targetChain === CHAIN_ID_TERRA) && (
+          <GasEstimateSummary methodType="transfer" chainId={targetChain} />
         )}
       </Alert>
       <LowBalanceWarning chainId={targetChain} />

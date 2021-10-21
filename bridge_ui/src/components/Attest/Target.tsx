@@ -2,7 +2,7 @@ import { makeStyles, Typography } from "@material-ui/core";
 import { Alert } from "@material-ui/lab";
 import { useCallback, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { EthGasEstimateSummary } from "../../hooks/useTransactionFees";
+import { GasEstimateSummary } from "../../hooks/useTransactionFees";
 import { incrementStep, setTargetChain } from "../../store/attestSlice";
 import {
   selectAttestIsTargetComplete,
@@ -62,7 +62,7 @@ function Target() {
           {CHAINS_BY_ID[targetChain].name} to attest this token.{" "}
         </Typography>
         {isEVMChain(targetChain) && (
-          <EthGasEstimateSummary
+          <GasEstimateSummary
             methodType="createWrapped"
             chainId={targetChain}
           />

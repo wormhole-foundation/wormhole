@@ -209,7 +209,7 @@ export function useEthereumGasPrice(contract: MethodType, chainId: ChainId) {
   return results;
 }
 
-export function EthGasEstimateSummary({
+function EthGasEstimateSummary({
   methodType,
   chainId,
 }: {
@@ -244,7 +244,14 @@ export function EthGasEstimateSummary({
   );
 }
 
-const estimatesByContract = {
+const terraEstimatesByContract = {
+  transfer: {
+    lowGasEstimate: BigInt(50000),
+    highGasEstimate: BigInt(90000),
+  },
+};
+
+const evmEstimatesByContract = {
   transfer: {
     lowGasEstimate: BigInt(80000),
     highGasEstimate: BigInt(130000),
@@ -263,8 +270,9 @@ export async function getGasEstimates(
   provider: Provider,
   contract: MethodType
 ): Promise<GasEstimate | null> {
-  const lowEstimateGasAmount = estimatesByContract[contract].lowGasEstimate;
-  const highEstimateGasAmount = estimatesByContract[contract].highGasEstimate;
+  const lowEstimateGasAmount = evmEstimatesByContract[contract].lowGasEstimate;
+  const highEstimateGasAmount =
+    evmEstimatesByContract[contract].highGasEstimate;
 
   let lowEstimate;
   let highEstimate;
@@ -292,4 +300,59 @@ export async function getGasEstimates(
       : null;
 
   return output;
+}
+
+function TerraGasEstimateSummary({
+  methodType,
+  chainId,
+}: {
+  methodType: MethodType;
+  chainId: ChainId;
+}) {
+  if (methodType === "transfer") {
+    const lowEstimate = formatUnits(
+      terraEstimatesByContract.transfer.lowGasEstimate,
+      NATIVE_TERRA_DECIMALS
+    );
+    const highEstimate = formatUnits(
+      terraEstimatesByContract.transfer.highGasEstimate,
+      NATIVE_TERRA_DECIMALS
+    );
+    return (
+      <Typography
+        component="div"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          marginTop: 8,
+          flexWrap: "wrap",
+        }}
+      >
+        <div>
+          Est. Fees: {lowEstimate} - {highEstimate}{" "}
+          {getDefaultNativeCurrencySymbol(chainId)}
+        </div>
+      </Typography>
+    );
+  } else {
+    return null;
+  }
+}
+
+export function GasEstimateSummary({
+  methodType,
+  chainId,
+}: {
+  methodType: MethodType;
+  chainId: ChainId;
+}) {
+  if (isEVMChain(chainId)) {
+    return <EthGasEstimateSummary chainId={chainId} methodType={methodType} />;
+  } else if (chainId === CHAIN_ID_TERRA) {
+    return (
+      <TerraGasEstimateSummary chainId={chainId} methodType={methodType} />
+    );
+  } else {
+    return null;
+  }
 }
