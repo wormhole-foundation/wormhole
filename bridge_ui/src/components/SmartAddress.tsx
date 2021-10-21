@@ -4,6 +4,7 @@ import {
   CHAIN_ID_ETH,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
+  isNativeDenom,
 } from "@certusone/wormhole-sdk";
 import { Button, makeStyles, Tooltip, Typography } from "@material-ui/core";
 import { FileCopy, OpenInNew } from "@material-ui/icons";
@@ -14,6 +15,7 @@ import useCopyToClipboard from "../hooks/useCopyToClipboard";
 import { ParsedTokenAccount } from "../store/transferSlice";
 import { CLUSTER, getExplorerName } from "../utils/consts";
 import { shortenAddress } from "../utils/solana";
+import { formatNativeDenom } from "../utils/terra";
 
 const useStyles = makeStyles((theme) => ({
   mainTypog: {
@@ -72,9 +74,13 @@ export default function SmartAddress({
   extraContent?: ReactChild;
 }) {
   const classes = useStyles();
+  const isNativeTerra = chainId === CHAIN_ID_TERRA && isNativeDenom(address);
   const useableAddress = parsedTokenAccount?.mintKey || address || "";
-  const useableSymbol = parsedTokenAccount?.symbol || symbol || "";
-  const isNative = parsedTokenAccount?.isNativeAsset || false;
+  const useableSymbol = isNativeTerra
+    ? formatNativeDenom(address)
+    : parsedTokenAccount?.symbol || symbol || "";
+  // const useableLogo = logo || isNativeTerra ? getNativeTerraIcon(useableSymbol) : null
+  const isNative = parsedTokenAccount?.isNativeAsset || isNativeTerra || false;
   const addressShort = shortenAddress(useableAddress) || "";
 
   const useableName = isNative
