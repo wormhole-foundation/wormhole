@@ -112,10 +112,10 @@ export default function SolanaSourceTokenSelector(
         return false;
       }
       const isNFT =
-        x.decimals === 0 &&
-        metaplex.data?.get(x.mintKey)?.data?.uri &&
-        mintAccounts?.data?.get(x.mintKey)?.supply === "1";
-      return nft ? isNFT : !isNFT;
+        x.decimals === 0 && metaplex.data?.get(x.mintKey)?.data?.uri;
+      const is721CompatibleNFT =
+        isNFT && mintAccounts?.data?.get(x.mintKey)?.supply === "1";
+      return nft ? is721CompatibleNFT : !isNFT;
     });
     tokenList.sort(sortParsedTokenAccounts);
     return tokenList;
