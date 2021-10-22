@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.0.7
+
+### Changed
+
+Changed function signature of attestFromTerra to be consistent with other terra functions
+
+Removed hardcoded fees on terra transactions
+
 ## 0.0.6
 
 ### Changed

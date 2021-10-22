@@ -50,7 +50,7 @@ import { isEVMChain } from "../utils/ethereum";
 import { getSignedVAAWithRetry } from "../utils/getSignedVAAWithRetry";
 import parseError from "../utils/parseError";
 import { signSendAndConfirm } from "../utils/solana";
-import { waitForTerraExecution } from "../utils/terra";
+import { postWithFees, waitForTerraExecution } from "../utils/terra";
 
 async function evm(
   dispatch: any,
@@ -160,11 +160,12 @@ async function terra(
 ) {
   dispatch(setIsSending(true));
   try {
-    const result = await attestFromTerra(
+    const msg = await attestFromTerra(
       TERRA_TOKEN_BRIDGE_ADDRESS,
-      wallet,
+      wallet.terraAddress,
       asset
     );
+    const result = await postWithFees(wallet, [msg], "Create Wrapped");
     const info = await waitForTerraExecution(result);
     dispatch(setAttestTx({ id: info.txhash, block: info.height }));
     enqueueSnackbar(null, {

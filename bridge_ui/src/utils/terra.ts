@@ -5,9 +5,10 @@ import {
 } from "@certusone/wormhole-sdk";
 import { formatUnits } from "@ethersproject/units";
 import { LCDClient } from "@terra-money/terra.js";
-import { TxResult } from "@terra-money/wallet-provider";
+import { ConnectedWallet, TxResult } from "@terra-money/wallet-provider";
+import axios from "axios";
 // import { TerraTokenMetadata } from "../hooks/useTerraTokenMap";
-import { TERRA_HOST } from "./consts";
+import { TERRA_GAS_PRICES_URL, TERRA_HOST } from "./consts";
 
 export const NATIVE_TERRA_DECIMALS = 6;
 
@@ -55,3 +56,36 @@ export const isValidTerraAddress = (address: string) => {
     return false;
   }
 };
+
+export async function postWithFees(
+  wallet: ConnectedWallet,
+  msgs: any[],
+  memo: string
+) {
+  try {
+    const lcd = new LCDClient(TERRA_HOST);
+    //let gasPrices = await lcd.config.gasPrices //Unsure if the values returned from this are hardcoded or not.
+    //Thus, we are going to pull it directly from the current FCD.
+    let gasPrices = await axios
+      .get(TERRA_GAS_PRICES_URL)
+      .then((result) => result.data);
+
+    const feeEstimate = await lcd.tx.estimateFee(
+      wallet.walletAddress,
+      [...msgs],
+      { memo, feeDenoms: ["uluna"], gasPrices }
+    );
+
+    const result = await wallet.post({
+      msgs: [...msgs],
+      memo,
+      feeDenoms: ["uluna"],
+      gasPrices,
+      fee: feeEstimate,
+    });
+
+    return result;
+  } catch (e) {
+    return Promise.reject();
+  }
+}

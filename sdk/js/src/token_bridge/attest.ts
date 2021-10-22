@@ -20,34 +20,24 @@ export async function attestFromEth(
 
 export async function attestFromTerra(
   tokenBridgeAddress: string,
-  wallet: TerraConnectedWallet,
+  walletAddress: string,
   asset: string
 ) {
   const nonce = Math.round(Math.random() * 100000);
   const isNativeAsset = isNativeDenom(asset);
-  return await wallet.post({
-    msgs: [
-      new MsgExecuteContract(
-        wallet.terraAddress,
-        tokenBridgeAddress,
-        {
-          create_asset_meta: {
-            asset_info: isNativeAsset
-              ? {
-                  native_token: { denom: asset },
-                }
-              : {
-                  token: {
-                    contract_addr: asset,
-                  },
-                },
-            nonce: nonce,
+  return new MsgExecuteContract(walletAddress, tokenBridgeAddress, {
+    create_asset_meta: {
+      asset_info: isNativeAsset
+        ? {
+            native_token: { denom: asset },
+          }
+        : {
+            token: {
+              contract_addr: asset,
+            },
           },
-        },
-        { uluna: 10000 }
-      ),
-    ],
-    memo: "Create Wrapped",
+      nonce: nonce,
+    },
   });
 }
 

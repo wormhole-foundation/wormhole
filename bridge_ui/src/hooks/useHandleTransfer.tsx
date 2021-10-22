@@ -59,7 +59,7 @@ import { isEVMChain } from "../utils/ethereum";
 import { getSignedVAAWithRetry } from "../utils/getSignedVAAWithRetry";
 import parseError from "../utils/parseError";
 import { signSendAndConfirm } from "../utils/solana";
-import { waitForTerraExecution } from "../utils/terra";
+import { postWithFees, waitForTerraExecution } from "../utils/terra";
 import useTransferTargetAddressHex from "./useTransferTargetAddress";
 
 async function evm(
@@ -229,10 +229,13 @@ async function terra(
       targetChain,
       targetAddress
     );
-    const result = await wallet.post({
-      msgs: [...msgs],
-      memo: "Wormhole - Initiate Transfer",
-    });
+
+    const result = await postWithFees(
+      wallet,
+      msgs,
+      "Wormhole - Initiate Transfer"
+    );
+
     const info = await waitForTerraExecution(result);
     dispatch(setTransferTx({ id: info.txhash, block: info.height }));
     enqueueSnackbar(null, {

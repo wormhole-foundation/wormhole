@@ -47,16 +47,11 @@ export async function redeemOnTerra(
   walletAddress: string,
   signedVAA: Uint8Array
 ) {
-  return new MsgExecuteContract(
-    walletAddress,
-    tokenBridgeAddress,
-    {
-      submit_vaa: {
-        data: fromUint8Array(signedVAA),
-      },
+  return new MsgExecuteContract(walletAddress, tokenBridgeAddress, {
+    submit_vaa: {
+      data: fromUint8Array(signedVAA),
     },
-    { uluna: 1000 }
-  );
+  });
 }
 
 export async function redeemAndUnwrapOnSolana(

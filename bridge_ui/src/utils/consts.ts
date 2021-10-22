@@ -153,13 +153,13 @@ export const TERRA_HOST =
       }
     : CLUSTER === "testnet"
     ? {
-        URL: "https://tequila-lcd.terra.dev",
-        chainID: "tequila-0004",
+        URL: "https://bombay-lcd.terra.dev",
+        chainID: "bombay-0005",
         name: "testnet",
       }
     : {
         URL: "http://localhost:1317",
-        chainID: "columbus-4",
+        chainID: "columbus-5",
         name: "localterra",
       };
 export const ETH_BRIDGE_ADDRESS = getAddress(
@@ -541,3 +541,11 @@ export const getMigrationAssetMap = (chainId: ChainId) => {
 };
 
 export const SUPPORTED_TERRA_TOKENS = ["uluna", "uusd"];
+
+export const TERRA_FCD_BASE =
+  CLUSTER === "mainnet"
+    ? "https://fcd.terra.dev/"
+    : CLUSTER === "testnet"
+    ? "https://bombay-fcd.terra.dev"
+    : "http://localhost:3060";
+export const TERRA_GAS_PRICES_URL = `${TERRA_FCD_BASE}/v1/txs/gas_prices`;
