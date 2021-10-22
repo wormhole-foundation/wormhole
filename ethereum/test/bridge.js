@@ -6,6 +6,7 @@ const Wormhole = artifacts.require("Wormhole");
 const TokenBridge = artifacts.require("TokenBridge");
 const BridgeImplementation = artifacts.require("BridgeImplementation");
 const TokenImplementation = artifacts.require("TokenImplementation");
+const FeeToken = artifacts.require("FeeToken");
 const MockBridgeImplementation = artifacts.require("MockBridgeImplementation");
 const MockWETH9 = artifacts.require("MockWETH9");
 
@@ -452,6 +453,97 @@ contract("Bridge", function () {
 
         // token
         assert.equal(log.payload.substr(68, 64), web3.eth.abi.encodeParameter("address", TokenImplementation.address).substring(2));
+
+        // chain id
+        assert.equal(log.payload.substr(132, 4), web3.eth.abi.encodeParameter("uint16", testChainId).substring(2 + 64 - 4))
+
+        // to
+        assert.equal(log.payload.substr(136, 64), "000000000000000000000000b7a2211e8165943192ad04f5dd21bedc29ff003e");
+
+        // to chain id
+        assert.equal(log.payload.substr(200, 4), web3.eth.abi.encodeParameter("uint16", 10).substring(2 + 64 - 4))
+
+        // fee
+        assert.equal(log.payload.substr(204, 64), web3.eth.abi.encodeParameter("uint256", new BigNumber(fee).div(1e10).toString()).substring(2))
+    })
+
+    it("should deposit and log fee token transfers correctly", async function () {
+        const accounts = await web3.eth.getAccounts();
+        const mintAmount = "10000000000000000000";
+        const amount = "1000000000000000000";
+        const fee = "100000000000000000";
+
+        // mint and approve tokens
+        const deployFeeToken = await FeeToken.new();
+        const token = new web3.eth.Contract(FeeToken.abi, deployFeeToken.address);
+        await token.methods.initialize(
+            "Test",
+            "TST",
+            "18",
+            "123",
+            accounts[0],
+            "0",
+            "0x0000000000000000000000000000000000000000000000000000000000000000"
+        ).send({
+            value: 0,
+            from: accounts[0],
+            gasLimit: 2000000
+        });
+        await token.methods.mint(accounts[0], mintAmount).send({
+            value: 0,
+            from: accounts[0],
+            gasLimit: 2000000
+        });
+        await token.methods.approve(TokenBridge.address, mintAmount).send({
+            value: 0,
+            from: accounts[0],
+            gasLimit: 2000000
+        });
+
+        // deposit tokens
+        const initialized = new web3.eth.Contract(BridgeImplementationFullABI, TokenBridge.address);
+
+        const bridgeBalanceBefore = await token.methods.balanceOf(TokenBridge.address).call();
+
+        assert.equal(bridgeBalanceBefore.toString(10), "0");
+
+        await initialized.methods.transferTokens(
+            deployFeeToken.address,
+            amount,
+            "10",
+            "0x000000000000000000000000b7a2211e8165943192ad04f5dd21bedc29ff003e",
+            fee,
+            "234"
+        ).send({
+            value: 0,
+            from: accounts[0],
+            gasLimit: 2000000
+        });
+
+        const bridgeBalanceAfter = await token.methods.balanceOf(TokenBridge.address).call();
+
+        let feeAmount = new BigNumber(amount).times(9).div(10)
+
+        assert.equal(bridgeBalanceAfter.toString(10), feeAmount);
+
+        // check transfer log
+        const wormhole = new web3.eth.Contract(WormholeImplementationFullABI, Wormhole.address);
+        const log = (await wormhole.getPastEvents('LogMessagePublished', {
+            fromBlock: 'latest'
+        }))[0].returnValues
+
+        assert.equal(log.sender, TokenBridge.address)
+
+        assert.equal(log.payload.length - 2, 266);
+
+        // payload id
+        assert.equal(log.payload.substr(2, 2), "01");
+
+        // amount
+        assert.equal(log.payload.substr(4, 64), web3.eth.abi.encodeParameter("uint256", feeAmount.div(1e10).toString()).substring(2));
+
+        // token
+        assert.equal(log.payload.substr(68, 64), web3.eth.abi.encodeParameter("address", deployFeeToken.address).substring(2));
 
         // chain id
         assert.equal(log.payload.substr(132, 4), web3.eth.abi.encodeParameter("uint16", testChainId).substring(2 + 64 - 4))

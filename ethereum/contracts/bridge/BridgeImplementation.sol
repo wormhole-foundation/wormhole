@@ -15,6 +15,10 @@ contract BridgeImplementation is Bridge {
         return tokenImplementation();
     }
 
+    function initialize() initializer public virtual {
+        // this function needs to be exposed for an upgrade to pass
+    }
+
     modifier initializer() {
         address impl = ERC1967Upgrade._getImplementation();
 

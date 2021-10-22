@@ -34,7 +34,7 @@ contract Bridge is BridgeGovernance {
         bytes32 symbol;
         bytes32 name;
         assembly {
-        // first 32 bytes hold string length
+            // first 32 bytes hold string length
             symbol := mload(add(symbolString, 32))
             name := mload(add(nameString, 32))
         }
@@ -56,7 +56,7 @@ contract Bridge is BridgeGovernance {
         bytes memory encoded = encodeAssetMeta(meta);
 
         sequence = wormhole().publishMessage{
-        value : msg.value
+            value : msg.value
         }(nonce, encoded, 15);
     }
 
@@ -69,18 +69,18 @@ contract Bridge is BridgeGovernance {
 
         require(arbiterFee <= amount, "fee is bigger than amount minus wormhole fee");
 
-        uint normalizedAmount = amount / (10 ** 10);
-        uint normalizedArbiterFee = arbiterFee / (10 ** 10);
+        uint normalizedAmount = normalizeAmount(amount, 18);
+        uint normalizedArbiterFee = normalizeAmount(arbiterFee, 18);
 
         // refund dust
-        uint dust = amount - (normalizedAmount * (10 ** 10));
+        uint dust = amount - deNormalizeAmount(normalizedAmount, 18);
         if (dust > 0) {
             payable(msg.sender).transfer(dust);
         }
 
         // deposit into WETH
         WETH().deposit{
-        value : amount - dust
+            value : amount - dust
         }();
 
         // track and check outstanding token amounts
@@ -106,50 +106,72 @@ contract Bridge is BridgeGovernance {
         (,bytes memory queriedDecimals) = token.staticcall(abi.encodeWithSignature("decimals()"));
         uint8 decimals = abi.decode(queriedDecimals, (uint8));
 
-        // adjust decimals
-        uint256 normalizedAmount = amount;
-        uint256 normalizedArbiterFee = arbiterFee;
-        if (decimals > 8) {
-            uint multiplier = 10 ** (decimals - 8);
-
-            normalizedAmount /= multiplier;
-            normalizedArbiterFee /= multiplier;
-
-            // don't deposit dust that can not be bridged due to the decimal shift
-            amount = normalizedAmount * multiplier;
-        }
+        // don't deposit dust that can not be bridged due to the decimal shift
+        amount = deNormalizeAmount(normalizeAmount(amount, decimals), decimals);
 
         if (tokenChain == chainId()) {
+            // query own token balance before transfer
+            (,bytes memory queriedBalanceBefore) = token.staticcall(abi.encodeWithSelector(IERC20.balanceOf.selector, address(this)));
+            uint256 balanceBefore = abi.decode(queriedBalanceBefore, (uint256));
+
+            // transfer tokens
             SafeERC20.safeTransferFrom(IERC20(token), msg.sender, address(this), amount);
 
-            // track and check outstanding token amounts
-            bridgeOut(token, normalizedAmount);
+            // query own token balance after transfer
+            (,bytes memory queriedBalanceAfter) = token.staticcall(abi.encodeWithSelector(IERC20.balanceOf.selector, address(this)));
+            uint256 balanceAfter = abi.decode(queriedBalanceAfter, (uint256));
+
+            // correct amount for potential transfer fees
+            amount = balanceAfter - balanceBefore;
         } else {
             SafeERC20.safeTransferFrom(IERC20(token), msg.sender, address(this), amount);
 
             TokenImplementation(token).burn(address(this), amount);
         }
 
+        // normalize amounts decimals
+        uint256 normalizedAmount = normalizeAmount(amount, decimals);
+        uint256 normalizedArbiterFee = normalizeAmount(arbiterFee, decimals);
+
+        // track and check outstanding token amounts
+        if (tokenChain == chainId()) {
+            bridgeOut(token, normalizedAmount);
+        }
+
         sequence = logTransfer(tokenChain, tokenAddress, normalizedAmount, recipientChain, recipient, normalizedArbiterFee, msg.value, nonce);
+    }
+
+    function normalizeAmount(uint256 amount, uint8 decimals) internal pure returns(uint256){
+        if (decimals > 8) {
+            amount /= 10 ** (decimals - 8);
+        }
+        return amount;
+    }
+
+    function deNormalizeAmount(uint256 amount, uint8 decimals) internal pure returns(uint256){
+        if (decimals > 8) {
+            amount *= 10 ** (decimals - 8);
+        }
+        return amount;
     }
 
     function logTransfer(uint16 tokenChain, bytes32 tokenAddress, uint256 amount, uint16 recipientChain, bytes32 recipient, uint256 fee, uint256 callValue, uint32 nonce) internal returns (uint64 sequence) {
         require(fee <= amount, "fee exceeds amount");
 
         BridgeStructs.Transfer memory transfer = BridgeStructs.Transfer({
-        payloadID : 1,
-        amount : amount,
-        tokenAddress : tokenAddress,
-        tokenChain : tokenChain,
-        to : recipient,
-        toChain : recipientChain,
-        fee : fee
+            payloadID : 1,
+            amount : amount,
+            tokenAddress : tokenAddress,
+            tokenChain : tokenChain,
+            to : recipient,
+            toChain : recipientChain,
+            fee : fee
         });
 
         bytes memory encoded = encodeTransfer(transfer);
 
         sequence = wormhole().publishMessage{
-        value : callValue
+            value : callValue
         }(nonce, encoded, 15);
     }
 
@@ -263,13 +285,8 @@ contract Bridge is BridgeGovernance {
         uint8 decimals = abi.decode(queriedDecimals, (uint8));
 
         // adjust decimals
-        uint256 nativeAmount = transfer.amount;
-        uint256 nativeFee = transfer.fee;
-        if (decimals > 8) {
-            uint multiplier = 10 ** (decimals - 8);
-            nativeAmount *= multiplier;
-            nativeFee *= multiplier;
-        }
+        uint256 nativeAmount = deNormalizeAmount(transfer.amount, decimals);
+        uint256 nativeFee = deNormalizeAmount(transfer.fee, decimals);
 
         // transfer fee to arbiter
         if (nativeFee > 0) {
