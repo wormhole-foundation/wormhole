@@ -1,4 +1,5 @@
 require('dotenv').config({ path: "../.env" });
+const bs58 = require("bs58");
 
 const PythDataBridge = artifacts.require("PythDataBridge");
 const PythImplementation = artifacts.require("PythImplementation");
@@ -9,7 +10,9 @@ const chainId = process.env.PYTH_INIT_CHAIN_ID;
 const governanceChainId = process.env.PYTH_INIT_GOV_CHAIN_ID;
 const governanceContract = process.env.PYTH_INIT_GOV_CONTRACT; // bytes32
 const pyth2WormholeChainId = process.env.PYTH_TO_WORMHOLE_CHAIN_ID;
-const pyth2WormholeContract = process.env.PYTH_TO_WORMHOLE_CONTRACT; // bytes32
+const pyth2WormholeEmitter = bs58.decode(process.env.PYTH_TO_WORMHOLE_EMITTER); // base58, must fit into bytes32
+
+console.log("Deploying Pyth with emitter", pyth2WormholeEmitter.toString("hex"))
 
 module.exports = async function (deployer) {
     // deploy implementation
@@ -29,7 +32,7 @@ module.exports = async function (deployer) {
         governanceContract,
 
         pyth2WormholeChainId,
-        pyth2WormholeContract,
+        "0x" + pyth2WormholeEmitter.toString("hex"),
     ).encodeABI();
 
     // deploy proxy

@@ -30,8 +30,8 @@ contract PythSetters is PythState {
         _state.provider.pyth2WormholeChainId = chainId;
     }
 
-    function setPyth2WormholeContract(bytes32 contractAddr) internal {
-        _state.provider.pyth2WormholeContract = contractAddr;
+    function setPyth2WormholeEmitter(bytes32 emitterAddr) internal {
+        _state.provider.pyth2WormholeEmitter = emitterAddr;
     }
 
     function setWormhole(address wh) internal {

@@ -13,7 +13,7 @@ contract PythStorage {
         bytes32 governanceContract;
 
         uint16 pyth2WormholeChainId;
-        bytes32 pyth2WormholeContract;
+        bytes32 pyth2WormholeEmitter;
     }
 
     struct State {
