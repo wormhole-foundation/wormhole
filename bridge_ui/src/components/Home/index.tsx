@@ -1,18 +1,21 @@
 import {
   Card,
+  Chip,
   Container,
   Link,
   makeStyles,
   Typography,
 } from "@material-ui/core";
 import { Link as RouterLink } from "react-router-dom";
+import polygonLogo from "../../icons/polygon.svg";
 import { COLORS } from "../../muiTheme";
+import { CHAINS } from "../../utils/consts";
 import HeaderText from "../HeaderText";
 
 const useStyles = makeStyles((theme) => ({
   header: {
     marginTop: theme.spacing(12),
-    marginBottom: theme.spacing(15),
+    marginBottom: theme.spacing(8),
     [theme.breakpoints.down("sm")]: {
       marginBottom: theme.spacing(6),
     },
@@ -37,6 +40,55 @@ const useStyles = makeStyles((theme) => ({
   spacer: {
     height: theme.spacing(5),
   },
+  chainList: {
+    display: "flex",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    margin: theme.spacing(-1, -1, 8),
+    [theme.breakpoints.down("sm")]: {
+      margin: theme.spacing(-1, -1, 6),
+    },
+  },
+  chainCard: {
+    backgroundColor: COLORS.nearBlackWithMinorTransparency,
+    borderRadius: 8,
+    display: "flex",
+    flexDirection: "column",
+    margin: theme.spacing(1),
+    minHeight: "100%",
+    padding: theme.spacing(2),
+    width: 149, // makes it square
+    maxWidth: 149,
+    [theme.breakpoints.down("sm")]: {
+      padding: theme.spacing(1.5),
+      width: 141, // keeps it square
+      maxWidth: 141,
+    },
+  },
+  chainLogoWrapper: {
+    position: "relative",
+    textAlign: "center",
+  },
+  chainLogo: {
+    height: 64,
+    maxWidth: 64,
+  },
+  chainName: {
+    marginTop: theme.spacing(1),
+    flex: "1",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    textAlign: "center",
+    minHeight: 40, // 2 lines
+  },
+  chip: {
+    backgroundColor: COLORS.blueWithTransparency,
+    position: "absolute",
+    top: "50%",
+    right: "50%",
+    transform: "translate(50%, -50%)",
+  },
 }));
 
 function Home() {
@@ -49,13 +101,52 @@ function Home() {
         </div>
       </Container>
       <Container maxWidth="md">
+        <div className={classes.chainList}>
+          {CHAINS.map((chain) => (
+            <div key={chain.id} className={classes.chainCard}>
+              <div className={classes.chainLogoWrapper}>
+                <img
+                  src={chain.logo}
+                  alt={chain.name}
+                  className={classes.chainLogo}
+                />
+              </div>
+              <Typography
+                variant="body2"
+                component="div"
+                className={classes.chainName}
+              >
+                <div>{chain.name}</div>
+              </Typography>
+            </div>
+          ))}
+          <div className={classes.chainCard}>
+            <div className={classes.chainLogoWrapper}>
+              <img
+                src={polygonLogo}
+                alt="Polygon"
+                className={classes.chainLogo}
+              />
+              <Chip label="Coming soon" size="small" className={classes.chip} />
+            </div>
+            <Typography
+              variant="body2"
+              component="div"
+              className={classes.chainName}
+            >
+              <div>Polygon</div>
+            </Typography>
+          </div>
+        </div>
+      </Container>
+      <Container maxWidth="md">
         <Card className={classes.mainCard}>
           <Typography variant="h4" className={classes.description}>
             Wormhole v2 is here!
           </Typography>
           <Typography variant="h6" className={classes.description}>
             The Wormhole Token Bridge allows you to seamlessly transfer
-            tokenized assets across Solana and Ethereum.
+            tokenized assets across Solana, Ethereum, BSC, and Terra.
           </Typography>
           <div className={classes.spacer} />
           <Typography variant="subtitle1" className={classes.description}>

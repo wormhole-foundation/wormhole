@@ -216,20 +216,31 @@ export default function NFTViewer({
 }) {
   const uri = safeIPFS(value.uri || "");
   const [metadata, setMetadata] = useState({
+    uri,
     image: value.image,
     animation_url: value.animation_url,
     nftName: value.nftName,
     description: value.description,
     isLoading: !!uri,
   });
+  const [isMediaLoading, setIsMediaLoading] = useState(false);
+  const onLoad = useCallback(() => {
+    setIsMediaLoading(false);
+  }, []);
+  const isLoading = isMediaLoading || metadata.isLoading;
   useEffect(() => {
-    setMetadata({
-      image: value.image,
-      animation_url: value.animation_url,
-      nftName: value.nftName,
-      description: value.description,
-      isLoading: !!uri,
-    });
+    setMetadata((m) =>
+      m.uri === uri
+        ? m
+        : {
+            uri,
+            image: value.image,
+            animation_url: value.animation_url,
+            nftName: value.nftName,
+            description: value.description,
+            isLoading: !!uri,
+          }
+    );
   }, [value, uri]);
   useEffect(() => {
     if (uri) {
@@ -239,6 +250,7 @@ export default function NFTViewer({
           const result = await axios.get(uri);
           if (!cancelled && result && result.data) {
             setMetadata({
+              uri,
               image: result.data.image,
               animation_url: result.data.animation_url,
               nftName: result.data.name,
@@ -246,10 +258,10 @@ export default function NFTViewer({
               isLoading: false,
             });
           } else if (!cancelled) {
-            setIsLoading(false);
+            setMetadata((m) => ({ ...m, isLoading: false }));
           }
         } catch (e) {
-          setIsLoading(false);
+          setMetadata((m) => ({ ...m, isLoading: false }));
         }
       })();
       return () => {
@@ -257,13 +269,6 @@ export default function NFTViewer({
       };
     }
   }, [uri]);
-  const [isLoading, setIsLoading] = useState(true);
-  const onLoad = useCallback(() => {
-    setIsLoading(false);
-  }, []);
-  useLayoutEffect(() => {
-    setIsLoading(true);
-  }, [value, chainId]);
 
   const classes = useStyles();
   const animLower = metadata.animation_url?.toLowerCase();
@@ -282,24 +287,29 @@ export default function NFTViewer({
     animLower?.endsWith("wav") ||
     animLower?.endsWith("oga");
   const hasImage = metadata.image;
+  const copyTokenId = useCopyToClipboard(value.tokenId || "");
+  const videoSrc = hasVideo && safeIPFS(metadata.animation_url || "");
+  const imageSrc = hasImage && safeIPFS(metadata.image || "");
+  const audioSrc = hasAudio && safeIPFS(metadata.animation_url || "");
+
+  //set loading when the media src changes
+  useLayoutEffect(() => {
+    if (videoSrc || imageSrc || audioSrc) {
+      setIsMediaLoading(true);
+    } else {
+      setIsMediaLoading(false);
+    }
+  }, [videoSrc, imageSrc, audioSrc]);
+
   const image = (
     <img
-      src={safeIPFS(metadata.image || "")}
+      src={imageSrc}
       alt={metadata.nftName || ""}
       style={{ maxWidth: "100%" }}
       onLoad={onLoad}
       onError={onLoad}
     />
   );
-  const copyTokenId = useCopyToClipboard(value.tokenId || "");
-
-  //report that loading is done, if the item has no reasonable media
-  useEffect(() => {
-    if (!metadata.isLoading && !hasVideo && !hasAudio && !hasImage) {
-      setIsLoading(false);
-    }
-  }, [metadata.isLoading, hasVideo, hasAudio, hasImage]);
-
   const media = (
     <>
       {hasVideo ? (
@@ -308,10 +318,10 @@ export default function NFTViewer({
           controls
           loop
           style={{ maxWidth: "100%" }}
-          onLoad={onLoad}
+          onLoadedData={onLoad}
           onError={onLoad}
         >
-          <source src={safeIPFS(metadata.animation_url || "")} />
+          <source src={videoSrc || ""} />
           {image}
         </video>
       ) : hasImage ? (
@@ -320,8 +330,8 @@ export default function NFTViewer({
       {hasAudio ? (
         <audio
           controls
-          src={safeIPFS(metadata.animation_url || "")}
-          onLoad={onLoad}
+          src={audioSrc || ""}
+          onLoadedData={onLoad}
           onError={onLoad}
         />
       ) : null}
