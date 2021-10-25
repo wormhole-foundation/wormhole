@@ -19,6 +19,7 @@ export type GenericMetadata = {
   tokenName?: string;
   decimals?: number;
   //TODO more items
+  raw?: any;
 };
 
 const constructSolanaMetadata = (
@@ -39,6 +40,7 @@ const constructSolanaMetadata = (
       logo: tokenInfo?.logoURI || metaplex?.data.uri || undefined, //TODO is URI on metaplex actually the logo? If not, where is it?
       tokenName: tokenInfo?.name || metaplex?.data.name || undefined,
       decimals: tokenInfo?.decimals || undefined, //TODO decimals are actually on the mint, not the metaplex account.
+      raw: metaplex,
     };
     data.set(address, obj);
   });

@@ -3,9 +3,7 @@ import {
   CHAIN_ID_BSC,
   CHAIN_ID_ETH,
   CHAIN_ID_SOLANA,
-  CHAIN_ID_TERRA,
 } from "@certusone/wormhole-sdk";
-import { formatUnits } from "@ethersproject/units";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import {
   AccountInfo,
@@ -16,54 +14,49 @@ import {
 import axios from "axios";
 import { useEffect, useMemo, useState } from "react";
 import { DataWrapper } from "../store/helpers";
+import { NFTParsedTokenAccount } from "../store/nftSlice";
 import {
-  BSC_TOKEN_BRIDGE_ADDRESS,
-  CHAINS_BY_ID,
+  BSC_NFT_BRIDGE_ADDRESS,
   COVALENT_GET_TOKENS_URL,
-  ETH_TOKEN_BRIDGE_ADDRESS,
+  ETH_NFT_BRIDGE_ADDRESS,
+  getNFTBridgeAddressForChain,
   SOLANA_HOST,
-  SOL_CUSTODY_ADDRESS,
-  TERRA_SWAPRATE_URL,
-  TERRA_TOKEN_BRIDGE_ADDRESS,
+  SOL_NFT_CUSTODY_ADDRESS,
 } from "../utils/consts";
-import {
-  formatNativeDenom,
-  getNativeTerraIcon,
-  NATIVE_TERRA_DECIMALS,
-} from "../utils/terra";
+import { Metadata } from "../utils/metaplex";
 import useMetadata, { GenericMetadata } from "./useMetadata";
-import useTerraNativeBalances from "./useTerraNativeBalances";
 
-export type TVL = {
-  logo?: string;
-  symbol?: string;
-  name?: string;
-  amount: string;
-  totalValue?: number;
-  quotePrice?: number;
-  assetAddress: string;
-  originChainId: ChainId;
-  originChain: string;
-};
+export type NFTTVL = NFTParsedTokenAccount & { chainId: ChainId };
 
-const calcEvmTVL = (covalentReport: any, chainId: ChainId): TVL[] => {
-  const output: TVL[] = [];
+const calcEvmTVL = (covalentReport: any, chainId: ChainId): NFTTVL[] => {
+  const output: NFTTVL[] = [];
   if (!covalentReport?.data?.items?.length) {
     return [];
   }
 
   covalentReport.data.items.forEach((item: any) => {
-    if (item.balance > 0 && item.contract_address) {
-      output.push({
-        logo: item.logo_url || undefined,
-        symbol: item.contract_ticker_symbol || undefined,
-        name: item.contract_name || undefined,
-        amount: formatUnits(item.balance, item.contract_decimals),
-        totalValue: item.quote,
-        quotePrice: item.quote_rate,
-        assetAddress: item.contract_address,
-        originChainId: chainId,
-        originChain: CHAINS_BY_ID[chainId].name,
+    //TODO remove non nfts
+    if (item.balance > 0 && item.contract_address && item.nft_data) {
+      item.nft_data.forEach((nftData: any) => {
+        if (nftData.token_id) {
+          output.push({
+            amount: item.balance,
+            mintKey: item.contract_address,
+            tokenId: nftData.token_id,
+            publicKey: getNFTBridgeAddressForChain(chainId),
+            decimals: 0,
+            uiAmount: 0,
+            uiAmountString: item.balance.toString(),
+            chainId: chainId,
+            uri: nftData.token_url,
+            animation_url: nftData.external_data?.animation_url,
+            external_url: nftData.external_data?.external_url,
+            image: nftData.external_data?.image,
+            image_256: nftData.external_data?.image_256,
+            nftName: nftData.external_data?.name,
+            description: nftData.external_data?.description,
+          });
+        }
       });
     }
   });
@@ -76,7 +69,7 @@ const calcSolanaTVL = (
     | undefined,
   metaData: DataWrapper<Map<string, GenericMetadata>>
 ) => {
-  const output: TVL[] = [];
+  const output: NFTTVL[] = [];
   if (
     !accounts ||
     !accounts.length ||
@@ -91,91 +84,36 @@ const calcSolanaTVL = (
     const genericMetadata = metaData.data?.get(
       item.account.data.parsed?.info?.mint?.toString()
     );
-    output.push({
-      logo: genericMetadata?.logo || undefined,
-      symbol: genericMetadata?.symbol || undefined,
-      name: genericMetadata?.tokenName || undefined,
-      amount: item.account.data.parsed?.info?.tokenAmount?.uiAmount || "0", //Should always be defined.
-      totalValue: undefined,
-      quotePrice: undefined,
-      assetAddress: item.account.data.parsed?.info?.mint?.toString(),
-      originChainId: CHAIN_ID_SOLANA,
-      originChain: "Solana",
-    });
+    const raw: Metadata | undefined = genericMetadata?.raw;
+
+    if (
+      item.account.data.parsed?.info?.tokenAmount?.uiAmount > 0 &&
+      item.account.data.parsed?.info?.tokenAmount?.decimals === 0
+    ) {
+      output.push({
+        amount: item.account.data.parsed?.info?.tokenAmount?.amount,
+        mintKey: item.account.data.parsed?.info?.mint,
+        publicKey: getNFTBridgeAddressForChain(CHAIN_ID_SOLANA),
+        decimals: 0,
+        uiAmount: 0,
+        uiAmountString:
+          item.account.data.parsed?.info?.tokenAmount?.uiAmountString,
+        chainId: CHAIN_ID_SOLANA,
+        uri: raw?.data?.uri,
+        symbol: raw?.data?.symbol,
+        // external_url: nftData.external_data?.external_url,
+        // image: nftData.external_data?.image,
+        // image_256: nftData.external_data?.image_256,
+        // nftName: nftData.external_data?.name,
+        // description: nftData.external_data?.description,
+      });
+    }
   });
 
   return output;
 };
 
-const useTerraTVL = () => {
-  const { isLoading: isTerraNativeLoading, balances: terraNativeBalances } =
-    useTerraNativeBalances(TERRA_TOKEN_BRIDGE_ADDRESS);
-  const [terraSwaprates, setTerraSwaprates] = useState<any[]>([]);
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const result = await axios.get(TERRA_SWAPRATE_URL);
-        if (!cancelled && result && result.data) {
-          setTerraSwaprates(result.data);
-        }
-      } catch (e) {}
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-  const terraTVL = useMemo(() => {
-    const arr: TVL[] = [];
-    if (terraNativeBalances) {
-      const denoms = Object.keys(terraNativeBalances);
-      denoms.forEach((denom) => {
-        const amount = formatUnits(
-          terraNativeBalances[denom],
-          NATIVE_TERRA_DECIMALS
-        );
-        const symbol = formatNativeDenom(denom);
-        let matchingSwap = undefined;
-        let quotePrice = 0;
-        let totalValue = 0;
-        try {
-          matchingSwap = terraSwaprates.find((swap) => swap.denom === denom);
-          quotePrice =
-            denom === "uusd"
-              ? 1
-              : matchingSwap
-              ? 1 / Number(matchingSwap.swaprate)
-              : 0;
-          totalValue =
-            denom === "uusd"
-              ? Number(
-                  formatUnits(terraNativeBalances[denom], NATIVE_TERRA_DECIMALS)
-                )
-              : matchingSwap
-              ? Number(amount) / Number(matchingSwap.swaprate)
-              : 0;
-        } catch (e) {}
-        arr.push({
-          amount,
-          assetAddress: denom,
-          originChain: CHAINS_BY_ID[CHAIN_ID_TERRA].name,
-          originChainId: CHAIN_ID_TERRA,
-          quotePrice,
-          totalValue,
-          logo: getNativeTerraIcon(symbol),
-          symbol,
-        });
-      });
-    }
-    return arr;
-  }, [terraNativeBalances, terraSwaprates]);
-  return useMemo(
-    () => ({ terraTVL, isLoading: isTerraNativeLoading }),
-    [isTerraNativeLoading, terraTVL]
-  );
-};
-
-const useTVL = (): DataWrapper<TVL[]> => {
+const useNFTTVL = (): DataWrapper<NFTTVL[]> => {
   const [ethCovalentData, setEthCovalentData] = useState(undefined);
   const [ethCovalentIsLoading, setEthCovalentIsLoading] = useState(false);
   const [ethCovalentError, setEthCovalentError] = useState("");
@@ -203,8 +141,6 @@ const useTVL = (): DataWrapper<TVL[]> => {
 
   const solanaMetadata = useMetadata(CHAIN_ID_SOLANA, mintAddresses);
 
-  const { isLoading: isTerraLoading, terraTVL } = useTerraTVL();
-
   const solanaTVL = useMemo(
     () => calcSolanaTVL(solanaCustodyTokens, solanaMetadata),
     [solanaCustodyTokens, solanaMetadata]
@@ -223,7 +159,12 @@ const useTVL = (): DataWrapper<TVL[]> => {
     setEthCovalentIsLoading(true);
     axios
       .get(
-        COVALENT_GET_TOKENS_URL(CHAIN_ID_ETH, ETH_TOKEN_BRIDGE_ADDRESS, false)
+        COVALENT_GET_TOKENS_URL(
+          CHAIN_ID_ETH,
+          ETH_NFT_BRIDGE_ADDRESS,
+          true,
+          false
+        )
       )
       .then(
         (results) => {
@@ -246,7 +187,12 @@ const useTVL = (): DataWrapper<TVL[]> => {
     setBscCovalentIsLoading(true);
     axios
       .get(
-        COVALENT_GET_TOKENS_URL(CHAIN_ID_BSC, BSC_TOKEN_BRIDGE_ADDRESS, false)
+        COVALENT_GET_TOKENS_URL(
+          CHAIN_ID_BSC,
+          BSC_NFT_BRIDGE_ADDRESS,
+          true,
+          false
+        )
       )
       .then(
         (results) => {
@@ -269,7 +215,7 @@ const useTVL = (): DataWrapper<TVL[]> => {
     const connection = new Connection(SOLANA_HOST, "confirmed");
     setSolanaCustodyTokensLoading(true);
     connection
-      .getParsedTokenAccountsByOwner(new PublicKey(SOL_CUSTODY_ADDRESS), {
+      .getParsedTokenAccountsByOwner(new PublicKey(SOL_NFT_CUSTODY_ADDRESS), {
         programId: TOKEN_PROGRAM_ID,
       })
       .then(
@@ -291,14 +237,13 @@ const useTVL = (): DataWrapper<TVL[]> => {
   }, []);
 
   return useMemo(() => {
-    const tvlArray = [...ethTVL, ...bscTVL, ...solanaTVL, ...terraTVL];
+    const tvlArray = [...ethTVL, ...bscTVL, ...solanaTVL];
 
     return {
       isFetching:
         ethCovalentIsLoading ||
         bscCovalentIsLoading ||
-        solanaCustodyTokensLoading ||
-        isTerraLoading,
+        solanaCustodyTokensLoading,
       error: ethCovalentError || bscCovalentError || solanaCustodyTokensError,
       receivedAt: null,
       data: tvlArray,
@@ -313,9 +258,7 @@ const useTVL = (): DataWrapper<TVL[]> => {
     solanaTVL,
     solanaCustodyTokensError,
     solanaCustodyTokensLoading,
-    isTerraLoading,
-    terraTVL,
   ]);
 };
 
-export default useTVL;
+export default useNFTTVL;

@@ -225,6 +225,8 @@ export const SOL_TOKEN_BRIDGE_ADDRESS =
 
 export const SOL_CUSTODY_ADDRESS =
   "GugU1tP7doLeTw9hQP51xRJyS8Da1fWxuiy2rVrnMD2m";
+export const SOL_NFT_CUSTODY_ADDRESS =
+  "D63bhHo634eXSj4Jq3xgu2fjB5XKc8DFHzDY9iZk7fv1";
 export const TERRA_TEST_TOKEN_ADDRESS =
   "terra13nkgqrfymug724h8pprpexqj9h629sa3ncw7sh";
 export const TERRA_BRIDGE_ADDRESS =
@@ -278,7 +280,8 @@ export const COVALENT_BSC_MAINNET = "56";
 export const COVALENT_GET_TOKENS_URL = (
   chainId: ChainId,
   walletAddress: string,
-  nft?: boolean
+  nft?: boolean,
+  noNftMetadata?: boolean
 ) => {
   const chainNum =
     chainId === CHAIN_ID_ETH
@@ -289,7 +292,7 @@ export const COVALENT_GET_TOKENS_URL = (
   // https://www.covalenthq.com/docs/api/#get-/v1/{chain_id}/address/{address}/balances_v2/
   return `https://api.covalenthq.com/v1/${chainNum}/address/${walletAddress}/balances_v2/?key=${COVALENT_API_KEY}${
     nft ? "&nft=true" : ""
-  }`;
+  }${noNftMetadata ? "&no-nft-fetch=true" : ""}`;
 };
 export const TERRA_SWAPRATE_URL =
   "https://fcd.terra.dev/v1/market/swaprate/uusd";

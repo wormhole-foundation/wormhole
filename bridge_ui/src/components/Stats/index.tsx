@@ -14,6 +14,8 @@ import useTVL from "../../hooks/useTVL";
 import { COLORS } from "../../muiTheme";
 import SmartAddress from "../SmartAddress";
 import { balancePretty } from "../TokenSelectors/TokenPicker";
+import CustodyAddresses from "./CustodyAddresses";
+import NFTStats from "./NFTStats";
 import MuiReactTable from "./tableComponents/MuiReactTable";
 
 const useStyles = makeStyles((theme) => ({
@@ -36,11 +38,11 @@ const useStyles = makeStyles((theme) => ({
   },
   mainPaper: {
     backgroundColor: COLORS.nearBlackWithMinorTransparency,
-    textAlign: "center",
     padding: "2rem",
-    "& > h, p ": {
+    "& > h, & > p ": {
       margin: ".5rem",
     },
+    marginBottom: theme.spacing(2),
   },
   flexBox: {
     display: "flex",
@@ -68,11 +70,16 @@ const useStyles = makeStyles((theme) => ({
     marginLeft: theme.spacing(0.5),
     marginBottom: "-.125em", // line up number with label
   },
+  alignCenter: {
+    margin: "0 auto",
+    display: "block",
+  },
 }));
 
 const StatsRoot: React.FC<any> = () => {
   const classes = useStyles();
   const tvl = useTVL();
+
   const sortTokens = useMemo(() => {
     return (rowA: any, rowB: any) => {
       if (rowA.isGrouped && rowB.isGrouped) {
@@ -195,19 +202,16 @@ const StatsRoot: React.FC<any> = () => {
   return (
     <Container maxWidth="lg">
       <Paper className={classes.mainPaper}>
-        {tvl.isFetching ? (
-          <CircularProgress />
-        ) : (
-          <>
-            <div className={classes.flexBox}>
-              <div className={classes.explainerContainer}>
-                <Typography variant="h5">Total Value Locked</Typography>
-                <Typography variant="subtitle2" color="textSecondary">
-                  These assets are currently locked by the Token Bridge
-                  contracts.
-                </Typography>
-              </div>
-              <div className={classes.grower} />
+        <>
+          <div className={classes.flexBox}>
+            <div className={classes.explainerContainer}>
+              <Typography variant="h5">Total Value Locked</Typography>
+              <Typography variant="subtitle2" color="textSecondary">
+                These assets are currently locked by the Token Bridge contracts.
+              </Typography>
+            </div>
+            <div className={classes.grower} />
+            {!tvl.isFetching ? (
               <div
                 className={clsx(
                   classes.explainerContainer,
@@ -231,15 +235,25 @@ const StatsRoot: React.FC<any> = () => {
                   {tvlString}
                 </Typography>
               </div>
-            </div>
+            ) : null}
+          </div>
+          {!tvl.isFetching ? (
             <MuiReactTable
               columns={tvlColumns}
               data={tvl.data}
               skipPageReset={false}
               initialState={{ sortBy: [{ id: "totalValue", desc: true }] }}
             />
-          </>
-        )}
+          ) : (
+            <CircularProgress className={classes.alignCenter} />
+          )}
+        </>
+      </Paper>
+      <Paper className={classes.mainPaper}>
+        <NFTStats />
+      </Paper>
+      <Paper className={classes.mainPaper}>
+        <CustodyAddresses />
       </Paper>
     </Container>
   );
