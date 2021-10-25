@@ -20,7 +20,7 @@ contract("Pyth", function () {
     const testGovernanceChainId = "3";
     const testGovernanceContract = "0x0000000000000000000000000000000000000000000000000000000000000004";
     const testPyth2WormholeChainId = "5";
-    const testPyth2WormholeContract = "0x0000000000000000000000000000000000000000000000000000000000000006";
+    const testPyth2WormholeEmitter = "0x0000000000000000000000000000000000000000000000000000000000000006";
 
 
     it("should be initialized with the correct signers and values", async function(){
@@ -39,8 +39,8 @@ contract("Pyth", function () {
         // pyth2wormhole
         const pyth2wormChain = await initialized.methods.pyth2WormholeChainId().call();
         assert.equal(pyth2wormChain, testPyth2WormholeChainId);
-        const pyth2wormContract = await initialized.methods.pyth2WormholeContract().call();
-        assert.equal(pyth2wormContract, testPyth2WormholeContract);
+        const pyth2wormEmitter = await initialized.methods.pyth2WormholeEmitter().call();
+        assert.equal(pyth2wormEmitter, testPyth2WormholeEmitter);
     })
 
     it("should accept a valid upgrade", async function() {
@@ -132,7 +132,7 @@ contract("Pyth", function () {
             1,
             1,
             testPyth2WormholeChainId,
-            testPyth2WormholeContract,
+            testPyth2WormholeEmitter,
             0,
             testUpdate,
             [
