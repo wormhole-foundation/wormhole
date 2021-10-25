@@ -8,8 +8,8 @@
         "lib/**/*"
     ],
     "scripts": {
-        "build": "npm run build-eth-contracts && npm run build-lib",
-        "build-eth-contracts": "npm run build --prefix ../../../ethereum && node scripts/copyEthContracts.cjs && typechain --target=ethers-v5 --out-dir=src/ethers-contracts contracts/*.json",
+        "build": "npm run build-eth-types && npm run build-lib",
+        "build-eth-types": "node scripts/copyEthContracts.cjs && typechain --target=ethers-v5 --out-dir=src/ethers-contracts contracts/*.json",
         "build-lib": "npm run copy-artifacts && tsc",
         "build-watch": "npm run copy-artifacts && tsc --watch",
         "copy-artifacts": "node scripts/copyWasm.cjs && node scripts/copyEthersTypes.cjs",
