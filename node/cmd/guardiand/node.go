@@ -386,8 +386,8 @@ func runNode(cmd *cobra.Command, args []string) {
 	//
 	// Insert "I'm a sign, not a cop" meme.
 	//
-	if strings.HasSuffix(*ethRPC, "mainnet.infura.io") ||
-		strings.HasSuffix(*polygonRPC, "polygon-mainnet.infura.io") {
+	if strings.Contains(*ethRPC, "mainnet.infura.io") ||
+		strings.Contains(*polygonRPC, "polygon-mainnet.infura.io") {
 		logger.Fatal("Infura is known to send incorrect blocks - please use your own nodes")
 	}
 
