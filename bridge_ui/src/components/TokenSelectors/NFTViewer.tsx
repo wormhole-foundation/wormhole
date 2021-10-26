@@ -15,12 +15,14 @@ import {
   ChainId,
   CHAIN_ID_BSC,
   CHAIN_ID_ETH,
+  CHAIN_ID_POLYGON,
   CHAIN_ID_SOLANA,
 } from "@certusone/wormhole-sdk";
 import SmartAddress from "../SmartAddress";
 import bscIcon from "../../icons/bsc.svg";
 import ethIcon from "../../icons/eth.svg";
 import solanaIcon from "../../icons/solana.svg";
+import polygonIcon from "../../icons/polygon.svg";
 import useCopyToClipboard from "../../hooks/useCopyToClipboard";
 import { Skeleton } from "@material-ui/lab";
 import Wormhole from "../../icons/wormhole-network.svg";
@@ -69,6 +71,18 @@ const LogoIcon = ({ chainId }: { chainId: ChainId }) =>
       src={bscIcon}
       alt="Binance Smart Chain"
     />
+  ) : chainId === CHAIN_ID_POLYGON ? (
+    <Avatar
+      style={{
+        backgroundColor: "black",
+        height: "1em",
+        width: "1em",
+        marginLeft: "4px",
+        padding: "3px",
+      }}
+      src={polygonIcon}
+      alt="Polygon"
+    />
   ) : null;
 
 const useStyles = makeStyles((theme) => ({
@@ -90,7 +104,7 @@ const useStyles = makeStyles((theme) => ({
     background:
       "linear-gradient(to right, #ffb347 0%, #ffcc33  51%, #ffb347  100%)",
   },
-  solanaBorder: {
+  silverBorder: {
     backgroundColor: "#D9D8D6",
     backgroundSize: "200% auto",
     background:
@@ -135,12 +149,12 @@ const useStyles = makeStyles((theme) => ({
       border: "1px solid #ffb347",
     },
   },
-  solanaMediaBorder: {
+  silverMediaBorder: {
     "& > img, & > video": {
       borderColor: "#D7DDE8",
     },
   },
-  // thanks https://cssgradient.io/
+  // thanks https://cssgradient.io/ and https://htmlcolorcodes.com/color-picker/
   eth: {
     // colors from https://en.wikipedia.org/wiki/Ethereum#/media/File:Ethereum-icon-purple.svg
     backgroundColor: "rgb(69,74,117)",
@@ -152,6 +166,12 @@ const useStyles = makeStyles((theme) => ({
     backgroundColor: "#F0B90B",
     background:
       "linear-gradient(160deg, rgb(20, 21, 26) 0%, #4A4D57 33%, rgb(20, 21, 26) 66%, #2C2F3B 100%)",
+  },
+  polygon: {
+    // color from polygon logo #8247E5 down to 30 lightness
+    backgroundColor: "#0F0323",
+    background:
+      "linear-gradient(160deg, #0F0323 0%, #250957 33%, #0F0323 66%, #0F0323 100%)",
   },
   solana: {
     // colors from https://solana.com/branding/new/exchange/exchange-sq-black.svg
@@ -354,7 +374,8 @@ export default function NFTViewer({
       </div>
       <Card
         className={clsx(classes.card, {
-          [classes.solanaBorder]: chainId === CHAIN_ID_SOLANA,
+          [classes.silverBorder]:
+            chainId === CHAIN_ID_SOLANA || chainId === CHAIN_ID_POLYGON,
           [classes.hidden]: isLoading,
         })}
         elevation={10}
@@ -364,6 +385,7 @@ export default function NFTViewer({
             [classes.eth]: chainId === CHAIN_ID_ETH,
             [classes.bsc]: chainId === CHAIN_ID_BSC,
             [classes.solana]: chainId === CHAIN_ID_SOLANA,
+            [classes.polygon]: chainId === CHAIN_ID_POLYGON,
           })}
         >
           <CardContent className={classes.textContent}>
@@ -384,7 +406,8 @@ export default function NFTViewer({
           </CardContent>
           <CardMedia
             className={clsx(classes.mediaContent, {
-              [classes.solanaMediaBorder]: chainId === CHAIN_ID_SOLANA,
+              [classes.silverMediaBorder]:
+                chainId === CHAIN_ID_SOLANA || chainId === CHAIN_ID_POLYGON,
             })}
           >
             {media}

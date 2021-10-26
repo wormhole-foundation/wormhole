@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.0.8
+
+### Added
+
+Polygon ChainId
+
 ## 0.0.7
 
 ### Changed

@@ -1,6 +1,6 @@
 {
   "name": "@certusone/wormhole-sdk",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "description": "SDK for interacting with Wormhole",
   "homepage": "https://wormholenetwork.com",
   "main": "lib/index.js",

@@ -1,6 +1,7 @@
 import {
   CHAIN_ID_BSC,
   CHAIN_ID_ETH,
+  CHAIN_ID_POLYGON,
   CHAIN_ID_SOLANA,
   hexToNativeString,
   uint8ArrayToHex,
@@ -315,6 +316,17 @@ export default function NFTOriginVerifier() {
                     variant="outlined"
                   >
                     View on BscScan
+                  </Button>
+                ) : originInfo.chainId === CHAIN_ID_POLYGON ? (
+                  <Button
+                    href={`https://opensea.io/assets/matic/${readableAddress}/${originInfo.tokenId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    endIcon={<Launch />}
+                    className={classes.viewButton}
+                    variant="outlined"
+                  >
+                    View on OpenSea
                   </Button>
                 ) : (
                   <Button

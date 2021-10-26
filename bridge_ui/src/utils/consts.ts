@@ -2,6 +2,7 @@ import {
   ChainId,
   CHAIN_ID_BSC,
   CHAIN_ID_ETH,
+  CHAIN_ID_POLYGON,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
 } from "@certusone/wormhole-sdk";
@@ -9,6 +10,7 @@ import { clusterApiUrl } from "@solana/web3.js";
 import { getAddress } from "ethers/lib/utils";
 import bscIcon from "../icons/bsc.svg";
 import ethIcon from "../icons/eth.svg";
+// import polygonIcon from "../icons/polygon.svg";
 import solanaIcon from "../icons/solana.svg";
 import terraIcon from "../icons/terra.svg";
 
@@ -37,6 +39,11 @@ export const CHAINS =
           name: "Ethereum",
           logo: ethIcon,
         },
+        // {
+        //   id: CHAIN_ID_POLYGON,
+        //   name: "Polygon",
+        //   logo: polygonIcon,
+        // },
         {
           id: CHAIN_ID_SOLANA,
           name: "Solana",
@@ -86,7 +93,10 @@ export const CHAINS =
 export const BETA_CHAINS: ChainId[] = CLUSTER === "mainnet" ? [] : [];
 export const CHAINS_WITH_NFT_SUPPORT = CHAINS.filter(
   ({ id }) =>
-    id === CHAIN_ID_ETH || id === CHAIN_ID_BSC || id === CHAIN_ID_SOLANA
+    id === CHAIN_ID_BSC ||
+    id === CHAIN_ID_ETH ||
+    id === CHAIN_ID_POLYGON ||
+    id === CHAIN_ID_SOLANA
 );
 export type ChainsById = { [key in ChainId]: ChainInfo };
 export const CHAINS_BY_ID: ChainsById = CHAINS.reduce((obj, chain) => {
@@ -102,6 +112,8 @@ export const getDefaultNativeCurrencySymbol = (chainId: ChainId) =>
     ? "BNB"
     : chainId === CHAIN_ID_TERRA
     ? "LUNA"
+    : chainId === CHAIN_ID_POLYGON
+    ? "MATIC"
     : "";
 export const getExplorerName = (chainId: ChainId) =>
   chainId === CHAIN_ID_ETH
@@ -110,6 +122,8 @@ export const getExplorerName = (chainId: ChainId) =>
     ? "BscScan"
     : chainId === CHAIN_ID_TERRA
     ? "Finder"
+    : chainId === CHAIN_ID_POLYGON
+    ? "Polygonscan"
     : "Explorer";
 export const WORMHOLE_RPC_HOSTS =
   CLUSTER === "mainnet"
@@ -130,11 +144,15 @@ export const ETH_NETWORK_CHAIN_ID =
   CLUSTER === "mainnet" ? 1 : CLUSTER === "testnet" ? 5 : 1337;
 export const BSC_NETWORK_CHAIN_ID =
   CLUSTER === "mainnet" ? 56 : CLUSTER === "testnet" ? 97 : 1397;
+export const POLYGON_NETWORK_CHAIN_ID =
+  CLUSTER === "mainnet" ? 137 : CLUSTER === "testnet" ? 80001 : 1381;
 export const getEvmChainId = (chainId: ChainId) =>
   chainId === CHAIN_ID_ETH
     ? ETH_NETWORK_CHAIN_ID
     : chainId === CHAIN_ID_BSC
     ? BSC_NETWORK_CHAIN_ID
+    : chainId === CHAIN_ID_POLYGON
+    ? POLYGON_NETWORK_CHAIN_ID
     : undefined;
 export const SOLANA_HOST = process.env.REACT_APP_SOLANA_API_URL
   ? process.env.REACT_APP_SOLANA_API_URL
@@ -204,6 +222,27 @@ export const BSC_TOKEN_BRIDGE_ADDRESS = getAddress(
     ? "0x0290FB167208Af455bB137780163b7B7a9a10C16" // TODO: test address
     : "0x0290FB167208Af455bB137780163b7B7a9a10C16"
 );
+export const POLYGON_BRIDGE_ADDRESS = getAddress(
+  CLUSTER === "mainnet"
+    ? "0x7A4B5a56256163F07b2C80A7cA55aBE66c4ec4d7"
+    : CLUSTER === "testnet"
+    ? "0xC89Ce4735882C9F0f0FE26686c53074E09B0D550" // TODO: test address
+    : "0xC89Ce4735882C9F0f0FE26686c53074E09B0D550"
+);
+export const POLYGON_NFT_BRIDGE_ADDRESS = getAddress(
+  CLUSTER === "mainnet"
+    ? "0x90BBd86a6Fe93D3bc3ed6335935447E75fAb7fCf"
+    : CLUSTER === "testnet"
+    ? "0x26b4afb60d6c903165150c6f0aa14f8016be4aec" // TODO: test address
+    : "0x26b4afb60d6c903165150c6f0aa14f8016be4aec"
+);
+export const POLYGON_TOKEN_BRIDGE_ADDRESS = getAddress(
+  CLUSTER === "mainnet"
+    ? "0x5a58505a96D1dbf8dF91cB21B54419FC36e93fdE"
+    : CLUSTER === "testnet"
+    ? "0x0290FB167208Af455bB137780163b7B7a9a10C16" // TODO: test address
+    : "0x0290FB167208Af455bB137780163b7B7a9a10C16"
+);
 export const SOL_BRIDGE_ADDRESS =
   CLUSTER === "mainnet"
     ? "worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth"
@@ -251,6 +290,8 @@ export const getBridgeAddressForChain = (chainId: ChainId) =>
     ? BSC_BRIDGE_ADDRESS
     : chainId === CHAIN_ID_TERRA
     ? TERRA_BRIDGE_ADDRESS
+    : chainId === CHAIN_ID_POLYGON
+    ? POLYGON_BRIDGE_ADDRESS
     : "";
 export const getNFTBridgeAddressForChain = (chainId: ChainId) =>
   chainId === CHAIN_ID_SOLANA
@@ -259,6 +300,8 @@ export const getNFTBridgeAddressForChain = (chainId: ChainId) =>
     ? ETH_NFT_BRIDGE_ADDRESS
     : chainId === CHAIN_ID_BSC
     ? BSC_NFT_BRIDGE_ADDRESS
+    : chainId === CHAIN_ID_POLYGON
+    ? POLYGON_NFT_BRIDGE_ADDRESS
     : "";
 export const getTokenBridgeAddressForChain = (chainId: ChainId) =>
   chainId === CHAIN_ID_SOLANA
@@ -269,6 +312,8 @@ export const getTokenBridgeAddressForChain = (chainId: ChainId) =>
     ? BSC_TOKEN_BRIDGE_ADDRESS
     : chainId === CHAIN_ID_TERRA
     ? TERRA_TOKEN_BRIDGE_ADDRESS
+    : chainId === CHAIN_ID_POLYGON
+    ? POLYGON_TOKEN_BRIDGE_ADDRESS
     : "";
 
 export const COVALENT_API_KEY = process.env.REACT_APP_COVALENT_API_KEY
@@ -277,6 +322,7 @@ export const COVALENT_API_KEY = process.env.REACT_APP_COVALENT_API_KEY
 
 export const COVALENT_ETHEREUM_MAINNET = "1";
 export const COVALENT_BSC_MAINNET = "56";
+export const COVALENT_POLYGON_MAINNET = "137";
 export const COVALENT_GET_TOKENS_URL = (
   chainId: ChainId,
   walletAddress: string,
@@ -288,6 +334,8 @@ export const COVALENT_GET_TOKENS_URL = (
       ? COVALENT_ETHEREUM_MAINNET
       : chainId === CHAIN_ID_BSC
       ? COVALENT_BSC_MAINNET
+      : chainId === CHAIN_ID_POLYGON
+      ? COVALENT_POLYGON_MAINNET
       : "";
   // https://www.covalenthq.com/docs/api/#get-/v1/{chain_id}/address/{address}/balances_v2/
   return `https://api.covalenthq.com/v1/${chainNum}/address/${walletAddress}/balances_v2/?key=${COVALENT_API_KEY}${
@@ -312,6 +360,14 @@ export const WBNB_ADDRESS =
     ? ""
     : "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E";
 export const WBNB_DECIMALS = 18;
+
+export const WMATIC_ADDRESS =
+  CLUSTER === "mainnet"
+    ? "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270"
+    : CLUSTER === "testnet"
+    ? ""
+    : "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E";
+export const WMATIC_DECIMALS = 18;
 
 export const WORMHOLE_V1_ETH_ADDRESS =
   CLUSTER === "mainnet"
