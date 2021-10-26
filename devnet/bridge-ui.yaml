@@ -2,45 +2,48 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: web
+  name: bridge-ui
   labels:
-    app: web
+    app: bridge-ui
 spec:
   ports:
-    - port: 3000
-      name: rpc
+    - port: 8001
+      name: http
       protocol: TCP
   clusterIP: None
   selector:
-    app: web
+    app: bridge-ui
 ---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: web
+  name: bridge-ui
 spec:
   selector:
     matchLabels:
-      app: web
-  serviceName: web
+      app: bridge-ui
+  serviceName: bridge-ui
   replicas: 1
   template:
     metadata:
       labels:
-        app: web
+        app: bridge-ui
     spec:
       terminationGracePeriodSeconds: 1
       containers:
-        - name: web
-          image: web
+        - name: bridge-ui
+          image: bridge-ui
           command:
-            - /usr/local/bin/npm
-            - start
+            - /app/bridge_ui/node_modules/.bin/serve
+            - -s
+            - build
+            - -n
           tty: true
           ports:
-            - containerPort: 3000
-              name: react-devserver
+            - containerPort: 5000
+              name: npxserver
               protocol: TCP
           readinessProbe:
             httpGet:
-              port: react-devserver
+              port: npxserver
+              path: /

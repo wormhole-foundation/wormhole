@@ -53,3 +53,11 @@ REACT_APP_CLUSTER=mainnet REACT_APP_COVALENT_API_KEY=YOUR_API_KEY REACT_APP_SOLA
 ```bash
 npx serve -s build
 ```
+
+## Environment Variables (optional)
+
+Create `.env` from the sample file, then add your Covalent API key:
+
+```bash
+cp .env.sample .env
+```

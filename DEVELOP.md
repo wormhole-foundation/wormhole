@@ -90,3 +90,10 @@ Guardian events can be persisted to a cloud BigTable instance by passing a GCP p
 Launch the devnet with flags supplying your database info to forward events to your cloud BigTable, rather than the local devnet BigTable emulator:
 
     tilt up -- --num=1  --gcpProject=your-project-id --bigTableKeyPath=./your-service-account-key.json
+
+## bridge UI
+
+Run the bridge UI in devnet by supplying the `--bridge_ui` flag:
+
+    tilt up -- --bridge_ui
+

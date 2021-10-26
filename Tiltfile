@@ -32,6 +32,7 @@ config.define_string("bigTableKeyPath", False, "Path to BigTable json key file")
 # Components
 config.define_bool("pyth", False, "Enable Pyth-to-Wormhole component")
 config.define_bool("explorer", False, "Enable explorer component")
+config.define_bool("bridge_ui", False, "Enable bridge UI component")
 
 cfg = config.parse()
 num_guardians = int(cfg.get("num", "1"))
@@ -41,6 +42,7 @@ bigTableKeyPath = cfg.get("bigTableKeyPath", "./event_database/devnet_key.json")
 ci = cfg.get("ci", False)
 pyth = cfg.get("pyth", ci)
 explorer = cfg.get("explorer", ci)
+bridge_ui = cfg.get("bridge_ui", ci)
 
 # namespace
 
@@ -229,6 +231,28 @@ k8s_resource("eth-devnet", port_forwards = [
 k8s_resource("eth-devnet2", port_forwards = [
     port_forward(8546, name = "Ganache RPC [:8546]"),
 ])
+
+if bridge_ui:
+
+    docker_build(
+        ref = "bridge-ui",
+        context = ".",
+        only = ["./ethereum", "./sdk", "./bridge_ui"],
+        dockerfile = "bridge_ui/Dockerfile",
+        live_update = [
+            sync("./bridge_ui/src", "/app/bridge_ui/src"),
+        ],
+    )
+
+    k8s_yaml_with_ns("devnet/bridge-ui.yaml")
+
+    k8s_resource(
+        "bridge-ui",
+        resource_deps = ["proto-gen-web", "wasm-gen"],
+        port_forwards = [
+            port_forward(5000, name = "Bridge UI [:5000]"),
+        ],
+    )
 
 # bigtable
 
