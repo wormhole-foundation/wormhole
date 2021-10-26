@@ -65,6 +65,7 @@ const useStyles = makeStyles((theme) => ({
     "& > *": {
       margin: theme.spacing(1),
     },
+    flexWrap: "wrap",
   },
   randomButton: {
     margin: "0px auto 8px",
@@ -72,10 +73,16 @@ const useStyles = makeStyles((theme) => ({
   },
   randomNftContainer: {
     minHeight: "550px",
+    maxWidth: "100%",
   },
   alignCenter: {
     margin: "0 auto",
     display: "block",
+  },
+  tableContainer: {
+    flexGrow: 1,
+    width: "fit-content",
+    maxWidth: "100%",
   },
 }));
 
@@ -241,7 +248,7 @@ const NFTStats: React.FC<any> = () => {
         <CircularProgress className={classes.alignCenter} />
       ) : (
         <div className={classes.tableBox}>
-          {table}
+          <div className={classes.tableContainer}>{table}</div>
           {randomNFTContent}
         </div>
       )}

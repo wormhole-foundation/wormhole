@@ -186,6 +186,7 @@ const useStyles = makeStyles((theme) => ({
     position: "relative",
     height: "500px",
     width: "400px",
+    maxWidth: "100%",
     margin: `${theme.spacing(1)}px auto`,
   },
 }));
