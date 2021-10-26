@@ -249,19 +249,27 @@ export default function NFTViewer({
         try {
           const result = await axios.get(uri);
           if (!cancelled && result && result.data) {
+            // support returns with nested data (e.g. {status: 10000, result: {data: {...}}})
+            const data = result.data.result?.data || result.data;
             setMetadata({
               uri,
-              image: result.data.image,
-              animation_url: result.data.animation_url,
-              nftName: result.data.name,
-              description: result.data.description,
+              image:
+                data.image ||
+                data.image_url ||
+                data.big_image ||
+                data.small_image,
+              animation_url: data.animation_url,
+              nftName: data.name,
+              description: data.description,
               isLoading: false,
             });
           } else if (!cancelled) {
             setMetadata((m) => ({ ...m, isLoading: false }));
           }
         } catch (e) {
-          setMetadata((m) => ({ ...m, isLoading: false }));
+          if (!cancelled) {
+            setMetadata((m) => ({ ...m, isLoading: false }));
+          }
         }
       })();
       return () => {
