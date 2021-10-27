@@ -5,18 +5,19 @@ import {
   TextFieldProps,
 } from "@material-ui/core";
 
-export default function NumberTextField(
-  props: TextFieldProps & { onMaxClick?: () => void }
-) {
+export default function NumberTextField({
+  onMaxClick,
+  ...props
+}: TextFieldProps & { onMaxClick?: () => void }) {
   return (
     <TextField
       type="number"
       {...props}
       InputProps={{
-        endAdornment: props.onMaxClick ? (
+        endAdornment: onMaxClick ? (
           <InputAdornment position="end">
             <Button
-              onClick={props.onMaxClick}
+              onClick={onMaxClick}
               disabled={props.disabled}
               variant="outlined"
             >

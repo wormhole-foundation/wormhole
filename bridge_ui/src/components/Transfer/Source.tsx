@@ -150,7 +150,11 @@ function Source() {
               value={amount}
               onChange={handleAmountChange}
               disabled={shouldLockFields}
-              onMaxClick={uiAmountString ? handleMaxClick : undefined}
+              onMaxClick={
+                uiAmountString && !parsedTokenAccount.isNativeAsset
+                  ? handleMaxClick
+                  : undefined
+              }
             />
           ) : null}
           <ButtonWithLoader

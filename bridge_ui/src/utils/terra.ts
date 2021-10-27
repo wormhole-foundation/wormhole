@@ -40,6 +40,12 @@ export async function waitForTerraExecution(transaction: TxResult) {
       console.error(e);
     }
   }
+  if (info.code !== undefined) {
+    // error code
+    throw new Error(
+      `Tx ${transaction.result.txhash}: error code ${info.code}: ${info.raw_log}`
+    );
+  }
   return info;
 }
 
@@ -62,30 +68,31 @@ export async function postWithFees(
   msgs: any[],
   memo: string
 ) {
-  try {
-    const lcd = new LCDClient(TERRA_HOST);
-    //let gasPrices = await lcd.config.gasPrices //Unsure if the values returned from this are hardcoded or not.
-    //Thus, we are going to pull it directly from the current FCD.
-    let gasPrices = await axios
-      .get(TERRA_GAS_PRICES_URL)
-      .then((result) => result.data);
+  // don't try/catch, let errors propagate
+  const lcd = new LCDClient(TERRA_HOST);
+  //let gasPrices = await lcd.config.gasPrices //Unsure if the values returned from this are hardcoded or not.
+  //Thus, we are going to pull it directly from the current FCD.
+  let gasPrices = await axios
+    .get(TERRA_GAS_PRICES_URL)
+    .then((result) => result.data);
 
-    const feeEstimate = await lcd.tx.estimateFee(
-      wallet.walletAddress,
-      [...msgs],
-      { memo, feeDenoms: ["uluna"], gasPrices }
-    );
-
-    const result = await wallet.post({
-      msgs: [...msgs],
+  const feeEstimate = await lcd.tx.estimateFee(
+    wallet.walletAddress,
+    [...msgs],
+    {
       memo,
       feeDenoms: ["uluna"],
       gasPrices,
-      fee: feeEstimate,
-    });
+    }
+  );
 
-    return result;
-  } catch (e) {
-    return Promise.reject();
-  }
+  const result = await wallet.post({
+    msgs: [...msgs],
+    memo,
+    feeDenoms: ["uluna"],
+    gasPrices,
+    fee: feeEstimate,
+  });
+
+  return result;
 }
