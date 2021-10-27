@@ -13,8 +13,14 @@ verify-vaa.teal stateless programs.
 
 The following application calls are available.
 
-prepare:   Load globals in scatchspace to be used by stateless programs. Must be TX#0.
-verify:  Verify guardian signature subset i..j, works in tandem with stateless program
+setvphash: Set verify program hash.
+
+Must be part of group:
+
+verify:  Verify guardian signature subset i..j, works in tandem with stateless program.
+         Arguments:  #0 guardian public keys subset i..j  (must match stored in global state)
+                     #1 guardian signatures subset i..j
+                     #2 payload to verify
 commit:  Commit verified VAA, processing it according to its payload. Must be last TX.
 
 ------------------------------------------------------------------------------------------------
@@ -31,12 +37,12 @@ Stores in scratch:
 
 SLOT 254:  uint64 with bit field of approved guardians (initial 0)
 SLOT 255:  number of guardians in set 
-SLOT 4*i:  key of guardian i  (as of Nov'21 there are 19 guardians)
 ================================================================================================
 
 """
 from pyteal import (compileTeal, Int, Mode, Txn, OnComplete, Itob, Btoi,
-                    Return, Cond, Bytes, Global, Not, Seq, Approve, App, Assert, For, And)
+                    Return, Cond, Bytes, Global, Not, Seq, Approve, App, Assert, For, And,
+                    Extract)
 import pyteal
 from pyteal.ast.binaryexpr import ShiftRight
 from pyteal.ast.if_ import If
@@ -45,18 +51,24 @@ from pyteal.ast.scratch import ScratchLoad, ScratchSlot
 from pyteal.ast.scratchvar import ScratchVar
 from pyteal.ast.subroutine import Subroutine
 from pyteal.ast.txn import TxnType
+from pyteal.ast.unaryexpr import Len
 from pyteal.ast.while_ import While
 from pyteal.types import TealType
 
+from globals import SIGNATURES_PER_VERIFICATION_STEP
+
 METHOD = Txn.application_args[0]
-SLOTID_SCRATCH_0 = 251
+VERIFY_ARG_GUARDIAN_KEY_SUBSET = Txn.application_args[1]
+VERIFY_ARG_GUARDIAN_SET_SIZE = Txn.application_args[2]
+VERIFY_ARG_PAYLOAD = Txn.note
+SLOTID_TEMP_0 = 251
 SLOTID_VERIFIED_GUARDIAN_BITS = 254
 SLOTID_GUARDIAN_COUNT = 255
-
-# Bootstrap with the initial list of guardians as application argument
+STATELESS_LOGIC_HASH = App.globalGet(Bytes("vphash"))
 
 
 @Subroutine(TealType.uint64)
+# Bootstrap with the initial list of guardians as application argument
 def bootstrap():
     return Seq([
         App.globalPut(Bytes("vphash"), Txn.application_args[0]),
@@ -65,74 +77,113 @@ def bootstrap():
 
 
 @Subroutine(TealType.uint64)
+def verify_from():
+    return Txn.group_index() * Int(SIGNATURES_PER_VERIFICATION_STEP)
+
+
+@Subroutine(TealType.uint64)
+def verify_to():
+    return min(VERIFY_ARG_GUARDIAN_SET_SIZE, verify_from +
+               (Int(SIGNATURES_PER_VERIFICATION_STEP) - Int(1)))
+
+
+@Subroutine(TealType.uint64)
 def is_creator():
     return Txn.sender() == Global.creator_address()
 
 
 @Subroutine(TealType.uint64)
+def min(a, b):
+    If(Int(a) < Int(b), Return(a), Return(b))
+
+
+@Subroutine(TealType.uint64)
 def is_proper_group_size():
-    return Global.group_size() >= Int(3)
+    # Let G be the guardian count, N number of signatures per verification step, group must have CEIL(G/N) + 1  transactions (last one is commit).
+    gssize = App.globalGet(Bytes("gssize"))
+    q = gssize / Int(SIGNATURES_PER_VERIFICATION_STEP)
+    r = gssize % Int(SIGNATURES_PER_VERIFICATION_STEP)
+    return Seq([
+        If(r != Int(0)).Then(
+            Return(Global.group_size() == q + Int(2))
+        ).Else(Return(Global.group_size() == q + Int(1)))
+    ])
 
 
-# @Subroutine(TealType.none)
-# # set bitfield bits [from,to]
-# def set_bits(i_from, i_to):
-#     count = Int(1) #ScratchVar(TealType.uint64, SLOTID_SCRATCH_0)
-#     #count.store(Int(i_to) - Int(i_from) + Int(1))
-#     # set Verified_bits |= ((2^count) - 1) << i_from
+@Subroutine(TealType.uint64)
+def check_guardian_key_subset():
+    # Verify that the passed argument for guardian keys [i..j] match the
+    # global state for the same keys.
+    #
+    i = ScratchVar(TealType.uint64, SLOTID_TEMP_0)
+    return Seq([For(i.store(Int(0)), i.load() < Int(SIGNATURES_PER_VERIFICATION_STEP), i.store(i.load() + Int(1))).Do(
+        If(App.globalGet(Itob(i.load())) != Extract(VERIFY_ARG_GUARDIAN_KEY_SUBSET,
+           i.load() * Int(64), Int(64))).Then(Return(Int(0)))  # get and compare stored global key
+    ),
+        Return(Int(1))
+    ])
 
-#     bitfield = ScratchVar(TealType.uint64, SLOTID_VERIFIED_GUARDIAN_BITS)
-#     return Seq([
-#         bitfield.store(bitfield.load() | (
-#             ((Int(2) ** count) - Int(1) << Int(2))
-#         ))
-#     ])
+
+@Subroutine(TealType.uint64)
+def check_guardian_set_size():
+    #
+    # Verify that the passed argument for guardian set size matches the global state.
+    #
+    return App.globalGet(Bytes("gssize")) == Btoi(VERIFY_ARG_GUARDIAN_SET_SIZE)
 
 
-def prepare():
-    # Sender must be owner
-    # This call must be index 0 in a group of minimum 3 (prepare->verify->commit)
+@Subroutine(TealType.uint64)
+def check_txn_note_payload():
+    #
+    # Verify the digest-source section argument of a signed VAA,
+    # consisting of:
+    #
+    # bytes
+    #  4            timestamp
+    #  4            Nonce
+    #  2            emitterChainId
+    #  32           emitterAddress
+    #  8            sequence
+    #  1            consistencyLevel
+    #  N            payload
+    #
 
-    ScratchVar(TealType.uint64, SLOTID_VERIFIED_GUARDIAN_BITS).store(Int(0))
-    i = ScratchVar(TealType.uint64, SLOTID_SCRATCH_0)
-    gs_count = ScratchVar(TealType.uint64, SLOTID_GUARDIAN_COUNT)
-    num_guardians = App.globalGet(Bytes("gscount"))
+    # Should we validate the fields?
+    return Seq([
+        Assert(Extract(VERIFY_ARG_PAYLOAD, Int(0), Int(4))
+    ])
+    return VERIFY_ARG_PAYLOAD
+
+
+def setvphash():
+    #
+    # Sets the hash of the verification stateless program.
+    #
 
     return Seq([
-        Assert(And(is_creator(),
-               is_proper_group_size(), Txn.group_index() == Int(0))),
-
-        If(num_guardians == Int(0), Reject(), Seq([
-            gs_count.store(num_guardians),
-            For(i.store(Int(0)), i.load() < num_guardians, i.store(i.load() + Int(1))).Do(
-                Seq([
-                    ScratchVar(TealType.uint64, 1).store(
-                        App.globalGet(Itob(i.load())))
-                    # (ScratchVar(TealType.uint64, i.load())).store(App.globalGet(Itob(i.load()))
-                ]))
-        ])),
+        Assert(And(is_creator(), Len(Txn.application_args[1]) == Int(32))),
+        App.globalPut(Bytes("vphash"), Txn.application_args[1]),
         Approve()
     ])
 
 
 def verify():
-    # Sender must be stateless logic.
-    # This call must be not the first or last in a group of minimum 3 (prepare->verify->commit)
-
-    # First guardian index to verify
-    verify_from = Txn.application_args[0]
-    # Last  guardian index to verify
-    verify_to = Txn.application_args[1]
-    bitfield = ScratchVar(TealType.uint64, SLOTID_VERIFIED_GUARDIAN_BITS)
-    p_val = bitfield.load()
-    count = Btoi(verify_to) - Btoi(verify_from) + Int(1)
+    # * Sender must be stateless logic.
+    # * Let N be the number of signatures per verification step, for the TXi in group, we verify signatures [i..j] where i = i*N, j = i*N+(N-1)
+    # * Argument 1 must contain guardian public keys for guardians [i..j] (read by stateless logic)
+    # * Argument 2 must contain current guardian set size (read by stateless logic)
+    # * Passed guardian public keys [i..j] must match the current global state.
+    # * Note must contain VAA message-in-digest (header+payload) (up to 1KB)  (read by stateless logic)
+    # * This call must be not the last in a group of minimum 2 (prepare, commit)
+    #
+    # Call will set validated bits to i..j in bitfield.
 
     return Seq([Assert(And(is_proper_group_size(),
-                       Txn.group_index() < Global.group_size(),
-                       Txn.group_index() > Int(0),
-                       Btoi(verify_to) > Btoi(verify_from),
-                       Txn.sender() == App.globalGet(Bytes("vphash")))),
-                #bitfield.store(bitfield.load() + Int(1)),
+                       Txn.group_index() < (Global.group_size() - Int(1)),
+                       Txn.sender() == STATELESS_LOGIC_HASH,
+                       check_guardian_set_size(),
+                       check_guardian_key_subset(),
+                       check_txn_note_payload())),
                 Approve()])
 
 
@@ -140,13 +191,12 @@ def commit():
     # Sender must be owner
     # This call must be last in a group of minimum 3 (prepare->verify->commit)
     # Bitfield must indicate all guardians verified.
-    all_verified = ScratchVar(TealType.uint64, SLOTID_VERIFIED_GUARDIAN_BITS).load() ==
+    # all_verified = ScratchVar(TealType.uint64, SLOTID_VERIFIED_GUARDIAN_BITS).load() ==
     return Seq([
         Assert(And(is_proper_group_size(),
                    Txn.group_index() == (Global.group_size() - Int(1)),
-                   all_verified
                    )),
-        handle_vaa(),
+        #handle_vaa(),
         Approve()
     ])
 
@@ -156,7 +206,7 @@ def vaa_processor_program():
     handle_update = Return(is_creator())
     handle_delete = Return(is_creator())
     handle_noop = Cond(
-        [METHOD == Bytes("prepare"), prepare()],
+        [METHOD == Bytes("setvphash"), setvphash()],
         [METHOD == Bytes("verify"), verify()],
         [METHOD == Bytes("commit"), commit()]
     )
