@@ -44,6 +44,7 @@ const LogoIcon = ({ chainId }: { chainId: ChainId }) =>
         height: "1em",
         width: "1em",
         marginLeft: "4px",
+        padding: "4px",
       }}
       src={solanaIcon}
       alt="Solana"
@@ -183,6 +184,9 @@ const useStyles = makeStyles((theme) => ({
     display: "none",
   },
   skeleton: {
+    height: "500px",
+    width: "400px",
+    maxWidth: "100%",
     borderRadius: 9,
     display: "grid",
     placeItems: "center",
@@ -216,13 +220,7 @@ const ViewerLoader = () => {
 
   return (
     <div className={classes.wormholePositioner}>
-      <Skeleton
-        width="400px"
-        height="500px"
-        variant="rect"
-        animation="wave"
-        className={classes.skeleton}
-      />
+      <Skeleton variant="rect" animation="wave" className={classes.skeleton} />
       <img src={Wormhole} alt="Wormhole" className={classes.wormholeIcon} />
     </div>
   );

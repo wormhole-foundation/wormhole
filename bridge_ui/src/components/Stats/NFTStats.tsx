@@ -61,7 +61,7 @@ const useStyles = makeStyles((theme) => ({
   },
   tableBox: {
     display: "flex",
-    justifyContent: "flex-start",
+    justifyContent: "center",
     "& > *": {
       margin: theme.spacing(1),
     },

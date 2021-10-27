@@ -43,7 +43,6 @@ const useStyles = makeStyles((theme) => ({
       margin: ".5rem",
     },
     marginBottom: theme.spacing(2),
-    overflow: "auto",
   },
   flexBox: {
     display: "flex",

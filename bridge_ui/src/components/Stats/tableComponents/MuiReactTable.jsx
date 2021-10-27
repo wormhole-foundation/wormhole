@@ -1,4 +1,4 @@
-import { IconButton, TableFooter } from "@material-ui/core";
+import { IconButton } from "@material-ui/core";
 import MaUTable from "@material-ui/core/Table";
 import TableBody from "@material-ui/core/TableBody";
 import TableCell from "@material-ui/core/TableCell";
@@ -151,31 +151,22 @@ const EnhancedTable = ({ columns, data, skipPageReset, initialState = {} }) => {
               );
             })}
           </TableBody>
-          <TableFooter>
-            <TableRow>
-              <TablePagination
-                rowsPerPageOptions={[
-                  5,
-                  10,
-                  25,
-                  { label: "All", value: rows.length },
-                ]}
-                colSpan={columns.length}
-                count={rows.length}
-                rowsPerPage={pageSize}
-                page={pageIndex}
-                SelectProps={{
-                  inputProps: { "aria-label": "rows per page" },
-                  native: true,
-                }}
-                onPageChange={handlePageChange}
-                onRowsPerPageChange={handleRowsPerPageChange}
-                ActionsComponent={TablePaginationActions}
-              />
-            </TableRow>
-          </TableFooter>
         </MaUTable>
       </TableContainer>
+      <TablePagination
+        component="div"
+        rowsPerPageOptions={[5, 10, 25, { label: "All", value: rows.length }]}
+        count={rows.length}
+        rowsPerPage={pageSize}
+        page={pageIndex}
+        SelectProps={{
+          inputProps: { "aria-label": "rows per page" },
+          native: true,
+        }}
+        onPageChange={handlePageChange}
+        onRowsPerPageChange={handleRowsPerPageChange}
+        ActionsComponent={TablePaginationActions}
+      />
     </>
   );
 };
