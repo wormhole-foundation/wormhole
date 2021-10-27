@@ -13,10 +13,13 @@ use cosmwasm_std::{
     Empty,
     Env,
     MessageInfo,
+    Order,
     QueryRequest,
+    Reply,
     Response,
     StdError,
     StdResult,
+    SubMsg,
     Uint128,
     WasmMsg,
     WasmQuery,
@@ -43,12 +46,14 @@ use crate::{
         wrapped_asset_read,
         wrapped_asset_seq,
         wrapped_asset_seq_read,
+        wrapped_transfer_tmp,
         Action,
         AssetMeta,
         ConfigInfo,
         RegisterChain,
         TokenBridgeMessage,
         TransferInfo,
+        TransferState,
         UpgradeContract,
     },
 };
@@ -79,7 +84,10 @@ use wormhole::state::{
     ParsedVAA,
 };
 
-use cw20::TokenInfoResponse;
+use cw20::{
+    BalanceResponse,
+    TokenInfoResponse,
+};
 
 use cw20_wrapped::msg::{
     ExecuteMsg as WrappedMsg,
@@ -97,9 +105,12 @@ use sha3::{
     Digest,
     Keccak256,
 };
-use std::cmp::{
-    max,
-    min,
+use std::{
+    cmp::{
+        max,
+        min,
+    },
+    str::FromStr,
 };
 
 type HumanAddr = String;
@@ -110,8 +121,27 @@ const CHAIN_ID: u16 = 3;
 const WRAPPED_ASSET_UPDATING: &str = "updating";
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Response> {
-    Ok(Response::default())
+pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Response> {
+    let bucket = wrapped_asset_address(deps.storage);
+    let mut messages = vec![];
+    for item in bucket.range(None, None, Order::Ascending) {
+        let contract_address = item?.0;
+        messages.push(CosmosMsg::Wasm(WasmMsg::Migrate {
+            contract_addr: deps
+                .api
+                .addr_humanize(&contract_address.into())?
+                .to_string(),
+            new_code_id: 3,
+            msg: to_binary(&MigrateMsg {})?,
+        }));
+    }
+
+    let count = messages.len();
+
+    Ok(Response::new()
+        .add_messages(messages)
+        .add_attribute("migrate", "upgrade cw20 wrappers")
+        .add_attribute("count", count.to_string()))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -131,6 +161,58 @@ pub fn instantiate(
     config(deps.storage).save(&state)?;
 
     Ok(Response::default())
+}
+
+// When CW20 transfers complete, we need to verify the actual amount that is being transferred out
+// of the bridge. This is to handle fee tokens where the amount expected to be transferred may be
+// less due to burns, fees, etc.
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn reply(deps: DepsMut, env: Env, _msg: Reply) -> StdResult<Response> {
+    let cfg = config_read(deps.storage).load()?;
+    let state = wrapped_transfer_tmp(deps.storage).load()?;
+    let mut info = TransferInfo::deserialize(&state.message)?;
+
+    // Fetch CW20 Balance post-transfer.
+    let new_balance: BalanceResponse = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
+        contract_addr: state.token_address.clone(),
+        msg: to_binary(&TokenQuery::Balance {
+            address: env.contract.address.to_string(),
+        })?,
+    }))?;
+
+    // Actual amount should be the difference in balance of the CW20 account in question to account
+    // for fee tokens.
+    let multiplier = Uint128::from_str(&state.multiplier)?;
+    let real_amount = new_balance.balance - Uint128::from_str(&state.previous_balance)?;
+    let real_amount = real_amount / multiplier;
+
+    // If the fee is too large the user would receive nothing.
+    if info.fee.1 > real_amount.u128() {
+        return Err(StdError::generic_err("fee greater than sent amount"));
+    }
+
+    // Update Wormhole message to correct amount.
+    info.amount.1 = real_amount.u128();
+
+    let token_bridge_message = TokenBridgeMessage {
+        action: Action::TRANSFER,
+        payload: info.serialize(),
+    };
+
+    // Post Wormhole Message
+    let message = CosmosMsg::Wasm(WasmMsg::Execute {
+        contract_addr: cfg.wormhole_contract,
+        funds: vec![],
+        msg: to_binary(&WormholeExecuteMsg::PostMessage {
+            message: Binary::from(token_bridge_message.serialize()),
+            nonce: state.nonce,
+        })?,
+    });
+
+    send_native(deps.storage, &state.token_canonical, info.amount.1.into())?;
+    Ok(Response::default()
+        .add_message(message)
+        .add_attribute("action", "reply_handler"))
 }
 
 pub fn coins_after_tax(deps: DepsMut, coins: Vec<Coin>) -> StdResult<Vec<Coin>> {
@@ -805,9 +887,6 @@ fn handle_initiate_transfer_token(
     if amount.is_zero() {
         return ContractError::AmountTooLow.std_err();
     }
-    if fee > amount {
-        return Err(StdError::generic_err("fee greater than sent amount"));
-    }
 
     let asset_chain: u16;
     let asset_address: Vec<u8>;
@@ -816,9 +895,15 @@ fn handle_initiate_transfer_token(
     let asset_canonical: CanonicalAddr = deps.api.addr_canonicalize(&asset)?;
 
     let mut messages: Vec<CosmosMsg> = vec![];
+    let mut submessages: Vec<SubMsg> = vec![];
 
     match wrapped_asset_address_read(deps.storage).load(asset_canonical.as_slice()) {
         Ok(_) => {
+            // If the fee is too large the user will receive nothing.
+            if fee > amount {
+                return Err(StdError::generic_err("fee greater than sent amount"));
+            }
+
             // This is a deployed wrapped asset, burn it
             messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: asset.clone(),
@@ -836,6 +921,30 @@ fn handle_initiate_transfer_token(
                 deps.querier.custom_query(&request)?;
             asset_chain = wrapped_token_info.asset_chain;
             asset_address = wrapped_token_info.asset_address.as_slice().to_vec();
+
+            let transfer_info = TransferInfo {
+                token_chain: asset_chain,
+                token_address: asset_address.clone(),
+                amount: (0, amount.u128()),
+                recipient_chain,
+                recipient: recipient.clone(),
+                fee: (0, fee.u128()),
+            };
+
+            let token_bridge_message = TokenBridgeMessage {
+                action: Action::TRANSFER,
+                payload: transfer_info.serialize(),
+            };
+
+            messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: cfg.wormhole_contract,
+                msg: to_binary(&WormholeExecuteMsg::PostMessage {
+                    message: Binary::from(token_bridge_message.serialize()),
+                    nonce,
+                })?,
+                // forward coins sent to this message
+                funds: coins_after_tax(deps.branch(), info.funds.clone())?,
+            }));
         }
         Err(_) => {
             // normalize amount to 8 decimals when it sent over the wormhole
@@ -847,6 +956,7 @@ fn handle_initiate_transfer_token(
 
             let decimals = token_info.decimals;
             let multiplier = 10u128.pow((max(decimals, 8u8) - 8u8) as u32);
+
             // chop off dust
             amount = Uint128::new(
                 amount
@@ -854,6 +964,7 @@ fn handle_initiate_transfer_token(
                     .checked_sub(amount.u128().checked_rem(multiplier).unwrap())
                     .unwrap(),
             );
+
             fee = Uint128::new(
                 fee.u128()
                     .checked_sub(fee.u128().checked_rem(multiplier).unwrap())
@@ -861,15 +972,19 @@ fn handle_initiate_transfer_token(
             );
 
             // This is a regular asset, transfer its balance
-            messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: asset,
-                msg: to_binary(&TokenMsg::TransferFrom {
-                    owner: info.sender.to_string(),
-                    recipient: env.contract.address.to_string(),
-                    amount,
-                })?,
-                funds: vec![],
-            }));
+            submessages.push(SubMsg::reply_on_success(
+                CosmosMsg::Wasm(WasmMsg::Execute {
+                    contract_addr: asset.clone(),
+                    msg: to_binary(&TokenMsg::TransferFrom {
+                        owner: info.sender.to_string(),
+                        recipient: env.contract.address.to_string(),
+                        amount,
+                    })?,
+                    funds: vec![],
+                }),
+                1,
+            ));
+
             asset_address = extend_address_to_32(&asset_canonical);
             asset_chain = CHAIN_ID;
 
@@ -877,36 +992,40 @@ fn handle_initiate_transfer_token(
             amount = Uint128::new(amount.u128().checked_div(multiplier).unwrap());
             fee = Uint128::new(fee.u128().checked_div(multiplier).unwrap());
 
-            send_native(deps.storage, &asset_canonical, amount)?;
+            let transfer_info = TransferInfo {
+                token_chain: asset_chain,
+                token_address: asset_address.clone(),
+                amount: (0, amount.u128()),
+                recipient_chain,
+                recipient: recipient.clone(),
+                fee: (0, fee.u128()),
+            };
+
+            // Fetch current CW20 Balance pre-transfer.
+            let balance: BalanceResponse =
+                deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
+                    contract_addr: asset.to_string(),
+                    msg: to_binary(&TokenQuery::Balance {
+                        address: env.contract.address.to_string(),
+                    })?,
+                }))?;
+
+            // Wrap up state to be captured by the submessage reply.
+            wrapped_transfer_tmp(deps.storage).save(&TransferState {
+                previous_balance: balance.balance.to_string(),
+                account: info.sender.to_string(),
+                token_address: asset,
+                token_canonical: asset_canonical.clone(),
+                message: transfer_info.serialize(),
+                multiplier: Uint128::new(multiplier).to_string(),
+                nonce,
+            })?;
         }
     };
 
-    let transfer_info = TransferInfo {
-        token_chain: asset_chain,
-        token_address: asset_address.clone(),
-        amount: (0, amount.u128()),
-        recipient_chain,
-        recipient: recipient.clone(),
-        fee: (0, fee.u128()),
-    };
-
-    let token_bridge_message = TokenBridgeMessage {
-        action: Action::TRANSFER,
-        payload: transfer_info.serialize(),
-    };
-
-    messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: cfg.wormhole_contract,
-        msg: to_binary(&WormholeExecuteMsg::PostMessage {
-            message: Binary::from(token_bridge_message.serialize()),
-            nonce,
-        })?,
-        // forward coins sent to this message
-        funds: coins_after_tax(deps.branch(), info.funds.clone())?,
-    }));
-
     Ok(Response::new()
         .add_messages(messages)
+        .add_submessages(submessages)
         .add_attribute("transfer.token_chain", asset_chain.to_string())
         .add_attribute("transfer.token", hex::encode(asset_address))
         .add_attribute(

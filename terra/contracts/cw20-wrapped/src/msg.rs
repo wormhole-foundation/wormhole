@@ -39,6 +39,10 @@ pub struct InitMint {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
+pub struct MigrateMsg {}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
     /// Implements CW20. Transfer is a base message to move tokens to another account without triggering actions
     Transfer {

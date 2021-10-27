@@ -42,6 +42,7 @@ use crate::{
     msg::{
         ExecuteMsg,
         InstantiateMsg,
+        MigrateMsg,
         QueryMsg,
         WrappedAssetInfoResponse,
     },
@@ -219,11 +220,16 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     }
 }
 
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Response> {
+    Ok(Response::new())
+}
+
 pub fn query_token_info(deps: Deps) -> StdResult<TokenInfoResponse> {
     let info = TOKEN_INFO.load(deps.storage)?;
     Ok(TokenInfoResponse {
-        name: String::from("Wormhole:") + info.name.as_str(),
-        symbol: String::from("wh") + info.symbol.as_str(),
+        name: info.name + " (Wormhole)",
+        symbol: info.symbol,
         decimals: info.decimals,
         total_supply: info.total_supply,
     })

@@ -27,6 +27,7 @@ use wormhole::byte_utils::ByteUtils;
 type HumanAddr = String;
 
 pub static CONFIG_KEY: &[u8] = b"config";
+pub static TRANSFER_TMP_KEY: &[u8] = b"transfer_tmp";
 pub static WRAPPED_ASSET_KEY: &[u8] = b"wrapped_asset";
 pub static WRAPPED_ASSET_SEQ_KEY: &[u8] = b"wrapped_seq_asset";
 pub static WRAPPED_ASSET_ADDRESS_KEY: &[u8] = b"wrapped_asset_address";
@@ -91,6 +92,25 @@ pub fn wrapped_asset_address(storage: &mut dyn Storage) -> Bucket<Vec<u8>> {
 
 pub fn wrapped_asset_address_read(storage: &dyn Storage) -> ReadonlyBucket<Vec<u8>> {
     bucket_read(storage, WRAPPED_ASSET_ADDRESS_KEY)
+}
+
+type Serialized128 = String;
+
+/// Structure to keep track of an active CW20 transfer, required to pass state through to the reply
+/// handler for submessages during a transfer.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct TransferState {
+    pub account: String,
+    pub message: Vec<u8>,
+    pub multiplier: Serialized128,
+    pub nonce: u32,
+    pub previous_balance: Serialized128,
+    pub token_address: HumanAddr,
+    pub token_canonical: CanonicalAddr,
+}
+
+pub fn wrapped_transfer_tmp(storage: &mut dyn Storage) -> Singleton<TransferState> {
+    singleton(storage, TRANSFER_TMP_KEY)
 }
 
 pub fn send_native(
@@ -161,6 +181,7 @@ impl TokenBridgeMessage {
 //     98  u16      recipient_chain
 //     100 u256     fee
 
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct TransferInfo {
     pub amount: (u128, u128),
     pub token_address: Vec<u8>,
