@@ -19,8 +19,19 @@ RUN --mount=type=cache,target=/root/.cache \
     --mount=type=cache,target=/root/.npm \
     npm ci
 
-WORKDIR /usr/src/third_party/pyth/p2w-sdk
 COPY third_party/pyth/p2w-sdk .
+RUN --mount=type=cache,target=/root/.cache \
+    --mount=type=cache,target=/root/.npm \
+    npm run build
+
+# Build p2w-relay
+WORKDIR /usr/src/third_party/pyth/p2w-relay
+COPY third_party/pyth/p2w-relay/package.json third_party/pyth/p2w-relay/package-lock.json .
+RUN --mount=type=cache,target=/root/.cache \
+    --mount=type=cache,target=/root/.npm \
+    npm ci
+
+COPY third_party/pyth/p2w-relay .
 RUN --mount=type=cache,target=/root/.cache \
     --mount=type=cache,target=/root/.npm \
     npm run build

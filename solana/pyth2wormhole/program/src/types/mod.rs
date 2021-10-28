@@ -161,7 +161,6 @@ impl PriceAttestation {
         use P2WPriceStatus::*;
         use P2WPriceType::*;
 
-	println!("Using {} bytes for magic", P2W_MAGIC.len());
         let mut magic_vec = vec![0u8; P2W_MAGIC.len()];
 
         bytes.read_exact(magic_vec.as_mut_slice())?;
@@ -176,7 +175,7 @@ impl PriceAttestation {
 
         let mut version_vec = vec![0u8; mem::size_of_val(&P2W_FORMAT_VERSION)];
         bytes.read_exact(version_vec.as_mut_slice())?;
-        let mut version = u16::from_be_bytes(version_vec.as_slice().try_into()?);
+        let version = u16::from_be_bytes(version_vec.as_slice().try_into()?);
 
         if version != P2W_FORMAT_VERSION {
             return Err(format!(

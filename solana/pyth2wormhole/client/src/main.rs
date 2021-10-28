@@ -6,6 +6,7 @@ use borsh::{
 };
 use clap::Clap;
 use log::{
+    info,
     warn,
     LevelFilter,
 };
@@ -194,8 +195,6 @@ fn handle_set_config(
 
     let payer_pubkey = payer.pubkey();
 
-    println!("Canary!");
-
     let accs = SetConfigAccounts {
         payer: Signer(payer),
         current_owner: Signer(owner),
@@ -232,6 +231,8 @@ fn handle_attest(
     let message_keypair = Keypair::new();
 
     let emitter_addr = P2WEmitter::key(None, &p2w_addr);
+
+    info!("Using emitter addr {}", emitter_addr);
 
     let p2w_config_addr = P2WConfigAccount::<{ AccountState::Initialized }>::key(None, &p2w_addr);
 
