@@ -17,12 +17,12 @@ setvphash: Set verify program hash.
 
 Must be part of group:
 
-verify:  Verify guardian signature subset i..j, works in tandem with stateless program.
-         Arguments:  #0 guardian public keys subset i..j  (must match stored in global state)
-                     #1 guardian signatures subset i..j
-                     #2 payload to verify
-commit:  Commit verified VAA, processing it according to its payload. Must be last TX.
-
+verify: Verify guardian signature subset i..j, works in tandem with stateless program.
+        Arguments:  #0 guardian public keys subset i..j  (must match stored in global state)
+                    #1 guardian signatures subset i..j
+                    #2 payload to verify
+        Last verification step (the last TX in group) triggers the VAA commiting stage,
+        where we decide what to do based on the payload.
 ------------------------------------------------------------------------------------------------
 
 Global state:
@@ -35,11 +35,11 @@ key N      :  address of guardian N
 ------------------------------------------------------------------------------------------------
 Stores in scratch: 
 
-SLOT 254:  uint64 with bit field of approved guardians (initial 0)
 SLOT 255:  number of guardians in set 
 ================================================================================================
 
 """
+from os import P_OVERLAY
 from pyteal import (compileTeal, Int, Mode, Txn, OnComplete, Itob, Btoi,
                     Return, Cond, Bytes, Global, Not, Seq, Approve, App, Assert, For, And,
                     Extract)
@@ -60,11 +60,27 @@ from globals import SIGNATURES_PER_VERIFICATION_STEP
 METHOD = Txn.application_args[0]
 VERIFY_ARG_GUARDIAN_KEY_SUBSET = Txn.application_args[1]
 VERIFY_ARG_GUARDIAN_SET_SIZE = Txn.application_args[2]
-VERIFY_ARG_PAYLOAD = Txn.note
+VERIFY_ARG_PAYLOAD = Txn.note()
 SLOTID_TEMP_0 = 251
 SLOTID_VERIFIED_GUARDIAN_BITS = 254
 SLOTID_GUARDIAN_COUNT = 255
 STATELESS_LOGIC_HASH = App.globalGet(Bytes("vphash"))
+
+# defined chainId/contracts
+
+GOVERNANCE_CHAIN_ID_TEST = 3
+GOVERNANCE_CONTRACT_ID_TEST = 4
+PYTH2WORMHOLE_CHAIN_ID_TEST = 5
+PYTH2WORMHOLE_CONTRACT_ID_TEST = 6
+
+# VAA fields
+
+VAA_RECORD_EMITTER_CHAIN_POS = 8
+VAA_RECORD_EMITTER_CHAIN_LEN = 2
+VAA_RECORD_EMITTER_ADDR_POS = 10
+VAA_RECORD_EMITTER_ADDR_LEN = 32
+
+# -------------------------------------------------------------------------------------------------
 
 
 @Subroutine(TealType.uint64)
@@ -99,14 +115,14 @@ def min(a, b):
 
 @Subroutine(TealType.uint64)
 def is_proper_group_size():
-    # Let G be the guardian count, N number of signatures per verification step, group must have CEIL(G/N) + 1  transactions (last one is commit).
+    # Let G be the guardian count, N number of signatures per verification step, group must have CEIL(G/N) transactions.
     gssize = App.globalGet(Bytes("gssize"))
     q = gssize / Int(SIGNATURES_PER_VERIFICATION_STEP)
     r = gssize % Int(SIGNATURES_PER_VERIFICATION_STEP)
     return Seq([
         If(r != Int(0)).Then(
-            Return(Global.group_size() == q + Int(2))
-        ).Else(Return(Global.group_size() == q + Int(1)))
+            Return(Global.group_size() == q + Int(1))
+        ).Else(Return(Global.group_size() == q))
     ])
 
 
@@ -133,26 +149,39 @@ def check_guardian_set_size():
 
 
 @Subroutine(TealType.uint64)
-def check_txn_note_payload():
-    #
-    # Verify the digest-source section argument of a signed VAA,
-    # consisting of:
-    #
-    # bytes
-    #  4            timestamp
-    #  4            Nonce
-    #  2            emitterChainId
-    #  32           emitterAddress
-    #  8            sequence
-    #  1            consistencyLevel
-    #  N            payload
-    #
+def handle_governance():
+    return Int(1)
 
-    # Should we validate the fields?
+
+@Subroutine(TealType.uint64)
+def handle_pyth_price_ticker():
+    return Int(1)
+
+
+@Subroutine(TealType.uint64)
+#
+# Unpack the verified VAA payload and process it according to
+# the source based by emitterChainId, emitterAddress.
+#
+def commit_vaa():
+    chainId = Btoi(Extract(VERIFY_ARG_PAYLOAD, Int(
+        VAA_RECORD_EMITTER_CHAIN_POS), Int(VAA_RECORD_EMITTER_CHAIN_LEN)))
+    contractId = Btoi(Extract(VERIFY_ARG_PAYLOAD, Int(
+        VAA_RECORD_EMITTER_ADDR_POS), Int(VAA_RECORD_EMITTER_ADDR_LEN)))
     return Seq([
-        Assert(Extract(VERIFY_ARG_PAYLOAD, Int(0), Int(4))
+        If(And(
+            chainId == Int(GOVERNANCE_CHAIN_ID_TEST),
+            contractId == Int(GOVERNANCE_CONTRACT_ID_TEST))).Then(
+            Return(handle_governance()))
+        .ElseIf(And(
+            chainId == Int(PYTH2WORMHOLE_CHAIN_ID_TEST),
+            contractId == Int(GOVERNANCE_CONTRACT_ID_TEST)
+        )).Then(
+            Return(handle_pyth_price_ticker())
+        ).Else(
+            Return(Int(0))
+        )
     ])
-    return VERIFY_ARG_PAYLOAD
 
 
 def setvphash():
@@ -161,7 +190,9 @@ def setvphash():
     #
 
     return Seq([
-        Assert(And(is_creator(), Len(Txn.application_args[1]) == Int(32))),
+        Assert(And(is_creator(),
+                   Global.group_size() == Int(1),
+                   Len(Txn.application_args[1]) == Int(32))),
         App.globalPut(Bytes("vphash"), Txn.application_args[1]),
         Approve()
     ])
@@ -174,31 +205,16 @@ def verify():
     # * Argument 2 must contain current guardian set size (read by stateless logic)
     # * Passed guardian public keys [i..j] must match the current global state.
     # * Note must contain VAA message-in-digest (header+payload) (up to 1KB)  (read by stateless logic)
-    # * This call must be not the last in a group of minimum 2 (prepare, commit)
     #
-    # Call will set validated bits to i..j in bitfield.
+    # Last TX in group  will trigger VAA handling depending on payload.
 
     return Seq([Assert(And(is_proper_group_size(),
-                       Txn.group_index() < (Global.group_size() - Int(1)),
                        Txn.sender() == STATELESS_LOGIC_HASH,
                        check_guardian_set_size(),
-                       check_guardian_key_subset(),
-                       check_txn_note_payload())),
+                       check_guardian_key_subset())),
+                If(Txn.group_index() == Global.group_size() -
+                   Int(1)).Then(Return(commit_vaa())),
                 Approve()])
-
-
-def commit():
-    # Sender must be owner
-    # This call must be last in a group of minimum 3 (prepare->verify->commit)
-    # Bitfield must indicate all guardians verified.
-    # all_verified = ScratchVar(TealType.uint64, SLOTID_VERIFIED_GUARDIAN_BITS).load() ==
-    return Seq([
-        Assert(And(is_proper_group_size(),
-                   Txn.group_index() == (Global.group_size() - Int(1)),
-                   )),
-        #handle_vaa(),
-        Approve()
-    ])
 
 
 def vaa_processor_program():
@@ -208,7 +224,6 @@ def vaa_processor_program():
     handle_noop = Cond(
         [METHOD == Bytes("setvphash"), setvphash()],
         [METHOD == Bytes("verify"), verify()],
-        [METHOD == Bytes("commit"), commit()]
     )
     return Cond(
         [Txn.application_id() == Int(0), handle_create],
