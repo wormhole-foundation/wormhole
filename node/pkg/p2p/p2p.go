@@ -178,6 +178,20 @@ func Run(obsvC chan *gossipv1.SignedObservation, sendC chan []byte, signedInC ch
 
 		bootTime := time.Now()
 
+		// Periodically run guardian state set cleanup.
+		go func() {
+			ticker := time.NewTicker(15 * time.Second)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-ticker.C:
+					gst.Cleanup()
+				case <-ctx.Done():
+					return
+				}
+			}
+		}()
+
 		go func() {
 			ctr := int64(0)
 			tick := time.NewTicker(15 * time.Second)

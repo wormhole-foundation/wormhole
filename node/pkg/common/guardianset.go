@@ -6,6 +6,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"sync"
+	"time"
 )
 
 // MaxGuardianCount specifies the maximum number of guardians supported by on-chain contracts.
@@ -23,6 +24,10 @@ const MaxGuardianCount = 19
 // There currently isn't any state clean up, so the value is on the high side to prevent
 // accidentally reaching the limit due to operational mistakes.
 const MaxNodesPerGuardian = 15
+
+// MaxStateAge specified the maximum age of state entries in seconds. Expired entries are purged
+// from the state by Cleanup().
+const MaxStateAge = 1 * time.Minute
 
 type GuardianSet struct {
 	// Guardian's public key hashes truncated by the ETH standard hashing mechanism (20 bytes).
@@ -131,4 +136,19 @@ func (st *GuardianSetState) GetAll() map[common.Address]map[peer.ID]*gossipv1.He
 	}
 
 	return ret
+}
+
+// Cleanup removes expired entries from the state.
+func (st *GuardianSetState) Cleanup() {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+
+	for addr, v := range st.lastHeartbeats {
+		for peerId, hb := range v {
+			ts := time.Unix(hb.Timestamp, 0)
+			if time.Since(ts) > MaxStateAge {
+				delete(st.lastHeartbeats[addr], peerId)
+			}
+		}
+	}
 }
