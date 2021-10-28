@@ -217,8 +217,14 @@ export const nftSlice = createSlice({
         };
       }>
     ) => {
+      const prevTargetChain = state.targetChain;
       state.signedVAAHex = action.payload.vaa;
       state.targetChain = action.payload.parsedPayload.targetChain;
+      if (state.sourceChain === action.payload.parsedPayload.targetChain) {
+        state.sourceChain = prevTargetChain;
+        state.sourceParsedTokenAccount = undefined;
+        state.sourceParsedTokenAccounts = getEmptyDataWrapper();
+      }
       state.targetAddressHex = action.payload.parsedPayload.targetAddress;
       state.originChain = action.payload.parsedPayload.originChain;
       state.originAsset = action.payload.parsedPayload.originAddress;

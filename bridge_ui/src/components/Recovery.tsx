@@ -521,14 +521,6 @@ export default function Recovery() {
                 />
                 <TextField
                   variant="outlined"
-                  label="Target Chain"
-                  disabled
-                  value={parsedPayload?.targetChain.toString() || ""}
-                  fullWidth
-                  margin="normal"
-                />
-                <TextField
-                  variant="outlined"
                   label="Target Address"
                   disabled
                   value={

@@ -121,6 +121,9 @@ export const selectNFTTargetError = (state: RootState) => {
   if (!state.nft.targetChain) {
     return "Select a target chain";
   }
+  if (state.nft.sourceChain === state.nft.targetChain) {
+    return "Select a different target and source";
+  }
   if (state.nft.targetChain === CHAIN_ID_SOLANA && !state.nft.targetAsset) {
     // target asset is only required for solana
     // in the cases of new transfers, target asset will not exist and be created on redeem
@@ -255,6 +258,9 @@ export const selectTransferTargetError = (state: RootState) => {
   }
   if (!state.transfer.targetChain) {
     return "Select a target chain";
+  }
+  if (state.transfer.sourceChain === state.transfer.targetChain) {
+    return "Select a different target and source";
   }
   if (!state.transfer.targetAsset) {
     return UNREGISTERED_ERROR_MESSAGE;
