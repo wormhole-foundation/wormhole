@@ -12,9 +12,15 @@ ADD sdk/js/ .
 RUN --mount=type=cache,target=/home/node/.npm \
   npm ci
 
-# Build p2w-sdk
+# Build p2w-sdk in dir preserving directory structure
+WORKDIR /usr/src/third_party/pyth/p2w-sdk
+COPY third_party/pyth/p2w-sdk/package.json third_party/pyth/p2w-sdk/package-lock.json .
+RUN --mount=type=cache,target=/root/.cache \
+    --mount=type=cache,target=/root/.npm \
+    npm ci
+
 WORKDIR /usr/src/third_party/pyth/p2w-sdk
 COPY third_party/pyth/p2w-sdk .
 RUN --mount=type=cache,target=/root/.cache \
     --mount=type=cache,target=/root/.npm \
-    npm ci && npm run build-test && npm run test
+    npm run build-test

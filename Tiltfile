@@ -198,28 +198,18 @@ if pyth:
 
     # pyth2wormhole client autoattester
     docker_build(
-        ref = "p2w-client",
+        ref = "p2w-attest",
         context = ".",
         only = ["./solana", "./third_party"],
-        dockerfile = "./third_party/pyth/Dockerfile.p2w-client",
+        dockerfile = "./third_party/pyth/Dockerfile.p2w-attest",
         ignore = ["./solana/*/target"],
     )
 
-    k8s_yaml_with_ns("devnet/p2w-client.yaml")
-
+    k8s_yaml_with_ns("devnet/p2w-attest.yaml")
     k8s_resource(
-        "p2w-client",
-        resource_deps = ["solana-devnet", "pyth"],
+        "p2w-attest",
+        resource_deps = ["solana-devnet", "pyth", "guardian"],
         port_forwards = [],
-    )
-
-    # pyth2wormhole JS SDK test
-    local_resource(
-        name = "p2w-sdk-test",
-        resource_deps = ["wasm-gen"],
-        deps = ["third_party/pyth", "ethereum", "sdk"],
-        cmd = "tilt docker build -- -f ./third_party/pyth/p2w-sdk/Dockerfile .",
-        env = {"DOCKER_BUILDKIT": "1"},
     )
 
 k8s_yaml_with_ns("devnet/eth-devnet.yaml")

@@ -76,6 +76,7 @@ COPY --from=build /usr/src/bridge/pyth2wormhole/program/bundler third_party/pyth
 COPY --from=build /usr/src/bridge/bridge/program/bundler explorer/wasm/core
 COPY --from=build /usr/src/bridge/modules/token_bridge/program/bundler explorer/wasm/token
 COPY --from=build /usr/src/bridge/modules/nft_bridge/program/bundler explorer/wasm/nft
+COPY --from=build /usr/src/bridge/bridge/program/bundler third_party/pyth/p2w-sdk/src/solana/wormhole-core
 
 COPY --from=build /usr/src/bridge/bridge/program/nodejs sdk/js/src/solana/core-node
 COPY --from=build /usr/src/bridge/modules/token_bridge/program/nodejs sdk/js/src/solana/token-node
