@@ -58,7 +58,12 @@ func (d *Database) StoreSignedVAA(v *vaa.VAA) error {
 
 	b, _ := v.Marshal()
 
-	// TODO: panic if same VAA is stored with different value
+	// We allow overriding of existing VAAs, since there are multiple ways to
+	// acquire signed VAA bytes. For instance, the node may have a signed VAA
+	// via gossip before it reaches quorum on its own. The new entry may have
+	// a different set of signatures, but the same VAA.
+	//
+	// TODO: panic on non-identical signing digest?
 
 	err := d.db.Update(func(txn *badger.Txn) error {
 		if err := txn.Set(VaaIDFromVAA(v).Bytes(), b); err != nil {
