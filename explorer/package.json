@@ -61,6 +61,7 @@
     "antd": "^4.15.4",
     "babel-plugin-module-resolver": "^4.0.0",
     "bridge": "file:./wasm/core",
+    "bs58": "4.0.1",
     "core-js": "2.6.10",
     "dotenv": "^8.2.0",
     "esm": "^3.2.25",
@@ -81,7 +82,7 @@
     "react": "^16.12.0",
     "react-dom": "^16.12.0",
     "react-helmet": "^5.2.1",
-    "react-time-ago": "^6.2.2",
+    "react-time-ago": "^7.1.3",
     "token_bridge": "file:./wasm/token"
   },
   "devDependencies": {
@@ -93,6 +94,7 @@
     "@storybook/react": "^5.3.13",
     "@testing-library/jest-dom": "^5.1.1",
     "@testing-library/react": "^9.4.0",
+    "@types/bs58": "4.0.1",
     "@types/google-protobuf": "^3.15.2",
     "@types/javascript-time-ago": "^2.0.2",
     "@types/jest": "^25.1.3",

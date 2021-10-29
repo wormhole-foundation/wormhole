@@ -135,8 +135,10 @@ const Stats: React.FC<StatsProps> = ({ emitterChain, emitterAddress }) => {
             const { signal } = newController;
             // start polling
             let interval = setInterval(() => {
-                getData({ emitterChain, emitterAddress }, baseUrl, signal)
-            }, 4000)
+                getData({ emitterChain, emitterAddress }, baseUrl, signal).catch(err => {
+                    console.error('failed fetching data. err: ', err)
+                })
+            }, 5000)
             setPollInterval(interval)
         }
     }
