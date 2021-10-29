@@ -8,12 +8,16 @@ import (
 	"github.com/diamondburned/arikawa/v3/discord"
 	"go.uber.org/zap"
 	"strings"
+	"sync"
 )
 
 type DiscordNotifier struct {
 	c      *api.Client
 	chans  []discord.Channel
 	logger *zap.Logger
+
+	groupToIDMu sync.RWMutex
+	groupToID   map[string]string
 }
 
 // NewDiscordNotifier returns and initializes a new Discord notifier.
@@ -45,9 +49,10 @@ func NewDiscordNotifier(botToken string, channelName string, logger *zap.Logger)
 	logger.Info("notification channels", zap.Any("channels", chans))
 
 	return &DiscordNotifier{
-		c:      c,
-		chans:  chans,
-		logger: logger,
+		c:         c,
+		chans:     chans,
+		logger:    logger,
+		groupToID: make(map[string]string),
 	}, nil
 }
 
@@ -55,7 +60,42 @@ func wrapCode(in string) string {
 	return fmt.Sprintf("`%s`", in)
 }
 
-func (d DiscordNotifier) MissingSignaturesOnTransaction(v *vaa.VAA, hasSigs, wantSigs int, quorum bool, missing []string) error {
+func (d *DiscordNotifier) LookupGroupID(groupName string) (string, error) {
+	d.groupToIDMu.RLock()
+	if id, ok := d.groupToID[groupName]; ok {
+		d.groupToIDMu.RUnlock()
+		return id, nil
+	}
+	d.groupToIDMu.RUnlock()
+
+	guilds, err := d.c.Guilds(0)
+	if err != nil {
+		return "", fmt.Errorf("failed to retrieve guilds: %w", err)
+	}
+
+	for _, guild := range guilds {
+		gcn, err := d.c.Roles(guild.ID)
+		if err != nil {
+			return "", fmt.Errorf("failed to retrieve roles for %s: %w", guild.ID, err)
+		}
+
+		for _, cn := range gcn {
+			if cn.Name == groupName {
+				m := cn.ID.String()
+
+				d.groupToIDMu.Lock()
+				d.groupToID[groupName] = m
+				d.groupToIDMu.Unlock()
+
+				return m, nil
+			}
+		}
+	}
+
+	return "", fmt.Errorf("failed to find group %s", groupName)
+}
+
+func (d *DiscordNotifier) MissingSignaturesOnTransaction(v *vaa.VAA, hasSigs, wantSigs int, quorum bool, missing []string) error {
 	if len(missing) == 0 {
 		panic("no missing nodes specified")
 	}
@@ -73,7 +113,15 @@ func (d DiscordNotifier) MissingSignaturesOnTransaction(v *vaa.VAA, hasSigs, wan
 
 	missingText := &bytes.Buffer{}
 	for _, m := range missing {
-		if _, err := fmt.Fprintf(missingText, "- %s\n", m); err != nil {
+		groupID, err := d.LookupGroupID(m)
+		if err != nil {
+			d.logger.Error("failed to lookup group id", zap.Error(err), zap.String("name", m))
+			groupID = m
+		} else {
+			groupID = fmt.Sprintf("<@&%s>", groupID)
+		}
+
+		if _, err := fmt.Fprintf(missingText, "- %s\n", groupID); err != nil {
 			panic(err)
 		}
 	}
