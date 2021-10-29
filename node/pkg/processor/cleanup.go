@@ -45,6 +45,10 @@ var (
 		}, []string{"addr", "origin", "status"})
 )
 
+const (
+	settlementTime = time.Second * 30
+)
+
 // handleCleanup handles periodic retransmissions and cleanup of VAAs
 func (p *Processor) handleCleanup(ctx context.Context) {
 	p.logger.Info("aggregation state summary", zap.Int("cached", len(p.state.vaaSignatures)))
@@ -54,7 +58,7 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 		delta := time.Since(s.firstObserved)
 
 		switch {
-		case !s.settled && delta.Seconds() >= 30:
+		case !s.settled && delta > settlementTime:
 			// After 30 seconds, the VAA is considered settled - it's unlikely that more observations will
 			// arrive, barring special circumstances. This is a better time to count misses than submission,
 			// because we submit right when we quorum rather than waiting for all observations to arrive.
