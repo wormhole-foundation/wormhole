@@ -56,6 +56,12 @@ func getLatestOfEachEmitterAddress(tbl *bigtable.Table, ctx context.Context, pre
 		lastCacheReset = now
 	}
 
+	// create a time range for query: last 30 days
+	thirtyDays := -time.Duration(24*30) * time.Hour
+	prev := now.Add(thirtyDays)
+	start := time.Date(prev.Year(), prev.Month(), prev.Day(), 0, 0, 0, 0, prev.Location())
+	end := time.Date(now.Year(), now.Month(), now.Day(), 23, 59, 59, maxNano, now.Location())
+
 	mostRecentByKeySegment := map[string]string{}
 	err := tbl.ReadRows(ctx, rowSet, func(row bigtable.Row) bool {
 
@@ -64,10 +70,10 @@ func getLatestOfEachEmitterAddress(tbl *bigtable.Table, ctx context.Context, pre
 		mostRecentByKeySegment[groupByKey] = keyParts[2]
 
 		return true
-		// TODO - add filter to only return rows created within the last 30(?) days
 	}, bigtable.RowFilter(
 		bigtable.ChainFilters(
 			bigtable.CellsPerRowLimitFilter(1),
+			bigtable.TimestampRangeFilter(start, end),
 			bigtable.StripValueFilter(),
 		)))
 
