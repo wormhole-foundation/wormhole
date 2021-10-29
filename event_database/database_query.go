@@ -23,12 +23,6 @@ func printRow(row bigtable.Row) {
 	if _, ok := row[columnFamilies[0]]; ok {
 		printItems(row[columnFamilies[0]])
 	}
-	if _, ok := row[columnFamilies[1]]; ok {
-		printItems(row[columnFamilies[1]])
-	}
-	if _, ok := row[columnFamilies[2]]; ok {
-		printSignatures(row[columnFamilies[2]])
-	}
 	if _, ok := row[columnFamilies[3]]; ok {
 		printItems(row[columnFamilies[3]])
 	}
