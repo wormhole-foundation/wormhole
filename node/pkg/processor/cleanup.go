@@ -101,11 +101,15 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 						}
 					}
 
-					go func(v *vaa.VAA, hasSigs, wantSigs int, quorum bool, missing []string) {
-						if err := p.notifier.MissingSignaturesOnTransaction(v, hasSigs, wantSigs, quorum, missing); err != nil {
-							p.logger.Error("failed to send notification", zap.Error(err))
-						}
-					}(s.ourVAA, hasSigs, wantSigs, quorum, missing)
+					// Send notification for individual message when quorum has failed or
+					// more than one node is missing.
+					if !quorum || len(missing) > 1 {
+						go func(v *vaa.VAA, hasSigs, wantSigs int, quorum bool, missing []string) {
+							if err := p.notifier.MissingSignaturesOnTransaction(v, hasSigs, wantSigs, quorum, missing); err != nil {
+								p.logger.Error("failed to send notification", zap.Error(err))
+							}
+						}(s.ourVAA, hasSigs, wantSigs, quorum, missing)
+					}
 				}
 			}
 
