@@ -46,7 +46,7 @@ The answer is... maybe? The following things are needed in order to fully suppor
 - The smart contract needs to be built and audited. In some cases, existing contracts can be used, like with
   EVM-compatible chains.
   
-- Support for observing the chain needs to be added to guardiand.
+- Support for observing the chain needs to be added to guardians.
 
 - Web wallet integration needs to be built to actually interact with Wormhole.
 
