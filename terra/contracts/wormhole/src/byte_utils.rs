@@ -59,14 +59,11 @@ pub fn extend_address_to_32(addr: &CanonicalAddr) -> Vec<u8> {
     result
 }
 
-pub fn extend_string_to_32(s: &String) -> StdResult<Vec<u8>> {
+pub fn extend_string_to_32(s: &str) -> Vec<u8> {
     let bytes = s.as_bytes();
-    if bytes.len() > 32 {
-        return Err(StdError::generic_err("string more than 32 "));
-    }
-
-    let result = vec![0; 32 - bytes.len()];
-    Ok([bytes.to_vec(), result].concat())
+    let len = usize::min(32, bytes.len());
+    let result = vec![0; 32 - len];
+    [bytes[..len].to_vec(), result].concat()
 }
 
 pub fn get_string_from_32(v: &Vec<u8>) -> StdResult<String> {

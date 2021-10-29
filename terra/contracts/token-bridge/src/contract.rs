@@ -131,7 +131,7 @@ pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Response
                 .api
                 .addr_humanize(&contract_address.into())?
                 .to_string(),
-            new_code_id: 3,
+            new_code_id: 767,
             msg: to_binary(&MigrateMsg {})?,
         }));
     }
@@ -449,8 +449,8 @@ fn handle_create_asset_meta_token(
         token_chain: CHAIN_ID,
         token_address: extend_address_to_32(&asset_canonical),
         decimals: token_info.decimals,
-        symbol: extend_string_to_32(&token_info.symbol)?,
-        name: extend_string_to_32(&token_info.name)?,
+        symbol: extend_string_to_32(&token_info.symbol),
+        name: extend_string_to_32(&token_info.name),
     };
 
     let token_bridge_message = TokenBridgeMessage {
@@ -489,8 +489,8 @@ fn handle_create_asset_meta_native_token(
         token_chain: CHAIN_ID,
         token_address: asset_id.clone(),
         decimals: 6,
-        symbol: extend_string_to_32(&symbol)?,
-        name: extend_string_to_32(&symbol)?,
+        symbol: extend_string_to_32(&symbol),
+        name: extend_string_to_32(&symbol),
     };
     let token_bridge_message = TokenBridgeMessage {
         action: Action::ATTEST_META,
