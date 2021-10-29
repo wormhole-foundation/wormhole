@@ -340,4 +340,5 @@ func (p *Processor) handleInboundSignedVAAWithQuorum(ctx context.Context, m *gos
 		p.logger.Error("failed to store signed VAA", zap.Error(err))
 		return
 	}
+	p.attestationEvents.ReportVAAQuorum(v)
 }
