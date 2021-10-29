@@ -109,7 +109,9 @@ func runInjectGovernanceVAA(cmd *cobra.Command, args []string) {
 		log.Fatalf("failed to submit governance VAA: %v", err)
 	}
 
-	log.Printf("VAA successfully injected with digest %s", hexutils.BytesToHex(resp.Digest))
+	for _, digest := range resp.Digests {
+		log.Printf("VAA successfully injected with digest %s", hexutils.BytesToHex(digest))
+	}
 }
 
 func runFindMissingMessages(cmd *cobra.Command, args []string) {

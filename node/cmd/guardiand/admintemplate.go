@@ -93,10 +93,14 @@ func runGuardianSetTemplate(cmd *cobra.Command, args []string) {
 
 	m := &nodev1.InjectGovernanceVAARequest{
 		CurrentSetIndex: uint32(*templateGuardianIndex),
-		Sequence:        rand.Uint64(),
-		Nonce:           rand.Uint32(),
-		Payload: &nodev1.InjectGovernanceVAARequest_GuardianSet{
-			GuardianSet: &nodev1.GuardianSetUpdate{Guardians: guardians},
+		Messages: []*nodev1.GovernanceMessage{
+			{
+				Sequence: rand.Uint64(),
+				Nonce:    rand.Uint32(),
+				Payload: &nodev1.GovernanceMessage_GuardianSet{
+					GuardianSet: &nodev1.GuardianSetUpdate{Guardians: guardians},
+				},
+			},
 		},
 	}
 
@@ -119,12 +123,16 @@ func runContractUpgradeTemplate(cmd *cobra.Command, args []string) {
 
 	m := &nodev1.InjectGovernanceVAARequest{
 		CurrentSetIndex: uint32(*templateGuardianIndex),
-		Sequence:        rand.Uint64(),
-		Nonce:           rand.Uint32(),
-		Payload: &nodev1.InjectGovernanceVAARequest_ContractUpgrade{
-			ContractUpgrade: &nodev1.ContractUpgrade{
-				ChainId:     uint32(chainID),
-				NewContract: address,
+		Messages: []*nodev1.GovernanceMessage{
+			{
+				Sequence: rand.Uint64(),
+				Nonce:    rand.Uint32(),
+				Payload: &nodev1.GovernanceMessage_ContractUpgrade{
+					ContractUpgrade: &nodev1.ContractUpgrade{
+						ChainId:     uint32(chainID),
+						NewContract: address,
+					},
+				},
 			},
 		},
 	}
@@ -147,13 +155,17 @@ func runTokenBridgeRegisterChainTemplate(cmd *cobra.Command, args []string) {
 
 	m := &nodev1.InjectGovernanceVAARequest{
 		CurrentSetIndex: uint32(*templateGuardianIndex),
-		Sequence:        rand.Uint64(),
-		Nonce:           rand.Uint32(),
-		Payload: &nodev1.InjectGovernanceVAARequest_BridgeRegisterChain{
-			BridgeRegisterChain: &nodev1.BridgeRegisterChain{
-				Module:         *module,
-				ChainId:        uint32(chainID),
-				EmitterAddress: address,
+		Messages: []*nodev1.GovernanceMessage{
+			{
+				Sequence: rand.Uint64(),
+				Nonce:    rand.Uint32(),
+				Payload: &nodev1.GovernanceMessage_BridgeRegisterChain{
+					BridgeRegisterChain: &nodev1.BridgeRegisterChain{
+						Module:         *module,
+						ChainId:        uint32(chainID),
+						EmitterAddress: address,
+					},
+				},
 			},
 		},
 	}
@@ -177,13 +189,17 @@ func runTokenBridgeUpgradeContractTemplate(cmd *cobra.Command, args []string) {
 
 	m := &nodev1.InjectGovernanceVAARequest{
 		CurrentSetIndex: uint32(*templateGuardianIndex),
-		Sequence:        rand.Uint64(),
-		Nonce:           rand.Uint32(),
-		Payload: &nodev1.InjectGovernanceVAARequest_BridgeContractUpgrade{
-			BridgeContractUpgrade: &nodev1.BridgeUpgradeContract{
-				Module:        *module,
-				TargetChainId: uint32(chainID),
-				NewContract:   address,
+		Messages: []*nodev1.GovernanceMessage{
+			{
+				Sequence: rand.Uint64(),
+				Nonce:    rand.Uint32(),
+				Payload: &nodev1.GovernanceMessage_BridgeContractUpgrade{
+					BridgeContractUpgrade: &nodev1.BridgeUpgradeContract{
+						Module:        *module,
+						TargetChainId: uint32(chainID),
+						NewContract:   address,
+					},
+				},
 			},
 		},
 	}

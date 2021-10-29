@@ -163,36 +163,43 @@ func (s *nodePrivilegedService) InjectGovernanceVAA(ctx context.Context, req *no
 		v   *vaa.VAA
 		err error
 	)
-	switch payload := req.Payload.(type) {
-	case *nodev1.InjectGovernanceVAARequest_GuardianSet:
-		v, err = adminGuardianSetUpdateToVAA(payload.GuardianSet, req.CurrentSetIndex, req.Nonce, req.Sequence)
-	case *nodev1.InjectGovernanceVAARequest_ContractUpgrade:
-		v, err = adminContractUpgradeToVAA(payload.ContractUpgrade, req.CurrentSetIndex, req.Nonce, req.Sequence)
-	case *nodev1.InjectGovernanceVAARequest_BridgeRegisterChain:
-		v, err = tokenBridgeRegisterChain(payload.BridgeRegisterChain, req.CurrentSetIndex, req.Nonce, req.Sequence)
-	case *nodev1.InjectGovernanceVAARequest_BridgeContractUpgrade:
-		v, err = tokenBridgeUpgradeContract(payload.BridgeContractUpgrade, req.CurrentSetIndex, req.Nonce, req.Sequence)
-	default:
-		panic(fmt.Sprintf("unsupported VAA type: %T", payload))
+
+	digests := make([][]byte, len(req.Messages))
+
+	for i, message := range req.Messages {
+		switch payload := message.Payload.(type) {
+		case *nodev1.GovernanceMessage_GuardianSet:
+			v, err = adminGuardianSetUpdateToVAA(payload.GuardianSet, req.CurrentSetIndex, message.Nonce, message.Sequence)
+		case *nodev1.GovernanceMessage_ContractUpgrade:
+			v, err = adminContractUpgradeToVAA(payload.ContractUpgrade, req.CurrentSetIndex, message.Nonce, message.Sequence)
+		case *nodev1.GovernanceMessage_BridgeRegisterChain:
+			v, err = tokenBridgeRegisterChain(payload.BridgeRegisterChain, req.CurrentSetIndex, message.Nonce, message.Sequence)
+		case *nodev1.GovernanceMessage_BridgeContractUpgrade:
+			v, err = tokenBridgeUpgradeContract(payload.BridgeContractUpgrade, req.CurrentSetIndex, message.Nonce, message.Sequence)
+		default:
+			panic(fmt.Sprintf("unsupported VAA type: %T", payload))
+		}
+		if err != nil {
+			return nil, status.Error(codes.InvalidArgument, err.Error())
+		}
+
+		// Generate digest of the unsigned VAA.
+		digest, err := v.SigningMsg()
+		if err != nil {
+			panic(err)
+		}
+
+		s.logger.Info("governance VAA constructed",
+			zap.Any("vaa", v),
+			zap.String("digest", digest.String()),
+		)
+
+		s.injectC <- v
+
+		digests[i] = digest.Bytes()
 	}
-	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
-	}
 
-	// Generate digest of the unsigned VAA.
-	digest, err := v.SigningMsg()
-	if err != nil {
-		panic(err)
-	}
-
-	s.logger.Info("governance VAA constructed",
-		zap.Any("vaa", v),
-		zap.String("digest", digest.String()),
-	)
-
-	s.injectC <- v
-
-	return &nodev1.InjectGovernanceVAAResponse{Digest: digest.Bytes()}, nil
+	return &nodev1.InjectGovernanceVAAResponse{Digests: digests}, nil
 }
 
 func (s *nodePrivilegedService) FindMissingMessages(ctx context.Context, req *nodev1.FindMissingMessagesRequest) (*nodev1.FindMissingMessagesResponse, error) {

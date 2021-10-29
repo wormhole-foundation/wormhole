@@ -34,27 +34,31 @@ func runGovernanceVAAVerify(cmd *cobra.Command, args []string) {
 		log.Fatalf("failed to deserialize: %v", err)
 	}
 
-	var (
-		v *vaa.VAA
-	)
-	switch payload := msg.Payload.(type) {
-	case *nodev1.InjectGovernanceVAARequest_GuardianSet:
-		v, err = adminGuardianSetUpdateToVAA(payload.GuardianSet, msg.CurrentSetIndex, msg.Nonce, msg.Sequence)
-	case *nodev1.InjectGovernanceVAARequest_ContractUpgrade:
-		v, err = adminContractUpgradeToVAA(payload.ContractUpgrade, msg.CurrentSetIndex, msg.Nonce, msg.Sequence)
-	case *nodev1.InjectGovernanceVAARequest_BridgeRegisterChain:
-		v, err = tokenBridgeRegisterChain(payload.BridgeRegisterChain, msg.CurrentSetIndex, msg.Nonce, msg.Sequence)
-	default:
-		panic(fmt.Sprintf("unsupported VAA type: %T", payload))
-	}
-	if err != nil {
-		log.Fatalf("invalid update: %v", err)
-	}
+	for _, message := range msg.Messages {
+		var (
+			v *vaa.VAA
+		)
+		switch payload := message.Payload.(type) {
+		case *nodev1.GovernanceMessage_GuardianSet:
+			v, err = adminGuardianSetUpdateToVAA(payload.GuardianSet, msg.CurrentSetIndex, message.Nonce, message.Sequence)
+		case *nodev1.GovernanceMessage_ContractUpgrade:
+			v, err = adminContractUpgradeToVAA(payload.ContractUpgrade, msg.CurrentSetIndex, message.Nonce, message.Sequence)
+		case *nodev1.GovernanceMessage_BridgeRegisterChain:
+			v, err = tokenBridgeRegisterChain(payload.BridgeRegisterChain, msg.CurrentSetIndex, message.Nonce, message.Sequence)
+		case *nodev1.GovernanceMessage_BridgeContractUpgrade:
+			v, err = tokenBridgeUpgradeContract(payload.BridgeContractUpgrade, msg.CurrentSetIndex, message.Nonce, message.Sequence)
+		default:
+			panic(fmt.Sprintf("unsupported VAA type: %T", payload))
+		}
+		if err != nil {
+			log.Fatalf("invalid update: %v", err)
+		}
 
-	digest, err := v.SigningMsg()
-	if err != nil {
-		panic(err)
-	}
+		digest, err := v.SigningMsg()
+		if err != nil {
+			panic(err)
+		}
 
-	log.Printf("VAA with digest %s: %+v", digest.Hex(), spew.Sdump(v))
+		log.Printf("VAA with digest %s: %+v", digest.Hex(), spew.Sdump(v))
+	}
 }
