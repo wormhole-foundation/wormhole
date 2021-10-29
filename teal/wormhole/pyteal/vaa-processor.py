@@ -39,23 +39,11 @@ SLOT 255:  number of guardians in set
 ================================================================================================
 
 """
-from os import P_OVERLAY
-from pyteal import (compileTeal, Int, Mode, Txn, OnComplete, Itob, Btoi,
-                    Return, Cond, Bytes, Global, Not, Seq, Approve, App, Assert, For, And,
-                    Extract)
-import pyteal
-from pyteal.ast.binaryexpr import ShiftRight
-from pyteal.ast.if_ import If
-from pyteal.ast.return_ import Reject
-from pyteal.ast.scratch import ScratchLoad, ScratchSlot
-from pyteal.ast.scratchvar import ScratchVar
-from pyteal.ast.subroutine import Subroutine
-from pyteal.ast.txn import TxnType
-from pyteal.ast.unaryexpr import Len
-from pyteal.ast.while_ import While
-from pyteal.types import TealType
-
-from globals import SIGNATURES_PER_VERIFICATION_STEP, is_proper_group_size
+from pyteal.ast import *
+from pyteal.types import *
+from pyteal.compiler import * 
+from pyteal.ir import *
+from globals import MAX_SIGNATURES_PER_VERIFICATION_STEP, get_group_size
 
 METHOD = Txn.application_args[0]
 VERIFY_ARG_GUARDIAN_KEY_SUBSET = Txn.application_args[1]
@@ -65,6 +53,7 @@ SLOTID_TEMP_0 = 251
 SLOTID_VERIFIED_GUARDIAN_BITS = 254
 SLOTID_GUARDIAN_COUNT = 255
 STATELESS_LOGIC_HASH = App.globalGet(Bytes("vphash"))
+NUM_GUARDIANS = App.globalGet(Bytes("gscount"))
 
 # defined chainId/contracts
 
@@ -94,13 +83,13 @@ def bootstrap():
 
 @Subroutine(TealType.uint64)
 def verify_from():
-    return Txn.group_index() * Int(SIGNATURES_PER_VERIFICATION_STEP)
+    return Txn.group_index() * Int(MAX_SIGNATURES_PER_VERIFICATION_STEP)
 
 
 @Subroutine(TealType.uint64)
 def verify_to():
     return min(VERIFY_ARG_GUARDIAN_SET_SIZE, verify_from +
-               (Int(SIGNATURES_PER_VERIFICATION_STEP) - Int(1)))
+               (Int(MAX_SIGNATURES_PER_VERIFICATION_STEP) - Int(1)))
 
 
 @Subroutine(TealType.uint64)
@@ -109,16 +98,12 @@ def is_creator():
 
 
 @Subroutine(TealType.uint64)
-def min(a, b):
-    If(Int(a) < Int(b), Return(a), Return(b))
-
-@Subroutine(TealType.uint64)
 def check_guardian_key_subset():
     # Verify that the passed argument for guardian keys [i..j] match the
     # global state for the same keys.
     #
     i = ScratchVar(TealType.uint64, SLOTID_TEMP_0)
-    return Seq([For(i.store(Int(0)), i.load() < Int(SIGNATURES_PER_VERIFICATION_STEP), i.store(i.load() + Int(1))).Do(
+    return Seq([For(i.store(Int(0)), i.load() < Int(MAX_SIGNATURES_PER_VERIFICATION_STEP), i.store(i.load() + Int(1))).Do(
         If(App.globalGet(Itob(i.load())) != Extract(VERIFY_ARG_GUARDIAN_KEY_SUBSET,
            i.load() * Int(64), Int(64))).Then(Return(Int(0)))  # get and compare stored global key
     ),
@@ -131,7 +116,7 @@ def check_guardian_set_size():
     #
     # Verify that the passed argument for guardian set size matches the global state.
     #
-    return App.globalGet(Bytes("gssize")) == Btoi(VERIFY_ARG_GUARDIAN_SET_SIZE)
+    return NUM_GUARDIANS == Btoi(VERIFY_ARG_GUARDIAN_SET_SIZE)
 
 
 @Subroutine(TealType.uint64)
@@ -195,7 +180,7 @@ def verify():
     #
     # Last TX in group  will trigger VAA handling depending on payload.
 
-    return Seq([Assert(And(is_proper_group_size(App.globalGet(Bytes("gssize"))),
+    return Seq([Assert(And(Global.group_size() == get_group_size(NUM_GUARDIANS),
                            Txn.application_args.length() == Int(3),
                            Txn.sender() == STATELESS_LOGIC_HASH,
                            check_guardian_set_size(),
