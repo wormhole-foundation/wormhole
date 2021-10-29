@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -95,6 +96,25 @@ func (c ChainID) String() string {
 		return "polygon"
 	default:
 		return fmt.Sprintf("unknown chain ID: %d", c)
+	}
+}
+
+func ChainIDFromString(s string) (ChainID, error) {
+	s = strings.ToLower(s)
+
+	switch s {
+	case "solana":
+		return ChainIDSolana, nil
+	case "ethereum":
+		return ChainIDEthereum, nil
+	case "terra":
+		return ChainIDTerra, nil
+	case "bsc":
+		return ChainIDBSC, nil
+	case "polygon":
+		return ChainIDPolygon, nil
+	default:
+		return ChainIDUnset, fmt.Errorf("unknown chain ID: %s", s)
 	}
 }
 
