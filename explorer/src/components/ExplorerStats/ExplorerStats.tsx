@@ -44,7 +44,8 @@ const Stats: React.FC<StatsProps> = ({ emitterChain, emitterAddress }) => {
 
     const [totals, setTotals] = useState<Totals>()
     const [recent, setRecent] = useState<Recent>()
-    const [polling, setPolling] = useState(true);
+    const [address, setAddress] = useState<StatsProps["emitterAddress"]>()
+    const [chain, setChain] = useState<StatsProps["emitterChain"]>()
     const [lastFetched, setLastFetched] = useState<number>()
     const [pollInterval, setPollInterval] = useState<NodeJS.Timeout>()
     const [controller, setController] = useState<AbortController>(new AbortController())
@@ -125,29 +126,34 @@ const Stats: React.FC<StatsProps> = ({ emitterChain, emitterAddress }) => {
             clearInterval(pollInterval)
             setPollInterval(undefined)
         }
-        if (polling) {
-            // abort any in-flight requests
-            controller.abort()
-            // create a new controller for the new fetches, add it to state
-            const newController = new AbortController();
-            setController(newController)
-            // create a signal for requests
-            const { signal } = newController;
-            // start polling
-            let interval = setInterval(() => {
-                getData({ emitterChain, emitterAddress }, baseUrl, signal).catch(err => {
-                    console.error('failed fetching data. err: ', err)
-                })
-            }, 5000)
-            setPollInterval(interval)
-        }
+        // abort any in-flight requests
+        controller.abort()
+        // create a new controller for the new fetches, add it to state
+        const newController = new AbortController();
+        setController(newController)
+        // create a signal for requests
+        const { signal } = newController;
+        // start polling
+        let interval = setInterval(() => {
+            getData({ emitterChain, emitterAddress }, baseUrl, signal)
+        }, 5000)
+        setPollInterval(interval)
     }
 
+
     useEffect(() => {
+        // getData if first load (no totals or recents), or emitterAddress/emitterChain changed.
+        if (!totals && !recent || emitterAddress !== address || emitterChain !== chain) {
+            getData({ emitterChain, emitterAddress }, activeNetwork.endpoints.bigtableFunctionsBase, new AbortController().signal)
+        }
         controller.abort()
         setTotals(undefined)
         setRecent(undefined)
+
         pollingController(emitterChain, emitterAddress, activeNetwork.endpoints.bigtableFunctionsBase)
+        // hold chain & address in state to detect changes
+        setChain(emitterChain)
+        setAddress(emitterAddress)
     }, [emitterChain, emitterAddress, activeNetwork.endpoints.bigtableFunctionsBase])
 
     useEffect(() => {
@@ -156,7 +162,7 @@ const Stats: React.FC<StatsProps> = ({ emitterChain, emitterAddress }) => {
                 clearInterval(pollInterval)
             }
         };
-    }, [polling, pollInterval, activeNetwork.endpoints.bigtableFunctionsBase])
+    }, [pollInterval, activeNetwork.endpoints.bigtableFunctionsBase])
 
     let title = "Recent messages"
     let hideTableTitles = false
@@ -179,20 +185,19 @@ const Stats: React.FC<StatsProps> = ({ emitterChain, emitterAddress }) => {
                     <ChainOverviewCard totalDays={daysSinceDataStart} totals={totals} dataKey="5" title={ChainID[5]} Icon={PolygonIcon} />
                 </div>
             }
-            <Spin spinning={!totals && !recent} style={{ width: '100%', height: 500 }} />
-            <div>
-                {totals?.DailyTotals &&
+            <Spin spinning={!totals && !recent} style={{ width: '100%', height: 500 }} >
+                <div>
                     <DailyCountLineChart
-                        dailyCount={totals?.DailyTotals}
+                        dailyCount={totals?.DailyTotals || {}}
                         lastFetched={lastFetched}
                         title="messages/day"
                         emitterChain={emitterChain}
                         emitterAddress={emitterAddress}
-                    />}
-            </div>
+                    />
+                </div>
 
-            {recent && <RecentMessages recent={recent} lastFetched={lastFetched} title={title} hideTableTitles={hideTableTitles} />}
-
+                {recent && <RecentMessages recent={recent} lastFetched={lastFetched} title={title} hideTableTitles={hideTableTitles} />}
+            </Spin>
         </>
     )
 }

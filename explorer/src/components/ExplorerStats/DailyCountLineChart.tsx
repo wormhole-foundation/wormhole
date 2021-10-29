@@ -98,9 +98,9 @@ const DailyCountLineChart = (props: DailyCountProps) => {
                 colors={({ color }) => color}
                 data={data}
                 curve={"monotoneX"}
-                margin={{ top: 10, right: 40, bottom: 160, left: 40 }}
+                margin={{ top: 10, right: 40, bottom: 160, left: 60 }}
                 xScale={{ type: 'point' }}
-                yScale={{ type: 'linear', min: 'auto', max: 'auto', stacked: false, reverse: false }}
+                yScale={{ type: 'linear', min: 0, max: 'auto', stacked: false, reverse: false }}
                 enableGridX={false}
                 axisTop={null}
                 axisRight={null}
@@ -109,9 +109,6 @@ const DailyCountLineChart = (props: DailyCountProps) => {
                     tickSize: 5,
                     tickPadding: 5,
                     tickRotation: 0,
-                    legend: 'count',
-                    legendOffset: -40,
-                    legendPosition: 'middle'
                 }}
                 pointSize={4}
                 pointColor={{ theme: 'background' }}
