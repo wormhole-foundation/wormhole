@@ -8,6 +8,7 @@
     "@material-ui/icons": "^4.11.2",
     "@material-ui/lab": "^4.0.0-alpha.60",
     "@metamask/detect-provider": "^1.2.0",
+    "@project-serum/serum": "^0.13.60",
     "@reduxjs/toolkit": "^1.6.1",
     "@solana/spl-token": "^0.1.6",
     "@solana/spl-token-registry": "^0.2.216",

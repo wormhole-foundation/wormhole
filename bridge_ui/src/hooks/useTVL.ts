@@ -7,6 +7,7 @@ import {
 } from "@certusone/wormhole-sdk";
 import { formatUnits } from "@ethersproject/units";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import { TokenInfo } from "@solana/spl-token-registry";
 import {
   AccountInfo,
   Connection,
@@ -26,12 +27,14 @@ import {
   TERRA_SWAPRATE_URL,
   TERRA_TOKEN_BRIDGE_ADDRESS,
 } from "../utils/consts";
+import { priceStore, serumMarkets } from "../utils/SolanaPriceStore";
 import {
   formatNativeDenom,
   getNativeTerraIcon,
   NATIVE_TERRA_DECIMALS,
 } from "../utils/terra";
 import useMetadata, { GenericMetadata } from "./useMetadata";
+import useSolanaTokenMap from "./useSolanaTokenMap";
 import useTerraNativeBalances from "./useTerraNativeBalances";
 
 export type TVL = {
@@ -74,7 +77,8 @@ const calcSolanaTVL = (
   accounts:
     | { pubkey: PublicKey; account: AccountInfo<ParsedAccountData> }[]
     | undefined,
-  metaData: DataWrapper<Map<string, GenericMetadata>>
+  metaData: DataWrapper<Map<string, GenericMetadata>>,
+  solanaPrices: DataWrapper<Map<string, number | undefined>>
 ) => {
   const output: TVL[] = [];
   if (
@@ -82,7 +86,9 @@ const calcSolanaTVL = (
     !accounts.length ||
     metaData.isFetching ||
     metaData.error ||
-    !metaData.data
+    !metaData.data ||
+    solanaPrices.isFetching ||
+    !solanaPrices.data
   ) {
     return output;
   }
@@ -91,14 +97,20 @@ const calcSolanaTVL = (
     const genericMetadata = metaData.data?.get(
       item.account.data.parsed?.info?.mint?.toString()
     );
+    const mint = item.account.data.parsed?.info?.mint?.toString();
+    const price = solanaPrices?.data?.get(mint);
     output.push({
       logo: genericMetadata?.logo || undefined,
       symbol: genericMetadata?.symbol || undefined,
       name: genericMetadata?.tokenName || undefined,
       amount: item.account.data.parsed?.info?.tokenAmount?.uiAmount || "0", //Should always be defined.
-      totalValue: undefined,
-      quotePrice: undefined,
-      assetAddress: item.account.data.parsed?.info?.mint?.toString(),
+      totalValue: price
+        ? parseFloat(
+            item.account.data.parsed?.info?.tokenAmount?.uiAmount || "0"
+          ) * price
+        : undefined,
+      quotePrice: price,
+      assetAddress: mint,
       originChainId: CHAIN_ID_SOLANA,
       originChain: "Solana",
     });
@@ -175,6 +187,82 @@ const useTerraTVL = () => {
   );
 };
 
+const useSolanaPrices = (
+  mintAddresses: string[],
+  tokenMap: DataWrapper<TokenInfo[]>
+) => {
+  const [isLoading, setIsLoading] = useState(false);
+  const [priceMap, setPriceMap] = useState<Map<
+    string,
+    number | undefined
+  > | null>(null);
+  const [error] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!mintAddresses || !mintAddresses.length || !tokenMap.data) {
+      return;
+    }
+
+    const relevantMarkets: {
+      publicKey?: PublicKey;
+      name: string;
+      deprecated?: boolean;
+      mintAddress: string;
+    }[] = [];
+    mintAddresses.forEach((address) => {
+      const tokenInfo = tokenMap.data?.find((x) => x.address === address);
+      const relevantMarket = tokenInfo && serumMarkets[tokenInfo.symbol];
+      if (relevantMarket) {
+        relevantMarkets.push({ ...relevantMarket, mintAddress: address });
+      }
+    });
+
+    setIsLoading(true);
+    const priceMap: Map<string, number | undefined> = new Map();
+    const connection = new Connection(SOLANA_HOST);
+    const promises: Promise<void>[] = [];
+    //Load all the revelevant markets into the priceMap
+    relevantMarkets.forEach((market) => {
+      const marketName: string = market.name;
+      promises.push(
+        priceStore
+          .getPrice(connection, marketName)
+          .then((result) => {
+            priceMap.set(market.mintAddress, result);
+          })
+          .catch((e) => {
+            //Do nothing, we just won't load this price.
+            return Promise.resolve();
+          })
+      );
+    });
+
+    Promise.all(promises).then(() => {
+      //By this point all the relevant markets are loaded.
+      if (!cancelled) {
+        setPriceMap(priceMap);
+        setIsLoading(false);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      return;
+    };
+  }, [mintAddresses, tokenMap.data]);
+
+  return useMemo(() => {
+    return {
+      isFetching: isLoading,
+      data: priceMap || null,
+      error: error,
+      receivedAt: null,
+    };
+  }, [error, priceMap, isLoading]);
+};
+
 const useTVL = (): DataWrapper<TVL[]> => {
   const [ethCovalentData, setEthCovalentData] = useState(undefined);
   const [ethCovalentIsLoading, setEthCovalentIsLoading] = useState(false);
@@ -202,12 +290,14 @@ const useTVL = (): DataWrapper<TVL[]> => {
   }, [solanaCustodyTokens]);
 
   const solanaMetadata = useMetadata(CHAIN_ID_SOLANA, mintAddresses);
+  const solanaTokenMap = useSolanaTokenMap();
+  const solanaPrices = useSolanaPrices(mintAddresses, solanaTokenMap);
 
   const { isLoading: isTerraLoading, terraTVL } = useTerraTVL();
 
   const solanaTVL = useMemo(
-    () => calcSolanaTVL(solanaCustodyTokens, solanaMetadata),
-    [solanaCustodyTokens, solanaMetadata]
+    () => calcSolanaTVL(solanaCustodyTokens, solanaMetadata, solanaPrices),
+    [solanaCustodyTokens, solanaMetadata, solanaPrices]
   );
   const ethTVL = useMemo(
     () => calcEvmTVL(ethCovalentData, CHAIN_ID_ETH),
