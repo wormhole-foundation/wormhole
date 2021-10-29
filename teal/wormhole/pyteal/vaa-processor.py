@@ -55,7 +55,7 @@ from pyteal.ast.unaryexpr import Len
 from pyteal.ast.while_ import While
 from pyteal.types import TealType
 
-from globals import SIGNATURES_PER_VERIFICATION_STEP
+from globals import SIGNATURES_PER_VERIFICATION_STEP, is_proper_group_size
 
 METHOD = Txn.application_args[0]
 VERIFY_ARG_GUARDIAN_KEY_SUBSET = Txn.application_args[1]
@@ -111,20 +111,6 @@ def is_creator():
 @Subroutine(TealType.uint64)
 def min(a, b):
     If(Int(a) < Int(b), Return(a), Return(b))
-
-
-@Subroutine(TealType.uint64)
-def is_proper_group_size():
-    # Let G be the guardian count, N number of signatures per verification step, group must have CEIL(G/N) transactions.
-    gssize = App.globalGet(Bytes("gssize"))
-    q = gssize / Int(SIGNATURES_PER_VERIFICATION_STEP)
-    r = gssize % Int(SIGNATURES_PER_VERIFICATION_STEP)
-    return Seq([
-        If(r != Int(0)).Then(
-            Return(Global.group_size() == q + Int(1))
-        ).Else(Return(Global.group_size() == q))
-    ])
-
 
 @Subroutine(TealType.uint64)
 def check_guardian_key_subset():
@@ -192,6 +178,7 @@ def setvphash():
     return Seq([
         Assert(And(is_creator(),
                    Global.group_size() == Int(1),
+                   Txn.application_args.length() == Int(2),
                    Len(Txn.application_args[1]) == Int(32))),
         App.globalPut(Bytes("vphash"), Txn.application_args[1]),
         Approve()
@@ -200,7 +187,7 @@ def setvphash():
 
 def verify():
     # * Sender must be stateless logic.
-    # * Let N be the number of signatures per verification step, for the TXi in group, we verify signatures [i..j] where i = i*N, j = i*N+(N-1)
+    # * Let N be the number of signatures per verification step, for the TX(i) in group, we verify signatures [j..k] where j = i*N, k = j+(N-1)
     # * Argument 1 must contain guardian public keys for guardians [i..j] (read by stateless logic)
     # * Argument 2 must contain current guardian set size (read by stateless logic)
     # * Passed guardian public keys [i..j] must match the current global state.
@@ -208,10 +195,11 @@ def verify():
     #
     # Last TX in group  will trigger VAA handling depending on payload.
 
-    return Seq([Assert(And(is_proper_group_size(),
-                       Txn.sender() == STATELESS_LOGIC_HASH,
-                       check_guardian_set_size(),
-                       check_guardian_key_subset())),
+    return Seq([Assert(And(is_proper_group_size(App.globalGet(Bytes("gssize"))),
+                           Txn.application_args.length() == Int(3),
+                           Txn.sender() == STATELESS_LOGIC_HASH,
+                           check_guardian_set_size(),
+                           check_guardian_key_subset())),
                 If(Txn.group_index() == Global.group_size() -
                    Int(1)).Then(Return(commit_vaa())),
                 Approve()])
