@@ -4,10 +4,13 @@ import (
 	"context"
 	"fmt"
 	publicrpcv1 "github.com/certusone/wormhole/node/pkg/proto/publicrpc/v1"
+	"github.com/certusone/wormhole/node/pkg/vaa"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/spf13/pflag"
 	"io/ioutil"
 	"log"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -34,11 +37,13 @@ func init() {
 	AdminClientInjectGuardianSetUpdateCmd.Flags().AddFlagSet(pf)
 	AdminClientFindMissingMessagesCmd.Flags().AddFlagSet(pf)
 	AdminClientListNodes.Flags().AddFlagSet(pf)
+	DumpVAAByMessageID.Flags().AddFlagSet(pf)
 
 	AdminCmd.AddCommand(AdminClientInjectGuardianSetUpdateCmd)
 	AdminCmd.AddCommand(AdminClientFindMissingMessagesCmd)
 	AdminCmd.AddCommand(AdminClientGovernanceVAAVerifyCmd)
 	AdminCmd.AddCommand(AdminClientListNodes)
+	AdminCmd.AddCommand(DumpVAAByMessageID)
 }
 
 var AdminCmd = &cobra.Command{
@@ -58,6 +63,13 @@ var AdminClientFindMissingMessagesCmd = &cobra.Command{
 	Short: "Find sequence number gaps for the given chain ID and emitter address",
 	Run:   runFindMissingMessages,
 	Args:  cobra.ExactArgs(2),
+}
+
+var DumpVAAByMessageID = &cobra.Command{
+	Use:   "dump-vaa-by-message-id [MESSAGE_ID]",
+	Short: "Retrieve a VAA by message ID (chain/emitter/seq) and decode and dump the VAA",
+	Run:   runDumpVAAByMessageID,
+	Args:  cobra.ExactArgs(1),
 }
 
 func getAdminClient(ctx context.Context, addr string) (*grpc.ClientConn, error, nodev1.NodePrivilegedServiceClient) {
@@ -145,4 +157,51 @@ func runFindMissingMessages(cmd *cobra.Command, args []string) {
 
 	log.Printf("processed %s sequences %d to %d (%d gaps)",
 		emitterAddress, resp.FirstSequence, resp.LastSequence, len(resp.MissingMessages))
+}
+
+// runDumpVAAByMessageID uses GetSignedVAA to request the given message,
+// then decode and dump the VAA.
+func runDumpVAAByMessageID(cmd *cobra.Command, args []string) {
+	// Parse the {chain,emitter,seq} string.
+	parts := strings.Split(args[0], "/")
+	if len(parts) != 3 {
+		log.Fatalf("invalid message ID: %s", args[0])
+	}
+	chainID, err := strconv.ParseUint(parts[0], 10, 32)
+	if err != nil {
+		log.Fatalf("invalid chain ID: %v", err)
+	}
+	emitterAddress := parts[1]
+	seq, err := strconv.ParseUint(parts[2], 10, 64)
+	if err != nil {
+		log.Fatalf("invalid sequence number: %v", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	conn, err, c := getPublicRPCServiceClient(ctx, *clientSocketPath)
+	defer conn.Close()
+	if err != nil {
+		log.Fatalf("failed to get public RPC service client: %v", err)
+	}
+
+	msg := publicrpcv1.GetSignedVAARequest{
+		MessageId: &publicrpcv1.MessageID{
+			EmitterChain:   publicrpcv1.ChainID(chainID),
+			EmitterAddress: emitterAddress,
+			Sequence:       seq,
+		},
+	}
+	resp, err := c.GetSignedVAA(ctx, &msg)
+	if err != nil {
+		log.Fatalf("failed to run GetSignedVAA RPC: %v", err)
+	}
+
+	v, err := vaa.Unmarshal(resp.VaaBytes)
+	if err != nil {
+		log.Fatalf("failed to decode VAA: %v", err)
+	}
+
+	log.Printf("VAA with digest %s: %+v", v.HexDigest(), spew.Sdump(v))
 }
