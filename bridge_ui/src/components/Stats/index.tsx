@@ -17,6 +17,7 @@ import { balancePretty } from "../TokenSelectors/TokenPicker";
 import CustodyAddresses from "./CustodyAddresses";
 import NFTStats from "./NFTStats";
 import MuiReactTable from "./tableComponents/MuiReactTable";
+import TransactionMetrics from "./TransactionMetrics";
 
 const useStyles = makeStyles((theme) => ({
   logoPositioner: {
@@ -251,6 +252,9 @@ const StatsRoot: React.FC<any> = () => {
       </Paper>
       <Paper className={classes.mainPaper}>
         <NFTStats />
+      </Paper>
+      <Paper className={classes.mainPaper}>
+        <TransactionMetrics />
       </Paper>
       <Paper className={classes.mainPaper}>
         <CustodyAddresses />
