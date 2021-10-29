@@ -47,6 +47,7 @@ export type TVL = {
   assetAddress: string;
   originChainId: ChainId;
   originChain: string;
+  decimals?: number;
 };
 
 const calcEvmTVL = (covalentReport: any, chainId: ChainId): TVL[] => {
@@ -67,6 +68,7 @@ const calcEvmTVL = (covalentReport: any, chainId: ChainId): TVL[] => {
         assetAddress: item.contract_address,
         originChainId: chainId,
         originChain: CHAINS_BY_ID[chainId].name,
+        decimals: item.contract_decimals,
       });
     }
   });
@@ -113,6 +115,7 @@ const calcSolanaTVL = (
       assetAddress: mint,
       originChainId: CHAIN_ID_SOLANA,
       originChain: "Solana",
+      decimals: item.account.data.parsed?.info?.tokenAmount?.decimals,
     });
   });
 
@@ -176,6 +179,7 @@ const useTerraTVL = () => {
           totalValue,
           logo: getNativeTerraIcon(symbol),
           symbol,
+          decimals: NATIVE_TERRA_DECIMALS,
         });
       });
     }
