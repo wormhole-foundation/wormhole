@@ -117,8 +117,8 @@ func ReadRow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	summary := makeSummary(row)
-	jsonBytes, err := json.Marshal(summary)
+	details := makeDetails(row)
+	jsonBytes, err := json.Marshal(details)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(err.Error()))

@@ -250,7 +250,21 @@ func Recent(w http.ResponseWriter, r *http.Request) {
 	for k, v := range recent {
 		sort.Slice(v, func(i, j int) bool {
 			// bigtable rows dont have timestamps, use a cell timestamp all rows will have.
-			return v[i]["MessagePublication"][0].Timestamp > v[j]["MessagePublication"][0].Timestamp
+			var iTimestamp bigtable.Timestamp
+			var jTimestamp bigtable.Timestamp
+			// rows may have: only MessagePublication, only QuorumState, or both.
+			// find a timestamp for each row, try to use MessagePublication, if it exists:
+			if len(v[i]["MessagePublication"]) >= 1 {
+				iTimestamp = v[i]["MessagePublication"][0].Timestamp
+			} else if len(v[i]["QuorumState"]) >= 1 {
+				iTimestamp = v[i]["QuorumState"][0].Timestamp
+			}
+			if len(v[j]["MessagePublication"]) >= 1 {
+				jTimestamp = v[j]["MessagePublication"][0].Timestamp
+			} else if len(v[j]["QuorumState"]) >= 1 {
+				jTimestamp = v[j]["QuorumState"][0].Timestamp
+			}
+			return iTimestamp > jTimestamp
 		})
 		// trim the result down to the requested amount now that sorting is complete
 		num := len(v)

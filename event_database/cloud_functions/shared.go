@@ -5,10 +5,10 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strings"
 	"sync"
 
 	"cloud.google.com/go/bigtable"
+	"github.com/certusone/wormhole/node/pkg/vaa"
 )
 
 // shared code for the various functions, primarily response formatting.
@@ -43,14 +43,24 @@ var columnFamilies = []string{"MessagePublication", "Signatures", "VAAState", "Q
 
 type (
 	Summary struct {
-		EmitterChain        string
-		EmitterAddress      string
-		Sequence            string
-		InitiatingTxID      string
-		Payload             []byte
-		GuardiansThatSigned []string
-		SignedVAABytes      []byte
-		QuorumTime          string
+		EmitterChain   string
+		EmitterAddress string
+		Sequence       string
+		InitiatingTxID string
+		Payload        []byte
+		SignedVAABytes []byte
+		QuorumTime     string
+	}
+	// Details is a Summary, with the VAA decoded as SignedVAA
+	Details struct {
+		SignedVAA      *vaa.VAA
+		EmitterChain   string
+		EmitterAddress string
+		Sequence       string
+		InitiatingTxID string
+		Payload        []byte
+		SignedVAABytes []byte
+		QuorumTime     string
 	}
 )
 
@@ -73,22 +83,30 @@ func makeSummary(row bigtable.Row) *Summary {
 			}
 		}
 	}
-	if _, ok := row[columnFamilies[1]]; ok {
-		for _, item := range row[columnFamilies[1]] {
-			column := strings.Split(item.Column, ":")
-			summary.GuardiansThatSigned = append(summary.GuardiansThatSigned, column[1])
-		}
-	}
 	if _, ok := row[columnFamilies[3]]; ok {
-
-		for _, item := range row[columnFamilies[3]] {
-			if item.Column == "QuorumState:SignedVAA" {
-				summary.SignedVAABytes = item.Value
-				summary.QuorumTime = item.Timestamp.Time().String()
-			}
-		}
+		item := row[columnFamilies[3]][0]
+		summary.SignedVAABytes = item.Value
+		summary.QuorumTime = item.Timestamp.Time().String()
 	}
 	return summary
+}
+
+func makeDetails(row bigtable.Row) *Details {
+	sum := makeSummary(row)
+	deets := &Details{
+		EmitterChain:   sum.EmitterChain,
+		EmitterAddress: sum.EmitterAddress,
+		Sequence:       sum.Sequence,
+		InitiatingTxID: sum.InitiatingTxID,
+		Payload:        sum.Payload,
+		SignedVAABytes: sum.SignedVAABytes,
+		QuorumTime:     sum.QuorumTime,
+	}
+	if _, ok := row[columnFamilies[3]]; ok {
+		item := row[columnFamilies[3]][0]
+		deets.SignedVAA, _ = vaa.Unmarshal(item.Value)
+	}
+	return deets
 }
 
 var mux = newMux()

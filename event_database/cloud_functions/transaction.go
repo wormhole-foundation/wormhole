@@ -99,8 +99,8 @@ func Transaction(w http.ResponseWriter, r *http.Request) {
 		log.Fatalf("Could not read row with key %s: %v", key, err)
 	}
 
-	summary := makeSummary(row)
-	jsonBytes, err := json.Marshal(summary)
+	details := makeDetails(row)
+	jsonBytes, err := json.Marshal(details)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(err.Error()))
