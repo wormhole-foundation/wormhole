@@ -30,7 +30,7 @@ const makeGroupName = (groupKey: string, activeNetwork: ActiveNetwork, emitterCh
 const getNativeAddress = (chainId: number, emitterAddress: string, activeNetwork?: ActiveNetwork): string => {
     let nativeAddress = ""
 
-    if (chainId === chainIDs["ethereum"] || chainId === chainIDs["bsc"]) {
+    if (chainId === chainIDs["ethereum"] || chainId === chainIDs["bsc"] || chainId === chainIDs["polygon"]) {
         // remove zero-padding
         let unpadded = emitterAddress.slice(-40)
         nativeAddress = `0x${unpadded}`.toLowerCase()
@@ -81,7 +81,7 @@ const contractNameFormatter = (address: string, chainId: number, activeNetwork?:
 }
 
 
-const nativeExplorerUri = (chainId: number, address: string, activeNetwork?: ActiveNetwork): string => {
+const nativeExplorerContractUri = (chainId: number, address: string, activeNetwork?: ActiveNetwork): string => {
     if (!activeNetwork) {
         activeNetwork = useContext(NetworkContext).activeNetwork
     }
@@ -100,7 +100,29 @@ const nativeExplorerUri = (chainId: number, address: string, activeNetwork?: Act
         } else if (chainId === chainIDs["bsc"]) {
             let base = "https://bscscan.com/address/"
             return `${base}${nativeAddress}`
+        } else if (chainId === chainIDs["polygon"]) {
+            let base = "https://polygonscan.com/address/"
+            return `${base}${nativeAddress}`
         }
+    }
+    return ""
+}
+const nativeExplorerTxUri = (chainId: number, transactionId: string): string => {
+    if (chainId === chainIDs["solana"]) {
+        let base = "https://explorer.solana.com/address/"
+        return `${base}${transactionId}`
+    } else if (chainId === chainIDs["ethereum"]) {
+        let base = "https://etherscan.io/tx/"
+        return `${base}${transactionId}`
+    } else if (chainId === chainIDs["terra"]) {
+        let base = "https://finder.terra.money/columbus-5/tx/"
+        return `${base}${transactionId}`
+    } else if (chainId === chainIDs["bsc"]) {
+        let base = "https://bscscan.com/tx/"
+        return `${base}${transactionId}`
+    } else if (chainId === chainIDs["polygon"]) {
+        let base = "https://polygonscan.com/tx/"
+        return `${base}${transactionId}`
     }
     return ""
 }
@@ -110,7 +132,8 @@ const chainColors: { [chain: string]: string } = {
     "1": "hsl(297, 100%, 61%)",
     "2": "hsl(235, 5%, 43%)",
     "3": "hsl(235, 100%, 61%)",
-    "4": "hsl(54, 100%, 61%)"
+    "4": "hsl(54, 100%, 61%)",
+    "5": "hsl(271, 100%, 61%)",
 }
 
-export { makeDate, makeGroupName, chainColors, truncateAddress, contractNameFormatter, nativeExplorerUri }
+export { makeDate, makeGroupName, chainColors, truncateAddress, contractNameFormatter, nativeExplorerContractUri, nativeExplorerTxUri }

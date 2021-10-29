@@ -16,7 +16,7 @@ import { WithNetwork, NetworkSelect } from '~/components/NetworkSelect'
 import { ExplorerSearchForm, ExplorerTxForm } from '~/components/App/ExplorerSearch';
 import { ChainID } from '~/utils/misc/constants';
 import { OutboundLink } from 'gatsby-plugin-google-gtag';
-import { nativeExplorerUri } from '~/components/ExplorerStats/utils';
+import { nativeExplorerContractUri } from '~/components/ExplorerStats/utils';
 import { CloseOutlined } from '@ant-design/icons';
 
 
@@ -127,9 +127,9 @@ const Explorer: React.FC<ExplorerProps> = ({ location, navigate }) => {
                                     // show heading with the context of the address
                                     <Title level={3} style={{ ...titleStyles }}>
                                         Recent messages from {ChainID[emitterChain]}&nbsp;
-                                        {nativeExplorerUri(emitterChain, emitterAddress) ?
+                                        {nativeExplorerContractUri(emitterChain, emitterAddress) ?
                                             <OutboundLink
-                                                href={nativeExplorerUri(emitterChain, emitterAddress)}
+                                                href={nativeExplorerContractUri(emitterChain, emitterAddress)}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                             >

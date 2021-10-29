@@ -65,8 +65,8 @@ const ChainOverviewCard: React.FC<ChainOverviewCardProps> = ({ Icon, iconStyle, 
             loading ? "loading" : intl.formatMessage({ id: "explorer.comingSoon" })}>
             <Card
                 style={{
-                    width: 200,
-                    paddingTop: 10
+                    width: 190,
+                    paddingTop: 10,
                 }}
                 className="hover-z-index"
                 cover={<Icon style={{ height: 140, ...iconStyle }} />}
@@ -86,11 +86,11 @@ const ChainOverviewCard: React.FC<ChainOverviewCardProps> = ({ Icon, iconStyle, 
                 {!!totalCount ? (
                     <>
                         <div style={{ display: 'flex', justifyContent: "space-between", alignItems: 'center', gap: 12 }}>
-                            <div><Text type="secondary" style={{ fontSize: 14 }}>last 24 hours</Text></div>
+                            <div><Text type="secondary" style={{ fontSize: 14 }}>last&nbsp;24&nbsp;hours</Text></div>
                             <div><Text className={animate ? "highlight-new-val" : ""} style={{ fontSize: 26 }}>{lastDayCount}</Text></div>
                         </div>
                         <div style={{ display: 'flex', justifyContent: "center", alignItems: 'center', gap: 12 }}>
-                            <div><Text type="secondary" style={{ fontSize: 14 }}>last {totalDays} days</Text></div>
+                            <div><Text type="secondary" style={{ fontSize: 14 }}>last&nbsp;{totalDays}&nbsp;days</Text></div>
                             <div><Text className={animate ? "highlight-new-val" : ""} style={{ fontSize: 26 }}>{totalCount}</Text></div>
                         </div>
                         {/* <Statistic title={<span>last 24 hours</span>} value={totals?.LastDayCount[dataKey]} style={{ display: 'flex', justifyContent: "space-between", alignItems: 'center', gap: 12 }} valueStyle={{ fontSize: 26 }} /> */}

@@ -177,7 +177,7 @@ const Stats: React.FC<StatsProps> = ({ emitterChain, emitterAddress }) => {
     return (
         <>
             {!emitterChain && !emitterAddress &&
-                <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: 40 }}>
+                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: 40, gap: 20 }}>
                     <ChainOverviewCard totalDays={daysSinceDataStart} totals={totals} dataKey="1" title={ChainID[1]} Icon={SolanaIcon} iconStyle={{ height: 120, margin: '10px 0' }} />
                     <ChainOverviewCard totalDays={daysSinceDataStart} totals={totals} dataKey="2" title={ChainID[2]} Icon={EthereumIcon} />
                     <ChainOverviewCard totalDays={daysSinceDataStart} totals={totals} dataKey="3" title={ChainID[3]} Icon={TerraIcon} />

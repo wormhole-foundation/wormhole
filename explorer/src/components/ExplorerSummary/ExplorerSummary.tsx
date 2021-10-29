@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Button, Spin, Typography } from 'antd'
 const { Title } = Typography
 import { useIntl, FormattedMessage } from 'gatsby-plugin-intl'
@@ -8,8 +8,10 @@ import ReactTimeAgo from 'react-time-ago'
 import { titleStyles } from '~/styles';
 import { CloseOutlined, ReloadOutlined } from '@ant-design/icons';
 import { Link } from 'gatsby';
-import { contractNameFormatter, nativeExplorerUri } from '../ExplorerStats/utils';
+import { contractNameFormatter, nativeExplorerContractUri, nativeExplorerTxUri } from '../ExplorerStats/utils';
 import { OutboundLink } from 'gatsby-plugin-google-gtag';
+import { chainIDs } from '~/utils/misc/constants';
+import { hexToNativeString } from '@certusone/wormhole-sdk';
 
 interface SummaryProps {
     emitterChain?: number,
@@ -26,6 +28,24 @@ const Summary = (props: SummaryProps) => {
 
     const intl = useIntl()
     const { SignedVAA, ...message } = props.message
+
+    const { EmitterChain, EmitterAddress, InitiatingTxID } = message
+    // get chainId from chain name
+    let chainId = chainIDs[EmitterChain]
+
+    let transactionId: string | undefined
+    if (InitiatingTxID) {
+        if (chainId === chainIDs["ethereum"] || chainId === chainIDs["bsc"] || chainId === chainIDs["polygon"]) {
+            transactionId = InitiatingTxID
+        } else {
+            if (chainId === chainIDs["solana"]) {
+                const txId = InitiatingTxID.slice(2) // remove the leading "0x"
+                transactionId = hexToNativeString(txId, chainId)
+            } else if (chainId === chainIDs["terra"]) {
+                transactionId = InitiatingTxID.slice(2) // remove the leading "0x"
+            }
+        }
+    }
 
     return (
         <>
@@ -63,18 +83,7 @@ const Summary = (props: SummaryProps) => {
                     style={{ fontSize: 12, marginBottom: 20 }}
                 >{JSON.stringify(SignedVAA, undefined, 2)}</pre>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-
-                {props.emitterChain && props.emitterAddress && nativeExplorerUri(props.emitterChain, props.emitterAddress) ?
-                    <OutboundLink
-                        href={nativeExplorerUri(props.emitterChain, props.emitterAddress)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{ fontSize: 16 }}
-                    >
-                        {'View "'}{contractNameFormatter(props.emitterAddress, props.emitterChain)}{'" emitter contract on native explorer'}
-                    </OutboundLink> : <div />}
-
+            <div style={{ display: 'flex', justifyContent: "flex-end" }}>
                 {props.lastFetched ? (
                     <span>
                         <FormattedMessage id="explorer.lastUpdated" />:&nbsp;
@@ -82,6 +91,26 @@ const Summary = (props: SummaryProps) => {
                     </span>
 
                 ) : null}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', }}>
+                {EmitterChain && EmitterAddress && nativeExplorerContractUri(chainId, EmitterAddress) ?
+                    <OutboundLink
+                        href={nativeExplorerContractUri(chainId, EmitterAddress)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ fontSize: 16, marginBottom: '6px 0' }}
+                    >
+                        {'View "'}{contractNameFormatter(EmitterAddress, chainId)}{'" contract on native explorer'}
+                    </OutboundLink> : <div />}
+                {transactionId && EmitterChain ?
+                    <OutboundLink
+                        href={nativeExplorerTxUri(chainId, transactionId)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ fontSize: 16, margin: '6px 0' }}
+                    >
+                        {'View transaction "'}{transactionId}{'" on native explorer'}
+                    </OutboundLink> : <div />}
             </div>
         </>
     )

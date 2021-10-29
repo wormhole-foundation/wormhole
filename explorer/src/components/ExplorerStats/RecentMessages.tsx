@@ -55,13 +55,13 @@ const RecentMessages = (props: RecentMessagesProps) => {
         {
             title: "message",
             key: "payload",
-            render: (item: BigTableMessage) => <DecodePayload
+            render: (item: BigTableMessage) => item.SignedVAABytes ? <DecodePayload
                 base64VAA={item.SignedVAABytes}
                 emitterChainName={item.EmitterChain}
                 emitterAddress={item.EmitterAddress}
                 showType={true}
                 showSummary={true}
-            />
+            /> : null
         },
         {
             title: "sequence",
