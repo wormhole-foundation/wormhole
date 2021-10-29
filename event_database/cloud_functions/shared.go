@@ -1,7 +1,10 @@
 package p
 
 import (
+	"context"
+	"log"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 
@@ -14,6 +17,27 @@ import (
 // every request.
 var client *bigtable.Client
 var clientOnce sync.Once
+var tbl *bigtable.Table
+
+// init runs during cloud function initialization. So, this will only run during an
+// an instance's cold start.
+// https://cloud.google.com/functions/docs/bestpractices/networking#accessing_google_apis
+func init() {
+	clientOnce.Do(func() {
+		// Declare a separate err variable to avoid shadowing client.
+		var err error
+		project := os.Getenv("GCP_PROJECT")
+		instance := os.Getenv("BIGTABLE_INSTANCE")
+		client, err = bigtable.NewClient(context.Background(), project, instance)
+		if err != nil {
+			// http.Error(w, "Error initializing client", http.StatusInternalServerError)
+			log.Printf("bigtable.NewClient error: %v", err)
+
+			return
+		}
+	})
+	tbl = client.Open("v2Events")
+}
 
 var columnFamilies = []string{"MessagePublication", "Signatures", "VAAState", "QuorumState"}
 

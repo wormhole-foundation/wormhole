@@ -2,17 +2,13 @@
 package p
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"html"
 	"io"
 	"log"
 	"net/http"
-	"os"
 	"strings"
-
-	"cloud.google.com/go/bigtable"
 )
 
 // fetch a single row by the row key
@@ -109,20 +105,6 @@ func ReadRow(w http.ResponseWriter, r *http.Request) {
 	}
 	rowKey = emitterChain + ":" + emitterAddress + ":" + sequence
 
-	clientOnce.Do(func() {
-		// Declare a separate err variable to avoid shadowing client.
-		var err error
-		project := os.Getenv("GCP_PROJECT")
-		instance := os.Getenv("BIGTABLE_INSTANCE")
-		client, err = bigtable.NewClient(context.Background(), project, instance)
-		if err != nil {
-			http.Error(w, "Error initializing client", http.StatusInternalServerError)
-			log.Printf("bigtable.NewClient: %v", err)
-			return
-		}
-	})
-
-	tbl := client.Open("v2Events")
 	row, err := tbl.ReadRow(r.Context(), rowKey)
 	if err != nil {
 		http.Error(w, "Error reading rows", http.StatusInternalServerError)

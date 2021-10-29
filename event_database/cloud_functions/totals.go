@@ -9,7 +9,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -234,21 +233,6 @@ func Totals(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-
-	// create bibtable client and open table
-	clientOnce.Do(func() {
-		// Declare a separate err variable to avoid shadowing client.
-		var err error
-		project := os.Getenv("GCP_PROJECT")
-		instance := os.Getenv("BIGTABLE_INSTANCE")
-		client, err = bigtable.NewClient(context.Background(), project, instance)
-		if err != nil {
-			http.Error(w, "Error initializing client", http.StatusInternalServerError)
-			log.Printf("bigtable.NewClient: %v", err)
-			return
-		}
-	})
-	tbl := client.Open("v2Events")
 
 	// create the rowkey prefix for querying
 	prefix := ""
