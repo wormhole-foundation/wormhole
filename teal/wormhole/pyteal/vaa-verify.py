@@ -14,15 +14,39 @@ program works in tandem with the VAA Processor stateful program.
 ================================================================================================
 
 """
-from pyteal import (compileTeal, Int, Mode, Txn, OnComplete, Itob, Btoi,
-                    ImportScratchValue,
-                    Return, Cond, Bytes, Global, Not, Gtxn, Seq, Approve, App, Assert, For, Len, And)
-from pyteal.ast import Subroutine
-from pyteal.ast.arg import Arg
-from pyteal.ast.txn import TxnType
-from pyteal.types import TealType
+from pyteal.ast import *
+from pyteal.types import *
+from pyteal.compiler import *
+from pyteal.ir import *
+from globals import get_sig_count_in_step, get_group_size
 
-from globals import SIGNATURES_PER_VERIFICATION_STEP, is_proper_group_size
+
+@Subroutine(TealType.uint64)
+def sig_check(signatures, digest, keys, num_guardians):
+    si = ScratchVar(TealType.uint64)
+    ki = ScratchVar(TealType.uint64)
+    return Seq(
+        [
+            For(Seq([
+                si.store(Int(0)),
+                ki.store(Int(0))
+            ]),
+                si.load() < Len(signatures),
+                Seq([
+                    si.store(si.load() + Int(66)),
+                    ki.store(ki.load() + Int(32)),
+                ])).Do(
+                Seq(
+                    Assert(Ed25519Verify(
+                        digest,
+                        Extract(signatures, si.load(), Int(66)),
+                        Extract(keys, ki.load(), Int(32)),))
+                )
+            ),
+            Return(Int(1))
+        ]
+    )
+
 
 """
 * Let N be the number of signatures per verification step, for the TX(i) in group, we verify signatures [j..k] where j = i*N, k = j+(N-1)
@@ -37,17 +61,20 @@ def vaa_verify_program(vaa_processor_app_id):
     signatures = Arg(0)
     digest = Txn.note()
     keys = Txn.application_args[1]
-    gssize = Txn.application_args[2]
+    num_guardians = Txn.application_args[2]
 
     return Seq([
         Assert(And(
             Txn.fee() <= Int(1000),
             Txn.application_args.length() == Int(1),
-            Len(signatures) == Int(SIGNATURES_PER_VERIFICATION_STEP) * Int(66),
+            Len(signatures) == get_sig_count_in_step(
+                Txn.group_index(), Btoi(num_guardians)) * Int(66),
             Txn.rekey_to() == Global.zero_address(),
             Txn.application_id() == Int(vaa_processor_app_id),
             Txn.type_enum() == TxnType.ApplicationCall,
-            is_proper_group_size(Btoi(gssize))),),
+            Global.group_size() == get_group_size(Btoi(num_guardians)),
+            sig_check(signatures, digest, keys, num_guardians))
+        ),
         Approve()])
 
 
