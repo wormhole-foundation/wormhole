@@ -22,7 +22,7 @@ from globals import get_sig_count_in_step, get_group_size
 
 
 @Subroutine(TealType.uint64)
-def sig_check(signatures, digest, keys, num_guardians):
+def sig_check(signatures, digest, keys):
     si = ScratchVar(TealType.uint64)
     ki = ScratchVar(TealType.uint64)
     return Seq(
