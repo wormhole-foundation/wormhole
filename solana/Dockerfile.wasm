@@ -7,7 +7,7 @@ RUN rustup default nightly-2021-08-01
 
 WORKDIR /usr/src/bridge
 
-RUN cargo install wasm-pack
+RUN cargo install wasm-pack --vers 0.9.1
 
 ENV RUST_LOG="solana_runtime::system_instruction_processor=trace,solana_runtime::message_processor=trace,solana_bpf_loader=debug,solana_rbpf=debug"
 ENV EMITTER_ADDRESS="11111111111111111111111111111115"
