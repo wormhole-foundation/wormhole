@@ -41,19 +41,20 @@ SLOT 255:  number of guardians in set
 """
 from pyteal.ast import *
 from pyteal.types import *
-from pyteal.compiler import * 
+from pyteal.compiler import *
 from pyteal.ir import *
-from globals import MAX_SIGNATURES_PER_VERIFICATION_STEP, get_group_size
+from globals import MAX_SIGNATURES_PER_VERIFICATION_STEP, get_group_size, get_sig_count_in_step
 
 METHOD = Txn.application_args[0]
 VERIFY_ARG_GUARDIAN_KEY_SUBSET = Txn.application_args[1]
 VERIFY_ARG_GUARDIAN_SET_SIZE = Txn.application_args[2]
 VERIFY_ARG_PAYLOAD = Txn.note()
 SLOTID_TEMP_0 = 251
-SLOTID_VERIFIED_GUARDIAN_BITS = 254
-SLOTID_GUARDIAN_COUNT = 255
+SLOTID_VERIFIED_BIT = 254
 STATELESS_LOGIC_HASH = App.globalGet(Bytes("vphash"))
 NUM_GUARDIANS = App.globalGet(Bytes("gscount"))
+SLOT_VERIFIED_BITFIELD = ScratchVar(TealType.uint64, SLOTID_VERIFIED_BIT)
+SLOT_TEMP =  ScratchVar(TealType.uint64, SLOTID_TEMP_0)
 
 # defined chainId/contracts
 
@@ -82,17 +83,6 @@ def bootstrap():
 
 
 @Subroutine(TealType.uint64)
-def verify_from():
-    return Txn.group_index() * Int(MAX_SIGNATURES_PER_VERIFICATION_STEP)
-
-
-@Subroutine(TealType.uint64)
-def verify_to():
-    return min(VERIFY_ARG_GUARDIAN_SET_SIZE, verify_from +
-               (Int(MAX_SIGNATURES_PER_VERIFICATION_STEP) - Int(1)))
-
-
-@Subroutine(TealType.uint64)
 def is_creator():
     return Txn.sender() == Global.creator_address()
 
@@ -102,11 +92,14 @@ def check_guardian_key_subset():
     # Verify that the passed argument for guardian keys [i..j] match the
     # global state for the same keys.
     #
-    i = ScratchVar(TealType.uint64, SLOTID_TEMP_0)
-    return Seq([For(i.store(Int(0)), i.load() < Int(MAX_SIGNATURES_PER_VERIFICATION_STEP), i.store(i.load() + Int(1))).Do(
-        If(App.globalGet(Itob(i.load())) != Extract(VERIFY_ARG_GUARDIAN_KEY_SUBSET,
-           i.load() * Int(64), Int(64))).Then(Return(Int(0)))  # get and compare stored global key
-    ),
+    i = SLOT_TEMP
+    return Seq([
+        For(i.store(Int(0)),
+            i.load() < get_sig_count_in_step(Txn.group_index(), NUM_GUARDIANS),
+            i.store(i.load() + Int(1))).Do(
+            If(App.globalGet(Itob(i.load())) != Extract(VERIFY_ARG_GUARDIAN_KEY_SUBSET,
+                                                        i.load() * Int(64), Int(64))).Then(Return(Int(0)))  # get and compare stored global key
+        ),
         Return(Int(1))
     ])
 
@@ -155,6 +148,21 @@ def commit_vaa():
     ])
 
 
+@Subroutine(TealType.uint64)
+def check_final_verification_state():
+    i = SLOT_TEMP
+    return Seq([
+        For(i.store(Int(0)),
+            i.load() < Global.group_size(),
+            i.store(i.load() + Int(0))).Do(
+            Assert(
+                And(Gtxn[i.load()].application_id() == Txn.application_id(),
+                    GetBit(ImportScratchValue(i.load(), SLOTID_VERIFIED_BIT), i.load()) == Int(1)))
+        ),
+        Return(Int(1))
+    ])
+
+
 def setvphash():
     #
     # Sets the hash of the verification stateless program.
@@ -173,21 +181,30 @@ def setvphash():
 def verify():
     # * Sender must be stateless logic.
     # * Let N be the number of signatures per verification step, for the TX(i) in group, we verify signatures [j..k] where j = i*N, k = j+(N-1)
-    # * Argument 1 must contain guardian public keys for guardians [i..j] (read by stateless logic)
+    # * Argument 1 must contain guardian public keys for guardians [i..j] (read by stateless logic).
+    #   Public keys are 32 bytes long so expected argument length is 32 * (j - i + 1)
     # * Argument 2 must contain current guardian set size (read by stateless logic)
     # * Passed guardian public keys [i..j] must match the current global state.
     # * Note must contain VAA message-in-digest (header+payload) (up to 1KB)  (read by stateless logic)
     #
-    # Last TX in group  will trigger VAA handling depending on payload.
+    # Last TX in group  will trigger VAA handling depending on payload. It is required that
+    # all previous transactions are app-calls for this AppId and all bitfields are set.
 
-    return Seq([Assert(And(Global.group_size() == get_group_size(NUM_GUARDIANS),
-                           Txn.application_args.length() == Int(3),
-                           Txn.sender() == STATELESS_LOGIC_HASH,
-                           check_guardian_set_size(),
-                           check_guardian_key_subset())),
-                If(Txn.group_index() == Global.group_size() -
-                   Int(1)).Then(Return(commit_vaa())),
-                Approve()])
+    return Seq([
+        SLOT_VERIFIED_BITFIELD.store(Int(0)),
+        Assert(And(Global.group_size() == get_group_size(NUM_GUARDIANS),
+                   Txn.application_args.length() == Int(3),
+                   Txn.sender() == STATELESS_LOGIC_HASH,
+                   check_guardian_set_size(),
+                   check_guardian_key_subset())),
+        SLOT_VERIFIED_BITFIELD.store(SetBit(SLOT_VERIFIED_BITFIELD.load(), Txn.group_index(), Int(1))),
+        If(Txn.group_index() == Global.group_size() -
+           Int(1)).Then(
+            Return(Seq([
+                Assert(check_final_verification_state()),
+                commit_vaa()
+            ]))),
+        Approve()])
 
 
 def vaa_processor_program():
