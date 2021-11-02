@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 
 	"cloud.google.com/go/bigtable"
@@ -64,6 +65,22 @@ type (
 	}
 )
 
+func chainIdStringToType(chainId string) vaa.ChainID {
+	switch chainId {
+	case "1":
+		return vaa.ChainIDSolana
+	case "2":
+		return vaa.ChainIDEthereum
+	case "3":
+		return vaa.ChainIDTerra
+	case "4":
+		return vaa.ChainIDBSC
+	case "5":
+		return vaa.ChainIDPolygon
+	}
+	return vaa.ChainIDUnset
+}
+
 func makeSummary(row bigtable.Row) *Summary {
 	summary := &Summary{}
 	if _, ok := row[columnFamilies[0]]; ok {
@@ -82,6 +99,18 @@ func makeSummary(row bigtable.Row) *Summary {
 				summary.Sequence = string(item.Value)
 			}
 		}
+	} else {
+		// Some rows have a QuorumState, but no MessagePublication,
+		// so populate Summary values from the rowKey.
+		keyParts := strings.Split(row.Key(), ":")
+		chainId := chainIdStringToType(keyParts[0])
+		summary.EmitterChain = chainId.String()
+		summary.EmitterAddress = keyParts[1]
+		seq := strings.TrimLeft(keyParts[2], "0")
+		if seq == "" {
+			seq = "0"
+		}
+		summary.Sequence = seq
 	}
 	if _, ok := row[columnFamilies[3]]; ok {
 		item := row[columnFamilies[3]][0]

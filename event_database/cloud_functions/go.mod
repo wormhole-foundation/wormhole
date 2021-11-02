@@ -11,5 +11,5 @@ require (
 
 require (
 	github.com/GoogleCloudPlatform/functions-framework-go v1.3.0
-	github.com/certusone/wormhole/node v0.0.0-20211027001206-19628733285e
+	github.com/certusone/wormhole/node v0.0.0-20211102011245-d412cb8a936a
 )
