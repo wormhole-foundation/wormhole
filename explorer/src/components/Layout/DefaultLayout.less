@@ -58,3 +58,37 @@ svg:hover.external-icon  {
         display: flex;
     }
 }
+
+// Hamburger menu + popover
+.popover div.nav {
+    /* mobile nav */
+    flex-direction: column;
+    font-size: 28px;
+    font-weight: 400;
+}
+
+.affix {
+    /* fixed position prevents scrolling while the mobile nav popover is open. */
+    position: fixed !important;
+    width: 100%;
+    z-index: 1000;
+}
+
+.nav a {
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 18px;
+}
+.nav a:hover{
+    color: @primary-color;
+}
+
+@media (max-width: 992px) {
+    .site-nav-right {
+        display: none;
+    }
+}
+@media (min-width: 992px) {
+    .popover div.nav {
+        display: none;
+    }
+}
