@@ -62,11 +62,8 @@ export const selectNFTSourceBalanceString = (state: RootState) =>
 export const selectNFTTargetChain = (state: RootState) => state.nft.targetChain;
 export const selectNFTTargetAddressHex = (state: RootState) =>
   state.nft.targetAddressHex;
-export const selectNFTTargetAsset = (state: RootState) => state.nft.targetAsset;
-export const selectNFTTargetParsedTokenAccount = (state: RootState) =>
-  state.nft.targetParsedTokenAccount;
-export const selectNFTTargetBalanceString = (state: RootState) =>
-  state.nft.targetParsedTokenAccount?.uiAmountString || "";
+export const selectNFTTargetAsset = (state: RootState) =>
+  state.nft.targetAsset.data?.address;
 export const selectNFTTransferTx = (state: RootState) => state.nft.transferTx;
 export const selectNFTSignedVAAHex = (state: RootState) =>
   state.nft.signedVAAHex;
@@ -124,7 +121,10 @@ export const selectNFTTargetError = (state: RootState) => {
   if (state.nft.sourceChain === state.nft.targetChain) {
     return "Select a different target and source";
   }
-  if (state.nft.targetChain === CHAIN_ID_SOLANA && !state.nft.targetAsset) {
+  if (
+    state.nft.targetChain === CHAIN_ID_SOLANA &&
+    !selectNFTTargetAsset(state)
+  ) {
     // target asset is only required for solana
     // in the cases of new transfers, target asset will not exist and be created on redeem
     // Solana requires the derived address to derive the associated token account which is the target on the vaa
@@ -173,8 +173,10 @@ export const selectTransferTargetChain = (state: RootState) =>
   state.transfer.targetChain;
 export const selectTransferTargetAddressHex = (state: RootState) =>
   state.transfer.targetAddressHex;
-export const selectTransferTargetAsset = (state: RootState) =>
+export const selectTransferTargetAssetWrapper = (state: RootState) =>
   state.transfer.targetAsset;
+export const selectTransferTargetAsset = (state: RootState) =>
+  state.transfer.targetAsset.data?.address;
 export const selectTransferTargetParsedTokenAccount = (state: RootState) =>
   state.transfer.targetParsedTokenAccount;
 export const selectTransferTargetBalanceString = (state: RootState) =>
@@ -262,12 +264,12 @@ export const selectTransferTargetError = (state: RootState) => {
   if (state.transfer.sourceChain === state.transfer.targetChain) {
     return "Select a different target and source";
   }
-  if (!state.transfer.targetAsset) {
+  if (!selectTransferTargetAsset(state)) {
     return UNREGISTERED_ERROR_MESSAGE;
   }
   if (
     isEVMChain(state.transfer.targetChain) &&
-    state.transfer.targetAsset === ethers.constants.AddressZero
+    selectTransferTargetAsset(state) === ethers.constants.AddressZero
   ) {
     return UNREGISTERED_ERROR_MESSAGE;
   }

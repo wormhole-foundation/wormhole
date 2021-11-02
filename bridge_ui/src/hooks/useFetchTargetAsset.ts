@@ -15,9 +15,15 @@ import { BigNumber } from "@ethersproject/bignumber";
 import { arrayify } from "@ethersproject/bytes";
 import { Connection } from "@solana/web3.js";
 import { LCDClient } from "@terra-money/terra.js";
+import { ethers } from "ethers";
 import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useEthereumProvider } from "../contexts/EthereumProviderContext";
+import {
+  errorDataWrapper,
+  fetchDataWrapper,
+  receiveDataWrapper,
+} from "../store/helpers";
 import { setTargetAsset as setNFTTargetAsset } from "../store/nftSlice";
 import {
   selectNFTIsRecovery,
@@ -75,10 +81,16 @@ function useFetchTargetAsset(nft?: boolean) {
       return;
     }
     if (isSourceAssetWormholeWrapped && originChain === targetChain) {
-      dispatch(setTargetAsset(hexToNativeString(originAsset, originChain)));
+      dispatch(
+        setTargetAsset(
+          receiveDataWrapper({
+            doesExist: true,
+            address: hexToNativeString(originAsset, originChain) || null,
+          })
+        )
+      );
       return;
     }
-    // TODO: loading state, error state
     let cancelled = false;
     (async () => {
       if (
@@ -88,7 +100,7 @@ function useFetchTargetAsset(nft?: boolean) {
         originChain &&
         originAsset
       ) {
-        dispatch(setTargetAsset(undefined));
+        dispatch(setTargetAsset(fetchDataWrapper()));
         try {
           const asset = await (nft
             ? getForeignAssetEthNFT(
@@ -104,17 +116,29 @@ function useFetchTargetAsset(nft?: boolean) {
                 hexToUint8Array(originAsset)
               ));
           if (!cancelled) {
-            dispatch(setTargetAsset(asset));
+            dispatch(
+              setTargetAsset(
+                receiveDataWrapper({
+                  doesExist: asset !== ethers.constants.AddressZero,
+                  address: asset,
+                })
+              )
+            );
           }
         } catch (e) {
           if (!cancelled) {
-            // TODO: warning for this
-            dispatch(setTargetAsset(null));
+            dispatch(
+              setTargetAsset(
+                errorDataWrapper(
+                  "Unable to determine existence of wrapped asset"
+                )
+              )
+            );
           }
         }
       }
       if (targetChain === CHAIN_ID_SOLANA && originChain && originAsset) {
-        dispatch(setTargetAsset(undefined));
+        dispatch(setTargetAsset(fetchDataWrapper()));
         try {
           const connection = new Connection(SOLANA_HOST, "confirmed");
           const asset = await (nft
@@ -131,17 +155,26 @@ function useFetchTargetAsset(nft?: boolean) {
                 hexToUint8Array(originAsset)
               ));
           if (!cancelled) {
-            dispatch(setTargetAsset(asset));
+            dispatch(
+              setTargetAsset(
+                receiveDataWrapper({ doesExist: !!asset, address: asset })
+              )
+            );
           }
         } catch (e) {
           if (!cancelled) {
-            // TODO: warning for this
-            dispatch(setTargetAsset(null));
+            dispatch(
+              setTargetAsset(
+                errorDataWrapper(
+                  "Unable to determine existence of wrapped asset"
+                )
+              )
+            );
           }
         }
       }
       if (targetChain === CHAIN_ID_TERRA && originChain && originAsset) {
-        dispatch(setTargetAsset(undefined));
+        dispatch(setTargetAsset(fetchDataWrapper()));
         try {
           const lcd = new LCDClient(TERRA_HOST);
           const asset = await getForeignAssetTerra(
@@ -151,12 +184,21 @@ function useFetchTargetAsset(nft?: boolean) {
             hexToUint8Array(originAsset)
           );
           if (!cancelled) {
-            dispatch(setTargetAsset(asset));
+            dispatch(
+              setTargetAsset(
+                receiveDataWrapper({ doesExist: !!asset, address: asset })
+              )
+            );
           }
         } catch (e) {
           if (!cancelled) {
-            // TODO: warning for this
-            dispatch(setTargetAsset(null));
+            dispatch(
+              setTargetAsset(
+                errorDataWrapper(
+                  "Unable to determine existence of wrapped asset"
+                )
+              )
+            );
           }
         }
       }

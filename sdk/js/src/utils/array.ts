@@ -6,7 +6,7 @@ import {
   CHAIN_ID_TERRA,
   CHAIN_ID_POLYGON,
 } from "./consts";
-import { humanAddress, canonicalAddress } from "../terra";
+import { humanAddress, canonicalAddress, isNativeDenom } from "../terra";
 import { PublicKey } from "@solana/web3.js";
 import { hexValue, hexZeroPad, stripZeros } from "ethers/lib/utils";
 import { arrayify, zeroPad } from "@ethersproject/bytes";
@@ -53,7 +53,16 @@ export const nativeToHexString = (
   } else if (chain === CHAIN_ID_SOLANA) {
     return uint8ArrayToHex(zeroPad(new PublicKey(address).toBytes(), 32));
   } else if (chain === CHAIN_ID_TERRA) {
-    return uint8ArrayToHex(zeroPad(canonicalAddress(address), 32));
+    if (isNativeDenom(address)) {
+      return (
+        "01" +
+        uint8ArrayToHex(
+          zeroPad(new Uint8Array(Buffer.from(address, "ascii")), 31)
+        )
+      );
+    } else {
+      return uint8ArrayToHex(zeroPad(canonicalAddress(address), 32));
+    }
   } else {
     return null;
   }

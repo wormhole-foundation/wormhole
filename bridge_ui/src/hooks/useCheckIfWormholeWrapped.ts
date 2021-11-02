@@ -79,7 +79,6 @@ function useCheckIfWormholeWrapped(nft?: boolean) {
       return;
     }
     // TODO: loading state, error state
-    dispatch(setSourceWormholeWrappedInfo(undefined));
     let cancelled = false;
     (async () => {
       if (isEVMChain(sourceChain) && provider && sourceAsset) {

@@ -37,6 +37,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useDispatch } from "react-redux";
 import { useHistory } from "react-router";
 import { useEthereumProvider } from "../contexts/EthereumProviderContext";
+import useIsWalletReady from "../hooks/useIsWalletReady";
 import { COLORS } from "../muiTheme";
 import { setRecoveryVaa as setRecoveryNFTVaa } from "../store/nftSlice";
 import { setRecoveryVaa } from "../store/transferSlice";
@@ -174,6 +175,9 @@ export default function Recovery() {
   const [recoverySourceTxError, setRecoverySourceTxError] = useState("");
   const [recoverySignedVAA, setRecoverySignedVAA] = useState("");
   const [recoveryParsedVAA, setRecoveryParsedVAA] = useState<any>(null);
+  const { isReady, statusMessage } = useIsWalletReady(recoverySourceChain);
+  const walletConnectError =
+    isEVMChain(recoverySourceChain) && !isReady ? statusMessage : "";
   const parsedPayload = useMemo(() => {
     try {
       return recoveryParsedVAA?.payload
@@ -191,7 +195,7 @@ export default function Recovery() {
     }
   }, [recoveryParsedVAA, isNFT]);
   useEffect(() => {
-    if (recoverySourceTx) {
+    if (recoverySourceTx && (!isEVMChain(recoverySourceChain) || isReady)) {
       let cancelled = false;
       if (isEVMChain(recoverySourceChain) && provider) {
         setRecoverySourceTxError("");
@@ -253,7 +257,14 @@ export default function Recovery() {
         cancelled = true;
       };
     }
-  }, [recoverySourceChain, recoverySourceTx, provider, enqueueSnackbar, isNFT]);
+  }, [
+    recoverySourceChain,
+    recoverySourceTx,
+    provider,
+    enqueueSnackbar,
+    isNFT,
+    isReady,
+  ]);
   const handleTypeChange = useCallback((event) => {
     setRecoverySourceChain((prevChain) =>
       event.target.value === "NFT" &&
@@ -376,11 +387,15 @@ export default function Recovery() {
         <TextField
           variant="outlined"
           label="Source Tx (paste here)"
-          disabled={!!recoverySignedVAA || recoverySourceTxIsLoading}
+          disabled={
+            !!recoverySignedVAA ||
+            recoverySourceTxIsLoading ||
+            !!walletConnectError
+          }
           value={recoverySourceTx}
           onChange={handleSourceTxChange}
-          error={!!recoverySourceTxError}
-          helperText={recoverySourceTxError}
+          error={!!recoverySourceTxError || !!walletConnectError}
+          helperText={recoverySourceTxError || walletConnectError}
           fullWidth
           margin="normal"
         />

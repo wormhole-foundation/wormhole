@@ -4,8 +4,8 @@ import {
   getForeignAssetEth,
   getForeignAssetSolana,
   getForeignAssetTerra,
-  nativeToHexString,
   hexToUint8Array,
+  nativeToHexString,
 } from "@certusone/wormhole-sdk";
 import { Connection } from "@solana/web3.js";
 import { LCDClient } from "@terra-money/terra.js";

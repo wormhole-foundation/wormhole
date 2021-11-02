@@ -44,9 +44,11 @@ function Send() {
   const sourceChain = useSelector(selectTransferSourceChain);
   const sourceAsset = useSelector(selectTransferSourceAsset);
   const sourceAmount = useSelector(selectTransferAmount);
-  const sourceDecimals = useSelector(
+  const sourceParsedTokenAccount = useSelector(
     selectTransferSourceParsedTokenAccount
-  )?.decimals;
+  );
+  const sourceDecimals = sourceParsedTokenAccount?.decimals;
+  const sourceIsNative = sourceParsedTokenAccount?.isNativeAsset;
   const sourceAmountParsed =
     sourceDecimals !== undefined &&
     sourceDecimals !== null &&
@@ -80,7 +82,12 @@ function Send() {
     isAllowanceFetching,
     isApproveProcessing,
     approveAmount,
-  } = useAllowance(sourceChain, sourceAsset, sourceAmountParsed || undefined);
+  } = useAllowance(
+    sourceChain,
+    sourceAsset,
+    sourceAmountParsed || undefined,
+    sourceIsNative
+  );
 
   const approveButtonNeeded = isEVMChain(sourceChain) && !sufficientAllowance;
   const notOne = shouldApproveUnlimited || sourceAmountParsed !== oneParsed;

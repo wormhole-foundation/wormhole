@@ -9,7 +9,6 @@ import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import useCheckIfWormholeWrapped from "../../hooks/useCheckIfWormholeWrapped";
 import useFetchTargetAsset from "../../hooks/useFetchTargetAsset";
-import useGetBalanceEffect from "../../hooks/useGetBalanceEffect";
 import {
   selectTransferActiveStep,
   selectTransferIsRedeemComplete,
@@ -30,7 +29,6 @@ import TargetPreview from "./TargetPreview";
 function Transfer() {
   useCheckIfWormholeWrapped();
   useFetchTargetAsset();
-  useGetBalanceEffect("target");
   const dispatch = useDispatch();
   const activeStep = useSelector(selectTransferActiveStep);
   const isSending = useSelector(selectTransferIsSending);
@@ -63,15 +61,18 @@ function Transfer() {
           expanded={activeStep >= 1}
           disabled={preventNavigation || isRedeemComplete}
         >
-          <StepButton onClick={() => dispatch(setStep(1))}>Target</StepButton>
+          <StepButton
+            disabled={preventNavigation || isRedeemComplete || activeStep === 0}
+            onClick={() => dispatch(setStep(1))}
+          >
+            Target
+          </StepButton>
           <StepContent>
             {activeStep === 1 ? <Target /> : <TargetPreview />}
           </StepContent>
         </Step>
         <Step expanded={activeStep >= 2} disabled={isSendComplete}>
-          <StepButton onClick={() => dispatch(setStep(2))}>
-            Send tokens
-          </StepButton>
+          <StepButton disabled>Send tokens</StepButton>
           <StepContent>
             {activeStep === 2 ? <Send /> : <SendPreview />}
           </StepContent>

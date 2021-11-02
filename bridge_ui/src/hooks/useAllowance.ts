@@ -11,7 +11,8 @@ import { isEVMChain } from "../utils/ethereum";
 export default function useAllowance(
   chainId: ChainId,
   tokenAddress?: string,
-  transferAmount?: BigInt
+  transferAmount?: BigInt,
+  sourceIsNative?: boolean
 ) {
   const dispatch = useDispatch();
   const [allowance, setAllowance] = useState<BigInt | null>(null);
@@ -20,6 +21,7 @@ export default function useAllowance(
   const { signer } = useEthereumProvider();
   const sufficientAllowance =
     !isEVMChain(chainId) ||
+    sourceIsNative ||
     (allowance && transferAmount && allowance >= transferAmount);
 
   useEffect(() => {
