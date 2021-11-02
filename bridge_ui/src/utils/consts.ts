@@ -10,7 +10,7 @@ import { clusterApiUrl } from "@solana/web3.js";
 import { getAddress } from "ethers/lib/utils";
 import bscIcon from "../icons/bsc.svg";
 import ethIcon from "../icons/eth.svg";
-// import polygonIcon from "../icons/polygon.svg";
+import polygonIcon from "../icons/polygon.svg";
 import solanaIcon from "../icons/solana.svg";
 import terraIcon from "../icons/terra.svg";
 
@@ -39,11 +39,11 @@ export const CHAINS =
           name: "Ethereum",
           logo: ethIcon,
         },
-        // {
-        //   id: CHAIN_ID_POLYGON,
-        //   name: "Polygon",
-        //   logo: polygonIcon,
-        // },
+        {
+          id: CHAIN_ID_POLYGON,
+          name: "Polygon",
+          logo: polygonIcon,
+        },
         {
           id: CHAIN_ID_SOLANA,
           name: "Solana",
@@ -90,7 +90,8 @@ export const CHAINS =
           logo: terraIcon,
         },
       ];
-export const BETA_CHAINS: ChainId[] = CLUSTER === "mainnet" ? [] : [];
+export const BETA_CHAINS: ChainId[] =
+  CLUSTER === "mainnet" ? [CHAIN_ID_POLYGON] : [];
 export const CHAINS_WITH_NFT_SUPPORT = CHAINS.filter(
   ({ id }) =>
     id === CHAIN_ID_BSC ||

@@ -9,7 +9,7 @@ import {
 import { Link as RouterLink } from "react-router-dom";
 import polygonLogo from "../../icons/polygon.svg";
 import { COLORS } from "../../muiTheme";
-import { CHAINS } from "../../utils/consts";
+import { BETA_CHAINS, CHAINS } from "../../utils/consts";
 import HeaderText from "../HeaderText";
 
 const useStyles = makeStyles((theme) => ({
@@ -102,7 +102,7 @@ function Home() {
       </Container>
       <Container maxWidth="md">
         <div className={classes.chainList}>
-          {CHAINS.map((chain) => (
+          {CHAINS.filter(({ id }) => !BETA_CHAINS.includes(id)).map((chain) => (
             <div key={chain.id} className={classes.chainCard}>
               <div className={classes.chainLogoWrapper}>
                 <img
