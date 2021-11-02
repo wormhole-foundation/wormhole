@@ -65,9 +65,9 @@ func runListNodes(cmd *cobra.Command, args []string) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 8, 2, ' ', 0)
 
 	if showDetails {
-		_, _ = w.Write([]byte("Node key\tGuardian key\tNode name\tVersion\tLast seen\tUptime\tSolana\tEthereum\tTerra\tBSC\tPolygon\n"))
+		_, _ = w.Write([]byte("Node key\tGuardian key\tNode name\tVersion\tLast seen\tUptime\tSolana\tEthereum\tTerra\tBSC\tPolygon\tHarmony\n"))
 	} else {
-		_, _ = w.Write([]byte("Node key\tGuardian key\tNode name\tVersion\tLast seen\tSolana\tEthereum\tTerra\tBSC\tPolygon\n"))
+		_, _ = w.Write([]byte("Node key\tGuardian key\tNode name\tVersion\tLast seen\tSolana\tEthereum\tTerra\tBSC\tPolygon\tHarmony\n"))
 	}
 
 	for _, h := range nodes {
@@ -115,6 +115,9 @@ func runListNodes(cmd *cobra.Command, args []string) {
 				truncAddrs[vaa.ChainIDPolygon],
 				heights[vaa.ChainIDPolygon],
 				errors[vaa.ChainIDPolygon],
+				truncAddrs[vaa.ChainIDHarmony],
+				heights[vaa.ChainIDHarmony],
+				errors[vaa.ChainIDHarmony],
 			)
 		} else {
 			fmt.Fprintf(w,

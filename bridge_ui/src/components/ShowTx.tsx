@@ -3,6 +3,7 @@ import {
   CHAIN_ID_BSC,
   CHAIN_ID_ETH,
   CHAIN_ID_POLYGON,
+  CHAIN_ID_HARMONY,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
 } from "@certusone/wormhole-sdk";
@@ -42,6 +43,8 @@ export default function ShowTx({
       ? `https://bscscan.com/tx/${tx?.id}`
       : chainId === CHAIN_ID_POLYGON
       ? `https://polygonscan.com/tx/${tx?.id}`
+      : chainId === CHAIN_ID_HARMONY
+      ? `https://explorer.harmony.one/tx/${tx?.id}`
       : chainId === CHAIN_ID_SOLANA
       ? `https://explorer.solana.com/tx/${tx?.id}${
           CLUSTER === "testnet"

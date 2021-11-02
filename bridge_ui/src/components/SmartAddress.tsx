@@ -3,6 +3,7 @@ import {
   CHAIN_ID_BSC,
   CHAIN_ID_ETH,
   CHAIN_ID_POLYGON,
+  CHAIN_ID_HARMONY,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
   isNativeDenom,
@@ -101,6 +102,8 @@ export default function SmartAddress({
     ? `https://bscscan.com/address/${useableAddress}`
     : chainId === CHAIN_ID_POLYGON
     ? `https://polygonscan.com/address/${useableAddress}`
+    : chainId === CHAIN_ID_HARMONY
+    ? `https://explorer.harmony.one/address/${useableAddress}`
     : chainId === CHAIN_ID_SOLANA
     ? `https://explorer.solana.com/address/${useableAddress}${
         CLUSTER === "testnet"

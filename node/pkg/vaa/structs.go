@@ -94,6 +94,8 @@ func (c ChainID) String() string {
 		return "bsc"
 	case ChainIDPolygon:
 		return "polygon"
+	case ChainIDHarmony:
+		return "harmony"
 	default:
 		return fmt.Sprintf("unknown chain ID: %d", c)
 	}
@@ -130,6 +132,8 @@ const (
 	ChainIDBSC ChainID = 4
 	// ChainIDPolygon is the ChainID of Polygon
 	ChainIDPolygon ChainID = 5
+	// ChainIDHarmony is the ChainID of Harmony
+	ChainIDHarmony ChainID = 6
 
 	minVAALength        = 1 + 4 + 52 + 4 + 1 + 1
 	SupportedVAAVersion = 0x01

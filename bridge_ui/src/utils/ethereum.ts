@@ -3,6 +3,7 @@ import {
   CHAIN_ID_BSC,
   CHAIN_ID_ETH,
   CHAIN_ID_POLYGON,
+  CHAIN_ID_HARMONY,
   NFTImplementation,
   NFTImplementation__factory,
   TokenImplementation,
@@ -18,7 +19,8 @@ import {
 export const isEVMChain = (chainId: ChainId) =>
   chainId === CHAIN_ID_ETH ||
   chainId === CHAIN_ID_BSC ||
-  chainId === CHAIN_ID_POLYGON;
+  chainId === CHAIN_ID_POLYGON ||
+  chainId === CHAIN_ID_HARMONY;
 
 //This is a valuable intermediate step to the parsed token account, as the token has metadata information on it.
 export async function getEthereumToken(

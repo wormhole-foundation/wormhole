@@ -5,6 +5,7 @@ import {
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
   CHAIN_ID_POLYGON,
+  CHAIN_ID_HARMONY,
 } from "./consts";
 import { humanAddress, canonicalAddress } from "../terra";
 import { PublicKey } from "@solana/web3.js";
@@ -14,7 +15,8 @@ import { arrayify, zeroPad } from "@ethersproject/bytes";
 export const isEVMChain = (chainId: ChainId) =>
   chainId === CHAIN_ID_ETH ||
   chainId === CHAIN_ID_BSC ||
-  chainId === CHAIN_ID_POLYGON;
+  chainId === CHAIN_ID_POLYGON ||
+  chainId === CHAIN_ID_HARMONY;
 
 export const isHexNativeTerra = (h: string) => h.startsWith("01");
 export const nativeTerraHexToDenom = (h: string) =>
@@ -29,7 +31,7 @@ export const hexToNativeString = (h: string | undefined, c: ChainId) => {
       ? undefined
       : c === CHAIN_ID_SOLANA
       ? new PublicKey(hexToUint8Array(h)).toString()
-      : c === CHAIN_ID_ETH || c === CHAIN_ID_BSC || c === CHAIN_ID_POLYGON
+      : c === CHAIN_ID_ETH || c === CHAIN_ID_BSC || c === CHAIN_ID_POLYGON || c === CHAIN_ID_HARMONY
       ? hexZeroPad(hexValue(hexToUint8Array(h)), 20)
       : c === CHAIN_ID_TERRA
       ? isHexNativeTerra(h)

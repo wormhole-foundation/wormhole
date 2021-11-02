@@ -1,20 +1,22 @@
 import { getEmitterAddressEth, getEmitterAddressSolana, getEmitterAddressTerra } from "@certusone/wormhole-sdk";
 
-export const chainEnums = ['', 'Solana', 'Ethereum', 'Terra', 'BSC', 'Polygon']
+export const chainEnums = ['', 'Solana', 'Ethereum', 'Terra', 'BSC', 'Polygon', 'Harmony']
 // type chainNames = "solana" | "ethereum" | "terra" | "bsc"
 export interface ChainIDs {
     "solana": 1,
     "ethereum": 2,
     "terra": 3,
     "bsc": 4,
-    "polygon": 5
+    "polygon": 5,
+    "harmony": 6
 }
 export const chainIDs: ChainIDs = {
     "solana": 1,
     "ethereum": 2,
     "terra": 3,
     "bsc": 4,
-    "polygon": 5
+    "polygon": 5,
+    "harmony": 6
 }
 
 export enum ChainID {
@@ -24,6 +26,7 @@ export enum ChainID {
     Terra,
     'Binance Smart Chain',
     Polygon,
+    Harmony,
 }
 
 export const METADATA_REPLACE = new RegExp("\u0000", "g");
@@ -46,6 +49,9 @@ const envVarMap: { [name: string]: string | undefined } = {
     GATSBY_DEVNET_POLYGON_CORE_BRIDGE: process.env.GATSBY_DEVNET_POLYGON_CORE_BRIDGE,
     GATSBY_DEVNET_POLYGON_TOKEN_BRIDGE: process.env.GATSBY_DEVNET_POLYGON_TOKEN_BRIDGE,
     GATSBY_DEVNET_POLYGON_NFT_BRIDGE: process.env.GATSBY_DEVNET_POLYGON_NFT_BRIDGE,
+    GATSBY_DEVNET_HARMONY_CORE_BRIDGE: process.env.GATSBY_DEVNET_HARMONY_CORE_BRIDGE,
+    GATSBY_DEVNET_HARMONY_TOKEN_BRIDGE: process.env.GATSBY_DEVNET_HARMONY_TOKEN_BRIDGE,
+    GATSBY_DEVNET_HARMONY_NFT_BRIDGE: process.env.GATSBY_DEVNET_HARMONY_NFT_BRIDGE,
 
     GATSBY_TESTNET_SOLANA_CORE_BRIDGE: process.env.GATSBY_TESTNET_SOLANA_CORE_BRIDGE,
     GATSBY_TESTNET_SOLANA_TOKEN_BRIDGE: process.env.GATSBY_TESTNET_SOLANA_TOKEN_BRIDGE,
@@ -62,6 +68,9 @@ const envVarMap: { [name: string]: string | undefined } = {
     GATSBY_TESTNET_POLYGON_CORE_BRIDGE: process.env.GATSBY_TESTNET_POLYGON_CORE_BRIDGE,
     GATSBY_TESTNET_POLYGON_TOKEN_BRIDGE: process.env.GATSBY_TESTNET_POLYGON_TOKEN_BRIDGE,
     GATSBY_TESTNET_POLYGON_NFT_BRIDGE: process.env.GATSBY_TESTNET_POLYGON_NFT_BRIDGE,
+    GATSBY_TESTNET_HARMONY_CORE_BRIDGE: process.env.GATSBY_TESTNET_HARMONY_CORE_BRIDGE,
+    GATSBY_TESTNET_HARMONY_TOKEN_BRIDGE: process.env.GATSBY_TESTNET_HARMONY_TOKEN_BRIDGE,
+    GATSBY_TESTNET_HARMONY_NFT_BRIDGE: process.env.GATSBY_TESTNET_HARMONY_NFT_BRIDGE,
 
     GATSBY_MAINNET_SOLANA_CORE_BRIDGE: process.env.GATSBY_MAINNET_SOLANA_CORE_BRIDGE,
     GATSBY_MAINNET_SOLANA_TOKEN_BRIDGE: process.env.GATSBY_MAINNET_SOLANA_TOKEN_BRIDGE,
@@ -78,6 +87,9 @@ const envVarMap: { [name: string]: string | undefined } = {
     GATSBY_MAINNET_POLYGON_CORE_BRIDGE: process.env.GATSBY_MAINNET_POLYGON_CORE_BRIDGE,
     GATSBY_MAINNET_POLYGON_TOKEN_BRIDGE: process.env.GATSBY_MAINNET_POLYGON_TOKEN_BRIDGE,
     GATSBY_MAINNET_POLYGON_NFT_BRIDGE: process.env.GATSBY_MAINNET_POLYGON_NFT_BRIDGE,
+    GATSBY_MAINNET_HARMONY_CORE_BRIDGE: process.env.GATSBY_MAINNET_HARMONY_CORE_BRIDGE,
+    GATSBY_MAINNET_HARMONY_TOKEN_BRIDGE: process.env.GATSBY_MAINNET_HARMONY_TOKEN_BRIDGE,
+    GATSBY_MAINNET_HARMONY_NFT_BRIDGE: process.env.GATSBY_MAINNET_HARMONY_NFT_BRIDGE,
 }
 
 export interface KnownContracts {
@@ -100,6 +112,7 @@ const getEmitterAddress: { [chainName: string]: (address: string) => Promise<str
     "terra": getEmitterAddressTerra,
     "bsc": getEmitterAddressEVM,
     "polygon": getEmitterAddressEVM,
+    "harmony": getEmitterAddressEVM,
 }
 
 // the keys used for creating the map of contract addresses of each chain, on each network.

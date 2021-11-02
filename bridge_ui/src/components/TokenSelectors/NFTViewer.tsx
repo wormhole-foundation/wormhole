@@ -16,6 +16,7 @@ import {
   CHAIN_ID_BSC,
   CHAIN_ID_ETH,
   CHAIN_ID_POLYGON,
+  CHAIN_ID_HARMONY,
   CHAIN_ID_SOLANA,
 } from "@certusone/wormhole-sdk";
 import SmartAddress from "../SmartAddress";
@@ -23,6 +24,7 @@ import bscIcon from "../../icons/bsc.svg";
 import ethIcon from "../../icons/eth.svg";
 import solanaIcon from "../../icons/solana.svg";
 import polygonIcon from "../../icons/polygon.svg";
+import harmonyIcon from "../../icons/harmony.svg";
 import useCopyToClipboard from "../../hooks/useCopyToClipboard";
 import { Skeleton } from "@material-ui/lab";
 import Wormhole from "../../icons/wormhole-network.svg";
@@ -83,6 +85,18 @@ const LogoIcon = ({ chainId }: { chainId: ChainId }) =>
       }}
       src={polygonIcon}
       alt="Polygon"
+    />
+  ) : chainId === CHAIN_ID_HARMONY ? (
+    <Avatar
+      style={{
+        backgroundColor: "black",
+        height: "1em",
+        width: "1em",
+        marginLeft: "4px",
+        padding: "3px",
+      }}
+      src={harmonyIcon}
+      alt="Harmony One"
     />
   ) : null;
 
@@ -170,6 +184,12 @@ const useStyles = makeStyles((theme) => ({
   },
   polygon: {
     // color from polygon logo #8247E5 down to 30 lightness
+    backgroundColor: "#0F0323",
+    background:
+      "linear-gradient(160deg, #0F0323 0%, #250957 33%, #0F0323 66%, #0F0323 100%)",
+  },
+  harmony: {
+    // color from one logo #8247E5 down to 30 lightness
     backgroundColor: "#0F0323",
     background:
       "linear-gradient(160deg, #0F0323 0%, #250957 33%, #0F0323 66%, #0F0323 100%)",
@@ -384,6 +404,7 @@ export default function NFTViewer({
             [classes.bsc]: chainId === CHAIN_ID_BSC,
             [classes.solana]: chainId === CHAIN_ID_SOLANA,
             [classes.polygon]: chainId === CHAIN_ID_POLYGON,
+            [classes.harmony]: chainId === CHAIN_ID_HARMONY,
           })}
         >
           <CardContent className={classes.textContent}>
@@ -405,7 +426,7 @@ export default function NFTViewer({
           <CardMedia
             className={clsx(classes.mediaContent, {
               [classes.silverMediaBorder]:
-                chainId === CHAIN_ID_SOLANA || chainId === CHAIN_ID_POLYGON,
+                chainId === CHAIN_ID_SOLANA || chainId === CHAIN_ID_POLYGON || chainId === CHAIN_ID_HARMONY,
             })}
           >
             {media}

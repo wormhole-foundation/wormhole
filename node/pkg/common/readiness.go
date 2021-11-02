@@ -8,4 +8,5 @@ const (
 	ReadinessTerraSyncing   readiness.Component = "terraSyncing"
 	ReadinessBSCSyncing     readiness.Component = "bscSyncing"
 	ReadinessPolygonSyncing readiness.Component = "polygonSyncing"
+	ReadinessHarmonySyncing readiness.Component = "harmonySyncing"
 )

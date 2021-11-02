@@ -3,6 +3,7 @@ import {
   CHAIN_ID_BSC,
   CHAIN_ID_ETH,
   CHAIN_ID_POLYGON,
+  CHAIN_ID_HARMONY,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
   WSOL_ADDRESS,
@@ -62,6 +63,8 @@ import {
   WETH_DECIMALS,
   WMATIC_ADDRESS,
   WMATIC_DECIMALS,
+  WONE_ADDRESS,
+  WONE_DECIMALS,
 } from "../utils/consts";
 import { isEVMChain } from "../utils/ethereum";
 import {
@@ -72,6 +75,7 @@ import {
 import bnbIcon from "../icons/bnb.svg";
 import ethIcon from "../icons/eth.svg";
 import polygonIcon from "../icons/polygon.svg";
+import harmonyIcon from "../icons/harmony.svg";
 
 export function createParsedTokenAccount(
   publicKey: string,
@@ -261,6 +265,30 @@ const createNativePolygonParsedTokenAccount = (
           true //isNativeAsset
         );
       });
+};
+
+
+const createNativeHarmonyParsedTokenAccount = (
+  provider: Provider,
+  signerAddress: string | undefined
+) => {
+  return !(provider && signerAddress)
+    ? Promise.reject()
+    : provider.getBalance(signerAddress).then((balanceInWei) => {
+      const balanceInEth = ethers.utils.formatEther(balanceInWei);
+      return createParsedTokenAccount(
+        signerAddress, //public key
+        WONE_ADDRESS, //Mint key, On the other side this will be WBNB, so this is hopefully a white lie.
+        balanceInWei.toString(), //amount, in wei
+        WONE_DECIMALS, //Luckily both BNB and WBNB have 18 decimals, so this should not be an issue.
+        parseFloat(balanceInEth), //This loses precision, but is a limitation of the current datamodel. This field is essentially deprecated
+        balanceInEth.toString(), //This is the actual display field, which has full precision.
+        "ONE", //A white lie for display purposes
+        "One", //A white lie for display purposes
+        harmonyIcon, //TODO logo
+        true //isNativeAsset
+      );
+    });
 };
 
 const createNFTParsedTokenAccountFromCovalent = (
@@ -666,6 +694,40 @@ function useGetAvailableTokens(nft: boolean = false) {
             setEthNativeAccount(undefined);
             setEthNativeAccountLoading(false);
             setEthNativeAccountError("Unable to retrieve your MATIC balance.");
+          }
+        }
+      );
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [lookupChain, provider, signerAddress, nft, ethNativeAccount]);
+
+  //Harmony One Chain native asset load
+  useEffect(() => {
+    let cancelled = false;
+    if (
+      signerAddress &&
+      lookupChain === CHAIN_ID_HARMONY &&
+      !ethNativeAccount &&
+      !nft
+    ) {
+      setEthNativeAccountLoading(true);
+      createNativeHarmonyParsedTokenAccount(provider, signerAddress).then(
+        (result) => {
+          console.log("create native account returned with value", result);
+          if (!cancelled) {
+            setEthNativeAccount(result);
+            setEthNativeAccountLoading(false);
+            setEthNativeAccountError("");
+          }
+        },
+        (error) => {
+          if (!cancelled) {
+            setEthNativeAccount(undefined);
+            setEthNativeAccountLoading(false);
+            setEthNativeAccountError("Unable to retrieve your ONE balance.");
           }
         }
       );

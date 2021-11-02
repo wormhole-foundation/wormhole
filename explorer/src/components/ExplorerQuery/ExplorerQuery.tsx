@@ -70,7 +70,7 @@ const ExplorerQuery = (props: ExplorerQuery) => {
                 } else {
                     paddedAddress = emitterAddress
                 }
-            } else if (emitterChain === chainIDs["ethereum"] || emitterChain === chainIDs["bsc"] || emitterChain === chainIDs["polygon"]) {
+            } else if (emitterChain === chainIDs["ethereum"] || emitterChain === chainIDs["bsc"] || emitterChain === chainIDs["polygon"]  || emitterChain === chainIDs["harmony"]) {
                 if (isHexString(emitterAddress)) {
 
                     let paddedAddressArray = zeroPad(arrayify(emitterAddress, { hexPad: "left" }), 32);

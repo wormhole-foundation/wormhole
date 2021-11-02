@@ -69,6 +69,9 @@ var (
 	polygonRPC      *string
 	polygonContract *string
 
+	harmonyRPC      *string
+	harmonyContract *string
+
 	terraWS       *string
 	terraLCD      *string
 	terraContract *string
@@ -124,6 +127,9 @@ func init() {
 
 	polygonRPC = NodeCmd.Flags().String("polygonRPC", "", "Polygon RPC URL")
 	polygonContract = NodeCmd.Flags().String("polygonContract", "", "Polygon contract address")
+
+	harmonyRPC = NodeCmd.Flags().String("harmonyRPC", "", "Harmony RPC URL")
+	harmonyContract = NodeCmd.Flags().String("harmonyContract", "", "Harmony contract address")
 
 	terraWS = NodeCmd.Flags().String("terraWS", "", "Path to terrad root for websocket connection")
 	terraLCD = NodeCmd.Flags().String("terraLCD", "", "Path to LCD service root for http calls")
@@ -249,6 +255,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	readiness.RegisterComponent(common.ReadinessTerraSyncing)
 	readiness.RegisterComponent(common.ReadinessBSCSyncing)
 	readiness.RegisterComponent(common.ReadinessPolygonSyncing)
+	readiness.RegisterComponent(common.ReadinessHarmonySyncing)
 
 	if *statusAddr != "" {
 		// Use a custom routing instead of using http.DefaultServeMux directly to avoid accidentally exposing packages
@@ -289,6 +296,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		*ethContract = devnet.GanacheWormholeContractAddress.Hex()
 		*bscContract = devnet.GanacheWormholeContractAddress.Hex()
 		*polygonContract = devnet.GanacheWormholeContractAddress.Hex()
+		*harmonyContract = devnet.GanacheWormholeContractAddress.Hex()
 
 		// Use the hostname as nodeName. For production, we don't want to do this to
 		// prevent accidentally leaking sensitive hostnames.
@@ -396,6 +404,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	ethContractAddr := eth_common.HexToAddress(*ethContract)
 	bscContractAddr := eth_common.HexToAddress(*bscContract)
 	polygonContractAddr := eth_common.HexToAddress(*polygonContract)
+	harmonyContractAddr := eth_common.HexToAddress(*harmonyContract)
 	solAddress, err := solana_types.PublicKeyFromBase58(*solanaContract)
 	if err != nil {
 		logger.Fatal("invalid Solana contract address", zap.Error(err))
@@ -525,6 +534,11 @@ func runNode(cmd *cobra.Command, args []string) {
 
 		if err := supervisor.Run(ctx, "polygonwatch",
 			ethereum.NewEthWatcher(*polygonRPC, polygonContractAddr, "polygon", common.ReadinessPolygonSyncing, vaa.ChainIDPolygon, lockC, nil).Run); err != nil {
+			return err
+		}
+
+		if err := supervisor.Run(ctx, "harmonywatch",
+			ethereum.NewEthWatcher(*harmonyRPC, harmonyContractAddr, "harmony", common.ReadinessHarmonySyncing, vaa.ChainIDHarmony, lockC, nil).Run); err != nil {
 			return err
 		}
 

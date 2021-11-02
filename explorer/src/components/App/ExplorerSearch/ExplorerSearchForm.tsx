@@ -24,6 +24,7 @@ const emitterChains = [
     { label: ChainID[3], value: chainIDs['terra'] },
     { label: ChainID[4], value: chainIDs['bsc'] },
     { label: ChainID[5], value: chainIDs['polygon'] },
+    { label: ChainID[6], value: chainIDs['harmony'] },
 
 ]
 

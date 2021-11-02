@@ -97,6 +97,7 @@ func ReadRow(w http.ResponseWriter, r *http.Request) {
 			"terra":    "3",
 			"bsc":      "4",
 			"polygon":  "5",
+			"harmony":  "6",
 		}
 		lowercaseChain := strings.ToLower(emitterChain)
 		if _, ok := chainNameMap[lowercaseChain]; ok {

@@ -12,6 +12,7 @@ import { ReactComponent as EthereumIcon } from '~/icons/ethereum.svg';
 import { ReactComponent as SolanaIcon } from '~/icons/solana.svg';
 import { ReactComponent as TerraIcon } from '~/icons/terra.svg';
 import { ReactComponent as PolygonIcon } from '~/icons/polygon.svg';
+import { ReactComponent as HarmonyIcon } from '~/icons/harmony.svg';
 import ChainOverviewCard from './ChainOverviewCard';
 import { ChainID } from '~/utils/misc/constants';
 import { contractNameFormatter } from './utils';
@@ -177,6 +178,7 @@ const Stats: React.FC<StatsProps> = ({ emitterChain, emitterAddress }) => {
                     <ChainOverviewCard totalDays={daysSinceDataStart} totals={totals} dataKey="3" title={ChainID[3]} Icon={TerraIcon} />
                     <ChainOverviewCard totalDays={daysSinceDataStart} totals={totals} dataKey="4" title={ChainID[4]} Icon={BinanceChainIcon} />
                     <ChainOverviewCard totalDays={daysSinceDataStart} totals={totals} dataKey="5" title={ChainID[5]} Icon={PolygonIcon} />
+                    <ChainOverviewCard totalDays={daysSinceDataStart} totals={totals} dataKey="6" title={ChainID[6]} Icon={HarmonyIcon} />
                 </div>
             }
             <Spin spinning={!totals && !recent} style={{ width: '100%', height: 500 }} />

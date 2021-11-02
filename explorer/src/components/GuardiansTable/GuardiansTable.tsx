@@ -12,6 +12,7 @@ import { ReactComponent as EthereumIcon } from '~/icons/ethereum.svg';
 import { ReactComponent as SolanaIcon } from '~/icons/solana.svg';
 import { ReactComponent as TerraIcon } from '~/icons/terra.svg';
 import { ReactComponent as PolygonIcon } from '~/icons/polygon.svg'
+import { ReactComponent as HarmonyIcon } from '~/icons/harmony.svg'
 
 import './GuardiansTable.less'
 import { ChainID } from '~/utils/misc/constants';
@@ -23,6 +24,7 @@ const networkIcons = [
   <TerraIcon key="3" style={{ height: 18, margin: '0 4px' }} />,
   <BinanceChainIcon key="4" style={{ height: 18, margin: '0 4px' }} />,
   <PolygonIcon key="5" style={{ height: 18, margin: '0 4px' }} />,
+  <HarmonyIcon key="6" style={{ height: 18, margin: '0 4px' }} />,
 ]
 
 const expandedRowRender = (intl: IntlShape) => (item: Heartbeat) => {
