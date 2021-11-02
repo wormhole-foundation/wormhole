@@ -73,13 +73,13 @@ def vaa_verify_program(vaa_processor_app_id):
             Txn.application_id() == Int(vaa_processor_app_id),
             Txn.type_enum() == TxnType.ApplicationCall,
             Global.group_size() == get_group_size(Btoi(num_guardians)),
-            sig_check(signatures, digest, keys, num_guardians))
+            sig_check(signatures, digest, keys))
         ),
         Approve()])
 
 
 if __name__ == "__main__":
-    with open("vaa-verify.teal", "w") as f:
+    with open("teal/wormhole/build/vaa-verify.teal", "w") as f:
         compiled = compileTeal(vaa_verify_program(
             333), mode=Mode.Signature, version=5)
         f.write(compiled)

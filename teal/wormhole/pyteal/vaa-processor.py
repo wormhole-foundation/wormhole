@@ -20,7 +20,7 @@ Must be part of group:
 verify: Verify guardian signature subset i..j, works in tandem with stateless program.
         Arguments:  #0 guardian public keys subset i..j  (must match stored in global state)
                     #1 guardian signatures subset i..j
-                    #2 payload to verify
+                    TX Note: payload to verify
         Last verification step (the last TX in group) triggers the VAA commiting stage,
         where we decide what to do based on the payload.
 ------------------------------------------------------------------------------------------------
@@ -156,7 +156,8 @@ def check_final_verification_state():
             i.load() < Global.group_size(),
             i.store(i.load() + Int(0))).Do(
             Assert(
-                And(Gtxn[i.load()].application_id() == Txn.application_id(),
+                And(Gtxn[i.load()].type_enum() == TxnType.ApplicationCall,
+                    Gtxn[i.load()].application_id() == Txn.application_id(),
                     GetBit(ImportScratchValue(i.load(), SLOTID_VERIFIED_BIT), i.load()) == Int(1)))
         ),
         Return(Int(1))
@@ -228,12 +229,12 @@ def clear_state_program():
 
 
 if __name__ == "__main__":
-    with open("vaa-processor-approval.teal", "w") as f:
+    with open("teal/wormhole/build/vaa-processor-approval.teal", "w") as f:
         compiled = compileTeal(vaa_processor_program(),
                                mode=Mode.Application, version=5)
         f.write(compiled)
 
-    with open("vaa-processor-clear.teal", "w") as f:
+    with open("teal/wormhole/build/vaa-processor-clear.teal", "w") as f:
         compiled = compileTeal(clear_state_program(),
                                mode=Mode.Application, version=5)
         f.write(compiled)
