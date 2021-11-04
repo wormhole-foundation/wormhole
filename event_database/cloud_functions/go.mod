@@ -10,6 +10,7 @@ require (
 )
 
 require (
+	cloud.google.com/go/pubsub v1.3.1 // indirect
 	github.com/GoogleCloudPlatform/functions-framework-go v1.3.0
 	github.com/certusone/wormhole/node v0.0.0-20211102011245-d412cb8a936a
 )

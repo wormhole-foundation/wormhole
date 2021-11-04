@@ -100,6 +100,7 @@ var (
 	bigTableGCPProject         *string
 	bigTableInstanceName       *string
 	bigTableTableName          *string
+	bigTableTopicName          *string
 	bigTableKeyPath            *string
 )
 
@@ -165,6 +166,7 @@ func init() {
 	bigTableGCPProject = NodeCmd.Flags().String("bigTableGCPProject", "", "Google Cloud project ID for storing events")
 	bigTableInstanceName = NodeCmd.Flags().String("bigTableInstanceName", "", "BigTable instance name for storing events")
 	bigTableTableName = NodeCmd.Flags().String("bigTableTableName", "", "BigTable table name to store events in")
+	bigTableTopicName = NodeCmd.Flags().String("bigTableTopicName", "", "GCP topic name to publish to")
 	bigTableKeyPath = NodeCmd.Flags().String("bigTableKeyPath", "", "Path to json Service Account key")
 }
 
@@ -380,6 +382,9 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 		if *bigTableTableName == "" {
 			logger.Fatal("Please specify --bigTableTableName")
+		}
+		if *bigTableTopicName == "" {
+			logger.Fatal("Please specify --bigTableTopicName")
 		}
 		if *bigTableKeyPath == "" {
 			logger.Fatal("Please specify --bigTableKeyPath")
@@ -615,6 +620,7 @@ func runNode(cmd *cobra.Command, args []string) {
 				GcpProjectID:    *bigTableGCPProject,
 				GcpInstanceName: *bigTableInstanceName,
 				TableName:       *bigTableTableName,
+				TopicName:       *bigTableTopicName,
 				GcpKeyFilePath:  *bigTableKeyPath,
 			}
 			if err := supervisor.Run(ctx, "bigtable", reporter.BigTableWriter(attestationEvents, bigTableConnection)); err != nil {

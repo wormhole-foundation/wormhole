@@ -42,8 +42,6 @@ spec:
             - |
               echo project = local-dev > ~/.cbtrc
               echo instance = wormhole >> ~/.cbtrc
-              echo {} > ~/.empty-key.json
-              echo creds = ~/empty-key.json >> ~/.cbtrc
               gcloud --quiet components install beta cbt bigtable
               gcloud --quiet beta emulators bigtable start --host-port=0.0.0.0:8086 &
               sleep 3
@@ -58,6 +56,62 @@ spec:
           ports:
             - containerPort: 8086
               name: clients
+              protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: pubsub-emulator
+  name: pubsub-emulator
+spec:
+  ports:
+  - name: listeners
+    port: 8085
+    targetPort: listeners
+    protocol: TCP
+  selector:
+    app: pubsub-emulator
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app: pubsub-emulator
+  name: pubsub-emulator
+spec:
+  serviceName: pubsub-emulator
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pubsub-emulator
+  template:
+    metadata:
+      labels:
+        app: pubsub-emulator
+    spec:
+      containers:
+        - name: pubsub-emulator
+          image: gcr.io/google.com/cloudsdktool/cloud-sdk@sha256:d7748afac2e3dc3768bfd0db16d26a7c538821146e433874acff0eb1cfd853ba
+          env:
+            - name: PUBSUB_EMULATOR_HOST
+              value: localhost:8085
+            - name: PUBSUB_PROJECT_ID
+              value: local-dev
+          command:
+            - /bin/sh
+            - -c
+            - |
+              gcloud --quiet components install beta pubsub-emulator
+              gcloud --quiet beta emulators pubsub start --host-port=0.0.0.0:8085
+          readinessProbe:
+            periodSeconds: 2
+            failureThreshold: 300
+            tcpSocket:
+              port: 8085
+          ports:
+            - containerPort: 8085
+              name: listeners
               protocol: TCP
 ---
 apiVersion: v1
@@ -98,10 +152,16 @@ spec:
           env:
             - name: BIGTABLE_EMULATOR_HOST
               value: bigtable-emulator:8086
+            - name: PUBSUB_EMULATOR_HOST
+              value: pubsub-emulator:8085
             - name: GCP_PROJECT
               value: local-dev
             - name: BIGTABLE_INSTANCE
               value: wormhole
+            - name: PUBSUB_TOPIC
+              value: new-vaa-devnet
+            - name: PUBSUB_SUBSCRIPTION
+              value: extract-payload-devnet
           ports:
             - containerPort: 8080
               name: functions
