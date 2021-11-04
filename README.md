@@ -64,6 +64,34 @@ For the stateful app-calls we consider,
 * Passed guardian size set must match the current global state.
 * Last TX in group triggers VAA processing according to fields (e.g: do governance chores, unpack Pyth price ticker, etc)
 
+**VAA Structure**
+
+VAA structure is defined in: 
+ https://github.com/certusone/wormhole/blob/dev.v2/design/0001_generic_message_passing.md
+
+ Governance VAAs:
+ https://github.com/certusone/wormhole/blob/dev.v2/design/0002_governance_messaging.md
+
+ Sample Ethereum Struct Reference: 
+ https://github.com/certusone/wormhole/blob/dev.v2/ethereum/contracts/Structs.sol
+
+```
+ VAA
+ i Bytes        Field   
+ 0 1            Version
+ 1 4            GuardianSetIndex
+ 5 1            LenSignatures (LN)
+ 6 66*LN        Signatures where each S = { guardianIndex (1),r(32),s(32),v(1) }
+ -------------------------------------< hashed/signed body starts here.
+ 4            timestamp
+ 4            Nonce
+ 2            emitterChainId
+ 32           emitterAddress
+ 8            sequence
+ 1            consistencyLevel
+ N            payload
+ --------------------------------------< hashed/signed body ends here.
+```
 **VAA Commitment**
 
 Each VAA is uniquely identified by tuple (emitter_chain_id, emitter_address, sequence). We are currently interested in VAAs for:
