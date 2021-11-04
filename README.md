@@ -1,6 +1,12 @@
 # Pricecaster Service
 
-This service consumes prices from "price fetchers" and feeds blockchain publishers. In case of Algorand publisher class, a TEAL program with messages containing signed price data. The program code validates signature and message validity, and if successful, subsequently stores the price information in the global application information for other contracts to retrieve.
+This service consumes prices from "price fetchers" and feeds blockchain publishers. There are two basic flows implemented:
+
+* A basic Algorand publisher class with a TEAL program for messages containing signed price data. The program code validates signature and message validity, and if successful, subsequently stores the price information in the global application information for other contracts to retrieve. For the description of the data format used, see below.
+
+* A Wormhole client that uses the JS SDK to get VAAs from Pyth network and feed the payload and cryptographic verification data to a transaction group for validation. Subsequently, the data is optionally processed and stored, either price or metrics. For details regarding Wormhole VAAs see design documents: 
+
+  https://github.com/certusone/wormhole/tree/dev.v2/design
 
 All gathered price information is stored in a buffer by the Fetcher component -with a maximum size determined by settings-.  The price to get from that buffer is selected by the **IStrategy** class implementation; the default implementation being to get the most recent price and clear the buffer for new items to arrive. 
 
@@ -8,14 +14,81 @@ Alternative strategies for different purposes, such as getting averages and fore
 
 ## System Overview
 
+
+**The objective is to receive signed messages -named as Verifiable Attestments (VAAs) in Wormhole jargon- from our relayer backend (Pricecaster) , verify them against a fixed (and upgradeable) set of "guardian public keys" and process them, publishing on-chain price information or doing governance chores depending on the VAA payload.**
+
+
+The design is based in two contracts that work in tandem, a  **Stateful contract (VAA_Processor)** that accepts calls for verifying and commiting VAAs, and also mantains the global guardian set; and a **verifier stateless contract** that does the computational work of ECDSA signature verification.
+
+Due to computation and space limits, the validation of the 19 guardian signatures against the payload is partitioned so each stateless contract validates a subset of the guardian signatures. If ECDSA decompress and validation opcodes are used, that yields 650+1750 = 2400 computation units * 7 = 16800, leaving 3200 free units for remaining opcodes.
+In our design, We call **verification step** to each of the app calls + stateless logic involved  in verifying a block of signatures.
+
+The number of signatures in each verification step is fixed at contract compilation stage, so with this in mind and example values:
+
+* let $N_S$ be the total signatures to verify $(19)$
+* let $N_V$ be the number of signatures per verification step $(7)$,   
+* the required number of transactions $N_T = \lceil{N_S/N_V}\rceil = \lceil{19/7}\rceil = 3$
+* Each transaction-step $T_i$ will verify signatures $[j..k]$ where $j = i \times N_V$, $k = min(N_S-1, j+N_V-1)$, so for $T_0 = [0..6]$, $T_1 = [7..13]$, $T_2 = [14..18]$. 
+
+The verification process inputs consist of: 
+1. the set of current guardian public keys, 
+2. the signed message digest (VAA information fields + generic payload), 
+3. the set of signatures in the VAA header.  
+
+With the above in mind, and considering the space and computation limits in the current Algorand protocol, the typical flow for verifying a VAA for 19 guardians using step-size of 7, would be based on the following transaction group:
+
+
+| TX# | App calls | Stateless logic |
+| --- | --------- | --------------- |
+|  0  | _args_: guardian_pk[0..6], _txnote_: signed_digest          | _args_: sig[0..6]    |
+|  1  | _args_: guardian_pk[7..13], _txnote_: signed_digest          | _args_: sig[7..13]   |
+|  2  | _args_: guardian_pk[14..18], _txnote_: signed_digest          | _args_: sig[14..18]  |
+
+Regarding stateless logic we can say that,
+
+* Its code is constant and it's known program hash is validated by the stateful program.
+* Asserts that the appropiate stateful program is called using known AppId embedded at compile stage.
+* Passing signature subset through arguments does not pose any higher risk since any tampered signature will make the operation to fail; 
+* The signed digest and public keys are retrieved through transaction note field and argument. This limits for the current design the maximum digest size to 1000 bytes and the maximum number of public keys -and guardians to ~64.
+* Verification is performed using TEAL5 ECDSA opcodes. If any signature do not verify, transaction fails and subsequently, the entire transaction group aborts.
+
+For the stateful app-calls we consider,
+
+* Global state stores guardian public-keys, entry count (set size) and guardian set expiration time.
+* Initial state after deployment could be set through a bootstrap call, using last guardian-set-change governance VAA if available.
+* Sender must be stateless logic 
+* Argument 1 must contain guardian public keys for guardians $[k..j]$
+* Argument 2 must contain current guardian size set
+* Note field must contain signed digest.
+* Passed guardian keys $[k..j]$ must match the current global state.
+* Passed guardian size set must match the current global state.
+* Last TX in group triggers VAA processing according to fields (e.g: do governance chores, unpack Pyth price ticker, etc)
+
+**VAA Commitment**
+
+Each VAA is uniquely identified by tuple (emitter_chain_id, emitter_address, sequence). We are currently interested in VAAs for:
+
+* Governance operations:
+    * Upgrade guardian set
+    * Upgrade contract [this is necessary for non-publishers?]
+
+* Pyth Ticker Data
+
+After all signatures are verified the stateful app will execute the code to handle the VAA according to the tuple fields. 
+
+
+
+## System Overview (proof-of-concept work)
+
+:warning: You can consider this a first proof-of-concept design, and in terms of our current approach, an obsolete technique.
+
+This flow uses a validator to sign the messages when they arrive. This trusts the price feed, so this is not recommended for production purposes. It may be used as a base design for other data flows. **See the Wormhole Flow below for the verified, cryptographically safe and trustless approach**.
+
 The Pricecaster backend can be configured with any class implementing **IPriceFetcher** and **IPublisher** interfaces. The following diagram shows the service operating with a fetcher from ![Pyth Network](https://pyth.network/), feeding the Algorand chain through the `StdAlgoPublisher` class.
 
 ![PRICECASTER](https://user-images.githubusercontent.com/4740613/136037362-bed34a49-6b83-42e1-821d-1df3d9a41477.png)
 
-
-## Data Format
-
-### Input Message
+### Input Message Format
 
 The TEAL contract expects a fixed-length message consisting of:
 
@@ -66,9 +139,11 @@ The backend will read configuration from a `settings.ts` file pointed by the `PR
 
 ## Tests
 
-At this time, there is a TEAL contract test that can be run with 
+Tests can be run for the old `Pricekeeper` contract, and for the new set of Wormhole client contracts:
 
-`npm run test`
+`npm run pkeeper-sc-test`
+
+`npm run wormhole-sc-test`
 
 Backend tests will come shortly.
 
