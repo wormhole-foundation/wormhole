@@ -74,10 +74,22 @@ VAA_RECORD_EMITTER_ADDR_LEN = 32
 
 
 @Subroutine(TealType.uint64)
-# Bootstrap with the initial list of guardians as application argument
+# Bootstrap with the initial list of guardians packed in first argument.
+# Guardian public keys are 32-bytes wide, so
+# using arguments a maximum 1000/32 ~ 31 public keys can be specified in this version.
 def bootstrap():
+    guardian_count = ScratchVar(TealType.uint64)
+    i = SLOT_TEMP
     return Seq([
-        App.globalPut(Bytes("vphash"), Txn.application_args[0]),
+        Assert(Len(Txn.application_args[0]) % Int(32) == Int(0)),
+        guardian_count.store(Len(Txn.application_args[0]) / Int(32)),
+        Assert(guardian_count.load() > Int(0)),
+        For(i.store(Int(0)), i.load() < guardian_count.load(), i.store(i.load() + Int(1))).Do(
+            App.globalPut(Itob(i.load()), Extract(
+                Txn.application_args[0], i.load() * Int(32), Int(32)))
+        ),
+        App.globalPut(Bytes("gscount"), guardian_count.load()),
+        App.globalPut(Bytes("gsexp"), Int(0)),
         Approve()
     ])
 
