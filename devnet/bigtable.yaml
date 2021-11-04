@@ -79,22 +79,22 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   labels:
-    app: bigtable-functions
-  name: bigtable-functions
+    app: cloud-functions
+  name: cloud-functions
 spec:
-  serviceName: bigtable-functions
+  serviceName: cloud-functions
   replicas: 1
   selector:
     matchLabels:
-      app: bigtable-functions
+      app: cloud-functions
   template:
     metadata:
       labels:
-        app: bigtable-functions
+        app: cloud-functions
     spec:
       containers:
-        - name: bigtable-functions
-          image: bigtable-functions
+        - name: cloud-functions
+          image: cloud-functions
           env:
             - name: BIGTABLE_EMULATOR_HOST
               value: bigtable-emulator:8086

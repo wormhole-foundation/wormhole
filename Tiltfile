@@ -327,63 +327,7 @@ if e2e:
 
 # bigtable
 
-def build_cloud_function(container_name, go_func_name, path, builder):
-    # Invokes Tilt's custom_build(), with a Pack command.
-    # inspired by https://github.com/tilt-dev/tilt-extensions/tree/master/pack
-    tag = "latest"
-    caching_ref = container_name + ":" + tag
-
-    pack_build_cmd = " ".join([
-        "./tools/bin/pack build",
-        caching_ref,
-        "--path " + path,
-        "--builder " + builder,
-        "--run-image devnet-cloud-function",
-        "--env " + "GOOGLE_FUNCTION_TARGET=%s" % go_func_name,
-        "--env " + "GOOGLE_FUNCTION_SIGNATURE_TYPE=http",
-    ])
-
-    disable_push = True
-    skips_local_docker = True
-    if ci:
-        # inherit the DOCKER_HOST socket provided by custom_build.
-        pack_build_cmd = pack_build_cmd + " --docker-host inherit"
-
-        # do not attempt to access Docker cache in CI
-        # pack_build_cmd = pack_build_cmd + " --clear-cache"
-        # don't try to pull previous container versions in CI
-        pack_build_cmd = pack_build_cmd + " --pull-policy never"
-
-        # push to kubernetes registry
-        disable_push = False
-        skips_local_docker = False
-
-    docker_tag_cmd = "tilt docker -- tag " + caching_ref + " $EXPECTED_REF"
-    custom_build(
-        container_name,
-        pack_build_cmd + " && " + docker_tag_cmd,
-        [path],
-        tag = tag,
-        skips_local_docker = skips_local_docker,
-        disable_push = disable_push,
-    )
-
 if explorer:
-    local_resource(
-        name = "devnet-cloud-function",
-        cmd = "tilt docker -- build -f ./event_database/cloud_functions/Dockerfile.run . -t devnet-cloud-function --label builtby=tilt",
-        env = {"DOCKER_BUILDKIT": "1"},
-        labels = ["explorer"],
-        trigger_mode = trigger_mode,
-    )
-
-    local_resource(
-        name = "pack-bin",
-        cmd = "go build -mod=readonly -o bin/pack github.com/buildpacks/pack/cmd/pack",
-        dir = "tools",
-        labels = ["explorer"],
-        trigger_mode = trigger_mode,
-    )
 
     k8s_yaml_with_ns("devnet/bigtable.yaml")
 
@@ -394,16 +338,18 @@ if explorer:
         trigger_mode = trigger_mode,
     )
 
-    build_cloud_function(
-        container_name = "bigtable-functions",
-        go_func_name = "Entry",
-        path = "./event_database/cloud_functions",
-        builder = "gcr.io/buildpacks/builder:v1",
+    docker_build(
+        ref = "cloud-functions",
+        context = "./event_database/cloud_functions",
+        dockerfile = "./event_database/cloud_functions/Dockerfile",
+        live_update = [
+            sync("./event_database/cloud_functions", "/app"),
+        ],
     )
     k8s_resource(
-        "bigtable-functions",
+        "cloud-functions",
         resource_deps = ["proto-gen", "bigtable-emulator"],
-        port_forwards = [port_forward(8090, name = "BigTable Functions [:8090]", host = webHost)],
+        port_forwards = [port_forward(8090, name = "Cloud Functions [:8090]")],
         labels = ["explorer"],
         trigger_mode = trigger_mode,
     )
