@@ -42,17 +42,18 @@ require (
 	github.com/tidwall/gjson v1.8.1
 	go.uber.org/zap v1.16.0
 	golang.org/x/crypto v0.0.0-20210513164829-c07d793c2f9a
-	golang.org/x/sys v0.0.0-20210601080250-7ecdf8ef093b
-	golang.org/x/time v0.0.0-20201208040808-7e3f01d25324
-	google.golang.org/api v0.47.0
-	google.golang.org/genproto v0.0.0-20210617175327-b9e0b3197ced
-	google.golang.org/grpc v1.38.0
-	google.golang.org/protobuf v1.26.0
+	golang.org/x/sys v0.0.0-20210917161153-d61c044b1678
+	golang.org/x/time v0.0.0-20210723032227-1f47c861a9ac
+	google.golang.org/api v0.58.0
+	google.golang.org/genproto v0.0.0-20211019152133-63b7e35f4404
+	google.golang.org/grpc v1.40.0
+	google.golang.org/protobuf v1.27.1
 	nhooyr.io/websocket v1.8.7 // indirect
 )
 
 require (
-	cloud.google.com/go v0.82.0 // indirect
+	cloud.google.com/go v0.97.0 // indirect
+	cloud.google.com/go/pubsub v1.17.1 // indirect
 	contrib.go.opencensus.io/exporter/stackdriver v0.13.4 // indirect
 	github.com/99designs/keyring v1.1.3 // indirect
 	github.com/ChainSafe/go-schnorrkel v0.0.0-20200405005733-88cbf1b4c40d // indirect
@@ -101,7 +102,7 @@ require (
 	github.com/google/go-cmp v0.5.6 // indirect
 	github.com/google/gopacket v1.1.19 // indirect
 	github.com/google/uuid v1.2.0 // indirect
-	github.com/googleapis/gax-go/v2 v2.0.5 // indirect
+	github.com/googleapis/gax-go/v2 v2.1.1 // indirect
 	github.com/gorilla/schema v1.2.0 // indirect
 	github.com/gsterjov/go-libsecret v0.0.0-20161001094733-a6f4afe4910c // indirect
 	github.com/gtank/merlin v0.1.1 // indirect
@@ -238,11 +239,11 @@ require (
 	golang.org/x/lint v0.0.0-20210508222113-6edffad5e616 // indirect
 	golang.org/x/mod v0.4.2 // indirect
 	golang.org/x/net v0.0.0-20210510120150-4163338589ed // indirect
-	golang.org/x/oauth2 v0.0.0-20210615190721-d04028783cf1 // indirect
+	golang.org/x/oauth2 v0.0.0-20211005180243-6b3c2da341f1 // indirect
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect
 	golang.org/x/term v0.0.0-20201210144234-2321bbc49cbf // indirect
 	golang.org/x/text v0.3.6 // indirect
-	golang.org/x/tools v0.1.3 // indirect
+	golang.org/x/tools v0.1.5 // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	gopkg.in/ini.v1 v1.51.0 // indirect

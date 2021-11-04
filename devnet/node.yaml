@@ -62,6 +62,8 @@ spec:
           env:
             - name: BIGTABLE_EMULATOR_HOST
               value: bigtable-emulator:8086
+            - name: PUBSUB_EMULATOR_HOST
+              value: pubsub-emulator:8085
           command:
 # Uncomment this to enable in-place debugging using dlv
 # (not suitable for regular development since the process will no longer restart on its own)
