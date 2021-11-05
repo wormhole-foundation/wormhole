@@ -36,7 +36,6 @@ import LowBalanceWarning from "../LowBalanceWarning";
 import NumberTextField from "../NumberTextField";
 import StepDescription from "../StepDescription";
 import { TokenSelector } from "../TokenSelectors/SourceTokenSelector";
-import TokenWarning from "./TokenWarning";
 
 const useStyles = makeStyles((theme) => ({
   transferField: {
@@ -135,11 +134,6 @@ function Source() {
         </Button>
       ) : (
         <>
-          <TokenWarning
-            sourceChain={sourceChain}
-            tokenAddress={parsedTokenAccount?.mintKey}
-            symbol={parsedTokenAccount?.symbol}
-          />
           <LowBalanceWarning chainId={sourceChain} />
           {hasParsedTokenAccount ? (
             <NumberTextField
