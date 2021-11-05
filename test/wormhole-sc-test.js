@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-expressions */
 const PricecasterLib = require('../lib/pricecaster')
 const tools = require('../tools/app-tools')
 const algosdk = require('algosdk')
@@ -14,10 +15,10 @@ SIGNATURES[OWNER_ADDR] = algosdk.mnemonicToSecretKey(OWNER_MNEMO)
 SIGNATURES[OTHER_ADDR] = algosdk.mnemonicToSecretKey(OTHER_MNEMO)
 
 function makeVAA() {
-  
+
 }
 
-function signCallback (sender, tx) {
+function signCallback(sender, tx) {
   const txSigned = tx.signTxn(SIGNATURES[sender].sk)
   return txSigned
 }
@@ -44,11 +45,69 @@ describe('VAA Processor Smart-contract Tests', function () {
       }
     }
 
-    console.log('Creating new app...')
-    const txId = await pclib.createApp(OWNER_ADDR, OWNER_ADDR, VALID_SYMBOL, signCallback)
-    const txResponse = await pclib.waitForTransactionResponse(txId)
-    appId = pclib.appIdFromCreateAppResponse(txResponse)
-    pclib.setAppId(appId)
-    console.log('App Id: %d', appId)
-  })
+    // console.log('Creating new app...')
+    // const txId = await pclib.createApp(OWNER_ADDR, OWNER_ADDR, VALID_SYMBOL, signCallback)
+    // const txResponse = await pclib.waitForTransactionResponse(txId)
+    // appId = pclib.appIdFromCreateAppResponse(txResponse)
+    // pclib.setAppId(appId)
+    // console.log('App Id: %d', appId)
+  }
+  )
+  it('Must fail to create app without arguments', async function () {
+
+  }),
+    it('Must fail to create app with incorrect argument length', async function () {
+
+    }),
+    it('Must fail to create app with incorrect length', async function () {
+
+    }),
+    it('Must create app with initial guardians', async function () {
+
+    }),
+    it('Must disallow setting stateless logic hash from non-owner', async function () {
+
+    }),
+    it('Must set stateless logic hash from owner', async function () {
+
+    }),
+    it('Must verify and handle Pyth VAA', async function () {
+
+    }),
+    it('Must verify and handle governance VAA', async function () {
+
+    }),
+    it('Must reject unknown VAA', async function () {
+
+    }),
+    it('Must reject incorrect transaction group size', async function () {
+
+    }),
+    it('Must reject incorrect argument count for verify call', async function () {
+
+    }),
+    it('Must reject unknown sender for verify call', async function () {
+
+    }),
+    it('Must reject guardian set count argument not matching global state', async function () {
+
+    }),
+    it('Must reject guardian key list argument not matching global state', async function () {
+
+    }),
+    it('Must reject non-app call transaction in group', async function () {
+
+    }),
+    it('Must reject app-call with mismatched AppId in group', async function () {
+
+    }),
+    it('Must reject transaction with not verified bit set in group', async function () {
+
+    })
+
+
+
+
+
+
 })
