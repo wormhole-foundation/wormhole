@@ -14,11 +14,11 @@ const SIGNATURES = {}
 SIGNATURES[OWNER_ADDR] = algosdk.mnemonicToSecretKey(OWNER_MNEMO)
 SIGNATURES[OTHER_ADDR] = algosdk.mnemonicToSecretKey(OTHER_MNEMO)
 
-function makeVAA() {
+function makeVAA () {
 
 }
 
-function signCallback(sender, tx) {
+function signCallback (sender, tx) {
   const txSigned = tx.signTxn(SIGNATURES[sender].sk)
   return txSigned
 }
@@ -56,58 +56,76 @@ describe('VAA Processor Smart-contract Tests', function () {
   it('Must fail to create app without arguments', async function () {
 
   }),
-    it('Must fail to create app with incorrect argument length', async function () {
+  it('Must fail to create app with incorrect argument length', async function () {
 
-    }),
-    it('Must fail to create app with incorrect length', async function () {
+  }),
+  it('Must fail to create app with incorrect length', async function () {
 
-    }),
-    it('Must create app with initial guardians', async function () {
+  }),
+  it('Must create app with initial guardians', async function () {
 
-    }),
-    it('Must disallow setting stateless logic hash from non-owner', async function () {
+  }),
+  it('Must disallow setting stateless logic hash from non-owner', async function () {
 
-    }),
-    it('Must set stateless logic hash from owner', async function () {
+  }),
+  it('Must set stateless logic hash from owner', async function () {
 
-    }),
-    it('Must verify and handle Pyth VAA', async function () {
+  }),
+  it('Must verify and handle Pyth VAA', async function () {
 
-    }),
-    it('Must verify and handle governance VAA', async function () {
+  }),
+  it('Must verify and handle governance VAA', async function () {
 
-    }),
-    it('Must reject unknown VAA', async function () {
+  }),
+  it('Must reject unknown VAA', async function () {
 
-    }),
-    it('Must reject incorrect transaction group size', async function () {
+  }),
+  it('Must reject incorrect transaction group size', async function () {
 
-    }),
-    it('Must reject incorrect argument count for verify call', async function () {
+  }),
+  it('Must reject incorrect argument count for verify call', async function () {
 
-    }),
-    it('Must reject unknown sender for verify call', async function () {
+  }),
+  it('Must reject unknown sender for verify call', async function () {
 
-    }),
-    it('Must reject guardian set count argument not matching global state', async function () {
+  }),
+  it('Must reject guardian set count argument not matching global state', async function () {
 
-    }),
-    it('Must reject guardian key list argument not matching global state', async function () {
+  }),
+  it('Must reject guardian key list argument not matching global state', async function () {
 
-    }),
-    it('Must reject non-app call transaction in group', async function () {
+  }),
+  it('Must reject non-app call transaction in group', async function () {
 
-    }),
-    it('Must reject app-call with mismatched AppId in group', async function () {
+  }),
+  it('Must reject app-call with mismatched AppId in group', async function () {
 
-    }),
-    it('Must reject transaction with not verified bit set in group', async function () {
+  }),
+  it('Must reject transaction with not verified bit set in group', async function () {
 
-    })
+  })
+  it('Stateless: Must reject transaction with excess fee', async function () {
 
+  })
+  it('Stateless: Must reject incorrect number of logic program arguments', async function () {
 
+  })
+  it('Stateless: Must reject transaction with mismatching number of signatures', async function () {
 
+  })
+  it('Stateless: Must reject transaction with non-zero rekey', async function () {
 
+  })
+  it('Stateless: Must reject transaction call from bad app-id', async function () {
 
+  })
+  it('Stateless: Must reject non-app call tx type', async function () {
 
+  })
+  it('Stateless: Must reject invalid group size', async function () {
+
+  })
+  it('Stateless: Must reject signature verification failure', async function () {
+
+  })
 })
