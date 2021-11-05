@@ -20,6 +20,8 @@ from pyteal.compiler import *
 from pyteal.ir import *
 from globals import get_sig_count_in_step, get_group_size
 
+import sys
+
 
 @Subroutine(TealType.uint64)
 def sig_check(signatures, digest, keys):
@@ -79,7 +81,17 @@ def vaa_verify_program(vaa_processor_app_id):
 
 
 if __name__ == "__main__":
-    with open("teal/wormhole/build/vaa-verify.teal", "w") as f:
+
+    print("VAA Verify Stateless Program, (c) 2021-22 Randlabs Inc. ")
+    print("Compiling...")
+    if len(sys.argv) != 2:
+        print ("No appid argument provided")
+        exit(1)
+
+    outfile = "teal/wormhole/build/vaa-verify.teal"
+    with open(outfile, "w") as f:
         compiled = compileTeal(vaa_verify_program(
-            333), mode=Mode.Signature, version=5)
+            int(sys.argv[1])), mode=Mode.Signature, version=5)
         f.write(compiled)
+
+    print("Written to " + outfile)

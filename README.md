@@ -1,4 +1,7 @@
+
 # Pricecaster Service
+
+## Introduction
 
 This service consumes prices from "price fetchers" and feeds blockchain publishers. There are two basic flows implemented:
 
@@ -161,9 +164,30 @@ The exponent is stored as a byte array containing a signed, two-complement 64-bi
     const val = bufExp.readBigInt64BE()
 ```
 
+## Installation
+
+Prepare all Node packages with:
+
+```
+npm install
+```
+
+## Deployment of Applications
+
+Use the deployment tools in `tools` subdirectory.
+
+* To deploy the proof-of-concept "Pricekeeper" system, use the `deploy` tool with proper arguments, and later point the settings file to the deployed Appid.
+
+* To deploy the VAA processor to use with Wormhole, make sure you have Python environment running (preferably >=3.7.0), and `pyteal` installed with `pip3`.
+
+
 ## Backend Configuration
 
-The backend will read configuration from a `settings.ts` file pointed by the `PRICECASTER_SETTINGS` environment variable.
+The backend will read configuration from a `settings.ts` file pointed by the `PRICECASTER_SETTINGS` environment variable.  
+
+## Running the system
+
+Check the `package.json` file for `npm run tart-xxx`  automated commands. 
 
 ## Tests
 

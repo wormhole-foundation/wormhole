@@ -241,12 +241,24 @@ def clear_state_program():
 
 
 if __name__ == "__main__":
-    with open("teal/wormhole/build/vaa-processor-approval.teal", "w") as f:
+
+    approval_outfile = "teal/wormhole/build/vaa-processor-approval.teal"
+    clear_state_outfile = "teal/wormhole/build/vaa-processor-clear.teal"
+
+    print("VAA Processor Program, (c) 2021-22 Randlabs Inc. ")
+    print("Compiling approval program...")
+
+    with open(approval_outfile, "w") as f:
         compiled = compileTeal(vaa_processor_program(),
                                mode=Mode.Application, version=5)
         f.write(compiled)
 
-    with open("teal/wormhole/build/vaa-processor-clear.teal", "w") as f:
+    print("Written to " + approval_outfile)
+    print("Compiling clear state program...")
+
+    with open(clear_state_outfile, "w") as f:
         compiled = compileTeal(clear_state_program(),
                                mode=Mode.Application, version=5)
         f.write(compiled)
+
+    print("Written to " + clear_state_outfile)
