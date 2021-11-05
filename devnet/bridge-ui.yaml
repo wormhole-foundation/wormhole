@@ -40,7 +40,7 @@ spec:
             - -n
           tty: true
           ports:
-            - containerPort: 5000
+            - containerPort: 3000
               name: npxserver
               protocol: TCP
           readinessProbe:

@@ -250,7 +250,7 @@ if bridge_ui:
         "bridge-ui",
         resource_deps = ["proto-gen-web", "wasm-gen"],
         port_forwards = [
-            port_forward(5000, name = "Bridge UI [:5000]"),
+            port_forward(3000, name = "Bridge UI [:3000]"),
         ],
     )
 

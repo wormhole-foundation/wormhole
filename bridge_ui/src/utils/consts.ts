@@ -354,7 +354,7 @@ export const WETH_ADDRESS =
   CLUSTER === "mainnet"
     ? "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
     : CLUSTER === "testnet"
-    ? ""
+    ? "0x0000000000000000000000000000000000000000"
     : "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E";
 export const WETH_DECIMALS = 18;
 
@@ -362,7 +362,7 @@ export const WBNB_ADDRESS =
   CLUSTER === "mainnet"
     ? "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c"
     : CLUSTER === "testnet"
-    ? ""
+    ? "0x0000000000000000000000000000000000000000"
     : "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E";
 export const WBNB_DECIMALS = 18;
 
@@ -370,7 +370,7 @@ export const WMATIC_ADDRESS =
   CLUSTER === "mainnet"
     ? "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270"
     : CLUSTER === "testnet"
-    ? ""
+    ? "0x0000000000000000000000000000000000000000"
     : "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E";
 export const WMATIC_DECIMALS = 18;
 
