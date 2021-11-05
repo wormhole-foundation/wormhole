@@ -1,11 +1,12 @@
 import { Connection, PublicKey, SystemProgram } from "@solana/web3.js";
+import { importCoreWasm } from "./wasm";
 
 export async function getBridgeFeeIx(
   connection: Connection,
   bridgeAddress: string,
   payerAddress: string
 ) {
-  const bridge = await import("./core/bridge");
+  const bridge = await importCoreWasm();
   const feeAccount = await bridge.fee_collector_address(bridgeAddress);
   const bridgeStatePK = new PublicKey(bridge.state_address(bridgeAddress));
   const bridgeStateAccountInfo = await connection.getAccountInfo(bridgeStatePK);

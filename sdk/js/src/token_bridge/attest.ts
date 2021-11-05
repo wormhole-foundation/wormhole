@@ -1,11 +1,11 @@
 import { Connection, Keypair, PublicKey, Transaction } from "@solana/web3.js";
+import { MsgExecuteContract } from "@terra-money/terra.js";
 import { ethers } from "ethers";
+import { isNativeDenom } from "..";
 import { Bridge__factory } from "../ethers-contracts";
 import { getBridgeFeeIx, ixFromRust } from "../solana";
+import { importTokenWasm } from "../solana/wasm";
 import { createNonce } from "../utils/createNonce";
-import { ConnectedWallet as TerraConnectedWallet } from "@terra-money/wallet-provider";
-import { MsgExecuteContract } from "@terra-money/terra.js";
-import { isNativeDenom } from "..";
 
 export async function attestFromEth(
   tokenBridgeAddress: string,
@@ -54,7 +54,7 @@ export async function attestFromSolana(
     bridgeAddress,
     payerAddress
   );
-  const { attest_ix } = await import("../solana/token/token_bridge");
+  const { attest_ix } = await importTokenWasm();
   const messageKey = Keypair.generate();
   const ix = ixFromRust(
     attest_ix(

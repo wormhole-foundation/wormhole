@@ -6,11 +6,12 @@ import {
   TransactionInstruction,
 } from "@solana/web3.js";
 import { ixFromRust } from "./rust";
+import { importCoreWasm } from "./wasm";
 
 // is there a better pattern for this?
 export async function postVaa(
   connection: Connection,
-  signTransaction: (transaction: Transaction) => any,
+  signTransaction: (transaction: Transaction) => Promise<Transaction>,
   bridge_id: string,
   payer: string,
   vaa: Buffer
@@ -20,7 +21,7 @@ export async function postVaa(
     parse_guardian_set,
     verify_signatures_ix,
     post_vaa_ix,
-  } = await import("./core/bridge");
+  } = await importCoreWasm();
   let bridge_state = await getBridgeState(connection, bridge_id);
   let guardian_addr = new PublicKey(
     guardian_set_address(bridge_id, bridge_state.guardian_set_index)
@@ -74,7 +75,7 @@ async function getBridgeState(
   connection: Connection,
   bridge_id: string
 ): Promise<BridgeState> {
-  const { parse_state, state_address } = await import("./core/bridge");
+  const { parse_state, state_address } = await importCoreWasm();
   let bridge_state = new PublicKey(state_address(bridge_id));
   let acc = await connection.getAccountInfo(bridge_state);
   if (acc?.data === undefined) {

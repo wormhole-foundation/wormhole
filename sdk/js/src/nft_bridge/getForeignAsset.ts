@@ -2,6 +2,7 @@ import { PublicKey } from "@solana/web3.js";
 import { ethers } from "ethers";
 import { CHAIN_ID_SOLANA } from "..";
 import { NFTBridge__factory } from "../ethers-contracts";
+import { importNftWasm } from "../solana/wasm";
 import { ChainId } from "../utils";
 
 /**
@@ -47,7 +48,7 @@ export async function getForeignAssetSol(
   originAsset: Uint8Array,
   tokenId: Uint8Array
 ) {
-  const { wrapped_address } = await import("../solana/nft/nft_bridge");
+  const { wrapped_address } = await importNftWasm();
   const wrappedAddress = wrapped_address(
     tokenBridgeAddress,
     originAsset,

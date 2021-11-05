@@ -14,6 +14,7 @@ import {
   TokenImplementation__factory,
 } from "../ethers-contracts";
 import { getBridgeFeeIx, ixFromRust } from "../solana";
+import { importTokenWasm } from "../solana/wasm";
 import { ChainId, CHAIN_ID_SOLANA, createNonce, WSOL_ADDRESS } from "../utils";
 
 export async function getAllowanceEth(
@@ -202,9 +203,8 @@ export async function transferNativeSol(
   );
 
   //Normal approve & transfer instructions, except that the wSOL is sent from the ancillary account.
-  const { transfer_native_ix, approval_authority_address } = await import(
-    "../solana/token/token_bridge"
-  );
+  const { transfer_native_ix, approval_authority_address } =
+    await importTokenWasm();
   const nonce = createNonce().readUInt32LE(0);
   const fee = BigInt(0); // for now, this won't do anything, we may add later
   const transferIx = await getBridgeFeeIx(
@@ -286,7 +286,7 @@ export async function transferFromSolana(
     transfer_native_ix,
     transfer_wrapped_ix,
     approval_authority_address,
-  } = await import("../solana/token/token_bridge");
+  } = await importTokenWasm();
   const approvalIx = Token.createApproveInstruction(
     TOKEN_PROGRAM_ID,
     new PublicKey(fromAddress),

@@ -1,6 +1,7 @@
 import { Token, TOKEN_PROGRAM_ID, u64 } from "@solana/spl-token";
 import { Connection, PublicKey, Transaction } from "@solana/web3.js";
 import { ixFromRust } from "../solana";
+import { importMigrationWasm } from "../solana/wasm";
 
 export default async function claimShares(
   connection: Connection,
@@ -12,9 +13,7 @@ export default async function claimShares(
   lp_share_token_account: string,
   amount: BigInt
 ) {
-  const { authority_address, claim_shares } = await import(
-    "../solana/migration/wormhole_migration"
-  );
+  const { authority_address, claim_shares } = await importMigrationWasm();
   const approvalIx = Token.createApproveInstruction(
     TOKEN_PROGRAM_ID,
     new PublicKey(lp_share_token_account),

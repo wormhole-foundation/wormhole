@@ -3,6 +3,7 @@ import { LCDClient } from "@terra-money/terra.js";
 import { ethers } from "ethers";
 import { arrayify, zeroPad } from "ethers/lib/utils";
 import { TokenImplementation__factory } from "../ethers-contracts";
+import { importTokenWasm } from "../solana/wasm";
 import { buildNativeId, canonicalAddress, isNativeDenom } from "../terra";
 import { ChainId, CHAIN_ID_SOLANA, CHAIN_ID_TERRA } from "../utils";
 import { getIsWrappedAssetEth } from "./getIsWrappedAsset";
@@ -101,9 +102,8 @@ export async function getOriginalAssetSol(
 ): Promise<WormholeWrappedInfo> {
   if (mintAddress) {
     // TODO: share some of this with getIsWrappedAssetSol, like a getWrappedMetaAccountAddress or something
-    const { parse_wrapped_meta, wrapped_meta_address } = await import(
-      "../solana/token/token_bridge"
-    );
+    const { parse_wrapped_meta, wrapped_meta_address } =
+      await importTokenWasm();
     const wrappedMetaAddress = wrapped_meta_address(
       tokenBridgeAddress,
       new PublicKey(mintAddress).toBytes()

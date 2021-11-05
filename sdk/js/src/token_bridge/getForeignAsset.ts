@@ -4,6 +4,7 @@ import { Bridge__factory } from "../ethers-contracts";
 import { ChainId } from "../utils";
 import { LCDClient } from "@terra-money/terra.js";
 import { fromUint8Array } from "js-base64";
+import { importTokenWasm } from "../solana/wasm";
 
 /**
  * Returns a foreign asset address on Ethereum for a provided native chain and asset address, AddressZero if it does not exist
@@ -63,7 +64,7 @@ export async function getForeignAssetSolana(
   originChain: ChainId,
   originAsset: Uint8Array
 ) {
-  const { wrapped_address } = await import("../solana/token/token_bridge");
+  const { wrapped_address } = await importTokenWasm();
   const wrappedAddress = wrapped_address(
     tokenBridgeAddress,
     originAsset,

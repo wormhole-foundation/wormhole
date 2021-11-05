@@ -2,6 +2,7 @@ import { Connection, PublicKey } from "@solana/web3.js";
 import { BigNumber, ethers } from "ethers";
 import { arrayify, zeroPad } from "ethers/lib/utils";
 import { TokenImplementation__factory } from "../ethers-contracts";
+import { importNftWasm } from "../solana/wasm";
 import { ChainId, CHAIN_ID_SOLANA } from "../utils";
 import { getIsWrappedAssetEth } from "./getIsWrappedAsset";
 
@@ -70,9 +71,7 @@ export async function getOriginalAssetSol(
 ): Promise<WormholeWrappedNFTInfo> {
   if (mintAddress) {
     // TODO: share some of this with getIsWrappedAssetSol, like a getWrappedMetaAccountAddress or something
-    const { parse_wrapped_meta, wrapped_meta_address } = await import(
-      "../solana/nft/nft_bridge"
-    );
+    const { parse_wrapped_meta, wrapped_meta_address } = await importNftWasm();
     const wrappedMetaAddress = wrapped_meta_address(
       tokenBridgeAddress,
       new PublicKey(mintAddress).toBytes()
