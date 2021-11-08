@@ -12,7 +12,6 @@
     "start-doge": "npm run compile && cross-env PRICECASTER_SETTINGS=./settings/settings-doge.js node build/main.js",
     "test-pkeeper-sc": "mocha test/pkeeper-sc-test.js --timeout 60000",
     "test-wormhole-sc": "mocha test/wormhole-sc-test.js --timeout 60000"
-
   },
   "author": "Randlabs inc",
   "license": "ISC",
@@ -20,7 +19,7 @@
     "@certusone/wormhole-sdk": "^0.0.5",
     "@pythnetwork/client": "^2.3.1",
     "@randlabs/js-config-reader": "^1.1.0",
-    "algosdk": "^1.11.1",
+    "algosdk": "^1.12.0",
     "charm": "^1.0.2",
     "fastpriorityqueue": "^0.7.1",
     "js-sha512": "^0.8.0"
