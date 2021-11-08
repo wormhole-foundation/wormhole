@@ -1,13 +1,11 @@
 import {
   Card,
-  Chip,
   Container,
   Link,
   makeStyles,
   Typography,
 } from "@material-ui/core";
 import { Link as RouterLink } from "react-router-dom";
-import polygonLogo from "../../icons/polygon.svg";
 import { COLORS } from "../../muiTheme";
 import { BETA_CHAINS, CHAINS } from "../../utils/consts";
 import HeaderText from "../HeaderText";
@@ -120,23 +118,6 @@ function Home() {
               </Typography>
             </div>
           ))}
-          <div className={classes.chainCard}>
-            <div className={classes.chainLogoWrapper}>
-              <img
-                src={polygonLogo}
-                alt="Polygon"
-                className={classes.chainLogo}
-              />
-              <Chip label="Coming soon" size="small" className={classes.chip} />
-            </div>
-            <Typography
-              variant="body2"
-              component="div"
-              className={classes.chainName}
-            >
-              <div>Polygon</div>
-            </Typography>
-          </div>
         </div>
       </Container>
       <Container maxWidth="md">
