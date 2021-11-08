@@ -43,8 +43,9 @@ from pyteal.ast import *
 from pyteal.types import *
 from pyteal.compiler import *
 from pyteal.ir import *
-from globals import MAX_SIGNATURES_PER_VERIFICATION_STEP, get_group_size, get_sig_count_in_step
+from globals import *
 
+GUARDIAN_ADDRESS_SIZE = 20
 METHOD = Txn.application_args[0]
 VERIFY_ARG_GUARDIAN_KEY_SUBSET = Txn.application_args[1]
 VERIFY_ARG_GUARDIAN_SET_SIZE = Txn.application_args[2]
@@ -54,7 +55,7 @@ SLOTID_VERIFIED_BIT = 254
 STATELESS_LOGIC_HASH = App.globalGet(Bytes("vphash"))
 NUM_GUARDIANS = App.globalGet(Bytes("gscount"))
 SLOT_VERIFIED_BITFIELD = ScratchVar(TealType.uint64, SLOTID_VERIFIED_BIT)
-SLOT_TEMP =  ScratchVar(TealType.uint64, SLOTID_TEMP_0)
+SLOT_TEMP = ScratchVar(TealType.uint64, SLOTID_TEMP_0)
 
 # defined chainId/contracts
 
@@ -75,21 +76,24 @@ VAA_RECORD_EMITTER_ADDR_LEN = 32
 
 @Subroutine(TealType.uint64)
 # Bootstrap with the initial list of guardians packed in first argument.
-# Guardian public keys are 32-bytes wide, so
-# using arguments a maximum 1000/32 ~ 31 public keys can be specified in this version.
+# Guardian public keys are 20-bytes wide, so
+# using arguments a maximum 1000/20 ~ 200 public keys can be specified in this version.
 def bootstrap():
     guardian_count = ScratchVar(TealType.uint64)
     i = SLOT_TEMP
     return Seq([
-        Assert(Len(Txn.application_args[0]) % Int(32) == Int(0)),
-        guardian_count.store(Len(Txn.application_args[0]) / Int(32)),
+        Assert(Txn.application_args.length() == Int(2)),
+        Assert(Len(Txn.application_args[0]) %
+               Int(GUARDIAN_ADDRESS_SIZE) == Int(0)),
+        guardian_count.store(
+            Len(Txn.application_args[0]) / Int(GUARDIAN_ADDRESS_SIZE)),
         Assert(guardian_count.load() > Int(0)),
         For(i.store(Int(0)), i.load() < guardian_count.load(), i.store(i.load() + Int(1))).Do(
             App.globalPut(Itob(i.load()), Extract(
-                Txn.application_args[0], i.load() * Int(32), Int(32)))
+                Txn.application_args[0], i.load() * Int(GUARDIAN_ADDRESS_SIZE), Int(GUARDIAN_ADDRESS_SIZE)))
         ),
         App.globalPut(Bytes("gscount"), guardian_count.load()),
-        App.globalPut(Bytes("gsexp"), Int(0)),
+        App.globalPut(Bytes("gsexp"), Btoi(Txn.application_args[1])),
         Approve()
     ])
 
@@ -109,8 +113,10 @@ def check_guardian_key_subset():
         For(i.store(Int(0)),
             i.load() < get_sig_count_in_step(Txn.group_index(), NUM_GUARDIANS),
             i.store(i.load() + Int(1))).Do(
-            If(App.globalGet(Itob(i.load())) != Extract(VERIFY_ARG_GUARDIAN_KEY_SUBSET,
-                                                        i.load() * Int(64), Int(64))).Then(Return(Int(0)))  # get and compare stored global key
+            If(
+                App.globalGet(Itob(i.load())) != Extract(VERIFY_ARG_GUARDIAN_KEY_SUBSET,
+                                                         i.load() * Int(GUARDIAN_ADDRESS_SIZE),
+                                                         Int(GUARDIAN_ADDRESS_SIZE))).Then(Return(Int(0)))  # get and compare stored global key
         ),
         Return(Int(1))
     ])
@@ -210,7 +216,8 @@ def verify():
                    Txn.sender() == STATELESS_LOGIC_HASH,
                    check_guardian_set_size(),
                    check_guardian_key_subset())),
-        SLOT_VERIFIED_BITFIELD.store(SetBit(SLOT_VERIFIED_BITFIELD.load(), Txn.group_index(), Int(1))),
+        SLOT_VERIFIED_BITFIELD.store(
+            SetBit(SLOT_VERIFIED_BITFIELD.load(), Txn.group_index(), Int(1))),
         If(Txn.group_index() == Global.group_size() -
            Int(1)).Then(
             Return(Seq([
