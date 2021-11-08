@@ -215,7 +215,9 @@ export default function NFTOriginVerifier() {
   return (
     <div>
       <Container maxWidth="md">
-        <HeaderText>NFT Origin Verifier</HeaderText>
+        <HeaderText white small>
+          NFT Origin Verifier
+        </HeaderText>
       </Container>
       <Container maxWidth="sm">
         <Card className={classes.mainCard}>

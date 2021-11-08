@@ -44,7 +44,7 @@ export const theme = responsiveFontSizes(
         fontWeight: "200",
       },
       h2: {
-        fontWeight: "300",
+        fontWeight: "200",
       },
       h4: {
         fontWeight: "500",

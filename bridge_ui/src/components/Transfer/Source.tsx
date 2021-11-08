@@ -5,6 +5,8 @@ import {
 } from "@certusone/wormhole-sdk";
 import { getAddress } from "@ethersproject/address";
 import { Button, makeStyles } from "@material-ui/core";
+import { Link } from "react-router-dom";
+import { VerifiedUser } from "@material-ui/icons";
 import { useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useHistory } from "react-router";
@@ -106,7 +108,21 @@ function Source() {
   return (
     <>
       <StepDescription>
-        Select tokens to send through the Wormhole Token Bridge.
+        <div style={{ display: "flex", alignItems: "center" }}>
+          Select tokens to send through the Wormhole Bridge.
+          <div style={{ flexGrow: 1 }} />
+          <div>
+            <Button
+              component={Link}
+              to="/token-origin-verifier"
+              size="small"
+              variant="outlined"
+              endIcon={<VerifiedUser />}
+            >
+              Token Origin Verifier
+            </Button>
+          </div>
+        </div>
       </StepDescription>
       <ChainSelect
         select

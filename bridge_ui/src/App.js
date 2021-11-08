@@ -41,6 +41,7 @@ import { useBetaContext } from "./contexts/BetaContext";
 import { COLORS } from "./muiTheme";
 import { CLUSTER } from "./utils/consts";
 import Stats from "./components/Stats";
+import TokenOriginVerifier from "./components/TokenOriginVerifier";
 
 const useStyles = makeStyles((theme) => ({
   appBar: {
@@ -269,6 +270,9 @@ function App() {
           </Route>
           <Route exact path="/nft-origin-verifier">
             <NFTOriginVerifier />
+          </Route>
+          <Route exact path="/token-origin-verifier">
+            <TokenOriginVerifier />
           </Route>
           <Route exact path="/register">
             <Attest />

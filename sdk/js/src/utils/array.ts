@@ -67,3 +67,6 @@ export const nativeToHexString = (
     return null;
   }
 };
+
+export const uint8ArrayToNative = (a: Uint8Array, chainId: ChainId) =>
+  hexToNativeString(uint8ArrayToHex(a), chainId);

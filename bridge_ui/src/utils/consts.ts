@@ -661,3 +661,5 @@ export const MULTI_CHAIN_TOKENS: {
 
 export const AVAILABLE_MARKETS_URL =
   "https://docs.wormholenetwork.com/wormhole/overview-liquid-markets";
+
+export const SOLANA_SYSTEM_PROGRAM_ADDRESS = "11111111111111111111111111111111";

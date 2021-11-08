@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.0.10
+
+uint8ArrayToNative utility function for converting to native addresses from the uint8 format
+
 ## 0.0.9
 
 ### Added

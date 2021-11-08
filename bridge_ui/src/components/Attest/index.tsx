@@ -45,7 +45,9 @@ function Attest() {
   }, [preventNavigation]);
   return (
     <Container maxWidth="md">
-      <HeaderText>Token Registration</HeaderText>
+      <HeaderText white small>
+        Token Registration
+      </HeaderText>
       <Alert severity="info">
         This form allows you to register a token on a new foreign chain. Tokens
         must be registered before they can be transferred.

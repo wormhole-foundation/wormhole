@@ -57,7 +57,7 @@ function useEvmMetadata(
   addresses: string[],
   chainId: ChainId
 ): DataWrapper<Map<string, EvmMetadata>> {
-  const { isReady } = useIsWalletReady(chainId);
+  const { isReady } = useIsWalletReady(chainId, false);
   const { provider } = useEthereumProvider();
 
   const [isFetching, setIsFetching] = useState(false);

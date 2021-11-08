@@ -14,14 +14,19 @@ import {
   selectTransferOriginChain,
   selectTransferTargetChain,
 } from "../../store/selectors";
-import { hexToNativeString } from "@certusone/wormhole-sdk";
+import { ChainId, hexToNativeString } from "@certusone/wormhole-sdk";
 
-export default function RegisterNowButton() {
+export function RegisterNowButtonCore({
+  originChain,
+  originAsset,
+  targetChain,
+}: {
+  originChain: ChainId | undefined;
+  originAsset: string | undefined;
+  targetChain: ChainId;
+}) {
   const dispatch = useDispatch();
   const history = useHistory();
-  const originChain = useSelector(selectTransferOriginChain);
-  const originAsset = useSelector(selectTransferOriginAsset);
-  const targetChain = useSelector(selectTransferTargetChain);
   // user might be in the middle of a different attest
   const signedVAAHex = useSelector(selectAttestSignedVAAHex);
   const canSwitch = originChain && originAsset && !signedVAAHex;
@@ -46,5 +51,18 @@ export default function RegisterNowButton() {
     >
       Register Now
     </Button>
+  );
+}
+
+export default function RegisterNowButton() {
+  const originChain = useSelector(selectTransferOriginChain);
+  const originAsset = useSelector(selectTransferOriginAsset);
+  const targetChain = useSelector(selectTransferTargetChain);
+  return (
+    <RegisterNowButtonCore
+      originChain={originChain}
+      originAsset={originAsset}
+      targetChain={targetChain}
+    />
   );
 }
