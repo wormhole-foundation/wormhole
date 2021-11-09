@@ -40,7 +40,15 @@ func init() {
 	tbl = client.Open("v2Events")
 }
 
-var columnFamilies = []string{"MessagePublication", "Signatures", "VAAState", "QuorumState"}
+var columnFamilies = []string{
+	"MessagePublication",
+	"QuorumState",
+	"TokenTransferPayload",
+	"AssetMetaPayload",
+	"NFTTransferPayload",
+	"TokenTransferDetails",
+	"ChainDetails",
+}
 
 type (
 	Summary struct {
@@ -112,8 +120,8 @@ func makeSummary(row bigtable.Row) *Summary {
 		}
 		summary.Sequence = seq
 	}
-	if _, ok := row[columnFamilies[3]]; ok {
-		item := row[columnFamilies[3]][0]
+	if _, ok := row[columnFamilies[1]]; ok {
+		item := row[columnFamilies[1]][0]
 		summary.SignedVAABytes = item.Value
 		summary.QuorumTime = item.Timestamp.Time().String()
 	}
@@ -131,8 +139,8 @@ func makeDetails(row bigtable.Row) *Details {
 		SignedVAABytes: sum.SignedVAABytes,
 		QuorumTime:     sum.QuorumTime,
 	}
-	if _, ok := row[columnFamilies[3]]; ok {
-		item := row[columnFamilies[3]][0]
+	if _, ok := row[columnFamilies[1]]; ok {
+		item := row[columnFamilies[1]][0]
 		deets.SignedVAA, _ = vaa.Unmarshal(item.Value)
 	}
 	return deets
