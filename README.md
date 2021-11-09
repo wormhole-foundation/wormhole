@@ -180,6 +180,39 @@ Use the deployment tools in `tools` subdirectory.
 
 * To deploy the VAA processor to use with Wormhole, make sure you have Python environment running (preferably >=3.7.0), and `pyteal` installed with `pip3`.
 
+For example, using `deploy-wh` with sample output: 
+
+```
+node tools\deploy-wh.js tools\v1.prototxt.testnet 1000  OPDM7ACAW64Q4VBWAL77Z5SHSJVZZ44V3BAN7W44U43SUXEOUENZMZYOQU testnet
+
+VAA Processor for Wormhole Deployment Tool -- (c)2021-22 Randlabs, Inc.
+-----------------------------------------------------------------------
+
+Parameters for deployment:
+From: OPDM7ACAW64Q4VBWAL77Z5SHSJVZZ44V3BAN7W44U43SUXEOUENZMZYOQU
+Network: testnet
+Guardian expiration time: 1000
+Guardian Keys: (19) 13947Bd48b18E53fdAeEe77F3473391aC727C638,F18AbBac073741DD0F002147B735Ff642f3D113F,9925A94DC043D0803f8ef502D2dB15cAc9e02D76,9e4EC2D92af8602bCE74a27F99A836f93C4a31E4,9C40c4052A3092AfB8C99B985fcDfB586Ed19c98,B86020cF1262AA4dd5572Af76923E271169a2CA7,1937617fE1eD801fBa14Bd8BB9EDEcBA7A942FFe,9475b8D45DdE53614d92c779787C27fE2ef68752,15A53B22c28AbC7B108612146B6aAa4a537bA305,63842657C7aC7e37B04FBE76b8c54EFe014D04E1,948ca1bBF4B858DF1A505b4C69c5c61bD95A12Bd,A6923e2259F8B5541eD18e410b8DdEE618337ff0,F678Daf4b7f2789AA88A081618Aa966D6a39e064,8cF31021838A8B3fFA43a71a50609877846f9E6d,eB15bCF2ae4f957012330B4741ecE3242De96184,cc3766a03e4faec44Bda7a46D9Ea2A9D124e9Bf8,841f499Ba89a6a8E9dD273BAd82Beb175094E5d7,f5F2b82576e6CA17965dee853d08bbB471FA2433,2bC2B1204599D4cA0d4Dde4a658a42c4dD13103a
+
+Enter YES to confirm parameters, anything else to abort. YES
+
+Enter mnemonic for sender account.
+BE SURE TO DO THIS FROM A SECURED SYSTEM
+.
+.
+.
+Compiling VAA Processor program code...
+,VAA Processor Program, (c) 2021-22 Randlabs Inc.
+Compiling approval program...
+Written to teal/wormhole/build/vaa-processor-approval.teal
+Compiling clear state program...
+Written to teal/wormhole/build/vaa-processor-clear.teal
+,
+Creating new app...
+txId: DX7YIQ6L5QELSNZHJGKSZ4MQA7U26KJCPUJ42UFEGU22MJWDLY5Q
+Deployment App Id: 43816461
+Bye.
+```
 
 ## Backend Configuration
 
