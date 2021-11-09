@@ -45,7 +45,7 @@ spec:
               gcloud --quiet components install beta cbt bigtable
               gcloud --quiet beta emulators bigtable start --host-port=0.0.0.0:8086 &
               sleep 3
-              cbt createtable v2Events "families=MessagePublication,Signatures,VAAState,QuorumState"
+              cbt createtable v2Events "families=MessagePublication,QuorumState,TokenTransferPayload,AssetMetaPayload,NFTTransferPayload,TokenTransferDetails,ChainDetails"
               nc -lkp 2000 0.0.0.0
 
           readinessProbe:
