@@ -17,7 +17,7 @@ export type GenericMetadata = {
   symbol?: string;
   logo?: string;
   tokenName?: string;
-  decimals?: number;
+  //decimals?: number;
   //TODO more items
   raw?: any;
 };
@@ -36,9 +36,9 @@ const constructSolanaMetadata = (
     const tokenInfo = solanaTokenMap.data?.find((x) => x.address === address);
     //Both this and the token picker, at present, give priority to the tokenmap
     const obj = {
-      symbol: tokenInfo?.symbol || metaplex?.data.symbol || undefined,
-      logo: tokenInfo?.logoURI || metaplex?.data.uri || undefined, //TODO is URI on metaplex actually the logo? If not, where is it?
-      tokenName: tokenInfo?.name || metaplex?.data.name || undefined,
+      symbol: metaplex?.data?.symbol || tokenInfo?.symbol || undefined,
+      logo: tokenInfo?.logoURI || undefined, //TODO is URI on metaplex actually the logo? If not, where is it?
+      tokenName: metaplex?.data?.name || tokenInfo?.name || undefined,
       decimals: tokenInfo?.decimals || undefined, //TODO decimals are actually on the mint, not the metaplex account.
       raw: metaplex,
     };

@@ -123,7 +123,6 @@ function SendConfirmationContent({
           originChain={originChain}
           targetAsset={targetAsset ?? undefined}
           targetChain={targetChain}
-          symbol={symbol}
         />
       </DialogContent>
       <DialogActions>

@@ -90,14 +90,12 @@ export default function TokenWarning({
   originChain,
   targetChain,
   targetAsset,
-  symbol,
 }: {
   sourceChain?: ChainId;
   sourceAsset?: string;
   originChain?: ChainId;
   targetChain?: ChainId;
   targetAsset?: string;
-  symbol?: string;
 }) {
   if (
     !(originChain && targetChain && targetAsset && sourceChain && sourceAsset)
@@ -109,7 +107,9 @@ export default function TokenWarning({
     ? sourceAsset.toLowerCase()
     : sourceAsset;
   const isWormholeWrapped = originChain !== targetChain;
-  const isMultiChain = !!MULTI_CHAIN_TOKENS[sourceChain]?.[searchableAddress];
+  const multichainSymbol =
+    MULTI_CHAIN_TOKENS[sourceChain]?.[searchableAddress] || undefined;
+  const isMultiChain = !!multichainSymbol;
   const isRewardsToken =
     searchableAddress === "0xae7ab96520de3a18e5e111b5eaab095312d7fe84" &&
     sourceChain === CHAIN_ID_ETH;
@@ -122,7 +122,7 @@ export default function TokenWarning({
     <>
       {showMultiChainWarning ? (
         <MultichainWarning
-          symbol={symbol || "tokens"}
+          symbol={multichainSymbol || "tokens"}
           targetChain={targetChain}
         />
       ) : null}

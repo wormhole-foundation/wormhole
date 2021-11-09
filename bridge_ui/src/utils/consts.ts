@@ -631,12 +631,13 @@ export const VAA_EMITTER_ADDRESSES = [
 
 export const WORMHOLE_EXPLORER_BASE = "https://wormholenetwork.com/en/explorer";
 
-export const MULTI_CHAIN_TOKENS: {
-  [x: number]: { [address: string]: string };
-} =
+export type MultiChainInfo = {
+  [key in ChainId]: { [address: string]: string };
+};
+export const MULTI_CHAIN_TOKENS: MultiChainInfo =
   //EVM chains should format the addresses to all lowercase
   CLUSTER === "mainnet"
-    ? {
+    ? ({
         [CHAIN_ID_SOLANA]: {
           EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v: "USDC",
           Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB: "USDT",
@@ -654,12 +655,16 @@ export const MULTI_CHAIN_TOKENS: {
           "0x2791bca1f2de4661ed88a30c99a7a9449aa84174": "USDC",
           "0xc2132d05d31c914a87c6611c10748aeb04b58e8f": "USDT",
         },
-      }
-    : {
+      } as MultiChainInfo)
+    : ({
         [CHAIN_ID_SOLANA]: {
           "2WDq7wSs9zYrpx2kbHDA4RUTRch2CCTP6ZWaH4GNfnQQ": "SOLT",
         },
-      };
+        [CHAIN_ID_ETH]: {},
+        [CHAIN_ID_TERRA]: {},
+        [CHAIN_ID_BSC]: {},
+        [CHAIN_ID_POLYGON]: {},
+      } as MultiChainInfo);
 
 export const AVAILABLE_MARKETS_URL =
   "https://docs.wormholenetwork.com/wormhole/overview-liquid-markets";
