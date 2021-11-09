@@ -86,7 +86,10 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-const BLACKLIST = ["D9cX654dGb4GFzqq3RY7rhZbRkQqUkfggDZdnYxqv97g"];
+const BLACKLIST = [
+  "D9cX654dGb4GFzqq3RY7rhZbRkQqUkfggDZdnYxqv97g",
+  "0xfeA43A080297B02F2eBB88a27Cb0FA6DB1b33B1d",
+];
 
 const NFTStats: React.FC<any> = () => {
   const classes = useStyles();
