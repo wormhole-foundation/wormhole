@@ -131,7 +131,7 @@ export const BasicAccountRender = (
       </div>
       <div>
         <Typography>{mintPrettyString}</Typography>
-        <Typography>{tokenId}</Typography>
+        <Typography style={{ wordBreak: "break-all" }}>{tokenId}</Typography>
       </div>
     </div>
   );

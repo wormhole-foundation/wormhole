@@ -122,7 +122,9 @@ export default function TerraTokenPicker(props: TerraTokenPickerProps) {
                   balance.balance.toString(),
                   info.decimals,
                   Number(formatUnits(balance.balance, info.decimals)),
-                  formatUnits(balance.balance, info.decimals)
+                  formatUnits(balance.balance, info.decimals),
+                  info.symbol,
+                  info.name
                 );
               } else {
                 throw new Error("Failed to retrieve Terra account.");
