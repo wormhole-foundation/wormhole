@@ -214,10 +214,7 @@ export const selectTransferSourceError = (
   if (!state.transfer.sourceParsedTokenAccount.uiAmountString) {
     return "Token amount unavailable";
   }
-  if (state.transfer.sourceParsedTokenAccount.decimals === 0) {
-    // TODO: more advanced NFT check - also check supply and uri
-    return "For NFTs, use the NFT flow";
-  }
+  // no NFT check - NFTs should be blocked by all token pickers
   try {
     // these may trigger error: fractional component exceeds decimals
     if (
