@@ -12,5 +12,6 @@ require (
 require (
 	cloud.google.com/go/pubsub v1.3.1 // indirect
 	github.com/GoogleCloudPlatform/functions-framework-go v1.3.0
-	github.com/certusone/wormhole/node v0.0.0-20211102011245-d412cb8a936a
+	github.com/certusone/wormhole/node v0.0.0-20211109211005-7ad15fbfc427
+	github.com/holiman/uint256 v1.2.0 // indirect
 )
