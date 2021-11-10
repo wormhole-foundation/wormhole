@@ -10,8 +10,8 @@
     "start-btc": "npm run compile && cross-env PRICECASTER_SETTINGS=./settings/settings-btc.js node build/main.js",
     "start-eth": "npm run compile && cross-env PRICECASTER_SETTINGS=./settings/settings-eth.js node build/main.js",
     "start-doge": "npm run compile && cross-env PRICECASTER_SETTINGS=./settings/settings-doge.js node build/main.js",
-    "test-pkeeper-sc": "mocha test/pkeeper-sc-test.js --timeout 60000",
-    "test-wormhole-sc": "mocha test/wormhole-sc-test.js --timeout 60000"
+    "test-pkeeper-sc": "mocha test/pkeeper-sc-test.js --timeout 60000 --bail",
+    "test-wormhole-sc": "mocha test/wormhole-sc-test.js --timeout 60000 --bail"
   },
   "author": "Randlabs inc",
   "license": "ISC",

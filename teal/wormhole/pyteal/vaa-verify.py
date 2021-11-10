@@ -81,17 +81,21 @@ def vaa_verify_program(vaa_processor_app_id):
 
 
 if __name__ == "__main__":
+    outfile = "teal/wormhole/build/vaa-verify.teal"
+    appid = 0
 
     print("VAA Verify Stateless Program, (c) 2021-22 Randlabs Inc. ")
     print("Compiling...")
-    if len(sys.argv) != 2:
-        print ("No appid argument provided")
-        exit(1)
 
-    outfile = "teal/wormhole/build/vaa-verify.teal"
+    if len(sys.argv) >= 2:
+        appid = sys.argv[1]
+
+    if len(sys.argv) >= 3:
+        outfile = sys.argv[2]
+
     with open(outfile, "w") as f:
         compiled = compileTeal(vaa_verify_program(
-            int(sys.argv[1])), mode=Mode.Signature, version=5)
+            int(appid)), mode=Mode.Signature, version=5)
         f.write(compiled)
 
     print("Written to " + outfile)

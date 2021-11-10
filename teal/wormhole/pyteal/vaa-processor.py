@@ -44,6 +44,7 @@ from pyteal.types import *
 from pyteal.compiler import *
 from pyteal.ir import *
 from globals import *
+import sys
 
 GUARDIAN_ADDRESS_SIZE = 20
 METHOD = Txn.application_args[0]
@@ -251,6 +252,12 @@ if __name__ == "__main__":
 
     approval_outfile = "teal/wormhole/build/vaa-processor-approval.teal"
     clear_state_outfile = "teal/wormhole/build/vaa-processor-clear.teal"
+    
+    if len(sys.argv) >= 2:
+        approval_outfile = sys.argv[1]
+
+    if len(sys.argv) >= 3:
+        clear_state_outfile = sys.argv[2]
 
     print("VAA Processor Program, (c) 2021-22 Randlabs Inc. ")
     print("Compiling approval program...")
