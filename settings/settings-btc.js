@@ -1,4 +1,5 @@
 module.exports = {
+  mode: 'pkeeper',
   algo: {
     token: '',
     api: 'https://api.testnet.algoexplorer.io',

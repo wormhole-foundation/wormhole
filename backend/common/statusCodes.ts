@@ -1,3 +1,11 @@
+/**
+ * Pricecaster Service.
+ *
+ * Fetcher backend component.
+ *
+ * (c) 2021 Randlabs, Inc.
+ */
+
 /* eslint-disable no-unused-vars */
 export enum StatusCode {
   OK,

@@ -114,7 +114,7 @@ describe('VAA Processor Smart-contract Tests', function () {
     const txid = await pclib.setVAAVerifyProgramHash(OWNER_ADDR, compiledProgram.hash, signCallback)
     await pclib.waitForTransactionResponse(txid)
     const vphstate = await tools.readAppGlobalStateByKey(algodClient, appId, OWNER_ADDR, 'vphash')
-    expect(algosdk.encodeAddress(Buffer.from(vphstate, 'base64'))).to.equal(compiledProgram.hash)
+    expect(vphstate).to.equal(compiledProgram.hash)
   })
   it('Must disallow setting stateless logic hash from non-owner', async function () {
 

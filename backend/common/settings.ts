@@ -1,4 +1,13 @@
+/**
+ * Pricecaster Service.
+ *
+ * Fetcher backend component.
+ *
+ * (c) 2021 Randlabs, Inc.
+ */
+
 export interface IAppSettings extends Record<string, unknown> {
+    mode: string,
     algo: {
         token: string,
         api: string,
