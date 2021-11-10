@@ -158,10 +158,14 @@ spec:
               value: local-dev
             - name: BIGTABLE_INSTANCE
               value: wormhole
-            - name: PUBSUB_TOPIC
+            - name: PUBSUB_NEW_VAA_TOPIC
               value: new-vaa-devnet
-            - name: PUBSUB_SUBSCRIPTION
+            - name: PUBSUB_NEW_VAA_SUBSCRIPTION
               value: extract-payload-devnet
+            - name: PUBSUB_TOKEN_TRANSFER_DETAILS_TOPIC
+              value: create-token-transfer-details-devnet
+            - name: PUBSUB_TOKEN_TRANSFER_DETAILS_SUBSCRIPTION
+              value: calculate-transfer-data-devnet
           ports:
             - containerPort: 8080
               name: functions

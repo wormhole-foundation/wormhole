@@ -9,6 +9,7 @@ import (
 	"log"
 
 	"cloud.google.com/go/bigtable"
+	"cloud.google.com/go/pubsub"
 	"github.com/certusone/wormhole/node/pkg/vaa"
 	"github.com/holiman/uint256"
 )
@@ -232,7 +233,7 @@ func ProcessVAA(ctx context.Context, m PubSubMessage) error {
 				log.Println("failed decoding payload for row ", rowKey)
 				return decodeErr
 			}
-			// save payload to bigtable
+			// save payload to bigtable, then publish a new PubSub message for further processing
 			colFam := columnFamilies[2]
 			mutation := bigtable.NewMutation()
 			ts := bigtable.Now()
@@ -245,7 +246,13 @@ func ProcessVAA(ctx context.Context, m PubSubMessage) error {
 			mutation.Set(colFam, "TargetChain", ts, []byte(fmt.Sprint(payload.TargetChain)))
 
 			writeErr := writePayloadToBigTable(ctx, rowKey, colFam, mutation)
-			return writeErr
+			if writeErr != nil {
+				return writeErr
+			}
+
+			// now that the payload is saved to BigTable,
+			// pass along the message to the topic that will calculate TokenTransferDetails
+			pubSubTokenTransferDetailsTopic.Publish(ctx, &pubsub.Message{Data: m.Data})
 		} else if payloadId == 2 {
 			// asset meta
 			payload, decodeErr := DecodeAssetMeta(signedVaa.Payload)

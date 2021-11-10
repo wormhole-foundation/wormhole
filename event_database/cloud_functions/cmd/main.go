@@ -12,6 +12,39 @@ import (
 	p "github.com/certusone/wormhole/event_database/cloud_functions"
 )
 
+func createAndSubscribe(client *pubsub.Client, topicName, subscriptionName string, handler func(ctx context.Context, m p.PubSubMessage) error) {
+	var topic *pubsub.Topic
+	var topicErr error
+	ctx := context.Background()
+	topic, topicErr = client.CreateTopic(ctx, topicName)
+	if topicErr != nil {
+		log.Printf("pubsub.CreateTopic err: %v", topicErr)
+		// already exists
+		topic = client.Topic(topicName)
+	} else {
+		log.Println("created topic:", topicName)
+	}
+
+	subConf := pubsub.SubscriptionConfig{Topic: topic}
+	_, subErr := client.CreateSubscription(ctx, subscriptionName, subConf)
+	if subErr != nil {
+		log.Printf("pubsub.CreateSubscription err: %v", subErr)
+	} else {
+		log.Println("created subscription:", subscriptionName)
+	}
+
+	sub := client.Subscription(subscriptionName)
+
+	err := sub.Receive(ctx, func(ctx context.Context, msg *pubsub.Message) {
+		msg.Ack()
+		handler(ctx, p.PubSubMessage{Data: msg.Data})
+
+	})
+	if err != nil {
+		fmt.Println(fmt.Errorf("receive err: %v", err))
+	}
+}
+
 func main() {
 	var wg sync.WaitGroup
 
@@ -34,51 +67,34 @@ func main() {
 	}()
 
 	// pubsub functions
+	pubsubCtx := context.Background()
+	gcpProject := os.Getenv("GCP_PROJECT")
+
+	pubsubClient, err := pubsub.NewClient(pubsubCtx, gcpProject)
+	if err != nil {
+		fmt.Println(fmt.Errorf("pubsub.NewClient err: %v", err))
+	}
+
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		pubsubCtx := context.Background()
-		gcpProject := os.Getenv("GCP_PROJECT")
 
-		client, err := pubsub.NewClient(pubsubCtx, gcpProject)
-		if err != nil {
-			fmt.Println(fmt.Errorf("pubsub.NewClient err: %v", err))
-		}
-		defer client.Close()
+		pubsubTopic := os.Getenv("PUBSUB_NEW_VAA_TOPIC")
+		pubsubSubscription := os.Getenv("PUBSUB_NEW_VAA_SUBSCRIPTION")
 
-		pubsubTopic := os.Getenv("PUBSUB_TOPIC")
-		pubsubSubscription := os.Getenv("PUBSUB_SUBSCRIPTION")
-		var topic *pubsub.Topic
-		var topicErr error
+		createAndSubscribe(pubsubClient, pubsubTopic, pubsubSubscription, p.ProcessVAA)
+	}()
 
-		topic, topicErr = client.CreateTopic(pubsubCtx, pubsubTopic)
-		if topicErr != nil {
-			log.Printf("pubsub.CreateTopic err: %v", topicErr)
-			// already exists
-			topic = client.Topic(pubsubTopic)
-		} else {
-			log.Println("created topic:", pubsubTopic)
-		}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
 
-		subConf := pubsub.SubscriptionConfig{Topic: topic}
-		_, subErr := client.CreateSubscription(pubsubCtx, pubsubSubscription, subConf)
-		if subErr != nil {
-			log.Printf("pubsub.CreateSubscription err: %v", subErr)
-		} else {
-			log.Println("created subscription:", pubsubSubscription)
-		}
+		pubsubTopic := os.Getenv("PUBSUB_TOKEN_TRANSFER_DETAILS_TOPIC")
+		pubsubSubscription := os.Getenv("PUBSUB_TOKEN_TRANSFER_DETAILS_SUBSCRIPTION")
 
-		sub := client.Subscription(pubsubSubscription)
-
-		err = sub.Receive(pubsubCtx, func(ctx context.Context, msg *pubsub.Message) {
-			msg.Ack()
-			p.ProcessVAA(ctx, p.PubSubMessage{Data: msg.Data})
-
-		})
-		if err != nil {
-			fmt.Println(fmt.Errorf("receive err: %v", err))
-		}
+		createAndSubscribe(pubsubClient, pubsubTopic, pubsubSubscription, p.ProcessTransfer)
 	}()
 
 	wg.Wait()
+	pubsubClient.Close()
 }
