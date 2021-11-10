@@ -106,3 +106,4 @@ dist
 build/*
 teal/wormhole/pyteal/__pycache__/*
 teal/wormhole/build/*
+test/temp/*.teal
