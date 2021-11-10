@@ -11,9 +11,14 @@
             "mode": "auto",
             "program": "${workspaceFolder}/cmd/main.go",
             "env": {
-                "GCP_PROJECT": "wormhole-315720",
-                "BIGTABLE_INSTANCE": "wormhole-mainnet",
-                "GOOGLE_APPLICATION_CREDENTIALS": "./bigtable-admin.json"
+                "GCP_PROJECT": "local-dev",
+                "BIGTABLE_INSTANCE": "wormhole",
+                "BIGTABLE_EMULATOR_HOST": "localhost:8086",
+                "PUBSUB_EMULATOR_HOST": "localhost:8085",
+                "PUBSUB_NEW_VAA_TOPIC": "new-vaa-devnet",
+                "PUBSUB_NEW_VAA_SUBSCRIPTION": "extract-payload-devnet",
+                "PUBSUB_TOKEN_TRANSFER_DETAILS_TOPIC": "create-token-transfer-details-devnet",
+                "PUBSUB_TOKEN_TRANSFER_DETAILS_SUBSCRIPTION": "calculate-transfer-data-devnet",
             },
         },
     ]

@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"cloud.google.com/go/bigtable"
+	"cloud.google.com/go/pubsub"
 	"github.com/certusone/wormhole/node/pkg/vaa"
 )
 
@@ -19,6 +20,9 @@ import (
 var client *bigtable.Client
 var clientOnce sync.Once
 var tbl *bigtable.Table
+
+var pubsubClient *pubsub.Client
+var pubSubTokenTransferDetailsTopic *pubsub.Topic
 
 // init runs during cloud function initialization. So, this will only run during an
 // an instance's cold start.
@@ -36,8 +40,19 @@ func init() {
 
 			return
 		}
+
+		var pubsubErr error
+		pubsubClient, pubsubErr = pubsub.NewClient(context.Background(), project)
+		if pubsubErr != nil {
+			log.Printf("pubsub.NewClient error: %v", pubsubErr)
+			return
+		}
 	})
 	tbl = client.Open("v2Events")
+
+	// create the topic that will be published to after decoding token transfer payloads
+	tokenTransferDetailsTopic := os.Getenv("PUBSUB_TOKEN_TRANSFER_DETAILS_TOPIC")
+	pubSubTokenTransferDetailsTopic = pubsubClient.Topic(tokenTransferDetailsTopic)
 }
 
 var columnFamilies = []string{
