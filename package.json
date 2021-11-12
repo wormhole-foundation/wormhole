@@ -16,11 +16,14 @@
   "author": "Randlabs inc",
   "license": "ISC",
   "dependencies": {
-    "@certusone/wormhole-sdk": "^0.0.5",
+    "@certusone/wormhole-sdk": "^0.0.9",
+    "@improbable-eng/grpc-web-node-http-transport": "^0.15.0",
     "@pythnetwork/client": "^2.3.1",
     "@randlabs/js-config-reader": "^1.1.0",
     "algosdk": "^1.12.0",
     "charm": "^1.0.2",
+    "esm": "^3.2.25",
+    "ethers": "^5.5.1",
     "fastpriorityqueue": "^0.7.1",
     "js-sha512": "^0.8.0"
   },
