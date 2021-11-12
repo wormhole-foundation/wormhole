@@ -64,10 +64,8 @@ func fetchRowsInInterval(tbl *bigtable.Table, ctx context.Context, prefix string
 func createCountsOfInterval(tbl *bigtable.Table, ctx context.Context, prefix string, numPrevDays int, keySegments int) (map[string]map[string]int, error) {
 	var mu sync.RWMutex
 	results := map[string]map[string]int{}
-	// key track of all the keys seen, to ensure the result objects all have the same keys
-	seenKeySet := map[string]bool{}
 
-	now := time.Now()
+	now := time.Now().UTC()
 
 	var intervalsWG sync.WaitGroup
 	// there will be a query for each previous day, plus today
@@ -145,9 +143,6 @@ func createCountsOfInterval(tbl *bigtable.Table, ctx context.Context, prefix str
 					results[dateStr]["*"] = results[dateStr]["*"] + 1
 				}
 				results[dateStr][countBy] = results[dateStr][countBy] + 1
-
-				// add this key to the set
-				seenKeySet[countBy] = true
 			}
 
 			// set the result in the cache
@@ -157,12 +152,19 @@ func createCountsOfInterval(tbl *bigtable.Table, ctx context.Context, prefix str
 
 	intervalsWG.Wait()
 
-	// ensure each date object has the same keys:
+	// create a set of all the keys from all dates, to ensure the result objects all have the same keys
+	seenKeySet := map[string]bool{}
 	for _, v := range results {
+		for key := range v {
+			seenKeySet[key] = true
+		}
+	}
+	// ensure each date object has the same keys:
+	for date := range results {
 		for key := range seenKeySet {
-			if _, ok := v[key]; !ok {
+			if _, ok := results[date][key]; !ok {
 				// add the missing key to the map
-				v[key] = 0
+				results[date][key] = 0
 			}
 		}
 	}
@@ -171,19 +173,7 @@ func createCountsOfInterval(tbl *bigtable.Table, ctx context.Context, prefix str
 }
 
 // returns the count of the rows in the query response
-func messageCountForInterval(tbl *bigtable.Table, ctx context.Context, prefix string, interval time.Duration, keySegments int) (map[string]int, error) {
-
-	now := time.Now()
-	// calulate the start and end times for the query
-	n := now.Add(interval)
-	year := n.Year()
-	month := n.Month()
-	day := n.Day()
-	loc := n.Location()
-
-	start := time.Date(year, month, day, 0, 0, 0, 0, loc)
-	end := time.Date(now.Year(), now.Month(), now.Day(), 23, 59, 59, maxNano, loc)
-
+func messageCountForInterval(tbl *bigtable.Table, ctx context.Context, prefix string, start, end time.Time, keySegments int) (map[string]int, error) {
 	// query for all rows in time range, return result count
 	results, fetchErr := fetchRowsInInterval(tbl, ctx, prefix, start, end)
 	if fetchErr != nil {
@@ -287,7 +277,11 @@ func Totals(w http.ResponseWriter, r *http.Request) {
 	prefix := ""
 	if forChain != "" {
 		prefix = forChain
+		// if the request is forChain, always groupBy chain
+		groupBy = "chain"
 		if forAddress != "" {
+			// if the request is forAddress, always groupBy address
+			groupBy = "address"
 			prefix = forChain + ":" + forAddress
 		}
 	}
@@ -312,8 +306,10 @@ func Totals(w http.ResponseWriter, r *http.Request) {
 	go func(prefix string, keySegments int) {
 		var err error
 		last24HourInterval := -time.Duration(24) * time.Hour
+		now := time.Now().UTC()
+		start := now.Add(last24HourInterval)
 		defer wg.Done()
-		last24HourCount, err = messageCountForInterval(tbl, ctx, prefix, last24HourInterval, keySegments)
+		last24HourCount, err = messageCountForInterval(tbl, ctx, prefix, start, now, keySegments)
 		if err != nil {
 			log.Printf("failed getting count for interval, err: %v", err)
 		}
@@ -326,8 +322,13 @@ func Totals(w http.ResponseWriter, r *http.Request) {
 		var err error
 		hours := (24 * queryDays)
 		periodInterval := -time.Duration(hours) * time.Hour
+
+		now := time.Now().UTC()
+		prev := now.Add(periodInterval)
+		start := time.Date(prev.Year(), prev.Month(), prev.Day(), 0, 0, 0, 0, prev.Location())
+
 		defer wg.Done()
-		periodCount, err = messageCountForInterval(tbl, ctx, prefix, periodInterval, keySegments)
+		periodCount, err = messageCountForInterval(tbl, ctx, prefix, start, now, keySegments)
 		if err != nil {
 			log.Fatalf("failed getting count for interval, err: %v", err)
 		}
