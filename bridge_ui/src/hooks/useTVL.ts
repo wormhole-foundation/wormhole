@@ -52,6 +52,10 @@ export type TVL = {
   decimals?: number;
 };
 
+const BAD_PRICES_BY_CHAIN = {
+  [CHAIN_ID_BSC]: ["0x04132bf45511d03a58afd4f1d36a29d229ccc574"],
+};
+
 const calcEvmTVL = (covalentReport: any, chainId: ChainId): TVL[] => {
   const output: TVL[] = [];
   if (!covalentReport?.data?.items?.length) {
@@ -60,13 +64,16 @@ const calcEvmTVL = (covalentReport: any, chainId: ChainId): TVL[] => {
 
   covalentReport.data.items.forEach((item: any) => {
     if (item.balance > 0 && item.contract_address) {
+      const hasUnreliablePrice = BAD_PRICES_BY_CHAIN[chainId]?.includes(
+        item.contract_address
+      );
       output.push({
         logo: item.logo_url || undefined,
         symbol: item.contract_ticker_symbol || undefined,
         name: item.contract_name || undefined,
         amount: formatUnits(item.balance, item.contract_decimals),
-        totalValue: item.quote,
-        quotePrice: item.quote_rate,
+        totalValue: hasUnreliablePrice ? 0 : item.quote,
+        quotePrice: hasUnreliablePrice ? 0 : item.quote_rate,
         assetAddress: item.contract_address,
         originChainId: chainId,
         originChain: CHAINS_BY_ID[chainId].name,
