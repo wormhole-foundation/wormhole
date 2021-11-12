@@ -16,6 +16,7 @@ import { IPublisher, PublishInfo } from '../publisher/IPublisher'
 import { PriceTicker } from '../common/priceTicker'
 import { StatusCode } from '../common/statusCodes'
 import { sleep } from '../common/sleep'
+import { WormholePythPriceFetcher } from 'backend/fetcher/WormholePythPriceFetcher'
 
 const algosdk = require('algosdk')
 const charm = require('charm')()
@@ -63,7 +64,7 @@ export class WormholeClientEngine implements IEngine {
       this.settings.algo.port
     )
 
-    const fetcher = new PythPriceFetcher(this.settings.params.symbol,
+    const fetcher = new WormholePythPriceFetcher(this.settings.params.symbol,
       new StrategyLastPrice(this.settings.params.bufferSize), this.settings.pyth?.solanaClusterName!)
     await fetcher.start()
 
