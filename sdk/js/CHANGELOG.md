@@ -2,7 +2,11 @@
 
 ## 0.0.10
 
+### Added
+
 uint8ArrayToNative utility function for converting to native addresses from the uint8 format
+
+Include node target wasms in lib
 
 ## 0.0.9
 
