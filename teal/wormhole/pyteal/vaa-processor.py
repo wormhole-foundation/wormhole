@@ -48,8 +48,8 @@ import sys
 
 GUARDIAN_ADDRESS_SIZE = 20
 METHOD = Txn.application_args[0]
-VERIFY_ARG_GUARDIAN_KEY_SUBSET = Txn.application_args[1]
-VERIFY_ARG_GUARDIAN_SET_SIZE = Txn.application_args[2]
+VERIFY_ARG_GUARDIAN_KEY_SUBSET = Txn.application_args[0]
+VERIFY_ARG_GUARDIAN_SET_SIZE = Txn.application_args[1]
 VERIFY_ARG_PAYLOAD = Txn.note()
 SLOTID_TEMP_0 = 251
 SLOTID_VERIFIED_BIT = 254
@@ -201,9 +201,9 @@ def setvphash():
 def verify():
     # * Sender must be stateless logic.
     # * Let N be the number of signatures per verification step, for the TX(i) in group, we verify signatures [j..k] where j = i*N, k = j+(N-1)
-    # * Argument 1 must contain guardian public keys for guardians [i..j] (read by stateless logic).
+    # * Argument 0 must contain guardian public keys for guardians [i..j] (read by stateless logic).
     #   Public keys are 32 bytes long so expected argument length is 32 * (j - i + 1)
-    # * Argument 2 must contain current guardian set size (read by stateless logic)
+    # * Argument 1 must contain current guardian set size (read by stateless logic)
     # * Passed guardian public keys [i..j] must match the current global state.
     # * Note must contain VAA message-in-digest (header+payload) (up to 1KB)  (read by stateless logic)
     #
