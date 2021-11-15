@@ -162,10 +162,6 @@ pub fn register_chain(
     accs.vaa.verify(ctx.program_id)?;
     accs.vaa.claim(ctx, accs.payer.key)?;
 
-    if accs.vaa.chain == CHAIN_ID_SOLANA {
-        return Err(InvalidChain.into());
-    }
-
     // Create endpoint
     accs.endpoint
         .create(&((&*accs).into()), ctx, accs.payer.key, Exempt)?;
