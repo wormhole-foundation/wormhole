@@ -117,13 +117,39 @@ describe('VAA Processor Smart-contract Tests', function () {
     expect(vphstate).to.equal(compiledProgram.hash)
   })
   it('Must disallow setting stateless logic hash from non-owner', async function () {
-
+    const teal = 'test/temp/vaa-verify.teal'
+    spawnSync('python', ['teal/wormhole/pyteal/vaa-verify.py', appId, teal])
+    const program = fs.readFileSync(teal, 'utf8')
+    const compiledProgram = await pclib.compileProgram(program)
+    await expect(pclib.setVAAVerifyProgramHash(OTHER_ADDR, compiledProgram.hash, signCallback)).to.be.rejectedWith('Bad Request')
   })
   it('Must reject setting stateless logic hash from group transaction', async function () {
+    const teal = 'test/temp/vaa-verify.teal'
+    spawnSync('python', ['teal/wormhole/pyteal/vaa-verify.py', appId, teal])
+    const program = fs.readFileSync(teal, 'utf8')
+    const compiledProgram = await pclib.compileProgram(program)
+    const hash = algosdk.decodeAddress(compiledProgram.hash).publicKey
+    const appArgs = [new Uint8Array(Buffer.from('setvphash')), hash.subarray(0, 10)]
 
+    const params = await algodClient.getTransactionParams().do()
+    params.fee = 1000
+    params.flatFee = true
+
+    pclib.beginTxGroup()
+    const appTx = algosdk.makeApplicationNoOpTxn(OWNER_ADDR, params, this.appId, appArgs)
+    const dummyTx = algosdk.makeApplicationNoOpTxn(OWNER_ADDR, params, this.appId, appArgs)
+    pclib.addTxToGroup(appTx)
+    pclib.addTxToGroup(dummyTx)
+    await expect(pclib.commitTxGroup(OWNER_ADDR, signCallback)).to.be.rejectedWith('Bad Request')
   })
   it('Must reject setting stateless logic hash with invalid address length', async function () {
-
+    const teal = 'test/temp/vaa-verify.teal'
+    spawnSync('python', ['teal/wormhole/pyteal/vaa-verify.py', appId, teal])
+    const program = fs.readFileSync(teal, 'utf8')
+    const compiledProgram = await pclib.compileProgram(program)
+    const hash = algosdk.decodeAddress(compiledProgram.hash).publicKey
+    const appArgs = [new Uint8Array(Buffer.from('setvphash')), hash.subarray(0, 10)]
+    await expect(pclib.callApp(OWNER_ADDR, appArgs, [], signCallback)).to.be.rejectedWith('Bad Request')
   })
   it('Must verify and handle Pyth VAA', async function () {
 
