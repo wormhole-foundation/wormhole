@@ -1,0 +1,17 @@
+syntax = "proto3";
+package certusone.wormholechain.wormhole;
+
+import "wormhole/guardian_set.proto";
+import "wormhole/config.proto";
+// this line is used by starport scaffolding # genesis/proto/import
+import "gogoproto/gogo.proto";
+
+option go_package = "github.com/certusone/wormhole-chain/x/wormhole/types";
+
+// GenesisState defines the wormhole module's genesis state.
+message GenesisState {
+  repeated GuardianSet guardianSetList = 1 [(gogoproto.nullable) = false];
+  uint32 guardianSetCount = 2;
+  Config config = 3;
+  // this line is used by starport scaffolding # genesis/proto/state
+}

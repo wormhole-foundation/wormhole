@@ -1,0 +1,22 @@
+syntax = "proto3";
+package certusone.wormholechain.wormhole;
+
+// this line is used by starport scaffolding # proto/tx/import
+
+option go_package = "github.com/certusone/wormhole-chain/x/wormhole/types";
+
+// Msg defines the Msg service.
+service Msg {
+      rpc ExecuteGovernanceVAA(MsgExecuteGovernanceVAA) returns (MsgExecuteGovernanceVAAResponse);
+// this line is used by starport scaffolding # proto/tx/rpc
+}
+
+message MsgExecuteGovernanceVAA {
+  bytes vaa = 1;
+  string signer = 2;
+}
+
+message MsgExecuteGovernanceVAAResponse {
+}
+
+// this line is used by starport scaffolding # proto/tx/message
