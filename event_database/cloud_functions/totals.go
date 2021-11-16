@@ -54,6 +54,7 @@ func fetchRowsInInterval(tbl *bigtable.Table, ctx context.Context, prefix string
 	}, bigtable.RowFilter(
 		bigtable.ChainFilters(
 			// combine filters to get only what we need:
+			bigtable.FamilyFilter(columnFamilies[1]),
 			bigtable.CellsPerRowLimitFilter(1),        // only the first cell in each column (helps for devnet where sequence resets)
 			bigtable.TimestampRangeFilter(start, end), // within time range
 			bigtable.StripValueFilter(),               // no columns/values, just the row.Key()

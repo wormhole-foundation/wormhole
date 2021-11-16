@@ -73,8 +73,16 @@ var columnFamilies = []string{
 	"TokenTransferDetails",
 	"ChainDetails",
 }
+var messagePubFam = columnFamilies[0]
+var quorumStateFam = columnFamilies[1]
+var transferPayloadFam = columnFamilies[2]
+var metaPayloadFam = columnFamilies[3]
+var nftPayloadFam = columnFamilies[4]
+var transferDetailsFam = columnFamilies[5]
+var chainDetailsFam = columnFamilies[6]
 
 type (
+	// Summary is MessagePublication data & QuorumState data
 	Summary struct {
 		EmitterChain   string
 		EmitterAddress string
@@ -84,16 +92,57 @@ type (
 		SignedVAABytes []byte
 		QuorumTime     string
 	}
-	// Details is a Summary, with the VAA decoded as SignedVAA
+	// Details is a Summary extended with all the post-processing ColumnFamilies
 	Details struct {
-		SignedVAA      *vaa.VAA
-		EmitterChain   string
-		EmitterAddress string
-		Sequence       string
-		InitiatingTxID string
-		Payload        []byte
-		SignedVAABytes []byte
-		QuorumTime     string
+		Summary
+		SignedVAA            *vaa.VAA
+		TokenTransferPayload *TokenTransferPayload
+		AssetMetaPayload     *AssetMetaPayload
+		NFTTransferPayload   *NFTTransferPayload
+		TransferDetails      *TransferDetails
+		ChainDetails         *ChainDetails
+	}
+	// The following structs match the ColumnFamiles they are named after
+	TokenTransferPayload struct {
+		Amount        string
+		OriginAddress string
+		OriginChain   string
+		TargetAddress string
+		TargetChain   string
+	}
+	AssetMetaPayload struct {
+		TokenAddress string
+		TokenChain   string
+		Decimals     string
+		Symbol       string
+		Name         string
+	}
+	NFTTransferPayload struct {
+		OriginAddress string
+		OriginChain   string
+		Symbol        string
+		Name          string
+		TokenId       string
+		URI           string
+		TargetAddress string
+		TargetChain   string
+	}
+	TransferDetails struct {
+		Amount             string
+		Decimals           string
+		NotionalUSDStr     string
+		TokenPriceUSDStr   string
+		TransferTimestamp  string
+		OriginSymbol       string
+		OriginName         string
+		OriginTokenAddress string
+		// fields below exist on the row, but no need to return them currently.
+		// NotionalUSD        uint64
+		// TokenPriceUSD      uint64
+	}
+	ChainDetails struct {
+		SenderAddress   string
+		ReceiverAddress string
 	}
 )
 
@@ -115,9 +164,9 @@ func chainIdStringToType(chainId string) vaa.ChainID {
 
 func makeSummary(row bigtable.Row) *Summary {
 	summary := &Summary{}
-	if _, ok := row[columnFamilies[0]]; ok {
+	if _, ok := row[messagePubFam]; ok {
 
-		for _, item := range row[columnFamilies[0]] {
+		for _, item := range row[messagePubFam] {
 			switch item.Column {
 			case "MessagePublication:InitiatingTxID":
 				summary.InitiatingTxID = string(item.Value)
@@ -144,8 +193,8 @@ func makeSummary(row bigtable.Row) *Summary {
 		}
 		summary.Sequence = seq
 	}
-	if _, ok := row[columnFamilies[1]]; ok {
-		item := row[columnFamilies[1]][0]
+	if _, ok := row[quorumStateFam]; ok {
+		item := row[quorumStateFam][0]
 		summary.SignedVAABytes = item.Value
 		summary.QuorumTime = item.Timestamp.Time().String()
 	}
@@ -153,8 +202,9 @@ func makeSummary(row bigtable.Row) *Summary {
 }
 
 func makeDetails(row bigtable.Row) *Details {
+	deets := &Details{}
 	sum := makeSummary(row)
-	deets := &Details{
+	deets.Summary = Summary{
 		EmitterChain:   sum.EmitterChain,
 		EmitterAddress: sum.EmitterAddress,
 		Sequence:       sum.Sequence,
@@ -163,9 +213,126 @@ func makeDetails(row bigtable.Row) *Details {
 		SignedVAABytes: sum.SignedVAABytes,
 		QuorumTime:     sum.QuorumTime,
 	}
-	if _, ok := row[columnFamilies[1]]; ok {
-		item := row[columnFamilies[1]][0]
+
+	if _, ok := row[quorumStateFam]; ok {
+		item := row[quorumStateFam][0]
 		deets.SignedVAA, _ = vaa.Unmarshal(item.Value)
+	}
+	if _, ok := row[transferPayloadFam]; ok {
+		tokenTransferPayload := &TokenTransferPayload{}
+		for _, item := range row[transferPayloadFam] {
+			switch item.Column {
+			case "TokenTransferPayload:Amount":
+				tokenTransferPayload.Amount = string(item.Value)
+			case "TokenTransferPayload:OriginAddress":
+				tokenTransferPayload.OriginAddress = string(item.Value)
+			case "TokenTransferPayload:OriginChain":
+				tokenTransferPayload.OriginChain = string(item.Value)
+			case "TokenTransferPayload:TargetAddress":
+				tokenTransferPayload.TargetAddress = string(item.Value)
+			case "TokenTransferPayload:TargetChain":
+				tokenTransferPayload.TargetChain = string(item.Value)
+			}
+		}
+		deets.TokenTransferPayload = tokenTransferPayload
+	}
+	if _, ok := row[metaPayloadFam]; ok {
+		assetMetaPayload := &AssetMetaPayload{}
+		for _, item := range row[metaPayloadFam] {
+			switch item.Column {
+			case "AssetMetaPayload:TokenAddress":
+				assetMetaPayload.TokenAddress = string(item.Value)
+			case "AssetMetaPayload:TokenChain":
+				assetMetaPayload.TokenChain = string(item.Value)
+			case "AssetMetaPayload:Decimals":
+				assetMetaPayload.Decimals = string(item.Value)
+			case "AssetMetaPayload:Symbol":
+				assetMetaPayload.Symbol = string(item.Value)
+			case "AssetMetaPayload:Name":
+				assetMetaPayload.Name = string(item.Value)
+			}
+		}
+		deets.AssetMetaPayload = assetMetaPayload
+	}
+	if _, ok := row[nftPayloadFam]; ok {
+		nftTransferPayload := &NFTTransferPayload{}
+		for _, item := range row[nftPayloadFam] {
+			switch item.Column {
+			case "NFTTransferPayload:OriginAddress":
+				nftTransferPayload.OriginAddress = string(item.Value)
+			case "NFTTransferPayload:OriginChain":
+				nftTransferPayload.OriginChain = string(item.Value)
+			case "NFTTransferPayload:Symbol":
+				nftTransferPayload.Symbol = string(item.Value)
+			case "NFTTransferPayload:Name":
+				nftTransferPayload.Name = string(item.Value)
+			case "NFTTransferPayload:TokenId":
+				nftTransferPayload.TokenId = string(item.Value)
+			case "NFTTransferPayload:URI":
+				nftTransferPayload.URI = string(TrimUnicodeFromByteArray(item.Value))
+			case "NFTTransferPayload:TargetAddress":
+				nftTransferPayload.TargetAddress = string(item.Value)
+			case "NFTTransferPayload:TargetChain":
+				nftTransferPayload.TargetChain = string(item.Value)
+			}
+		}
+		deets.NFTTransferPayload = nftTransferPayload
+	}
+	if _, ok := row[transferDetailsFam]; ok {
+		transferDetails := &TransferDetails{}
+		for _, item := range row[transferDetailsFam] {
+			switch item.Column {
+			case "TokenTransferDetails:Amount":
+				transferDetails.Amount = string(item.Value)
+			case "TokenTransferDetails:Decimals":
+				transferDetails.Decimals = string(item.Value)
+			case "TokenTransferDetails:NotionalUSDStr":
+				transferDetails.NotionalUSDStr = string(item.Value)
+			case "TokenTransferDetails:TokenPriceUSDStr":
+				transferDetails.TokenPriceUSDStr = string(item.Value)
+			case "TokenTransferDetails:TransferTimestamp":
+				transferDetails.TransferTimestamp = string(item.Value)
+			case "TokenTransferDetails:OriginSymbol":
+				transferDetails.OriginSymbol = string(item.Value)
+			case "TokenTransferDetails:OriginName":
+				transferDetails.OriginName = string(item.Value)
+			case "TokenTransferDetails:OriginTokenAddress":
+				transferDetails.OriginTokenAddress = string(item.Value)
+
+				// NotionalUSD and TokenPriceUSD are more percise than the string versions returned,
+				// however the precision is not required, so leaving this commented out for now.
+
+				// case "TokenTransferDetails:NotionalUSD":
+				// 	reader := bytes.NewReader(item.Value)
+				// 	var notionalUSD uint64
+				// 	if err := binary.Read(reader, binary.BigEndian, &notionalUSD); err != nil {
+				// 		log.Fatalf("failed to read NotionalUSD of row: %v. err %v ", row.Key(), err)
+				// 	}
+				// 	transferDetails.NotionalUSD = notionalUSD
+
+				// case "TokenTransferDetails:TokenPriceUSD":
+				// 	reader := bytes.NewReader(item.Value)
+				// 	var tokenPriceUSD uint64
+				// 	if err := binary.Read(reader, binary.BigEndian, &tokenPriceUSD); err != nil {
+				// 		log.Fatalf("failed to read TokenPriceUSD of row: %v. err %v", row.Key(), err)
+				// 	}
+				// 	transferDetails.NotionalUSD = tokenPriceUSD
+
+			}
+		}
+		deets.TransferDetails = transferDetails
+	}
+	if _, ok := row[chainDetailsFam]; ok {
+		chainDetails := &ChainDetails{}
+		for _, item := range row[chainDetailsFam] {
+			switch item.Column {
+			case "ChainDetails:SenderAddress":
+				chainDetails.SenderAddress = string(item.Value)
+			case "ChainDetails:ReceiverAddress":
+				chainDetails.ReceiverAddress = string(item.Value)
+			}
+		}
+		deets.ChainDetails = chainDetails
 	}
 	return deets
 }
