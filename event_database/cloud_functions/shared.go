@@ -24,6 +24,9 @@ var tbl *bigtable.Table
 var pubsubClient *pubsub.Client
 var pubSubTokenTransferDetailsTopic *pubsub.Topic
 
+var coinGeckoCoins = map[string][]CoinGeckoCoin{}
+var solanaTokens = map[string]SolanaToken{}
+
 // init runs during cloud function initialization. So, this will only run during an
 // an instance's cold start.
 // https://cloud.google.com/functions/docs/bestpractices/networking#accessing_google_apis
@@ -52,7 +55,13 @@ func init() {
 
 	// create the topic that will be published to after decoding token transfer payloads
 	tokenTransferDetailsTopic := os.Getenv("PUBSUB_TOKEN_TRANSFER_DETAILS_TOPIC")
-	pubSubTokenTransferDetailsTopic = pubsubClient.Topic(tokenTransferDetailsTopic)
+	if tokenTransferDetailsTopic != "" {
+		pubSubTokenTransferDetailsTopic = pubsubClient.Topic(tokenTransferDetailsTopic)
+		// fetch the token lists once at start up
+		coinGeckoCoins = fetchCoinGeckoCoins()
+		solanaTokens = fetchSolanaTokenList()
+	}
+
 }
 
 var columnFamilies = []string{
