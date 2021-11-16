@@ -45,6 +45,9 @@ var TokenTransferEmitters = map[string]string{
 	"000000000000000000000000784999135aaa8a3ca5914468852fdddbddd8789d": "terra10pyejy66429refv3g35g2t7am0was7ya7kz2a4", // terra
 }
 
+// this address is an emitter for BSC and Polygon.
+var sharedEmitterAddress = "0000000000000000000000005a58505a96d1dbf8df91cb21b54419fc36e93fde"
+
 type (
 	TokenTransfer struct {
 		PayloadId     uint8
@@ -204,6 +207,15 @@ func writePayloadToBigTable(ctx context.Context, rowKey string, colFam string, m
 	}
 	return nil
 }
+func TrimUnicodeFromByteArray(b []byte) []byte {
+	// Escaped Unicode that has been observed in payload's token names and symbol:
+	null := "\u0000"
+	start := "\u0002"
+	ack := "\u0006"
+	tab := "\u0009"
+	control := "\u0012"
+	return bytes.Trim(b, null+start+ack+tab+control)
+}
 
 // ProcessVAA is triggered by a PubSub message, emitted after row is saved to BigTable by guardiand
 func ProcessVAA(ctx context.Context, m PubSubMessage) error {
@@ -223,7 +235,11 @@ func ProcessVAA(ctx context.Context, m PubSubMessage) error {
 	emitterHex := signedVaa.EmitterAddress.String()
 	payloadId := int(signedVaa.Payload[0])
 
-	if _, ok := TokenTransferEmitters[emitterHex]; ok {
+	// BSC and Polygon have the same contract address: "0x5a58505a96d1dbf8df91cb21b54419fc36e93fde".
+	// The BSC contract is the NFT emitter address.
+	// The Polygon contract is the token transfer emitter address.
+	// Due to that, ensure that the block below only runs for token transfers by checking for chain == 4 and emitter addaress.
+	if _, ok := TokenTransferEmitters[emitterHex]; ok && !(signedVaa.EmitterChain == 4 && signedVaa.EmitterAddress.String() == sharedEmitterAddress) {
 		// figure out if it's a transfer or asset metadata
 
 		if payloadId == 1 {
@@ -239,7 +255,12 @@ func ProcessVAA(ctx context.Context, m PubSubMessage) error {
 			ts := bigtable.Now()
 			mutation.Set(colFam, "PayloadId", ts, []byte(fmt.Sprint(payload.PayloadId)))
 			// TODO: find a better way of representing amount as a string
-			mutation.Set(colFam, "Amount", ts, []byte(fmt.Sprint(payload.Amount[3])))
+			amount := []byte(fmt.Sprint(payload.Amount[3]))
+			if payload.Amount[2] != 0 {
+				log.Printf("payload.Amount is larger than uint64 for row %v", rowKey)
+				amount = payload.Amount.Bytes()
+			}
+			mutation.Set(colFam, "Amount", ts, amount)
 			mutation.Set(colFam, "OriginAddress", ts, []byte(hex.EncodeToString(payload.OriginAddress[:])))
 			mutation.Set(colFam, "OriginChain", ts, []byte(fmt.Sprint(payload.OriginChain)))
 			mutation.Set(colFam, "TargetAddress", ts, []byte(hex.EncodeToString(payload.TargetAddress[:])))
@@ -270,8 +291,8 @@ func ProcessVAA(ctx context.Context, m PubSubMessage) error {
 			mutation.Set(colFam, "TokenAddress", ts, []byte(hex.EncodeToString(payload.TokenAddress[:])))
 			mutation.Set(colFam, "TokenChain", ts, []byte(fmt.Sprint(payload.TokenChain)))
 			mutation.Set(colFam, "Decimals", ts, []byte(fmt.Sprint(payload.Decimals)))
-			mutation.Set(colFam, "Name", ts, []byte(payload.Name[:]))
-			mutation.Set(colFam, "Symbol", ts, []byte(payload.Symbol[:]))
+			mutation.Set(colFam, "Name", ts, TrimUnicodeFromByteArray(payload.Name[:]))
+			mutation.Set(colFam, "Symbol", ts, TrimUnicodeFromByteArray(payload.Symbol[:]))
 			writeErr := writePayloadToBigTable(ctx, rowKey, colFam, mutation)
 			if writeErr != nil {
 				log.Println("wrote TokenTransferPayload to bigtable!", rowKey)
@@ -298,11 +319,10 @@ func ProcessVAA(ctx context.Context, m PubSubMessage) error {
 			mutation.Set(colFam, "PayloadId", ts, []byte(fmt.Sprint(payload.PayloadId)))
 			mutation.Set(colFam, "OriginAddress", ts, []byte(hex.EncodeToString(payload.OriginAddress[:])))
 			mutation.Set(colFam, "OriginChain", ts, []byte(fmt.Sprint(payload.OriginChain)))
-			mutation.Set(colFam, "Symbol", ts, []byte(payload.Symbol[:]))
-			mutation.Set(colFam, "Name", ts, []byte(payload.Name[:]))
-			// TODO: find a better way of representing tokenId as a string
-			mutation.Set(colFam, "TokenId", ts, []byte(fmt.Sprint(payload.TokenId[3])))
-			mutation.Set(colFam, "URI", ts, []byte(payload.URI))
+			mutation.Set(colFam, "Symbol", ts, TrimUnicodeFromByteArray(payload.Symbol[:]))
+			mutation.Set(colFam, "Name", ts, TrimUnicodeFromByteArray(payload.Name[:]))
+			mutation.Set(colFam, "TokenId", ts, payload.TokenId.Bytes())
+			mutation.Set(colFam, "URI", ts, TrimUnicodeFromByteArray(payload.URI))
 			mutation.Set(colFam, "TargetAddress", ts, []byte(hex.EncodeToString(payload.TargetAddress[:])))
 			mutation.Set(colFam, "TargetChain", ts, []byte(fmt.Sprint(payload.TargetChain)))
 
