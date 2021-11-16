@@ -30,6 +30,7 @@ Global state:
 "vphash"   :  Hash of verification program logic
 "gsexp"    :  Guardian set expiration time
 "gscount"  :  Guardian set size
+"vssize"   :  Verification step size.
 key N      :  address of guardian N
 
 ------------------------------------------------------------------------------------------------
@@ -95,6 +96,7 @@ def bootstrap():
         ),
         App.globalPut(Bytes("gscount"), guardian_count.load()),
         App.globalPut(Bytes("gsexp"), Btoi(Txn.application_args[1])),
+        App.globalPut(Bytes("vssize"), Int(MAX_SIGNATURES_PER_VERIFICATION_STEP)),
         Approve()
     ])
 
