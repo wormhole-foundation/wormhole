@@ -1,0 +1,242 @@
+{
+  "result": {
+    "query": "tm.event='Tx'",
+    "data": {
+      "type": "tendermint/event/Tx",
+      "value": {
+        "TxResult": {
+          "height": "8583",
+          "tx": "Cp0BCpoBCjAvY2VydHVzb25lLndvcm1ob2xlY2hhaW4udG9rZW5icmlkZ2UuTXNnVHJhbnNmZXISZgovd29ybWhvbGUxd3F3eXdrY2U1MG1nNjA3N2h1eTRqOXk4bHQ4MDk0M2tzNXVkenISDAoFdWhvbGUSAzEwMBgCIiAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACoBMBJYClAKRgofL2Nvc21vcy5jcnlwdG8uc2VjcDI1NmsxLlB1YktleRIjCiECkmL8JjZEbLMDlxC0PBT1z6jtPw4T5KOuBwbk/AsyNM8SBAoCCAEYDRIEEMCaDBpA7S2taziRjKoisL0iSt1wq6VJixB+t+9YMOOD1F5lm/hvG1uxOOxM90c+QNWpwIq3O4FwyjG6IrodNN+uNOIX0A==",
+          "result": {
+            "data": "CjIKMC9jZXJ0dXNvbmUud29ybWhvbGVjaGFpbi50b2tlbmJyaWRnZS5Nc2dUcmFuc2Zlcg==",
+            "log": [
+              {
+                "events": [
+                  {
+                    "type": "certusone.wormholechain.wormhole.EventPostedMessage",
+                    "attributes": [
+                      {
+                        "key": "emitter",
+                        "value": "AAAAAAAAAAAAAAAAFxHNY7LFRe5lRUFdPMC9pkJcQ8Q="
+                      },
+                      { "key": "sequence", "value": "13" },
+                      { "key": "nonce", "value": "0" },
+                      {
+                        "key": "payload",
+                        "value": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAdWhvbGUMIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+                      }
+                    ]
+                  },
+                  {
+                    "type": "coin_received",
+                    "attributes": [
+                      {
+                        "key": "receiver",
+                        "value": "wormhole1zugu6cajc4z7ue29g9wnes9a5ep9cs7yu7rn3z"
+                      },
+                      { "key": "amount", "value": "100uworm" }
+                    ]
+                  },
+                  {
+                    "type": "coin_spent",
+                    "attributes": [
+                      {
+                        "key": "spender",
+                        "value": "wormhole1wqwywkce50mg6077huy4j9y8lt80943ks5udzr"
+                      },
+                      { "key": "amount", "value": "100uworm" }
+                    ]
+                  },
+                  {
+                    "type": "message",
+                    "attributes": [
+                      { "key": "action", "value": "Transfer" },
+                      {
+                        "key": "sender",
+                        "value": "wormhole1wqwywkce50mg6077huy4j9y8lt80943ks5udzr"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "transfer",
+                    "attributes": [
+                      {
+                        "key": "recipient",
+                        "value": "wormhole1zugu6cajc4z7ue29g9wnes9a5ep9cs7yu7rn3z"
+                      },
+                      {
+                        "key": "sender",
+                        "value": "wormhole1wqwywkce50mg6077huy4j9y8lt80943ks5udzr"
+                      },
+                      { "key": "amount", "value": "100uworm" }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "gas_wanted": "200000",
+            "gas_used": "56956",
+            "events": [
+              {
+                "type": "tx",
+                "attributes": [
+                  {
+                    "key": "ZmVl",
+                    "value": "",
+                    "index": true
+                  }
+                ]
+              },
+              {
+                "type": "tx",
+                "attributes": [
+                  {
+                    "key": "YWNjX3NlcQ==",
+                    "value": "d29ybWhvbGUxd3F3eXdrY2U1MG1nNjA3N2h1eTRqOXk4bHQ4MDk0M2tzNXVkenIvMTM=",
+                    "index": true
+                  }
+                ]
+              },
+              {
+                "type": "tx",
+                "attributes": [
+                  {
+                    "key": "c2lnbmF0dXJl",
+                    "value": "N1MydGF6aVJqS29pc0wwaVN0MXdxNlZKaXhCK3QrOVlNT09EMUY1bG0vaHZHMXV4T094TTkwYytRTldwd0lxM080Rnd5akc2SXJvZE5OK3VOT0lYMEE9PQ==",
+                    "index": true
+                  }
+                ]
+              },
+              {
+                "type": "message",
+                "attributes": [
+                  {
+                    "key": "YWN0aW9u",
+                    "value": "VHJhbnNmZXI=",
+                    "index": true
+                  }
+                ]
+              },
+              {
+                "type": "coin_spent",
+                "attributes": [
+                  {
+                    "key": "c3BlbmRlcg==",
+                    "value": "d29ybWhvbGUxd3F3eXdrY2U1MG1nNjA3N2h1eTRqOXk4bHQ4MDk0M2tzNXVkenI=",
+                    "index": true
+                  },
+                  {
+                    "key": "YW1vdW50",
+                    "value": "MTAwdWhvbGU=",
+                    "index": true
+                  }
+                ]
+              },
+              {
+                "type": "coin_received",
+                "attributes": [
+                  {
+                    "key": "cmVjZWl2ZXI=",
+                    "value": "d29ybWhvbGUxenVndTZjYWpjNHo3dWUyOWc5d25lczlhNWVwOWNzN3l1N3JuM3o=",
+                    "index": true
+                  },
+                  {
+                    "key": "YW1vdW50",
+                    "value": "MTAwdWhvbGU=",
+                    "index": true
+                  }
+                ]
+              },
+              {
+                "type": "transfer",
+                "attributes": [
+                  {
+                    "key": "cmVjaXBpZW50",
+                    "value": "d29ybWhvbGUxenVndTZjYWpjNHo3dWUyOWc5d25lczlhNWVwOWNzN3l1N3JuM3o=",
+                    "index": true
+                  },
+                  {
+                    "key": "c2VuZGVy",
+                    "value": "d29ybWhvbGUxd3F3eXdrY2U1MG1nNjA3N2h1eTRqOXk4bHQ4MDk0M2tzNXVkenI=",
+                    "index": true
+                  },
+                  {
+                    "key": "YW1vdW50",
+                    "value": "MTAwdWhvbGU=",
+                    "index": true
+                  }
+                ]
+              },
+              {
+                "type": "message",
+                "attributes": [
+                  {
+                    "key": "c2VuZGVy",
+                    "value": "d29ybWhvbGUxd3F3eXdrY2U1MG1nNjA3N2h1eTRqOXk4bHQ4MDk0M2tzNXVkenI=",
+                    "index": true
+                  }
+                ]
+              },
+              {
+                "type": "certusone.wormholechain.wormhole.EventPostedMessage",
+                "attributes": [
+                  {
+                    "key": "ZW1pdHRlcg==",
+                    "value": "IkFBQUFBQUFBQUFBQUFBQUFGeEhOWTdMRlJlNWxSVUZkUE1DOXBrSmNROFE9Ig==",
+                    "index": true
+                  },
+                  {
+                    "key": "c2VxdWVuY2U=",
+                    "value": "IjEzIg==",
+                    "index": true
+                  },
+                  {
+                    "key": "bm9uY2U=",
+                    "value": "MA==",
+                    "index": true
+                  },
+                  {
+                    "key": "cGF5bG9hZA==",
+                    "value": "IkFRQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUJrQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBZFdodmJHVU1JQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBSUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUE9PSI=",
+                    "index": true
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      }
+    },
+    "events": {
+      "coin_spent.spender": ["wormhole1wqwywkce50mg6077huy4j9y8lt80943ks5udzr"],
+      "coin_received.amount": ["100uworm"],
+      "transfer.amount": ["100uworm"],
+      "tx.acc_seq": ["wormhole1wqwywkce50mg6077huy4j9y8lt80943ks5udzr/13"],
+      "message.action": ["Transfer"],
+      "certusone.wormholechain.wormhole.EventPostedMessage.nonce": ["0"],
+      "tx.hash": [
+        "0A623859DCEBE1DCAC077D6D8B459BBF6FB199B18FCC5A3B9518EB3F36F25BE5"
+      ],
+      "tx.fee": [""],
+      "message.sender": ["wormhole1wqwywkce50mg6077huy4j9y8lt80943ks5udzr"],
+      "coin_received.receiver": [
+        "wormhole1zugu6cajc4z7ue29g9wnes9a5ep9cs7yu7rn3z"
+      ],
+      "transfer.recipient": ["wormhole1zugu6cajc4z7ue29g9wnes9a5ep9cs7yu7rn3z"],
+      "certusone.wormholechain.wormhole.EventPostedMessage.sequence": ["13"],
+      "tx.height": ["8583"],
+      "tx.signature": [
+        "7S2taziRjKoisL0iSt1wq6VJixB+t+9YMOOD1F5lm/hvG1uxOOxM90c+QNWpwIq3O4FwyjG6IrodNN+uNOIX0A=="
+      ],
+      "coin_spent.amount": ["100uworm"],
+      "certusone.wormholechain.wormhole.EventPostedMessage.payload": [
+        "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAdWhvbGUMIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+      ],
+      "tm.event": ["Tx"],
+      "transfer.sender": ["wormhole1wqwywkce50mg6077huy4j9y8lt80943ks5udzr"],
+      "certusone.wormholechain.wormhole.EventPostedMessage.emitter": [
+        "AAAAAAAAAAAAAAAAFxHNY7LFRe5lRUFdPMC9pkJcQ8Q="
+      ]
+    }
+  }
+}
