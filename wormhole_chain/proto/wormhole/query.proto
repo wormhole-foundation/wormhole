@@ -1,0 +1,54 @@
+syntax = "proto3";
+package certusone.wormholechain.wormhole;
+
+import "google/api/annotations.proto";
+import "cosmos/base/query/v1beta1/pagination.proto";
+import "wormhole/guardian_set.proto";
+import "wormhole/config.proto";
+// this line is used by starport scaffolding # 1
+import "gogoproto/gogo.proto";
+
+option go_package = "github.com/certusone/wormhole-chain/x/wormhole/types";
+
+// Query defines the gRPC querier service.
+service Query {
+    // Queries a guardianSet by index.
+	rpc GuardianSet(QueryGetGuardianSetRequest) returns (QueryGetGuardianSetResponse) {
+		option (google.api.http).get = "/certusone/wormholechain/wormhole/guardianSet/{index}";
+	}
+
+	// Queries a list of guardianSet items.
+	rpc GuardianSetAll(QueryAllGuardianSetRequest) returns (QueryAllGuardianSetResponse) {
+		option (google.api.http).get = "/certusone/wormholechain/wormhole/guardianSet";
+	}
+
+// Queries a config by index.
+	rpc Config(QueryGetConfigRequest) returns (QueryGetConfigResponse) {
+		option (google.api.http).get = "/certusone/wormholechain/wormhole/config";
+	}
+// this line is used by starport scaffolding # 2
+}
+
+message QueryGetGuardianSetRequest {
+	uint32 index = 1;
+}
+
+message QueryGetGuardianSetResponse {
+	GuardianSet GuardianSet = 1 [(gogoproto.nullable) = false];
+}
+
+message QueryAllGuardianSetRequest {
+	cosmos.base.query.v1beta1.PageRequest pagination = 1;
+}
+
+message QueryAllGuardianSetResponse {
+	repeated GuardianSet GuardianSet = 1 [(gogoproto.nullable) = false];
+	cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+
+message QueryGetConfigRequest {}
+
+message QueryGetConfigResponse {
+	Config Config = 1 [(gogoproto.nullable) = false];
+}
+// this line is used by starport scaffolding # 3
