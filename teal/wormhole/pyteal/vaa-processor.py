@@ -78,6 +78,7 @@ VAA_RECORD_EMITTER_ADDR_LEN = 32
 
 @Subroutine(TealType.uint64)
 # Bootstrap with the initial list of guardians packed in first argument.
+# Expiration time in second argument.
 # Guardian public keys are 20-bytes wide, so
 # using arguments a maximum 1000/20 ~ 200 public keys can be specified in this version.
 def bootstrap():

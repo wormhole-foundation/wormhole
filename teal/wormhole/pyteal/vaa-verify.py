@@ -49,9 +49,9 @@ def sig_check(signatures, digest, keys):
                 ])).Do(
                     Seq([
                         InlineAssembly(
-                            "ecdsa_pk_recover 0",
+                            "ecdsa_pk_recover Secp256k1",
                             digest,
-                            Extract(signatures, si.load() + Int(64), Int(1)),
+                            Btoi(Extract(signatures, si.load() + Int(64), Int(1))),
                             Extract(signatures, si.load() + Int(32), Int(32)),
                             Extract(signatures, si.load(), Int(32)),
                             type=TealType.none),
