@@ -18,17 +18,26 @@ from pyteal.ast import *
 from pyteal.types import *
 from pyteal.compiler import *
 from pyteal.ir import *
-from globals import get_sig_count_in_step, get_group_size
+from globals import *
+from inlineasm import *
 
 import sys
+
+SLOTID_RECOVERED_PK_X = 240
+SLOTID_RECOVERED_PK_Y = 241
 
 
 @Subroutine(TealType.uint64)
 def sig_check(signatures, digest, keys):
     si = ScratchVar(TealType.uint64)
     ki = ScratchVar(TealType.uint64)
+    rec_pk_x = ScratchVar(TealType.bytes, SLOTID_RECOVERED_PK_X)
+    rec_pk_y = ScratchVar(TealType.bytes, SLOTID_RECOVERED_PK_Y)
+
     return Seq(
         [
+            rec_pk_x.store(Bytes("")),
+            rec_pk_y.store(Bytes("")),
             For(Seq([
                 si.store(Int(0)),
                 ki.store(Int(0))
@@ -38,12 +47,30 @@ def sig_check(signatures, digest, keys):
                     si.store(si.load() + Int(66)),
                     ki.store(ki.load() + Int(32)),
                 ])).Do(
-                Seq(
-                    Assert(Ed25519Verify(
-                        digest,
-                        Extract(signatures, si.load(), Int(66)),
-                        Extract(keys, ki.load(), Int(32)),))
-                )
+                    Seq([
+                        InlineAssembly(
+                            "ecdsa_pk_recover 0",
+                            digest,
+                            Extract(signatures, si.load() + Int(64), Int(1)),
+                            Extract(signatures, si.load() + Int(32), Int(32)),
+                            Extract(signatures, si.load(), Int(32)),
+                            type=TealType.none),
+
+                        # returned values in stack, pass to scratch-vars
+
+                        InlineAssembly("store " + str(SLOTID_RECOVERED_PK_X)),
+                        InlineAssembly("store " + str(SLOTID_RECOVERED_PK_Y)),
+
+                        # Generate Ethereum-type public key, compare with guardian key.
+
+                        Assert(
+                            Extract(keys, ki.load(), Int(32)) ==
+                            Extract(Keccak256(Concat(rec_pk_x.load(),
+                                    rec_pk_y.load())), Int(0), Int(20))
+                        )
+                    ])
+
+
             ),
             Return(Int(1))
         ]
