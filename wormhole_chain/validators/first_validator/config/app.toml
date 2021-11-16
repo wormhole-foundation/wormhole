@@ -1,0 +1,57 @@
+halt-height = 0
+halt-time = 0
+index-events = []
+inter-block-cache = true
+min-retain-blocks = 0
+minimum-gas-prices = "0stake"
+pruning = "default"
+pruning-interval = "0"
+pruning-keep-every = "0"
+pruning-keep-recent = "0"
+
+[api]
+  address = "tcp://0.0.0.0:1317"
+  enable = true
+  enabled-unsafe-cors = true
+  max-open-connections = 1000
+  rpc-max-body-bytes = 1000000
+  rpc-read-timeout = 10
+  rpc-write-timeout = 0
+  swagger = false
+
+[grpc]
+  address = "0.0.0.0:9090"
+  enable = true
+
+[grpc-web]
+  address = "0.0.0.0:9091"
+  enable = true
+  enable-unsafe-cors = false
+
+[rosetta]
+  address = ":8080"
+  blockchain = "app"
+  enable = false
+  network = "network"
+  offline = false
+  retries = 3
+
+[rpc]
+  cors_allowed_origins = ["*"]
+
+[state-sync]
+  snapshot-interval = 0
+  snapshot-keep-recent = 2
+
+[telemetry]
+  enable-hostname = false
+  enable-hostname-label = false
+  enable-service-label = false
+  enabled = false
+  global-labels = []
+  prometheus-retention-time = 0
+  service-name = ""
+
+[wasm]
+  lru_size = 0
+  query_gas_limit = 300000

@@ -1,0 +1,12 @@
+syntax = "proto3";
+package certusone.wormholechain.tokenbridge;
+
+option go_package = "github.com/certusone/wormhole-chain/x/tokenbridge/types";
+
+
+
+message ReplayProtection {
+  string index = 1; 
+  
+}
+

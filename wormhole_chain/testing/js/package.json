@@ -1,0 +1,47 @@
+{
+  "name": "wormhole-chain-tests",
+  "version": "0.0.0",
+  "description": "testing project for wormhole chain",
+  "main": "index.js",
+  "type": "module",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "jest --config jestconfig.json --verbose",
+    "bootstrap": "tsc && node lib/bootstrap.js",
+    "basicTransfer": "npm run test -- -t 'basicTransfer'",
+    "registerGuardianValidator": "npm run test -- -t 'registerGuardianValidator'"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/certusone/wormhole-chain.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/certusone/wormhole-chain/issues"
+  },
+  "homepage": "https://github.com/certusone/wormhole-chain#readme",
+  "dependencies": {
+    "@certusone/wormhole-sdk": "^0.2.0",
+    "@cosmjs/cosmwasm-stargate": "^0.27.1",
+    "@cosmjs/math": "^0.27.1",
+    "@cosmjs/proto-signing": "^0.27.1",
+    "@cosmjs/stargate": "^0.27.1",
+    "@cosmjs/tendermint-rpc": "^0.27.1",
+    "axios": "^0.26.0",
+    "bech32": "^2.0.0",
+    "elliptic": "^6.5.4",
+    "ethers": "^5.5.4",
+    "keccak256": "^1.0.6",
+    "ts-jest": "^27.1.3",
+    "ts-node": "^10.7.0",
+    "tslint": "^6.1.3",
+    "typescript": "^4.5.5",
+    "wormhole-chain-sdk": "file:../../ts-sdk"
+  },
+  "devDependencies": {
+    "jest": "^27.5.1"
+  }
+}

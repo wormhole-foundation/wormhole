@@ -1,0 +1,14 @@
+syntax = "proto3";
+package certusone.wormholechain.wormhole;
+
+option go_package = "github.com/certusone/wormhole-chain/x/wormhole/types";
+
+import "gogoproto/gogo.proto";
+
+
+message GuardianSet {
+  option (gogoproto.equal)            = true;
+  uint32 index = 1;
+  repeated bytes keys = 2;
+  uint64 expirationTime = 3;
+}

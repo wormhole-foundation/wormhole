@@ -1,0 +1,63 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: second-validator
+  name: second-validator
+spec:
+  ports:
+    - name: rpc
+      port: 26657
+      protocol: TCP
+    - name: rpctwo
+      port: 26656
+      protocol: TCP
+    - name: rest
+      port: 1317
+      protocol: TCP
+  selector:
+    app: second-validator
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app: second-validator
+  name: second-validator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: second-validator
+  template:
+    metadata:
+      labels:
+        app: second-validator
+    spec:
+      containers:
+        - name: wormhole-chaind
+          image: wormhole-chaind-image
+          command:
+            - /app/build/wormhole-chaind
+            - start
+            - --home
+            - /app/validators/second_validator
+            - --log_level
+            - info
+          ports:
+            - containerPort: 26657
+              name: tendermint
+              protocol: TCP
+            - containerPort: 26656
+              name: tenderminttwo
+              protocol: TCP
+            - containerPort: 1317
+              name: rest
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              port: 26657
+              path: /
+            periodSeconds: 1
+      restartPolicy: Always
+  serviceName: second-validator
