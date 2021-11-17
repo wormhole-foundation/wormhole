@@ -17,6 +17,7 @@ use crate::{
     types::*,
     TokenBridgeError,
     TokenBridgeError::{
+        InvalidChain,
         InvalidFee,
         WrongAccountOwner,
     },
@@ -128,6 +129,11 @@ pub fn transfer_native(
     accs: &mut TransferNative,
     data: TransferNativeData,
 ) -> Result<()> {
+    // Prevent transferring to the same chain.
+    if data.target_chain == CHAIN_ID_SOLANA {
+        return Err(InvalidChain.into());
+    }
+
     // Verify that the custody account is derived correctly
     let derivation_data: CustodyAccountDerivationData = (&*accs).into();
     accs.custody
@@ -291,6 +297,11 @@ pub fn transfer_wrapped(
     accs: &mut TransferWrapped,
     data: TransferWrappedData,
 ) -> Result<()> {
+    // Prevent transferring to the same chain.
+    if data.target_chain == CHAIN_ID_SOLANA {
+        return Err(InvalidChain.into());
+    }
+
     // Verify that the from account is owned by the from_owner
     if &accs.from.owner != accs.from_owner.key {
         return Err(WrongAccountOwner.into());
