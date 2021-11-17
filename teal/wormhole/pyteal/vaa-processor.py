@@ -77,8 +77,10 @@ VAA_RECORD_EMITTER_ADDR_LEN = 32
 
 
 @Subroutine(TealType.uint64)
-# Bootstrap with the initial list of guardians packed in first argument.
-# Expiration time in second argument.
+# Arg0: Bootstrap with the initial list of guardians packed.
+# Arg1: Expiration time in second argument.
+# Arg2: Guardian set Index.
+#
 # Guardian public keys are 20-bytes wide, so
 # using arguments a maximum 1000/20 ~ 200 public keys can be specified in this version.
 def bootstrap():
@@ -97,6 +99,7 @@ def bootstrap():
         ),
         App.globalPut(Bytes("gscount"), guardian_count.load()),
         App.globalPut(Bytes("gsexp"), Btoi(Txn.application_args[1])),
+        App.globalPut(Bytes("gsindex"), Btoi(Txn.application_args[2])),
         App.globalPut(Bytes("vssize"), Int(MAX_SIGNATURES_PER_VERIFICATION_STEP)),
         Approve()
     ])
