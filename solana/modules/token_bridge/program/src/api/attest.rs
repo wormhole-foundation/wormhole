@@ -26,6 +26,7 @@ use bridge::{
     },
     types::ConsistencyLevel,
     vaa::SerializePayload,
+    CHAIN_ID_SOLANA,
 };
 use primitive_types::U256;
 use solana_program::{
@@ -141,7 +142,7 @@ pub fn attest_token(
     // Create Asset Metadata
     let mut payload = PayloadAssetMeta {
         token_address: accs.mint.info().key.to_bytes(),
-        token_chain: 1,
+        token_chain: CHAIN_ID_SOLANA,
         decimals: accs.mint.decimals,
         symbol: "".to_string(),
         name: "".to_string(),

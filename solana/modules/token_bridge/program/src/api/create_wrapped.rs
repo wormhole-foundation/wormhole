@@ -13,8 +13,12 @@ use crate::{
     },
     messages::PayloadAssetMeta,
     types::*,
+    TokenBridgeError::InvalidChain,
 };
-use bridge::vaa::ClaimableVAA;
+use bridge::{
+    vaa::ClaimableVAA,
+    CHAIN_ID_SOLANA,
+};
 use solana_program::{
     account_info::AccountInfo,
     program::invoke_signed,
@@ -100,6 +104,11 @@ pub fn create_wrapped(
     data: CreateWrappedData,
 ) -> Result<()> {
     use bstr::ByteSlice;
+
+    // Do not process attestations sourced from the current chain.
+    if accs.vaa.token_chain == CHAIN_ID_SOLANA {
+        return Err(InvalidChain.into());
+    }
 
     let derivation_data: WrappedDerivationData = (&*accs).into();
     accs.mint

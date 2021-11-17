@@ -29,6 +29,7 @@ use bridge::{
     },
     types::ConsistencyLevel,
     vaa::SerializePayload,
+    CHAIN_ID_SOLANA,
 };
 use primitive_types::U256;
 use solana_program::{
@@ -192,7 +193,7 @@ pub fn transfer_native(
     let payload = PayloadTransfer {
         amount: U256::from(amount),
         token_address: accs.mint.info().key.to_bytes(),
-        token_chain: 1,
+        token_chain: CHAIN_ID_SOLANA,
         to: data.target_address,
         to_chain: data.target_chain,
         fee: U256::from(fee),
