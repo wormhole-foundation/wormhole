@@ -22,10 +22,13 @@
     "@randlabs/js-config-reader": "^1.1.0",
     "algosdk": "^1.12.0",
     "charm": "^1.0.2",
+    "elliptic": "^6.5.4",
     "esm": "^3.2.25",
     "ethers": "^5.5.1",
     "fastpriorityqueue": "^0.7.1",
-    "js-sha512": "^0.8.0"
+    "js-sha512": "^0.8.0",
+    "web3-eth-abi": "^1.6.1",
+    "web3-utils": "^1.6.1"
   },
   "devDependencies": {
     "@types/superagent": "^4.1.13",
