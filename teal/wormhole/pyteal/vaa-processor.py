@@ -61,15 +61,15 @@ SLOT_TEMP = ScratchVar(TealType.uint64, SLOTID_TEMP_0)
 
 # defined chainId/contracts
 
-GOVERNANCE_CHAIN_ID_TEST = 3
-GOVERNANCE_CONTRACT_ID_TEST = 4
-PYTH2WORMHOLE_CHAIN_ID_TEST = 5
-PYTH2WORMHOLE_CONTRACT_ID_TEST = 6
+GOVERNANCE_CHAIN_ID = 1
+GOVERNANCE_EMITTER_ID = '00000000000000000000000000000000000000000000'
+PYTH2WORMHOLE_CHAIN_ID = 1
+PYTH2WORMHOLE_EMITTER_ID = Bytes(0x71f8dcb863d176e2c420ad6610cf687359612b6fb392e0642b0ca6b1f186aa3b)
 
 # VAA fields
 
-VAA_RECORD_EMITTER_CHAIN_POS = 8
-VAA_RECORD_EMITTER_CHAIN_LEN = 2
+VAA_RECORD_EMITTER_CHAIN_POS = 4
+VAA_RECORD_EMITTER_CHAIN_LEN = 4
 VAA_RECORD_EMITTER_ADDR_POS = 10
 VAA_RECORD_EMITTER_ADDR_LEN = 32
 
@@ -116,10 +116,11 @@ def check_guardian_key_subset():
     # global state for the same keys.
     #
     i = SLOT_TEMP
-    sig_count = get_sig_count_in_step(Txn.group_index(), NUM_GUARDIANS)
+    sig_count = ScratchVar(TealType.uint64)
     return Seq([
+        sig_count.store(get_sig_count_in_step(Txn.group_index(), NUM_GUARDIANS)),
         For(i.store(Int(0)),
-            i.load() < sig_count,
+            i.load() < sig_count.load(),
             i.store(i.load() + Int(1))).Do(
             If(
                 App.globalGet(Itob(i.load())) != Extract(VERIFY_ARG_GUARDIAN_KEY_SUBSET,
@@ -156,16 +157,16 @@ def handle_pyth_price_ticker():
 def commit_vaa():
     chainId = Btoi(Extract(VERIFY_ARG_PAYLOAD, Int(
         VAA_RECORD_EMITTER_CHAIN_POS), Int(VAA_RECORD_EMITTER_CHAIN_LEN)))
-    contractId = Btoi(Extract(VERIFY_ARG_PAYLOAD, Int(
+    emitterId = Btoi(Extract(VERIFY_ARG_PAYLOAD, Int(
         VAA_RECORD_EMITTER_ADDR_POS), Int(VAA_RECORD_EMITTER_ADDR_LEN)))
     return Seq([
         If(And(
-            chainId == Int(GOVERNANCE_CHAIN_ID_TEST),
-            contractId == Int(GOVERNANCE_CONTRACT_ID_TEST))).Then(
+            chainId == Int(GOVERNANCE_CHAIN_ID),
+            emitterId == Bytes(GOVERNANCE_EMITTER_ID))).Then(
             Return(handle_governance()))
         .ElseIf(And(
-            chainId == Int(PYTH2WORMHOLE_CHAIN_ID_TEST),
-            contractId == Int(GOVERNANCE_CONTRACT_ID_TEST)
+            chainId == Int(PYTH2WORMHOLE_CHAIN_ID),
+            emitterId == Bytes(PYTH2WORMHOLE_EMITTER_ID)
         )).Then(
             Return(handle_pyth_price_ticker())
         ).Else(
