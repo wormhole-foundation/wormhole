@@ -64,7 +64,7 @@ SLOT_TEMP = ScratchVar(TealType.uint64, SLOTID_TEMP_0)
 GOVERNANCE_CHAIN_ID = 1
 GOVERNANCE_EMITTER_ID = '00000000000000000000000000000000000000000000'
 PYTH2WORMHOLE_CHAIN_ID = 1
-PYTH2WORMHOLE_EMITTER_ID = Bytes(0x71f8dcb863d176e2c420ad6610cf687359612b6fb392e0642b0ca6b1f186aa3b)
+PYTH2WORMHOLE_EMITTER_ID = '0x71f8dcb863d176e2c420ad6610cf687359612b6fb392e0642b0ca6b1f186aa3b'
 
 # VAA fields
 
@@ -157,8 +157,8 @@ def handle_pyth_price_ticker():
 def commit_vaa():
     chainId = Btoi(Extract(VERIFY_ARG_PAYLOAD, Int(
         VAA_RECORD_EMITTER_CHAIN_POS), Int(VAA_RECORD_EMITTER_CHAIN_LEN)))
-    emitterId = Btoi(Extract(VERIFY_ARG_PAYLOAD, Int(
-        VAA_RECORD_EMITTER_ADDR_POS), Int(VAA_RECORD_EMITTER_ADDR_LEN)))
+    emitterId = Extract(VERIFY_ARG_PAYLOAD, Int(
+        VAA_RECORD_EMITTER_ADDR_POS), Int(VAA_RECORD_EMITTER_ADDR_LEN))
     return Seq([
         If(And(
             chainId == Int(GOVERNANCE_CHAIN_ID),
@@ -166,7 +166,7 @@ def commit_vaa():
             Return(handle_governance()))
         .ElseIf(And(
             chainId == Int(PYTH2WORMHOLE_CHAIN_ID),
-            emitterId == Bytes(PYTH2WORMHOLE_EMITTER_ID)
+            emitterId == Bytes('base16', PYTH2WORMHOLE_EMITTER_ID)
         )).Then(
             Return(handle_pyth_price_ticker())
         ).Else(
