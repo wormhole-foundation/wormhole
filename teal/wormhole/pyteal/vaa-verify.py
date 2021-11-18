@@ -93,19 +93,17 @@ def vaa_verify_program(vaa_processor_app_id):
     num_guardians = Txn.application_args[2]
 
     return Seq([
-        Assert(And(
-            Txn.fee() <= Int(1000),
-            Txn.application_args.length() == Int(1),
-            Len(signatures) == get_sig_count_in_step(
-                Txn.group_index(), Btoi(num_guardians)) * Int(66),
-            Txn.rekey_to() == Global.zero_address(),
-            Txn.application_id() == Int(vaa_processor_app_id),
-            Txn.type_enum() == TxnType.ApplicationCall,
-            Global.group_size() == get_group_size(Btoi(num_guardians)),
-            sig_check(signatures, digest, keys))
-        ),
-        Approve()])
-
+        Assert(Txn.fee() <= Int(1000)),
+        Assert(Txn.application_args.length() == Int(1)),
+        Assert(Len(signatures) == get_sig_count_in_step(
+                Txn.group_index(), Btoi(num_guardians)) * Int(66)),
+        Assert(Txn.rekey_to() == Global.zero_address()),
+        Assert(Txn.application_id() == Int(vaa_processor_app_id)),
+        Assert(Txn.type_enum() == TxnType.ApplicationCall),
+        Assert(Global.group_size() == get_group_size(Btoi(num_guardians))),
+        Assert(sig_check(signatures, digest, keys)),
+        Approve()]
+    )
 
 if __name__ == "__main__":
     outfile = "teal/wormhole/build/vaa-verify.teal"

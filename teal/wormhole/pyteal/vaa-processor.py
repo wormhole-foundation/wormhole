@@ -49,8 +49,8 @@ import sys
 
 GUARDIAN_ADDRESS_SIZE = 20
 METHOD = Txn.application_args[0]
-VERIFY_ARG_GUARDIAN_KEY_SUBSET = Txn.application_args[0]
-VERIFY_ARG_GUARDIAN_SET_SIZE = Txn.application_args[1]
+VERIFY_ARG_GUARDIAN_KEY_SUBSET = Txn.application_args[1]
+VERIFY_ARG_GUARDIAN_SET_SIZE = Txn.application_args[2]
 VERIFY_ARG_PAYLOAD = Txn.note()
 SLOTID_TEMP_0 = 251
 SLOTID_VERIFIED_BIT = 254
@@ -87,7 +87,7 @@ def bootstrap():
     guardian_count = ScratchVar(TealType.uint64)
     i = SLOT_TEMP
     return Seq([
-        Assert(Txn.application_args.length() == Int(2)),
+        Assert(Txn.application_args.length() == Int(3)),
         Assert(Len(Txn.application_args[0]) %
                Int(GUARDIAN_ADDRESS_SIZE) == Int(0)),
         guardian_count.store(
@@ -116,9 +116,10 @@ def check_guardian_key_subset():
     # global state for the same keys.
     #
     i = SLOT_TEMP
+    sig_count = get_sig_count_in_step(Txn.group_index(), NUM_GUARDIANS)
     return Seq([
         For(i.store(Int(0)),
-            i.load() < get_sig_count_in_step(Txn.group_index(), NUM_GUARDIANS),
+            i.load() < sig_count,
             i.store(i.load() + Int(1))).Do(
             If(
                 App.globalGet(Itob(i.load())) != Extract(VERIFY_ARG_GUARDIAN_KEY_SUBSET,
@@ -175,15 +176,18 @@ def commit_vaa():
 
 @Subroutine(TealType.uint64)
 def check_final_verification_state():
+    #
+    # Verifies that previous steps had set their verification bits.
+    #
     i = SLOT_TEMP
     return Seq([
-        For(i.store(Int(0)),
+        For(i.store(Int(1)),
             i.load() < Global.group_size(),
-            i.store(i.load() + Int(0))).Do(
-            Assert(
-                And(Gtxn[i.load()].type_enum() == TxnType.ApplicationCall,
-                    Gtxn[i.load()].application_id() == Txn.application_id(),
-                    GetBit(ImportScratchValue(i.load(), SLOTID_VERIFIED_BIT), i.load()) == Int(1)))
+            i.store(i.load() + Int(1))).Do(Seq([
+                Assert(Gtxn[i.load()].type_enum() == TxnType.ApplicationCall),
+                Assert(Gtxn[i.load()].application_id() == Txn.application_id()),
+                Assert(GetBit(ImportScratchValue(i.load() - Int(1), SLOTID_VERIFIED_BIT), i.load()) == Int(1))
+            ])
         ),
         Return(Int(1))
     ])
@@ -195,10 +199,10 @@ def setvphash():
     #
 
     return Seq([
-        Assert(And(is_creator(),
-                   Global.group_size() == Int(1),
-                   Txn.application_args.length() == Int(2),
-                   Len(Txn.application_args[1]) == Int(32))),
+        Assert(is_creator()),
+        Assert(Global.group_size() == Int(1)),
+        Assert(Txn.application_args.length() == Int(2)),
+        Assert(Len(Txn.application_args[1]) == Int(32)),
         App.globalPut(Bytes("vphash"), Txn.application_args[1]),
         Approve()
     ])
@@ -218,11 +222,11 @@ def verify():
 
     return Seq([
         SLOT_VERIFIED_BITFIELD.store(Int(0)),
-        Assert(And(Global.group_size() == get_group_size(NUM_GUARDIANS),
-                   Txn.application_args.length() == Int(3),
-                   Txn.sender() == STATELESS_LOGIC_HASH,
-                   check_guardian_set_size(),
-                   check_guardian_key_subset())),
+        Assert(Global.group_size() == get_group_size(NUM_GUARDIANS)),
+        Assert(Txn.application_args.length() == Int(3)),
+        Assert(Txn.sender() == STATELESS_LOGIC_HASH),
+        Assert(check_guardian_set_size()),
+        Assert(check_guardian_key_subset()),
         SLOT_VERIFIED_BITFIELD.store(
             SetBit(SLOT_VERIFIED_BITFIELD.load(), Txn.group_index(), Int(1))),
         If(Txn.group_index() == Global.group_size() -
