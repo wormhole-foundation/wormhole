@@ -14,6 +14,10 @@ import {
 } from "../../utils/consts";
 import NFTViewer from "../TokenSelectors/NFTViewer";
 import MuiReactTable from "./tableComponents/MuiReactTable";
+import {
+  //DENY_LIST,
+  ALLOW_LIST,
+} from "./nftLists";
 
 const useStyles = makeStyles((theme) => ({
   logoPositioner: {
@@ -86,14 +90,6 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-const BLACKLIST = [
-  "D9cX654dGb4GFzqq3RY7rhZbRkQqUkfggDZdnYxqv97g",
-  "0xfeA43A080297B02F2eBB88a27Cb0FA6DB1b33B1d",
-  "GUSNP2z7nXjMpmYWeFbS819VwHb5tp7VoGbC6iGHtXmE",
-  "ERfkrhhgBB6zRo3x4XAcQKjhxu1JdX1PBfdj1RbHsfc7",
-  "f8DrFDG8dd6kV34WdjoEZd9vZin2pJAck8eMFUXZv1G",
-];
-
 const NFTStats: React.FC<any> = () => {
   const classes = useStyles();
   const nftTVL = useNFTTVL();
@@ -121,7 +117,7 @@ const NFTStats: React.FC<any> = () => {
           return null;
         }
         const item = nftTVL?.data[nextNumber]?.mintKey?.toLowerCase() || null;
-        if (!BLACKLIST.find((x) => x.toLowerCase() === item)) {
+        if (ALLOW_LIST.find((x) => x.toLowerCase() === item)) {
           found = true;
         } else {
           nextNumber = Math.floor(Math.random() * nftTVL.data.length);
@@ -151,6 +147,23 @@ const NFTStats: React.FC<any> = () => {
 
     return output;
   }, [nftTVL]);
+
+  //Generate allow list
+  // useEffect(() => {
+  //   const output: string[] = [];
+  //   if (nftTVL.data) {
+  //     nftTVL.data.forEach((item) => {
+  //       if (
+  //         !DENY_LIST.find((x) => x.toLowerCase() === item.mintKey.toLowerCase())
+  //       ) {
+  //         if (!output.includes(item.mintKey)) {
+  //           output.push(item.mintKey);
+  //         }
+  //       }
+  //     });
+  //   }
+  //   console.log(JSON.stringify(output));
+  // }, [nftTVL.data]);
 
   const tvlColumns = useMemo(() => {
     return [
