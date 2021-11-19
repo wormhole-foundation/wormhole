@@ -89,6 +89,9 @@ const useStyles = makeStyles((theme) => ({
 const BLACKLIST = [
   "D9cX654dGb4GFzqq3RY7rhZbRkQqUkfggDZdnYxqv97g",
   "0xfeA43A080297B02F2eBB88a27Cb0FA6DB1b33B1d",
+  "GUSNP2z7nXjMpmYWeFbS819VwHb5tp7VoGbC6iGHtXmE",
+  "ERfkrhhgBB6zRo3x4XAcQKjhxu1JdX1PBfdj1RbHsfc7",
+  "f8DrFDG8dd6kV34WdjoEZd9vZin2pJAck8eMFUXZv1G",
 ];
 
 const NFTStats: React.FC<any> = () => {
