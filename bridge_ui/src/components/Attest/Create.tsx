@@ -1,4 +1,3 @@
-import { CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
 import { CircularProgress, makeStyles } from "@material-ui/core";
 import { useSelector } from "react-redux";
 import useFetchForeignAsset from "../../hooks/useFetchForeignAsset";
@@ -35,8 +34,7 @@ function Create() {
     originAsset,
     targetChain
   );
-  const shouldUpdate =
-    targetChain !== CHAIN_ID_SOLANA && foreignAssetInfo.data?.doesExist;
+  const shouldUpdate = foreignAssetInfo.data?.doesExist;
   const error = foreignAssetInfo.error || statusMessage;
   const { handleClick, disabled, showLoader } = useHandleCreateWrapped(
     shouldUpdate || false

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.0.11
+
+### Added
+
+updateWrappedOnSolana
+
 ## 0.0.10
 
 ### Added

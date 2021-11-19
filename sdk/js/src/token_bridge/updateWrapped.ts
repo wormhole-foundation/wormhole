@@ -1,6 +1,5 @@
-import { MsgExecuteContract } from "@terra-money/terra.js";
 import { ethers } from "ethers";
-import { fromUint8Array } from "js-base64";
+import { createWrappedOnSolana, createWrappedOnTerra } from ".";
 import { Bridge__factory } from "../ethers-contracts";
 
 export async function updateWrappedOnEth(
@@ -14,14 +13,6 @@ export async function updateWrappedOnEth(
   return receipt;
 }
 
-export async function updateWrappedOnTerra(
-  tokenBridgeAddress: string,
-  walletAddress: string,
-  signedVAA: Uint8Array
-) {
-  return new MsgExecuteContract(walletAddress, tokenBridgeAddress, {
-    submit_vaa: {
-      data: fromUint8Array(signedVAA),
-    },
-  });
-}
+export const updateWrappedOnTerra = createWrappedOnTerra;
+
+export const updateWrappedOnSolana = createWrappedOnSolana;

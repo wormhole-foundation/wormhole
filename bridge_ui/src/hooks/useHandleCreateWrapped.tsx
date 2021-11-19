@@ -7,6 +7,7 @@ import {
   createWrappedOnTerra,
   updateWrappedOnEth,
   updateWrappedOnTerra,
+  updateWrappedOnSolana,
   postVaaSolana,
 } from "@certusone/wormhole-sdk";
 import { WalletContextState } from "@solana/wallet-adapter-react";
@@ -81,7 +82,7 @@ async function solana(
   wallet: WalletContextState,
   payerAddress: string, // TODO: we may not need this since we have wallet
   signedVAA: Uint8Array,
-  shouldUpdate: boolean //TODO utilize
+  shouldUpdate: boolean
 ) {
   dispatch(setIsCreating(true));
   try {
@@ -96,13 +97,21 @@ async function solana(
       payerAddress,
       Buffer.from(signedVAA)
     );
-    const transaction = await createWrappedOnSolana(
-      connection,
-      SOL_BRIDGE_ADDRESS,
-      SOL_TOKEN_BRIDGE_ADDRESS,
-      payerAddress,
-      signedVAA
-    );
+    const transaction = shouldUpdate
+      ? await updateWrappedOnSolana(
+          connection,
+          SOL_BRIDGE_ADDRESS,
+          SOL_TOKEN_BRIDGE_ADDRESS,
+          payerAddress,
+          signedVAA
+        )
+      : await createWrappedOnSolana(
+          connection,
+          SOL_BRIDGE_ADDRESS,
+          SOL_TOKEN_BRIDGE_ADDRESS,
+          payerAddress,
+          signedVAA
+        );
     const txid = await signSendAndConfirm(wallet, connection, transaction);
     // TODO: didn't want to make an info call we didn't need, can we get the block without it by modifying the above call?
     dispatch(setCreateTx({ id: txid, block: 1 }));
