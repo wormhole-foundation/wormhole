@@ -13,7 +13,10 @@ use crate::{
     },
     messages::PayloadAssetMeta,
     types::*,
-    TokenBridgeError::InvalidChain,
+    TokenBridgeError::{
+        InvalidChain,
+        InvalidMetadata,
+    },
 };
 use bridge::{
     vaa::ClaimableVAA,
@@ -40,6 +43,10 @@ use spl_token::{
         Mint,
     },
 };
+use spl_token_metadata::state::{
+    Data as SplData,
+    Metadata,
+};
 use std::{
     cmp::min,
     ops::{
@@ -57,8 +64,8 @@ pub struct CreateWrapped<'b> {
     pub vaa: ClaimableVAA<'b, PayloadAssetMeta>,
 
     // New Wrapped
-    pub mint: Mut<WrappedMint<'b, { AccountState::Uninitialized }>>,
-    pub meta: Mut<WrappedTokenMeta<'b, { AccountState::Uninitialized }>>,
+    pub mint: Mut<WrappedMint<'b, { AccountState::MaybeInitialized }>>,
+    pub meta: Mut<WrappedTokenMeta<'b, { AccountState::MaybeInitialized }>>,
 
     /// SPL Metadata for the associated Mint
     pub spl_metadata: Mut<SplTokenMeta<'b>>,
@@ -103,8 +110,6 @@ pub fn create_wrapped(
     accs: &mut CreateWrapped,
     data: CreateWrappedData,
 ) -> Result<()> {
-    use bstr::ByteSlice;
-
     // Do not process attestations sourced from the current chain.
     if accs.vaa.token_chain == CHAIN_ID_SOLANA {
         return Err(InvalidChain.into());
@@ -125,6 +130,18 @@ pub fn create_wrapped(
     accs.vaa.verify(ctx.program_id)?;
     accs.vaa.claim(ctx, accs.payer.key)?;
 
+    if accs.mint.is_initialized() {
+        update_accounts(ctx, accs, data)
+    } else {
+        create_accounts(ctx, accs, data)
+    }
+}
+
+pub fn create_accounts(
+    ctx: &ExecutionContext,
+    accs: &mut CreateWrapped,
+    data: CreateWrappedData,
+) -> Result<()> {
     // Create mint account
     accs.mint
         .create(&((&*accs).into()), ctx, accs.payer.key, Exempt)?;
@@ -151,18 +168,9 @@ pub fn create_wrapped(
         },
     )?;
 
-    let mut name = accs.vaa.name.clone().as_bytes().to_vec();
-    name.truncate(32 - 11);
-    let mut name: Vec<char> = name.chars().collect();
-    name.retain(|&c| c != '\u{FFFD}');
-    let mut name: String = name.iter().collect();
-    name += " (Wormhole)";
-
-    let mut symbol = accs.vaa.symbol.clone().as_bytes().to_vec();
-    symbol.truncate(10);
-    let mut symbol: Vec<char> = symbol.chars().collect();
-    symbol.retain(|&c| c != '\u{FFFD}');
-    let symbol: String = symbol.iter().collect();
+    // Normalize Token Metadata.
+    let name = truncate_utf8(&accs.vaa.name, 32 - 11) + " (Wormhole)";
+    let symbol = truncate_utf8(&accs.vaa.symbol, 10);
 
     let spl_token_metadata_ix = spl_token_metadata::instruction::create_metadata_accounts(
         spl_token_metadata::id(),
@@ -187,4 +195,97 @@ pub fn create_wrapped(
     accs.meta.original_decimals = accs.vaa.decimals;
 
     Ok(())
+}
+
+pub fn update_accounts(
+    ctx: &ExecutionContext,
+    accs: &mut CreateWrapped,
+    data: CreateWrappedData,
+) -> Result<()> {
+    accs.spl_metadata.verify_derivation(
+        &spl_token_metadata::id(),
+        &SplTokenMetaDerivationData {
+            mint: *accs.mint.info().key,
+        },
+    )?;
+
+    let mut metadata: SplData = Metadata::from_account_info(accs.spl_metadata.info())
+        .ok_or(InvalidMetadata)?
+        .data;
+
+    // Normalize token metadata.
+    metadata.name = truncate_utf8(&accs.vaa.name, 32 - 11) + " (Wormhole)";
+    metadata.symbol = truncate_utf8(&accs.vaa.symbol, 10);
+
+    // Update SPL Metadata
+    let spl_token_metadata_ix = spl_token_metadata::instruction::update_metadata_accounts(
+        spl_token_metadata::id(),
+        *accs.spl_metadata.key,
+        *accs.mint_authority.info().key,
+        None,
+        Some(metadata),
+        None,
+    );
+    invoke_seeded(&spl_token_metadata_ix, ctx, &accs.mint_authority, None)?;
+
+    Ok(())
+}
+
+// Byte-truncates potentially invalid UTF-8 encoded strings by converting to Unicode codepoints and
+// stripping unrecognised characters.
+pub fn truncate_utf8(data: impl AsRef<[u8]>, len: usize) -> String {
+    use bstr::ByteSlice;
+    let mut data = data.as_ref().to_vec();
+    data.truncate(len);
+    let mut data: Vec<char> = data.chars().collect();
+    data.retain(|&c| c != '\u{FFFD}');
+    data.iter().collect()
+}
+
+#[cfg(test)]
+mod tests {
+    fn extend_string(n: &str) -> Vec<u8> {
+        let mut bytes = vec![0u8; 32];
+        for i in 0..n.len() {
+            bytes[i] = n.as_bytes()[i];
+        }
+        bytes.to_vec()
+    }
+
+    #[test]
+    fn test_unicode_truncation() {
+        #[rustfmt::skip]
+        let pairs = [
+            // Empty string should not error or mutate.
+            (
+                "",
+                ""
+            ),
+            // Unicode < 32 should not be corrupted.
+            (
+                "🔥",
+                "🔥"
+            ),
+            // Unicode @ 32 should not be corrupted.
+            (
+                "🔥🔥🔥🔥🔥🔥🔥🔥",
+                "🔥🔥🔥🔥🔥🔥🔥🔥"
+            ),
+            // Unicode > 32 should be truncated correctly.
+            (
+                "🔥🔥🔥🔥🔥🔥🔥🔥🔥",
+                "🔥🔥🔥🔥🔥🔥🔥🔥"
+            ),
+            // Partially overflowing Unicode > 32 should be removed.
+            // Note: Expecting 31 bytes.
+            (
+                "0000000000000000000000000000000🔥",
+                "0000000000000000000000000000000"
+            ),
+        ];
+
+        for (input, expected) in pairs {
+            assert_eq!(expected, super::truncate_utf8(input, 32));
+        }
+    }
 }
