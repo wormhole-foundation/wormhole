@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"os"
 	"strings"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 )
 
 const cgBaseUrl = "https://api.coingecko.com/api/v3/"
+const cgProBaseUrl = "https://pro-api.coingecko.com/api/v3/"
 
 type CoinGeckoCoin struct {
 	Id     string `json:"id"`
@@ -32,10 +34,19 @@ type CoinGeckoErrorRes struct {
 }
 
 func fetchCoinGeckoCoins() map[string][]CoinGeckoCoin {
-	url := fmt.Sprintf("%vcoins/list", cgBaseUrl)
+	baseUrl := cgBaseUrl
+	cgApiKey := os.Getenv("COINGECKO_API_KEY")
+	if cgApiKey != "" {
+		baseUrl = cgProBaseUrl
+	}
+	url := fmt.Sprintf("%vcoins/list", baseUrl)
 	req, reqErr := http.NewRequest("GET", url, nil)
 	if reqErr != nil {
 		log.Fatalf("failed coins request, err: %v", reqErr)
+	}
+
+	if cgApiKey != "" {
+		req.Header.Set("X-Cg-Pro-Api-Key", cgApiKey)
 	}
 
 	res, resErr := http.DefaultClient.Do(req)
@@ -81,11 +92,19 @@ func chainIdToCoinGeckoPlatform(chain vaa.ChainID) string {
 }
 
 func fetchCoinGeckoCoinFromContract(chainId vaa.ChainID, address string) CoinGeckoCoin {
+	baseUrl := cgBaseUrl
+	cgApiKey := os.Getenv("COINGECKO_API_KEY")
+	if cgApiKey != "" {
+		baseUrl = cgProBaseUrl
+	}
 	platform := chainIdToCoinGeckoPlatform(chainId)
-	url := fmt.Sprintf("%vcoins/%v/contract/%v", cgBaseUrl, platform, address)
+	url := fmt.Sprintf("%vcoins/%v/contract/%v", baseUrl, platform, address)
 	req, reqErr := http.NewRequest("GET", url, nil)
 	if reqErr != nil {
 		log.Fatalf("failed contract request, err: %v\n", reqErr)
+	}
+	if cgApiKey != "" {
+		req.Header.Set("X-Cg-Pro-Api-Key", cgApiKey)
 	}
 
 	res, resErr := http.DefaultClient.Do(req)
@@ -166,10 +185,19 @@ func fetchCoinGeckoPrice(coinId string, timestamp time.Time) (float64, error) {
 	hourAgo := time.Now().Add(-time.Duration(1) * time.Hour)
 	withinLastHour := timestamp.After(hourAgo)
 	start, end := rangeFromTime(timestamp, 4)
-	url := fmt.Sprintf("%vcoins/%v/market_chart/range?vs_currency=usd&from=%v&to=%v", cgBaseUrl, coinId, start.Unix(), end.Unix())
+
+	baseUrl := cgBaseUrl
+	cgApiKey := os.Getenv("COINGECKO_API_KEY")
+	if cgApiKey != "" {
+		baseUrl = cgProBaseUrl
+	}
+	url := fmt.Sprintf("%vcoins/%v/market_chart/range?vs_currency=usd&from=%v&to=%v", baseUrl, coinId, start.Unix(), end.Unix())
 	req, reqErr := http.NewRequest("GET", url, nil)
 	if reqErr != nil {
 		log.Fatalf("failed coins request, err: %v\n", reqErr)
+	}
+	if cgApiKey != "" {
+		req.Header.Set("X-Cg-Pro-Api-Key", cgApiKey)
 	}
 
 	res, resErr := http.DefaultClient.Do(req)
