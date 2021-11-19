@@ -8,7 +8,6 @@ import (
 	"log"
 	"math"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/vaa"
@@ -25,38 +24,6 @@ var tokenAddressExceptions = map[string]string{
 	"010000000000000000000000000000000000000000000000000000756c756e61": "uluna",
 }
 
-func fetchTokenPrice(chain vaa.ChainID, symbol, address string, timestamp time.Time) (float64, string, string) {
-	// try coingecko, return if good
-	// if coingecko does not work, try chain-specific options
-
-	// initialize strings that will be returned if we find a symbol/name
-	// when looking up this token by contract address
-	foundSymbol := ""
-	foundName := ""
-
-	if symbol == "" && chain == vaa.ChainIDSolana {
-		// try to lookup the symbol in solana token list, from the address
-		if token, ok := solanaTokens[address]; ok {
-			symbol = token.Symbol
-			foundSymbol = token.Symbol
-			foundName = token.Name
-		}
-	}
-
-	coinGeckoId := ""
-	if _, ok := coinGeckoCoins[strings.ToLower(symbol)]; ok {
-		tokens := coinGeckoCoins[strings.ToLower(symbol)]
-		coinGeckoId = tokens[0].Id
-	}
-	if coinGeckoId != "" {
-		price, _ := fetchCoinGeckoPrice(coinGeckoId, timestamp)
-		if price != 0 {
-			return price, foundSymbol, foundName
-		}
-	}
-	return float64(0), foundSymbol, foundName
-}
-
 // returns a pair of dates before and after the input time.
 // useful for creating a time rage for querying historical price APIs.
 func rangeFromTime(t time.Time, hours int) (start time.Time, end time.Time) {
@@ -69,10 +36,10 @@ func transformHexAddressToNative(chain vaa.ChainID, address string) string {
 	case vaa.ChainIDSolana:
 		addr, err := hex.DecodeString(address)
 		if err != nil {
-			panic(fmt.Errorf("failed to decode solana string: %v", err))
+			log.Fatalf("failed to decode solana string: %v", err)
 		}
 		if len(addr) != 32 {
-			panic(fmt.Errorf("address must be 32 bytes. address: %v", address))
+			log.Fatalf("address must be 32 bytes. address: %v", address)
 		}
 		solPk := solana.PublicKeyFromBytes(addr[:])
 		return solPk.String()
@@ -174,6 +141,8 @@ func ProcessTransfer(ctx context.Context, m PubSubMessage) error {
 	var decimals int
 	var symbol string
 	var name string
+	var coinId string
+	var nativeTokenAddress string
 	for _, item := range assetMetaRow[columnFamilies[3]] {
 		switch item.Column {
 		case "AssetMetaPayload:Decimals":
@@ -187,7 +156,16 @@ func ProcessTransfer(ctx context.Context, m PubSubMessage) error {
 			symbol = string(item.Value)
 		case "AssetMetaPayload:Name":
 			name = string(item.Value)
+		case "AssetMetaPayload:CoinGeckoCoinId":
+			coinId = string(item.Value)
+		case "AssetMetaPayload:NativeAddress":
+			nativeTokenAddress = string(item.Value)
 		}
+	}
+	if coinId == "" {
+		log.Printf("no coinId for symbol: %v, nothing to lookup.\n", symbol)
+		// no coinId for this asset, cannot get price from coingecko.
+		return nil
 	}
 
 	// transfers created by the bridge UI will have at most 8 decimals.
@@ -203,24 +181,13 @@ func ProcessTransfer(ctx context.Context, m PubSubMessage) error {
 	decAmount := amount[len(amount)-decimals:]
 	calculatedAmount := intAmount + "." + decAmount
 
-	nativeTokenAddress := transformHexAddressToNative(tokenChain, tokenAddress)
-
 	timestamp := signedVaa.Timestamp.UTC()
-
-	price, foundSymbol, foundName := fetchTokenPrice(tokenChain, symbol, nativeTokenAddress, timestamp)
+	price, _ := fetchCoinGeckoPrice(coinId, timestamp)
 
 	if price == 0 {
 		// no price found, don't save
 		log.Printf("no price for symbol: %v, name: %v, address: %v, at: %v. rowKey: %v\n", symbol, name, nativeTokenAddress, timestamp.String(), rowKey)
 		return nil
-	}
-
-	// update symbol and name if they are missing
-	if symbol == "" {
-		symbol = foundSymbol
-	}
-	if name == "" {
-		name = foundName
 	}
 
 	// convert the amount string so it can be used for math

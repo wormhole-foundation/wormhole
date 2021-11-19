@@ -282,17 +282,37 @@ func ProcessVAA(ctx context.Context, m PubSubMessage) error {
 				return decodeErr
 			}
 
+			addressHex := hex.EncodeToString(payload.TokenAddress[:])
+			chainID := vaa.ChainID(payload.TokenChain)
+			nativeAddress := transformHexAddressToNative(chainID, addressHex)
+			name := string(TrimUnicodeFromByteArray(payload.Name[:]))
+			symbol := string(TrimUnicodeFromByteArray(payload.Symbol[:]))
+
+			// find the CoinGecko id of this token
+			coinGeckoCoinId, foundSymbol, foundName := fetchCoinGeckoCoinId(chainID, nativeAddress, symbol, name)
+
+			// populate the symbol & name if they were blank, and we found values
+			if symbol == "" && foundSymbol != "" {
+				symbol = foundSymbol
+			}
+			if name == "" && foundName != "" {
+				name = foundName
+			}
+
 			// save payload to bigtable
 			colFam := columnFamilies[3]
 			mutation := bigtable.NewMutation()
 			ts := bigtable.Now()
 
 			mutation.Set(colFam, "PayloadId", ts, []byte(fmt.Sprint(payload.PayloadId)))
-			mutation.Set(colFam, "TokenAddress", ts, []byte(hex.EncodeToString(payload.TokenAddress[:])))
+			mutation.Set(colFam, "TokenAddress", ts, []byte(addressHex))
 			mutation.Set(colFam, "TokenChain", ts, []byte(fmt.Sprint(payload.TokenChain)))
 			mutation.Set(colFam, "Decimals", ts, []byte(fmt.Sprint(payload.Decimals)))
-			mutation.Set(colFam, "Name", ts, TrimUnicodeFromByteArray(payload.Name[:]))
-			mutation.Set(colFam, "Symbol", ts, TrimUnicodeFromByteArray(payload.Symbol[:]))
+			mutation.Set(colFam, "Name", ts, []byte(name))
+			mutation.Set(colFam, "Symbol", ts, []byte(symbol))
+			mutation.Set(colFam, "CoinGeckoCoinId", ts, []byte(coinGeckoCoinId))
+			mutation.Set(colFam, "NativeAddress", ts, []byte(nativeAddress))
+
 			writeErr := writePayloadToBigTable(ctx, rowKey, colFam, mutation)
 			if writeErr != nil {
 				log.Println("wrote TokenTransferPayload to bigtable!", rowKey)
