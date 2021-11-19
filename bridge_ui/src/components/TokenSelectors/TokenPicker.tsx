@@ -110,7 +110,8 @@ export const balancePretty = (uiString: string) => {
 export const BasicAccountRender = (
   account: NFTParsedTokenAccount,
   isMigrationEligible: (address: string) => boolean,
-  nft: boolean
+  nft: boolean,
+  displayBalance?: (account: NFTParsedTokenAccount) => boolean
 ) => {
   const classes = useStyles();
   const mintPrettyString = shortenAddress(account.mintKey);
@@ -118,7 +119,7 @@ export const BasicAccountRender = (
   const symbol = account.symbol || "Unknown";
   const name = account.name || "Unknown";
   const tokenId = account.tokenId;
-  const balancePrettyString = balancePretty(account.uiAmountString);
+  const shouldDisplayBalance = !displayBalance || displayBalance(account);
 
   const nftContent = (
     <div className={classes.tokenOverviewContainer}>
@@ -152,8 +153,16 @@ export const BasicAccountRender = (
         }
       </div>
       <div>
-        <Typography variant="body2">{"Balance"}</Typography>
-        <Typography variant="h6">{balancePrettyString}</Typography>
+        {shouldDisplayBalance ? (
+          <>
+            <Typography variant="body2">{"Balance"}</Typography>
+            <Typography variant="h6">
+              {balancePretty(account.uiAmountString)}
+            </Typography>
+          </>
+        ) : (
+          <div />
+        )}
       </div>
     </div>
   );
@@ -222,6 +231,7 @@ export default function TokenPicker({
 
   const openDialog = useCallback(() => {
     setHolderString("");
+    setSelectionError("");
     setDialogIsOpen(true);
   }, []);
 
@@ -243,6 +253,13 @@ export default function TokenPicker({
     },
     [onChange, closeDialog]
   );
+
+  const resetAccountsWrapper = useCallback(() => {
+    setHolderString("");
+    setTokenIdHolderString("");
+    setSelectionError("");
+    resetAccounts && resetAccounts();
+  }, [resetAccounts]);
 
   const filteredOptions = useMemo(() => {
     return options.filter((option: NFTParsedTokenAccount) => {
@@ -359,7 +376,7 @@ export default function TokenPicker({
           <Typography variant="h5">Select a token</Typography>
           <div className={classes.grower} />
           <Tooltip title="Reload tokens">
-            <IconButton onClick={resetAccounts}>
+            <IconButton onClick={resetAccountsWrapper}>
               <RefreshIcon />
             </IconButton>
           </Tooltip>

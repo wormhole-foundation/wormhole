@@ -7,10 +7,15 @@ import {
 import { WormholeAbi__factory } from "@certusone/wormhole-sdk/lib/ethers-contracts/abi";
 import { getAddress as getEthAddress } from "@ethersproject/address";
 import React, { useCallback } from "react";
+import { useSelector } from "react-redux";
 import { useEthereumProvider } from "../../contexts/EthereumProviderContext";
 import useIsWalletReady from "../../hooks/useIsWalletReady";
 import { DataWrapper } from "../../store/helpers";
 import { NFTParsedTokenAccount } from "../../store/nftSlice";
+import {
+  selectNFTSourceParsedTokenAccount,
+  selectTransferSourceParsedTokenAccount,
+} from "../../store/selectors";
 import { ParsedTokenAccount } from "../../store/transferSlice";
 import {
   getMigrationAssetMap,
@@ -60,6 +65,29 @@ export default function EvmTokenPicker(
   } = props;
   const { provider, signerAddress } = useEthereumProvider();
   const { isReady } = useIsWalletReady(chainId);
+  const selectedTokenAccount: NFTParsedTokenAccount | undefined = useSelector(
+    nft
+      ? selectNFTSourceParsedTokenAccount
+      : selectTransferSourceParsedTokenAccount
+  );
+
+  const shouldDisplayBalance = useCallback(
+    (tokenAccount: NFTParsedTokenAccount) => {
+      const selectedMintMatch =
+        selectedTokenAccount &&
+        selectedTokenAccount.mintKey.toLowerCase() ===
+          tokenAccount.mintKey.toLowerCase();
+      //added just in case we start displaying NFT balances again.
+      const selectedTokenIdMatch =
+        selectedTokenAccount &&
+        selectedTokenAccount.tokenId === tokenAccount.tokenId;
+      return !!(
+        tokenAccount.isNativeAsset || //The native asset amount isn't taken from covalent, so can be trusted.
+        (selectedMintMatch && selectedTokenIdMatch)
+      );
+    },
+    [selectedTokenAccount]
+  );
 
   const isMigrationEligible = useCallback(
     (address: string) => {
@@ -118,23 +146,48 @@ export default function EvmTokenPicker(
       } catch (e) {
         //For now, just swallow this one.
       }
+      let newAccount = null;
+      try {
+        //Covalent balances tend to be stale, so we make an attempt to correct it at selection time.
+        if (!account.isNativeAsset) {
+          newAccount = await getAddress(account.mintKey, account.tokenId);
+          newAccount = { ...account, ...newAccount }; //We spread over the old account so we don't lose the logo, uri, or other useful info we got from covalent.
+        } else {
+          newAccount = account;
+        }
+      } catch (e) {
+        //swallow
+        console.log(e);
+      }
+      if (!newAccount) {
+        //Must reject otherwise downstream checks relying on the balance may fail.
+        //An error is thrown so that the code above us will display the message.
+        throw new Error(
+          "Unable to retrieve required information about this token. Ensure your wallet is connected, then refresh the list."
+        );
+      }
       const migration = isMigrationEligible(account.publicKey);
       if (v1 === true && !migration) {
-        return Promise.reject(
+        throw new Error(
           "Wormhole v1 assets cannot be transferred with this bridge."
         );
       }
-      onChange(account);
+      onChange(newAccount);
       return Promise.resolve();
     },
-    [chainId, onChange, provider, isMigrationEligible]
+    [chainId, onChange, provider, isMigrationEligible, getAddress]
   );
 
   const RenderComp = useCallback(
     ({ account }: { account: NFTParsedTokenAccount }) => {
-      return BasicAccountRender(account, isMigrationEligible, nft || false);
+      return BasicAccountRender(
+        account,
+        isMigrationEligible,
+        nft || false,
+        shouldDisplayBalance
+      );
     },
-    [nft, isMigrationEligible]
+    [nft, isMigrationEligible, shouldDisplayBalance]
   );
 
   return (
