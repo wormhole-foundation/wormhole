@@ -43,7 +43,9 @@ class TestLib {
       payload.substr(2)
     ]
 
-    const hash = web3Utils.soliditySha3(web3Utils.soliditySha3('0x' + body.join('')))
+    const hash = web3Utils.keccak256('0x' + body.join(''))
+
+    console.log('VAA body Hash: ', hash)
 
     let signatures = ''
 
