@@ -385,7 +385,7 @@ export default function TokenPicker({
       <DialogContent className={classes.dialogContent}>
         <TextField
           variant="outlined"
-          label="Search"
+          label="Search name or paste address"
           value={holderString}
           onChange={(event) => setHolderString(event.target.value)}
           fullWidth
