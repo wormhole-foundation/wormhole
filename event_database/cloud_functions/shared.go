@@ -351,6 +351,7 @@ func newMux() *http.ServeMux {
 	mux.HandleFunc("/recent", Recent)
 	mux.HandleFunc("/transaction", Transaction)
 	mux.HandleFunc("/readrow", ReadRow)
+	mux.HandleFunc("/findvalues", FindValues)
 
 	mux.HandleFunc("/readyz", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusOK) })
 
