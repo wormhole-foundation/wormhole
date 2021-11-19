@@ -5,9 +5,12 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"strings"
 	"time"
 
 	"net/http"
+
+	"github.com/certusone/wormhole/node/pkg/vaa"
 )
 
 const cgBaseUrl = "https://api.coingecko.com/api/v3/"
@@ -23,6 +26,9 @@ type CoinGeckoMarket [2]float64
 
 type CoinGeckoMarketRes struct {
 	Prices []CoinGeckoMarket `json:"prices"`
+}
+type CoinGeckoErrorRes struct {
+	Error string `json:"error"`
 }
 
 func fetchCoinGeckoCoins() map[string][]CoinGeckoCoin {
@@ -51,13 +57,114 @@ func fetchCoinGeckoCoins() map[string][]CoinGeckoCoin {
 	}
 	var geckoCoins = map[string][]CoinGeckoCoin{}
 	for _, coin := range parsed {
-		geckoCoins[coin.Symbol] = append(geckoCoins[coin.Symbol], coin)
+		symbol := strings.ToLower(coin.Symbol)
+		geckoCoins[symbol] = append(geckoCoins[symbol], coin)
 	}
 	return geckoCoins
 
 }
 
+func chainIdToCoinGeckoPlatform(chain vaa.ChainID) string {
+	switch chain {
+	case vaa.ChainIDSolana:
+		return "solana"
+	case vaa.ChainIDEthereum:
+		return "ethereum"
+	case vaa.ChainIDTerra:
+		return "terra"
+	case vaa.ChainIDBSC:
+		return "binance-smart-chain"
+	case vaa.ChainIDPolygon:
+		return "polygon-pos"
+	}
+	return ""
+}
+
+func fetchCoinGeckoCoinFromContract(chainId vaa.ChainID, address string) CoinGeckoCoin {
+	platform := chainIdToCoinGeckoPlatform(chainId)
+	url := fmt.Sprintf("%vcoins/%v/contract/%v", cgBaseUrl, platform, address)
+	req, reqErr := http.NewRequest("GET", url, nil)
+	if reqErr != nil {
+		log.Fatalf("failed contract request, err: %v\n", reqErr)
+	}
+
+	res, resErr := http.DefaultClient.Do(req)
+	if resErr != nil {
+		log.Fatalf("failed get contract response, err: %v\n", resErr)
+	}
+
+	defer res.Body.Close()
+	body, bodyErr := ioutil.ReadAll(res.Body)
+	if bodyErr != nil {
+		log.Fatalf("failed decoding contract body, err: %v\n", bodyErr)
+	}
+
+	var parsed CoinGeckoCoin
+
+	parseErr := json.Unmarshal(body, &parsed)
+	if parseErr != nil {
+		log.Printf("failed parsing body. err %v\n", parseErr)
+		var errRes CoinGeckoErrorRes
+		if err := json.Unmarshal(body, &errRes); err == nil {
+			if errRes.Error == "Could not find coin with the given id" {
+				log.Printf("Could not find CoinGecko coin by contract address, for chain %v, address, %v\n", chainId, address)
+			} else {
+				log.Println("Failed calling CoinGecko, got err", errRes.Error)
+			}
+		}
+	}
+
+	return parsed
+}
+
+func fetchCoinGeckoCoinId(chainId vaa.ChainID, address, symbol, name string) (coinId, foundSymbol, foundName string) {
+	// try coingecko, return if good
+	// if coingecko does not work, try chain-specific options
+
+	// initialize strings that will be returned if we find a symbol/name
+	// when looking up this token by contract address
+	newSymbol := ""
+	newName := ""
+
+	if symbol == "" && chainId == vaa.ChainIDSolana {
+		// try to lookup the symbol in solana token list, from the address
+		if token, ok := solanaTokens[address]; ok {
+			symbol = token.Symbol
+			name = token.Name
+			newSymbol = token.Symbol
+			newName = token.Name
+		}
+	}
+	if _, ok := coinGeckoCoins[strings.ToLower(symbol)]; ok {
+		tokens := coinGeckoCoins[strings.ToLower(symbol)]
+		if len(tokens) == 1 {
+			// only one match found for this symbol
+			return tokens[0].Id, newSymbol, newName
+		}
+		for _, token := range tokens {
+			if token.Name == name {
+				// found token by name match
+				return token.Id, newSymbol, newName
+			}
+			if strings.Contains(strings.ToLower(strings.ReplaceAll(name, " ", "")), strings.ReplaceAll(token.Id, "-", "")) {
+				// found token by id match
+				log.Println("found token by symbol and name match", name)
+				return token.Id, newSymbol, newName
+			}
+		}
+		// more than one symbol with this name, let contract lookup try
+	}
+	coin := fetchCoinGeckoCoinFromContract(chainId, address)
+	if coin.Id != "" {
+		return coin.Id, newSymbol, newName
+	}
+	// could not find a CoinGecko coin
+	return "", newSymbol, newName
+}
+
 func fetchCoinGeckoPrice(coinId string, timestamp time.Time) (float64, error) {
+	hourAgo := time.Now().Add(-time.Duration(1) * time.Hour)
+	withinLastHour := timestamp.After(hourAgo)
 	start, end := rangeFromTime(timestamp, 4)
 	url := fmt.Sprintf("%vcoins/%v/market_chart/range?vs_currency=usd&from=%v&to=%v", cgBaseUrl, coinId, start.Unix(), end.Unix())
 	req, reqErr := http.NewRequest("GET", url, nil)
@@ -81,13 +188,23 @@ func fetchCoinGeckoPrice(coinId string, timestamp time.Time) (float64, error) {
 	parseErr := json.Unmarshal(body, &parsed)
 	if parseErr != nil {
 		log.Printf("failed parsing body. err %v\n", parseErr)
+		var errRes CoinGeckoErrorRes
+		if err := json.Unmarshal(body, &errRes); err == nil {
+			log.Println("Failed calling CoinGecko, got err", errRes.Error)
+		}
 	}
 	if len(parsed.Prices) >= 1 {
-		numPrices := len(parsed.Prices)
-		middle := numPrices / 2
-		// take the price in the middle of the range, as that should be
-		// closest to the timestamp.
-		price := parsed.Prices[middle][1]
+		var priceIndex int
+		if withinLastHour {
+			// use the last price in the list, latest price
+			priceIndex = len(parsed.Prices) - 1
+		} else {
+			// use a price from the middle of the list, as that should be
+			// closest to the timestamp.
+			numPrices := len(parsed.Prices)
+			priceIndex = numPrices / 2
+		}
+		price := parsed.Prices[priceIndex][1]
 		fmt.Printf("found a price for %v! %v\n", coinId, price)
 		return price, nil
 	}
