@@ -347,6 +347,7 @@ func Entry(w http.ResponseWriter, r *http.Request) {
 func newMux() *http.ServeMux {
 	mux := http.NewServeMux()
 
+	mux.HandleFunc("/notionaltransferedto", NotionalTransferedTo)
 	mux.HandleFunc("/totals", Totals)
 	mux.HandleFunc("/recent", Recent)
 	mux.HandleFunc("/transaction", Transaction)
