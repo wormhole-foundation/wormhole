@@ -4,12 +4,12 @@ import {
   CHAIN_ID_SOLANA,
 } from "@certusone/wormhole-sdk";
 import { getAddress } from "@ethersproject/address";
-import { Button, makeStyles } from "@material-ui/core";
-import { Link } from "react-router-dom";
-import { VerifiedUser } from "@material-ui/icons";
-import { useCallback } from "react";
+import { Button, makeStyles, Typography } from "@material-ui/core";
+import { ArrowForward, VerifiedUser } from "@material-ui/icons";
+import { useCallback, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useHistory } from "react-router";
+import { Link } from "react-router-dom";
 import useIsWalletReady from "../../hooks/useIsWalletReady";
 import {
   selectTransferAmount,
@@ -19,11 +19,13 @@ import {
   selectTransferSourceChain,
   selectTransferSourceError,
   selectTransferSourceParsedTokenAccount,
+  selectTransferTargetChain,
 } from "../../store/selectors";
 import {
   incrementStep,
   setAmount,
   setSourceChain,
+  setTargetChain,
 } from "../../store/transferSlice";
 import {
   BSC_MIGRATION_ASSET_MAP,
@@ -40,6 +42,24 @@ import StepDescription from "../StepDescription";
 import { TokenSelector } from "../TokenSelectors/SourceTokenSelector";
 
 const useStyles = makeStyles((theme) => ({
+  chainSelectWrapper: {
+    display: "flex",
+    alignItems: "center",
+    [theme.breakpoints.down("sm")]: {
+      flexDirection: "column",
+    },
+  },
+  chainSelectContainer: {
+    flexBasis: "100%",
+    [theme.breakpoints.down("sm")]: {
+      width: "100%",
+    },
+  },
+  chainSelectArrow: {
+    position: "relative",
+    top: "12px",
+    [theme.breakpoints.down("sm")]: { transform: "rotate(90deg)" },
+  },
   transferField: {
     marginTop: theme.spacing(5),
   },
@@ -50,6 +70,11 @@ function Source() {
   const dispatch = useDispatch();
   const history = useHistory();
   const sourceChain = useSelector(selectTransferSourceChain);
+  const targetChain = useSelector(selectTransferTargetChain);
+  const targetChainOptions = useMemo(
+    () => CHAINS.filter((c) => c.id !== sourceChain),
+    [sourceChain]
+  );
   const parsedTokenAccount = useSelector(
     selectTransferSourceParsedTokenAccount
   );
@@ -91,6 +116,12 @@ function Source() {
     },
     [dispatch]
   );
+  const handleTargetChange = useCallback(
+    (event) => {
+      dispatch(setTargetChain(event.target.value));
+    },
+    [dispatch]
+  );
   const handleAmountChange = useCallback(
     (event) => {
       dispatch(setAmount(event.target.value));
@@ -124,15 +155,35 @@ function Source() {
           </div>
         </div>
       </StepDescription>
-      <ChainSelect
-        select
-        variant="outlined"
-        fullWidth
-        value={sourceChain}
-        onChange={handleSourceChange}
-        disabled={shouldLockFields}
-        chains={CHAINS}
-      />
+      <div className={classes.chainSelectWrapper}>
+        <div className={classes.chainSelectContainer}>
+          <Typography variant="caption">Source</Typography>
+          <ChainSelect
+            select
+            variant="outlined"
+            fullWidth
+            value={sourceChain}
+            onChange={handleSourceChange}
+            disabled={shouldLockFields}
+            chains={CHAINS}
+          />
+        </div>
+        <div className={classes.chainSelectArrow}>
+          <ArrowForward style={{ margin: "0px 8px" }} />
+        </div>
+        <div className={classes.chainSelectContainer}>
+          <Typography variant="caption">Target</Typography>
+          <ChainSelect
+            variant="outlined"
+            select
+            fullWidth
+            value={targetChain}
+            onChange={handleTargetChange}
+            disabled={shouldLockFields}
+            chains={targetChainOptions}
+          />
+        </div>
+      </div>
       <KeyAndBalance chainId={sourceChain} />
       {isReady || uiAmountString ? (
         <div className={classes.transferField}>

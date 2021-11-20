@@ -136,9 +136,7 @@ export const WORMHOLE_RPC_HOSTS =
         "https://wormhole-v2-mainnet-api.chainlayer.network",
       ]
     : CLUSTER === "testnet"
-    ? [
-        "https://wormhole-v2-testnet-api.certus.one",
-      ]
+    ? ["https://wormhole-v2-testnet-api.certus.one"]
     : ["http://localhost:7071"];
 export const ETH_NETWORK_CHAIN_ID =
   CLUSTER === "mainnet" ? 1 : CLUSTER === "testnet" ? 5 : 1337;
@@ -159,7 +157,7 @@ export const SOLANA_HOST = process.env.REACT_APP_SOLANA_API_URL
   : CLUSTER === "mainnet"
   ? clusterApiUrl("mainnet-beta")
   : CLUSTER === "testnet"
-  ? clusterApiUrl("testnet")
+  ? clusterApiUrl("devnet")
   : "http://localhost:8899";
 
 export const TERRA_HOST =
@@ -184,82 +182,82 @@ export const ETH_BRIDGE_ADDRESS = getAddress(
   CLUSTER === "mainnet"
     ? "0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B"
     : CLUSTER === "testnet"
-    ? "0x44F3e7c20850B3B5f3031114726A9240911D912a"
+    ? "0xC0231E0957596A90004119f4254aff364f6f1002"
     : "0xC89Ce4735882C9F0f0FE26686c53074E09B0D550"
 );
 export const ETH_NFT_BRIDGE_ADDRESS = getAddress(
   CLUSTER === "mainnet"
     ? "0x6FFd7EdE62328b3Af38FCD61461Bbfc52F5651fE"
     : CLUSTER === "testnet"
-    ? "0x26b4afb60d6c903165150c6f0aa14f8016be4aec" // TODO: test address
+    ? "0x5B78d166Fc3C2c99783B60b959dC35E316EBB5e7"
     : "0x26b4afb60d6c903165150c6f0aa14f8016be4aec"
 );
 export const ETH_TOKEN_BRIDGE_ADDRESS = getAddress(
   CLUSTER === "mainnet"
     ? "0x3ee18B2214AFF97000D974cf647E7C347E8fa585"
     : CLUSTER === "testnet"
-    ? "0xa6CDAddA6e4B6704705b065E01E52e2486c0FBf6"
+    ? "0xc59072C84ECD13DbF30856021C0a33868121Cb9d"
     : "0x0290FB167208Af455bB137780163b7B7a9a10C16"
 );
 export const BSC_BRIDGE_ADDRESS = getAddress(
   CLUSTER === "mainnet"
     ? "0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B"
     : CLUSTER === "testnet"
-    ? "0xC89Ce4735882C9F0f0FE26686c53074E09B0D550" // TODO: test address
+    ? "0x61D9309dC73CcAC3c639aeC497A11320C5A72074"
     : "0xC89Ce4735882C9F0f0FE26686c53074E09B0D550"
 );
 export const BSC_NFT_BRIDGE_ADDRESS = getAddress(
   CLUSTER === "mainnet"
     ? "0x5a58505a96D1dbf8dF91cB21B54419FC36e93fdE"
     : CLUSTER === "testnet"
-    ? "0x26b4afb60d6c903165150c6f0aa14f8016be4aec" // TODO: test address
+    ? "0x55A525D72f4b08762991e4ECDB1aDb5Ab55dFf37"
     : "0x26b4afb60d6c903165150c6f0aa14f8016be4aec"
 );
 export const BSC_TOKEN_BRIDGE_ADDRESS = getAddress(
   CLUSTER === "mainnet"
     ? "0xB6F6D86a8f9879A9c87f643768d9efc38c1Da6E7"
     : CLUSTER === "testnet"
-    ? "0x0290FB167208Af455bB137780163b7B7a9a10C16" // TODO: test address
+    ? "0xC708B76f0C28040A0f852DbacB26375eDB071c1D"
     : "0x0290FB167208Af455bB137780163b7B7a9a10C16"
 );
 export const POLYGON_BRIDGE_ADDRESS = getAddress(
   CLUSTER === "mainnet"
     ? "0x7A4B5a56256163F07b2C80A7cA55aBE66c4ec4d7"
     : CLUSTER === "testnet"
-    ? "0xC89Ce4735882C9F0f0FE26686c53074E09B0D550" // TODO: test address
+    ? "0x61D9309dC73CcAC3c639aeC497A11320C5A72074"
     : "0xC89Ce4735882C9F0f0FE26686c53074E09B0D550"
 );
 export const POLYGON_NFT_BRIDGE_ADDRESS = getAddress(
   CLUSTER === "mainnet"
     ? "0x90BBd86a6Fe93D3bc3ed6335935447E75fAb7fCf"
     : CLUSTER === "testnet"
-    ? "0x26b4afb60d6c903165150c6f0aa14f8016be4aec" // TODO: test address
+    ? "0x55A525D72f4b08762991e4ECDB1aDb5Ab55dFf37"
     : "0x26b4afb60d6c903165150c6f0aa14f8016be4aec"
 );
 export const POLYGON_TOKEN_BRIDGE_ADDRESS = getAddress(
   CLUSTER === "mainnet"
     ? "0x5a58505a96D1dbf8dF91cB21B54419FC36e93fdE"
     : CLUSTER === "testnet"
-    ? "0x0290FB167208Af455bB137780163b7B7a9a10C16" // TODO: test address
+    ? "0xC708B76f0C28040A0f852DbacB26375eDB071c1D"
     : "0x0290FB167208Af455bB137780163b7B7a9a10C16"
 );
 export const SOL_BRIDGE_ADDRESS =
   CLUSTER === "mainnet"
     ? "worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth"
     : CLUSTER === "testnet"
-    ? "Brdguy7BmNB4qwEbcqqMbyV5CyJd2sxQNUn6NEpMSsUb"
+    ? "FvXhjZdGJT4JdaTJHcPtvogBsc1kbgiFo3utK6mZZzdP"
     : "Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o";
 export const SOL_NFT_BRIDGE_ADDRESS =
   CLUSTER === "mainnet"
     ? "WnFt12ZrnzZrFZkt2xsNsaNWoQribnuQ5B5FrDbwDhD"
     : CLUSTER === "testnet"
-    ? "NFTWqJR8YnRVqPDvTJrYuLrQDitTG5AScqbeghi4zSA" // TODO: test address
+    ? "pnfZ3u1LPAaupt8YoZkxJkWUDoCZxs4XJkGibDQz7fW0"
     : "NFTWqJR8YnRVqPDvTJrYuLrQDitTG5AScqbeghi4zSA";
 export const SOL_TOKEN_BRIDGE_ADDRESS =
   CLUSTER === "mainnet"
     ? "wormDTUJ6AWPNvk59vGQbDvGJmqbDTdgWgAqcLBCgUb"
     : CLUSTER === "testnet"
-    ? "A4Us8EhCC76XdGAN17L4KpRNEK423nMivVHZzZqFqqBg"
+    ? "GQemgcTaC6jojXS4pH4YPDD72b6RPsDhNPSjmxMfYcet"
     : "B6RHG3mfcckmrYN1UhmJzyS1XX3fZKbkeUcpJe9Sy3FE";
 
 export const SOL_CUSTODY_ADDRESS =
@@ -272,13 +270,13 @@ export const TERRA_BRIDGE_ADDRESS =
   CLUSTER === "mainnet"
     ? "terra1dq03ugtd40zu9hcgdzrsq6z2z4hwhc9tqk2uy5"
     : CLUSTER === "testnet"
-    ? "terra18vd8fpwxzck93qlwghaj6arh4p7c5n896xzem5"
+    ? "terra1pd65m0q9tl3v8znnz5f5ltsfegyzah7g42cx5v"
     : "terra18vd8fpwxzck93qlwghaj6arh4p7c5n896xzem5";
 export const TERRA_TOKEN_BRIDGE_ADDRESS =
   CLUSTER === "mainnet"
     ? "terra10nmmwe8r3g99a9newtqa7a75xfgs2e8z87r2sf"
     : CLUSTER === "testnet"
-    ? "terra10pyejy66429refv3g35g2t7am0was7ya7kz2a4"
+    ? "terra1pseddrv0yfsn76u4zxrjmtf45kdlmalswdv39a"
     : "terra10pyejy66429refv3g35g2t7am0was7ya7kz2a4";
 
 export const getBridgeAddressForChain = (chainId: ChainId) =>
@@ -666,3 +664,5 @@ export const AVAILABLE_MARKETS_URL =
   "https://docs.wormholenetwork.com/wormhole/overview-liquid-markets";
 
 export const SOLANA_SYSTEM_PROGRAM_ADDRESS = "11111111111111111111111111111111";
+export const FEATURED_MARKETS_JSON_URL =
+  "https://raw.githubusercontent.com/certusone/wormhole-token-list/main/src/markets.json";

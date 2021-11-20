@@ -146,36 +146,16 @@ export default function EvmTokenPicker(
       } catch (e) {
         //For now, just swallow this one.
       }
-      let newAccount = null;
-      try {
-        //Covalent balances tend to be stale, so we make an attempt to correct it at selection time.
-        if (!account.isNativeAsset) {
-          newAccount = await getAddress(account.mintKey, account.tokenId);
-          newAccount = { ...account, ...newAccount }; //We spread over the old account so we don't lose the logo, uri, or other useful info we got from covalent.
-        } else {
-          newAccount = account;
-        }
-      } catch (e) {
-        //swallow
-        console.log(e);
-      }
-      if (!newAccount) {
-        //Must reject otherwise downstream checks relying on the balance may fail.
-        //An error is thrown so that the code above us will display the message.
-        throw new Error(
-          "Unable to retrieve required information about this token. Ensure your wallet is connected, then refresh the list."
-        );
-      }
       const migration = isMigrationEligible(account.publicKey);
       if (v1 === true && !migration) {
         throw new Error(
           "Wormhole v1 assets cannot be transferred with this bridge."
         );
       }
-      onChange(newAccount);
+      onChange(account);
       return Promise.resolve();
     },
-    [chainId, onChange, provider, isMigrationEligible, getAddress]
+    [chainId, onChange, provider, isMigrationEligible]
   );
 
   const RenderComp = useCallback(

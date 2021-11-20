@@ -125,7 +125,7 @@ function Target() {
         fullWidth
         value={targetChain}
         onChange={handleTargetChange}
-        disabled={shouldLockFields}
+        disabled={true}
         chains={chains}
       />
       <KeyAndBalance chainId={targetChain} />

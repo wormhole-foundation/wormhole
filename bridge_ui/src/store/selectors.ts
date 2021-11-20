@@ -292,3 +292,7 @@ export const selectSolanaTokenMap = (state: RootState) => {
 export const selectTerraTokenMap = (state: RootState) => {
   return state.tokens.terraTokenMap;
 };
+
+export const selectMarketsMap = (state: RootState) => {
+  return state.tokens.marketsMap;
+};
