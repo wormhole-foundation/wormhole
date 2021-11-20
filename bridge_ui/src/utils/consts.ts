@@ -58,14 +58,29 @@ export const CHAINS =
     : CLUSTER === "testnet"
     ? [
         {
+          id: CHAIN_ID_BSC,
+          name: "Binance Smart Chain",
+          logo: bscIcon,
+        },
+        {
           id: CHAIN_ID_ETH,
           name: "Ethereum",
           logo: ethIcon,
         },
         {
+          id: CHAIN_ID_POLYGON,
+          name: "Polygon",
+          logo: polygonIcon,
+        },
+        {
           id: CHAIN_ID_SOLANA,
           name: "Solana",
           logo: solanaIcon,
+        },
+        {
+          id: CHAIN_ID_TERRA,
+          name: "Terra",
+          logo: terraIcon,
         },
       ]
     : [
@@ -318,9 +333,10 @@ export const COVALENT_API_KEY = process.env.REACT_APP_COVALENT_API_KEY
   ? process.env.REACT_APP_COVALENT_API_KEY
   : "";
 
-export const COVALENT_ETHEREUM_MAINNET = "1";
-export const COVALENT_BSC_MAINNET = "56";
-export const COVALENT_POLYGON_MAINNET = "137";
+export const COVALENT_ETHEREUM = 1; // Covalent only supports mainnet and Kovan
+export const COVALENT_BSC = CLUSTER === "devnet" ? 56 : BSC_NETWORK_CHAIN_ID;
+export const COVALENT_POLYGON =
+  CLUSTER === "devnet" ? 137 : POLYGON_NETWORK_CHAIN_ID;
 export const COVALENT_GET_TOKENS_URL = (
   chainId: ChainId,
   walletAddress: string,
@@ -329,11 +345,11 @@ export const COVALENT_GET_TOKENS_URL = (
 ) => {
   const chainNum =
     chainId === CHAIN_ID_ETH
-      ? COVALENT_ETHEREUM_MAINNET
+      ? COVALENT_ETHEREUM
       : chainId === CHAIN_ID_BSC
-      ? COVALENT_BSC_MAINNET
+      ? COVALENT_BSC
       : chainId === CHAIN_ID_POLYGON
-      ? COVALENT_POLYGON_MAINNET
+      ? COVALENT_POLYGON
       : "";
   // https://www.covalenthq.com/docs/api/#get-/v1/{chain_id}/address/{address}/balances_v2/
   return `https://api.covalenthq.com/v1/${chainNum}/address/${walletAddress}/balances_v2/?key=${COVALENT_API_KEY}${

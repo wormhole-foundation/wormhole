@@ -98,9 +98,13 @@ export default function SmartAddress({
         CLUSTER === "testnet" ? "goerli." : ""
       }etherscan.io/address/${useableAddress}`
     : chainId === CHAIN_ID_BSC
-    ? `https://bscscan.com/address/${useableAddress}`
+    ? `https://${
+        CLUSTER === "testnet" ? "testnet." : ""
+      }bscscan.com/address/${useableAddress}`
     : chainId === CHAIN_ID_POLYGON
-    ? `https://polygonscan.com/address/${useableAddress}`
+    ? `https://${
+        CLUSTER === "testnet" ? "mumbai." : ""
+      }polygonscan.com/address/${useableAddress}`
     : chainId === CHAIN_ID_SOLANA
     ? `https://explorer.solana.com/address/${useableAddress}${
         CLUSTER === "testnet"

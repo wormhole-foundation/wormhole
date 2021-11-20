@@ -39,9 +39,13 @@ export default function ShowTx({
           tx?.id
         }`
       : chainId === CHAIN_ID_BSC
-      ? `https://bscscan.com/tx/${tx?.id}`
+      ? `https://${CLUSTER === "testnet" ? "testnet." : ""}bscscan.com/tx/${
+          tx?.id
+        }`
       : chainId === CHAIN_ID_POLYGON
-      ? `https://polygonscan.com/tx/${tx?.id}`
+      ? `https://${CLUSTER === "testnet" ? "mumbai." : ""}polygonscan.com/tx/${
+          tx?.id
+        }`
       : chainId === CHAIN_ID_SOLANA
       ? `https://explorer.solana.com/tx/${tx?.id}${
           CLUSTER === "testnet"
