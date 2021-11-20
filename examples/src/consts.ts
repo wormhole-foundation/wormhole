@@ -184,10 +184,6 @@ export const WORMHOLE_RPC_HOSTS =
     : CLUSTER === "testnet"
     ? [
         "https://wormhole-v2-testnet-api.certus.one",
-        "https://wormhole-v2-testnet-api.mcf.rocks",
-        "https://wormhole-v2-testnet-api.chainlayer.network",
-        "https://wormhole-v2-testnet-api.staking.fund",
-        "https://wormhole-v2-testnet-api.chainlayer.network",
       ]
     : ["http://localhost:7071"];
 
