@@ -4,6 +4,7 @@ import { useCallback } from "react";
 import { useSelector } from "react-redux";
 import { useEthereumProvider } from "../../contexts/EthereumProviderContext";
 import {
+  selectTransferSourceParsedTokenAccount,
   selectTransferTargetAsset,
   selectTransferTargetChain,
 } from "../../store/selectors";
@@ -23,6 +24,9 @@ const useStyles = makeStyles((theme) => ({
 
 export default function AddToMetamask() {
   const classes = useStyles();
+  const sourceParsedTokenAccount = useSelector(
+    selectTransferSourceParsedTokenAccount
+  );
   const targetChain = useSelector(selectTransferTargetChain);
   const targetAsset = useSelector(selectTransferTargetAsset);
   const {
@@ -47,7 +51,11 @@ export default function AddToMetamask() {
               type: "ERC20", // In the future, other standards will be supported
               options: {
                 address: targetAsset, // The address of the token contract
-                symbol, // A ticker symbol or shorthand, up to 5 characters
+                symbol: (
+                  symbol ||
+                  sourceParsedTokenAccount?.symbol ||
+                  "wh"
+                ).substr(0, 5), // A ticker symbol or shorthand, up to 5 characters
                 decimals, // The number of token decimals
                 // image: string; // A string url of the token logo
               },
@@ -58,7 +66,13 @@ export default function AddToMetamask() {
         }
       })();
     }
-  }, [provider, targetAsset, signerAddress, hasCorrectEvmNetwork]);
+  }, [
+    provider,
+    targetAsset,
+    signerAddress,
+    hasCorrectEvmNetwork,
+    sourceParsedTokenAccount,
+  ]);
   return provider &&
     signerAddress &&
     targetAsset &&
