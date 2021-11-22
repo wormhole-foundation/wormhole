@@ -43,6 +43,7 @@ import { CLUSTER } from "./utils/consts";
 import Stats from "./components/Stats";
 import TokenOriginVerifier from "./components/TokenOriginVerifier";
 import SolanaQuickMigrate from "./components/Migration/SolanaQuickMigrate";
+import Wormhole from "./icons/wormhole-network.svg";
 
 const useStyles = makeStyles((theme) => ({
   appBar: {
@@ -84,6 +85,13 @@ const useStyles = makeStyles((theme) => ({
       margin: theme.spacing(4, 0),
     },
   },
+  brandLink: {
+    display: "inline-flex",
+    alignItems: "center",
+    "&:hover": {
+      textDecoration: "none",
+    },
+  },
   brandText: {
     ...theme.typography.h5,
     [theme.breakpoints.down("xs")]: {
@@ -97,6 +105,8 @@ const useStyles = makeStyles((theme) => ({
     MozBackgroundClip: "text",
     MozTextFillColor: "transparent",
     letterSpacing: "3px",
+    display: "inline-block",
+    marginLeft: theme.spacing(0.5),
   },
   iconButton: {
     [theme.breakpoints.up("md")]: {
@@ -123,6 +133,17 @@ const useStyles = makeStyles((theme) => ({
     background: `linear-gradient(to left, ${COLORS.blue}40, ${COLORS.green}40);`,
     padding: theme.spacing(1, 0),
   },
+  wormholeIcon: {
+    height: 32,
+    filter: "contrast(0)",
+    transition: "filter 0.5s",
+    "&:hover": {
+      filter: "contrast(1)",
+    },
+    verticalAlign: "middle",
+    marginRight: theme.spacing(1),
+    display: "inline-block",
+  },
 }));
 
 function App() {
@@ -141,12 +162,15 @@ function App() {
     <div className={classes.bg}>
       <AppBar position="static" color="inherit" className={classes.appBar}>
         <Toolbar>
-          <Link
-            component={RouterLink}
-            to="/"
-            className={clsx(classes.link, classes.brandText)}
-          >
-            wormhole
+          <Link component={RouterLink} to="/" className={classes.brandLink}>
+            <img
+              src={Wormhole}
+              alt="Wormhole"
+              className={classes.wormholeIcon}
+            />
+            <Typography className={clsx(classes.link, classes.brandText)}>
+              wormhole
+            </Typography>
           </Link>
           <div className={classes.spacer} />
           <Hidden implementation="css" xsDown>
