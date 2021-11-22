@@ -197,21 +197,21 @@ export const ETH_BRIDGE_ADDRESS = getAddress(
   CLUSTER === "mainnet"
     ? "0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B"
     : CLUSTER === "testnet"
-    ? "0xC0231E0957596A90004119f4254aff364f6f1002"
+    ? "0x62a7343b7cF1dC590c983F6A376DCfD3978fC058"
     : "0xC89Ce4735882C9F0f0FE26686c53074E09B0D550"
 );
 export const ETH_NFT_BRIDGE_ADDRESS = getAddress(
   CLUSTER === "mainnet"
     ? "0x6FFd7EdE62328b3Af38FCD61461Bbfc52F5651fE"
     : CLUSTER === "testnet"
-    ? "0x5B78d166Fc3C2c99783B60b959dC35E316EBB5e7"
+    ? "0xCD83eCbf3ACCeaD559d297b55a5eF97b8575fb28"
     : "0x26b4afb60d6c903165150c6f0aa14f8016be4aec"
 );
 export const ETH_TOKEN_BRIDGE_ADDRESS = getAddress(
   CLUSTER === "mainnet"
     ? "0x3ee18B2214AFF97000D974cf647E7C347E8fa585"
     : CLUSTER === "testnet"
-    ? "0xc59072C84ECD13DbF30856021C0a33868121Cb9d"
+    ? "0x2Ea77593966FF0D3A1aa9ed07B87396AB4604988"
     : "0x0290FB167208Af455bB137780163b7B7a9a10C16"
 );
 export const BSC_BRIDGE_ADDRESS = getAddress(
@@ -239,40 +239,40 @@ export const POLYGON_BRIDGE_ADDRESS = getAddress(
   CLUSTER === "mainnet"
     ? "0x7A4B5a56256163F07b2C80A7cA55aBE66c4ec4d7"
     : CLUSTER === "testnet"
-    ? "0x61D9309dC73CcAC3c639aeC497A11320C5A72074"
+    ? "0x7809224E0477e821C3c4Ee25Ef47538b90f66455"
     : "0xC89Ce4735882C9F0f0FE26686c53074E09B0D550"
 );
 export const POLYGON_NFT_BRIDGE_ADDRESS = getAddress(
   CLUSTER === "mainnet"
     ? "0x90BBd86a6Fe93D3bc3ed6335935447E75fAb7fCf"
     : CLUSTER === "testnet"
-    ? "0x55A525D72f4b08762991e4ECDB1aDb5Ab55dFf37"
+    ? "0x765b15a2694B93dD755c769510eaC175350BAd37"
     : "0x26b4afb60d6c903165150c6f0aa14f8016be4aec"
 );
 export const POLYGON_TOKEN_BRIDGE_ADDRESS = getAddress(
   CLUSTER === "mainnet"
     ? "0x5a58505a96D1dbf8dF91cB21B54419FC36e93fdE"
     : CLUSTER === "testnet"
-    ? "0xC708B76f0C28040A0f852DbacB26375eDB071c1D"
+    ? "0x83Fb84F047B31e7C6C78E73AE4D0e1B240995A0e"
     : "0x0290FB167208Af455bB137780163b7B7a9a10C16"
 );
 export const SOL_BRIDGE_ADDRESS =
   CLUSTER === "mainnet"
     ? "worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth"
     : CLUSTER === "testnet"
-    ? "FvXhjZdGJT4JdaTJHcPtvogBsc1kbgiFo3utK6mZZzdP"
+    ? "3u8hJUVTA4jH1wYAyUur7FFZVQ8H635K3tSHHF4ssjQ5"
     : "Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o";
 export const SOL_NFT_BRIDGE_ADDRESS =
   CLUSTER === "mainnet"
     ? "WnFt12ZrnzZrFZkt2xsNsaNWoQribnuQ5B5FrDbwDhD"
     : CLUSTER === "testnet"
-    ? "pnfZ3u1LPAaupt8YoZkxJkWUDoCZxs4XJkGibDQz7fW0"
+    ? "DjAK1Bo9UuPjLbHc12chy1MRx2AJrowiy7Bw1RhB3SGh"
     : "NFTWqJR8YnRVqPDvTJrYuLrQDitTG5AScqbeghi4zSA";
 export const SOL_TOKEN_BRIDGE_ADDRESS =
   CLUSTER === "mainnet"
     ? "wormDTUJ6AWPNvk59vGQbDvGJmqbDTdgWgAqcLBCgUb"
     : CLUSTER === "testnet"
-    ? "GQemgcTaC6jojXS4pH4YPDD72b6RPsDhNPSjmxMfYcet"
+    ? "8GDCQWxKn94g4pWEucCY98TdwS671Thg7jALitKd3vmt"
     : "B6RHG3mfcckmrYN1UhmJzyS1XX3fZKbkeUcpJe9Sy3FE";
 
 export const SOL_CUSTODY_ADDRESS =
