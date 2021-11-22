@@ -64,10 +64,19 @@ func runListNodes(cmd *cobra.Command, args []string) {
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 8, 2, ' ', 0)
 
-	if showDetails {
-		_, _ = w.Write([]byte("Node key\tGuardian key\tNode name\tVersion\tLast seen\tUptime\tSolana\tEthereum\tTerra\tBSC\tPolygon\n"))
+	if *testnetMode {
+		// Include Ropsten in testnet mode
+		if showDetails {
+			_, _ = w.Write([]byte("Node key\tGuardian key\tNode name\tVersion\tLast seen\tUptime\tSolana\tEthereum\tTerra\tBSC\tPolygon\tRopsten\n"))
+		} else {
+			_, _ = w.Write([]byte("Node key\tGuardian key\tNode name\tVersion\tLast seen\tSolana\tEthereum\tTerra\tBSC\tPolygon\tRopsten\n"))
+		}
 	} else {
-		_, _ = w.Write([]byte("Node key\tGuardian key\tNode name\tVersion\tLast seen\tSolana\tEthereum\tTerra\tBSC\tPolygon\n"))
+		if showDetails {
+			_, _ = w.Write([]byte("Node key\tGuardian key\tNode name\tVersion\tLast seen\tUptime\tSolana\tEthereum\tTerra\tBSC\tPolygon\n"))
+		} else {
+			_, _ = w.Write([]byte("Node key\tGuardian key\tNode name\tVersion\tLast seen\tSolana\tEthereum\tTerra\tBSC\tPolygon\n"))
+		}
 	}
 
 	for _, h := range nodes {
@@ -91,45 +100,92 @@ func runListNodes(cmd *cobra.Command, args []string) {
 			}
 		}
 
-		if showDetails {
-			fmt.Fprintf(w,
-				"%s\t%s\t%s\t%s\t%s\t%s\t%s %d (%d)\t%s %d (%d)\t%s %d (%d)\t%s %d (%d)\t%s %d (%d)\n",
-				h.P2PNodeAddr,
-				h.RawHeartbeat.GuardianAddr,
-				h.RawHeartbeat.NodeName,
-				h.RawHeartbeat.Version,
-				time.Since(last),
-				time.Since(boot),
-				truncAddrs[vaa.ChainIDSolana],
-				heights[vaa.ChainIDSolana],
-				errors[vaa.ChainIDSolana],
-				truncAddrs[vaa.ChainIDEthereum],
-				heights[vaa.ChainIDEthereum],
-				errors[vaa.ChainIDEthereum],
-				truncAddrs[vaa.ChainIDTerra],
-				heights[vaa.ChainIDTerra],
-				errors[vaa.ChainIDTerra],
-				truncAddrs[vaa.ChainIDBSC],
-				heights[vaa.ChainIDBSC],
-				errors[vaa.ChainIDBSC],
-				truncAddrs[vaa.ChainIDPolygon],
-				heights[vaa.ChainIDPolygon],
-				errors[vaa.ChainIDPolygon],
-			)
+		if *testnetMode {
+			if showDetails {
+				fmt.Fprintf(w,
+					"%s\t%s\t%s\t%s\t%s\t%s\t%s %d (%d)\t%s %d (%d)\t%s %d (%d)\t%s %d (%d)\t%s %d (%d)\t%s %d (%d)\n",
+					h.P2PNodeAddr,
+					h.RawHeartbeat.GuardianAddr,
+					h.RawHeartbeat.NodeName,
+					h.RawHeartbeat.Version,
+					time.Since(last),
+					time.Since(boot),
+					truncAddrs[vaa.ChainIDSolana],
+					heights[vaa.ChainIDSolana],
+					errors[vaa.ChainIDSolana],
+					truncAddrs[vaa.ChainIDEthereum],
+					heights[vaa.ChainIDEthereum],
+					errors[vaa.ChainIDEthereum],
+					truncAddrs[vaa.ChainIDTerra],
+					heights[vaa.ChainIDTerra],
+					errors[vaa.ChainIDTerra],
+					truncAddrs[vaa.ChainIDBSC],
+					heights[vaa.ChainIDBSC],
+					errors[vaa.ChainIDBSC],
+					truncAddrs[vaa.ChainIDPolygon],
+					heights[vaa.ChainIDPolygon],
+					errors[vaa.ChainIDPolygon],
+					truncAddrs[vaa.ChainIDEthereumRopsten],
+					heights[vaa.ChainIDEthereumRopsten],
+					errors[vaa.ChainIDEthereumRopsten],
+				)
+			} else {
+				fmt.Fprintf(w,
+					"%s\t%s\t%s\t%s\t%s\t%d\t%d\t%d\t%d\t%d\t%d\n",
+					h.P2PNodeAddr,
+					h.RawHeartbeat.GuardianAddr,
+					h.RawHeartbeat.NodeName,
+					h.RawHeartbeat.Version,
+					time.Since(last),
+					heights[vaa.ChainIDSolana],
+					heights[vaa.ChainIDEthereum],
+					heights[vaa.ChainIDTerra],
+					heights[vaa.ChainIDBSC],
+					heights[vaa.ChainIDPolygon],
+					heights[vaa.ChainIDEthereumRopsten],
+				)
+			}
 		} else {
-			fmt.Fprintf(w,
-				"%s\t%s\t%s\t%s\t%s\t%d\t%d\t%d\t%d\t%d\n",
-				h.P2PNodeAddr,
-				h.RawHeartbeat.GuardianAddr,
-				h.RawHeartbeat.NodeName,
-				h.RawHeartbeat.Version,
-				time.Since(last),
-				heights[vaa.ChainIDSolana],
-				heights[vaa.ChainIDEthereum],
-				heights[vaa.ChainIDTerra],
-				heights[vaa.ChainIDBSC],
-				heights[vaa.ChainIDPolygon],
-			)
+			if showDetails {
+				fmt.Fprintf(w,
+					"%s\t%s\t%s\t%s\t%s\t%s\t%s %d (%d)\t%s %d (%d)\t%s %d (%d)\t%s %d (%d)\t%s %d (%d)\n",
+					h.P2PNodeAddr,
+					h.RawHeartbeat.GuardianAddr,
+					h.RawHeartbeat.NodeName,
+					h.RawHeartbeat.Version,
+					time.Since(last),
+					time.Since(boot),
+					truncAddrs[vaa.ChainIDSolana],
+					heights[vaa.ChainIDSolana],
+					errors[vaa.ChainIDSolana],
+					truncAddrs[vaa.ChainIDEthereum],
+					heights[vaa.ChainIDEthereum],
+					errors[vaa.ChainIDEthereum],
+					truncAddrs[vaa.ChainIDTerra],
+					heights[vaa.ChainIDTerra],
+					errors[vaa.ChainIDTerra],
+					truncAddrs[vaa.ChainIDBSC],
+					heights[vaa.ChainIDBSC],
+					errors[vaa.ChainIDBSC],
+					truncAddrs[vaa.ChainIDPolygon],
+					heights[vaa.ChainIDPolygon],
+					errors[vaa.ChainIDPolygon],
+				)
+			} else {
+				fmt.Fprintf(w,
+					"%s\t%s\t%s\t%s\t%s\t%d\t%d\t%d\t%d\t%d\n",
+					h.P2PNodeAddr,
+					h.RawHeartbeat.GuardianAddr,
+					h.RawHeartbeat.NodeName,
+					h.RawHeartbeat.Version,
+					time.Since(last),
+					heights[vaa.ChainIDSolana],
+					heights[vaa.ChainIDEthereum],
+					heights[vaa.ChainIDTerra],
+					heights[vaa.ChainIDBSC],
+					heights[vaa.ChainIDPolygon],
+				)
+			}
 		}
 	}
 

@@ -94,6 +94,8 @@ func (c ChainID) String() string {
 		return "bsc"
 	case ChainIDPolygon:
 		return "polygon"
+	case ChainIDEthereumRopsten:
+		return "ethereum-ropsten"
 	default:
 		return fmt.Sprintf("unknown chain ID: %d", c)
 	}
@@ -113,6 +115,8 @@ func ChainIDFromString(s string) (ChainID, error) {
 		return ChainIDBSC, nil
 	case "polygon":
 		return ChainIDPolygon, nil
+	case "ethereum-ropsten":
+		return ChainIDEthereumRopsten, nil
 	default:
 		return ChainIDUnset, fmt.Errorf("unknown chain ID: %s", s)
 	}
@@ -130,6 +134,8 @@ const (
 	ChainIDBSC ChainID = 4
 	// ChainIDPolygon is the ChainID of Polygon
 	ChainIDPolygon ChainID = 5
+	// ChainIDEthereumRopsten is the ChainID of Ethereum Ropsten
+	ChainIDEthereumRopsten ChainID = 10001
 
 	minVAALength        = 1 + 4 + 52 + 4 + 1 + 1
 	SupportedVAAVersion = 0x01
