@@ -383,7 +383,7 @@ describe("Integration Tests", () => {
         } catch (e) {
           console.error(e);
           done(
-            "An error occurred while trying to attest from Solana to Ethereum"
+            "An error occurred while trying to send from Solana to Ethereum"
           );
         }
       })();

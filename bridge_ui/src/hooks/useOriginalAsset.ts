@@ -13,7 +13,7 @@ import {
   getOriginalAssetEth as getOriginalAssetEthNFT,
   getOriginalAssetSol as getOriginalAssetSolNFT,
   WormholeWrappedNFTInfo,
-} from "@certusone/wormhole-sdk/lib/nft_bridge";
+} from "@certusone/wormhole-sdk/lib/esm/nft_bridge";
 import { Web3Provider } from "@certusone/wormhole-sdk/node_modules/@ethersproject/providers";
 import { ethers } from "@certusone/wormhole-sdk/node_modules/ethers";
 import { Connection } from "@solana/web3.js";

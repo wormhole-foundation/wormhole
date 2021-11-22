@@ -1,19 +1,19 @@
 {
   "name": "@certusone/wormhole-sdk",
-  "version": "0.0.10",
+  "version": "0.1.0",
   "description": "SDK for interacting with Wormhole",
   "homepage": "https://wormholenetwork.com",
-  "main": "lib/index.js",
-  "types": "lib/index.d.ts",
+  "main": "./lib/cjs/index.js",
+  "module": "./lib/esm/index.js",
   "files": [
-    "lib/**/*"
+    "./lib/**/*"
   ],
   "repository": "https://github.com/certusone/wormhole/tree/dev.v2/sdk/js",
   "scripts": {
     "build-contracts": "npm run build --prefix ../../ethereum && node scripts/copyContracts.js && typechain --target=ethers-v5 --out-dir=src/ethers-contracts contracts/*.json",
     "build-abis": "typechain --target=ethers-v5 --out-dir=src/ethers-contracts/abi src/abi/Wormhole.abi.json",
     "build-deps": "npm run build-abis && npm run build-contracts",
-    "build-lib": "tsc && node scripts/copyEthersTypes.js && node scripts/copyWasm.js",
+    "build-lib": "tsc -p tsconfig.json && tsc -p tsconfig-cjs.json && node scripts/copyEthersTypes.js && node scripts/copyWasm.js",
     "build-all": "npm run build-deps && npm run build-lib",
     "test": "jest --config jestconfig.json --verbose",
     "build": "npm run build-all",

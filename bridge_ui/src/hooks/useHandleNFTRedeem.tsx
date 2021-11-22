@@ -12,7 +12,7 @@ import {
   isNFTVAASolanaNative,
   redeemOnEth,
   redeemOnSolana,
-} from "@certusone/wormhole-sdk/lib/nft_bridge";
+} from "@certusone/wormhole-sdk/lib/esm/nft_bridge";
 import { arrayify } from "@ethersproject/bytes";
 import { Alert } from "@material-ui/lab";
 import { WalletContextState } from "@solana/wallet-adapter-react";
@@ -106,7 +106,7 @@ async function solana(
     const isNative = await isNFTVAASolanaNative(signedVAA);
     if (!isNative) {
       const { parse_vaa } = await import(
-        "@certusone/wormhole-sdk/lib/solana/core/bridge"
+        "@certusone/wormhole-sdk/lib/esm/solana/core/bridge"
       );
       const parsedVAA = parse_vaa(signedVAA);
       const { originChain, originAddress, tokenId } = parseNFTPayload(

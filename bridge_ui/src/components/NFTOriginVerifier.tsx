@@ -10,7 +10,7 @@ import {
   getOriginalAssetEth,
   getOriginalAssetSol,
   WormholeWrappedNFTInfo,
-} from "@certusone/wormhole-sdk/lib/nft_bridge";
+} from "@certusone/wormhole-sdk/lib/esm/nft_bridge";
 import {
   Button,
   Card,

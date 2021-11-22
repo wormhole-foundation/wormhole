@@ -4,7 +4,7 @@
     "module": "esnext",
     "moduleResolution": "node",
     "declaration": true,
-    "outDir": "./lib",
+    "outDir": "./lib/esm",
     "strict": true,
     "esModuleInterop": true,
     "downlevelIteration": true,

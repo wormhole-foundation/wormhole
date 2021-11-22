@@ -290,7 +290,7 @@ export default function Recovery() {
       (async () => {
         try {
           const { parse_vaa } = await import(
-            "@certusone/wormhole-sdk/lib/solana/core/bridge"
+            "@certusone/wormhole-sdk/lib/esm/solana/core/bridge"
           );
           const parsedVAA = parse_vaa(hexToUint8Array(recoverySignedVAA));
           if (!cancelled) {
