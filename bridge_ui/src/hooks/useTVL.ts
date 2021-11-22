@@ -54,6 +54,7 @@ export type TVL = {
 
 const BAD_PRICES_BY_CHAIN = {
   [CHAIN_ID_BSC]: ["0x04132bf45511d03a58afd4f1d36a29d229ccc574"],
+  [CHAIN_ID_ETH]: ["0x3845badade8e6dff049820680d1f14bd3903a5d0"],
 };
 
 const calcEvmTVL = (covalentReport: any, chainId: ChainId): TVL[] => {
