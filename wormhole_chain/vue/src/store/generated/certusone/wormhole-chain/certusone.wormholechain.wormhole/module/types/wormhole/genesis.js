@@ -1,6 +1,7 @@
 /* eslint-disable */
 import { GuardianSet } from "../wormhole/guardian_set";
 import { Config } from "../wormhole/config";
+import { ReplayProtection } from "../wormhole/replay_protection";
 import { Writer, Reader } from "protobufjs/minimal";
 export const protobufPackage = "certusone.wormholechain.wormhole";
 const baseGenesisState = { guardianSetCount: 0 };
@@ -15,6 +16,9 @@ export const GenesisState = {
         if (message.config !== undefined) {
             Config.encode(message.config, writer.uint32(26).fork()).ldelim();
         }
+        for (const v of message.replayProtectionList) {
+            ReplayProtection.encode(v, writer.uint32(34).fork()).ldelim();
+        }
         return writer;
     },
     decode(input, length) {
@@ -22,6 +26,7 @@ export const GenesisState = {
         let end = length === undefined ? reader.len : reader.pos + length;
         const message = { ...baseGenesisState };
         message.guardianSetList = [];
+        message.replayProtectionList = [];
         while (reader.pos < end) {
             const tag = reader.uint32();
             switch (tag >>> 3) {
@@ -34,6 +39,9 @@ export const GenesisState = {
                 case 3:
                     message.config = Config.decode(reader, reader.uint32());
                     break;
+                case 4:
+                    message.replayProtectionList.push(ReplayProtection.decode(reader, reader.uint32()));
+                    break;
                 default:
                     reader.skipType(tag & 7);
                     break;
@@ -44,6 +52,7 @@ export const GenesisState = {
     fromJSON(object) {
         const message = { ...baseGenesisState };
         message.guardianSetList = [];
+        message.replayProtectionList = [];
         if (object.guardianSetList !== undefined &&
             object.guardianSetList !== null) {
             for (const e of object.guardianSetList) {
@@ -63,6 +72,12 @@ export const GenesisState = {
         else {
             message.config = undefined;
         }
+        if (object.replayProtectionList !== undefined &&
+            object.replayProtectionList !== null) {
+            for (const e of object.replayProtectionList) {
+                message.replayProtectionList.push(ReplayProtection.fromJSON(e));
+            }
+        }
         return message;
     },
     toJSON(message) {
@@ -77,11 +92,18 @@ export const GenesisState = {
             (obj.guardianSetCount = message.guardianSetCount);
         message.config !== undefined &&
             (obj.config = message.config ? Config.toJSON(message.config) : undefined);
+        if (message.replayProtectionList) {
+            obj.replayProtectionList = message.replayProtectionList.map((e) => e ? ReplayProtection.toJSON(e) : undefined);
+        }
+        else {
+            obj.replayProtectionList = [];
+        }
         return obj;
     },
     fromPartial(object) {
         const message = { ...baseGenesisState };
         message.guardianSetList = [];
+        message.replayProtectionList = [];
         if (object.guardianSetList !== undefined &&
             object.guardianSetList !== null) {
             for (const e of object.guardianSetList) {
@@ -100,6 +122,12 @@ export const GenesisState = {
         }
         else {
             message.config = undefined;
+        }
+        if (object.replayProtectionList !== undefined &&
+            object.replayProtectionList !== null) {
+            for (const e of object.replayProtectionList) {
+                message.replayProtectionList.push(ReplayProtection.fromPartial(e));
+            }
         }
         return message;
     },

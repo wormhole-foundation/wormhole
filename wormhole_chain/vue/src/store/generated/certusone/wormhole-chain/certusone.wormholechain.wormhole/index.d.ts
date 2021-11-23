@@ -1,6 +1,7 @@
 import { Config } from "./module/types/wormhole/config";
 import { EventGuardianSetUpdate } from "./module/types/wormhole/events";
 import { GuardianSet } from "./module/types/wormhole/guardian_set";
-export { Config, EventGuardianSetUpdate, GuardianSet };
+import { ReplayProtection } from "./module/types/wormhole/replay_protection";
+export { Config, EventGuardianSetUpdate, GuardianSet, ReplayProtection };
 declare const _default;
 export default _default;

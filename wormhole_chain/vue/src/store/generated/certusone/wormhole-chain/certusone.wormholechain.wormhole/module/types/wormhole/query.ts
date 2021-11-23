@@ -6,6 +6,7 @@ import {
   PageResponse,
 } from "../cosmos/base/query/v1beta1/pagination";
 import { Config } from "../wormhole/config";
+import { ReplayProtection } from "../wormhole/replay_protection";
 
 export const protobufPackage = "certusone.wormholechain.wormhole";
 
@@ -30,6 +31,23 @@ export interface QueryGetConfigRequest {}
 
 export interface QueryGetConfigResponse {
   Config: Config | undefined;
+}
+
+export interface QueryGetReplayProtectionRequest {
+  index: string;
+}
+
+export interface QueryGetReplayProtectionResponse {
+  replayProtection: ReplayProtection | undefined;
+}
+
+export interface QueryAllReplayProtectionRequest {
+  pagination: PageRequest | undefined;
+}
+
+export interface QueryAllReplayProtectionResponse {
+  replayProtection: ReplayProtection[];
+  pagination: PageResponse | undefined;
 }
 
 const baseQueryGetGuardianSetRequest: object = { index: 0 };
@@ -448,6 +466,344 @@ export const QueryGetConfigResponse = {
   },
 };
 
+const baseQueryGetReplayProtectionRequest: object = { index: "" };
+
+export const QueryGetReplayProtectionRequest = {
+  encode(
+    message: QueryGetReplayProtectionRequest,
+    writer: Writer = Writer.create()
+  ): Writer {
+    if (message.index !== "") {
+      writer.uint32(10).string(message.index);
+    }
+    return writer;
+  },
+
+  decode(
+    input: Reader | Uint8Array,
+    length?: number
+  ): QueryGetReplayProtectionRequest {
+    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = {
+      ...baseQueryGetReplayProtectionRequest,
+    } as QueryGetReplayProtectionRequest;
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          message.index = reader.string();
+          break;
+        default:
+          reader.skipType(tag & 7);
+          break;
+      }
+    }
+    return message;
+  },
+
+  fromJSON(object: any): QueryGetReplayProtectionRequest {
+    const message = {
+      ...baseQueryGetReplayProtectionRequest,
+    } as QueryGetReplayProtectionRequest;
+    if (object.index !== undefined && object.index !== null) {
+      message.index = String(object.index);
+    } else {
+      message.index = "";
+    }
+    return message;
+  },
+
+  toJSON(message: QueryGetReplayProtectionRequest): unknown {
+    const obj: any = {};
+    message.index !== undefined && (obj.index = message.index);
+    return obj;
+  },
+
+  fromPartial(
+    object: DeepPartial<QueryGetReplayProtectionRequest>
+  ): QueryGetReplayProtectionRequest {
+    const message = {
+      ...baseQueryGetReplayProtectionRequest,
+    } as QueryGetReplayProtectionRequest;
+    if (object.index !== undefined && object.index !== null) {
+      message.index = object.index;
+    } else {
+      message.index = "";
+    }
+    return message;
+  },
+};
+
+const baseQueryGetReplayProtectionResponse: object = {};
+
+export const QueryGetReplayProtectionResponse = {
+  encode(
+    message: QueryGetReplayProtectionResponse,
+    writer: Writer = Writer.create()
+  ): Writer {
+    if (message.replayProtection !== undefined) {
+      ReplayProtection.encode(
+        message.replayProtection,
+        writer.uint32(10).fork()
+      ).ldelim();
+    }
+    return writer;
+  },
+
+  decode(
+    input: Reader | Uint8Array,
+    length?: number
+  ): QueryGetReplayProtectionResponse {
+    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = {
+      ...baseQueryGetReplayProtectionResponse,
+    } as QueryGetReplayProtectionResponse;
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          message.replayProtection = ReplayProtection.decode(
+            reader,
+            reader.uint32()
+          );
+          break;
+        default:
+          reader.skipType(tag & 7);
+          break;
+      }
+    }
+    return message;
+  },
+
+  fromJSON(object: any): QueryGetReplayProtectionResponse {
+    const message = {
+      ...baseQueryGetReplayProtectionResponse,
+    } as QueryGetReplayProtectionResponse;
+    if (
+      object.replayProtection !== undefined &&
+      object.replayProtection !== null
+    ) {
+      message.replayProtection = ReplayProtection.fromJSON(
+        object.replayProtection
+      );
+    } else {
+      message.replayProtection = undefined;
+    }
+    return message;
+  },
+
+  toJSON(message: QueryGetReplayProtectionResponse): unknown {
+    const obj: any = {};
+    message.replayProtection !== undefined &&
+      (obj.replayProtection = message.replayProtection
+        ? ReplayProtection.toJSON(message.replayProtection)
+        : undefined);
+    return obj;
+  },
+
+  fromPartial(
+    object: DeepPartial<QueryGetReplayProtectionResponse>
+  ): QueryGetReplayProtectionResponse {
+    const message = {
+      ...baseQueryGetReplayProtectionResponse,
+    } as QueryGetReplayProtectionResponse;
+    if (
+      object.replayProtection !== undefined &&
+      object.replayProtection !== null
+    ) {
+      message.replayProtection = ReplayProtection.fromPartial(
+        object.replayProtection
+      );
+    } else {
+      message.replayProtection = undefined;
+    }
+    return message;
+  },
+};
+
+const baseQueryAllReplayProtectionRequest: object = {};
+
+export const QueryAllReplayProtectionRequest = {
+  encode(
+    message: QueryAllReplayProtectionRequest,
+    writer: Writer = Writer.create()
+  ): Writer {
+    if (message.pagination !== undefined) {
+      PageRequest.encode(message.pagination, writer.uint32(10).fork()).ldelim();
+    }
+    return writer;
+  },
+
+  decode(
+    input: Reader | Uint8Array,
+    length?: number
+  ): QueryAllReplayProtectionRequest {
+    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = {
+      ...baseQueryAllReplayProtectionRequest,
+    } as QueryAllReplayProtectionRequest;
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          message.pagination = PageRequest.decode(reader, reader.uint32());
+          break;
+        default:
+          reader.skipType(tag & 7);
+          break;
+      }
+    }
+    return message;
+  },
+
+  fromJSON(object: any): QueryAllReplayProtectionRequest {
+    const message = {
+      ...baseQueryAllReplayProtectionRequest,
+    } as QueryAllReplayProtectionRequest;
+    if (object.pagination !== undefined && object.pagination !== null) {
+      message.pagination = PageRequest.fromJSON(object.pagination);
+    } else {
+      message.pagination = undefined;
+    }
+    return message;
+  },
+
+  toJSON(message: QueryAllReplayProtectionRequest): unknown {
+    const obj: any = {};
+    message.pagination !== undefined &&
+      (obj.pagination = message.pagination
+        ? PageRequest.toJSON(message.pagination)
+        : undefined);
+    return obj;
+  },
+
+  fromPartial(
+    object: DeepPartial<QueryAllReplayProtectionRequest>
+  ): QueryAllReplayProtectionRequest {
+    const message = {
+      ...baseQueryAllReplayProtectionRequest,
+    } as QueryAllReplayProtectionRequest;
+    if (object.pagination !== undefined && object.pagination !== null) {
+      message.pagination = PageRequest.fromPartial(object.pagination);
+    } else {
+      message.pagination = undefined;
+    }
+    return message;
+  },
+};
+
+const baseQueryAllReplayProtectionResponse: object = {};
+
+export const QueryAllReplayProtectionResponse = {
+  encode(
+    message: QueryAllReplayProtectionResponse,
+    writer: Writer = Writer.create()
+  ): Writer {
+    for (const v of message.replayProtection) {
+      ReplayProtection.encode(v!, writer.uint32(10).fork()).ldelim();
+    }
+    if (message.pagination !== undefined) {
+      PageResponse.encode(
+        message.pagination,
+        writer.uint32(18).fork()
+      ).ldelim();
+    }
+    return writer;
+  },
+
+  decode(
+    input: Reader | Uint8Array,
+    length?: number
+  ): QueryAllReplayProtectionResponse {
+    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = {
+      ...baseQueryAllReplayProtectionResponse,
+    } as QueryAllReplayProtectionResponse;
+    message.replayProtection = [];
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          message.replayProtection.push(
+            ReplayProtection.decode(reader, reader.uint32())
+          );
+          break;
+        case 2:
+          message.pagination = PageResponse.decode(reader, reader.uint32());
+          break;
+        default:
+          reader.skipType(tag & 7);
+          break;
+      }
+    }
+    return message;
+  },
+
+  fromJSON(object: any): QueryAllReplayProtectionResponse {
+    const message = {
+      ...baseQueryAllReplayProtectionResponse,
+    } as QueryAllReplayProtectionResponse;
+    message.replayProtection = [];
+    if (
+      object.replayProtection !== undefined &&
+      object.replayProtection !== null
+    ) {
+      for (const e of object.replayProtection) {
+        message.replayProtection.push(ReplayProtection.fromJSON(e));
+      }
+    }
+    if (object.pagination !== undefined && object.pagination !== null) {
+      message.pagination = PageResponse.fromJSON(object.pagination);
+    } else {
+      message.pagination = undefined;
+    }
+    return message;
+  },
+
+  toJSON(message: QueryAllReplayProtectionResponse): unknown {
+    const obj: any = {};
+    if (message.replayProtection) {
+      obj.replayProtection = message.replayProtection.map((e) =>
+        e ? ReplayProtection.toJSON(e) : undefined
+      );
+    } else {
+      obj.replayProtection = [];
+    }
+    message.pagination !== undefined &&
+      (obj.pagination = message.pagination
+        ? PageResponse.toJSON(message.pagination)
+        : undefined);
+    return obj;
+  },
+
+  fromPartial(
+    object: DeepPartial<QueryAllReplayProtectionResponse>
+  ): QueryAllReplayProtectionResponse {
+    const message = {
+      ...baseQueryAllReplayProtectionResponse,
+    } as QueryAllReplayProtectionResponse;
+    message.replayProtection = [];
+    if (
+      object.replayProtection !== undefined &&
+      object.replayProtection !== null
+    ) {
+      for (const e of object.replayProtection) {
+        message.replayProtection.push(ReplayProtection.fromPartial(e));
+      }
+    }
+    if (object.pagination !== undefined && object.pagination !== null) {
+      message.pagination = PageResponse.fromPartial(object.pagination);
+    } else {
+      message.pagination = undefined;
+    }
+    return message;
+  },
+};
+
 /** Query defines the gRPC querier service. */
 export interface Query {
   /** Queries a guardianSet by index. */
@@ -460,6 +816,14 @@ export interface Query {
   ): Promise<QueryAllGuardianSetResponse>;
   /** Queries a config by index. */
   Config(request: QueryGetConfigRequest): Promise<QueryGetConfigResponse>;
+  /** Queries a replayProtection by index. */
+  ReplayProtection(
+    request: QueryGetReplayProtectionRequest
+  ): Promise<QueryGetReplayProtectionResponse>;
+  /** Queries a list of replayProtection items. */
+  ReplayProtectionAll(
+    request: QueryAllReplayProtectionRequest
+  ): Promise<QueryAllReplayProtectionResponse>;
 }
 
 export class QueryClientImpl implements Query {
@@ -504,6 +868,34 @@ export class QueryClientImpl implements Query {
     );
     return promise.then((data) =>
       QueryGetConfigResponse.decode(new Reader(data))
+    );
+  }
+
+  ReplayProtection(
+    request: QueryGetReplayProtectionRequest
+  ): Promise<QueryGetReplayProtectionResponse> {
+    const data = QueryGetReplayProtectionRequest.encode(request).finish();
+    const promise = this.rpc.request(
+      "certusone.wormholechain.wormhole.Query",
+      "ReplayProtection",
+      data
+    );
+    return promise.then((data) =>
+      QueryGetReplayProtectionResponse.decode(new Reader(data))
+    );
+  }
+
+  ReplayProtectionAll(
+    request: QueryAllReplayProtectionRequest
+  ): Promise<QueryAllReplayProtectionResponse> {
+    const data = QueryAllReplayProtectionRequest.encode(request).finish();
+    const promise = this.rpc.request(
+      "certusone.wormholechain.wormhole.Query",
+      "ReplayProtectionAll",
+      data
+    );
+    return promise.then((data) =>
+      QueryAllReplayProtectionResponse.decode(new Reader(data))
     );
   }
 }

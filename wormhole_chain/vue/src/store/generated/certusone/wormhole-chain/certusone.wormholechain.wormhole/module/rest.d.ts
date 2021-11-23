@@ -90,11 +90,30 @@ export interface WormholeQueryAllGuardianSetResponse {
      */
     pagination?: V1Beta1PageResponse;
 }
+export interface WormholeQueryAllReplayProtectionResponse {
+    replayProtection?: WormholeReplayProtection[];
+    /**
+     * PageResponse is to be embedded in gRPC response messages where the
+     * corresponding request message has used PageRequest.
+     *
+     *  message SomeResponse {
+     *          repeated Bar results = 1;
+     *          PageResponse page = 2;
+     *  }
+     */
+    pagination?: V1Beta1PageResponse;
+}
 export interface WormholeQueryGetConfigResponse {
     Config?: WormholeConfig;
 }
 export interface WormholeQueryGetGuardianSetResponse {
     GuardianSet?: WormholeGuardianSet;
+}
+export interface WormholeQueryGetReplayProtectionResponse {
+    replayProtection?: WormholeReplayProtection;
+}
+export interface WormholeReplayProtection {
+    index?: string;
 }
 export declare type QueryParamsType = Record<string | number, any>;
 export declare type ResponseFormat = keyof Omit<Body, "body" | "bodyUsed">;
@@ -187,5 +206,29 @@ export declare class Api<SecurityDataType extends unknown> extends HttpClient<Se
      * @request GET:/certusone/wormholechain/wormhole/guardianSet/{index}
      */
     queryGuardianSet: (index: number, params?: RequestParams) => Promise<HttpResponse<WormholeQueryGetGuardianSetResponse, RpcStatus>>;
+    /**
+     * No description
+     *
+     * @tags Query
+     * @name QueryReplayProtectionAll
+     * @summary Queries a list of replayProtection items.
+     * @request GET:/certusone/wormholechain/wormhole/replayProtection
+     */
+    queryReplayProtectionAll: (query?: {
+        "pagination.key"?: string;
+        "pagination.offset"?: string;
+        "pagination.limit"?: string;
+        "pagination.countTotal"?: boolean;
+        "pagination.reverse"?: boolean;
+    }, params?: RequestParams) => Promise<HttpResponse<WormholeQueryAllReplayProtectionResponse, RpcStatus>>;
+    /**
+     * No description
+     *
+     * @tags Query
+     * @name QueryReplayProtection
+     * @summary Queries a replayProtection by index.
+     * @request GET:/certusone/wormholechain/wormhole/replayProtection/{index}
+     */
+    queryReplayProtection: (index: string, params?: RequestParams) => Promise<HttpResponse<WormholeQueryGetReplayProtectionResponse, RpcStatus>>;
 }
 export {};
