@@ -19,9 +19,10 @@ import (
 )
 
 type amountsResult struct {
-	LastDayCount map[string]map[string]float64
-	TotalCount   map[string]map[string]float64
-	DailyTotals  map[string]map[string]map[string]float64
+	Last24Hours        map[string]map[string]float64
+	WithinPeriod       map[string]map[string]float64
+	PeriodDurationDays int
+	Daily              map[string]map[string]map[string]float64
 }
 
 // warmCache keeps some data around between invocations, so that we don't have
@@ -32,7 +33,6 @@ var warmAmountsCache = map[string]map[string]map[string]map[string]float64{}
 
 type TransferData struct {
 	TokenSymbol      string
-	TokenName        string
 	TokenAmount      float64
 	OriginChain      string
 	LeavingChain     string
@@ -64,8 +64,6 @@ func fetchAmountRowsInInterval(tbl *bigtable.Table, ctx context.Context, prefix 
 					t.Notional = notionalFloat
 				case "TokenTransferDetails:OriginSymbol":
 					t.TokenSymbol = string(item.Value)
-				case "TokenTransferDetails:OriginName":
-					t.TokenName = string(item.Value)
 				}
 			}
 
@@ -96,7 +94,8 @@ func fetchAmountRowsInInterval(tbl *bigtable.Table, ctx context.Context, prefix 
 				bigtable.StripValueFilter(),               // no columns/values, just the row.Key()
 			),
 			bigtable.ChainFilters(
-				bigtable.PassAllFilter(),
+				bigtable.FamilyFilter(fmt.Sprintf("%v|%v", columnFamilies[2], columnFamilies[5])),
+				bigtable.ColumnFilter("Amount|NotionalUSD|OriginSymbol|OriginChain|TargetChain"),
 				bigtable.LatestNFilter(1),
 			),
 			bigtable.BlockAllFilter(),
@@ -256,7 +255,7 @@ func amountsForInterval(tbl *bigtable.Table, ctx context.Context, prefix string,
 // get number of recent transactions in the last 24 hours, and daily for a period
 // optionally group by a EmitterChain or EmitterAddress
 // optionally query for recent rows of a given EmitterChain or EmitterAddress
-func NotionalTransferedTo(w http.ResponseWriter, r *http.Request) {
+func NotionalTransferredTo(w http.ResponseWriter, r *http.Request) {
 	// Set CORS headers for the preflight request
 	if r.Method == http.MethodOptions {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -269,7 +268,7 @@ func NotionalTransferedTo(w http.ResponseWriter, r *http.Request) {
 	// Set CORS headers for the main request.
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
-	var numDays, forChain, forAddress string
+	var numDays, forChain, forAddress, daily, last24Hours, forPeriod string
 
 	// allow GET requests with querystring params, or POST requests with json body.
 	switch r.Method {
@@ -278,13 +277,19 @@ func NotionalTransferedTo(w http.ResponseWriter, r *http.Request) {
 		numDays = queryParams.Get("numDays")
 		forChain = queryParams.Get("forChain")
 		forAddress = queryParams.Get("forAddress")
+		daily = queryParams.Get("daily")
+		last24Hours = queryParams.Get("last24Hours")
+		forPeriod = queryParams.Get("forPeriod")
 
 	case http.MethodPost:
 		// declare request body properties
 		var d struct {
-			NumDays    string `json:"numDays"`
-			ForChain   string `json:"forChain"`
-			ForAddress string `json:"forAddress"`
+			NumDays     string `json:"numDays"`
+			ForChain    string `json:"forChain"`
+			ForAddress  string `json:"forAddress"`
+			Daily       string `json:"daily"`
+			Last24Hours string `json:"last24Hours"`
+			ForPeriod   string `json:"forPeriod"`
 		}
 
 		// deserialize request body
@@ -302,11 +307,19 @@ func NotionalTransferedTo(w http.ResponseWriter, r *http.Request) {
 		numDays = d.NumDays
 		forChain = d.ForChain
 		forAddress = d.ForAddress
+		daily = d.Daily
+		last24Hours = d.Last24Hours
+		forPeriod = d.ForPeriod
 
 	default:
 		http.Error(w, "405 - Method Not Allowed", http.StatusMethodNotAllowed)
 		log.Println("Method Not Allowed")
 		return
+	}
+
+	if daily == "" && last24Hours == "" && forPeriod == "" {
+		// none of the options were set, so set one
+		last24Hours = "true"
 	}
 
 	var queryDays int
@@ -340,73 +353,80 @@ func NotionalTransferedTo(w http.ResponseWriter, r *http.Request) {
 
 	// total of last 24 hours
 	var last24HourCount map[string]map[string]float64
-	wg.Add(1)
-	go func(prefix string) {
-		var err error
-		last24HourInterval := -time.Duration(24) * time.Hour
-		now := time.Now().UTC()
-		start := now.Add(last24HourInterval)
-		defer wg.Done()
-		last24HourCount, err = amountsForInterval(tbl, ctx, prefix, start, now)
-		for chain, tokens := range last24HourCount {
-			for symbol, amount := range tokens {
-				last24HourCount[chain][symbol] = roundToTwoDecimalPlaces(amount)
+	if last24Hours != "" {
+		wg.Add(1)
+		go func(prefix string) {
+			var err error
+			last24HourInterval := -time.Duration(24) * time.Hour
+			now := time.Now().UTC()
+			start := now.Add(last24HourInterval)
+			defer wg.Done()
+			last24HourCount, err = amountsForInterval(tbl, ctx, prefix, start, now)
+			for chain, tokens := range last24HourCount {
+				for symbol, amount := range tokens {
+					last24HourCount[chain][symbol] = roundToTwoDecimalPlaces(amount)
+				}
 			}
-		}
-		if err != nil {
-			log.Printf("failed getting count for 24h interval, err: %v", err)
-		}
-	}(prefix)
+			if err != nil {
+				log.Printf("failed getting count for 24h interval, err: %v", err)
+			}
+		}(prefix)
+	}
 
 	// total of the last numDays
 	var periodCount map[string]map[string]float64
-	wg.Add(1)
-	go func(prefix string) {
-		var err error
-		hours := (24 * queryDays)
-		periodInterval := -time.Duration(hours) * time.Hour
+	if forPeriod != "" {
+		wg.Add(1)
+		go func(prefix string) {
+			var err error
+			hours := (24 * queryDays)
+			periodInterval := -time.Duration(hours) * time.Hour
 
-		now := time.Now().UTC()
-		prev := now.Add(periodInterval)
-		start := time.Date(prev.Year(), prev.Month(), prev.Day(), 0, 0, 0, 0, prev.Location())
+			now := time.Now().UTC()
+			prev := now.Add(periodInterval)
+			start := time.Date(prev.Year(), prev.Month(), prev.Day(), 0, 0, 0, 0, prev.Location())
 
-		defer wg.Done()
-		periodCount, err = amountsForInterval(tbl, ctx, prefix, start, now)
-		for chain, tokens := range periodCount {
-			for symbol, amount := range tokens {
-				periodCount[chain][symbol] = roundToTwoDecimalPlaces(amount)
+			defer wg.Done()
+			periodCount, err = amountsForInterval(tbl, ctx, prefix, start, now)
+			for chain, tokens := range periodCount {
+				for symbol, amount := range tokens {
+					periodCount[chain][symbol] = roundToTwoDecimalPlaces(amount)
+				}
 			}
-		}
-		if err != nil {
-			log.Printf("failed getting count for numDays interval, err: %v\n", err)
-		}
-	}(prefix)
+			if err != nil {
+				log.Printf("failed getting count for numDays interval, err: %v\n", err)
+			}
+		}(prefix)
+	}
 
 	// daily totals
 	var dailyTotals map[string]map[string]map[string]float64
-	wg.Add(1)
-	go func(prefix string, queryDays int) {
-		var err error
-		defer wg.Done()
-		dailyTotals, err = createAmountsOfInterval(tbl, ctx, prefix, queryDays)
-		for date, chains := range dailyTotals {
-			for chain, tokens := range chains {
-				for symbol, amount := range tokens {
-					dailyTotals[date][chain][symbol] = roundToTwoDecimalPlaces(amount)
+	if daily != "" {
+		wg.Add(1)
+		go func(prefix string, queryDays int) {
+			var err error
+			defer wg.Done()
+			dailyTotals, err = createAmountsOfInterval(tbl, ctx, prefix, queryDays)
+			for date, chains := range dailyTotals {
+				for chain, tokens := range chains {
+					for symbol, amount := range tokens {
+						dailyTotals[date][chain][symbol] = roundToTwoDecimalPlaces(amount)
+					}
 				}
 			}
-		}
-		if err != nil {
-			log.Fatalf("failed getting createCountsOfInterval err %v", err)
-		}
-	}(prefix, queryDays)
+			if err != nil {
+				log.Fatalf("failed getting createCountsOfInterval err %v", err)
+			}
+		}(prefix, queryDays)
+	}
 
 	wg.Wait()
 
 	result := &amountsResult{
-		LastDayCount: last24HourCount,
-		TotalCount:   periodCount,
-		DailyTotals:  dailyTotals,
+		Last24Hours:        last24HourCount,
+		WithinPeriod:       periodCount,
+		PeriodDurationDays: queryDays,
+		Daily:              dailyTotals,
 	}
 
 	jsonBytes, err := json.Marshal(result)
