@@ -1,5 +1,5 @@
 import { CHAIN_ID_ETH, CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
-import { setDefaultWasm } from "@certusone/wormhole-sdk/lib/solana/wasm";
+import { setDefaultWasm } from "@certusone/wormhole-sdk/cjs/esm/solana/wasm";
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   Token,

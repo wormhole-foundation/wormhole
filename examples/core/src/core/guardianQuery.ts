@@ -6,7 +6,7 @@ import {
   getEmitterAddressSolana,
   getEmitterAddressTerra,
 } from "@certusone/wormhole-sdk";
-import getSignedVAAWithRetry from "@certusone/wormhole-sdk/lib/rpc/getSignedVAAWithRetry";
+import getSignedVAAWithRetry from "@certusone/wormhole-sdk/lib/cjs/rpc/getSignedVAAWithRetry";
 import { NodeHttpTransport } from "@improbable-eng/grpc-web-node-http-transport";
 import {
   getNFTBridgeAddressForChain,

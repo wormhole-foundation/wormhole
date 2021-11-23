@@ -58,7 +58,7 @@ export async function relay(
 async function parseVaa(bytes: Uint8Array) {
   //parse_vaa is based on wasm
   const { parse_vaa } = await import(
-    "@certusone/wormhole-sdk/lib/solana/core/bridge"
+    "@certusone/wormhole-sdk/lib/cjs/solana/core/bridge"
   );
   return parse_vaa(bytes);
 }
