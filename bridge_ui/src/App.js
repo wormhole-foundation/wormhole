@@ -42,6 +42,7 @@ import { COLORS } from "./muiTheme";
 import { CLUSTER } from "./utils/consts";
 import Stats from "./components/Stats";
 import TokenOriginVerifier from "./components/TokenOriginVerifier";
+import SolanaQuickMigrate from "./components/Migration/SolanaQuickMigrate";
 
 const useStyles = makeStyles((theme) => ({
   appBar: {
@@ -291,6 +292,9 @@ function App() {
           </Route>
           <Route exact path="/migrate/BinanceSmartChain/">
             <EvmQuickMigrate chainId={CHAIN_ID_BSC} />
+          </Route>
+          <Route exact path="/migrate/Solana/">
+            <SolanaQuickMigrate />
           </Route>
           <Route exact path="/stats">
             <Stats />
