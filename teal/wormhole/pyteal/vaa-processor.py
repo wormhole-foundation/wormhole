@@ -117,13 +117,15 @@ def check_guardian_key_subset():
     #
     i = SLOT_TEMP
     sig_count = ScratchVar(TealType.uint64)
+    idx_base = ScratchVar(TealType.uint64)
     return Seq([
+        idx_base.store(Int(MAX_SIGNATURES_PER_VERIFICATION_STEP) * Txn.group_index()),
         sig_count.store(get_sig_count_in_step(Txn.group_index(), NUM_GUARDIANS)),
         For(i.store(Int(0)),
             i.load() < sig_count.load(),
             i.store(i.load() + Int(1))).Do(
             If(
-                App.globalGet(Itob(i.load())) != Extract(VERIFY_ARG_GUARDIAN_KEY_SUBSET,
+                App.globalGet(Itob(i.load() + idx_base.load())) != Extract(VERIFY_ARG_GUARDIAN_KEY_SUBSET,
                                                          i.load() * Int(GUARDIAN_ADDRESS_SIZE),
                                                          Int(GUARDIAN_ADDRESS_SIZE))).Then(Return(Int(0)))  # get and compare stored global key
         ),
@@ -187,7 +189,7 @@ def check_final_verification_state():
             i.store(i.load() + Int(1))).Do(Seq([
                 Assert(Gtxn[i.load()].type_enum() == TxnType.ApplicationCall),
                 Assert(Gtxn[i.load()].application_id() == Txn.application_id()),
-                Assert(GetBit(ImportScratchValue(i.load() - Int(1), SLOTID_VERIFIED_BIT), i.load()) == Int(1))
+                Assert(GetBit(ImportScratchValue(i.load() - Int(1), SLOTID_VERIFIED_BIT), i.load() - Int(1)) == Int(1))
             ])
         ),
         Return(Int(1))
