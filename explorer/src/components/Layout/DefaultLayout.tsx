@@ -133,6 +133,15 @@ const DefaultLayout: React.FC<{}> = ({
         <FormattedMessage id="nav.explorerLink" />
       </Link>
     </div>,
+    <div key="docs" {...menuItemProps} >
+      <OutboundLink
+        href={"https://docs.wormholenetwork.com"}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        {intl.formatMessage({ id: "nav.docsLink" })}
+      </OutboundLink>
+    </div>,
     <div key="jobs" {...menuItemProps} >
       <OutboundLink
         href={"https://boards.greenhouse.io/wormhole"}
