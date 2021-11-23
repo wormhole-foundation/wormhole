@@ -29,19 +29,24 @@ then
 	echo 'No appid specified'
 	exit
 fi
+if [[ $STATELESS_ADDR == '' ]]
+then
+	echo 'No STATELESS_ADDR'
+	exit
+fi
 
-# Verification step for keys 0..5
 goal app call --app-id $1 --from "$STATELESS_ADDR" --app-arg "str:verify" --app-arg "b64:$GK064" --app-arg "int:19" --noteb64 "$VAABODY64" -o verify0.txn
 goal app call --app-id $1 --from "$STATELESS_ADDR" --app-arg "str:verify" --app-arg "b64:$GK164" --app-arg "int:19" --noteb64 "$VAABODY64" -o verify1.txn
 goal app call --app-id $1 --from "$STATELESS_ADDR" --app-arg "str:verify" --app-arg "b64:$GK264" --app-arg "int:19" --noteb64 "$VAABODY64" -o verify2.txn
 goal app call --app-id $1 --from "$STATELESS_ADDR" --app-arg "str:verify" --app-arg "b64:$GK364" --app-arg "int:19" --noteb64 "$VAABODY64" -o verify3.txn
 cat verify0.txn verify1.txn verify2.txn verify3.txn > verifycc.txn
-goal clerk group -i verifycc.txn -o group.txn 
-goal clerk sign --program vaa-verify.teal --argb64 "$SIGNATURES064" --infile verify0.txn --outfile verify0.stxn
-goal clerk sign --program vaa-verify.teal --argb64 "$SIGNATURES164" --infile verify1.txn --outfile verify1.stxn
-goal clerk sign --program vaa-verify.teal --argb64 "$SIGNATURES264" --infile verify2.txn --outfile verify2.stxn
-goal clerk sign --program vaa-verify.teal --argb64 "$SIGNATURES364" --infile verify3.txn --outfile verify3.stxn
-cat verify0.stxn verify1.sxtn verify2.stxn verify3.stxn > verifygroup.stxn
+goal clerk group -i verifycc.txn -o group.txn
+goal clerk split -i group.txn -o verify-signed
+goal clerk sign --program vaa-verify.teal --argb64 "$SIGNATURES064" --infile verify-signed-0 --outfile verify0.stxn
+goal clerk sign --program vaa-verify.teal --argb64 "$SIGNATURES164" --infile verify-signed-1 --outfile verify1.stxn
+goal clerk sign --program vaa-verify.teal --argb64 "$SIGNATURES264" --infile verify-signed-2 --outfile verify2.stxn
+goal clerk sign --program vaa-verify.teal --argb64 "$SIGNATURES364" --infile verify-signed-3 --outfile verify3.stxn
+cat verify-signed-0 verify-signed-1 verify-signed-2 verify-signed-3 > verifygroup.stxn
 goal clerk dryrun -t verifygroup.stxn --dryrun-dump --outfile verifygroup.dump
 goal clerk dryrun-remote -D verifygroup.dump --verbose
 
