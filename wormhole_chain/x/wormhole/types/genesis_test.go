@@ -30,9 +30,16 @@ func TestGenesisState_Validate(t *testing.T) {
 					},
 				},
 				GuardianSetCount: 2,
-				Config: &types.Config{
-		},
-// this line is used by starport scaffolding # types/genesis/validField
+				Config:           &types.Config{},
+				ReplayProtectionList: []types.ReplayProtection{
+					{
+						Index: "0",
+					},
+					{
+						Index: "1",
+					},
+				},
+				// this line is used by starport scaffolding # types/genesis/validField
 			},
 			valid: true,
 		},
@@ -59,6 +66,20 @@ func TestGenesisState_Validate(t *testing.T) {
 					},
 				},
 				GuardianSetCount: 0,
+			},
+			valid: false,
+		},
+		{
+			desc: "duplicated replayProtection",
+			genState: &types.GenesisState{
+				ReplayProtectionList: []types.ReplayProtection{
+					{
+						Index: "0",
+					},
+					{
+						Index: "0",
+					},
+				},
 			},
 			valid: false,
 		},

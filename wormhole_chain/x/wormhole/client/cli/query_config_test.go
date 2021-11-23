@@ -11,14 +11,14 @@ import (
 
 	"github.com/certusone/wormhole-chain/testutil/network"
 	"github.com/certusone/wormhole-chain/x/wormhole/client/cli"
-    "github.com/certusone/wormhole-chain/x/wormhole/types"
+	"github.com/certusone/wormhole-chain/x/wormhole/types"
 )
 
 func networkWithConfigObjects(t *testing.T) (*network.Network, types.Config) {
 	t.Helper()
 	cfg := network.DefaultConfig()
 	state := types.GenesisState{}
-    require.NoError(t, cfg.Codec.UnmarshalJSON(cfg.GenesisState[types.ModuleName], &state))
+	require.NoError(t, cfg.Codec.UnmarshalJSON(cfg.GenesisState[types.ModuleName], &state))
 
 	state.Config = &types.Config{}
 	buf, err := cfg.Codec.MarshalJSON(&state)
@@ -65,4 +65,3 @@ func TestShowConfig(t *testing.T) {
 		})
 	}
 }
-

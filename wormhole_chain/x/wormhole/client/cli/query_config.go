@@ -1,12 +1,12 @@
 package cli
 
 import (
-    "context"
+	"context"
 
+	"github.com/certusone/wormhole-chain/x/wormhole/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/spf13/cobra"
-    "github.com/certusone/wormhole-chain/x/wormhole/types"
 )
 
 func CmdShowConfig() *cobra.Command {
@@ -15,22 +15,22 @@ func CmdShowConfig() *cobra.Command {
 		Short: "shows Config",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-            clientCtx := client.GetClientContextFromCmd(cmd)
+			clientCtx := client.GetClientContextFromCmd(cmd)
 
-            queryClient := types.NewQueryClient(clientCtx)
+			queryClient := types.NewQueryClient(clientCtx)
 
-            params := &types.QueryGetConfigRequest{}
+			params := &types.QueryGetConfigRequest{}
 
-            res, err := queryClient.Config(context.Background(), params)
-            if err != nil {
-                return err
-            }
+			res, err := queryClient.Config(context.Background(), params)
+			if err != nil {
+				return err
+			}
 
-            return clientCtx.PrintProto(res)
+			return clientCtx.PrintProto(res)
 		},
 	}
 
 	flags.AddQueryFlagsToCmd(cmd)
 
-    return cmd
+	return cmd
 }

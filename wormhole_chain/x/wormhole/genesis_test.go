@@ -20,9 +20,16 @@ func TestGenesis(t *testing.T) {
 			},
 		},
 		GuardianSetCount: 2,
-		Config: &types.Config{
+		Config:           &types.Config{},
+		ReplayProtectionList: []types.ReplayProtection{
+			{
+				Index: "0",
+			},
+			{
+				Index: "1",
+			},
 		},
-// this line is used by starport scaffolding # genesis/test/state
+		// this line is used by starport scaffolding # genesis/test/state
 	}
 
 	k, ctx := keepertest.WormholeKeeper(t)
@@ -34,5 +41,7 @@ func TestGenesis(t *testing.T) {
 	require.Subset(t, genesisState.GuardianSetList, got.GuardianSetList)
 	require.Equal(t, genesisState.GuardianSetCount, got.GuardianSetCount)
 	require.Equal(t, genesisState.Config, got.Config)
-// this line is used by starport scaffolding # genesis/test/assert
+	require.Len(t, got.ReplayProtectionList, len(genesisState.ReplayProtectionList))
+	require.Subset(t, genesisState.ReplayProtectionList, got.ReplayProtectionList)
+	// this line is used by starport scaffolding # genesis/test/assert
 }

@@ -2,6 +2,7 @@ import { Reader, Writer } from "protobufjs/minimal";
 import { GuardianSet } from "../wormhole/guardian_set";
 import { PageRequest, PageResponse } from "../cosmos/base/query/v1beta1/pagination";
 import { Config } from "../wormhole/config";
+import { ReplayProtection } from "../wormhole/replay_protection";
 export declare const protobufPackage = "certusone.wormholechain.wormhole";
 export interface QueryGetGuardianSetRequest {
     index: number;
@@ -20,6 +21,19 @@ export interface QueryGetConfigRequest {
 }
 export interface QueryGetConfigResponse {
     Config: Config | undefined;
+}
+export interface QueryGetReplayProtectionRequest {
+    index: string;
+}
+export interface QueryGetReplayProtectionResponse {
+    replayProtection: ReplayProtection | undefined;
+}
+export interface QueryAllReplayProtectionRequest {
+    pagination: PageRequest | undefined;
+}
+export interface QueryAllReplayProtectionResponse {
+    replayProtection: ReplayProtection[];
+    pagination: PageResponse | undefined;
 }
 export declare const QueryGetGuardianSetRequest: {
     encode(message: QueryGetGuardianSetRequest, writer?: Writer): Writer;
@@ -63,6 +77,34 @@ export declare const QueryGetConfigResponse: {
     toJSON(message: QueryGetConfigResponse): unknown;
     fromPartial(object: DeepPartial<QueryGetConfigResponse>): QueryGetConfigResponse;
 };
+export declare const QueryGetReplayProtectionRequest: {
+    encode(message: QueryGetReplayProtectionRequest, writer?: Writer): Writer;
+    decode(input: Reader | Uint8Array, length?: number): QueryGetReplayProtectionRequest;
+    fromJSON(object: any): QueryGetReplayProtectionRequest;
+    toJSON(message: QueryGetReplayProtectionRequest): unknown;
+    fromPartial(object: DeepPartial<QueryGetReplayProtectionRequest>): QueryGetReplayProtectionRequest;
+};
+export declare const QueryGetReplayProtectionResponse: {
+    encode(message: QueryGetReplayProtectionResponse, writer?: Writer): Writer;
+    decode(input: Reader | Uint8Array, length?: number): QueryGetReplayProtectionResponse;
+    fromJSON(object: any): QueryGetReplayProtectionResponse;
+    toJSON(message: QueryGetReplayProtectionResponse): unknown;
+    fromPartial(object: DeepPartial<QueryGetReplayProtectionResponse>): QueryGetReplayProtectionResponse;
+};
+export declare const QueryAllReplayProtectionRequest: {
+    encode(message: QueryAllReplayProtectionRequest, writer?: Writer): Writer;
+    decode(input: Reader | Uint8Array, length?: number): QueryAllReplayProtectionRequest;
+    fromJSON(object: any): QueryAllReplayProtectionRequest;
+    toJSON(message: QueryAllReplayProtectionRequest): unknown;
+    fromPartial(object: DeepPartial<QueryAllReplayProtectionRequest>): QueryAllReplayProtectionRequest;
+};
+export declare const QueryAllReplayProtectionResponse: {
+    encode(message: QueryAllReplayProtectionResponse, writer?: Writer): Writer;
+    decode(input: Reader | Uint8Array, length?: number): QueryAllReplayProtectionResponse;
+    fromJSON(object: any): QueryAllReplayProtectionResponse;
+    toJSON(message: QueryAllReplayProtectionResponse): unknown;
+    fromPartial(object: DeepPartial<QueryAllReplayProtectionResponse>): QueryAllReplayProtectionResponse;
+};
 /** Query defines the gRPC querier service. */
 export interface Query {
     /** Queries a guardianSet by index. */
@@ -71,6 +113,10 @@ export interface Query {
     GuardianSetAll(request: QueryAllGuardianSetRequest): Promise<QueryAllGuardianSetResponse>;
     /** Queries a config by index. */
     Config(request: QueryGetConfigRequest): Promise<QueryGetConfigResponse>;
+    /** Queries a replayProtection by index. */
+    ReplayProtection(request: QueryGetReplayProtectionRequest): Promise<QueryGetReplayProtectionResponse>;
+    /** Queries a list of replayProtection items. */
+    ReplayProtectionAll(request: QueryAllReplayProtectionRequest): Promise<QueryAllReplayProtectionResponse>;
 }
 export declare class QueryClientImpl implements Query {
     private readonly rpc;
@@ -78,6 +124,8 @@ export declare class QueryClientImpl implements Query {
     GuardianSet(request: QueryGetGuardianSetRequest): Promise<QueryGetGuardianSetResponse>;
     GuardianSetAll(request: QueryAllGuardianSetRequest): Promise<QueryAllGuardianSetResponse>;
     Config(request: QueryGetConfigRequest): Promise<QueryGetConfigResponse>;
+    ReplayProtection(request: QueryGetReplayProtectionRequest): Promise<QueryGetReplayProtectionResponse>;
+    ReplayProtectionAll(request: QueryAllReplayProtectionRequest): Promise<QueryAllReplayProtectionResponse>;
 }
 interface Rpc {
     request(service: string, method: string, data: Uint8Array): Promise<Uint8Array>;

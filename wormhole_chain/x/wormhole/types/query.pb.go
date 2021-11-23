@@ -294,6 +294,190 @@ func (m *QueryGetConfigResponse) GetConfig() Config {
 	return Config{}
 }
 
+type QueryGetReplayProtectionRequest struct {
+	Index string `protobuf:"bytes,1,opt,name=index,proto3" json:"index,omitempty"`
+}
+
+func (m *QueryGetReplayProtectionRequest) Reset()         { *m = QueryGetReplayProtectionRequest{} }
+func (m *QueryGetReplayProtectionRequest) String() string { return proto.CompactTextString(m) }
+func (*QueryGetReplayProtectionRequest) ProtoMessage()    {}
+func (*QueryGetReplayProtectionRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_273185ecc792fa38, []int{6}
+}
+func (m *QueryGetReplayProtectionRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryGetReplayProtectionRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryGetReplayProtectionRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryGetReplayProtectionRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryGetReplayProtectionRequest.Merge(m, src)
+}
+func (m *QueryGetReplayProtectionRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryGetReplayProtectionRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryGetReplayProtectionRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryGetReplayProtectionRequest proto.InternalMessageInfo
+
+func (m *QueryGetReplayProtectionRequest) GetIndex() string {
+	if m != nil {
+		return m.Index
+	}
+	return ""
+}
+
+type QueryGetReplayProtectionResponse struct {
+	ReplayProtection ReplayProtection `protobuf:"bytes,1,opt,name=replayProtection,proto3" json:"replayProtection"`
+}
+
+func (m *QueryGetReplayProtectionResponse) Reset()         { *m = QueryGetReplayProtectionResponse{} }
+func (m *QueryGetReplayProtectionResponse) String() string { return proto.CompactTextString(m) }
+func (*QueryGetReplayProtectionResponse) ProtoMessage()    {}
+func (*QueryGetReplayProtectionResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_273185ecc792fa38, []int{7}
+}
+func (m *QueryGetReplayProtectionResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryGetReplayProtectionResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryGetReplayProtectionResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryGetReplayProtectionResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryGetReplayProtectionResponse.Merge(m, src)
+}
+func (m *QueryGetReplayProtectionResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryGetReplayProtectionResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryGetReplayProtectionResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryGetReplayProtectionResponse proto.InternalMessageInfo
+
+func (m *QueryGetReplayProtectionResponse) GetReplayProtection() ReplayProtection {
+	if m != nil {
+		return m.ReplayProtection
+	}
+	return ReplayProtection{}
+}
+
+type QueryAllReplayProtectionRequest struct {
+	Pagination *query.PageRequest `protobuf:"bytes,1,opt,name=pagination,proto3" json:"pagination,omitempty"`
+}
+
+func (m *QueryAllReplayProtectionRequest) Reset()         { *m = QueryAllReplayProtectionRequest{} }
+func (m *QueryAllReplayProtectionRequest) String() string { return proto.CompactTextString(m) }
+func (*QueryAllReplayProtectionRequest) ProtoMessage()    {}
+func (*QueryAllReplayProtectionRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_273185ecc792fa38, []int{8}
+}
+func (m *QueryAllReplayProtectionRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryAllReplayProtectionRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryAllReplayProtectionRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryAllReplayProtectionRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryAllReplayProtectionRequest.Merge(m, src)
+}
+func (m *QueryAllReplayProtectionRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryAllReplayProtectionRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryAllReplayProtectionRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryAllReplayProtectionRequest proto.InternalMessageInfo
+
+func (m *QueryAllReplayProtectionRequest) GetPagination() *query.PageRequest {
+	if m != nil {
+		return m.Pagination
+	}
+	return nil
+}
+
+type QueryAllReplayProtectionResponse struct {
+	ReplayProtection []ReplayProtection  `protobuf:"bytes,1,rep,name=replayProtection,proto3" json:"replayProtection"`
+	Pagination       *query.PageResponse `protobuf:"bytes,2,opt,name=pagination,proto3" json:"pagination,omitempty"`
+}
+
+func (m *QueryAllReplayProtectionResponse) Reset()         { *m = QueryAllReplayProtectionResponse{} }
+func (m *QueryAllReplayProtectionResponse) String() string { return proto.CompactTextString(m) }
+func (*QueryAllReplayProtectionResponse) ProtoMessage()    {}
+func (*QueryAllReplayProtectionResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_273185ecc792fa38, []int{9}
+}
+func (m *QueryAllReplayProtectionResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryAllReplayProtectionResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryAllReplayProtectionResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryAllReplayProtectionResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryAllReplayProtectionResponse.Merge(m, src)
+}
+func (m *QueryAllReplayProtectionResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryAllReplayProtectionResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryAllReplayProtectionResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryAllReplayProtectionResponse proto.InternalMessageInfo
+
+func (m *QueryAllReplayProtectionResponse) GetReplayProtection() []ReplayProtection {
+	if m != nil {
+		return m.ReplayProtection
+	}
+	return nil
+}
+
+func (m *QueryAllReplayProtectionResponse) GetPagination() *query.PageResponse {
+	if m != nil {
+		return m.Pagination
+	}
+	return nil
+}
+
 func init() {
 	proto.RegisterType((*QueryGetGuardianSetRequest)(nil), "certusone.wormholechain.wormhole.QueryGetGuardianSetRequest")
 	proto.RegisterType((*QueryGetGuardianSetResponse)(nil), "certusone.wormholechain.wormhole.QueryGetGuardianSetResponse")
@@ -301,45 +485,58 @@ func init() {
 	proto.RegisterType((*QueryAllGuardianSetResponse)(nil), "certusone.wormholechain.wormhole.QueryAllGuardianSetResponse")
 	proto.RegisterType((*QueryGetConfigRequest)(nil), "certusone.wormholechain.wormhole.QueryGetConfigRequest")
 	proto.RegisterType((*QueryGetConfigResponse)(nil), "certusone.wormholechain.wormhole.QueryGetConfigResponse")
+	proto.RegisterType((*QueryGetReplayProtectionRequest)(nil), "certusone.wormholechain.wormhole.QueryGetReplayProtectionRequest")
+	proto.RegisterType((*QueryGetReplayProtectionResponse)(nil), "certusone.wormholechain.wormhole.QueryGetReplayProtectionResponse")
+	proto.RegisterType((*QueryAllReplayProtectionRequest)(nil), "certusone.wormholechain.wormhole.QueryAllReplayProtectionRequest")
+	proto.RegisterType((*QueryAllReplayProtectionResponse)(nil), "certusone.wormholechain.wormhole.QueryAllReplayProtectionResponse")
 }
 
 func init() { proto.RegisterFile("wormhole/query.proto", fileDescriptor_273185ecc792fa38) }
 
 var fileDescriptor_273185ecc792fa38 = []byte{
-	// 519 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x54, 0x41, 0x6f, 0xd3, 0x30,
-	0x18, 0xad, 0xc7, 0xb6, 0x83, 0x27, 0x38, 0x58, 0x1d, 0xa0, 0x0c, 0x85, 0x29, 0x07, 0xa8, 0x26,
-	0xd5, 0x66, 0x85, 0x69, 0x1c, 0xd8, 0x61, 0x43, 0x5a, 0x6f, 0x08, 0x3a, 0x71, 0xe1, 0x02, 0x6e,
-	0x6a, 0xdc, 0x48, 0xa9, 0x9d, 0xc5, 0x0e, 0x6c, 0x42, 0x5c, 0xf8, 0x05, 0x48, 0xfc, 0x0e, 0x7e,
-	0x02, 0x37, 0x0e, 0x83, 0xd3, 0x24, 0x2e, 0x9c, 0x10, 0x6a, 0xf9, 0x21, 0xa8, 0xb6, 0xdb, 0x25,
-	0x23, 0x53, 0x5a, 0xb4, 0x5b, 0xe2, 0xcf, 0xef, 0x7d, 0xef, 0xbd, 0xef, 0x4b, 0x60, 0xfd, 0xad,
-	0x4c, 0x07, 0x7d, 0x19, 0x33, 0x72, 0x98, 0xb1, 0xf4, 0x18, 0x27, 0xa9, 0xd4, 0x12, 0xad, 0x87,
-	0x2c, 0xd5, 0x99, 0x92, 0x82, 0xe1, 0x49, 0x3d, 0xec, 0xd3, 0x48, 0x4c, 0xdf, 0xbc, 0x5b, 0x5c,
-	0x4a, 0x1e, 0x33, 0x42, 0x93, 0x88, 0x50, 0x21, 0xa4, 0xa6, 0x3a, 0x92, 0x42, 0x59, 0xbc, 0xb7,
-	0x11, 0x4a, 0x35, 0x90, 0x8a, 0x74, 0xa9, 0x72, 0xc4, 0xe4, 0xcd, 0x66, 0x97, 0x69, 0xba, 0x49,
-	0x12, 0xca, 0x23, 0x61, 0x2e, 0xbb, 0xbb, 0x6b, 0x53, 0x05, 0x3c, 0xa3, 0x69, 0x2f, 0xa2, 0xe2,
-	0xa5, 0x62, 0xda, 0x15, 0x57, 0xa7, 0xc5, 0x50, 0x8a, 0xd7, 0x11, 0x77, 0xc7, 0x75, 0x2e, 0xb9,
-	0x34, 0x8f, 0x64, 0xfc, 0x64, 0x4f, 0x83, 0x16, 0xf4, 0x9e, 0x8d, 0x7b, 0xb5, 0x99, 0x6e, 0x3b,
-	0xaa, 0x03, 0xa6, 0x3b, 0xec, 0x30, 0x63, 0x4a, 0xa3, 0x3a, 0x5c, 0x8a, 0x44, 0x8f, 0x1d, 0xdd,
-	0x04, 0xeb, 0xa0, 0x71, 0xb5, 0x63, 0x5f, 0x02, 0x0d, 0xd7, 0x4a, 0x31, 0x2a, 0x91, 0x42, 0x31,
-	0xf4, 0x1c, 0xae, 0xe4, 0x8e, 0x0d, 0x74, 0xa5, 0xd5, 0xc4, 0x55, 0xf1, 0xe0, 0x1c, 0x68, 0x6f,
-	0xf1, 0xe4, 0xd7, 0xed, 0x5a, 0x27, 0xcf, 0x13, 0xf4, 0x9c, 0xd2, 0xdd, 0x38, 0x2e, 0x51, 0xba,
-	0x0f, 0xe1, 0x59, 0x4a, 0xae, 0xe7, 0x1d, 0x6c, 0x23, 0xc5, 0xe3, 0x48, 0xb1, 0x9d, 0x95, 0x8b,
-	0x14, 0x3f, 0xa5, 0x9c, 0x39, 0x6c, 0x27, 0x87, 0x0c, 0xbe, 0x00, 0x67, 0xee, 0x7c, 0x9b, 0x8b,
-	0xcc, 0x5d, 0xb9, 0x0c, 0x73, 0xa8, 0x5d, 0x90, 0xbf, 0x60, 0xe4, 0xdf, 0xad, 0x94, 0x6f, 0x35,
-	0x15, 0xf4, 0xdf, 0x80, 0xab, 0x93, 0xd9, 0x3c, 0x36, 0xd3, 0x77, 0x26, 0x83, 0x57, 0xf0, 0xfa,
-	0xf9, 0x82, 0xb3, 0xb4, 0x0f, 0x97, 0xed, 0x89, 0x8b, 0xad, 0x51, 0xed, 0xc6, 0xde, 0x77, 0x46,
-	0x1c, 0xba, 0xf5, 0x7d, 0x11, 0x2e, 0x99, 0x16, 0xe8, 0x1b, 0x28, 0xa4, 0x84, 0x1e, 0x55, 0x33,
-	0x5e, 0xbc, 0x84, 0xde, 0xce, 0x7f, 0xa2, 0xad, 0xbd, 0x60, 0xe7, 0xc3, 0x8f, 0x3f, 0x9f, 0x16,
-	0xb6, 0xd1, 0x16, 0x99, 0xd2, 0x90, 0x02, 0x0d, 0xf9, 0xe7, 0x63, 0x3a, 0x60, 0x9a, 0xbc, 0x33,
-	0xbb, 0xfe, 0x1e, 0x7d, 0x05, 0xf0, 0x5a, 0x8e, 0x76, 0x37, 0x8e, 0x67, 0xb6, 0x53, 0xba, 0xa9,
-	0x33, 0xdb, 0x29, 0x5f, 0xc0, 0x60, 0xcb, 0xd8, 0x21, 0xa8, 0x39, 0x97, 0x1d, 0xf4, 0x19, 0x4c,
-	0xa6, 0x8c, 0xb6, 0x67, 0xcf, 0xb3, 0xb0, 0x42, 0xde, 0xc3, 0xf9, 0x81, 0x4e, 0xf4, 0x3d, 0x23,
-	0x7a, 0x03, 0x35, 0xaa, 0x45, 0xdb, 0x7f, 0xd6, 0xde, 0x93, 0x93, 0xa1, 0x0f, 0x4e, 0x87, 0x3e,
-	0xf8, 0x3d, 0xf4, 0xc1, 0xc7, 0x91, 0x5f, 0x3b, 0x1d, 0xf9, 0xb5, 0x9f, 0x23, 0xbf, 0xf6, 0xe2,
-	0x01, 0x8f, 0x74, 0x3f, 0xeb, 0xe2, 0x50, 0x0e, 0x4a, 0xd8, 0x9a, 0x96, 0xee, 0xe8, 0x8c, 0x50,
-	0x1f, 0x27, 0x4c, 0x75, 0x97, 0xcd, 0xef, 0xee, 0xfe, 0xdf, 0x00, 0x00, 0x00, 0xff, 0xff, 0xef,
-	0x0a, 0xef, 0x65, 0xbc, 0x05, 0x00, 0x00,
+	// 663 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x96, 0x41, 0x6f, 0xd3, 0x3c,
+	0x1c, 0xc6, 0xeb, 0xed, 0xdd, 0xf4, 0xe2, 0x09, 0x34, 0x99, 0x0e, 0x50, 0x86, 0xb2, 0x2a, 0x07,
+	0xa8, 0x26, 0x35, 0x66, 0x65, 0x53, 0xd1, 0xb4, 0x1d, 0x5a, 0xa4, 0xf5, 0x86, 0x46, 0x27, 0x2e,
+	0x5c, 0x46, 0x9a, 0x9a, 0x34, 0x52, 0x1a, 0x67, 0x89, 0x0b, 0xab, 0x10, 0x17, 0x24, 0x24, 0x8e,
+	0x48, 0x7c, 0x0e, 0x3e, 0x02, 0x37, 0x0e, 0xe3, 0x36, 0xc4, 0x65, 0x17, 0x10, 0x6a, 0xf9, 0x20,
+	0xa8, 0xb6, 0x93, 0xa5, 0x59, 0xba, 0xb4, 0xac, 0xb7, 0xc4, 0xf6, 0xff, 0xf1, 0xf3, 0xfb, 0xe7,
+	0xb1, 0x5b, 0x98, 0x7f, 0x4d, 0xfd, 0x4e, 0x9b, 0x3a, 0x04, 0x1f, 0x75, 0x89, 0xdf, 0xd3, 0x3d,
+	0x9f, 0x32, 0x8a, 0x0a, 0x26, 0xf1, 0x59, 0x37, 0xa0, 0x2e, 0xd1, 0xc3, 0x79, 0xb3, 0x6d, 0xd8,
+	0x6e, 0xf4, 0xa6, 0xdc, 0xb5, 0x28, 0xb5, 0x1c, 0x82, 0x0d, 0xcf, 0xc6, 0x86, 0xeb, 0x52, 0x66,
+	0x30, 0x9b, 0xba, 0x81, 0xa8, 0x57, 0xd6, 0x4d, 0x1a, 0x74, 0x68, 0x80, 0x9b, 0x46, 0x20, 0x85,
+	0xf1, 0xab, 0x8d, 0x26, 0x61, 0xc6, 0x06, 0xf6, 0x0c, 0xcb, 0x76, 0xf9, 0x62, 0xb9, 0x76, 0x35,
+	0x72, 0x60, 0x75, 0x0d, 0xbf, 0x65, 0x1b, 0xee, 0x61, 0x40, 0x98, 0x9c, 0x5c, 0x89, 0x26, 0x4d,
+	0xea, 0xbe, 0xb4, 0x2d, 0x39, 0x5c, 0x88, 0x86, 0x7d, 0xe2, 0x39, 0x46, 0xef, 0x70, 0x38, 0x4c,
+	0xcc, 0x98, 0x6a, 0xde, 0xa2, 0x16, 0xe5, 0x8f, 0x78, 0xf8, 0x24, 0x46, 0xb5, 0x32, 0x54, 0x9e,
+	0x0e, 0xdd, 0xd4, 0x09, 0xab, 0xcb, 0xcd, 0x0e, 0x08, 0x6b, 0x90, 0xa3, 0x2e, 0x09, 0x18, 0xca,
+	0xc3, 0x05, 0xdb, 0x6d, 0x91, 0xe3, 0x3b, 0xa0, 0x00, 0x8a, 0xd7, 0x1b, 0xe2, 0x45, 0x63, 0x70,
+	0x35, 0xb5, 0x26, 0xf0, 0xa8, 0x1b, 0x10, 0xf4, 0x0c, 0x2e, 0xc5, 0x86, 0x79, 0xe9, 0x52, 0xb9,
+	0xa4, 0x67, 0x35, 0x50, 0x8f, 0x15, 0xd5, 0xfe, 0x3b, 0xf9, 0xb5, 0x96, 0x6b, 0xc4, 0x75, 0xb4,
+	0x96, 0x74, 0x5a, 0x75, 0x9c, 0x14, 0xa7, 0x7b, 0x10, 0x9e, 0xf7, 0x51, 0xee, 0x79, 0x4f, 0x17,
+	0x4d, 0xd7, 0x87, 0x4d, 0xd7, 0xc5, 0xd7, 0x94, 0x4d, 0xd7, 0xf7, 0x0d, 0x8b, 0xc8, 0xda, 0x46,
+	0xac, 0x52, 0xfb, 0x02, 0x24, 0x5c, 0x72, 0x9b, 0x71, 0x70, 0xf3, 0xb3, 0x80, 0x43, 0xf5, 0x11,
+	0xfb, 0x73, 0xdc, 0xfe, 0xfd, 0x4c, 0xfb, 0xc2, 0xd3, 0x88, 0xff, 0xdb, 0x70, 0x25, 0xfc, 0x36,
+	0x8f, 0x79, 0x3e, 0x24, 0xa4, 0xf6, 0x02, 0xde, 0x4a, 0x4e, 0x48, 0xa4, 0x3d, 0xb8, 0x28, 0x46,
+	0x64, 0xdb, 0x8a, 0xd9, 0x34, 0x62, 0xbd, 0x04, 0x91, 0xd5, 0x5a, 0x05, 0xae, 0x85, 0x3b, 0x34,
+	0x78, 0x06, 0xf7, 0xa3, 0x08, 0xa6, 0xe6, 0xe9, 0x5a, 0x98, 0xa7, 0x0f, 0x00, 0x16, 0xc6, 0x57,
+	0x4a, 0x97, 0x2d, 0xb8, 0xec, 0x27, 0xe6, 0xa4, 0xdf, 0x72, 0xb6, 0xdf, 0xa4, 0xaa, 0x74, 0x7e,
+	0x41, 0x51, 0xb3, 0x25, 0x43, 0xd5, 0x71, 0xc6, 0x31, 0xcc, 0x2a, 0x69, 0xdf, 0x43, 0xea, 0xd4,
+	0xbd, 0x2e, 0xa5, 0x9e, 0x9f, 0x2d, 0xf5, 0xcc, 0xd2, 0x57, 0x7e, 0xff, 0x3f, 0x5c, 0xe0, 0x4c,
+	0xe8, 0x1b, 0x18, 0x39, 0x28, 0x68, 0x27, 0xdb, 0xee, 0xf8, 0x7b, 0x48, 0xd9, 0xfd, 0xc7, 0x6a,
+	0x61, 0x51, 0xdb, 0x7d, 0xf7, 0xe3, 0xcf, 0xa7, 0xb9, 0x0a, 0xda, 0xc2, 0x91, 0x0c, 0x1e, 0x91,
+	0xc1, 0x17, 0x6e, 0xdc, 0x03, 0xc2, 0xf0, 0x1b, 0x1e, 0xcf, 0xb7, 0xe8, 0x2b, 0x80, 0x37, 0x62,
+	0xb2, 0x55, 0xc7, 0x99, 0x18, 0x27, 0xf5, 0xb2, 0x9a, 0x18, 0x27, 0xfd, 0x0e, 0xd2, 0xb6, 0x38,
+	0x0e, 0x46, 0xa5, 0xa9, 0x70, 0xd0, 0x67, 0x10, 0x1e, 0x74, 0x54, 0x99, 0xbc, 0x9f, 0x23, 0xb7,
+	0x88, 0xf2, 0x68, 0xfa, 0x42, 0x69, 0xfa, 0x01, 0x37, 0xbd, 0x8e, 0x8a, 0xd9, 0xa6, 0xc5, 0x0f,
+	0x1b, 0xfa, 0x09, 0xe0, 0x72, 0x32, 0xc2, 0xa8, 0x3a, 0xb9, 0x81, 0x31, 0x07, 0x58, 0xa9, 0x5d,
+	0x45, 0x42, 0xd2, 0xd4, 0x38, 0xcd, 0x0e, 0xda, 0xce, 0xa6, 0x49, 0x9e, 0xb6, 0x28, 0x56, 0x67,
+	0x00, 0xde, 0x4c, 0x6e, 0x30, 0xcc, 0x56, 0x75, 0xf2, 0x74, 0x5c, 0x15, 0xf1, 0x92, 0xab, 0x47,
+	0xdb, 0xe6, 0x88, 0x9b, 0xa8, 0x3c, 0x3d, 0x62, 0xed, 0xc9, 0x49, 0x5f, 0x05, 0xa7, 0x7d, 0x15,
+	0xfc, 0xee, 0xab, 0xe0, 0xe3, 0x40, 0xcd, 0x9d, 0x0e, 0xd4, 0xdc, 0xd9, 0x40, 0xcd, 0x3d, 0xdf,
+	0xb4, 0x6c, 0xd6, 0xee, 0x36, 0x75, 0x93, 0x76, 0x52, 0x74, 0x4b, 0x42, 0xf8, 0xf8, 0x5c, 0x9a,
+	0xf5, 0x3c, 0x12, 0x34, 0x17, 0xf9, 0x9f, 0x95, 0x87, 0x7f, 0x03, 0x00, 0x00, 0xff, 0xff, 0x3e,
+	0xa5, 0xee, 0x1f, 0x9c, 0x09, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -360,6 +557,10 @@ type QueryClient interface {
 	GuardianSetAll(ctx context.Context, in *QueryAllGuardianSetRequest, opts ...grpc.CallOption) (*QueryAllGuardianSetResponse, error)
 	// Queries a config by index.
 	Config(ctx context.Context, in *QueryGetConfigRequest, opts ...grpc.CallOption) (*QueryGetConfigResponse, error)
+	// Queries a replayProtection by index.
+	ReplayProtection(ctx context.Context, in *QueryGetReplayProtectionRequest, opts ...grpc.CallOption) (*QueryGetReplayProtectionResponse, error)
+	// Queries a list of replayProtection items.
+	ReplayProtectionAll(ctx context.Context, in *QueryAllReplayProtectionRequest, opts ...grpc.CallOption) (*QueryAllReplayProtectionResponse, error)
 }
 
 type queryClient struct {
@@ -397,6 +598,24 @@ func (c *queryClient) Config(ctx context.Context, in *QueryGetConfigRequest, opt
 	return out, nil
 }
 
+func (c *queryClient) ReplayProtection(ctx context.Context, in *QueryGetReplayProtectionRequest, opts ...grpc.CallOption) (*QueryGetReplayProtectionResponse, error) {
+	out := new(QueryGetReplayProtectionResponse)
+	err := c.cc.Invoke(ctx, "/certusone.wormholechain.wormhole.Query/ReplayProtection", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *queryClient) ReplayProtectionAll(ctx context.Context, in *QueryAllReplayProtectionRequest, opts ...grpc.CallOption) (*QueryAllReplayProtectionResponse, error) {
+	out := new(QueryAllReplayProtectionResponse)
+	err := c.cc.Invoke(ctx, "/certusone.wormholechain.wormhole.Query/ReplayProtectionAll", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // QueryServer is the server API for Query service.
 type QueryServer interface {
 	// Queries a guardianSet by index.
@@ -405,6 +624,10 @@ type QueryServer interface {
 	GuardianSetAll(context.Context, *QueryAllGuardianSetRequest) (*QueryAllGuardianSetResponse, error)
 	// Queries a config by index.
 	Config(context.Context, *QueryGetConfigRequest) (*QueryGetConfigResponse, error)
+	// Queries a replayProtection by index.
+	ReplayProtection(context.Context, *QueryGetReplayProtectionRequest) (*QueryGetReplayProtectionResponse, error)
+	// Queries a list of replayProtection items.
+	ReplayProtectionAll(context.Context, *QueryAllReplayProtectionRequest) (*QueryAllReplayProtectionResponse, error)
 }
 
 // UnimplementedQueryServer can be embedded to have forward compatible implementations.
@@ -419,6 +642,12 @@ func (*UnimplementedQueryServer) GuardianSetAll(ctx context.Context, req *QueryA
 }
 func (*UnimplementedQueryServer) Config(ctx context.Context, req *QueryGetConfigRequest) (*QueryGetConfigResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Config not implemented")
+}
+func (*UnimplementedQueryServer) ReplayProtection(ctx context.Context, req *QueryGetReplayProtectionRequest) (*QueryGetReplayProtectionResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ReplayProtection not implemented")
+}
+func (*UnimplementedQueryServer) ReplayProtectionAll(ctx context.Context, req *QueryAllReplayProtectionRequest) (*QueryAllReplayProtectionResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ReplayProtectionAll not implemented")
 }
 
 func RegisterQueryServer(s grpc1.Server, srv QueryServer) {
@@ -479,6 +708,42 @@ func _Query_Config_Handler(srv interface{}, ctx context.Context, dec func(interf
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Query_ReplayProtection_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(QueryGetReplayProtectionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(QueryServer).ReplayProtection(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/certusone.wormholechain.wormhole.Query/ReplayProtection",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(QueryServer).ReplayProtection(ctx, req.(*QueryGetReplayProtectionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Query_ReplayProtectionAll_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(QueryAllReplayProtectionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(QueryServer).ReplayProtectionAll(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/certusone.wormholechain.wormhole.Query/ReplayProtectionAll",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(QueryServer).ReplayProtectionAll(ctx, req.(*QueryAllReplayProtectionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 var _Query_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "certusone.wormholechain.wormhole.Query",
 	HandlerType: (*QueryServer)(nil),
@@ -494,6 +759,14 @@ var _Query_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Config",
 			Handler:    _Query_Config_Handler,
+		},
+		{
+			MethodName: "ReplayProtection",
+			Handler:    _Query_ReplayProtection_Handler,
+		},
+		{
+			MethodName: "ReplayProtectionAll",
+			Handler:    _Query_ReplayProtectionAll_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
@@ -701,6 +974,153 @@ func (m *QueryGetConfigResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) 
 	return len(dAtA) - i, nil
 }
 
+func (m *QueryGetReplayProtectionRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryGetReplayProtectionRequest) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryGetReplayProtectionRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.Index) > 0 {
+		i -= len(m.Index)
+		copy(dAtA[i:], m.Index)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.Index)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *QueryGetReplayProtectionResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryGetReplayProtectionResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryGetReplayProtectionResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	{
+		size, err := m.ReplayProtection.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarintQuery(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0xa
+	return len(dAtA) - i, nil
+}
+
+func (m *QueryAllReplayProtectionRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryAllReplayProtectionRequest) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryAllReplayProtectionRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.Pagination != nil {
+		{
+			size, err := m.Pagination.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintQuery(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *QueryAllReplayProtectionResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryAllReplayProtectionResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryAllReplayProtectionResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.Pagination != nil {
+		{
+			size, err := m.Pagination.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintQuery(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x12
+	}
+	if len(m.ReplayProtection) > 0 {
+		for iNdEx := len(m.ReplayProtection) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.ReplayProtection[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintQuery(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0xa
+		}
+	}
+	return len(dAtA) - i, nil
+}
+
 func encodeVarintQuery(dAtA []byte, offset int, v uint64) int {
 	offset -= sovQuery(v)
 	base := offset
@@ -784,6 +1204,62 @@ func (m *QueryGetConfigResponse) Size() (n int) {
 	_ = l
 	l = m.Config.Size()
 	n += 1 + l + sovQuery(uint64(l))
+	return n
+}
+
+func (m *QueryGetReplayProtectionRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.Index)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	return n
+}
+
+func (m *QueryGetReplayProtectionResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = m.ReplayProtection.Size()
+	n += 1 + l + sovQuery(uint64(l))
+	return n
+}
+
+func (m *QueryAllReplayProtectionRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.Pagination != nil {
+		l = m.Pagination.Size()
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	return n
+}
+
+func (m *QueryAllReplayProtectionResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if len(m.ReplayProtection) > 0 {
+		for _, e := range m.ReplayProtection {
+			l = e.Size()
+			n += 1 + l + sovQuery(uint64(l))
+		}
+	}
+	if m.Pagination != nil {
+		l = m.Pagination.Size()
+		n += 1 + l + sovQuery(uint64(l))
+	}
 	return n
 }
 
@@ -1260,6 +1736,377 @@ func (m *QueryGetConfigResponse) Unmarshal(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			if err := m.Config.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryGetReplayProtectionRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryGetReplayProtectionRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryGetReplayProtectionRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Index", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Index = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryGetReplayProtectionResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryGetReplayProtectionResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryGetReplayProtectionResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ReplayProtection", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if err := m.ReplayProtection.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryAllReplayProtectionRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryAllReplayProtectionRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryAllReplayProtectionRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Pagination", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Pagination == nil {
+				m.Pagination = &query.PageRequest{}
+			}
+			if err := m.Pagination.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryAllReplayProtectionResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryAllReplayProtectionResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryAllReplayProtectionResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ReplayProtection", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.ReplayProtection = append(m.ReplayProtection, ReplayProtection{})
+			if err := m.ReplayProtection[len(m.ReplayProtection)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Pagination", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Pagination == nil {
+				m.Pagination = &query.PageResponse{}
+			}
+			if err := m.Pagination.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex

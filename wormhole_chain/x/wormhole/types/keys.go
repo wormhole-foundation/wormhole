@@ -27,5 +27,5 @@ const (
 )
 
 const (
-	ConfigKey= "Config-value-"
+	ConfigKey = "Config-value-"
 )

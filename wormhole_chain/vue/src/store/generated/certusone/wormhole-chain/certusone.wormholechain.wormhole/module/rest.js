@@ -179,5 +179,34 @@ export class Api extends HttpClient {
             format: "json",
             ...params,
         });
+        /**
+         * No description
+         *
+         * @tags Query
+         * @name QueryReplayProtectionAll
+         * @summary Queries a list of replayProtection items.
+         * @request GET:/certusone/wormholechain/wormhole/replayProtection
+         */
+        this.queryReplayProtectionAll = (query, params = {}) => this.request({
+            path: `/certusone/wormholechain/wormhole/replayProtection`,
+            method: "GET",
+            query: query,
+            format: "json",
+            ...params,
+        });
+        /**
+         * No description
+         *
+         * @tags Query
+         * @name QueryReplayProtection
+         * @summary Queries a replayProtection by index.
+         * @request GET:/certusone/wormholechain/wormhole/replayProtection/{index}
+         */
+        this.queryReplayProtection = (index, params = {}) => this.request({
+            path: `/certusone/wormholechain/wormhole/replayProtection/${index}`,
+            method: "GET",
+            format: "json",
+            ...params,
+        });
     }
 }
