@@ -17,10 +17,14 @@ func InitGenesis(ctx sdk.Context, k keeper.Keeper, genState types.GenesisState) 
 	// Set guardianSet count
 	k.SetGuardianSetCount(ctx, genState.GuardianSetCount)
 	// Set if defined
-if genState.Config != nil {
-	k.SetConfig(ctx, *genState.Config)
-}
-// this line is used by starport scaffolding # genesis/module/init
+	if genState.Config != nil {
+		k.SetConfig(ctx, *genState.Config)
+	}
+	// Set all the replayProtection
+	for _, elem := range genState.ReplayProtectionList {
+		k.SetReplayProtection(ctx, elem)
+	}
+	// this line is used by starport scaffolding # genesis/module/init
 }
 
 // ExportGenesis returns the capability module's exported genesis.
@@ -30,11 +34,12 @@ func ExportGenesis(ctx sdk.Context, k keeper.Keeper) *types.GenesisState {
 	genesis.GuardianSetList = k.GetAllGuardianSet(ctx)
 	genesis.GuardianSetCount = k.GetGuardianSetCount(ctx)
 	// Get all config
-config, found := k.GetConfig(ctx)
-if found {
-	genesis.Config = &config
-}
-// this line is used by starport scaffolding # genesis/module/export
+	config, found := k.GetConfig(ctx)
+	if found {
+		genesis.Config = &config
+	}
+	genesis.ReplayProtectionList = k.GetAllReplayProtection(ctx)
+	// this line is used by starport scaffolding # genesis/module/export
 
 	return genesis
 }

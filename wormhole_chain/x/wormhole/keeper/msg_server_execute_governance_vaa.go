@@ -35,6 +35,11 @@ func (k msgServer) ExecuteGovernanceVAA(goCtx context.Context, msg *types.MsgExe
 		return nil, types.ErrNoConfig
 	}
 
+	_, known := k.GetReplayProtection(ctx, v.HexDigest())
+	if known {
+		return nil, types.ErrVAAAlreadyExecuted
+	}
+
 	// Check governance emitter
 	if !bytes.Equal(v.EmitterAddress[:], config.GovernanceEmitter) {
 		return nil, types.ErrInvalidGovernanceEmitter
@@ -109,6 +114,9 @@ func (k msgServer) ExecuteGovernanceVAA(goCtx context.Context, msg *types.MsgExe
 		return nil, types.ErrUnknownGovernanceAction
 
 	}
+
+	// Prevent replay
+	k.SetReplayProtection(ctx, types.ReplayProtection{Index: v.HexDigest()})
 
 	return &types.MsgExecuteGovernanceVAAResponse{}, nil
 }

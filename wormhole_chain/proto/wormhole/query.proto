@@ -5,6 +5,7 @@ import "google/api/annotations.proto";
 import "cosmos/base/query/v1beta1/pagination.proto";
 import "wormhole/guardian_set.proto";
 import "wormhole/config.proto";
+import "wormhole/replay_protection.proto";
 // this line is used by starport scaffolding # 1
 import "gogoproto/gogo.proto";
 
@@ -26,6 +27,16 @@ service Query {
 	rpc Config(QueryGetConfigRequest) returns (QueryGetConfigResponse) {
 		option (google.api.http).get = "/certusone/wormholechain/wormhole/config";
 	}
+// Queries a replayProtection by index.
+	rpc ReplayProtection(QueryGetReplayProtectionRequest) returns (QueryGetReplayProtectionResponse) {
+		option (google.api.http).get = "/certusone/wormholechain/wormhole/replayProtection/{index}";
+	}
+
+	// Queries a list of replayProtection items.
+	rpc ReplayProtectionAll(QueryAllReplayProtectionRequest) returns (QueryAllReplayProtectionResponse) {
+		option (google.api.http).get = "/certusone/wormholechain/wormhole/replayProtection";
+	}
+
 // this line is used by starport scaffolding # 2
 }
 
@@ -51,4 +62,22 @@ message QueryGetConfigRequest {}
 message QueryGetConfigResponse {
 	Config Config = 1 [(gogoproto.nullable) = false];
 }
+message QueryGetReplayProtectionRequest {
+	  string index = 1;
+
+}
+
+message QueryGetReplayProtectionResponse {
+	ReplayProtection replayProtection = 1 [(gogoproto.nullable) = false];
+}
+
+message QueryAllReplayProtectionRequest {
+	cosmos.base.query.v1beta1.PageRequest pagination = 1;
+}
+
+message QueryAllReplayProtectionResponse {
+	repeated ReplayProtection replayProtection = 1 [(gogoproto.nullable) = false];
+	cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+
 // this line is used by starport scaffolding # 3

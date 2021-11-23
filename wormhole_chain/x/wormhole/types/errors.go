@@ -21,4 +21,5 @@ var (
 	ErrInvalidGovernanceTargetChain   = sdkerrors.Register(ModuleName, 1110, "governance target chain does not match")
 	ErrInvalidGovernancePayloadLength = sdkerrors.Register(ModuleName, 1111, "governance payload has incorrect length")
 	ErrGuardianSetNotSequential       = sdkerrors.Register(ModuleName, 1112, "guardian set updates must be submitted sequentially")
+	ErrVAAAlreadyExecuted             = sdkerrors.Register(ModuleName, 1113, "VAA was already executed")
 )

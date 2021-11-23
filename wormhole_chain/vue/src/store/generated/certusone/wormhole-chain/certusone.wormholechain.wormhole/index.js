@@ -4,7 +4,8 @@ import { SpVuexError } from '@starport/vuex';
 import { Config } from "./module/types/wormhole/config";
 import { EventGuardianSetUpdate } from "./module/types/wormhole/events";
 import { GuardianSet } from "./module/types/wormhole/guardian_set";
-export { Config, EventGuardianSetUpdate, GuardianSet };
+import { ReplayProtection } from "./module/types/wormhole/replay_protection";
+export { Config, EventGuardianSetUpdate, GuardianSet, ReplayProtection };
 async function initTxClient(vuexGetters) {
     return await txClient(vuexGetters['common/wallet/signer'], {
         addr: vuexGetters['common/env/apiTendermint']
@@ -41,10 +42,13 @@ const getDefaultState = () => {
         GuardianSet: {},
         GuardianSetAll: {},
         Config: {},
+        ReplayProtection: {},
+        ReplayProtectionAll: {},
         _Structure: {
             Config: getStructure(Config.fromPartial({})),
             EventGuardianSetUpdate: getStructure(EventGuardianSetUpdate.fromPartial({})),
             GuardianSet: getStructure(GuardianSet.fromPartial({})),
+            ReplayProtection: getStructure(ReplayProtection.fromPartial({})),
         },
         _Subscriptions: new Set(),
     };
@@ -86,6 +90,18 @@ export default {
                 params.query = null;
             }
             return state.Config[JSON.stringify(params)] ?? {};
+        },
+        getReplayProtection: (state) => (params = { params: {} }) => {
+            if (!params.query) {
+                params.query = null;
+            }
+            return state.ReplayProtection[JSON.stringify(params)] ?? {};
+        },
+        getReplayProtectionAll: (state) => (params = { params: {} }) => {
+            if (!params.query) {
+                params.query = null;
+            }
+            return state.ReplayProtectionAll[JSON.stringify(params)] ?? {};
         },
         getTypeStructure: (state) => (type) => {
             return state._Structure[type].fields;
@@ -157,6 +173,36 @@ export default {
             }
             catch (e) {
                 throw new SpVuexError('QueryClient:QueryConfig', 'API Node Unavailable. Could not perform query: ' + e.message);
+            }
+        },
+        async QueryReplayProtection({ commit, rootGetters, getters }, { options: { subscribe, all } = { subscribe: false, all: false }, params: { ...key }, query = null }) {
+            try {
+                const queryClient = await initQueryClient(rootGetters);
+                let value = (await queryClient.queryReplayProtection(key.index)).data;
+                commit('QUERY', { query: 'ReplayProtection', key: { params: { ...key }, query }, value });
+                if (subscribe)
+                    commit('SUBSCRIBE', { action: 'QueryReplayProtection', payload: { options: { all }, params: { ...key }, query } });
+                return getters['getReplayProtection']({ params: { ...key }, query }) ?? {};
+            }
+            catch (e) {
+                throw new SpVuexError('QueryClient:QueryReplayProtection', 'API Node Unavailable. Could not perform query: ' + e.message);
+            }
+        },
+        async QueryReplayProtectionAll({ commit, rootGetters, getters }, { options: { subscribe, all } = { subscribe: false, all: false }, params: { ...key }, query = null }) {
+            try {
+                const queryClient = await initQueryClient(rootGetters);
+                let value = (await queryClient.queryReplayProtectionAll(query)).data;
+                while (all && value.pagination && value.pagination.nextKey != null) {
+                    let next_values = (await queryClient.queryReplayProtectionAll({ ...query, 'pagination.key': value.pagination.nextKey })).data;
+                    value = mergeResults(value, next_values);
+                }
+                commit('QUERY', { query: 'ReplayProtectionAll', key: { params: { ...key }, query }, value });
+                if (subscribe)
+                    commit('SUBSCRIBE', { action: 'QueryReplayProtectionAll', payload: { options: { all }, params: { ...key }, query } });
+                return getters['getReplayProtectionAll']({ params: { ...key }, query }) ?? {};
+            }
+            catch (e) {
+                throw new SpVuexError('QueryClient:QueryReplayProtectionAll', 'API Node Unavailable. Could not perform query: ' + e.message);
             }
         },
         async sendMsgExecuteGovernanceVAA({ rootGetters }, { value, fee = [], memo = '' }) {
