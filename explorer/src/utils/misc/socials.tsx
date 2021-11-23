@@ -2,6 +2,7 @@ import React from 'react'
 
 import { IntlShape } from 'gatsby-plugin-intl';
 import { OutboundLink } from "gatsby-plugin-google-gtag"
+import { ReactComponent as DocsIcon } from '~/icons/Docs.svg';
 import { ReactComponent as DiscordIcon } from '~/icons/Discord.svg';
 import { ReactComponent as GithubIcon } from '~/icons/Github.svg';
 import { ReactComponent as MediumIcon } from '~/icons/Medium.svg';
@@ -11,6 +12,7 @@ import { ReactComponent as TwitterIcon } from '~/icons/Twitter.svg';
 interface KeyToElement { [service: string]: React.SFC<React.SVGProps<SVGSVGElement>> }
 
 const socialLinks: { [service: string]: string } = {
+    'docs': "https://docs.wormholenetwork.com",
     'discord': "https://discord.gg/xsT8qrHAvV",
     'github': "https://github.com/certusone/wormhole",
     'medium': "http://wormholecrypto.medium.com",
@@ -18,6 +20,7 @@ const socialLinks: { [service: string]: string } = {
     'twitter': "https://twitter.com/wormholecrypto",
 }
 const socialIcons: KeyToElement = {
+    'docs': DocsIcon,
     'discord': DiscordIcon,
     'github': GithubIcon,
     'medium': MediumIcon,
