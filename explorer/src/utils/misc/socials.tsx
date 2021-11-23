@@ -8,16 +8,17 @@ import { ReactComponent as GithubIcon } from '~/icons/Github.svg';
 import { ReactComponent as MediumIcon } from '~/icons/Medium.svg';
 import { ReactComponent as TelegramIcon } from '~/icons/Telegram.svg';
 import { ReactComponent as TwitterIcon } from '~/icons/Twitter.svg';
+import { DISCORD_URL, DOCS_URL, GITHUB_URL, MEDIUM_URL, TELEGRAM_URL, TWITTER_URL } from './constants';
 
 interface KeyToElement { [service: string]: React.SFC<React.SVGProps<SVGSVGElement>> }
 
 const socialLinks: { [service: string]: string } = {
-    'docs': "https://docs.wormholenetwork.com",
-    'discord': "https://discord.gg/xsT8qrHAvV",
-    'github': "https://github.com/certusone/wormhole",
-    'medium': "http://wormholecrypto.medium.com",
-    'telegram': "https://t.me/wormholecrypto",
-    'twitter': "https://twitter.com/wormholecrypto",
+    'docs': DOCS_URL,
+    'discord': DISCORD_URL,
+    'github': GITHUB_URL,
+    'medium': MEDIUM_URL,
+    'telegram': TELEGRAM_URL,
+    'twitter': TWITTER_URL,
 }
 const socialIcons: KeyToElement = {
     'docs': DocsIcon,

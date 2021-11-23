@@ -130,6 +130,7 @@ const Summary = (props: SummaryProps) => {
                 emitterChainName={props.message.EmitterChain}
                 emitterAddress={props.message.EmitterAddress}
                 showPayload={true}
+                transferDetails={props.message.TransferDetails}
             />
             <div className="styled-scrollbar">
                 <Title level={3} style={titleStyles}>Signed VAA</Title>
