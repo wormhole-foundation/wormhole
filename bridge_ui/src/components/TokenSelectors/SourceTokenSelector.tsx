@@ -1,5 +1,9 @@
 //import Autocomplete from '@material-ui/lab/Autocomplete';
-import { CHAIN_ID_SOLANA, CHAIN_ID_TERRA } from "@certusone/wormhole-sdk";
+import {
+  CHAIN_ID_SOLANA,
+  CHAIN_ID_TERRA,
+  isEVMChain,
+} from "@certusone/wormhole-sdk";
 import { TextField, Typography } from "@material-ui/core";
 import { useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
@@ -20,7 +24,6 @@ import {
   setSourceParsedTokenAccount as setTransferSourceParsedTokenAccount,
   setSourceWalletAddress as setTransferSourceWalletAddress,
 } from "../../store/transferSlice";
-import { isEVMChain } from "../../utils/ethereum";
 import EvmTokenPicker from "./EvmTokenPicker";
 import RefreshButtonWrapper from "./RefreshButtonWrapper";
 import SolanaTokenPicker from "./SolanaTokenPicker";

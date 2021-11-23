@@ -2,6 +2,7 @@ import {
   ChainId,
   CHAIN_ID_BSC,
   CHAIN_ID_ETH,
+  CHAIN_ID_ETHEREUM_ROPSTEN,
   CHAIN_ID_POLYGON,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
@@ -38,6 +39,10 @@ export default function ShowTx({
       ? `https://${CLUSTER === "testnet" ? "goerli." : ""}etherscan.io/tx/${
           tx?.id
         }`
+      : chainId === CHAIN_ID_ETHEREUM_ROPSTEN
+      ? `https://${CLUSTER === "testnet" ? "ropsten." : ""}etherscan.io/tx/${
+          tx?.id
+        }`
       : chainId === CHAIN_ID_BSC
       ? `https://${CLUSTER === "testnet" ? "testnet." : ""}bscscan.com/tx/${
           tx?.id
@@ -49,7 +54,7 @@ export default function ShowTx({
       : chainId === CHAIN_ID_SOLANA
       ? `https://explorer.solana.com/tx/${tx?.id}${
           CLUSTER === "testnet"
-            ? "?cluster=testnet"
+            ? "?cluster=devnet"
             : CLUSTER === "devnet"
             ? "?cluster=custom&customUrl=http%3A%2F%2Flocalhost%3A8899"
             : ""

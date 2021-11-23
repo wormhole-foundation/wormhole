@@ -1,4 +1,4 @@
-import { ChainId } from "@certusone/wormhole-sdk";
+import { ChainId, isEVMChain } from "@certusone/wormhole-sdk";
 import { ethers } from "@certusone/wormhole-sdk/node_modules/ethers";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -6,7 +6,6 @@ import {
   useEthereumProvider,
 } from "../contexts/EthereumProviderContext";
 import { DataWrapper } from "../store/helpers";
-import { isEVMChain } from "../utils/ethereum";
 import useIsWalletReady from "./useIsWalletReady";
 
 export type EvmMetadata = {

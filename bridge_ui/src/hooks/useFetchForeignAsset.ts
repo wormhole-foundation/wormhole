@@ -5,6 +5,7 @@ import {
   getForeignAssetSolana,
   getForeignAssetTerra,
   hexToUint8Array,
+  isEVMChain,
   nativeToHexString,
 } from "@certusone/wormhole-sdk";
 import { Connection } from "@solana/web3.js";
@@ -21,7 +22,6 @@ import {
   TERRA_HOST,
   TERRA_TOKEN_BRIDGE_ADDRESS,
 } from "../utils/consts";
-import { isEVMChain } from "../utils/ethereum";
 import useIsWalletReady from "./useIsWalletReady";
 
 export type ForeignAssetInfo = {

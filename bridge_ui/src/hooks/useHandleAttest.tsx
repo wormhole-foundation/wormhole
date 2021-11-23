@@ -8,6 +8,7 @@ import {
   getEmitterAddressEth,
   getEmitterAddressSolana,
   getEmitterAddressTerra,
+  isEVMChain,
   parseSequenceFromLogEth,
   parseSequenceFromLogSolana,
   parseSequenceFromLogTerra,
@@ -46,7 +47,6 @@ import {
   SOL_TOKEN_BRIDGE_ADDRESS,
   TERRA_TOKEN_BRIDGE_ADDRESS,
 } from "../utils/consts";
-import { isEVMChain } from "../utils/ethereum";
 import { getSignedVAAWithRetry } from "../utils/getSignedVAAWithRetry";
 import parseError from "../utils/parseError";
 import { signSendAndConfirm } from "../utils/solana";

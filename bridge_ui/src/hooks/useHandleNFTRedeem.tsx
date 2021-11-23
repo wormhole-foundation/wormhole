@@ -3,6 +3,7 @@ import {
   CHAIN_ID_SOLANA,
   getClaimAddressSolana,
   hexToUint8Array,
+  isEVMChain,
   parseNFTPayload,
   postVaaSolana,
 } from "@certusone/wormhole-sdk";
@@ -31,7 +32,6 @@ import {
   SOL_BRIDGE_ADDRESS,
   SOL_NFT_BRIDGE_ADDRESS,
 } from "../utils/consts";
-import { isEVMChain } from "../utils/ethereum";
 import { getMetadataAddress } from "../utils/metaplex";
 import parseError from "../utils/parseError";
 import { signSendAndConfirm } from "../utils/solana";

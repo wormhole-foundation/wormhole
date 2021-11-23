@@ -2,6 +2,7 @@ import {
   ChainId,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
+  isEVMChain,
   nativeToHexString,
 } from "@certusone/wormhole-sdk";
 import {
@@ -24,7 +25,6 @@ import useMetadata from "../hooks/useMetadata";
 import useOriginalAsset, { OriginalAssetInfo } from "../hooks/useOriginalAsset";
 import { COLORS } from "../muiTheme";
 import { BETA_CHAINS, CHAINS, CHAINS_BY_ID } from "../utils/consts";
-import { isEVMChain } from "../utils/ethereum";
 import HeaderText from "./HeaderText";
 import KeyAndBalance from "./KeyAndBalance";
 import SmartAddress from "./SmartAddress";

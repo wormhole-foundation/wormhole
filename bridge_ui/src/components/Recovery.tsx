@@ -7,6 +7,7 @@ import {
   getEmitterAddressTerra,
   hexToNativeString,
   hexToUint8Array,
+  isEVMChain,
   parseNFTPayload,
   parseSequenceFromLogEth,
   parseSequenceFromLogSolana,
@@ -54,7 +55,6 @@ import {
   TERRA_TOKEN_BRIDGE_ADDRESS,
   WORMHOLE_RPC_HOSTS,
 } from "../utils/consts";
-import { isEVMChain } from "../utils/ethereum";
 import { getSignedVAAWithRetry } from "../utils/getSignedVAAWithRetry";
 import parseError from "../utils/parseError";
 import ButtonWithLoader from "./ButtonWithLoader";

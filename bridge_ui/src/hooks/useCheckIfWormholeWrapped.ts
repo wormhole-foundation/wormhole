@@ -5,6 +5,7 @@ import {
   getOriginalAssetEth,
   getOriginalAssetSol,
   getOriginalAssetTerra,
+  isEVMChain,
   uint8ArrayToHex,
   WormholeWrappedInfo,
 } from "@certusone/wormhole-sdk";
@@ -36,7 +37,6 @@ import {
   SOL_TOKEN_BRIDGE_ADDRESS,
   TERRA_HOST,
 } from "../utils/consts";
-import { isEVMChain } from "../utils/ethereum";
 
 export interface StateSafeWormholeWrappedInfo {
   isWrapped: boolean;

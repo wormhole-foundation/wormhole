@@ -2,6 +2,7 @@ import {
   ChainId,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
+  isEVMChain,
   postVaaSolana,
   redeemAndUnwrapOnSolana,
   redeemOnEth,
@@ -34,7 +35,6 @@ import {
   SOL_TOKEN_BRIDGE_ADDRESS,
   TERRA_TOKEN_BRIDGE_ADDRESS,
 } from "../utils/consts";
-import { isEVMChain } from "../utils/ethereum";
 import parseError from "../utils/parseError";
 import { signSendAndConfirm } from "../utils/solana";
 import { Alert } from "@material-ui/lab";

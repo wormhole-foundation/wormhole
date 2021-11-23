@@ -2,11 +2,11 @@ import {
   ChainId,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
+  isEVMChain,
 } from "@certusone/wormhole-sdk";
 import { TokenInfo } from "@solana/spl-token-registry";
 import { useMemo } from "react";
 import { DataWrapper, getEmptyDataWrapper } from "../store/helpers";
-import { isEVMChain } from "../utils/ethereum";
 import { Metadata } from "../utils/metaplex";
 import useEvmMetadata, { EvmMetadata } from "./useEvmMetadata";
 import useMetaplexData from "./useMetaplexData";

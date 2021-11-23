@@ -2,6 +2,7 @@ import {
   ChainId,
   CHAIN_ID_BSC,
   CHAIN_ID_ETH,
+  CHAIN_ID_ETHEREUM_ROPSTEN,
   CHAIN_ID_POLYGON,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
@@ -64,7 +65,12 @@ export const CHAINS =
         },
         {
           id: CHAIN_ID_ETH,
-          name: "Ethereum",
+          name: "Ethereum (Goerli)",
+          logo: ethIcon,
+        },
+        {
+          id: CHAIN_ID_ETHEREUM_ROPSTEN,
+          name: "Ethereum (Ropsten)",
           logo: ethIcon,
         },
         {
@@ -110,6 +116,7 @@ export const CHAINS_WITH_NFT_SUPPORT = CHAINS.filter(
   ({ id }) =>
     id === CHAIN_ID_BSC ||
     id === CHAIN_ID_ETH ||
+    id === CHAIN_ID_ETHEREUM_ROPSTEN ||
     id === CHAIN_ID_POLYGON ||
     id === CHAIN_ID_SOLANA
 );
@@ -121,7 +128,7 @@ export const CHAINS_BY_ID: ChainsById = CHAINS.reduce((obj, chain) => {
 export const getDefaultNativeCurrencySymbol = (chainId: ChainId) =>
   chainId === CHAIN_ID_SOLANA
     ? "SOL"
-    : chainId === CHAIN_ID_ETH
+    : chainId === CHAIN_ID_ETH || chainId === CHAIN_ID_ETHEREUM_ROPSTEN
     ? "ETH"
     : chainId === CHAIN_ID_BSC
     ? "BNB"
@@ -131,7 +138,7 @@ export const getDefaultNativeCurrencySymbol = (chainId: ChainId) =>
     ? "MATIC"
     : "";
 export const getExplorerName = (chainId: ChainId) =>
-  chainId === CHAIN_ID_ETH
+  chainId === CHAIN_ID_ETH || chainId === CHAIN_ID_ETHEREUM_ROPSTEN
     ? "Etherscan"
     : chainId === CHAIN_ID_BSC
     ? "BscScan"
@@ -155,6 +162,8 @@ export const WORMHOLE_RPC_HOSTS =
     : ["http://localhost:7071"];
 export const ETH_NETWORK_CHAIN_ID =
   CLUSTER === "mainnet" ? 1 : CLUSTER === "testnet" ? 5 : 1337;
+export const ROPSTEN_ETH_NETWORK_CHAIN_ID =
+  CLUSTER === "mainnet" ? 1 : CLUSTER === "testnet" ? 3 : 1337;
 export const BSC_NETWORK_CHAIN_ID =
   CLUSTER === "mainnet" ? 56 : CLUSTER === "testnet" ? 97 : 1397;
 export const POLYGON_NETWORK_CHAIN_ID =
@@ -162,6 +171,8 @@ export const POLYGON_NETWORK_CHAIN_ID =
 export const getEvmChainId = (chainId: ChainId) =>
   chainId === CHAIN_ID_ETH
     ? ETH_NETWORK_CHAIN_ID
+    : chainId === CHAIN_ID_ETHEREUM_ROPSTEN
+    ? ROPSTEN_ETH_NETWORK_CHAIN_ID
     : chainId === CHAIN_ID_BSC
     ? BSC_NETWORK_CHAIN_ID
     : chainId === CHAIN_ID_POLYGON
@@ -197,63 +208,63 @@ export const ETH_BRIDGE_ADDRESS = getAddress(
   CLUSTER === "mainnet"
     ? "0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B"
     : CLUSTER === "testnet"
-    ? "0x62a7343b7cF1dC590c983F6A376DCfD3978fC058"
+    ? "0x706abc4E45D419950511e474C7B9Ed348A4a716c"
     : "0xC89Ce4735882C9F0f0FE26686c53074E09B0D550"
 );
 export const ETH_NFT_BRIDGE_ADDRESS = getAddress(
   CLUSTER === "mainnet"
     ? "0x6FFd7EdE62328b3Af38FCD61461Bbfc52F5651fE"
     : CLUSTER === "testnet"
-    ? "0xCD83eCbf3ACCeaD559d297b55a5eF97b8575fb28"
+    ? "0xD8E4C2DbDd2e2bd8F1336EA691dBFF6952B1a6eB"
     : "0x26b4afb60d6c903165150c6f0aa14f8016be4aec"
 );
 export const ETH_TOKEN_BRIDGE_ADDRESS = getAddress(
   CLUSTER === "mainnet"
     ? "0x3ee18B2214AFF97000D974cf647E7C347E8fa585"
     : CLUSTER === "testnet"
-    ? "0x2Ea77593966FF0D3A1aa9ed07B87396AB4604988"
+    ? "0xF890982f9310df57d00f659cf4fd87e65adEd8d7"
     : "0x0290FB167208Af455bB137780163b7B7a9a10C16"
 );
 export const BSC_BRIDGE_ADDRESS = getAddress(
   CLUSTER === "mainnet"
     ? "0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B"
     : CLUSTER === "testnet"
-    ? "0x61D9309dC73CcAC3c639aeC497A11320C5A72074"
+    ? "0x68605AD7b15c732a30b1BbC62BE8F2A509D74b4D"
     : "0xC89Ce4735882C9F0f0FE26686c53074E09B0D550"
 );
 export const BSC_NFT_BRIDGE_ADDRESS = getAddress(
   CLUSTER === "mainnet"
     ? "0x5a58505a96D1dbf8dF91cB21B54419FC36e93fdE"
     : CLUSTER === "testnet"
-    ? "0x55A525D72f4b08762991e4ECDB1aDb5Ab55dFf37"
+    ? "0xcD16E5613EF35599dc82B24Cb45B5A93D779f1EE"
     : "0x26b4afb60d6c903165150c6f0aa14f8016be4aec"
 );
 export const BSC_TOKEN_BRIDGE_ADDRESS = getAddress(
   CLUSTER === "mainnet"
     ? "0xB6F6D86a8f9879A9c87f643768d9efc38c1Da6E7"
     : CLUSTER === "testnet"
-    ? "0xC708B76f0C28040A0f852DbacB26375eDB071c1D"
+    ? "0x9dcF9D205C9De35334D646BeE44b2D2859712A09"
     : "0x0290FB167208Af455bB137780163b7B7a9a10C16"
 );
 export const POLYGON_BRIDGE_ADDRESS = getAddress(
   CLUSTER === "mainnet"
     ? "0x7A4B5a56256163F07b2C80A7cA55aBE66c4ec4d7"
     : CLUSTER === "testnet"
-    ? "0x7809224E0477e821C3c4Ee25Ef47538b90f66455"
+    ? "0x0CBE91CF822c73C2315FB05100C2F714765d5c20"
     : "0xC89Ce4735882C9F0f0FE26686c53074E09B0D550"
 );
 export const POLYGON_NFT_BRIDGE_ADDRESS = getAddress(
   CLUSTER === "mainnet"
     ? "0x90BBd86a6Fe93D3bc3ed6335935447E75fAb7fCf"
     : CLUSTER === "testnet"
-    ? "0x765b15a2694B93dD755c769510eaC175350BAd37"
+    ? "0x51a02d0dcb5e52F5b92bdAA38FA013C91c7309A9"
     : "0x26b4afb60d6c903165150c6f0aa14f8016be4aec"
 );
 export const POLYGON_TOKEN_BRIDGE_ADDRESS = getAddress(
   CLUSTER === "mainnet"
     ? "0x5a58505a96D1dbf8dF91cB21B54419FC36e93fdE"
     : CLUSTER === "testnet"
-    ? "0x83Fb84F047B31e7C6C78E73AE4D0e1B240995A0e"
+    ? "0x377D55a7928c046E18eEbb61977e714d2a76472a"
     : "0x0290FB167208Af455bB137780163b7B7a9a10C16"
 );
 export const SOL_BRIDGE_ADDRESS =
@@ -272,8 +283,29 @@ export const SOL_TOKEN_BRIDGE_ADDRESS =
   CLUSTER === "mainnet"
     ? "wormDTUJ6AWPNvk59vGQbDvGJmqbDTdgWgAqcLBCgUb"
     : CLUSTER === "testnet"
-    ? "8GDCQWxKn94g4pWEucCY98TdwS671Thg7jALitKd3vmt"
+    ? "DZnkkTmCiFWfYTfT41X3Rd1kDgozqzxWaHqsw6W4x2oe"
     : "B6RHG3mfcckmrYN1UhmJzyS1XX3fZKbkeUcpJe9Sy3FE";
+export const ROPSTEN_ETH_BRIDGE_ADDRESS = getAddress(
+  CLUSTER === "mainnet"
+    ? "0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B"
+    : CLUSTER === "testnet"
+    ? "0x210c5F5e2AF958B4defFe715Dc621b7a3BA888c5"
+    : "0xC89Ce4735882C9F0f0FE26686c53074E09B0D550"
+);
+export const ROPSTEN_ETH_NFT_BRIDGE_ADDRESS = getAddress(
+  CLUSTER === "mainnet"
+    ? "0x6FFd7EdE62328b3Af38FCD61461Bbfc52F5651fE"
+    : CLUSTER === "testnet"
+    ? "0x2b048Da40f69c8dc386a56705915f8E966fe1eba"
+    : "0x26b4afb60d6c903165150c6f0aa14f8016be4aec"
+);
+export const ROPSTEN_ETH_TOKEN_BRIDGE_ADDRESS = getAddress(
+  CLUSTER === "mainnet"
+    ? "0x3ee18B2214AFF97000D974cf647E7C347E8fa585"
+    : CLUSTER === "testnet"
+    ? "0xF174F9A837536C449321df1Ca093Bb96948D5386"
+    : "0x0290FB167208Af455bB137780163b7B7a9a10C16"
+);
 
 export const SOL_CUSTODY_ADDRESS =
   "GugU1tP7doLeTw9hQP51xRJyS8Da1fWxuiy2rVrnMD2m";
@@ -305,6 +337,8 @@ export const getBridgeAddressForChain = (chainId: ChainId) =>
     ? TERRA_BRIDGE_ADDRESS
     : chainId === CHAIN_ID_POLYGON
     ? POLYGON_BRIDGE_ADDRESS
+    : chainId === CHAIN_ID_ETHEREUM_ROPSTEN
+    ? ROPSTEN_ETH_BRIDGE_ADDRESS
     : "";
 export const getNFTBridgeAddressForChain = (chainId: ChainId) =>
   chainId === CHAIN_ID_SOLANA
@@ -315,6 +349,8 @@ export const getNFTBridgeAddressForChain = (chainId: ChainId) =>
     ? BSC_NFT_BRIDGE_ADDRESS
     : chainId === CHAIN_ID_POLYGON
     ? POLYGON_NFT_BRIDGE_ADDRESS
+    : chainId === CHAIN_ID_ETHEREUM_ROPSTEN
+    ? ROPSTEN_ETH_NFT_BRIDGE_ADDRESS
     : "";
 export const getTokenBridgeAddressForChain = (chainId: ChainId) =>
   chainId === CHAIN_ID_SOLANA
@@ -327,6 +363,8 @@ export const getTokenBridgeAddressForChain = (chainId: ChainId) =>
     ? TERRA_TOKEN_BRIDGE_ADDRESS
     : chainId === CHAIN_ID_POLYGON
     ? POLYGON_TOKEN_BRIDGE_ADDRESS
+    : chainId === CHAIN_ID_ETHEREUM_ROPSTEN
+    ? ROPSTEN_ETH_TOKEN_BRIDGE_ADDRESS
     : "";
 
 export const COVALENT_API_KEY = process.env.REACT_APP_COVALENT_API_KEY
@@ -344,7 +382,7 @@ export const COVALENT_GET_TOKENS_URL = (
   noNftMetadata?: boolean
 ) => {
   const chainNum =
-    chainId === CHAIN_ID_ETH
+    chainId === CHAIN_ID_ETH || chainId === CHAIN_ID_ETHEREUM_ROPSTEN
       ? COVALENT_ETHEREUM
       : chainId === CHAIN_ID_BSC
       ? COVALENT_BSC
@@ -363,7 +401,7 @@ export const WETH_ADDRESS =
   CLUSTER === "mainnet"
     ? "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
     : CLUSTER === "testnet"
-    ? "0x0000000000000000000000000000000000000000"
+    ? "0xb4fbf271143f4fbf7b91a5ded31805e42b2208d6"
     : "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E";
 export const WETH_DECIMALS = 18;
 
@@ -371,7 +409,7 @@ export const WBNB_ADDRESS =
   CLUSTER === "mainnet"
     ? "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c"
     : CLUSTER === "testnet"
-    ? "0x0000000000000000000000000000000000000000"
+    ? "0xae13d989dac2f0debff460ac112a837c89baa7cd"
     : "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E";
 export const WBNB_DECIMALS = 18;
 
@@ -379,9 +417,17 @@ export const WMATIC_ADDRESS =
   CLUSTER === "mainnet"
     ? "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270"
     : CLUSTER === "testnet"
-    ? "0x0000000000000000000000000000000000000000"
+    ? "0x9c3c9283d3e44854697cd22d3faa240cfb032889"
     : "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E";
 export const WMATIC_DECIMALS = 18;
+
+export const ROPSTEN_WETH_ADDRESS =
+  CLUSTER === "mainnet"
+    ? "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
+    : CLUSTER === "testnet"
+    ? "0xc778417e063141139fce010982780140aa0cd5ab"
+    : "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E";
+export const ROPSTEN_WETH_DECIMALS = 18;
 
 export const WORMHOLE_V1_ETH_ADDRESS =
   CLUSTER === "mainnet"

@@ -7,6 +7,7 @@ import {
   getForeignAssetTerra,
   hexToNativeString,
   hexToUint8Array,
+  isEVMChain,
 } from "@certusone/wormhole-sdk";
 import {
   getForeignAssetEth as getForeignAssetEthNFT,
@@ -50,7 +51,6 @@ import {
   TERRA_HOST,
   TERRA_TOKEN_BRIDGE_ADDRESS,
 } from "../utils/consts";
-import { isEVMChain } from "../utils/ethereum";
 
 function useFetchTargetAsset(nft?: boolean) {
   const dispatch = useDispatch();

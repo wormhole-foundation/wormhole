@@ -1,11 +1,10 @@
-import { ChainId, CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
+import { ChainId, CHAIN_ID_SOLANA, isEVMChain } from "@certusone/wormhole-sdk";
 import { LinearProgress, makeStyles, Typography } from "@material-ui/core";
 import { Connection } from "@solana/web3.js";
 import { useEffect, useState } from "react";
 import { useEthereumProvider } from "../contexts/EthereumProviderContext";
 import { Transaction } from "../store/transferSlice";
 import { CHAINS_BY_ID, SOLANA_HOST } from "../utils/consts";
-import { isEVMChain } from "../utils/ethereum";
 
 const useStyles = makeStyles((theme) => ({
   root: {

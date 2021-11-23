@@ -2,9 +2,11 @@ import {
   ChainId,
   CHAIN_ID_BSC,
   CHAIN_ID_ETH,
+  CHAIN_ID_ETHEREUM_ROPSTEN,
   CHAIN_ID_POLYGON,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
+  isEVMChain,
   WSOL_ADDRESS,
   WSOL_DECIMALS,
 } from "@certusone/wormhole-sdk";
@@ -55,6 +57,8 @@ import {
 } from "../store/transferSlice";
 import {
   COVALENT_GET_TOKENS_URL,
+  ROPSTEN_WETH_ADDRESS,
+  ROPSTEN_WETH_DECIMALS,
   SOLANA_HOST,
   WBNB_ADDRESS,
   WBNB_DECIMALS,
@@ -63,7 +67,6 @@ import {
   WMATIC_ADDRESS,
   WMATIC_DECIMALS,
 } from "../utils/consts";
-import { isEVMChain } from "../utils/ethereum";
 import {
   ExtractedMintInfo,
   extractMintInfo,
@@ -207,6 +210,29 @@ const createNativeEthParsedTokenAccount = (
           WETH_ADDRESS, //Mint key, On the other side this will be WETH, so this is hopefully a white lie.
           balanceInWei.toString(), //amount, in wei
           WETH_DECIMALS, //Luckily both ETH and WETH have 18 decimals, so this should not be an issue.
+          parseFloat(balanceInEth), //This loses precision, but is a limitation of the current datamodel. This field is essentially deprecated
+          balanceInEth.toString(), //This is the actual display field, which has full precision.
+          "ETH", //A white lie for display purposes
+          "Ethereum", //A white lie for display purposes
+          ethIcon,
+          true //isNativeAsset
+        );
+      });
+};
+
+const createNativeEthRopstenParsedTokenAccount = (
+  provider: Provider,
+  signerAddress: string | undefined
+) => {
+  return !(provider && signerAddress)
+    ? Promise.reject()
+    : provider.getBalance(signerAddress).then((balanceInWei) => {
+        const balanceInEth = ethers.utils.formatEther(balanceInWei);
+        return createParsedTokenAccount(
+          signerAddress, //public key
+          ROPSTEN_WETH_ADDRESS, //Mint key, On the other side this will be WETH, so this is hopefully a white lie.
+          balanceInWei.toString(), //amount, in wei
+          ROPSTEN_WETH_DECIMALS, //Luckily both ETH and WETH have 18 decimals, so this should not be an issue.
           parseFloat(balanceInEth), //This loses precision, but is a limitation of the current datamodel. This field is essentially deprecated
           balanceInEth.toString(), //This is the actual display field, which has full precision.
           "ETH", //A white lie for display purposes
@@ -585,6 +611,40 @@ function useGetAvailableTokens(nft: boolean = false) {
     ) {
       setEthNativeAccountLoading(true);
       createNativeEthParsedTokenAccount(provider, signerAddress).then(
+        (result) => {
+          console.log("create native account returned with value", result);
+          if (!cancelled) {
+            setEthNativeAccount(result);
+            setEthNativeAccountLoading(false);
+            setEthNativeAccountError("");
+          }
+        },
+        (error) => {
+          if (!cancelled) {
+            setEthNativeAccount(undefined);
+            setEthNativeAccountLoading(false);
+            setEthNativeAccountError("Unable to retrieve your ETH balance.");
+          }
+        }
+      );
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [lookupChain, provider, signerAddress, nft, ethNativeAccount]);
+
+  //Ethereum (Ropsten) native asset load
+  useEffect(() => {
+    let cancelled = false;
+    if (
+      signerAddress &&
+      lookupChain === CHAIN_ID_ETHEREUM_ROPSTEN &&
+      !ethNativeAccount &&
+      !nft
+    ) {
+      setEthNativeAccountLoading(true);
+      createNativeEthRopstenParsedTokenAccount(provider, signerAddress).then(
         (result) => {
           console.log("create native account returned with value", result);
           if (!cancelled) {

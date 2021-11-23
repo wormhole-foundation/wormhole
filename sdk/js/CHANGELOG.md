@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.1
+
+### Added
+
+CHAIN_ID_ETHEREUM_ROPSTEN
+
 ## 0.1.0
 
 ### Added

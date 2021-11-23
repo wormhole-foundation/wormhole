@@ -15,6 +15,7 @@ import {
   ChainId,
   CHAIN_ID_BSC,
   CHAIN_ID_ETH,
+  CHAIN_ID_ETHEREUM_ROPSTEN,
   CHAIN_ID_POLYGON,
   CHAIN_ID_SOLANA,
 } from "@certusone/wormhole-sdk";
@@ -49,7 +50,7 @@ const LogoIcon = ({ chainId }: { chainId: ChainId }) =>
       src={solanaIcon}
       alt="Solana"
     />
-  ) : chainId === CHAIN_ID_ETH ? (
+  ) : chainId === CHAIN_ID_ETH || chainId === CHAIN_ID_ETHEREUM_ROPSTEN ? (
     <Avatar
       style={{
         backgroundColor: "white",
@@ -380,7 +381,8 @@ export default function NFTViewer({
       >
         <div
           className={clsx(classes.cardInset, {
-            [classes.eth]: chainId === CHAIN_ID_ETH,
+            [classes.eth]:
+              chainId === CHAIN_ID_ETH || chainId === CHAIN_ID_ETHEREUM_ROPSTEN,
             [classes.bsc]: chainId === CHAIN_ID_BSC,
             [classes.solana]: chainId === CHAIN_ID_SOLANA,
             [classes.polygon]: chainId === CHAIN_ID_POLYGON,

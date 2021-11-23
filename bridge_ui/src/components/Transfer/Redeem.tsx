@@ -1,6 +1,7 @@
 import {
   CHAIN_ID_BSC,
   CHAIN_ID_ETH,
+  CHAIN_ID_ETHEREUM_ROPSTEN,
   CHAIN_ID_POLYGON,
   CHAIN_ID_SOLANA,
   WSOL_ADDRESS,
@@ -14,7 +15,12 @@ import {
   selectTransferTargetAsset,
   selectTransferTargetChain,
 } from "../../store/selectors";
-import { WBNB_ADDRESS, WETH_ADDRESS, WMATIC_ADDRESS } from "../../utils/consts";
+import {
+  ROPSTEN_WETH_ADDRESS,
+  WBNB_ADDRESS,
+  WETH_ADDRESS,
+  WMATIC_ADDRESS,
+} from "../../utils/consts";
 import ButtonWithLoader from "../ButtonWithLoader";
 import KeyAndBalance from "../KeyAndBalance";
 import { SolanaCreateAssociatedAddressAlternate } from "../SolanaCreateAssociatedAddress";
@@ -32,6 +38,10 @@ function Redeem() {
     targetChain === CHAIN_ID_ETH &&
     targetAsset &&
     targetAsset.toLowerCase() === WETH_ADDRESS.toLowerCase();
+  const isEthRopstenNative =
+    targetChain === CHAIN_ID_ETHEREUM_ROPSTEN &&
+    targetAsset &&
+    targetAsset.toLowerCase() === ROPSTEN_WETH_ADDRESS.toLowerCase();
   const isBscNative =
     targetChain === CHAIN_ID_BSC &&
     targetAsset &&
@@ -45,7 +55,11 @@ function Redeem() {
     targetAsset &&
     targetAsset === WSOL_ADDRESS;
   const isNativeEligible =
-    isEthNative || isBscNative || isPolygonNative || isSolNative;
+    isEthNative ||
+    isEthRopstenNative ||
+    isBscNative ||
+    isPolygonNative ||
+    isSolNative;
   const [useNativeRedeem, setUseNativeRedeem] = useState(true);
   const toggleNativeRedeem = useCallback(() => {
     setUseNativeRedeem(!useNativeRedeem);

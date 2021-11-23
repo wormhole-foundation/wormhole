@@ -4,6 +4,7 @@ import {
   CHAIN_ID_POLYGON,
   CHAIN_ID_SOLANA,
   hexToNativeString,
+  isEVMChain,
   uint8ArrayToHex,
 } from "@certusone/wormhole-sdk";
 import {
@@ -42,7 +43,6 @@ import {
 import {
   ethNFTToNFTParsedTokenAccount,
   getEthereumNFT,
-  isEVMChain,
   isNFT,
   isValidEthereumAddress,
 } from "../utils/ethereum";

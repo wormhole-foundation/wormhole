@@ -6,6 +6,7 @@ import {
   getOriginalAssetSol,
   getOriginalAssetTerra,
   hexToNativeString,
+  isEVMChain,
   uint8ArrayToHex,
   uint8ArrayToNative,
 } from "@certusone/wormhole-sdk";
@@ -33,7 +34,6 @@ import {
   SOL_TOKEN_BRIDGE_ADDRESS,
   TERRA_HOST,
 } from "../utils/consts";
-import { isEVMChain } from "../utils/ethereum";
 import useIsWalletReady from "./useIsWalletReady";
 
 export type OriginalAssetInfo = {

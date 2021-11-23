@@ -1,8 +1,4 @@
 import {
-  ChainId,
-  CHAIN_ID_BSC,
-  CHAIN_ID_ETH,
-  CHAIN_ID_POLYGON,
   NFTImplementation,
   NFTImplementation__factory,
   TokenImplementation,
@@ -14,11 +10,6 @@ import {
   createNFTParsedTokenAccount,
   createParsedTokenAccount,
 } from "../hooks/useGetSourceParsedTokenAccounts";
-
-export const isEVMChain = (chainId: ChainId) =>
-  chainId === CHAIN_ID_ETH ||
-  chainId === CHAIN_ID_BSC ||
-  chainId === CHAIN_ID_POLYGON;
 
 //This is a valuable intermediate step to the parsed token account, as the token has metadata information on it.
 export async function getEthereumToken(

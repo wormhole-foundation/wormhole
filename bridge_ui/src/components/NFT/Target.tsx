@@ -2,6 +2,7 @@ import {
   CHAIN_ID_SOLANA,
   hexToNativeString,
   hexToUint8Array,
+  isEVMChain,
 } from "@certusone/wormhole-sdk";
 import { makeStyles, TextField, Typography } from "@material-ui/core";
 import { Alert } from "@material-ui/lab";
@@ -26,7 +27,6 @@ import {
   selectNFTTargetError,
 } from "../../store/selectors";
 import { CHAINS_BY_ID, CHAINS_WITH_NFT_SUPPORT } from "../../utils/consts";
-import { isEVMChain } from "../../utils/ethereum";
 import ButtonWithLoader from "../ButtonWithLoader";
 import ChainSelect from "../ChainSelect";
 import KeyAndBalance from "../KeyAndBalance";

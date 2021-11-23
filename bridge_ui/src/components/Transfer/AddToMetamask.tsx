@@ -1,3 +1,4 @@
+import { isEVMChain } from "@certusone/wormhole-sdk";
 import { Button, makeStyles } from "@material-ui/core";
 import detectEthereumProvider from "@metamask/detect-provider";
 import { useCallback } from "react";
@@ -12,7 +13,6 @@ import { getEvmChainId } from "../../utils/consts";
 import {
   ethTokenToParsedTokenAccount,
   getEthereumToken,
-  isEVMChain,
 } from "../../utils/ethereum";
 
 const useStyles = makeStyles((theme) => ({

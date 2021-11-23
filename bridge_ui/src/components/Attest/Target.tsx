@@ -1,3 +1,4 @@
+import { isEVMChain } from "@certusone/wormhole-sdk";
 import { makeStyles, Typography } from "@material-ui/core";
 import { Alert } from "@material-ui/lab";
 import { useCallback, useMemo } from "react";
@@ -11,7 +12,6 @@ import {
   selectAttestTargetChain,
 } from "../../store/selectors";
 import { CHAINS, CHAINS_BY_ID } from "../../utils/consts";
-import { isEVMChain } from "../../utils/ethereum";
 import ButtonWithLoader from "../ButtonWithLoader";
 import ChainSelect from "../ChainSelect";
 import KeyAndBalance from "../KeyAndBalance";

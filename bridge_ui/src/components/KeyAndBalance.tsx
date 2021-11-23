@@ -2,8 +2,8 @@ import {
   ChainId,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
+  isEVMChain,
 } from "@certusone/wormhole-sdk";
-import { isEVMChain } from "../utils/ethereum";
 import EthereumSignerKey from "./EthereumSignerKey";
 import SolanaWalletKey from "./SolanaWalletKey";
 import TerraWalletKey from "./TerraWalletKey";

@@ -1,6 +1,7 @@
 import {
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
+  isEVMChain,
   TokenImplementation__factory,
 } from "@certusone/wormhole-sdk";
 import { Connection, PublicKey } from "@solana/web3.js";
@@ -17,7 +18,6 @@ import {
 } from "../store/selectors";
 import { setTargetParsedTokenAccount } from "../store/transferSlice";
 import { getEvmChainId, SOLANA_HOST, TERRA_HOST } from "../utils/consts";
-import { isEVMChain } from "../utils/ethereum";
 import { createParsedTokenAccount } from "./useGetSourceParsedTokenAccounts";
 import useMetadata from "./useMetadata";
 

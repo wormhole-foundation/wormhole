@@ -2,6 +2,7 @@ import {
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
   hexToNativeString,
+  isEVMChain,
 } from "@certusone/wormhole-sdk";
 import { makeStyles, Typography } from "@material-ui/core";
 import { Alert } from "@material-ui/lab";
@@ -26,7 +27,6 @@ import {
 } from "../../store/selectors";
 import { incrementStep, setTargetChain } from "../../store/transferSlice";
 import { CHAINS, CHAINS_BY_ID } from "../../utils/consts";
-import { isEVMChain } from "../../utils/ethereum";
 import ButtonWithLoader from "../ButtonWithLoader";
 import ChainSelect from "../ChainSelect";
 import KeyAndBalance from "../KeyAndBalance";

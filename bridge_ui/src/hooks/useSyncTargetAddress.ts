@@ -2,6 +2,7 @@ import {
   canonicalAddress,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
+  isEVMChain,
   uint8ArrayToHex,
 } from "@certusone/wormhole-sdk";
 import { arrayify, zeroPad } from "@ethersproject/bytes";
@@ -25,7 +26,6 @@ import {
   selectTransferTargetParsedTokenAccount,
 } from "../store/selectors";
 import { setTargetAddressHex as setTransferTargetAddressHex } from "../store/transferSlice";
-import { isEVMChain } from "../utils/ethereum";
 
 function useSyncTargetAddress(shouldFire: boolean, nft?: boolean) {
   const dispatch = useDispatch();

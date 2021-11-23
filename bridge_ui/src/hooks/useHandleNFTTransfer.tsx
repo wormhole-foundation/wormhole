@@ -4,6 +4,7 @@ import {
   getEmitterAddressEth,
   getEmitterAddressSolana,
   hexToUint8Array,
+  isEVMChain,
   parseSequenceFromLogEth,
   parseSequenceFromLogSolana,
   uint8ArrayToHex,
@@ -46,7 +47,6 @@ import {
   SOL_BRIDGE_ADDRESS,
   SOL_NFT_BRIDGE_ADDRESS,
 } from "../utils/consts";
-import { isEVMChain } from "../utils/ethereum";
 import { getSignedVAAWithRetry } from "../utils/getSignedVAAWithRetry";
 import parseError from "../utils/parseError";
 import { signSendAndConfirm } from "../utils/solana";

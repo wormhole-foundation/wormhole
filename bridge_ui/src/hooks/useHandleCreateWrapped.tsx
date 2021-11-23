@@ -9,6 +9,7 @@ import {
   updateWrappedOnTerra,
   updateWrappedOnSolana,
   postVaaSolana,
+  isEVMChain,
 } from "@certusone/wormhole-sdk";
 import { WalletContextState } from "@solana/wallet-adapter-react";
 import { Connection } from "@solana/web3.js";
@@ -35,7 +36,6 @@ import {
   SOL_TOKEN_BRIDGE_ADDRESS,
   TERRA_TOKEN_BRIDGE_ADDRESS,
 } from "../utils/consts";
-import { isEVMChain } from "../utils/ethereum";
 import parseError from "../utils/parseError";
 import { signSendAndConfirm } from "../utils/solana";
 import { Alert } from "@material-ui/lab";

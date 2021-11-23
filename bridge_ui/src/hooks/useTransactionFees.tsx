@@ -2,6 +2,7 @@ import {
   ChainId,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
+  isEVMChain,
 } from "@certusone/wormhole-sdk";
 import { Provider } from "@certusone/wormhole-sdk/node_modules/@ethersproject/abstract-provider";
 import { formatUnits } from "@ethersproject/units";
@@ -19,7 +20,6 @@ import { getMultipleAccountsRPC } from "../utils/solana";
 import { NATIVE_TERRA_DECIMALS } from "../utils/terra";
 import useIsWalletReady from "./useIsWalletReady";
 import { LCDClient } from "@terra-money/terra.js";
-import { isEVMChain } from "../utils/ethereum";
 
 export type GasEstimate = {
   currentGasPrice: string;
