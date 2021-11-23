@@ -1,5 +1,6 @@
 import { useContext } from 'react'
 import { Bech32, fromHex } from "@cosmjs/encoding"
+import { PublicKey } from '@solana/web3.js';
 import { chainEnums, ChainID, chainIDs } from '~/utils/misc/constants';
 import { ActiveNetwork, NetworkContext } from "~/components/NetworkSelect";
 
@@ -44,13 +45,17 @@ const getNativeAddress = (chainId: number, emitterAddress: string, activeNetwork
         }
         const chainName = chainEnums[chainId].toLowerCase()
 
-        // not sure how to do this programattically, so use the "chains" map
+        // use the "chains" map of hex: nativeAdress first
         if (emitterAddress in activeNetwork.chains[chainName]) {
             let desc = activeNetwork.chains[chainName][emitterAddress]
             if (desc in activeNetwork.chains[chainName]) {
                 // lookup the contract address
                 nativeAddress = activeNetwork.chains[chainName][desc]
             }
+        } else {
+            let hex = fromHex(emitterAddress)
+            let pubKey = new PublicKey(hex)
+            nativeAddress = pubKey.toString()
         }
     }
     return nativeAddress
@@ -136,4 +141,4 @@ const chainColors: { [chain: string]: string } = {
     "5": "hsl(271, 100%, 61%)",
 }
 
-export { makeDate, makeGroupName, chainColors, truncateAddress, contractNameFormatter, nativeExplorerContractUri, nativeExplorerTxUri }
+export { makeDate, makeGroupName, chainColors, truncateAddress, contractNameFormatter, nativeExplorerContractUri, nativeExplorerTxUri, getNativeAddress }
