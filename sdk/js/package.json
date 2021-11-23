@@ -1,12 +1,12 @@
 {
   "name": "@certusone/wormhole-sdk",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "SDK for interacting with Wormhole",
   "homepage": "https://wormholenetwork.com",
   "main": "./lib/cjs/index.js",
   "module": "./lib/esm/index.js",
   "files": [
-    "./lib/**/*"
+    "lib/"
   ],
   "repository": "https://github.com/certusone/wormhole/tree/dev.v2/sdk/js",
   "scripts": {
