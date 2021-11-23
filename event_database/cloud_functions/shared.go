@@ -84,13 +84,14 @@ var chainDetailsFam = columnFamilies[6]
 type (
 	// Summary is MessagePublication data & QuorumState data
 	Summary struct {
-		EmitterChain   string
-		EmitterAddress string
-		Sequence       string
-		InitiatingTxID string
-		Payload        []byte
-		SignedVAABytes []byte
-		QuorumTime     string
+		EmitterChain    string
+		EmitterAddress  string
+		Sequence        string
+		InitiatingTxID  string
+		Payload         []byte
+		SignedVAABytes  []byte
+		QuorumTime      string
+		TransferDetails *TransferDetails
 	}
 	// Details is a Summary extended with all the post-processing ColumnFamilies
 	Details struct {
@@ -99,7 +100,6 @@ type (
 		TokenTransferPayload *TokenTransferPayload
 		AssetMetaPayload     *AssetMetaPayload
 		NFTTransferPayload   *NFTTransferPayload
-		TransferDetails      *TransferDetails
 		ChainDetails         *ChainDetails
 	}
 	// The following structs match the ColumnFamiles they are named after
@@ -111,11 +111,13 @@ type (
 		TargetChain   string
 	}
 	AssetMetaPayload struct {
-		TokenAddress string
-		TokenChain   string
-		Decimals     string
-		Symbol       string
-		Name         string
+		TokenAddress    string
+		TokenChain      string
+		Decimals        string
+		Symbol          string
+		Name            string
+		CoinGeckoCoinId string
+		NativeAddress   string
 	}
 	NFTTransferPayload struct {
 		OriginAddress string
@@ -198,6 +200,30 @@ func makeSummary(row bigtable.Row) *Summary {
 		summary.SignedVAABytes = item.Value
 		summary.QuorumTime = item.Timestamp.Time().String()
 	}
+	if _, ok := row[transferDetailsFam]; ok {
+		transferDetails := &TransferDetails{}
+		for _, item := range row[transferDetailsFam] {
+			switch item.Column {
+			case "TokenTransferDetails:Amount":
+				transferDetails.Amount = string(item.Value)
+			case "TokenTransferDetails:Decimals":
+				transferDetails.Decimals = string(item.Value)
+			case "TokenTransferDetails:NotionalUSDStr":
+				transferDetails.NotionalUSDStr = string(item.Value)
+			case "TokenTransferDetails:TokenPriceUSDStr":
+				transferDetails.TokenPriceUSDStr = string(item.Value)
+			case "TokenTransferDetails:TransferTimestamp":
+				transferDetails.TransferTimestamp = string(item.Value)
+			case "TokenTransferDetails:OriginSymbol":
+				transferDetails.OriginSymbol = string(item.Value)
+			case "TokenTransferDetails:OriginName":
+				transferDetails.OriginName = string(item.Value)
+			case "TokenTransferDetails:OriginTokenAddress":
+				transferDetails.OriginTokenAddress = string(item.Value)
+			}
+		}
+		summary.TransferDetails = transferDetails
+	}
 	return summary
 }
 
@@ -250,6 +276,10 @@ func makeDetails(row bigtable.Row) *Details {
 				assetMetaPayload.Symbol = string(item.Value)
 			case "AssetMetaPayload:Name":
 				assetMetaPayload.Name = string(item.Value)
+			case "AssetMetaPayload:CoinGeckoCoinId":
+				assetMetaPayload.CoinGeckoCoinId = string(item.Value)
+			case "AssetMetaPayload:NativeAddress":
+				assetMetaPayload.NativeAddress = string(item.Value)
 			}
 		}
 		deets.AssetMetaPayload = assetMetaPayload
@@ -278,50 +308,29 @@ func makeDetails(row bigtable.Row) *Details {
 		}
 		deets.NFTTransferPayload = nftTransferPayload
 	}
-	if _, ok := row[transferDetailsFam]; ok {
-		transferDetails := &TransferDetails{}
-		for _, item := range row[transferDetailsFam] {
-			switch item.Column {
-			case "TokenTransferDetails:Amount":
-				transferDetails.Amount = string(item.Value)
-			case "TokenTransferDetails:Decimals":
-				transferDetails.Decimals = string(item.Value)
-			case "TokenTransferDetails:NotionalUSDStr":
-				transferDetails.NotionalUSDStr = string(item.Value)
-			case "TokenTransferDetails:TokenPriceUSDStr":
-				transferDetails.TokenPriceUSDStr = string(item.Value)
-			case "TokenTransferDetails:TransferTimestamp":
-				transferDetails.TransferTimestamp = string(item.Value)
-			case "TokenTransferDetails:OriginSymbol":
-				transferDetails.OriginSymbol = string(item.Value)
-			case "TokenTransferDetails:OriginName":
-				transferDetails.OriginName = string(item.Value)
-			case "TokenTransferDetails:OriginTokenAddress":
-				transferDetails.OriginTokenAddress = string(item.Value)
+	// NotionalUSD and TokenPriceUSD are more percise than the string versions returned,
+	// however the precision is not required, so leaving this commented out for now.
+	// if _, ok := row[transferDetailsFam]; ok {
+	// 	for _, item := range row[transferDetailsFam] {
+	// 		switch item.Column {
+	// 		case "TokenTransferDetails:NotionalUSD":
+	// 			reader := bytes.NewReader(item.Value)
+	// 			var notionalUSD uint64
+	// 			if err := binary.Read(reader, binary.BigEndian, &notionalUSD); err != nil {
+	// 				log.Fatalf("failed to read NotionalUSD of row: %v. err %v ", row.Key(), err)
+	// 			}
+	// 			deets.TransferDetails.NotionalUSD = notionalUSD
 
-				// NotionalUSD and TokenPriceUSD are more percise than the string versions returned,
-				// however the precision is not required, so leaving this commented out for now.
-
-				// case "TokenTransferDetails:NotionalUSD":
-				// 	reader := bytes.NewReader(item.Value)
-				// 	var notionalUSD uint64
-				// 	if err := binary.Read(reader, binary.BigEndian, &notionalUSD); err != nil {
-				// 		log.Fatalf("failed to read NotionalUSD of row: %v. err %v ", row.Key(), err)
-				// 	}
-				// 	transferDetails.NotionalUSD = notionalUSD
-
-				// case "TokenTransferDetails:TokenPriceUSD":
-				// 	reader := bytes.NewReader(item.Value)
-				// 	var tokenPriceUSD uint64
-				// 	if err := binary.Read(reader, binary.BigEndian, &tokenPriceUSD); err != nil {
-				// 		log.Fatalf("failed to read TokenPriceUSD of row: %v. err %v", row.Key(), err)
-				// 	}
-				// 	transferDetails.NotionalUSD = tokenPriceUSD
-
-			}
-		}
-		deets.TransferDetails = transferDetails
-	}
+	// 		case "TokenTransferDetails:TokenPriceUSD":
+	// 			reader := bytes.NewReader(item.Value)
+	// 			var tokenPriceUSD uint64
+	// 			if err := binary.Read(reader, binary.BigEndian, &tokenPriceUSD); err != nil {
+	// 				log.Fatalf("failed to read TokenPriceUSD of row: %v. err %v", row.Key(), err)
+	// 			}
+	// 			deets.TransferDetails.TokenPriceUSD = tokenPriceUSD
+	// 		}
+	// 	}
+	// }
 	if _, ok := row[chainDetailsFam]; ok {
 		chainDetails := &ChainDetails{}
 		for _, item := range row[chainDetailsFam] {
