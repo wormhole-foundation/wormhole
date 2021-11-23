@@ -1,0 +1,39 @@
+[package]
+name = "pyth-bridge"
+version = "0.1.0"
+authors = ["Wormhole Contributors <contact@certus.one>"]
+edition = "2018"
+description = "Pyth price receiver"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+backtraces = ["cosmwasm-std/backtraces"]
+# use library feature to disable all init/handle/query exports
+library = []
+
+[dependencies]
+cosmwasm-std = { version = "0.16.0" }
+cosmwasm-storage = { version = "0.16.0" }
+schemars = "0.8.1"
+serde = { version = "1.0.103", default-features = false, features = ["derive"] }
+serde_derive = { version = "1.0.103"}
+cw20 = "0.8.0"
+cw20-base = { version = "0.8.0", features = ["library"] }
+cw20-wrapped = { path = "../cw20-wrapped", features = ["library"] }
+terraswap = "2.4.0"
+wormhole = { path = "../wormhole", features = ["library"] }
+thiserror = { version = "1.0.20" }
+k256 = { version = "0.9.4", default-features = false, features = ["ecdsa"] }
+sha3 = { version = "0.9.1", default-features = false }
+generic-array = { version = "0.14.4" }
+hex = "0.4.2"
+lazy_static = "1.4.0"
+bigint = "4"
+pyth-client = {git = "https://github.com/pyth-network/pyth-client-rs", branch = "v2"}
+solana-program = "=1.7.0"
+
+[dev-dependencies]
+cosmwasm-vm = { version = "0.16.0", default-features = false }
+serde_json = "1.0"
