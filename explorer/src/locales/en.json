@@ -144,7 +144,7 @@
   },
   "networks": {
     "network": "network",
-    "devnet": "devent",
+    "devnet": "devnet",
     "testnet": "testnet",
     "mainnet": "mainnet"
   }

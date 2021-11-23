@@ -61,6 +61,7 @@ const RecentMessages = (props: RecentMessagesProps) => {
                 emitterAddress={item.EmitterAddress}
                 showType={true}
                 showSummary={true}
+                transferDetails={item.TransferDetails}
             /> : null
         },
         {
@@ -78,8 +79,7 @@ const RecentMessages = (props: RecentMessagesProps) => {
             title: "attested",
             dataIndex: "QuorumTime",
             key: "time",
-            render: QuorumTime => <ReactTimeAgo date={Date.parse(formatQuorumDate(QuorumTime))} locale={intl.locale} timeStyle={!screens.md ? "twitter" : "round"} />
-
+            render: QuorumTime => <ReactTimeAgo date={QuorumTime ? Date.parse(formatQuorumDate(QuorumTime)) : new Date()} locale={intl.locale} timeStyle={!screens.md ? "twitter" : "round"} />
         },
         {
             title: "",

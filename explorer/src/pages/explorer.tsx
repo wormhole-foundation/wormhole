@@ -37,6 +37,7 @@ const Explorer: React.FC<ExplorerProps> = ({ location, navigate }) => {
     const [sequence, setSequence] = useState<ExplorerQueryValues["sequence"]>()
     const [txId, setTxId] = useState<ExplorerQueryValues["txId"]>()
     const [showQueryForm, setShowQueryForm] = useState<boolean>(false)
+    const [doneReadingQueryParams, setDoneReadingQueryParams] = useState<boolean>(false)
 
     useEffect(() => {
         if (location.search) {
@@ -73,6 +74,8 @@ const Explorer: React.FC<ExplorerProps> = ({ location, navigate }) => {
             setTxId(undefined)
             setShowQueryForm(false)
         }
+        // be explicit about when it is ok to render
+        setDoneReadingQueryParams(true)
     }, [location.search])
 
     return (
@@ -161,7 +164,7 @@ const Explorer: React.FC<ExplorerProps> = ({ location, navigate }) => {
                                         >clear</Button>
                                     </Link> : null}
                             </div>
-                            <ExplorerStats emitterChain={emitterChain} emitterAddress={emitterAddress} />
+                            {doneReadingQueryParams && <ExplorerStats emitterChain={emitterChain} emitterAddress={emitterAddress} />}
                         </>
                     ) : null}
                 </div>
