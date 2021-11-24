@@ -42,10 +42,10 @@ goal app call --app-id $1 --from "$STATELESS_ADDR" --app-arg "str:verify" --app-
 cat verify0.txn verify1.txn verify2.txn verify3.txn > verifycc.txn
 goal clerk group -i verifycc.txn -o group.txn
 goal clerk split -i group.txn -o verify-signed
-goal clerk sign --program vaa-verify.teal --argb64 "$SIGNATURES064" --infile verify-signed-0 --outfile verify0.stxn
-goal clerk sign --program vaa-verify.teal --argb64 "$SIGNATURES164" --infile verify-signed-1 --outfile verify1.stxn
-goal clerk sign --program vaa-verify.teal --argb64 "$SIGNATURES264" --infile verify-signed-2 --outfile verify2.stxn
-goal clerk sign --program vaa-verify.teal --argb64 "$SIGNATURES364" --infile verify-signed-3 --outfile verify3.stxn
+goal clerk sign --program vaa-verify.teal --argb64 "$SIGNATURES064" --infile verify-signed-0 --outfile verify-signed-0
+goal clerk sign --program vaa-verify.teal --argb64 "$SIGNATURES164" --infile verify-signed-1 --outfile verify-signed-1
+goal clerk sign --program vaa-verify.teal --argb64 "$SIGNATURES264" --infile verify-signed-2 --outfile verify-signed-2
+goal clerk sign --program vaa-verify.teal --argb64 "$SIGNATURES364" --infile verify-signed-3 --outfile verify-signed-3
 cat verify-signed-0 verify-signed-1 verify-signed-2 verify-signed-3 > verifygroup.stxn
 goal clerk dryrun -t verifygroup.stxn --dryrun-dump --outfile verifygroup.dump
 goal clerk dryrun-remote -D verifygroup.dump --verbose
