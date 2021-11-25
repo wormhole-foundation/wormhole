@@ -7,3 +7,10 @@ message EventGuardianSetUpdate{
   uint32 old_index = 1;
   uint32 new_index = 2;
 }
+
+message EventPostedMessage{
+  bytes emitter = 1;
+  uint64 sequence = 2;
+  uint32 nonce = 3;
+  bytes payload = 4;
+}

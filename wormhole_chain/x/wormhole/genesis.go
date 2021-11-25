@@ -24,6 +24,10 @@ func InitGenesis(ctx sdk.Context, k keeper.Keeper, genState types.GenesisState) 
 	for _, elem := range genState.ReplayProtectionList {
 		k.SetReplayProtection(ctx, elem)
 	}
+	// Set all the sequenceCounter
+	for _, elem := range genState.SequenceCounterList {
+		k.SetSequenceCounter(ctx, elem)
+	}
 	// this line is used by starport scaffolding # genesis/module/init
 }
 
@@ -39,6 +43,7 @@ func ExportGenesis(ctx sdk.Context, k keeper.Keeper) *types.GenesisState {
 		genesis.Config = &config
 	}
 	genesis.ReplayProtectionList = k.GetAllReplayProtection(ctx)
+	genesis.SequenceCounterList = k.GetAllSequenceCounter(ctx)
 	// this line is used by starport scaffolding # genesis/module/export
 
 	return genesis

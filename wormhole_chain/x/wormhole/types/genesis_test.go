@@ -39,6 +39,14 @@ func TestGenesisState_Validate(t *testing.T) {
 						Index: "1",
 					},
 				},
+				SequenceCounterList: []types.SequenceCounter{
+					{
+						Index: "0",
+					},
+					{
+						Index: "1",
+					},
+				},
 				// this line is used by starport scaffolding # types/genesis/validField
 			},
 			valid: true,
@@ -73,6 +81,20 @@ func TestGenesisState_Validate(t *testing.T) {
 			desc: "duplicated replayProtection",
 			genState: &types.GenesisState{
 				ReplayProtectionList: []types.ReplayProtection{
+					{
+						Index: "0",
+					},
+					{
+						Index: "0",
+					},
+				},
+			},
+			valid: false,
+		},
+		{
+			desc: "duplicated sequenceCounter",
+			genState: &types.GenesisState{
+				SequenceCounterList: []types.SequenceCounter{
 					{
 						Index: "0",
 					},

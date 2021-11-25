@@ -7,6 +7,7 @@ import {
 } from "../cosmos/base/query/v1beta1/pagination";
 import { Config } from "../wormhole/config";
 import { ReplayProtection } from "../wormhole/replay_protection";
+import { SequenceCounter } from "../wormhole/sequence_counter";
 
 export const protobufPackage = "certusone.wormholechain.wormhole";
 
@@ -47,6 +48,23 @@ export interface QueryAllReplayProtectionRequest {
 
 export interface QueryAllReplayProtectionResponse {
   replayProtection: ReplayProtection[];
+  pagination: PageResponse | undefined;
+}
+
+export interface QueryGetSequenceCounterRequest {
+  index: string;
+}
+
+export interface QueryGetSequenceCounterResponse {
+  sequenceCounter: SequenceCounter | undefined;
+}
+
+export interface QueryAllSequenceCounterRequest {
+  pagination: PageRequest | undefined;
+}
+
+export interface QueryAllSequenceCounterResponse {
+  sequenceCounter: SequenceCounter[];
   pagination: PageResponse | undefined;
 }
 
@@ -804,6 +822,344 @@ export const QueryAllReplayProtectionResponse = {
   },
 };
 
+const baseQueryGetSequenceCounterRequest: object = { index: "" };
+
+export const QueryGetSequenceCounterRequest = {
+  encode(
+    message: QueryGetSequenceCounterRequest,
+    writer: Writer = Writer.create()
+  ): Writer {
+    if (message.index !== "") {
+      writer.uint32(10).string(message.index);
+    }
+    return writer;
+  },
+
+  decode(
+    input: Reader | Uint8Array,
+    length?: number
+  ): QueryGetSequenceCounterRequest {
+    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = {
+      ...baseQueryGetSequenceCounterRequest,
+    } as QueryGetSequenceCounterRequest;
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          message.index = reader.string();
+          break;
+        default:
+          reader.skipType(tag & 7);
+          break;
+      }
+    }
+    return message;
+  },
+
+  fromJSON(object: any): QueryGetSequenceCounterRequest {
+    const message = {
+      ...baseQueryGetSequenceCounterRequest,
+    } as QueryGetSequenceCounterRequest;
+    if (object.index !== undefined && object.index !== null) {
+      message.index = String(object.index);
+    } else {
+      message.index = "";
+    }
+    return message;
+  },
+
+  toJSON(message: QueryGetSequenceCounterRequest): unknown {
+    const obj: any = {};
+    message.index !== undefined && (obj.index = message.index);
+    return obj;
+  },
+
+  fromPartial(
+    object: DeepPartial<QueryGetSequenceCounterRequest>
+  ): QueryGetSequenceCounterRequest {
+    const message = {
+      ...baseQueryGetSequenceCounterRequest,
+    } as QueryGetSequenceCounterRequest;
+    if (object.index !== undefined && object.index !== null) {
+      message.index = object.index;
+    } else {
+      message.index = "";
+    }
+    return message;
+  },
+};
+
+const baseQueryGetSequenceCounterResponse: object = {};
+
+export const QueryGetSequenceCounterResponse = {
+  encode(
+    message: QueryGetSequenceCounterResponse,
+    writer: Writer = Writer.create()
+  ): Writer {
+    if (message.sequenceCounter !== undefined) {
+      SequenceCounter.encode(
+        message.sequenceCounter,
+        writer.uint32(10).fork()
+      ).ldelim();
+    }
+    return writer;
+  },
+
+  decode(
+    input: Reader | Uint8Array,
+    length?: number
+  ): QueryGetSequenceCounterResponse {
+    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = {
+      ...baseQueryGetSequenceCounterResponse,
+    } as QueryGetSequenceCounterResponse;
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          message.sequenceCounter = SequenceCounter.decode(
+            reader,
+            reader.uint32()
+          );
+          break;
+        default:
+          reader.skipType(tag & 7);
+          break;
+      }
+    }
+    return message;
+  },
+
+  fromJSON(object: any): QueryGetSequenceCounterResponse {
+    const message = {
+      ...baseQueryGetSequenceCounterResponse,
+    } as QueryGetSequenceCounterResponse;
+    if (
+      object.sequenceCounter !== undefined &&
+      object.sequenceCounter !== null
+    ) {
+      message.sequenceCounter = SequenceCounter.fromJSON(
+        object.sequenceCounter
+      );
+    } else {
+      message.sequenceCounter = undefined;
+    }
+    return message;
+  },
+
+  toJSON(message: QueryGetSequenceCounterResponse): unknown {
+    const obj: any = {};
+    message.sequenceCounter !== undefined &&
+      (obj.sequenceCounter = message.sequenceCounter
+        ? SequenceCounter.toJSON(message.sequenceCounter)
+        : undefined);
+    return obj;
+  },
+
+  fromPartial(
+    object: DeepPartial<QueryGetSequenceCounterResponse>
+  ): QueryGetSequenceCounterResponse {
+    const message = {
+      ...baseQueryGetSequenceCounterResponse,
+    } as QueryGetSequenceCounterResponse;
+    if (
+      object.sequenceCounter !== undefined &&
+      object.sequenceCounter !== null
+    ) {
+      message.sequenceCounter = SequenceCounter.fromPartial(
+        object.sequenceCounter
+      );
+    } else {
+      message.sequenceCounter = undefined;
+    }
+    return message;
+  },
+};
+
+const baseQueryAllSequenceCounterRequest: object = {};
+
+export const QueryAllSequenceCounterRequest = {
+  encode(
+    message: QueryAllSequenceCounterRequest,
+    writer: Writer = Writer.create()
+  ): Writer {
+    if (message.pagination !== undefined) {
+      PageRequest.encode(message.pagination, writer.uint32(10).fork()).ldelim();
+    }
+    return writer;
+  },
+
+  decode(
+    input: Reader | Uint8Array,
+    length?: number
+  ): QueryAllSequenceCounterRequest {
+    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = {
+      ...baseQueryAllSequenceCounterRequest,
+    } as QueryAllSequenceCounterRequest;
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          message.pagination = PageRequest.decode(reader, reader.uint32());
+          break;
+        default:
+          reader.skipType(tag & 7);
+          break;
+      }
+    }
+    return message;
+  },
+
+  fromJSON(object: any): QueryAllSequenceCounterRequest {
+    const message = {
+      ...baseQueryAllSequenceCounterRequest,
+    } as QueryAllSequenceCounterRequest;
+    if (object.pagination !== undefined && object.pagination !== null) {
+      message.pagination = PageRequest.fromJSON(object.pagination);
+    } else {
+      message.pagination = undefined;
+    }
+    return message;
+  },
+
+  toJSON(message: QueryAllSequenceCounterRequest): unknown {
+    const obj: any = {};
+    message.pagination !== undefined &&
+      (obj.pagination = message.pagination
+        ? PageRequest.toJSON(message.pagination)
+        : undefined);
+    return obj;
+  },
+
+  fromPartial(
+    object: DeepPartial<QueryAllSequenceCounterRequest>
+  ): QueryAllSequenceCounterRequest {
+    const message = {
+      ...baseQueryAllSequenceCounterRequest,
+    } as QueryAllSequenceCounterRequest;
+    if (object.pagination !== undefined && object.pagination !== null) {
+      message.pagination = PageRequest.fromPartial(object.pagination);
+    } else {
+      message.pagination = undefined;
+    }
+    return message;
+  },
+};
+
+const baseQueryAllSequenceCounterResponse: object = {};
+
+export const QueryAllSequenceCounterResponse = {
+  encode(
+    message: QueryAllSequenceCounterResponse,
+    writer: Writer = Writer.create()
+  ): Writer {
+    for (const v of message.sequenceCounter) {
+      SequenceCounter.encode(v!, writer.uint32(10).fork()).ldelim();
+    }
+    if (message.pagination !== undefined) {
+      PageResponse.encode(
+        message.pagination,
+        writer.uint32(18).fork()
+      ).ldelim();
+    }
+    return writer;
+  },
+
+  decode(
+    input: Reader | Uint8Array,
+    length?: number
+  ): QueryAllSequenceCounterResponse {
+    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = {
+      ...baseQueryAllSequenceCounterResponse,
+    } as QueryAllSequenceCounterResponse;
+    message.sequenceCounter = [];
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          message.sequenceCounter.push(
+            SequenceCounter.decode(reader, reader.uint32())
+          );
+          break;
+        case 2:
+          message.pagination = PageResponse.decode(reader, reader.uint32());
+          break;
+        default:
+          reader.skipType(tag & 7);
+          break;
+      }
+    }
+    return message;
+  },
+
+  fromJSON(object: any): QueryAllSequenceCounterResponse {
+    const message = {
+      ...baseQueryAllSequenceCounterResponse,
+    } as QueryAllSequenceCounterResponse;
+    message.sequenceCounter = [];
+    if (
+      object.sequenceCounter !== undefined &&
+      object.sequenceCounter !== null
+    ) {
+      for (const e of object.sequenceCounter) {
+        message.sequenceCounter.push(SequenceCounter.fromJSON(e));
+      }
+    }
+    if (object.pagination !== undefined && object.pagination !== null) {
+      message.pagination = PageResponse.fromJSON(object.pagination);
+    } else {
+      message.pagination = undefined;
+    }
+    return message;
+  },
+
+  toJSON(message: QueryAllSequenceCounterResponse): unknown {
+    const obj: any = {};
+    if (message.sequenceCounter) {
+      obj.sequenceCounter = message.sequenceCounter.map((e) =>
+        e ? SequenceCounter.toJSON(e) : undefined
+      );
+    } else {
+      obj.sequenceCounter = [];
+    }
+    message.pagination !== undefined &&
+      (obj.pagination = message.pagination
+        ? PageResponse.toJSON(message.pagination)
+        : undefined);
+    return obj;
+  },
+
+  fromPartial(
+    object: DeepPartial<QueryAllSequenceCounterResponse>
+  ): QueryAllSequenceCounterResponse {
+    const message = {
+      ...baseQueryAllSequenceCounterResponse,
+    } as QueryAllSequenceCounterResponse;
+    message.sequenceCounter = [];
+    if (
+      object.sequenceCounter !== undefined &&
+      object.sequenceCounter !== null
+    ) {
+      for (const e of object.sequenceCounter) {
+        message.sequenceCounter.push(SequenceCounter.fromPartial(e));
+      }
+    }
+    if (object.pagination !== undefined && object.pagination !== null) {
+      message.pagination = PageResponse.fromPartial(object.pagination);
+    } else {
+      message.pagination = undefined;
+    }
+    return message;
+  },
+};
+
 /** Query defines the gRPC querier service. */
 export interface Query {
   /** Queries a guardianSet by index. */
@@ -824,6 +1180,14 @@ export interface Query {
   ReplayProtectionAll(
     request: QueryAllReplayProtectionRequest
   ): Promise<QueryAllReplayProtectionResponse>;
+  /** Queries a sequenceCounter by index. */
+  SequenceCounter(
+    request: QueryGetSequenceCounterRequest
+  ): Promise<QueryGetSequenceCounterResponse>;
+  /** Queries a list of sequenceCounter items. */
+  SequenceCounterAll(
+    request: QueryAllSequenceCounterRequest
+  ): Promise<QueryAllSequenceCounterResponse>;
 }
 
 export class QueryClientImpl implements Query {
@@ -896,6 +1260,34 @@ export class QueryClientImpl implements Query {
     );
     return promise.then((data) =>
       QueryAllReplayProtectionResponse.decode(new Reader(data))
+    );
+  }
+
+  SequenceCounter(
+    request: QueryGetSequenceCounterRequest
+  ): Promise<QueryGetSequenceCounterResponse> {
+    const data = QueryGetSequenceCounterRequest.encode(request).finish();
+    const promise = this.rpc.request(
+      "certusone.wormholechain.wormhole.Query",
+      "SequenceCounter",
+      data
+    );
+    return promise.then((data) =>
+      QueryGetSequenceCounterResponse.decode(new Reader(data))
+    );
+  }
+
+  SequenceCounterAll(
+    request: QueryAllSequenceCounterRequest
+  ): Promise<QueryAllSequenceCounterResponse> {
+    const data = QueryAllSequenceCounterRequest.encode(request).finish();
+    const promise = this.rpc.request(
+      "certusone.wormholechain.wormhole.Query",
+      "SequenceCounterAll",
+      data
+    );
+    return promise.then((data) =>
+      QueryAllSequenceCounterResponse.decode(new Reader(data))
     );
   }
 }

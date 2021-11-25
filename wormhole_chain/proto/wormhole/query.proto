@@ -6,6 +6,7 @@ import "cosmos/base/query/v1beta1/pagination.proto";
 import "wormhole/guardian_set.proto";
 import "wormhole/config.proto";
 import "wormhole/replay_protection.proto";
+import "wormhole/sequence_counter.proto";
 // this line is used by starport scaffolding # 1
 import "gogoproto/gogo.proto";
 
@@ -35,6 +36,16 @@ service Query {
 	// Queries a list of replayProtection items.
 	rpc ReplayProtectionAll(QueryAllReplayProtectionRequest) returns (QueryAllReplayProtectionResponse) {
 		option (google.api.http).get = "/certusone/wormholechain/wormhole/replayProtection";
+	}
+
+// Queries a sequenceCounter by index.
+	rpc SequenceCounter(QueryGetSequenceCounterRequest) returns (QueryGetSequenceCounterResponse) {
+		option (google.api.http).get = "/certusone/wormholechain/wormhole/sequenceCounter/{index}";
+	}
+
+	// Queries a list of sequenceCounter items.
+	rpc SequenceCounterAll(QueryAllSequenceCounterRequest) returns (QueryAllSequenceCounterResponse) {
+		option (google.api.http).get = "/certusone/wormholechain/wormhole/sequenceCounter";
 	}
 
 // this line is used by starport scaffolding # 2
@@ -77,6 +88,24 @@ message QueryAllReplayProtectionRequest {
 
 message QueryAllReplayProtectionResponse {
 	repeated ReplayProtection replayProtection = 1 [(gogoproto.nullable) = false];
+	cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+
+message QueryGetSequenceCounterRequest {
+	  string index = 1;
+
+}
+
+message QueryGetSequenceCounterResponse {
+	SequenceCounter sequenceCounter = 1 [(gogoproto.nullable) = false];
+}
+
+message QueryAllSequenceCounterRequest {
+	cosmos.base.query.v1beta1.PageRequest pagination = 1;
+}
+
+message QueryAllSequenceCounterResponse {
+	repeated SequenceCounter sequenceCounter = 1 [(gogoproto.nullable) = false];
 	cosmos.base.query.v1beta1.PageResponse pagination = 2;
 }
 
