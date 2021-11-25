@@ -87,6 +87,9 @@ import (
 	"github.com/tendermint/spm/openapiconsole"
 
 	"github.com/certusone/wormhole-chain/docs"
+	tokenbridgemodule "github.com/certusone/wormhole-chain/x/tokenbridge"
+	tokenbridgemodulekeeper "github.com/certusone/wormhole-chain/x/tokenbridge/keeper"
+	tokenbridgemoduletypes "github.com/certusone/wormhole-chain/x/tokenbridge/types"
 	wormholemodule "github.com/certusone/wormhole-chain/x/wormhole"
 	wormholemodulekeeper "github.com/certusone/wormhole-chain/x/wormhole/keeper"
 	wormholemoduletypes "github.com/certusone/wormhole-chain/x/wormhole/types"
@@ -141,19 +144,21 @@ var (
 		transfer.AppModuleBasic{},
 		vesting.AppModuleBasic{},
 		wormholemodule.AppModuleBasic{},
+		tokenbridgemodule.AppModuleBasic{},
 		// this line is used by starport scaffolding # stargate/app/moduleBasic
 	)
 
 	// module account permissions
 	maccPerms = map[string][]string{
-		authtypes.FeeCollectorName:     nil,
-		distrtypes.ModuleName:          nil,
-		minttypes.ModuleName:           {authtypes.Minter},
-		stakingtypes.BondedPoolName:    {authtypes.Burner, authtypes.Staking},
-		stakingtypes.NotBondedPoolName: {authtypes.Burner, authtypes.Staking},
-		govtypes.ModuleName:            {authtypes.Burner},
-		ibctransfertypes.ModuleName:    {authtypes.Minter, authtypes.Burner},
-		wormholemoduletypes.ModuleName: {authtypes.Minter, authtypes.Burner, authtypes.Staking},
+		authtypes.FeeCollectorName:        nil,
+		distrtypes.ModuleName:             nil,
+		minttypes.ModuleName:              {authtypes.Minter},
+		stakingtypes.BondedPoolName:       {authtypes.Burner, authtypes.Staking},
+		stakingtypes.NotBondedPoolName:    {authtypes.Burner, authtypes.Staking},
+		govtypes.ModuleName:               {authtypes.Burner},
+		ibctransfertypes.ModuleName:       {authtypes.Minter, authtypes.Burner},
+		wormholemoduletypes.ModuleName:    {authtypes.Minter, authtypes.Burner, authtypes.Staking},
+		tokenbridgemoduletypes.ModuleName: {authtypes.Minter, authtypes.Burner, authtypes.Staking},
 		// this line is used by starport scaffolding # stargate/app/maccPerms
 	}
 )
@@ -211,6 +216,8 @@ type App struct {
 	ScopedTransferKeeper capabilitykeeper.ScopedKeeper
 
 	WormholeKeeper wormholemodulekeeper.Keeper
+
+	TokenbridgeKeeper tokenbridgemodulekeeper.Keeper
 	// this line is used by starport scaffolding # stargate/app/keeperDeclaration
 
 	// the module manager
@@ -248,6 +255,7 @@ func New(
 		govtypes.StoreKey, paramstypes.StoreKey, ibchost.StoreKey, upgradetypes.StoreKey, feegrant.StoreKey,
 		evidencetypes.StoreKey, ibctransfertypes.StoreKey, capabilitytypes.StoreKey,
 		wormholemoduletypes.StoreKey,
+		tokenbridgemoduletypes.StoreKey,
 		// this line is used by starport scaffolding # stargate/app/storeKey
 	)
 	tkeys := sdk.NewTransientStoreKeys(paramstypes.TStoreKey)
@@ -356,6 +364,17 @@ func New(
 	)
 	wormholeModule := wormholemodule.NewAppModule(appCodec, app.WormholeKeeper)
 
+	app.TokenbridgeKeeper = *tokenbridgemodulekeeper.NewKeeper(
+		appCodec,
+		keys[tokenbridgemoduletypes.StoreKey],
+		keys[tokenbridgemoduletypes.MemStoreKey],
+
+		app.AccountKeeper,
+		app.BankKeeper,
+		app.WormholeKeeper,
+	)
+	tokenbridgeModule := tokenbridgemodule.NewAppModule(appCodec, app.TokenbridgeKeeper)
+
 	// this line is used by starport scaffolding # stargate/app/keeperDefinition
 
 	// Create static IBC router, add transfer route, then set and seal it
@@ -395,6 +414,7 @@ func New(
 		params.NewAppModule(app.ParamsKeeper),
 		transferModule,
 		wormholeModule,
+		tokenbridgeModule,
 		// this line is used by starport scaffolding # stargate/app/appModule
 	)
 
@@ -430,6 +450,7 @@ func New(
 		evidencetypes.ModuleName,
 		ibctransfertypes.ModuleName,
 		wormholemoduletypes.ModuleName,
+		tokenbridgemoduletypes.ModuleName,
 		// this line is used by starport scaffolding # stargate/app/initGenesis
 	)
 
@@ -618,6 +639,7 @@ func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino
 	paramsKeeper.Subspace(ibctransfertypes.ModuleName)
 	paramsKeeper.Subspace(ibchost.ModuleName)
 	paramsKeeper.Subspace(wormholemoduletypes.ModuleName)
+	paramsKeeper.Subspace(tokenbridgemoduletypes.ModuleName)
 	// this line is used by starport scaffolding # stargate/app/paramSubspace
 
 	return paramsKeeper

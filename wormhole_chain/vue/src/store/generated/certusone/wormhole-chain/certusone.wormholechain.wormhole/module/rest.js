@@ -208,5 +208,34 @@ export class Api extends HttpClient {
             format: "json",
             ...params,
         });
+        /**
+         * No description
+         *
+         * @tags Query
+         * @name QuerySequenceCounterAll
+         * @summary Queries a list of sequenceCounter items.
+         * @request GET:/certusone/wormholechain/wormhole/sequenceCounter
+         */
+        this.querySequenceCounterAll = (query, params = {}) => this.request({
+            path: `/certusone/wormholechain/wormhole/sequenceCounter`,
+            method: "GET",
+            query: query,
+            format: "json",
+            ...params,
+        });
+        /**
+         * No description
+         *
+         * @tags Query
+         * @name QuerySequenceCounter
+         * @summary Queries a sequenceCounter by index.
+         * @request GET:/certusone/wormholechain/wormhole/sequenceCounter/{index}
+         */
+        this.querySequenceCounter = (index, params = {}) => this.request({
+            path: `/certusone/wormholechain/wormhole/sequenceCounter/${index}`,
+            method: "GET",
+            format: "json",
+            ...params,
+        });
     }
 }

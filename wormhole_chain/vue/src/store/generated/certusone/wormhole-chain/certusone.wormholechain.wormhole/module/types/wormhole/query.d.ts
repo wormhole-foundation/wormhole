@@ -3,6 +3,7 @@ import { GuardianSet } from "../wormhole/guardian_set";
 import { PageRequest, PageResponse } from "../cosmos/base/query/v1beta1/pagination";
 import { Config } from "../wormhole/config";
 import { ReplayProtection } from "../wormhole/replay_protection";
+import { SequenceCounter } from "../wormhole/sequence_counter";
 export declare const protobufPackage = "certusone.wormholechain.wormhole";
 export interface QueryGetGuardianSetRequest {
     index: number;
@@ -33,6 +34,19 @@ export interface QueryAllReplayProtectionRequest {
 }
 export interface QueryAllReplayProtectionResponse {
     replayProtection: ReplayProtection[];
+    pagination: PageResponse | undefined;
+}
+export interface QueryGetSequenceCounterRequest {
+    index: string;
+}
+export interface QueryGetSequenceCounterResponse {
+    sequenceCounter: SequenceCounter | undefined;
+}
+export interface QueryAllSequenceCounterRequest {
+    pagination: PageRequest | undefined;
+}
+export interface QueryAllSequenceCounterResponse {
+    sequenceCounter: SequenceCounter[];
     pagination: PageResponse | undefined;
 }
 export declare const QueryGetGuardianSetRequest: {
@@ -105,6 +119,34 @@ export declare const QueryAllReplayProtectionResponse: {
     toJSON(message: QueryAllReplayProtectionResponse): unknown;
     fromPartial(object: DeepPartial<QueryAllReplayProtectionResponse>): QueryAllReplayProtectionResponse;
 };
+export declare const QueryGetSequenceCounterRequest: {
+    encode(message: QueryGetSequenceCounterRequest, writer?: Writer): Writer;
+    decode(input: Reader | Uint8Array, length?: number): QueryGetSequenceCounterRequest;
+    fromJSON(object: any): QueryGetSequenceCounterRequest;
+    toJSON(message: QueryGetSequenceCounterRequest): unknown;
+    fromPartial(object: DeepPartial<QueryGetSequenceCounterRequest>): QueryGetSequenceCounterRequest;
+};
+export declare const QueryGetSequenceCounterResponse: {
+    encode(message: QueryGetSequenceCounterResponse, writer?: Writer): Writer;
+    decode(input: Reader | Uint8Array, length?: number): QueryGetSequenceCounterResponse;
+    fromJSON(object: any): QueryGetSequenceCounterResponse;
+    toJSON(message: QueryGetSequenceCounterResponse): unknown;
+    fromPartial(object: DeepPartial<QueryGetSequenceCounterResponse>): QueryGetSequenceCounterResponse;
+};
+export declare const QueryAllSequenceCounterRequest: {
+    encode(message: QueryAllSequenceCounterRequest, writer?: Writer): Writer;
+    decode(input: Reader | Uint8Array, length?: number): QueryAllSequenceCounterRequest;
+    fromJSON(object: any): QueryAllSequenceCounterRequest;
+    toJSON(message: QueryAllSequenceCounterRequest): unknown;
+    fromPartial(object: DeepPartial<QueryAllSequenceCounterRequest>): QueryAllSequenceCounterRequest;
+};
+export declare const QueryAllSequenceCounterResponse: {
+    encode(message: QueryAllSequenceCounterResponse, writer?: Writer): Writer;
+    decode(input: Reader | Uint8Array, length?: number): QueryAllSequenceCounterResponse;
+    fromJSON(object: any): QueryAllSequenceCounterResponse;
+    toJSON(message: QueryAllSequenceCounterResponse): unknown;
+    fromPartial(object: DeepPartial<QueryAllSequenceCounterResponse>): QueryAllSequenceCounterResponse;
+};
 /** Query defines the gRPC querier service. */
 export interface Query {
     /** Queries a guardianSet by index. */
@@ -117,6 +159,10 @@ export interface Query {
     ReplayProtection(request: QueryGetReplayProtectionRequest): Promise<QueryGetReplayProtectionResponse>;
     /** Queries a list of replayProtection items. */
     ReplayProtectionAll(request: QueryAllReplayProtectionRequest): Promise<QueryAllReplayProtectionResponse>;
+    /** Queries a sequenceCounter by index. */
+    SequenceCounter(request: QueryGetSequenceCounterRequest): Promise<QueryGetSequenceCounterResponse>;
+    /** Queries a list of sequenceCounter items. */
+    SequenceCounterAll(request: QueryAllSequenceCounterRequest): Promise<QueryAllSequenceCounterResponse>;
 }
 export declare class QueryClientImpl implements Query {
     private readonly rpc;
@@ -126,6 +172,8 @@ export declare class QueryClientImpl implements Query {
     Config(request: QueryGetConfigRequest): Promise<QueryGetConfigResponse>;
     ReplayProtection(request: QueryGetReplayProtectionRequest): Promise<QueryGetReplayProtectionResponse>;
     ReplayProtectionAll(request: QueryAllReplayProtectionRequest): Promise<QueryAllReplayProtectionResponse>;
+    SequenceCounter(request: QueryGetSequenceCounterRequest): Promise<QueryGetSequenceCounterResponse>;
+    SequenceCounterAll(request: QueryAllSequenceCounterRequest): Promise<QueryAllSequenceCounterResponse>;
 }
 interface Rpc {
     request(service: string, method: string, data: Uint8Array): Promise<Uint8Array>;

@@ -6,9 +6,10 @@ import { Config } from "./module/types/wormhole/config"
 import { EventGuardianSetUpdate } from "./module/types/wormhole/events"
 import { GuardianSet } from "./module/types/wormhole/guardian_set"
 import { ReplayProtection } from "./module/types/wormhole/replay_protection"
+import { SequenceCounter } from "./module/types/wormhole/sequence_counter"
 
 
-export { Config, EventGuardianSetUpdate, GuardianSet, ReplayProtection };
+export { Config, EventGuardianSetUpdate, GuardianSet, ReplayProtection, SequenceCounter };
 
 async function initTxClient(vuexGetters) {
 	return await txClient(vuexGetters['common/wallet/signer'], {
@@ -51,12 +52,15 @@ const getDefaultState = () => {
 				Config: {},
 				ReplayProtection: {},
 				ReplayProtectionAll: {},
+				SequenceCounter: {},
+				SequenceCounterAll: {},
 				
 				_Structure: {
 						Config: getStructure(Config.fromPartial({})),
 						EventGuardianSetUpdate: getStructure(EventGuardianSetUpdate.fromPartial({})),
 						GuardianSet: getStructure(GuardianSet.fromPartial({})),
 						ReplayProtection: getStructure(ReplayProtection.fromPartial({})),
+						SequenceCounter: getStructure(SequenceCounter.fromPartial({})),
 						
 		},
 		_Subscriptions: new Set(),
@@ -113,6 +117,18 @@ export default {
 						(<any> params).query=null
 					}
 			return state.ReplayProtectionAll[JSON.stringify(params)] ?? {}
+		},
+				getSequenceCounter: (state) => (params = { params: {}}) => {
+					if (!(<any> params).query) {
+						(<any> params).query=null
+					}
+			return state.SequenceCounter[JSON.stringify(params)] ?? {}
+		},
+				getSequenceCounterAll: (state) => (params = { params: {}}) => {
+					if (!(<any> params).query) {
+						(<any> params).query=null
+					}
+			return state.SequenceCounterAll[JSON.stringify(params)] ?? {}
 		},
 				
 		getTypeStructure: (state) => (type) => {
@@ -252,6 +268,52 @@ export default {
 				return getters['getReplayProtectionAll']( { params: {...key}, query}) ?? {}
 			} catch (e) {
 				throw new SpVuexError('QueryClient:QueryReplayProtectionAll', 'API Node Unavailable. Could not perform query: ' + e.message)
+				
+			}
+		},
+		
+		
+		
+		
+		 		
+		
+		
+		async QuerySequenceCounter({ commit, rootGetters, getters }, { options: { subscribe, all} = { subscribe:false, all:false}, params: {...key}, query=null }) {
+			try {
+				const queryClient=await initQueryClient(rootGetters)
+				let value= (await queryClient.querySequenceCounter( key.index)).data
+				
+					
+				commit('QUERY', { query: 'SequenceCounter', key: { params: {...key}, query}, value })
+				if (subscribe) commit('SUBSCRIBE', { action: 'QuerySequenceCounter', payload: { options: { all }, params: {...key},query }})
+				return getters['getSequenceCounter']( { params: {...key}, query}) ?? {}
+			} catch (e) {
+				throw new SpVuexError('QueryClient:QuerySequenceCounter', 'API Node Unavailable. Could not perform query: ' + e.message)
+				
+			}
+		},
+		
+		
+		
+		
+		 		
+		
+		
+		async QuerySequenceCounterAll({ commit, rootGetters, getters }, { options: { subscribe, all} = { subscribe:false, all:false}, params: {...key}, query=null }) {
+			try {
+				const queryClient=await initQueryClient(rootGetters)
+				let value= (await queryClient.querySequenceCounterAll(query)).data
+				
+					
+				while (all && (<any> value).pagination && (<any> value).pagination.nextKey!=null) {
+					let next_values=(await queryClient.querySequenceCounterAll({...query, 'pagination.key':(<any> value).pagination.nextKey})).data
+					value = mergeResults(value, next_values);
+				}
+				commit('QUERY', { query: 'SequenceCounterAll', key: { params: {...key}, query}, value })
+				if (subscribe) commit('SUBSCRIBE', { action: 'QuerySequenceCounterAll', payload: { options: { all }, params: {...key},query }})
+				return getters['getSequenceCounterAll']( { params: {...key}, query}) ?? {}
+			} catch (e) {
+				throw new SpVuexError('QueryClient:QuerySequenceCounterAll', 'API Node Unavailable. Could not perform query: ' + e.message)
 				
 			}
 		},
