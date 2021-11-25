@@ -1,7 +1,7 @@
 /* eslint-disable */
-import * as Long from 'long';
-import { util, configure, Writer, Reader } from 'protobufjs/minimal';
-export const protobufPackage = 'google.protobuf';
+import * as Long from "long";
+import { util, configure, Writer, Reader } from "protobufjs/minimal";
+export const protobufPackage = "google.protobuf";
 const baseDuration = { seconds: 0, nanos: 0 };
 export const Duration = {
     encode(message, writer = Writer.create()) {
@@ -70,22 +70,22 @@ export const Duration = {
             message.nanos = 0;
         }
         return message;
-    }
+    },
 };
 var globalThis = (() => {
-    if (typeof globalThis !== 'undefined')
+    if (typeof globalThis !== "undefined")
         return globalThis;
-    if (typeof self !== 'undefined')
+    if (typeof self !== "undefined")
         return self;
-    if (typeof window !== 'undefined')
+    if (typeof window !== "undefined")
         return window;
-    if (typeof global !== 'undefined')
+    if (typeof global !== "undefined")
         return global;
-    throw 'Unable to locate global object';
+    throw "Unable to locate global object";
 })();
 function longToNumber(long) {
     if (long.gt(Number.MAX_SAFE_INTEGER)) {
-        throw new globalThis.Error('Value is larger than Number.MAX_SAFE_INTEGER');
+        throw new globalThis.Error("Value is larger than Number.MAX_SAFE_INTEGER");
     }
     return long.toNumber();
 }

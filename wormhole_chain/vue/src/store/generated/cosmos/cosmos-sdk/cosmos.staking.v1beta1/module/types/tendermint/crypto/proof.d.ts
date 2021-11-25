@@ -1,4 +1,4 @@
-import { Writer, Reader } from 'protobufjs/minimal';
+import { Writer, Reader } from "protobufjs/minimal";
 export declare const protobufPackage = "tendermint.crypto";
 export interface Proof {
     total: number;

@@ -1,11 +1,11 @@
 /* eslint-disable */
-import { Timestamp } from '../../../google/protobuf/timestamp'
-import { Coin } from '../../../cosmos/base/v1beta1/coin'
-import { Duration } from '../../../google/protobuf/duration'
-import { Any } from '../../../google/protobuf/any'
-import { Writer, Reader } from 'protobufjs/minimal'
+import { Timestamp } from "../../../google/protobuf/timestamp";
+import { Coin } from "../../../cosmos/base/v1beta1/coin";
+import { Duration } from "../../../google/protobuf/duration";
+import { Any } from "../../../google/protobuf/any";
+import { Writer, Reader } from "protobufjs/minimal";
 
-export const protobufPackage = 'cosmos.feegrant.v1beta1'
+export const protobufPackage = "cosmos.feegrant.v1beta1";
 
 /**
  * BasicAllowance implements Allowance with a one-time grant of tokens
@@ -17,9 +17,9 @@ export interface BasicAllowance {
    * by this allowance and will be updated as tokens are spent. If it is
    * empty, there is no spend limit and any amount of coins can be spent.
    */
-  spendLimit: Coin[]
+  spendLimit: Coin[];
   /** expiration specifies an optional time when this allowance expires */
-  expiration: Date | undefined
+  expiration: Date | undefined;
 }
 
 /**
@@ -28,430 +28,481 @@ export interface BasicAllowance {
  */
 export interface PeriodicAllowance {
   /** basic specifies a struct of `BasicAllowance` */
-  basic: BasicAllowance | undefined
+  basic: BasicAllowance | undefined;
   /**
    * period specifies the time duration in which period_spend_limit coins can
    * be spent before that allowance is reset
    */
-  period: Duration | undefined
+  period: Duration | undefined;
   /**
    * period_spend_limit specifies the maximum number of coins that can be spent
    * in the period
    */
-  periodSpendLimit: Coin[]
+  periodSpendLimit: Coin[];
   /** period_can_spend is the number of coins left to be spent before the period_reset time */
-  periodCanSpend: Coin[]
+  periodCanSpend: Coin[];
   /**
    * period_reset is the time at which this period resets and a new one begins,
    * it is calculated from the start time of the first transaction after the
    * last period ended
    */
-  periodReset: Date | undefined
+  periodReset: Date | undefined;
 }
 
 /** AllowedMsgAllowance creates allowance only for specified message types. */
 export interface AllowedMsgAllowance {
   /** allowance can be any of basic and filtered fee allowance. */
-  allowance: Any | undefined
+  allowance: Any | undefined;
   /** allowed_messages are the messages for which the grantee has the access. */
-  allowedMessages: string[]
+  allowedMessages: string[];
 }
 
 /** Grant is stored in the KVStore to record a grant with full context */
 export interface Grant {
   /** granter is the address of the user granting an allowance of their funds. */
-  granter: string
+  granter: string;
   /** grantee is the address of the user being granted an allowance of another user's funds. */
-  grantee: string
+  grantee: string;
   /** allowance can be any of basic and filtered fee allowance. */
-  allowance: Any | undefined
+  allowance: Any | undefined;
 }
 
-const baseBasicAllowance: object = {}
+const baseBasicAllowance: object = {};
 
 export const BasicAllowance = {
   encode(message: BasicAllowance, writer: Writer = Writer.create()): Writer {
     for (const v of message.spendLimit) {
-      Coin.encode(v!, writer.uint32(10).fork()).ldelim()
+      Coin.encode(v!, writer.uint32(10).fork()).ldelim();
     }
     if (message.expiration !== undefined) {
-      Timestamp.encode(toTimestamp(message.expiration), writer.uint32(18).fork()).ldelim()
+      Timestamp.encode(
+        toTimestamp(message.expiration),
+        writer.uint32(18).fork()
+      ).ldelim();
     }
-    return writer
+    return writer;
   },
 
   decode(input: Reader | Uint8Array, length?: number): BasicAllowance {
-    const reader = input instanceof Uint8Array ? new Reader(input) : input
-    let end = length === undefined ? reader.len : reader.pos + length
-    const message = { ...baseBasicAllowance } as BasicAllowance
-    message.spendLimit = []
+    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = { ...baseBasicAllowance } as BasicAllowance;
+    message.spendLimit = [];
     while (reader.pos < end) {
-      const tag = reader.uint32()
+      const tag = reader.uint32();
       switch (tag >>> 3) {
         case 1:
-          message.spendLimit.push(Coin.decode(reader, reader.uint32()))
-          break
+          message.spendLimit.push(Coin.decode(reader, reader.uint32()));
+          break;
         case 2:
-          message.expiration = fromTimestamp(Timestamp.decode(reader, reader.uint32()))
-          break
+          message.expiration = fromTimestamp(
+            Timestamp.decode(reader, reader.uint32())
+          );
+          break;
         default:
-          reader.skipType(tag & 7)
-          break
+          reader.skipType(tag & 7);
+          break;
       }
     }
-    return message
+    return message;
   },
 
   fromJSON(object: any): BasicAllowance {
-    const message = { ...baseBasicAllowance } as BasicAllowance
-    message.spendLimit = []
+    const message = { ...baseBasicAllowance } as BasicAllowance;
+    message.spendLimit = [];
     if (object.spendLimit !== undefined && object.spendLimit !== null) {
       for (const e of object.spendLimit) {
-        message.spendLimit.push(Coin.fromJSON(e))
+        message.spendLimit.push(Coin.fromJSON(e));
       }
     }
     if (object.expiration !== undefined && object.expiration !== null) {
-      message.expiration = fromJsonTimestamp(object.expiration)
+      message.expiration = fromJsonTimestamp(object.expiration);
     } else {
-      message.expiration = undefined
+      message.expiration = undefined;
     }
-    return message
+    return message;
   },
 
   toJSON(message: BasicAllowance): unknown {
-    const obj: any = {}
+    const obj: any = {};
     if (message.spendLimit) {
-      obj.spendLimit = message.spendLimit.map((e) => (e ? Coin.toJSON(e) : undefined))
+      obj.spendLimit = message.spendLimit.map((e) =>
+        e ? Coin.toJSON(e) : undefined
+      );
     } else {
-      obj.spendLimit = []
+      obj.spendLimit = [];
     }
-    message.expiration !== undefined && (obj.expiration = message.expiration !== undefined ? message.expiration.toISOString() : null)
-    return obj
+    message.expiration !== undefined &&
+      (obj.expiration =
+        message.expiration !== undefined
+          ? message.expiration.toISOString()
+          : null);
+    return obj;
   },
 
   fromPartial(object: DeepPartial<BasicAllowance>): BasicAllowance {
-    const message = { ...baseBasicAllowance } as BasicAllowance
-    message.spendLimit = []
+    const message = { ...baseBasicAllowance } as BasicAllowance;
+    message.spendLimit = [];
     if (object.spendLimit !== undefined && object.spendLimit !== null) {
       for (const e of object.spendLimit) {
-        message.spendLimit.push(Coin.fromPartial(e))
+        message.spendLimit.push(Coin.fromPartial(e));
       }
     }
     if (object.expiration !== undefined && object.expiration !== null) {
-      message.expiration = object.expiration
+      message.expiration = object.expiration;
     } else {
-      message.expiration = undefined
+      message.expiration = undefined;
     }
-    return message
-  }
-}
+    return message;
+  },
+};
 
-const basePeriodicAllowance: object = {}
+const basePeriodicAllowance: object = {};
 
 export const PeriodicAllowance = {
   encode(message: PeriodicAllowance, writer: Writer = Writer.create()): Writer {
     if (message.basic !== undefined) {
-      BasicAllowance.encode(message.basic, writer.uint32(10).fork()).ldelim()
+      BasicAllowance.encode(message.basic, writer.uint32(10).fork()).ldelim();
     }
     if (message.period !== undefined) {
-      Duration.encode(message.period, writer.uint32(18).fork()).ldelim()
+      Duration.encode(message.period, writer.uint32(18).fork()).ldelim();
     }
     for (const v of message.periodSpendLimit) {
-      Coin.encode(v!, writer.uint32(26).fork()).ldelim()
+      Coin.encode(v!, writer.uint32(26).fork()).ldelim();
     }
     for (const v of message.periodCanSpend) {
-      Coin.encode(v!, writer.uint32(34).fork()).ldelim()
+      Coin.encode(v!, writer.uint32(34).fork()).ldelim();
     }
     if (message.periodReset !== undefined) {
-      Timestamp.encode(toTimestamp(message.periodReset), writer.uint32(42).fork()).ldelim()
+      Timestamp.encode(
+        toTimestamp(message.periodReset),
+        writer.uint32(42).fork()
+      ).ldelim();
     }
-    return writer
+    return writer;
   },
 
   decode(input: Reader | Uint8Array, length?: number): PeriodicAllowance {
-    const reader = input instanceof Uint8Array ? new Reader(input) : input
-    let end = length === undefined ? reader.len : reader.pos + length
-    const message = { ...basePeriodicAllowance } as PeriodicAllowance
-    message.periodSpendLimit = []
-    message.periodCanSpend = []
+    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = { ...basePeriodicAllowance } as PeriodicAllowance;
+    message.periodSpendLimit = [];
+    message.periodCanSpend = [];
     while (reader.pos < end) {
-      const tag = reader.uint32()
+      const tag = reader.uint32();
       switch (tag >>> 3) {
         case 1:
-          message.basic = BasicAllowance.decode(reader, reader.uint32())
-          break
+          message.basic = BasicAllowance.decode(reader, reader.uint32());
+          break;
         case 2:
-          message.period = Duration.decode(reader, reader.uint32())
-          break
+          message.period = Duration.decode(reader, reader.uint32());
+          break;
         case 3:
-          message.periodSpendLimit.push(Coin.decode(reader, reader.uint32()))
-          break
+          message.periodSpendLimit.push(Coin.decode(reader, reader.uint32()));
+          break;
         case 4:
-          message.periodCanSpend.push(Coin.decode(reader, reader.uint32()))
-          break
+          message.periodCanSpend.push(Coin.decode(reader, reader.uint32()));
+          break;
         case 5:
-          message.periodReset = fromTimestamp(Timestamp.decode(reader, reader.uint32()))
-          break
+          message.periodReset = fromTimestamp(
+            Timestamp.decode(reader, reader.uint32())
+          );
+          break;
         default:
-          reader.skipType(tag & 7)
-          break
+          reader.skipType(tag & 7);
+          break;
       }
     }
-    return message
+    return message;
   },
 
   fromJSON(object: any): PeriodicAllowance {
-    const message = { ...basePeriodicAllowance } as PeriodicAllowance
-    message.periodSpendLimit = []
-    message.periodCanSpend = []
+    const message = { ...basePeriodicAllowance } as PeriodicAllowance;
+    message.periodSpendLimit = [];
+    message.periodCanSpend = [];
     if (object.basic !== undefined && object.basic !== null) {
-      message.basic = BasicAllowance.fromJSON(object.basic)
+      message.basic = BasicAllowance.fromJSON(object.basic);
     } else {
-      message.basic = undefined
+      message.basic = undefined;
     }
     if (object.period !== undefined && object.period !== null) {
-      message.period = Duration.fromJSON(object.period)
+      message.period = Duration.fromJSON(object.period);
     } else {
-      message.period = undefined
+      message.period = undefined;
     }
-    if (object.periodSpendLimit !== undefined && object.periodSpendLimit !== null) {
+    if (
+      object.periodSpendLimit !== undefined &&
+      object.periodSpendLimit !== null
+    ) {
       for (const e of object.periodSpendLimit) {
-        message.periodSpendLimit.push(Coin.fromJSON(e))
+        message.periodSpendLimit.push(Coin.fromJSON(e));
       }
     }
     if (object.periodCanSpend !== undefined && object.periodCanSpend !== null) {
       for (const e of object.periodCanSpend) {
-        message.periodCanSpend.push(Coin.fromJSON(e))
+        message.periodCanSpend.push(Coin.fromJSON(e));
       }
     }
     if (object.periodReset !== undefined && object.periodReset !== null) {
-      message.periodReset = fromJsonTimestamp(object.periodReset)
+      message.periodReset = fromJsonTimestamp(object.periodReset);
     } else {
-      message.periodReset = undefined
+      message.periodReset = undefined;
     }
-    return message
+    return message;
   },
 
   toJSON(message: PeriodicAllowance): unknown {
-    const obj: any = {}
-    message.basic !== undefined && (obj.basic = message.basic ? BasicAllowance.toJSON(message.basic) : undefined)
-    message.period !== undefined && (obj.period = message.period ? Duration.toJSON(message.period) : undefined)
+    const obj: any = {};
+    message.basic !== undefined &&
+      (obj.basic = message.basic
+        ? BasicAllowance.toJSON(message.basic)
+        : undefined);
+    message.period !== undefined &&
+      (obj.period = message.period
+        ? Duration.toJSON(message.period)
+        : undefined);
     if (message.periodSpendLimit) {
-      obj.periodSpendLimit = message.periodSpendLimit.map((e) => (e ? Coin.toJSON(e) : undefined))
+      obj.periodSpendLimit = message.periodSpendLimit.map((e) =>
+        e ? Coin.toJSON(e) : undefined
+      );
     } else {
-      obj.periodSpendLimit = []
+      obj.periodSpendLimit = [];
     }
     if (message.periodCanSpend) {
-      obj.periodCanSpend = message.periodCanSpend.map((e) => (e ? Coin.toJSON(e) : undefined))
+      obj.periodCanSpend = message.periodCanSpend.map((e) =>
+        e ? Coin.toJSON(e) : undefined
+      );
     } else {
-      obj.periodCanSpend = []
+      obj.periodCanSpend = [];
     }
-    message.periodReset !== undefined && (obj.periodReset = message.periodReset !== undefined ? message.periodReset.toISOString() : null)
-    return obj
+    message.periodReset !== undefined &&
+      (obj.periodReset =
+        message.periodReset !== undefined
+          ? message.periodReset.toISOString()
+          : null);
+    return obj;
   },
 
   fromPartial(object: DeepPartial<PeriodicAllowance>): PeriodicAllowance {
-    const message = { ...basePeriodicAllowance } as PeriodicAllowance
-    message.periodSpendLimit = []
-    message.periodCanSpend = []
+    const message = { ...basePeriodicAllowance } as PeriodicAllowance;
+    message.periodSpendLimit = [];
+    message.periodCanSpend = [];
     if (object.basic !== undefined && object.basic !== null) {
-      message.basic = BasicAllowance.fromPartial(object.basic)
+      message.basic = BasicAllowance.fromPartial(object.basic);
     } else {
-      message.basic = undefined
+      message.basic = undefined;
     }
     if (object.period !== undefined && object.period !== null) {
-      message.period = Duration.fromPartial(object.period)
+      message.period = Duration.fromPartial(object.period);
     } else {
-      message.period = undefined
+      message.period = undefined;
     }
-    if (object.periodSpendLimit !== undefined && object.periodSpendLimit !== null) {
+    if (
+      object.periodSpendLimit !== undefined &&
+      object.periodSpendLimit !== null
+    ) {
       for (const e of object.periodSpendLimit) {
-        message.periodSpendLimit.push(Coin.fromPartial(e))
+        message.periodSpendLimit.push(Coin.fromPartial(e));
       }
     }
     if (object.periodCanSpend !== undefined && object.periodCanSpend !== null) {
       for (const e of object.periodCanSpend) {
-        message.periodCanSpend.push(Coin.fromPartial(e))
+        message.periodCanSpend.push(Coin.fromPartial(e));
       }
     }
     if (object.periodReset !== undefined && object.periodReset !== null) {
-      message.periodReset = object.periodReset
+      message.periodReset = object.periodReset;
     } else {
-      message.periodReset = undefined
+      message.periodReset = undefined;
     }
-    return message
-  }
-}
+    return message;
+  },
+};
 
-const baseAllowedMsgAllowance: object = { allowedMessages: '' }
+const baseAllowedMsgAllowance: object = { allowedMessages: "" };
 
 export const AllowedMsgAllowance = {
-  encode(message: AllowedMsgAllowance, writer: Writer = Writer.create()): Writer {
+  encode(
+    message: AllowedMsgAllowance,
+    writer: Writer = Writer.create()
+  ): Writer {
     if (message.allowance !== undefined) {
-      Any.encode(message.allowance, writer.uint32(10).fork()).ldelim()
+      Any.encode(message.allowance, writer.uint32(10).fork()).ldelim();
     }
     for (const v of message.allowedMessages) {
-      writer.uint32(18).string(v!)
+      writer.uint32(18).string(v!);
     }
-    return writer
+    return writer;
   },
 
   decode(input: Reader | Uint8Array, length?: number): AllowedMsgAllowance {
-    const reader = input instanceof Uint8Array ? new Reader(input) : input
-    let end = length === undefined ? reader.len : reader.pos + length
-    const message = { ...baseAllowedMsgAllowance } as AllowedMsgAllowance
-    message.allowedMessages = []
+    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = { ...baseAllowedMsgAllowance } as AllowedMsgAllowance;
+    message.allowedMessages = [];
     while (reader.pos < end) {
-      const tag = reader.uint32()
+      const tag = reader.uint32();
       switch (tag >>> 3) {
         case 1:
-          message.allowance = Any.decode(reader, reader.uint32())
-          break
+          message.allowance = Any.decode(reader, reader.uint32());
+          break;
         case 2:
-          message.allowedMessages.push(reader.string())
-          break
+          message.allowedMessages.push(reader.string());
+          break;
         default:
-          reader.skipType(tag & 7)
-          break
+          reader.skipType(tag & 7);
+          break;
       }
     }
-    return message
+    return message;
   },
 
   fromJSON(object: any): AllowedMsgAllowance {
-    const message = { ...baseAllowedMsgAllowance } as AllowedMsgAllowance
-    message.allowedMessages = []
+    const message = { ...baseAllowedMsgAllowance } as AllowedMsgAllowance;
+    message.allowedMessages = [];
     if (object.allowance !== undefined && object.allowance !== null) {
-      message.allowance = Any.fromJSON(object.allowance)
+      message.allowance = Any.fromJSON(object.allowance);
     } else {
-      message.allowance = undefined
+      message.allowance = undefined;
     }
-    if (object.allowedMessages !== undefined && object.allowedMessages !== null) {
+    if (
+      object.allowedMessages !== undefined &&
+      object.allowedMessages !== null
+    ) {
       for (const e of object.allowedMessages) {
-        message.allowedMessages.push(String(e))
+        message.allowedMessages.push(String(e));
       }
     }
-    return message
+    return message;
   },
 
   toJSON(message: AllowedMsgAllowance): unknown {
-    const obj: any = {}
-    message.allowance !== undefined && (obj.allowance = message.allowance ? Any.toJSON(message.allowance) : undefined)
+    const obj: any = {};
+    message.allowance !== undefined &&
+      (obj.allowance = message.allowance
+        ? Any.toJSON(message.allowance)
+        : undefined);
     if (message.allowedMessages) {
-      obj.allowedMessages = message.allowedMessages.map((e) => e)
+      obj.allowedMessages = message.allowedMessages.map((e) => e);
     } else {
-      obj.allowedMessages = []
+      obj.allowedMessages = [];
     }
-    return obj
+    return obj;
   },
 
   fromPartial(object: DeepPartial<AllowedMsgAllowance>): AllowedMsgAllowance {
-    const message = { ...baseAllowedMsgAllowance } as AllowedMsgAllowance
-    message.allowedMessages = []
+    const message = { ...baseAllowedMsgAllowance } as AllowedMsgAllowance;
+    message.allowedMessages = [];
     if (object.allowance !== undefined && object.allowance !== null) {
-      message.allowance = Any.fromPartial(object.allowance)
+      message.allowance = Any.fromPartial(object.allowance);
     } else {
-      message.allowance = undefined
+      message.allowance = undefined;
     }
-    if (object.allowedMessages !== undefined && object.allowedMessages !== null) {
+    if (
+      object.allowedMessages !== undefined &&
+      object.allowedMessages !== null
+    ) {
       for (const e of object.allowedMessages) {
-        message.allowedMessages.push(e)
+        message.allowedMessages.push(e);
       }
     }
-    return message
-  }
-}
+    return message;
+  },
+};
 
-const baseGrant: object = { granter: '', grantee: '' }
+const baseGrant: object = { granter: "", grantee: "" };
 
 export const Grant = {
   encode(message: Grant, writer: Writer = Writer.create()): Writer {
-    if (message.granter !== '') {
-      writer.uint32(10).string(message.granter)
+    if (message.granter !== "") {
+      writer.uint32(10).string(message.granter);
     }
-    if (message.grantee !== '') {
-      writer.uint32(18).string(message.grantee)
+    if (message.grantee !== "") {
+      writer.uint32(18).string(message.grantee);
     }
     if (message.allowance !== undefined) {
-      Any.encode(message.allowance, writer.uint32(26).fork()).ldelim()
+      Any.encode(message.allowance, writer.uint32(26).fork()).ldelim();
     }
-    return writer
+    return writer;
   },
 
   decode(input: Reader | Uint8Array, length?: number): Grant {
-    const reader = input instanceof Uint8Array ? new Reader(input) : input
-    let end = length === undefined ? reader.len : reader.pos + length
-    const message = { ...baseGrant } as Grant
+    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = { ...baseGrant } as Grant;
     while (reader.pos < end) {
-      const tag = reader.uint32()
+      const tag = reader.uint32();
       switch (tag >>> 3) {
         case 1:
-          message.granter = reader.string()
-          break
+          message.granter = reader.string();
+          break;
         case 2:
-          message.grantee = reader.string()
-          break
+          message.grantee = reader.string();
+          break;
         case 3:
-          message.allowance = Any.decode(reader, reader.uint32())
-          break
+          message.allowance = Any.decode(reader, reader.uint32());
+          break;
         default:
-          reader.skipType(tag & 7)
-          break
+          reader.skipType(tag & 7);
+          break;
       }
     }
-    return message
+    return message;
   },
 
   fromJSON(object: any): Grant {
-    const message = { ...baseGrant } as Grant
+    const message = { ...baseGrant } as Grant;
     if (object.granter !== undefined && object.granter !== null) {
-      message.granter = String(object.granter)
+      message.granter = String(object.granter);
     } else {
-      message.granter = ''
+      message.granter = "";
     }
     if (object.grantee !== undefined && object.grantee !== null) {
-      message.grantee = String(object.grantee)
+      message.grantee = String(object.grantee);
     } else {
-      message.grantee = ''
+      message.grantee = "";
     }
     if (object.allowance !== undefined && object.allowance !== null) {
-      message.allowance = Any.fromJSON(object.allowance)
+      message.allowance = Any.fromJSON(object.allowance);
     } else {
-      message.allowance = undefined
+      message.allowance = undefined;
     }
-    return message
+    return message;
   },
 
   toJSON(message: Grant): unknown {
-    const obj: any = {}
-    message.granter !== undefined && (obj.granter = message.granter)
-    message.grantee !== undefined && (obj.grantee = message.grantee)
-    message.allowance !== undefined && (obj.allowance = message.allowance ? Any.toJSON(message.allowance) : undefined)
-    return obj
+    const obj: any = {};
+    message.granter !== undefined && (obj.granter = message.granter);
+    message.grantee !== undefined && (obj.grantee = message.grantee);
+    message.allowance !== undefined &&
+      (obj.allowance = message.allowance
+        ? Any.toJSON(message.allowance)
+        : undefined);
+    return obj;
   },
 
   fromPartial(object: DeepPartial<Grant>): Grant {
-    const message = { ...baseGrant } as Grant
+    const message = { ...baseGrant } as Grant;
     if (object.granter !== undefined && object.granter !== null) {
-      message.granter = object.granter
+      message.granter = object.granter;
     } else {
-      message.granter = ''
+      message.granter = "";
     }
     if (object.grantee !== undefined && object.grantee !== null) {
-      message.grantee = object.grantee
+      message.grantee = object.grantee;
     } else {
-      message.grantee = ''
+      message.grantee = "";
     }
     if (object.allowance !== undefined && object.allowance !== null) {
-      message.allowance = Any.fromPartial(object.allowance)
+      message.allowance = Any.fromPartial(object.allowance);
     } else {
-      message.allowance = undefined
+      message.allowance = undefined;
     }
-    return message
-  }
-}
+    return message;
+  },
+};
 
-type Builtin = Date | Function | Uint8Array | string | number | undefined
+type Builtin = Date | Function | Uint8Array | string | number | undefined;
 export type DeepPartial<T> = T extends Builtin
   ? T
   : T extends Array<infer U>
@@ -460,26 +511,26 @@ export type DeepPartial<T> = T extends Builtin
   ? ReadonlyArray<DeepPartial<U>>
   : T extends {}
   ? { [K in keyof T]?: DeepPartial<T[K]> }
-  : Partial<T>
+  : Partial<T>;
 
 function toTimestamp(date: Date): Timestamp {
-  const seconds = date.getTime() / 1_000
-  const nanos = (date.getTime() % 1_000) * 1_000_000
-  return { seconds, nanos }
+  const seconds = date.getTime() / 1_000;
+  const nanos = (date.getTime() % 1_000) * 1_000_000;
+  return { seconds, nanos };
 }
 
 function fromTimestamp(t: Timestamp): Date {
-  let millis = t.seconds * 1_000
-  millis += t.nanos / 1_000_000
-  return new Date(millis)
+  let millis = t.seconds * 1_000;
+  millis += t.nanos / 1_000_000;
+  return new Date(millis);
 }
 
 function fromJsonTimestamp(o: any): Date {
   if (o instanceof Date) {
-    return o
-  } else if (typeof o === 'string') {
-    return new Date(o)
+    return o;
+  } else if (typeof o === "string") {
+    return new Date(o);
   } else {
-    return fromTimestamp(Timestamp.fromJSON(o))
+    return fromTimestamp(Timestamp.fromJSON(o));
   }
 }

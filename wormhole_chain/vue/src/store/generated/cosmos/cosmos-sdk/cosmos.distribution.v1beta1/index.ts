@@ -1,4 +1,4 @@
-import { txClient, queryClient, MissingWalletError , registry} from './module'
+import { txClient, queryClient, MissingWalletError } from './module'
 // @ts-ignore
 import { SpVuexError } from '@starport/vuex'
 
@@ -93,7 +93,6 @@ const getDefaultState = () => {
 						ValidatorSlashEventRecord: getStructure(ValidatorSlashEventRecord.fromPartial({})),
 						
 		},
-		_Registry: registry,
 		_Subscriptions: new Set(),
 	}
 }
@@ -176,9 +175,6 @@ export default {
 				
 		getTypeStructure: (state) => (type) => {
 			return state._Structure[type].fields
-		},
-		getRegistry: (state) => {
-			return state._Registry
 		}
 	},
 	actions: {
@@ -399,6 +395,21 @@ export default {
 		},
 		
 		
+		async sendMsgFundCommunityPool({ rootGetters }, { value, fee = [], memo = '' }) {
+			try {
+				const txClient=await initTxClient(rootGetters)
+				const msg = await txClient.msgFundCommunityPool(value)
+				const result = await txClient.signAndBroadcast([msg], {fee: { amount: fee, 
+	gas: "200000" }, memo})
+				return result
+			} catch (e) {
+				if (e == MissingWalletError) {
+					throw new SpVuexError('TxClient:MsgFundCommunityPool:Init', 'Could not initialize signing client. Wallet is required.')
+				}else{
+					throw new SpVuexError('TxClient:MsgFundCommunityPool:Send', 'Could not broadcast Tx: '+ e.message)
+				}
+			}
+		},
 		async sendMsgSetWithdrawAddress({ rootGetters }, { value, fee = [], memo = '' }) {
 			try {
 				const txClient=await initTxClient(rootGetters)
@@ -429,21 +440,6 @@ export default {
 				}
 			}
 		},
-		async sendMsgFundCommunityPool({ rootGetters }, { value, fee = [], memo = '' }) {
-			try {
-				const txClient=await initTxClient(rootGetters)
-				const msg = await txClient.msgFundCommunityPool(value)
-				const result = await txClient.signAndBroadcast([msg], {fee: { amount: fee, 
-	gas: "200000" }, memo})
-				return result
-			} catch (e) {
-				if (e == MissingWalletError) {
-					throw new SpVuexError('TxClient:MsgFundCommunityPool:Init', 'Could not initialize signing client. Wallet is required.')
-				}else{
-					throw new SpVuexError('TxClient:MsgFundCommunityPool:Send', 'Could not broadcast Tx: '+ e.message)
-				}
-			}
-		},
 		async sendMsgWithdrawDelegatorReward({ rootGetters }, { value, fee = [], memo = '' }) {
 			try {
 				const txClient=await initTxClient(rootGetters)
@@ -460,6 +456,20 @@ export default {
 			}
 		},
 		
+		async MsgFundCommunityPool({ rootGetters }, { value }) {
+			try {
+				const txClient=await initTxClient(rootGetters)
+				const msg = await txClient.msgFundCommunityPool(value)
+				return msg
+			} catch (e) {
+				if (e == MissingWalletError) {
+					throw new SpVuexError('TxClient:MsgFundCommunityPool:Init', 'Could not initialize signing client. Wallet is required.')
+				}else{
+					throw new SpVuexError('TxClient:MsgFundCommunityPool:Create', 'Could not create message: ' + e.message)
+					
+				}
+			}
+		},
 		async MsgSetWithdrawAddress({ rootGetters }, { value }) {
 			try {
 				const txClient=await initTxClient(rootGetters)
@@ -484,20 +494,6 @@ export default {
 					throw new SpVuexError('TxClient:MsgWithdrawValidatorCommission:Init', 'Could not initialize signing client. Wallet is required.')
 				}else{
 					throw new SpVuexError('TxClient:MsgWithdrawValidatorCommission:Create', 'Could not create message: ' + e.message)
-					
-				}
-			}
-		},
-		async MsgFundCommunityPool({ rootGetters }, { value }) {
-			try {
-				const txClient=await initTxClient(rootGetters)
-				const msg = await txClient.msgFundCommunityPool(value)
-				return msg
-			} catch (e) {
-				if (e == MissingWalletError) {
-					throw new SpVuexError('TxClient:MsgFundCommunityPool:Init', 'Could not initialize signing client. Wallet is required.')
-				}else{
-					throw new SpVuexError('TxClient:MsgFundCommunityPool:Create', 'Could not create message: ' + e.message)
 					
 				}
 			}

@@ -1,6 +1,6 @@
-import { Reader, Writer } from 'protobufjs/minimal';
-import { PageRequest, PageResponse } from '../../../cosmos/base/query/v1beta1/pagination';
-import { Validator, DelegationResponse, UnbondingDelegation, RedelegationResponse, HistoricalInfo, Pool, Params } from '../../../cosmos/staking/v1beta1/staking';
+import { Reader, Writer } from "protobufjs/minimal";
+import { PageRequest, PageResponse } from "../../../cosmos/base/query/v1beta1/pagination";
+import { Validator, DelegationResponse, UnbondingDelegation, RedelegationResponse, HistoricalInfo, Pool, Params } from "../../../cosmos/staking/v1beta1/staking";
 export declare const protobufPackage = "cosmos.staking.v1beta1";
 /** QueryValidatorsRequest is request type for Query/Validators RPC method. */
 export interface QueryValidatorsRequest {

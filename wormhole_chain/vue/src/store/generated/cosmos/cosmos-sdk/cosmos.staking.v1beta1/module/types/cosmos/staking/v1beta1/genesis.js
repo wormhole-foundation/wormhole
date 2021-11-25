@@ -1,8 +1,8 @@
 /* eslint-disable */
-import * as Long from 'long';
-import { util, configure, Writer, Reader } from 'protobufjs/minimal';
-import { Params, Validator, Delegation, UnbondingDelegation, Redelegation } from '../../../cosmos/staking/v1beta1/staking';
-export const protobufPackage = 'cosmos.staking.v1beta1';
+import * as Long from "long";
+import { util, configure, Writer, Reader } from "protobufjs/minimal";
+import { Params, Validator, Delegation, UnbondingDelegation, Redelegation, } from "../../../cosmos/staking/v1beta1/staking";
+export const protobufPackage = "cosmos.staking.v1beta1";
 const baseGenesisState = { exported: false };
 export const GenesisState = {
     encode(message, writer = Writer.create()) {
@@ -91,7 +91,8 @@ export const GenesisState = {
         if (object.lastTotalPower !== undefined && object.lastTotalPower !== null) {
             message.lastTotalPower = bytesFromBase64(object.lastTotalPower);
         }
-        if (object.lastValidatorPowers !== undefined && object.lastValidatorPowers !== null) {
+        if (object.lastValidatorPowers !== undefined &&
+            object.lastValidatorPowers !== null) {
             for (const e of object.lastValidatorPowers) {
                 message.lastValidatorPowers.push(LastValidatorPower.fromJSON(e));
             }
@@ -106,7 +107,8 @@ export const GenesisState = {
                 message.delegations.push(Delegation.fromJSON(e));
             }
         }
-        if (object.unbondingDelegations !== undefined && object.unbondingDelegations !== null) {
+        if (object.unbondingDelegations !== undefined &&
+            object.unbondingDelegations !== null) {
             for (const e of object.unbondingDelegations) {
                 message.unbondingDelegations.push(UnbondingDelegation.fromJSON(e));
             }
@@ -126,35 +128,38 @@ export const GenesisState = {
     },
     toJSON(message) {
         const obj = {};
-        message.params !== undefined && (obj.params = message.params ? Params.toJSON(message.params) : undefined);
+        message.params !== undefined &&
+            (obj.params = message.params ? Params.toJSON(message.params) : undefined);
         message.lastTotalPower !== undefined &&
-            (obj.lastTotalPower = base64FromBytes(message.lastTotalPower !== undefined ? message.lastTotalPower : new Uint8Array()));
+            (obj.lastTotalPower = base64FromBytes(message.lastTotalPower !== undefined
+                ? message.lastTotalPower
+                : new Uint8Array()));
         if (message.lastValidatorPowers) {
-            obj.lastValidatorPowers = message.lastValidatorPowers.map((e) => (e ? LastValidatorPower.toJSON(e) : undefined));
+            obj.lastValidatorPowers = message.lastValidatorPowers.map((e) => e ? LastValidatorPower.toJSON(e) : undefined);
         }
         else {
             obj.lastValidatorPowers = [];
         }
         if (message.validators) {
-            obj.validators = message.validators.map((e) => (e ? Validator.toJSON(e) : undefined));
+            obj.validators = message.validators.map((e) => e ? Validator.toJSON(e) : undefined);
         }
         else {
             obj.validators = [];
         }
         if (message.delegations) {
-            obj.delegations = message.delegations.map((e) => (e ? Delegation.toJSON(e) : undefined));
+            obj.delegations = message.delegations.map((e) => e ? Delegation.toJSON(e) : undefined);
         }
         else {
             obj.delegations = [];
         }
         if (message.unbondingDelegations) {
-            obj.unbondingDelegations = message.unbondingDelegations.map((e) => (e ? UnbondingDelegation.toJSON(e) : undefined));
+            obj.unbondingDelegations = message.unbondingDelegations.map((e) => e ? UnbondingDelegation.toJSON(e) : undefined);
         }
         else {
             obj.unbondingDelegations = [];
         }
         if (message.redelegations) {
-            obj.redelegations = message.redelegations.map((e) => (e ? Redelegation.toJSON(e) : undefined));
+            obj.redelegations = message.redelegations.map((e) => e ? Redelegation.toJSON(e) : undefined);
         }
         else {
             obj.redelegations = [];
@@ -181,7 +186,8 @@ export const GenesisState = {
         else {
             message.lastTotalPower = new Uint8Array();
         }
-        if (object.lastValidatorPowers !== undefined && object.lastValidatorPowers !== null) {
+        if (object.lastValidatorPowers !== undefined &&
+            object.lastValidatorPowers !== null) {
             for (const e of object.lastValidatorPowers) {
                 message.lastValidatorPowers.push(LastValidatorPower.fromPartial(e));
             }
@@ -196,7 +202,8 @@ export const GenesisState = {
                 message.delegations.push(Delegation.fromPartial(e));
             }
         }
-        if (object.unbondingDelegations !== undefined && object.unbondingDelegations !== null) {
+        if (object.unbondingDelegations !== undefined &&
+            object.unbondingDelegations !== null) {
             for (const e of object.unbondingDelegations) {
                 message.unbondingDelegations.push(UnbondingDelegation.fromPartial(e));
             }
@@ -213,12 +220,12 @@ export const GenesisState = {
             message.exported = false;
         }
         return message;
-    }
+    },
 };
-const baseLastValidatorPower = { address: '', power: 0 };
+const baseLastValidatorPower = { address: "", power: 0 };
 export const LastValidatorPower = {
     encode(message, writer = Writer.create()) {
-        if (message.address !== '') {
+        if (message.address !== "") {
             writer.uint32(10).string(message.address);
         }
         if (message.power !== 0) {
@@ -252,7 +259,7 @@ export const LastValidatorPower = {
             message.address = String(object.address);
         }
         else {
-            message.address = '';
+            message.address = "";
         }
         if (object.power !== undefined && object.power !== null) {
             message.power = Number(object.power);
@@ -274,7 +281,7 @@ export const LastValidatorPower = {
             message.address = object.address;
         }
         else {
-            message.address = '';
+            message.address = "";
         }
         if (object.power !== undefined && object.power !== null) {
             message.power = object.power;
@@ -283,20 +290,21 @@ export const LastValidatorPower = {
             message.power = 0;
         }
         return message;
-    }
+    },
 };
 var globalThis = (() => {
-    if (typeof globalThis !== 'undefined')
+    if (typeof globalThis !== "undefined")
         return globalThis;
-    if (typeof self !== 'undefined')
+    if (typeof self !== "undefined")
         return self;
-    if (typeof window !== 'undefined')
+    if (typeof window !== "undefined")
         return window;
-    if (typeof global !== 'undefined')
+    if (typeof global !== "undefined")
         return global;
-    throw 'Unable to locate global object';
+    throw "Unable to locate global object";
 })();
-const atob = globalThis.atob || ((b64) => globalThis.Buffer.from(b64, 'base64').toString('binary'));
+const atob = globalThis.atob ||
+    ((b64) => globalThis.Buffer.from(b64, "base64").toString("binary"));
 function bytesFromBase64(b64) {
     const bin = atob(b64);
     const arr = new Uint8Array(bin.length);
@@ -305,17 +313,18 @@ function bytesFromBase64(b64) {
     }
     return arr;
 }
-const btoa = globalThis.btoa || ((bin) => globalThis.Buffer.from(bin, 'binary').toString('base64'));
+const btoa = globalThis.btoa ||
+    ((bin) => globalThis.Buffer.from(bin, "binary").toString("base64"));
 function base64FromBytes(arr) {
     const bin = [];
     for (let i = 0; i < arr.byteLength; ++i) {
         bin.push(String.fromCharCode(arr[i]));
     }
-    return btoa(bin.join(''));
+    return btoa(bin.join(""));
 }
 function longToNumber(long) {
     if (long.gt(Number.MAX_SAFE_INTEGER)) {
-        throw new globalThis.Error('Value is larger than Number.MAX_SAFE_INTEGER');
+        throw new globalThis.Error("Value is larger than Number.MAX_SAFE_INTEGER");
     }
     return long.toNumber();
 }

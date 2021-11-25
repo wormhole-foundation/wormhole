@@ -1,7 +1,7 @@
-import { VoteOption, WeightedVoteOption } from '../../../cosmos/gov/v1beta1/gov';
-import { Reader, Writer } from 'protobufjs/minimal';
-import { Any } from '../../../google/protobuf/any';
-import { Coin } from '../../../cosmos/base/v1beta1/coin';
+import { VoteOption, WeightedVoteOption } from "../../../cosmos/gov/v1beta1/gov";
+import { Reader, Writer } from "protobufjs/minimal";
+import { Any } from "../../../google/protobuf/any";
+import { Coin } from "../../../cosmos/base/v1beta1/coin";
 export declare const protobufPackage = "cosmos.gov.v1beta1";
 /**
  * MsgSubmitProposal defines an sdk.Msg type that supports submitting arbitrary

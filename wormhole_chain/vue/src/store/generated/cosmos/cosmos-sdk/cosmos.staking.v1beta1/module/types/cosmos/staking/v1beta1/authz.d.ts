@@ -1,5 +1,5 @@
-import { Coin } from '../../../cosmos/base/v1beta1/coin';
-import { Writer, Reader } from 'protobufjs/minimal';
+import { Coin } from "../../../cosmos/base/v1beta1/coin";
+import { Writer, Reader } from "protobufjs/minimal";
 export declare const protobufPackage = "cosmos.staking.v1beta1";
 /** AuthorizationType defines the type of staking module authorization type */
 export declare enum AuthorizationType {

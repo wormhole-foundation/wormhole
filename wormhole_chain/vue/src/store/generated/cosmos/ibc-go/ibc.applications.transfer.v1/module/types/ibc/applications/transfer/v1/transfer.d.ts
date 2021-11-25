@@ -1,4 +1,4 @@
-import { Writer, Reader } from 'protobufjs/minimal';
+import { Writer, Reader } from "protobufjs/minimal";
 export declare const protobufPackage = "ibc.applications.transfer.v1";
 /**
  * FungibleTokenPacketData defines a struct for the packet payload

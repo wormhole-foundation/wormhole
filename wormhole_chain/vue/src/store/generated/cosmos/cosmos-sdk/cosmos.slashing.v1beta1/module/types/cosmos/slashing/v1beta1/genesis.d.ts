@@ -1,5 +1,5 @@
-import { Writer, Reader } from 'protobufjs/minimal';
-import { Params, ValidatorSigningInfo } from '../../../cosmos/slashing/v1beta1/slashing';
+import { Writer, Reader } from "protobufjs/minimal";
+import { Params, ValidatorSigningInfo } from "../../../cosmos/slashing/v1beta1/slashing";
 export declare const protobufPackage = "cosmos.slashing.v1beta1";
 /** GenesisState defines the slashing module's genesis state. */
 export interface GenesisState {

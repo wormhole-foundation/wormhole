@@ -4,22 +4,22 @@ import { StdFee } from "@cosmjs/launchpad";
 import { SigningStargateClient } from "@cosmjs/stargate";
 import { Registry, OfflineSigner, EncodeObject, DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 import { Api } from "./rest";
+import { MsgFundCommunityPool } from "./types/cosmos/distribution/v1beta1/tx";
 import { MsgSetWithdrawAddress } from "./types/cosmos/distribution/v1beta1/tx";
 import { MsgWithdrawValidatorCommission } from "./types/cosmos/distribution/v1beta1/tx";
-import { MsgFundCommunityPool } from "./types/cosmos/distribution/v1beta1/tx";
 import { MsgWithdrawDelegatorReward } from "./types/cosmos/distribution/v1beta1/tx";
 
 
 const types = [
+  ["/cosmos.distribution.v1beta1.MsgFundCommunityPool", MsgFundCommunityPool],
   ["/cosmos.distribution.v1beta1.MsgSetWithdrawAddress", MsgSetWithdrawAddress],
   ["/cosmos.distribution.v1beta1.MsgWithdrawValidatorCommission", MsgWithdrawValidatorCommission],
-  ["/cosmos.distribution.v1beta1.MsgFundCommunityPool", MsgFundCommunityPool],
   ["/cosmos.distribution.v1beta1.MsgWithdrawDelegatorReward", MsgWithdrawDelegatorReward],
   
 ];
 export const MissingWalletError = new Error("wallet is required");
 
-export const registry = new Registry(<any>types);
+const registry = new Registry(<any>types);
 
 const defaultFee = {
   amount: [],
@@ -37,19 +37,15 @@ interface SignAndBroadcastOptions {
 
 const txClient = async (wallet: OfflineSigner, { addr: addr }: TxClientOptions = { addr: "http://localhost:26657" }) => {
   if (!wallet) throw MissingWalletError;
-  let client;
-  if (addr) {
-    client = await SigningStargateClient.connectWithSigner(addr, wallet, { registry });
-  }else{
-    client = await SigningStargateClient.offline( wallet, { registry });
-  }
+
+  const client = await SigningStargateClient.connectWithSigner(addr, wallet, { registry });
   const { address } = (await wallet.getAccounts())[0];
 
   return {
     signAndBroadcast: (msgs: EncodeObject[], { fee, memo }: SignAndBroadcastOptions = {fee: defaultFee, memo: ""}) => client.signAndBroadcast(address, msgs, fee,memo),
+    msgFundCommunityPool: (data: MsgFundCommunityPool): EncodeObject => ({ typeUrl: "/cosmos.distribution.v1beta1.MsgFundCommunityPool", value: data }),
     msgSetWithdrawAddress: (data: MsgSetWithdrawAddress): EncodeObject => ({ typeUrl: "/cosmos.distribution.v1beta1.MsgSetWithdrawAddress", value: data }),
     msgWithdrawValidatorCommission: (data: MsgWithdrawValidatorCommission): EncodeObject => ({ typeUrl: "/cosmos.distribution.v1beta1.MsgWithdrawValidatorCommission", value: data }),
-    msgFundCommunityPool: (data: MsgFundCommunityPool): EncodeObject => ({ typeUrl: "/cosmos.distribution.v1beta1.MsgFundCommunityPool", value: data }),
     msgWithdrawDelegatorReward: (data: MsgWithdrawDelegatorReward): EncodeObject => ({ typeUrl: "/cosmos.distribution.v1beta1.MsgWithdrawDelegatorReward", value: data }),
     
   };

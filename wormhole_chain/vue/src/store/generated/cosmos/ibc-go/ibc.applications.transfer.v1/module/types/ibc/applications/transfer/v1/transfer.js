@@ -1,20 +1,25 @@
 /* eslint-disable */
-import * as Long from 'long';
-import { util, configure, Writer, Reader } from 'protobufjs/minimal';
-export const protobufPackage = 'ibc.applications.transfer.v1';
-const baseFungibleTokenPacketData = { denom: '', amount: 0, sender: '', receiver: '' };
+import * as Long from "long";
+import { util, configure, Writer, Reader } from "protobufjs/minimal";
+export const protobufPackage = "ibc.applications.transfer.v1";
+const baseFungibleTokenPacketData = {
+    denom: "",
+    amount: 0,
+    sender: "",
+    receiver: "",
+};
 export const FungibleTokenPacketData = {
     encode(message, writer = Writer.create()) {
-        if (message.denom !== '') {
+        if (message.denom !== "") {
             writer.uint32(10).string(message.denom);
         }
         if (message.amount !== 0) {
             writer.uint32(16).uint64(message.amount);
         }
-        if (message.sender !== '') {
+        if (message.sender !== "") {
             writer.uint32(26).string(message.sender);
         }
-        if (message.receiver !== '') {
+        if (message.receiver !== "") {
             writer.uint32(34).string(message.receiver);
         }
         return writer;
@@ -22,7 +27,9 @@ export const FungibleTokenPacketData = {
     decode(input, length) {
         const reader = input instanceof Uint8Array ? new Reader(input) : input;
         let end = length === undefined ? reader.len : reader.pos + length;
-        const message = { ...baseFungibleTokenPacketData };
+        const message = {
+            ...baseFungibleTokenPacketData,
+        };
         while (reader.pos < end) {
             const tag = reader.uint32();
             switch (tag >>> 3) {
@@ -46,12 +53,14 @@ export const FungibleTokenPacketData = {
         return message;
     },
     fromJSON(object) {
-        const message = { ...baseFungibleTokenPacketData };
+        const message = {
+            ...baseFungibleTokenPacketData,
+        };
         if (object.denom !== undefined && object.denom !== null) {
             message.denom = String(object.denom);
         }
         else {
-            message.denom = '';
+            message.denom = "";
         }
         if (object.amount !== undefined && object.amount !== null) {
             message.amount = Number(object.amount);
@@ -63,13 +72,13 @@ export const FungibleTokenPacketData = {
             message.sender = String(object.sender);
         }
         else {
-            message.sender = '';
+            message.sender = "";
         }
         if (object.receiver !== undefined && object.receiver !== null) {
             message.receiver = String(object.receiver);
         }
         else {
-            message.receiver = '';
+            message.receiver = "";
         }
         return message;
     },
@@ -82,12 +91,14 @@ export const FungibleTokenPacketData = {
         return obj;
     },
     fromPartial(object) {
-        const message = { ...baseFungibleTokenPacketData };
+        const message = {
+            ...baseFungibleTokenPacketData,
+        };
         if (object.denom !== undefined && object.denom !== null) {
             message.denom = object.denom;
         }
         else {
-            message.denom = '';
+            message.denom = "";
         }
         if (object.amount !== undefined && object.amount !== null) {
             message.amount = object.amount;
@@ -99,24 +110,24 @@ export const FungibleTokenPacketData = {
             message.sender = object.sender;
         }
         else {
-            message.sender = '';
+            message.sender = "";
         }
         if (object.receiver !== undefined && object.receiver !== null) {
             message.receiver = object.receiver;
         }
         else {
-            message.receiver = '';
+            message.receiver = "";
         }
         return message;
-    }
+    },
 };
-const baseDenomTrace = { path: '', baseDenom: '' };
+const baseDenomTrace = { path: "", baseDenom: "" };
 export const DenomTrace = {
     encode(message, writer = Writer.create()) {
-        if (message.path !== '') {
+        if (message.path !== "") {
             writer.uint32(10).string(message.path);
         }
-        if (message.baseDenom !== '') {
+        if (message.baseDenom !== "") {
             writer.uint32(18).string(message.baseDenom);
         }
         return writer;
@@ -147,13 +158,13 @@ export const DenomTrace = {
             message.path = String(object.path);
         }
         else {
-            message.path = '';
+            message.path = "";
         }
         if (object.baseDenom !== undefined && object.baseDenom !== null) {
             message.baseDenom = String(object.baseDenom);
         }
         else {
-            message.baseDenom = '';
+            message.baseDenom = "";
         }
         return message;
     },
@@ -169,16 +180,16 @@ export const DenomTrace = {
             message.path = object.path;
         }
         else {
-            message.path = '';
+            message.path = "";
         }
         if (object.baseDenom !== undefined && object.baseDenom !== null) {
             message.baseDenom = object.baseDenom;
         }
         else {
-            message.baseDenom = '';
+            message.baseDenom = "";
         }
         return message;
-    }
+    },
 };
 const baseParams = { sendEnabled: false, receiveEnabled: false };
 export const Params = {
@@ -229,8 +240,10 @@ export const Params = {
     },
     toJSON(message) {
         const obj = {};
-        message.sendEnabled !== undefined && (obj.sendEnabled = message.sendEnabled);
-        message.receiveEnabled !== undefined && (obj.receiveEnabled = message.receiveEnabled);
+        message.sendEnabled !== undefined &&
+            (obj.sendEnabled = message.sendEnabled);
+        message.receiveEnabled !== undefined &&
+            (obj.receiveEnabled = message.receiveEnabled);
         return obj;
     },
     fromPartial(object) {
@@ -248,22 +261,22 @@ export const Params = {
             message.receiveEnabled = false;
         }
         return message;
-    }
+    },
 };
 var globalThis = (() => {
-    if (typeof globalThis !== 'undefined')
+    if (typeof globalThis !== "undefined")
         return globalThis;
-    if (typeof self !== 'undefined')
+    if (typeof self !== "undefined")
         return self;
-    if (typeof window !== 'undefined')
+    if (typeof window !== "undefined")
         return window;
-    if (typeof global !== 'undefined')
+    if (typeof global !== "undefined")
         return global;
-    throw 'Unable to locate global object';
+    throw "Unable to locate global object";
 })();
 function longToNumber(long) {
     if (long.gt(Number.MAX_SAFE_INTEGER)) {
-        throw new globalThis.Error('Value is larger than Number.MAX_SAFE_INTEGER');
+        throw new globalThis.Error("Value is larger than Number.MAX_SAFE_INTEGER");
     }
     return long.toNumber();
 }

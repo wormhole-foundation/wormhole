@@ -1,8 +1,8 @@
 /* eslint-disable */
-import * as Long from 'long';
-import { util, configure, Writer, Reader } from 'protobufjs/minimal';
-import { Duration } from '../../google/protobuf/duration';
-export const protobufPackage = 'tendermint.types';
+import * as Long from "long";
+import { util, configure, Writer, Reader } from "protobufjs/minimal";
+import { Duration } from "../../google/protobuf/duration";
+export const protobufPackage = "tendermint.types";
 const baseConsensusParams = {};
 export const ConsensusParams = {
     encode(message, writer = Writer.create()) {
@@ -76,10 +76,22 @@ export const ConsensusParams = {
     },
     toJSON(message) {
         const obj = {};
-        message.block !== undefined && (obj.block = message.block ? BlockParams.toJSON(message.block) : undefined);
-        message.evidence !== undefined && (obj.evidence = message.evidence ? EvidenceParams.toJSON(message.evidence) : undefined);
-        message.validator !== undefined && (obj.validator = message.validator ? ValidatorParams.toJSON(message.validator) : undefined);
-        message.version !== undefined && (obj.version = message.version ? VersionParams.toJSON(message.version) : undefined);
+        message.block !== undefined &&
+            (obj.block = message.block
+                ? BlockParams.toJSON(message.block)
+                : undefined);
+        message.evidence !== undefined &&
+            (obj.evidence = message.evidence
+                ? EvidenceParams.toJSON(message.evidence)
+                : undefined);
+        message.validator !== undefined &&
+            (obj.validator = message.validator
+                ? ValidatorParams.toJSON(message.validator)
+                : undefined);
+        message.version !== undefined &&
+            (obj.version = message.version
+                ? VersionParams.toJSON(message.version)
+                : undefined);
         return obj;
     },
     fromPartial(object) {
@@ -109,7 +121,7 @@ export const ConsensusParams = {
             message.version = undefined;
         }
         return message;
-    }
+    },
 };
 const baseBlockParams = { maxBytes: 0, maxGas: 0, timeIotaMs: 0 };
 export const BlockParams = {
@@ -198,7 +210,7 @@ export const BlockParams = {
             message.timeIotaMs = 0;
         }
         return message;
-    }
+    },
 };
 const baseEvidenceParams = { maxAgeNumBlocks: 0, maxBytes: 0 };
 export const EvidenceParams = {
@@ -239,7 +251,8 @@ export const EvidenceParams = {
     },
     fromJSON(object) {
         const message = { ...baseEvidenceParams };
-        if (object.maxAgeNumBlocks !== undefined && object.maxAgeNumBlocks !== null) {
+        if (object.maxAgeNumBlocks !== undefined &&
+            object.maxAgeNumBlocks !== null) {
             message.maxAgeNumBlocks = Number(object.maxAgeNumBlocks);
         }
         else {
@@ -261,14 +274,19 @@ export const EvidenceParams = {
     },
     toJSON(message) {
         const obj = {};
-        message.maxAgeNumBlocks !== undefined && (obj.maxAgeNumBlocks = message.maxAgeNumBlocks);
-        message.maxAgeDuration !== undefined && (obj.maxAgeDuration = message.maxAgeDuration ? Duration.toJSON(message.maxAgeDuration) : undefined);
+        message.maxAgeNumBlocks !== undefined &&
+            (obj.maxAgeNumBlocks = message.maxAgeNumBlocks);
+        message.maxAgeDuration !== undefined &&
+            (obj.maxAgeDuration = message.maxAgeDuration
+                ? Duration.toJSON(message.maxAgeDuration)
+                : undefined);
         message.maxBytes !== undefined && (obj.maxBytes = message.maxBytes);
         return obj;
     },
     fromPartial(object) {
         const message = { ...baseEvidenceParams };
-        if (object.maxAgeNumBlocks !== undefined && object.maxAgeNumBlocks !== null) {
+        if (object.maxAgeNumBlocks !== undefined &&
+            object.maxAgeNumBlocks !== null) {
             message.maxAgeNumBlocks = object.maxAgeNumBlocks;
         }
         else {
@@ -287,9 +305,9 @@ export const EvidenceParams = {
             message.maxBytes = 0;
         }
         return message;
-    }
+    },
 };
-const baseValidatorParams = { pubKeyTypes: '' };
+const baseValidatorParams = { pubKeyTypes: "" };
 export const ValidatorParams = {
     encode(message, writer = Writer.create()) {
         for (const v of message.pubKeyTypes) {
@@ -344,7 +362,7 @@ export const ValidatorParams = {
             }
         }
         return message;
-    }
+    },
 };
 const baseVersionParams = { appVersion: 0 };
 export const VersionParams = {
@@ -395,7 +413,7 @@ export const VersionParams = {
             message.appVersion = 0;
         }
         return message;
-    }
+    },
 };
 const baseHashedParams = { blockMaxBytes: 0, blockMaxGas: 0 };
 export const HashedParams = {
@@ -446,8 +464,10 @@ export const HashedParams = {
     },
     toJSON(message) {
         const obj = {};
-        message.blockMaxBytes !== undefined && (obj.blockMaxBytes = message.blockMaxBytes);
-        message.blockMaxGas !== undefined && (obj.blockMaxGas = message.blockMaxGas);
+        message.blockMaxBytes !== undefined &&
+            (obj.blockMaxBytes = message.blockMaxBytes);
+        message.blockMaxGas !== undefined &&
+            (obj.blockMaxGas = message.blockMaxGas);
         return obj;
     },
     fromPartial(object) {
@@ -465,22 +485,22 @@ export const HashedParams = {
             message.blockMaxGas = 0;
         }
         return message;
-    }
+    },
 };
 var globalThis = (() => {
-    if (typeof globalThis !== 'undefined')
+    if (typeof globalThis !== "undefined")
         return globalThis;
-    if (typeof self !== 'undefined')
+    if (typeof self !== "undefined")
         return self;
-    if (typeof window !== 'undefined')
+    if (typeof window !== "undefined")
         return window;
-    if (typeof global !== 'undefined')
+    if (typeof global !== "undefined")
         return global;
-    throw 'Unable to locate global object';
+    throw "Unable to locate global object";
 })();
 function longToNumber(long) {
     if (long.gt(Number.MAX_SAFE_INTEGER)) {
-        throw new globalThis.Error('Value is larger than Number.MAX_SAFE_INTEGER');
+        throw new globalThis.Error("Value is larger than Number.MAX_SAFE_INTEGER");
     }
     return long.toNumber();
 }

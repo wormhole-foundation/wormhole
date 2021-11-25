@@ -1,6 +1,6 @@
-import { Reader, Writer } from 'protobufjs/minimal';
-import { DenomTrace, Params } from '../../../../ibc/applications/transfer/v1/transfer';
-import { PageRequest, PageResponse } from '../../../../cosmos/base/query/v1beta1/pagination';
+import { Reader, Writer } from "protobufjs/minimal";
+import { DenomTrace, Params } from "../../../../ibc/applications/transfer/v1/transfer";
+import { PageRequest, PageResponse } from "../../../../cosmos/base/query/v1beta1/pagination";
 export declare const protobufPackage = "ibc.applications.transfer.v1";
 /**
  * QueryDenomTraceRequest is the request type for the Query/DenomTrace RPC

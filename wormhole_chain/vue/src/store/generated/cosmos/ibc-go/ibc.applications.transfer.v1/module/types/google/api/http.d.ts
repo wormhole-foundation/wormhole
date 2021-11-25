@@ -1,4 +1,4 @@
-import { Writer, Reader } from 'protobufjs/minimal';
+import { Writer, Reader } from "protobufjs/minimal";
 export declare const protobufPackage = "google.api";
 /**
  * Defines the HTTP configuration for an API service. It contains a list of

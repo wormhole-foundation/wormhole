@@ -1,10 +1,10 @@
 /* eslint-disable */
-import { Reader, Writer } from 'protobufjs/minimal';
-export const protobufPackage = 'cosmos.slashing.v1beta1';
-const baseMsgUnjail = { validatorAddr: '' };
+import { Reader, Writer } from "protobufjs/minimal";
+export const protobufPackage = "cosmos.slashing.v1beta1";
+const baseMsgUnjail = { validatorAddr: "" };
 export const MsgUnjail = {
     encode(message, writer = Writer.create()) {
-        if (message.validatorAddr !== '') {
+        if (message.validatorAddr !== "") {
             writer.uint32(10).string(message.validatorAddr);
         }
         return writer;
@@ -32,13 +32,14 @@ export const MsgUnjail = {
             message.validatorAddr = String(object.validatorAddr);
         }
         else {
-            message.validatorAddr = '';
+            message.validatorAddr = "";
         }
         return message;
     },
     toJSON(message) {
         const obj = {};
-        message.validatorAddr !== undefined && (obj.validatorAddr = message.validatorAddr);
+        message.validatorAddr !== undefined &&
+            (obj.validatorAddr = message.validatorAddr);
         return obj;
     },
     fromPartial(object) {
@@ -47,10 +48,10 @@ export const MsgUnjail = {
             message.validatorAddr = object.validatorAddr;
         }
         else {
-            message.validatorAddr = '';
+            message.validatorAddr = "";
         }
         return message;
-    }
+    },
 };
 const baseMsgUnjailResponse = {};
 export const MsgUnjailResponse = {
@@ -82,7 +83,7 @@ export const MsgUnjailResponse = {
     fromPartial(_) {
         const message = { ...baseMsgUnjailResponse };
         return message;
-    }
+    },
 };
 export class MsgClientImpl {
     constructor(rpc) {
@@ -90,7 +91,7 @@ export class MsgClientImpl {
     }
     Unjail(request) {
         const data = MsgUnjail.encode(request).finish();
-        const promise = this.rpc.request('cosmos.slashing.v1beta1.Msg', 'Unjail', data);
+        const promise = this.rpc.request("cosmos.slashing.v1beta1.Msg", "Unjail", data);
         return promise.then((data) => MsgUnjailResponse.decode(new Reader(data)));
     }
 }

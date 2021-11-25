@@ -1,14 +1,14 @@
 /* eslint-disable */
-import { Reader, Writer } from 'protobufjs/minimal';
-import { Any } from '../../../google/protobuf/any';
-export const protobufPackage = 'cosmos.feegrant.v1beta1';
-const baseMsgGrantAllowance = { granter: '', grantee: '' };
+import { Reader, Writer } from "protobufjs/minimal";
+import { Any } from "../../../google/protobuf/any";
+export const protobufPackage = "cosmos.feegrant.v1beta1";
+const baseMsgGrantAllowance = { granter: "", grantee: "" };
 export const MsgGrantAllowance = {
     encode(message, writer = Writer.create()) {
-        if (message.granter !== '') {
+        if (message.granter !== "") {
             writer.uint32(10).string(message.granter);
         }
-        if (message.grantee !== '') {
+        if (message.grantee !== "") {
             writer.uint32(18).string(message.grantee);
         }
         if (message.allowance !== undefined) {
@@ -45,13 +45,13 @@ export const MsgGrantAllowance = {
             message.granter = String(object.granter);
         }
         else {
-            message.granter = '';
+            message.granter = "";
         }
         if (object.grantee !== undefined && object.grantee !== null) {
             message.grantee = String(object.grantee);
         }
         else {
-            message.grantee = '';
+            message.grantee = "";
         }
         if (object.allowance !== undefined && object.allowance !== null) {
             message.allowance = Any.fromJSON(object.allowance);
@@ -65,7 +65,10 @@ export const MsgGrantAllowance = {
         const obj = {};
         message.granter !== undefined && (obj.granter = message.granter);
         message.grantee !== undefined && (obj.grantee = message.grantee);
-        message.allowance !== undefined && (obj.allowance = message.allowance ? Any.toJSON(message.allowance) : undefined);
+        message.allowance !== undefined &&
+            (obj.allowance = message.allowance
+                ? Any.toJSON(message.allowance)
+                : undefined);
         return obj;
     },
     fromPartial(object) {
@@ -74,13 +77,13 @@ export const MsgGrantAllowance = {
             message.granter = object.granter;
         }
         else {
-            message.granter = '';
+            message.granter = "";
         }
         if (object.grantee !== undefined && object.grantee !== null) {
             message.grantee = object.grantee;
         }
         else {
-            message.grantee = '';
+            message.grantee = "";
         }
         if (object.allowance !== undefined && object.allowance !== null) {
             message.allowance = Any.fromPartial(object.allowance);
@@ -89,7 +92,7 @@ export const MsgGrantAllowance = {
             message.allowance = undefined;
         }
         return message;
-    }
+    },
 };
 const baseMsgGrantAllowanceResponse = {};
 export const MsgGrantAllowanceResponse = {
@@ -99,7 +102,9 @@ export const MsgGrantAllowanceResponse = {
     decode(input, length) {
         const reader = input instanceof Uint8Array ? new Reader(input) : input;
         let end = length === undefined ? reader.len : reader.pos + length;
-        const message = { ...baseMsgGrantAllowanceResponse };
+        const message = {
+            ...baseMsgGrantAllowanceResponse,
+        };
         while (reader.pos < end) {
             const tag = reader.uint32();
             switch (tag >>> 3) {
@@ -111,7 +116,9 @@ export const MsgGrantAllowanceResponse = {
         return message;
     },
     fromJSON(_) {
-        const message = { ...baseMsgGrantAllowanceResponse };
+        const message = {
+            ...baseMsgGrantAllowanceResponse,
+        };
         return message;
     },
     toJSON(_) {
@@ -119,17 +126,19 @@ export const MsgGrantAllowanceResponse = {
         return obj;
     },
     fromPartial(_) {
-        const message = { ...baseMsgGrantAllowanceResponse };
+        const message = {
+            ...baseMsgGrantAllowanceResponse,
+        };
         return message;
-    }
+    },
 };
-const baseMsgRevokeAllowance = { granter: '', grantee: '' };
+const baseMsgRevokeAllowance = { granter: "", grantee: "" };
 export const MsgRevokeAllowance = {
     encode(message, writer = Writer.create()) {
-        if (message.granter !== '') {
+        if (message.granter !== "") {
             writer.uint32(10).string(message.granter);
         }
-        if (message.grantee !== '') {
+        if (message.grantee !== "") {
             writer.uint32(18).string(message.grantee);
         }
         return writer;
@@ -160,13 +169,13 @@ export const MsgRevokeAllowance = {
             message.granter = String(object.granter);
         }
         else {
-            message.granter = '';
+            message.granter = "";
         }
         if (object.grantee !== undefined && object.grantee !== null) {
             message.grantee = String(object.grantee);
         }
         else {
-            message.grantee = '';
+            message.grantee = "";
         }
         return message;
     },
@@ -182,16 +191,16 @@ export const MsgRevokeAllowance = {
             message.granter = object.granter;
         }
         else {
-            message.granter = '';
+            message.granter = "";
         }
         if (object.grantee !== undefined && object.grantee !== null) {
             message.grantee = object.grantee;
         }
         else {
-            message.grantee = '';
+            message.grantee = "";
         }
         return message;
-    }
+    },
 };
 const baseMsgRevokeAllowanceResponse = {};
 export const MsgRevokeAllowanceResponse = {
@@ -201,7 +210,9 @@ export const MsgRevokeAllowanceResponse = {
     decode(input, length) {
         const reader = input instanceof Uint8Array ? new Reader(input) : input;
         let end = length === undefined ? reader.len : reader.pos + length;
-        const message = { ...baseMsgRevokeAllowanceResponse };
+        const message = {
+            ...baseMsgRevokeAllowanceResponse,
+        };
         while (reader.pos < end) {
             const tag = reader.uint32();
             switch (tag >>> 3) {
@@ -213,7 +224,9 @@ export const MsgRevokeAllowanceResponse = {
         return message;
     },
     fromJSON(_) {
-        const message = { ...baseMsgRevokeAllowanceResponse };
+        const message = {
+            ...baseMsgRevokeAllowanceResponse,
+        };
         return message;
     },
     toJSON(_) {
@@ -221,9 +234,11 @@ export const MsgRevokeAllowanceResponse = {
         return obj;
     },
     fromPartial(_) {
-        const message = { ...baseMsgRevokeAllowanceResponse };
+        const message = {
+            ...baseMsgRevokeAllowanceResponse,
+        };
         return message;
-    }
+    },
 };
 export class MsgClientImpl {
     constructor(rpc) {
@@ -231,12 +246,12 @@ export class MsgClientImpl {
     }
     GrantAllowance(request) {
         const data = MsgGrantAllowance.encode(request).finish();
-        const promise = this.rpc.request('cosmos.feegrant.v1beta1.Msg', 'GrantAllowance', data);
+        const promise = this.rpc.request("cosmos.feegrant.v1beta1.Msg", "GrantAllowance", data);
         return promise.then((data) => MsgGrantAllowanceResponse.decode(new Reader(data)));
     }
     RevokeAllowance(request) {
         const data = MsgRevokeAllowance.encode(request).finish();
-        const promise = this.rpc.request('cosmos.feegrant.v1beta1.Msg', 'RevokeAllowance', data);
+        const promise = this.rpc.request("cosmos.feegrant.v1beta1.Msg", "RevokeAllowance", data);
         return promise.then((data) => MsgRevokeAllowanceResponse.decode(new Reader(data)));
     }
 }

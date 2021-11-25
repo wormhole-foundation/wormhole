@@ -1,5 +1,5 @@
-import { Coin } from '../../../cosmos/base/v1beta1/coin';
-import { Writer, Reader } from 'protobufjs/minimal';
+import { Coin } from "../../../cosmos/base/v1beta1/coin";
+import { Writer, Reader } from "protobufjs/minimal";
 export declare const protobufPackage = "cosmos.bank.v1beta1";
 /**
  * SendAuthorization allows the grantee to spend up to spend_limit coins from

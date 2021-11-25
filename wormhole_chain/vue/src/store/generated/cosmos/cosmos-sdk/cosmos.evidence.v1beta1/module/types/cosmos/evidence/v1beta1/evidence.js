@@ -1,9 +1,9 @@
 /* eslint-disable */
-import { Timestamp } from '../../../google/protobuf/timestamp';
-import * as Long from 'long';
-import { util, configure, Writer, Reader } from 'protobufjs/minimal';
-export const protobufPackage = 'cosmos.evidence.v1beta1';
-const baseEquivocation = { height: 0, power: 0, consensusAddress: '' };
+import { Timestamp } from "../../../google/protobuf/timestamp";
+import * as Long from "long";
+import { util, configure, Writer, Reader } from "protobufjs/minimal";
+export const protobufPackage = "cosmos.evidence.v1beta1";
+const baseEquivocation = { height: 0, power: 0, consensusAddress: "" };
 export const Equivocation = {
     encode(message, writer = Writer.create()) {
         if (message.height !== 0) {
@@ -15,7 +15,7 @@ export const Equivocation = {
         if (message.power !== 0) {
             writer.uint32(24).int64(message.power);
         }
-        if (message.consensusAddress !== '') {
+        if (message.consensusAddress !== "") {
             writer.uint32(34).string(message.consensusAddress);
         }
         return writer;
@@ -66,20 +66,24 @@ export const Equivocation = {
         else {
             message.power = 0;
         }
-        if (object.consensusAddress !== undefined && object.consensusAddress !== null) {
+        if (object.consensusAddress !== undefined &&
+            object.consensusAddress !== null) {
             message.consensusAddress = String(object.consensusAddress);
         }
         else {
-            message.consensusAddress = '';
+            message.consensusAddress = "";
         }
         return message;
     },
     toJSON(message) {
         const obj = {};
         message.height !== undefined && (obj.height = message.height);
-        message.time !== undefined && (obj.time = message.time !== undefined ? message.time.toISOString() : null);
+        message.time !== undefined &&
+            (obj.time =
+                message.time !== undefined ? message.time.toISOString() : null);
         message.power !== undefined && (obj.power = message.power);
-        message.consensusAddress !== undefined && (obj.consensusAddress = message.consensusAddress);
+        message.consensusAddress !== undefined &&
+            (obj.consensusAddress = message.consensusAddress);
         return obj;
     },
     fromPartial(object) {
@@ -102,25 +106,26 @@ export const Equivocation = {
         else {
             message.power = 0;
         }
-        if (object.consensusAddress !== undefined && object.consensusAddress !== null) {
+        if (object.consensusAddress !== undefined &&
+            object.consensusAddress !== null) {
             message.consensusAddress = object.consensusAddress;
         }
         else {
-            message.consensusAddress = '';
+            message.consensusAddress = "";
         }
         return message;
-    }
+    },
 };
 var globalThis = (() => {
-    if (typeof globalThis !== 'undefined')
+    if (typeof globalThis !== "undefined")
         return globalThis;
-    if (typeof self !== 'undefined')
+    if (typeof self !== "undefined")
         return self;
-    if (typeof window !== 'undefined')
+    if (typeof window !== "undefined")
         return window;
-    if (typeof global !== 'undefined')
+    if (typeof global !== "undefined")
         return global;
-    throw 'Unable to locate global object';
+    throw "Unable to locate global object";
 })();
 function toTimestamp(date) {
     const seconds = date.getTime() / 1000;
@@ -136,7 +141,7 @@ function fromJsonTimestamp(o) {
     if (o instanceof Date) {
         return o;
     }
-    else if (typeof o === 'string') {
+    else if (typeof o === "string") {
         return new Date(o);
     }
     else {
@@ -145,7 +150,7 @@ function fromJsonTimestamp(o) {
 }
 function longToNumber(long) {
     if (long.gt(Number.MAX_SAFE_INTEGER)) {
-        throw new globalThis.Error('Value is larger than Number.MAX_SAFE_INTEGER');
+        throw new globalThis.Error("Value is larger than Number.MAX_SAFE_INTEGER");
     }
     return long.toNumber();
 }

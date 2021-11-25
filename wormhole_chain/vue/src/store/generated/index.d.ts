@@ -1,4 +1,5 @@
 declare const _default: {
+    CertusoneWormholeChainCertusoneWormholechainTokenbridge: (store: any) => void;
     CertusoneWormholeChainCertusoneWormholechainWormhole: (store: any) => void;
     CosmosCosmosSdkCosmosAuthzV1Beta1: (store: any) => void;
     CosmosCosmosSdkCosmosBankV1Beta1: (store: any) => void;

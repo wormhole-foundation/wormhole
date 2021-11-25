@@ -1,8 +1,8 @@
 /* eslint-disable */
-import { Timestamp } from '../../../google/protobuf/timestamp';
-import { Any } from '../../../google/protobuf/any';
-import { Writer, Reader } from 'protobufjs/minimal';
-export const protobufPackage = 'cosmos.authz.v1beta1';
+import { Timestamp } from "../../../google/protobuf/timestamp";
+import { Any } from "../../../google/protobuf/any";
+import { Writer, Reader } from "protobufjs/minimal";
+export const protobufPackage = "cosmos.authz.v1beta1";
 const baseGenesisState = {};
 export const GenesisState = {
     encode(message, writer = Writer.create()) {
@@ -42,7 +42,7 @@ export const GenesisState = {
     toJSON(message) {
         const obj = {};
         if (message.authorization) {
-            obj.authorization = message.authorization.map((e) => (e ? GrantAuthorization.toJSON(e) : undefined));
+            obj.authorization = message.authorization.map((e) => e ? GrantAuthorization.toJSON(e) : undefined);
         }
         else {
             obj.authorization = [];
@@ -58,15 +58,15 @@ export const GenesisState = {
             }
         }
         return message;
-    }
+    },
 };
-const baseGrantAuthorization = { granter: '', grantee: '' };
+const baseGrantAuthorization = { granter: "", grantee: "" };
 export const GrantAuthorization = {
     encode(message, writer = Writer.create()) {
-        if (message.granter !== '') {
+        if (message.granter !== "") {
             writer.uint32(10).string(message.granter);
         }
-        if (message.grantee !== '') {
+        if (message.grantee !== "") {
             writer.uint32(18).string(message.grantee);
         }
         if (message.authorization !== undefined) {
@@ -109,13 +109,13 @@ export const GrantAuthorization = {
             message.granter = String(object.granter);
         }
         else {
-            message.granter = '';
+            message.granter = "";
         }
         if (object.grantee !== undefined && object.grantee !== null) {
             message.grantee = String(object.grantee);
         }
         else {
-            message.grantee = '';
+            message.grantee = "";
         }
         if (object.authorization !== undefined && object.authorization !== null) {
             message.authorization = Any.fromJSON(object.authorization);
@@ -135,8 +135,15 @@ export const GrantAuthorization = {
         const obj = {};
         message.granter !== undefined && (obj.granter = message.granter);
         message.grantee !== undefined && (obj.grantee = message.grantee);
-        message.authorization !== undefined && (obj.authorization = message.authorization ? Any.toJSON(message.authorization) : undefined);
-        message.expiration !== undefined && (obj.expiration = message.expiration !== undefined ? message.expiration.toISOString() : null);
+        message.authorization !== undefined &&
+            (obj.authorization = message.authorization
+                ? Any.toJSON(message.authorization)
+                : undefined);
+        message.expiration !== undefined &&
+            (obj.expiration =
+                message.expiration !== undefined
+                    ? message.expiration.toISOString()
+                    : null);
         return obj;
     },
     fromPartial(object) {
@@ -145,13 +152,13 @@ export const GrantAuthorization = {
             message.granter = object.granter;
         }
         else {
-            message.granter = '';
+            message.granter = "";
         }
         if (object.grantee !== undefined && object.grantee !== null) {
             message.grantee = object.grantee;
         }
         else {
-            message.grantee = '';
+            message.grantee = "";
         }
         if (object.authorization !== undefined && object.authorization !== null) {
             message.authorization = Any.fromPartial(object.authorization);
@@ -166,7 +173,7 @@ export const GrantAuthorization = {
             message.expiration = undefined;
         }
         return message;
-    }
+    },
 };
 function toTimestamp(date) {
     const seconds = date.getTime() / 1000;
@@ -182,7 +189,7 @@ function fromJsonTimestamp(o) {
     if (o instanceof Date) {
         return o;
     }
-    else if (typeof o === 'string') {
+    else if (typeof o === "string") {
         return new Date(o);
     }
     else {

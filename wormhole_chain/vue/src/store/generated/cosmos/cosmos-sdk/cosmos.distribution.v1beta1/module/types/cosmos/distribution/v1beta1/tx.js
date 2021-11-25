@@ -1,14 +1,17 @@
 /* eslint-disable */
-import { Reader, Writer } from 'protobufjs/minimal';
-import { Coin } from '../../../cosmos/base/v1beta1/coin';
-export const protobufPackage = 'cosmos.distribution.v1beta1';
-const baseMsgSetWithdrawAddress = { delegatorAddress: '', withdrawAddress: '' };
+import { Reader, Writer } from "protobufjs/minimal";
+import { Coin } from "../../../cosmos/base/v1beta1/coin";
+export const protobufPackage = "cosmos.distribution.v1beta1";
+const baseMsgSetWithdrawAddress = {
+    delegatorAddress: "",
+    withdrawAddress: "",
+};
 export const MsgSetWithdrawAddress = {
     encode(message, writer = Writer.create()) {
-        if (message.delegatorAddress !== '') {
+        if (message.delegatorAddress !== "") {
             writer.uint32(10).string(message.delegatorAddress);
         }
-        if (message.withdrawAddress !== '') {
+        if (message.withdrawAddress !== "") {
             writer.uint32(18).string(message.withdrawAddress);
         }
         return writer;
@@ -35,42 +38,48 @@ export const MsgSetWithdrawAddress = {
     },
     fromJSON(object) {
         const message = { ...baseMsgSetWithdrawAddress };
-        if (object.delegatorAddress !== undefined && object.delegatorAddress !== null) {
+        if (object.delegatorAddress !== undefined &&
+            object.delegatorAddress !== null) {
             message.delegatorAddress = String(object.delegatorAddress);
         }
         else {
-            message.delegatorAddress = '';
+            message.delegatorAddress = "";
         }
-        if (object.withdrawAddress !== undefined && object.withdrawAddress !== null) {
+        if (object.withdrawAddress !== undefined &&
+            object.withdrawAddress !== null) {
             message.withdrawAddress = String(object.withdrawAddress);
         }
         else {
-            message.withdrawAddress = '';
+            message.withdrawAddress = "";
         }
         return message;
     },
     toJSON(message) {
         const obj = {};
-        message.delegatorAddress !== undefined && (obj.delegatorAddress = message.delegatorAddress);
-        message.withdrawAddress !== undefined && (obj.withdrawAddress = message.withdrawAddress);
+        message.delegatorAddress !== undefined &&
+            (obj.delegatorAddress = message.delegatorAddress);
+        message.withdrawAddress !== undefined &&
+            (obj.withdrawAddress = message.withdrawAddress);
         return obj;
     },
     fromPartial(object) {
         const message = { ...baseMsgSetWithdrawAddress };
-        if (object.delegatorAddress !== undefined && object.delegatorAddress !== null) {
+        if (object.delegatorAddress !== undefined &&
+            object.delegatorAddress !== null) {
             message.delegatorAddress = object.delegatorAddress;
         }
         else {
-            message.delegatorAddress = '';
+            message.delegatorAddress = "";
         }
-        if (object.withdrawAddress !== undefined && object.withdrawAddress !== null) {
+        if (object.withdrawAddress !== undefined &&
+            object.withdrawAddress !== null) {
             message.withdrawAddress = object.withdrawAddress;
         }
         else {
-            message.withdrawAddress = '';
+            message.withdrawAddress = "";
         }
         return message;
-    }
+    },
 };
 const baseMsgSetWithdrawAddressResponse = {};
 export const MsgSetWithdrawAddressResponse = {
@@ -80,7 +89,9 @@ export const MsgSetWithdrawAddressResponse = {
     decode(input, length) {
         const reader = input instanceof Uint8Array ? new Reader(input) : input;
         let end = length === undefined ? reader.len : reader.pos + length;
-        const message = { ...baseMsgSetWithdrawAddressResponse };
+        const message = {
+            ...baseMsgSetWithdrawAddressResponse,
+        };
         while (reader.pos < end) {
             const tag = reader.uint32();
             switch (tag >>> 3) {
@@ -92,7 +103,9 @@ export const MsgSetWithdrawAddressResponse = {
         return message;
     },
     fromJSON(_) {
-        const message = { ...baseMsgSetWithdrawAddressResponse };
+        const message = {
+            ...baseMsgSetWithdrawAddressResponse,
+        };
         return message;
     },
     toJSON(_) {
@@ -100,17 +113,22 @@ export const MsgSetWithdrawAddressResponse = {
         return obj;
     },
     fromPartial(_) {
-        const message = { ...baseMsgSetWithdrawAddressResponse };
+        const message = {
+            ...baseMsgSetWithdrawAddressResponse,
+        };
         return message;
-    }
+    },
 };
-const baseMsgWithdrawDelegatorReward = { delegatorAddress: '', validatorAddress: '' };
+const baseMsgWithdrawDelegatorReward = {
+    delegatorAddress: "",
+    validatorAddress: "",
+};
 export const MsgWithdrawDelegatorReward = {
     encode(message, writer = Writer.create()) {
-        if (message.delegatorAddress !== '') {
+        if (message.delegatorAddress !== "") {
             writer.uint32(10).string(message.delegatorAddress);
         }
-        if (message.validatorAddress !== '') {
+        if (message.validatorAddress !== "") {
             writer.uint32(18).string(message.validatorAddress);
         }
         return writer;
@@ -118,7 +136,9 @@ export const MsgWithdrawDelegatorReward = {
     decode(input, length) {
         const reader = input instanceof Uint8Array ? new Reader(input) : input;
         let end = length === undefined ? reader.len : reader.pos + length;
-        const message = { ...baseMsgWithdrawDelegatorReward };
+        const message = {
+            ...baseMsgWithdrawDelegatorReward,
+        };
         while (reader.pos < end) {
             const tag = reader.uint32();
             switch (tag >>> 3) {
@@ -136,43 +156,53 @@ export const MsgWithdrawDelegatorReward = {
         return message;
     },
     fromJSON(object) {
-        const message = { ...baseMsgWithdrawDelegatorReward };
-        if (object.delegatorAddress !== undefined && object.delegatorAddress !== null) {
+        const message = {
+            ...baseMsgWithdrawDelegatorReward,
+        };
+        if (object.delegatorAddress !== undefined &&
+            object.delegatorAddress !== null) {
             message.delegatorAddress = String(object.delegatorAddress);
         }
         else {
-            message.delegatorAddress = '';
+            message.delegatorAddress = "";
         }
-        if (object.validatorAddress !== undefined && object.validatorAddress !== null) {
+        if (object.validatorAddress !== undefined &&
+            object.validatorAddress !== null) {
             message.validatorAddress = String(object.validatorAddress);
         }
         else {
-            message.validatorAddress = '';
+            message.validatorAddress = "";
         }
         return message;
     },
     toJSON(message) {
         const obj = {};
-        message.delegatorAddress !== undefined && (obj.delegatorAddress = message.delegatorAddress);
-        message.validatorAddress !== undefined && (obj.validatorAddress = message.validatorAddress);
+        message.delegatorAddress !== undefined &&
+            (obj.delegatorAddress = message.delegatorAddress);
+        message.validatorAddress !== undefined &&
+            (obj.validatorAddress = message.validatorAddress);
         return obj;
     },
     fromPartial(object) {
-        const message = { ...baseMsgWithdrawDelegatorReward };
-        if (object.delegatorAddress !== undefined && object.delegatorAddress !== null) {
+        const message = {
+            ...baseMsgWithdrawDelegatorReward,
+        };
+        if (object.delegatorAddress !== undefined &&
+            object.delegatorAddress !== null) {
             message.delegatorAddress = object.delegatorAddress;
         }
         else {
-            message.delegatorAddress = '';
+            message.delegatorAddress = "";
         }
-        if (object.validatorAddress !== undefined && object.validatorAddress !== null) {
+        if (object.validatorAddress !== undefined &&
+            object.validatorAddress !== null) {
             message.validatorAddress = object.validatorAddress;
         }
         else {
-            message.validatorAddress = '';
+            message.validatorAddress = "";
         }
         return message;
-    }
+    },
 };
 const baseMsgWithdrawDelegatorRewardResponse = {};
 export const MsgWithdrawDelegatorRewardResponse = {
@@ -182,7 +212,9 @@ export const MsgWithdrawDelegatorRewardResponse = {
     decode(input, length) {
         const reader = input instanceof Uint8Array ? new Reader(input) : input;
         let end = length === undefined ? reader.len : reader.pos + length;
-        const message = { ...baseMsgWithdrawDelegatorRewardResponse };
+        const message = {
+            ...baseMsgWithdrawDelegatorRewardResponse,
+        };
         while (reader.pos < end) {
             const tag = reader.uint32();
             switch (tag >>> 3) {
@@ -194,7 +226,9 @@ export const MsgWithdrawDelegatorRewardResponse = {
         return message;
     },
     fromJSON(_) {
-        const message = { ...baseMsgWithdrawDelegatorRewardResponse };
+        const message = {
+            ...baseMsgWithdrawDelegatorRewardResponse,
+        };
         return message;
     },
     toJSON(_) {
@@ -202,14 +236,16 @@ export const MsgWithdrawDelegatorRewardResponse = {
         return obj;
     },
     fromPartial(_) {
-        const message = { ...baseMsgWithdrawDelegatorRewardResponse };
+        const message = {
+            ...baseMsgWithdrawDelegatorRewardResponse,
+        };
         return message;
-    }
+    },
 };
-const baseMsgWithdrawValidatorCommission = { validatorAddress: '' };
+const baseMsgWithdrawValidatorCommission = { validatorAddress: "" };
 export const MsgWithdrawValidatorCommission = {
     encode(message, writer = Writer.create()) {
-        if (message.validatorAddress !== '') {
+        if (message.validatorAddress !== "") {
             writer.uint32(10).string(message.validatorAddress);
         }
         return writer;
@@ -217,7 +253,9 @@ export const MsgWithdrawValidatorCommission = {
     decode(input, length) {
         const reader = input instanceof Uint8Array ? new Reader(input) : input;
         let end = length === undefined ? reader.len : reader.pos + length;
-        const message = { ...baseMsgWithdrawValidatorCommission };
+        const message = {
+            ...baseMsgWithdrawValidatorCommission,
+        };
         while (reader.pos < end) {
             const tag = reader.uint32();
             switch (tag >>> 3) {
@@ -232,30 +270,37 @@ export const MsgWithdrawValidatorCommission = {
         return message;
     },
     fromJSON(object) {
-        const message = { ...baseMsgWithdrawValidatorCommission };
-        if (object.validatorAddress !== undefined && object.validatorAddress !== null) {
+        const message = {
+            ...baseMsgWithdrawValidatorCommission,
+        };
+        if (object.validatorAddress !== undefined &&
+            object.validatorAddress !== null) {
             message.validatorAddress = String(object.validatorAddress);
         }
         else {
-            message.validatorAddress = '';
+            message.validatorAddress = "";
         }
         return message;
     },
     toJSON(message) {
         const obj = {};
-        message.validatorAddress !== undefined && (obj.validatorAddress = message.validatorAddress);
+        message.validatorAddress !== undefined &&
+            (obj.validatorAddress = message.validatorAddress);
         return obj;
     },
     fromPartial(object) {
-        const message = { ...baseMsgWithdrawValidatorCommission };
-        if (object.validatorAddress !== undefined && object.validatorAddress !== null) {
+        const message = {
+            ...baseMsgWithdrawValidatorCommission,
+        };
+        if (object.validatorAddress !== undefined &&
+            object.validatorAddress !== null) {
             message.validatorAddress = object.validatorAddress;
         }
         else {
-            message.validatorAddress = '';
+            message.validatorAddress = "";
         }
         return message;
-    }
+    },
 };
 const baseMsgWithdrawValidatorCommissionResponse = {};
 export const MsgWithdrawValidatorCommissionResponse = {
@@ -265,7 +310,9 @@ export const MsgWithdrawValidatorCommissionResponse = {
     decode(input, length) {
         const reader = input instanceof Uint8Array ? new Reader(input) : input;
         let end = length === undefined ? reader.len : reader.pos + length;
-        const message = { ...baseMsgWithdrawValidatorCommissionResponse };
+        const message = {
+            ...baseMsgWithdrawValidatorCommissionResponse,
+        };
         while (reader.pos < end) {
             const tag = reader.uint32();
             switch (tag >>> 3) {
@@ -277,7 +324,9 @@ export const MsgWithdrawValidatorCommissionResponse = {
         return message;
     },
     fromJSON(_) {
-        const message = { ...baseMsgWithdrawValidatorCommissionResponse };
+        const message = {
+            ...baseMsgWithdrawValidatorCommissionResponse,
+        };
         return message;
     },
     toJSON(_) {
@@ -285,17 +334,19 @@ export const MsgWithdrawValidatorCommissionResponse = {
         return obj;
     },
     fromPartial(_) {
-        const message = { ...baseMsgWithdrawValidatorCommissionResponse };
+        const message = {
+            ...baseMsgWithdrawValidatorCommissionResponse,
+        };
         return message;
-    }
+    },
 };
-const baseMsgFundCommunityPool = { depositor: '' };
+const baseMsgFundCommunityPool = { depositor: "" };
 export const MsgFundCommunityPool = {
     encode(message, writer = Writer.create()) {
         for (const v of message.amount) {
             Coin.encode(v, writer.uint32(10).fork()).ldelim();
         }
-        if (message.depositor !== '') {
+        if (message.depositor !== "") {
             writer.uint32(18).string(message.depositor);
         }
         return writer;
@@ -333,7 +384,7 @@ export const MsgFundCommunityPool = {
             message.depositor = String(object.depositor);
         }
         else {
-            message.depositor = '';
+            message.depositor = "";
         }
         return message;
     },
@@ -360,10 +411,10 @@ export const MsgFundCommunityPool = {
             message.depositor = object.depositor;
         }
         else {
-            message.depositor = '';
+            message.depositor = "";
         }
         return message;
-    }
+    },
 };
 const baseMsgFundCommunityPoolResponse = {};
 export const MsgFundCommunityPoolResponse = {
@@ -373,7 +424,9 @@ export const MsgFundCommunityPoolResponse = {
     decode(input, length) {
         const reader = input instanceof Uint8Array ? new Reader(input) : input;
         let end = length === undefined ? reader.len : reader.pos + length;
-        const message = { ...baseMsgFundCommunityPoolResponse };
+        const message = {
+            ...baseMsgFundCommunityPoolResponse,
+        };
         while (reader.pos < end) {
             const tag = reader.uint32();
             switch (tag >>> 3) {
@@ -385,7 +438,9 @@ export const MsgFundCommunityPoolResponse = {
         return message;
     },
     fromJSON(_) {
-        const message = { ...baseMsgFundCommunityPoolResponse };
+        const message = {
+            ...baseMsgFundCommunityPoolResponse,
+        };
         return message;
     },
     toJSON(_) {
@@ -393,9 +448,11 @@ export const MsgFundCommunityPoolResponse = {
         return obj;
     },
     fromPartial(_) {
-        const message = { ...baseMsgFundCommunityPoolResponse };
+        const message = {
+            ...baseMsgFundCommunityPoolResponse,
+        };
         return message;
-    }
+    },
 };
 export class MsgClientImpl {
     constructor(rpc) {
@@ -403,22 +460,22 @@ export class MsgClientImpl {
     }
     SetWithdrawAddress(request) {
         const data = MsgSetWithdrawAddress.encode(request).finish();
-        const promise = this.rpc.request('cosmos.distribution.v1beta1.Msg', 'SetWithdrawAddress', data);
+        const promise = this.rpc.request("cosmos.distribution.v1beta1.Msg", "SetWithdrawAddress", data);
         return promise.then((data) => MsgSetWithdrawAddressResponse.decode(new Reader(data)));
     }
     WithdrawDelegatorReward(request) {
         const data = MsgWithdrawDelegatorReward.encode(request).finish();
-        const promise = this.rpc.request('cosmos.distribution.v1beta1.Msg', 'WithdrawDelegatorReward', data);
+        const promise = this.rpc.request("cosmos.distribution.v1beta1.Msg", "WithdrawDelegatorReward", data);
         return promise.then((data) => MsgWithdrawDelegatorRewardResponse.decode(new Reader(data)));
     }
     WithdrawValidatorCommission(request) {
         const data = MsgWithdrawValidatorCommission.encode(request).finish();
-        const promise = this.rpc.request('cosmos.distribution.v1beta1.Msg', 'WithdrawValidatorCommission', data);
+        const promise = this.rpc.request("cosmos.distribution.v1beta1.Msg", "WithdrawValidatorCommission", data);
         return promise.then((data) => MsgWithdrawValidatorCommissionResponse.decode(new Reader(data)));
     }
     FundCommunityPool(request) {
         const data = MsgFundCommunityPool.encode(request).finish();
-        const promise = this.rpc.request('cosmos.distribution.v1beta1.Msg', 'FundCommunityPool', data);
+        const promise = this.rpc.request("cosmos.distribution.v1beta1.Msg", "FundCommunityPool", data);
         return promise.then((data) => MsgFundCommunityPoolResponse.decode(new Reader(data)));
     }
 }

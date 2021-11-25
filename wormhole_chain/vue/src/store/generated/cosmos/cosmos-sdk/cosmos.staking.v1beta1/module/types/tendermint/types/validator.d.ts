@@ -1,5 +1,5 @@
-import { Writer, Reader } from 'protobufjs/minimal';
-import { PublicKey } from '../../tendermint/crypto/keys';
+import { Writer, Reader } from "protobufjs/minimal";
+import { PublicKey } from "../../tendermint/crypto/keys";
 export declare const protobufPackage = "tendermint.types";
 export interface ValidatorSet {
     validators: Validator[];

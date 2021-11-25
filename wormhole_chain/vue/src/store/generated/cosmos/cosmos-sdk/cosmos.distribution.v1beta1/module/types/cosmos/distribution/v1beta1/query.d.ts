@@ -1,7 +1,7 @@
-import { Reader, Writer } from 'protobufjs/minimal';
-import { Params, ValidatorOutstandingRewards, ValidatorAccumulatedCommission, ValidatorSlashEvent, DelegationDelegatorReward } from '../../../cosmos/distribution/v1beta1/distribution';
-import { PageRequest, PageResponse } from '../../../cosmos/base/query/v1beta1/pagination';
-import { DecCoin } from '../../../cosmos/base/v1beta1/coin';
+import { Reader, Writer } from "protobufjs/minimal";
+import { Params, ValidatorOutstandingRewards, ValidatorAccumulatedCommission, ValidatorSlashEvent, DelegationDelegatorReward } from "../../../cosmos/distribution/v1beta1/distribution";
+import { PageRequest, PageResponse } from "../../../cosmos/base/query/v1beta1/pagination";
+import { DecCoin } from "../../../cosmos/base/v1beta1/coin";
 export declare const protobufPackage = "cosmos.distribution.v1beta1";
 /** QueryParamsRequest is the request type for the Query/Params RPC method. */
 export interface QueryParamsRequest {

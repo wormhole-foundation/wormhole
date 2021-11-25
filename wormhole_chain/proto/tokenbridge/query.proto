@@ -5,6 +5,7 @@ import "google/api/annotations.proto";
 import "cosmos/base/query/v1beta1/pagination.proto";
 import "tokenbridge/config.proto";
 import "tokenbridge/replay_protection.proto";
+import "tokenbridge/chain_registration.proto";
 // this line is used by starport scaffolding # 1
 import "gogoproto/gogo.proto";
 
@@ -24,6 +25,16 @@ service Query {
 	// Queries a list of replayProtection items.
 	rpc ReplayProtectionAll(QueryAllReplayProtectionRequest) returns (QueryAllReplayProtectionResponse) {
 		option (google.api.http).get = "/certusone/wormholechain/tokenbridge/replayProtection";
+	}
+
+// Queries a chainRegistration by index.
+	rpc ChainRegistration(QueryGetChainRegistrationRequest) returns (QueryGetChainRegistrationResponse) {
+		option (google.api.http).get = "/certusone/wormholechain/tokenbridge/chainRegistration/{chainID}";
+	}
+
+	// Queries a list of chainRegistration items.
+	rpc ChainRegistrationAll(QueryAllChainRegistrationRequest) returns (QueryAllChainRegistrationResponse) {
+		option (google.api.http).get = "/certusone/wormholechain/tokenbridge/chainRegistration";
 	}
 
 // this line is used by starport scaffolding # 2
@@ -49,6 +60,24 @@ message QueryAllReplayProtectionRequest {
 
 message QueryAllReplayProtectionResponse {
 	repeated ReplayProtection replayProtection = 1 [(gogoproto.nullable) = false];
+	cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+
+message QueryGetChainRegistrationRequest {
+	  uint32 chainID = 1;
+
+}
+
+message QueryGetChainRegistrationResponse {
+	ChainRegistration chainRegistration = 1 [(gogoproto.nullable) = false];
+}
+
+message QueryAllChainRegistrationRequest {
+	cosmos.base.query.v1beta1.PageRequest pagination = 1;
+}
+
+message QueryAllChainRegistrationResponse {
+	repeated ChainRegistration chainRegistration = 1 [(gogoproto.nullable) = false];
 	cosmos.base.query.v1beta1.PageResponse pagination = 2;
 }
 

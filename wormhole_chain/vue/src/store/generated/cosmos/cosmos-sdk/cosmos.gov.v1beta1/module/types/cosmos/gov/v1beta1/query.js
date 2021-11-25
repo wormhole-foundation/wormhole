@@ -1,9 +1,9 @@
 /* eslint-disable */
-import { Proposal, Vote, VotingParams, DepositParams, TallyParams, Deposit, TallyResult, proposalStatusFromJSON, proposalStatusToJSON } from '../../../cosmos/gov/v1beta1/gov';
-import { Reader, util, configure, Writer } from 'protobufjs/minimal';
-import * as Long from 'long';
-import { PageRequest, PageResponse } from '../../../cosmos/base/query/v1beta1/pagination';
-export const protobufPackage = 'cosmos.gov.v1beta1';
+import { Proposal, Vote, VotingParams, DepositParams, TallyParams, Deposit, TallyResult, proposalStatusFromJSON, proposalStatusToJSON, } from "../../../cosmos/gov/v1beta1/gov";
+import { Reader, util, configure, Writer } from "protobufjs/minimal";
+import * as Long from "long";
+import { PageRequest, PageResponse, } from "../../../cosmos/base/query/v1beta1/pagination";
+export const protobufPackage = "cosmos.gov.v1beta1";
 const baseQueryProposalRequest = { proposalId: 0 };
 export const QueryProposalRequest = {
     encode(message, writer = Writer.create()) {
@@ -53,7 +53,7 @@ export const QueryProposalRequest = {
             message.proposalId = 0;
         }
         return message;
-    }
+    },
 };
 const baseQueryProposalResponse = {};
 export const QueryProposalResponse = {
@@ -92,7 +92,10 @@ export const QueryProposalResponse = {
     },
     toJSON(message) {
         const obj = {};
-        message.proposal !== undefined && (obj.proposal = message.proposal ? Proposal.toJSON(message.proposal) : undefined);
+        message.proposal !== undefined &&
+            (obj.proposal = message.proposal
+                ? Proposal.toJSON(message.proposal)
+                : undefined);
         return obj;
     },
     fromPartial(object) {
@@ -104,18 +107,22 @@ export const QueryProposalResponse = {
             message.proposal = undefined;
         }
         return message;
-    }
+    },
 };
-const baseQueryProposalsRequest = { proposalStatus: 0, voter: '', depositor: '' };
+const baseQueryProposalsRequest = {
+    proposalStatus: 0,
+    voter: "",
+    depositor: "",
+};
 export const QueryProposalsRequest = {
     encode(message, writer = Writer.create()) {
         if (message.proposalStatus !== 0) {
             writer.uint32(8).int32(message.proposalStatus);
         }
-        if (message.voter !== '') {
+        if (message.voter !== "") {
             writer.uint32(18).string(message.voter);
         }
-        if (message.depositor !== '') {
+        if (message.depositor !== "") {
             writer.uint32(26).string(message.depositor);
         }
         if (message.pagination !== undefined) {
@@ -161,13 +168,13 @@ export const QueryProposalsRequest = {
             message.voter = String(object.voter);
         }
         else {
-            message.voter = '';
+            message.voter = "";
         }
         if (object.depositor !== undefined && object.depositor !== null) {
             message.depositor = String(object.depositor);
         }
         else {
-            message.depositor = '';
+            message.depositor = "";
         }
         if (object.pagination !== undefined && object.pagination !== null) {
             message.pagination = PageRequest.fromJSON(object.pagination);
@@ -179,10 +186,14 @@ export const QueryProposalsRequest = {
     },
     toJSON(message) {
         const obj = {};
-        message.proposalStatus !== undefined && (obj.proposalStatus = proposalStatusToJSON(message.proposalStatus));
+        message.proposalStatus !== undefined &&
+            (obj.proposalStatus = proposalStatusToJSON(message.proposalStatus));
         message.voter !== undefined && (obj.voter = message.voter);
         message.depositor !== undefined && (obj.depositor = message.depositor);
-        message.pagination !== undefined && (obj.pagination = message.pagination ? PageRequest.toJSON(message.pagination) : undefined);
+        message.pagination !== undefined &&
+            (obj.pagination = message.pagination
+                ? PageRequest.toJSON(message.pagination)
+                : undefined);
         return obj;
     },
     fromPartial(object) {
@@ -197,13 +208,13 @@ export const QueryProposalsRequest = {
             message.voter = object.voter;
         }
         else {
-            message.voter = '';
+            message.voter = "";
         }
         if (object.depositor !== undefined && object.depositor !== null) {
             message.depositor = object.depositor;
         }
         else {
-            message.depositor = '';
+            message.depositor = "";
         }
         if (object.pagination !== undefined && object.pagination !== null) {
             message.pagination = PageRequest.fromPartial(object.pagination);
@@ -212,7 +223,7 @@ export const QueryProposalsRequest = {
             message.pagination = undefined;
         }
         return message;
-    }
+    },
 };
 const baseQueryProposalsResponse = {};
 export const QueryProposalsResponse = {
@@ -265,12 +276,15 @@ export const QueryProposalsResponse = {
     toJSON(message) {
         const obj = {};
         if (message.proposals) {
-            obj.proposals = message.proposals.map((e) => (e ? Proposal.toJSON(e) : undefined));
+            obj.proposals = message.proposals.map((e) => e ? Proposal.toJSON(e) : undefined);
         }
         else {
             obj.proposals = [];
         }
-        message.pagination !== undefined && (obj.pagination = message.pagination ? PageResponse.toJSON(message.pagination) : undefined);
+        message.pagination !== undefined &&
+            (obj.pagination = message.pagination
+                ? PageResponse.toJSON(message.pagination)
+                : undefined);
         return obj;
     },
     fromPartial(object) {
@@ -288,15 +302,15 @@ export const QueryProposalsResponse = {
             message.pagination = undefined;
         }
         return message;
-    }
+    },
 };
-const baseQueryVoteRequest = { proposalId: 0, voter: '' };
+const baseQueryVoteRequest = { proposalId: 0, voter: "" };
 export const QueryVoteRequest = {
     encode(message, writer = Writer.create()) {
         if (message.proposalId !== 0) {
             writer.uint32(8).uint64(message.proposalId);
         }
-        if (message.voter !== '') {
+        if (message.voter !== "") {
             writer.uint32(18).string(message.voter);
         }
         return writer;
@@ -333,7 +347,7 @@ export const QueryVoteRequest = {
             message.voter = String(object.voter);
         }
         else {
-            message.voter = '';
+            message.voter = "";
         }
         return message;
     },
@@ -355,10 +369,10 @@ export const QueryVoteRequest = {
             message.voter = object.voter;
         }
         else {
-            message.voter = '';
+            message.voter = "";
         }
         return message;
-    }
+    },
 };
 const baseQueryVoteResponse = {};
 export const QueryVoteResponse = {
@@ -397,7 +411,8 @@ export const QueryVoteResponse = {
     },
     toJSON(message) {
         const obj = {};
-        message.vote !== undefined && (obj.vote = message.vote ? Vote.toJSON(message.vote) : undefined);
+        message.vote !== undefined &&
+            (obj.vote = message.vote ? Vote.toJSON(message.vote) : undefined);
         return obj;
     },
     fromPartial(object) {
@@ -409,7 +424,7 @@ export const QueryVoteResponse = {
             message.vote = undefined;
         }
         return message;
-    }
+    },
 };
 const baseQueryVotesRequest = { proposalId: 0 };
 export const QueryVotesRequest = {
@@ -461,7 +476,10 @@ export const QueryVotesRequest = {
     toJSON(message) {
         const obj = {};
         message.proposalId !== undefined && (obj.proposalId = message.proposalId);
-        message.pagination !== undefined && (obj.pagination = message.pagination ? PageRequest.toJSON(message.pagination) : undefined);
+        message.pagination !== undefined &&
+            (obj.pagination = message.pagination
+                ? PageRequest.toJSON(message.pagination)
+                : undefined);
         return obj;
     },
     fromPartial(object) {
@@ -479,7 +497,7 @@ export const QueryVotesRequest = {
             message.pagination = undefined;
         }
         return message;
-    }
+    },
 };
 const baseQueryVotesResponse = {};
 export const QueryVotesResponse = {
@@ -537,7 +555,10 @@ export const QueryVotesResponse = {
         else {
             obj.votes = [];
         }
-        message.pagination !== undefined && (obj.pagination = message.pagination ? PageResponse.toJSON(message.pagination) : undefined);
+        message.pagination !== undefined &&
+            (obj.pagination = message.pagination
+                ? PageResponse.toJSON(message.pagination)
+                : undefined);
         return obj;
     },
     fromPartial(object) {
@@ -555,12 +576,12 @@ export const QueryVotesResponse = {
             message.pagination = undefined;
         }
         return message;
-    }
+    },
 };
-const baseQueryParamsRequest = { paramsType: '' };
+const baseQueryParamsRequest = { paramsType: "" };
 export const QueryParamsRequest = {
     encode(message, writer = Writer.create()) {
-        if (message.paramsType !== '') {
+        if (message.paramsType !== "") {
             writer.uint32(10).string(message.paramsType);
         }
         return writer;
@@ -588,7 +609,7 @@ export const QueryParamsRequest = {
             message.paramsType = String(object.paramsType);
         }
         else {
-            message.paramsType = '';
+            message.paramsType = "";
         }
         return message;
     },
@@ -603,10 +624,10 @@ export const QueryParamsRequest = {
             message.paramsType = object.paramsType;
         }
         else {
-            message.paramsType = '';
+            message.paramsType = "";
         }
         return message;
-    }
+    },
 };
 const baseQueryParamsResponse = {};
 export const QueryParamsResponse = {
@@ -669,9 +690,18 @@ export const QueryParamsResponse = {
     },
     toJSON(message) {
         const obj = {};
-        message.votingParams !== undefined && (obj.votingParams = message.votingParams ? VotingParams.toJSON(message.votingParams) : undefined);
-        message.depositParams !== undefined && (obj.depositParams = message.depositParams ? DepositParams.toJSON(message.depositParams) : undefined);
-        message.tallyParams !== undefined && (obj.tallyParams = message.tallyParams ? TallyParams.toJSON(message.tallyParams) : undefined);
+        message.votingParams !== undefined &&
+            (obj.votingParams = message.votingParams
+                ? VotingParams.toJSON(message.votingParams)
+                : undefined);
+        message.depositParams !== undefined &&
+            (obj.depositParams = message.depositParams
+                ? DepositParams.toJSON(message.depositParams)
+                : undefined);
+        message.tallyParams !== undefined &&
+            (obj.tallyParams = message.tallyParams
+                ? TallyParams.toJSON(message.tallyParams)
+                : undefined);
         return obj;
     },
     fromPartial(object) {
@@ -695,15 +725,15 @@ export const QueryParamsResponse = {
             message.tallyParams = undefined;
         }
         return message;
-    }
+    },
 };
-const baseQueryDepositRequest = { proposalId: 0, depositor: '' };
+const baseQueryDepositRequest = { proposalId: 0, depositor: "" };
 export const QueryDepositRequest = {
     encode(message, writer = Writer.create()) {
         if (message.proposalId !== 0) {
             writer.uint32(8).uint64(message.proposalId);
         }
-        if (message.depositor !== '') {
+        if (message.depositor !== "") {
             writer.uint32(18).string(message.depositor);
         }
         return writer;
@@ -740,7 +770,7 @@ export const QueryDepositRequest = {
             message.depositor = String(object.depositor);
         }
         else {
-            message.depositor = '';
+            message.depositor = "";
         }
         return message;
     },
@@ -762,10 +792,10 @@ export const QueryDepositRequest = {
             message.depositor = object.depositor;
         }
         else {
-            message.depositor = '';
+            message.depositor = "";
         }
         return message;
-    }
+    },
 };
 const baseQueryDepositResponse = {};
 export const QueryDepositResponse = {
@@ -804,7 +834,10 @@ export const QueryDepositResponse = {
     },
     toJSON(message) {
         const obj = {};
-        message.deposit !== undefined && (obj.deposit = message.deposit ? Deposit.toJSON(message.deposit) : undefined);
+        message.deposit !== undefined &&
+            (obj.deposit = message.deposit
+                ? Deposit.toJSON(message.deposit)
+                : undefined);
         return obj;
     },
     fromPartial(object) {
@@ -816,7 +849,7 @@ export const QueryDepositResponse = {
             message.deposit = undefined;
         }
         return message;
-    }
+    },
 };
 const baseQueryDepositsRequest = { proposalId: 0 };
 export const QueryDepositsRequest = {
@@ -868,7 +901,10 @@ export const QueryDepositsRequest = {
     toJSON(message) {
         const obj = {};
         message.proposalId !== undefined && (obj.proposalId = message.proposalId);
-        message.pagination !== undefined && (obj.pagination = message.pagination ? PageRequest.toJSON(message.pagination) : undefined);
+        message.pagination !== undefined &&
+            (obj.pagination = message.pagination
+                ? PageRequest.toJSON(message.pagination)
+                : undefined);
         return obj;
     },
     fromPartial(object) {
@@ -886,7 +922,7 @@ export const QueryDepositsRequest = {
             message.pagination = undefined;
         }
         return message;
-    }
+    },
 };
 const baseQueryDepositsResponse = {};
 export const QueryDepositsResponse = {
@@ -939,12 +975,15 @@ export const QueryDepositsResponse = {
     toJSON(message) {
         const obj = {};
         if (message.deposits) {
-            obj.deposits = message.deposits.map((e) => (e ? Deposit.toJSON(e) : undefined));
+            obj.deposits = message.deposits.map((e) => e ? Deposit.toJSON(e) : undefined);
         }
         else {
             obj.deposits = [];
         }
-        message.pagination !== undefined && (obj.pagination = message.pagination ? PageResponse.toJSON(message.pagination) : undefined);
+        message.pagination !== undefined &&
+            (obj.pagination = message.pagination
+                ? PageResponse.toJSON(message.pagination)
+                : undefined);
         return obj;
     },
     fromPartial(object) {
@@ -962,7 +1001,7 @@ export const QueryDepositsResponse = {
             message.pagination = undefined;
         }
         return message;
-    }
+    },
 };
 const baseQueryTallyResultRequest = { proposalId: 0 };
 export const QueryTallyResultRequest = {
@@ -975,7 +1014,9 @@ export const QueryTallyResultRequest = {
     decode(input, length) {
         const reader = input instanceof Uint8Array ? new Reader(input) : input;
         let end = length === undefined ? reader.len : reader.pos + length;
-        const message = { ...baseQueryTallyResultRequest };
+        const message = {
+            ...baseQueryTallyResultRequest,
+        };
         while (reader.pos < end) {
             const tag = reader.uint32();
             switch (tag >>> 3) {
@@ -990,7 +1031,9 @@ export const QueryTallyResultRequest = {
         return message;
     },
     fromJSON(object) {
-        const message = { ...baseQueryTallyResultRequest };
+        const message = {
+            ...baseQueryTallyResultRequest,
+        };
         if (object.proposalId !== undefined && object.proposalId !== null) {
             message.proposalId = Number(object.proposalId);
         }
@@ -1005,7 +1048,9 @@ export const QueryTallyResultRequest = {
         return obj;
     },
     fromPartial(object) {
-        const message = { ...baseQueryTallyResultRequest };
+        const message = {
+            ...baseQueryTallyResultRequest,
+        };
         if (object.proposalId !== undefined && object.proposalId !== null) {
             message.proposalId = object.proposalId;
         }
@@ -1013,7 +1058,7 @@ export const QueryTallyResultRequest = {
             message.proposalId = 0;
         }
         return message;
-    }
+    },
 };
 const baseQueryTallyResultResponse = {};
 export const QueryTallyResultResponse = {
@@ -1026,7 +1071,9 @@ export const QueryTallyResultResponse = {
     decode(input, length) {
         const reader = input instanceof Uint8Array ? new Reader(input) : input;
         let end = length === undefined ? reader.len : reader.pos + length;
-        const message = { ...baseQueryTallyResultResponse };
+        const message = {
+            ...baseQueryTallyResultResponse,
+        };
         while (reader.pos < end) {
             const tag = reader.uint32();
             switch (tag >>> 3) {
@@ -1041,7 +1088,9 @@ export const QueryTallyResultResponse = {
         return message;
     },
     fromJSON(object) {
-        const message = { ...baseQueryTallyResultResponse };
+        const message = {
+            ...baseQueryTallyResultResponse,
+        };
         if (object.tally !== undefined && object.tally !== null) {
             message.tally = TallyResult.fromJSON(object.tally);
         }
@@ -1052,11 +1101,16 @@ export const QueryTallyResultResponse = {
     },
     toJSON(message) {
         const obj = {};
-        message.tally !== undefined && (obj.tally = message.tally ? TallyResult.toJSON(message.tally) : undefined);
+        message.tally !== undefined &&
+            (obj.tally = message.tally
+                ? TallyResult.toJSON(message.tally)
+                : undefined);
         return obj;
     },
     fromPartial(object) {
-        const message = { ...baseQueryTallyResultResponse };
+        const message = {
+            ...baseQueryTallyResultResponse,
+        };
         if (object.tally !== undefined && object.tally !== null) {
             message.tally = TallyResult.fromPartial(object.tally);
         }
@@ -1064,7 +1118,7 @@ export const QueryTallyResultResponse = {
             message.tally = undefined;
         }
         return message;
-    }
+    },
 };
 export class QueryClientImpl {
     constructor(rpc) {
@@ -1072,59 +1126,59 @@ export class QueryClientImpl {
     }
     Proposal(request) {
         const data = QueryProposalRequest.encode(request).finish();
-        const promise = this.rpc.request('cosmos.gov.v1beta1.Query', 'Proposal', data);
+        const promise = this.rpc.request("cosmos.gov.v1beta1.Query", "Proposal", data);
         return promise.then((data) => QueryProposalResponse.decode(new Reader(data)));
     }
     Proposals(request) {
         const data = QueryProposalsRequest.encode(request).finish();
-        const promise = this.rpc.request('cosmos.gov.v1beta1.Query', 'Proposals', data);
+        const promise = this.rpc.request("cosmos.gov.v1beta1.Query", "Proposals", data);
         return promise.then((data) => QueryProposalsResponse.decode(new Reader(data)));
     }
     Vote(request) {
         const data = QueryVoteRequest.encode(request).finish();
-        const promise = this.rpc.request('cosmos.gov.v1beta1.Query', 'Vote', data);
+        const promise = this.rpc.request("cosmos.gov.v1beta1.Query", "Vote", data);
         return promise.then((data) => QueryVoteResponse.decode(new Reader(data)));
     }
     Votes(request) {
         const data = QueryVotesRequest.encode(request).finish();
-        const promise = this.rpc.request('cosmos.gov.v1beta1.Query', 'Votes', data);
+        const promise = this.rpc.request("cosmos.gov.v1beta1.Query", "Votes", data);
         return promise.then((data) => QueryVotesResponse.decode(new Reader(data)));
     }
     Params(request) {
         const data = QueryParamsRequest.encode(request).finish();
-        const promise = this.rpc.request('cosmos.gov.v1beta1.Query', 'Params', data);
+        const promise = this.rpc.request("cosmos.gov.v1beta1.Query", "Params", data);
         return promise.then((data) => QueryParamsResponse.decode(new Reader(data)));
     }
     Deposit(request) {
         const data = QueryDepositRequest.encode(request).finish();
-        const promise = this.rpc.request('cosmos.gov.v1beta1.Query', 'Deposit', data);
+        const promise = this.rpc.request("cosmos.gov.v1beta1.Query", "Deposit", data);
         return promise.then((data) => QueryDepositResponse.decode(new Reader(data)));
     }
     Deposits(request) {
         const data = QueryDepositsRequest.encode(request).finish();
-        const promise = this.rpc.request('cosmos.gov.v1beta1.Query', 'Deposits', data);
+        const promise = this.rpc.request("cosmos.gov.v1beta1.Query", "Deposits", data);
         return promise.then((data) => QueryDepositsResponse.decode(new Reader(data)));
     }
     TallyResult(request) {
         const data = QueryTallyResultRequest.encode(request).finish();
-        const promise = this.rpc.request('cosmos.gov.v1beta1.Query', 'TallyResult', data);
+        const promise = this.rpc.request("cosmos.gov.v1beta1.Query", "TallyResult", data);
         return promise.then((data) => QueryTallyResultResponse.decode(new Reader(data)));
     }
 }
 var globalThis = (() => {
-    if (typeof globalThis !== 'undefined')
+    if (typeof globalThis !== "undefined")
         return globalThis;
-    if (typeof self !== 'undefined')
+    if (typeof self !== "undefined")
         return self;
-    if (typeof window !== 'undefined')
+    if (typeof window !== "undefined")
         return window;
-    if (typeof global !== 'undefined')
+    if (typeof global !== "undefined")
         return global;
-    throw 'Unable to locate global object';
+    throw "Unable to locate global object";
 })();
 function longToNumber(long) {
     if (long.gt(Number.MAX_SAFE_INTEGER)) {
-        throw new globalThis.Error('Value is larger than Number.MAX_SAFE_INTEGER');
+        throw new globalThis.Error("Value is larger than Number.MAX_SAFE_INTEGER");
     }
     return long.toNumber();
 }

@@ -171,6 +171,9 @@ export interface WormholeReplayProtection {
 
 export interface WormholeSequenceCounter {
   index?: string;
+
+  /** @format uint64 */
+  sequence?: string;
 }
 
 export type QueryParamsType = Record<string | number, any>;
