@@ -4,6 +4,363 @@ info:
   name: ''
   description: ''
 paths:
+  /certusone/wormholechain/tokenbridge/chainRegistration:
+    get:
+      summary: Queries a list of chainRegistration items.
+      operationId: CertusoneWormholechainTokenbridgeChainRegistrationAll
+      responses:
+        '200':
+          description: A successful response.
+          schema:
+            type: object
+            properties:
+              chainRegistration:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    chainID:
+                      type: integer
+                      format: int64
+                    emitterAddress:
+                      type: string
+                      format: byte
+              pagination:
+                type: object
+                properties:
+                  nextKey:
+                    type: string
+                    format: byte
+                    title: |-
+                      next_key is the key to be passed to PageRequest.key to
+                      query the next page most efficiently
+                  total:
+                    type: string
+                    format: uint64
+                    title: >-
+                      total is total number of results available if
+                      PageRequest.count_total
+
+                      was set, its value is undefined otherwise
+                description: >-
+                  PageResponse is to be embedded in gRPC response messages where
+                  the
+
+                  corresponding request message has used PageRequest.
+
+                   message SomeResponse {
+                           repeated Bar results = 1;
+                           PageResponse page = 2;
+                   }
+        default:
+          description: An unexpected error response.
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                format: int32
+              message:
+                type: string
+              details:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    '@type':
+                      type: string
+                  additionalProperties: {}
+      parameters:
+        - name: pagination.key
+          description: |-
+            key is a value returned in PageResponse.next_key to begin
+            querying the next page most efficiently. Only one of offset or key
+            should be set.
+          in: query
+          required: false
+          type: string
+          format: byte
+        - name: pagination.offset
+          description: >-
+            offset is a numeric offset that can be used when key is unavailable.
+
+            It is less efficient than using key. Only one of offset or key
+            should
+
+            be set.
+          in: query
+          required: false
+          type: string
+          format: uint64
+        - name: pagination.limit
+          description: >-
+            limit is the total number of results to be returned in the result
+            page.
+
+            If left empty it will default to a value to be set by each app.
+          in: query
+          required: false
+          type: string
+          format: uint64
+        - name: pagination.countTotal
+          description: >-
+            count_total is set to true  to indicate that the result set should
+            include
+
+            a count of the total number of items available for pagination in
+            UIs.
+
+            count_total is only respected when offset is used. It is ignored
+            when key
+
+            is set.
+          in: query
+          required: false
+          type: boolean
+        - name: pagination.reverse
+          description: >-
+            reverse is set to true if results are to be returned in the
+            descending order.
+          in: query
+          required: false
+          type: boolean
+      tags:
+        - Query
+  '/certusone/wormholechain/tokenbridge/chainRegistration/{chainID}':
+    get:
+      summary: Queries a chainRegistration by index.
+      operationId: CertusoneWormholechainTokenbridgeChainRegistration
+      responses:
+        '200':
+          description: A successful response.
+          schema:
+            type: object
+            properties:
+              chainRegistration:
+                type: object
+                properties:
+                  chainID:
+                    type: integer
+                    format: int64
+                  emitterAddress:
+                    type: string
+                    format: byte
+        default:
+          description: An unexpected error response.
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                format: int32
+              message:
+                type: string
+              details:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    '@type':
+                      type: string
+                  additionalProperties: {}
+      parameters:
+        - name: chainID
+          in: path
+          required: true
+          type: integer
+          format: int64
+      tags:
+        - Query
+  /certusone/wormholechain/tokenbridge/config:
+    get:
+      summary: Queries a config by index.
+      operationId: CertusoneWormholechainTokenbridgeConfig
+      responses:
+        '200':
+          description: A successful response.
+          schema:
+            type: object
+            properties:
+              Config:
+                type: object
+        default:
+          description: An unexpected error response.
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                format: int32
+              message:
+                type: string
+              details:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    '@type':
+                      type: string
+                  additionalProperties: {}
+      tags:
+        - Query
+  /certusone/wormholechain/tokenbridge/replayProtection:
+    get:
+      summary: Queries a list of replayProtection items.
+      operationId: CertusoneWormholechainTokenbridgeReplayProtectionAll
+      responses:
+        '200':
+          description: A successful response.
+          schema:
+            type: object
+            properties:
+              replayProtection:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    index:
+                      type: string
+              pagination:
+                type: object
+                properties:
+                  nextKey:
+                    type: string
+                    format: byte
+                    title: |-
+                      next_key is the key to be passed to PageRequest.key to
+                      query the next page most efficiently
+                  total:
+                    type: string
+                    format: uint64
+                    title: >-
+                      total is total number of results available if
+                      PageRequest.count_total
+
+                      was set, its value is undefined otherwise
+                description: >-
+                  PageResponse is to be embedded in gRPC response messages where
+                  the
+
+                  corresponding request message has used PageRequest.
+
+                   message SomeResponse {
+                           repeated Bar results = 1;
+                           PageResponse page = 2;
+                   }
+        default:
+          description: An unexpected error response.
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                format: int32
+              message:
+                type: string
+              details:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    '@type':
+                      type: string
+                  additionalProperties: {}
+      parameters:
+        - name: pagination.key
+          description: |-
+            key is a value returned in PageResponse.next_key to begin
+            querying the next page most efficiently. Only one of offset or key
+            should be set.
+          in: query
+          required: false
+          type: string
+          format: byte
+        - name: pagination.offset
+          description: >-
+            offset is a numeric offset that can be used when key is unavailable.
+
+            It is less efficient than using key. Only one of offset or key
+            should
+
+            be set.
+          in: query
+          required: false
+          type: string
+          format: uint64
+        - name: pagination.limit
+          description: >-
+            limit is the total number of results to be returned in the result
+            page.
+
+            If left empty it will default to a value to be set by each app.
+          in: query
+          required: false
+          type: string
+          format: uint64
+        - name: pagination.countTotal
+          description: >-
+            count_total is set to true  to indicate that the result set should
+            include
+
+            a count of the total number of items available for pagination in
+            UIs.
+
+            count_total is only respected when offset is used. It is ignored
+            when key
+
+            is set.
+          in: query
+          required: false
+          type: boolean
+        - name: pagination.reverse
+          description: >-
+            reverse is set to true if results are to be returned in the
+            descending order.
+          in: query
+          required: false
+          type: boolean
+      tags:
+        - Query
+  '/certusone/wormholechain/tokenbridge/replayProtection/{index}':
+    get:
+      summary: Queries a replayProtection by index.
+      operationId: CertusoneWormholechainTokenbridgeReplayProtection
+      responses:
+        '200':
+          description: A successful response.
+          schema:
+            type: object
+            properties:
+              replayProtection:
+                type: object
+                properties:
+                  index:
+                    type: string
+        default:
+          description: An unexpected error response.
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                format: int32
+              message:
+                type: string
+              details:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    '@type':
+                      type: string
+                  additionalProperties: {}
+      parameters:
+        - name: index
+          in: path
+          required: true
+          type: string
+      tags:
+        - Query
   /certusone/wormholechain/wormhole/config:
     get:
       summary: Queries a config by index.
@@ -401,6 +758,9 @@ paths:
                   properties:
                     index:
                       type: string
+                    sequence:
+                      type: string
+                      format: uint64
               pagination:
                 type: object
                 properties:
@@ -517,6 +877,9 @@ paths:
                 properties:
                   index:
                     type: string
+                  sequence:
+                    type: string
+                    format: uint64
         default:
           description: An unexpected error response.
           schema:
@@ -13040,56 +13403,39 @@ paths:
       tags:
         - Query
 definitions:
-  certusone.wormholechain.wormhole.Config:
+  certusone.wormholechain.tokenbridge.ChainRegistration:
     type: object
     properties:
-      guardianSetExpiration:
-        type: string
-        format: uint64
-      governanceEmitter:
+      chainID:
+        type: integer
+        format: int64
+      emitterAddress:
         type: string
         format: byte
-      governanceChain:
-        type: integer
-        format: int64
-      chainId:
-        type: integer
-        format: int64
-  certusone.wormholechain.wormhole.GuardianSet:
+  certusone.wormholechain.tokenbridge.Config:
+    type: object
+  certusone.wormholechain.tokenbridge.MsgAttestTokenResponse:
+    type: object
+  certusone.wormholechain.tokenbridge.MsgExecuteGovernanceVAAResponse:
+    type: object
+  certusone.wormholechain.tokenbridge.MsgExecuteVAAResponse:
+    type: object
+  certusone.wormholechain.tokenbridge.MsgTransferResponse:
+    type: object
+  certusone.wormholechain.tokenbridge.QueryAllChainRegistrationResponse:
     type: object
     properties:
-      index:
-        type: integer
-        format: int64
-      keys:
-        type: array
-        items:
-          type: string
-          format: byte
-      expirationTime:
-        type: string
-        format: uint64
-  certusone.wormholechain.wormhole.MsgExecuteGovernanceVAAResponse:
-    type: object
-  certusone.wormholechain.wormhole.QueryAllGuardianSetResponse:
-    type: object
-    properties:
-      GuardianSet:
+      chainRegistration:
         type: array
         items:
           type: object
           properties:
-            index:
+            chainID:
               type: integer
               format: int64
-            keys:
-              type: array
-              items:
-                type: string
-                format: byte
-            expirationTime:
+            emitterAddress:
               type: string
-              format: uint64
+              format: byte
       pagination:
         type: object
         properties:
@@ -13115,7 +13461,7 @@ definitions:
                    repeated Bar results = 1;
                    PageResponse page = 2;
            }
-  certusone.wormholechain.wormhole.QueryAllReplayProtectionResponse:
+  certusone.wormholechain.tokenbridge.QueryAllReplayProtectionResponse:
     type: object
     properties:
       replayProtection:
@@ -13150,77 +13496,24 @@ definitions:
                    repeated Bar results = 1;
                    PageResponse page = 2;
            }
-  certusone.wormholechain.wormhole.QueryAllSequenceCounterResponse:
+  certusone.wormholechain.tokenbridge.QueryGetChainRegistrationResponse:
     type: object
     properties:
-      sequenceCounter:
-        type: array
-        items:
-          type: object
-          properties:
-            index:
-              type: string
-      pagination:
+      chainRegistration:
         type: object
         properties:
-          nextKey:
+          chainID:
+            type: integer
+            format: int64
+          emitterAddress:
             type: string
             format: byte
-            title: |-
-              next_key is the key to be passed to PageRequest.key to
-              query the next page most efficiently
-          total:
-            type: string
-            format: uint64
-            title: >-
-              total is total number of results available if
-              PageRequest.count_total
-
-              was set, its value is undefined otherwise
-        description: |-
-          PageResponse is to be embedded in gRPC response messages where the
-          corresponding request message has used PageRequest.
-
-           message SomeResponse {
-                   repeated Bar results = 1;
-                   PageResponse page = 2;
-           }
-  certusone.wormholechain.wormhole.QueryGetConfigResponse:
+  certusone.wormholechain.tokenbridge.QueryGetConfigResponse:
     type: object
     properties:
       Config:
         type: object
-        properties:
-          guardianSetExpiration:
-            type: string
-            format: uint64
-          governanceEmitter:
-            type: string
-            format: byte
-          governanceChain:
-            type: integer
-            format: int64
-          chainId:
-            type: integer
-            format: int64
-  certusone.wormholechain.wormhole.QueryGetGuardianSetResponse:
-    type: object
-    properties:
-      GuardianSet:
-        type: object
-        properties:
-          index:
-            type: integer
-            format: int64
-          keys:
-            type: array
-            items:
-              type: string
-              format: byte
-          expirationTime:
-            type: string
-            format: uint64
-  certusone.wormholechain.wormhole.QueryGetReplayProtectionResponse:
+  certusone.wormholechain.tokenbridge.QueryGetReplayProtectionResponse:
     type: object
     properties:
       replayProtection:
@@ -13228,20 +13521,7 @@ definitions:
         properties:
           index:
             type: string
-  certusone.wormholechain.wormhole.QueryGetSequenceCounterResponse:
-    type: object
-    properties:
-      sequenceCounter:
-        type: object
-        properties:
-          index:
-            type: string
-  certusone.wormholechain.wormhole.ReplayProtection:
-    type: object
-    properties:
-      index:
-        type: string
-  certusone.wormholechain.wormhole.SequenceCounter:
+  certusone.wormholechain.tokenbridge.ReplayProtection:
     type: object
     properties:
       index:
@@ -13319,6 +13599,18 @@ definitions:
                repeated Bar results = 1;
                PageResponse page = 2;
        }
+  cosmos.base.v1beta1.Coin:
+    type: object
+    properties:
+      denom:
+        type: string
+      amount:
+        type: string
+    description: |-
+      Coin defines a token with a denomination and an amount.
+
+      NOTE: The amount field is an Int which implements the custom method
+      signatures required by gogoproto.
   google.protobuf.Any:
     type: object
     properties:
@@ -13642,6 +13934,221 @@ definitions:
                   "@type": "type.googleapis.com/google.protobuf.Duration",
                   "value": "1.212s"
                 }
+  certusone.wormholechain.wormhole.Config:
+    type: object
+    properties:
+      guardianSetExpiration:
+        type: string
+        format: uint64
+      governanceEmitter:
+        type: string
+        format: byte
+      governanceChain:
+        type: integer
+        format: int64
+      chainId:
+        type: integer
+        format: int64
+  certusone.wormholechain.wormhole.GuardianSet:
+    type: object
+    properties:
+      index:
+        type: integer
+        format: int64
+      keys:
+        type: array
+        items:
+          type: string
+          format: byte
+      expirationTime:
+        type: string
+        format: uint64
+  certusone.wormholechain.wormhole.MsgExecuteGovernanceVAAResponse:
+    type: object
+  certusone.wormholechain.wormhole.QueryAllGuardianSetResponse:
+    type: object
+    properties:
+      GuardianSet:
+        type: array
+        items:
+          type: object
+          properties:
+            index:
+              type: integer
+              format: int64
+            keys:
+              type: array
+              items:
+                type: string
+                format: byte
+            expirationTime:
+              type: string
+              format: uint64
+      pagination:
+        type: object
+        properties:
+          nextKey:
+            type: string
+            format: byte
+            title: |-
+              next_key is the key to be passed to PageRequest.key to
+              query the next page most efficiently
+          total:
+            type: string
+            format: uint64
+            title: >-
+              total is total number of results available if
+              PageRequest.count_total
+
+              was set, its value is undefined otherwise
+        description: |-
+          PageResponse is to be embedded in gRPC response messages where the
+          corresponding request message has used PageRequest.
+
+           message SomeResponse {
+                   repeated Bar results = 1;
+                   PageResponse page = 2;
+           }
+  certusone.wormholechain.wormhole.QueryAllReplayProtectionResponse:
+    type: object
+    properties:
+      replayProtection:
+        type: array
+        items:
+          type: object
+          properties:
+            index:
+              type: string
+      pagination:
+        type: object
+        properties:
+          nextKey:
+            type: string
+            format: byte
+            title: |-
+              next_key is the key to be passed to PageRequest.key to
+              query the next page most efficiently
+          total:
+            type: string
+            format: uint64
+            title: >-
+              total is total number of results available if
+              PageRequest.count_total
+
+              was set, its value is undefined otherwise
+        description: |-
+          PageResponse is to be embedded in gRPC response messages where the
+          corresponding request message has used PageRequest.
+
+           message SomeResponse {
+                   repeated Bar results = 1;
+                   PageResponse page = 2;
+           }
+  certusone.wormholechain.wormhole.QueryAllSequenceCounterResponse:
+    type: object
+    properties:
+      sequenceCounter:
+        type: array
+        items:
+          type: object
+          properties:
+            index:
+              type: string
+            sequence:
+              type: string
+              format: uint64
+      pagination:
+        type: object
+        properties:
+          nextKey:
+            type: string
+            format: byte
+            title: |-
+              next_key is the key to be passed to PageRequest.key to
+              query the next page most efficiently
+          total:
+            type: string
+            format: uint64
+            title: >-
+              total is total number of results available if
+              PageRequest.count_total
+
+              was set, its value is undefined otherwise
+        description: |-
+          PageResponse is to be embedded in gRPC response messages where the
+          corresponding request message has used PageRequest.
+
+           message SomeResponse {
+                   repeated Bar results = 1;
+                   PageResponse page = 2;
+           }
+  certusone.wormholechain.wormhole.QueryGetConfigResponse:
+    type: object
+    properties:
+      Config:
+        type: object
+        properties:
+          guardianSetExpiration:
+            type: string
+            format: uint64
+          governanceEmitter:
+            type: string
+            format: byte
+          governanceChain:
+            type: integer
+            format: int64
+          chainId:
+            type: integer
+            format: int64
+  certusone.wormholechain.wormhole.QueryGetGuardianSetResponse:
+    type: object
+    properties:
+      GuardianSet:
+        type: object
+        properties:
+          index:
+            type: integer
+            format: int64
+          keys:
+            type: array
+            items:
+              type: string
+              format: byte
+          expirationTime:
+            type: string
+            format: uint64
+  certusone.wormholechain.wormhole.QueryGetReplayProtectionResponse:
+    type: object
+    properties:
+      replayProtection:
+        type: object
+        properties:
+          index:
+            type: string
+  certusone.wormholechain.wormhole.QueryGetSequenceCounterResponse:
+    type: object
+    properties:
+      sequenceCounter:
+        type: object
+        properties:
+          index:
+            type: string
+          sequence:
+            type: string
+            format: uint64
+  certusone.wormholechain.wormhole.ReplayProtection:
+    type: object
+    properties:
+      index:
+        type: string
+  certusone.wormholechain.wormhole.SequenceCounter:
+    type: object
+    properties:
+      index:
+        type: string
+      sequence:
+        type: string
+        format: uint64
   cosmos.authz.v1beta1.Grant:
     type: object
     properties:
@@ -14499,18 +15006,6 @@ definitions:
     description: |-
       SendEnabled maps coin denom to a send_enabled status (whether a denom is
       sendable).
-  cosmos.base.v1beta1.Coin:
-    type: object
-    properties:
-      denom:
-        type: string
-      amount:
-        type: string
-    description: |-
-      Coin defines a token with a denomination and an amount.
-
-      NOTE: The amount field is an Int which implements the custom method
-      signatures required by gogoproto.
   cosmos.crisis.v1beta1.MsgVerifyInvariantResponse:
     type: object
     description: MsgVerifyInvariantResponse defines the Msg/VerifyInvariant response type.

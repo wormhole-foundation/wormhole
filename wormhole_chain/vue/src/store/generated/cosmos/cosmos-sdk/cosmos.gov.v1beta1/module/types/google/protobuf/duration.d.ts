@@ -1,4 +1,4 @@
-import { Writer, Reader } from 'protobufjs/minimal';
+import { Writer, Reader } from "protobufjs/minimal";
 export declare const protobufPackage = "google.protobuf";
 /**
  * A Duration represents a signed, fixed-length span of time represented

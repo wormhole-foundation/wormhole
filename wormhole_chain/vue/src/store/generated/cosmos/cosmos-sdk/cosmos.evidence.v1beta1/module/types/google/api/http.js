@@ -1,6 +1,6 @@
 /* eslint-disable */
-import { Writer, Reader } from 'protobufjs/minimal';
-export const protobufPackage = 'google.api';
+import { Writer, Reader } from "protobufjs/minimal";
+export const protobufPackage = "google.api";
 const baseHttp = { fullyDecodeReservedExpansion: false };
 export const Http = {
     encode(message, writer = Writer.create()) {
@@ -41,7 +41,8 @@ export const Http = {
                 message.rules.push(HttpRule.fromJSON(e));
             }
         }
-        if (object.fullyDecodeReservedExpansion !== undefined && object.fullyDecodeReservedExpansion !== null) {
+        if (object.fullyDecodeReservedExpansion !== undefined &&
+            object.fullyDecodeReservedExpansion !== null) {
             message.fullyDecodeReservedExpansion = Boolean(object.fullyDecodeReservedExpansion);
         }
         else {
@@ -52,12 +53,13 @@ export const Http = {
     toJSON(message) {
         const obj = {};
         if (message.rules) {
-            obj.rules = message.rules.map((e) => (e ? HttpRule.toJSON(e) : undefined));
+            obj.rules = message.rules.map((e) => e ? HttpRule.toJSON(e) : undefined);
         }
         else {
             obj.rules = [];
         }
-        message.fullyDecodeReservedExpansion !== undefined && (obj.fullyDecodeReservedExpansion = message.fullyDecodeReservedExpansion);
+        message.fullyDecodeReservedExpansion !== undefined &&
+            (obj.fullyDecodeReservedExpansion = message.fullyDecodeReservedExpansion);
         return obj;
     },
     fromPartial(object) {
@@ -68,19 +70,21 @@ export const Http = {
                 message.rules.push(HttpRule.fromPartial(e));
             }
         }
-        if (object.fullyDecodeReservedExpansion !== undefined && object.fullyDecodeReservedExpansion !== null) {
-            message.fullyDecodeReservedExpansion = object.fullyDecodeReservedExpansion;
+        if (object.fullyDecodeReservedExpansion !== undefined &&
+            object.fullyDecodeReservedExpansion !== null) {
+            message.fullyDecodeReservedExpansion =
+                object.fullyDecodeReservedExpansion;
         }
         else {
             message.fullyDecodeReservedExpansion = false;
         }
         return message;
-    }
+    },
 };
-const baseHttpRule = { selector: '', body: '', responseBody: '' };
+const baseHttpRule = { selector: "", body: "", responseBody: "" };
 export const HttpRule = {
     encode(message, writer = Writer.create()) {
-        if (message.selector !== '') {
+        if (message.selector !== "") {
             writer.uint32(10).string(message.selector);
         }
         if (message.get !== undefined) {
@@ -101,10 +105,10 @@ export const HttpRule = {
         if (message.custom !== undefined) {
             CustomHttpPattern.encode(message.custom, writer.uint32(66).fork()).ldelim();
         }
-        if (message.body !== '') {
+        if (message.body !== "") {
             writer.uint32(58).string(message.body);
         }
-        if (message.responseBody !== '') {
+        if (message.responseBody !== "") {
             writer.uint32(98).string(message.responseBody);
         }
         for (const v of message.additionalBindings) {
@@ -164,7 +168,7 @@ export const HttpRule = {
             message.selector = String(object.selector);
         }
         else {
-            message.selector = '';
+            message.selector = "";
         }
         if (object.get !== undefined && object.get !== null) {
             message.get = String(object.get);
@@ -206,15 +210,16 @@ export const HttpRule = {
             message.body = String(object.body);
         }
         else {
-            message.body = '';
+            message.body = "";
         }
         if (object.responseBody !== undefined && object.responseBody !== null) {
             message.responseBody = String(object.responseBody);
         }
         else {
-            message.responseBody = '';
+            message.responseBody = "";
         }
-        if (object.additionalBindings !== undefined && object.additionalBindings !== null) {
+        if (object.additionalBindings !== undefined &&
+            object.additionalBindings !== null) {
             for (const e of object.additionalBindings) {
                 message.additionalBindings.push(HttpRule.fromJSON(e));
             }
@@ -229,11 +234,15 @@ export const HttpRule = {
         message.post !== undefined && (obj.post = message.post);
         message.delete !== undefined && (obj.delete = message.delete);
         message.patch !== undefined && (obj.patch = message.patch);
-        message.custom !== undefined && (obj.custom = message.custom ? CustomHttpPattern.toJSON(message.custom) : undefined);
+        message.custom !== undefined &&
+            (obj.custom = message.custom
+                ? CustomHttpPattern.toJSON(message.custom)
+                : undefined);
         message.body !== undefined && (obj.body = message.body);
-        message.responseBody !== undefined && (obj.responseBody = message.responseBody);
+        message.responseBody !== undefined &&
+            (obj.responseBody = message.responseBody);
         if (message.additionalBindings) {
-            obj.additionalBindings = message.additionalBindings.map((e) => (e ? HttpRule.toJSON(e) : undefined));
+            obj.additionalBindings = message.additionalBindings.map((e) => e ? HttpRule.toJSON(e) : undefined);
         }
         else {
             obj.additionalBindings = [];
@@ -247,7 +256,7 @@ export const HttpRule = {
             message.selector = object.selector;
         }
         else {
-            message.selector = '';
+            message.selector = "";
         }
         if (object.get !== undefined && object.get !== null) {
             message.get = object.get;
@@ -289,29 +298,30 @@ export const HttpRule = {
             message.body = object.body;
         }
         else {
-            message.body = '';
+            message.body = "";
         }
         if (object.responseBody !== undefined && object.responseBody !== null) {
             message.responseBody = object.responseBody;
         }
         else {
-            message.responseBody = '';
+            message.responseBody = "";
         }
-        if (object.additionalBindings !== undefined && object.additionalBindings !== null) {
+        if (object.additionalBindings !== undefined &&
+            object.additionalBindings !== null) {
             for (const e of object.additionalBindings) {
                 message.additionalBindings.push(HttpRule.fromPartial(e));
             }
         }
         return message;
-    }
+    },
 };
-const baseCustomHttpPattern = { kind: '', path: '' };
+const baseCustomHttpPattern = { kind: "", path: "" };
 export const CustomHttpPattern = {
     encode(message, writer = Writer.create()) {
-        if (message.kind !== '') {
+        if (message.kind !== "") {
             writer.uint32(10).string(message.kind);
         }
-        if (message.path !== '') {
+        if (message.path !== "") {
             writer.uint32(18).string(message.path);
         }
         return writer;
@@ -342,13 +352,13 @@ export const CustomHttpPattern = {
             message.kind = String(object.kind);
         }
         else {
-            message.kind = '';
+            message.kind = "";
         }
         if (object.path !== undefined && object.path !== null) {
             message.path = String(object.path);
         }
         else {
-            message.path = '';
+            message.path = "";
         }
         return message;
     },
@@ -364,14 +374,14 @@ export const CustomHttpPattern = {
             message.kind = object.kind;
         }
         else {
-            message.kind = '';
+            message.kind = "";
         }
         if (object.path !== undefined && object.path !== null) {
             message.path = object.path;
         }
         else {
-            message.path = '';
+            message.path = "";
         }
         return message;
-    }
+    },
 };

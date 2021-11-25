@@ -1,7 +1,7 @@
 /* eslint-disable */
-import { Coin } from '../../../cosmos/base/v1beta1/coin';
-import { Writer, Reader } from 'protobufjs/minimal';
-export const protobufPackage = 'cosmos.bank.v1beta1';
+import { Coin } from "../../../cosmos/base/v1beta1/coin";
+import { Writer, Reader } from "protobufjs/minimal";
+export const protobufPackage = "cosmos.bank.v1beta1";
 const baseSendAuthorization = {};
 export const SendAuthorization = {
     encode(message, writer = Writer.create()) {
@@ -41,7 +41,7 @@ export const SendAuthorization = {
     toJSON(message) {
         const obj = {};
         if (message.spendLimit) {
-            obj.spendLimit = message.spendLimit.map((e) => (e ? Coin.toJSON(e) : undefined));
+            obj.spendLimit = message.spendLimit.map((e) => e ? Coin.toJSON(e) : undefined);
         }
         else {
             obj.spendLimit = [];
@@ -57,5 +57,5 @@ export const SendAuthorization = {
             }
         }
         return message;
-    }
+    },
 };

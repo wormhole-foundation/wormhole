@@ -3,10 +3,11 @@ import { txClient, queryClient, MissingWalletError } from './module';
 import { SpVuexError } from '@starport/vuex';
 import { Config } from "./module/types/wormhole/config";
 import { EventGuardianSetUpdate } from "./module/types/wormhole/events";
+import { EventPostedMessage } from "./module/types/wormhole/events";
 import { GuardianSet } from "./module/types/wormhole/guardian_set";
 import { ReplayProtection } from "./module/types/wormhole/replay_protection";
 import { SequenceCounter } from "./module/types/wormhole/sequence_counter";
-export { Config, EventGuardianSetUpdate, GuardianSet, ReplayProtection, SequenceCounter };
+export { Config, EventGuardianSetUpdate, EventPostedMessage, GuardianSet, ReplayProtection, SequenceCounter };
 async function initTxClient(vuexGetters) {
     return await txClient(vuexGetters['common/wallet/signer'], {
         addr: vuexGetters['common/env/apiTendermint']
@@ -50,6 +51,7 @@ const getDefaultState = () => {
         _Structure: {
             Config: getStructure(Config.fromPartial({})),
             EventGuardianSetUpdate: getStructure(EventGuardianSetUpdate.fromPartial({})),
+            EventPostedMessage: getStructure(EventPostedMessage.fromPartial({})),
             GuardianSet: getStructure(GuardianSet.fromPartial({})),
             ReplayProtection: getStructure(ReplayProtection.fromPartial({})),
             SequenceCounter: getStructure(SequenceCounter.fromPartial({})),

@@ -1,7 +1,7 @@
 /* eslint-disable */
-import { Coin } from '../../../cosmos/base/v1beta1/coin';
-import { Writer, Reader } from 'protobufjs/minimal';
-export const protobufPackage = 'cosmos.crisis.v1beta1';
+import { Coin } from "../../../cosmos/base/v1beta1/coin";
+import { Writer, Reader } from "protobufjs/minimal";
+export const protobufPackage = "cosmos.crisis.v1beta1";
 const baseGenesisState = {};
 export const GenesisState = {
     encode(message, writer = Writer.create()) {
@@ -39,7 +39,10 @@ export const GenesisState = {
     },
     toJSON(message) {
         const obj = {};
-        message.constantFee !== undefined && (obj.constantFee = message.constantFee ? Coin.toJSON(message.constantFee) : undefined);
+        message.constantFee !== undefined &&
+            (obj.constantFee = message.constantFee
+                ? Coin.toJSON(message.constantFee)
+                : undefined);
         return obj;
     },
     fromPartial(object) {
@@ -51,5 +54,5 @@ export const GenesisState = {
             message.constantFee = undefined;
         }
         return message;
-    }
+    },
 };

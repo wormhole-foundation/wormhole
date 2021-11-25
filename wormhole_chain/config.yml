@@ -16,6 +16,22 @@ faucet:
   coins: ["5token", "100000stake"]
 genesis:
   app_state:
+    bank:
+      denom_metadata:
+        - base: "utest"
+          display: "test"
+          name: "Test Coin"
+          symbol: "TEST"
+          description: "Wormholechain's native test asset"
+          denom_units:
+            - denom: "utest"
+              exponent: 0
+            - denom: "test"
+              exponent: 6
+    tokenbridge:
+      chainRegistrationList:
+        - chainID: 1
+          emitterAddress: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQ="
     wormhole:
       config:
         chain_id: 7
@@ -26,5 +42,5 @@ genesis:
       guardianSetList:
         - index: 0
           keys:
-            - "WMw65cCXshPOPIGXnhuflXB0aqU="
+            - "vvpCnVfNGLf4pNkaLamrSvBdD74="
           expirationTime: 0

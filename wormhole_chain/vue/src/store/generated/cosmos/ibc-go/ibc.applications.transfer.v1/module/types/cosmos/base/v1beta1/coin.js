@@ -1,13 +1,13 @@
 /* eslint-disable */
-import { Writer, Reader } from 'protobufjs/minimal';
-export const protobufPackage = 'cosmos.base.v1beta1';
-const baseCoin = { denom: '', amount: '' };
+import { Writer, Reader } from "protobufjs/minimal";
+export const protobufPackage = "cosmos.base.v1beta1";
+const baseCoin = { denom: "", amount: "" };
 export const Coin = {
     encode(message, writer = Writer.create()) {
-        if (message.denom !== '') {
+        if (message.denom !== "") {
             writer.uint32(10).string(message.denom);
         }
-        if (message.amount !== '') {
+        if (message.amount !== "") {
             writer.uint32(18).string(message.amount);
         }
         return writer;
@@ -38,13 +38,13 @@ export const Coin = {
             message.denom = String(object.denom);
         }
         else {
-            message.denom = '';
+            message.denom = "";
         }
         if (object.amount !== undefined && object.amount !== null) {
             message.amount = String(object.amount);
         }
         else {
-            message.amount = '';
+            message.amount = "";
         }
         return message;
     },
@@ -60,24 +60,24 @@ export const Coin = {
             message.denom = object.denom;
         }
         else {
-            message.denom = '';
+            message.denom = "";
         }
         if (object.amount !== undefined && object.amount !== null) {
             message.amount = object.amount;
         }
         else {
-            message.amount = '';
+            message.amount = "";
         }
         return message;
-    }
+    },
 };
-const baseDecCoin = { denom: '', amount: '' };
+const baseDecCoin = { denom: "", amount: "" };
 export const DecCoin = {
     encode(message, writer = Writer.create()) {
-        if (message.denom !== '') {
+        if (message.denom !== "") {
             writer.uint32(10).string(message.denom);
         }
-        if (message.amount !== '') {
+        if (message.amount !== "") {
             writer.uint32(18).string(message.amount);
         }
         return writer;
@@ -108,13 +108,13 @@ export const DecCoin = {
             message.denom = String(object.denom);
         }
         else {
-            message.denom = '';
+            message.denom = "";
         }
         if (object.amount !== undefined && object.amount !== null) {
             message.amount = String(object.amount);
         }
         else {
-            message.amount = '';
+            message.amount = "";
         }
         return message;
     },
@@ -130,21 +130,21 @@ export const DecCoin = {
             message.denom = object.denom;
         }
         else {
-            message.denom = '';
+            message.denom = "";
         }
         if (object.amount !== undefined && object.amount !== null) {
             message.amount = object.amount;
         }
         else {
-            message.amount = '';
+            message.amount = "";
         }
         return message;
-    }
+    },
 };
-const baseIntProto = { int: '' };
+const baseIntProto = { int: "" };
 export const IntProto = {
     encode(message, writer = Writer.create()) {
-        if (message.int !== '') {
+        if (message.int !== "") {
             writer.uint32(10).string(message.int);
         }
         return writer;
@@ -172,7 +172,7 @@ export const IntProto = {
             message.int = String(object.int);
         }
         else {
-            message.int = '';
+            message.int = "";
         }
         return message;
     },
@@ -187,15 +187,15 @@ export const IntProto = {
             message.int = object.int;
         }
         else {
-            message.int = '';
+            message.int = "";
         }
         return message;
-    }
+    },
 };
-const baseDecProto = { dec: '' };
+const baseDecProto = { dec: "" };
 export const DecProto = {
     encode(message, writer = Writer.create()) {
-        if (message.dec !== '') {
+        if (message.dec !== "") {
             writer.uint32(10).string(message.dec);
         }
         return writer;
@@ -223,7 +223,7 @@ export const DecProto = {
             message.dec = String(object.dec);
         }
         else {
-            message.dec = '';
+            message.dec = "";
         }
         return message;
     },
@@ -238,8 +238,8 @@ export const DecProto = {
             message.dec = object.dec;
         }
         else {
-            message.dec = '';
+            message.dec = "";
         }
         return message;
-    }
+    },
 };

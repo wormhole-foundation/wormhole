@@ -1,6 +1,6 @@
-import { ProposalStatus, Proposal, Vote, VotingParams, DepositParams, TallyParams, Deposit, TallyResult } from '../../../cosmos/gov/v1beta1/gov';
-import { Reader, Writer } from 'protobufjs/minimal';
-import { PageRequest, PageResponse } from '../../../cosmos/base/query/v1beta1/pagination';
+import { ProposalStatus, Proposal, Vote, VotingParams, DepositParams, TallyParams, Deposit, TallyResult } from "../../../cosmos/gov/v1beta1/gov";
+import { Reader, Writer } from "protobufjs/minimal";
+import { PageRequest, PageResponse } from "../../../cosmos/base/query/v1beta1/pagination";
 export declare const protobufPackage = "cosmos.gov.v1beta1";
 /** QueryProposalRequest is the request type for the Query/Proposal RPC method. */
 export interface QueryProposalRequest {

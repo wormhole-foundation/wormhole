@@ -1,5 +1,5 @@
-import { Reader, Writer } from 'protobufjs/minimal';
-import { Any } from '../../../google/protobuf/any';
+import { Reader, Writer } from "protobufjs/minimal";
+import { Any } from "../../../google/protobuf/any";
 export declare const protobufPackage = "cosmos.feegrant.v1beta1";
 /**
  * MsgGrantAllowance adds permission for Grantee to spend up to Allowance

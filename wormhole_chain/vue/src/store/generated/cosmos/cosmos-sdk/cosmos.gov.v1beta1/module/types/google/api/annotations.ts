@@ -1,2 +1,2 @@
 /* eslint-disable */
-export const protobufPackage = 'google.api'
+export const protobufPackage = "google.api";

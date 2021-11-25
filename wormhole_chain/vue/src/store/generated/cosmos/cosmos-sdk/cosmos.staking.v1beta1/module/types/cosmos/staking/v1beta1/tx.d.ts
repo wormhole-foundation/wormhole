@@ -1,7 +1,7 @@
-import { Reader, Writer } from 'protobufjs/minimal';
-import { Description, CommissionRates } from '../../../cosmos/staking/v1beta1/staking';
-import { Any } from '../../../google/protobuf/any';
-import { Coin } from '../../../cosmos/base/v1beta1/coin';
+import { Reader, Writer } from "protobufjs/minimal";
+import { Description, CommissionRates } from "../../../cosmos/staking/v1beta1/staking";
+import { Any } from "../../../google/protobuf/any";
+import { Coin } from "../../../cosmos/base/v1beta1/coin";
 export declare const protobufPackage = "cosmos.staking.v1beta1";
 /** MsgCreateValidator defines a SDK message for creating a new validator. */
 export interface MsgCreateValidator {

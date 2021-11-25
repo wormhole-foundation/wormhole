@@ -1,8 +1,8 @@
 /* eslint-disable */
-import * as Long from 'long';
-import { util, configure, Writer, Reader } from 'protobufjs/minimal';
-import { Deposit, Vote, Proposal, DepositParams, VotingParams, TallyParams } from '../../../cosmos/gov/v1beta1/gov';
-export const protobufPackage = 'cosmos.gov.v1beta1';
+import * as Long from "long";
+import { util, configure, Writer, Reader } from "protobufjs/minimal";
+import { Deposit, Vote, Proposal, DepositParams, VotingParams, TallyParams, } from "../../../cosmos/gov/v1beta1/gov";
+export const protobufPackage = "cosmos.gov.v1beta1";
 const baseGenesisState = { startingProposalId: 0 };
 export const GenesisState = {
     encode(message, writer = Writer.create()) {
@@ -72,7 +72,8 @@ export const GenesisState = {
         message.deposits = [];
         message.votes = [];
         message.proposals = [];
-        if (object.startingProposalId !== undefined && object.startingProposalId !== null) {
+        if (object.startingProposalId !== undefined &&
+            object.startingProposalId !== null) {
             message.startingProposalId = Number(object.startingProposalId);
         }
         else {
@@ -115,9 +116,10 @@ export const GenesisState = {
     },
     toJSON(message) {
         const obj = {};
-        message.startingProposalId !== undefined && (obj.startingProposalId = message.startingProposalId);
+        message.startingProposalId !== undefined &&
+            (obj.startingProposalId = message.startingProposalId);
         if (message.deposits) {
-            obj.deposits = message.deposits.map((e) => (e ? Deposit.toJSON(e) : undefined));
+            obj.deposits = message.deposits.map((e) => e ? Deposit.toJSON(e) : undefined);
         }
         else {
             obj.deposits = [];
@@ -129,14 +131,23 @@ export const GenesisState = {
             obj.votes = [];
         }
         if (message.proposals) {
-            obj.proposals = message.proposals.map((e) => (e ? Proposal.toJSON(e) : undefined));
+            obj.proposals = message.proposals.map((e) => e ? Proposal.toJSON(e) : undefined);
         }
         else {
             obj.proposals = [];
         }
-        message.depositParams !== undefined && (obj.depositParams = message.depositParams ? DepositParams.toJSON(message.depositParams) : undefined);
-        message.votingParams !== undefined && (obj.votingParams = message.votingParams ? VotingParams.toJSON(message.votingParams) : undefined);
-        message.tallyParams !== undefined && (obj.tallyParams = message.tallyParams ? TallyParams.toJSON(message.tallyParams) : undefined);
+        message.depositParams !== undefined &&
+            (obj.depositParams = message.depositParams
+                ? DepositParams.toJSON(message.depositParams)
+                : undefined);
+        message.votingParams !== undefined &&
+            (obj.votingParams = message.votingParams
+                ? VotingParams.toJSON(message.votingParams)
+                : undefined);
+        message.tallyParams !== undefined &&
+            (obj.tallyParams = message.tallyParams
+                ? TallyParams.toJSON(message.tallyParams)
+                : undefined);
         return obj;
     },
     fromPartial(object) {
@@ -144,7 +155,8 @@ export const GenesisState = {
         message.deposits = [];
         message.votes = [];
         message.proposals = [];
-        if (object.startingProposalId !== undefined && object.startingProposalId !== null) {
+        if (object.startingProposalId !== undefined &&
+            object.startingProposalId !== null) {
             message.startingProposalId = object.startingProposalId;
         }
         else {
@@ -184,22 +196,22 @@ export const GenesisState = {
             message.tallyParams = undefined;
         }
         return message;
-    }
+    },
 };
 var globalThis = (() => {
-    if (typeof globalThis !== 'undefined')
+    if (typeof globalThis !== "undefined")
         return globalThis;
-    if (typeof self !== 'undefined')
+    if (typeof self !== "undefined")
         return self;
-    if (typeof window !== 'undefined')
+    if (typeof window !== "undefined")
         return window;
-    if (typeof global !== 'undefined')
+    if (typeof global !== "undefined")
         return global;
-    throw 'Unable to locate global object';
+    throw "Unable to locate global object";
 })();
 function longToNumber(long) {
     if (long.gt(Number.MAX_SAFE_INTEGER)) {
-        throw new globalThis.Error('Value is larger than Number.MAX_SAFE_INTEGER');
+        throw new globalThis.Error("Value is larger than Number.MAX_SAFE_INTEGER");
     }
     return long.toNumber();
 }

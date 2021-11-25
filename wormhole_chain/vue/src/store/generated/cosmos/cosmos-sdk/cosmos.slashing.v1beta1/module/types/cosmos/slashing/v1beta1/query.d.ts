@@ -1,6 +1,6 @@
-import { Reader, Writer } from 'protobufjs/minimal';
-import { Params, ValidatorSigningInfo } from '../../../cosmos/slashing/v1beta1/slashing';
-import { PageRequest, PageResponse } from '../../../cosmos/base/query/v1beta1/pagination';
+import { Reader, Writer } from "protobufjs/minimal";
+import { Params, ValidatorSigningInfo } from "../../../cosmos/slashing/v1beta1/slashing";
+import { PageRequest, PageResponse } from "../../../cosmos/base/query/v1beta1/pagination";
 export declare const protobufPackage = "cosmos.slashing.v1beta1";
 /** QueryParamsRequest is the request type for the Query/Params RPC method */
 export interface QueryParamsRequest {

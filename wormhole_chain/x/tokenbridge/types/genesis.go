@@ -10,8 +10,9 @@ const DefaultIndex uint64 = 1
 // DefaultGenesis returns the default Capability genesis state
 func DefaultGenesis() *GenesisState {
 	return &GenesisState{
-		Config:               nil,
-		ReplayProtectionList: []ReplayProtection{},
+		Config:                nil,
+		ReplayProtectionList:  []ReplayProtection{},
+		ChainRegistrationList: []ChainRegistration{},
 		// this line is used by starport scaffolding # genesis/types/default
 	}
 }
@@ -28,6 +29,16 @@ func (gs GenesisState) Validate() error {
 			return fmt.Errorf("duplicated index for replayProtection")
 		}
 		replayProtectionIndexMap[index] = struct{}{}
+	}
+	// Check for duplicated index in chainRegistration
+	chainRegistrationIndexMap := make(map[string]struct{})
+
+	for _, elem := range gs.ChainRegistrationList {
+		index := string(ChainRegistrationKey(elem.ChainID))
+		if _, ok := chainRegistrationIndexMap[index]; ok {
+			return fmt.Errorf("duplicated index for chainRegistration")
+		}
+		chainRegistrationIndexMap[index] = struct{}{}
 	}
 	// this line is used by starport scaffolding # genesis/types/validate
 

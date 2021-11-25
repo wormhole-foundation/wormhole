@@ -1,2 +1,2 @@
 /* eslint-disable */
-export const protobufPackage = 'gogoproto'
+export const protobufPackage = "gogoproto";

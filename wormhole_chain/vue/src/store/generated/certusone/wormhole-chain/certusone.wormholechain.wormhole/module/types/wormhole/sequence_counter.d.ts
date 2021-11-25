@@ -2,6 +2,7 @@ import { Writer, Reader } from "protobufjs/minimal";
 export declare const protobufPackage = "certusone.wormholechain.wormhole";
 export interface SequenceCounter {
     index: string;
+    sequence: number;
 }
 export declare const SequenceCounter: {
     encode(message: SequenceCounter, writer?: Writer): Writer;

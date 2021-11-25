@@ -1,13 +1,13 @@
 /* eslint-disable */
-import * as Long from 'long';
-import { util, configure, Writer, Reader } from 'protobufjs/minimal';
-import { Any } from '../../../../google/protobuf/any';
-import { Plan } from '../../../../cosmos/upgrade/v1beta1/upgrade';
-export const protobufPackage = 'ibc.core.client.v1';
-const baseIdentifiedClientState = { clientId: '' };
+import * as Long from "long";
+import { util, configure, Writer, Reader } from "protobufjs/minimal";
+import { Any } from "../../../../google/protobuf/any";
+import { Plan } from "../../../../cosmos/upgrade/v1beta1/upgrade";
+export const protobufPackage = "ibc.core.client.v1";
+const baseIdentifiedClientState = { clientId: "" };
 export const IdentifiedClientState = {
     encode(message, writer = Writer.create()) {
-        if (message.clientId !== '') {
+        if (message.clientId !== "") {
             writer.uint32(10).string(message.clientId);
         }
         if (message.clientState !== undefined) {
@@ -41,7 +41,7 @@ export const IdentifiedClientState = {
             message.clientId = String(object.clientId);
         }
         else {
-            message.clientId = '';
+            message.clientId = "";
         }
         if (object.clientState !== undefined && object.clientState !== null) {
             message.clientState = Any.fromJSON(object.clientState);
@@ -54,7 +54,10 @@ export const IdentifiedClientState = {
     toJSON(message) {
         const obj = {};
         message.clientId !== undefined && (obj.clientId = message.clientId);
-        message.clientState !== undefined && (obj.clientState = message.clientState ? Any.toJSON(message.clientState) : undefined);
+        message.clientState !== undefined &&
+            (obj.clientState = message.clientState
+                ? Any.toJSON(message.clientState)
+                : undefined);
         return obj;
     },
     fromPartial(object) {
@@ -63,7 +66,7 @@ export const IdentifiedClientState = {
             message.clientId = object.clientId;
         }
         else {
-            message.clientId = '';
+            message.clientId = "";
         }
         if (object.clientState !== undefined && object.clientState !== null) {
             message.clientState = Any.fromPartial(object.clientState);
@@ -72,7 +75,7 @@ export const IdentifiedClientState = {
             message.clientState = undefined;
         }
         return message;
-    }
+    },
 };
 const baseConsensusStateWithHeight = {};
 export const ConsensusStateWithHeight = {
@@ -88,7 +91,9 @@ export const ConsensusStateWithHeight = {
     decode(input, length) {
         const reader = input instanceof Uint8Array ? new Reader(input) : input;
         let end = length === undefined ? reader.len : reader.pos + length;
-        const message = { ...baseConsensusStateWithHeight };
+        const message = {
+            ...baseConsensusStateWithHeight,
+        };
         while (reader.pos < end) {
             const tag = reader.uint32();
             switch (tag >>> 3) {
@@ -106,7 +111,9 @@ export const ConsensusStateWithHeight = {
         return message;
     },
     fromJSON(object) {
-        const message = { ...baseConsensusStateWithHeight };
+        const message = {
+            ...baseConsensusStateWithHeight,
+        };
         if (object.height !== undefined && object.height !== null) {
             message.height = Height.fromJSON(object.height);
         }
@@ -123,12 +130,18 @@ export const ConsensusStateWithHeight = {
     },
     toJSON(message) {
         const obj = {};
-        message.height !== undefined && (obj.height = message.height ? Height.toJSON(message.height) : undefined);
-        message.consensusState !== undefined && (obj.consensusState = message.consensusState ? Any.toJSON(message.consensusState) : undefined);
+        message.height !== undefined &&
+            (obj.height = message.height ? Height.toJSON(message.height) : undefined);
+        message.consensusState !== undefined &&
+            (obj.consensusState = message.consensusState
+                ? Any.toJSON(message.consensusState)
+                : undefined);
         return obj;
     },
     fromPartial(object) {
-        const message = { ...baseConsensusStateWithHeight };
+        const message = {
+            ...baseConsensusStateWithHeight,
+        };
         if (object.height !== undefined && object.height !== null) {
             message.height = Height.fromPartial(object.height);
         }
@@ -142,12 +155,12 @@ export const ConsensusStateWithHeight = {
             message.consensusState = undefined;
         }
         return message;
-    }
+    },
 };
-const baseClientConsensusStates = { clientId: '' };
+const baseClientConsensusStates = { clientId: "" };
 export const ClientConsensusStates = {
     encode(message, writer = Writer.create()) {
-        if (message.clientId !== '') {
+        if (message.clientId !== "") {
             writer.uint32(10).string(message.clientId);
         }
         for (const v of message.consensusStates) {
@@ -183,9 +196,10 @@ export const ClientConsensusStates = {
             message.clientId = String(object.clientId);
         }
         else {
-            message.clientId = '';
+            message.clientId = "";
         }
-        if (object.consensusStates !== undefined && object.consensusStates !== null) {
+        if (object.consensusStates !== undefined &&
+            object.consensusStates !== null) {
             for (const e of object.consensusStates) {
                 message.consensusStates.push(ConsensusStateWithHeight.fromJSON(e));
             }
@@ -196,7 +210,7 @@ export const ClientConsensusStates = {
         const obj = {};
         message.clientId !== undefined && (obj.clientId = message.clientId);
         if (message.consensusStates) {
-            obj.consensusStates = message.consensusStates.map((e) => (e ? ConsensusStateWithHeight.toJSON(e) : undefined));
+            obj.consensusStates = message.consensusStates.map((e) => e ? ConsensusStateWithHeight.toJSON(e) : undefined);
         }
         else {
             obj.consensusStates = [];
@@ -210,29 +224,35 @@ export const ClientConsensusStates = {
             message.clientId = object.clientId;
         }
         else {
-            message.clientId = '';
+            message.clientId = "";
         }
-        if (object.consensusStates !== undefined && object.consensusStates !== null) {
+        if (object.consensusStates !== undefined &&
+            object.consensusStates !== null) {
             for (const e of object.consensusStates) {
                 message.consensusStates.push(ConsensusStateWithHeight.fromPartial(e));
             }
         }
         return message;
-    }
+    },
 };
-const baseClientUpdateProposal = { title: '', description: '', subjectClientId: '', substituteClientId: '' };
+const baseClientUpdateProposal = {
+    title: "",
+    description: "",
+    subjectClientId: "",
+    substituteClientId: "",
+};
 export const ClientUpdateProposal = {
     encode(message, writer = Writer.create()) {
-        if (message.title !== '') {
+        if (message.title !== "") {
             writer.uint32(10).string(message.title);
         }
-        if (message.description !== '') {
+        if (message.description !== "") {
             writer.uint32(18).string(message.description);
         }
-        if (message.subjectClientId !== '') {
+        if (message.subjectClientId !== "") {
             writer.uint32(26).string(message.subjectClientId);
         }
-        if (message.substituteClientId !== '') {
+        if (message.substituteClientId !== "") {
             writer.uint32(34).string(message.substituteClientId);
         }
         return writer;
@@ -269,34 +289,39 @@ export const ClientUpdateProposal = {
             message.title = String(object.title);
         }
         else {
-            message.title = '';
+            message.title = "";
         }
         if (object.description !== undefined && object.description !== null) {
             message.description = String(object.description);
         }
         else {
-            message.description = '';
+            message.description = "";
         }
-        if (object.subjectClientId !== undefined && object.subjectClientId !== null) {
+        if (object.subjectClientId !== undefined &&
+            object.subjectClientId !== null) {
             message.subjectClientId = String(object.subjectClientId);
         }
         else {
-            message.subjectClientId = '';
+            message.subjectClientId = "";
         }
-        if (object.substituteClientId !== undefined && object.substituteClientId !== null) {
+        if (object.substituteClientId !== undefined &&
+            object.substituteClientId !== null) {
             message.substituteClientId = String(object.substituteClientId);
         }
         else {
-            message.substituteClientId = '';
+            message.substituteClientId = "";
         }
         return message;
     },
     toJSON(message) {
         const obj = {};
         message.title !== undefined && (obj.title = message.title);
-        message.description !== undefined && (obj.description = message.description);
-        message.subjectClientId !== undefined && (obj.subjectClientId = message.subjectClientId);
-        message.substituteClientId !== undefined && (obj.substituteClientId = message.substituteClientId);
+        message.description !== undefined &&
+            (obj.description = message.description);
+        message.subjectClientId !== undefined &&
+            (obj.subjectClientId = message.subjectClientId);
+        message.substituteClientId !== undefined &&
+            (obj.substituteClientId = message.substituteClientId);
         return obj;
     },
     fromPartial(object) {
@@ -305,36 +330,38 @@ export const ClientUpdateProposal = {
             message.title = object.title;
         }
         else {
-            message.title = '';
+            message.title = "";
         }
         if (object.description !== undefined && object.description !== null) {
             message.description = object.description;
         }
         else {
-            message.description = '';
+            message.description = "";
         }
-        if (object.subjectClientId !== undefined && object.subjectClientId !== null) {
+        if (object.subjectClientId !== undefined &&
+            object.subjectClientId !== null) {
             message.subjectClientId = object.subjectClientId;
         }
         else {
-            message.subjectClientId = '';
+            message.subjectClientId = "";
         }
-        if (object.substituteClientId !== undefined && object.substituteClientId !== null) {
+        if (object.substituteClientId !== undefined &&
+            object.substituteClientId !== null) {
             message.substituteClientId = object.substituteClientId;
         }
         else {
-            message.substituteClientId = '';
+            message.substituteClientId = "";
         }
         return message;
-    }
+    },
 };
-const baseUpgradeProposal = { title: '', description: '' };
+const baseUpgradeProposal = { title: "", description: "" };
 export const UpgradeProposal = {
     encode(message, writer = Writer.create()) {
-        if (message.title !== '') {
+        if (message.title !== "") {
             writer.uint32(10).string(message.title);
         }
-        if (message.description !== '') {
+        if (message.description !== "") {
             writer.uint32(18).string(message.description);
         }
         if (message.plan !== undefined) {
@@ -377,13 +404,13 @@ export const UpgradeProposal = {
             message.title = String(object.title);
         }
         else {
-            message.title = '';
+            message.title = "";
         }
         if (object.description !== undefined && object.description !== null) {
             message.description = String(object.description);
         }
         else {
-            message.description = '';
+            message.description = "";
         }
         if (object.plan !== undefined && object.plan !== null) {
             message.plan = Plan.fromJSON(object.plan);
@@ -391,7 +418,8 @@ export const UpgradeProposal = {
         else {
             message.plan = undefined;
         }
-        if (object.upgradedClientState !== undefined && object.upgradedClientState !== null) {
+        if (object.upgradedClientState !== undefined &&
+            object.upgradedClientState !== null) {
             message.upgradedClientState = Any.fromJSON(object.upgradedClientState);
         }
         else {
@@ -402,9 +430,14 @@ export const UpgradeProposal = {
     toJSON(message) {
         const obj = {};
         message.title !== undefined && (obj.title = message.title);
-        message.description !== undefined && (obj.description = message.description);
-        message.plan !== undefined && (obj.plan = message.plan ? Plan.toJSON(message.plan) : undefined);
-        message.upgradedClientState !== undefined && (obj.upgradedClientState = message.upgradedClientState ? Any.toJSON(message.upgradedClientState) : undefined);
+        message.description !== undefined &&
+            (obj.description = message.description);
+        message.plan !== undefined &&
+            (obj.plan = message.plan ? Plan.toJSON(message.plan) : undefined);
+        message.upgradedClientState !== undefined &&
+            (obj.upgradedClientState = message.upgradedClientState
+                ? Any.toJSON(message.upgradedClientState)
+                : undefined);
         return obj;
     },
     fromPartial(object) {
@@ -413,13 +446,13 @@ export const UpgradeProposal = {
             message.title = object.title;
         }
         else {
-            message.title = '';
+            message.title = "";
         }
         if (object.description !== undefined && object.description !== null) {
             message.description = object.description;
         }
         else {
-            message.description = '';
+            message.description = "";
         }
         if (object.plan !== undefined && object.plan !== null) {
             message.plan = Plan.fromPartial(object.plan);
@@ -427,14 +460,15 @@ export const UpgradeProposal = {
         else {
             message.plan = undefined;
         }
-        if (object.upgradedClientState !== undefined && object.upgradedClientState !== null) {
+        if (object.upgradedClientState !== undefined &&
+            object.upgradedClientState !== null) {
             message.upgradedClientState = Any.fromPartial(object.upgradedClientState);
         }
         else {
             message.upgradedClientState = undefined;
         }
         return message;
-    }
+    },
 };
 const baseHeight = { revisionNumber: 0, revisionHeight: 0 };
 export const Height = {
@@ -485,8 +519,10 @@ export const Height = {
     },
     toJSON(message) {
         const obj = {};
-        message.revisionNumber !== undefined && (obj.revisionNumber = message.revisionNumber);
-        message.revisionHeight !== undefined && (obj.revisionHeight = message.revisionHeight);
+        message.revisionNumber !== undefined &&
+            (obj.revisionNumber = message.revisionNumber);
+        message.revisionHeight !== undefined &&
+            (obj.revisionHeight = message.revisionHeight);
         return obj;
     },
     fromPartial(object) {
@@ -504,9 +540,9 @@ export const Height = {
             message.revisionHeight = 0;
         }
         return message;
-    }
+    },
 };
-const baseParams = { allowedClients: '' };
+const baseParams = { allowedClients: "" };
 export const Params = {
     encode(message, writer = Writer.create()) {
         for (const v of message.allowedClients) {
@@ -561,22 +597,22 @@ export const Params = {
             }
         }
         return message;
-    }
+    },
 };
 var globalThis = (() => {
-    if (typeof globalThis !== 'undefined')
+    if (typeof globalThis !== "undefined")
         return globalThis;
-    if (typeof self !== 'undefined')
+    if (typeof self !== "undefined")
         return self;
-    if (typeof window !== 'undefined')
+    if (typeof window !== "undefined")
         return window;
-    if (typeof global !== 'undefined')
+    if (typeof global !== "undefined")
         return global;
-    throw 'Unable to locate global object';
+    throw "Unable to locate global object";
 })();
 function longToNumber(long) {
     if (long.gt(Number.MAX_SAFE_INTEGER)) {
-        throw new globalThis.Error('Value is larger than Number.MAX_SAFE_INTEGER');
+        throw new globalThis.Error("Value is larger than Number.MAX_SAFE_INTEGER");
     }
     return long.toNumber();
 }
