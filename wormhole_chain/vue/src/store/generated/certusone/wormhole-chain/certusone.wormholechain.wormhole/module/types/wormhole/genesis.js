@@ -2,6 +2,7 @@
 import { GuardianSet } from "../wormhole/guardian_set";
 import { Config } from "../wormhole/config";
 import { ReplayProtection } from "../wormhole/replay_protection";
+import { SequenceCounter } from "../wormhole/sequence_counter";
 import { Writer, Reader } from "protobufjs/minimal";
 export const protobufPackage = "certusone.wormholechain.wormhole";
 const baseGenesisState = { guardianSetCount: 0 };
@@ -19,6 +20,9 @@ export const GenesisState = {
         for (const v of message.replayProtectionList) {
             ReplayProtection.encode(v, writer.uint32(34).fork()).ldelim();
         }
+        for (const v of message.sequenceCounterList) {
+            SequenceCounter.encode(v, writer.uint32(42).fork()).ldelim();
+        }
         return writer;
     },
     decode(input, length) {
@@ -27,6 +31,7 @@ export const GenesisState = {
         const message = { ...baseGenesisState };
         message.guardianSetList = [];
         message.replayProtectionList = [];
+        message.sequenceCounterList = [];
         while (reader.pos < end) {
             const tag = reader.uint32();
             switch (tag >>> 3) {
@@ -42,6 +47,9 @@ export const GenesisState = {
                 case 4:
                     message.replayProtectionList.push(ReplayProtection.decode(reader, reader.uint32()));
                     break;
+                case 5:
+                    message.sequenceCounterList.push(SequenceCounter.decode(reader, reader.uint32()));
+                    break;
                 default:
                     reader.skipType(tag & 7);
                     break;
@@ -53,6 +61,7 @@ export const GenesisState = {
         const message = { ...baseGenesisState };
         message.guardianSetList = [];
         message.replayProtectionList = [];
+        message.sequenceCounterList = [];
         if (object.guardianSetList !== undefined &&
             object.guardianSetList !== null) {
             for (const e of object.guardianSetList) {
@@ -78,6 +87,12 @@ export const GenesisState = {
                 message.replayProtectionList.push(ReplayProtection.fromJSON(e));
             }
         }
+        if (object.sequenceCounterList !== undefined &&
+            object.sequenceCounterList !== null) {
+            for (const e of object.sequenceCounterList) {
+                message.sequenceCounterList.push(SequenceCounter.fromJSON(e));
+            }
+        }
         return message;
     },
     toJSON(message) {
@@ -98,12 +113,19 @@ export const GenesisState = {
         else {
             obj.replayProtectionList = [];
         }
+        if (message.sequenceCounterList) {
+            obj.sequenceCounterList = message.sequenceCounterList.map((e) => e ? SequenceCounter.toJSON(e) : undefined);
+        }
+        else {
+            obj.sequenceCounterList = [];
+        }
         return obj;
     },
     fromPartial(object) {
         const message = { ...baseGenesisState };
         message.guardianSetList = [];
         message.replayProtectionList = [];
+        message.sequenceCounterList = [];
         if (object.guardianSetList !== undefined &&
             object.guardianSetList !== null) {
             for (const e of object.guardianSetList) {
@@ -127,6 +149,12 @@ export const GenesisState = {
             object.replayProtectionList !== null) {
             for (const e of object.replayProtectionList) {
                 message.replayProtectionList.push(ReplayProtection.fromPartial(e));
+            }
+        }
+        if (object.sequenceCounterList !== undefined &&
+            object.sequenceCounterList !== null) {
+            for (const e of object.sequenceCounterList) {
+                message.sequenceCounterList.push(SequenceCounter.fromPartial(e));
             }
         }
         return message;

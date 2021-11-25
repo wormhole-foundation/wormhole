@@ -134,6 +134,21 @@ export interface WormholeQueryAllReplayProtectionResponse {
   pagination?: V1Beta1PageResponse;
 }
 
+export interface WormholeQueryAllSequenceCounterResponse {
+  sequenceCounter?: WormholeSequenceCounter[];
+
+  /**
+   * PageResponse is to be embedded in gRPC response messages where the
+   * corresponding request message has used PageRequest.
+   *
+   *  message SomeResponse {
+   *          repeated Bar results = 1;
+   *          PageResponse page = 2;
+   *  }
+   */
+  pagination?: V1Beta1PageResponse;
+}
+
 export interface WormholeQueryGetConfigResponse {
   Config?: WormholeConfig;
 }
@@ -146,7 +161,15 @@ export interface WormholeQueryGetReplayProtectionResponse {
   replayProtection?: WormholeReplayProtection;
 }
 
+export interface WormholeQueryGetSequenceCounterResponse {
+  sequenceCounter?: WormholeSequenceCounter;
+}
+
 export interface WormholeReplayProtection {
+  index?: string;
+}
+
+export interface WormholeSequenceCounter {
   index?: string;
 }
 
@@ -441,6 +464,48 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
   queryReplayProtection = (index: string, params: RequestParams = {}) =>
     this.request<WormholeQueryGetReplayProtectionResponse, RpcStatus>({
       path: `/certusone/wormholechain/wormhole/replayProtection/${index}`,
+      method: "GET",
+      format: "json",
+      ...params,
+    });
+
+  /**
+   * No description
+   *
+   * @tags Query
+   * @name QuerySequenceCounterAll
+   * @summary Queries a list of sequenceCounter items.
+   * @request GET:/certusone/wormholechain/wormhole/sequenceCounter
+   */
+  querySequenceCounterAll = (
+    query?: {
+      "pagination.key"?: string;
+      "pagination.offset"?: string;
+      "pagination.limit"?: string;
+      "pagination.countTotal"?: boolean;
+      "pagination.reverse"?: boolean;
+    },
+    params: RequestParams = {},
+  ) =>
+    this.request<WormholeQueryAllSequenceCounterResponse, RpcStatus>({
+      path: `/certusone/wormholechain/wormhole/sequenceCounter`,
+      method: "GET",
+      query: query,
+      format: "json",
+      ...params,
+    });
+
+  /**
+   * No description
+   *
+   * @tags Query
+   * @name QuerySequenceCounter
+   * @summary Queries a sequenceCounter by index.
+   * @request GET:/certusone/wormholechain/wormhole/sequenceCounter/{index}
+   */
+  querySequenceCounter = (index: string, params: RequestParams = {}) =>
+    this.request<WormholeQueryGetSequenceCounterResponse, RpcStatus>({
+      path: `/certusone/wormholechain/wormhole/sequenceCounter/${index}`,
       method: "GET",
       format: "json",
       ...params,

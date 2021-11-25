@@ -2,6 +2,7 @@
 import { GuardianSet } from "../wormhole/guardian_set";
 import { Config } from "../wormhole/config";
 import { ReplayProtection } from "../wormhole/replay_protection";
+import { SequenceCounter } from "../wormhole/sequence_counter";
 import { Writer, Reader } from "protobufjs/minimal";
 
 export const protobufPackage = "certusone.wormholechain.wormhole";
@@ -11,8 +12,9 @@ export interface GenesisState {
   guardianSetList: GuardianSet[];
   guardianSetCount: number;
   config: Config | undefined;
-  /** this line is used by starport scaffolding # genesis/proto/state */
   replayProtectionList: ReplayProtection[];
+  /** this line is used by starport scaffolding # genesis/proto/state */
+  sequenceCounterList: SequenceCounter[];
 }
 
 const baseGenesisState: object = { guardianSetCount: 0 };
@@ -31,6 +33,9 @@ export const GenesisState = {
     for (const v of message.replayProtectionList) {
       ReplayProtection.encode(v!, writer.uint32(34).fork()).ldelim();
     }
+    for (const v of message.sequenceCounterList) {
+      SequenceCounter.encode(v!, writer.uint32(42).fork()).ldelim();
+    }
     return writer;
   },
 
@@ -40,6 +45,7 @@ export const GenesisState = {
     const message = { ...baseGenesisState } as GenesisState;
     message.guardianSetList = [];
     message.replayProtectionList = [];
+    message.sequenceCounterList = [];
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -59,6 +65,11 @@ export const GenesisState = {
             ReplayProtection.decode(reader, reader.uint32())
           );
           break;
+        case 5:
+          message.sequenceCounterList.push(
+            SequenceCounter.decode(reader, reader.uint32())
+          );
+          break;
         default:
           reader.skipType(tag & 7);
           break;
@@ -71,6 +82,7 @@ export const GenesisState = {
     const message = { ...baseGenesisState } as GenesisState;
     message.guardianSetList = [];
     message.replayProtectionList = [];
+    message.sequenceCounterList = [];
     if (
       object.guardianSetList !== undefined &&
       object.guardianSetList !== null
@@ -100,6 +112,14 @@ export const GenesisState = {
         message.replayProtectionList.push(ReplayProtection.fromJSON(e));
       }
     }
+    if (
+      object.sequenceCounterList !== undefined &&
+      object.sequenceCounterList !== null
+    ) {
+      for (const e of object.sequenceCounterList) {
+        message.sequenceCounterList.push(SequenceCounter.fromJSON(e));
+      }
+    }
     return message;
   },
 
@@ -123,6 +143,13 @@ export const GenesisState = {
     } else {
       obj.replayProtectionList = [];
     }
+    if (message.sequenceCounterList) {
+      obj.sequenceCounterList = message.sequenceCounterList.map((e) =>
+        e ? SequenceCounter.toJSON(e) : undefined
+      );
+    } else {
+      obj.sequenceCounterList = [];
+    }
     return obj;
   },
 
@@ -130,6 +157,7 @@ export const GenesisState = {
     const message = { ...baseGenesisState } as GenesisState;
     message.guardianSetList = [];
     message.replayProtectionList = [];
+    message.sequenceCounterList = [];
     if (
       object.guardianSetList !== undefined &&
       object.guardianSetList !== null
@@ -157,6 +185,14 @@ export const GenesisState = {
     ) {
       for (const e of object.replayProtectionList) {
         message.replayProtectionList.push(ReplayProtection.fromPartial(e));
+      }
+    }
+    if (
+      object.sequenceCounterList !== undefined &&
+      object.sequenceCounterList !== null
+    ) {
+      for (const e of object.sequenceCounterList) {
+        message.sequenceCounterList.push(SequenceCounter.fromPartial(e));
       }
     }
     return message;

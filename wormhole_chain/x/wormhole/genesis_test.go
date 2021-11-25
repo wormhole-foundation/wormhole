@@ -29,6 +29,14 @@ func TestGenesis(t *testing.T) {
 				Index: "1",
 			},
 		},
+		SequenceCounterList: []types.SequenceCounter{
+			{
+				Index: "0",
+			},
+			{
+				Index: "1",
+			},
+		},
 		// this line is used by starport scaffolding # genesis/test/state
 	}
 
@@ -43,5 +51,7 @@ func TestGenesis(t *testing.T) {
 	require.Equal(t, genesisState.Config, got.Config)
 	require.Len(t, got.ReplayProtectionList, len(genesisState.ReplayProtectionList))
 	require.Subset(t, genesisState.ReplayProtectionList, got.ReplayProtectionList)
+	require.Len(t, got.SequenceCounterList, len(genesisState.SequenceCounterList))
+	require.Subset(t, genesisState.SequenceCounterList, got.SequenceCounterList)
 	// this line is used by starport scaffolding # genesis/test/assert
 }
