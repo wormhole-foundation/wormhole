@@ -1,5 +1,5 @@
-import { Writer, Reader } from 'protobufjs/minimal';
-import { Params, Validator, Delegation, UnbondingDelegation, Redelegation } from '../../../cosmos/staking/v1beta1/staking';
+import { Writer, Reader } from "protobufjs/minimal";
+import { Params, Validator, Delegation, UnbondingDelegation, Redelegation } from "../../../cosmos/staking/v1beta1/staking";
 export declare const protobufPackage = "cosmos.staking.v1beta1";
 /** GenesisState defines the staking module's genesis state. */
 export interface GenesisState {

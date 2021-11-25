@@ -1,7 +1,7 @@
 /* eslint-disable */
-import { Grant } from '../../../cosmos/feegrant/v1beta1/feegrant';
-import { Writer, Reader } from 'protobufjs/minimal';
-export const protobufPackage = 'cosmos.feegrant.v1beta1';
+import { Grant } from "../../../cosmos/feegrant/v1beta1/feegrant";
+import { Writer, Reader } from "protobufjs/minimal";
+export const protobufPackage = "cosmos.feegrant.v1beta1";
 const baseGenesisState = {};
 export const GenesisState = {
     encode(message, writer = Writer.create()) {
@@ -41,7 +41,7 @@ export const GenesisState = {
     toJSON(message) {
         const obj = {};
         if (message.allowances) {
-            obj.allowances = message.allowances.map((e) => (e ? Grant.toJSON(e) : undefined));
+            obj.allowances = message.allowances.map((e) => e ? Grant.toJSON(e) : undefined);
         }
         else {
             obj.allowances = [];
@@ -57,5 +57,5 @@ export const GenesisState = {
             }
         }
         return message;
-    }
+    },
 };

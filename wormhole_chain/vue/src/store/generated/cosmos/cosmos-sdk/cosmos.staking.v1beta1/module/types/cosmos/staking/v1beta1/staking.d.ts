@@ -1,8 +1,8 @@
-import { Writer, Reader } from 'protobufjs/minimal';
-import { Header } from '../../../tendermint/types/types';
-import { Any } from '../../../google/protobuf/any';
-import { Duration } from '../../../google/protobuf/duration';
-import { Coin } from '../../../cosmos/base/v1beta1/coin';
+import { Writer, Reader } from "protobufjs/minimal";
+import { Header } from "../../../tendermint/types/types";
+import { Any } from "../../../google/protobuf/any";
+import { Duration } from "../../../google/protobuf/duration";
+import { Coin } from "../../../cosmos/base/v1beta1/coin";
 export declare const protobufPackage = "cosmos.staking.v1beta1";
 /** BondStatus is the status of a validator. */
 export declare enum BondStatus {

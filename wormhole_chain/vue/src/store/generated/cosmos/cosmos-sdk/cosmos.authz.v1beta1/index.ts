@@ -1,4 +1,4 @@
-import { txClient, queryClient, MissingWalletError , registry} from './module'
+import { txClient, queryClient, MissingWalletError } from './module'
 // @ts-ignore
 import { SpVuexError } from '@starport/vuex'
 
@@ -57,7 +57,6 @@ const getDefaultState = () => {
 						GrantAuthorization: getStructure(GrantAuthorization.fromPartial({})),
 						
 		},
-		_Registry: registry,
 		_Subscriptions: new Set(),
 	}
 }
@@ -92,9 +91,6 @@ export default {
 				
 		getTypeStructure: (state) => (type) => {
 			return state._Structure[type].fields
-		},
-		getRegistry: (state) => {
-			return state._Registry
 		}
 	},
 	actions: {
@@ -147,6 +143,21 @@ export default {
 		},
 		
 		
+		async sendMsgRevoke({ rootGetters }, { value, fee = [], memo = '' }) {
+			try {
+				const txClient=await initTxClient(rootGetters)
+				const msg = await txClient.msgRevoke(value)
+				const result = await txClient.signAndBroadcast([msg], {fee: { amount: fee, 
+	gas: "200000" }, memo})
+				return result
+			} catch (e) {
+				if (e == MissingWalletError) {
+					throw new SpVuexError('TxClient:MsgRevoke:Init', 'Could not initialize signing client. Wallet is required.')
+				}else{
+					throw new SpVuexError('TxClient:MsgRevoke:Send', 'Could not broadcast Tx: '+ e.message)
+				}
+			}
+		},
 		async sendMsgGrant({ rootGetters }, { value, fee = [], memo = '' }) {
 			try {
 				const txClient=await initTxClient(rootGetters)
@@ -177,22 +188,21 @@ export default {
 				}
 			}
 		},
-		async sendMsgRevoke({ rootGetters }, { value, fee = [], memo = '' }) {
+		
+		async MsgRevoke({ rootGetters }, { value }) {
 			try {
 				const txClient=await initTxClient(rootGetters)
 				const msg = await txClient.msgRevoke(value)
-				const result = await txClient.signAndBroadcast([msg], {fee: { amount: fee, 
-	gas: "200000" }, memo})
-				return result
+				return msg
 			} catch (e) {
 				if (e == MissingWalletError) {
 					throw new SpVuexError('TxClient:MsgRevoke:Init', 'Could not initialize signing client. Wallet is required.')
 				}else{
-					throw new SpVuexError('TxClient:MsgRevoke:Send', 'Could not broadcast Tx: '+ e.message)
+					throw new SpVuexError('TxClient:MsgRevoke:Create', 'Could not create message: ' + e.message)
+					
 				}
 			}
 		},
-		
 		async MsgGrant({ rootGetters }, { value }) {
 			try {
 				const txClient=await initTxClient(rootGetters)
@@ -217,20 +227,6 @@ export default {
 					throw new SpVuexError('TxClient:MsgExec:Init', 'Could not initialize signing client. Wallet is required.')
 				}else{
 					throw new SpVuexError('TxClient:MsgExec:Create', 'Could not create message: ' + e.message)
-					
-				}
-			}
-		},
-		async MsgRevoke({ rootGetters }, { value }) {
-			try {
-				const txClient=await initTxClient(rootGetters)
-				const msg = await txClient.msgRevoke(value)
-				return msg
-			} catch (e) {
-				if (e == MissingWalletError) {
-					throw new SpVuexError('TxClient:MsgRevoke:Init', 'Could not initialize signing client. Wallet is required.')
-				}else{
-					throw new SpVuexError('TxClient:MsgRevoke:Create', 'Could not create message: ' + e.message)
 					
 				}
 			}

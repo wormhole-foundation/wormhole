@@ -1,15 +1,15 @@
 /* eslint-disable */
-import { Reader, Writer } from 'protobufjs/minimal';
-import { Coin } from '../../../cosmos/base/v1beta1/coin';
-import { Input, Output } from '../../../cosmos/bank/v1beta1/bank';
-export const protobufPackage = 'cosmos.bank.v1beta1';
-const baseMsgSend = { fromAddress: '', toAddress: '' };
+import { Reader, Writer } from "protobufjs/minimal";
+import { Coin } from "../../../cosmos/base/v1beta1/coin";
+import { Input, Output } from "../../../cosmos/bank/v1beta1/bank";
+export const protobufPackage = "cosmos.bank.v1beta1";
+const baseMsgSend = { fromAddress: "", toAddress: "" };
 export const MsgSend = {
     encode(message, writer = Writer.create()) {
-        if (message.fromAddress !== '') {
+        if (message.fromAddress !== "") {
             writer.uint32(10).string(message.fromAddress);
         }
-        if (message.toAddress !== '') {
+        if (message.toAddress !== "") {
             writer.uint32(18).string(message.toAddress);
         }
         for (const v of message.amount) {
@@ -48,13 +48,13 @@ export const MsgSend = {
             message.fromAddress = String(object.fromAddress);
         }
         else {
-            message.fromAddress = '';
+            message.fromAddress = "";
         }
         if (object.toAddress !== undefined && object.toAddress !== null) {
             message.toAddress = String(object.toAddress);
         }
         else {
-            message.toAddress = '';
+            message.toAddress = "";
         }
         if (object.amount !== undefined && object.amount !== null) {
             for (const e of object.amount) {
@@ -65,7 +65,8 @@ export const MsgSend = {
     },
     toJSON(message) {
         const obj = {};
-        message.fromAddress !== undefined && (obj.fromAddress = message.fromAddress);
+        message.fromAddress !== undefined &&
+            (obj.fromAddress = message.fromAddress);
         message.toAddress !== undefined && (obj.toAddress = message.toAddress);
         if (message.amount) {
             obj.amount = message.amount.map((e) => (e ? Coin.toJSON(e) : undefined));
@@ -82,13 +83,13 @@ export const MsgSend = {
             message.fromAddress = object.fromAddress;
         }
         else {
-            message.fromAddress = '';
+            message.fromAddress = "";
         }
         if (object.toAddress !== undefined && object.toAddress !== null) {
             message.toAddress = object.toAddress;
         }
         else {
-            message.toAddress = '';
+            message.toAddress = "";
         }
         if (object.amount !== undefined && object.amount !== null) {
             for (const e of object.amount) {
@@ -96,7 +97,7 @@ export const MsgSend = {
             }
         }
         return message;
-    }
+    },
 };
 const baseMsgSendResponse = {};
 export const MsgSendResponse = {
@@ -128,7 +129,7 @@ export const MsgSendResponse = {
     fromPartial(_) {
         const message = { ...baseMsgSendResponse };
         return message;
-    }
+    },
 };
 const baseMsgMultiSend = {};
 export const MsgMultiSend = {
@@ -188,7 +189,7 @@ export const MsgMultiSend = {
             obj.inputs = [];
         }
         if (message.outputs) {
-            obj.outputs = message.outputs.map((e) => (e ? Output.toJSON(e) : undefined));
+            obj.outputs = message.outputs.map((e) => e ? Output.toJSON(e) : undefined);
         }
         else {
             obj.outputs = [];
@@ -210,7 +211,7 @@ export const MsgMultiSend = {
             }
         }
         return message;
-    }
+    },
 };
 const baseMsgMultiSendResponse = {};
 export const MsgMultiSendResponse = {
@@ -242,7 +243,7 @@ export const MsgMultiSendResponse = {
     fromPartial(_) {
         const message = { ...baseMsgMultiSendResponse };
         return message;
-    }
+    },
 };
 export class MsgClientImpl {
     constructor(rpc) {
@@ -250,12 +251,12 @@ export class MsgClientImpl {
     }
     Send(request) {
         const data = MsgSend.encode(request).finish();
-        const promise = this.rpc.request('cosmos.bank.v1beta1.Msg', 'Send', data);
+        const promise = this.rpc.request("cosmos.bank.v1beta1.Msg", "Send", data);
         return promise.then((data) => MsgSendResponse.decode(new Reader(data)));
     }
     MultiSend(request) {
         const data = MsgMultiSend.encode(request).finish();
-        const promise = this.rpc.request('cosmos.bank.v1beta1.Msg', 'MultiSend', data);
+        const promise = this.rpc.request("cosmos.bank.v1beta1.Msg", "MultiSend", data);
         return promise.then((data) => MsgMultiSendResponse.decode(new Reader(data)));
     }
 }

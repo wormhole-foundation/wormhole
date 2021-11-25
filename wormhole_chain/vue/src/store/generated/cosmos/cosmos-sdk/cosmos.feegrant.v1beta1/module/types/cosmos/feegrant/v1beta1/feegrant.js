@@ -1,10 +1,10 @@
 /* eslint-disable */
-import { Timestamp } from '../../../google/protobuf/timestamp';
-import { Coin } from '../../../cosmos/base/v1beta1/coin';
-import { Duration } from '../../../google/protobuf/duration';
-import { Any } from '../../../google/protobuf/any';
-import { Writer, Reader } from 'protobufjs/minimal';
-export const protobufPackage = 'cosmos.feegrant.v1beta1';
+import { Timestamp } from "../../../google/protobuf/timestamp";
+import { Coin } from "../../../cosmos/base/v1beta1/coin";
+import { Duration } from "../../../google/protobuf/duration";
+import { Any } from "../../../google/protobuf/any";
+import { Writer, Reader } from "protobufjs/minimal";
+export const protobufPackage = "cosmos.feegrant.v1beta1";
 const baseBasicAllowance = {};
 export const BasicAllowance = {
     encode(message, writer = Writer.create()) {
@@ -56,12 +56,16 @@ export const BasicAllowance = {
     toJSON(message) {
         const obj = {};
         if (message.spendLimit) {
-            obj.spendLimit = message.spendLimit.map((e) => (e ? Coin.toJSON(e) : undefined));
+            obj.spendLimit = message.spendLimit.map((e) => e ? Coin.toJSON(e) : undefined);
         }
         else {
             obj.spendLimit = [];
         }
-        message.expiration !== undefined && (obj.expiration = message.expiration !== undefined ? message.expiration.toISOString() : null);
+        message.expiration !== undefined &&
+            (obj.expiration =
+                message.expiration !== undefined
+                    ? message.expiration.toISOString()
+                    : null);
         return obj;
     },
     fromPartial(object) {
@@ -79,7 +83,7 @@ export const BasicAllowance = {
             message.expiration = undefined;
         }
         return message;
-    }
+    },
 };
 const basePeriodicAllowance = {};
 export const PeriodicAllowance = {
@@ -148,7 +152,8 @@ export const PeriodicAllowance = {
         else {
             message.period = undefined;
         }
-        if (object.periodSpendLimit !== undefined && object.periodSpendLimit !== null) {
+        if (object.periodSpendLimit !== undefined &&
+            object.periodSpendLimit !== null) {
             for (const e of object.periodSpendLimit) {
                 message.periodSpendLimit.push(Coin.fromJSON(e));
             }
@@ -168,21 +173,31 @@ export const PeriodicAllowance = {
     },
     toJSON(message) {
         const obj = {};
-        message.basic !== undefined && (obj.basic = message.basic ? BasicAllowance.toJSON(message.basic) : undefined);
-        message.period !== undefined && (obj.period = message.period ? Duration.toJSON(message.period) : undefined);
+        message.basic !== undefined &&
+            (obj.basic = message.basic
+                ? BasicAllowance.toJSON(message.basic)
+                : undefined);
+        message.period !== undefined &&
+            (obj.period = message.period
+                ? Duration.toJSON(message.period)
+                : undefined);
         if (message.periodSpendLimit) {
-            obj.periodSpendLimit = message.periodSpendLimit.map((e) => (e ? Coin.toJSON(e) : undefined));
+            obj.periodSpendLimit = message.periodSpendLimit.map((e) => e ? Coin.toJSON(e) : undefined);
         }
         else {
             obj.periodSpendLimit = [];
         }
         if (message.periodCanSpend) {
-            obj.periodCanSpend = message.periodCanSpend.map((e) => (e ? Coin.toJSON(e) : undefined));
+            obj.periodCanSpend = message.periodCanSpend.map((e) => e ? Coin.toJSON(e) : undefined);
         }
         else {
             obj.periodCanSpend = [];
         }
-        message.periodReset !== undefined && (obj.periodReset = message.periodReset !== undefined ? message.periodReset.toISOString() : null);
+        message.periodReset !== undefined &&
+            (obj.periodReset =
+                message.periodReset !== undefined
+                    ? message.periodReset.toISOString()
+                    : null);
         return obj;
     },
     fromPartial(object) {
@@ -201,7 +216,8 @@ export const PeriodicAllowance = {
         else {
             message.period = undefined;
         }
-        if (object.periodSpendLimit !== undefined && object.periodSpendLimit !== null) {
+        if (object.periodSpendLimit !== undefined &&
+            object.periodSpendLimit !== null) {
             for (const e of object.periodSpendLimit) {
                 message.periodSpendLimit.push(Coin.fromPartial(e));
             }
@@ -218,9 +234,9 @@ export const PeriodicAllowance = {
             message.periodReset = undefined;
         }
         return message;
-    }
+    },
 };
-const baseAllowedMsgAllowance = { allowedMessages: '' };
+const baseAllowedMsgAllowance = { allowedMessages: "" };
 export const AllowedMsgAllowance = {
     encode(message, writer = Writer.create()) {
         if (message.allowance !== undefined) {
@@ -261,7 +277,8 @@ export const AllowedMsgAllowance = {
         else {
             message.allowance = undefined;
         }
-        if (object.allowedMessages !== undefined && object.allowedMessages !== null) {
+        if (object.allowedMessages !== undefined &&
+            object.allowedMessages !== null) {
             for (const e of object.allowedMessages) {
                 message.allowedMessages.push(String(e));
             }
@@ -270,7 +287,10 @@ export const AllowedMsgAllowance = {
     },
     toJSON(message) {
         const obj = {};
-        message.allowance !== undefined && (obj.allowance = message.allowance ? Any.toJSON(message.allowance) : undefined);
+        message.allowance !== undefined &&
+            (obj.allowance = message.allowance
+                ? Any.toJSON(message.allowance)
+                : undefined);
         if (message.allowedMessages) {
             obj.allowedMessages = message.allowedMessages.map((e) => e);
         }
@@ -288,21 +308,22 @@ export const AllowedMsgAllowance = {
         else {
             message.allowance = undefined;
         }
-        if (object.allowedMessages !== undefined && object.allowedMessages !== null) {
+        if (object.allowedMessages !== undefined &&
+            object.allowedMessages !== null) {
             for (const e of object.allowedMessages) {
                 message.allowedMessages.push(e);
             }
         }
         return message;
-    }
+    },
 };
-const baseGrant = { granter: '', grantee: '' };
+const baseGrant = { granter: "", grantee: "" };
 export const Grant = {
     encode(message, writer = Writer.create()) {
-        if (message.granter !== '') {
+        if (message.granter !== "") {
             writer.uint32(10).string(message.granter);
         }
-        if (message.grantee !== '') {
+        if (message.grantee !== "") {
             writer.uint32(18).string(message.grantee);
         }
         if (message.allowance !== undefined) {
@@ -339,13 +360,13 @@ export const Grant = {
             message.granter = String(object.granter);
         }
         else {
-            message.granter = '';
+            message.granter = "";
         }
         if (object.grantee !== undefined && object.grantee !== null) {
             message.grantee = String(object.grantee);
         }
         else {
-            message.grantee = '';
+            message.grantee = "";
         }
         if (object.allowance !== undefined && object.allowance !== null) {
             message.allowance = Any.fromJSON(object.allowance);
@@ -359,7 +380,10 @@ export const Grant = {
         const obj = {};
         message.granter !== undefined && (obj.granter = message.granter);
         message.grantee !== undefined && (obj.grantee = message.grantee);
-        message.allowance !== undefined && (obj.allowance = message.allowance ? Any.toJSON(message.allowance) : undefined);
+        message.allowance !== undefined &&
+            (obj.allowance = message.allowance
+                ? Any.toJSON(message.allowance)
+                : undefined);
         return obj;
     },
     fromPartial(object) {
@@ -368,13 +392,13 @@ export const Grant = {
             message.granter = object.granter;
         }
         else {
-            message.granter = '';
+            message.granter = "";
         }
         if (object.grantee !== undefined && object.grantee !== null) {
             message.grantee = object.grantee;
         }
         else {
-            message.grantee = '';
+            message.grantee = "";
         }
         if (object.allowance !== undefined && object.allowance !== null) {
             message.allowance = Any.fromPartial(object.allowance);
@@ -383,7 +407,7 @@ export const Grant = {
             message.allowance = undefined;
         }
         return message;
-    }
+    },
 };
 function toTimestamp(date) {
     const seconds = date.getTime() / 1000;
@@ -399,7 +423,7 @@ function fromJsonTimestamp(o) {
     if (o instanceof Date) {
         return o;
     }
-    else if (typeof o === 'string') {
+    else if (typeof o === "string") {
         return new Date(o);
     }
     else {

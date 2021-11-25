@@ -133,6 +133,8 @@ export interface WormholeReplayProtection {
 }
 export interface WormholeSequenceCounter {
     index?: string;
+    /** @format uint64 */
+    sequence?: string;
 }
 export declare type QueryParamsType = Record<string | number, any>;
 export declare type ResponseFormat = keyof Omit<Body, "body" | "bodyUsed">;

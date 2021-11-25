@@ -1,7 +1,7 @@
-import { Writer, Reader } from 'protobufjs/minimal';
-import { Proof } from '../../tendermint/crypto/proof';
-import { Consensus } from '../../tendermint/version/types';
-import { ValidatorSet } from '../../tendermint/types/validator';
+import { Writer, Reader } from "protobufjs/minimal";
+import { Proof } from "../../tendermint/crypto/proof";
+import { Consensus } from "../../tendermint/version/types";
+import { ValidatorSet } from "../../tendermint/types/validator";
 export declare const protobufPackage = "tendermint.types";
 /** BlockIdFlag indicates which BlcokID the signature is for */
 export declare enum BlockIDFlag {

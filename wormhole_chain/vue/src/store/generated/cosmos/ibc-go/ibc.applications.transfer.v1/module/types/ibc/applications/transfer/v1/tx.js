@@ -1,25 +1,31 @@
 /* eslint-disable */
-import { Reader, util, configure, Writer } from 'protobufjs/minimal';
-import * as Long from 'long';
-import { Coin } from '../../../../cosmos/base/v1beta1/coin';
-import { Height } from '../../../../ibc/core/client/v1/client';
-export const protobufPackage = 'ibc.applications.transfer.v1';
-const baseMsgTransfer = { sourcePort: '', sourceChannel: '', sender: '', receiver: '', timeoutTimestamp: 0 };
+import { Reader, util, configure, Writer } from "protobufjs/minimal";
+import * as Long from "long";
+import { Coin } from "../../../../cosmos/base/v1beta1/coin";
+import { Height } from "../../../../ibc/core/client/v1/client";
+export const protobufPackage = "ibc.applications.transfer.v1";
+const baseMsgTransfer = {
+    sourcePort: "",
+    sourceChannel: "",
+    sender: "",
+    receiver: "",
+    timeoutTimestamp: 0,
+};
 export const MsgTransfer = {
     encode(message, writer = Writer.create()) {
-        if (message.sourcePort !== '') {
+        if (message.sourcePort !== "") {
             writer.uint32(10).string(message.sourcePort);
         }
-        if (message.sourceChannel !== '') {
+        if (message.sourceChannel !== "") {
             writer.uint32(18).string(message.sourceChannel);
         }
         if (message.token !== undefined) {
             Coin.encode(message.token, writer.uint32(26).fork()).ldelim();
         }
-        if (message.sender !== '') {
+        if (message.sender !== "") {
             writer.uint32(34).string(message.sender);
         }
-        if (message.receiver !== '') {
+        if (message.receiver !== "") {
             writer.uint32(42).string(message.receiver);
         }
         if (message.timeoutHeight !== undefined) {
@@ -71,13 +77,13 @@ export const MsgTransfer = {
             message.sourcePort = String(object.sourcePort);
         }
         else {
-            message.sourcePort = '';
+            message.sourcePort = "";
         }
         if (object.sourceChannel !== undefined && object.sourceChannel !== null) {
             message.sourceChannel = String(object.sourceChannel);
         }
         else {
-            message.sourceChannel = '';
+            message.sourceChannel = "";
         }
         if (object.token !== undefined && object.token !== null) {
             message.token = Coin.fromJSON(object.token);
@@ -89,13 +95,13 @@ export const MsgTransfer = {
             message.sender = String(object.sender);
         }
         else {
-            message.sender = '';
+            message.sender = "";
         }
         if (object.receiver !== undefined && object.receiver !== null) {
             message.receiver = String(object.receiver);
         }
         else {
-            message.receiver = '';
+            message.receiver = "";
         }
         if (object.timeoutHeight !== undefined && object.timeoutHeight !== null) {
             message.timeoutHeight = Height.fromJSON(object.timeoutHeight);
@@ -103,7 +109,8 @@ export const MsgTransfer = {
         else {
             message.timeoutHeight = undefined;
         }
-        if (object.timeoutTimestamp !== undefined && object.timeoutTimestamp !== null) {
+        if (object.timeoutTimestamp !== undefined &&
+            object.timeoutTimestamp !== null) {
             message.timeoutTimestamp = Number(object.timeoutTimestamp);
         }
         else {
@@ -114,12 +121,18 @@ export const MsgTransfer = {
     toJSON(message) {
         const obj = {};
         message.sourcePort !== undefined && (obj.sourcePort = message.sourcePort);
-        message.sourceChannel !== undefined && (obj.sourceChannel = message.sourceChannel);
-        message.token !== undefined && (obj.token = message.token ? Coin.toJSON(message.token) : undefined);
+        message.sourceChannel !== undefined &&
+            (obj.sourceChannel = message.sourceChannel);
+        message.token !== undefined &&
+            (obj.token = message.token ? Coin.toJSON(message.token) : undefined);
         message.sender !== undefined && (obj.sender = message.sender);
         message.receiver !== undefined && (obj.receiver = message.receiver);
-        message.timeoutHeight !== undefined && (obj.timeoutHeight = message.timeoutHeight ? Height.toJSON(message.timeoutHeight) : undefined);
-        message.timeoutTimestamp !== undefined && (obj.timeoutTimestamp = message.timeoutTimestamp);
+        message.timeoutHeight !== undefined &&
+            (obj.timeoutHeight = message.timeoutHeight
+                ? Height.toJSON(message.timeoutHeight)
+                : undefined);
+        message.timeoutTimestamp !== undefined &&
+            (obj.timeoutTimestamp = message.timeoutTimestamp);
         return obj;
     },
     fromPartial(object) {
@@ -128,13 +141,13 @@ export const MsgTransfer = {
             message.sourcePort = object.sourcePort;
         }
         else {
-            message.sourcePort = '';
+            message.sourcePort = "";
         }
         if (object.sourceChannel !== undefined && object.sourceChannel !== null) {
             message.sourceChannel = object.sourceChannel;
         }
         else {
-            message.sourceChannel = '';
+            message.sourceChannel = "";
         }
         if (object.token !== undefined && object.token !== null) {
             message.token = Coin.fromPartial(object.token);
@@ -146,13 +159,13 @@ export const MsgTransfer = {
             message.sender = object.sender;
         }
         else {
-            message.sender = '';
+            message.sender = "";
         }
         if (object.receiver !== undefined && object.receiver !== null) {
             message.receiver = object.receiver;
         }
         else {
-            message.receiver = '';
+            message.receiver = "";
         }
         if (object.timeoutHeight !== undefined && object.timeoutHeight !== null) {
             message.timeoutHeight = Height.fromPartial(object.timeoutHeight);
@@ -160,14 +173,15 @@ export const MsgTransfer = {
         else {
             message.timeoutHeight = undefined;
         }
-        if (object.timeoutTimestamp !== undefined && object.timeoutTimestamp !== null) {
+        if (object.timeoutTimestamp !== undefined &&
+            object.timeoutTimestamp !== null) {
             message.timeoutTimestamp = object.timeoutTimestamp;
         }
         else {
             message.timeoutTimestamp = 0;
         }
         return message;
-    }
+    },
 };
 const baseMsgTransferResponse = {};
 export const MsgTransferResponse = {
@@ -199,7 +213,7 @@ export const MsgTransferResponse = {
     fromPartial(_) {
         const message = { ...baseMsgTransferResponse };
         return message;
-    }
+    },
 };
 export class MsgClientImpl {
     constructor(rpc) {
@@ -207,24 +221,24 @@ export class MsgClientImpl {
     }
     Transfer(request) {
         const data = MsgTransfer.encode(request).finish();
-        const promise = this.rpc.request('ibc.applications.transfer.v1.Msg', 'Transfer', data);
+        const promise = this.rpc.request("ibc.applications.transfer.v1.Msg", "Transfer", data);
         return promise.then((data) => MsgTransferResponse.decode(new Reader(data)));
     }
 }
 var globalThis = (() => {
-    if (typeof globalThis !== 'undefined')
+    if (typeof globalThis !== "undefined")
         return globalThis;
-    if (typeof self !== 'undefined')
+    if (typeof self !== "undefined")
         return self;
-    if (typeof window !== 'undefined')
+    if (typeof window !== "undefined")
         return window;
-    if (typeof global !== 'undefined')
+    if (typeof global !== "undefined")
         return global;
-    throw 'Unable to locate global object';
+    throw "Unable to locate global object";
 })();
 function longToNumber(long) {
     if (long.gt(Number.MAX_SAFE_INTEGER)) {
-        throw new globalThis.Error('Value is larger than Number.MAX_SAFE_INTEGER');
+        throw new globalThis.Error("Value is larger than Number.MAX_SAFE_INTEGER");
     }
     return long.toNumber();
 }

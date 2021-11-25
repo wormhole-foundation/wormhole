@@ -1,12 +1,12 @@
 /* eslint-disable */
-import { Timestamp } from '../../../google/protobuf/timestamp';
-import { Any } from '../../../google/protobuf/any';
-import { Writer, Reader } from 'protobufjs/minimal';
-export const protobufPackage = 'cosmos.authz.v1beta1';
-const baseGenericAuthorization = { msg: '' };
+import { Timestamp } from "../../../google/protobuf/timestamp";
+import { Any } from "../../../google/protobuf/any";
+import { Writer, Reader } from "protobufjs/minimal";
+export const protobufPackage = "cosmos.authz.v1beta1";
+const baseGenericAuthorization = { msg: "" };
 export const GenericAuthorization = {
     encode(message, writer = Writer.create()) {
-        if (message.msg !== '') {
+        if (message.msg !== "") {
             writer.uint32(10).string(message.msg);
         }
         return writer;
@@ -34,7 +34,7 @@ export const GenericAuthorization = {
             message.msg = String(object.msg);
         }
         else {
-            message.msg = '';
+            message.msg = "";
         }
         return message;
     },
@@ -49,10 +49,10 @@ export const GenericAuthorization = {
             message.msg = object.msg;
         }
         else {
-            message.msg = '';
+            message.msg = "";
         }
         return message;
-    }
+    },
 };
 const baseGrant = {};
 export const Grant = {
@@ -103,8 +103,15 @@ export const Grant = {
     },
     toJSON(message) {
         const obj = {};
-        message.authorization !== undefined && (obj.authorization = message.authorization ? Any.toJSON(message.authorization) : undefined);
-        message.expiration !== undefined && (obj.expiration = message.expiration !== undefined ? message.expiration.toISOString() : null);
+        message.authorization !== undefined &&
+            (obj.authorization = message.authorization
+                ? Any.toJSON(message.authorization)
+                : undefined);
+        message.expiration !== undefined &&
+            (obj.expiration =
+                message.expiration !== undefined
+                    ? message.expiration.toISOString()
+                    : null);
         return obj;
     },
     fromPartial(object) {
@@ -122,7 +129,7 @@ export const Grant = {
             message.expiration = undefined;
         }
         return message;
-    }
+    },
 };
 function toTimestamp(date) {
     const seconds = date.getTime() / 1000;
@@ -138,7 +145,7 @@ function fromJsonTimestamp(o) {
     if (o instanceof Date) {
         return o;
     }
-    else if (typeof o === 'string') {
+    else if (typeof o === "string") {
         return new Date(o);
     }
     else {

@@ -1,5 +1,5 @@
-import { DenomTrace, Params } from '../../../../ibc/applications/transfer/v1/transfer';
-import { Writer, Reader } from 'protobufjs/minimal';
+import { DenomTrace, Params } from "../../../../ibc/applications/transfer/v1/transfer";
+import { Writer, Reader } from "protobufjs/minimal";
 export declare const protobufPackage = "ibc.applications.transfer.v1";
 /** GenesisState defines the ibc-transfer genesis state */
 export interface GenesisState {

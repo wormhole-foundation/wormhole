@@ -1,15 +1,15 @@
 /* eslint-disable */
-import { Reader, Writer } from 'protobufjs/minimal';
-import { Grant } from '../../../cosmos/authz/v1beta1/authz';
-import { Any } from '../../../google/protobuf/any';
-export const protobufPackage = 'cosmos.authz.v1beta1';
-const baseMsgGrant = { granter: '', grantee: '' };
+import { Reader, Writer } from "protobufjs/minimal";
+import { Grant } from "../../../cosmos/authz/v1beta1/authz";
+import { Any } from "../../../google/protobuf/any";
+export const protobufPackage = "cosmos.authz.v1beta1";
+const baseMsgGrant = { granter: "", grantee: "" };
 export const MsgGrant = {
     encode(message, writer = Writer.create()) {
-        if (message.granter !== '') {
+        if (message.granter !== "") {
             writer.uint32(10).string(message.granter);
         }
-        if (message.grantee !== '') {
+        if (message.grantee !== "") {
             writer.uint32(18).string(message.grantee);
         }
         if (message.grant !== undefined) {
@@ -46,13 +46,13 @@ export const MsgGrant = {
             message.granter = String(object.granter);
         }
         else {
-            message.granter = '';
+            message.granter = "";
         }
         if (object.grantee !== undefined && object.grantee !== null) {
             message.grantee = String(object.grantee);
         }
         else {
-            message.grantee = '';
+            message.grantee = "";
         }
         if (object.grant !== undefined && object.grant !== null) {
             message.grant = Grant.fromJSON(object.grant);
@@ -66,7 +66,8 @@ export const MsgGrant = {
         const obj = {};
         message.granter !== undefined && (obj.granter = message.granter);
         message.grantee !== undefined && (obj.grantee = message.grantee);
-        message.grant !== undefined && (obj.grant = message.grant ? Grant.toJSON(message.grant) : undefined);
+        message.grant !== undefined &&
+            (obj.grant = message.grant ? Grant.toJSON(message.grant) : undefined);
         return obj;
     },
     fromPartial(object) {
@@ -75,13 +76,13 @@ export const MsgGrant = {
             message.granter = object.granter;
         }
         else {
-            message.granter = '';
+            message.granter = "";
         }
         if (object.grantee !== undefined && object.grantee !== null) {
             message.grantee = object.grantee;
         }
         else {
-            message.grantee = '';
+            message.grantee = "";
         }
         if (object.grant !== undefined && object.grant !== null) {
             message.grant = Grant.fromPartial(object.grant);
@@ -90,7 +91,7 @@ export const MsgGrant = {
             message.grant = undefined;
         }
         return message;
-    }
+    },
 };
 const baseMsgExecResponse = {};
 export const MsgExecResponse = {
@@ -147,12 +148,12 @@ export const MsgExecResponse = {
             }
         }
         return message;
-    }
+    },
 };
-const baseMsgExec = { grantee: '' };
+const baseMsgExec = { grantee: "" };
 export const MsgExec = {
     encode(message, writer = Writer.create()) {
-        if (message.grantee !== '') {
+        if (message.grantee !== "") {
             writer.uint32(10).string(message.grantee);
         }
         for (const v of message.msgs) {
@@ -188,7 +189,7 @@ export const MsgExec = {
             message.grantee = String(object.grantee);
         }
         else {
-            message.grantee = '';
+            message.grantee = "";
         }
         if (object.msgs !== undefined && object.msgs !== null) {
             for (const e of object.msgs) {
@@ -215,7 +216,7 @@ export const MsgExec = {
             message.grantee = object.grantee;
         }
         else {
-            message.grantee = '';
+            message.grantee = "";
         }
         if (object.msgs !== undefined && object.msgs !== null) {
             for (const e of object.msgs) {
@@ -223,7 +224,7 @@ export const MsgExec = {
             }
         }
         return message;
-    }
+    },
 };
 const baseMsgGrantResponse = {};
 export const MsgGrantResponse = {
@@ -255,18 +256,18 @@ export const MsgGrantResponse = {
     fromPartial(_) {
         const message = { ...baseMsgGrantResponse };
         return message;
-    }
+    },
 };
-const baseMsgRevoke = { granter: '', grantee: '', msgTypeUrl: '' };
+const baseMsgRevoke = { granter: "", grantee: "", msgTypeUrl: "" };
 export const MsgRevoke = {
     encode(message, writer = Writer.create()) {
-        if (message.granter !== '') {
+        if (message.granter !== "") {
             writer.uint32(10).string(message.granter);
         }
-        if (message.grantee !== '') {
+        if (message.grantee !== "") {
             writer.uint32(18).string(message.grantee);
         }
-        if (message.msgTypeUrl !== '') {
+        if (message.msgTypeUrl !== "") {
             writer.uint32(26).string(message.msgTypeUrl);
         }
         return writer;
@@ -300,19 +301,19 @@ export const MsgRevoke = {
             message.granter = String(object.granter);
         }
         else {
-            message.granter = '';
+            message.granter = "";
         }
         if (object.grantee !== undefined && object.grantee !== null) {
             message.grantee = String(object.grantee);
         }
         else {
-            message.grantee = '';
+            message.grantee = "";
         }
         if (object.msgTypeUrl !== undefined && object.msgTypeUrl !== null) {
             message.msgTypeUrl = String(object.msgTypeUrl);
         }
         else {
-            message.msgTypeUrl = '';
+            message.msgTypeUrl = "";
         }
         return message;
     },
@@ -329,22 +330,22 @@ export const MsgRevoke = {
             message.granter = object.granter;
         }
         else {
-            message.granter = '';
+            message.granter = "";
         }
         if (object.grantee !== undefined && object.grantee !== null) {
             message.grantee = object.grantee;
         }
         else {
-            message.grantee = '';
+            message.grantee = "";
         }
         if (object.msgTypeUrl !== undefined && object.msgTypeUrl !== null) {
             message.msgTypeUrl = object.msgTypeUrl;
         }
         else {
-            message.msgTypeUrl = '';
+            message.msgTypeUrl = "";
         }
         return message;
-    }
+    },
 };
 const baseMsgRevokeResponse = {};
 export const MsgRevokeResponse = {
@@ -376,7 +377,7 @@ export const MsgRevokeResponse = {
     fromPartial(_) {
         const message = { ...baseMsgRevokeResponse };
         return message;
-    }
+    },
 };
 export class MsgClientImpl {
     constructor(rpc) {
@@ -384,32 +385,33 @@ export class MsgClientImpl {
     }
     Grant(request) {
         const data = MsgGrant.encode(request).finish();
-        const promise = this.rpc.request('cosmos.authz.v1beta1.Msg', 'Grant', data);
+        const promise = this.rpc.request("cosmos.authz.v1beta1.Msg", "Grant", data);
         return promise.then((data) => MsgGrantResponse.decode(new Reader(data)));
     }
     Exec(request) {
         const data = MsgExec.encode(request).finish();
-        const promise = this.rpc.request('cosmos.authz.v1beta1.Msg', 'Exec', data);
+        const promise = this.rpc.request("cosmos.authz.v1beta1.Msg", "Exec", data);
         return promise.then((data) => MsgExecResponse.decode(new Reader(data)));
     }
     Revoke(request) {
         const data = MsgRevoke.encode(request).finish();
-        const promise = this.rpc.request('cosmos.authz.v1beta1.Msg', 'Revoke', data);
+        const promise = this.rpc.request("cosmos.authz.v1beta1.Msg", "Revoke", data);
         return promise.then((data) => MsgRevokeResponse.decode(new Reader(data)));
     }
 }
 var globalThis = (() => {
-    if (typeof globalThis !== 'undefined')
+    if (typeof globalThis !== "undefined")
         return globalThis;
-    if (typeof self !== 'undefined')
+    if (typeof self !== "undefined")
         return self;
-    if (typeof window !== 'undefined')
+    if (typeof window !== "undefined")
         return window;
-    if (typeof global !== 'undefined')
+    if (typeof global !== "undefined")
         return global;
-    throw 'Unable to locate global object';
+    throw "Unable to locate global object";
 })();
-const atob = globalThis.atob || ((b64) => globalThis.Buffer.from(b64, 'base64').toString('binary'));
+const atob = globalThis.atob ||
+    ((b64) => globalThis.Buffer.from(b64, "base64").toString("binary"));
 function bytesFromBase64(b64) {
     const bin = atob(b64);
     const arr = new Uint8Array(bin.length);
@@ -418,11 +420,12 @@ function bytesFromBase64(b64) {
     }
     return arr;
 }
-const btoa = globalThis.btoa || ((bin) => globalThis.Buffer.from(bin, 'binary').toString('base64'));
+const btoa = globalThis.btoa ||
+    ((bin) => globalThis.Buffer.from(bin, "binary").toString("base64"));
 function base64FromBytes(arr) {
     const bin = [];
     for (let i = 0; i < arr.byteLength; ++i) {
         bin.push(String.fromCharCode(arr[i]));
     }
-    return btoa(bin.join(''));
+    return btoa(bin.join(""));
 }

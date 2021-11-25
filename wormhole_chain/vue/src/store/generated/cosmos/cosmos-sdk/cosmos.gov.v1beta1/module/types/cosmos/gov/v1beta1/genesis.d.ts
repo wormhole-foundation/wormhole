@@ -1,5 +1,5 @@
-import { Writer, Reader } from 'protobufjs/minimal';
-import { Deposit, Vote, Proposal, DepositParams, VotingParams, TallyParams } from '../../../cosmos/gov/v1beta1/gov';
+import { Writer, Reader } from "protobufjs/minimal";
+import { Deposit, Vote, Proposal, DepositParams, VotingParams, TallyParams } from "../../../cosmos/gov/v1beta1/gov";
 export declare const protobufPackage = "cosmos.gov.v1beta1";
 /** GenesisState defines the gov module's genesis state. */
 export interface GenesisState {

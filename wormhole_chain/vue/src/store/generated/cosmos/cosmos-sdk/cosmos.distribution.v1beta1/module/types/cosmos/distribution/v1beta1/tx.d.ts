@@ -1,5 +1,5 @@
-import { Reader, Writer } from 'protobufjs/minimal';
-import { Coin } from '../../../cosmos/base/v1beta1/coin';
+import { Reader, Writer } from "protobufjs/minimal";
+import { Coin } from "../../../cosmos/base/v1beta1/coin";
 export declare const protobufPackage = "cosmos.distribution.v1beta1";
 /**
  * MsgSetWithdrawAddress sets the withdraw address for

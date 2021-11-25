@@ -1,6 +1,6 @@
-import { Writer, Reader } from 'protobufjs/minimal';
-import { Any } from '../../../../google/protobuf/any';
-import { Event } from '../../../../tendermint/abci/types';
+import { Writer, Reader } from "protobufjs/minimal";
+import { Any } from "../../../../google/protobuf/any";
+import { Event } from "../../../../tendermint/abci/types";
 export declare const protobufPackage = "cosmos.base.abci.v1beta1";
 /**
  * TxResponse defines a structure containing relevant tx data and metadata. The

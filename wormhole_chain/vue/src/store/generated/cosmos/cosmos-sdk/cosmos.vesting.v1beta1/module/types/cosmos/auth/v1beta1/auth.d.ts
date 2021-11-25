@@ -1,5 +1,5 @@
-import { Writer, Reader } from 'protobufjs/minimal';
-import { Any } from '../../../google/protobuf/any';
+import { Writer, Reader } from "protobufjs/minimal";
+import { Any } from "../../../google/protobuf/any";
 export declare const protobufPackage = "cosmos.auth.v1beta1";
 /**
  * BaseAccount defines a base account type. It contains all the necessary fields

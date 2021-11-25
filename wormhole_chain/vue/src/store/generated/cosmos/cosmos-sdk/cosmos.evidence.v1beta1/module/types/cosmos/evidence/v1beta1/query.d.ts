@@ -1,6 +1,6 @@
-import { Reader, Writer } from 'protobufjs/minimal';
-import { Any } from '../../../google/protobuf/any';
-import { PageRequest, PageResponse } from '../../../cosmos/base/query/v1beta1/pagination';
+import { Reader, Writer } from "protobufjs/minimal";
+import { Any } from "../../../google/protobuf/any";
+import { PageRequest, PageResponse } from "../../../cosmos/base/query/v1beta1/pagination";
 export declare const protobufPackage = "cosmos.evidence.v1beta1";
 /** QueryEvidenceRequest is the request type for the Query/Evidence RPC method. */
 export interface QueryEvidenceRequest {

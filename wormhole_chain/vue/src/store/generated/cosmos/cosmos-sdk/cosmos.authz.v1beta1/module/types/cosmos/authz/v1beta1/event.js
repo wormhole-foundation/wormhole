@@ -1,16 +1,16 @@
 /* eslint-disable */
-import { Writer, Reader } from 'protobufjs/minimal';
-export const protobufPackage = 'cosmos.authz.v1beta1';
-const baseEventGrant = { msgTypeUrl: '', granter: '', grantee: '' };
+import { Writer, Reader } from "protobufjs/minimal";
+export const protobufPackage = "cosmos.authz.v1beta1";
+const baseEventGrant = { msgTypeUrl: "", granter: "", grantee: "" };
 export const EventGrant = {
     encode(message, writer = Writer.create()) {
-        if (message.msgTypeUrl !== '') {
+        if (message.msgTypeUrl !== "") {
             writer.uint32(18).string(message.msgTypeUrl);
         }
-        if (message.granter !== '') {
+        if (message.granter !== "") {
             writer.uint32(26).string(message.granter);
         }
-        if (message.grantee !== '') {
+        if (message.grantee !== "") {
             writer.uint32(34).string(message.grantee);
         }
         return writer;
@@ -44,19 +44,19 @@ export const EventGrant = {
             message.msgTypeUrl = String(object.msgTypeUrl);
         }
         else {
-            message.msgTypeUrl = '';
+            message.msgTypeUrl = "";
         }
         if (object.granter !== undefined && object.granter !== null) {
             message.granter = String(object.granter);
         }
         else {
-            message.granter = '';
+            message.granter = "";
         }
         if (object.grantee !== undefined && object.grantee !== null) {
             message.grantee = String(object.grantee);
         }
         else {
-            message.grantee = '';
+            message.grantee = "";
         }
         return message;
     },
@@ -73,33 +73,33 @@ export const EventGrant = {
             message.msgTypeUrl = object.msgTypeUrl;
         }
         else {
-            message.msgTypeUrl = '';
+            message.msgTypeUrl = "";
         }
         if (object.granter !== undefined && object.granter !== null) {
             message.granter = object.granter;
         }
         else {
-            message.granter = '';
+            message.granter = "";
         }
         if (object.grantee !== undefined && object.grantee !== null) {
             message.grantee = object.grantee;
         }
         else {
-            message.grantee = '';
+            message.grantee = "";
         }
         return message;
-    }
+    },
 };
-const baseEventRevoke = { msgTypeUrl: '', granter: '', grantee: '' };
+const baseEventRevoke = { msgTypeUrl: "", granter: "", grantee: "" };
 export const EventRevoke = {
     encode(message, writer = Writer.create()) {
-        if (message.msgTypeUrl !== '') {
+        if (message.msgTypeUrl !== "") {
             writer.uint32(18).string(message.msgTypeUrl);
         }
-        if (message.granter !== '') {
+        if (message.granter !== "") {
             writer.uint32(26).string(message.granter);
         }
-        if (message.grantee !== '') {
+        if (message.grantee !== "") {
             writer.uint32(34).string(message.grantee);
         }
         return writer;
@@ -133,19 +133,19 @@ export const EventRevoke = {
             message.msgTypeUrl = String(object.msgTypeUrl);
         }
         else {
-            message.msgTypeUrl = '';
+            message.msgTypeUrl = "";
         }
         if (object.granter !== undefined && object.granter !== null) {
             message.granter = String(object.granter);
         }
         else {
-            message.granter = '';
+            message.granter = "";
         }
         if (object.grantee !== undefined && object.grantee !== null) {
             message.grantee = String(object.grantee);
         }
         else {
-            message.grantee = '';
+            message.grantee = "";
         }
         return message;
     },
@@ -162,20 +162,20 @@ export const EventRevoke = {
             message.msgTypeUrl = object.msgTypeUrl;
         }
         else {
-            message.msgTypeUrl = '';
+            message.msgTypeUrl = "";
         }
         if (object.granter !== undefined && object.granter !== null) {
             message.granter = object.granter;
         }
         else {
-            message.granter = '';
+            message.granter = "";
         }
         if (object.grantee !== undefined && object.grantee !== null) {
             message.grantee = object.grantee;
         }
         else {
-            message.grantee = '';
+            message.grantee = "";
         }
         return message;
-    }
+    },
 };

@@ -1,6 +1,6 @@
-import { Writer, Reader } from 'protobufjs/minimal';
-import { BaseAccount } from '../../../cosmos/auth/v1beta1/auth';
-import { Coin } from '../../../cosmos/base/v1beta1/coin';
+import { Writer, Reader } from "protobufjs/minimal";
+import { BaseAccount } from "../../../cosmos/auth/v1beta1/auth";
+import { Coin } from "../../../cosmos/base/v1beta1/coin";
 export declare const protobufPackage = "cosmos.vesting.v1beta1";
 /**
  * BaseVestingAccount implements the VestingAccount interface. It contains all

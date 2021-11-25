@@ -1,6 +1,6 @@
-import { Params, Metadata } from '../../../cosmos/bank/v1beta1/bank';
-import { Coin } from '../../../cosmos/base/v1beta1/coin';
-import { Writer, Reader } from 'protobufjs/minimal';
+import { Params, Metadata } from "../../../cosmos/bank/v1beta1/bank";
+import { Coin } from "../../../cosmos/base/v1beta1/coin";
+import { Writer, Reader } from "protobufjs/minimal";
 export declare const protobufPackage = "cosmos.bank.v1beta1";
 /** GenesisState defines the bank module's genesis state. */
 export interface GenesisState {

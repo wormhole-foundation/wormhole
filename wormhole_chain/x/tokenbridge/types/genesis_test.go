@@ -30,6 +30,14 @@ func TestGenesisState_Validate(t *testing.T) {
 						Index: "1",
 					},
 				},
+				ChainRegistrationList: []types.ChainRegistration{
+					{
+						ChainID: 0,
+					},
+					{
+						ChainID: 1,
+					},
+				},
 				// this line is used by starport scaffolding # types/genesis/validField
 			},
 			valid: true,
@@ -43,6 +51,20 @@ func TestGenesisState_Validate(t *testing.T) {
 					},
 					{
 						Index: "0",
+					},
+				},
+			},
+			valid: false,
+		},
+		{
+			desc: "duplicated chainRegistration",
+			genState: &types.GenesisState{
+				ChainRegistrationList: []types.ChainRegistration{
+					{
+						ChainID: 0,
+					},
+					{
+						ChainID: 0,
 					},
 				},
 			},

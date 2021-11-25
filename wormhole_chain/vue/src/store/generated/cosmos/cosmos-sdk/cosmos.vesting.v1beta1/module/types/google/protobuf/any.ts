@@ -1,7 +1,7 @@
 /* eslint-disable */
-import { Writer, Reader } from 'protobufjs/minimal'
+import { Writer, Reader } from "protobufjs/minimal";
 
-export const protobufPackage = 'google.protobuf'
+export const protobufPackage = "google.protobuf";
 
 /**
  * `Any` contains an arbitrary serialized protocol buffer message along with a
@@ -117,111 +117,118 @@ export interface Any {
    * Schemes other than `http`, `https` (or the empty scheme) might be
    * used with implementation specific semantics.
    */
-  typeUrl: string
+  typeUrl: string;
   /** Must be a valid serialized protocol buffer of the above specified type. */
-  value: Uint8Array
+  value: Uint8Array;
 }
 
-const baseAny: object = { typeUrl: '' }
+const baseAny: object = { typeUrl: "" };
 
 export const Any = {
   encode(message: Any, writer: Writer = Writer.create()): Writer {
-    if (message.typeUrl !== '') {
-      writer.uint32(10).string(message.typeUrl)
+    if (message.typeUrl !== "") {
+      writer.uint32(10).string(message.typeUrl);
     }
     if (message.value.length !== 0) {
-      writer.uint32(18).bytes(message.value)
+      writer.uint32(18).bytes(message.value);
     }
-    return writer
+    return writer;
   },
 
   decode(input: Reader | Uint8Array, length?: number): Any {
-    const reader = input instanceof Uint8Array ? new Reader(input) : input
-    let end = length === undefined ? reader.len : reader.pos + length
-    const message = { ...baseAny } as Any
+    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = { ...baseAny } as Any;
     while (reader.pos < end) {
-      const tag = reader.uint32()
+      const tag = reader.uint32();
       switch (tag >>> 3) {
         case 1:
-          message.typeUrl = reader.string()
-          break
+          message.typeUrl = reader.string();
+          break;
         case 2:
-          message.value = reader.bytes()
-          break
+          message.value = reader.bytes();
+          break;
         default:
-          reader.skipType(tag & 7)
-          break
+          reader.skipType(tag & 7);
+          break;
       }
     }
-    return message
+    return message;
   },
 
   fromJSON(object: any): Any {
-    const message = { ...baseAny } as Any
+    const message = { ...baseAny } as Any;
     if (object.typeUrl !== undefined && object.typeUrl !== null) {
-      message.typeUrl = String(object.typeUrl)
+      message.typeUrl = String(object.typeUrl);
     } else {
-      message.typeUrl = ''
+      message.typeUrl = "";
     }
     if (object.value !== undefined && object.value !== null) {
-      message.value = bytesFromBase64(object.value)
+      message.value = bytesFromBase64(object.value);
     }
-    return message
+    return message;
   },
 
   toJSON(message: Any): unknown {
-    const obj: any = {}
-    message.typeUrl !== undefined && (obj.typeUrl = message.typeUrl)
-    message.value !== undefined && (obj.value = base64FromBytes(message.value !== undefined ? message.value : new Uint8Array()))
-    return obj
+    const obj: any = {};
+    message.typeUrl !== undefined && (obj.typeUrl = message.typeUrl);
+    message.value !== undefined &&
+      (obj.value = base64FromBytes(
+        message.value !== undefined ? message.value : new Uint8Array()
+      ));
+    return obj;
   },
 
   fromPartial(object: DeepPartial<Any>): Any {
-    const message = { ...baseAny } as Any
+    const message = { ...baseAny } as Any;
     if (object.typeUrl !== undefined && object.typeUrl !== null) {
-      message.typeUrl = object.typeUrl
+      message.typeUrl = object.typeUrl;
     } else {
-      message.typeUrl = ''
+      message.typeUrl = "";
     }
     if (object.value !== undefined && object.value !== null) {
-      message.value = object.value
+      message.value = object.value;
     } else {
-      message.value = new Uint8Array()
+      message.value = new Uint8Array();
     }
-    return message
-  }
-}
+    return message;
+  },
+};
 
-declare var self: any | undefined
-declare var window: any | undefined
+declare var self: any | undefined;
+declare var window: any | undefined;
 var globalThis: any = (() => {
-  if (typeof globalThis !== 'undefined') return globalThis
-  if (typeof self !== 'undefined') return self
-  if (typeof window !== 'undefined') return window
-  if (typeof global !== 'undefined') return global
-  throw 'Unable to locate global object'
-})()
+  if (typeof globalThis !== "undefined") return globalThis;
+  if (typeof self !== "undefined") return self;
+  if (typeof window !== "undefined") return window;
+  if (typeof global !== "undefined") return global;
+  throw "Unable to locate global object";
+})();
 
-const atob: (b64: string) => string = globalThis.atob || ((b64) => globalThis.Buffer.from(b64, 'base64').toString('binary'))
+const atob: (b64: string) => string =
+  globalThis.atob ||
+  ((b64) => globalThis.Buffer.from(b64, "base64").toString("binary"));
 function bytesFromBase64(b64: string): Uint8Array {
-  const bin = atob(b64)
-  const arr = new Uint8Array(bin.length)
+  const bin = atob(b64);
+  const arr = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; ++i) {
-    arr[i] = bin.charCodeAt(i)
+    arr[i] = bin.charCodeAt(i);
   }
-  return arr
+  return arr;
 }
 
-const btoa: (bin: string) => string = globalThis.btoa || ((bin) => globalThis.Buffer.from(bin, 'binary').toString('base64'))
+const btoa: (bin: string) => string =
+  globalThis.btoa ||
+  ((bin) => globalThis.Buffer.from(bin, "binary").toString("base64"));
 function base64FromBytes(arr: Uint8Array): string {
-  const bin: string[] = []
+  const bin: string[] = [];
   for (let i = 0; i < arr.byteLength; ++i) {
-    bin.push(String.fromCharCode(arr[i]))
+    bin.push(String.fromCharCode(arr[i]));
   }
-  return btoa(bin.join(''))
+  return btoa(bin.join(""));
 }
 
-type Builtin = Date | Function | Uint8Array | string | number | undefined
+type Builtin = Date | Function | Uint8Array | string | number | undefined;
 export type DeepPartial<T> = T extends Builtin
   ? T
   : T extends Array<infer U>
@@ -230,4 +237,4 @@ export type DeepPartial<T> = T extends Builtin
   ? ReadonlyArray<DeepPartial<U>>
   : T extends {}
   ? { [K in keyof T]?: DeepPartial<T[K]> }
-  : Partial<T>
+  : Partial<T>;

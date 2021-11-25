@@ -1,5 +1,5 @@
-import { Writer, Reader } from 'protobufjs/minimal';
-import { Duration } from '../../../google/protobuf/duration';
+import { Writer, Reader } from "protobufjs/minimal";
+import { Duration } from "../../../google/protobuf/duration";
 export declare const protobufPackage = "cosmos.slashing.v1beta1";
 /**
  * ValidatorSigningInfo defines a validator's signing info for monitoring their

@@ -1,9 +1,9 @@
 /* eslint-disable */
-import * as Long from 'long';
-import { util, configure, Writer, Reader } from 'protobufjs/minimal';
-import { BaseAccount } from '../../../cosmos/auth/v1beta1/auth';
-import { Coin } from '../../../cosmos/base/v1beta1/coin';
-export const protobufPackage = 'cosmos.vesting.v1beta1';
+import * as Long from "long";
+import { util, configure, Writer, Reader } from "protobufjs/minimal";
+import { BaseAccount } from "../../../cosmos/auth/v1beta1/auth";
+import { Coin } from "../../../cosmos/base/v1beta1/coin";
+export const protobufPackage = "cosmos.vesting.v1beta1";
 const baseBaseVestingAccount = { endTime: 0 };
 export const BaseVestingAccount = {
     encode(message, writer = Writer.create()) {
@@ -67,7 +67,8 @@ export const BaseVestingAccount = {
         else {
             message.baseAccount = undefined;
         }
-        if (object.originalVesting !== undefined && object.originalVesting !== null) {
+        if (object.originalVesting !== undefined &&
+            object.originalVesting !== null) {
             for (const e of object.originalVesting) {
                 message.originalVesting.push(Coin.fromJSON(e));
             }
@@ -77,7 +78,8 @@ export const BaseVestingAccount = {
                 message.delegatedFree.push(Coin.fromJSON(e));
             }
         }
-        if (object.delegatedVesting !== undefined && object.delegatedVesting !== null) {
+        if (object.delegatedVesting !== undefined &&
+            object.delegatedVesting !== null) {
             for (const e of object.delegatedVesting) {
                 message.delegatedVesting.push(Coin.fromJSON(e));
             }
@@ -92,21 +94,24 @@ export const BaseVestingAccount = {
     },
     toJSON(message) {
         const obj = {};
-        message.baseAccount !== undefined && (obj.baseAccount = message.baseAccount ? BaseAccount.toJSON(message.baseAccount) : undefined);
+        message.baseAccount !== undefined &&
+            (obj.baseAccount = message.baseAccount
+                ? BaseAccount.toJSON(message.baseAccount)
+                : undefined);
         if (message.originalVesting) {
-            obj.originalVesting = message.originalVesting.map((e) => (e ? Coin.toJSON(e) : undefined));
+            obj.originalVesting = message.originalVesting.map((e) => e ? Coin.toJSON(e) : undefined);
         }
         else {
             obj.originalVesting = [];
         }
         if (message.delegatedFree) {
-            obj.delegatedFree = message.delegatedFree.map((e) => (e ? Coin.toJSON(e) : undefined));
+            obj.delegatedFree = message.delegatedFree.map((e) => e ? Coin.toJSON(e) : undefined);
         }
         else {
             obj.delegatedFree = [];
         }
         if (message.delegatedVesting) {
-            obj.delegatedVesting = message.delegatedVesting.map((e) => (e ? Coin.toJSON(e) : undefined));
+            obj.delegatedVesting = message.delegatedVesting.map((e) => e ? Coin.toJSON(e) : undefined);
         }
         else {
             obj.delegatedVesting = [];
@@ -125,7 +130,8 @@ export const BaseVestingAccount = {
         else {
             message.baseAccount = undefined;
         }
-        if (object.originalVesting !== undefined && object.originalVesting !== null) {
+        if (object.originalVesting !== undefined &&
+            object.originalVesting !== null) {
             for (const e of object.originalVesting) {
                 message.originalVesting.push(Coin.fromPartial(e));
             }
@@ -135,7 +141,8 @@ export const BaseVestingAccount = {
                 message.delegatedFree.push(Coin.fromPartial(e));
             }
         }
-        if (object.delegatedVesting !== undefined && object.delegatedVesting !== null) {
+        if (object.delegatedVesting !== undefined &&
+            object.delegatedVesting !== null) {
             for (const e of object.delegatedVesting) {
                 message.delegatedVesting.push(Coin.fromPartial(e));
             }
@@ -147,7 +154,7 @@ export const BaseVestingAccount = {
             message.endTime = 0;
         }
         return message;
-    }
+    },
 };
 const baseContinuousVestingAccount = { startTime: 0 };
 export const ContinuousVestingAccount = {
@@ -163,7 +170,9 @@ export const ContinuousVestingAccount = {
     decode(input, length) {
         const reader = input instanceof Uint8Array ? new Reader(input) : input;
         let end = length === undefined ? reader.len : reader.pos + length;
-        const message = { ...baseContinuousVestingAccount };
+        const message = {
+            ...baseContinuousVestingAccount,
+        };
         while (reader.pos < end) {
             const tag = reader.uint32();
             switch (tag >>> 3) {
@@ -181,8 +190,11 @@ export const ContinuousVestingAccount = {
         return message;
     },
     fromJSON(object) {
-        const message = { ...baseContinuousVestingAccount };
-        if (object.baseVestingAccount !== undefined && object.baseVestingAccount !== null) {
+        const message = {
+            ...baseContinuousVestingAccount,
+        };
+        if (object.baseVestingAccount !== undefined &&
+            object.baseVestingAccount !== null) {
             message.baseVestingAccount = BaseVestingAccount.fromJSON(object.baseVestingAccount);
         }
         else {
@@ -199,13 +211,18 @@ export const ContinuousVestingAccount = {
     toJSON(message) {
         const obj = {};
         message.baseVestingAccount !== undefined &&
-            (obj.baseVestingAccount = message.baseVestingAccount ? BaseVestingAccount.toJSON(message.baseVestingAccount) : undefined);
+            (obj.baseVestingAccount = message.baseVestingAccount
+                ? BaseVestingAccount.toJSON(message.baseVestingAccount)
+                : undefined);
         message.startTime !== undefined && (obj.startTime = message.startTime);
         return obj;
     },
     fromPartial(object) {
-        const message = { ...baseContinuousVestingAccount };
-        if (object.baseVestingAccount !== undefined && object.baseVestingAccount !== null) {
+        const message = {
+            ...baseContinuousVestingAccount,
+        };
+        if (object.baseVestingAccount !== undefined &&
+            object.baseVestingAccount !== null) {
             message.baseVestingAccount = BaseVestingAccount.fromPartial(object.baseVestingAccount);
         }
         else {
@@ -218,7 +235,7 @@ export const ContinuousVestingAccount = {
             message.startTime = 0;
         }
         return message;
-    }
+    },
 };
 const baseDelayedVestingAccount = {};
 export const DelayedVestingAccount = {
@@ -247,7 +264,8 @@ export const DelayedVestingAccount = {
     },
     fromJSON(object) {
         const message = { ...baseDelayedVestingAccount };
-        if (object.baseVestingAccount !== undefined && object.baseVestingAccount !== null) {
+        if (object.baseVestingAccount !== undefined &&
+            object.baseVestingAccount !== null) {
             message.baseVestingAccount = BaseVestingAccount.fromJSON(object.baseVestingAccount);
         }
         else {
@@ -258,19 +276,22 @@ export const DelayedVestingAccount = {
     toJSON(message) {
         const obj = {};
         message.baseVestingAccount !== undefined &&
-            (obj.baseVestingAccount = message.baseVestingAccount ? BaseVestingAccount.toJSON(message.baseVestingAccount) : undefined);
+            (obj.baseVestingAccount = message.baseVestingAccount
+                ? BaseVestingAccount.toJSON(message.baseVestingAccount)
+                : undefined);
         return obj;
     },
     fromPartial(object) {
         const message = { ...baseDelayedVestingAccount };
-        if (object.baseVestingAccount !== undefined && object.baseVestingAccount !== null) {
+        if (object.baseVestingAccount !== undefined &&
+            object.baseVestingAccount !== null) {
             message.baseVestingAccount = BaseVestingAccount.fromPartial(object.baseVestingAccount);
         }
         else {
             message.baseVestingAccount = undefined;
         }
         return message;
-    }
+    },
 };
 const basePeriod = { length: 0 };
 export const Period = {
@@ -346,7 +367,7 @@ export const Period = {
             }
         }
         return message;
-    }
+    },
 };
 const basePeriodicVestingAccount = { startTime: 0 };
 export const PeriodicVestingAccount = {
@@ -389,7 +410,8 @@ export const PeriodicVestingAccount = {
     fromJSON(object) {
         const message = { ...basePeriodicVestingAccount };
         message.vestingPeriods = [];
-        if (object.baseVestingAccount !== undefined && object.baseVestingAccount !== null) {
+        if (object.baseVestingAccount !== undefined &&
+            object.baseVestingAccount !== null) {
             message.baseVestingAccount = BaseVestingAccount.fromJSON(object.baseVestingAccount);
         }
         else {
@@ -411,10 +433,12 @@ export const PeriodicVestingAccount = {
     toJSON(message) {
         const obj = {};
         message.baseVestingAccount !== undefined &&
-            (obj.baseVestingAccount = message.baseVestingAccount ? BaseVestingAccount.toJSON(message.baseVestingAccount) : undefined);
+            (obj.baseVestingAccount = message.baseVestingAccount
+                ? BaseVestingAccount.toJSON(message.baseVestingAccount)
+                : undefined);
         message.startTime !== undefined && (obj.startTime = message.startTime);
         if (message.vestingPeriods) {
-            obj.vestingPeriods = message.vestingPeriods.map((e) => (e ? Period.toJSON(e) : undefined));
+            obj.vestingPeriods = message.vestingPeriods.map((e) => e ? Period.toJSON(e) : undefined);
         }
         else {
             obj.vestingPeriods = [];
@@ -424,7 +448,8 @@ export const PeriodicVestingAccount = {
     fromPartial(object) {
         const message = { ...basePeriodicVestingAccount };
         message.vestingPeriods = [];
-        if (object.baseVestingAccount !== undefined && object.baseVestingAccount !== null) {
+        if (object.baseVestingAccount !== undefined &&
+            object.baseVestingAccount !== null) {
             message.baseVestingAccount = BaseVestingAccount.fromPartial(object.baseVestingAccount);
         }
         else {
@@ -442,7 +467,7 @@ export const PeriodicVestingAccount = {
             }
         }
         return message;
-    }
+    },
 };
 const basePermanentLockedAccount = {};
 export const PermanentLockedAccount = {
@@ -471,7 +496,8 @@ export const PermanentLockedAccount = {
     },
     fromJSON(object) {
         const message = { ...basePermanentLockedAccount };
-        if (object.baseVestingAccount !== undefined && object.baseVestingAccount !== null) {
+        if (object.baseVestingAccount !== undefined &&
+            object.baseVestingAccount !== null) {
             message.baseVestingAccount = BaseVestingAccount.fromJSON(object.baseVestingAccount);
         }
         else {
@@ -482,34 +508,37 @@ export const PermanentLockedAccount = {
     toJSON(message) {
         const obj = {};
         message.baseVestingAccount !== undefined &&
-            (obj.baseVestingAccount = message.baseVestingAccount ? BaseVestingAccount.toJSON(message.baseVestingAccount) : undefined);
+            (obj.baseVestingAccount = message.baseVestingAccount
+                ? BaseVestingAccount.toJSON(message.baseVestingAccount)
+                : undefined);
         return obj;
     },
     fromPartial(object) {
         const message = { ...basePermanentLockedAccount };
-        if (object.baseVestingAccount !== undefined && object.baseVestingAccount !== null) {
+        if (object.baseVestingAccount !== undefined &&
+            object.baseVestingAccount !== null) {
             message.baseVestingAccount = BaseVestingAccount.fromPartial(object.baseVestingAccount);
         }
         else {
             message.baseVestingAccount = undefined;
         }
         return message;
-    }
+    },
 };
 var globalThis = (() => {
-    if (typeof globalThis !== 'undefined')
+    if (typeof globalThis !== "undefined")
         return globalThis;
-    if (typeof self !== 'undefined')
+    if (typeof self !== "undefined")
         return self;
-    if (typeof window !== 'undefined')
+    if (typeof window !== "undefined")
         return window;
-    if (typeof global !== 'undefined')
+    if (typeof global !== "undefined")
         return global;
-    throw 'Unable to locate global object';
+    throw "Unable to locate global object";
 })();
 function longToNumber(long) {
     if (long.gt(Number.MAX_SAFE_INTEGER)) {
-        throw new globalThis.Error('Value is larger than Number.MAX_SAFE_INTEGER');
+        throw new globalThis.Error("Value is larger than Number.MAX_SAFE_INTEGER");
     }
     return long.toNumber();
 }

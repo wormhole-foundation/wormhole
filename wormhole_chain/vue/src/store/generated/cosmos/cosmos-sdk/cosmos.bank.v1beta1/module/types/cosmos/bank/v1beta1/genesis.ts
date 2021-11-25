@@ -1,23 +1,23 @@
 /* eslint-disable */
-import { Params, Metadata } from '../../../cosmos/bank/v1beta1/bank'
-import { Coin } from '../../../cosmos/base/v1beta1/coin'
-import { Writer, Reader } from 'protobufjs/minimal'
+import { Params, Metadata } from "../../../cosmos/bank/v1beta1/bank";
+import { Coin } from "../../../cosmos/base/v1beta1/coin";
+import { Writer, Reader } from "protobufjs/minimal";
 
-export const protobufPackage = 'cosmos.bank.v1beta1'
+export const protobufPackage = "cosmos.bank.v1beta1";
 
 /** GenesisState defines the bank module's genesis state. */
 export interface GenesisState {
   /** params defines all the paramaters of the module. */
-  params: Params | undefined
+  params: Params | undefined;
   /** balances is an array containing the balances of all the accounts. */
-  balances: Balance[]
+  balances: Balance[];
   /**
    * supply represents the total supply. If it is left empty, then supply will be calculated based on the provided
    * balances. Otherwise, it will be used to validate that the sum of the balances equals this amount.
    */
-  supply: Coin[]
+  supply: Coin[];
   /** denom_metadata defines the metadata of the differents coins. */
-  denomMetadata: Metadata[]
+  denomMetadata: Metadata[];
 }
 
 /**
@@ -26,218 +26,223 @@ export interface GenesisState {
  */
 export interface Balance {
   /** address is the address of the balance holder. */
-  address: string
+  address: string;
   /** coins defines the different coins this balance holds. */
-  coins: Coin[]
+  coins: Coin[];
 }
 
-const baseGenesisState: object = {}
+const baseGenesisState: object = {};
 
 export const GenesisState = {
   encode(message: GenesisState, writer: Writer = Writer.create()): Writer {
     if (message.params !== undefined) {
-      Params.encode(message.params, writer.uint32(10).fork()).ldelim()
+      Params.encode(message.params, writer.uint32(10).fork()).ldelim();
     }
     for (const v of message.balances) {
-      Balance.encode(v!, writer.uint32(18).fork()).ldelim()
+      Balance.encode(v!, writer.uint32(18).fork()).ldelim();
     }
     for (const v of message.supply) {
-      Coin.encode(v!, writer.uint32(26).fork()).ldelim()
+      Coin.encode(v!, writer.uint32(26).fork()).ldelim();
     }
     for (const v of message.denomMetadata) {
-      Metadata.encode(v!, writer.uint32(34).fork()).ldelim()
+      Metadata.encode(v!, writer.uint32(34).fork()).ldelim();
     }
-    return writer
+    return writer;
   },
 
   decode(input: Reader | Uint8Array, length?: number): GenesisState {
-    const reader = input instanceof Uint8Array ? new Reader(input) : input
-    let end = length === undefined ? reader.len : reader.pos + length
-    const message = { ...baseGenesisState } as GenesisState
-    message.balances = []
-    message.supply = []
-    message.denomMetadata = []
+    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = { ...baseGenesisState } as GenesisState;
+    message.balances = [];
+    message.supply = [];
+    message.denomMetadata = [];
     while (reader.pos < end) {
-      const tag = reader.uint32()
+      const tag = reader.uint32();
       switch (tag >>> 3) {
         case 1:
-          message.params = Params.decode(reader, reader.uint32())
-          break
+          message.params = Params.decode(reader, reader.uint32());
+          break;
         case 2:
-          message.balances.push(Balance.decode(reader, reader.uint32()))
-          break
+          message.balances.push(Balance.decode(reader, reader.uint32()));
+          break;
         case 3:
-          message.supply.push(Coin.decode(reader, reader.uint32()))
-          break
+          message.supply.push(Coin.decode(reader, reader.uint32()));
+          break;
         case 4:
-          message.denomMetadata.push(Metadata.decode(reader, reader.uint32()))
-          break
+          message.denomMetadata.push(Metadata.decode(reader, reader.uint32()));
+          break;
         default:
-          reader.skipType(tag & 7)
-          break
+          reader.skipType(tag & 7);
+          break;
       }
     }
-    return message
+    return message;
   },
 
   fromJSON(object: any): GenesisState {
-    const message = { ...baseGenesisState } as GenesisState
-    message.balances = []
-    message.supply = []
-    message.denomMetadata = []
+    const message = { ...baseGenesisState } as GenesisState;
+    message.balances = [];
+    message.supply = [];
+    message.denomMetadata = [];
     if (object.params !== undefined && object.params !== null) {
-      message.params = Params.fromJSON(object.params)
+      message.params = Params.fromJSON(object.params);
     } else {
-      message.params = undefined
+      message.params = undefined;
     }
     if (object.balances !== undefined && object.balances !== null) {
       for (const e of object.balances) {
-        message.balances.push(Balance.fromJSON(e))
+        message.balances.push(Balance.fromJSON(e));
       }
     }
     if (object.supply !== undefined && object.supply !== null) {
       for (const e of object.supply) {
-        message.supply.push(Coin.fromJSON(e))
+        message.supply.push(Coin.fromJSON(e));
       }
     }
     if (object.denomMetadata !== undefined && object.denomMetadata !== null) {
       for (const e of object.denomMetadata) {
-        message.denomMetadata.push(Metadata.fromJSON(e))
+        message.denomMetadata.push(Metadata.fromJSON(e));
       }
     }
-    return message
+    return message;
   },
 
   toJSON(message: GenesisState): unknown {
-    const obj: any = {}
-    message.params !== undefined && (obj.params = message.params ? Params.toJSON(message.params) : undefined)
+    const obj: any = {};
+    message.params !== undefined &&
+      (obj.params = message.params ? Params.toJSON(message.params) : undefined);
     if (message.balances) {
-      obj.balances = message.balances.map((e) => (e ? Balance.toJSON(e) : undefined))
+      obj.balances = message.balances.map((e) =>
+        e ? Balance.toJSON(e) : undefined
+      );
     } else {
-      obj.balances = []
+      obj.balances = [];
     }
     if (message.supply) {
-      obj.supply = message.supply.map((e) => (e ? Coin.toJSON(e) : undefined))
+      obj.supply = message.supply.map((e) => (e ? Coin.toJSON(e) : undefined));
     } else {
-      obj.supply = []
+      obj.supply = [];
     }
     if (message.denomMetadata) {
-      obj.denomMetadata = message.denomMetadata.map((e) => (e ? Metadata.toJSON(e) : undefined))
+      obj.denomMetadata = message.denomMetadata.map((e) =>
+        e ? Metadata.toJSON(e) : undefined
+      );
     } else {
-      obj.denomMetadata = []
+      obj.denomMetadata = [];
     }
-    return obj
+    return obj;
   },
 
   fromPartial(object: DeepPartial<GenesisState>): GenesisState {
-    const message = { ...baseGenesisState } as GenesisState
-    message.balances = []
-    message.supply = []
-    message.denomMetadata = []
+    const message = { ...baseGenesisState } as GenesisState;
+    message.balances = [];
+    message.supply = [];
+    message.denomMetadata = [];
     if (object.params !== undefined && object.params !== null) {
-      message.params = Params.fromPartial(object.params)
+      message.params = Params.fromPartial(object.params);
     } else {
-      message.params = undefined
+      message.params = undefined;
     }
     if (object.balances !== undefined && object.balances !== null) {
       for (const e of object.balances) {
-        message.balances.push(Balance.fromPartial(e))
+        message.balances.push(Balance.fromPartial(e));
       }
     }
     if (object.supply !== undefined && object.supply !== null) {
       for (const e of object.supply) {
-        message.supply.push(Coin.fromPartial(e))
+        message.supply.push(Coin.fromPartial(e));
       }
     }
     if (object.denomMetadata !== undefined && object.denomMetadata !== null) {
       for (const e of object.denomMetadata) {
-        message.denomMetadata.push(Metadata.fromPartial(e))
+        message.denomMetadata.push(Metadata.fromPartial(e));
       }
     }
-    return message
-  }
-}
+    return message;
+  },
+};
 
-const baseBalance: object = { address: '' }
+const baseBalance: object = { address: "" };
 
 export const Balance = {
   encode(message: Balance, writer: Writer = Writer.create()): Writer {
-    if (message.address !== '') {
-      writer.uint32(10).string(message.address)
+    if (message.address !== "") {
+      writer.uint32(10).string(message.address);
     }
     for (const v of message.coins) {
-      Coin.encode(v!, writer.uint32(18).fork()).ldelim()
+      Coin.encode(v!, writer.uint32(18).fork()).ldelim();
     }
-    return writer
+    return writer;
   },
 
   decode(input: Reader | Uint8Array, length?: number): Balance {
-    const reader = input instanceof Uint8Array ? new Reader(input) : input
-    let end = length === undefined ? reader.len : reader.pos + length
-    const message = { ...baseBalance } as Balance
-    message.coins = []
+    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = { ...baseBalance } as Balance;
+    message.coins = [];
     while (reader.pos < end) {
-      const tag = reader.uint32()
+      const tag = reader.uint32();
       switch (tag >>> 3) {
         case 1:
-          message.address = reader.string()
-          break
+          message.address = reader.string();
+          break;
         case 2:
-          message.coins.push(Coin.decode(reader, reader.uint32()))
-          break
+          message.coins.push(Coin.decode(reader, reader.uint32()));
+          break;
         default:
-          reader.skipType(tag & 7)
-          break
+          reader.skipType(tag & 7);
+          break;
       }
     }
-    return message
+    return message;
   },
 
   fromJSON(object: any): Balance {
-    const message = { ...baseBalance } as Balance
-    message.coins = []
+    const message = { ...baseBalance } as Balance;
+    message.coins = [];
     if (object.address !== undefined && object.address !== null) {
-      message.address = String(object.address)
+      message.address = String(object.address);
     } else {
-      message.address = ''
+      message.address = "";
     }
     if (object.coins !== undefined && object.coins !== null) {
       for (const e of object.coins) {
-        message.coins.push(Coin.fromJSON(e))
+        message.coins.push(Coin.fromJSON(e));
       }
     }
-    return message
+    return message;
   },
 
   toJSON(message: Balance): unknown {
-    const obj: any = {}
-    message.address !== undefined && (obj.address = message.address)
+    const obj: any = {};
+    message.address !== undefined && (obj.address = message.address);
     if (message.coins) {
-      obj.coins = message.coins.map((e) => (e ? Coin.toJSON(e) : undefined))
+      obj.coins = message.coins.map((e) => (e ? Coin.toJSON(e) : undefined));
     } else {
-      obj.coins = []
+      obj.coins = [];
     }
-    return obj
+    return obj;
   },
 
   fromPartial(object: DeepPartial<Balance>): Balance {
-    const message = { ...baseBalance } as Balance
-    message.coins = []
+    const message = { ...baseBalance } as Balance;
+    message.coins = [];
     if (object.address !== undefined && object.address !== null) {
-      message.address = object.address
+      message.address = object.address;
     } else {
-      message.address = ''
+      message.address = "";
     }
     if (object.coins !== undefined && object.coins !== null) {
       for (const e of object.coins) {
-        message.coins.push(Coin.fromPartial(e))
+        message.coins.push(Coin.fromPartial(e));
       }
     }
-    return message
-  }
-}
+    return message;
+  },
+};
 
-type Builtin = Date | Function | Uint8Array | string | number | undefined
+type Builtin = Date | Function | Uint8Array | string | number | undefined;
 export type DeepPartial<T> = T extends Builtin
   ? T
   : T extends Array<infer U>
@@ -246,4 +251,4 @@ export type DeepPartial<T> = T extends Builtin
   ? ReadonlyArray<DeepPartial<U>>
   : T extends {}
   ? { [K in keyof T]?: DeepPartial<T[K]> }
-  : Partial<T>
+  : Partial<T>;

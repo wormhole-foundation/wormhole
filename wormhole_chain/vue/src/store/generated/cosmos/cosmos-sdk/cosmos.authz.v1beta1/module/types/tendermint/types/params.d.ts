@@ -1,5 +1,5 @@
-import { Writer, Reader } from 'protobufjs/minimal';
-import { Duration } from '../../google/protobuf/duration';
+import { Writer, Reader } from "protobufjs/minimal";
+import { Duration } from "../../google/protobuf/duration";
 export declare const protobufPackage = "tendermint.types";
 /**
  * ConsensusParams contains consensus critical parameters that determine the

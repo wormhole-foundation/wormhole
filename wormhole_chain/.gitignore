@@ -3,3 +3,4 @@ vue/dist
 release/
 
 .idea
+*.iml
