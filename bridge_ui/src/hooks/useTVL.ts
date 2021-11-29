@@ -65,9 +65,9 @@ const calcEvmTVL = (covalentReport: any, chainId: ChainId): TVL[] => {
 
   covalentReport.data.items.forEach((item: any) => {
     if (item.balance > 0 && item.contract_address) {
-      const hasUnreliablePrice = BAD_PRICES_BY_CHAIN[chainId]?.includes(
-        item.contract_address
-      );
+      const hasUnreliablePrice =
+        BAD_PRICES_BY_CHAIN[chainId]?.includes(item.contract_address) ||
+        item.quote_rate > 1000000;
       output.push({
         logo: item.logo_url || undefined,
         symbol: item.contract_ticker_symbol || undefined,
