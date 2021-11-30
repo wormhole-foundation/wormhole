@@ -120,7 +120,7 @@ const DefaultLayout: React.FC<{}> = ({
 
   const menuItems = [
     <div key="about" {...menuItemProps}>
-      <Link to={`/${intl.locale}/about`}>
+      <Link to={`/${intl.locale}/about/`}>
         <FormattedMessage id="nav.aboutLink" />
       </Link>
     </div>,
@@ -130,7 +130,7 @@ const DefaultLayout: React.FC<{}> = ({
       </Link>
     </div>,
     <div key="explorer" {...menuItemProps} >
-      <Link to={`/${intl.locale}/explorer`}>
+      <Link to={`/${intl.locale}/explorer/`}>
         <FormattedMessage id="nav.explorerLink" />
       </Link>
     </div>,

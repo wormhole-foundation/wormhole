@@ -102,7 +102,7 @@ const AboutUsSection = ({ intl, smScreen, howAnchor }: { intl: IntlShape, smScre
         <Paragraph style={{ ...bodyStyles, maxWidth: smScreen ? '100%' : 500, marginBottom: 30 }} >
           <FormattedMessage id="homepage.aboutUs.body" />
         </Paragraph>
-        <Link to={`/${intl.locale}/about`}>
+        <Link to={`/${intl.locale}/about/`}>
           <Button style={buttonStylesLg} size="large">
             <FormattedMessage id="homepage.aboutUs.callToAction" />
           </Button>
