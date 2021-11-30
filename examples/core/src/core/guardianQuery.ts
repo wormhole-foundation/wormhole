@@ -27,6 +27,7 @@ export async function getSignedVAABySequence(
     chainId,
     contractAddress
   );
+  console.log("about to do signed vaa with retry");
   const { vaaBytes } = await getSignedVAAWithRetry(
     WORMHOLE_RPC_HOSTS,
     chainId,
