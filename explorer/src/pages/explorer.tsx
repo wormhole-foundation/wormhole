@@ -154,7 +154,7 @@ const Explorer: React.FC<ExplorerProps> = ({ location, navigate }) => {
 
                                 )}
                                 {emitterAddress || emitterChain ?
-                                    <Link to={`/${intl.locale}/explorer`}>
+                                    <Link to={`/${intl.locale}/explorer/`}>
                                         <Button
                                             shape="round"
                                             icon={<CloseOutlined />}
