@@ -74,12 +74,12 @@ Install Git first:
 
     sudo apt-get install -y git
 
-First, create an SSH key in your shell:
+First, create an SSH key on the VM:
 
     ssh-keygen -t ed25519
     cat .ssh/id_ed25519.pub
 
-You can then [add your public key on Gerrit](https://forge.certus.one/settings/#SSHKeys) and [clone the repository](https://forge.certus.one/admin/repos/wormhole) in your shell. The clone command should look like this:
+You can then [add your public key on Gerrit](https://forge.certus.one/settings/#SSHKeys) and [clone the repository](https://forge.certus.one/admin/repos/wormhole). The clone command should look like this:
 
 ```shell
 # don't copy this - copy it from Gerrit instead
@@ -94,13 +94,14 @@ Configure your Git identity to match your Gerrit name and email:
 *If you are a Jump Crypto employee, make sure to log into Gerrit using Azure SSO using your
 jumptrading.com email address and request Gerrit review permissions in #wormhole-dev on Slack.*
 
-You can then use our regular Git and Gerrit workflow as detailed in [Submit change for review](./CONTRIBUTING.md#Submit change for review).
+You can then use our regular Git and Gerrit workflow as detailed in [Submit change for review](CONTRIBUTING.md#submit-change-for-review).
 
 ### Set up devnet on the VM
 
-After cloning the repo, run the setup script:
+After cloning the repo, run the setup script. It expects to run as a regular user account with sudo permissions.
+It installs Go, Minikube, Tilt and any other dependencies required for Wormhole development:
 
-    scripts/devnet-setup.sh
+    scripts/dev-setup.sh
 
 You then need to close and re-open your session to apply the new environment.
 If you use persistent SSH sessions, make sure to kill the session before reconnecting.
@@ -115,6 +116,19 @@ The easiest way to get access to the Tilt UI is to simply run Tilt on a public p
 of your choice to control access:
 
     tilt up --host=0.0.0.0 --port=8080
+
+If something breaks, just run `minikube delete` and start from scratch by running `start-recommended-minikube`.
+
+### VSCode remote development
+
+VSCode's SSH remote development plugin is known to work well with the workflow described above.
+
+### IntelliJ remote development
+
+IntelliJ's [remote development backend](https://www.jetbrains.com/remote-development/gateway/) is reported to work as well. Just install Jetbrains Gateway on your local machine, connect it to your remote VM via SSH, and pick the latest IntelliJ release. Your local license, keymap and theme - if any - will be used automatically.
+
+[Projector](https://lp.jetbrains.com/projector/) should also work for clients that can't run the native UI locally
+(if you want to code on your VR headset, smart toaster or Chromebook - this is the way!).
 
 ## Tips and tricks
 
