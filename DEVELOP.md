@@ -105,6 +105,10 @@ After cloning the repo, run the setup script:
 You then need to close and re-open your session to apply the new environment.
 If you use persistent SSH sessions, make sure to kill the session before reconnecting.
 
+Start a minikube session with recommended parameters:
+
+    start-recommended-minikube
+
 You can then run tilt normally (see above).
 
 The easiest way to get access to the Tilt UI is to simply run Tilt on a public port, and use a firewall
