@@ -63,7 +63,7 @@ GO=1.17.3
 . /etc/profile.d/local_go.sh
 
 # Install Docker and add ourselves to Docker group
-if [[ ! -d /var/lib/docker ]]; then
+if [[ ! -f /usr/bin/docker ]]; then
   TMP=$(mktemp -d)
   (
     cd "$TMP"
@@ -104,7 +104,7 @@ function use-namespace {
 
 export DOCKER_BUILDKIT=1
 
-alias start-recommended-minikube="minikube start --driver=docker --kubernetes-version=v1.22.3 --cpus=16 --memory=16G --disk-size=120g"
+alias start-recommended-minikube="minikube start --driver=docker --kubernetes-version=v1.22.3 --cpus=16 --memory=16G --disk-size=120g && kubectl config set-context --current --namespace=wormhole"
 EOF
 
 cat <<EOF

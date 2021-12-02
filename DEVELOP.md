@@ -101,6 +101,7 @@ You can then use our regular Git and Gerrit workflow as detailed in [Submit chan
 After cloning the repo, run the setup script. It expects to run as a regular user account with sudo permissions.
 It installs Go, Minikube, Tilt and any other dependencies required for Wormhole development:
 
+    cd wormhole
     scripts/dev-setup.sh
 
 You then need to close and re-open your session to apply the new environment.
