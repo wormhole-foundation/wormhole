@@ -232,5 +232,54 @@ Tests can be run for the old `Pricekeeper` contract, and for the new set of Worm
 
 Backend tests will come shortly.
 
+## Appendix
 
+### Sample Pyth VAA
+
+This is a sample signed VAA from Pyth that we process.
+
+**Base64**
+```
+AQAAAAABAFv4FwzmQ+mPX0PYbc4TC5rX/z0B5OxZSJ80YZyjJN+CZLespNQSyq/qJHqvqjbM09AoCYQCzFv5oz9Sv8hnwaYBYaX/mgAACFkAATr9qEHB9D3X1UbIpYG6H5KhOfQTP59qsJVVj2o1nfXUAAAAAAAAABIgUDJXSAABASMKv+DsO0YL1V/E+zY1ZxYymRUUVJcgK464vxr2oKO5/mUPA2fUp++YFaWT6hXTZZPwZDqq8BSbsEvmerhR3s0BAAAALxclQ4j////3AAAALu1z2QAAAAAAcNO0PwAAAAA3+qA9AAAAAA6eVVEAAAAAiUrxHAAAAAA3+qA9AAAAAA3abrgBAAAAAABhpf+a
+```
+
+**Hex-Decoded**
+```
+010000000001005bf8170ce643e98f5f43d86dce130b9ad7ff3d01e4ec59489f34619ca324df8264b7aca4d412caafea247aafaa36ccd3d028098402cc5bf9a33f52bfc867c1a60161a5ff9a0000085900013afda841c1f43dd7d546c8a581ba1f92a139f4133f9f6ab095558f6a359df5d400000000000000122050325748000101230abfe0ec3b460bd55fc4fb36356716329915145497202b8eb8bf1af6a0a3b9fe650f0367d4a7ef9815a593ea15d36593f0643aaaf0149bb04be67ab851decd010000002f17254388fffffff70000002eed73d9000000000070d3b43f0000000037faa03d000000000e9e555100000000894af11c0000000037faa03d000000000dda6eb801000000000061a5ff9a
+```
+
+**Field-Decoded**
+```
+01                version
+00000000          guardian-set-index
+01                signature-count
+00                sig index 0
+5bf8170ce643e98f5f43d86dce130b9ad7ff3d01e4ec59489f34619ca324df8264b7aca4d412caafea247aafaa36ccd3d028098402cc5bf9a33f52bfc867c1a601   sig 0
+61a5ff9a          timestamp
+00000859          nonce 
+0001              chain-id
+3afda841c1f43dd7d546c8a581ba1f92a139f4133f9f6ab095558f6a359df5d4      emitter-address
+0000000000000012  sequence
+20                consistency-level
+
+payload:
+
+503257480001      header
+01                payload-id
+230abfe0ec3b460bd55fc4fb36356716329915145497202b8eb8bf1af6a0a3b9      product_id
+fe650f0367d4a7ef9815a593ea15d36593f0643aaaf0149bb04be67ab851decd      price_id
+01                price_type
+0000002f17254388  price
+fffffff7          exponent
+0000002eed73d900  twap value
+0000000070d3b43f  twap numerator for next upd
+0000000037faa03d  twap denom for next upd
+000000000e9e5551  twac value
+00000000894af11c  twac numerator for next upd
+0000000037faa03d  twac denom for next upd
+000000000dda6eb8  confidence
+01                status
+00                corporate_act
+0000000061a5ff9a  timestamp (based on Solana contract call time)
+```
 
