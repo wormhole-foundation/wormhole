@@ -114,9 +114,9 @@ Start a minikube session with recommended parameters:
 You can then run tilt normally (see above).
 
 The easiest way to get access to the Tilt UI is to simply run Tilt on a public port, and use a firewall
-of your choice to control access:
+of your choice to control access. For GCP, we ship a script that automatically runs `tilt up` on the right IP:
 
-    tilt up --host=0.0.0.0 --port=8080
+    scripts/tilt-gcp-up.sh
 
 If something breaks, just run `minikube delete` and start from scratch by running `start-recommended-minikube`.
 

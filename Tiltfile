@@ -29,6 +29,10 @@ config.define_string("namespace", False, "Kubernetes namespace to use")
 config.define_string("gcpProject", False, "GCP project ID for BigTable persistence")
 config.define_string("bigTableKeyPath", False, "Path to BigTable json key file")
 
+# When running Tilt on a server, this can be used to set the public hostname Tilt runs on
+# for service links in the UI to work.
+config.define_string("webHost", False, "Public hostname for port forwards")
+
 # Components
 config.define_bool("pyth", False, "Enable Pyth-to-Wormhole component")
 config.define_bool("explorer", False, "Enable explorer component")
@@ -39,6 +43,7 @@ num_guardians = int(cfg.get("num", "1"))
 namespace = cfg.get("namespace", "wormhole")
 gcpProject = cfg.get("gcpProject", "local-dev")
 bigTableKeyPath = cfg.get("bigTableKeyPath", "./event_database/devnet_key.json")
+webHost = cfg.get("webHost", "localhost")
 ci = cfg.get("ci", False)
 pyth = cfg.get("pyth", ci)
 explorer = cfg.get("explorer", ci)
@@ -126,10 +131,10 @@ def build_node_yaml():
 k8s_yaml_with_ns(build_node_yaml())
 
 k8s_resource("guardian", resource_deps = ["proto-gen", "solana-devnet"], port_forwards = [
-    port_forward(6060, name = "Debug/Status Server [:6060]"),
-    port_forward(7070, name = "Public gRPC [:7070]"),
-    port_forward(7071, name = "Public REST [:7071]"),
-    port_forward(2345, name = "Debugger [:2345]"),
+    port_forward(6060, name = "Debug/Status Server [:6060]", host = webHost),
+    port_forward(7070, name = "Public gRPC [:7070]", host = webHost),
+    port_forward(7071, name = "Public REST [:7071]", host = webHost),
+    port_forward(2345, name = "Debugger [:2345]", host = webHost),
 ])
 
 # solana client cli (used for devnet setup)
@@ -159,9 +164,9 @@ k8s_resource(
     "solana-devnet",
     resource_deps = ["wasm-gen"],
     port_forwards = [
-        port_forward(8899, name = "Solana RPC [:8899]"),
-        port_forward(8900, name = "Solana WS [:8900]"),
-        port_forward(9000, name = "Solana PubSub [:9000]"),
+        port_forward(8899, name = "Solana RPC [:8899]", host = webHost),
+        port_forward(8900, name = "Solana WS [:8900]", host = webHost),
+        port_forward(9000, name = "Solana PubSub [:9000]", host = webHost),
     ],
 )
 
@@ -215,11 +220,11 @@ if pyth:
 k8s_yaml_with_ns("devnet/eth-devnet.yaml")
 
 k8s_resource("eth-devnet", port_forwards = [
-    port_forward(8545, name = "Ganache RPC [:8545]"),
+    port_forward(8545, name = "Ganache RPC [:8545]", host = webHost),
 ])
 
 k8s_resource("eth-devnet2", port_forwards = [
-    port_forward(8546, name = "Ganache RPC [:8546]"),
+    port_forward(8546, name = "Ganache RPC [:8546]", host = webHost),
 ])
 
 if bridge_ui:
@@ -240,7 +245,7 @@ if bridge_ui:
         "bridge-ui",
         resource_deps = ["proto-gen-web", "wasm-gen"],
         port_forwards = [
-            port_forward(3000, name = "Bridge UI [:3000]"),
+            port_forward(3000, name = "Bridge UI [:3000]", host = webHost),
         ],
     )
 
@@ -304,7 +309,7 @@ if explorer:
     k8s_yaml_with_ns("devnet/bigtable.yaml")
 
     k8s_resource("bigtable-emulator",
-        port_forwards = [port_forward(8086, name = "BigTable clients [:8086]")],
+        port_forwards = [port_forward(8086, name = "BigTable clients [:8086]", host = webHost)],
         labels = ["explorer"],
     )
 
@@ -317,7 +322,7 @@ if explorer:
     k8s_resource(
         "bigtable-functions",
         resource_deps = ["proto-gen", "bigtable-emulator"],
-        port_forwards = [port_forward(8090, name = "BigTable Functions [:8090]")],
+        port_forwards = [port_forward(8090, name = "BigTable Functions [:8090]", host = webHost)],
         labels = ["explorer"]
     )
 
@@ -339,7 +344,7 @@ if explorer:
         "explorer",
         resource_deps = ["proto-gen-web"],
         port_forwards = [
-            port_forward(8001, name = "Explorer Web UI [:8001]"),
+            port_forward(8001, name = "Explorer Web UI [:8001]", host = webHost),
         ],
         labels = ["explorer"],
     )
@@ -363,12 +368,12 @@ k8s_yaml_with_ns("devnet/terra-devnet.yaml")
 k8s_resource(
     "terra-terrad",
     port_forwards = [
-        port_forward(26657, name = "Terra RPC [:26657]"),
-        port_forward(1317, name = "Terra LCD [:1317]"),
+        port_forward(26657, name = "Terra RPC [:26657]", host = webHost),
+        port_forward(1317, name = "Terra LCD [:1317]", host = webHost),
     ],
 )
 
 k8s_resource(
     "terra-fcd",
-    port_forwards = [port_forward(3060, name = "Terra FCD [:3060]")],
+    port_forwards = [port_forward(3060, name = "Terra FCD [:3060]", host = webHost)],
 )
