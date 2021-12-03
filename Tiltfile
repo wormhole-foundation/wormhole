@@ -137,6 +137,14 @@ k8s_resource("guardian", resource_deps = ["proto-gen", "solana-devnet"], port_fo
     port_forward(2345, name = "Debugger [:2345]", host = webHost),
 ])
 
+# spy
+k8s_yaml_with_ns("devnet/spy.yaml")
+
+k8s_resource("spy", resource_deps = ["proto-gen", "guardian"], port_forwards = [
+    port_forward(6061, container_port = 6060, name = "Debug/Status Server [:6061]", host = webHost),
+    port_forward(7072, name = "Spy gRPC [:7072]", host = webHost),
+])
+
 # solana client cli (used for devnet setup)
 
 docker_build(
@@ -228,7 +236,6 @@ k8s_resource("eth-devnet2", port_forwards = [
 ])
 
 if bridge_ui:
-
     docker_build(
         ref = "bridge-ui",
         context = ".",
@@ -272,26 +279,27 @@ def build_cloud_function(container_name, go_func_name, path, builder):
     if ci:
         # inherit the DOCKER_HOST socket provided by custom_build.
         pack_build_cmd = pack_build_cmd + " --docker-host inherit"
+
         # do not attempt to access Docker cache in CI
         # pack_build_cmd = pack_build_cmd + " --clear-cache"
         # don't try to pull previous container versions in CI
         pack_build_cmd = pack_build_cmd + " --pull-policy never"
+
         # push to kubernetes registry
         disable_push = False
         skips_local_docker = False
 
-    docker_tag_cmd  = "tilt docker -- tag " + caching_ref + " $EXPECTED_REF"
+    docker_tag_cmd = "tilt docker -- tag " + caching_ref + " $EXPECTED_REF"
     custom_build(
         container_name,
         pack_build_cmd + " && " + docker_tag_cmd,
         [path],
-        tag=tag,
-        skips_local_docker=skips_local_docker,
-        disable_push=disable_push,
+        tag = tag,
+        skips_local_docker = skips_local_docker,
+        disable_push = disable_push,
     )
 
 if explorer:
-
     local_resource(
         name = "devnet-cloud-function",
         cmd = "tilt docker -- build -f ./event_database/cloud_functions/Dockerfile.run . -t devnet-cloud-function --label builtby=tilt",
@@ -308,7 +316,8 @@ if explorer:
 
     k8s_yaml_with_ns("devnet/bigtable.yaml")
 
-    k8s_resource("bigtable-emulator",
+    k8s_resource(
+        "bigtable-emulator",
         port_forwards = [port_forward(8086, name = "BigTable clients [:8086]", host = webHost)],
         labels = ["explorer"],
     )
@@ -323,7 +332,7 @@ if explorer:
         "bigtable-functions",
         resource_deps = ["proto-gen", "bigtable-emulator"],
         port_forwards = [port_forward(8090, name = "BigTable Functions [:8090]", host = webHost)],
-        labels = ["explorer"]
+        labels = ["explorer"],
     )
 
     # explorer web app

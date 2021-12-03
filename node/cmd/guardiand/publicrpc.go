@@ -21,7 +21,7 @@ func publicrpcServiceRunnable(logger *zap.Logger, listenAddr string, db *db.Data
 	logger.Info("publicrpc server listening", zap.String("addr", l.Addr().String()))
 
 	rpcServer := publicrpc.NewPublicrpcServer(logger, db, gst)
-	grpcServer := newGRPCServer(logger)
+	grpcServer := common.NewInstrumentedGRPCServer(logger)
 	publicrpcv1.RegisterPublicRPCServiceServer(grpcServer, rpcServer)
 
 	return supervisor.GRPCServer(grpcServer, l, false), grpcServer, nil

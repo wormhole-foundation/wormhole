@@ -133,6 +133,16 @@ IntelliJ's [remote development backend](https://www.jetbrains.com/remote-develop
 
 ## Tips and tricks
 
+### Call gRPC services
+
+    tools/bin/grpcurl -protoset <(tools/bin/buf build -o -) -plaintext localhost:7072 spy.v1.SpyRPCService/SubscribeSignedVAA
+
+With parameters (using proto json encoding):
+
+    tools/bin/grpcurl -protoset <(tools/bin/buf build -o -) \
+        -d '{"filters": [{"emitter_filter": {"emitter_address": "574108aed69daf7e625a361864b1f74d13702f2ca56de9660e566d1d8691848d", "chain_id": "CHAIN_ID_SOLANA"}}]}' \
+        -plaintext localhost:7072 spy.v1.SpyRPCService/SubscribeSignedVAA
+
 ### Post messages
 
 To Solana:
