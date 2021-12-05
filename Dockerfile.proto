@@ -44,4 +44,5 @@ COPY --from=go-build /app/node/pkg/proto pkg/proto
 
 FROM scratch AS node-export
 COPY --from=node-build /app/sdk/js/src/proto sdk/js/src/proto
+COPY --from=node-build /app/spydk/js/src/proto spydk/js/src/proto
 COPY --from=node-build /app/explorer/src/proto explorer/src/proto
