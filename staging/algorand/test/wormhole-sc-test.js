@@ -8,6 +8,9 @@ chai.use(require('chai-as-promised'))
 const spawnSync = require('child_process').spawnSync
 const fs = require('fs')
 const TestLib = require('../test/testlib.js')
+const { assert } = require('console')
+const { verify } = require('crypto')
+const { makePaymentTxnWithSuggestedParams, mnemonicToSecretKey } = require('algosdk')
 const testLib = new TestLib.TestLib()
 let pclib
 let algodClient
@@ -86,6 +89,10 @@ describe('VAA Processor Smart-contract Tests', function () {
   before(async function () {
     algodClient = new algosdk.Algodv2('', 'https://api.testnet.algoexplorer.io', '')
     pclib = new PricecasterLib.PricecasterLib(algodClient)
+    const ownerAcc = algosdk.mnemonicToSecretKey(OWNER_MNEMO)
+
+    const ownerAccInfo = await algodClient.accountInformation(ownerAcc.addr).do()
+    expect(ownerAccInfo.amount).to.be.at.least(algosdk.algosToMicroalgos(1), 'Owner must have enough funding to run tests')
 
     console.log('Clearing accounts of all previous apps...')
     const appsTo = await tools.readCreatedApps(algodClient, OWNER_ADDR)
@@ -114,7 +121,7 @@ describe('VAA Processor Smart-contract Tests', function () {
   it('Must create app with initial guardians and proper initial state', async function () {
     const gsexptime = 2524618800
     appId = await createApp(gsexptime, 0, gkeys)
-    console.log('       [Created appId: %d]', appId)
+    console.log('    - [Created appId: %d]', appId)
 
     const gscount = await tools.readAppGlobalStateByKey(algodClient, appId, OWNER_ADDR, 'gscount')
     const gsexp = await tools.readAppGlobalStateByKey(algodClient, appId, OWNER_ADDR, 'gsexp')
@@ -135,10 +142,19 @@ describe('VAA Processor Smart-contract Tests', function () {
     const program = fs.readFileSync(teal, 'utf8')
     compiledVerifyProgram = await pclib.compileProgram(program)
     verifyProgramHash = compiledVerifyProgram.hash
-    const txid = await pclib.setVAAVerifyProgramHash(OWNER_ADDR, verifyProgramHash, signCallback)
+    console.log('    - Stateless program: ', verifyProgramHash)
+
+    let txid = await pclib.setVAAVerifyProgramHash(OWNER_ADDR, verifyProgramHash, signCallback)
     await pclib.waitForTransactionResponse(txid)
     const vphstate = await tools.readAppGlobalStateByKey(algodClient, appId, OWNER_ADDR, 'vphash')
     expect(vphstate).to.equal(verifyProgramHash)
+
+    // Feed this account for verification fees.
+    const parms = await getTxParams()
+    const tx = makePaymentTxnWithSuggestedParams(OWNER_ADDR, verifyProgramHash, 200000, undefined, undefined, parms)
+    const signedTx = signCallback(OWNER_ADDR, tx)
+    await algodClient.sendRawTransaction(signedTx).do()
+    await pclib.waitForTransactionResponse(tx.txID().toString())
   })
   it('Must disallow setting stateless logic hash from non-owner', async function () {
     await expect(pclib.setVAAVerifyProgramHash(OTHER_ADDR, verifyProgramHash, signCallback)).to.be.rejectedWith('Bad Request')
@@ -199,16 +215,16 @@ describe('VAA Processor Smart-contract Tests', function () {
   it('Must verify and handle Pyth VAA', async function () {
     const gscount = await tools.readAppGlobalStateByKey(algodClient, appId, OWNER_ADDR, 'gscount')
     const vssize = await tools.readAppGlobalStateByKey(algodClient, appId, OWNER_ADDR, 'vssize')
-    const expectedSize = Math.ceil(gscount / vssize)
+    const groupSize = Math.ceil(gscount / vssize)
     const params = await getTxParams()
     const vaa = testLib.createSignedVAA(0, sigkeys, 1, 1, 1, PYTH_EMITTER, 0, 0, PYTH_PAYLOAD)
+    pclib.beginTxGroup()
     const vaaBody = Buffer.from(vaa.substr(12 + sigkeys.length * 132), 'hex')
 
-    pclib.beginTxGroup()
-    for (let i = 0; i < expectedSize; i++) {
-      const sigSubset = sigkeys.slice(vssize * i, Math.min(gscount, (vssize * i) + (vssize - 1)))
-      const keySubset = gkeys.slice(vssize * i, Math.min(gscount, (vssize * i) + (vssize - 1)))
-      const lsig = new algosdk.LogicSigAccount(compiledVerifyProgram, new Uint8Array([Buffer.from(sigSubset)]))
+    for (let i = 0; i < groupSize; i++) {
+      const sigSubset = sigkeys.slice(vssize * i, i < groupSize - 1 ? ((vssize * i) + vssize) : undefined)
+      const keySubset = gkeys.slice(vssize * i, i < groupSize - 1 ? ((vssize * i) + vssize) : undefined)
+      const lsig = new algosdk.LogicSigAccount(compiledVerifyProgram.compiledBytes, [new Uint8Array(Buffer.from(sigSubset.join(''), 'hex'))])
       pclib.addVerifyTx(verifyProgramHash, params, vaaBody, keySubset, gscount, lsig)
     }
     await pclib.commitTxGroupSignedByLogic()
