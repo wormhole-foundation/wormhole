@@ -5,6 +5,7 @@
  *
  */
 
+const { LogicSigAccount } = require('algosdk')
 const algosdk = require('algosdk')
 const fs = require('fs')
 // eslint-disable-next-line camelcase
@@ -231,11 +232,12 @@ class PricecasterLib {
      * Create the VAA Processor application based on the default approval and clearState programs or based on the specified files.
      * @param  {String} sender account used to sign the createApp transaction
      * @param  {String} gexpTime Guardian key set expiration time
+     * @param  {String} gsindex Index of the guardian key set
      * @param  {String} gkeys Guardian keys listed as a single array
      * @param  {Function} signCallback callback with prototype signCallback(sender, tx) used to sign transactions
      * @return {String} transaction id of the created application
      */
-    this.createVaaProcessorApp = async function (sender, gexpTime, gkeys, signCallback) {
+    this.createVaaProcessorApp = async function (sender, gexpTime, gsindex, gkeys, signCallback) {
       const localInts = 0
       const localBytes = 0
       const globalInts = 4
@@ -253,7 +255,9 @@ class PricecasterLib {
       const compiledProgram = await this.compileVAAProcessorApprovalProgram()
       const approvalProgramCompiled = compiledProgram.compiledBytes
       const clearProgramCompiled = (await this.compileVAAProcessorClearProgram()).compiledBytes
-      const appArgs = [new Uint8Array(Buffer.from(gkeys, 'hex')), algosdk.encodeUint64(parseInt(gexpTime))]
+      const appArgs = [new Uint8Array(Buffer.from(gkeys, 'hex')),
+        algosdk.encodeUint64(parseInt(gexpTime)),
+        algosdk.encodeUint64(parseInt(gsindex))]
 
       // create unsigned transaction
       const txApp = algosdk.makeApplicationCreateTxn(
@@ -514,6 +518,7 @@ class PricecasterLib {
      */
     this.beginTxGroup = function () {
       this.groupTx = []
+      this.lsigs = {}
     }
 
     /**
@@ -545,21 +550,48 @@ class PricecasterLib {
     }
 
     /**
+     * @param {*} sender The sender account.
+     * @param {function} signCallback The sign callback routine.
+     * @returns Transaction id.
+     */
+    this.commitTxGroupSignedByLogic = async function () {
+      algosdk.assignGroupID(this.groupTx)
+      const signedGroup = []
+
+      for (const tx of this.groupTx) {
+        const stxn = algosdk.signLogicSigTransaction(tx, this.lsigs[tx.txID])
+        signedGroup.push(stxn.blob)
+      }
+
+      // Submit the transaction
+      const tx = await this.algodClient.sendRawTransaction(signedGroup).do()
+      this.groupTx = []
+      this.lsigs = {}
+      return tx.txId
+    }
+
+    /**
      * VAA Processor: Add a verification step to a transaction group.
      * @param {*} sender The sender account (typically the VAA verification stateless program)
      * @param {*} payload The VAA payload as Uint8Array.
      * @param {*} gksubset An hex string containing the keys for the guardian subset in this step.
      * @param {*} totalguardians The total number of known guardians.
+     * @param {LogicSigAccount} lsig The logic sig account that will sign this transaction
      */
-    this.addVerifyTx = function (sender, payload, gksubset, totalguardians) {
+    this.addVerifyTx = function (sender, params, payload, gksubset, totalguardians, lsig) {
       const appArgs = []
-      appArgs.push(new Uint8Array(Buffer.from(gksubset, 'hex')), algosdk.encodeUint64(parseInt(totalguardians)))
-      this.groupTx.push(algosdk.makeApplicationNoOpTxn(sender,
-        appArgs,
+      appArgs.push(new Uint8Array(Buffer.from('verify')),
+        new Uint8Array(Buffer.from(gksubset.join(''), 'hex')),
+        algosdk.encodeUint64(parseInt(totalguardians)))
+
+      const tx = algosdk.makeApplicationNoOpTxn(sender,
+        params,
         this.appId,
-        undefined, undefined, undefined, undefined,
-        payload))
-      this.groupTx.push()
+        appArgs, undefined, undefined, undefined,
+        new Uint8Array(payload))
+
+      this.groupTx.push(tx)
+      this.lsigs[tx.txID] = lsig
     }
   }
 }
