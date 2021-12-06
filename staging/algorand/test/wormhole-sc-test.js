@@ -7,9 +7,12 @@ const chai = require('chai')
 chai.use(require('chai-as-promised'))
 const spawnSync = require('child_process').spawnSync
 const fs = require('fs')
+const TestLib = require('../test/testlib.js')
+const testLib = new TestLib.TestLib()
 let pclib
 let algodClient
-
+let verifyProgramHash
+let compiledVerifyProgram
 const OWNER_ADDR = 'OPDM7ACAW64Q4VBWAL77Z5SHSJVZZ44V3BAN7W44U43SUXEOUENZMZYOQU'
 const OWNER_MNEMO = 'assault approve result rare float sugar power float soul kind galaxy edit unusual pretty tone tilt net range pelican avoid unhappy amused recycle abstract master'
 const OTHER_ADDR = 'DMTBK62XZ6KNI7L5E6TRBTPB4B3YNVB4WYGSWR42SEV4XKV4LYHGBW4O34'
@@ -39,13 +42,33 @@ const gkeys = [
   'f5F2b82576e6CA17965dee853d08bbB471FA2433',
   '2bC2B1204599D4cA0d4Dde4a658a42c4dD13103a'
 ]
+const sigkeys = [
+  '563d8d2fd4e701901d3846dee7ae7a92c18f1975195264d676f8407ac5976757',
+  '8d97f25916a755df1d9ef74eb4dbebc5f868cb07830527731e94478cdc2b9d5f',
+  '9bd728ad7617c05c31382053b57658d4a8125684c0098f740a054d87ddc0e93b',
+  '5a02c4cd110d20a83a7ce8d1a2b2ae5df252b4e5f6781c7855db5cc28ed2d1b4',
+  '93d4e3b443bf11f99a00901222c032bd5f63cf73fc1bcfa40829824d121be9b2',
+  'ea40e40c63c6ff155230da64a2c44fcd1f1c9e50cacb752c230f77771ce1d856',
+  '87eaabe9c27a82198e618bca20f48f9679c0f239948dbd094005e262da33fe6a',
+  '61ffed2bff38648a6d36d6ed560b741b1ca53d45391441124f27e1e48ca04770',
+  'bd12a242c6da318fef8f98002efb98efbf434218a78730a197d981bebaee826e',
+  '20d3597bb16525b6d09e5fb56feb91b053d961ab156f4807e37d980f50e71aff',
+  '344b313ffbc0199ff6ca08cacdaf5dc1d85221e2f2dc156a84245bd49b981673',
+  '848b93264edd3f1a521274ca4da4632989eb5303fd15b14e5ec6bcaa91172b05',
+  'c6f2046c1e6c172497fc23bd362104e2f4460d0f61984938fa16ef43f27d93f6',
+  '693b256b1ee6b6fb353ba23274280e7166ab3be8c23c203cc76d716ba4bc32bf',
+  '13c41508c0da03018d61427910b9922345ced25e2bbce50652e939ee6e5ea56d',
+  '460ee0ee403be7a4f1eb1c63dd1edaa815fbaa6cf0cf2344dcba4a8acf9aca74',
+  'b25148579b99b18c8994b0b86e4dd586975a78fa6e7ad6ec89478d7fbafd2683',
+  '90d7ac6a82166c908b8cf1b352f3c9340a8d1f2907d7146fb7cd6354a5436cca',
+  'b71d23908e4cf5d6cd973394f3a4b6b164eb1065785feee612efdfd8d30005ed'
+]
 
-function makeVAA () {
+const PYTH_EMITTER = '0x3afda841c1f43dd7d546c8a581ba1f92a139f4133f9f6ab095558f6a359df5d4'
+const PYTH_PAYLOAD = '50325748000101230abfe0ec3b460bd55fc4fb36356716329915145497202b8eb8bf1af6a0a3b9fe650f0367d4a7ef9815a593ea15d36593f0643aaaf0149bb04be67ab851decd010000002f17254388fffffff70000002eed73d9000000000070d3b43f0000000037faa03d000000000e9e555100000000894af11c0000000037faa03d000000000dda6eb801000000000061a5ff9a'
 
-}
-
-async function createApp (gsexptime, gkeys) {
-  const txId = await pclib.createVaaProcessorApp(OWNER_ADDR, gsexptime, gkeys.join(''), signCallback)
+async function createApp (gsexptime, gsindex, gkeys) {
+  const txId = await pclib.createVaaProcessorApp(OWNER_ADDR, gsexptime, gsindex, gkeys.join(''), signCallback)
   const txResponse = await pclib.waitForTransactionResponse(txId)
   const appId = pclib.appIdFromCreateAppResponse(txResponse)
   pclib.setAppId(appId)
@@ -86,11 +109,11 @@ describe('VAA Processor Smart-contract Tests', function () {
   )
   it('Must fail to create app with incorrect guardian keys length', async function () {
     const gsexptime = 2524618800
-    await expect(createApp(gsexptime, ['BADADDRESS'])).to.be.rejectedWith('Bad Request')
+    await expect(createApp(gsexptime, 0, ['BADADDRESS'])).to.be.rejectedWith('Bad Request')
   })
   it('Must create app with initial guardians and proper initial state', async function () {
     const gsexptime = 2524618800
-    appId = await createApp(gsexptime, gkeys)
+    appId = await createApp(gsexptime, 0, gkeys)
     console.log('       [Created appId: %d]', appId)
 
     const gscount = await tools.readAppGlobalStateByKey(algodClient, appId, OWNER_ADDR, 'gscount')
@@ -110,30 +133,19 @@ describe('VAA Processor Smart-contract Tests', function () {
     const teal = 'test/temp/vaa-verify.teal'
     spawnSync('python', ['teal/wormhole/pyteal/vaa-verify.py', appId, teal])
     const program = fs.readFileSync(teal, 'utf8')
-    const compiledProgram = await pclib.compileProgram(program)
-    const txid = await pclib.setVAAVerifyProgramHash(OWNER_ADDR, compiledProgram.hash, signCallback)
+    compiledVerifyProgram = await pclib.compileProgram(program)
+    verifyProgramHash = compiledVerifyProgram.hash
+    const txid = await pclib.setVAAVerifyProgramHash(OWNER_ADDR, verifyProgramHash, signCallback)
     await pclib.waitForTransactionResponse(txid)
     const vphstate = await tools.readAppGlobalStateByKey(algodClient, appId, OWNER_ADDR, 'vphash')
-    expect(vphstate).to.equal(compiledProgram.hash)
+    expect(vphstate).to.equal(verifyProgramHash)
   })
   it('Must disallow setting stateless logic hash from non-owner', async function () {
-    const teal = 'test/temp/vaa-verify.teal'
-    spawnSync('python', ['teal/wormhole/pyteal/vaa-verify.py', appId, teal])
-    const program = fs.readFileSync(teal, 'utf8')
-    const compiledProgram = await pclib.compileProgram(program)
-    await expect(pclib.setVAAVerifyProgramHash(OTHER_ADDR, compiledProgram.hash, signCallback)).to.be.rejectedWith('Bad Request')
+    await expect(pclib.setVAAVerifyProgramHash(OTHER_ADDR, verifyProgramHash, signCallback)).to.be.rejectedWith('Bad Request')
   })
   it('Must reject setting stateless logic hash from group transaction', async function () {
-    const teal = 'test/temp/vaa-verify.teal'
-    spawnSync('python', ['teal/wormhole/pyteal/vaa-verify.py', appId, teal])
-    const program = fs.readFileSync(teal, 'utf8')
-    const compiledProgram = await pclib.compileProgram(program)
-    const hash = algosdk.decodeAddress(compiledProgram.hash).publicKey
-    const appArgs = [new Uint8Array(Buffer.from('setvphash')), hash.subarray(0, 10)]
-
-    const params = await algodClient.getTransactionParams().do()
-    params.fee = 1000
-    params.flatFee = true
+    const appArgs = [new Uint8Array(Buffer.from('setvphash')), new Uint8Array(verifyProgramHash)]
+    const params = await getTxParams()
 
     pclib.beginTxGroup()
     const appTx = algosdk.makeApplicationNoOpTxn(OWNER_ADDR, params, this.appId, appArgs)
@@ -143,25 +155,25 @@ describe('VAA Processor Smart-contract Tests', function () {
     await expect(pclib.commitTxGroup(OWNER_ADDR, signCallback)).to.be.rejectedWith('Bad Request')
   })
   it('Must reject setting stateless logic hash with invalid address length', async function () {
-    const teal = 'test/temp/vaa-verify.teal'
-    spawnSync('python', ['teal/wormhole/pyteal/vaa-verify.py', appId, teal])
-    const program = fs.readFileSync(teal, 'utf8')
-    const compiledProgram = await pclib.compileProgram(program)
-    const hash = algosdk.decodeAddress(compiledProgram.hash).publicKey
-    const appArgs = [new Uint8Array(Buffer.from('setvphash')), hash.subarray(0, 10)]
+    const appArgs = [new Uint8Array(Buffer.from('setvphash')), new Uint8Array(verifyProgramHash).subarray(0, 10)]
     await expect(pclib.callApp(OWNER_ADDR, appArgs, [], signCallback)).to.be.rejectedWith('Bad Request')
   })
-  it('Must verify and handle Pyth VAA', async function () {
-
-  })
-  it('Must verify and handle governance VAA', async function () {
-
-  })
-  it('Must reject unknown VAA', async function () {
-
-  })
   it('Must reject incorrect transaction group size', async function () {
+    const gscount = await tools.readAppGlobalStateByKey(algodClient, appId, OWNER_ADDR, 'gscount')
+    const vssize = await tools.readAppGlobalStateByKey(algodClient, appId, OWNER_ADDR, 'vssize')
+    const badSize = 1 + Math.ceil(gscount / vssize)
+    const params = await getTxParams()
+    const vaa = testLib.createSignedVAA(0, sigkeys, 1, 1, 1, PYTH_EMITTER, 0, 0, PYTH_PAYLOAD)
+    pclib.beginTxGroup()
+    const vaaBody = Buffer.from(vaa.substr(12 + sigkeys.length * 132), 'hex')
 
+    for (let i = 0; i < badSize; i++) {
+      const sigSubset = sigkeys.slice(vssize * i, i < badSize - 1 ? ((vssize * i) + vssize) : undefined)
+      const keySubset = gkeys.slice(vssize * i, i < badSize - 1 ? ((vssize * i) + vssize) : undefined)
+      const lsig = new algosdk.LogicSigAccount(compiledVerifyProgram.compiledBytes, [new Uint8Array(Buffer.from(sigSubset.join(''), 'hex'))])
+      pclib.addVerifyTx(verifyProgramHash, params, vaaBody, keySubset, gscount, lsig)
+    }
+    await expect(pclib.commitTxGroupSignedByLogic()).to.be.rejectedWith('Bad Request')
   })
   it('Must reject incorrect argument count for verify call', async function () {
 
@@ -182,6 +194,29 @@ describe('VAA Processor Smart-contract Tests', function () {
 
   })
   it('Must reject transaction with not verified bit set in group', async function () {
+
+  })
+  it('Must verify and handle Pyth VAA', async function () {
+    const gscount = await tools.readAppGlobalStateByKey(algodClient, appId, OWNER_ADDR, 'gscount')
+    const vssize = await tools.readAppGlobalStateByKey(algodClient, appId, OWNER_ADDR, 'vssize')
+    const expectedSize = Math.ceil(gscount / vssize)
+    const params = await getTxParams()
+    const vaa = testLib.createSignedVAA(0, sigkeys, 1, 1, 1, PYTH_EMITTER, 0, 0, PYTH_PAYLOAD)
+    const vaaBody = Buffer.from(vaa.substr(12 + sigkeys.length * 132), 'hex')
+
+    pclib.beginTxGroup()
+    for (let i = 0; i < expectedSize; i++) {
+      const sigSubset = sigkeys.slice(vssize * i, Math.min(gscount, (vssize * i) + (vssize - 1)))
+      const keySubset = gkeys.slice(vssize * i, Math.min(gscount, (vssize * i) + (vssize - 1)))
+      const lsig = new algosdk.LogicSigAccount(compiledVerifyProgram, new Uint8Array([Buffer.from(sigSubset)]))
+      pclib.addVerifyTx(verifyProgramHash, params, vaaBody, keySubset, gscount, lsig)
+    }
+    await pclib.commitTxGroupSignedByLogic()
+  })
+  it('Must verify and handle governance VAA', async function () {
+
+  })
+  it('Must reject unknown VAA', async function () {
 
   })
   it('Stateless: Must reject transaction with excess fee', async function () {
@@ -209,3 +244,9 @@ describe('VAA Processor Smart-contract Tests', function () {
 
   })
 })
+async function getTxParams () {
+  const params = await algodClient.getTransactionParams().do()
+  params.fee = 1000
+  params.flatFee = true
+  return params
+}
