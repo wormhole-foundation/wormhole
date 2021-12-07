@@ -60,6 +60,7 @@
     "@solana/web3.js": "^1.24.0",
     "@terra-money/terra.js": "^2.0.14",
     "@terra-money/wallet-provider": "^2.2.0",
+    "axios": "^0.24.0",
     "bech32": "^2.0.0",
     "js-base64": "^3.6.1",
     "protobufjs": "^6.11.2",

@@ -1,6 +1,7 @@
 export * from "./attest";
 export * from "./createWrapped";
 export * from "./getForeignAsset";
+export * from "./getIsTransferCompleted";
 export * from "./getIsWrappedAsset";
 export * from "./getOriginalAsset";
 export * from "./redeem";
