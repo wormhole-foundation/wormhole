@@ -23,7 +23,7 @@ sha3 = "0.9.1"
 solana-program = "=1.7.0"
 solitaire-client = { path = "../../solitaire/client", optional = true }
 solitaire = { path = "../../solitaire/program" }
-bridge = { path = "../program", features = ["no-entrypoint"] }
+wormhole-bridge-solana = { path = "../program", features = ["no-entrypoint"] }
 
 [dev-dependencies]
 hex = "*"
