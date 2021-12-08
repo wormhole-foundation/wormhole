@@ -1,0 +1,27 @@
+[package]
+name = "wormhole-sdk-fuzz"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+
+[dependencies.wormhole-sdk]
+path = ".."
+features = ["solana", "vaa"]
+
+# Create isolated workspace.
+[workspace]
+members = ["."]
+
+[[bin]]
+name = "vaa"
+path = "fuzzers/vaa.rs"
+
+[[bin]]
+name = "governance"
+path = "fuzzers/governance.rs"

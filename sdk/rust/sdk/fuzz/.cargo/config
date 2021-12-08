@@ -1,0 +1,7 @@
+[build]
+rustflags = [
+  "-Cpasses=sancov-module",
+  "-Cllvm-args=-sanitizer-coverage-level=3",
+  "-Cllvm-args=-sanitizer-coverage-inline-8bit-counters",
+  "-Zsanitizer=address",
+]
