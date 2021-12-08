@@ -105,7 +105,7 @@ It installs Go, Minikube, Tilt and any other dependencies required for Wormhole 
     scripts/dev-setup.sh
 
 You then need to close and re-open your session to apply the new environment.
-If you use persistent SSH sessions, make sure to kill the session before reconnecting.
+If you use ControlMaster SSH sessions, make sure to kill the session before reconnecting (`ssh -O exit hostname`).
 
 Start a minikube session with recommended parameters:
 
