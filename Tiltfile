@@ -15,6 +15,7 @@ analytics_settings(False)
 
 # Runtime configuration
 config.define_bool("ci", False, "We are running in CI")
+config.define_bool("manual", False, "Set TRIGGER_MODE_MANUAL by default")
 
 config.define_string("num", False, "Number of guardian nodes to run")
 
@@ -49,6 +50,11 @@ pyth = cfg.get("pyth", ci)
 explorer = cfg.get("explorer", ci)
 bridge_ui = cfg.get("bridge_ui", ci)
 
+if cfg.get("manual", False):
+    trigger_mode = TRIGGER_MODE_MANUAL
+else:
+    trigger_mode = TRIGGER_MODE_AUTO
+
 # namespace
 
 if not ci:
@@ -66,6 +72,7 @@ local_resource(
     deps = proto_deps,
     cmd = "tilt docker build -- --target go-export -f Dockerfile.proto -o type=local,dest=node .",
     env = {"DOCKER_BUILDKIT": "1"},
+    trigger_mode = trigger_mode,
 )
 
 local_resource(
@@ -74,6 +81,7 @@ local_resource(
     resource_deps = ["proto-gen"],
     cmd = "tilt docker build -- --target node-export -f Dockerfile.proto -o type=local,dest=. .",
     env = {"DOCKER_BUILDKIT": "1"},
+    trigger_mode = trigger_mode,
 )
 
 # wasm
@@ -84,6 +92,7 @@ local_resource(
     dir = "solana",
     cmd = "tilt docker build -- -f Dockerfile.wasm -o type=local,dest=.. .",
     env = {"DOCKER_BUILDKIT": "1"},
+    trigger_mode = trigger_mode,
 )
 
 # node
@@ -130,20 +139,30 @@ def build_node_yaml():
 
 k8s_yaml_with_ns(build_node_yaml())
 
-k8s_resource("guardian", resource_deps = ["proto-gen", "solana-devnet"], port_forwards = [
-    port_forward(6060, name = "Debug/Status Server [:6060]", host = webHost),
-    port_forward(7070, name = "Public gRPC [:7070]", host = webHost),
-    port_forward(7071, name = "Public REST [:7071]", host = webHost),
-    port_forward(2345, name = "Debugger [:2345]", host = webHost),
-])
+k8s_resource(
+    "guardian",
+    resource_deps = ["proto-gen", "solana-devnet"],
+    port_forwards = [
+        port_forward(6060, name = "Debug/Status Server [:6060]", host = webHost),
+        port_forward(7070, name = "Public gRPC [:7070]", host = webHost),
+        port_forward(7071, name = "Public REST [:7071]", host = webHost),
+        port_forward(2345, name = "Debugger [:2345]", host = webHost),
+    ],
+    trigger_mode = trigger_mode,
+)
 
 # spy
 k8s_yaml_with_ns("devnet/spy.yaml")
 
-k8s_resource("spy", resource_deps = ["proto-gen", "guardian"], port_forwards = [
-    port_forward(6061, container_port = 6060, name = "Debug/Status Server [:6061]", host = webHost),
-    port_forward(7072, name = "Spy gRPC [:7072]", host = webHost),
-])
+k8s_resource(
+    "spy",
+    resource_deps = ["proto-gen", "guardian"],
+    port_forwards = [
+        port_forward(6061, container_port = 6060, name = "Debug/Status Server [:6061]", host = webHost),
+        port_forward(7072, name = "Spy gRPC [:7072]", host = webHost),
+    ],
+    trigger_mode = trigger_mode,
+)
 
 # solana client cli (used for devnet setup)
 
@@ -176,6 +195,7 @@ k8s_resource(
         port_forward(8900, name = "Solana WS [:8900]", host = webHost),
         port_forward(9000, name = "Solana PubSub [:9000]", host = webHost),
     ],
+    trigger_mode = trigger_mode,
 )
 
 # eth devnet
@@ -207,7 +227,7 @@ if pyth:
     )
     k8s_yaml_with_ns("./devnet/pyth.yaml")
 
-    k8s_resource("pyth", resource_deps = ["solana-devnet"])
+    k8s_resource("pyth", resource_deps = ["solana-devnet"], trigger_mode = trigger_mode)
 
     # pyth2wormhole client autoattester
     docker_build(
@@ -223,17 +243,26 @@ if pyth:
         "p2w-attest",
         resource_deps = ["solana-devnet", "pyth", "guardian"],
         port_forwards = [],
+        trigger_mode = trigger_mode,
     )
 
 k8s_yaml_with_ns("devnet/eth-devnet.yaml")
 
-k8s_resource("eth-devnet", port_forwards = [
-    port_forward(8545, name = "Ganache RPC [:8545]", host = webHost),
-])
+k8s_resource(
+    "eth-devnet",
+    port_forwards = [
+        port_forward(8545, name = "Ganache RPC [:8545]", host = webHost),
+    ],
+    trigger_mode = trigger_mode,
+)
 
-k8s_resource("eth-devnet2", port_forwards = [
-    port_forward(8546, name = "Ganache RPC [:8546]", host = webHost),
-])
+k8s_resource(
+    "eth-devnet2",
+    port_forwards = [
+        port_forward(8546, name = "Ganache RPC [:8546]", host = webHost),
+    ],
+    trigger_mode = trigger_mode,
+)
 
 if bridge_ui:
     docker_build(
@@ -254,6 +283,7 @@ if bridge_ui:
         port_forwards = [
             port_forward(3000, name = "Bridge UI [:3000]", host = webHost),
         ],
+        trigger_mode = trigger_mode,
     )
 
 # bigtable
@@ -305,6 +335,7 @@ if explorer:
         cmd = "tilt docker -- build -f ./event_database/cloud_functions/Dockerfile.run . -t devnet-cloud-function --label builtby=tilt",
         env = {"DOCKER_BUILDKIT": "1"},
         labels = ["explorer"],
+        trigger_mode = trigger_mode,
     )
 
     local_resource(
@@ -312,6 +343,7 @@ if explorer:
         cmd = "go build -mod=readonly -o bin/pack github.com/buildpacks/pack/cmd/pack",
         dir = "tools",
         labels = ["explorer"],
+        trigger_mode = trigger_mode,
     )
 
     k8s_yaml_with_ns("devnet/bigtable.yaml")
@@ -320,6 +352,7 @@ if explorer:
         "bigtable-emulator",
         port_forwards = [port_forward(8086, name = "BigTable clients [:8086]", host = webHost)],
         labels = ["explorer"],
+        trigger_mode = trigger_mode,
     )
 
     build_cloud_function(
@@ -333,6 +366,7 @@ if explorer:
         resource_deps = ["proto-gen", "bigtable-emulator"],
         port_forwards = [port_forward(8090, name = "BigTable Functions [:8090]", host = webHost)],
         labels = ["explorer"],
+        trigger_mode = trigger_mode,
     )
 
     # explorer web app
@@ -356,6 +390,7 @@ if explorer:
             port_forward(8001, name = "Explorer Web UI [:8001]", host = webHost),
         ],
         labels = ["explorer"],
+        trigger_mode = trigger_mode,
     )
 
 # terra devnet
@@ -380,9 +415,11 @@ k8s_resource(
         port_forward(26657, name = "Terra RPC [:26657]", host = webHost),
         port_forward(1317, name = "Terra LCD [:1317]", host = webHost),
     ],
+    trigger_mode = trigger_mode,
 )
 
 k8s_resource(
     "terra-fcd",
     port_forwards = [port_forward(3060, name = "Terra FCD [:3060]", host = webHost)],
+    trigger_mode = trigger_mode,
 )
