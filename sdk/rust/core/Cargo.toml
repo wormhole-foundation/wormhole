@@ -1,0 +1,26 @@
+[package]
+name    = "wormhole-core"
+version = "0.1.0"
+edition = "2018"
+
+
+[features]
+
+
+[profile.release]
+opt-level = 3
+lto       = "thin"
+
+
+[dependencies]
+byteorder       = "*"
+hex             = "*"
+nom             = { version="7", default-features=false, features=["alloc"] }
+primitive-types = { version="0.9.0", default-features=false }
+sha3            = "0.9.1"
+bstr            = "*"
+
+
+[dev-dependencies]
+byteorder      = "*"
+hex            = "*"
