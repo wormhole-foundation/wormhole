@@ -98,7 +98,7 @@ macro_rules! solitaire {
                 }
             }
 
-            pub fn solitaire<'a, 'b: 'a>(p: &Pubkey, a: &'a [AccountInfo<'b>], d: &[u8]) -> ProgramResult {
+            pub fn solitaire(p: &Pubkey, a: &[AccountInfo], d: &[u8]) -> ProgramResult {
                 trace!("{} {} built with {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"), solitaire::PKG_NAME_VERSION);
                 if let Err(err) = dispatch(p, a, d) {
                     solana_program::msg!("Error: {:?}", err);
@@ -108,7 +108,7 @@ macro_rules! solitaire {
             }
         }
 
-        use instruction::solitaire;
+        pub use instruction::solitaire;
         #[cfg(not(feature = "no-entrypoint"))]
         solana_program::entrypoint!(solitaire);
     }
