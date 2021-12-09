@@ -62,9 +62,19 @@ func runListNodes(cmd *cobra.Command, args []string) {
 
 	log.Printf("%d nodes in guardian state set", len(nodes))
 
+	// Check if any node is sending Ropsten metrics
+	var isTestnet bool
+	for _, node := range nodes {
+		for _, network := range node.RawHeartbeat.Networks {
+			if vaa.ChainID(network.Id) == vaa.ChainIDEthereumRopsten {
+				isTestnet = true
+			}
+		}
+	}
+
 	w := tabwriter.NewWriter(os.Stdout, 0, 8, 2, ' ', 0)
 
-	if *testnetMode {
+	if isTestnet {
 		// Include Ropsten in testnet mode
 		if showDetails {
 			_, _ = w.Write([]byte("Node key\tGuardian key\tNode name\tVersion\tLast seen\tUptime\tSolana\tEthereum\tTerra\tBSC\tPolygon\tAvalanche\tRopsten\n"))
@@ -100,7 +110,7 @@ func runListNodes(cmd *cobra.Command, args []string) {
 			}
 		}
 
-		if *testnetMode {
+		if isTestnet {
 			if showDetails {
 				fmt.Fprintf(w,
 					"%s\t%s\t%s\t%s\t%s\t%s\t%s %d (%d)\t%s %d (%d)\t%s %d (%d)\t%s %d (%d)\t%s %d (%d)\t%s %d (%d)\t%s %d (%d)\n",
