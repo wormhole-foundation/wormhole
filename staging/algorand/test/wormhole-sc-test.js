@@ -8,9 +8,8 @@ chai.use(require('chai-as-promised'))
 const spawnSync = require('child_process').spawnSync
 const fs = require('fs')
 const TestLib = require('../test/testlib.js')
-const { assert } = require('console')
-const { verify } = require('crypto')
-const { makePaymentTxnWithSuggestedParams, mnemonicToSecretKey } = require('algosdk')
+const { makePaymentTxnWithSuggestedParams } = require('algosdk')
+const { doesNotMatch } = require('assert')
 const testLib = new TestLib.TestLib()
 let pclib
 let algodClient
@@ -25,25 +24,26 @@ SIGNATURES[OWNER_ADDR] = algosdk.mnemonicToSecretKey(OWNER_MNEMO)
 SIGNATURES[OTHER_ADDR] = algosdk.mnemonicToSecretKey(OTHER_MNEMO)
 
 const gkeys = [
-  '13947Bd48b18E53fdAeEe77F3473391aC727C638',
-  'F18AbBac073741DD0F002147B735Ff642f3D113F',
-  '9925A94DC043D0803f8ef502D2dB15cAc9e02D76',
-  '9e4EC2D92af8602bCE74a27F99A836f93C4a31E4',
-  '9C40c4052A3092AfB8C99B985fcDfB586Ed19c98',
-  'B86020cF1262AA4dd5572Af76923E271169a2CA7',
-  '1937617fE1eD801fBa14Bd8BB9EDEcBA7A942FFe',
-  '9475b8D45DdE53614d92c779787C27fE2ef68752',
-  '15A53B22c28AbC7B108612146B6aAa4a537bA305',
-  '63842657C7aC7e37B04FBE76b8c54EFe014D04E1',
-  '948ca1bBF4B858DF1A505b4C69c5c61bD95A12Bd',
-  'A6923e2259F8B5541eD18e410b8DdEE618337ff0',
-  'F678Daf4b7f2789AA88A081618Aa966D6a39e064',
-  '8cF31021838A8B3fFA43a71a50609877846f9E6d',
-  'eB15bCF2ae4f957012330B4741ecE3242De96184',
-  'cc3766a03e4faec44Bda7a46D9Ea2A9D124e9Bf8',
-  '841f499Ba89a6a8E9dD273BAd82Beb175094E5d7',
-  'f5F2b82576e6CA17965dee853d08bbB471FA2433',
-  '2bC2B1204599D4cA0d4Dde4a658a42c4dD13103a'
+  '52A26Ce40F8CAa8D36155d37ef0D5D783fc614d2',
+  '389A74E8FFa224aeAD0778c786163a7A2150768C',
+  'B4459EA6482D4aE574305B239B4f2264239e7599',
+  '072491bd66F63356090C11Aae8114F5372aBf12B',
+  '51280eA1fd2B0A1c76Ae29a7d54dda68860A2bfF',
+  'fa9Aa60CfF05e20E2CcAA784eE89A0A16C2057CB',
+  'e42d59F8FCd86a1c5c4bA351bD251A5c5B05DF6A',
+  '4B07fF9D5cE1A6ed58b6e9e7d6974d1baBEc087e',
+  'c8306B84235D7b0478c61783C50F990bfC44cFc0',
+  'C8C1035110a13fe788259A4148F871b52bAbcb1B',
+  '58A2508A20A7198E131503ce26bBE119aA8c62b2',
+  '8390820f04ddA22AFe03be1c3bb10f4ba6CF94A0',
+  '1FD6e97387C34a1F36DE0f8341E9D409E06ec45b',
+  '255a41fC2792209CB998A8287204D40996df9E54',
+  'bA663B12DD23fbF4FbAC618Be140727986B3BBd0',
+  '79040E577aC50486d0F6930e160A5C75FD1203C6',
+  '3580D2F00309A9A85efFAf02564Fc183C0183A96',
+  '3869795913D3B6dBF3B24a1C7654672c69A23c35',
+  '1c0Cc52D7673c52DE99785741344662F5b2308a0'
+
 ]
 const sigkeys = [
   '563d8d2fd4e701901d3846dee7ae7a92c18f1975195264d676f8407ac5976757',
@@ -83,16 +83,24 @@ function signCallback (sender, tx) {
   return txSigned
 }
 
+async function getTxParams () {
+  const params = await algodClient.getTransactionParams().do()
+  params.fee = 1000
+  params.flatFee = true
+  return params
+}
+
 describe('VAA Processor Smart-contract Tests', function () {
   let appId
 
   before(async function () {
-    algodClient = new algosdk.Algodv2('', 'https://api.testnet.algoexplorer.io', '')
+    // algodClient = new algosdk.Algodv2('', 'https://api.betanet.algoexplorer.io', '')
+    algodClient = new algosdk.Algodv2('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'http://localhost', '4001')
     pclib = new PricecasterLib.PricecasterLib(algodClient)
     const ownerAcc = algosdk.mnemonicToSecretKey(OWNER_MNEMO)
 
     const ownerAccInfo = await algodClient.accountInformation(ownerAcc.addr).do()
-    expect(ownerAccInfo.amount).to.be.at.least(algosdk.algosToMicroalgos(1), 'Owner must have enough funding to run tests')
+    expect(ownerAccInfo.amount).to.be.at.least(algosdk.algosToMicroalgos(10), 'Owner must have enough funding (10 ALGO) to run tests')
 
     console.log('Clearing accounts of all previous apps...')
     const appsTo = await tools.readCreatedApps(algodClient, OWNER_ADDR)
@@ -144,7 +152,7 @@ describe('VAA Processor Smart-contract Tests', function () {
     verifyProgramHash = compiledVerifyProgram.hash
     console.log('    - Stateless program: ', verifyProgramHash)
 
-    let txid = await pclib.setVAAVerifyProgramHash(OWNER_ADDR, verifyProgramHash, signCallback)
+    const txid = await pclib.setVAAVerifyProgramHash(OWNER_ADDR, verifyProgramHash, signCallback)
     await pclib.waitForTransactionResponse(txid)
     const vphstate = await tools.readAppGlobalStateByKey(algodClient, appId, OWNER_ADDR, 'vphash')
     expect(vphstate).to.equal(verifyProgramHash)
@@ -180,16 +188,18 @@ describe('VAA Processor Smart-contract Tests', function () {
     const badSize = 1 + Math.ceil(gscount / vssize)
     const params = await getTxParams()
     const vaa = testLib.createSignedVAA(0, sigkeys, 1, 1, 1, PYTH_EMITTER, 0, 0, PYTH_PAYLOAD)
-    pclib.beginTxGroup()
     const vaaBody = Buffer.from(vaa.substr(12 + sigkeys.length * 132), 'hex')
+    const signatures = vaa.substr(12, sigkeys.length * 132)
 
+    pclib.beginTxGroup()
+
+    const sigSubsets = []
     for (let i = 0; i < badSize; i++) {
-      const sigSubset = sigkeys.slice(vssize * i, i < badSize - 1 ? ((vssize * i) + vssize) : undefined)
+      sigSubsets.push(signatures.slice(i * 132 * vssize, i < badSize - 1 ? ((i * 132 * vssize) + 132 * vssize) : undefined))
       const keySubset = gkeys.slice(vssize * i, i < badSize - 1 ? ((vssize * i) + vssize) : undefined)
-      const lsig = new algosdk.LogicSigAccount(compiledVerifyProgram.compiledBytes, [new Uint8Array(Buffer.from(sigSubset.join(''), 'hex'))])
-      pclib.addVerifyTx(verifyProgramHash, params, vaaBody, keySubset, gscount, lsig)
+      pclib.addVerifyTx(verifyProgramHash, params, vaaBody, keySubset, gscount)
     }
-    await expect(pclib.commitTxGroupSignedByLogic()).to.be.rejectedWith('Bad Request')
+    await expect(pclib.commitVerifyTxGroup(compiledVerifyProgram.compiledBytes, sigSubsets)).to.be.rejectedWith('Bad Request')
   })
   it('Must reject incorrect argument count for verify call', async function () {
 
@@ -218,16 +228,19 @@ describe('VAA Processor Smart-contract Tests', function () {
     const groupSize = Math.ceil(gscount / vssize)
     const params = await getTxParams()
     const vaa = testLib.createSignedVAA(0, sigkeys, 1, 1, 1, PYTH_EMITTER, 0, 0, PYTH_PAYLOAD)
-    pclib.beginTxGroup()
     const vaaBody = Buffer.from(vaa.substr(12 + sigkeys.length * 132), 'hex')
+    const signatures = vaa.substr(12, sigkeys.length * 132)
 
+    pclib.beginTxGroup()
+    const sigSubsets = []
     for (let i = 0; i < groupSize; i++) {
-      const sigSubset = sigkeys.slice(vssize * i, i < groupSize - 1 ? ((vssize * i) + vssize) : undefined)
-      const keySubset = gkeys.slice(vssize * i, i < groupSize - 1 ? ((vssize * i) + vssize) : undefined)
-      const lsig = new algosdk.LogicSigAccount(compiledVerifyProgram.compiledBytes, [new Uint8Array(Buffer.from(sigSubset.join(''), 'hex'))])
-      pclib.addVerifyTx(verifyProgramHash, params, vaaBody, keySubset, gscount, lsig)
+      const st = vssize * i
+      const keySubset = gkeys.slice(st, i < groupSize - 1 ? st + vssize : undefined)
+      sigSubsets.push(signatures.slice(i * 132 * vssize, i < groupSize - 1 ? ((i * 132 * vssize) + 132 * vssize) : undefined))
+      pclib.addVerifyTx(verifyProgramHash, params, vaaBody, keySubset, gscount)
     }
-    await pclib.commitTxGroupSignedByLogic()
+    await pclib.commitVerifyTxGroup(compiledVerifyProgram.compiledBytes, sigSubsets)
+    await pclib.waitForConfirmation(tx)
   })
   it('Must verify and handle governance VAA', async function () {
 
@@ -260,9 +273,3 @@ describe('VAA Processor Smart-contract Tests', function () {
 
   })
 })
-async function getTxParams () {
-  const params = await algodClient.getTransactionParams().do()
-  params.fee = 1000
-  params.flatFee = true
-  return params
-}
