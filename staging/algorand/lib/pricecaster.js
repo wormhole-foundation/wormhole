@@ -5,7 +5,6 @@
  *
  */
 
-const { LogicSigAccount } = require('algosdk')
 const algosdk = require('algosdk')
 const fs = require('fs')
 // eslint-disable-next-line camelcase
@@ -24,6 +23,7 @@ class PricecasterLib {
     this.ownerAddr = ownerAddr
     this.minFee = 1000
     this.groupTx = []
+    this.lsigs = {}
 
     /** Overrides the default VAA processor approval program filename
      * @param {string} filename New file name to use.
@@ -518,7 +518,6 @@ class PricecasterLib {
      */
     this.beginTxGroup = function () {
       this.groupTx = []
-      this.lsigs = {}
     }
 
     /**
@@ -551,34 +550,50 @@ class PricecasterLib {
 
     /**
      * @param {*} sender The sender account.
-     * @param {function} signCallback The sign callback routine.
+     * @param {*} programBytes Compiled program bytes.
+     * @param {*} sigSubsets The signature subsets i..j for logicsig arguments.
      * @returns Transaction id.
      */
-    this.commitTxGroupSignedByLogic = async function () {
+    this.commitVerifyTxGroup = async function (programBytes, sigSubsets) {
       algosdk.assignGroupID(this.groupTx)
       const signedGroup = []
-
+      let i = 0
       for (const tx of this.groupTx) {
-        const stxn = algosdk.signLogicSigTransaction(tx, this.lsigs[tx.txID])
+        const lsig = new algosdk.LogicSigAccount(programBytes, [Buffer.from(sigSubsets[i++], 'hex')])
+        const stxn = algosdk.signLogicSigTransaction(tx, lsig)
         signedGroup.push(stxn.blob)
       }
+
+      // Save transaction for debugging.
+
+      // fs.unlinkSync('signedgroup.stxn')
+
+      // for (let i = 0; i < signedGroup.length; ++i) {
+      //   fs.appendFileSync('signedgroup.stxn', signedGroup[i])
+      // }
+
+      // const dr = await algosdk.createDryrun({
+      //   client: algodClient,
+      //   txns: drtxns,
+      //   sources: [new algosdk.modelsv2.DryrunSource('lsig', fs.readFileSync(vaaVerifyStatelessProgramFilename).toString('utf8'))]
+      // })
+      // // const drobj = await algodClient.dryrun(dr).do()
+      // fs.writeFileSync('dump.dr', algosdk.encodeObj(dr.get_obj_for_encoding(true)))
 
       // Submit the transaction
       const tx = await this.algodClient.sendRawTransaction(signedGroup).do()
       this.groupTx = []
-      this.lsigs = {}
       return tx.txId
     }
 
     /**
      * VAA Processor: Add a verification step to a transaction group.
      * @param {*} sender The sender account (typically the VAA verification stateless program)
-     * @param {*} payload The VAA payload as Uint8Array.
+     * @param {*} payload The VAA payload.
      * @param {*} gksubset An hex string containing the keys for the guardian subset in this step.
      * @param {*} totalguardians The total number of known guardians.
-     * @param {LogicSigAccount} lsig The logic sig account that will sign this transaction
      */
-    this.addVerifyTx = function (sender, params, payload, gksubset, totalguardians, lsig) {
+    this.addVerifyTx = function (sender, params, payload, gksubset, totalguardians) {
       const appArgs = []
       appArgs.push(new Uint8Array(Buffer.from('verify')),
         new Uint8Array(Buffer.from(gksubset.join(''), 'hex')),
@@ -589,9 +604,9 @@ class PricecasterLib {
         this.appId,
         appArgs, undefined, undefined, undefined,
         new Uint8Array(payload))
-
       this.groupTx.push(tx)
-      this.lsigs[tx.txID] = lsig
+
+      return tx.txID()
     }
   }
 }
