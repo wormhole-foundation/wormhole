@@ -178,3 +178,13 @@ Run the bridge UI in devnet by supplying the `--bridge_ui` flag:
 
     tilt up -- --bridge_ui
 
+### Algorand
+
+Node logs:
+
+    kubectl exec -c algod algorand-0 -- tail -f /network/Node/node.log
+    kubectl exec -c algod algorand-0 -- tail -f /network/Primary/node.log
+
+Account list:
+
+    kubectl exec -c goal-kmd algorand-0 -- ./goal account list
