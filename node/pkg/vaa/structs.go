@@ -94,6 +94,8 @@ func (c ChainID) String() string {
 		return "bsc"
 	case ChainIDPolygon:
 		return "polygon"
+	case ChainIDAvalanche:
+		return "avalanche"
 	case ChainIDEthereumRopsten:
 		return "ethereum-ropsten"
 	default:
@@ -115,6 +117,8 @@ func ChainIDFromString(s string) (ChainID, error) {
 		return ChainIDBSC, nil
 	case "polygon":
 		return ChainIDPolygon, nil
+	case "avalanche":
+		return ChainIDAvalanche, nil
 	case "ethereum-ropsten":
 		return ChainIDEthereumRopsten, nil
 	default:
@@ -134,6 +138,9 @@ const (
 	ChainIDBSC ChainID = 4
 	// ChainIDPolygon is the ChainID of Polygon
 	ChainIDPolygon ChainID = 5
+	// ChainIDAvalanche is the ChainID of Avalanche
+	ChainIDAvalanche ChainID = 6
+
 	// ChainIDEthereumRopsten is the ChainID of Ethereum Ropsten
 	ChainIDEthereumRopsten ChainID = 10001
 
