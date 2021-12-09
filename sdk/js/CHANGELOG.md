@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.3
+
+### Added
+
+getSignedVAAHash
+
+getIsTransferCompleted
+
 ## 0.1.1
 
 ### Added
