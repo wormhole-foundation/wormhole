@@ -6,8 +6,6 @@ option go_package = "github.com/certusone/wormhole/node/pkg/proto/gossip/v1;goss
 
 message GossipMessage {
   oneof message {
-    // Deprecated: use SignedHeartbeat.
-    Heartbeat heartbeat = 1;
     SignedObservation signed_observation = 2;
     SignedHeartbeat signed_heartbeat = 3;
     SignedVAAWithQuorum signed_vaa_with_quorum = 4;

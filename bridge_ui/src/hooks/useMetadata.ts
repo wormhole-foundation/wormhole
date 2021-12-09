@@ -7,6 +7,7 @@ import {
 import { TokenInfo } from "@solana/spl-token-registry";
 import { useMemo } from "react";
 import { DataWrapper, getEmptyDataWrapper } from "../store/helpers";
+import { logoOverrides } from "../utils/consts";
 import { Metadata } from "../utils/metaplex";
 import useEvmMetadata, { EvmMetadata } from "./useEvmMetadata";
 import useMetaplexData from "./useMetaplexData";
@@ -67,9 +68,9 @@ const constructTerraMetadata = (
     const metadata = terraMetadata.data?.get(address);
     const tokenInfo = tokenMap.data?.mainnet[address];
     const obj = {
-      symbol: metadata?.symbol || tokenInfo?.symbol || undefined,
-      logo: metadata?.logo || tokenInfo?.icon || undefined,
-      tokenName: metadata?.tokenName || tokenInfo?.token || undefined,
+      symbol: tokenInfo?.symbol || metadata?.symbol || undefined,
+      logo: tokenInfo?.icon || metadata?.logo || undefined,
+      tokenName: tokenInfo?.name || metadata?.tokenName || undefined,
       decimals: metadata?.decimals || undefined,
     };
     data.set(address, obj);
@@ -95,7 +96,7 @@ const constructEthMetadata = (
     const meta = metadataMap.data?.get(address);
     const obj = {
       symbol: meta?.symbol || undefined,
-      logo: meta?.logo || undefined,
+      logo: logoOverrides.get(address) || meta?.logo || undefined,
       tokenName: meta?.tokenName || undefined,
       decimals: meta?.decimals,
     };

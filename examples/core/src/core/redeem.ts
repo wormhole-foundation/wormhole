@@ -32,11 +32,11 @@ export async function redeem(
     targetChain === CHAIN_ID_POLYGON ||
     targetChain === CHAIN_ID_BSC
   ) {
-    redeemEvm(signedVaa, targetChain, isNftTransfer);
+    await redeemEvm(signedVaa, targetChain, isNftTransfer);
   } else if (targetChain === CHAIN_ID_SOLANA) {
-    redeemSolana(signedVaa, isNftTransfer);
+    await redeemSolana(signedVaa, isNftTransfer);
   } else if (targetChain === CHAIN_ID_TERRA) {
-    redeemTerra(signedVaa);
+    await redeemTerra(signedVaa);
   } else {
     return;
   }

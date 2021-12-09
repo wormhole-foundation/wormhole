@@ -1,5 +1,5 @@
 {
-  "name": "@certusone/wormhole-examples",
+  "name": "@certusone/wormhole-rest-relayer",
   "version": "0.0.1",
   "description": "SDK for interacting with Wormhole",
   "homepage": "https://wormholenetwork.com",
@@ -14,25 +14,15 @@
     "start": "npm run build && node lib/index.js",
     "test": "jest --config jestconfig.json --verbose"
   },
-  "keywords": [
-    "wormhole",
-    "bridge",
-    "token",
-    "sdk",
-    "solana",
-    "ethereum",
-    "terra",
-    "bsc"
-  ],
-  "author": "certusone",
-  "license": "Apache-2.0",
   "devDependencies": {
     "@improbable-eng/grpc-web-node-http-transport": "^0.15.0",
+    "@openzeppelin/contracts": "^4.2.0",
+    "@typechain/ethers-v5": "^7.0.1",
     "@types/jest": "^27.0.2",
     "@types/long": "^4.0.1",
     "@types/node": "^16.6.1",
-    "axios": "^0.24.0",
-    "esm": "^3.2.25",
+    "@types/react": "^17.0.19",
+    "copy-dir": "^1.3.0",
     "ethers": "^5.4.4",
     "jest": "^27.3.1",
     "prettier": "^2.3.2",
@@ -47,8 +37,12 @@
     "@solana/spl-token": "^0.1.8",
     "@solana/web3.js": "^1.24.0",
     "@terra-money/terra.js": "^2.0.14",
-    "body-parser": "^1.19.0",
-    "dotenv": "^10.0.0",
-    "express": "^4.17.1"
+    "@terra-money/wallet-provider": "^2.2.0",
+    "bech32": "^2.0.0",
+    "cors": "^2.8.5",
+    "express": "^4.17.1",
+    "js-base64": "^3.6.1",
+    "protobufjs": "^6.11.2",
+    "rxjs": "^7.3.0"
   }
 }

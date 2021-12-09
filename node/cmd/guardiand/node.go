@@ -3,29 +3,19 @@ package guardiand
 import (
 	"context"
 	"fmt"
+	"github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/notify/discord"
+	"github.com/gagliardetto/solana-go/rpc"
 	"log"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"path"
 	"strings"
-	"syscall"
-
-	"github.com/certusone/wormhole/node/pkg/db"
-	"github.com/gagliardetto/solana-go/rpc"
 
 	solana_types "github.com/gagliardetto/solana-go"
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-
-	eth_common "github.com/ethereum/go-ethereum/common"
-	ethcrypto "github.com/ethereum/go-ethereum/crypto"
-	"github.com/libp2p/go-libp2p-core/crypto"
-	"github.com/libp2p/go-libp2p-core/peer"
-	"github.com/spf13/cobra"
-	"go.uber.org/zap"
-	"golang.org/x/sys/unix"
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/devnet"
@@ -38,6 +28,12 @@ import (
 	solana "github.com/certusone/wormhole/node/pkg/solana"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 	"github.com/certusone/wormhole/node/pkg/vaa"
+	eth_common "github.com/ethereum/go-ethereum/common"
+	ethcrypto "github.com/ethereum/go-ethereum/crypto"
+	"github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/spf13/cobra"
+	"go.uber.org/zap"
 
 	"github.com/certusone/wormhole/node/pkg/terra"
 
@@ -199,23 +195,6 @@ func rootLoggerName() string {
 	}
 }
 
-// lockMemory locks current and future pages in memory to protect secret keys from being swapped out to disk.
-// It's possible (and strongly recommended) to deploy Wormhole such that keys are only ever
-// stored in memory and never touch the disk. This is a privileged operation and requires CAP_IPC_LOCK.
-func lockMemory() {
-	err := unix.Mlockall(syscall.MCL_CURRENT | syscall.MCL_FUTURE)
-	if err != nil {
-		fmt.Printf("Failed to lock memory: %v (CAP_IPC_LOCK missing?)\n", err)
-		os.Exit(1)
-	}
-}
-
-// setRestrictiveUmask masks the group and world bits. This ensures that key material
-// and sockets we create aren't accidentally group- or world-readable.
-func setRestrictiveUmask() {
-	syscall.Umask(0077) // cannot fail
-}
-
 // NodeCmd represents the node command
 var NodeCmd = &cobra.Command{
 	Use:   "node",
@@ -228,8 +207,8 @@ func runNode(cmd *cobra.Command, args []string) {
 		fmt.Print(devwarning)
 	}
 
-	lockMemory()
-	setRestrictiveUmask()
+	common.LockMemory()
+	common.SetRestrictiveUmask()
 
 	// Refuse to run as root in production mode.
 	if !*unsafeDevMode && os.Geteuid() == 0 {
@@ -506,7 +485,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 		priv = devnet.DeterministicP2PPrivKeyByIndex(int64(idx))
 	} else {
-		priv, err = getOrCreateNodeKey(logger, *nodeKeyPath)
+		priv, err = common.GetOrCreateNodeKey(logger, *nodeKeyPath)
 		if err != nil {
 			logger.Fatal("Failed to load node key", zap.Error(err))
 		}

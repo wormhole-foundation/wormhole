@@ -193,6 +193,11 @@ func Run(obsvC chan *gossipv1.SignedObservation, sendC chan []byte, signedInC ch
 		}()
 
 		go func() {
+			// Disable heartbeat when no node name is provided (spy mode)
+			if nodeName == "" {
+				return
+			}
+
 			ctr := int64(0)
 			tick := time.NewTicker(15 * time.Second)
 			defer tick.Stop()

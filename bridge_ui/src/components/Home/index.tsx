@@ -1,5 +1,6 @@
 import {
   Card,
+  Chip,
   Container,
   Link,
   makeStyles,
@@ -7,7 +8,7 @@ import {
 } from "@material-ui/core";
 import { Link as RouterLink } from "react-router-dom";
 import { COLORS } from "../../muiTheme";
-import { BETA_CHAINS, CHAINS } from "../../utils/consts";
+import { BETA_CHAINS, CHAINS, COMING_SOON_CHAINS } from "../../utils/consts";
 import HeaderText from "../HeaderText";
 
 const useStyles = makeStyles((theme) => ({
@@ -115,6 +116,29 @@ function Home() {
                 className={classes.chainName}
               >
                 <div>{chain.name}</div>
+              </Typography>
+            </div>
+          ))}
+          {COMING_SOON_CHAINS.map((item) => (
+            <div className={classes.chainCard}>
+              <div className={classes.chainLogoWrapper}>
+                <img
+                  src={item.logo}
+                  alt={item.name}
+                  className={classes.chainLogo}
+                />
+                <Chip
+                  label="Coming soon"
+                  size="small"
+                  className={classes.chip}
+                />
+              </div>
+              <Typography
+                variant="body2"
+                component="div"
+                className={classes.chainName}
+              >
+                <div>{item.name}</div>
               </Typography>
             </div>
           ))}

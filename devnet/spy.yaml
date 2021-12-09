@@ -1,0 +1,60 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: spy
+  labels:
+    app: spy
+spec:
+  ports:
+    - port: 7072
+      name: spyrpc
+      protocol: TCP
+    - port: 6060
+      name: status
+      protocol: TCP
+  clusterIP: None
+  selector:
+    app: spy
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: spy
+spec:
+  selector:
+    matchLabels:
+      app: spy
+  serviceName: spy
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: spy
+    spec:
+      terminationGracePeriodSeconds: 0
+      containers:
+        - name: spy
+          image: guardiand-image
+          command:
+            - /guardiand
+            - spy
+            - --nodeKey
+            - /tmp/node.key
+            - --spyRPC
+            - "[::]:7072"
+            # Hardcoded devnet bootstrap (generated from deterministic key in guardiand)
+            - --bootstrap
+            - /dns4/guardian-0.guardian/udp/8999/quic/p2p/12D3KooWL3XJ9EMCyZvmmGXL2LMiVBtrVa2BuESsJiXkSj7333Jw
+#            - --logLevel=debug
+          ports:
+            - containerPort: 7072
+              name: spyrpc
+              protocol: TCP
+            - containerPort: 6060
+              name: status
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              port: 6060
+              path: /metrics

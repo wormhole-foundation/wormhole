@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
+	"github.com/certusone/wormhole/node/pkg/common"
 	"io/ioutil"
 	"log"
 	"os"
@@ -36,8 +37,8 @@ var KeygenCmd = &cobra.Command{
 }
 
 func runKeygen(cmd *cobra.Command, args []string) {
-	lockMemory()
-	setRestrictiveUmask()
+	common.LockMemory()
+	common.SetRestrictiveUmask()
 
 	log.Print("Creating new key at ", args[0])
 

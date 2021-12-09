@@ -14,6 +14,7 @@ import ethIcon from "../icons/eth.svg";
 import polygonIcon from "../icons/polygon.svg";
 import solanaIcon from "../icons/solana.svg";
 import terraIcon from "../icons/terra.svg";
+import oasisIcon from "../icons/oasis-network-rose-logo.svg";
 
 export type Cluster = "devnet" | "testnet" | "mainnet";
 export const CLUSTER: Cluster =
@@ -125,6 +126,14 @@ export const CHAINS_BY_ID: ChainsById = CHAINS.reduce((obj, chain) => {
   obj[chain.id] = chain;
   return obj;
 }, {} as ChainsById);
+
+export const COMING_SOON_CHAINS = [
+  {
+    id: 0,
+    name: "Oasis",
+    logo: oasisIcon,
+  },
+];
 export const getDefaultNativeCurrencySymbol = (chainId: ChainId) =>
   chainId === CHAIN_ID_SOLANA
     ? "SOL"
@@ -728,3 +737,10 @@ export const AVAILABLE_MARKETS_URL =
 export const SOLANA_SYSTEM_PROGRAM_ADDRESS = "11111111111111111111111111111111";
 export const FEATURED_MARKETS_JSON_URL =
   "https://raw.githubusercontent.com/certusone/wormhole-token-list/main/src/markets.json";
+
+export const logoOverrides = new Map<string, string>([
+  [
+    "0x727f064a78dc734d33eec18d5370aef32ffd46e4",
+    "https://orion.money/assets/ORION-LOGO-2.1-GREEN@256x256.png",
+  ],
+]);

@@ -9,7 +9,6 @@ plugins:
       - env=browser
       - forceLong=string
       - outputClientImpl=grpc-web
-      - explorer/src/proto
   - name: tsproto
     out: sdk/js/src/proto
     path: tools/node_modules/.bin/protoc-gen-ts_proto
@@ -19,4 +18,12 @@ plugins:
       - env=browser
       - forceLong=string
       - outputClientImpl=grpc-web
-      - bridge_ui/src/proto
+  - name: tsproto
+    out: spydk/js/src/proto
+    path: tools/node_modules/.bin/protoc-gen-ts_proto
+    opt:
+      - paths=source_relative
+      - esModuleInterop=true
+      - env=node
+      - forceLong=string
+      - outputServices=grpc-js

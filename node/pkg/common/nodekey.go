@@ -1,27 +1,26 @@
-package guardiand
+package common
 
 import (
 	"fmt"
-	"io/ioutil"
-	"os"
-
-	p2pcrypto "github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"go.uber.org/zap"
+	"io/ioutil"
+	"os"
 )
 
-func getOrCreateNodeKey(logger *zap.Logger, path string) (p2pcrypto.PrivKey, error) {
+func GetOrCreateNodeKey(logger *zap.Logger, path string) (crypto.PrivKey, error) {
 	b, err := ioutil.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			logger.Info("No node key found, generating a new one...", zap.String("path", path))
 
-			priv, _, err := p2pcrypto.GenerateKeyPair(p2pcrypto.Ed25519, -1)
+			priv, _, err := crypto.GenerateKeyPair(crypto.Ed25519, -1)
 			if err != nil {
 				panic(err)
 			}
 
-			s, err := p2pcrypto.MarshalPrivateKey(priv)
+			s, err := crypto.MarshalPrivateKey(priv)
 			if err != nil {
 				panic(err)
 			}
@@ -37,7 +36,7 @@ func getOrCreateNodeKey(logger *zap.Logger, path string) (p2pcrypto.PrivKey, err
 		}
 	}
 
-	priv, err := p2pcrypto.UnmarshalPrivateKey(b)
+	priv, err := crypto.UnmarshalPrivateKey(b)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal node key: %w", err)
 	}

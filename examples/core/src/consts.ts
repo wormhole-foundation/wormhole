@@ -2,6 +2,7 @@ import {
   ChainId,
   CHAIN_ID_BSC,
   CHAIN_ID_ETH,
+  CHAIN_ID_ETHEREUM_ROPSTEN,
   CHAIN_ID_POLYGON,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
@@ -182,14 +183,12 @@ export const WORMHOLE_RPC_HOSTS =
         "https://wormhole-v2-mainnet.01node.com",
       ]
     : CLUSTER === "testnet"
-    ? [
-        "https://wormhole-v2-testnet-api.certus.one",
-      ]
+    ? ["https://wormhole-v2-testnet-api.certus.one"]
     : ["http://localhost:7071"];
 
 export const ETH_NODE_URL = "ws://localhost:8545"; //TODO testnet
 export const POLYGON_NODE_URL = "ws:localhost:0000"; //TODO
-export const BSC_NODE_URL = "ws://localhost:8545"; //TODO testnet
+export const BSC_NODE_URL = "ws://localhost:8546"; //TODO testnet
 export const ETH_PRIVATE_KEY =
   "0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d";
 
@@ -201,13 +200,16 @@ export const SOLANA_PRIVATE_KEY = new Uint8Array([
 ]);
 
 export function getSignerForChain(chainId: ChainId): Signer {
-  const provider = new ethers.providers.WebSocketProvider(
+  const nodeUrl =
     chainId === CHAIN_ID_POLYGON
       ? POLYGON_NODE_URL
       : chainId === CHAIN_ID_BSC
       ? BSC_NODE_URL
-      : ETH_NODE_URL
-  );
+      : chainId === CHAIN_ID_ETH
+      ? ETH_NODE_URL
+      : null;
+  console.log("NODE URL", nodeUrl, "chain", chainId);
+  const provider = new ethers.providers.WebSocketProvider(nodeUrl) as any;
   const signer = new ethers.Wallet(ETH_PRIVATE_KEY, provider);
   return signer;
 }
@@ -218,3 +220,25 @@ export const ETH_TEST_WALLET_PUBLIC_KEY =
 export const SOLANA_TEST_TOKEN = "2WDq7wSs9zYrpx2kbHDA4RUTRch2CCTP6ZWaH4GNfnQQ"; //SOLT on devnet
 export const SOLANA_TEST_WALLET_PUBLIC_KEY =
   "6sbzC1eH4FTujJXWj51eQe25cYvr4xfXbJ1vAj7j2k5J";
+
+export const ALL_CHAINS =
+  CLUSTER === "devnet"
+    ? [CHAIN_ID_BSC, CHAIN_ID_ETH, CHAIN_ID_SOLANA, CHAIN_ID_TERRA]
+    : CLUSTER === "testnet"
+    ? [
+        CHAIN_ID_BSC,
+        CHAIN_ID_ETH,
+        CHAIN_ID_SOLANA,
+        CHAIN_ID_TERRA,
+        CHAIN_ID_ETHEREUM_ROPSTEN,
+        CHAIN_ID_POLYGON,
+      ]
+    : [
+        CHAIN_ID_BSC,
+        CHAIN_ID_ETH,
+        CHAIN_ID_SOLANA,
+        CHAIN_ID_TERRA,
+        CHAIN_ID_POLYGON,
+      ];
+
+export const WETH_ADDRESS = "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E";
