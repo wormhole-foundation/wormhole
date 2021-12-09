@@ -57,6 +57,7 @@ import {
 } from "../store/transferSlice";
 import {
   COVALENT_GET_TOKENS_URL,
+  logoOverrides,
   ROPSTEN_WETH_ADDRESS,
   ROPSTEN_WETH_DECIMALS,
   SOLANA_HOST,
@@ -167,7 +168,7 @@ const createParsedTokenAccountFromCovalent = (
     uiAmountString: formatUnits(covalent.balance, covalent.contract_decimals),
     symbol: covalent.contract_ticker_symbol,
     name: covalent.contract_name,
-    logo: covalent.logo_url,
+    logo: logoOverrides.get(covalent.contract_address) || covalent.logo_url,
   };
 };
 

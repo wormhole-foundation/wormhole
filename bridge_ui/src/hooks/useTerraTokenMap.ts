@@ -16,6 +16,7 @@ export type TerraTokenMetadata = {
   symbol: string;
   token: string;
   icon: string;
+  name?: string;
   balance?: string; // populated by native tokens, could move to a type that extends this
 };
 

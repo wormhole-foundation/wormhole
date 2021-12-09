@@ -23,6 +23,7 @@ import {
   CHAINS_BY_ID,
   COVALENT_GET_TOKENS_URL,
   ETH_TOKEN_BRIDGE_ADDRESS,
+  logoOverrides,
   POLYGON_TOKEN_BRIDGE_ADDRESS,
   SOLANA_HOST,
   SOL_CUSTODY_ADDRESS,
@@ -69,7 +70,10 @@ const calcEvmTVL = (covalentReport: any, chainId: ChainId): TVL[] => {
         BAD_PRICES_BY_CHAIN[chainId]?.includes(item.contract_address) ||
         item.quote_rate > 1000000;
       output.push({
-        logo: item.logo_url || undefined,
+        logo:
+          logoOverrides.get(item.contract_address) ||
+          item.logo_url ||
+          undefined,
         symbol: item.contract_ticker_symbol || undefined,
         name: item.contract_name || undefined,
         amount: formatUnits(item.balance, item.contract_decimals),
