@@ -9,7 +9,6 @@ const spawnSync = require('child_process').spawnSync
 const fs = require('fs')
 const TestLib = require('../test/testlib.js')
 const { makePaymentTxnWithSuggestedParams } = require('algosdk')
-const { doesNotMatch } = require('assert')
 const testLib = new TestLib.TestLib()
 let pclib
 let algodClient
@@ -23,7 +22,7 @@ const SIGNATURES = {}
 SIGNATURES[OWNER_ADDR] = algosdk.mnemonicToSecretKey(OWNER_MNEMO)
 SIGNATURES[OTHER_ADDR] = algosdk.mnemonicToSecretKey(OTHER_MNEMO)
 
-const gkeys = [
+const guardianKeys = [
   '52A26Ce40F8CAa8D36155d37ef0D5D783fc614d2',
   '389A74E8FFa224aeAD0778c786163a7A2150768C',
   'B4459EA6482D4aE574305B239B4f2264239e7599',
@@ -45,7 +44,7 @@ const gkeys = [
   '1c0Cc52D7673c52DE99785741344662F5b2308a0'
 
 ]
-const sigkeys = [
+const guardianPrivKeys = [
   '563d8d2fd4e701901d3846dee7ae7a92c18f1975195264d676f8407ac5976757',
   '8d97f25916a755df1d9ef74eb4dbebc5f868cb07830527731e94478cdc2b9d5f',
   '9bd728ad7617c05c31382053b57658d4a8125684c0098f740a054d87ddc0e93b',
@@ -68,7 +67,20 @@ const sigkeys = [
 ]
 
 const PYTH_EMITTER = '0x3afda841c1f43dd7d546c8a581ba1f92a139f4133f9f6ab095558f6a359df5d4'
+const OTHER_EMITTER = '0x1111111111111111111111111111111111111111111111111111111111111111'
 const PYTH_PAYLOAD = '50325748000101230abfe0ec3b460bd55fc4fb36356716329915145497202b8eb8bf1af6a0a3b9fe650f0367d4a7ef9815a593ea15d36593f0643aaaf0149bb04be67ab851decd010000002f17254388fffffff70000002eed73d9000000000070d3b43f0000000037faa03d000000000e9e555100000000894af11c0000000037faa03d000000000dda6eb801000000000061a5ff9a'
+const OTHER_PAYLOAD = 'f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0'
+
+let pythVaa
+let pythVaaBody
+let pythVaaSignatures
+let otherVaa
+let otherVaaBody
+let otherVaaSignatures
+
+// --------------------------------------------------------------------------
+// Utility functions
+// --------------------------------------------------------------------------
 
 async function createApp (gsexptime, gsindex, gkeys) {
   const txId = await pclib.createVaaProcessorApp(OWNER_ADDR, gsexptime, gsindex, gkeys.join(''), signCallback)
@@ -89,6 +101,31 @@ async function getTxParams () {
   params.flatFee = true
   return params
 }
+
+async function execVerify (groupSize, vsSize, gkeys, signatures, vaaBody, gscount, fee, sender, verifyCallback) {
+  const params = await getTxParams()
+  if (fee !== undefined) {
+    params.fee = fee
+  }
+  const senderAddress = sender !== undefined ? sender : verifyProgramHash
+  const verifyCallbackFn = verifyCallback !== undefined ? verifyCallback : pclib.addVerifyTx.bind(pclib)
+  pclib.beginTxGroup()
+  const sigSubsets = []
+  for (let i = 0; i < groupSize; i++) {
+    const st = vsSize * i
+    const keySubset = gkeys.slice(st, i < groupSize - 1 ? st + vsSize : undefined)
+    sigSubsets.push(signatures.slice(i * 132 * vsSize, i < groupSize - 1 ? ((i * 132 * vsSize) + 132 * vsSize) : undefined))
+    verifyCallbackFn(senderAddress, params, vaaBody, keySubset, gscount)
+  }
+  const tx = await pclib.commitVerifyTxGroup(compiledVerifyProgram.compiledBytes, sigSubsets)
+  return tx
+}
+
+// ===============================================================================================================
+//
+// Test suite starts here
+//
+// ===============================================================================================================
 
 describe('VAA Processor Smart-contract Tests', function () {
   let appId
@@ -120,30 +157,41 @@ describe('VAA Processor Smart-contract Tests', function () {
     pclib.setVaaProcessorApprovalFile(vaaProcessorApproval)
     pclib.setVaaProcessorClearStateFile(vaaProcessorClearState)
     console.log(spawnSync('python', ['teal/wormhole/pyteal/vaa-processor.py', vaaProcessorApproval, vaaProcessorClearState]).output.toString())
+
+    pythVaa = testLib.createSignedVAA(0, guardianPrivKeys, 1, 1, 1, PYTH_EMITTER, 0, 0, PYTH_PAYLOAD)
+    pythVaaBody = Buffer.from(pythVaa.substr(12 + guardianPrivKeys.length * 132), 'hex')
+    pythVaaSignatures = pythVaa.substr(12, guardianPrivKeys.length * 132)
+
+    otherVaa = testLib.createSignedVAA(0, guardianPrivKeys, 1, 1, 1, OTHER_EMITTER, 0, 0, OTHER_PAYLOAD)
+    otherVaaBody = Buffer.from(otherVaa.substr(12 + guardianPrivKeys.length * 132), 'hex')
+    otherVaaSignatures = otherVaa.substr(12, guardianPrivKeys.length * 132)
   }
   )
+
   it('Must fail to create app with incorrect guardian keys length', async function () {
     const gsexptime = 2524618800
     await expect(createApp(gsexptime, 0, ['BADADDRESS'])).to.be.rejectedWith('Bad Request')
   })
+
   it('Must create app with initial guardians and proper initial state', async function () {
     const gsexptime = 2524618800
-    appId = await createApp(gsexptime, 0, gkeys)
+    appId = await createApp(gsexptime, 0, guardianKeys)
     console.log('    - [Created appId: %d]', appId)
 
     const gscount = await tools.readAppGlobalStateByKey(algodClient, appId, OWNER_ADDR, 'gscount')
     const gsexp = await tools.readAppGlobalStateByKey(algodClient, appId, OWNER_ADDR, 'gsexp')
-    expect(gscount.toString()).to.equal((gkeys.length).toString())
+    expect(gscount.toString()).to.equal((guardianKeys.length).toString())
     expect(gsexp.toString()).to.equal(gsexptime.toString())
 
     let i = 0
     const buf = Buffer.alloc(8)
-    for (const gk of gkeys) {
+    for (const gk of guardianKeys) {
       buf.writeBigUint64BE(BigInt(i++))
       const gkstate = await tools.readAppGlobalStateByKey(algodClient, appId, OWNER_ADDR, buf.toString())
       expect(Buffer.from(gkstate, 'base64').toString('hex')).to.equal(gk.toLowerCase())
     }
   })
+
   it('Must set stateless logic hash from owner', async function () {
     const teal = 'test/temp/vaa-verify.teal'
     spawnSync('python', ['teal/wormhole/pyteal/vaa-verify.py', appId, teal])
@@ -164,9 +212,11 @@ describe('VAA Processor Smart-contract Tests', function () {
     await algodClient.sendRawTransaction(signedTx).do()
     await pclib.waitForTransactionResponse(tx.txID().toString())
   })
+
   it('Must disallow setting stateless logic hash from non-owner', async function () {
     await expect(pclib.setVAAVerifyProgramHash(OTHER_ADDR, verifyProgramHash, signCallback)).to.be.rejectedWith('Bad Request')
   })
+
   it('Must reject setting stateless logic hash from group transaction', async function () {
     const appArgs = [new Uint8Array(Buffer.from('setvphash')), new Uint8Array(verifyProgramHash)]
     const params = await getTxParams()
@@ -178,40 +228,59 @@ describe('VAA Processor Smart-contract Tests', function () {
     pclib.addTxToGroup(dummyTx)
     await expect(pclib.commitTxGroup(OWNER_ADDR, signCallback)).to.be.rejectedWith('Bad Request')
   })
+
   it('Must reject setting stateless logic hash with invalid address length', async function () {
     const appArgs = [new Uint8Array(Buffer.from('setvphash')), new Uint8Array(verifyProgramHash).subarray(0, 10)]
     await expect(pclib.callApp(OWNER_ADDR, appArgs, [], signCallback)).to.be.rejectedWith('Bad Request')
   })
+
   it('Must reject incorrect transaction group size', async function () {
     const gscount = await tools.readAppGlobalStateByKey(algodClient, appId, OWNER_ADDR, 'gscount')
     const vssize = await tools.readAppGlobalStateByKey(algodClient, appId, OWNER_ADDR, 'vssize')
     const badSize = 1 + Math.ceil(gscount / vssize)
-    const params = await getTxParams()
-    const vaa = testLib.createSignedVAA(0, sigkeys, 1, 1, 1, PYTH_EMITTER, 0, 0, PYTH_PAYLOAD)
-    const vaaBody = Buffer.from(vaa.substr(12 + sigkeys.length * 132), 'hex')
-    const signatures = vaa.substr(12, sigkeys.length * 132)
-
-    pclib.beginTxGroup()
-
-    const sigSubsets = []
-    for (let i = 0; i < badSize; i++) {
-      sigSubsets.push(signatures.slice(i * 132 * vssize, i < badSize - 1 ? ((i * 132 * vssize) + 132 * vssize) : undefined))
-      const keySubset = gkeys.slice(vssize * i, i < badSize - 1 ? ((vssize * i) + vssize) : undefined)
-      pclib.addVerifyTx(verifyProgramHash, params, vaaBody, keySubset, gscount)
-    }
-    await expect(pclib.commitVerifyTxGroup(compiledVerifyProgram.compiledBytes, sigSubsets)).to.be.rejectedWith('Bad Request')
+    await expect(execVerify(badSize, vssize, guardianKeys, pythVaaSignatures, pythVaaBody, gscount)).to.be.rejectedWith('Bad Request')
   })
+
   it('Must reject incorrect argument count for verify call', async function () {
+    const verifyFunc = function (sender, params, payload, gksubset, totalguardians) {
+      const appArgs = []
+      appArgs.push(new Uint8Array(Buffer.from('verify')))
+      const tx = algosdk.makeApplicationNoOpTxn(sender,
+        params,
+        appId,
+        appArgs, undefined, undefined, undefined,
+        new Uint8Array(payload))
+      pclib.groupTx.push(tx)
 
+      return tx.txID()
+    }
+    pclib.beginTxGroup()
+    const gscount = await tools.readAppGlobalStateByKey(algodClient, appId, OWNER_ADDR, 'gscount')
+    const vssize = await tools.readAppGlobalStateByKey(algodClient, appId, OWNER_ADDR, 'vssize')
+    const groupSize = Math.ceil(gscount / vssize)
+    await expect(execVerify(groupSize, vssize, guardianKeys, pythVaaSignatures, pythVaaBody, gscount, undefined, undefined, verifyFunc)).to.be.rejectedWith('Bad Request')
   })
+
   it('Must reject unknown sender for verify call', async function () {
-
+    const gscount = await tools.readAppGlobalStateByKey(algodClient, appId, OWNER_ADDR, 'gscount')
+    const vssize = await tools.readAppGlobalStateByKey(algodClient, appId, OWNER_ADDR, 'vssize')
+    const groupSize = Math.ceil(gscount / vssize)
+    await expect(execVerify(groupSize, vssize, guardianKeys, pythVaaSignatures, pythVaaBody, gscount, undefined, OTHER_ADDR)).to.be.rejectedWith('Bad Request')
   })
+
   it('Must reject guardian set count argument not matching global state', async function () {
-
+    const gscount = await tools.readAppGlobalStateByKey(algodClient, appId, OWNER_ADDR, 'gscount')
+    const vssize = await tools.readAppGlobalStateByKey(algodClient, appId, OWNER_ADDR, 'vssize')
+    const groupSize = Math.ceil(gscount / vssize)
+    await expect(execVerify(groupSize, vssize, guardianKeys, pythVaaSignatures, pythVaaBody, 2)).to.be.rejectedWith('Bad Request')
   })
-  it('Must reject guardian key list argument not matching global state', async function () {
 
+  it('Must reject guardian key list argument not matching global state', async function () {
+    const gscount = await tools.readAppGlobalStateByKey(algodClient, appId, OWNER_ADDR, 'gscount')
+    const vssize = await tools.readAppGlobalStateByKey(algodClient, appId, OWNER_ADDR, 'vssize')
+    const groupSize = Math.ceil(gscount / vssize)
+    const gkBad = guardianKeys.slice(0, guardianKeys.length - 3)
+    await expect(execVerify(groupSize, vssize, gkBad, pythVaaSignatures, pythVaaBody, 2)).to.be.rejectedWith('Bad Request')
   })
   it('Must reject non-app call transaction in group', async function () {
 
@@ -222,54 +291,58 @@ describe('VAA Processor Smart-contract Tests', function () {
   it('Must reject transaction with not verified bit set in group', async function () {
 
   })
+
   it('Must verify and handle Pyth VAA', async function () {
     const gscount = await tools.readAppGlobalStateByKey(algodClient, appId, OWNER_ADDR, 'gscount')
     const vssize = await tools.readAppGlobalStateByKey(algodClient, appId, OWNER_ADDR, 'vssize')
     const groupSize = Math.ceil(gscount / vssize)
-    const params = await getTxParams()
-    const vaa = testLib.createSignedVAA(0, sigkeys, 1, 1, 1, PYTH_EMITTER, 0, 0, PYTH_PAYLOAD)
-    const vaaBody = Buffer.from(vaa.substr(12 + sigkeys.length * 132), 'hex')
-    const signatures = vaa.substr(12, sigkeys.length * 132)
-
-    pclib.beginTxGroup()
-    const sigSubsets = []
-    for (let i = 0; i < groupSize; i++) {
-      const st = vssize * i
-      const keySubset = gkeys.slice(st, i < groupSize - 1 ? st + vssize : undefined)
-      sigSubsets.push(signatures.slice(i * 132 * vssize, i < groupSize - 1 ? ((i * 132 * vssize) + 132 * vssize) : undefined))
-      pclib.addVerifyTx(verifyProgramHash, params, vaaBody, keySubset, gscount)
-    }
-    await pclib.commitVerifyTxGroup(compiledVerifyProgram.compiledBytes, sigSubsets)
+    const tx = await execVerify(groupSize, vssize, guardianKeys, pythVaaSignatures, pythVaaBody, gscount)
     await pclib.waitForConfirmation(tx)
   })
   it('Must verify and handle governance VAA', async function () {
-
+    // TBD
   })
-  it('Must reject unknown VAA', async function () {
 
+  it('Must reject unknown emitter VAA', async function () {
+    const gscount = await tools.readAppGlobalStateByKey(algodClient, appId, OWNER_ADDR, 'gscount')
+    const vssize = await tools.readAppGlobalStateByKey(algodClient, appId, OWNER_ADDR, 'vssize')
+    const groupSize = Math.ceil(gscount / vssize)
+    await expect(execVerify(groupSize, vssize, guardianKeys, otherVaaSignatures, otherVaaBody, gscount)).to.be.rejectedWith('Bad Request')
   })
+
   it('Stateless: Must reject transaction with excess fee', async function () {
-
+    const gscount = await tools.readAppGlobalStateByKey(algodClient, appId, OWNER_ADDR, 'gscount')
+    const vssize = await tools.readAppGlobalStateByKey(algodClient, appId, OWNER_ADDR, 'vssize')
+    const groupSize = Math.ceil(gscount / vssize)
+    await expect(execVerify(groupSize, vssize, guardianKeys, pythVaaSignatures, pythVaaBody, gscount, 800000)).to.be.rejectedWith('Bad Request')
   })
+
   it('Stateless: Must reject incorrect number of logic program arguments', async function () {
 
   })
-  it('Stateless: Must reject transaction with mismatching number of signatures', async function () {
 
+  it('Stateless: Must reject transaction with mismatching number of signatures', async function () {
+    const gscount = await tools.readAppGlobalStateByKey(algodClient, appId, OWNER_ADDR, 'gscount')
+    const vssize = await tools.readAppGlobalStateByKey(algodClient, appId, OWNER_ADDR, 'vssize')
+    const groupSize = Math.ceil(gscount / vssize)
+    const pythVaaSignatures2 = pythVaaSignatures.substr(0, pythVaaSignatures.length - 132 - 1)
+    await expect(execVerify(groupSize, vssize, guardianKeys, pythVaaSignatures2, pythVaaBody, gscount)).to.be.rejectedWith('Bad Request')
   })
+
   it('Stateless: Must reject transaction with non-zero rekey', async function () {
 
   })
+
   it('Stateless: Must reject transaction call from bad app-id', async function () {
 
   })
-  it('Stateless: Must reject non-app call tx type', async function () {
 
-  })
-  it('Stateless: Must reject invalid group size', async function () {
-
-  })
   it('Stateless: Must reject signature verification failure', async function () {
-
+    const gscount = await tools.readAppGlobalStateByKey(algodClient, appId, OWNER_ADDR, 'gscount')
+    const vssize = await tools.readAppGlobalStateByKey(algodClient, appId, OWNER_ADDR, 'vssize')
+    const groupSize = Math.ceil(gscount / vssize)
+    let pythVaaSignatures2 = pythVaaSignatures.substr(0, pythVaaSignatures.length - 132 - 1)
+    pythVaaSignatures2 += '0d525ac1524ec9d9ee623ef535a867e8f86d9b3f8e4c7b4234dbe7bb40dc8494327af2fa37c3db50064d6114f2e1441c4eee444b83636f11ce1f730f7b38490e2800'
+    await expect(execVerify(groupSize, vssize, guardianKeys, pythVaaSignatures2, pythVaaBody, gscount)).to.be.rejectedWith('Bad Request')
   })
 })

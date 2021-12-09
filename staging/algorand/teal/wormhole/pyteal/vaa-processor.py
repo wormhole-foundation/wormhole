@@ -175,7 +175,7 @@ def commit_vaa():
         )).Then(
             Return(handle_pyth_price_ticker())
         ).Else(
-            Return(Int(0))
+            Reject()
         )
     ])
 
