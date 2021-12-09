@@ -50,7 +50,7 @@ There will be three different payloads:
 
 * Transfer - Will trigger the release of locked NFTs or minting of wrapped NFTs.
 
-Identical to the NFT bridge:
+Identical to the token bridge:
 
 * RegisterChain - Register the NFT bridge contract (emitter address) for a foreign chain.
 * UpgradeContract - Upgrade the contract.
