@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.4
+
+initial AVAX testnet support
+
 ## 0.1.3
 
 ### Added

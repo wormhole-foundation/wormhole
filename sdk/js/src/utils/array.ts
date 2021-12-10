@@ -6,17 +6,22 @@ import {
   CHAIN_ID_TERRA,
   CHAIN_ID_POLYGON,
   CHAIN_ID_ETHEREUM_ROPSTEN,
+  CHAIN_ID_AVAX,
 } from "./consts";
 import { humanAddress, canonicalAddress, isNativeDenom } from "../terra";
 import { PublicKey } from "@solana/web3.js";
 import { hexValue, hexZeroPad, stripZeros } from "ethers/lib/utils";
 import { arrayify, zeroPad } from "@ethersproject/bytes";
 
-export const isEVMChain = (chainId: ChainId) =>
-  chainId === CHAIN_ID_ETH ||
-  chainId === CHAIN_ID_BSC ||
-  chainId === CHAIN_ID_ETHEREUM_ROPSTEN ||
-  chainId === CHAIN_ID_POLYGON;
+export const isEVMChain = (chainId: ChainId) => {
+  return (
+    chainId === CHAIN_ID_ETH ||
+    chainId === CHAIN_ID_BSC ||
+    chainId === CHAIN_ID_ETHEREUM_ROPSTEN ||
+    chainId === CHAIN_ID_AVAX ||
+    chainId === CHAIN_ID_POLYGON
+  );
+};
 
 export const isHexNativeTerra = (h: string) => h.startsWith("01");
 export const nativeTerraHexToDenom = (h: string) =>
