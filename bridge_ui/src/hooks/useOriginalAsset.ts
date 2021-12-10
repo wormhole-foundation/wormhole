@@ -15,8 +15,8 @@ import {
   getOriginalAssetSol as getOriginalAssetSolNFT,
   WormholeWrappedNFTInfo,
 } from "@certusone/wormhole-sdk/lib/esm/nft_bridge";
-import { Web3Provider } from "@certusone/wormhole-sdk/node_modules/@ethersproject/providers";
-import { ethers } from "@certusone/wormhole-sdk/node_modules/ethers";
+import { Web3Provider } from "@ethersproject/providers";
+import { ethers } from "ethers";
 import { Connection } from "@solana/web3.js";
 import { LCDClient } from "@terra-money/terra.js";
 import { useCallback, useEffect, useMemo, useState } from "react";

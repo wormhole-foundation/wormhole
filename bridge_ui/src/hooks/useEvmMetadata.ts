@@ -1,5 +1,5 @@
 import { ChainId, isEVMChain } from "@certusone/wormhole-sdk";
-import { ethers } from "@certusone/wormhole-sdk/node_modules/ethers";
+import { ethers } from "ethers";
 import { useEffect, useMemo, useState } from "react";
 import {
   Provider,
