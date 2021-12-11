@@ -1,0 +1,67 @@
+name: Build
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches:
+      - dev.v2
+      - switch-to-gha  # XXX
+jobs:
+  # Run the full Tilt build and wait for it to converge
+  tilt:
+    runs-on: tilt-kube-public
+
+    # Cancel previous builds on the same branch/ref. Full runs are expensive
+    # and capacity is limited, so we want to avoid running multiple builds
+    # in parallel even if it means skipping CI runs on permanent branches
+    # (unfortunately, we can't differentiate between temporary and permanent
+    # refs without duplicating the entire logic).
+    concurrency:
+      group: tilt-${{ github.ref }}
+      cancel-in-progress: true
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Expand for link to Tilt dashboard (only available during build)
+        run: >
+          echo "Tilt progress dashboard: https://$DASHBOARD_URL"
+      - run: |
+          kubectl config set-context ci --namespace=$DEPLOY_NS
+          kubectl config use-context ci
+
+      # TODO: Work around what is presumably a bug in the explorer Tilt code -
+      # Buildpack won't pull the image itself on a cold cache
+      # https://github.com/certusone/wormhole/issues/575
+      - run: docker pull gcr.io/buildpacks/builder:v1
+
+      - run: tilt ci -- --ci --namespace=$DEPLOY_NS --num=1
+        timeout-minutes: 60
+
+      # Clean up k8s resources
+      - run: kubectl delete --namespace=$DEPLOY_NS service,statefulset,configmap,pod --all
+        if: always()
+
+  # Verify whether the Makefile builds the node (no dependencies other than Go)
+  node:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-go@v2
+        with:
+          go-version: '1.17.5'
+      - run: make node
+
+  # Run linters. This is just Go and Protobuf for now, but could include things
+  # like rustfmt as well.
+  lint:
+    # The linter is slow enough that we want to run it on the self-hosted runner
+    runs-on: tilt-kube-public
+    concurrency:
+      group: tilt-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-go@v2
+        with:
+          go-version: '1.17.5'
+      - run: make generate && ./lint.sh
