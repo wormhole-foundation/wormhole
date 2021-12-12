@@ -40,7 +40,7 @@ sudo apt-get -y install bash-completion git git-review vim
 
 # Install Go
 ARCH=amd64
-GO=1.17.3
+GO=1.17.5
 
 (
   if [[ -d /usr/local/go ]]; then
