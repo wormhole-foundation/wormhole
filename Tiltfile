@@ -304,6 +304,24 @@ k8s_resource(
     trigger_mode = trigger_mode,
 )
 
+# e2e
+k8s_yaml_with_ns("devnet/e2e.yaml")
+
+docker_build(
+    ref = "e2e",
+    context = "e2e",
+    dockerfile = "e2e/Dockerfile",
+    network = "host",
+)
+
+k8s_resource(
+    "e2e",
+    port_forwards = [
+        port_forward(6080, name = "VNC [:6080]", host = webHost, link_path = "/vnc_auto.html"),
+    ],
+    trigger_mode = trigger_mode,
+)
+
 # bigtable
 
 def build_cloud_function(container_name, go_func_name, path, builder):
