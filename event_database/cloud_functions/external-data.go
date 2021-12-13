@@ -284,3 +284,60 @@ func fetchSolanaTokenList() map[string]SolanaToken {
 	}
 	return solTokens
 }
+
+const solanaBeachPublicBaseURL = "https://prod-api.solana.surf/v1/"
+const solanaBeachPrivateBaseURL = "https://api.solanabeach.io/v1/"
+
+type SolanaBeachAccountOwner struct {
+	Owner SolanaBeachAccountOwnerAddress `json:"owner"`
+}
+type SolanaBeachAccountOwnerAddress struct {
+	Address string `json:"address"`
+}
+type SolanaBeachAccountResponse struct {
+	Value struct {
+		Extended struct {
+			SolanaBeachAccountOwner
+		} `json:"extended"`
+	} `json:"value"`
+}
+
+func fetchSolanaAccountOwner(account string) string {
+	baseUrl := solanaBeachPublicBaseURL
+
+	sbApiKey := os.Getenv("SOLANABEACH_API_KEY")
+	if sbApiKey != "" {
+		baseUrl = solanaBeachPrivateBaseURL
+	}
+
+	url := fmt.Sprintf("%vaccount/%v", baseUrl, account)
+	req, reqErr := http.NewRequest("GET", url, nil)
+	if reqErr != nil {
+		log.Fatalf("failed solanabeach request, err: %v", reqErr)
+	}
+
+	if sbApiKey != "" {
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %v", sbApiKey))
+	}
+
+	res, resErr := http.DefaultClient.Do(req)
+	if resErr != nil {
+		log.Fatalf("failed get solana beach account response, err: %v", resErr)
+	}
+
+	defer res.Body.Close()
+	body, bodyErr := ioutil.ReadAll(res.Body)
+	if bodyErr != nil {
+		log.Fatalf("failed decoding solana beach account body, err: %v", bodyErr)
+	}
+
+	var parsed SolanaBeachAccountResponse
+
+	parseErr := json.Unmarshal(body, &parsed)
+	if parseErr != nil {
+		log.Printf("failed parsing body. err %v\n", parseErr)
+	}
+	address := parsed.Value.Extended.Owner.Address
+	log.Println("got owner address from Solana Beach! ", address)
+	return address
+}
