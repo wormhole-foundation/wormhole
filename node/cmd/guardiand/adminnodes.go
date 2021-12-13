@@ -77,15 +77,15 @@ func runListNodes(cmd *cobra.Command, args []string) {
 	if isTestnet {
 		// Include Ropsten in testnet mode
 		if showDetails {
-			_, _ = w.Write([]byte("Node key\tGuardian key\tNode name\tVersion\tLast seen\tUptime\tSolana\tEthereum\tTerra\tBSC\tPolygon\tAvalanche\tRopsten\n"))
+			_, _ = w.Write([]byte("Node key\tGuardian key\tNode name\tVersion\tLast seen\tUptime\tSolana\tEthereum\tTerra\tBSC\tPolygon\tAvalanche\tAlgorand\tRopsten\n"))
 		} else {
-			_, _ = w.Write([]byte("Node key\tGuardian key\tNode name\tVersion\tLast seen\tSolana\tEthereum\tTerra\tBSC\tPolygon\tAvalanche\tRopsten\n"))
+			_, _ = w.Write([]byte("Node key\tGuardian key\tNode name\tVersion\tLast seen\tSolana\tEthereum\tTerra\tBSC\tPolygon\tAvalanche\tAlgorand\tRopsten\n"))
 		}
 	} else {
 		if showDetails {
-			_, _ = w.Write([]byte("Node key\tGuardian key\tNode name\tVersion\tLast seen\tUptime\tSolana\tEthereum\tTerra\tBSC\tPolygon\n"))
+			_, _ = w.Write([]byte("Node key\tGuardian key\tNode name\tVersion\tLast seen\tUptime\tSolana\tEthereum\tTerra\tBSC\tPolygon\n\tAlgorand"))
 		} else {
-			_, _ = w.Write([]byte("Node key\tGuardian key\tNode name\tVersion\tLast seen\tSolana\tEthereum\tTerra\tBSC\tPolygon\n"))
+			_, _ = w.Write([]byte("Node key\tGuardian key\tNode name\tVersion\tLast seen\tSolana\tEthereum\tTerra\tBSC\tPolygon\n\tAlgorand"))
 		}
 	}
 
@@ -113,7 +113,7 @@ func runListNodes(cmd *cobra.Command, args []string) {
 		if isTestnet {
 			if showDetails {
 				fmt.Fprintf(w,
-					"%s\t%s\t%s\t%s\t%s\t%s\t%s %d (%d)\t%s %d (%d)\t%s %d (%d)\t%s %d (%d)\t%s %d (%d)\t%s %d (%d)\t%s %d (%d)\n",
+					"%s\t%s\t%s\t%s\t%s\t%s\t%s %d (%d)\t%s %d (%d)\t%s %d (%d)\t%s %d (%d)\t%s %d (%d)\t%s %d (%d)\t%s %d (%d)\t%s %d (%d)\n",
 					h.P2PNodeAddr,
 					h.RawHeartbeat.GuardianAddr,
 					h.RawHeartbeat.NodeName,
@@ -138,13 +138,16 @@ func runListNodes(cmd *cobra.Command, args []string) {
 					truncAddrs[vaa.ChainIDAvalanche],
 					heights[vaa.ChainIDAvalanche],
 					errors[vaa.ChainIDAvalanche],
+					truncAddrs[vaa.ChainIDAlgorand],
+					heights[vaa.ChainIDAlgorand],
+					errors[vaa.ChainIDAlgorand],
 					truncAddrs[vaa.ChainIDEthereumRopsten],
 					heights[vaa.ChainIDEthereumRopsten],
 					errors[vaa.ChainIDEthereumRopsten],
 				)
 			} else {
 				fmt.Fprintf(w,
-					"%s\t%s\t%s\t%s\t%s\t%d\t%d\t%d\t%d\t%d\t%d\t%d\n",
+					"%s\t%s\t%s\t%s\t%s\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\n",
 					h.P2PNodeAddr,
 					h.RawHeartbeat.GuardianAddr,
 					h.RawHeartbeat.NodeName,
@@ -156,13 +159,14 @@ func runListNodes(cmd *cobra.Command, args []string) {
 					heights[vaa.ChainIDBSC],
 					heights[vaa.ChainIDPolygon],
 					heights[vaa.ChainIDAvalanche],
+					heights[vaa.ChainIDAlgorand],
 					heights[vaa.ChainIDEthereumRopsten],
 				)
 			}
 		} else {
 			if showDetails {
 				fmt.Fprintf(w,
-					"%s\t%s\t%s\t%s\t%s\t%s\t%s %d (%d)\t%s %d (%d)\t%s %d (%d)\t%s %d (%d)\t%s %d (%d)\n",
+					"%s\t%s\t%s\t%s\t%s\t%s\t%s %d (%d)\t%s %d (%d)\t%s %d (%d)\t%s %d (%d)\t%s %d (%d)\t%s %d (%d)\n",
 					h.P2PNodeAddr,
 					h.RawHeartbeat.GuardianAddr,
 					h.RawHeartbeat.NodeName,
@@ -184,10 +188,13 @@ func runListNodes(cmd *cobra.Command, args []string) {
 					truncAddrs[vaa.ChainIDPolygon],
 					heights[vaa.ChainIDPolygon],
 					errors[vaa.ChainIDPolygon],
+					truncAddrs[vaa.ChainIDAlgorand],
+					heights[vaa.ChainIDAlgorand],
+					errors[vaa.ChainIDAlgorand],
 				)
 			} else {
 				fmt.Fprintf(w,
-					"%s\t%s\t%s\t%s\t%s\t%d\t%d\t%d\t%d\t%d\n",
+					"%s\t%s\t%s\t%s\t%s\t%d\t%d\t%d\t%d\t%d\t%d\n",
 					h.P2PNodeAddr,
 					h.RawHeartbeat.GuardianAddr,
 					h.RawHeartbeat.NodeName,
@@ -198,6 +205,7 @@ func runListNodes(cmd *cobra.Command, args []string) {
 					heights[vaa.ChainIDTerra],
 					heights[vaa.ChainIDBSC],
 					heights[vaa.ChainIDPolygon],
+					heights[vaa.ChainIDAlgorand],
 				)
 			}
 		}

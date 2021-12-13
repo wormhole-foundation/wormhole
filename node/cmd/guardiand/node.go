@@ -37,6 +37,8 @@ import (
 
 	"github.com/certusone/wormhole/node/pkg/terra"
 
+	"github.com/certusone/wormhole/node/pkg/algorand"
+
 	ipfslog "github.com/ipfs/go-log/v2"
 )
 
@@ -74,6 +76,10 @@ var (
 	terraWS       *string
 	terraLCD      *string
 	terraContract *string
+
+	algorandRPC      *string
+	algorandToken    *string
+	algorandContract *string
 
 	solanaWsRPC *string
 	solanaRPC   *string
@@ -137,6 +143,10 @@ func init() {
 	terraWS = NodeCmd.Flags().String("terraWS", "", "Path to terrad root for websocket connection")
 	terraLCD = NodeCmd.Flags().String("terraLCD", "", "Path to LCD service root for http calls")
 	terraContract = NodeCmd.Flags().String("terraContract", "", "Wormhole contract address on Terra blockchain")
+
+	algorandRPC = NodeCmd.Flags().String("algorandRPC", "", "Algorand RPC URL")
+	algorandToken = NodeCmd.Flags().String("algorandToken", "", "Algorand access token")
+	algorandContract = NodeCmd.Flags().String("algorandContract", "", "Algorand contract")
 
 	solanaWsRPC = NodeCmd.Flags().String("solanaWS", "", "Solana Websocket URL (required")
 	solanaRPC = NodeCmd.Flags().String("solanaRPC", "", "Solana RPC URL (required")
@@ -240,6 +250,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	readiness.RegisterComponent(common.ReadinessEthSyncing)
 	readiness.RegisterComponent(common.ReadinessSolanaSyncing)
 	readiness.RegisterComponent(common.ReadinessTerraSyncing)
+	readiness.RegisterComponent(common.ReadinessAlgorandSyncing)
 	readiness.RegisterComponent(common.ReadinessBSCSyncing)
 	readiness.RegisterComponent(common.ReadinessPolygonSyncing)
 	if *testnetMode {
@@ -371,6 +382,18 @@ func runNode(cmd *cobra.Command, args []string) {
 	}
 	if *terraContract == "" {
 		logger.Fatal("Please specify --terraContract")
+	}
+
+	if *unsafeDevMode {
+		if *algorandRPC == "" {
+			logger.Fatal("Please specify --algorandRPC")
+		}
+		if *algorandToken == "" {
+			logger.Fatal("Please specify --algorandToken")
+		}
+		if *algorandContract == "" {
+			logger.Fatal("Please specify --algorandContract")
+		}
 	}
 
 	if *bigTablePersistenceEnabled {
@@ -566,6 +589,13 @@ func runNode(cmd *cobra.Command, args []string) {
 			return err
 		}
 
+		if *unsafeDevMode {
+			if err := supervisor.Run(ctx, "algorandwatch",
+				algorand.NewWatcher(*algorandRPC, *algorandToken, *algorandContract, lockC, setC).Run); err != nil {
+				return err
+			}
+		}
+
 		if err := supervisor.Run(ctx, "solwatch-confirmed",
 			solana.NewSolanaWatcher(*solanaWsRPC, *solanaRPC, solAddress, lockC, rpc.CommitmentConfirmed).Run); err != nil {
 			return err
@@ -591,6 +621,9 @@ func runNode(cmd *cobra.Command, args []string) {
 			*ethRPC,
 			*terraLCD,
 			*terraContract,
+			*algorandRPC,
+			*algorandToken,
+			*algorandContract,
 			attestationEvents,
 			notifier,
 		)

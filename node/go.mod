@@ -39,6 +39,7 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/tendermint/tendermint v0.33.7
 	github.com/terra-project/terra.go v1.0.1-0.20210129055710-7a586e5e027a
+	github.com/algorand/go-algorand-sdk v1.11.0
 	github.com/tidwall/gjson v1.8.1
 	go.uber.org/zap v1.16.0
 	golang.org/x/crypto v0.0.0-20210513164829-c07d793c2f9a
