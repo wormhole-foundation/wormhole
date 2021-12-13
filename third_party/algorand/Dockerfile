@@ -3,6 +3,12 @@ FROM docker.io/algorand/stable:3.2.1@sha256:0a87978492680fd98e2cc410f59f2bfd7fef
 
 RUN mkdir -p /setup
 ADD template.json /setup/
+ADD setup.sh /setup/
+ADD setup.py /setup/
+ADD requirements.txt /setup/
+ADD vaa-verify.teal /setup/
+ADD vaa-processor-clear.teal /setup/
+ADD vaa-processor-approval.teal /setup/
 
 RUN ./goal network create -n sandnet -r /network -t /setup/template.json && echo rawr
 

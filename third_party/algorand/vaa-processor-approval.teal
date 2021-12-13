@@ -1,0 +1,344 @@
+#pragma version 5
+txn ApplicationID
+int 0
+==
+bnz main_l14
+txn OnCompletion
+int UpdateApplication
+==
+bnz main_l13
+txn OnCompletion
+int DeleteApplication
+==
+bnz main_l12
+txn OnCompletion
+int NoOp
+==
+bnz main_l5
+err
+main_l5:
+txna ApplicationArgs 0
+byte "setvphash"
+==
+bnz main_l11
+txna ApplicationArgs 0
+byte "verify"
+==
+bnz main_l8
+err
+main_l8:
+int 0
+store 254
+global GroupSize
+byte "gscount"
+app_global_get
+callsub sub1
+==
+assert
+txn NumAppArgs
+int 3
+==
+assert
+txn Sender
+byte "vphash"
+app_global_get
+==
+assert
+callsub sub6
+assert
+callsub sub5
+assert
+load 254
+txn GroupIndex
+int 1
+setbit
+store 254
+txn GroupIndex
+global GroupSize
+int 1
+-
+==
+bnz main_l10
+int 1
+return
+main_l10:
+callsub sub10
+assert
+callsub sub9
+return
+main_l11:
+callsub sub4
+assert
+global GroupSize
+int 1
+==
+assert
+txn NumAppArgs
+int 2
+==
+assert
+txna ApplicationArgs 1
+len
+int 32
+==
+assert
+byte "vphash"
+txna ApplicationArgs 1
+app_global_put
+int 1
+return
+main_l12:
+callsub sub4
+return
+main_l13:
+callsub sub4
+return
+main_l14:
+callsub sub3
+return
+sub0: // ceil
+store 2
+store 1
+load 1
+load 2
+%
+int 0
+!=
+bnz sub0_l2
+load 1
+load 2
+/
+retsub
+sub0_l2:
+load 1
+load 2
+/
+int 1
++
+retsub
+sub1: // get_group_size
+store 0
+load 0
+int 6
+callsub sub0
+retsub
+sub2: // get_sig_count_in_step
+store 7
+store 6
+load 7
+int 6
+%
+int 0
+==
+bnz sub2_l4
+load 6
+load 7
+callsub sub1
+int 1
+-
+<
+bnz sub2_l3
+load 7
+int 6
+%
+retsub
+sub2_l3:
+int 6
+retsub
+sub2_l4:
+int 6
+retsub
+sub3: // bootstrap
+txn NumAppArgs
+int 3
+==
+assert
+txna ApplicationArgs 0
+len
+int 20
+%
+int 0
+==
+assert
+txna ApplicationArgs 0
+len
+int 20
+/
+store 3
+load 3
+int 0
+>
+assert
+int 0
+store 251
+sub3_l1:
+load 251
+load 3
+<
+bz sub3_l3
+load 251
+itob
+txna ApplicationArgs 0
+load 251
+int 20
+*
+int 20
+extract3
+app_global_put
+load 251
+int 1
++
+store 251
+b sub3_l1
+sub3_l3:
+byte "gscount"
+load 3
+app_global_put
+byte "gsexp"
+txna ApplicationArgs 1
+btoi
+app_global_put
+byte "gsindex"
+txna ApplicationArgs 2
+btoi
+app_global_put
+byte "vssize"
+int 6
+app_global_put
+int 1
+return
+sub4: // is_creator
+txn Sender
+global CreatorAddress
+==
+retsub
+sub5: // check_guardian_key_subset
+int 6
+txn GroupIndex
+*
+store 5
+txn GroupIndex
+byte "gscount"
+app_global_get
+callsub sub2
+store 4
+int 0
+store 251
+sub5_l1:
+load 251
+load 4
+<
+bz sub5_l5
+load 251
+load 5
++
+itob
+app_global_get
+txna ApplicationArgs 1
+load 251
+int 20
+*
+int 20
+extract3
+!=
+bnz sub5_l4
+load 251
+int 1
++
+store 251
+b sub5_l1
+sub5_l4:
+int 0
+retsub
+sub5_l5:
+int 1
+retsub
+sub6: // check_guardian_set_size
+byte "gscount"
+app_global_get
+txna ApplicationArgs 2
+btoi
+==
+retsub
+sub7: // handle_governance
+int 1
+retsub
+sub8: // handle_pyth_price_ticker
+int 1
+retsub
+sub9: // commit_vaa
+txn Note
+int 4
+int 4
+extract3
+btoi
+int 1
+==
+txn Note
+int 10
+int 32
+extract3
+byte "00000000000000000000000000000000000000000000"
+==
+&&
+bnz sub9_l4
+txn Note
+int 4
+int 4
+extract3
+btoi
+int 1
+==
+txn Note
+int 10
+int 32
+extract3
+byte 0x3afda841c1f43dd7d546c8a581ba1f92a139f4133f9f6ab095558f6a359df5d4
+==
+&&
+bnz sub9_l3
+int 0
+return
+sub9_l3:
+callsub sub8
+retsub
+sub9_l4:
+callsub sub7
+retsub
+sub10: // check_final_verification_state
+int 1
+store 251
+sub10_l1:
+load 251
+global GroupSize
+<
+bz sub10_l3
+load 251
+gtxns TypeEnum
+int appl
+==
+assert
+load 251
+gtxns ApplicationID
+txn ApplicationID
+==
+assert
+load 251
+int 1
+-
+gloads 254
+load 251
+int 1
+-
+getbit
+int 1
+==
+assert
+load 251
+int 1
++
+store 251
+b sub10_l1
+sub10_l3:
+int 1
+retsub

@@ -36,7 +36,7 @@ fi
 sudo apt-get update && sudo apt-get upgrade -y
 
 # Install dependencies
-sudo apt-get -y install bash-completion git git-review vim
+sudo apt-get -y install bash-completion git git-review vim build-essential
 
 # Install Go
 ARCH=amd64
