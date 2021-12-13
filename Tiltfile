@@ -86,6 +86,14 @@ local_resource(
     trigger_mode = trigger_mode,
 )
 
+local_resource(
+    name = "teal-gen",
+    deps = ["staging/algorand/teal"],
+    cmd = "tilt docker build -- --target teal-export -f Dockerfile.teal -o type=local,dest=. .",
+    env = {"DOCKER_BUILDKIT": "1"},
+    trigger_mode = trigger_mode,
+)
+
 # wasm
 
 local_resource(

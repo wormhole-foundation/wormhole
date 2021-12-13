@@ -2,26 +2,10 @@ package algorand
 
 import (
 	"context"
-//	"encoding/hex"
-//	"fmt"
-//	"github.com/certusone/wormhole/node/pkg/p2p"
-//	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
-//	"github.com/prometheus/client_golang/prometheus/promauto"
-//	"io/ioutil"
-//	"net/http"
-//	"time"
-
 	"github.com/certusone/wormhole/node/pkg/common"
-//	"github.com/certusone/wormhole/node/pkg/readiness"
-//	"github.com/certusone/wormhole/node/pkg/supervisor"
-//	"github.com/certusone/wormhole/node/pkg/vaa"
-
-//	"github.com/algorand/go-algorand-sdk/client/algod"
-//	"github.com/algorand/go-algorand-sdk/client/kmd"
-
-//	"github.com/gorilla/websocket"
-//	"github.com/tidwall/gjson"
-//	"go.uber.org/zap"
+	"github.com/certusone/wormhole/node/pkg/readiness"
+	"github.com/certusone/wormhole/node/pkg/supervisor"
+	"go.uber.org/zap"
 )
 
 type (
@@ -53,6 +37,12 @@ func NewWatcher(urlRPC string, urlToken string, contract string, lockEvents chan
 }
 
 func (e *Watcher) Run(ctx context.Context) error {
-        return nil
-}
+	logger := supervisor.Logger(ctx)
+	logger.Info("connecting to algorand RPC", zap.String("url", e.urlRPC))
 
+	readiness.SetReady(common.ReadinessAlgorandSyncing)
+
+	select {}
+
+	return nil
+}

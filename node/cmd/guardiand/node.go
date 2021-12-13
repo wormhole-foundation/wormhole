@@ -77,9 +77,9 @@ var (
 	terraLCD      *string
 	terraContract *string
 
-	algorandRPC          *string
-	algorandToken        *string
-	algorandContract     *string
+	algorandRPC      *string
+	algorandToken    *string
+	algorandContract *string
 
 	solanaWsRPC *string
 	solanaRPC   *string
@@ -384,15 +384,17 @@ func runNode(cmd *cobra.Command, args []string) {
 		logger.Fatal("Please specify --terraContract")
 	}
 
-        if *algorandRPC == "" {
-                logger.Fatal("Please specify --algorandRPC") 
-        }
-        if *algorandToken == "" { 
-                logger.Fatal("Please specify --algorandToken") 
-        }
-        if *algorandContract == "" { 
-                logger.Fatal("Please specify --algorandContract") 
-        }
+	if *unsafeDevMode {
+		if *algorandRPC == "" {
+			logger.Fatal("Please specify --algorandRPC")
+		}
+		if *algorandToken == "" {
+			logger.Fatal("Please specify --algorandToken")
+		}
+		if *algorandContract == "" {
+			logger.Fatal("Please specify --algorandContract")
+		}
+	}
 
 	if *bigTablePersistenceEnabled {
 		if *bigTableGCPProject == "" {
@@ -587,10 +589,12 @@ func runNode(cmd *cobra.Command, args []string) {
 			return err
 		}
 
-                if err := supervisor.Run(ctx, "algorandwatch",
-                        algorand.NewWatcher(*algorandRPC, *algorandToken, *algorandContract, lockC, setC).Run); err != nil {
-                        return err
-                }
+		if *unsafeDevMode {
+			if err := supervisor.Run(ctx, "algorandwatch",
+				algorand.NewWatcher(*algorandRPC, *algorandToken, *algorandContract, lockC, setC).Run); err != nil {
+				return err
+			}
+		}
 
 		if err := supervisor.Run(ctx, "solwatch-confirmed",
 			solana.NewSolanaWatcher(*solanaWsRPC, *solanaRPC, solAddress, lockC, rpc.CommitmentConfirmed).Run); err != nil {
