@@ -17,33 +17,36 @@ import (
 	"cloud.google.com/go/bigtable"
 )
 
-type amountsResult struct {
-	Last24Hours        map[string]map[string]float64
-	WithinPeriod       map[string]map[string]float64
-	PeriodDurationDays int
-	Daily              map[string]map[string]map[string]float64
+type addressesResult struct {
+	Last24HoursAmounts  map[string]map[string]float64
+	Last24HoursCounts   map[string]int
+	WithinPeriodAmounts map[string]map[string]float64
+	WithinPeriodCounts  map[string]int
+	PeriodDurationDays  int
+	DailyAmounts        map[string]map[string]map[string]float64
+	DailyCounts         map[string]map[string]int
 }
 
 // an in-memory cache of previously calculated results
-var warmTransfersToCache = map[string]map[string]map[string]map[string]float64{}
-var muWarmTransfersToCache sync.RWMutex
-var warmTransfersToCacheFilePath = "/notional-transferred-to-cache.json"
+var warmAddressesCache = map[string]map[string]map[string]map[string]float64{}
+var muWarmAddressesCache sync.RWMutex
+var warmAddressesCacheFilePath = "/addresses-transferred-to-cache.json"
 
-type TransferData struct {
-	TokenSymbol      string
-	TokenAmount      float64
-	OriginChain      string
-	LeavingChain     string
-	DestinationChain string
-	Notional         float64
+type AddressData struct {
+	TokenSymbol        string
+	TokenAmount        float64
+	OriginChain        string
+	LeavingChain       string
+	DestinationChain   string
+	DestinationAddress string
+	Notional           float64
 }
 
-// finds all the TokenTransfer rows within the specified period
-func fetchTransferRowsInInterval(tbl *bigtable.Table, ctx context.Context, prefix string, start, end time.Time) []TransferData {
-	rows := []TransferData{}
+func fetchAddressRowsInInterval(tbl *bigtable.Table, ctx context.Context, prefix string, start, end time.Time) []AddressData {
+	rows := []AddressData{}
 	err := tbl.ReadRows(ctx, bigtable.PrefixRange(prefix), func(row bigtable.Row) bool {
 
-		t := &TransferData{}
+		t := &AddressData{}
 		if _, ok := row[transferDetailsFam]; ok {
 			for _, item := range row[transferDetailsFam] {
 				switch item.Column {
@@ -69,8 +72,11 @@ func fetchTransferRowsInInterval(tbl *bigtable.Table, ctx context.Context, prefi
 						t.OriginChain = string(item.Value)
 					case "TokenTransferPayload:TargetChain":
 						t.DestinationChain = string(item.Value)
+					case "TokenTransferPayload:TargetAddress":
+						t.DestinationAddress = string(item.Value)
 					}
 				}
+				t.DestinationAddress = transformHexAddressToNative(chainIdStringToType(t.DestinationChain), t.DestinationAddress)
 			}
 
 			t.LeavingChain = row.Key()[:1]
@@ -90,7 +96,7 @@ func fetchTransferRowsInInterval(tbl *bigtable.Table, ctx context.Context, prefi
 			),
 			bigtable.ChainFilters(
 				bigtable.FamilyFilter(fmt.Sprintf("%v|%v", columnFamilies[2], columnFamilies[5])),
-				bigtable.ColumnFilter("Amount|NotionalUSD|OriginSymbol|OriginChain|TargetChain"),
+				bigtable.ColumnFilter("Amount|NotionalUSD|OriginSymbol|OriginChain|TargetChain|TargetAddress"),
 				bigtable.LatestNFilter(1),
 			),
 			bigtable.BlockAllFilter(),
@@ -102,8 +108,8 @@ func fetchTransferRowsInInterval(tbl *bigtable.Table, ctx context.Context, prefi
 	return rows
 }
 
-// finds the daily amount of each symbol transferred to each chain, from the specified start to the present.
-func amountsTransferredToInInterval(tbl *bigtable.Table, ctx context.Context, prefix string, start time.Time) map[string]map[string]map[string]float64 {
+// finds unique addresses tokens have been sent to, for each day since the start time passed in.
+func createAddressesOfInterval(tbl *bigtable.Table, ctx context.Context, prefix string, start time.Time) map[string]map[string]map[string]float64 {
 	results := map[string]map[string]map[string]float64{}
 
 	now := time.Now().UTC()
@@ -138,56 +144,51 @@ func amountsTransferredToInInterval(tbl *bigtable.Table, ctx context.Context, pr
 
 			dateStr := start.Format("2006-01-02")
 
-			muWarmTransfersToCache.Lock()
+			muWarmAddressesCache.Lock()
 			// initialize the map for this date in the result set
-			results[dateStr] = map[string]map[string]float64{"*": {"*": 0}}
+			results[dateStr] = map[string]map[string]float64{}
 			// check to see if there is cache data for this date/query
-			if dates, ok := warmTransfersToCache[cachePrefix]; ok {
+			if dates, ok := warmAddressesCache[cachePrefix]; ok {
 				// have a cache for this query
 
-				if dateCache, ok := dates[dateStr]; ok && len(dateCache) > 1 {
+				if dateCache, ok := dates[dateStr]; ok {
 					// have a cache for this date
 					if daysAgo >= 1 {
 						// only use the cache for yesterday and older
 						results[dateStr] = dateCache
-						muWarmTransfersToCache.Unlock()
+						muWarmAddressesCache.Unlock()
 						intervalsWG.Done()
 						return
 					}
 				}
 			} else {
 				// no cache for this query, initialize the map
-				warmTransfersToCache[cachePrefix] = map[string]map[string]map[string]float64{}
+				warmAddressesCache[cachePrefix] = map[string]map[string]map[string]float64{}
 			}
-			muWarmTransfersToCache.Unlock()
+			muWarmAddressesCache.Unlock()
 
 			defer intervalsWG.Done()
 
-			queryResult := fetchTransferRowsInInterval(tbl, ctx, prefix, start, end)
+			queryResult := fetchAddressRowsInInterval(tbl, ctx, prefix, start, end)
 
 			// iterate through the rows and increment the count
 			for _, row := range queryResult {
 				if _, ok := results[dateStr][row.DestinationChain]; !ok {
-					results[dateStr][row.DestinationChain] = map[string]float64{"*": 0}
+					results[dateStr][row.DestinationChain] = map[string]float64{}
 				}
-				// add to the total count for the dest chain
-				results[dateStr][row.DestinationChain]["*"] = results[dateStr][row.DestinationChain]["*"] + row.Notional
-				// add to total for the day
-				results[dateStr]["*"]["*"] = results[dateStr]["*"]["*"] + row.Notional
-				// add to the symbol's daily total
-				results[dateStr]["*"][row.TokenSymbol] = results[dateStr]["*"][row.TokenSymbol] + row.Notional
-				// add to the count for chain/symbol
-				results[dateStr][row.DestinationChain][row.TokenSymbol] = results[dateStr][row.DestinationChain][row.TokenSymbol] + row.Notional
+				results[dateStr][row.DestinationChain][row.DestinationAddress] = results[dateStr][row.DestinationChain][row.DestinationAddress] + row.Notional
+
 			}
+
 			if daysAgo >= 1 {
 				// set the result in the cache
-				muWarmTransfersToCache.Lock()
-				if cacheData, ok := warmTransfersToCache[cachePrefix][dateStr]; !ok || len(cacheData) <= 1 {
+				muWarmAddressesCache.Lock()
+				if _, ok := warmAddressesCache[cachePrefix][dateStr]; !ok {
 					// cache does not have this date, persist it for other instances.
-					warmTransfersToCache[cachePrefix][dateStr] = results[dateStr]
+					warmAddressesCache[cachePrefix][dateStr] = results[dateStr]
 					cacheNeedsUpdate = true
 				}
-				muWarmTransfersToCache.Unlock()
+				muWarmAddressesCache.Unlock()
 			}
 		}(tbl, ctx, prefix, daysAgo)
 	}
@@ -195,29 +196,22 @@ func amountsTransferredToInInterval(tbl *bigtable.Table, ctx context.Context, pr
 	intervalsWG.Wait()
 
 	if cacheNeedsUpdate {
-		persistInterfaceToJson(warmTransfersToCacheFilePath, &muWarmTransfersToCache, warmTransfersToCache)
+		persistInterfaceToJson(warmAddressesCacheFilePath, &muWarmAddressesCache, warmAddressesCache)
 	}
 
-	// create a set of all the keys from all dates/chains, to ensure the result objects all have the same chain keys
+	// create a set of all the keys from all dates/chains, to ensure the result objects all have the same keys
 	seenChainSet := map[string]bool{}
 	for _, chains := range results {
 		for leaving := range chains {
-			if _, ok := seenChainSet[leaving]; !ok {
-				seenChainSet[leaving] = true
-			}
+			seenChainSet[leaving] = true
 		}
 	}
-
-	var muResult sync.RWMutex
 	// ensure each chain object has all the same symbol keys:
-	for date, chains := range results {
-		// loop through seen chains
+	for date := range results {
 		for chain := range seenChainSet {
 			// check that date has all the chains
-			if _, ok := chains[chain]; !ok {
-				muResult.Lock()
-				results[date][chain] = map[string]float64{"*": 0}
-				muResult.Unlock()
+			if _, ok := results[date][chain]; !ok {
+				results[date][chain] = map[string]float64{}
 			}
 		}
 	}
@@ -225,25 +219,28 @@ func amountsTransferredToInInterval(tbl *bigtable.Table, ctx context.Context, pr
 	return results
 }
 
-func transferredToSinceDate(tbl *bigtable.Table, ctx context.Context, prefix string, start time.Time) map[string]map[string]float64 {
-	result := map[string]map[string]float64{"*": {"*": 0}}
+// finds all the unique addresses that have received tokens since a particular moment.
+func addressesTransferredToSinceDate(tbl *bigtable.Table, ctx context.Context, prefix string, start time.Time) map[string]map[string]float64 {
 
-	dailyTotals := amountsTransferredToInInterval(tbl, ctx, prefix, start)
+	result := map[string]map[string]float64{}
+
+	// fetch data for days not in the cache
+	dailyAddresses := createAddressesOfInterval(tbl, ctx, prefix, start)
 
 	// loop through the query results to combine cache + fresh data
-	for _, chains := range dailyTotals {
-		for chain, tokens := range chains {
+	for _, chains := range dailyAddresses {
+		for chain, addresses := range chains {
 			// ensure the chain exists in the result map
 			if _, ok := result[chain]; !ok {
-				result[chain] = map[string]float64{"*": 0}
+				result[chain] = map[string]float64{}
 			}
-			for symbol, amount := range tokens {
-				if _, ok := result[chain][symbol]; !ok {
-					result[chain][symbol] = 0
+			for address, amount := range addresses {
+				if _, ok := result[chain][address]; !ok {
+					result[chain][address] = 0
 				}
-				// add the amount of this symbol transferred this day to the
-				// amount already in the result (amount of this symbol prevoiusly transferred)
-				result[chain][symbol] = result[chain][symbol] + amount
+				// add the amount the address received this day to the
+				// amount already in the result (amount the address has recieved so far)
+				result[chain][address] = result[chain][address] + amount
 			}
 		}
 	}
@@ -251,32 +248,25 @@ func transferredToSinceDate(tbl *bigtable.Table, ctx context.Context, prefix str
 	return result
 }
 
-// returns the count of the rows in the query response
-func transfersToForInterval(tbl *bigtable.Table, ctx context.Context, prefix string, start, end time.Time) map[string]map[string]float64 {
+// returns addresses that received tokens within the specified time range
+func addressesForInterval(tbl *bigtable.Table, ctx context.Context, prefix string, start, end time.Time) map[string]map[string]float64 {
 	// query for all rows in time range, return result count
-	queryResults := fetchTransferRowsInInterval(tbl, ctx, prefix, start, end)
+	queryResult := fetchAddressRowsInInterval(tbl, ctx, prefix, start, end)
 
-	result := map[string]map[string]float64{"*": {"*": 0}}
+	result := map[string]map[string]float64{}
 
 	// iterate through the rows and increment the count for each index
-	for _, row := range queryResults {
+	for _, row := range queryResult {
 		if _, ok := result[row.DestinationChain]; !ok {
-			result[row.DestinationChain] = map[string]float64{"*": 0}
+			result[row.DestinationChain] = map[string]float64{}
 		}
-		// add to total amount
-		result[row.DestinationChain]["*"] = result[row.DestinationChain]["*"] + row.Notional
-		// add to total per symbol
-		result["*"][row.TokenSymbol] = result["*"][row.TokenSymbol] + row.Notional
-		// add to symbol amount
-		result[row.DestinationChain][row.TokenSymbol] = result[row.DestinationChain][row.TokenSymbol] + row.Notional
-		// add to all chains/all symbols total
-		result["*"]["*"] = result["*"]["*"] + row.Notional
+		result[row.DestinationChain][row.DestinationAddress] = result[row.DestinationChain][row.DestinationAddress] + row.Notional
 	}
 	return result
 }
 
-// finds the value that has been transferred to each chain, by symbol.
-func NotionalTransferredTo(w http.ResponseWriter, r *http.Request) {
+// find the addresses tokens have been transferred to
+func AddressesTransferredTo(w http.ResponseWriter, r *http.Request) {
 	// Set CORS headers for the preflight request
 	if r.Method == http.MethodOptions {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -289,7 +279,7 @@ func NotionalTransferredTo(w http.ResponseWriter, r *http.Request) {
 	// Set CORS headers for the main request.
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
-	var numDays, forChain, forAddress, daily, last24Hours, forPeriod string
+	var numDays, forChain, forAddress, daily, last24Hours, forPeriod, counts, amounts string
 
 	// allow GET requests with querystring params, or POST requests with json body.
 	switch r.Method {
@@ -301,6 +291,8 @@ func NotionalTransferredTo(w http.ResponseWriter, r *http.Request) {
 		daily = queryParams.Get("daily")
 		last24Hours = queryParams.Get("last24Hours")
 		forPeriod = queryParams.Get("forPeriod")
+		counts = queryParams.Get("counts")
+		amounts = queryParams.Get("amounts")
 
 	case http.MethodPost:
 		// declare request body properties
@@ -311,6 +303,8 @@ func NotionalTransferredTo(w http.ResponseWriter, r *http.Request) {
 			Daily       string `json:"daily"`
 			Last24Hours string `json:"last24Hours"`
 			ForPeriod   string `json:"forPeriod"`
+			Counts      string `json:"counts"`
+			Amounts     string `json:"amounts"`
 		}
 
 		// deserialize request body
@@ -331,6 +325,8 @@ func NotionalTransferredTo(w http.ResponseWriter, r *http.Request) {
 		daily = d.Daily
 		last24Hours = d.Last24Hours
 		forPeriod = d.ForPeriod
+		counts = d.Counts
+		amounts = d.Amounts
 
 	default:
 		http.Error(w, "405 - Method Not Allowed", http.StatusMethodNotAllowed)
@@ -341,6 +337,10 @@ func NotionalTransferredTo(w http.ResponseWriter, r *http.Request) {
 	if daily == "" && last24Hours == "" && forPeriod == "" {
 		// none of the options were set, so set one
 		last24Hours = "true"
+	}
+	if counts == "" && amounts == "" {
+		// neither of the options were set, so set one
+		counts = "true"
 	}
 
 	var queryDays int
@@ -373,26 +373,41 @@ func NotionalTransferredTo(w http.ResponseWriter, r *http.Request) {
 	var wg sync.WaitGroup
 
 	// total of last 24 hours
-	last24HourCount := map[string]map[string]float64{}
+	last24HourAmounts := map[string]map[string]float64{}
+	last24HourCounts := map[string]int{}
 	if last24Hours != "" {
 		wg.Add(1)
 		go func(prefix string) {
+
 			last24HourInterval := -time.Duration(24) * time.Hour
 			now := time.Now().UTC()
 			start := now.Add(last24HourInterval)
 			defer wg.Done()
-			transfers := transfersToForInterval(tbl, ctx, prefix, start, now)
-			for chain, tokens := range transfers {
-				last24HourCount[chain] = map[string]float64{}
-				for symbol, amount := range tokens {
-					last24HourCount[chain][symbol] = roundToTwoDecimalPlaces(amount)
+			last24HourAddresses := addressesForInterval(tbl, ctx, prefix, start, now)
+			if amounts != "" {
+				for chain, addresses := range last24HourAddresses {
+					last24HourAmounts[chain] = map[string]float64{}
+					for address, amount := range addresses {
+						last24HourAmounts[chain][address] = roundToTwoDecimalPlaces(amount)
+					}
+				}
+			}
+
+			if counts != "" {
+				for chain, addresses := range last24HourAddresses {
+					// need to sum all the chains to get the total count of addresses,
+					// since addresses are not unique across chains.
+					numAddresses := len(addresses)
+					last24HourCounts[chain] = numAddresses
+					last24HourCounts["*"] = last24HourCounts["*"] + numAddresses
 				}
 			}
 		}(prefix)
 	}
 
 	// total of the last numDays
-	periodTransfers := map[string]map[string]float64{}
+	addressesDailyAmounts := map[string]map[string]float64{}
+	addressesDailyCounts := map[string]int{}
 	if forPeriod != "" {
 		wg.Add(1)
 		go func(prefix string) {
@@ -404,20 +419,32 @@ func NotionalTransferredTo(w http.ResponseWriter, r *http.Request) {
 			start := time.Date(prev.Year(), prev.Month(), prev.Day(), 0, 0, 0, 0, prev.Location())
 
 			defer wg.Done()
-			// periodCount, err = transferredToSince(tbl, ctx, prefix, start)
-			// periodCount, err = transfersToForInterval(tbl, ctx, prefix, start, now)
-			transfers := transferredToSinceDate(tbl, ctx, prefix, start)
-			for chain, tokens := range transfers {
-				periodTransfers[chain] = map[string]float64{}
-				for symbol, amount := range tokens {
-					periodTransfers[chain][symbol] = roundToTwoDecimalPlaces(amount)
+			// periodAmounts, err := addressesTransferredToSince(tbl, ctx, prefix, start)
+			periodAmounts := addressesTransferredToSinceDate(tbl, ctx, prefix, start)
+
+			if amounts != "" {
+				for chain, addresses := range periodAmounts {
+					addressesDailyAmounts[chain] = map[string]float64{}
+					for address, amount := range addresses {
+						addressesDailyAmounts[chain][address] = roundToTwoDecimalPlaces(amount)
+					}
+				}
+			}
+			if counts != "" {
+				for chain, addresses := range periodAmounts {
+					// need to sum all the chains to get the total count of addresses,
+					// since addresses are not unique across chains.
+					numAddresses := len(addresses)
+					addressesDailyCounts[chain] = numAddresses
+					addressesDailyCounts["*"] = addressesDailyCounts["*"] + numAddresses
 				}
 			}
 		}(prefix)
 	}
 
 	// daily totals
-	dailyTransfers := map[string]map[string]map[string]float64{}
+	dailyAmounts := map[string]map[string]map[string]float64{}
+	dailyCounts := map[string]map[string]int{}
 	if daily != "" {
 		wg.Add(1)
 		go func(prefix string, queryDays int) {
@@ -427,35 +454,50 @@ func NotionalTransferredTo(w http.ResponseWriter, r *http.Request) {
 			prev := now.Add(periodInterval)
 			start := time.Date(prev.Year(), prev.Month(), prev.Day(), 0, 0, 0, 0, prev.Location())
 			defer wg.Done()
-			transfers := amountsTransferredToInInterval(tbl, ctx, prefix, start)
-			for date, chains := range transfers {
-				dailyTransfers[date] = map[string]map[string]float64{}
-				for chain, tokens := range chains {
-					dailyTransfers[date][chain] = map[string]float64{}
-					for symbol, amount := range tokens {
-						dailyTransfers[date][chain][symbol] = roundToTwoDecimalPlaces(amount)
+			dailyTotals := createAddressesOfInterval(tbl, ctx, prefix, start)
+
+			if amounts != "" {
+				for date, chains := range dailyTotals {
+					dailyAmounts[date] = map[string]map[string]float64{}
+					for chain, addresses := range chains {
+						dailyAmounts[date][chain] = map[string]float64{}
+						for address, amount := range addresses {
+							dailyAmounts[date][chain][address] = roundToTwoDecimalPlaces(amount)
+						}
 					}
 				}
 			}
+			if counts != "" {
+				for date, chains := range dailyTotals {
+					dailyCounts[date] = map[string]int{}
+					for chain, addresses := range chains {
+						// need to sum all the chains to get the total count of addresses,
+						// since addresses are not unique across chains.
+						numAddresses := len(addresses)
+						dailyCounts[date][chain] = numAddresses
+						dailyCounts[date]["*"] = dailyCounts[date]["*"] + numAddresses
+
+					}
+				}
+			}
+
 		}(prefix, queryDays)
 	}
 
 	wg.Wait()
 
-	result := &amountsResult{
-		Last24Hours:        last24HourCount,
-		WithinPeriod:       periodTransfers,
-		PeriodDurationDays: queryDays,
-		Daily:              dailyTransfers,
+	result := &addressesResult{
+		Last24HoursAmounts:  last24HourAmounts,
+		Last24HoursCounts:   last24HourCounts,
+		WithinPeriodAmounts: addressesDailyAmounts,
+		WithinPeriodCounts:  addressesDailyCounts,
+		PeriodDurationDays:  queryDays,
+		DailyAmounts:        dailyAmounts,
+		DailyCounts:         dailyCounts,
 	}
 
-	jsonBytes, err := json.Marshal(result)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(err.Error()))
-		log.Println(err.Error())
-		return
-	}
 	w.WriteHeader(http.StatusOK)
-	w.Write(jsonBytes)
+	w.Header().Add("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(result)
+
 }

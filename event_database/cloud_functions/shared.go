@@ -2,12 +2,14 @@ package p
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 	"math"
 	"net/http"
 	"os"
 	"strings"
 	"sync"
+	"time"
 
 	"cloud.google.com/go/bigtable"
 	"cloud.google.com/go/pubsub"
@@ -27,6 +29,14 @@ var pubSubTokenTransferDetailsTopic *pubsub.Topic
 
 var coinGeckoCoins = map[string][]CoinGeckoCoin{}
 var solanaTokens = map[string]SolanaToken{}
+
+var releaseDay = time.Date(2021, 9, 13, 0, 0, 0, 0, time.UTC)
+var pwd string
+
+func initCache(waitgroup *sync.WaitGroup, filePath string, mutex *sync.RWMutex, cacheInterface interface{}) {
+	defer waitgroup.Done()
+	loadJsonToInterface(filePath, mutex, cacheInterface)
+}
 
 // init runs during cloud function initialization. So, this will only run during an
 // an instance's cold start.
@@ -63,6 +73,99 @@ func init() {
 		solanaTokens = fetchSolanaTokenList()
 	}
 
+	pwd, _ = os.Getwd()
+
+	// initialize in-memory caches
+	var initWG sync.WaitGroup
+
+	initWG.Add(1)
+	// populates cache used by amountsTransferredToInInterval
+	go initCache(&initWG, warmTransfersToCacheFilePath, &muWarmTransfersToCache, &warmTransfersToCache)
+
+	initWG.Add(1)
+	// populates cache used by createTransfersOfInterval
+	go initCache(&initWG, warmTransfersCacheFilePath, &muWarmTransfersCache, &warmTransfersCache)
+
+	initWG.Add(1)
+	// populates cache used by createAddressesOfInterval
+	go initCache(&initWG, warmAddressesCacheFilePath, &muWarmAddressesCache, &warmAddressesCache)
+
+	initWG.Add(1)
+	// populates cache used by transferredToSince
+	go initCache(&initWG, transferredToUpToYesterdayFilePath, &muTransferredToUpToYesterday, &transferredToUpToYesterday)
+
+	// initWG.Add(1)
+	// populates cache used by transferredSince
+	// initCache(initWG, transferredUpToYesterdayFilePath, &muTransferredToUpYesterday, &transferredUpToYesterday)
+
+	initWG.Add(1)
+	// populates cache used by addressesTransferredToSince
+	go initCache(&initWG, addressesToUpToYesterdayFilePath, &muAddressesToUpToYesterday, &addressesToUpToYesterday)
+
+	initWG.Add(1)
+	// populates cache used by createCumulativeAmountsOfInterval
+	go initCache(&initWG, warmCumulativeCacheFilePath, &muWarmCumulativeCache, &warmCumulativeCache)
+
+	initWG.Add(1)
+	// populates cache used by createCumulativeAddressesOfInterval
+	go initCache(&initWG, warmCumulativeAddressesCacheFilePath, &muWarmCumulativeAddressesCache, &warmCumulativeAddressesCache)
+
+	initWG.Wait()
+	log.Println("done initializing caches, starting.")
+
+}
+
+var gcpCachePath = "/workspace/src/p/cache"
+
+func loadJsonToInterface(filePath string, mutex *sync.RWMutex, cacheMap interface{}) {
+	// create path to the static cache dir
+	path := gcpCachePath + filePath
+	// create path to the "hot" cache dir
+	hotPath := "/tmp" + filePath
+	if strings.HasSuffix(pwd, "cmd") {
+		// alter the path to be correct when running locally, and in Tilt devnet
+		path = "../cache" + filePath
+		hotPath = ".." + hotPath
+	}
+	mutex.Lock()
+	// first check to see if there is a cache file in the tmp dir of the cloud function.
+	// if so, this is a long running instance with a recently generated cache available.
+	fileData, readErrTmp := os.ReadFile(hotPath)
+	if readErrTmp != nil {
+		log.Printf("failed reading from tmp cache %v, err: %v", hotPath, readErrTmp)
+		var readErr error
+		fileData, readErr = os.ReadFile(path)
+		if readErr != nil {
+			log.Printf("failed reading %v, err: %v", path, readErr)
+		} else {
+			log.Printf("successfully read from cache: %v", path)
+		}
+	} else {
+		log.Printf("successfully read from tmp cache: %v", hotPath)
+	}
+	unmarshalErr := json.Unmarshal(fileData, &cacheMap)
+	mutex.Unlock()
+	if unmarshalErr != nil {
+		log.Printf("failed unmarshaling %v, err: %v", path, unmarshalErr)
+	}
+}
+func persistInterfaceToJson(filePath string, mutex *sync.RWMutex, cacheMap interface{}) {
+	path := "/tmp" + filePath
+	if strings.HasSuffix(pwd, "cmd") {
+		// alter the path to be correct when running locally, and in Tilt devnet
+		path = "../cache" + filePath
+	}
+	mutex.Lock()
+	cacheBytes, marshalErr := json.MarshalIndent(cacheMap, "", "  ")
+	if marshalErr != nil {
+		log.Fatal("failed marshaling cacheMap.", marshalErr)
+	}
+	writeErr := os.WriteFile(path, cacheBytes, 0666)
+	mutex.Unlock()
+	if writeErr != nil {
+		log.Fatalf("failed writing to file %v, err: %v", path, writeErr)
+	}
+	log.Printf("successfully wrote cache to file: %v", path)
 }
 
 var columnFamilies = []string{
@@ -371,6 +474,9 @@ func newMux() *http.ServeMux {
 
 	mux.HandleFunc("/notionaltransferred", NotionalTransferred)
 	mux.HandleFunc("/notionaltransferredto", NotionalTransferredTo)
+	mux.HandleFunc("/notionaltransferredtocumulative", NotionalTransferredToCumulative)
+	mux.HandleFunc("/addressestransferredto", AddressesTransferredTo)
+	mux.HandleFunc("/addressestransferredtocumulative", AddressesTransferredToCumulative)
 	mux.HandleFunc("/totals", Totals)
 	mux.HandleFunc("/recent", Recent)
 	mux.HandleFunc("/transaction", Transaction)
