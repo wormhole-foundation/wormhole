@@ -113,7 +113,7 @@ func runListNodes(cmd *cobra.Command, args []string) {
 		if isTestnet {
 			if showDetails {
 				fmt.Fprintf(w,
-					"%s\t%s\t%s\t%s\t%s\t%s\t%s %d (%d)\t%s %d (%d)\t%s %d (%d)\t%s %d (%d)\t%s %d (%d)\t%s %d (%d)\t%s %d (%d)\n",
+					"%s\t%s\t%s\t%s\t%s\t%s\t%s %d (%d)\t%s %d (%d)\t%s %d (%d)\t%s %d (%d)\t%s %d (%d)\t%s %d (%d)\t%s %d (%d)\t%s %d (%d)\n",
 					h.P2PNodeAddr,
 					h.RawHeartbeat.GuardianAddr,
 					h.RawHeartbeat.NodeName,
