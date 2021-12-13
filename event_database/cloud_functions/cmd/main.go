@@ -75,25 +75,17 @@ func main() {
 		fmt.Println(fmt.Errorf("pubsub.NewClient err: %v", err))
 	}
 
+	pubsubTopicVAA := os.Getenv("PUBSUB_NEW_VAA_TOPIC")
+	pubsubSubscriptionVAA := os.Getenv("PUBSUB_NEW_VAA_SUBSCRIPTION")
 	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	go createAndSubscribe(pubsubClient, pubsubTopicVAA, pubsubSubscriptionVAA, p.ProcessVAA)
+	wg.Done()
 
-		pubsubTopic := os.Getenv("PUBSUB_NEW_VAA_TOPIC")
-		pubsubSubscription := os.Getenv("PUBSUB_NEW_VAA_SUBSCRIPTION")
-
-		createAndSubscribe(pubsubClient, pubsubTopic, pubsubSubscription, p.ProcessVAA)
-	}()
-
+	pubsubTopicTransfer := os.Getenv("PUBSUB_TOKEN_TRANSFER_DETAILS_TOPIC")
+	pubsubSubscriptionTransfer := os.Getenv("PUBSUB_TOKEN_TRANSFER_DETAILS_SUBSCRIPTION")
 	wg.Add(1)
-	go func() {
-		defer wg.Done()
-
-		pubsubTopic := os.Getenv("PUBSUB_TOKEN_TRANSFER_DETAILS_TOPIC")
-		pubsubSubscription := os.Getenv("PUBSUB_TOKEN_TRANSFER_DETAILS_SUBSCRIPTION")
-
-		createAndSubscribe(pubsubClient, pubsubTopic, pubsubSubscription, p.ProcessTransfer)
-	}()
+	go createAndSubscribe(pubsubClient, pubsubTopicTransfer, pubsubSubscriptionTransfer, p.ProcessTransfer)
+	wg.Done()
 
 	wg.Wait()
 	pubsubClient.Close()
