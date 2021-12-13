@@ -209,6 +209,31 @@ func transferredSinceDate(tbl *bigtable.Table, ctx context.Context, prefix strin
 		}
 	}
 
+	// create a set of chainIDs, the union of source and destination chains,
+	// to ensure the result objects all have the same keys.
+	seenChainSet := map[string]bool{}
+	for leaving, dests := range result {
+		seenChainSet[leaving] = true
+		for dest := range dests {
+			seenChainSet[dest] = true
+		}
+	}
+	// make sure the root of the map has all the chainIDs
+	for chain := range seenChainSet {
+		if _, ok := result[chain]; !ok {
+			result[chain] = map[string]map[string]float64{"*": {"*": 0}}
+		}
+	}
+	// make sure that each chain at the root (leaving) as a key (destination) for each chain
+	for leaving, dests := range result {
+		for chain := range seenChainSet {
+			// check that date has all the chains
+			if _, ok := dests[chain]; !ok {
+				result[leaving][chain] = map[string]float64{"*": 0}
+			}
+		}
+	}
+
 	return result
 }
 
@@ -252,16 +277,27 @@ func transfersForInterval(tbl *bigtable.Table, ctx context.Context, prefix strin
 		result["*"]["*"]["*"] = result["*"]["*"]["*"] + row.Notional
 	}
 
-	// create a set of all the keys from all dates/chains, to ensure the result objects all have the same keys.
+	// create a set of chainIDs, the union of source and destination chains,
+	// to ensure the result objects all have the same keys.
 	seenChainSet := map[string]bool{}
-	for leaving := range result {
+	for leaving, dests := range result {
 		seenChainSet[leaving] = true
+		for dest := range dests {
+			seenChainSet[dest] = true
+		}
 	}
 
-	for leaving := range result {
+	// make sure the root of the map has all the chainIDs
+	for chain := range seenChainSet {
+		if _, ok := result[chain]; !ok {
+			result[chain] = map[string]map[string]float64{"*": {"*": 0}}
+		}
+	}
+	// make sure that each chain at the root (leaving) as a key (destination) for each chain
+	for leaving, dests := range result {
 		for chain := range seenChainSet {
 			// check that date has all the chains
-			if _, ok := result[leaving][chain]; !ok {
+			if _, ok := dests[chain]; !ok {
 				result[leaving][chain] = map[string]float64{"*": 0}
 			}
 		}
