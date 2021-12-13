@@ -3,6 +3,9 @@ package algorand
 import (
 	"context"
 	"github.com/certusone/wormhole/node/pkg/common"
+	"github.com/certusone/wormhole/node/pkg/readiness"
+	"github.com/certusone/wormhole/node/pkg/supervisor"
+	"go.uber.org/zap"
 )
 
 type (
