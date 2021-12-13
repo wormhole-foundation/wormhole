@@ -53,7 +53,7 @@ Each column qualifier below is prefixed with its column family.
 - `TokenTransferPayload:Amount` the amount of the transfer.
 - `TokenTransferPayload:OriginAddress` the address the transfer originates from.
 - `TokenTransferPayload:OriginChain` the chain identifier of the chain the transfer originates from.
-- `TokenTransferPayload:TargetAdress` the destination address of the transfer.
+- `TokenTransferPayload:TargetAddress` the destination address of the transfer.
 - `TokenTransferPayload:TargetChain` the destination chain identifier of the transfer.
 
 #### AssetMetaPayload
@@ -77,10 +77,11 @@ Each column qualifier below is prefixed with its column family.
 
 #### TokenTransferDetails
 - `TokenTransferDetails:Amount` the amount transfered.
+- `TokenTransferDetails:NotionalUSD` the notional value of the transfer in USD.
 - `TokenTransferDetails:OriginSymbol` the symbol of the token sent to wormhole.
 - `TokenTransferDetails:OriginName` the name of the token sent to wormhole.
-- `TokenTransferDetails:TargetSymbol` the symbol of the token disbursed by wormhole.
-- `TokenTransferDetails:TargetName` the name of the token disbursed by wormhole.
+- `TokenTransferDetails:OriginTokenAddress` the address of the token sent to wormhole.
 
 #### ChainDetails
 - `ChainDetails:SenderAddress` the native address that sent the message.
+- `ChainDetails:ReceiverAddress` the native address that received the message.

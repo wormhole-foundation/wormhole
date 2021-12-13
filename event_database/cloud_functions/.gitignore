@@ -1,3 +1,5 @@
 vendor
 *.json
 *.log
+
+*.txt

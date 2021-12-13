@@ -278,8 +278,10 @@ func Totals(w http.ResponseWriter, r *http.Request) {
 	prefix := ""
 	if forChain != "" {
 		prefix = forChain
-		// if the request is forChain, always groupBy chain
-		groupBy = "chain"
+		if groupBy == "" {
+			// if the request is forChain, and groupBy is empty, set it to groupBy chain
+			groupBy = "chain"
+		}
 		if forAddress != "" {
 			// if the request is forAddress, always groupBy address
 			groupBy = "address"

@@ -3,6 +3,7 @@ package p
 import (
 	"context"
 	"log"
+	"math"
 	"net/http"
 	"os"
 	"strings"
@@ -231,13 +232,14 @@ func makeDetails(row bigtable.Row) *Details {
 	deets := &Details{}
 	sum := makeSummary(row)
 	deets.Summary = Summary{
-		EmitterChain:   sum.EmitterChain,
-		EmitterAddress: sum.EmitterAddress,
-		Sequence:       sum.Sequence,
-		InitiatingTxID: sum.InitiatingTxID,
-		Payload:        sum.Payload,
-		SignedVAABytes: sum.SignedVAABytes,
-		QuorumTime:     sum.QuorumTime,
+		EmitterChain:    sum.EmitterChain,
+		EmitterAddress:  sum.EmitterAddress,
+		Sequence:        sum.Sequence,
+		InitiatingTxID:  sum.InitiatingTxID,
+		Payload:         sum.Payload,
+		SignedVAABytes:  sum.SignedVAABytes,
+		QuorumTime:      sum.QuorumTime,
+		TransferDetails: sum.TransferDetails,
 	}
 
 	if _, ok := row[quorumStateFam]; ok {
@@ -344,6 +346,17 @@ func makeDetails(row bigtable.Row) *Details {
 		deets.ChainDetails = chainDetails
 	}
 	return deets
+}
+
+func roundToTwoDecimalPlaces(num float64) float64 {
+	return math.Round(num*100) / 100
+}
+func createCachePrefix(prefix string) string {
+	cachePrefix := prefix
+	if prefix == "" {
+		cachePrefix = "*"
+	}
+	return cachePrefix
 }
 
 var mux = newMux()
