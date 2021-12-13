@@ -2,9 +2,7 @@
 package p
 
 import (
-	"bytes"
 	"context"
-	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -24,81 +22,18 @@ type transfersResult struct {
 	Daily              map[string]map[string]map[string]map[string]float64
 }
 
-// warmCache keeps some data around between invocations, so that we don't have
-// to do a full table scan with each request.
-// https://cloud.google.com/functions/docs/bestpractices/tips#use_global_variables_to_reuse_objects_in_future_invocations
-// TODO - make a struct for cache
+// an in-memory cache of previously calculated results
 var warmTransfersCache = map[string]map[string]map[string]map[string]map[string]float64{}
+var muWarmTransfersCache sync.RWMutex
+var warmTransfersCacheFilePath = "/notional-transferred-cache.json"
 
-func fetchTransferRowsInInterval(tbl *bigtable.Table, ctx context.Context, prefix string, start, end time.Time) ([]TransferData, error) {
-	rows := []TransferData{}
-	err := tbl.ReadRows(ctx, bigtable.PrefixRange(prefix), func(row bigtable.Row) bool {
-
-		t := &TransferData{}
-		if _, ok := row[transferDetailsFam]; ok {
-			for _, item := range row[transferDetailsFam] {
-				switch item.Column {
-				case "TokenTransferDetails:Amount":
-					amount, _ := strconv.ParseFloat(string(item.Value), 64)
-					t.TokenAmount = amount
-				case "TokenTransferDetails:NotionalUSD":
-					reader := bytes.NewReader(item.Value)
-					var notionalFloat float64
-					if err := binary.Read(reader, binary.BigEndian, &notionalFloat); err != nil {
-						log.Fatalf("failed to read NotionalUSD of row: %v. err %v ", row.Key(), err)
-					}
-					t.Notional = notionalFloat
-				case "TokenTransferDetails:OriginSymbol":
-					t.TokenSymbol = string(item.Value)
-				}
-			}
-
-			if _, ok := row[transferPayloadFam]; ok {
-				for _, item := range row[transferPayloadFam] {
-					switch item.Column {
-					case "TokenTransferPayload:OriginChain":
-						t.OriginChain = string(item.Value)
-					case "TokenTransferPayload:TargetChain":
-						t.DestinationChain = string(item.Value)
-					}
-				}
-			}
-
-			t.LeavingChain = row.Key()[:1]
-
-			rows = append(rows, *t)
-		}
-
-		return true
-
-	}, bigtable.RowFilter(
-		bigtable.ConditionFilter(
-			bigtable.ChainFilters(
-				bigtable.FamilyFilter(columnFamilies[1]),
-				bigtable.CellsPerRowLimitFilter(1),        // only the first cell in column
-				bigtable.TimestampRangeFilter(start, end), // within time range
-				bigtable.StripValueFilter(),               // no columns/values, just the row.Key()
-			),
-			bigtable.ChainFilters(
-				bigtable.FamilyFilter(fmt.Sprintf("%v|%v", columnFamilies[2], columnFamilies[5])),
-				bigtable.ColumnFilter("Amount|NotionalUSD|OriginSymbol|OriginChain|TargetChain"),
-				bigtable.LatestNFilter(1),
-			),
-			bigtable.BlockAllFilter(),
-		),
-	))
-	if err != nil {
-		fmt.Println("failed reading rows to create RowList.", err)
-		return nil, err
-	}
-	return rows, err
-}
-
-func createTransfersOfInterval(tbl *bigtable.Table, ctx context.Context, prefix string, numPrevDays int) (map[string]map[string]map[string]map[string]float64, error) {
-	var mu sync.RWMutex
+// finds the daily amount of each symbol transferred from each chain, to each chain,
+// from the specified start to the present.
+func createTransfersOfInterval(tbl *bigtable.Table, ctx context.Context, prefix string, start time.Time) map[string]map[string]map[string]map[string]float64 {
 	results := map[string]map[string]map[string]map[string]float64{}
 
 	now := time.Now().UTC()
+	numPrevDays := int(now.Sub(start).Hours() / 24)
 
 	var intervalsWG sync.WaitGroup
 	// there will be a query for each previous day, plus today
@@ -106,6 +41,8 @@ func createTransfersOfInterval(tbl *bigtable.Table, ctx context.Context, prefix 
 
 	// create the unique identifier for this query, for cache
 	cachePrefix := createCachePrefix(prefix)
+
+	cacheNeedsUpdate := false
 
 	for daysAgo := 0; daysAgo <= numPrevDays; daysAgo++ {
 		go func(tbl *bigtable.Table, ctx context.Context, prefix string, daysAgo int) {
@@ -127,133 +64,192 @@ func createTransfersOfInterval(tbl *bigtable.Table, ctx context.Context, prefix 
 
 			dateStr := start.Format("2006-01-02")
 
-			mu.Lock()
+			muWarmTransfersCache.Lock()
 			// initialize the map for this date in the result set
 			results[dateStr] = map[string]map[string]map[string]float64{"*": {"*": {"*": 0}}}
 			// check to see if there is cache data for this date/query
 			if dates, ok := warmTransfersCache[cachePrefix]; ok {
 				// have a cache for this query
 
-				if dateCache, ok := dates[dateStr]; ok {
+				if dateCache, ok := dates[dateStr]; ok && len(dateCache) > 1 {
 					// have a cache for this date
 
 					if daysAgo >= 1 {
 						// only use the cache for yesterday and older
 						results[dateStr] = dateCache
-						mu.Unlock()
+						muWarmTransfersCache.Unlock()
 						intervalsWG.Done()
 						return
 					}
-				} else {
-					// no cache for this query
-					warmTransfersCache[cachePrefix][dateStr] = map[string]map[string]map[string]float64{}
 				}
 			} else {
-				// no cache for this date, initialize the map
+				// no cache for this query, initialize the map
 				warmTransfersCache[cachePrefix] = map[string]map[string]map[string]map[string]float64{}
-				warmTransfersCache[cachePrefix][dateStr] = map[string]map[string]map[string]float64{}
 			}
-			mu.Unlock()
-
-			var result []TransferData
-			var fetchErr error
+			muWarmTransfersCache.Unlock()
 
 			defer intervalsWG.Done()
 
-			result, fetchErr = fetchTransferRowsInInterval(tbl, ctx, prefix, start, end)
+			queryResult := fetchTransferRowsInInterval(tbl, ctx, prefix, start, end)
 
-			if fetchErr != nil {
-				log.Fatalf("fetchTransferRowsInInterval returned an error: %v\n", fetchErr)
-			}
-
-			// iterate through the rows and increment the count
-			for _, row := range result {
+			// iterate through the rows and increment the amounts
+			for _, row := range queryResult {
 				if _, ok := results[dateStr][row.LeavingChain]; !ok {
 					results[dateStr][row.LeavingChain] = map[string]map[string]float64{"*": {"*": 0}}
 				}
 				if _, ok := results[dateStr][row.LeavingChain][row.DestinationChain]; !ok {
 					results[dateStr][row.LeavingChain][row.DestinationChain] = map[string]float64{"*": 0}
 				}
+				if _, ok := results[dateStr]["*"][row.DestinationChain]; !ok {
+					results[dateStr]["*"][row.DestinationChain] = map[string]float64{"*": 0}
+				}
+				// add the transfer data to the result set every possible way:
+				// by symbol, aggregated by: "leaving chain", "arriving at chain", "from any chain", "to any chain".
 
-				// add to the total count
+				// add to the total amount leaving this chain, going to any chain, for all symbols
 				results[dateStr][row.LeavingChain]["*"]["*"] = results[dateStr][row.LeavingChain]["*"]["*"] + row.Notional
+				// add to the total amount leaving this chain, going to the destination chain, for all symbols
 				results[dateStr][row.LeavingChain][row.DestinationChain]["*"] = results[dateStr][row.LeavingChain][row.DestinationChain]["*"] + row.Notional
-				// add to the count for chain/symbol
+				// add to the total amount of this symbol leaving this chain, going to any chain
+				results[dateStr][row.LeavingChain]["*"][row.TokenSymbol] = results[dateStr][row.LeavingChain]["*"][row.TokenSymbol] + row.Notional
+				// add to the total amount of this symbol leaving this chain, going to the destination chain
 				results[dateStr][row.LeavingChain][row.DestinationChain][row.TokenSymbol] = results[dateStr][row.LeavingChain][row.DestinationChain][row.TokenSymbol] + row.Notional
 
+				// add to the total amount arriving at the destination chain, coming from anywhere, including all symbols
+				results[dateStr]["*"][row.DestinationChain]["*"] = results[dateStr]["*"][row.DestinationChain]["*"] + row.Notional
+				// add to the total amount of this symbol arriving at the destination chain
+				results[dateStr]["*"][row.DestinationChain][row.TokenSymbol] = results[dateStr]["*"][row.DestinationChain][row.TokenSymbol] + row.Notional
+				// add to the total amount of this symbol transferred, from any chain, to any chain
+				results[dateStr]["*"]["*"][row.TokenSymbol] = results[dateStr]["*"]["*"][row.TokenSymbol] + row.Notional
+				// and finally, total/total/total: amount of all symbols transferred from any chain to any other chain
+				results[dateStr]["*"]["*"]["*"] = results[dateStr]["*"]["*"]["*"] + row.Notional
 			}
-			// set the result in the cache
-			warmTransfersCache[cachePrefix][dateStr] = results[dateStr]
+			if daysAgo >= 1 {
+				// set the result in the cache
+				muWarmTransfersCache.Lock()
+				if cacheData, ok := warmTransfersCache[cachePrefix][dateStr]; !ok || len(cacheData) == 1 {
+					// cache does not have this date, add the data, and mark the cache stale
+					warmTransfersCache[cachePrefix][dateStr] = results[dateStr]
+					cacheNeedsUpdate = true
+				}
+				muWarmTransfersCache.Unlock()
+			}
 		}(tbl, ctx, prefix, daysAgo)
 	}
 
 	intervalsWG.Wait()
 
+	if cacheNeedsUpdate {
+		persistInterfaceToJson(warmTransfersCacheFilePath, &muWarmTransfersCache, warmTransfersCache)
+	}
+
 	// having consistent keys in each object is helpful for clients, explorer GUI
-	// create a set of all the keys from all dates/chains/symbols, to ensure the result objects all have the same keys
-	seenSymbolSet := map[string]bool{}
+	// create a set of all the keys from all dates/chains, to ensure the result objects all have the same chain keys
 	seenChainSet := map[string]bool{}
-	for date, tokens := range results {
-		for leaving, dests := range tokens {
+	for _, chains := range results {
+		for leaving, dests := range chains {
 			seenChainSet[leaving] = true
+
 			for dest := range dests {
-				for key := range results[date][leaving][dest] {
-					seenSymbolSet[key] = true
-				}
+				seenChainSet[dest] = true
 			}
 		}
 	}
+
+	var muResult sync.RWMutex
 	// ensure each chain object has all the same symbol keys:
-	for date := range results {
-		for leaving := range results[date] {
-			for dest := range results[date][leaving] {
-				for chain := range seenChainSet {
-					// check that date has all the chains
-					if _, ok := results[date][leaving][chain]; !ok {
-						results[date][leaving][chain] = map[string]float64{"*": 0}
-					}
-				}
-				for token := range seenSymbolSet {
-					if _, ok := results[date][leaving][token]; !ok {
-						// add the missing key to the map
-						results[date][leaving][dest][token] = 0
-					}
+	for date, chains := range results {
+		for chain := range seenChainSet {
+			if _, ok := chains[chain]; !ok {
+				muResult.Lock()
+				results[date][chain] = map[string]map[string]float64{"*": {"*": 0}}
+				muResult.Unlock()
+			}
+		}
+		for leaving := range chains {
+			for chain := range seenChainSet {
+				// check that date has all the chains
+				if _, ok := chains[chain]; !ok {
+					muResult.Lock()
+					results[date][leaving][chain] = map[string]float64{"*": 0}
+					muResult.Unlock()
 				}
 			}
 		}
 	}
 
-	return results, nil
+	return results
+}
+
+// calculates the amount of each symbol that has gone from each chain, to each other chain, since the specified day.
+func transferredSinceDate(tbl *bigtable.Table, ctx context.Context, prefix string, start time.Time) map[string]map[string]map[string]float64 {
+	result := map[string]map[string]map[string]float64{"*": {"*": {"*": 0}}}
+
+	dailyTotals := createTransfersOfInterval(tbl, ctx, prefix, start)
+
+	for _, leaving := range dailyTotals {
+		for chain, dests := range leaving {
+			// ensure the chain exists in the result map
+			if _, ok := result[chain]; !ok {
+				result[chain] = map[string]map[string]float64{"*": {"*": 0}}
+			}
+			for dest, tokens := range dests {
+				if _, ok := result[chain][dest]; !ok {
+					result[chain][dest] = map[string]float64{"*": 0}
+				}
+				for symbol, amount := range tokens {
+					if _, ok := result[chain][dest][symbol]; !ok {
+						result[chain][dest][symbol] = 0
+					}
+					// add the amount of this symbol transferred this day to the
+					// amount already in the result (amount of this symbol prevoiusly transferred)
+					result[chain][dest][symbol] = result[chain][dest][symbol] + amount
+				}
+			}
+		}
+	}
+
+	return result
 }
 
 // returns the count of the rows in the query response
-func transfersForInterval(tbl *bigtable.Table, ctx context.Context, prefix string, start, end time.Time) (map[string]map[string]map[string]float64, error) {
+func transfersForInterval(tbl *bigtable.Table, ctx context.Context, prefix string, start, end time.Time) map[string]map[string]map[string]float64 {
 	// query for all rows in time range, return result count
-	results, fetchErr := fetchTransferRowsInInterval(tbl, ctx, prefix, start, end)
-	if fetchErr != nil {
-		log.Printf("fetchRowsInInterval returned an error: %v", fetchErr)
-		return nil, fetchErr
-	}
-	var total = float64(0)
-	for _, item := range results {
-		total = total + item.Notional
-	}
+	queryResults := fetchTransferRowsInInterval(tbl, ctx, prefix, start, end)
 
-	result := map[string]map[string]map[string]float64{"*": {"*": {"*": total}}}
+	result := map[string]map[string]map[string]float64{"*": {"*": {"*": 0}}}
 
 	// iterate through the rows and increment the count for each index
-	for _, row := range results {
+	for _, row := range queryResults {
 		if _, ok := result[row.LeavingChain]; !ok {
 			result[row.LeavingChain] = map[string]map[string]float64{"*": {"*": 0}}
 		}
 		if _, ok := result[row.LeavingChain][row.DestinationChain]; !ok {
 			result[row.LeavingChain][row.DestinationChain] = map[string]float64{"*": 0}
 		}
-		// add to total amount
+		if _, ok := result["*"][row.DestinationChain]; !ok {
+			result["*"][row.DestinationChain] = map[string]float64{"*": 0}
+		}
+		// add the transfer data to the result set every possible way:
+		// by symbol, aggregated by: "leaving chain", "arriving at chain", "from any chain", "to any chain".
+
+		// add to the total amount leaving this chain, going to any chain, for all symbols
 		result[row.LeavingChain]["*"]["*"] = result[row.LeavingChain]["*"]["*"] + row.Notional
+		// add to the total amount leaving this chain, going to the destination chain, for all symbols
 		result[row.LeavingChain][row.DestinationChain]["*"] = result[row.LeavingChain][row.DestinationChain]["*"] + row.Notional
-		// add to symbol amount
+		// add to the total amount of this symbol leaving this chain, going to any chain
+		result[row.LeavingChain]["*"][row.TokenSymbol] = result[row.LeavingChain]["*"][row.TokenSymbol] + row.Notional
+		// add to the total amount of this symbol leaving this chain, going to the destination chain
 		result[row.LeavingChain][row.DestinationChain][row.TokenSymbol] = result[row.LeavingChain][row.DestinationChain][row.TokenSymbol] + row.Notional
+
+		// add to the total amount arriving at the destination chain, coming from anywhere, including all symbols
+		result["*"][row.DestinationChain]["*"] = result["*"][row.DestinationChain]["*"] + row.Notional
+		// add to the total amount of this symbol arriving at the destination chain
+		result["*"][row.DestinationChain][row.TokenSymbol] = result["*"][row.DestinationChain][row.TokenSymbol] + row.Notional
+		// add to the total amount of this symbol transferred, from any chain, to any chain
+		result["*"]["*"][row.TokenSymbol] = result["*"]["*"][row.TokenSymbol] + row.Notional
+		// and finally, total/total/total: amount of all symbols transferred from any chain to any other chain
+		result["*"]["*"]["*"] = result["*"]["*"]["*"] + row.Notional
 	}
 
 	// create a set of all the keys from all dates/chains, to ensure the result objects all have the same keys.
@@ -270,12 +266,10 @@ func transfersForInterval(tbl *bigtable.Table, ctx context.Context, prefix strin
 			}
 		}
 	}
-	return result, nil
+	return result
 }
 
-// get number of recent transactions in the last 24 hours, and daily for a period
-// optionally group by a EmitterChain or EmitterAddress
-// optionally query for recent rows of a given EmitterChain or EmitterAddress
+// finds the value that has been transferred from each chain to each other, by symbol.
 func NotionalTransferred(w http.ResponseWriter, r *http.Request) {
 	// Set CORS headers for the preflight request
 	if r.Method == http.MethodOptions {
@@ -373,35 +367,33 @@ func NotionalTransferred(w http.ResponseWriter, r *http.Request) {
 	var wg sync.WaitGroup
 
 	// total of last 24 hours
-	var last24HourCount map[string]map[string]map[string]float64
+	last24HourCount := map[string]map[string]map[string]float64{}
 	if last24Hours != "" {
 		wg.Add(1)
 		go func(prefix string) {
-			var err error
 			last24HourInterval := -time.Duration(24) * time.Hour
 			now := time.Now().UTC()
 			start := now.Add(last24HourInterval)
 			defer wg.Done()
-			last24HourCount, err = transfersForInterval(tbl, ctx, prefix, start, now)
-			for chain, dests := range last24HourCount {
+			transfers := transfersForInterval(tbl, ctx, prefix, start, now)
+			for chain, dests := range transfers {
+				last24HourCount[chain] = map[string]map[string]float64{}
 				for dest, tokens := range dests {
+					last24HourCount[chain][dest] = map[string]float64{}
 					for symbol, amount := range tokens {
 						last24HourCount[chain][dest][symbol] = roundToTwoDecimalPlaces(amount)
 					}
 				}
 			}
-			if err != nil {
-				log.Printf("failed getting count for 24h interval, err: %v", err)
-			}
+
 		}(prefix)
 	}
 
-	// total of the last numDays
-	var periodCount map[string]map[string]map[string]float64
+	// transfers of the last numDays
+	periodTransfers := map[string]map[string]map[string]float64{}
 	if forPeriod != "" {
 		wg.Add(1)
 		go func(prefix string) {
-			var err error
 			hours := (24 * queryDays)
 			periodInterval := -time.Duration(hours) * time.Hour
 
@@ -410,39 +402,42 @@ func NotionalTransferred(w http.ResponseWriter, r *http.Request) {
 			start := time.Date(prev.Year(), prev.Month(), prev.Day(), 0, 0, 0, 0, prev.Location())
 
 			defer wg.Done()
-			periodCount, err = transfersForInterval(tbl, ctx, prefix, start, now)
-			for chain, dests := range periodCount {
+			transfers := transferredSinceDate(tbl, ctx, prefix, start)
+			for chain, dests := range transfers {
+				periodTransfers[chain] = map[string]map[string]float64{}
 				for dest, tokens := range dests {
+					periodTransfers[chain][dest] = map[string]float64{}
 					for symbol, amount := range tokens {
-						periodCount[chain][dest][symbol] = roundToTwoDecimalPlaces(amount)
+						periodTransfers[chain][dest][symbol] = roundToTwoDecimalPlaces(amount)
 					}
 				}
-			}
-			if err != nil {
-				log.Printf("failed getting count for numDays interval, err: %v\n", err)
 			}
 		}(prefix)
 	}
 
 	// daily totals
-	var dailyTotals map[string]map[string]map[string]map[string]float64
+	dailyTransfers := map[string]map[string]map[string]map[string]float64{}
 	if daily != "" {
 		wg.Add(1)
 		go func(prefix string, queryDays int) {
-			var err error
+			hours := (24 * queryDays)
+			periodInterval := -time.Duration(hours) * time.Hour
+			now := time.Now().UTC()
+			prev := now.Add(periodInterval)
+			start := time.Date(prev.Year(), prev.Month(), prev.Day(), 0, 0, 0, 0, prev.Location())
 			defer wg.Done()
-			dailyTotals, err = createTransfersOfInterval(tbl, ctx, prefix, queryDays)
-			for date, chains := range dailyTotals {
+			transfers := createTransfersOfInterval(tbl, ctx, prefix, start)
+			for date, chains := range transfers {
+				dailyTransfers[date] = map[string]map[string]map[string]float64{}
 				for chain, dests := range chains {
+					dailyTransfers[date][chain] = map[string]map[string]float64{}
 					for destChain, tokens := range dests {
+						dailyTransfers[date][chain][destChain] = map[string]float64{}
 						for symbol, amount := range tokens {
-							dailyTotals[date][chain][destChain][symbol] = roundToTwoDecimalPlaces(amount)
+							dailyTransfers[date][chain][destChain][symbol] = roundToTwoDecimalPlaces(amount)
 						}
 					}
 				}
-			}
-			if err != nil {
-				log.Fatalf("failed getting createCountsOfInterval err %v", err)
 			}
 		}(prefix, queryDays)
 	}
@@ -451,9 +446,9 @@ func NotionalTransferred(w http.ResponseWriter, r *http.Request) {
 
 	result := &transfersResult{
 		Last24Hours:        last24HourCount,
-		WithinPeriod:       periodCount,
+		WithinPeriod:       periodTransfers,
 		PeriodDurationDays: queryDays,
-		Daily:              dailyTotals,
+		Daily:              dailyTransfers,
 	}
 
 	jsonBytes, err := json.Marshal(result)
