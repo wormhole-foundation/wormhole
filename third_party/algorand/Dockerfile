@@ -5,7 +5,6 @@ RUN mkdir -p /setup
 ADD template.json /setup/
 ADD setup.sh /setup/
 ADD setup.py /setup/
-ADD requirements.txt /setup/
 ADD vaa-verify.teal /setup/
 ADD vaa-processor-clear.teal /setup/
 ADD vaa-processor-approval.teal /setup/
@@ -20,3 +19,7 @@ ADD config.json /network/Node/config.json
 ADD kmd_config.json /network/Node/kmd-v0.5/kmd_config.json
 
 ENV ALGORAND_DATA=/network/Node
+
+ADD requirements.txt /setup/
+RUN apt-get install -y python3-pip
+RUN pip install -r /setup/requirements.txt
