@@ -4,7 +4,7 @@
 
 The following dependencies are required for local development:
 
-- [Go](https://golang.org/dl/) >= 1.17.0
+- [Go](https://golang.org/dl/) >= 1.17.5
 - [Tilt](http://tilt.dev/) >= 0.20.8
 - Any of the local Kubernetes clusters supported by Tilt.
   We strongly recommend [minikube](https://kubernetes.io/docs/setup/learning-environment/minikube/) >= 
@@ -79,22 +79,16 @@ First, create an SSH key on the VM:
     ssh-keygen -t ed25519
     cat .ssh/id_ed25519.pub
 
-You can then [add your public key on Gerrit](https://forge.certus.one/settings/#SSHKeys) and [clone the repository](https://forge.certus.one/admin/repos/wormhole). The clone command should look like this:
+You can then [add your public key on GitHub](https://github.com/settings/keys) and clone the repository:
 
-```shell
-# don't copy this - copy it from Gerrit instead
-git clone "ssh://yourusername@forge.certus.one:30322/wormhole" && scp -p -P 30322 yourusername@forge.certus.one:hooks/commit-msg "wormhole/.git/hooks/"
-```
+    git clone git@github.com:certusone/wormhole.git
 
-Configure your Git identity to match your Gerrit name and email:
+Configure your Git identity:
 
     git config --global user.name "Your Name"
     git config --global user.email "yourname@company.com"
 
-*If you are a Jump Crypto employee, make sure to log into Gerrit using Azure SSO using your
-jumptrading.com email address and request Gerrit review permissions in #wormhole-dev on Slack.*
-
-You can then use our regular Git and Gerrit workflow as detailed in [Submit change for review](CONTRIBUTING.md#submit-change-for-review).
+Your email address should be linked to your personal or company GitHub account.
 
 ### Set up devnet on the VM
 

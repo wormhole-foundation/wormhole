@@ -38,6 +38,7 @@ config.define_string("webHost", False, "Public hostname for port forwards")
 config.define_bool("pyth", False, "Enable Pyth-to-Wormhole component")
 config.define_bool("explorer", False, "Enable explorer component")
 config.define_bool("bridge_ui", False, "Enable bridge UI component")
+config.define_bool("e2e", False, "Enable E2E testing stack")
 
 cfg = config.parse()
 num_guardians = int(cfg.get("num", "1"))
@@ -49,6 +50,7 @@ ci = cfg.get("ci", False)
 pyth = cfg.get("pyth", ci)
 explorer = cfg.get("explorer", ci)
 bridge_ui = cfg.get("bridge_ui", ci)
+e2e = cfg.get("e2e", ci)
 
 if cfg.get("manual", False):
     trigger_mode = TRIGGER_MODE_MANUAL
@@ -303,6 +305,25 @@ k8s_resource(
     ],
     trigger_mode = trigger_mode,
 )
+
+# e2e
+if e2e:
+    k8s_yaml_with_ns("devnet/e2e.yaml")
+
+    docker_build(
+        ref = "e2e",
+        context = "e2e",
+        dockerfile = "e2e/Dockerfile",
+        network = "host",
+    )
+
+    k8s_resource(
+        "e2e",
+        port_forwards = [
+            port_forward(6080, name = "VNC [:6080]", host = webHost, link_path = "/vnc_auto.html"),
+        ],
+        trigger_mode = trigger_mode,
+    )
 
 # bigtable
 
