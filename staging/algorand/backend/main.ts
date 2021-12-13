@@ -10,7 +10,6 @@
 import * as Config from '@randlabs/js-config-reader'
 import { IAppSettings } from './common/settings'
 import { exit } from 'process'
-import { PriceKeeperEngine } from './engine/PriceKeeperEngine'
 import { WormholeClientEngine } from './engine/WormholeEngine'
 const charm = require('charm')();
 
@@ -30,20 +29,6 @@ const charm = require('charm')();
     exit(1)
   }
 
-  let engine
-  switch (settings.mode) {
-    case 'pkeeper':
-      engine = new PriceKeeperEngine(settings)
-      break
-
-    case 'wormhole-client':
-      engine = new WormholeClientEngine(settings)
-      break
-
-    default:
-      console.error('Invalid specified mode in settings')
-      exit(2)
-  }
-
+  const engine = new WormholeClientEngine(settings)
   engine.start()
 })()
