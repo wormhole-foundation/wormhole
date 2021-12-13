@@ -7,8 +7,6 @@
  */
 
 import { IEngine } from './IEngine'
-import { PythPriceFetcher } from '../fetcher/PythPriceFetcher'
-import { StdAlgoPublisher } from '../publisher/stdAlgoPublisher'
 import { StrategyLastPrice } from '../strategy/strategyLastPrice'
 import { IAppSettings } from '../common/settings'
 import { IPriceFetcher } from '../fetcher/IPriceFetcher'
@@ -16,9 +14,9 @@ import { IPublisher, PublishInfo } from '../publisher/IPublisher'
 import { PriceTicker } from '../common/priceTicker'
 import { StatusCode } from '../common/statusCodes'
 import { sleep } from '../common/sleep'
-import { WormholePythPriceFetcher } from 'backend/fetcher/WormholePythPriceFetcher'
+import { NullPublisher } from '../publisher/NullPublisher'
+import { WormholePythPriceFetcher } from '../fetcher/WormholePythPriceFetcher'
 
-const algosdk = require('algosdk')
 const charm = require('charm')()
 
 type WorkerRoutineStatus = {
@@ -45,27 +43,25 @@ export class WormholeClientEngine implements IEngine {
   }
 
   async start () {
-    charm.write('Setting up for')
-      .foreground('yellow')
-      .write(` ${this.settings.params.symbol} `)
-      .foreground('white')
-      .write('for PriceKeeper App')
-      .foreground('yellow')
-      .write(` ${this.settings.params.priceKeeperAppId} `)
-      .foreground('white')
-      .write(`interval ${this.settings.params.publishIntervalSecs} secs\n`)
+    charm.write('Supported symbols:')
+    this.settings.symbols.forEach(sym => {
+      charm.foreground('yellow')
+        .write(` ${sym.name} `)
+        .foreground('white')
+        .write(' AppId: ')
+        .foreground('yellow')
+        .write(` ${sym.priceKeeperV2AppId} `)
+        .foreground('white')
+        .write(`interval ${sym.publishIntervalSecs} secs\n`)
+    })
 
-    const publisher = new StdAlgoPublisher(this.settings.params.symbol,
-      this.settings.params.priceKeeperAppId,
-      this.settings.params.validator,
-      (algosdk.mnemonicToSecretKey(this.settings.params.mnemo)).sk,
-      this.settings.algo.token,
-      this.settings.algo.api,
-      this.settings.algo.port
-    )
+    const publisher = new NullPublisher()
+    const fetcher = new WormholePythPriceFetcher(this.settings.wormhole.spyServiceHost,
+      this.settings.pyth.chainId,
+      this.settings.pyth.emitterAddress,
+      this.settings.symbols,
+      new StrategyLastPrice(this.settings.strategy.bufferSize))
 
-    const fetcher = new WormholePythPriceFetcher(this.settings.params.symbol,
-      new StrategyLastPrice(this.settings.params.bufferSize), this.settings.pyth?.solanaClusterName!)
     await fetcher.start()
 
     console.log('Waiting for fetcher to boot...')
@@ -88,7 +84,7 @@ export class WormholeClientEngine implements IEngine {
       const wrs = await workerRoutine(fetcher, publisher)
       switch (wrs.status) {
         case StatusCode.OK: {
-          console.log(`[PUB ${pubCount++}] ${wrs.tick!.price}±${wrs.tick!.confidence} exp:${wrs.tick!.exponent}  t:${wrs.tick!.networkTime} TXID:${wrs.pub!.txid}`)
+          console.log(`[PUB ${pubCount++}] ${wrs.tick!.price}±${wrs.tick!.confidence} exp:${wrs.tick!.exponent}  t:${wrs.tick!.timestamp} TXID:${wrs.pub!.txid}`)
           break
         }
         case StatusCode.NO_TICKER:
@@ -97,7 +93,8 @@ export class WormholeClientEngine implements IEngine {
         default:
           console.log('Error. Reason: ' + wrs.reason)
       }
-      await sleep(this.settings.params.publishIntervalSecs * 1000)
+      //await sleep(this.settings.params.publishIntervalSecs * 1000)
+      await sleep(1000)
     }
   }
 }
