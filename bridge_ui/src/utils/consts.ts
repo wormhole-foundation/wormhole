@@ -7,6 +7,7 @@ import {
   CHAIN_ID_POLYGON,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
+  isEVMChain,
 } from "@certusone/wormhole-sdk";
 import { clusterApiUrl } from "@solana/web3.js";
 import { getAddress } from "ethers/lib/utils";
@@ -814,3 +815,12 @@ export const logoOverrides = new Map<string, string>([
     "https://orion.money/assets/ORION-LOGO-2.1-GREEN@256x256.png",
   ],
 ]);
+
+export const getHowToAddTokensToWalletUrl = (chainId: ChainId) => {
+  if (isEVMChain(chainId)) {
+    return "https://docs.wormholenetwork.com/wormhole/video-tutorial-how-to-manually-add-tokens-to-your-wallet#1.-metamask-ethereum-polygon-and-bsc";
+  } else if (chainId === CHAIN_ID_TERRA) {
+    return "https://docs.wormholenetwork.com/wormhole/video-tutorial-how-to-manually-add-tokens-to-your-wallet#2.-terra-station";
+  }
+  return "";
+};

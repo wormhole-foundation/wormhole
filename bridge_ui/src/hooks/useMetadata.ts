@@ -19,7 +19,7 @@ export type GenericMetadata = {
   symbol?: string;
   logo?: string;
   tokenName?: string;
-  //decimals?: number;
+  decimals?: number;
   //TODO more items
   raw?: any;
 };
