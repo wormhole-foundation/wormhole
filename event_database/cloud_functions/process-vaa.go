@@ -314,9 +314,6 @@ func ProcessVAA(ctx context.Context, m PubSubMessage) error {
 			mutation.Set(colFam, "NativeAddress", ts, []byte(nativeAddress))
 
 			writeErr := writePayloadToBigTable(ctx, rowKey, colFam, mutation)
-			if writeErr != nil {
-				log.Println("wrote TokenTransferPayload to bigtable!", rowKey)
-			}
 			return writeErr
 		} else {
 			// unknown payload type
@@ -347,9 +344,6 @@ func ProcessVAA(ctx context.Context, m PubSubMessage) error {
 			mutation.Set(colFam, "TargetChain", ts, []byte(fmt.Sprint(payload.TargetChain)))
 
 			writeErr := writePayloadToBigTable(ctx, rowKey, colFam, mutation)
-			if writeErr == nil {
-				log.Println("wrote NFTTransferPayload to bigtable!", rowKey)
-			}
 			return writeErr
 		} else {
 			// unknown payload type

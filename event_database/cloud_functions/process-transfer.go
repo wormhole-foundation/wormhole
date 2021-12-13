@@ -198,6 +198,8 @@ func ProcessTransfer(ctx context.Context, m PubSubMessage) error {
 	notional := amountFloat * price
 	notionalStr := fmt.Sprintf("%f", notional)
 
+	log.Printf("processed transfer of $%0.2f = %v %v * $%0.2f\n", notional, calculatedAmount, symbol, price)
+
 	// write to BigTable
 	colFam := columnFamilies[5]
 	mutation := bigtable.NewMutation()
@@ -233,7 +235,6 @@ func ProcessTransfer(ctx context.Context, m PubSubMessage) error {
 		log.Printf("Failed to write TokenTransferDetails for %v to BigTable. err: %v\n", rowKey, writeErr)
 		return writeErr
 	}
-	log.Println("done writing TokenTransferDetails to bigtable", rowKey)
 
 	// success
 	return nil

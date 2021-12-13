@@ -105,10 +105,7 @@ func createTransfersOfInterval(tbl *bigtable.Table, ctx context.Context, prefix 
 	intervalsWG.Add(numPrevDays + 1)
 
 	// create the unique identifier for this query, for cache
-	cachePrefix := prefix
-	if prefix == "" {
-		cachePrefix = "*"
-	}
+	cachePrefix := createCachePrefix(prefix)
 
 	for daysAgo := 0; daysAgo <= numPrevDays; daysAgo++ {
 		go func(tbl *bigtable.Table, ctx context.Context, prefix string, daysAgo int) {
@@ -134,26 +131,27 @@ func createTransfersOfInterval(tbl *bigtable.Table, ctx context.Context, prefix 
 			// initialize the map for this date in the result set
 			results[dateStr] = map[string]map[string]map[string]float64{"*": {"*": {"*": 0}}}
 			// check to see if there is cache data for this date/query
-			if dateCache, ok := warmTransfersCache[dateStr]; ok {
-				// have a cache for this date
+			if dates, ok := warmTransfersCache[cachePrefix]; ok {
+				// have a cache for this query
 
-				if val, ok := dateCache[cachePrefix]; ok {
-					// have a cache for this query
+				if dateCache, ok := dates[dateStr]; ok {
+					// have a cache for this date
+
 					if daysAgo >= 1 {
 						// only use the cache for yesterday and older
-						results[dateStr] = val
+						results[dateStr] = dateCache
 						mu.Unlock()
 						intervalsWG.Done()
 						return
 					}
 				} else {
 					// no cache for this query
-					warmTransfersCache[dateStr][cachePrefix] = map[string]map[string]map[string]float64{}
+					warmTransfersCache[cachePrefix][dateStr] = map[string]map[string]map[string]float64{}
 				}
 			} else {
 				// no cache for this date, initialize the map
-				warmTransfersCache[dateStr] = map[string]map[string]map[string]map[string]float64{}
-				warmTransfersCache[dateStr][cachePrefix] = map[string]map[string]map[string]float64{}
+				warmTransfersCache[cachePrefix] = map[string]map[string]map[string]map[string]float64{}
+				warmTransfersCache[cachePrefix][dateStr] = map[string]map[string]map[string]float64{}
 			}
 			mu.Unlock()
 
@@ -185,37 +183,45 @@ func createTransfersOfInterval(tbl *bigtable.Table, ctx context.Context, prefix 
 
 			}
 			// set the result in the cache
-			warmTransfersCache[dateStr][cachePrefix] = results[dateStr]
+			warmTransfersCache[cachePrefix][dateStr] = results[dateStr]
 		}(tbl, ctx, prefix, daysAgo)
 	}
 
 	intervalsWG.Wait()
 
-	// not sure if having consistent keys is helpful or not, commenting out until this endpoint is consumed by GUIs
-	// // create a set of all the keys from all dates/chains/symbols, to ensure the result objects all have the same keys
-	// seenKeySet := map[string]bool{}
-	// for date, tokens := range results {
-	// 	for leaving, dests := range tokens {
-	// 		for dest := range dests {
-	// 			for key := range results[date][leaving][dest] {
-	// 				seenKeySet[key] = true
-	// 			}
-	// 		}
-	// 	}
-	// }
-	// // ensure each chain object has all the same symbol keys:
-	// for date := range results {
-	// 	for leaving := range results[date] {
-	// 		for dest := range results[date][leaving] {
-	// 			for token := range seenKeySet {
-	// 				if _, ok := results[date][leaving][token]; !ok {
-	// 					// add the missing key to the map
-	// 					results[date][leaving][dest][token] = 0
-	// 				}
-	// 			}
-	// 		}
-	// 	}
-	// }
+	// having consistent keys in each object is helpful for clients, explorer GUI
+	// create a set of all the keys from all dates/chains/symbols, to ensure the result objects all have the same keys
+	seenSymbolSet := map[string]bool{}
+	seenChainSet := map[string]bool{}
+	for date, tokens := range results {
+		for leaving, dests := range tokens {
+			seenChainSet[leaving] = true
+			for dest := range dests {
+				for key := range results[date][leaving][dest] {
+					seenSymbolSet[key] = true
+				}
+			}
+		}
+	}
+	// ensure each chain object has all the same symbol keys:
+	for date := range results {
+		for leaving := range results[date] {
+			for dest := range results[date][leaving] {
+				for chain := range seenChainSet {
+					// check that date has all the chains
+					if _, ok := results[date][leaving][chain]; !ok {
+						results[date][leaving][chain] = map[string]float64{"*": 0}
+					}
+				}
+				for token := range seenSymbolSet {
+					if _, ok := results[date][leaving][token]; !ok {
+						// add the missing key to the map
+						results[date][leaving][dest][token] = 0
+					}
+				}
+			}
+		}
+	}
 
 	return results, nil
 }
@@ -248,6 +254,21 @@ func transfersForInterval(tbl *bigtable.Table, ctx context.Context, prefix strin
 		result[row.LeavingChain][row.DestinationChain]["*"] = result[row.LeavingChain][row.DestinationChain]["*"] + row.Notional
 		// add to symbol amount
 		result[row.LeavingChain][row.DestinationChain][row.TokenSymbol] = result[row.LeavingChain][row.DestinationChain][row.TokenSymbol] + row.Notional
+	}
+
+	// create a set of all the keys from all dates/chains, to ensure the result objects all have the same keys.
+	seenChainSet := map[string]bool{}
+	for leaving := range result {
+		seenChainSet[leaving] = true
+	}
+
+	for leaving := range result {
+		for chain := range seenChainSet {
+			// check that date has all the chains
+			if _, ok := result[leaving][chain]; !ok {
+				result[leaving][chain] = map[string]float64{"*": 0}
+			}
+		}
 	}
 	return result, nil
 }

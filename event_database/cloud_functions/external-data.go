@@ -233,10 +233,10 @@ func fetchCoinGeckoPrice(coinId string, timestamp time.Time) (float64, error) {
 			priceIndex = numPrices / 2
 		}
 		price := parsed.Prices[priceIndex][1]
-		fmt.Printf("found a price for %v! %v\n", coinId, price)
+		log.Printf("found a price of $%f for %v!\n", price, coinId)
 		return price, nil
 	}
-	fmt.Println("no price found in coinGecko for", coinId)
+	log.Println("no price found in coinGecko for", coinId)
 	return 0, fmt.Errorf("no price found for %v", coinId)
 }
 

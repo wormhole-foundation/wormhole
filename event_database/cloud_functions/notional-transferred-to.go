@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"math"
 	"net/http"
 	"strconv"
 	"sync"
@@ -38,10 +37,6 @@ type TransferData struct {
 	LeavingChain     string
 	DestinationChain string
 	Notional         float64
-}
-
-func roundToTwoDecimalPlaces(num float64) float64 {
-	return math.Round(num*100) / 100
 }
 
 func fetchAmountRowsInInterval(tbl *bigtable.Table, ctx context.Context, prefix string, start, end time.Time) ([]TransferData, error) {
@@ -119,10 +114,7 @@ func createAmountsOfInterval(tbl *bigtable.Table, ctx context.Context, prefix st
 	intervalsWG.Add(numPrevDays + 1)
 
 	// create the unique identifier for this query, for cache
-	cachePrefix := prefix
-	if prefix == "" {
-		cachePrefix = "*"
-	}
+	cachePrefix := createCachePrefix(prefix)
 
 	for daysAgo := 0; daysAgo <= numPrevDays; daysAgo++ {
 		go func(tbl *bigtable.Table, ctx context.Context, prefix string, daysAgo int) {
@@ -146,28 +138,28 @@ func createAmountsOfInterval(tbl *bigtable.Table, ctx context.Context, prefix st
 
 			mu.Lock()
 			// initialize the map for this date in the result set
-			results[dateStr] = map[string]map[string]float64{}
+			results[dateStr] = map[string]map[string]float64{"*": {"*": 0}}
 			// check to see if there is cache data for this date/query
-			if dateCache, ok := warmAmountsCache[dateStr]; ok {
-				// have a cache for this date
+			if dates, ok := warmAmountsCache[cachePrefix]; ok {
+				// have a cache for this query
 
-				if val, ok := dateCache[cachePrefix]; ok {
-					// have a cache for this query
+				if dateCache, ok := dates[dateStr]; ok {
+					// have a cache for this date
 					if daysAgo >= 1 {
 						// only use the cache for yesterday and older
-						results[dateStr] = val
+						results[dateStr] = dateCache
 						mu.Unlock()
 						intervalsWG.Done()
 						return
 					}
 				} else {
 					// no cache for this query
-					warmAmountsCache[dateStr][cachePrefix] = map[string]map[string]float64{}
+					warmAmountsCache[cachePrefix][dateStr] = map[string]map[string]float64{}
 				}
 			} else {
 				// no cache for this date, initialize the map
-				warmAmountsCache[dateStr] = map[string]map[string]map[string]float64{}
-				warmAmountsCache[dateStr][cachePrefix] = map[string]map[string]float64{}
+				warmAmountsCache[cachePrefix] = map[string]map[string]map[string]float64{}
+				warmAmountsCache[cachePrefix][dateStr] = map[string]map[string]float64{}
 			}
 			mu.Unlock()
 
@@ -187,32 +179,47 @@ func createAmountsOfInterval(tbl *bigtable.Table, ctx context.Context, prefix st
 				if _, ok := results[dateStr][row.DestinationChain]; !ok {
 					results[dateStr][row.DestinationChain] = map[string]float64{"*": 0}
 				}
-				// add to the total count
+				// add to the total count for the dest chain
 				results[dateStr][row.DestinationChain]["*"] = results[dateStr][row.DestinationChain]["*"] + row.Notional
+				// add to total for the day
+				results[dateStr]["*"]["*"] = results[dateStr]["*"]["*"] + row.Notional
+				// add to the symbol's daily total
+				results[dateStr]["*"][row.TokenSymbol] = results[dateStr]["*"][row.TokenSymbol] + row.Notional
 				// add to the count for chain/symbol
 				results[dateStr][row.DestinationChain][row.TokenSymbol] = results[dateStr][row.DestinationChain][row.TokenSymbol] + row.Notional
 
 			}
 			// set the result in the cache
-			warmAmountsCache[dateStr][cachePrefix] = results[dateStr]
+			warmAmountsCache[cachePrefix][dateStr] = results[dateStr]
 		}(tbl, ctx, prefix, daysAgo)
 	}
 
 	intervalsWG.Wait()
 
 	// create a set of all the keys from all dates/chains/symbols, to ensure the result objects all have the same keys
-	seenKeySet := map[string]bool{}
+	seenSymbolSet := map[string]bool{}
+	seenChainSet := map[string]bool{}
 	for date, tokens := range results {
-		for leaving, _ := range tokens {
+		for leaving := range tokens {
+			seenChainSet[leaving] = true
 			for key := range results[date][leaving] {
-				seenKeySet[key] = true
+				seenSymbolSet[key] = true
 			}
 		}
 	}
 	// ensure each chain object has all the same symbol keys:
 	for date := range results {
 		for leaving := range results[date] {
-			for token := range seenKeySet {
+			// loop through seen chains
+			for chain := range seenChainSet {
+				// check that date has all the chains
+				if _, ok := results[date][chain]; !ok {
+					results[date][chain] = map[string]float64{"*": 0}
+				}
+			}
+			// loop through seen symbols
+			for token := range seenSymbolSet {
+				// check that the chain has all the symbols
 				if _, ok := results[date][leaving][token]; !ok {
 					// add the missing key to the map
 					results[date][leaving][token] = 0
@@ -246,6 +253,8 @@ func amountsForInterval(tbl *bigtable.Table, ctx context.Context, prefix string,
 		}
 		// add to total amount
 		result[row.DestinationChain]["*"] = result[row.DestinationChain]["*"] + row.Notional
+		// add to total per symbol
+		result["*"][row.TokenSymbol] = result["*"][row.TokenSymbol] + row.Notional
 		// add to symbol amount
 		result[row.DestinationChain][row.TokenSymbol] = result[row.DestinationChain][row.TokenSymbol] + row.Notional
 	}
