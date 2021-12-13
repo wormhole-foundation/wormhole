@@ -1,0 +1,7 @@
+githubRepoOwner: certusone
+githubRepoName: wormhole
+githubHost: github.com
+requireChecks: true
+requireApproval: true
+githubRemote: origin
+githubBranch: dev.v2
