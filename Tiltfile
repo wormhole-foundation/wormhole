@@ -307,6 +307,7 @@ docker_build(
 
 k8s_resource(
     "algorand",
+    resource_deps = ["teal-gen"],
     port_forwards = [
         port_forward(4001, name = "Algorand RPC [:4001]", host = webHost),
         port_forward(4002, name = "Algorand KMD [:4002]", host = webHost),
