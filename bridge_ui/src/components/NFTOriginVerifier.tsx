@@ -1,4 +1,5 @@
 import {
+  CHAIN_ID_AVAX,
   CHAIN_ID_BSC,
   CHAIN_ID_ETH,
   CHAIN_ID_POLYGON,
@@ -329,6 +330,17 @@ export default function NFTOriginVerifier() {
                     variant="outlined"
                   >
                     View on OpenSea
+                  </Button>
+                ) : originInfo.chainId === CHAIN_ID_AVAX ? (
+                  <Button
+                    href={`https://snowtrace.io/token/${readableAddress}?a=${originInfo.tokenId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    endIcon={<Launch />}
+                    className={classes.viewButton}
+                    variant="outlined"
+                  >
+                    View on Snowtrace
                   </Button>
                 ) : (
                   <Button
