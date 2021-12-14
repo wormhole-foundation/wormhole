@@ -286,6 +286,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		*ethContract = devnet.GanacheWormholeContractAddress.Hex()
 		*bscContract = devnet.GanacheWormholeContractAddress.Hex()
 		*polygonContract = devnet.GanacheWormholeContractAddress.Hex()
+		*avalancheContract = devnet.GanacheWormholeContractAddress.Hex()
 
 		// Use the hostname as nodeName. For production, we don't want to do this to
 		// prevent accidentally leaking sensitive hostnames.
