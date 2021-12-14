@@ -1,5 +1,6 @@
 import {
   ChainId,
+  CHAIN_ID_AVAX,
   CHAIN_ID_BSC,
   CHAIN_ID_ETH,
   CHAIN_ID_ETHEREUM_ROPSTEN,
@@ -110,6 +111,10 @@ export default function SmartAddress({
     ? `https://${
         CLUSTER === "testnet" ? "mumbai." : ""
       }polygonscan.com/address/${useableAddress}`
+    : chainId === CHAIN_ID_AVAX
+    ? `https://${
+        CLUSTER === "testnet" ? "testnet." : ""
+      }snowtrace.io/address/${useableAddress}`
     : chainId === CHAIN_ID_SOLANA
     ? `https://explorer.solana.com/address/${useableAddress}${
         CLUSTER === "testnet"
