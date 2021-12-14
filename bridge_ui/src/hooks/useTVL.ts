@@ -54,7 +54,11 @@ export type TVL = {
 };
 
 const BAD_PRICES_BY_CHAIN = {
-  [CHAIN_ID_BSC]: ["0x04132bf45511d03a58afd4f1d36a29d229ccc574"],
+  [CHAIN_ID_BSC]: [
+    "0x04132bf45511d03a58afd4f1d36a29d229ccc574",
+    "0xa79bd679ce21a2418be9e6f88b2186c9986bbe7d",
+    "0x931c3987040c90b6db09981c7c91ba155d3fa31f",
+  ],
   [CHAIN_ID_ETH]: ["0x3845badade8e6dff049820680d1f14bd3903a5d0"],
 };
 
