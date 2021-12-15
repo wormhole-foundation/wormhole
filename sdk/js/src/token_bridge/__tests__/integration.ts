@@ -42,6 +42,7 @@ import {
   transferFromSolana,
 } from "../..";
 import getSignedVAAWithRetry from "../../rpc/getSignedVAAWithRetry";
+import { postVaaWithRetry } from "../../solana/postVaa";
 import { setDefaultWasm } from "../../solana/wasm";
 import {
   ETH_CORE_BRIDGE_ADDRESS,
@@ -61,6 +62,7 @@ import {
   TEST_SOLANA_TOKEN,
   WORMHOLE_RPC_HOSTS,
 } from "./consts";
+import { transferFromEthToSolana } from "./helpers";
 
 setDefaultWasm("node");
 
@@ -724,6 +726,128 @@ describe("Integration Tests", () => {
           console.error(e);
           done(
             "An error occurred while testing deposits to and transfers from Terra"
+          );
+        }
+      })();
+    });
+  });
+  describe("Post VAA with retry", () => {
+    test("postVAA with retry, no failures", (done) => {
+      (async () => {
+        try {
+          // create a keypair for Solana
+          const connection = new Connection(SOLANA_HOST, "confirmed");
+          const keypair = Keypair.fromSecretKey(SOLANA_PRIVATE_KEY);
+          const payerAddress = keypair.publicKey.toString();
+          const sequence = await transferFromEthToSolana();
+          const emitterAddress = getEmitterAddressEth(ETH_TOKEN_BRIDGE_ADDRESS);
+          // poll until the guardian(s) witness and sign the vaa
+          const { vaaBytes: signedVAA } = await getSignedVAAWithRetry(
+            WORMHOLE_RPC_HOSTS,
+            CHAIN_ID_ETH,
+            emitterAddress,
+            sequence,
+            {
+              transport: NodeHttpTransport(),
+            }
+          );
+          let maxFailures = 0;
+          // post vaa to Solana
+
+          const postPromise = postVaaWithRetry(
+            connection,
+            async (transaction) => {
+              await new Promise(function (resolve) {
+                //We delay here so the connection has time to get wrecked
+                setTimeout(function () {
+                  resolve(500);
+                });
+              });
+              transaction.partialSign(keypair);
+              return transaction;
+            },
+            SOLANA_CORE_BRIDGE_ADDRESS,
+            payerAddress,
+            Buffer.from(signedVAA),
+            maxFailures
+          );
+
+          await postPromise;
+          // redeem tokens on solana
+          const transaction = await redeemOnSolana(
+            connection,
+            SOLANA_CORE_BRIDGE_ADDRESS,
+            SOLANA_TOKEN_BRIDGE_ADDRESS,
+            payerAddress,
+            signedVAA
+          );
+          // sign, send, and confirm transaction
+          transaction.partialSign(keypair);
+          const txid = await connection.sendRawTransaction(
+            transaction.serialize()
+          );
+          await connection.confirmTransaction(txid);
+          expect(
+            await getIsTransferCompletedSolana(
+              SOLANA_TOKEN_BRIDGE_ADDRESS,
+              signedVAA,
+              connection
+            )
+          ).toBe(true);
+          done();
+        } catch (e) {
+          console.error(e);
+          done(
+            "An error occurred while happy-path testing post VAA with retry."
+          );
+        }
+      })();
+    });
+    test("Reject on signature failure", (done) => {
+      (async () => {
+        try {
+          // create a keypair for Solana
+          const connection = new Connection(SOLANA_HOST, "confirmed");
+          const keypair = Keypair.fromSecretKey(SOLANA_PRIVATE_KEY);
+          const payerAddress = keypair.publicKey.toString();
+          const sequence = await transferFromEthToSolana();
+          const emitterAddress = getEmitterAddressEth(ETH_TOKEN_BRIDGE_ADDRESS);
+          // poll until the guardian(s) witness and sign the vaa
+          const { vaaBytes: signedVAA } = await getSignedVAAWithRetry(
+            WORMHOLE_RPC_HOSTS,
+            CHAIN_ID_ETH,
+            emitterAddress,
+            sequence,
+            {
+              transport: NodeHttpTransport(),
+            }
+          );
+          let maxFailures = 5;
+          // post vaa to Solana
+
+          let error = false;
+          try {
+            const postPromise = postVaaWithRetry(
+              connection,
+              async (transaction) => {
+                return Promise.reject();
+              },
+              SOLANA_CORE_BRIDGE_ADDRESS,
+              payerAddress,
+              Buffer.from(signedVAA),
+              maxFailures
+            );
+
+            await postPromise;
+          } catch (e) {
+            error = true;
+          }
+          expect(error).toBe(true);
+          done();
+        } catch (e) {
+          console.error(e);
+          done(
+            "An error occurred while trying to send from Ethereum to Solana"
           );
         }
       })();
