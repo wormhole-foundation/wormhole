@@ -103,12 +103,11 @@ def vaa_verify_program(vaa_processor_app_id):
     return Seq([
         Assert(Txn.fee() <= Int(1000)),
         Assert(Txn.application_args.length() == Int(3)),
-        Assert(Len(signatures) == get_sig_count_in_step(
-                Txn.group_index(), Btoi(num_guardians)) * Int(66)),
+        Assert(Len(signatures) == get_sig_count_in_step(Txn.group_index(), Btoi(num_guardians)) * Int(66)),
         Assert(Txn.rekey_to() == Global.zero_address()),
         Assert(Txn.application_id() == Int(vaa_processor_app_id)),
         Assert(Txn.type_enum() == TxnType.ApplicationCall),
-        Assert(Global.group_size() == get_group_size(Btoi(num_guardians))),
+        Assert(Global.group_size() == Int(1) + get_group_size(Btoi(num_guardians))),
         Assert(sig_check(signatures, digest, keys)),
         Approve()]
     )

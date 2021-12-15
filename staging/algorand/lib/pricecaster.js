@@ -230,7 +230,7 @@ class PricecasterLib {
      * @return {String} transaction id of the created application
      */
     this.createVaaProcessorApp = async function (sender, gexpTime, gsindex, gkeys, signCallback) {
-      return await this.createApp(sender, 'vaaProcessor', 0, 0, 4, 20,
+      return await this.createApp(sender, 'vaaProcessor', 0, 0, 5, 20,
         [new Uint8Array(Buffer.from(gkeys, 'hex')),
           algosdk.encodeUint64(parseInt(gexpTime)),
           algosdk.encodeUint64(parseInt(gsindex))], signCallback)
@@ -257,7 +257,7 @@ class PricecasterLib {
      * @param  {Function} signCallback callback with prototype signCallback(sender, tx) used to sign transactions
      * @return {String} transaction id of the transaction
      */
-    this.callApp = async function (sender, appArgs, appAccounts, signCallback) {
+    this.callApp = async function (sender, contract, appArgs, appAccounts, signCallback) {
       // get node suggested parameters
       const params = await this.algodClient.getTransactionParams().do()
 
@@ -265,7 +265,7 @@ class PricecasterLib {
       params.flatFee = true
 
       // create unsigned transaction
-      const txApp = algosdk.makeApplicationNoOpTxn(sender, params, this.appId, appArgs, appAccounts.length === 0 ? undefined : appAccounts)
+      const txApp = algosdk.makeApplicationNoOpTxn(sender, params, ContractInfo[contract].appId, appArgs, appAccounts.length === 0 ? undefined : appAccounts)
       const txId = txApp.txID().toString()
 
       // Sign the transaction
@@ -387,7 +387,23 @@ class PricecasterLib {
       const appArgs = []
       appArgs.push(new Uint8Array(Buffer.from('setvphash')),
         algosdk.decodeAddress(hash).publicKey)
-      return await this.callApp(sender, appArgs, [], signCallback)
+      return await this.callApp(sender, 'vaaProcessor', appArgs, [], signCallback)
+    }
+
+    /**
+     * VAA Processor: Sets the authorized application id for last call
+     * @param {*} sender Sender account
+     * @param {*} appId  The assigned appId
+     * @returns Transaction identifier.
+     */
+    this.setAuthorizedAppId = async function (sender, appId, signCallback) {
+      if (!algosdk.isValidAddress(sender)) {
+        throw new Error('Invalid sender address: ' + sender)
+      }
+      const appArgs = []
+      appArgs.push(new Uint8Array(Buffer.from('setauthid')),
+        algosdk.encodeUint64(appId))
+      return await this.callApp(sender, 'vaaProcessor', appArgs, [], signCallback)
     }
 
     /**
@@ -429,16 +445,25 @@ class PricecasterLib {
      * @param {*} sender The sender account.
      * @param {*} programBytes Compiled program bytes.
      * @param {*} sigSubsets The signature subsets i..j for logicsig arguments.
+     * @param {*} lastTxSender The sender of the last TX in the group.
+     * @param {*} signCallback The signing callback function to use in the last TX of the group.
      * @returns Transaction id.
      */
-    this.commitVerifyTxGroup = async function (programBytes, sigSubsets) {
+    this.commitVerifyTxGroup = async function (programBytes, sigSubsets, lastTxSender, signCallback) {
       algosdk.assignGroupID(this.groupTx)
       const signedGroup = []
       let i = 0
       for (const tx of this.groupTx) {
-        const lsig = new algosdk.LogicSigAccount(programBytes, [Buffer.from(sigSubsets[i++], 'hex')])
-        const stxn = algosdk.signLogicSigTransaction(tx, lsig)
-        signedGroup.push(stxn.blob)
+        // All transactions except last must be signed by stateless code.
+
+        if (i === this.groupTx.length - 1) {
+          signedGroup.push(signCallback(lastTxSender, tx))
+        } else {
+          const lsig = new algosdk.LogicSigAccount(programBytes, [Buffer.from(sigSubsets[i], 'hex')])
+          const stxn = algosdk.signLogicSigTransaction(tx, lsig)
+          signedGroup.push(stxn.blob)
+        }
+        i++
       }
 
       // Submit the transaction
@@ -462,9 +487,30 @@ class PricecasterLib {
 
       const tx = algosdk.makeApplicationNoOpTxn(sender,
         params,
-        this.appId,
+        ContractInfo.vaaProcessor.appId,
         appArgs, undefined, undefined, undefined,
         new Uint8Array(payload))
+      this.groupTx.push(tx)
+
+      return tx.txID()
+    }
+
+    /**
+     * Pricekeeper-V2: Add store price transaction to TX Group.
+     * @param {*} sender The sender account (typically the VAA verification stateless program)
+     * @param {*} sym The symbol identifying the product  to store price for.
+     * @param {*} payload The VAA payload.
+     */
+    this.addPriceStoreTx = function (sender, params, sym, payload) {
+      const appArgs = []
+      appArgs.push(new Uint8Array(Buffer.from('store')),
+        new Uint8Array(Buffer.from(sym)),
+        new Uint8Array(payload))
+
+      const tx = algosdk.makeApplicationNoOpTxn(sender,
+        params,
+        ContractInfo.pricekeeper.appId,
+        appArgs)
       this.groupTx.push(tx)
 
       return tx.txID()

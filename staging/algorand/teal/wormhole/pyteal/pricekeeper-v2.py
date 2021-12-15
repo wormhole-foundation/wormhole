@@ -14,7 +14,8 @@ bits must be set.
 
 The following application calls are available.
 
-submit: Submit payload.
+submit: Submit payload.  
+This must be 150-bytes long (Pyth native payload.)
 ------------------------------------------------------------------------------------------------
 
 Global state:
@@ -23,16 +24,17 @@ key             name of symbol
 value           packed fields as follow: 
 
                 Bytes
-                8               productId
-                8               priceId
+                32              productId
+                32              priceId
                 8               price
+                1               price_type
                 4               exponent
                 8               twap value
                 8               twac value
                 8               confidence
                 8               timestamp (based on Solana contract call time)
                 ------------------------------
-                Total: 60 bytes.
+                Total: 109 bytes.
 
 ------------------------------------------------------------------------------------------------
 """
@@ -50,7 +52,7 @@ SLOTID_VERIFIED_BIT = 254
 SLOT_VERIFIED_BITFIELD = ScratchVar(TealType.uint64, SLOTID_VERIFIED_BIT)
 SLOT_TEMP = ScratchVar(TealType.uint64)
 VAA_PROCESSOR_APPID = App.globalGet(Bytes("vaapid"))
-INPUT_DATA_LENGTH_BYTES = 60
+PYTH_PAYLOAD_LENGTH_BYTES = 150
 
 
 @Subroutine(TealType.uint64)
@@ -62,7 +64,7 @@ def is_creator():
 # Arg0: Bootstrap with the authorized VAA Processor appid.
 def bootstrap():
     return Seq([
-        App.globalPut(Bytes("vaapid"), Btoi(Txn.application_args[1])),
+        App.globalPut(Bytes("vaapid"), Btoi(Txn.application_args[0])),
         Approve()
     ])
 
@@ -76,7 +78,7 @@ def check_group_tx():
     i = SLOT_TEMP
     return Seq([
         For(i.store(Int(1)),
-            i.load() < Global.group_size(),
+            i.load() < Global.group_size() - Int(1),
             i.store(i.load() + Int(1))).Do(Seq([
                 Assert(Gtxn[i.load()].type_enum() == TxnType.ApplicationCall),
                 Assert(Gtxn[i.load()].application_id()
@@ -95,15 +97,28 @@ def store():
     # * All calls in group must be issued from authorized appid.
     # * All calls in group must have verification bits set.
     # * Argument 0 must be price symbol name.
-    # * Argument 1 must be packed price data information (see documentation at beginning of file)
+    # * Argument 1 must be Pyth payload (150 bytes long)
 
+    pyth_price_data = ScratchVar(TealType.bytes)
+    packed_price_data = ScratchVar(TealType.bytes)
     return Seq([
+        pyth_price_data.store(ARG_PRICE_DATA),
         Assert(Global.group_size() > Int(1)),
-        Assert(Len(ARG_PRICE_DATA) == Int(INPUT_DATA_LENGTH_BYTES)),
-        Assert(Txn.application_args.length() == Int(2)),
+        Assert(Len(pyth_price_data.load()) == Int(PYTH_PAYLOAD_LENGTH_BYTES)),
+        Assert(Txn.application_args.length() == Int(3)),
         Assert(is_creator()),
         Assert(check_group_tx()),
-        App.globalPut(ARG_SYMBOL_NAME, ARG_PRICE_DATA),
+
+        # Unpack Pyth payload and store the data we want (see doc at beginning)
+
+        packed_price_data.store(Concat(
+            # store product_id, price_id, price_type, price, exponent, twap
+            Extract(pyth_price_data.load(), Int(14), Int(85)),
+            Extract(pyth_price_data.load(), Int(108), Int(8)),  # store twac
+            Extract(pyth_price_data.load(), Int(132), Int(8)),  # confidence
+            Extract(pyth_price_data.load(), Int(142), Int(8)),  # timestamp
+        )),
+        App.globalPut(ARG_SYMBOL_NAME, packed_price_data.load()),
         Approve()])
 
 
