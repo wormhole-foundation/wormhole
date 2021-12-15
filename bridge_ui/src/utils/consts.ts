@@ -147,6 +147,11 @@ export const COMING_SOON_CHAINS = [
     name: "Oasis",
     logo: oasisIcon,
   },
+  {
+    id: 0,
+    name: "Avalanche",
+    logo: avaxIcon,
+  },
 ];
 export const getDefaultNativeCurrencySymbol = (chainId: ChainId) =>
   chainId === CHAIN_ID_SOLANA
