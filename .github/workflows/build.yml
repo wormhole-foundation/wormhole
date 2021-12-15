@@ -29,11 +29,6 @@ jobs:
           kubectl config set-context ci --namespace=$DEPLOY_NS
           kubectl config use-context ci
 
-      # TODO: Work around what is presumably a bug in the explorer Tilt code -
-      # Buildpack won't pull the image itself on a cold cache
-      # https://github.com/certusone/wormhole/issues/575
-      - run: docker pull gcr.io/buildpacks/builder:v1
-
       - run: tilt ci -- --ci --namespace=$DEPLOY_NS --num=1
         timeout-minutes: 60
 
