@@ -892,3 +892,4 @@ export const getHowToAddToTokenListUrl = (chainId: ChainId) => {
 
 export const SOLANA_TOKEN_METADATA_PROGRAM_URL =
   "https://github.com/metaplex-foundation/metaplex/tree/master/rust/token-metadata/program";
+export const MAX_VAA_UPLOAD_RETRIES_SOLANA = 5;

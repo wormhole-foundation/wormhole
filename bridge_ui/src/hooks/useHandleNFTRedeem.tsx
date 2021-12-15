@@ -5,7 +5,7 @@ import {
   hexToUint8Array,
   isEVMChain,
   parseNFTPayload,
-  postVaaSolana,
+  postVaaSolanaWithRetry,
 } from "@certusone/wormhole-sdk";
 import {
   createMetaOnSolana,
@@ -28,6 +28,7 @@ import { setIsRedeeming, setRedeemTx } from "../store/nftSlice";
 import { selectNFTIsRedeeming, selectNFTTargetChain } from "../store/selectors";
 import {
   getNFTBridgeAddressForChain,
+  MAX_VAA_UPLOAD_RETRIES_SOLANA,
   SOLANA_HOST,
   SOL_BRIDGE_ADDRESS,
   SOL_NFT_BRIDGE_ADDRESS,
@@ -85,12 +86,13 @@ async function solana(
     const claimInfo = await connection.getAccountInfo(claimAddress);
     let txid;
     if (!claimInfo) {
-      await postVaaSolana(
+      await postVaaSolanaWithRetry(
         connection,
         wallet.signTransaction,
         SOL_BRIDGE_ADDRESS,
         payerAddress,
-        Buffer.from(signedVAA)
+        Buffer.from(signedVAA),
+        MAX_VAA_UPLOAD_RETRIES_SOLANA
       );
       // TODO: how do we retry in between these steps
       const transaction = await redeemOnSolana(
