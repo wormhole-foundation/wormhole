@@ -77,3 +77,10 @@ export const nativeToHexString = (
 
 export const uint8ArrayToNative = (a: Uint8Array, chainId: ChainId) =>
   hexToNativeString(uint8ArrayToHex(a), chainId);
+
+export function chunks<T>(array: T[], size: number): T[][] {
+  return Array.apply<number, T[], T[][]>(
+    0,
+    new Array(Math.ceil(array.length / size))
+  ).map((_, index) => array.slice(index * size, (index + 1) * size));
+}
