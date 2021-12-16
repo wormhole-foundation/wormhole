@@ -74,20 +74,44 @@ func runListNodes(cmd *cobra.Command, args []string) {
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 8, 2, ' ', 0)
 
-	if isTestnet {
-		// Include Ropsten in testnet mode
-		if showDetails {
-			_, _ = w.Write([]byte("Node key\tGuardian key\tNode name\tVersion\tLast seen\tUptime\tSolana\tEthereum\tTerra\tBSC\tPolygon\tAvalanche\tRopsten\n"))
-		} else {
-			_, _ = w.Write([]byte("Node key\tGuardian key\tNode name\tVersion\tLast seen\tSolana\tEthereum\tTerra\tBSC\tPolygon\tAvalanche\tRopsten\n"))
-		}
-	} else {
-		if showDetails {
-			_, _ = w.Write([]byte("Node key\tGuardian key\tNode name\tVersion\tLast seen\tUptime\tSolana\tEthereum\tTerra\tBSC\tPolygon\tAvalanche\n"))
-		} else {
-			_, _ = w.Write([]byte("Node key\tGuardian key\tNode name\tVersion\tLast seen\tSolana\tEthereum\tTerra\tBSC\tPolygon\tAvalanche\n"))
-		}
+	headers := []string{
+		"Node key",
+		"Guardian key",
+		"Node name",
+		"Version",
+		"Last seen",
 	}
+
+	if showDetails {
+		headers = append(headers, "Uptime")
+	}
+
+	type network struct {
+		string
+		vaa.ChainID
+	}
+
+	networks := []network{
+		{"Solana", vaa.ChainIDSolana},
+		{"Ethereum", vaa.ChainIDEthereum},
+		{"Terra", vaa.ChainIDTerra},
+		{"BSC", vaa.ChainIDBSC},
+		{"Polygon", vaa.ChainIDPolygon},
+		{"Avalanche", vaa.ChainIDAvalanche},
+	}
+
+	if isTestnet {
+		networks = append(networks, network{"Ropsten", vaa.ChainIDEthereumRopsten})
+	}
+
+	for _, k := range networks {
+		headers = append(headers, k.string)
+	}
+
+	for _, header := range headers {
+		_, _ = fmt.Fprintf(w, "%s\t", header)
+	}
+	_, _ = fmt.Fprintln(w)
 
 	for _, h := range nodes {
 		if h.RawHeartbeat == nil {
@@ -110,101 +134,32 @@ func runListNodes(cmd *cobra.Command, args []string) {
 			}
 		}
 
-		if isTestnet {
+		fields := []string{
+			h.P2PNodeAddr,
+			h.RawHeartbeat.GuardianAddr,
+			h.RawHeartbeat.NodeName,
+			h.RawHeartbeat.Version,
+			time.Since(last).String(),
+		}
+
+		if showDetails {
+			fields = append(fields, time.Since(boot).String())
+		}
+
+		for _, n := range networks {
 			if showDetails {
-				fmt.Fprintf(w,
-					"%s\t%s\t%s\t%s\t%s\t%s\t%s %d (%d)\t%s %d (%d)\t%s %d (%d)\t%s %d (%d)\t%s %d (%d)\t%s %d (%d)\t%s %d (%d)\n",
-					h.P2PNodeAddr,
-					h.RawHeartbeat.GuardianAddr,
-					h.RawHeartbeat.NodeName,
-					h.RawHeartbeat.Version,
-					time.Since(last),
-					time.Since(boot),
-					truncAddrs[vaa.ChainIDSolana],
-					heights[vaa.ChainIDSolana],
-					errors[vaa.ChainIDSolana],
-					truncAddrs[vaa.ChainIDEthereum],
-					heights[vaa.ChainIDEthereum],
-					errors[vaa.ChainIDEthereum],
-					truncAddrs[vaa.ChainIDTerra],
-					heights[vaa.ChainIDTerra],
-					errors[vaa.ChainIDTerra],
-					truncAddrs[vaa.ChainIDBSC],
-					heights[vaa.ChainIDBSC],
-					errors[vaa.ChainIDBSC],
-					truncAddrs[vaa.ChainIDPolygon],
-					heights[vaa.ChainIDPolygon],
-					errors[vaa.ChainIDPolygon],
-					truncAddrs[vaa.ChainIDAvalanche],
-					heights[vaa.ChainIDAvalanche],
-					errors[vaa.ChainIDAvalanche],
-					truncAddrs[vaa.ChainIDEthereumRopsten],
-					heights[vaa.ChainIDEthereumRopsten],
-					errors[vaa.ChainIDEthereumRopsten],
-				)
+				fields = append(fields, fmt.Sprintf("%s %d (%d)",
+					truncAddrs[n.ChainID], heights[n.ChainID], errors[n.ChainID]))
 			} else {
-				fmt.Fprintf(w,
-					"%s\t%s\t%s\t%s\t%s\t%d\t%d\t%d\t%d\t%d\t%d\t%d\n",
-					h.P2PNodeAddr,
-					h.RawHeartbeat.GuardianAddr,
-					h.RawHeartbeat.NodeName,
-					h.RawHeartbeat.Version,
-					time.Since(last),
-					heights[vaa.ChainIDSolana],
-					heights[vaa.ChainIDEthereum],
-					heights[vaa.ChainIDTerra],
-					heights[vaa.ChainIDBSC],
-					heights[vaa.ChainIDPolygon],
-					heights[vaa.ChainIDAvalanche],
-					heights[vaa.ChainIDEthereumRopsten],
-				)
-			}
-		} else {
-			if showDetails {
-				fmt.Fprintf(w,
-					"%s\t%s\t%s\t%s\t%s\t%s\t%s %d (%d)\t%s %d (%d)\t%s %d (%d)\t%s %d (%d)\t%s %d (%d)\t%s %d (%d)\n",
-					h.P2PNodeAddr,
-					h.RawHeartbeat.GuardianAddr,
-					h.RawHeartbeat.NodeName,
-					h.RawHeartbeat.Version,
-					time.Since(last),
-					time.Since(boot),
-					truncAddrs[vaa.ChainIDSolana],
-					heights[vaa.ChainIDSolana],
-					errors[vaa.ChainIDSolana],
-					truncAddrs[vaa.ChainIDEthereum],
-					heights[vaa.ChainIDEthereum],
-					errors[vaa.ChainIDEthereum],
-					truncAddrs[vaa.ChainIDTerra],
-					heights[vaa.ChainIDTerra],
-					errors[vaa.ChainIDTerra],
-					truncAddrs[vaa.ChainIDBSC],
-					heights[vaa.ChainIDBSC],
-					errors[vaa.ChainIDBSC],
-					truncAddrs[vaa.ChainIDPolygon],
-					heights[vaa.ChainIDPolygon],
-					errors[vaa.ChainIDPolygon],
-					truncAddrs[vaa.ChainIDAvalanche],
-					heights[vaa.ChainIDAvalanche],
-					errors[vaa.ChainIDAvalanche],
-				)
-			} else {
-				fmt.Fprintf(w,
-					"%s\t%s\t%s\t%s\t%s\t%d\t%d\t%d\t%d\t%d\t%d\n",
-					h.P2PNodeAddr,
-					h.RawHeartbeat.GuardianAddr,
-					h.RawHeartbeat.NodeName,
-					h.RawHeartbeat.Version,
-					time.Since(last),
-					heights[vaa.ChainIDSolana],
-					heights[vaa.ChainIDEthereum],
-					heights[vaa.ChainIDTerra],
-					heights[vaa.ChainIDBSC],
-					heights[vaa.ChainIDPolygon],
-					heights[vaa.ChainIDAvalanche],
-				)
+				fields = append(fields, fmt.Sprintf("%d", heights[n.ChainID]))
 			}
 		}
+
+		for _, field := range fields {
+			_, _ = fmt.Fprintf(w, "%s\t", field)
+		}
+
+		_, _ = fmt.Fprintln(w)
 	}
 
 	w.Flush()
