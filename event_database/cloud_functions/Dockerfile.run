@@ -1,5 +1,0 @@
-# syntax=docker.io/docker/dockerfile:1.3@sha256:42399d4635eddd7a9b8a24be879d2f9a930d0ed040a61324cfdf59ef1357b3b2
-FROM gcr.io/buildpacks/gcp/run@sha256:04f2e841ebbcc140c9f817e274caf8ae8ae0341008c4e01d8ef84cb8aa8c312a
-
-# the "builtby=tilt" label is how Tilt determines which containters can be purged.
-LABEL builtby=tilt

@@ -1,4 +1,5 @@
 import {
+  CHAIN_ID_AVAX,
   CHAIN_ID_BSC,
   CHAIN_ID_ETH,
   CHAIN_ID_ETHEREUM_ROPSTEN,
@@ -17,6 +18,7 @@ import {
 } from "../../store/selectors";
 import {
   ROPSTEN_WETH_ADDRESS,
+  WAVAX_ADDRESS,
   WBNB_ADDRESS,
   WETH_ADDRESS,
   WMATIC_ADDRESS,
@@ -50,6 +52,10 @@ function Redeem() {
     targetChain === CHAIN_ID_POLYGON &&
     targetAsset &&
     targetAsset.toLowerCase() === WMATIC_ADDRESS.toLowerCase();
+  const isAvaxNative =
+    targetChain === CHAIN_ID_AVAX &&
+    targetAsset &&
+    targetAsset.toLowerCase() === WAVAX_ADDRESS.toLowerCase();
   const isSolNative =
     targetChain === CHAIN_ID_SOLANA &&
     targetAsset &&
@@ -59,6 +65,7 @@ function Redeem() {
     isEthRopstenNative ||
     isBscNative ||
     isPolygonNative ||
+    isAvaxNative ||
     isSolNative;
   const [useNativeRedeem, setUseNativeRedeem] = useState(true);
   const toggleNativeRedeem = useCallback(() => {
