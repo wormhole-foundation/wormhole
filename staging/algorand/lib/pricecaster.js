@@ -9,6 +9,7 @@ const algosdk = require('algosdk')
 const fs = require('fs')
 // eslint-disable-next-line camelcase
 const tools = require('../tools/app-tools')
+const crypto = require('crypto')
 
 const ContractInfo = {
   pricekeeper: {
@@ -47,7 +48,7 @@ class PricecasterLib {
     this.algodClient = algodClient
     this.ownerAddr = ownerAddr
     this.minFee = 1000
-    this.groupTx = []
+    this.groupTxSet = {}
     this.lsigs = {}
 
     /** Sets a contract approval program filename
@@ -410,15 +411,20 @@ class PricecasterLib {
      * Starts a begin...commit section for commiting grouped transactions.
      */
     this.beginTxGroup = function () {
-      this.groupTx = []
+      const gid = crypto.randomBytes(16).toString('hex')
+      this.groupTxSet[gid] = []
+      return gid
     }
 
     /**
        * Adds a transaction to the group.
        * @param {} tx Transaction to add.
        */
-    this.addTxToGroup = function (tx) {
-      this.groupTx.push(tx)
+    this.addTxToGroup = function (gid, tx) {
+      if (this.groupTxSet[gid] === undefined) {
+        throw new Error('unknown tx group id')
+      }
+      this.groupTxSet[gid].push(tx)
     }
 
     /**
@@ -426,18 +432,21 @@ class PricecasterLib {
      * @param {function} signCallback The sign callback routine.
      * @returns Transaction id.
      */
-    this.commitTxGroup = async function (sender, signCallback) {
-      algosdk.assignGroupID(this.groupTx)
+    this.commitTxGroup = async function (gid, sender, signCallback) {
+      if (this.groupTxSet[gid] === undefined) {
+        throw new Error('unknown tx group id')
+      }
+      algosdk.assignGroupID(this.groupTxSet[gid])
 
       // Sign the transactions
       const signedTxns = []
-      for (const tx of this.groupTx) {
+      for (const tx of this.groupTxSet[gid]) {
         signedTxns.push(signCallback(sender, tx))
       }
 
       // Submit the transaction
       const tx = await this.algodClient.sendRawTransaction(signedTxns).do()
-      this.groupTx = []
+      delete this.groupTxSet[gid]
       return tx.txId
     }
 
@@ -449,14 +458,17 @@ class PricecasterLib {
      * @param {*} signCallback The signing callback function to use in the last TX of the group.
      * @returns Transaction id.
      */
-    this.commitVerifyTxGroup = async function (programBytes, sigSubsets, lastTxSender, signCallback) {
-      algosdk.assignGroupID(this.groupTx)
+    this.commitVerifyTxGroup = async function (gid, programBytes, sigSubsets, lastTxSender, signCallback) {
+      if (this.groupTxSet[gid] === undefined) {
+        throw new Error('unknown group id')
+      }
+      algosdk.assignGroupID(this.groupTxSet[gid])
       const signedGroup = []
       let i = 0
-      for (const tx of this.groupTx) {
+      for (const tx of this.groupTxSet[gid]) {
         // All transactions except last must be signed by stateless code.
 
-        if (i === this.groupTx.length - 1) {
+        if (i === this.groupTxSet[gid].length - 1) {
           signedGroup.push(signCallback(lastTxSender, tx))
         } else {
           const lsig = new algosdk.LogicSigAccount(programBytes, [Buffer.from(sigSubsets[i], 'hex')])
@@ -468,7 +480,7 @@ class PricecasterLib {
 
       // Submit the transaction
       const tx = await this.algodClient.sendRawTransaction(signedGroup).do()
-      this.groupTx = []
+      delete this.groupTxSet[gid]
       return tx.txId
     }
 
@@ -479,7 +491,10 @@ class PricecasterLib {
      * @param {*} gksubset An hex string containing the keys for the guardian subset in this step.
      * @param {*} totalguardians The total number of known guardians.
      */
-    this.addVerifyTx = function (sender, params, payload, gksubset, totalguardians) {
+    this.addVerifyTx = function (gid, sender, params, payload, gksubset, totalguardians) {
+      if (this.groupTxSet[gid] === undefined) {
+        throw new Error('unknown group id')
+      }
       const appArgs = []
       appArgs.push(new Uint8Array(Buffer.from('verify')),
         new Uint8Array(Buffer.from(gksubset.join(''), 'hex')),
@@ -490,7 +505,7 @@ class PricecasterLib {
         ContractInfo.vaaProcessor.appId,
         appArgs, undefined, undefined, undefined,
         new Uint8Array(payload))
-      this.groupTx.push(tx)
+      this.groupTxSet[gid].push(tx)
 
       return tx.txID()
     }
@@ -501,7 +516,10 @@ class PricecasterLib {
      * @param {*} sym The symbol identifying the product  to store price for.
      * @param {*} payload The VAA payload.
      */
-    this.addPriceStoreTx = function (sender, params, sym, payload) {
+    this.addPriceStoreTx = function (gid, sender, params, sym, payload) {
+      if (this.groupTxSet[gid] === undefined) {
+        throw new Error('unknown group id')
+      }
       const appArgs = []
       appArgs.push(new Uint8Array(Buffer.from('store')),
         new Uint8Array(Buffer.from(sym)),
@@ -511,7 +529,7 @@ class PricecasterLib {
         params,
         ContractInfo.pricekeeper.appId,
         appArgs)
-      this.groupTx.push(tx)
+      this.groupTxSet[gid].push(tx)
 
       return tx.txID()
     }
