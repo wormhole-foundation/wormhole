@@ -158,6 +158,8 @@ func runListNodes(cmd *cobra.Command, args []string) {
 		for _, field := range fields {
 			_, _ = fmt.Fprintf(w, "%s\t", field)
 		}
+
+		_, _ = fmt.Fprintln(w)
 	}
 
 	w.Flush()
