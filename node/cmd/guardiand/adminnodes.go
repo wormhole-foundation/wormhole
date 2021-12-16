@@ -111,7 +111,7 @@ func runListNodes(cmd *cobra.Command, args []string) {
 		var filtered []network
 		for _, network := range networks {
 			for _, name := range only {
-				if strings.ToLower(name) == strings.ToLower(network.string) {
+				if strings.EqualFold(network.string, name) {
 					filtered = append(filtered, network)
 				}
 			}
