@@ -147,7 +147,7 @@ exports.WORMHOLE_RPC_HOSTS = exports.CLUSTER === "mainnet"
         "https://wormhole-v2-mainnet-api.mcf.rocks",
         "https://wormhole-v2-mainnet-api.chainlayer.network",
         "https://wormhole-v2-mainnet-api.staking.fund",
-        "https://wormhole-v2-mainnet-api.chainlayer.network",
+        "https://wormhole-v2-mainnet.01node.com",
     ]
     : exports.CLUSTER === "testnet"
         ? ["https://wormhole-v2-testnet-api.certus.one"]
