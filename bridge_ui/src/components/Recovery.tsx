@@ -8,7 +8,6 @@ import {
   hexToNativeString,
   hexToUint8Array,
   isEVMChain,
-  parseNFTPayload,
   parseSequenceFromLogEth,
   parseSequenceFromLogSolana,
   parseSequenceFromLogTerra,
@@ -60,6 +59,38 @@ import parseError from "../utils/parseError";
 import ButtonWithLoader from "./ButtonWithLoader";
 import ChainSelect from "./ChainSelect";
 import KeyAndBalance from "./KeyAndBalance";
+import { BigNumber } from "ethers";
+
+// TODO: remove hotfix
+const METADATA_REPLACE = new RegExp("\u0000", "g");
+const parseNFTPayload = (arr: Buffer) => {
+  const originAddress = arr.slice(1, 1 + 32).toString("hex");
+  const originChain = arr.readUInt16BE(33) as ChainId;
+  const symbol = Buffer.from(arr.slice(35, 35 + 32))
+    .toString("utf8")
+    .replace(METADATA_REPLACE, "");
+  const name = Buffer.from(arr.slice(67, 67 + 32))
+    .toString("utf8")
+    .replace(METADATA_REPLACE, "");
+  const tokenId = BigNumber.from(arr.slice(99, 99 + 32));
+  const uri = Buffer.from(arr.slice(132, arr.length - 34))
+    .toString("utf8")
+    .replace(METADATA_REPLACE, "");
+  const targetAddress = arr
+    .slice(arr.length - 34, arr.length - 2)
+    .toString("hex");
+  const targetChain = arr.readUInt16BE(arr.length - 2) as ChainId;
+  return {
+    originAddress,
+    originChain,
+    symbol,
+    name,
+    tokenId,
+    uri,
+    targetAddress,
+    targetChain,
+  };
+};
 
 const useStyles = makeStyles((theme) => ({
   mainCard: {
