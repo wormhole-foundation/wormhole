@@ -242,9 +242,9 @@ func runNode(cmd *cobra.Command, args []string) {
 	readiness.RegisterComponent(common.ReadinessTerraSyncing)
 	readiness.RegisterComponent(common.ReadinessBSCSyncing)
 	readiness.RegisterComponent(common.ReadinessPolygonSyncing)
+	readiness.RegisterComponent(common.ReadinessAvalancheSyncing)
 	if *testnetMode {
 		readiness.RegisterComponent(common.ReadinessEthRopstenSyncing)
-		readiness.RegisterComponent(common.ReadinessAvalancheSyncing)
 	}
 
 	if *statusAddr != "" {
@@ -286,6 +286,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		*ethContract = devnet.GanacheWormholeContractAddress.Hex()
 		*bscContract = devnet.GanacheWormholeContractAddress.Hex()
 		*polygonContract = devnet.GanacheWormholeContractAddress.Hex()
+		*avalancheContract = devnet.GanacheWormholeContractAddress.Hex()
 
 		// Use the hostname as nodeName. For production, we don't want to do this to
 		// prevent accidentally leaking sensitive hostnames.
@@ -328,6 +329,9 @@ func runNode(cmd *cobra.Command, args []string) {
 	if *polygonContract == "" {
 		logger.Fatal("Please specify --polygonContract")
 	}
+	if *avalancheRPC == "" {
+		logger.Fatal("Please specify --avalancheRPC")
+	}
 	if *testnetMode {
 		if *ethRopstenRPC == "" {
 			logger.Fatal("Please specify --ethRopstenRPC")
@@ -335,18 +339,12 @@ func runNode(cmd *cobra.Command, args []string) {
 		if *ethRopstenContract == "" {
 			logger.Fatal("Please specify --ethRopstenContract")
 		}
-		if *avalancheRPC == "" {
-			logger.Fatal("Please specify --avalancheRPC")
-		}
 	} else {
 		if *ethRopstenRPC != "" {
 			logger.Fatal("Please do not specify --ethRopstenRPC in non-testnet mode")
 		}
 		if *ethRopstenContract != "" {
 			logger.Fatal("Please do not specify --ethRopstenContract in non-testnet mode")
-		}
-		if *avalancheRPC != "" {
-			logger.Fatal("Please do not specify --avalancheRPC in non-testnet mode")
 		}
 	}
 	if *nodeName == "" {
@@ -547,14 +545,14 @@ func runNode(cmd *cobra.Command, args []string) {
 			ethereum.NewEthWatcher(*polygonRPC, polygonContractAddr, "polygon", common.ReadinessPolygonSyncing, vaa.ChainIDPolygon, lockC, nil).Run); err != nil {
 			return err
 		}
+		if err := supervisor.Run(ctx, "avalanchewatch",
+			ethereum.NewEthWatcher(*avalancheRPC, avalancheContractAddr, "avalanche", common.ReadinessAvalancheSyncing, vaa.ChainIDAvalanche, lockC, nil).Run); err != nil {
+			return err
+		}
 
 		if *testnetMode {
 			if err := supervisor.Run(ctx, "ethropstenwatch",
 				ethereum.NewEthWatcher(*ethRopstenRPC, ethRopstenContractAddr, "ethropsten", common.ReadinessEthRopstenSyncing, vaa.ChainIDEthereumRopsten, lockC, setC).Run); err != nil {
-				return err
-			}
-			if err := supervisor.Run(ctx, "avalanchewatch",
-				ethereum.NewEthWatcher(*avalancheRPC, avalancheContractAddr, "avalanche", common.ReadinessAvalancheSyncing, vaa.ChainIDAvalanche, lockC, nil).Run); err != nil {
 				return err
 			}
 		}

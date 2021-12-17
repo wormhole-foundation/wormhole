@@ -7,7 +7,11 @@ import {
   TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
 import { Connection, Keypair, PublicKey, Transaction } from "@solana/web3.js";
-import { LCDClient, MnemonicKey } from "@terra-money/terra.js";
+import {
+  LCDClient,
+  MnemonicKey,
+  MsgExecuteContract,
+} from "@terra-money/terra.js";
 import axios from "axios";
 import { ethers } from "ethers";
 import {
@@ -603,5 +607,126 @@ describe("Integration Tests", () => {
       })();
     });
     // TODO: it has increased balance
+  });
+  describe("Terra deposit and transfer tokens", () => {
+    test("Tokens transferred can't exceed tokens deposited", (done) => {
+      (async () => {
+        try {
+          const lcd = new LCDClient({
+            URL: TERRA_NODE_URL,
+            chainID: TERRA_CHAIN_ID,
+          });
+          const mk = new MnemonicKey({
+            mnemonic: TERRA_PRIVATE_KEY,
+          });
+          const wallet = lcd.wallet(mk);
+          const gasPrices = await axios
+            .get(TERRA_GAS_PRICES_URL)
+            .then((result) => result.data);
+          // deposit some tokens (separate transactions)
+          for (let i = 0; i < 3; i++) {
+            const deposit = new MsgExecuteContract(
+              wallet.key.accAddress,
+              TERRA_TOKEN_BRIDGE_ADDRESS,
+              {
+                deposit_tokens: {},
+              },
+              { ["uluna"]: "1" }
+            );
+            const feeEstimate = await lcd.tx.estimateFee(
+              wallet.key.accAddress,
+              [deposit],
+              {
+                memo: "localhost",
+                feeDenoms: ["uluna"],
+                gasPrices,
+              }
+            );
+            const tx = await wallet.createAndSignTx({
+              msgs: [deposit],
+              memo: "localhost",
+              feeDenoms: ["uluna"],
+              gasPrices,
+              fee: feeEstimate,
+            });
+            await lcd.tx.broadcast(tx);
+          }
+          const provider = new ethers.providers.WebSocketProvider(ETH_NODE_URL);
+          const signer = new ethers.Wallet(ETH_PRIVATE_KEY, provider);
+          // attempt to transfer more than we've deposited
+          const transfer = new MsgExecuteContract(
+            wallet.key.accAddress,
+            TERRA_TOKEN_BRIDGE_ADDRESS,
+            {
+              initiate_transfer: {
+                asset: {
+                  amount: "10000",
+                  info: {
+                    native_token: {
+                      denom: "uluna",
+                    },
+                  },
+                },
+                recipient_chain: CHAIN_ID_ETH,
+                recipient: Buffer.from(signer.publicKey).toString("base64"),
+                fee: "0",
+                nonce: Math.round(Math.round(Math.random() * 100000)),
+              },
+            },
+            {}
+          );
+          let error = false;
+          try {
+            await lcd.tx.estimateFee(wallet.key.accAddress, [transfer], {
+              memo: "localhost",
+              feeDenoms: ["uluna"],
+              gasPrices,
+            });
+          } catch (e) {
+            error = e.response.data.error.includes("Overflow: Cannot Sub");
+          }
+          expect(error).toEqual(true);
+          // withdraw the tokens we deposited
+          const withdraw = new MsgExecuteContract(
+            wallet.key.accAddress,
+            TERRA_TOKEN_BRIDGE_ADDRESS,
+            {
+              withdraw_tokens: {
+                asset: {
+                  native_token: {
+                    denom: "uluna",
+                  },
+                },
+              },
+            },
+            {}
+          );
+          const feeEstimate = await lcd.tx.estimateFee(
+            wallet.key.accAddress,
+            [withdraw],
+            {
+              memo: "localhost",
+              feeDenoms: ["uluna"],
+              gasPrices,
+            }
+          );
+          const tx = await wallet.createAndSignTx({
+            msgs: [withdraw],
+            memo: "test",
+            feeDenoms: ["uluna"],
+            gasPrices,
+            fee: feeEstimate,
+          });
+          await lcd.tx.broadcast(tx);
+          provider.destroy();
+          done();
+        } catch (e) {
+          console.error(e);
+          done(
+            "An error occurred while testing deposits to and transfers from Terra"
+          );
+        }
+      })();
+    });
   });
 });
