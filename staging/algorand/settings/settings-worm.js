@@ -5,8 +5,10 @@ module.exports = {
     port: ''
   },
   apps: {
-    vaaVerifyProgramFile: 'teal/wormhole/build/vaa-verify.teal',
-    priceKeeperV2AppId: 32984466,
+    vaaVerifyProgramBinFile: 'bin/vaa-verify.bin',
+    vaaVerifyProgramHash: 'KRNYKVVWZDCNOPLL63ZHFOKG2IIY7REBYTPVR5TJLD67JR6FMRJXYW63TI',
+    vaaProcessorAppId: 52438261,
+    priceKeeperV2AppId: 52438280,
     ownerAddress: 'OPDM7ACAW64Q4VBWAL77Z5SHSJVZZ44V3BAN7W44U43SUXEOUENZMZYOQU',
     ownerKeyFile: './keys/owner.key'
   },

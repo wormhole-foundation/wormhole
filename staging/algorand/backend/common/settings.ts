@@ -18,7 +18,9 @@ export interface IAppSettings extends Record<string, unknown> {
     priceKeeperV2AppId: number,
     ownerAddress: string,
     ownerKeyFile: string,
-    vaaVerifyProgramFile: string
+    vaaVerifyProgramBinFile: string,
+    vaaVerifyProgramHash: string,
+    vaaProcessorAppId: number,
   },
   pyth: {
     chainId: number,

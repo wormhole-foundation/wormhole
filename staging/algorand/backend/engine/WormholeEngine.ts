@@ -44,16 +44,17 @@ export class WormholeClientEngine implements IEngine {
   }
 
   async start () {
-    let mnemo, verifyProgramSource
+    let mnemo, verifyProgramBinary
     try {
       mnemo = fs.readFileSync(this.settings.apps.ownerKeyFile)
-      verifyProgramSource = fs.readFileSync(this.settings.apps.vaaVerifyProgramFile)
+      verifyProgramBinary = Uint8Array.from(fs.readFileSync(this.settings.apps.vaaVerifyProgramBinFile))
     } catch (e) {
       throw new Error('Cannot read account and/or verify program source: ' + e)
     }
-    const publisher = new Pricekeeper2Publisher(this.settings.apps.priceKeeperV2AppId,
+    const publisher = new Pricekeeper2Publisher(this.settings.apps.vaaProcessorAppId,
       this.settings.apps.ownerAddress,
-      verifyProgramSource,
+      verifyProgramBinary,
+      this.settings.apps.vaaVerifyProgramHash,
       algosdk.mnemonicToSecretKey(mnemo.toString()),
       this.settings.algo.token,
       this.settings.algo.api,

@@ -203,7 +203,6 @@ class PricecasterLib {
       await this.compileApprovalProgram(contract)
       await this.compileClearProgram(contract)
 
-      console.log(ContractInfo)
       // create unsigned transaction
       const txApp = algosdk.makeApplicationCreateTxn(
         sender, params, onComplete,

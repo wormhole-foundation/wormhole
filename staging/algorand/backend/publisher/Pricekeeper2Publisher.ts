@@ -14,17 +14,18 @@ export class Pricekeeper2Publisher implements IPublisher {
   private numOfVerifySteps: number = 0
   private guardianCount: number = 0
   private stepSize: number = 0
-  private verifyProgramSource: string
-  private compiledVerifyProgram!: { bytes: any, hash: string }
+  private compiledVerifyProgram: { bytes: Uint8Array, hash: string } = { bytes: new Uint8Array(), hash: '' }
   constructor (vaaProcessorAppId: number,
     vaaProcessorOwner: string,
-    verifyProgramSource: string,
+    verifyProgramBinary: Uint8Array,
+    verifyProgramHash: string,
     signKey: algosdk.Account,
     algoClientToken: string,
     algoClientServer: string,
     algoClientPort: string) {
     this.account = signKey
-    this.verifyProgramSource = verifyProgramSource
+    this.compiledVerifyProgram.bytes = verifyProgramBinary
+    this.compiledVerifyProgram.hash = verifyProgramHash
     this.vaaProcessorAppId = vaaProcessorAppId
     this.vaaProcessorOwner = vaaProcessorOwner
     this.algodClient = new algosdk.Algodv2(algoClientToken, algoClientServer, algoClientPort)
@@ -33,13 +34,9 @@ export class Pricekeeper2Publisher implements IPublisher {
   }
 
   async start () {
-    console.log('Publisher: Compiling VAA Verify program...')
-    this.compiledVerifyProgram = await this.pclib.compileProgram(this.verifyProgramSource)
-    console.log('Publisher: Stateless address ' + this.compiledVerifyProgram.hash)
   }
 
   stop () {
-
   }
 
   signCallback (sender: string, tx: algosdk.Transaction) {
