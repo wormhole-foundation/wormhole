@@ -1,22 +1,15 @@
 
-# Pricecaster Service
+# Pricecaster Service V2
 
 ## Introduction
 
-This service consumes prices from "price fetchers" and feeds blockchain publishers. There are two basic flows implemented:
+This service consumes prices from "price fetchers" and feeds blockchain publishers. 
 
-* A basic Algorand publisher class with a TEAL program for messages containing signed price data. The program code validates signature and message validity, and if successful, subsequently stores the price information in the global application information for other contracts to retrieve. For the description of the data format used, see below.
-
-* A Wormhole client that uses the JS SDK to get VAAs from Pyth network and feed the payload and cryptographic verification data to a transaction group for validation. Subsequently, the data is optionally processed and stored, either price or metrics. For details regarding Wormhole VAAs see design documents: 
+The current implementation is a Wormhole client that uses the JS SDK to get VAAs from Pyth network and feed the payload and cryptographic verification data to a transaction group for validation. Subsequently, the data is optionally processed and stored, either price or metrics. For details regarding Wormhole VAAs see design documents: 
 
   https://github.com/certusone/wormhole/tree/dev.v2/design
 
-All gathered price information is stored in a buffer by the Fetcher component -with a maximum size determined by settings-.  The price to get from that buffer is selected by the **IStrategy** class implementation; the default implementation being to get the most recent price and clear the buffer for new items to arrive. 
-
-Alternative strategies for different purposes, such as getting averages and forecasting, can be implemented easily.
-
 ## System Overview
-
 
 **The objective is to receive signed messages -named as Verifiable Attestments (VAAs) in Wormhole jargon- from our relayer backend (Pricecaster) , verify them against a fixed (and upgradeable) set of "guardian public keys" and process them, publishing on-chain price information or doing governance chores depending on the VAA payload.**
 
@@ -45,7 +38,13 @@ With the above in mind, and considering the space and computation limits in the 
 | --- | --------- | --------------- |
 |  0  | _args_: guardian_pk[0..6], _txnote_: signed_digest          | _args_: sig[0..6]    |
 |  1  | _args_: guardian_pk[7..13], _txnote_: signed_digest          | _args_: sig[7..13]   |
-|  2  | _args_: guardian_pk[14..18], _txnote_: signed_digest          | _args_: sig[14..18]  |
+|  2  | _args_: guardian_pk[14..18], _txnote_: signed_digest          | _args_: sig[14..18]  | 
+|  3  | VAA consume call | N/A |
+
+The current design requires the last call to be a call to an authorized application. This is intended to process VAA price data. The authorized appid must be set accordingly using the `setauthid` call in the VAA Processor contract after deployment.
+If no call is going to be made, a dummy app call must be inserted in group for the transaction group to succeed.
+
+The backend will currently **call the Pricekeeper V2 contract to store data** as the last TX group. See below for details on how Pricekeeper works.
 
 Regarding stateless logic we can say that,
 
@@ -65,7 +64,7 @@ For the stateful app-calls we consider,
 * Note field must contain signed digest.
 * Passed guardian keys $[k..j]$ must match the current global state.
 * Passed guardian size set must match the current global state.
-* Last TX in group triggers VAA processing according to fields (e.g: do governance chores, unpack Pyth price ticker, etc)
+* Last TX in the verification step (total group size-1) triggers VAA processing according to fields (e.g: do governance chores, unpack Pyth price ticker, etc).  Last TX in the entire group must be an authorized application call.
 
 **VAA Structure**
 
@@ -105,63 +104,31 @@ Each VAA is uniquely identified by tuple (emitter_chain_id, emitter_address, seq
 
 * Pyth Ticker Data
 
-After all signatures are verified the stateful app will execute the code to handle the VAA according to the tuple fields. 
+## Pricekeeper V2 App
 
+The Pricekeeper V2 App mantains a record of product/asset symbols (e.g ALGO/USD, BTC/USDT) and the price and metrics information associated. As the original Pyth Payload is 150-bytes long and it wouldn't fit in the key-value entry of the global state, the Pricekeeper contract slices the Pyth fields to a more compact format, discarding unneeded information.
 
+The Pricekeeper V2 App will allow storage to succeed only if:
 
-## System Overview (proof-of-concept work)
+* Sender is the contract owner.
+* Call is part of a group where all application calls are from the expected VAA processor Appid, 
+* Call is part of a group where the verification slot has all bits set.
 
-:warning: You can consider this a first proof-of-concept design, and in terms of our current approach, an obsolete technique.
+At deployment, the priceKeeper V2 contract must have the "vaapid" global field set accordingly.
 
-This flow uses a validator to sign the messages when they arrive. This trusts the price feed, so this is not recommended for production purposes. It may be used as a base design for other data flows. **See the Wormhole Flow below for the verified, cryptographically safe and trustless approach**.
-
-The Pricecaster backend can be configured with any class implementing **IPriceFetcher** and **IPublisher** interfaces. The following diagram shows the service operating with a fetcher from ![Pyth Network](https://pyth.network/), feeding the Algorand chain through the `StdAlgoPublisher` class.
-
-![PRICECASTER](https://user-images.githubusercontent.com/4740613/136037362-bed34a49-6b83-42e1-821d-1df3d9a41477.png)
-
-### Input Message Format
-
-The TEAL contract expects a fixed-length message consisting of:
+Consumers must interpret the stored bytes as fields organized as:
 
 ```
-  Field size
-  9           header      Literal "PRICEDATA"
-  1           version     int8 (Must be 1)
-  8           dest        This appId 
-  16          symbol      String padded with spaces e.g ("ALGO/USD        ")
-  8           price       Price. 64bit integer.
-  8           priceexp    Price exponent. Interpret as two-compliment, Big-Endian 64bit
-  8           conf        Confidence (stdev). 64bit integer. 
-  8           slot        Valid-slot of this aggregate price.
-  8           ts          timestamp of this price submitted by PriceFetcher service
-  32          s           Signature s-component
-  32          r           Signature r-component 
-
-  Size: 138 bytes. 
-```
-
-### Global state
-
-The global state that is mantained by the contract consists of the following fields:
-
-```
-sym      : byte[] Symbol to keep price for   
-vaddr    : byte[] Validator account          
-price    : uint64 current price 
-stdev    : uint64 current confidence (standard deviation)
-slot     : uint64 slot of this onchain publication
-exp      : byte[] exponent. Interpret as two-compliment, Big-Endian 64bit
-ts       : uint64 last timestamp
-```
-
-#### Price parsing
-
-The exponent is stored as a byte array containing a signed, two-complement 64-bit Big-Endian integer, as some networks like Pyth publish negative values here. For example, to parse the byte array from JS:
-
-```
-    const stExp = await tools.readAppGlobalStateByKey(algodClient, appId, VALIDATOR_ADDR, 'exp')
-    const bufExp = Buffer.from(stExp, 'base64')
-    const val = bufExp.readBigInt64BE()
+Bytes
+32              productId
+32              priceId
+8               price
+1               price_type
+4               exponent
+8               twap value
+8               twac value
+8               confidence
+8               timestamp (based on Solana contract call time)
 ```
 
 ## Installation
@@ -176,43 +143,60 @@ npm install
 
 Use the deployment tools in `tools` subdirectory.
 
-* To deploy the proof-of-concept "Pricekeeper" system, use the `deploy` tool with proper arguments, and later point the settings file to the deployed Appid.
-
-* To deploy the VAA processor to use with Wormhole, make sure you have Python environment running (preferably >=3.7.0), and `pyteal` installed with `pip3`.
+* To deploy the VAA processor  and Pricekeeper V2 app to use with Wormhole, make sure you have Python environment running (preferably >=3.7.0), and `pyteal` installed with `pip3`.  
+* The deployment program will:  generate all TEAL files from PyTEAL sources, deploy the VAA Processor application, deploy the Pricekeeper V2 contract, compile the stateless program and set the correct parameters for the contracts: authid, vphash in VAA Processor and vaapid in the Pricekeeper app.
 
 For example, using `deploy-wh` with sample output: 
 
 ```
-node tools\deploy-wh.js tools\v1.prototxt.testnet 1000  OPDM7ACAW64Q4VBWAL77Z5SHSJVZZ44V3BAN7W44U43SUXEOUENZMZYOQU testnet
+$ node tools\deploy-wh.js tools\gkeys.test 1000  OPDM7ACAW64Q4VBWAL77Z5SHSJVZZ44V3BAN7W44U43SUXEOUENZMZYOQU testnet keys\owner.key
 
-VAA Processor for Wormhole Deployment Tool -- (c)2021-22 Randlabs, Inc.
------------------------------------------------------------------------
+Pricecaster v2 Apps Deployment Tool
+Copyright (c) Randlabs Inc,  2021-22
 
 Parameters for deployment:
 From: OPDM7ACAW64Q4VBWAL77Z5SHSJVZZ44V3BAN7W44U43SUXEOUENZMZYOQU
 Network: testnet
 Guardian expiration time: 1000
-Guardian Keys: (19) 13947Bd48b18E53fdAeEe77F3473391aC727C638,F18AbBac073741DD0F002147B735Ff642f3D113F,9925A94DC043D0803f8ef502D2dB15cAc9e02D76,9e4EC2D92af8602bCE74a27F99A836f93C4a31E4,9C40c4052A3092AfB8C99B985fcDfB586Ed19c98,B86020cF1262AA4dd5572Af76923E271169a2CA7,1937617fE1eD801fBa14Bd8BB9EDEcBA7A942FFe,9475b8D45DdE53614d92c779787C27fE2ef68752,15A53B22c28AbC7B108612146B6aAa4a537bA305,63842657C7aC7e37B04FBE76b8c54EFe014D04E1,948ca1bBF4B858DF1A505b4C69c5c61bD95A12Bd,A6923e2259F8B5541eD18e410b8DdEE618337ff0,F678Daf4b7f2789AA88A081618Aa966D6a39e064,8cF31021838A8B3fFA43a71a50609877846f9E6d,eB15bCF2ae4f957012330B4741ecE3242De96184,cc3766a03e4faec44Bda7a46D9Ea2A9D124e9Bf8,841f499Ba89a6a8E9dD273BAd82Beb175094E5d7,f5F2b82576e6CA17965dee853d08bbB471FA2433,2bC2B1204599D4cA0d4Dde4a658a42c4dD13103a
+Guardian Keys: (1) 13947Bd48b18E53fdAeEe77F3473391aC727C638
 
 Enter YES to confirm parameters, anything else to abort. YES
+Compiling programs ...
 
-Enter mnemonic for sender account.
-BE SURE TO DO THIS FROM A SECURED SYSTEM
-.
-.
-.
-Compiling VAA Processor program code...
 ,VAA Processor Program, (c) 2021-22 Randlabs Inc.
 Compiling approval program...
 Written to teal/wormhole/build/vaa-processor-approval.teal
 Compiling clear state program...
 Written to teal/wormhole/build/vaa-processor-clear.teal
 ,
-Creating new app...
-txId: DX7YIQ6L5QELSNZHJGKSZ4MQA7U26KJCPUJ42UFEGU22MJWDLY5Q
-Deployment App Id: 43816461
+,Pricekeeper V2 Program, (c) 2021-22 Randlabs Inc.
+Compiling approval program...
+Written to teal/wormhole/build/pricekeeper-v2-approval.teal
+Compiling clear state program...
+Written to teal/wormhole/build/pricekeeper-v2-clear.teal
+,
+Creating VAA Processor...
+txId: WS7GE5A6YAADHVNH5OU337MK7T325AE2GML5S3RWK2VTNCQ23HWA
+Deployment App Id: 52438261
+Creating Pricekeeper V2...
+txId: FICS3HFALLJTMFGEVC65IQ67NCYRJATR32QWZS5VMKGEXHBJJUVA
+Deployment App Id: 52438280
+Setting VAA Processor authid parameter...
+txId: 5NVJGG32DRWAURD3LUHPELJAZTFMM6HLAJPPGNPXNDC5FJFDNVUQ
+Compiling verify VAA stateless code...
+,VAA Verify Stateless Program, (c) 2021-22 Randlabs Inc.
+Compiling...
+Written to teal/wormhole/build/vaa-verify.teal
+,
+Stateless program address:  KRNYKVVWZDCNOPLL63ZHFOKG2IIY7REBYTPVR5TJLD67JR6FMRJXYW63TI
+Setting VAA Processor stateless code...
+txId: 5NVJGG32DRWAURD3LUHPELJAZTFMM6HLAJPPGNPXNDC5FJFDNVUQ
+Writing deployment results file DEPLOY-1639769594911...
+Writing stateless code binary file VAA-VERIFY-1639769594911.BIN...
 Bye.
 ```
+
+To operate, the stateless contract address must be supplied with funds to pay fees when submitting transactions.
 
 ## Backend Configuration
 
