@@ -105,15 +105,18 @@ fn submit_vaa(
     let vaa = parse_vaa(deps.branch(), env.block.time.seconds(), data)?;
     let data = vaa.payload;
 
-    if vaa_archive_check(deps.storage, vaa.hash.as_slice()) {
-        return ContractError::VaaAlreadyExecuted.std_err();
-    }
-    vaa_archive_add(deps.storage, vaa.hash.as_slice())?;
-
     // check if vaa is from governance
     if state.gov_chain == vaa.emitter_chain && state.gov_address == vaa.emitter_address {
+        if vaa_archive_check(deps.storage, vaa.hash.as_slice()) {
+            return ContractError::VaaAlreadyExecuted.std_err();
+        }
+        vaa_archive_add(deps.storage, vaa.hash.as_slice())?;
+        
         return handle_governance_payload(deps, env, &data);
     }
+
+    // IMPORTANT: VAA replay-protection is not implemented in this code-path
+    // Sequences are used to prevent replay or price rollbacks
 
     let message =
         PriceAttestation::deserialize(&data[..]).map_err(|_| ContractError::InvalidVAA.std())?;
