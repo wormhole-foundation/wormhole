@@ -478,6 +478,7 @@ func newMux() *http.ServeMux {
 	mux.HandleFunc("/addressestransferredto", AddressesTransferredTo)
 	mux.HandleFunc("/addressestransferredtocumulative", AddressesTransferredToCumulative)
 	mux.HandleFunc("/totals", Totals)
+	mux.HandleFunc("/nfts", NFTs)
 	mux.HandleFunc("/recent", Recent)
 	mux.HandleFunc("/transaction", Transaction)
 	mux.HandleFunc("/readrow", ReadRow)
