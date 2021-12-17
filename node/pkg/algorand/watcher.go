@@ -4,8 +4,6 @@ import (
 	"context"
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/readiness"
-	"github.com/certusone/wormhole/node/pkg/supervisor"
-	"go.uber.org/zap"
 )
 
 type (
@@ -26,9 +24,6 @@ func NewWatcher(urlRPC string, urlToken string, contract string, lockEvents chan
 }
 
 func (e *Watcher) Run(ctx context.Context) error {
-	logger := supervisor.Logger(ctx)
-	logger.Info("connecting to algorand RPC", zap.String("url", e.urlRPC))
-
 	readiness.SetReady(common.ReadinessAlgorandSyncing)
 
 	select {}

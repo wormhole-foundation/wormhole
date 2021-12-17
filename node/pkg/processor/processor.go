@@ -78,10 +78,6 @@ type Processor struct {
 	terraLCD      string
 	terraContract string
 
-	algorandRPC      string
-	algorandToken    string
-	algorandContract string
-
 	attestationEvents *reporter.AttestationEventReporter
 
 	logger *zap.Logger
@@ -122,9 +118,6 @@ func NewProcessor(
 	devnetEthRPC string,
 	terraLCD string,
 	terraContract string,
-	algorandRPC string,
-	algorandToken string,
-	algorandContract string,
 	attestationEvents *reporter.AttestationEventReporter,
 	notifier *discord.DiscordNotifier,
 ) *Processor {
@@ -145,10 +138,6 @@ func NewProcessor(
 
 		terraLCD:      terraLCD,
 		terraContract: terraContract,
-
-		algorandRPC:      algorandRPC,
-		algorandToken:    algorandToken,
-		algorandContract: algorandContract,
 
 		attestationEvents: attestationEvents,
 

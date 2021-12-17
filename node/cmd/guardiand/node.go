@@ -250,7 +250,9 @@ func runNode(cmd *cobra.Command, args []string) {
 	readiness.RegisterComponent(common.ReadinessEthSyncing)
 	readiness.RegisterComponent(common.ReadinessSolanaSyncing)
 	readiness.RegisterComponent(common.ReadinessTerraSyncing)
-	readiness.RegisterComponent(common.ReadinessAlgorandSyncing)
+	if *unsafeDevMode {
+		readiness.RegisterComponent(common.ReadinessAlgorandSyncing)
+	}
 	readiness.RegisterComponent(common.ReadinessBSCSyncing)
 	readiness.RegisterComponent(common.ReadinessPolygonSyncing)
 	readiness.RegisterComponent(common.ReadinessAvalancheSyncing)
@@ -619,9 +621,6 @@ func runNode(cmd *cobra.Command, args []string) {
 			*ethRPC,
 			*terraLCD,
 			*terraContract,
-			*algorandRPC,
-			*algorandToken,
-			*algorandContract,
 			attestationEvents,
 			notifier,
 		)
