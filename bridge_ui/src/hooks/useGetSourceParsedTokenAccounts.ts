@@ -10,7 +10,7 @@ import {
   WSOL_ADDRESS,
   WSOL_DECIMALS,
 } from "@certusone/wormhole-sdk";
-import { ethers } from "@certusone/wormhole-sdk/node_modules/ethers";
+import { ethers } from "ethers";
 import { Dispatch } from "@reduxjs/toolkit";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import {

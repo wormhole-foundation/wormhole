@@ -68,6 +68,9 @@ var (
 	ethRopstenRPC      *string
 	ethRopstenContract *string
 
+	avalancheRPC      *string
+	avalancheContract *string
+
 	terraWS       *string
 	terraLCD      *string
 	terraContract *string
@@ -127,6 +130,9 @@ func init() {
 
 	ethRopstenRPC = NodeCmd.Flags().String("ethRopstenRPC", "", "Ethereum Ropsten RPC URL")
 	ethRopstenContract = NodeCmd.Flags().String("ethRopstenContract", "", "Ethereum Ropsten contract address")
+
+	avalancheRPC = NodeCmd.Flags().String("avalancheRPC", "", "Avalanche RPC URL")
+	avalancheContract = NodeCmd.Flags().String("avalancheContract", "", "Avalanche contract address")
 
 	terraWS = NodeCmd.Flags().String("terraWS", "", "Path to terrad root for websocket connection")
 	terraLCD = NodeCmd.Flags().String("terraLCD", "", "Path to LCD service root for http calls")
@@ -238,6 +244,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	readiness.RegisterComponent(common.ReadinessPolygonSyncing)
 	if *testnetMode {
 		readiness.RegisterComponent(common.ReadinessEthRopstenSyncing)
+		readiness.RegisterComponent(common.ReadinessAvalancheSyncing)
 	}
 
 	if *statusAddr != "" {
@@ -328,12 +335,18 @@ func runNode(cmd *cobra.Command, args []string) {
 		if *ethRopstenContract == "" {
 			logger.Fatal("Please specify --ethRopstenContract")
 		}
+		if *avalancheRPC == "" {
+			logger.Fatal("Please specify --avalancheRPC")
+		}
 	} else {
 		if *ethRopstenRPC != "" {
 			logger.Fatal("Please do not specify --ethRopstenRPC in non-testnet mode")
 		}
 		if *ethRopstenContract != "" {
 			logger.Fatal("Please do not specify --ethRopstenContract in non-testnet mode")
+		}
+		if *avalancheRPC != "" {
+			logger.Fatal("Please do not specify --avalancheRPC in non-testnet mode")
 		}
 	}
 	if *nodeName == "" {
@@ -402,6 +415,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	bscContractAddr := eth_common.HexToAddress(*bscContract)
 	polygonContractAddr := eth_common.HexToAddress(*polygonContract)
 	ethRopstenContractAddr := eth_common.HexToAddress(*ethRopstenContract)
+	avalancheContractAddr := eth_common.HexToAddress(*avalancheContract)
 	solAddress, err := solana_types.PublicKeyFromBase58(*solanaContract)
 	if err != nil {
 		logger.Fatal("invalid Solana contract address", zap.Error(err))
@@ -537,6 +551,10 @@ func runNode(cmd *cobra.Command, args []string) {
 		if *testnetMode {
 			if err := supervisor.Run(ctx, "ethropstenwatch",
 				ethereum.NewEthWatcher(*ethRopstenRPC, ethRopstenContractAddr, "ethropsten", common.ReadinessEthRopstenSyncing, vaa.ChainIDEthereumRopsten, lockC, setC).Run); err != nil {
+				return err
+			}
+			if err := supervisor.Run(ctx, "avalanchewatch",
+				ethereum.NewEthWatcher(*avalancheRPC, avalancheContractAddr, "avalanche", common.ReadinessAvalancheSyncing, vaa.ChainIDAvalanche, lockC, nil).Run); err != nil {
 				return err
 			}
 		}

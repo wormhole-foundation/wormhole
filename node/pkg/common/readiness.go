@@ -9,4 +9,5 @@ const (
 	ReadinessBSCSyncing        readiness.Component = "bscSyncing"
 	ReadinessPolygonSyncing    readiness.Component = "polygonSyncing"
 	ReadinessEthRopstenSyncing readiness.Component = "ethRopstenSyncing"
+	ReadinessAvalancheSyncing  readiness.Component = "avalancheSyncing"
 )

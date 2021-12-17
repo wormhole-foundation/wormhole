@@ -645,6 +645,11 @@ export const BSC_MIGRATION_ASSET_MAP = new Map<string, string>(
           getAddress("0x23396cF899Ca06c4472205fC903bDB4de249D6fC"),
           getAddress("0x0F98AB919D04a291838B3b075c57181057D4CF75"),
         ],
+        [
+          // ORION
+          getAddress("0x5530ec23f4ee1521182bd158c09f4ca7efec1ef0"),
+          getAddress("0x084fa354e65b521e6fb9d1602549cf8693cdb4f8"),
+        ],
       ]
     : CLUSTER === "testnet"
     ? []

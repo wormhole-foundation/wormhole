@@ -4,7 +4,7 @@ import {
   CHAIN_ID_TERRA,
   isEVMChain,
 } from "@certusone/wormhole-sdk";
-import { Provider } from "@certusone/wormhole-sdk/node_modules/@ethersproject/abstract-provider";
+import { Provider } from "@ethersproject/abstract-provider";
 import { formatUnits } from "@ethersproject/units";
 import { Typography } from "@material-ui/core";
 import { LocalGasStation } from "@material-ui/icons";
