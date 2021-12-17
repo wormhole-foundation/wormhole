@@ -15,8 +15,7 @@ import {
   createSpyRPCServiceClient, subscribeSignedVAA
 } from '@certusone/wormhole-spydk'
 import { SpyRPCServiceClient } from '@certusone/wormhole-spydk/lib/cjs/proto/spy/v1/spy'
-import { PythPayload, Symbol, VAA } from 'backend/common/basetypes'
-import { PriceTicker } from '../common/priceTicker'
+import { PythData, Symbol, VAA } from 'backend/common/basetypes'
 import { IStrategy } from '../strategy/strategy'
 import { IPriceFetcher } from './IPriceFetcher'
 
@@ -24,7 +23,7 @@ export class WormholePythPriceFetcher implements IPriceFetcher {
   private symbolMap: Map<string, {
     name: string,
     publishIntervalSecs: number,
-    priceKeeperV2AppId: number
+    pythData: PythData | undefined
   }>
 
   private client: SpyRPCServiceClient
@@ -32,9 +31,12 @@ export class WormholePythPriceFetcher implements IPriceFetcher {
   private pythChainId: number
   private strategy: IStrategy
   private stream: any
+  private _hasData: boolean
+  private coreWasm: any
 
   constructor (spyRpcServiceHost: string, pythChainId: number, pythEmitterAddress: string, symbols: Symbol[], strategy: IStrategy) {
     setDefaultWasm('node')
+    this._hasData = false
     this.client = createSpyRPCServiceClient(spyRpcServiceHost)
     this.pythChainId = pythChainId
     this.pythEmitterAddress = {
@@ -48,14 +50,14 @@ export class WormholePythPriceFetcher implements IPriceFetcher {
       this.symbolMap.set(sym.productId + sym.priceId, {
         name: sym.name,
         publishIntervalSecs: sym.publishIntervalSecs,
-        priceKeeperV2AppId: sym.priceKeeperV2AppId
+        pythData: undefined
       })
     })
   }
 
   async start () {
+    this.coreWasm = await importCoreWasm()
     // eslint-disable-next-line camelcase
-    const { parse_vaa } = await importCoreWasm()
     this.stream = await subscribeSignedVAA(this.client,
       {
         filters:
@@ -69,8 +71,8 @@ export class WormholePythPriceFetcher implements IPriceFetcher {
 
     this.stream.on('data', (data: { vaaBytes: Buffer }) => {
       try {
-        const parsedVAA: VAA = parse_vaa(new Uint8Array(data.vaaBytes))
-        this.onPythData(parsedVAA)
+        this._hasData = true
+        this.onPythData(data.vaaBytes)
       } catch (e) {
         console.error(`Failed to parse VAA data. \nReason: ${e}\nData: ${data}`)
       }
@@ -82,6 +84,7 @@ export class WormholePythPriceFetcher implements IPriceFetcher {
   }
 
   stop (): void {
+    this._hasData = false
   }
 
   setStrategy (s: IStrategy) {
@@ -89,46 +92,64 @@ export class WormholePythPriceFetcher implements IPriceFetcher {
   }
 
   hasData (): boolean {
-    return this.strategy.bufferCount() > 0
+    // Return when any price is ready
+    return this._hasData
   }
 
-  queryTicker (): PriceTicker | undefined {
-    return this.strategy.getPrice()
+  queryData (id: string): any | undefined {
+    const v = this.symbolMap.get(id)
+    if (v === undefined) {
+      console.error(`Unsupported symbol with identifier ${id}`)
+    } else {
+      return v.pythData
+    }
   }
 
-  private onPythData (v: VAA) {
-    // unpack payload
-
+  private async onPythData (vaaBytes: Buffer) {
+    const v: VAA = this.coreWasm.parse_vaa(new Uint8Array(vaaBytes))
     const payload = Buffer.from(v.payload)
     const productId = payload.slice(7, 7 + 32)
     const priceId = payload.slice(7 + 32, 7 + 32 + 32)
     console.log(productId.toString('hex'), priceId.toString('hex'))
 
     const k = productId.toString('hex') + priceId.toString('hex')
-    if (this.symbolMap.has(k)) {
-      const pythPayload: PythPayload = {
-        price_type: payload.readInt8(71),
-        price: payload.readBigUInt64BE(72),
-        exponent: payload.readUInt32BE(80),
-        twap: payload.readBigUInt64BE(84),
-        twap_num_upd: payload.readBigUInt64BE(92),
-        twap_denom_upd: payload.readBigUInt64BE(100),
-        twac: payload.readBigUInt64BE(108),
-        twac_num_upd: payload.readBigUInt64BE(116),
-        twac_denom_upd: payload.readBigUInt64BE(124),
-        confidence: payload.readBigUInt64BE(132),
-        status: payload.readInt8(133),
-        corporate_act: payload.readInt8(134),
-        timestamp: payload.readBigUInt64BE(135)
+    const sym = this.symbolMap.get(k)
+
+    if (sym !== undefined) {
+      sym.pythData = {
+        symbol: sym.name,
+        vaaBody: vaaBytes.slice(6 + v.signatures.length * 66),
+        signatures: v.signatures
       }
 
-      if (pythPayload.status === 0) {
-        console.log('WARNING: Symbol trading status currently halted (0). Publication will be skipped.')
-      }
+      // Must check status field!
 
-      console.log('got price for ' + this.symbolMap.get(k)?.name)
+      //    status: payload.readInt8(133)
+      // }
+      //   const pythPayload: PythData = {
+      //     vaaBody:
+      //     ,
 
-      console.log(pythPayload)
+      // Informational fields
+
+      // price_type: payload.readInt8(71),
+      // price: payload.readBigUInt64BE(72),
+      // exponent: payload.readUInt32BE(80),
+      // twap: payload.readBigUInt64BE(84),
+      // twap_num_upd: payload.readBigUInt64BE(92),
+      // twap_denom_upd: payload.readBigUInt64BE(100),
+      // twac: payload.readBigUInt64BE(108),
+      // twac_num_upd: payload.readBigUInt64BE(116),
+      // twac_denom_upd: payload.readBigUInt64BE(124),
+      // confidence: payload.readBigUInt64BE(132),
+      // status: payload.readInt8(133),
+      // corporate_act: payload.readInt8(134),
+      // timestamp: payload.readBigUInt64BE(135)
     }
+
+    // if (pythPayload.status === 0) {
+    //  console.log('WARNING: Symbol trading status currently halted (0). Publication will be skipped.')
+    // } else
+    // eslint-disable-next-line no-lone-blocks
   }
 }

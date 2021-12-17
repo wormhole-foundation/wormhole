@@ -13,7 +13,7 @@ export type Symbol = {
     productId: string,
     priceId: string,
     publishIntervalSecs: number,
-    priceKeeperV2AppId: number,
+    pubCount: number
 }
 
 export type VAA = {
@@ -29,18 +29,24 @@ export type VAA = {
     payload: []
   }
 
-export type PythPayload = {
-  price_type: number,
-  price: BigInt,
-  exponent: number,
-  twap: BigInt,
-  twap_num_upd: BigInt,
-  twap_denom_upd: BigInt,
-  twac: BigInt,
-  twac_num_upd: BigInt,
-  twac_denom_upd: BigInt,
-  confidence: BigInt,
-  status: number,
-  corporate_act: number,
-  timestamp: BigInt
+export type PythData = {
+  vaaBody: Buffer,
+  signatures: [],
+
+  // Informational fields.
+
+  symbol?: string,
+  price_type?: number,
+  price?: BigInt,
+  exponent?: number,
+  twap?: BigInt,
+  twap_num_upd?: BigInt,
+  twap_denom_upd?: BigInt,
+  twac?: BigInt,
+  twac_num_upd?: BigInt,
+  twac_denom_upd?: BigInt,
+  confidence?: BigInt,
+  status?: number,
+  corporate_act?: number,
+  timestamp?: BigInt
 }

@@ -1,14 +1,13 @@
 {
   "name": "pricecaster",
-  "version": "1.0.0",
-  "description": "Pricecaster Service",
+  "version": "2.0.0",
+  "description": "Pricecaster V2 Service",
   "main": "index.js",
   "scripts": {
     "compile": "tsc",
     "build": "rimraf build && npm run compile",
     "prepack": "npm run build",
     "start": "npm run compile && cross-env PRICECASTER_SETTINGS=./settings/settings-worm.js node build/main.js",
-    "test-pkeeper-sc": "mocha test/pkeeper-sc-test.js --timeout 60000 --bail",
     "test-wormhole-sc": "mocha test/wormhole-sc-test.js --timeout 60000 --bail --allow-uncaught"
   },
   "author": "Randlabs inc",
