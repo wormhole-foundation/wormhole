@@ -27,6 +27,8 @@ use crate::{
         config_read,
         price_info,
         price_info_read,
+        sequence,
+        sequence_read,
         ConfigInfo,
         UpgradeContract,
     },
@@ -65,8 +67,10 @@ pub fn instantiate(
         gov_address: msg.gov_address.as_slice().to_vec(),
         wormhole_contract: msg.wormhole_contract,
         pyth_emitter: msg.pyth_emitter.as_slice().to_vec(),
+        pyth_emitter_chain: msg.pyth_emitter_chain,
     };
     config(deps.storage).save(&state)?;
+    sequence(deps.storage).save(&0)?;
 
     Ok(Response::default())
 }
@@ -113,9 +117,18 @@ fn submit_vaa(
 
     let message =
         PriceAttestation::deserialize(&data[..]).map_err(|_| ContractError::InvalidVAA.std())?;
-    if vaa.emitter_address != state.pyth_emitter {
+    if vaa.emitter_address != state.pyth_emitter || vaa.emitter_chain != state.pyth_emitter_chain {
         return ContractError::InvalidVAA.std_err();
     }
+
+    // Check sequence
+    let last_sequence = sequence_read(deps.storage).load()?;
+    if vaa.sequence <= last_sequence && last_sequence != 0 {
+        return Err(StdError::generic_err(
+            "price sequences need to be monotonically increasing",
+        ));
+    }
+    sequence(deps.storage).save(&vaa.sequence)?;
 
     // Update price
     price_info(deps.storage).save(&message.product_id.to_bytes()[..], &data)?;
