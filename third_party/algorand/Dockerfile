@@ -20,7 +20,8 @@ ADD kmd_config.json /network/Node/kmd-v0.5/kmd_config.json
 
 ENV ALGORAND_DATA=/network/Node
 
-ADD requirements.txt /setup/
+ADD Pipfile.lock /setup/
+ADD Pipfile /setup/
 RUN apt-get update
 RUN apt-get install -y python3-pip
-RUN pip install -r /setup/requirements.txt
+RUN pip install pipenv

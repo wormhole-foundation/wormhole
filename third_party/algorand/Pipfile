@@ -1,0 +1,12 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+py-algorand-sdk = "*"
+pyteal = "*"
+mypy = "*"
+pytest = "*"
+
+[dev-packages]
