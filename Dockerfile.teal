@@ -5,12 +5,15 @@ RUN dnf -y install python3-pip
 COPY staging/algorand/teal /teal
 
 # Install pyTEAL dependencies
-COPY third_party/algorand/requirements.txt requirements.txt
-RUN pip3 install -r requirements.txt
+COPY third_party/algorand/Pipfile.lock Pipfile.lock
+COPY third_party/algorand/Pipfile Pipfile
+
+RUN pip install pipenv
+RUN pipenv install
 
 # Regenerate TEAL assembly
-RUN python3 /teal/wormhole/pyteal/vaa-processor.py vaa-processor-approval.teal vaa-processor-clear.teal
-RUN python3 /teal/wormhole/pyteal/vaa-verify.py 0 vaa-verify.teal
+RUN pipenv run python3 /teal/wormhole/pyteal/vaa-processor.py vaa-processor-approval.teal vaa-processor-clear.teal
+RUN pipenv run python3 /teal/wormhole/pyteal/vaa-verify.py 0 vaa-verify.teal
 
 FROM scratch AS teal-export
 COPY --from=teal-build /vaa-processor-approval.teal third_party/algorand/teal/
