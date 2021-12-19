@@ -43,7 +43,6 @@ func TestSerializeDeserialize(t *testing.T) {
 			vaaData, err := test.vaa.Marshal()
 			require.NoError(t, err)
 
-			println(hex.EncodeToString(vaaData))
 			vaaParsed, err := Unmarshal(vaaData)
 			require.NoError(t, err)
 
