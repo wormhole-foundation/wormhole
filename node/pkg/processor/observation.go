@@ -258,7 +258,7 @@ func (p *Processor) handleInboundSignedVAAWithQuorum(ctx context.Context, m *gos
 	}
 
 	// Calculate digest for logging
-	digest, err := v.SigningMsg()
+	digest := v.SigningMsg()
 	if err != nil {
 		panic(err)
 	}
