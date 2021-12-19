@@ -65,8 +65,7 @@ func TestVerifySignature(t *testing.T) {
 		Payload:          []byte("abcd"),
 	}
 
-	data, err := v.SigningMsg()
-	require.NoError(t, err)
+	data := v.SigningMsg()
 
 	key, err := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
 	require.NoError(t, err)
