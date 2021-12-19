@@ -6,6 +6,8 @@ import (
 	"github.com/gagliardetto/solana-go/rpc"
 	"golang.org/x/time/rate"
 	"log"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -24,21 +26,8 @@ const (
 var (
 	emitter = solana.MustPublicKeyFromBase58("Gv1KWf8DT1jKv5pKBmGaTmVszqa56Xn8YGx2Pg7i7qAk")
 
-	want = []string{
-		"66",
-		"79",
-		"442",
-		"508",
-		"692",
-		"782",
-		"908",
-		"920",
-		"942",
-		"1069",
-		"1075",
-		"1083",
-		"1153",
-		"1184",
+	want = []int{
+		25958,
 	}
 )
 
@@ -52,6 +41,13 @@ func main() {
 	var before solana.Signature
 
 	sigs := make([]solana.Signature, 0, limit*2)
+
+	sort.Slice(want, func(i, j int) bool {
+		return want[i] < want[j]
+	})
+
+	minWant := want[0]
+	maxWant := want[len(want)-1]
 
 	for {
 		err := limiter.Wait(ctx)
@@ -87,7 +83,15 @@ func main() {
 
 	log.Printf("found a total of %d transactions", len(sigs))
 
+	skip := 0
+
+OUTER:
 	for _, sig := range sigs {
+		if skip > 0 {
+			skip--
+			continue
+		}
+
 		out, err := c.GetConfirmedTransaction(ctx, sig)
 		if err != nil {
 			log.Fatalf("GetConfirmedTransaction %s: %v", sig, err)
@@ -96,12 +100,29 @@ func main() {
 		for _, msg := range out.Meta.LogMessages {
 			if strings.HasPrefix(msg, "Program log: Sequence:") {
 				seq := msg[23:]
-				//log.Printf("%s %s", sig, seq)
+				log.Printf("%s %s", sig, seq)
+
+				seqInt, err := strconv.Atoi(seq)
+				if err != nil {
+					log.Printf("failed to parse seq %s: %v", seq, err)
+					continue
+				}
 
 				for _, w := range want {
-					if w == seq {
+					if w == seqInt {
 						log.Printf("FOUND https://explorer.solana.com/tx/%s seq %s", sig, seq)
 					}
+				}
+
+				if seqInt > maxWant {
+					skip = (seqInt - maxWant) / 2
+					log.Printf("max=%d, cur=%d, skipping %d", maxWant, seqInt, skip)
+					continue OUTER
+				}
+
+				if seqInt < minWant {
+					log.Printf("min=%d, cur=%d, we're done", minWant, seqInt)
+					break OUTER
 				}
 			}
 		}
