@@ -30,10 +30,11 @@ import (
 
 type nodePrivilegedService struct {
 	nodev1.UnimplementedNodePrivilegedServiceServer
-	db        *db.Database
-	injectC   chan<- *vaa.VAA
-	logger    *zap.Logger
-	signedInC chan *gossipv1.SignedVAAWithQuorum
+	db           *db.Database
+	injectC      chan<- *vaa.VAA
+	obsvReqSendC chan *gossipv1.ObservationRequest
+	logger       *zap.Logger
+	signedInC    chan *gossipv1.SignedVAAWithQuorum
 }
 
 // adminGuardianSetUpdateToVAA converts a nodev1.GuardianSetUpdate message to its canonical VAA representation.
@@ -342,7 +343,7 @@ func (s *nodePrivilegedService) FindMissingMessages(ctx context.Context, req *no
 	}, nil
 }
 
-func adminServiceRunnable(logger *zap.Logger, socketPath string, injectC chan<- *vaa.VAA, signedInC chan *gossipv1.SignedVAAWithQuorum, db *db.Database, gst *common.GuardianSetState) (supervisor.Runnable, error) {
+func adminServiceRunnable(logger *zap.Logger, socketPath string, injectC chan<- *vaa.VAA, signedInC chan *gossipv1.SignedVAAWithQuorum, obsvReqSendC chan *gossipv1.ObservationRequest, db *db.Database, gst *common.GuardianSetState) (supervisor.Runnable, error) {
 	// Delete existing UNIX socket, if present.
 	fi, err := os.Stat(socketPath)
 	if err == nil {
@@ -375,10 +376,11 @@ func adminServiceRunnable(logger *zap.Logger, socketPath string, injectC chan<- 
 	logger.Info("admin server listening on", zap.String("path", socketPath))
 
 	nodeService := &nodePrivilegedService{
-		injectC:   injectC,
-		db:        db,
-		logger:    logger.Named("adminservice"),
-		signedInC: signedInC,
+		injectC:      injectC,
+		obsvReqSendC: obsvReqSendC,
+		db:           db,
+		logger:       logger.Named("adminservice"),
+		signedInC:    signedInC,
 	}
 
 	publicrpcService := publicrpc.NewPublicrpcServer(logger, db, gst)
@@ -387,4 +389,10 @@ func adminServiceRunnable(logger *zap.Logger, socketPath string, injectC chan<- 
 	nodev1.RegisterNodePrivilegedServiceServer(grpcServer, nodeService)
 	publicrpcv1.RegisterPublicRPCServiceServer(grpcServer, publicrpcService)
 	return supervisor.GRPCServer(grpcServer, l, false), nil
+}
+
+func (s *nodePrivilegedService) SendObservationRequest(ctx context.Context, req *nodev1.SendObservationRequestRequest) (*nodev1.SendObservationRequestResponse, error) {
+	s.obsvReqSendC <- req.ObservationRequest
+	s.logger.Info("sent observation request", zap.Any("request", req.ObservationRequest))
+	return &nodev1.SendObservationRequestResponse{}, nil
 }
