@@ -86,6 +86,8 @@ spec:
             - ws://eth-devnet:8545
             - --avalancheRPC
             - ws://eth-devnet:8545
+            - --oasisRPC
+            - ws://eth-devnet:8545
             - --terraWS
             - ws://terra-terrad:26657/websocket
             - --terraLCD
