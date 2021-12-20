@@ -128,7 +128,7 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 
 		var recovery <-chan time.Time
 		date := recoveryDate.Sub(time.Now().UTC())
-		if date >= 0 && s.commitment == rpc.CommitmentFinalized {
+		if date >= 0 {
 			logger.Info("waiting for scheduled recovery", zap.Duration("until", date))
 			recovery = time.NewTimer(date).C
 		} else {
