@@ -238,7 +238,7 @@ contract NFTBridge is NFTBridgeGovernance {
         
         // Ignore length due to malformatted payload
         index += 1;
-        transfer.uri = string(encoded.slice(index, encoded.length - index));
+        transfer.uri = string(encoded.slice(index, encoded.length - index - 34));
 
         // From here we read backwards due malformatted package
         index = encoded.length;
