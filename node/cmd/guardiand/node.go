@@ -71,6 +71,9 @@ var (
 	avalancheRPC      *string
 	avalancheContract *string
 
+	oasisRPC      *string
+	oasisContract *string
+
 	terraWS       *string
 	terraLCD      *string
 	terraContract *string
@@ -134,6 +137,9 @@ func init() {
 
 	avalancheRPC = NodeCmd.Flags().String("avalancheRPC", "", "Avalanche RPC URL")
 	avalancheContract = NodeCmd.Flags().String("avalancheContract", "", "Avalanche contract address")
+
+	oasisRPC = NodeCmd.Flags().String("oasisRPC", "", "Oasis RPC URL")
+	oasisContract = NodeCmd.Flags().String("oasisContract", "", "Oasis contract address")
 
 	terraWS = NodeCmd.Flags().String("terraWS", "", "Path to terrad root for websocket connection")
 	terraLCD = NodeCmd.Flags().String("terraLCD", "", "Path to LCD service root for http calls")
@@ -245,6 +251,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	readiness.RegisterComponent(common.ReadinessBSCSyncing)
 	readiness.RegisterComponent(common.ReadinessPolygonSyncing)
 	readiness.RegisterComponent(common.ReadinessAvalancheSyncing)
+	readiness.RegisterComponent(common.ReadinessOasisSyncing)
 	if *testnetMode {
 		readiness.RegisterComponent(common.ReadinessEthRopstenSyncing)
 	}
@@ -289,6 +296,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		*bscContract = devnet.GanacheWormholeContractAddress.Hex()
 		*polygonContract = devnet.GanacheWormholeContractAddress.Hex()
 		*avalancheContract = devnet.GanacheWormholeContractAddress.Hex()
+		*oasisContract = devnet.GanacheWormholeContractAddress.Hex()
 
 		// Use the hostname as nodeName. For production, we don't want to do this to
 		// prevent accidentally leaking sensitive hostnames.
@@ -333,6 +341,9 @@ func runNode(cmd *cobra.Command, args []string) {
 	}
 	if *avalancheRPC == "" {
 		logger.Fatal("Please specify --avalancheRPC")
+	}
+	if *oasisRPC == "" {
+		logger.Fatal("Please specify --oasisRPC")
 	}
 	if *testnetMode {
 		if *ethRopstenRPC == "" {
@@ -419,6 +430,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	polygonContractAddr := eth_common.HexToAddress(*polygonContract)
 	ethRopstenContractAddr := eth_common.HexToAddress(*ethRopstenContract)
 	avalancheContractAddr := eth_common.HexToAddress(*avalancheContract)
+	oasisContractAddr := eth_common.HexToAddress(*oasisContract)
 	solAddress, err := solana_types.PublicKeyFromBase58(*solanaContract)
 	if err != nil {
 		logger.Fatal("invalid Solana contract address", zap.Error(err))
@@ -552,6 +564,10 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 		if err := supervisor.Run(ctx, "avalanchewatch",
 			ethereum.NewEthWatcher(*avalancheRPC, avalancheContractAddr, "avalanche", common.ReadinessAvalancheSyncing, vaa.ChainIDAvalanche, lockC, nil).Run); err != nil {
+			return err
+		}
+		if err := supervisor.Run(ctx, "oasiswatch",
+			ethereum.NewEthWatcher(*oasisRPC, oasisContractAddr, "oasis", common.ReadinessOasisSyncing, vaa.ChainIDOasis, lockC, nil).Run); err != nil {
 			return err
 		}
 
