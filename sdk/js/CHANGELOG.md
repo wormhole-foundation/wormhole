@@ -9,6 +9,8 @@ added chunks and sendAndConfirmTransactionsWithRetry as utility functions.
 
 added integration tests for postVaaSolanaWithRetry.
 
+initial Oasis support
+
 ## 0.1.4
 
 initial AVAX testnet support
