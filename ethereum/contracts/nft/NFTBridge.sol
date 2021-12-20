@@ -235,6 +235,10 @@ contract NFTBridge is NFTBridgeGovernance {
 
         transfer.tokenID = encoded.toUint256(index);
         index += 32;
+        
+        // Ignore length due to malformatted payload
+        index += 1;
+        transfer.uri = string(encoded.slice(index, encoded.length - index));
 
         // From here we read backwards due malformatted package
         index = encoded.length;
@@ -244,8 +248,6 @@ contract NFTBridge is NFTBridgeGovernance {
 
         index -= 32;
         transfer.to = encoded.toBytes32(index);
-
-        transfer.uri = string(encoded.slice(index, encoded.length - index));
 
         //require(encoded.length == index, "invalid Transfer");
     }
