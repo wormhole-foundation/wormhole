@@ -28,6 +28,7 @@ type SolanaWatcher struct {
 	rpcUrl       string
 	commitment   rpc.CommitmentType
 	messageEvent chan *common.MessagePublication
+	obsvReqC     chan *gossipv1.ObservationRequest
 	rpcClient    *rpc.Client
 }
 
@@ -101,11 +102,13 @@ func NewSolanaWatcher(
 	wsUrl, rpcUrl string,
 	contractAddress solana.PublicKey,
 	messageEvents chan *common.MessagePublication,
+	obsvReqC chan *gossipv1.ObservationRequest,
 	commitment rpc.CommitmentType) *SolanaWatcher {
 	return &SolanaWatcher{
 		contract: contractAddress,
 		wsUrl:    wsUrl, rpcUrl: rpcUrl,
 		messageEvent: messageEvents,
+		obsvReqC:     obsvReqC,
 		commitment:   commitment,
 		rpcClient:    rpc.New(rpcUrl),
 	}
@@ -155,6 +158,17 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 				for _, acc := range accs {
 					s.fetchMessageAccount(rCtx, logger, solana.MustPublicKeyFromBase58(acc), 0)
 				}
+			case m := <-s.obsvReqC:
+				if m.ChainId != uint32(vaa.ChainIDSolana) {
+					panic("unexpected chain id")
+				}
+
+				acc := solana.PublicKeyFromBytes(m.TxHash)
+				logger.Info("received observation request", zap.String("account", acc.String()))
+
+				rCtx, cancel := context.WithTimeout(ctx, rpcTimeout)
+				s.fetchMessageAccount(rCtx, logger, acc, 0)
+				cancel()
 			case <-timer.C:
 				// Get current slot height
 				rCtx, cancel := context.WithTimeout(ctx, rpcTimeout)

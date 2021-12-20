@@ -147,6 +147,9 @@ To Solana as CPI instruction:
 
     kubectl exec solana-devnet-0 -c setup -- client post-message --proxy CP1co2QMMoDPbsmV7PGcUTLFwyhgCgTXt25gLQ5LewE1 Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o 1 confirmed ffff
 
+### Observation Requests
+
+    kubectl exec -it guardian-0 -- /guardiand admin send-observation-request --socket /tmp/admin.sock 1 4636d8f7593c78a5092bed13dec765cc705752653db5eb1498168c92345cd389
 
 ### IntelliJ Protobuf Autocompletion
 

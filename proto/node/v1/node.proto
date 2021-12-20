@@ -4,6 +4,8 @@ package node.v1;
 
 option go_package = "github.com/certusone/wormhole/node/pkg/proto/node/v1;nodev1";
 
+import "gossip/v1/gossip.proto";
+
 // NodePrivilegedService exposes an administrative API. It runs on a UNIX socket and is authenticated
 // using Linux filesystem permissions.
 service NodePrivilegedService {
@@ -21,6 +23,11 @@ service NodePrivilegedService {
   //
   // An error is returned if more than 1000 gaps are found.
   rpc FindMissingMessages (FindMissingMessagesRequest) returns (FindMissingMessagesResponse);
+
+  // SendObservationRequest broadcasts a signed observation request to the gossip network
+  // using the node's guardian key. The network rate limits these requests to one per second.
+  // Requests at higher rates will fail silently.
+  rpc SendObservationRequest (SendObservationRequestRequest) returns (SendObservationRequestResponse);
 }
 
 message InjectGovernanceVAARequest {
@@ -133,3 +140,9 @@ message FindMissingMessagesResponse {
   uint64 first_sequence = 2;
   uint64 last_sequence = 3;
 }
+
+message SendObservationRequestRequest {
+  gossip.v1.ObservationRequest observation_request = 1;
+}
+
+message SendObservationRequestResponse {}
