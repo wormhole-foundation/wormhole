@@ -829,3 +829,15 @@ export const getHowToAddTokensToWalletUrl = (chainId: ChainId) => {
   }
   return "";
 };
+
+export const getHowToAddToTokenListUrl = (chainId: ChainId) => {
+  if (chainId === CHAIN_ID_SOLANA) {
+    return "https://github.com/solana-labs/token-list";
+  } else if (chainId === CHAIN_ID_TERRA) {
+    return "https://github.com/terra-money/assets";
+  }
+  return "";
+};
+
+export const SOLANA_TOKEN_METADATA_PROGRAM_URL =
+  "https://github.com/metaplex-foundation/metaplex/tree/master/rust/token-metadata/program";
