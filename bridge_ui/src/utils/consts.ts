@@ -665,7 +665,12 @@ export const MIGRATION_ASSET_MAP = new Map<string, string>(
         ],
       ]
     : CLUSTER === "testnet"
-    ? []
+    ? [
+        [
+          "orcarKHSqC5CDDsGbho8GKvwExejWHxTqGzXgcewB9L", //This is not actually a v1 asset
+          "orcarKHSqC5CDDsGbho8GKvwExejWHxTqGzXgcewB9L",
+        ],
+      ]
     : [
         // [
         //   "2WDq7wSs9zYrpx2kbHDA4RUTRch2CCTP6ZWaH4GNfnQQ",
