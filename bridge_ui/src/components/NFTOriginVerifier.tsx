@@ -4,6 +4,7 @@ import {
   CHAIN_ID_ETH,
   CHAIN_ID_POLYGON,
   CHAIN_ID_SOLANA,
+  CHAIN_ID_OASIS,
   hexToNativeString,
   isEVMChain,
   uint8ArrayToHex,
@@ -342,7 +343,7 @@ export default function NFTOriginVerifier() {
                   >
                     View on Snowtrace
                   </Button>
-                ) : (
+                ) : originInfo.chainId === CHAIN_ID_OASIS ? null : (
                   <Button
                     href={`https://opensea.io/assets/${readableAddress}/${originInfo.tokenId}`}
                     target="_blank"
