@@ -37,12 +37,14 @@
     "partnersLink": "partners",
     "codeLink": "code",
     "jobsLink": "jobs",
+    "docsLink": "docs",
     "bridgeLink": "Launch Bridge",
     "discordAltText": "Go to Wormhole's Discord",
     "githubAltText": "Go to Wormhole's Github",
     "mediumAltText": "Go to Wormhole's Medium",
     "telegramAltText": "Go to Wormhole's Telegram",
-    "twitterAltText": "Go to Wormhole's Twitter"
+    "twitterAltText": "Go to Wormhole's Twitter",
+    "docsAltText": "Go to Wormhole's Documentation"
   },
   "footer": {
     "openSource": "Open Source",
@@ -142,7 +144,7 @@
   },
   "networks": {
     "network": "network",
-    "devnet": "devent",
+    "devnet": "devnet",
     "testnet": "testnet",
     "mainnet": "mainnet"
   }

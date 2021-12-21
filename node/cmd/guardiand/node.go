@@ -73,6 +73,9 @@ var (
 	avalancheRPC      *string
 	avalancheContract *string
 
+	oasisRPC      *string
+	oasisContract *string
+
 	terraWS       *string
 	terraLCD      *string
 	terraContract *string
@@ -106,6 +109,7 @@ var (
 	bigTableGCPProject         *string
 	bigTableInstanceName       *string
 	bigTableTableName          *string
+	bigTableTopicName          *string
 	bigTableKeyPath            *string
 )
 
@@ -139,6 +143,9 @@ func init() {
 
 	avalancheRPC = NodeCmd.Flags().String("avalancheRPC", "", "Avalanche RPC URL")
 	avalancheContract = NodeCmd.Flags().String("avalancheContract", "", "Avalanche contract address")
+
+	oasisRPC = NodeCmd.Flags().String("oasisRPC", "", "Oasis RPC URL")
+	oasisContract = NodeCmd.Flags().String("oasisContract", "", "Oasis contract address")
 
 	terraWS = NodeCmd.Flags().String("terraWS", "", "Path to terrad root for websocket connection")
 	terraLCD = NodeCmd.Flags().String("terraLCD", "", "Path to LCD service root for http calls")
@@ -175,6 +182,7 @@ func init() {
 	bigTableGCPProject = NodeCmd.Flags().String("bigTableGCPProject", "", "Google Cloud project ID for storing events")
 	bigTableInstanceName = NodeCmd.Flags().String("bigTableInstanceName", "", "BigTable instance name for storing events")
 	bigTableTableName = NodeCmd.Flags().String("bigTableTableName", "", "BigTable table name to store events in")
+	bigTableTopicName = NodeCmd.Flags().String("bigTableTopicName", "", "GCP topic name to publish to")
 	bigTableKeyPath = NodeCmd.Flags().String("bigTableKeyPath", "", "Path to json Service Account key")
 }
 
@@ -256,6 +264,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	readiness.RegisterComponent(common.ReadinessBSCSyncing)
 	readiness.RegisterComponent(common.ReadinessPolygonSyncing)
 	readiness.RegisterComponent(common.ReadinessAvalancheSyncing)
+	readiness.RegisterComponent(common.ReadinessOasisSyncing)
 	if *testnetMode {
 		readiness.RegisterComponent(common.ReadinessEthRopstenSyncing)
 	}
@@ -300,6 +309,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		*bscContract = devnet.GanacheWormholeContractAddress.Hex()
 		*polygonContract = devnet.GanacheWormholeContractAddress.Hex()
 		*avalancheContract = devnet.GanacheWormholeContractAddress.Hex()
+		*oasisContract = devnet.GanacheWormholeContractAddress.Hex()
 
 		// Use the hostname as nodeName. For production, we don't want to do this to
 		// prevent accidentally leaking sensitive hostnames.
@@ -344,6 +354,9 @@ func runNode(cmd *cobra.Command, args []string) {
 	}
 	if *avalancheRPC == "" {
 		logger.Fatal("Please specify --avalancheRPC")
+	}
+	if *oasisRPC == "" {
+		logger.Fatal("Please specify --oasisRPC")
 	}
 	if *testnetMode {
 		if *ethRopstenRPC == "" {
@@ -406,6 +419,9 @@ func runNode(cmd *cobra.Command, args []string) {
 		if *bigTableTableName == "" {
 			logger.Fatal("Please specify --bigTableTableName")
 		}
+		if *bigTableTopicName == "" {
+			logger.Fatal("Please specify --bigTableTopicName")
+		}
 		if *bigTableKeyPath == "" {
 			logger.Fatal("Please specify --bigTableKeyPath")
 		}
@@ -439,6 +455,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	polygonContractAddr := eth_common.HexToAddress(*polygonContract)
 	ethRopstenContractAddr := eth_common.HexToAddress(*ethRopstenContract)
 	avalancheContractAddr := eth_common.HexToAddress(*avalancheContract)
+	oasisContractAddr := eth_common.HexToAddress(*oasisContract)
 	solAddress, err := solana_types.PublicKeyFromBase58(*solanaContract)
 	if err != nil {
 		logger.Fatal("invalid Solana contract address", zap.Error(err))
@@ -538,7 +555,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	}
 
 	// local admin service socket
-	adminService, err := adminServiceRunnable(logger, *adminSocketPath, injectC, db, gst)
+	adminService, err := adminServiceRunnable(logger, *adminSocketPath, injectC, signedInC, db, gst)
 	if err != nil {
 		logger.Fatal("failed to create admin service socket", zap.Error(err))
 	}
@@ -572,6 +589,10 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 		if err := supervisor.Run(ctx, "avalanchewatch",
 			ethereum.NewEthWatcher(*avalancheRPC, avalancheContractAddr, "avalanche", common.ReadinessAvalancheSyncing, vaa.ChainIDAvalanche, lockC, nil).Run); err != nil {
+			return err
+		}
+		if err := supervisor.Run(ctx, "oasiswatch",
+			ethereum.NewEthWatcher(*oasisRPC, oasisContractAddr, "oasis", common.ReadinessOasisSyncing, vaa.ChainIDOasis, lockC, nil).Run); err != nil {
 			return err
 		}
 
@@ -647,6 +668,7 @@ func runNode(cmd *cobra.Command, args []string) {
 				GcpProjectID:    *bigTableGCPProject,
 				GcpInstanceName: *bigTableInstanceName,
 				TableName:       *bigTableTableName,
+				TopicName:       *bigTableTopicName,
 				GcpKeyFilePath:  *bigTableKeyPath,
 			}
 			if err := supervisor.Run(ctx, "bigtable", reporter.BigTableWriter(attestationEvents, bigTableConnection)); err != nil {

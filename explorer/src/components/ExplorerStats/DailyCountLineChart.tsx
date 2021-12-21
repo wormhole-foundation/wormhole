@@ -94,19 +94,23 @@ const DailyCountLineChart = (props: DailyCountProps) => {
                 ) : null}
             </div>
             <ResponsiveLine
-                theme={{ textColor: "rgba(255, 255, 255, 0.85)", fontSize: 16 }}
+                theme={{ textColor: "rgba(255, 255, 255, 0.85)", fontSize: 12, legends: { text: { fontSize: 16 } } }}
                 colors={({ color }) => color}
                 data={data}
                 curve={"monotoneX"}
-                margin={{ top: 10, right: 40, bottom: 160, left: 60 }}
+                margin={{ top: 20, right: 40, bottom: 160, left: 60 }}
                 xScale={{ type: 'point' }}
-                yScale={{ type: 'linear', min: 0, max: 'auto', stacked: false, reverse: false }}
+                yScale={{
+                    type: 'symlog',
+                    constant: 400,
+                    max: 'auto',
+                    min: 0,
+                }}
                 enableGridX={false}
                 axisTop={null}
                 axisRight={null}
                 axisBottom={null}
                 axisLeft={{
-                    tickSize: 5,
                     tickPadding: 5,
                     tickRotation: 0,
                 }}

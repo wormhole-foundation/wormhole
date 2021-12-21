@@ -8,9 +8,9 @@ import ReactTimeAgo from 'react-time-ago'
 import { titleStyles } from '~/styles';
 import { CloseOutlined, ReloadOutlined } from '@ant-design/icons';
 import { Link } from 'gatsby';
-import { contractNameFormatter, nativeExplorerContractUri, nativeExplorerTxUri } from '../ExplorerStats/utils';
+import { contractNameFormatter, getNativeAddress, nativeExplorerContractUri, nativeExplorerTxUri, truncateAddress } from '../ExplorerStats/utils';
 import { OutboundLink } from 'gatsby-plugin-google-gtag';
-import { chainIDs } from '~/utils/misc/constants';
+import { ChainID, chainIDs } from '~/utils/misc/constants';
 import { hexToNativeString } from '@certusone/wormhole-sdk';
 
 interface SummaryProps {
@@ -23,13 +23,14 @@ interface SummaryProps {
     lastFetched?: number
     refetch: () => void
 }
+const textStyles = { fontSize: 16, margin: '6px 0' }
 
 const Summary = (props: SummaryProps) => {
 
     const intl = useIntl()
     const { SignedVAA, ...message } = props.message
 
-    const { EmitterChain, EmitterAddress, InitiatingTxID } = message
+    const { EmitterChain, EmitterAddress, InitiatingTxID, TokenTransferPayload, TransferDetails } = message
     // get chainId from chain name
     let chainId = chainIDs[EmitterChain]
 
@@ -66,6 +67,59 @@ const Summary = (props: SummaryProps) => {
                     </div>
                 )}
             </div>
+            <div style={{ display: 'flex', flexDirection: 'column', margin: "20px 0 24px 20px" }}>
+                {EmitterChain && EmitterAddress && nativeExplorerContractUri(chainId, EmitterAddress) ?
+                    <div>
+                        <span style={textStyles}>This message was sent to the {ChainID[chainId]} </span>
+                        <OutboundLink
+                            href={nativeExplorerContractUri(chainId, EmitterAddress)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ ...textStyles, whiteSpace: 'nowrap' }}
+                        >
+                            {contractNameFormatter(EmitterAddress, chainId)}
+                        </OutboundLink>
+                        <span style={textStyles}> contract</span>
+                        {transactionId &&
+                            <>
+                                <span style={textStyles}>, transaction </span>
+                                <OutboundLink
+                                    href={nativeExplorerTxUri(chainId, transactionId)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    style={{ ...textStyles, whiteSpace: 'nowrap' }}
+                                >
+                                    {truncateAddress(transactionId)}
+                                </OutboundLink>
+
+                            </>} <span style={textStyles}>.</span>
+                    </div> : null}
+                {TokenTransferPayload &&
+                    TokenTransferPayload.TargetAddress &&
+                    TransferDetails &&
+                    nativeExplorerContractUri(Number(TokenTransferPayload.TargetChain), TokenTransferPayload.TargetAddress) ?
+                    <div>
+                        <span style={textStyles}>This message is a token transfer, moving {Math.round(Number(TransferDetails.Amount) * 100) / 100}{` `}
+                            {!["UST", "LUNA"].includes(TransferDetails.OriginSymbol) ? <OutboundLink
+                                href={nativeExplorerContractUri(Number(TokenTransferPayload.OriginChain), TokenTransferPayload.OriginAddress)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{ ...textStyles, whiteSpace: 'nowrap' }}
+                            >
+                                {TransferDetails.OriginSymbol}
+                            </OutboundLink> : TransferDetails.OriginSymbol}
+                            {` `}from {ChainID[chainId]}, to {ChainID[Number(TokenTransferPayload.TargetChain)]}, to address </span>
+                        <OutboundLink
+                            href={nativeExplorerContractUri(Number(TokenTransferPayload.TargetChain), TokenTransferPayload.TargetAddress)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ ...textStyles, whiteSpace: 'nowrap' }}
+                        >
+                            {truncateAddress(getNativeAddress(Number(TokenTransferPayload.TargetChain), TokenTransferPayload.TargetAddress))}
+                        </OutboundLink>
+                    </div> : null}
+            </div>
+            <Title level={3} style={titleStyles}>Raw message data:</Title>
             <div className="styled-scrollbar">
                 <pre
                     style={{ fontSize: 14, marginBottom: 20 }}
@@ -76,6 +130,7 @@ const Summary = (props: SummaryProps) => {
                 emitterChainName={props.message.EmitterChain}
                 emitterAddress={props.message.EmitterAddress}
                 showPayload={true}
+                transferDetails={props.message.TransferDetails}
             />
             <div className="styled-scrollbar">
                 <Title level={3} style={titleStyles}>Signed VAA</Title>
@@ -91,26 +146,6 @@ const Summary = (props: SummaryProps) => {
                     </span>
 
                 ) : null}
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', }}>
-                {EmitterChain && EmitterAddress && nativeExplorerContractUri(chainId, EmitterAddress) ?
-                    <OutboundLink
-                        href={nativeExplorerContractUri(chainId, EmitterAddress)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{ fontSize: 16, marginBottom: '6px 0' }}
-                    >
-                        {'View "'}{contractNameFormatter(EmitterAddress, chainId)}{'" contract on native explorer'}
-                    </OutboundLink> : <div />}
-                {transactionId && EmitterChain ?
-                    <OutboundLink
-                        href={nativeExplorerTxUri(chainId, transactionId)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{ fontSize: 16, margin: '6px 0' }}
-                    >
-                        {'View transaction "'}{transactionId}{'" on native explorer'}
-                    </OutboundLink> : <div />}
             </div>
         </>
     )

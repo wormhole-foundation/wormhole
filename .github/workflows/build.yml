@@ -29,11 +29,6 @@ jobs:
           kubectl config set-context ci --namespace=$DEPLOY_NS
           kubectl config use-context ci
 
-      # TODO: Work around what is presumably a bug in the explorer Tilt code -
-      # Buildpack won't pull the image itself on a cold cache
-      # https://github.com/certusone/wormhole/issues/575
-      - run: docker pull gcr.io/buildpacks/builder:v1
-
       - run: tilt ci -- --ci --namespace=$DEPLOY_NS --num=1
         timeout-minutes: 60
 
@@ -51,9 +46,8 @@ jobs:
           go-version: '1.17.5'
       - run: make node
 
-  # Run linters. This is just Go and Protobuf for now, but could include things
-  # like rustfmt as well.
-  lint:
+  # Run linters, Go tests and other outside-of-Tilt things.
+  lint-and-tests:
     # The linter is slow enough that we want to run it on the self-hosted runner
     runs-on: tilt-kube-public
     concurrency:
@@ -65,3 +59,4 @@ jobs:
         with:
           go-version: '1.17.5'
       - run: make generate && ./lint.sh
+      - run: cd node && go test -v ./...

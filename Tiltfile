@@ -139,6 +139,8 @@ def build_node_yaml():
                     "wormhole",
                     "--bigTableTableName",
                     "v2Events",
+                    "--bigTableTopicName",
+                    "new-vaa-devnet",
                     "--bigTableKeyPath",
                     "/tmp/mounted-keys/bigtable-key.json",
                     "--bigTableGCPProject",
@@ -347,6 +349,11 @@ if explorer:
         trigger_mode = trigger_mode,
     )
 
+    k8s_resource("pubsub-emulator",
+        port_forwards = [port_forward(8085, name = "PubSub listeners [:8085]")],
+        labels = ["explorer"],
+    )
+
     docker_build(
         ref = "cloud-functions",
         context = "./event_database/cloud_functions",
@@ -357,7 +364,7 @@ if explorer:
     )
     k8s_resource(
         "cloud-functions",
-        resource_deps = ["proto-gen", "bigtable-emulator"],
+        resource_deps = ["proto-gen", "bigtable-emulator", "pubsub-emulator"],
         port_forwards = [port_forward(8090, name = "Cloud Functions [:8090]")],
         labels = ["explorer"],
         trigger_mode = trigger_mode,

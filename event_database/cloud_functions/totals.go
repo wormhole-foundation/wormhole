@@ -25,6 +25,11 @@ type totalsResult struct {
 	DailyTotals  map[string]map[string]int
 }
 
+// warmCache keeps some data around between invocations, so that we don't have
+// to do a full table scan with each request.
+// https://cloud.google.com/functions/docs/bestpractices/tips#use_global_variables_to_reuse_objects_in_future_invocations
+var warmTotalsCache = map[string]map[string]map[string]int{}
+
 // derive the result index relevant to a row.
 func makeGroupKey(keySegments int, rowKey string) string {
 	var countBy string
@@ -49,6 +54,7 @@ func fetchRowsInInterval(tbl *bigtable.Table, ctx context.Context, prefix string
 	}, bigtable.RowFilter(
 		bigtable.ChainFilters(
 			// combine filters to get only what we need:
+			bigtable.FamilyFilter(columnFamilies[1]),
 			bigtable.CellsPerRowLimitFilter(1),        // only the first cell in each column (helps for devnet where sequence resets)
 			bigtable.TimestampRangeFilter(start, end), // within time range
 			bigtable.StripValueFilter(),               // no columns/values, just the row.Key()
@@ -59,14 +65,19 @@ func fetchRowsInInterval(tbl *bigtable.Table, ctx context.Context, prefix string
 func createCountsOfInterval(tbl *bigtable.Table, ctx context.Context, prefix string, numPrevDays int, keySegments int) (map[string]map[string]int, error) {
 	var mu sync.RWMutex
 	results := map[string]map[string]int{}
-	// key track of all the keys seen, to ensure the result objects all have the same keys
-	seenKeySet := map[string]bool{}
 
-	now := time.Now()
+	now := time.Now().UTC()
 
 	var intervalsWG sync.WaitGroup
 	// there will be a query for each previous day, plus today
 	intervalsWG.Add(numPrevDays + 1)
+
+	// create the unique identifier for this query, for cache
+	cachePrefix := prefix
+	if prefix == "" {
+		cachePrefix = "*"
+	}
+	cachePrefix = fmt.Sprintf("%v-%v", cachePrefix, keySegments)
 
 	for daysAgo := 0; daysAgo <= numPrevDays; daysAgo++ {
 		go func(tbl *bigtable.Table, ctx context.Context, prefix string, daysAgo int) {
@@ -86,6 +97,35 @@ func createCountsOfInterval(tbl *bigtable.Table, ctx context.Context, prefix str
 			start := time.Date(year, month, day, 0, 0, 0, 0, loc)
 			end := time.Date(year, month, day, 23, 59, 59, maxNano, loc)
 
+			dateStr := start.Format("2006-01-02")
+
+			mu.Lock()
+			// initialize the map for this date in the result set
+			results[dateStr] = map[string]int{"*": 0}
+			// check to see if there is cache data for this date/query
+			if dateCache, ok := warmTotalsCache[dateStr]; ok {
+				// have a cache for this date
+
+				if val, ok := dateCache[cachePrefix]; ok {
+					// have a cache for this query
+					if daysAgo >= 1 {
+						// only use the cache for yesterday and older
+						results[dateStr] = val
+						mu.Unlock()
+						intervalsWG.Done()
+						return
+					}
+				} else {
+					// no cache for this query
+					warmTotalsCache[dateStr][cachePrefix] = map[string]int{}
+				}
+			} else {
+				// no cache for this date, initialize the map
+				warmTotalsCache[dateStr] = map[string]map[string]int{}
+				warmTotalsCache[dateStr][cachePrefix] = map[string]int{}
+			}
+			mu.Unlock()
+
 			var result []bigtable.Row
 			var fetchErr error
 
@@ -96,12 +136,6 @@ func createCountsOfInterval(tbl *bigtable.Table, ctx context.Context, prefix str
 				log.Fatalf("fetchRowsInInterval returned an error: %v", fetchErr)
 			}
 
-			dateStr := start.Format("2006-01-02")
-			mu.Lock()
-			// initialize the map for this date in the result set
-			if results[dateStr] == nil {
-				results[dateStr] = map[string]int{"*": 0}
-			}
 			// iterate through the rows and increment the count
 			for _, row := range result {
 				countBy := makeGroupKey(keySegments, row.Key())
@@ -110,42 +144,37 @@ func createCountsOfInterval(tbl *bigtable.Table, ctx context.Context, prefix str
 					results[dateStr]["*"] = results[dateStr]["*"] + 1
 				}
 				results[dateStr][countBy] = results[dateStr][countBy] + 1
-
-				// add this key to the set
-				seenKeySet[countBy] = true
 			}
-			mu.Unlock()
+
+			// set the result in the cache
+			warmTotalsCache[dateStr][cachePrefix] = results[dateStr]
 		}(tbl, ctx, prefix, daysAgo)
 	}
 
-	// ensure each date object has the same keys:
+	intervalsWG.Wait()
+
+	// create a set of all the keys from all dates, to ensure the result objects all have the same keys
+	seenKeySet := map[string]bool{}
 	for _, v := range results {
+		for key := range v {
+			seenKeySet[key] = true
+		}
+	}
+	// ensure each date object has the same keys:
+	for date := range results {
 		for key := range seenKeySet {
-			if _, ok := v[key]; !ok {
+			if _, ok := results[date][key]; !ok {
 				// add the missing key to the map
-				v[key] = 0
+				results[date][key] = 0
 			}
 		}
 	}
-	intervalsWG.Wait()
 
 	return results, nil
 }
 
 // returns the count of the rows in the query response
-func messageCountForInterval(tbl *bigtable.Table, ctx context.Context, prefix string, interval time.Duration, keySegments int) (map[string]int, error) {
-
-	now := time.Now()
-	// calulate the start and end times for the query
-	n := now.Add(interval)
-	year := n.Year()
-	month := n.Month()
-	day := n.Day()
-	loc := n.Location()
-
-	start := time.Date(year, month, day, 0, 0, 0, 0, loc)
-	end := time.Date(now.Year(), now.Month(), now.Day(), 23, 59, 59, maxNano, loc)
-
+func messageCountForInterval(tbl *bigtable.Table, ctx context.Context, prefix string, start, end time.Time, keySegments int) (map[string]int, error) {
 	// query for all rows in time range, return result count
 	results, fetchErr := fetchRowsInInterval(tbl, ctx, prefix, start, end)
 	if fetchErr != nil {
@@ -249,7 +278,13 @@ func Totals(w http.ResponseWriter, r *http.Request) {
 	prefix := ""
 	if forChain != "" {
 		prefix = forChain
+		if groupBy == "" {
+			// if the request is forChain, and groupBy is empty, set it to groupBy chain
+			groupBy = "chain"
+		}
 		if forAddress != "" {
+			// if the request is forAddress, always groupBy address
+			groupBy = "address"
 			prefix = forChain + ":" + forAddress
 		}
 	}
@@ -263,7 +298,7 @@ func Totals(w http.ResponseWriter, r *http.Request) {
 		keySegments = 2
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
 	var wg sync.WaitGroup
@@ -274,8 +309,10 @@ func Totals(w http.ResponseWriter, r *http.Request) {
 	go func(prefix string, keySegments int) {
 		var err error
 		last24HourInterval := -time.Duration(24) * time.Hour
+		now := time.Now().UTC()
+		start := now.Add(last24HourInterval)
 		defer wg.Done()
-		last24HourCount, err = messageCountForInterval(tbl, ctx, prefix, last24HourInterval, keySegments)
+		last24HourCount, err = messageCountForInterval(tbl, ctx, prefix, start, now, keySegments)
 		if err != nil {
 			log.Printf("failed getting count for interval, err: %v", err)
 		}
@@ -288,8 +325,13 @@ func Totals(w http.ResponseWriter, r *http.Request) {
 		var err error
 		hours := (24 * queryDays)
 		periodInterval := -time.Duration(hours) * time.Hour
+
+		now := time.Now().UTC()
+		prev := now.Add(periodInterval)
+		start := time.Date(prev.Year(), prev.Month(), prev.Day(), 0, 0, 0, 0, prev.Location())
+
 		defer wg.Done()
-		periodCount, err = messageCountForInterval(tbl, ctx, prefix, periodInterval, keySegments)
+		periodCount, err = messageCountForInterval(tbl, ctx, prefix, start, now, keySegments)
 		if err != nil {
 			log.Fatalf("failed getting count for interval, err: %v", err)
 		}

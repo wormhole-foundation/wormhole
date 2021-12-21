@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"sort"
+	"strings"
 	"text/tabwriter"
 	"time"
 )
@@ -18,10 +19,12 @@ import (
 
 var (
 	showDetails bool
+	only        []string
 )
 
 func init() {
 	AdminClientListNodes.Flags().BoolVar(&showDetails, "showDetails", false, "Show error counter and contract addresses")
+	AdminClientListNodes.Flags().StringSliceVar(&only, "only", nil, "Show only networks with the given name")
 }
 
 var AdminClientListNodes = &cobra.Command{
@@ -98,10 +101,23 @@ func runListNodes(cmd *cobra.Command, args []string) {
 		{"BSC", vaa.ChainIDBSC},
 		{"Polygon", vaa.ChainIDPolygon},
 		{"Avalanche", vaa.ChainIDAvalanche},
+		{"Oasis", vaa.ChainIDOasis},
 	}
 
 	if isTestnet {
 		networks = append(networks, network{"Ropsten", vaa.ChainIDEthereumRopsten})
+	}
+
+	if len(only) > 0 {
+		var filtered []network
+		for _, network := range networks {
+			for _, name := range only {
+				if strings.EqualFold(network.string, name) {
+					filtered = append(filtered, network)
+				}
+			}
+		}
+		networks = filtered
 	}
 
 	for _, k := range networks {
