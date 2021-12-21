@@ -6,9 +6,11 @@
  * (c) 2021 Randlabs, Inc.
  */
 
+import { Options } from '@randlabs/js-logger'
 import { Symbol } from './basetypes'
 
 export interface IAppSettings extends Record<string, unknown> {
+  log: Options,
   algo: {
     token: string,
     api: string,

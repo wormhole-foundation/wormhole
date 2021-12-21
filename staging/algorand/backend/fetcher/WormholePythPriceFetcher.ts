@@ -18,6 +18,7 @@ import { SpyRPCServiceClient } from '@certusone/wormhole-spydk/lib/cjs/proto/spy
 import { PythData, Symbol, VAA } from 'backend/common/basetypes'
 import { IStrategy } from '../strategy/strategy'
 import { IPriceFetcher } from './IPriceFetcher'
+import * as Logger from '@randlabs/js-logger'
 
 export class WormholePythPriceFetcher implements IPriceFetcher {
   private symbolMap: Map<string, {
@@ -74,12 +75,12 @@ export class WormholePythPriceFetcher implements IPriceFetcher {
         this._hasData = true
         this.onPythData(data.vaaBytes)
       } catch (e) {
-        console.error(`Failed to parse VAA data. \nReason: ${e}\nData: ${data}`)
+        Logger.error(`Failed to parse VAA data. \nReason: ${e}\nData: ${data}`)
       }
     })
 
     this.stream.on('error', (e: Error) => {
-      console.log('Stream error: ' + e)
+      Logger.error('Stream error: ' + e)
     })
   }
 
@@ -99,7 +100,7 @@ export class WormholePythPriceFetcher implements IPriceFetcher {
   queryData (id: string): any | undefined {
     const v = this.symbolMap.get(id)
     if (v === undefined) {
-      console.error(`Unsupported symbol with identifier ${id}`)
+      Logger.error(`Unsupported symbol with identifier ${id}`)
     } else {
       return v.pythData
     }

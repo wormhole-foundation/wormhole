@@ -1,4 +1,22 @@
+const path = require('path')
+
 module.exports = {
+  log: {
+    appName: 'pricecaster-v2',
+    disableConsoleLog: false,
+    fileLog: {
+      dir: './log',
+      daysTokeep: 7
+    },
+    // sysLog: {
+    //   host: '127.0.0.1',
+    //   port: 514,
+    //   transport: 'udp',
+    //   protocol: 'bsd',
+    //   sendInfoNotifications: false
+    // },
+    debugLevel: 1
+  },
   algo: {
     token: '',
     api: 'https://api.testnet.algoexplorer.io',

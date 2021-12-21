@@ -18,6 +18,7 @@
     "@improbable-eng/grpc-web-node-http-transport": "^0.15.0",
     "@pythnetwork/client": "^2.3.1",
     "@randlabs/js-config-reader": "^1.1.0",
+    "@randlabs/js-logger": "^1.2.0",
     "algosdk": "^1.12.0",
     "base58-universal": "^1.0.0",
     "charm": "^1.0.2",
@@ -25,7 +26,6 @@
     "esm": "^3.2.25",
     "ethers": "^5.5.1",
     "js-sha512": "^0.8.0",
-    "threads": "^1.7.0",
     "web3-eth-abi": "^1.6.1",
     "web3-utils": "^1.6.1"
   },

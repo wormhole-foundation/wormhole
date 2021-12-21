@@ -16,9 +16,10 @@ import { StatusCode } from '../common/statusCodes'
 import { WormholePythPriceFetcher } from '../fetcher/WormholePythPriceFetcher'
 import { Symbol } from 'backend/common/basetypes'
 import { Pricekeeper2Publisher } from '../publisher/Pricekeeper2Publisher'
+import * as Logger from '@randlabs/js-logger'
+import { sleep } from '../common/sleep'
 const fs = require('fs')
 const algosdk = require('algosdk')
-const charm = require('charm')()
 
 type WorkerRoutineStatus = {
   status: StatusCode,
@@ -38,12 +39,19 @@ async function workerRoutine (sym: Symbol, fetcher: IPriceFetcher, publisher: IP
 
 export class WormholeClientEngine implements IEngine {
   private settings: IAppSettings
-
+  private shouldQuit: boolean
   constructor (settings: IAppSettings) {
     this.settings = settings
+    this.shouldQuit = false
   }
 
   async start () {
+    process.on('SIGINT', () => {
+      console.log('Received SIGINT')
+      Logger.finalize()
+      this.shouldQuit = true
+    })
+
     let mnemo, verifyProgramBinary
     try {
       mnemo = fs.readFileSync(this.settings.apps.ownerKeyFile)
@@ -51,6 +59,7 @@ export class WormholeClientEngine implements IEngine {
     } catch (e) {
       throw new Error('Cannot read account and/or verify program source: ' + e)
     }
+
     const publisher = new Pricekeeper2Publisher(this.settings.apps.vaaProcessorAppId,
       this.settings.apps.ownerAddress,
       verifyProgramBinary,
@@ -66,22 +75,20 @@ export class WormholeClientEngine implements IEngine {
       this.settings.symbols,
       new StrategyLastPrice(this.settings.strategy.bufferSize))
 
-    console.log('Waiting for fetcher to boot...')
+    Logger.info('Waiting for fetcher to boot...')
     await fetcher.start()
 
-    console.log('Waiting for publisher to boot...')
+    Logger.info('Waiting for publisher to boot...')
     await publisher.start()
-
-    charm.removeAllListeners('^C')
-    charm.on('^C', () => {
-      console.log('CTRL+C: Aborted by user.')
-      process.exit(255)
-    })
 
     for (const sym of this.settings.symbols) {
       sym.pubCount = 0
-      console.log(`Starting worker for symbol ${sym.name}, interval ${sym.publishIntervalSecs}s`)
+      Logger.info(`Starting worker for symbol ${sym.name}, interval ${sym.publishIntervalSecs}s`)
       setInterval(this.callWorkerRoutine, sym.publishIntervalSecs * 1000, sym, fetcher, publisher)
+    }
+
+    while (!this.shouldQuit) {
+      await sleep(1000)
     }
   }
 
@@ -89,14 +96,14 @@ export class WormholeClientEngine implements IEngine {
     const wrs = await workerRoutine(sym, fetcher, publisher)
     switch (wrs.status) {
       case StatusCode.OK: {
-        console.log(`${sym.name} [${sym.pubCount++}] ${wrs.tick!.price}±${wrs.tick!.confidence} exp:${wrs.tick!.exponent}  t:${wrs.tick!.timestamp} TXID:${wrs.pub!.txid}`)
+        Logger.info(`${sym.name} [${sym.pubCount++}] ${wrs.tick!.price}±${wrs.tick!.confidence} exp:${wrs.tick!.exponent}  t:${wrs.tick!.timestamp} TXID:${wrs.pub!.txid}`)
         break
       }
       case StatusCode.NO_TICKER:
-        console.log(`${sym.name}: No ticker available from fetcher data source`)
+        Logger.warn(`${sym.name}: No ticker available from fetcher data source`)
         break
       default:
-        console.log(`${sym.name}: Error. Reason: ` + wrs.reason)
+        Logger.error(`${sym.name}: Error. Reason: ` + wrs.reason)
     }
   }
 }
