@@ -77,10 +77,10 @@ function Transfer() {
             {activeStep === 2 ? <Send /> : <SendPreview />}
           </StepContent>
         </Step>
-        <Step expanded={activeStep >= 3}>
+        <Step expanded={activeStep >= 3} completed={isRedeemComplete}>
           <StepButton
             onClick={() => dispatch(setStep(3))}
-            disabled={!isSendComplete}
+            disabled={!isSendComplete || isRedeemComplete}
           >
             Redeem tokens
           </StepButton>
