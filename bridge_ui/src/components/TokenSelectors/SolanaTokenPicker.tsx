@@ -145,7 +145,7 @@ export default function SolanaSourceTokenSelector(
   const isWormholev1 = useCallback(
     (address: string) => {
       //This is a v1 wormhole token on testnet
-      //const testAddress = "4QixXecTZ4zdZGa39KH8gVND5NZ2xcaB12wiBhE4S7rn";
+      //address = "4QixXecTZ4zdZGa39KH8gVND5NZ2xcaB12wiBhE4S7rn";
 
       if (!props.mintAccounts?.data) {
         return true; //These should never be null by this point
@@ -178,8 +178,8 @@ export default function SolanaSourceTokenSelector(
         //swallow for now
       }
 
-      if (v1) {
-        Promise.reject(
+      if (v1 && !isMigrationEligible(newValue.mintKey)) {
+        throw Error(
           "Wormhole v1 assets should not be transferred with this bridge."
         );
       }
