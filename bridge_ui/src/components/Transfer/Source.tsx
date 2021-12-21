@@ -4,7 +4,7 @@ import {
   CHAIN_ID_SOLANA,
 } from "@certusone/wormhole-sdk";
 import { getAddress } from "@ethersproject/address";
-import { Button, makeStyles, Typography } from "@material-ui/core";
+import { Button, IconButton, makeStyles, Typography } from "@material-ui/core";
 import { ArrowForward, VerifiedUser } from "@material-ui/icons";
 import { useCallback, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
@@ -136,6 +136,7 @@ function Source() {
   const handleNextClick = useCallback(() => {
     dispatch(incrementStep());
   }, [dispatch]);
+
   return (
     <>
       <StepDescription>
@@ -169,7 +170,14 @@ function Source() {
           />
         </div>
         <div className={classes.chainSelectArrow}>
-          <ArrowForward style={{ margin: "0px 8px" }} />
+          <IconButton
+            onClick={() => {
+              dispatch(setSourceChain(targetChain));
+            }}
+            disabled={shouldLockFields}
+          >
+            <ArrowForward />
+          </IconButton>
         </div>
         <div className={classes.chainSelectContainer}>
           <Typography variant="caption">Target</Typography>
