@@ -24,6 +24,23 @@ export interface VAA {
     EmitterAddress: string,
     Payload: string // base64 encoded byte array
 }
+export interface TokenTransferPayload {
+    Amount: string
+    OriginAddress: string
+    OriginChain: string,
+    TargetAddress: string,
+    TargetChain: string,
+}
+export interface TransferDetails {
+    Amount: string,             // "1530.000000",
+    Decimals: string,           // "6",
+    NotionalUSDStr: string,     // "1538.495460",
+    TokenPriceUSDStr: string,   // "1.005553",
+    TransferTimestamp: string,  // "2021-11-21 16:55:15 +0000 UTC",
+    OriginSymbol: string,
+    OriginName: string,
+    OriginTokenAddress: string,
+}
 export interface BigTableMessage {
     InitiatingTxID?: string
     SignedVAABytes?: string  // base64 encoded byte array
@@ -32,6 +49,8 @@ export interface BigTableMessage {
     EmitterChain: keyof ChainIDs
     EmitterAddress: string
     Sequence: string
+    TokenTransferPayload?: TokenTransferPayload
+    TransferDetails?: TransferDetails
 }
 
 interface ExplorerQuery {

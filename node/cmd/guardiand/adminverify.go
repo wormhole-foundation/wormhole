@@ -54,7 +54,7 @@ func runGovernanceVAAVerify(cmd *cobra.Command, args []string) {
 			log.Fatalf("invalid update: %v", err)
 		}
 
-		digest, err := v.SigningMsg()
+		digest := v.SigningMsg()
 		if err != nil {
 			panic(err)
 		}

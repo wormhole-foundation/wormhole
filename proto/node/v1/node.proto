@@ -119,6 +119,10 @@ message FindMissingMessagesRequest {
   uint32 emitter_chain = 1;
   // Hex-encoded (without leading 0x) emitter address to iterate.
   string emitter_address = 2;
+  // Whether to attempt to backfill missing messages from a list of remote nodes.
+  bool rpc_backfill = 3;
+  // List of remote nodes to backfill from.
+  repeated string backfill_nodes = 4;
 }
 
 message FindMissingMessagesResponse {

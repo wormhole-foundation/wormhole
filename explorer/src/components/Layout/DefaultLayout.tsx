@@ -16,6 +16,7 @@ import { externalLinks, linkToService, socialLinks, socialAnchorArray } from '~/
 // brand assets
 import { ReactComponent as AvatarAndName } from '~/icons/FullLogo_DarkBackground.svg';
 import { ReactComponent as Avatar } from '~/icons/Avatar_DarkBackground.svg';
+import { BRIDGE_URL, DOCS_URL, JOBS_URL } from '~/utils/misc/constants';
 
 
 const Toggle = styled.div`
@@ -94,7 +95,7 @@ const DefaultLayout: React.FC<{}> = ({
 
   const launchBridge = <div key="bridge" style={{ ...menuItemProps.style, zIndex: 1001 }}>
     <OutboundLink
-      href={"https://wormholebridge.com"}
+      href={BRIDGE_URL}
       target="_blank"
       rel="noopener noreferrer"
       className="no-external-icon"
@@ -119,7 +120,7 @@ const DefaultLayout: React.FC<{}> = ({
 
   const menuItems = [
     <div key="about" {...menuItemProps}>
-      <Link to={`/${intl.locale}/about`}>
+      <Link to={`/${intl.locale}/about/`}>
         <FormattedMessage id="nav.aboutLink" />
       </Link>
     </div>,
@@ -129,13 +130,22 @@ const DefaultLayout: React.FC<{}> = ({
       </Link>
     </div>,
     <div key="explorer" {...menuItemProps} >
-      <Link to={`/${intl.locale}/explorer`}>
+      <Link to={`/${intl.locale}/explorer/`}>
         <FormattedMessage id="nav.explorerLink" />
       </Link>
     </div>,
+    <div key="docs" {...menuItemProps} >
+      <OutboundLink
+        href={DOCS_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        {intl.formatMessage({ id: "nav.docsLink" })}
+      </OutboundLink>
+    </div>,
     <div key="jobs" {...menuItemProps} >
       <OutboundLink
-        href={"https://boards.greenhouse.io/wormhole"}
+        href={JOBS_URL}
         target="_blank"
         rel="noopener noreferrer"
       >

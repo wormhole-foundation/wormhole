@@ -72,7 +72,7 @@ const ChainOverviewCard: React.FC<ChainOverviewCardProps> = ({ Icon, iconStyle, 
                 cover={<Icon style={{ height: 140, ...iconStyle }} />}
                 hoverable={!!totalCount}
                 bordered={false}
-                onClick={() => !!totalCount && navigate(`/${intl.locale}/explorer?emitterChain=${dataKey}`)}
+                onClick={() => !!totalCount && navigate(`/${intl.locale}/explorer/?emitterChain=${dataKey}`)}
                 loading={loading}
                 bodyStyle={{
                     display: 'flex',

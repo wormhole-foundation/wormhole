@@ -21,11 +21,7 @@ const NetworkContext = createContext<NetworkContextI>({
         name: defaultNetwork,
         endpoints: endpoints[defaultNetwork],
         chains: {
-            // initalize empty objects, will be replaced async by generated data
-            "solana": {} as KnownContracts,
-            "ethereum": {} as KnownContracts,
-            "terra": {} as KnownContracts,
-            "bsc": {} as KnownContracts
+            // initalize empty object, will be replaced async by generated data
         }
     },
     setActiveNetwork: (network: string) => { },

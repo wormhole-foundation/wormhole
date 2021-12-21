@@ -46,9 +46,8 @@ jobs:
           go-version: '1.17.5'
       - run: make node
 
-  # Run linters. This is just Go and Protobuf for now, but could include things
-  # like rustfmt as well.
-  lint:
+  # Run linters, Go tests and other outside-of-Tilt things.
+  lint-and-tests:
     # The linter is slow enough that we want to run it on the self-hosted runner
     runs-on: tilt-kube-public
     concurrency:
@@ -60,3 +59,4 @@ jobs:
         with:
           go-version: '1.17.5'
       - run: make generate && ./lint.sh
+      - run: cd node && go test -v ./...

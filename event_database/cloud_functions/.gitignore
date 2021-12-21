@@ -1,0 +1,5 @@
+vendor
+*.json
+*.log
+
+*.txt

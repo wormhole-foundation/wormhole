@@ -180,3 +180,12 @@ export const endpoints: { [network: string]: NetworkConfig } = {
         guardianRpcBase: String(process.env.GATSBY_GUARDIAN_MAINNET_RPC_URL)
     }
 }
+
+export const BRIDGE_URL = "https://wormholebridge.com"
+export const DOCS_URL = "https://docs.wormholenetwork.com"
+export const DISCORD_URL = "https://discord.gg/xsT8qrHAvV"
+export const GITHUB_URL = "https://github.com/certusone/wormhole"
+export const JOBS_URL = "https://boards.greenhouse.io/wormhole"
+export const MEDIUM_URL = "http://wormholecrypto.medium.com"
+export const TELEGRAM_URL = "https://t.me/wormholecrypto"
+export const TWITTER_URL = "https://twitter.com/wormholecrypto"

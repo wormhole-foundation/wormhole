@@ -1,0 +1,13 @@
+
+.git
+.gitignore
+
+.vscode
+
+cmd
+
+*.md
+
+*.txt
+
+Dockerfile
