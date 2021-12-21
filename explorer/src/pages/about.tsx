@@ -13,6 +13,7 @@ const { useBreakpoint } = Grid
 
 import { ReactComponent as LayeredSquares } from '~/icons/layered-squares.svg';
 import { ReactComponent as Hole } from '~/icons/hole.svg';
+import { DOCS_URL } from '~/utils/misc/constants';
 
 const BriefAboutSection = ({ intl, smScreen }: { intl: IntlShape, smScreen: boolean }) => (
   <div className="center-content">
@@ -89,7 +90,7 @@ const HowSection = ({ intl, smScreen }: { intl: IntlShape, smScreen: boolean }) 
           <FormattedMessage id="about.how.body" />
         </Paragraph>
         <OutboundLink
-          href="https://github.com/certusone/wormhole/blob/dev.v2/design/navbar.md"
+          href={DOCS_URL}
           target="_blank" rel="noopener noreferrer" className="no-external-icon"
         >
           <Button style={{ ...buttonStylesLg, marginBottom: 50 }} size="large">

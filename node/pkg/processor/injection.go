@@ -24,10 +24,7 @@ var (
 // handleInjection processes a pre-populated VAA injected locally.
 func (p *Processor) handleInjection(ctx context.Context, v *vaa.VAA) {
 	// Generate digest of the unsigned VAA.
-	digest, err := v.SigningMsg()
-	if err != nil {
-		panic(err)
-	}
+	digest := v.SigningMsg()
 
 	// The internal originator is responsible for logging the full VAA, just log the digest here.
 	supervisor.Logger(ctx).Info("signing injected VAA",

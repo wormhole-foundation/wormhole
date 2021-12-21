@@ -43,7 +43,6 @@ func TestSerializeDeserialize(t *testing.T) {
 			vaaData, err := test.vaa.Marshal()
 			require.NoError(t, err)
 
-			println(hex.EncodeToString(vaaData))
 			vaaParsed, err := Unmarshal(vaaData)
 			require.NoError(t, err)
 
@@ -65,8 +64,7 @@ func TestVerifySignature(t *testing.T) {
 		Payload:          []byte("abcd"),
 	}
 
-	data, err := v.SigningMsg()
-	require.NoError(t, err)
+	data := v.SigningMsg()
 
 	key, err := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
 	require.NoError(t, err)
@@ -87,18 +85,13 @@ func TestVerifySignature(t *testing.T) {
 }
 
 func TestBodyRegisterChain_Serialize(t *testing.T) {
-	header, _ := hex.DecodeString("000000000000000000000000000000000000000000546f6b656e427269646765")
-	require.Len(t, header, 32)
-
-	var headerB [32]byte
-	copy(headerB[:], header)
 	msg := &BodyTokenBridgeRegisterChain{
 		ChainID:        8,
 		EmitterAddress: Address{1, 2, 3, 4},
 	}
 
 	data := msg.Serialize()
-	require.Equal(t, "000000000000000000000000000000000000000000546f6b656e42726964676501000000080102030400000000000000000000000000000000000000000000000000000000", hex.EncodeToString(data))
+	require.Equal(t, "000000000000000000000000000000000000000000000000000000000000000001000000080102030400000000000000000000000000000000000000000000000000000000", hex.EncodeToString(data))
 }
 
 func TestBodyRegisterChain_Serializee(t *testing.T) {

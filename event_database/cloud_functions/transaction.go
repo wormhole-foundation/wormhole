@@ -92,7 +92,7 @@ func Transaction(w http.ResponseWriter, r *http.Request) {
 	}
 
 	key := result.Key()
-	row, err := tbl.ReadRow(r.Context(), key)
+	row, err := tbl.ReadRow(r.Context(), key, bigtable.RowFilter(bigtable.LatestNFilter(1)))
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(err.Error()))

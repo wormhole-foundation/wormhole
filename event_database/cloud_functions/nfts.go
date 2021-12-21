@@ -10,39 +10,18 @@ import (
 	"log"
 	"net/http"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
 	"cloud.google.com/go/bigtable"
 )
 
-const maxNano int = 999999999
-
-type totalsResult struct {
-	LastDayCount map[string]int
-	TotalCount   map[string]int
-	DailyTotals  map[string]map[string]int
-}
-
-// warmCache keeps some data around between invocations, so that we don't have
+// warmNFTCache keeps some data around between invocations, so that we don't have
 // to do a full table scan with each request.
 // https://cloud.google.com/functions/docs/bestpractices/tips#use_global_variables_to_reuse_objects_in_future_invocations
-var warmTotalsCache = map[string]map[string]map[string]int{}
+var warmNFTCache = map[string]map[string]map[string]int{}
 
-// derive the result index relevant to a row.
-func makeGroupKey(keySegments int, rowKey string) string {
-	var countBy string
-	if keySegments == 0 {
-		countBy = "*"
-	} else {
-		keyParts := strings.Split(rowKey, ":")
-		countBy = strings.Join(keyParts[:keySegments], ":")
-	}
-	return countBy
-}
-
-func fetchRowsInInterval(tbl *bigtable.Table, ctx context.Context, prefix string, start, end time.Time) ([]bigtable.Row, error) {
+func fetchNFTRowsInInterval(tbl *bigtable.Table, ctx context.Context, prefix string, start, end time.Time) ([]bigtable.Row, error) {
 	rows := []bigtable.Row{}
 
 	err := tbl.ReadRows(ctx, bigtable.PrefixRange(prefix), func(row bigtable.Row) bool {
@@ -52,17 +31,24 @@ func fetchRowsInInterval(tbl *bigtable.Table, ctx context.Context, prefix string
 		return true
 
 	}, bigtable.RowFilter(
-		bigtable.ChainFilters(
-			// combine filters to get only what we need:
-			bigtable.FamilyFilter(columnFamilies[1]),
-			bigtable.CellsPerRowLimitFilter(1),        // only the first cell in each column (helps for devnet where sequence resets)
-			bigtable.TimestampRangeFilter(start, end), // within time range
-			bigtable.StripValueFilter(),               // no columns/values, just the row.Key()
+		bigtable.ConditionFilter(
+			bigtable.ChainFilters(
+				bigtable.FamilyFilter(columnFamilies[1]),
+				bigtable.CellsPerRowLimitFilter(1),        // only the first cell in column
+				bigtable.TimestampRangeFilter(start, end), // within time range
+				bigtable.StripValueFilter(),               // no columns/values, just the row.Key()
+			),
+			bigtable.ChainFilters(
+				bigtable.FamilyFilter(columnFamilies[4]),
+				bigtable.ColumnFilter("PayloadId"),
+				bigtable.ValueFilter("1"),
+			),
+			bigtable.BlockAllFilter(),
 		)))
 	return rows, err
 }
 
-func createCountsOfInterval(tbl *bigtable.Table, ctx context.Context, prefix string, numPrevDays int, keySegments int) (map[string]map[string]int, error) {
+func createNFTCountsOfInterval(tbl *bigtable.Table, ctx context.Context, prefix string, numPrevDays int, keySegments int) (map[string]map[string]int, error) {
 	var mu sync.RWMutex
 	results := map[string]map[string]int{}
 
@@ -103,7 +89,7 @@ func createCountsOfInterval(tbl *bigtable.Table, ctx context.Context, prefix str
 			// initialize the map for this date in the result set
 			results[dateStr] = map[string]int{"*": 0}
 			// check to see if there is cache data for this date/query
-			if dateCache, ok := warmTotalsCache[dateStr]; ok {
+			if dateCache, ok := warmNFTCache[dateStr]; ok {
 				// have a cache for this date
 
 				if val, ok := dateCache[cachePrefix]; ok {
@@ -117,12 +103,12 @@ func createCountsOfInterval(tbl *bigtable.Table, ctx context.Context, prefix str
 					}
 				} else {
 					// no cache for this query
-					warmTotalsCache[dateStr][cachePrefix] = map[string]int{}
+					warmNFTCache[dateStr][cachePrefix] = map[string]int{}
 				}
 			} else {
 				// no cache for this date, initialize the map
-				warmTotalsCache[dateStr] = map[string]map[string]int{}
-				warmTotalsCache[dateStr][cachePrefix] = map[string]int{}
+				warmNFTCache[dateStr] = map[string]map[string]int{}
+				warmNFTCache[dateStr][cachePrefix] = map[string]int{}
 			}
 			mu.Unlock()
 
@@ -130,10 +116,10 @@ func createCountsOfInterval(tbl *bigtable.Table, ctx context.Context, prefix str
 			var fetchErr error
 
 			defer intervalsWG.Done()
-			result, fetchErr = fetchRowsInInterval(tbl, ctx, prefix, start, end)
+			result, fetchErr = fetchNFTRowsInInterval(tbl, ctx, prefix, start, end)
 
 			if fetchErr != nil {
-				log.Fatalf("fetchRowsInInterval returned an error: %v", fetchErr)
+				log.Fatalf("fetchNFTRowsInInterval returned an error: %v", fetchErr)
 			}
 
 			// iterate through the rows and increment the count
@@ -147,7 +133,7 @@ func createCountsOfInterval(tbl *bigtable.Table, ctx context.Context, prefix str
 			}
 
 			// set the result in the cache
-			warmTotalsCache[dateStr][cachePrefix] = results[dateStr]
+			warmNFTCache[dateStr][cachePrefix] = results[dateStr]
 		}(tbl, ctx, prefix, daysAgo)
 	}
 
@@ -174,9 +160,9 @@ func createCountsOfInterval(tbl *bigtable.Table, ctx context.Context, prefix str
 }
 
 // returns the count of the rows in the query response
-func messageCountForInterval(tbl *bigtable.Table, ctx context.Context, prefix string, start, end time.Time, keySegments int) (map[string]int, error) {
+func nftMessageCountForInterval(tbl *bigtable.Table, ctx context.Context, prefix string, start, end time.Time, keySegments int) (map[string]int, error) {
 	// query for all rows in time range, return result count
-	results, fetchErr := fetchRowsInInterval(tbl, ctx, prefix, start, end)
+	results, fetchErr := fetchNFTRowsInInterval(tbl, ctx, prefix, start, end)
 	if fetchErr != nil {
 		log.Printf("fetchRowsInInterval returned an error: %v", fetchErr)
 		return nil, fetchErr
@@ -197,7 +183,7 @@ func messageCountForInterval(tbl *bigtable.Table, ctx context.Context, prefix st
 // get number of recent transactions in the last 24 hours, and daily for a period
 // optionally group by a EmitterChain or EmitterAddress
 // optionally query for recent rows of a given EmitterChain or EmitterAddress
-func Totals(w http.ResponseWriter, r *http.Request) {
+func NFTs(w http.ResponseWriter, r *http.Request) {
 	// Set CORS headers for the preflight request
 	if r.Method == http.MethodOptions {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -312,7 +298,7 @@ func Totals(w http.ResponseWriter, r *http.Request) {
 		now := time.Now().UTC()
 		start := now.Add(last24HourInterval)
 		defer wg.Done()
-		last24HourCount, err = messageCountForInterval(tbl, ctx, prefix, start, now, keySegments)
+		last24HourCount, err = nftMessageCountForInterval(tbl, ctx, prefix, start, now, keySegments)
 		if err != nil {
 			log.Printf("failed getting count for interval, err: %v", err)
 		}
@@ -331,7 +317,7 @@ func Totals(w http.ResponseWriter, r *http.Request) {
 		start := time.Date(prev.Year(), prev.Month(), prev.Day(), 0, 0, 0, 0, prev.Location())
 
 		defer wg.Done()
-		periodCount, err = messageCountForInterval(tbl, ctx, prefix, start, now, keySegments)
+		periodCount, err = nftMessageCountForInterval(tbl, ctx, prefix, start, now, keySegments)
 		if err != nil {
 			log.Fatalf("failed getting count for interval, err: %v", err)
 		}
@@ -343,7 +329,7 @@ func Totals(w http.ResponseWriter, r *http.Request) {
 	go func(prefix string, keySegments int, queryDays int) {
 		var err error
 		defer wg.Done()
-		dailyTotals, err = createCountsOfInterval(tbl, ctx, prefix, queryDays, keySegments)
+		dailyTotals, err = createNFTCountsOfInterval(tbl, ctx, prefix, queryDays, keySegments)
 		if err != nil {
 			log.Fatalf("failed getting createCountsOfInterval err %v", err)
 		}

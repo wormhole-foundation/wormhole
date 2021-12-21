@@ -33,7 +33,7 @@ const OpenForBizSection = ({ intl, smScreen, howAnchor }: { intl: IntlShape, smS
         height: '100%',
         maxWidth: 650,
         display: 'flex', flexDirection: 'column',
-        justifyContent: 'center',
+        justifyContent: 'center', zIndex: 2,
         marginRight: 'auto'
       }}>
         <Title level={1} style={{ ...titleStyles, fontSize: 64 }}>
@@ -92,6 +92,7 @@ const AboutUsSection = ({ intl, smScreen, howAnchor }: { intl: IntlShape, smScre
         justifyContent: smScreen ? 'flex-start' : 'center',
         alignItems: 'flex-start',
         marginBlock: smScreen ? 0 : 200,
+        zIndex: 2,
       }}>
         <div style={{ borderBottom: "0.5px solid #808088", width: 160, marginBottom: 60 }}>
           <Paragraph style={headingStyles} id={howAnchor}>
@@ -101,7 +102,7 @@ const AboutUsSection = ({ intl, smScreen, howAnchor }: { intl: IntlShape, smScre
         <Paragraph style={{ ...bodyStyles, maxWidth: smScreen ? '100%' : 500, marginBottom: 30 }} >
           <FormattedMessage id="homepage.aboutUs.body" />
         </Paragraph>
-        <Link to={`/${intl.locale}/about`}>
+        <Link to={`/${intl.locale}/about/`}>
           <Button style={buttonStylesLg} size="large">
             <FormattedMessage id="homepage.aboutUs.callToAction" />
           </Button>
@@ -111,7 +112,7 @@ const AboutUsSection = ({ intl, smScreen, howAnchor }: { intl: IntlShape, smScre
       {/* background image, ternary for seperate mobile layout */}
       {smScreen ? (
         <div style={{ position: 'relative', marginTop: 60, height: 260, }}>
-          <div style={{ position: 'absolute', right: 40, height: '100%', display: 'flex', alignItems: 'center', }}>
+          <div style={{ position: 'absolute', right: 40, height: '100%', display: 'flex', alignItems: 'center', zIndex: 2, }}>
             <LayeredCircles style={{ height: 260 }} />
           </div>
         </div>
@@ -152,6 +153,7 @@ const NetworkSection = ({ intl, smScreen }: { intl: IntlShape, smScreen: boolean
           display: 'flex', flexDirection: 'column',
           justifyContent: smScreen ? 'flex-start' : 'center',
           paddingBlockStart: smScreen ? 100 : 0,
+          zIndex: 2,
         }}>
           <div style={{ borderBottom: "0.5px solid #808088", width: 160, marginBottom: 90 }}>
             <Paragraph style={headingStyles} type="secondary">

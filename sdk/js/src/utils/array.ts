@@ -7,6 +7,7 @@ import {
   CHAIN_ID_POLYGON,
   CHAIN_ID_ETHEREUM_ROPSTEN,
   CHAIN_ID_AVAX,
+  CHAIN_ID_OASIS,
 } from "./consts";
 import { humanAddress, canonicalAddress, isNativeDenom } from "../terra";
 import { PublicKey } from "@solana/web3.js";
@@ -19,7 +20,8 @@ export const isEVMChain = (chainId: ChainId) => {
     chainId === CHAIN_ID_BSC ||
     chainId === CHAIN_ID_ETHEREUM_ROPSTEN ||
     chainId === CHAIN_ID_AVAX ||
-    chainId === CHAIN_ID_POLYGON
+    chainId === CHAIN_ID_POLYGON ||
+    chainId === CHAIN_ID_OASIS
   );
 };
 
@@ -77,3 +79,10 @@ export const nativeToHexString = (
 
 export const uint8ArrayToNative = (a: Uint8Array, chainId: ChainId) =>
   hexToNativeString(uint8ArrayToHex(a), chainId);
+
+export function chunks<T>(array: T[], size: number): T[][] {
+  return Array.apply<number, T[], T[][]>(
+    0,
+    new Array(Math.ceil(array.length / size))
+  ).map((_, index) => array.slice(index * size, (index + 1) * size));
+}

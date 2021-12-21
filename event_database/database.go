@@ -11,7 +11,15 @@ import (
 const tableName = "v2Events"
 
 // These column family names match the guardian code that does the inserting.
-var columnFamilies = []string{"MessagePublication", "QuorumState"}
+var columnFamilies = []string{
+	"MessagePublication",
+	"QuorumState",
+	"TokenTransferPayload",
+	"AssetMetaPayload",
+	"NFTTransferPayload",
+	"TokenTransferDetails",
+	"ChainDetails"
+}
 
 func main() {
 	project := flag.String("project", "", "The Google Cloud Platform project ID. Required.")
