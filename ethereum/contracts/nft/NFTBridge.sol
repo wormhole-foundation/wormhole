@@ -196,6 +196,9 @@ contract NFTBridge is NFTBridgeGovernance {
     }
 
     function encodeTransfer(NFTBridgeStructs.Transfer memory transfer) public pure returns (bytes memory encoded) {
+        // There is a global limit on 200 bytes of tokenURI in Wormhole due to Solana
+        require(bytes(transfer.uri).length <= 200, "tokenURI must not exceed 200 bytes");
+
         encoded = abi.encodePacked(
             uint8(1),
             transfer.tokenAddress,
@@ -232,20 +235,21 @@ contract NFTBridge is NFTBridgeGovernance {
 
         transfer.tokenID = encoded.toUint256(index);
         index += 32;
-
-        uint8 len_uri = encoded.toUint8(index);
+        
+        // Ignore length due to malformatted payload
         index += 1;
+        transfer.uri = string(encoded.slice(index, encoded.length - index - 34));
 
-        transfer.uri = string(encoded.slice(index, len_uri));
-        index += len_uri;
+        // From here we read backwards due malformatted package
+        index = encoded.length;
 
-        transfer.to = encoded.toBytes32(index);
-        index += 32;
-
+        index -= 2;
         transfer.toChain = encoded.toUint16(index);
-        index += 2;
 
-        require(encoded.length == index, "invalid Transfer");
+        index -= 32;
+        transfer.to = encoded.toBytes32(index);
+
+        //require(encoded.length == index, "invalid Transfer");
     }
 
     function onERC721Received(
