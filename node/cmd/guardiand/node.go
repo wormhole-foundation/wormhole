@@ -251,8 +251,8 @@ func runNode(cmd *cobra.Command, args []string) {
 	readiness.RegisterComponent(common.ReadinessBSCSyncing)
 	readiness.RegisterComponent(common.ReadinessPolygonSyncing)
 	readiness.RegisterComponent(common.ReadinessAvalancheSyncing)
-	readiness.RegisterComponent(common.ReadinessOasisSyncing)
 	if *testnetMode {
+		readiness.RegisterComponent(common.ReadinessOasisSyncing)
 		readiness.RegisterComponent(common.ReadinessEthRopstenSyncing)
 	}
 
@@ -342,10 +342,13 @@ func runNode(cmd *cobra.Command, args []string) {
 	if *avalancheRPC == "" {
 		logger.Fatal("Please specify --avalancheRPC")
 	}
-	if *oasisRPC == "" {
-		logger.Fatal("Please specify --oasisRPC")
-	}
 	if *testnetMode {
+		if *oasisRPC == "" {
+			logger.Fatal("Please specify --oasisRPC")
+		}
+		if *oasisContract == "" {
+			logger.Fatal("Please specify --oasisContract")
+		}
 		if *ethRopstenRPC == "" {
 			logger.Fatal("Please specify --ethRopstenRPC")
 		}
@@ -566,12 +569,12 @@ func runNode(cmd *cobra.Command, args []string) {
 			ethereum.NewEthWatcher(*avalancheRPC, avalancheContractAddr, "avalanche", common.ReadinessAvalancheSyncing, vaa.ChainIDAvalanche, lockC, nil).Run); err != nil {
 			return err
 		}
-		if err := supervisor.Run(ctx, "oasiswatch",
-			ethereum.NewEthWatcher(*oasisRPC, oasisContractAddr, "oasis", common.ReadinessOasisSyncing, vaa.ChainIDOasis, lockC, nil).Run); err != nil {
-			return err
-		}
 
 		if *testnetMode {
+			if err := supervisor.Run(ctx, "oasiswatch",
+				ethereum.NewEthWatcher(*oasisRPC, oasisContractAddr, "oasis", common.ReadinessOasisSyncing, vaa.ChainIDOasis, lockC, nil).Run); err != nil {
+				return err
+			}
 			if err := supervisor.Run(ctx, "ethropstenwatch",
 				ethereum.NewEthWatcher(*ethRopstenRPC, ethRopstenContractAddr, "ethropsten", common.ReadinessEthRopstenSyncing, vaa.ChainIDEthereumRopsten, lockC, setC).Run); err != nil {
 				return err
