@@ -94,6 +94,12 @@ spec:
             - http://terra-lcd:1317
             - --terraContract
             - terra18vd8fpwxzck93qlwghaj6arh4p7c5n896xzem5
+            - --algorandRPC
+            - http://localhost:4001
+            - --algorandToken
+            - aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+            - --algorandContract
+            - aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
             - --solanaContract
             - Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o
             - --solanaWS

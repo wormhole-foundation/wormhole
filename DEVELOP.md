@@ -182,3 +182,7 @@ Node logs:
 Account list:
 
     kubectl exec -c goal-kmd algorand-0 -- ./goal account list
+
+Get yourself a working shell:
+
+    kubectl exec -c goal-kmd algorand-0 -it shell-demo -- /bin/bash
