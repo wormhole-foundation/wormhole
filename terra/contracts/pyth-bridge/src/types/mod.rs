@@ -1,9 +1,7 @@
 pub mod pyth_extensions;
 
 use std::{
-    convert::{
-        TryInto,
-    },
+    convert::TryInto,
     io::Read,
     mem,
 };
@@ -38,7 +36,9 @@ pub enum PayloadId {
 
 // On-chain data types
 
-#[derive(Clone, Default, Debug, Eq, PartialEq, serde_derive::Serialize, serde_derive::Deserialize)]
+#[derive(
+    Clone, Default, Debug, Eq, PartialEq, serde_derive::Serialize, serde_derive::Deserialize,
+)]
 pub struct PriceAttestation {
     pub product_id: Pubkey,
     pub price_id: Pubkey,
@@ -58,7 +58,7 @@ impl PriceAttestation {
     pub fn serialize(&self) -> Vec<u8> {
         // A nifty trick to get us yelled at if we forget to serialize a field
         #[deny(warnings)]
-            let PriceAttestation {
+        let PriceAttestation {
             product_id,
             price_id,
             price_type,
@@ -131,7 +131,7 @@ impl PriceAttestation {
                 "Invalid magic {:02X?}, expected {:02X?}",
                 magic_vec, P2W_MAGIC,
             )
-                .into());
+            .into());
         }
 
         let mut version_vec = vec![0u8; mem::size_of_val(&P2W_FORMAT_VERSION)];
@@ -143,7 +143,7 @@ impl PriceAttestation {
                 "Unsupported format version {}, expected {}",
                 version, P2W_FORMAT_VERSION
             )
-                .into());
+            .into());
         }
 
         let mut payload_id_vec = vec![0u8; mem::size_of::<PayloadId>()];
@@ -155,7 +155,7 @@ impl PriceAttestation {
                 payload_id_vec[0],
                 PayloadId::PriceAttestation as u8,
             )
-                .into());
+            .into());
         }
 
         let mut product_id_vec = vec![0u8; PUBKEY_LEN];
@@ -190,7 +190,8 @@ impl PriceAttestation {
         println!("twac OK");
         let mut confidence_interval_vec = vec![0u8; mem::size_of::<u64>()];
         bytes.read_exact(confidence_interval_vec.as_mut_slice())?;
-        let confidence_interval = u64::from_be_bytes(confidence_interval_vec.as_slice().try_into()?);
+        let confidence_interval =
+            u64::from_be_bytes(confidence_interval_vec.as_slice().try_into()?);
 
         let mut status_vec = vec![0u8; mem::size_of::<P2WPriceType>()];
         bytes.read_exact(status_vec.as_mut_slice())?;
@@ -203,7 +204,6 @@ impl PriceAttestation {
                 return Err(format!("Invalid status value {}", other).into());
             }
         };
-
 
         let mut corp_act_vec = vec![0u8; mem::size_of::<P2WPriceType>()];
         bytes.read_exact(corp_act_vec.as_mut_slice())?;

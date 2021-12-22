@@ -54,6 +54,7 @@ async function main() {
     "cw20_wrapped.wasm": 4000000,
     "wormhole.wasm": 5000000,
     "token_bridge.wasm": 6000000,
+    "pyth_bridge.wasm": 5000000,
   };
 
   // Deploy all found WASM files and assign Code IDs.
@@ -192,6 +193,40 @@ async function main() {
         rs.raw_log
       )[1];
       addresses["mock.wasm"] = address;
+    });
+
+  const pythEmitterAddress =
+    "71f8dcb863d176e2c420ad6610cf687359612b6fb392e0642b0ca6b1f186aa3b";
+  const pythChain = 1;
+
+  // Instantiate Pyth over Wormhole
+  console.log("Instantiating Pyth over Wormhole");
+  await wallet
+    .createAndSignTx({
+      msgs: [
+        new MsgInstantiateContract(
+          wallet.key.accAddress,
+          wallet.key.accAddress,
+          codeIds["pyth_bridge.wasm"],
+          {
+            gov_chain: govChain,
+            gov_address: Buffer.from(govAddress, "hex").toString("base64"),
+            wormhole_contract: addresses["wormhole.wasm"],
+            pyth_emitter: Buffer.from(pythEmitterAddress, "hex").toString(
+              "base64"
+            ),
+            pyth_emitter_chain: pythChain,
+          }
+        ),
+      ],
+      memo: "",
+    })
+    .then((tx) => terra.tx.broadcast(tx))
+    .then((rs) => {
+      const address = /"contract_address","value":"([^"]+)/gm.exec(
+        rs.raw_log
+      )[1];
+      addresses["pyth_bridge.wasm"] = address;
     });
 
   console.log(addresses);
