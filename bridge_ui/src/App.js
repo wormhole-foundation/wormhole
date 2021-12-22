@@ -44,6 +44,7 @@ import Stats from "./components/Stats";
 import TokenOriginVerifier from "./components/TokenOriginVerifier";
 import SolanaQuickMigrate from "./components/Migration/SolanaQuickMigrate";
 import Wormhole from "./icons/wormhole-network.svg";
+import WithdrawTokensTerra from "./components/WithdrawTokensTerra";
 
 const useStyles = makeStyles((theme) => ({
   appBar: {
@@ -322,6 +323,9 @@ function App() {
           </Route>
           <Route exact path="/stats">
             <Stats />
+          </Route>
+          <Route exact path="/withdraw-tokens-terra">
+            <WithdrawTokensTerra />
           </Route>
           <Route exact path="/">
             <Home />
