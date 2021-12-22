@@ -7,10 +7,8 @@ import {
   CHAIN_ID_POLYGON,
   CHAIN_ID_SOLANA,
   isEVMChain,
-  MAX_VAA_DECIMALS,
   WSOL_ADDRESS,
 } from "@certusone/wormhole-sdk";
-import { formatUnits } from "@ethersproject/units";
 import {
   Checkbox,
   FormControlLabel,
@@ -18,14 +16,12 @@ import {
   makeStyles,
 } from "@material-ui/core";
 import { Alert } from "@material-ui/lab";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import useGetIsTransferCompleted from "../../hooks/useGetIsTransferCompleted";
 import { useHandleRedeem } from "../../hooks/useHandleRedeem";
 import useIsWalletReady from "../../hooks/useIsWalletReady";
-import useMetadata from "../../hooks/useMetadata";
 import {
-  selectTransferAmount,
   selectTransferIsRecovery,
   selectTransferTargetAsset,
   selectTransferTargetChain,
@@ -61,17 +57,11 @@ function Redeem() {
   const targetChain = useSelector(selectTransferTargetChain);
   const targetAsset = useSelector(selectTransferTargetAsset);
   const isRecovery = useSelector(selectTransferIsRecovery);
-  const transferAmount = useSelector(selectTransferAmount);
   const { isTransferCompletedLoading, isTransferCompleted } =
     useGetIsTransferCompleted(true);
   const classes = useStyles();
   const dispatch = useDispatch();
   const { isReady, statusMessage } = useIsWalletReady(targetChain);
-  const targetAssetArrayed = useMemo(
-    () => (targetAsset ? [targetAsset] : []),
-    [targetAsset]
-  );
-  const metadata = useMetadata(targetChain, targetAssetArrayed);
   //TODO better check, probably involving a hook & the VAA
   const isEthNative =
     targetChain === CHAIN_ID_ETH &&
@@ -117,14 +107,6 @@ function Redeem() {
     dispatch(reset());
   }, [dispatch]);
   const howToAddTokensUrl = getHowToAddTokensToWalletUrl(targetChain);
-
-  const formattedTransferAmount = useMemo(() => {
-    const decimals =
-      (targetAsset && metadata.data?.get(targetAsset)?.decimals) || undefined;
-    return decimals
-      ? formatUnits(transferAmount, Math.min(decimals, MAX_VAA_DECIMALS))
-      : undefined;
-  }, [targetAsset, metadata, transferAmount]);
 
   return (
     <>
@@ -184,7 +166,6 @@ function Redeem() {
                 chainId={targetChain}
                 address={targetAsset || undefined}
               />
-              {formattedTransferAmount ? <span>{`Amount: ${formattedTransferAmount}`}</span> : null}
             </>
           ) : null}
           {isEVMChain(targetChain) ? <AddToMetamask /> : null}
