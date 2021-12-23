@@ -21,6 +21,38 @@ contract BridgeStructs {
         uint256 fee;
     }
 
+    struct TransferWithPayload {
+        // PayloadID uint8 = 3
+        uint8 payloadID;
+        // Amount being transferred (big-endian uint256)
+        uint256 amount;
+        // Address of the token. Left-zero-padded if shorter than 32 bytes
+        bytes32 tokenAddress;
+        // Chain ID of the token
+        uint16 tokenChain;
+        // Address of the recipient. Left-zero-padded if shorter than 32 bytes
+        bytes32 to;
+        // Chain ID of the recipient
+        uint16 toChain;
+        // Amount of tokens (big-endian uint256) that the user is willing to pay as relayer fee. Must be <= Amount.
+        uint256 fee;
+        // An arbitrary payload
+        bytes payload;
+    }
+
+    struct TransferResult {
+        // Chain ID of the token
+        uint16  tokenChain;
+        // Address of the token. Left-zero-padded if shorter than 32 bytes
+        bytes32 tokenAddress;
+        // Amount being transferred (big-endian uint256)
+        uint256 normalizedAmount;
+        // Amount of tokens (big-endian uint256) that the user is willing to pay as relayer fee. Must be <= Amount.
+        uint256 normalizedArbiterFee;
+        // Portion of msg.value to be paid as the core bridge fee
+        uint wormholeFee;
+    }
+
     struct AssetMeta {
         // PayloadID uint8 = 2
         uint8 payloadID;
