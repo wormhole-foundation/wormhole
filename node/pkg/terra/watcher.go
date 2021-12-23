@@ -2,6 +2,7 @@ package terra
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"github.com/certusone/wormhole/node/pkg/p2p"
@@ -9,6 +10,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"io/ioutil"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -148,7 +150,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 			logger.Info("current Terra height", zap.Int64("block", latestBlock.Int()))
 			currentTerraHeight.Set(float64(latestBlock.Int()))
 			p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDTerra, &gossipv1.Heartbeat_Network{
-				Height:        latestBlock.Int(),
+				Height:          latestBlock.Int(),
 				ContractAddress: e.contract,
 			})
 		}
@@ -169,47 +171,157 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 			// Received a message from the blockchain
 			json := string(message)
-			payload := gjson.Get(json, "result.events.from_contract\\.message\\.message.0")
-			sender := gjson.Get(json, "result.events.from_contract\\.message\\.sender.0")
-			chainId := gjson.Get(json, "result.events.from_contract\\.message\\.chain_id.0")
-			nonce := gjson.Get(json, "result.events.from_contract\\.message\\.nonce.0")
-			sequence := gjson.Get(json, "result.events.from_contract\\.message\\.sequence.0")
-			blockTime := gjson.Get(json, "result.events.from_contract\\.message\\.block_time.0")
-			txHash := gjson.Get(json, "result.events.tx\\.hash.0")
 
-			if payload.Exists() && sender.Exists() && chainId.Exists() && nonce.Exists() && sequence.Exists() &&
-				blockTime.Exists() && txHash.Exists() {
+			txHashRaw := gjson.Get(json, "result.events.tx\\.hash.0")
+			if !txHashRaw.Exists() {
+				logger.Warn("terra message does not have tx hash", zap.String("payload", json))
+				continue
+			}
+			txHash := txHashRaw.String()
+
+			events := gjson.Get(json, "result.data.value.TxResult.result.events")
+			if !events.Exists() {
+				logger.Warn("terra message has no events", zap.String("payload", json))
+				continue
+			}
+
+			for _, event := range events.Array() {
+				if !event.IsObject() {
+					logger.Warn("terra event is invalid", zap.String("tx_hash", txHash), zap.String("event", event.String()))
+					continue
+				}
+				eventType := gjson.Get(event.String(), "type")
+				if eventType.String() != "wasm" {
+					continue
+				}
+
+				attributes := gjson.Get(event.String(), "attributes")
+				if !attributes.Exists() {
+					logger.Warn("terra message event has no attributes", zap.String("payload", json), zap.String("event", event.String()))
+					continue
+				}
+				mappedAttributes := map[string]string{}
+				for _, attribute := range attributes.Array() {
+					if !attribute.IsObject() {
+						logger.Warn("terra event attribute is invalid", zap.String("tx_hash", txHash), zap.String("attribute", attribute.String()))
+						continue
+					}
+					keyBase := gjson.Get(attribute.String(), "key")
+					if !keyBase.Exists(){
+						logger.Warn("terra event attribute does not have key", zap.String("tx_hash", txHash), zap.String("attribute", attribute.String()))
+						continue
+					}
+					valueBase := gjson.Get(attribute.String(), "value")
+					if !valueBase.Exists(){
+						logger.Warn("terra event attribute does not have value", zap.String("tx_hash", txHash), zap.String("attribute", attribute.String()))
+						continue
+					}
+
+					key, err := base64.StdEncoding.DecodeString(keyBase.String())
+					if err != nil {
+						logger.Warn("terra event key attribute is invalid", zap.String("tx_hash", txHash), zap.String("key", keyBase.String()))
+						continue
+					}
+					value, err := base64.StdEncoding.DecodeString(valueBase.String())
+					if err != nil {
+						logger.Warn("terra event value attribute is invalid", zap.String("tx_hash", txHash), zap.String("key", keyBase.String()), zap.String("value", valueBase.String()))
+						continue
+					}
+
+					if _, ok := mappedAttributes[string(key)]; ok {
+						logger.Debug("duplicate key in events", zap.String("tx_hash", txHash), zap.String("key", keyBase.String()), zap.String("value", valueBase.String()))
+						continue
+					}
+
+					mappedAttributes[string(key)] = string(value)
+				}
+
+				contractAddress, ok := mappedAttributes["contract_address"]
+				if !ok {
+					logger.Warn("terra wasm event without contract address field set", zap.String("event", event.String()))
+					continue
+				}
+				// This is not a wormhole message
+				if contractAddress != e.contract {
+					continue
+				}
+
+				payload, ok := mappedAttributes["message.message"]
+				if !ok {
+					logger.Error("wormhole event does not have a message field", zap.String("tx_hash", txHash), zap.String("attributes", attributes.String()))
+					continue
+				}
+				sender, ok := mappedAttributes["message.sender"]
+				if !ok {
+					logger.Error("wormhole event does not have a sender field", zap.String("tx_hash", txHash), zap.String("attributes", attributes.String()))
+					continue
+				}
+				chainId, ok := mappedAttributes["message.chain_id"]
+				if !ok {
+					logger.Error("wormhole event does not have a chain_id field", zap.String("tx_hash", txHash), zap.String("attributes", attributes.String()))
+					continue
+				}
+				nonce, ok := mappedAttributes["message.nonce"]
+				if !ok {
+					logger.Error("wormhole event does not have a nonce field", zap.String("tx_hash", txHash), zap.String("attributes", attributes.String()))
+					continue
+				}
+				sequence, ok := mappedAttributes["message.sequence"]
+				if !ok {
+					logger.Error("wormhole event does not have a sequence field", zap.String("tx_hash", txHash), zap.String("attributes", attributes.String()))
+					continue
+				}
+				blockTime, ok := mappedAttributes["message.block_time"]
+				if !ok {
+					logger.Error("wormhole event does not have a block_time field", zap.String("tx_hash", txHash), zap.String("attributes", attributes.String()))
+					continue
+				}
 
 				logger.Info("new message detected on terra",
-					zap.String("chainId", chainId.String()),
-					zap.String("txHash", txHash.String()),
-					zap.String("sender", sender.String()),
-					zap.String("nonce", nonce.String()),
-					zap.String("sequence", sequence.String()),
-					zap.String("blockTime", blockTime.String()),
+					zap.String("chainId", chainId),
+					zap.String("txHash", txHash),
+					zap.String("sender", sender),
+					zap.String("nonce", nonce),
+					zap.String("sequence", sequence),
+					zap.String("blockTime", blockTime),
 				)
 
-				senderAddress, err := StringToAddress(sender.String())
+				senderAddress, err := StringToAddress(sender)
 				if err != nil {
-					logger.Error("cannot decode emitter hex", zap.String("value", sender.String()))
+					logger.Error("cannot decode emitter hex", zap.String("tx_hash", txHash), zap.String("value", sender))
 					continue
 				}
-				txHashValue, err := StringToHash(txHash.String())
+				txHashValue, err := StringToHash(txHash)
 				if err != nil {
-					logger.Error("cannot decode tx hash hex", zap.String("value", txHash.String()))
+					logger.Error("cannot decode tx hash hex", zap.String("tx_hash", txHash), zap.String("value", txHash))
 					continue
 				}
-				payloadValue, err := hex.DecodeString(payload.String())
+				payloadValue, err := hex.DecodeString(payload)
 				if err != nil {
-					logger.Error("cannot decode payload", zap.String("value", payload.String()))
+					logger.Error("cannot decode payload", zap.String("tx_hash", txHash), zap.String("value", payload))
 					continue
 				}
 
+				blockTimeInt, err := strconv.ParseInt(blockTime, 10, 64)
+				if err != nil {
+					logger.Error("blocktime cannot be parsed as int", zap.String("tx_hash", txHash), zap.String("value", blockTime))
+					continue
+				}
+				nonceInt, err := strconv.ParseUint(nonce, 10, 32)
+				if err != nil {
+					logger.Error("nonce cannot be parsed as int", zap.String("tx_hash", txHash), zap.String("value", blockTime))
+					continue
+				}
+				sequenceInt, err := strconv.ParseUint(sequence, 10, 64)
+				if err != nil {
+					logger.Error("sequence cannot be parsed as int", zap.String("tx_hash", txHash), zap.String("value", blockTime))
+					continue
+				}
 				messagePublication := &common.MessagePublication{
 					TxHash:           txHashValue,
-					Timestamp:        time.Unix(blockTime.Int(), 0),
-					Nonce:            uint32(nonce.Uint()),
-					Sequence:         sequence.Uint(),
+					Timestamp:        time.Unix(blockTimeInt, 0),
+					Nonce:            uint32(nonceInt),
+					Sequence:         sequenceInt,
 					EmitterChain:     vaa.ChainIDTerra,
 					EmitterAddress:   senderAddress,
 					Payload:          payloadValue,
