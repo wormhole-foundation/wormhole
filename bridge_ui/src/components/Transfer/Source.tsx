@@ -4,8 +4,8 @@ import {
   CHAIN_ID_SOLANA,
 } from "@certusone/wormhole-sdk";
 import { getAddress } from "@ethersproject/address";
-import { Button, IconButton, makeStyles, Typography } from "@material-ui/core";
-import { ArrowForward, VerifiedUser } from "@material-ui/icons";
+import { Button, makeStyles, Typography } from "@material-ui/core";
+import { VerifiedUser } from "@material-ui/icons";
 import { useCallback, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useHistory } from "react-router";
@@ -35,6 +35,7 @@ import {
 } from "../../utils/consts";
 import ButtonWithLoader from "../ButtonWithLoader";
 import ChainSelect from "../ChainSelect";
+import ChainSelectArrow from "../ChainSelectArrow";
 import KeyAndBalance from "../KeyAndBalance";
 import LowBalanceWarning from "../LowBalanceWarning";
 import NumberTextField from "../NumberTextField";
@@ -170,14 +171,12 @@ function Source() {
           />
         </div>
         <div className={classes.chainSelectArrow}>
-          <IconButton
+          <ChainSelectArrow
             onClick={() => {
               dispatch(setSourceChain(targetChain));
             }}
             disabled={shouldLockFields}
-          >
-            <ArrowForward />
-          </IconButton>
+          />
         </div>
         <div className={classes.chainSelectContainer}>
           <Typography variant="caption">Target</Typography>
