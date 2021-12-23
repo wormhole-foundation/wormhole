@@ -295,19 +295,21 @@ fn withdraw_tokens(
     let mut messages: Vec<CosmosMsg> = vec![];
     if let AssetInfo::NativeToken { denom } = data {
         let deposit_key = format!("{}:{}", info.sender, denom);
+        let mut deposited_amount: u128 = 0;
         bridge_deposit(deps.storage).update(
             deposit_key.as_bytes(),
             |current: Option<Uint128>| match current {
                 Some(v) => {
-                    messages.push(CosmosMsg::Bank(BankMsg::Send {
-                        to_address: info.sender.to_string(),
-                        amount: vec![coin(v.u128(), &denom)],
-                    }));
+                    deposited_amount = v.u128();
                     Ok(Uint128::new(0))
                 }
                 None => Err(StdError::generic_err("no deposit found to withdraw")),
             },
         )?;
+        messages.push(CosmosMsg::Bank(BankMsg::Send {
+            to_address: info.sender.to_string(),
+            amount: coins_after_tax(deps, vec![coin(deposited_amount, &denom)])?,
+        }));
     }
 
     Ok(Response::new()
