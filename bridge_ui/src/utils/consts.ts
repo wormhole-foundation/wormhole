@@ -893,3 +893,8 @@ export const getHowToAddToTokenListUrl = (chainId: ChainId) => {
 export const SOLANA_TOKEN_METADATA_PROGRAM_URL =
   "https://github.com/metaplex-foundation/metaplex/tree/master/rust/token-metadata/program";
 export const MAX_VAA_UPLOAD_RETRIES_SOLANA = 5;
+
+export const POLYGON_TERRA_WRAPPED_TOKENS = [
+  "0x692597b009d13c4049a947cab2239b7d6517875f", // Wrapped UST Token
+  "0x24834bbec7e39ef42f4a75eaf8e5b6486d3f0e57", // Wrapped LUNA Token
+];

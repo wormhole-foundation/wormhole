@@ -1,10 +1,17 @@
-import { ChainId, CHAIN_ID_ETH, isEVMChain } from "@certusone/wormhole-sdk";
+import {
+  ChainId,
+  CHAIN_ID_ETH,
+  CHAIN_ID_POLYGON,
+  CHAIN_ID_TERRA,
+  isEVMChain,
+} from "@certusone/wormhole-sdk";
 import { Box, Link, makeStyles, Typography } from "@material-ui/core";
 import { Alert } from "@material-ui/lab";
 import {
   AVAILABLE_MARKETS_URL,
   CHAINS_BY_ID,
   MULTI_CHAIN_TOKENS,
+  POLYGON_TERRA_WRAPPED_TOKENS,
 } from "../../utils/consts";
 
 const useStyles = makeStyles((theme) => ({
@@ -14,6 +21,7 @@ const useStyles = makeStyles((theme) => ({
   },
   alert: {
     textAlign: "center",
+    marginTop: theme.spacing(2),
   },
   line: {
     marginBottom: theme.spacing(2),
@@ -84,6 +92,17 @@ function RewardsWarning() {
   );
 }
 
+function PolygonTerraWrappedWarning() {
+  const classes = useStyles();
+  return (
+    <Alert severity="warning" variant="outlined" className={classes.alert}>
+      Transferring Shuttle wrapped tokens from Polygon will result in double
+      wrapped (Wormhole wrapped Shuttle wrapped) tokens. There are no liquid
+      markets for these tokens.
+    </Alert>
+  );
+}
+
 export default function TokenWarning({
   sourceChain,
   sourceAsset,
@@ -117,6 +136,9 @@ export default function TokenWarning({
   const showMultiChainWarning = isMultiChain && isWormholeWrapped;
   const showWrappedWarning = !isMultiChain && isWormholeWrapped; //Multichain warning is more important
   const showRewardsWarning = isRewardsToken;
+  const showPolygonTerraWrappedWarning =
+    sourceChain === CHAIN_ID_POLYGON &&
+    POLYGON_TERRA_WRAPPED_TOKENS.includes(searchableAddress);
 
   return (
     <>
@@ -128,6 +150,7 @@ export default function TokenWarning({
       ) : null}
       {showWrappedWarning ? <WormholeWrappedWarning /> : null}
       {showRewardsWarning ? <RewardsWarning /> : null}
+      {showPolygonTerraWrappedWarning ? <PolygonTerraWrappedWarning /> : null}
     </>
   );
 }
