@@ -1,4 +1,5 @@
 import {
+  CHAIN_ID_AVAX,
   CHAIN_ID_BSC,
   CHAIN_ID_ETH,
   CHAIN_ID_POLYGON,
@@ -66,6 +67,12 @@ const CustodyAddresses: React.FC<any> = () => {
         chainId: CHAIN_ID_POLYGON,
         tokenAddress: getTokenBridgeAddressForChain(CHAIN_ID_POLYGON),
         nftAddress: getNFTBridgeAddressForChain(CHAIN_ID_POLYGON),
+      },
+      {
+        chainName: "Avalanche",
+        chainId: CHAIN_ID_AVAX,
+        tokenAddress: getTokenBridgeAddressForChain(CHAIN_ID_AVAX),
+        nftAddress: getNFTBridgeAddressForChain(CHAIN_ID_AVAX),
       },
     ];
   }, []);

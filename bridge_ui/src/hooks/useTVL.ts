@@ -1,5 +1,6 @@
 import {
   ChainId,
+  CHAIN_ID_AVAX,
   CHAIN_ID_BSC,
   CHAIN_ID_ETH,
   CHAIN_ID_POLYGON,
@@ -19,6 +20,7 @@ import axios from "axios";
 import { useEffect, useMemo, useState } from "react";
 import { DataWrapper } from "../store/helpers";
 import {
+  AVAX_TOKEN_BRIDGE_ADDRESS,
   BSC_TOKEN_BRIDGE_ADDRESS,
   CHAINS_BY_ID,
   COVALENT_GET_TOKENS_URL,
@@ -299,6 +301,10 @@ const useTVL = (): DataWrapper<TVL[]> => {
     useState(false);
   const [polygonCovalentError, setPolygonCovalentError] = useState("");
 
+  const [avaxCovalentData, setAvaxCovalentData] = useState(undefined);
+  const [avaxCovalentIsLoading, setAvaxCovalentIsLoading] = useState(false);
+  const [avaxCovalentError, setAvaxCovalentError] = useState("");
+
   const [solanaCustodyTokens, setSolanaCustodyTokens] = useState<
     { pubkey: PublicKey; account: AccountInfo<ParsedAccountData> }[] | undefined
   >(undefined);
@@ -337,6 +343,10 @@ const useTVL = (): DataWrapper<TVL[]> => {
   const polygonTVL = useMemo(
     () => calcEvmTVL(polygonCovalentData, CHAIN_ID_POLYGON),
     [polygonCovalentData]
+  );
+  const avaxTVL = useMemo(
+    () => calcEvmTVL(avaxCovalentData, CHAIN_ID_AVAX),
+    [avaxCovalentData]
   );
 
   useEffect(() => {
@@ -414,6 +424,29 @@ const useTVL = (): DataWrapper<TVL[]> => {
 
   useEffect(() => {
     let cancelled = false;
+    setAvaxCovalentIsLoading(true);
+    axios
+      .get(
+        COVALENT_GET_TOKENS_URL(CHAIN_ID_AVAX, AVAX_TOKEN_BRIDGE_ADDRESS, false)
+      )
+      .then(
+        (results) => {
+          if (!cancelled) {
+            setAvaxCovalentData(results.data);
+            setAvaxCovalentIsLoading(false);
+          }
+        },
+        (error) => {
+          if (!cancelled) {
+            setAvaxCovalentError("Unable to retrieve Avax TVL.");
+            setAvaxCovalentIsLoading(false);
+          }
+        }
+      );
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
     const connection = new Connection(SOLANA_HOST, "confirmed");
     setSolanaCustodyTokensLoading(true);
     connection
@@ -443,6 +476,7 @@ const useTVL = (): DataWrapper<TVL[]> => {
       ...ethTVL,
       ...bscTVL,
       ...polygonTVL,
+      ...avaxTVL,
       ...solanaTVL,
       ...terraTVL,
     ];
@@ -452,12 +486,14 @@ const useTVL = (): DataWrapper<TVL[]> => {
         ethCovalentIsLoading ||
         bscCovalentIsLoading ||
         polygonCovalentIsLoading ||
+        avaxCovalentIsLoading ||
         solanaCustodyTokensLoading ||
         isTerraLoading,
       error:
         ethCovalentError ||
         bscCovalentError ||
         polygonCovalentError ||
+        avaxCovalentError ||
         solanaCustodyTokensError,
       receivedAt: null,
       data: tvlArray,
@@ -470,6 +506,9 @@ const useTVL = (): DataWrapper<TVL[]> => {
     polygonCovalentError,
     polygonCovalentIsLoading,
     polygonTVL,
+    avaxCovalentError,
+    avaxCovalentIsLoading,
+    avaxTVL,
     ethTVL,
     bscTVL,
     solanaTVL,
