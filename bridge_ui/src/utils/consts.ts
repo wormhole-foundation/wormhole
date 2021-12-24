@@ -137,7 +137,7 @@ export const CHAINS =
         },
       ];
 export const BETA_CHAINS: ChainId[] =
-  CLUSTER === "mainnet" ? [CHAIN_ID_AVAX, CHAIN_ID_OASIS] : [];
+  CLUSTER === "mainnet" ? [CHAIN_ID_OASIS] : [];
 export const CHAINS_WITH_NFT_SUPPORT = CHAINS.filter(
   ({ id }) =>
     id === CHAIN_ID_AVAX ||
