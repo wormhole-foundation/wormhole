@@ -2,6 +2,7 @@ package types
 
 import (
 	"fmt"
+
 	gov "github.com/cosmos/cosmos-sdk/x/gov/types"
 )
 
@@ -41,11 +42,12 @@ func (sup *GuardianSetUpdateProposal) String() string {
   GuardianSet: %s`, sup.Title, sup.Description, sup.NewGuardianSet.String())
 }
 
-func NewGovernanceWormholeMessageProposal(title, description string, targetChain uint16, module []byte, payload []byte) *GovernanceWormholeMessageProposal {
+func NewGovernanceWormholeMessageProposal(title, description string, action uint8, targetChain uint16, module []byte, payload []byte) *GovernanceWormholeMessageProposal {
 	return &GovernanceWormholeMessageProposal{
 		Title:       title,
 		Description: description,
 		Module:      module,
+		Action:      uint32(action),
 		TargetChain: uint32(targetChain),
 		Payload:     payload,
 	}
