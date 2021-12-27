@@ -23,7 +23,8 @@ message GovernanceWormholeMessageProposal {
 
   string title       = 1;
   string description = 2;
-  bytes module = 3;
-  uint32 targetChain = 4;
-  bytes payload = 5;
+  uint32 action = 3;
+  bytes module = 4;
+  uint32 targetChain = 5;
+  bytes payload = 6;
 }

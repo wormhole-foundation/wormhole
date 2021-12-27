@@ -4,17 +4,17 @@ import { StdFee } from "@cosmjs/launchpad";
 import { SigningStargateClient } from "@cosmjs/stargate";
 import { Registry, OfflineSigner, EncodeObject, DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 import { Api } from "./rest";
-import { MsgTransfer } from "./types/tokenbridge/tx";
+import { MsgAttestToken } from "./types/tokenbridge/tx";
 import { MsgExecuteVAA } from "./types/tokenbridge/tx";
 import { MsgExecuteGovernanceVAA } from "./types/tokenbridge/tx";
-import { MsgAttestToken } from "./types/tokenbridge/tx";
+import { MsgTransfer } from "./types/tokenbridge/tx";
 
 
 const types = [
-  ["/certusone.wormholechain.tokenbridge.MsgTransfer", MsgTransfer],
+  ["/certusone.wormholechain.tokenbridge.MsgAttestToken", MsgAttestToken],
   ["/certusone.wormholechain.tokenbridge.MsgExecuteVAA", MsgExecuteVAA],
   ["/certusone.wormholechain.tokenbridge.MsgExecuteGovernanceVAA", MsgExecuteGovernanceVAA],
-  ["/certusone.wormholechain.tokenbridge.MsgAttestToken", MsgAttestToken],
+  ["/certusone.wormholechain.tokenbridge.MsgTransfer", MsgTransfer],
   
 ];
 export const MissingWalletError = new Error("wallet is required");
@@ -43,10 +43,10 @@ const txClient = async (wallet: OfflineSigner, { addr: addr }: TxClientOptions =
 
   return {
     signAndBroadcast: (msgs: EncodeObject[], { fee, memo }: SignAndBroadcastOptions = {fee: defaultFee, memo: ""}) => client.signAndBroadcast(address, msgs, fee,memo),
-    msgTransfer: (data: MsgTransfer): EncodeObject => ({ typeUrl: "/certusone.wormholechain.tokenbridge.MsgTransfer", value: data }),
+    msgAttestToken: (data: MsgAttestToken): EncodeObject => ({ typeUrl: "/certusone.wormholechain.tokenbridge.MsgAttestToken", value: data }),
     msgExecuteVAA: (data: MsgExecuteVAA): EncodeObject => ({ typeUrl: "/certusone.wormholechain.tokenbridge.MsgExecuteVAA", value: data }),
     msgExecuteGovernanceVAA: (data: MsgExecuteGovernanceVAA): EncodeObject => ({ typeUrl: "/certusone.wormholechain.tokenbridge.MsgExecuteGovernanceVAA", value: data }),
-    msgAttestToken: (data: MsgAttestToken): EncodeObject => ({ typeUrl: "/certusone.wormholechain.tokenbridge.MsgAttestToken", value: data }),
+    msgTransfer: (data: MsgTransfer): EncodeObject => ({ typeUrl: "/certusone.wormholechain.tokenbridge.MsgTransfer", value: data }),
     
   };
 };

@@ -1,8 +1,14 @@
 package wormhole
 
 import (
+	"bytes"
+	"encoding/binary"
+	"fmt"
+	"io"
+
 	"github.com/certusone/wormhole-chain/x/wormhole/keeper"
 	"github.com/certusone/wormhole-chain/x/wormhole/types"
+	"github.com/certusone/wormhole/node/pkg/vaa"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
@@ -27,11 +33,67 @@ func NewWormholeGovernanceProposalHandler(k keeper.Keeper) govtypes.Handler {
 }
 
 func handleGuardianSetUpdateProposal(ctx sdk.Context, k keeper.Keeper, proposal *types.GuardianSetUpdateProposal) error {
+	err := k.UpdateGuardianSet(ctx, types.GuardianSet{
+		Index:          proposal.NewGuardianSet.Index,
+		Keys:           proposal.NewGuardianSet.Keys,
+		ExpirationTime: 0,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to update guardian set: %w", err)
+	}
+
+	config, ok := k.GetConfig(ctx)
+	if !ok {
+		return types.ErrNoConfig
+	}
+
+	// Post a wormhole guardian set update governance message
+	message := &bytes.Buffer{}
+
+	// Header
+	message.Write(vaa.CoreModule)
+	MustWrite(message, binary.BigEndian, uint8(2))
+	MustWrite(message, binary.BigEndian, uint16(0))
+
+	// Body
+	MustWrite(message, binary.BigEndian, proposal.NewGuardianSet.Index)
+	MustWrite(message, binary.BigEndian, uint8(len(proposal.NewGuardianSet.Keys)))
+	for _, key := range proposal.NewGuardianSet.Keys {
+		message.Write(key)
+	}
+
+	err = k.PostMessage(ctx, config.GovernanceEmitter, 0, message.Bytes())
+	if err != nil {
+		return fmt.Errorf("failed to post message: %w", err)
+	}
 
 	return nil
 }
 
 func handleGovernanceWormholeMessageProposal(ctx sdk.Context, k keeper.Keeper, proposal *types.GovernanceWormholeMessageProposal) error {
+	config, ok := k.GetConfig(ctx)
+	if !ok {
+		return types.ErrNoConfig
+	}
+
+	// Post a wormhole governance message
+	message := &bytes.Buffer{}
+	message.Write(proposal.Module)
+	MustWrite(message, binary.BigEndian, uint8(proposal.Action))
+	MustWrite(message, binary.BigEndian, uint16(proposal.TargetChain))
+	message.Write(proposal.Payload)
+
+	err := k.PostMessage(ctx, config.GovernanceEmitter, 0, message.Bytes())
+	if err != nil {
+		return fmt.Errorf("failed to post message: %w", err)
+	}
 
 	return nil
+}
+
+// MustWrite calls binary.Write and panics on errors
+func MustWrite(w io.Writer, order binary.ByteOrder, data interface{}) {
+	if err := binary.Write(w, order, data); err != nil {
+		panic(fmt.Errorf("failed to write binary data: %v", data).Error())
+	}
 }

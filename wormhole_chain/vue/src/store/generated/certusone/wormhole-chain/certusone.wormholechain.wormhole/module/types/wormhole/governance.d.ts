@@ -14,6 +14,7 @@ export interface GuardianSetUpdateProposal {
 export interface GovernanceWormholeMessageProposal {
     title: string;
     description: string;
+    action: number;
     module: Uint8Array;
     targetChain: number;
     payload: Uint8Array;

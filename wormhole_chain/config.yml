@@ -28,6 +28,9 @@ genesis:
               exponent: 0
             - denom: "test"
               exponent: 6
+    gov:
+       voting_params:
+          voting_period: "50s"
     tokenbridge:
       chainRegistrationList:
         - chainID: 1

@@ -104,6 +104,7 @@ export const GuardianSetUpdateProposal = {
 const baseGovernanceWormholeMessageProposal = {
     title: "",
     description: "",
+    action: 0,
     targetChain: 0,
 };
 export const GovernanceWormholeMessageProposal = {
@@ -114,14 +115,17 @@ export const GovernanceWormholeMessageProposal = {
         if (message.description !== "") {
             writer.uint32(18).string(message.description);
         }
+        if (message.action !== 0) {
+            writer.uint32(24).uint32(message.action);
+        }
         if (message.module.length !== 0) {
-            writer.uint32(26).bytes(message.module);
+            writer.uint32(34).bytes(message.module);
         }
         if (message.targetChain !== 0) {
-            writer.uint32(32).uint32(message.targetChain);
+            writer.uint32(40).uint32(message.targetChain);
         }
         if (message.payload.length !== 0) {
-            writer.uint32(42).bytes(message.payload);
+            writer.uint32(50).bytes(message.payload);
         }
         return writer;
     },
@@ -141,12 +145,15 @@ export const GovernanceWormholeMessageProposal = {
                     message.description = reader.string();
                     break;
                 case 3:
-                    message.module = reader.bytes();
+                    message.action = reader.uint32();
                     break;
                 case 4:
-                    message.targetChain = reader.uint32();
+                    message.module = reader.bytes();
                     break;
                 case 5:
+                    message.targetChain = reader.uint32();
+                    break;
+                case 6:
                     message.payload = reader.bytes();
                     break;
                 default:
@@ -172,6 +179,12 @@ export const GovernanceWormholeMessageProposal = {
         else {
             message.description = "";
         }
+        if (object.action !== undefined && object.action !== null) {
+            message.action = Number(object.action);
+        }
+        else {
+            message.action = 0;
+        }
         if (object.module !== undefined && object.module !== null) {
             message.module = bytesFromBase64(object.module);
         }
@@ -191,6 +204,7 @@ export const GovernanceWormholeMessageProposal = {
         message.title !== undefined && (obj.title = message.title);
         message.description !== undefined &&
             (obj.description = message.description);
+        message.action !== undefined && (obj.action = message.action);
         message.module !== undefined &&
             (obj.module = base64FromBytes(message.module !== undefined ? message.module : new Uint8Array()));
         message.targetChain !== undefined &&
@@ -214,6 +228,12 @@ export const GovernanceWormholeMessageProposal = {
         }
         else {
             message.description = "";
+        }
+        if (object.action !== undefined && object.action !== null) {
+            message.action = object.action;
+        }
+        else {
+            message.action = 0;
         }
         if (object.module !== undefined && object.module !== null) {
             message.module = object.module;
