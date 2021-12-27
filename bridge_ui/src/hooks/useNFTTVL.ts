@@ -1,5 +1,6 @@
 import {
   ChainId,
+  CHAIN_ID_AVAX,
   CHAIN_ID_BSC,
   CHAIN_ID_ETH,
   CHAIN_ID_POLYGON,
@@ -129,6 +130,10 @@ const useNFTTVL = (): DataWrapper<NFTTVL[]> => {
     useState(false);
   const [polygonCovalentError, setPolygonCovalentError] = useState("");
 
+  const [avaxCovalentData, setAvaxCovalentData] = useState(undefined);
+  const [avaxCovalentIsLoading, setAvaxCovalentIsLoading] = useState(false);
+  const [avaxCovalentError, setAvaxCovalentError] = useState("");
+
   const [solanaCustodyTokens, setSolanaCustodyTokens] = useState<
     { pubkey: PublicKey; account: AccountInfo<ParsedAccountData> }[] | undefined
   >(undefined);
@@ -164,6 +169,11 @@ const useNFTTVL = (): DataWrapper<NFTTVL[]> => {
   const polygonTVL = useMemo(
     () => calcEvmTVL(polygonCovalentData, CHAIN_ID_POLYGON),
     [polygonCovalentData]
+  );
+
+  const avaxTVL = useMemo(
+    () => calcEvmTVL(avaxCovalentData, CHAIN_ID_AVAX),
+    [avaxCovalentData]
   );
 
   useEffect(() => {
@@ -252,6 +262,34 @@ const useNFTTVL = (): DataWrapper<NFTTVL[]> => {
 
   useEffect(() => {
     let cancelled = false;
+    setAvaxCovalentIsLoading(true);
+    axios
+      .get(
+        COVALENT_GET_TOKENS_URL(
+          CHAIN_ID_AVAX,
+          getNFTBridgeAddressForChain(CHAIN_ID_AVAX),
+          true,
+          false
+        )
+      )
+      .then(
+        (results) => {
+          if (!cancelled) {
+            setAvaxCovalentData(results.data);
+            setAvaxCovalentIsLoading(false);
+          }
+        },
+        (error) => {
+          if (!cancelled) {
+            setAvaxCovalentError("Unable to retrieve Polygon TVL.");
+            setAvaxCovalentIsLoading(false);
+          }
+        }
+      );
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
     const connection = new Connection(SOLANA_HOST, "confirmed");
     setSolanaCustodyTokensLoading(true);
     connection
@@ -277,18 +315,26 @@ const useNFTTVL = (): DataWrapper<NFTTVL[]> => {
   }, []);
 
   return useMemo(() => {
-    const tvlArray = [...ethTVL, ...bscTVL, ...polygonTVL, ...solanaTVL];
+    const tvlArray = [
+      ...ethTVL,
+      ...bscTVL,
+      ...polygonTVL,
+      ...avaxTVL,
+      ...solanaTVL,
+    ];
 
     return {
       isFetching:
         ethCovalentIsLoading ||
         bscCovalentIsLoading ||
         polygonCovalentIsLoading ||
+        avaxCovalentIsLoading ||
         solanaCustodyTokensLoading,
       error:
         ethCovalentError ||
         bscCovalentError ||
         polygonCovalentError ||
+        avaxCovalentError ||
         solanaCustodyTokensError,
       receivedAt: null,
       data: tvlArray,
@@ -306,6 +352,9 @@ const useNFTTVL = (): DataWrapper<NFTTVL[]> => {
     solanaTVL,
     solanaCustodyTokensError,
     solanaCustodyTokensLoading,
+    avaxTVL,
+    avaxCovalentIsLoading,
+    avaxCovalentError,
   ]);
 };
 

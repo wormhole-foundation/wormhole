@@ -9,6 +9,7 @@ import numeral from "numeral";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import useNFTTVL from "../../hooks/useNFTTVL";
 import {
+  BETA_CHAINS,
   CHAINS_WITH_NFT_SUPPORT,
   getNFTBridgeAddressForChain,
 } from "../../utils/consts";
@@ -134,7 +135,9 @@ const NFTStats: React.FC<any> = () => {
   const data = useMemo(() => {
     const output: any[] = [];
     if (nftTVL.data && !nftTVL.isFetching) {
-      CHAINS_WITH_NFT_SUPPORT.forEach((chain) => {
+      CHAINS_WITH_NFT_SUPPORT.filter(
+        (chain) => !BETA_CHAINS.find((x) => x === chain.id)
+      ).forEach((chain) => {
         output.push({
           nfts: nftTVL?.data?.filter((x) => x.chainId === chain.id),
           chainName: chain.name,
