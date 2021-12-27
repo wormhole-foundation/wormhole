@@ -91,6 +91,7 @@ import (
 	tokenbridgemodulekeeper "github.com/certusone/wormhole-chain/x/tokenbridge/keeper"
 	tokenbridgemoduletypes "github.com/certusone/wormhole-chain/x/tokenbridge/types"
 	wormholemodule "github.com/certusone/wormhole-chain/x/wormhole"
+	wormholeclient "github.com/certusone/wormhole-chain/x/wormhole/client"
 	wormholemodulekeeper "github.com/certusone/wormhole-chain/x/wormhole/keeper"
 	wormholemoduletypes "github.com/certusone/wormhole-chain/x/wormhole/types"
 	// this line is used by starport scaffolding # stargate/app/moduleImport
@@ -112,8 +113,8 @@ func getGovProposalHandlers() []govclient.ProposalHandler {
 		distrclient.ProposalHandler,
 		upgradeclient.ProposalHandler,
 		upgradeclient.CancelProposalHandler,
-		wormholemoduletypes.GuardianSetUpdateProposalHandler,
-		wormholemoduletypes.WormholeGovernanceMessageProposalHandler,
+		wormholeclient.GuardianSetUpdateProposalHandler,
+		wormholeclient.WormholeGovernanceMessageProposalHandler,
 		// this line is used by starport scaffolding # stargate/app/govProposalHandler
 	)
 
