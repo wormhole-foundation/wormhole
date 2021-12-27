@@ -2,14 +2,14 @@
 import { SigningStargateClient } from "@cosmjs/stargate";
 import { Registry } from "@cosmjs/proto-signing";
 import { Api } from "./rest";
+import { MsgTransfer } from "./types/tokenbridge/tx";
 import { MsgExecuteVAA } from "./types/tokenbridge/tx";
 import { MsgExecuteGovernanceVAA } from "./types/tokenbridge/tx";
-import { MsgTransfer } from "./types/tokenbridge/tx";
 import { MsgAttestToken } from "./types/tokenbridge/tx";
 const types = [
+    ["/certusone.wormholechain.tokenbridge.MsgTransfer", MsgTransfer],
     ["/certusone.wormholechain.tokenbridge.MsgExecuteVAA", MsgExecuteVAA],
     ["/certusone.wormholechain.tokenbridge.MsgExecuteGovernanceVAA", MsgExecuteGovernanceVAA],
-    ["/certusone.wormholechain.tokenbridge.MsgTransfer", MsgTransfer],
     ["/certusone.wormholechain.tokenbridge.MsgAttestToken", MsgAttestToken],
 ];
 export const MissingWalletError = new Error("wallet is required");
@@ -25,9 +25,9 @@ const txClient = async (wallet, { addr: addr } = { addr: "http://localhost:26657
     const { address } = (await wallet.getAccounts())[0];
     return {
         signAndBroadcast: (msgs, { fee, memo } = { fee: defaultFee, memo: "" }) => client.signAndBroadcast(address, msgs, fee, memo),
+        msgTransfer: (data) => ({ typeUrl: "/certusone.wormholechain.tokenbridge.MsgTransfer", value: data }),
         msgExecuteVAA: (data) => ({ typeUrl: "/certusone.wormholechain.tokenbridge.MsgExecuteVAA", value: data }),
         msgExecuteGovernanceVAA: (data) => ({ typeUrl: "/certusone.wormholechain.tokenbridge.MsgExecuteGovernanceVAA", value: data }),
-        msgTransfer: (data) => ({ typeUrl: "/certusone.wormholechain.tokenbridge.MsgTransfer", value: data }),
         msgAttestToken: (data) => ({ typeUrl: "/certusone.wormholechain.tokenbridge.MsgAttestToken", value: data }),
     };
 };
