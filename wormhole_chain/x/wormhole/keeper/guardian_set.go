@@ -8,6 +8,42 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
+func (k Keeper) UpdateGuardianSet(ctx sdk.Context, newGuardianSet types.GuardianSet) error {
+	config, ok := k.GetConfig(ctx)
+	if !ok {
+		return types.ErrNoConfig
+	}
+
+	oldSet, exists := k.GetGuardianSet(ctx, k.GetGuardianSetCount(ctx)-1)
+	if !exists {
+		return types.ErrGuardianSetNotFound
+	}
+	if oldSet.Index+1 != newGuardianSet.Index {
+		return types.ErrGuardianSetNotSequential
+	}
+
+	// Create new set
+	k.AppendGuardianSet(ctx, types.GuardianSet{
+		Keys:           newGuardianSet.Keys,
+		ExpirationTime: 0,
+	})
+
+	// Expire old set
+	oldSet.ExpirationTime = uint64(ctx.BlockTime().Unix()) + config.GuardianSetExpiration
+	k.SetGuardianSet(ctx, oldSet)
+
+	// Emit event
+	err := ctx.EventManager().EmitTypedEvent(&types.EventGuardianSetUpdate{
+		OldIndex: oldSet.Index,
+		NewIndex: oldSet.Index + 1,
+	})
+	if err != nil {
+		return err
+	}
+
+	return err
+}
+
 // GetGuardianSetCount get the total number of guardianSet
 func (k Keeper) GetGuardianSetCount(ctx sdk.Context) uint32 {
 	store := prefix.NewStore(ctx.KVStore(k.storeKey), []byte{})

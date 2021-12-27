@@ -33,6 +33,7 @@ type (
 		Title       string         `json:"title" yaml:"title"`
 		Description string         `json:"description" yaml:"description"`
 		TargetChain uint16         `json:"targetChain" yaml:"targetChain"`
+		Action      uint8          `json:"action" yaml:"action"`
 		Module      []byte         `json:"module" yaml:"module"`
 		Payload     []byte         `json:"payload" yaml:"payload"`
 		Proposer    sdk.AccAddress `json:"proposer" yaml:"proposer"`
@@ -109,7 +110,7 @@ func postProposalWormholeGovernanceMessageHandlerFn(clientCtx client.Context) ht
 			return
 		}
 
-		content := types.NewGovernanceWormholeMessageProposal(req.Title, req.Description, req.TargetChain, req.Module, req.Payload)
+		content := types.NewGovernanceWormholeMessageProposal(req.Title, req.Description, req.Action, req.TargetChain, req.Module, req.Payload)
 
 		msg, err := govtypes.NewMsgSubmitProposal(content, req.Deposit, req.Proposer)
 		if rest.CheckBadRequestError(w, err) {

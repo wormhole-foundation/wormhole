@@ -100,6 +100,7 @@ func NewCmdSubmitGuardianSetUpdateProposal() *cobra.Command {
 	return cmd
 }
 
+const FlagAction = "action"
 const FlagModule = "module"
 const FlagTargetChainID = "target-chain-id"
 const FlagPayload = "payload"
@@ -139,6 +140,11 @@ func NewCmdSubmitWormholeGovernanceMessageProposal() *cobra.Command {
 				return err
 			}
 
+			action, err := cmd.Flags().GetUint8(FlagAction)
+			if err != nil {
+				return err
+			}
+
 			targetChain, err := cmd.Flags().GetUint16(FlagTargetChainID)
 			if err != nil {
 				return err
@@ -154,7 +160,7 @@ func NewCmdSubmitWormholeGovernanceMessageProposal() *cobra.Command {
 				return err
 			}
 
-			content := types.NewGovernanceWormholeMessageProposal(title, description, targetChain, module, payload)
+			content := types.NewGovernanceWormholeMessageProposal(title, description, action, targetChain, module, payload)
 			err = content.ValidateBasic()
 			if err != nil {
 				return err
@@ -172,11 +178,13 @@ func NewCmdSubmitWormholeGovernanceMessageProposal() *cobra.Command {
 	cmd.Flags().String(cli.FlagTitle, "", "title of proposal")
 	cmd.Flags().String(cli.FlagDescription, "", "description of proposal")
 	cmd.Flags().String(cli.FlagDeposit, "", "deposit of proposal")
+	cmd.Flags().Uint8(FlagAction, 0, "target chain of the message (0 for all)")
 	cmd.Flags().Uint16(FlagTargetChainID, 0, "target chain of the message (0 for all)")
 	cmd.Flags().BytesHex(FlagModule, []byte{}, "module identifier of the message")
 	cmd.Flags().BytesHex(FlagPayload, []byte{}, "payload of the message")
 	cmd.MarkFlagRequired(cli.FlagTitle)
 	cmd.MarkFlagRequired(cli.FlagDescription)
+	cmd.MarkFlagRequired(FlagAction)
 	cmd.MarkFlagRequired(FlagTargetChainID)
 	cmd.MarkFlagRequired(FlagModule)
 	cmd.MarkFlagRequired(FlagPayload)

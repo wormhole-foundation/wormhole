@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+
 	"github.com/certusone/wormhole-chain/x/wormhole/types"
 	"github.com/certusone/wormhole/node/pkg/vaa"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -84,28 +85,9 @@ func (k msgServer) ExecuteGovernanceVAA(goCtx context.Context, msg *types.MsgExe
 			keys = append(keys, payload[5+i*20:6+i*20+20])
 		}
 
-		oldSet, exists := k.GetGuardianSet(ctx, k.GetGuardianSetCount(ctx)-1)
-		if !exists {
-			return nil, types.ErrGuardianSetNotFound
-		}
-		if oldSet.Index+1 != newIndex {
-			return nil, types.ErrGuardianSetNotSequential
-		}
-
-		// Create new set
-		k.AppendGuardianSet(ctx, types.GuardianSet{
-			Keys:           keys,
-			ExpirationTime: 0,
-		})
-
-		// Expire old set
-		oldSet.ExpirationTime = uint64(ctx.BlockTime().Unix()) + config.GuardianSetExpiration
-		k.SetGuardianSet(ctx, oldSet)
-
-		// Emit event
-		err = ctx.EventManager().EmitTypedEvent(&types.EventGuardianSetUpdate{
-			OldIndex: oldSet.Index,
-			NewIndex: oldSet.Index + 1,
+		err := k.UpdateGuardianSet(ctx, types.GuardianSet{
+			Keys:  keys,
+			Index: newIndex,
 		})
 		if err != nil {
 			return nil, err
