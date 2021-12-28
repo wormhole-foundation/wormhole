@@ -898,3 +898,5 @@ export const POLYGON_TERRA_WRAPPED_TOKENS = [
   "0x692597b009d13c4049a947cab2239b7d6517875f", // Wrapped UST Token
   "0x24834bbec7e39ef42f4a75eaf8e5b6486d3f0e57", // Wrapped LUNA Token
 ];
+
+export const JUPITER_SWAP_BASE_URL = "https://jup.ag/swap";
