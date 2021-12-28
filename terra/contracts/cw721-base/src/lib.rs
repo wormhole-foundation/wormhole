@@ -11,7 +11,6 @@ pub use crate::msg::{ExecuteMsg, InstantiateMsg, MintMsg, MinterResponse, QueryM
 pub use crate::state::Cw721Contract;
 use cosmwasm_std::Empty;
 
-// This is a simple type to let us handle empty extensions
 pub type Extension = Option<Empty>;
 
 #[cfg(not(feature = "library"))]

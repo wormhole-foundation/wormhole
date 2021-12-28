@@ -381,8 +381,8 @@ fn handle_attest_meta(
         CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: contract,
             msg: to_binary(&WrappedMsg::UpdateMetadata {
-                name: get_string_from_32(&meta.name)?,
-                symbol: get_string_from_32(&meta.symbol)?,
+                name: get_string_from_32(&meta.name),
+                symbol: get_string_from_32(&meta.symbol),
             })?,
             funds: vec![],
         })
@@ -392,8 +392,8 @@ fn handle_attest_meta(
             admin: Some(env.contract.address.clone().into_string()),
             code_id: cfg.wrapped_asset_code_id,
             msg: to_binary(&WrappedInit {
-                name: get_string_from_32(&meta.name)?,
-                symbol: get_string_from_32(&meta.symbol)?,
+                name: get_string_from_32(&meta.name),
+                symbol: get_string_from_32(&meta.symbol),
                 asset_chain: meta.token_chain,
                 asset_address: meta.token_address.to_vec().into(),
                 decimals: min(meta.decimals, 8u8),
@@ -561,7 +561,7 @@ fn submit_vaa(
 
 fn handle_governance_payload(deps: DepsMut, env: Env, data: &Vec<u8>) -> StdResult<Response> {
     let gov_packet = GovernancePacket::deserialize(&data)?;
-    let module = get_string_from_32(&gov_packet.module)?;
+    let module = get_string_from_32(&gov_packet.module);
 
     if module != "TokenBridge" {
         return Err(StdError::generic_err("this is not a valid module"));
