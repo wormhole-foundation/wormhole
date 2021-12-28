@@ -143,7 +143,7 @@ fn submit_vaa(
 
 fn handle_governance_payload(deps: DepsMut, env: Env, data: &Vec<u8>) -> StdResult<Response> {
     let gov_packet = GovernancePacket::deserialize(&data)?;
-    let module = get_string_from_32(&gov_packet.module)?;
+    let module = get_string_from_32(&gov_packet.module);
 
     if module != "PythBridge" {
         return Err(StdError::generic_err("this is not a valid module"));
