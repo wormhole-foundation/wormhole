@@ -61,6 +61,12 @@ contract NFTBridge is NFTBridgeGovernance {
         } else {
             assembly {
             // first 32 bytes hold string length
+            // mload then loads the next word, i.e. the first 32 bytes of the strings
+            // NOTE: this means that we might end up with an
+            // invalid utf8 string (e.g. if we slice an emoji in half).  The VAA
+            // payload specification doesn't require that these are valid utf8
+            // strings, and it's cheaper to do any validation off-chain for
+            // presentation purposes
                 symbol := mload(add(symbolString, 32))
                 name := mload(add(nameString, 32))
             }

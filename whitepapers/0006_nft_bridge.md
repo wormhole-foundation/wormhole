@@ -138,6 +138,12 @@ native asset on its chain, there may be transfers initiated for assets that don'
 target chain. However, the transfer will become executable once the wrapped asset is set up (which can be done any time)
 .
 
+The name and symbol fields of the Transfer payload are not guaranteed to be
+valid UTF8 strings. Implementations might truncate longer strings at the 32 byte
+mark, which may result in invalid UTF8 bytes at the end. Thus, any client
+whishing to present these as strings must validate them first, potentially
+dropping the garbage at the end.
+
 Currently Solana only supports u64 token ids which is incompatible with Ethereum which specifically mentions the use of
 UUIDs as token ids (utilizing all bytes of the uint256). There will either need to be a mechanism to translate ids i.e.
 a map of `[32]u8 -> incrementing_u64` (in the expectation there will never be more than MaxU64 editions) or Solana needs

@@ -10,9 +10,9 @@ contract NFTBridgeStructs {
         bytes32 tokenAddress;
         // Chain ID of the token
         uint16 tokenChain;
-        // Symbol of the token (UTF-8)
+        // Symbol of the token
         bytes32 symbol;
-        // Name of the token (UTF-8)
+        // Name of the token
         bytes32 name;
         // TokenID of the token
         uint256 tokenID;
