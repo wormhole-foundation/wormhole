@@ -35,23 +35,10 @@ contract NFTBridge is NFTBridgeGovernance {
             require(ERC165(token).supportsInterface(type(IERC721Metadata).interfaceId), "must support the ERC721-Metadata extension");
         }
 
-        string memory symbolString;
-        string memory nameString;
         string memory uriString;
-        {
-            if (tokenChain != 1) { // SPL tokens use cache
-                (,bytes memory queriedSymbol) = token.staticcall(abi.encodeWithSignature("symbol()"));
-                (,bytes memory queriedName) = token.staticcall(abi.encodeWithSignature("name()"));
-                symbolString = abi.decode(queriedSymbol, (string));
-                nameString = abi.decode(queriedName, (string));
-            }
-
-            (,bytes memory queriedURI) = token.staticcall(abi.encodeWithSignature("tokenURI(uint256)", tokenID));
-            uriString = abi.decode(queriedURI, (string));
-        }
-
         bytes32 symbol;
         bytes32 name;
+
         if (tokenChain == 1) {
             // use cached SPL token info, as the contracts uses unified values
             NFTBridgeStorage.SPLCache memory cache = splCache(tokenID);
@@ -59,6 +46,12 @@ contract NFTBridge is NFTBridgeGovernance {
             name = cache.name;
             clearSplCache(tokenID);
         } else {
+            string memory symbolString;
+            string memory nameString;
+            (,bytes memory queriedSymbol) = token.staticcall(abi.encodeWithSignature("symbol()"));
+            (,bytes memory queriedName) = token.staticcall(abi.encodeWithSignature("name()"));
+            symbolString = abi.decode(queriedSymbol, (string));
+            nameString = abi.decode(queriedName, (string));
             assembly {
             // first 32 bytes hold string length
             // mload then loads the next word, i.e. the first 32 bytes of the strings
@@ -71,6 +64,9 @@ contract NFTBridge is NFTBridgeGovernance {
                 name := mload(add(nameString, 32))
             }
         }
+
+        (,bytes memory queriedURI) = token.staticcall(abi.encodeWithSignature("tokenURI(uint256)", tokenID));
+        uriString = abi.decode(queriedURI, (string));
 
         if (tokenChain == chainId()) {
             IERC721(token).safeTransferFrom(msg.sender, address(this), tokenID);
