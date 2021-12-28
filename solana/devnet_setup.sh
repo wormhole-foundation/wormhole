@@ -100,6 +100,7 @@ popd
 pushd /usr/src/clients/nft_bridge
 # Register the NFT Bridge Endpoint on ETH
 node main.js solana execute_governance_vaa $(node main.js generate_register_chain_vaa 2 0x00000000000000000000000026b4afb60d6c903165150c6f0aa14f8016be4aec)
+node main.js solana execute_governance_vaa $(node main.js generate_register_chain_vaa 3 0x000000000000000000000000288246bebae560e006d01c675ae332ac8e146bb7)
 popd
 
 # Let k8s startup probe succeed
