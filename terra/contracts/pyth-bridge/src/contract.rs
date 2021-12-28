@@ -134,11 +134,11 @@ fn submit_vaa(
     sequence(deps.storage).save(&vaa.sequence)?;
 
     // Update price
-    price_info(deps.storage).save(&message.product_id.to_bytes()[..], &data)?;
+    price_info(deps.storage).save(&message.price_id.to_bytes()[..], &data)?;
 
     Ok(Response::new()
         .add_attribute("action", "price_update")
-        .add_attribute("price_feed", message.product_id.to_string()))
+        .add_attribute("price_feed", message.price_id.to_string()))
 }
 
 fn handle_governance_payload(deps: DepsMut, env: Env, data: &Vec<u8>) -> StdResult<Response> {
@@ -176,8 +176,8 @@ fn handle_upgrade_contract(_deps: DepsMut, env: Env, data: &Vec<u8>) -> StdResul
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::PriceInfo { product_id } => {
-            to_binary(&query_price_info(deps, product_id.as_slice())?)
+        QueryMsg::PriceInfo { price_id } => {
+            to_binary(&query_price_info(deps, price_id.as_slice())?)
         }
     }
 }

@@ -31,5 +31,5 @@ pub struct MigrateMsg {}
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
-    PriceInfo { product_id: Binary },
+    PriceInfo { price_id: Binary },
 }
