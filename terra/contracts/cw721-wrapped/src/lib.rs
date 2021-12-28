@@ -22,7 +22,7 @@ pub type Extension = Option<Empty>;
 pub type Cw721MetadataContract<'a> = cw721_base::Cw721Contract<'a, Extension, Empty>;
 pub type ExecuteMsg = cw721_base::ExecuteMsg<Extension>;
 
-// #[cfg(not(feature = "library"))]
+#[cfg(not(feature = "library"))]
 pub mod entry {
 
     use std::convert::TryInto;
