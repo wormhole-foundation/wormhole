@@ -146,7 +146,8 @@ export const CHAINS_WITH_NFT_SUPPORT = CHAINS.filter(
     id === CHAIN_ID_ETHEREUM_ROPSTEN ||
     id === CHAIN_ID_POLYGON ||
     id === CHAIN_ID_OASIS ||
-    id === CHAIN_ID_SOLANA
+    id === CHAIN_ID_SOLANA ||
+    id === CHAIN_ID_TERRA
 );
 export type ChainsById = { [key in ChainId]: ChainInfo };
 export const CHAINS_BY_ID: ChainsById = CHAINS.reduce((obj, chain) => {
@@ -417,6 +418,12 @@ export const TERRA_TOKEN_BRIDGE_ADDRESS =
     : CLUSTER === "testnet"
     ? "terra1pseddrv0yfsn76u4zxrjmtf45kdlmalswdv39a"
     : "terra10pyejy66429refv3g35g2t7am0was7ya7kz2a4";
+export const TERRA_NFT_BRIDGE_ADDRESS =
+  CLUSTER === "mainnet"
+    ? ""
+    : CLUSTER === "testnet"
+    ? ""
+    : "terra1kyl8f2xkd63cga8szgkejdyvxay7mc7qpdc3c5";
 
 export const getBridgeAddressForChain = (chainId: ChainId) =>
   chainId === CHAIN_ID_SOLANA

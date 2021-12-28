@@ -1,5 +1,7 @@
 import { PublicKey } from "@solana/web3.js";
+import { LCDClient } from "@terra-money/terra.js";
 import { ethers } from "ethers";
+import { fromUint8Array } from "js-base64";
 import { CHAIN_ID_SOLANA } from "..";
 import { NFTBridge__factory } from "../ethers-contracts";
 import { importNftWasm } from "../solana/wasm";
@@ -35,6 +37,38 @@ export async function getForeignAssetEth(
     return null;
   }
 }
+
+
+/**
+ * @param tokenBridgeAddress
+ * @param client
+ * @param originChain
+ * @param originAsset
+ * @returns
+ */
+export async function getForeignAssetTerra(
+  tokenBridgeAddress: string,
+  client: LCDClient,
+  originChain: ChainId,
+  originAsset: Uint8Array,
+) {
+  try {
+    // TODO(csongor): special SPL logic?
+    const result: { address: string } = await client.wasm.contractQuery(
+      tokenBridgeAddress,
+      {
+        wrapped_registry: {
+          chain: originChain,
+          address: fromUint8Array(originAsset),
+        },
+      }
+    );
+    return result.address;
+  } catch (e) {
+    return null;
+  }
+}
+
 /**
  * Returns a foreign asset address on Solana for a provided native chain and asset address
  * @param tokenBridgeAddress

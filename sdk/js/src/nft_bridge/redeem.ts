@@ -1,5 +1,7 @@
 import { Connection, PublicKey, Transaction } from "@solana/web3.js";
+import { MsgExecuteContract } from "@terra-money/terra.js";
 import { ethers } from "ethers";
+import { fromUint8Array } from "js-base64";
 import { CHAIN_ID_SOLANA } from "..";
 import { Bridge__factory } from "../ethers-contracts";
 import { ixFromRust } from "../solana";
@@ -89,4 +91,16 @@ export async function createMetaOnSolana(
   transaction.recentBlockhash = blockhash;
   transaction.feePayer = new PublicKey(payerAddress);
   return transaction;
+}
+
+export async function redeemOnTerra(
+  tokenBridgeAddress: string,
+  walletAddress: string,
+  signedVAA: Uint8Array
+) {
+  return new MsgExecuteContract(walletAddress, tokenBridgeAddress, {
+    submit_vaa: {
+      data: fromUint8Array(signedVAA),
+    },
+  });
 }

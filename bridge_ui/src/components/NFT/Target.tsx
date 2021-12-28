@@ -84,6 +84,7 @@ function Target() {
   const handleNextClick = useCallback(() => {
     dispatch(incrementStep());
   }, [dispatch]);
+  console.log("target asset", targetAsset);
   return (
     <>
       <StepDescription>Select a recipient chain and address.</StepDescription>
@@ -104,7 +105,7 @@ function Target() {
         value={readableTargetAddress}
         disabled={true}
       />
-      {targetAsset !== ethers.constants.AddressZero ? (
+      {targetAsset !== ethers.constants.AddressZero && targetAsset !== null ? (
         <>
           <TextField
             label="Token Address"

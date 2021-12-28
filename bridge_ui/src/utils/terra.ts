@@ -86,6 +86,12 @@ export async function postWithFees(
     }
   );
 
+  // const hardcodedFee = JSON.parse(
+  //   '{"amount":[{"amount":"999310","denom":"uluna"}],"gas":"9998727"}'
+  // );
+  // hardcodedFee.toJSON = () =>
+  //   '{"amount":[{"amount":"999310","denom":"uluna"}],"gas":"9998727"}';
+
   const result = await wallet.post({
     msgs: [...msgs],
     memo,
