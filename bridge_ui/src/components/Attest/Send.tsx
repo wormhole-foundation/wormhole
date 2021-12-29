@@ -32,12 +32,11 @@ const SolanaTokenMetadataWarning = () => {
   const metaplexData = useMetaplexData(sourceAssetArrayed);
   const classes = useStyles();
 
-  const hasData =
-    !metaplexData.isFetching &&
-    !metaplexData.error &&
-    metaplexData.data?.get(sourceAsset);
+  if (metaplexData.isFetching || metaplexData.error) {
+    return null;
+  }
 
-  return hasData ? (
+  return !metaplexData.data?.get(sourceAsset) ? (
     <Alert severity="warning" variant="outlined" className={classes.alert}>
       This token is missing on-chain (Metaplex) metadata. Without it, the
       wrapped token's name and symbol will be empty. See the{" "}
