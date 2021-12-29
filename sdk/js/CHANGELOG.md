@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.6
+
+TODO(csongor)
+
+### Added
+
+Terra NFT token bridge
+
+getIsTransferCompleted on NFT bridge
+
 ## 0.1.5
 
 deprecated postVaaSolana
