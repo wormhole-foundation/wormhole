@@ -48,7 +48,7 @@
   "scripts": {
     "start": "craco start",
     "build": "craco build",
-    "test": "craco test",
+    "test": "jest --config jestconfig.json --verbose",
     "eject": "react-scripts eject"
   },
   "eslintConfig": {
@@ -75,6 +75,7 @@
     "@types/node": "^16.6.1",
     "@types/numeral": "^2.0.2",
     "@types/react-router-dom": "^5.1.8",
+    "jest": "^27.3.1",
     "prettier": "^2.3.2",
     "truffle": "^5.4.1",
     "wasm-loader": "^1.3.0"

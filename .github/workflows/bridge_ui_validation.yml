@@ -1,0 +1,14 @@
+name: Bridge_UI_Validation_Test
+
+on:
+  pull_request:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v1
+        with:
+          node-version: 12
+      - run: npm --prefix ./bridge_ui run ci
+      - run: npm --prefix ./bridge_ui run test

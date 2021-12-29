@@ -16,6 +16,7 @@
     "build-lib": "tsc -p tsconfig.json && tsc -p tsconfig-cjs.json && node scripts/copyEthersTypes.js && node scripts/copyWasm.js",
     "build-all": "npm run build-deps && npm run build-lib",
     "test": "jest --config jestconfig.json --verbose",
+    "test-ci": "jest --config jestconfig.json --verbose --setupFiles ./ci-config.js --forceExit",
     "build": "npm run build-all",
     "format": "echo \"disabled: prettier --write \"src/**/*.ts\"\"",
     "lint": "tslint -p tsconfig.json",
