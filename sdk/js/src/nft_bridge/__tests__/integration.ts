@@ -8,9 +8,12 @@ import {
 } from "@solana/spl-token";
 import { Connection, Keypair, PublicKey, Transaction } from "@solana/web3.js";
 import {
+  Coins,
   LCDClient,
   MnemonicKey,
+  Msg,
   MsgExecuteContract,
+  StdFee,
 } from "@terra-money/terra.js";
 import axios from "axios";
 import { ethers } from "ethers";
@@ -65,22 +68,41 @@ setDefaultWasm("node");
 
 jest.setTimeout(60000);
 
+const lcd = new LCDClient({
+  URL: TERRA_NODE_URL,
+  chainID: TERRA_CHAIN_ID,
+});
+const terraWallet = lcd.wallet(new MnemonicKey({
+  mnemonic: TERRA_PRIVATE_KEY,
+}));
+
+async function getGasPrices() {
+  return axios
+    .get(TERRA_GAS_PRICES_URL)
+    .then((result) => result.data);
+}
+
+async function estimateTerraFee(gasPrices: Coins.Input, msg: Msg): Promise<StdFee> {
+  const feeEstimate = await lcd.tx.estimateFee(
+    terraWallet.key.accAddress,
+    [msg],
+    {
+      memo: "localhost",
+      feeDenoms: ["uluna"],
+      gasPrices,
+    }
+  );
+  return feeEstimate;
+}
+
 describe("Integration Tests", () => {
-  describe("Ethereum to Solana", () => {
+  describe("Ethereum to Terra", () => {
     test("Send Ethereum ERC-721 to Terra", (done) => {
       (async () => {
         try {
           // create a signer for Eth
           const provider = new ethers.providers.WebSocketProvider(ETH_NODE_URL);
           const signer = new ethers.Wallet(ETH_PRIVATE_KEY, provider);
-          const lcd = new LCDClient({
-            URL: TERRA_NODE_URL,
-            chainID: TERRA_CHAIN_ID,
-          });
-          const mk = new MnemonicKey({
-            mnemonic: TERRA_PRIVATE_KEY,
-          });
-          const wallet = lcd.wallet(mk);
           // transfer NFT
           const receipt = await transferFromEth(
             ETH_NFT_BRIDGE_ADDRESS,
@@ -89,7 +111,7 @@ describe("Integration Tests", () => {
             0,
             CHAIN_ID_TERRA,
             hexToUint8Array(
-              nativeToHexString(wallet.key.accAddress, CHAIN_ID_TERRA) || ""
+              nativeToHexString(terraWallet.key.accAddress, CHAIN_ID_TERRA) || ""
             ));
           // get the sequence from the logs (needed to fetch the vaa)
           const sequence = parseSequenceFromLogEth(
@@ -111,41 +133,30 @@ describe("Integration Tests", () => {
             await getIsTransferCompletedTerra(
               TERRA_NFT_BRIDGE_ADDRESS,
               signedVAA,
-              wallet.key.accAddress,
+              terraWallet.key.accAddress,
               lcd,
               TERRA_GAS_PRICES_URL
             )
           ).toBe(false);
           const msg = await redeemOnTerra(
             TERRA_NFT_BRIDGE_ADDRESS,
-            wallet.key.accAddress,
+            terraWallet.key.accAddress,
             signedVAA
           );
-          const gasPrices = await axios
-            .get(TERRA_GAS_PRICES_URL)
-            .then((result) => result.data);
-          const feeEstimate = await lcd.tx.estimateFee(
-            wallet.key.accAddress,
-            [msg],
-            {
-              memo: "localhost",
-              feeDenoms: ["uluna"],
-              gasPrices,
-            }
-          );
-          const tx = await wallet.createAndSignTx({
+          const gasPrices = await getGasPrices();
+          const tx = await terraWallet.createAndSignTx({
             msgs: [msg],
             memo: "localhost",
             feeDenoms: ["uluna"],
             gasPrices,
-            fee: feeEstimate,
+            fee: await estimateTerraFee(gasPrices, msg),
           });
           await lcd.tx.broadcast(tx);
           expect(
             await getIsTransferCompletedTerra(
               TERRA_NFT_BRIDGE_ADDRESS,
               signedVAA,
-              wallet.key.accAddress,
+              terraWallet.key.accAddress,
               lcd,
               TERRA_GAS_PRICES_URL
             )
@@ -157,6 +168,6 @@ describe("Integration Tests", () => {
           done(`An error occured while trying to transfer from Ethereum to Solana: ${e}`);
         }
       })();
-    })
+    });
   })
 });
