@@ -14,6 +14,8 @@ import {
   Msg,
   MsgExecuteContract,
   StdFee,
+  TxInfo,
+  Wallet,
 } from "@terra-money/terra.js";
 import axios from "axios";
 import { ethers } from "ethers";
@@ -25,10 +27,12 @@ import {
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
   getEmitterAddressEth,
+  getEmitterAddressTerra,
   hexToUint8Array,
   nativeToHexString,
   parseSequenceFromLogEth,
   parseSequenceFromLogSolana,
+  parseSequenceFromLogTerra,
   postVaaSolana,
 } from "../..";
 import {
@@ -36,6 +40,7 @@ import {
   redeemOnSolana,
   redeemOnTerra,
   transferFromEth,
+  transferFromTerra,
   transferFromSolana,
   getIsTransferCompletedEth,
   getIsTransferCompletedSolana,
@@ -62,7 +67,7 @@ import {
   TEST_SOLANA_TOKEN,
   WORMHOLE_RPC_HOSTS,
 } from "./consts";
-import { ExtensionNetworkOnlyWalletProvider } from "@terra-money/wallet-provider";
+import { ExtensionNetworkOnlyWalletProvider, TxResult } from "@terra-money/wallet-provider";
 
 setDefaultWasm("node");
 
@@ -72,7 +77,7 @@ const lcd = new LCDClient({
   URL: TERRA_NODE_URL,
   chainID: TERRA_CHAIN_ID,
 });
-const terraWallet = lcd.wallet(new MnemonicKey({
+const terraWallet: Wallet = lcd.wallet(new MnemonicKey({
   mnemonic: TERRA_PRIVATE_KEY,
 }));
 
@@ -82,10 +87,29 @@ async function getGasPrices() {
     .then((result) => result.data);
 }
 
-async function estimateTerraFee(gasPrices: Coins.Input, msg: Msg): Promise<StdFee> {
+async function waitForTerraExecution(txHash: string): Promise<TxInfo> {
+  let info: TxInfo | undefined = undefined;
+  while (!info) {
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    try {
+      info = await lcd.tx.txInfo(txHash);
+    } catch (e) {
+      console.error(e);
+    }
+  }
+  if (info.code !== undefined) {
+    // error code
+    throw new Error(
+      `Tx ${txHash}: error code ${info.code}: ${info.raw_log}`
+    );
+  }
+  return info;
+}
+
+async function estimateTerraFee(gasPrices: Coins.Input, msgs: Msg[]): Promise<StdFee> {
   const feeEstimate = await lcd.tx.estimateFee(
     terraWallet.key.accAddress,
-    [msg],
+    msgs,
     {
       memo: "localhost",
       feeDenoms: ["uluna"],
@@ -149,7 +173,7 @@ describe("Integration Tests", () => {
             memo: "localhost",
             feeDenoms: ["uluna"],
             gasPrices,
-            fee: await estimateTerraFee(gasPrices, msg),
+            fee: await estimateTerraFee(gasPrices, [msg]),
           });
           await lcd.tx.broadcast(tx);
           expect(
@@ -159,6 +183,72 @@ describe("Integration Tests", () => {
               terraWallet.key.accAddress,
               lcd,
               TERRA_GAS_PRICES_URL
+            )
+          ).toBe(true);
+          provider.destroy();
+          done();
+        } catch (e) {
+          console.error(e);
+          done(`An error occured while trying to transfer from Ethereum to Solana: ${e}`);
+        }
+      })();
+    });
+    test("Send Terra CW721 to Ethereum", (done) => {
+      (async () => {
+        try {
+          // create a signer for Eth
+          const provider = new ethers.providers.WebSocketProvider(ETH_NODE_URL);
+          const signer = new ethers.Wallet(ETH_PRIVATE_KEY, provider);
+          // transfer NFT
+          const msgs = await transferFromTerra(
+            terraWallet.key.accAddress,
+            TERRA_NFT_BRIDGE_ADDRESS,
+            TEST_CW721,
+            "0",
+            CHAIN_ID_ETH,
+            hexToUint8Array(
+              nativeToHexString(await signer.getAddress(), CHAIN_ID_ETH) || ""
+            ));
+          const gasPrices = await getGasPrices();
+          let tx = await terraWallet.createAndSignTx({
+            msgs: msgs,
+            memo: "test",
+            feeDenoms: ["uluna"],
+            gasPrices,
+            fee: await estimateTerraFee(gasPrices, msgs)
+          });
+          const txresult = await lcd.tx.broadcast(tx);
+          // get the sequence from the logs (needed to fetch the vaa)
+          const info = await waitForTerraExecution(txresult.txhash);
+          const sequence = parseSequenceFromLogTerra(info);
+          const emitterAddress = await getEmitterAddressTerra(TERRA_NFT_BRIDGE_ADDRESS);
+          // poll until the guardian(s) witness and sign the vaa
+          const { vaaBytes: signedVAA } = await getSignedVAAWithRetry(
+            WORMHOLE_RPC_HOSTS,
+            CHAIN_ID_TERRA,
+            emitterAddress,
+            sequence,
+            {
+              transport: NodeHttpTransport(),
+            }
+          );
+          expect(
+            await getIsTransferCompletedEth(
+              ETH_NFT_BRIDGE_ADDRESS,
+              provider,
+              signedVAA,
+            )
+          ).toBe(false);
+          await redeemOnEth(
+            ETH_NFT_BRIDGE_ADDRESS,
+            signer,
+            signedVAA
+          );
+          expect(
+            await getIsTransferCompletedEth(
+              ETH_NFT_BRIDGE_ADDRESS,
+              provider,
+              signedVAA,
             )
           ).toBe(true);
           provider.destroy();
