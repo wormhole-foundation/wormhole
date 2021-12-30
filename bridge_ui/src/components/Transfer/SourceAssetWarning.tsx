@@ -20,8 +20,8 @@ function PolygonTerraWrappedWarning() {
     <Alert severity="warning" variant="outlined" className={classes.alert}>
       <Typography variant="body1">
         This is a Shuttle-wrapped asset from Polygon! Transferring it will
-        result a double wrapped (Wormhole-wrapped Shuttle-wrapped) asset, which
-        has no liquid markets.
+        result in a double wrapped (Wormhole-wrapped Shuttle-wrapped) asset,
+        which has no liquid markets.
       </Typography>
     </Alert>
   );
