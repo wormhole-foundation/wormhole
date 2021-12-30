@@ -41,6 +41,7 @@ import LowBalanceWarning from "../LowBalanceWarning";
 import NumberTextField from "../NumberTextField";
 import StepDescription from "../StepDescription";
 import { TokenSelector } from "../TokenSelectors/SourceTokenSelector";
+import SourceAssetWarning from "./SourceAssetWarning";
 
 const useStyles = makeStyles((theme) => ({
   chainSelectWrapper: {
@@ -209,6 +210,10 @@ function Source() {
       ) : (
         <>
           <LowBalanceWarning chainId={sourceChain} />
+          <SourceAssetWarning
+            sourceChain={sourceChain}
+            sourceAsset={parsedTokenAccount?.mintKey}
+          />
           {hasParsedTokenAccount ? (
             <NumberTextField
               variant="outlined"
