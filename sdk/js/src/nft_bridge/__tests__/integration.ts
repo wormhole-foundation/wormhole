@@ -1,3 +1,6 @@
+import { Coins, LCDClient, MnemonicKey, Msg, MsgExecuteContract, StdFee, TxInfo, Wallet } from "@terra-money/terra.js";
+import axios from "axios";
+import Web3 from 'web3';
 import { NodeHttpTransport } from "@improbable-eng/grpc-web-node-http-transport";
 import { describe, expect, jest, test } from "@jest/globals";
 import {
@@ -19,7 +22,6 @@ import {
   parseSequenceFromLogEth,
   parseSequenceFromLogTerra,
 } from "../..";
-import { estimateTerraFee, getGasPrices, lcd, mint_cw721, terraWallet, waitForTerraExecution, web3 } from './utils';
 import {
   redeemOnEth,
   redeemOnTerra,
@@ -39,14 +41,30 @@ import {
   TERRA_NFT_BRIDGE_ADDRESS,
   WORMHOLE_RPC_HOSTS,
   TERRA_CW721_CODE_ID,
+  TERRA_NODE_URL,
+  TERRA_CHAIN_ID,
+  TERRA_PRIVATE_KEY,
 } from "./consts";
+import { getForeignAssetTerra } from "../../token_bridge";
 const ERC721 = require("@openzeppelin/contracts/build/contracts/ERC721PresetMinterPauserAutoId.json");
 
 setDefaultWasm("node");
 
 jest.setTimeout(60000);
 
-async function deployNFTOnEth(): Promise<string> {
+type Address = string;
+
+const lcd = new LCDClient({
+  URL: TERRA_NODE_URL,
+  chainID: TERRA_CHAIN_ID,
+});
+const terraWallet: Wallet = lcd.wallet(new MnemonicKey({
+  mnemonic: TERRA_PRIVATE_KEY,
+}));
+
+const web3 = new Web3(ETH_NODE_URL);
+
+async function deployNFTOnEth(): Promise<Address> {
   const accounts = await web3.eth.getAccounts();
   const nftContract = new web3.eth.Contract(ERC721.abi);
   let nft = await nftContract.deploy({
@@ -75,7 +93,7 @@ async function deployNFTOnEth(): Promise<string> {
   return nft.options.address;
 }
 
-async function deployNFTOnTerra(): Promise<string> {
+async function deployNFTOnTerra(): Promise<Address> {
   var address: any;
   await terraWallet
     .createAndSignTx({
@@ -172,6 +190,28 @@ describe("Integration Tests", () => {
               TERRA_GAS_PRICES_URL
             )
           ).toBe(true);
+
+          // Check we have the NFT we were expecting
+          const terra_addr = await getForeignAssetTerra(TERRA_NFT_BRIDGE_ADDRESS, lcd, CHAIN_ID_ETH,
+            hexToUint8Array(
+              nativeToHexString(erc721, CHAIN_ID_ETH) || ""
+            ));
+          if (terra_addr) {
+            const info: any = await lcd.wasm.contractQuery(terra_addr, {
+              nft_info: {
+                token_id: "0"
+              }
+            });
+            const ownerInfo: any = await lcd.wasm.contractQuery(terra_addr, {
+              owner_of: {
+                token_id: "0"
+              }
+            });
+            expect(info.token_uri).toBe("https://cloudflare-ipfs.com/ipfs/QmeSjSinHpPnmXmspMjwiXyN6zS4E9zccariGR3jxcaWtq/0");
+            expect(ownerInfo.owner).toBe(terraWallet.key.accAddress);
+          } else {
+            throw new Error("Terra address is null");
+          }
           provider.destroy();
           done();
         } catch (e) {
@@ -249,3 +289,70 @@ describe("Integration Tests", () => {
     });
   })
 });
+
+////////////////////////////////////////////////////////////////////////////////
+// Utils
+
+async function getGasPrices() {
+  return axios
+    .get(TERRA_GAS_PRICES_URL)
+    .then((result) => result.data);
+}
+
+async function estimateTerraFee(gasPrices: Coins.Input, msgs: Msg[]): Promise<StdFee> {
+  const feeEstimate = await lcd.tx.estimateFee(
+    terraWallet.key.accAddress,
+    msgs,
+    {
+      memo: "localhost",
+      feeDenoms: ["uluna"],
+      gasPrices,
+    }
+  );
+  return feeEstimate;
+}
+
+
+async function mint_cw721(contract_address: string, token_id: number, token_uri: any): Promise<void> {
+  await terraWallet
+    .createAndSignTx({
+      msgs: [
+        new MsgExecuteContract(
+          terraWallet.key.accAddress,
+          contract_address,
+          {
+            mint: {
+              token_id: token_id.toString(),
+              owner: terraWallet.key.accAddress,
+              token_uri: token_uri,
+            },
+          },
+          { uluna: 1000 }
+        ),
+      ],
+      memo: "",
+      fee: new StdFee(2000000, {
+        uluna: "100000",
+      }),
+    })
+    .then((tx) => lcd.tx.broadcast(tx));
+}
+
+async function waitForTerraExecution(txHash: string): Promise<TxInfo> {
+  let info: TxInfo | undefined = undefined;
+  while (!info) {
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    try {
+      info = await lcd.tx.txInfo(txHash);
+    } catch (e) {
+      console.error(e);
+    }
+  }
+  if (info.code !== undefined) {
+    // error code
+    throw new Error(
+      `Tx ${txHash}: error code ${info.code}: ${info.raw_log}`
+    );
+  }
+  return info;
+}
