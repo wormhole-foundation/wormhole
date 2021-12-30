@@ -1,4 +1,3 @@
-import { parseUnits } from "@ethersproject/units";
 import { NodeHttpTransport } from "@improbable-eng/grpc-web-node-http-transport";
 import { describe, expect, jest, test } from "@jest/globals";
 import {
@@ -6,44 +5,27 @@ import {
   Token,
   TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
-import { Connection, Keypair, PublicKey, Transaction } from "@solana/web3.js";
 import {
-  Coins,
-  LCDClient,
-  MnemonicKey,
-  Msg,
-  MsgExecuteContract,
-  StdFee,
-  TxInfo,
-  Wallet,
+  MsgInstantiateContract,
 } from "@terra-money/terra.js";
-import axios from "axios";
 import { ethers } from "ethers";
 import {
-  approveEth,
-  attestFromEth,
-  attestFromSolana,
   CHAIN_ID_ETH,
-  CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
   getEmitterAddressEth,
   getEmitterAddressTerra,
   hexToUint8Array,
   nativeToHexString,
   parseSequenceFromLogEth,
-  parseSequenceFromLogSolana,
   parseSequenceFromLogTerra,
-  postVaaSolana,
 } from "../..";
+import { estimateTerraFee, getGasPrices, lcd, mint_cw721, terraWallet, waitForTerraExecution, web3 } from './utils';
 import {
   redeemOnEth,
-  redeemOnSolana,
   redeemOnTerra,
   transferFromEth,
   transferFromTerra,
-  transferFromSolana,
   getIsTransferCompletedEth,
-  getIsTransferCompletedSolana,
   getIsTransferCompletedTerra,
 } from "../";
 import getSignedVAAWithRetry from "../../rpc/getSignedVAAWithRetry";
@@ -53,70 +35,74 @@ import {
   ETH_NODE_URL,
   ETH_PRIVATE_KEY,
   ETH_NFT_BRIDGE_ADDRESS,
-  SOLANA_CORE_BRIDGE_ADDRESS,
-  SOLANA_HOST,
-  SOLANA_PRIVATE_KEY,
-  SOLANA_NFT_BRIDGE_ADDRESS,
-  TERRA_CHAIN_ID,
   TERRA_GAS_PRICES_URL,
-  TERRA_NODE_URL,
-  TERRA_PRIVATE_KEY,
   TERRA_NFT_BRIDGE_ADDRESS,
-  TEST_ERC721,
-  TEST_CW721,
-  TEST_SOLANA_TOKEN,
   WORMHOLE_RPC_HOSTS,
+  TERRA_CW721_CODE_ID,
 } from "./consts";
-import { ExtensionNetworkOnlyWalletProvider, TxResult } from "@terra-money/wallet-provider";
+const ERC721 = require("@openzeppelin/contracts/build/contracts/ERC721PresetMinterPauserAutoId.json");
 
 setDefaultWasm("node");
 
 jest.setTimeout(60000);
 
-const lcd = new LCDClient({
-  URL: TERRA_NODE_URL,
-  chainID: TERRA_CHAIN_ID,
-});
-const terraWallet: Wallet = lcd.wallet(new MnemonicKey({
-  mnemonic: TERRA_PRIVATE_KEY,
-}));
+async function deployNFTOnEth(): Promise<string> {
+  const accounts = await web3.eth.getAccounts();
+  const nftContract = new web3.eth.Contract(ERC721.abi);
+  let nft = await nftContract.deploy({
+    data: ERC721.bytecode,
+    arguments: [
+      "Not an APE 🐒",
+      "APE🐒",
+      "https://cloudflare-ipfs.com/ipfs/QmeSjSinHpPnmXmspMjwiXyN6zS4E9zccariGR3jxcaWtq/"
+    ]
+  }).send({
+    from: accounts[1],
+    gas: 5000000,
+  });
 
-async function getGasPrices() {
-  return axios
-    .get(TERRA_GAS_PRICES_URL)
-    .then((result) => result.data);
+
+  // const nft = new web3.eth.Contract(ERC721.abi, "0x5b9b42d6e4B2e4Bf8d42Eba32D46918e10899B66");
+  await nft.methods.mint(accounts[1]).send({
+    from: accounts[1],
+    gas: 1000000,
+  });
+  await nft.methods.mint(accounts[1]).send({
+    from: accounts[1],
+    gas: 1000000,
+  });
+  // const nftAddress = (nft as any)._address as string;
+  return nft.options.address;
 }
 
-async function waitForTerraExecution(txHash: string): Promise<TxInfo> {
-  let info: TxInfo | undefined = undefined;
-  while (!info) {
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    try {
-      info = await lcd.tx.txInfo(txHash);
-    } catch (e) {
-      console.error(e);
-    }
-  }
-  if (info.code !== undefined) {
-    // error code
-    throw new Error(
-      `Tx ${txHash}: error code ${info.code}: ${info.raw_log}`
-    );
-  }
-  return info;
-}
-
-async function estimateTerraFee(gasPrices: Coins.Input, msgs: Msg[]): Promise<StdFee> {
-  const feeEstimate = await lcd.tx.estimateFee(
-    terraWallet.key.accAddress,
-    msgs,
-    {
-      memo: "localhost",
-      feeDenoms: ["uluna"],
-      gasPrices,
-    }
-  );
-  return feeEstimate;
+async function deployNFTOnTerra(): Promise<string> {
+  var address: any;
+  await terraWallet
+    .createAndSignTx({
+      msgs: [
+        new MsgInstantiateContract(
+          terraWallet.key.accAddress,
+          terraWallet.key.accAddress,
+          TERRA_CW721_CODE_ID,
+          {
+            name: "INTEGRATION TEST NFT",
+            symbol: "INT",
+            minter: terraWallet.key.accAddress,
+          }
+        ),
+      ],
+      memo: "",
+    })
+    .then((tx) => lcd.tx.broadcast(tx))
+    .then((rs) => {
+      const match = /"contract_address","value":"([^"]+)/gm.exec(rs.raw_log);
+      if (match) {
+        address = match[1];
+      }
+    });
+  await mint_cw721(address, 0, 'https://ixmfkhnh2o4keek2457f2v2iw47cugsx23eynlcfpstxihsay7nq.arweave.net/RdhVHafTuKIRWud-XVdItz4qGlfWyYasRXyndB5Ax9s/');
+  await mint_cw721(address, 1, 'https://portal.neondistrict.io/api/getNft/158456327500392944014123206890');
+  return address;
 }
 
 describe("Integration Tests", () => {
@@ -124,6 +110,7 @@ describe("Integration Tests", () => {
     test("Send Ethereum ERC-721 to Terra", (done) => {
       (async () => {
         try {
+          const erc721 = await deployNFTOnEth();
           // create a signer for Eth
           const provider = new ethers.providers.WebSocketProvider(ETH_NODE_URL);
           const signer = new ethers.Wallet(ETH_PRIVATE_KEY, provider);
@@ -131,7 +118,7 @@ describe("Integration Tests", () => {
           const receipt = await transferFromEth(
             ETH_NFT_BRIDGE_ADDRESS,
             signer,
-            TEST_ERC721,
+            erc721,
             0,
             CHAIN_ID_TERRA,
             hexToUint8Array(
@@ -196,6 +183,7 @@ describe("Integration Tests", () => {
     test("Send Terra CW721 to Ethereum", (done) => {
       (async () => {
         try {
+          const cw721 = await deployNFTOnTerra();
           // create a signer for Eth
           const provider = new ethers.providers.WebSocketProvider(ETH_NODE_URL);
           const signer = new ethers.Wallet(ETH_PRIVATE_KEY, provider);
@@ -203,7 +191,7 @@ describe("Integration Tests", () => {
           const msgs = await transferFromTerra(
             terraWallet.key.accAddress,
             TERRA_NFT_BRIDGE_ADDRESS,
-            TEST_CW721,
+            cw721,
             "0",
             CHAIN_ID_ETH,
             hexToUint8Array(

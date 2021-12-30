@@ -4,7 +4,7 @@ import { Connection, PublicKey } from "@solana/web3.js";
 // see devnet.md
 export const ETH_NODE_URL = "ws://localhost:8545";
 export const ETH_PRIVATE_KEY =
-  "0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d";
+  "0x6cbed15c793ce57650b9877cf6fa156fbef513c4e6134f022a85b1ffdd59b2a1"; // account 1
 export const ETH_CORE_BRIDGE_ADDRESS =
   "0xC89Ce4735882C9F0f0FE26686c53074E09B0D550";
 export const ETH_NFT_BRIDGE_ADDRESS =
@@ -28,8 +28,9 @@ export const TERRA_CORE_BRIDGE_ADDRESS =
 export const TERRA_NFT_BRIDGE_ADDRESS =
   "terra1kyl8f2xkd63cga8szgkejdyvxay7mc7qpdc3c5";
 export const TERRA_PRIVATE_KEY =
-  "notice oak worry limit wrap speak medal online prefer cluster roof addict wrist behave treat actual wasp year salad speed social layer crew genius";
+  "quality vacuum heart guard buzz spike sight swarm shove special gym robust assume sudden deposit grid alcohol choice devote leader tilt noodle tide penalty";
 export const TEST_ERC721 = "0x5b9b42d6e4B2e4Bf8d42Eba32D46918e10899B66";
+export const TERRA_CW721_CODE_ID = 8;
 export const TEST_CW721 = "terra1p7tyyk7f2rt6gtja8zlthqn3jfykczdm209gu8";
 export const TEST_SOLANA_TOKEN = "BVxyYhm498L79r4HMQ9sxZ5bi41DmJmeWZ7SCS7Cyvna";
 export const WORMHOLE_RPC_HOSTS = ["http://localhost:7071"];
