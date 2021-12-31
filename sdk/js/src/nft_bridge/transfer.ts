@@ -17,7 +17,7 @@ export async function transferFromEth(
   tokenID: ethers.BigNumberish,
   recipientChain: ChainId,
   recipientAddress: Uint8Array
-) {
+): Promise<ethers.ContractReceipt> {
   //TODO: should we check if token attestation exists on the target chain
   const token = NFTImplementation__factory.connect(tokenAddress, signer);
   await (await token.approve(tokenBridgeAddress, tokenID)).wait();
@@ -45,7 +45,7 @@ export async function transferFromSolana(
   originAddress?: Uint8Array,
   originChain?: ChainId,
   originTokenId?: Uint8Array
-) {
+): Promise<Transaction> {
   const nonce = createNonce().readUInt32LE(0);
   const transferIx = await getBridgeFeeIx(
     connection,
@@ -116,7 +116,7 @@ export async function transferFromTerra(
   tokenID: string,
   recipientChain: ChainId,
   recipientAddress: Uint8Array
-) {
+): Promise<MsgExecuteContract[]> {
   const nonce = Math.round(Math.random() * 100000);
   return [
     new MsgExecuteContract(

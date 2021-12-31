@@ -17,10 +17,10 @@ import { ChainId } from "../utils";
  */
 export async function getForeignAssetEth(
   tokenBridgeAddress: string,
-  provider: ethers.providers.Web3Provider,
+  provider: ethers.providers.Provider,
   originChain: ChainId,
   originAsset: Uint8Array
-) {
+): Promise<string | null> {
   const tokenBridge = NFTBridge__factory.connect(tokenBridgeAddress, provider);
   try {
     if (originChain === CHAIN_ID_SOLANA) {
@@ -51,7 +51,7 @@ export async function getForeignAssetTerra(
   client: LCDClient,
   originChain: ChainId,
   originAsset: Uint8Array,
-) {
+): Promise<string | null> {
   try {
     // TODO(csongor): special SPL logic?
     const result: { address: string } = await client.wasm.contractQuery(
@@ -81,7 +81,7 @@ export async function getForeignAssetSol(
   originChain: ChainId,
   originAsset: Uint8Array,
   tokenId: Uint8Array
-) {
+): Promise<string> {
   const { wrapped_address } = await importNftWasm();
   const wrappedAddress = wrapped_address(
     tokenBridgeAddress,
