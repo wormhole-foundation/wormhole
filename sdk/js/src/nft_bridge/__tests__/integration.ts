@@ -178,6 +178,55 @@ describe("Integration Tests", () => {
         }
       })();
     });
+    test("Terra rejects URIs longer than 200", (done) => {
+      (async () => {
+        try {
+          const erc721 = await deployNFTOnEth(
+            "Not an APE 🐒",
+            "APE🐒",
+            "https://veryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryverylong.com/",
+            1
+          );
+          let signedVAA = await waitUntilEthTxObserved(await _transferFromEth(erc721.address, 0));
+          let error;
+          try {
+            await _redeemOnTerra(signedVAA);
+          } catch (e) {
+            error = e;
+          }
+          expect(error).not.toBeNull();
+          expect(error.response.data.error).toMatch("vector length exceeds 200");
+
+          done();
+        } catch (e) {
+          console.error(e);
+          done(`An error occured while trying to transfer from Ethereum to Terra: ${e}`);
+        }
+      })();
+    });
+    test("Handles invalid utf8", (done) => {
+      (async () => {
+        const erc721 = await deployNFTOnEth(
+          // 31 bytes of valid characters + a 3 byte character
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaࠀ",
+          "test",
+          "https://foo.com",
+          1
+        );
+        let signedVAA = await waitUntilEthTxObserved(await _transferFromEth(erc721.address, 0));
+        await _redeemOnTerra(signedVAA);
+        const terra_addr = await getForeignAssetTerra(TERRA_NFT_BRIDGE_ADDRESS, lcd, CHAIN_ID_ETH,
+          hexToUint8Array(
+            nativeToHexString(erc721.address, CHAIN_ID_ETH) || ""
+          ));
+        if (!terra_addr) {
+          throw new Error("Terra address is null");
+        }
+        const info: any = await lcd.wasm.contractQuery(terra_addr, { contract_info: {} });
+        expect(info.name).toBe("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa�");
+        done();
+      })();
+    });
   })
 });
 
