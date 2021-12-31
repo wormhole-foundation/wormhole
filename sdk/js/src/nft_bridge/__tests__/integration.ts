@@ -12,7 +12,7 @@ import {
 import {
   MsgInstantiateContract,
 } from "@terra-money/terra.js";
-import { ethers } from "ethers";
+import { BigNumber, ethers } from "ethers";
 import {
   CHAIN_ID_ETH,
   CHAIN_ID_TERRA,
@@ -30,6 +30,8 @@ import {
   transferFromTerra,
   getIsTransferCompletedEth,
   getIsTransferCompletedTerra,
+  getForeignAssetTerra,
+  getForeignAssetEth,
 } from "../";
 import getSignedVAAWithRetry from "../../rpc/getSignedVAAWithRetry";
 import { setDefaultWasm } from "../../solana/wasm";
@@ -46,7 +48,11 @@ import {
   TERRA_CHAIN_ID,
   TERRA_PRIVATE_KEY,
 } from "./consts";
-import { getForeignAssetTerra } from "../../token_bridge";
+import {
+  NFTImplementation,
+  NFTImplementation__factory,
+} from "../../ethers-contracts";
+import sha3 from "js-sha3";
 const ERC721 = require("@openzeppelin/contracts/build/contracts/ERC721PresetMinterPauserAutoId.json");
 
 setDefaultWasm("node");
@@ -65,37 +71,145 @@ const terraWallet: Wallet = lcd.wallet(new MnemonicKey({
 
 const web3 = new Web3(ETH_NODE_URL);
 
-const provider = new ethers.providers.WebSocketProvider(ETH_NODE_URL);
-const signer = new ethers.Wallet(ETH_PRIVATE_KEY, provider);
+let provider: ethers.providers.WebSocketProvider;
+let signer: ethers.Wallet;
 
-afterAll(() => {
+beforeEach(() => {
+  provider = new ethers.providers.WebSocketProvider(ETH_NODE_URL);
+  signer = new ethers.Wallet(ETH_PRIVATE_KEY, provider); // corresponds to accounts[1]
+})
+
+afterEach(() => {
   provider.destroy();
+})
+
+describe("Integration Tests", () => {
+  describe("Ethereum to Terra", () => {
+    test("Send Ethereum ERC-721 to Terra and back", (done) => {
+      (async () => {
+        try {
+          const erc721 = await deployNFTOnEth(
+            "Not an APE 🐒",
+            "APE🐒",
+            "https://cloudflare-ipfs.com/ipfs/QmeSjSinHpPnmXmspMjwiXyN6zS4E9zccariGR3jxcaWtq/",
+            11 // mint ids 0..10 (inclusive)
+          );
+          let signedVAA = await waitUntilEthTxObserved(await _transferFromEth(erc721.address, 10));
+          (await expectReceivedOnTerra(signedVAA)).toBe(false);
+          await _redeemOnTerra(signedVAA);
+          (await expectReceivedOnTerra(signedVAA)).toBe(true);
+
+          // Check we have the wrapped NFT contract
+          const terra_addr = await getForeignAssetTerra(TERRA_NFT_BRIDGE_ADDRESS, lcd, CHAIN_ID_ETH,
+            hexToUint8Array(
+              nativeToHexString(erc721.address, CHAIN_ID_ETH) || ""
+            ));
+          if (!terra_addr) {
+            throw new Error("Terra address is null");
+          }
+
+          // 10 => "10"
+          const info: any = await lcd.wasm.contractQuery(terra_addr, { nft_info: { token_id: "10" } });
+          expect(info.token_uri).toBe("https://cloudflare-ipfs.com/ipfs/QmeSjSinHpPnmXmspMjwiXyN6zS4E9zccariGR3jxcaWtq/10");
+
+          const ownerInfo: any = await lcd.wasm.contractQuery(terra_addr, { owner_of: { token_id: "10" } });
+          expect(ownerInfo.owner).toBe(terraWallet.key.accAddress);
+
+          let ownerEth = await erc721.ownerOf(10);
+          expect(ownerEth).not.toBe(signer.address);
+
+          // Send back the NFT to ethereum
+          signedVAA = await waitUntilTerraTxObserved(await _transferFromTerra(terra_addr, "10"));
+          (await expectReceivedOnEth(signedVAA)).toBe(false);
+          await _redeemOnEth(signedVAA);
+          (await expectReceivedOnEth(signedVAA)).toBe(true);
+
+          // ensure that the transaction roundtrips back to the original native asset
+          ownerEth = await erc721.ownerOf(10);
+          expect(ownerEth).toBe(signer.address);
+
+          // the wrapped token should no longer exist
+          let error;
+          try {
+            await lcd.wasm.contractQuery(terra_addr, { owner_of: { token_id: "10" } });
+          } catch (e) {
+            error = e;
+          }
+          expect(error).not.toBeNull();
+
+          done();
+        } catch (e) {
+          console.error(e);
+          done(`An error occured while trying to transfer from Ethereum to Terra and back: ${e}`);
+        }
+      })();
+    });
+    test("Send Terra CW721 to Ethereum", (done) => {
+      (async () => {
+        try {
+          const token_id = "first";
+          const cw721 = await deployNFTOnTerra(
+            "Integration Test NFT",
+            "INT",
+            'https://ixmfkhnh2o4keek2457f2v2iw47cugsx23eynlcfpstxihsay7nq.arweave.net/RdhVHafTuKIRWud-XVdItz4qGlfWyYasRXyndB5Ax9s/',
+            token_id
+          );
+          // transfer NFT
+          const signedVAA = await waitUntilTerraTxObserved(await _transferFromTerra(cw721, token_id));
+          (await expectReceivedOnEth(signedVAA)).toBe(false);
+          await _redeemOnEth(signedVAA);
+          (await expectReceivedOnEth(signedVAA)).toBe(true);
+          const eth_addr = await getForeignAssetEth(ETH_NFT_BRIDGE_ADDRESS, provider, CHAIN_ID_TERRA,
+            hexToUint8Array(
+              nativeToHexString(cw721, CHAIN_ID_TERRA) || ""
+            ));
+          if (!eth_addr) {
+            throw new Error("Ethereum address is null");
+          }
+          const token = NFTImplementation__factory.connect(eth_addr, signer);
+          // the id on eth will be the keccak256 hash of the terra id
+          const eth_id = '0x' + sha3.keccak256(token_id);
+          const owner = await token.ownerOf(eth_id);
+          expect(owner).toBe(signer.address);
+          done();
+        } catch (e) {
+          console.error(e);
+          done(`An error occured while trying to transfer from Terra to Ethereum: ${e}`);
+        }
+      })();
+    });
+  })
 });
 
-async function deployNFTOnEth(): Promise<Contract> {
+////////////////////////////////////////////////////////////////////////////////
+// Utils
+
+async function deployNFTOnEth(name: string, symbol: string, uri: string, how_many: number): Promise<NFTImplementation> {
   const accounts = await web3.eth.getAccounts();
   const nftContract = new web3.eth.Contract(ERC721.abi);
   let nft = await nftContract.deploy({
     data: ERC721.bytecode,
-    arguments: [
-      "Not an APE 🐒",
-      "APE🐒",
-      "https://cloudflare-ipfs.com/ipfs/QmeSjSinHpPnmXmspMjwiXyN6zS4E9zccariGR3jxcaWtq/"
-    ]
+    arguments: [name, symbol, uri]
   }).send({
     from: accounts[1],
     gas: 5000000,
   });
 
+  // The eth contracts mints tokens with sequential ids, so in order to get to a
+  // specific id, we need to mint multiple nfts. We need this to test that
+  // foreign ids on terra get converted to the decimal stringified form of the
+  // original id.
+  for (var i = 0; i < how_many; i++) {
+    await nft.methods.mint(accounts[1]).send({
+      from: accounts[1],
+      gas: 1000000,
+    });
+  }
 
-  await nft.methods.mint(accounts[1]).send({
-    from: accounts[1],
-    gas: 1000000,
-  });
-  return nft;
+  return NFTImplementation__factory.connect(nft.options.address, signer);
 }
 
-async function deployNFTOnTerra(): Promise<Address> {
+async function deployNFTOnTerra(name: string, symbol: string, uri: string, token_id: string): Promise<Address> {
   var address: any;
   await terraWallet
     .createAndSignTx({
@@ -105,8 +219,8 @@ async function deployNFTOnTerra(): Promise<Address> {
           terraWallet.key.accAddress,
           TERRA_CW721_CODE_ID,
           {
-            name: "INTEGRATION TEST NFT",
-            symbol: "INT",
+            name,
+            symbol,
             minter: terraWallet.key.accAddress,
           }
         ),
@@ -120,76 +234,9 @@ async function deployNFTOnTerra(): Promise<Address> {
         address = match[1];
       }
     });
-  await mint_cw721(address, 0, 'https://ixmfkhnh2o4keek2457f2v2iw47cugsx23eynlcfpstxihsay7nq.arweave.net/RdhVHafTuKIRWud-XVdItz4qGlfWyYasRXyndB5Ax9s/');
+  await mint_cw721(address, token_id, uri);
   return address;
 }
-
-describe("Integration Tests", () => {
-  describe("Ethereum to Terra", () => {
-    test("Send Ethereum ERC-721 to Terra and back", (done) => {
-      (async () => {
-        try {
-          const erc721 = await deployNFTOnEth();
-          let signedVAA = await waitUntilEthTxObserved(await _transferFromEth(erc721.options.address, 0));
-          (await expectReceivedOnTerra(signedVAA)).toBe(false);
-          await _redeemOnTerra(signedVAA);
-          (await expectReceivedOnTerra(signedVAA)).toBe(true);
-
-          // Check we have the NFT we were expecting
-          const terra_addr = await getForeignAssetTerra(TERRA_NFT_BRIDGE_ADDRESS, lcd, CHAIN_ID_ETH,
-            hexToUint8Array(
-              nativeToHexString(erc721.options.address, CHAIN_ID_ETH) || ""
-            ));
-          if (!terra_addr) {
-            throw new Error("Terra address is null");
-          }
-
-          const info: any = await lcd.wasm.contractQuery(terra_addr, { nft_info: { token_id: "0" } });
-          expect(info.token_uri).toBe("https://cloudflare-ipfs.com/ipfs/QmeSjSinHpPnmXmspMjwiXyN6zS4E9zccariGR3jxcaWtq/0");
-
-          const ownerInfo: any = await lcd.wasm.contractQuery(terra_addr, { owner_of: { token_id: "0" } });
-          expect(ownerInfo.owner).toBe(terraWallet.key.accAddress);
-
-          let ownerEth = await erc721.methods.ownerOf(0).call();
-          expect(ownerEth).not.toBe(signer.address);
-
-          // Send back the NFT to ethereum
-          signedVAA = await waitUntilTerraTxObserved(await _transferFromTerra(terra_addr, "0"));
-          (await expectReceivedOnEth(signedVAA)).toBe(false);
-          await _redeemOnEth(signedVAA);
-          (await expectReceivedOnEth(signedVAA)).toBe(true);
-
-          ownerEth = await erc721.methods.ownerOf(0).call();
-          expect(ownerEth).toBe(signer.address);
-
-          done();
-        } catch (e) {
-          console.error(e);
-          done(`An error occured while trying to transfer from Ethereum to Solana: ${e}`);
-        }
-      })();
-    });
-    test("Send Terra CW721 to Ethereum", (done) => {
-      (async () => {
-        try {
-          const cw721 = await deployNFTOnTerra();
-          // transfer NFT
-          const signedVAA = await waitUntilTerraTxObserved(await _transferFromTerra(cw721, "0"));
-          (await expectReceivedOnEth(signedVAA)).toBe(false);
-          await _redeemOnEth(signedVAA);
-          (await expectReceivedOnEth(signedVAA)).toBe(true);
-          done();
-        } catch (e) {
-          console.error(e);
-          done(`An error occured while trying to transfer from Ethereum to Solana: ${e}`);
-        }
-      })();
-    });
-  })
-});
-
-////////////////////////////////////////////////////////////////////////////////
-// Utils
 
 async function getGasPrices() {
   return axios
@@ -248,7 +295,7 @@ async function waitUntilEthTxObserved(receipt: ethers.ContractReceipt): Promise<
   return signedVAA;
 }
 
-async function mint_cw721(contract_address: string, token_id: number, token_uri: any): Promise<void> {
+async function mint_cw721(contract_address: string, token_id: string, token_uri: any): Promise<void> {
   await terraWallet
     .createAndSignTx({
       msgs: [
@@ -257,7 +304,7 @@ async function mint_cw721(contract_address: string, token_id: number, token_uri:
           contract_address,
           {
             mint: {
-              token_id: token_id.toString(),
+              token_id,
               owner: terraWallet.key.accAddress,
               token_uri: token_uri,
             },
@@ -347,7 +394,7 @@ async function _transferFromTerra(terra_addr: string, token_id: string): Promise
   return lcd.tx.broadcast(tx);
 }
 
-async function _redeemOnEth(signedVAA: Uint8Array): Promise<any> {
+async function _redeemOnEth(signedVAA: Uint8Array): Promise<ethers.ContractReceipt> {
   return redeemOnEth(
     ETH_NFT_BRIDGE_ADDRESS,
     signer,
