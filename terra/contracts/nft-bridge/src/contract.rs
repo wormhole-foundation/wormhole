@@ -363,7 +363,6 @@ fn handle_complete_transfer(
         }
     } else {
         // Native NFT, transfer from custody
-        let mut messages = vec![];
         let token_address = (&transfer_info.nft_address[..]).get_address(0);
 
         contract_addr = deps.api.addr_humanize(&token_address)?.to_string();

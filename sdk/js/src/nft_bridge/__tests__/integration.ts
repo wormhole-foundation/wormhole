@@ -274,7 +274,7 @@ describe("Integration Tests", () => {
             error = e;
           }
           expect(error).not.toBeNull();
-          expect(error.response.data.error).toContain("foobar");
+          expect(error.message).toContain("nonexistent token");
 
           done();
         } catch (e) {
