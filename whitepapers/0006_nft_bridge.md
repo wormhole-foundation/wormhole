@@ -36,8 +36,9 @@ NFTs ("Wrapped NFTs") and custody locked NFTs.
 
 We aim to support:
 
-- EIP721: Ethereum, BSC
+- EIP721 with token_uri extension: Ethereum, BSC
 - Metaplex SPL Meta: Solana
+- CW721 with token_uri extension: Terra
 
 ## Detailed Design
 
@@ -69,7 +70,7 @@ message.
 Since every NFT has unique metadata the Transfer messages contain all metadata, a transfer (even the first on per NFT)
 only requires a single Wormhole message to be passed compared to the Token Bridge. On the first transfer action of an
 NFT (address / symbol / name) a wrapped asset (i.e. master edition or new contract) is created. When the wrapped asset (
-contract) is already initialized or was just initialized, the (new) token_id and metadata URL are registered.
+contract) is already initialized or was just initialized, the (new) token_id and metadata URI are registered.
 
 ### API / database schema
 
@@ -100,9 +101,9 @@ Symbol [32]uint8
 Name [32]uint8
 // ID of the token (big-endian uint256)
 TokenID [32]uint8
-// URL of the NFT
-URLLength u8
-URL [n]uint8
+// URI of the NFT. Valid utf8 string, maximum 200 bytes.
+URILength u8
+URI [n]uint8
 // Address of the recipient. Left-zero-padded if shorter than 32 bytes
 To [32]uint8
 // Chain ID of the recipient
