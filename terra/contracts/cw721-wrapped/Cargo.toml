@@ -1,16 +1,10 @@
 [package]
-#TODO(csongor): revise
 name = "cw721-wrapped"
 version = "0.10.1"
 edition = "2018"
-description = "Example extending CW721 NFT to store metadata on chain"
-license = "Apache-2.0"
-repository = "https://github.com/CosmWasm/cw-nfts"
-homepage = "https://cosmwasm.com"
-documentation = "https://docs.cosmwasm.com"
+description = "Wrapped CW721 token contract"
 
 exclude = [
-  # Those files are rust-optimizer artifacts. You might want to commit them for convenience but they should not be part of the source code publication.
   "artifacts/*",
 ]
 
@@ -25,14 +19,11 @@ backtraces = ["cosmwasm-std/backtraces"]
 library = []
 
 [dependencies]
-cw2 = "0.8.0"
-cw721 = { path = "../../packages/cw721" }
 cw721-base = { path = "../../contracts/cw721-base", version = "0.10.0", features = ["library"] }
 cosmwasm-std = { version = "0.16.0" }
 cosmwasm-storage = { version = "0.16.0" }
 schemars = "0.8.6"
 serde = { version = "1.0.130", default-features = false, features = ["derive"] }
-thiserror = { version = "1.0.30" }
 
 [dev-dependencies]
 cosmwasm-schema = { version = "1.0.0-beta2" }

@@ -642,12 +642,9 @@ dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
  "cosmwasm-storage",
- "cw2",
- "cw721",
  "cw721-base",
  "schemars",
  "serde",
- "thiserror",
 ]
 
 [[package]]
@@ -1149,23 +1146,17 @@ name = "nft-bridge"
 version = "0.1.0"
 dependencies = [
  "bigint",
- "byteorder",
  "cosmwasm-std",
  "cosmwasm-storage",
  "cosmwasm-vm",
  "cw721",
  "cw721-base",
  "cw721-wrapped",
- "generic-array 0.14.4",
  "hex",
- "k256",
- "lazy_static",
  "schemars",
  "serde",
  "serde_json",
  "sha3",
- "terraswap",
- "thiserror",
  "wormhole",
 ]
 
