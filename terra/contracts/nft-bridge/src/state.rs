@@ -31,6 +31,7 @@ pub static CONFIG_KEY: &[u8] = b"config";
 pub static WRAPPED_ASSET_KEY: &[u8] = b"wrapped_asset";
 pub static WRAPPED_ASSET_ADDRESS_KEY: &[u8] = b"wrapped_asset_address";
 pub static BRIDGE_CONTRACTS_KEY: &[u8] = b"bridge_contracts";
+pub static TOKEN_ID_HASHES_KEY: &[u8] = b"token_id_hashes";
 
 // Guardian set information
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -73,6 +74,24 @@ pub fn wrapped_asset_address(storage: &mut dyn Storage) -> Bucket<Vec<u8>> {
 
 pub fn wrapped_asset_address_read(storage: &dyn Storage) -> ReadonlyBucket<Vec<u8>> {
     bucket_read(storage, WRAPPED_ASSET_ADDRESS_KEY)
+}
+
+pub fn token_id_hashes(storage: &mut dyn Storage, chain: u16, address: [u8; 32]) -> Bucket<String> {
+    Bucket::multilevel(
+        storage,
+        &[TOKEN_ID_HASHES_KEY, &chain.to_be_bytes(), &address],
+    )
+}
+
+pub fn token_id_hashes_read(
+    storage: &mut dyn Storage,
+    chain: u16,
+    address: [u8; 32],
+) -> ReadonlyBucket<String> {
+    ReadonlyBucket::multilevel(
+        storage,
+        &[TOKEN_ID_HASHES_KEY, &chain.to_be_bytes(), &address],
+    )
 }
 
 type Serialized128 = String;

@@ -4,17 +4,20 @@ use cosmwasm_std::{
     StdResult,
     Storage,
 };
-use cosmwasm_storage::{
-    Bucket,
-    ReadonlyBucket,
-};
+
 use sha3::{
     Digest,
     Keccak256,
 };
 use wormhole::byte_utils::ByteUtils;
 
-use crate::CHAIN_ID;
+use crate::{
+    state::{
+        token_id_hashes,
+        token_id_hashes_read,
+    },
+    CHAIN_ID,
+};
 
 // NOTE: [External and internal token id conversion]
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -91,34 +94,4 @@ pub fn to_external_token_id(
             .to_big_endian(&mut bytes);
         Ok(bytes)
     }
-}
-
-// State
-
-static TOKEN_ID_HASHES_KEY: &[u8] = b"token_id_hashes";
-
-fn token_id_hashes(
-    storage: &mut dyn Storage,
-    nft_chain: u16,
-    nft_address: [u8; 32],
-) -> Bucket<String> {
-    Bucket::multilevel(
-        storage,
-        &[TOKEN_ID_HASHES_KEY, &nft_chain.to_be_bytes(), &nft_address],
-    )
-}
-
-fn token_id_hashes_read(
-    storage: &mut dyn Storage,
-    nft_chain: u16,
-    asset_address: [u8; 32],
-) -> ReadonlyBucket<String> {
-    ReadonlyBucket::multilevel(
-        storage,
-        &[
-            TOKEN_ID_HASHES_KEY,
-            &nft_chain.to_be_bytes(),
-            &asset_address,
-        ],
-    )
 }
