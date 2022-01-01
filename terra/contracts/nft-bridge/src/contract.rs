@@ -315,17 +315,12 @@ fn handle_complete_transfer(
         let asset_address = transfer_info.nft_address;
         let asset_id = build_asset_id(token_chain, &asset_address);
 
-        let owner = deps
-            .api
-            .addr_humanize(&(&transfer_info.recipient[..]).get_address(0))?
-            .to_string();
-
         let token_uri = String::from_utf8(transfer_info.uri.to_vec())
             .or_else(|_| Err(StdError::generic_err("could not parse uri string")))?;
 
         let mint_msg = cw721_base::msg::MintMsg {
             token_id,
-            owner,
+            owner: recipient.to_string(),
             token_uri: Some(token_uri),
             extension: None,
         };
