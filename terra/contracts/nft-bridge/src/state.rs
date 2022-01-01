@@ -94,21 +94,6 @@ pub fn token_id_hashes_read(
     )
 }
 
-type Serialized128 = String;
-
-/// Structure to keep track of an active CW20 transfer, required to pass state through to the reply
-/// handler for submessages during a transfer.
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct TransferState {
-    pub account: String,
-    pub message: Vec<u8>,
-    pub multiplier: Serialized128,
-    pub nonce: u32,
-    pub previous_balance: Serialized128,
-    pub nft_address: HumanAddr,
-    pub token_canonical: CanonicalAddr,
-}
-
 pub struct Action;
 
 impl Action {
