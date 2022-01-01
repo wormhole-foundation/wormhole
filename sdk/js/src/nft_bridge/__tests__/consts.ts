@@ -26,12 +26,12 @@ export const TERRA_GAS_PRICES_URL = "http://localhost:3060/v1/txs/gas_prices";
 export const TERRA_CORE_BRIDGE_ADDRESS =
   "terra18vd8fpwxzck93qlwghaj6arh4p7c5n896xzem5";
 export const TERRA_NFT_BRIDGE_ADDRESS =
-  "terra1kyl8f2xkd63cga8szgkejdyvxay7mc7qpdc3c5";
+  "terra19zpyd046u4swqpksr3n44cej4j8pg6ah2y6dcg";
 export const TERRA_PRIVATE_KEY =
   "quality vacuum heart guard buzz spike sight swarm shove special gym robust assume sudden deposit grid alcohol choice devote leader tilt noodle tide penalty";
 export const TEST_ERC721 = "0x5b9b42d6e4B2e4Bf8d42Eba32D46918e10899B66";
 export const TERRA_CW721_CODE_ID = 8;
-export const TEST_CW721 = "terra1p7tyyk7f2rt6gtja8zlthqn3jfykczdm209gu8";
+export const TEST_CW721 = "terra1l425neayde0fzfcv3apkyk4zqagvflm6cmha9v";
 export const TEST_SOLANA_TOKEN = "BVxyYhm498L79r4HMQ9sxZ5bi41DmJmeWZ7SCS7Cyvna";
 export const WORMHOLE_RPC_HOSTS = ["http://localhost:7071"];
 

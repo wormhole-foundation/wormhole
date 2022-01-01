@@ -260,32 +260,6 @@ describe("Integration Tests", () => {
         }
       })();
     });
-    test("Terra rejects URIs longer than 200", (done) => {
-      (async () => {
-        try {
-          const erc721 = await deployNFTOnEth(
-            "Not an APE 🐒",
-            "APE🐒",
-            "https://veryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryverylong.com/",
-            1
-          );
-          let signedVAA = await waitUntilEthTxObserved(await _transferFromEth(erc721.address, 0));
-          let error;
-          try {
-            await _redeemOnTerra(signedVAA);
-          } catch (e) {
-            error = e;
-          }
-          expect(error).not.toBeNull();
-          expect(error.response.data.error).toMatch("vector length exceeds 200");
-
-          done();
-        } catch (e) {
-          console.error(e);
-          done(`An error occured while trying to transfer from Ethereum to Terra: ${e}`);
-        }
-      })();
-    });
     test("Handles invalid utf8", (done) => {
       (async () => {
         const erc721 = await deployNFTOnEth(

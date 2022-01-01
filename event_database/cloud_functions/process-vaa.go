@@ -30,7 +30,7 @@ var NFTEmitters = map[string]string{
 	// devnet
 	"96ee982293251b48729804c8e8b24b553eb6b887867024948d2236fd37a577ab": "NFTWqJR8YnRVqPDvTJrYuLrQDitTG5AScqbeghi4zSA", // solana
 	"00000000000000000000000026b4afb60d6c903165150c6f0aa14f8016be4aec": "0x26b4afb60d6c903165150c6f0aa14f8016be4aec",  // ethereum
-	"000000000000000000000000b13e74a8d66ea38474f0122d99348c3749ede3c0": "terra1kyl8f2xkd63cga8szgkejdyvxay7mc7qpdc3c5",// terra
+	"000000000000000000000000288246bebae560e006d01c675ae332ac8e146bb7": "terra19zpyd046u4swqpksr3n44cej4j8pg6ah2y6dcg",// terra
 }
 var TokenTransferEmitters = map[string]string{
 	// mainnet

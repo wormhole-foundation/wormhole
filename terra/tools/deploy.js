@@ -161,7 +161,6 @@ addresses["wormhole.wasm"] = await instantiate("wormhole.wasm", {
 });
 
 addresses["token_bridge.wasm"] = await instantiate("token_bridge.wasm", {
-  owner: wallet.key.accAddress,
   gov_chain: govChain,
   gov_address: Buffer.from(govAddress, "hex").toString("base64"),
   wormhole_contract: addresses["wormhole.wasm"],
@@ -196,7 +195,6 @@ addresses["pyth_bridge.wasm"] = await instantiate("pyth_bridge.wasm", {
 });
 
 addresses["nft_bridge.wasm"] = await instantiate("nft_bridge.wasm", {
-  owner: wallet.key.accAddress,
   gov_chain: govChain,
   gov_address: Buffer.from(govAddress, "hex").toString("base64"),
   wormhole_contract: addresses["wormhole.wasm"],
