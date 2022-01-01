@@ -40,6 +40,7 @@ export async function getForeignAssetEth(
 
 
 /**
+ * Returns a foreign asset address on Terra for a provided native chain and asset address
  * @param tokenBridgeAddress
  * @param client
  * @param originChain
