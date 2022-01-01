@@ -374,9 +374,9 @@ fn handle_complete_transfer(
         contract_addr = deps.api.addr_humanize(&token_address)?.to_string();
 
         messages.push(CosmosMsg::<Empty>::Wasm(WasmMsg::Execute {
-            contract_addr: token_address.to_string(),
+            contract_addr: contract_addr.clone(),
             msg: to_binary(&cw721_base::msg::ExecuteMsg::<Option<Empty>>::TransferNft {
-                recipient: env.contract.address.to_string(),
+                recipient: recipient.to_string(),
                 token_id,
             })?,
             funds: vec![],
@@ -461,12 +461,15 @@ fn handle_initiate_transfer(
                 })?,
             }))?;
 
+    let external_token_id =
+        to_external_token_id(deps.storage, asset_chain, &asset_address, token_id.clone())?;
+
     let transfer_info = TransferInfo {
         nft_address: asset_address,
         nft_chain: asset_chain,
         symbol: string_to_array(&symbol),
         name: string_to_array(&name),
-        token_id: to_external_token_id(deps.storage, asset_chain, &asset_address, token_id)?,
+        token_id: external_token_id,
         uri: BoundedVec::new(token_uri.unwrap_or("".to_string()).into())?,
         recipient,
         recipient_chain,
@@ -490,6 +493,8 @@ fn handle_initiate_transfer(
         .add_messages(messages)
         .add_attribute("transfer.token_chain", asset_chain.to_string())
         .add_attribute("transfer.token", hex::encode(asset_address))
+        .add_attribute("transfer.token_id", token_id)
+        .add_attribute("transfer.external_token_id", hex::encode(external_token_id))
         .add_attribute(
             "transfer.sender",
             hex::encode(extend_address_to_32(
@@ -558,45 +563,4 @@ fn build_asset_id(chain: u16, address: &[u8]) -> Vec<u8> {
     let mut hasher = Keccak256::new();
     hasher.update(asset_id);
     hasher.finalize().to_vec()
-}
-
-#[cfg(test)]
-mod tests {
-    use cosmwasm_std::{
-        Binary,
-        StdResult,
-    };
-
-    #[test]
-    fn test_me() -> StdResult<()> {
-        let x = vec![
-            1u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 96u8, 180u8, 94u8, 195u8, 0u8, 0u8,
-            0u8, 1u8, 0u8, 3u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 38u8,
-            229u8, 4u8, 215u8, 149u8, 163u8, 42u8, 54u8, 156u8, 236u8, 173u8, 168u8, 72u8, 220u8,
-            100u8, 90u8, 154u8, 159u8, 160u8, 215u8, 0u8, 91u8, 48u8, 44u8, 48u8, 44u8, 51u8, 44u8,
-            48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8,
-            48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 53u8, 55u8, 44u8, 52u8,
-            54u8, 44u8, 50u8, 53u8, 53u8, 44u8, 53u8, 48u8, 44u8, 50u8, 52u8, 51u8, 44u8, 49u8,
-            48u8, 54u8, 44u8, 49u8, 50u8, 50u8, 44u8, 49u8, 49u8, 48u8, 44u8, 49u8, 50u8, 53u8,
-            44u8, 56u8, 56u8, 44u8, 55u8, 51u8, 44u8, 49u8, 56u8, 57u8, 44u8, 50u8, 48u8, 55u8,
-            44u8, 49u8, 48u8, 52u8, 44u8, 56u8, 51u8, 44u8, 49u8, 49u8, 57u8, 44u8, 49u8, 50u8,
-            55u8, 44u8, 49u8, 57u8, 50u8, 44u8, 49u8, 52u8, 55u8, 44u8, 56u8, 57u8, 44u8, 48u8,
-            44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8,
-            44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8,
-            44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8,
-            44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8,
-            44u8, 48u8, 44u8, 51u8, 44u8, 50u8, 51u8, 50u8, 44u8, 48u8, 44u8, 51u8, 44u8, 48u8,
-            44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8,
-            44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 48u8, 44u8, 53u8, 51u8, 44u8, 49u8, 49u8,
-            54u8, 44u8, 52u8, 56u8, 44u8, 49u8, 49u8, 54u8, 44u8, 49u8, 52u8, 57u8, 44u8, 49u8,
-            48u8, 56u8, 44u8, 49u8, 49u8, 51u8, 44u8, 56u8, 44u8, 48u8, 44u8, 50u8, 51u8, 50u8,
-            44u8, 52u8, 57u8, 44u8, 49u8, 53u8, 50u8, 44u8, 49u8, 44u8, 50u8, 56u8, 44u8, 50u8,
-            48u8, 51u8, 44u8, 50u8, 49u8, 50u8, 44u8, 50u8, 50u8, 49u8, 44u8, 50u8, 52u8, 49u8,
-            44u8, 56u8, 53u8, 44u8, 49u8, 48u8, 57u8, 93u8,
-        ];
-        let b = Binary::from(x.clone());
-        let y = b.as_slice().to_vec();
-        assert_eq!(x, y);
-        Ok(())
-    }
 }
