@@ -11,7 +11,7 @@ import {
 import {
   MsgInstantiateContract,
 } from "@terra-money/terra.js";
-import { BigNumber, ethers } from "ethers";
+import { BigNumberish, ethers } from "ethers";
 import {
   CHAIN_ID_ETH,
   CHAIN_ID_TERRA,
@@ -226,7 +226,7 @@ describe("Integration Tests", () => {
         }
       })();
     });
-    test("Send Terra CW721 to Ethereum", (done) => {
+    test("Send Terra CW721 to Ethereum and back", (done) => {
       (async () => {
         try {
           const token_id = "first";
@@ -237,10 +237,12 @@ describe("Integration Tests", () => {
             token_id
           );
           // transfer NFT
-          const signedVAA = await waitUntilTerraTxObserved(await _transferFromTerra(cw721, token_id));
+          let signedVAA = await waitUntilTerraTxObserved(await _transferFromTerra(cw721, token_id));
           (await expectReceivedOnEth(signedVAA)).toBe(false);
           await _redeemOnEth(signedVAA);
           (await expectReceivedOnEth(signedVAA)).toBe(true);
+
+          // Check we have the wrapped NFT contract
           const eth_addr = await getForeignAssetEth(ETH_NFT_BRIDGE_ADDRESS, provider, CHAIN_ID_TERRA,
             hexToUint8Array(
               nativeToHexString(cw721, CHAIN_ID_TERRA) || ""
@@ -248,11 +250,32 @@ describe("Integration Tests", () => {
           if (!eth_addr) {
             throw new Error("Ethereum address is null");
           }
+
           const token = NFTImplementation__factory.connect(eth_addr, signer);
           // the id on eth will be the keccak256 hash of the terra id
           const eth_id = '0x' + sha3.keccak256(token_id);
           const owner = await token.ownerOf(eth_id);
           expect(owner).toBe(signer.address);
+
+          // send back the NFT to terra
+          signedVAA = await waitUntilEthTxObserved(await _transferFromEth(eth_addr, eth_id));
+          (await expectReceivedOnTerra(signedVAA)).toBe(false);
+          await _redeemOnTerra(signedVAA);
+          (await expectReceivedOnTerra(signedVAA)).toBe(true);
+
+          const ownerInfo: any = await lcd.wasm.contractQuery(cw721, { owner_of: { token_id: token_id } });
+          expect(ownerInfo.owner).toBe(terraWallet.key.accAddress);
+
+          // the wrapped token should no longer exist
+          let error;
+          try {
+            await token.ownerOf(eth_id);
+          } catch (e) {
+            error = e;
+          }
+          expect(error).not.toBeNull();
+          expect(error.response.data.error).toContain("foobar");
+
           done();
         } catch (e) {
           console.error(e);
@@ -466,7 +489,7 @@ async function expectReceivedOnEth(signedVAA: Uint8Array) {
   );
 }
 
-async function _transferFromEth(erc721: string, token_id: number): Promise<ethers.ContractReceipt> {
+async function _transferFromEth(erc721: string, token_id: BigNumberish): Promise<ethers.ContractReceipt> {
   return transferFromEth(
     ETH_NFT_BRIDGE_ADDRESS,
     signer,

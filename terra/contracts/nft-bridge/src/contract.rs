@@ -352,7 +352,7 @@ fn handle_complete_transfer(
                     symbol: get_string_from_32(&transfer_info.symbol.to_vec()),
                     asset_chain: token_chain,
                     asset_address: (&transfer_info.nft_address[..]).into(),
-                    minter: env.contract.address.clone().into_string(),
+                    minter: env.contract.address.into_string(),
                     mint: Some(mint_msg),
                     init_hook: Some(cw721_wrapped::msg::InitHook {
                         msg: cw721_wrapped::to_binary(&ExecuteMsg::RegisterAssetHook {

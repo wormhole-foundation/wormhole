@@ -84,7 +84,6 @@ function Target() {
   const handleNextClick = useCallback(() => {
     dispatch(incrementStep());
   }, [dispatch]);
-  console.log("target asset", targetAsset);
   return (
     <>
       <StepDescription>Select a recipient chain and address.</StepDescription>
