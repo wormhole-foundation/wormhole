@@ -1,7 +1,6 @@
 import { BlockTxBroadcastResult, Coins, LCDClient, MnemonicKey, Msg, MsgExecuteContract, StdFee, StdTx, TxInfo, Wallet } from "@terra-money/terra.js";
 import axios from "axios";
 import Web3 from 'web3';
-import { Contract } from 'web3-eth-contract';
 import { NodeHttpTransport } from "@improbable-eng/grpc-web-node-http-transport";
 import { describe, expect, jest, test } from "@jest/globals";
 import {
@@ -47,6 +46,8 @@ import {
   TERRA_NODE_URL,
   TERRA_CHAIN_ID,
   TERRA_PRIVATE_KEY,
+  SOLANA_PRIVATE_KEY,
+  SOLANA_HOST,
 } from "./consts";
 import {
   NFTImplementation,
@@ -54,6 +55,8 @@ import {
 } from "../../ethers-contracts";
 import sha3 from "js-sha3";
 const ERC721 = require("@openzeppelin/contracts/build/contracts/ERC721PresetMinterPauserAutoId.json");
+import * as solanaWeb3 from "@solana/web3.js";
+import * as splToken from "@solana/spl-token";
 
 setDefaultWasm("node");
 
@@ -61,6 +64,7 @@ jest.setTimeout(60000);
 
 type Address = string;
 
+// terra setup
 const lcd = new LCDClient({
   URL: TERRA_NODE_URL,
   chainID: TERRA_CHAIN_ID,
@@ -69,10 +73,29 @@ const terraWallet: Wallet = lcd.wallet(new MnemonicKey({
   mnemonic: TERRA_PRIVATE_KEY,
 }));
 
+// ethereum setup
 const web3 = new Web3(ETH_NODE_URL);
 
 let provider: ethers.providers.WebSocketProvider;
 let signer: ethers.Wallet;
+
+// solana setup
+const solConnection = new solanaWeb3.Connection(SOLANA_HOST, "confirmed");
+const solKeypair = solanaWeb3.Keypair.fromSecretKey(SOLANA_PRIVATE_KEY);
+const solPayerAddress = solKeypair.publicKey.toString();
+
+(async () => {
+  // create new token mint
+  let mint = await splToken.Token.createMint(
+    solConnection,
+    solKeypair,
+    solKeypair.publicKey,
+    null,
+    9,
+    splToken.TOKEN_PROGRAM_ID,
+  );
+
+})
 
 beforeEach(() => {
   provider = new ethers.providers.WebSocketProvider(ETH_NODE_URL);
@@ -86,6 +109,65 @@ afterEach(() => {
 describe("Integration Tests", () => {
   describe("Ethereum to Terra", () => {
     test("Send Ethereum ERC-721 to Terra and back", (done) => {
+      (async () => {
+        try {
+          const erc721 = await deployNFTOnEth(
+            "Not an APE 🐒",
+            "APE🐒",
+            "https://cloudflare-ipfs.com/ipfs/QmeSjSinHpPnmXmspMjwiXyN6zS4E9zccariGR3jxcaWtq/",
+            11 // mint ids 0..10 (inclusive)
+          );
+          let signedVAA = await waitUntilEthTxObserved(await _transferFromEth(erc721.address, 10));
+          (await expectReceivedOnTerra(signedVAA)).toBe(false);
+          await _redeemOnTerra(signedVAA);
+          (await expectReceivedOnTerra(signedVAA)).toBe(true);
+
+          // Check we have the wrapped NFT contract
+          const terra_addr = await getForeignAssetTerra(TERRA_NFT_BRIDGE_ADDRESS, lcd, CHAIN_ID_ETH,
+            hexToUint8Array(
+              nativeToHexString(erc721.address, CHAIN_ID_ETH) || ""
+            ));
+          if (!terra_addr) {
+            throw new Error("Terra address is null");
+          }
+
+          // 10 => "10"
+          const info: any = await lcd.wasm.contractQuery(terra_addr, { nft_info: { token_id: "10" } });
+          expect(info.token_uri).toBe("https://cloudflare-ipfs.com/ipfs/QmeSjSinHpPnmXmspMjwiXyN6zS4E9zccariGR3jxcaWtq/10");
+
+          const ownerInfo: any = await lcd.wasm.contractQuery(terra_addr, { owner_of: { token_id: "10" } });
+          expect(ownerInfo.owner).toBe(terraWallet.key.accAddress);
+
+          let ownerEth = await erc721.ownerOf(10);
+          expect(ownerEth).not.toBe(signer.address);
+
+          // Send back the NFT to ethereum
+          signedVAA = await waitUntilTerraTxObserved(await _transferFromTerra(terra_addr, "10"));
+          (await expectReceivedOnEth(signedVAA)).toBe(false);
+          await _redeemOnEth(signedVAA);
+          (await expectReceivedOnEth(signedVAA)).toBe(true);
+
+          // ensure that the transaction roundtrips back to the original native asset
+          ownerEth = await erc721.ownerOf(10);
+          expect(ownerEth).toBe(signer.address);
+
+          // the wrapped token should no longer exist
+          let error;
+          try {
+            await lcd.wasm.contractQuery(terra_addr, { owner_of: { token_id: "10" } });
+          } catch (e) {
+            error = e;
+          }
+          expect(error).not.toBeNull();
+
+          done();
+        } catch (e) {
+          console.error(e);
+          done(`An error occured while trying to transfer from Ethereum to Terra and back: ${e}`);
+        }
+      })();
+    });
+    test("Send Solana NFT to Terra and back", (done) => {
       (async () => {
         try {
           const erc721 = await deployNFTOnEth(
