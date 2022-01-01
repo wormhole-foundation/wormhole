@@ -464,7 +464,7 @@ fn handle_initiate_transfer(
         symbol: string_to_array(&symbol),
         name: string_to_array(&name),
         token_id: external_token_id,
-        uri: BoundedVec::new(token_uri.unwrap_or("".to_string()).into())?,
+        uri: BoundedVec::new(token_uri.unwrap().into())?,
         recipient,
         recipient_chain,
     };
