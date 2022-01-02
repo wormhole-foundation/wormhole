@@ -19,7 +19,9 @@ backtraces = ["cosmwasm-std/backtraces"]
 library = []
 
 [dependencies]
+cw2 = { version = "0.8.0" }
 cw721-base = { path = "../../contracts/cw721-base", version = "0.10.0", features = ["library"] }
+cw721 = { path = "../../packages/cw721", version = "0.10.1" }
 cosmwasm-std = { version = "0.16.0" }
 cosmwasm-storage = { version = "0.16.0" }
 schemars = "0.8.6"
