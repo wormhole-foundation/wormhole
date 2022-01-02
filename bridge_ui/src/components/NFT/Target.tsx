@@ -104,7 +104,7 @@ function Target() {
         value={readableTargetAddress}
         disabled={true}
       />
-      {targetAsset !== ethers.constants.AddressZero ? (
+      {targetAsset !== ethers.constants.AddressZero && targetAsset !== null ? (
         <>
           <TextField
             label="Token Address"

@@ -1,6 +1,7 @@
 import {
   ChainId,
   CHAIN_ID_SOLANA,
+  CHAIN_ID_TERRA,
   getClaimAddressSolana,
   hexToUint8Array,
   isEVMChain,
@@ -13,11 +14,16 @@ import {
   isNFTVAASolanaNative,
   redeemOnEth,
   redeemOnSolana,
+  redeemOnTerra,
 } from "@certusone/wormhole-sdk/lib/esm/nft_bridge";
 import { arrayify } from "@ethersproject/bytes";
 import { Alert } from "@material-ui/lab";
 import { WalletContextState } from "@solana/wallet-adapter-react";
 import { Connection } from "@solana/web3.js";
+import {
+  ConnectedWallet,
+  useConnectedWallet,
+} from "@terra-money/wallet-provider";
 import { Signer } from "ethers";
 import { useSnackbar } from "notistack";
 import { useCallback, useMemo } from "react";
@@ -32,10 +38,13 @@ import {
   SOLANA_HOST,
   SOL_BRIDGE_ADDRESS,
   SOL_NFT_BRIDGE_ADDRESS,
+  TERRA_NFT_BRIDGE_ADDRESS,
 } from "../utils/consts";
 import { getMetadataAddress } from "../utils/metaplex";
 import parseError from "../utils/parseError";
 import { signSendAndConfirm } from "../utils/solana";
+import { postWithFees } from "../utils/terra";
+import useIsWalletReady from "./useIsWalletReady";
 import useNFTSignedVAA from "./useNFTSignedVAA";
 
 async function evm(
@@ -54,6 +63,38 @@ async function evm(
     );
     dispatch(
       setRedeemTx({ id: receipt.transactionHash, block: receipt.blockNumber })
+    );
+    enqueueSnackbar(null, {
+      content: <Alert severity="success">Transaction confirmed</Alert>,
+    });
+  } catch (e) {
+    enqueueSnackbar(null, {
+      content: <Alert severity="error">{parseError(e)}</Alert>,
+    });
+    dispatch(setIsRedeeming(false));
+  }
+}
+
+async function terra(
+  dispatch: any,
+  enqueueSnackbar: any,
+  wallet: ConnectedWallet,
+  signedVAA: Uint8Array
+) {
+  dispatch(setIsRedeeming(true));
+  try {
+    const msg = await redeemOnTerra(
+      TERRA_NFT_BRIDGE_ADDRESS,
+      wallet.terraAddress,
+      signedVAA
+    );
+    const result = await postWithFees(
+      wallet,
+      [msg],
+      "Wormhole - Complete NFT Transfer"
+    );
+    dispatch(
+      setRedeemTx({ id: result.result.txhash, block: result.result.height })
     );
     enqueueSnackbar(null, {
       content: <Alert severity="success">Transaction confirmed</Alert>,
@@ -154,6 +195,9 @@ export function useHandleNFTRedeem() {
   const { signer } = useEthereumProvider();
   const signedVAA = useNFTSignedVAA();
   const isRedeeming = useSelector(selectNFTIsRedeeming);
+  const walletReady = useIsWalletReady(targetChain, false);
+  const terraWallet = useConnectedWallet();
+
   const handleRedeemClick = useCallback(() => {
     if (isEVMChain(targetChain) && !!signer && signedVAA) {
       evm(dispatch, enqueueSnackbar, signer, signedVAA, targetChain);
@@ -170,6 +214,13 @@ export function useHandleNFTRedeem() {
         solPK.toString(),
         signedVAA
       );
+    } else if (
+      targetChain === CHAIN_ID_TERRA &&
+      walletReady.isReady &&
+      !!terraWallet &&
+      !!signedVAA
+    ) {
+      terra(dispatch, enqueueSnackbar, terraWallet, signedVAA);
     } else {
     }
   }, [
@@ -180,6 +231,8 @@ export function useHandleNFTRedeem() {
     signedVAA,
     solanaWallet,
     solPK,
+    terraWallet,
+    walletReady.isReady,
   ]);
   return useMemo(
     () => ({

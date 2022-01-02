@@ -1,21 +1,29 @@
 import {
   ChainId,
   CHAIN_ID_SOLANA,
+  CHAIN_ID_TERRA,
   getEmitterAddressEth,
   getEmitterAddressSolana,
+  getEmitterAddressTerra,
   hexToUint8Array,
   isEVMChain,
   parseSequenceFromLogEth,
   parseSequenceFromLogSolana,
+  parseSequenceFromLogTerra,
   uint8ArrayToHex,
 } from "@certusone/wormhole-sdk";
 import {
   transferFromEth,
   transferFromSolana,
+  transferFromTerra,
 } from "@certusone/wormhole-sdk/lib/esm/nft_bridge";
 import { Alert } from "@material-ui/lab";
 import { WalletContextState } from "@solana/wallet-adapter-react";
 import { Connection } from "@solana/web3.js";
+import {
+  ConnectedWallet,
+  useConnectedWallet,
+} from "@terra-money/wallet-provider";
 import { BigNumber, Signer } from "ethers";
 import { arrayify, zeroPad } from "ethers/lib/utils";
 import { useSnackbar } from "notistack";
@@ -46,10 +54,13 @@ import {
   SOLANA_HOST,
   SOL_BRIDGE_ADDRESS,
   SOL_NFT_BRIDGE_ADDRESS,
+  TERRA_NFT_BRIDGE_ADDRESS,
 } from "../utils/consts";
 import { getSignedVAAWithRetry } from "../utils/getSignedVAAWithRetry";
 import parseError from "../utils/parseError";
 import { signSendAndConfirm } from "../utils/solana";
+import { postWithFees, waitForTerraExecution } from "../utils/terra";
+import useIsWalletReady from "./useIsWalletReady";
 import useNFTTargetAddressHex from "./useNFTTargetAddress";
 
 async function evm(
@@ -173,6 +184,65 @@ async function solana(
   }
 }
 
+async function terra(
+  dispatch: any,
+  enqueueSnackbar: any,
+  wallet: ConnectedWallet,
+  asset: string,
+  tokenId: string,
+  targetChain: ChainId,
+  targetAddress: Uint8Array
+) {
+  dispatch(setIsSending(true));
+  try {
+    const msgs = await transferFromTerra(
+      wallet.terraAddress,
+      TERRA_NFT_BRIDGE_ADDRESS,
+      asset,
+      tokenId,
+      targetChain,
+      targetAddress
+    );
+
+    const result = await postWithFees(
+      wallet,
+      msgs,
+      "Wormhole - Initiate NFT Transfer"
+    );
+
+    const info = await waitForTerraExecution(result);
+    dispatch(setTransferTx({ id: info.txhash, block: info.height }));
+    enqueueSnackbar(null, {
+      content: <Alert severity="success">Transaction confirmed</Alert>,
+    });
+    const sequence = parseSequenceFromLogTerra(info);
+    if (!sequence) {
+      throw new Error("Sequence not found");
+    }
+    const emitterAddress = await getEmitterAddressTerra(
+      TERRA_NFT_BRIDGE_ADDRESS
+    );
+    enqueueSnackbar(null, {
+      content: <Alert severity="info">Fetching VAA</Alert>,
+    });
+    const { vaaBytes } = await getSignedVAAWithRetry(
+      CHAIN_ID_TERRA,
+      emitterAddress,
+      sequence
+    );
+    enqueueSnackbar(null, {
+      content: <Alert severity="success">Fetched Signed VAA</Alert>,
+    });
+    dispatch(setSignedVAAHex(uint8ArrayToHex(vaaBytes)));
+  } catch (e) {
+    console.error(e);
+    enqueueSnackbar(null, {
+      content: <Alert severity="error">{parseError(e)}</Alert>,
+    });
+    dispatch(setIsSending(false));
+  }
+}
+
 export function useHandleNFTTransfer() {
   const dispatch = useDispatch();
   const { enqueueSnackbar } = useSnackbar();
@@ -196,6 +266,8 @@ export function useHandleNFTTransfer() {
   const sourceParsedTokenAccount = useSelector(
     selectNFTSourceParsedTokenAccount
   );
+  const walletIsReady = useIsWalletReady(targetChain, false);
+  const terraWallet = useConnectedWallet();
   const sourceTokenPublicKey = sourceParsedTokenAccount?.publicKey;
   const disabled = !isTargetComplete || isSending || isSendComplete;
   const handleTransferClick = useCallback(() => {
@@ -238,6 +310,24 @@ export function useHandleNFTTransfer() {
         originChain,
         originTokenId
       );
+    } else if (
+      sourceChain === CHAIN_ID_TERRA &&
+      walletIsReady.isReady &&
+      !!terraWallet &&
+      sourceAsset &&
+      sourceTokenId &&
+      targetChain &&
+      targetAddress
+    ) {
+      terra(
+        dispatch,
+        enqueueSnackbar,
+        terraWallet,
+        sourceAsset,
+        sourceTokenId,
+        targetChain,
+        targetAddress
+      );
     } else {
     }
   }, [
@@ -255,6 +345,8 @@ export function useHandleNFTTransfer() {
     originAsset,
     originChain,
     originTokenId,
+    terraWallet,
+    walletIsReady.isReady,
   ]);
   return useMemo(
     () => ({

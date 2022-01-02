@@ -12,6 +12,7 @@ import {
 import {
   getForeignAssetEth as getForeignAssetEthNFT,
   getForeignAssetSol as getForeignAssetSolNFT,
+  getForeignAssetTerra as getForeignAssetTerraNFT,
 } from "@certusone/wormhole-sdk/lib/esm/nft_bridge";
 import { BigNumber } from "@ethersproject/bignumber";
 import { arrayify } from "@ethersproject/bytes";
@@ -47,6 +48,7 @@ import {
   SOL_NFT_BRIDGE_ADDRESS,
   SOL_TOKEN_BRIDGE_ADDRESS,
   TERRA_HOST,
+  TERRA_NFT_BRIDGE_ADDRESS,
   TERRA_TOKEN_BRIDGE_ADDRESS,
 } from "../utils/consts";
 
@@ -213,12 +215,19 @@ function useFetchTargetAsset(nft?: boolean) {
         dispatch(setTargetAsset(fetchDataWrapper()));
         try {
           const lcd = new LCDClient(TERRA_HOST);
-          const asset = await getForeignAssetTerra(
-            TERRA_TOKEN_BRIDGE_ADDRESS,
-            lcd,
-            originChain,
-            hexToUint8Array(originAsset)
-          );
+          const asset = nft
+            ? await getForeignAssetTerraNFT(
+                TERRA_NFT_BRIDGE_ADDRESS,
+                lcd,
+                originChain,
+                hexToUint8Array(originAsset)
+              )
+            : await getForeignAssetTerra(
+                TERRA_TOKEN_BRIDGE_ADDRESS,
+                lcd,
+                originChain,
+                hexToUint8Array(originAsset)
+              );
           if (!cancelled) {
             dispatch(
               setTargetAsset(

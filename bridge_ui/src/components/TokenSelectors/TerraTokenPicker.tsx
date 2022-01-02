@@ -2,7 +2,10 @@ import { CHAIN_ID_TERRA, isNativeDenom } from "@certusone/wormhole-sdk";
 import { formatUnits } from "@ethersproject/units";
 import { LCDClient } from "@terra-money/terra.js";
 import React, { useCallback, useMemo, useRef } from "react";
-import { createParsedTokenAccount } from "../../hooks/useGetSourceParsedTokenAccounts";
+import {
+  createNFTParsedTokenAccount,
+  createParsedTokenAccount,
+} from "../../hooks/useGetSourceParsedTokenAccounts";
 import useIsWalletReady from "../../hooks/useIsWalletReady";
 import useTerraNativeBalances from "../../hooks/useTerraNativeBalances";
 import { DataWrapper } from "../../store/helpers";
@@ -23,12 +26,13 @@ type TerraTokenPickerProps = {
   tokenAccounts: DataWrapper<ParsedTokenAccount[]> | undefined;
   disabled: boolean;
   resetAccounts: (() => void) | undefined;
+  nft?: boolean;
 };
 
 const returnsFalse = () => false;
 
 export default function TerraTokenPicker(props: TerraTokenPickerProps) {
-  const { value, onChange, disabled } = props;
+  const { value, onChange, disabled, nft } = props;
   const { walletAddress } = useIsWalletReady(CHAIN_ID_TERRA);
   const nativeRefresh = useRef<() => void>(() => {});
   const { balances, isLoading: nativeIsLoading } = useTerraNativeBalances(
@@ -98,44 +102,85 @@ export default function TerraTokenPicker(props: TerraTokenPickerProps) {
   //TODO this only supports non-native assets. Native assets come from the hook.
   //TODO correlate against token list to get metadata
   const lookupTerraAddress = useCallback(
-    (lookupAsset: string) => {
+    (lookupAsset: string, tokenId?: string) => {
       if (!walletAddress) {
         return Promise.reject("Wallet not connected");
       }
+      if (nft && !tokenId) {
+        return Promise.reject("Token ID required");
+      }
       const lcd = new LCDClient(TERRA_HOST);
-      return lcd.wasm
-        .contractQuery(lookupAsset, {
-          token_info: {},
-        })
-        .then((info: any) =>
-          lcd.wasm
+      return nft
+        ? lcd.wasm
             .contractQuery(lookupAsset, {
-              balance: {
-                address: walletAddress,
+              nft_info: {
+                token_id: tokenId,
               },
             })
-            .then((balance: any) => {
-              if (balance && info) {
-                return createParsedTokenAccount(
-                  walletAddress,
-                  lookupAsset,
-                  balance.balance.toString(),
-                  info.decimals,
-                  Number(formatUnits(balance.balance, info.decimals)),
-                  formatUnits(balance.balance, info.decimals),
-                  info.symbol,
-                  info.name
-                );
-              } else {
-                throw new Error("Failed to retrieve Terra account.");
-              }
+            .then((info: any) =>
+              lcd.wasm
+                .contractQuery(lookupAsset, {
+                  owner_of: {
+                    token_id: tokenId,
+                  },
+                })
+                .then((ownerInfo: any) =>
+                  lcd.wasm.contractQuery(lookupAsset, {
+                    contract_info: {}
+                  }).then((contractInfo: any) => {
+                    if (ownerInfo && info) {
+                      return createNFTParsedTokenAccount(
+                        walletAddress,
+                        lookupAsset,
+                        ownerInfo.owner === walletAddress ? "1" : "0",
+                        0,
+                        Number(ownerInfo.owner === walletAddress ? "1" : "0"),
+                        ownerInfo.owner === walletAddress ? "1" : "0",
+                        tokenId || "",
+                        contractInfo.symbol,
+                        contractInfo.name,
+                        info.token_uri
+                      );
+                    } else {
+                      throw new Error("Failed to retrieve Terra account.");
+                    }
+                  })))
+          .catch(() => {
+            return Promise.reject();
+          })
+        : lcd.wasm
+            .contractQuery(lookupAsset, {
+              token_info: {},
             })
-        )
-        .catch(() => {
-          return Promise.reject();
-        });
+            .then((info: any) =>
+              lcd.wasm
+                .contractQuery(lookupAsset, {
+                  balance: {
+                    address: walletAddress,
+                  },
+                })
+                .then((balance: any) => {
+                  if (balance && info) {
+                    return createParsedTokenAccount(
+                      walletAddress,
+                      lookupAsset,
+                      balance.balance.toString(),
+                      info.decimals,
+                      Number(formatUnits(balance.balance, info.decimals)),
+                      formatUnits(balance.balance, info.decimals),
+                      info.symbol,
+                      info.name
+                    );
+                  } else {
+                    throw new Error("Failed to retrieve Terra account.");
+                  }
+                })
+            )
+            .catch(() => {
+              return Promise.reject();
+            });
     },
-    [walletAddress]
+    [walletAddress, nft]
   );
 
   const isSearchableAddress = useCallback((address: string) => {
@@ -161,7 +206,8 @@ export default function TerraTokenPicker(props: TerraTokenPickerProps) {
       resetAccounts={resetAccountWrapper}
       error={""}
       showLoader={isLoading}
-      nft={false}
+      nft={nft || false}
+      useTokenId={nft}
       chainId={CHAIN_ID_TERRA}
     />
   );

@@ -12,6 +12,7 @@ import {
 import {
   getOriginalAssetEth as getOriginalAssetEthNFT,
   getOriginalAssetSol as getOriginalAssetSolNFT,
+  getOriginalAssetTerra as getOriginalAssetTerraNFT,
 } from "@certusone/wormhole-sdk/lib/esm/nft_bridge";
 import { Connection } from "@solana/web3.js";
 import { LCDClient } from "@terra-money/terra.js";
@@ -127,7 +128,9 @@ function useCheckIfWormholeWrapped(nft?: boolean) {
         try {
           const lcd = new LCDClient(TERRA_HOST);
           const wrappedInfo = makeStateSafe(
-            await getOriginalAssetTerra(lcd, sourceAsset)
+            nft
+              ? await getOriginalAssetTerraNFT(lcd, sourceAsset)
+              : await getOriginalAssetTerra(lcd, sourceAsset)
           );
           if (!cancelled) {
             dispatch(setSourceWormholeWrappedInfo(wrappedInfo));
