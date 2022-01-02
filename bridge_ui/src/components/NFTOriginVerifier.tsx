@@ -8,10 +8,12 @@ import {
   hexToNativeString,
   isEVMChain,
   uint8ArrayToHex,
+  CHAIN_ID_TERRA,
 } from "@certusone/wormhole-sdk";
 import {
   getOriginalAssetEth,
   getOriginalAssetSol,
+  getOriginalAssetTerra,
   WormholeWrappedNFTInfo,
 } from "@certusone/wormhole-sdk/lib/esm/nft_bridge";
 import {
@@ -41,6 +43,7 @@ import {
   getNFTBridgeAddressForChain,
   SOLANA_HOST,
   SOL_NFT_BRIDGE_ADDRESS,
+  TERRA_HOST,
 } from "../utils/consts";
 import {
   ethNFTToNFTParsedTokenAccount,
@@ -48,6 +51,7 @@ import {
   isNFT,
   isValidEthereumAddress,
 } from "../utils/ethereum";
+import { LCDClient } from "@terra-money/terra.js";
 import HeaderText from "./HeaderText";
 import KeyAndBalance from "./KeyAndBalance";
 import NFTViewer from "./TokenSelectors/NFTViewer";
@@ -192,6 +196,48 @@ export default function NFTOriginVerifier() {
           }
         }
       })();
+    } else if (
+      lookupChain === CHAIN_ID_TERRA &&
+      lookupAsset &&
+      lookupTokenId
+    ) {
+      (async () => {
+        try {
+          setIsLoading(true);
+          const lcd = new LCDClient(TERRA_HOST);
+          const nft_info: any = await lcd.wasm.contractQuery(lookupAsset, { nft_info: { token_id: lookupTokenId } });
+          if (nft_info) {
+            const info = await getOriginalAssetTerra(
+              lcd,
+              lookupAsset
+            );
+            if (!cancelled) {
+              setIsLoading(false);
+              setParsedTokenAccount({
+                amount: "0",
+                decimals: 0,
+                mintKey: lookupAsset,
+                publicKey: "",
+                uiAmount: 0,
+                uiAmountString: "0",
+                uri: nft_info.token_uri,
+              });
+              setOriginInfo(info);
+            }
+          } else {
+            if (!cancelled) {
+              setIsLoading(false);
+              setLookupError("Error fetching metadata");
+            }
+          }
+        } catch (e) {
+          console.error(e);
+          if (!cancelled) {
+            setIsLoading(false);
+            setLookupError("Invalid or nonexistent token");
+          }
+        }
+      })();
     }
     return () => {
       cancelled = true;
@@ -255,7 +301,7 @@ export default function NFTOriginVerifier() {
             value={lookupAsset}
             onChange={handleAssetChange}
           />
-          {isEVMChain(lookupChain) ? (
+          {isEVMChain(lookupChain) || lookupChain == CHAIN_ID_TERRA ? (
             <TextField
               fullWidth
               variant="outlined"

@@ -20,6 +20,7 @@ import {
   CHAIN_ID_POLYGON,
   CHAIN_ID_SOLANA,
   CHAIN_ID_OASIS,
+  CHAIN_ID_TERRA,
 } from "@certusone/wormhole-sdk";
 import SmartAddress from "../SmartAddress";
 import avaxIcon from "../../icons/avax.svg";
@@ -28,6 +29,7 @@ import ethIcon from "../../icons/eth.svg";
 import solanaIcon from "../../icons/solana.svg";
 import polygonIcon from "../../icons/polygon.svg";
 import oasisIcon from "../../icons/oasis-network-rose-logo.svg";
+import terraIcon from "../../icons/terra.svg";
 import useCopyToClipboard from "../../hooks/useCopyToClipboard";
 import { Skeleton } from "@material-ui/lab";
 import Wormhole from "../../icons/wormhole-network.svg";
@@ -112,6 +114,18 @@ const LogoIcon = ({ chainId }: { chainId: ChainId }) =>
       }}
       src={oasisIcon}
       alt="Oasis"
+    />
+  ) : chainId === CHAIN_ID_TERRA ? (
+    <Avatar
+      style={{
+        backgroundColor: "black",
+        height: "1em",
+        width: "1em",
+        marginLeft: "4px",
+        padding: "3px",
+      }}
+      src={terraIcon}
+      alt="Terra"
     />
   ) : null;
 
@@ -208,6 +222,23 @@ const useStyles = makeStyles((theme) => ({
     backgroundColor: "rgb(153,69,255)",
     background:
       "linear-gradient(45deg, rgba(153,69,255,1) 0%, rgba(121,98,231,1) 20%, rgba(0,209,140,1) 100%)",
+  },
+  terra: {
+    // colors from https://assets.website-files.com/611153e7af981472d8da199c/61794f2b6b1c7a1cb9444489_symbol-terra-blue.svg
+    backgroundColor: "rgb(14,60,165)",
+    background:
+      "radial-gradient(circle, rgba(84,147,247,1) 50%, rgba(14,60,165,1) 100%)",
+  },
+  oasis: {
+    // gradient taken from the hero image on oasisprotocol.com
+    backgroundColor: "#0092f6",
+    background:
+      "linear-gradient(149deg, #0092f6, #3552eb)",
+  },
+  avax: {
+    // colors from avalanche logo
+    backgroundColor: "rgb(0,0,0)",
+    background: "radial-gradient(circle, rgba(0,0,0,1) 24%, rgba(232,65,66,1) 100%)",
   },
   hidden: {
     display: "none",
@@ -404,6 +435,7 @@ export default function NFTViewer({
           [classes.silverBorder]:
             chainId === CHAIN_ID_SOLANA ||
             chainId === CHAIN_ID_POLYGON ||
+            chainId === CHAIN_ID_TERRA ||
             chainId === CHAIN_ID_AVAX,
           [classes.hidden]: isLoading,
         })}
@@ -413,12 +445,13 @@ export default function NFTViewer({
           className={clsx(classes.cardInset, {
             [classes.eth]:
               chainId === CHAIN_ID_ETH ||
-              chainId === CHAIN_ID_ETHEREUM_ROPSTEN ||
-              chainId === CHAIN_ID_AVAX || //TODO: give avax it's own bg
-              chainId === CHAIN_ID_OASIS, //TODO: give oasis it's own bg
+              chainId === CHAIN_ID_ETHEREUM_ROPSTEN,
             [classes.bsc]: chainId === CHAIN_ID_BSC,
             [classes.solana]: chainId === CHAIN_ID_SOLANA,
             [classes.polygon]: chainId === CHAIN_ID_POLYGON,
+            [classes.terra]: chainId === CHAIN_ID_TERRA,
+            [classes.avax]: chainId === CHAIN_ID_AVAX,
+            [classes.oasis]: chainId === CHAIN_ID_OASIS,
           })}
         >
           <CardContent className={classes.textContent}>
@@ -443,6 +476,7 @@ export default function NFTViewer({
                 chainId === CHAIN_ID_SOLANA ||
                 chainId === CHAIN_ID_POLYGON ||
                 chainId === CHAIN_ID_OASIS ||
+                chainId === CHAIN_ID_TERRA ||
                 chainId === CHAIN_ID_AVAX,
             })}
           >
