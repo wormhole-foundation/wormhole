@@ -1,7 +1,9 @@
 use solitaire::*;
 
 use solana_program::{
+    log::sol_log,
     program::invoke_signed,
+    program_error::ProgramError,
     pubkey::Pubkey,
     sysvar::{
         clock::Clock,
@@ -40,7 +42,10 @@ fn verify_governance<'a, T>(vaa: &ClaimableVAA<'a, T>) -> Result<()>
 where
     T: DeserializePayload,
 {
-    let expected_emitter = std::env!("EMITTER_ADDRESS");
+    let expected_emitter = std::option_env!("EMITTER_ADDRESS").ok_or_else(|| {
+        sol_log("EMITTER_ADDRESS not set at compile-time");
+        ProgramError::UninitializedAccount
+    })?;
     let current_emitter = format!(
         "{}",
         Pubkey::new_from_array(vaa.message.meta().emitter_address)
