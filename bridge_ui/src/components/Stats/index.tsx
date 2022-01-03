@@ -196,7 +196,9 @@ const StatsRoot: React.FC<any> = () => {
       tvl.data.forEach((val) => {
         if (val.totalValue) sum += val.totalValue;
       });
-      return numeral(sum).format("0 a").toUpperCase();
+      return numeral(sum)
+        .format(sum >= 1000000000 ? "0.000 a" : "0 a")
+        .toUpperCase();
     }
   }, [tvl.data]);
 
@@ -251,13 +253,13 @@ const StatsRoot: React.FC<any> = () => {
         </>
       </Paper>
       <Paper className={classes.mainPaper}>
-        <NFTStats />
-      </Paper>
-      <Paper className={classes.mainPaper}>
         <TransactionMetrics />
       </Paper>
       <Paper className={classes.mainPaper}>
         <CustodyAddresses />
+      </Paper>
+      <Paper className={classes.mainPaper}>
+        <NFTStats />
       </Paper>
     </Container>
   );
