@@ -3,6 +3,7 @@ import { Config } from "../tokenbridge/config";
 import { ReplayProtection } from "../tokenbridge/replay_protection";
 import { PageRequest, PageResponse } from "../cosmos/base/query/v1beta1/pagination";
 import { ChainRegistration } from "../tokenbridge/chain_registration";
+import { CoinMetaRollbackProtection } from "../tokenbridge/coin_meta_rollback_protection";
 export declare const protobufPackage = "certusone.wormholechain.tokenbridge";
 export interface QueryGetConfigRequest {
 }
@@ -33,6 +34,19 @@ export interface QueryAllChainRegistrationRequest {
 }
 export interface QueryAllChainRegistrationResponse {
     chainRegistration: ChainRegistration[];
+    pagination: PageResponse | undefined;
+}
+export interface QueryGetCoinMetaRollbackProtectionRequest {
+    index: string;
+}
+export interface QueryGetCoinMetaRollbackProtectionResponse {
+    coinMetaRollbackProtection: CoinMetaRollbackProtection | undefined;
+}
+export interface QueryAllCoinMetaRollbackProtectionRequest {
+    pagination: PageRequest | undefined;
+}
+export interface QueryAllCoinMetaRollbackProtectionResponse {
+    coinMetaRollbackProtection: CoinMetaRollbackProtection[];
     pagination: PageResponse | undefined;
 }
 export declare const QueryGetConfigRequest: {
@@ -105,6 +119,34 @@ export declare const QueryAllChainRegistrationResponse: {
     toJSON(message: QueryAllChainRegistrationResponse): unknown;
     fromPartial(object: DeepPartial<QueryAllChainRegistrationResponse>): QueryAllChainRegistrationResponse;
 };
+export declare const QueryGetCoinMetaRollbackProtectionRequest: {
+    encode(message: QueryGetCoinMetaRollbackProtectionRequest, writer?: Writer): Writer;
+    decode(input: Reader | Uint8Array, length?: number): QueryGetCoinMetaRollbackProtectionRequest;
+    fromJSON(object: any): QueryGetCoinMetaRollbackProtectionRequest;
+    toJSON(message: QueryGetCoinMetaRollbackProtectionRequest): unknown;
+    fromPartial(object: DeepPartial<QueryGetCoinMetaRollbackProtectionRequest>): QueryGetCoinMetaRollbackProtectionRequest;
+};
+export declare const QueryGetCoinMetaRollbackProtectionResponse: {
+    encode(message: QueryGetCoinMetaRollbackProtectionResponse, writer?: Writer): Writer;
+    decode(input: Reader | Uint8Array, length?: number): QueryGetCoinMetaRollbackProtectionResponse;
+    fromJSON(object: any): QueryGetCoinMetaRollbackProtectionResponse;
+    toJSON(message: QueryGetCoinMetaRollbackProtectionResponse): unknown;
+    fromPartial(object: DeepPartial<QueryGetCoinMetaRollbackProtectionResponse>): QueryGetCoinMetaRollbackProtectionResponse;
+};
+export declare const QueryAllCoinMetaRollbackProtectionRequest: {
+    encode(message: QueryAllCoinMetaRollbackProtectionRequest, writer?: Writer): Writer;
+    decode(input: Reader | Uint8Array, length?: number): QueryAllCoinMetaRollbackProtectionRequest;
+    fromJSON(object: any): QueryAllCoinMetaRollbackProtectionRequest;
+    toJSON(message: QueryAllCoinMetaRollbackProtectionRequest): unknown;
+    fromPartial(object: DeepPartial<QueryAllCoinMetaRollbackProtectionRequest>): QueryAllCoinMetaRollbackProtectionRequest;
+};
+export declare const QueryAllCoinMetaRollbackProtectionResponse: {
+    encode(message: QueryAllCoinMetaRollbackProtectionResponse, writer?: Writer): Writer;
+    decode(input: Reader | Uint8Array, length?: number): QueryAllCoinMetaRollbackProtectionResponse;
+    fromJSON(object: any): QueryAllCoinMetaRollbackProtectionResponse;
+    toJSON(message: QueryAllCoinMetaRollbackProtectionResponse): unknown;
+    fromPartial(object: DeepPartial<QueryAllCoinMetaRollbackProtectionResponse>): QueryAllCoinMetaRollbackProtectionResponse;
+};
 /** Query defines the gRPC querier service. */
 export interface Query {
     /** Queries a config by index. */
@@ -117,6 +159,10 @@ export interface Query {
     ChainRegistration(request: QueryGetChainRegistrationRequest): Promise<QueryGetChainRegistrationResponse>;
     /** Queries a list of chainRegistration items. */
     ChainRegistrationAll(request: QueryAllChainRegistrationRequest): Promise<QueryAllChainRegistrationResponse>;
+    /** Queries a coinMetaRollbackProtection by index. */
+    CoinMetaRollbackProtection(request: QueryGetCoinMetaRollbackProtectionRequest): Promise<QueryGetCoinMetaRollbackProtectionResponse>;
+    /** Queries a list of coinMetaRollbackProtection items. */
+    CoinMetaRollbackProtectionAll(request: QueryAllCoinMetaRollbackProtectionRequest): Promise<QueryAllCoinMetaRollbackProtectionResponse>;
 }
 export declare class QueryClientImpl implements Query {
     private readonly rpc;
@@ -126,6 +172,8 @@ export declare class QueryClientImpl implements Query {
     ReplayProtectionAll(request: QueryAllReplayProtectionRequest): Promise<QueryAllReplayProtectionResponse>;
     ChainRegistration(request: QueryGetChainRegistrationRequest): Promise<QueryGetChainRegistrationResponse>;
     ChainRegistrationAll(request: QueryAllChainRegistrationRequest): Promise<QueryAllChainRegistrationResponse>;
+    CoinMetaRollbackProtection(request: QueryGetCoinMetaRollbackProtectionRequest): Promise<QueryGetCoinMetaRollbackProtectionResponse>;
+    CoinMetaRollbackProtectionAll(request: QueryAllCoinMetaRollbackProtectionRequest): Promise<QueryAllCoinMetaRollbackProtectionResponse>;
 }
 interface Rpc {
     request(service: string, method: string, data: Uint8Array): Promise<Uint8Array>;

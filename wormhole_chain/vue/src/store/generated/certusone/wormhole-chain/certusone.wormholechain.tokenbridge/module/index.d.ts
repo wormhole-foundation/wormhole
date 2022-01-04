@@ -3,8 +3,8 @@ import { OfflineSigner, EncodeObject } from "@cosmjs/proto-signing";
 import { Api } from "./rest";
 import { MsgAttestToken } from "./types/tokenbridge/tx";
 import { MsgExecuteVAA } from "./types/tokenbridge/tx";
-import { MsgExecuteGovernanceVAA } from "./types/tokenbridge/tx";
 import { MsgTransfer } from "./types/tokenbridge/tx";
+import { MsgExecuteGovernanceVAA } from "./types/tokenbridge/tx";
 export declare const MissingWalletError: Error;
 interface TxClientOptions {
     addr: string;
@@ -17,8 +17,8 @@ declare const txClient: (wallet: OfflineSigner, { addr: addr }?: TxClientOptions
     signAndBroadcast: (msgs: EncodeObject[], { fee, memo }?: SignAndBroadcastOptions) => Promise<import("@cosmjs/stargate").BroadcastTxResponse>;
     msgAttestToken: (data: MsgAttestToken) => EncodeObject;
     msgExecuteVAA: (data: MsgExecuteVAA) => EncodeObject;
-    msgExecuteGovernanceVAA: (data: MsgExecuteGovernanceVAA) => EncodeObject;
     msgTransfer: (data: MsgTransfer) => EncodeObject;
+    msgExecuteGovernanceVAA: (data: MsgExecuteGovernanceVAA) => EncodeObject;
 }>;
 interface QueryClientOptions {
     addr: string;

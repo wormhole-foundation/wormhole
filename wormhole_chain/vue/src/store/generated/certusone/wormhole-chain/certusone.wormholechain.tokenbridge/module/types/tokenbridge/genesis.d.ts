@@ -1,14 +1,16 @@
 import { Config } from "../tokenbridge/config";
 import { ReplayProtection } from "../tokenbridge/replay_protection";
 import { ChainRegistration } from "../tokenbridge/chain_registration";
+import { CoinMetaRollbackProtection } from "../tokenbridge/coin_meta_rollback_protection";
 import { Writer, Reader } from "protobufjs/minimal";
 export declare const protobufPackage = "certusone.wormholechain.tokenbridge";
 /** GenesisState defines the tokenbridge module's genesis state. */
 export interface GenesisState {
     config: Config | undefined;
     replayProtectionList: ReplayProtection[];
-    /** this line is used by starport scaffolding # genesis/proto/state */
     chainRegistrationList: ChainRegistration[];
+    /** this line is used by starport scaffolding # genesis/proto/state */
+    coinMetaRollbackProtectionList: CoinMetaRollbackProtection[];
 }
 export declare const GenesisState: {
     encode(message: GenesisState, writer?: Writer): Writer;

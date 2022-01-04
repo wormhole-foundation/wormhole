@@ -2,12 +2,13 @@ import { txClient, queryClient, MissingWalletError } from './module';
 // @ts-ignore
 import { SpVuexError } from '@starport/vuex';
 import { ChainRegistration } from "./module/types/tokenbridge/chain_registration";
+import { CoinMetaRollbackProtection } from "./module/types/tokenbridge/coin_meta_rollback_protection";
 import { Config } from "./module/types/tokenbridge/config";
 import { EventChainRegistered } from "./module/types/tokenbridge/events";
 import { EventAssetRegistrationUpdate } from "./module/types/tokenbridge/events";
 import { EventTransferReceived } from "./module/types/tokenbridge/events";
 import { ReplayProtection } from "./module/types/tokenbridge/replay_protection";
-export { ChainRegistration, Config, EventChainRegistered, EventAssetRegistrationUpdate, EventTransferReceived, ReplayProtection };
+export { ChainRegistration, CoinMetaRollbackProtection, Config, EventChainRegistered, EventAssetRegistrationUpdate, EventTransferReceived, ReplayProtection };
 async function initTxClient(vuexGetters) {
     return await txClient(vuexGetters['common/wallet/signer'], {
         addr: vuexGetters['common/env/apiTendermint']
@@ -46,8 +47,11 @@ const getDefaultState = () => {
         ReplayProtectionAll: {},
         ChainRegistration: {},
         ChainRegistrationAll: {},
+        CoinMetaRollbackProtection: {},
+        CoinMetaRollbackProtectionAll: {},
         _Structure: {
             ChainRegistration: getStructure(ChainRegistration.fromPartial({})),
+            CoinMetaRollbackProtection: getStructure(CoinMetaRollbackProtection.fromPartial({})),
             Config: getStructure(Config.fromPartial({})),
             EventChainRegistered: getStructure(EventChainRegistered.fromPartial({})),
             EventAssetRegistrationUpdate: getStructure(EventAssetRegistrationUpdate.fromPartial({})),
@@ -106,6 +110,18 @@ export default {
                 params.query = null;
             }
             return state.ChainRegistrationAll[JSON.stringify(params)] ?? {};
+        },
+        getCoinMetaRollbackProtection: (state) => (params = { params: {} }) => {
+            if (!params.query) {
+                params.query = null;
+            }
+            return state.CoinMetaRollbackProtection[JSON.stringify(params)] ?? {};
+        },
+        getCoinMetaRollbackProtectionAll: (state) => (params = { params: {} }) => {
+            if (!params.query) {
+                params.query = null;
+            }
+            return state.CoinMetaRollbackProtectionAll[JSON.stringify(params)] ?? {};
         },
         getTypeStructure: (state) => (type) => {
             return state._Structure[type].fields;
@@ -209,6 +225,36 @@ export default {
                 throw new SpVuexError('QueryClient:QueryChainRegistrationAll', 'API Node Unavailable. Could not perform query: ' + e.message);
             }
         },
+        async QueryCoinMetaRollbackProtection({ commit, rootGetters, getters }, { options: { subscribe, all } = { subscribe: false, all: false }, params: { ...key }, query = null }) {
+            try {
+                const queryClient = await initQueryClient(rootGetters);
+                let value = (await queryClient.queryCoinMetaRollbackProtection(key.index)).data;
+                commit('QUERY', { query: 'CoinMetaRollbackProtection', key: { params: { ...key }, query }, value });
+                if (subscribe)
+                    commit('SUBSCRIBE', { action: 'QueryCoinMetaRollbackProtection', payload: { options: { all }, params: { ...key }, query } });
+                return getters['getCoinMetaRollbackProtection']({ params: { ...key }, query }) ?? {};
+            }
+            catch (e) {
+                throw new SpVuexError('QueryClient:QueryCoinMetaRollbackProtection', 'API Node Unavailable. Could not perform query: ' + e.message);
+            }
+        },
+        async QueryCoinMetaRollbackProtectionAll({ commit, rootGetters, getters }, { options: { subscribe, all } = { subscribe: false, all: false }, params: { ...key }, query = null }) {
+            try {
+                const queryClient = await initQueryClient(rootGetters);
+                let value = (await queryClient.queryCoinMetaRollbackProtectionAll(query)).data;
+                while (all && value.pagination && value.pagination.nextKey != null) {
+                    let next_values = (await queryClient.queryCoinMetaRollbackProtectionAll({ ...query, 'pagination.key': value.pagination.nextKey })).data;
+                    value = mergeResults(value, next_values);
+                }
+                commit('QUERY', { query: 'CoinMetaRollbackProtectionAll', key: { params: { ...key }, query }, value });
+                if (subscribe)
+                    commit('SUBSCRIBE', { action: 'QueryCoinMetaRollbackProtectionAll', payload: { options: { all }, params: { ...key }, query } });
+                return getters['getCoinMetaRollbackProtectionAll']({ params: { ...key }, query }) ?? {};
+            }
+            catch (e) {
+                throw new SpVuexError('QueryClient:QueryCoinMetaRollbackProtectionAll', 'API Node Unavailable. Could not perform query: ' + e.message);
+            }
+        },
         async sendMsgAttestToken({ rootGetters }, { value, fee = [], memo = '' }) {
             try {
                 const txClient = await initTxClient(rootGetters);
@@ -243,23 +289,6 @@ export default {
                 }
             }
         },
-        async sendMsgExecuteGovernanceVAA({ rootGetters }, { value, fee = [], memo = '' }) {
-            try {
-                const txClient = await initTxClient(rootGetters);
-                const msg = await txClient.msgExecuteGovernanceVAA(value);
-                const result = await txClient.signAndBroadcast([msg], { fee: { amount: fee,
-                        gas: "200000" }, memo });
-                return result;
-            }
-            catch (e) {
-                if (e == MissingWalletError) {
-                    throw new SpVuexError('TxClient:MsgExecuteGovernanceVAA:Init', 'Could not initialize signing client. Wallet is required.');
-                }
-                else {
-                    throw new SpVuexError('TxClient:MsgExecuteGovernanceVAA:Send', 'Could not broadcast Tx: ' + e.message);
-                }
-            }
-        },
         async sendMsgTransfer({ rootGetters }, { value, fee = [], memo = '' }) {
             try {
                 const txClient = await initTxClient(rootGetters);
@@ -274,6 +303,23 @@ export default {
                 }
                 else {
                     throw new SpVuexError('TxClient:MsgTransfer:Send', 'Could not broadcast Tx: ' + e.message);
+                }
+            }
+        },
+        async sendMsgExecuteGovernanceVAA({ rootGetters }, { value, fee = [], memo = '' }) {
+            try {
+                const txClient = await initTxClient(rootGetters);
+                const msg = await txClient.msgExecuteGovernanceVAA(value);
+                const result = await txClient.signAndBroadcast([msg], { fee: { amount: fee,
+                        gas: "200000" }, memo });
+                return result;
+            }
+            catch (e) {
+                if (e == MissingWalletError) {
+                    throw new SpVuexError('TxClient:MsgExecuteGovernanceVAA:Init', 'Could not initialize signing client. Wallet is required.');
+                }
+                else {
+                    throw new SpVuexError('TxClient:MsgExecuteGovernanceVAA:Send', 'Could not broadcast Tx: ' + e.message);
                 }
             }
         },
@@ -307,21 +353,6 @@ export default {
                 }
             }
         },
-        async MsgExecuteGovernanceVAA({ rootGetters }, { value }) {
-            try {
-                const txClient = await initTxClient(rootGetters);
-                const msg = await txClient.msgExecuteGovernanceVAA(value);
-                return msg;
-            }
-            catch (e) {
-                if (e == MissingWalletError) {
-                    throw new SpVuexError('TxClient:MsgExecuteGovernanceVAA:Init', 'Could not initialize signing client. Wallet is required.');
-                }
-                else {
-                    throw new SpVuexError('TxClient:MsgExecuteGovernanceVAA:Create', 'Could not create message: ' + e.message);
-                }
-            }
-        },
         async MsgTransfer({ rootGetters }, { value }) {
             try {
                 const txClient = await initTxClient(rootGetters);
@@ -334,6 +365,21 @@ export default {
                 }
                 else {
                     throw new SpVuexError('TxClient:MsgTransfer:Create', 'Could not create message: ' + e.message);
+                }
+            }
+        },
+        async MsgExecuteGovernanceVAA({ rootGetters }, { value }) {
+            try {
+                const txClient = await initTxClient(rootGetters);
+                const msg = await txClient.msgExecuteGovernanceVAA(value);
+                return msg;
+            }
+            catch (e) {
+                if (e == MissingWalletError) {
+                    throw new SpVuexError('TxClient:MsgExecuteGovernanceVAA:Init', 'Could not initialize signing client. Wallet is required.');
+                }
+                else {
+                    throw new SpVuexError('TxClient:MsgExecuteGovernanceVAA:Create', 'Could not create message: ' + e.message);
                 }
             }
         },

@@ -36,4 +36,5 @@ var (
 	ErrInvalidAmount                  = sdkerrors.Register(ModuleName, 1131, "amount is invalid (must fit in uint256)")
 	ErrFeeTooHigh                     = sdkerrors.Register(ModuleName, 1132, "fee must be < amount")
 	ErrAmountTooHigh                  = sdkerrors.Register(ModuleName, 1133, "the amount would exceed the bridges capacity of u64")
+	ErrAssetMetaRollback              = sdkerrors.Register(ModuleName, 1134, "asset meta must have a higher sequence than the last update")
 )

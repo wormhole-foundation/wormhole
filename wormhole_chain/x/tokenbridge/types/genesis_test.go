@@ -38,6 +38,14 @@ func TestGenesisState_Validate(t *testing.T) {
 						ChainID: 1,
 					},
 				},
+				CoinMetaRollbackProtectionList: []types.CoinMetaRollbackProtection{
+					{
+						Index: "0",
+					},
+					{
+						Index: "1",
+					},
+				},
 				// this line is used by starport scaffolding # types/genesis/validField
 			},
 			valid: true,
@@ -65,6 +73,20 @@ func TestGenesisState_Validate(t *testing.T) {
 					},
 					{
 						ChainID: 0,
+					},
+				},
+			},
+			valid: false,
+		},
+		{
+			desc: "duplicated coinMetaRollbackProtection",
+			genState: &types.GenesisState{
+				CoinMetaRollbackProtectionList: []types.CoinMetaRollbackProtection{
+					{
+						Index: "0",
+					},
+					{
+						Index: "0",
 					},
 				},
 			},

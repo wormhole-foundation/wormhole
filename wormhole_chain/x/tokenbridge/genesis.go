@@ -21,6 +21,10 @@ func InitGenesis(ctx sdk.Context, k keeper.Keeper, genState types.GenesisState) 
 	for _, elem := range genState.ChainRegistrationList {
 		k.SetChainRegistration(ctx, elem)
 	}
+	// Set all the coinMetaRollbackProtection
+	for _, elem := range genState.CoinMetaRollbackProtectionList {
+		k.SetCoinMetaRollbackProtection(ctx, elem)
+	}
 	// this line is used by starport scaffolding # genesis/module/init
 }
 
@@ -35,6 +39,7 @@ func ExportGenesis(ctx sdk.Context, k keeper.Keeper) *types.GenesisState {
 	}
 	genesis.ReplayProtectionList = k.GetAllReplayProtection(ctx)
 	genesis.ChainRegistrationList = k.GetAllChainRegistration(ctx)
+	genesis.CoinMetaRollbackProtectionList = k.GetAllCoinMetaRollbackProtection(ctx)
 	// this line is used by starport scaffolding # genesis/module/export
 
 	return genesis

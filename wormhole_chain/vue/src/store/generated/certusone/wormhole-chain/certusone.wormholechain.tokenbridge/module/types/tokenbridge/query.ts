@@ -7,6 +7,7 @@ import {
   PageResponse,
 } from "../cosmos/base/query/v1beta1/pagination";
 import { ChainRegistration } from "../tokenbridge/chain_registration";
+import { CoinMetaRollbackProtection } from "../tokenbridge/coin_meta_rollback_protection";
 
 export const protobufPackage = "certusone.wormholechain.tokenbridge";
 
@@ -47,6 +48,23 @@ export interface QueryAllChainRegistrationRequest {
 
 export interface QueryAllChainRegistrationResponse {
   chainRegistration: ChainRegistration[];
+  pagination: PageResponse | undefined;
+}
+
+export interface QueryGetCoinMetaRollbackProtectionRequest {
+  index: string;
+}
+
+export interface QueryGetCoinMetaRollbackProtectionResponse {
+  coinMetaRollbackProtection: CoinMetaRollbackProtection | undefined;
+}
+
+export interface QueryAllCoinMetaRollbackProtectionRequest {
+  pagination: PageRequest | undefined;
+}
+
+export interface QueryAllCoinMetaRollbackProtectionResponse {
+  coinMetaRollbackProtection: CoinMetaRollbackProtection[];
   pagination: PageResponse | undefined;
 }
 
@@ -825,6 +843,348 @@ export const QueryAllChainRegistrationResponse = {
   },
 };
 
+const baseQueryGetCoinMetaRollbackProtectionRequest: object = { index: "" };
+
+export const QueryGetCoinMetaRollbackProtectionRequest = {
+  encode(
+    message: QueryGetCoinMetaRollbackProtectionRequest,
+    writer: Writer = Writer.create()
+  ): Writer {
+    if (message.index !== "") {
+      writer.uint32(10).string(message.index);
+    }
+    return writer;
+  },
+
+  decode(
+    input: Reader | Uint8Array,
+    length?: number
+  ): QueryGetCoinMetaRollbackProtectionRequest {
+    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = {
+      ...baseQueryGetCoinMetaRollbackProtectionRequest,
+    } as QueryGetCoinMetaRollbackProtectionRequest;
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          message.index = reader.string();
+          break;
+        default:
+          reader.skipType(tag & 7);
+          break;
+      }
+    }
+    return message;
+  },
+
+  fromJSON(object: any): QueryGetCoinMetaRollbackProtectionRequest {
+    const message = {
+      ...baseQueryGetCoinMetaRollbackProtectionRequest,
+    } as QueryGetCoinMetaRollbackProtectionRequest;
+    if (object.index !== undefined && object.index !== null) {
+      message.index = String(object.index);
+    } else {
+      message.index = "";
+    }
+    return message;
+  },
+
+  toJSON(message: QueryGetCoinMetaRollbackProtectionRequest): unknown {
+    const obj: any = {};
+    message.index !== undefined && (obj.index = message.index);
+    return obj;
+  },
+
+  fromPartial(
+    object: DeepPartial<QueryGetCoinMetaRollbackProtectionRequest>
+  ): QueryGetCoinMetaRollbackProtectionRequest {
+    const message = {
+      ...baseQueryGetCoinMetaRollbackProtectionRequest,
+    } as QueryGetCoinMetaRollbackProtectionRequest;
+    if (object.index !== undefined && object.index !== null) {
+      message.index = object.index;
+    } else {
+      message.index = "";
+    }
+    return message;
+  },
+};
+
+const baseQueryGetCoinMetaRollbackProtectionResponse: object = {};
+
+export const QueryGetCoinMetaRollbackProtectionResponse = {
+  encode(
+    message: QueryGetCoinMetaRollbackProtectionResponse,
+    writer: Writer = Writer.create()
+  ): Writer {
+    if (message.coinMetaRollbackProtection !== undefined) {
+      CoinMetaRollbackProtection.encode(
+        message.coinMetaRollbackProtection,
+        writer.uint32(10).fork()
+      ).ldelim();
+    }
+    return writer;
+  },
+
+  decode(
+    input: Reader | Uint8Array,
+    length?: number
+  ): QueryGetCoinMetaRollbackProtectionResponse {
+    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = {
+      ...baseQueryGetCoinMetaRollbackProtectionResponse,
+    } as QueryGetCoinMetaRollbackProtectionResponse;
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          message.coinMetaRollbackProtection = CoinMetaRollbackProtection.decode(
+            reader,
+            reader.uint32()
+          );
+          break;
+        default:
+          reader.skipType(tag & 7);
+          break;
+      }
+    }
+    return message;
+  },
+
+  fromJSON(object: any): QueryGetCoinMetaRollbackProtectionResponse {
+    const message = {
+      ...baseQueryGetCoinMetaRollbackProtectionResponse,
+    } as QueryGetCoinMetaRollbackProtectionResponse;
+    if (
+      object.coinMetaRollbackProtection !== undefined &&
+      object.coinMetaRollbackProtection !== null
+    ) {
+      message.coinMetaRollbackProtection = CoinMetaRollbackProtection.fromJSON(
+        object.coinMetaRollbackProtection
+      );
+    } else {
+      message.coinMetaRollbackProtection = undefined;
+    }
+    return message;
+  },
+
+  toJSON(message: QueryGetCoinMetaRollbackProtectionResponse): unknown {
+    const obj: any = {};
+    message.coinMetaRollbackProtection !== undefined &&
+      (obj.coinMetaRollbackProtection = message.coinMetaRollbackProtection
+        ? CoinMetaRollbackProtection.toJSON(message.coinMetaRollbackProtection)
+        : undefined);
+    return obj;
+  },
+
+  fromPartial(
+    object: DeepPartial<QueryGetCoinMetaRollbackProtectionResponse>
+  ): QueryGetCoinMetaRollbackProtectionResponse {
+    const message = {
+      ...baseQueryGetCoinMetaRollbackProtectionResponse,
+    } as QueryGetCoinMetaRollbackProtectionResponse;
+    if (
+      object.coinMetaRollbackProtection !== undefined &&
+      object.coinMetaRollbackProtection !== null
+    ) {
+      message.coinMetaRollbackProtection = CoinMetaRollbackProtection.fromPartial(
+        object.coinMetaRollbackProtection
+      );
+    } else {
+      message.coinMetaRollbackProtection = undefined;
+    }
+    return message;
+  },
+};
+
+const baseQueryAllCoinMetaRollbackProtectionRequest: object = {};
+
+export const QueryAllCoinMetaRollbackProtectionRequest = {
+  encode(
+    message: QueryAllCoinMetaRollbackProtectionRequest,
+    writer: Writer = Writer.create()
+  ): Writer {
+    if (message.pagination !== undefined) {
+      PageRequest.encode(message.pagination, writer.uint32(10).fork()).ldelim();
+    }
+    return writer;
+  },
+
+  decode(
+    input: Reader | Uint8Array,
+    length?: number
+  ): QueryAllCoinMetaRollbackProtectionRequest {
+    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = {
+      ...baseQueryAllCoinMetaRollbackProtectionRequest,
+    } as QueryAllCoinMetaRollbackProtectionRequest;
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          message.pagination = PageRequest.decode(reader, reader.uint32());
+          break;
+        default:
+          reader.skipType(tag & 7);
+          break;
+      }
+    }
+    return message;
+  },
+
+  fromJSON(object: any): QueryAllCoinMetaRollbackProtectionRequest {
+    const message = {
+      ...baseQueryAllCoinMetaRollbackProtectionRequest,
+    } as QueryAllCoinMetaRollbackProtectionRequest;
+    if (object.pagination !== undefined && object.pagination !== null) {
+      message.pagination = PageRequest.fromJSON(object.pagination);
+    } else {
+      message.pagination = undefined;
+    }
+    return message;
+  },
+
+  toJSON(message: QueryAllCoinMetaRollbackProtectionRequest): unknown {
+    const obj: any = {};
+    message.pagination !== undefined &&
+      (obj.pagination = message.pagination
+        ? PageRequest.toJSON(message.pagination)
+        : undefined);
+    return obj;
+  },
+
+  fromPartial(
+    object: DeepPartial<QueryAllCoinMetaRollbackProtectionRequest>
+  ): QueryAllCoinMetaRollbackProtectionRequest {
+    const message = {
+      ...baseQueryAllCoinMetaRollbackProtectionRequest,
+    } as QueryAllCoinMetaRollbackProtectionRequest;
+    if (object.pagination !== undefined && object.pagination !== null) {
+      message.pagination = PageRequest.fromPartial(object.pagination);
+    } else {
+      message.pagination = undefined;
+    }
+    return message;
+  },
+};
+
+const baseQueryAllCoinMetaRollbackProtectionResponse: object = {};
+
+export const QueryAllCoinMetaRollbackProtectionResponse = {
+  encode(
+    message: QueryAllCoinMetaRollbackProtectionResponse,
+    writer: Writer = Writer.create()
+  ): Writer {
+    for (const v of message.coinMetaRollbackProtection) {
+      CoinMetaRollbackProtection.encode(v!, writer.uint32(10).fork()).ldelim();
+    }
+    if (message.pagination !== undefined) {
+      PageResponse.encode(
+        message.pagination,
+        writer.uint32(18).fork()
+      ).ldelim();
+    }
+    return writer;
+  },
+
+  decode(
+    input: Reader | Uint8Array,
+    length?: number
+  ): QueryAllCoinMetaRollbackProtectionResponse {
+    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = {
+      ...baseQueryAllCoinMetaRollbackProtectionResponse,
+    } as QueryAllCoinMetaRollbackProtectionResponse;
+    message.coinMetaRollbackProtection = [];
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          message.coinMetaRollbackProtection.push(
+            CoinMetaRollbackProtection.decode(reader, reader.uint32())
+          );
+          break;
+        case 2:
+          message.pagination = PageResponse.decode(reader, reader.uint32());
+          break;
+        default:
+          reader.skipType(tag & 7);
+          break;
+      }
+    }
+    return message;
+  },
+
+  fromJSON(object: any): QueryAllCoinMetaRollbackProtectionResponse {
+    const message = {
+      ...baseQueryAllCoinMetaRollbackProtectionResponse,
+    } as QueryAllCoinMetaRollbackProtectionResponse;
+    message.coinMetaRollbackProtection = [];
+    if (
+      object.coinMetaRollbackProtection !== undefined &&
+      object.coinMetaRollbackProtection !== null
+    ) {
+      for (const e of object.coinMetaRollbackProtection) {
+        message.coinMetaRollbackProtection.push(
+          CoinMetaRollbackProtection.fromJSON(e)
+        );
+      }
+    }
+    if (object.pagination !== undefined && object.pagination !== null) {
+      message.pagination = PageResponse.fromJSON(object.pagination);
+    } else {
+      message.pagination = undefined;
+    }
+    return message;
+  },
+
+  toJSON(message: QueryAllCoinMetaRollbackProtectionResponse): unknown {
+    const obj: any = {};
+    if (message.coinMetaRollbackProtection) {
+      obj.coinMetaRollbackProtection = message.coinMetaRollbackProtection.map(
+        (e) => (e ? CoinMetaRollbackProtection.toJSON(e) : undefined)
+      );
+    } else {
+      obj.coinMetaRollbackProtection = [];
+    }
+    message.pagination !== undefined &&
+      (obj.pagination = message.pagination
+        ? PageResponse.toJSON(message.pagination)
+        : undefined);
+    return obj;
+  },
+
+  fromPartial(
+    object: DeepPartial<QueryAllCoinMetaRollbackProtectionResponse>
+  ): QueryAllCoinMetaRollbackProtectionResponse {
+    const message = {
+      ...baseQueryAllCoinMetaRollbackProtectionResponse,
+    } as QueryAllCoinMetaRollbackProtectionResponse;
+    message.coinMetaRollbackProtection = [];
+    if (
+      object.coinMetaRollbackProtection !== undefined &&
+      object.coinMetaRollbackProtection !== null
+    ) {
+      for (const e of object.coinMetaRollbackProtection) {
+        message.coinMetaRollbackProtection.push(
+          CoinMetaRollbackProtection.fromPartial(e)
+        );
+      }
+    }
+    if (object.pagination !== undefined && object.pagination !== null) {
+      message.pagination = PageResponse.fromPartial(object.pagination);
+    } else {
+      message.pagination = undefined;
+    }
+    return message;
+  },
+};
+
 /** Query defines the gRPC querier service. */
 export interface Query {
   /** Queries a config by index. */
@@ -845,6 +1205,14 @@ export interface Query {
   ChainRegistrationAll(
     request: QueryAllChainRegistrationRequest
   ): Promise<QueryAllChainRegistrationResponse>;
+  /** Queries a coinMetaRollbackProtection by index. */
+  CoinMetaRollbackProtection(
+    request: QueryGetCoinMetaRollbackProtectionRequest
+  ): Promise<QueryGetCoinMetaRollbackProtectionResponse>;
+  /** Queries a list of coinMetaRollbackProtection items. */
+  CoinMetaRollbackProtectionAll(
+    request: QueryAllCoinMetaRollbackProtectionRequest
+  ): Promise<QueryAllCoinMetaRollbackProtectionResponse>;
 }
 
 export class QueryClientImpl implements Query {
@@ -917,6 +1285,38 @@ export class QueryClientImpl implements Query {
     );
     return promise.then((data) =>
       QueryAllChainRegistrationResponse.decode(new Reader(data))
+    );
+  }
+
+  CoinMetaRollbackProtection(
+    request: QueryGetCoinMetaRollbackProtectionRequest
+  ): Promise<QueryGetCoinMetaRollbackProtectionResponse> {
+    const data = QueryGetCoinMetaRollbackProtectionRequest.encode(
+      request
+    ).finish();
+    const promise = this.rpc.request(
+      "certusone.wormholechain.tokenbridge.Query",
+      "CoinMetaRollbackProtection",
+      data
+    );
+    return promise.then((data) =>
+      QueryGetCoinMetaRollbackProtectionResponse.decode(new Reader(data))
+    );
+  }
+
+  CoinMetaRollbackProtectionAll(
+    request: QueryAllCoinMetaRollbackProtectionRequest
+  ): Promise<QueryAllCoinMetaRollbackProtectionResponse> {
+    const data = QueryAllCoinMetaRollbackProtectionRequest.encode(
+      request
+    ).finish();
+    const promise = this.rpc.request(
+      "certusone.wormholechain.tokenbridge.Query",
+      "CoinMetaRollbackProtectionAll",
+      data
+    );
+    return promise.then((data) =>
+      QueryAllCoinMetaRollbackProtectionResponse.decode(new Reader(data))
     );
   }
 }

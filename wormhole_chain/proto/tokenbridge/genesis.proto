@@ -4,6 +4,7 @@ package certusone.wormholechain.tokenbridge;
 import "tokenbridge/config.proto";
 import "tokenbridge/replay_protection.proto";
 import "tokenbridge/chain_registration.proto";
+import "tokenbridge/coin_meta_rollback_protection.proto";
 // this line is used by starport scaffolding # genesis/proto/import
 import "gogoproto/gogo.proto";
 
@@ -14,5 +15,6 @@ message GenesisState {
     Config config = 1;
   repeated ReplayProtection replayProtectionList = 2 [(gogoproto.nullable) = false];
   repeated ChainRegistration chainRegistrationList = 3 [(gogoproto.nullable) = false];
+  repeated CoinMetaRollbackProtection coinMetaRollbackProtectionList = 4 [(gogoproto.nullable) = false];
   // this line is used by starport scaffolding # genesis/proto/state
 }
