@@ -107,6 +107,7 @@ export class WormholePythPriceFetcher implements IPriceFetcher {
   }
 
   private async onPythData (vaaBytes: Buffer) {
+    //console.log(vaaBytes.toString('hex'))
     const v: VAA = this.coreWasm.parse_vaa(new Uint8Array(vaaBytes))
     const payload = Buffer.from(v.payload)
     const productId = payload.slice(7, 7 + 32)
@@ -120,8 +121,10 @@ export class WormholePythPriceFetcher implements IPriceFetcher {
       sym.pythData = {
         symbol: sym.name,
         vaaBody: vaaBytes.slice(6 + v.signatures.length * 66),
-        signatures: v.signatures
+        signatures: vaaBytes.slice(6, 6 + v.signatures.length * 66)
       }
+
+      //console.log('body:' + sym.pythData.vaaBody.toString('hex'))
 
       // Must check status field!
 

@@ -265,6 +265,13 @@ Backend tests will come shortly.
 
 ## Appendix
 
+### Common errors
+
+**TransactionPool.Remember: transaction XMGXHGC4GVEHQD2T7MZDKTFJWFRY5TFXX2WECCXBWTOZVHC7QLAA: overspend, account X**
+
+If account X is the stateless program address, this means that this account is without enough balance to pay the fees for each TX group.
+
+
 ### Sample Pyth VAA
 
 This is a sample signed VAA from Pyth that we process.

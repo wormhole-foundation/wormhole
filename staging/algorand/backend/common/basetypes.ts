@@ -31,7 +31,7 @@ export type VAA = {
 
 export type PythData = {
   vaaBody: Buffer,
-  signatures: [],
+  signatures: Buffer,
 
   // Informational fields.
 

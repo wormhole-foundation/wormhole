@@ -61,13 +61,16 @@ export class WormholeClientEngine implements IEngine {
     }
 
     const publisher = new Pricekeeper2Publisher(this.settings.apps.vaaProcessorAppId,
+      this.settings.apps.priceKeeperV2AppId,
       this.settings.apps.ownerAddress,
       verifyProgramBinary,
       this.settings.apps.vaaVerifyProgramHash,
       algosdk.mnemonicToSecretKey(mnemo.toString()),
       this.settings.algo.token,
       this.settings.algo.api,
-      this.settings.algo.port
+      this.settings.algo.port,
+      this.settings.algo.dumpFailedTx,
+      this.settings.algo.dumpFailedTxDirectory
     )
     const fetcher = new WormholePythPriceFetcher(this.settings.wormhole.spyServiceHost,
       this.settings.pyth.chainId,

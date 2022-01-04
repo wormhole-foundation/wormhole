@@ -14,23 +14,33 @@ export class Pricekeeper2Publisher implements IPublisher {
   private numOfVerifySteps: number = 0
   private guardianCount: number = 0
   private stepSize: number = 0
+  private dumpFailedTx: boolean
+  private dumpFailedTxDirectory: string | undefined
   private compiledVerifyProgram: { bytes: Uint8Array, hash: string } = { bytes: new Uint8Array(), hash: '' }
   constructor (vaaProcessorAppId: number,
+    priceKeeperAppId: number,
     vaaProcessorOwner: string,
     verifyProgramBinary: Uint8Array,
     verifyProgramHash: string,
     signKey: algosdk.Account,
     algoClientToken: string,
     algoClientServer: string,
-    algoClientPort: string) {
+    algoClientPort: string,
+    dumpFailedTx: boolean = false,
+    dumpFailedTxDirectory: string = './') {
     this.account = signKey
     this.compiledVerifyProgram.bytes = verifyProgramBinary
     this.compiledVerifyProgram.hash = verifyProgramHash
     this.vaaProcessorAppId = vaaProcessorAppId
     this.vaaProcessorOwner = vaaProcessorOwner
+    this.dumpFailedTx = dumpFailedTx
+    this.dumpFailedTxDirectory = dumpFailedTxDirectory
     this.algodClient = new algosdk.Algodv2(algoClientToken, algoClientServer, algoClientPort)
     this.pclib = new PricecasterLib.PricecasterLib(this.algodClient)
     this.pclib.setAppId('vaaProcessor', vaaProcessorAppId)
+    this.pclib.setAppId('pricekeeper', priceKeeperAppId)
+    this.pclib.enableDumpFailedTx(this.dumpFailedTx)
+    this.pclib.setDumpFailedTxDirectory(this.dumpFailedTxDirectory)
   }
 
   async start () {
@@ -71,9 +81,11 @@ export class Pricekeeper2Publisher implements IPublisher {
       const buf = Buffer.alloc(8)
       for (let i = 0; i < this.guardianCount; i++) {
         buf.writeBigUInt64BE(BigInt(i++))
-        const gk = await tools.readAppGlobalStateByKey(this.algodClient, this.vaaProcessorAppId, this.vaaProcessorAppId, buf.toString())
-        guardianKeys.push(gk)
+        const gk = await tools.readAppGlobalStateByKey(this.algodClient, this.vaaProcessorAppId, this.vaaProcessorOwner, buf.toString())
+        guardianKeys.push(Buffer.from(gk, 'base64').toString('hex'))
       }
+
+      const strSig = data.signatures.toString('hex')
 
       const gid = this.pclib.beginTxGroup()
       const sigSubsets = []
@@ -82,7 +94,8 @@ export class Pricekeeper2Publisher implements IPublisher {
         const sigSetLen = 132 * this.stepSize
 
         const keySubset = guardianKeys.slice(st, i < this.numOfVerifySteps - 1 ? st + this.stepSize : undefined)
-        sigSubsets.push(data.signatures.slice(i * sigSetLen, i < this.numOfVerifySteps - 1 ? ((i * sigSetLen) + sigSetLen) : undefined))
+
+        sigSubsets.push(strSig.slice(i * sigSetLen, i < this.numOfVerifySteps - 1 ? ((i * sigSetLen) + sigSetLen) : undefined))
         this.pclib.addVerifyTx(gid, this.compiledVerifyProgram.hash, txParams, data.vaaBody, keySubset, this.guardianCount)
       }
       this.pclib.addPriceStoreTx(gid, this.vaaProcessorOwner, txParams, data.symbol, data.vaaBody.slice(51))

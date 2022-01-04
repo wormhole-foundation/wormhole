@@ -483,7 +483,7 @@ class PricecasterLib {
       for (const tx of this.groupTxSet[gid]) {
         // All transactions except last must be signed by stateless code.
 
-        console.log(`sigSubsets[${i}]: ${sigSubsets[i]}`)
+        // console.log(`sigSubsets[${i}]: ${sigSubsets[i])
 
         if (i === this.groupTxSet[gid].length - 1) {
           signedGroup.push(signCallback(lastTxSender, tx))
