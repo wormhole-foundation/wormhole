@@ -43,7 +43,7 @@ class TestLib {
       payload.substr(2)
     ]
 
-    const hash = web3Utils.keccak256('0x' + body.join(''))
+    const hash = web3Utils.keccak256(web3Utils.keccak256('0x' + body.join('')))
 
     console.log('VAA body Hash: ', hash)
 
