@@ -50,6 +50,22 @@ class PricecasterLib {
     this.minFee = 1000
     this.groupTxSet = {}
     this.lsigs = {}
+    this.dumpFailedTx = false
+    this.dumpFailedTxDirectory = './'
+
+    /** Set the file dumping feature on failed group transactions
+     * @param {boolean} f Set to true to enable function, false to disable.
+     */
+    this.enableDumpFailedTx = function (f) {
+      this.dumpFailedTx = f
+    }
+
+    /** Set the file dumping feature output directory
+     * @param {string} dir The output directory.
+     */
+    this.setDumpFailedTxDirectory = function (dir) {
+      this.dumpFailedTxDirectory = dir
+    }
 
     /** Sets a contract approval program filename
      * @param {string} filename New file name to use.
@@ -452,7 +468,7 @@ class PricecasterLib {
     /**
      * @param {*} sender The sender account.
      * @param {*} programBytes Compiled program bytes.
-     * @param {*} sigSubsets The signature subsets i..j for logicsig arguments.
+     * @param {*} sigSubsets An hex string with the signature subsets i..j for logicsig arguments.
      * @param {*} lastTxSender The sender of the last TX in the group.
      * @param {*} signCallback The signing callback function to use in the last TX of the group.
      * @returns Transaction id.
@@ -478,7 +494,22 @@ class PricecasterLib {
       }
 
       // Submit the transaction
-      const tx = await this.algodClient.sendRawTransaction(signedGroup).do()
+      let tx
+      try {
+        tx = await this.algodClient.sendRawTransaction(signedGroup).do()
+      } catch (e) {
+        if (this.dumpFailedTx) {
+          const id = tx ? tx.txId : Date.now().toString()
+          const filename = `${this.dumpFailedTxDirectory}/failed-${id}.stxn`
+          if (fs.existsSync(filename)) {
+            fs.unlinkSync(filename)
+          }
+          for (let i = 0; i < signedGroup.length; ++i) {
+            fs.appendFileSync(filename, signedGroup[i])
+          }
+        }
+        throw e
+      }
       delete this.groupTxSet[gid]
       return tx.txId
     }

@@ -14,7 +14,9 @@ export interface IAppSettings extends Record<string, unknown> {
   algo: {
     token: string,
     api: string,
-    port: string
+    port: string,
+    dumpFailedTx: boolean,
+    dumpFailedTxDirectory?: string
   },
   apps: {
     priceKeeperV2AppId: number,

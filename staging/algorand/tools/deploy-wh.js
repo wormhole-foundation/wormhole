@@ -71,7 +71,7 @@ async function startOp (algodClient, fromAddress, gexpTime, gkeys) {
   const binaryFileName = 'VAA-VERIFY-' + dt + '.BIN'
 
   console.log(`Writing deployment results file ${resultsFileName}...`)
-  fs.writeFileSync(resultsFileName, `vaaProcessorAppId: ${appId}\npriceKeeperV2AppId: ${pkAppId}\nvaaVerifyProgramAddress: ${compiledVerifyProgram.hash}`)
+  fs.writeFileSync(resultsFileName, `vaaProcessorAppId: ${appId}\npriceKeeperV2AppId: ${pkAppId}\nvaaVerifyProgramHash: '${compiledVerifyProgram.hash}'`)
 
   console.log(`Writing stateless code binary file ${binaryFileName}...`)
   fs.writeFileSync(binaryFileName, compiledVerifyProgram.bytes)

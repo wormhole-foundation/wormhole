@@ -196,11 +196,58 @@ Writing stateless code binary file VAA-VERIFY-1639769594911.BIN...
 Bye.
 ```
 
-To operate, the stateless contract address must be supplied with funds to pay fees when submitting transactions.
+* To operate, the stateless contract address must be supplied with funds to pay fees when submitting transactions.
+* Use the generated `DEPLOY-XXX` file to set values in the `settings-worm.ts` file (or your current one): app ids and stateless hash.  
+* Copy the generated `VAA-VERIFY-xxx`  file as `vaa-verify.bin` under the `bin` directory.
 
 ## Backend Configuration
 
 The backend will read configuration from a `settings.ts` file pointed by the `PRICECASTER_SETTINGS` environment variable.  
+
+### Diagnosing failed transactions
+
+If a transaction fails, a diagnostic system is available where the group TX is dumped in a directory. To use this, set the relevant settings file:
+
+```
+  algo: {
+    ...
+    dumpFailedTx: true,
+    dumpFailedTxDirectory: './dump'
+  },
+```
+
+The dump directory will be filled with files named `failed-xxxx.stxn`.  You can use this file and `goal clerk` to trigger the stateless logic checks:
+
+```
+root@47d99e4cfffc:~/testnetwork/Node# goal clerk dryrun -t failed-1641324602942.stxn
+tx[0] trace:
+  1 intcblock 1 8 0 32 66 20 => <empty stack>
+  9 bytecblock 0x => <empty stack>
+ 12 txn Fee => (1000 0x3e8)
+ 14 pushint 1000 => (1000 0x3e8)
+ .
+ . 
+ .
+ 47 txn ApplicationID => (622608992 0x251c4260)
+ 49 pushint 596576475 => (596576475 0x238f08db)
+ 55 == => (0 0x0)
+ 56 assert =>
+ 56 assert failed pc=56
+
+REJECT
+ERROR: assert failed pc=56
+```
+
+In this example output, this means the logic failed due to mismatched stateful application id.
+
+
+For a stateful run, you must do a remote dryrun.  This is done by:
+
+```
+goal clerk dryrun -t failed-1641324602942.stxn  --dryrun-dump -o dump.dr
+goal clerk dryrun-remote -D dump.dr -v
+
+```
 
 ## Running the system
 
