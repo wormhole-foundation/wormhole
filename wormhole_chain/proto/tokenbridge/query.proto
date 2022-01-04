@@ -6,6 +6,7 @@ import "cosmos/base/query/v1beta1/pagination.proto";
 import "tokenbridge/config.proto";
 import "tokenbridge/replay_protection.proto";
 import "tokenbridge/chain_registration.proto";
+import "tokenbridge/coin_meta_rollback_protection.proto";
 // this line is used by starport scaffolding # 1
 import "gogoproto/gogo.proto";
 
@@ -35,6 +36,16 @@ service Query {
 	// Queries a list of chainRegistration items.
 	rpc ChainRegistrationAll(QueryAllChainRegistrationRequest) returns (QueryAllChainRegistrationResponse) {
 		option (google.api.http).get = "/certusone/wormholechain/tokenbridge/chainRegistration";
+	}
+
+// Queries a coinMetaRollbackProtection by index.
+	rpc CoinMetaRollbackProtection(QueryGetCoinMetaRollbackProtectionRequest) returns (QueryGetCoinMetaRollbackProtectionResponse) {
+		option (google.api.http).get = "/certusone/wormholechain/tokenbridge/coinMetaRollbackProtection/{index}";
+	}
+
+	// Queries a list of coinMetaRollbackProtection items.
+	rpc CoinMetaRollbackProtectionAll(QueryAllCoinMetaRollbackProtectionRequest) returns (QueryAllCoinMetaRollbackProtectionResponse) {
+		option (google.api.http).get = "/certusone/wormholechain/tokenbridge/coinMetaRollbackProtection";
 	}
 
 // this line is used by starport scaffolding # 2
@@ -78,6 +89,24 @@ message QueryAllChainRegistrationRequest {
 
 message QueryAllChainRegistrationResponse {
 	repeated ChainRegistration chainRegistration = 1 [(gogoproto.nullable) = false];
+	cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+
+message QueryGetCoinMetaRollbackProtectionRequest {
+	  string index = 1;
+
+}
+
+message QueryGetCoinMetaRollbackProtectionResponse {
+	CoinMetaRollbackProtection coinMetaRollbackProtection = 1 [(gogoproto.nullable) = false];
+}
+
+message QueryAllCoinMetaRollbackProtectionRequest {
+	cosmos.base.query.v1beta1.PageRequest pagination = 1;
+}
+
+message QueryAllCoinMetaRollbackProtectionResponse {
+	repeated CoinMetaRollbackProtection coinMetaRollbackProtection = 1 [(gogoproto.nullable) = false];
 	cosmos.base.query.v1beta1.PageResponse pagination = 2;
 }
 

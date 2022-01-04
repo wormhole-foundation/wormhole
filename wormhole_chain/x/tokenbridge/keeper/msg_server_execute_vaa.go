@@ -5,12 +5,13 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
-	"github.com/certusone/wormhole-chain/x/wormhole/keeper"
-	whtypes "github.com/certusone/wormhole-chain/x/wormhole/types"
-	btypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"math"
 	"math/big"
 	"strings"
+
+	"github.com/certusone/wormhole-chain/x/wormhole/keeper"
+	whtypes "github.com/certusone/wormhole-chain/x/wormhole/types"
+	btypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 
 	"github.com/certusone/wormhole-chain/x/tokenbridge/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -183,9 +184,12 @@ func (k msgServer) ExecuteVAA(goCtx context.Context, msg *types.MsgExecuteVAA) (
 			return nil, types.ErrNativeAssetRegistration
 		}
 
-		// TODO prevent rollback
-
 		identifier := GetCoinIdentifier(tokenChain, tokenAddress)
+		rollBackProtection, found := k.GetCoinMetaRollbackProtection(ctx, identifier)
+		if found && rollBackProtection.LastUpdateSequence >= v.Sequence {
+			return nil, types.ErrAssetMetaRollback
+		}
+
 		k.bankKeeper.SetDenomMetaData(ctx, btypes.Metadata{
 			Description: fmt.Sprintf("Wormhole wrapped asset from chain %d with address %x", tokenChain, tokenAddress),
 			DenomUnits: []*btypes.DenomUnit{
@@ -202,6 +206,10 @@ func (k msgServer) ExecuteVAA(goCtx context.Context, msg *types.MsgExecuteVAA) (
 			Display: identifier,
 			Name:    name,
 			Symbol:  symbol,
+		})
+		k.SetCoinMetaRollbackProtection(ctx, types.CoinMetaRollbackProtection{
+			Index:              identifier,
+			LastUpdateSequence: v.Sequence,
 		})
 
 		err = ctx.EventManager().EmitTypedEvent(&types.EventAssetRegistrationUpdate{

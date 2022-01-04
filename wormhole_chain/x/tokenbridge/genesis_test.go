@@ -28,6 +28,14 @@ func TestGenesis(t *testing.T) {
 				ChainID: 1,
 			},
 		},
+		CoinMetaRollbackProtectionList: []types.CoinMetaRollbackProtection{
+			{
+				Index: "0",
+			},
+			{
+				Index: "1",
+			},
+		},
 		// this line is used by starport scaffolding # genesis/test/state
 	}
 
@@ -41,5 +49,7 @@ func TestGenesis(t *testing.T) {
 	require.Subset(t, genesisState.ReplayProtectionList, got.ReplayProtectionList)
 	require.Len(t, got.ChainRegistrationList, len(genesisState.ChainRegistrationList))
 	require.Subset(t, genesisState.ChainRegistrationList, got.ChainRegistrationList)
+	require.Len(t, got.CoinMetaRollbackProtectionList, len(genesisState.CoinMetaRollbackProtectionList))
+	require.Subset(t, genesisState.CoinMetaRollbackProtectionList, got.CoinMetaRollbackProtectionList)
 	// this line is used by starport scaffolding # genesis/test/assert
 }

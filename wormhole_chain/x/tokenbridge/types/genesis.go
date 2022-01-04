@@ -10,9 +10,10 @@ const DefaultIndex uint64 = 1
 // DefaultGenesis returns the default Capability genesis state
 func DefaultGenesis() *GenesisState {
 	return &GenesisState{
-		Config:                nil,
-		ReplayProtectionList:  []ReplayProtection{},
-		ChainRegistrationList: []ChainRegistration{},
+		Config:                         nil,
+		ReplayProtectionList:           []ReplayProtection{},
+		ChainRegistrationList:          []ChainRegistration{},
+		CoinMetaRollbackProtectionList: []CoinMetaRollbackProtection{},
 		// this line is used by starport scaffolding # genesis/types/default
 	}
 }
@@ -39,6 +40,16 @@ func (gs GenesisState) Validate() error {
 			return fmt.Errorf("duplicated index for chainRegistration")
 		}
 		chainRegistrationIndexMap[index] = struct{}{}
+	}
+	// Check for duplicated index in coinMetaRollbackProtection
+	coinMetaRollbackProtectionIndexMap := make(map[string]struct{})
+
+	for _, elem := range gs.CoinMetaRollbackProtectionList {
+		index := string(CoinMetaRollbackProtectionKey(elem.Index))
+		if _, ok := coinMetaRollbackProtectionIndexMap[index]; ok {
+			return fmt.Errorf("duplicated index for coinMetaRollbackProtection")
+		}
+		coinMetaRollbackProtectionIndexMap[index] = struct{}{}
 	}
 	// this line is used by starport scaffolding # genesis/types/validate
 
