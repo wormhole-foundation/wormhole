@@ -169,6 +169,35 @@ export class Api extends HttpClient {
          * No description
          *
          * @tags Query
+         * @name QueryCoinMetaRollbackProtectionAll
+         * @summary Queries a list of coinMetaRollbackProtection items.
+         * @request GET:/certusone/wormholechain/tokenbridge/coinMetaRollbackProtection
+         */
+        this.queryCoinMetaRollbackProtectionAll = (query, params = {}) => this.request({
+            path: `/certusone/wormholechain/tokenbridge/coinMetaRollbackProtection`,
+            method: "GET",
+            query: query,
+            format: "json",
+            ...params,
+        });
+        /**
+         * No description
+         *
+         * @tags Query
+         * @name QueryCoinMetaRollbackProtection
+         * @summary Queries a coinMetaRollbackProtection by index.
+         * @request GET:/certusone/wormholechain/tokenbridge/coinMetaRollbackProtection/{index}
+         */
+        this.queryCoinMetaRollbackProtection = (index, params = {}) => this.request({
+            path: `/certusone/wormholechain/tokenbridge/coinMetaRollbackProtection/${index}`,
+            method: "GET",
+            format: "json",
+            ...params,
+        });
+        /**
+         * No description
+         *
+         * @tags Query
          * @name QueryConfig
          * @summary Queries a config by index.
          * @request GET:/certusone/wormholechain/tokenbridge/config

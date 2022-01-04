@@ -28,6 +28,10 @@ export interface TokenbridgeChainRegistration {
   emitterAddress?: string;
 }
 
+export interface TokenbridgeCoinMetaRollbackProtection {
+  index?: string;
+}
+
 export type TokenbridgeConfig = object;
 
 export type TokenbridgeMsgAttestTokenResponse = object;
@@ -40,6 +44,21 @@ export type TokenbridgeMsgTransferResponse = object;
 
 export interface TokenbridgeQueryAllChainRegistrationResponse {
   chainRegistration?: TokenbridgeChainRegistration[];
+
+  /**
+   * PageResponse is to be embedded in gRPC response messages where the
+   * corresponding request message has used PageRequest.
+   *
+   *  message SomeResponse {
+   *          repeated Bar results = 1;
+   *          PageResponse page = 2;
+   *  }
+   */
+  pagination?: V1Beta1PageResponse;
+}
+
+export interface TokenbridgeQueryAllCoinMetaRollbackProtectionResponse {
+  coinMetaRollbackProtection?: TokenbridgeCoinMetaRollbackProtection[];
 
   /**
    * PageResponse is to be embedded in gRPC response messages where the
@@ -70,6 +89,10 @@ export interface TokenbridgeQueryAllReplayProtectionResponse {
 
 export interface TokenbridgeQueryGetChainRegistrationResponse {
   chainRegistration?: TokenbridgeChainRegistration;
+}
+
+export interface TokenbridgeQueryGetCoinMetaRollbackProtectionResponse {
+  coinMetaRollbackProtection?: TokenbridgeCoinMetaRollbackProtection;
 }
 
 export interface TokenbridgeQueryGetConfigResponse {
@@ -387,6 +410,48 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
   queryChainRegistration = (chainID: number, params: RequestParams = {}) =>
     this.request<TokenbridgeQueryGetChainRegistrationResponse, RpcStatus>({
       path: `/certusone/wormholechain/tokenbridge/chainRegistration/${chainID}`,
+      method: "GET",
+      format: "json",
+      ...params,
+    });
+
+  /**
+   * No description
+   *
+   * @tags Query
+   * @name QueryCoinMetaRollbackProtectionAll
+   * @summary Queries a list of coinMetaRollbackProtection items.
+   * @request GET:/certusone/wormholechain/tokenbridge/coinMetaRollbackProtection
+   */
+  queryCoinMetaRollbackProtectionAll = (
+    query?: {
+      "pagination.key"?: string;
+      "pagination.offset"?: string;
+      "pagination.limit"?: string;
+      "pagination.countTotal"?: boolean;
+      "pagination.reverse"?: boolean;
+    },
+    params: RequestParams = {},
+  ) =>
+    this.request<TokenbridgeQueryAllCoinMetaRollbackProtectionResponse, RpcStatus>({
+      path: `/certusone/wormholechain/tokenbridge/coinMetaRollbackProtection`,
+      method: "GET",
+      query: query,
+      format: "json",
+      ...params,
+    });
+
+  /**
+   * No description
+   *
+   * @tags Query
+   * @name QueryCoinMetaRollbackProtection
+   * @summary Queries a coinMetaRollbackProtection by index.
+   * @request GET:/certusone/wormholechain/tokenbridge/coinMetaRollbackProtection/{index}
+   */
+  queryCoinMetaRollbackProtection = (index: string, params: RequestParams = {}) =>
+    this.request<TokenbridgeQueryGetCoinMetaRollbackProtectionResponse, RpcStatus>({
+      path: `/certusone/wormholechain/tokenbridge/coinMetaRollbackProtection/${index}`,
       method: "GET",
       format: "json",
       ...params,
