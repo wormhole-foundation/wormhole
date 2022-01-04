@@ -99,7 +99,7 @@ export class WormholeClientEngine implements IEngine {
     const wrs = await workerRoutine(sym, fetcher, publisher)
     switch (wrs.status) {
       case StatusCode.OK: {
-        Logger.info(`${sym.name} [${sym.pubCount++}] ${wrs.tick!.price}±${wrs.tick!.confidence} exp:${wrs.tick!.exponent}  t:${wrs.tick!.timestamp} TXID:${wrs.pub!.txid}`)
+        Logger.info(`${sym.name} [#${sym.pubCount++}] price: ${wrs.tick!.price} ± ${wrs.tick!.confidence}    exp: ${wrs.tick!.exponent}    t: ${wrs.tick!.timestamp}    TxID: ${wrs.pub!.txid}`)
         break
       }
       case StatusCode.NO_TICKER:

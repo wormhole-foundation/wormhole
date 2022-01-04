@@ -107,12 +107,12 @@ export class WormholePythPriceFetcher implements IPriceFetcher {
   }
 
   private async onPythData (vaaBytes: Buffer) {
-    //console.log(vaaBytes.toString('hex'))
+    // console.log(vaaBytes.toString('hex'))
     const v: VAA = this.coreWasm.parse_vaa(new Uint8Array(vaaBytes))
     const payload = Buffer.from(v.payload)
     const productId = payload.slice(7, 7 + 32)
     const priceId = payload.slice(7 + 32, 7 + 32 + 32)
-    console.log(productId.toString('hex'), priceId.toString('hex'))
+    // console.log(productId.toString('hex'), priceId.toString('hex'))
 
     const k = productId.toString('hex') + priceId.toString('hex')
     const sym = this.symbolMap.get(k)
@@ -121,34 +121,15 @@ export class WormholePythPriceFetcher implements IPriceFetcher {
       sym.pythData = {
         symbol: sym.name,
         vaaBody: vaaBytes.slice(6 + v.signatures.length * 66),
-        signatures: vaaBytes.slice(6, 6 + v.signatures.length * 66)
+        signatures: vaaBytes.slice(6, 6 + v.signatures.length * 66),
+        price_type: payload.readInt8(71),
+        price: payload.readBigUInt64BE(72),
+        exponent: payload.readInt32BE(80),
+        confidence: payload.readBigUInt64BE(132),
+        status: payload.readInt8(140),
+        corporate_act: payload.readInt8(141),
+        timestamp: payload.readBigUInt64BE(142)
       }
-
-      //console.log('body:' + sym.pythData.vaaBody.toString('hex'))
-
-      // Must check status field!
-
-      //    status: payload.readInt8(133)
-      // }
-      //   const pythPayload: PythData = {
-      //     vaaBody:
-      //     ,
-
-      // Informational fields
-
-      // price_type: payload.readInt8(71),
-      // price: payload.readBigUInt64BE(72),
-      // exponent: payload.readUInt32BE(80),
-      // twap: payload.readBigUInt64BE(84),
-      // twap_num_upd: payload.readBigUInt64BE(92),
-      // twap_denom_upd: payload.readBigUInt64BE(100),
-      // twac: payload.readBigUInt64BE(108),
-      // twac_num_upd: payload.readBigUInt64BE(116),
-      // twac_denom_upd: payload.readBigUInt64BE(124),
-      // confidence: payload.readBigUInt64BE(132),
-      // status: payload.readInt8(133),
-      // corporate_act: payload.readInt8(134),
-      // timestamp: payload.readBigUInt64BE(135)
     }
 
     // if (pythPayload.status === 0) {
