@@ -57,6 +57,9 @@ export interface TransferState {
   redeemTx: Transaction | undefined;
   isApproving: boolean;
   isRecovery: boolean;
+  gasPrice: number | undefined;
+  useRelayer: boolean;
+  relayerFee: string | undefined;
 }
 
 const initialState: TransferState = {
@@ -80,6 +83,9 @@ const initialState: TransferState = {
   redeemTx: undefined,
   isApproving: false,
   isRecovery: false,
+  gasPrice: undefined,
+  useRelayer: false,
+  relayerFee: undefined,
 };
 
 export const transferSlice = createSlice({
@@ -229,6 +235,7 @@ export const transferSlice = createSlice({
       state,
       action: PayloadAction<{
         vaa: any;
+        useRelayer: boolean;
         parsedPayload: {
           targetChain: ChainId;
           targetAddress: string;
@@ -256,6 +263,16 @@ export const transferSlice = createSlice({
       state.amount = action.payload.parsedPayload.amount;
       state.activeStep = 3;
       state.isRecovery = true;
+      state.useRelayer = action.payload.useRelayer;
+    },
+    setGasPrice: (state, action: PayloadAction<number | undefined>) => {
+      state.gasPrice = action.payload;
+    },
+    setUseRelayer: (state, action: PayloadAction<boolean | undefined>) => {
+      state.useRelayer = !!action.payload;
+    },
+    setRelayerFee: (state, action: PayloadAction<string | undefined>) => {
+      state.relayerFee = action.payload;
     },
   },
 });
@@ -285,6 +302,9 @@ export const {
   setIsApproving,
   reset,
   setRecoveryVaa,
+  setGasPrice,
+  setUseRelayer,
+  setRelayerFee,
 } = transferSlice.actions;
 
 export default transferSlice.reducer;

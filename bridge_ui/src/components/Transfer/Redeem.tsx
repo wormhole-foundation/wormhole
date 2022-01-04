@@ -13,9 +13,11 @@ import {
 } from "@certusone/wormhole-sdk";
 import {
   Checkbox,
+  CircularProgress,
   FormControlLabel,
   Link,
   makeStyles,
+  Typography,
 } from "@material-ui/core";
 import { Alert } from "@material-ui/lab";
 import { useCallback, useState } from "react";
@@ -27,6 +29,7 @@ import {
   selectTransferIsRecovery,
   selectTransferTargetAsset,
   selectTransferTargetChain,
+  selectTransferUseRelayer,
 } from "../../store/selectors";
 import { reset } from "../../store/transferSlice";
 import {
@@ -54,16 +57,24 @@ const useStyles = makeStyles((theme) => ({
     marginTop: theme.spacing(1),
     marginBottom: theme.spacing(1),
   },
+  centered: {
+    marginTop: theme.spacing(1),
+    textAlign: "center",
+  },
 }));
 
 function Redeem() {
   const { handleClick, handleNativeClick, disabled, showLoader } =
     useHandleRedeem();
+  const useRelayer = useSelector(selectTransferUseRelayer);
   const targetChain = useSelector(selectTransferTargetChain);
   const targetAsset = useSelector(selectTransferTargetAsset);
   const isRecovery = useSelector(selectTransferIsRecovery);
   const { isTransferCompletedLoading, isTransferCompleted } =
-    useGetIsTransferCompleted(true);
+    useGetIsTransferCompleted(
+      useRelayer ? false : true,
+      useRelayer ? 2000 : undefined
+    );
   const classes = useStyles();
   const dispatch = useDispatch();
   const { isReady, statusMessage } = useIsWalletReady(targetChain);
@@ -118,9 +129,38 @@ function Redeem() {
   }, [dispatch]);
   const howToAddTokensUrl = getHowToAddTokensToWalletUrl(targetChain);
 
-  return (
+  const relayerContent = (
     <>
-      <StepDescription>Receive the tokens on the target chain</StepDescription>
+      {isEVMChain(targetChain) ? <KeyAndBalance chainId={targetChain} /> : null}
+
+      {!isReady && isEVMChain(targetChain) ? (
+        <Typography>
+          {"Please connect your wallet to check for transfer completion."}
+        </Typography>
+      ) : null}
+
+      {(!isEVMChain(targetChain) || isReady) && !isTransferCompleted ? (
+        <div className={classes.centered}>
+          <CircularProgress />
+          <Typography>
+            {"Waiting for a relayer to process your transfer."}
+          </Typography>
+        </div>
+      ) : null}
+      {isTransferCompleted && isEVMChain(targetChain) ? (
+        <AddToMetamask />
+      ) : null}
+
+      {isTransferCompleted ? (
+        <ButtonWithLoader onClick={handleResetClick}>
+          Transfer More Tokens!
+        </ButtonWithLoader>
+      ) : null}
+    </>
+  );
+
+  const nonRelayContent = (
+    <>
       <KeyAndBalance chainId={targetChain} />
       {targetChain === CHAIN_ID_TERRA && (
         <TerraFeeDenomPicker disabled={disabled} />
@@ -142,22 +182,27 @@ function Redeem() {
         <SolanaCreateAssociatedAddressAlternate />
       ) : null}
 
-      <ButtonWithLoader
-        //TODO disable when the associated token account is confirmed to not exist
-        disabled={
-          !isReady ||
-          disabled ||
-          (isRecovery && (isTransferCompletedLoading || isTransferCompleted))
-        }
-        onClick={
-          isNativeEligible && useNativeRedeem ? handleNativeClick : handleClick
-        }
-        showLoader={showLoader || (isRecovery && isTransferCompletedLoading)}
-        error={statusMessage}
-      >
-        Redeem
-      </ButtonWithLoader>
-      <WaitingForWalletMessage />
+      <>
+        {" "}
+        <ButtonWithLoader
+          //TODO disable when the associated token account is confirmed to not exist
+          disabled={
+            !isReady ||
+            disabled ||
+            (isRecovery && (isTransferCompletedLoading || isTransferCompleted))
+          }
+          onClick={
+            isNativeEligible && useNativeRedeem
+              ? handleNativeClick
+              : handleClick
+          }
+          showLoader={showLoader || (isRecovery && isTransferCompletedLoading)}
+          error={statusMessage}
+        >
+          Redeem
+        </ButtonWithLoader>
+        <WaitingForWalletMessage />
+      </>
 
       {isRecovery && isReady && isTransferCompleted ? (
         <>
@@ -188,6 +233,13 @@ function Redeem() {
           </ButtonWithLoader>
         </>
       ) : null}
+    </>
+  );
+
+  return (
+    <>
+      <StepDescription>Receive the tokens on the target chain</StepDescription>
+      {useRelayer ? relayerContent : nonRelayContent}
     </>
   );
 }
