@@ -6,6 +6,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/notify/discord"
 	"github.com/gagliardetto/solana-go/rpc"
+	"go.uber.org/zap/zapcore"
 	"log"
 	"net/http"
 	_ "net/http/pprof"
@@ -204,21 +205,6 @@ const devwarning = `
 
 `
 
-func rootLoggerName() string {
-	if *unsafeDevMode {
-		// FIXME: add hostname to root logger for cleaner console output in multi-node development.
-		// The proper way is to change the output format to include the hostname.
-		hostname, err := os.Hostname()
-		if err != nil {
-			panic(err)
-		}
-
-		return fmt.Sprintf("%s-%s", "wormhole", hostname)
-	} else {
-		return "wormhole"
-	}
-}
-
 // NodeCmd represents the node command
 var NodeCmd = &cobra.Command{
 	Use:   "node",
@@ -248,11 +234,31 @@ func runNode(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
-	// Our root logger. Convert directly to a regular Zap logger.
-	logger := ipfslog.Logger(rootLoggerName()).Desugar()
+	cfg := zap.NewDevelopmentConfig()
+	cfg.Level = zap.NewAtomicLevelAt(zapcore.Level(lvl))
+	logger, err := cfg.Build()
+	if err != nil {
+		panic(err)
+	}
+
+	if *unsafeDevMode {
+		// Use the hostname as nodeName. For production, we don't want to do this to
+		// prevent accidentally leaking sensitive hostnames.
+		hostname, err := os.Hostname()
+		if err != nil {
+			panic(err)
+		}
+		*nodeName = hostname
+
+		// Put node name into the log for development.
+		logger = logger.Named(*nodeName)
+	}
 
 	// Override the default go-log config, which uses a magic environment variable.
 	ipfslog.SetAllLoggers(lvl)
+
+	// Redirect ipfs logs to plain zap
+	ipfslog.SetPrimaryCore(logger.Core())
 
 	// Register components for readiness checks.
 	readiness.RegisterComponent(common.ReadinessEthSyncing)
@@ -310,14 +316,6 @@ func runNode(cmd *cobra.Command, args []string) {
 		*polygonContract = devnet.GanacheWormholeContractAddress.Hex()
 		*avalancheContract = devnet.GanacheWormholeContractAddress.Hex()
 		*oasisContract = devnet.GanacheWormholeContractAddress.Hex()
-
-		// Use the hostname as nodeName. For production, we don't want to do this to
-		// prevent accidentally leaking sensitive hostnames.
-		hostname, err := os.Hostname()
-		if err != nil {
-			panic(err)
-		}
-		*nodeName = hostname
 	}
 
 	// Verify flags
