@@ -18,9 +18,10 @@ use crate::vaa::{
     parse_fixed,
     GovernanceAction,
 };
+use crate::vaa::ShortUTFString;
 use crate::{
-    parse_fixed_utf8,
     Chain,
+    parse_fixed_utf8,
     WormholeError,
 };
 
@@ -36,16 +37,16 @@ pub struct Transfer {
     pub nft_chain: Chain,
 
     /// Symbol of the token
-    pub symbol: String,
+    pub symbol: ShortUTFString,
 
     /// Name of the token
-    pub name: String,
+    pub name: ShortUTFString,
 
     /// TokenID of the token (big-endian uint256)
     pub token_id: U256,
 
     /// URI of the token metadata
-    pub uri: String,
+    pub uri: ShortUTFString,
 
     /// Address of the recipient. Left-zero-padded if shorter than 32 bytes
     pub to: [u8; 32],

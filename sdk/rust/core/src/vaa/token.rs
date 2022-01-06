@@ -13,9 +13,10 @@ use nom::{
 use primitive_types::U256;
 
 use crate::vaa::{
+    GovernanceAction,
     parse_chain,
     parse_fixed,
-    GovernanceAction,
+    ShortUTFString,
 };
 use crate::{
     parse_fixed_utf8,
@@ -94,11 +95,11 @@ pub struct AssetMeta {
     /// Number of decimals the source token has on its origin chain.
     pub decimals: u8,
 
-    /// Ticker symbol for the token on its origin chain.
-    pub symbol: String,
+    /// Ticker Symbol for the token on its origin chain.
+    pub symbol: ShortUTFString,
 
-    /// Full token name for the token on its origin chain.
-    pub name: String,
+    /// Full Token name for the token on its origin chain.
+    pub name: ShortUTFString,
 }
 
 impl AssetMeta {

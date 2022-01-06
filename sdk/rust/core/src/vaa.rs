@@ -64,6 +64,11 @@ pub type Signature = [u8; 66];
 /// Ethereum addresses, are left zero padded to 32.
 pub type ForeignAddress = [u8; 32];
 
+/// Fields on VAA's are all usually fixed bytestrings, however they often contain UTF-8. When
+/// parsed these result in `String` with the additional constraint that they are always equal or
+/// less to the underlying byte field.
+type ShortUTFString = String;
+
 /// The core VAA itself. This structure is what is received by a contract on the receiving side of
 /// a wormhole message passing flow. The payload of the message must be parsed separately to the
 /// VAA itself as it is completely user defined.
@@ -84,6 +89,13 @@ pub struct VAA {
     pub payload:           Vec<u8>,
 }
 
+/// Contains the hash, secp256k1 payload, and serialized digest of the VAA. These are used in
+/// various places in Wormhole codebases.
+pub struct VAADigest {
+    pub digest: Vec<u8>,
+    pub hash:   [u8; 32],
+}
+
 impl VAA {
     /// Given any argument treatable as a series of bytes, attempt to deserialize into a valid VAA.
     pub fn from_bytes<T: AsRef<[u8]>>(input: T) -> Result<Self, WormholeError> {
@@ -97,7 +109,7 @@ impl VAA {
     /// returns a 256 bit Keccak hash of these components. This hash is utilised in all Wormhole
     /// components for identifying unique VAA's, including the bridge, modules, and core guardian
     /// software.
-    pub fn digest(&self) -> Option<[u8; 32]> {
+    pub fn digest(&self) -> Option<VAADigest> {
         use byteorder::{
             BigEndian,
             WriteBytesExt,
@@ -124,13 +136,16 @@ impl VAA {
         // We hash the body so that secp256k1 signatures are signing the hash instead of the body
         // within our contracts. We do this so we don't have to submit the entire VAA for signature
         // verification, only the hash.
-        let body: [u8; 32] = {
+        let hash: [u8; 32] = {
             let mut h = sha3::Keccak256::default();
             let _ = h.write(body.as_slice()).unwrap();
             h.finalize().into()
         };
 
-        Some(body)
+        Some(VAADigest {
+            digest: body,
+            hash,
+        })
     }
 }
 
