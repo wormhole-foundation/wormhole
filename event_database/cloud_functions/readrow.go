@@ -9,6 +9,8 @@ import (
 	"log"
 	"net/http"
 	"strings"
+
+	"cloud.google.com/go/bigtable"
 )
 
 // fetch a single row by the row key
@@ -105,7 +107,7 @@ func ReadRow(w http.ResponseWriter, r *http.Request) {
 	}
 	rowKey = emitterChain + ":" + emitterAddress + ":" + sequence
 
-	row, err := tbl.ReadRow(r.Context(), rowKey)
+	row, err := tbl.ReadRow(r.Context(), rowKey, bigtable.RowFilter(bigtable.LatestNFilter(1)))
 	if err != nil {
 		http.Error(w, "Error reading rows", http.StatusInternalServerError)
 		log.Printf("tbl.ReadRows(): %v", err)

@@ -1,3 +1,4 @@
+/* eslint-disable func-call-spacing */
 /* eslint-disable no-unused-vars */
 /**
  * Pricecaster Service.
@@ -10,8 +11,8 @@
 import * as Config from '@randlabs/js-config-reader'
 import { IAppSettings } from './common/settings'
 import { exit } from 'process'
-import { PriceKeeperEngine } from './engine/PriceKeeperEngine'
 import { WormholeClientEngine } from './engine/WormholeEngine'
+import * as Logger from '@randlabs/js-logger'
 const charm = require('charm')();
 
 (async () => {
@@ -25,25 +26,12 @@ const charm = require('charm')();
   try {
     await Config.initialize<IAppSettings>({ envVar: 'PRICECASTER_SETTINGS' })
     settings = Config.get<IAppSettings>()
+    await Logger.initialize(settings.log)
   } catch (e: any) {
     console.error('Cannot initialize configuration: ' + e.toString())
     exit(1)
   }
 
-  let engine
-  switch (settings.mode) {
-    case 'pkeeper':
-      engine = new PriceKeeperEngine(settings)
-      break
-
-    case 'wormhole-client':
-      engine = new WormholeClientEngine(settings)
-      break
-
-    default:
-      console.error('Invalid specified mode in settings')
-      exit(2)
-  }
-
-  engine.start()
+  const engine = new WormholeClientEngine(settings)
+  await engine.start()
 })()

@@ -96,6 +96,8 @@ func (c ChainID) String() string {
 		return "polygon"
 	case ChainIDAvalanche:
 		return "avalanche"
+	case ChainIDOasis:
+		return "oasis"
 	case ChainIDEthereumRopsten:
 		return "ethereum-ropsten"
 	default:
@@ -119,6 +121,8 @@ func ChainIDFromString(s string) (ChainID, error) {
 		return ChainIDPolygon, nil
 	case "avalanche":
 		return ChainIDAvalanche, nil
+	case "oasis":
+		return ChainIDOasis, nil
 	case "ethereum-ropsten":
 		return ChainIDEthereumRopsten, nil
 	default:
@@ -140,6 +144,8 @@ const (
 	ChainIDPolygon ChainID = 5
 	// ChainIDAvalanche is the ChainID of Avalanche
 	ChainIDAvalanche ChainID = 6
+	// ChainIDOasis is the ChainID of Oasis
+	ChainIDOasis ChainID = 7
 
 	// ChainIDEthereumRopsten is the ChainID of Ethereum Ropsten
 	ChainIDEthereumRopsten ChainID = 10001
@@ -228,22 +234,16 @@ func Unmarshal(data []byte) (*VAA, error) {
 }
 
 // signingBody returns the binary representation of the data that is relevant for signing and verifying the VAA
-func (v *VAA) signingBody() ([]byte, error) {
+func (v *VAA) signingBody() []byte {
 	return v.serializeBody()
 }
 
 // SigningMsg returns the hash of the signing body. This is used for signature generation and verification
-func (v *VAA) SigningMsg() (common.Hash, error) {
-	body, err := v.signingBody()
-	if err != nil {
-		// Should never happen on a successfully parsed VAA
-		return common.Hash{}, fmt.Errorf("failed to serialize signing body: %w", err)
-	}
-
+func (v *VAA) SigningMsg() common.Hash {
 	// In order to save space in the solana signature verification instruction, we hash twice so we only need to pass in
 	// the first hash (32 bytes) vs the full body data.
-	hash := crypto.Keccak256Hash(crypto.Keccak256Hash(body).Bytes())
-	return hash, nil
+	hash := crypto.Keccak256Hash(crypto.Keccak256Hash(v.signingBody()).Bytes())
+	return hash
 }
 
 // VerifySignatures verifies the signature of the VAA given the signer addresses.
@@ -253,10 +253,7 @@ func (v *VAA) VerifySignatures(addresses []common.Address) bool {
 		return false
 	}
 
-	h, err := v.SigningMsg()
-	if err != nil {
-		return false
-	}
+	h := v.SigningMsg()
 
 	for _, sig := range v.Signatures {
 		if int(sig.Index) >= len(addresses) {
@@ -291,11 +288,7 @@ func (v *VAA) Marshal() ([]byte, error) {
 	}
 
 	// Write Body
-	body, err := v.serializeBody()
-	if err != nil {
-		return nil, fmt.Errorf("failed to serialize body: %w", err)
-	}
-	buf.Write(body)
+	buf.Write(v.serializeBody())
 
 	return buf.Bytes(), nil
 }
@@ -307,14 +300,10 @@ func (v *VAA) MessageID() string {
 
 // HexDigest returns the hex-encoded digest.
 func (v *VAA) HexDigest() string {
-	b, err := v.SigningMsg()
-	if err != nil {
-		panic(err)
-	}
-	return hex.EncodeToString(b.Bytes())
+	return hex.EncodeToString(v.SigningMsg().Bytes())
 }
 
-func (v *VAA) serializeBody() ([]byte, error) {
+func (v *VAA) serializeBody() []byte {
 	buf := new(bytes.Buffer)
 	MustWrite(buf, binary.BigEndian, uint32(v.Timestamp.Unix()))
 	MustWrite(buf, binary.BigEndian, v.Nonce)
@@ -324,15 +313,11 @@ func (v *VAA) serializeBody() ([]byte, error) {
 	MustWrite(buf, binary.BigEndian, v.ConsistencyLevel)
 	buf.Write(v.Payload)
 
-	return buf.Bytes(), nil
+	return buf.Bytes()
 }
 
 func (v *VAA) AddSignature(key *ecdsa.PrivateKey, index uint8) {
-	data, err := v.SigningMsg()
-	if err != nil {
-		panic(err)
-	}
-	sig, err := crypto.Sign(data.Bytes(), key)
+	sig, err := crypto.Sign(v.SigningMsg().Bytes(), key)
 	if err != nil {
 		panic(err)
 	}

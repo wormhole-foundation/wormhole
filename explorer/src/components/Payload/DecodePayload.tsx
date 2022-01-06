@@ -7,6 +7,7 @@ import { chainEnums, ChainIDs, chainIDs, METADATA_REPLACE } from "~/utils/misc/c
 import { Statistic, Typography } from 'antd'
 import { FormattedMessage } from "gatsby-plugin-intl";
 import { titleStyles } from "~/styles";
+import { TransferDetails } from "../ExplorerQuery/ExplorerQuery";
 
 const { Title } = Typography
 
@@ -183,6 +184,7 @@ interface DecodePayloadProps {
     showType?: boolean
     showSummary?: boolean
     showPayload?: boolean
+    transferDetails?: TransferDetails
 }
 
 const DecodePayload = (props: DecodePayloadProps) => {
@@ -262,9 +264,12 @@ const DecodePayload = (props: DecodePayloadProps) => {
                         payloadBundle.type === "assetMeta" ? (<>
                             {"AssetMeta:"}&nbsp;{chainEnums[payloadBundle.payload.tokenChain]}&nbsp; {payloadBundle.payload.symbol} {payloadBundle.payload.name}
                         </>) :
-                            payloadBundle.type === "tokenTransfer" ? (<>
-                                {"native "}{chainEnums[payloadBundle.payload.originChain]}{' asset -> '}{chainEnums[payloadBundle.payload.targetChain]}
-                            </>) :
+                            payloadBundle.type === "tokenTransfer" ?
+                                props.transferDetails && props.transferDetails.OriginSymbol ? (<>
+                                    {Math.round(Number(props.transferDetails.Amount) * 100) / 100}{' '}{props.transferDetails.OriginSymbol}{' -> '}{chainEnums[payloadBundle.payload.targetChain]}
+                                </>) : (<>
+                                    {"Native "}{chainEnums[payloadBundle.payload.originChain]}{' asset -> '}{chainEnums[payloadBundle.payload.targetChain]}
+                                </>) :
                                 payloadBundle.type === "nftTransfer" ? (<>
                                     {payloadBundle.payload.symbol || "?"}&nbsp;{"-"}&nbsp;{chainEnums[payloadBundle.payload.originChain]}{' -> '}{chainEnums[payloadBundle.payload.targetChain]}
                                 </>) : null

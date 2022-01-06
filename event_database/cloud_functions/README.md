@@ -8,9 +8,13 @@ First deploy (creation) must include all the flags to configure the environment:
 
     gcloud functions --project your-project deploy testnet --region europe-west3 --entry-point Entry --runtime go116 --trigger-http --allow-unauthenticated --service-account=your-readonly@your-project.iam.gserviceaccount.com --update-env-vars GCP_PROJECT=your-project,BIGTABLE_INSTANCE=wormhole-testnet
 
+    gcloud functions --project your-project deploy processvaa-testnet --region europe-west3 --entry-point ProcessVAA --runtime go116 --trigger-topic new-vaa-testnet --service-account=your-readonly@your-project.iam.gserviceaccount.com --update-env-vars GCP_PROJECT=your-project,BIGTABLE_INSTANCE=wormhole-testnet
+
 Subsequent deploys (updates) only need include flags to indentify the resource for updating: project, region, name.
 
     gcloud functions --project your-project deploy testnet --region europe-west3 --entry-point Entry
+
+    gcloud functions --project your-project deploy processvaa-testnet --region europe-west3 --entry-point ProcessVAA
 
 ### invocation
 

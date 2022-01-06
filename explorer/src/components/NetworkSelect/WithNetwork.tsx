@@ -38,10 +38,6 @@ const WithNetwork = (WrappedComponent: React.FC<any>) => {
                     endpoints: endpoints[network],
                     chains: {
                         // chains are generated async and added to state
-                        "solana": {} as KnownContracts,
-                        "ethereum": {} as KnownContracts,
-                        "terra": {} as KnownContracts,
-                        "bsc": {} as KnownContracts
                     }
                 },
                 setActiveNetwork: this.setActiveNetwork,
