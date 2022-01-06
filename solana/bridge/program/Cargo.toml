@@ -26,8 +26,6 @@ solana-program = "=1.7.0"
 solitaire-client = { path = "../../solitaire/client", optional = true }
 solitaire = { path = "../../solitaire/program" }
 wasm-bindgen = { version = "0.2.74", features = ["serde-serialize"], optional = true }
-serde = { version = "1.0", features = ["derive"] }
-wormhole-core = { path = "../../../sdk/rust/core", version="0.1.0" }
 
 [dev-dependencies]
 hex = "*"

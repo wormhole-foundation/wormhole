@@ -1352,7 +1352,6 @@ dependencies = [
  "solana-program",
  "solitaire",
  "wasm-bindgen",
- "wormhole-core",
 ]
 
 [[package]]
@@ -1391,6 +1390,7 @@ dependencies = [
 name = "wormhole-sdk"
 version = "0.1.0"
 dependencies = [
+ "borsh",
  "byteorder",
  "cosmwasm-std",
  "cosmwasm-storage",

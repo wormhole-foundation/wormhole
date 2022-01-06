@@ -6,7 +6,7 @@ edition = "2018"
 description = "Wormhole contract"
 
 [lib]
-name = "bridge"
+name = "wormhole"
 crate-type = ["cdylib", "rlib"]
 
 [features]

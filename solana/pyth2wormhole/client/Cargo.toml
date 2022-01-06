@@ -6,14 +6,14 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
-default = ["pyth2wormhole/client", "bridge/client"]
+default = ["pyth2wormhole/client", "wormhole-bridge-solana/client"]
 
 [dependencies]
 borsh = "0.8.1"
 clap = "3.0.0-beta.2" # This beta assimilates structopt into clap
 env_logger = "0.8.4"
 log = "0.4.14"
-bridge = {path = "../../bridge/program"}
+wormhole-bridge-solana = {path = "../../bridge/program"}
 pyth2wormhole = {path = "../program"}
 shellexpand = "2.1.0"
 solana-client = "=1.7.0"
