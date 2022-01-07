@@ -1,4 +1,4 @@
-import { ChainId } from "@certusone/wormhole-sdk";
+import { ChainId, CHAIN_ID_TERRA } from "@certusone/wormhole-sdk";
 import { makeStyles, Typography } from "@material-ui/core";
 import { Alert } from "@material-ui/lab";
 import useIsWalletReady from "../hooks/useIsWalletReady";
@@ -18,18 +18,24 @@ function LowBalanceWarning({ chainId }: { chainId: ChainId }) {
   const transactionFeeWarning = useTransactionFees(chainId);
   const displayWarning =
     isReady &&
-    transactionFeeWarning.balanceString &&
+    (chainId === CHAIN_ID_TERRA || transactionFeeWarning.balanceString) &&
     transactionFeeWarning.isSufficientBalance === false;
-  const warningMessage = `This wallet has a very low ${getDefaultNativeCurrencySymbol(
-    chainId
-  )} balance and may not be able to pay for the upcoming transaction fees.`;
+
+  const warningMessage =
+    chainId === CHAIN_ID_TERRA
+      ? "This wallet may not have sufficient funds to pay for the upcoming transaction fees."
+      : `This wallet has a very low ${getDefaultNativeCurrencySymbol(
+          chainId
+        )} balance and may not be able to pay for the upcoming transaction fees.`;
 
   const content = (
     <Alert severity="warning" variant="outlined" className={classes.alert}>
       <Typography variant="body1">{warningMessage}</Typography>
-      <Typography variant="body1">
-        {"Current balance: " + transactionFeeWarning.balanceString}
-      </Typography>
+      {chainId !== CHAIN_ID_TERRA ? (
+        <Typography variant="body1">
+          {"Current balance: " + transactionFeeWarning.balanceString}
+        </Typography>
+      ) : null}
     </Alert>
   );
 

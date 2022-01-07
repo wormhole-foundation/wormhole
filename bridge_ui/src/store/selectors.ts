@@ -307,3 +307,7 @@ export const selectTerraTokenMap = (state: RootState) => {
 export const selectMarketsMap = (state: RootState) => {
   return state.tokens.marketsMap;
 };
+
+export const selectTerraFeeDenom = (state: RootState) => {
+  return state.fee.terraFeeDenom;
+};

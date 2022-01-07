@@ -66,7 +66,8 @@ export const isValidTerraAddress = (address: string) => {
 export async function postWithFees(
   wallet: ConnectedWallet,
   msgs: any[],
-  memo: string
+  memo: string,
+  feeDenoms: string[]
 ) {
   // don't try/catch, let errors propagate
   const lcd = new LCDClient(TERRA_HOST);
@@ -81,7 +82,7 @@ export async function postWithFees(
     [...msgs],
     {
       memo,
-      feeDenoms: ["uluna"],
+      feeDenoms,
       gasPrices,
     }
   );
@@ -89,7 +90,7 @@ export async function postWithFees(
   const result = await wallet.post({
     msgs: [...msgs],
     memo,
-    feeDenoms: ["uluna"],
+    feeDenoms,
     gasPrices,
     fee: feeEstimate,
   });

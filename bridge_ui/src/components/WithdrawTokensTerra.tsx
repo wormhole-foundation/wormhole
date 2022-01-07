@@ -22,6 +22,9 @@ import { postWithFees, waitForTerraExecution } from "../utils/terra";
 import ButtonWithLoader from "./ButtonWithLoader";
 import { useSnackbar } from "notistack";
 import { Alert } from "@material-ui/lab";
+import { useSelector } from "react-redux";
+import { selectTerraFeeDenom } from "../store/selectors";
+import TerraFeeDenomPicker from "./TerraFeeDenomPicker";
 
 const useStyles = makeStyles((theme) => ({
   formControl: {
@@ -33,7 +36,11 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-const withdraw = async (wallet: ConnectedWallet, token: string) => {
+const withdraw = async (
+  wallet: ConnectedWallet,
+  token: string,
+  feeDenom: string
+) => {
   const withdraw = new MsgExecuteContract(
     wallet.walletAddress,
     TERRA_TOKEN_BRIDGE_ADDRESS,
@@ -51,7 +58,8 @@ const withdraw = async (wallet: ConnectedWallet, token: string) => {
   const txResult = await postWithFees(
     wallet,
     [withdraw],
-    "Wormhole - Withdraw Tokens"
+    "Wormhole - Withdraw Tokens",
+    [feeDenom]
   );
   await waitForTerraExecution(txResult);
 };
@@ -62,13 +70,14 @@ export default function WithdrawTokensTerra() {
   const [isLoading, setIsLoading] = useState(false);
   const classes = useStyles();
   const { enqueueSnackbar } = useSnackbar();
+  const feeDenom = useSelector(selectTerraFeeDenom);
 
   const handleClick = useCallback(() => {
     if (wallet) {
       (async () => {
         setIsLoading(true);
         try {
-          await withdraw(wallet, token);
+          await withdraw(wallet, token, feeDenom);
           enqueueSnackbar(null, {
             content: <Alert severity="success">Transaction confirmed.</Alert>,
           });
@@ -81,7 +90,7 @@ export default function WithdrawTokensTerra() {
         setIsLoading(false);
       })();
     }
-  }, [wallet, token, enqueueSnackbar]);
+  }, [wallet, token, enqueueSnackbar, feeDenom]);
 
   return (
     <Container maxWidth="md">
@@ -103,6 +112,7 @@ export default function WithdrawTokensTerra() {
             </MenuItem>
           ))}
         </Select>
+        <TerraFeeDenomPicker disabled={isLoading} />
         <ButtonWithLoader
           onClick={handleClick}
           disabled={!wallet || isLoading}

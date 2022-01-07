@@ -1,4 +1,4 @@
-import { isEVMChain } from "@certusone/wormhole-sdk";
+import { CHAIN_ID_TERRA, isEVMChain } from "@certusone/wormhole-sdk";
 import { Checkbox, FormControlLabel } from "@material-ui/core";
 import { Alert } from "@material-ui/lab";
 import { ethers } from "ethers";
@@ -23,6 +23,7 @@ import ButtonWithLoader from "../ButtonWithLoader";
 import KeyAndBalance from "../KeyAndBalance";
 import ShowTx from "../ShowTx";
 import StepDescription from "../StepDescription";
+import TerraFeeDenomPicker from "../TerraFeeDenomPicker";
 import TransactionProgress from "../TransactionProgress";
 import SendConfirmationDialog from "./SendConfirmationDialog";
 import WaitingForWalletMessage from "./WaitingForWalletMessage";
@@ -130,6 +131,9 @@ function Send() {
         Transfer the tokens to the Wormhole Token Bridge.
       </StepDescription>
       <KeyAndBalance chainId={sourceChain} />
+      {sourceChain === CHAIN_ID_TERRA && (
+        <TerraFeeDenomPicker disabled={disabled} />
+      )}
       <Alert severity="info" variant="outlined">
         This will initiate the transfer on {CHAINS_BY_ID[sourceChain].name} and
         wait for finalization. If you navigate away from this page before
