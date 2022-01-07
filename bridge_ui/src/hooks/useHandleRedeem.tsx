@@ -24,6 +24,7 @@ import { useEthereumProvider } from "../contexts/EthereumProviderContext";
 import { useSolanaWallet } from "../contexts/SolanaWalletContext";
 import useTransferSignedVAA from "./useTransferSignedVAA";
 import {
+  selectTerraFeeDenom,
   selectTransferIsRedeeming,
   selectTransferTargetChain,
 } from "../store/selectors";
@@ -132,7 +133,8 @@ async function terra(
   dispatch: any,
   enqueueSnackbar: any,
   wallet: ConnectedWallet,
-  signedVAA: Uint8Array
+  signedVAA: Uint8Array,
+  feeDenom: string
 ) {
   dispatch(setIsRedeeming(true));
   try {
@@ -144,7 +146,8 @@ async function terra(
     const result = await postWithFees(
       wallet,
       [msg],
-      "Wormhole - Complete Transfer"
+      "Wormhole - Complete Transfer",
+      [feeDenom]
     );
     dispatch(
       setRedeemTx({ id: result.result.txhash, block: result.result.height })
@@ -168,6 +171,7 @@ export function useHandleRedeem() {
   const solPK = solanaWallet?.publicKey;
   const { signer } = useEthereumProvider();
   const terraWallet = useConnectedWallet();
+  const terraFeeDenom = useSelector(selectTerraFeeDenom);
   const signedVAA = useTransferSignedVAA();
   const isRedeeming = useSelector(selectTransferIsRedeeming);
   const handleRedeemClick = useCallback(() => {
@@ -188,7 +192,7 @@ export function useHandleRedeem() {
         false
       );
     } else if (targetChain === CHAIN_ID_TERRA && !!terraWallet && signedVAA) {
-      terra(dispatch, enqueueSnackbar, terraWallet, signedVAA);
+      terra(dispatch, enqueueSnackbar, terraWallet, signedVAA, terraFeeDenom);
     } else {
     }
   }, [
@@ -200,6 +204,7 @@ export function useHandleRedeem() {
     solanaWallet,
     solPK,
     terraWallet,
+    terraFeeDenom,
   ]);
 
   const handleRedeemNativeClick = useCallback(() => {
@@ -220,7 +225,7 @@ export function useHandleRedeem() {
         true
       );
     } else if (targetChain === CHAIN_ID_TERRA && !!terraWallet && signedVAA) {
-      terra(dispatch, enqueueSnackbar, terraWallet, signedVAA); //TODO isNative = true
+      terra(dispatch, enqueueSnackbar, terraWallet, signedVAA, terraFeeDenom); //TODO isNative = true
     } else {
     }
   }, [
@@ -232,6 +237,7 @@ export function useHandleRedeem() {
     solanaWallet,
     solPK,
     terraWallet,
+    terraFeeDenom,
   ]);
 
   return useMemo(

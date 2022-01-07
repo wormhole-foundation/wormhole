@@ -789,6 +789,7 @@ export const getMigrationAssetMap = (chainId: ChainId) => {
 };
 
 export const SUPPORTED_TERRA_TOKENS = ["uluna", "uusd"];
+export const TERRA_DEFAULT_FEE_DENOM = SUPPORTED_TERRA_TOKENS[0];
 
 export const TERRA_FCD_BASE =
   CLUSTER === "mainnet"
