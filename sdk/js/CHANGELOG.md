@@ -5,8 +5,14 @@
 ### Added
 
 added parseSequencesFromLog\*
+
 Terra NFT token bridge
+
 getIsTransferCompleted on NFT bridge
+
+export for wasm, createPostVaaInstructionSolana, createVerifySignaturesInstructionsSolana, postVaaSolana, postVaaSolanaWithRetry, and getSignedVAAWithRetry
+
+re-export top level objects ethers_contracts, solana, terra, rpc, utils, bridge, token_bridge, nft_bridge
 
 ## 0.1.5
 

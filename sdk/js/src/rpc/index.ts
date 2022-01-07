@@ -1,2 +1,2 @@
 export * from "./getSignedVAA";
-export * from "./getSignedVAAWithRetry";
+export { getSignedVAAWithRetry } from "./getSignedVAAWithRetry";

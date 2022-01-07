@@ -9,7 +9,7 @@ import { redeemOnTerra } from ".";
 
 export async function getIsTransferCompletedEth(
   nftBridgeAddress: string,
-  provider: ethers.providers.Provider,
+  provider: ethers.Signer | ethers.providers.Provider,
   signedVAA: Uint8Array
 ) {
   const nftBridge = NFTBridge__factory.connect(nftBridgeAddress, provider);

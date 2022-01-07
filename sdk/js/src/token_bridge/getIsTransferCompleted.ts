@@ -9,7 +9,7 @@ import { redeemOnTerra } from ".";
 
 export async function getIsTransferCompletedEth(
   tokenBridgeAddress: string,
-  provider: ethers.providers.Provider,
+  provider: ethers.Signer | ethers.providers.Provider,
   signedVAA: Uint8Array
 ) {
   const tokenBridge = Bridge__factory.connect(tokenBridgeAddress, provider);
