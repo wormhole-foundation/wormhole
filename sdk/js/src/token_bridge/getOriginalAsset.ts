@@ -23,7 +23,7 @@ export interface WormholeWrappedInfo {
  */
 export async function getOriginalAssetEth(
   tokenBridgeAddress: string,
-  provider: ethers.providers.Web3Provider,
+  provider: ethers.Signer | ethers.providers.Provider,
   wrappedAddress: string,
   lookupChainId: ChainId
 ): Promise<WormholeWrappedInfo> {

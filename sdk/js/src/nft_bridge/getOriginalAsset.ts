@@ -24,7 +24,7 @@ export interface WormholeWrappedNFTInfo {
  */
 export async function getOriginalAssetEth(
   tokenBridgeAddress: string,
-  provider: ethers.providers.Web3Provider,
+  provider: ethers.Signer | ethers.providers.Provider,
   wrappedAddress: string,
   tokenId: string,
   lookupChainId: ChainId

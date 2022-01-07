@@ -1,6 +1,6 @@
 import { ChainId, getSignedVAA } from "..";
 
-export default async function getSignedVAAWithRetry(
+export async function getSignedVAAWithRetry(
   hosts: string[],
   emitterChain: ChainId,
   emitterAddress: string,
@@ -32,3 +32,5 @@ export default async function getSignedVAAWithRetry(
   }
   return result;
 }
+
+export default getSignedVAAWithRetry;

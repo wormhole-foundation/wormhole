@@ -13,7 +13,7 @@ import { importTokenWasm } from "../solana/wasm";
  */
 export async function getIsWrappedAssetEth(
   tokenBridgeAddress: string,
-  provider: ethers.providers.Web3Provider,
+  provider: ethers.Signer | ethers.providers.Provider,
   assetAddress: string
 ) {
   if (!assetAddress) return false;
