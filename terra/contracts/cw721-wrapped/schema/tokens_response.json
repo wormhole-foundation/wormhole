@@ -1,0 +1,17 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "TokensResponse",
+  "type": "object",
+  "required": [
+    "tokens"
+  ],
+  "properties": {
+    "tokens": {
+      "description": "Contains all token_ids in lexicographical ordering If there are more than `limit`, use `start_from` in future queries to achieve pagination.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

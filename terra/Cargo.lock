@@ -636,6 +636,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "cw721-wrapped"
+version = "0.10.1"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cosmwasm-storage",
+ "cw2",
+ "cw721",
+ "cw721-base",
+ "schemars",
+ "serde",
+]
+
+[[package]]
 name = "darling"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
