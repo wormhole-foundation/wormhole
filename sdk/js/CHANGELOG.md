@@ -5,6 +5,8 @@
 ### Added
 
 added parseSequencesFromLog\*
+Terra NFT token bridge
+getIsTransferCompleted on NFT bridge
 
 ## 0.1.5
 
