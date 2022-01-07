@@ -99,7 +99,7 @@ yargs(hideBin(process.argv))
             1,
             1,
             "0x0000000000000000000000000000000000000000000000000000000000000004",
-            0,
+            Math.floor(Math.random() * 100000000),
             data,
             [
                 "cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0"

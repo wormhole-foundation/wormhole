@@ -36,8 +36,9 @@ NFTs ("Wrapped NFTs") and custody locked NFTs.
 
 We aim to support:
 
-- EIP721: Ethereum, BSC
+- EIP721 with token_uri extension: Ethereum, BSC
 - Metaplex SPL Meta: Solana
+- CW721 with token_uri extension: Terra
 
 ## Detailed Design
 
@@ -69,7 +70,7 @@ message.
 Since every NFT has unique metadata the Transfer messages contain all metadata, a transfer (even the first on per NFT)
 only requires a single Wormhole message to be passed compared to the Token Bridge. On the first transfer action of an
 NFT (address / symbol / name) a wrapped asset (i.e. master edition or new contract) is created. When the wrapped asset (
-contract) is already initialized or was just initialized, the (new) token_id and metadata URL are registered.
+contract) is already initialized or was just initialized, the (new) token_id and metadata URI are registered.
 
 ### API / database schema
 
@@ -100,9 +101,9 @@ Symbol [32]uint8
 Name [32]uint8
 // ID of the token (big-endian uint256)
 TokenID [32]uint8
-// URL of the NFT
-URLLength u8
-URL [n]uint8
+// URI of the NFT. Valid utf8 string, maximum 200 bytes.
+URILength u8
+URI [n]uint8
 // Address of the recipient. Left-zero-padded if shorter than 32 bytes
 To [32]uint8
 // Chain ID of the recipient
@@ -138,7 +139,21 @@ native asset on its chain, there may be transfers initiated for assets that don'
 target chain. However, the transfer will become executable once the wrapped asset is set up (which can be done any time)
 .
 
+The name and symbol fields of the Transfer payload are not guaranteed to be
+valid UTF8 strings. Implementations might truncate longer strings at the 32 byte
+mark, which may result in invalid UTF8 bytes at the end. Thus, any client
+whishing to present these as strings must validate them first, potentially
+dropping the garbage at the end.
+
 Currently Solana only supports u64 token ids which is incompatible with Ethereum which specifically mentions the use of
 UUIDs as token ids (utilizing all bytes of the uint256). There will either need to be a mechanism to translate ids i.e.
 a map of `[32]u8 -> incrementing_u64` (in the expectation there will never be more than MaxU64 editions) or Solana needs
 to change their NFT contract.
+
+Terra CW721 contracts support arbitrary strings as token IDs. In order to fit
+them into 32 bytes, we store their keccak256 hash instead. This means that when
+transferring a terra-native NFT through the wormhole, the ID of the output token
+will be the original token's hash. However, wrapped assets on terra will retain
+their original token ids, simply stringified into a decimal number. Then,
+when transferring them back through the wormhole, we can guarantee that these
+ids will parse as a uint256.
