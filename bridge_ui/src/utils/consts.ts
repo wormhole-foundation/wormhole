@@ -32,7 +32,7 @@ export interface ChainInfo {
   name: string;
   logo: string;
 }
-export const CHAINS =
+export const CHAINS: ChainInfo[] =
   CLUSTER === "mainnet"
     ? [
         {
@@ -136,8 +136,7 @@ export const CHAINS =
           logo: terraIcon,
         },
       ];
-export const BETA_CHAINS: ChainId[] =
-  CLUSTER === "mainnet" ? [CHAIN_ID_OASIS] : [];
+export const BETA_CHAINS: ChainId[] = CLUSTER === "mainnet" ? [] : [];
 export const CHAINS_WITH_NFT_SUPPORT = CHAINS.filter(
   ({ id }) =>
     id === CHAIN_ID_AVAX ||
@@ -154,13 +153,7 @@ export const CHAINS_BY_ID: ChainsById = CHAINS.reduce((obj, chain) => {
   return obj;
 }, {} as ChainsById);
 
-export const COMING_SOON_CHAINS = [
-  {
-    id: CHAIN_ID_OASIS,
-    name: "Oasis",
-    logo: oasisIcon,
-  },
-];
+export const COMING_SOON_CHAINS: ChainInfo[] = [];
 export const getDefaultNativeCurrencySymbol = (chainId: ChainId) =>
   chainId === CHAIN_ID_SOLANA
     ? "SOL"

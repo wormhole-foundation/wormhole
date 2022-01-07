@@ -58,7 +58,9 @@ export default function ShowTx({
           tx?.id
         }`
       : chainId === CHAIN_ID_OASIS
-      ? undefined
+      ? `https://explorer.${
+          CLUSTER === "testnet" ? "testnet." : ""
+        }oasis.updev.si/tx/${tx?.id}`
       : chainId === CHAIN_ID_SOLANA
       ? `https://explorer.solana.com/tx/${tx?.id}${
           CLUSTER === "testnet"
