@@ -12,4 +12,5 @@ bigtable-admin.json
 bigtable-writer.json
 DEPLOY-*
 VAA-VERIFY-*
+.DS_Store
 

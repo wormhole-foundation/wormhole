@@ -4,6 +4,7 @@ FROM cosmwasm/workspace-optimizer:0.12.1@sha256:1508cf7545f4b656ecafa34e29c1acf2
 ADD Cargo.lock /code/
 ADD Cargo.toml /code/
 ADD contracts /code/contracts
+ADD packages /code/packages
 RUN optimize_workspace.sh
 
 # Contract deployment stage

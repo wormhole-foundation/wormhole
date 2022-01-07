@@ -46,6 +46,7 @@ const useStyles = makeStyles((theme) => ({
   },
   totalsBox: {
     display: "flex",
+    flexWrap: "wrap",
     width: "100%",
     justifyContent: "space-evenly",
     alignItems: "center",
@@ -53,6 +54,8 @@ const useStyles = makeStyles((theme) => ({
   totalContainer: {
     display: "flex",
     alignItems: "flex-end",
+    paddingLeft: theme.spacing(0.5),
+    paddingRight: theme.spacing(0.5),
     paddingBottom: 1, // line up with left text bottom
     [theme.breakpoints.down("sm")]: {
       marginTop: theme.spacing(1),

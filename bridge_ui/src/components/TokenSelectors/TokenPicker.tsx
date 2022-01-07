@@ -313,11 +313,14 @@ export default function TokenPicker({
         }
         await onChange(newOption);
         closeDialog();
-      } catch (e) {
-        console.error(e);
-        setSelectionError(
-          "Unable to retrieve required information about this token. Ensure your wallet is connected, then refresh the list."
-        );
+      } catch (e: any) {
+        if (e.message?.includes("v1")) {
+          setSelectionError(e.message);
+        } else {
+          setSelectionError(
+            "Unable to retrieve required information about this token. Ensure your wallet is connected, then refresh the list."
+          );
+        }
       }
     },
     [getAddress, onChange, closeDialog]

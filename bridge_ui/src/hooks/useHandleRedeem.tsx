@@ -3,7 +3,7 @@ import {
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
   isEVMChain,
-  postVaaSolana,
+  postVaaSolanaWithRetry,
   redeemAndUnwrapOnSolana,
   redeemOnEth,
   redeemOnEthNative,
@@ -30,6 +30,7 @@ import {
 import { setIsRedeeming, setRedeemTx } from "../store/transferSlice";
 import {
   getTokenBridgeAddressForChain,
+  MAX_VAA_UPLOAD_RETRIES_SOLANA,
   SOLANA_HOST,
   SOL_BRIDGE_ADDRESS,
   SOL_TOKEN_BRIDGE_ADDRESS,
@@ -89,12 +90,13 @@ async function solana(
       throw new Error("wallet.signTransaction is undefined");
     }
     const connection = new Connection(SOLANA_HOST, "confirmed");
-    await postVaaSolana(
+    await postVaaSolanaWithRetry(
       connection,
       wallet.signTransaction,
       SOL_BRIDGE_ADDRESS,
       payerAddress,
-      Buffer.from(signedVAA)
+      Buffer.from(signedVAA),
+      MAX_VAA_UPLOAD_RETRIES_SOLANA
     );
     // TODO: how do we retry in between these steps
     const transaction = isNative

@@ -62,7 +62,7 @@ var (
 const rpcTimeout = time.Second * 5
 
 // Maximum retries for Solana fetching
-const maxRetries = 5
+const maxRetries = 10
 const retryDelay = 5 * time.Second
 
 type ConsistencyLevel uint8

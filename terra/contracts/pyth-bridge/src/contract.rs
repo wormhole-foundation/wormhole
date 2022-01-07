@@ -27,6 +27,8 @@ use crate::{
         config_read,
         price_info,
         price_info_read,
+        sequence,
+        sequence_read,
         ConfigInfo,
         UpgradeContract,
     },
@@ -65,8 +67,10 @@ pub fn instantiate(
         gov_address: msg.gov_address.as_slice().to_vec(),
         wormhole_contract: msg.wormhole_contract,
         pyth_emitter: msg.pyth_emitter.as_slice().to_vec(),
+        pyth_emitter_chain: msg.pyth_emitter_chain,
     };
     config(deps.storage).save(&state)?;
+    sequence(deps.storage).save(&0)?;
 
     Ok(Response::default())
 }
@@ -101,33 +105,45 @@ fn submit_vaa(
     let vaa = parse_vaa(deps.branch(), env.block.time.seconds(), data)?;
     let data = vaa.payload;
 
-    if vaa_archive_check(deps.storage, vaa.hash.as_slice()) {
-        return ContractError::VaaAlreadyExecuted.std_err();
-    }
-    vaa_archive_add(deps.storage, vaa.hash.as_slice())?;
-
     // check if vaa is from governance
     if state.gov_chain == vaa.emitter_chain && state.gov_address == vaa.emitter_address {
+        if vaa_archive_check(deps.storage, vaa.hash.as_slice()) {
+            return ContractError::VaaAlreadyExecuted.std_err();
+        }
+        vaa_archive_add(deps.storage, vaa.hash.as_slice())?;
+        
         return handle_governance_payload(deps, env, &data);
     }
 
+    // IMPORTANT: VAA replay-protection is not implemented in this code-path
+    // Sequences are used to prevent replay or price rollbacks
+
     let message =
         PriceAttestation::deserialize(&data[..]).map_err(|_| ContractError::InvalidVAA.std())?;
-    if vaa.emitter_address != state.pyth_emitter {
+    if vaa.emitter_address != state.pyth_emitter || vaa.emitter_chain != state.pyth_emitter_chain {
         return ContractError::InvalidVAA.std_err();
     }
 
+    // Check sequence
+    let last_sequence = sequence_read(deps.storage).load()?;
+    if vaa.sequence <= last_sequence && last_sequence != 0 {
+        return Err(StdError::generic_err(
+            "price sequences need to be monotonically increasing",
+        ));
+    }
+    sequence(deps.storage).save(&vaa.sequence)?;
+
     // Update price
-    price_info(deps.storage).save(&message.product_id.to_bytes()[..], &data)?;
+    price_info(deps.storage).save(&message.price_id.to_bytes()[..], &data)?;
 
     Ok(Response::new()
         .add_attribute("action", "price_update")
-        .add_attribute("price_feed", message.product_id.to_string()))
+        .add_attribute("price_feed", message.price_id.to_string()))
 }
 
 fn handle_governance_payload(deps: DepsMut, env: Env, data: &Vec<u8>) -> StdResult<Response> {
     let gov_packet = GovernancePacket::deserialize(&data)?;
-    let module = get_string_from_32(&gov_packet.module)?;
+    let module = get_string_from_32(&gov_packet.module);
 
     if module != "PythBridge" {
         return Err(StdError::generic_err("this is not a valid module"));
@@ -160,8 +176,8 @@ fn handle_upgrade_contract(_deps: DepsMut, env: Env, data: &Vec<u8>) -> StdResul
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::PriceInfo { product_id } => {
-            to_binary(&query_price_info(deps, product_id.as_slice())?)
+        QueryMsg::PriceInfo { price_id } => {
+            to_binary(&query_price_info(deps, price_id.as_slice())?)
         }
     }
 }

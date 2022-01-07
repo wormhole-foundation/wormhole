@@ -1,5 +1,5 @@
 [workspace]
-members = ["contracts/cw20-wrapped", "contracts/wormhole", "contracts/token-bridge", "contracts/pyth-bridge"]
+members = ["contracts/cw20-wrapped", "contracts/wormhole", "contracts/token-bridge", "contracts/pyth-bridge", "contracts/nft-bridge", "contracts/cw721-wrapped", "packages/cw721", "contracts/cw721-base"]
 
 [profile.release]
 opt-level = 3

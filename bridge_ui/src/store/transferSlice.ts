@@ -234,6 +234,7 @@ export const transferSlice = createSlice({
           targetAddress: string;
           originChain: ChainId;
           originAddress: string;
+          amount: string;
         };
       }>
     ) => {
@@ -252,6 +253,7 @@ export const transferSlice = createSlice({
       state.targetAddressHex = action.payload.parsedPayload.targetAddress;
       state.originChain = action.payload.parsedPayload.originChain;
       state.originAsset = action.payload.parsedPayload.originAddress;
+      state.amount = action.payload.parsedPayload.amount;
       state.activeStep = 3;
       state.isRecovery = true;
     },

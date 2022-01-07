@@ -17,6 +17,22 @@ export function parseSequenceFromLogEth(
   return sequence.toString();
 }
 
+export function parseSequencesFromLogEth(
+  receipt: ContractReceipt,
+  bridgeAddress: string
+): string[] {
+  // TODO: dangerous!(?)
+  const bridgeLogs = receipt.logs.filter((l) => {
+    return l.address === bridgeAddress;
+  });
+  return bridgeLogs.map((bridgeLog) => {
+    const {
+      args: { sequence },
+    } = Implementation__factory.createInterface().parseLog(bridgeLog);
+    return sequence.toString();
+  });
+}
+
 export function parseSequenceFromLogTerra(info: TxInfo): string {
   // Scan for the Sequence attribute in all the outputs of the transaction.
   // TODO: Make this not horrible.
@@ -35,6 +51,23 @@ export function parseSequenceFromLogTerra(info: TxInfo): string {
   return sequence.toString();
 }
 
+export function parseSequencesFromLogTerra(info: TxInfo): string[] {
+  // Scan for the Sequence attribute in all the outputs of the transaction.
+  // TODO: Make this not horrible.
+  const sequences: string[] = [];
+  const jsonLog = JSON.parse(info.raw_log);
+  jsonLog.map((row: any) => {
+    row.events.map((event: any) => {
+      event.attributes.map((attribute: any) => {
+        if (attribute.key === "message.sequence") {
+          sequences.push(attribute.value.toString());
+        }
+      });
+    });
+  });
+  return sequences;
+}
+
 const SOLANA_SEQ_LOG = "Program log: Sequence: ";
 export function parseSequenceFromLogSolana(info: TransactionResponse) {
   // TODO: better parsing, safer
@@ -45,4 +78,11 @@ export function parseSequenceFromLogSolana(info: TransactionResponse) {
     throw new Error("sequence not found");
   }
   return sequence.toString();
+}
+
+export function parseSequencesFromLogSolana(info: TransactionResponse) {
+  // TODO: better parsing, safer
+  return info.meta?.logMessages
+    ?.filter((msg) => msg.startsWith(SOLANA_SEQ_LOG))
+    .map((msg) => msg.replace(SOLANA_SEQ_LOG, ""));
 }

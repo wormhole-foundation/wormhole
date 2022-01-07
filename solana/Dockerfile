@@ -14,7 +14,7 @@ RUN apt-get update && \
     rustup component add rustfmt && \
     rustup default nightly-2021-08-01
 
-RUN sh -c "$(curl -sSfL https://release.solana.com/v1.7.8/install)"
+RUN sh -c "$(curl -sSfL https://release.solana.com/v1.8.1/install)"
 
 ENV PATH="/root/.local/share/solana/install/active_release/bin:$PATH"
 

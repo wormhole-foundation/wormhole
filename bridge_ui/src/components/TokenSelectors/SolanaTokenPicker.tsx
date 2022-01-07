@@ -1,10 +1,13 @@
 import { CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
 import { TokenInfo } from "@solana/spl-token-registry";
 import React, { useCallback, useMemo } from "react";
+import { useSelector } from "react-redux";
+import useMarketsMap from "../../hooks/useMarketsMap";
 import useMetaplexData from "../../hooks/useMetaplexData";
 import useSolanaTokenMap from "../../hooks/useSolanaTokenMap";
 import { DataWrapper } from "../../store/helpers";
 import { NFTParsedTokenAccount } from "../../store/nftSlice";
+import { selectTransferTargetChain } from "../../store/selectors";
 import { ParsedTokenAccount } from "../../store/transferSlice";
 import {
   MIGRATION_ASSET_MAP,
@@ -51,6 +54,8 @@ export default function SolanaSourceTokenSelector(
     return output;
   }, [mintAccounts?.data]);
   const metaplex = useMetaplexData(mintAddresses);
+  const markets = useMarketsMap(!nft);
+  const targetChain = useSelector(selectTransferTargetChain);
 
   const memoizedTokenMap: Map<String, TokenInfo> = useMemo(() => {
     const output = new Map<String, TokenInfo>();
@@ -145,7 +150,18 @@ export default function SolanaSourceTokenSelector(
   const isWormholev1 = useCallback(
     (address: string) => {
       //This is a v1 wormhole token on testnet
-      //const testAddress = "4QixXecTZ4zdZGa39KH8gVND5NZ2xcaB12wiBhE4S7rn";
+      //address = "4QixXecTZ4zdZGa39KH8gVND5NZ2xcaB12wiBhE4S7rn";
+
+      //Anything we find in the features market map will be a non-v1 token. This has to short circuit the other checks
+      //As the featured market parsed token accounts are spoofed in by the token picker and lack valid metadata.
+      if (!nft) {
+        const marketsData = markets.data;
+        const featuredMarkets =
+          marketsData?.tokenMarkets?.[CHAIN_ID_SOLANA]?.[targetChain];
+        if (!!featuredMarkets?.[address]) {
+          return false;
+        }
+      }
 
       if (!props.mintAccounts?.data) {
         return true; //These should never be null by this point
@@ -162,7 +178,7 @@ export default function SolanaSourceTokenSelector(
 
       return false;
     },
-    [props.mintAccounts]
+    [props.mintAccounts, markets.data, nft, targetChain]
   );
 
   const onChangeWrapper = useCallback(
@@ -178,8 +194,8 @@ export default function SolanaSourceTokenSelector(
         //swallow for now
       }
 
-      if (v1) {
-        Promise.reject(
+      if (v1 && !isMigrationEligible(newValue.mintKey)) {
+        throw Error(
           "Wormhole v1 assets should not be transferred with this bridge."
         );
       }
