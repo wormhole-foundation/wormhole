@@ -297,7 +297,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 						cancel()
 						if err != nil && err != rpc.ErrNoResult {
 							logger.Warn("transaction could not be fetched", zap.Stringer("tx", pLock.message.TxHash),
-								zap.Stringer("block", ev.Number), zap.String("eth_network", e.networkName))
+								zap.Stringer("block", ev.Number), zap.String("eth_network", e.networkName), zap.Error(err))
 							continue
 						}
 						if tx == nil {
@@ -314,7 +314,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 							ethMessagesOrphaned.WithLabelValues(e.networkName).Inc()
 							continue
 						}
-						logger.Debug("observation confirmed", zap.Stringer("tx", pLock.message.TxHash),
+						logger.Info("observation confirmed", zap.Stringer("tx", pLock.message.TxHash),
 							zap.Stringer("block", ev.Number), zap.String("eth_network", e.networkName))
 						delete(e.pending, key)
 						e.msgChan <- pLock.message
