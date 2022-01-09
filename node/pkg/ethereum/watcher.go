@@ -312,7 +312,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 								zap.Error(err))
 							continue
 						}
-						if tx == nil {
+						if tx == nil || err == rpc.ErrNoResult {
 							logger.Info("tx was orphaned",
 								zap.Stringer("tx", pLock.message.TxHash),
 								zap.Stringer("blockhash", key.BlockHash),
