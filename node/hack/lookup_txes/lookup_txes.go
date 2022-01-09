@@ -20,14 +20,17 @@ import (
 */
 
 const (
-	mainnetApi = "https://explorer-api.mainnet-beta.solana.com"
+	mainnetApi = "http://localhost:8899"
 )
 
 var (
 	emitter = solana.MustPublicKeyFromBase58("Gv1KWf8DT1jKv5pKBmGaTmVszqa56Xn8YGx2Pg7i7qAk")
 
 	want = []int{
-		25958,
+		41437,
+		42300,
+		42577,
+		42578,
 	}
 )
 
