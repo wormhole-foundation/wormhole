@@ -2,9 +2,12 @@ package guardiand
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/notify/discord"
+	"github.com/certusone/wormhole/node/pkg/telemetry"
+	"github.com/certusone/wormhole/node/pkg/version"
 	"github.com/gagliardetto/solana-go/rpc"
 	"go.uber.org/zap/zapcore"
 	"log"
@@ -102,6 +105,9 @@ var (
 	tlsProdEnv  *bool
 
 	disableHeartbeatVerify *bool
+	disableTelemetry       *bool
+
+	telemetryKey *string
 
 	discordToken   *string
 	discordChannel *string
@@ -175,6 +181,11 @@ func init() {
 
 	disableHeartbeatVerify = NodeCmd.Flags().Bool("disableHeartbeatVerify", false,
 		"Disable heartbeat signature verification (useful during network startup)")
+	disableTelemetry = NodeCmd.Flags().Bool("disableTelemetry", false,
+		"Disable telemetry")
+
+	telemetryKey = NodeCmd.Flags().String("telemetryKey", "",
+		"Telemetry write key")
 
 	discordToken = NodeCmd.Flags().String("discordToken", "", "Discord bot token (optional)")
 	discordChannel = NodeCmd.Flags().String("discordChannel", "", "Discord channel name (optional)")
@@ -256,9 +267,6 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	// Override the default go-log config, which uses a magic environment variable.
 	ipfslog.SetAllLoggers(lvl)
-
-	// Redirect ipfs logs to plain zap
-	ipfslog.SetPrimaryCore(logger.Core())
 
 	// Register components for readiness checks.
 	readiness.RegisterComponent(common.ReadinessEthSyncing)
@@ -543,6 +551,45 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 	}
 
+	// Enable unless it is disabled. For devnet, only when --telemetryKey is set.
+	if !*disableTelemetry && (!*unsafeDevMode || *unsafeDevMode && *telemetryKey != "") {
+		logger.Info("Telemetry enabled")
+
+		if *telemetryKey == "" {
+			logger.Fatal("Please specify --telemetryKey")
+		}
+
+		creds, err := decryptTelemetryServiceAccount()
+		if err != nil {
+			logger.Fatal("Failed to decrypt telemetry service account", zap.Error(err))
+		}
+
+		// Get libp2p peer ID from private key
+		pk := priv.GetPublic()
+		peerID, err := peer.IDFromPublicKey(pk)
+		if err != nil {
+			logger.Fatal("Failed to get peer ID from private key", zap.Error(err))
+		}
+
+		tm, err := telemetry.New(context.Background(), telemetryProject, creds, map[string]string{
+			"node_name":     *nodeName,
+			"node_key":      peerID.Pretty(),
+			"guardian_addr": guardianAddr,
+			"network":       *p2pNetworkID,
+			"version":       version.Version(),
+		})
+		if err != nil {
+			logger.Fatal("Failed to initialize telemetry", zap.Error(err))
+		}
+		defer tm.Close()
+		logger = tm.WrapLogger(logger)
+	} else {
+		logger.Info("Telemetry disabled")
+	}
+
+	// Redirect ipfs logs to plain zap
+	ipfslog.SetPrimaryCore(logger.Core())
+
 	// provides methods for reporting progress toward message attestation, and channels for receiving attestation lifecyclye events.
 	attestationEvents := reporter.EventListener(logger)
 
@@ -693,4 +740,24 @@ func runNode(cmd *cobra.Command, args []string) {
 	<-rootCtx.Done()
 	logger.Info("root context cancelled, exiting...")
 	// TODO: wait for things to shut down gracefully
+}
+
+func decryptTelemetryServiceAccount() ([]byte, error) {
+	// Decrypt service account credentials
+	key, err := base64.StdEncoding.DecodeString(*telemetryKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode: %w", err)
+	}
+
+	ciphertext, err := base64.StdEncoding.DecodeString(telemetryServiceAccount)
+	if err != nil {
+		panic(err)
+	}
+
+	creds, err := common.DecryptAESGCM(ciphertext, key)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decrypt: %w", err)
+	}
+
+	return creds, err
 }

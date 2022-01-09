@@ -52,8 +52,15 @@ require (
 )
 
 require (
+	cloud.google.com/go/logging v1.4.2
+	cloud.google.com/go/pubsub v1.17.1
+	github.com/blendle/zapdriver v1.3.1
+	github.com/btcsuite/btcutil v1.0.3-0.20201208143702-a53e38424cce
+	github.com/google/uuid v1.2.0
+)
+
+require (
 	cloud.google.com/go v0.97.0 // indirect
-	cloud.google.com/go/pubsub v1.17.1 // indirect
 	contrib.go.opencensus.io/exporter/stackdriver v0.13.4 // indirect
 	github.com/99designs/keyring v1.1.3 // indirect
 	github.com/ChainSafe/go-schnorrkel v0.0.0-20200405005733-88cbf1b4c40d // indirect
@@ -63,9 +70,7 @@ require (
 	github.com/benbjohnson/clock v1.0.3 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bgentry/speakeasy v0.1.0 // indirect
-	github.com/blendle/zapdriver v1.3.1 // indirect
 	github.com/btcsuite/btcd v0.21.0-beta // indirect
-	github.com/btcsuite/btcutil v1.0.3-0.20201208143702-a53e38424cce // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.1.1 // indirect
 	github.com/cheekybits/genny v1.0.0 // indirect
@@ -101,7 +106,6 @@ require (
 	github.com/google/flatbuffers v1.12.0 // indirect
 	github.com/google/go-cmp v0.5.6 // indirect
 	github.com/google/gopacket v1.1.19 // indirect
-	github.com/google/uuid v1.2.0 // indirect
 	github.com/googleapis/gax-go/v2 v2.1.1 // indirect
 	github.com/gorilla/schema v1.2.0 // indirect
 	github.com/gsterjov/go-libsecret v0.0.0-20161001094733-a6f4afe4910c // indirect
@@ -125,7 +129,6 @@ require (
 	github.com/jbenet/goprocess v0.1.4 // indirect
 	github.com/jmhodges/levigo v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.11 // indirect
-	github.com/jstemmer/go-junit-report v0.9.1 // indirect
 	github.com/karalabe/usb v0.0.0-20190919080040-51dc0efba356 // indirect
 	github.com/keybase/go-keychain v0.0.0-20190712205309-48d3d31d256d // indirect
 	github.com/klauspost/compress v1.13.1 // indirect
@@ -236,8 +239,6 @@ require (
 	go.uber.org/atomic v1.7.0 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
 	go.uber.org/ratelimit v0.2.0 // indirect
-	golang.org/x/lint v0.0.0-20210508222113-6edffad5e616 // indirect
-	golang.org/x/mod v0.4.2 // indirect
 	golang.org/x/net v0.0.0-20210510120150-4163338589ed // indirect
 	golang.org/x/oauth2 v0.0.0-20211005180243-6b3c2da341f1 // indirect
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect
