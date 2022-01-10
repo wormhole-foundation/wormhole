@@ -207,7 +207,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 			case ev := <-messageC:
 				// Request timestamp for block
 				msm := time.Now()
-				timeout, cancel = context.WithTimeout(ctx, 15*time.Second)
+				timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
 				b, err := c.BlockByNumber(timeout, big.NewInt(int64(ev.Raw.BlockNumber)))
 				cancel()
 				queryLatency.WithLabelValues(e.networkName, "block_by_number").Observe(time.Since(msm).Seconds())
@@ -313,7 +313,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 					// Transaction is now ready
 					if pLock.height+uint64(expectedConfirmations) <= blockNumberU {
-						timeout, cancel = context.WithTimeout(ctx, 5*time.Second)
+						timeout, cancel := context.WithTimeout(ctx, 5*time.Second)
 						tx, err := c.TransactionReceipt(timeout, pLock.message.TxHash)
 						cancel()
 
