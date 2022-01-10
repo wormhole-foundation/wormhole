@@ -92,6 +92,9 @@ type (
 
 		// 0 is a valid guardian set, so we need a nil value here
 		currentGuardianSet *uint32
+
+		// Minimum number of confirmations to accept, regardless of what the contract specifies.
+		minConfirmations uint64
 	}
 
 	pendingKey struct {
@@ -114,16 +117,18 @@ func NewEthWatcher(
 	readiness readiness.Component,
 	chainID vaa.ChainID,
 	messageEvents chan *common.MessagePublication,
-	setEvents chan *common.GuardianSet) *Watcher {
+	setEvents chan *common.GuardianSet,
+	minConfirmations uint64) *Watcher {
 	return &Watcher{
-		url:         url,
-		contract:    contract,
-		networkName: networkName,
-		readiness:   readiness,
-		chainID:     chainID,
-		msgChan:     messageEvents,
-		setChan:     setEvents,
-		pending:     map[pendingKey]*pendingMessage{}}
+		url:              url,
+		contract:         contract,
+		networkName:      networkName,
+		readiness:        readiness,
+		minConfirmations: minConfirmations,
+		chainID:          chainID,
+		msgChan:          messageEvents,
+		setChan:          setEvents,
+		pending:          map[pendingKey]*pendingMessage{}}
 }
 
 func (e *Watcher) Run(ctx context.Context) error {
@@ -283,10 +288,15 @@ func (e *Watcher) Run(ctx context.Context) error {
 				e.pendingMu.Lock()
 
 				blockNumberU := ev.Number.Uint64()
+
 				for key, pLock := range e.pending {
+					expectedConfirmations := uint64(pLock.message.ConsistencyLevel)
+					if expectedConfirmations < e.minConfirmations {
+						expectedConfirmations = e.minConfirmations
+					}
 
 					// Transaction was dropped and never picked up again
-					if pLock.height+4*uint64(pLock.message.ConsistencyLevel) <= blockNumberU {
+					if pLock.height+4*uint64(expectedConfirmations) <= blockNumberU {
 						logger.Debug("observation timed out",
 							zap.Stringer("tx", pLock.message.TxHash),
 							zap.Stringer("blockhash", key.BlockHash),
@@ -301,7 +311,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 					}
 
 					// Transaction is now ready
-					if pLock.height+uint64(pLock.message.ConsistencyLevel) <= ev.Number.Uint64() {
+					if pLock.height+uint64(expectedConfirmations) <= blockNumberU {
 						timeout, cancel = context.WithTimeout(ctx, 15*time.Second)
 						tx, err := c.TransactionReceipt(timeout, pLock.message.TxHash)
 						cancel()
