@@ -11,7 +11,7 @@ name = "wormhole_migration"
 [features]
 no-entrypoint = ["solitaire/no-entrypoint", "rand"]
 trace = ["solitaire/trace"]
-wasm = ["no-entrypoint"]
+wasm = ["no-entrypoint", "wasm-bindgen"]
 client = ["solitaire-client", "solitaire/client", "no-entrypoint"]
 cpi = ["no-entrypoint"]
 default = []
@@ -25,7 +25,7 @@ sha3 = "0.9.1"
 solana-program = "*"
 spl-token = { version = "=3.1.0", features = ["no-entrypoint"] }
 solitaire-client = { path = "../solitaire/client", optional = true }
-wasm-bindgen = { version = "0.2.74", features = ["serde-serialize"] }
+wasm-bindgen = { version = "0.2.74", features = ["serde-serialize"], optional = true }
 serde = { version = "1.0", features = ["derive"] }
 rand = { version = "0.7.3", optional = true }
 

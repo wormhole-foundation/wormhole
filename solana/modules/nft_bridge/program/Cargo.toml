@@ -11,7 +11,7 @@ name = "nft_bridge"
 [features]
 no-entrypoint = ["solitaire/no-entrypoint", "rand"]
 trace = ["solitaire/trace"]
-wasm = ["no-entrypoint"]
+wasm = ["no-entrypoint", "wasm-bindgen"]
 client = ["solitaire-client", "solitaire/client", "no-entrypoint"]
 cpi = ["no-entrypoint"]
 default = []
@@ -30,7 +30,7 @@ spl-associated-token-account = { version = "1.0.2" }
 primitive-types = { version = "0.9.0", default-features = false }
 solitaire-client = { path = "../../../solitaire/client", optional = true }
 spl-token-metadata = { path = "../../token_bridge/token-metadata" }
-wasm-bindgen = { version = "0.2.74", features = ["serde-serialize"] }
+wasm-bindgen = { version = "0.2.74", features = ["serde-serialize"], optional = true }
 serde = { version = "1.0", features = ["derive"] }
 rand = { version = "0.7.3", optional = true }
 
