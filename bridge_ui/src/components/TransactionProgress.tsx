@@ -1,4 +1,9 @@
-import { ChainId, CHAIN_ID_SOLANA, isEVMChain } from "@certusone/wormhole-sdk";
+import {
+  ChainId,
+  CHAIN_ID_POLYGON,
+  CHAIN_ID_SOLANA,
+  isEVMChain,
+} from "@certusone/wormhole-sdk";
 import { LinearProgress, makeStyles, Typography } from "@material-ui/core";
 import { Connection } from "@solana/web3.js";
 import { useEffect, useState } from "react";
@@ -66,7 +71,13 @@ export default function TransactionProgress({
   const blockDiff =
     tx && tx.block && currentBlock ? currentBlock - tx.block : undefined;
   const expectedBlocks =
-    chainId === CHAIN_ID_SOLANA ? 32 : isEVMChain(chainId) ? 15 : 1;
+    chainId === CHAIN_ID_POLYGON
+      ? 256 // minimum confirmations enforced by guardians
+      : chainId === CHAIN_ID_SOLANA
+      ? 32
+      : isEVMChain(chainId)
+      ? 15
+      : 1;
   if (
     !isSendComplete &&
     (chainId === CHAIN_ID_SOLANA || isEVMChain(chainId)) &&
