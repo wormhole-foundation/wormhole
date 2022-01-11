@@ -297,7 +297,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 					// Transaction was dropped and never picked up again
 					if pLock.height+4*uint64(expectedConfirmations) <= blockNumberU {
-						logger.Debug("observation timed out",
+						logger.Info("observation timed out",
 							zap.Stringer("tx", pLock.message.TxHash),
 							zap.Stringer("blockhash", key.BlockHash),
 							zap.Stringer("emitter_address", key.EmitterAddress),
@@ -326,7 +326,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 						// "not found" error most of the time, but it could conceivably also
 						// return a nil tx or rpc.ErrNoResult.
 						if tx == nil || err == rpc.ErrNoResult || (err != nil && err.Error() == "not found") {
-							logger.Info("tx was orphaned",
+							logger.Warn("tx was orphaned",
 								zap.Stringer("tx", pLock.message.TxHash),
 								zap.Stringer("blockhash", key.BlockHash),
 								zap.Stringer("emitter_address", key.EmitterAddress),
