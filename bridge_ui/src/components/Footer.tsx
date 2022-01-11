@@ -1,5 +1,6 @@
 import { IconButton, makeStyles, Typography } from "@material-ui/core";
 import Discord from "../icons/Discord.svg";
+import Docs from "../icons/Docs.svg";
 import Github from "../icons/Github.svg";
 import Medium from "../icons/Medium.svg";
 import Telegram from "../icons/Telegram.svg";
@@ -43,7 +44,15 @@ export default function Footer() {
     <footer className={classes.footer}>
       <div>
         <IconButton
-          href="https://discord.gg/xsT8qrHAvV"
+          href="https://docs.wormholenetwork.com/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className={classes.socialIcon}
+        >
+          <img src={Docs} alt="Docs" />
+        </IconButton>
+        <IconButton
+          href="https://discord.gg/wormholecrypto"
           target="_blank"
           rel="noopener noreferrer"
           className={classes.socialIcon}
