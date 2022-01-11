@@ -122,7 +122,13 @@ const WRAPPED_ASSET_UPDATING: &str = "updating";
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Response> {
-    let bucket = wrapped_asset_address(deps.storage);
+    let mut bucket = wrapped_asset_address(deps.storage);
+
+    // Remove registered asset with old code ID.
+    let asset_id = deps.api.addr_canonicalize("terra16q5pke2vueu23y8punvj70h0cp0s0rc7vrzl57")?;
+    bucket.remove(&asset_id);
+    assert!(bucket.load(&asset_id).is_err());
+
     let mut messages = vec![];
     for item in bucket.range(None, None, Order::Ascending) {
         let contract_address = item?.0;
