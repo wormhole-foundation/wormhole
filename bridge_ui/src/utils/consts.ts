@@ -451,6 +451,8 @@ export const getNFTBridgeAddressForChain = (chainId: ChainId) =>
     ? AVAX_NFT_BRIDGE_ADDRESS
     : chainId === CHAIN_ID_OASIS
     ? OASIS_NFT_BRIDGE_ADDRESS
+    : chainId === CHAIN_ID_TERRA
+    ? TERRA_NFT_BRIDGE_ADDRESS
     : "";
 export const getTokenBridgeAddressForChain = (chainId: ChainId) =>
   chainId === CHAIN_ID_SOLANA

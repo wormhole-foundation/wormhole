@@ -70,6 +70,7 @@
     ]
   },
   "devDependencies": {
+    "@apollo/client": "^3.5.7",
     "@craco/craco": "^6.2.0",
     "@truffle/hdwallet-provider": "^1.4.1",
     "@types/node": "^16.6.1",

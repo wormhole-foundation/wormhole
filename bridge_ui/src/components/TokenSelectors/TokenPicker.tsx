@@ -144,7 +144,7 @@ export const BasicAccountRender = (
   const uri = nft ? account.image_256 : account.logo || account.uri;
   const symbol = account.symbol || "Unknown";
   const name = account.name || "Unknown";
-  const tokenId = account.tokenId;
+  const tokenId = account.tokenId ? shortenAddress(account.tokenId) : undefined;
   const shouldDisplayBalance = !displayBalance || displayBalance(account);
 
   const nftContent = (
@@ -317,6 +317,7 @@ export default function TokenPicker({
         if (e.message?.includes("v1")) {
           setSelectionError(e.message);
         } else {
+          console.error(e);
           setSelectionError(
             "Unable to retrieve required information about this token. Ensure your wallet is connected, then refresh the list."
           );

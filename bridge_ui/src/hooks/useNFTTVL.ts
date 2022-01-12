@@ -5,6 +5,7 @@ import {
   CHAIN_ID_ETH,
   CHAIN_ID_POLYGON,
   CHAIN_ID_SOLANA,
+  CHAIN_ID_TERRA,
 } from "@certusone/wormhole-sdk";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import {
@@ -28,8 +29,13 @@ import {
 } from "../utils/consts";
 import { Metadata } from "../utils/metaplex";
 import useMetadata, { GenericMetadata } from "./useMetadata";
+import { useTerraNFTBalance, ShouldIncludeWrappedAssets } from "./useTerraCW721s";
 
 export type NFTTVL = NFTParsedTokenAccount & { chainId: ChainId };
+
+const calcTerraTVL = (nfts: NFTParsedTokenAccount[]): NFTTVL[] => {
+  return nfts.map((nft) => ({...nft, chainId: CHAIN_ID_TERRA}));
+};
 
 const calcEvmTVL = (covalentReport: any, chainId: ChainId): NFTTVL[] => {
   const output: NFTTVL[] = [];
@@ -134,6 +140,9 @@ const useNFTTVL = (): DataWrapper<NFTTVL[]> => {
   const [avaxCovalentIsLoading, setAvaxCovalentIsLoading] = useState(false);
   const [avaxCovalentError, setAvaxCovalentError] = useState("");
 
+  const terraNFTs = useTerraNFTBalance(getNFTBridgeAddressForChain(CHAIN_ID_TERRA), ShouldIncludeWrappedAssets.Exclude);
+  const [terraIsLoading, setTerraIsLoading] = useState(false);
+
   const [solanaCustodyTokens, setSolanaCustodyTokens] = useState<
     { pubkey: PublicKey; account: AccountInfo<ParsedAccountData> }[] | undefined
   >(undefined);
@@ -174,6 +183,11 @@ const useNFTTVL = (): DataWrapper<NFTTVL[]> => {
   const avaxTVL = useMemo(
     () => calcEvmTVL(avaxCovalentData, CHAIN_ID_AVAX),
     [avaxCovalentData]
+  );
+
+  const terraTVL = useMemo(
+    () => terraNFTs ? calcTerraTVL(terraNFTs) : [],
+    [terraNFTs]
   );
 
   useEffect(() => {
@@ -314,6 +328,14 @@ const useNFTTVL = (): DataWrapper<NFTTVL[]> => {
       );
   }, []);
 
+  useEffect(() => {
+    if (terraNFTs) {
+      setTerraIsLoading(false);
+    } else {
+      setTerraIsLoading(true);
+    }
+  }, [terraNFTs]);
+
   return useMemo(() => {
     const tvlArray = [
       ...ethTVL,
@@ -321,6 +343,7 @@ const useNFTTVL = (): DataWrapper<NFTTVL[]> => {
       ...polygonTVL,
       ...avaxTVL,
       ...solanaTVL,
+      ...terraTVL,
     ];
 
     return {
@@ -329,7 +352,8 @@ const useNFTTVL = (): DataWrapper<NFTTVL[]> => {
         bscCovalentIsLoading ||
         polygonCovalentIsLoading ||
         avaxCovalentIsLoading ||
-        solanaCustodyTokensLoading,
+        solanaCustodyTokensLoading ||
+        terraIsLoading,
       error:
         ethCovalentError ||
         bscCovalentError ||
@@ -355,6 +379,8 @@ const useNFTTVL = (): DataWrapper<NFTTVL[]> => {
     avaxTVL,
     avaxCovalentIsLoading,
     avaxCovalentError,
+    terraTVL,
+    terraIsLoading,
   ]);
 };
 
