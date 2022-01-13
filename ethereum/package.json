@@ -9,7 +9,8 @@
     "@openzeppelin/contracts": "^4.3.1",
     "@openzeppelin/test-environment": "^0.1.6",
     "@openzeppelin/test-helpers": "^0.5.9",
-    "@truffle/hdwallet-provider": "^1.2.0",
+    "@poanet/solidity-flattener": "^3.0.6",
+    "@truffle/hdwallet-provider": "^1.7.0",
     "chai": "^4.2.0",
     "mocha": "^8.2.1",
     "truffle": "^5.3.6",
@@ -19,7 +20,8 @@
   "scripts": {
     "build": "truffle compile",
     "test": "mkdir -p build/contracts && cp node_modules/@openzeppelin/contracts/build/contracts/* build/contracts/ && truffle test",
-    "migrate": "mkdir -p build/contracts && cp node_modules/@openzeppelin/contracts/build/contracts/* build/contracts/ && truffle migrate"
+    "migrate": "mkdir -p build/contracts && cp node_modules/@openzeppelin/contracts/build/contracts/* build/contracts/ && truffle migrate",
+    "flatten": "mkdir -p node_modules/@poanet/solidity-flattener/contracts && cp -r contracts/* node_modules/@poanet/solidity-flattener/contracts/ && poa-solidity-flattener"
   },
   "author": "",
   "license": "ISC",
