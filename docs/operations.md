@@ -190,7 +190,7 @@ not considered a stable API. Log messages may be added, modified or removed with
 
 ## Running a public API endpoint
 
-Wormhole v2 no longer uses Solana as a data availability layer (see [design document](../design/0005_data_availability.md)).
+Wormhole v2 no longer uses Solana as a data availability layer (see [design document](../whitepapers/0005_data_availability.md)).
 Instead, it relies on Guardian nodes exposing an API which web wallets and other clients can use to retrieve the signed VAA
 message for a given transaction.
 
