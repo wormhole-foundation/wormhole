@@ -1,4 +1,5 @@
-#![feature(const_generics)]
+
+#![feature(adt_const_params)]
 #![feature(const_generics_defaults)]
 #![allow(warnings)]
 

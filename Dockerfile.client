@@ -5,7 +5,7 @@ RUN apt-get update && apt-get install -yq libssl-dev libudev-dev pkg-config zlib
 RUN curl -fsSL https://deb.nodesource.com/setup_16.x | bash - && apt-get install -y nodejs
 RUN curl -sSfL https://release.solana.com/v1.8.1/install | sh
 
-RUN rustup default nightly-2021-08-01
+RUN rustup default nightly-2022-01-02
 RUN rustup component add rustfmt
 
 RUN --mount=type=cache,target=/root/.cache \
