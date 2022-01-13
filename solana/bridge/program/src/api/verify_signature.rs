@@ -1,15 +1,15 @@
 use solitaire::*;
 
 use crate::{
-    GuardianSet,
-    GuardianSetDerivationData,
-    SignatureSet,
     error::Error::{
         GuardianSetMismatch,
         InstructionAtWrongIndex,
         InvalidHash,
         InvalidSecpInstruction,
     },
+    GuardianSet,
+    GuardianSetDerivationData,
+    SignatureSet,
     MAX_LEN_GUARDIAN_KEYS,
 };
 use byteorder::ByteOrder;
@@ -89,18 +89,18 @@ pub fn verify_signatures(
         })
         .collect();
 
-    let current_instruction = solana_program::sysvar::instructions::load_current_index(
-        &accs.instruction_acc.try_borrow_mut_data()?,
-    );
+    let current_instruction = solana_program::sysvar::instructions::load_current_index_checked(
+        &accs.instruction_acc,
+    )?;
     if current_instruction == 0 {
         return Err(InstructionAtWrongIndex.into());
     }
 
     // The previous ix must be a secp verification instruction
     let secp_ix_index = (current_instruction - 1) as u8;
-    let secp_ix = solana_program::sysvar::instructions::load_instruction_at(
+    let secp_ix = solana_program::sysvar::instructions::load_instruction_at_checked(
         secp_ix_index as usize,
-        &accs.instruction_acc.try_borrow_mut_data()?,
+        &accs.instruction_acc,
     )
     .map_err(|_| ProgramError::InvalidAccountData)?;
 

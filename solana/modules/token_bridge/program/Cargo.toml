@@ -18,14 +18,14 @@ default = []
 
 [dependencies]
 wormhole-bridge-solana = { path = "../../../bridge/program", features = ["no-entrypoint", "cpi"] }
-borsh = "0.8.1"
+borsh = "=0.9.1"
 bstr = "0.2.16"
 byteorder = "1.4.3"
 rocksalt = { path = "../../../solitaire/rocksalt" }
 solitaire = { path = "../../../solitaire/program" }
 sha3 = "0.9.1"
 solana-program = "*"
-spl-token = { version = "=3.1.0", features = ["no-entrypoint"] }
+spl-token = { version = "=3.2.0", features = ["no-entrypoint"] }
 primitive-types = { version = "0.9.0", default-features = false }
 solitaire-client = { path = "../../../solitaire/client", optional = true }
 spl-token-metadata = { path = "../token-metadata" }
@@ -37,7 +37,7 @@ rand = { version = "0.7.3", optional = true }
 hex = "*"
 hex-literal = "0.3.1"
 libsecp256k1 = { version = "0.3.5", features = [] }
-solana-client = "1.7.0"
-solana-sdk = "=1.7.0"
-spl-token = { version = "=3.1.0", features = ["no-entrypoint"] }
+solana-client = "=1.9.4"
+solana-sdk = "=1.9.4"
+spl-token = { version = "=3.2.0", features = ["no-entrypoint"] }
 spl-token-metadata = { path = "../token-metadata" }
