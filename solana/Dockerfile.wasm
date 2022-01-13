@@ -3,7 +3,7 @@ FROM docker.io/library/rust:1.49@sha256:a50165ea96983c21832578afb1c8c028674c965b
 
 RUN apt-get update && apt-get install -y libssl-dev libudev-dev pkg-config zlib1g-dev llvm clang
 RUN rustup component add rustfmt
-RUN rustup default nightly-2021-08-01
+RUN rustup default nightly-2022-01-02
 
 WORKDIR /usr/src/bridge
 

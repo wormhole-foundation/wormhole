@@ -16,11 +16,11 @@ no-entrypoint = ["solitaire/no-entrypoint"]
 trace = ["solitaire/trace"]
 
 [dependencies]
-borsh = "0.8.1"
+borsh = "=0.9.1"
 byteorder = "1.4.3"
 primitive-types = { version = "0.9.0", default-features = false }
 sha3 = "0.9.1"
-solana-program = "=1.7.0"
+solana-program = "=1.9.4"
 solitaire-client = { path = "../../solitaire/client", optional = true }
 solitaire = { path = "../../solitaire/program" }
 wormhole-bridge-solana = { path = "../program", features = ["no-entrypoint"] }
@@ -30,5 +30,5 @@ hex = "*"
 rand = "0.7.3"
 hex-literal = "0.3.1"
 libsecp256k1 = { version = "0.3.5", features = [] }
-solana-client = "1.7.0"
-solana-sdk = "=1.7.0"
+solana-client = "=1.9.4"
+solana-sdk = "=1.9.4"

@@ -1,4 +1,5 @@
-#![feature(const_generics)]
+
+#![feature(adt_const_params)]
 #![allow(non_upper_case_globals)]
 #![allow(incomplete_features)]
 
