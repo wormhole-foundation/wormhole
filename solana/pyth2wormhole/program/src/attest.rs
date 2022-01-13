@@ -154,7 +154,7 @@ pub fn attest(ctx: &ExecutionContext, accs: &mut Attest, data: AttestData) -> So
         post_message_data.try_to_vec()?.as_slice(),
         vec![
             AccountMeta::new(*accs.wh_bridge.key, false),
-            AccountMeta::new(*accs.wh_message.key, true),
+            AccountMeta::new_readonly(*accs.wh_message.key, true),
             AccountMeta::new_readonly(*accs.wh_emitter.key, true),
             AccountMeta::new(*accs.wh_sequence.key, false),
             AccountMeta::new(*accs.payer.key, true),

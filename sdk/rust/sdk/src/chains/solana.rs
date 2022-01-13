@@ -1,23 +1,27 @@
 use borsh::BorshDeserialize;
-use solana_program::pubkey::Pubkey;
 use solana_program::account_info::AccountInfo;
 use solana_program::entrypoint::ProgramResult;
 use solana_program::program::invoke_signed;
+use solana_program::pubkey::Pubkey;
 use std::str::FromStr;
 
 // Export Bridge API
-pub use bridge::BridgeConfig;
-pub use bridge::BridgeData;
-pub use bridge::MessageData;
-pub use bridge::PostVAAData;
-pub use bridge::PostedVAAData;
-pub use bridge::VerifySignaturesData;
-pub use bridge::instructions;
-pub use bridge::solitaire as bridge_entrypoint;
 pub use bridge::types::ConsistencyLevel;
+pub use bridge::{
+    instructions,
+    solitaire as bridge_entrypoint,
+    BridgeConfig,
+    BridgeData,
+    MessageData,
+    PostVAAData,
+    PostedVAAData,
+    VerifySignaturesData,
+};
 
-use wormhole_core::WormholeError;
-use wormhole_core::VAA;
+use wormhole_core::{
+    WormholeError,
+    VAA,
+};
 
 /// Export Core Mainnet Contract Address
 #[cfg(feature = "mainnet")]
@@ -74,7 +78,7 @@ pub fn read_config(config: &AccountInfo) -> Result<BridgeConfig, WormholeError> 
 /// Deserialize helper for parsing from Borsh encoded VAA's from Solana accounts.
 pub fn read_vaa(vaa: &AccountInfo) -> Result<PostedVAAData, WormholeError> {
     Ok(PostedVAAData::try_from_slice(&vaa.data.borrow())
-       .map_err(|_| WormholeError::DeserializeFailed)?)
+        .map_err(|_| WormholeError::DeserializeFailed)?)
 }
 
 /// This helper method wraps the steps required to invoke Wormhole, it takes care of fee payment,
@@ -89,6 +93,58 @@ pub fn post_message(
     seeds: Option<&[&[u8]]>,
     accounts: &[AccountInfo],
     nonce: u32,
+) -> ProgramResult {
+    post_message_internal(
+        program_id,
+        payer,
+        message,
+        payload,
+        consistency,
+        seeds,
+        accounts,
+        nonce,
+        true,
+    )
+}
+
+/// This helper method wraps the steps required to invoke Wormhole, it takes care of fee payment,
+/// emitter derivation, and function invocation.
+/// This posts a message without persisting it on Solana. This means this message might be dropped
+/// and can not be recovered/reprocessed.
+/// DO NOT USE THIS FOR CRITICAL MESSAGES LIKE TRANSFER OF FUNDS
+pub fn post_message_unreliable(
+    program_id: Pubkey,
+    payer: Pubkey,
+    message: Pubkey,
+    payload: impl AsRef<[u8]>,
+    consistency: ConsistencyLevel,
+    seeds: Option<&[&[u8]]>,
+    accounts: &[AccountInfo],
+    nonce: u32,
+) -> ProgramResult {
+    post_message_internal(
+        program_id,
+        payer,
+        message,
+        payload,
+        consistency,
+        seeds,
+        accounts,
+        nonce,
+        false,
+    )
+}
+
+fn post_message_internal(
+    program_id: Pubkey,
+    payer: Pubkey,
+    message: Pubkey,
+    payload: impl AsRef<[u8]>,
+    consistency: ConsistencyLevel,
+    seeds: Option<&[&[u8]]>,
+    accounts: &[AccountInfo],
+    nonce: u32,
+    persist: bool,
 ) -> ProgramResult {
     // Derive any necessary Pubkeys, derivation makes sure that we match the accounts the are being
     // provided by the user as well.
@@ -105,26 +161,34 @@ pub fn post_message(
 
     // Pay Fee to the Wormhole
     invoke_signed(
-        &solana_program::system_instruction::transfer(
-            &payer,
-            &fee_collector,
-            config.fee
-        ),
+        &solana_program::system_instruction::transfer(&payer, &fee_collector, config.fee),
         accounts,
         &[],
     )?;
 
     // Invoke the Wormhole post_message endpoint to create an on-chain message.
     invoke_signed(
-        &instructions::post_message(
-            id,
-            payer,
-            emitter,
-            message,
-            nonce,
-            payload.as_ref().to_vec(),
-            consistency,
-        )
+        &if persist {
+            instructions::post_message(
+                id,
+                payer,
+                emitter,
+                message,
+                nonce,
+                payload.as_ref().to_vec(),
+                consistency,
+            )
+        } else {
+            instructions::post_message_unreliable(
+                id,
+                payer,
+                emitter,
+                message,
+                nonce,
+                payload.as_ref().to_vec(),
+                consistency,
+            )
+        }
         .unwrap(),
         accounts,
         &[&emitter_seeds, seeds.unwrap_or(&[])],

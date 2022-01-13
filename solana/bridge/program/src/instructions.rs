@@ -129,6 +129,54 @@ pub fn post_message(
     })
 }
 
+/// Post a message without persisting it on Solana. This means this message might be dropped and can
+/// not be recovered/reprocessed.
+/// DO NOT USE THIS FOR CRITICAL MESSAGES LIKE TRANSFER OF FUNDS
+pub fn post_message_unreliable(
+    program_id: Pubkey,
+    payer: Pubkey,
+    emitter: Pubkey,
+    message: Pubkey,
+    nonce: u32,
+    payload: Vec<u8>,
+    commitment: ConsistencyLevel,
+) -> solitaire::Result<Instruction> {
+    let bridge = Bridge::<'_, { AccountState::Uninitialized }>::key(None, &program_id);
+    let fee_collector = FeeCollector::<'_>::key(None, &program_id);
+    let sequence = Sequence::<'_>::key(
+        &SequenceDerivationData {
+            emitter_key: &emitter,
+        },
+        &program_id,
+    );
+
+    Ok(Instruction {
+        program_id,
+
+        accounts: vec![
+            AccountMeta::new(bridge, false),
+            AccountMeta::new_readonly(message, true),
+            AccountMeta::new_readonly(emitter, true),
+            AccountMeta::new(sequence, false),
+            AccountMeta::new(payer, true),
+            AccountMeta::new(fee_collector, false),
+            AccountMeta::new_readonly(sysvar::clock::id(), false),
+            AccountMeta::new_readonly(sysvar::rent::id(), false),
+            AccountMeta::new_readonly(solana_program::system_program::id(), false),
+        ],
+
+        data: (
+            crate::instruction::Instruction::PostMessage,
+            PostMessageData {
+                nonce,
+                payload: payload.clone(),
+                consistency_level: commitment,
+            },
+        )
+            .try_to_vec()?,
+    })
+}
+
 pub fn verify_signatures(
     program_id: Pubkey,
     payer: Pubkey,

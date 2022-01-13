@@ -14,6 +14,7 @@ use crate::{
     CHAIN_ID_SOLANA,
 };
 use solana_program::{
+    log::sol_log_data,
     msg,
     sysvar::clock::Clock,
 };
@@ -39,8 +40,8 @@ pub struct PostMessage<'b> {
     /// Bridge config needed for fee calculation.
     pub bridge: Mut<Bridge<'b, { AccountState::Initialized }>>,
 
-    /// Account to store the posted message
-    pub message: Signer<Mut<UninitializedMessage<'b>>>,
+    /// Account to store the posted message if persistence is requested
+    pub message: Signer<MaybeMut<UninitializedMessage<'b>>>,
 
     /// Emitter of the VAA
     pub emitter: Signer<MaybeMut<Info<'b>>>,
@@ -127,16 +128,21 @@ pub fn post_message(
         ConsistencyLevel::Finalized => 32,
     };
 
-    // Create message account
-    let size = accs.message.size();
-    let ix = solana_program::system_instruction::create_account(
-        accs.payer.key,
-        accs.message.info().key,
-        Exempt.amount(size),
-        size as u64,
-        ctx.program_id,
-    );
-    solana_program::program::invoke(&ix, ctx.accounts)?;
+    // Log the message data
+    sol_log_data(&[accs.message.try_to_vec()?.as_slice()]);
+
+    if accs.message.info().is_writable {
+        // Create message account
+        let size = accs.message.size();
+        let ix = solana_program::system_instruction::create_account(
+            accs.payer.key,
+            accs.message.info().key,
+            Exempt.amount(size),
+            size as u64,
+            ctx.program_id,
+        );
+        solana_program::program::invoke(&ix, ctx.accounts)?;
+    }
 
     // Bump sequence number
     trace!("New Sequence: {}", accs.sequence.sequence + 1);

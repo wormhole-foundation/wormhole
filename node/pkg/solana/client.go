@@ -4,6 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/certusone/wormhole/node/pkg/solana/logs"
+	"time"
+
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/p2p"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
@@ -19,7 +22,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"go.uber.org/zap"
-	"time"
 )
 
 type SolanaWatcher struct {
@@ -85,10 +87,24 @@ func (c ConsistencyLevel) Commitment() (rpc.CommitmentType, error) {
 	}
 }
 
+type ConsistencyLevelLog uint8
+
+// Mappings from consistency levels constants to commitment level.
 const (
-	postMessageInstructionNumAccounts = 9
-	postMessageInstructionID          = 0x01
+	consistencyLevelLogConfirmed ConsistencyLevelLog = 1
+	consistencyLevelLogFinalized ConsistencyLevelLog = 32
 )
+
+func (c ConsistencyLevelLog) Commitment() (rpc.CommitmentType, error) {
+	switch c {
+	case consistencyLevelLogConfirmed:
+		return rpc.CommitmentConfirmed, nil
+	case consistencyLevelLogFinalized:
+		return rpc.CommitmentFinalized, nil
+	default:
+		return "", fmt.Errorf("unsupported consistency level: %d", c)
+	}
+}
 
 // PostMessageData represents the user-supplied, untrusted instruction data
 // for message publications. We use this to determine consistency level before fetching accounts.
@@ -286,7 +302,6 @@ func (s *SolanaWatcher) fetchBlock(ctx context.Context, logger *zap.Logger, slot
 		zap.Duration("took", time.Since(start)),
 		zap.String("commitment", string(s.commitment)))
 
-OUTER:
 	for _, tx := range out.Transactions {
 		signature := tx.Transaction.Signatures[0]
 		var programIndex uint16
@@ -304,61 +319,25 @@ OUTER:
 			zap.Uint64("slot", slot),
 			zap.String("commitment", string(s.commitment)))
 
-		// Find top-level instructions
-		for i, inst := range tx.Transaction.Message.Instructions {
-			found, err := s.processInstruction(ctx, logger, slot, inst, programIndex, tx, signature, i)
-			if err != nil {
-				logger.Error("malformed Wormhole instruction",
-					zap.Error(err),
-					zap.Int("idx", i),
-					zap.Stringer("signature", signature),
-					zap.Uint64("slot", slot),
-					zap.String("commitment", string(s.commitment)),
-					zap.Binary("data", inst.Data))
-				continue OUTER
-			}
-			if found {
-				continue OUTER
-			}
-		}
-
-		// Call GetConfirmedTransaction to get at innerTransactions
-		rCtx, cancel := context.WithTimeout(ctx, rpcTimeout)
-		start := time.Now()
-		tr, err := s.rpcClient.GetConfirmedTransactionWithOpts(rCtx, signature, &rpc.GetTransactionOpts{
-			Encoding:   "json",
-			Commitment: s.commitment,
-		})
-		cancel()
-		queryLatency.WithLabelValues("get_confirmed_transaction", string(s.commitment)).Observe(time.Since(start).Seconds())
+		invocations, err := logs.ParseLogs(tx.Meta.LogMessages)
 		if err != nil {
-			p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDSolana, 1)
-			solanaConnectionErrors.WithLabelValues(string(s.commitment), "get_confirmed_transaction_error").Inc()
-			logger.Error("failed to request transaction",
+			logger.Error("failed to parse tx logs",
 				zap.Error(err),
+				zap.Stringer("signature", signature),
 				zap.Uint64("slot", slot),
 				zap.String("commitment", string(s.commitment)),
-				zap.Stringer("signature", signature))
-			return false
+				zap.Strings("logs", tx.Meta.LogMessages))
+			continue
 		}
-
-		logger.Info("fetched transaction",
-			zap.Uint64("slot", slot),
-			zap.String("commitment", string(s.commitment)),
-			zap.Stringer("signature", signature),
-			zap.Duration("took", time.Since(start)))
-
-		for _, inner := range tr.Meta.InnerInstructions {
-			for i, inst := range inner.Instructions {
-				_, err := s.processInstruction(ctx, logger, slot, inst, programIndex, tx, signature, i)
-				if err != nil {
-					logger.Error("malformed Wormhole instruction",
-						zap.Error(err),
-						zap.Int("idx", i),
-						zap.Stringer("signature", signature),
-						zap.Uint64("slot", slot),
-						zap.String("commitment", string(s.commitment)))
-				}
+		for _, invocation := range invocations {
+			err = s.processInvocation(logger, invocation, signature)
+			if err != nil {
+				logger.Error("failed to process tx invocation",
+					zap.Error(err),
+					zap.Stringer("signature", signature),
+					zap.Uint64("slot", slot),
+					zap.String("commitment", string(s.commitment)))
+				continue
 			}
 		}
 	}
@@ -371,74 +350,6 @@ OUTER:
 	}
 
 	return true
-}
-
-func (s *SolanaWatcher) processInstruction(ctx context.Context, logger *zap.Logger, slot uint64, inst solana.CompiledInstruction, programIndex uint16, tx rpc.TransactionWithMeta, signature solana.Signature, idx int) (bool, error) {
-	if inst.ProgramIDIndex != programIndex {
-		return false, nil
-	}
-
-	if inst.Data[0] != postMessageInstructionID {
-		return false, nil
-	}
-
-	if len(inst.Accounts) != postMessageInstructionNumAccounts {
-		return false, fmt.Errorf("invalid number of accounts: %d instead of %d",
-			len(inst.Accounts), postMessageInstructionNumAccounts)
-	}
-
-	// Decode instruction data (UNTRUSTED)
-	var data PostMessageData
-	if err := borsh.Deserialize(&data, inst.Data[1:]); err != nil {
-		return false, fmt.Errorf("failed to deserialize instruction data: %w", err)
-	}
-
-	logger.Info("post message data", zap.Any("deserialized_data", data),
-		zap.Stringer("signature", signature), zap.Uint64("slot", slot), zap.Int("idx", idx))
-
-	level, err := data.ConsistencyLevel.Commitment()
-	if err != nil {
-		return false, fmt.Errorf("failed to determine commitment: %w", err)
-	}
-
-	if level != s.commitment {
-		return true, nil
-	}
-
-	// The second account in a well-formed Wormhole instruction is the VAA program account.
-	acc := tx.Transaction.Message.AccountKeys[inst.Accounts[1]]
-
-	logger.Info("fetching VAA account", zap.Stringer("acc", acc),
-		zap.Stringer("signature", signature), zap.Uint64("slot", slot), zap.Int("idx", idx))
-
-	go s.retryFetchMessageAccount(ctx, logger, acc, slot, 0)
-
-	return true, nil
-}
-
-func (s *SolanaWatcher) retryFetchMessageAccount(ctx context.Context, logger *zap.Logger, acc solana.PublicKey, slot uint64, retry uint) {
-	retryable := s.fetchMessageAccount(ctx, logger, acc, slot)
-
-	if retryable {
-		if retry >= maxRetries {
-			logger.Error("max retries for account",
-				zap.Uint64("slot", slot),
-				zap.Stringer("account", acc),
-				zap.String("commitment", string(s.commitment)),
-				zap.Uint("retry", retry))
-			return
-		}
-
-		time.Sleep(retryDelay)
-
-		logger.Info("retrying account",
-			zap.Uint64("slot", slot),
-			zap.Stringer("account", acc),
-			zap.String("commitment", string(s.commitment)),
-			zap.Uint("retry", retry))
-
-		go s.retryFetchMessageAccount(ctx, logger, acc, slot, retry+1)
-	}
 }
 
 func (s *SolanaWatcher) fetchMessageAccount(ctx context.Context, logger *zap.Logger, acc solana.PublicKey, slot uint64) (retryable bool) {
@@ -534,6 +445,83 @@ func (s *SolanaWatcher) processMessageAccount(logger *zap.Logger, data []byte, a
 	)
 
 	s.messageEvent <- observation
+}
+
+func (s *SolanaWatcher) processInvocation(logger *zap.Logger, invocation *logs.Invocation, signature solana.Signature) error {
+	if !invocation.Success {
+		return nil
+	}
+
+	if invocation.Program == s.contract {
+		var (
+			dataLog logs.LogLine
+			found   bool
+		)
+		for _, logLine := range invocation.Logs {
+			if logLine.Type == logs.LogLineTypeData {
+				dataLog = logLine
+				found = true
+				break
+			}
+		}
+		if !found {
+			return nil
+		}
+		if len(dataLog.Data) != 1 {
+			return nil
+		}
+
+		proposal, err := ParseMessagePublicationAccount(dataLog.Data[0])
+		if err != nil {
+			return fmt.Errorf("failed to parse message: %w", err)
+		}
+
+		level, err := ConsistencyLevelLog(proposal.ConsistencyLevel).Commitment()
+		if err != nil {
+			return fmt.Errorf("failed to decode consistency level: %d", proposal.ConsistencyLevel)
+		}
+		if level != s.commitment {
+			return nil
+		}
+
+		// We use the first 32 bytes of the signature as txHash
+		var txHash eth_common.Hash
+		copy(txHash[:], signature[:32])
+
+		observation := &common.MessagePublication{
+			TxHash:           txHash,
+			Timestamp:        time.Unix(int64(proposal.SubmissionTime), 0),
+			Nonce:            proposal.Nonce,
+			Sequence:         proposal.Sequence,
+			EmitterChain:     vaa.ChainIDSolana,
+			EmitterAddress:   proposal.EmitterAddress,
+			Payload:          proposal.Payload,
+			ConsistencyLevel: proposal.ConsistencyLevel,
+		}
+
+		solanaMessagesConfirmed.Inc()
+
+		logger.Info("message observed",
+			zap.Time("timestamp", observation.Timestamp),
+			zap.Uint32("nonce", observation.Nonce),
+			zap.Uint64("sequence", observation.Sequence),
+			zap.Stringer("emitter_chain", observation.EmitterChain),
+			zap.Stringer("emitter_address", observation.EmitterAddress),
+			zap.Binary("payload", observation.Payload),
+			zap.Uint8("consistency_level", observation.ConsistencyLevel),
+		)
+
+		s.messageEvent <- observation
+	} else {
+		for _, subInvocation := range invocation.Subcalls {
+			err := s.processInvocation(logger, subInvocation, signature)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
 
 type (
