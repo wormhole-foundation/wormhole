@@ -9,7 +9,7 @@ This service consumes prices from "price fetchers" and feeds blockchain publishe
 
 * A Wormhole client that uses the JS SDK to get VAAs from Pyth network and feed the payload and cryptographic verification data to a transaction group for validation. Subsequently, the data is optionally processed and stored, either price or metrics. For details regarding Wormhole VAAs see design documents: 
 
-  https://github.com/certusone/wormhole/tree/dev.v2/design
+  https://github.com/certusone/wormhole/tree/dev.v2/whitepapers
 
 All gathered price information is stored in a buffer by the Fetcher component -with a maximum size determined by settings-.  The price to get from that buffer is selected by the **IStrategy** class implementation; the default implementation being to get the most recent price and clear the buffer for new items to arrive. 
 
@@ -70,10 +70,10 @@ For the stateful app-calls we consider,
 **VAA Structure**
 
 VAA structure is defined in: 
- https://github.com/certusone/wormhole/blob/dev.v2/design/0001_generic_message_passing.md
+ https://github.com/certusone/wormhole/blob/dev.v2/whitepapers/0001_generic_message_passing.md
 
  Governance VAAs:
- https://github.com/certusone/wormhole/blob/dev.v2/design/0002_governance_messaging.md
+ https://github.com/certusone/wormhole/blob/dev.v2/whitepapers/0002_governance_messaging.md
 
  Sample Ethereum Struct Reference: 
  https://github.com/certusone/wormhole/blob/dev.v2/ethereum/contracts/Structs.sol
