@@ -147,6 +147,7 @@ pub struct Action;
 impl Action {
     pub const TRANSFER: u8 = 1;
     pub const ATTEST_META: u8 = 2;
+    pub const TRANSFER_WITH_PAYLOAD: u8 = 3;
 }
 
 // 0 u8 action
@@ -222,6 +223,35 @@ impl TransferInfo {
             self.fee.1.to_be_bytes().to_vec(),
         ]
         .concat()
+    }
+}
+
+//     0   u256     amount
+//     32  [u8; 32] token_address
+//     64  u16      token_chain
+//     66  [u8; 32] recipient
+//     98  u16      recipient_chain
+//     100 u256     fee
+//     132 [u8]     payload
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct TransferWithPayloadInfo {
+    pub transfer_info: TransferInfo,
+    pub payload: Vec<u8>,
+}
+
+impl TransferWithPayloadInfo {
+    pub fn deserialize(data: &Vec<u8>) -> StdResult<Self> {
+        let transfer_info = TransferInfo::deserialize(data)?;
+        let payload = data[132..].to_vec();
+
+        Ok(TransferWithPayloadInfo {
+            transfer_info,
+            payload,
+        })
+    }
+    pub fn serialize(&self) -> Vec<u8> {
+        [self.transfer_info.serialize(), self.payload.clone()].concat()
     }
 }
 

@@ -44,6 +44,15 @@ pub enum ExecuteMsg {
         nonce: u32,
     },
 
+    InitiateTransferWithPayload {
+        asset: Asset,
+        recipient_chain: u16,
+        recipient: Binary,
+        fee: Uint128,
+        payload: Binary,
+        nonce: u32,
+    },
+
     SubmitVaa {
         data: Binary,
     },
