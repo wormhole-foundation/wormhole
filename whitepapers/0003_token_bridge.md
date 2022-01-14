@@ -31,6 +31,8 @@ standards-compliant token between chains, creating unique wrapped representation
 * Allow transfer of standards-compliant tokens between chains.
 * Allow creation of wrapped assets.
 * Use a universal token representation that is compatible with most VM data types.
+* Allow domain-specific payload to be transferred along the token, enabling
+  tight integration with smart contracts on the target chain.
 
 ## Non-Goals
 
@@ -52,9 +54,10 @@ respective Transfer message that is posted to Wormhole, or burns a wrapped token
 
 For inbound transfers they can consume, verify and process Wormhole messages containing a token bridge payload.
 
-There will be four different payloads:
+There will be five different payloads:
 
 * `Transfer` - Will trigger the release of locked tokens or minting of wrapped tokens.
+* `TransferWithPayload` - Will trigger the release of locked tokens or minting of wrapped tokens, with additional domain-specific payload.
 * `AssetMeta` - Attests asset metadata (required before the first transfer).
 * `RegisterChain` - Register the token bridge contract (emitter address) for a foreign chain.
 * `UpgradeContract` - Upgrade the contract.
@@ -66,18 +69,27 @@ bridge endpoints is implemented via `RegisterChain` where a `(chain_id, emitter_
 one endpoint can be registered per chain. Endpoints are immutable. This payload will only be accepted if the emitter is
 the hardcoded governance contract.
 
-In order to transfer assets to another chain, a user needs to call the `transfer` method of the bridge contract with the
-recipient details and respective fee they are willing to pay. The contract will either hold the tokens in a custody
-account (in case it is a native token) or burn wrapped assets. Wrapped assets can be burned because they can be freely
-minted once tokens are transferred back and this way the total supply can indicate the total amount of tokens currently
-held on this chain. After the lockup the contract will post a `Transfer` payload message to Wormhole. Once the message
-has been signed by the guardians, it can be posted to the target chain of the transfer. The target chain will then
-either release native tokens from custody or mint a wrapped asset depending on whether it's a native token there. The
-program will keep track of consumed message digests for replay prevention.
+In order to transfer assets to another chain, a user needs to call the `transfer` (or the `transferWithPayload`) method
+of the bridge contract with the recipient details and respective fee they are willing to pay. The contract will either
+hold the tokens in a custody account (in case it is a native token) or burn wrapped assets. Wrapped assets can be burned
+because they can be freely minted once tokens are transferred back and this way the total supply can indicate the total
+amount of tokens currently held on this chain. After the lockup the contract will post a `Transfer` (or
+`TransferWithPayload`) message to Wormhole.  Once the message has been signed by the guardians, it can be posted to the
+target chain of the transfer. Upon redeeming (see `completeTransfer` below), the target chain will either release native
+tokens from custody or mint a wrapped asset depending on whether it's a native token there.
+The token bridges guarantee that there will be a unique wrapped asset on each chain for each non-native token. In other
+words, transferring a native token from chain A to chain C will result in the same wrapped token as transferring from A
+to B first, then from B to C, and no double wrapping will happen.
+The program will keep track of consumed message digests (which include a nonce) for replay prevention.
 
-Since the method for posting a VAA to the token bridge is authorized by the message signature itself, anyone can post
-any message. The `completeTransfer` method will accept a fee recipient. In case that field is set, the fee amount
+To redeem the transaction on the target chain, the VAA must be posted to the target token bridge. Since the VAA includes
+a signature from the guardians, it does not matter in general who submits it to the target chain, as VAAs cannot be
+spoofed, and the VAA includes the target address that the tokens will be sent to upon completion.
+An exception to this is `TransferWithPayload`, which must be redeemed by the target address, because it contains
+additional payload that must be handled by the recipient (such as token-swap instructions).
+The `completeTransfer` method will accept a fee recipient. In case that field is set, the fee amount
 specified will be sent to the fee recipient and the remainder of the amount to the intended receiver of the transfer.
+(TODO: is this fee recipient implemented? looks like the fee is always sent to whoever redeems the transfer)
 This allows transfers to be completed by independent relayers to improve UX for users that will only need to send a
 single transaction for as long as the fee is sufficient and the token accepted by anyone acting as relayer.
 
@@ -117,9 +129,14 @@ Proposed bridge interface:
 `transfer(address token, uint64-uint256 amount (size depending on chains standards), uint16 recipient_chain, bytes32 recipient, uint256 fee)` - Initiate
 a `Transfer`. Amount in the tokens native decimals.
 
+`transferWithPayload(address token, uint64-uint256 amount (size depending on chains standards), uint16 recipient_chain, bytes32 recipient, uint256 fee, bytes payload)` - Initiate
+a `TransferWithPayload`. Amount in the tokens native decimals. `payload` is an arbitrary binary blob.
+
 `createWrapped(Message assetMeta)` - Creates a wrapped asset using `AssetMeta`
 
 `completeTransfer(Message transfer)` - Execute a `Transfer` message
+
+TODO: do we need a separate `completeTransferWithPayload` here? I guess it's implementation-specific
 
 `registerChain(Message registerChain)` - Execute a `RegisterChain` governance message
 
@@ -144,6 +161,26 @@ To bytes32
 ToChain uint16
 // Amount of tokens (big-endian uint256) that the user is willing to pay as relayer fee. Must be <= Amount.
 Fee uint256
+```
+
+TransferWithPayload:
+
+```
+PayloadID uint8 = 3
+// Amount being transferred (big-endian uint256)
+Amount uint256
+// Address of the token. Left-zero-padded if shorter than 32 bytes
+TokenAddress bytes32
+// Chain ID of the token
+TokenChain uint16
+// Address of the recipient. Left-zero-padded if shorter than 32 bytes
+To bytes32
+// Chain ID of the recipient
+ToChain uint16
+// Amount of tokens (big-endian uint256) that the user is willing to pay as relayer fee. Must be <= Amount.
+Fee uint256
+// Arbitrary payload
+Payload bytes
 ```
 
 AssetMeta:
@@ -206,5 +243,8 @@ original signer guardian set expires, the transfer will be stuck indefinitely.
 
 Since there is no way for a token bridge endpoint to know which other chain already has wrapped assets set up for the
 native asset on its chain, there may be transfers initiated for assets that don't have wrapped assets set up yet on the
-target chain. However, the transfer will become executable once the wrapped asset is set up (which can be done any time)
-.
+target chain. However, the transfer will become executable once the wrapped asset is set up (which can be done any time).
+
+<!-- Local Variables: -->
+<!-- fill-column: 120 -->
+<!-- End: -->
