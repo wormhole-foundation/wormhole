@@ -12,10 +12,8 @@ use cosmwasm_std::{
     StdResult,
 };
 use wormhole_sdk::{
-    id,
     parse_vaa,
     post_message,
-    VAA,
 };
 
 use messenger_common::Message;
@@ -43,7 +41,6 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
         ExecuteMsg::SendMessage { nonce, nick, text } => Ok(Response::default()
             .add_attribute("action", "send_message")
             .add_message(post_message(
-                wormhole_sdk::id(),
                 nonce,
                 &Message { nick, text }
                     .try_to_vec()
@@ -54,7 +51,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
         // Terra contract state and can be read out via QueryMsg.
         ExecuteMsg::RecvMessage { vaa } => {
             // Parse VAA and decode Payload into message.
-            let vaa = parse_vaa(wormhole_sdk::id(), deps, env, &vaa)?;
+            let vaa = parse_vaa(deps, env, &vaa)?;
             let msg = Message::try_from_slice(&vaa.payload)
                 .map_err(|_| StdError::generic_err("Invalid Message"))?;
 

@@ -12,11 +12,11 @@ use cosmwasm_std::{
 };
 use serde::Serialize;
 
-use bridge::msg::{
+use wormhole::msg::{
     ExecuteMsg,
     QueryMsg,
 };
-use bridge::state::ParsedVAA;
+use wormhole::state::ParsedVAA;
 
 /// Export Core Mainnet Contract Address
 #[cfg(feature = "mainnet")]
