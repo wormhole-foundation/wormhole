@@ -1,8 +1,9 @@
 import ArrowForward from "@mui/icons-material/ArrowForward";
 import { Box, Button, Typography } from "@mui/material";
+import { Link as RouterLink } from "gatsby";
 import * as React from "react";
-import AvoidBreak from "../components/AvoidBreak";
 import GridWithCards from "../components/GridWithCards";
+import HeroText from "../components/HeroText";
 import Layout from "../components/Layout";
 import apps from "../images/index/apps.png";
 import blob from "../images/index/blob.svg";
@@ -25,22 +26,27 @@ const IndexPage = () => {
             transform: "translate(0px, -25%)",
             background: `url(${shape1})`,
             backgroundRepeat: "no-repeat",
-            backgroundPosition: "top -120px left -27px",
+            backgroundPosition: "top -240px center",
             backgroundSize: "2070px 1155px",
             width: "100%",
             height: 1155,
           }}
         />
-        <Box sx={{ m: "auto", maxWidth: 600, textAlign: "center" }}>
-          <Typography variant="h1">
-            <AvoidBreak spans={["The best of", "blockchains"]} />
-          </Typography>
-          <Typography sx={{ marginTop: 2 }}>
-            Move information and value anywhere.
-          </Typography>
+        <HeroText
+          maxWidth={600}
+          heroSpans={["The best of", "blockchains"]}
+          subtitleText="Move information and value anywhere."
+        />
+        <Box
+          sx={{
+            m: "auto",
+            maxWidth: { xs: 240, sm: 600 },
+            textAlign: "center",
+          }}
+        >
           <Box
             sx={{
-              width: "calc( 100& - 16px )",
+              width: "calc( 100% - 16px )",
               mx: "auto",
               mt: 15.5,
               display: "flex",
@@ -52,10 +58,11 @@ const IndexPage = () => {
               sx={{
                 mt: 2,
                 mx: 1,
+                pt: { xs: 1, sm: 0 },
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-evenly",
-                flexBasis: "calc(33.33333% - 16px)",
+                flexBasis: { xs: "100%", sm: "calc(33.33333% - 16px)" },
                 borderTop: "1px solid white",
               }}
             >
@@ -66,10 +73,11 @@ const IndexPage = () => {
               sx={{
                 mt: 2,
                 mx: 1,
+                pt: { xs: 1, sm: 0 },
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-evenly",
-                flexBasis: "calc(33.33333% - 16px)",
+                flexBasis: { xs: "100%", sm: "calc(33.33333% - 16px)" },
                 borderTop: "1px solid white",
               }}
             >
@@ -80,10 +88,11 @@ const IndexPage = () => {
               sx={{
                 mt: 2,
                 mx: 1,
+                pt: { xs: 1, sm: 0 },
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-evenly",
-                flexBasis: "calc(33.33333% - 16px)",
+                flexBasis: { xs: "100%", sm: "calc(33.33333% - 16px)" },
                 borderTop: "1px solid white",
               }}
             >
@@ -99,7 +108,7 @@ const IndexPage = () => {
           flexWrap: "wrap",
           maxWidth: 1220,
           px: 3.75,
-          mt: 50,
+          mt: 35,
           mx: "auto",
           alignItems: "center",
           justifyContent: "center",
@@ -111,10 +120,10 @@ const IndexPage = () => {
             flexGrow: 1,
           }}
         >
-          <Box sx={{ maxWidth: 460, mx: "auto" }}>
+          <Box sx={{ maxWidth: 348, mx: "auto" }}>
             <Typography variant="h3">
               <Box component="span" sx={{ color: "#FFCE00" }}>
-                Protocol:
+                Protocol:{" "}
               </Box>
               <Box component="span" sx={{ display: "inline-block" }}>
                 the core layer
@@ -124,6 +133,8 @@ const IndexPage = () => {
               It's the foundation that the ecosystem of apps is built on top of.
             </Typography>
             <Button
+              component={RouterLink}
+              to="/buidl/"
               sx={{ mt: 3 }}
               variant="outlined"
               color="inherit"
@@ -172,17 +183,19 @@ const IndexPage = () => {
           <Box component="img" src={apps} alt="" sx={{ maxWidth: "100%" }} />
         </Box>
         <Box sx={{ flexBasis: { xs: "100%", md: "40%" }, flexGrow: 1 }}>
-          <Box sx={{ maxWidth: 460, mx: "auto" }}>
+          <Box sx={{ maxWidth: 348, mx: "auto" }}>
             <Typography variant="h3">
               <Box component="span" sx={{ color: "#FFCE00" }}>
-                Apps:
+                Apps:{" "}
               </Box>
-              <Box component="span"> endless possibilities</Box>
+              <Box component="span">endless possibilities</Box>
             </Typography>
             <Typography sx={{ mt: 2 }}>
               Apps can now live across chains and integrate the best of each.
             </Typography>
             <Button
+              component={RouterLink}
+              to="/apps/"
               sx={{ mt: 3 }}
               variant="outlined"
               color="inherit"
@@ -211,19 +224,20 @@ const IndexPage = () => {
             flexGrow: 1,
           }}
         >
-          <Box sx={{ maxWidth: 460, mx: "auto" }}>
+          <Box sx={{ maxWidth: 320, mx: "auto" }}>
             <Typography variant="h3">
               <Box component="span" sx={{ color: "#FFCE00" }}>
-                Portal:
+                Portal:{" "}
               </Box>
               <Box component="span" sx={{ display: "inline-block" }}>
                 a token bridge
               </Box>
             </Typography>
             <Typography sx={{ mt: 2 }}>
-              Tramsfer tokens across chains and enjoy $1bn+ of liquidity
+              Transfer tokens across chains and enjoy $1bn+ of liquidity.
             </Typography>
             <Button
+              href={portal}
               sx={{ mt: 3 }}
               variant="outlined"
               color="inherit"
@@ -244,7 +258,7 @@ const IndexPage = () => {
           <Box component="img" src={portal} alt="" sx={{ maxWidth: "100%" }} />
         </Box>
       </Box>
-      <Box sx={{ textAlign: "center", mt: 12.5 }}>
+      <Box sx={{ textAlign: "center", mt: 12.5, px: 2 }}>
         <Typography variant="h3">
           <Box component="span" sx={{ color: "#FFCE00" }}>
             Cross-chain

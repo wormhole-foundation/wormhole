@@ -3,6 +3,7 @@ import { Link as RouterLink } from "gatsby";
 import React from "react";
 import logo from "../images/logo.svg";
 import hamburger from "../images/hamburger.svg";
+import { apps, blog, buidl, home, portal } from "../utils/urls";
 
 const linkStyle = { ml: 3 };
 
@@ -13,43 +14,33 @@ const NavBar = () => (
     elevation={0}
   >
     <Toolbar disableGutters sx={{ mt: 2, mx: 4 }}>
-      <RouterLink to="/" style={{ display: "flex" }}>
+      <RouterLink to={home} style={{ display: "flex" }}>
         <img src={logo} alt="Wormhole" />
       </RouterLink>
       <Box sx={{ flexGrow: 1 }} />
       <Box sx={{ display: { xs: "none", md: "block" } }}>
         <Link
           component={RouterLink}
-          to="/apps"
+          to={apps}
           color="inherit"
           underline="hover"
           sx={linkStyle}
         >
           Apps
         </Link>
-        <Link
-          href="https://wormholebridge.com/"
-          color="inherit"
-          underline="hover"
-          sx={linkStyle}
-        >
+        <Link href={portal} color="inherit" underline="hover" sx={linkStyle}>
           Portal
         </Link>
         <Link
           component={RouterLink}
-          to="/buidl"
+          to={buidl}
           color="inherit"
           underline="hover"
           sx={linkStyle}
         >
           Buidl
         </Link>
-        <Link
-          href="https://wormholecrypto.medium.com/"
-          color="inherit"
-          underline="hover"
-          sx={linkStyle}
-        >
+        <Link href={blog} color="inherit" underline="hover" sx={linkStyle}>
           Blog
         </Link>
       </Box>

@@ -1,7 +1,7 @@
-import { Box, Typography } from "@mui/material";
+import { Box } from "@mui/material";
 import * as React from "react";
-import AvoidBreak from "../components/AvoidBreak";
 import GridWithCards from "../components/GridWithCards";
+import HeroText from "../components/HeroText";
 import Layout from "../components/Layout";
 import atlas from "../images/apps/atlas.png";
 import bridgesplit from "../images/apps/bridgesplit.png";
@@ -31,14 +31,10 @@ const AppsPage = () => {
             height: 1155,
           }}
         />
-        <Box sx={{ m: "auto", maxWidth: 1155, textAlign: "center" }}>
-          <Typography variant="h1">
-            <AvoidBreak spans={["Every chain", "at once"]} />
-          </Typography>
-          <Typography sx={{ marginTop: 3.25 }}>
-            Explore apps that give you the power of cross-chain movement.
-          </Typography>
-        </Box>
+        <HeroText
+          heroSpans={["Every chain", "at once"]}
+          subtitleText="Explore apps that give you the power of cross-chain movement."
+        />
       </Box>
       <Box sx={{ maxWidth: 1220, mx: "auto", mt: 36, px: 3.75 }}>
         <GridWithCards

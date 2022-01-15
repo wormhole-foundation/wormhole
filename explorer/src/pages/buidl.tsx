@@ -1,30 +1,19 @@
-import ArrowForward from "@mui/icons-material/ArrowForward";
-import { Box, Button, Grid, Typography } from "@mui/material";
-import * as React from "react";
-import AvoidBreak from "../components/AvoidBreak";
-import GridWithCards from "../components/GridWithCards";
-import Layout from "../components/Layout";
-import atlas from "../images/apps/atlas.png";
-import bridgesplit from "../images/apps/bridgesplit.png";
-import faraway from "../images/apps/faraway.png";
-import lido from "../images/apps/lido.png";
-import mercurial from "../images/apps/mercurial.png";
-import orion from "../images/apps/orion.png";
-import pyth from "../images/apps/pyth.png";
-import swim from "../images/apps/swim.png";
-import tiexo from "../images/apps/tiexo.png";
-import shape1 from "../images/index/shape1.svg";
-import shape from "../images/buidl/shape.svg";
-import stack from "../images/buidl/stack.svg";
-import network from "../images/buidl/network.svg";
 import {
   Timeline,
   TimelineConnector,
   TimelineContent,
-  TimelineDot,
   TimelineItem,
   TimelineSeparator,
 } from "@mui/lab";
+import { Box, Typography } from "@mui/material";
+import * as React from "react";
+import AvoidBreak from "../components/AvoidBreak";
+import HeroText from "../components/HeroText";
+import Layout from "../components/Layout";
+import network from "../images/buidl/network.svg";
+import shape from "../images/buidl/shape.svg";
+import stack from "../images/buidl/stack.svg";
+import shape1 from "../images/index/shape1.svg";
 
 const BuidlPage = () => {
   return (
@@ -43,21 +32,17 @@ const BuidlPage = () => {
             height: 1155,
           }}
         />
-        <Box sx={{ m: "auto", maxWidth: 1155, textAlign: "center" }}>
-          <Typography variant="h1">
-            <AvoidBreak spans={["One integration", "to rule them all"]} />
-          </Typography>
-          <Typography sx={{ marginTop: 2 }}>
-            Access every chain at once with our SDK.
-          </Typography>
-        </Box>
+        <HeroText
+          heroSpans={["One integration", "to rule them all"]}
+          subtitleText="Access every chain at once with our SDK."
+        />
       </Box>
-      <Box sx={{ textAlign: "center", mt: 25.75 }}>
+      <Box sx={{ textAlign: "center", mt: 25.75, px: 2 }}>
         <Typography variant="h3">
           <Box component="span" sx={{ color: "#FFCE00" }}>
-            Cross-chain
+            Cross-chain{" "}
           </Box>
-          <Box component="span"> everything</Box>
+          <Box component="span">everything</Box>
         </Typography>
         <Typography sx={{ mt: 2, maxWidth: 860, mx: "auto" }}>
           Atomic Swaps | Governance | IDO Launchpad | NFT Marketplace |
@@ -194,8 +179,8 @@ const BuidlPage = () => {
             <Box sx={{ maxWidth: 460, mx: "auto" }}>
               <Typography variant="h3">
                 <Box component="span" sx={{ color: "#FFCE00" }}>
-                  Connecting projects
-                </Box>{" "}
+                  Connecting projects{" "}
+                </Box>
                 <Box component="span" sx={{ display: "inline-block" }}>
                   to networks
                 </Box>
@@ -222,7 +207,7 @@ const BuidlPage = () => {
             <Box sx={{ maxWidth: 460, mx: "auto" }}>
               <Typography variant="h3">
                 <Box component="span" sx={{ color: "#FFCE00" }}>
-                  Integrate into
+                  Integrate into{" "}
                 </Box>
                 <Box component="span" sx={{ display: "inline-block" }}>
                   every chain at once

@@ -8,6 +8,21 @@ import logo from "../images/logo.svg";
 import Medium from "../images/Medium.svg";
 import Telegram from "../images/Telegram.svg";
 import Twitter from "../images/Twitter.svg";
+import {
+  apps,
+  blog,
+  buidl,
+  discord,
+  docs,
+  explorer,
+  github,
+  home,
+  jobs,
+  network,
+  portal,
+  telegram,
+  twitter,
+} from "../utils/urls";
 
 const linkStyle = { display: "block", mr: 7.5, mb: 1.5, fontSize: 14 };
 const socialIcon = {
@@ -45,7 +60,7 @@ const Footer = () => (
     />
     <Box sx={{ display: "flex", flexWrap: "wrap" }}>
       <Box sx={{ pl: 2, pb: 2 }}>
-        <RouterLink to="/">
+        <RouterLink to={home}>
           <img src={logo} alt="Wormhole" />
         </RouterLink>
       </Box>
@@ -56,7 +71,7 @@ const Footer = () => (
           <Box>
             <Link
               component={RouterLink}
-              to="/apps"
+              to={apps}
               color="inherit"
               underline="hover"
               sx={linkStyle}
@@ -64,7 +79,7 @@ const Footer = () => (
               Apps
             </Link>
             <Link
-              href="https://wormholebridge.com/"
+              href={portal}
               color="inherit"
               underline="hover"
               sx={linkStyle}
@@ -73,25 +88,20 @@ const Footer = () => (
             </Link>
             <Link
               component={RouterLink}
-              to="/buidl"
+              to={buidl}
               color="inherit"
               underline="hover"
               sx={linkStyle}
             >
               Buidl
             </Link>
-            <Link
-              href="https://wormholecrypto.medium.com/"
-              color="inherit"
-              underline="hover"
-              sx={linkStyle}
-            >
+            <Link href={blog} color="inherit" underline="hover" sx={linkStyle}>
               Blog
             </Link>
           </Box>
           <Box>
             <Link
-              href="https://wormholenetwork.com/network"
+              href={network}
               color="inherit"
               underline="hover"
               sx={linkStyle}
@@ -99,27 +109,17 @@ const Footer = () => (
               Network
             </Link>
             <Link
-              href="https://wormholenetwork.com/explorer"
+              href={explorer}
               color="inherit"
               underline="hover"
               sx={linkStyle}
             >
               Explorer
             </Link>
-            <Link
-              href="https://docs.wormholenetwork.com/"
-              color="inherit"
-              underline="hover"
-              sx={linkStyle}
-            >
+            <Link href={docs} color="inherit" underline="hover" sx={linkStyle}>
               Docs
             </Link>
-            <Link
-              href="https://boards.greenhouse.io/wormhole"
-              color="inherit"
-              underline="hover"
-              sx={linkStyle}
-            >
+            <Link href={jobs} color="inherit" underline="hover" sx={linkStyle}>
               Jobs
             </Link>
           </Box>
@@ -130,7 +130,7 @@ const Footer = () => (
         <Typography sx={{ mb: 3 }}>Let's be friends</Typography>
         <Box>
           <IconButton
-            href="https://discord.gg/xsT8qrHAvV"
+            href={discord}
             target="_blank"
             rel="noopener noreferrer"
             sx={socialIcon}
@@ -138,7 +138,7 @@ const Footer = () => (
             <img src={Discord} alt="Discord" />
           </IconButton>
           <IconButton
-            href="https://github.com/certusone/wormhole"
+            href={github}
             target="_blank"
             rel="noopener noreferrer"
             sx={socialIcon}
@@ -146,7 +146,7 @@ const Footer = () => (
             <img src={Github} alt="Github" />
           </IconButton>
           <IconButton
-            href="http://wormholecrypto.medium.com"
+            href={blog}
             target="_blank"
             rel="noopener noreferrer"
             sx={socialIcon}
@@ -154,7 +154,7 @@ const Footer = () => (
             <img src={Medium} alt="Medium" />
           </IconButton>
           <IconButton
-            href="https://t.me/wormholecrypto"
+            href={telegram}
             target="_blank"
             rel="noopener noreferrer"
             sx={socialIcon}
@@ -162,7 +162,7 @@ const Footer = () => (
             <img src={Telegram} alt="Telegram" />
           </IconButton>
           <IconButton
-            href="https://twitter.com/wormholecrypto"
+            href={twitter}
             target="_blank"
             rel="noopener noreferrer"
             sx={socialIcon}

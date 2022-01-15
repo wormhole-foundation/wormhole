@@ -1,6 +1,5 @@
 import { Box } from "@mui/material";
 import React from "react";
-import NavBar from "./Navbar";
 
 const AvoidBreak = ({ spans }: { spans: string[] }) => (
   <>
