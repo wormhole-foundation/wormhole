@@ -8,14 +8,20 @@ const HeroText = ({
   maxWidth = 1155 + 16 * 2,
 }: {
   heroSpans: string[];
-  subtitleText: string;
+  subtitleText: string | string[];
   maxWidth?: number;
 }) => (
   <Box sx={{ m: "auto", maxWidth, textAlign: "center", px: 2 }}>
     <Typography variant="h1">
       <AvoidBreak spans={heroSpans} />
     </Typography>
-    <Typography sx={{ marginTop: 2 }}>{subtitleText}</Typography>
+    <Typography sx={{ marginTop: 2 }}>
+      {Array.isArray(subtitleText) ? (
+        <AvoidBreak spans={subtitleText} />
+      ) : (
+        subtitleText
+      )}
+    </Typography>
   </Box>
 );
 

@@ -33,7 +33,12 @@ const AppsPage = () => {
         />
         <HeroText
           heroSpans={["Every chain", "at once"]}
-          subtitleText="Explore apps that give you the power of cross-chain movement."
+          subtitleText={[
+            "Explore apps that give you",
+            "the power of cross-chain movement",
+            "by building on top of a",
+            "core generic message-passing layer.",
+          ]}
         />
       </Box>
       <Box sx={{ maxWidth: 1220, mx: "auto", mt: 36, px: 3.75 }}>

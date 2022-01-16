@@ -64,6 +64,93 @@ const BuidlPage = () => {
             <Box sx={{ maxWidth: 460, mx: "auto" }}>
               <Typography variant="h3">
                 <Box component="span" sx={{ color: "#FFCE00" }}>
+                  Integrate into{" "}
+                </Box>
+                <Box component="span" sx={{ display: "inline-block" }}>
+                  every chain at once
+                </Box>
+              </Typography>
+              <Typography sx={{ mt: 2 }}>
+                Wormhole SDK integrates your project with our generic messaging
+                layer. Wormhole SDK makes it easier than ever for teams, apps,
+                protocols, and users to move value seamlessly across networks
+                without fees.
+              </Typography>
+            </Box>
+          </Box>
+          <Box
+            sx={{
+              mt: { xs: 8, md: null },
+              flexBasis: { xs: "100%", md: "50%" },
+              textAlign: "center",
+              flexGrow: 1,
+              backgroundColor: "rgba(255,255,255,.06)",
+              backdropFilter: "blur(3px)",
+              borderRadius: "37px",
+              pt: 9.75,
+              pb: 9,
+            }}
+          >
+            <img src={stack} alt="" />
+          </Box>
+        </Box>
+        <Box
+          sx={{
+            display: "flex",
+            flexWrap: "wrap-reverse",
+            alignItems: "center",
+            justifyContent: "center",
+            mt: 12.75,
+          }}
+        >
+          <Box
+            sx={{
+              mt: { xs: 8, md: null },
+              flexBasis: { xs: "100%", md: "50%" },
+              textAlign: "center",
+              flexGrow: 1,
+              backgroundColor: "rgba(255,255,255,.06)",
+              backdropFilter: "blur(3px)",
+              borderRadius: "37px",
+              pt: { xs: 3, md: 9.75 },
+              pb: { xs: 3, md: 9 },
+              px: { xs: 3, md: 8 },
+            }}
+          >
+            <img src={network} alt="" style={{ maxWidth: "100%" }} />
+          </Box>
+          <Box sx={{ flexBasis: { xs: "100%", md: "50%" }, flexGrow: 1 }}>
+            <Box sx={{ maxWidth: 460, mx: "auto" }}>
+              <Typography variant="h3">
+                <Box component="span" sx={{ color: "#FFCE00" }}>
+                  Connecting projects{" "}
+                </Box>
+                <Box component="span" sx={{ display: "inline-block" }}>
+                  to networks
+                </Box>
+              </Typography>
+              <Typography sx={{ mt: 2 }}>
+                Six high-value networks, two centralized exchanges, 19 dexes,
+                and a roadmap on track to double that number every quarter.
+                Anyone in the community can add new networks to the protocol and
+                build the future of blockchain.
+              </Typography>
+            </Box>
+          </Box>
+        </Box>
+        <Box
+          sx={{
+            display: "flex",
+            flexWrap: "wrap",
+            alignItems: "center",
+            justifyContent: "center",
+            mt: 12.75,
+          }}
+        >
+          <Box sx={{ flexBasis: { xs: "100%", md: "50%" }, flexGrow: 1 }}>
+            <Box sx={{ maxWidth: 460, mx: "auto" }}>
+              <Typography variant="h3">
+                <Box component="span" sx={{ color: "#FFCE00" }}>
                   <AvoidBreak spans={["A trust-minimized"]} />
                 </Box>
                 <Box component="span" sx={{ display: "inline-block" }}>
@@ -148,93 +235,6 @@ const BuidlPage = () => {
                 </TimelineContent>
               </TimelineItem>
             </Timeline>
-          </Box>
-        </Box>
-        <Box
-          sx={{
-            display: "flex",
-            flexWrap: "wrap-reverse",
-            alignItems: "center",
-            justifyContent: "center",
-            mt: 12.75,
-          }}
-        >
-          <Box
-            sx={{
-              mt: { xs: 8, md: null },
-              flexBasis: { xs: "100%", md: "50%" },
-              textAlign: "center",
-              flexGrow: 1,
-              backgroundColor: "rgba(255,255,255,.06)",
-              backdropFilter: "blur(3px)",
-              borderRadius: "37px",
-              pt: { xs: 3, md: 9.75 },
-              pb: { xs: 3, md: 9 },
-              px: { xs: 3, md: 8 },
-            }}
-          >
-            <img src={network} alt="" style={{ maxWidth: "100%" }} />
-          </Box>
-          <Box sx={{ flexBasis: { xs: "100%", md: "50%" }, flexGrow: 1 }}>
-            <Box sx={{ maxWidth: 460, mx: "auto" }}>
-              <Typography variant="h3">
-                <Box component="span" sx={{ color: "#FFCE00" }}>
-                  Connecting projects{" "}
-                </Box>
-                <Box component="span" sx={{ display: "inline-block" }}>
-                  to networks
-                </Box>
-              </Typography>
-              <Typography sx={{ mt: 2 }}>
-                Six high-value networks, two centralized exchanges, 19 dexes,
-                and a roadmap on track to double that number every quarter.
-                Anyone in the community can add new networks to the protocol and
-                build the future of blockchain.
-              </Typography>
-            </Box>
-          </Box>
-        </Box>
-        <Box
-          sx={{
-            display: "flex",
-            flexWrap: "wrap",
-            alignItems: "center",
-            justifyContent: "center",
-            mt: 12.75,
-          }}
-        >
-          <Box sx={{ flexBasis: { xs: "100%", md: "50%" }, flexGrow: 1 }}>
-            <Box sx={{ maxWidth: 460, mx: "auto" }}>
-              <Typography variant="h3">
-                <Box component="span" sx={{ color: "#FFCE00" }}>
-                  Integrate into{" "}
-                </Box>
-                <Box component="span" sx={{ display: "inline-block" }}>
-                  every chain at once
-                </Box>
-              </Typography>
-              <Typography sx={{ mt: 2 }}>
-                Wormhole SDK integrates your project with our generic messaging
-                layer. Wormhole SDK makes it easier than ever for teams, apps,
-                protocols, and users to move value seamlessly across networks
-                without fees.
-              </Typography>
-            </Box>
-          </Box>
-          <Box
-            sx={{
-              mt: { xs: 8, md: null },
-              flexBasis: { xs: "100%", md: "50%" },
-              textAlign: "center",
-              flexGrow: 1,
-              backgroundColor: "rgba(255,255,255,.06)",
-              backdropFilter: "blur(3px)",
-              borderRadius: "37px",
-              pt: 9.75,
-              pb: 9,
-            }}
-          >
-            <img src={stack} alt="" />
           </Box>
         </Box>
       </Box>

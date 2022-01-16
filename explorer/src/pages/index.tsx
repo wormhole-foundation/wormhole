@@ -96,7 +96,7 @@ const IndexPage = () => {
                 borderTop: "1px solid white",
               }}
             >
-              <Typography sx={featuredNumber}>50k+</Typography>
+              <Typography sx={featuredNumber}>60k+</Typography>
               <Typography variant="body2">txs</Typography>
             </Box>
           </Box>
@@ -130,7 +130,7 @@ const IndexPage = () => {
               </Box>
             </Typography>
             <Typography sx={{ mt: 2 }}>
-              It's the foundation that the ecosystem of apps is built on top of.
+              The foundation that an ecosystem of apps is built on top of.
             </Typography>
             <Button
               component={RouterLink}
@@ -191,7 +191,8 @@ const IndexPage = () => {
               <Box component="span">endless possibilities</Box>
             </Typography>
             <Typography sx={{ mt: 2 }}>
-              Apps can now live across chains and integrate the best of each.
+              Apps can now live across chains at once and integrate the best of
+              each.
             </Typography>
             <Button
               component={RouterLink}
@@ -224,7 +225,7 @@ const IndexPage = () => {
             flexGrow: 1,
           }}
         >
-          <Box sx={{ maxWidth: 320, mx: "auto" }}>
+          <Box sx={{ maxWidth: 340, mx: "auto" }}>
             <Typography variant="h3">
               <Box component="span" sx={{ color: "#FFCE00" }}>
                 Portal:{" "}
@@ -234,7 +235,8 @@ const IndexPage = () => {
               </Box>
             </Typography>
             <Typography sx={{ mt: 2 }}>
-              Transfer tokens across chains and enjoy $1bn+ of liquidity.
+              Never have to retrace your steps, with unlimited transfers across
+              chains for tokens and NFTs wrapped by Wormhole.
             </Typography>
             <Button
               href={portal}
