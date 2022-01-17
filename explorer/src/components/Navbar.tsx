@@ -1,9 +1,9 @@
 import { AppBar, Box, Link, Toolbar } from "@mui/material";
 import { Link as RouterLink } from "gatsby";
 import React from "react";
-import logo from "../images/logo.svg";
 import hamburger from "../images/hamburger.svg";
-import { apps, blog, buidl, home, portal } from "../utils/urls";
+import { apps, blog, buidl, portal } from "../utils/urls";
+import LogoLink from "./LogoLink";
 
 const linkStyle = { ml: 3 };
 
@@ -14,9 +14,7 @@ const NavBar = () => (
     elevation={0}
   >
     <Toolbar disableGutters sx={{ mt: 2, mx: 4 }}>
-      <RouterLink to={home} style={{ display: "flex" }}>
-        <img src={logo} alt="Wormhole" />
-      </RouterLink>
+      <LogoLink />
       <Box sx={{ flexGrow: 1 }} />
       <Box sx={{ display: { xs: "none", md: "block" } }}>
         <Link

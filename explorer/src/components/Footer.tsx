@@ -4,7 +4,6 @@ import React from "react";
 import Discord from "../images/Discord.svg";
 import shape from "../images/footer/shape.svg";
 import Github from "../images/Github.svg";
-import logo from "../images/logo.svg";
 import Medium from "../images/Medium.svg";
 import Telegram from "../images/Telegram.svg";
 import Twitter from "../images/Twitter.svg";
@@ -16,13 +15,13 @@ import {
   docs,
   explorer,
   github,
-  home,
   jobs,
   network,
   portal,
   telegram,
   twitter,
 } from "../utils/urls";
+import LogoLink from "./LogoLink";
 
 const linkStyle = {
   display: "block",
@@ -82,9 +81,7 @@ const Footer = () => (
           textAlign: { xs: "center", md: "left" },
         }}
       >
-        <RouterLink to={home}>
-          <img src={logo} alt="Wormhole" />
-        </RouterLink>
+        <LogoLink negMt />
       </Box>
       <Box sx={{ flexGrow: 1 }} />
       <Box
@@ -95,7 +92,6 @@ const Footer = () => (
           mb: { xs: 7, md: 0 },
         }}
       >
-        <Typography sx={{ mb: 3 }}>Navigate</Typography>
         <Box
           sx={{
             display: "flex",
