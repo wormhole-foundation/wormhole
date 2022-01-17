@@ -32,7 +32,12 @@ use crate::{
         PayloadAssetMeta,
         PayloadGovernanceRegisterChain,
         PayloadTransfer,
+        PayloadTransferWithPayload,
     },
+    CompleteNativeWithPayloadData,
+    CompleteWrappedWithPayloadData,
+    TransferNativeWithPayloadData,
+    TransferWrappedWithPayloadData,
 };
 use borsh::BorshSerialize;
 use bridge::{
@@ -72,7 +77,10 @@ use solitaire::{
     AccountState,
 };
 use spl_token::state::Mint;
-use std::str::FromStr;
+use std::{
+    cmp::min,
+    str::FromStr,
+};
 
 pub fn initialize(
     program_id: Pubkey,
@@ -147,6 +155,66 @@ pub fn complete_native(
     })
 }
 
+pub fn complete_native_with_payload(
+    program_id: Pubkey,
+    bridge_id: Pubkey,
+    payer: Pubkey,
+    message_key: Pubkey,
+    vaa: PostVAAData,
+    to: Pubkey,
+    to_owner: Pubkey,
+    fee_recipient: Option<Pubkey>,
+    mint: Pubkey,
+    data: CompleteNativeWithPayloadData,
+) -> solitaire::Result<Instruction> {
+    let config_key = ConfigAccount::<'_, { AccountState::Uninitialized }>::key(None, &program_id);
+    let (message_acc, claim_acc) = claimable_vaa(program_id, message_key, vaa.clone());
+    let endpoint = Endpoint::<'_, { AccountState::Initialized }>::key(
+        &EndpointDerivationData {
+            emitter_chain: vaa.emitter_chain,
+            emitter_address: vaa.emitter_address,
+        },
+        &program_id,
+    );
+    let custody_key = CustodyAccount::<'_, { AccountState::Initialized }>::key(
+        &CustodyAccountDerivationData { mint },
+        &program_id,
+    );
+    let custody_signer_key = CustodySigner::key(None, &program_id);
+
+    Ok(Instruction {
+        program_id,
+        accounts: vec![
+            AccountMeta::new(payer, true),
+            AccountMeta::new_readonly(config_key, false),
+            message_acc,
+            claim_acc,
+            AccountMeta::new_readonly(endpoint, false),
+            AccountMeta::new(to, false),
+            AccountMeta::new_readonly(to_owner, true),
+            if let Some(fee_r) = fee_recipient {
+                AccountMeta::new(fee_r, false)
+            } else {
+                AccountMeta::new(to, false)
+            },
+            AccountMeta::new(custody_key, false),
+            AccountMeta::new_readonly(mint, false),
+            AccountMeta::new_readonly(custody_signer_key, false),
+            // Dependencies
+            AccountMeta::new_readonly(solana_program::sysvar::rent::id(), false),
+            AccountMeta::new_readonly(solana_program::system_program::id(), false),
+            // Program
+            AccountMeta::new_readonly(bridge_id, false),
+            AccountMeta::new_readonly(spl_token::id(), false),
+        ],
+        data: (
+            crate::instruction::Instruction::CompleteNativeWithPayload,
+            data,
+        )
+            .try_to_vec()?,
+    })
+}
+
 pub fn complete_wrapped(
     program_id: Pubkey,
     bridge_id: Pubkey,
@@ -205,6 +273,73 @@ pub fn complete_wrapped(
             AccountMeta::new_readonly(spl_token::id(), false),
         ],
         data: (crate::instruction::Instruction::CompleteWrapped, data).try_to_vec()?,
+    })
+}
+
+pub fn complete_wrapped_with_payload(
+    program_id: Pubkey,
+    bridge_id: Pubkey,
+    payer: Pubkey,
+    message_key: Pubkey,
+    vaa: PostVAAData,
+    payload: PayloadTransferWithPayload,
+    to: Pubkey,
+    to_owner: Pubkey,
+    fee_recipient: Option<Pubkey>,
+    data: CompleteWrappedWithPayloadData,
+) -> solitaire::Result<Instruction> {
+    let config_key = ConfigAccount::<'_, { AccountState::Uninitialized }>::key(None, &program_id);
+    let (message_acc, claim_acc) = claimable_vaa(program_id, message_key, vaa.clone());
+    let endpoint = Endpoint::<'_, { AccountState::Initialized }>::key(
+        &EndpointDerivationData {
+            emitter_chain: vaa.emitter_chain,
+            emitter_address: vaa.emitter_address,
+        },
+        &program_id,
+    );
+    let mint_key = WrappedMint::<'_, { AccountState::Uninitialized }>::key(
+        &WrappedDerivationData {
+            token_chain: payload.token_chain,
+            token_address: payload.token_address,
+        },
+        &program_id,
+    );
+    let meta_key = WrappedTokenMeta::<'_, { AccountState::Uninitialized }>::key(
+        &WrappedMetaDerivationData { mint_key },
+        &program_id,
+    );
+    let mint_authority_key = MintSigner::key(None, &program_id);
+
+    Ok(Instruction {
+        program_id,
+        accounts: vec![
+            AccountMeta::new(payer, true),
+            AccountMeta::new_readonly(config_key, false),
+            message_acc,
+            claim_acc,
+            AccountMeta::new_readonly(endpoint, false),
+            AccountMeta::new(to, false),
+            AccountMeta::new_readonly(to_owner, true),
+            if let Some(fee_r) = fee_recipient {
+                AccountMeta::new(fee_r, false)
+            } else {
+                AccountMeta::new(to, false)
+            },
+            AccountMeta::new(mint_key, false),
+            AccountMeta::new_readonly(meta_key, false),
+            AccountMeta::new_readonly(mint_authority_key, false),
+            // Dependencies
+            AccountMeta::new_readonly(solana_program::sysvar::rent::id(), false),
+            AccountMeta::new_readonly(solana_program::system_program::id(), false),
+            // Program
+            AccountMeta::new_readonly(bridge_id, false),
+            AccountMeta::new_readonly(spl_token::id(), false),
+        ],
+        data: (
+            crate::instruction::Instruction::CompleteWrappedWithPayload,
+            data,
+        )
+            .try_to_vec()?,
     })
 }
 
@@ -334,6 +469,50 @@ pub fn transfer_native(
     mint: Pubkey,
     data: TransferNativeData,
 ) -> solitaire::Result<Instruction> {
+    transfer_native_raw(
+        program_id,
+        bridge_id,
+        payer,
+        message_key,
+        from,
+        mint,
+        (crate::instruction::Instruction::TransferNative, data).try_to_vec()?,
+    )
+}
+
+pub fn transfer_native_with_payload(
+    program_id: Pubkey,
+    bridge_id: Pubkey,
+    payer: Pubkey,
+    message_key: Pubkey,
+    from: Pubkey,
+    mint: Pubkey,
+    data: TransferNativeWithPayloadData,
+) -> solitaire::Result<Instruction> {
+    transfer_native_raw(
+        program_id,
+        bridge_id,
+        payer,
+        message_key,
+        from,
+        mint,
+        (
+            crate::instruction::Instruction::TransferNativeWithPayload,
+            data,
+        )
+            .try_to_vec()?,
+    )
+}
+
+fn transfer_native_raw(
+    program_id: Pubkey,
+    bridge_id: Pubkey,
+    payer: Pubkey,
+    message_key: Pubkey,
+    from: Pubkey,
+    mint: Pubkey,
+    data: Vec<u8>,
+) -> solitaire::Result<Instruction> {
     let config_key = ConfigAccount::<'_, { AccountState::Uninitialized }>::key(None, &program_id);
     let custody_key = CustodyAccount::<'_, { AccountState::Initialized }>::key(
         &CustodyAccountDerivationData { mint },
@@ -346,14 +525,6 @@ pub fn transfer_native(
 
     // Bridge keys
     let bridge_config = Bridge::<'_, { AccountState::Uninitialized }>::key(None, &bridge_id);
-    let payload = PayloadTransfer {
-        amount: U256::from(data.amount),
-        token_address: mint.to_bytes(),
-        token_chain: 1,
-        to: data.target_address,
-        to_chain: data.target_chain,
-        fee: U256::from(data.fee),
-    };
     let sequence_key = Sequence::key(
         &SequenceDerivationData {
             emitter_key: &emitter_key,
@@ -385,7 +556,7 @@ pub fn transfer_native(
             AccountMeta::new_readonly(bridge_id, false),
             AccountMeta::new_readonly(spl_token::id(), false),
         ],
-        data: (crate::instruction::Instruction::TransferNative, data).try_to_vec()?,
+        data,
     })
 }
 
@@ -399,6 +570,58 @@ pub fn transfer_wrapped(
     token_chain: u16,
     token_address: ForeignAddress,
     data: TransferWrappedData,
+) -> solitaire::Result<Instruction> {
+    transfer_wrapped_raw(
+        program_id,
+        bridge_id,
+        payer,
+        message_key,
+        from,
+        from_owner,
+        token_chain,
+        token_address,
+        (crate::instruction::Instruction::TransferWrapped, data).try_to_vec()?,
+    )
+}
+
+pub fn transfer_wrapped_with_payload(
+    program_id: Pubkey,
+    bridge_id: Pubkey,
+    payer: Pubkey,
+    message_key: Pubkey,
+    from: Pubkey,
+    from_owner: Pubkey,
+    token_chain: u16,
+    token_address: ForeignAddress,
+    data: TransferWrappedWithPayloadData,
+) -> solitaire::Result<Instruction> {
+    transfer_wrapped_raw(
+        program_id,
+        bridge_id,
+        payer,
+        message_key,
+        from,
+        from_owner,
+        token_chain,
+        token_address,
+        (
+            crate::instruction::Instruction::TransferWrappedWithPayload,
+            data,
+        )
+            .try_to_vec()?,
+    )
+}
+
+fn transfer_wrapped_raw(
+    program_id: Pubkey,
+    bridge_id: Pubkey,
+    payer: Pubkey,
+    message_key: Pubkey,
+    from: Pubkey,
+    from_owner: Pubkey,
+    token_chain: u16,
+    token_address: ForeignAddress,
+    data: Vec<u8>,
 ) -> solitaire::Result<Instruction> {
     let config_key = ConfigAccount::<'_, { AccountState::Uninitialized }>::key(None, &program_id);
 
@@ -421,14 +644,6 @@ pub fn transfer_wrapped(
 
     // Bridge keys
     let bridge_config = Bridge::<'_, { AccountState::Uninitialized }>::key(None, &bridge_id);
-    let payload = PayloadTransfer {
-        amount: U256::from(data.amount),
-        token_address,
-        token_chain,
-        to: data.target_address,
-        to_chain: data.target_chain,
-        fee: U256::from(data.fee),
-    };
     let sequence_key = Sequence::key(
         &SequenceDerivationData {
             emitter_key: &emitter_key,
@@ -460,7 +675,7 @@ pub fn transfer_wrapped(
             AccountMeta::new_readonly(bridge_id, false),
             AccountMeta::new_readonly(spl_token::id(), false),
         ],
-        data: (crate::instruction::Instruction::TransferWrapped, data).try_to_vec()?,
+        data,
     })
 }
 

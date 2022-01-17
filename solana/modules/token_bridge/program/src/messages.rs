@@ -122,6 +122,89 @@ impl SerializePayload for PayloadTransfer {
     }
 }
 
+impl DeserializePayload for PayloadTransferWithPayload {
+    fn deserialize(buf: &mut &[u8]) -> Result<Self, SolitaireError> {
+        let mut v = Cursor::new(buf);
+
+        if v.read_u8()? != 3 {
+            return Err(SolitaireError::Custom(0));
+        };
+
+        let mut am_data: [u8; 32] = [0; 32];
+        v.read_exact(&mut am_data)?;
+        let amount = U256::from_big_endian(&am_data);
+
+        let mut token_address = Address::default();
+        v.read_exact(&mut token_address)?;
+
+        let token_chain = v.read_u16::<BigEndian>()?;
+
+        let mut to = Address::default();
+        v.read_exact(&mut to)?;
+
+        let to_chain = v.read_u16::<BigEndian>()?;
+
+        let mut fee_data: [u8; 32] = [0; 32];
+        v.read_exact(&mut fee_data)?;
+        let fee = U256::from_big_endian(&fee_data);
+
+        let mut payload = vec![];
+        v.read_to_end(&mut payload)?;
+
+        Ok(PayloadTransferWithPayload {
+            amount,
+            token_address,
+            token_chain,
+            to,
+            to_chain,
+            fee,
+            payload,
+        })
+    }
+}
+
+impl SerializePayload for PayloadTransferWithPayload {
+    fn serialize<W: Write>(&self, writer: &mut W) -> Result<(), SolitaireError> {
+        // Payload ID
+        writer.write_u8(3)?;
+
+        let mut am_data: [u8; 32] = [0; 32];
+        self.amount.to_big_endian(&mut am_data);
+        writer.write(&am_data)?;
+
+        writer.write(&self.token_address)?;
+        writer.write_u16::<BigEndian>(self.token_chain)?;
+        writer.write(&self.to)?;
+        writer.write_u16::<BigEndian>(self.to_chain)?;
+
+        let mut fee_data: [u8; 32] = [0; 32];
+        self.fee.to_big_endian(&mut fee_data);
+        writer.write(&fee_data)?;
+
+        writer.write(self.payload.as_slice())?;
+
+        Ok(())
+    }
+}
+
+#[derive(PartialEq, Debug, Clone)]
+pub struct PayloadTransferWithPayload {
+    // Amount being transferred (big-endian uint256)
+    pub amount: U256,
+    // Address of the token. Left-zero-padded if shorter than 32 bytes
+    pub token_address: Address,
+    // Chain ID of the token
+    pub token_chain: ChainID,
+    // Address of the recipient. Left-zero-padded if shorter than 32 bytes
+    pub to: Address,
+    // Chain ID of the recipient
+    pub to_chain: ChainID,
+    // Amount of tokens (big-endian uint256) that the user is willing to pay as relayer fee. Must be <= Amount.
+    pub fee: U256,
+    // Arbitrary payload
+    pub payload: Vec<u8>,
+}
+
 #[derive(PartialEq, Debug)]
 pub struct PayloadAssetMeta {
     // Address of the token. Left-zero-padded if shorter than 32 bytes
