@@ -24,7 +24,12 @@ import {
   twitter,
 } from "../utils/urls";
 
-const linkStyle = { display: "block", mr: 7.5, mb: 1.5, fontSize: 14 };
+const linkStyle = {
+  display: "block",
+  mr: { xs: 0, md: 7.5 },
+  mb: 1.5,
+  fontSize: 14,
+};
 const socialIcon = {
   "& img": {
     height: 24,
@@ -38,36 +43,65 @@ const Footer = () => (
       position: "relative",
       maxWidth: 1100,
       mx: "auto",
-      mt: 21.5,
-      mb: 20,
-      borderTop: "1px solid white",
-      pt: 7,
+      pt: 21.5,
+      pb: { xs: 6.5, md: 12 },
     }}
   >
     <Box
       sx={{
         position: "absolute",
         zIndex: -1,
-        bottom: -20 * 8,
-        transform: "translate(-50%, 0%)",
+        bottom: { xs: 0, md: -12 * 8 }, //keep this in sync with mb above
+        transform: { xs: "", md: "translate(-50%, 0%)" },
         background: `url(${shape})`,
         backgroundRepeat: "no-repeat",
-        backgroundPosition: "right top -458px",
+        backgroundPosition: { xs: "center center", md: "right top -458px" },
         // backgroundSize: "cover",
         width: "100%",
-        height: 556,
+        height: { xs: "100%", md: 556 },
       }}
     />
-    <Box sx={{ display: "flex", flexWrap: "wrap" }}>
-      <Box sx={{ pl: 2, pb: 2 }}>
+    <Box
+      sx={{
+        display: "flex",
+        flexWrap: { xs: null, md: "wrap" },
+        flexDirection: { xs: "column", md: "row" },
+        alignItems: { xs: "center", md: "unset" },
+        mx: 3.5,
+        borderTop: "1px solid #585587",
+        pt: 7,
+      }}
+    >
+      <Box
+        sx={{
+          pl: { xs: 0, md: 2 },
+          pb: 2,
+          borderTop: { xs: "1px solid #585587", md: "none" },
+          pt: { xs: 7, md: 0 },
+          width: { xs: "100%", md: "auto" },
+          textAlign: { xs: "center", md: "left" },
+        }}
+      >
         <RouterLink to={home}>
           <img src={logo} alt="Wormhole" />
         </RouterLink>
       </Box>
       <Box sx={{ flexGrow: 1 }} />
-      <Box sx={{ pl: 2 }}>
+      <Box
+        sx={{
+          pl: { xs: 0, md: 2 },
+          order: { xs: -2, md: 0 },
+          textAlign: { xs: "center", md: "left" },
+          mb: { xs: 7, md: 0 },
+        }}
+      >
         <Typography sx={{ mb: 3 }}>Navigate</Typography>
-        <Box sx={{ display: "flex" }}>
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: { xs: "column", md: "row" },
+          }}
+        >
           <Box>
             <Link
               component={RouterLink}
@@ -126,7 +160,17 @@ const Footer = () => (
         </Box>
       </Box>
       <Box sx={{ flexGrow: 1 }} />
-      <Box sx={{ px: 2 }}>
+      <Box
+        sx={{
+          px: 2,
+          order: { xs: -2, md: 0 },
+          textAlign: { xs: "center", md: "left" },
+          borderTop: { xs: "1px solid #585587", md: "none" },
+          pt: { xs: 7, md: 0 },
+          width: { xs: "100%", md: "auto" },
+          mb: { xs: 7, md: 0 },
+        }}
+      >
         <Typography sx={{ mb: 3 }}>Let's be friends</Typography>
         <Box>
           <IconButton
@@ -170,6 +214,17 @@ const Footer = () => (
             <img src={Twitter} alt="Twitter" />
           </IconButton>
         </Box>
+      </Box>
+      <Box
+        sx={{
+          flexBasis: "100%",
+          pt: { xs: 0, md: 8 },
+          textAlign: { xs: "center", md: "left" },
+        }}
+      >
+        <Typography variant="body2">
+          2022 &copy; Wormhole. All Rights Reserved.
+        </Typography>
       </Box>
     </Box>
   </Box>
