@@ -28,7 +28,9 @@ const linkStyle = {
   mr: { xs: 0, md: 7.5 },
   mb: 1.5,
   fontSize: 14,
+  textUnderlineOffset: 6,
 };
+const linkActiveStyle = { textDecoration: "underline" };
 const socialIcon = {
   "& img": {
     height: 24,
@@ -105,6 +107,7 @@ const Footer = () => (
               color="inherit"
               underline="hover"
               sx={linkStyle}
+              activeStyle={linkActiveStyle}
             >
               Apps
             </Link>
@@ -122,6 +125,7 @@ const Footer = () => (
               color="inherit"
               underline="hover"
               sx={linkStyle}
+              activeStyle={linkActiveStyle}
             >
               Buidl
             </Link>

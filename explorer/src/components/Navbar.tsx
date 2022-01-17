@@ -5,7 +5,8 @@ import hamburger from "../images/hamburger.svg";
 import { apps, blog, buidl, portal } from "../utils/urls";
 import LogoLink from "./LogoLink";
 
-const linkStyle = { ml: 3 };
+const linkStyle = { ml: 3, textUnderlineOffset: 6 };
+const linkActiveStyle = { textDecoration: "underline" };
 
 const NavBar = () => (
   <AppBar
@@ -23,6 +24,7 @@ const NavBar = () => (
           color="inherit"
           underline="hover"
           sx={linkStyle}
+          activeStyle={linkActiveStyle}
         >
           Apps
         </Link>
@@ -35,6 +37,7 @@ const NavBar = () => (
           color="inherit"
           underline="hover"
           sx={linkStyle}
+          activeStyle={linkActiveStyle}
         >
           Buidl
         </Link>
