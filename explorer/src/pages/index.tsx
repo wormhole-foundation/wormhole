@@ -120,28 +120,30 @@ const IndexPage = () => {
             flexGrow: 1,
           }}
         >
-          <Box sx={{ maxWidth: 348, mx: "auto" }}>
-            <Typography variant="h3">
-              <Box component="span" sx={{ color: "#FFCE00" }}>
-                Protocol:{" "}
-              </Box>
-              <Box component="span" sx={{ display: "inline-block" }}>
-                the core layer
-              </Box>
-            </Typography>
-            <Typography sx={{ mt: 2 }}>
-              The foundation that an ecosystem of apps is built on top of.
-            </Typography>
-            <Button
-              component={RouterLink}
-              to="/buidl/"
-              sx={{ mt: 3 }}
-              variant="outlined"
-              color="inherit"
-              endIcon={<ArrowForward />}
-            >
-              Learn More
-            </Button>
+          <Box sx={{ px: { xs: 0, md: 4 } }}>
+            <Box sx={{ maxWidth: 348, mx: "auto" }}>
+              <Typography variant="h3">
+                <Box component="span" sx={{ color: "#FFCE00" }}>
+                  Protocol:{" "}
+                </Box>
+                <Box component="span" sx={{ display: "inline-block" }}>
+                  the core layer
+                </Box>
+              </Typography>
+              <Typography sx={{ mt: 2 }}>
+                The foundation that an ecosystem of apps is built on top of.
+              </Typography>
+              <Button
+                component={RouterLink}
+                to="/buidl/"
+                sx={{ mt: 3 }}
+                variant="outlined"
+                color="inherit"
+                endIcon={<ArrowForward />}
+              >
+                Learn More
+              </Button>
+            </Box>
           </Box>
         </Box>
         <Box
@@ -183,27 +185,29 @@ const IndexPage = () => {
           <Box component="img" src={apps} alt="" sx={{ maxWidth: "100%" }} />
         </Box>
         <Box sx={{ flexBasis: { xs: "100%", md: "40%" }, flexGrow: 1 }}>
-          <Box sx={{ maxWidth: 348, mx: "auto" }}>
-            <Typography variant="h3">
-              <Box component="span" sx={{ color: "#FFCE00" }}>
-                Apps:{" "}
-              </Box>
-              <Box component="span">endless possibilities</Box>
-            </Typography>
-            <Typography sx={{ mt: 2 }}>
-              Apps can now live across chains at once and integrate the best of
-              each.
-            </Typography>
-            <Button
-              component={RouterLink}
-              to="/apps/"
-              sx={{ mt: 3 }}
-              variant="outlined"
-              color="inherit"
-              endIcon={<ArrowForward />}
-            >
-              Learn More
-            </Button>
+          <Box sx={{ px: { xs: 0, md: 4 } }}>
+            <Box sx={{ maxWidth: 348, mx: "auto" }}>
+              <Typography variant="h3">
+                <Box component="span" sx={{ color: "#FFCE00" }}>
+                  Apps:{" "}
+                </Box>
+                <Box component="span">endless possibilities</Box>
+              </Typography>
+              <Typography sx={{ mt: 2 }}>
+                Apps can now live across chains at once and integrate the best
+                of each.
+              </Typography>
+              <Button
+                component={RouterLink}
+                to="/apps/"
+                sx={{ mt: 3 }}
+                variant="outlined"
+                color="inherit"
+                endIcon={<ArrowForward />}
+              >
+                Learn More
+              </Button>
+            </Box>
           </Box>
         </Box>
       </Box>
@@ -225,28 +229,30 @@ const IndexPage = () => {
             flexGrow: 1,
           }}
         >
-          <Box sx={{ maxWidth: 340, mx: "auto" }}>
-            <Typography variant="h3">
-              <Box component="span" sx={{ color: "#FFCE00" }}>
-                Portal:{" "}
-              </Box>
-              <Box component="span" sx={{ display: "inline-block" }}>
-                a token bridge
-              </Box>
-            </Typography>
-            <Typography sx={{ mt: 2 }}>
-              Never have to retrace your steps, with unlimited transfers across
-              chains for tokens and NFTs wrapped by Wormhole.
-            </Typography>
-            <Button
-              href={portal}
-              sx={{ mt: 3 }}
-              variant="outlined"
-              color="inherit"
-              endIcon={<ArrowForward />}
-            >
-              Learn More
-            </Button>
+          <Box sx={{ px: { xs: 0, md: 4 } }}>
+            <Box sx={{ maxWidth: 340, mx: "auto" }}>
+              <Typography variant="h3">
+                <Box component="span" sx={{ color: "#FFCE00" }}>
+                  Portal:{" "}
+                </Box>
+                <Box component="span" sx={{ display: "inline-block" }}>
+                  a token bridge
+                </Box>
+              </Typography>
+              <Typography sx={{ mt: 2 }}>
+                Never have to retrace your steps, with unlimited transfers
+                across chains for tokens and NFTs wrapped by Wormhole.
+              </Typography>
+              <Button
+                href={portal}
+                sx={{ mt: 3 }}
+                variant="outlined"
+                color="inherit"
+                endIcon={<ArrowForward />}
+              >
+                Learn More
+              </Button>
+            </Box>
           </Box>
         </Box>
         <Box

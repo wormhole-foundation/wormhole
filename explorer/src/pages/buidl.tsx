@@ -61,21 +61,23 @@ const BuidlPage = () => {
           }}
         >
           <Box sx={{ flexBasis: { xs: "100%", md: "50%" }, flexGrow: 1 }}>
-            <Box sx={{ maxWidth: 460, mx: "auto" }}>
-              <Typography variant="h3">
-                <Box component="span" sx={{ color: "#FFCE00" }}>
-                  Integrate into{" "}
-                </Box>
-                <Box component="span" sx={{ display: "inline-block" }}>
-                  every chain at once
-                </Box>
-              </Typography>
-              <Typography sx={{ mt: 2 }}>
-                Wormhole SDK integrates your project with our generic messaging
-                layer. Wormhole SDK makes it easier than ever for teams, apps,
-                protocols, and users to move value seamlessly across networks
-                without fees.
-              </Typography>
+            <Box sx={{ px: { xs: 0, md: 4 } }}>
+              <Box sx={{ maxWidth: 460, mx: "auto" }}>
+                <Typography variant="h3">
+                  <Box component="span" sx={{ color: "#FFCE00" }}>
+                    Integrate into{" "}
+                  </Box>
+                  <Box component="span" sx={{ display: "inline-block" }}>
+                    every chain at once
+                  </Box>
+                </Typography>
+                <Typography sx={{ mt: 2 }}>
+                  Wormhole SDK integrates your project with our generic
+                  messaging layer. Wormhole SDK makes it easier than ever for
+                  teams, apps, protocols, and users to move value seamlessly
+                  across networks without fees.
+                </Typography>
+              </Box>
             </Box>
           </Box>
           <Box
@@ -120,21 +122,23 @@ const BuidlPage = () => {
             <img src={network} alt="" style={{ maxWidth: "100%" }} />
           </Box>
           <Box sx={{ flexBasis: { xs: "100%", md: "50%" }, flexGrow: 1 }}>
-            <Box sx={{ maxWidth: 460, mx: "auto" }}>
-              <Typography variant="h3">
-                <Box component="span" sx={{ color: "#FFCE00" }}>
-                  Connecting projects{" "}
-                </Box>
-                <Box component="span" sx={{ display: "inline-block" }}>
-                  to networks
-                </Box>
-              </Typography>
-              <Typography sx={{ mt: 2 }}>
-                Six high-value networks, two centralized exchanges, 19 dexes,
-                and a roadmap on track to double that number every quarter.
-                Anyone in the community can add new networks to the protocol and
-                build the future of blockchain.
-              </Typography>
+            <Box sx={{ px: { xs: 0, md: 4 } }}>
+              <Box sx={{ maxWidth: 460, mx: "auto" }}>
+                <Typography variant="h3">
+                  <Box component="span" sx={{ color: "#FFCE00" }}>
+                    Connecting projects{" "}
+                  </Box>
+                  <Box component="span" sx={{ display: "inline-block" }}>
+                    to networks
+                  </Box>
+                </Typography>
+                <Typography sx={{ mt: 2 }}>
+                  Six high-value networks, two centralized exchanges, 19 dexes,
+                  and a roadmap on track to double that number every quarter.
+                  Anyone in the community can add new networks to the protocol
+                  and build the future of blockchain.
+                </Typography>
+              </Box>
             </Box>
           </Box>
         </Box>
@@ -148,20 +152,22 @@ const BuidlPage = () => {
           }}
         >
           <Box sx={{ flexBasis: { xs: "100%", md: "50%" }, flexGrow: 1 }}>
-            <Box sx={{ maxWidth: 460, mx: "auto" }}>
-              <Typography variant="h3">
-                <Box component="span" sx={{ color: "#FFCE00" }}>
-                  <AvoidBreak spans={["A trust-minimized"]} />
-                </Box>
-                <Box component="span" sx={{ display: "inline-block" }}>
-                  build
-                </Box>
-              </Typography>
-              <Typography sx={{ mt: 2 }}>
-                Wormhole is built to be trust-minimized from the ground up with
-                a group of six networks secured by 19 equally weighted guardians
-                in the core layer.
-              </Typography>
+            <Box sx={{ px: { xs: 0, md: 4 } }}>
+              <Box sx={{ maxWidth: 460, mx: "auto" }}>
+                <Typography variant="h3">
+                  <Box component="span" sx={{ color: "#FFCE00" }}>
+                    <AvoidBreak spans={["A trust-minimized"]} />
+                  </Box>
+                  <Box component="span" sx={{ display: "inline-block" }}>
+                    build
+                  </Box>
+                </Typography>
+                <Typography sx={{ mt: 2 }}>
+                  Wormhole is built to be trust-minimized from the ground up
+                  with a group of six networks secured by 19 equally weighted
+                  guardians in the core layer.
+                </Typography>
+              </Box>
             </Box>
           </Box>
           <Box
