@@ -8,6 +8,9 @@ edition = "2018"
 # Helper methods will target the Wormhole mainnet contract addresses.
 mainnet   = []
 
+# Helper methosd will target the Wormhole testnet contract addresses.
+testnet    = []
+
 # Helper methosd will target the Wormhole devnet contract addresses.
 devnet    = []
 
