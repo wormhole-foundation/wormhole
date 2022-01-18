@@ -48,58 +48,68 @@ const AppsPage = () => {
           imgOffsetRightMd="0px"
           imgOffsetTopXs="0px"
           imgOffsetTopMd="-36px"
+          imgOffsetTopMdHover="-52px"
           imgPaddingBottomXs={3}
           data={[
             {
               src: lido,
               header: "Lido",
+              href: "https://lido.fi/",
               description:
                 "Stake in multiple networks while using the staked token for lending and yield farming.",
             },
             {
               src: pyth,
               header: "Pyth",
+              href: "https://pyth.network/markets/",
               description:
                 "Make smart contracts more accurate by connecting high-fidelity",
             },
             {
               src: atlas,
               header: "Atlas Dex",
+              href: "https://atlasdex.finance/",
               description:
                 "Make faster transactions across chains to get the best exchange price.",
             },
             {
               src: mercurial,
               header: "Mercurial",
+              href: "https://mercurial.finance/",
               description:
                 "Make faster transactions with greater cross-chain liquidity in stable assets on Solana.",
             },
             {
               src: swim,
               header: "Swim Protocol",
+              href: "https://swim.io/",
               description:
                 "Swap chain-native assets easily without the need for wrapped assets or centralized exchanges.",
             },
             {
               src: orion,
               header: "Orion Money",
+              href: "https://www.orionprotocol.io/",
               description:
                 "Earn stablecoin yields on multiple chains from one centralized location.",
             },
             {
               src: tiexo,
               header: "Tiexo",
+              href: "https://tiexo.com/",
               description:
                 "Buy NFTs across chains from a wallet in multiple currencies.",
             },
             {
               src: bridgesplit,
               header: "Bridgesplit",
+              href: "https://bridgesplit.com/",
               description: "Sell, buy, or lend portions of NFTs across chains.",
             },
             {
               src: faraway,
               header: "Faraway Games",
+              href: "https://faraway.gg/",
               description:
                 "Validates membership to some game communities using ETH NFTs.",
             },
