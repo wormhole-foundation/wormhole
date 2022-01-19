@@ -1,0 +1,30 @@
+FROM docker.io/golang:1.17.0-alpine as builder
+
+RUN apk add --no-cache git gcc linux-headers alpine-sdk bash
+
+WORKDIR /app
+RUN git clone https://github.com/certusone/wormhole.git
+
+WORKDIR /app/wormhole/tools
+RUN CGO_ENABLED=0 ./build.sh
+
+WORKDIR /app/wormhole
+RUN tools/bin/buf lint && tools/bin/buf generate
+
+WORKDIR /app/wormhole/node/tools
+RUN go build -mod=readonly -o /dlv github.com/go-delve/delve/cmd/dlv
+
+WORKDIR /app/wormhole/node
+RUN go build -race -gcflags="all=-N -l" -mod=readonly -o /guardiand github.com/certusone/wormhole/node
+
+FROM docker.io/golang:1.17.0-alpine
+
+WORKDIR /app
+COPY --from=builder /guardiand /app/guardiand
+
+ENV PATH="/app:${PATH}"
+RUN addgroup -S pyth -g 10001 && adduser -S pyth -G pyth -u 10001
+RUN chown -R pyth:pyth .
+USER pyth
+
+ENTRYPOINT [ "guardiand", "spy", "--nodeKey", "/tmp/node.key" ]

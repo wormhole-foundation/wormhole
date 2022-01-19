@@ -1,0 +1,15 @@
+FROM node:16-alpine
+
+WORKDIR /app/pyth_relay
+COPY . .
+RUN npm install && npm run build && npm cache clean --force
+
+# If you are building for production
+# RUN npm ci --only=production
+
+RUN mkdir -p /app/pyth_relay/logs
+RUN addgroup -S pyth -g 10001 && adduser -S pyth -G pyth -u 10001
+RUN chown -R pyth:pyth src/ logs/ lib/
+USER pyth
+
+CMD [ "node", "lib/index.js" ]
