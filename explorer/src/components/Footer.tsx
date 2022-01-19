@@ -135,10 +135,12 @@ const Footer = () => (
           </Box>
           <Box>
             <Link
-              href={network}
+              component={RouterLink}
+              to={network}
               color="inherit"
               underline="hover"
               sx={linkStyle}
+              activeStyle={linkActiveStyle}
             >
               Network
             </Link>

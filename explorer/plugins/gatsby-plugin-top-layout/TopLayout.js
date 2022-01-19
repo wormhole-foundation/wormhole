@@ -4,7 +4,11 @@ import {
   responsiveFontSizes,
   ThemeProvider,
 } from "@mui/material";
+import TimeAgo from "javascript-time-ago";
+import en from "javascript-time-ago/locale/en";
 import React from "react";
+
+TimeAgo.addDefaultLocale(en);
 
 let theme = createTheme({
   palette: {

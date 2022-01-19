@@ -15,6 +15,7 @@
     "clean": "gatsby clean"
   },
   "dependencies": {
+    "@certusone/wormhole-sdk": "^0.1.6",
     "@emotion/react": "^11.7.1",
     "@emotion/styled": "^11.6.0",
     "@fontsource/poppins": "^4.5.0",
@@ -29,8 +30,10 @@
     "gatsby-plugin-react-helmet": "^5.4.0",
     "gatsby-plugin-robots-txt": "^1.6.14",
     "gatsby-plugin-sitemap": "^5.4.0",
+    "javascript-time-ago": "^2.3.10",
     "react": "^17.0.1",
     "react-dom": "^17.0.1",
-    "react-helmet": "^6.1.0"
+    "react-helmet": "^6.1.0",
+    "react-time-ago": "^7.1.7"
   }
 }

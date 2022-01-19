@@ -45,9 +45,9 @@ const NavBar = () => (
           Blog
         </Link>
       </Box>
-      <Box sx={{ display: "flex", ml: 8 }}>
+      {/* <Box sx={{ display: "flex", ml: 8 }}>
         <img src={hamburger} alt="menu" />
-      </Box>
+      </Box> */}
     </Toolbar>
   </AppBar>
 );
