@@ -7,6 +7,7 @@ import {
 import TimeAgo from "javascript-time-ago";
 import en from "javascript-time-ago/locale/en";
 import React from "react";
+import { NetworkContextProvider } from "../../src/contexts/NetworkContext";
 
 TimeAgo.addDefaultLocale(en);
 
@@ -52,6 +53,23 @@ let theme = createTheme({
         },
       },
     },
+    MuiOutlinedInput: {
+      styleOverrides: {
+        notchedOutline: {
+          borderRadius: 24,
+        },
+      },
+    },
+    MuiSelect: {
+      styleOverrides: {
+        select: {
+          paddingTop: 8,
+          paddingRight: "40px!important",
+          paddingBottom: 8,
+          paddingLeft: 20,
+        },
+      },
+    },
   },
 });
 theme = responsiveFontSizes(theme);
@@ -59,7 +77,7 @@ theme = responsiveFontSizes(theme);
 const TopLayout = ({ children }) => (
   <ThemeProvider theme={theme}>
     <CssBaseline />
-    {children}
+    <NetworkContextProvider>{children}</NetworkContextProvider>
   </ThemeProvider>
 );
 

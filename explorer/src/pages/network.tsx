@@ -19,11 +19,11 @@ import {
   PublicRPCServiceClientImpl,
 } from "@certusone/wormhole-sdk/lib/esm/proto/publicrpc/v1/publicrpc";
 import ReactTimeAgo from "react-time-ago";
-
-// TODO: network switcher
-const activeNetwork = { name: "mainnet" };
+import NetworkSelect from "../components/NetworkSelect";
+import { useNetworkContext } from "../contexts/NetworkContext";
 
 const GuardiansList = () => {
+  const { activeNetwork } = useNetworkContext();
   const [heartbeats, setHeartbeats] = React.useState<{
     [networkName: string]: { [nodeName: string]: Heartbeat };
   }>({ devnet: {}, testnet: {}, mainnet: {} });
@@ -44,7 +44,7 @@ const GuardiansList = () => {
   React.useEffect(() => {
     let cancelled = false;
     const rpc = new GrpcWebImpl(
-      "https://wormhole-v2-mainnet-api.certus.one",
+      String(activeNetwork.endpoints.guardianRpcBase),
       {}
     );
     const publicRpc = new PublicRPCServiceClientImpl(rpc);
@@ -52,11 +52,13 @@ const GuardiansList = () => {
       (async () => {
         try {
           const response = await publicRpc.GetLastHeartbeats({});
-          response.entries.map((entry) =>
-            entry.rawHeartbeat
-              ? addHeartbeat(activeNetwork.name, entry.rawHeartbeat)
-              : null
-          );
+          if (!cancelled) {
+            response.entries.map((entry) =>
+              entry.rawHeartbeat
+                ? addHeartbeat(activeNetwork.name, entry.rawHeartbeat)
+                : null
+            );
+          }
         } catch (e) {
           console.error("GetLastHeartbeats error:", e);
         }
@@ -77,7 +79,9 @@ const GuardiansList = () => {
   }, [activeHeartbeats]);
   return (
     <>
-      <Box sx={{ px: 4 }}>
+      <Box
+        sx={{ px: 4, display: "flex", flexWrap: "wrap", alignItems: "center" }}
+      >
         <Typography variant="h5">
           {foundHeartbeats
             ? `${guardianCount} Guardian${
@@ -85,12 +89,14 @@ const GuardiansList = () => {
               } currently broadcasting`
             : `Listening for Guardian heartbeats...`}
         </Typography>
+        <Box sx={{ flexGrow: 1 }} />
+        <NetworkSelect />
       </Box>
       <Box
         sx={{
           backgroundColor: "rgba(255,255,255,.07)",
           borderRadius: "28px",
-          mt: 5,
+          mt: 4,
           p: 4,
         }}
       >
