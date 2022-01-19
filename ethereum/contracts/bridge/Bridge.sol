@@ -326,7 +326,7 @@ contract Bridge is BridgeGovernance {
 
     function bridgeOut(address token, uint normalizedAmount) internal {
         uint outstanding = outstandingBridged(token);
-        require(outstanding + normalizedAmount <= type(uint64).max, "transfer exceeds max outstanding bridged token amount");
+        require(outstanding + normalizedAmount <= type(uint256).max, "transfer exceeds max outstanding bridged token amount");
         setOutstandingBridged(token, outstanding + normalizedAmount);
     }
 
