@@ -70,6 +70,11 @@ const GuardiansList = () => {
   const activeHeartbeats = heartbeats[activeNetwork.name];
   const guardianCount = Object.keys(activeHeartbeats).length;
   const foundHeartbeats = guardianCount > 0;
+  const sortedHeartbeats = React.useMemo(() => {
+    const arr = [...Object.values(activeHeartbeats)];
+    arr.sort((a, b) => a.nodeName.localeCompare(b.nodeName));
+    return arr;
+  }, [activeHeartbeats]);
   return (
     <>
       <Box sx={{ px: 4 }}>
@@ -85,8 +90,7 @@ const GuardiansList = () => {
         sx={{
           backgroundColor: "rgba(255,255,255,.07)",
           borderRadius: "28px",
-          mt: 4,
-          mb: 10,
+          mt: 5,
           p: 4,
         }}
       >
@@ -103,15 +107,17 @@ const GuardiansList = () => {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {Object.values(activeHeartbeats).map((hb) => (
+                {sortedHeartbeats.map((hb) => (
                   <TableRow key={hb.nodeName}>
                     <TableCell>
                       {hb.nodeName}
                       <br />
                       {hb.guardianAddr}
                     </TableCell>
-                    <TableCell>{hb.version}</TableCell>
-                    <TableCell>
+                    <TableCell sx={{ whiteSpace: "nowrap" }}>
+                      {hb.version}
+                    </TableCell>
+                    <TableCell sx={{ whiteSpace: "nowrap" }}>
                       {hb.networks.map((network) => network.id)}
                     </TableCell>
                     <TableCell>{hb.counter}</TableCell>
@@ -161,7 +167,7 @@ const AppsPage = () => {
           ]}
         />
       </Box>
-      <Box sx={{ maxWidth: 1220, mx: "auto", mt: 36, px: 3.75 }}>
+      <Box sx={{ maxWidth: 1220, mx: "auto", mt: 30, px: 3.75 }}>
         <GuardiansList />
       </Box>
     </Layout>
