@@ -19,7 +19,9 @@ The design is based in two contracts that work in tandem, a  **Stateful contract
 Due to computation and space limits, the validation of the 19 guardian signatures against the payload is partitioned so each stateless contract validates a subset of the guardian signatures. If ECDSA decompress and validation opcodes are used, that yields 650+1750 = 2400 computation units * 7 = 16800, leaving 3200 free units for remaining opcodes.
 In our design, We call **verification step** to each of the app calls + stateless logic involved  in verifying a block of signatures.
 
-The number of signatures in each verification step is fixed at contract compilation stage, so with this in mind and example values:
+Keep in mind that *not all* the 19 signatures must be present in a VAA verification, but at least 1 + (2/3)  of the current guardian set.
+
+The maximum number of signatures in each verification step is fixed at contract compilation stage, so with this in mind and example values:
 
 * let $N_S$ be the total signatures to verify $(19)$
 * let $N_V$ be the number of signatures per verification step $(7)$,   
@@ -43,6 +45,15 @@ With the above in mind, and considering the space and computation limits in the 
 
 The current design requires the last call to be a call to an authorized application. This is intended to process VAA price data. The authorized appid must be set accordingly using the `setauthid` call in the VAA Processor contract after deployment.
 If no call is going to be made, a dummy app call must be inserted in group for the transaction group to succeed.
+
+To mantain the long-term transaction costs predictable, when not all signatures are provided but > TRUNC(N_S*2/3)+1, the number of transactions in the group does not change, but a transaction may have zero signatures as input, e.g for a VAA with 14 signatures:
+
+| TX# | App calls | Stateless logic |
+| --- | --------- | --------------- |
+|  0  | _args_: guardian_pk[0..6], _txnote_: signed_digest          | _args_: sig[0..6]    |
+|  1  | _args_: guardian_pk[7..13], _txnote_: signed_digest          | _args_: sig[7..13]   |
+|  2  | _args_: guardian_pk[14..18], _txnote_: signed_digest          | _args_: **empty**    | 
+|  3  | VAA consume call | N/A |
 
 The backend will currently **call the Pricekeeper V2 contract to store data** as the last TX group. See below for details on how Pricekeeper works.
 
