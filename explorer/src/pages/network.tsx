@@ -148,7 +148,7 @@ const GuardiansList = () => {
   );
 };
 
-const AppsPage = () => {
+const NetworkPage = () => {
   return (
     <Layout>
       <Box sx={{ position: "relative", marginTop: 17 }}>
@@ -180,4 +180,4 @@ const AppsPage = () => {
   );
 };
 
-export default AppsPage;
+export default NetworkPage;

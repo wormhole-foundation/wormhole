@@ -145,7 +145,8 @@ const Footer = () => (
               Network
             </Link>
             <Link
-              href={explorer}
+              component={RouterLink}
+              to={explorer}
               color="inherit"
               underline="hover"
               sx={linkStyle}

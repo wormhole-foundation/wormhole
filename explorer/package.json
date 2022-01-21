@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@certusone/wormhole-sdk": "^0.1.6",
+    "@cosmjs/encoding": "^0.27.0",
     "@emotion/react": "^11.7.1",
     "@emotion/styled": "^11.6.0",
     "@fontsource/poppins": "^4.5.0",
