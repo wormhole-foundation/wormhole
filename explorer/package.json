@@ -24,6 +24,7 @@
     "@mui/lab": "^5.0.0-alpha.64",
     "@mui/material": "^5.2.7",
     "@mui/system": "^5.2.6",
+    "@nivo/bar": "^0.79.1",
     "buffer": "^6.0.3",
     "dotenv": "^10.0.0",
     "ethers": "^5.4.1",

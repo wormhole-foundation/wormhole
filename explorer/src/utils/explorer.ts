@@ -173,6 +173,14 @@ const chainColors: { [chain: string]: string } = {
   "6": "hsl(360, 100%, 61%)",
   "7": "hsl(204, 100%, 48%",
 };
+const chainIdColors = Object.entries(chainColors).reduce<Array<string>>(
+  // returns an array of hsl colors, indexed by chainId
+  (accum, [chain, color]) => {
+    accum[Number(chain) || 0] = color;
+    return accum;
+  },
+  []
+);
 
 const amountFormatter = (num: number, decimals?: number): string => {
   let absNum = Math.abs(num);
@@ -195,6 +203,7 @@ const usdFormatter = new Intl.NumberFormat("en-US", {
 export {
   amountFormatter,
   chainColors,
+  chainIdColors,
   contractNameFormatter,
   getNativeAddress,
   makeDate,
