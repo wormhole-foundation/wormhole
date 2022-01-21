@@ -174,13 +174,33 @@ const chainColors: { [chain: string]: string } = {
   "7": "hsl(204, 100%, 48%",
 };
 
+const amountFormatter = (num: number, decimals?: number): string => {
+  let absNum = Math.abs(num);
+  if (absNum > 999 && absNum < 1000000) {
+    return (num / 1000).toFixed(decimals !== undefined ? decimals : 1) + "K"; // convert to K with 1 decimal for 1000 < 1 million
+  } else if (absNum >= 1000000 && absNum < 1000000000) {
+    return (num / 1000000).toFixed(decimals !== undefined ? decimals : 0) + "M"; // convert to M for number from > 1 million
+  } else if (absNum >= 1000000000) {
+    return (
+      (num / 1000000000).toFixed(decimals !== undefined ? decimals : 1) + "B"
+    ); // convert to B for number from > 1 billion
+  }
+  return num.toFixed(decimals !== undefined ? decimals : 0); // if value < 1000, nothing to do
+};
+const usdFormatter = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+});
+
 export {
+  amountFormatter,
+  chainColors,
+  contractNameFormatter,
+  getNativeAddress,
   makeDate,
   makeGroupName,
-  chainColors,
-  truncateAddress,
-  contractNameFormatter,
   nativeExplorerContractUri,
   nativeExplorerTxUri,
-  getNativeAddress,
+  truncateAddress,
+  usdFormatter,
 };
