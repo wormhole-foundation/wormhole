@@ -1,4 +1,9 @@
-import { CHAIN_ID_TERRA, hexToNativeString } from "@certusone/wormhole-sdk";
+import {
+  ChainId,
+  CHAIN_ID_TERRA,
+  hexToNativeString,
+  isEVMChain,
+} from "@certusone/wormhole-sdk";
 import { fromHex } from "@cosmjs/encoding";
 import { PublicKey } from "@solana/web3.js";
 import { ActiveNetwork, useNetworkContext } from "../contexts/NetworkContext";
@@ -43,16 +48,14 @@ const getNativeAddress = (
 ): string => {
   let nativeAddress = "";
 
-  if (
-    chainId === chainIDs["ethereum"] ||
-    chainId === chainIDs["bsc"] ||
-    chainId === chainIDs["polygon"]
-  ) {
+  if (isEVMChain(chainId as ChainId)) {
     // remove zero-padding
     let unpadded = emitterAddress.slice(-40);
     nativeAddress = `0x${unpadded}`.toLowerCase();
   } else if (chainId === chainIDs["terra"]) {
-    hexToNativeString(emitterAddress, CHAIN_ID_TERRA);
+    nativeAddress = (
+      hexToNativeString(emitterAddress, CHAIN_ID_TERRA) || ""
+    ).toLowerCase();
   } else if (chainId === chainIDs["solana"]) {
     if (!activeNetwork) {
       activeNetwork = useNetworkContext().activeNetwork;
@@ -113,22 +116,23 @@ const nativeExplorerContractUri = (
 
   const nativeAddress = getNativeAddress(chainId, address, activeNetwork);
   if (nativeAddress) {
+    let base = "";
     if (chainId === chainIDs["solana"]) {
-      let base = "https://explorer.solana.com/address/";
-      return `${base}${nativeAddress}`;
+      base = "https://explorer.solana.com/address/";
     } else if (chainId === chainIDs["ethereum"]) {
-      let base = "https://etherscan.io/address/";
-      return `${base}${nativeAddress}`;
+      base = "https://etherscan.io/address/";
     } else if (chainId === chainIDs["terra"]) {
-      let base = "https://finder.terra.money/columbus-5/address/";
-      return `${base}${nativeAddress}`;
+      base = "https://finder.terra.money/columbus-5/address/";
     } else if (chainId === chainIDs["bsc"]) {
-      let base = "https://bscscan.com/address/";
-      return `${base}${nativeAddress}`;
+      base = "https://bscscan.com/address/";
     } else if (chainId === chainIDs["polygon"]) {
-      let base = "https://polygonscan.com/address/";
-      return `${base}${nativeAddress}`;
+      base = "https://polygonscan.com/address/";
+    } else if (chainId === chainIDs["avalanche"]) {
+      base = "https://snowtrace.io/address/";
+    } else if (chainId === chainIDs["oasis"]) {
+      base = "https://explorer.oasis.updev.si/address/";
     }
+    return `${base}${nativeAddress}`;
   }
   return "";
 };
@@ -136,20 +140,24 @@ const nativeExplorerTxUri = (
   chainId: number,
   transactionId: string
 ): string => {
+  let base = "";
   if (chainId === chainIDs["solana"]) {
-    let base = "https://explorer.solana.com/address/";
-    return `${base}${transactionId}`;
+    base = "https://explorer.solana.com/address/";
   } else if (chainId === chainIDs["ethereum"]) {
-    let base = "https://etherscan.io/tx/";
-    return `${base}${transactionId}`;
+    base = "https://etherscan.io/tx/";
   } else if (chainId === chainIDs["terra"]) {
-    let base = "https://finder.terra.money/columbus-5/tx/";
-    return `${base}${transactionId}`;
+    base = "https://finder.terra.money/columbus-5/tx/";
   } else if (chainId === chainIDs["bsc"]) {
-    let base = "https://bscscan.com/tx/";
-    return `${base}${transactionId}`;
+    base = "https://bscscan.com/tx/";
   } else if (chainId === chainIDs["polygon"]) {
-    let base = "https://polygonscan.com/tx/";
+    base = "https://polygonscan.com/tx/";
+  } else if (chainId === chainIDs["avalanche"]) {
+    base = "https://snowtrace.io/tx/";
+  } else if (chainId === chainIDs["oasis"]) {
+    base = "https://explorer.emerald.oasis.dev/tx/";
+  }
+
+  if (base) {
     return `${base}${transactionId}`;
   }
   return "";
@@ -162,6 +170,8 @@ const chainColors: { [chain: string]: string } = {
   "3": "hsl(235, 100%, 61%)",
   "4": "hsl(54, 100%, 61%)",
   "5": "hsl(271, 100%, 61%)",
+  "6": "hsl(360, 100%, 61%)",
+  "7": "hsl(204, 100%, 48%",
 };
 
 export {
