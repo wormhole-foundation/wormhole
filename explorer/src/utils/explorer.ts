@@ -57,13 +57,10 @@ const getNativeAddress = (
     if (!activeNetwork) {
       activeNetwork = useNetworkContext().activeNetwork;
     }
-    const chainName = (chainEnums[chainId] || "").toLowerCase();
+    const chainName = chainEnums[chainId].toLowerCase();
 
     // use the "chains" map of hex: nativeAdress first
-    if (
-      activeNetwork.chains[chainName] &&
-      emitterAddress in activeNetwork.chains[chainName]
-    ) {
+    if (emitterAddress in activeNetwork.chains[chainName]) {
       let desc = activeNetwork.chains[chainName][emitterAddress];
       if (desc in activeNetwork.chains[chainName]) {
         // lookup the contract address
@@ -91,16 +88,13 @@ const contractNameFormatter = (
     activeNetwork = useNetworkContext().activeNetwork;
   }
 
-  const chainName = (chainEnums[chainId] || "").toLowerCase();
+  const chainName = chainEnums[chainId].toLowerCase();
   let nativeAddress = getNativeAddress(chainId, address, activeNetwork);
 
   let truncated = truncateAddress(nativeAddress || address);
   let formatted = truncated;
 
-  if (
-    activeNetwork.chains[chainName] &&
-    nativeAddress in activeNetwork.chains[chainName]
-  ) {
+  if (nativeAddress in activeNetwork.chains[chainName]) {
     // add the description of the contract, if we know it
     let desc = activeNetwork.chains[chainName][nativeAddress];
     formatted = `${desc} (${truncated})`;

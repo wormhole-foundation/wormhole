@@ -143,7 +143,8 @@ const getEmitterAddress: {
 };
 
 // the keys used for creating the map of contract addresses of each chain, on each network.
-export const networks = ["devnet", "testnet", "mainnet"];
+export type Network = keyof NetworkChains;
+export const networks: Array<Network> = ["devnet", "testnet", "mainnet"];
 const contractTypes = ["Core", "Token", "NFT"];
 const chainNames = Object.keys(chainIDs);
 
