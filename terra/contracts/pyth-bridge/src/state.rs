@@ -25,6 +25,7 @@ type HumanAddr = String;
 
 pub static CONFIG_KEY: &[u8] = b"config";
 pub static PRICE_INFO_KEY: &[u8] = b"price_info";
+pub static SEQUENCE_KEY: &[u8] = b"sequence";
 
 // Guardian set information
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -35,6 +36,7 @@ pub struct ConfigInfo {
 
     pub wormhole_contract: HumanAddr,
     pub pyth_emitter: Vec<u8>,
+    pub pyth_emitter_chain: u16,
 }
 
 pub fn config(storage: &mut dyn Storage) -> Singleton<ConfigInfo> {
@@ -45,6 +47,14 @@ pub fn config_read(storage: &dyn Storage) -> ReadonlySingleton<ConfigInfo> {
     singleton_read(storage, CONFIG_KEY)
 }
 
+pub fn sequence(storage: &mut dyn Storage) -> Singleton<u64> {
+    singleton(storage, SEQUENCE_KEY)
+}
+
+pub fn sequence_read(storage: &dyn Storage) -> ReadonlySingleton<u64> {
+    singleton_read(storage, SEQUENCE_KEY)
+}
+
 pub fn price_info(storage: &mut dyn Storage) -> Bucket<Vec<u8>> {
     bucket(storage, PRICE_INFO_KEY)
 }
@@ -52,7 +62,6 @@ pub fn price_info(storage: &mut dyn Storage) -> Bucket<Vec<u8>> {
 pub fn price_info_read(storage: &dyn Storage) -> ReadonlyBucket<Vec<u8>> {
     bucket_read(storage, PRICE_INFO_KEY)
 }
-
 
 pub struct UpgradeContract {
     pub new_contract: u64,

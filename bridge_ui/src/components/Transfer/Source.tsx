@@ -5,7 +5,7 @@ import {
 } from "@certusone/wormhole-sdk";
 import { getAddress } from "@ethersproject/address";
 import { Button, makeStyles, Typography } from "@material-ui/core";
-import { ArrowForward, VerifiedUser } from "@material-ui/icons";
+import { VerifiedUser } from "@material-ui/icons";
 import { useCallback, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useHistory } from "react-router";
@@ -35,11 +35,13 @@ import {
 } from "../../utils/consts";
 import ButtonWithLoader from "../ButtonWithLoader";
 import ChainSelect from "../ChainSelect";
+import ChainSelectArrow from "../ChainSelectArrow";
 import KeyAndBalance from "../KeyAndBalance";
 import LowBalanceWarning from "../LowBalanceWarning";
 import NumberTextField from "../NumberTextField";
 import StepDescription from "../StepDescription";
 import { TokenSelector } from "../TokenSelectors/SourceTokenSelector";
+import SourceAssetWarning from "./SourceAssetWarning";
 
 const useStyles = makeStyles((theme) => ({
   chainSelectWrapper: {
@@ -136,6 +138,7 @@ function Source() {
   const handleNextClick = useCallback(() => {
     dispatch(incrementStep());
   }, [dispatch]);
+
   return (
     <>
       <StepDescription>
@@ -169,7 +172,12 @@ function Source() {
           />
         </div>
         <div className={classes.chainSelectArrow}>
-          <ArrowForward style={{ margin: "0px 8px" }} />
+          <ChainSelectArrow
+            onClick={() => {
+              dispatch(setSourceChain(targetChain));
+            }}
+            disabled={shouldLockFields}
+          />
         </div>
         <div className={classes.chainSelectContainer}>
           <Typography variant="caption">Target</Typography>
@@ -202,6 +210,10 @@ function Source() {
       ) : (
         <>
           <LowBalanceWarning chainId={sourceChain} />
+          <SourceAssetWarning
+            sourceChain={sourceChain}
+            sourceAsset={parsedTokenAccount?.mintKey}
+          />
           {hasParsedTokenAccount ? (
             <NumberTextField
               variant="outlined"

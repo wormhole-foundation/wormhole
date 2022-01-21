@@ -3,7 +3,7 @@ FROM docker.io/library/rust:1.49@sha256:a50165ea96983c21832578afb1c8c028674c965b
 
 RUN apt-get update && apt-get install -yq libssl-dev libudev-dev pkg-config zlib1g-dev llvm clang ncat
 RUN curl -fsSL https://deb.nodesource.com/setup_16.x | bash - && apt-get install -y nodejs
-RUN curl -sSfL https://release.solana.com/v1.7.8/install | sh
+RUN curl -sSfL https://release.solana.com/v1.8.1/install | sh
 
 RUN rustup default nightly-2021-08-01
 RUN rustup component add rustfmt

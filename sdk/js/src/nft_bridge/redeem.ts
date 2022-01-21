@@ -1,5 +1,7 @@
 import { Connection, PublicKey, Transaction } from "@solana/web3.js";
+import { MsgExecuteContract } from "@terra-money/terra.js";
 import { ethers } from "ethers";
+import { fromUint8Array } from "js-base64";
 import { CHAIN_ID_SOLANA } from "..";
 import { Bridge__factory } from "../ethers-contracts";
 import { ixFromRust } from "../solana";
@@ -9,14 +11,14 @@ export async function redeemOnEth(
   tokenBridgeAddress: string,
   signer: ethers.Signer,
   signedVAA: Uint8Array
-) {
+): Promise<ethers.ContractReceipt> {
   const bridge = Bridge__factory.connect(tokenBridgeAddress, signer);
   const v = await bridge.completeTransfer(signedVAA);
   const receipt = await v.wait();
   return receipt;
 }
 
-export async function isNFTVAASolanaNative(signedVAA: Uint8Array) {
+export async function isNFTVAASolanaNative(signedVAA: Uint8Array): Promise<boolean> {
   const { parse_vaa } = await importCoreWasm();
   const parsedVAA = parse_vaa(signedVAA);
   const isSolanaNative =
@@ -31,7 +33,7 @@ export async function redeemOnSolana(
   tokenBridgeAddress: string,
   payerAddress: string,
   signedVAA: Uint8Array
-) {
+): Promise<Transaction> {
   const isSolanaNative = await isNFTVAASolanaNative(signedVAA);
   const { complete_transfer_wrapped_ix, complete_transfer_native_ix } =
     await importNftWasm();
@@ -74,7 +76,7 @@ export async function createMetaOnSolana(
   tokenBridgeAddress: string,
   payerAddress: string,
   signedVAA: Uint8Array
-) {
+): Promise<Transaction> {
   const { complete_transfer_wrapped_meta_ix } = await importNftWasm();
   const ix = ixFromRust(
     complete_transfer_wrapped_meta_ix(
@@ -89,4 +91,16 @@ export async function createMetaOnSolana(
   transaction.recentBlockhash = blockhash;
   transaction.feePayer = new PublicKey(payerAddress);
   return transaction;
+}
+
+export async function redeemOnTerra(
+  tokenBridgeAddress: string,
+  walletAddress: string,
+  signedVAA: Uint8Array
+): Promise<MsgExecuteContract> {
+  return new MsgExecuteContract(walletAddress, tokenBridgeAddress, {
+    submit_vaa: {
+      data: fromUint8Array(signedVAA),
+    },
+  });
 }

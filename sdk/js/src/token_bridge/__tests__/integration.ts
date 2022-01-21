@@ -633,7 +633,7 @@ describe("Integration Tests", () => {
               {
                 deposit_tokens: {},
               },
-              { ["uluna"]: "1" }
+              { uusd: "900000087654321" }
             );
             const feeEstimate = await lcd.tx.estimateFee(
               wallet.key.accAddress,
@@ -662,10 +662,10 @@ describe("Integration Tests", () => {
             {
               initiate_transfer: {
                 asset: {
-                  amount: "10000",
+                  amount: "5900000087654321",
                   info: {
                     native_token: {
-                      denom: "uluna",
+                      denom: "uusd",
                     },
                   },
                 },
@@ -696,7 +696,7 @@ describe("Integration Tests", () => {
               withdraw_tokens: {
                 asset: {
                   native_token: {
-                    denom: "uluna",
+                    denom: "uusd",
                   },
                 },
               },

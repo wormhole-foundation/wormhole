@@ -36,7 +36,7 @@ import { ethers } from "ethers";
 import { useSnackbar } from "notistack";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useDispatch } from "react-redux";
-import { useHistory } from "react-router";
+import { useHistory, useLocation } from "react-router";
 import { useEthereumProvider } from "../contexts/EthereumProviderContext";
 import useIsWalletReady from "../hooks/useIsWalletReady";
 import { COLORS } from "../muiTheme";
@@ -44,6 +44,7 @@ import { setRecoveryVaa as setRecoveryNFTVaa } from "../store/nftSlice";
 import { setRecoveryVaa } from "../store/transferSlice";
 import {
   CHAINS,
+  CHAINS_BY_ID,
   CHAINS_WITH_NFT_SUPPORT,
   getBridgeAddressForChain,
   getNFTBridgeAddressForChain,
@@ -194,6 +195,33 @@ export default function Recovery() {
       return null;
     }
   }, [recoveryParsedVAA, isNFT]);
+
+  const { search } = useLocation();
+  const query = useMemo(() => new URLSearchParams(search), [search]);
+  const pathSourceChain = query.get("sourceChain");
+  const pathSourceTransaction = query.get("transactionId");
+
+  //This effect initializes the state based on the path params.
+  useEffect(() => {
+    if (!pathSourceChain && !pathSourceTransaction) {
+      return;
+    }
+    try {
+      const sourceChain: ChainId =
+        CHAINS_BY_ID[parseFloat(pathSourceChain || "") as ChainId]?.id;
+
+      if (sourceChain) {
+        setRecoverySourceChain(sourceChain);
+      }
+      if (pathSourceTransaction) {
+        setRecoverySourceTx(pathSourceTransaction);
+      }
+    } catch (e) {
+      console.error(e);
+      console.error("Invalid path params specified.");
+    }
+  }, [pathSourceChain, pathSourceTransaction]);
+
   useEffect(() => {
     if (recoverySourceTx && (!isEVMChain(recoverySourceChain) || isReady)) {
       let cancelled = false;
@@ -335,6 +363,10 @@ export default function Recovery() {
               targetAddress: parsedPayload.targetAddress,
               originChain: parsedPayload.originChain,
               originAddress: parsedPayload.originAddress,
+              amount:
+                "amount" in parsedPayload
+                  ? parsedPayload.amount.toString()
+                  : "",
             },
           })
         );

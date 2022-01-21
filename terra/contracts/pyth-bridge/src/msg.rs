@@ -1,6 +1,4 @@
-use cosmwasm_std::{
-    Binary,
-};
+use cosmwasm_std::Binary;
 use schemars::JsonSchema;
 use serde::{
     Deserialize,
@@ -17,14 +15,13 @@ pub struct InstantiateMsg {
 
     pub wormhole_contract: HumanAddr,
     pub pyth_emitter: Binary,
+    pub pyth_emitter_chain: u16,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
-    SubmitVaa {
-        data: Binary,
-    },
+    SubmitVaa { data: Binary },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -34,5 +31,5 @@ pub struct MigrateMsg {}
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
-    PriceInfo { product_id: Binary },
+    PriceInfo { price_id: Binary },
 }

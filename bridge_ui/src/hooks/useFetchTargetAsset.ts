@@ -28,13 +28,11 @@ import {
 } from "../store/helpers";
 import { setTargetAsset as setNFTTargetAsset } from "../store/nftSlice";
 import {
-  selectNFTIsRecovery,
   selectNFTIsSourceAssetWormholeWrapped,
   selectNFTOriginAsset,
   selectNFTOriginChain,
   selectNFTOriginTokenId,
   selectNFTTargetChain,
-  selectTransferIsRecovery,
   selectTransferIsSourceAssetWormholeWrapped,
   selectTransferOriginAsset,
   selectTransferOriginChain,
@@ -74,9 +72,6 @@ function useFetchTargetAsset(nft?: boolean) {
   const { provider, chainId: evmChainId } = useEthereumProvider();
   const correctEvmNetwork = getEvmChainId(targetChain);
   const hasCorrectEvmNetwork = evmChainId === correctEvmNetwork;
-  const isRecovery = useSelector(
-    nft ? selectNFTIsRecovery : selectTransferIsRecovery
-  );
   const [lastSuccessfulArgs, setLastSuccessfulArgs] = useState<{
     isSourceAssetWormholeWrapped: boolean | undefined;
     originChain: ChainId | undefined;
@@ -114,7 +109,7 @@ function useFetchTargetAsset(nft?: boolean) {
     ]
   );
   useEffect(() => {
-    if (isRecovery || argsMatchLastSuccess) {
+    if (argsMatchLastSuccess) {
       return;
     }
     setLastSuccessfulArgs(null);
@@ -250,7 +245,6 @@ function useFetchTargetAsset(nft?: boolean) {
     };
   }, [
     dispatch,
-    isRecovery,
     isSourceAssetWormholeWrapped,
     originChain,
     originAsset,

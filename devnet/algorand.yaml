@@ -52,7 +52,7 @@ spec:
           command:
             - /bin/sh
             - -c
-            - ./goal kmd start -d /network/Node && ./goal account list && sleep infinity
+            - ./goal kmd start -d /network/Node && ./goal account list && /setup/setup.sh && sleep infinity
           ports:
             - containerPort: 4002
               name: kmd

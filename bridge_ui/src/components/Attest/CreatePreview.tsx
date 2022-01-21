@@ -1,4 +1,4 @@
-import { makeStyles, Typography } from "@material-ui/core";
+import { Link, makeStyles, Typography } from "@material-ui/core";
 import { useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
@@ -9,10 +9,15 @@ import { reset } from "../../store/attestSlice";
 import ButtonWithLoader from "../ButtonWithLoader";
 import ShowTx from "../ShowTx";
 import { useHistory } from "react-router";
+import { getHowToAddToTokenListUrl } from "../../utils/consts";
+import { Alert } from "@material-ui/lab";
 
 const useStyles = makeStyles((theme) => ({
   description: {
     textAlign: "center",
+  },
+  alert: {
+    marginTop: theme.spacing(1),
   },
 }));
 
@@ -32,6 +37,7 @@ export default function CreatePreview() {
 
   const explainerString =
     "Success! The create wrapped transaction was submitted.";
+  const howToAddToTokenListUrl = getHowToAddToTokenListUrl(targetChain);
 
   return (
     <>
@@ -43,6 +49,19 @@ export default function CreatePreview() {
         {explainerString}
       </Typography>
       {createTx ? <ShowTx chainId={targetChain} tx={createTx} /> : null}
+      {howToAddToTokenListUrl ? (
+        <Alert severity="info" variant="outlined" className={classes.alert}>
+          Remember to add the token to the{" "}
+          <Link
+            href={howToAddToTokenListUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            token list
+          </Link>
+          {"."}
+        </Alert>
+      ) : null}
       <ButtonWithLoader onClick={handleResetClick}>
         Attest Another Token!
       </ButtonWithLoader>

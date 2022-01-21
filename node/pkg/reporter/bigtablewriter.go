@@ -28,7 +28,7 @@ type bigTableWriter struct {
 }
 
 // rowKey returns a string with the input vales delimited by colons.
-func makeRowKey(emitterChain vaa.ChainID, emitterAddress vaa.Address, sequence uint64) string {
+func MakeRowKey(emitterChain vaa.ChainID, emitterAddress vaa.Address, sequence uint64) string {
 	// left-pad the sequence with zeros to 16 characters, because bigtable keys are stored lexicographically
 	return fmt.Sprintf("%d:%s:%016d", emitterChain, emitterAddress, sequence)
 }
@@ -92,7 +92,7 @@ func BigTableWriter(events *AttestationEventReporter, connectionConfig *BigTable
 						bigtable.ColumnFilter("EmitterAddress"))
 					conditionalMutation := bigtable.NewCondMutation(filter, nil, mutation)
 
-					rowKey := makeRowKey(msg.VAA.EmitterChain, msg.VAA.EmitterAddress, msg.VAA.Sequence)
+					rowKey := MakeRowKey(msg.VAA.EmitterChain, msg.VAA.EmitterAddress, msg.VAA.Sequence)
 					err := tbl.Apply(ctx, rowKey, conditionalMutation)
 					if err != nil {
 						logger.Warn("Failed to write message publication to BigTable",
@@ -119,7 +119,7 @@ func BigTableWriter(events *AttestationEventReporter, connectionConfig *BigTable
 						bigtable.ColumnFilter("SignedVAA"))
 					conditionalMutation := bigtable.NewCondMutation(filter, nil, mutation)
 
-					rowKey := makeRowKey(msg.EmitterChain, msg.EmitterAddress, msg.Sequence)
+					rowKey := MakeRowKey(msg.EmitterChain, msg.EmitterAddress, msg.Sequence)
 					err := tbl.Apply(ctx, rowKey, conditionalMutation)
 					if err != nil {
 						logger.Warn("Failed to write persistence info to BigTable",
