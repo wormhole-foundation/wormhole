@@ -1,8 +1,10 @@
+import { CircularProgress } from "@mui/material";
 import React, { useEffect, useState } from "react";
 import { useNetworkContext } from "../../contexts/NetworkContext";
 import { ChainID } from "../../utils/consts";
 import { contractNameFormatter } from "../../utils/explorer";
 import { BigTableMessage } from "../ExplorerQuery";
+import RecentMessages from "./RecentMessages";
 
 export interface Totals {
   LastDayCount: { [groupByKey: string]: number };
@@ -50,7 +52,7 @@ const ExplorerStats: React.FC<StatsProps> = ({
     forAddress: ForAddress,
     signal: AbortSignal
   ) => {
-    const totalsUrl = `${baseUrl}/totals`;
+    const totalsUrl = `${baseUrl}-totals`;
     let url = `${totalsUrl}?numDays=${daysSinceDataStart}`;
     if (groupBy) {
       url = `${url}&groupBy=${groupBy}`;
@@ -88,7 +90,7 @@ const ExplorerStats: React.FC<StatsProps> = ({
     forAddress: ForAddress,
     signal: AbortSignal
   ) => {
-    const recentUrl = `${baseUrl}/recent`;
+    const recentUrl = `${baseUrl}-recent`;
     let url = `${recentUrl}?numRows=24`;
     if (groupBy) {
       url = `${url}&groupBy=${groupBy}`;
@@ -236,8 +238,11 @@ const ExplorerStats: React.FC<StatsProps> = ({
                     <ChainOverviewCard totalDays={daysSinceDataStart} totals={totals} dataKey="5" title={ChainID[5]} Icon={PolygonIcon} /> */}
         </div>
       )}
-      {/* <Spin spinning={!totals && !recent} style={{ width: '100%', height: 500 }} >
-                <div>
+      {!totals && !recent ? (
+        <CircularProgress />
+      ) : (
+        <>
+          {/* <div>
                     <DailyCountLineChart
                         dailyCount={totals?.DailyTotals || {}}
                         lastFetched={lastFetched}
@@ -245,10 +250,18 @@ const ExplorerStats: React.FC<StatsProps> = ({
                         emitterChain={emitterChain}
                         emitterAddress={emitterAddress}
                     />
-                </div>
+                </div> */}
 
-                {recent && <RecentMessages recent={recent} lastFetched={lastFetched} title={title} hideTableTitles={hideTableTitles} />}
-            </Spin> */}
+          {recent && (
+            <RecentMessages
+              recent={recent}
+              lastFetched={lastFetched}
+              title={title}
+              hideTableTitles={hideTableTitles}
+            />
+          )}
+        </>
+      )}
     </>
   );
 };
