@@ -28,9 +28,10 @@ SLOTID_RECOVERED_PK_Y = 241
 
 
 @Subroutine(TealType.uint64)
-def sig_check(signatures, digest, keys):
-    si = ScratchVar(TealType.uint64)
-    ki = ScratchVar(TealType.uint64)
+def sig_check(signatures, digest, keys, vaa_signature_count):
+    si = ScratchVar(TealType.uint64)  # signature index (zero-based)
+    ki = ScratchVar(TealType.uint64)  # key index
+    gi = ScratchVar(TealType.uint64)  # guardian index (signature prefix)
     i = ScratchVar(TealType.uint64)
     rec_pk_x = ScratchVar(TealType.bytes, SLOTID_RECOVERED_PK_X)
     rec_pk_y = ScratchVar(TealType.bytes, SLOTID_RECOVERED_PK_Y)
@@ -39,6 +40,7 @@ def sig_check(signatures, digest, keys):
         [
             rec_pk_x.store(Bytes("")),
             rec_pk_y.store(Bytes("")),
+            gi.store(Int(0)),
             For(Seq([
                 i.store(Int(0)),
                 si.store(Int(0)),
@@ -51,14 +53,19 @@ def sig_check(signatures, digest, keys):
                     i.store(i.load() + Int(1)),
                 ])).Do(
                     Seq([
+                        gi.store(Btoi(Extract(signatures, si.load(), Int(1)))),
+
+                        # Bail out case if we must ignore all signatures past sig_count > 2/3+1 
+                        If (gi.load() >= vaa_signature_count).Then(Break()),
+                        
                         # Index must be sequential
 
-                        Assert(Btoi(Extract(signatures, si.load(), Int(1))) == 
+                        Assert(gi.load() == 
                              i.load() + (Txn.group_index() * Int(MAX_SIGNATURES_PER_VERIFICATION_STEP))),
 
                         InlineAssembly(
                             "ecdsa_pk_recover Secp256k1",
-                            Keccak256(digest),
+                            Keccak256(Keccak256(digest)),
                             Btoi(Extract(signatures, si.load() + Int(65), Int(1))),
                             Extract(signatures, si.load() + Int(1), Int(32)),       # R
                             Extract(signatures, si.load() + Int(33), Int(32)),      # S
@@ -88,14 +95,16 @@ def sig_check(signatures, digest, keys):
 """
 * Let N be the number of signatures per verification step, for the TX(i) in group, we verify signatures [j..k] where j = i*N, k = j+(N-1)
 * Input 0 is signatures [j..k] to verify as LogicSigArgs. (Format is GuardianIndex + signature)
-* Input 1 is signed digest of payload, contained in the note field of the TX in current slot.
-* Input 2 is public keys for guardians [j..k] contained in the first Argument  of the TX in current slot.
-* Input 3 is guardian set size contained in the second argument of the TX in current slot.
+* Input 1 is the total signature count specified in the VAA.  This must be > 2/3 of the guardian set plus 1.
+* Input 2 is signed digest of payload, contained in the note field of the TX in current slot.
+* Input 3 is public keys for guardians [j..k] contained in the first Argument  of the TX in current slot.
+* Input 4 is guardian set size contained in the second argument of the TX in current slot.
 """
 
 
 def vaa_verify_program(vaa_processor_app_id):
     signatures = Arg(0)
+    vaa_signature_count = Arg(1)
     digest = Txn.note()
     keys = Txn.application_args[1]
     num_guardians = Txn.application_args[2]
@@ -103,13 +112,13 @@ def vaa_verify_program(vaa_processor_app_id):
     return Seq([
         Assert(Txn.fee() <= Int(1000)),
         Assert(Txn.application_args.length() == Int(3)),
-        Assert(Len(signatures) == get_sig_count_in_step(
-                Txn.group_index(), Btoi(num_guardians)) * Int(66)),
+        Assert(Btoi(vaa_signature_count) > ((Btoi(num_guardians) * Int(10) / Int(3)) * Int(2)) / Int(10) + Int(1)),
+        Assert(Len(signatures) == get_sig_count_in_step(Txn.group_index(), Btoi(num_guardians)) * Int(66)),
         Assert(Txn.rekey_to() == Global.zero_address()),
         Assert(Txn.application_id() == Int(vaa_processor_app_id)),
         Assert(Txn.type_enum() == TxnType.ApplicationCall),
-        Assert(Global.group_size() == get_group_size(Btoi(num_guardians))),
-        Assert(sig_check(signatures, digest, keys)),
+        Assert(Global.group_size() == Int(1) + get_group_size(Btoi(num_guardians))),
+        Assert(sig_check(signatures, digest, keys, Btoi(vaa_signature_count))),
         Approve()]
     )
 

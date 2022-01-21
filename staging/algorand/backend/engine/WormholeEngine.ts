@@ -7,19 +7,19 @@
  */
 
 import { IEngine } from './IEngine'
-import { PythPriceFetcher } from '../fetcher/PythPriceFetcher'
-import { StdAlgoPublisher } from '../publisher/stdAlgoPublisher'
 import { StrategyLastPrice } from '../strategy/strategyLastPrice'
 import { IAppSettings } from '../common/settings'
 import { IPriceFetcher } from '../fetcher/IPriceFetcher'
 import { IPublisher, PublishInfo } from '../publisher/IPublisher'
 import { PriceTicker } from '../common/priceTicker'
 import { StatusCode } from '../common/statusCodes'
+import { WormholePythPriceFetcher } from '../fetcher/WormholePythPriceFetcher'
+import { Symbol } from 'backend/common/basetypes'
+import { Pricekeeper2Publisher } from '../publisher/Pricekeeper2Publisher'
+import * as Logger from '@randlabs/js-logger'
 import { sleep } from '../common/sleep'
-import { WormholePythPriceFetcher } from 'backend/fetcher/WormholePythPriceFetcher'
-
+const fs = require('fs')
 const algosdk = require('algosdk')
-const charm = require('charm')()
 
 type WorkerRoutineStatus = {
   status: StatusCode,
@@ -28,8 +28,8 @@ type WorkerRoutineStatus = {
   pub?: PublishInfo
 }
 
-async function workerRoutine (fetcher: IPriceFetcher, publisher: IPublisher): Promise<WorkerRoutineStatus> {
-  const tick = fetcher.queryTicker()
+async function workerRoutine (sym: Symbol, fetcher: IPriceFetcher, publisher: IPublisher): Promise<WorkerRoutineStatus> {
+  const tick = fetcher.queryData(sym.productId + sym.priceId)
   if (tick === undefined) {
     return { status: StatusCode.NO_TICKER }
   }
@@ -39,65 +39,74 @@ async function workerRoutine (fetcher: IPriceFetcher, publisher: IPublisher): Pr
 
 export class WormholeClientEngine implements IEngine {
   private settings: IAppSettings
-
+  private shouldQuit: boolean
   constructor (settings: IAppSettings) {
     this.settings = settings
+    this.shouldQuit = false
   }
 
   async start () {
-    charm.write('Setting up for')
-      .foreground('yellow')
-      .write(` ${this.settings.params.symbol} `)
-      .foreground('white')
-      .write('for PriceKeeper App')
-      .foreground('yellow')
-      .write(` ${this.settings.params.priceKeeperAppId} `)
-      .foreground('white')
-      .write(`interval ${this.settings.params.publishIntervalSecs} secs\n`)
+    process.on('SIGINT', () => {
+      console.log('Received SIGINT')
+      Logger.finalize()
+      this.shouldQuit = true
+    })
 
-    const publisher = new StdAlgoPublisher(this.settings.params.symbol,
-      this.settings.params.priceKeeperAppId,
-      this.settings.params.validator,
-      (algosdk.mnemonicToSecretKey(this.settings.params.mnemo)).sk,
+    let mnemo, verifyProgramBinary
+    try {
+      mnemo = fs.readFileSync(this.settings.apps.ownerKeyFile)
+      verifyProgramBinary = Uint8Array.from(fs.readFileSync(this.settings.apps.vaaVerifyProgramBinFile))
+    } catch (e) {
+      throw new Error('Cannot read account and/or verify program source: ' + e)
+    }
+
+    const publisher = new Pricekeeper2Publisher(this.settings.apps.vaaProcessorAppId,
+      this.settings.apps.priceKeeperV2AppId,
+      this.settings.apps.ownerAddress,
+      verifyProgramBinary,
+      this.settings.apps.vaaVerifyProgramHash,
+      algosdk.mnemonicToSecretKey(mnemo.toString()),
       this.settings.algo.token,
       this.settings.algo.api,
-      this.settings.algo.port
+      this.settings.algo.port,
+      this.settings.algo.dumpFailedTx,
+      this.settings.algo.dumpFailedTxDirectory
     )
+    const fetcher = new WormholePythPriceFetcher(this.settings.wormhole.spyServiceHost,
+      this.settings.pyth.chainId,
+      this.settings.pyth.emitterAddress,
+      this.settings.symbols,
+      new StrategyLastPrice(this.settings.strategy.bufferSize))
 
-    const fetcher = new WormholePythPriceFetcher(this.settings.params.symbol,
-      new StrategyLastPrice(this.settings.params.bufferSize), this.settings.pyth?.solanaClusterName!)
+    Logger.info('Waiting for fetcher to boot...')
     await fetcher.start()
 
-    console.log('Waiting for fetcher to boot...')
-    while (!fetcher.hasData()) {
-      await sleep(250)
-    }
-    console.log('Waiting for publisher to boot...')
+    Logger.info('Waiting for publisher to boot...')
     await publisher.start()
-    console.log('Starting worker.')
 
-    let active = true
-    charm.removeAllListeners('^C')
-    charm.on('^C', () => {
-      console.log('CTRL+C: Aborted by user.')
-      active = false
-    })
-    let pubCount = 0
-    // eslint-disable-next-line no-unmodified-loop-condition
-    while (active) {
-      const wrs = await workerRoutine(fetcher, publisher)
-      switch (wrs.status) {
-        case StatusCode.OK: {
-          console.log(`[PUB ${pubCount++}] ${wrs.tick!.price}±${wrs.tick!.confidence} exp:${wrs.tick!.exponent}  t:${wrs.tick!.networkTime} TXID:${wrs.pub!.txid}`)
-          break
-        }
-        case StatusCode.NO_TICKER:
-          console.log('No ticker available from fetcher data source')
-          break
-        default:
-          console.log('Error. Reason: ' + wrs.reason)
+    for (const sym of this.settings.symbols) {
+      sym.pubCount = 0
+      Logger.info(`Starting worker for symbol ${sym.name}, interval ${sym.publishIntervalSecs}s`)
+      setInterval(this.callWorkerRoutine, sym.publishIntervalSecs * 1000, sym, fetcher, publisher)
+    }
+
+    while (!this.shouldQuit) {
+      await sleep(1000)
+    }
+  }
+
+  async callWorkerRoutine (sym: Symbol, fetcher: IPriceFetcher, publisher: IPublisher) {
+    const wrs = await workerRoutine(sym, fetcher, publisher)
+    switch (wrs.status) {
+      case StatusCode.OK: {
+        Logger.info(`${sym.name} [#${sym.pubCount++}] price: ${wrs.tick!.price} ± ${wrs.tick!.confidence}    exp: ${wrs.tick!.exponent}    t: ${wrs.tick!.timestamp}    TxID: ${wrs.pub!.txid}`)
+        break
       }
-      await sleep(this.settings.params.publishIntervalSecs * 1000)
+      case StatusCode.NO_TICKER:
+        Logger.warn(`${sym.name}: No ticker available from fetcher data source`)
+        break
+      default:
+        Logger.error(`${sym.name}: Error. Reason: ` + wrs.reason)
     }
   }
 }

@@ -7,7 +7,7 @@
 #
 from pyteal.types import *
 from pyteal.ast import *
-MAX_SIGNATURES_PER_VERIFICATION_STEP = 6
+MAX_SIGNATURES_PER_VERIFICATION_STEP = 8
 
 """
 Math ceil function.

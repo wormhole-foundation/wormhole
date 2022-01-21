@@ -21,5 +21,5 @@ export type PublishInfo = {
 export interface IPublisher {
     start(): void
     stop(): void
-    publish(tick: PriceTicker): Promise<PublishInfo>
+    publish(data: any): Promise<PublishInfo>
 }

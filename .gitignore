@@ -10,4 +10,3 @@ venv
 .env
 bigtable-admin.json
 bigtable-writer.json
-.DS_Store

@@ -6,7 +6,6 @@
  * (c) 2021 Randlabs, Inc.
  */
 
-import { PriceTicker } from '../common/priceTicker'
 import { IStrategy } from '../strategy/strategy'
 
 export interface IPriceFetcher {
@@ -21,7 +20,7 @@ export interface IPriceFetcher {
     setStrategy(s: IStrategy): void
 
     /**
-     * Get the current price, according to running strategy.
+     * Get the current price of a symbol, according to running strategy.
      */
-    queryTicker(): PriceTicker | undefined
+    queryData(id: string): any | undefined
 }
