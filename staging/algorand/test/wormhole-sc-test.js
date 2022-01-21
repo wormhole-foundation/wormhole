@@ -126,6 +126,16 @@ async function buildTransactionGroup (numOfVerifySteps, stepSize, guardianKeys, 
   const addVerifyCallbackFn = addVerifyTxCallback !== undefined ? addVerifyTxCallback : pclib.addVerifyTx.bind(pclib)
   const addLastTxCallbackFn = addLastTxCallback !== undefined ? addLastTxCallback : pclib.addPriceStoreTx.bind(pclib)
 
+  // Fill remaining signatures with dummy ones for cases where not all guardians may sign.
+
+  const numOfSigs = signatures.length / 132
+  const remaining = guardianCount - numOfSigs
+  if (remaining > 0) {
+    for (let i = guardianCount - remaining; i < guardianCount; ++i) {
+      signatures += i.toString(16).padStart(2, '0') + ('0'.repeat(130))
+    }
+  }
+
   const gid = pclib.beginTxGroup()
   const sigSubsets = []
   for (let i = 0; i < numOfVerifySteps; i++) {
@@ -135,8 +145,9 @@ async function buildTransactionGroup (numOfVerifySteps, stepSize, guardianKeys, 
     sigSubsets.push(signatures.slice(i * sigSetLen, i < numOfVerifySteps - 1 ? ((i * sigSetLen) + sigSetLen) : undefined))
     addVerifyCallbackFn(gid, senderAddress, params, vaaBody, keySubset, guardianCount)
   }
+
   addLastTxCallbackFn(gid, OWNER_ADDR, params, TEST_SYMBOL, vaaBody.slice(51))
-  const tx = await pclib.commitVerifyTxGroup(gid, compiledVerifyProgram.bytes, sigSubsets, OWNER_ADDR, signCallback)
+  const tx = await pclib.commitVerifyTxGroup(gid, compiledVerifyProgram.bytes, numOfSigs, sigSubsets, OWNER_ADDR, signCallback)
   return tx
 }
 
@@ -178,6 +189,11 @@ describe('VAA Processor Smart-contract Tests', function () {
     pclib.setApprovalProgramFile('pricekeeper', priceKeeperApproval)
     pclib.setClearStateProgramFile('vaaProcessor', vaaProcessorClearState)
     pclib.setClearStateProgramFile('pricekeeper', priceKeeperClearState)
+
+    // (!) ENABLE FOR DIAGNOSING FAILED TESTS
+    //
+    pclib.enableDumpFailedTx(true)
+    pclib.setDumpFailedTxDirectory('./test/temp')
 
     console.log(spawnSync('python', ['teal/wormhole/pyteal/vaa-processor.py', vaaProcessorApproval, vaaProcessorClearState]).output.toString())
     console.log(spawnSync('python', ['teal/wormhole/pyteal/pricekeeper-v2.py', priceKeeperApproval, priceKeeperClearState]).output.toString())
@@ -330,16 +346,66 @@ describe('VAA Processor Smart-contract Tests', function () {
 
   // })
 
-  it('Must verify and handle Pyth VAA', async function () {
+  it('Must verify and handle Pyth VAA - all signers present', async function () {
     const gscount = await tools.readAppGlobalStateByKey(algodClient, appId, OWNER_ADDR, 'gscount')
     const vsSize = await tools.readAppGlobalStateByKey(algodClient, appId, OWNER_ADDR, 'vssize')
     const groupSize = Math.ceil(gscount / vsSize)
     const tx = await buildTransactionGroup(groupSize, vsSize, guardianKeys, gscount, pythVaaSignatures, pythVaaBody)
     await pclib.waitForConfirmation(tx)
 
-   // console.log(await tools.readAppGlobalStateByKey(algodClient, pkAppId, OWNER_ADDR, TEST_SYMBOL))
+    // console.log(await tools.readAppGlobalStateByKey(algodClient, pkAppId, OWNER_ADDR, TEST_SYMBOL))
   })
 
+  it('Must fail to verify VAA - (shuffle signers)', async function () {
+    const gscount = await tools.readAppGlobalStateByKey(algodClient, appId, OWNER_ADDR, 'gscount')
+    const vsSize = await tools.readAppGlobalStateByKey(algodClient, appId, OWNER_ADDR, 'vssize')
+    const groupSize = Math.ceil(gscount / vsSize)
+
+    let shuffleGuardianPrivKeys = [...guardianPrivKeys]
+    shuffleGuardianPrivKeys = testLib.shuffle(shuffleGuardianPrivKeys)
+
+    pythVaa = testLib.createSignedVAA(0, shuffleGuardianPrivKeys, 1, 1, 1, PYTH_EMITTER, 0, 0, PYTH_PAYLOAD)
+    pythVaaBody = Buffer.from(pythVaa.substr(12 + shuffleGuardianPrivKeys.length * 132), 'hex')
+    pythVaaSignatures = pythVaa.substr(12, shuffleGuardianPrivKeys.length * 132)
+
+    await expect(buildTransactionGroup(groupSize, vsSize, guardianKeys, gscount, pythVaaSignatures, pythVaaBody)).to.be.rejectedWith('Bad Request')
+  })
+
+  it('Must verify VAA with signers > 2/3 + 1', async function () {
+    const gscount = await tools.readAppGlobalStateByKey(algodClient, appId, OWNER_ADDR, 'gscount')
+    const vsSize = await tools.readAppGlobalStateByKey(algodClient, appId, OWNER_ADDR, 'vssize')
+
+    // Fixed-point division
+    // https://github.com/certusone/wormhole/blob/00ddd5f02ba34e6570823b23518af8bbd6d91231/ethereum/contracts/Messages.sol#L30
+
+    const quorum = Math.trunc(((gscount * 10 / 3) * 2) / 10 + 1)
+    const slicedGuardianPrivKeys = guardianPrivKeys.slice(0, quorum + 1)
+
+    pythVaa = testLib.createSignedVAA(0, slicedGuardianPrivKeys, 1, 1, 1, PYTH_EMITTER, 0, 0, PYTH_PAYLOAD)
+    pythVaaBody = Buffer.from(pythVaa.substr(12 + slicedGuardianPrivKeys.length * 132), 'hex')
+    pythVaaSignatures = pythVaa.substr(12, slicedGuardianPrivKeys.length * 132)
+    const groupSize = Math.ceil(gscount / vsSize)
+    const tx = await buildTransactionGroup(groupSize, vsSize, guardianKeys, gscount, pythVaaSignatures, pythVaaBody)
+    await pclib.waitForConfirmation(tx)
+  })
+
+  it('Must fail to verify VAA with <= 2/3 + 1 signers (no quorum)', async function () {
+    const gscount = await tools.readAppGlobalStateByKey(algodClient, appId, OWNER_ADDR, 'gscount')
+    const vsSize = await tools.readAppGlobalStateByKey(algodClient, appId, OWNER_ADDR, 'vssize')
+
+    // Fixed-point division
+    // https://github.com/certusone/wormhole/blob/00ddd5f02ba34e6570823b23518af8bbd6d91231/ethereum/contracts/Messages.sol#L30
+
+    const quorum = Math.trunc(((gscount * 10 / 3) * 2) / 10 + 1)
+    const slicedGuardianPrivKeys = guardianPrivKeys.slice(0, quorum)
+
+    pythVaa = testLib.createSignedVAA(0, slicedGuardianPrivKeys, 1, 1, 1, PYTH_EMITTER, 0, 0, PYTH_PAYLOAD)
+    pythVaaBody = Buffer.from(pythVaa.substr(12 + slicedGuardianPrivKeys.length * 132), 'hex')
+    pythVaaSignatures = pythVaa.substr(12, slicedGuardianPrivKeys.length * 132)
+    const groupSize = Math.ceil(gscount / vsSize)
+
+    await expect(buildTransactionGroup(groupSize, vsSize, guardianKeys, gscount, pythVaaSignatures, pythVaaBody)).to.be.rejectedWith('Bad Request')
+  })
   // it('Must verify and handle governance VAA', async function () {
   //   // TBD
   // })

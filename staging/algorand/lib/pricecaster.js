@@ -44,7 +44,7 @@ const ContractInfo = {
 // --------------------------------------------------------------------------------------
 
 class PricecasterLib {
-  constructor (algodClient, ownerAddr = undefined) {
+  constructor(algodClient, ownerAddr = undefined) {
     this.algodClient = algodClient
     this.ownerAddr = ownerAddr
     this.minFee = 1000
@@ -248,8 +248,8 @@ class PricecasterLib {
     this.createVaaProcessorApp = async function (sender, gexpTime, gsindex, gkeys, signCallback) {
       return await this.createApp(sender, 'vaaProcessor', 0, 0, 5, 20,
         [new Uint8Array(Buffer.from(gkeys, 'hex')),
-          algosdk.encodeUint64(parseInt(gexpTime)),
-          algosdk.encodeUint64(parseInt(gsindex))], signCallback)
+        algosdk.encodeUint64(parseInt(gexpTime)),
+        algosdk.encodeUint64(parseInt(gsindex))], signCallback)
     }
 
     /**
@@ -468,12 +468,13 @@ class PricecasterLib {
     /**
      * @param {*} sender The sender account.
      * @param {*} programBytes Compiled program bytes.
+     * @param {*} totalSignatureCount Total signatures present in the VAA.
      * @param {*} sigSubsets An hex string with the signature subsets i..j for logicsig arguments.
      * @param {*} lastTxSender The sender of the last TX in the group.
      * @param {*} signCallback The signing callback function to use in the last TX of the group.
      * @returns Transaction id.
      */
-    this.commitVerifyTxGroup = async function (gid, programBytes, sigSubsets, lastTxSender, signCallback) {
+    this.commitVerifyTxGroup = async function (gid, programBytes, totalSignatureCount, sigSubsets, lastTxSender, signCallback) {
       if (this.groupTxSet[gid] === undefined) {
         throw new Error('unknown group id')
       }
@@ -488,7 +489,7 @@ class PricecasterLib {
         if (i === this.groupTxSet[gid].length - 1) {
           signedGroup.push(signCallback(lastTxSender, tx))
         } else {
-          const lsig = new algosdk.LogicSigAccount(programBytes, [Buffer.from(sigSubsets[i], 'hex')])
+          const lsig = new algosdk.LogicSigAccount(programBytes, [Buffer.from(sigSubsets[i], 'hex'), algosdk.encodeUint64(totalSignatureCount)])
           const stxn = algosdk.signLogicSigTransaction(tx, lsig)
           signedGroup.push(stxn.blob)
         }

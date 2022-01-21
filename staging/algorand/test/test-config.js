@@ -19,7 +19,7 @@ module.exports = {
   // ALGORAND_NODE_HOST:  'localhost'
   // ALGORAND_NODE_PORT: '4001'
   // >
-  ALGORAND_NODE_HOST: 'https://api.betanet.algoexplorer.io',
+  ALGORAND_NODE_HOST: 'https://api.testnet.algoexplorer.io',
   ALGORAND_NODE_PORT: '',
   ALGORAND_NODE_TOKEN: ''
 }
