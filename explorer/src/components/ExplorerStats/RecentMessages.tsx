@@ -13,7 +13,7 @@ import {
   Typography,
 } from "@mui/material";
 import { contractNameFormatter } from "../../utils/explorer";
-import { chainIDs } from "../../utils/consts";
+import { ChainID, chainIDs } from "../../utils/consts";
 import { formatQuorumDate } from "../../utils/time";
 import { explorer } from "../../utils/urls";
 
@@ -100,20 +100,25 @@ const RecentMessages = (props: RecentMessagesProps) => {
   //     },
   //   ];
 
-  // const formatKey = (key: string) => {
-  //     if (props.hideTableTitles) {
-  //         return null
-  //     }
-  //     if (key.includes(":")) {
-  //         const parts = key.split(":")
-  //         const link = `/${intl.locale}/explorer/?emitterChain=${parts[0]}&emitterAddress=${parts[1]}`
-  //         return <Title level={4} style={titleStyles}>From {ChainID[Number(parts[0])]} contract: <Link to={link}>{contractNameFormatter(parts[1], Number(parts[0]))}</Link></Title>
-  //     } else if (key === "*") {
-  //         return <Title level={4} style={titleStyles}>From all chains and addresses</Title>
-  //     } else {
-  //         return <Title level={4} style={titleStyles}>From {ChainID[Number(key)]}</Title>
-  //     }
-  // }
+  const formatKey = (key: string) => {
+    if (props.hideTableTitles) {
+      return null
+    }
+    if (key.includes(":")) {
+      const parts = key.split(":")
+      const link = `${explorer}?emitterChain=${parts[0]}&emitterAddress=${parts[1]}`
+      return <Typography variant="h5">
+        From {ChainID[Number(parts[0])]} contract: <Link component={RouterLink} to={link}>{contractNameFormatter(parts[1], Number(parts[0]))}
+        </Link>
+      </Typography>
+    } else if (key === "*") {
+      return <Typography variant="h5">
+        From all chains and addresses
+      </Typography>
+    } else {
+      return <Typography variant="h5">From {ChainID[Number(key)]}</Typography>
+    }
+  }
 
   return (
     <>
@@ -140,6 +145,9 @@ const RecentMessages = (props: RecentMessagesProps) => {
         //     }}
         // />
         <TableContainer key={key}>
+          <div>
+            {formatKey(key)}
+          </div>
           <Table size="small">
             <TableBody>
               {props.recent[key].map((item) => (
