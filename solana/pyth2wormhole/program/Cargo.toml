@@ -9,14 +9,14 @@ crate-type = ["cdylib", "lib"]
 name = "pyth2wormhole"
 
 [features]
-default = ["bridge/no-entrypoint"]
+default = ["wormhole-bridge-solana/no-entrypoint"]
 client = ["solitaire/client", "solitaire-client", "no-entrypoint"]
-trace = ["solitaire/trace", "bridge/trace"]
+trace = ["solitaire/trace", "wormhole-bridge-solana/trace"]
 no-entrypoint = []
 wasm = ["no-entrypoint", "wasm-bindgen", "serde", "serde_derive", "serde_json"]
 
 [dependencies]
-bridge = {path = "../../bridge/program"}
+wormhole-bridge-solana = {path = "../../bridge/program"}
 solitaire = { path = "../../solitaire/program" }
 solitaire-client = { path = "../../solitaire/client", optional = true }
 rocksalt = { path = "../../solitaire/rocksalt" }

@@ -42,7 +42,7 @@ var (
 		prometheus.CounterOpts{
 			Name: "wormhole_eth_messages_orphaned_total",
 			Help: "Total number of Eth messages dropped (orphaned)",
-		}, []string{"eth_network"})
+		}, []string{"eth_network", "reason"})
 	ethMessagesConfirmed = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "wormhole_eth_messages_confirmed_total",
@@ -92,6 +92,9 @@ type (
 
 		// 0 is a valid guardian set, so we need a nil value here
 		currentGuardianSet *uint32
+
+		// Minimum number of confirmations to accept, regardless of what the contract specifies.
+		minConfirmations uint64
 	}
 
 	pendingKey struct {
@@ -114,16 +117,18 @@ func NewEthWatcher(
 	readiness readiness.Component,
 	chainID vaa.ChainID,
 	messageEvents chan *common.MessagePublication,
-	setEvents chan *common.GuardianSet) *Watcher {
+	setEvents chan *common.GuardianSet,
+	minConfirmations uint64) *Watcher {
 	return &Watcher{
-		url:         url,
-		contract:    contract,
-		networkName: networkName,
-		readiness:   readiness,
-		chainID:     chainID,
-		msgChan:     messageEvents,
-		setChan:     setEvents,
-		pending:     map[pendingKey]*pendingMessage{}}
+		url:              url,
+		contract:         contract,
+		networkName:      networkName,
+		readiness:        readiness,
+		minConfirmations: minConfirmations,
+		chainID:          chainID,
+		msgChan:          messageEvents,
+		setChan:          setEvents,
+		pending:          map[pendingKey]*pendingMessage{}}
 }
 
 func (e *Watcher) Run(ctx context.Context) error {
@@ -202,7 +207,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 			case ev := <-messageC:
 				// Request timestamp for block
 				msm := time.Now()
-				timeout, cancel = context.WithTimeout(ctx, 15*time.Second)
+				timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
 				b, err := c.BlockByNumber(timeout, big.NewInt(int64(ev.Raw.BlockNumber)))
 				cancel()
 				queryLatency.WithLabelValues(e.networkName, "block_by_number").Observe(time.Since(msm).Seconds())
@@ -268,7 +273,10 @@ func (e *Watcher) Run(ctx context.Context) error {
 				return
 			case ev := <-headSink:
 				start := time.Now()
-				logger.Info("processing new header", zap.Stringer("block", ev.Number),
+				currentHash := ev.Hash()
+				logger.Info("processing new header",
+					zap.Stringer("current_block", ev.Number),
+					zap.Stringer("current_blockhash", currentHash),
 					zap.String("eth_network", e.networkName))
 				currentEthHeight.WithLabelValues(e.networkName).Set(float64(ev.Number.Int64()))
 				readiness.SetReady(e.readiness)
@@ -280,42 +288,97 @@ func (e *Watcher) Run(ctx context.Context) error {
 				e.pendingMu.Lock()
 
 				blockNumberU := ev.Number.Uint64()
+
 				for key, pLock := range e.pending {
+					expectedConfirmations := uint64(pLock.message.ConsistencyLevel)
+					if expectedConfirmations < e.minConfirmations {
+						expectedConfirmations = e.minConfirmations
+					}
 
 					// Transaction was dropped and never picked up again
-					if pLock.height+4*uint64(pLock.message.ConsistencyLevel) <= blockNumberU {
-						logger.Debug("observation timed out", zap.Stringer("tx", pLock.message.TxHash),
-							zap.Stringer("block", ev.Number), zap.String("eth_network", e.networkName))
+					if pLock.height+4*uint64(expectedConfirmations) <= blockNumberU {
+						logger.Info("observation timed out",
+							zap.Stringer("tx", pLock.message.TxHash),
+							zap.Stringer("blockhash", key.BlockHash),
+							zap.Stringer("emitter_address", key.EmitterAddress),
+							zap.Uint64("sequence", key.Sequence),
+							zap.Stringer("current_block", ev.Number),
+							zap.Stringer("current_blockhash", currentHash),
+							zap.String("eth_network", e.networkName),
+						)
+						ethMessagesOrphaned.WithLabelValues(e.networkName, "timeout").Inc()
 						delete(e.pending, key)
 						continue
 					}
 
 					// Transaction is now ready
-					if pLock.height+uint64(pLock.message.ConsistencyLevel) <= ev.Number.Uint64() {
-						timeout, cancel = context.WithTimeout(ctx, 15*time.Second)
+					if pLock.height+uint64(expectedConfirmations) <= blockNumberU {
+						timeout, cancel := context.WithTimeout(ctx, 5*time.Second)
 						tx, err := c.TransactionReceipt(timeout, pLock.message.TxHash)
 						cancel()
-						if err != nil && err != rpc.ErrNoResult {
-							logger.Warn("transaction could not be fetched", zap.Stringer("tx", pLock.message.TxHash),
-								zap.Stringer("block", ev.Number), zap.String("eth_network", e.networkName))
-							continue
-						}
-						if tx == nil {
-							logger.Info("tx was orphaned", zap.Stringer("tx", pLock.message.TxHash),
-								zap.Stringer("block", ev.Number), zap.String("eth_network", e.networkName))
+
+						// If the node returns an error after waiting expectedConfirmation blocks,
+						// it means the chain reorged and the transaction was orphaned. The
+						// TransactionReceipt call is using the same websocket connection than the
+						// head notifications, so it's guaranteed to be atomic.
+						//
+						// Check multiple possible error cases - the node seems to return a
+						// "not found" error most of the time, but it could conceivably also
+						// return a nil tx or rpc.ErrNoResult.
+						if tx == nil || err == rpc.ErrNoResult || (err != nil && err.Error() == "not found") {
+							logger.Warn("tx was orphaned",
+								zap.Stringer("tx", pLock.message.TxHash),
+								zap.Stringer("blockhash", key.BlockHash),
+								zap.Stringer("emitter_address", key.EmitterAddress),
+								zap.Uint64("sequence", key.Sequence),
+								zap.Stringer("current_block", ev.Number),
+								zap.Stringer("current_blockhash", currentHash),
+								zap.String("eth_network", e.networkName),
+								zap.Error(err))
 							delete(e.pending, key)
-							ethMessagesOrphaned.WithLabelValues(e.networkName).Inc()
+							ethMessagesOrphaned.WithLabelValues(e.networkName, "not_found").Inc()
 							continue
 						}
+
+						// Any error other than "not found" is likely transient - we retry next block.
+						if err != nil {
+							logger.Warn("transaction could not be fetched",
+								zap.Stringer("tx", pLock.message.TxHash),
+								zap.Stringer("blockhash", key.BlockHash),
+								zap.Stringer("emitter_address", key.EmitterAddress),
+								zap.Uint64("sequence", key.Sequence),
+								zap.Stringer("current_block", ev.Number),
+								zap.Stringer("current_blockhash", currentHash),
+								zap.String("eth_network", e.networkName),
+								zap.Error(err))
+							continue
+						}
+
+						// It's possible for a transaction to be orphaned and then included in a different block
+						// but with the same tx hash. Drop the observation (it will be re-observed and needs to
+						// wait for the full confirmation time again).
 						if tx.BlockHash != key.BlockHash {
-							logger.Info("tx got dropped and mined in a later block; the message should have been reobserved", zap.Stringer("tx", pLock.message.TxHash),
-								zap.Stringer("block", ev.Number), zap.String("eth_network", e.networkName))
+							logger.Info("tx got dropped and mined in a different block; the message should have been reobserved",
+								zap.Stringer("tx", pLock.message.TxHash),
+								zap.Stringer("blockhash", key.BlockHash),
+								zap.Stringer("emitter_address", key.EmitterAddress),
+								zap.Uint64("sequence", key.Sequence),
+								zap.Stringer("current_block", ev.Number),
+								zap.Stringer("current_blockhash", currentHash),
+								zap.String("eth_network", e.networkName))
 							delete(e.pending, key)
-							ethMessagesOrphaned.WithLabelValues(e.networkName).Inc()
+							ethMessagesOrphaned.WithLabelValues(e.networkName, "blockhash_mismatch").Inc()
 							continue
 						}
-						logger.Debug("observation confirmed", zap.Stringer("tx", pLock.message.TxHash),
-							zap.Stringer("block", ev.Number), zap.String("eth_network", e.networkName))
+
+						logger.Info("observation confirmed",
+							zap.Stringer("tx", pLock.message.TxHash),
+							zap.Stringer("blockhash", key.BlockHash),
+							zap.Stringer("emitter_address", key.EmitterAddress),
+							zap.Uint64("sequence", key.Sequence),
+							zap.Stringer("current_block", ev.Number),
+							zap.Stringer("current_blockhash", currentHash),
+							zap.String("eth_network", e.networkName))
 						delete(e.pending, key)
 						e.msgChan <- pLock.message
 						ethMessagesConfirmed.WithLabelValues(e.networkName).Inc()
@@ -323,8 +386,11 @@ func (e *Watcher) Run(ctx context.Context) error {
 				}
 
 				e.pendingMu.Unlock()
-				logger.Info("processed new header", zap.Stringer("block", ev.Number),
-					zap.Duration("took", time.Since(start)), zap.String("eth_network", e.networkName))
+				logger.Info("processed new header",
+					zap.Stringer("current_block", ev.Number),
+					zap.Stringer("current_blockhash", currentHash),
+					zap.Duration("took", time.Since(start)),
+					zap.String("eth_network", e.networkName))
 			}
 		}
 	}()

@@ -1,5 +1,5 @@
 [package]
-name = "bridge"
+name = "wormhole-bridge-solana"
 version = "0.1.0"
 description = "Wormhole bridge core contract"
 edition = "2018"
@@ -12,7 +12,7 @@ name = "bridge"
 client = ["solitaire/client", "solitaire-client", "no-entrypoint"]
 cpi = ["no-entrypoint"]
 default = []
-wasm = ["no-entrypoint"]
+wasm = ["no-entrypoint", "wasm-bindgen"]
 no-entrypoint = ["solitaire/no-entrypoint"]
 trace = ["solitaire/trace"]
 
@@ -20,12 +20,12 @@ trace = ["solitaire/trace"]
 borsh = "0.8.1"
 byteorder = "1.4.3"
 primitive-types = { version = "0.9.0", default-features = false }
+serde = { version = "1.0", features = ["derive"] }
 sha3 = "0.9.1"
 solana-program = "=1.7.0"
 solitaire-client = { path = "../../solitaire/client", optional = true }
 solitaire = { path = "../../solitaire/program" }
-wasm-bindgen = { version = "0.2.74", features = ["serde-serialize"] }
-serde = { version = "1.0", features = ["derive"] }
+wasm-bindgen = { version = "0.2.74", features = ["serde-serialize"], optional = true }
 
 [dev-dependencies]
 hex = "*"

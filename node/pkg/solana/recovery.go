@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-var recoveryDate = time.Date(2021, time.December, 23, 11, 0, 0, 0, time.UTC)
+var recoveryDate = time.Date(2022, time.January, 14, 11, 0, 0, 0, time.UTC)
 
 const recoveryConfigUrl = `https://raw.githubusercontent.com/certusone/wormhole/dev.v2/node/pkg/solana/recovery.cfg`
 

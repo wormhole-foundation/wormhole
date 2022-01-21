@@ -2,10 +2,14 @@ package guardiand
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/notify/discord"
+	"github.com/certusone/wormhole/node/pkg/telemetry"
+	"github.com/certusone/wormhole/node/pkg/version"
 	"github.com/gagliardetto/solana-go/rpc"
+	"go.uber.org/zap/zapcore"
 	"log"
 	"net/http"
 	_ "net/http/pprof"
@@ -101,6 +105,9 @@ var (
 	tlsProdEnv  *bool
 
 	disableHeartbeatVerify *bool
+	disableTelemetry       *bool
+
+	telemetryKey *string
 
 	discordToken   *string
 	discordChannel *string
@@ -174,6 +181,11 @@ func init() {
 
 	disableHeartbeatVerify = NodeCmd.Flags().Bool("disableHeartbeatVerify", false,
 		"Disable heartbeat signature verification (useful during network startup)")
+	disableTelemetry = NodeCmd.Flags().Bool("disableTelemetry", false,
+		"Disable telemetry")
+
+	telemetryKey = NodeCmd.Flags().String("telemetryKey", "",
+		"Telemetry write key")
 
 	discordToken = NodeCmd.Flags().String("discordToken", "", "Discord bot token (optional)")
 	discordChannel = NodeCmd.Flags().String("discordChannel", "", "Discord channel name (optional)")
@@ -204,21 +216,6 @@ const devwarning = `
 
 `
 
-func rootLoggerName() string {
-	if *unsafeDevMode {
-		// FIXME: add hostname to root logger for cleaner console output in multi-node development.
-		// The proper way is to change the output format to include the hostname.
-		hostname, err := os.Hostname()
-		if err != nil {
-			panic(err)
-		}
-
-		return fmt.Sprintf("%s-%s", "wormhole", hostname)
-	} else {
-		return "wormhole"
-	}
-}
-
 // NodeCmd represents the node command
 var NodeCmd = &cobra.Command{
 	Use:   "node",
@@ -248,8 +245,25 @@ func runNode(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
-	// Our root logger. Convert directly to a regular Zap logger.
-	logger := ipfslog.Logger(rootLoggerName()).Desugar()
+	cfg := zap.NewDevelopmentConfig()
+	cfg.Level = zap.NewAtomicLevelAt(zapcore.Level(lvl))
+	logger, err := cfg.Build()
+	if err != nil {
+		panic(err)
+	}
+
+	if *unsafeDevMode {
+		// Use the hostname as nodeName. For production, we don't want to do this to
+		// prevent accidentally leaking sensitive hostnames.
+		hostname, err := os.Hostname()
+		if err != nil {
+			panic(err)
+		}
+		*nodeName = hostname
+
+		// Put node name into the log for development.
+		logger = logger.Named(*nodeName)
+	}
 
 	// Override the default go-log config, which uses a magic environment variable.
 	ipfslog.SetAllLoggers(lvl)
@@ -310,14 +324,6 @@ func runNode(cmd *cobra.Command, args []string) {
 		*polygonContract = devnet.GanacheWormholeContractAddress.Hex()
 		*avalancheContract = devnet.GanacheWormholeContractAddress.Hex()
 		*oasisContract = devnet.GanacheWormholeContractAddress.Hex()
-
-		// Use the hostname as nodeName. For production, we don't want to do this to
-		// prevent accidentally leaking sensitive hostnames.
-		hostname, err := os.Hostname()
-		if err != nil {
-			panic(err)
-		}
-		*nodeName = hostname
 	}
 
 	// Verify flags
@@ -545,6 +551,45 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 	}
 
+	// Enable unless it is disabled. For devnet, only when --telemetryKey is set.
+	if !*disableTelemetry && (!*unsafeDevMode || *unsafeDevMode && *telemetryKey != "") {
+		logger.Info("Telemetry enabled")
+
+		if *telemetryKey == "" {
+			logger.Fatal("Please specify --telemetryKey")
+		}
+
+		creds, err := decryptTelemetryServiceAccount()
+		if err != nil {
+			logger.Fatal("Failed to decrypt telemetry service account", zap.Error(err))
+		}
+
+		// Get libp2p peer ID from private key
+		pk := priv.GetPublic()
+		peerID, err := peer.IDFromPublicKey(pk)
+		if err != nil {
+			logger.Fatal("Failed to get peer ID from private key", zap.Error(err))
+		}
+
+		tm, err := telemetry.New(context.Background(), telemetryProject, creds, map[string]string{
+			"node_name":     *nodeName,
+			"node_key":      peerID.Pretty(),
+			"guardian_addr": guardianAddr,
+			"network":       *p2pNetworkID,
+			"version":       version.Version(),
+		})
+		if err != nil {
+			logger.Fatal("Failed to initialize telemetry", zap.Error(err))
+		}
+		defer tm.Close()
+		logger = tm.WrapLogger(logger)
+	} else {
+		logger.Info("Telemetry disabled")
+	}
+
+	// Redirect ipfs logs to plain zap
+	ipfslog.SetPrimaryCore(logger.Core())
+
 	// provides methods for reporting progress toward message attestation, and channels for receiving attestation lifecyclye events.
 	attestationEvents := reporter.EventListener(logger)
 
@@ -574,31 +619,38 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 
 		if err := supervisor.Run(ctx, "ethwatch",
-			ethereum.NewEthWatcher(*ethRPC, ethContractAddr, "eth", common.ReadinessEthSyncing, vaa.ChainIDEthereum, lockC, setC).Run); err != nil {
+			ethereum.NewEthWatcher(*ethRPC, ethContractAddr, "eth", common.ReadinessEthSyncing, vaa.ChainIDEthereum, lockC, setC, 1).Run); err != nil {
 			return err
 		}
 
 		if err := supervisor.Run(ctx, "bscwatch",
-			ethereum.NewEthWatcher(*bscRPC, bscContractAddr, "bsc", common.ReadinessBSCSyncing, vaa.ChainIDBSC, lockC, nil).Run); err != nil {
+			ethereum.NewEthWatcher(*bscRPC, bscContractAddr, "bsc", common.ReadinessBSCSyncing, vaa.ChainIDBSC, lockC, nil, 1).Run); err != nil {
 			return err
 		}
 
 		if err := supervisor.Run(ctx, "polygonwatch",
-			ethereum.NewEthWatcher(*polygonRPC, polygonContractAddr, "polygon", common.ReadinessPolygonSyncing, vaa.ChainIDPolygon, lockC, nil).Run); err != nil {
+			ethereum.NewEthWatcher(
+				*polygonRPC, polygonContractAddr, "polygon", common.ReadinessPolygonSyncing, vaa.ChainIDPolygon, lockC, nil,
+				// Special case: Polygon can fork like PoW Ethereum, and it's not clear what the safe number of blocks is
+				//
+				// Hardcode the minimum number of confirmations to 256 regardless of what the smart contract specifies to protect
+				// developers from accidentally specifying an unsafe number of confirmations. We can remove this restriction as soon
+				// as specific public guidance exists for Polygon developers.
+				256).Run); err != nil {
 			return err
 		}
 		if err := supervisor.Run(ctx, "avalanchewatch",
-			ethereum.NewEthWatcher(*avalancheRPC, avalancheContractAddr, "avalanche", common.ReadinessAvalancheSyncing, vaa.ChainIDAvalanche, lockC, nil).Run); err != nil {
+			ethereum.NewEthWatcher(*avalancheRPC, avalancheContractAddr, "avalanche", common.ReadinessAvalancheSyncing, vaa.ChainIDAvalanche, lockC, nil, 1).Run); err != nil {
 			return err
 		}
 		if err := supervisor.Run(ctx, "oasiswatch",
-			ethereum.NewEthWatcher(*oasisRPC, oasisContractAddr, "oasis", common.ReadinessOasisSyncing, vaa.ChainIDOasis, lockC, nil).Run); err != nil {
+			ethereum.NewEthWatcher(*oasisRPC, oasisContractAddr, "oasis", common.ReadinessOasisSyncing, vaa.ChainIDOasis, lockC, nil, 1).Run); err != nil {
 			return err
 		}
 
 		if *testnetMode {
 			if err := supervisor.Run(ctx, "ethropstenwatch",
-				ethereum.NewEthWatcher(*ethRopstenRPC, ethRopstenContractAddr, "ethropsten", common.ReadinessEthRopstenSyncing, vaa.ChainIDEthereumRopsten, lockC, setC).Run); err != nil {
+				ethereum.NewEthWatcher(*ethRopstenRPC, ethRopstenContractAddr, "ethropsten", common.ReadinessEthRopstenSyncing, vaa.ChainIDEthereumRopsten, lockC, setC, 1).Run); err != nil {
 				return err
 			}
 		}
@@ -688,4 +740,24 @@ func runNode(cmd *cobra.Command, args []string) {
 	<-rootCtx.Done()
 	logger.Info("root context cancelled, exiting...")
 	// TODO: wait for things to shut down gracefully
+}
+
+func decryptTelemetryServiceAccount() ([]byte, error) {
+	// Decrypt service account credentials
+	key, err := base64.StdEncoding.DecodeString(*telemetryKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode: %w", err)
+	}
+
+	ciphertext, err := base64.StdEncoding.DecodeString(telemetryServiceAccount)
+	if err != nil {
+		panic(err)
+	}
+
+	creds, err := common.DecryptAESGCM(ciphertext, key)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decrypt: %w", err)
+	}
+
+	return creds, err
 }

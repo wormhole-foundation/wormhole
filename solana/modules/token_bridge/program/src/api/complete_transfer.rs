@@ -121,6 +121,9 @@ pub fn complete_native(
     if accs.vaa.to_chain != CHAIN_ID_SOLANA {
         return Err(InvalidChain.into());
     }
+    if accs.vaa.to != accs.to.info().key.to_bytes() {
+        return Err(InvalidRecipient.into());
+    }
 
     // Prevent vaa double signing
     accs.vaa.verify(ctx.program_id)?;
@@ -236,6 +239,9 @@ pub fn complete_wrapped(
     // Verify VAA
     if accs.vaa.to_chain != CHAIN_ID_SOLANA {
         return Err(InvalidChain.into());
+    }
+    if accs.vaa.to != accs.to.info().key.to_bytes() {
+        return Err(InvalidRecipient.into());
     }
 
     accs.vaa.verify(ctx.program_id)?;
