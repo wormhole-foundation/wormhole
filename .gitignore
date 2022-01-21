@@ -10,6 +10,4 @@ venv
 .env
 bigtable-admin.json
 bigtable-writer.json
-DEPLOY-*
-VAA-VERIFY-*
 
