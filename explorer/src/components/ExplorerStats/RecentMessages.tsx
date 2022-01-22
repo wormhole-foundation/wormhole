@@ -3,11 +3,14 @@ import { Link as RouterLink } from "gatsby";
 import { Recent } from "./ExplorerStats";
 import ReactTimeAgo from "react-time-ago";
 import {
+  Box,
+  Card,
   Link,
   Table,
   TableBody,
   TableCell,
   TableContainer,
+  TableFooter,
   TableHead,
   TableRow,
   Typography,
@@ -16,6 +19,7 @@ import { contractNameFormatter } from "../../utils/explorer";
 import { ChainID, chainIDs } from "../../utils/consts";
 import { formatQuorumDate } from "../../utils/time";
 import { explorer } from "../../utils/urls";
+import ChainIcon from "../ChainIcon";
 
 interface RecentMessagesProps {
   recent: Recent;
@@ -102,56 +106,56 @@ const RecentMessages = (props: RecentMessagesProps) => {
 
   const formatKey = (key: string) => {
     if (props.hideTableTitles) {
-      return null
+      return null;
     }
     if (key.includes(":")) {
-      const parts = key.split(":")
-      const link = `${explorer}?emitterChain=${parts[0]}&emitterAddress=${parts[1]}`
-      return <Typography variant="h5">
-        From {ChainID[Number(parts[0])]} contract: <Link component={RouterLink} to={link}>{contractNameFormatter(parts[1], Number(parts[0]))}
-        </Link>
-      </Typography>
+      const parts = key.split(":");
+      const link = `${explorer}?emitterChain=${parts[0]}&emitterAddress=${parts[1]}`;
+      return (
+        <Typography variant="subtitle1" gutterBottom>
+          From {ChainID[Number(parts[0])]} contract:{" "}
+          <Link component={RouterLink} to={link} color="inherit">
+            {contractNameFormatter(parts[1], Number(parts[0]))}
+          </Link>
+        </Typography>
+      );
     } else if (key === "*") {
-      return <Typography variant="h5">
-        From all chains and addresses
-      </Typography>
+      return (
+        <Typography variant="subtitle1" gutterBottom>
+          From all chains and addresses
+        </Typography>
+      );
     } else {
-      return <Typography variant="h5">From {ChainID[Number(key)]}</Typography>
+      return (
+        <Typography variant="subtitle1" gutterBottom>
+          From {ChainID[Number(key)]}
+        </Typography>
+      );
     }
-  }
+  };
 
   return (
-    <>
-      <Typography variant="h4">{props.title}</Typography>
+    <Card
+      sx={{
+        backgroundColor: "rgba(255,255,255,.07)",
+        backgroundImage: "none",
+        borderRadius: "28px",
+        padding: "24px",
+      }}
+    >
+      <Typography variant="h4" gutterBottom>
+        {props.title}
+      </Typography>
       {Object.keys(props.recent).map((key) => (
-        // <Table<BigTableMessage>
-        //     key={key}
-        //     rowKey={(item) => item.EmitterAddress + item.Sequence}
-        //     style={{ marginBottom: 40 }}
-        //     size={screens.lg ? "large" : "small"}
-        //     columns={columns}
-        //     dataSource={props.recent[key]}
-        //     title={() => formatKey(key)}
-        //     pagination={false}
-        //     rowClassName="highlight-new-row"
-        //     footer={() => {
-        //         return props.lastFetched ? (
-        //             <span>
-        //                 <FormattedMessage id="explorer.lastUpdated" />:&nbsp;
-        //                 <ReactTimeAgo date={new Date(props.lastFetched)} locale={intl.locale} timeStyle="twitter" />
-        //             </span>
-
-        //         ) : null
-        //     }}
-        // />
         <TableContainer key={key}>
-          <div>
-            {formatKey(key)}
-          </div>
+          {formatKey(key)}
           <Table size="small">
             <TableBody>
               {props.recent[key].map((item) => (
                 <TableRow key={item.EmitterAddress + item.Sequence}>
+                  <TableCell>
+                    <ChainIcon chainId={chainIDs[item.EmitterChain]} />
+                  </TableCell>
                   <TableCell>
                     {contractNameFormatter(
                       item.EmitterAddress,
@@ -202,10 +206,25 @@ const RecentMessages = (props: RecentMessagesProps) => {
                 </TableRow>
               ))}
             </TableBody>
+            <TableFooter>
+              <TableRow>
+                <TableCell
+                  colSpan={6}
+                  sx={{ textAlign: "right", borderBottom: "none" }}
+                >
+                  {props.lastFetched ? (
+                    <ReactTimeAgo
+                      date={new Date(props.lastFetched)}
+                      timeStyle="round"
+                    />
+                  ) : null}
+                </TableCell>
+              </TableRow>
+            </TableFooter>
           </Table>
         </TableContainer>
       ))}
-    </>
+    </Card>
   );
 };
 

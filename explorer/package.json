@@ -31,6 +31,7 @@
     "gatsby": "^4.4.0",
     "gatsby-plugin-google-gtag": "^4.4.0",
     "gatsby-plugin-material-ui": "^4.1.0",
+    "gatsby-plugin-meta-redirect": "1.1.1",
     "gatsby-plugin-react-helmet": "^5.4.0",
     "gatsby-plugin-robots-txt": "^1.6.14",
     "gatsby-plugin-sitemap": "^5.4.0",
