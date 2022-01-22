@@ -1,10 +1,22 @@
-import { CircularProgress } from "@mui/material";
+import { Box, Card, CircularProgress } from "@mui/material";
 import React, { useEffect, useState } from "react";
 import { useNetworkContext } from "../../contexts/NetworkContext";
 import { ChainID } from "../../utils/consts";
 import { contractNameFormatter } from "../../utils/explorer";
 import { BigTableMessage } from "../ExplorerQuery";
 import RecentMessages from "./RecentMessages";
+import ChainOverviewCard from "./ChainOverviewCard";
+import PastWeekCard from "./PastWeekCard";
+
+import binanceChainIcon from "../../images/bsc.svg";
+import ethereumIcon from "../../images/eth.svg";
+import solanaIcon from "../../images//solana.svg";
+import terraIcon from "../../images/terra.svg";
+import polygonIcon from "../../images/polygon.svg";
+import avalancheIcon from "../../images/avalanche.svg";
+import oasisIcon from "../../images/oasis.svg";
+import GridWithCards from "../GridWithCards";
+import { explorer } from "../../utils/urls";
 
 export interface Totals {
   LastDayCount: { [groupByKey: string]: number };
@@ -17,6 +29,41 @@ export interface Totals {
 // type GroupByKey = "*" | "emitterChain" | "emitterChain:emitterAddress"
 export interface Recent {
   [groupByKey: string]: Array<BigTableMessage>;
+}
+interface BidirectionalTransferData {
+  [leavingChainId: string]: {
+    [destinationChainId: string]: {
+      [tokenSymbol: string]: number;
+    };
+  };
+}
+export interface NotionalTransferred {
+  Last24Hours: BidirectionalTransferData;
+  WithinPeriod: BidirectionalTransferData;
+  PeriodDurationDays: Number;
+  Daily: {
+    [date: string]: BidirectionalTransferData;
+  };
+}
+interface DirectionalTransferData {
+  [chainId: string]: {
+    [tokenSymbol: string]: number;
+  };
+}
+export interface NotionalTransferredTo {
+  Last24Hours: DirectionalTransferData;
+  WithinPeriod: DirectionalTransferData;
+  PeriodDurationDays: Number;
+  Daily: {
+    [date: string]: DirectionalTransferData;
+  };
+}
+export interface NotionalTransferredToCumulative {
+  AllTime: DirectionalTransferData;
+  AllTimeDurationDays: Number;
+  Daily: {
+    [date: string]: DirectionalTransferData;
+  };
 }
 type GroupBy = undefined | "chain" | "address";
 type ForChain = undefined | StatsProps["emitterChain"];
@@ -35,6 +82,12 @@ const ExplorerStats: React.FC<StatsProps> = ({
 
   const [totals, setTotals] = useState<Totals>();
   const [recent, setRecent] = useState<Recent>();
+  const [notionalTransferred, setNotionalTransferred] =
+    useState<NotionalTransferred>();
+  const [notionalTransferredTo, setNotionalTransferredTo] =
+    useState<NotionalTransferredTo>();
+  const [notionalTransferredToCumulative, setNotionalTransferredToCumulative] =
+    useState<NotionalTransferredToCumulative>();
   const [address, setAddress] = useState<StatsProps["emitterAddress"]>();
   const [chain, setChain] = useState<StatsProps["emitterChain"]>();
   const [lastFetched, setLastFetched] = useState<number>();
@@ -43,7 +96,11 @@ const ExplorerStats: React.FC<StatsProps> = ({
     new AbortController()
   );
 
-  const daysSinceDataStart = 30;
+  const launchDate = new Date("2021-09-13T00:00:00.000+00:00");
+  // calculate the time difference between now and the launch day
+  const differenceInTime = new Date().getTime() - launchDate.getTime();
+  // calculate the number of days, rounding up
+  const daysSinceDataStart = Math.ceil(differenceInTime / (1000 * 3600 * 24));
 
   const fetchTotals = (
     baseUrl: string,
@@ -52,8 +109,8 @@ const ExplorerStats: React.FC<StatsProps> = ({
     forAddress: ForAddress,
     signal: AbortSignal
   ) => {
-    const totalsUrl = `${baseUrl}-totals`;
-    let url = `${totalsUrl}?numDays=${daysSinceDataStart}`;
+    const totalsUrl = `${baseUrl}totals`;
+    let url = `${totalsUrl}?numDays=8&daily=true`; // ${daysSinceDataStart}&daily=true`  // 8`
     if (groupBy) {
       url = `${url}&groupBy=${groupBy}`;
     }
@@ -73,6 +130,7 @@ const ExplorerStats: React.FC<StatsProps> = ({
       .then(
         (result) => {
           setTotals(result);
+
           setLastFetched(Date.now());
         },
         (error) => {
@@ -90,8 +148,8 @@ const ExplorerStats: React.FC<StatsProps> = ({
     forAddress: ForAddress,
     signal: AbortSignal
   ) => {
-    const recentUrl = `${baseUrl}-recent`;
-    let url = `${recentUrl}?numRows=24`;
+    const recentUrl = `${baseUrl}recent`;
+    let url = `${recentUrl}?numRows=10`;
     if (groupBy) {
       url = `${url}&groupBy=${groupBy}`;
     }
@@ -121,6 +179,133 @@ const ExplorerStats: React.FC<StatsProps> = ({
         }
       );
   };
+  const fetchTransferred = (
+    baseUrl: string,
+    groupBy: GroupBy,
+    forChain: ForChain,
+    forAddress: ForAddress,
+    signal: AbortSignal
+  ) => {
+    const transferredUrl = `${baseUrl}notionaltransferred`;
+    let url = `${transferredUrl}?forPeriod=true&numDays=${daysSinceDataStart}`; // ${daysSinceDataStart}`
+    if (groupBy) {
+      url = `${url}&groupBy=${groupBy}`;
+    }
+    if (forChain) {
+      url = `${url}&forChain=${forChain}`;
+    }
+    if (forAddress) {
+      url = `${url}&forAddress=${forAddress}`;
+    }
+    if (groupBy === "address" || forChain || forAddress) {
+      return Promise.resolve();
+    }
+
+    return fetch(url, { signal })
+      .then<NotionalTransferred>((res) => {
+        if (res.ok) return res.json();
+        // throw an error with specific message, rather than letting the json decoding throw.
+        throw "explorer.stats.failedFetchingTransferred";
+      })
+      .then(
+        (result) => {
+          setNotionalTransferred(result);
+          setLastFetched(Date.now());
+        },
+        (error) => {
+          if (error.name !== "AbortError") {
+            //  handle errors here instead of a catch(), so that we don't swallow exceptions from components
+            console.error("failed fetching transferred to. error: ", error);
+          }
+        }
+      );
+  };
+  const fetchTransferredTo = (
+    baseUrl: string,
+    groupBy: GroupBy,
+    forChain: ForChain,
+    forAddress: ForAddress,
+    signal: AbortSignal
+  ) => {
+    const transferredUrl = `${baseUrl}notionaltransferredto`;
+    let url = `${transferredUrl}?forPeriod=true&daily=true&numDays=${daysSinceDataStart}`; // ${daysSinceDataStart}`
+    if (groupBy) {
+      url = `${url}&groupBy=${groupBy}`;
+    }
+    if (forChain) {
+      url = `${url}&forChain=${forChain}`;
+    }
+    if (forAddress) {
+      url = `${url}&forAddress=${forAddress}`;
+    }
+    if (groupBy === "address" || forChain || forAddress) {
+      return Promise.resolve();
+    }
+
+    return fetch(url, { signal })
+      .then<NotionalTransferredTo>((res) => {
+        if (res.ok) return res.json();
+        // throw an error with specific message, rather than letting the json decoding throw.
+        throw "explorer.stats.failedFetchingTransferredTo";
+      })
+      .then(
+        (result) => {
+          setNotionalTransferredTo(result);
+          setLastFetched(Date.now());
+        },
+        (error) => {
+          if (error.name !== "AbortError") {
+            //  handle errors here instead of a catch(), so that we don't swallow exceptions from components
+            console.error("failed fetching transferred to. error: ", error);
+          }
+        }
+      );
+  };
+  const fetchTransferredToCumulative = (
+    baseUrl: string,
+    groupBy: GroupBy,
+    forChain: ForChain,
+    forAddress: ForAddress,
+    signal: AbortSignal
+  ) => {
+    const transferredToUrl = `${baseUrl}notionaltransferredtocumulative`;
+    let url = `${transferredToUrl}?allTime=true`; // &daily=true&numDays=${daysSinceDataStart}` // TEMP - rm daily=true  //${daysSinceDataStart}`
+    if (groupBy) {
+      url = `${url}&groupBy=${groupBy}`;
+    }
+    if (forChain) {
+      url = `${url}&forChain=${forChain}`;
+    }
+    if (forAddress) {
+      url = `${url}&forAddress=${forAddress}`;
+    }
+    if (groupBy === "address" || forChain || forAddress) {
+      return Promise.resolve();
+    }
+
+    return fetch(url, { signal })
+      .then<NotionalTransferredToCumulative>((res) => {
+        if (res.ok) return res.json();
+        // throw an error with specific message, rather than letting the json decoding throw.
+        throw "explorer.stats.failedFetchingTransferredTo";
+      })
+      .then(
+        (result) => {
+          // let today = "2021-12-03"
+          // let { [today]: t, ...dailies } = result.Daily
+          // let r = { ...result, Daily: dailies }
+          // setNotionalTransferredTo(r)
+          setNotionalTransferredToCumulative(result);
+          setLastFetched(Date.now());
+        },
+        (error) => {
+          if (error.name !== "AbortError") {
+            //  handle errors here instead of a catch(), so that we don't swallow exceptions from components
+            console.error("failed fetching transferred to. error: ", error);
+          }
+        }
+      );
+  };
 
   const getData = (props: StatsProps, baseUrl: string, signal: AbortSignal) => {
     let forChain: ForChain = undefined;
@@ -138,6 +323,15 @@ const ExplorerStats: React.FC<StatsProps> = ({
     return Promise.all([
       fetchTotals(baseUrl, totalsGroupBy, forChain, forAddress, signal),
       fetchRecent(baseUrl, recentGroupBy, forChain, forAddress, signal),
+      fetchTransferred(baseUrl, recentGroupBy, forChain, forAddress, signal),
+      fetchTransferredTo(baseUrl, recentGroupBy, forChain, forAddress, signal),
+      fetchTransferredToCumulative(
+        baseUrl,
+        recentGroupBy,
+        forChain,
+        forAddress,
+        signal
+      ),
     ]);
   };
 
@@ -161,7 +355,7 @@ const ExplorerStats: React.FC<StatsProps> = ({
     // start polling
     let interval = setInterval(() => {
       getData({ emitterChain, emitterAddress }, baseUrl, signal);
-    }, 5000);
+    }, 12000);
     setPollInterval(interval);
   };
 
@@ -181,6 +375,9 @@ const ExplorerStats: React.FC<StatsProps> = ({
     controller.abort();
     setTotals(undefined);
     setRecent(undefined);
+    setNotionalTransferred(undefined);
+    setNotionalTransferredTo(undefined);
+    setNotionalTransferredToCumulative(undefined);
 
     pollingController(
       emitterChain,
@@ -209,57 +406,201 @@ const ExplorerStats: React.FC<StatsProps> = ({
   if (emitterChain) {
     title = `Recent ${ChainID[Number(emitterChain)]} messages`;
   }
-  if (emitterChain && emitterAddress) {
-    title = `Recent ${contractNameFormatter(
-      emitterAddress,
-      emitterChain,
-      activeNetwork
-    )} messages`;
-    hideTableTitles = true;
-  }
 
   return (
     <>
-      {!emitterChain && !emitterAddress && (
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "flex-end",
-            flexWrap: "wrap",
-            marginBottom: 40,
-            gap: 20,
+      {!totals && !recent ? (
+        <Card
+          sx={{
+            backgroundColor: "rgba(255,255,255,.07)",
+            backgroundImage: "none",
+            borderRadius: "28px",
+            padding: "24px",
+            textAlign: "center",
+            mt: 5,
           }}
         >
-          {/* <ChainOverviewCard totalDays={daysSinceDataStart} totals={totals} dataKey="1" title={ChainID[1]} Icon={SolanaIcon} iconStyle={{ height: 120, margin: '10px 0' }} />
-                    <ChainOverviewCard totalDays={daysSinceDataStart} totals={totals} dataKey="2" title={ChainID[2]} Icon={EthereumIcon} />
-                    <ChainOverviewCard totalDays={daysSinceDataStart} totals={totals} dataKey="3" title={ChainID[3]} Icon={TerraIcon} />
-                    <ChainOverviewCard totalDays={daysSinceDataStart} totals={totals} dataKey="4" title={ChainID[4]} Icon={BinanceChainIcon} />
-                    <ChainOverviewCard totalDays={daysSinceDataStart} totals={totals} dataKey="5" title={ChainID[5]} Icon={PolygonIcon} /> */}
-        </div>
-      )}
-      {!totals && !recent ? (
-        <CircularProgress />
+          <CircularProgress />
+        </Card>
       ) : (
         <>
-          {/* <div>
-                    <DailyCountLineChart
-                        dailyCount={totals?.DailyTotals || {}}
-                        lastFetched={lastFetched}
-                        title="messages/day"
-                        emitterChain={emitterChain}
-                        emitterAddress={emitterAddress}
-                    />
-                </div> */}
-
           {recent && (
-            <RecentMessages
-              recent={recent}
-              lastFetched={lastFetched}
-              title={title}
-              hideTableTitles={hideTableTitles}
-            />
+            <div style={{ margin: "40px 0" }}>
+              <RecentMessages
+                recent={recent}
+                lastFetched={lastFetched}
+                title={title}
+                hideTableTitles={hideTableTitles}
+              />
+            </div>
           )}
+
+          {!emitterChain && !emitterAddress ? (
+            totals && notionalTransferredToCumulative && notionalTransferred ? (
+              <GridWithCards
+                spacing={3}
+                sm={6}
+                md={3}
+                cardPaddingTop={3}
+                imgAlignMd="center"
+                imgOffsetRightMd="0px"
+                imgOffsetTopXs="0px"
+                imgOffsetTopMd="-36px"
+                imgOffsetTopMdHover="-52px"
+                imgPaddingBottomXs={3}
+                headerTextAlign="center"
+                data={[
+                  {
+                    header: ChainID[1],
+                    src: solanaIcon,
+                    to: `${explorer}?emitterChain=1`,
+                    description: (
+                      <ChainOverviewCard
+                        totals={totals}
+                        notionalTransferredToCumulative={
+                          notionalTransferredToCumulative
+                        }
+                        notionalTransferred={notionalTransferred}
+                        dataKey="1"
+                      />
+                    ),
+                    imgStyle: { height: 110 },
+                  },
+                  {
+                    header: ChainID[2],
+                    src: ethereumIcon,
+                    to: `${explorer}?emitterChain=2`,
+                    description: (
+                      <ChainOverviewCard
+                        totals={totals}
+                        notionalTransferredToCumulative={
+                          notionalTransferredToCumulative
+                        }
+                        notionalTransferred={notionalTransferred}
+                        dataKey="2"
+                      />
+                    ),
+                    imgStyle: { height: 110 },
+                  },
+                  {
+                    header: ChainID[3],
+                    src: terraIcon,
+                    to: `${explorer}?emitterChain=3`,
+                    description: (
+                      <ChainOverviewCard
+                        totals={totals}
+                        notionalTransferredToCumulative={
+                          notionalTransferredToCumulative
+                        }
+                        notionalTransferred={notionalTransferred}
+                        dataKey="3"
+                      />
+                    ),
+                    imgStyle: { height: 110 },
+                  },
+                  {
+                    header: ChainID[4],
+                    src: binanceChainIcon,
+                    to: `${explorer}?emitterChain=4`,
+                    description: (
+                      <ChainOverviewCard
+                        totals={totals}
+                        notionalTransferredToCumulative={
+                          notionalTransferredToCumulative
+                        }
+                        notionalTransferred={notionalTransferred}
+                        dataKey="4"
+                      />
+                    ),
+                    imgStyle: { height: 110 },
+                  },
+                  {
+                    header: ChainID[5],
+                    src: polygonIcon,
+                    to: `${explorer}?emitterChain=5`,
+                    description: (
+                      <ChainOverviewCard
+                        totals={totals}
+                        notionalTransferredToCumulative={
+                          notionalTransferredToCumulative
+                        }
+                        notionalTransferred={notionalTransferred}
+                        dataKey="5"
+                      />
+                    ),
+                    imgStyle: { height: 110 },
+                  },
+                  {
+                    header: ChainID[6],
+                    src: avalancheIcon,
+                    to: `${explorer}?emitterChain=6`,
+                    description: (
+                      <ChainOverviewCard
+                        totals={totals}
+                        notionalTransferredToCumulative={
+                          notionalTransferredToCumulative
+                        }
+                        notionalTransferred={notionalTransferred}
+                        dataKey="6"
+                      />
+                    ),
+                    imgStyle: { height: 110 },
+                  },
+                  {
+                    header: ChainID[7],
+                    src: oasisIcon,
+                    to: `${explorer}?emitterChain=7`,
+                    description: (
+                      <ChainOverviewCard
+                        totals={totals}
+                        notionalTransferredToCumulative={
+                          notionalTransferredToCumulative
+                        }
+                        notionalTransferred={notionalTransferred}
+                        dataKey="7"
+                      />
+                    ),
+                    imgStyle: { height: 110 },
+                  },
+                ]}
+              />
+            ) : (
+              <Box
+                sx={{
+                  padding: "24px",
+                  textAlign: "center",
+                }}
+              >
+                <CircularProgress />
+              </Box>
+            )
+          ) : null}
+
+          <div style={{ margin: "40px 0" }}>
+            {!emitterChain && !emitterAddress ? (
+              notionalTransferredTo && totals ? (
+                <PastWeekCard
+                  title="Last 7 Days"
+                  numDaysToShow={7}
+                  messages={totals}
+                  notionalTransferredTo={notionalTransferredTo}
+                  notionalTransferred={notionalTransferred}
+                />
+              ) : (
+                <Card
+                  sx={{
+                    backgroundColor: "rgba(255,255,255,.07)",
+                    backgroundImage: "none",
+                    borderRadius: "28px",
+                    padding: "24px",
+                    textAlign: "center",
+                  }}
+                >
+                  <CircularProgress />
+                </Card>
+              )
+            ) : null}
+          </div>
         </>
       )}
     </>

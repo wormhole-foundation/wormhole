@@ -33,5 +33,6 @@ module.exports = {
         trackingIds: [String(process.env.GATSBY_GA_TAG)],
       },
     },
+    `gatsby-plugin-meta-redirect`, // make sure to put last in the array
   ],
 };

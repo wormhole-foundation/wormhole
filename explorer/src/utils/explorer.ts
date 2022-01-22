@@ -1,4 +1,9 @@
-import { CHAIN_ID_TERRA, hexToNativeString } from "@certusone/wormhole-sdk";
+import {
+  ChainId,
+  CHAIN_ID_TERRA,
+  hexToNativeString,
+  isEVMChain,
+} from "@certusone/wormhole-sdk";
 import { fromHex } from "@cosmjs/encoding";
 import { PublicKey } from "@solana/web3.js";
 import { ActiveNetwork, useNetworkContext } from "../contexts/NetworkContext";
@@ -43,27 +48,22 @@ const getNativeAddress = (
 ): string => {
   let nativeAddress = "";
 
-  if (
-    chainId === chainIDs["ethereum"] ||
-    chainId === chainIDs["bsc"] ||
-    chainId === chainIDs["polygon"]
-  ) {
+  if (isEVMChain(chainId as ChainId)) {
     // remove zero-padding
     let unpadded = emitterAddress.slice(-40);
     nativeAddress = `0x${unpadded}`.toLowerCase();
   } else if (chainId === chainIDs["terra"]) {
-    hexToNativeString(emitterAddress, CHAIN_ID_TERRA);
+    nativeAddress = (
+      hexToNativeString(emitterAddress, CHAIN_ID_TERRA) || ""
+    ).toLowerCase();
   } else if (chainId === chainIDs["solana"]) {
     if (!activeNetwork) {
       activeNetwork = useNetworkContext().activeNetwork;
     }
-    const chainName = (chainEnums[chainId] || "").toLowerCase();
+    const chainName = chainEnums[chainId].toLowerCase();
 
     // use the "chains" map of hex: nativeAdress first
-    if (
-      activeNetwork.chains[chainName] &&
-      emitterAddress in activeNetwork.chains[chainName]
-    ) {
+    if (emitterAddress in activeNetwork.chains[chainName]) {
       let desc = activeNetwork.chains[chainName][emitterAddress];
       if (desc in activeNetwork.chains[chainName]) {
         // lookup the contract address
@@ -91,16 +91,13 @@ const contractNameFormatter = (
     activeNetwork = useNetworkContext().activeNetwork;
   }
 
-  const chainName = (chainEnums[chainId] || "").toLowerCase();
+  const chainName = chainEnums[chainId].toLowerCase();
   let nativeAddress = getNativeAddress(chainId, address, activeNetwork);
 
   let truncated = truncateAddress(nativeAddress || address);
   let formatted = truncated;
 
-  if (
-    activeNetwork.chains[chainName] &&
-    nativeAddress in activeNetwork.chains[chainName]
-  ) {
+  if (nativeAddress in activeNetwork.chains[chainName]) {
     // add the description of the contract, if we know it
     let desc = activeNetwork.chains[chainName][nativeAddress];
     formatted = `${desc} (${truncated})`;
@@ -119,22 +116,23 @@ const nativeExplorerContractUri = (
 
   const nativeAddress = getNativeAddress(chainId, address, activeNetwork);
   if (nativeAddress) {
+    let base = "";
     if (chainId === chainIDs["solana"]) {
-      let base = "https://explorer.solana.com/address/";
-      return `${base}${nativeAddress}`;
+      base = "https://explorer.solana.com/address/";
     } else if (chainId === chainIDs["ethereum"]) {
-      let base = "https://etherscan.io/address/";
-      return `${base}${nativeAddress}`;
+      base = "https://etherscan.io/address/";
     } else if (chainId === chainIDs["terra"]) {
-      let base = "https://finder.terra.money/columbus-5/address/";
-      return `${base}${nativeAddress}`;
+      base = "https://finder.terra.money/columbus-5/address/";
     } else if (chainId === chainIDs["bsc"]) {
-      let base = "https://bscscan.com/address/";
-      return `${base}${nativeAddress}`;
+      base = "https://bscscan.com/address/";
     } else if (chainId === chainIDs["polygon"]) {
-      let base = "https://polygonscan.com/address/";
-      return `${base}${nativeAddress}`;
+      base = "https://polygonscan.com/address/";
+    } else if (chainId === chainIDs["avalanche"]) {
+      base = "https://snowtrace.io/address/";
+    } else if (chainId === chainIDs["oasis"]) {
+      base = "https://explorer.oasis.updev.si/address/";
     }
+    return `${base}${nativeAddress}`;
   }
   return "";
 };
@@ -142,20 +140,24 @@ const nativeExplorerTxUri = (
   chainId: number,
   transactionId: string
 ): string => {
+  let base = "";
   if (chainId === chainIDs["solana"]) {
-    let base = "https://explorer.solana.com/address/";
-    return `${base}${transactionId}`;
+    base = "https://explorer.solana.com/address/";
   } else if (chainId === chainIDs["ethereum"]) {
-    let base = "https://etherscan.io/tx/";
-    return `${base}${transactionId}`;
+    base = "https://etherscan.io/tx/";
   } else if (chainId === chainIDs["terra"]) {
-    let base = "https://finder.terra.money/columbus-5/tx/";
-    return `${base}${transactionId}`;
+    base = "https://finder.terra.money/columbus-5/tx/";
   } else if (chainId === chainIDs["bsc"]) {
-    let base = "https://bscscan.com/tx/";
-    return `${base}${transactionId}`;
+    base = "https://bscscan.com/tx/";
   } else if (chainId === chainIDs["polygon"]) {
-    let base = "https://polygonscan.com/tx/";
+    base = "https://polygonscan.com/tx/";
+  } else if (chainId === chainIDs["avalanche"]) {
+    base = "https://snowtrace.io/tx/";
+  } else if (chainId === chainIDs["oasis"]) {
+    base = "https://explorer.emerald.oasis.dev/tx/";
+  }
+
+  if (base) {
     return `${base}${transactionId}`;
   }
   return "";
@@ -168,15 +170,46 @@ const chainColors: { [chain: string]: string } = {
   "3": "hsl(235, 100%, 61%)",
   "4": "hsl(54, 100%, 61%)",
   "5": "hsl(271, 100%, 61%)",
+  "6": "hsl(360, 100%, 61%)",
+  "7": "hsl(204, 100%, 48%",
 };
+const chainIdColors = Object.entries(chainColors).reduce<Array<string>>(
+  // returns an array of hsl colors, indexed by chainId
+  (accum, [chain, color]) => {
+    accum[Number(chain) || 0] = color;
+    return accum;
+  },
+  []
+);
+
+const amountFormatter = (num: number, decimals?: number): string => {
+  let absNum = Math.abs(num);
+  if (absNum > 999 && absNum < 1000000) {
+    return (num / 1000).toFixed(decimals !== undefined ? decimals : 1) + "K"; // convert to K with 1 decimal for 1000 < 1 million
+  } else if (absNum >= 1000000 && absNum < 1000000000) {
+    return (num / 1000000).toFixed(decimals !== undefined ? decimals : 0) + "M"; // convert to M for number from > 1 million
+  } else if (absNum >= 1000000000) {
+    return (
+      (num / 1000000000).toFixed(decimals !== undefined ? decimals : 1) + "B"
+    ); // convert to B for number from > 1 billion
+  }
+  return num.toFixed(decimals !== undefined ? decimals : 0); // if value < 1000, nothing to do
+};
+const usdFormatter = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+});
 
 export {
+  amountFormatter,
+  chainColors,
+  chainIdColors,
+  contractNameFormatter,
+  getNativeAddress,
   makeDate,
   makeGroupName,
-  chainColors,
-  truncateAddress,
-  contractNameFormatter,
   nativeExplorerContractUri,
   nativeExplorerTxUri,
-  getNativeAddress,
+  truncateAddress,
+  usdFormatter,
 };

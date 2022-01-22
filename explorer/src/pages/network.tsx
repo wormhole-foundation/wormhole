@@ -1,6 +1,8 @@
 import {
   Box,
   CircularProgress,
+  Collapse,
+  IconButton,
   Table,
   TableBody,
   TableCell,
@@ -21,6 +23,81 @@ import {
 import ReactTimeAgo from "react-time-ago";
 import NetworkSelect from "../components/NetworkSelect";
 import { useNetworkContext } from "../contexts/NetworkContext";
+import ChainIcon from "../components/ChainIcon";
+import { ChainId } from "@certusone/wormhole-sdk";
+import { KeyboardArrowDown, KeyboardArrowUp } from "@mui/icons-material";
+import { ChainID } from "../utils/consts";
+
+const GuardianRow = ({ hb }: { hb: Heartbeat }) => {
+  const [open, setOpen] = React.useState(false);
+  return (
+    <>
+      <TableRow>
+        <TableCell sx={{ p: 0 }}>
+          <IconButton
+            aria-label="expand row"
+            size="small"
+            onClick={() => setOpen(!open)}
+          >
+            {open ? <KeyboardArrowUp /> : <KeyboardArrowDown />}
+          </IconButton>
+        </TableCell>
+        <TableCell>
+          {hb.nodeName}
+          <br />
+          {hb.guardianAddr}
+        </TableCell>
+        <TableCell sx={{ whiteSpace: "nowrap" }}>{hb.version}</TableCell>
+        <TableCell sx={{ whiteSpace: "nowrap" }}>
+          <Box sx={{ display: "flex", alignItems: "center" }}>
+            {hb.networks.map((network) => (
+              <ChainIcon key={network.id} chainId={network.id as ChainId} />
+            ))}
+          </Box>
+        </TableCell>
+        <TableCell align="right">{hb.counter}</TableCell>
+        <TableCell sx={{ "& > time": { whiteSpace: "nowrap" } }}>
+          <ReactTimeAgo
+            date={new Date(Number(hb.timestamp.slice(0, -6)))}
+            timeStyle="round"
+          />
+        </TableCell>
+      </TableRow>
+      <TableRow>
+        <TableCell sx={{ py: 0 }} colSpan={6}>
+          <Collapse in={open} timeout="auto" unmountOnExit>
+            <TableContainer>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell></TableCell>
+                    <TableCell>Network</TableCell>
+                    <TableCell>Contract Address</TableCell>
+                    <TableCell align="right">Block Height</TableCell>
+                    <TableCell align="right">Error Count</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {hb.networks.map((n) => (
+                    <TableRow key={n.id}>
+                      <TableCell component="th" scope="row">
+                        <ChainIcon chainId={n.id as ChainId} />
+                      </TableCell>
+                      <TableCell>{ChainID[n.id]}</TableCell>
+                      <TableCell>{n.contractAddress}</TableCell>
+                      <TableCell align="right">{n.height}</TableCell>
+                      <TableCell align="right">{n.errorCount}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Collapse>
+        </TableCell>
+      </TableRow>
+    </>
+  );
+};
 
 const GuardiansList = () => {
   const { activeNetwork } = useNetworkContext();
@@ -105,35 +182,17 @@ const GuardiansList = () => {
             <Table size="small">
               <TableHead>
                 <TableRow>
+                  <TableCell></TableCell>
                   <TableCell>Guardian</TableCell>
                   <TableCell>Version</TableCell>
                   <TableCell>Networks</TableCell>
-                  <TableCell>Heartbeat</TableCell>
+                  <TableCell align="right">Heartbeat</TableCell>
                   <TableCell>Last Heartbeat</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {sortedHeartbeats.map((hb) => (
-                  <TableRow key={hb.nodeName}>
-                    <TableCell>
-                      {hb.nodeName}
-                      <br />
-                      {hb.guardianAddr}
-                    </TableCell>
-                    <TableCell sx={{ whiteSpace: "nowrap" }}>
-                      {hb.version}
-                    </TableCell>
-                    <TableCell sx={{ whiteSpace: "nowrap" }}>
-                      {hb.networks.map((network) => network.id)}
-                    </TableCell>
-                    <TableCell>{hb.counter}</TableCell>
-                    <TableCell sx={{ "& > time": { whiteSpace: "nowrap" } }}>
-                      <ReactTimeAgo
-                        date={new Date(Number(hb.timestamp.slice(0, -6)))}
-                        timeStyle="round"
-                      />
-                    </TableCell>
-                  </TableRow>
+                  <GuardianRow key={hb.nodeName} hb={hb} />
                 ))}
               </TableBody>
             </Table>

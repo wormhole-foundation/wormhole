@@ -26,6 +26,30 @@ let theme = createTheme({
     },
   },
   components: {
+    MuiCssBaseline: {
+      styleOverrides: {
+        ul: {
+          paddingLeft: "0px",
+        },
+        "*": {
+          scrollbarWidth: "thin",
+          scrollbarColor: `#4e4e54 rgba(0,0,0,.25)`,
+        },
+        "*::-webkit-scrollbar": {
+          width: "8px",
+          height: "8px",
+          backgroundColor: "rgba(0, 0, 0, 0.25)",
+        },
+        "*::-webkit-scrollbar-thumb": {
+          backgroundColor: "#4e4e54",
+          borderRadius: "4px",
+        },
+        "*::-webkit-scrollbar-corner": {
+          // this hides an annoying white box which appears when both scrollbars are present
+          backgroundColor: "transparent",
+        },
+      },
+    },
     MuiButton: {
       styleOverrides: {
         root: {

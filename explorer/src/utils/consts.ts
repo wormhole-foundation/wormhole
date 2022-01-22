@@ -4,14 +4,25 @@ import {
   getEmitterAddressTerra,
 } from "@certusone/wormhole-sdk";
 
-export const chainEnums = ["", "Solana", "Ethereum", "Terra", "BSC", "Polygon"];
-// type chainNames = "solana" | "ethereum" | "terra" | "bsc"
+export const chainEnums = [
+  "",
+  "Solana",
+  "Ethereum",
+  "Terra",
+  "BSC",
+  "Polygon",
+  "Avalanche",
+  "Oasis",
+];
+
 export interface ChainIDs {
   solana: 1;
   ethereum: 2;
   terra: 3;
   bsc: 4;
   polygon: 5;
+  avalanche: 6;
+  oasis: 7;
 }
 export const chainIDs: ChainIDs = {
   solana: 1,
@@ -19,6 +30,17 @@ export const chainIDs: ChainIDs = {
   terra: 3,
   bsc: 4,
   polygon: 5,
+  avalanche: 6,
+  oasis: 7,
+};
+export const chainIDStrings: { [chainIDString: string]: string } = {
+  "1": "solana",
+  "2": "ethereum",
+  "3": "terra",
+  "4": "bsc",
+  "5": "polygon",
+  "6": "avalanche",
+  "7": "oasis",
 };
 
 export enum ChainID {
@@ -26,9 +48,13 @@ export enum ChainID {
   Solana,
   Ethereum,
   Terra,
-  "Binance Smart Chain",
+  BSC,
   Polygon,
+  Avalanche,
+  Oasis,
 }
+export type ChainName = keyof ChainIDs;
+export type ChainIDNumber = ChainIDs[ChainName];
 
 export const METADATA_REPLACE = new RegExp("\u0000", "g");
 
@@ -59,6 +85,16 @@ const envVarMap: { [name: string]: string | undefined } = {
     process.env.GATSBY_DEVNET_POLYGON_TOKEN_BRIDGE,
   GATSBY_DEVNET_POLYGON_NFT_BRIDGE:
     process.env.GATSBY_DEVNET_POLYGON_NFT_BRIDGE,
+  GATSBY_DEVNET_AVALANCHE_CORE_BRIDGE:
+    process.env.GATSBY_DEVNET_AVALANCHE_CORE_BRIDGE,
+  GATSBY_DEVNET_AVALANCHE_TOKEN_BRIDGE:
+    process.env.GATSBY_DEVNET_AVALANCHE_TOKEN_BRIDGE,
+  GATSBY_DEVNET_AVALANCHE_NFT_BRIDGE:
+    process.env.GATSBY_DEVNET_AVALANCHE_NFT_BRIDGE,
+  GATSBY_DEVNET_OASIS_CORE_BRIDGE: process.env.GATSBY_DEVNET_OASIS_CORE_BRIDGE,
+  GATSBY_DEVNET_OASIS_TOKEN_BRIDGE:
+    process.env.GATSBY_DEVNET_OASIS_TOKEN_BRIDGE,
+  GATSBY_DEVNET_OASIS_NFT_BRIDGE: process.env.GATSBY_DEVNET_OASIS_NFT_BRIDGE,
 
   GATSBY_TESTNET_SOLANA_CORE_BRIDGE:
     process.env.GATSBY_TESTNET_SOLANA_CORE_BRIDGE,
@@ -86,6 +122,17 @@ const envVarMap: { [name: string]: string | undefined } = {
     process.env.GATSBY_TESTNET_POLYGON_TOKEN_BRIDGE,
   GATSBY_TESTNET_POLYGON_NFT_BRIDGE:
     process.env.GATSBY_TESTNET_POLYGON_NFT_BRIDGE,
+  GATSBY_TESTNET_AVALANCHE_CORE_BRIDGE:
+    process.env.GATSBY_TESTNET_AVALANCHE_CORE_BRIDGE,
+  GATSBY_TESTNET_AVALANCHE_TOKEN_BRIDGE:
+    process.env.GATSBY_TESTNET_AVALANCHE_TOKEN_BRIDGE,
+  GATSBY_TESTNET_AVALANCHE_NFT_BRIDGE:
+    process.env.GATSBY_TESTNET_AVALANCHE_NFT_BRIDGE,
+  GATSBY_TESTNET_OASIS_CORE_BRIDGE:
+    process.env.GATSBY_TESTNET_OASIS_CORE_BRIDGE,
+  GATSBY_TESTNET_OASIS_TOKEN_BRIDGE:
+    process.env.GATSBY_TESTNET_OASIS_TOKEN_BRIDGE,
+  GATSBY_TESTNET_OASIS_NFT_BRIDGE: process.env.GATSBY_TESTNET_OASIS_NFT_BRIDGE,
 
   GATSBY_MAINNET_SOLANA_CORE_BRIDGE:
     process.env.GATSBY_MAINNET_SOLANA_CORE_BRIDGE,
@@ -113,6 +160,17 @@ const envVarMap: { [name: string]: string | undefined } = {
     process.env.GATSBY_MAINNET_POLYGON_TOKEN_BRIDGE,
   GATSBY_MAINNET_POLYGON_NFT_BRIDGE:
     process.env.GATSBY_MAINNET_POLYGON_NFT_BRIDGE,
+  GATSBY_MAINNET_AVALANCHE_CORE_BRIDGE:
+    process.env.GATSBY_MAINNET_AVALANCHE_CORE_BRIDGE,
+  GATSBY_MAINNET_AVALANCHE_TOKEN_BRIDGE:
+    process.env.GATSBY_MAINNET_AVALANCHE_TOKEN_BRIDGE,
+  GATSBY_MAINNET_AVALANCHE_NFT_BRIDGE:
+    process.env.GATSBY_MAINNET_AVALANCHE_NFT_BRIDGE,
+  GATSBY_MAINNET_OASIS_CORE_BRIDGE:
+    process.env.GATSBY_MAINNET_OASIS_CORE_BRIDGE,
+  GATSBY_MAINNET_OASIS_TOKEN_BRIDGE:
+    process.env.GATSBY_MAINNET_OASIS_TOKEN_BRIDGE,
+  GATSBY_MAINNET_OASIS_NFT_BRIDGE: process.env.GATSBY_MAINNET_OASIS_NFT_BRIDGE,
 };
 
 export interface KnownContracts {
@@ -140,10 +198,13 @@ const getEmitterAddress: {
   terra: getEmitterAddressTerra,
   bsc: getEmitterAddressEVM,
   polygon: getEmitterAddressEVM,
+  avalanche: getEmitterAddressEVM,
+  oasis: getEmitterAddressEVM,
 };
 
 // the keys used for creating the map of contract addresses of each chain, on each network.
-export const networks = ["devnet", "testnet", "mainnet"];
+export type Network = keyof NetworkChains;
+export const networks: Array<Network> = ["devnet", "testnet", "mainnet"];
 const contractTypes = ["Core", "Token", "NFT"];
 const chainNames = Object.keys(chainIDs);
 

@@ -10,6 +10,7 @@ import {
   ChainContracts,
   endpoints,
   knownContractsPromise,
+  Network,
   NetworkChains,
   NetworkConfig,
   networks,
@@ -18,19 +19,27 @@ import {
 // Check if window is defined (so if in the browser or in node.js).
 const isBrowser = typeof window !== "undefined";
 
-let defaultNetwork = process.env.GATSBY_DEFAULT_NETWORK || "mainnet";
-let network = "";
+let network: Network;
+
+const envDefaultNetwork = String(process.env.GATSBY_DEFAULT_NETWORK) as Network
+
+// check local storage to get the user's last selected network
+let storedNetwork: Network = "" as Network
 if (isBrowser) {
   // isBrowser check for Gatsby develop's SSR
-  network = window.localStorage.getItem("networkName") || "";
-}
-if (!network || !networks.includes(network)) {
-  network = defaultNetwork;
+  storedNetwork = String(window.localStorage.getItem("networkName")) as Network
 }
 
-// ensure the network value is valid
-if (!(defaultNetwork in endpoints)) {
-  defaultNetwork = defaultNetwork;
+// validate localstorage data, fallback to .env default, fallback to mainnet.
+if (storedNetwork && networks.includes(storedNetwork)) {
+  // data from local storage is valid
+  network = storedNetwork
+} else if (networks.includes(envDefaultNetwork)) {
+  // default network from .env is valid
+  network = envDefaultNetwork
+} else {
+  // use mainnet
+  network = networks[2];
 }
 
 export interface ActiveNetwork {
@@ -40,25 +49,19 @@ export interface ActiveNetwork {
 }
 
 export interface INetworkContext {
-  knownContracts: NetworkChains;
   activeNetwork: ActiveNetwork;
-  setActiveNetwork: (network: keyof NetworkChains) => void;
+  setActiveNetwork: (network: Network) => void;
 }
 
 const NetworkContext = createContext<INetworkContext>({
-  knownContracts: {
-    devnet: {},
-    testnet: {},
-    mainnet: {},
-  },
   activeNetwork: {
-    name: defaultNetwork,
-    endpoints: endpoints[defaultNetwork],
+    name: network,
+    endpoints: endpoints[network],
     chains: {
       // initalize empty object, will be replaced async by generated data
     },
   },
-  setActiveNetwork: (network: keyof NetworkChains) => {},
+  setActiveNetwork: (network: Network) => { },
 });
 
 export const NetworkContextProvider = ({
@@ -82,9 +85,8 @@ export const NetworkContextProvider = ({
     } as ActiveNetwork,
   });
   const setActiveNetwork = useCallback(
-    (network: keyof NetworkChains) => {
-      let cancelled = false;
-      (async () => {
+    (network: Network) => {
+      async function setNetwork(network: Network) {
         if (isBrowser) {
           // isBrowser check for Gatsby develop's SSR
           window.localStorage.setItem("networkName", network);
@@ -95,7 +97,7 @@ export const NetworkContextProvider = ({
         if (Object.keys(state.knownContracts[network]).length === 0) {
           contracts = await knownContractsPromise;
         }
-        if (cancelled) return;
+
         setState({
           knownContracts: contracts,
           activeNetwork: {
@@ -104,22 +106,16 @@ export const NetworkContextProvider = ({
             chains: contracts[network],
           },
         });
-      })();
-      return () => {
-        cancelled = true;
-      };
-    },
-    [state]
-  );
-  const value = useMemo(
-    () => ({
-      ...state,
-      setActiveNetwork,
-    }),
-    [state]
-  );
+      }
+      setNetwork(network)
+    }, [])
+
+  useMemo(() => setActiveNetwork(network), [])
+
   return (
-    <NetworkContext.Provider value={value}>{children}</NetworkContext.Provider>
+    <NetworkContext.Provider value={{ activeNetwork: state.activeNetwork, setActiveNetwork }}>
+      {children}
+    </NetworkContext.Provider>
   );
 };
 
