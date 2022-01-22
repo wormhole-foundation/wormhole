@@ -1,0 +1,37 @@
+{
+  "name": "@ndujalabs/wormhole721",
+  "version": "0.2.0",
+  "description": "ERC721 NFTs using Wormhole to be natively cross-chain",
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "/contracts/**/*.sol"
+  ],
+  "scripts": {
+    "test": "npx hardhat test",
+    "compile": "npx hardhat compile",
+    "lint": "prettier --write 'contracts/**/*.sol' && solhint 'contracts/**/*.sol'"
+  },
+  "authors": [
+    "Francesco Sullo <fs@ndujalabs.com>",
+    "Emanuele Cesena <ec@ndujalabs.com>"
+  ],
+  "license": "Apache2",
+  "devDependencies": {
+    "@nomiclabs/hardhat-ethers": "^2.0.2",
+    "@nomiclabs/hardhat-etherscan": "^2.1.1",
+    "@nomiclabs/hardhat-waffle": "^2.0.1",
+    "@openzeppelin/contracts": "^4.0.0",
+    "@openzeppelin/contracts-upgradeable": "^4.4.1",
+    "@openzeppelin/hardhat-upgrades": "^1.12.0",
+    "@poanet/solidity-flattener": "^3.0.6",
+    "chai": "^4.3.4",
+    "ethereum-waffle": "^3.3.0",
+    "ethers": "^5.0.32",
+    "hardhat": "^2.1.2",
+    "prettier": "^2.3.2",
+    "prettier-plugin-solidity": "^1.0.0-beta.17",
+    "solhint": "^3.3.6"
+  }
+}
