@@ -2,10 +2,13 @@ import {
   CircularProgress,
   Link,
   makeStyles,
+  Paper,
   Typography,
 } from "@material-ui/core";
 import clsx from "clsx";
+import numeral from "numeral";
 import useTransactionCount from "../../hooks/useTransactionCount";
+import { COLORS } from "../../muiTheme";
 import { WORMHOLE_EXPLORER_BASE } from "../../utils/consts";
 
 const useStyles = makeStyles((theme) => ({
@@ -29,7 +32,7 @@ const useStyles = makeStyles((theme) => ({
   flexBox: {
     display: "flex",
     alignItems: "flex-end",
-    marginBottom: theme.spacing(1),
+    marginBottom: theme.spacing(4),
     textAlign: "left",
     [theme.breakpoints.down("sm")]: {
       flexDirection: "column",
@@ -52,21 +55,24 @@ const useStyles = makeStyles((theme) => ({
     alignItems: "center",
   },
   totalContainer: {
-    display: "flex",
-    alignItems: "flex-end",
-    paddingLeft: theme.spacing(0.5),
-    paddingRight: theme.spacing(0.5),
-    paddingBottom: 1, // line up with left text bottom
-    [theme.breakpoints.down("sm")]: {
-      marginTop: theme.spacing(1),
-    },
+    paddingLeft: theme.spacing(1),
+    paddingRight: theme.spacing(1),
+    textAlign: "center",
+    marginBottom: theme.spacing(2),
   },
   totalValue: {
-    marginLeft: theme.spacing(0.5),
-    marginBottom: "-.125em", // line up number with label
+    fontWeight: 600,
   },
   typog: {
     marginTop: theme.spacing(3),
+  },
+  mainPaper: {
+    backgroundColor: COLORS.whiteWithTransparency,
+    padding: "2rem",
+    "& > h, & > p ": {
+      margin: ".5rem",
+    },
+    marginBottom: theme.spacing(8),
   },
 }));
 
@@ -78,8 +84,8 @@ const TransactionMetrics: React.FC<any> = () => {
   const header = (
     <div className={classes.flexBox}>
       <div>
-        <Typography variant="h5">Transaction Count</Typography>
-        <Typography variant="subtitle2" color="textSecondary">
+        <Typography variant="h4">Transaction Count</Typography>
+        <Typography variant="subtitle1" color="textSecondary">
           This is how many transactions the Token Bridge has processed.
         </Typography>
       </div>
@@ -90,39 +96,29 @@ const TransactionMetrics: React.FC<any> = () => {
   const content = (
     <div className={classes.totalsBox}>
       <div className={classes.totalContainer}>
-        <Typography
-          variant="body2"
-          color="textSecondary"
-          component="div"
-          noWrap
-        >
+        <Typography variant="subtitle2" component="div" noWrap>
           {"Last 48 Hours"}
         </Typography>
         <Typography
-          variant="h3"
+          variant="h2"
           component="div"
           noWrap
           className={classes.totalValue}
         >
-          {transactionCount.data?.total24h || "0"}
+          {numeral(transactionCount.data?.total24h || 0).format("0,0")}
         </Typography>
       </div>
       <div className={classes.totalContainer}>
-        <Typography
-          variant="body2"
-          color="textSecondary"
-          component="div"
-          noWrap
-        >
+        <Typography variant="subtitle2" component="div" noWrap>
           {"All Time"}
         </Typography>
         <Typography
-          variant="h3"
+          variant="h2"
           component="div"
           noWrap
           className={classes.totalValue}
         >
-          {transactionCount.data?.totalAllTime || "0"}
+          {numeral(transactionCount.data?.totalAllTime || 0).format("0,0")}
         </Typography>
       </div>
     </div>
@@ -144,14 +140,16 @@ const TransactionMetrics: React.FC<any> = () => {
   return (
     <>
       {header}
-      {isFetching ? (
-        <CircularProgress className={classes.alignCenter} />
-      ) : (
-        <>
-          {content}
-          {networkExplorer}
-        </>
-      )}
+      <Paper className={classes.mainPaper}>
+        {isFetching ? (
+          <CircularProgress className={classes.alignCenter} />
+        ) : (
+          <>
+            {content}
+            {networkExplorer}
+          </>
+        )}
+      </Paper>
     </>
   );
 };

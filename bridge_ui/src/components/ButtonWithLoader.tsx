@@ -12,7 +12,6 @@ const useStyles = makeStyles((theme) => ({
   },
   button: {
     marginTop: theme.spacing(2),
-    textTransform: "none",
     width: "100%",
   },
   loader: {
