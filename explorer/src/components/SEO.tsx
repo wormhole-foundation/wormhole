@@ -33,7 +33,7 @@ export function SEO({
     const siteUrl = site.siteMetadata.siteUrl
     const defaultTitle = site.siteMetadata?.defaultTitle
     const twitterUsername = `@wormholecrypto`
-    const socialImage = "/name-and-logo_social-card.png"
+    const socialImage = "/logo-and-name_social-card.png"
     const socialImageWidth = '800'
     const socialImageHeight = '400'
     const image = `${siteUrl}${socialImage}`
