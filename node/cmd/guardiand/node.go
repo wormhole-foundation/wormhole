@@ -91,6 +91,15 @@ var (
 	solanaWsRPC *string
 	solanaRPC   *string
 
+	mandalaRPC      *string
+	mandalaContract *string
+
+	karuraRPC      *string
+	karuraContract *string
+
+	acalaRPC      *string
+	acalaContract *string
+
 	logLevel *string
 
 	unsafeDevMode   *bool
@@ -164,6 +173,15 @@ func init() {
 
 	solanaWsRPC = NodeCmd.Flags().String("solanaWS", "", "Solana Websocket URL (required")
 	solanaRPC = NodeCmd.Flags().String("solanaRPC", "", "Solana RPC URL (required")
+
+	mandalaRPC = NodeCmd.Flags().String("mandalaRPC", "", "Mandala RPC URL")
+	mandalaContract = NodeCmd.Flags().String("mandalaContract", "", "Mandala contract address")
+
+	karuraRPC = NodeCmd.Flags().String("karuraRPC", "", "Karura RPC URL")
+	karuraContract = NodeCmd.Flags().String("karuraContract", "", "Karura contract address")
+
+	acalaRPC = NodeCmd.Flags().String("acalaRPC", "", "Acala RPC URL")
+	acalaContract = NodeCmd.Flags().String("acalaContract", "", "Acala contract address")
 
 	logLevel = NodeCmd.Flags().String("logLevel", "info", "Logging level (debug, info, warn, error, dpanic, panic, fatal)")
 
@@ -274,11 +292,14 @@ func runNode(cmd *cobra.Command, args []string) {
 	readiness.RegisterComponent(common.ReadinessTerraSyncing)
 	if *unsafeDevMode {
 		readiness.RegisterComponent(common.ReadinessAlgorandSyncing)
+		readiness.RegisterComponent(common.ReadinessMandalaSyncing)
 	}
 	readiness.RegisterComponent(common.ReadinessBSCSyncing)
 	readiness.RegisterComponent(common.ReadinessPolygonSyncing)
 	readiness.RegisterComponent(common.ReadinessAvalancheSyncing)
 	readiness.RegisterComponent(common.ReadinessOasisSyncing)
+	readiness.RegisterComponent(common.ReadinessKaruraSyncing)
+	readiness.RegisterComponent(common.ReadinessAcalaSyncing)
 	if *testnetMode {
 		readiness.RegisterComponent(common.ReadinessEthRopstenSyncing)
 	}
@@ -324,6 +345,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		*polygonContract = devnet.GanacheWormholeContractAddress.Hex()
 		*avalancheContract = devnet.GanacheWormholeContractAddress.Hex()
 		*oasisContract = devnet.GanacheWormholeContractAddress.Hex()
+		*mandalaContract = devnet.GanacheWormholeContractAddress.Hex()
 	}
 
 	// Verify flags
@@ -402,6 +424,19 @@ func runNode(cmd *cobra.Command, args []string) {
 	if *terraContract == "" {
 		logger.Fatal("Please specify --terraContract")
 	}
+	// TODO: enable
+	//if *karuraRPC == "" {
+	//	logger.Fatal("Please specify --karuraRPC")
+	//}
+	//if *karuraContract == "" {
+	//	logger.Fatal("Please specify --karuraContract")
+	//}
+	//if *acalaRPC == "" {
+	//	logger.Fatal("Please specify --acalaRPC")
+	//}
+	//if *acalaContract == "" {
+	//	logger.Fatal("Please specify --acalaContract")
+	//}
 
 	if *unsafeDevMode {
 		if *algorandRPC == "" {
@@ -412,6 +447,12 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 		if *algorandContract == "" {
 			logger.Fatal("Please specify --algorandContract")
+		}
+		if *mandalaRPC == "" {
+			logger.Fatal("Please specify --mandalaRPC")
+		}
+		if *mandalaContract == "" {
+			logger.Fatal("Please specify --mandalaContract")
 		}
 	}
 
@@ -462,6 +503,10 @@ func runNode(cmd *cobra.Command, args []string) {
 	ethRopstenContractAddr := eth_common.HexToAddress(*ethRopstenContract)
 	avalancheContractAddr := eth_common.HexToAddress(*avalancheContract)
 	oasisContractAddr := eth_common.HexToAddress(*oasisContract)
+	mandalaContractAddr := eth_common.HexToAddress(*mandalaContract)
+	// TODO: enable
+	//karuraContractAddr := eth_common.HexToAddress(*karuraContract)
+	//acalaContractAddr := eth_common.HexToAddress(*acalaContract)
 	solAddress, err := solana_types.PublicKeyFromBase58(*solanaContract)
 	if err != nil {
 		logger.Fatal("invalid Solana contract address", zap.Error(err))
@@ -667,6 +712,10 @@ func runNode(cmd *cobra.Command, args []string) {
 				algorand.NewWatcher(*algorandRPC, *algorandToken, *algorandContract, lockC, setC).Run); err != nil {
 				return err
 			}
+			if err := supervisor.Run(ctx, "mandalawatch",
+				ethereum.NewEthWatcher(*mandalaRPC, mandalaContractAddr, "mandala", common.ReadinessMandalaSyncing, vaa.ChainIDMandala, lockC, nil, 1).Run); err != nil {
+				return err
+			}
 		}
 
 		if err := supervisor.Run(ctx, "solwatch-confirmed",
@@ -678,6 +727,16 @@ func runNode(cmd *cobra.Command, args []string) {
 			solana.NewSolanaWatcher(*solanaWsRPC, *solanaRPC, solAddress, lockC, rpc.CommitmentFinalized).Run); err != nil {
 			return err
 		}
+
+		// TODO: enable
+		//if err := supervisor.Run(ctx, "karurawatch",
+		//	ethereum.NewEthWatcher(*karuraRPC, karuraContractAddr, "karura", common.ReadinessKaruraSyncing, vaa.ChainIDKarura, lockC, nil, 1).Run); err != nil {
+		//	return err
+		//}
+		//if err := supervisor.Run(ctx, "acalawatch",
+		//	ethereum.NewEthWatcher(*acalaRPC, acalaContractAddr, "acala", common.ReadinessAcalaSyncing, vaa.ChainIDAcala, lockC, nil, 1).Run); err != nil {
+		//	return err
+		//}
 
 		p := processor.NewProcessor(ctx,
 			db,
