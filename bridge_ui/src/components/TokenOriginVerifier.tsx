@@ -40,8 +40,8 @@ const useStyles = makeStyles((theme) => ({
     },
   },
   mainCard: {
-    padding: theme.spacing(2),
-    backgroundColor: COLORS.nearBlackWithMinorTransparency,
+    padding: "32px 32px 16px",
+    backgroundColor: COLORS.whiteWithTransparency,
   },
   spacer: {
     height: theme.spacing(3),
@@ -358,10 +358,7 @@ export default function TokenOriginVerifier() {
   const content = (
     <div>
       <Container maxWidth="md" className={classes.centered}>
-        <HeaderText white small>
-          Token Origin Verifier
-        </HeaderText>
-        <div className={classes.spacer} />
+        <HeaderText white>Token Origin Verifier</HeaderText>
       </Container>
       <Container maxWidth="sm">
         <Card className={classes.mainCard}>{primaryContent}</Card>

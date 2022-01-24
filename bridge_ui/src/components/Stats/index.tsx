@@ -12,6 +12,7 @@ import numeral from "numeral";
 import { useMemo } from "react";
 import useTVL from "../../hooks/useTVL";
 import { COLORS } from "../../muiTheme";
+import HeaderText from "../HeaderText";
 import SmartAddress from "../SmartAddress";
 import { balancePretty } from "../TokenSelectors/TokenPicker";
 import CustodyAddresses from "./CustodyAddresses";
@@ -38,17 +39,17 @@ const useStyles = makeStyles((theme) => ({
     alignItems: "center",
   },
   mainPaper: {
-    backgroundColor: COLORS.nearBlackWithMinorTransparency,
+    backgroundColor: COLORS.whiteWithTransparency,
     padding: "2rem",
     "& > h, & > p ": {
       margin: ".5rem",
     },
-    marginBottom: theme.spacing(2),
+    marginBottom: theme.spacing(8),
   },
   flexBox: {
     display: "flex",
     alignItems: "flex-end",
-    marginBottom: theme.spacing(1),
+    marginBottom: theme.spacing(4),
     textAlign: "left",
     [theme.breakpoints.down("sm")]: {
       flexDirection: "column",
@@ -204,63 +205,55 @@ const StatsRoot: React.FC<any> = () => {
 
   return (
     <Container maxWidth="lg">
-      <Paper className={classes.mainPaper}>
-        <>
-          <div className={classes.flexBox}>
-            <div className={classes.explainerContainer}>
-              <Typography variant="h5">Total Value Locked</Typography>
-              <Typography variant="subtitle2" color="textSecondary">
-                These assets are currently locked by the Token Bridge contracts.
-              </Typography>
-            </div>
-            <div className={classes.grower} />
-            {!tvl.isFetching ? (
-              <div
-                className={clsx(
-                  classes.explainerContainer,
-                  classes.totalContainer
-                )}
-              >
-                <Typography
-                  variant="body2"
-                  color="textSecondary"
-                  component="div"
-                  noWrap
-                >
-                  {"Total (USD)"}
-                </Typography>
-                <Typography
-                  variant="h3"
-                  component="div"
-                  noWrap
-                  className={classes.totalValue}
-                >
-                  {tvlString}
-                </Typography>
-              </div>
-            ) : null}
+      <Container maxWidth="md">
+        <HeaderText white>Rock Hard Stats</HeaderText>
+      </Container>
+      <div className={classes.flexBox}>
+        <div className={classes.explainerContainer}>
+          <Typography variant="h4">Total Value Locked</Typography>
+          <Typography variant="subtitle1" color="textSecondary">
+            These assets are currently locked by the Token Bridge contracts.
+          </Typography>
+        </div>
+        <div className={classes.grower} />
+        {!tvl.isFetching ? (
+          <div
+            className={clsx(classes.explainerContainer, classes.totalContainer)}
+          >
+            <Typography
+              variant="body2"
+              color="textSecondary"
+              component="div"
+              noWrap
+            >
+              {"Total (USD)"}
+            </Typography>
+            <Typography
+              variant="h3"
+              component="div"
+              noWrap
+              className={classes.totalValue}
+            >
+              {tvlString}
+            </Typography>
           </div>
-          {!tvl.isFetching ? (
-            <MuiReactTable
-              columns={tvlColumns}
-              data={tvl.data}
-              skipPageReset={false}
-              initialState={{ sortBy: [{ id: "totalValue", desc: true }] }}
-            />
-          ) : (
-            <CircularProgress className={classes.alignCenter} />
-          )}
-        </>
-      </Paper>
+        ) : null}
+      </div>
       <Paper className={classes.mainPaper}>
-        <TransactionMetrics />
+        {!tvl.isFetching ? (
+          <MuiReactTable
+            columns={tvlColumns}
+            data={tvl.data}
+            skipPageReset={false}
+            initialState={{ sortBy: [{ id: "totalValue", desc: true }] }}
+          />
+        ) : (
+          <CircularProgress className={classes.alignCenter} />
+        )}
       </Paper>
-      <Paper className={classes.mainPaper}>
-        <CustodyAddresses />
-      </Paper>
-      <Paper className={classes.mainPaper}>
-        <NFTStats />
-      </Paper>
+      <TransactionMetrics />
+      <CustodyAddresses />
+      <NFTStats />
     </Container>
   );
 };

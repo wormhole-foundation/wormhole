@@ -59,7 +59,7 @@ function Source() {
               to="/nft-origin-verifier"
               size="small"
               variant="outlined"
-              endIcon={<VerifiedUser />}
+              startIcon={<VerifiedUser />}
             >
               NFT Origin Verifier
             </Button>

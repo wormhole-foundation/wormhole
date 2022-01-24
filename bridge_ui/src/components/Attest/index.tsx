@@ -45,9 +45,7 @@ function Attest() {
   }, [preventNavigation]);
   return (
     <Container maxWidth="md">
-      <HeaderText white small>
-        Token Registration
-      </HeaderText>
+      <HeaderText white>Token Registration</HeaderText>
       <Alert severity="info">
         This form allows you to register a token on a new foreign chain. Tokens
         must be registered before they can be transferred.
@@ -57,7 +55,9 @@ function Attest() {
           expanded={activeStep >= 0}
           disabled={preventNavigation || isCreateComplete}
         >
-          <StepButton onClick={() => dispatch(setStep(0))}>Source</StepButton>
+          <StepButton onClick={() => dispatch(setStep(0))} icon={null}>
+            1. Source
+          </StepButton>
           <StepContent>
             {activeStep === 0 ? <Source /> : <SourcePreview />}
           </StepContent>
@@ -66,14 +66,16 @@ function Attest() {
           expanded={activeStep >= 1}
           disabled={preventNavigation || isCreateComplete}
         >
-          <StepButton onClick={() => dispatch(setStep(1))}>Target</StepButton>
+          <StepButton onClick={() => dispatch(setStep(1))} icon={null}>
+            2. Target
+          </StepButton>
           <StepContent>
             {activeStep === 1 ? <Target /> : <TargetPreview />}
           </StepContent>
         </Step>
         <Step expanded={activeStep >= 2} disabled={isSendComplete}>
-          <StepButton onClick={() => dispatch(setStep(2))}>
-            Send attestation
+          <StepButton onClick={() => dispatch(setStep(2))} icon={null}>
+            3. Send attestation
           </StepButton>
           <StepContent>
             {activeStep === 2 ? <Send /> : <SendPreview />}
@@ -83,8 +85,9 @@ function Attest() {
           <StepButton
             onClick={() => dispatch(setStep(3))}
             disabled={!isSendComplete}
+            icon={null}
           >
-            Create wrapped token
+            4. Create wrapped token
           </StepButton>
           <StepContent>
             {isCreateComplete ? <CreatePreview /> : <Create />}

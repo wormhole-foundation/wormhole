@@ -81,7 +81,7 @@ export default function FeaturedMarkets() {
           size="small"
           variant="outlined"
           color="secondary"
-          endIcon={<Launch />}
+          startIcon={<Launch />}
           href={url}
           target="_blank"
           rel="noopener noreferrer"
