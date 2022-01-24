@@ -3,7 +3,7 @@ import React, { useEffect, useState } from "react";
 import { useNetworkContext } from "../../contexts/NetworkContext";
 import { ChainID } from "../../utils/consts";
 import { contractNameFormatter } from "../../utils/explorer";
-import { BigTableMessage } from "../ExplorerQuery";
+import { BigTableMessage } from "../ExplorerSearch/ExplorerQuery";
 import RecentMessages from "./RecentMessages";
 import ChainOverviewCard from "./ChainOverviewCard";
 import PastWeekCard from "./PastWeekCard";
