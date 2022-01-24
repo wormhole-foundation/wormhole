@@ -35,6 +35,7 @@ import SmartAddress from "../SmartAddress";
 import SolanaCreateAssociatedAddress, {
   useAssociatedAccountExistsState,
 } from "../SolanaCreateAssociatedAddress";
+import SolanaTPSWarning from "../SolanaTPSWarning";
 import StepDescription from "../StepDescription";
 import RegisterNowButton from "./RegisterNowButton";
 
@@ -178,6 +179,7 @@ function Target() {
         )}
       </Alert>
       <LowBalanceWarning chainId={targetChain} />
+      {targetChain === CHAIN_ID_SOLANA && <SolanaTPSWarning />}
       <ButtonWithLoader
         disabled={!isTargetComplete || !associatedAccountExists}
         onClick={handleNextClick}

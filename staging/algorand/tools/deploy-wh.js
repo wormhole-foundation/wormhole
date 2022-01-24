@@ -24,35 +24,74 @@ function signCallback (sender, tx) {
 }
 
 async function startOp (algodClient, fromAddress, gexpTime, gkeys) {
-  console.log('Compiling VAA Processor program code...')
-  const out = spawnSync('python', ['teal/wormhole/pyteal/vaa-processor.py'])
+  console.log('Compiling programs ...\n')
+  let out = spawnSync('python', ['teal/wormhole/pyteal/vaa-processor.py'])
+  console.log(out.output.toString())
+  out = spawnSync('python', ['teal/wormhole/pyteal/pricekeeper-v2.py'])
   console.log(out.output.toString())
 
-  // console.log('Compiling VAA Verify stateless program code...')
-  // out = spawnSync('python', ['teal/wormhole/pyteal/vaa-verify.py'])
-  // console.log(out.output.toString())
-
   const pclib = new PricecasterLib.PricecasterLib(algodClient)
-  console.log('Creating new app...')
-  const txId = await pclib.createVaaProcessorApp(fromAddress, gexpTime, gkeys.join(''), signCallback)
+  console.log('Creating VAA Processor...')
+  let txId = await pclib.createVaaProcessorApp(fromAddress, gexpTime, 0, gkeys.join(''), signCallback)
   console.log('txId: ' + txId)
-  const txResponse = await pclib.waitForTransactionResponse(txId)
+  let txResponse = await pclib.waitForTransactionResponse(txId)
   const appId = pclib.appIdFromCreateAppResponse(txResponse)
   console.log('Deployment App Id: %d', appId)
+  pclib.setAppId('vaaProcessor', appId)
+
+  console.log('Creating Pricekeeper V2...')
+  txId = await pclib.createPricekeeperApp(fromAddress, appId, signCallback)
+  console.log('txId: ' + txId)
+  txResponse = await pclib.waitForTransactionResponse(txId)
+  const pkAppId = pclib.appIdFromCreateAppResponse(txResponse)
+  console.log('Deployment App Id: %d', pkAppId)
+  pclib.setAppId('pricekeeper', pkAppId)
+
+  console.log('Setting VAA Processor authid parameter...')
+  txId = await pclib.setAuthorizedAppId(fromAddress, pkAppId, signCallback)
+  console.log('txId: ' + txId)
+  txResponse = await pclib.waitForTransactionResponse(txId)
+
+  console.log('Compiling verify VAA stateless code...')
+  out = spawnSync('python', ['teal/wormhole/pyteal/vaa-verify.py'])
+  console.log(out.output.toString())
+
+  spawnSync('python', ['teal/wormhole/pyteal/vaa-verify.py', appId])
+  const program = fs.readFileSync('teal/wormhole/build/vaa-verify.teal', 'utf8')
+  const compiledVerifyProgram = await pclib.compileProgram(program)
+  console.log('Stateless program address: ', compiledVerifyProgram.hash)
+
+  console.log('Setting VAA Processor stateless code...')
+  const txid = await pclib.setVAAVerifyProgramHash(fromAddress, compiledVerifyProgram.hash, signCallback)
+  console.log('txId: ' + txId)
+  await pclib.waitForTransactionResponse(txid)
+
+  const dt = Date.now().toString()
+  const resultsFileName = 'DEPLOY-' + dt
+  const binaryFileName = 'VAA-VERIFY-' + dt + '.BIN'
+
+  console.log(`Writing deployment results file ${resultsFileName}...`)
+  fs.writeFileSync(resultsFileName, `vaaProcessorAppId: ${appId}\npriceKeeperV2AppId: ${pkAppId}\nvaaVerifyProgramHash: '${compiledVerifyProgram.hash}'`)
+
+  console.log(`Writing stateless code binary file ${binaryFileName}...`)
+  fs.writeFileSync(binaryFileName, compiledVerifyProgram.bytes)
 }
 
 (async () => {
-  console.log('\nVAA Processor for Wormhole Deployment Tool -- (c)2021-22 Randlabs, Inc.')
-  console.log('-----------------------------------------------------------------------\n')
+  console.log('\nPricecaster v2 Apps Deployment Tool')
+  console.log('Copyright (c) Randlabs Inc,  2021-22\n')
 
-  if (process.argv.length !== 6) {
+  if (process.argv.length !== 7) {
     console.log('Usage: deploy <glistfile> <from> <network>\n')
     console.log('where:\n')
     console.log('glistfile              File containing the initial list of guardians')
     console.log('gexptime               Guardian set expiration time')
     console.log('from                   Deployer account')
     console.log('network                Testnet, betanet or mainnet')
-    console.log('\nFile must contain one guardian key per line, formatted in hex, without hex prefix.')
+    console.log('keyfile                Secret file containing signing key mnemonic')
+    console.log('\n- File must contain one guardian key per line, formatted in hex, without hex prefix.')
+    console.log('\n- Deployment process will generate one DEPLOY-xxxx file with application Ids, stateless hash, and')
+    console.log('  a VAA-VERIFY-XXXX.bin with stateless compiled bytes, to use with backend configuration')
     exit(0)
   }
 
@@ -60,6 +99,7 @@ async function startOp (algodClient, fromAddress, gexpTime, gkeys) {
   const gexpTime = process.argv[3]
   const fromAddress = process.argv[4]
   const network = process.argv[5]
+  const keyfile = process.argv[6]
 
   const config = { server: '', apiToken: '', port: '' }
   if (network === 'betanet') {
@@ -92,7 +132,7 @@ async function startOp (algodClient, fromAddress, gexpTime, gkeys) {
     console.warn('Aborted by user.')
     exit(1)
   }
-  globalMnemo = await ask('\nEnter mnemonic for sender account.\nBE SURE TO DO THIS FROM A SECURED SYSTEM\n')
+  globalMnemo = fs.readFileSync(keyfile).toString()
   try {
     await startOp(algodClient, fromAddress, gexpTime, gkeys)
   } catch (e) {

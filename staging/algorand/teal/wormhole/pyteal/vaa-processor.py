@@ -6,6 +6,11 @@ The VAA Processor Program
 
 (c) 2021 Randlabs, Inc.
 
+Changelog.
+
+v1.0                - Initial design
+v1.1    211214      - Group must end with either a dummy or app-call such as Store price onchain.
+
 ------------------------------------------------------------------------------------------------
 
 This program is the core client to signed VAAs from Wormhole, working in tandem with the
@@ -14,15 +19,19 @@ verify-vaa.teal stateless programs.
 The following application calls are available.
 
 setvphash: Set verify program hash.
-
-Must be part of group:
+setauthid: Set the authorized app-id of the last transaction call in the group, used as consumer
+              of the verified VAA.
 
 verify: Verify guardian signature subset i..j, works in tandem with stateless program.
         Arguments:  #0 guardian public keys subset i..j  (must match stored in global state)
                     #1 guardian signatures subset i..j
                     TX Note: payload to verify
-        Last verification step (the last TX in group) triggers the VAA commiting stage,
-        where we decide what to do based on the payload.
+        Last verification step triggers the VAA commiting stage,
+        where we decide what to do based on the payload. A last work transaction must be issued,
+        with a call to an authorized app-id (authid).  This serves for example to call a Pricekeeper
+        contract to store price data on-chain.
+        If nothing is to be done, any dummy app-call must be called for the group to be approved.
+
 ------------------------------------------------------------------------------------------------
 
 Global state:
@@ -31,6 +40,8 @@ Global state:
 "gsexp"    :  Guardian set expiration time
 "gscount"  :  Guardian set size
 "vssize"   :  Verification step size.
+"authid"   :  The authorized app-id of the last transaction call in the group, used as consumer
+              of the verified VAA.
 key N      :  address of guardian N
 
 ------------------------------------------------------------------------------------------------
@@ -56,6 +67,7 @@ SLOTID_TEMP_0 = 251
 SLOTID_VERIFIED_BIT = 254
 STATELESS_LOGIC_HASH = App.globalGet(Bytes("vphash"))
 NUM_GUARDIANS = App.globalGet(Bytes("gscount"))
+AUTHORIZED_APP_ID = App.globalGet(Bytes("authid"))
 SLOT_VERIFIED_BITFIELD = ScratchVar(TealType.uint64, SLOTID_VERIFIED_BIT)
 SLOT_TEMP = ScratchVar(TealType.uint64, SLOTID_TEMP_0)
 
@@ -71,8 +83,8 @@ PYTH2WORMHOLE_EMITTER_ID =   '0x3afda841c1f43dd7d546c8a581ba1f92a139f4133f9f6ab0
 
 # VAA fields
 
-VAA_RECORD_EMITTER_CHAIN_POS = 4
-VAA_RECORD_EMITTER_CHAIN_LEN = 4
+VAA_RECORD_EMITTER_CHAIN_POS = 8
+VAA_RECORD_EMITTER_CHAIN_LEN = 2
 VAA_RECORD_EMITTER_ADDR_POS = 10
 VAA_RECORD_EMITTER_ADDR_LEN = 32
 
@@ -159,6 +171,10 @@ def handle_pyth_price_ticker():
 # Unpack the verified VAA payload and process it according to
 # the source based by emitterChainId, emitterAddress.
 #
+# NOTE: This will work when contract-to-contract call is available in the AVM.
+#       Now, the transaction group must end with a call to process the VAA or
+#       do-nothing, if you want only to do verification chores without processing anything.
+#
 def commit_vaa():
     chainId = Btoi(Extract(VERIFY_ARG_PAYLOAD, Int(
         VAA_RECORD_EMITTER_CHAIN_POS), Int(VAA_RECORD_EMITTER_CHAIN_LEN)))
@@ -188,7 +204,7 @@ def check_final_verification_state():
     i = SLOT_TEMP
     return Seq([
         For(i.store(Int(1)),
-            i.load() < Global.group_size(),
+            i.load() < Global.group_size() - Int(1),
             i.store(i.load() + Int(1))).Do(Seq([
                 Assert(Gtxn[i.load()].type_enum() == TxnType.ApplicationCall),
                 Assert(Gtxn[i.load()].application_id() == Txn.application_id()),
@@ -213,6 +229,19 @@ def setvphash():
         Approve()
     ])
 
+def setauthid():
+    #
+    # Sets the app-id of an authorized program to be executed as a 
+    # last call in the group to optionally consume the verified VAA.
+    #
+
+    return Seq([
+        Assert(is_creator()),
+        Assert(Global.group_size() == Int(1)),
+        Assert(Txn.application_args.length() == Int(2)),
+        App.globalPut(Bytes("authid"), Btoi(Txn.application_args[1])),
+        Approve()
+    ])
 
 def verify():
     # * Sender must be stateless logic.
@@ -223,12 +252,15 @@ def verify():
     # * Passed guardian public keys [i..j] must match the current global state.
     # * Note must contain VAA message-in-digest (header+payload) (up to 1KB)  (read by stateless logic)
     #
-    # Last TX in group  will trigger VAA handling depending on payload. It is required that
+    # Last verify TX in group  will trigger VAA handling depending on payload. It is required that
     # all previous transactions are app-calls for this AppId and all bitfields are set.
+    # Last TX in group must be call to authorized applications.
 
     return Seq([
         SLOT_VERIFIED_BITFIELD.store(Int(0)),
-        Assert(Global.group_size() == get_group_size(NUM_GUARDIANS)),
+        Assert(Global.group_size() == get_group_size(NUM_GUARDIANS) + Int(1)),
+        Assert(Gtxn[Global.group_size() - Int(1)].type_enum() == TxnType.ApplicationCall),
+        Assert(Gtxn[Global.group_size() - Int(1)].application_id() == AUTHORIZED_APP_ID),
         Assert(Txn.application_args.length() == Int(3)),
         Assert(Txn.sender() == STATELESS_LOGIC_HASH),
         Assert(check_guardian_set_size()),
@@ -236,7 +268,7 @@ def verify():
         SLOT_VERIFIED_BITFIELD.store(
             SetBit(SLOT_VERIFIED_BITFIELD.load(), Txn.group_index(), Int(1))),
         If(Txn.group_index() == Global.group_size() -
-           Int(1)).Then(
+           Int(2)).Then(
             Return(Seq([
                 Assert(check_final_verification_state()),
                 commit_vaa()
@@ -250,7 +282,9 @@ def vaa_processor_program():
     handle_delete = Return(is_creator())
     handle_noop = Cond(
         [METHOD == Bytes("setvphash"), setvphash()],
+        [METHOD == Bytes("setauthid"), setauthid()],
         [METHOD == Bytes("verify"), verify()],
+        [METHOD == Bytes("nop"), Return(Int(1))],
     )
     return Cond(
         [Txn.application_id() == Int(0), handle_create],

@@ -103,7 +103,6 @@ dist
 # TernJS port file
 .tern-port
 
-build/*
 teal/wormhole/pyteal/__pycache__/*
-teal/wormhole/build/*
+teal/wormhole/build/*.teal
 test/temp/*.teal

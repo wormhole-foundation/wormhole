@@ -43,9 +43,9 @@ class TestLib {
       payload.substr(2)
     ]
 
-    const hash = web3Utils.keccak256('0x' + body.join(''))
+    const hash = web3Utils.keccak256(web3Utils.keccak256('0x' + body.join('')))
 
-    console.log('VAA body Hash: ', hash)
+    // console.log('VAA body Hash: ', hash)
 
     let signatures = ''
 
@@ -82,6 +82,23 @@ class TestLib {
       value = '0' + value
     }
     return value
+  }
+
+  shuffle (array) {
+    let currentIndex = array.length; let randomIndex
+
+    // While there remain elements to shuffle...
+    while (currentIndex !== 0) {
+      // Pick a remaining element...
+      randomIndex = Math.floor(Math.random() * currentIndex)
+      currentIndex--;
+
+      // And swap it with the current element.
+      [array[currentIndex], array[randomIndex]] = [
+        array[randomIndex], array[currentIndex]]
+    }
+
+    return array
   }
 }
 
