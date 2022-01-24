@@ -7,6 +7,7 @@ import {
 } from "@mui/lab";
 import { Box, Typography } from "@mui/material";
 import * as React from "react";
+import { PageProps } from 'gatsby'
 import AvoidBreak from "../components/AvoidBreak";
 import HeroText from "../components/HeroText";
 import Layout from "../components/Layout";
@@ -14,10 +15,16 @@ import network from "../images/buidl/network.svg";
 import shape from "../images/buidl/shape.svg";
 import stack from "../images/buidl/stack.svg";
 import shape1 from "../images/index/shape1.svg";
+import { SEO } from "../components/SEO";
 
-const BuidlPage = () => {
+const BuidlPage = ({ location }: PageProps) => {
   return (
     <Layout>
+      <SEO
+        title="BUIDL"
+        description="One integration to rule them all. Access every chain at once with our SDK."
+        pathname={location.pathname}
+      />
       <Box sx={{ position: "relative", marginTop: 17 }}>
         <Box
           sx={{

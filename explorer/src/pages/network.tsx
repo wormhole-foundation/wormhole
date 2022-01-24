@@ -12,6 +12,7 @@ import {
   Typography,
 } from "@mui/material";
 import * as React from "react";
+import { PageProps } from 'gatsby'
 import HeroText from "../components/HeroText";
 import Layout from "../components/Layout";
 import shape1 from "../images/index/shape1.svg";
@@ -27,6 +28,7 @@ import ChainIcon from "../components/ChainIcon";
 import { ChainId } from "@certusone/wormhole-sdk";
 import { KeyboardArrowDown, KeyboardArrowUp } from "@mui/icons-material";
 import { ChainID } from "../utils/consts";
+import { SEO } from "../components/SEO";
 
 const GuardianRow = ({ hb }: { hb: Heartbeat }) => {
   const [open, setOpen] = React.useState(false);
@@ -207,9 +209,14 @@ const GuardiansList = () => {
   );
 };
 
-const NetworkPage = () => {
+const NetworkPage = ({ location }: PageProps) => {
   return (
     <Layout>
+      <SEO
+        title="Network"
+        description="Meet the Guardians."
+        pathname={location.pathname}
+      />
       <Box sx={{ position: "relative", marginTop: 17 }}>
         <Box
           sx={{

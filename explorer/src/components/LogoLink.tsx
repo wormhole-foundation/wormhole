@@ -1,7 +1,7 @@
 import { Button } from "@mui/material";
 import { Link as RouterLink } from "gatsby";
 import React from "react";
-import logo from "../images/logo.svg";
+import logo from "../images/logo-and-name.svg";
 import { home } from "../utils/urls";
 
 const LogoLink = ({ negMt = false }: { negMt?: boolean }) => (

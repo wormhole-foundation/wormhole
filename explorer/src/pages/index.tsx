@@ -1,10 +1,16 @@
 import ArrowForward from "@mui/icons-material/ArrowForward";
 import { Box, Button, Typography } from "@mui/material";
-import { Link as RouterLink } from "gatsby";
+import {
+  Link as RouterLink,
+  PageProps,
+  graphql,
+  useStaticQuery
+} from "gatsby";
 import * as React from "react";
 import GridWithCards from "../components/GridWithCards";
 import HeroText from "../components/HeroText";
 import Layout from "../components/Layout";
+import { SEO } from "../components/SEO";
 import apps from "../images/index/apps.png";
 import blob from "../images/index/blob.svg";
 import cross from "../images/index/cross.svg";
@@ -15,9 +21,64 @@ import shape1 from "../images/index/shape1.svg";
 
 const featuredNumber = { fontSize: 42, fontWeight: "bold" };
 
-const IndexPage = () => {
+const IndexPage = ({ location }: PageProps) => {
+  const { site } = useStaticQuery<IndexQueryType>(IndexStaticQuery)
+  const logo = {
+    "@type": "ImageObject",
+    "url": `${site.siteMetadata.siteUrl}/logo-and-name-stacked.png`,
+    "height": "146",
+    "width": "146"
+  }
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "@id": "https://wormholenetwork.com#organization",
+    mainEntityOfPage: "https://wormholenetwork.com#organization",
+    url: "https://wormholenetwork.com",
+    name: "Wormhole",
+    sameAs: [
+      "https://github.com/certusone/wormhole",
+      "https://t.me/wormholecrypto",
+      "https://twitter.com/wormholecrypto",
+      "https://wormholebridge.com",
+      "https://wormholecrypto.medium.com",
+      "https://discord.gg/wormholecrypto",
+    ],
+    alternateName: [
+      "wormhole network",
+      "wormhole protocol",
+      "wormhole bridge",
+      "wormhole crypto",
+      "certus one wormhole",
+      "solana wormhole",
+      "SOL wormhole",
+      "terra wormhole",
+      "LUNA wormhole",
+      "ethereum wormhole",
+      "ETH wormhole",
+      "binance wormhole",
+      "BSC wormhole",
+      "oasis wormhole",
+      "ROSE wormhole",
+      "avalanche wormhole",
+      "AVAX wormhole"
+    ],
+    description: "A cross-chain messaging protocol.",
+    image: logo,
+    logo: logo
+  }
+
   return (
     <Layout>
+      <SEO
+        // use default title for index
+        description="The best of blockchains. Move information and value anywhere."
+        pathname={location.pathname}
+      >
+        <script type="application/ld+json">
+          {JSON.stringify(structuredData, undefined, 4)}
+        </script>
+      </SEO>
       <Box sx={{ position: "relative", marginTop: 21 }}>
         <Box
           sx={{
@@ -305,5 +366,22 @@ const IndexPage = () => {
     </Layout>
   );
 };
+
+type IndexQueryType = {
+  site: {
+    siteMetadata: {
+      siteUrl: string
+    }
+  }
+}
+const IndexStaticQuery = graphql`
+  query Index {
+    site {
+      siteMetadata {
+        siteUrl
+      }
+    }
+  }
+`
 
 export default IndexPage;
