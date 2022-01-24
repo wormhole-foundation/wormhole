@@ -142,7 +142,7 @@ const IndexPage = ({ location }: PageProps) => {
                 borderTop: "1px solid white",
               }}
             >
-              <Typography sx={featuredNumber}>6</Typography>
+              <Typography sx={featuredNumber}>7</Typography>
               <Typography variant="body2">chain integrations</Typography>
             </Box>
             <Box
