@@ -7,6 +7,7 @@ import HeroText from "../components/HeroText";
 import Layout from "../components/Layout";
 import NetworkSelect from "../components/NetworkSelect";
 import shape1 from "../images/index/shape1.svg";
+import { SEO } from "../components/SEO";
 
 
 interface ExplorerQueryValues {
@@ -16,7 +17,7 @@ interface ExplorerQueryValues {
   txId: string;
 }
 
-const ExplorerPage = ({ location, navigate }: PageProps) => {
+const ExplorerPage = ({ location }: PageProps) => {
   const [emitterChain, setEmitterChain] =
     React.useState<ExplorerQueryValues["emitterChain"]>();
   const [emitterAddress, setEmitterAddress] =
@@ -63,6 +64,11 @@ const ExplorerPage = ({ location, navigate }: PageProps) => {
 
   return (
     <Layout>
+      <SEO
+        title="Explorer"
+        description="Explore real-time movement of information and value around the Wormhole ecosystem."
+        pathname={location.pathname}
+      />
       <Box sx={{ position: "relative", marginTop: 17 }}>
         <Box
           sx={{

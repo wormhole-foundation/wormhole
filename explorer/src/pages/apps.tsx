@@ -1,8 +1,10 @@
 import { Box } from "@mui/material";
 import * as React from "react";
+import { PageProps } from 'gatsby'
 import GridWithCards from "../components/GridWithCards";
 import HeroText from "../components/HeroText";
 import Layout from "../components/Layout";
+import { SEO } from "../components/SEO";
 import atlas from "../images/apps/atlas.png";
 import bridgesplit from "../images/apps/bridgesplit.png";
 import faraway from "../images/apps/faraway.png";
@@ -14,9 +16,14 @@ import swim from "../images/apps/swim.png";
 import tiexo from "../images/apps/tiexo.png";
 import shape1 from "../images/index/shape1.svg";
 
-const AppsPage = () => {
+const AppsPage = ({ location }: PageProps) => {
   return (
     <Layout>
+      <SEO
+        title="Apps"
+        description="Explore apps that give you the power of cross-chain movement by building on top of a core generic message-passing layer."
+        pathname={location.pathname}
+      />
       <Box sx={{ position: "relative", marginTop: 17 }}>
         <Box
           sx={{

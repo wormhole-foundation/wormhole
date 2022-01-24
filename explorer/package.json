@@ -45,6 +45,7 @@
     "util": "^0.12.4"
   },
   "devDependencies": {
+    "@types/react-helmet": "6.1.5",
     "wasm-loader": "^1.3.0"
   }
 }
