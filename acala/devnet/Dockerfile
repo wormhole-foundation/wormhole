@@ -1,0 +1,1 @@
+FROM acala/mandala-node:95c483d7

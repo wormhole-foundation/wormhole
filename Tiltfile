@@ -424,3 +424,27 @@ k8s_resource(
     port_forwards = [port_forward(3060, name = "Terra FCD [:3060]", host = webHost)],
     trigger_mode = trigger_mode,
 )
+
+# acala devnet
+
+docker_build(
+    ref = "acala-node",
+    context = "./acala/devnet",
+    dockerfile = "acala/devnet/Dockerfile",
+)
+
+docker_build(
+    ref = "acala-eth-rpc-adapter",
+    context = "./acala/eth-rpc-adapter",
+    dockerfile = "./acala/eth-rpc-adapter/Dockerfile",
+)
+
+k8s_yaml_with_ns("devnet/acala-devnet.yaml")
+
+k8s_resource(
+    "acala-devnet",
+    port_forwards = [
+        port_forward(8547, name = "Acala eth-rpc-adapter RPC [:8547]", host = webHost),
+    ],
+    trigger_mode = trigger_mode,
+)

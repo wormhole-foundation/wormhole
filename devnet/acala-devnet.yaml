@@ -1,0 +1,71 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: acala-devnet
+  labels:
+    app: acala-devnet
+spec:
+  ports:
+    - port: 8547
+      name: rpc
+      protocol: TCP
+    #- port: 9944
+    #  name: ws
+    #  protocol: TCP
+  clusterIP: None
+  selector:
+    app: acala-devnet
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: acala-devnet
+spec:
+  selector:
+    matchLabels:
+      app: acala-devnet
+  serviceName: acala-devnet
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: acala-devnet
+    spec:
+      containers:
+        - name: acala
+          image: acala-node
+          args:
+            - --dev
+            - -lruntime=debug
+            - -levm=debug
+            - --ws-port=9944
+            - --ws-external=true
+            - --rpc-port=9933
+            - --rpc-external=true
+            - --rpc-cors=all
+            - --rpc-methods=unsafe
+          ports:
+            - containerPort: 9944
+              name: ws
+              protocol: TCP
+          readinessProbe:
+            tcpSocket:
+              port: ws
+        - name: eth-rpc-adapter
+          image: acala-eth-rpc-adapter
+          command: ['yarn']
+          args:
+            - start
+          env:
+            - name: ENDPOINT_URL
+              value: ws://localhost:9944
+            #- name: SUBQL_URL
+            #  value:
+          ports:
+            - containerPort: 8545
+              name: rpc
+              protocol: TCP
+          readinessProbe:
+            tcpSocket:
+              port: rpc
