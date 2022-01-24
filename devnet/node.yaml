@@ -106,7 +106,7 @@ spec:
             - ws://solana-devnet:8900
             - --solanaRPC
             - http://solana-devnet:8899
-            - --mandalaRPC
+            - --karuraRPC
             - http://acala-devnet:8547
             - --unsafeDevMode
             - --guardianKey

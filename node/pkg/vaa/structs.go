@@ -100,8 +100,6 @@ func (c ChainID) String() string {
 		return "oasis"
 	case ChainIDAlgorand:
 		return "algorand"
-	case ChainIDMandala:
-		return "mandala"
 	case ChainIDKarura:
 		return "karura"
 	case ChainIDAcala:
@@ -133,8 +131,6 @@ func ChainIDFromString(s string) (ChainID, error) {
 		return ChainIDOasis, nil
 	case "algorand":
 		return ChainIDAlgorand, nil
-	case "mandala":
-		return ChainIDMandala, nil
 	case "karura":
 		return ChainIDKarura, nil
 	case "acala":
@@ -164,12 +160,10 @@ const (
 	ChainIDOasis ChainID = 7
 	// ChainIDAlgorand is the ChainID of Algorand
 	ChainIDAlgorand ChainID = 8
-	// ChainIDMandala is the ChainID of Mandala
-	ChainIDMandala ChainID = 595
 	// ChainIDKarura is the ChainID of Karura
-	ChainIDKarura ChainID = 686
+	ChainIDKarura ChainID = 9
 	// ChainIDAcala is the ChainID of Acala
-	ChainIDAcala ChainID = 787
+	ChainIDAcala ChainID = 10
 
 	// ChainIDEthereumRopsten is the ChainID of Ethereum Ropsten
 	ChainIDEthereumRopsten ChainID = 10001
