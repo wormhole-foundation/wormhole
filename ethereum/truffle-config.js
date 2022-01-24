@@ -41,6 +41,16 @@ module.exports = {
             gas: 70000000,
             gasPrice: 8000000000,
         },
+        karura: {
+            provider: () => {
+                return new HDWalletProvider(process.env.MNEMONIC, 'http://127.0.0.1:8547')
+            },
+            network_id: '595',
+            gas: 42032000,
+            gasPrice: 200786445289, // storage_limit = 64001, validUntil = 360001, gasLimit = 10000000
+            timeoutBlocks: 25,
+            confirmations: 0,
+        },
     },
 
     compilers: {

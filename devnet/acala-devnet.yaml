@@ -69,3 +69,22 @@ spec:
           readinessProbe:
             tcpSocket:
               port: rpc
+        - name: tests
+          image: eth-node
+          stdin: true
+          command:
+            - /bin/sh
+            - -c
+            - |
+              sed -i 's/CHAIN_ID=0x2/CHAIN_ID=0x9/g' .env
+              npm run migrate
+              npx truffle exec scripts/register_solana_chain.js
+              npx truffle exec scripts/register_terra_chain.js
+              npx truffle exec scripts/register_eth_chain.js
+              npx truffle exec scripts/register_karura_chain.js
+              nc -lkp 2000 0.0.0.0
+          readinessProbe:
+            periodSeconds: 1
+            failureThreshold: 300
+            tcpSocket:
+              port: 2000
