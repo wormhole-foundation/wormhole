@@ -1,0 +1,11 @@
+# Run with:
+# docker build -f Dockerfile.build -o artifacts .
+FROM cosmwasm/workspace-optimizer:0.12.1@sha256:1508cf7545f4b656ecafa34e29c1acf200cdab47fced85c2bc076c0c158b1338 AS builder
+ADD Cargo.lock /code/
+ADD Cargo.toml /code/
+ADD contracts /code/contracts
+ADD packages /code/packages
+RUN optimize_workspace.sh
+
+FROM scratch AS export-stage
+COPY --from=builder /code/artifacts /
