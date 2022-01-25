@@ -245,12 +245,11 @@ func runNode(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
-	cfg := zap.NewDevelopmentConfig()
-	cfg.Level = zap.NewAtomicLevelAt(zapcore.Level(lvl))
-	logger, err := cfg.Build()
-	if err != nil {
-		panic(err)
-	}
+	logger := zap.New(zapcore.NewCore(
+		consoleEncoder{zapcore.NewConsoleEncoder(
+			zap.NewDevelopmentEncoderConfig())},
+		zapcore.AddSync(zapcore.Lock(os.Stderr)),
+		zap.NewAtomicLevelAt(zapcore.Level(lvl))))
 
 	if *unsafeDevMode {
 		// Use the hostname as nodeName. For production, we don't want to do this to
