@@ -16,7 +16,7 @@ import { zeroPad } from "ethers/lib/utils.js";
 */
 const artifacts = [
   "wormhole.wasm",
-  "token_bridge.wasm",
+  "token_bridge_terra.wasm",
   "cw20_wrapped.wasm",
   "cw20_base.wasm",
   "nft_bridge.wasm",
@@ -163,7 +163,7 @@ addresses["wormhole.wasm"] = await instantiate("wormhole.wasm", {
   },
 });
 
-addresses["token_bridge.wasm"] = await instantiate("token_bridge.wasm", {
+addresses["token_bridge_terra.wasm"] = await instantiate("token_bridge_terra.wasm", {
   gov_chain: govChain,
   gov_address: Buffer.from(govAddress, "hex").toString("base64"),
   wormhole_contract: addresses["wormhole.wasm"],
@@ -236,7 +236,7 @@ await mint_cw721(
 /* Registrations: tell the bridge contracts to know about each other */
 
 const contract_registrations = {
-  "token_bridge.wasm": [
+  "token_bridge_terra.wasm": [
     // Solana
     "01000000000100c9f4230109e378f7efc0605fb40f0e1869f2d82fda5b1dfad8a5a2dafee85e033d155c18641165a77a2db6a7afbf2745b458616cb59347e89ae0c7aa3e7cc2d400000000010000000100010000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000546f6b656e4272696467650100000001c69a1b1a65dd336bf1df6a77afb501fc25db7fc0938cb08595a9ef473265cb4f",
     // Ethereum

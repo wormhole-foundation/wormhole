@@ -1469,7 +1469,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "token-bridge"
+name = "token-bridge-terra"
 version = "0.1.0"
 dependencies = [
  "bigint",
