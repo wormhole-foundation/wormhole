@@ -85,7 +85,7 @@ func (s *Telemetry) WrapLogger(logger *zap.Logger) *zap.Logger {
 	tc := zapcore.NewCore(
 		s.encoder,
 		zapcore.AddSync(ioutil.Discard),
-		zap.DebugLevel,
+		zap.InfoLevel,
 	)
 
 	return logger.WithOptions(zap.WrapCore(func(core zapcore.Core) zapcore.Core {
