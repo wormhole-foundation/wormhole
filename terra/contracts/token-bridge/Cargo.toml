@@ -1,5 +1,5 @@
 [package]
-name = "token-bridge"
+name = "token-bridge-terra"
 version = "0.1.0"
 authors = ["Yuriy Savchenko <yuriy.savchenko@gmail.com>"]
 edition = "2018"
