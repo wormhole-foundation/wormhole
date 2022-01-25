@@ -9,7 +9,7 @@
     "@openzeppelin/contracts": "^4.3.1",
     "@openzeppelin/test-environment": "^0.1.6",
     "@openzeppelin/test-helpers": "^0.5.9",
-    "@truffle/hdwallet-provider": "^1.2.0",
+    "@truffle/hdwallet-provider": "^1.7.0",
     "chai": "^4.2.0",
     "mocha": "^8.2.1",
     "truffle": "^5.3.6",
