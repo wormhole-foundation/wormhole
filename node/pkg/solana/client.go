@@ -129,35 +129,10 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 		timer := time.NewTicker(time.Second * 1)
 		defer timer.Stop()
 
-		var recovery <-chan time.Time
-		date := recoveryDate.Sub(time.Now().UTC())
-		if date >= 0 && s.commitment == rpc.CommitmentFinalized {
-			logger.Info("waiting for scheduled recovery", zap.Duration("until", date))
-			recovery = time.NewTimer(date).C
-		} else {
-			recovery = make(<-chan time.Time)
-		}
-
 		for {
 			select {
 			case <-ctx.Done():
 				return
-			case <-recovery:
-				logger.Info("executing scheduled recovery")
-
-				rCtx, cancel := context.WithTimeout(ctx, rpcTimeout)
-				defer cancel()
-
-				accs, err := fetchRecoveryConfig()
-				if err != nil {
-					logger.Error("failed to fetch recovery config", zap.Error(err))
-				}
-
-				logger.Info("fetched recovery accounts", zap.Strings("accounts", accs))
-
-				for _, acc := range accs {
-					s.fetchMessageAccount(rCtx, logger, solana.MustPublicKeyFromBase58(acc), 0)
-				}
 			case m := <-s.obsvReqC:
 				if m.ChainId != uint32(vaa.ChainIDSolana) {
 					panic("unexpected chain id")
