@@ -267,11 +267,11 @@ const DecodePayload = (props: DecodePayloadProps) => {
                             {"AssetMeta:"}&nbsp;{chainEnums[payloadBundle.payload.tokenChain]}&nbsp; {payloadBundle.payload.symbol} {payloadBundle.payload.name}
                         </>) :
                             payloadBundle.type === "tokenTransfer" ?
-                                props.transferDetails && props.transferPayload && props.transferDetails.OriginSymbol ? (<>
+                                props.transferDetails && payloadBundle.payload && props.transferDetails.OriginSymbol ? (<>
                                     {"Transfer"}&nbsp;
-                                    {Math.round(Number(props.transferDetails.Amount) * 100) / 100}&nbsp;{props.transferDetails.OriginSymbol}&nbsp;
-                                    {'from'}&nbsp;{titleCase(props.emitterChainName)}&nbsp;{'to'}&nbsp;{chainEnums[Number(props.transferPayload.TargetChain)]}&nbsp;
-                                    {'('}{usdFormatter.format(Number(props.transferDetails.NotionalUSDStr))}{').'}
+                                    {(Math.round(Number(props.transferDetails.Amount) * 100) / 100).toLocaleString()}&nbsp;{props.transferDetails.OriginSymbol}&nbsp;
+                                    {'from'}&nbsp;{titleCase(props.emitterChainName)}&nbsp;{'to'}&nbsp;{chainEnums[Number(payloadBundle.payload.targetChain)]}&nbsp;
+                                    {'('}{usdFormatter.format(Number(props.transferDetails.NotionalUSDStr))}{')'}
                                 </>) : (<>
                                     {"Token transfer: "}{chainEnums[payloadBundle.payload.originChain]}{' asset -> '}{chainEnums[payloadBundle.payload.targetChain]}
                                 </>) :
