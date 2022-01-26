@@ -144,7 +144,7 @@ function Source() {
     <>
       <StepDescription>
         <div style={{ display: "flex", alignItems: "center" }}>
-          Select tokens to send through the Wormhole Bridge.
+          Select tokens to send through the Portal.
           <div style={{ flexGrow: 1 }} />
           <div>
             <Button
