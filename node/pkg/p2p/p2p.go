@@ -293,7 +293,7 @@ func Run(obsvC chan *gossipv1.SignedObservation, sendC chan []byte, signedInC ch
 			err = proto.Unmarshal(envelope.Data, &msg)
 			if err != nil {
 				logger.Info("received invalid message",
-					zap.String("data", string(envelope.Data)),
+					zap.Binary("data", envelope.Data),
 					zap.String("from", envelope.GetFrom().String()))
 				p2pMessagesReceived.WithLabelValues("invalid").Inc()
 				continue

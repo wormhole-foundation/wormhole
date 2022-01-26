@@ -174,7 +174,7 @@ export const BasicAccountRender = (
                 size="small"
                 variant="outlined"
                 color="secondary"
-                endIcon={<Launch />}
+                startIcon={<Launch />}
                 href={marketsData.markets[market].link}
                 target="_blank"
                 rel="noopener noreferrer"
@@ -614,7 +614,7 @@ export default function TokenPicker({
         onClick={openDialog}
         disabled={disabled}
         variant="outlined"
-        endIcon={<KeyboardArrowDownIcon />}
+        startIcon={<KeyboardArrowDownIcon />}
         className={classes.selectionButton}
       >
         {value ? (

@@ -152,7 +152,7 @@ function Source() {
               to="/token-origin-verifier"
               size="small"
               variant="outlined"
-              endIcon={<VerifiedUser />}
+              startIcon={<VerifiedUser />}
             >
               Token Origin Verifier
             </Button>

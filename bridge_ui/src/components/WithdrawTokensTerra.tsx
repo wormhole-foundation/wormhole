@@ -15,6 +15,7 @@ import {
   InputLabel,
   makeStyles,
   MenuItem,
+  Paper,
   Select,
   Typography,
 } from "@material-ui/core";
@@ -25,6 +26,8 @@ import { Alert } from "@material-ui/lab";
 import { useSelector } from "react-redux";
 import { selectTerraFeeDenom } from "../store/selectors";
 import TerraFeeDenomPicker from "./TerraFeeDenomPicker";
+import HeaderText from "./HeaderText";
+import { COLORS } from "../muiTheme";
 
 const useStyles = makeStyles((theme) => ({
   formControl: {
@@ -33,6 +36,14 @@ const useStyles = makeStyles((theme) => ({
     width: "100%",
     maxWidth: 400,
     textAlign: "center",
+  },
+  mainPaper: {
+    backgroundColor: COLORS.whiteWithTransparency,
+    textAlign: "center",
+    padding: "2rem",
+    "& > h, p ": {
+      margin: ".5rem",
+    },
   },
 }));
 
@@ -94,33 +105,36 @@ export default function WithdrawTokensTerra() {
 
   return (
     <Container maxWidth="md">
-      <Typography style={{ textAlign: "center" }}>
-        Withdraw tokens from the Terra token bridge
-      </Typography>
-      <TerraWalletKey />
-      <FormControl className={classes.formControl}>
-        <InputLabel>Token</InputLabel>
-        <Select
-          value={token}
-          onChange={(event) => {
-            setToken(event.target.value as string);
-          }}
-        >
-          {SUPPORTED_TERRA_TOKENS.map((name) => (
-            <MenuItem key={name} value={name}>
-              {name}
-            </MenuItem>
-          ))}
-        </Select>
-        <TerraFeeDenomPicker disabled={isLoading} />
-        <ButtonWithLoader
-          onClick={handleClick}
-          disabled={!wallet || isLoading}
-          showLoader={isLoading}
-        >
-          Withdraw
-        </ButtonWithLoader>
-      </FormControl>
+      <HeaderText white>Withdraw Tokens</HeaderText>
+      <Paper className={classes.mainPaper}>
+        <Typography style={{ textAlign: "center" }}>
+          Withdraw tokens from the Terra token bridge
+        </Typography>
+        <TerraWalletKey />
+        <FormControl className={classes.formControl}>
+          <InputLabel>Token</InputLabel>
+          <Select
+            value={token}
+            onChange={(event) => {
+              setToken(event.target.value as string);
+            }}
+          >
+            {SUPPORTED_TERRA_TOKENS.map((name) => (
+              <MenuItem key={name} value={name}>
+                {name}
+              </MenuItem>
+            ))}
+          </Select>
+          <TerraFeeDenomPicker disabled={isLoading} />
+          <ButtonWithLoader
+            onClick={handleClick}
+            disabled={!wallet || isLoading}
+            showLoader={isLoading}
+          >
+            Withdraw
+          </ButtonWithLoader>
+        </FormControl>
+      </Paper>
     </Container>
   );
 }

@@ -1,28 +1,23 @@
 import {
-  Container,
-  Divider,
-  makeStyles,
-  Paper,
-  Typography,
-} from "@material-ui/core";
-import { PublicKey } from "@solana/web3.js";
-import { RouteComponentProps } from "react-router-dom";
-import { getMigrationAssetMap, MIGRATION_ASSET_MAP } from "../../utils/consts";
-import SolanaWorkflow from "./SolanaWorkflow";
-import { withRouter } from "react-router";
-import { COLORS } from "../../muiTheme";
-import {
   ChainId,
+  CHAIN_ID_BSC,
   CHAIN_ID_ETH,
   CHAIN_ID_SOLANA,
-  CHAIN_ID_BSC,
 } from "@certusone/wormhole-sdk";
-import EvmWorkflow from "./EvmWorkflow";
 import { getAddress } from "@ethersproject/address";
+import { Container, makeStyles, Paper, Typography } from "@material-ui/core";
+import { PublicKey } from "@solana/web3.js";
+import { withRouter } from "react-router";
+import { RouteComponentProps } from "react-router-dom";
+import { COLORS } from "../../muiTheme";
+import { getMigrationAssetMap, MIGRATION_ASSET_MAP } from "../../utils/consts";
+import HeaderText from "../HeaderText";
+import EvmWorkflow from "./EvmWorkflow";
+import SolanaWorkflow from "./SolanaWorkflow";
 
 const useStyles = makeStyles(() => ({
   mainPaper: {
-    backgroundColor: COLORS.nearBlackWithMinorTransparency,
+    backgroundColor: COLORS.whiteWithTransparency,
     textAlign: "center",
     padding: "2rem",
     "& > h, p ": {
@@ -121,14 +116,13 @@ const MigrationRoot: React.FC<Migration> = (props) => {
 
   return (
     <Container maxWidth="md">
-      <Paper className={classes.mainPaper}>
-        <Typography variant="h5">Migrate Assets</Typography>
-        <Typography variant="subtitle2">
-          Convert assets from other bridges to Wormhole V2 tokens
-        </Typography>
-        <Divider className={classes.divider} />
-        {content}
-      </Paper>
+      <HeaderText
+        white
+        subtitle="Convert assets from other bridges to Wormhole V2 tokens"
+      >
+        Migrate Assets
+      </HeaderText>
+      <Paper className={classes.mainPaper}>{content}</Paper>
     </Container>
   );
 };

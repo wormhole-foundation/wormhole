@@ -24,6 +24,7 @@ import {
   SOLANA_HOST,
 } from "../../utils/consts";
 import ButtonWithLoader from "../ButtonWithLoader";
+import HeaderText from "../HeaderText";
 import ShowTx from "../ShowTx";
 import SmartAddress from "../SmartAddress";
 import SolanaCreateAssociatedAddress from "../SolanaCreateAssociatedAddress";
@@ -53,7 +54,7 @@ const useStyles = makeStyles((theme) => ({
     flewGrow: 1,
   },
   mainPaper: {
-    backgroundColor: COLORS.nearBlackWithMinorTransparency,
+    backgroundColor: COLORS.whiteWithTransparency,
     textAlign: "center",
     padding: "2rem",
     "& > h, p ": {
@@ -367,6 +368,12 @@ export default function SolanaQuickMigrate() {
 
   return (
     <Container maxWidth="md">
+      <HeaderText
+        white
+        subtitle="Convert assets from other bridges to Wormhole V2 tokens"
+      >
+        Migrate Assets
+      </HeaderText>
       <Paper className={classes.mainPaper}>{content}</Paper>
     </Container>
   );

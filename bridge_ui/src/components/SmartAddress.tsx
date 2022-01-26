@@ -145,7 +145,7 @@ export default function SmartAddress({
     <Button
       size="small"
       variant="outlined"
-      endIcon={<OpenInNew />}
+      startIcon={<OpenInNew />}
       className={classes.buttons}
       href={explorerAddress}
       target="_blank"
@@ -159,7 +159,7 @@ export default function SmartAddress({
     <Button
       size="small"
       variant="outlined"
-      endIcon={<FileCopy />}
+      startIcon={<FileCopy />}
       onClick={copyToClipboard}
       className={classes.buttons}
     >

@@ -39,6 +39,7 @@ spec:
             - --dev
             - -lruntime=debug
             - -levm=debug
+            - --mnemonic="myth like bonus scare over problem client lizard pioneer submit female collect"
             - --ws-port=9944
             - --ws-external=true
             - --rpc-port=9933

@@ -54,8 +54,8 @@ import NFTViewer from "./TokenSelectors/NFTViewer";
 
 const useStyles = makeStyles((theme) => ({
   mainCard: {
-    padding: theme.spacing(2),
-    backgroundColor: COLORS.nearBlackWithMinorTransparency,
+    padding: "32px 32px 16px",
+    backgroundColor: COLORS.whiteWithTransparency,
   },
   originHeader: {
     marginTop: theme.spacing(4),
@@ -217,9 +217,7 @@ export default function NFTOriginVerifier() {
   return (
     <div>
       <Container maxWidth="md">
-        <HeaderText white small>
-          NFT Origin Verifier
-        </HeaderText>
+        <HeaderText white>NFT Origin Verifier</HeaderText>
       </Container>
       <Container maxWidth="sm">
         <Card className={classes.mainCard}>
@@ -304,7 +302,7 @@ export default function NFTOriginVerifier() {
                     href={`https://solscan.io/token/${readableAddress}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    endIcon={<Launch />}
+                    startIcon={<Launch />}
                     className={classes.viewButton}
                     variant="outlined"
                   >
@@ -315,7 +313,7 @@ export default function NFTOriginVerifier() {
                     href={`https://bscscan.com/token/${readableAddress}?a=${originInfo.tokenId}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    endIcon={<Launch />}
+                    startIcon={<Launch />}
                     className={classes.viewButton}
                     variant="outlined"
                   >
@@ -326,7 +324,7 @@ export default function NFTOriginVerifier() {
                     href={`https://opensea.io/assets/matic/${readableAddress}/${originInfo.tokenId}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    endIcon={<Launch />}
+                    startIcon={<Launch />}
                     className={classes.viewButton}
                     variant="outlined"
                   >
@@ -337,7 +335,7 @@ export default function NFTOriginVerifier() {
                     href={`https://snowtrace.io/token/${readableAddress}?a=${originInfo.tokenId}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    endIcon={<Launch />}
+                    startIcon={<Launch />}
                     className={classes.viewButton}
                     variant="outlined"
                   >
@@ -348,7 +346,7 @@ export default function NFTOriginVerifier() {
                     href={`https://opensea.io/assets/${readableAddress}/${originInfo.tokenId}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    endIcon={<Launch />}
+                    startIcon={<Launch />}
                     className={classes.viewButton}
                     variant="outlined"
                   >
