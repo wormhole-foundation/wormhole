@@ -20,6 +20,7 @@ import { ChainID, chainIDs } from "../../utils/consts";
 import { formatQuorumDate } from "../../utils/time";
 import { explorer } from "../../utils/urls";
 import ChainIcon from "../ChainIcon";
+import { DecodePayload } from "../DecodePayload";
 
 interface RecentMessagesProps {
   recent: Recent;
@@ -164,16 +165,14 @@ const RecentMessages = (props: RecentMessagesProps) => {
                   </TableCell>
                   <TableCell sx={{ whiteSpace: "nowrap" }}>
                     {item.SignedVAABytes
-                      ? null
-                      : //  <DecodePayload
-                        //    base64VAA={item.SignedVAABytes}
-                        //   emitterChainName={item.EmitterChain}
-                        //    emitterAddress={item.EmitterAddress}
-                        //    showType={true}
-                        //    showSummary={true}
-                        //    transferDetails={item.TransferDetails}
-                        //  />
-                        null}
+                      ? <DecodePayload
+                        base64VAA={item.SignedVAABytes}
+                        emitterChainName={item.EmitterChain}
+                        emitterAddress={item.EmitterAddress}
+                        showType={true}
+                        showSummary={true}
+                        transferDetails={item.TransferDetails}
+                      /> : null}
                   </TableCell>
                   <TableCell sx={{ whiteSpace: "nowrap" }}>
                     {item.Sequence.replace(/^0+/, "") || "0"}

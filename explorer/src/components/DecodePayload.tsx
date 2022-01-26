@@ -2,7 +2,7 @@
 import { BigNumber } from "ethers";
 import React, { useEffect, useState } from "react";
 import { Typography } from '@mui/material'
-import { getSignedVAAHash } from '@certusone/wormhole-sdk'
+import { importCoreWasm } from '@certusone/wormhole-sdk'
 
 import { chainEnums, ChainIDs, chainIDs, METADATA_REPLACE } from "../utils/consts";
 import { usdFormatter } from "../utils/explorer";
@@ -167,10 +167,11 @@ function useBase64ToBuffer(base64VAA: string = "") {
 
             // TODO - need to export parse_vaa from @certusone/wormhole-sdk
             // const bridgeWasm = await import('bridge')
+            const bridgeWasm = await importCoreWasm()
 
-            // const parsedVaa = bridgeWasm.parse_vaa(vaa)
+            const parsedVaa = bridgeWasm.parse_vaa(vaa)
 
-            // setBuf(Buffer.from(parsedVaa.payload))
+            setBuf(Buffer.from(parsedVaa.payload))
         }
         asyncWork(base64VAA)
     }, [base64VAA])

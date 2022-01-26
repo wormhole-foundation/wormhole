@@ -110,7 +110,7 @@ const ExplorerStats: React.FC<StatsProps> = ({
     signal: AbortSignal
   ) => {
     const totalsUrl = `${baseUrl}totals`;
-    let url = `${totalsUrl}?numDays=8&daily=true`; // ${daysSinceDataStart}&daily=true`  // 8`
+    let url = `${totalsUrl}?${daysSinceDataStart}&daily=true`
     if (groupBy) {
       url = `${url}&groupBy=${groupBy}`;
     }
