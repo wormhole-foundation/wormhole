@@ -16,7 +16,7 @@ module.exports = {
         ),
       network_id: 1,
       gas: 10000000,
-      gasPrice: 101000000000,
+      gasPrice: 191000000000,
       confirmations: 1,
       timeoutBlocks: 200,
       skipDryRun: false,
@@ -54,6 +54,52 @@ module.exports = {
       network_id: "56",
       gas: 70000000,
       gasPrice: 8000000000,
+    },
+    binance_testnet: {
+      provider: () => new HDWalletProvider(
+        process.env.MNEMONIC,
+        "https://data-seed-prebsc-1-s1.binance.org:8545/"
+      ),
+      network_id: "97",
+      gas: 70000000,
+      gasPrice: 8000000000,
+    },
+    polygon: {
+      provider: () => {
+        return new HDWalletProvider(
+          process.env.MNEMONIC,
+          "https://polygon-rpc.com"
+        );
+      },
+      network_id: "137",
+      gas: 10000000,
+      gasPrice: 700000000000,
+    },
+    mumbai: {
+      provider: () => {
+        return new HDWalletProvider(
+          process.env.MNEMONIC,
+          "https://polygon-mumbai.infura.io/v3/" + process.env.INFURA_KEY)
+      },
+      network_id: "80001",
+    },
+    avalanche: {
+      provider: () => {
+        return new HDWalletProvider(
+          process.env.MNEMONIC,
+          "https://api.avax.network/ext/bc/C/rpc"
+        );
+      },
+      network_id: "43114",
+      gas: 8000000,
+      gasPrice: 26000000000,
+    },
+    fuji: {
+      provider: () => new HDWalletProvider(
+        process.env.MNEMONIC,
+        "https://api.avax-test.network/ext/bc/C/rpc"
+      ),
+      network_id: "43113",
     },
     oasis: {
       provider: () => {
