@@ -39,7 +39,8 @@ spec:
             - --dev
             - -lruntime=debug
             - -levm=debug
-            - --mnemonic="myth like bonus scare over problem client lizard pioneer submit female collect"
+            - --mnemonic
+            - "myth like bonus scare over problem client lizard pioneer submit female collect"
             - --ws-port=9944
             - --ws-external=true
             - --rpc-port=9933
@@ -71,7 +72,7 @@ spec:
             tcpSocket:
               port: rpc
         - name: tests
-          image: eth-node
+          image: acala-deploy-node
           stdin: true
           command:
             - /bin/sh
@@ -82,7 +83,7 @@ spec:
               npx truffle exec scripts/register_solana_chain.js
               npx truffle exec scripts/register_terra_chain.js
               npx truffle exec scripts/register_eth_chain.js
-              npx truffle exec scripts/register_karura_chain.js
+              npx truffle exec scripts/register_bsc_chain.js
               nc -lkp 2000 0.0.0.0
           readinessProbe:
             periodSeconds: 1

@@ -439,6 +439,12 @@ docker_build(
     dockerfile = "./acala/eth-rpc-adapter/Dockerfile",
 )
 
+docker_build(
+    ref = "acala-deploy-node",
+    context = "./acala",
+    dockerfile = "./acala/Dockerfile",
+)
+
 k8s_yaml_with_ns("devnet/acala-devnet.yaml")
 
 k8s_resource(
