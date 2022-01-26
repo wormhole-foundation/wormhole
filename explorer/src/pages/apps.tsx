@@ -70,7 +70,7 @@ const AppsPage = ({ location }: PageProps) => {
               header: "Pyth",
               href: "https://pyth.network/markets/",
               description:
-                "Make smart contracts more accurate by connecting high-fidelity",
+                "Make smart contracts more accurate by connecting high-fidelity market data.",
             },
             {
               src: atlas,
@@ -84,14 +84,14 @@ const AppsPage = ({ location }: PageProps) => {
               header: "Mercurial",
               href: "https://mercurial.finance/",
               description:
-                "Make faster transactions with greater cross-chain liquidity in stable assets on Solana.",
+                "Make faster transactions with greater cross-chain liquidity in stable assets.",
             },
             {
               src: swim,
               header: "Swim Protocol",
               href: "https://swim.io/",
               description:
-                "Swap chain-native assets easily without the need for wrapped assets or centralized exchanges.",
+                "Swap chain-native assets without the need for wrapped assets or centralized exchanges.",
             },
             {
               src: orion,
