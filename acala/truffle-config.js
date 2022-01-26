@@ -6,12 +6,11 @@ const MNEMONIC="myth like bonus scare over problem client lizard pioneer submit 
 module.exports = {
   networks: {  
     development: {
-      provider: () => {
-        return new HDWalletProvider(
-          process.env.MNEMONIC,
+      provider: () =>
+        new HDWalletProvider(
+          MNEMONIC,
           "http://127.0.0.1:8545"
-        );
-      },
+        ),
       network_id: '595', // mandala
       gas: 42032000,
       gasPrice: 200786445289, // storage_limit = 64001, validUntil = 360001, gasLimit = 10000000

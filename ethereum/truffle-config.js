@@ -67,12 +67,11 @@ module.exports = {
       gasPrice: 30000000000,
     },
     karura: {
-      provider: () => {
-        return new HDWalletProvider(
+      provider: () =>
+        new HDWalletProvider(
           process.env.MNEMONIC,
           ""
-        );
-      },
+        ),
       network_id: '686',
       gas: 42032000,
       gasPrice: 200786445289, // storage_limit = 64001, validUntil = 360001, gasLimit = 10000000
@@ -80,12 +79,11 @@ module.exports = {
       confirmations: 0,
     },
     acala: {
-      provider: () => {
-        return new HDWalletProvider(
+      provider: () =>
+        new HDWalletProvider(
           process.env.MNEMONIC,
           ""
-        );
-      },
+        ),
       network_id: '787',
       gas: 42032000,
       gasPrice: 200786445289, // storage_limit = 64001, validUntil = 360001, gasLimit = 10000000
