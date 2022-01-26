@@ -47,10 +47,10 @@ spec:
             - --rpc-external=true
             - --rpc-cors=all
             - --rpc-methods=unsafe
-          ports:
-            - containerPort: 9944
-              name: ws
-              protocol: TCP
+          #ports:
+          #  - containerPort: 9944
+          #    name: ws
+          #    protocol: TCP
           readinessProbe:
             tcpSocket:
               port: ws
