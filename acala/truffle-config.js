@@ -4,7 +4,7 @@ const HDWalletProvider = require("@truffle/hdwallet-provider");
 const MNEMONIC="myth like bonus scare over problem client lizard pioneer submit female collect";
 
 module.exports = {
-  networks: {  
+  networks: {
     development: {
       provider: () =>
         new HDWalletProvider(
