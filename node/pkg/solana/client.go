@@ -147,9 +147,9 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 			case <-timer.C:
 				// Get current slot height
 				rCtx, cancel := context.WithTimeout(ctx, rpcTimeout)
-				defer cancel()
 				start := time.Now()
 				slot, err := s.rpcClient.GetSlot(rCtx, s.commitment)
+				cancel()
 				queryLatency.WithLabelValues("get_slot", string(s.commitment)).Observe(time.Since(start).Seconds())
 				if err != nil {
 					p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDSolana, 1)
@@ -324,12 +324,12 @@ OUTER:
 
 		// Call GetConfirmedTransaction to get at innerTransactions
 		rCtx, cancel := context.WithTimeout(ctx, rpcTimeout)
-		defer cancel()
 		start := time.Now()
 		tr, err := s.rpcClient.GetConfirmedTransactionWithOpts(rCtx, signature, &rpc.GetTransactionOpts{
 			Encoding:   "json",
 			Commitment: s.commitment,
 		})
+		cancel()
 		queryLatency.WithLabelValues("get_confirmed_transaction", string(s.commitment)).Observe(time.Since(start).Seconds())
 		if err != nil {
 			p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDSolana, 1)
