@@ -149,7 +149,14 @@ const ExplorerStats: React.FC<StatsProps> = ({
     signal: AbortSignal
   ) => {
     const recentUrl = `${baseUrl}recent`;
-    let url = `${recentUrl}?numRows=10`;
+    let numRows = 10
+    if (forChain) {
+      numRows = 30
+    }
+    if (forAddress) {
+      numRows = 80
+    }
+    let url = `${recentUrl}?numRows=${numRows}`;
     if (groupBy) {
       url = `${url}&groupBy=${groupBy}`;
     }
