@@ -12,7 +12,7 @@
       "start": "node -r esm lib/index.js",
         "build": "npm run build-eth-types && npm run build-lib",
         "build-lib": "npm run copy-artifacts && tsc",
-        "build-watch": "npm run copy-artifacts && tsc --watch",
+        "build-watch": "npm run build-eth-types && npm run copy-artifacts && tsc --watch",
 	"build-eth-types": "node scripts/copyEthContracts.cjs && typechain --target=ethers-v5 --out-dir=src/ethers-contracts contracts/*.json",
         "copy-artifacts": "node scripts/copyWasm.cjs && node scripts/copyEthersTypes.cjs",
         "lint": "tslint -p tsconfig.json",

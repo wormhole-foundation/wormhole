@@ -37,6 +37,9 @@ spec:
           command:
             - python3
             - /usr/src/pyth/p2w_autoattest.py
+          env:
+          - name: P2W_INITIALIZE_SOL_CONTRACT
+            value: "1"
           tty: true
           readinessProbe:
             tcpSocket:
