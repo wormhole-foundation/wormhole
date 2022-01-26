@@ -11,6 +11,7 @@ import GridWithCards from "../components/GridWithCards";
 import HeroText from "../components/HeroText";
 import Layout from "../components/Layout";
 import { SEO } from "../components/SEO";
+import { portal as portalUrl } from "../utils/urls";
 import apps from "../images/index/apps.png";
 import blob from "../images/index/blob.svg";
 import cross from "../images/index/cross.svg";
@@ -305,7 +306,7 @@ const IndexPage = ({ location }: PageProps) => {
                 across chains for tokens and NFTs wrapped by Wormhole.
               </Typography>
               <Button
-                href={portal}
+                href={portalUrl}
                 sx={{ mt: 3 }}
                 variant="outlined"
                 color="inherit"
