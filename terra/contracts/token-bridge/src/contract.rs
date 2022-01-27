@@ -121,36 +121,8 @@ const CHAIN_ID: u16 = 3;
 const WRAPPED_ASSET_UPDATING: &str = "updating";
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Response> {
-    // Clear out this just to be safe
-    wrapped_transfer_tmp(deps.storage).remove();
-
-    let mut bucket = wrapped_asset_address(deps.storage);
-
-    // Remove registered asset with old code ID.
-    let asset_id = deps.api.addr_canonicalize("terra16q5pke2vueu23y8punvj70h0cp0s0rc7vrzl57")?;
-    bucket.remove(&asset_id);
-    assert!(bucket.load(&asset_id).is_err());
-
-    let mut messages = vec![];
-    for item in bucket.range(None, None, Order::Ascending) {
-        let contract_address = item?.0;
-        messages.push(CosmosMsg::Wasm(WasmMsg::Migrate {
-            contract_addr: deps
-                .api
-                .addr_humanize(&contract_address.into())?
-                .to_string(),
-            new_code_id: 767,
-            msg: to_binary(&MigrateMsg {})?,
-        }));
-    }
-
-    let count = messages.len();
-
-    Ok(Response::new()
-        .add_messages(messages)
-        .add_attribute("migrate", "upgrade cw20 wrappers")
-        .add_attribute("count", count.to_string()))
+pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Response> {
+    Ok(Response::new())
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
