@@ -87,6 +87,11 @@ yargs(hideBin(process.argv))
                 type: "string",
                 required: true
             })
+            .option('guardian_secret', {
+                describe: 'Guardian\'s secret key',
+                type: "string",
+                default: "cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0"
+            })
     }, async (argv: any) => {
         let data = [
             "0x",
@@ -105,7 +110,7 @@ yargs(hideBin(process.argv))
             Math.floor(Math.random() * 100000000),
             data,
             [
-                "cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0"
+                argv.guardian_secret
             ],
             0,
             0
