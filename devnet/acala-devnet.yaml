@@ -60,7 +60,7 @@ spec:
           readinessProbe:
             periodSeconds: 1
             tcpSocket:
-              port: 9944
+              port: node-ws
         - name: eth-rpc-adapter
           image: acala-eth-rpc-adapter
           command: ['yarn']
@@ -75,14 +75,13 @@ spec:
             - containerPort: 8545
               name: http
               protocol: TCP
-          ports:
             - containerPort: 3331
               name: ws
               protocol: TCP
           readinessProbe:
             periodSeconds: 1
             tcpSocket:
-              port: 8545
+              port: http
         - name: tests
           image: acala-deploy-node
           stdin: true
