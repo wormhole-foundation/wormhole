@@ -451,7 +451,7 @@ k8s_resource(
     "acala-devnet",
     port_forwards = [
         port_forward(9944, name = "Acala node ws [:9944]", host = webHost),
-        port_forward(8547, name = "Acala eth-rpc-adapter http [:8547]", host = webHost),
+        port_forward(8547, container_port=8545, name = "Acala eth-rpc-adapter http [:8547]", host = webHost),
         port_forward(3331, name = "Acala eth-rpc-adapter ws [:3331]", host = webHost),
     ],
     trigger_mode = trigger_mode,

@@ -10,12 +10,15 @@ spec:
     - port: 9944
       name: node-ws
       protocol: TCP
+      targetPort: node-ws
     - port: 8547
       name: http
       protocol: TCP
+      targetPort: http
     - port: 3331
       name: ws
       protocol: TCP
+      targetPort: ws
   clusterIP: None
   selector:
     app: acala-devnet
@@ -55,8 +58,9 @@ spec:
               name: node-ws
               protocol: TCP
           readinessProbe:
+            periodSeconds: 1
             tcpSocket:
-              port: node-ws
+              port: 9944
         - name: eth-rpc-adapter
           image: acala-eth-rpc-adapter
           command: ['yarn']
@@ -76,8 +80,9 @@ spec:
               name: ws
               protocol: TCP
           readinessProbe:
+            periodSeconds: 1
             tcpSocket:
-              port: http
+              port: 8545
         - name: tests
           image: acala-deploy-node
           stdin: true
@@ -94,6 +99,5 @@ spec:
               nc -lkp 2000 0.0.0.0
           readinessProbe:
             periodSeconds: 1
-            failureThreshold: 300
             tcpSocket:
               port: 2000
