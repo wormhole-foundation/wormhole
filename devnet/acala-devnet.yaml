@@ -7,12 +7,15 @@ metadata:
     app: acala-devnet
 spec:
   ports:
-    - port: 8547
-      name: rpc
+    - port: 9944
+      name: node-ws
       protocol: TCP
-    #- port: 9944
-    #  name: ws
-    #  protocol: TCP
+    - port: 8547
+      name: http
+      protocol: TCP
+    - port: 3331
+      name: ws
+      protocol: TCP
   clusterIP: None
   selector:
     app: acala-devnet
@@ -47,13 +50,13 @@ spec:
             - --rpc-external=true
             - --rpc-cors=all
             - --rpc-methods=unsafe
-          #ports:
-          #  - containerPort: 9944
-          #    name: ws
-          #    protocol: TCP
+          ports:
+            - containerPort: 9944
+              name: node-ws
+              protocol: TCP
           readinessProbe:
             tcpSocket:
-              port: ws
+              port: node-ws
         - name: eth-rpc-adapter
           image: acala-eth-rpc-adapter
           command: ['yarn']
@@ -66,11 +69,15 @@ spec:
             #  value:
           ports:
             - containerPort: 8545
-              name: rpc
+              name: http
+              protocol: TCP
+          ports:
+            - containerPort: 3331
+              name: ws
               protocol: TCP
           readinessProbe:
             tcpSocket:
-              port: rpc
+              port: http
         - name: tests
           image: acala-deploy-node
           stdin: true

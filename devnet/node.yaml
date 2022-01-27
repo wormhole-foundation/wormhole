@@ -107,7 +107,7 @@ spec:
             - --solanaRPC
             - http://solana-devnet:8899
             - --karuraRPC
-            - http://acala-devnet:8547
+            - ws://acala-devnet:3331
             - --unsafeDevMode
             - --guardianKey
             - /tmp/bridge.key
