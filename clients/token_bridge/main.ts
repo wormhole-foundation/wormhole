@@ -330,6 +330,7 @@ yargs(hideBin(process.argv))
             case 2:
                 console.log("Upgrading contract")
                 console.log("Hash: " + (await tb.upgrade(vaa)).hash)
+                console.log("Don't forget to verify the new implementation! See ethereum/VERIFY.md for instructions")
                 break
             default:
                 throw new Error("unknown governance action")
