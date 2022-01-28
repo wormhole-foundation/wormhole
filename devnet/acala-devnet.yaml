@@ -91,6 +91,7 @@ spec:
             - |
               sed -i 's/CHAIN_ID=0x2/CHAIN_ID=0x9/g' .env
               npm run migrate
+              npx truffle exec scripts/deploy_test_token.js
               npx truffle exec scripts/register_solana_chain.js
               npx truffle exec scripts/register_terra_chain.js
               npx truffle exec scripts/register_eth_chain.js
