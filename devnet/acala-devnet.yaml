@@ -65,7 +65,7 @@ spec:
           image: acala-eth-rpc-adapter
           command: ['yarn']
           args:
-            - start
+            - dev
           env:
             - name: ENDPOINT_URL
               value: ws://localhost:9944
