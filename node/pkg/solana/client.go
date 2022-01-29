@@ -299,6 +299,14 @@ OUTER:
 			continue
 		}
 
+		if tx.Meta.Err != nil {
+			logger.Debug("skipping failed Wormhole transaction",
+				zap.Stringer("signature", signature),
+				zap.Uint64("slot", slot),
+				zap.String("commitment", string(s.commitment)))
+			continue
+		}
+
 		logger.Info("found Wormhole transaction",
 			zap.Stringer("signature", signature),
 			zap.Uint64("slot", slot),
