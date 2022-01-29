@@ -342,3 +342,14 @@ func MustWrite(w io.Writer, order binary.ByteOrder, data interface{}) {
 		panic(fmt.Errorf("failed to write binary data: %v", data).Error())
 	}
 }
+
+// StringToAddress converts a hex-encoded adress into a vaa.Address
+func StringToAddress(value string) (Address, error) {
+	var address Address
+	res, err := hex.DecodeString(value)
+	if err != nil {
+		return address, err
+	}
+	copy(address[:], res)
+	return address, nil
+}
