@@ -1,17 +1,12 @@
 {
   "name": "wormhole",
   "version": "1.0.0",
-  "private": true,
-  "description": "Wormhole",
-  "author": "Evan Gray",
-  "keywords": [
-    "gatsby"
-  ],
+  "private": false,
   "scripts": {
     "develop": "gatsby develop",
     "start": "gatsby develop",
     "build": "gatsby build",
-    "serve": "gatsby serve",
+    "serve": "gatsby serve --port=8001 --host=0.0.0.0",
     "clean": "gatsby clean"
   },
   "dependencies": {
