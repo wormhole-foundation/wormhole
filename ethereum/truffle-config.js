@@ -66,6 +66,37 @@ module.exports = {
       gas: 4465030,
       gasPrice: 30000000000,
     },
+    aurora: {
+      provider: () => {
+        return new HDWalletProvider(
+          process.env.MNEMONIC,
+          "https://mainnet.aurora.dev"
+        );
+      },
+      network_id: 1313161554,
+    },
+    aurora_testnet: {
+      provider: () => {
+        return new HDWalletProvider(
+          process.env.MNEMONIC,
+          "https://testnet.aurora.dev"
+        )
+      },
+      network_id: 0x4e454153,
+      gas: 70000000,
+      gasPrice: 8000000000,
+    },
+    fantom_testnet: {
+      provider: () => {
+        return new HDWalletProvider(
+          process.env.MNEMONIC,
+          "https://rpc.testnet.fantom.network/"
+        )
+      },
+      network_id: 0xfa2,
+      gas: 4465030,
+      gasPrice: 300000000000,
+    },
   },
 
   compilers: {
