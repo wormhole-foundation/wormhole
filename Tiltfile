@@ -386,7 +386,6 @@ if explorer:
 
     k8s_resource(
         "explorer",
-        resource_deps = ["proto-gen-web"],
         port_forwards = [
             port_forward(8001, name = "Explorer Web UI [:8001]", host = webHost),
         ],

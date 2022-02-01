@@ -13,9 +13,6 @@ RUN --mount=type=cache,uid=1000,gid=1000,target=/home/node/.npm \
 
 ADD . .
 
-# create .env files from .env.sample, if they do not already exist.
-RUN [[ ! -f .env.development ]] && cp .env.sample .env.development
-RUN [[ ! -f .env.production ]] && cp .env.sample .env.production
 
 RUN --mount=type=cache,uid=1000,gid=1000,target=/home/node/.npm \
   npm run build
