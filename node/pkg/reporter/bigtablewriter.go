@@ -55,7 +55,9 @@ func BigTableWriter(events *AttestationEventReporter, connectionConfig *BigTable
 		}
 		tbl := client.Open(e.connectionConfig.TableName)
 
-		pubsubClient, err := pubsub.NewClient(ctx, e.connectionConfig.GcpProjectID)
+		pubsubClient, err := pubsub.NewClient(ctx,
+			e.connectionConfig.GcpProjectID,
+			option.WithCredentialsFile(e.connectionConfig.GcpKeyFilePath))
 		if err != nil {
 			logger.Error("failed to create GCP PubSub client", zap.Error(err))
 			return fmt.Errorf("failed to create GCP PubSub client: %w", err)
