@@ -140,8 +140,7 @@ const BuidlPage = ({ location }: PageProps) => {
                   </Box>
                 </Typography>
                 <Typography sx={{ mt: 2 }}>
-                  Six high-value networks, two centralized exchanges, 19 dexes,
-                  and a roadmap on track to double that number every quarter.
+                  Six high-value networks, two centralized exchanges, and 19 dexes.
                   Anyone in the community can add new networks to the protocol
                   and build the future of blockchain.
                 </Typography>
