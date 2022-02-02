@@ -53,6 +53,17 @@ pub use api::{
 use solitaire::*;
 use std::error::Error;
 
+// Static list of invalid VAA Message accounts.
+pub(crate) static INVALID_VAAS: &'static [&'static str; 7] = &[
+    "28Tx7c3W8rggVNyUQEAL9Uq6pUng4xJLAeLA6V8nLH1Z",
+    "32YEuzLCvSyHoV6NFpaTXfiAB8sHiAnYcvP2BBeLeGWq",
+    "427N2RrDHYooLvyWCiEiNR4KtGsGFTMuXiGwtuChWRSd",
+    "56Vf4Y2SCxJBf4TSR24fPF8qLHhC8ZuTJvHS6mLGWieD",
+    "7SzK4pmh9fM9SWLTCKmbjQC8EvDgPmtwdaBeTRztkM98",
+    "G2VJNjmQsz6wfVZkTUzYAB8ZzRS2hZbpUd5Cr4DTpz6t",
+    "GvAarWUV8khMLrTRouzBh3xSr8AeLDXxoKNJ6FgxGyg5",
+];
+
 pub enum TokenBridgeError {
     AlreadyExecuted,
     InvalidChain,
@@ -66,6 +77,7 @@ pub enum TokenBridgeError {
     WrongAccountOwner,
     InvalidFee,
     InvalidRecipient,
+    InvalidVAA,
 }
 
 impl From<TokenBridgeError> for SolitaireError {
