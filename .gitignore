@@ -10,3 +10,5 @@ venv
 .env
 bigtable-admin.json
 bigtable-writer.json
+explorer/.DS_Store
+.gitignore

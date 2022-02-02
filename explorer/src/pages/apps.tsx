@@ -56,18 +56,20 @@ const AppsPage = ({ location }: PageProps) => {
           imgOffsetTopXs="0px"
           imgOffsetTopMd="-36px"
           imgOffsetTopMdHover="-52px"
-          imgPaddingBottomXs={3}
+          imgPaddingBottomXs= {3}
           data={[
             {
               src: lido,
               header: "Lido",
               href: "https://lido.fi/",
+              size: 114,
               description:
                 "Stake in multiple networks while using the staked token for lending and yield farming.",
             },
             {
               src: pyth,
               header: "Pyth",
+              size: 114,
               href: "https://pyth.network/markets/",
               description:
                 "Make smart contracts more accurate by connecting high-fidelity market data.",
@@ -76,6 +78,7 @@ const AppsPage = ({ location }: PageProps) => {
               src: atlas,
               header: "Atlas Dex",
               href: "https://atlasdex.finance/",
+              size: 114,
               description:
                 "Make faster transactions across chains to get the best exchange price.",
             },
@@ -83,6 +86,7 @@ const AppsPage = ({ location }: PageProps) => {
               src: mercurial,
               header: "Mercurial",
               href: "https://mercurial.finance/",
+              size: 114,
               description:
                 "Make faster transactions with greater cross-chain liquidity in stable assets.",
             },
@@ -90,6 +94,7 @@ const AppsPage = ({ location }: PageProps) => {
               src: swim,
               header: "Swim Protocol",
               href: "https://swim.io/",
+              size: 114,
               description:
                 "Swap chain-native assets without the need for wrapped assets or centralized exchanges.",
             },
@@ -97,6 +102,7 @@ const AppsPage = ({ location }: PageProps) => {
               src: orion,
               header: "Orion Money",
               href: "https://www.orionprotocol.io/",
+              size: 114,
               description:
                 "Earn stablecoin yields on multiple chains from one centralized location.",
             },
@@ -104,6 +110,7 @@ const AppsPage = ({ location }: PageProps) => {
               src: tiexo,
               header: "Tiexo",
               href: "https://tiexo.com/",
+              size: 114,
               description:
                 "Buy NFTs across chains from a wallet in multiple currencies.",
             },
@@ -111,12 +118,14 @@ const AppsPage = ({ location }: PageProps) => {
               src: bridgesplit,
               header: "Bridgesplit",
               href: "https://bridgesplit.com/",
+              size: 114,
               description: "Sell, buy, or lend portions of NFTs across chains.",
             },
             {
               src: faraway,
               header: "Faraway Games",
               href: "https://faraway.gg/",
+              size: 114,
               description:
                 "Validates membership to some game communities using ETH NFTs.",
             },

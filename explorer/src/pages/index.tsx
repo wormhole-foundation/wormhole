@@ -19,8 +19,10 @@ import cube from "../images/index/cube.svg";
 import portal from "../images/index/portal.png";
 import protocols from "../images/index/protocols.png";
 import shape1 from "../images/index/shape1.svg";
+import shape from "../images/shape.png";
+import shape2 from "../images/shape2.png";
 
-const featuredNumber = { fontSize: 42, fontWeight: "bold" };
+const featuredNumber = { fontSize: 42, fontFamily: "Suisse BP Intl", fontWeight: "bold"};
 
 const IndexPage = ({ location }: PageProps) => {
   const { site } = useStaticQuery<IndexQueryType>(IndexStaticQuery)
@@ -164,115 +166,169 @@ const IndexPage = ({ location }: PageProps) => {
           </Box>
         </Box>
       </Box>
-      <Box
-        sx={{
-          display: "flex",
-          flexWrap: "wrap",
-          maxWidth: 1220,
-          px: 3.75,
-          mt: 35,
-          mx: "auto",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
+      
+      
+      <Box sx={{position: 'relative'}}>
         <Box
-          sx={{
-            flexBasis: { xs: "100%", md: "50%" },
-            flexGrow: 1,
-          }}
-        >
-          <Box sx={{ px: { xs: 0, md: 4 } }}>
-            <Box sx={{ maxWidth: 348, mx: "auto" }}>
-              <Typography variant="h3">
-                <Box component="span" sx={{ color: "#FFCE00" }}>
-                  Protocol:{" "}
-                </Box>
-                <Box component="span" sx={{ display: "inline-block" }}>
-                  the core layer
-                </Box>
-              </Typography>
-              <Typography sx={{ mt: 2 }}>
-                The foundation that an ecosystem of apps is built on top of.
-              </Typography>
-              <Button
-                component={RouterLink}
-                to="/buidl/"
-                sx={{ mt: 3 }}
-                variant="outlined"
-                color="inherit"
-                endIcon={<ArrowForward />}
-              >
-                Learn More
-              </Button>
+            sx={{
+              position: "absolute",
+              zIndex: -1,
+              top: '50%',
+              background: 'radial-gradient(closest-side at 50% 50%, #E72850 0%, #E7285000 100%)',
+              transform: 'matrix(0.96, 0.29, -0.29, 0.96, 0, 0)',
+              left: '60%',
+              width: 1645,
+              height: 903,
+              pointerEvents: 'none',
+              display:{xs: 'none', md: 'block'},
+              opacity: 0.7,
+            }}
+          />   
+        <Box
+            sx={{
+              position: "absolute",
+              zIndex: -1,
+              top: '65%',
+              background: 'radial-gradient(closest-side at 50% 50%, #5189C8 0%, #5189C800 100%) ',
+              transform: 'matrix(0.67, 0.74, -0.74, 0.67, 0, 0)',
+              left: '5%',
+              width: 1136,
+              height: 1489,
+              pointerEvents: 'none',
+              display:{xs: 'none', md: 'block'},
+              opacity: 0.64,
+            }}
+          />   
+          <Box
+            sx={{
+              position: "absolute",
+              zIndex: -1,
+              background: `url(${shape})`,
+              backgroundSize: 'contain',
+              top: -100,
+              right: '70vw',
+              width: 1363,
+              height: 1130,
+              pointerEvents: 'none',
+              display:{xs: 'none', md: 'block'},
+            }}
+          />
+          <Box
+            sx={{
+              display: "flex",
+              flexWrap: "wrap",
+              maxWidth: 1220,
+              px: 3.75,
+              mt: 35,
+              mx: "auto",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+
+          <Box
+            sx={{
+              flexBasis: { xs: "100%", md: "50%" },
+              flexGrow: 1,
+            }}
+          >
+            <Box sx={{ px: { xs: 0, md: 4 } }}>
+              <Box sx={{ maxWidth: 348, mx: "auto" }}>
+                <Typography variant="h3">
+                  <Box component="span" sx={{ color: "#FFCE00"}}>
+                    Protocol:{" "}
+                  </Box>
+                  <Box component="span" sx={{ display: "inline-block" }}>
+                    the core layer
+                  </Box>
+                </Typography>
+                <Typography sx={{ mt: 2 }}>
+                  The foundation that an ecosystem of apps is built on top of.
+                </Typography>
+                <Button
+                  component={RouterLink}
+                  to="/buidl/"
+                  sx={{ mt: 3 }}
+                  variant="outlined"
+                  color="inherit"
+                  endIcon={<ArrowForward />}
+                >
+                  Learn More
+                </Button>
+              </Box>
             </Box>
           </Box>
+          <Box
+            sx={{
+              mt: { xs: 8, md: null },
+              flexBasis: { xs: "100%", md: "50%" },
+              textAlign: "center",
+              flexGrow: 1,
+            }}
+          >
+            <Box
+              component="img"
+              src={protocols}
+              alt=""
+              sx={{ maxWidth: "100%" }}
+            />
+          </Box>
         </Box>
+      </Box>
+
+      <Box sx={{position: 'relative'}}>
         <Box
           sx={{
-            mt: { xs: 8, md: null },
-            flexBasis: { xs: "100%", md: "50%" },
-            textAlign: "center",
-            flexGrow: 1,
+            display: "flex",
+            flexWrap: "wrap-reverse",
+            maxWidth: 1220,
+            px: 3.75,
+            mt: 15.5,
+            mx: "auto",
+            alignItems: "center",
+            justifyContent: "center",
           }}
         >
           <Box
-            component="img"
-            src={protocols}
-            alt=""
-            sx={{ maxWidth: "100%" }}
-          />
-        </Box>
-      </Box>
-      <Box
-        sx={{
-          display: "flex",
-          flexWrap: "wrap-reverse",
-          maxWidth: 1220,
-          px: 3.75,
-          mt: 15.5,
-          mx: "auto",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <Box
-          sx={{
-            mt: { xs: 8, md: null },
-            flexBasis: { xs: "100%", md: "60%" },
-            textAlign: "center",
-            flexGrow: 1,
-          }}
-        >
-          <Box component="img" src={apps} alt="" sx={{ maxWidth: "100%" }} />
-        </Box>
-        <Box sx={{ flexBasis: { xs: "100%", md: "40%" }, flexGrow: 1 }}>
-          <Box sx={{ px: { xs: 0, md: 4 } }}>
-            <Box sx={{ maxWidth: 348, mx: "auto" }}>
-              <Typography variant="h3">
-                <Box component="span" sx={{ color: "#FFCE00" }}>
-                  Apps:{" "}
-                </Box>
-                <Box component="span">endless possibilities</Box>
-              </Typography>
-              <Typography sx={{ mt: 2 }}>
-                Apps can now live across chains at once and integrate the best
-                of each.
-              </Typography>
-              <Button
-                component={RouterLink}
-                to="/apps/"
-                sx={{ mt: 3 }}
-                variant="outlined"
-                color="inherit"
-                endIcon={<ArrowForward />}
-              >
-                Learn More
-              </Button>
+            sx={{
+              mt: { xs: 8, md: null },
+              flexBasis: { xs: "100%", md: "60%" },
+              textAlign: "center",
+              flexGrow: 1,
+            }}
+          >
+            <Box component="img" src={apps} alt="" sx={{ maxWidth: "100%" }} />
+          </Box>
+          <Box sx={{ flexBasis: { xs: "100%", md: "40%" }, flexGrow: 1 }}>
+            <Box sx={{ px: { xs: 0, md: 4 } }}>
+              <Box sx={{ maxWidth: 348, mx: "auto" }}>
+                <Typography variant="h3">
+                  <Box component="span" sx={{ color: "#FFCE00" }}>
+                    Apps:{" "}
+                  </Box>
+                  <Box component="span">endless possibilities</Box>
+                </Typography>
+                <Typography sx={{ mt: 2 }}>
+                  Apps can now live across chains at once and integrate the best
+                  of each.
+                </Typography>
+                <Button
+                  component={RouterLink}
+                  to="/apps/"
+                  sx={{ mt: 3 }}
+                  variant="outlined"
+                  color="inherit"
+                  endIcon={<ArrowForward />}
+                >
+                  Learn More
+                </Button>
+              </Box>
             </Box>
           </Box>
         </Box>
       </Box>
+
+      
       <Box
         sx={{
           display: "flex",
@@ -327,7 +383,8 @@ const IndexPage = ({ location }: PageProps) => {
         >
           <Box component="img" src={portal} alt="" sx={{ maxWidth: "100%" }} />
         </Box>
-      </Box>
+        </Box>
+
       <Box sx={{ textAlign: "center", mt: 12.5, px: 2 }}>
         <Typography variant="h3">
           <Box component="span" sx={{ color: "#FFCE00" }}>
@@ -335,29 +392,32 @@ const IndexPage = ({ location }: PageProps) => {
           </Box>
           <Box component="span"> everything</Box>
         </Typography>
-        <Typography sx={{ mt: 2, maxWidth: 480, mx: "auto" }}>
+        <Typography sx={{ mt: 2, maxWidth: 480, mx: "auto", fontWeight: 300 }}>
           Each blockchain has a distinct strength. Wormhole lets you get the
           best out of every blockchain without compromise.
         </Typography>
       </Box>
       <Box sx={{ maxWidth: 1220, mx: "auto", mt: 12, px: 3.75 }}>
         <GridWithCards
-          data={[
+        data={[
             {
               src: cross,
-              header: "Never stop expanding",
+              size: 220,
+              header: "Never<br /> stop expanding",
               description:
                 "Chains, information, and users are growing everyday. Build on a protocol that is set up to scale, with no limits, right from the start.",
             },
             {
               src: blob,
-              header: "Explore and experiment",
+              size: 220,
+              header: "Explore<br /> and experiment",
               description:
                 "Now is the time to explore and experiment. The only limit to what you're able to build is your imagination.",
             },
             {
               src: cube,
-              header: "Power your project",
+              size: 220,
+              header: "Power<br /> your project",
               description:
                 "Join the growing list of projects that are composing, raising, and succeeding with Wormhole core layer.",
             },

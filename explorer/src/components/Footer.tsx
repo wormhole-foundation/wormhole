@@ -40,6 +40,7 @@ const socialIcon = {
 
 const Footer = () => (
   <Box sx={{ position: "relative" }}>
+    
     <Box
       sx={{
         position: "absolute",
@@ -53,6 +54,21 @@ const Footer = () => (
         height: { xs: "100%", md: 540 },
       }}
     />
+    <Box
+        sx={{
+          position: "absolute",
+          zIndex: -2,
+          top: '-30%',
+          background: 'radial-gradient(closest-side at 50% 50%, #5189C8 0%, #5189C800 100%) ',
+          transform: 'matrix(0.67, 0.74, -0.74, 0.67, 0, 0)',
+          left: '-5%',
+          width: 1136,
+          height: 1489,
+          pointerEvents: 'none',
+          display:{xs: 'none', md: 'block'},
+          opacity: 0.7,
+        }}
+      />   
     <Box
       sx={{
         maxWidth: 1100,
