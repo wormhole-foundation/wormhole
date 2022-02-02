@@ -86,6 +86,8 @@ spec:
             - ws://eth-devnet:8545
             - --avalancheRPC
             - ws://eth-devnet:8545
+            - --fantomRPC
+            - ws://fantom-testnet:8546
             - --oasisRPC
             - ws://eth-devnet:8545
             - --terraWS
