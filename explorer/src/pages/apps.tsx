@@ -15,6 +15,7 @@ import pyth from "../images/apps/pyth.png";
 import swim from "../images/apps/swim.png";
 import tiexo from "../images/apps/tiexo.png";
 import shape1 from "../images/index/shape1.svg";
+import shape from "../images/shape.png";
 
 const AppsPage = ({ location }: PageProps) => {
   return (
@@ -25,6 +26,21 @@ const AppsPage = ({ location }: PageProps) => {
         pathname={location.pathname}
       />
       <Box sx={{ position: "relative", marginTop: 17 }}>
+        <Box
+            sx={{
+              position: "absolute",
+              zIndex: -2,
+              bottom: '-250px',
+              left: '20%',
+              background: 'radial-gradient(closest-side at 50% 50%, #5189C8 0%, #5189C800 100%) ',
+              transform: 'matrix(-0.19, 0.98, -0.98, -0.19, 0, 0)',
+              width: 1609,
+              height: 1264,
+              pointerEvents: 'none',
+              display:{xs: 'none', md: 'block'},
+              opacity: 0.7,
+            }}
+          />   
         <Box
           sx={{
             position: "absolute",
@@ -37,7 +53,9 @@ const AppsPage = ({ location }: PageProps) => {
             width: "100%",
             height: 1155,
           }}
+          
         />
+        
         <HeroText
           heroSpans={["Every chain", "at once"]}
           subtitleText={[
@@ -48,6 +66,66 @@ const AppsPage = ({ location }: PageProps) => {
           ]}
         />
       </Box>
+      <Box sx={{position: 'relative'}}>
+      <Box
+            sx={{
+              position: "absolute",
+              zIndex: -2,
+              bottom: '-20%',
+              background: 'radial-gradient(closest-side at 50% 50%, #E72850 0%, #E7285000 100%)',
+              transform: 'transform: matrix(-0.77, -0.64, 0.64, -0.77, 0, 0)',
+              right: '75%',
+              width: 1494.89,
+              height: 861.05,
+              pointerEvents: 'none',
+              display:{xs: 'none', md: 'block'},
+              opacity: 0.7,
+            }}
+          />   
+        <Box
+            sx={{
+              position: "absolute",
+              zIndex: -2,
+              top: '-20%',
+              background: 'radial-gradient(closest-side at 50% 50%, #5189C8 0%, #5189C800 100%) ',
+              transform: 'matrix(-0.67, 0.74, -0.74, -0.67, 0, 0)',
+              left: '70%',
+              width: 1709,
+              height: 1690,
+              pointerEvents: 'none',
+              display:{xs: 'none', md: 'block'},
+              opacity: 0.64,
+            }}
+          />   
+      <Box
+            sx={{
+              position: "absolute",
+              zIndex: -1,
+              background: `url(${shape})`,
+              backgroundSize: 'contain',
+              top: -100,
+              right: '85vw',
+              width: 1012,
+              height: 839,
+              pointerEvents: 'none',
+              display:{xs: 'none', md: 'block'},
+            }}
+          />
+           <Box
+            sx={{
+              position: "absolute",
+              zIndex: -1,
+              background: `url(${shape})`,
+              backgroundSize: 'contain',
+              bottom: '-20%',
+              left: "80%",
+              transform: 'scaleX(-1)',
+              width: 1227,
+              height: 1018,
+              pointerEvents: 'none',
+              display:{xs: 'none', md: 'block'},
+            }}
+          />
       <Box sx={{ maxWidth: 1220, mx: "auto", mt: 36, px: 3.75 }}>
         <GridWithCards
           spacing={3}
@@ -131,6 +209,7 @@ const AppsPage = ({ location }: PageProps) => {
             },
           ]}
         />
+      </Box>
       </Box>
     </Layout>
   );

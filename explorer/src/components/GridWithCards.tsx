@@ -35,6 +35,8 @@ const GridWithCards = ({
   imgOffsetTopXs = "-30px",
   imgOffsetTopMd = "-16px",
   imgOffsetTopMdHover,
+  imgPaddingBottomXs = 0,
+  imgPaddingBottomMd = 0,
   headerTextAlign = "left",
 }: {
   data: CardData[];
@@ -47,6 +49,8 @@ const GridWithCards = ({
   imgOffsetTopXs?: string;
   imgOffsetTopMd?: string;
   imgOffsetTopMdHover?: string;
+  imgPaddingBottomXs?: number;
+  imgPaddingBottomMd?: number;
   headerTextAlign?: any;
 }) => (
   <Grid
@@ -102,10 +106,10 @@ const GridWithCards = ({
                 marginRight: { xs: 'auto', md: imgOffsetRightMd },
                 marginLeft: { xs: 'auto' },
                 top: { xs: imgOffsetTopXs, md: imgOffsetTopMd },
+                mb: { xs: imgPaddingBottomXs, md: imgPaddingBottomMd },
                 zIndex: 1,
                 width: size,
                 height: size,
-                textAlign: "right"
               }}
             >
               <img src={src} alt="" style={imgStyle} />
