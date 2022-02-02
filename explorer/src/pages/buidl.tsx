@@ -170,7 +170,7 @@ const BuidlPage = ({ location }: PageProps) => {
                 </Typography>
                 <Typography sx={{ mt: 2 }}>
                   Wormhole is built to be trust-minimized from the ground up
-                  with a group of six networks secured by 19 equally weighted
+                  with the networks secured by 19 equally weighted
                   guardians in the core layer.
                 </Typography>
               </Box>
