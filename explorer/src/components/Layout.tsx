@@ -3,7 +3,7 @@ import Footer from "./Footer";
 import NavBar from "./Navbar";
 
 const Layout: React.FC = ({ children }) => (
-  <main>
+  <main style={{overflow:'hidden'}}>
     <NavBar />
     {children}
     <Footer />

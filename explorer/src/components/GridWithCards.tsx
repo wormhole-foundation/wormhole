@@ -1,3 +1,4 @@
+import { Block } from "@mui/icons-material";
 import {
   Card,
   CardActionArea,
@@ -6,12 +7,13 @@ import {
   GridSpacing,
   Typography,
 } from "@mui/material";
-import { Box, ResponsiveStyleValue } from "@mui/system";
+import { Box, display, ResponsiveStyleValue } from "@mui/system";
 import { Link as RouterLink } from "gatsby";
 import { OutboundLink } from "gatsby-plugin-google-gtag";
 import React from "react";
 
 interface CardData {
+
   key?: string;
   src: string;
   header: string;
@@ -19,6 +21,7 @@ interface CardData {
   href?: string;
   to?: string;
   imgStyle?: React.CSSProperties | undefined;
+  size: number;
 }
 
 const GridWithCards = ({
@@ -32,8 +35,6 @@ const GridWithCards = ({
   imgOffsetTopXs = "-30px",
   imgOffsetTopMd = "-16px",
   imgOffsetTopMdHover,
-  imgPaddingBottomXs = 0,
-  imgPaddingBottomMd = 0,
   headerTextAlign = "left",
 }: {
   data: CardData[];
@@ -46,8 +47,6 @@ const GridWithCards = ({
   imgOffsetTopXs?: string;
   imgOffsetTopMd?: string;
   imgOffsetTopMdHover?: string;
-  imgPaddingBottomXs?: number;
-  imgPaddingBottomMd?: number;
   headerTextAlign?: any;
 }) => (
   <Grid
@@ -56,25 +55,24 @@ const GridWithCards = ({
     justifyContent="space-evenly"
     sx={{ "& > .MuiGrid-item": { pt: { xs: 8.25, md: 5.25 } } }}
   >
-    {data.map(({ key, src, header, description, href, to, imgStyle }) => (
+    {data.map(({ key, src, header, description, size, href, to, imgStyle }) => (
       <Grid key={key || header} item xs={12} sm={sm} md={md}>
         <Card
           sx={{
             backgroundColor: "rgba(255,255,255,.07)",
             backgroundImage: "none",
-            borderRadius: "28px",
-            display: "flex",
-            flexDirection: "column",
+            backdropFilter: 'blur(21px)',
             height: "100%",
             overflow: "visible",
+            borderRadius: "28px",
           }}
         >
           <CardActionArea
-            component={to ? RouterLink : href ? OutboundLink : undefined}
+            component={to ? RouterLink : href ? OutboundLink : undefined }
             to={to}
             href={href}
-            target={href ? "_blank" : undefined}
-            rel={href ? "noreferrer" : undefined}
+            target={href ? "_blank" : undefined }
+            rel={href ? "noreferrer" : undefined }
             disabled={!(href || to)}
             sx={{
               px: 4.25,
@@ -82,6 +80,10 @@ const GridWithCards = ({
               pt: cardPaddingTop,
               borderRadius: "28px",
               height: "100%",
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'flex-start',
+              justifyContent: 'flex-start',
               "& > div": {
                 transition: { md: "300ms top" },
               },
@@ -97,17 +99,18 @@ const GridWithCards = ({
               sx={{
                 textAlign: { xs: "center", md: imgAlignMd },
                 position: "relative",
-                right: { xs: null, md: imgOffsetRightMd },
+                marginRight: { xs: 'auto', md: imgOffsetRightMd },
+                marginLeft: { xs: 'auto' },
                 top: { xs: imgOffsetTopXs, md: imgOffsetTopMd },
-                pb: { xs: imgPaddingBottomXs, md: imgPaddingBottomMd },
                 zIndex: 1,
+                width: size,
+                height: size,
+                textAlign: "right"
               }}
             >
               <img src={src} alt="" style={imgStyle} />
             </Box>
-            <Typography variant="h4" textAlign={headerTextAlign}>
-              {header}
-            </Typography>
+            <Typography variant="h4" textAlign={headerTextAlign} dangerouslySetInnerHTML={{__html: header}} />
             <Typography component="div" sx={{ mt: 2, flexGrow: 1 }}>
               {description}
             </Typography>
