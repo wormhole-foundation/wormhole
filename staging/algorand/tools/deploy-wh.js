@@ -79,7 +79,6 @@ async function startOp (algodClient, fromAddress, gexpTime, gkeys) {
 
 (async () => {
   console.log('\nPricecaster v2 Apps Deployment Tool')
-  console.log('Copyright (c) Randlabs Inc,  2021-22\n')
 
   if (process.argv.length !== 7) {
     console.log('Usage: deploy <glistfile> <from> <network>\n')

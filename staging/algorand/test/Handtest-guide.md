@@ -92,7 +92,7 @@ b71d23908e4cf5d6cd973394f3a4b6b164eb1065785feee612efdfd8d30005ed
 
 ```
 C:\src\PriceCasterService>python teal\wormhole\pyteal\vaa-processor.py vaap.teal vaap-clear.teal
-VAA Processor Program, (c) 2021-22 Randlabs Inc.
+VAA Processor Program
 Compiling approval program...
 Written to vaap.teal
 Compiling clear state program...
