@@ -163,7 +163,14 @@ For example, using `deploy-wh` with sample output:
 $ node tools\deploy-wh.js tools\gkeys.test 1000  OPDM7ACAW64Q4VBWAL77Z5SHSJVZZ44V3BAN7W44U43SUXEOUENZMZYOQU testnet keys\owner.key
 
 Pricecaster v2 Apps Deployment Tool
-Copyright (c) Randlabs Inc,  2021-22
+
+Copyright 2022 Wormhole Project Contributors
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
 
 Parameters for deployment:
 From: OPDM7ACAW64Q4VBWAL77Z5SHSJVZZ44V3BAN7W44U43SUXEOUENZMZYOQU
@@ -174,13 +181,13 @@ Guardian Keys: (1) 13947Bd48b18E53fdAeEe77F3473391aC727C638
 Enter YES to confirm parameters, anything else to abort. YES
 Compiling programs ...
 
-,VAA Processor Program, (c) 2021-22 Randlabs Inc.
+,VAA Processor Program
 Compiling approval program...
 Written to teal/wormhole/build/vaa-processor-approval.teal
 Compiling clear state program...
 Written to teal/wormhole/build/vaa-processor-clear.teal
 ,
-,Pricekeeper V2 Program, (c) 2021-22 Randlabs Inc.
+,Pricekeeper V2 Program
 Compiling approval program...
 Written to teal/wormhole/build/pricekeeper-v2-approval.teal
 Compiling clear state program...
@@ -195,7 +202,7 @@ Deployment App Id: 52438280
 Setting VAA Processor authid parameter...
 txId: 5NVJGG32DRWAURD3LUHPELJAZTFMM6HLAJPPGNPXNDC5FJFDNVUQ
 Compiling verify VAA stateless code...
-,VAA Verify Stateless Program, (c) 2021-22 Randlabs Inc.
+,VAA Verify Stateless Program
 Compiling...
 Written to teal/wormhole/build/vaa-verify.teal
 ,

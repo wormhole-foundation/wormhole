@@ -4,7 +4,7 @@
 
 The VAA Processor Program
 
-(c) 2021 Randlabs, Inc.
+(c) 2022 Wormhole Project Contributors
 
 Changelog.
 
@@ -309,7 +309,7 @@ if __name__ == "__main__":
     if len(sys.argv) >= 3:
         clear_state_outfile = sys.argv[2]
 
-    print("VAA Processor Program, (c) 2021-22 Randlabs Inc. ")
+    print("VAA Processor Program, (c) 2022 Wormhole Project Contributors ")
     print("Compiling approval program...")
 
     with open(approval_outfile, "w") as f:
