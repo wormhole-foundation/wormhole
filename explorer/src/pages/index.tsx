@@ -276,7 +276,7 @@ const IndexPage = ({ location }: PageProps) => {
         </Box>
       </Box>
 
-      <Box sx={{position: 'relative'}}>
+     
         <Box
           sx={{
             display: "flex",
@@ -326,9 +326,23 @@ const IndexPage = ({ location }: PageProps) => {
             </Box>
           </Box>
         </Box>
-      </Box>
 
-      
+      <Box sx={{position: 'relative'}}>
+       <Box
+            sx={{
+              position: "absolute",
+              zIndex: -1,
+              background: `url(${shape2})`,
+              backgroundSize: 'contain',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              left: '75vw',
+              width: 1612,
+              height: 1316,
+              pointerEvents: 'none',
+              display:{xs: 'none', md: 'block'},
+            }}
+          />
       <Box
         sx={{
           display: "flex",
@@ -372,7 +386,7 @@ const IndexPage = ({ location }: PageProps) => {
               </Button>
             </Box>
           </Box>
-        </Box>
+          </Box>
         <Box
           sx={{
             mt: { xs: 8, md: null },
@@ -384,6 +398,7 @@ const IndexPage = ({ location }: PageProps) => {
           <Box component="img" src={portal} alt="" sx={{ maxWidth: "100%" }} />
         </Box>
         </Box>
+      </Box>
 
       <Box sx={{ textAlign: "center", mt: 12.5, px: 2 }}>
         <Typography variant="h3">
