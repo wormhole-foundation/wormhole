@@ -90,7 +90,7 @@ func adminContractUpgradeToVAA(req *nodev1.ContractUpgrade, guardianSetIndex uin
 	}
 
 	newContractAddress := vaa.Address{}
-	copy(newContractAddress[:], req.NewContract)
+	copy(newContractAddress[:], b)
 
 	v := vaa.CreateGovernanceVAA(nonce, sequence, guardianSetIndex,
 		vaa.BodyContractUpgrade{
