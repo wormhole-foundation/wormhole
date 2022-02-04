@@ -46,6 +46,15 @@ let theme = createTheme({
       letterSpacing: -1.2,
       lineHeight: 0.9,
     },
+    caption: {
+      textTransform: "uppercase",
+      fontSize: 8,
+      letterSpacing: 2,
+      fontFamily: "Suisse BP Intl",
+      fontWeight: 400,
+      display: "block",
+      marginTop: 10,
+    },
   },
 
   components: {

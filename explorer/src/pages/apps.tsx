@@ -37,7 +37,6 @@ const AppsPage = ({ location }: PageProps) => {
               width: 1609,
               height: 1264,
               pointerEvents: 'none',
-              display:{xs: 'none', md: 'block'},
               opacity: 0.7,
             }}
           />   
@@ -78,7 +77,6 @@ const AppsPage = ({ location }: PageProps) => {
               width: 1494.89,
               height: 861.05,
               pointerEvents: 'none',
-              display:{xs: 'none', md: 'block'},
               opacity: 0.7,
             }}
           />   
@@ -93,7 +91,6 @@ const AppsPage = ({ location }: PageProps) => {
               width: 1709,
               height: 1690,
               pointerEvents: 'none',
-              display:{xs: 'none', md: 'block'},
               opacity: 0.64,
             }}
           />   

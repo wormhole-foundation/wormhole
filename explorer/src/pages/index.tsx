@@ -6,12 +6,16 @@ import {
   graphql,
   useStaticQuery
 } from "gatsby";
-import * as React from "react";
+import React, { useEffect, useRef } from "react";
 import GridWithCards from "../components/GridWithCards";
 import HeroText from "../components/HeroText";
 import Layout from "../components/Layout";
 import { SEO } from "../components/SEO";
 import { portal as portalUrl } from "../utils/urls";
+
+import { gsap } from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+
 import apps from "../images/index/apps.png";
 import blob from "../images/index/blob.svg";
 import cross from "../images/index/cross.svg";
@@ -71,6 +75,47 @@ const IndexPage = ({ location }: PageProps) => {
     logo: logo
   }
 
+  const headerImage = React.useRef<HTMLCanvasElement>(null);
+  const gradient1 = React.useRef<HTMLCanvasElement>(null);
+  const gradient2 = React.useRef<HTMLCanvasElement>(null);
+
+  useEffect(()=>{
+    gsap.registerPlugin(ScrollTrigger);
+
+
+    gsap.from(headerImage.current,{
+      scale: 1.1,
+      duration: 10,
+      delay: 1,
+      rotation: 3,
+      ease: "Power3.easeOut",
+    })
+
+    gsap.to(gradient1.current,{
+      scale: 1.2,
+      ease: "Power3.easeOut",
+      x: 300,
+      scrollTrigger: {
+        trigger: gradient1.current,
+        start: "-0% 0%",
+        end: "+=500",
+        scrub: 1,
+      },
+    })
+
+    gsap.from(gradient2.current,{
+      scale: 0.5,
+      ease: "Power3.easeOut",
+      scrollTrigger: {
+        trigger: gradient2.current,
+        start: "-50% 50%",
+        end: "+=1000",
+        scrub: 1,
+      },
+    })
+
+  },[])
+
   return (
     <Layout>
       <SEO
@@ -84,6 +129,7 @@ const IndexPage = ({ location }: PageProps) => {
       </SEO>
       <Box sx={{ position: "relative", marginTop: 21 }}>
         <Box
+          ref={headerImage}
           sx={{
             position: "absolute",
             zIndex: -1,
@@ -170,6 +216,7 @@ const IndexPage = ({ location }: PageProps) => {
       
       <Box sx={{position: 'relative'}}>
         <Box
+            ref={gradient1}
             sx={{
               position: "absolute",
               zIndex: -1,
@@ -180,11 +227,11 @@ const IndexPage = ({ location }: PageProps) => {
               width: 1645,
               height: 903,
               pointerEvents: 'none',
-              display:{xs: 'none', md: 'block'},
               opacity: 0.7,
             }}
           />   
         <Box
+            ref={gradient2}
             sx={{
               position: "absolute",
               zIndex: -1,
@@ -195,7 +242,6 @@ const IndexPage = ({ location }: PageProps) => {
               width: 1136,
               height: 1489,
               pointerEvents: 'none',
-              display:{xs: 'none', md: 'block'},
               opacity: 0.64,
             }}
           />   
