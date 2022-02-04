@@ -30,6 +30,7 @@
     "gatsby-plugin-react-helmet": "^5.4.0",
     "gatsby-plugin-robots-txt": "^1.6.14",
     "gatsby-plugin-sitemap": "^5.4.0",
+    "gsap": "3.9.1",
     "javascript-time-ago": "^2.3.10",
     "path-browserify": "^1.0.1",
     "react": "^17.0.1",

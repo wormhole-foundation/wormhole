@@ -38,7 +38,6 @@ const BuidlPage = ({ location }: PageProps) => {
               width: 1609,
               height: 1264,
               pointerEvents: 'none',
-              display:{xs: 'none', md: 'block'},
               opacity: 0.7,
             }}
           />   
@@ -86,7 +85,6 @@ const BuidlPage = ({ location }: PageProps) => {
                 width: 1699,
                 height: 1621,
                 pointerEvents: 'none',
-                display:{xs: 'none', md: 'block'},
                 opacity: 0.7,
               }}
             />   
@@ -101,7 +99,6 @@ const BuidlPage = ({ location }: PageProps) => {
                 width: 1709,
                 height: 1690,
                 pointerEvents: 'none',
-                display:{xs: 'none', md: 'block'},
                 opacity: 0.64,
               }}
             />   
