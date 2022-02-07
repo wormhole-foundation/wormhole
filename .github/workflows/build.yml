@@ -5,7 +5,6 @@ on:
   push:
     branches:
       - dev.v2
-      - switch-to-gha  # XXX
 jobs:
   # Run the full Tilt build and wait for it to converge
   tilt:
@@ -17,7 +16,7 @@ jobs:
     # (unfortunately, we can't differentiate between temporary and permanent
     # refs without duplicating the entire logic).
     concurrency:
-      group: tilt-${{ github.ref }}
+      group: ${{ github.workflow }}-${{ github.ref }}
       cancel-in-progress: true
 
     steps:
@@ -51,7 +50,7 @@ jobs:
     # The linter is slow enough that we want to run it on the self-hosted runner
     runs-on: tilt-kube-public
     concurrency:
-      group: tilt-${{ github.ref }}
+      group: ${{ github.workflow }}-${{ github.ref }}
       cancel-in-progress: true
     steps:
       - uses: actions/checkout@v2
