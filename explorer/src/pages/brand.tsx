@@ -18,14 +18,28 @@ import worm1 from "../images/brand/worm1.png";
 import worm2 from "../images/brand/worm2.png";
 import gradient1 from "../images/brand/gradient1.svg";
 import gradient2 from "../images/brand/gradient2.svg";
-
+import {
+  logopackage,
+  colors,
+  icons,
+  assets,
+  logonamesvg,
+  logonamepng,
+  logopng,
+  logosvg,
+  wormpng1,
+  wormpng2,
+  gradients,
+  gradient2svg,
+  contact
+} from "../utils/urls";
 
 const BrandPage = ({ location }: PageProps) => {
   return (
     <Layout>
       <SEO
         title="Brand"
-        description="One integration to rule them all. Access every chain at once with our SDK."
+        description="Please follow these guidelines when you’re sharing Wormhole with the world."
         pathname={location.pathname}
       />
       <Box sx={{ position: "relative", marginTop: 17 }}>
@@ -124,7 +138,7 @@ const BrandPage = ({ location }: PageProps) => {
                     Combine the logo with a range of provided background colors and gradients to create the right feel.
                   </Typography>
                   <Button
-                  href="#"
+                  href={logopackage}
                   sx={{ mt: 3 }}
                   variant="outlined"
                   color="inherit"
@@ -423,7 +437,7 @@ const BrandPage = ({ location }: PageProps) => {
           </Grid>  
           <Box sx={{textAlign: 'center', mt: 5}}>
             <Button
-                  href="#"
+                  href={colors}
                   sx={{ mt: 3 }}
                   variant="outlined"
                   color="inherit"
@@ -494,7 +508,7 @@ const BrandPage = ({ location }: PageProps) => {
           </Grid>  
           <Box sx={{textAlign: 'center', mt: 5}}>
             <Button
-                  href="#"
+                  href={icons}
                   sx={{ mt: 3 }}
                   variant="outlined"
                   color="inherit"
@@ -544,7 +558,7 @@ const BrandPage = ({ location }: PageProps) => {
             </Typography>
             <Typography sx={{ mt: 2, maxWidth: 860, mx: "auto" }}>Mix and match from the color palette to fits your need.</Typography>
             <Button
-                  href="#"
+                  href={assets}
                   sx={{ mt: 4 }}
                   variant="outlined"
                   color="inherit"
@@ -574,7 +588,7 @@ const BrandPage = ({ location }: PageProps) => {
                     }}
                   >
                     <Button
-                        href="#"
+                        href={logonamepng}
                         variant="outlined"
                         color="inherit"
                         startIcon={<ArrowCircleDownIcon />}
@@ -582,7 +596,7 @@ const BrandPage = ({ location }: PageProps) => {
                       PNG
                     </Button>
                     <Button
-                        href="#"
+                        href={logonamesvg}
                         variant="outlined"
                         color="inherit"
                         startIcon={<ArrowCircleDownIcon />}
@@ -613,7 +627,7 @@ const BrandPage = ({ location }: PageProps) => {
                     }}
                   >
                     <Button
-                        href="#"
+                        href={logopng}
                         variant="outlined"
                         color="inherit"
                         startIcon={<ArrowCircleDownIcon />}
@@ -621,7 +635,7 @@ const BrandPage = ({ location }: PageProps) => {
                       PNG
                     </Button>
                     <Button
-                        href="#"
+                        href={logosvg}
                         variant="outlined"
                         color="inherit"
                         startIcon={<ArrowCircleDownIcon />}
@@ -654,7 +668,7 @@ const BrandPage = ({ location }: PageProps) => {
                     }}
                   >
                     <Button
-                        href="#"
+                        href={wormpng1}
                         variant="outlined"
                         color="inherit"
                         startIcon={<ArrowCircleDownIcon />}
@@ -688,7 +702,7 @@ const BrandPage = ({ location }: PageProps) => {
                     }}
                   >
                     <Button
-                        href="#"
+                        href={wormpng1}
                         variant="outlined"
                         color="inherit"
                         startIcon={<ArrowCircleDownIcon />}
@@ -720,7 +734,7 @@ const BrandPage = ({ location }: PageProps) => {
                     }}
                   >
                     <Button
-                        href="#"
+                        href={gradients}
                         variant="outlined"
                         color="inherit"
                         startIcon={<ArrowCircleDownIcon />}
@@ -752,15 +766,7 @@ const BrandPage = ({ location }: PageProps) => {
                     }}
                   >
                     <Button
-                        href="#"
-                        variant="outlined"
-                        color="inherit"
-                        startIcon={<ArrowCircleDownIcon />}
-                      >
-                      PNG
-                    </Button>
-                    <Button
-                        href="#"
+                        href={gradient2svg}
                         variant="outlined"
                         color="inherit"
                         startIcon={<ArrowCircleDownIcon />}
@@ -786,7 +792,7 @@ const BrandPage = ({ location }: PageProps) => {
             </Typography>
             <Typography sx={{ mt: 2, maxWidth: 860, mx: "auto" }}>Reach out to our team to get the information you need.</Typography>
             <Button
-                  href="#"
+                  href={contact}
                   sx={{ mt: 4 }}
                   variant="outlined"
                   color="inherit"

@@ -1,5 +1,5 @@
 import ArrowForward from "@mui/icons-material/ArrowForward";
-import { Box, Button, Typography } from "@mui/material";
+import { Box, Button, Grid, Typography } from "@mui/material";
 import {
   Link as RouterLink,
   PageProps,
@@ -16,12 +16,12 @@ import { portal as portalUrl } from "../utils/urls";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
-import apps from "../images/index/apps.png";
+import apps from "../images/index/apps2.png";
 import blob from "../images/index/blob.svg";
 import cross from "../images/index/cross.svg";
 import cube from "../images/index/cube.svg";
 import portal from "../images/index/portal.png";
-import protocols from "../images/index/protocols.png";
+import protocols from "../images/index/protocol.png";
 import shape1 from "../images/index/shape1.svg";
 import shape from "../images/shape.png";
 import shape2 from "../images/shape2.png";
@@ -274,7 +274,7 @@ const IndexPage = ({ location }: PageProps) => {
 
           <Box
             sx={{
-              flexBasis: { xs: "100%", md: "50%" },
+              flexBasis: { xs: "100%", md: "40%" },
               flexGrow: 1,
             }}
           >
@@ -307,7 +307,7 @@ const IndexPage = ({ location }: PageProps) => {
           <Box
             sx={{
               mt: { xs: 8, md: null },
-              flexBasis: { xs: "100%", md: "50%" },
+              flexBasis: { xs: "100%", md: "60%" },
               textAlign: "center",
               flexGrow: 1,
             }}
@@ -403,7 +403,7 @@ const IndexPage = ({ location }: PageProps) => {
       >
         <Box
           sx={{
-            flexBasis: { xs: "100%", md: "45%" },
+            flexBasis: { xs: "100%", md: "40%" },
             flexGrow: 1,
           }}
         >
@@ -436,12 +436,21 @@ const IndexPage = ({ location }: PageProps) => {
         <Box
           sx={{
             mt: { xs: 8, md: null },
-            flexBasis: { xs: "100%", md: "55%" },
+            flexBasis: { xs: "100%", md: "60%" },
             textAlign: "center",
             flexGrow: 1,
           }}
         >
-          <Box component="img" src={portal} alt="" sx={{ maxWidth: "100%" }} />
+          <Button  variant="text"  href={portalUrl} sx={{
+            '&:hover':{
+              background: 'transparent'
+            },
+            'span':{
+              display: 'none'
+            }
+          }}>
+            <Box component="img" src={portal} alt="" sx={{ maxWidth: "100%" }} />
+          </Button>
         </Box>
         </Box>
       </Box>
@@ -485,6 +494,7 @@ const IndexPage = ({ location }: PageProps) => {
           ]}
         />
       </Box>
+      
     </Layout>
   );
 };

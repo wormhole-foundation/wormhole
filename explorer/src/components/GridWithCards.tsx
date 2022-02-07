@@ -86,9 +86,8 @@ const GridWithCards = ({
               height: "100%",
               display: 'flex',
               flexDirection: 'column',
-              alignItems: 'flex-start',
-              justifyContent: 'flex-start',
-              "& > div": {
+              "& > *": {
+                width: '100%',
                 transition: { md: "300ms top" },
               },
               "&:hover > div": {
