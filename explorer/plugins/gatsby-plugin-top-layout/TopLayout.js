@@ -20,7 +20,7 @@ let theme = createTheme({
     },
   },
   typography: {
-    fontFamily: ["Poppins", "arial"].join(","),
+    fontFamily: ["Poppins", "Arial"].join(","),
     fontSize: 13,
     body1: {
       fontWeight: 300,
@@ -30,7 +30,7 @@ let theme = createTheme({
     },
     h1: {
       fontWeight: "bold",
-      fontFamily: ["Suisse BP Intl", "arial"],
+      fontFamily: ["Suisse BP Intl", "Arial"],
       lineHeight: 0.9,
       letterSpacing: -2.7,
     },
