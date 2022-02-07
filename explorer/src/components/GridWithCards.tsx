@@ -7,7 +7,7 @@ import {
   GridSpacing,
   Typography,
 } from "@mui/material";
-import { Box, display, ResponsiveStyleValue } from "@mui/system";
+import { Box, ResponsiveStyleValue } from "@mui/system";
 import { Link as RouterLink } from "gatsby";
 import { OutboundLink } from "gatsby-plugin-google-gtag";
 import React from "react";
@@ -72,11 +72,11 @@ const GridWithCards = ({
           }}
         >
           <CardActionArea
-            component={to ? RouterLink : href ? OutboundLink : undefined }
+            component={to ? RouterLink : href ? OutboundLink : undefined}
             to={to}
             href={href}
-            target={href ? "_blank" : undefined }
-            rel={href ? "noreferrer" : undefined }
+            target={href ? "_blank" : undefined}
+            rel={href ? "noreferrer" : undefined}
             disabled={!(href || to)}
             sx={{
               px: 4.25,
