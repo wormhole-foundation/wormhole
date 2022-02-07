@@ -18,8 +18,8 @@ Run the spy_guardian docker container in TestNet:
 
 ```
 $ docker run --platform linux/amd64 -d --network=host spy_guardian \
---bootstrap /dns4/wormhole-testnet-v2-bootstrap.certus.one/udp/8999/quic/p2p/12D3KooWBY9ty9CXLBXGQzMuqkziLntsVcyz4pk1zWaJRvJn6Mmt \
---network /wormhole/testnet/2/1 \
+--bootstrap <guardianNetworkBootstrapParameterForTestNet> \
+--network <guardianNetworkPathForTestNet> \
 --spyRPC "[::]:7073"
 ```
 
@@ -27,8 +27,8 @@ Or run the spy_guardian docker container in MainNet:
 
 ```
 $ docker run --platform linux/amd64 -d --network=host spy_guardian \
---bootstrap /dns4/wormhole-mainnet-v2-bootstrap.certus.one/udp/8999/quic/p2p/12D3KooWL6xoqY8yU2xR2K6cP6jix4LnGSrRh94HCKiK371qUFeU \
---network /wormhole/mainnet/2 \
+--bootstrap <guardianNetworkBootstrapParameterForMainNet> \
+--network <guardianNetworkPathForMainNet> \
 --spyRPC "[::]:7073"
 
 ```
