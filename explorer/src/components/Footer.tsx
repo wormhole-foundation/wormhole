@@ -1,5 +1,6 @@
 import { Box, IconButton, Link, Typography } from "@mui/material";
 import { Link as RouterLink } from "gatsby";
+
 import React from "react";
 import Discord from "../images/Discord.svg";
 import shape from "../images/footer/shape.svg";
@@ -11,6 +12,7 @@ import {
   apps,
   blog,
   buidl,
+  brand,
   discord,
   docs,
   explorer,
@@ -39,8 +41,9 @@ const socialIcon = {
 };
 
 const Footer = () => (
+ <>
+ 
   <Box sx={{ position: "relative" }}>
-    
     <Box
       sx={{
         position: "absolute",
@@ -49,9 +52,9 @@ const Footer = () => (
         background: `url(${shape})`,
         backgroundRepeat: "no-repeat",
         backgroundPosition: { xs: "center center", md: "right top -426px" },
-        // backgroundSize: "cover",
         width: "100%",
         height: { xs: "100%", md: 540 },
+        bottom:0
       }}
     />
     <Box
@@ -151,6 +154,14 @@ const Footer = () => (
                 sx={linkStyle}
               >
                 Blog
+              </Link>
+              <Link
+                href={brand}
+                color="inherit"
+                underline="hover"
+                sx={linkStyle}
+              >
+                Brand
               </Link>
             </Box>
             <Box>
@@ -262,5 +273,7 @@ const Footer = () => (
       </Box>
     </Box>
   </Box>
+ 
+</>
 );
 export default Footer;

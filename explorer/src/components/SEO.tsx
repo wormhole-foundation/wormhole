@@ -1,6 +1,7 @@
 import React from 'react'
 import { Helmet, HelmetProps } from 'react-helmet'
 import { useStaticQuery, graphql } from 'gatsby'
+import Suisse from '../fonts/SuisseBPIntlBold.woff2'
 
 type Meta = ConcatArray<PropertyMetaObj | NameMetaObj>
 
@@ -33,7 +34,7 @@ export function SEO({
     const siteUrl = site.siteMetadata.siteUrl
     const defaultTitle = site.siteMetadata?.defaultTitle
     const twitterUsername = `@wormholecrypto`
-    const socialImage = "/logo-and-name_social-card.png"
+    const socialImage = "/wormhole.png"
     const socialImageWidth = '800'
     const socialImageHeight = '400'
     const image = `${siteUrl}${socialImage}`
@@ -180,6 +181,8 @@ export function SEO({
                 // metadata from props
                 .concat(meta)}
         >
+            <link rel="preload" as="font" href={Suisse} type="font/woff2" crossOrigin="anonymous" />
+            
             {children}
         </Helmet>
     )
