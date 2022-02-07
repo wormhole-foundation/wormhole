@@ -311,7 +311,6 @@ if ci_tests:
             sync("./sdk/js/src", "/app/sdk/js/src"),
             sync("./testing", "/app/testing"),
             sync("./bridge_ui/src", "/app/bridge_ui/src"),
-            run("/app/testing/allTests.sh")
         ],
     )
 

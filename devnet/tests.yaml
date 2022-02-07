@@ -11,7 +11,7 @@ spec:
           command:
             - /bin/sh
             - -c
-            - "/app/testing/allTests.sh && touch /app/testing/success"
+            - "sh /app/testing/allTests.sh && touch /app/testing/success"
       restartPolicy: Never
   backoffLimit: 1
   readinessProbe:
