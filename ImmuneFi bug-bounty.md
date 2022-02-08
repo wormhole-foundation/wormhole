@@ -4,21 +4,21 @@ The Wormhole bug bounty program is focused on the prevention of negative impacts
 
 **The primary prevention focuses are as follows:**  
 
-• Exploits resulting in the locking, loss, or theft of user funds.
+* Exploits resulting in the locking, loss, or theft of user funds.
 
-• General forging of unverified data, or validation of forged messages.
+* General forging of unverified data, or validation of forged messages.
 
-• Determinism bugs that could lead to inconsistent bridge states.
+* Determinism bugs that could lead to inconsistent bridge states.
 
-• Governance manipulation.
+* Governance manipulation.
 
-• Exposure of infrastructure private keys and/or PII.
+* Exposure of infrastructure private keys and/or PII.
 
-• Vulnerabilities in the node operating software resulting in invalid behaviour.
+* Vulnerabilities in the node operating software resulting in invalid behaviour.
 
-• Remote code execution.
+* Remote code execution.
 
-• Bugs that can facilitate Sybil attacks.
+* Bugs that can facilitate Sybil attacks.
 
 
 
