@@ -3,8 +3,10 @@ apiVersion: batch/v1
 metadata:
   name: ci-tests
 spec:
+  backoffLimit: 0
   template:
     spec:
+      restartPolicy: Never
       containers:
         - name: ci-tests
           image: tests-image
@@ -12,13 +14,11 @@ spec:
             - /bin/sh
             - -c
             - "sh /app/testing/allTests.sh && touch /app/testing/success"
-      restartPolicy: Never
-  backoffLimit: 1
-  readinessProbe:
-    exec:
-      command:
-        - test
-        - -e
-        - "/app/testing/success"
-    initialDelaySeconds: 5
-    periodSeconds: 5
+          readinessProbe:
+            exec:
+              command:
+                - test
+                - -e
+                - "/app/testing/success"
+            initialDelaySeconds: 5
+            periodSeconds: 5
