@@ -8,7 +8,7 @@ import fs from "fs";
 
 import {ethers} from "ethers";
 
-import {getSignedAttestation, parseAttestation, p2w_core, sol_addr2buf} from "@certusone/p2w-sdk";
+import {getSignedAttestation, parseBatchAttestation, p2w_core, sol_addr2buf} from "@certusone/p2w-sdk";
 
 import {setDefaultWasm, importCoreWasm} from "@certusone/wormhole-sdk/lib/cjs/solana/wasm";
 
@@ -55,7 +55,7 @@ async function readinessProbeRoutine(port: number) {
     setDefaultWasm("node");
     const {parse_vaa} = await importCoreWasm();
 
-    let p2w_eth;
+    let p2w_eth: any;
 
     // Connect to ETH
     try {
@@ -110,18 +110,21 @@ async function readinessProbeRoutine(port: number) {
 	console.log("Processing seqnos:", seqnoPool);
 	for (let poolEntry of seqnoPool) {
 
-	    if (poolEntry[1] >= P2W_RELAY_RETRY_COUNT) {
+	    let seqno = poolEntry[0];
+	    let attempts = poolEntry[1];
+
+	    if (attempts >= P2W_RELAY_RETRY_COUNT) {
 		console.warn(`[seqno ${poolEntry}] Exceeded retry count, removing from list`);
-		seqnoPool.delete(poolEntry[0]);
+		seqnoPool.delete(seqno);
 		continue;
 	    }
 
-	    let vaaResponse;
+	    let vaaResponse: any;
 	    try {
 		vaaResponse = await getSignedAttestation(
 		    GUARDIAN_RPC_HOST_PORT,
 		    P2W_SOL_ADDRESS,
-		    poolEntry[0],
+		    seqno,
 		    {
 			transport: NodeHttpTransport()
 		    }
@@ -130,7 +133,7 @@ async function readinessProbeRoutine(port: number) {
 	    catch(e) {
 		console.error(`[seqno ${poolEntry}] Error: Could not call getSignedAttestation:`, e);
 
-		seqnoPool.set(poolEntry[0], poolEntry[1] + 1);
+		seqnoPool.set(seqno, attempts + 1);
 
 		continue;
 	    }
@@ -141,48 +144,52 @@ async function readinessProbeRoutine(port: number) {
 
 	    console.log(`[seqno ${poolEntry}] Parsed VAA:\n`, parsedVaa);
 
-	    let parsedAttestation = await parseAttestation(parsedVaa.payload);
+	    let parsedAttestations = await parseBatchAttestation(parsedVaa.payload);
 
-	    console.log(`[seqno ${poolEntry}] Parsed price attestation:\n`, parsedAttestation);
+	    console.log(`[seqno ${poolEntry}] Parsed ${parsedAttestations.length} price attestations:\n`, parsedAttestations);
 
-	    try {
-		let tx = await p2w_eth.attestPrice(vaaResponse.vaaBytes, {gasLimit: 1000000});
-		let retval = await tx.wait();
-		console.log(`[seqno ${poolEntry}] attestPrice() output:\n`, retval);
-	    } catch(e) {
-		console.error(`[seqno ${poolEntry}] Error: Could not call attestPrice() on ETH:`, e);
+	    // try {
+	    // 	let tx = await p2w_eth.attestPrice(vaaResponse.vaaBytes, {gasLimit: 1000000});
+	    // 	let retval = await tx.wait();
+	    // 	console.log(`[seqno ${poolEntry}] attestPrice() output:\n`, retval);
+	    // } catch(e) {
+	    // 	console.error(`[seqno ${poolEntry}, {parsedAttestations.length} symbols] Error: Could not call attestPrice() on ETH:`, e);
 
-		seqnoPool.set(poolEntry[0], poolEntry[1] + 1);
+	    // 	seqnoPool.set(seqno, attempts + 1);
 
-		continue;
-	    }
+	    // 	continue;
+	    // }
 
-	    let product_id = parsedAttestation.product_id;
-	    let price_type = parsedAttestation.price_type == "Price" ? 1 : 0;
-	    let latest_attestation;
-	    try {
-		let p2w = await p2w_core();
-		let emitter_sol = sol_addr2buf(p2w.get_emitter_address(P2W_SOL_ADDRESS));
-		let emitter_eth = await p2w_eth.pyth2WormholeEmitter();
+	    console.warn("TODO: implement relayer ETH call");
 
-		console.log(`Looking up latestAttestation for `, product_id, price_type);
+	    // for (let att of parsedAttestations) {
 
-		latest_attestation = await p2w_eth.latestAttestation(product_id, price_type);
-	    } catch(e) {
-		console.error(`[seqno ${poolEntry}] Error: Could not call latestAttestation() on ETH:`, e);
+	    // 	let product_id = att.product_id;
+	    // 	let price_type = att.price_type == "Price" ? 1 : 0;
+	    // 	let latest_attestation: any;
+	    // 	try {
+	    // 	    let p2w = await p2w_core();
 
-		seqnoPool.set(poolEntry[0], poolEntry[1] + 1);
+	    // 	    console.log(`Looking up latestAttestation for `, product_id, price_type);
 
-		continue;
-	    }
+	    // 	    latest_attestation = await p2w_eth.latestAttestation(product_id, price_type);
+	    // 	} catch(e) {
+	    // 	    console.error(`[seqno ${poolEntry}] Error: Could not call latestAttestation() on ETH:`, e);
 
-	    console.log(`[seqno ${poolEntry}] Latest price type ${price_type} attestation of ${product_id} is ${latest_attestation}`);
+	    // 	    seqnoPool.set(seqno, attempts + 1);
+
+	    // 	    continue;
+	    // 	}
+
+	    // 	console.log(`[seqno ${poolEntry}] Latest price type ${price_type} attestation of ${product_id} is ${latest_attestation}`);
+	    // }
+
 	    if (!readinessProbe) {
 		console.log(`[seqno ${poolEntry}] Attestation successful. Starting readiness probe.`);
 		readinessProbe = readinessProbeRoutine(READINESS_PROBE_PORT);
 	    }
 
-	    seqnoPool.delete(poolEntry[0]); // Everything went well, seqno no longer pending.
+	    seqnoPool.delete(seqno); // Everything went well, seqno no longer pending.
 	}
 
 	await new Promise(f => {setTimeout(f, P2W_ATTESTATIONS_POLL_INTERVAL_MS);});

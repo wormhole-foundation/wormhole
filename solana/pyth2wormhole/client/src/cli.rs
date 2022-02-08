@@ -1,6 +1,7 @@
 //! CLI options
 
 use solana_program::pubkey::Pubkey;
+use std::path::PathBuf;
 
 use clap::Clap;
 #[derive(Clap)]
@@ -22,7 +23,7 @@ pub struct Cli {
         default_value = "~/.config/solana/id.json"
     )]
     pub payer: String,
-    #[clap(long, default_value = "http://localhost:8899")]
+    #[clap(short, long, default_value = "http://localhost:8899")]
     pub rpc_url: String,
     #[clap(long)]
     pub p2w_addr: Pubkey,
@@ -35,23 +36,19 @@ pub enum Action {
     #[clap(about = "Initialize a pyth2wormhole program freshly deployed under <p2w_addr>")]
     Init {
 	/// The bridge program account
-	#[clap(long = "wh-prog")]
+	#[clap(short = 'w', long = "wh-prog")]
 	wh_prog: Pubkey,
-	#[clap(long = "owner")]
+	#[clap(short = 'o', long = "owner")]
         owner_addr: Pubkey,
-        #[clap(long = "pyth-owner")]
+        #[clap(short = 'p', long = "pyth-owner")]
         pyth_owner_addr: Pubkey,
     },
     #[clap(
         about = "Use an existing pyth2wormhole program to attest product price information to another chain"
     )]
     Attest {
-        #[clap(long = "product")]
-        product_addr: Pubkey,
-        #[clap(long = "price")]
-        price_addr: Pubkey,
-        #[clap(long)]
-	nonce: u32,
+	#[clap(short = 'f', long = "--config", about = "Attestation YAML config")]
+	attestation_cfg: PathBuf,
     },
     #[clap(about = "Update an existing pyth2wormhole program's settings (currently set owner only)")]
     SetConfig {

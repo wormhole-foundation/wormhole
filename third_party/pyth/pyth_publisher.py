@@ -5,11 +5,13 @@ from pyth_utils import *
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
 import json
+import os
 import random
 import sys
 import threading
 import time
 
+PYTH_TEST_SYMBOL_COUNT = int(os.environ.get("PYTH_TEST_SYMBOL_COUNT", "9"))
 
 class PythAccEndpoint(BaseHTTPRequestHandler):
     """
@@ -19,7 +21,7 @@ class PythAccEndpoint(BaseHTTPRequestHandler):
     def do_GET(self):
         print(f"Got path {self.path}")
         sys.stdout.flush()
-        data = json.dumps(ACCOUNTS).encode("utf-8")
+        data = json.dumps(TEST_SYMBOLS).encode("utf-8")
         print(f"Sending:\n{data}")
 
         self.send_response(200)
@@ -30,7 +32,7 @@ class PythAccEndpoint(BaseHTTPRequestHandler):
         self.wfile.flush()
 
 
-ACCOUNTS = dict()
+TEST_SYMBOLS = []
 
 
 def publisher_random_update(price_pubkey):
@@ -65,35 +67,50 @@ sol_run_or_die("airdrop", [
 # Create a mapping
 pyth_run_or_die("init_mapping")
 
-# Add a product
-prod_pubkey = pyth_run_or_die(
-    "add_product", capture_output=True).stdout.strip()
-print(f"Added product {prod_pubkey}")
-
-# Add a price
-price_pubkey = pyth_run_or_die(
-    "add_price",
-    args=[prod_pubkey, "price"],
-    confirm=False,
-    capture_output=True
-).stdout.strip()
-
-print(f"Added price {price_pubkey}")
+print(f"Creating {PYTH_TEST_SYMBOL_COUNT} test Pyth symbols")
 
 publisher_pubkey = sol_run_or_die("address", args=[
     "--keypair", PYTH_PUBLISHER_KEYPAIR
 ], capture_output=True).stdout.strip()
 
-# Become a publisher
-pyth_run_or_die(
-    "add_publisher", args=[publisher_pubkey, price_pubkey],
-    confirm=False,
-    debug=True,
-    capture_output=True)
-print(f"Added publisher {publisher_pubkey}")
+for i in range(PYTH_TEST_SYMBOL_COUNT):
+    symbol_name = f"Test symbol {i}"
+    # Add a product
+    prod_pubkey = pyth_run_or_die(
+        "add_product", capture_output=True).stdout.strip()
 
-# Update the price as the newly added publisher
-publisher_random_update(price_pubkey)
+    print(f"{symbol_name}: Added product {prod_pubkey}")
+
+    # Add a price
+    price_pubkey = pyth_run_or_die(
+        "add_price",
+        args=[prod_pubkey, "price"],
+        confirm=False,
+        capture_output=True
+    ).stdout.strip()
+
+    print(f"{symbol_name}: Added price {price_pubkey}")
+
+    # Become a publisher for the new price
+    pyth_run_or_die(
+        "add_publisher", args=[publisher_pubkey, price_pubkey],
+        confirm=False,
+        debug=True,
+        capture_output=True)
+    print(f"{symbol_name}: Added publisher {publisher_pubkey}")
+
+    # Update the prices as the newly added publisher 
+    publisher_random_update(price_pubkey)
+
+    sym = {
+        "name": symbol_name,
+        "product": prod_pubkey,
+        "price": price_pubkey
+    }
+
+    TEST_SYMBOLS.append(sym)
+
+    sys.stdout.flush()
 
 print(
     f"Mock updates ready to roll. Updating every {str(PYTH_PUBLISHER_INTERVAL)} seconds")
@@ -101,17 +118,16 @@ print(
 # Spin off the readiness probe endpoint into a separate thread
 readiness_thread = threading.Thread(target=readiness, daemon=True)
 
-# Start an HTTP endpoint for looking up product/price address
+# Start an HTTP endpoint for looking up test product/price addresses
 http_service = threading.Thread(target=accounts_endpoint, daemon=True)
-
-ACCOUNTS["product"] = prod_pubkey
-ACCOUNTS["price"] = price_pubkey
 
 readiness_thread.start()
 http_service.start()
 
 while True:
-    publisher_random_update(price_pubkey)
+    for sym in TEST_SYMBOLS:
+        publisher_random_update(sym["price"])
+
     time.sleep(PYTH_PUBLISHER_INTERVAL)
     sys.stdout.flush()
 
