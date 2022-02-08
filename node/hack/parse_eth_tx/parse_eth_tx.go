@@ -32,7 +32,7 @@ func main() {
 	contractAddr := common.HexToAddress(*flagContractAddr)
 	transactionHash := common.HexToHash(*flagTx)
 
-	msgs, err := ethereum.MessageEventsForTransaction(ctx, c, contractAddr, vaa.ChainIDEthereum, transactionHash)
+	block, msgs, err := ethereum.MessageEventsForTransaction(ctx, c, contractAddr, vaa.ChainIDEthereum, transactionHash)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -52,6 +52,7 @@ func main() {
 		}
 
 		log.Println("------------------------------------------------------")
+		log.Printf("Block: %d", block)
 		log.Printf("Message ID: %s", v.MessageID())
 		log.Printf("Digest: %s", v.HexDigest())
 		log.Printf("VAA: %+v", v)
