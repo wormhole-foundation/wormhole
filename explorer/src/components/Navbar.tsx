@@ -11,27 +11,28 @@ const linkActiveStyle = { textDecoration: "underline" };
 
 const NavBar = () => (
   <>
-    {/* <Box sx={{
+    <Box sx={{
       display: 'flex',
+      flexWrap: 'wrap',
       justifyContent: 'center',
-      flexDirection: {xs: 'column', md:'row'},
       alignItems: 'center',
       background: '#17153f',
-      textAlign: {xs: 'center', md:'left'},
-      p: 2
+      textAlign: 'center',
+      p: 1
     }}>
-      <Box sx={{m:{xs:'0 0 10px 0', md:'0 40px 0 0'} }}>A $10,000,000 reward is offered for any information leading to the arrest and conviction of those responsible for the hack of Wormhole on February 2, 2022, or the recovery of the stolen assets. </Box>
+      <Box sx={{ m: '5px 10px' }}>ImmuneFi bug bounty</Box>
       <Button
           component={RouterLink}
-          to="#"
-          sx={{flex: '0 0 auto'}}
+          to="https://www.immunefi.com/bounty/wormhole/"
+          target='_blank'
+          sx={{m: '5px 10px', flex: '0 0 auto'}}
           variant="outlined"
           color="inherit"
           endIcon={<ArrowForward />}
         >
             Learn More
       </Button>
-    </Box> */}
+    </Box>
 
   <AppBar
     position="static"
