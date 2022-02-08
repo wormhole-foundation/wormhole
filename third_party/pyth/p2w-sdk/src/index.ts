@@ -4,12 +4,6 @@ import { PublicKey} from "@solana/web3.js";
 
 var P2W_INSTANCE: any = undefined;
 
-export async function p2wHello() {
-    const p2w = await p2w_core();
-    let s = p2w.hello_p2w();
-    console.log(s);
-}
-
 // Import p2w wasm bindings; be smart about it
 export async function p2w_core(): Promise<any> {
     // Only import once if P2W wasm is needed
@@ -37,4 +31,12 @@ export async function parseAttestation(vaa_payload: Uint8Array): Promise<any> {
     const p2w = await p2w_core();
 
     return await p2w.parse_attestation(vaa_payload);
+}
+
+export async function parseBatchAttestation(vaa_payload: Uint8Array): Promise<any> {
+    const p2w = await p2w_core();
+
+    console.log("p2w.parse_batch_attestaion is", p2w.parse_batch_attestation);
+
+    return await p2w.parse_batch_attestation(vaa_payload);
 }
