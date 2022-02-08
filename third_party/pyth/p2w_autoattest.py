@@ -27,11 +27,10 @@ P2W_OWNER_KEYPAIR = os.environ.get(
 P2W_ATTESTATIONS_PORT = int(os.environ.get("P2W_ATTESTATIONS_PORT", 4343))
 P2W_INITIALIZE_SOL_CONTRACT = os.environ.get("P2W_INITIALIZE_SOL_CONTRACT", None)
 
-PYTH_PRICE_ACCOUNT = os.environ.get("PYTH_PRICE_ACCOUNT", None)
-PYTH_PRODUCT_ACCOUNT = os.environ.get("PYTH_PRODUCT_ACCOUNT", None)
+PYTH_TEST_ACCOUNTS_HOST = "pyth"
+PYTH_TEST_ACCOUNTS_PORT = 4242
 
-PYTH_ACCOUNTS_HOST = "pyth"
-PYTH_ACCOUNTS_PORT = 4242
+P2W_ATTESTATION_CFG = os.environ.get("P2W_ATTESTATION_CFG", None)
 
 WORMHOLE_ADDRESS = os.environ.get(
     "WORMHOLE_ADDRESS", "Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o"
@@ -71,6 +70,14 @@ def serve_attestations():
     httpd = HTTPServer(server_address, P2WAutoattestStatusEndpoint)
     httpd.serve_forever()
 
+if SOL_AIRDROP_AMT > 0:
+    # Fund the p2w owner
+    sol_run_or_die("airdrop", [
+        str(SOL_AIRDROP_AMT),
+        "--keypair", P2W_OWNER_KEYPAIR,
+        "--commitment", "finalized",
+    ])
+    
 
 if P2W_INITIALIZE_SOL_CONTRACT is not None:
     # Get actor pubkeys
@@ -132,9 +139,10 @@ if P2W_INITIALIZE_SOL_CONTRACT is not None:
             capture_output=True,
         )
 
-# Retrieve current price/product pubkeys from the pyth publisher if not provided in envs
-if PYTH_PRICE_ACCOUNT is None or PYTH_PRODUCT_ACCOUNT is None:
-    conn = HTTPConnection(PYTH_ACCOUNTS_HOST, PYTH_ACCOUNTS_PORT)
+# Retrieve available symbols from the test pyth publisher if not provided in envs
+if P2W_ATTESTATION_CFG is None:
+    P2W_ATTESTATION_CFG = "./attestation_cfg_test.yaml"
+    conn = HTTPConnection(PYTH_TEST_ACCOUNTS_HOST, PYTH_TEST_ACCOUNTS_PORT)
 
     conn.request("GET", "/")
 
@@ -148,11 +156,28 @@ if PYTH_PRICE_ACCOUNT is None or PYTH_PRODUCT_ACCOUNT is None:
         logging.error("Bad Content type")
         sys.exit(1)
 
-    PYTH_PRICE_ACCOUNT = pyth_accounts["price"]
-    PYTH_PRODUCT_ACCOUNT = pyth_accounts["product"]
-    logging.info(f"Retrieved Pyth accounts from endpoint: {pyth_accounts}")
+    cfg_yaml = f"""
+---
+symbols:"""
 
-nonce = 0
+    logging.info(f"Retrieved {len(pyth_accounts)} Pyth accounts from endpoint: {pyth_accounts}")
+
+    for acc in pyth_accounts:
+
+        name = acc["name"]
+        price = acc["price"]
+        product = acc["product"]
+
+        cfg_yaml += f"""
+    - name: {name}
+      price_addr: {price}
+      product_addr: {product}"""
+
+    with open(P2W_ATTESTATION_CFG, "w") as f:
+        f.write(cfg_yaml)
+        f.flush()
+        
+
 attest_result = run_or_die(
     [
         "pyth2wormhole-client",
@@ -165,12 +190,9 @@ attest_result = run_or_die(
         "--payer",
         P2W_OWNER_KEYPAIR,
         "attest",
-        "--price",
-        PYTH_PRICE_ACCOUNT,
-        "--product",
-        PYTH_PRODUCT_ACCOUNT,
-        "--nonce",
-        str(nonce),
+        "-f",
+        P2W_ATTESTATION_CFG
+        
     ],
     capture_output=True,
 )
@@ -186,10 +208,17 @@ endpoint_thread.start()
 readiness_thread = threading.Thread(target=readiness, daemon=True)
 readiness_thread.start()
 
-seqno_regex = re.compile(r"^Sequence number: (\d+)")
+seqno_regex = re.compile(r"Sequence number: (\d+)")
 
-nonce = 1
 while True:
+    matches = seqno_regex.findall(attest_result.stdout)
+
+    seqnos = list(map(lambda m: int(m), matches))
+
+    ATTESTATIONS["pendingSeqnos"] += seqnos
+
+    logging.info(f"{len(seqnos)} batch seqno(s) received: {seqnos})")
+
     attest_result = run_or_die(
         [
             "pyth2wormhole-client",
@@ -202,25 +231,9 @@ while True:
             "--payer",
             P2W_OWNER_KEYPAIR,
             "attest",
-            "--price",
-            PYTH_PRICE_ACCOUNT,
-            "--product",
-            PYTH_PRODUCT_ACCOUNT,
-            "--nonce",
-            str(nonce),
+            "-f",
+            P2W_ATTESTATION_CFG
         ],
         capture_output=True,
     )
-    matches = seqno_regex.match(attest_result.stdout)
-
-    if matches is not None:
-        seqno = int(matches.group(1))
-        logging.info(f"Got seqno: {seqno}")
-
-        ATTESTATIONS["pendingSeqnos"].append(seqno)
-
-    else:
-        logging.warn("Warning: Could not get sequence number")
-
     time.sleep(P2W_ATTEST_INTERVAL)
-    nonce += 1

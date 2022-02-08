@@ -10,6 +10,8 @@ pub struct Pyth2WormholeConfig {
     pub wh_prog: Pubkey,
     /// Authority owning Pyth price data
     pub pyth_owner: Pubkey,
+    /// How many product/price pairs can be sent and attested at once
+    pub max_batch_size: u16,
 }
 
 impl Owned for Pyth2WormholeConfig {

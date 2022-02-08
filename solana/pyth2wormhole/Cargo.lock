@@ -1784,6 +1784,8 @@ dependencies = [
  "env_logger 0.8.4",
  "log",
  "pyth2wormhole",
+ "serde",
+ "serde_yaml",
  "shellexpand",
  "solana-client",
  "solana-program",
