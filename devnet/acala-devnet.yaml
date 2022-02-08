@@ -90,6 +90,7 @@ spec:
             - -c
             - |
               sed -i 's/CHAIN_ID=0x2/CHAIN_ID=0x9/g' .env
+              sed -i 's/BRIDGE_INIT_WETH=.*/BRIDGE_INIT_WETH=0x0000000000000000000100000000000000000000/g' .env
               npm run migrate
               npx truffle exec scripts/deploy_test_token.js
               npx truffle exec scripts/register_solana_chain.js
