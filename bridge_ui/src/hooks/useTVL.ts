@@ -61,10 +61,7 @@ const BAD_PRICES_BY_CHAIN = {
     "0xa79bd679ce21a2418be9e6f88b2186c9986bbe7d",
     "0x931c3987040c90b6db09981c7c91ba155d3fa31f",
   ],
-  [CHAIN_ID_ETH]: [
-    "0x3845badade8e6dff049820680d1f14bd3903a5d0",
-    "0x41c37a4683d6a05adb31c39d71348a8403b13ca9",
-  ],
+  [CHAIN_ID_ETH]: ["0x3845badade8e6dff049820680d1f14bd3903a5d0"],
   [CHAIN_ID_POLYGON]: ["0xd52d9ba6fcbadb1fe1e3aca52cbb72c4d9bbb4ec"],
 };
 
