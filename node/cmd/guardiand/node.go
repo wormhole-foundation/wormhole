@@ -638,10 +638,10 @@ func runNode(cmd *cobra.Command, args []string) {
 				*polygonRPC, polygonContractAddr, "polygon", common.ReadinessPolygonSyncing, vaa.ChainIDPolygon, lockC, nil,
 				// Special case: Polygon can fork like PoW Ethereum, and it's not clear what the safe number of blocks is
 				//
-				// Hardcode the minimum number of confirmations to 256 regardless of what the smart contract specifies to protect
+				// Hardcode the minimum number of confirmations to 512 regardless of what the smart contract specifies to protect
 				// developers from accidentally specifying an unsafe number of confirmations. We can remove this restriction as soon
 				// as specific public guidance exists for Polygon developers.
-				256).Run); err != nil {
+				512).Run); err != nil {
 			return err
 		}
 		if err := supervisor.Run(ctx, "avalanchewatch",
