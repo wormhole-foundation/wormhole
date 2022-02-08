@@ -39,6 +39,7 @@ config.define_bool("pyth", False, "Enable Pyth-to-Wormhole component")
 config.define_bool("explorer", False, "Enable explorer component")
 config.define_bool("bridge_ui", False, "Enable bridge UI component")
 config.define_bool("e2e", False, "Enable E2E testing stack")
+config.define_bool("ci_tests", False, "Enable tests runner component")
 
 cfg = config.parse()
 num_guardians = int(cfg.get("num", "1"))
@@ -51,6 +52,7 @@ pyth = cfg.get("pyth", ci)
 explorer = cfg.get("explorer", ci)
 bridge_ui = cfg.get("bridge_ui", ci)
 e2e = cfg.get("e2e", ci)
+ci_tests = cfg.get("ci_tests", ci)
 
 if cfg.get("manual", False):
     trigger_mode = TRIGGER_MODE_MANUAL
@@ -280,7 +282,7 @@ if bridge_ui:
     docker_build(
         ref = "bridge-ui",
         context = ".",
-        only = ["./ethereum", "./sdk", "./bridge_ui"],
+        only = ["./bridge_ui"],
         dockerfile = "bridge_ui/Dockerfile",
         live_update = [
             sync("./bridge_ui/src", "/app/bridge_ui/src"),
@@ -291,10 +293,32 @@ if bridge_ui:
 
     k8s_resource(
         "bridge-ui",
-        resource_deps = ["proto-gen-web", "wasm-gen"],
+        resource_deps = [],
         port_forwards = [
             port_forward(3000, name = "Bridge UI [:3000]", host = webHost),
         ],
+        trigger_mode = trigger_mode,
+    )
+
+if ci_tests:
+    docker_build(
+        ref = "tests-image",
+        context = ".",
+        dockerfile = "testing/Dockerfile.tests",
+        only = [],
+        live_update = [
+            sync("./spydk/js/src", "/app/spydk/js/src"),
+            sync("./sdk/js/src", "/app/sdk/js/src"),
+            sync("./testing", "/app/testing"),
+            sync("./bridge_ui/src", "/app/bridge_ui/src"),
+        ],
+    )
+
+    k8s_yaml_with_ns("devnet/tests.yaml")
+
+    k8s_resource(
+        "ci-tests",
+        resource_deps = ["eth-devnet", "eth-devnet2", "terra-terrad", "terra-fcd", "solana-devnet", "spy", "guardian"],
         trigger_mode = trigger_mode,
     )
 
