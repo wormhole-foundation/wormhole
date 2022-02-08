@@ -491,12 +491,6 @@ func processSignedObservationRequest(s *gossipv1.SignedObservationRequest, gs *n
 		return nil, fmt.Errorf("failed to unmarshal observation request: %w", err)
 	}
 
-	// For now, this supports Solana only. Once we add more chains, we'll have to add a
-	// multiplexer/router in node.go.
-	if h.ChainId != uint32(vaa.ChainIDSolana) {
-		return nil, fmt.Errorf("unsupported chain id: %d", h.ChainId)
-	}
-
 	// TODO: implement per-guardian rate limiting
 
 	return &h, nil

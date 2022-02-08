@@ -18,28 +18,30 @@ var (
 	logMessagePublishedTopic = eth_common.HexToHash("0x6eb224fb001ed210e379b335e35efe88672a8ce935d981a6896b27ffdf52a3b2")
 )
 
+// MessageEventsForTransaction returns the lockup events for a given transaction.
+// Returns the block number and a list of MessagePublication events.
 func MessageEventsForTransaction(
 	ctx context.Context,
 	c *ethclient.Client,
 	contract eth_common.Address,
 	chainId vaa.ChainID,
-	tx eth_common.Hash) ([]*common.MessagePublication, error) {
+	tx eth_common.Hash) (uint64, []*common.MessagePublication, error) {
 
 	f, err := abi.NewAbiFilterer(contract, c)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create ABI filterer: %w", err)
+		return 0, nil, fmt.Errorf("failed to create ABI filterer: %w", err)
 	}
 
 	// Get transactions logs from transaction
 	receipt, err := c.TransactionReceipt(ctx, tx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get transaction receipt: %w", err)
+		return 0, nil, fmt.Errorf("failed to get transaction receipt: %w", err)
 	}
 
 	// Get block
 	block, err := c.BlockByHash(ctx, receipt.BlockHash)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get block: %w", err)
+		return 0, nil, fmt.Errorf("failed to get block: %w", err)
 	}
 
 	msgs := make([]*common.MessagePublication, 0, len(receipt.Logs))
@@ -61,7 +63,7 @@ func MessageEventsForTransaction(
 
 		ev, err := f.ParseLogMessagePublished(*l)
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse log: %w", err)
+			return 0, nil, fmt.Errorf("failed to parse log: %w", err)
 		}
 
 		message := &common.MessagePublication{
@@ -78,5 +80,5 @@ func MessageEventsForTransaction(
 		msgs = append(msgs, message)
 	}
 
-	return msgs, nil
+	return receipt.BlockNumber.Uint64(), msgs, nil
 }
