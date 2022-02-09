@@ -482,9 +482,14 @@ describe("Integration Tests", () => {
             .get(TERRA_GAS_PRICES_URL)
             .then((result) => result.data);
           const feeEstimate = await lcd.tx.estimateFee(
-            wallet.key.accAddress,
-            [msg],
+            [
+              {
+                sequenceNumber: await wallet.sequence(),
+                publicKey: wallet.key.publicKey,
+              },
+            ],
             {
+              msgs: [msg],
               feeDenoms: ["uluna"],
               gasPrices,
             }
@@ -561,7 +566,6 @@ describe("Integration Tests", () => {
             await getIsTransferCompletedTerra(
               TERRA_TOKEN_BRIDGE_ADDRESS,
               signedVAA,
-              wallet.key.accAddress,
               lcd,
               TERRA_GAS_PRICES_URL
             )
@@ -575,9 +579,14 @@ describe("Integration Tests", () => {
             .get(TERRA_GAS_PRICES_URL)
             .then((result) => result.data);
           const feeEstimate = await lcd.tx.estimateFee(
-            wallet.key.accAddress,
-            [msg],
+            [
+              {
+                sequenceNumber: await wallet.sequence(),
+                publicKey: wallet.key.publicKey,
+              },
+            ],
             {
+              msgs: [msg],
               memo: "localhost",
               feeDenoms: ["uluna"],
               gasPrices,
@@ -595,7 +604,6 @@ describe("Integration Tests", () => {
             await getIsTransferCompletedTerra(
               TERRA_TOKEN_BRIDGE_ADDRESS,
               signedVAA,
-              wallet.key.accAddress,
               lcd,
               TERRA_GAS_PRICES_URL
             )
@@ -636,9 +644,14 @@ describe("Integration Tests", () => {
               { uusd: "900000087654321" }
             );
             const feeEstimate = await lcd.tx.estimateFee(
-              wallet.key.accAddress,
-              [deposit],
+              [
+                {
+                  sequenceNumber: await wallet.sequence(),
+                  publicKey: wallet.key.publicKey,
+                },
+              ],
               {
+                msgs: [deposit],
                 memo: "localhost",
                 feeDenoms: ["uluna"],
                 gasPrices,
@@ -679,13 +692,22 @@ describe("Integration Tests", () => {
           );
           let error = false;
           try {
-            await lcd.tx.estimateFee(wallet.key.accAddress, [transfer], {
-              memo: "localhost",
-              feeDenoms: ["uluna"],
-              gasPrices,
-            });
+            await lcd.tx.estimateFee(
+              [
+                {
+                  sequenceNumber: await wallet.sequence(),
+                  publicKey: wallet.key.publicKey,
+                },
+              ],
+              {
+                msgs: [transfer],
+                memo: "localhost",
+                feeDenoms: ["uluna"],
+                gasPrices,
+              }
+            );
           } catch (e) {
-            error = e.response.data.error.includes("Overflow: Cannot Sub");
+            error = e.response.data.message.includes("Overflow: Cannot Sub");
           }
           expect(error).toEqual(true);
           // withdraw the tokens we deposited
@@ -704,9 +726,14 @@ describe("Integration Tests", () => {
             {}
           );
           const feeEstimate = await lcd.tx.estimateFee(
-            wallet.key.accAddress,
-            [withdraw],
+            [
+              {
+                sequenceNumber: await wallet.sequence(),
+                publicKey: wallet.key.publicKey,
+              },
+            ],
             {
+              msgs: [withdraw],
               memo: "localhost",
               feeDenoms: ["uluna"],
               gasPrices,
