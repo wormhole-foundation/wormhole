@@ -1,4 +1,4 @@
-import { BlockTxBroadcastResult, Coins, LCDClient, MnemonicKey, Msg, MsgExecuteContract, StdFee, TxInfo, Wallet } from "@terra-money/terra.js";
+import { BlockTxBroadcastResult, Coins, LCDClient, MnemonicKey, Msg, MsgExecuteContract, Fee, TxInfo, Wallet, isTxError } from "@terra-money/terra.js";
 import axios from "axios";
 import Web3 from 'web3';
 import { NodeHttpTransport } from "@improbable-eng/grpc-web-node-http-transport";
@@ -214,7 +214,7 @@ describe("Integration Tests", () => {
       }
     })();
   });
-  test("Send Solana SPL to Terra to Etheretum to Solana", (done) => {
+  test("Send Solana SPL to Terra to Ethereum to Solana", (done) => {
     (async () => {
       try {
         const { parse_vaa } = await importCoreWasm();
@@ -367,11 +367,16 @@ async function getGasPrices() {
     .then((result) => result.data);
 }
 
-async function estimateTerraFee(gasPrices: Coins.Input, msgs: Msg[]): Promise<StdFee> {
+async function estimateTerraFee(gasPrices: Coins.Input, msgs: Msg[]): Promise<Fee> {
   const feeEstimate = await lcd.tx.estimateFee(
-    terraWallet.key.accAddress,
-    msgs,
+    [
+      {
+        sequenceNumber: await terraWallet.sequence(), 
+        publicKey: terraWallet.key.publicKey 
+      }
+    ],
     {
+      msgs,
       memo: "localhost",
       feeDenoms: ["uluna"],
       gasPrices,
@@ -455,7 +460,7 @@ async function mint_cw721(contract_address: string, token_id: string, token_uri:
         ),
       ],
       memo: "",
-      fee: new StdFee(2000000, {
+      fee: new Fee(2000000, {
         uluna: "100000",
       }),
     })
@@ -472,7 +477,7 @@ async function waitForTerraExecution(txHash: string): Promise<TxInfo> {
       console.error(e);
     }
   }
-  if (info.code !== undefined) {
+  if (isTxError(info)) {
     // error code
     throw new Error(
       `Tx ${txHash}: error code ${info.code}: ${info.raw_log}`
@@ -486,7 +491,6 @@ async function expectReceivedOnTerra(signedVAA: Uint8Array) {
     await nft_bridge.getIsTransferCompletedTerra(
       TERRA_NFT_BRIDGE_ADDRESS,
       signedVAA,
-      terraWallet.key.accAddress,
       lcd,
       TERRA_GAS_PRICES_URL
     )
