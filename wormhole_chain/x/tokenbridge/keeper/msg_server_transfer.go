@@ -48,6 +48,7 @@ func (k msgServer) Transfer(goCtx context.Context, msg *types.MsgTransfer) (*typ
 	decimals := uint8(displayDenom.Exponent)
 
 	// Collect coins in module account
+	// TODO: why not burn?
 	err = k.bankKeeper.SendCoins(ctx, userAcc, k.accountKeeper.GetModuleAddress(types.ModuleName), sdk.Coins{msg.Amount})
 	if err != nil {
 		return nil, err
