@@ -45,7 +45,7 @@ use self::pyth_extensions::{
 pub const P2W_MAGIC: &'static [u8] = b"P2WH";
 
 /// Format version used and understood by this codebase
-pub const P2W_FORMAT_VERSION: u16 = 1;
+pub const P2W_FORMAT_VERSION: u16 = 2;
 
 pub const PUBKEY_LEN: usize = 32;
 
@@ -77,10 +77,12 @@ pub struct PriceAttestation {
     pub timestamp: UnixTimestamp,
 }
 
-/// Turn a bunch of attestations into a combined payload
+/// Turn a bunch of attestations into a combined payload.
+///
+/// Batches assume constant-size attestations within a single batch.
 pub fn batch_serialize(
-    mut attestations: impl Iterator<Item = impl Borrow<PriceAttestation>>,
-) -> Vec<u8> {
+    attestations: impl Iterator<Item = impl Borrow<PriceAttestation>>,
+) -> Result<Vec<u8>, ErrBox> {
     // magic
     let mut buf = P2W_MAGIC.to_vec();
 
@@ -95,10 +97,39 @@ pub fn batch_serialize(
     // n_attestations
     buf.extend_from_slice(&(collected.len() as u16).to_be_bytes()[..]);
 
-    for a in collected {
-        buf.append(&mut PriceAttestation::serialize(a.borrow()))
+    let mut attestation_size = 0; // Will be determined as we serialize attestations
+    let mut serialized_attestations = Vec::with_capacity(collected.len());
+    for (idx, a) in collected.iter().enumerate() {
+        // Learn the current attestation's size
+        let serialized = PriceAttestation::serialize(a.borrow());
+        let a_len = serialized.len();
+
+        // Verify it's the same as the first one we saw for the batch, assign if we're first.
+        if attestation_size > 0 {
+            if a_len != attestation_size {
+                return Err(format!(
+                    "attestation {} serializes to {} bytes, {} expected",
+                    idx + 1,
+                    a_len,
+                    attestation_size
+                )
+                .into());
+            }
+        } else {
+            attestation_size = a_len;
+        }
+
+        serialized_attestations.push(serialized);
     }
-    buf
+
+    // attestation_size
+    buf.extend_from_slice(&(attestation_size as u16).to_be_bytes()[..]);
+
+    for mut s in serialized_attestations.into_iter() {
+        buf.append(&mut s)
+    }
+
+    Ok(buf)
 }
 
 /// Undo `batch_serialize`
@@ -138,15 +169,23 @@ pub fn batch_deserialize(mut bytes: impl Read) -> Result<Vec<PriceAttestation>, 
         .into());
     }
 
-
     let mut batch_len_vec = vec![0u8; 2];
     bytes.read_exact(batch_len_vec.as_mut_slice())?;
     let batch_len = u16::from_be_bytes(batch_len_vec.as_slice().try_into()?);
 
+    let mut attestation_size_vec = vec![0u8; 2];
+    bytes.read_exact(attestation_size_vec.as_mut_slice())?;
+    let attestation_size = u16::from_be_bytes(attestation_size_vec.as_slice().try_into()?);
+
     let mut ret = Vec::with_capacity(batch_len as usize);
 
     for i in 0..batch_len {
-        match PriceAttestation::deserialize(&mut bytes) {
+        let mut attestation_buf = vec![0u8; attestation_size as usize];
+        bytes.read_exact(attestation_buf.as_mut_slice())?;
+
+        dbg!(&attestation_buf.len());
+
+        match PriceAttestation::deserialize(attestation_buf.as_slice()) {
             Ok(attestation) => ret.push(attestation),
             Err(e) => return Err(format!("PriceAttestation {}/{}: {}", i + 1, batch_len, e).into()),
         }
@@ -543,7 +582,8 @@ mod tests {
     fn test_attestation_serde() -> Result<(), ErrBox> {
         let product_id_bytes = [21u8; 32];
         let price_id_bytes = [222u8; 32];
-        let attestation: PriceAttestation = mock_attestation(Some(product_id_bytes), Some(price_id_bytes));
+        let attestation: PriceAttestation =
+            mock_attestation(Some(product_id_bytes), Some(price_id_bytes));
 
         println!("Hex product_id: {:02X?}", &product_id_bytes);
         println!("Hex price_id: {:02X?}", &price_id_bytes);
@@ -564,7 +604,7 @@ mod tests {
     fn test_attestation_serde_wrong_size() -> Result<(), ErrBox> {
         assert!(PriceAttestation::deserialize(&[][..]).is_err());
         assert!(PriceAttestation::deserialize(vec![0u8; 1].as_slice()).is_err());
-	Ok(())
+        Ok(())
     }
 
     #[test]
@@ -573,11 +613,11 @@ mod tests {
             .map(|i| mock_attestation(Some([(i % 256) as u8; 32]), None))
             .collect();
 
-        let serialized = batch_serialize(attestations.iter());
+        let serialized = batch_serialize(attestations.iter())?;
 
-	let deserialized = batch_deserialize(serialized.as_slice())?;
+        let deserialized = batch_deserialize(serialized.as_slice())?;
 
-	assert_eq!(attestations, deserialized);
+        assert_eq!(attestations, deserialized);
 
         Ok(())
     }
@@ -591,13 +631,12 @@ mod tests {
             .map(|i| mock_attestation(Some([(i % 256) as u8; 32]), None))
             .collect();
 
-        let serialized = batch_serialize(attestations.iter());
+        let serialized = batch_serialize(attestations.iter())?;
 
-	// Missing last byte in last attestation must be an error
-	let len = serialized.len();
-	assert!(batch_deserialize(&serialized.as_slice()[..len-1]).is_err());
+        // Missing last byte in last attestation must be an error
+        let len = serialized.len();
+        assert!(batch_deserialize(&serialized.as_slice()[..len - 1]).is_err());
 
-	Ok(())
+        Ok(())
     }
-
 }
