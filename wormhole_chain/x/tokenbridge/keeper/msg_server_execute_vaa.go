@@ -72,9 +72,11 @@ func (k msgServer) ExecuteVAA(goCtx context.Context, msg *types.MsgExecuteVAA) (
 			return nil, types.ErrVAAPayloadInvalid
 		}
 		amount := new(big.Int).SetBytes(payload[:32])
-		tokenAddress := payload[32:64]
+		var tokenAddress [32]byte
+		copy(tokenAddress[:], payload[32:64])
 		tokenChain := binary.BigEndian.Uint16(payload[64:66])
-		to := payload[66:98]
+		var to [32]byte
+		copy(to[:], payload[66:98])
 		toChain := binary.BigEndian.Uint16(payload[98:100])
 		fee := new(big.Int).SetBytes(payload[100:132])
 
@@ -84,9 +86,11 @@ func (k msgServer) ExecuteVAA(goCtx context.Context, msg *types.MsgExecuteVAA) (
 		}
 
 		identifier := ""
-		if uint32(tokenChain) != wormholeConfig.ChainId {
+		if IsHOLEToken(tokenChain, tokenAddress) {
+			identifier = "hole"
+		} else if uint32(tokenChain) != wormholeConfig.ChainId {
 			// Mint new wrapped assets if the coin is from another chain
-			identifier = "b" + GetCoinIdentifier(tokenChain, tokenAddress)
+			identifier = "b" + GetWrappedCoinIdentifier(tokenChain, tokenAddress)
 
 			err = k.bankKeeper.MintCoins(ctx, types.ModuleName, sdk.Coins{
 				{
@@ -99,7 +103,7 @@ func (k msgServer) ExecuteVAA(goCtx context.Context, msg *types.MsgExecuteVAA) (
 			}
 		} else {
 			// Recover the coin denom from the token address if it's a native coin
-			identifier = strings.TrimLeft(string(tokenAddress), "\x00")
+			identifier = strings.TrimLeft(string(tokenAddress[:]), "\x00")
 		}
 
 		meta, found := k.bankKeeper.GetDenomMetaData(ctx, identifier)
@@ -130,7 +134,7 @@ func (k msgServer) ExecuteVAA(goCtx context.Context, msg *types.MsgExecuteVAA) (
 		moduleAccount := k.accountKeeper.GetModuleAddress(types.ModuleName)
 
 		// Transfer amount to recipient
-		err = k.bankKeeper.SendCoins(ctx, moduleAccount, to, sdk.Coins{
+		err = k.bankKeeper.SendCoins(ctx, moduleAccount, to[:], sdk.Coins{
 			{
 				Denom:  identifier,
 				Amount: sdk.NewIntFromBigInt(new(big.Int).Sub(amount, fee)),
@@ -156,8 +160,8 @@ func (k msgServer) ExecuteVAA(goCtx context.Context, msg *types.MsgExecuteVAA) (
 
 		err = ctx.EventManager().EmitTypedEvent(&types.EventTransferReceived{
 			TokenChain:   uint32(tokenChain),
-			TokenAddress: tokenAddress,
-			To:           sdk.AccAddress(to).String(),
+			TokenAddress: tokenAddress[:],
+			To:           sdk.AccAddress(to[:]).String(),
 			FeeRecipient: txSender.String(),
 			Amount:       amount.String(),
 			Fee:          fee.String(),
@@ -171,7 +175,8 @@ func (k msgServer) ExecuteVAA(goCtx context.Context, msg *types.MsgExecuteVAA) (
 		if len(payload) != 99 {
 			return nil, types.ErrVAAPayloadInvalid
 		}
-		tokenAddress := payload[:32]
+		var tokenAddress [32]byte
+		copy(tokenAddress[:], payload[:32])
 		tokenChain := binary.BigEndian.Uint16(payload[32:34])
 		decimals := payload[34]
 		symbol := string(payload[35:67])
@@ -184,7 +189,11 @@ func (k msgServer) ExecuteVAA(goCtx context.Context, msg *types.MsgExecuteVAA) (
 			return nil, types.ErrNativeAssetRegistration
 		}
 
-		identifier := GetCoinIdentifier(tokenChain, tokenAddress)
+		if IsHOLEToken(tokenChain, tokenAddress) {
+			return nil, types.ErrNativeAssetRegistration
+		}
+
+		identifier := GetWrappedCoinIdentifier(tokenChain, tokenAddress)
 		rollBackProtection, found := k.GetCoinMetaRollbackProtection(ctx, identifier)
 		if found && rollBackProtection.LastUpdateSequence >= v.Sequence {
 			return nil, types.ErrAssetMetaRollback
@@ -214,7 +223,7 @@ func (k msgServer) ExecuteVAA(goCtx context.Context, msg *types.MsgExecuteVAA) (
 
 		err = ctx.EventManager().EmitTypedEvent(&types.EventAssetRegistrationUpdate{
 			TokenChain:   uint32(tokenChain),
-			TokenAddress: tokenAddress,
+			TokenAddress: tokenAddress[:],
 			Name:         name,
 			Symbol:       symbol,
 			Decimals:     uint32(decimals),
@@ -232,6 +241,11 @@ func (k msgServer) ExecuteVAA(goCtx context.Context, msg *types.MsgExecuteVAA) (
 	return &types.MsgExecuteVAAResponse{}, nil
 }
 
-func GetCoinIdentifier(tokenChain uint16, tokenAddress []byte) string {
+func IsHOLEToken(tokenChain uint16, tokenAddress [32]byte) bool {
+	// TODO: figure out HOLE token address on Solana
+	return tokenChain == 1 && tokenAddress == [32]byte{0}
+}
+
+func GetWrappedCoinIdentifier(tokenChain uint16, tokenAddress [32]byte) string {
 	return fmt.Sprintf("wh/%d/%x", tokenChain, tokenAddress)
 }
