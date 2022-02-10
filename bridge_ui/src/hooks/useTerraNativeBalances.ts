@@ -28,7 +28,7 @@ export default function useTerraNativeBalances(
       const lcd = new LCDClient(TERRA_HOST);
       lcd.bank
         .balance(walletAddress)
-        .then((coins) => {
+        .then(([coins]) => {
           // coins doesn't support reduce
           const balancePairs = coins.map(({ amount, denom }) => [
             denom,

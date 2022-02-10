@@ -40,7 +40,7 @@ export default function useGetIsTransferCompleted(recoveryOnly: boolean): {
   const targetAddress = useSelector(selectTransferTargetAddressHex);
   const targetChain = useSelector(selectTransferTargetChain);
 
-  const { isReady, walletAddress } = useIsWalletReady(targetChain, false);
+  const { isReady } = useIsWalletReady(targetChain, false);
   const { provider, chainId: evmChainId } = useEthereumProvider();
   const signedVAA = useTransferSignedVAA();
 
@@ -90,7 +90,7 @@ export default function useGetIsTransferCompleted(recoveryOnly: boolean): {
             setIsLoading(false);
           }
         })();
-      } else if (targetChain === CHAIN_ID_TERRA && walletAddress) {
+      } else if (targetChain === CHAIN_ID_TERRA) {
         setIsLoading(true);
         (async () => {
           try {
@@ -98,7 +98,6 @@ export default function useGetIsTransferCompleted(recoveryOnly: boolean): {
             transferCompleted = await getIsTransferCompletedTerra(
               getTokenBridgeAddressForChain(targetChain),
               signedVAA,
-              walletAddress,
               lcdClient,
               TERRA_GAS_PRICES_URL
             );
@@ -122,7 +121,6 @@ export default function useGetIsTransferCompleted(recoveryOnly: boolean): {
     targetAddress,
     signedVAA,
     isReady,
-    walletAddress,
     provider,
   ]);
 
