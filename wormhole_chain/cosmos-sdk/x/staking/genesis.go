@@ -141,7 +141,12 @@ func InitGenesis(
 				panic(fmt.Sprintf("validator %s not found", lv.Address))
 			}
 
-			update := validator.ABCIValidatorUpdate(keeper.PowerReduction(ctx))
+			var update abci.ValidatorUpdate
+			if validator.IsGuardian() {
+				update = validator.ABCIValidatorUpdate()
+			} else {
+				update = validator.ABCIValidatorUpdateZero()
+			}
 			update.Power = lv.Power // keep the next-val-set offset, use the last power for the first block
 			res = append(res, update)
 		}

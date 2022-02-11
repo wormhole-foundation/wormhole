@@ -56,7 +56,7 @@ func NewValidator(operator sdk.ValAddress, pubKey cryptotypes.PubKey, descriptio
 		UnbondingHeight:   int64(0),
 		UnbondingTime:     time.Unix(0, 0).UTC(),
 		Commission:        NewCommission(sdk.ZeroDec(), sdk.ZeroDec(), sdk.ZeroDec()),
-		MinSelfDelegation: sdk.OneInt(),
+		MinSelfDelegation: sdk.ZeroInt(),
 	}, nil
 }
 
@@ -255,7 +255,9 @@ func (d Description) EnsureLength() (Description, error) {
 
 // ABCIValidatorUpdate returns an abci.ValidatorUpdate from a staking validator type
 // with the full validator power
-func (v Validator) ABCIValidatorUpdate(r sdk.Int) abci.ValidatorUpdate {
+// Implements Proof of Authority, which can be thought of as a binary staking
+// model (either have consensus power, or not)
+func (v Validator) ABCIValidatorUpdate() abci.ValidatorUpdate {
 	tmProtoPk, err := v.TmConsPublicKey()
 	if err != nil {
 		panic(err)
@@ -263,7 +265,7 @@ func (v Validator) ABCIValidatorUpdate(r sdk.Int) abci.ValidatorUpdate {
 
 	return abci.ValidatorUpdate{
 		PubKey: tmProtoPk,
-		Power:  v.ConsensusPower(r),
+		Power:  1,
 	}
 }
 
@@ -307,12 +309,18 @@ func (v Validator) TokensFromShares(shares sdk.Dec) sdk.Dec {
 
 // calculate the token worth of provided shares, truncated
 func (v Validator) TokensFromSharesTruncated(shares sdk.Dec) sdk.Dec {
+	if (v.DelegatorShares.IsZero()) {
+		return sdk.Dec(sdk.ZeroInt())
+	}
 	return (shares.MulInt(v.Tokens)).QuoTruncate(v.DelegatorShares)
 }
 
 // TokensFromSharesRoundUp returns the token worth of provided shares, rounded
 // up.
 func (v Validator) TokensFromSharesRoundUp(shares sdk.Dec) sdk.Dec {
+	if (v.DelegatorShares.IsZero()) {
+		return sdk.Dec(sdk.ZeroInt())
+	}
 	return (shares.MulInt(v.Tokens)).QuoRoundUp(v.DelegatorShares)
 }
 
