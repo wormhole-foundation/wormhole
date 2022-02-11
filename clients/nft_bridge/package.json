@@ -20,7 +20,7 @@
     "build-contracts": "npm run build --prefix ../../ethereum && node scripts/copyContracts.js && typechain --target=ethers-v5 --out-dir=src/ethers-contracts contracts/*.json"
   },
   "devDependencies": {
-    "@openzeppelin/contracts": "^4.2.0",
+    "@openzeppelin/contracts": "^4.4.2",
     "@truffle/hdwallet-provider": "^1.4.1",
     "@types/bn.js": "^5.1.0",
     "@types/bs58": "^4.0.1",
