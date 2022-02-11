@@ -163,7 +163,7 @@ const BuidlPage = ({ location }: PageProps) => {
             </Box>
             <Box
               sx={{
-                mt: { xs: 8, md: null },
+                mt: { xs: 8, md: 0 },
                 flexBasis: { xs: "100%", md: "50%" },
                 textAlign: "center",
                 flexGrow: 1,
@@ -177,6 +177,7 @@ const BuidlPage = ({ location }: PageProps) => {
               <img src={stack} alt="" />
             </Box>
           </Box>
+<<<<<<< HEAD
         </Box>
         <Box
           sx={{
@@ -203,6 +204,50 @@ const BuidlPage = ({ location }: PageProps) => {
                   with the networks secured by 19 equally weighted
                   guardians in the core layer.
                 </Typography>
+=======
+          <Box
+            sx={{
+              display: "flex",
+              flexWrap: "wrap-reverse",
+              alignItems: "center",
+              justifyContent: "center",
+              mt: 12.75,
+            }}
+          >
+            <Box
+              sx={{
+                mt: { xs: 8, md: 0 },
+                flexBasis: { xs: "100%", md: "50%" },
+                textAlign: "center",
+                flexGrow: 1,
+                backgroundColor: "rgba(255,255,255,.06)",
+                backdropFilter: "blur(3px)",
+                borderRadius: "37px",
+                pt: { xs: 3, md: 9.75 },
+                pb: { xs: 3, md: 9 },
+                px: { xs: 3, md: 8 },
+              }}
+            >
+              <img src={network} alt="" style={{ maxWidth: "100%" }} />
+            </Box>
+            <Box sx={{ flexBasis: { xs: "100%", md: "50%" }, flexGrow: 1 }}>
+              <Box sx={{ px: { xs: 0, md: 4 } }}>
+                <Box sx={{ maxWidth: 460, mx: "auto" }}>
+                  <Typography variant="h3">
+                    <Box component="span" sx={{ color: "#FFCE00" }}>
+                      Connecting projects{" "}
+                    </Box>
+                    <Box component="span" sx={{ display: "inline-block" }}>
+                      to networks
+                    </Box>
+                  </Typography>
+                  <Typography sx={{ mt: 2 }}>
+                    Six high-value networks, two centralized exchanges, and 19 dexes.
+                    Anyone in the community can add new networks to the protocol
+                    and build the future of blockchain.
+                  </Typography>
+                </Box>
+>>>>>>> 7a0e4736 (fix images margin top)
               </Box>
             </Box>
           </Box>
@@ -236,7 +281,7 @@ const BuidlPage = ({ location }: PageProps) => {
             </Box>
             <Box
               sx={{
-                mt: { xs: 8, md: null },
+                mt: { xs: 8, md: 0 },
                 flexBasis: { xs: "100%", md: "50%" },
                 textAlign: "center",
                 flexGrow: 1,
