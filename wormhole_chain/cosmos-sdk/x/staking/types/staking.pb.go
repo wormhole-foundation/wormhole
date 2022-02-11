@@ -336,6 +336,12 @@ type Validator struct {
 	MinSelfDelegation github_com_cosmos_cosmos_sdk_types.Int `protobuf:"bytes,11,opt,name=min_self_delegation,json=minSelfDelegation,proto3,customtype=github.com/cosmos/cosmos-sdk/types.Int" json:"min_self_delegation" yaml:"min_self_delegation"`
 }
 
+func (*Validator) IsGuardian() bool {
+	// TODO(csongor): write logic to work out if this is a guardian
+	// This will require the staking module to use the wormhole module's state keeper
+	return true
+}
+
 func (m *Validator) Reset()      { *m = Validator{} }
 func (*Validator) ProtoMessage() {}
 func (*Validator) Descriptor() ([]byte, []int) {

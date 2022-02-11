@@ -113,7 +113,7 @@ func (msg MsgCreateValidator) ValidateBasic() error {
 		return ErrEmptyValidatorPubKey
 	}
 
-	if !msg.Value.IsValid() || !msg.Value.Amount.IsPositive() {
+	if !msg.Value.IsValid() || msg.Value.Amount.IsNegative() {
 		return sdkerrors.Wrap(sdkerrors.ErrInvalidRequest, "invalid delegation amount")
 	}
 
@@ -127,17 +127,6 @@ func (msg MsgCreateValidator) ValidateBasic() error {
 
 	if err := msg.Commission.Validate(); err != nil {
 		return err
-	}
-
-	if !msg.MinSelfDelegation.IsPositive() {
-		return sdkerrors.Wrap(
-			sdkerrors.ErrInvalidRequest,
-			"minimum self delegation must be a positive integer",
-		)
-	}
-
-	if msg.Value.Amount.LT(msg.MinSelfDelegation) {
-		return ErrSelfDelegationBelowMinimum
 	}
 
 	return nil
