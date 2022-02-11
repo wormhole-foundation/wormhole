@@ -1,11 +1,13 @@
+build:
+  main: "cmd/wormhole-chaind/"
 accounts:
   - name: alice
-    coins: ["20000token", "200000000stake"]
+    coins: ["20000token", "200000000hole"]
   - name: bob
-    coins: ["10000token", "100000000stake"]
+    coins: ["10000token", "100000000hole"]
 validator:
   name: alice
-  staked: "100000000stake"
+  staked: "100hole"
 client:
   openapi:
     path: "docs/static/openapi.yml"
@@ -13,9 +15,14 @@ client:
     path: "vue/src/store"
 faucet:
   name: bob
-  coins: ["5token", "100000stake"]
+  coins: ["5token", "100000hole"]
 genesis:
   app_state:
+    staking:
+      params:
+        bond_denom: "hole"
+        max_validators: 1
+        power_reduction: "1"
     bank:
       denom_metadata:
         - base: "utest"
@@ -27,6 +34,16 @@ genesis:
             - denom: "utest"
               exponent: 0
             - denom: "test"
+              exponent: 6
+        - base: "uhole"
+          display: "hole"
+          name: "Hole Coin"
+          symbol: "HOLE"
+          description: "Wormholechain's native staking asset"
+          denom_units:
+            - denom: "uhole"
+              exponent: 0
+            - denom: "hole"
               exponent: 6
     gov:
        voting_params:
