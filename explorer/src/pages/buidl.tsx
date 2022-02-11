@@ -177,34 +177,6 @@ const BuidlPage = ({ location }: PageProps) => {
               <img src={stack} alt="" />
             </Box>
           </Box>
-<<<<<<< HEAD
-        </Box>
-        <Box
-          sx={{
-            display: "flex",
-            flexWrap: "wrap",
-            alignItems: "center",
-            justifyContent: "center",
-            mt: 12.75,
-          }}
-        >
-          <Box sx={{ flexBasis: { xs: "100%", md: "50%" }, flexGrow: 1 }}>
-            <Box sx={{ px: { xs: 0, md: 4 } }}>
-              <Box sx={{ maxWidth: 460, mx: "auto" }}>
-                <Typography variant="h3">
-                  <Box component="span" sx={{ color: "#FFCE00" }}>
-                    <AvoidBreak spans={["A trust-minimized"]} />
-                  </Box>
-                  <Box component="span" sx={{ display: "inline-block" }}>
-                    build
-                  </Box>
-                </Typography>
-                <Typography sx={{ mt: 2 }}>
-                  Wormhole is built to be trust-minimized from the ground up
-                  with the networks secured by 19 equally weighted
-                  guardians in the core layer.
-                </Typography>
-=======
           <Box
             sx={{
               display: "flex",
@@ -247,7 +219,6 @@ const BuidlPage = ({ location }: PageProps) => {
                     and build the future of blockchain.
                   </Typography>
                 </Box>
->>>>>>> 7a0e4736 (fix images margin top)
               </Box>
             </Box>
           </Box>
