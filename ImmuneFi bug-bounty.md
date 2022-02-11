@@ -2,7 +2,7 @@
 
 The Wormhole bug bounty program is focused on the prevention of negative impacts to the Wormhole ecosystem, which currently covers our smart contracts, web UI, guardian nodes, and Wormhole integrations.
 
-**The primary prevention focuses are as follows:**  
+**The primary prevention focuses are as follows:**
 
 * Exploits resulting in the locking, loss, or theft of user funds.
 
@@ -32,9 +32,9 @@ All web/app bug reports must come with a Proof of Concept in order to be conside
 
 
 
-| **Smart Contracts**  |               |  
+| **Smart Contracts**  |               |
 | ------------- | ------------- |
-| Critical  | Up to USD $3,500,000  |
+| Critical  | Up to USD $10,000,000  |
 | High      | USD $100,000  |
 | Medium    | USD $10,000  |
 | Low       | USD $2,500  |
@@ -42,9 +42,9 @@ All web/app bug reports must come with a Proof of Concept in order to be conside
 
 
 
-| **Guardian Nodes (Blockchain/DLT)** |               | 
+| **Guardian Nodes (Blockchain/DLT)** |               |
 | ------------- | ------------- |
-| Critical  | Up to USD $3,500,000  |
+| Critical  | Up to USD $10,000,000  |
 | High      | USD $100,000  |
 | Medium    | USD $5,000  |
 | Low       | USD $2,000  |
