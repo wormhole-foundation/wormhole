@@ -109,12 +109,15 @@ func (k Keeper) BlockValidatorUpdates(ctx sdk.Context) []abci.ValidatorUpdate {
 // CONTRACT: Only validators with non-zero power or zero-power that were bonded
 // at the previous block height or were removed from the validator set entirely
 // are returned to Tendermint.
+// TODO(csongor): review this
 func (k Keeper) ApplyAndReturnValidatorSetUpdates(ctx sdk.Context) (updates []abci.ValidatorUpdate, err error) {
 	params := k.GetParams(ctx)
 	maxValidators := params.MaxValidators
 	powerReduction := k.PowerReduction(ctx)
 	totalPower := sdk.ZeroInt()
 	amtFromBondedToNotBonded, amtFromNotBondedToBonded := sdk.ZeroInt(), sdk.ZeroInt()
+
+	// TODO(csongor): add new guardians that were not here before (from gov)
 
 	// Retrieve the last validator set.
 	// The persistent set is updated later in this function.
@@ -138,10 +141,10 @@ func (k Keeper) ApplyAndReturnValidatorSetUpdates(ctx sdk.Context) (updates []ab
 			panic("should never retrieve a jailed validator from the power store")
 		}
 
-		// if we get to a zero-power validator (which we don't bond),
-		// there are no more possible bonded validators
-		if validator.PotentialConsensusPower(k.PowerReduction(ctx)) == 0 {
-			break
+		// if we get to a validator that's not a guardian (after a guardian set
+		// update), we kick it out
+		if !validator.IsGuardian() {
+			continue
 		}
 
 		// apply the appropriate state change if necessary
@@ -173,10 +176,11 @@ func (k Keeper) ApplyAndReturnValidatorSetUpdates(ctx sdk.Context) (updates []ab
 		newPower := validator.ConsensusPower(powerReduction)
 		newPowerBytes := k.cdc.MustMarshal(&gogotypes.Int64Value{Value: newPower})
 
-		// update the validator set if power has changed
-		if !found || !bytes.Equal(oldPowerBytes, newPowerBytes) {
-			updates = append(updates, validator.ABCIValidatorUpdate(powerReduction))
+		// TODO(csongor): is this expensive to do in each block? we can cache
+		updates = append(updates, validator.ABCIValidatorUpdate())
 
+		// update the validator set if governance power has changed
+		if !found || !bytes.Equal(oldPowerBytes, newPowerBytes) {
 			k.SetLastValidatorPower(ctx, valAddr, newPower)
 		}
 
@@ -198,8 +202,8 @@ func (k Keeper) ApplyAndReturnValidatorSetUpdates(ctx sdk.Context) (updates []ab
 			return
 		}
 		amtFromBondedToNotBonded = amtFromBondedToNotBonded.Add(validator.GetTokens())
-		k.DeleteLastValidatorPower(ctx, validator.GetOperator())
-		updates = append(updates, validator.ABCIValidatorUpdateZero())
+		k.DeleteLastValidatorPower(ctx, validator.GetOperator()) // remove from gov validators
+		updates = append(updates, validator.ABCIValidatorUpdateZero()) // remove from tendermint validators
 	}
 
 	// Update the pools based on the recent updates in the validator set:
