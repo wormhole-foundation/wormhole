@@ -19,10 +19,17 @@ COPY solitaire solitaire
 COPY migration migration
 COPY pyth2wormhole pyth2wormhole
 
+# wasm-bindgen 0.2.74 generates JavaScript bindings for SystemInstruction exported from solana-program 1.9.4.
+# The generated JavaScript references a non-existent function (wasm.__wbg_systeminstruction_free) that leads
+# to an attempted import error when importing the wasm packed for bundler. SystemInstruction isn't used in the sdk,
+# so we remove the non-existent function reference as a workaround.
+ARG SED_REMOVE_INVALID_REFERENCE="/^\s*wasm.__wbg_systeminstruction_free(ptr);$/d"
+
 # Compile Wormhole
 RUN --mount=type=cache,target=/root/.cache \
 	--mount=type=cache,target=bridge/target \
-    cd bridge/program && /usr/local/cargo/bin/wasm-pack build --target bundler -d bundler -- --features wasm
+    cd bridge/program && /usr/local/cargo/bin/wasm-pack build --target bundler -d bundler -- --features wasm && \
+    cd bundler && sed -i $SED_REMOVE_INVALID_REFERENCE bridge_bg.js
 
 RUN --mount=type=cache,target=/root/.cache \
 	--mount=type=cache,target=bridge/target \
@@ -31,7 +38,8 @@ RUN --mount=type=cache,target=/root/.cache \
 # Compile Token Bridge
 RUN --mount=type=cache,target=/root/.cache \
 	--mount=type=cache,target=modules/token_bridge/target \
-    cd modules/token_bridge/program && /usr/local/cargo/bin/wasm-pack build --target bundler -d bundler -- --features wasm
+    cd modules/token_bridge/program && /usr/local/cargo/bin/wasm-pack build --target bundler -d bundler -- --features wasm && \
+    cd bundler && sed -i $SED_REMOVE_INVALID_REFERENCE token_bridge_bg.js
 
 RUN --mount=type=cache,target=/root/.cache \
 	--mount=type=cache,target=modules/token_bridge/target \
@@ -40,7 +48,8 @@ RUN --mount=type=cache,target=/root/.cache \
 # Compile Migration
 RUN --mount=type=cache,target=/root/.cache \
 	--mount=type=cache,target=migration/target \
-    cd migration && /usr/local/cargo/bin/wasm-pack build --target bundler -d bundler -- --features wasm
+    cd migration && /usr/local/cargo/bin/wasm-pack build --target bundler -d bundler -- --features wasm && \
+    cd bundler && sed -i $SED_REMOVE_INVALID_REFERENCE wormhole_migration_bg.js
 
 RUN --mount=type=cache,target=/root/.cache \
 	--mount=type=cache,target=migration/target \
@@ -49,7 +58,8 @@ RUN --mount=type=cache,target=/root/.cache \
 # Compile NFT Bridge
 RUN --mount=type=cache,target=/root/.cache \
 	--mount=type=cache,target=modules/nft_bridge/target \
-    cd modules/nft_bridge/program && /usr/local/cargo/bin/wasm-pack build --target bundler -d bundler -- --features wasm
+    cd modules/nft_bridge/program && /usr/local/cargo/bin/wasm-pack build --target bundler -d bundler -- --features wasm && \
+    cd bundler && sed -i $SED_REMOVE_INVALID_REFERENCE nft_bridge_bg.js
 
 RUN --mount=type=cache,target=/root/.cache \
 	--mount=type=cache,target=modules/nft_bridge/target \

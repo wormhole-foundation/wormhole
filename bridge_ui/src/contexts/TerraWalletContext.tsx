@@ -3,6 +3,7 @@ import {
   Wallet,
   WalletProvider,
   useWallet,
+  ConnectType,
 } from "@terra-money/wallet-provider";
 import React, {
   ReactChildren,
@@ -35,6 +36,7 @@ interface ITerraWalletContext {
   disconnect(): void;
   connected: boolean;
   wallet: any;
+  providerError: string | null;
 }
 
 const TerraWalletContext = React.createContext<ITerraWalletContext>({
@@ -42,6 +44,7 @@ const TerraWalletContext = React.createContext<ITerraWalletContext>({
   disconnect: () => {},
   connected: false,
   wallet: null,
+  providerError: null,
 });
 
 export const TerraWalletWrapper = ({
@@ -53,19 +56,27 @@ export const TerraWalletWrapper = ({
   const terraWallet = useWallet();
   const [, setWallet] = useState<Wallet | undefined>(undefined);
   const [connected, setConnected] = useState(false);
+  const [providerError, setProviderError] = useState<string | null>(null);
 
   const connect = useCallback(() => {
-    const CHROME_EXTENSION = 1;
     if (terraWallet) {
-      terraWallet.connect(terraWallet.availableConnectTypes[CHROME_EXTENSION]);
+      // TODO: Support other connect types
+      if (terraWallet.availableConnectTypes.includes(ConnectType.EXTENSION)) {
+        terraWallet.connect(ConnectType.EXTENSION);
+        setConnected(true);
+        setProviderError(null);
+      } else {
+        setConnected(false);
+        setProviderError("Please install the Terra Station Extension");
+      }
       setWallet(terraWallet);
-      setConnected(true);
     }
   }, [terraWallet]);
 
   const disconnect = useCallback(() => {
     setConnected(false);
     setWallet(undefined);
+    setProviderError(null);
   }, []);
 
   const contextValue = useMemo(
@@ -74,8 +85,9 @@ export const TerraWalletWrapper = ({
       disconnect,
       connected,
       wallet: terraWallet,
+      providerError,
     }),
-    [connect, disconnect, connected, terraWallet]
+    [connect, disconnect, connected, terraWallet, providerError]
   );
 
   return (
