@@ -163,7 +163,7 @@ const BuidlPage = ({ location }: PageProps) => {
             </Box>
             <Box
               sx={{
-                mt: { xs: 8, md: null },
+                mt: { xs: 8, md: 0 },
                 flexBasis: { xs: "100%", md: "50%" },
                 textAlign: "center",
                 flexGrow: 1,
@@ -188,7 +188,7 @@ const BuidlPage = ({ location }: PageProps) => {
           >
             <Box
               sx={{
-                mt: { xs: 8, md: null },
+                mt: { xs: 8, md: 0 },
                 flexBasis: { xs: "100%", md: "50%" },
                 textAlign: "center",
                 flexGrow: 1,
@@ -252,7 +252,7 @@ const BuidlPage = ({ location }: PageProps) => {
             </Box>
             <Box
               sx={{
-                mt: { xs: 8, md: null },
+                mt: { xs: 8, md: 0 },
                 flexBasis: { xs: "100%", md: "50%" },
                 textAlign: "center",
                 flexGrow: 1,
