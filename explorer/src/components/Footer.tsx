@@ -156,7 +156,8 @@ const Footer = () => (
                 Blog
               </Link>
               <Link
-                href={brand}
+                component={RouterLink}
+                to={brand}
                 color="inherit"
                 underline="hover"
                 sx={linkStyle}

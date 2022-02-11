@@ -473,21 +473,21 @@ const IndexPage = ({ location }: PageProps) => {
             {
               src: cross,
               size: 220,
-              header: "Never<br /> stop expanding",
+              header: "Never stop expanding",
               description:
                 "Chains, information, and users are growing everyday. Build on a protocol that is set up to scale, with no limits, right from the start.",
             },
             {
               src: blob,
               size: 220,
-              header: "Explore<br /> and experiment",
+              header: "Explore and experiment",
               description:
                 "Now is the time to explore and experiment. The only limit to what you're able to build is your imagination.",
             },
             {
               src: cube,
               size: 220,
-              header: "Power<br /> your project",
+              header: "Power your project",
               description:
                 "Join the growing list of projects that are composing, raising, and succeeding with Wormhole core layer.",
             },

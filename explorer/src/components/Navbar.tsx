@@ -2,6 +2,7 @@ import { AppBar, Hidden, Button,  Box, Link, Toolbar } from "@mui/material";
 import ArrowForward from "@mui/icons-material/ArrowForward";
 import { Link as RouterLink } from "gatsby";
 import React from "react";
+import { OutboundLink } from "gatsby-plugin-google-gtag";
 import hamburger from "../images/hamburger.svg";
 import { apps, blog, buidl, portal } from "../utils/urls";
 import LogoLink from "./LogoLink";
@@ -22,8 +23,8 @@ const NavBar = () => (
     }}>
       <Box sx={{ m: '5px 10px' }}>ImmuneFi bug bounty</Box>
       <Button
-          component={RouterLink}
-          to="https://www.immunefi.com/bounty/wormhole/"
+          component={OutboundLink}
+          href="https://www.immunefi.com/bounty/wormhole/"
           target='_blank'
           sx={{m: '5px 10px', flex: '0 0 auto'}}
           variant="outlined"

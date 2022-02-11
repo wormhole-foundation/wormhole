@@ -113,7 +113,7 @@ const GridWithCards = ({
             >
               <img src={src} alt="" style={imgStyle} />
             </Box>
-            <Typography variant="h4" textAlign={headerTextAlign} dangerouslySetInnerHTML={{__html: header}} />
+            <Typography variant="h4" textAlign={headerTextAlign}>{header}</Typography>
             <Typography component="div" sx={{ mt: 2, flexGrow: 1 }}>
               {description}
             </Typography>

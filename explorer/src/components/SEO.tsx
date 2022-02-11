@@ -1,7 +1,6 @@
 import React from 'react'
 import { Helmet, HelmetProps } from 'react-helmet'
 import { useStaticQuery, graphql } from 'gatsby'
-import Suisse from '../fonts/SuisseBPIntlBold.woff2'
 
 type Meta = ConcatArray<PropertyMetaObj | NameMetaObj>
 
@@ -181,7 +180,6 @@ export function SEO({
                 // metadata from props
                 .concat(meta)}
         >
-            <link rel="preload" as="font" href={Suisse} type="font/woff2" crossOrigin="anonymous" />
             
             {children}
         </Helmet>

@@ -9,6 +9,9 @@ import en from "javascript-time-ago/locale/en";
 import React from "react";
 import { NetworkContextProvider } from "../../src/contexts/NetworkContext";
 import bg from "../../src/images/bg.svg";
+import { Helmet } from "react-helmet";
+
+import Suisse from "../../src/fonts/SuisseBPIntlBold.woff2";
 
 TimeAgo.addDefaultLocale(en);
 
@@ -142,6 +145,15 @@ theme = responsiveFontSizes(theme);
 
 const TopLayout = ({ children }) => (
   <ThemeProvider theme={theme}>
+    <Helmet>
+      <link
+        rel="preload"
+        as="font"
+        href={Suisse}
+        type="font/woff2"
+        crossOrigin="anonymous"
+      />
+    </Helmet>
     <CssBaseline />
     <NetworkContextProvider>{children}</NetworkContextProvider>
   </ThemeProvider>
