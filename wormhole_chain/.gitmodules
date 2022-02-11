@@ -1,0 +1,3 @@
+[submodule "cosmos-sdk"]
+	path = cosmos-sdk
+	url = git@github.com:certusone/cosmos-sdk.git
