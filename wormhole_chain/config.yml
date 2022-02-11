@@ -7,7 +7,7 @@ accounts:
     coins: ["10000token", "100000000hole"]
 validator:
   name: alice
-  staked: "100hole"
+  staked: "0hole"
 client:
   openapi:
     path: "docs/static/openapi.yml"
@@ -22,7 +22,6 @@ genesis:
       params:
         bond_denom: "hole"
         max_validators: 1
-        power_reduction: "1"
     bank:
       denom_metadata:
         - base: "utest"
