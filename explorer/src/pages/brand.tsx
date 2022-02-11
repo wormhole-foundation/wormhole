@@ -142,6 +142,7 @@ const BrandPage = ({ location }: PageProps) => {
                   sx={{ mt: 3 }}
                   variant="outlined"
                   color="inherit"
+                  target="_blank"
                   startIcon={<ArrowCircleDownIcon />}
                 >
                 LOGO
@@ -441,6 +442,7 @@ const BrandPage = ({ location }: PageProps) => {
                   sx={{ mt: 3 }}
                   variant="outlined"
                   color="inherit"
+                  target="_blank"
                   startIcon={<ArrowCircleDownIcon />}
                 >
                 SVG
@@ -512,6 +514,7 @@ const BrandPage = ({ location }: PageProps) => {
                   sx={{ mt: 3 }}
                   variant="outlined"
                   color="inherit"
+                  target="_blank"
                   startIcon={<ArrowCircleDownIcon />}
                 >
                 SVG
@@ -562,6 +565,7 @@ const BrandPage = ({ location }: PageProps) => {
                   sx={{ mt: 4 }}
                   variant="outlined"
                   color="inherit"
+                  target="_blank"
                   startIcon={<ArrowCircleDownIcon />}
                 >
                 DOWNLOAD PACKAGE
@@ -591,6 +595,7 @@ const BrandPage = ({ location }: PageProps) => {
                         href={logonamepng}
                         variant="outlined"
                         color="inherit"
+                        target="_blank"
                         startIcon={<ArrowCircleDownIcon />}
                       >
                       PNG
@@ -599,6 +604,7 @@ const BrandPage = ({ location }: PageProps) => {
                         href={logonamesvg}
                         variant="outlined"
                         color="inherit"
+                        target="_blank"
                         startIcon={<ArrowCircleDownIcon />}
                       >
                       SVG
@@ -630,6 +636,7 @@ const BrandPage = ({ location }: PageProps) => {
                         href={logopng}
                         variant="outlined"
                         color="inherit"
+                        target="_blank"
                         startIcon={<ArrowCircleDownIcon />}
                       >
                       PNG
@@ -638,6 +645,7 @@ const BrandPage = ({ location }: PageProps) => {
                         href={logosvg}
                         variant="outlined"
                         color="inherit"
+                        target="_blank"
                         startIcon={<ArrowCircleDownIcon />}
                       >
                       SVG
@@ -671,6 +679,7 @@ const BrandPage = ({ location }: PageProps) => {
                         href={wormpng1}
                         variant="outlined"
                         color="inherit"
+                        target="_blank"
                         startIcon={<ArrowCircleDownIcon />}
                       >
                       PNG
@@ -705,6 +714,7 @@ const BrandPage = ({ location }: PageProps) => {
                         href={wormpng1}
                         variant="outlined"
                         color="inherit"
+                        target="_blank"
                         startIcon={<ArrowCircleDownIcon />}
                       >
                       PNG
@@ -737,6 +747,7 @@ const BrandPage = ({ location }: PageProps) => {
                         href={gradients}
                         variant="outlined"
                         color="inherit"
+                        target="_blank"
                         startIcon={<ArrowCircleDownIcon />}
                       >
                       PNG
@@ -769,9 +780,10 @@ const BrandPage = ({ location }: PageProps) => {
                         href={gradient2svg}
                         variant="outlined"
                         color="inherit"
+                        target="_blank"
                         startIcon={<ArrowCircleDownIcon />}
                       >
-                      SVG
+                      PNG
                     </Button>
                   </Box>
                   <Box sx={{flexBasis:{xs: 'auto', md:250}, textAlign: 'center'}}>
