@@ -2,6 +2,7 @@ import * as React from "react";
 import { Box, Button, Grid, Typography } from "@mui/material";
 import ArrowCircleDownIcon from '@mui/icons-material/ArrowCircleDown';
 import { PageProps } from 'gatsby'
+import { OutboundLink } from "gatsby-plugin-google-gtag";
 import HeroText from "../components/HeroText";
 import Layout from "../components/Layout";
 import logos from "../images/brand/logos.svg";
@@ -38,7 +39,7 @@ const BrandPage = ({ location }: PageProps) => {
   return (
     <Layout>
       <SEO
-        title="Brand"
+        title="BRAND"
         description="Please follow these guidelines when you’re sharing Wormhole with the world."
         pathname={location.pathname}
       />
@@ -138,13 +139,14 @@ const BrandPage = ({ location }: PageProps) => {
                     Combine the logo with a range of provided background colors and gradients to create the right feel.
                   </Typography>
                   <Button
-                  href={logopackage}
-                  sx={{ mt: 3 }}
-                  variant="outlined"
-                  color="inherit"
-                  target="_blank"
-                  startIcon={<ArrowCircleDownIcon />}
-                >
+                    component={OutboundLink}
+                    href={logopackage}
+                    sx={{ mt: 3 }}
+                    variant="outlined"
+                    color="inherit"
+                    target="_blank"
+                    startIcon={<ArrowCircleDownIcon />}
+                  >
                 LOGO
               </Button>
                 </Box>
@@ -438,6 +440,7 @@ const BrandPage = ({ location }: PageProps) => {
           </Grid>  
           <Box sx={{textAlign: 'center', mt: 5}}>
             <Button
+                  component={OutboundLink}
                   href={colors}
                   sx={{ mt: 3 }}
                   variant="outlined"
@@ -510,6 +513,7 @@ const BrandPage = ({ location }: PageProps) => {
           </Grid>  
           <Box sx={{textAlign: 'center', mt: 5}}>
             <Button
+                  component={OutboundLink}
                   href={icons}
                   sx={{ mt: 3 }}
                   variant="outlined"
@@ -561,6 +565,7 @@ const BrandPage = ({ location }: PageProps) => {
             </Typography>
             <Typography sx={{ mt: 2, maxWidth: 860, mx: "auto" }}>Mix and match from the color palette to fits your need.</Typography>
             <Button
+                  component={OutboundLink}
                   href={assets}
                   sx={{ mt: 4 }}
                   variant="outlined"
@@ -592,6 +597,7 @@ const BrandPage = ({ location }: PageProps) => {
                     }}
                   >
                     <Button
+                        component={OutboundLink}
                         href={logonamepng}
                         variant="outlined"
                         color="inherit"
@@ -633,6 +639,7 @@ const BrandPage = ({ location }: PageProps) => {
                     }}
                   >
                     <Button
+                        component={OutboundLink}
                         href={logopng}
                         variant="outlined"
                         color="inherit"
@@ -642,6 +649,7 @@ const BrandPage = ({ location }: PageProps) => {
                       PNG
                     </Button>
                     <Button
+                        component={OutboundLink}
                         href={logosvg}
                         variant="outlined"
                         color="inherit"
@@ -676,6 +684,7 @@ const BrandPage = ({ location }: PageProps) => {
                     }}
                   >
                     <Button
+                        component={OutboundLink}
                         href={wormpng1}
                         variant="outlined"
                         color="inherit"
@@ -711,7 +720,8 @@ const BrandPage = ({ location }: PageProps) => {
                     }}
                   >
                     <Button
-                        href={wormpng1}
+                        component={OutboundLink}
+                        href={wormpng2}
                         variant="outlined"
                         color="inherit"
                         target="_blank"
@@ -744,6 +754,7 @@ const BrandPage = ({ location }: PageProps) => {
                     }}
                   >
                     <Button
+                        component={OutboundLink}
                         href={gradients}
                         variant="outlined"
                         color="inherit"
