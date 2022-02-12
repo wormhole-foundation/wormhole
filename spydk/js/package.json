@@ -17,7 +17,6 @@
     "build": "npm run build-all",
     "format": "echo \"disabled: prettier --write \"src/**/*.ts\"\"",
     "lint": "tslint -p tsconfig.json",
-    "prepare": "npm run build",
     "prepublishOnly": "echo \"disabled: npm test && npm run lint\"",
     "preversion": "npm run lint",
     "version": "npm run format && git add -A src",
