@@ -17,7 +17,3 @@ WORKDIR /app/tools
 COPY --from=builder /code/artifacts /app/artifacts
 ADD ./artifacts/cw20_base.wasm /app/artifacts/
 ADD ./tools /app/tools
-
-RUN chmod +x /app/tools/deploy.sh
-
-ENTRYPOINT /app/tools/deploy.sh

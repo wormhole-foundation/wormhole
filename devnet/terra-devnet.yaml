@@ -6,12 +6,12 @@ metadata:
   name: terra-terrad
 spec:
   ports:
-  - name: rpc
-    port: 26657
-    protocol: TCP
-  - name: rest
-    port: 1317
-    protocol: TCP
+    - name: rpc
+      port: 26657
+      protocol: TCP
+    - name: rest
+      port: 1317
+      protocol: TCP
   selector:
     app: terra-terrad
 ---
@@ -46,20 +46,32 @@ spec:
         app: terra-terrad
     spec:
       containers:
-      - args:
-        - terrad
-        - start
-        image: terra-image
-        name: terra-terrad
-        ports:
-        - containerPort: 26657
-        - containerPort: 1317
-        readinessProbe:
-          httpGet:
-            port: 26657
-        resources: {}
-      - name: terra-contracts
-        image: terra-contracts
+        - args:
+            - terrad
+            - start
+          image: terra-image
+          name: terra-terrad
+          ports:
+            - containerPort: 26657
+            - containerPort: 1317
+          readinessProbe:
+            httpGet:
+              port: 26657
+          resources: {}
+        - name: terra-contracts
+          image: terra-contracts
+          command:
+            - /bin/sh
+            - -c
+            - "sh /app/tools/deploy.sh && touch /app/tools/success && sleep infinity"
+          readinessProbe:
+            exec:
+              command:
+                - test
+                - -e
+                - "/app/tools/success"
+            initialDelaySeconds: 5
+            periodSeconds: 5
       restartPolicy: Always
   serviceName: terra-terrad
 ---
@@ -96,7 +108,7 @@ spec:
           name: fcd-collector
           args:
             - collector
-          resources: { }
+          resources: {}
           env:
             - name: CHAIN_ID
               value: localterra
@@ -126,7 +138,7 @@ spec:
           name: fcd-api
           args:
             - start
-          resources: { }
+          resources: {}
           ports:
             - containerPort: 3060
           env:
