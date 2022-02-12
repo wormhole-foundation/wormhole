@@ -32,7 +32,7 @@ jobs:
         timeout-minutes: 60
 
       # Clean up k8s resources
-      - run: kubectl delete --namespace=$DEPLOY_NS service,statefulset,configmap,pod --all
+      - run: kubectl delete --namespace=$DEPLOY_NS service,statefulset,configmap,pod,job --all
         if: always()
 
   # Verify whether the Makefile builds the node (no dependencies other than Go)
