@@ -14,27 +14,27 @@ RUN --mount=type=cache,target=/root/.cache \
 ENV SOLANA_BIN_PATH="/root/.local/share/solana/install/active_release/bin"
 ENV PATH="$SOLANA_BIN_PATH:$PATH"
 
-ADD ethereum /usr/src/ethereum
 WORKDIR /usr/src/ethereum
-RUN --mount=type=cache,target=/root/.cache \
-	--mount=type=cache,target=/root/.npm \
+COPY ethereum/package.json ethereum/package-lock.json ./
+RUN --mount=type=cache,uid=1000,gid=1000,target=/home/node/.npm \
     npm ci
+COPY ethereum ./
 
-ADD clients/token_bridge /usr/src/clients/token_bridge
 WORKDIR /usr/src/clients/token_bridge
-RUN --mount=type=cache,target=/root/.cache \
-	--mount=type=cache,target=/root/.npm \
-	set -xe && \
-	npm ci && \
+COPY clients/token_bridge/package.json clients/token_bridge/package-lock.json ./
+RUN --mount=type=cache,uid=1000,gid=1000,target=/home/node/.npm \
+    npm ci
+COPY clients/token_bridge ./
+RUN set -xe && \
 	npm run build-contracts && \
 	npm run build
 
-ADD clients/nft_bridge /usr/src/clients/nft_bridge
 WORKDIR /usr/src/clients/nft_bridge
-RUN --mount=type=cache,target=/root/.cache \
-	--mount=type=cache,target=/root/.npm \
-	set -xe && \
-	npm ci && \
+COPY clients/nft_bridge/package.json clients/nft_bridge/package-lock.json ./
+RUN --mount=type=cache,uid=1000,gid=1000,target=/home/node/.npm \
+    npm ci
+COPY clients/nft_bridge ./
+RUN set -xe && \
 	npm run build-contracts && \
 	npm run build
 

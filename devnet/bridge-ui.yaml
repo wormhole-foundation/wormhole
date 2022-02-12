@@ -33,11 +33,7 @@ spec:
       containers:
         - name: bridge-ui
           image: bridge-ui
-          command:
-            - /app/bridge_ui/node_modules/.bin/serve
-            - -s
-            - build
-            - -n
+          # entrypoint set dynamically in Tiltfile
           tty: true
           ports:
             - containerPort: 3000

@@ -10,4 +10,4 @@ done
 
 sleep 2
 
-npm ci && node deploy.js
+node deploy.js
