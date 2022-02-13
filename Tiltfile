@@ -79,6 +79,7 @@ local_resource(
     deps = proto_deps,
     cmd = "tilt docker build -- --target go-export -f Dockerfile.proto -o type=local,dest=node .",
     env = {"DOCKER_BUILDKIT": "1"},
+    labels = ["protobuf"],
     trigger_mode = trigger_mode,
 )
 
@@ -88,6 +89,7 @@ local_resource(
     resource_deps = ["proto-gen"],
     cmd = "tilt docker build -- --target node-export -f Dockerfile.proto -o type=local,dest=. .",
     env = {"DOCKER_BUILDKIT": "1"},
+    labels = ["protobuf"],
     trigger_mode = trigger_mode,
 )
 
@@ -96,6 +98,7 @@ local_resource(
     deps = ["staging/algorand/teal"],
     cmd = "tilt docker build -- --target teal-export -f Dockerfile.teal -o type=local,dest=. .",
     env = {"DOCKER_BUILDKIT": "1"},
+    labels = ["algorand"],
     trigger_mode = trigger_mode,
 )
 
@@ -107,6 +110,7 @@ local_resource(
     dir = "solana",
     cmd = "tilt docker build -- -f Dockerfile.wasm -o type=local,dest=.. .",
     env = {"DOCKER_BUILDKIT": "1"},
+    labels = ["solana"],
     trigger_mode = trigger_mode,
 )
 
@@ -165,6 +169,7 @@ k8s_resource(
         port_forward(7071, name = "Public REST [:7071]", host = webHost),
         port_forward(2345, name = "Debugger [:2345]", host = webHost),
     ],
+    labels = ["guardian"],
     trigger_mode = trigger_mode,
 )
 
@@ -178,6 +183,7 @@ k8s_resource(
         port_forward(6061, container_port = 6060, name = "Debug/Status Server [:6061]", host = webHost),
         port_forward(7072, name = "Spy gRPC [:7072]", host = webHost),
     ],
+    labels = ["guardian"],
     trigger_mode = trigger_mode,
 )
 
@@ -212,6 +218,7 @@ k8s_resource(
         port_forward(8900, name = "Solana WS [:8900]", host = webHost),
         port_forward(9000, name = "Solana PubSub [:9000]", host = webHost),
     ],
+    labels = ["solana"],
     trigger_mode = trigger_mode,
 )
 
@@ -244,7 +251,12 @@ if pyth:
     )
     k8s_yaml_with_ns("./devnet/pyth.yaml")
 
-    k8s_resource("pyth", resource_deps = ["solana-devnet"], trigger_mode = trigger_mode)
+    k8s_resource(
+        "pyth", 
+        resource_deps = ["solana-devnet"], 
+        labels = ["solana"],
+        trigger_mode = trigger_mode,
+    )
 
     # pyth2wormhole client autoattester
     docker_build(
@@ -260,6 +272,7 @@ if pyth:
         "p2w-attest",
         resource_deps = ["solana-devnet", "pyth", "guardian"],
         port_forwards = [],
+        labels = ["solana"],
         trigger_mode = trigger_mode,
     )
 
@@ -270,6 +283,7 @@ k8s_resource(
     port_forwards = [
         port_forward(8545, name = "Ganache RPC [:8545]", host = webHost),
     ],
+    labels = ["evm"],
     trigger_mode = trigger_mode,
 )
 
@@ -278,6 +292,7 @@ k8s_resource(
     port_forwards = [
         port_forward(8546, name = "Ganache RPC [:8546]", host = webHost),
     ],
+    labels = ["evm"],
     trigger_mode = trigger_mode,
 )
 
@@ -308,6 +323,7 @@ if bridge_ui:
         port_forwards = [
             port_forward(3000, name = "Bridge UI [:3000]", host = webHost),
         ],
+        labels = ["portal"],
         trigger_mode = trigger_mode,
     )
 
@@ -330,6 +346,7 @@ if ci_tests:
     k8s_resource(
         "ci-tests",
         resource_deps = ["eth-devnet", "eth-devnet2", "terra-terrad", "terra-fcd", "solana-devnet", "spy", "guardian"],
+        labels = ["ci"],
         trigger_mode = trigger_mode,
     )
 
@@ -349,6 +366,7 @@ k8s_resource(
         port_forward(4001, name = "Algorand RPC [:4001]", host = webHost),
         port_forward(4002, name = "Algorand KMD [:4002]", host = webHost),
     ],
+    labels = ["algorand"],
     trigger_mode = trigger_mode,
 )
 
@@ -368,6 +386,7 @@ if e2e:
         port_forwards = [
             port_forward(6080, name = "VNC [:6080]", host = webHost, link_path = "/vnc_auto.html"),
         ],
+        labels = ["ci"],
         trigger_mode = trigger_mode,
     )
 
@@ -450,11 +469,20 @@ k8s_resource(
         port_forward(26657, name = "Terra RPC [:26657]", host = webHost),
         port_forward(1317, name = "Terra LCD [:1317]", host = webHost),
     ],
+    labels = ["terra"],
+    trigger_mode = trigger_mode,
+)
+
+k8s_resource(
+    "terra-postgres",
+    labels = ["terra"],
     trigger_mode = trigger_mode,
 )
 
 k8s_resource(
     "terra-fcd",
+    resource_deps = ["terra-terrad", "terra-postgres"],
     port_forwards = [port_forward(3060, name = "Terra FCD [:3060]", host = webHost)],
+    labels = ["terra"],
     trigger_mode = trigger_mode,
 )
