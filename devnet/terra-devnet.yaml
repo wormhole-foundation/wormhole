@@ -19,6 +19,20 @@ apiVersion: v1
 kind: Service
 metadata:
   labels:
+    app: terra-postgres
+  name: terra-postgres
+spec:
+  ports:
+    - name: postgres
+      port: 5432
+      protocol: TCP
+  selector:
+    app: terra-postgres
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
     app: terra-fcd
   name: terra-fcd
 spec:
@@ -79,17 +93,17 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   labels:
-    app: terra-fcd
-  name: terra-fcd
+    app: terra-postgres
+  name: terra-postgres
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: terra-fcd
+      app: terra-postgres
   template:
     metadata:
       labels:
-        app: terra-fcd
+        app: terra-postgres
     spec:
       containers:
         - image: postgres:12
@@ -104,6 +118,26 @@ spec:
               value: dev
             - name: POSTGRES_DB
               value: fcd
+      restartPolicy: Always
+  serviceName: terra-fcd
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app: terra-fcd
+  name: terra-fcd
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: terra-fcd
+  template:
+    metadata:
+      labels:
+        app: terra-fcd
+    spec:
+      containers:
         - image: terramoney/fcd:bombay
           name: fcd-collector
           args:
@@ -121,7 +155,7 @@ spec:
             - name: TYPEORM_CONNECTION
               value: postgres
             - name: TYPEORM_HOST
-              value: localhost
+              value: terra-postgres
             - name: TYPEORM_USERNAME
               value: dev
             - name: TYPEORM_PASSWORD
@@ -153,7 +187,7 @@ spec:
             - name: TYPEORM_CONNECTION
               value: postgres
             - name: TYPEORM_HOST
-              value: localhost
+              value: terra-postgres
             - name: TYPEORM_USERNAME
               value: dev
             - name: TYPEORM_PASSWORD
