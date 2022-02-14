@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"flag"
 	"fmt"
+	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/db"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	nodev1 "github.com/certusone/wormhole/node/pkg/proto/node/v1"
@@ -47,15 +48,6 @@ func getAdminClient(ctx context.Context, addr string) (*grpc.ClientConn, error, 
 	return conn, err, c
 }
 
-var publicRPCEndpoints = []string{
-	"https://wormhole-v2-mainnet-api.certus.one",
-	"https://wormhole.inotel.ro",
-	"https://wormhole-v2-mainnet-api.mcf.rocks",
-	"https://wormhole-v2-mainnet-api.chainlayer.network",
-	"https://wormhole-v2-mainnet-api.staking.fund",
-	"https://wormhole-v2-mainnet.01node.com",
-}
-
 func main() {
 	flag.Parse()
 
@@ -75,7 +67,7 @@ func main() {
 			EmitterChain:   uint32(vaa.ChainIDSolana),
 			EmitterAddress: emitter,
 			RpcBackfill:    true,
-			BackfillNodes:  publicRPCEndpoints,
+			BackfillNodes:  common.PublicRPCEndpoints,
 		}
 		resp, err := admin.FindMissingMessages(ctx, &msg)
 		if err != nil {
@@ -211,7 +203,7 @@ func main() {
 						log.Printf("verifying %d", p.Sequence)
 						req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf(
 							"%s/v1/signed_vaa/%d/%s/%d",
-							publicRPCEndpoints[0],
+							common.PublicRPCEndpoints[0],
 							vaa.ChainIDSolana,
 							hex.EncodeToString(addr[:]),
 							p.Sequence), nil)

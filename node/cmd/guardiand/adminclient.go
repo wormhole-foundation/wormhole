@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"github.com/certusone/wormhole/node/pkg/common"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	publicrpcv1 "github.com/certusone/wormhole/node/pkg/proto/publicrpc/v1"
 	"github.com/certusone/wormhole/node/pkg/vaa"
@@ -161,7 +162,7 @@ func runFindMissingMessages(cmd *cobra.Command, args []string) {
 		EmitterChain:   uint32(chainID),
 		EmitterAddress: emitterAddress,
 		RpcBackfill:    *shouldBackfill,
-		BackfillNodes:  publicRPCEndpoints,
+		BackfillNodes:  common.PublicRPCEndpoints,
 	}
 	resp, err := c.FindMissingMessages(ctx, &msg)
 	if err != nil {
