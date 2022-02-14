@@ -22,12 +22,6 @@ import (
 )
 
 var (
-	solanaEmitters = []string{
-		"0def15a24423e1edd1a5ab16f557b9060303ddbab8c803d2ee48f4b78a1cfd6b",
-		"b2dd468c9b8c80b3dd9211e9e3fd6ee4d652eb5997b7c9020feae971c278ab07",
-		"ec7372995d5cc8732397fb0ad35c0121e0eaa90d26f828a534cab54391b3a4f5",
-	}
-
 	solanaRPC  = flag.String("solanaRPC", "http://localhost:8899", "Solana RPC address")
 	adminRPC   = flag.String("adminRPC", "/run/guardiand/admin.socket", "Admin RPC address")
 	solanaAddr = flag.String("solanaProgram", "worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth", "Solana program address")
@@ -60,12 +54,16 @@ func main() {
 		log.Fatalf("failed to get admin client: %v", err)
 	}
 
-	for _, emitter := range solanaEmitters {
+	for _, emitter := range common.KnownEmitters {
+		if emitter.ChainID != vaa.ChainIDSolana {
+			continue
+		}
+
 		log.Printf("Requesting missing messages for %s", emitter)
 
 		msg := nodev1.FindMissingMessagesRequest{
 			EmitterChain:   uint32(vaa.ChainIDSolana),
-			EmitterAddress: emitter,
+			EmitterAddress: emitter.Emitter,
 			RpcBackfill:    true,
 			BackfillNodes:  common.PublicRPCEndpoints,
 		}
@@ -98,7 +96,7 @@ func main() {
 
 		var before solana.Signature
 
-		decoded, err := hex.DecodeString(emitter)
+		decoded, err := hex.DecodeString(emitter.Emitter)
 		if err != nil {
 			log.Fatalf("Failed to decode emitter address: %v", err)
 		}
