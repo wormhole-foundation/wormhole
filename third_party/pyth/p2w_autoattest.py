@@ -158,8 +158,6 @@ while True:
         "--product", product_addr,
         "--nonce", str(nonce),
     ], capture_output=True)
-    time.sleep(P2W_ATTEST_INTERVAL)
-
     matches = seqno_regex.match(attest_result.stdout)
 
     if matches is not None:
@@ -171,6 +169,7 @@ while True:
     else:
         print(f"Warning: Could not get sequence number")
 
+    time.sleep(P2W_ATTEST_INTERVAL)
     nonce += 1
 
 readiness_thread.join()

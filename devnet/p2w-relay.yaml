@@ -31,8 +31,9 @@ spec:
         - name: p2w-relay
           image: p2w-relay
           command:
-            - node
-            - /usr/src/third_party/pyth/p2w-sdk/lib/autorelayer.js
+            - npm
+            - start
+          workingDir: /usr/src/third_party/pyth/p2w-relay/
           tty: true
           readinessProbe:
             tcpSocket:
