@@ -73,7 +73,7 @@ const BrandPage = ({ location }: PageProps) => {
         />
         <HeroText
           heroSpans={["Brand"]}
-          subtitleText="Integrate proudly with everything you need to show off Wormhole news."
+          subtitleText="Integrate proudly with everything you need to show off Wormhole."
         />
       </Box>
       <Box sx={{ textAlign: "center", mt: 40, px: 2 }}>
@@ -461,7 +461,6 @@ const BrandPage = ({ location }: PageProps) => {
               Iconography
               </Box>
             </Typography>
-            <Typography sx={{ mt: 2, maxWidth: 460, mx: "auto" }}>Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.</Typography>
           </Box>
         <Box sx={{ m: "auto", maxWidth: 950, px: 3.75 }}>
           <Grid container spacing={2}>
@@ -805,12 +804,11 @@ const BrandPage = ({ location }: PageProps) => {
 
       </Box>
 
-      <Box sx={{position: 'relative'}}>
-          <Box sx={{ textAlign: "center", mt: 12, px: 2 }}>
+          {/* <Box sx={{ textAlign: "center", mt: 12, px: 2 }}>
             <Typography variant="h3">
-              <Box component="span" sx={{ color: "#FFCE00" }}>
-              Press  {" "}
-              </Box>
+                <Box component="span" sx={{ color: "#FFCE00" }}>
+                Press  {" "}
+                </Box>
               <Box component="span">inquiries</Box>
             </Typography>
             <Typography sx={{ mt: 2, maxWidth: 860, mx: "auto" }}>Reach out to our team to get the information you need.</Typography>
@@ -822,10 +820,7 @@ const BrandPage = ({ location }: PageProps) => {
                 >
                 CONTACT US
               </Button>
-          </Box>
-         
-
-      </Box>
+          </Box> */}
     </Layout>
   );
 };
