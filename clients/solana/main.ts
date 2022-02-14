@@ -1,10 +1,11 @@
 import yargs from "yargs";
 
 const {hideBin} = require('yargs/helpers')
-import * as bridge from "bridge";
 import * as web3 from '@solana/web3.js';
 import {PublicKey, Transaction, TransactionInstruction, AccountMeta, Keypair, Connection} from "@solana/web3.js";
-import {post_message_ix} from "bridge";
+
+import {setDefaultWasm, importCoreWasm, ixFromRust} from '@certusone/wormhole-sdk'
+setDefaultWasm("node")
 
 yargs(hideBin(process.argv))
     .command('post_message [nonce] [message] [consistency]', 'post a message', (yargs) => {
@@ -25,6 +26,8 @@ yargs(hideBin(process.argv))
                 required: true
             })
     }, async (argv: any) => {
+        const bridge = await importCoreWasm()
+
         let connection = setupConnection(argv);
         let bridge_id = new PublicKey(argv.bridge);
 
@@ -50,7 +53,7 @@ yargs(hideBin(process.argv))
             throw new Error("invalid consistency level")
         }
 
-        let ix = ixFromRust(post_message_ix(bridge_id.toString(), from.publicKey.toString(), emitter.publicKey.toString(), message.publicKey.toString(), argv.nonce, Buffer.from(argv.message, "hex"), argv.consistency));
+        let ix = ixFromRust(bridge.post_message_ix(bridge_id.toString(), from.publicKey.toString(), emitter.publicKey.toString(), message.publicKey.toString(), argv.nonce, Buffer.from(argv.message, "hex"), argv.consistency));
         // Add transfer instruction to transaction
         let transaction = new web3.Transaction().add(transferIx, ix);
 
@@ -95,6 +98,8 @@ yargs(hideBin(process.argv))
                 required: true
             })
     }, async (argv: any) => {
+        const bridge = await importCoreWasm()
+
         let connection = setupConnection(argv);
         let bridge_id = new PublicKey(argv.bridge);
 
@@ -159,6 +164,8 @@ yargs(hideBin(process.argv))
     .argv;
 
 async function post_vaa(connection: Connection, bridge_id: PublicKey, payer: Keypair, vaa: Buffer) {
+    const bridge = await importCoreWasm()
+
     let bridge_state = await get_bridge_state(connection, bridge_id);
     let guardian_addr = new PublicKey(bridge.guardian_set_address(bridge_id.toString(), bridge_state.guardian_set_index));
     let acc = await connection.getAccountInfo(guardian_addr);
@@ -203,6 +210,8 @@ async function post_vaa(connection: Connection, bridge_id: PublicKey, payer: Key
 }
 
 async function get_bridge_state(connection: Connection, bridge_id: PublicKey): Promise<BridgeState> {
+    const bridge = await importCoreWasm()
+
     let bridge_state = new PublicKey(bridge.state_address(bridge_id.toString()));
     let acc = await connection.getAccountInfo(bridge_state);
     if (acc?.data === undefined) {
@@ -216,23 +225,6 @@ function setupConnection(argv: yargs.Arguments): web3.Connection {
         argv.rpc as string,
         'confirmed',
     );
-}
-
-function ixFromRust(data: any): TransactionInstruction {
-    let keys: Array<AccountMeta> = data.accounts.map(accountMetaFromRust)
-    return new TransactionInstruction({
-        programId: new PublicKey(data.program_id),
-        data: Buffer.from(data.data),
-        keys: keys,
-    })
-}
-
-function accountMetaFromRust(meta: any): AccountMeta {
-    return {
-        pubkey: new PublicKey(meta.pubkey),
-        isSigner: meta.is_signer,
-        isWritable: meta.is_writable,
-    }
 }
 
 interface BridgeState {
