@@ -15,7 +15,6 @@ import (
 	"google.golang.org/grpc"
 	"log"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -29,7 +28,6 @@ var (
 	}
 
 	solanaRPC  = flag.String("solanaRPC", "http://localhost:8899", "Solana RPC address")
-	stateDir   = flag.String("stateDir", "./repairState", "State directory")
 	adminRPC   = flag.String("adminRPC", "/run/guardiand/admin.socket", "Admin RPC address")
 	solanaAddr = flag.String("solanaProgram", "worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth", "Solana program address")
 )
@@ -105,11 +103,6 @@ func main() {
 		log.Printf("Found %d missing messages for %s: %d - %d", len(msgs), emitter, lowest, highest)
 
 		limiter := rate.NewLimiter(rate.Every(100*time.Millisecond), 10)
-
-		err = os.MkdirAll(*stateDir, 0755)
-		if err != nil {
-			log.Fatalf("Failed to create state directory: %v", err)
-		}
 
 		var before solana.Signature
 
