@@ -13,6 +13,9 @@ allow_k8s_contexts("ci")
 # Disable telemetry by default
 analytics_settings(False)
 
+# Moar updates (default is 3)
+update_settings(max_parallel_updates=10)
+
 # Runtime configuration
 config.define_bool("ci", False, "We are running in CI")
 config.define_bool("manual", False, "Set TRIGGER_MODE_MANUAL by default")
@@ -80,6 +83,7 @@ local_resource(
     cmd = "tilt docker build -- --target go-export -f Dockerfile.proto -o type=local,dest=node .",
     env = {"DOCKER_BUILDKIT": "1"},
     labels = ["protobuf"],
+    allow_parallel=True,
     trigger_mode = trigger_mode,
 )
 
@@ -90,6 +94,7 @@ local_resource(
     cmd = "tilt docker build -- --target node-export -f Dockerfile.proto -o type=local,dest=. .",
     env = {"DOCKER_BUILDKIT": "1"},
     labels = ["protobuf"],
+    allow_parallel=True,
     trigger_mode = trigger_mode,
 )
 
@@ -99,6 +104,7 @@ local_resource(
     cmd = "tilt docker build -- --target teal-export -f Dockerfile.teal -o type=local,dest=. .",
     env = {"DOCKER_BUILDKIT": "1"},
     labels = ["algorand"],
+    allow_parallel=True,
     trigger_mode = trigger_mode,
 )
 
@@ -111,6 +117,7 @@ local_resource(
     cmd = "tilt docker build -- -f Dockerfile.wasm -o type=local,dest=.. .",
     env = {"DOCKER_BUILDKIT": "1"},
     labels = ["solana"],
+    allow_parallel=True,
     trigger_mode = trigger_mode,
 )
 
@@ -162,7 +169,7 @@ k8s_yaml_with_ns(build_node_yaml())
 
 k8s_resource(
     "guardian",
-    resource_deps = ["proto-gen", "solana-devnet"],
+    resource_deps = ["proto-gen", "eth-devnet", "eth-devnet2", "terra-terrad", "solana-devnet"],
     port_forwards = [
         port_forward(6060, name = "Debug/Status Server [:6060]", host = webHost),
         port_forward(7070, name = "Public gRPC [:7070]", host = webHost),
@@ -192,7 +199,7 @@ k8s_resource(
 docker_build(
     ref = "bridge-client",
     context = ".",
-    only = ["./proto", "./solana", "./ethereum", "./clients"],
+    only = ["./proto", "./solana", "./clients"],
     dockerfile = "Dockerfile.client",
     # Ignore target folders from local (non-container) development.
     ignore = ["./solana/*/target"],
@@ -212,7 +219,6 @@ k8s_yaml_with_ns("devnet/solana-devnet.yaml")
 
 k8s_resource(
     "solana-devnet",
-    resource_deps = ["wasm-gen"],
     port_forwards = [
         port_forward(8899, name = "Solana RPC [:8899]", host = webHost),
         port_forward(8900, name = "Solana WS [:8900]", host = webHost),
@@ -345,7 +351,7 @@ if ci_tests:
 
     k8s_resource(
         "ci-tests",
-        resource_deps = ["eth-devnet", "eth-devnet2", "terra-terrad", "terra-fcd", "solana-devnet", "spy", "guardian"],
+        resource_deps = ["proto-gen-web", "wasm-gen", "eth-devnet", "eth-devnet2", "terra-terrad", "terra-fcd", "solana-devnet", "spy", "guardian"],
         labels = ["ci"],
         trigger_mode = trigger_mode,
     )
