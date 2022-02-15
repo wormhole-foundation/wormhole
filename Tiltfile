@@ -522,5 +522,6 @@ k8s_resource(
         port_forward(8547, container_port=8545, name = "Acala eth-rpc-adapter http [:8547]", host = webHost),
         port_forward(3331, name = "Acala eth-rpc-adapter ws [:3331]", host = webHost),
     ],
+    labels = ["acala"],
     trigger_mode = trigger_mode,
 )
