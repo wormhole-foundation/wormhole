@@ -79,11 +79,11 @@ const BrandPage = ({ location }: PageProps) => {
       <Box sx={{ textAlign: "center", mt: 40, px: 2 }}>
         <Typography variant="h3">
           <Box component="span" sx={{ color: "#FFCE00" }}>
-          Wormhole {" "}
+          Brand {" "}
           </Box>
-          <Box component="span">brand assets</Box>
+          <Box component="span"> assets</Box>
         </Typography>
-        <Typography sx={{ mt: 2, maxWidth: 860, mx: "auto" }}>Please follow these guidelines when you’re sharing Wormhole with the world.</Typography>
+        <Typography sx={{ mt: 2, maxWidth: 860, mx: "auto" }}>Everything you need to show off Wormhole to the world.</Typography>
       </Box>
       <Box sx={{position: 'relative'}}>
         <Box
