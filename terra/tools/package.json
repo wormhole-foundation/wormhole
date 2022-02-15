@@ -12,6 +12,7 @@
   "dependencies": {
     "@terra-money/terra.js": "^2.0.11",
     "@cosmjs/encoding": "^0.26.2",
-    "ethers": "^5.4.4"
+    "ethers": "^5.4.4",
+    "yargs": "^17.0.1"
   }
 }

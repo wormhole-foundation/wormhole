@@ -1,4 +1,5 @@
-#![feature(const_generics)]
+
+#![feature(adt_const_params)]
 #![allow(warnings)]
 
 use std::{
@@ -363,6 +364,7 @@ fn main() {
                         skip_preflight: true,
                         preflight_commitment: None,
                         encoding: None,
+                        max_retries: None,
                     },
                 )?;
             println!("Signature: {}", signature);

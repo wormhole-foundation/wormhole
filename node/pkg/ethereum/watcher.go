@@ -9,6 +9,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"math/big"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -87,6 +88,10 @@ type (
 		// the governance mechanism lives there),
 		setChan chan *common.GuardianSet
 
+		// Incoming re-observation requests from the network. Pre-filtered to only
+		// include requests for our chainID.
+		obsvReqC chan *gossipv1.ObservationRequest
+
 		pending   map[pendingKey]*pendingMessage
 		pendingMu sync.Mutex
 
@@ -118,7 +123,8 @@ func NewEthWatcher(
 	chainID vaa.ChainID,
 	messageEvents chan *common.MessagePublication,
 	setEvents chan *common.GuardianSet,
-	minConfirmations uint64) *Watcher {
+	minConfirmations uint64,
+	obsvReqC chan *gossipv1.ObservationRequest) *Watcher {
 	return &Watcher{
 		url:              url,
 		contract:         contract,
@@ -128,6 +134,7 @@ func NewEthWatcher(
 		chainID:          chainID,
 		msgChan:          messageEvents,
 		setChan:          setEvents,
+		obsvReqC:         obsvReqC,
 		pending:          map[pendingKey]*pendingMessage{}}
 }
 
@@ -188,6 +195,93 @@ func (e *Watcher) Run(ctx context.Context) error {
 				if err := e.fetchAndUpdateGuardianSet(logger, ctx, caller); err != nil {
 					logger.Error("failed updating guardian set",
 						zap.Error(err), zap.String("eth_network", e.networkName))
+				}
+			}
+		}
+	}()
+
+	// Track the current block number so we can compare it to the block number of
+	// the message publication for observation requests.
+	var currentBlockNumber uint64
+
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case r := <-e.obsvReqC:
+				// This can't happen unless there is a programming error - the caller
+				// is expected to send us only requests for our chainID.
+				if vaa.ChainID(r.ChainId) != e.chainID {
+					panic("invalid chain ID")
+				}
+
+				tx := eth_common.BytesToHash(r.TxHash)
+				logger.Info("received observation request",
+					zap.String("eth_network", e.networkName),
+					zap.String("tx_hash", tx.Hex()))
+
+				// SECURITY: Load the block number before requesting the transaction to avoid a
+				// race condition where requesting the tx succeeds and is then dropped due to a fork,
+				// but blockNumberU had already advanced beyond the required threshold.
+				//
+				// In the primary watcher flow, this is of no concern since we assume the node
+				// always sends the head before it sends the logs (implicit synchronization
+				// by relying on the same websocket connection).
+				blockNumberU := atomic.LoadUint64(&currentBlockNumber)
+				if blockNumberU == 0 {
+					logger.Error("no block number available, ignoring observation request",
+						zap.String("eth_network", e.networkName))
+					continue
+				}
+
+				timeout, cancel := context.WithTimeout(ctx, 5*time.Second)
+				blockNumber, msgs, err := MessageEventsForTransaction(timeout, c, e.contract, e.chainID, tx)
+				cancel()
+
+				if err != nil {
+					logger.Error("failed to process observation request",
+						zap.Error(err), zap.String("eth_network", e.networkName))
+					continue
+				}
+
+				for _, msg := range msgs {
+					expectedConfirmations := uint64(msg.ConsistencyLevel)
+					if expectedConfirmations < e.minConfirmations {
+						expectedConfirmations = e.minConfirmations
+					}
+
+					// SECURITY: In the recovery flow, we already know which transaction to
+					// observe, and we can assume that it has reached the expected finality
+					// level a long time ago. Therefore, the logic is much simpler than the
+					// primary watcher, which has to wait for finality.
+					//
+					// Instead, we can simply check if the transaction's block number is in
+					// the past by more than the expected confirmation number.
+					//
+					// Ensure that the current block number is at least expectedConfirmations
+					// larger than the message observation's block number.
+					if blockNumber+expectedConfirmations <= blockNumberU {
+						logger.Info("re-observed message publication transaction",
+							zap.Stringer("tx", msg.TxHash),
+							zap.Stringer("emitter_address", msg.EmitterAddress),
+							zap.Uint64("sequence", msg.Sequence),
+							zap.Uint64("current_block", blockNumberU),
+							zap.Uint64("observed_block", blockNumber),
+							zap.String("eth_network", e.networkName),
+						)
+						e.msgChan <- msg
+					} else {
+						logger.Info("ignoring re-observed message publication transaction",
+							zap.Stringer("tx", msg.TxHash),
+							zap.Stringer("emitter_address", msg.EmitterAddress),
+							zap.Uint64("sequence", msg.Sequence),
+							zap.Uint64("current_block", blockNumberU),
+							zap.Uint64("observed_block", blockNumber),
+							zap.Uint64("expected_confirmations", expectedConfirmations),
+							zap.String("eth_network", e.networkName),
+						)
+					}
 				}
 			}
 		}
@@ -288,6 +382,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 				e.pendingMu.Lock()
 
 				blockNumberU := ev.Number.Uint64()
+				atomic.StoreUint64(&currentBlockNumber, blockNumberU)
 
 				for key, pLock := range e.pending {
 					expectedConfirmations := uint64(pLock.message.ConsistencyLevel)

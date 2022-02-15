@@ -1,4 +1,5 @@
-#![feature(const_generics)]
+
+#![feature(adt_const_params)]
 pub mod attest;
 pub mod config;
 pub mod initialize;

@@ -108,7 +108,7 @@ const getBalancesTerra = async (walletAddress: string) => {
   const lcd = new LCDClient(TERRA_HOST);
   return lcd.bank
     .balance(walletAddress)
-    .then((coins) => {
+    .then(([coins]) => {
       const balances = coins
         .filter(({ denom }) => {
           return TARGET_DENOMS.includes(denom);

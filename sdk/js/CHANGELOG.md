@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.2.0
+
+### Changed
+
+Updated @terra-money/terra.js to 3.0.7
+
+Removed @terra-money/wallet-provider
+
+Removed walletAddress parameter from getIsTransferCompletedTerra
+
+## 0.1.7
+
+### Added
+
+Fantom support
+
+Aurora support
+
 ## 0.1.6
 
 ### Added

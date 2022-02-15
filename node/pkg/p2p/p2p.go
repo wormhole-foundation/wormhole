@@ -55,11 +55,17 @@ var (
 
 var heartbeatMessagePrefix = []byte("heartbeat|")
 
+var signedObservationRequestPrefix = []byte("signed_observation_request|")
+
 func heartbeatDigest(b []byte) common.Hash {
 	return ethcrypto.Keccak256Hash(append(heartbeatMessagePrefix, b...))
 }
 
-func Run(obsvC chan *gossipv1.SignedObservation, sendC chan []byte, signedInC chan *gossipv1.SignedVAAWithQuorum, priv crypto.PrivKey, gk *ecdsa.PrivateKey, gst *node_common.GuardianSetState, port uint, networkID string, bootstrapPeers string, nodeName string, disableHeartbeatVerify bool, rootCtxCancel context.CancelFunc) func(ctx context.Context) error {
+func signedObservationRequestDigest(b []byte) common.Hash {
+	return ethcrypto.Keccak256Hash(append(signedObservationRequestPrefix, b...))
+}
+
+func Run(obsvC chan *gossipv1.SignedObservation, obsvReqC chan *gossipv1.ObservationRequest, obsvReqSendC chan *gossipv1.ObservationRequest, sendC chan []byte, signedInC chan *gossipv1.SignedVAAWithQuorum, priv crypto.PrivKey, gk *ecdsa.PrivateKey, gst *node_common.GuardianSetState, port uint, networkID string, bootstrapPeers string, nodeName string, disableHeartbeatVerify bool, rootCtxCancel context.CancelFunc) func(ctx context.Context) error {
 	return func(ctx context.Context) (re error) {
 		logger := supervisor.Logger(ctx)
 
@@ -279,6 +285,44 @@ func Run(obsvC chan *gossipv1.SignedObservation, sendC chan []byte, signedInC ch
 					if err != nil {
 						logger.Error("failed to publish message from queue", zap.Error(err))
 					}
+				case msg := <-obsvReqSendC:
+					b, err := proto.Marshal(msg)
+					if err != nil {
+						panic(err)
+					}
+
+					// Sign the observation request using our node's guardian key.
+					digest := signedObservationRequestDigest(b)
+					sig, err := ethcrypto.Sign(digest.Bytes(), gk)
+					if err != nil {
+						panic(err)
+					}
+
+					sReq := &gossipv1.SignedObservationRequest{
+						ObservationRequest: b,
+						Signature:          sig,
+						GuardianAddr:       ethcrypto.PubkeyToAddress(gk.PublicKey).Bytes(),
+					}
+
+					envelope := &gossipv1.GossipMessage{
+						Message: &gossipv1.GossipMessage_SignedObservationRequest{
+							SignedObservationRequest: sReq}}
+
+					b, err = proto.Marshal(envelope)
+					if err != nil {
+						panic(err)
+					}
+
+					// Send to local observation request queue (the loopback message is ignored)
+					obsvReqC <- msg
+
+					err = th.Publish(ctx, b)
+					p2pMessagesSent.Inc()
+					if err != nil {
+						logger.Error("failed to publish observation request", zap.Error(err))
+					} else {
+						logger.Info("published signed observation request", zap.Any("signed_observation_request", sReq))
+					}
 				}
 			}
 		}()
@@ -342,6 +386,32 @@ func Run(obsvC chan *gossipv1.SignedObservation, sendC chan []byte, signedInC ch
 			case *gossipv1.GossipMessage_SignedVaaWithQuorum:
 				signedInC <- m.SignedVaaWithQuorum
 				p2pMessagesReceived.WithLabelValues("signed_vaa_with_quorum").Inc()
+			case *gossipv1.GossipMessage_SignedObservationRequest:
+				s := m.SignedObservationRequest
+				gs := gst.Get()
+				if gs == nil {
+					logger.Debug("dropping SignedObservationRequest - no guardian set",
+						zap.Any("value", s),
+						zap.String("from", envelope.GetFrom().String()))
+					break
+				}
+				r, err := processSignedObservationRequest(s, gs)
+				if err != nil {
+					p2pMessagesReceived.WithLabelValues("invalid_signed_observation_request").Inc()
+					logger.Debug("invalid signed observation request received",
+						zap.Error(err),
+						zap.Any("payload", msg.Message),
+						zap.Any("value", s),
+						zap.Binary("raw", envelope.Data),
+						zap.String("from", envelope.GetFrom().String()))
+				} else {
+					p2pMessagesReceived.WithLabelValues("signed_observation_request").Inc()
+					logger.Info("valid signed observation request received",
+						zap.Any("value", r),
+						zap.String("from", envelope.GetFrom().String()))
+
+					obsvReqC <- r
+				}
 			default:
 				p2pMessagesReceived.WithLabelValues("unknown").Inc()
 				logger.Warn("received unknown message type (running outdated software?)",
@@ -389,6 +459,39 @@ func processSignedHeartbeat(from peer.ID, s *gossipv1.SignedHeartbeat, gs *node_
 	}
 
 	collectNodeMetrics(signerAddr, from, &h)
+
+	return &h, nil
+}
+
+func processSignedObservationRequest(s *gossipv1.SignedObservationRequest, gs *node_common.GuardianSet) (*gossipv1.ObservationRequest, error) {
+	envelopeAddr := common.BytesToAddress(s.GuardianAddr)
+	idx, ok := gs.KeyIndex(envelopeAddr)
+	var pk common.Address
+	if !ok {
+		return nil, fmt.Errorf("invalid message: %s not in guardian set", envelopeAddr)
+	} else {
+		pk = gs.Keys[idx]
+	}
+
+	digest := signedObservationRequestDigest(s.ObservationRequest)
+
+	pubKey, err := ethcrypto.Ecrecover(digest.Bytes(), s.Signature)
+	if err != nil {
+		return nil, errors.New("failed to recover public key")
+	}
+
+	signerAddr := common.BytesToAddress(ethcrypto.Keccak256(pubKey[1:])[12:])
+	if pk != signerAddr {
+		return nil, fmt.Errorf("invalid signer: %v", signerAddr)
+	}
+
+	var h gossipv1.ObservationRequest
+	err = proto.Unmarshal(s.ObservationRequest, &h)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal observation request: %w", err)
+	}
+
+	// TODO: implement per-guardian rate limiting
 
 	return &h, nil
 }

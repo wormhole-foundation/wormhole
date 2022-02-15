@@ -1,6 +1,7 @@
 package guardiand
 
 import (
+	"encoding/hex"
 	"fmt"
 	"github.com/certusone/wormhole/node/pkg/vaa"
 	"io/ioutil"
@@ -58,6 +59,13 @@ func runGovernanceVAAVerify(cmd *cobra.Command, args []string) {
 		if err != nil {
 			panic(err)
 		}
+
+		b, err := v.Marshal()
+		if err != nil {
+			panic(err)
+		}
+
+		log.Printf("Serialized: %v", hex.EncodeToString(b))
 
 		log.Printf("VAA with digest %s: %+v", digest.Hex(), spew.Sdump(v))
 	}

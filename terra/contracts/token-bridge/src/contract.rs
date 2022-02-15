@@ -121,33 +121,8 @@ const CHAIN_ID: u16 = 3;
 const WRAPPED_ASSET_UPDATING: &str = "updating";
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Response> {
-    let mut bucket = wrapped_asset_address(deps.storage);
-
-    // Remove registered asset with old code ID.
-    let asset_id = deps.api.addr_canonicalize("terra16q5pke2vueu23y8punvj70h0cp0s0rc7vrzl57")?;
-    bucket.remove(&asset_id);
-    assert!(bucket.load(&asset_id).is_err());
-
-    let mut messages = vec![];
-    for item in bucket.range(None, None, Order::Ascending) {
-        let contract_address = item?.0;
-        messages.push(CosmosMsg::Wasm(WasmMsg::Migrate {
-            contract_addr: deps
-                .api
-                .addr_humanize(&contract_address.into())?
-                .to_string(),
-            new_code_id: 767,
-            msg: to_binary(&MigrateMsg {})?,
-        }));
-    }
-
-    let count = messages.len();
-
-    Ok(Response::new()
-        .add_messages(messages)
-        .add_attribute("migrate", "upgrade cw20 wrappers")
-        .add_attribute("count", count.to_string()))
+pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Response> {
+    Ok(Response::new())
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -175,7 +150,12 @@ pub fn instantiate(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn reply(deps: DepsMut, env: Env, _msg: Reply) -> StdResult<Response> {
     let cfg = config_read(deps.storage).load()?;
+
     let state = wrapped_transfer_tmp(deps.storage).load()?;
+    // NOTE: Reentrancy protection. See note in `handle_initiate_transfer_token`
+    // for why this is necessary.
+    wrapped_transfer_tmp(deps.storage).remove();
+
     let mut info = TransferInfo::deserialize(&state.message)?;
 
     // Fetch CW20 Balance post-transfer.
@@ -1018,6 +998,15 @@ fn handle_initiate_transfer_token(
                     })?,
                 }))?;
 
+            // NOTE: Reentrancy protection. It is crucial that there's no
+            // ongoing transfer in progress here, otherwise we would override
+            // its state.  This could happen if the asset's TransferFrom handler
+            // sends us an InitiateTransfer message, which would be executed
+            // before the reply handler due the the depth-first semantics of
+            // message execution.  A simple protection mechanism is to require
+            // that there's no execution in progress. The reply handler takes
+            // care of clearing out this temporary storage when done.
+            assert!(wrapped_transfer_tmp(deps.storage).load().is_err());
             // Wrap up state to be captured by the submessage reply.
             wrapped_transfer_tmp(deps.storage).save(&TransferState {
                 previous_balance: balance.balance.to_string(),

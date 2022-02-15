@@ -1,5 +1,5 @@
 {
-    "name": "Wormhole Network",
+    "name": "Wormhole",
     "short_name": "Wormhole",
     "icons": [
         {
@@ -13,7 +13,7 @@
             "type": "image/png"
         }
     ],
-    "theme_color": "#00EFD8",
-    "background_color": "#141449",
+    "theme_color": "#ffffff",
+    "background_color": "#ffffff",
     "display": "standalone"
 }

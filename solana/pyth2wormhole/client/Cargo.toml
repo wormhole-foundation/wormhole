@@ -9,16 +9,16 @@ edition = "2018"
 default = ["pyth2wormhole/client", "wormhole-bridge-solana/client"]
 
 [dependencies]
-borsh = "0.8.1"
+borsh = "=0.9.1"
 clap = "3.0.0-beta.2" # This beta assimilates structopt into clap
 env_logger = "0.8.4"
 log = "0.4.14"
 wormhole-bridge-solana = {path = "../../bridge/program"}
 pyth2wormhole = {path = "../program"}
 shellexpand = "2.1.0"
-solana-client = "=1.7.0"
-solana-program = "=1.7.0"
-solana-sdk = "=1.7.0"
-solana-transaction-status = "=1.7.0"
+solana-client = "=1.9.4"
+solana-program = "=1.9.4"
+solana-sdk = "=1.9.4"
+solana-transaction-status = "=1.9.4"
 solitaire-client = {path = "../../solitaire/client"}
 solitaire = {path = "../../solitaire/program"}

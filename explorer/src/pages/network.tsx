@@ -1,90 +1,249 @@
-import React, { useContext, useEffect, useState } from 'react';
-import { Typography, Grid } from 'antd';
-const { Title, Paragraph } = Typography;
-const { useBreakpoint } = Grid
-import { FormattedMessage, injectIntl, WrappedComponentProps } from 'gatsby-plugin-intl';
+import {
+  Box,
+  CircularProgress,
+  Collapse,
+  IconButton,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Typography,
+} from "@mui/material";
+import * as React from "react";
+import { PageProps } from 'gatsby'
+import HeroText from "../components/HeroText";
+import Layout from "../components/Layout";
+import shape1 from "../images/index/shape1.svg";
+import { Heartbeat } from "@certusone/wormhole-sdk/lib/esm/proto/gossip/v1/gossip";
+import {
+  GrpcWebImpl,
+  PublicRPCServiceClientImpl,
+} from "@certusone/wormhole-sdk/lib/esm/proto/publicrpc/v1/publicrpc";
+import ReactTimeAgo from "react-time-ago";
+import NetworkSelect from "../components/NetworkSelect";
+import { useNetworkContext } from "../contexts/NetworkContext";
+import ChainIcon from "../components/ChainIcon";
+import { ChainId } from "@certusone/wormhole-sdk";
+import { KeyboardArrowDown, KeyboardArrowUp } from "@mui/icons-material";
+import { ChainID } from "../utils/consts";
+import { SEO } from "../components/SEO";
 
-import { Layout } from '~/components/Layout';
-import { SEO } from '~/components/SEO';
-import { GuardiansTable } from '~/components/GuardiansTable'
-import { WithNetwork, NetworkSelect, NetworkContext } from '~/components/NetworkSelect'
+const GuardianRow = ({ hb }: { hb: Heartbeat }) => {
+  const [open, setOpen] = React.useState(false);
+  return (
+    <>
+      <TableRow>
+        <TableCell sx={{ p: 0 }}>
+          <IconButton
+            aria-label="expand row"
+            size="small"
+            onClick={() => setOpen(!open)}
+          >
+            {open ? <KeyboardArrowUp /> : <KeyboardArrowDown />}
+          </IconButton>
+        </TableCell>
+        <TableCell>
+          {hb.nodeName}
+          <br />
+          {hb.guardianAddr}
+        </TableCell>
+        <TableCell sx={{ whiteSpace: "nowrap" }}>{hb.version}</TableCell>
+        <TableCell sx={{ whiteSpace: "nowrap" }}>
+          <Box sx={{ display: "flex", alignItems: "center" }}>
+            {hb.networks.map((network) => (
+              <ChainIcon key={network.id} chainId={network.id as ChainId} />
+            ))}
+          </Box>
+        </TableCell>
+        <TableCell align="right">{hb.counter}</TableCell>
+        <TableCell sx={{ "& > time": { whiteSpace: "nowrap" } }}>
+          <ReactTimeAgo
+            date={new Date(Number(hb.timestamp.slice(0, -6)))}
+            timeStyle="round"
+          />
+        </TableCell>
+      </TableRow>
+      <TableRow>
+        <TableCell sx={{ py: 0 }} colSpan={6}>
+          <Collapse in={open} timeout="auto" unmountOnExit>
+            <TableContainer>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell></TableCell>
+                    <TableCell>Network</TableCell>
+                    <TableCell>Contract Address</TableCell>
+                    <TableCell align="right">Block Height</TableCell>
+                    <TableCell align="right">Error Count</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {hb.networks.map((n) => (
+                    <TableRow key={n.id}>
+                      <TableCell component="th" scope="row">
+                        <ChainIcon chainId={n.id as ChainId} />
+                      </TableCell>
+                      <TableCell>{ChainID[n.id]}</TableCell>
+                      <TableCell>{n.contractAddress}</TableCell>
+                      <TableCell align="right">{n.height}</TableCell>
+                      <TableCell align="right">{n.errorCount}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Collapse>
+        </TableCell>
+      </TableRow>
+    </>
+  );
+};
 
-import { Heartbeat } from '~/proto/gossip/v1/gossip'
-import { GrpcWebImpl, PublicRPCServiceClientImpl } from '~/proto/publicrpc/v1/publicrpc'
+const GuardiansList = () => {
+  const { activeNetwork } = useNetworkContext();
+  const [heartbeats, setHeartbeats] = React.useState<{
+    [networkName: string]: { [nodeName: string]: Heartbeat };
+  }>({ devnet: {}, testnet: {}, mainnet: {} });
 
-const networks = { "devnet": {}, "testnet": {}, "mainnet": {} }
+  // TODO: add all heartbeats at once
+  const addHeartbeat = React.useCallback(
+    (networkName: string, hbObj: Heartbeat) => {
+      hbObj.networks.sort((a: any, b: any) => a.id - b.id);
+      const { nodeName } = hbObj;
+      setHeartbeats((heartbeats) => ({
+        ...heartbeats,
+        [networkName]: { ...heartbeats[networkName], [nodeName]: hbObj },
+      }));
+    },
+    []
+  );
 
-const Network = ({ intl }: WrappedComponentProps) => {
-  const [heartbeats, setHeartbeats] = useState<{ [networkName: string]: { [nodeName: string]: Heartbeat } }>(networks)
-  const screens = useBreakpoint()
-  const [pollInterval, setPollInterval] = useState<NodeJS.Timeout>()
-  const { activeNetwork } = useContext(NetworkContext)
-
-  const addHeartbeat = (networkName: string, hbObj: Heartbeat) => {
-    hbObj.networks.sort((a, b) => a.id - b.id)
-    const { nodeName } = hbObj
-    heartbeats[networkName][nodeName] = hbObj
-    setHeartbeats({ ...heartbeats })
-  }
-
-  useEffect(() => {
-    if (pollInterval) {
-      // stop polling
-      clearInterval(pollInterval)
-      setHeartbeats({ ...heartbeats, [activeNetwork.name]: {} })
-    }
-    const rpc = new GrpcWebImpl(String(activeNetwork.endpoints.guardianRpcBase), {});
-    const publicRpc = new PublicRPCServiceClientImpl(rpc)
-
+  React.useEffect(() => {
+    let cancelled = false;
+    const rpc = new GrpcWebImpl(
+      String(activeNetwork.endpoints.guardianRpcBase),
+      {}
+    );
+    const publicRpc = new PublicRPCServiceClientImpl(rpc);
     const interval = setInterval(() => {
-      publicRpc.GetLastHeartbeats({}).then(res => {
-        res.entries.map(entry => entry.rawHeartbeat ? addHeartbeat(activeNetwork.name, entry.rawHeartbeat) : null)
-      }, err => console.error('GetLastHearbeats err: ', err))
-    }, 3000)
-    setPollInterval(interval)
+      (async () => {
+        try {
+          const response = await publicRpc.GetLastHeartbeats({});
+          if (!cancelled) {
+            response.entries.map((entry) =>
+              entry.rawHeartbeat
+                ? addHeartbeat(activeNetwork.name, entry.rawHeartbeat)
+                : null
+            );
+          }
+        } catch (e) {
+          console.error("GetLastHeartbeats error:", e);
+        }
+      })();
+    }, 3000);
+    return () => {
+      clearInterval(interval);
+      cancelled = true;
+    };
+  });
+  const activeHeartbeats = heartbeats[activeNetwork.name];
+  const guardianCount = Object.keys(activeHeartbeats).length;
+  const foundHeartbeats = guardianCount > 0;
+  const sortedHeartbeats = React.useMemo(() => {
+    const arr = [...Object.values(activeHeartbeats)];
+    arr.sort((a, b) => a.nodeName.localeCompare(b.nodeName));
+    return arr;
+  }, [activeHeartbeats]);
+  return (
+    <>
+      <Box
+        sx={{ px: 4, display: "flex", flexWrap: "wrap", alignItems: "center" }}
+      >
+        <Typography variant="h5">
+          {foundHeartbeats
+            ? `${guardianCount} Guardian${
+                guardianCount > 1 ? "s" : ""
+              } currently broadcasting`
+            : `Listening for Guardian heartbeats...`}
+        </Typography>
+        <Box sx={{ flexGrow: 1 }} />
+        <NetworkSelect />
+      </Box>
+      <Box
+        sx={{
+          backgroundColor: "rgba(255,255,255,.07)",
+          borderRadius: "28px",
+          mt: 4,
+          p: 4,
+        }}
+      >
+        {foundHeartbeats ? (
+          <TableContainer>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell></TableCell>
+                  <TableCell>Guardian</TableCell>
+                  <TableCell>Version</TableCell>
+                  <TableCell>Networks</TableCell>
+                  <TableCell align="right">Heartbeat</TableCell>
+                  <TableCell>Last Heartbeat</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {sortedHeartbeats.map((hb) => (
+                  <GuardianRow key={hb.nodeName} hb={hb} />
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        ) : (
+          <Box sx={{ textAlign: "center" }}>
+            <CircularProgress />
+          </Box>
+        )}
+      </Box>
+    </>
+  );
+};
 
-    return function cleanup() {
-      clearInterval(interval)
-    }
-  }, [activeNetwork.endpoints.guardianRpcBase])
-
+const NetworkPage = ({ location }: PageProps) => {
   return (
     <Layout>
       <SEO
-        title={intl.formatMessage({ id: 'network.title' })}
-        description={intl.formatMessage({ id: 'network.description' })}
+        title="Network"
+        description="Meet the Guardians."
+        pathname={location.pathname}
       />
-      <div
-        className="center-content"
-        style={{ paddingTop: screens.md === false ? 24 : 100 }}
-      >
-        <div
-          className="wider-responsive-padding max-content-width"
-          style={{ width: '100%' }}
-        >
-          <div style={{ padding: screens.md === false ? '100px 0 0 16px' : '' }} >
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 40 }}>
-              <Title level={1} style={{ fontWeight: 'normal' }}>{intl.formatMessage({ id: 'network.title' })}</Title>
-              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', flexDirection: 'column', marginRight: !screens.md ? 0 : 80 }}>
-                <div><FormattedMessage id="networks.network" /></div>
-                <NetworkSelect />
-              </div>
-            </div>
-            <Paragraph style={{ fontSize: 24, fontWeight: 400, lineHeight: '36px' }} type="secondary">
-              {Object.keys(heartbeats[activeNetwork.name]).length === 0 ? (
-                intl.formatMessage({ id: 'network.listening' })
-              ) :
-                <>
-                  {Object.keys(heartbeats[activeNetwork.name]).length}&nbsp;
-                  {intl.formatMessage({ id: 'network.guardiansFound' })}
-                </>}
-            </Paragraph>
-          </div>
-          <GuardiansTable heartbeats={heartbeats[activeNetwork.name]} intl={intl} />
-        </div>
-      </div>
+      <Box sx={{ position: "relative", marginTop: 17 }}>
+        <Box
+          sx={{
+            position: "absolute",
+            zIndex: -1,
+            transform: "translate(0px, -25%) scaleX(-1)",
+            background: `url(${shape1})`,
+            backgroundRepeat: "no-repeat",
+            backgroundPosition: "top -540px center",
+            backgroundSize: "2070px 1155px",
+            width: "100%",
+            height: 1155,
+          }}
+        />
+        <HeroText
+          heroSpans={["Meet the Guardians"]}
+          subtitleText={[
+            "The 19 guardians in Wormhole's guardian network each hold",
+            "equal weight in governance consensus.",
+          ]}
+        />
+      </Box>
+      <Box sx={{ maxWidth: 1220, mx: "auto", mt: 30, px: 3.75 }}>
+        <GuardiansList />
+      </Box>
     </Layout>
-  )
+  );
 };
 
-export default WithNetwork(injectIntl(Network))
+export default NetworkPage;

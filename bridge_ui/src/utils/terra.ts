@@ -4,7 +4,7 @@ import {
   isNativeTerra,
 } from "@certusone/wormhole-sdk";
 import { formatUnits } from "@ethersproject/units";
-import { LCDClient } from "@terra-money/terra.js";
+import { LCDClient, isTxError } from "@terra-money/terra.js";
 import { ConnectedWallet, TxResult } from "@terra-money/wallet-provider";
 import axios from "axios";
 // import { TerraTokenMetadata } from "../hooks/useTerraTokenMap";
@@ -40,8 +40,7 @@ export async function waitForTerraExecution(transaction: TxResult) {
       console.error(e);
     }
   }
-  if (info.code !== undefined) {
-    // error code
+  if (isTxError(info)) {
     throw new Error(
       `Tx ${transaction.result.txhash}: error code ${info.code}: ${info.raw_log}`
     );
@@ -73,14 +72,21 @@ export async function postWithFees(
   const lcd = new LCDClient(TERRA_HOST);
   //let gasPrices = await lcd.config.gasPrices //Unsure if the values returned from this are hardcoded or not.
   //Thus, we are going to pull it directly from the current FCD.
-  let gasPrices = await axios
+  const gasPrices = await axios
     .get(TERRA_GAS_PRICES_URL)
     .then((result) => result.data);
 
+  const account = await lcd.auth.accountInfo(wallet.walletAddress);
+
   const feeEstimate = await lcd.tx.estimateFee(
-    wallet.walletAddress,
-    [...msgs],
+    [
+      {
+        sequenceNumber: account.getSequenceNumber(),
+        publicKey: account.getPublicKey(),
+      },
+    ],
     {
+      msgs: [...msgs],
       memo,
       feeDenoms,
       gasPrices,
