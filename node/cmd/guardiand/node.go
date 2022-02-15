@@ -419,24 +419,6 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 		if *ethRopstenContract != "" {
 			logger.Fatal("Please do not specify --ethRopstenContract in non-testnet mode")	
-		}
-		if *fantomRPC == "" {
-			logger.Fatal("Please do not specify --fantomRPC in non-testnet mode")
-		}
-		if *fantomContract == "" {
-			logger.Fatal("Please do not specify --fantomContract in non-testnet mode")
-		}
-		if *karuraRPC != "" {
-			logger.Fatal("Please do not specify --karuraRPC in non-testnet mode")
-		}		
-		if *karuraContract != "" {
-			logger.Fatal("Please do not specify --karuraContract in non-testnet mode")
-		}	
-		if *acalaRPC != "" {
-			logger.Fatal("Please do not specify --acalaRPC in non-testnet mode")
-		}
-		if *acalaContract != "" {
-			logger.Fatal("Please do not specify --acalaContract in non-testnet mode")
 		}		
 	}
 	if *nodeName == "" {
