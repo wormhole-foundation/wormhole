@@ -9,10 +9,11 @@ import { importTokenWasm } from "../solana/wasm";
 export async function createWrappedOnEth(
   tokenBridgeAddress: string,
   signer: ethers.Signer,
-  signedVAA: Uint8Array
+  signedVAA: Uint8Array,
+  overrides: ethers.Overrides & { from?: string | Promise<string> } = {},
 ) {
   const bridge = Bridge__factory.connect(tokenBridgeAddress, signer);
-  const v = await bridge.createWrapped(signedVAA);
+  const v = await bridge.createWrapped(signedVAA, overrides);
   const receipt = await v.wait();
   return receipt;
 }
