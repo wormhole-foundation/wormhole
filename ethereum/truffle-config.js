@@ -166,6 +166,7 @@ module.exports = {
       gasPrice: 200786445289, // storage_limit = 64001, validUntil = 360001, gasLimit = 10000000
       timeoutBlocks: 25,
       confirmations: 0,
+    },
   },
 
   compilers: {
