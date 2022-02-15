@@ -64,8 +64,8 @@ import KeyAndBalance from "./KeyAndBalance";
 
 const useStyles = makeStyles((theme) => ({
   mainCard: {
-    padding: theme.spacing(2),
-    backgroundColor: COLORS.nearBlackWithMinorTransparency,
+    padding: "32px 32px 16px",
+    backgroundColor: COLORS.whiteWithTransparency,
   },
   advancedContainer: {
     padding: theme.spacing(2, 0),

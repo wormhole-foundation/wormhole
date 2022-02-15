@@ -39,6 +39,7 @@ import ChainSelectArrow from "../ChainSelectArrow";
 import KeyAndBalance from "../KeyAndBalance";
 import LowBalanceWarning from "../LowBalanceWarning";
 import NumberTextField from "../NumberTextField";
+import SolanaTPSWarning from "../SolanaTPSWarning";
 import StepDescription from "../StepDescription";
 import { TokenSelector } from "../TokenSelectors/SourceTokenSelector";
 import SourceAssetWarning from "./SourceAssetWarning";
@@ -143,7 +144,7 @@ function Source() {
     <>
       <StepDescription>
         <div style={{ display: "flex", alignItems: "center" }}>
-          Select tokens to send through the Wormhole Bridge.
+          Select tokens to send through the Portal.
           <div style={{ flexGrow: 1 }} />
           <div>
             <Button
@@ -151,7 +152,7 @@ function Source() {
               to="/token-origin-verifier"
               size="small"
               variant="outlined"
-              endIcon={<VerifiedUser />}
+              startIcon={<VerifiedUser />}
             >
               Token Origin Verifier
             </Button>
@@ -210,6 +211,7 @@ function Source() {
       ) : (
         <>
           <LowBalanceWarning chainId={sourceChain} />
+          {sourceChain === CHAIN_ID_SOLANA && <SolanaTPSWarning />}
           <SourceAssetWarning
             sourceChain={sourceChain}
             sourceAsset={parsedTokenAccount?.mintKey}

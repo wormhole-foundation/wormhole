@@ -3,6 +3,7 @@ package guardiand
 import (
 	"context"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/notify/discord"
@@ -73,6 +74,9 @@ var (
 
 	ethRopstenRPC      *string
 	ethRopstenContract *string
+
+	fantomRPC	*string
+	fantomContract	*string
 
 	avalancheRPC      *string
 	avalancheContract *string
@@ -153,6 +157,9 @@ func init() {
 
 	oasisRPC = NodeCmd.Flags().String("oasisRPC", "", "Oasis RPC URL")
 	oasisContract = NodeCmd.Flags().String("oasisContract", "", "Oasis contract address")
+
+	fantomRPC = NodeCmd.Flags().String("fantomRPC", "", "Fantom Websocket RPC URL")
+	fantomContract = NodeCmd.Flags().String("fantomContract", "", "Fantom contract address")
 
 	terraWS = NodeCmd.Flags().String("terraWS", "", "Path to terrad root for websocket connection")
 	terraLCD = NodeCmd.Flags().String("terraLCD", "", "Path to LCD service root for http calls")
@@ -245,12 +252,11 @@ func runNode(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
-	cfg := zap.NewDevelopmentConfig()
-	cfg.Level = zap.NewAtomicLevelAt(zapcore.Level(lvl))
-	logger, err := cfg.Build()
-	if err != nil {
-		panic(err)
-	}
+	logger := zap.New(zapcore.NewCore(
+		consoleEncoder{zapcore.NewConsoleEncoder(
+			zap.NewDevelopmentEncoderConfig())},
+		zapcore.AddSync(zapcore.Lock(os.Stderr)),
+		zap.NewAtomicLevelAt(zapcore.Level(lvl))))
 
 	if *unsafeDevMode {
 		// Use the hostname as nodeName. For production, we don't want to do this to
@@ -281,6 +287,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	readiness.RegisterComponent(common.ReadinessOasisSyncing)
 	if *testnetMode {
 		readiness.RegisterComponent(common.ReadinessEthRopstenSyncing)
+		readiness.RegisterComponent(common.ReadinessFantomSyncing)
 	}
 
 	if *statusAddr != "" {
@@ -324,6 +331,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		*polygonContract = devnet.GanacheWormholeContractAddress.Hex()
 		*avalancheContract = devnet.GanacheWormholeContractAddress.Hex()
 		*oasisContract = devnet.GanacheWormholeContractAddress.Hex()
+		*fantomContract = devnet.GanacheWormholeContractAddress.Hex()
 	}
 
 	// Verify flags
@@ -371,12 +379,24 @@ func runNode(cmd *cobra.Command, args []string) {
 		if *ethRopstenContract == "" {
 			logger.Fatal("Please specify --ethRopstenContract")
 		}
+		if *fantomRPC == "" {
+			logger.Fatal("Please specify --fantomRPC")
+		}
+		if *fantomContract == "" {
+			logger.Fatal("Please specify --fantomContract")
+		}
 	} else {
 		if *ethRopstenRPC != "" {
 			logger.Fatal("Please do not specify --ethRopstenRPC in non-testnet mode")
 		}
 		if *ethRopstenContract != "" {
 			logger.Fatal("Please do not specify --ethRopstenContract in non-testnet mode")
+		}
+		if *fantomRPC == "" {
+			logger.Fatal("Please do not specify --fantomRPC in non-testnet mode")
+		}
+		if *fantomContract == "" {
+			logger.Fatal("Please do not specify --fantomContract in non-testnet mode")
 		}
 	}
 	if *nodeName == "" {
@@ -462,6 +482,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	ethRopstenContractAddr := eth_common.HexToAddress(*ethRopstenContract)
 	avalancheContractAddr := eth_common.HexToAddress(*avalancheContract)
 	oasisContractAddr := eth_common.HexToAddress(*oasisContract)
+	fantomContractAddr := eth_common.HexToAddress(*fantomContract)
 	solAddress, err := solana_types.PublicKeyFromBase58(*solanaContract)
 	if err != nil {
 		logger.Fatal("invalid Solana contract address", zap.Error(err))
@@ -522,11 +543,51 @@ func runNode(cmd *cobra.Command, args []string) {
 	// Inbound signed VAAs
 	signedInC := make(chan *gossipv1.SignedVAAWithQuorum, 50)
 
+	// Inbound observation requests from the p2p service (for all chains)
+	obsvReqC := make(chan *gossipv1.ObservationRequest, 50)
+
+	// Outbound observation requests
+	obsvReqSendC := make(chan *gossipv1.ObservationRequest)
+
 	// Injected VAAs (manually generated rather than created via observation)
 	injectC := make(chan *vaa.VAA)
 
 	// Guardian set state managed by processor
 	gst := common.NewGuardianSetState()
+
+	// Per-chain observation requests
+	chainObsvReqC := make(map[vaa.ChainID]chan *gossipv1.ObservationRequest)
+
+	// Observation request channel for each chain supporting observation requests.
+	chainObsvReqC[vaa.ChainIDSolana] = make(chan *gossipv1.ObservationRequest)
+	chainObsvReqC[vaa.ChainIDEthereum] = make(chan *gossipv1.ObservationRequest)
+	chainObsvReqC[vaa.ChainIDTerra] = make(chan *gossipv1.ObservationRequest)
+	chainObsvReqC[vaa.ChainIDBSC] = make(chan *gossipv1.ObservationRequest)
+	chainObsvReqC[vaa.ChainIDPolygon] = make(chan *gossipv1.ObservationRequest)
+	chainObsvReqC[vaa.ChainIDAvalanche] = make(chan *gossipv1.ObservationRequest)
+	chainObsvReqC[vaa.ChainIDOasis] = make(chan *gossipv1.ObservationRequest)
+	if *testnetMode {
+		chainObsvReqC[vaa.ChainIDFantom] = make(chan *gossipv1.ObservationRequest)
+		chainObsvReqC[vaa.ChainIDEthereumRopsten] = make(chan *gossipv1.ObservationRequest)
+	}
+
+	// Multiplex observation requests to the appropriate chain
+	go func() {
+		for {
+			select {
+			case <-rootCtx.Done():
+				return
+			case req := <-obsvReqC:
+				if channel, ok := chainObsvReqC[vaa.ChainID(req.ChainId)]; ok {
+					channel <- req
+				} else {
+					logger.Error("unknown chain ID for reobservation request",
+						zap.Uint32("chain_id", req.ChainId),
+						zap.String("tx_hash", hex.EncodeToString(req.TxHash)))
+				}
+			}
+		}
+	}()
 
 	var notifier *discord.DiscordNotifier
 	if *discordToken != "" {
@@ -600,7 +661,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	}
 
 	// local admin service socket
-	adminService, err := adminServiceRunnable(logger, *adminSocketPath, injectC, signedInC, db, gst)
+	adminService, err := adminServiceRunnable(logger, *adminSocketPath, injectC, signedInC, obsvReqSendC, db, gst)
 	if err != nil {
 		logger.Fatal("failed to create admin service socket", zap.Error(err))
 	}
@@ -614,43 +675,44 @@ func runNode(cmd *cobra.Command, args []string) {
 	// Run supervisor.
 	supervisor.New(rootCtx, logger, func(ctx context.Context) error {
 		if err := supervisor.Run(ctx, "p2p", p2p.Run(
-			obsvC, sendC, signedInC, priv, gk, gst, *p2pPort, *p2pNetworkID, *p2pBootstrap, *nodeName, *disableHeartbeatVerify, rootCtxCancel)); err != nil {
+			obsvC, obsvReqC, obsvReqSendC, sendC, signedInC, priv, gk, gst, *p2pPort, *p2pNetworkID, *p2pBootstrap, *nodeName, *disableHeartbeatVerify, rootCtxCancel)); err != nil {
 			return err
 		}
 
 		if err := supervisor.Run(ctx, "ethwatch",
-			ethereum.NewEthWatcher(*ethRPC, ethContractAddr, "eth", common.ReadinessEthSyncing, vaa.ChainIDEthereum, lockC, setC, 1).Run); err != nil {
+			ethereum.NewEthWatcher(*ethRPC, ethContractAddr, "eth", common.ReadinessEthSyncing, vaa.ChainIDEthereum, lockC, setC, 1, chainObsvReqC[vaa.ChainIDEthereum]).Run); err != nil {
 			return err
 		}
 
 		if err := supervisor.Run(ctx, "bscwatch",
-			ethereum.NewEthWatcher(*bscRPC, bscContractAddr, "bsc", common.ReadinessBSCSyncing, vaa.ChainIDBSC, lockC, nil, 1).Run); err != nil {
+			ethereum.NewEthWatcher(*bscRPC, bscContractAddr, "bsc", common.ReadinessBSCSyncing, vaa.ChainIDBSC, lockC, nil, 1, chainObsvReqC[vaa.ChainIDBSC]).Run); err != nil {
 			return err
 		}
 
 		if err := supervisor.Run(ctx, "polygonwatch",
-			ethereum.NewEthWatcher(
-				*polygonRPC, polygonContractAddr, "polygon", common.ReadinessPolygonSyncing, vaa.ChainIDPolygon, lockC, nil,
-				// Special case: Polygon can fork like PoW Ethereum, and it's not clear what the safe number of blocks is
-				//
-				// Hardcode the minimum number of confirmations to 256 regardless of what the smart contract specifies to protect
-				// developers from accidentally specifying an unsafe number of confirmations. We can remove this restriction as soon
-				// as specific public guidance exists for Polygon developers.
-				256).Run); err != nil {
+			ethereum.NewEthWatcher(*polygonRPC, polygonContractAddr, "polygon", common.ReadinessPolygonSyncing, vaa.ChainIDPolygon, lockC, nil, 512, chainObsvReqC[vaa.ChainIDPolygon]).Run); err != nil {
+			// Special case: Polygon can fork like PoW Ethereum, and it's not clear what the safe number of blocks is
+			//
+			// Hardcode the minimum number of confirmations to 512 regardless of what the smart contract specifies to protect
+			// developers from accidentally specifying an unsafe number of confirmations. We can remove this restriction as soon
+			// as specific public guidance exists for Polygon developers.
 			return err
 		}
 		if err := supervisor.Run(ctx, "avalanchewatch",
-			ethereum.NewEthWatcher(*avalancheRPC, avalancheContractAddr, "avalanche", common.ReadinessAvalancheSyncing, vaa.ChainIDAvalanche, lockC, nil, 1).Run); err != nil {
+			ethereum.NewEthWatcher(*avalancheRPC, avalancheContractAddr, "avalanche", common.ReadinessAvalancheSyncing, vaa.ChainIDAvalanche, lockC, nil, 1, chainObsvReqC[vaa.ChainIDAvalanche]).Run); err != nil {
 			return err
 		}
 		if err := supervisor.Run(ctx, "oasiswatch",
-			ethereum.NewEthWatcher(*oasisRPC, oasisContractAddr, "oasis", common.ReadinessOasisSyncing, vaa.ChainIDOasis, lockC, nil, 1).Run); err != nil {
+			ethereum.NewEthWatcher(*oasisRPC, oasisContractAddr, "oasis", common.ReadinessOasisSyncing, vaa.ChainIDOasis, lockC, nil, 1, chainObsvReqC[vaa.ChainIDOasis]).Run); err != nil {
 			return err
 		}
-
 		if *testnetMode {
 			if err := supervisor.Run(ctx, "ethropstenwatch",
-				ethereum.NewEthWatcher(*ethRopstenRPC, ethRopstenContractAddr, "ethropsten", common.ReadinessEthRopstenSyncing, vaa.ChainIDEthereumRopsten, lockC, setC, 1).Run); err != nil {
+				ethereum.NewEthWatcher(*ethRopstenRPC, ethRopstenContractAddr, "ethropsten", common.ReadinessEthRopstenSyncing, vaa.ChainIDEthereumRopsten, lockC, setC, 1, chainObsvReqC[vaa.ChainIDEthereumRopsten]).Run); err != nil {
+				return err
+			}
+			if err := supervisor.Run(ctx, "fantomwatch",
+				ethereum.NewEthWatcher(*fantomRPC, fantomContractAddr, "fantom", common.ReadinessFantomSyncing, vaa.ChainIDFantom, lockC, nil, 1, chainObsvReqC[vaa.ChainIDFantom]).Run); err != nil {
 				return err
 			}
 		}
@@ -658,7 +720,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		// Start Terra watcher only if configured
 		logger.Info("Starting Terra watcher")
 		if err := supervisor.Run(ctx, "terrawatch",
-			terra.NewWatcher(*terraWS, *terraLCD, *terraContract, lockC, setC).Run); err != nil {
+			terra.NewWatcher(*terraWS, *terraLCD, *terraContract, lockC, setC, chainObsvReqC[vaa.ChainIDTerra]).Run); err != nil {
 			return err
 		}
 
@@ -670,12 +732,12 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 
 		if err := supervisor.Run(ctx, "solwatch-confirmed",
-			solana.NewSolanaWatcher(*solanaWsRPC, *solanaRPC, solAddress, lockC, rpc.CommitmentConfirmed).Run); err != nil {
+			solana.NewSolanaWatcher(*solanaWsRPC, *solanaRPC, solAddress, lockC, nil, rpc.CommitmentConfirmed).Run); err != nil {
 			return err
 		}
 
 		if err := supervisor.Run(ctx, "solwatch-finalized",
-			solana.NewSolanaWatcher(*solanaWsRPC, *solanaRPC, solAddress, lockC, rpc.CommitmentFinalized).Run); err != nil {
+			solana.NewSolanaWatcher(*solanaWsRPC, *solanaRPC, solAddress, lockC, chainObsvReqC[vaa.ChainIDSolana], rpc.CommitmentFinalized).Run); err != nil {
 			return err
 		}
 

@@ -5,7 +5,7 @@ RUN apt-get update && apt-get install -yq libssl-dev libudev-dev pkg-config zlib
 RUN curl -fsSL https://deb.nodesource.com/setup_16.x | bash - && apt-get install -y nodejs
 RUN curl -sSfL https://release.solana.com/v1.8.1/install | sh
 
-RUN rustup default nightly-2021-08-01
+RUN rustup default nightly-2022-01-02
 RUN rustup component add rustfmt
 
 RUN --mount=type=cache,target=/root/.cache \
@@ -14,29 +14,19 @@ RUN --mount=type=cache,target=/root/.cache \
 ENV SOLANA_BIN_PATH="/root/.local/share/solana/install/active_release/bin"
 ENV PATH="$SOLANA_BIN_PATH:$PATH"
 
-ADD ethereum /usr/src/ethereum
-WORKDIR /usr/src/ethereum
-RUN --mount=type=cache,target=/root/.cache \
-	--mount=type=cache,target=/root/.npm \
-    npm ci
-
-ADD clients/token_bridge /usr/src/clients/token_bridge
 WORKDIR /usr/src/clients/token_bridge
-RUN --mount=type=cache,target=/root/.cache \
-	--mount=type=cache,target=/root/.npm \
-	set -xe && \
-	npm ci && \
-	npm run build-contracts && \
-	npm run build
+COPY clients/token_bridge/package.json clients/token_bridge/package-lock.json ./
+RUN --mount=type=cache,uid=1000,gid=1000,target=/home/node/.npm \
+    npm ci
+COPY clients/token_bridge ./
+RUN npm run build
 
-ADD clients/nft_bridge /usr/src/clients/nft_bridge
 WORKDIR /usr/src/clients/nft_bridge
-RUN --mount=type=cache,target=/root/.cache \
-	--mount=type=cache,target=/root/.npm \
-	set -xe && \
-	npm ci && \
-	npm run build-contracts && \
-	npm run build
+COPY clients/nft_bridge/package.json clients/nft_bridge/package-lock.json ./
+RUN --mount=type=cache,uid=1000,gid=1000,target=/home/node/.npm \
+    npm ci
+COPY clients/nft_bridge ./
+RUN npm run build
 
 ADD solana /usr/src/solana
 ADD proto /usr/src/proto

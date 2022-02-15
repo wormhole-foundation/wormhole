@@ -1,291 +1,388 @@
-import React from 'react';
-import { Typography, Grid, Button } from 'antd'
-const { Title, Paragraph } = Typography
-import { useIntl, FormattedMessage, IntlShape } from 'gatsby-plugin-intl';
-import { Link } from 'gatsby'
+import ArrowForward from "@mui/icons-material/ArrowForward";
+import { Box, Button, Typography } from "@mui/material";
+import {
+  Link as RouterLink,
+  PageProps,
+  graphql,
+  useStaticQuery
+} from "gatsby";
+import * as React from "react";
+import GridWithCards from "../components/GridWithCards";
+import HeroText from "../components/HeroText";
+import Layout from "../components/Layout";
+import { SEO } from "../components/SEO";
+import { portal as portalUrl } from "../utils/urls";
+import apps from "../images/index/apps.png";
+import blob from "../images/index/blob.svg";
+import cross from "../images/index/cross.svg";
+import cube from "../images/index/cube.svg";
+import portal from "../images/index/portal.png";
+import protocols from "../images/index/protocols.png";
+import shape1 from "../images/index/shape1.svg";
 
-import { Layout } from '~/components/Layout';
-import { SEO } from '~/components/SEO';
-import { bodyStyles, buttonStylesLg, headingStyles, titleStyles } from '~/styles'
+const featuredNumber = { fontSize: 42, fontWeight: "bold" };
 
-const { useBreakpoint } = Grid
-
-import { ReactComponent as LayeredCircles } from '~/icons/layered-circles.svg';
-import { ReactComponent as CircledArrowDown } from '~/icons/circled-arrow-down.svg';
-import { ReactComponent as BinanceChainIcon } from '~/icons/binancechain.svg';
-import { ReactComponent as EthereumIcon } from '~/icons/ethereum.svg';
-import { ReactComponent as SolanaIcon } from '~/icons/solana.svg';
-import { ReactComponent as TerraIcon } from '~/icons/terra.svg';
-
-
-const OpenForBizSection = ({ intl, smScreen, howAnchor }: { intl: IntlShape, smScreen: boolean, howAnchor: string }) => (
-
-  <div className="center-content">
-    <div
-      className="responsive-padding max-content-width"
-      style={{
-        width: '100%',
-        display: 'flex',
-        justifyContent: 'space-around',
-        marginBlock: 180,
-      }}>
-      <div style={{
-        height: '100%',
-        maxWidth: 650,
-        display: 'flex', flexDirection: 'column',
-        justifyContent: 'center', zIndex: 2,
-        marginRight: 'auto'
-      }}>
-        <Title level={1} style={{ ...titleStyles, fontSize: 64 }}>
-          <FormattedMessage id="homepage.openForBiz.title" />
-        </Title>
-        <Paragraph style={{ ...bodyStyles, marginRight: 'auto', marginBottom: 60 }} type="secondary">
-          <FormattedMessage id="homepage.openForBiz.body" />
-        </Paragraph>
-
-        {/* Placeholder: call to action from designs- to explorer or elsewhere */}
-        {/* <Link to={`/${intl.locale}/explorer`}>
-              <Button ghost style={buttonStylesLg} size="large">
-                <FormattedMessage id="homepage.openForBiz.callToAction" />
-              </Button>
-            </Link> */}
-
-      </div>
-      {smScreen ? null : (
-        <div style={{ display: 'flex', flexDirection: 'column', placeContent: 'center', marginRight: 'auto' }}>
-
-          {/* Placeholder: live metric of some kind from designs, commented out until we have some data to put here. */}
-          {/* <div style={{ display: 'flex', flexDirection: 'column', alignContent: 'flex-end', marginTop: 80, marginRight: 80 }}>
-                <Text style={{ fontSize: 16 }} type="secondary"><FormattedMessage id="homepage.openForBiz.dataLabel" /></Text>
-                <Text style={{ fontSize: 24 }} type="warning">12,319,215</Text>
-              </div> */}
-
-          <Link to={'#' + howAnchor} title={intl.formatMessage({ id: "homepage.openForBiz.scrollDownAltText" })} >
-            <CircledArrowDown style={{ width: 252 }} />
-          </Link>
-
-
-        </div>
-      )}
-    </div>
-  </div>
-)
-
-const AboutUsSection = ({ intl, smScreen, howAnchor }: { intl: IntlShape, smScreen: boolean, howAnchor: string }) => (
-  <div className="center-content blue-background">
-    <div
-      className="responsive-padding max-content-width"
-      style={{
-        width: '100%',
-        display: 'flex',
-        flexDirection: smScreen ? 'column' : 'row',
-        justifyContent: smScreen ? 'flex-start' : 'space-between',
-        marginBlockStart: smScreen ? 200 : 0,
-        marginBlockEnd: smScreen ? 100 : 0,
-      }}>
-
-
-      {/* copy layout & formatting */}
-      <div style={{
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: smScreen ? 'flex-start' : 'center',
-        alignItems: 'flex-start',
-        marginBlock: smScreen ? 0 : 200,
-        zIndex: 2,
-      }}>
-        <div style={{ borderBottom: "0.5px solid #808088", width: 160, marginBottom: 60 }}>
-          <Paragraph style={headingStyles} id={howAnchor}>
-            {intl.formatMessage({ id: "homepage.aboutUs.heading" }).toLocaleUpperCase()}
-          </Paragraph>
-        </div>
-        <Paragraph style={{ ...bodyStyles, maxWidth: smScreen ? '100%' : 500, marginBottom: 30 }} >
-          <FormattedMessage id="homepage.aboutUs.body" />
-        </Paragraph>
-        <Link to={`/${intl.locale}/about/`}>
-          <Button style={buttonStylesLg} size="large">
-            <FormattedMessage id="homepage.aboutUs.callToAction" />
-          </Button>
-        </Link>
-      </div>
-
-      {/* background image, ternary for seperate mobile layout */}
-      {smScreen ? (
-        <div style={{ position: 'relative', marginTop: 60, height: 260, }}>
-          <div style={{ position: 'absolute', right: 40, height: '100%', display: 'flex', alignItems: 'center', zIndex: 2, }}>
-            <LayeredCircles style={{ height: 260 }} />
-          </div>
-        </div>
-      ) : (
-        <div style={{
-          position: 'relative', height: '100%', display: 'flex', alignItems: 'center',
-        }}>
-          <div style={{ position: 'absolute', right: -16, height: '100%', display: 'flex', alignItems: 'center', }}>
-            <LayeredCircles style={{ height: '80%' }} />
-          </div>
-        </div>
-      )}
-
-    </div>
-  </div>
-)
-
-const NetworkSection = ({ intl, smScreen }: { intl: IntlShape, smScreen: boolean }) => {
-  const PartnersImg = <img
-    src="/images/Partners.gif"
-    style={{ width: 345, height: 375 }}
-    alt={intl.formatMessage({ id: 'homepage.network.partnersAnimationAltText' })}
-  />
-  return (
-    <div className="center-content">
-      <div
-        className="responsive-padding max-content-width"
-        style={{
-          width: '100%',
-          minHeight: 550,
-          display: 'flex',
-          flexDirection: smScreen ? 'column' : 'row',
-          justifyContent: smScreen ? 'center' : 'space-between',
-          overflow: 'hidden',
-        }}>
-        <div style={{
-          height: '100%',
-          display: 'flex', flexDirection: 'column',
-          justifyContent: smScreen ? 'flex-start' : 'center',
-          paddingBlockStart: smScreen ? 100 : 0,
-          zIndex: 2,
-        }}>
-          <div style={{ borderBottom: "0.5px solid #808088", width: 160, marginBottom: 90 }}>
-            <Paragraph style={headingStyles} type="secondary">
-              {intl.formatMessage({ id: "homepage.network.heading" }).toLocaleUpperCase()}
-            </Paragraph>
-          </div>
-          <Title level={1} style={{ ...titleStyles, maxWidth: '100%', minWidth: '40%' }}>
-            {intl.formatMessage({ id: "homepage.network.title" })}
-          </Title>
-          <Paragraph style={{ ...bodyStyles, maxWidth: '100%', minWidth: '40%', marginBottom: 30 }} type="secondary" >
-            <FormattedMessage id="homepage.network.body" />
-          </Paragraph>
-
-        </div>
-        {smScreen ? (
-          <div style={{
-            display: 'flex', justifyContent: 'center',
-            alignContent: 'center', alignItems: 'center',
-            marginBottom: 60, width: '100%'
-          }}>
-            {PartnersImg}
-          </div>
-        ) : (
-          <div style={{
-            display: 'flex', flexDirection: 'column',
-            justifyContent: 'center', alignItems: 'center',
-            margin: '0 8px', minWidth: '40%', maxWidth: 400
-          }}>
-            {PartnersImg}
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
-
-const WhatWeDoSection = ({ intl, smScreen }: { intl: IntlShape, smScreen: boolean }) => {
-  const iconStyles = { width: 160, margin: '0 4px' }
-  const iconWithCaption = (IconEle: React.ElementType, caption: string, figureStyle: object = {}) => {
-    return <figure style={{ ...iconStyles, ...figureStyle }}>
-      <IconEle />
-      <figcaption style={{ textAlign: 'center' }}>{caption}</figcaption>
-    </figure>
+const IndexPage = ({ location }: PageProps) => {
+  const { site } = useStaticQuery<IndexQueryType>(IndexStaticQuery)
+  const logo = {
+    "@type": "ImageObject",
+    "url": `${site.siteMetadata.siteUrl}/logo-and-name-stacked.png`,
+    "height": "146",
+    "width": "146"
   }
-
-  return (
-    <div className="center-content blue-background">
-      <div
-        className="responsive-padding max-content-width"
-        style={{
-          width: '100%',
-          display: 'flex',
-          flexDirection: smScreen ? 'column' : 'row',
-          justifyContent: smScreen ? 'center' : 'space-between',
-          marginBlock: 100,
-        }}>
-
-        <div style={{
-          height: '100%',
-          display: 'flex', flexDirection: 'column',
-          justifyContent: smScreen ? 'flex-start' : 'center',
-          // paddingBlockStart: 100,
-        }}>
-          <div style={{ borderBottom: "0.5px solid #808088", width: 160, marginBottom: 60 }}>
-            <Paragraph style={headingStyles}>
-              {intl.formatMessage({ id: "homepage.whatWeDo.heading" }).toLocaleUpperCase()}
-            </Paragraph>
-          </div>
-          <Paragraph style={{ ...bodyStyles, maxWidth: '100%', minWidth: '40%', marginBottom: 0 }} type="secondary" >
-            <FormattedMessage id="homepage.whatWeDo.problem" />
-          </Paragraph>
-          <Title level={1} style={{ ...titleStyles, maxWidth: '100%', minWidth: '40%', marginBottom: 40 }}>
-            {intl.formatMessage({ id: "homepage.whatWeDo.title" })}
-          </Title>
-          <Paragraph style={{ ...bodyStyles, maxWidth: '100%', minWidth: '40%' }} type="secondary" >
-            <FormattedMessage id="homepage.whatWeDo.body" />
-          </Paragraph>
-
-        </div>
-
-        {smScreen ? (
-          <div style={{
-            display: 'flex', justifyContent: 'space-evenly',
-            alignContent: 'flex-end', alignItems: 'baseline',
-            width: '100%', height: 150
-          }}>
-            {iconWithCaption(EthereumIcon, 'Ethereum', { width: 70 })}
-            {iconWithCaption(SolanaIcon, 'Solana', { width: 90 })}
-            {iconWithCaption(TerraIcon, 'Terra', { width: 90 })}
-            {iconWithCaption(BinanceChainIcon, 'Binance Smart Chain', { width: 90 })}
-          </div>
-        ) : (
-
-          <div style={{
-            display: 'flex', flexWrap: 'wrap',
-            placeContent: 'space-evenly', alignItems: 'center',
-            margin: '8px',
-            maxWidth: 400,
-            width: '100%',
-          }}>
-            {iconWithCaption(EthereumIcon, 'Ethereum', { width: 130 })}
-            {iconWithCaption(SolanaIcon, 'Solana', {})}
-            {iconWithCaption(TerraIcon, 'Terra', {})}
-            {iconWithCaption(BinanceChainIcon, 'Binance Smart Chain', {})}
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
-const Index = () => {
-  const intl = useIntl()
-  const screens = useBreakpoint();
-  const smScreen = screens.md === false
-
-  const howAnchor = intl.formatMessage({ id: "homepage.aboutUs.heading" }).replace(/\s+/g, '-').toLocaleLowerCase()
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "@id": "https://wormholenetwork.com#organization",
+    mainEntityOfPage: "https://wormholenetwork.com#organization",
+    url: "https://wormholenetwork.com",
+    name: "Wormhole",
+    sameAs: [
+      "https://github.com/certusone/wormhole",
+      "https://t.me/wormholecrypto",
+      "https://twitter.com/wormholecrypto",
+      "https://wormholebridge.com",
+      "https://wormholecrypto.medium.com",
+      "https://discord.gg/wormholecrypto",
+    ],
+    alternateName: [
+      "wormhole network",
+      "wormhole protocol",
+      "wormhole bridge",
+      "wormhole crypto",
+      "certus one wormhole",
+      "solana wormhole",
+      "SOL wormhole",
+      "terra wormhole",
+      "LUNA wormhole",
+      "ethereum wormhole",
+      "ETH wormhole",
+      "binance wormhole",
+      "BSC wormhole",
+      "oasis wormhole",
+      "ROSE wormhole",
+      "avalanche wormhole",
+      "AVAX wormhole"
+    ],
+    description: "A cross-chain messaging protocol.",
+    image: logo,
+    logo: logo
+  }
 
   return (
     <Layout>
       <SEO
-        title={intl.formatMessage({ id: 'homepage.title' })}
-        description={intl.formatMessage({ id: 'homepage.description' })}
-      />
-      <OpenForBizSection intl={intl} smScreen={smScreen} howAnchor={howAnchor} />
-      <AboutUsSection intl={intl} smScreen={smScreen} howAnchor={howAnchor} />
-      <NetworkSection intl={intl} smScreen={smScreen} />
-      {/* <WhatWeDoSection intl={intl} smScreen={smScreen} /> */}
-
+        // use default title for index
+        description="The best of blockchains. Move information and value anywhere."
+        pathname={location.pathname}
+      >
+        <script type="application/ld+json">
+          {JSON.stringify(structuredData, undefined, 4)}
+        </script>
+      </SEO>
+      <Box sx={{ position: "relative", marginTop: 21 }}>
+        <Box
+          sx={{
+            position: "absolute",
+            zIndex: -1,
+            transform: "translate(0px, -25%)",
+            background: `url(${shape1})`,
+            backgroundRepeat: "no-repeat",
+            backgroundPosition: "top -240px center",
+            backgroundSize: "2070px 1155px",
+            width: "100%",
+            height: 1155,
+          }}
+        />
+        <HeroText
+          maxWidth={600}
+          heroSpans={["The best of", "blockchains"]}
+          subtitleText="Move information and value anywhere."
+        />
+        <Box
+          sx={{
+            m: "auto",
+            maxWidth: { xs: 240, sm: 600 },
+            textAlign: "center",
+          }}
+        >
+          <Box
+            sx={{
+              width: "calc( 100% - 16px )",
+              mx: "auto",
+              mt: 15.5,
+              display: "flex",
+              flexWrap: "wrap",
+              justifyContent: "center",
+            }}
+          >
+            <Box
+              sx={{
+                mt: 2,
+                mx: 1,
+                pt: { xs: 1, sm: 0 },
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-evenly",
+                flexBasis: { xs: "100%", sm: "calc(33.33333% - 16px)" },
+                borderTop: "1px solid white",
+              }}
+            >
+              <Typography sx={featuredNumber}>$1bn</Typography>
+              <Typography variant="body2">in TVL</Typography>
+            </Box>
+            <Box
+              sx={{
+                mt: 2,
+                mx: 1,
+                pt: { xs: 1, sm: 0 },
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-evenly",
+                flexBasis: { xs: "100%", sm: "calc(33.33333% - 16px)" },
+                borderTop: "1px solid white",
+              }}
+            >
+              <Typography sx={featuredNumber}>7</Typography>
+              <Typography variant="body2">chain integrations</Typography>
+            </Box>
+            <Box
+              sx={{
+                mt: 2,
+                mx: 1,
+                pt: { xs: 1, sm: 0 },
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-evenly",
+                flexBasis: { xs: "100%", sm: "calc(33.33333% - 16px)" },
+                borderTop: "1px solid white",
+              }}
+            >
+              <Typography sx={featuredNumber}>60k+</Typography>
+              <Typography variant="body2">txs</Typography>
+            </Box>
+          </Box>
+        </Box>
+      </Box>
+      <Box
+        sx={{
+          display: "flex",
+          flexWrap: "wrap",
+          maxWidth: 1220,
+          px: 3.75,
+          mt: 35,
+          mx: "auto",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <Box
+          sx={{
+            flexBasis: { xs: "100%", md: "50%" },
+            flexGrow: 1,
+          }}
+        >
+          <Box sx={{ px: { xs: 0, md: 4 } }}>
+            <Box sx={{ maxWidth: 348, mx: "auto" }}>
+              <Typography variant="h3">
+                <Box component="span" sx={{ color: "#FFCE00" }}>
+                  Protocol:{" "}
+                </Box>
+                <Box component="span" sx={{ display: "inline-block" }}>
+                  the core layer
+                </Box>
+              </Typography>
+              <Typography sx={{ mt: 2 }}>
+                The foundation that an ecosystem of apps is built on top of.
+              </Typography>
+              <Button
+                component={RouterLink}
+                to="/buidl/"
+                sx={{ mt: 3 }}
+                variant="outlined"
+                color="inherit"
+                endIcon={<ArrowForward />}
+              >
+                Learn More
+              </Button>
+            </Box>
+          </Box>
+        </Box>
+        <Box
+          sx={{
+            mt: { xs: 8, md: null },
+            flexBasis: { xs: "100%", md: "50%" },
+            textAlign: "center",
+            flexGrow: 1,
+          }}
+        >
+          <Box
+            component="img"
+            src={protocols}
+            alt=""
+            sx={{ maxWidth: "100%" }}
+          />
+        </Box>
+      </Box>
+      <Box
+        sx={{
+          display: "flex",
+          flexWrap: "wrap-reverse",
+          maxWidth: 1220,
+          px: 3.75,
+          mt: 15.5,
+          mx: "auto",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <Box
+          sx={{
+            mt: { xs: 8, md: null },
+            flexBasis: { xs: "100%", md: "60%" },
+            textAlign: "center",
+            flexGrow: 1,
+          }}
+        >
+          <Box component="img" src={apps} alt="" sx={{ maxWidth: "100%" }} />
+        </Box>
+        <Box sx={{ flexBasis: { xs: "100%", md: "40%" }, flexGrow: 1 }}>
+          <Box sx={{ px: { xs: 0, md: 4 } }}>
+            <Box sx={{ maxWidth: 348, mx: "auto" }}>
+              <Typography variant="h3">
+                <Box component="span" sx={{ color: "#FFCE00" }}>
+                  Apps:{" "}
+                </Box>
+                <Box component="span">endless possibilities</Box>
+              </Typography>
+              <Typography sx={{ mt: 2 }}>
+                Apps can now live across chains at once and integrate the best
+                of each.
+              </Typography>
+              <Button
+                component={RouterLink}
+                to="/apps/"
+                sx={{ mt: 3 }}
+                variant="outlined"
+                color="inherit"
+                endIcon={<ArrowForward />}
+              >
+                Learn More
+              </Button>
+            </Box>
+          </Box>
+        </Box>
+      </Box>
+      <Box
+        sx={{
+          display: "flex",
+          flexWrap: "wrap",
+          maxWidth: 1220,
+          px: 3.75,
+          mt: 15.5,
+          mx: "auto",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <Box
+          sx={{
+            flexBasis: { xs: "100%", md: "45%" },
+            flexGrow: 1,
+          }}
+        >
+          <Box sx={{ px: { xs: 0, md: 4 } }}>
+            <Box sx={{ maxWidth: 340, mx: "auto" }}>
+              <Typography variant="h3">
+                <Box component="span" sx={{ color: "#FFCE00" }}>
+                  Portal:{" "}
+                </Box>
+                <Box component="span" sx={{ display: "inline-block" }}>
+                  a token bridge
+                </Box>
+              </Typography>
+              <Typography sx={{ mt: 2 }}>
+                Never have to retrace your steps, with unlimited transfers
+                across chains for tokens and NFTs wrapped by Wormhole.
+              </Typography>
+              <Button
+                href={portalUrl}
+                sx={{ mt: 3 }}
+                variant="outlined"
+                color="inherit"
+                endIcon={<ArrowForward />}
+              >
+                Learn More
+              </Button>
+            </Box>
+          </Box>
+        </Box>
+        <Box
+          sx={{
+            mt: { xs: 8, md: null },
+            flexBasis: { xs: "100%", md: "55%" },
+            textAlign: "center",
+            flexGrow: 1,
+          }}
+        >
+          <Box component="img" src={portal} alt="" sx={{ maxWidth: "100%" }} />
+        </Box>
+      </Box>
+      <Box sx={{ textAlign: "center", mt: 12.5, px: 2 }}>
+        <Typography variant="h3">
+          <Box component="span" sx={{ color: "#FFCE00" }}>
+            Cross-chain
+          </Box>
+          <Box component="span"> everything</Box>
+        </Typography>
+        <Typography sx={{ mt: 2, maxWidth: 480, mx: "auto" }}>
+          Each blockchain has a distinct strength. Wormhole lets you get the
+          best out of every blockchain without compromise.
+        </Typography>
+      </Box>
+      <Box sx={{ maxWidth: 1220, mx: "auto", mt: 12, px: 3.75 }}>
+        <GridWithCards
+          data={[
+            {
+              src: cross,
+              header: "Never stop expanding",
+              description:
+                "Chains, information, and users are growing everyday. Build on a protocol that is set up to scale, with no limits, right from the start.",
+            },
+            {
+              src: blob,
+              header: "Explore and experiment",
+              description:
+                "Now is the time to explore and experiment. The only limit to what you're able to build is your imagination.",
+            },
+            {
+              src: cube,
+              header: "Power your project",
+              description:
+                "Join the growing list of projects that are composing, raising, and succeeding with Wormhole core layer.",
+            },
+          ]}
+        />
+      </Box>
     </Layout>
   );
 };
 
-export default Index
+type IndexQueryType = {
+  site: {
+    siteMetadata: {
+      siteUrl: string
+    }
+  }
+}
+const IndexStaticQuery = graphql`
+  query Index {
+    site {
+      siteMetadata {
+        siteUrl
+      }
+    }
+  }
+`
+
+export default IndexPage;

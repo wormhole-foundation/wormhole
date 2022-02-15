@@ -6,14 +6,28 @@ metadata:
   name: terra-terrad
 spec:
   ports:
-  - name: rpc
-    port: 26657
-    protocol: TCP
-  - name: rest
-    port: 1317
-    protocol: TCP
+    - name: rpc
+      port: 26657
+      protocol: TCP
+    - name: rest
+      port: 1317
+      protocol: TCP
   selector:
     app: terra-terrad
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: terra-postgres
+  name: terra-postgres
+spec:
+  ports:
+    - name: postgres
+      port: 5432
+      protocol: TCP
+  selector:
+    app: terra-postgres
 ---
 apiVersion: v1
 kind: Service
@@ -46,22 +60,66 @@ spec:
         app: terra-terrad
     spec:
       containers:
-      - args:
-        - terrad
-        - start
-        image: terra-image
-        name: terra-terrad
-        ports:
-        - containerPort: 26657
-        - containerPort: 1317
-        readinessProbe:
-          httpGet:
-            port: 26657
-        resources: {}
-      - name: terra-contracts
-        image: terra-contracts
+        - args:
+            - terrad
+            - start
+          image: terra-image
+          name: terra-terrad
+          ports:
+            - containerPort: 26657
+            - containerPort: 1317
+          readinessProbe:
+            httpGet:
+              port: 26657
+          resources: {}
+        - name: terra-contracts
+          image: terra-contracts
+          command:
+            - /bin/sh
+            - -c
+            - "sh /app/tools/deploy.sh && touch /app/tools/success && sleep infinity"
+          readinessProbe:
+            exec:
+              command:
+                - test
+                - -e
+                - "/app/tools/success"
+            initialDelaySeconds: 5
+            periodSeconds: 5
       restartPolicy: Always
   serviceName: terra-terrad
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app: terra-postgres
+  name: terra-postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: terra-postgres
+  template:
+    metadata:
+      labels:
+        app: terra-postgres
+    spec:
+      containers:
+        - image: postgres:12
+          name: fcd-postgres
+          ports:
+            - containerPort: 5432
+          resources: {}
+          env:
+            - name: POSTGRES_USER
+              value: dev
+            - name: POSTGRES_PASSWORD
+              value: dev
+            - name: POSTGRES_DB
+              value: fcd
+      restartPolicy: Always
+  serviceName: terra-fcd
 ---
 apiVersion: apps/v1
 kind: StatefulSet
@@ -80,23 +138,11 @@ spec:
         app: terra-fcd
     spec:
       containers:
-        - image: postgres:12
-          name: fcd-postgres
-          ports:
-            - containerPort: 5432
-          resources: {}
-          env:
-            - name: POSTGRES_USER
-              value: dev
-            - name: POSTGRES_PASSWORD
-              value: dev
-            - name: POSTGRES_DB
-              value: fcd
         - image: terramoney/fcd:bombay
           name: fcd-collector
           args:
             - collector
-          resources: { }
+          resources: {}
           env:
             - name: CHAIN_ID
               value: localterra
@@ -109,7 +155,7 @@ spec:
             - name: TYPEORM_CONNECTION
               value: postgres
             - name: TYPEORM_HOST
-              value: localhost
+              value: terra-postgres
             - name: TYPEORM_USERNAME
               value: dev
             - name: TYPEORM_PASSWORD
@@ -126,7 +172,7 @@ spec:
           name: fcd-api
           args:
             - start
-          resources: { }
+          resources: {}
           ports:
             - containerPort: 3060
           env:
@@ -141,7 +187,7 @@ spec:
             - name: TYPEORM_CONNECTION
               value: postgres
             - name: TYPEORM_HOST
-              value: localhost
+              value: terra-postgres
             - name: TYPEORM_USERNAME
               value: dev
             - name: TYPEORM_PASSWORD

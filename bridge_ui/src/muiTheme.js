@@ -8,10 +8,12 @@ export const COLORS = {
   greenWithTransparency: "rgba(10, 194, 175, 0.8)",
   lightGreen: "rgba(51, 242, 223, 1)",
   lightBlue: "#83b9fc",
-  nearBlack: "#000008",
+  nearBlack: "#17153f",
   nearBlackWithMinorTransparency: "rgba(0,0,0,.25)",
   red: "#aa0818",
   darkRed: "#810612",
+  white: "#FFFFFF",
+  whiteWithTransparency: "rgba(255,255,255,.07)",
 };
 
 export const theme = responsiveFontSizes(
@@ -22,9 +24,9 @@ export const theme = responsiveFontSizes(
         default: COLORS.nearBlack,
         paper: COLORS.nearBlack,
       },
-      divider: COLORS.gray,
+      divider: COLORS.white,
       text: {
-        primary: "rgba(255,255,255,0.98)",
+        primary: COLORS.white,
       },
       primary: {
         main: COLORS.blueWithTransparency, // #0074FF
@@ -39,9 +41,10 @@ export const theme = responsiveFontSizes(
       },
     },
     typography: {
-      fontFamily: "'Sora', sans-serif",
+      fontFamily: "'Poppins', sans-serif",
+      fontSize: 13,
       h1: {
-        fontWeight: "200",
+        fontWeight: "600",
       },
       h2: {
         fontWeight: "200",
@@ -74,19 +77,19 @@ export const theme = responsiveFontSizes(
       },
       MuiAccordion: {
         root: {
-          backgroundColor: COLORS.nearBlackWithMinorTransparency,
+          backgroundColor: COLORS.whiteWithTransparency,
           "&:before": {
             display: "none",
           },
         },
         rounded: {
           "&:first-child": {
-            borderTopLeftRadius: "16px",
-            borderTopRightRadius: "16px",
+            borderTopLeftRadius: "28px",
+            borderTopRightRadius: "28px",
           },
           "&:last-child": {
-            borderBottomLeftRadius: "16px",
-            borderBottomRightRadius: "16px",
+            borderBottomLeftRadius: "28px",
+            borderBottomRightRadius: "28px",
           },
         },
       },
@@ -98,8 +101,12 @@ export const theme = responsiveFontSizes(
       },
       MuiButton: {
         root: {
-          borderRadius: "5px",
-          textTransform: "none",
+          borderRadius: "22px",
+          letterSpacing: ".1em",
+        },
+        outlinedSizeSmall: {
+          padding: "6px 9px",
+          fontSize: "0.70rem",
         },
       },
       MuiLink: {
@@ -109,7 +116,8 @@ export const theme = responsiveFontSizes(
       },
       MuiPaper: {
         rounded: {
-          borderRadius: "16px",
+          borderRadius: "28px",
+          backdropFilter: "blur(4px)",
         },
       },
       MuiStepper: {
@@ -120,9 +128,10 @@ export const theme = responsiveFontSizes(
       },
       MuiStep: {
         root: {
-          backgroundColor: COLORS.nearBlackWithMinorTransparency,
-          borderRadius: "16px",
-          padding: 16,
+          backgroundColor: COLORS.whiteWithTransparency,
+          backdropFilter: "blur(4px)",
+          borderRadius: "28px",
+          padding: "32px 32px 16px",
         },
       },
       MuiStepConnector: {
@@ -133,26 +142,43 @@ export const theme = responsiveFontSizes(
       MuiStepContent: {
         root: {
           borderLeftWidth: 0,
+          marginLeft: 0,
+          paddingLeft: 0,
         },
       },
       MuiStepLabel: {
         label: {
-          fontSize: 16,
-          fontWeight: "300",
-          "&.MuiStepLabel-active": {
-            fontWeight: "300",
-          },
-          "&.MuiStepLabel-completed": {
-            fontWeight: "300",
-          },
+          color: COLORS.white,
+          textTransform: "uppercase",
+          "&.MuiStepLabel-active": {},
+          "&.MuiStepLabel-completed": {},
+        },
+      },
+      MuiTabs: {
+        root: {
+          borderBottom: `1px solid ${COLORS.white}`,
+        },
+        indicator: {
+          height: "100%",
+          background: "linear-gradient(20deg, #f44b1b 0%, #eeb430 100%);",
+          zIndex: -1,
         },
       },
       MuiTab: {
         root: {
+          color: COLORS.white,
           fontSize: 18,
-          fontWeight: "300",
+          fontWeight: "400",
           padding: 12,
           textTransform: "none",
+        },
+        textColorInherit: {
+          opacity: 1,
+        },
+      },
+      MuiTableCell: {
+        root: {
+          borderBottom: "none",
         },
       },
     },

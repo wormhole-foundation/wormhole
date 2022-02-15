@@ -1,4 +1,5 @@
-#![feature(const_generics)]
+
+#![feature(adt_const_params)]
 #![allow(incomplete_features)]
 #![deny(unused_must_use)]
 // #![cfg(all(target_arch = "bpf", not(feature = "no-entrypoint")))]

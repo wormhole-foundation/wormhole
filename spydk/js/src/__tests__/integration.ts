@@ -7,8 +7,10 @@ import { createSpyRPCServiceClient, subscribeSignedVAA } from "..";
 setDefaultWasm("node");
 
 jest.setTimeout(60000);
-
-const SOLANA_HOST = "http://localhost:8899";
+const ci = !!process.env.CI;
+export const SOLANA_HOST = ci
+  ? "http://solana-devnet:8899"
+  : "http://localhost:8899";
 const SOLANA_PRIVATE_KEY = new Uint8Array([
   14, 173, 153, 4, 176, 224, 201, 111, 32, 237, 183, 185, 159, 247, 22, 161, 89,
   84, 215, 209, 212, 137, 10, 92, 157, 49, 29, 192, 101, 164, 152, 70, 87, 65,
@@ -19,7 +21,7 @@ const SOLANA_CORE_BRIDGE_ADDRESS =
   "Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o";
 const SOLANA_TOKEN_BRIDGE_ADDRESS =
   "B6RHG3mfcckmrYN1UhmJzyS1XX3fZKbkeUcpJe9Sy3FE";
-const SPYMASTER = "localhost:7072";
+const SPYMASTER = ci ? "spy:7072" : "localhost:7072";
 const TEST_SOLANA_TOKEN = "2WDq7wSs9zYrpx2kbHDA4RUTRch2CCTP6ZWaH4GNfnQQ";
 
 test("Can spy on messages", (done) => {

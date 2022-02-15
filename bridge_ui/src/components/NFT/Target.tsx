@@ -31,6 +31,7 @@ import ButtonWithLoader from "../ButtonWithLoader";
 import ChainSelect from "../ChainSelect";
 import KeyAndBalance from "../KeyAndBalance";
 import LowBalanceWarning from "../LowBalanceWarning";
+import SolanaTPSWarning from "../SolanaTPSWarning";
 import StepDescription from "../StepDescription";
 
 const useStyles = makeStyles((theme) => ({
@@ -136,6 +137,7 @@ function Target() {
         )}
       </Alert>
       <LowBalanceWarning chainId={targetChain} />
+      {targetChain === CHAIN_ID_SOLANA && <SolanaTPSWarning />}
       <ButtonWithLoader
         disabled={!isTargetComplete} //|| !associatedAccountExists}
         onClick={handleNextClick}
