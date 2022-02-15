@@ -1,0 +1,26 @@
+GET https://api.etherscan.io/api
+   ?module=account
+   &action=txlist
+   &address=0x3ee18B2214AFF97000D974cf647E7C347E8fa585
+   &page=1
+   &offset=10
+   &sort=desc
+   &apikey={{etherscan_api_key}}
+
+###
+
+GET https://api.etherscan.io/api
+   ?module=logs
+   &action=getLogs
+   &fromBlock=0
+   &toBlock=latest
+   &address=0x98f3c9e6e3face36baad05fe09d375ef1464288b
+   &topic0=0x6eb224fb001ed210e379b335e35efe88672a8ce935d981a6896b27ffdf52a3b2
+   &apikey={{etherscan_api_key}}
+
+###
+
+https://api.etherscan.io/api
+   ?module=proxy
+   &action=eth_blockNumber
+   &apikey={{etherscan_api_key}}
