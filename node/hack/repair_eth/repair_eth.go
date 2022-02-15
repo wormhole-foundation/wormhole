@@ -6,6 +6,12 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"log"
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/ethereum/abi"
@@ -17,11 +23,6 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"golang.org/x/time/rate"
 	"google.golang.org/grpc"
-	"log"
-	"net/http"
-	"strconv"
-	"strings"
-	"time"
 )
 
 var etherscanAPIMap = map[vaa.ChainID]string{
@@ -29,6 +30,7 @@ var etherscanAPIMap = map[vaa.ChainID]string{
 	vaa.ChainIDBSC:       "https://api.bscscan.com/api",
 	vaa.ChainIDAvalanche: "https://api.snowtrace.io/api",
 	vaa.ChainIDPolygon:   "https://api.polygonscan.com/api",
+	vaa.ChainIDOasis:     "https://explorer.emerald.oasis.dev/api",
 }
 
 var coreContractMap = map[vaa.ChainID]string{
@@ -36,6 +38,7 @@ var coreContractMap = map[vaa.ChainID]string{
 	vaa.ChainIDBSC:       "0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B",
 	vaa.ChainIDAvalanche: "0x54a8e5f9c4CbA08F9943965859F6c34eAF03E26c",
 	vaa.ChainIDPolygon:   "0x7A4B5a56256163F07b2C80A7cA55aBE66c4ec4d7",
+	vaa.ChainIDOasis:     "0xfe8cd454b4a1ca468b57d79c0cc77ef5b6f64585", // <- converted to all lower case for easy compares
 }
 
 var (
@@ -96,8 +99,14 @@ type logResponse struct {
 	Result json.RawMessage `json:"result"`
 }
 
-func getCurrentHeight(ctx context.Context, c *http.Client, api, key string) (uint64, error) {
-	req, err := http.NewRequest("GET", fmt.Sprintf("%s?module=proxy&action=eth_blockNumber&apikey=%s", api, key), nil)
+func getCurrentHeight(chainId vaa.ChainID, ctx context.Context, c *http.Client, api, key string) (uint64, error) {
+	var req *http.Request;
+	var err error;
+	if (chainId == vaa.ChainIDOasis) {
+		req, err = http.NewRequest("GET", fmt.Sprintf("%s?module=block&action=eth_block_number", api), nil)
+	} else {
+		req, err = http.NewRequest("GET", fmt.Sprintf("%s?module=proxy&action=eth_blockNumber&apikey=%s", api, key), nil)
+	}
 	if err != nil {
 		panic(err)
 	}
@@ -120,10 +129,19 @@ func getCurrentHeight(ctx context.Context, c *http.Client, api, key string) (uin
 	return hexutil.DecodeUint64(r.Result)
 }
 
-func getLogs(ctx context.Context, c *http.Client, api, key, contract, topic0 string, from, to string) ([]*logEntry, error) {
-	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf(
-		"%s?module=logs&action=getLogs&fromBlock=%s&toBlock=%s&address=%s&topic0=%s&apikey=%s",
-		api, from, to, contract, topic0, key), nil)
+func getLogs(chainId vaa.ChainID, ctx context.Context, c *http.Client, api, key, contract, topic0 string, from, to string) ([]*logEntry, error) {
+	var req *http.Request;
+	var err error;
+	if (chainId == vaa.ChainIDOasis) {
+		// This is the Oasis leg
+		req, err = http.NewRequestWithContext(ctx, "GET", fmt.Sprintf(
+			"%s?module=logs&action=getLogs&fromBlock=%s&toBlock=%s&topic0=%s",
+			api, from, to, topic0), nil)
+	} else {
+		req, err = http.NewRequestWithContext(ctx, "GET", fmt.Sprintf(
+			"%s?module=logs&action=getLogs&fromBlock=%s&toBlock=%s&address=%s&topic0=%s&apikey=%s",
+			api, from, to, contract, topic0, key), nil)
+	}
 	if err != nil {
 		panic(err)
 	}
@@ -152,18 +170,33 @@ func getLogs(ctx context.Context, c *http.Client, api, key, contract, topic0 str
 		return nil, fmt.Errorf("failed to unmarshal log entry: %w", err)
 	}
 
+	if (chainId == vaa.ChainIDOasis) {
+		// Because of a bug in BlockScout we need to check the address 
+		// in the log to see if it is the Oasis core bridge
+		var filtered []*logEntry
+		for _, logLine := range logs {
+			// Check value of address in log
+			if (logLine.Address == contract) {
+				filtered = append(filtered, logLine)
+			}
+		}
+		logs = filtered;
+	}
+
 	return logs, nil
 }
 
 func main() {
 	flag.Parse()
-	if *etherscanKey == "" {
-		log.Fatal("Etherscan API Key is required")
-	}
-
 	chainID, err := vaa.ChainIDFromString(*chain)
 	if err != nil {
 		log.Fatalf("Invalid chain: %v", err)
+	}
+
+	if *etherscanKey == "" {
+		if (chainID != vaa.ChainIDOasis) {
+			log.Fatal("Etherscan API Key is required")
+		}
 	}
 
 	etherscanAPI, ok := etherscanAPIMap[chainID]
@@ -178,7 +211,7 @@ func main() {
 
 	ctx := context.Background()
 
-	currentHeight, err := getCurrentHeight(ctx, http.DefaultClient, etherscanAPI, *etherscanKey)
+	currentHeight, err := getCurrentHeight(chainID, ctx, http.DefaultClient, etherscanAPI, *etherscanKey)
 	if err != nil {
 		log.Fatalf("Failed to get current height: %v", err)
 	}
@@ -278,7 +311,7 @@ func main() {
 
 		log.Printf("Requesting logs from block %s to %s", from, to)
 
-		logs, err := getLogs(ctx, c, etherscanAPI, *etherscanKey, coreContract, tokenLockupTopic.Hex(), from, to)
+		logs, err := getLogs(chainID, ctx, c, etherscanAPI, *etherscanKey, coreContract, tokenLockupTopic.Hex(), from, to)
 		if err != nil {
 			log.Fatalf("failed to get logs: %v", err)
 		}
