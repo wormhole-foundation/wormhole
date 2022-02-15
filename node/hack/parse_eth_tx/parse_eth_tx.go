@@ -37,6 +37,10 @@ func main() {
 		log.Fatal(err)
 	}
 
+	if len(msgs) == 0 {
+		log.Fatal("No messages found")
+	}
+
 	for _, k := range msgs {
 		v := &vaa.VAA{
 			Version:          vaa.SupportedVAAVersion,
