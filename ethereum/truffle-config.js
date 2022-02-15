@@ -56,10 +56,11 @@ module.exports = {
       gasPrice: 8000000000,
     },
     binance_testnet: {
-      provider: () => new HDWalletProvider(
-        process.env.MNEMONIC,
-        "https://data-seed-prebsc-1-s1.binance.org:8545/"
-      ),
+      provider: () =>
+        new HDWalletProvider(
+          process.env.MNEMONIC,
+          "https://data-seed-prebsc-1-s1.binance.org:8545/"
+        ),
       network_id: "97",
       gas: 70000000,
       gasPrice: 8000000000,
@@ -79,7 +80,8 @@ module.exports = {
       provider: () => {
         return new HDWalletProvider(
           process.env.MNEMONIC,
-          "https://polygon-mumbai.infura.io/v3/" + process.env.INFURA_KEY)
+          "https://polygon-mumbai.infura.io/v3/" + process.env.INFURA_KEY
+        );
       },
       network_id: "80001",
     },
@@ -95,10 +97,11 @@ module.exports = {
       gasPrice: 26000000000,
     },
     fuji: {
-      provider: () => new HDWalletProvider(
-        process.env.MNEMONIC,
-        "https://api.avax-test.network/ext/bc/C/rpc"
-      ),
+      provider: () =>
+        new HDWalletProvider(
+          process.env.MNEMONIC,
+          "https://api.avax-test.network/ext/bc/C/rpc"
+        ),
       network_id: "43113",
     },
     oasis: {
@@ -126,7 +129,7 @@ module.exports = {
         return new HDWalletProvider(
           process.env.MNEMONIC,
           "https://testnet.aurora.dev"
-        )
+        );
       },
       network_id: 0x4e454153,
       gas: 70000000,
@@ -137,11 +140,37 @@ module.exports = {
         return new HDWalletProvider(
           process.env.MNEMONIC,
           "https://rpc.testnet.fantom.network/"
-        )
+        );
       },
       network_id: 0xfa2,
       gas: 4465030,
       gasPrice: 300000000000,
+    },
+    karura_testnet: {
+      provider: () => {
+        return new HDWalletProvider(
+          process.env.MNEMONIC,
+          "https://tc7-eth.aca-dev.network"
+        );
+      },
+      network_id: 595,
+      gas: 63064010, // 15000000
+      gasPrice: 202184524778,
+      timeoutBlocks: 100,
+      confirmations: 0,
+    },
+    acala_testnet: {
+      provider: () => {
+        return new HDWalletProvider(
+          process.env.MNEMONIC,
+          "https://tc7-eth.aca-dev.network"
+        );
+      },
+      network_id: 595,
+      gas: 63064010, // 15000000
+      gasPrice: 202184524778,
+      timeoutBlocks: 100,
+      confirmations: 0,
     },
   },
 

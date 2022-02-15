@@ -65,18 +65,18 @@ spec:
             - name: PUBSUB_EMULATOR_HOST
               value: pubsub-emulator:8085
           command:
-# Uncomment this to enable in-place debugging using dlv
-# (not suitable for regular development since the process will no longer restart on its own)
-#
-#            - /dlv
-#            - --listen=0.0.0.0:2345
-#            - --accept-multiclient
-#            - --headless=true
-#            - --api-version=2
-#            - --continue=true
-#            - exec
+            # Uncomment this to enable in-place debugging using dlv
+            # (not suitable for regular development since the process will no longer restart on its own)
+            #
+            #            - /dlv
+            #            - --listen=0.0.0.0:2345
+            #            - --accept-multiclient
+            #            - --headless=true
+            #            - --api-version=2
+            #            - --continue=true
+            #            - exec
             - /guardiand
-#            - --
+            #            - --
             - node
             - --ethRPC
             - ws://eth-devnet:8545
@@ -89,6 +89,10 @@ spec:
             - --fantomRPC
             - ws://eth-devnet:8545
             - --oasisRPC
+            - ws://eth-devnet:8545
+            - --karuraRPC
+            - ws://eth-devnet:8545
+            - --acalaRPC
             - ws://eth-devnet:8545
             - --terraWS
             - ws://terra-terrad:26657/websocket
@@ -119,7 +123,7 @@ spec:
             - /tmp/admin.sock
             - --dataDir
             - /tmp/data
-#            - --logLevel=debug
+          #            - --logLevel=debug
           securityContext:
             capabilities:
               add:
