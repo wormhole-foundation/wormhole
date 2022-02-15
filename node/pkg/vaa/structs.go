@@ -161,9 +161,9 @@ const (
 	// ChainIDAlgorand is the ChainID of Algorand
 	ChainIDAlgorand ChainID = 8
 	// ChainIDKarura is the ChainID of Karura
-	ChainIDKarura ChainID = 9
+	ChainIDKarura ChainID = 11
 	// ChainIDAcala is the ChainID of Acala
-	ChainIDAcala ChainID = 10
+	ChainIDAcala ChainID = 12
 
 	// ChainIDEthereumRopsten is the ChainID of Ethereum Ropsten
 	ChainIDEthereumRopsten ChainID = 10001
