@@ -4,17 +4,18 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"io/ioutil"
+	"log"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/certusone/wormhole/node/pkg/common"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	publicrpcv1 "github.com/certusone/wormhole/node/pkg/proto/publicrpc/v1"
 	"github.com/certusone/wormhole/node/pkg/vaa"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/spf13/pflag"
-	"io/ioutil"
-	"log"
-	"strconv"
-	"strings"
-	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/status-im/keycard-go/hexutils"
@@ -143,7 +144,7 @@ func runInjectGovernanceVAA(cmd *cobra.Command, args []string) {
 }
 
 func runFindMissingMessages(cmd *cobra.Command, args []string) {
-	chainID, err := strconv.Atoi(args[0])
+	chainID, err := strconv.ParseUint(args[0], 10, 32)
 	if err != nil {
 		log.Fatalf("invalid chain ID: %v", err)
 	}
