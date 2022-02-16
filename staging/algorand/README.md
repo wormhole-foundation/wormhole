@@ -273,11 +273,17 @@ Check the `package.json` file for `npm run tart-xxx`  automated commands.
 
 ## Tests
 
-Tests can be run for the old `Pricekeeper` contract, and for the new set of Wormhole client contracts:
+* Fire up the dev sandbox.
+* Feed the reserve funds account with 10 ALGOs:
 
-`npm run pkeeper-sc-test`
+  ` ./sandbox goal clerk send -a 10000000 -f <account> -t XNP7HMWUZAJTTHNIGENRKUQOGL5FQV3QVDGYUYUCGGNSHN3CQGMQKL3XHM`
 
-`npm run wormhole-sc-test`
+  **Replace <account>** with one of the pre-funded sandbox accounts (use `goal account list` to see them)
+
+
+* Run the test suite:
+  
+  `npm run wormhole-sc-test`
 
 Backend tests will come shortly.
 
