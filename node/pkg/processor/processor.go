@@ -14,7 +14,6 @@ import (
 	"github.com/certusone/wormhole/node/pkg/devnet"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
-	"github.com/certusone/wormhole/node/pkg/terra"
 	"github.com/certusone/wormhole/node/pkg/vaa"
 )
 
@@ -75,18 +74,16 @@ type Processor struct {
 	devnetNumGuardians uint
 	devnetEthRPC       string
 
-	terraEnabled  bool
-	terraLCD      string
-	terraChainID  string
-	terraContract string
-	terraFeePayer string
-
 	logger *zap.Logger
 
 	// Runtime state
 
 	// gs is the currently valid guardian set
 	gs *common.GuardianSet
+	// gst is managed by the processor and allows concurrent access to the
+	// guardian set by other components.
+	gst *common.GuardianSetState
+
 	// state is the current runtime VAA view
 	state *aggregationState
 	// gk pk as eth address
@@ -104,14 +101,10 @@ func NewProcessor(
 	vaaC chan *vaa.VAA,
 	injectC chan *vaa.VAA,
 	gk *ecdsa.PrivateKey,
+	gst *common.GuardianSetState,
 	devnetMode bool,
 	devnetNumGuardians uint,
-	devnetEthRPC string,
-	terraEnabled bool,
-	terraLCD string,
-	terraChainID string,
-	terraContract string,
-	terraFeePayer string) *Processor {
+	devnetEthRPC string) *Processor {
 
 	return &Processor{
 		lockC:              lockC,
@@ -121,15 +114,10 @@ func NewProcessor(
 		vaaC:               vaaC,
 		injectC:            injectC,
 		gk:                 gk,
+		gst:                gst,
 		devnetMode:         devnetMode,
 		devnetNumGuardians: devnetNumGuardians,
 		devnetEthRPC:       devnetEthRPC,
-
-		terraEnabled:  terraEnabled,
-		terraLCD:      terraLCD,
-		terraChainID:  terraChainID,
-		terraContract: terraContract,
-		terraFeePayer: terraFeePayer,
 
 		logger:  supervisor.Logger(ctx),
 		state:   &aggregationState{vaaMap{}},
@@ -148,6 +136,8 @@ func (p *Processor) Run(ctx context.Context) error {
 			p.logger.Info("guardian set updated",
 				zap.Strings("set", p.gs.KeysAsHexStrings()),
 				zap.Uint32("index", p.gs.Index))
+
+			p.gst.Set(p.gs)
 
 			// Dev mode guardian set update check (no-op in production)
 			err := p.checkDevModeGuardianSetUpdate(ctx)
@@ -181,30 +171,11 @@ func (p *Processor) checkDevModeGuardianSetUpdate(ctx context.Context) error {
 			if err != nil {
 				// Either Ethereum is not yet up, or another node has already submitted - bail
 				// and let another node handle it. We only check the guardian set on Ethereum,
-				// so we use that to sequence devnet creation for Terra and Solana as well.
+				// so we use that to sequence devnet creation Solana as well.
 				return fmt.Errorf("failed to submit Eth devnet guardian set change: %v", err)
 			}
 
 			p.logger.Info("devnet guardian set change submitted to Ethereum", zap.Any("trx", trx), zap.Any("vaa", v))
-
-			if p.terraEnabled {
-				// Submit to Terra
-				go func() {
-					for {
-						timeout, cancel := context.WithTimeout(ctx, 5*time.Second)
-						trxResponse, err := terra.SubmitVAA(timeout, p.terraLCD, p.terraChainID, p.terraContract, p.terraFeePayer, v)
-						if err != nil {
-							cancel()
-							p.logger.Error("failed to submit Terra devnet guardian set change, retrying", zap.Error(err))
-							time.Sleep(1 * time.Second)
-							continue
-						}
-						cancel()
-						p.logger.Info("devnet guardian set change submitted to Terra", zap.Any("trxResponse", trxResponse), zap.Any("vaa", v))
-						break
-					}
-				}()
-			}
 
 			// Submit VAA to Solana as well. This is asynchronous and can fail, leading to inconsistent devnet state.
 			p.vaaC <- v

@@ -3,12 +3,13 @@ package guardiand
 import (
 	"context"
 	"fmt"
+	"go.uber.org/zap/zapcore"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"syscall"
 
-	solana_types "github.com/dfuse-io/solana-go"
+	solana_types "github.com/gagliardetto/solana-go"
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
@@ -31,8 +32,6 @@ import (
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 	"github.com/certusone/wormhole/node/pkg/vaa"
 
-	"github.com/certusone/wormhole/node/pkg/terra"
-
 	ipfslog "github.com/ipfs/go-log/v2"
 )
 
@@ -54,13 +53,6 @@ var (
 	ethContract      *string
 	ethConfirmations *uint64
 
-	terraSupport  *bool
-	terraWS       *string
-	terraLCD      *string
-	terraChainID  *string
-	terraContract *string
-	terraKeyPath  *string
-
 	solanaWsRPC *string
 	solanaRPC   *string
 
@@ -78,7 +70,7 @@ func init() {
 	p2pPort = BridgeCmd.Flags().Uint("port", 8999, "P2P UDP listener port")
 	p2pBootstrap = BridgeCmd.Flags().String("bootstrap", "", "P2P bootstrap peers (comma-separated)")
 
-	statusAddr = BridgeCmd.Flags().String("statusAddr", "Listen address for status server (disabled if blank)", "[::1]:6060")
+	statusAddr = BridgeCmd.Flags().String("statusAddr", "[::1]:6060", "Listen address for status server (disabled if blank)")
 
 	nodeKeyPath = BridgeCmd.Flags().String("nodeKey", "", "Path to node key (will be generated if it doesn't exist)")
 
@@ -90,13 +82,6 @@ func init() {
 	ethRPC = BridgeCmd.Flags().String("ethRPC", "", "Ethereum RPC URL")
 	ethContract = BridgeCmd.Flags().String("ethContract", "", "Ethereum bridge contract address")
 	ethConfirmations = BridgeCmd.Flags().Uint64("ethConfirmations", 15, "Ethereum confirmation count requirement")
-
-	terraSupport = BridgeCmd.Flags().Bool("terra", false, "Turn on support for Terra")
-	terraWS = BridgeCmd.Flags().String("terraWS", "", "Path to terrad root for websocket connection")
-	terraLCD = BridgeCmd.Flags().String("terraLCD", "", "Path to LCD service root for http calls")
-	terraChainID = BridgeCmd.Flags().String("terraChainID", "", "Terra chain ID, used in LCD client initialization")
-	terraContract = BridgeCmd.Flags().String("terraContract", "", "Wormhole contract address on Terra blockchain")
-	terraKeyPath = BridgeCmd.Flags().String("terraKey", "", "Path to mnemonic for account paying gas for submitting transactions to Terra")
 
 	solanaWsRPC = BridgeCmd.Flags().String("solanaWS", "", "Solana Websocket URL (required")
 	solanaRPC = BridgeCmd.Flags().String("solanaRPC", "", "Solana RPC URL (required")
@@ -127,21 +112,6 @@ const devwarning = `
         +++++++++++++++++++++++++++++++++++++++++++++++++++
 
 `
-
-func rootLoggerName() string {
-	if *unsafeDevMode {
-		// FIXME: add hostname to root logger for cleaner console output in multi-node development.
-		// The proper way is to change the output format to include the hostname.
-		hostname, err := os.Hostname()
-		if err != nil {
-			panic(err)
-		}
-
-		return fmt.Sprintf("%s-%s", "wormhole", hostname)
-	} else {
-		return "wormhole"
-	}
-}
 
 // lockMemory locks current and future pages in memory to protect secret keys from being swapped out to disk.
 // It's possible (and strongly recommended) to deploy Wormhole such that keys are only ever
@@ -183,8 +153,27 @@ func runBridge(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
-	// Our root logger. Convert directly to a regular Zap logger.
-	logger := ipfslog.Logger(rootLoggerName()).Desugar()
+	logger := zap.New(zapcore.NewCore(
+		consoleEncoder{zapcore.NewConsoleEncoder(
+			zap.NewDevelopmentEncoderConfig())},
+		zapcore.AddSync(zapcore.Lock(os.Stderr)),
+		zap.NewAtomicLevelAt(zapcore.Level(lvl))))
+
+	if *unsafeDevMode {
+		// Use the hostname as nodeName. For production, we don't want to do this to
+		// prevent accidentally leaking sensitive hostnames.
+		hostname, err := os.Hostname()
+		if err != nil {
+			panic(err)
+		}
+		*nodeName = hostname
+
+		// Put node name into the log for development.
+		logger = logger.Named(*nodeName)
+	}
+
+	// Redirect ipfs logs to plain zap
+	ipfslog.SetPrimaryCore(logger.Core())
 
 	// Override the default go-log config, which uses a magic environment variable.
 	ipfslog.SetAllLoggers(lvl)
@@ -192,9 +181,6 @@ func runBridge(cmd *cobra.Command, args []string) {
 	// Register components for readiness checks.
 	readiness.RegisterComponent(common.ReadinessEthSyncing)
 	readiness.RegisterComponent(common.ReadinessSolanaSyncing)
-	if *terraSupport {
-		readiness.RegisterComponent(common.ReadinessTerraSyncing)
-	}
 
 	if *statusAddr != "" {
 		// Use a custom routing instead of using http.DefaultServeMux directly to avoid accidentally exposing packages
@@ -217,7 +203,7 @@ func runBridge(cmd *cobra.Command, args []string) {
 
 		go func() {
 			logger.Info("status server listening on [::]:6060")
-			logger.Error("status server crashed", zap.Error(http.ListenAndServe("[::]:6060", router)))
+			logger.Error("status server crashed", zap.Error(http.ListenAndServe(*statusAddr, router)))
 		}()
 	}
 
@@ -277,24 +263,6 @@ func runBridge(cmd *cobra.Command, args []string) {
 		logger.Fatal("Please specify --solanaUrl")
 	}
 
-	if *terraSupport {
-		if *terraWS == "" {
-			logger.Fatal("Please specify --terraWS")
-		}
-		if *terraLCD == "" {
-			logger.Fatal("Please specify --terraLCD")
-		}
-		if *terraChainID == "" {
-			logger.Fatal("Please specify --terraChainID")
-		}
-		if *terraContract == "" {
-			logger.Fatal("Please specify --terraContract")
-		}
-		if *terraKeyPath == "" {
-			logger.Fatal("Please specify --terraKey")
-		}
-	}
-
 	ethContractAddr := eth_common.HexToAddress(*ethContract)
 	solBridgeAddress, err := solana_types.PublicKeyFromBase58(*solanaBridgeAddress)
 	if err != nil {
@@ -342,11 +310,20 @@ func runBridge(cmd *cobra.Command, args []string) {
 	// Inbound observations
 	obsvC := make(chan *gossipv1.SignedObservation, 50)
 
+	// Inbound observation requests from the p2p service (for all chains)
+	obsvReqC := make(chan *gossipv1.ObservationRequest, 50)
+
+	// Outbound observation requests
+	obsvReqSendC := make(chan *gossipv1.ObservationRequest)
+
 	// VAAs to submit to Solana
 	solanaVaaC := make(chan *vaa.VAA)
 
 	// Injected VAAs (manually generated rather than created via observation)
 	injectC := make(chan *vaa.VAA)
+
+	// Guardian set state managed by processor
+	gst := common.NewGuardianSetState()
 
 	// Load p2p private key
 	var priv crypto.PrivKey
@@ -363,19 +340,7 @@ func runBridge(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	// Load Terra fee payer key
-	var terraFeePayer string
-	if *terraSupport {
-		if *unsafeDevMode {
-			terra.WriteDevnetKey(*terraKeyPath)
-		}
-		terraFeePayer, err = terra.ReadKey(*terraKeyPath)
-		if err != nil {
-			logger.Fatal("Failed to load Terra fee payer key", zap.Error(err))
-		}
-	}
-
-	adminService, err := adminServiceRunnable(logger, *adminSocketPath, injectC)
+	adminService, err := adminServiceRunnable(logger, *adminSocketPath, injectC, obsvReqSendC, gst)
 	if err != nil {
 		logger.Fatal("failed to create admin service socket", zap.Error(err))
 	}
@@ -383,22 +348,24 @@ func runBridge(cmd *cobra.Command, args []string) {
 	// Run supervisor.
 	supervisor.New(rootCtx, logger, func(ctx context.Context) error {
 		if err := supervisor.Run(ctx, "p2p", p2p.Run(
-			obsvC, sendC, priv, *p2pPort, *p2pNetworkID, *p2pBootstrap, *nodeName, rootCtxCancel)); err != nil {
+			obsvC,
+			sendC,
+			obsvReqC,
+			obsvReqSendC,
+			priv,
+			gk,
+			gst,
+			*p2pPort,
+			*p2pNetworkID,
+			*p2pBootstrap,
+			*nodeName,
+			rootCtxCancel)); err != nil {
 			return err
 		}
 
 		if err := supervisor.Run(ctx, "ethwatch",
-			ethereum.NewEthBridgeWatcher(*ethRPC, ethContractAddr, *ethConfirmations, lockC, setC).Run); err != nil {
+			ethereum.NewEthBridgeWatcher(*ethRPC, ethContractAddr, *ethConfirmations, lockC, setC, obsvReqC).Run); err != nil {
 			return err
-		}
-
-		// Start Terra watcher only if configured
-		if *terraSupport {
-			logger.Info("Starting Terra watcher")
-			if err := supervisor.Run(ctx, "terrawatch",
-				terra.NewTerraBridgeWatcher(*terraWS, *terraLCD, *terraContract, lockC, setC).Run); err != nil {
-				return err
-			}
 		}
 
 		if err := supervisor.Run(ctx, "solvaa",
@@ -420,14 +387,10 @@ func runBridge(cmd *cobra.Command, args []string) {
 			solanaVaaC,
 			injectC,
 			gk,
+			gst,
 			*unsafeDevMode,
 			*devNumGuardians,
 			*ethRPC,
-			*terraSupport,
-			*terraLCD,
-			*terraChainID,
-			*terraContract,
-			terraFeePayer,
 		)
 		if err := supervisor.Run(ctx, "processor", p.Run); err != nil {
 			return err

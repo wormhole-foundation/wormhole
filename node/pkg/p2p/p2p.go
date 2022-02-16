@@ -2,9 +2,16 @@ package p2p
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"errors"
 	"fmt"
+	node_common "github.com/certusone/wormhole/node/pkg/common"
+	"github.com/certusone/wormhole/node/pkg/vaa"
 	"github.com/certusone/wormhole/node/pkg/version"
+	"github.com/ethereum/go-ethereum/common"
+	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"strings"
 	"time"
 
@@ -29,32 +36,42 @@ import (
 )
 
 var (
-	p2pHeartbeatsSent = prometheus.NewCounter(
+	p2pHeartbeatsSent = promauto.NewCounter(
 		prometheus.CounterOpts{
 			Name: "wormhole_p2p_heartbeats_sent_total",
 			Help: "Total number of p2p heartbeats sent",
 		})
-	p2pMessagesSent = prometheus.NewCounter(
+	p2pMessagesSent = promauto.NewCounter(
 		prometheus.CounterOpts{
 			Name: "wormhole_p2p_broadcast_messages_sent_total",
 			Help: "Total number of p2p pubsub broadcast messages sent",
 		})
-	p2pMessagesReceived = prometheus.NewCounterVec(
+	p2pMessagesReceived = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "wormhole_p2p_broadcast_messages_received_total",
 			Help: "Total number of p2p pubsub broadcast messages received",
 		}, []string{"type"})
 )
 
-func init() {
-	prometheus.MustRegister(p2pHeartbeatsSent)
-	prometheus.MustRegister(p2pMessagesSent)
-	prometheus.MustRegister(p2pMessagesReceived)
+var heartbeatMessagePrefix = []byte("heartbeat|")
+
+var signedObservationRequestPrefix = []byte("signed_observation_request|")
+
+func heartbeatDigest(b []byte) common.Hash {
+	return ethcrypto.Keccak256Hash(append(heartbeatMessagePrefix, b...))
+}
+
+func signedObservationRequestDigest(b []byte) common.Hash {
+	return ethcrypto.Keccak256Hash(append(signedObservationRequestPrefix, b...))
 }
 
 func Run(obsvC chan *gossipv1.SignedObservation,
 	sendC chan []byte,
+	obsvReqC chan *gossipv1.ObservationRequest,
+	obsvReqSendC chan *gossipv1.ObservationRequest,
 	priv crypto.PrivKey,
+	gk *ecdsa.PrivateKey,
+	gst *node_common.GuardianSetState,
 	port uint,
 	networkID string,
 	bootstrapPeers string,
@@ -94,7 +111,7 @@ func Run(obsvC chan *gossipv1.SignedObservation,
 			libp2p.Routing(func(h host.Host) (routing.PeerRouting, error) {
 				// TODO(leo): Persistent data store (i.e. address book)
 				idht, err := dht.New(ctx, h, dht.Mode(dht.ModeServer),
-					// TODO(leo): This intentionally makes us incompatible with the global IPFS DHT
+					// This intentionally makes us incompatible with the global IPFS DHT
 					dht.ProtocolPrefix(protocol.ID("/"+networkID)),
 				)
 				return idht, err
@@ -177,7 +194,28 @@ func Run(obsvC chan *gossipv1.SignedObservation,
 		logger.Info("Node has been started", zap.String("peer_id", h.ID().String()),
 			zap.String("addrs", fmt.Sprintf("%v", h.Addrs())))
 
+		bootTime := time.Now()
+
+		// Periodically run guardian state set cleanup.
 		go func() {
+			ticker := time.NewTicker(15 * time.Second)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-ticker.C:
+					gst.Cleanup()
+				case <-ctx.Done():
+					return
+				}
+			}
+		}()
+
+		go func() {
+			// Disable heartbeat when no node name is provided (spy mode)
+			if nodeName == "" {
+				return
+			}
+
 			ctr := int64(0)
 			tick := time.NewTicker(15 * time.Second)
 			defer tick.Stop()
@@ -190,24 +228,52 @@ func Run(obsvC chan *gossipv1.SignedObservation,
 					DefaultRegistry.mu.Lock()
 					networks := make([]*gossipv1.Heartbeat_Network, 0, len(DefaultRegistry.networkStats))
 					for _, v := range DefaultRegistry.networkStats {
+						errCtr := DefaultRegistry.GetErrorCount(vaa.ChainID(v.Id))
+						v.ErrorCount = errCtr
 						networks = append(networks, v)
 					}
 
-					msg := gossipv1.GossipMessage{Message: &gossipv1.GossipMessage_Heartbeat{
-						Heartbeat: &gossipv1.Heartbeat{
-							NodeName:     nodeName,
-							Counter:      ctr,
-							Timestamp:    time.Now().UnixNano(),
-							Networks:     networks,
-							Version:      version.Version(),
-							GuardianAddr: DefaultRegistry.guardianAddress,
-						}}}
+					heartbeat := &gossipv1.Heartbeat{
+						NodeName:      nodeName,
+						Counter:       ctr,
+						Timestamp:     time.Now().UnixNano(),
+						Networks:      networks,
+						Version:       version.Version(),
+						GuardianAddr:  DefaultRegistry.guardianAddress,
+						BootTimestamp: bootTime.UnixNano(),
+					}
 
-					b, err := proto.Marshal(&msg)
+					ourAddr := ethcrypto.PubkeyToAddress(gk.PublicKey)
+					if err := gst.SetHeartbeat(ourAddr, h.ID(), heartbeat); err != nil {
+						panic(err)
+					}
+					collectNodeMetrics(ourAddr, h.ID(), heartbeat)
+
+					b, err := proto.Marshal(heartbeat)
 					if err != nil {
 						panic(err)
 					}
+
 					DefaultRegistry.mu.Unlock()
+
+					// Sign the heartbeat using our node's guardian key.
+					digest := heartbeatDigest(b)
+					sig, err := ethcrypto.Sign(digest.Bytes(), gk)
+					if err != nil {
+						panic(err)
+					}
+
+					msg := gossipv1.GossipMessage{Message: &gossipv1.GossipMessage_SignedHeartbeat{
+						SignedHeartbeat: &gossipv1.SignedHeartbeat{
+							Heartbeat:    b,
+							Signature:    sig,
+							GuardianAddr: ourAddr.Bytes(),
+						}}}
+
+					b, err = proto.Marshal(&msg)
+					if err != nil {
+						panic(err)
+					}
 
 					err = th.Publish(ctx, b)
 					if err != nil {
@@ -231,6 +297,44 @@ func Run(obsvC chan *gossipv1.SignedObservation,
 					if err != nil {
 						logger.Error("failed to publish message from queue", zap.Error(err))
 					}
+				case msg := <-obsvReqSendC:
+					b, err := proto.Marshal(msg)
+					if err != nil {
+						panic(err)
+					}
+
+					// Sign the observation request using our node's guardian key.
+					digest := signedObservationRequestDigest(b)
+					sig, err := ethcrypto.Sign(digest.Bytes(), gk)
+					if err != nil {
+						panic(err)
+					}
+
+					sReq := &gossipv1.SignedObservationRequest{
+						ObservationRequest: b,
+						Signature:          sig,
+						GuardianAddr:       ethcrypto.PubkeyToAddress(gk.PublicKey).Bytes(),
+					}
+
+					envelope := &gossipv1.GossipMessage{
+						Message: &gossipv1.GossipMessage_SignedObservationRequest{
+							SignedObservationRequest: sReq}}
+
+					b, err = proto.Marshal(envelope)
+					if err != nil {
+						panic(err)
+					}
+
+					// Send to local observation request queue (the loopback message is ignored)
+					obsvReqC <- msg
+
+					err = th.Publish(ctx, b)
+					p2pMessagesSent.Inc()
+					if err != nil {
+						logger.Error("failed to publish observation request", zap.Error(err))
+					} else {
+						logger.Info("published signed observation request", zap.Any("signed_observation_request", sReq))
+					}
 				}
 			}
 		}()
@@ -245,7 +349,7 @@ func Run(obsvC chan *gossipv1.SignedObservation,
 			err = proto.Unmarshal(envelope.Data, &msg)
 			if err != nil {
 				logger.Info("received invalid message",
-					zap.String("data", string(envelope.Data)),
+					zap.Binary("data", envelope.Data),
 					zap.String("from", envelope.GetFrom().String()))
 				p2pMessagesReceived.WithLabelValues("invalid").Inc()
 				continue
@@ -269,9 +373,59 @@ func Run(obsvC chan *gossipv1.SignedObservation,
 					zap.Any("value", m.Heartbeat),
 					zap.String("from", envelope.GetFrom().String()))
 				p2pMessagesReceived.WithLabelValues("heartbeat").Inc()
+			case *gossipv1.GossipMessage_SignedHeartbeat:
+				s := m.SignedHeartbeat
+				gs := gst.Get()
+				if gs == nil {
+					// No valid guardian set yet - dropping heartbeat
+					logger.Debug("skipping heartbeat - no guardian set",
+						zap.Any("value", s),
+						zap.String("from", envelope.GetFrom().String()))
+					break
+				}
+				if heartbeat, err := processSignedHeartbeat(envelope.GetFrom(), s, gs, gst, false); err != nil {
+					p2pMessagesReceived.WithLabelValues("invalid_heartbeat").Inc()
+					logger.Debug("invalid signed heartbeat received",
+						zap.Error(err),
+						zap.Any("payload", msg.Message),
+						zap.Any("value", s),
+						zap.Binary("raw", envelope.Data),
+						zap.String("from", envelope.GetFrom().String()))
+				} else {
+					p2pMessagesReceived.WithLabelValues("valid_heartbeat").Inc()
+					logger.Debug("valid signed heartbeat received",
+						zap.Any("value", heartbeat),
+						zap.String("from", envelope.GetFrom().String()))
+				}
 			case *gossipv1.GossipMessage_SignedObservation:
 				obsvC <- m.SignedObservation
 				p2pMessagesReceived.WithLabelValues("observation").Inc()
+			case *gossipv1.GossipMessage_SignedObservationRequest:
+				s := m.SignedObservationRequest
+				gs := gst.Get()
+				if gs == nil {
+					logger.Debug("dropping SignedObservationRequest - no guardian set",
+						zap.Any("value", s),
+						zap.String("from", envelope.GetFrom().String()))
+					break
+				}
+				r, err := processSignedObservationRequest(s, gs)
+				if err != nil {
+					p2pMessagesReceived.WithLabelValues("invalid_signed_observation_request").Inc()
+					logger.Debug("invalid signed observation request received",
+						zap.Error(err),
+						zap.Any("payload", msg.Message),
+						zap.Any("value", s),
+						zap.Binary("raw", envelope.Data),
+						zap.String("from", envelope.GetFrom().String()))
+				} else {
+					p2pMessagesReceived.WithLabelValues("signed_observation_request").Inc()
+					logger.Info("valid signed observation request received",
+						zap.Any("value", r),
+						zap.String("from", envelope.GetFrom().String()))
+
+					obsvReqC <- r
+				}
 			default:
 				p2pMessagesReceived.WithLabelValues("unknown").Inc()
 				logger.Warn("received unknown message type (running outdated software?)",
@@ -281,4 +435,81 @@ func Run(obsvC chan *gossipv1.SignedObservation,
 			}
 		}
 	}
+}
+
+func processSignedHeartbeat(from peer.ID, s *gossipv1.SignedHeartbeat, gs *node_common.GuardianSet, gst *node_common.GuardianSetState, disableVerify bool) (*gossipv1.Heartbeat, error) {
+	envelopeAddr := common.BytesToAddress(s.GuardianAddr)
+	idx, ok := gs.KeyIndex(envelopeAddr)
+	var pk common.Address
+	if !ok {
+		if !disableVerify {
+			return nil, fmt.Errorf("invalid message: %s not in guardian set", envelopeAddr)
+		}
+	} else {
+		pk = gs.Keys[idx]
+	}
+
+	digest := heartbeatDigest(s.Heartbeat)
+
+	pubKey, err := ethcrypto.Ecrecover(digest.Bytes(), s.Signature)
+	if err != nil {
+		return nil, errors.New("failed to recover public key")
+	}
+
+	signerAddr := common.BytesToAddress(ethcrypto.Keccak256(pubKey[1:])[12:])
+	if pk != signerAddr && !disableVerify {
+		return nil, fmt.Errorf("invalid signer: %v", signerAddr)
+	}
+
+	var h gossipv1.Heartbeat
+	err = proto.Unmarshal(s.Heartbeat, &h)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal heartbeat: %w", err)
+	}
+
+	// Store verified heartbeat in global guardian set state.
+	if err := gst.SetHeartbeat(signerAddr, from, &h); err != nil {
+		return nil, fmt.Errorf("failed to store in guardian set state: %w", err)
+	}
+
+	collectNodeMetrics(signerAddr, from, &h)
+
+	return &h, nil
+}
+
+func processSignedObservationRequest(s *gossipv1.SignedObservationRequest, gs *node_common.GuardianSet) (*gossipv1.ObservationRequest, error) {
+	envelopeAddr := common.BytesToAddress(s.GuardianAddr)
+	idx, ok := gs.KeyIndex(envelopeAddr)
+	var pk common.Address
+	if !ok {
+		return nil, fmt.Errorf("invalid message: %s not in guardian set", envelopeAddr)
+	} else {
+		pk = gs.Keys[idx]
+	}
+
+	digest := signedObservationRequestDigest(s.ObservationRequest)
+
+	pubKey, err := ethcrypto.Ecrecover(digest.Bytes(), s.Signature)
+	if err != nil {
+		return nil, errors.New("failed to recover public key")
+	}
+
+	signerAddr := common.BytesToAddress(ethcrypto.Keccak256(pubKey[1:])[12:])
+	if pk != signerAddr {
+		return nil, fmt.Errorf("invalid signer: %v", signerAddr)
+	}
+
+	var h gossipv1.ObservationRequest
+	err = proto.Unmarshal(s.ObservationRequest, &h)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal observation request: %w", err)
+	}
+
+	// TODO: implement per-guardian rate limiting
+
+	if h.ChainId != vaa.ChainIDEthereum {
+		return nil, fmt.Errorf("invalid chain id: %v", h.ChainId)
+	}
+
+	return &h, nil
 }

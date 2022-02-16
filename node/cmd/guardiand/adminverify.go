@@ -1,6 +1,7 @@
 package guardiand
 
 import (
+	"encoding/hex"
 	"github.com/certusone/wormhole/node/pkg/vaa"
 	"io/ioutil"
 	"log"
@@ -33,23 +34,27 @@ func runGovernanceVAAVerify(cmd *cobra.Command, args []string) {
 		log.Fatalf("failed to deserialize: %v", err)
 	}
 
-	var (
-		v *vaa.VAA
-	)
-	switch payload := msg.Payload.(type) {
-	case *nodev1.InjectGovernanceVAARequest_GuardianSet:
-		v, err = adminGuardianSetUpdateToVAA(payload.GuardianSet, msg.CurrentSetIndex, msg.Timestamp)
-	case *nodev1.InjectGovernanceVAARequest_ContractUpgrade:
-		v, err = adminContractUpgradeToVAA(payload.ContractUpgrade, msg.CurrentSetIndex, msg.Timestamp)
-	}
-	if err != nil {
-		log.Fatalf("invalid update: %v", err)
-	}
+	for _, message := range msg.Messages {
+		var (
+			v *vaa.VAA
+		)
+		switch payload := message.Payload.(type) {
+		case *nodev1.GovernanceMessage_GuardianSet:
+			v, err = adminGuardianSetUpdateToVAA(payload.GuardianSet, msg.CurrentSetIndex, message.Timestamp)
+		case *nodev1.GovernanceMessage_ContractUpgrade:
+			v, err = adminContractUpgradeToVAA(payload.ContractUpgrade, msg.CurrentSetIndex, message.Timestamp)
+		}
+		if err != nil {
+			log.Fatalf("invalid update: %v", err)
+		}
 
-	digest, err := v.SigningMsg()
-	if err != nil {
-		panic(err)
-	}
+		digest, err := v.SigningMsg()
+		if err != nil {
+			panic(err)
+		}
 
-	log.Printf("VAA with digest %s: %+v", digest.Hex(), spew.Sdump(v))
+		log.Printf("Serialized: %v", hex.EncodeToString(b))
+
+		log.Printf("VAA with digest %s: %+v", digest.Hex(), spew.Sdump(v))
+	}
 }

@@ -48,9 +48,14 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		panic(err)
 	}
+	_, err = resp.Write([]byte("[these values update AT STARTUP ONLY - see https://github.com/certusone/wormhole/blob/dev.v2/docs/operations.md#readyz]\n\n"))
+	if err != nil {
+		panic(err)
+	}
 
+	mu.Lock()
 	for k, v := range registry {
-		_, err = fmt.Fprintln(resp, fmt.Sprintf("%s\t%v", k, v))
+		_, err = fmt.Fprintf(resp, "%s\t%v\n", k, v)
 		if err != nil {
 			panic(err)
 		}
@@ -59,6 +64,7 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 			ready = false
 		}
 	}
+	mu.Unlock()
 
 	if !ready {
 		w.WriteHeader(http.StatusPreconditionFailed)

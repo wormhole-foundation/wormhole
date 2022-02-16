@@ -1,0 +1,22 @@
+---
+version: v1beta1
+name: buf.build/certusone/wormhole
+deps:
+  - buf.build/beta/googleapis
+  - buf.build/grpc-ecosystem/grpc-gateway
+build:
+  roots:
+    - proto
+lint:
+  use:
+    - DEFAULT
+    # https://github.com/twitchtv/twirp/issues/70#issuecomment-470367807
+    - UNARY_RPC
+  ignore_only:
+    SERVICE_SUFFIX:
+      # Too late to rename the service from Agent to AgentService -
+      # service names cannot be changed in a backwards compatible fashion.
+      - agent/v1/service.proto
+breaking:
+  use:
+    - WIRE_JSON

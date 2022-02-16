@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"math/big"
+	"strings"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -94,20 +95,40 @@ type (
 	}
 )
 
+func (a Address) MarshalJSON() ([]byte, error) {
+	return []byte(fmt.Sprintf(`"%s"`, a)), nil
+}
+
 func (a Address) String() string {
 	return hex.EncodeToString(a[:])
 }
 
+func (a Address) Bytes() []byte {
+	return a[:]
+}
+
 func (c ChainID) String() string {
 	switch c {
+	case ChainIDUnset:
+		return "unset"
 	case ChainIDSolana:
 		return "solana"
 	case ChainIDEthereum:
 		return "ethereum"
-	case ChainIDTerra:
-		return "terra"
 	default:
 		return fmt.Sprintf("unknown chain ID: %d", c)
+	}
+}
+
+func ChainIDFromString(s string) (ChainID, error) {
+	s = strings.ToLower(s)
+	switch s {
+	case "solana":
+		return ChainIDSolana, nil
+	case "ethereum":
+		return ChainIDEthereum, nil
+	default:
+		return ChainIDUnset, fmt.Errorf("unknown chain ID: %s", s)
 	}
 }
 
@@ -116,12 +137,11 @@ const (
 	ActionContractUpgrade   Action = 0x02
 	ActionTransfer          Action = 0x10
 
+	ChainIDUnset ChainID = 0
 	// ChainIDSolana is the ChainID of Solana
 	ChainIDSolana = 1
 	// ChainIDEthereum is the ChainID of Ethereum
 	ChainIDEthereum = 2
-	// ChainIDTerra is the ChainID of Terra
-	ChainIDTerra = 3
 
 	minVAALength        = 1 + 4 + 52 + 4 + 1 + 1
 	SupportedVAAVersion = 0x01
@@ -445,4 +465,15 @@ func MustWrite(w io.Writer, order binary.ByteOrder, data interface{}) {
 	if err := binary.Write(w, order, data); err != nil {
 		panic(fmt.Errorf("failed to write binary data: %v", data).Error())
 	}
+}
+
+// StringToAddress converts a hex-encoded adress into a vaa.Address
+func StringToAddress(value string) (Address, error) {
+	var address Address
+	res, err := hex.DecodeString(value)
+	if err != nil {
+		return address, err
+	}
+	copy(address[:], res)
+	return address, nil
 }

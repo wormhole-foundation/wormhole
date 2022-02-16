@@ -26,9 +26,8 @@ var (
 	GanacheBridgeContractAddress = common.HexToAddress("0x5b1869D9A4C187F2EAa108f3062412ecf0526b24")
 
 	// ERC20 example tokens.
-	GanacheExampleERC20Token        = common.HexToAddress("0xCfEB869F69431e42cdB54A4F4f105C19C080A601")
-	GanacheExampleERC20WrappedSOL   = common.HexToAddress("0xf5b1d8fab1054b9cf7db274126972f97f9d42a11")
-	GanacheExampleERC20WrappedTerra = common.HexToAddress("0x62b47a23cd900da982bdbe75aeb891d3ed18cc36")
+	GanacheExampleERC20Token      = common.HexToAddress("0xCfEB869F69431e42cdB54A4F4f105C19C080A601")
+	GanacheExampleERC20WrappedSOL = common.HexToAddress("0xf5b1d8fab1054b9cf7db274126972f97f9d42a11")
 )
 
 const (
@@ -62,28 +61,6 @@ const (
 
 	// ERC20 default precision.
 	ERC20DefaultPrecision = 1e18
-
-	// CW20 default precision.
-	TerraDefaultPrecision = 1e8
-
-	// Terra LCD url
-	TerraLCDURL = "http://localhost:1317"
-
-	// Terra test chain ID
-	TerraChainID = "localterra"
-
-	// Terra main test address to send/receive tokens
-	TerraMainTestAddress    = "terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v"
-	TerraMainTestAddressHex = "00000000000000000000000035743074956c710800e83198011ccbd4ddf1556d"
-
-	// Terra token address
-	TerraTokenAddress = "terra18vd8fpwxzck93qlwghaj6arh4p7c5n896xzem5"
-
-	// Terra bridge contract address
-	TerraBridgeAddress = "terra174kgn5rtw4kf6f938wm7kwh70h2v4vcfd26jlc"
-
-	// Terra devnet fee payer mnemonic
-	TerraFeePayerKey = "notice oak worry limit wrap speak medal online prefer cluster roof addict wrist behave treat actual wasp year salad speed social layer crew genius"
 )
 
 func DeriveAccount(accountIndex uint) accounts.Account {

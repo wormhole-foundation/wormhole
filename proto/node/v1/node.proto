@@ -2,13 +2,13 @@ syntax = "proto3";
 
 package node.v1;
 
-option go_package = "proto/node/v1;nodev1";
+option go_package = "github.com/certusone/wormhole/node/pkg/proto/node/v1;nodev1";
 
-import "google/api/annotations.proto";
+import "gossip/v1/gossip.proto";
 
-// NodePrivileged exposes an administrative API. It runs on a UNIX socket and is authenticated
+// NodePrivilegedService exposes an administrative API. It runs on a UNIX socket and is authenticated
 // using Linux filesystem permissions.
-service NodePrivileged {
+service NodePrivilegedService {
   // InjectGovernanceVAA injects a governance VAA into the guardian node.
   // The node will inject the VAA into the aggregator and sign/broadcast the VAA signature.
   //
@@ -16,23 +16,22 @@ service NodePrivileged {
   // VAA timeout window for it to reach consensus.
   //
   rpc InjectGovernanceVAA (InjectGovernanceVAARequest) returns (InjectGovernanceVAAResponse);
+
+  // SendObservationRequest broadcasts a signed observation request to the gossip network
+  // using the node's guardian key. The network rate limits these requests to one per second.
+  // Requests at higher rates will fail silently.
+  rpc SendObservationRequest (SendObservationRequestRequest) returns (SendObservationRequestResponse);
 }
 
 message InjectGovernanceVAARequest {
   // Index of the current guardian set.
   uint32 current_set_index = 1;
 
-  // UNIX timestamp (s) of the VAA to be created. The timestamp is informational and will be part
-  // of the VAA submitted to the chain. It's part of the VAA digest and has to be identical across nodes and
-  // is critical for replay protection - a given event may only ever be observed with the same timestamp,
-  // otherwise, it may be possible to execute it multiple times.
-  //
-  // For lockups, the timestamp identifies the block that the lockup belongs to.
+  // List of governance VAA messages to inject.
+  repeated GovernanceMessage messages = 2;
+}
 
-  // For governance VAAs, guardians inject the VAA manually. Best practice is to pick a timestamp which roughly matches
-  // the timing of the off-chain ceremony used to achieve consensus. For guardian set updates, the actual on-chain
-  // guardian set creation timestamp will be set when the VAA is accepted on each chain.
-  //
+message GovernanceMessage {
   // This is a uint32 to match the on-chain timestamp representation. This becomes a problem in 2106 (sorry).
   uint32 timestamp = 2;
 
@@ -43,8 +42,8 @@ message InjectGovernanceVAARequest {
 }
 
 message InjectGovernanceVAAResponse {
-  // Canonical digest of the submitted VAA.
-  bytes digest = 1;
+  // Canonical digests of the submitted VAAs.
+  repeated bytes digests = 1;
 }
 
 // GuardianSet represents a new guardian set to be submitted to and signed by the node.
@@ -67,7 +66,7 @@ message GuardianKey {
   // data is the binary representation of the secp256k1 private key.
   bytes data = 1;
   // Whether this key is deterministically generated and unsuitable for production mode.
-  bool unsafeDeterministicKey = 2;
+  bool unsafe_deterministic_key = 2;
 }
 
 // ContractUpgrade represents a Wormhole contract update to be submitted to and signed by the node.
@@ -78,3 +77,9 @@ message ContractUpgrade {
   // Address of the new program/contract.
   bytes new_contract = 2;
 }
+
+message SendObservationRequestRequest {
+  gossip.v1.ObservationRequest observation_request = 1;
+}
+
+message SendObservationRequestResponse {}

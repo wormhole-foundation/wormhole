@@ -10,9 +10,9 @@ import (
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 	"github.com/certusone/wormhole/node/pkg/vaa"
-	"github.com/dfuse-io/solana-go"
-	"github.com/dfuse-io/solana-go/rpc"
 	eth_common "github.com/ethereum/go-ethereum/common"
+	"github.com/gagliardetto/solana-go"
+	"github.com/gagliardetto/solana-go/rpc"
 	"github.com/mr-tron/base58"
 	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/zap"
@@ -71,10 +71,10 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 	// Initialize gossip metrics (we want to broadcast the address even if we're not yet syncing)
 	bridgeAddr := base58.Encode(s.bridge[:])
 	p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDSolana, &gossipv1.Heartbeat_Network{
-		BridgeAddress: bridgeAddr,
+		ContractAddress: bridgeAddr,
 	})
 
-	rpcClient := rpc.NewClient(s.rpcUrl)
+	rpcClient := rpc.New(s.rpcUrl)
 	logger := supervisor.Logger(ctx)
 	errC := make(chan error)
 
@@ -96,13 +96,14 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 					queryLatency.WithLabelValues("get_slot").Observe(time.Since(start).Seconds())
 					if err != nil {
 						solanaConnectionErrors.WithLabelValues("get_slot_error").Inc()
+						p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDSolana, 1)
 						errC <- err
 						return
 					}
 					currentSolanaHeight.Set(float64(slot))
 					p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDSolana, &gossipv1.Heartbeat_Network{
-						Height:        int64(slot),
-						BridgeAddress: bridgeAddr,
+						Height:          int64(slot),
+						ContractAddress: bridgeAddr,
 					})
 
 					logger.Info("current Solana height", zap.Uint64("slot", uint64(slot)))
@@ -112,8 +113,8 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 					defer cancel()
 					start = time.Now()
 
-					accounts, err := rpcClient.GetProgramAccounts(rCtx, s.bridge, &rpc.GetProgramAccountsOpts{
-						Commitment: rpc.CommitmentMax, // TODO: deprecated, use Finalized
+					accounts, err := rpcClient.GetProgramAccountsWithOpts(rCtx, s.bridge, &rpc.GetProgramAccountsOpts{
+						Commitment: rpc.CommitmentFinalized,
 						Filters: []rpc.RPCFilter{
 							{
 								DataSize: 1184, // Search for TransferOutProposal accounts
@@ -129,6 +130,7 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 					queryLatency.WithLabelValues("get_program_accounts").Observe(time.Since(start).Seconds())
 					if err != nil {
 						solanaConnectionErrors.WithLabelValues("get_program_account_error").Inc()
+						p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDSolana, 1)
 						errC <- err
 						return
 					}
@@ -139,7 +141,7 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 					)
 
 					for _, acc := range accounts {
-						proposal, err := ParseTransferOutProposal(acc.Account.Data)
+						proposal, err := ParseTransferOutProposal(acc.Account.Data.GetBinary())
 						if err != nil {
 							solanaAccountSkips.WithLabelValues("parse_transfer_out").Inc()
 							logger.Warn(

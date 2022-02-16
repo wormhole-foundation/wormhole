@@ -126,7 +126,6 @@ After a few seconds, the SPL token balance shown below will increase as the VAA 
 | `3C3m4tjTy4nSMkkYdqCDSiCWEgpDa6whvprvABdFGBiW` | Account that holds 6qRhs8oA... SPL tokens           |
 | `85kW19uNvETzH43p3AfpyqPaQS5rWouq4x9rGiKUvihf` | Wrapped token for the 0xCfEB86... ERC20 token       |
 | `7EFk3VrWeb29SWJPQs5cUyqcY3fQd33S9gELkGybRzeu` | Account that holds 85kW19u... wrapped tokens [2]    |
-| `9ESkHLgJH4zqbG7fvhpC9u2ZeHMoLJznCHtaRLviEVRh` | Wrapped token for the terra18vd8f... CW20 token     |
 | `EERzaqe8Agm8p1ZkGQFq9zKpP7MDW29FX1pC1vEw9Yfv` | Account that holds 9ESkHLg... wrapped tokens        |
 
 [1]: The account will eventually run out of funds if you run the lockup sending scripts for a long time. Refill it
@@ -143,12 +142,3 @@ using `kubectl exec solana-devnet-0 -c setup -- cli airdrop solana-devnet:9900` 
 | `0xe78A0F7E598Cc8b0Bb87894B0F60dD2a88d6a8Ab` | Wrapped asset contract                                |
 | `0xCfEB869F69431e42cdB54A4F4f105C19C080A601` | Example ERC20 token                                   |
 | `0xf5b1d8fab1054b9cf7db274126972f97f9d42a11` | Wrapped asset address for the 6qRhs8oA... SPL token   |
-| `0x62b47a23cd900da982bdbe75aeb891d3ed18cc36` | Wrapped asset address for the terra18v... Terra token |
-
-**Terra**
-
-| Account                                        | Description                                         |
-|------------------------------------------------|-----------------------------------------------------|
-| `terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v` | Main test account                                   |
-| `terra18vd8fpwxzck93qlwghaj6arh4p7c5n896xzem5` | Test token account to send via bridge               |
-| `terra174kgn5rtw4kf6f938wm7kwh70h2v4vcfd26jlc` | Bridge contract instance                            |

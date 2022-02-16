@@ -49,12 +49,6 @@ echo "Created wrapped token $wrapped_token"
 wrapped_account=$(cli create-account --seed=934893 "$wrapped_token" | grep 'Creating account' | awk '{ print $3 }')
 echo "Created wrapped token account $wrapped_account"
 
-# Create wrapped asset and token account for Terra tokens (3 for Terra, 8 for precision)
-wrapped_terra_token=$(cli create-wrapped "$bridge_address" 3 8 0000000000000000000000003b1a7485c6162c5883ee45fb2d7477a87d8a4ce5 | grep 'Wrapped Mint address' | awk '{ print $4 }')
-echo "Created wrapped token for Terra $wrapped_terra_token"
-wrapped_terra_account=$(cli create-account --seed=736251 "$wrapped_terra_token" | grep 'Creating account' | awk '{ print $3 }')
-echo "Created wrapped token account for Terra $wrapped_terra_account"
-
 # Let k8s startup probe succeed
 nc -l -p 2000
 
