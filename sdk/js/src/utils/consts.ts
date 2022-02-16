@@ -1,4 +1,4 @@
-export type ChainId = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 10001;
+export type ChainId = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 10001;
 export const CHAIN_ID_SOLANA: ChainId = 1;
 export const CHAIN_ID_ETH: ChainId = 2;
 export const CHAIN_ID_TERRA: ChainId = 3;
@@ -9,6 +9,8 @@ export const CHAIN_ID_OASIS: ChainId = 7;
 export const CHAIN_ID_ALGORAND: ChainId = 8;
 export const CHAIN_ID_AURORA: ChainId = 9;
 export const CHAIN_ID_FANTOM: ChainId = 10;
+export const CHAIN_ID_KARURA: ChainId = 11;
+export const CHAIN_ID_ACALA: ChainId = 12;
 export const CHAIN_ID_ETHEREUM_ROPSTEN: ChainId = 10001;
 
 export const WSOL_ADDRESS = "So11111111111111111111111111111111111111112";
