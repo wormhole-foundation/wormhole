@@ -75,7 +75,7 @@ spec:
 #            - --api-version=2
 #            - --continue=true
 #            - exec
-- /guardiand
+            - /guardiand
 #            - --
             - node
             - --ethRPC
