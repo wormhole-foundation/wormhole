@@ -56,26 +56,10 @@ func postMessage(cmd *cobra.Command, args []string) {
 		cmd.PrintErrln("Could not parse nonce", err)
 		os.Exit(1)
 	}
-	if nonce > math.MaxUint32 {
-		cmd.PrintErrln("Nonce must not exceed MaxUint32", err)
-		os.Exit(1)
-	}
-	if nonce < 0 {
-		cmd.PrintErrln("Nonce must not be negative", err)
-		os.Exit(1)
-	}
 
 	consistencyLevel, err := strconv.ParseUint(args[1], 10, 8)
 	if err != nil {
 		cmd.PrintErrln("Could not parse confirmation number", err)
-		os.Exit(1)
-	}
-	if consistencyLevel > math.MaxUint8 {
-		cmd.PrintErrln("Confirmation number must not exceed 255", err)
-		os.Exit(1)
-	}
-	if consistencyLevel < 0 {
-		cmd.PrintErrln("Confirmation number must not be negative", err)
 		os.Exit(1)
 	}
 
