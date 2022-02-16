@@ -51,7 +51,7 @@ func init() {
 }
 
 func postMessage(cmd *cobra.Command, args []string) {
-	nonce, err := strconv.Atoi(args[0])
+	nonce, err := strconv.ParseUint(args[0], 10, 32)
 	if err != nil {
 		cmd.PrintErrln("Could not parse nonce", err)
 		os.Exit(1)
@@ -65,7 +65,7 @@ func postMessage(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
-	consistencyLevel, err := strconv.Atoi(args[1])
+	consistencyLevel, err := strconv.ParseUint(args[1], 10, 8)
 	if err != nil {
 		cmd.PrintErrln("Could not parse confirmation number", err)
 		os.Exit(1)
