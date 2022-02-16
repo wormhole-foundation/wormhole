@@ -17,6 +17,7 @@ enum ChainID {
   CHAIN_ID_AVALANCHE = 6;
   CHAIN_ID_OASIS = 7;
   CHAIN_ID_ALGORAND = 8;
+  CHAIN_ID_FANTOM = 10;
   CHAIN_ID_KARURA = 11;
   CHAIN_ID_ACALA = 12;
   // Special case - Eth has two testnets. CHAIN_ID_ETHEREUM is Goerli,

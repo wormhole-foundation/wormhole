@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"flag"
 	"fmt"
+	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/db"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	nodev1 "github.com/certusone/wormhole/node/pkg/proto/node/v1"
@@ -15,21 +16,13 @@ import (
 	"google.golang.org/grpc"
 	"log"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 	"time"
 )
 
 var (
-	solanaEmitters = []string{
-		"0def15a24423e1edd1a5ab16f557b9060303ddbab8c803d2ee48f4b78a1cfd6b",
-		"b2dd468c9b8c80b3dd9211e9e3fd6ee4d652eb5997b7c9020feae971c278ab07",
-		"ec7372995d5cc8732397fb0ad35c0121e0eaa90d26f828a534cab54391b3a4f5",
-	}
-
 	solanaRPC  = flag.String("solanaRPC", "http://localhost:8899", "Solana RPC address")
-	stateDir   = flag.String("stateDir", "./repairState", "State directory")
 	adminRPC   = flag.String("adminRPC", "/run/guardiand/admin.socket", "Admin RPC address")
 	solanaAddr = flag.String("solanaProgram", "worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth", "Solana program address")
 )
@@ -49,15 +42,6 @@ func getAdminClient(ctx context.Context, addr string) (*grpc.ClientConn, error, 
 	return conn, err, c
 }
 
-var publicRPCEndpoints = []string{
-	"https://wormhole-v2-mainnet-api.certus.one",
-	"https://wormhole.inotel.ro",
-	"https://wormhole-v2-mainnet-api.mcf.rocks",
-	"https://wormhole-v2-mainnet-api.chainlayer.network",
-	"https://wormhole-v2-mainnet-api.staking.fund",
-	"https://wormhole-v2-mainnet.01node.com",
-}
-
 func main() {
 	flag.Parse()
 
@@ -70,14 +54,18 @@ func main() {
 		log.Fatalf("failed to get admin client: %v", err)
 	}
 
-	for _, emitter := range solanaEmitters {
+	for _, emitter := range common.KnownEmitters {
+		if emitter.ChainID != vaa.ChainIDSolana {
+			continue
+		}
+
 		log.Printf("Requesting missing messages for %s", emitter)
 
 		msg := nodev1.FindMissingMessagesRequest{
 			EmitterChain:   uint32(vaa.ChainIDSolana),
-			EmitterAddress: emitter,
+			EmitterAddress: emitter.Emitter,
 			RpcBackfill:    true,
-			BackfillNodes:  publicRPCEndpoints,
+			BackfillNodes:  common.PublicRPCEndpoints,
 		}
 		resp, err := admin.FindMissingMessages(ctx, &msg)
 		if err != nil {
@@ -106,14 +94,9 @@ func main() {
 
 		limiter := rate.NewLimiter(rate.Every(100*time.Millisecond), 10)
 
-		err = os.MkdirAll(*stateDir, 0755)
-		if err != nil {
-			log.Fatalf("Failed to create state directory: %v", err)
-		}
-
 		var before solana.Signature
 
-		decoded, err := hex.DecodeString(emitter)
+		decoded, err := hex.DecodeString(emitter.Emitter)
 		if err != nil {
 			log.Fatalf("Failed to decode emitter address: %v", err)
 		}
@@ -218,7 +201,7 @@ func main() {
 						log.Printf("verifying %d", p.Sequence)
 						req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf(
 							"%s/v1/signed_vaa/%d/%s/%d",
-							publicRPCEndpoints[0],
+							common.PublicRPCEndpoints[0],
 							vaa.ChainIDSolana,
 							hex.EncodeToString(addr[:]),
 							p.Sequence), nil)
