@@ -75,7 +75,7 @@ def k8s_yaml_with_ns(objects):
 
 # protos
 
-proto_deps = ["./proto", "./generate-protos.sh", "buf.yaml", "buf.gen.yaml"]
+proto_deps = ["./proto", "buf.yaml", "buf.gen.yaml"]
 
 local_resource(
     name = "proto-gen",
