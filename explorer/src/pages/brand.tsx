@@ -310,7 +310,7 @@ const BrandPage = ({ location }: PageProps) => {
                           aspectRatio: '1/1',
                           backgroundColor: '#5189C8'
                         }}></Box>
-                        <Typography variant="caption">#E72850</Typography>
+                        <Typography variant="caption">#5189C8</Typography>
                     </Grid>
                     <Grid item xs={6}>
                       <Box sx={{
