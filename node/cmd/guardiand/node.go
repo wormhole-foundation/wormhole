@@ -75,8 +75,8 @@ var (
 	ethRopstenRPC      *string
 	ethRopstenContract *string
 
-	fantomRPC	*string
-	fantomContract	*string
+	fantomRPC      *string
+	fantomContract *string
 
 	avalancheRPC      *string
 	avalancheContract *string
@@ -85,10 +85,10 @@ var (
 	oasisContract *string
 
 	karuraRPC      *string
-	karuraContract *string	
+	karuraContract *string
 
-	acalaRPC       *string
-	acalaContract  *string		
+	acalaRPC      *string
+	acalaContract *string
 
 	terraWS       *string
 	terraLCD      *string
@@ -171,7 +171,7 @@ func init() {
 	karuraContract = NodeCmd.Flags().String("karuraContract", "", "Karura contract address")
 
 	acalaRPC = NodeCmd.Flags().String("acalaRPC", "", "Acala RPC URL")
-	acalaContract = NodeCmd.Flags().String("acalaContract", "", "Acala contract address")		
+	acalaContract = NodeCmd.Flags().String("acalaContract", "", "Acala contract address")
 
 	terraWS = NodeCmd.Flags().String("terraWS", "", "Path to terrad root for websocket connection")
 	terraLCD = NodeCmd.Flags().String("terraLCD", "", "Path to LCD service root for http calls")
@@ -387,7 +387,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	}
 	if *oasisRPC == "" {
 		logger.Fatal("Please specify --oasisRPC")
-	}	
+	}
 	if *testnetMode {
 		if *ethRopstenRPC == "" {
 			logger.Fatal("Please specify --ethRopstenRPC")
@@ -403,23 +403,23 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 		if *karuraRPC == "" {
 			logger.Fatal("Please specify --karuraRPC")
-		}		
+		}
 		if *karuraContract == "" {
 			logger.Fatal("Please specify --karuraContract")
-		}	
+		}
 		if *acalaRPC == "" {
 			logger.Fatal("Please specify --acalaRPC")
 		}
 		if *acalaContract == "" {
 			logger.Fatal("Please specify --acalaContract")
-		}		
+		}
 	} else {
 		if *ethRopstenRPC != "" {
 			logger.Fatal("Please do not specify --ethRopstenRPC in non-testnet mode")
 		}
 		if *ethRopstenContract != "" {
-			logger.Fatal("Please do not specify --ethRopstenContract in non-testnet mode")	
-		}		
+			logger.Fatal("Please do not specify --ethRopstenContract in non-testnet mode")
+		}
 	}
 	if *nodeName == "" {
 		logger.Fatal("Please specify --nodeName")
@@ -731,7 +731,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		if err := supervisor.Run(ctx, "oasiswatch",
 			ethereum.NewEthWatcher(*oasisRPC, oasisContractAddr, "oasis", common.ReadinessOasisSyncing, vaa.ChainIDOasis, lockC, nil, 1, chainObsvReqC[vaa.ChainIDOasis]).Run); err != nil {
 			return err
-		}				
+		}
 
 		if *testnetMode {
 			if err := supervisor.Run(ctx, "ethropstenwatch",
@@ -749,7 +749,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			if err := supervisor.Run(ctx, "acalawatch",
 				ethereum.NewEthWatcher(*acalaRPC, acalaContractAddr, "acala", common.ReadinessAcalaSyncing, vaa.ChainIDAcala, lockC, nil, 1, chainObsvReqC[vaa.ChainIDAcala]).Run); err != nil {
 				return err
-			}								
+			}
 		}
 
 		// Start Terra watcher only if configured
