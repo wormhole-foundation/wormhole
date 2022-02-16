@@ -155,6 +155,32 @@ module.exports = {
       gas: 4465030,
       gasPrice: 300000000000,
     },
+    karura_testnet: {
+      provider: () => {
+        return new HDWalletProvider(
+          process.env.MNEMONIC,
+          "https://tc7-eth.aca-dev.network"
+        );
+      },
+      network_id: 595,
+      gas: 63064010, // 15000000
+      gasPrice: 202184524778,
+      timeoutBlocks: 100,
+      confirmations: 0,
+    },
+    acala_testnet: {
+      provider: () => {
+        return new HDWalletProvider(
+          process.env.MNEMONIC,
+          "https://tc7-eth.aca-dev.network"
+        );
+      },
+      network_id: 595,
+      gas: 63064010, // 15000000
+      gasPrice: 202184524778,
+      timeoutBlocks: 100,
+      confirmations: 0,
+    },
   },
 
   compilers: {
