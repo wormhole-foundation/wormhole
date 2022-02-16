@@ -74,7 +74,7 @@ func postMessage(cmd *cobra.Command, args []string) {
 		cmd.PrintErrln("Confirmation number must not exceed 255", err)
 		os.Exit(1)
 	}
-	if nonce < 0 {
+	if consistencyLevel < 0 {
 		cmd.PrintErrln("Confirmation number must not be negative", err)
 		os.Exit(1)
 	}
