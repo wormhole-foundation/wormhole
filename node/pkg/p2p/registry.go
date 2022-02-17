@@ -14,13 +14,18 @@ type registry struct {
 	// Mapping of chain IDs to network status messages.
 	networkStats map[vaa.ChainID]*gossipv1.Heartbeat_Network
 
+	// Per-chain error counters
+	errorCounters  map[vaa.ChainID]uint64
+	errorCounterMu sync.Mutex
+
 	// Value of Heartbeat.guardian_addr.
 	guardianAddress string
 }
 
 func NewRegistry() *registry {
 	return &registry{
-		networkStats: map[vaa.ChainID]*gossipv1.Heartbeat_Network{},
+		networkStats:  map[vaa.ChainID]*gossipv1.Heartbeat_Network{},
+		errorCounters: map[vaa.ChainID]uint64{},
 	}
 }
 
@@ -43,4 +48,16 @@ func (r *registry) SetNetworkStats(chain vaa.ChainID, data *gossipv1.Heartbeat_N
 	data.Id = uint32(chain)
 	r.networkStats[chain] = data
 	r.mu.Unlock()
+}
+
+func (r *registry) AddErrorCount(chain vaa.ChainID, delta uint64) {
+	r.errorCounterMu.Lock()
+	defer r.errorCounterMu.Unlock()
+	r.errorCounters[chain] += 1
+}
+
+func (r *registry) GetErrorCount(chain vaa.ChainID) uint64 {
+	r.errorCounterMu.Lock()
+	defer r.errorCounterMu.Unlock()
+	return r.errorCounters[chain]
 }

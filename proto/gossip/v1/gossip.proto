@@ -2,16 +2,32 @@ syntax = "proto3";
 
 package gossip.v1;
 
-option go_package = "proto/gossip/v1;gossipv1";
+option go_package = "github.com/certusone/wormhole/node/pkg/proto/gossip/v1;gossipv1";
 
 message GossipMessage {
   oneof message {
     Heartbeat heartbeat = 1;
     SignedObservation signed_observation = 2;
+    SignedHeartbeat signed_heartbeat = 3;
+    // Reserved: 4 (signed_vaa_with_quorum)
+    SignedObservationRequest signed_observation_request = 5;
   }
 }
 
-// P2P gossip heartbeats for network introspection purposes. ALL FIELDS ARE UNTRUSTED.
+message SignedHeartbeat {
+  // Serialized Heartbeat message.
+  bytes heartbeat = 1;
+
+  // ECDSA signature using the node's guardian public key.
+  bytes signature = 2;
+
+  // Guardian address that signed this payload (truncated Eth address).
+  // This is already contained in Heartbeat, however, we want to verify
+  // the payload before we deserialize it.
+  bytes guardian_addr = 3;
+}
+
+// P2P gossip heartbeats for network introspection purposes.
 message Heartbeat {
   // The node's arbitrarily chosen, untrusted nodeName.
   string node_name = 1;
@@ -26,16 +42,9 @@ message Heartbeat {
     // Consensus height of the node.
     int64 height = 2;
     // Chain-specific human-readable representation of the bridge contract address.
-    string bridge_address = 3;
-
-    // Fee payer account for this network, if present. Some networks like Ethereum do not use fee payer accounts.
-    message FeePayer {
-      // The account's on-chain balance.
-      int64 balance = 1;
-      // Chain-specific human-readable representation of the fee payer account's address.
-      string address = 2;
-    }
-    FeePayer fee_payer = 4;
+    string contract_address = 3;
+    // Connection error count
+    uint64 error_count = 4;
   }
   repeated Network networks = 4;
 
@@ -45,7 +54,8 @@ message Heartbeat {
   // Human-readable representation of the guardian key's address.
   string guardian_addr = 6;
 
-  // TODO: include signed statement of gk public key?
+  // UNIX boot timestamp.
+  int64 boot_timestamp = 7;
 }
 
 // A SignedObservation is a signed statement by a given guardian node
@@ -68,4 +78,27 @@ message SignedObservation {
   bytes hash = 2;
   // ECSDA signature of the hash using the node's guardian key.
   bytes signature = 3;
+  // Transaction hash this observation was made from.
+  // Optional, included for observability.
+  bytes tx_hash = 4;
+}
+
+// Any guardian can send a SignedObservationRequest to the network to request
+// all guardians to re-observe a given transaction. This is rate-limited to one
+// request per second per guardian to prevent abuse.
+//
+// In the current implementation, this is only implemented for Solana.
+// For Solana, the tx_hash is the account address of the transaction's message account.
+message SignedObservationRequest {
+  // Serialized observation request.
+  bytes observation_request = 1;
+
+  // Signature
+  bytes signature = 2;
+  bytes guardian_addr = 3;
+}
+
+message ObservationRequest {
+  uint32 chain_id = 1;
+  bytes tx_hash = 2;
 }

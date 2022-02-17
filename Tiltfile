@@ -59,10 +59,15 @@ def k8s_yaml_with_ns(objects):
 
 # protos
 
+proto_deps = ["./proto", "buf.yaml", "buf.gen.yaml"]
+
 local_resource(
     name = "proto-gen",
-    deps = ["./proto", "./generate-protos.sh"],
-    cmd = "./generate-protos.sh",
+    deps = proto_deps,
+    cmd = "tilt docker build -- --target go-export -f Dockerfile.proto -o type=local,dest=node .",
+    env = {"DOCKER_BUILDKIT": "1"},
+    labels = ["protobuf"],
+    allow_parallel = True,
 )
 
 # node
@@ -88,9 +93,13 @@ def build_node_yaml():
 
 k8s_yaml_with_ns(build_node_yaml())
 
-k8s_resource("guardian", resource_deps = ["proto-gen", "solana-devnet"], port_forwards = [
-    port_forward(6060, name = "Debug/Status Server [:6060]"),
-])
+k8s_resource(
+    "guardian",
+    resource_deps = ["proto-gen", "solana-devnet"],
+    port_forwards = [
+        port_forward(6060, name = "Debug/Status Server [:6060]"),
+    ],
+)
 
 # solana agent and cli (runs alongside node)
 
@@ -147,29 +156,3 @@ k8s_yaml_with_ns("devnet/eth-devnet.yaml")
 k8s_resource("eth-devnet", port_forwards = [
     port_forward(8545, name = "Ganache RPC [:8545]"),
 ])
-
-# terra devnet
-
-docker_build(
-    ref = "terra-image",
-    context = "./terra/devnet",
-    dockerfile = "terra/devnet/Dockerfile",
-)
-
-docker_build(
-    ref = "terra-contracts",
-    context = "./terra",
-    dockerfile = "./terra/Dockerfile",
-)
-
-k8s_yaml_with_ns("devnet/terra-devnet.yaml")
-
-k8s_resource(
-    "terra-lcd",
-    port_forwards = [port_forward(1317, name = "Terra LCD interface [:1317]")],
-)
-
-k8s_resource(
-    "terra-terrad",
-    port_forwards = [port_forward(26657, name = "Terra RPC [:26657]")],
-)

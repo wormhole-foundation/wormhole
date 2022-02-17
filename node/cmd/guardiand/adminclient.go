@@ -2,9 +2,14 @@ package guardiand
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
+	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
+	publicrpcv1 "github.com/certusone/wormhole/node/pkg/proto/publicrpc/v1"
+	"github.com/spf13/pflag"
 	"io/ioutil"
 	"log"
+	"strconv"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -18,15 +23,23 @@ import (
 var clientSocketPath *string
 
 func init() {
-	pf := AdminClientInjectGuardianSetUpdateCmd.Flags()
+	// Shared flags for all admin commands
+	pf := pflag.NewFlagSet("commonAdminFlags", pflag.ContinueOnError)
 	clientSocketPath = pf.String("socket", "", "gRPC admin server socket to connect to")
 	err := cobra.MarkFlagRequired(pf, "socket")
 	if err != nil {
 		panic(err)
 	}
 
+	AdminClientInjectGuardianSetUpdateCmd.Flags().AddFlagSet(pf)
+	AdminClientGovernanceVAAVerifyCmd.Flags().AddFlagSet(pf)
+	AdminClientListNodes.Flags().AddFlagSet(pf)
+	SendObservationRequest.Flags().AddFlagSet(pf)
+
 	AdminCmd.AddCommand(AdminClientInjectGuardianSetUpdateCmd)
 	AdminCmd.AddCommand(AdminClientGovernanceVAAVerifyCmd)
+	AdminCmd.AddCommand(AdminClientListNodes)
+	AdminCmd.AddCommand(SendObservationRequest)
 }
 
 var AdminCmd = &cobra.Command{
@@ -41,14 +54,32 @@ var AdminClientInjectGuardianSetUpdateCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 }
 
-func getAdminClient(ctx context.Context, addr string) (*grpc.ClientConn, error, nodev1.NodePrivilegedClient) {
+var SendObservationRequest = &cobra.Command{
+	Use:   "send-observation-request [CHAIN_ID] [TX_HASH_HEX]",
+	Short: "Broadcast an observation request for the given chain ID and chain-specific tx_hash",
+	Run:   runSendObservationRequest,
+	Args:  cobra.ExactArgs(2),
+}
+
+func getAdminClient(ctx context.Context, addr string) (*grpc.ClientConn, error, nodev1.NodePrivilegedServiceClient) {
 	conn, err := grpc.DialContext(ctx, fmt.Sprintf("unix:///%s", addr), grpc.WithInsecure())
 
 	if err != nil {
 		log.Fatalf("failed to connect to %s: %v", addr, err)
 	}
 
-	c := nodev1.NewNodePrivilegedClient(conn)
+	c := nodev1.NewNodePrivilegedServiceClient(conn)
+	return conn, err, c
+}
+
+func getPublicRPCServiceClient(ctx context.Context, addr string) (*grpc.ClientConn, error, publicrpcv1.PublicRPCServiceClient) {
+	conn, err := grpc.DialContext(ctx, fmt.Sprintf("unix:///%s", addr), grpc.WithInsecure())
+
+	if err != nil {
+		log.Fatalf("failed to connect to %s: %v", addr, err)
+	}
+
+	c := publicrpcv1.NewPublicRPCServiceClient(conn)
 	return conn, err, c
 }
 
@@ -59,6 +90,9 @@ func runInjectGovernanceVAA(cmd *cobra.Command, args []string) {
 
 	conn, err, c := getAdminClient(ctx, *clientSocketPath)
 	defer conn.Close()
+	if err != nil {
+		log.Fatalf("failed to get admin client: %v", err)
+	}
 
 	b, err := ioutil.ReadFile(path)
 	if err != nil {
@@ -76,5 +110,38 @@ func runInjectGovernanceVAA(cmd *cobra.Command, args []string) {
 		log.Fatalf("failed to submit governance VAA: %v", err)
 	}
 
-	log.Printf("VAA successfully injected with digest %s", hexutils.BytesToHex(resp.Digest))
+	for _, digest := range resp.Digests {
+		log.Printf("VAA successfully injected with digest %s", hexutils.BytesToHex(digest))
+	}
+}
+
+func runSendObservationRequest(cmd *cobra.Command, args []string) {
+	chainID, err := strconv.Atoi(args[0])
+	if err != nil {
+		log.Fatalf("invalid chain ID: %v", err)
+	}
+
+	txHash, err := hex.DecodeString(args[1])
+	if err != nil {
+		log.Fatalf("invalid transaction hash: %v", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	conn, err, c := getAdminClient(ctx, *clientSocketPath)
+	defer conn.Close()
+	if err != nil {
+		log.Fatalf("failed to get admin client: %v", err)
+	}
+
+	_, err = c.SendObservationRequest(ctx, &nodev1.SendObservationRequestRequest{
+		ObservationRequest: &gossipv1.ObservationRequest{
+			ChainId: uint32(chainID),
+			TxHash:  txHash,
+		},
+	})
+	if err != nil {
+		log.Fatalf("failed to send observation request: %v", err)
+	}
 }

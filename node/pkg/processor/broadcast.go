@@ -3,6 +3,7 @@ package processor
 import (
 	"encoding/hex"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"time"
 
 	ethcommon "github.com/ethereum/go-ethereum/common"
@@ -14,18 +15,14 @@ import (
 )
 
 var (
-	observationsBroadcastTotal = prometheus.NewCounter(
+	observationsBroadcastTotal = promauto.NewCounter(
 		prometheus.CounterOpts{
 			Name: "wormhole_observations_broadcast_total",
 			Help: "Total number of signed observations queued for broadcast",
 		})
 )
 
-func init() {
-	prometheus.MustRegister(observationsBroadcastTotal)
-}
-
-func (p *Processor) broadcastSignature(v *vaa.VAA, signature []byte) {
+func (p *Processor) broadcastSignature(v *vaa.VAA, signature []byte, txhash []byte) {
 	digest, err := v.SigningMsg()
 	if err != nil {
 		panic(err)
@@ -35,6 +32,7 @@ func (p *Processor) broadcastSignature(v *vaa.VAA, signature []byte) {
 		Addr:      crypto.PubkeyToAddress(p.gk.PublicKey).Bytes(),
 		Hash:      digest.Bytes(),
 		Signature: signature,
+		TxHash:    txhash,
 	}
 
 	w := gossipv1.GossipMessage{Message: &gossipv1.GossipMessage_SignedObservation{SignedObservation: &obsv}}

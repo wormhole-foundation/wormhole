@@ -4,6 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
+	publicrpcv1 "github.com/certusone/wormhole/node/pkg/proto/publicrpc/v1"
+	"github.com/certusone/wormhole/node/pkg/publicrpc"
 	"math"
 	"net"
 	"os"
@@ -11,7 +14,6 @@ import (
 
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"go.uber.org/zap"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -22,9 +24,10 @@ import (
 )
 
 type nodePrivilegedService struct {
-	nodev1.UnimplementedNodePrivilegedServer
-	injectC chan<- *vaa.VAA
-	logger  *zap.Logger
+	nodev1.UnimplementedNodePrivilegedServiceServer
+	injectC      chan<- *vaa.VAA
+	obsvReqSendC chan *gossipv1.ObservationRequest
+	logger       *zap.Logger
 }
 
 // adminGuardianSetUpdateToVAA converts a nodev1.GuardianSetUpdate message to its canonical VAA representation.
@@ -101,35 +104,42 @@ func (s *nodePrivilegedService) InjectGovernanceVAA(ctx context.Context, req *no
 		v   *vaa.VAA
 		err error
 	)
-	switch payload := req.Payload.(type) {
-	case *nodev1.InjectGovernanceVAARequest_GuardianSet:
-		v, err = adminGuardianSetUpdateToVAA(payload.GuardianSet, req.CurrentSetIndex, req.Timestamp)
-	case *nodev1.InjectGovernanceVAARequest_ContractUpgrade:
-		v, err = adminContractUpgradeToVAA(payload.ContractUpgrade, req.CurrentSetIndex, req.Timestamp)
-	default:
-		panic(fmt.Sprintf("unsupported VAA type: %T", payload))
+
+	digests := make([][]byte, len(req.Messages))
+
+	for i, message := range req.Messages {
+		switch payload := message.Payload.(type) {
+		case *nodev1.GovernanceMessage_GuardianSet:
+			v, err = adminGuardianSetUpdateToVAA(payload.GuardianSet, req.CurrentSetIndex, message.Timestamp)
+		case *nodev1.GovernanceMessage_ContractUpgrade:
+			v, err = adminContractUpgradeToVAA(payload.ContractUpgrade, req.CurrentSetIndex, message.Timestamp)
+		default:
+			panic(fmt.Sprintf("unsupported VAA type: %T", payload))
+		}
+		if err != nil {
+			return nil, status.Error(codes.InvalidArgument, err.Error())
+		}
+
+		// Generate digest of the unsigned VAA.
+		digest, err := v.SigningMsg()
+		if err != nil {
+			panic(err)
+		}
+
+		s.logger.Info("governance VAA constructed",
+			zap.Any("vaa", v),
+			zap.String("digest", digest.String()),
+		)
+
+		s.injectC <- v
+
+		digests[i] = digest.Bytes()
 	}
-	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
-	}
 
-	// Generate digest of the unsigned VAA.
-	digest, err := v.SigningMsg()
-	if err != nil {
-		panic(err)
-	}
-
-	s.logger.Info("governance VAA constructed",
-		zap.Any("vaa", v),
-		zap.String("digest", digest.String()),
-	)
-
-	s.injectC <- v
-
-	return &nodev1.InjectGovernanceVAAResponse{Digest: digest.Bytes()}, nil
+	return &nodev1.InjectGovernanceVAAResponse{Digests: digests}, nil
 }
 
-func adminServiceRunnable(logger *zap.Logger, socketPath string, injectC chan<- *vaa.VAA) (supervisor.Runnable, error) {
+func adminServiceRunnable(logger *zap.Logger, socketPath string, injectC chan<- *vaa.VAA, obsvReqSendC chan *gossipv1.ObservationRequest, gst *common.GuardianSetState) (supervisor.Runnable, error) {
 	// Delete existing UNIX socket, if present.
 	fi, err := os.Stat(socketPath)
 	if err == nil {
@@ -151,6 +161,9 @@ func adminServiceRunnable(logger *zap.Logger, socketPath string, injectC chan<- 
 	// The umask avoids a race condition between file creation and chmod.
 
 	laddr, err := net.ResolveUnixAddr("unix", socketPath)
+	if err != nil {
+		return nil, fmt.Errorf("invalid listen address: %w", err)
+	}
 	l, err := net.ListenUnix("unix", laddr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to listen on %s: %w", socketPath, err)
@@ -159,11 +172,21 @@ func adminServiceRunnable(logger *zap.Logger, socketPath string, injectC chan<- 
 	logger.Info("admin server listening on", zap.String("path", socketPath))
 
 	nodeService := &nodePrivilegedService{
-		injectC: injectC,
-		logger:  logger.Named("adminservice"),
+		injectC:      injectC,
+		obsvReqSendC: obsvReqSendC,
+		logger:       logger.Named("adminservice"),
 	}
 
-	grpcServer := grpc.NewServer()
-	nodev1.RegisterNodePrivilegedServer(grpcServer, nodeService)
+	publicrpcService := publicrpc.NewPublicrpcServer(logger, gst)
+
+	grpcServer := common.NewInstrumentedGRPCServer(logger)
+	nodev1.RegisterNodePrivilegedServiceServer(grpcServer, nodeService)
+	publicrpcv1.RegisterPublicRPCServiceServer(grpcServer, publicrpcService)
 	return supervisor.GRPCServer(grpcServer, l, false), nil
+}
+
+func (s *nodePrivilegedService) SendObservationRequest(ctx context.Context, req *nodev1.SendObservationRequestRequest) (*nodev1.SendObservationRequestResponse, error) {
+	s.obsvReqSendC <- req.ObservationRequest
+	s.logger.Info("sent observation request", zap.Any("request", req.ObservationRequest))
+	return &nodev1.SendObservationRequestResponse{}, nil
 }

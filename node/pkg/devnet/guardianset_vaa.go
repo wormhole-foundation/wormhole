@@ -78,7 +78,7 @@ func GetKeyedTransactor(ctx context.Context) *bind.TransactOpts {
 		panic(err)
 	}
 
-	kt := bind.NewKeyedTransactor(key)
+	kt := bind.NewKeyedTransactor(key) // nolint
 	kt.Context = ctx
 
 	return kt

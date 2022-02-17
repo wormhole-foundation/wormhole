@@ -3,6 +3,7 @@ package processor
 import (
 	"context"
 	"encoding/hex"
+	"github.com/mr-tron/base58"
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/ethereum/go-ethereum/crypto"
@@ -95,6 +96,7 @@ func (p *Processor) handleLockup(ctx context.Context, k *common.ChainLock) {
 		zap.Stringer("source_chain", k.SourceChain),
 		zap.Stringer("target_chain", k.TargetChain),
 		zap.Stringer("txhash", k.TxHash),
+		zap.String("txhash_b58", base58.Encode(k.TxHash.Bytes())),
 		zap.String("digest", hex.EncodeToString(digest.Bytes())),
 		zap.String("signature", hex.EncodeToString(s)))
 
@@ -102,5 +104,5 @@ func (p *Processor) handleLockup(ctx context.Context, k *common.ChainLock) {
 		"source_chain": k.SourceChain.String(),
 		"target_chain": k.TargetChain.String()}).Add(1)
 
-	p.broadcastSignature(v, s)
+	p.broadcastSignature(v, s, k.TxHash.Bytes())
 }

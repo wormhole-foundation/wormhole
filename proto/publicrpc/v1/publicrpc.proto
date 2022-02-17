@@ -1,0 +1,59 @@
+syntax = "proto3";
+
+package publicrpc.v1;
+
+option go_package = "github.com/certusone/wormhole/node/pkg/proto/publicrpc/v1;publicrpcv1";
+
+import "gossip/v1/gossip.proto";
+
+enum ChainID {
+  CHAIN_ID_UNSPECIFIED = 0;
+  CHAIN_ID_SOLANA = 1;
+  CHAIN_ID_ETHEREUM = 2;
+}
+
+// PublicRPCService service exposes endpoints to be consumed externally; GUIs, historical record keeping, etc.
+service PublicRPCService {
+  // GetLastHeartbeats returns the last heartbeat received for each guardian node in the
+  // node's active guardian set. Heartbeats received by nodes not in the guardian set are ignored.
+  // The heartbeat value is null if no heartbeat has yet been received.
+  rpc GetLastHeartbeats (GetLastHeartbeatsRequest) returns (GetLastHeartbeatsResponse) {}
+
+  rpc GetCurrentGuardianSet (GetCurrentGuardianSetRequest) returns (GetCurrentGuardianSetResponse) {}
+}
+
+message GetLastHeartbeatsRequest {
+}
+
+message GetLastHeartbeatsResponse {
+  message Entry {
+    // Verified, hex-encoded (with leading 0x) guardian address. This is the guardian address
+    // which signed this heartbeat. The GuardianAddr field inside the heartbeat
+    // is NOT verified - remote nodes can put arbitrary data in it.
+    string verified_guardian_addr = 1;
+
+    // Base58-encoded libp2p node address that sent this heartbeat, used to
+    // distinguish between multiple nodes running for the same guardian.
+    string p2p_node_addr = 2;
+
+    // Raw heartbeat received from the network. Data is only as trusted
+    // as the guardian node that sent it - none of the fields are verified.
+    gossip.v1.Heartbeat raw_heartbeat = 3;
+  }
+
+  repeated Entry entries = 1;
+}
+
+message GetCurrentGuardianSetRequest {
+}
+
+message GetCurrentGuardianSetResponse {
+  GuardianSet guardian_set = 1;
+}
+
+message GuardianSet {
+  // Guardian set index
+  uint32 index = 1;
+  // List of guardian addresses as human-readable hex-encoded (leading 0x) addresses.
+  repeated string addresses = 2;
+}

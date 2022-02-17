@@ -1,0 +1,12 @@
+version: v1beta1
+plugins:
+  - name: go
+    out: node/pkg/proto
+    path: tools/bin/protoc-gen-go
+    opt:
+      - paths=source_relative
+  - name: go-grpc
+    out: node/pkg/proto
+    path: tools/bin/protoc-gen-go-grpc
+    opt:
+      - paths=source_relative

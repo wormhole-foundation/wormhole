@@ -1,0 +1,26 @@
+# syntax=docker.io/docker/dockerfile:1.3@sha256:42399d4635eddd7a9b8a24be879d2f9a930d0ed040a61324cfdf59ef1357b3b2
+FROM docker.io/golang:1.17.5@sha256:90d1ab81f3d157ca649a9ff8d251691b810d95ea6023a03cdca139df58bca599 AS go-tools
+
+RUN mkdir /app
+
+ADD tools/build.sh /app/tools/
+ADD tools/go.* /app/tools/
+
+RUN --mount=type=cache,target=/root/.cache --mount=type=cache,target=/go \
+	cd /app/tools && CGO_ENABLED=0 ./build.sh
+
+# syntax=docker.io/docker/dockerfile:1.3@sha256:42399d4635eddd7a9b8a24be879d2f9a930d0ed040a61324cfdf59ef1357b3b2
+FROM docker.io/golang:1.17.5@sha256:90d1ab81f3d157ca649a9ff8d251691b810d95ea6023a03cdca139df58bca599 AS go-build
+
+COPY --from=go-tools /app /app
+
+ADD buf.* /app
+ADD proto /app/proto
+
+RUN --mount=type=cache,target=/root/.cache \
+	cd /app && \
+	tools/bin/buf lint && \
+	tools/bin/buf generate
+
+FROM scratch AS go-export
+COPY --from=go-build /app/node/pkg/proto pkg/proto

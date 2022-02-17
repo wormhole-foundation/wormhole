@@ -60,17 +60,6 @@ spec:
             - bridge
             - --ethRPC
             - ws://eth-devnet:8545
-            - --terra
-            - --terraWS
-            - ws://terra-terrad:26657/websocket
-            - --terraLCD
-            - http://terra-lcd:1317
-            - --terraChainID
-            - localterra
-            - --terraContract
-            - terra174kgn5rtw4kf6f938wm7kwh70h2v4vcfd26jlc
-            - --terraKey
-            - /tmp/terra.key
             - --agentRPC
             - /run/bridge/agent.sock
             - --ethConfirmations
@@ -81,6 +70,8 @@ spec:
             - ws://solana-devnet:8900
             - --solanaRPC
             - http://solana-devnet:8899
+            - --statusAddr
+            - '[::]:6060'
             - --unsafeDevMode
             - --bridgeKey
             - /tmp/bridge.key
