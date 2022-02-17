@@ -269,14 +269,14 @@ goal clerk dryrun-remote -D dump.dr -v
 
 ## Running the system
 
-Check the `package.json` file for `npm run tart-xxx`  automated commands. 
+Check the `package.json` file for `npm run start-xxx`  automated commands. 
 
 ## Tests
 
 * Fire up the dev sandbox.
-* Feed the reserve funds account with 10 ALGOs:
+* Feed the reserve funds account with 10000000000 uALGOs:
 
-  ` ./sandbox goal clerk send -a 10000000 -f <account> -t XNP7HMWUZAJTTHNIGENRKUQOGL5FQV3QVDGYUYUCGGNSHN3CQGMQKL3XHM`
+  ` ./sandbox goal clerk send -a 10000000000 -f <account> -t XNP7HMWUZAJTTHNIGENRKUQOGL5FQV3QVDGYUYUCGGNSHN3CQGMQKL3XHM`
 
   **Replace <account>** with one of the pre-funded sandbox accounts (use `goal account list` to see them)
 
