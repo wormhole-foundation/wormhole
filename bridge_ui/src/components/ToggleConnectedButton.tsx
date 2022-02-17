@@ -8,6 +8,10 @@ const useStyles = makeStyles((theme) => ({
     width: "100%",
     maxWidth: 400,
   },
+  icon: {
+    height: 24,
+    width: 24,
+  },
 }));
 
 const ToggleConnectedButton = ({
@@ -15,11 +19,13 @@ const ToggleConnectedButton = ({
   disconnect,
   connected,
   pk,
+  walletIcon,
 }: {
   connect(): any;
   disconnect(): any;
   connected: boolean;
   pk: string;
+  walletIcon?: string;
 }) => {
   const classes = useStyles();
   const is0x = pk.startsWith("0x");
@@ -31,7 +37,13 @@ const ToggleConnectedButton = ({
         size="small"
         onClick={disconnect}
         className={classes.button}
-        startIcon={<LinkOff />}
+        startIcon={
+          walletIcon ? (
+            <img className={classes.icon} src={walletIcon} alt="Wallet" />
+          ) : (
+            <LinkOff />
+          )
+        }
       >
         Disconnect {pk.substring(0, is0x ? 6 : 3)}...
         {pk.substr(pk.length - (is0x ? 4 : 3))}
