@@ -15,6 +15,8 @@ use borsh::{
 };
 use clap::Clap;
 use log::{
+    debug,
+    error,
     info,
     warn,
     LevelFilter,
@@ -96,63 +98,49 @@ fn main() -> Result<(), ErrBox> {
 
     let p2w_addr = cli.p2w_addr;
 
-    let (recent_blockhash, _) = rpc_client.get_recent_blockhash()?;
+    let latest_blockhash = rpc_client.get_latest_blockhash()?;
 
-    let txs = match cli.action {
+    match cli.action {
         Action::Init {
             owner_addr,
             pyth_owner_addr,
             wh_prog,
-        } => vec![handle_init(
-            payer,
-            p2w_addr,
-            owner_addr,
-            wh_prog,
-            pyth_owner_addr,
-            recent_blockhash,
-        )?],
+        } => {
+            let tx = handle_init(
+                payer,
+                p2w_addr,
+                owner_addr,
+                wh_prog,
+                pyth_owner_addr,
+                latest_blockhash,
+            )?;
+            rpc_client.send_and_confirm_transaction_with_spinner(&tx)?;
+        }
         Action::SetConfig {
             ref owner,
             new_owner_addr,
             new_wh_prog,
             new_pyth_owner_addr,
-        } => vec![handle_set_config(
-            payer,
-            p2w_addr,
-            read_keypair_file(&*shellexpand::tilde(&owner))?,
-            new_owner_addr,
-            new_wh_prog,
-            new_pyth_owner_addr,
-            recent_blockhash,
-        )?],
+        } => {
+            let tx = handle_set_config(
+                payer,
+                p2w_addr,
+                read_keypair_file(&*shellexpand::tilde(&owner))?,
+                new_owner_addr,
+                new_wh_prog,
+                new_pyth_owner_addr,
+                latest_blockhash,
+            )?;
+            rpc_client.send_and_confirm_transaction_with_spinner(&tx)?;
+        }
         Action::Attest {
             ref attestation_cfg,
-        } => handle_attest(
-            &rpc_client,
-            payer,
-            p2w_addr,
-            attestation_cfg.as_path(),
-            recent_blockhash,
-        )?,
-    };
+        } => {
+            // Load the attestation config yaml
+            let attestation_cfg: AttestationConfig =
+                serde_yaml::from_reader(File::open(attestation_cfg)?)?;
 
-    for tx in txs {
-        let sig = rpc_client.send_and_confirm_transaction_with_spinner(&tx)?;
-
-        // To complete attestation, retrieve sequence number from transaction logs
-        if let Action::Attest { .. } = cli.action {
-            let this_tx = rpc_client.get_transaction(&sig, UiTransactionEncoding::Json)?;
-
-            if let Some(logs) = this_tx.transaction.meta.and_then(|meta| meta.log_messages) {
-                for log in logs {
-                    if log.starts_with(SEQNO_PREFIX) {
-                        let seqno = log.replace(SEQNO_PREFIX, "");
-                        println!("Sequence number: {}", seqno);
-                    }
-                }
-            } else {
-                warn!("Could not get program logs for attestation");
-            }
+            handle_attest(&rpc_client, payer, p2w_addr, &attestation_cfg)?;
         }
     }
 
@@ -165,7 +153,7 @@ fn handle_init(
     new_owner_addr: Pubkey,
     wh_prog: Pubkey,
     pyth_owner_addr: Pubkey,
-    recent_blockhash: Hash,
+    latest_blockhash: Hash,
 ) -> Result<Transaction, ErrBox> {
     use AccEntry::*;
 
@@ -190,7 +178,7 @@ fn handle_init(
         &[ix],
         Some(&payer_pubkey),
         signers.iter().collect::<Vec<_>>().as_ref(),
-        recent_blockhash,
+        latest_blockhash,
     );
     Ok(tx_signed)
 }
@@ -202,7 +190,7 @@ fn handle_set_config(
     new_owner_addr: Pubkey,
     new_wh_prog: Pubkey,
     new_pyth_owner_addr: Pubkey,
-    recent_blockhash: Hash,
+    latest_blockhash: Hash,
 ) -> Result<Transaction, ErrBox> {
     use AccEntry::*;
 
@@ -228,21 +216,17 @@ fn handle_set_config(
         &[ix],
         Some(&payer_pubkey),
         signers.iter().collect::<Vec<_>>().as_ref(),
-        recent_blockhash,
+        latest_blockhash,
     );
     Ok(tx_signed)
 }
 
 fn handle_attest(
-    rpc: &RpcClient, // Needed for reading Pyth account data
+    rpc_client: &RpcClient, // Needed for reading Pyth account data
     payer: Keypair,
     p2w_addr: Pubkey,
-    attestation_cfg: &Path,
-    recent_blockhash: Hash,
-) -> Result<Vec<Transaction>, ErrBox> {
-    // Load the attestation config yaml
-    let attestation_cfg: AttestationConfig = serde_yaml::from_reader(File::open(attestation_cfg)?)?;
-
+    attestation_cfg: &AttestationConfig,
+) -> Result<(), ErrBox> {
     // Derive seeded accounts
     let emitter_addr = P2WEmitter::key(None, &p2w_addr);
 
@@ -250,8 +234,9 @@ fn handle_attest(
 
     let p2w_config_addr = P2WConfigAccount::<{ AccountState::Initialized }>::key(None, &p2w_addr);
 
-    let config =
-        Pyth2WormholeConfig::try_from_slice(rpc.get_account_data(&p2w_config_addr)?.as_slice())?;
+    let config = Pyth2WormholeConfig::try_from_slice(
+        rpc_client.get_account_data(&p2w_config_addr)?.as_slice(),
+    )?;
 
     let seq_addr = Sequence::key(
         &SequenceDerivationData {
@@ -263,16 +248,38 @@ fn handle_attest(
     // Read the current max batch size from the contract's settings
     let max_batch_size = config.max_batch_size;
 
-    let mut txs = vec![];
+    let batch_count = {
+        let whole_batches = attestation_cfg.symbols.len() / config.max_batch_size as usize;
 
-    for symbols in attestation_cfg
+        // Include  partial batch if there is a remainder
+        if attestation_cfg.symbols.len() % config.max_batch_size as usize > 0 {
+            whole_batches + 1
+        } else {
+            whole_batches
+        }
+    };
+
+    debug!("Symbol config:\n{:#?}", attestation_cfg);
+
+    info!(
+        "{} symbols read, max batch size {}, dividing into {} batches",
+        attestation_cfg.symbols.len(),
+        max_batch_size,
+        batch_count
+    );
+
+    for (idx, symbols) in attestation_cfg
         .symbols
         .as_slice()
         .chunks(max_batch_size as usize)
+        .enumerate()
     {
+        let batch_no = idx + 1;
         let sym_msg_keypair = Keypair::new();
         info!(
-            "Processing batch: {:?}",
+            "Batch {}/{} contents: {:?}",
+            batch_no,
+            batch_count,
             symbols
                 .iter()
                 .map(|s| s
@@ -347,17 +354,58 @@ fn handle_attest(
 
         let ix = Instruction::new_with_bytes(p2w_addr, ix_data.try_to_vec()?.as_slice(), acc_metas);
 
-        let tx_signed = Transaction::new_signed_with_payer::<Vec<&Keypair>>(
-            &[ix],
-            Some(&payer.pubkey()),
-            &vec![&payer, &sym_msg_keypair],
-            recent_blockhash,
-        );
+        // Execute the transaction, obtain the resulting sequence
+        // number. The and_then() calls enforce error handling
+        // location near loop end.
+        let res = rpc_client
+            .get_latest_blockhash()
+            .and_then(|latest_blockhash| {
+                let tx_signed = Transaction::new_signed_with_payer::<Vec<&Keypair>>(
+                    &[ix],
+                    Some(&payer.pubkey()),
+                    &vec![&payer, &sym_msg_keypair],
+                    latest_blockhash,
+                );
+                rpc_client.send_and_confirm_transaction_with_spinner(&tx_signed)
+            })
+            .and_then(|sig| rpc_client.get_transaction(&sig, UiTransactionEncoding::Json))
+            .map_err(|e| -> ErrBox { e.into() })
+            .and_then(|this_tx| {
+                this_tx
+                    .transaction
+                    .meta
+                    .and_then(|meta| meta.log_messages)
+                    .and_then(|logs| {
+                        let mut seqno = None;
+                        for log in logs {
+                            if log.starts_with(SEQNO_PREFIX) {
+                                seqno = Some(log.replace(SEQNO_PREFIX, ""));
+                                break;
+                            }
+                        }
+                        seqno
+                    })
+                    .ok_or_else(|| format!("No seqno in program logs").into())
+            });
 
-	txs.push(tx_signed)
+        // Individual batch errors mustn't prevent other batches from being sent.
+        match res {
+            Ok(seqno) => {
+                println!("Sequence number: {}", seqno);
+                info!("Batch {}/{}: OK, seqno {}", batch_no, batch_count, seqno);
+            }
+            Err(e) => {
+                error!(
+                    "Batch {}/{} tx error: {}",
+                    batch_no,
+                    batch_count,
+                    e.to_string()
+                );
+            }
+        }
     }
 
-    Ok(txs)
+    Ok(())
 }
 
 fn init_logging(verbosity: u32) {
