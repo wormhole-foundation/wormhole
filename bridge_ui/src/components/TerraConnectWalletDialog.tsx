@@ -94,6 +94,7 @@ const TerraConnectWalletDialog = ({
       <ListItem
         button
         component="a"
+        onClick={onClose}
         key={"install-" + type + identifier}
         href={url}
         target="_blank"

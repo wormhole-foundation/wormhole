@@ -1,36 +1,35 @@
-import { makeStyles } from "@material-ui/core";
-import DisconnectIcon from "@material-ui/icons/LinkOff";
-import {
-  WalletDisconnectButton,
-  WalletMultiButton,
-} from "@solana/wallet-adapter-material-ui";
+import { useCallback, useMemo, useState } from "react";
 import { useSolanaWallet } from "../contexts/SolanaWalletContext";
-
-const useStyles = makeStyles((theme) => ({
-  root: {
-    textAlign: "center",
-    margin: `${theme.spacing(1)}px auto`,
-    width: "100%",
-    maxWidth: 400,
-  },
-  disconnectButton: {
-    marginLeft: theme.spacing(1),
-  },
-}));
+import SolanaConnectWalletDialog from "./SolanaConnectWalletDialog";
+import ToggleConnectedButton from "./ToggleConnectedButton";
 
 const SolanaWalletKey = () => {
-  const classes = useStyles();
-  const wallet = useSolanaWallet();
+  const { publicKey, wallet, disconnect } = useSolanaWallet();
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+  const openDialog = useCallback(() => {
+    setIsDialogOpen(true);
+  }, [setIsDialogOpen]);
+
+  const closeDialog = useCallback(() => {
+    setIsDialogOpen(false);
+  }, [setIsDialogOpen]);
+
+  const publicKeyBase58 = useMemo(() => {
+    return publicKey?.toBase58() || "";
+  }, [publicKey]);
+
   return (
-    <div className={classes.root}>
-      <WalletMultiButton />
-      {wallet && (
-        <WalletDisconnectButton
-          startIcon={<DisconnectIcon />}
-          className={classes.disconnectButton}
-        />
-      )}
-    </div>
+    <>
+      <ToggleConnectedButton
+        connect={openDialog}
+        disconnect={disconnect}
+        connected={!!wallet?.adapter.connected}
+        pk={publicKeyBase58}
+        walletIcon={wallet?.adapter.icon}
+      />
+      <SolanaConnectWalletDialog isOpen={isDialogOpen} onClose={closeDialog} />
+    </>
   );
 };
 
