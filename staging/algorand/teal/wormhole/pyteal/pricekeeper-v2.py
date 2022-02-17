@@ -4,9 +4,14 @@
 
 The Pricekeeper II Program
 
+v3.0
+
 (c) 2022 Wormhole Project Contributors
 
 ------------------------------------------------------------------------------------------------
+v1.0 - first version
+v2.0 - stores Pyth Payload
+v3.0 - supports Pyth V2 "batched" price Payloads.
 
 This program stores price data verified from Pyth VAA messaging. To accept data, this application
 requires to be the last of the verification transaction group, and the verification condition
@@ -15,17 +20,18 @@ bits must be set.
 The following application calls are available.
 
 submit: Submit payload.  
-This must be 150-bytes long (Pyth native payload.)
+
+The payload format must be V2, with batched message support.
+
 ------------------------------------------------------------------------------------------------
 
 Global state:
 
-key             name of symbol
+key             Concatenated productId + priceId
 value           packed fields as follow: 
 
                 Bytes
-                32              productId
-                32              priceId
+                
                 8               price
                 1               price_type
                 4               exponent
@@ -52,7 +58,7 @@ SLOTID_VERIFIED_BIT = 254
 SLOT_VERIFIED_BITFIELD = ScratchVar(TealType.uint64, SLOTID_VERIFIED_BIT)
 SLOT_TEMP = ScratchVar(TealType.uint64)
 VAA_PROCESSOR_APPID = App.globalGet(Bytes("vaapid"))
-PYTH_PAYLOAD_LENGTH_BYTES = 150
+PYTH_ATTESTATION_V2_BYTES = 150
 
 
 @Subroutine(TealType.uint64)
@@ -96,29 +102,55 @@ def store():
     # * This must be part of a transaction group
     # * All calls in group must be issued from authorized appid.
     # * All calls in group must have verification bits set.
-    # * Argument 0 must be price symbol name.
-    # * Argument 1 must be Pyth payload (150 bytes long)
+    # * Argument 0 must be Pyth payload.
 
-    pyth_price_data = ScratchVar(TealType.bytes)
+    pyth_payload = ScratchVar(TealType.bytes)
     packed_price_data = ScratchVar(TealType.bytes)
+    num_attestations = ScratchVar(TealType.uint64)
+    attestation_size = ScratchVar(TealType.uint64)
+    attestation_data = ScratchVar(TealType.bytes)
+    product_price_key = ScratchVar(TealType.bytes)
+
+    i = ScratchVar(TealType.uint64)
+
     return Seq([
-        pyth_price_data.store(ARG_PRICE_DATA),
+        pyth_payload.store(ARG_PRICE_DATA),
         Assert(Global.group_size() > Int(1)),
-        Assert(Len(pyth_price_data.load()) == Int(PYTH_PAYLOAD_LENGTH_BYTES)),
+        # Assert(Len(pyth_price_data.load()) == Int(PYTH_PAYLOAD_LENGTH_BYTES)),
         Assert(Txn.application_args.length() == Int(3)),
         Assert(is_creator()),
         Assert(check_group_tx()),
+        
+        # check magic header and version
+        Assert(Extract(pyth_payload.load(), Int(0), Int(4)) == Bytes("\x50\x32\x57\x48")),
+        Assert(Extract(pyth_payload.load(), Int(4), Int(2)) == Bytes("\x00\x02")),
+        
+        # get attestation count
+        num_attestations.store(Btoi(Extract(pyth_payload.load(), Int(7), Int(2)))),
+        Assert(num_attestations.load() > Int(0)),
 
-        # Unpack Pyth payload and store the data we want (see doc at beginning)
+        # ensure standard V2 format 150-byte attestation
+        attestation_size.store(Btoi(Extract(pyth_payload.load(), Int(9), Int(2)))),
+        Assert(attestation_size.load() == Int(PYTH_ATTESTATION_V2_BYTES)),
+        
+        # this message size must agree with data in fields
+        Assert(attestation_size.load() * num_attestations.load() + Int(11) == Len(pyth_payload.load())),
+        
+        # Read each attestation, store in global state.
 
-        packed_price_data.store(Concat(
-            # store product_id, price_id, price_type, price, exponent, twap
-            Extract(pyth_price_data.load(), Int(14), Int(85)),
-            Extract(pyth_price_data.load(), Int(108), Int(8)),  # store twac
-            Extract(pyth_price_data.load(), Int(132), Int(8)),  # confidence
-            Extract(pyth_price_data.load(), Int(142), Int(8)),  # timestamp
-        )),
-        App.globalPut(ARG_SYMBOL_NAME, packed_price_data.load()),
+        For(i.store(Int(0)), i.load() < num_attestations.load(), i.store(i.load() + Int(1))).Do(
+            Seq([
+                attestation_data.store(Extract(pyth_payload.load(), Int(11) + (Int(PYTH_ATTESTATION_V2_BYTES) * i.load()), Int(PYTH_ATTESTATION_V2_BYTES))),
+                product_price_key.store(Extract(attestation_data.load(), Int(7), Int(64))),
+                packed_price_data.store(Concat(
+                    Extract(attestation_data.load(), Int(72), Int(12)),   # price + exponent
+                    Extract(attestation_data.load(), Int(108), Int(8)),  # store twac
+                    Extract(attestation_data.load(), Int(132), Int(8)),  # confidence
+                    Extract(attestation_data.load(), Int(142), Int(8)),  # timestamp
+                )),
+                App.globalPut(product_price_key.load(), packed_price_data.load()),
+                ])
+        ),
         Approve()])
 
 
