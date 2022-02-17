@@ -533,7 +533,7 @@ class PricecasterLib {
     /**
      * VAA Processor: Add a verification step to a transaction group.
      * @param {*} sender The sender account (typically the VAA verification stateless program)
-     * @param {*} payload The VAA payload.
+     * @param {*} payload The VAA payload in hex encoded string.
      * @param {*} gksubset An hex string containing the keys for the guardian subset in this step.
      * @param {*} totalguardians The total number of known guardians.
      */
@@ -550,7 +550,7 @@ class PricecasterLib {
         params,
         ContractInfo.vaaProcessor.appId,
         appArgs, undefined, undefined, undefined,
-        new Uint8Array(payload))
+        new Uint8Array(Buffer.from(payload, 'hex')))
       this.groupTxSet[gid].push(tx)
 
       return tx.txID()
@@ -560,7 +560,7 @@ class PricecasterLib {
      * Pricekeeper-V2: Add store price transaction to TX Group.
      * @param {*} sender The sender account (typically the VAA verification stateless program)
      * @param {*} sym The symbol identifying the product  to store price for.
-     * @param {*} payload The VAA payload.
+     * @param {*} payload The VAA payload, hex-encoded.
      */
     this.addPriceStoreTx = function (gid, sender, params, sym, payload) {
       if (this.groupTxSet[gid] === undefined) {
@@ -569,7 +569,7 @@ class PricecasterLib {
       const appArgs = []
       appArgs.push(new Uint8Array(Buffer.from('store')),
         new Uint8Array(Buffer.from(sym)),
-        new Uint8Array(payload))
+        new Uint8Array(Buffer.from(payload, 'hex')))
 
       const tx = algosdk.makeApplicationNoOpTxn(sender,
         params,

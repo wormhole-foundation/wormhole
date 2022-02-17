@@ -255,8 +255,19 @@ function printAppCallDelta (transactionResponse) {
     printAppCallDeltaArray(transactionResponse['local-state-delta'])
   }
 }
+/**
+ * Extracts a buffer slice specifying start and number of bytes.
+ * @param {*} buffer An input buffer object.
+ * @param {*} start The start postion.
+ * @param {*} size The size of the byte slice to extract.
+ * @returns A buffer with extracted bytes.
+ */
+function extract3 (buffer, start, size) {
+  return buffer.slice(start, start + size)
+}
 
 module.exports = {
+  extract3,
   timeoutPromise,
   getInt64Bytes,
   addressFromByteBuffer,

@@ -8,10 +8,10 @@ const spawnSync = require('child_process').spawnSync
 const fs = require('fs')
 const TestLib = require('./testlib.js')
 const { makePaymentTxnWithSuggestedParams } = require('algosdk')
-const testLib = new TestLib.TestLib()
 const testConfig = require('./test-config')
-
+const { extract3 } = require('../tools/app-tools')
 chai.use(require('chai-as-promised'))
+const testLib = new TestLib.TestLib()
 
 let pclib
 let algodClient
@@ -70,7 +70,7 @@ const PYTH_EMITTER = '0x3afda841c1f43dd7d546c8a581ba1f92a139f4133f9f6ab095558f6a
 const OTHER_EMITTER = '0x1111111111111111111111111111111111111111111111111111111111111111'
 const PYTH_PAYLOAD = '0x50325748000101230abfe0ec3b460bd55fc4fb36356716329915145497202b8eb8bf1af6a0a3b9fe650f0367d4a7ef9815a593ea15d36593f0643aaaf0149bb04be67ab851decd010000002f17254388fffffff70000002eed73d9000000000070d3b43f0000000037faa03d000000000e9e555100000000894af11c0000000037faa03d000000000dda6eb801000000000061a5ff9a'
 const OTHER_PAYLOAD = '0xf0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0'
-
+const PYTH_ATTESTATION_V2_BYTES = 150
 // --------------------------------------------------------------------------
 // Utility functions
 // --------------------------------------------------------------------------
@@ -102,7 +102,18 @@ async function getTxParams () {
   params.flatFee = true
   return params
 }
-
+/**
+ * @param {*} numOfVerifySteps Number of verify steps.
+ * @param {*} stepSize How many signatures are verified per step.
+ * @param {*} guardianKeys A collection of guardian keys.
+ * @param {*} guardianCount The total guardian count.
+ * @param {*} signatures The signature set for verification.
+ * @param {*} vaaBody An hex encoded string containing the VAA body.
+ * @param {*} fee The tx fees.
+ * @param {*} sender The tx sender.
+ * @param {*} addVerifyTxCallback An optional callback to add each verify TX to group
+ * @param {*} addLastTxCallback An optional callback to add the last TX call
+ */
 async function buildTransactionGroup (numOfVerifySteps, stepSize, guardianKeys, guardianCount,
   signatures, vaaBody, fee, sender, addVerifyTxCallback, addLastTxCallback) {
   const params = await getTxParams()
@@ -133,9 +144,18 @@ async function buildTransactionGroup (numOfVerifySteps, stepSize, guardianKeys, 
     addVerifyCallbackFn(gid, senderAddress, params, vaaBody, keySubset, guardianCount)
   }
 
-  addLastTxCallbackFn(gid, ownerAddr, params, TEST_SYMBOL, vaaBody.slice(51))
+  addLastTxCallbackFn(gid, ownerAddr, params, TEST_SYMBOL, vaaBody.slice(51 * 2))
   const tx = await pclib.commitVerifyTxGroup(gid, compiledVerifyProgram.bytes, numOfSigs, sigSubsets, ownerAddr, signCallback)
   return tx
+}
+
+/**
+ * 
+ * @param {string} vaaBody Hex-encoded VAA body.
+ * @returns The payload part of the VAA.
+ */
+function payloadFromVAABody(vaaBody) {
+  return vaaBody.slice(51 * 2)
 }
 
 async function createTestAccounts () {
@@ -186,9 +206,9 @@ function setupPricecasterLib (dumpFailedTx) {
   console.log(spawnSync('python', ['teal/wormhole/pyteal/pricekeeper-v2.py', priceKeeperApproval, priceKeeperClearState]).output.toString())
 }
 
-function createVAA(guardianSetIndex, guardianPrivKeys, pythChainId, pythEmitterAddress, numAttest) {
+function createVAA (guardianSetIndex, guardianPrivKeys, pythChainId, pythEmitterAddress, numAttest) {
   const vaa = testLib.createSignedPythVAA(guardianSetIndex, guardianPrivKeys, pythChainId, pythEmitterAddress, numAttest)
-  const body = Buffer.from(vaa.substr(12 + guardianPrivKeys.length * 132), 'hex')
+  const body = vaa.substr(12 + guardianPrivKeys.length * 132)
   const signatures = vaa.substr(12, guardianPrivKeys.length * 132)
 
   return {
@@ -222,8 +242,7 @@ describe('VAA Processor Smart-contract Tests', function () {
 
     await clearApps()
 
-    // (!) PASS TRUE TO ENABLE DIAGNOSING FAILED TESTS
-    setupPricecasterLib(false)
+    setupPricecasterLib(testConfig.DUMP_FAILED_TX)
   }
   )
 
@@ -370,11 +389,31 @@ describe('VAA Processor Smart-contract Tests', function () {
     const gscount = await tools.readAppGlobalStateByKey(algodClient, appId, ownerAddr, 'gscount')
     const vsSize = await tools.readAppGlobalStateByKey(algodClient, appId, ownerAddr, 'vssize')
     const groupSize = Math.ceil(gscount / vsSize)
-    const vaa = createVAA(1, guardianPrivKeys, 1, PYTH_EMITTER, 1)
+    const numOfAttest = 1
+    const vaa = createVAA(1, guardianPrivKeys, 1, PYTH_EMITTER, numOfAttest)
     const tx = await buildTransactionGroup(groupSize, vsSize, guardianKeys, gscount, vaa.signatures, vaa.body)
     await pclib.waitForConfirmation(tx)
 
-    // console.log(await tools.readAppGlobalStateByKey(algodClient, pkAppId, ownerAddr, TEST_SYMBOL))
+    const state = await tools.readAppGlobalState(algodClient, pkAppId, ownerAddr)
+    const payloadAttestations = Buffer.from(payloadFromVAABody(vaa.body), 'hex')
+    for (let i = 0; i < numOfAttest; i++) {
+      const attestation = extract3(payloadAttestations, 11 + (PYTH_ATTESTATION_V2_BYTES * i), PYTH_ATTESTATION_V2_BYTES)
+
+      // Check product-price key
+      expect(Buffer.from(state[i + 1].key, 'base64')).to.deep.equal(attestation.slice(7, 7 + 64))
+
+      // Check price + exponent
+      expect(extract3(Buffer.from(state[i + 1].value.bytes, 'base64'), 0, 12)).to.deep.equal(extract3(attestation, 72, 12))
+
+      // Check twac
+      expect(extract3(Buffer.from(state[i + 1].value.bytes, 'base64'), 12, 8)).to.deep.equal(extract3(attestation, 108, 8))
+
+      // Check confidence
+      expect(extract3(Buffer.from(state[i + 1].value.bytes, 'base64'), 20, 8)).to.deep.equal(extract3(attestation, 132, 8))
+
+      // Check timestamp
+      expect(extract3(Buffer.from(state[i + 1].value.bytes, 'base64'), 28, 8)).to.deep.equal(extract3(attestation, 142, 8))
+    }
   })
 
   // it('Must fail to verify VAA - (shuffle signers)', async function () {

@@ -22,5 +22,9 @@ module.exports = {
   // Funding source for accounts.
   //
   SOURCE_ACCOUNT: 'XNP7HMWUZAJTTHNIGENRKUQOGL5FQV3QVDGYUYUCGGNSHN3CQGMQKL3XHM',
-  SOURCE_MNEMO: 'path avocado minor cattle leader thank burger clown cushion village write myself giant antenna betray can diagram pull use exercise truly flash inquiry abandon puppy'
+  SOURCE_MNEMO: 'path avocado minor cattle leader thank burger clown cushion village write myself giant antenna betray can diagram pull use exercise truly flash inquiry abandon puppy',
+  //
+  // Set to true to dump failed TX
+  //
+  DUMP_FAILED_TX: true
 }
