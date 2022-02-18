@@ -22,6 +22,7 @@
 const web3EthAbi = require('web3-eth-abi')
 const web3Utils = require('web3-utils')
 const elliptic = require('elliptic')
+const crypto = require('crypto')
 class TestLib {
   /**
       * Create a packed and signed Pyth VAA for testing.
@@ -67,8 +68,6 @@ class TestLib {
     // 00                corporate_act
     // 0000000061a5ff9a  timestamp (based on Solana contract call time)
 
-    const SAMPLE_PRODUCT_ID = this.hexToBytes('cafeefaccafeefaccafeefaccafeefaccafeefaccafeefaccafeefaccafeefac')
-    const SAMPLE_PRICE_ID = this.hexToBytes('deaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddead')
     const SAMPLE_PRICE = this.hexToBytes('0000001100220033')
     const SAMPLE_EXPONENT = this.hexToBytes('fffffff7')
     const SAMPLE_TWAP = this.hexToBytes('1111111111111111')
@@ -93,8 +92,8 @@ class TestLib {
       payload.push(0x50, 0x32, 0x57, 0x48,
         0x00, 0x02,
         0x01,
-        SAMPLE_PRODUCT_ID,
-        SAMPLE_PRICE_ID,
+        this.hexToBytes(i.toString(16).padStart(64, '0')),
+        this.hexToBytes(i.toString(16).padStart(64, '0')),
         0x01,
         SAMPLE_PRICE,
         SAMPLE_EXPONENT, SAMPLE_TWAP, SAMPLE_TWAP_NUM, SAMPLE_TWAP_DENOM,

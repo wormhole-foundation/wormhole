@@ -215,6 +215,14 @@ function createVAA (guardianSetIndex, guardianPrivKeys, pythChainId, pythEmitter
   }
 }
 
+function getAttestation (payload, index) {
+  return extract3(payload, 11 + (PYTH_ATTESTATION_V2_BYTES * index), PYTH_ATTESTATION_V2_BYTES)
+}
+
+function getAttestationKey (payload, index) {
+  return extract3(getAttestation(payload, index), 7, 64)
+}
+
 // ===============================================================================================================
 //
 // Test suite starts here
@@ -386,30 +394,64 @@ describe('VAA Processor Smart-contract Tests', function () {
     const gscount = await tools.readAppGlobalStateByKey(algodClient, appId, ownerAddr, 'gscount')
     const stepSize = await tools.readAppGlobalStateByKey(algodClient, appId, ownerAddr, 'vssize')
     const groupSize = Math.ceil(gscount / stepSize)
-    const numOfAttest = 1
+    const numOfAttest = 4
     const vaa = createVAA(1, guardianPrivKeys, 1, PYTH_EMITTER, numOfAttest)
     const tx = await buildTransactionGroup(groupSize, stepSize, guardianKeys, gscount, vaa.signatures, vaa.body)
     await pclib.waitForConfirmation(tx)
 
-    const state = await tools.readAppGlobalState(algodClient, pkAppId, ownerAddr)
+    let state = await tools.readAppGlobalState(algodClient, pkAppId, ownerAddr)
     const payloadAttestations = Buffer.from(payloadFromVAABody(vaa.body), 'hex')
-    for (let i = 0; i < numOfAttest; i++) {
-      const attestation = extract3(payloadAttestations, 11 + (PYTH_ATTESTATION_V2_BYTES * i), PYTH_ATTESTATION_V2_BYTES)
 
+    // filter out vappid, sort keys.
+
+    state = state.filter(x => Buffer.from(x.key, 'base64').toString() !== 'vaapid')
+    state.sort((a, b) => {
+      if (a.key > b.key) {
+        return 1
+      }
+      if (a.key < b.key) {
+        return -1
+      }
+      return 0
+    })
+
+    // console.log(state)
+    let sortedAttestations = []
+    for (let i = 0; i < numOfAttest; i++) {
+      sortedAttestations.push(getAttestation(payloadAttestations, i).toString('hex'))
+    }
+
+    sortedAttestations = sortedAttestations.sort((a, b) => {
+      if (extract3(a, 7, 64).toString('hex') > extract3(b, 7, 64).toString('hex')) {
+        return 1
+      }
+      if (extract3(a, 7, 64).toString('hex') < extract3(b, 7, 64).toString('hex')) {
+        return -1
+      }
+      return 0
+    })
+
+    // console.log(sortedAttestations)
+
+    expect(sortedAttestations.length).to.equal(state.length)
+
+    for (let i = 0; i < numOfAttest.length; i++) {
       // Check product-price key
-      expect(Buffer.from(state[i + 1].key, 'base64')).to.deep.equal(attestation.slice(7, 7 + 64))
+      const sk = Buffer.from(state[i].key, 'base64').toString('hex')
+      const sv = Buffer.from(state[i].value.bytes, 'base64')
+      expect(sk).to.equal(extract3(sortedAttestations[i], 7, 64).toString('hex'))
 
       // Check price + exponent
-      expect(extract3(Buffer.from(state[i + 1].value.bytes, 'base64'), 0, 12)).to.deep.equal(extract3(attestation, 72, 12))
+      expect(extract3(sv, 0, 12)).to.deep.equal(extract3(sortedAttestations[i], 72, 12))
 
       // Check twac
-      expect(extract3(Buffer.from(state[i + 1].value.bytes, 'base64'), 12, 8)).to.deep.equal(extract3(attestation, 108, 8))
+      expect(extract3(sv, 12, 8)).to.deep.equal(extract3(sortedAttestations[i], 108, 8))
 
       // Check confidence
-      expect(extract3(Buffer.from(state[i + 1].value.bytes, 'base64'), 20, 8)).to.deep.equal(extract3(attestation, 132, 8))
+      expect(extract3(sv, 20, 8)).to.deep.equal(extract3(sortedAttestations[i], 132, 8))
 
       // Check timestamp
-      expect(extract3(Buffer.from(state[i + 1].value.bytes, 'base64'), 28, 8)).to.deep.equal(extract3(attestation, 142, 8))
+      expect(extract3(sv, 28, 8)).to.deep.equal(extract3(sortedAttestations[i], 142, 8))
     }
   })
 
