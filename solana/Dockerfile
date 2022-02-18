@@ -49,12 +49,12 @@ RUN --mount=type=cache,target=bridge/target \
     --mount=type=cache,target=modules/nft_bridge/target \
     --mount=type=cache,target=pyth2wormhole/target \
     --mount=type=cache,target=migration/target \
-    cargo build-bpf --manifest-path "bridge/program/Cargo.toml" && \
-    cargo build-bpf --manifest-path "bridge/cpi_poster/Cargo.toml" && \
-    cargo build-bpf --manifest-path "modules/token_bridge/program/Cargo.toml" && \
-    cargo build-bpf --manifest-path "pyth2wormhole/program/Cargo.toml" && \
-    cargo build-bpf --manifest-path "modules/nft_bridge/program/Cargo.toml" && \
-    cargo build-bpf --manifest-path "migration/Cargo.toml" && \
+    cargo build-bpf --manifest-path "bridge/program/Cargo.toml" -- --locked && \
+    cargo build-bpf --manifest-path "bridge/cpi_poster/Cargo.toml" -- --locked && \
+    cargo build-bpf --manifest-path "modules/token_bridge/program/Cargo.toml" -- --locked && \
+    cargo build-bpf --manifest-path "pyth2wormhole/program/Cargo.toml" -- --locked && \
+    cargo build-bpf --manifest-path "modules/nft_bridge/program/Cargo.toml" -- --locked && \
+    cargo build-bpf --manifest-path "migration/Cargo.toml" -- --locked && \
     cp bridge/target/deploy/bridge.so /opt/solana/deps/bridge.so && \
     cp bridge/target/deploy/cpi_poster.so /opt/solana/deps/cpi_poster.so && \
     cp migration/target/deploy/wormhole_migration.so /opt/solana/deps/wormhole_migration.so && \

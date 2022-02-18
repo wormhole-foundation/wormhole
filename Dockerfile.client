@@ -43,7 +43,7 @@ RUN --mount=type=cache,target=/root/.cache \
     --mount=type=cache,target=bridge/target \
     --mount=type=cache,target=modules/token_bridge/target \
 	set -xe && \
-    cargo build --manifest-path ./bridge/Cargo.toml --package client --release && \
-    cargo build --manifest-path ./modules/token_bridge/Cargo.toml --package client --release && \
+    cargo build --manifest-path ./bridge/Cargo.toml --package client --release --locked && \
+    cargo build --manifest-path ./modules/token_bridge/Cargo.toml --package client --release --locked && \
     cp bridge/target/release/client /usr/local/bin && \
     cp modules/token_bridge/target/release/client /usr/local/bin/token-bridge-client
