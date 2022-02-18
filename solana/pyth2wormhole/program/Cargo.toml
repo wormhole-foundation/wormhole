@@ -22,8 +22,7 @@ solitaire-client = { path = "../../solitaire/client", optional = true }
 rocksalt = { path = "../../solitaire/rocksalt" }
 solana-program = "=1.9.4"
 borsh = "=0.9.1"
-# NOTE: We're following bleeding edge to encounter format changes more easily
-pyth-client = {git = "https://github.com/pyth-network/pyth-client-rs", branch = "v2"}
+pyth-client = "0.2.2"
 # Crates needed for easier wasm data passing
 wasm-bindgen = { version = "0.2.74", features = ["serde-serialize"], optional = true}
 serde = { version = "1", optional = true}
