@@ -558,17 +558,17 @@ class PricecasterLib {
 
     /**
      * Pricekeeper-V2: Add store price transaction to TX Group.
+     * @param {*} gid The  TX group identifier generated with BeginGroup call.
      * @param {*} sender The sender account (typically the VAA verification stateless program)
-     * @param {*} sym The symbol identifying the product  to store price for.
+     * @param {*} params The network TX parameters.
      * @param {*} payload The VAA payload, hex-encoded.
      */
-    this.addPriceStoreTx = function (gid, sender, params, sym, payload) {
+    this.addPriceStoreTx = function (gid, sender, params, payload) {
       if (this.groupTxSet[gid] === undefined) {
         throw new Error('unknown group id')
       }
       const appArgs = []
       appArgs.push(new Uint8Array(Buffer.from('store')),
-        new Uint8Array(Buffer.from(sym)),
         new Uint8Array(Buffer.from(payload, 'hex')))
 
       const tx = algosdk.makeApplicationNoOpTxn(sender,

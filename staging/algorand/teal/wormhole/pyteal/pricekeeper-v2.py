@@ -52,8 +52,7 @@ from globals import *
 import sys
 
 METHOD = Txn.application_args[0]
-ARG_SYMBOL_NAME = Txn.application_args[1]
-ARG_PRICE_DATA = Txn.application_args[2]
+PYTH_PAYLOAD = Txn.application_args[1]
 SLOTID_VERIFIED_BIT = 254
 SLOT_VERIFIED_BITFIELD = ScratchVar(TealType.uint64, SLOTID_VERIFIED_BIT)
 SLOT_TEMP = ScratchVar(TealType.uint64)
@@ -114,10 +113,9 @@ def store():
     i = ScratchVar(TealType.uint64)
 
     return Seq([
-        pyth_payload.store(ARG_PRICE_DATA),
+        pyth_payload.store(PYTH_PAYLOAD),
         Assert(Global.group_size() > Int(1)),
-        # Assert(Len(pyth_price_data.load()) == Int(PYTH_PAYLOAD_LENGTH_BYTES)),
-        Assert(Txn.application_args.length() == Int(3)),
+        Assert(Txn.application_args.length() == Int(2)),
         Assert(is_creator()),
         Assert(check_group_tx()),
         

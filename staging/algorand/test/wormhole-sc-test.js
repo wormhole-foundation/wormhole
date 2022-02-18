@@ -9,7 +9,7 @@ const fs = require('fs')
 const TestLib = require('./testlib.js')
 const { makePaymentTxnWithSuggestedParams } = require('algosdk')
 const testConfig = require('./test-config')
-const { extract3 } = require('../tools/app-tools')
+const { extract3, arrayChunks, arrayChunks2 } = require('../tools/app-tools')
 chai.use(require('chai-as-promised'))
 const testLib = new TestLib.TestLib()
 
@@ -20,7 +20,6 @@ let compiledVerifyProgram
 let ownerAddr, otherAddr
 
 const signatures = {}
-const TEST_SYMBOL = 'TEST/USDX'
 
 const guardianKeys = [
   '52A26Ce40F8CAa8D36155d37ef0D5D783fc614d2',
@@ -134,27 +133,25 @@ async function buildTransactionGroup (numOfVerifySteps, stepSize, guardianKeys, 
     }
   }
 
+  const keyChunks = arrayChunks(guardianKeys, stepSize)
+  const sigChunks = arrayChunks(signatures, stepSize * 132)
+
   const gid = pclib.beginTxGroup()
-  const sigSubsets = []
   for (let i = 0; i < numOfVerifySteps; i++) {
-    const st = stepSize * i
-    const sigSetLen = 132 * stepSize
-    const keySubset = guardianKeys.slice(st, i < numOfVerifySteps - 1 ? st + stepSize : undefined)
-    sigSubsets.push(signatures.slice(i * sigSetLen, i < numOfVerifySteps - 1 ? ((i * sigSetLen) + sigSetLen) : undefined))
-    addVerifyCallbackFn(gid, senderAddress, params, vaaBody, keySubset, guardianCount)
+    addVerifyCallbackFn(gid, senderAddress, params, vaaBody, keyChunks[i], guardianCount)
   }
 
-  addLastTxCallbackFn(gid, ownerAddr, params, TEST_SYMBOL, vaaBody.slice(51 * 2))
-  const tx = await pclib.commitVerifyTxGroup(gid, compiledVerifyProgram.bytes, numOfSigs, sigSubsets, ownerAddr, signCallback)
+  addLastTxCallbackFn(gid, ownerAddr, params, payloadFromVAABody(vaaBody))
+  const tx = await pclib.commitVerifyTxGroup(gid, compiledVerifyProgram.bytes, numOfSigs, sigChunks, ownerAddr, signCallback)
   return tx
 }
 
 /**
- * 
+ *
  * @param {string} vaaBody Hex-encoded VAA body.
  * @returns The payload part of the VAA.
  */
-function payloadFromVAABody(vaaBody) {
+function payloadFromVAABody (vaaBody) {
   return vaaBody.slice(51 * 2)
 }
 
@@ -387,11 +384,11 @@ describe('VAA Processor Smart-contract Tests', function () {
 
   it('Must verify and handle Pyth V2 VAA - all signers present', async function () {
     const gscount = await tools.readAppGlobalStateByKey(algodClient, appId, ownerAddr, 'gscount')
-    const vsSize = await tools.readAppGlobalStateByKey(algodClient, appId, ownerAddr, 'vssize')
-    const groupSize = Math.ceil(gscount / vsSize)
+    const stepSize = await tools.readAppGlobalStateByKey(algodClient, appId, ownerAddr, 'vssize')
+    const groupSize = Math.ceil(gscount / stepSize)
     const numOfAttest = 1
     const vaa = createVAA(1, guardianPrivKeys, 1, PYTH_EMITTER, numOfAttest)
-    const tx = await buildTransactionGroup(groupSize, vsSize, guardianKeys, gscount, vaa.signatures, vaa.body)
+    const tx = await buildTransactionGroup(groupSize, stepSize, guardianKeys, gscount, vaa.signatures, vaa.body)
     await pclib.waitForConfirmation(tx)
 
     const state = await tools.readAppGlobalState(algodClient, pkAppId, ownerAddr)

@@ -89,14 +89,14 @@ function printAppStateArray (stateArray) {
 function appValueState (stateValue) {
   let text = ''
 
-  if (stateValue.type == 1) {
+  if (stateValue.type === 1) {
     const addr = addressFromByteBuffer(stateValue.bytes)
-    if (addr.length == ALGORAND_ADDRESS_SIZE) {
+    if (addr.length === ALGORAND_ADDRESS_SIZE) {
       text += addr
     } else {
       text += stateValue.bytes
     }
-  } else if (stateValue.type == 2) {
+  } else if (stateValue.type === 2) {
     text = stateValue.uint
   } else {
     text += stateValue.bytes
@@ -108,14 +108,14 @@ function appValueState (stateValue) {
 function appValueStateString (stateValue) {
   let text = ''
 
-  if (stateValue.type == 1) {
+  if (stateValue.type === 1) {
     const addr = addressFromByteBuffer(stateValue.bytes)
-    if (addr.length == ALGORAND_ADDRESS_SIZE) {
+    if (addr.length === ALGORAND_ADDRESS_SIZE) {
       text += addr
     } else {
       text += stateValue.bytes
     }
-  } else if (stateValue.type == 2) {
+  } else if (stateValue.type === 2) {
     text += stateValue.uint
   } else {
     text += stateValue.bytes
@@ -266,7 +266,31 @@ function extract3 (buffer, start, size) {
   return buffer.slice(start, start + size)
 }
 
+/**
+ * Divides an array in chunks.
+ * @param {*} array  The input array
+ * @param {*} chunkSize The desired chunk size
+ * @returns A collection of arrays containing chunks of the original array
+ */
+function arrayChunks (array, chunkSize) {
+  return Array(Math.ceil(array.length / chunkSize))
+    .fill().map((_, index) => index * chunkSize)
+    .map(begin => array.slice(begin, begin + chunkSize))
+}
+
+/**
+ * Divides an array in chunks.
+ * @param {*} array  The input array
+ * @param {*} numOfChunks The number of desired chunks
+ * @returns A collection of arrays containing chunks of the original array
+ */
+function arrayChunks2 (array, numOfChunks) {
+  return arrayChunks(array, Math.ceil(array.length / numOfChunks))
+}
+
 module.exports = {
+  arrayChunks,
+  arrayChunks2,
   extract3,
   timeoutPromise,
   getInt64Bytes,
