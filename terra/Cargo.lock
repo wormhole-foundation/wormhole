@@ -1338,7 +1338,8 @@ dependencies = [
 [[package]]
 name = "pyth-client"
 version = "0.2.2"
-source = "git+https://github.com/pyth-network/pyth-client-rs?branch=v2#0d2689fdd4ffba09d7d77f5a52b09e16912983ec"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "44de48029c54ec1ca570786b5baeb906b0fc2409c8e0145585e287ee7a526c72"
 
 [[package]]
 name = "quote"
