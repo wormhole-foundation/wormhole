@@ -106,18 +106,20 @@ fi
 sudo systemctl enable --now docker
 
 # Install Minikube
+# Use 1.24 until this regression is resolved:
+#    https://github.com/kubernetes/minikube/issues/13542
 case "$DISTRO" in
   Debian-*)
     TMP=$(mktemp -d)
     (
       cd "$TMP"
-      curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube_latest_amd64.deb
+      curl -LO https://github.com/kubernetes/minikube/releases/download/v1.24.0/minikube_1.24.0-0_amd64.deb
       sudo dpkg -i minikube_latest_amd64.deb
     )
     rm -rf "$TMP"
   ;;
   RedHatEnterprise-*)
-    sudo dnf -y install https://storage.googleapis.com/minikube/releases/latest/minikube-latest.x86_64.rpm
+    sudo dnf -y install https://github.com/kubernetes/minikube/releases/download/v1.24.0/minikube-1.24.0-0.x86_64.rpm
   ;;
   *) echo "Internal error: $DISTRO not matched in case block." && exit 1 ;;
 esac
