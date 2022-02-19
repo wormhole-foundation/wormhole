@@ -57,7 +57,7 @@
   },
   "dependencies": {
     "@improbable-eng/grpc-web": "^0.14.0",
-    "@solana/spl-token": "^0.1.8",
+    "@solana/spl-token": "^0.2.0",
     "@solana/web3.js": "^1.24.0",
     "@terra-money/terra.js": "^3.0.7",
     "axios": "^0.24.0",
