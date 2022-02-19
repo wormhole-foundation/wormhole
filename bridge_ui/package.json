@@ -10,7 +10,7 @@
     "@metamask/detect-provider": "^1.2.0",
     "@project-serum/serum": "^0.13.60",
     "@reduxjs/toolkit": "^1.6.1",
-    "@solana/spl-token": "^0.1.6",
+    "@solana/spl-token": "^0.2.0",
     "@solana/spl-token-registry": "^0.2.216",
     "@solana/wallet-adapter-base": "^0.5.2",
     "@solana/wallet-adapter-ledger": "^0.5.2",
