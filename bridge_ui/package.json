@@ -42,7 +42,7 @@
     "react-router-dom": "^5.2.0",
     "react-scripts": "4.0.3",
     "react-table": "^7.7.0",
-    "redux": "^3.7.2",
+    "redux": "^4.1.2",
     "use-debounce": "^7.0.0"
   },
   "scripts": {
