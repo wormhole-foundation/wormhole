@@ -5,7 +5,7 @@ import "time"
 import "github.com/stretchr/testify/assert"
 
 // Testing the expected default behavior of a CreateGovernanceVAA
-func TestCreateGovernanceVAA(t *testing.T){
+func TestCreateGovernanceVAA(t *testing.T) {
 	var nonce uint32 = 1
 	var sequence uint64 = 1
 	var guardianSetIndex uint32 = 1
@@ -25,4 +25,4 @@ func TestCreateGovernanceVAA(t *testing.T){
 	assert.Equal(t, vaa.EmitterChain, ChainIDSolana)
 	assert.Equal(t, vaa.EmitterAddress, Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4})
 	assert.Equal(t, string(vaa.Payload), "aaaaaa")
-}              
+}
