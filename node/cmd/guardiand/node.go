@@ -75,8 +75,8 @@ var (
 	ethRopstenRPC      *string
 	ethRopstenContract *string
 
-	fantomRPC	*string
-	fantomContract	*string
+	fantomRPC      *string
+	fantomContract *string
 
 	avalancheRPC      *string
 	avalancheContract *string
@@ -392,10 +392,10 @@ func runNode(cmd *cobra.Command, args []string) {
 		if *ethRopstenContract != "" {
 			logger.Fatal("Please do not specify --ethRopstenContract in non-testnet mode")
 		}
-		if *fantomRPC == "" {
+		if *fantomRPC != "" && !*unsafeDevMode {
 			logger.Fatal("Please do not specify --fantomRPC in non-testnet mode")
 		}
-		if *fantomContract == "" {
+		if *fantomContract != "" && *unsafeDevMode {
 			logger.Fatal("Please do not specify --fantomContract in non-testnet mode")
 		}
 	}
