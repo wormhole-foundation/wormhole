@@ -394,7 +394,7 @@ describe('VAA Processor Smart-contract Tests', function () {
     const gscount = await tools.readAppGlobalStateByKey(algodClient, appId, ownerAddr, 'gscount')
     const stepSize = await tools.readAppGlobalStateByKey(algodClient, appId, ownerAddr, 'vssize')
     const groupSize = Math.ceil(gscount / stepSize)
-    const numOfAttest = 4
+    const numOfAttest = 5
     const vaa = createVAA(1, guardianPrivKeys, 1, PYTH_EMITTER, numOfAttest)
     const tx = await buildTransactionGroup(groupSize, stepSize, guardianKeys, gscount, vaa.signatures, vaa.body)
     await pclib.waitForConfirmation(tx)
@@ -455,56 +455,46 @@ describe('VAA Processor Smart-contract Tests', function () {
     }
   })
 
-  // it('Must fail to verify VAA - (shuffle signers)', async function () {
-  //   const gscount = await tools.readAppGlobalStateByKey(algodClient, appId, ownerAddr, 'gscount')
-  //   const vsSize = await tools.readAppGlobalStateByKey(algodClient, appId, ownerAddr, 'vssize')
-  //   const groupSize = Math.ceil(gscount / vsSize)
+  it('Must fail to verify VAA - (shuffle signers)', async function () {
+    const gscount = await tools.readAppGlobalStateByKey(algodClient, appId, ownerAddr, 'gscount')
+    const stepSize = await tools.readAppGlobalStateByKey(algodClient, appId, ownerAddr, 'vssize')
+    const groupSize = Math.ceil(gscount / stepSize)
+    const vaa = createVAA(1, guardianPrivKeys, 1, PYTH_EMITTER, 5)
 
-  //   let shuffleGuardianPrivKeys = [...guardianPrivKeys]
-  //   shuffleGuardianPrivKeys = testLib.shuffle(shuffleGuardianPrivKeys)
+    let shuffleGuardianPrivKeys = [...guardianPrivKeys]
+    shuffleGuardianPrivKeys = testLib.shuffle(shuffleGuardianPrivKeys)
 
-  //   pythVaa = testLib.createSignedVAA(0, shuffleGuardianPrivKeys, 1, 1, 1, PYTH_EMITTER, 0, 0, PYTH_PAYLOAD)
-  //   pythVaaBody = Buffer.from(pythVaa.substr(12 + shuffleGuardianPrivKeys.length * 132), 'hex')
-  //   pythVaaSignatures = pythVaa.substr(12, shuffleGuardianPrivKeys.length * 132)
+    await expect(buildTransactionGroup(groupSize, stepSize, shuffleGuardianPrivKeys, gscount, vaa.signatures, vaa.body)).to.be.rejectedWith('Bad Request')
+  })
 
-  //   await expect(buildTransactionGroup(groupSize, vsSize, guardianKeys, gscount, pythVaaSignatures, pythVaaBody)).to.be.rejectedWith('Bad Request')
-  // })
+  it('Must verify VAA with signers > 2/3 + 1', async function () {
+    const gscount = await tools.readAppGlobalStateByKey(algodClient, appId, ownerAddr, 'gscount')
+    const stepSize = await tools.readAppGlobalStateByKey(algodClient, appId, ownerAddr, 'vssize')
 
-  // it('Must verify VAA with signers > 2/3 + 1', async function () {
-  //   const gscount = await tools.readAppGlobalStateByKey(algodClient, appId, ownerAddr, 'gscount')
-  //   const vsSize = await tools.readAppGlobalStateByKey(algodClient, appId, ownerAddr, 'vssize')
+    // Fixed-point division
+    // https://github.com/certusone/wormhole/blob/00ddd5f02ba34e6570823b23518af8bbd6d91231/ethereum/contracts/Messages.sol#L30
 
-  //   // Fixed-point division
-  //   // https://github.com/certusone/wormhole/blob/00ddd5f02ba34e6570823b23518af8bbd6d91231/ethereum/contracts/Messages.sol#L30
+    const quorum = Math.trunc(((gscount * 10 / 3) * 2) / 10 + 1)
+    const slicedGuardianPrivKeys = guardianPrivKeys.slice(0, quorum + 1)
+    const vaa = createVAA(0, slicedGuardianPrivKeys, 1, PYTH_EMITTER, 5)
+    const groupSize = Math.ceil(gscount / stepSize)
+    const tx = await buildTransactionGroup(groupSize, stepSize, guardianKeys, gscount, vaa.signatures, vaa.body)
+    await pclib.waitForConfirmation(tx)
+  })
 
-  //   const quorum = Math.trunc(((gscount * 10 / 3) * 2) / 10 + 1)
-  //   const slicedGuardianPrivKeys = guardianPrivKeys.slice(0, quorum + 1)
+  it('Must fail to verify VAA with <= 2/3 + 1 signers (no quorum)', async function () {
+    const gscount = await tools.readAppGlobalStateByKey(algodClient, appId, ownerAddr, 'gscount')
+    const stepSize = await tools.readAppGlobalStateByKey(algodClient, appId, ownerAddr, 'vssize')
 
-  //   pythVaa = testLib.createSignedVAA(0, slicedGuardianPrivKeys, 1, 1, 1, PYTH_EMITTER, 0, 0, PYTH_PAYLOAD)
-  //   pythVaaBody = Buffer.from(pythVaa.substr(12 + slicedGuardianPrivKeys.length * 132), 'hex')
-  //   pythVaaSignatures = pythVaa.substr(12, slicedGuardianPrivKeys.length * 132)
-  //   const groupSize = Math.ceil(gscount / vsSize)
-  //   const tx = await buildTransactionGroup(groupSize, vsSize, guardianKeys, gscount, pythVaaSignatures, pythVaaBody)
-  //   await pclib.waitForConfirmation(tx)
-  // })
+    // Fixed-point division
+    // https://github.com/certusone/wormhole/blob/00ddd5f02ba34e6570823b23518af8bbd6d91231/ethereum/contracts/Messages.sol#L30
 
-  // it('Must fail to verify VAA with <= 2/3 + 1 signers (no quorum)', async function () {
-  //   const gscount = await tools.readAppGlobalStateByKey(algodClient, appId, ownerAddr, 'gscount')
-  //   const vsSize = await tools.readAppGlobalStateByKey(algodClient, appId, ownerAddr, 'vssize')
-
-  //   // Fixed-point division
-  //   // https://github.com/certusone/wormhole/blob/00ddd5f02ba34e6570823b23518af8bbd6d91231/ethereum/contracts/Messages.sol#L30
-
-  //   const quorum = Math.trunc(((gscount * 10 / 3) * 2) / 10 + 1)
-  //   const slicedGuardianPrivKeys = guardianPrivKeys.slice(0, quorum)
-
-  //   pythVaa = testLib.createSignedVAA(0, slicedGuardianPrivKeys, 1, 1, 1, PYTH_EMITTER, 0, 0, PYTH_PAYLOAD)
-  //   pythVaaBody = Buffer.from(pythVaa.substr(12 + slicedGuardianPrivKeys.length * 132), 'hex')
-  //   pythVaaSignatures = pythVaa.substr(12, slicedGuardianPrivKeys.length * 132)
-  //   const groupSize = Math.ceil(gscount / vsSize)
-
-  //   await expect(buildTransactionGroup(groupSize, vsSize, guardianKeys, gscount, pythVaaSignatures, pythVaaBody)).to.be.rejectedWith('Bad Request')
-  // })
+    const quorum = Math.trunc(((gscount * 10 / 3) * 2) / 10 + 1)
+    const slicedGuardianPrivKeys = guardianPrivKeys.slice(0, quorum)
+    const vaa = createVAA(0, slicedGuardianPrivKeys, 1, PYTH_EMITTER, 5)
+    const groupSize = Math.ceil(gscount / stepSize)
+    await expect(buildTransactionGroup(groupSize, stepSize, guardianKeys, gscount, vaa.signatures, vaa.body)).to.be.rejectedWith('Bad Request')
+  })
   // it('Must verify and handle governance VAA', async function () {
   //   // TBD
   // })

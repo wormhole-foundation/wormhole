@@ -26,5 +26,5 @@ module.exports = {
   //
   // Set to true to dump failed TX
   //
-  DUMP_FAILED_TX: true
+  DUMP_FAILED_TX: false
 }
