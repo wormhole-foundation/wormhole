@@ -189,3 +189,9 @@ Account list:
 Get yourself a working shell:
 
     kubectl exec -c goal-kmd algorand-0 -it shell-demo -- /bin/bash
+
+### guardiand debugging
+
+Use the `--guardiand_debug` Tilt argument to run guardiand within a dlv session. The session will be exposed just like
+any other Tilt services. You can then connect any IDE that supports Go debugging, like IntelliJ (add a "Go Remote"
+target and specify the host and port your Tilt instance runs on). 
