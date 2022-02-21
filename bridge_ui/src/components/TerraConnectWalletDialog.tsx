@@ -10,6 +10,7 @@ import {
 } from "@material-ui/core";
 import CloseIcon from "@material-ui/icons/Close";
 import { ConnectType, useWallet } from "@terra-money/wallet-provider";
+import { useCallback } from "react";
 
 const useStyles = makeStyles((theme) => ({
   flexTitle: {
@@ -29,6 +30,44 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
+const WalletOptions = ({
+  type,
+  identifier,
+  connect,
+  onClose,
+  icon,
+  name,
+}: {
+  type: ConnectType;
+  identifier: string;
+  connect: (
+    type: ConnectType | undefined,
+    identifier: string | undefined
+  ) => void;
+  onClose: () => void;
+  icon: string;
+  name: string;
+}) => {
+  const classes = useStyles();
+
+  const handleClick = useCallback(() => {
+    connect(type, identifier);
+    onClose();
+  }, [connect, onClose, type, identifier]);
+  return (
+    <ListItem
+      button
+      key={"connection-" + type + identifier}
+      onClick={handleClick}
+    >
+      <ListItemIcon>
+        <img src={icon} alt={name} className={classes.icon} />
+      </ListItemIcon>
+      <ListItemText>{name}</ListItemText>
+    </ListItem>
+  );
+};
+
 const TerraConnectWalletDialog = ({
   isOpen,
   onClose,
@@ -39,6 +78,36 @@ const TerraConnectWalletDialog = ({
   const { availableConnections, availableInstallations, connect } = useWallet();
   const classes = useStyles();
 
+  const filteredConnections = availableConnections
+    .filter(({ type }) => type !== ConnectType.READONLY)
+    .map(({ type, name, icon, identifier = "" }) => (
+      <WalletOptions
+        type={type}
+        identifier={identifier}
+        connect={connect}
+        onClose={onClose}
+        icon={icon}
+        name={name}
+      />
+    ));
+
+  const filteredInstallations = availableInstallations
+    .filter(({ type }) => type !== ConnectType.READONLY)
+    .map(({ type, name, icon, url, identifier = "" }) => (
+      <ListItem
+        button
+        component="a"
+        key={"install-" + type + identifier}
+        href={url}
+        target="_blank"
+        rel="noreferrer"
+      >
+        <ListItemIcon>
+          <img src={icon} alt={name} className={classes.icon} />
+        </ListItemIcon>
+        <ListItemText>{"Install " + name}</ListItemText>
+      </ListItem>
+    ));
   return (
     <Dialog open={isOpen} onClose={onClose}>
       <DialogTitle>
@@ -50,40 +119,8 @@ const TerraConnectWalletDialog = ({
         </div>
       </DialogTitle>
       <List>
-        {availableConnections
-          .filter(({ type }) => type !== ConnectType.READONLY)
-          .map(({ type, name, icon, identifier = "" }) => (
-            <ListItem
-              button
-              key={"connection-" + type + identifier}
-              onClick={() => {
-                connect(type, identifier);
-                onClose();
-              }}
-            >
-              <ListItemIcon>
-                <img src={icon} alt={name} className={classes.icon} />
-              </ListItemIcon>
-              <ListItemText>{name}</ListItemText>
-            </ListItem>
-          ))}
-        {availableInstallations
-          .filter(({ type }) => type !== ConnectType.READONLY)
-          .map(({ type, name, icon, url, identifier = "" }) => (
-            <ListItem
-              button
-              component="a"
-              key={"install-" + type + identifier}
-              href={url}
-              target="_blank"
-              rel="noreferrer"
-            >
-              <ListItemIcon>
-                <img src={icon} alt={name} className={classes.icon} />
-              </ListItemIcon>
-              <ListItemText>{"Install " + name}</ListItemText>
-            </ListItem>
-          ))}
+        {filteredConnections}
+        {filteredInstallations}
       </List>
     </Dialog>
   );

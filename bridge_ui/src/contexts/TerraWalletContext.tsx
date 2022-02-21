@@ -1,5 +1,6 @@
 import { NetworkInfo, WalletProvider } from "@terra-money/wallet-provider";
 import { ReactChildren } from "react";
+import { CLUSTER } from "../utils/consts";
 
 const mainnet: NetworkInfo = {
   name: "mainnet",
@@ -25,7 +26,7 @@ export const TerraWalletProvider = ({
 }) => {
   return (
     <WalletProvider
-      defaultNetwork={mainnet}
+      defaultNetwork={CLUSTER === "testnet" ? testnet : mainnet}
       walletConnectChainIds={walletConnectChainIds}
     >
       {children}
