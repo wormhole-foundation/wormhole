@@ -56,4 +56,5 @@ jobs:
     #   make release
 
     - name: Perform CodeQL Analysis
+      continue-on-error: true
       uses: github/codeql-action/analyze@v1
