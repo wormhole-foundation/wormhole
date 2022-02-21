@@ -145,7 +145,7 @@ func (st *GuardianSetState) Cleanup() {
 
 	for addr, v := range st.lastHeartbeats {
 		for peerId, hb := range v {
-			ts := time.Unix(hb.Timestamp, 0)
+			ts := time.Unix(0, hb.Timestamp)
 			if time.Since(ts) > MaxStateAge {
 				delete(st.lastHeartbeats[addr], peerId)
 			}
