@@ -3,8 +3,8 @@ import { Registry, OfflineSigner, EncodeObject } from "@cosmjs/proto-signing";
 import { Api } from "./rest";
 import { MsgExecuteGovernanceVAA } from "./types/tokenbridge/tx";
 import { MsgAttestToken } from "./types/tokenbridge/tx";
-import { MsgTransfer } from "./types/tokenbridge/tx";
 import { MsgExecuteVAA } from "./types/tokenbridge/tx";
+import { MsgTransfer } from "./types/tokenbridge/tx";
 export declare const MissingWalletError: Error;
 export declare const registry: Registry;
 interface TxClientOptions {
@@ -18,8 +18,8 @@ declare const txClient: (wallet: OfflineSigner, { addr: addr }?: TxClientOptions
     signAndBroadcast: (msgs: EncodeObject[], { fee, memo }?: SignAndBroadcastOptions) => any;
     msgExecuteGovernanceVAA: (data: MsgExecuteGovernanceVAA) => EncodeObject;
     msgAttestToken: (data: MsgAttestToken) => EncodeObject;
-    msgTransfer: (data: MsgTransfer) => EncodeObject;
     msgExecuteVAA: (data: MsgExecuteVAA) => EncodeObject;
+    msgTransfer: (data: MsgTransfer) => EncodeObject;
 }>;
 interface QueryClientOptions {
     addr: string;
