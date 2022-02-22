@@ -188,9 +188,6 @@ func (s *nodePrivilegedService) InjectGovernanceVAA(ctx context.Context, req *no
 
 		// Generate digest of the unsigned VAA.
 		digest := v.SigningMsg()
-		if err != nil {
-			panic(err)
-		}
 
 		s.logger.Info("governance VAA constructed",
 			zap.Any("vaa", v),
