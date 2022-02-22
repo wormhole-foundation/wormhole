@@ -4,6 +4,7 @@ import { StatusCode } from '../common/statusCodes'
 import { PythData } from 'backend/common/basetypes'
 const PricecasterLib = require('../../lib/pricecaster')
 const tools = require('../../tools/app-tools')
+const { arrayChunks } = require('../../tools/app-tools')
 
 export class Pricekeeper2Publisher implements IPublisher {
   private algodClient: algosdk.Algodv2
@@ -85,25 +86,27 @@ export class Pricekeeper2Publisher implements IPublisher {
         guardianKeys.push(Buffer.from(gk, 'base64').toString('hex'))
       }
 
-      const strSig = data.signatures.toString('hex')
+      if (guardianKeys.length === 0) {
+        throw new Error('No guardian keys in global state.')
+      }
+
+      const keyChunks = arrayChunks(guardianKeys, this.stepSize)
+      const sigChunks = arrayChunks(data.signatures, this.stepSize * 132)
 
       const gid = this.pclib.beginTxGroup()
-      const sigSubsets = []
       for (let i = 0; i < this.numOfVerifySteps; i++) {
-        const st = this.stepSize * i
-        const sigSetLen = 132 * this.stepSize
-
-        const keySubset = guardianKeys.slice(st, i < this.numOfVerifySteps - 1 ? st + this.stepSize : undefined)
-
-        sigSubsets.push(strSig.slice(i * sigSetLen, i < this.numOfVerifySteps - 1 ? ((i * sigSetLen) + sigSetLen) : undefined))
-        this.pclib.addVerifyTx(gid, this.compiledVerifyProgram.hash, txParams, data.vaaBody, keySubset, this.guardianCount)
+        this.pclib.addVerifyTx(gid, this.compiledVerifyProgram.hash, txParams, data.vaaBody, keyChunks[i], this.guardianCount)
       }
-      this.pclib.addPriceStoreTx(gid, this.vaaProcessorOwner, txParams, data.symbol, data.vaaBody.slice(51))
-      const txId = await this.pclib.commitVerifyTxGroup(gid, this.compiledVerifyProgram.bytes, sigSubsets, this.vaaProcessorOwner, this.signCallback.bind(this))
+      this.pclib.addPriceStoreTx(gid, this.vaaProcessorOwner, txParams, data.vaaBody.slice(51))
+      const txId = await this.pclib.commitVerifyTxGroup(gid, this.compiledVerifyProgram.bytes, sigChunks, this.vaaProcessorOwner, this.signCallback.bind(this))
       publishInfo.txid = txId
     } catch (e: any) {
       publishInfo.status = StatusCode.ERROR_SUBMIT_MESSAGE
-      publishInfo.reason = e.response.text ? e.response.text : e.toString()
+      if (e.response) {
+        publishInfo.reason = e.response.text ? e.response.text : e.toString()
+      } else {
+        publishInfo.reason = e.toString()
+      }
       return publishInfo
     }
 

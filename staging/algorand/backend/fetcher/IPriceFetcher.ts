@@ -32,7 +32,7 @@ export interface IPriceFetcher {
     setStrategy(s: IStrategy): void
 
     /**
-     * Get the current price of a symbol, according to running strategy.
+     * Get the current data.
      */
-    queryData(id: string): any | undefined
+    queryData(id?: string): any | undefined
 }

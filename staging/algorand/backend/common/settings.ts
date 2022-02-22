@@ -19,10 +19,11 @@
  */
 
 import { Options } from '@randlabs/js-logger'
-import { Symbol } from './basetypes'
+import { Cluster } from '@solana/web3.js'
 
 export interface IAppSettings extends Record<string, unknown> {
   log: Options,
+  pollInterval: number,
   algo: {
     token: string,
     api: string,
@@ -44,12 +45,11 @@ export interface IAppSettings extends Record<string, unknown> {
   },
   debug?: {
     logAllVaa?: boolean,
-  }
+  },
   wormhole: {
     spyServiceHost: string
   },
-  strategy: {
-    bufferSize: number
-  },
-  symbols: Symbol[]
+  symbols: {
+    sourceNetwork: Cluster
+  }
 }

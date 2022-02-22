@@ -20,34 +20,22 @@
  * limitations under the License.
  */
 
-export type Symbol = {
-    name: string,
-    productId: string,
-    priceId: string,
-    publishIntervalSecs: number,
-    pubCount: number
-}
-
 export type VAA = {
-    version: number,
-    guardian_set_index: number,
-    signatures: [],
-    timestamp: number,
-    nonce: number,
-    emitter_chain: number,
-    emitter_address: [],
-    sequence: number,
-    consistency_level: number,
-    payload: []
-  }
-
-export type PythData = {
-  vaaBody: Buffer,
-  signatures: Buffer,
-
-  // Informational fields.
-
+  version: number,
+  guardian_set_index: number,
+  signatures: [],
+  timestamp: number,
+  nonce: number,
+  emitter_chain: number,
+  emitter_address: [],
+  sequence: number,
+  consistency_level: number,
+  payload: []
+}
+export type PythAttestation = {
   symbol?: string,
+  productId: string,
+  priceId: string,
   price_type?: number,
   price?: BigInt,
   exponent?: number,
@@ -62,3 +50,9 @@ export type PythData = {
   corporate_act?: number,
   timestamp?: BigInt
 }
+export type PythData = {
+  vaaBody: Buffer,
+  signatures: Buffer,
+  attestations?: PythAttestation[]
+}
+
