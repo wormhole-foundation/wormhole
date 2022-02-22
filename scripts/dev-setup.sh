@@ -37,7 +37,12 @@ case "$DISTRO" in
             exit 1
         fi
     ;;
-    RedHatEnterprise-8.*) true ;; # Not in OS repositories.
+    RedHatEnterprise-8.*)
+        if rpm -q podman-docker &>/dev/null; then
+            echo "podman-docker is installed. Please uninstall it first."
+            exit 1
+        fi
+    ;;
     *) echo "Internal error: $DISTRO not matched in case block." && exit 1 ;;
 esac
 
