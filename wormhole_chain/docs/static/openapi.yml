@@ -188,6 +188,9 @@ paths:
                   properties:
                     index:
                       type: string
+                    lastUpdateSequence:
+                      type: string
+                      format: uint64
               pagination:
                 type: object
                 properties:
@@ -304,6 +307,9 @@ paths:
                 properties:
                   index:
                     type: string
+                  lastUpdateSequence:
+                    type: string
+                    format: uint64
         default:
           description: An unexpected error response.
           schema:
@@ -13575,6 +13581,9 @@ definitions:
     properties:
       index:
         type: string
+      lastUpdateSequence:
+        type: string
+        format: uint64
   certusone.wormholechain.tokenbridge.Config:
     type: object
   certusone.wormholechain.tokenbridge.MsgAttestTokenResponse:
@@ -13634,6 +13643,9 @@ definitions:
           properties:
             index:
               type: string
+            lastUpdateSequence:
+              type: string
+              format: uint64
       pagination:
         type: object
         properties:
@@ -13714,6 +13726,9 @@ definitions:
         properties:
           index:
             type: string
+          lastUpdateSequence:
+            type: string
+            format: uint64
   certusone.wormholechain.tokenbridge.QueryGetConfigResponse:
     type: object
     properties:

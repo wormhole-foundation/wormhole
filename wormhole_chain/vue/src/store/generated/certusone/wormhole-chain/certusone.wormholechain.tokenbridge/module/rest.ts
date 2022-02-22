@@ -30,6 +30,9 @@ export interface TokenbridgeChainRegistration {
 
 export interface TokenbridgeCoinMetaRollbackProtection {
   index?: string;
+
+  /** @format uint64 */
+  lastUpdateSequence?: string;
 }
 
 export type TokenbridgeConfig = object;
