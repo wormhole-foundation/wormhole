@@ -55,11 +55,7 @@ const WalletOptions = ({
     onClose();
   }, [connect, onClose, type, identifier]);
   return (
-    <ListItem
-      button
-      key={"connection-" + type + identifier}
-      onClick={handleClick}
-    >
+    <ListItem button onClick={handleClick}>
       <ListItemIcon>
         <img src={icon} alt={name} className={classes.icon} />
       </ListItemIcon>
@@ -88,6 +84,7 @@ const TerraConnectWalletDialog = ({
         onClose={onClose}
         icon={icon}
         name={name}
+        key={"connection-" + type + identifier}
       />
     ));
 
