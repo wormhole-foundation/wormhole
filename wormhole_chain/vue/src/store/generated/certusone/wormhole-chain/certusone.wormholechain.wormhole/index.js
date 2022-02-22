@@ -1,4 +1,4 @@
-import { txClient, queryClient, MissingWalletError } from './module';
+import { txClient, queryClient, MissingWalletError, registry } from './module';
 // @ts-ignore
 import { SpVuexError } from '@starport/vuex';
 import { Config } from "./module/types/wormhole/config";
@@ -60,6 +60,7 @@ const getDefaultState = () => {
             ReplayProtection: getStructure(ReplayProtection.fromPartial({})),
             SequenceCounter: getStructure(SequenceCounter.fromPartial({})),
         },
+        _Registry: registry,
         _Subscriptions: new Set(),
     };
 };
@@ -76,10 +77,10 @@ export default {
             state[query][JSON.stringify(key)] = value;
         },
         SUBSCRIBE(state, subscription) {
-            state._Subscriptions.add(subscription);
+            state._Subscriptions.add(JSON.stringify(subscription));
         },
         UNSUBSCRIBE(state, subscription) {
-            state._Subscriptions.delete(subscription);
+            state._Subscriptions.delete(JSON.stringify(subscription));
         }
     },
     getters: {
@@ -127,6 +128,9 @@ export default {
         },
         getTypeStructure: (state) => (type) => {
             return state._Structure[type].fields;
+        },
+        getRegistry: (state) => {
+            return state._Registry;
         }
     },
     actions: {
@@ -147,15 +151,17 @@ export default {
         async StoreUpdate({ state, dispatch }) {
             state._Subscriptions.forEach(async (subscription) => {
                 try {
-                    await dispatch(subscription.action, subscription.payload);
+                    const sub = JSON.parse(subscription);
+                    await dispatch(sub.action, sub.payload);
                 }
                 catch (e) {
                     throw new SpVuexError('Subscriptions: ' + e.message);
                 }
             });
         },
-        async QueryGuardianSet({ commit, rootGetters, getters }, { options: { subscribe, all } = { subscribe: false, all: false }, params: { ...key }, query = null }) {
+        async QueryGuardianSet({ commit, rootGetters, getters }, { options: { subscribe, all } = { subscribe: false, all: false }, params, query = null }) {
             try {
+                const key = params ?? {};
                 const queryClient = await initQueryClient(rootGetters);
                 let value = (await queryClient.queryGuardianSet(key.index)).data;
                 commit('QUERY', { query: 'GuardianSet', key: { params: { ...key }, query }, value });
@@ -167,12 +173,13 @@ export default {
                 throw new SpVuexError('QueryClient:QueryGuardianSet', 'API Node Unavailable. Could not perform query: ' + e.message);
             }
         },
-        async QueryGuardianSetAll({ commit, rootGetters, getters }, { options: { subscribe, all } = { subscribe: false, all: false }, params: { ...key }, query = null }) {
+        async QueryGuardianSetAll({ commit, rootGetters, getters }, { options: { subscribe, all } = { subscribe: false, all: false }, params, query = null }) {
             try {
+                const key = params ?? {};
                 const queryClient = await initQueryClient(rootGetters);
                 let value = (await queryClient.queryGuardianSetAll(query)).data;
-                while (all && value.pagination && value.pagination.nextKey != null) {
-                    let next_values = (await queryClient.queryGuardianSetAll({ ...query, 'pagination.key': value.pagination.nextKey })).data;
+                while (all && value.pagination && value.pagination.next_key != null) {
+                    let next_values = (await queryClient.queryGuardianSetAll({ ...query, 'pagination.key': value.pagination.next_key })).data;
                     value = mergeResults(value, next_values);
                 }
                 commit('QUERY', { query: 'GuardianSetAll', key: { params: { ...key }, query }, value });
@@ -184,8 +191,9 @@ export default {
                 throw new SpVuexError('QueryClient:QueryGuardianSetAll', 'API Node Unavailable. Could not perform query: ' + e.message);
             }
         },
-        async QueryConfig({ commit, rootGetters, getters }, { options: { subscribe, all } = { subscribe: false, all: false }, params: { ...key }, query = null }) {
+        async QueryConfig({ commit, rootGetters, getters }, { options: { subscribe, all } = { subscribe: false, all: false }, params, query = null }) {
             try {
+                const key = params ?? {};
                 const queryClient = await initQueryClient(rootGetters);
                 let value = (await queryClient.queryConfig()).data;
                 commit('QUERY', { query: 'Config', key: { params: { ...key }, query }, value });
@@ -197,8 +205,9 @@ export default {
                 throw new SpVuexError('QueryClient:QueryConfig', 'API Node Unavailable. Could not perform query: ' + e.message);
             }
         },
-        async QueryReplayProtection({ commit, rootGetters, getters }, { options: { subscribe, all } = { subscribe: false, all: false }, params: { ...key }, query = null }) {
+        async QueryReplayProtection({ commit, rootGetters, getters }, { options: { subscribe, all } = { subscribe: false, all: false }, params, query = null }) {
             try {
+                const key = params ?? {};
                 const queryClient = await initQueryClient(rootGetters);
                 let value = (await queryClient.queryReplayProtection(key.index)).data;
                 commit('QUERY', { query: 'ReplayProtection', key: { params: { ...key }, query }, value });
@@ -210,12 +219,13 @@ export default {
                 throw new SpVuexError('QueryClient:QueryReplayProtection', 'API Node Unavailable. Could not perform query: ' + e.message);
             }
         },
-        async QueryReplayProtectionAll({ commit, rootGetters, getters }, { options: { subscribe, all } = { subscribe: false, all: false }, params: { ...key }, query = null }) {
+        async QueryReplayProtectionAll({ commit, rootGetters, getters }, { options: { subscribe, all } = { subscribe: false, all: false }, params, query = null }) {
             try {
+                const key = params ?? {};
                 const queryClient = await initQueryClient(rootGetters);
                 let value = (await queryClient.queryReplayProtectionAll(query)).data;
-                while (all && value.pagination && value.pagination.nextKey != null) {
-                    let next_values = (await queryClient.queryReplayProtectionAll({ ...query, 'pagination.key': value.pagination.nextKey })).data;
+                while (all && value.pagination && value.pagination.next_key != null) {
+                    let next_values = (await queryClient.queryReplayProtectionAll({ ...query, 'pagination.key': value.pagination.next_key })).data;
                     value = mergeResults(value, next_values);
                 }
                 commit('QUERY', { query: 'ReplayProtectionAll', key: { params: { ...key }, query }, value });
@@ -227,8 +237,9 @@ export default {
                 throw new SpVuexError('QueryClient:QueryReplayProtectionAll', 'API Node Unavailable. Could not perform query: ' + e.message);
             }
         },
-        async QuerySequenceCounter({ commit, rootGetters, getters }, { options: { subscribe, all } = { subscribe: false, all: false }, params: { ...key }, query = null }) {
+        async QuerySequenceCounter({ commit, rootGetters, getters }, { options: { subscribe, all } = { subscribe: false, all: false }, params, query = null }) {
             try {
+                const key = params ?? {};
                 const queryClient = await initQueryClient(rootGetters);
                 let value = (await queryClient.querySequenceCounter(key.index)).data;
                 commit('QUERY', { query: 'SequenceCounter', key: { params: { ...key }, query }, value });
@@ -240,12 +251,13 @@ export default {
                 throw new SpVuexError('QueryClient:QuerySequenceCounter', 'API Node Unavailable. Could not perform query: ' + e.message);
             }
         },
-        async QuerySequenceCounterAll({ commit, rootGetters, getters }, { options: { subscribe, all } = { subscribe: false, all: false }, params: { ...key }, query = null }) {
+        async QuerySequenceCounterAll({ commit, rootGetters, getters }, { options: { subscribe, all } = { subscribe: false, all: false }, params, query = null }) {
             try {
+                const key = params ?? {};
                 const queryClient = await initQueryClient(rootGetters);
                 let value = (await queryClient.querySequenceCounterAll(query)).data;
-                while (all && value.pagination && value.pagination.nextKey != null) {
-                    let next_values = (await queryClient.querySequenceCounterAll({ ...query, 'pagination.key': value.pagination.nextKey })).data;
+                while (all && value.pagination && value.pagination.next_key != null) {
+                    let next_values = (await queryClient.querySequenceCounterAll({ ...query, 'pagination.key': value.pagination.next_key })).data;
                     value = mergeResults(value, next_values);
                 }
                 commit('QUERY', { query: 'SequenceCounterAll', key: { params: { ...key }, query }, value });

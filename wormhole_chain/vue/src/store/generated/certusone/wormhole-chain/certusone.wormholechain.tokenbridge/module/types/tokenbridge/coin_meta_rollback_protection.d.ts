@@ -2,6 +2,7 @@ import { Writer, Reader } from "protobufjs/minimal";
 export declare const protobufPackage = "certusone.wormholechain.tokenbridge";
 export interface CoinMetaRollbackProtection {
     index: string;
+    lastUpdateSequence: number;
 }
 export declare const CoinMetaRollbackProtection: {
     encode(message: CoinMetaRollbackProtection, writer?: Writer): Writer;
