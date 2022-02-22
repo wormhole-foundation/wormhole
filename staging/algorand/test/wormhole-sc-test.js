@@ -9,7 +9,7 @@ const fs = require('fs')
 const TestLib = require('./testlib.js')
 const { makePaymentTxnWithSuggestedParams } = require('algosdk')
 const testConfig = require('./test-config')
-const { extract3, arrayChunks, arrayChunks2 } = require('../tools/app-tools')
+const { extract3, arrayChunks } = require('../tools/app-tools')
 chai.use(require('chai-as-promised'))
 const testLib = new TestLib.TestLib()
 
@@ -18,6 +18,7 @@ let algodClient
 let verifyProgramHash
 let compiledVerifyProgram
 let ownerAddr, otherAddr
+let appId, pkAppId
 
 const signatures = {}
 
@@ -65,10 +66,10 @@ const guardianPrivKeys = [
   'b71d23908e4cf5d6cd973394f3a4b6b164eb1065785feee612efdfd8d30005ed'
 ]
 
-const PYTH_EMITTER = '0x3afda841c1f43dd7d546c8a581ba1f92a139f4133f9f6ab095558f6a359df5d4'
-const OTHER_EMITTER = '0x1111111111111111111111111111111111111111111111111111111111111111'
-const PYTH_PAYLOAD = '0x50325748000101230abfe0ec3b460bd55fc4fb36356716329915145497202b8eb8bf1af6a0a3b9fe650f0367d4a7ef9815a593ea15d36593f0643aaaf0149bb04be67ab851decd010000002f17254388fffffff70000002eed73d9000000000070d3b43f0000000037faa03d000000000e9e555100000000894af11c0000000037faa03d000000000dda6eb801000000000061a5ff9a'
-const OTHER_PAYLOAD = '0xf0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0'
+const PYTH_EMITTER       = '0x3afda841c1f43dd7d546c8a581ba1f92a139f4133f9f6ab095558f6a359df5d4'
+const OTHER_PYTH_EMITTER = '0x0000000000000000000000000000000000000000000000000000000000000001'
+// const PYTH_PAYLOAD = '0x50325748000101230abfe0ec3b460bd55fc4fb36356716329915145497202b8eb8bf1af6a0a3b9fe650f0367d4a7ef9815a593ea15d36593f0643aaaf0149bb04be67ab851decd010000002f17254388fffffff70000002eed73d9000000000070d3b43f0000000037faa03d000000000e9e555100000000894af11c0000000037faa03d000000000dda6eb801000000000061a5ff9a'
+// const OTHER_PAYLOAD = '0xf0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0'
 const PYTH_ATTESTATION_V2_BYTES = 150
 // --------------------------------------------------------------------------
 // Utility functions
@@ -219,8 +220,69 @@ function getAttestation (payload, index) {
   return extract3(payload, 11 + (PYTH_ATTESTATION_V2_BYTES * index), PYTH_ATTESTATION_V2_BYTES)
 }
 
+// eslint-disable-next-line no-unused-vars
 function getAttestationKey (payload, index) {
   return extract3(getAttestation(payload, index), 7, 64)
+}
+
+/**
+ * Check attestations in a payload vs. the stored state
+ * @param {*} vaa The VAA to check
+ * @param {*} numOfAttest  Number of attestations to check
+ */
+async function checkAttestations (vaa, numOfAttest) {
+  let state = await tools.readAppGlobalState(algodClient, pkAppId, ownerAddr)
+  const payloadAttestations = Buffer.from(payloadFromVAABody(vaa.body), 'hex')
+
+  // filter out vappid, sort keys.
+  state = state.filter(x => Buffer.from(x.key, 'base64').toString() !== 'vaapid')
+  state.sort((a, b) => {
+    if (a.key > b.key) {
+      return 1
+    }
+    if (a.key < b.key) {
+      return -1
+    }
+    return 0
+  })
+
+  // console.log(state)
+  let sortedAttestations = []
+  for (let i = 0; i < numOfAttest; i++) {
+    sortedAttestations.push(getAttestation(payloadAttestations, i).toString('hex'))
+  }
+
+  sortedAttestations = sortedAttestations.sort((a, b) => {
+    if (extract3(a, 7, 64).toString('hex') > extract3(b, 7, 64).toString('hex')) {
+      return 1
+    }
+    if (extract3(a, 7, 64).toString('hex') < extract3(b, 7, 64).toString('hex')) {
+      return -1
+    }
+    return 0
+  })
+
+  // console.log(sortedAttestations)
+  expect(sortedAttestations.length).to.equal(state.length)
+
+  for (let i = 0; i < numOfAttest.length; i++) {
+    // Check product-price key
+    const sk = Buffer.from(state[i].key, 'base64').toString('hex')
+    const sv = Buffer.from(state[i].value.bytes, 'base64')
+    expect(sk).to.equal(extract3(sortedAttestations[i], 7, 64).toString('hex'))
+
+    // Check price + exponent
+    expect(extract3(sv, 0, 12)).to.deep.equal(extract3(sortedAttestations[i], 72, 12))
+
+    // Check twac
+    expect(extract3(sv, 12, 8)).to.deep.equal(extract3(sortedAttestations[i], 108, 8))
+
+    // Check confidence
+    expect(extract3(sv, 20, 8)).to.deep.equal(extract3(sortedAttestations[i], 132, 8))
+
+    // Check timestamp
+    expect(extract3(sv, 28, 8)).to.deep.equal(extract3(sortedAttestations[i], 142, 8))
+  }
 }
 
 // ===============================================================================================================
@@ -230,8 +292,6 @@ function getAttestationKey (payload, index) {
 // ===============================================================================================================
 
 describe('VAA Processor Smart-contract Tests', function () {
-  let appId, pkAppId
-
   before(async function () {
     algodClient = new algosdk.Algodv2(testConfig.ALGORAND_NODE_TOKEN, testConfig.ALGORAND_NODE_HOST, testConfig.ALGORAND_NODE_PORT)
     pclib = new PricecasterLib.PricecasterLib(algodClient)
@@ -390,6 +450,15 @@ describe('VAA Processor Smart-contract Tests', function () {
 
   // })
 
+  it('Must reject unknown emitter VAA', async function () {
+    const gscount = await tools.readAppGlobalStateByKey(algodClient, appId, ownerAddr, 'gscount')
+    const stepSize = await tools.readAppGlobalStateByKey(algodClient, appId, ownerAddr, 'vssize')
+    const groupSize = Math.ceil(gscount / stepSize)
+    const numOfAttest = 5
+    const vaa = createVAA(1, guardianPrivKeys, 1, OTHER_PYTH_EMITTER, numOfAttest)
+    await expect(buildTransactionGroup(groupSize, stepSize, guardianKeys, gscount, vaa.signatures, vaa.body)).to.be.rejectedWith('Bad Request')
+  })
+
   it('Must verify and handle Pyth V2 VAA - all signers present', async function () {
     const gscount = await tools.readAppGlobalStateByKey(algodClient, appId, ownerAddr, 'gscount')
     const stepSize = await tools.readAppGlobalStateByKey(algodClient, appId, ownerAddr, 'vssize')
@@ -398,61 +467,7 @@ describe('VAA Processor Smart-contract Tests', function () {
     const vaa = createVAA(1, guardianPrivKeys, 1, PYTH_EMITTER, numOfAttest)
     const tx = await buildTransactionGroup(groupSize, stepSize, guardianKeys, gscount, vaa.signatures, vaa.body)
     await pclib.waitForConfirmation(tx)
-
-    let state = await tools.readAppGlobalState(algodClient, pkAppId, ownerAddr)
-    const payloadAttestations = Buffer.from(payloadFromVAABody(vaa.body), 'hex')
-
-    // filter out vappid, sort keys.
-
-    state = state.filter(x => Buffer.from(x.key, 'base64').toString() !== 'vaapid')
-    state.sort((a, b) => {
-      if (a.key > b.key) {
-        return 1
-      }
-      if (a.key < b.key) {
-        return -1
-      }
-      return 0
-    })
-
-    // console.log(state)
-    let sortedAttestations = []
-    for (let i = 0; i < numOfAttest; i++) {
-      sortedAttestations.push(getAttestation(payloadAttestations, i).toString('hex'))
-    }
-
-    sortedAttestations = sortedAttestations.sort((a, b) => {
-      if (extract3(a, 7, 64).toString('hex') > extract3(b, 7, 64).toString('hex')) {
-        return 1
-      }
-      if (extract3(a, 7, 64).toString('hex') < extract3(b, 7, 64).toString('hex')) {
-        return -1
-      }
-      return 0
-    })
-
-    // console.log(sortedAttestations)
-
-    expect(sortedAttestations.length).to.equal(state.length)
-
-    for (let i = 0; i < numOfAttest.length; i++) {
-      // Check product-price key
-      const sk = Buffer.from(state[i].key, 'base64').toString('hex')
-      const sv = Buffer.from(state[i].value.bytes, 'base64')
-      expect(sk).to.equal(extract3(sortedAttestations[i], 7, 64).toString('hex'))
-
-      // Check price + exponent
-      expect(extract3(sv, 0, 12)).to.deep.equal(extract3(sortedAttestations[i], 72, 12))
-
-      // Check twac
-      expect(extract3(sv, 12, 8)).to.deep.equal(extract3(sortedAttestations[i], 108, 8))
-
-      // Check confidence
-      expect(extract3(sv, 20, 8)).to.deep.equal(extract3(sortedAttestations[i], 132, 8))
-
-      // Check timestamp
-      expect(extract3(sv, 28, 8)).to.deep.equal(extract3(sortedAttestations[i], 142, 8))
-    }
+    await checkAttestations(vaa, numOfAttest)
   })
 
   it('Must fail to verify VAA - (shuffle signers)', async function () {
@@ -499,12 +514,23 @@ describe('VAA Processor Smart-contract Tests', function () {
   //   // TBD
   // })
 
-  // it('Must reject unknown emitter VAA', async function () {
-  //   const gscount = await tools.readAppGlobalStateByKey(algodClient, appId, ownerAddr, 'gscount')
-  //   const vssize = await tools.readAppGlobalStateByKey(algodClient, appId, ownerAddr, 'vssize')
-  //   const groupSize = Math.ceil(gscount / vssize)
-  //   await expect(execVerify(groupSize, vssize, guardianKeys, otherVaaSignatures, otherVaaBody, gscount)).to.be.rejectedWith('Bad Request')
-  // })
+  it('Must set new emitter VAA', async function () {
+    const txid = await pclib.setPythEmitterAddress(ownerAddr, OTHER_PYTH_EMITTER, signCallback)
+    await pclib.waitForTransactionResponse(txid)
+    const vphstate = await tools.readAppGlobalStateByKey(algodClient, appId, ownerAddr, 'emitter', true)
+    expect(vphstate).to.equal(Buffer.from(OTHER_PYTH_EMITTER.replace(/^0x/g, ''), 'hex').toString('base64'))
+  })
+
+  it('Must verify and handle Pyth V2 VAA (new emitter)', async function () {
+    const gscount = await tools.readAppGlobalStateByKey(algodClient, appId, ownerAddr, 'gscount')
+    const stepSize = await tools.readAppGlobalStateByKey(algodClient, appId, ownerAddr, 'vssize')
+    const groupSize = Math.ceil(gscount / stepSize)
+    const numOfAttest = 5
+    const vaa = createVAA(1, guardianPrivKeys, 1, OTHER_PYTH_EMITTER, numOfAttest)
+    const tx = await buildTransactionGroup(groupSize, stepSize, guardianKeys, gscount, vaa.signatures, vaa.body)
+    await pclib.waitForConfirmation(tx)
+    await checkAttestations(vaa, numOfAttest)
+  })
 
   // it('Stateless: Must reject transaction with excess fee', async function () {
   //   const gscount = await tools.readAppGlobalStateByKey(algodClient, appId, ownerAddr, 'gscount')

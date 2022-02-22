@@ -10,6 +10,7 @@ Changelog.
 
 v1.0                - Initial design
 v1.1    211214      - Group must end with either a dummy or app-call such as Store price onchain.
+v1.2    220222      - Change emitter address.
 
 ------------------------------------------------------------------------------------------------
 
@@ -19,6 +20,7 @@ verify-vaa.teal stateless programs.
 The following application calls are available.
 
 setvphash: Set verify program hash.
+setemitter: Set Pyth emitter address.
 setauthid: Set the authorized app-id of the last transaction call in the group, used as consumer
               of the verified VAA.
 
@@ -79,7 +81,7 @@ PYTH2WORMHOLE_CHAIN_ID = 1
 # PYTH2WORMHOLE_EMITTER_ID = '0x71f8dcb863d176e2c420ad6610cf687359612b6fb392e0642b0ca6b1f186aa3b'
 
 # Testnet emitter. 
-PYTH2WORMHOLE_EMITTER_ID =   '0x3afda841c1f43dd7d546c8a581ba1f92a139f4133f9f6ab095558f6a359df5d4'
+PYTH2WORMHOLE_EMITTER_ID = Bytes('base16', '0x3afda841c1f43dd7d546c8a581ba1f92a139f4133f9f6ab095558f6a359df5d4')
 
 # VAA fields
 
@@ -116,6 +118,7 @@ def bootstrap():
         App.globalPut(Bytes("gsexp"), Btoi(Txn.application_args[1])),
         App.globalPut(Bytes("gsindex"), Btoi(Txn.application_args[2])),
         App.globalPut(Bytes("vssize"), Int(MAX_SIGNATURES_PER_VERIFICATION_STEP)),
+        App.globalPut(Bytes("emitter"), PYTH2WORMHOLE_EMITTER_ID),
         Approve()
     ])
 
@@ -180,6 +183,7 @@ def commit_vaa():
         VAA_RECORD_EMITTER_CHAIN_POS), Int(VAA_RECORD_EMITTER_CHAIN_LEN)))
     emitterId = Extract(VERIFY_ARG_PAYLOAD, Int(
         VAA_RECORD_EMITTER_ADDR_POS), Int(VAA_RECORD_EMITTER_ADDR_LEN))
+    currentEmitter = App.globalGet(Bytes("emitter"))
     return Seq([
         If(And(
             chainId == Int(GOVERNANCE_CHAIN_ID),
@@ -187,7 +191,7 @@ def commit_vaa():
             Return(handle_governance()))
         .ElseIf(And(
             chainId == Int(PYTH2WORMHOLE_CHAIN_ID),
-            emitterId == Bytes('base16', PYTH2WORMHOLE_EMITTER_ID)
+            emitterId == currentEmitter
         )).Then(
             Return(handle_pyth_price_ticker())
         ).Else(
@@ -214,6 +218,19 @@ def check_final_verification_state():
         Return(Int(1))
     ])
 
+def setemitter():
+    #
+    # Sets the emitter address for Pyth payloads.
+    #
+
+    return Seq([
+        Assert(is_creator()),
+        Assert(Global.group_size() == Int(1)),
+        Assert(Txn.application_args.length() == Int(2)),
+        Assert(Len(Txn.application_args[1]) == Int(32)),
+        App.globalPut(Bytes("emitter"), Txn.application_args[1]),
+        Approve()
+    ])
 
 def setvphash():
     #
@@ -283,6 +300,7 @@ def vaa_processor_program():
     handle_noop = Cond(
         [METHOD == Bytes("setvphash"), setvphash()],
         [METHOD == Bytes("setauthid"), setauthid()],
+        [METHOD == Bytes("setemitter"), setemitter()],
         [METHOD == Bytes("verify"), verify()],
         [METHOD == Bytes("nop"), Return(Int(1))],
     )

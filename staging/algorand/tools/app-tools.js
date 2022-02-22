@@ -86,10 +86,10 @@ function printAppStateArray (stateArray) {
   }
 }
 
-function appValueState (stateValue) {
+function appValueState (stateValue, disableParseAddress) {
   let text = ''
 
-  if (stateValue.type === 1) {
+  if (stateValue.type === 1 && !disableParseAddress) {
     const addr = addressFromByteBuffer(stateValue.bytes)
     if (addr.length === ALGORAND_ADDRESS_SIZE) {
       text += addr
@@ -170,7 +170,7 @@ async function readAppGlobalState (algodClient, appId, accountAddr) {
   }
 }
 
-async function readAppGlobalStateByKey (algodClient, appId, accountAddr, key) {
+async function readAppGlobalStateByKey (algodClient, appId, accountAddr, key, disableParseAddress) {
   const accountInfoResponse = await algodClient.accountInformation(accountAddr).do()
   for (let i = 0; i < accountInfoResponse['created-apps'].length; i++) {
     if (accountInfoResponse['created-apps'][i].id === appId) {
@@ -180,7 +180,7 @@ async function readAppGlobalStateByKey (algodClient, appId, accountAddr, key) {
         const text = Buffer.from(stateArray[j].key, 'base64').toString()
 
         if (key === text) {
-          return appValueState(stateArray[j].value)
+          return appValueState(stateArray[j].value, disableParseAddress)
         }
       }
     }

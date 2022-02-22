@@ -19,7 +19,6 @@
  */
 import { parseProductData } from '@pythnetwork/client'
 import { Cluster, clusterApiUrl, Connection, PublicKey } from '@solana/web3.js'
-import { stringToHex } from 'web3-utils'
 
 const CLUSTER_TO_PYTH_PROGRAM_KEY: Record<Cluster, string> = {
   'mainnet-beta': 'FsJ3A3u2vn5cTVofAjvy6y5kwABJAqYWpe4975bi2epH',

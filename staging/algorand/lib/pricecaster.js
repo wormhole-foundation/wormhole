@@ -57,7 +57,7 @@ const ContractInfo = {
 // --------------------------------------------------------------------------------------
 
 class PricecasterLib {
-  constructor(algodClient, ownerAddr = undefined) {
+  constructor (algodClient, ownerAddr = undefined) {
     this.algodClient = algodClient
     this.ownerAddr = ownerAddr
     this.minFee = 1000
@@ -259,10 +259,10 @@ class PricecasterLib {
      * @return {String} transaction id of the created application
      */
     this.createVaaProcessorApp = async function (sender, gexpTime, gsindex, gkeys, signCallback) {
-      return await this.createApp(sender, 'vaaProcessor', 0, 0, 5, 20,
+      return await this.createApp(sender, 'vaaProcessor', 0, 0, 5, 21,
         [new Uint8Array(Buffer.from(gkeys, 'hex')),
-        algosdk.encodeUint64(parseInt(gexpTime)),
-        algosdk.encodeUint64(parseInt(gsindex))], signCallback)
+          algosdk.encodeUint64(parseInt(gexpTime)),
+          algosdk.encodeUint64(parseInt(gsindex))], signCallback)
     }
 
     /**
@@ -416,6 +416,22 @@ class PricecasterLib {
       const appArgs = []
       appArgs.push(new Uint8Array(Buffer.from('setvphash')),
         algosdk.decodeAddress(hash).publicKey)
+      return await this.callApp(sender, 'vaaProcessor', appArgs, [], signCallback)
+    }
+
+    /**
+     * VAA Processor: Sets the valid emitter Id for Pyth payloads.
+     * @param {*} sender Sender account
+     * @param {*} emitter The emitter account.
+     * @returns Transaction identifier.
+     */
+    this.setPythEmitterAddress = async function (sender, emitter, signCallback) {
+      if (!algosdk.isValidAddress(sender)) {
+        throw new Error('Invalid sender address: ' + sender)
+      }
+      const appArgs = []
+      appArgs.push(new Uint8Array(Buffer.from('setemitter')),
+        new Uint8Array(Buffer.from(emitter.replace(/^0x/g, ''), 'hex')))
       return await this.callApp(sender, 'vaaProcessor', appArgs, [], signCallback)
     }
 

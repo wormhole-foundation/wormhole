@@ -114,7 +114,7 @@ class TestLib {
 
     const hash = web3Utils.keccak256(web3Utils.keccak256('0x' + body.join('')))
 
-    console.log('VAA body Hash: ', hash)
+    // console.log('VAA body Hash: ', hash)
 
     let signatures = ''
 
