@@ -26,7 +26,7 @@ export type PublishInfo = {
     status: StatusCode,
     reason?: '',
     msgb64?: '',
-    block?: BigInt
+    confirmation?: Promise<Record<string, any>>
     txid?: string
 }
 

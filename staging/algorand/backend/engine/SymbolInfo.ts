@@ -28,7 +28,7 @@ const CLUSTER_TO_PYTH_PROGRAM_KEY: Record<Cluster, string> = {
 
 export class PythSymbolInfo {
   private network: Cluster;
-  private symbolMap: Map<{ productId: string, priceId: string }, string>
+  private symbolMap: Map<string, string>
   constructor (network: Cluster) {
     this.symbolMap = new Map()
     this.network = network
@@ -58,17 +58,14 @@ export class PythSymbolInfo {
       const productData = parseProductData(acc.account.data)
       if (productData.type === 2) {
         // console.log(`prod: ${acc.pubkey.toBase58()} price: ${productData.priceAccountKey.toBase58()} ${productData.product.symbol}`)
-        this.symbolMap.set({
-          productId: acc.pubkey.toBase58(),
-          priceId: productData.priceAccountKey.toBase58()
-        },
-        productData.product.symbol)
+        this.symbolMap.set(acc.pubkey.toBase58() + productData.priceAccountKey.toBase58(),
+          productData.product.symbol)
       }
     }
   }
 
   getSymbol (productId: string, priceId: string) {
-    return this.symbolMap.get({ productId, priceId })
+    return this.symbolMap.get(productId + priceId)
   }
 
   getSymbolCount () {

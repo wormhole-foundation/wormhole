@@ -112,13 +112,24 @@ export class WormholeClientEngine implements IEngine {
     const wrs = await workerRoutine(fetcher, publisher)
     switch (wrs.status) {
       case StatusCode.OK: {
-        if (wrs.data?.attestations === undefined) {
-          Logger.warn(`No attestation data available. Block=${wrs.pub?.block} Txid=${wrs.pub?.txid}`)
+        Logger.info(`    TxID ${wrs.pub?.txid}`)
+        const pendingInfo = await wrs.pub?.confirmation
+        if (pendingInfo!['pool-error'] === '') {
+          if (pendingInfo!['confirmed-round']) {
+            Logger.info(` ✔ Confirmed at round ${pendingInfo!['confirmed-round']}`)
+          } else {
+            Logger.info('⚠ No confirmation information')
+          }
         } else {
-          Logger.info(`✔ Block=${wrs.pub?.block} Txid=${wrs.pub?.txid}:`)
+          Logger.error(`❌ Rejected: ${pendingInfo!['pool-error']}`)
+        }
+
+        if (wrs.data?.attestations === undefined) {
+          Logger.warn(`No attestation data available. Txid= ${wrs.pub?.txid}`)
+        } else {
           for (let i = 0; i < wrs!.data!.attestations!.length; ++i) {
             const att = wrs.data.attestations[i]
-            Logger.info(`   ${att.symbol}     ${att.price} ± ${att.confidence} exp: ${att.exponent} twap:${att.twap} conf:${att.confidence}`)
+            Logger.info(`     ${att.symbol}     ${att.price} ± ${att.confidence} exp: ${att.exponent} twap:${att.twap}`)
           }
         }
         break

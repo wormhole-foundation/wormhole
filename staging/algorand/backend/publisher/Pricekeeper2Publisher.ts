@@ -98,8 +98,9 @@ export class Pricekeeper2Publisher implements IPublisher {
         this.pclib.addVerifyTx(gid, this.compiledVerifyProgram.hash, txParams, data.vaaBody, keyChunks[i], this.guardianCount)
       }
       this.pclib.addPriceStoreTx(gid, this.vaaProcessorOwner, txParams, data.vaaBody.slice(51))
-      const txId = await this.pclib.commitVerifyTxGroup(gid, this.compiledVerifyProgram.bytes, sigChunks, this.vaaProcessorOwner, this.signCallback.bind(this))
+      const txId = await this.pclib.commitVerifyTxGroup(gid, this.compiledVerifyProgram.bytes, data.signatures.length, sigChunks, this.vaaProcessorOwner, this.signCallback.bind(this))
       publishInfo.txid = txId
+      publishInfo.confirmation = algosdk.waitForConfirmation(this.algodClient, txId, 10)
     } catch (e: any) {
       publishInfo.status = StatusCode.ERROR_SUBMIT_MESSAGE
       if (e.response) {

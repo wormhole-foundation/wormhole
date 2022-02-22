@@ -32,6 +32,7 @@ import { IStrategy } from '../strategy/strategy'
 import { IPriceFetcher } from './IPriceFetcher'
 import * as Logger from '@randlabs/js-logger'
 import { PythSymbolInfo } from 'backend/engine/SymbolInfo'
+import { base58 } from 'ethers/lib/utils'
 const { extract3 } = require('../../tools/app-tools')
 
 export class WormholePythPriceFetcher implements IPriceFetcher {
@@ -119,15 +120,16 @@ export class WormholePythPriceFetcher implements IPriceFetcher {
           //
           const attestations: PythAttestation[] = []
           for (let i = 0; i < numAttest; ++i) {
-            const attestation = extract3(payload, i * sizeAttest, sizeAttest)
+            const attestation = extract3(payload, 11 + (i * sizeAttest), sizeAttest)
+            // console.log(i, attestation.toString('hex'))
+
             const productId = extract3(attestation, 7, 32)
             const priceId = extract3(attestation, 7 + 32, 32)
 
             // console.log(base58.encode(productId))
             // console.log(base58.encode(priceId))
-
             const pythAttest: PythAttestation = {
-              symbol: this.symbolInfo.getSymbol(productId, priceId),
+              symbol: this.symbolInfo.getSymbol(base58.encode(productId), base58.encode(priceId)),
               productId,
               priceId,
               price_type: attestation.readInt8(71),

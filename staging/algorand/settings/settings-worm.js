@@ -19,17 +19,20 @@ module.exports = {
     debugLevel: 1
   },
   algo: {
-    token: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
-    api: 'http://127.0.0.1',
-    port: '4001',
+    // token: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    // api: 'http:localhost//127.0.0.1',
+    // port: '4001',
+    token: '',
+    api: 'https://api.testnet.algoexplorer.io',
+    port: '',
     dumpFailedTx: true,
     dumpFailedTxDirectory: './dump'
   },
   apps: {
     vaaVerifyProgramBinFile: 'bin/vaa-verify.bin',
-    vaaProcessorAppId: 622608992,
-    priceKeeperV2AppId: 622609307,
-    vaaVerifyProgramHash: 'ISTS5S7JLD5FBLM27NW7IWMQC4XPUOGGPFHOCEOL22Q557BIDOXHENLI6Y',
+    vaaProcessorAppId: 73652756,
+    priceKeeperV2AppId: 73652776,
+    vaaVerifyProgramHash: '6EUS3FPKHGBD2IXDZHV4FMHUTGIQF35USK727PKWYDCXHY3NW3P536XTHM',
     ownerAddress: 'OPDM7ACAW64Q4VBWAL77Z5SHSJVZZ44V3BAN7W44U43SUXEOUENZMZYOQU',
     ownerKeyFile: './keys/owner.key'
   },
