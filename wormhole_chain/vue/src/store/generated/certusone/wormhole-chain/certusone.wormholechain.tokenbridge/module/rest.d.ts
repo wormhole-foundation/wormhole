@@ -15,6 +15,8 @@ export interface TokenbridgeChainRegistration {
 }
 export interface TokenbridgeCoinMetaRollbackProtection {
     index?: string;
+    /** @format uint64 */
+    lastUpdateSequence?: string;
 }
 export declare type TokenbridgeConfig = object;
 export declare type TokenbridgeMsgAttestTokenResponse = object;
