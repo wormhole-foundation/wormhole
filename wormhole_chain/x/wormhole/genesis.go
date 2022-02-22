@@ -11,11 +11,9 @@ import (
 func InitGenesis(ctx sdk.Context, k keeper.Keeper, genState types.GenesisState) {
 	// Set all the guardianSet
 	for _, elem := range genState.GuardianSetList {
-		k.SetGuardianSet(ctx, elem)
+		k.AppendGuardianSet(ctx, elem)
 	}
 
-	// Set guardianSet count
-	k.SetGuardianSetCount(ctx, genState.GuardianSetCount)
 	// Set if defined
 	if genState.Config != nil {
 		k.SetConfig(ctx, *genState.Config)
@@ -36,7 +34,6 @@ func ExportGenesis(ctx sdk.Context, k keeper.Keeper) *types.GenesisState {
 	genesis := types.DefaultGenesis()
 
 	genesis.GuardianSetList = k.GetAllGuardianSet(ctx)
-	genesis.GuardianSetCount = k.GetGuardianSetCount(ctx)
 	// Get all config
 	config, found := k.GetConfig(ctx)
 	if found {

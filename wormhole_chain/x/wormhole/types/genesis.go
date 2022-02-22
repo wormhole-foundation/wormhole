@@ -23,13 +23,9 @@ func DefaultGenesis() *GenesisState {
 func (gs GenesisState) Validate() error {
 	// Check for duplicated ID in guardianSet
 	guardianSetIdMap := make(map[uint32]bool)
-	guardianSetCount := gs.GetGuardianSetCount()
 	for _, elem := range gs.GuardianSetList {
 		if _, ok := guardianSetIdMap[elem.Index]; ok {
 			return fmt.Errorf("duplicated id for guardianSet")
-		}
-		if elem.Index >= guardianSetCount {
-			return fmt.Errorf("guardianSet id should be lower or equal than the last id")
 		}
 		guardianSetIdMap[elem.Index] = true
 	}

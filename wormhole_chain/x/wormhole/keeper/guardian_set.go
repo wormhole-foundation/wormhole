@@ -59,8 +59,8 @@ func (k Keeper) GetGuardianSetCount(ctx sdk.Context) uint32 {
 	return binary.BigEndian.Uint32(bz)
 }
 
-// SetGuardianSetCount set the total number of guardianSet
-func (k Keeper) SetGuardianSetCount(ctx sdk.Context, count uint32) {
+// setGuardianSetCount set the total number of guardianSet
+func (k Keeper) setGuardianSetCount(ctx sdk.Context, count uint32) {
 	store := prefix.NewStore(ctx.KVStore(k.storeKey), []byte{})
 	byteKey := types.KeyPrefix(types.GuardianSetCountKey)
 	bz := make([]byte, 8)
@@ -72,21 +72,22 @@ func (k Keeper) SetGuardianSetCount(ctx sdk.Context, count uint32) {
 func (k Keeper) AppendGuardianSet(
 	ctx sdk.Context,
 	guardianSet types.GuardianSet,
-) uint32 {
+) (uint32, error) {
 	// Create the guardianSet
 	count := k.GetGuardianSetCount(ctx)
 
-	// Set the ID of the appended value
-	guardianSet.Index = count
+	if guardianSet.Index != count {
+		return 0, types.ErrGuardianSetNotSequential
+	}
 
 	store := prefix.NewStore(ctx.KVStore(k.storeKey), types.KeyPrefix(types.GuardianSetKey))
 	appendedValue := k.cdc.MustMarshal(&guardianSet)
 	store.Set(GetGuardianSetIDBytes(guardianSet.Index), appendedValue)
 
 	// Update guardianSet count
-	k.SetGuardianSetCount(ctx, count+1)
+	k.setGuardianSetCount(ctx, count+1)
 
-	return count
+	return count, nil
 }
 
 // SetGuardianSet set a specific guardianSet in the store

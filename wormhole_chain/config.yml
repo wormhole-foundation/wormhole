@@ -57,7 +57,6 @@ genesis:
         governance_chain: 1
         governance_emitter: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQ="
         guardian_set_expiration: 86400
-      guardianSetCount: 1
       guardianSetList:
         - index: 0
           keys:

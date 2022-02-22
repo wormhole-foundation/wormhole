@@ -6,15 +6,15 @@ import { Registry, OfflineSigner, EncodeObject, DirectSecp256k1HdWallet } from "
 import { Api } from "./rest";
 import { MsgExecuteGovernanceVAA } from "./types/tokenbridge/tx";
 import { MsgAttestToken } from "./types/tokenbridge/tx";
-import { MsgTransfer } from "./types/tokenbridge/tx";
 import { MsgExecuteVAA } from "./types/tokenbridge/tx";
+import { MsgTransfer } from "./types/tokenbridge/tx";
 
 
 const types = [
   ["/certusone.wormholechain.tokenbridge.MsgExecuteGovernanceVAA", MsgExecuteGovernanceVAA],
   ["/certusone.wormholechain.tokenbridge.MsgAttestToken", MsgAttestToken],
-  ["/certusone.wormholechain.tokenbridge.MsgTransfer", MsgTransfer],
   ["/certusone.wormholechain.tokenbridge.MsgExecuteVAA", MsgExecuteVAA],
+  ["/certusone.wormholechain.tokenbridge.MsgTransfer", MsgTransfer],
   
 ];
 export const MissingWalletError = new Error("wallet is required");
@@ -49,8 +49,8 @@ const txClient = async (wallet: OfflineSigner, { addr: addr }: TxClientOptions =
     signAndBroadcast: (msgs: EncodeObject[], { fee, memo }: SignAndBroadcastOptions = {fee: defaultFee, memo: ""}) => client.signAndBroadcast(address, msgs, fee,memo),
     msgExecuteGovernanceVAA: (data: MsgExecuteGovernanceVAA): EncodeObject => ({ typeUrl: "/certusone.wormholechain.tokenbridge.MsgExecuteGovernanceVAA", value: MsgExecuteGovernanceVAA.fromPartial( data ) }),
     msgAttestToken: (data: MsgAttestToken): EncodeObject => ({ typeUrl: "/certusone.wormholechain.tokenbridge.MsgAttestToken", value: MsgAttestToken.fromPartial( data ) }),
-    msgTransfer: (data: MsgTransfer): EncodeObject => ({ typeUrl: "/certusone.wormholechain.tokenbridge.MsgTransfer", value: MsgTransfer.fromPartial( data ) }),
     msgExecuteVAA: (data: MsgExecuteVAA): EncodeObject => ({ typeUrl: "/certusone.wormholechain.tokenbridge.MsgExecuteVAA", value: MsgExecuteVAA.fromPartial( data ) }),
+    msgTransfer: (data: MsgTransfer): EncodeObject => ({ typeUrl: "/certusone.wormholechain.tokenbridge.MsgTransfer", value: MsgTransfer.fromPartial( data ) }),
     
   };
 };
