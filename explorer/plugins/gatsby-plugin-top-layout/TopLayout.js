@@ -8,6 +8,10 @@ import TimeAgo from "javascript-time-ago";
 import en from "javascript-time-ago/locale/en";
 import React from "react";
 import { NetworkContextProvider } from "../../src/contexts/NetworkContext";
+import bg from "../../src/images/bg.svg";
+import { Helmet } from "react-helmet";
+
+import Suisse from "../../src/fonts/SuisseBPIntlBold.woff2";
 
 TimeAgo.addDefaultLocale(en);
 
@@ -21,13 +25,54 @@ let theme = createTheme({
   typography: {
     fontFamily: ["Poppins", "Arial"].join(","),
     fontSize: 13,
+    body1: {
+      fontWeight: 300,
+    },
+    body2: {
+      fontWeight: 300,
+    },
     h1: {
       fontWeight: "bold",
+      fontFamily: ["Suisse BP Intl", "Arial"],
+      lineHeight: 0.9,
+      letterSpacing: -2.7,
+    },
+    h3: {
+      fontSize: 49,
+      fontWeight: "bold",
+      fontFamily: "Suisse BP Intl",
+      lineHeight: 0.9,
+      letterSpacing: -1.47,
+    },
+    h4: {
+      fontSize: 40,
+      fontWeight: "bold",
+      fontFamily: "Suisse BP Intl",
+      letterSpacing: -1.2,
+      lineHeight: 0.9,
+    },
+    caption: {
+      textTransform: "uppercase",
+      fontSize: 8,
+      letterSpacing: 2,
+      fontFamily: "Suisse BP Intl",
+      fontWeight: 400,
+      display: "block",
+      marginTop: 10,
     },
   },
+
   components: {
     MuiCssBaseline: {
       styleOverrides: {
+        body: {
+          overscrollBehaviorY: "none",
+          backgroundColor: "#17153f",
+          backgroundImage: `url(${bg})`,
+          backgroundPosition: "top center",
+          backgroundRepeat: "repeat-y",
+          backgroundSize: "120%",
+        },
         ul: {
           paddingLeft: "0px",
         },
@@ -57,9 +102,9 @@ let theme = createTheme({
           fontSize: 12,
           fontWeight: 700,
           letterSpacing: 1.5,
-          padding: "8px 22.5px 6px",
+          padding: "8px 22.5px 8px",
           "&:hover .MuiButton-endIcon": {
-            marginLeft: 16,
+            transform: "translateX(4px)",
           },
         },
         contained: {
@@ -73,7 +118,7 @@ let theme = createTheme({
         },
         endIcon: {
           marginLeft: 12,
-          transition: "margin-left 300ms",
+          transition: "transform 300ms",
         },
       },
     },
@@ -100,6 +145,15 @@ theme = responsiveFontSizes(theme);
 
 const TopLayout = ({ children }) => (
   <ThemeProvider theme={theme}>
+    <Helmet>
+      <link
+        rel="preload"
+        as="font"
+        href={Suisse}
+        type="font/woff2"
+        crossOrigin="anonymous"
+      />
+    </Helmet>
     <CssBaseline />
     <NetworkContextProvider>{children}</NetworkContextProvider>
   </ThemeProvider>
