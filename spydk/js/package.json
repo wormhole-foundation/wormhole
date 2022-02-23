@@ -35,7 +35,7 @@
     "@certusone/wormhole-sdk": "^0.1.1",
     "@solana/web3.js": "^1.31.0",
     "@types/jest": "^27.0.2",
-    "@types/node": "^16.6.1",
+    "@types/node": "^17.0.21",
     "ethers": "^5.4.4",
     "jest": "^27.3.1",
     "prettier": "^2.3.2",
