@@ -358,6 +358,14 @@ func TVL(w http.ResponseWriter, r *http.Request) {
 		tokenPrices := fetchTokenPrices(ctx, coinIdSet)
 
 		notionalLocked := map[string]map[string]LockedAsset{}
+
+		// initialize the struct that will hold the total for all chains, all assets
+		notionalLocked["*"] = map[string]LockedAsset{}
+		notionalLocked["*"]["*"] = LockedAsset{
+			Symbol:   "*",
+			Name:     "all",
+			Notional: 0,
+		}
 		for chain, tokens := range tokensLocked {
 			notionalLocked[chain] = map[string]LockedAsset{}
 			notionalLocked[chain]["*"] = LockedAsset{
@@ -392,6 +400,12 @@ func TVL(w http.ResponseWriter, r *http.Request) {
 					}
 
 				}
+			}
+
+			// add the chain total to the overall total
+			if all, ok := notionalLocked["*"]["*"]; ok {
+				all.Notional += notionalLocked[chain]["*"].Notional
+				notionalLocked["*"]["*"] = all
 			}
 
 			// round the the amount for chain/*
