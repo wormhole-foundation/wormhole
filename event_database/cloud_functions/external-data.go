@@ -1,6 +1,7 @@
 package p
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -238,6 +239,90 @@ func fetchCoinGeckoPrice(coinId string, timestamp time.Time) (float64, error) {
 	}
 	log.Println("no price found in coinGecko for", coinId)
 	return 0, fmt.Errorf("no price found for %v", coinId)
+}
+
+type Price struct {
+	USD float64 `json:"usd"`
+}
+type CoinGeckoCoinPrices map[string]Price
+
+// takes a list of CoinGeckoCoinIds, returns a map of { coinId: price }.
+func fetchCoinGeckoPrices(coinIds []string) (map[string]float64, error) {
+	baseUrl := cgBaseUrl
+	cgApiKey := os.Getenv("COINGECKO_API_KEY")
+	if cgApiKey != "" {
+		baseUrl = cgProBaseUrl
+	}
+	log.Println("len(coinIds) ", len(coinIds))
+	url := fmt.Sprintf("%vsimple/price?ids=%v&vs_currencies=usd", baseUrl, strings.Join(coinIds, ","))
+	log.Println(url)
+	req, reqErr := http.NewRequest("GET", url, nil)
+	if reqErr != nil {
+		log.Fatalf("failed coins request, err: %v\n", reqErr)
+	}
+	if cgApiKey != "" {
+		req.Header.Set("X-Cg-Pro-Api-Key", cgApiKey)
+	}
+
+	res, resErr := http.DefaultClient.Do(req)
+	if resErr != nil {
+		log.Fatalf("failed get coins response, err: %v\n", resErr)
+	}
+
+	defer res.Body.Close()
+	body, bodyErr := ioutil.ReadAll(res.Body)
+	if bodyErr != nil {
+		log.Fatalf("failed decoding coins body, err: %v\n", bodyErr)
+	}
+
+	var parsed CoinGeckoCoinPrices
+
+	parseErr := json.Unmarshal(body, &parsed)
+	if parseErr != nil {
+		log.Printf("fetchCoinGeckoPrice failed parsing body. err %v\n", parseErr)
+		var errRes CoinGeckoErrorRes
+		if err := json.Unmarshal(body, &errRes); err == nil {
+			log.Println("Failed calling CoinGecko, got err", errRes.Error)
+		}
+	}
+	priceMap := map[string]float64{}
+	for coinId, price := range parsed {
+		price := price.USD
+		log.Printf("found a price of $%f for %v!\n", price, coinId)
+		priceMap[coinId] = price
+
+	}
+	return priceMap, nil
+}
+
+// takes a list of CoinGeckoCoinIds, returns a map of { coinId: price }.
+// makes batches of requests to CoinGecko.
+func fetchTokenPrices(ctx context.Context, coinIds []string) map[string]float64 {
+	allPrices := map[string]float64{}
+
+	// Split the list into batches, otherwise the request could be too large
+	batch := 100
+
+	for i := 0; i < len(coinIds); i += batch {
+		j := i + batch
+		if j > len(coinIds) {
+			j = len(coinIds)
+		}
+
+		fmt.Println(coinIds[i:j]) // Process the batch.
+		prices, err := fetchCoinGeckoPrices(coinIds[i:j])
+		if err != nil {
+			log.Fatalf("failed to get price for coinIds. err %v", err)
+		}
+		for coinId, price := range prices {
+			allPrices[coinId] = price
+		}
+
+		// CoinGecko rate limit is low (5/second), be very cautious about bursty requests
+		time.Sleep(time.Millisecond * 200)
+	}
+
+	return allPrices
 }
 
 const solanaTokenListURL = "https://raw.githubusercontent.com/solana-labs/token-list/main/src/tokens/solana.tokenlist.json"
