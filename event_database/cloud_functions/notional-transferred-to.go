@@ -31,11 +31,15 @@ var warmTransfersToCacheFilePath = "/notional-transferred-to-cache.json"
 
 type TransferData struct {
 	TokenSymbol      string
+	TokenName        string
+	TokenAddress     string
 	TokenAmount      float64
+	CoinGeckoCoinId  string
 	OriginChain      string
 	LeavingChain     string
 	DestinationChain string
 	Notional         float64
+	TokenPrice       float64
 }
 
 // finds all the TokenTransfer rows within the specified period
@@ -57,8 +61,21 @@ func fetchTransferRowsInInterval(tbl *bigtable.Table, ctx context.Context, prefi
 						log.Fatalf("failed to read NotionalUSD of row: %v. err %v ", row.Key(), err)
 					}
 					t.Notional = notionalFloat
+				case "TokenTransferDetails:TokenPriceUSD":
+					reader := bytes.NewReader(item.Value)
+					var tokenPriceFloat float64
+					if err := binary.Read(reader, binary.BigEndian, &tokenPriceFloat); err != nil {
+						log.Fatalf("failed to read TokenPriceUSD of row: %v. err %v ", row.Key(), err)
+					}
+					t.TokenPrice = tokenPriceFloat
 				case "TokenTransferDetails:OriginSymbol":
 					t.TokenSymbol = string(item.Value)
+				case "TokenTransferDetails:OriginName":
+					t.TokenName = string(item.Value)
+				case "TokenTransferDetails:OriginTokenAddress":
+					t.TokenAddress = string(item.Value)
+				case "TokenTransferDetails:CoinGeckoCoinId":
+					t.CoinGeckoCoinId = string(item.Value)
 				}
 			}
 
@@ -90,7 +107,7 @@ func fetchTransferRowsInInterval(tbl *bigtable.Table, ctx context.Context, prefi
 			),
 			bigtable.ChainFilters(
 				bigtable.FamilyFilter(fmt.Sprintf("%v|%v", columnFamilies[2], columnFamilies[5])),
-				bigtable.ColumnFilter("Amount|NotionalUSD|OriginSymbol|OriginChain|TargetChain"),
+				bigtable.ColumnFilter("Amount|NotionalUSD|OriginSymbol|OriginName|OriginChain|TargetChain|CoinGeckoCoinId|OriginTokenAddress|TokenPriceUSD"),
 				bigtable.LatestNFilter(1),
 			),
 			bigtable.BlockAllFilter(),
@@ -145,7 +162,7 @@ func amountsTransferredToInInterval(tbl *bigtable.Table, ctx context.Context, pr
 			if dates, ok := warmTransfersToCache[cachePrefix]; ok {
 				// have a cache for this query
 
-				if dateCache, ok := dates[dateStr]; ok && len(dateCache) > 1 {
+				if dateCache, ok := dates[dateStr]; ok && len(dateCache) > 1 && useCache(dateStr) {
 					// have a cache for this date
 					if daysAgo >= 1 {
 						// only use the cache for yesterday and older
@@ -182,7 +199,7 @@ func amountsTransferredToInInterval(tbl *bigtable.Table, ctx context.Context, pr
 			if daysAgo >= 1 {
 				// set the result in the cache
 				muWarmTransfersToCache.Lock()
-				if cacheData, ok := warmTransfersToCache[cachePrefix][dateStr]; !ok || len(cacheData) <= 1 {
+				if cacheData, ok := warmTransfersToCache[cachePrefix][dateStr]; !ok || len(cacheData) <= 1 || !useCache(dateStr) {
 					// cache does not have this date, persist it for other instances.
 					warmTransfersToCache[cachePrefix][dateStr] = results[dateStr]
 					cacheNeedsUpdate = true
