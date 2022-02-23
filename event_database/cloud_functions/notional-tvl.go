@@ -36,7 +36,7 @@ type LockedAsset struct {
 // finds the daily amount of each symbol transferred to each chain, from the specified start to the present.
 func tvlInInterval(tbl *bigtable.Table, ctx context.Context, start time.Time) map[string]map[string]map[string]LockedAsset {
 	if len(warmTvlCache) == 0 {
-		loadJsonToInterface(ctx, warmTvlFilePath, &muWarmTvlCache, &warmTvlCache)
+		loadJsonToInterface(warmTvlFilePath, &muWarmTvlCache, &warmTvlCache)
 	}
 
 	results := map[string]map[string]map[string]LockedAsset{}
@@ -162,7 +162,7 @@ func tvlInInterval(tbl *bigtable.Table, ctx context.Context, start time.Time) ma
 	intervalsWG.Wait()
 
 	if cacheNeedsUpdate {
-		persistInterfaceToJson(ctx, warmTvlFilePath, &muWarmTvlCache, warmTvlCache)
+		persistInterfaceToJson(warmTvlFilePath, &muWarmTvlCache, warmTvlCache)
 	}
 
 	// create a set of all the keys from all dates/chains, to ensure the result objects all have the same chain keys
