@@ -29,6 +29,7 @@ import { ChainId } from "@certusone/wormhole-sdk";
 import { KeyboardArrowDown, KeyboardArrowUp } from "@mui/icons-material";
 import { ChainID } from "../utils/consts";
 import { SEO } from "../components/SEO";
+import shapes from "../images/shape.png";
 
 const GuardianRow = ({ hb }: { hb: Heartbeat }) => {
   const [open, setOpen] = React.useState(false);
@@ -218,6 +219,20 @@ const NetworkPage = ({ location }: PageProps) => {
         pathname={location.pathname}
       />
       <Box sx={{ position: "relative", marginTop: 17 }}>
+          <Box
+            sx={{
+              position: "absolute",
+              zIndex: -2,
+              bottom: '-220px',
+              left: '20%',
+              background: 'radial-gradient(closest-side at 50% 50%, #5189C8 0%, #5189C800 100%) ',
+              transform: 'matrix(-0.19, 0.98, -0.98, -0.19, 0, 0)',
+              width: 1609,
+              height: 1264,
+              pointerEvents: 'none',
+              opacity: 0.7,
+            }}
+          />   
         <Box
           sx={{
             position: "absolute",
@@ -239,8 +254,40 @@ const NetworkPage = ({ location }: PageProps) => {
           ]}
         />
       </Box>
+      <Box sx={{position: 'relative'}}>
+        <Box
+            sx={{
+              position: "absolute",
+              zIndex: -2,
+              top: '0',
+              background: 'radial-gradient(closest-side at 50% 50%, #5189C8 0%, #5189C800 100%) ',
+              transform: 'matrix(-0.67, 0.74, -0.74, -0.67, 0, 0)',
+              left: '70%',
+              width: 1077,
+              height: 1329,
+              pointerEvents: 'none',
+              opacity: 0.64,
+            }}
+          /> 
+        <Box
+              sx={{
+                position: "absolute",
+                zIndex: -1,
+                background: `url(${shapes})`,
+                backgroundSize: 'contain',
+                top: '0',
+                left: "85%",
+                transform: 'scaleX(-1)',
+                width: 1227,
+                height: 1018,
+                pointerEvents: 'none',
+                display:{xs: 'none', md: 'block'},
+              }}
+            />  
+      
       <Box sx={{ maxWidth: 1220, mx: "auto", mt: 30, px: 3.75 }}>
         <GuardiansList />
+      </Box>
       </Box>
     </Layout>
   );

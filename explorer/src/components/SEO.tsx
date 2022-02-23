@@ -33,7 +33,7 @@ export function SEO({
     const siteUrl = site.siteMetadata.siteUrl
     const defaultTitle = site.siteMetadata?.defaultTitle
     const twitterUsername = `@wormholecrypto`
-    const socialImage = "/logo-and-name_social-card.png"
+    const socialImage = "/wormhole.png"
     const socialImageWidth = '800'
     const socialImageHeight = '400'
     const image = `${siteUrl}${socialImage}`
@@ -180,6 +180,7 @@ export function SEO({
                 // metadata from props
                 .concat(meta)}
         >
+            
             {children}
         </Helmet>
     )

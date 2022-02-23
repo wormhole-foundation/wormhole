@@ -75,7 +75,7 @@ const DailyNotionalBarChart = (props: DailyCountProps) => {
     const today = new Date().toISOString().slice(0, 10)
 
     return (
-        <div style={{ height: 400, minWidth: 400, flex: '1', marginBottom: 40 }}>
+        <div style={{ height: 400, minWidth: 360, flex: '1', marginBottom: 40 }}>
             <Typography variant="h4" style={{ marginLeft: 20 }}>value received (USD)</Typography>
 
             <ResponsiveBar

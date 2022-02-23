@@ -76,7 +76,7 @@ const PastWeekCard: React.FC<PastWeekCardProps> = ({
       >
         <DailyCountBarChart dailyCount={messagesForPeriod} />
 
-        {/* <DailyNotionalBarChart daily={notionalTransferredToInPeriod} /> */}
+        <DailyNotionalBarChart daily={notionalTransferredToInPeriod} />
       </div>
 
       <div
