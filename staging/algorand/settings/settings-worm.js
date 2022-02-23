@@ -1,5 +1,3 @@
-const path = require('path')
-
 module.exports = {
   pollInterval: 4,
   log: {
@@ -30,9 +28,9 @@ module.exports = {
   },
   apps: {
     vaaVerifyProgramBinFile: 'bin/vaa-verify.bin',
-    vaaProcessorAppId: 73652756,
-    priceKeeperV2AppId: 73652776,
-    vaaVerifyProgramHash: '6EUS3FPKHGBD2IXDZHV4FMHUTGIQF35USK727PKWYDCXHY3NW3P536XTHM',
+    vaaProcessorAppId: 74563743,
+    priceKeeperV2AppId: 74563760,
+    vaaVerifyProgramHash: 'NDCOXBIMDEVFYXL6HXZSA5MXFRXC276R4YRJEDLYOHK7WJC2VYKSXJCUHM',
     ownerAddress: 'OPDM7ACAW64Q4VBWAL77Z5SHSJVZZ44V3BAN7W44U43SUXEOUENZMZYOQU',
     ownerKeyFile: './keys/owner.key'
   },
