@@ -72,7 +72,7 @@ export default function TransactionProgress({
     tx && tx.block && currentBlock ? currentBlock - tx.block : undefined;
   const expectedBlocks =
     chainId === CHAIN_ID_POLYGON
-      ? 256 // minimum confirmations enforced by guardians
+      ? 512 // minimum confirmations enforced by guardians
       : chainId === CHAIN_ID_SOLANA
       ? 32
       : isEVMChain(chainId)
