@@ -462,6 +462,19 @@ func createCachePrefix(prefix string) string {
 	return cachePrefix
 }
 
+// useCache allows overriding the cache for a given day.
+// This is useful for debugging, to generate fresh data
+func useCache(date string) bool {
+	skipDates := map[string]bool{
+		// for example, add to skip:
+		// "2022-02-01": true,
+	}
+	if _, ok := skipDates[date]; ok {
+		return false
+	}
+	return true
+}
+
 var mux = newMux()
 
 // Entry is the cloud function entry point
