@@ -1,5 +1,6 @@
 import { Box, IconButton, Link, Typography } from "@mui/material";
 import { Link as RouterLink } from "gatsby";
+
 import React from "react";
 import Discord from "../images/Discord.svg";
 import shape from "../images/footer/shape.svg";
@@ -11,6 +12,7 @@ import {
   apps,
   blog,
   buidl,
+  brand,
   discord,
   docs,
   explorer,
@@ -39,6 +41,8 @@ const socialIcon = {
 };
 
 const Footer = () => (
+ <>
+ 
   <Box sx={{ position: "relative" }}>
     <Box
       sx={{
@@ -48,11 +52,26 @@ const Footer = () => (
         background: `url(${shape})`,
         backgroundRepeat: "no-repeat",
         backgroundPosition: { xs: "center center", md: "right top -426px" },
-        // backgroundSize: "cover",
         width: "100%",
         height: { xs: "100%", md: 540 },
+        bottom:0
       }}
     />
+    <Box
+        sx={{
+          position: "absolute",
+          zIndex: -2,
+          top: '-30%',
+          background: 'radial-gradient(closest-side at 50% 50%, #5189C8 0%, #5189C800 100%) ',
+          transform: 'matrix(0.67, 0.74, -0.74, 0.67, 0, 0)',
+          left: '-5%',
+          width: 1136,
+          height: 1489,
+          pointerEvents: 'none',
+          display:{xs: 'none', md: 'block'},
+          opacity: 0.7,
+        }}
+      />   
     <Box
       sx={{
         maxWidth: 1100,
@@ -135,6 +154,15 @@ const Footer = () => (
                 sx={linkStyle}
               >
                 Blog
+              </Link>
+              <Link
+                component={RouterLink}
+                to={brand}
+                color="inherit"
+                underline="hover"
+                sx={linkStyle}
+              >
+                Brand
               </Link>
             </Box>
             <Box>
@@ -246,5 +274,7 @@ const Footer = () => (
       </Box>
     </Box>
   </Box>
+ 
+</>
 );
 export default Footer;

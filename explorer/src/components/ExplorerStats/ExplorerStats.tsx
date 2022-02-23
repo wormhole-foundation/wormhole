@@ -65,6 +65,26 @@ export interface NotionalTransferredToCumulative {
     [date: string]: DirectionalTransferData;
   };
 }
+interface LockedAsset {
+  Symbol: string
+  Name: string
+  Address: string
+  CoinGeckoId: string
+  Amount: number
+  Notional: number
+  TokenPrice: number
+}
+interface LockedAssets {
+  [tokenAddress: string]: LockedAsset
+}
+interface ChainsAssets {
+  [chainId: string]: LockedAssets
+}
+export interface NotionalTvl {
+  Last24HoursChange: ChainsAssets
+  AllTime: ChainsAssets
+}
+
 type GroupBy = undefined | "chain" | "address";
 type ForChain = undefined | StatsProps["emitterChain"];
 type ForAddress = undefined | StatsProps["emitterAddress"];
@@ -110,7 +130,7 @@ const ExplorerStats: React.FC<StatsProps> = ({
     signal: AbortSignal
   ) => {
     const totalsUrl = `${baseUrl}totals`;
-    let url = `${totalsUrl}?${daysSinceDataStart}&daily=true`
+    let url = `${totalsUrl}?&daily=true&last24Hours=true`
     if (groupBy) {
       url = `${url}&groupBy=${groupBy}`;
     }
@@ -402,6 +422,7 @@ const ExplorerStats: React.FC<StatsProps> = ({
 
   useEffect(() => {
     return function cleanup() {
+      controller.abort();
       if (pollInterval) {
         clearInterval(pollInterval);
       }
