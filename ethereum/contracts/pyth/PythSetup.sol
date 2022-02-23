@@ -19,7 +19,7 @@ contract PythSetup is PythSetters, ERC1967Upgrade {
         bytes32 governanceContract,
 
         uint16 pyth2WormholeChainId,
-        bytes32 pyth2WormholeContract
+        bytes32 pyth2WormholeEmitter
     ) public {
         setChainId(chainId);
 
@@ -29,7 +29,7 @@ contract PythSetup is PythSetters, ERC1967Upgrade {
         setGovernanceContract(governanceContract);
 
         setPyth2WormholeChainId(pyth2WormholeChainId);
-        setPyth2WormholeContract(pyth2WormholeContract);
+        setPyth2WormholeEmitter(pyth2WormholeEmitter);
 
         _upgradeTo(implementation);
     }

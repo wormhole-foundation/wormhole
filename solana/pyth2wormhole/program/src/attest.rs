@@ -1,6 +1,6 @@
 use crate::{
     config::P2WConfigAccount,
-    types::PriceAttestation,
+    types::{PriceAttestation, batch_serialize},
 };
 use borsh::{
     BorshDeserialize,
@@ -28,6 +28,7 @@ use bridge::{
 };
 
 use solitaire::{
+    invoke_seeded,
     trace,
     AccountState,
     Derive,
@@ -40,7 +41,6 @@ use solitaire::{
     Peel,
     Result as SoliResult,
     Seeded,
-    invoke_seeded,
     Signer,
     SolitaireError,
     Sysvar,
@@ -49,19 +49,65 @@ use solitaire::{
 
 pub type P2WEmitter<'b> = Derive<Info<'b>, "p2w-emitter">;
 
+/// Important: must be manually maintained until native Solitaire
+/// variable len vector support.
+///
+/// The number must reflect how many pyth product/price pairs are
+/// expected in the Attest struct below. The constant itself is only
+/// used in the on-chain config in order for attesters to learn the
+/// correct value dynamically.
+pub const P2W_MAX_BATCH_SIZE: u16 = 5;
+
 #[derive(FromAccounts, ToInstruction)]
 pub struct Attest<'b> {
     // Payer also used for wormhole
     pub payer: Mut<Signer<Info<'b>>>,
     pub system_program: Info<'b>,
     pub config: P2WConfigAccount<'b, { AccountState::Initialized }>,
+
+    // Hardcoded product/price pairs, bypassing Solitaire's variable-length limitations
+    // Any change to the number of accounts must include an appropriate change to P2W_MAX_BATCH_SIZE
     pub pyth_product: Info<'b>,
     pub pyth_price: Info<'b>,
+
+    pub pyth_product2: Option<Info<'b>>,
+    pub pyth_price2: Option<Info<'b>>,
+
+    pub pyth_product3: Option<Info<'b>>,
+    pub pyth_price3: Option<Info<'b>>,
+
+    pub pyth_product4: Option<Info<'b>>,
+    pub pyth_price4: Option<Info<'b>>,
+
+    pub pyth_product5: Option<Info<'b>>,
+    pub pyth_price5: Option<Info<'b>>,
+
+    // Did you read the comment near `pyth_product`?
+    // pub pyth_product6: Option<Info<'b>>,
+    // pub pyth_price6: Option<Info<'b>>,
+
+    // pub pyth_product7: Option<Info<'b>>,
+    // pub pyth_price7: Option<Info<'b>>,
+
+    // pub pyth_product8: Option<Info<'b>>,
+    // pub pyth_price8: Option<Info<'b>>,
+
+    // pub pyth_product9: Option<Info<'b>>,
+    // pub pyth_price9: Option<Info<'b>>,
+
+    // pub pyth_product10: Option<Info<'b>>,
+    // pub pyth_price10: Option<Info<'b>>,
+
     pub clock: Sysvar<'b, Clock>,
 
-    // post_message accounts
-    /// Wormhole program address
+    /// Wormhole program address - must match the config value
     pub wh_prog: Info<'b>,
+
+    // wormhole's post_message accounts
+    //
+    // This contract makes no attempt to exhaustively validate
+    // Wormhole's account inputs. Only the wormhole contract address
+    // is validated (see above).
 
     /// Bridge config needed for fee calculation
     pub wh_bridge: Mut<Info<'b>>,
@@ -85,7 +131,6 @@ pub struct Attest<'b> {
 
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct AttestData {
-    pub nonce: u32,
     pub consistency_level: ConsistencyLevel,
 }
 
@@ -98,16 +143,6 @@ impl<'b> InstructionContext<'b> for Attest<'b> {
 pub fn attest(ctx: &ExecutionContext, accs: &mut Attest, data: AttestData) -> SoliResult<()> {
     accs.config.verify_derivation(ctx.program_id, None)?;
 
-    if accs.config.pyth_owner != *accs.pyth_price.owner
-        || accs.config.pyth_owner != *accs.pyth_product.owner
-    {
-        trace!(&format!(
-            "pyth_owner pubkey mismatch (expected {:?}, got price owner {:?} and product owner {:?}",
-            accs.config.pyth_owner, accs.pyth_price.owner, accs.pyth_product.owner
-        ));
-        return Err(SolitaireError::InvalidOwner(accs.pyth_price.owner.clone()).into());
-    }
-
     if accs.config.wh_prog != *accs.wh_prog.key {
         trace!(&format!(
             "Wormhole program account mismatch (expected {:?}, got {:?})",
@@ -115,19 +150,90 @@ pub fn attest(ctx: &ExecutionContext, accs: &mut Attest, data: AttestData) -> So
         ));
     }
 
-    let price_attestation = PriceAttestation::from_pyth_price_bytes(
-        accs.pyth_price.key.clone(),
-        accs.clock.unix_timestamp,
-        &*accs.pyth_price.try_borrow_data()?,
-    )?;
+    // Make the specified prices iterable
+    let price_pair_opts = [
+        Some(&accs.pyth_product),
+        Some(&accs.pyth_price),
+        accs.pyth_product2.as_ref(),
+        accs.pyth_price2.as_ref(),
+        accs.pyth_product3.as_ref(),
+        accs.pyth_price3.as_ref(),
+        accs.pyth_product4.as_ref(),
+        accs.pyth_price4.as_ref(),
+        accs.pyth_product5.as_ref(),
+        accs.pyth_price5.as_ref(),
 
-    if &price_attestation.product_id != accs.pyth_product.key {
+	// Did you read the comment near `pyth_product`?
+	// accs.pyth_product6.as_ref(),
+        // accs.pyth_price6.as_ref(),
+        // accs.pyth_product7.as_ref(),
+        // accs.pyth_price7.as_ref(),
+        // accs.pyth_product8.as_ref(),
+        // accs.pyth_price8.as_ref(),
+        // accs.pyth_product9.as_ref(),
+        // accs.pyth_price9.as_ref(),
+        // accs.pyth_product10.as_ref(),
+        // accs.pyth_price10.as_ref(),
+    ];
+
+    let price_pairs: Vec<_> = price_pair_opts.into_iter().filter_map(|acc| *acc).collect();
+
+    if price_pairs.len() % 2 != 0 {
         trace!(&format!(
-            "Price's product_id does not match the pased account (points at {:?} instead)",
-            price_attestation.product_id
+            "Uneven product/price count detected: {}",
+            price_pairs.len()
         ));
         return Err(ProgramError::InvalidAccountData.into());
     }
+
+    trace!("{} Pyth symbols received", price_pairs.len() / 2);
+
+    // Collect the validated symbols for batch serialization
+    let mut attestations = Vec::with_capacity(price_pairs.len() / 2);
+
+    for pair in price_pairs.as_slice().chunks_exact(2) {
+
+	let product = pair[0];
+	let price = pair[1];
+
+        if accs.config.pyth_owner != *price.owner
+            || accs.config.pyth_owner != *product.owner
+        {
+            trace!(&format!(
+            "Pair {:?} - {:?}: pyth_owner pubkey mismatch (expected {:?}, got product owner {:?} and price owner {:?}",
+		
+		product, price, 
+            accs.config.pyth_owner, product.owner, price.owner
+        ));
+            return Err(SolitaireError::InvalidOwner(accs.pyth_price.owner.clone()).into());
+        }
+
+	let attestation = PriceAttestation::from_pyth_price_bytes(
+	    price.key.clone(),
+	    accs.clock.unix_timestamp,
+	    &*price.try_borrow_data()?,
+	)?;
+
+	// The following check is crucial against poorly ordered
+	// account inputs, e.g. [Some(prod1), Some(price1),
+	// Some(prod2), None, None, Some(price)], interpreted by
+	// earlier logic as [(prod1, price1), (prod2, price3)].
+	//
+	// Failing to verify the product/price relationship could lead
+	// to mismatched product/price metadata, which would result in
+	// a false attestation.
+	if &attestation.product_id != product.key {
+	    trace!(&format!(
+		"Price's product_id does not match the pased account (points at {:?} instead)",
+		attestation.product_id
+	    ));
+	    return Err(ProgramError::InvalidAccountData.into());
+	}
+
+	attestations.push(attestation);
+    }
+
+    trace!("Attestations successfully created");
 
     let bridge_config = BridgeData::try_from_slice(&accs.wh_bridge.try_borrow_mut_data()?)?.config;
 
@@ -143,9 +249,12 @@ pub fn attest(ctx: &ExecutionContext, accs: &mut Attest, data: AttestData) -> So
     let post_message_data = (
         bridge::instruction::Instruction::PostMessage,
         PostMessageData {
-            nonce: data.nonce,
-            payload: price_attestation.serialize(),
-            consistency_level: data.consistency_level,
+	    nonce: 0, // Superseded by the sequence number
+            payload: batch_serialize(attestations.as_slice().iter()).map_err(|e| {
+		trace!(e.to_string());
+		ProgramError::InvalidAccountData
+	    })?,
+	    consistency_level: data.consistency_level,
         },
     );
 
