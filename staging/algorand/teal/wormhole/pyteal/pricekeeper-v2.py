@@ -33,11 +33,12 @@ value           packed fields as follow:
                 Bytes
                 
                 8               price
-                1               price_type
                 4               exponent
                 8               twap value
                 8               twac value
                 8               confidence
+                1               status
+                1               corporate act
                 8               timestamp (based on Solana contract call time)
                 ------------------------------
                 Total: 109 bytes.
@@ -141,10 +142,9 @@ def store():
                 attestation_data.store(Extract(pyth_payload.load(), Int(11) + (Int(PYTH_ATTESTATION_V2_BYTES) * i.load()), Int(PYTH_ATTESTATION_V2_BYTES))),
                 product_price_key.store(Extract(attestation_data.load(), Int(7), Int(64))),
                 packed_price_data.store(Concat(
-                    Extract(attestation_data.load(), Int(72), Int(12)),   # price + exponent
-                    Extract(attestation_data.load(), Int(108), Int(8)),  # store twac
-                    Extract(attestation_data.load(), Int(132), Int(8)),  # confidence
-                    Extract(attestation_data.load(), Int(142), Int(8)),  # timestamp
+                    Extract(attestation_data.load(), Int(72), Int(20)),   # price + exponent + twap
+                    Extract(attestation_data.load(), Int(100), Int(8)),  # store twac
+                    Extract(attestation_data.load(), Int(132), Int(18)),  # confidence, status, corpact, timestamp
                 )),
                 App.globalPut(product_price_key.load(), packed_price_data.load()),
                 ])

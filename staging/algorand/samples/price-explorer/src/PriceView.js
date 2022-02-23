@@ -3,7 +3,7 @@ import { parseProductData } from '@pythnetwork/client'
 import { PublicKey, clusterApiUrl, Connection } from '@solana/web3.js'
 import { base58 } from 'ethers/lib/utils'
 import { Buffer } from 'buffer/'
-const { Uint64BE , Int64BE } = require("int64-buffer");
+const { Uint64BE, Int64BE } = require("int64-buffer");
 
 const algosdk = require('algosdk')
 const clusterToPythProgramKey = {}
@@ -17,7 +17,8 @@ class PriceView extends React.Component {
     this.timer = null
     this.client = new algosdk.Algodv2('', 'https://api.testnet.algoexplorer.io', '');
     this.state = {
-      appId: 73652776,
+      appId: 74563760,
+      owner: 'OPDM7ACAW64Q4VBWAL77Z5SHSJVZZ44V3BAN7W44U43SUXEOUENZMZYOQU',
       symbolInfo: new Map(),
       priceData: []
     }
@@ -50,20 +51,20 @@ class PriceView extends React.Component {
     const connection = new Connection(clusterApiUrl(SOLANA_CLUSTER_NAME))
     const pythPublicKey = this.getPythProgramKeyForCluster(SOLANA_CLUSTER_NAME)
     const accounts = await connection.getProgramAccounts(pythPublicKey, 'finalized')
-      for (const acc of accounts) {
-        const productData = parseProductData(acc.account.data)
-        if (productData.type === 2) {
-          //console.log(`prod: 0x${Buffer.from(acc.pubkey.toBytes()).toString('hex')} price: 0x${Buffer.from(productData.priceAccountKey.toBytes()).toString('hex')} ${productData.product.symbol}`)
-          symbolInfo.set(acc.pubkey.toBase58() + productData.priceAccountKey.toBase58(), productData.product.symbol)
-        }
-        this.setState({
-          symbolInfo
-        })
-
-        // console.log(symbolInfo)
+    for (const acc of accounts) {
+      const productData = parseProductData(acc.account.data)
+      if (productData.type === 2) {
+        //console.log(`prod: 0x${Buffer.from(acc.pubkey.toBytes()).toString('hex')} price: 0x${Buffer.from(productData.priceAccountKey.toBytes()).toString('hex')} ${productData.product.symbol}`)
+        symbolInfo.set(acc.pubkey.toBase58() + productData.priceAccountKey.toBase58(), productData.product.symbol)
       }
+      this.setState({
+        symbolInfo
+      })
 
-    this.timer = setInterval( () => this.fetchGlobalState(), 1000 )
+      // console.log(symbolInfo)
+    }
+
+    this.timer = setInterval(() => this.fetchGlobalState(), 2000)
 
     await this.fetchGlobalState()
   }
@@ -74,24 +75,23 @@ class PriceView extends React.Component {
   async fetchGlobalState() {
     const priceData = []
     const prevPriceData = this.state.priceData
-    const gstate = await this.readAppGlobalState(73652776, 'OPDM7ACAW64Q4VBWAL77Z5SHSJVZZ44V3BAN7W44U43SUXEOUENZMZYOQU')
+    const gstate = await this.readAppGlobalState(this.state.appId, this.state.owner)
     for (const entry of gstate) {
       const key = Buffer.from(entry.key, 'base64')
       const productId = base58.encode(key.slice(0, 32))
       const priceId = base58.encode(key.slice(32, 64))
       const v = Buffer.from(entry.value.bytes, 'base64');
       const sym = this.state.symbolInfo.get(productId + priceId);
-
       if (sym !== undefined) {
-        const prev = this.state.priceData.find( (item) => (item.symbol === sym) )
+        const prev = this.state.priceData.find((item) => (item.symbol === sym))
         const price = new Uint64BE(v, 0)
         const change = (prev !== undefined) ? (prev.price.toNumber() - price.toNumber()) : 0
-        //console.log(change)
         priceData.push({
           price,
           exp: v.readInt32BE(8),
           twap: new Uint64BE(v, 12),
-          conf: new Uint64BE(v, 12 + 8),
+          twac: new Uint64BE(v, 20),
+          conf: new Uint64BE(v, 20 + 8),
           symbol: this.state.symbolInfo.get(productId + priceId),
           change
         })
@@ -99,7 +99,7 @@ class PriceView extends React.Component {
 
       // console.log(priceData)
     }
-    priceData.sort( (a, b) => { 
+    priceData.sort((a, b) => {
       return (a.symbol > b.symbol) ? 1 : -1
     })
     this.setState({ priceData })
@@ -110,7 +110,8 @@ class PriceView extends React.Component {
       <div>
         <h1>Price Explorer</h1>
         <h2>
-          Algorand Application <strong>{this.state.appId}</strong>
+          Algorand Application <a href="https://testnet.algoexplorer.io/application/73652776"
+            target="_blank" rel="noreferrer">{this.state.appId}</a>
         </h2>
         <h3>
           Loaded {this.state.symbolInfo?.size} product(s) from Pyth <strong>devnet</strong>
@@ -118,19 +119,21 @@ class PriceView extends React.Component {
         <hr />
         <table>
           <tbody>
-          <tr>
-            <th>Symbol</th>
-            <th>Price</th>
-            <th>Confidence</th>
-          </tr>
-          {this.state.priceData.map((k, i) => {
-            const exp = parseFloat(k.exp.toString())
-            return (<tr key={i} className={k.change > 0 ? "valueup" : (k.change < 0 ? "valuedown" : "valueequal")}>
-              <td>{k.symbol.toString()}</td>
-              <td>{parseFloat(k.price.toString()) / (10 ** -exp) }</td>
-              <td>{parseFloat(k.conf.toString()) / (10 ** -exp) }</td>
-            </tr>)
-          })}
+            <tr>
+              <th>Symbol</th>
+              <th>Price</th>
+              <th>Confidence</th>
+              <th>TWAP</th>
+            </tr>
+            {this.state.priceData.map((k, i) => {
+              const exp = parseFloat(k.exp.toString())
+              return (<tr key={i} className={k.change < 0 ? "valueup" : (k.change > 0 ? "valuedown" : "valueequal")}>
+                <td>{k.symbol.toString()}</td>
+                <td>{parseFloat(k.price.toString()) / (10 ** -exp)}</td>
+                <td>{parseFloat(k.conf.toString()) / (10 ** -exp)}</td>
+                <td>{parseFloat(k.twap.toString()) / (10 ** -exp)}</td>
+              </tr>)
+            })}
           </tbody>
         </table>
       </div>

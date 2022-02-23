@@ -22,6 +22,7 @@
     "algosdk": "^1.12.0",
     "base58-universal": "^1.0.0",
     "charm": "^1.0.2",
+    "create-react-app": "^5.0.0",
     "elliptic": "^6.5.4",
     "esm": "^3.2.25",
     "ethers": "^5.5.1",

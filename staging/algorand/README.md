@@ -132,12 +132,12 @@ Consumers must interpret the stored bytes as fields organized as:
 ```
 Bytes
 8               Price
-1               Price Type
 4               Exponent
 8               Time-weighted average price
 8               Time-weighted average confidence
 8               Confidence
 1               Status (valid prices are published with status=1)
+1               Corporate Act (see Pyth documentation for this field.)
 8               Timestamp (based on Solana contract call time).
 
 46 bytes.

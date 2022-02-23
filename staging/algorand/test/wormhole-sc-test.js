@@ -66,7 +66,7 @@ const guardianPrivKeys = [
   'b71d23908e4cf5d6cd973394f3a4b6b164eb1065785feee612efdfd8d30005ed'
 ]
 
-const PYTH_EMITTER       = '0x3afda841c1f43dd7d546c8a581ba1f92a139f4133f9f6ab095558f6a359df5d4'
+const PYTH_EMITTER       = '0xf346195ac02f37d60d4db8ffa6ef74cb1be3550047543a4a9ee9acf4d78697b0'
 const OTHER_PYTH_EMITTER = '0x0000000000000000000000000000000000000000000000000000000000000001'
 // const PYTH_PAYLOAD = '0x50325748000101230abfe0ec3b460bd55fc4fb36356716329915145497202b8eb8bf1af6a0a3b9fe650f0367d4a7ef9815a593ea15d36593f0643aaaf0149bb04be67ab851decd010000002f17254388fffffff70000002eed73d9000000000070d3b43f0000000037faa03d000000000e9e555100000000894af11c0000000037faa03d000000000dda6eb801000000000061a5ff9a'
 // const OTHER_PAYLOAD = '0xf0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0'
@@ -170,6 +170,11 @@ async function createTestAccounts () {
   const signedTx = signCallback(testConfig.SOURCE_ACCOUNT, tx)
   await algodClient.sendRawTransaction(signedTx).do()
   await pclib.waitForTransactionResponse(tx.txID().toString())
+
+  const tx2 = makePaymentTxnWithSuggestedParams(testConfig.SOURCE_ACCOUNT, otherAddr, 100000, undefined, undefined, parms)
+  const signedTx2 = signCallback(testConfig.SOURCE_ACCOUNT, tx2)
+  await algodClient.sendRawTransaction(signedTx2).do()
+  await pclib.waitForTransactionResponse(tx2.txID().toString())
 }
 
 async function clearApps () {
@@ -249,7 +254,7 @@ async function checkAttestations (vaa, numOfAttest) {
   // console.log(state)
   let sortedAttestations = []
   for (let i = 0; i < numOfAttest; i++) {
-    sortedAttestations.push(getAttestation(payloadAttestations, i).toString('hex'))
+    sortedAttestations.push(getAttestation(payloadAttestations, i))
   }
 
   sortedAttestations = sortedAttestations.sort((a, b) => {
@@ -265,23 +270,21 @@ async function checkAttestations (vaa, numOfAttest) {
   // console.log(sortedAttestations)
   expect(sortedAttestations.length).to.equal(state.length)
 
-  for (let i = 0; i < numOfAttest.length; i++) {
+  for (let i = 0; i < numOfAttest; i++) {
     // Check product-price key
     const sk = Buffer.from(state[i].key, 'base64').toString('hex')
     const sv = Buffer.from(state[i].value.bytes, 'base64')
+
     expect(sk).to.equal(extract3(sortedAttestations[i], 7, 64).toString('hex'))
 
-    // Check price + exponent
-    expect(extract3(sv, 0, 12)).to.deep.equal(extract3(sortedAttestations[i], 72, 12))
+    // Check price + exponent + twap
+    expect(extract3(sv, 0, 20)).to.deep.equal(extract3(sortedAttestations[i], 72, 20))
 
     // Check twac
-    expect(extract3(sv, 12, 8)).to.deep.equal(extract3(sortedAttestations[i], 108, 8))
+    expect(extract3(sv, 20, 8)).to.deep.equal(extract3(sortedAttestations[i], 100, 8))
 
-    // Check confidence
-    expect(extract3(sv, 20, 8)).to.deep.equal(extract3(sortedAttestations[i], 132, 8))
-
-    // Check timestamp
-    expect(extract3(sv, 28, 8)).to.deep.equal(extract3(sortedAttestations[i], 142, 8))
+    // Check confidence + status + timestamp
+    expect(extract3(sv, 28, 18)).to.deep.equal(extract3(sortedAttestations[i], 132, 18))
   }
 }
 
@@ -313,7 +316,7 @@ describe('VAA Processor Smart-contract Tests', function () {
 
   it('Must fail to create app with incorrect guardian keys length', async function () {
     const gsexptime = 2524618800
-    await expect(createVaaProcessorApp(gsexptime, 0, ['BADADDRESS'])).to.be.rejectedWith('Bad Request')
+    await expect(createVaaProcessorApp(gsexptime, 0, ['BADADDRESS'])).to.be.rejectedWith(/logic eval error/g)
   })
 
   it('Must create VAA Processor app with initial guardians and proper initial state', async function () {
@@ -372,7 +375,7 @@ describe('VAA Processor Smart-contract Tests', function () {
   })
 
   it('Must disallow setting stateless logic hash from non-owner', async function () {
-    await expect(pclib.setVAAVerifyProgramHash(otherAddr, verifyProgramHash, signCallback)).to.be.rejectedWith('Bad Request')
+    await expect(pclib.setVAAVerifyProgramHash(otherAddr, verifyProgramHash, signCallback)).to.be.rejectedWith(/logic eval error/g)
   })
 
   it('Must reject setting stateless logic hash from group transaction', async function () {
@@ -380,16 +383,16 @@ describe('VAA Processor Smart-contract Tests', function () {
     const params = await getTxParams()
 
     const gid = pclib.beginTxGroup()
-    const appTx = algosdk.makeApplicationNoOpTxn(ownerAddr, params, this.appId, appArgs)
-    const dummyTx = algosdk.makeApplicationNoOpTxn(ownerAddr, params, this.appId, appArgs)
+    const appTx = algosdk.makeApplicationNoOpTxn(ownerAddr, params, appId, appArgs)
+    const dummyTx = algosdk.makeApplicationNoOpTxn(ownerAddr, params, appId, appArgs)
     pclib.addTxToGroup(gid, appTx)
     pclib.addTxToGroup(gid, dummyTx)
-    await expect(pclib.commitTxGroup(gid, ownerAddr, signCallback)).to.be.rejectedWith('Bad Request')
+    await expect(pclib.commitTxGroup(gid, ownerAddr, signCallback)).to.be.rejectedWith(/logic eval error/g)
   })
 
   it('Must reject setting stateless logic hash with invalid address length', async function () {
     const appArgs = [new Uint8Array(Buffer.from('setvphash')), new Uint8Array(verifyProgramHash).subarray(0, 10)]
-    await expect(pclib.callApp(ownerAddr, 'vaaProcessor', appArgs, [], signCallback)).to.be.rejectedWith('Bad Request')
+    await expect(pclib.callApp(ownerAddr, 'vaaProcessor', appArgs, [], signCallback)).to.be.rejectedWith(/logic eval error/g)
   })
 
   // it('Must reject incorrect transaction group size', async function () {
@@ -456,7 +459,7 @@ describe('VAA Processor Smart-contract Tests', function () {
     const groupSize = Math.ceil(gscount / stepSize)
     const numOfAttest = 5
     const vaa = createVAA(1, guardianPrivKeys, 1, OTHER_PYTH_EMITTER, numOfAttest)
-    await expect(buildTransactionGroup(groupSize, stepSize, guardianKeys, gscount, vaa.signatures, vaa.body)).to.be.rejectedWith('Bad Request')
+    await expect(buildTransactionGroup(groupSize, stepSize, guardianKeys, gscount, vaa.signatures, vaa.body)).to.be.rejectedWith(/transaction rejected by ApprovalProgram/g)
   })
 
   it('Must verify and handle Pyth V2 VAA - all signers present', async function () {
@@ -479,7 +482,7 @@ describe('VAA Processor Smart-contract Tests', function () {
     let shuffleGuardianPrivKeys = [...guardianPrivKeys]
     shuffleGuardianPrivKeys = testLib.shuffle(shuffleGuardianPrivKeys)
 
-    await expect(buildTransactionGroup(groupSize, stepSize, shuffleGuardianPrivKeys, gscount, vaa.signatures, vaa.body)).to.be.rejectedWith('Bad Request')
+    await expect(buildTransactionGroup(groupSize, stepSize, shuffleGuardianPrivKeys, gscount, vaa.signatures, vaa.body)).to.be.rejectedWith(/rejected by logic/g)
   })
 
   it('Must verify VAA with signers > 2/3 + 1', async function () {
@@ -508,7 +511,7 @@ describe('VAA Processor Smart-contract Tests', function () {
     const slicedGuardianPrivKeys = guardianPrivKeys.slice(0, quorum)
     const vaa = createVAA(0, slicedGuardianPrivKeys, 1, PYTH_EMITTER, 5)
     const groupSize = Math.ceil(gscount / stepSize)
-    await expect(buildTransactionGroup(groupSize, stepSize, guardianKeys, gscount, vaa.signatures, vaa.body)).to.be.rejectedWith('Bad Request')
+    await expect(buildTransactionGroup(groupSize, stepSize, guardianKeys, gscount, vaa.signatures, vaa.body)).to.be.rejectedWith(/rejected by logic/g)
   })
   // it('Must verify and handle governance VAA', async function () {
   //   // TBD
