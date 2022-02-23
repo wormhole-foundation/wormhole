@@ -1,11 +1,21 @@
+//! Constants and values common to every p2w custom-serialized message.
+//!
+//! The format makes no attempt to provide human-readable symbol names
+//! in favor of explicit product/price Solana account addresses
+//! (IDs). This choice was made to disambiguate any symbols with
+//! similar human-readable names and provide a failsafe for some of
+//! the probable adversarial scenarios.
+
 pub mod pyth_extensions;
 
 use std::{
+    borrow::Borrow,
     convert::{
         TryFrom,
         TryInto,
     },
     io::Read,
+    iter::Iterator,
     mem,
 };
 
@@ -37,26 +47,34 @@ use self::pyth_extensions::{
     P2WPriceType,
 };
 
-// Constants and values common to every p2w custom-serialized message
 
 /// Precedes every message implementing the p2w serialization format
 pub const P2W_MAGIC: &'static [u8] = b"P2WH";
 
 /// Format version used and understood by this codebase
-pub const P2W_FORMAT_VERSION: u16 = 1;
+pub const P2W_FORMAT_VERSION: u16 = 2;
 
 pub const PUBKEY_LEN: usize = 32;
 
 /// Decides the format of following bytes
 #[repr(u8)]
 pub enum PayloadId {
-    PriceAttestation = 1,
+    PriceAttestation = 1, // Not in use, currently batch attestations imply PriceAttestation messages inside
+    PriceBatchAttestation,
 }
 
 // On-chain data types
 
+/// The main attestation data type.
+///
+/// Important: For maximum security, *both* product_id and price_id
+/// should be used as storage keys for known attestations in target
+/// chain logic.
 #[derive(Clone, Default, Debug, Eq, PartialEq)]
-#[cfg_attr(feature = "wasm", derive(serde_derive::Serialize, serde_derive::Deserialize))]
+#[cfg_attr(
+    feature = "wasm",
+    derive(serde_derive::Serialize, serde_derive::Deserialize)
+)]
 pub struct PriceAttestation {
     pub product_id: Pubkey,
     pub price_id: Pubkey,
@@ -69,6 +87,123 @@ pub struct PriceAttestation {
     pub status: P2WPriceStatus,
     pub corp_act: P2WCorpAction,
     pub timestamp: UnixTimestamp,
+}
+
+/// Turn a bunch of attestations into a combined payload.
+///
+/// Batches assume constant-size attestations within a single batch.
+pub fn batch_serialize(
+    attestations: impl Iterator<Item = impl Borrow<PriceAttestation>>,
+) -> Result<Vec<u8>, ErrBox> {
+    // magic
+    let mut buf = P2W_MAGIC.to_vec();
+
+    // version
+    buf.extend_from_slice(&P2W_FORMAT_VERSION.to_be_bytes()[..]);
+
+    // payload_id
+    buf.push(PayloadId::PriceBatchAttestation as u8);
+
+    let collected: Vec<_> = attestations.collect();
+
+    // n_attestations
+    buf.extend_from_slice(&(collected.len() as u16).to_be_bytes()[..]);
+
+    let mut attestation_size = 0; // Will be determined as we serialize attestations
+    let mut serialized_attestations = Vec::with_capacity(collected.len());
+    for (idx, a) in collected.iter().enumerate() {
+        // Learn the current attestation's size
+        let serialized = PriceAttestation::serialize(a.borrow());
+        let a_len = serialized.len();
+
+        // Verify it's the same as the first one we saw for the batch, assign if we're first.
+        if attestation_size > 0 {
+            if a_len != attestation_size {
+                return Err(format!(
+                    "attestation {} serializes to {} bytes, {} expected",
+                    idx + 1,
+                    a_len,
+                    attestation_size
+                )
+                .into());
+            }
+        } else {
+            attestation_size = a_len;
+        }
+
+        serialized_attestations.push(serialized);
+    }
+
+    // attestation_size
+    buf.extend_from_slice(&(attestation_size as u16).to_be_bytes()[..]);
+
+    for mut s in serialized_attestations.into_iter() {
+        buf.append(&mut s)
+    }
+
+    Ok(buf)
+}
+
+/// Undo `batch_serialize`
+pub fn batch_deserialize(mut bytes: impl Read) -> Result<Vec<PriceAttestation>, ErrBox> {
+    let mut magic_vec = vec![0u8; P2W_MAGIC.len()];
+    bytes.read_exact(magic_vec.as_mut_slice())?;
+
+    if magic_vec.as_slice() != P2W_MAGIC {
+        return Err(format!(
+            "Invalid magic {:02X?}, expected {:02X?}",
+            magic_vec, P2W_MAGIC,
+        )
+        .into());
+    }
+
+    let mut version_vec = vec![0u8; mem::size_of_val(&P2W_FORMAT_VERSION)];
+    bytes.read_exact(version_vec.as_mut_slice())?;
+    let version = u16::from_be_bytes(version_vec.as_slice().try_into()?);
+
+    if version != P2W_FORMAT_VERSION {
+        return Err(format!(
+            "Unsupported format version {}, expected {}",
+            version, P2W_FORMAT_VERSION
+        )
+        .into());
+    }
+
+    let mut payload_id_vec = vec![0u8; mem::size_of::<PayloadId>()];
+    bytes.read_exact(payload_id_vec.as_mut_slice())?;
+
+    if payload_id_vec[0] != PayloadId::PriceBatchAttestation as u8 {
+        return Err(format!(
+            "Invalid Payload ID {}, expected {}",
+            payload_id_vec[0],
+            PayloadId::PriceBatchAttestation as u8,
+        )
+        .into());
+    }
+
+    let mut batch_len_vec = vec![0u8; 2];
+    bytes.read_exact(batch_len_vec.as_mut_slice())?;
+    let batch_len = u16::from_be_bytes(batch_len_vec.as_slice().try_into()?);
+
+    let mut attestation_size_vec = vec![0u8; 2];
+    bytes.read_exact(attestation_size_vec.as_mut_slice())?;
+    let attestation_size = u16::from_be_bytes(attestation_size_vec.as_slice().try_into()?);
+
+    let mut ret = Vec::with_capacity(batch_len as usize);
+
+    for i in 0..batch_len {
+        let mut attestation_buf = vec![0u8; attestation_size as usize];
+        bytes.read_exact(attestation_buf.as_mut_slice())?;
+
+        dbg!(&attestation_buf.len());
+
+        match PriceAttestation::deserialize(attestation_buf.as_slice()) {
+            Ok(attestation) => ret.push(attestation),
+            Err(e) => return Err(format!("PriceAttestation {}/{}: {}", i + 1, batch_len, e).into()),
+        }
+    }
+
+    Ok(ret)
 }
 
 impl PriceAttestation {
@@ -161,7 +296,6 @@ impl PriceAttestation {
         use P2WPriceStatus::*;
         use P2WPriceType::*;
 
-	println!("Using {} bytes for magic", P2W_MAGIC.len());
         let mut magic_vec = vec![0u8; P2W_MAGIC.len()];
 
         bytes.read_exact(magic_vec.as_mut_slice())?;
@@ -176,7 +310,7 @@ impl PriceAttestation {
 
         let mut version_vec = vec![0u8; mem::size_of_val(&P2W_FORMAT_VERSION)];
         bytes.read_exact(version_vec.as_mut_slice())?;
-        let mut version = u16::from_be_bytes(version_vec.as_slice().try_into()?);
+        let version = u16::from_be_bytes(version_vec.as_slice().try_into()?);
 
         if version != P2W_FORMAT_VERSION {
             return Err(format!(
@@ -217,20 +351,21 @@ impl PriceAttestation {
         };
 
         let mut price_vec = vec![0u8; mem::size_of::<i64>()];
-	bytes.read_exact(price_vec.as_mut_slice())?;
-	let price = i64::from_be_bytes(price_vec.as_slice().try_into()?);
+        bytes.read_exact(price_vec.as_mut_slice())?;
+        let price = i64::from_be_bytes(price_vec.as_slice().try_into()?);
 
         let mut expo_vec = vec![0u8; mem::size_of::<i32>()];
-	bytes.read_exact(expo_vec.as_mut_slice())?;
-	let expo = i32::from_be_bytes(expo_vec.as_slice().try_into()?);
+        bytes.read_exact(expo_vec.as_mut_slice())?;
+        let expo = i32::from_be_bytes(expo_vec.as_slice().try_into()?);
 
-	let twap = P2WEma::deserialize(&mut bytes)?;
-	let twac = P2WEma::deserialize(&mut bytes)?;
+        let twap = P2WEma::deserialize(&mut bytes)?;
+        let twac = P2WEma::deserialize(&mut bytes)?;
 
-	println!("twac OK");
+        println!("twac OK");
         let mut confidence_interval_vec = vec![0u8; mem::size_of::<u64>()];
-	bytes.read_exact(confidence_interval_vec.as_mut_slice())?;
-	let confidence_interval = u64::from_be_bytes(confidence_interval_vec.as_slice().try_into()?);
+        bytes.read_exact(confidence_interval_vec.as_mut_slice())?;
+        let confidence_interval =
+            u64::from_be_bytes(confidence_interval_vec.as_slice().try_into()?);
 
         let mut status_vec = vec![0u8; mem::size_of::<P2WPriceType>()];
         bytes.read_exact(status_vec.as_mut_slice())?;
@@ -244,7 +379,6 @@ impl PriceAttestation {
             }
         };
 
-
         let mut corp_act_vec = vec![0u8; mem::size_of::<P2WPriceType>()];
         bytes.read_exact(corp_act_vec.as_mut_slice())?;
         let corp_act = match corp_act_vec[0] {
@@ -254,23 +388,23 @@ impl PriceAttestation {
             }
         };
 
-	let mut timestamp_vec = vec![0u8; mem::size_of::<UnixTimestamp>()];
-			 bytes.read_exact(timestamp_vec.as_mut_slice())?;
-	let timestamp = UnixTimestamp::from_be_bytes(timestamp_vec.as_slice().try_into()?);
+        let mut timestamp_vec = vec![0u8; mem::size_of::<UnixTimestamp>()];
+        bytes.read_exact(timestamp_vec.as_mut_slice())?;
+        let timestamp = UnixTimestamp::from_be_bytes(timestamp_vec.as_slice().try_into()?);
 
-	Ok( Self {
-	    product_id,
-	    price_id,
-	    price_type,
-	    price,
-	    expo,
-	    twap,
-	    twac,
-	    confidence_interval,
-	    status,
-	    corp_act,
-	    timestamp
-	})
+        Ok(Self {
+            product_id,
+            price_id,
+            price_type,
+            price,
+            expo,
+            twap,
+            twac,
+            confidence_interval,
+            status,
+            corp_act,
+            timestamp,
+        })
     }
 }
 
@@ -405,38 +539,10 @@ mod tests {
         };
     }
 
-    #[test]
-    fn test_parse_pyth_price_wrong_size_slices() {
-        assert!(parse_pyth_price(&[]).is_err());
-        assert!(parse_pyth_price(vec![0u8; 1].as_slice()).is_err());
-    }
-
-    #[test]
-    fn test_normal_values() -> SoliResult<()> {
-        let price = Price {
-            expo: 5,
-            agg: PriceInfo {
-                price: 42,
-                ..empty_priceinfo!()
-            },
-            ..empty_price!()
-        };
-        let price_vec = vec![price];
-
-        // use the C repr to mock pyth's format
-        let (_, bytes, _) = unsafe { price_vec.as_slice().align_to::<u8>() };
-
-        parse_pyth_price(bytes)?;
-        Ok(())
-    }
-
-    #[test]
-    fn test_serialize_deserialize() -> Result<(), ErrBox> {
-        let product_id_bytes = [21u8; 32];
-        let price_id_bytes = [222u8; 32];
-        println!("Hex product_id: {:02X?}", &product_id_bytes);
-        println!("Hex price_id: {:02X?}", &price_id_bytes);
-        let attestation: PriceAttestation = PriceAttestation {
+    fn mock_attestation(prod: Option<[u8; 32]>, price: Option<[u8; 32]>) -> PriceAttestation {
+        let product_id_bytes = prod.unwrap_or([21u8; 32]);
+        let price_id_bytes = prod.unwrap_or([222u8; 32]);
+        PriceAttestation {
             product_id: Pubkey::new_from_array(product_id_bytes),
             price_id: Pubkey::new_from_array(price_id_bytes),
             price: (0xdeadbeefdeadbabe as u64) as i64,
@@ -456,14 +562,93 @@ mod tests {
             confidence_interval: 101,
             corp_act: P2WCorpAction::NoCorpAct,
             timestamp: 123456789i64,
+        }
+    }
+
+    #[test]
+    fn test_parse_pyth_price_wrong_size_slices() {
+        assert!(parse_pyth_price(&[]).is_err());
+        assert!(parse_pyth_price(vec![0u8; 1].as_slice()).is_err());
+    }
+
+    #[test]
+    fn test_parse_pyth_price() -> SoliResult<()> {
+        let price = Price {
+            expo: 5,
+            agg: PriceInfo {
+                price: 42,
+                ..empty_priceinfo!()
+            },
+            ..empty_price!()
         };
+        let price_vec = vec![price];
+
+        // use the C repr to mock pyth's format
+        let (_, bytes, _) = unsafe { price_vec.as_slice().align_to::<u8>() };
+
+        parse_pyth_price(bytes)?;
+        Ok(())
+    }
+
+    #[test]
+    fn test_attestation_serde() -> Result<(), ErrBox> {
+        let product_id_bytes = [21u8; 32];
+        let price_id_bytes = [222u8; 32];
+        let attestation: PriceAttestation =
+            mock_attestation(Some(product_id_bytes), Some(price_id_bytes));
+
+        println!("Hex product_id: {:02X?}", &product_id_bytes);
+        println!("Hex price_id: {:02X?}", &price_id_bytes);
 
         println!("Regular: {:#?}", &attestation);
         println!("Hex: {:#02X?}", &attestation);
-	let bytes = attestation.serialize();
+        let bytes = attestation.serialize();
         println!("Hex Bytes: {:02X?}", bytes);
 
-	assert_eq!(PriceAttestation::deserialize(bytes.as_slice())?, attestation);
+        assert_eq!(
+            PriceAttestation::deserialize(bytes.as_slice())?,
+            attestation
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_attestation_serde_wrong_size() -> Result<(), ErrBox> {
+        assert!(PriceAttestation::deserialize(&[][..]).is_err());
+        assert!(PriceAttestation::deserialize(vec![0u8; 1].as_slice()).is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn test_batch_serde() -> Result<(), ErrBox> {
+        let attestations: Vec<_> = (0..65535)
+            .map(|i| mock_attestation(Some([(i % 256) as u8; 32]), None))
+            .collect();
+
+        let serialized = batch_serialize(attestations.iter())?;
+
+        let deserialized = batch_deserialize(serialized.as_slice())?;
+
+        assert_eq!(attestations, deserialized);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_batch_serde_wrong_size() -> Result<(), ErrBox> {
+        assert!(batch_deserialize(&[][..]).is_err());
+        assert!(batch_deserialize(vec![0u8; 1].as_slice()).is_err());
+
+        let attestations: Vec<_> = (0..20)
+            .map(|i| mock_attestation(Some([(i % 256) as u8; 32]), None))
+            .collect();
+
+        let serialized = batch_serialize(attestations.iter())?;
+
+        // Missing last byte in last attestation must be an error
+        let len = serialized.len();
+        assert!(batch_deserialize(&serialized.as_slice()[..len - 1]).is_err());
+
         Ok(())
     }
 }
