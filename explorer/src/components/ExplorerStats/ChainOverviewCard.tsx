@@ -74,7 +74,7 @@ const ChainOverviewCard: React.FC<ChainOverviewCardProps> = ({
                 </Typography>
               </div>
               <div style={{ marginTop: -10 }}>
-                <Typography variant="subtitle1">received</Typography>
+                <Typography variant="caption">received</Typography>
               </div>
             </div>
           )}
@@ -99,7 +99,7 @@ const ChainOverviewCard: React.FC<ChainOverviewCardProps> = ({
               </Typography>
             </div>
             <div style={{ marginTop: -10 }}>
-              <Typography variant="subtitle1">sent</Typography>
+              <Typography variant="caption">sent</Typography>
             </div>
           </div>
         ) : (
@@ -124,7 +124,7 @@ const ChainOverviewCard: React.FC<ChainOverviewCardProps> = ({
               </Typography>
             </div>
             <div style={{ marginTop: -10 }}>
-              <Typography variant="subtitle1"> messages </Typography>
+              <Typography variant="caption"> messages </Typography>
             </div>
           </div>
         )}

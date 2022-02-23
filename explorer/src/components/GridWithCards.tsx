@@ -1,3 +1,4 @@
+import { Block } from "@mui/icons-material";
 import {
   Card,
   CardActionArea,
@@ -12,6 +13,7 @@ import { OutboundLink } from "gatsby-plugin-google-gtag";
 import React from "react";
 
 interface CardData {
+
   key?: string;
   src: string;
   header: string;
@@ -19,6 +21,7 @@ interface CardData {
   href?: string;
   to?: string;
   imgStyle?: React.CSSProperties | undefined;
+  size: number;
 }
 
 const GridWithCards = ({
@@ -56,17 +59,16 @@ const GridWithCards = ({
     justifyContent="space-evenly"
     sx={{ "& > .MuiGrid-item": { pt: { xs: 8.25, md: 5.25 } } }}
   >
-    {data.map(({ key, src, header, description, href, to, imgStyle }) => (
+    {data.map(({ key, src, header, description, size, href, to, imgStyle }) => (
       <Grid key={key || header} item xs={12} sm={sm} md={md}>
         <Card
           sx={{
             backgroundColor: "rgba(255,255,255,.07)",
             backgroundImage: "none",
-            borderRadius: "28px",
-            display: "flex",
-            flexDirection: "column",
+            backdropFilter: 'blur(21px)',
             height: "100%",
             overflow: "visible",
+            borderRadius: "28px",
           }}
         >
           <CardActionArea
@@ -82,7 +84,10 @@ const GridWithCards = ({
               pt: cardPaddingTop,
               borderRadius: "28px",
               height: "100%",
-              "& > div": {
+              display: 'flex',
+              flexDirection: 'column',
+              "& > *": {
+                width: '100%',
                 transition: { md: "300ms top" },
               },
               "&:hover > div": {
@@ -97,17 +102,18 @@ const GridWithCards = ({
               sx={{
                 textAlign: { xs: "center", md: imgAlignMd },
                 position: "relative",
-                right: { xs: null, md: imgOffsetRightMd },
+                marginRight: { xs: 'auto', md: imgOffsetRightMd },
+                marginLeft: { xs: 'auto' },
                 top: { xs: imgOffsetTopXs, md: imgOffsetTopMd },
-                pb: { xs: imgPaddingBottomXs, md: imgPaddingBottomMd },
+                mb: { xs: imgPaddingBottomXs, md: imgPaddingBottomMd },
                 zIndex: 1,
+                width: size,
+                height: size,
               }}
             >
               <img src={src} alt="" style={imgStyle} />
             </Box>
-            <Typography variant="h4" textAlign={headerTextAlign}>
-              {header}
-            </Typography>
+            <Typography variant="h4" textAlign={headerTextAlign}>{header}</Typography>
             <Typography component="div" sx={{ mt: 2, flexGrow: 1 }}>
               {description}
             </Typography>

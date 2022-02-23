@@ -49,7 +49,7 @@ const DailyCountBarChart = (props: DailyCountProps) => {
   const today = new Date().toISOString().slice(0, 10);
 
   return (
-    <div style={{ height: 400, minWidth: 200, flex: "1", marginBottom: 40 }}>
+    <div style={{ height: 400, minWidth: 360, flex: "1", marginBottom: 40 }}>
       <Typography variant="subtitle1">Messages/Day</Typography>
       <ResponsiveBar
         theme={{ textColor: "rgba(255, 255, 255, 0.85)" }}
