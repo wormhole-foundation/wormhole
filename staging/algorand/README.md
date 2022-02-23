@@ -3,7 +3,7 @@
 
 ## Introduction
 
-This service consumes prices from "price fetchers" and feeds blockchain publishers. 
+This service comprises on-chain and off-chain components and tools. The purpose is to consume prices from "price fetchers" and feeds blockchain publishers. 
 
 The current implementation is a Wormhole client that uses the JS SDK to get VAAs from Pyth network and feed the payload and cryptographic verification data to a transaction group for validation. Subsequently, the data is optionally processed and stored, either price or metrics. For details regarding Wormhole VAAs see design documents: 
 
@@ -117,7 +117,7 @@ Each VAA is uniquely identified by tuple (emitter_chain_id, emitter_address, seq
 
 ## Pricekeeper V2 App
 
-The Pricekeeper V2 App mantains a record of product/asset symbols (e.g ALGO/USD, BTC/USDT) and the price and metrics information associated. As the original Pyth Payload is 150-bytes long and it wouldn't fit in the key-value entry of the global state, the Pricekeeper contract slices the Pyth fields to a more compact format, discarding unneeded information.
+The Pricekeeper V2 App mantains a record of product/asset symbols (e.g ALGO/USD, BTC/USDT) indexed by keys of tuple `(productId,priceId)` and a byte array encoding price and metrics information. As the original Pyth Payload is 150-bytes long and it wouldn't fit in the value field for each key, the Pricekeeper contract converts on-the-fly the payload to a more compact form, discarding unneeded information.
 
 The Pricekeeper V2 App will allow storage to succeed only if:
 
@@ -131,16 +131,20 @@ Consumers must interpret the stored bytes as fields organized as:
 
 ```
 Bytes
-32              productId
-32              priceId
-8               price
-1               price_type
-4               exponent
-8               twap value
-8               twac value
-8               confidence
-8               timestamp (based on Solana contract call time)
+8               Price
+1               Price Type
+4               Exponent
+8               Time-weighted average price
+8               Time-weighted average confidence
+8               Confidence
+1               Status (valid prices are published with status=1)
+8               Timestamp (based on Solana contract call time).
+
+46 bytes.
 ```
+## Price-Explorer sample 
+
+The `samples` subdirectory contains a React app showing how consumers can fetch symbols, price information from the contract,  and display this information in real-time. 
 
 ## Installation
 
@@ -221,6 +225,26 @@ Bye.
 ## Backend Configuration
 
 The backend will read configuration from a `settings.ts` file pointed by the `PRICECASTER_SETTINGS` environment variable.  
+
+The following settings are available:
+
+|Value|Description| 
+|-- |-- |
+|pollInterval   |  The interval for polling the fetcher component for new VAAs. | 
+|algo.token   | The token string for connecting the desired Algorand node.  | 
+|algo.api   | The API host URL for connecting the desired Algorand node.  | 
+|algo.port   | The port to connect to the desired Algorand node.  |  
+|algo.dumpFailedTx|  Set to `true` to dump failed transactions. Intended for debugging and analysis. |
+|algo.dumpFailedTxDirectory|  Destination of .STXN (signed-transaction) files for analysis. |
+| apps.vaaVerifyProgramBinFile | The compiled binary of the VAA verification TEAL program. This should point to the output of the deployment process file `VAA-VERIFY-xxxxxx.BIN`  |
+| apps.vaaProcessorAppId |  The application Id of the deployed VAA processor TEAL program. |
+|    apps.priceKeeperV2AppId | The application Id of the deployed VAA priceKeeper V2 TEAL program |
+|    apps.vaaVerifyProgramHash | The hash of the VAA verify program |
+|    apps.ownerAddress | The owner account address for the deployed programs |
+|    apps.ownerKeyFile| The file containing keys for the owner file. |
+| pyth.chainId | The chainId of the Pyth data source |
+| pyth.emitterAddress | The address (in hex) of the Pyth emitter |
+| wormhole.spyServiceHost | The URI to listen for VAAs coming from the guardiand Spy service |
 
 ### Diagnosing failed transactions
 
