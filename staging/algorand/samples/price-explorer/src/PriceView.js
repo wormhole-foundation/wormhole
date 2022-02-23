@@ -18,7 +18,7 @@ class PriceView extends React.Component {
     this.client = new algosdk.Algodv2('', 'https://api.testnet.algoexplorer.io', '');
     this.state = {
       appId: 73652776,
-      symbolInfo: undefined,
+      symbolInfo: new Map(),
       priceData: []
     }
   }
@@ -73,6 +73,7 @@ class PriceView extends React.Component {
   }
   async fetchGlobalState() {
     const priceData = []
+    const prevPriceData = this.state.priceData
     const gstate = await this.readAppGlobalState(73652776, 'OPDM7ACAW64Q4VBWAL77Z5SHSJVZZ44V3BAN7W44U43SUXEOUENZMZYOQU')
     for (const entry of gstate) {
       const key = Buffer.from(entry.key, 'base64')
@@ -82,14 +83,21 @@ class PriceView extends React.Component {
       const sym = this.state.symbolInfo.get(productId + priceId);
 
       if (sym !== undefined) {
+        const prev = this.state.priceData.find( (item) => (item.symbol === sym) )
+        const price = new Uint64BE(v, 0)
+        const change = (prev !== undefined) ? (prev.price.toNumber() - price.toNumber()) : 0
+        //console.log(change)
         priceData.push({
-          price: new Uint64BE(v, 0),
+          price,
           exp: v.readInt32BE(8),
           twap: new Uint64BE(v, 12),
           conf: new Uint64BE(v, 12 + 8),
           symbol: this.state.symbolInfo.get(productId + priceId),
+          change
         })
       }
+
+      // console.log(priceData)
     }
     priceData.sort( (a, b) => { 
       return (a.symbol > b.symbol) ? 1 : -1
@@ -101,12 +109,12 @@ class PriceView extends React.Component {
     return (
       <div>
         <h1>Price Explorer</h1>
-        <p>
+        <h2>
           Algorand Application <strong>{this.state.appId}</strong>
-        </p>
-        <p>
+        </h2>
+        <h3>
           Loaded {this.state.symbolInfo?.size} product(s) from Pyth <strong>devnet</strong>
-        </p>
+        </h3>
         <hr />
         <table>
           <tbody>
@@ -117,7 +125,7 @@ class PriceView extends React.Component {
           </tr>
           {this.state.priceData.map((k, i) => {
             const exp = parseFloat(k.exp.toString())
-            return (<tr key={i}>
+            return (<tr key={i} className={k.change > 0 ? "valueup" : (k.change < 0 ? "valuedown" : "valueequal")}>
               <td>{k.symbol.toString()}</td>
               <td>{parseFloat(k.price.toString()) / (10 ** -exp) }</td>
               <td>{parseFloat(k.conf.toString()) / (10 ** -exp) }</td>
@@ -127,7 +135,6 @@ class PriceView extends React.Component {
         </table>
       </div>
     )
-
   }
 }
 
