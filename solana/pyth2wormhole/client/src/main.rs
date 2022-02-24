@@ -268,6 +268,8 @@ fn handle_attest(
         batch_count
     );
 
+    let mut errors = Vec::new();
+
     for (idx, symbols) in attestation_cfg
         .symbols
         .as_slice()
@@ -395,17 +397,26 @@ fn handle_attest(
                 info!("Batch {}/{}: OK, seqno {}", batch_no, batch_count, seqno);
             }
             Err(e) => {
-                error!(
+                let msg = format!(
                     "Batch {}/{} tx error: {}",
                     batch_no,
                     batch_count,
                     e.to_string()
                 );
+                error!("{}", &msg);
+
+                errors.push(msg)
             }
         }
     }
 
-    Ok(())
+    if errors.len() > 0 {
+        let err_list = errors.join("\n");
+
+        Err(format!("{} of {} batches failed:\n{}", errors.len(), batch_count, err_list).into())
+    } else {
+        Ok(())
+    }
 }
 
 fn init_logging(verbosity: u32) {
