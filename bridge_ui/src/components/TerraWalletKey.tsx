@@ -1,29 +1,31 @@
-import { Typography } from "@material-ui/core";
-import { useTerraWallet } from "../contexts/TerraWalletContext";
+import { useConnectedWallet, useWallet } from "@terra-money/wallet-provider";
+import { useCallback, useState } from "react";
+import TerraConnectWalletDialog from "./TerraConnectWalletDialog";
 import ToggleConnectedButton from "./ToggleConnectedButton";
 
 const TerraWalletKey = () => {
-  const { connect, disconnect, connected, wallet, providerError } =
-    useTerraWallet();
-  const pk =
-    (wallet &&
-      wallet.wallets &&
-      wallet.wallets.length > 0 &&
-      wallet.wallets[0].terraAddress) ||
-    "";
+  const wallet = useWallet();
+  const connectedWallet = useConnectedWallet();
+
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+  const connect = useCallback(() => {
+    setIsDialogOpen(true);
+  }, [setIsDialogOpen]);
+
+  const closeDialog = useCallback(() => {
+    setIsDialogOpen(false);
+  }, [setIsDialogOpen]);
+
   return (
     <>
       <ToggleConnectedButton
         connect={connect}
-        disconnect={disconnect}
-        connected={connected}
-        pk={pk}
+        disconnect={wallet.disconnect}
+        connected={!!connectedWallet}
+        pk={connectedWallet?.terraAddress || ""}
       />
-      {providerError ? (
-        <Typography variant="body2" color="error">
-          {providerError}
-        </Typography>
-      ) : null}
+      <TerraConnectWalletDialog isOpen={isDialogOpen} onClose={closeDialog} />
     </>
   );
 };
