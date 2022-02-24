@@ -29,7 +29,7 @@ import SolanaWalletKey from "../SolanaWalletKey";
 
 const useStyles = makeStyles(() => ({
   mainPaper: {
-    backgroundColor: COLORS.nearBlackWithMinorTransparency,
+    backgroundColor: COLORS.whiteWithTransparency,
     textAlign: "center",
     padding: "2rem",
     "& > h, p ": {

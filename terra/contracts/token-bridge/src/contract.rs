@@ -121,27 +121,8 @@ const CHAIN_ID: u16 = 3;
 const WRAPPED_ASSET_UPDATING: &str = "updating";
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Response> {
-    let bucket = wrapped_asset_address(deps.storage);
-    let mut messages = vec![];
-    for item in bucket.range(None, None, Order::Ascending) {
-        let contract_address = item?.0;
-        messages.push(CosmosMsg::Wasm(WasmMsg::Migrate {
-            contract_addr: deps
-                .api
-                .addr_humanize(&contract_address.into())?
-                .to_string(),
-            new_code_id: 767,
-            msg: to_binary(&MigrateMsg {})?,
-        }));
-    }
-
-    let count = messages.len();
-
-    Ok(Response::new()
-        .add_messages(messages)
-        .add_attribute("migrate", "upgrade cw20 wrappers")
-        .add_attribute("count", count.to_string()))
+pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Response> {
+    Ok(Response::new())
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -169,7 +150,12 @@ pub fn instantiate(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn reply(deps: DepsMut, env: Env, _msg: Reply) -> StdResult<Response> {
     let cfg = config_read(deps.storage).load()?;
+
     let state = wrapped_transfer_tmp(deps.storage).load()?;
+    // NOTE: Reentrancy protection. See note in `handle_initiate_transfer_token`
+    // for why this is necessary.
+    wrapped_transfer_tmp(deps.storage).remove();
+
     let mut info = TransferInfo::deserialize(&state.message)?;
 
     // Fetch CW20 Balance post-transfer.
@@ -295,19 +281,21 @@ fn withdraw_tokens(
     let mut messages: Vec<CosmosMsg> = vec![];
     if let AssetInfo::NativeToken { denom } = data {
         let deposit_key = format!("{}:{}", info.sender, denom);
+        let mut deposited_amount: u128 = 0;
         bridge_deposit(deps.storage).update(
             deposit_key.as_bytes(),
             |current: Option<Uint128>| match current {
                 Some(v) => {
-                    messages.push(CosmosMsg::Bank(BankMsg::Send {
-                        to_address: info.sender.to_string(),
-                        amount: vec![coin(v.u128(), &denom)],
-                    }));
+                    deposited_amount = v.u128();
                     Ok(Uint128::new(0))
                 }
                 None => Err(StdError::generic_err("no deposit found to withdraw")),
             },
         )?;
+        messages.push(CosmosMsg::Bank(BankMsg::Send {
+            to_address: info.sender.to_string(),
+            amount: coins_after_tax(deps, vec![coin(deposited_amount, &denom)])?,
+        }));
     }
 
     Ok(Response::new()
@@ -379,8 +367,8 @@ fn handle_attest_meta(
         CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: contract,
             msg: to_binary(&WrappedMsg::UpdateMetadata {
-                name: get_string_from_32(&meta.name)?,
-                symbol: get_string_from_32(&meta.symbol)?,
+                name: get_string_from_32(&meta.name),
+                symbol: get_string_from_32(&meta.symbol),
             })?,
             funds: vec![],
         })
@@ -390,8 +378,8 @@ fn handle_attest_meta(
             admin: Some(env.contract.address.clone().into_string()),
             code_id: cfg.wrapped_asset_code_id,
             msg: to_binary(&WrappedInit {
-                name: get_string_from_32(&meta.name)?,
-                symbol: get_string_from_32(&meta.symbol)?,
+                name: get_string_from_32(&meta.name),
+                symbol: get_string_from_32(&meta.symbol),
                 asset_chain: meta.token_chain,
                 asset_address: meta.token_address.to_vec().into(),
                 decimals: min(meta.decimals, 8u8),
@@ -559,7 +547,7 @@ fn submit_vaa(
 
 fn handle_governance_payload(deps: DepsMut, env: Env, data: &Vec<u8>) -> StdResult<Response> {
     let gov_packet = GovernancePacket::deserialize(&data)?;
-    let module = get_string_from_32(&gov_packet.module)?;
+    let module = get_string_from_32(&gov_packet.module);
 
     if module != "TokenBridge" {
         return Err(StdError::generic_err("this is not a valid module"));
@@ -1010,6 +998,15 @@ fn handle_initiate_transfer_token(
                     })?,
                 }))?;
 
+            // NOTE: Reentrancy protection. It is crucial that there's no
+            // ongoing transfer in progress here, otherwise we would override
+            // its state.  This could happen if the asset's TransferFrom handler
+            // sends us an InitiateTransfer message, which would be executed
+            // before the reply handler due the the depth-first semantics of
+            // message execution.  A simple protection mechanism is to require
+            // that there's no execution in progress. The reply handler takes
+            // care of clearing out this temporary storage when done.
+            assert!(wrapped_transfer_tmp(deps.storage).load().is_err());
             // Wrap up state to be captured by the submessage reply.
             wrapped_transfer_tmp(deps.storage).save(&TransferState {
                 previous_balance: balance.balance.to_string(),

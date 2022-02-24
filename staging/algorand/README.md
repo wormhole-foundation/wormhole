@@ -7,7 +7,7 @@ This service comprises on-chain and off-chain components and tools. The purpose 
 
 The current implementation is a Wormhole client that uses the JS SDK to get VAAs from Pyth network and feed the payload and cryptographic verification data to a transaction group for validation. Subsequently, the data is optionally processed and stored, either price or metrics. For details regarding Wormhole VAAs see design documents: 
 
-  https://github.com/certusone/wormhole/tree/dev.v2/design
+  https://github.com/certusone/wormhole/tree/dev.v2/whitepapers
 
 ## System Overview
 
@@ -80,10 +80,10 @@ For the stateful app-calls we consider,
 **VAA Structure**
 
 VAA structure is defined in: 
- https://github.com/certusone/wormhole/blob/dev.v2/design/0001_generic_message_passing.md
+ https://github.com/certusone/wormhole/blob/dev.v2/whitepapers/0001_generic_message_passing.md
 
  Governance VAAs:
- https://github.com/certusone/wormhole/blob/dev.v2/design/0002_governance_messaging.md
+ https://github.com/certusone/wormhole/blob/dev.v2/whitepapers/0002_governance_messaging.md
 
  Sample Ethereum Struct Reference: 
  https://github.com/certusone/wormhole/blob/dev.v2/ethereum/contracts/Structs.sol

@@ -10,7 +10,4 @@ done
 
 sleep 2
 
-npm ci && node deploy.js
-
-echo "Going to sleep, interrupt if running manually"
-sleep infinity
+node deploy.js

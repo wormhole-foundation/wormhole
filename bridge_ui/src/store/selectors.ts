@@ -89,6 +89,18 @@ export const selectNFTSourceError = (state: RootState): string | undefined => {
     // TODO: more advanced NFT check - also check supply and uri
     return "For non-NFTs, use the Transfer flow";
   }
+  if (
+    state.nft.sourceParsedTokenAccount?.uri === null ||
+    state.nft.sourceParsedTokenAccount?.uri === undefined
+  ) {
+    return "Failed to load NFT Metadata.";
+  }
+  if (
+    state.nft.sourceParsedTokenAccount?.uri &&
+    state.nft.sourceParsedTokenAccount?.uri.length > 200
+  ) {
+    return "This NFT has a URL longer than the maximum supported length of 200.";
+  }
   try {
     // these may trigger error: fractional component exceeds decimals
     if (
@@ -294,4 +306,8 @@ export const selectTerraTokenMap = (state: RootState) => {
 
 export const selectMarketsMap = (state: RootState) => {
   return state.tokens.marketsMap;
+};
+
+export const selectTerraFeeDenom = (state: RootState) => {
+  return state.fee.terraFeeDenom;
 };

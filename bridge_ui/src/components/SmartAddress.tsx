@@ -7,6 +7,7 @@ import {
   CHAIN_ID_POLYGON,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
+  CHAIN_ID_OASIS,
   isNativeDenom,
 } from "@certusone/wormhole-sdk";
 import { Button, makeStyles, Tooltip, Typography } from "@material-ui/core";
@@ -115,6 +116,10 @@ export default function SmartAddress({
     ? `https://${
         CLUSTER === "testnet" ? "testnet." : ""
       }snowtrace.io/address/${useableAddress}`
+    : chainId === CHAIN_ID_OASIS
+    ? `https://${
+        CLUSTER === "testnet" ? "testnet." : ""
+      }explorer.emerald.oasis.dev/address/${useableAddress}`
     : chainId === CHAIN_ID_SOLANA
     ? `https://explorer.solana.com/address/${useableAddress}${
         CLUSTER === "testnet"
@@ -140,7 +145,7 @@ export default function SmartAddress({
     <Button
       size="small"
       variant="outlined"
-      endIcon={<OpenInNew />}
+      startIcon={<OpenInNew />}
       className={classes.buttons}
       href={explorerAddress}
       target="_blank"
@@ -154,7 +159,7 @@ export default function SmartAddress({
     <Button
       size="small"
       variant="outlined"
-      endIcon={<FileCopy />}
+      startIcon={<FileCopy />}
       onClick={copyToClipboard}
       className={classes.buttons}
     >

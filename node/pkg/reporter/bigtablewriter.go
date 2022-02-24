@@ -28,7 +28,7 @@ type bigTableWriter struct {
 }
 
 // rowKey returns a string with the input vales delimited by colons.
-func makeRowKey(emitterChain vaa.ChainID, emitterAddress vaa.Address, sequence uint64) string {
+func MakeRowKey(emitterChain vaa.ChainID, emitterAddress vaa.Address, sequence uint64) string {
 	// left-pad the sequence with zeros to 16 characters, because bigtable keys are stored lexicographically
 	return fmt.Sprintf("%d:%s:%016d", emitterChain, emitterAddress, sequence)
 }
@@ -55,11 +55,18 @@ func BigTableWriter(events *AttestationEventReporter, connectionConfig *BigTable
 		}
 		tbl := client.Open(e.connectionConfig.TableName)
 
-		pubsubClient, err := pubsub.NewClient(ctx, e.connectionConfig.GcpProjectID)
+		pubsubClient, err := pubsub.NewClient(ctx,
+			e.connectionConfig.GcpProjectID,
+			option.WithCredentialsFile(e.connectionConfig.GcpKeyFilePath))
 		if err != nil {
-			return fmt.Errorf("failed to create PubSub client: %w", err)
+			logger.Error("failed to create GCP PubSub client", zap.Error(err))
+			return fmt.Errorf("failed to create GCP PubSub client: %w", err)
 		}
+		logger.Info("GCP PubSub.NewClient initialized")
+
 		pubsubTopic := pubsubClient.Topic(e.connectionConfig.TopicName)
+		logger.Info("GCP PubSub.Topic initialized",
+			zap.String("Topic", e.connectionConfig.TopicName))
 		// call to subscribe to event channels
 		sub := e.events.Subscribe()
 		logger.Info("subscribed to AttestationEvents")
@@ -92,10 +99,10 @@ func BigTableWriter(events *AttestationEventReporter, connectionConfig *BigTable
 						bigtable.ColumnFilter("EmitterAddress"))
 					conditionalMutation := bigtable.NewCondMutation(filter, nil, mutation)
 
-					rowKey := makeRowKey(msg.VAA.EmitterChain, msg.VAA.EmitterAddress, msg.VAA.Sequence)
+					rowKey := MakeRowKey(msg.VAA.EmitterChain, msg.VAA.EmitterAddress, msg.VAA.Sequence)
 					err := tbl.Apply(ctx, rowKey, conditionalMutation)
 					if err != nil {
-						logger.Warn("Failed to write message publication to BigTable",
+						logger.Error("Failed to write message publication to BigTable",
 							zap.String("rowKey", rowKey),
 							zap.String("columnFamily", colFam),
 							zap.Error(err))
@@ -105,7 +112,6 @@ func BigTableWriter(events *AttestationEventReporter, connectionConfig *BigTable
 					colFam := "QuorumState"
 					mutation := bigtable.NewMutation()
 					ts := bigtable.Now()
-					// TODO - record signed VAAs from gossip messages.
 
 					b, marshalErr := msg.Marshal()
 					if marshalErr != nil {
@@ -119,18 +125,23 @@ func BigTableWriter(events *AttestationEventReporter, connectionConfig *BigTable
 						bigtable.ColumnFilter("SignedVAA"))
 					conditionalMutation := bigtable.NewCondMutation(filter, nil, mutation)
 
-					rowKey := makeRowKey(msg.EmitterChain, msg.EmitterAddress, msg.Sequence)
+					rowKey := MakeRowKey(msg.EmitterChain, msg.EmitterAddress, msg.Sequence)
 					err := tbl.Apply(ctx, rowKey, conditionalMutation)
 					if err != nil {
-						logger.Warn("Failed to write persistence info to BigTable",
+						logger.Error("Failed to write persistence info to BigTable",
 							zap.String("rowKey", rowKey),
 							zap.String("columnFamily", colFam),
 							zap.Error(err))
 						errC <- err
 					}
-					pubsubTopic.Publish(ctx, &pubsub.Message{
+					publishResult := pubsubTopic.Publish(ctx, &pubsub.Message{
 						Data: []byte(b),
 					})
+					if _, err = publishResult.Get(ctx); err != nil {
+						logger.Error("Failed getting GCP PubSub publish reciept",
+							zap.String("rowKey", rowKey),
+							zap.Error(err))
+					}
 				}
 			}
 		}()
@@ -142,7 +153,7 @@ func BigTableWriter(events *AttestationEventReporter, connectionConfig *BigTable
 				logger.Error("Could not close BigTable client", zap.Error(err))
 			}
 			if pubsubErr := pubsubClient.Close(); pubsubErr != nil {
-				logger.Error("Could not close PubSub client", zap.Error(pubsubErr))
+				logger.Error("Could not close GCP PubSub client", zap.Error(pubsubErr))
 			}
 			return ctx.Err()
 		case err := <-errC:
@@ -155,7 +166,7 @@ func BigTableWriter(events *AttestationEventReporter, connectionConfig *BigTable
 				logger.Error("Could not close BigTable client", zap.Error(closeErr))
 			}
 			if pubsubErr := pubsubClient.Close(); pubsubErr != nil {
-				logger.Error("Could not close PubSub client", zap.Error(pubsubErr))
+				logger.Error("Could not close GCP PubSub client", zap.Error(pubsubErr))
 			}
 
 			return err

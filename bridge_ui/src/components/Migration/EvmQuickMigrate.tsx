@@ -21,6 +21,7 @@ import { COLORS } from "../../muiTheme";
 import { CHAINS_BY_ID, getMigrationAssetMap } from "../../utils/consts";
 import ButtonWithLoader from "../ButtonWithLoader";
 import EthereumSignerKey from "../EthereumSignerKey";
+import HeaderText from "../HeaderText";
 import ShowTx from "../ShowTx";
 import SmartAddress from "../SmartAddress";
 
@@ -45,7 +46,7 @@ const useStyles = makeStyles((theme) => ({
     flewGrow: 1,
   },
   mainPaper: {
-    backgroundColor: COLORS.nearBlackWithMinorTransparency,
+    backgroundColor: COLORS.whiteWithTransparency,
     textAlign: "center",
     padding: "2rem",
     "& > h, p ": {
@@ -376,6 +377,12 @@ export default function EvmQuickMigrate({ chainId }: { chainId: ChainId }) {
 
   return (
     <Container maxWidth="md">
+      <HeaderText
+        white
+        subtitle="Convert assets from other bridges to Wormhole V2 tokens"
+      >
+        Migrate Assets
+      </HeaderText>
       <Paper className={classes.mainPaper}>{content}</Paper>
     </Container>
   );

@@ -30,7 +30,6 @@ const useStyles = makeStyles((theme) => ({
 
 const BackgroundImage = () => {
   const classes = useStyles();
-  // const isHomepage = useRouteMatch({ path: "/", exact: true });
 
   return (
     <div className={classes.holeOuterContainer}>

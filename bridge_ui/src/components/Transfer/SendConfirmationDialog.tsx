@@ -1,4 +1,4 @@
-import { isEVMChain } from "@certusone/wormhole-sdk";
+import { CHAIN_ID_SOLANA, isEVMChain } from "@certusone/wormhole-sdk";
 import {
   Button,
   Dialog,
@@ -17,6 +17,7 @@ import {
 } from "../../store/selectors";
 import { CHAINS_BY_ID, MULTI_CHAIN_TOKENS } from "../../utils/consts";
 import SmartAddress from "../SmartAddress";
+import SolanaTPSWarning from "../SolanaTPSWarning";
 import { useTargetInfo } from "./Target";
 import TokenWarning from "./TokenWarning";
 
@@ -124,6 +125,7 @@ function SendConfirmationContent({
           targetAsset={targetAsset ?? undefined}
           targetChain={targetChain}
         />
+        {sourceChain === CHAIN_ID_SOLANA && <SolanaTPSWarning />}
       </DialogContent>
       <DialogActions>
         <Button variant="outlined" onClick={onClose}>

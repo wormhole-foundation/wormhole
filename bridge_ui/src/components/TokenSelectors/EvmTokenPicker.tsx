@@ -142,11 +142,11 @@ export default function EvmTokenPicker(
       }
       let v1 = false;
       try {
-        v1 = await isWormholev1(provider, account.publicKey, chainId);
+        v1 = await isWormholev1(provider, account.mintKey, chainId);
       } catch (e) {
         //For now, just swallow this one.
       }
-      const migration = isMigrationEligible(account.publicKey);
+      const migration = isMigrationEligible(account.mintKey);
       if (v1 === true && !migration) {
         throw new Error(
           "Wormhole v1 assets cannot be transferred with this bridge."

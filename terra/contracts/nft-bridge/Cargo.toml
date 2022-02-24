@@ -1,0 +1,30 @@
+[package]
+name = "nft-bridge"
+version = "0.1.0"
+edition = "2018"
+description = "Wormhole NFT bridge"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+backtraces = ["cosmwasm-std/backtraces"]
+# use library feature to disable all init/handle/query exports
+library = []
+
+[dependencies]
+cosmwasm-std = { version = "0.16.0" }
+cosmwasm-storage = { version = "0.16.0" }
+schemars = "0.8.1"
+serde = { version = "1.0.103", default-features = false, features = ["derive"] }
+cw721-wrapped = { path = "../cw721-wrapped", features = ["library"] }
+cw721-base = { path = "../../contracts/cw721-base", version = "0.10.0", features = ["library"] }
+cw721 = { path = "../../packages/cw721" }
+wormhole-bridge-terra = { path = "../wormhole", features = ["library"] }
+sha3 = { version = "0.9.1", default-features = false }
+hex = "0.4.2"
+bigint = "4"
+
+[dev-dependencies]
+cosmwasm-vm = { version = "0.16.0", default-features = false }
+serde_json = "1.0"

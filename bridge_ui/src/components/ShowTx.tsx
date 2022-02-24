@@ -7,6 +7,7 @@ import {
   CHAIN_ID_POLYGON,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
+  CHAIN_ID_OASIS,
 } from "@certusone/wormhole-sdk";
 import { Button, makeStyles, Typography } from "@material-ui/core";
 import { Transaction } from "../store/transferSlice";
@@ -56,6 +57,10 @@ export default function ShowTx({
       ? `https://${CLUSTER === "testnet" ? "testnet." : ""}snowtrace.io/tx/${
           tx?.id
         }`
+      : chainId === CHAIN_ID_OASIS
+      ? `https://${
+          CLUSTER === "testnet" ? "testnet." : ""
+        }explorer.emerald.oasis.dev/tx/${tx?.id}`
       : chainId === CHAIN_ID_SOLANA
       ? `https://explorer.solana.com/tx/${tx?.id}${
           CLUSTER === "testnet"

@@ -9,6 +9,7 @@ message GossipMessage {
     SignedObservation signed_observation = 2;
     SignedHeartbeat signed_heartbeat = 3;
     SignedVAAWithQuorum signed_vaa_with_quorum = 4;
+    SignedObservationRequest signed_observation_request = 5;
   }
 }
 
@@ -89,4 +90,24 @@ message SignedObservation {
 // network to allow nodes to persist them even if they failed to observe the signature.
 message SignedVAAWithQuorum {
   bytes vaa = 1;
+}
+
+// Any guardian can send a SignedObservationRequest to the network to request
+// all guardians to re-observe a given transaction. This is rate-limited to one
+// request per second per guardian to prevent abuse.
+//
+// In the current implementation, this is only implemented for Solana.
+// For Solana, the tx_hash is the account address of the transaction's message account.
+message SignedObservationRequest {
+  // Serialized observation request.
+  bytes observation_request = 1;
+
+  // Signature
+  bytes signature = 2;
+  bytes guardian_addr = 3;
+}
+
+message ObservationRequest {
+  uint32 chain_id = 1;
+  bytes tx_hash = 2;
 }

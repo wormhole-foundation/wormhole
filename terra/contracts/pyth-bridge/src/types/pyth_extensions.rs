@@ -1,7 +1,11 @@
 //! This module contains 1:1 (or close) copies of selected Pyth types
 //! with quick and dirty enhancements.
 
-use std::{convert::TryInto, io::Read, mem};
+use std::{
+    convert::TryInto,
+    io::Read,
+    mem,
+};
 
 use pyth_client::{
     CorpAction,
@@ -80,7 +84,9 @@ impl From<&CorpAction> for P2WCorpAction {
 }
 
 /// 1:1 Copy of pyth_client::Ema with all-pub fields.
-#[derive(Clone, Default, Debug, Eq, PartialEq, serde_derive::Serialize, serde_derive::Deserialize)]
+#[derive(
+    Clone, Default, Debug, Eq, PartialEq, serde_derive::Serialize, serde_derive::Deserialize,
+)]
 #[repr(C)]
 pub struct P2WEma {
     pub val: i64,

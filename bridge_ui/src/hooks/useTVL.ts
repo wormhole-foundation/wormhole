@@ -1,5 +1,6 @@
 import {
   ChainId,
+  CHAIN_ID_AVAX,
   CHAIN_ID_BSC,
   CHAIN_ID_ETH,
   CHAIN_ID_POLYGON,
@@ -19,6 +20,7 @@ import axios from "axios";
 import { useEffect, useMemo, useState } from "react";
 import { DataWrapper } from "../store/helpers";
 import {
+  AVAX_TOKEN_BRIDGE_ADDRESS,
   BSC_TOKEN_BRIDGE_ADDRESS,
   CHAINS_BY_ID,
   COVALENT_GET_TOKENS_URL,
@@ -58,8 +60,10 @@ const BAD_PRICES_BY_CHAIN = {
     "0x04132bf45511d03a58afd4f1d36a29d229ccc574",
     "0xa79bd679ce21a2418be9e6f88b2186c9986bbe7d",
     "0x931c3987040c90b6db09981c7c91ba155d3fa31f",
+    "0x8fb1a59ca2d57b51e5971a85277efe72c4492983",
   ],
-  [CHAIN_ID_ETH]: ["0x3845badade8e6dff049820680d1f14bd3903a5d0"],
+  [CHAIN_ID_ETH]: [],
+  [CHAIN_ID_POLYGON]: ["0xd52d9ba6fcbadb1fe1e3aca52cbb72c4d9bbb4ec"],
 };
 
 const calcEvmTVL = (covalentReport: any, chainId: ChainId): TVL[] => {
@@ -299,6 +303,10 @@ const useTVL = (): DataWrapper<TVL[]> => {
     useState(false);
   const [polygonCovalentError, setPolygonCovalentError] = useState("");
 
+  const [avaxCovalentData, setAvaxCovalentData] = useState(undefined);
+  const [avaxCovalentIsLoading, setAvaxCovalentIsLoading] = useState(false);
+  const [avaxCovalentError, setAvaxCovalentError] = useState("");
+
   const [solanaCustodyTokens, setSolanaCustodyTokens] = useState<
     { pubkey: PublicKey; account: AccountInfo<ParsedAccountData> }[] | undefined
   >(undefined);
@@ -337,6 +345,10 @@ const useTVL = (): DataWrapper<TVL[]> => {
   const polygonTVL = useMemo(
     () => calcEvmTVL(polygonCovalentData, CHAIN_ID_POLYGON),
     [polygonCovalentData]
+  );
+  const avaxTVL = useMemo(
+    () => calcEvmTVL(avaxCovalentData, CHAIN_ID_AVAX),
+    [avaxCovalentData]
   );
 
   useEffect(() => {
@@ -414,6 +426,29 @@ const useTVL = (): DataWrapper<TVL[]> => {
 
   useEffect(() => {
     let cancelled = false;
+    setAvaxCovalentIsLoading(true);
+    axios
+      .get(
+        COVALENT_GET_TOKENS_URL(CHAIN_ID_AVAX, AVAX_TOKEN_BRIDGE_ADDRESS, false)
+      )
+      .then(
+        (results) => {
+          if (!cancelled) {
+            setAvaxCovalentData(results.data);
+            setAvaxCovalentIsLoading(false);
+          }
+        },
+        (error) => {
+          if (!cancelled) {
+            setAvaxCovalentError("Unable to retrieve Avax TVL.");
+            setAvaxCovalentIsLoading(false);
+          }
+        }
+      );
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
     const connection = new Connection(SOLANA_HOST, "confirmed");
     setSolanaCustodyTokensLoading(true);
     connection
@@ -443,6 +478,7 @@ const useTVL = (): DataWrapper<TVL[]> => {
       ...ethTVL,
       ...bscTVL,
       ...polygonTVL,
+      ...avaxTVL,
       ...solanaTVL,
       ...terraTVL,
     ];
@@ -452,12 +488,14 @@ const useTVL = (): DataWrapper<TVL[]> => {
         ethCovalentIsLoading ||
         bscCovalentIsLoading ||
         polygonCovalentIsLoading ||
+        avaxCovalentIsLoading ||
         solanaCustodyTokensLoading ||
         isTerraLoading,
       error:
         ethCovalentError ||
         bscCovalentError ||
         polygonCovalentError ||
+        avaxCovalentError ||
         solanaCustodyTokensError,
       receivedAt: null,
       data: tvlArray,
@@ -470,6 +508,9 @@ const useTVL = (): DataWrapper<TVL[]> => {
     polygonCovalentError,
     polygonCovalentIsLoading,
     polygonTVL,
+    avaxCovalentError,
+    avaxCovalentIsLoading,
+    avaxTVL,
     ethTVL,
     bscTVL,
     solanaTVL,

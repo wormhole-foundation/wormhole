@@ -28,6 +28,7 @@ type SolanaWatcher struct {
 	rpcUrl       string
 	commitment   rpc.CommitmentType
 	messageEvent chan *common.MessagePublication
+	obsvReqC     chan *gossipv1.ObservationRequest
 	rpcClient    *rpc.Client
 }
 
@@ -62,7 +63,7 @@ var (
 const rpcTimeout = time.Second * 5
 
 // Maximum retries for Solana fetching
-const maxRetries = 5
+const maxRetries = 10
 const retryDelay = 5 * time.Second
 
 type ConsistencyLevel uint8
@@ -101,11 +102,13 @@ func NewSolanaWatcher(
 	wsUrl, rpcUrl string,
 	contractAddress solana.PublicKey,
 	messageEvents chan *common.MessagePublication,
+	obsvReqC chan *gossipv1.ObservationRequest,
 	commitment rpc.CommitmentType) *SolanaWatcher {
 	return &SolanaWatcher{
 		contract: contractAddress,
 		wsUrl:    wsUrl, rpcUrl: rpcUrl,
 		messageEvent: messageEvents,
+		obsvReqC:     obsvReqC,
 		commitment:   commitment,
 		rpcClient:    rpc.New(rpcUrl),
 	}
@@ -126,41 +129,27 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 		timer := time.NewTicker(time.Second * 1)
 		defer timer.Stop()
 
-		var recovery <-chan time.Time
-		date := recoveryDate.Sub(time.Now().UTC())
-		if date >= 0 && s.commitment == rpc.CommitmentFinalized {
-			logger.Info("waiting for scheduled recovery", zap.Duration("until", date))
-			recovery = time.NewTimer(date).C
-		} else {
-			recovery = make(<-chan time.Time)
-		}
-
 		for {
 			select {
 			case <-ctx.Done():
 				return
-			case <-recovery:
-				logger.Info("executing scheduled recovery")
+			case m := <-s.obsvReqC:
+				if m.ChainId != uint32(vaa.ChainIDSolana) {
+					panic("unexpected chain id")
+				}
+
+				acc := solana.PublicKeyFromBytes(m.TxHash)
+				logger.Info("received observation request", zap.String("account", acc.String()))
 
 				rCtx, cancel := context.WithTimeout(ctx, rpcTimeout)
-				defer cancel()
-
-				accs, err := fetchRecoveryConfig()
-				if err != nil {
-					logger.Error("failed to fetch recovery config", zap.Error(err))
-				}
-
-				logger.Info("fetched recovery accounts", zap.Strings("accounts", accs))
-
-				for _, acc := range accs {
-					s.fetchMessageAccount(rCtx, logger, solana.MustPublicKeyFromBase58(acc), 0)
-				}
+				s.fetchMessageAccount(rCtx, logger, acc, 0)
+				cancel()
 			case <-timer.C:
 				// Get current slot height
 				rCtx, cancel := context.WithTimeout(ctx, rpcTimeout)
-				defer cancel()
 				start := time.Now()
 				slot, err := s.rpcClient.GetSlot(rCtx, s.commitment)
+				cancel()
 				queryLatency.WithLabelValues("get_slot", string(s.commitment)).Observe(time.Since(start).Seconds())
 				if err != nil {
 					p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDSolana, 1)
@@ -310,6 +299,14 @@ OUTER:
 			continue
 		}
 
+		if tx.Meta.Err != nil {
+			logger.Debug("skipping failed Wormhole transaction",
+				zap.Stringer("signature", signature),
+				zap.Uint64("slot", slot),
+				zap.String("commitment", string(s.commitment)))
+			continue
+		}
+
 		logger.Info("found Wormhole transaction",
 			zap.Stringer("signature", signature),
 			zap.Uint64("slot", slot),
@@ -335,12 +332,12 @@ OUTER:
 
 		// Call GetConfirmedTransaction to get at innerTransactions
 		rCtx, cancel := context.WithTimeout(ctx, rpcTimeout)
-		defer cancel()
 		start := time.Now()
 		tr, err := s.rpcClient.GetConfirmedTransactionWithOpts(rCtx, signature, &rpc.GetTransactionOpts{
 			Encoding:   "json",
 			Commitment: s.commitment,
 		})
+		cancel()
 		queryLatency.WithLabelValues("get_confirmed_transaction", string(s.commitment)).Observe(time.Since(start).Seconds())
 		if err != nil {
 			p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDSolana, 1)

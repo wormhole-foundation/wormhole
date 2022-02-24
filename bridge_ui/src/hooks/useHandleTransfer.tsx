@@ -32,6 +32,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { useEthereumProvider } from "../contexts/EthereumProviderContext";
 import { useSolanaWallet } from "../contexts/SolanaWalletContext";
 import {
+  selectTerraFeeDenom,
   selectTransferAmount,
   selectTransferIsSendComplete,
   selectTransferIsSending,
@@ -216,7 +217,8 @@ async function terra(
   amount: string,
   decimals: number,
   targetChain: ChainId,
-  targetAddress: Uint8Array
+  targetAddress: Uint8Array,
+  feeDenom: string
 ) {
   dispatch(setIsSending(true));
   try {
@@ -233,7 +235,8 @@ async function terra(
     const result = await postWithFees(
       wallet,
       msgs,
-      "Wormhole - Initiate Transfer"
+      "Wormhole - Initiate Transfer",
+      [feeDenom]
     );
 
     const info = await waitForTerraExecution(result);
@@ -286,6 +289,7 @@ export function useHandleTransfer() {
   const solanaWallet = useSolanaWallet();
   const solPK = solanaWallet?.publicKey;
   const terraWallet = useConnectedWallet();
+  const terraFeeDenom = useSelector(selectTerraFeeDenom);
   const sourceParsedTokenAccount = useSelector(
     selectTransferSourceParsedTokenAccount
   );
@@ -353,7 +357,8 @@ export function useHandleTransfer() {
         amount,
         decimals,
         targetChain,
-        targetAddress
+        targetAddress,
+        terraFeeDenom
       );
     } else {
     }
@@ -374,6 +379,7 @@ export function useHandleTransfer() {
     originAsset,
     originChain,
     isNative,
+    terraFeeDenom,
   ]);
   return useMemo(
     () => ({

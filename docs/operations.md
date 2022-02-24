@@ -185,12 +185,12 @@ alerting will be documented here.
 
 See [Wormhole.json](../dashboards/Wormhole.json) for an example Grafana dashboard.
 
-**NOTE:** Parsing the log output for monitoring is NOT recommended. Log output is meant for human consumption and are
+**NOTE:** Parsing the log output for monitoring is NOT recommended. Log output is meant for human consumption and is
 not considered a stable API. Log messages may be added, modified or removed without notice. Use the metrics :-)
 
 ## Running a public API endpoint
 
-Wormhole v2 no longer uses Solana as a data availability layer (see [design document](../design/0005_data_availability.md)).
+Wormhole v2 no longer uses Solana as a data availability layer (see [design document](../whitepapers/0005_data_availability.md)).
 Instead, it relies on Guardian nodes exposing an API which web wallets and other clients can use to retrieve the signed VAA
 message for a given transaction.
 

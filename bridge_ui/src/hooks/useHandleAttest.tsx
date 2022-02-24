@@ -38,6 +38,7 @@ import {
   selectAttestIsTargetComplete,
   selectAttestSourceAsset,
   selectAttestSourceChain,
+  selectTerraFeeDenom,
 } from "../store/selectors";
 import {
   getBridgeAddressForChain,
@@ -156,7 +157,8 @@ async function terra(
   dispatch: any,
   enqueueSnackbar: any,
   wallet: ConnectedWallet,
-  asset: string
+  asset: string,
+  feeDenom: string
 ) {
   dispatch(setIsSending(true));
   try {
@@ -165,7 +167,9 @@ async function terra(
       wallet.terraAddress,
       asset
     );
-    const result = await postWithFees(wallet, [msg], "Create Wrapped");
+    const result = await postWithFees(wallet, [msg], "Create Wrapped", [
+      feeDenom,
+    ]);
     const info = await waitForTerraExecution(result);
     dispatch(setAttestTx({ id: info.txhash, block: info.height }));
     enqueueSnackbar(null, {
@@ -211,6 +215,7 @@ export function useHandleAttest() {
   const solanaWallet = useSolanaWallet();
   const solPK = solanaWallet?.publicKey;
   const terraWallet = useConnectedWallet();
+  const terraFeeDenom = useSelector(selectTerraFeeDenom);
   const disabled = !isTargetComplete || isSending || isSendComplete;
   const handleAttestClick = useCallback(() => {
     if (isEVMChain(sourceChain) && !!signer) {
@@ -218,7 +223,7 @@ export function useHandleAttest() {
     } else if (sourceChain === CHAIN_ID_SOLANA && !!solanaWallet && !!solPK) {
       solana(dispatch, enqueueSnackbar, solPK, sourceAsset, solanaWallet);
     } else if (sourceChain === CHAIN_ID_TERRA && !!terraWallet) {
-      terra(dispatch, enqueueSnackbar, terraWallet, sourceAsset);
+      terra(dispatch, enqueueSnackbar, terraWallet, sourceAsset, terraFeeDenom);
     } else {
     }
   }, [
@@ -230,6 +235,7 @@ export function useHandleAttest() {
     solPK,
     terraWallet,
     sourceAsset,
+    terraFeeDenom,
   ]);
   return useMemo(
     () => ({

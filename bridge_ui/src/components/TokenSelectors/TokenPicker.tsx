@@ -174,7 +174,7 @@ export const BasicAccountRender = (
                 size="small"
                 variant="outlined"
                 color="secondary"
-                endIcon={<Launch />}
+                startIcon={<Launch />}
                 href={marketsData.markets[market].link}
                 target="_blank"
                 rel="noopener noreferrer"
@@ -313,11 +313,14 @@ export default function TokenPicker({
         }
         await onChange(newOption);
         closeDialog();
-      } catch (e) {
-        console.error(e);
-        setSelectionError(
-          "Unable to retrieve required information about this token. Ensure your wallet is connected, then refresh the list."
-        );
+      } catch (e: any) {
+        if (e.message?.includes("v1")) {
+          setSelectionError(e.message);
+        } else {
+          setSelectionError(
+            "Unable to retrieve required information about this token. Ensure your wallet is connected, then refresh the list."
+          );
+        }
       }
     },
     [getAddress, onChange, closeDialog]
@@ -611,7 +614,7 @@ export default function TokenPicker({
         onClick={openDialog}
         disabled={disabled}
         variant="outlined"
-        endIcon={<KeyboardArrowDownIcon />}
+        startIcon={<KeyboardArrowDownIcon />}
         className={classes.selectionButton}
       >
         {value ? (

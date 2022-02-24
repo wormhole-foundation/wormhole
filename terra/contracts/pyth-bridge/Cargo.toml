@@ -23,7 +23,7 @@ cw20 = "0.8.0"
 cw20-base = { version = "0.8.0", features = ["library"] }
 cw20-wrapped = { path = "../cw20-wrapped", features = ["library"] }
 terraswap = "2.4.0"
-wormhole = { path = "../wormhole", features = ["library"] }
+wormhole-bridge-terra = { path = "../wormhole", features = ["library"] }
 thiserror = { version = "1.0.20" }
 k256 = { version = "0.9.4", default-features = false, features = ["ecdsa"] }
 sha3 = { version = "0.9.1", default-features = false }

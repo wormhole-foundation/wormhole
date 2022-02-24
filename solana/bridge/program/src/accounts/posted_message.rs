@@ -28,7 +28,7 @@ pub type PostedMessage<'a, const State: AccountState> = Data<'a, PostedMessageDa
 #[repr(transparent)]
 pub struct PostedMessageData(pub MessageData);
 
-#[derive(Default, BorshSerialize, BorshDeserialize, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, BorshSerialize, BorshDeserialize, Clone, Serialize, Deserialize)]
 pub struct MessageData {
     /// Header of the posted VAA
     pub vaa_version: u8,

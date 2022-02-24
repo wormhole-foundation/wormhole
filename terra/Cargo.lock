@@ -264,6 +264,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "cosmwasm-schema"
+version = "1.0.0-beta4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e5de9749a4a933c34c59db83a77935a79cd705f93ae2b1cfbe40821f32751f75"
+dependencies = [
+ "schemars",
+ "serde_json",
+]
+
+[[package]]
 name = "cosmwasm-std"
 version = "0.16.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -597,6 +607,46 @@ dependencies = [
  "schemars",
  "serde",
  "thiserror",
+]
+
+[[package]]
+name = "cw721"
+version = "0.10.1"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw0",
+ "schemars",
+ "serde",
+]
+
+[[package]]
+name = "cw721-base"
+version = "0.10.1"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-storage-plus",
+ "cw0",
+ "cw2",
+ "cw721",
+ "schemars",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
+name = "cw721-wrapped"
+version = "0.10.1"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cosmwasm-storage",
+ "cw2",
+ "cw721",
+ "cw721-base",
+ "schemars",
+ "serde",
 ]
 
 [[package]]
@@ -1094,6 +1144,25 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7843ec2de400bcbc6a6328c958dc38e5359da6e93e72e37bc5246bf1ae776389"
 
 [[package]]
+name = "nft-bridge"
+version = "0.1.0"
+dependencies = [
+ "bigint",
+ "cosmwasm-std",
+ "cosmwasm-storage",
+ "cosmwasm-vm",
+ "cw721",
+ "cw721-base",
+ "cw721-wrapped",
+ "hex",
+ "schemars",
+ "serde",
+ "serde_json",
+ "sha3",
+ "wormhole-bridge-terra",
+]
+
+[[package]]
 name = "num-derive"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1263,7 +1332,7 @@ dependencies = [
  "solana-program",
  "terraswap",
  "thiserror",
- "wormhole",
+ "wormhole-bridge-terra",
 ]
 
 [[package]]
@@ -1881,7 +1950,7 @@ dependencies = [
  "sha3",
  "terraswap",
  "thiserror",
- "wormhole",
+ "wormhole-bridge-terra",
 ]
 
 [[package]]
@@ -2230,7 +2299,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
 
 [[package]]
-name = "wormhole"
+name = "wormhole-bridge-terra"
 version = "0.1.0"
 dependencies = [
  "cosmwasm-std",

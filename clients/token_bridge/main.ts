@@ -2,18 +2,18 @@ import yargs from "yargs";
 
 const {hideBin} = require('yargs/helpers')
 
-import * as bridge from "bridge";
 import * as elliptic from "elliptic";
 import * as ethers from "ethers";
-import * as token_bridge from "token-bridge";
 import * as web3s from '@solana/web3.js';
 
 import {fromUint8Array} from "js-base64";
-import {BridgeImplementation__factory} from "./src/ethers-contracts";
 import {LCDClient, MnemonicKey} from '@terra-money/terra.js';
 import {MsgExecuteContract} from "@terra-money/terra.js";
 import {PublicKey, TransactionInstruction, AccountMeta, Keypair, Connection} from "@solana/web3.js";
 import {solidityKeccak256} from "ethers/lib/utils";
+
+import {setDefaultWasm, importCoreWasm, importTokenWasm, ixFromRust, BridgeImplementation__factory} from '@certusone/wormhole-sdk'
+setDefaultWasm("node")
 
 const signAndEncodeVM = function (
     timestamp,
@@ -87,6 +87,11 @@ yargs(hideBin(process.argv))
                 type: "string",
                 required: true
             })
+            .option('guardian_secret', {
+                describe: 'Guardian\'s secret key',
+                type: "string",
+                default: "cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0"
+            })
     }, async (argv: any) => {
         let data = [
             "0x",
@@ -105,7 +110,49 @@ yargs(hideBin(process.argv))
             Math.floor(Math.random() * 100000000),
             data,
             [
-                "cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0"
+                argv.guardian_secret
+            ],
+            0,
+            0
+        );
+
+        console.log(vm)
+    })
+    .command('generate_upgrade_chain_vaa [chain_id] [contract_address]', 'create a VAA to upgrade a chain (debug-only)', (yargs) => {
+        return yargs
+            .positional('chain_id', {
+                describe: 'chain id to upgrade',
+                type: "number",
+                required: true
+            })
+            .positional('contract_address', {
+                describe: 'contract to upgrade to',
+                type: "string",
+                required: true
+            })
+            .option('guardian_secret', {
+                describe: 'Guardian\'s secret key',
+                type: "string",
+                default: "cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0"
+            })
+    }, async (argv: any) => {
+        let data = [
+            "0x",
+            "000000000000000000000000000000000000000000546f6b656e427269646765", // Token Bridge header
+            "02",
+            ethers.utils.defaultAbiCoder.encode(["uint16"], [argv.chain_id]).substring(2 + (64 - 4)),
+            ethers.utils.defaultAbiCoder.encode(["bytes32"], [argv.contract_address]).substring(2),
+        ].join('')
+
+        const vm = signAndEncodeVM(
+            1,
+            1,
+            1,
+            "0x0000000000000000000000000000000000000000000000000000000000000004",
+            Math.floor(Math.random() * 100000000),
+            data,
+            [
+               argv.guardian_secret
             ],
             0,
             0
@@ -209,6 +256,9 @@ yargs(hideBin(process.argv))
                 default: "B6RHG3mfcckmrYN1UhmJzyS1XX3fZKbkeUcpJe9Sy3FE"
             })
     }, async (argv: any) => {
+        const bridge = await importCoreWasm()
+        const token_bridge = await importTokenWasm()
+
         let connection = setupConnection(argv);
         let bridge_id = new PublicKey(argv.bridge);
         let token_bridge_id = new PublicKey(argv.token_bridge);
@@ -277,6 +327,8 @@ yargs(hideBin(process.argv))
                 default: "0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d"
             })
     }, async (argv: any) => {
+        const bridge = await importCoreWasm()
+
         let provider = new ethers.providers.JsonRpcProvider(argv.rpc)
         let signer = new ethers.Wallet(argv.key, provider)
         let t = new BridgeImplementation__factory(signer);
@@ -293,6 +345,7 @@ yargs(hideBin(process.argv))
             case 2:
                 console.log("Upgrading contract")
                 console.log("Hash: " + (await tb.upgrade(vaa)).hash)
+                console.log("Don't forget to verify the new implementation! See ethereum/VERIFY.md for instructions")
                 break
             default:
                 throw new Error("unknown governance action")
@@ -301,6 +354,8 @@ yargs(hideBin(process.argv))
     .argv;
 
 async function post_vaa(connection: Connection, bridge_id: PublicKey, payer: Keypair, vaa: Buffer) {
+    const bridge = await importCoreWasm()
+
     let bridge_state = await get_bridge_state(connection, bridge_id);
     let guardian_addr = new PublicKey(bridge.guardian_set_address(bridge_id.toString(), bridge_state.guardian_set_index));
     let acc = await connection.getAccountInfo(guardian_addr);
@@ -345,6 +400,8 @@ async function post_vaa(connection: Connection, bridge_id: PublicKey, payer: Key
 }
 
 async function get_bridge_state(connection: Connection, bridge_id: PublicKey): Promise<BridgeState> {
+    const bridge = await importCoreWasm()
+
     let bridge_state = new PublicKey(bridge.state_address(bridge_id.toString()));
     let acc = await connection.getAccountInfo(bridge_state);
     if (acc?.data === undefined) {
@@ -358,23 +415,6 @@ function setupConnection(argv: yargs.Arguments): web3s.Connection {
         argv.rpc as string,
         'confirmed',
     );
-}
-
-function ixFromRust(data: any): TransactionInstruction {
-    let keys: Array<AccountMeta> = data.accounts.map(accountMetaFromRust)
-    return new TransactionInstruction({
-        programId: new PublicKey(data.program_id),
-        data: Buffer.from(data.data),
-        keys: keys,
-    })
-}
-
-function accountMetaFromRust(meta: any): AccountMeta {
-    return {
-        pubkey: new PublicKey(meta.pubkey),
-        isSigner: meta.is_signer,
-        isWritable: meta.is_writable,
-    }
 }
 
 interface BridgeState {

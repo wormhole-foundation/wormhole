@@ -8,7 +8,7 @@ import {
   updateWrappedOnEth,
   updateWrappedOnTerra,
   updateWrappedOnSolana,
-  postVaaSolana,
+  postVaaSolanaWithRetry,
   isEVMChain,
 } from "@certusone/wormhole-sdk";
 import { WalletContextState } from "@solana/wallet-adapter-react";
@@ -28,9 +28,11 @@ import { setCreateTx, setIsCreating } from "../store/attestSlice";
 import {
   selectAttestIsCreating,
   selectAttestTargetChain,
+  selectTerraFeeDenom,
 } from "../store/selectors";
 import {
   getTokenBridgeAddressForChain,
+  MAX_VAA_UPLOAD_RETRIES_SOLANA,
   SOLANA_HOST,
   SOL_BRIDGE_ADDRESS,
   SOL_TOKEN_BRIDGE_ADDRESS,
@@ -90,12 +92,13 @@ async function solana(
       throw new Error("wallet.signTransaction is undefined");
     }
     const connection = new Connection(SOLANA_HOST, "confirmed");
-    await postVaaSolana(
+    await postVaaSolanaWithRetry(
       connection,
       wallet.signTransaction,
       SOL_BRIDGE_ADDRESS,
       payerAddress,
-      Buffer.from(signedVAA)
+      Buffer.from(signedVAA),
+      MAX_VAA_UPLOAD_RETRIES_SOLANA
     );
     const transaction = shouldUpdate
       ? await updateWrappedOnSolana(
@@ -131,7 +134,8 @@ async function terra(
   enqueueSnackbar: any,
   wallet: ConnectedWallet,
   signedVAA: Uint8Array,
-  shouldUpdate: boolean
+  shouldUpdate: boolean,
+  feeDenom: string
 ) {
   dispatch(setIsCreating(true));
   try {
@@ -149,7 +153,8 @@ async function terra(
     const result = await postWithFees(
       wallet,
       [msg],
-      "Wormhole - Create Wrapped"
+      "Wormhole - Create Wrapped",
+      [feeDenom]
     );
     dispatch(
       setCreateTx({ id: result.result.txhash, block: result.result.height })
@@ -175,6 +180,7 @@ export function useHandleCreateWrapped(shouldUpdate: boolean) {
   const isCreating = useSelector(selectAttestIsCreating);
   const { signer } = useEthereumProvider();
   const terraWallet = useConnectedWallet();
+  const terraFeeDenom = useSelector(selectTerraFeeDenom);
   const handleCreateClick = useCallback(() => {
     if (isEVMChain(targetChain) && !!signer && !!signedVAA) {
       evm(
@@ -200,7 +206,14 @@ export function useHandleCreateWrapped(shouldUpdate: boolean) {
         shouldUpdate
       );
     } else if (targetChain === CHAIN_ID_TERRA && !!terraWallet && !!signedVAA) {
-      terra(dispatch, enqueueSnackbar, terraWallet, signedVAA, shouldUpdate);
+      terra(
+        dispatch,
+        enqueueSnackbar,
+        terraWallet,
+        signedVAA,
+        shouldUpdate,
+        terraFeeDenom
+      );
     } else {
       // enqueueSnackbar(
       //   "Creating wrapped tokens on this chain is not yet supported",
@@ -219,6 +232,7 @@ export function useHandleCreateWrapped(shouldUpdate: boolean) {
     signedVAA,
     signer,
     shouldUpdate,
+    terraFeeDenom,
   ]);
   return useMemo(
     () => ({

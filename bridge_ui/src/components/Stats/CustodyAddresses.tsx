@@ -1,12 +1,14 @@
 import {
+  CHAIN_ID_AVAX,
   CHAIN_ID_BSC,
   CHAIN_ID_ETH,
   CHAIN_ID_POLYGON,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
 } from "@certusone/wormhole-sdk";
-import { makeStyles, Typography } from "@material-ui/core";
+import { makeStyles, Paper, Typography } from "@material-ui/core";
 import { useMemo } from "react";
+import { COLORS } from "../../muiTheme";
 import {
   getNFTBridgeAddressForChain,
   getTokenBridgeAddressForChain,
@@ -20,7 +22,7 @@ const useStyles = makeStyles((theme) => ({
   flexBox: {
     display: "flex",
     alignItems: "flex-end",
-    marginBottom: theme.spacing(1),
+    marginBottom: theme.spacing(4),
     textAlign: "left",
     [theme.breakpoints.down("sm")]: {
       flexDirection: "column",
@@ -31,6 +33,14 @@ const useStyles = makeStyles((theme) => ({
     flexGrow: 1,
   },
   explainerContainer: {},
+  mainPaper: {
+    backgroundColor: COLORS.whiteWithTransparency,
+    padding: "2rem",
+    "& > h, & > p ": {
+      margin: ".5rem",
+    },
+    marginBottom: theme.spacing(8),
+  },
 }));
 
 const CustodyAddresses: React.FC<any> = () => {
@@ -66,6 +76,12 @@ const CustodyAddresses: React.FC<any> = () => {
         chainId: CHAIN_ID_POLYGON,
         tokenAddress: getTokenBridgeAddressForChain(CHAIN_ID_POLYGON),
         nftAddress: getNFTBridgeAddressForChain(CHAIN_ID_POLYGON),
+      },
+      {
+        chainName: "Avalanche",
+        chainId: CHAIN_ID_AVAX,
+        tokenAddress: getTokenBridgeAddressForChain(CHAIN_ID_AVAX),
+        nftAddress: getNFTBridgeAddressForChain(CHAIN_ID_AVAX),
       },
     ];
   }, []);
@@ -109,8 +125,8 @@ const CustodyAddresses: React.FC<any> = () => {
   const header = (
     <div className={classes.flexBox}>
       <div className={classes.explainerContainer}>
-        <Typography variant="h5">Custody Addresses</Typography>
-        <Typography variant="subtitle2" color="textSecondary">
+        <Typography variant="h4">Custody Addresses</Typography>
+        <Typography variant="subtitle1" color="textSecondary">
           These are the custody addresses which hold collateralized assets for
           the token bridge.
         </Typography>
@@ -131,7 +147,7 @@ const CustodyAddresses: React.FC<any> = () => {
   return (
     <>
       {header}
-      {table}
+      <Paper className={classes.mainPaper}>{table}</Paper>
     </>
   );
 };

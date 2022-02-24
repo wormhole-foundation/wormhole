@@ -2,6 +2,7 @@ import {
   Button,
   CircularProgress,
   makeStyles,
+  Paper,
   Typography,
 } from "@material-ui/core";
 import clsx from "clsx";
@@ -9,6 +10,7 @@ import numeral from "numeral";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import useNFTTVL from "../../hooks/useNFTTVL";
 import {
+  BETA_CHAINS,
   CHAINS_WITH_NFT_SUPPORT,
   getNFTBridgeAddressForChain,
 } from "../../utils/consts";
@@ -18,6 +20,7 @@ import {
   //DENY_LIST,
   ALLOW_LIST,
 } from "./nftLists";
+import { COLORS } from "../../muiTheme";
 
 const useStyles = makeStyles((theme) => ({
   logoPositioner: {
@@ -40,7 +43,7 @@ const useStyles = makeStyles((theme) => ({
   flexBox: {
     display: "flex",
     alignItems: "flex-end",
-    marginBottom: theme.spacing(1),
+    marginBottom: theme.spacing(4),
     textAlign: "left",
     [theme.breakpoints.down("sm")]: {
       flexDirection: "column",
@@ -88,6 +91,14 @@ const useStyles = makeStyles((theme) => ({
     width: "fit-content",
     maxWidth: "100%",
   },
+  mainPaper: {
+    backgroundColor: COLORS.whiteWithTransparency,
+    padding: "2rem",
+    "& > h, & > p ": {
+      margin: ".5rem",
+    },
+    marginBottom: theme.spacing(2),
+  },
 }));
 
 const NFTStats: React.FC<any> = () => {
@@ -134,7 +145,9 @@ const NFTStats: React.FC<any> = () => {
   const data = useMemo(() => {
     const output: any[] = [];
     if (nftTVL.data && !nftTVL.isFetching) {
-      CHAINS_WITH_NFT_SUPPORT.forEach((chain) => {
+      CHAINS_WITH_NFT_SUPPORT.filter(
+        (chain) => !BETA_CHAINS.find((x) => x === chain.id)
+      ).forEach((chain) => {
         output.push({
           nfts: nftTVL?.data?.filter((x) => x.chainId === chain.id),
           chainName: chain.name,
@@ -200,8 +213,8 @@ const NFTStats: React.FC<any> = () => {
   const header = (
     <div className={classes.flexBox}>
       <div className={classes.explainerContainer}>
-        <Typography variant="h5">Total NFTs Locked</Typography>
-        <Typography variant="subtitle2" color="textSecondary">
+        <Typography variant="h4">Total NFTs Locked</Typography>
+        <Typography variant="subtitle1" color="textSecondary">
           These NFTs are currently locked by the NFT Bridge contracts.
         </Typography>
       </div>
@@ -245,9 +258,8 @@ const NFTStats: React.FC<any> = () => {
       <div className={classes.randomNftContainer}>
         <Button
           className={classes.randomButton}
-          variant="contained"
+          variant="outlined"
           onClick={genRandomNumber}
-          color="primary"
         >
           Load Random Wormhole NFT
         </Button>
@@ -263,15 +275,17 @@ const NFTStats: React.FC<any> = () => {
   return (
     <>
       {header}
-      {nftTVL.isFetching ? (
-        <CircularProgress className={classes.alignCenter} />
-      ) : (
-        <div className={classes.tableBox}>
-          <div className={classes.tableContainer}>{table}</div>
-          {randomNFTContent}
-        </div>
-      )}
-      {/* {allNfts} */}
+      <Paper className={classes.mainPaper}>
+        {nftTVL.isFetching ? (
+          <CircularProgress className={classes.alignCenter} />
+        ) : (
+          <div className={classes.tableBox}>
+            <div className={classes.tableContainer}>{table}</div>
+            {randomNFTContent}
+          </div>
+        )}
+        {/* {allNfts} */}
+      </Paper>
     </>
   );
 };

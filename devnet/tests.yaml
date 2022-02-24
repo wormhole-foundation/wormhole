@@ -1,0 +1,24 @@
+kind: Job
+apiVersion: batch/v1
+metadata:
+  name: ci-tests
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: ci-tests
+          image: tests-image
+          command:
+            - /bin/sh
+            - -c
+            - "sh /app/testing/allTests.sh && touch /app/testing/success"
+          readinessProbe:
+            exec:
+              command:
+                - test
+                - -e
+                - "/app/testing/success"
+            initialDelaySeconds: 5
+            periodSeconds: 5
