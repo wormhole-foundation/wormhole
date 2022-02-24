@@ -1,6 +1,9 @@
 use crate::{
     config::P2WConfigAccount,
-    types::{PriceAttestation, batch_serialize},
+    types::{
+        batch_serialize,
+        PriceAttestation,
+    },
 };
 use borsh::{
     BorshDeserialize,
@@ -97,7 +100,6 @@ pub struct Attest<'b> {
 
     // pub pyth_product10: Option<Info<'b>>,
     // pub pyth_price10: Option<Info<'b>>,
-
     pub clock: Sysvar<'b, Clock>,
 
     /// Wormhole program address - must match the config value
@@ -108,7 +110,6 @@ pub struct Attest<'b> {
     // This contract makes no attempt to exhaustively validate
     // Wormhole's account inputs. Only the wormhole contract address
     // is validated (see above).
-
     /// Bridge config needed for fee calculation
     pub wh_bridge: Mut<Info<'b>>,
 
@@ -162,9 +163,8 @@ pub fn attest(ctx: &ExecutionContext, accs: &mut Attest, data: AttestData) -> So
         accs.pyth_price4.as_ref(),
         accs.pyth_product5.as_ref(),
         accs.pyth_price5.as_ref(),
-
-	// Did you read the comment near `pyth_product`?
-	// accs.pyth_product6.as_ref(),
+        // Did you read the comment near `pyth_product`?
+        // accs.pyth_product6.as_ref(),
         // accs.pyth_price6.as_ref(),
         // accs.pyth_product7.as_ref(),
         // accs.pyth_price7.as_ref(),
@@ -192,45 +192,41 @@ pub fn attest(ctx: &ExecutionContext, accs: &mut Attest, data: AttestData) -> So
     let mut attestations = Vec::with_capacity(price_pairs.len() / 2);
 
     for pair in price_pairs.as_slice().chunks_exact(2) {
+        let product = pair[0];
+        let price = pair[1];
 
-	let product = pair[0];
-	let price = pair[1];
-
-        if accs.config.pyth_owner != *price.owner
-            || accs.config.pyth_owner != *product.owner
-        {
+        if accs.config.pyth_owner != *price.owner || accs.config.pyth_owner != *product.owner {
             trace!(&format!(
             "Pair {:?} - {:?}: pyth_owner pubkey mismatch (expected {:?}, got product owner {:?} and price owner {:?}",
-		
-		product, price, 
+		product, price,
             accs.config.pyth_owner, product.owner, price.owner
         ));
             return Err(SolitaireError::InvalidOwner(accs.pyth_price.owner.clone()).into());
         }
 
-	let attestation = PriceAttestation::from_pyth_price_bytes(
-	    price.key.clone(),
-	    accs.clock.unix_timestamp,
-	    &*price.try_borrow_data()?,
-	)?;
+        let attestation = PriceAttestation::from_pyth_price_bytes(
+            price.key.clone(),
+            accs.clock.unix_timestamp,
+            &*price.try_borrow_data()?,
+        )?;
 
-	// The following check is crucial against poorly ordered
-	// account inputs, e.g. [Some(prod1), Some(price1),
-	// Some(prod2), None, None, Some(price)], interpreted by
-	// earlier logic as [(prod1, price1), (prod2, price3)].
-	//
-	// Failing to verify the product/price relationship could lead
-	// to mismatched product/price metadata, which would result in
-	// a false attestation.
-	if &attestation.product_id != product.key {
-	    trace!(&format!(
-		"Price's product_id does not match the pased account (points at {:?} instead)",
-		attestation.product_id
-	    ));
-	    return Err(ProgramError::InvalidAccountData.into());
-	}
+        // The following check is crucial against poorly ordered
+        // account inputs, e.g. [Some(prod1), Some(price1),
+        // Some(prod2), None, None, Some(price)], interpreted by
+        // earlier logic as [(prod1, price1), (prod2, price3)].
+        //
+        // Failing to verify the product/price relationship could lead
+        // to mismatched product/price metadata, which would result in
+        // a false attestation.
+        if &attestation.product_id != product.key {
+            trace!(&format!(
+                "Price's product_id does not match the pased account (points at {:?} instead)",
+                attestation.product_id
+            ));
+            return Err(ProgramError::InvalidAccountData.into());
+        }
 
-	attestations.push(attestation);
+        attestations.push(attestation);
     }
 
     trace!("Attestations successfully created");
@@ -249,12 +245,12 @@ pub fn attest(ctx: &ExecutionContext, accs: &mut Attest, data: AttestData) -> So
     let post_message_data = (
         bridge::instruction::Instruction::PostMessage,
         PostMessageData {
-	    nonce: 0, // Superseded by the sequence number
+            nonce: 0, // Superseded by the sequence number
             payload: batch_serialize(attestations.as_slice().iter()).map_err(|e| {
-		trace!(e.to_string());
-		ProgramError::InvalidAccountData
-	    })?,
-	    consistency_level: data.consistency_level,
+                trace!(e.to_string());
+                ProgramError::InvalidAccountData
+            })?,
+            consistency_level: data.consistency_level,
         },
     );
 
