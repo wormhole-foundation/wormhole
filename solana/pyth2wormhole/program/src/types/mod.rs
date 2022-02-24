@@ -47,7 +47,6 @@ use self::pyth_extensions::{
     P2WPriceType,
 };
 
-
 /// Precedes every message implementing the p2w serialization format
 pub const P2W_MAGIC: &'static [u8] = b"P2WH";
 

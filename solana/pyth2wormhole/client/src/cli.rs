@@ -35,10 +35,10 @@ pub struct Cli {
 pub enum Action {
     #[clap(about = "Initialize a pyth2wormhole program freshly deployed under <p2w_addr>")]
     Init {
-	/// The bridge program account
-	#[clap(short = 'w', long = "wh-prog")]
-	wh_prog: Pubkey,
-	#[clap(short = 'o', long = "owner")]
+        /// The bridge program account
+        #[clap(short = 'w', long = "wh-prog")]
+        wh_prog: Pubkey,
+        #[clap(short = 'o', long = "owner")]
         owner_addr: Pubkey,
         #[clap(short = 'p', long = "pyth-owner")]
         pyth_owner_addr: Pubkey,
@@ -47,20 +47,22 @@ pub enum Action {
         about = "Use an existing pyth2wormhole program to attest product price information to another chain"
     )]
     Attest {
-	#[clap(short = 'f', long = "--config", about = "Attestation YAML config")]
-	attestation_cfg: PathBuf,
+        #[clap(short = 'f', long = "--config", about = "Attestation YAML config")]
+        attestation_cfg: PathBuf,
     },
-    #[clap(about = "Update an existing pyth2wormhole program's settings (currently set owner only)")]
+    #[clap(
+        about = "Update an existing pyth2wormhole program's settings (currently set owner only)"
+    )]
     SetConfig {
-	/// Current owner keypair path
+        /// Current owner keypair path
         #[clap(long = "owner", default_value = "~/.config/solana/id.json")]
-	owner: String,
-	/// New owner to set 
+        owner: String,
+        /// New owner to set
         #[clap(long = "new-owner")]
-	new_owner_addr: Pubkey,
+        new_owner_addr: Pubkey,
         #[clap(long = "new-wh-prog")]
-	new_wh_prog: Pubkey,
+        new_wh_prog: Pubkey,
         #[clap(long = "new-pyth-owner")]
-	new_pyth_owner_addr: Pubkey,
+        new_pyth_owner_addr: Pubkey,
     },
 }

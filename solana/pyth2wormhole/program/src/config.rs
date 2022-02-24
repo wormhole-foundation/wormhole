@@ -5,9 +5,18 @@
 //! problems related to max batch size mismatches between config and
 //! contract logic. See attest.rs for details.
 
-use borsh::{BorshDeserialize, BorshSerialize};
+use borsh::{
+    BorshDeserialize,
+    BorshSerialize,
+};
 use solana_program::pubkey::Pubkey;
-use solitaire::{processors::seeded::AccountOwner, AccountState, Data, Derive, Owned};
+use solitaire::{
+    processors::seeded::AccountOwner,
+    AccountState,
+    Data,
+    Derive,
+    Owned,
+};
 
 #[derive(Default, BorshDeserialize, BorshSerialize)]
 pub struct Pyth2WormholeConfig {
