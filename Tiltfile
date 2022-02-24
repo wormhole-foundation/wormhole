@@ -75,7 +75,7 @@ def k8s_yaml_with_ns(objects):
 
 # protos
 
-proto_deps = ["./proto", "./generate-protos.sh", "buf.yaml", "buf.gen.yaml"]
+proto_deps = ["./proto", "buf.yaml", "buf.gen.yaml"]
 
 local_resource(
     name = "proto-gen",
@@ -89,7 +89,7 @@ local_resource(
 
 local_resource(
     name = "proto-gen-web",
-    deps = proto_deps,
+    deps = proto_deps + ["buf.gen.web.yaml"],
     resource_deps = ["proto-gen"],
     cmd = "tilt docker build -- --target node-export -f Dockerfile.proto -o type=local,dest=. .",
     env = {"DOCKER_BUILDKIT": "1"},
@@ -273,6 +273,13 @@ if pyth:
         ignore = ["./solana/*/target"],
     )
 
+    # Automatic pyth2wormhole relay, showcasing p2w-sdk
+    docker_build(
+        ref = "p2w-relay",
+	context = ".",
+	dockerfile = "./third_party/pyth/p2w-relay/Dockerfile",
+    )
+
     k8s_yaml_with_ns("devnet/p2w-attest.yaml")
     k8s_resource(
         "p2w-attest",
@@ -280,6 +287,13 @@ if pyth:
         port_forwards = [],
         labels = ["solana"],
         trigger_mode = trigger_mode,
+    )
+
+    k8s_yaml_with_ns("devnet/p2w-relay.yaml")
+    k8s_resource(
+        "p2w-relay",
+        resource_deps = ["solana-devnet", "eth-devnet", "pyth", "guardian", "p2w-attest", "proto-gen-web", "wasm-gen"],
+        port_forwards = [],
     )
 
 k8s_yaml_with_ns("devnet/eth-devnet.yaml")

@@ -34,7 +34,7 @@ contract Pyth is PythGovernance {
         if (vm.emitterChainId != pyth2WormholeChainId()) {
             return false;
         }
-        if (vm.emitterAddress != pyth2WormholeContract()) {
+        if (vm.emitterAddress != pyth2WormholeEmitter()) {
             return false;
         }
         return true;

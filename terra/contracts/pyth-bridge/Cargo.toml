@@ -31,7 +31,7 @@ generic-array = { version = "0.14.4" }
 hex = "0.4.2"
 lazy_static = "1.4.0"
 bigint = "4"
-pyth-client = {git = "https://github.com/pyth-network/pyth-client-rs", branch = "v2"}
+pyth-client = "0.2.2"
 solana-program = "=1.7.0"
 
 [dev-dependencies]

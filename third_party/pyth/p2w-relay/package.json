@@ -1,0 +1,53 @@
+{
+    "name": "@certusone/p2w-relay",
+    "version": "0.1.0",
+    "description": "p2w-sdk integration test; not intended for production use",
+    "private": true,
+    "types": "lib/index.d.ts",
+    "main": "lib/index.js",
+    "files": [
+        "lib/**/*"
+    ],
+    "scripts": {
+      "start": "node -r esm lib/index.js",
+        "build": "npm run build-eth-types && npm run build-lib",
+        "build-lib": "npm run copy-artifacts && tsc",
+        "build-watch": "npm run build-eth-types && npm run copy-artifacts && tsc --watch",
+	"build-eth-types": "node scripts/copyEthContracts.cjs && typechain --target=ethers-v5 --out-dir=src/ethers-contracts contracts/*.json",
+        "copy-artifacts": "node scripts/copyWasm.cjs && node scripts/copyEthersTypes.cjs",
+        "lint": "tslint -p tsconfig.json",
+        "postversion": "git push && git push --tags",
+        "preversion": "npm run lint",
+        "version": "npm run format && git add -A src"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/certusone/wormhole.git"
+    },
+    "author": "https://certus.one",
+    "license": "MIT",
+    "devDependencies": {
+        "@openzeppelin/contracts": "^4.2.0",
+        "@typechain/ethers-v5": "^7.1.2",
+        "@types/long": "^4.0.1",
+        "@types/node": "^16.6.1",
+        "copy-dir": "^1.3.0",
+        "esm": "^3.2.25",
+        "ethers": "^5.4.7",
+        "find": "^0.3.0",
+        "prettier": "^2.3.2",
+        "ts-loader": "^9.2.5",
+        "tslint": "^6.1.3",
+        "tslint-config-prettier": "^1.18.0",
+        "typescript": "^4.3.5"
+    },
+    "dependencies": {
+        "@certusone/p2w-sdk": "file:../p2w-sdk",
+        "@certusone/wormhole-sdk": "file:../../../sdk/js",
+        "@improbable-eng/grpc-web-node-http-transport": "^0.14.1"
+    },
+    "bugs": {
+        "url": "https://github.com/certusone/wormhole/issues"
+    },
+    "homepage": "https://github.com/certusone/wormhole#readme"
+}
