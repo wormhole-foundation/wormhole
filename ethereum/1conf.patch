@@ -20,3 +20,16 @@ index 3f06757f..6c70e6fa 100644
      }
  
      function updateWrapped(bytes memory encodedVm) external returns (address token) {
+diff --git a/ethereum/contracts/nft/NFTBridge.sol b/ethereum/contracts/nft/NFTBridge.sol
+index abf25a28..78f9a781 100644
+--- a/ethereum/contracts/nft/NFTBridge.sol
++++ b/ethereum/contracts/nft/NFTBridge.sol
+@@ -95,7 +95,7 @@ contract NFTBridge is NFTBridgeGovernance {
+ 
+         sequence = wormhole().publishMessage{
+             value : callValue
+-        }(nonce, encoded, 15);
++        }(nonce, encoded, 1);
+     }
+ 
+     function completeTransfer(bytes memory encodedVm) public {
