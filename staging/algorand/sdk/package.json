@@ -1,0 +1,25 @@
+{
+  "name": "pricecaster-client-sdk",
+  "version": "1.0.0",
+  "description": "SDK to interact with on-chain Pricecaster contract data",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "price",
+    "data",
+    "algorand",
+    "pricecaster",
+    "sdk",
+    "read"
+  ],
+  "author": "Hernán Di Pietro",
+  "license": "ISC",
+  "dependencies": {
+    "@pythnetwork/client": "^2.6.0",
+    "algosdk": "^1.13.1",
+    "ethers": "^5.5.4",
+    "int64-buffer": "^1.0.1"
+  }
+}
