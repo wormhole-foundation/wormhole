@@ -232,7 +232,23 @@ function App() {
         <div className={classes.headerImage} />
         {["/transfer", "/nft", "/redeem"].includes(pathname) ? (
           <Container maxWidth="md" style={{ paddingBottom: 24 }}>
-            <HeaderText white>Portal Token Bridge</HeaderText>
+            <HeaderText
+              white
+              subtitle={
+                <>
+                  <Typography>
+                    Portal is a bridge that offers unlimited transfers across
+                    chains for tokens and NFTs wrapped by Wormhole.
+                  </Typography>
+                  <Typography>
+                    Unlike many other bridges, you avoid double wrapping and
+                    never have to retrace your steps.
+                  </Typography>
+                </>
+              }
+            >
+              Portal Token Bridge
+            </HeaderText>
             <Tabs
               value={pathname}
               variant="fullWidth"
