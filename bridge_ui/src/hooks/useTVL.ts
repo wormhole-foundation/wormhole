@@ -8,7 +8,7 @@ import {
   receiveDataWrapper,
 } from "../store/helpers";
 import { COIN_GECKO_IMAGE_URLS } from "../utils/coinGecko";
-import { TVL_URL } from "../utils/consts";
+import { CHAINS_BY_ID, TVL_URL } from "../utils/consts";
 
 export type TVL = {
   logo?: string;
@@ -50,6 +50,8 @@ const createTVLArray = (notionalTvl: NotionalTvl) => {
   const tvl: TVL[] = [];
   for (const [chainId, chainAssets] of Object.entries(notionalTvl.AllTime)) {
     if (chainId === "*") continue;
+    const originChainId = +chainId as ChainId;
+    const originChain = CHAINS_BY_ID[originChainId].name;
     for (const [tokenAddress, lockedAsset] of Object.entries(chainAssets)) {
       if (tokenAddress === "*") continue;
       tvl.push({
@@ -60,8 +62,8 @@ const createTVLArray = (notionalTvl: NotionalTvl) => {
         totalValue: lockedAsset.Notional,
         quotePrice: lockedAsset.TokenPrice,
         assetAddress: tokenAddress,
-        originChainId: +chainId as ChainId,
-        originChain: chainId.toString(),
+        originChainId,
+        originChain,
       });
     }
   }
