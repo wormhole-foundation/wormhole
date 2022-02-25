@@ -324,8 +324,11 @@ func (e *Watcher) Run(ctx context.Context) error {
 					ConsistencyLevel: ev.ConsistencyLevel,
 				}
 
-				logger.Info("found new message publication transaction", zap.Stringer("tx", ev.Raw.TxHash),
-					zap.Uint64("block", ev.Raw.BlockNumber), zap.String("eth_network", e.networkName))
+				logger.Info("found new message publication transaction",
+					zap.Stringer("tx", ev.Raw.TxHash),
+					zap.Uint64("block", ev.Raw.BlockNumber),
+					zap.Stringer("blockhash", ev.Raw.BlockHash),
+					zap.String("eth_network", e.networkName))
 
 				ethMessagesObserved.WithLabelValues(e.networkName).Inc()
 
