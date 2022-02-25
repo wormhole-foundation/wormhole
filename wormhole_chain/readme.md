@@ -54,3 +54,13 @@ curl https://get.starport.network/certusone/wormhole-chain@latest! | sudo bash
 - [Cosmos SDK documentation](https://docs.cosmos.network)
 - [Cosmos SDK Tutorials](https://tutorials.cosmos.network)
 - [Discord](https://discord.gg/cosmosnetwork)
+
+
+## Clone
+
+git clone --recurse-submodules https://github.com/certusone/wormhole-chain.git
+git submodule init
+git submodule update --recursive
+
+## Useful links
+https://github.com/cosmos/awesome#block-explorers
