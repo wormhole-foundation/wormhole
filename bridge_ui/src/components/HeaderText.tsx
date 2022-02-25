@@ -30,7 +30,7 @@ export default function HeaderText({
   children: ReactChild;
   white?: boolean;
   small?: boolean;
-  subtitle?: string;
+  subtitle?: ReactChild;
 }) {
   const classes = useStyles();
   return (
@@ -43,7 +43,7 @@ export default function HeaderText({
       >
         {children}
       </Typography>
-      {subtitle ? <Typography>{subtitle}</Typography> : null}
+      {subtitle ? <Typography component="div">{subtitle}</Typography> : null}
     </div>
   );
 }

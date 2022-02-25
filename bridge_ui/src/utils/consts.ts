@@ -497,6 +497,8 @@ export const COVALENT_GET_TOKENS_URL = (
     nft ? "&nft=true" : ""
   }${noNftMetadata ? "&no-nft-fetch=true" : ""}`;
 };
+export const TVL_URL =
+  "https://europe-west3-wormhole-315720.cloudfunctions.net/mainnet-notionaltvl";
 export const TERRA_SWAPRATE_URL =
   "https://fcd.terra.dev/v1/market/swaprate/uusd";
 
@@ -813,6 +815,10 @@ export const VAA_EMITTER_ADDRESSES = [
   `${CHAIN_ID_BSC}:0000000000000000000000005a58505a96d1dbf8df91cb21b54419fc36e93fde`, //bsc nft
   `${CHAIN_ID_POLYGON}:0000000000000000000000005a58505a96d1dbf8df91cb21b54419fc36e93fde`, //Polygon
   `${CHAIN_ID_POLYGON}:00000000000000000000000090bbd86a6fe93d3bc3ed6335935447e75fab7fcf`, //Polygon nft
+  `${CHAIN_ID_AVAX}:0000000000000000000000000e082f06ff657d94310cb8ce8b0d9a04541d8052`, //AVAX
+  `${CHAIN_ID_AVAX}:000000000000000000000000f7b6737ca9c4e08ae573f75a97b73d7a813f5de5`, //AVAX nft
+  `${CHAIN_ID_OASIS}:0000000000000000000000005848c791e09901b40a9ef749f2a6735b418d7564`, //OASIS
+  `${CHAIN_ID_OASIS}:00000000000000000000000004952D522Ff217f40B5Ef3cbF659EcA7b952a6c1`, //OASIS nft
 ];
 
 export const WORMHOLE_EXPLORER_BASE = "https://wormholenetwork.com/en/explorer";
