@@ -9,24 +9,29 @@ import {
 
 export type TransactionCount = {
   totalAllTime: number;
-  total24h: number;
+  total48h: number;
   mostRecent: any; //This will be a signedVAA
 };
 
 const mergeResults = (totals: any, recents: any): TransactionCount | null => {
   let totalAllTime = 0;
-  let total24h = 0;
+  let total48h = 0;
+  const lastDays = Object.values(totals?.DailyTotals || {});
+  const lastTwoDays: any = lastDays.slice(lastDays.length - 2);
   VAA_EMITTER_ADDRESSES.forEach((address: string) => {
     let totalAll = (totals?.TotalCount && totals.TotalCount[address]) || 0;
-    let total24 = (totals?.LastDayCount && totals.LastDayCount[address]) || 0;
+    let total48 =
+      lastTwoDays.length === 2
+        ? (lastTwoDays[0][address] || 0) + (lastTwoDays[1][address] || 0)
+        : 0;
 
     totalAllTime += totalAll;
-    total24h += total24;
+    total48h += total48;
   });
 
   return {
     totalAllTime,
-    total24h,
+    total48h,
     mostRecent: null,
   };
 };
