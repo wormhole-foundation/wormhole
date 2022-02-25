@@ -218,7 +218,7 @@ const IndexPage = ({ location }: PageProps) => {
                 borderTop: "1px solid white",
               }}
             >
-              <Typography sx={featuredNumber}>${amountFormatter(tvl)}</Typography>
+              <Typography sx={featuredNumber}>${amountFormatter(tvl, 2)}</Typography>
               <Typography variant="body2">in TVL</Typography>
             </Box>}
             <Box
