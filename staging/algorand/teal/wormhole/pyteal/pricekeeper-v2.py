@@ -143,7 +143,7 @@ def store():
                 product_price_key.store(Extract(attestation_data.load(), Int(7), Int(64))),
                 packed_price_data.store(Concat(
                     Extract(attestation_data.load(), Int(72), Int(20)),   # price + exponent + twap
-                    Extract(attestation_data.load(), Int(100), Int(8)),  # store twac
+                    Extract(attestation_data.load(), Int(108), Int(8)),  # store twac
                     Extract(attestation_data.load(), Int(132), Int(18)),  # confidence, status, corpact, timestamp
                 )),
                 App.globalPut(product_price_key.load(), packed_price_data.load()),
