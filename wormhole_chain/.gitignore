@@ -1,6 +1,7 @@
 vue/node_modules
 vue/dist
 release/
+testing/js/node_modules
 
 .idea
 *.iml
