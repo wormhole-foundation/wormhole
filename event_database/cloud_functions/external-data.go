@@ -88,6 +88,16 @@ func chainIdToCoinGeckoPlatform(chain vaa.ChainID) string {
 		return "binance-smart-chain"
 	case vaa.ChainIDPolygon:
 		return "polygon-pos"
+	case vaa.ChainIDAvalanche:
+		return "avalanche"
+	case vaa.ChainIDOasis:
+		return "oasis"
+	case vaa.ChainIDAlgorand:
+		return "algorand"
+	case vaa.ChainIDFantom:
+		return "fantom"
+	case vaa.ChainIDEthereumRopsten:
+		return "ethereum"
 	}
 	return ""
 }

@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"cloud.google.com/go/bigtable"
@@ -21,7 +22,10 @@ import (
 // to do a full table scan with each request.
 // https://cloud.google.com/functions/docs/bestpractices/tips#use_global_variables_to_reuse_objects_in_future_invocations
 var warmCache = map[string]map[string]string{}
-var lastCacheReset = time.Now()
+var lastCacheReset time.Time
+var muWarmRecentCache sync.RWMutex
+var warmRecentCacheFilePath = "recent-cache.json"
+var timestampKey = "lastUpdate"
 
 // query for last of each rowKey prefix
 func getLatestOfEachEmitterAddress(tbl *bigtable.Table, ctx context.Context, prefix string, keySegments int) map[string]string {
@@ -29,6 +33,21 @@ func getLatestOfEachEmitterAddress(tbl *bigtable.Table, ctx context.Context, pre
 	cachePrefix := prefix
 	if prefix == "" {
 		cachePrefix = "*"
+	}
+	if _, ok := warmCache[cachePrefix]; !ok {
+		loadJsonToInterface(ctx, warmRecentCacheFilePath, &muWarmRecentCache, &warmCache)
+	}
+
+	cacheNeedsUpdate := false
+	if cache, ok := warmCache[cachePrefix]; ok {
+		if lastUpdate, ok := cache[timestampKey]; ok {
+			time, err := time.Parse(time.RFC3339, lastUpdate)
+			if err == nil {
+				lastCacheReset = time
+			} else {
+				log.Printf("failed parsing lastUpdate timestamp from cache. lastUpdate %v, err: %v ", lastUpdate, err)
+			}
+		}
 	}
 
 	var rowSet bigtable.RowSet
@@ -42,9 +61,11 @@ func getLatestOfEachEmitterAddress(tbl *bigtable.Table, ctx context.Context, pre
 			maxSeq := "9999999999999999"
 			rowSets := bigtable.RowRangeList{}
 			for k, v := range cached {
-				start := fmt.Sprintf("%v:%v", k, v)
-				end := fmt.Sprintf("%v:%v", k, maxSeq)
-				rowSets = append(rowSets, bigtable.NewRange(start, end))
+				if k != timestampKey {
+					start := fmt.Sprintf("%v:%v", k, v)
+					end := fmt.Sprintf("%v:%v", k, maxSeq)
+					rowSets = append(rowSets, bigtable.NewRange(start, end))
+				}
 			}
 			if len(rowSets) >= 1 {
 				rowSet = rowSets
@@ -54,11 +75,12 @@ func getLatestOfEachEmitterAddress(tbl *bigtable.Table, ctx context.Context, pre
 		// cache is more than hour old, don't use it, reset it
 		warmCache = map[string]map[string]string{}
 		lastCacheReset = now
+		cacheNeedsUpdate = true
 	}
 
-	// create a time range for query: last 30 days
-	thirtyDays := -time.Duration(24*30) * time.Hour
-	prev := now.Add(thirtyDays)
+	// create a time range for query: last seven days
+	sevenDays := -time.Duration(24*7) * time.Hour
+	prev := now.Add(sevenDays)
 	start := time.Date(prev.Year(), prev.Month(), prev.Day(), 0, 0, 0, 0, prev.Location())
 	end := time.Date(now.Year(), now.Month(), now.Day(), 23, 59, 59, maxNano, now.Location())
 
@@ -82,10 +104,19 @@ func getLatestOfEachEmitterAddress(tbl *bigtable.Table, ctx context.Context, pre
 	}
 	// update the cache with the latest rows
 	warmCache[cachePrefix] = mostRecentByKeySegment
+	for k, v := range mostRecentByKeySegment {
+		warmCache[cachePrefix][k] = v
+	}
+	warmCache[cachePrefix][timestampKey] = time.Now().Format(time.RFC3339)
+	if cacheNeedsUpdate {
+		persistInterfaceToJson(ctx, warmRecentCacheFilePath, &muWarmRecentCache, warmCache)
+	}
 	return mostRecentByKeySegment
 }
 
-func fetchMostRecentRows(tbl *bigtable.Table, ctx context.Context, prefix string, keySegments int, numRowsToFetch int) (map[string][]bigtable.Row, error) {
+const MAX_INT64 = 9223372036854775807
+
+func fetchMostRecentRows(tbl *bigtable.Table, ctx context.Context, prefix string, keySegments int, numRowsToFetch uint64) (map[string][]bigtable.Row, error) {
 	// returns { key: []bigtable.Row }, key either being "*", "chainID", "chainID:address"
 
 	latest := getLatestOfEachEmitterAddress(tbl, ctx, prefix, keySegments)
@@ -94,15 +125,31 @@ func fetchMostRecentRows(tbl *bigtable.Table, ctx context.Context, prefix string
 	rangePairs := map[string]string{}
 
 	for prefixGroup, highestSequence := range latest {
+		numRows := numRowsToFetch
+		if prefixGroup == timestampKey {
+			continue
+		}
 		rowKeyParts := strings.Split(prefixGroup, ":")
 		// convert the sequence part of the rowkey from a string to an int, so it can be used for math
-		highSequence, _ := strconv.Atoi(highestSequence)
-		lowSequence := highSequence - numRowsToFetch
+
+		highSequence, err := strconv.ParseUint(highestSequence, 10, 64)
+		if err != nil {
+			log.Println("error parsing sequence string", highSequence)
+		}
+		if highSequence < numRows {
+			numRows = highSequence
+		}
+		lowSequence := highSequence - numRows
 		// create a rowKey to use as the start of the range query
 		rangeQueryStart := fmt.Sprintf("%v:%v:%016d", rowKeyParts[0], rowKeyParts[1], lowSequence)
 		// create a rowKey with the highest seen sequence + 1, because range end is exclusive
 		rangeQueryEnd := fmt.Sprintf("%v:%v:%016d", rowKeyParts[0], rowKeyParts[1], highSequence+1)
-		rangePairs[rangeQueryStart] = rangeQueryEnd
+		if highSequence >= lowSequence {
+			rangePairs[rangeQueryStart] = rangeQueryEnd
+		} else {
+			// governance messages have non-sequential sequence numbers.
+			log.Printf("skipping %v:%v because sequences are strange. high/low: %d/%d", rowKeyParts[0], rowKeyParts[1], highSequence, lowSequence)
+		}
 	}
 
 	rangeList := bigtable.RowRangeList{}
@@ -199,12 +246,12 @@ func Recent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var resultCount int
+	var resultCount uint64
 	if numRows == "" {
 		resultCount = 30
 	} else {
 		var convErr error
-		resultCount, convErr = strconv.Atoi(numRows)
+		resultCount, convErr = strconv.ParseUint(numRows, 10, 64)
 		if convErr != nil {
 			fmt.Fprint(w, "numRows must be an integer")
 			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
@@ -267,7 +314,7 @@ func Recent(w http.ResponseWriter, r *http.Request) {
 			return iTimestamp > jTimestamp
 		})
 		// trim the result down to the requested amount now that sorting is complete
-		num := len(v)
+		num := uint64(len(v))
 		var rows []bigtable.Row
 		if num > resultCount {
 			rows = v[:resultCount]

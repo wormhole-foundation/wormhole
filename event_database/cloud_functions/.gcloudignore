@@ -4,10 +4,13 @@
 
 .vscode
 
+.env
+
 cmd
 
 *.md
 
 *.txt
+*.json
 
 Dockerfile

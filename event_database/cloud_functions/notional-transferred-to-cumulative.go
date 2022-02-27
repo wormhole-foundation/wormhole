@@ -27,14 +27,18 @@ type cumulativeResult struct {
 // an in-memory cache of previously calculated results
 var warmCumulativeCache = map[string]map[string]map[string]map[string]float64{}
 var muWarmCumulativeCache sync.RWMutex
-var warmCumulativeCacheFilePath = "/notional-transferred-to-cumulative-cache.json"
+var warmCumulativeCacheFilePath = "notional-transferred-to-cumulative-cache.json"
 
 var transferredToUpToYesterday = map[string]map[string]map[string]map[string]float64{}
 var muTransferredToUpToYesterday sync.RWMutex
-var transferredToUpToYesterdayFilePath = "/notional-transferred-to-up-to-yesterday-cache.json"
+var transferredToUpToYesterdayFilePath = "notional-transferred-to-up-to-yesterday-cache.json"
 
 // calculates the amount of each symbol transfered to each chain.
 func transferredToSince(tbl *bigtable.Table, ctx context.Context, prefix string, start time.Time) map[string]map[string]float64 {
+	if _, ok := transferredToUpToYesterday["*"]; !ok {
+		loadJsonToInterface(ctx, transferredToUpToYesterdayFilePath, &muTransferredToUpToYesterday, &transferredToUpToYesterday)
+	}
+
 	now := time.Now().UTC()
 	today := now.Format("2006-01-02")
 	oneDayAgo := -time.Duration(24) * time.Hour
@@ -89,7 +93,7 @@ func transferredToSince(tbl *bigtable.Table, ctx context.Context, prefix string,
 		transferredToUpToYesterday[cachePrefix][yesterday] = upToYesterday
 		muTransferredToUpToYesterday.Unlock()
 		// write the updated cache to disc
-		persistInterfaceToJson(transferredToUpToYesterdayFilePath, &muTransferredToUpToYesterday, transferredToUpToYesterday)
+		persistInterfaceToJson(ctx, transferredToUpToYesterdayFilePath, &muTransferredToUpToYesterday, transferredToUpToYesterday)
 	} else {
 		muTransferredToUpToYesterday.Unlock()
 	}
@@ -120,6 +124,10 @@ func getDaysInRange(start, end time.Time) []string {
 
 // calcuates a running total of notional value transferred, by symbol, since the start time specified.
 func createCumulativeAmountsOfInterval(tbl *bigtable.Table, ctx context.Context, prefix string, start time.Time) map[string]map[string]map[string]float64 {
+	if _, ok := warmCumulativeCache["*"]; !ok {
+		loadJsonToInterface(ctx, warmCumulativeCacheFilePath, &muWarmCumulativeCache, &warmCumulativeCache)
+	}
+
 	now := time.Now().UTC()
 	today := now.Format("2006-01-02")
 
@@ -147,7 +155,7 @@ func createCumulativeAmountsOfInterval(tbl *bigtable.Table, ctx context.Context,
 	// of each token transfer by symbol, based on the destination of the transfer.
 	for i, date := range dateKeys {
 		muWarmCumulativeCache.RLock()
-		if dateCache, ok := warmCumulativeCache[cachePrefix][date]; ok && dateCache != nil {
+		if dateCache, ok := warmCumulativeCache[cachePrefix][date]; ok && dateCache != nil && useCache(date) {
 			// have a cached value for this day, use it.
 			results[date] = dateCache
 			muWarmCumulativeCache.RUnlock()
@@ -211,7 +219,7 @@ func createCumulativeAmountsOfInterval(tbl *bigtable.Table, ctx context.Context,
 	}
 
 	if cacheNeedsUpdate {
-		persistInterfaceToJson(warmCumulativeCacheFilePath, &muWarmCumulativeCache, warmCumulativeCache)
+		persistInterfaceToJson(ctx, warmCumulativeCacheFilePath, &muWarmCumulativeCache, warmCumulativeCache)
 	}
 
 	// take the most recent n days, rather than returning all days since launch
