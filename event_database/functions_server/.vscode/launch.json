@@ -5,11 +5,11 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "start the server",
+            "name": "local emulators",
             "type": "go",
             "request": "launch",
             "mode": "auto",
-            "program": "${workspaceFolder}/cmd/main.go",
+            "program": "${workspaceFolder}/main.go",
             "env": {
                 "GCP_PROJECT": "local-dev",
                 "BIGTABLE_INSTANCE": "wormhole",

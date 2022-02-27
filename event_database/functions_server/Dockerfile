@@ -5,7 +5,8 @@ WORKDIR /app
 
 ADD . .
 
+WORKDIR /app/functions_server
 RUN --mount=type=cache,target=/root/.cache --mount=type=cache,target=/go \
-    go build -mod=readonly -o /functions cmd/main.go
+    go build -mod=readonly -o /functions main.go
 
 CMD ["/functions"]

@@ -14,3 +14,7 @@ cmd
 *.json
 
 Dockerfile
+
+# vendor bundle is supplied rather than fetching deps
+go.mod
+
