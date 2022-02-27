@@ -85,3 +85,6 @@ Each column qualifier below is prefixed with its column family.
 #### ChainDetails
 - `ChainDetails:SenderAddress` the native address that sent the message.
 - `ChainDetails:ReceiverAddress` the native address that received the message.
+- `ChainDetails:ResultingTokenAddress` the name address of the token on the target chain.
+- `ChainDetails:ResultingTokenSymbol` the symbol of the token that was the final result of the transfer.
+- `ChainDetails:ResultingTokenName` the name of the token that was the final result of the transfer.
