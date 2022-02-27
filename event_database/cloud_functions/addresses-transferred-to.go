@@ -30,7 +30,7 @@ type addressesResult struct {
 // an in-memory cache of previously calculated results
 var warmAddressesCache = map[string]map[string]map[string]map[string]float64{}
 var muWarmAddressesCache sync.RWMutex
-var warmAddressesCacheFilePath = "/addresses-transferred-to-cache.json"
+var warmAddressesCacheFilePath = "addresses-transferred-to-cache.json"
 
 type AddressData struct {
 	TokenSymbol        string
@@ -110,6 +110,10 @@ func fetchAddressRowsInInterval(tbl *bigtable.Table, ctx context.Context, prefix
 
 // finds unique addresses tokens have been sent to, for each day since the start time passed in.
 func createAddressesOfInterval(tbl *bigtable.Table, ctx context.Context, prefix string, start time.Time) map[string]map[string]map[string]float64 {
+	if _, ok := warmAddressesCache["*"]; !ok {
+		loadJsonToInterface(ctx, warmAddressesCacheFilePath, &muWarmAddressesCache, &warmAddressesCache)
+	}
+
 	results := map[string]map[string]map[string]float64{}
 
 	now := time.Now().UTC()
@@ -151,7 +155,7 @@ func createAddressesOfInterval(tbl *bigtable.Table, ctx context.Context, prefix 
 			if dates, ok := warmAddressesCache[cachePrefix]; ok {
 				// have a cache for this query
 
-				if dateCache, ok := dates[dateStr]; ok {
+				if dateCache, ok := dates[dateStr]; ok && useCache(dateStr) {
 					// have a cache for this date
 					if daysAgo >= 1 {
 						// only use the cache for yesterday and older
@@ -183,7 +187,7 @@ func createAddressesOfInterval(tbl *bigtable.Table, ctx context.Context, prefix 
 			if daysAgo >= 1 {
 				// set the result in the cache
 				muWarmAddressesCache.Lock()
-				if _, ok := warmAddressesCache[cachePrefix][dateStr]; !ok {
+				if _, ok := warmAddressesCache[cachePrefix][dateStr]; !ok || !useCache(dateStr) {
 					// cache does not have this date, persist it for other instances.
 					warmAddressesCache[cachePrefix][dateStr] = results[dateStr]
 					cacheNeedsUpdate = true
@@ -196,7 +200,7 @@ func createAddressesOfInterval(tbl *bigtable.Table, ctx context.Context, prefix 
 	intervalsWG.Wait()
 
 	if cacheNeedsUpdate {
-		persistInterfaceToJson(warmAddressesCacheFilePath, &muWarmAddressesCache, warmAddressesCache)
+		persistInterfaceToJson(ctx, warmAddressesCacheFilePath, &muWarmAddressesCache, warmAddressesCache)
 	}
 
 	// create a set of all the keys from all dates/chains, to ensure the result objects all have the same keys

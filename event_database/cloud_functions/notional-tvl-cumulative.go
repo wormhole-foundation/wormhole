@@ -51,7 +51,7 @@ var skipDays = map[string]bool{
 // calcuates a running total of notional value transferred, by symbol, since the start time specified.
 func createTvlCumulativeOfInterval(tbl *bigtable.Table, ctx context.Context, start time.Time) map[string]map[string]map[string]LockedAsset {
 	if len(warmTvlCumulativeCache) == 0 {
-		loadJsonToInterface(warmTvlCumulativeCacheFilePath, &muWarmTvlCumulativeCache, &warmTvlCumulativeCache)
+		loadJsonToInterface(ctx, warmTvlCumulativeCacheFilePath, &muWarmTvlCumulativeCache, &warmTvlCumulativeCache)
 	}
 
 	now := time.Now().UTC()
@@ -197,7 +197,7 @@ func createTvlCumulativeOfInterval(tbl *bigtable.Table, ctx context.Context, sta
 	}
 
 	if cacheNeedsUpdate {
-		persistInterfaceToJson(warmTvlCumulativeCacheFilePath, &muWarmTvlCumulativeCache, warmTvlCumulativeCache)
+		persistInterfaceToJson(ctx, warmTvlCumulativeCacheFilePath, &muWarmTvlCumulativeCache, warmTvlCumulativeCache)
 	}
 
 	// take the most recent n days, rather than returning all days since launch

@@ -36,7 +36,7 @@ type LockedAsset struct {
 // finds the daily amount of each symbol transferred to each chain, from the specified start to the present.
 func tvlInInterval(tbl *bigtable.Table, ctx context.Context, start time.Time) map[string]map[string]map[string]LockedAsset {
 	if len(warmTvlCache) == 0 {
-		loadJsonToInterface(warmTvlFilePath, &muWarmTvlCache, &warmTvlCache)
+		loadJsonToInterface(ctx, warmTvlFilePath, &muWarmTvlCache, &warmTvlCache)
 	}
 
 	results := map[string]map[string]map[string]LockedAsset{}
@@ -77,7 +77,7 @@ func tvlInInterval(tbl *bigtable.Table, ctx context.Context, start time.Time) ma
 			if len(warmTvlCache) >= 1 {
 				// have a cache, check if has the date
 
-				if dateCache, ok := warmTvlCache[dateStr]; ok && useCache(dateStr) && len(dateCache) > 1 {
+				if dateCache, ok := warmTvlCache[dateStr]; ok && len(dateCache) > 1 && useCache(dateStr) {
 					// have a cache for this date
 					if daysAgo >= 1 {
 						// only use the cache for yesterday and older
@@ -162,7 +162,7 @@ func tvlInInterval(tbl *bigtable.Table, ctx context.Context, start time.Time) ma
 	intervalsWG.Wait()
 
 	if cacheNeedsUpdate {
-		persistInterfaceToJson(warmTvlFilePath, &muWarmTvlCache, warmTvlCache)
+		persistInterfaceToJson(ctx, warmTvlFilePath, &muWarmTvlCache, warmTvlCache)
 	}
 
 	// create a set of all the keys from all dates/chains, to ensure the result objects all have the same chain keys
@@ -351,7 +351,7 @@ func TVL(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		coinIdSet := []string{}
-		for coinId, _ := range seenCoinIds {
+		for coinId := range seenCoinIds {
 			coinIdSet = append(coinIdSet, coinId)
 		}
 

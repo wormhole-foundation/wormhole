@@ -20,6 +20,8 @@ import (
 // to do a full table scan with each request.
 // https://cloud.google.com/functions/docs/bestpractices/tips#use_global_variables_to_reuse_objects_in_future_invocations
 var warmNFTCache = map[string]map[string]map[string]int{}
+var muWarmNFTCache sync.RWMutex
+var warmNFTCacheFilePath = "nft-cache.json"
 
 func fetchNFTRowsInInterval(tbl *bigtable.Table, ctx context.Context, prefix string, start, end time.Time) ([]bigtable.Row, error) {
 	rows := []bigtable.Row{}
@@ -49,7 +51,10 @@ func fetchNFTRowsInInterval(tbl *bigtable.Table, ctx context.Context, prefix str
 }
 
 func createNFTCountsOfInterval(tbl *bigtable.Table, ctx context.Context, prefix string, numPrevDays int, keySegments int) (map[string]map[string]int, error) {
-	var mu sync.RWMutex
+	if _, ok := warmNFTCache["2021-09-13"]; !ok {
+		loadJsonToInterface(ctx, warmNFTCacheFilePath, &muWarmNFTCache, &warmNFTCache)
+	}
+
 	results := map[string]map[string]int{}
 
 	now := time.Now().UTC()
@@ -64,6 +69,7 @@ func createNFTCountsOfInterval(tbl *bigtable.Table, ctx context.Context, prefix 
 		cachePrefix = "*"
 	}
 	cachePrefix = fmt.Sprintf("%v-%v", cachePrefix, keySegments)
+	cacheNeedsUpdate := false
 
 	for daysAgo := 0; daysAgo <= numPrevDays; daysAgo++ {
 		go func(tbl *bigtable.Table, ctx context.Context, prefix string, daysAgo int) {
@@ -85,11 +91,11 @@ func createNFTCountsOfInterval(tbl *bigtable.Table, ctx context.Context, prefix 
 
 			dateStr := start.Format("2006-01-02")
 
-			mu.Lock()
+			muWarmNFTCache.Lock()
 			// initialize the map for this date in the result set
 			results[dateStr] = map[string]int{"*": 0}
 			// check to see if there is cache data for this date/query
-			if dateCache, ok := warmNFTCache[dateStr]; ok {
+			if dateCache, ok := warmNFTCache[dateStr]; ok && useCache(dateStr) {
 				// have a cache for this date
 
 				if val, ok := dateCache[cachePrefix]; ok {
@@ -97,7 +103,7 @@ func createNFTCountsOfInterval(tbl *bigtable.Table, ctx context.Context, prefix 
 					if daysAgo >= 1 {
 						// only use the cache for yesterday and older
 						results[dateStr] = val
-						mu.Unlock()
+						muWarmNFTCache.Unlock()
 						intervalsWG.Done()
 						return
 					}
@@ -110,7 +116,7 @@ func createNFTCountsOfInterval(tbl *bigtable.Table, ctx context.Context, prefix 
 				warmNFTCache[dateStr] = map[string]map[string]int{}
 				warmNFTCache[dateStr][cachePrefix] = map[string]int{}
 			}
-			mu.Unlock()
+			muWarmNFTCache.Unlock()
 
 			var result []bigtable.Row
 			var fetchErr error
@@ -132,12 +138,21 @@ func createNFTCountsOfInterval(tbl *bigtable.Table, ctx context.Context, prefix 
 				results[dateStr][countBy] = results[dateStr][countBy] + 1
 			}
 
-			// set the result in the cache
-			warmNFTCache[dateStr][cachePrefix] = results[dateStr]
+			if cacheData, ok := warmNFTCache[dateStr][cachePrefix]; !ok || len(cacheData) <= 1 {
+				// set the result in the cache
+				muWarmNFTCache.Lock()
+				warmNFTCache[dateStr][cachePrefix] = results[dateStr]
+				muWarmNFTCache.Unlock()
+				cacheNeedsUpdate = true
+			}
 		}(tbl, ctx, prefix, daysAgo)
 	}
 
 	intervalsWG.Wait()
+
+	if cacheNeedsUpdate {
+		persistInterfaceToJson(ctx, warmNFTCacheFilePath, &muWarmNFTCache, warmNFTCache)
+	}
 
 	// create a set of all the keys from all dates, to ensure the result objects all have the same keys
 	seenKeySet := map[string]bool{}
@@ -196,12 +211,13 @@ func NFTs(w http.ResponseWriter, r *http.Request) {
 	// Set CORS headers for the main request.
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
-	var numDays, groupBy, forChain, forAddress string
+	var last24Hours, numDays, groupBy, forChain, forAddress string
 
 	// allow GET requests with querystring params, or POST requests with json body.
 	switch r.Method {
 	case http.MethodGet:
 		queryParams := r.URL.Query()
+		last24Hours = queryParams.Get("last24Hours")
 		numDays = queryParams.Get("numDays")
 		groupBy = queryParams.Get("groupBy")
 		forChain = queryParams.Get("forChain")
@@ -218,10 +234,11 @@ func NFTs(w http.ResponseWriter, r *http.Request) {
 	case http.MethodPost:
 		// declare request body properties
 		var d struct {
-			NumDays    string `json:"numDays"`
-			GroupBy    string `json:"groupBy"`
-			ForChain   string `json:"forChain"`
-			ForAddress string `json:"forAddress"`
+			Last24Hours string `json:"last24Hours"`
+			NumDays     string `json:"numDays"`
+			GroupBy     string `json:"groupBy"`
+			ForChain    string `json:"forChain"`
+			ForAddress  string `json:"forAddress"`
 		}
 
 		// deserialize request body
@@ -236,6 +253,7 @@ func NFTs(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
+		last24Hours = d.Last24Hours
 		numDays = d.NumDays
 		groupBy = d.GroupBy
 		forChain = d.ForChain
@@ -247,10 +265,11 @@ func NFTs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var queryDays int
-	if numDays == "" {
-		queryDays = 30
-	} else {
+	// default query period is all time
+	queryDays := int(time.Now().UTC().Sub(releaseDay).Hours() / 24)
+
+	// if the request included numDays, set the query period to that
+	if numDays != "" {
 		var convErr error
 		queryDays, convErr = strconv.Atoi(numDays)
 		if convErr != nil {
@@ -291,39 +310,22 @@ func NFTs(w http.ResponseWriter, r *http.Request) {
 
 	// total of last 24 hours
 	var last24HourCount map[string]int
-	wg.Add(1)
-	go func(prefix string, keySegments int) {
-		var err error
-		last24HourInterval := -time.Duration(24) * time.Hour
-		now := time.Now().UTC()
-		start := now.Add(last24HourInterval)
-		defer wg.Done()
-		last24HourCount, err = nftMessageCountForInterval(tbl, ctx, prefix, start, now, keySegments)
-		if err != nil {
-			log.Printf("failed getting count for interval, err: %v", err)
-		}
-	}(prefix, keySegments)
+	if last24Hours != "" {
+		wg.Add(1)
+		go func(prefix string, keySegments int) {
+			var err error
+			last24HourInterval := -time.Duration(24) * time.Hour
+			now := time.Now().UTC()
+			start := now.Add(last24HourInterval)
+			defer wg.Done()
+			last24HourCount, err = nftMessageCountForInterval(tbl, ctx, prefix, start, now, keySegments)
+			if err != nil {
+				log.Printf("failed getting count for interval, err: %v", err)
+			}
+		}(prefix, keySegments)
+	}
 
-	// total of the last 30 days
-	var periodCount map[string]int
-	wg.Add(1)
-	go func(prefix string, keySegments int) {
-		var err error
-		hours := (24 * queryDays)
-		periodInterval := -time.Duration(hours) * time.Hour
-
-		now := time.Now().UTC()
-		prev := now.Add(periodInterval)
-		start := time.Date(prev.Year(), prev.Month(), prev.Day(), 0, 0, 0, 0, prev.Location())
-
-		defer wg.Done()
-		periodCount, err = nftMessageCountForInterval(tbl, ctx, prefix, start, now, keySegments)
-		if err != nil {
-			log.Fatalf("failed getting count for interval, err: %v", err)
-		}
-	}(prefix, keySegments)
-
-	// daily totals
+	periodTotals := map[string]int{}
 	var dailyTotals map[string]map[string]int
 	wg.Add(1)
 	go func(prefix string, keySegments int, queryDays int) {
@@ -331,16 +333,23 @@ func NFTs(w http.ResponseWriter, r *http.Request) {
 		defer wg.Done()
 		dailyTotals, err = createNFTCountsOfInterval(tbl, ctx, prefix, queryDays, keySegments)
 		if err != nil {
-			log.Fatalf("failed getting createCountsOfInterval err %v", err)
+			log.Fatalf("failed getting createNFTCountsOfInterval err %v", err)
+		}
+		// sum all the days to create a map with totals for the query period
+		for _, vals := range dailyTotals {
+			for chain, amount := range vals {
+				periodTotals[chain] += amount
+			}
 		}
 	}(prefix, keySegments, queryDays)
 
 	wg.Wait()
 
 	result := &totalsResult{
-		LastDayCount: last24HourCount,
-		TotalCount:   periodCount,
-		DailyTotals:  dailyTotals,
+		LastDayCount:           last24HourCount,
+		TotalCount:             periodTotals,
+		TotalCountDurationDays: queryDays,
+		DailyTotals:            dailyTotals,
 	}
 
 	jsonBytes, err := json.Marshal(result)
