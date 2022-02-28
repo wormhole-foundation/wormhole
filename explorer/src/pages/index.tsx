@@ -112,7 +112,8 @@ const IndexPage = ({ location }: PageProps) => {
   }
 
   useEffect(() => {
-    statsInterval = setInterval(fetchStats, 30000)
+    fetchStats()  // fetchStats on first load
+    statsInterval = setInterval(fetchStats, 30000) // fetch every 30 seconds
 
     gsap.registerPlugin(ScrollTrigger);
 
