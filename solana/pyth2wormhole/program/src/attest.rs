@@ -149,6 +149,7 @@ pub fn attest(ctx: &ExecutionContext, accs: &mut Attest, data: AttestData) -> So
             "Wormhole program account mismatch (expected {:?}, got {:?})",
             accs.config.wh_prog, accs.wh_prog.key
         ));
+        return Err(ProgramError::InvalidAccountData.into());
     }
 
     // Make the specified prices iterable
