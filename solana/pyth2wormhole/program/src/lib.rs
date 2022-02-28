@@ -3,7 +3,6 @@ pub mod attest;
 pub mod config;
 pub mod initialize;
 pub mod set_config;
-pub mod types;
 
 use solitaire::solitaire;
 

@@ -31,8 +31,9 @@ generic-array = { version = "0.14.4" }
 hex = "0.4.2"
 lazy_static = "1.4.0"
 bigint = "4"
-pyth-client = "0.2.2"
-solana-program = "=1.7.0"
+pyth-client = { path = "../../../../pyth/pyth-client-rs" }
+p2w-sdk = { path = "../../../third_party/pyth/p2w-sdk/rust" }
+solana-program = "=1.8.16"
 
 [dev-dependencies]
 cosmwasm-vm = { version = "0.16.0", default-features = false }

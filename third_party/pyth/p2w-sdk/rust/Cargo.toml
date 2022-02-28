@@ -1,0 +1,19 @@
+[package]
+name = "p2w-sdk"
+version = "0.1.0"
+authors = ["Wormhole Contributors <contact@certus.one>"]
+edition = "2018"
+description = "Pyth Price Sdk"
+
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+wasm = ["wasm-bindgen"]
+
+[dependencies]
+serde = { version = "1.0.103", default-features = false, features = ["derive"] }
+pyth-client = { version = "0.5.0", features = ["no-entrypoint"] }
+wasm-bindgen = { version = "0.2.74", features = ["serde-serialize"], optional = true}
+solana-program = "1.8.16"

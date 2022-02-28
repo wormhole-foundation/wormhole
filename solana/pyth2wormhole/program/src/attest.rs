@@ -1,10 +1,4 @@
-use crate::{
-    config::P2WConfigAccount,
-    types::{
-        batch_serialize,
-        PriceAttestation,
-    },
-};
+use crate::config::P2WConfigAccount;
 use borsh::{
     BorshDeserialize,
     BorshSerialize,
@@ -22,6 +16,11 @@ use solana_program::{
     program_error::ProgramError,
     pubkey::Pubkey,
     rent::Rent,
+};
+
+use p2w_sdk::{
+    BatchPriceAttestation,
+    PriceAttestation,
 };
 
 use bridge::{
@@ -208,7 +207,11 @@ pub fn attest(ctx: &ExecutionContext, accs: &mut Attest, data: AttestData) -> So
             price.key.clone(),
             accs.clock.unix_timestamp,
             &*price.try_borrow_data()?,
-        )?;
+        )
+        .map_err(|e| {
+            trace!(e.to_string());
+            ProgramError::InvalidAccountData
+        })?;
 
         // The following check is crucial against poorly ordered
         // account inputs, e.g. [Some(prod1), Some(price1),
@@ -229,6 +232,10 @@ pub fn attest(ctx: &ExecutionContext, accs: &mut Attest, data: AttestData) -> So
         attestations.push(attestation);
     }
 
+    let batch_attestation = BatchPriceAttestation {
+        price_attestations: attestations,
+    };
+
     trace!("Attestations successfully created");
 
     let bridge_config = BridgeData::try_from_slice(&accs.wh_bridge.try_borrow_mut_data()?)?.config;
@@ -246,7 +253,7 @@ pub fn attest(ctx: &ExecutionContext, accs: &mut Attest, data: AttestData) -> So
         bridge::instruction::Instruction::PostMessage,
         PostMessageData {
             nonce: 0, // Superseded by the sequence number
-            payload: batch_serialize(attestations.as_slice().iter()).map_err(|e| {
+            payload: batch_attestation.serialize().map_err(|e| {
                 trace!(e.to_string());
                 ProgramError::InvalidAccountData
             })?,
