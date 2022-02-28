@@ -57,6 +57,9 @@ def accounts_endpoint():
     httpd.serve_forever()
 
 
+print(f"Creating {PYTH_TEST_SYMBOL_COUNT} test Pyth symbols")
+sys.stdout.flush()
+
 # Fund the publisher
 sol_run_or_die("airdrop", [
     str(SOL_AIRDROP_AMT),
@@ -66,8 +69,6 @@ sol_run_or_die("airdrop", [
 
 # Create a mapping
 pyth_run_or_die("init_mapping")
-
-print(f"Creating {PYTH_TEST_SYMBOL_COUNT} test Pyth symbols")
 
 publisher_pubkey = sol_run_or_die("address", args=[
     "--keypair", PYTH_PUBLISHER_KEYPAIR

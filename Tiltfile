@@ -250,10 +250,17 @@ docker_build(
 
 if pyth:
     # pyth autopublisher
+    # Don't spin up as many symbols in CI
+    pyth_image_args = {}
+
+    if ci:
+	pyth_image_args = {"PYTH_TEST_SYMBOL_COUNT": "2"}
+        
     docker_build(
         ref = "pyth",
         context = ".",
         dockerfile = "third_party/pyth/Dockerfile.pyth",
+	build_args = pyth_image_args,
     )
     k8s_yaml_with_ns("./devnet/pyth.yaml")
 
