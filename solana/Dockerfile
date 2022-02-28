@@ -14,6 +14,11 @@ RUN apt-get update && \
     rustup component add rustfmt && \
     rustup default nightly-2022-01-02
 
+# Support additional root CAs
+COPY devnet_setup.sh cert.pem* /certs/
+# Debian
+RUN if [ -e /certs/cert.pem ]; then cp /certs/cert.pem /etc/ssl/certs/ca-certificates.crt; fi
+
 RUN sh -c "$(curl -sSfL https://release.solana.com/v1.9.4/install)"
 
 ENV PATH="/root/.local/share/solana/install/active_release/bin:$PATH"

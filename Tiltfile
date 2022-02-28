@@ -38,6 +38,8 @@ config.define_string("bigTableKeyPath", False, "Path to BigTable json key file")
 config.define_string("webHost", False, "Public hostname for port forwards")
 
 # Components
+config.define_bool("algorand", False, "Enable Algorand component")
+config.define_bool("solana", False, "Enable Solana component")
 config.define_bool("pyth", False, "Enable Pyth-to-Wormhole component")
 config.define_bool("explorer", False, "Enable explorer component")
 config.define_bool("bridge_ui", False, "Enable bridge UI component")
@@ -51,6 +53,8 @@ namespace = cfg.get("namespace", "wormhole")
 gcpProject = cfg.get("gcpProject", "local-dev")
 bigTableKeyPath = cfg.get("bigTableKeyPath", "./event_database/devnet_key.json")
 webHost = cfg.get("webHost", "localhost")
+algorand = cfg.get("algorand", True)
+solana = cfg.get("solana", True)
 ci = cfg.get("ci", False)
 pyth = cfg.get("pyth", ci)
 explorer = cfg.get("explorer", ci)
@@ -98,28 +102,30 @@ local_resource(
     trigger_mode = trigger_mode,
 )
 
-local_resource(
-    name = "teal-gen",
-    deps = ["staging/algorand/teal"],
-    cmd = "tilt docker build -- --target teal-export -f Dockerfile.teal -o type=local,dest=. .",
-    env = {"DOCKER_BUILDKIT": "1"},
-    labels = ["algorand"],
-    allow_parallel=True,
-    trigger_mode = trigger_mode,
-)
+if algorand:
+    local_resource(
+        name = "teal-gen",
+        deps = ["staging/algorand/teal"],
+        cmd = "tilt docker build -- --target teal-export -f Dockerfile.teal -o type=local,dest=. .",
+        env = {"DOCKER_BUILDKIT": "1"},
+        labels = ["algorand"],
+        allow_parallel=True,
+        trigger_mode = trigger_mode,
+    )
 
 # wasm
 
-local_resource(
-    name = "wasm-gen",
-    deps = ["solana"],
-    dir = "solana",
-    cmd = "tilt docker build -- -f Dockerfile.wasm -o type=local,dest=.. .",
-    env = {"DOCKER_BUILDKIT": "1"},
-    labels = ["solana"],
-    allow_parallel=True,
-    trigger_mode = trigger_mode,
-)
+if solana:
+    local_resource(
+        name = "wasm-gen",
+        deps = ["solana"],
+        dir = "solana",
+        cmd = "tilt docker build -- -f Dockerfile.wasm -o type=local,dest=.. .",
+        env = {"DOCKER_BUILDKIT": "1"},
+        labels = ["solana"],
+        allow_parallel=True,
+        trigger_mode = trigger_mode,
+    )
 
 # node
 
@@ -167,9 +173,13 @@ def build_node_yaml():
 
 k8s_yaml_with_ns(build_node_yaml())
 
+guardian_resource_deps = ["proto-gen", "eth-devnet", "eth-devnet2", "terra-terrad"]
+if solana:
+    guardian_resource_deps = guardian_resource_deps + ["solana-devnet"]
+
 k8s_resource(
     "guardian",
-    resource_deps = ["proto-gen", "eth-devnet", "eth-devnet2", "terra-terrad", "solana-devnet"],
+    resource_deps = guardian_resource_deps,
     port_forwards = [
         port_forward(6060, name = "Debug/Status Server [:6060]", host = webHost),
         port_forward(7070, name = "Public gRPC [:7070]", host = webHost),
@@ -194,39 +204,41 @@ k8s_resource(
     trigger_mode = trigger_mode,
 )
 
-# solana client cli (used for devnet setup)
+if solana:
 
-docker_build(
-    ref = "bridge-client",
-    context = ".",
-    only = ["./proto", "./solana", "./clients"],
-    dockerfile = "Dockerfile.client",
-    # Ignore target folders from local (non-container) development.
-    ignore = ["./solana/*/target"],
-)
+    # solana client cli (used for devnet setup)
 
-# solana smart contract
+    docker_build(
+        ref = "bridge-client",
+        context = ".",
+        only = ["./proto", "./solana", "./clients"],
+        dockerfile = "Dockerfile.client",
+        # Ignore target folders from local (non-container) development.
+        ignore = ["./solana/*/target"],
+    )
 
-docker_build(
-    ref = "solana-contract",
-    context = "solana",
-    dockerfile = "solana/Dockerfile",
-)
+    # solana smart contract
 
-# solana local devnet
+    docker_build(
+        ref = "solana-contract",
+        context = "solana",
+        dockerfile = "solana/Dockerfile",
+    )
 
-k8s_yaml_with_ns("devnet/solana-devnet.yaml")
+    # solana local devnet
 
-k8s_resource(
-    "solana-devnet",
-    port_forwards = [
-        port_forward(8899, name = "Solana RPC [:8899]", host = webHost),
-        port_forward(8900, name = "Solana WS [:8900]", host = webHost),
-        port_forward(9000, name = "Solana PubSub [:9000]", host = webHost),
-    ],
-    labels = ["solana"],
-    trigger_mode = trigger_mode,
-)
+    k8s_yaml_with_ns("devnet/solana-devnet.yaml")
+
+    k8s_resource(
+        "solana-devnet",
+        port_forwards = [
+            port_forward(8899, name = "Solana RPC [:8899]", host = webHost),
+            port_forward(8900, name = "Solana WS [:8900]", host = webHost),
+            port_forward(9000, name = "Solana PubSub [:9000]", host = webHost),
+        ],
+        labels = ["solana"],
+        trigger_mode = trigger_mode,
+    )
 
 # eth devnet
 
@@ -248,7 +260,7 @@ docker_build(
     ],
 )
 
-if pyth:
+if solana and pyth:
     # pyth autopublisher
     docker_build(
         ref = "pyth",
@@ -371,24 +383,25 @@ if ci_tests:
     )
 
 # algorand
-k8s_yaml_with_ns("devnet/algorand.yaml")
+if algorand:
+    k8s_yaml_with_ns("devnet/algorand.yaml")
 
-docker_build(
-    ref = "algorand",
-    context = "third_party/algorand",
-    dockerfile = "third_party/algorand/Dockerfile",
-)
+    docker_build(
+        ref = "algorand",
+        context = "third_party/algorand",
+        dockerfile = "third_party/algorand/Dockerfile",
+    )
 
-k8s_resource(
-    "algorand",
-    resource_deps = ["teal-gen"],
-    port_forwards = [
-        port_forward(4001, name = "Algorand RPC [:4001]", host = webHost),
-        port_forward(4002, name = "Algorand KMD [:4002]", host = webHost),
-    ],
-    labels = ["algorand"],
-    trigger_mode = trigger_mode,
-)
+    k8s_resource(
+        "algorand",
+        resource_deps = ["teal-gen"],
+        port_forwards = [
+            port_forward(4001, name = "Algorand RPC [:4001]", host = webHost),
+            port_forward(4002, name = "Algorand KMD [:4002]", host = webHost),
+        ],
+        labels = ["algorand"],
+        trigger_mode = trigger_mode,
+    )
 
 # e2e
 if e2e:
