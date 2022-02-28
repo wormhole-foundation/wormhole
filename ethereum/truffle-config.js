@@ -132,6 +132,18 @@ module.exports = {
       gas: 70000000,
       gasPrice: 8000000000,
     },
+    fantom: {
+      provider: () => {
+        return new HDWalletProvider(
+          process.env.MNEMONIC,
+          "https://rpc.ftm.tools/"
+        )
+      },
+      network_id: 250,
+      gas: 8000000,
+      gasPrice: 3000000000000,
+      timeoutBlocks: 15000,
+    },
     fantom_testnet: {
       provider: () => {
         return new HDWalletProvider(
