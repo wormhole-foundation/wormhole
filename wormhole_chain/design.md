@@ -64,3 +64,14 @@ chain becomes deadlocked.
 
 Thus we must only accept a guardian set update if a supermajority of guardians
 in the new guardian set are already registered.
+
+At present, Guardian Set upgrade VAAs are signed by the Guardians off-chain. This can stay off-chain for as long as needed, but should eventually be moved on-chain.
+
+## TODO Bootstraping the PoA Network
+
+At time of writing, the Guardian Network is currently at Guardian Set 2, but will possibly be at set 3 or 4 by the time of launch.
+
+It is likely not feasible to launch the chain with all 19 Guardians of the network hardcoded in the genesis block, as this would require the Guardians to determine their addresses off-chain, and somehow be connected to the network for the first block. 
+
+As such, it is likely simpler to launch Wormhole Chain with a single validator (The guardian from Guardian Set 1), then have all the other Guardians perform real on-chain registrations for themselves, and then perform a Guardian Set upgrade directly to the current Guardian set.
+
