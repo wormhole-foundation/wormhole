@@ -28,9 +28,9 @@ module.exports = {
   },
   apps: {
     vaaVerifyProgramBinFile: 'bin/vaa-verify.bin',
-    vaaProcessorAppId: 74563743,
-    priceKeeperV2AppId: 74563760,
-    vaaVerifyProgramHash: 'NDCOXBIMDEVFYXL6HXZSA5MXFRXC276R4YRJEDLYOHK7WJC2VYKSXJCUHM',
+    vaaProcessorAppId: 75517826,
+    priceKeeperV2AppId: 75517911,
+    vaaVerifyProgramHash: 'SEYMPIJ2L5OXIMSJSEM5W5ZPFCPGDFKGXMH4O5ATBFAZFCGYINGH4UKQVE',
     ownerAddress: 'OPDM7ACAW64Q4VBWAL77Z5SHSJVZZ44V3BAN7W44U43SUXEOUENZMZYOQU',
     ownerKeyFile: './keys/owner.key'
   },
