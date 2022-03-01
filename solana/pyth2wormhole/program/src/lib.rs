@@ -24,9 +24,9 @@ pub use set_config::{
 };
 
 solitaire! {
-    Attest(AttestData) => attest,
-    Initialize(Pyth2WormholeConfig) => initialize,
-    SetConfig(Pyth2WormholeConfig) => set_config,
+    Attest => attest,
+    Initialize => initialize,
+    SetConfig => set_config,
 }
 
 

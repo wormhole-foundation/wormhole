@@ -17,5 +17,5 @@ pub use api::{
 };
 
 solitaire! {
-    PostMessage(PostMessageData)                => post_message,
+    PostMessage                => post_message,
 }
