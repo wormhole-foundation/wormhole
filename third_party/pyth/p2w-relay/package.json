@@ -42,7 +42,7 @@
         "typescript": "^4.3.5"
     },
     "dependencies": {
-        "@certusone/p2w-sdk": "file:../p2w-sdk",
+        "@certusone/p2w-sdk": "file:../p2w-sdk/js",
         "@certusone/wormhole-sdk": "file:../../../sdk/js",
         "@improbable-eng/grpc-web-node-http-transport": "^0.14.1"
     },

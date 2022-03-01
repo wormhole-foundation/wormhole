@@ -40,7 +40,7 @@
 	"@solana/web3.js": "^1.24.0"
     },
     "dependencies": {
-        "@certusone/wormhole-sdk": "file:../../../sdk/js",
+        "@certusone/wormhole-sdk": "file:../../../../sdk/js",
         "@improbable-eng/grpc-web-node-http-transport": "^0.14.1"
     },
     "bugs": {
