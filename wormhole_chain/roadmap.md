@@ -4,7 +4,7 @@
 
 At the time of writing, the Wormhole Guardian Network is a decentralized network of 19 validators operating in a Proof-of-Authority consensus mechanism. They validate using the guardiand program from the Wormhole core repository, and perform governance off-chain. There are currently no features to the Wormhole Guardian Network except the core function of observing and signing VAAs.
 
-The roadmap is that as Wormhole grows and matures, it will add more advanced features, such as Accounting, Wormhole Pipes, Cross-Chain Queries, and more. It will also move its governance, VAA generation, and validator on-boarding to a formalized process, and potentially change its governance structure from PoA to another mechanism (possibly PoS).
+The roadmap is that as Wormhole grows and matures, it will add more advanced features, such as Accounting, Wormhole Pipes, Cross-Chain Queries, and more. It will also move its governance, VAA generation, and validator on-boarding to a formalized process, and change its governance structure from PoA to another mechanism (possibly a modified Proof of Stake mechanism).
 
 Considering that future Wormhole governance is intended to be token based, and that many of these upcoming features are incentivized via fee or staking mechanisms, the obvious path forward is to launch a purpose-built blockchain to support this vision.
 
@@ -15,12 +15,15 @@ When building a new blockchain, there are not particularly many options. The pri
 - Fork an existing blockchain
 - Use the Cosmos SDK
 - Build one from scratch
+- Implement into an existing environment (parachain), or implement as a layer 2.
 
-The first two options can fairly easily be dismissed. There is not any blockchain in particular which stands out to be forked, and most forked blockchain (such as Ethereum), would require maintaining a smart-contract runtime, which is an unnecessary overhead for Wormhole Chain.
+There is not any blockchain in particular which stands out to be forked, and most forked blockchains (such as Ethereum), would require maintaining a smart-contract runtime, which is an unnecessary overhead for Wormhole Chain.
 
 The Cosmos SDK is the most sensible choice, as its extensible 'module' system allows for the outlined features of Wormhole Chain to be easily added to the out-of-the-box runtime. Additionally, the Cosmos SDK's use of Tendermint for its consensus mechanism can easily be modified to support Proof of Authority for block production, while still allowing stake-weighted on-chain voting for governance. In the future, PoA can also be seamlessly swapped out for an entirely PoS system. Using the Cosmos SDK will also open up the opportunity for the Wormhole ecosystem to directly leverage the IBC protocol.
 
 Because the Cosmos SDK is able to support the planned feature set of Wormhole Chain, building it from scratch would largely be a case of 'reinventing the wheel', and even potentially sacrifice features, such as IBC support.
+
+The last option would be to implement the chain as a layer two, or integrate as a parachain in an existing environment like Polkadot. Both of these create dependencies and constraints for Wormhole which would make it hard to hand-roll a consensus mechanism or unilaterally develop new functionality.
 
 ## Wormhole Chain Explorer
 
