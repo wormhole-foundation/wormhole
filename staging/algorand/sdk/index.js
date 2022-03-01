@@ -15,11 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { parseProductData } from '@pythnetwork/client'
-import { PublicKey, clusterApiUrl, Connection } from '@solana/web3.js'
-import { base58 } from 'ethers/lib/utils'
+const { parseProductData } = require('@pythnetwork/client')
+const { PublicKey, clusterApiUrl, Connection } = require('@solana/web3.js')
+const { base58 } = require('ethers/lib/utils')
 const { Uint64BE } = require('int64-buffer')
 
+const PRICE_DATA_BYTES_LEN = 46
 const algosdk = require('algosdk')
 const clusterToPythProgramKey = {}
 clusterToPythProgramKey['mainnet-beta'] = 'FsJ3A3u2vn5cTVofAjvy6y5kwABJAqYWpe4975bi2epH'
@@ -32,22 +33,21 @@ clusterToPythProgramKey.testnet = '8tfDNiaEyrV6Q1U4DEXrEigs9DoDtkugzFbybENEbCDz'
 class PricecasterSdk {
   /**
    * Constructs a new PricecasterSDK Object.
-   * @param {*} algoToken  The token for connecting to the desired Algorand node.
-   * @param {*} algoApi  The host API URL for connecting to the desired Algorand node.
-   * @param {*} algoPort The port number for connecting to the desired Algorand node.
+   * @param {*} algoToken  The token for connecting to the desired Algorand indexer.
+   * @param {*} algoApi  The host API URL for connecting to the desired Algorand indexer.
+   * @param {*} algoPort The port number for connecting to the desired Algorand indexer.
    * @param {*} contractAppId The application Id containing the on-chain Pricekeeper contract to interact with.
    * @param {*} sourceCluster The Solana cluster (devnet, mainnet-beta, testnet) where symbol name information
    *                          is fetched. If unspecified or invalid, no symbol name will be retrieved.
    */
   constructor (token, api, port, appId, sourceCluster) {
     this.indexer = new algosdk.Indexer(token, api, port)
-    // this.client = new algosdk.Algodv2(algoToken, algoApi, algoPort, sourceCluster)
     this.appId = appId
     this.sourceCluster = sourceCluster
     this.symbolInfo = new Map()
   }
 
-  #getPythProgramKeyForCluster (cluster) {
+  getPythProgramKeyForCluster (cluster) {
     if (clusterToPythProgramKey[cluster] !== undefined) {
       return new PublicKey(clusterToPythProgramKey[cluster])
     } else {
@@ -68,7 +68,7 @@ class PricecasterSdk {
       this.sourceCluster === 'devnet' ||
       this.sourceCluster === 'testnet') {
       const connection = new Connection(clusterApiUrl(this.sourceCluster))
-      const pythPublicKey = this.#getPythProgramKeyForCluster(this.sourceCluster)
+      const pythPublicKey = this.getPythProgramKeyForCluster(this.sourceCluster)
       const accounts = await connection.getProgramAccounts(pythPublicKey, 'finalized')
       for (const acc of accounts) {
         const productData = parseProductData(acc.account.data)
@@ -95,17 +95,21 @@ class PricecasterSdk {
       const productId = base58.encode(key.slice(0, 32))
       const priceId = base58.encode(key.slice(32, 64))
       const v = Buffer.from(entry.value.bytes, 'base64')
-      const sym = this.symbolInfo.get(productId + priceId)
-      const price = new Uint64BE(v, 0)
-      priceData.push({
-        price,
-        exp: v.readInt32BE(8),
-        twap: new Uint64BE(v, 12),
-        twac: new Uint64BE(v, 20),
-        conf: new Uint64BE(v, 20 + 8),
-        symbol: sym === undefined ? productId.toString() + priceId.toString() : sym
-      })
+      if (v.length === PRICE_DATA_BYTES_LEN) {
+        const sym = this.symbolInfo.get(productId + priceId)
+        const price = new Uint64BE(v, 0)
+        priceData.push({
+          price,
+          exp: v.readInt32BE(8),
+          twap: new Uint64BE(v, 12),
+          twac: new Uint64BE(v, 20),
+          conf: new Uint64BE(v, 20 + 8),
+          time: new Uint64BE(v, 20 + 8 + 1 + 1 + 8),
+          symbol: sym === undefined ? productId.toString() + priceId.toString() : sym
+        })
+      }
     }
+    return priceData
   }
 }
 
