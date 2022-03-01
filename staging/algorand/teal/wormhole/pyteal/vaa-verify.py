@@ -140,11 +140,10 @@ if __name__ == "__main__":
 
     print("VAA Verify Stateless Program, (c) 2022 Wormhole Project Contributors")
     print("Compiling...")
-
-    if len(sys.argv) >= 1:
+    if len(sys.argv) >= 2:
         appid = sys.argv[1]
 
-    if len(sys.argv) >= 2:
+    if len(sys.argv) >= 3:
         outfile = sys.argv[2]
 
     with open(outfile, "w") as f:

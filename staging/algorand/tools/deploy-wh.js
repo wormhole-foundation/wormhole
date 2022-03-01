@@ -53,9 +53,6 @@ async function startOp (algodClient, fromAddress, gexpTime, gkeys) {
   txResponse = await pclib.waitForTransactionResponse(txId)
 
   console.log('Compiling verify VAA stateless code...')
-  out = spawnSync('python', ['teal/wormhole/pyteal/vaa-verify.py'])
-  console.log(out.output.toString())
-
   spawnSync('python', ['teal/wormhole/pyteal/vaa-verify.py', appId])
   const program = fs.readFileSync('teal/wormhole/build/vaa-verify.teal', 'utf8')
   const compiledVerifyProgram = await pclib.compileProgram(program)

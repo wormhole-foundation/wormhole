@@ -281,7 +281,7 @@ async function checkAttestations (vaa, numOfAttest) {
     expect(extract3(sv, 0, 20)).to.deep.equal(extract3(sortedAttestations[i], 72, 20))
 
     // Check twac
-    expect(extract3(sv, 20, 8)).to.deep.equal(extract3(sortedAttestations[i], 100, 8))
+    expect(extract3(sv, 20, 8)).to.deep.equal(extract3(sortedAttestations[i], 108, 8))
 
     // Check confidence + status + timestamp
     expect(extract3(sv, 28, 18)).to.deep.equal(extract3(sortedAttestations[i], 132, 18))
