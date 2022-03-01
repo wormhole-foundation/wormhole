@@ -73,11 +73,6 @@ RUN --mount=type=cache,target=/root/.cache \
     cd pyth2wormhole/program \
     && /usr/local/cargo/bin/wasm-pack build --target bundler -d bundler -- --features wasm --locked
 
-RUN --mount=type=cache,target=/root/.cache \
-	--mount=type=cache,target=pyth2wormhole/target \
-    cd pyth2wormhole/program \
-    && /usr/local/cargo/bin/wasm-pack build --target nodejs -d nodejs -- --features wasm --locked
-
 FROM scratch AS export
 
 COPY --from=build /usr/src/bridge/bridge/program/bundler sdk/js/src/solana/core
@@ -85,8 +80,8 @@ COPY --from=build /usr/src/bridge/modules/token_bridge/program/bundler sdk/js/sr
 COPY --from=build /usr/src/bridge/migration/bundler sdk/js/src/solana/migration
 COPY --from=build /usr/src/bridge/modules/nft_bridge/program/bundler sdk/js/src/solana/nft
 
-COPY --from=build /usr/src/bridge/pyth2wormhole/program/bundler third_party/pyth/p2w-sdk/src/solana/p2w-core
-COPY --from=build /usr/src/bridge/bridge/program/bundler third_party/pyth/p2w-sdk/src/solana/wormhole-core
+COPY --from=build /usr/src/bridge/pyth2wormhole/program/bundler third_party/pyth/p2w-sdk/js/src/solana/p2w-core
+COPY --from=build /usr/src/bridge/bridge/program/bundler third_party/pyth/p2w-sdk/js/src/solana/wormhole-core
 
 COPY --from=build /usr/src/bridge/bridge/program/nodejs sdk/js/src/solana/core-node
 COPY --from=build /usr/src/bridge/modules/token_bridge/program/nodejs sdk/js/src/solana/token-node
