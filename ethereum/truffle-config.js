@@ -147,27 +147,25 @@ module.exports = {
       provider: () => {
         return new HDWalletProvider(
           process.env.MNEMONIC,
-          "https://tc7-eth.aca-dev.network"
+          "http://103.253.145.222:8545"
         );
       },
-      network_id: 595,
-      gas: 63064010, // 15000000
-      gasPrice: 202184524778,
-      timeoutBlocks: 100,
-      confirmations: 0,
+      network_id: 686,
+      gasPrice: 202184721385,
+      gasLimit: 117096000,
+      gas: 117096000,
     },
     acala_testnet: {
       provider: () => {
         return new HDWalletProvider(
           process.env.MNEMONIC,
-          "https://tc7-eth.aca-dev.network"
+          "http://157.245.252.103:8545"
         );
       },
-      network_id: 595,
-      gas: 63064010, // 15000000
-      gasPrice: 202184524778,
-      timeoutBlocks: 100,
-      confirmations: 0,
+      network_id: 787,
+      gasPrice: 202184721385,
+      gasLimit: 213192000,
+      gas: 213192000,
     },
   },
 

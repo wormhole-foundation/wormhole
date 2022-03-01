@@ -420,6 +420,18 @@ func runNode(cmd *cobra.Command, args []string) {
 		if *ethRopstenContract != "" {
 			logger.Fatal("Please do not specify --ethRopstenContract in non-testnet mode")
 		}
+		if *karuraRPC != "" && !*unsafeDevMode {
+			logger.Fatal("Please do not specify --karuraRPC")
+		}
+		if *karuraContract != "" && !*unsafeDevMode {
+			logger.Fatal("Please do not specify --karuraContract")
+		}
+		if *acalaRPC != "" && !*unsafeDevMode {
+			logger.Fatal("Please do not specify --acalaRPC")
+		}
+		if *acalaContract != "" && !*unsafeDevMode {
+			logger.Fatal("Please do not specify --acalaContract")
+		}
 	}
 	if *nodeName == "" {
 		logger.Fatal("Please specify --nodeName")
