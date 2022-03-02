@@ -487,6 +487,8 @@ export const getNFTBridgeAddressForChain = (chainId: ChainId) =>
     ? ROPSTEN_ETH_NFT_BRIDGE_ADDRESS
     : chainId === CHAIN_ID_AVAX
     ? AVAX_NFT_BRIDGE_ADDRESS
+    : chainId === CHAIN_ID_OASIS
+    ? OASIS_NFT_BRIDGE_ADDRESS
     : chainId === CHAIN_ID_FANTOM
     ? FANTOM_NFT_BRIDGE_ADDRESS
     : "";
@@ -505,6 +507,8 @@ export const getTokenBridgeAddressForChain = (chainId: ChainId) =>
     ? ROPSTEN_ETH_TOKEN_BRIDGE_ADDRESS
     : chainId === CHAIN_ID_AVAX
     ? AVAX_TOKEN_BRIDGE_ADDRESS
+    : chainId === CHAIN_ID_OASIS
+    ? OASIS_TOKEN_BRIDGE_ADDRESS
     : chainId === CHAIN_ID_FANTOM
     ? FANTOM_TOKEN_BRIDGE_ADDRESS
     : "";
