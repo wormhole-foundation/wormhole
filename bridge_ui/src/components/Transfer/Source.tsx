@@ -159,7 +159,7 @@ function Source() {
           </div>
         </div>
       </StepDescription>
-      <div className={classes.chainSelectWrapper}>
+      <div className={classes.chainSelectWrapper} style={{marginBottom:'25px'}}>
         <div className={classes.chainSelectContainer}>
           <Typography variant="caption">Source</Typography>
           <ChainSelect
