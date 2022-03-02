@@ -51,7 +51,7 @@ func (k msgServer) ExecuteVAA(goCtx context.Context, msg *types.MsgExecuteVAA) (
 	}
 
 	// Check if emitter is a registered chain
-	registration, found := k.GetChainRegistration(ctx, uint16(v.EmitterChain))
+	registration, found := k.GetChainRegistration(ctx, uint32(v.EmitterChain))
 	if !found {
 		return nil, types.ErrUnregisteredEmitter
 	}

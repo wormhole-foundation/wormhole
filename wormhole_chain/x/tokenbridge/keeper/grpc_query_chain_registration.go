@@ -52,7 +52,7 @@ func (k Keeper) ChainRegistration(c context.Context, req *types.QueryGetChainReg
 
 	val, found := k.GetChainRegistration(
 		ctx,
-		uint16(req.ChainID),
+		req.ChainID,
 	)
 	if !found {
 		return nil, status.Error(codes.InvalidArgument, "not found")
