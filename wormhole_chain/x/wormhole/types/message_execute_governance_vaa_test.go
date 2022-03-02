@@ -17,13 +17,13 @@ func TestMsgExecuteGovernanceVAA_ValidateBasic(t *testing.T) {
 		{
 			name: "invalid address",
 			msg: MsgExecuteGovernanceVAA{
-				Creator: "invalid_address",
+				Signer: "invalid_address",
 			},
 			err: sdkerrors.ErrInvalidAddress,
 		}, {
 			name: "valid address",
 			msg: MsgExecuteGovernanceVAA{
-				Creator: sample.AccAddress(),
+				Signer: sample.AccAddress(),
 			},
 		},
 	}

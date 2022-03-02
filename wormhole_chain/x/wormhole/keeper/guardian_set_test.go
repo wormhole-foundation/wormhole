@@ -10,17 +10,21 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func createNGuardianSet(keeper *keeper.Keeper, ctx sdk.Context, n int) []types.GuardianSet {
+func createNGuardianSet(t *testing.T, keeper *keeper.Keeper, ctx sdk.Context, n int) []types.GuardianSet {
 	items := make([]types.GuardianSet, n)
 	for i := range items {
-		items[i].Index = keeper.AppendGuardianSet(ctx, items[i])
+		items[i].Index = uint32(i)
+		_, err := keeper.AppendGuardianSet(ctx, items[i])
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
 	return items
 }
 
 func TestGuardianSetGet(t *testing.T) {
 	keeper, ctx := keepertest.WormholeKeeper(t)
-	items := createNGuardianSet(keeper, ctx, 10)
+	items := createNGuardianSet(t, keeper, ctx, 10)
 	for _, item := range items {
 		got, found := keeper.GetGuardianSet(ctx, item.Index)
 		require.True(t, found)
@@ -30,7 +34,7 @@ func TestGuardianSetGet(t *testing.T) {
 
 func TestGuardianSetRemove(t *testing.T) {
 	keeper, ctx := keepertest.WormholeKeeper(t)
-	items := createNGuardianSet(keeper, ctx, 10)
+	items := createNGuardianSet(t, keeper, ctx, 10)
 	for _, item := range items {
 		keeper.RemoveGuardianSet(ctx, item.Index)
 		_, found := keeper.GetGuardianSet(ctx, item.Index)
@@ -40,13 +44,13 @@ func TestGuardianSetRemove(t *testing.T) {
 
 func TestGuardianSetGetAll(t *testing.T) {
 	keeper, ctx := keepertest.WormholeKeeper(t)
-	items := createNGuardianSet(keeper, ctx, 10)
+	items := createNGuardianSet(t, keeper, ctx, 10)
 	require.ElementsMatch(t, items, keeper.GetAllGuardianSet(ctx))
 }
 
 func TestGuardianSetCount(t *testing.T) {
 	keeper, ctx := keepertest.WormholeKeeper(t)
-	items := createNGuardianSet(keeper, ctx, 10)
-	count := uint64(len(items))
+	items := createNGuardianSet(t, keeper, ctx, 10)
+	count := uint32(len(items))
 	require.Equal(t, count, keeper.GetGuardianSetCount(ctx))
 }

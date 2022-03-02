@@ -17,7 +17,7 @@ import (
 func TestGuardianSetQuerySingle(t *testing.T) {
 	keeper, ctx := keepertest.WormholeKeeper(t)
 	wctx := sdk.WrapSDKContext(ctx)
-	msgs := createNGuardianSet(keeper, ctx, 2)
+	msgs := createNGuardianSet(t, keeper, ctx, 2)
 	for _, tc := range []struct {
 		desc     string
 		request  *types.QueryGetGuardianSetRequest
@@ -26,17 +26,17 @@ func TestGuardianSetQuerySingle(t *testing.T) {
 	}{
 		{
 			desc:     "First",
-			request:  &types.QueryGetGuardianSetRequest{Id: msgs[0].Index},
+			request:  &types.QueryGetGuardianSetRequest{Index: msgs[0].Index},
 			response: &types.QueryGetGuardianSetResponse{GuardianSet: msgs[0]},
 		},
 		{
 			desc:     "Second",
-			request:  &types.QueryGetGuardianSetRequest{Id: msgs[1].Index},
+			request:  &types.QueryGetGuardianSetRequest{Index: msgs[1].Index},
 			response: &types.QueryGetGuardianSetResponse{GuardianSet: msgs[1]},
 		},
 		{
 			desc:    "KeyNotFound",
-			request: &types.QueryGetGuardianSetRequest{Id: uint64(len(msgs))},
+			request: &types.QueryGetGuardianSetRequest{Index: uint32(len(msgs))},
 			err:     sdkerrors.ErrKeyNotFound,
 		},
 		{
@@ -59,7 +59,7 @@ func TestGuardianSetQuerySingle(t *testing.T) {
 func TestGuardianSetQueryPaginated(t *testing.T) {
 	keeper, ctx := keepertest.WormholeKeeper(t)
 	wctx := sdk.WrapSDKContext(ctx)
-	msgs := createNGuardianSet(keeper, ctx, 5)
+	msgs := createNGuardianSet(t, keeper, ctx, 5)
 
 	request := func(next []byte, offset, limit uint64, total bool) *types.QueryAllGuardianSetRequest {
 		return &types.QueryAllGuardianSetRequest{
