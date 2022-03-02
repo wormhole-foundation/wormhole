@@ -118,8 +118,6 @@ func addressesTransferredToSince(tbl *bigtable.Table, ctx context.Context, prefi
 		persistInterfaceToJson(ctx, addressesToUpToYesterdayFilePath, &muAddressesToUpToYesterday, addressesToUpToYesterday)
 	} else {
 		muAddressesToUpToYesterday.Unlock()
-		// persistInterfaceToJson(ctx, addressesToUpToYesterdayFilePath, &muAddressesToUpToYesterday, addressesToUpToYesterday)
-		//  persistInterfaceToDocument(ctx, addressesToUpToYesterdayFilePath, &muAddressesToUpToYesterday, addressesToUpToYesterday)
 	}
 
 	return result
