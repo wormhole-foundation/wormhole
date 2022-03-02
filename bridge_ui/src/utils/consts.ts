@@ -43,11 +43,6 @@ export const CHAINS: ChainInfo[] =
           logo: avaxIcon,
         },
         {
-          id: CHAIN_ID_OASIS,
-          name: "Oasis",
-          logo: oasisIcon,
-        },
-        {
           id: CHAIN_ID_BSC,
           name: "Binance Smart Chain",
           logo: bscIcon,
@@ -61,6 +56,11 @@ export const CHAINS: ChainInfo[] =
           id: CHAIN_ID_FANTOM,
           name: "Fantom",
           logo: fantomIcon,
+        },
+        {
+          id: CHAIN_ID_OASIS,
+          name: "Oasis",
+          logo: oasisIcon,
         },
         {
           id: CHAIN_ID_POLYGON,
