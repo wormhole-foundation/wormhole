@@ -56,6 +56,14 @@ const ChainOverviewCard: React.FC<ChainOverviewCardProps> = ({
     alignItems: "center",
     flexDirection: "column",
   };
+  // prevent an exception if data is missing (ie. new chain)
+  if (
+    !notionalTransferredToCumulative ||
+    !(dataKey in notionalTransferredToCumulative.AllTime) ||
+    !("*" in notionalTransferredToCumulative.AllTime[dataKey])
+  ) {
+    return <>coming soon</>
+  }
   return (
     <>
       <div style={{ ...centerStyles, gap: 8 }}>
@@ -79,11 +87,11 @@ const ChainOverviewCard: React.FC<ChainOverviewCardProps> = ({
             </div>
           )}
         {notionalTransferred &&
-        notionalTransferred.WithinPeriod &&
-        dataKey in notionalTransferred.WithinPeriod &&
-        "*" in notionalTransferred.WithinPeriod[dataKey] &&
-        "*" in notionalTransferred.WithinPeriod[dataKey]["*"] &&
-        notionalTransferred.WithinPeriod[dataKey]["*"]["*"] > 0 ? (
+          notionalTransferred.WithinPeriod &&
+          dataKey in notionalTransferred.WithinPeriod &&
+          "*" in notionalTransferred.WithinPeriod[dataKey] &&
+          "*" in notionalTransferred.WithinPeriod[dataKey]["*"] &&
+          notionalTransferred.WithinPeriod[dataKey]["*"]["*"] > 0 ? (
           <div style={centerStyles}>
             <div>
               <Typography
@@ -92,9 +100,9 @@ const ChainOverviewCard: React.FC<ChainOverviewCardProps> = ({
               >
                 {notionalTransferred.WithinPeriod[dataKey]["*"]["*"]
                   ? "$" +
-                    amountFormatter(
-                      notionalTransferred.WithinPeriod[dataKey]["*"]["*"]
-                    )
+                  amountFormatter(
+                    notionalTransferred.WithinPeriod[dataKey]["*"]["*"]
+                  )
                   : "..."}
               </Typography>
             </div>

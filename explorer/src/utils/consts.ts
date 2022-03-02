@@ -13,6 +13,7 @@ export const chainEnums = [
   "Polygon",
   "Avalanche",
   "Oasis",
+  "Fantom",
 ];
 
 export interface ChainIDs {
@@ -23,6 +24,7 @@ export interface ChainIDs {
   polygon: 5;
   avalanche: 6;
   oasis: 7;
+  fantom: 10,
 }
 export const chainIDs: ChainIDs = {
   solana: 1,
@@ -32,6 +34,7 @@ export const chainIDs: ChainIDs = {
   polygon: 5,
   avalanche: 6,
   oasis: 7,
+  fantom: 10
 };
 export const chainIDStrings: { [chainIDString: string]: string } = {
   "1": "solana",
@@ -41,6 +44,7 @@ export const chainIDStrings: { [chainIDString: string]: string } = {
   "5": "polygon",
   "6": "avalanche",
   "7": "oasis",
+  "10": "fantom"
 };
 
 export enum ChainID {
@@ -52,6 +56,7 @@ export enum ChainID {
   Polygon,
   Avalanche,
   Oasis,
+  Fantom
 }
 export type ChainName = keyof ChainIDs;
 export type ChainIDNumber = ChainIDs[ChainName];
@@ -95,6 +100,12 @@ const envVarMap: { [name: string]: string | undefined } = {
   GATSBY_DEVNET_OASIS_TOKEN_BRIDGE:
     process.env.GATSBY_DEVNET_OASIS_TOKEN_BRIDGE,
   GATSBY_DEVNET_OASIS_NFT_BRIDGE: process.env.GATSBY_DEVNET_OASIS_NFT_BRIDGE,
+  GATSBY_DEVNET_FANTOM_CORE_BRIDGE:
+    process.env.GATSBY_DEVNET_FANTOM_CORE_BRIDGE,
+  GATSBY_DEVNET_FANTOM_TOKEN_BRIDGE:
+    process.env.GATSBY_DEVNET_FANTOM_TOKEN_BRIDGE,
+  GATSBY_DEVNET_FANTOM_NFT_BRIDGE:
+    process.env.GATSBY_DEVNET_FANTOM_NFT_BRIDGE,
 
   GATSBY_TESTNET_SOLANA_CORE_BRIDGE:
     process.env.GATSBY_TESTNET_SOLANA_CORE_BRIDGE,
@@ -133,6 +144,12 @@ const envVarMap: { [name: string]: string | undefined } = {
   GATSBY_TESTNET_OASIS_TOKEN_BRIDGE:
     process.env.GATSBY_TESTNET_OASIS_TOKEN_BRIDGE,
   GATSBY_TESTNET_OASIS_NFT_BRIDGE: process.env.GATSBY_TESTNET_OASIS_NFT_BRIDGE,
+  GATSBY_TESTNET_FANTOM_CORE_BRIDGE:
+    process.env.GATSBY_TESTNET_FANTOM_CORE_BRIDGE,
+  GATSBY_TESTNET_FANTOM_TOKEN_BRIDGE:
+    process.env.GATSBY_TESTNET_FANTOM_TOKEN_BRIDGE,
+  GATSBY_TESTNET_FANTOM_NFT_BRIDGE:
+    process.env.GATSBY_TESTNET_FANTOM_NFT_BRIDGE,
 
   GATSBY_MAINNET_SOLANA_CORE_BRIDGE:
     process.env.GATSBY_MAINNET_SOLANA_CORE_BRIDGE,
@@ -171,6 +188,12 @@ const envVarMap: { [name: string]: string | undefined } = {
   GATSBY_MAINNET_OASIS_TOKEN_BRIDGE:
     process.env.GATSBY_MAINNET_OASIS_TOKEN_BRIDGE,
   GATSBY_MAINNET_OASIS_NFT_BRIDGE: process.env.GATSBY_MAINNET_OASIS_NFT_BRIDGE,
+  GATSBY_MAINNET_FANTOM_CORE_BRIDGE:
+    process.env.GATSBY_MAINNET_FANTOM_CORE_BRIDGE,
+  GATSBY_MAINNET_FANTOM_TOKEN_BRIDGE:
+    process.env.GATSBY_MAINNET_FANTOM_TOKEN_BRIDGE,
+  GATSBY_MAINNET_FANTOM_NFT_BRIDGE:
+    process.env.GATSBY_MAINNET_FANTOM_NFT_BRIDGE,
 };
 
 export interface KnownContracts {
@@ -200,6 +223,7 @@ const getEmitterAddress: {
   polygon: getEmitterAddressEVM,
   avalanche: getEmitterAddressEVM,
   oasis: getEmitterAddressEVM,
+  fantom: getEmitterAddressEVM,
 };
 
 // the keys used for creating the map of contract addresses of each chain, on each network.

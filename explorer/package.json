@@ -10,7 +10,7 @@
     "clean": "gatsby clean"
   },
   "dependencies": {
-    "@certusone/wormhole-sdk": "^0.1.6",
+    "@certusone/wormhole-sdk": "0.2.0",
     "@cosmjs/encoding": "^0.27.0",
     "@emotion/react": "^11.7.1",
     "@emotion/styled": "^11.6.0",

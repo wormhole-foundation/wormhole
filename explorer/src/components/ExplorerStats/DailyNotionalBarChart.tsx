@@ -51,6 +51,9 @@ const DailyNotionalBarChart = (props: DailyCountProps) => {
             const chains = props.daily[date]
 
             return [...accum, Object.keys(chains).reduce<BarDatum>((subAccum, chain) => {
+                if (chain === "*") {
+                    return subAccum
+                }
 
                 const group = makeGroupName(chain, activeNetwork)
                 // const group = chain
