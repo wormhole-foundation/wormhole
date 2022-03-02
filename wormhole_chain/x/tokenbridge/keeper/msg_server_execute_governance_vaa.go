@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+
 	"github.com/certusone/wormhole-chain/x/wormhole/keeper"
 	"github.com/certusone/wormhole/node/pkg/vaa"
 
@@ -79,11 +80,14 @@ func (k msgServer) ExecuteGovernanceVAA(goCtx context.Context, msg *types.MsgExe
 		chainId := binary.BigEndian.Uint16(payload[:2])
 		bridgeEmitter := payload[2:32]
 
-		if _, found := k.GetChainRegistration(ctx, chainId); found {
+		if _, found := k.GetChainRegistration(ctx, uint32(chainId)); found {
 			return nil, types.ErrChainAlreadyRegistered
 		}
 
-		k.SetChainRegistration(ctx, types.ChainRegistration{ChainID: uint32(chainId), EmitterAddress: bridgeEmitter})
+		k.SetChainRegistration(ctx, types.ChainRegistration{
+			ChainID:        uint32(chainId),
+			EmitterAddress: bridgeEmitter,
+		})
 
 		// Emit event
 		err = ctx.EventManager().EmitTypedEvent(&types.EventChainRegistered{

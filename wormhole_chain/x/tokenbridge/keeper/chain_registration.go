@@ -18,14 +18,12 @@ func (k Keeper) SetChainRegistration(ctx sdk.Context, chainRegistration types.Ch
 // GetChainRegistration returns a chainRegistration from its index
 func (k Keeper) GetChainRegistration(
 	ctx sdk.Context,
-	chainID uint16,
+	chainID uint32,
 
 ) (val types.ChainRegistration, found bool) {
 	store := prefix.NewStore(ctx.KVStore(k.storeKey), types.KeyPrefix(types.ChainRegistrationKeyPrefix))
 
-	b := store.Get(types.ChainRegistrationKey(
-		uint32(chainID),
-	))
+	b := store.Get(types.ChainRegistrationKey(chainID))
 	if b == nil {
 		return val, false
 	}
