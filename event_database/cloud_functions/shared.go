@@ -8,7 +8,6 @@ import (
 	"io"
 	"log"
 	"math"
-	"net/http"
 	"os"
 	"strings"
 	"sync"
@@ -216,9 +215,6 @@ type (
 		OriginSymbol       string
 		OriginName         string
 		OriginTokenAddress string
-		// fields below exist on the row, but no need to return them currently.
-		// NotionalUSD        uint64
-		// TokenPriceUSD      uint64
 	}
 	ChainDetails struct {
 		SenderAddress   string
@@ -397,35 +393,13 @@ func makeDetails(row bigtable.Row) *Details {
 		}
 		deets.NFTTransferPayload = nftTransferPayload
 	}
-	// NotionalUSD and TokenPriceUSD are more percise than the string versions returned,
-	// however the precision is not required, so leaving this commented out for now.
-	// if _, ok := row[transferDetailsFam]; ok {
-	// 	for _, item := range row[transferDetailsFam] {
-	// 		switch item.Column {
-	// 		case "TokenTransferDetails:NotionalUSD":
-	// 			reader := bytes.NewReader(item.Value)
-	// 			var notionalUSD uint64
-	// 			if err := binary.Read(reader, binary.BigEndian, &notionalUSD); err != nil {
-	// 				log.Fatalf("failed to read NotionalUSD of row: %v. err %v ", row.Key(), err)
-	// 			}
-	// 			deets.TransferDetails.NotionalUSD = notionalUSD
-
-	// 		case "TokenTransferDetails:TokenPriceUSD":
-	// 			reader := bytes.NewReader(item.Value)
-	// 			var tokenPriceUSD uint64
-	// 			if err := binary.Read(reader, binary.BigEndian, &tokenPriceUSD); err != nil {
-	// 				log.Fatalf("failed to read TokenPriceUSD of row: %v. err %v", row.Key(), err)
-	// 			}
-	// 			deets.TransferDetails.TokenPriceUSD = tokenPriceUSD
-	// 		}
-	// 	}
-	// }
 	if _, ok := row[chainDetailsFam]; ok {
 		chainDetails := &ChainDetails{}
 		for _, item := range row[chainDetailsFam] {
 			switch item.Column {
-			case "ChainDetails:SenderAddress":
-				chainDetails.SenderAddress = string(item.Value)
+			// TEMP - until we have this backfilled/populating for new messages
+			// case "ChainDetails:SenderAddress":
+			// 	chainDetails.SenderAddress = string(item.Value)
 			case "ChainDetails:ReceiverAddress":
 				chainDetails.ReceiverAddress = string(item.Value)
 			}
@@ -457,31 +431,4 @@ func useCache(date string) bool {
 		return false
 	}
 	return true
-}
-
-var mux = newMux()
-
-// Entry is the cloud function entry point
-func Entry(w http.ResponseWriter, r *http.Request) {
-	mux.ServeHTTP(w, r)
-}
-
-func newMux() *http.ServeMux {
-	mux := http.NewServeMux()
-
-	mux.HandleFunc("/notionaltransferred", NotionalTransferred)
-	mux.HandleFunc("/notionaltransferredto", NotionalTransferredTo)
-	mux.HandleFunc("/notionaltransferredtocumulative", NotionalTransferredToCumulative)
-	mux.HandleFunc("/addressestransferredto", AddressesTransferredTo)
-	mux.HandleFunc("/addressestransferredtocumulative", AddressesTransferredToCumulative)
-	mux.HandleFunc("/totals", Totals)
-	mux.HandleFunc("/nfts", NFTs)
-	mux.HandleFunc("/recent", Recent)
-	mux.HandleFunc("/transaction", Transaction)
-	mux.HandleFunc("/readrow", ReadRow)
-	mux.HandleFunc("/findvalues", FindValues)
-
-	mux.HandleFunc("/readyz", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusOK) })
-
-	return mux
 }

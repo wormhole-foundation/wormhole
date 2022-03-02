@@ -1,4 +1,4 @@
-package main
+package initialize_db
 
 import (
 	"context"
@@ -39,6 +39,7 @@ func RunSetup(project string, instance string, keyFilePath string) {
 		if err := adminClient.CreateTable(ctx, tableName); err != nil {
 			log.Fatalf("Could not create table %s: %v", tableName, err)
 		}
+		log.Println("created table: ", tableName)
 	}
 
 	tblInfo, err := adminClient.TableInfo(ctx, tableName)
@@ -51,6 +52,9 @@ func RunSetup(project string, instance string, keyFilePath string) {
 			if err := adminClient.CreateColumnFamily(ctx, tableName, familyName); err != nil {
 				log.Fatalf("Could not create column family %s: %v", familyName, err)
 			}
+			log.Println("created column family: ", familyName)
+		} else {
+			log.Println("column family already exists in table: ", tableName)
 		}
 	}
 
