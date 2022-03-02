@@ -1,16 +1,19 @@
 import {
   ChainId,
+  CHAIN_ID_ACALA,
+  CHAIN_ID_KARURA,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
   createWrappedOnEth,
   createWrappedOnSolana,
   createWrappedOnTerra,
-  updateWrappedOnEth,
-  updateWrappedOnTerra,
-  updateWrappedOnSolana,
-  postVaaSolanaWithRetry,
   isEVMChain,
+  postVaaSolanaWithRetry,
+  updateWrappedOnEth,
+  updateWrappedOnSolana,
+  updateWrappedOnTerra,
 } from "@certusone/wormhole-sdk";
+import { Alert } from "@material-ui/lab";
 import { WalletContextState } from "@solana/wallet-adapter-react";
 import { Connection } from "@solana/web3.js";
 import {
@@ -23,7 +26,6 @@ import { useCallback, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useEthereumProvider } from "../contexts/EthereumProviderContext";
 import { useSolanaWallet } from "../contexts/SolanaWalletContext";
-import useAttestSignedVAA from "./useAttestSignedVAA";
 import { setCreateTx, setIsCreating } from "../store/attestSlice";
 import {
   selectAttestIsCreating,
@@ -31,17 +33,20 @@ import {
   selectTerraFeeDenom,
 } from "../store/selectors";
 import {
+  ACALA_HOST,
   getTokenBridgeAddressForChain,
+  KARURA_HOST,
   MAX_VAA_UPLOAD_RETRIES_SOLANA,
   SOLANA_HOST,
   SOL_BRIDGE_ADDRESS,
   SOL_TOKEN_BRIDGE_ADDRESS,
   TERRA_TOKEN_BRIDGE_ADDRESS,
 } from "../utils/consts";
+import { getKaruraGasParams } from "../utils/karura";
 import parseError from "../utils/parseError";
 import { signSendAndConfirm } from "../utils/solana";
-import { Alert } from "@material-ui/lab";
 import { postWithFees } from "../utils/terra";
+import useAttestSignedVAA from "./useAttestSignedVAA";
 
 async function evm(
   dispatch: any,
@@ -53,16 +58,25 @@ async function evm(
 ) {
   dispatch(setIsCreating(true));
   try {
+    // Karura and Acala need gas params for contract deploys
+    const overrides =
+      chainId === CHAIN_ID_KARURA
+        ? await getKaruraGasParams(KARURA_HOST)
+        : chainId === CHAIN_ID_ACALA
+        ? await getKaruraGasParams(ACALA_HOST)
+        : {};
     const receipt = shouldUpdate
       ? await updateWrappedOnEth(
           getTokenBridgeAddressForChain(chainId),
           signer,
-          signedVAA
+          signedVAA,
+          overrides
         )
       : await createWrappedOnEth(
           getTokenBridgeAddressForChain(chainId),
           signer,
-          signedVAA
+          signedVAA,
+          overrides
         );
     dispatch(
       setCreateTx({ id: receipt.transactionHash, block: receipt.blockNumber })
