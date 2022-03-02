@@ -7,7 +7,7 @@ import {
   Transaction,
 } from "@solana/web3.js";
 import { MsgExecuteContract } from "@terra-money/terra.js";
-import { ethers } from "ethers";
+import { BigNumber, ethers, Overrides, PayableOverrides } from "ethers";
 import { isNativeDenom } from "..";
 import {
   Bridge__factory,
@@ -33,10 +33,13 @@ export async function approveEth(
   tokenBridgeAddress: string,
   tokenAddress: string,
   signer: ethers.Signer,
-  amount: ethers.BigNumberish
+  amount: ethers.BigNumberish,
+  overrides: Overrides & { from?: string | Promise<string> } = {}
 ) {
   const token = TokenImplementation__factory.connect(tokenAddress, signer);
-  return await (await token.approve(tokenBridgeAddress, amount)).wait();
+  return await (
+    await token.approve(tokenBridgeAddress, amount, overrides)
+  ).wait();
 }
 
 export async function transferFromEth(
@@ -46,7 +49,8 @@ export async function transferFromEth(
   amount: ethers.BigNumberish,
   recipientChain: ChainId,
   recipientAddress: Uint8Array,
-  relayerFee: ethers.BigNumberish = 0
+  relayerFee: ethers.BigNumberish = 0,
+  overrides: PayableOverrides & { from?: string | Promise<string> } = {}
 ) {
   const bridge = Bridge__factory.connect(tokenBridgeAddress, signer);
   const v = await bridge.transferTokens(
@@ -55,7 +59,8 @@ export async function transferFromEth(
     recipientChain,
     recipientAddress,
     relayerFee,
-    createNonce()
+    createNonce(),
+    overrides
   );
   const receipt = await v.wait();
   return receipt;
@@ -67,7 +72,8 @@ export async function transferFromEthNative(
   amount: ethers.BigNumberish,
   recipientChain: ChainId,
   recipientAddress: Uint8Array,
-  relayerFee: ethers.BigNumberish = 0
+  relayerFee: ethers.BigNumberish = 0,
+  overrides: PayableOverrides & { from?: string | Promise<string> } = {}
 ) {
   const bridge = Bridge__factory.connect(tokenBridgeAddress, signer);
   const v = await bridge.wrapAndTransferETH(
@@ -76,6 +82,7 @@ export async function transferFromEthNative(
     relayerFee,
     createNonce(),
     {
+      ...overrides,
       value: amount,
     }
   );

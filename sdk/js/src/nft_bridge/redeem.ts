@@ -1,6 +1,6 @@
 import { Connection, PublicKey, Transaction } from "@solana/web3.js";
 import { MsgExecuteContract } from "@terra-money/terra.js";
-import { ethers } from "ethers";
+import { ethers, Overrides } from "ethers";
 import { fromUint8Array } from "js-base64";
 import { CHAIN_ID_SOLANA } from "..";
 import { Bridge__factory } from "../ethers-contracts";
@@ -10,15 +10,18 @@ import { importCoreWasm, importNftWasm } from "../solana/wasm";
 export async function redeemOnEth(
   tokenBridgeAddress: string,
   signer: ethers.Signer,
-  signedVAA: Uint8Array
+  signedVAA: Uint8Array,
+  overrides: Overrides & { from?: string | Promise<string> } = {}
 ): Promise<ethers.ContractReceipt> {
   const bridge = Bridge__factory.connect(tokenBridgeAddress, signer);
-  const v = await bridge.completeTransfer(signedVAA);
+  const v = await bridge.completeTransfer(signedVAA, overrides);
   const receipt = await v.wait();
   return receipt;
 }
 
-export async function isNFTVAASolanaNative(signedVAA: Uint8Array): Promise<boolean> {
+export async function isNFTVAASolanaNative(
+  signedVAA: Uint8Array
+): Promise<boolean> {
   const { parse_vaa } = await importCoreWasm();
   const parsedVAA = parse_vaa(signedVAA);
   const isSolanaNative =
