@@ -105,7 +105,7 @@ const TransactionMetrics: React.FC<any> = () => {
           noWrap
           className={classes.totalValue}
         >
-          {numeral(transactionCount.data?.total24h || 0).format("0,0")}
+          {numeral(transactionCount.data?.total48h || 0).format("0,0")}
         </Typography>
       </div>
       <div className={classes.totalContainer}>

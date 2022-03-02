@@ -98,6 +98,8 @@ func (c ChainID) String() string {
 		return "avalanche"
 	case ChainIDOasis:
 		return "oasis"
+	case ChainIDFantom:
+		return "fantom"
 	case ChainIDAlgorand:
 		return "algorand"
 	case ChainIDEthereumRopsten:
@@ -125,6 +127,8 @@ func ChainIDFromString(s string) (ChainID, error) {
 		return ChainIDAvalanche, nil
 	case "oasis":
 		return ChainIDOasis, nil
+	case "fantom":
+		return ChainIDFantom, nil
 	case "algorand":
 		return ChainIDAlgorand, nil
 	case "ethereum-ropsten":
@@ -152,6 +156,8 @@ const (
 	ChainIDOasis ChainID = 7
 	// ChainIDAlgorand is the ChainID of Algorand
 	ChainIDAlgorand ChainID = 8
+	// ChainIDFantom is the ChainID of Fantom
+	ChainIDFantom ChainID = 10
 
 	// ChainIDEthereumRopsten is the ChainID of Ethereum Ropsten
 	ChainIDEthereumRopsten ChainID = 10001
@@ -341,4 +347,15 @@ func MustWrite(w io.Writer, order binary.ByteOrder, data interface{}) {
 	if err := binary.Write(w, order, data); err != nil {
 		panic(fmt.Errorf("failed to write binary data: %v", data).Error())
 	}
+}
+
+// StringToAddress converts a hex-encoded adress into a vaa.Address
+func StringToAddress(value string) (Address, error) {
+	var address Address
+	res, err := hex.DecodeString(value)
+	if err != nil {
+		return address, err
+	}
+	copy(address[:], res)
+	return address, nil
 }

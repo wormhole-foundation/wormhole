@@ -10,6 +10,16 @@ RUN mkdir -p /home/node/app
 RUN mkdir -p /home/node/.npm
 WORKDIR /home/node/app
 
+# Support additional root CAs
+COPY README.md cert.pem* /certs/
+# Node
+ENV NODE_EXTRA_CA_CERTS=/certs/cert.pem
+ENV NODE_OPTIONS=--use-openssl-ca
+# npm
+RUN if [ -e /certs/cert.pem ]; then npm config set cafile /certs/cert.pem; fi
+# git
+RUN if [ -e /certs/cert.pem ]; then git config --global http.sslCAPath /certs; fi
+
 # Only invalidate the npm install step if package.json changed
 ADD --chown=node:node package.json .
 ADD --chown=node:node package-lock.json .
@@ -24,6 +34,6 @@ RUN --mount=type=cache,uid=1000,gid=1000,target=/home/node/.npm \
 # Amusingly, Debian's coreutils version has a bug where mv believes that
 # the target is on a different fs and does a full recursive copy for what
 # could be a renameat syscall. Alpine does not have this bug.
-RUN rmdir node_modules && mv node_modules_cache node_modules
+RUN rm -rf node_modules && mv node_modules_cache node_modules
 
 ADD --chown=node:node . .

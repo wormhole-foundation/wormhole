@@ -1,53 +1,18 @@
 {
-  "compileOnSave": false,
+  "include": ["./src/**/*"],
   "compilerOptions": {
-    "target": "es2020",
-    "module": "es2020",
-    "types": [
-      "node",
-      "jest",
-      "mocha"
-    ],
-    "moduleResolution": "node",
-    "esModuleInterop": true,
-    "typeRoots": [
-      "./src/@types",
-      "./node_modules/@types"
-    ],
-    "lib": [
-      "dom",
-      "es2015",
-      "es2017",
-      "es2018",
-      "esnext.intl",
-      "es2017.intl",
-      "es2018.intl"
-    ],
+    "target": "esnext",
+    "module": "esnext",
+    "lib": ["dom", "es2017"],
+    // "allowJs": true,
+    // "checkJs": true,
     "jsx": "react",
-    "sourceMap": true,
     "strict": true,
-    "resolveJsonModule": true,
-    "noUnusedLocals": true,
-    "noImplicitAny": true,
-    "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true,
-    "allowSyntheticDefaultImports": true,
-    "downlevelIteration": true,
-    "baseUrl": "./",
-    "paths": {
-      "~/*": [
-        "src/*",
-        "wasm/*"
-      ],
-    }
-  },
-  "include": [
-    "./src/**/*",
-    "./test-utils/**/*",
-    "./__mocks__/**/*"
-  ],
-  "exclude": [
-    "node_modules",
-    "plugins"
-  ]
+    "esModuleInterop": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "moduleResolution": "node"
+  }
 }

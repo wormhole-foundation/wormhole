@@ -90,7 +90,7 @@ func adminContractUpgradeToVAA(req *nodev1.ContractUpgrade, guardianSetIndex uin
 	}
 
 	newContractAddress := vaa.Address{}
-	copy(newContractAddress[:], req.NewContract)
+	copy(newContractAddress[:], b)
 
 	v := vaa.CreateGovernanceVAA(nonce, sequence, guardianSetIndex,
 		vaa.BodyContractUpgrade{
@@ -188,9 +188,6 @@ func (s *nodePrivilegedService) InjectGovernanceVAA(ctx context.Context, req *no
 
 		// Generate digest of the unsigned VAA.
 		digest := v.SigningMsg()
-		if err != nil {
-			panic(err)
-		}
 
 		s.logger.Info("governance VAA constructed",
 			zap.Any("vaa", v),

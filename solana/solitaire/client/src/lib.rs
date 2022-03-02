@@ -1,4 +1,5 @@
-#![feature(const_generics)]
+
+#![feature(adt_const_params)]
 #![feature(const_generics_defaults)]
 #![allow(warnings)]
 
@@ -65,6 +66,9 @@ pub enum AccEntry {
     Derived(Pubkey),
     /// Key derived from constants and/or program address, read-only.
     DerivedRO(Pubkey),
+
+    /// Empty value for nullables
+    Empty,
 }
 
 /// Types implementing Wrap are those that can be turned into a
@@ -80,6 +84,15 @@ pub trait Wrap {
             Signer(pair) => Some(pair),
             SignerRO(pair) => Some(pair),
             _other => None,
+        }
+    }
+}
+
+impl<T: Wrap> Wrap for Option<T> {
+    fn wrap(a: &AccEntry) -> StdResult<Vec<AccountMeta>, ErrBox> {
+        match a {
+	    AccEntry::Empty => Ok(vec![AccountMeta::new_readonly(Pubkey::new_from_array([0u8; 32]), false)]),
+	    other => T::wrap(other)
         }
     }
 }

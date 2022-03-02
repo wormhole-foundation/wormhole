@@ -1,79 +1,58 @@
-import path from 'path';
+/**
+ * Implement Gatsby's Node APIs in this file.
+ *
+ * See: https://www.gatsbyjs.com/docs/node-apis/
+ */
 
-import dotenv from 'dotenv';
+const webpack = require("webpack");
 
-dotenv.config({
-  path: `.env.${process.env.NODE_ENV}`,
-});
-
-export const onCreateWebpackConfig = function addPathMapping({
+exports.onCreateWebpackConfig = function addPathMapping({
   stage,
   actions,
   getConfig,
 }) {
   actions.setWebpackConfig({
+    experiments: {
+      asyncWebAssembly: true,
+    },
+    plugins: [
+      // Work around for Buffer is undefined:
+      // https://github.com/webpack/changelog-v5/issues/10
+      new webpack.ProvidePlugin({
+        Buffer: ["buffer", "Buffer"],
+      }),
+    ],
     resolve: {
-      alias: {
-        '~': path.resolve(__dirname, 'src'),
+      fallback: {
+        buffer: require.resolve("buffer"),
+        fs: false,
+        path: false,
+        stream: require.resolve("stream-browserify"),
       },
     },
   });
+};
 
-  // TODO: make sure this only runs in dev
-  actions.setWebpackConfig({
-    devtool: 'eval-source-map',
+exports.createPages = ({ actions }) => {
+  const { createRedirect } = actions;
+  createRedirect({
+    fromPath: "/en/",
+    toPath: "/",
+    isPermanent: true,
   });
-
-  const wasmExtensionRegExp = /\.wasm$/;
-
-  actions.setWebpackConfig({
-    module: {
-      rules: [
-        {
-          test: wasmExtensionRegExp,
-          include: /node_modules\/(bridge|token-bridge|nft)/,
-          use: ['wasm-loader'],
-          type: "javascript/auto"
-        }
-      ]
-    }
+  createRedirect({
+    fromPath: "/en/about/",
+    toPath: "/buidl/",
+    isPermanent: true,
   });
-
-  if (stage === 'build-html') {
-    // exclude wasm from SSR
-    actions.setWebpackConfig({
-      externals: getConfig().externals.concat(function (context, request, callback) {
-        const regex = wasmExtensionRegExp;
-        // exclude wasm from being bundled in SSR html, it will be loaded async at runtime.
-        if (regex.test(request)) {
-          return callback(null, 'commonjs ' + request); // use commonjs for wasm modules
-        }
-        const bridge = new RegExp('/wormhole-sdk/')
-        if (bridge.test(request)) {
-          return callback(null, 'commonjs ' + request);
-        }
-        callback();
-      })
-    });
-  }
-
-  // Attempt to improve webpack vender code splitting
-  if (stage === 'build-javascript') {
-    const config = getConfig();
-
-    config.optimization.splitChunks.cacheGroups = {
-      ...config.optimization.splitChunks.cacheGroups,
-      vendors: {
-        test: /[\\/]node_modules[\\/]/,
-        enforce: true,
-        chunks: 'all',
-        priority: 1,
-      },
-    };
-
-    // Ensure Gatsby does not do any css code splitting
-    config.optimization.splitChunks.cacheGroups.styles.priority = 10;
-
-    actions.replaceWebpackConfig(config);
-  }
+  createRedirect({
+    fromPath: "/en/network/",
+    toPath: "/network/",
+    isPermanent: true,
+  });
+  createRedirect({
+    fromPath: "/en/explorer/",
+    toPath: "/explorer/",
+    isPermanent: true,
+  });
 };

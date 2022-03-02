@@ -1,7 +1,11 @@
 //! This module contains 1:1 (or close) copies of selected Pyth types
 //! with quick and dirty enhancements.
 
-use std::{convert::TryInto, io::Read, mem};
+use std::{
+    convert::TryInto,
+    io::Read,
+    mem,
+};
 
 use pyth_client::{
     CorpAction,
@@ -13,7 +17,10 @@ use solitaire::ErrBox;
 
 /// 1:1 Copy of pyth_client::PriceType with derived additional traits.
 #[derive(Clone, Debug, Eq, PartialEq)]
-#[cfg_attr(feature = "wasm", derive(serde_derive::Serialize, serde_derive::Deserialize))]
+#[cfg_attr(
+    feature = "wasm",
+    derive(serde_derive::Serialize, serde_derive::Deserialize)
+)]
 #[repr(u8)]
 pub enum P2WPriceType {
     Unknown,
@@ -37,7 +44,10 @@ impl Default for P2WPriceType {
 
 /// 1:1 Copy of pyth_client::PriceStatus with derived additional traits.
 #[derive(Clone, Debug, Eq, PartialEq)]
-#[cfg_attr(feature = "wasm", derive(serde_derive::Serialize, serde_derive::Deserialize))]
+#[cfg_attr(
+    feature = "wasm",
+    derive(serde_derive::Serialize, serde_derive::Deserialize)
+)]
 pub enum P2WPriceStatus {
     Unknown,
     Trading,
@@ -64,7 +74,10 @@ impl Default for P2WPriceStatus {
 
 /// 1:1 Copy of pyth_client::CorpAction with derived additional traits.
 #[derive(Clone, Debug, Eq, PartialEq)]
-#[cfg_attr(feature = "wasm", derive(serde_derive::Serialize, serde_derive::Deserialize))]
+#[cfg_attr(
+    feature = "wasm",
+    derive(serde_derive::Serialize, serde_derive::Deserialize)
+)]
 pub enum P2WCorpAction {
     NoCorpAct,
 }
@@ -85,7 +98,10 @@ impl From<&CorpAction> for P2WCorpAction {
 
 /// 1:1 Copy of pyth_client::Ema with all-pub fields.
 #[derive(Clone, Default, Debug, Eq, PartialEq)]
-#[cfg_attr(feature = "wasm", derive(serde_derive::Serialize, serde_derive::Deserialize))]
+#[cfg_attr(
+    feature = "wasm",
+    derive(serde_derive::Serialize, serde_derive::Deserialize)
+)]
 #[repr(C)]
 pub struct P2WEma {
     pub val: i64,
@@ -146,7 +162,7 @@ impl P2WEma {
         let mut val_vec = vec![0u8; mem::size_of::<i64>()];
         bytes.read_exact(val_vec.as_mut_slice())?;
         let val = i64::from_be_bytes(val_vec.as_slice().try_into()?);
-	
+
         let mut numer_vec = vec![0u8; mem::size_of::<i64>()];
         bytes.read_exact(numer_vec.as_mut_slice())?;
         let numer = i64::from_be_bytes(numer_vec.as_slice().try_into()?);
