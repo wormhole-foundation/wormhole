@@ -309,7 +309,7 @@ function App() {
                 </>
               }
             >
-              Portal Token Bridge
+              Token Bridge
             </HeaderText>
             <Tabs
               value={pathname}
