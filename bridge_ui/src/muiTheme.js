@@ -1,4 +1,6 @@
 import { createTheme, responsiveFontSizes } from "@material-ui/core";
+import bg from "../src/images/bg.svg";
+import SuisseBPIntlBold from "./fonts/SuisseBPIntlBold.woff2";
 
 export const COLORS = {
   blue: "#1975e6",
@@ -14,6 +16,14 @@ export const COLORS = {
   darkRed: "#810612",
   white: "#FFFFFF",
   whiteWithTransparency: "rgba(255,255,255,.07)",
+};
+
+const suisse = {
+  fontFamily: "Suisse BP Intl",
+  fontStyle: "normal",
+  fontDisplay: "swap",
+  fontWeight: 400,
+  src: `url(${SuisseBPIntlBold}) format('woff2')`,
 };
 
 export const theme = responsiveFontSizes(
@@ -40,22 +50,36 @@ export const theme = responsiveFontSizes(
         main: COLORS.red,
       },
     },
+
     typography: {
       fontFamily: "'Poppins', sans-serif",
       fontSize: 13,
       h1: {
-        fontWeight: "600",
+        fontFamily: "Suisse BP Intl, sans-serif",
+        lineHeight: 0.9,
+        letterSpacing: -2,
+        fontWeight: "bold",
       },
       h2: {
         fontWeight: "200",
       },
       h4: {
-        fontWeight: "500",
+        fontWeight: "600",
+        fontFamily: "Suisse BP Intl, sans-serif",
+        letterSpacing: -1.02,
       },
     },
     overrides: {
       MuiCssBaseline: {
         "@global": {
+          "@font-face": [suisse],
+          body: {
+            overscrollBehaviorY: "none",
+            backgroundImage: `url(${bg})`,
+            backgroundPosition: "top center",
+            backgroundRepeat: "repeat-y",
+            backgroundSize: "120%",
+          },
           "*": {
             scrollbarWidth: "thin",
             scrollbarColor: `${COLORS.gray} ${COLORS.nearBlackWithMinorTransparency}`,
@@ -167,9 +191,11 @@ export const theme = responsiveFontSizes(
       MuiTab: {
         root: {
           color: COLORS.white,
+          fontFamily: "Suisse BP Intl, sans-serif",
+          fontWeight: "bold",
           fontSize: 18,
-          fontWeight: "400",
           padding: 12,
+          letterSpacing: "-0.69px",
           textTransform: "none",
         },
         textColorInherit: {
