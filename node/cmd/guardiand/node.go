@@ -285,9 +285,10 @@ func runNode(cmd *cobra.Command, args []string) {
 	readiness.RegisterComponent(common.ReadinessPolygonSyncing)
 	readiness.RegisterComponent(common.ReadinessAvalancheSyncing)
 	readiness.RegisterComponent(common.ReadinessOasisSyncing)
+	readiness.RegisterComponent(common.ReadinessFantomSyncing)
+
 	if *testnetMode {
 		readiness.RegisterComponent(common.ReadinessEthRopstenSyncing)
-		readiness.RegisterComponent(common.ReadinessFantomSyncing)
 	}
 
 	if *statusAddr != "" {
