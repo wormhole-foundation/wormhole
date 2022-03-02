@@ -42,8 +42,6 @@ function Create() {
     shouldUpdate || false
   );
 
-  console.log("foreign asset info", foreignAssetInfo);
-
   return (
     <>
       <KeyAndBalance chainId={targetChain} />
