@@ -25,6 +25,7 @@ func networkWithGuardianSetObjects(t *testing.T, n int) (*network.Network, []typ
 	for i := 0; i < n; i++ {
 		state.GuardianSetList = append(state.GuardianSetList, types.GuardianSet{
 			Index: uint32(i),
+			Keys:  [][]byte{},
 		})
 	}
 	buf, err := cfg.Codec.MarshalJSON(&state)

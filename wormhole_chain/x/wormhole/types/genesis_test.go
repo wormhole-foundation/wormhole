@@ -23,10 +23,10 @@ func TestGenesisState_Validate(t *testing.T) {
 			genState: &types.GenesisState{
 				GuardianSetList: []types.GuardianSet{
 					{
-						Id: 0,
+						Index: 0,
 					},
 					{
-						Id: 1,
+						Index: 1,
 					},
 				},
 				GuardianSetCount: 2,
@@ -67,10 +67,10 @@ func TestGenesisState_Validate(t *testing.T) {
 			genState: &types.GenesisState{
 				GuardianSetList: []types.GuardianSet{
 					{
-						Id: 0,
+						Index: 0,
 					},
 					{
-						Id: 0,
+						Index: 0,
 					},
 				},
 			},
@@ -81,7 +81,7 @@ func TestGenesisState_Validate(t *testing.T) {
 			genState: &types.GenesisState{
 				GuardianSetList: []types.GuardianSet{
 					{
-						Id: 1,
+						Index: 1,
 					},
 				},
 				GuardianSetCount: 0,

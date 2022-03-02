@@ -28,7 +28,7 @@ func networkWithChainRegistrationObjects(t *testing.T, n int) (*network.Network,
 
 	for i := 0; i < n; i++ {
 		state.ChainRegistrationList = append(state.ChainRegistrationList, types.ChainRegistration{
-			Index: strconv.Itoa(i),
+			ChainID: uint32(i),
 		})
 	}
 	buf, err := cfg.Codec.MarshalJSON(&state)
@@ -54,7 +54,7 @@ func TestShowChainRegistration(t *testing.T) {
 	}{
 		{
 			desc:    "found",
-			idIndex: objs[0].Index,
+			idIndex: strconv.FormatUint(uint64(objs[0].ChainID), 10),
 
 			args: common,
 			obj:  objs[0],

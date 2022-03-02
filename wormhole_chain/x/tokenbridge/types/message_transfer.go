@@ -1,9 +1,10 @@
 package types
 
 import (
+	"math/big"
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
-	"math/big"
 )
 
 var _ sdk.Msg = &MsgTransfer{}
@@ -51,11 +52,11 @@ func (msg *MsgTransfer) ValidateBasic() error {
 	}
 
 	if len(msg.ToAddress) != 32 {
-		return sdkerrors.Wrapf(ErrInvalidToAddress, "invalid to address (len must be 32)", err)
+		return ErrInvalidToAddress
 	}
 
 	if _, ok := new(big.Int).SetString(msg.Fee, 10); !ok {
-		return sdkerrors.Wrapf(ErrInvalidFee, "invalid fee (must be number)", err)
+		return ErrInvalidFee
 	}
 
 	return nil
