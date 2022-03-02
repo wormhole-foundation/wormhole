@@ -4,10 +4,11 @@ import {
   CHAIN_ID_BSC,
   CHAIN_ID_ETH,
   CHAIN_ID_ETHEREUM_ROPSTEN,
+  CHAIN_ID_FANTOM,
+  CHAIN_ID_OASIS,
   CHAIN_ID_POLYGON,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
-  CHAIN_ID_OASIS,
   isNativeDenom,
 } from "@certusone/wormhole-sdk";
 import { Button, makeStyles, Tooltip, Typography } from "@material-ui/core";
@@ -120,6 +121,10 @@ export default function SmartAddress({
     ? `https://${
         CLUSTER === "testnet" ? "testnet." : ""
       }explorer.emerald.oasis.dev/address/${useableAddress}`
+    : chainId === CHAIN_ID_FANTOM
+    ? `https://${
+        CLUSTER === "testnet" ? "testnet." : ""
+      }ftmscan.com/address/${useableAddress}`
     : chainId === CHAIN_ID_SOLANA
     ? `https://explorer.solana.com/address/${useableAddress}${
         CLUSTER === "testnet"
