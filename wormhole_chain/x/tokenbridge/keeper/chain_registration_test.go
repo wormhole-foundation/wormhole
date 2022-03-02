@@ -17,7 +17,7 @@ var _ = strconv.IntSize
 func createNChainRegistration(keeper *keeper.Keeper, ctx sdk.Context, n int) []types.ChainRegistration {
 	items := make([]types.ChainRegistration, n)
 	for i := range items {
-		items[i].Index = strconv.Itoa(i)
+		items[i].ChainID = uint32(i)
 
 		keeper.SetChainRegistration(ctx, items[i])
 	}
@@ -29,7 +29,7 @@ func TestChainRegistrationGet(t *testing.T) {
 	items := createNChainRegistration(keeper, ctx, 10)
 	for _, item := range items {
 		rst, found := keeper.GetChainRegistration(ctx,
-			item.Index,
+			item.ChainID,
 		)
 		require.True(t, found)
 		require.Equal(t, item, rst)
@@ -40,10 +40,10 @@ func TestChainRegistrationRemove(t *testing.T) {
 	items := createNChainRegistration(keeper, ctx, 10)
 	for _, item := range items {
 		keeper.RemoveChainRegistration(ctx,
-			item.Index,
+			item.ChainID,
 		)
 		_, found := keeper.GetChainRegistration(ctx,
-			item.Index,
+			item.ChainID,
 		)
 		require.False(t, found)
 	}

@@ -51,6 +51,8 @@ func TestGenesis(t *testing.T) {
 		// this line is used by starport scaffolding # genesis/test/state
 	}
 
+	require.NoError(t, genesisState.Validate())
+
 	k, ctx := keepertest.WormholeKeeper(t)
 	wormhole.InitGenesis(ctx, *k, genesisState)
 	got := wormhole.ExportGenesis(ctx, *k)

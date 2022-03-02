@@ -30,21 +30,21 @@ func TestChainRegistrationQuerySingle(t *testing.T) {
 		{
 			desc: "First",
 			request: &types.QueryGetChainRegistrationRequest{
-				Index: msgs[0].Index,
+				ChainID: msgs[0].ChainID,
 			},
 			response: &types.QueryGetChainRegistrationResponse{ChainRegistration: msgs[0]},
 		},
 		{
 			desc: "Second",
 			request: &types.QueryGetChainRegistrationRequest{
-				Index: msgs[1].Index,
+				ChainID: msgs[1].ChainID,
 			},
 			response: &types.QueryGetChainRegistrationResponse{ChainRegistration: msgs[1]},
 		},
 		{
 			desc: "KeyNotFound",
 			request: &types.QueryGetChainRegistrationRequest{
-				Index: strconv.Itoa(100000),
+				ChainID: 10000,
 			},
 			err: status.Error(codes.InvalidArgument, "not found"),
 		},
