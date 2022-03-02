@@ -7,7 +7,7 @@ export const network = "/network/";
 export const brand = "/brand/";
 
 // External
-export const portal = "https://wormholebridge.com/";
+export const portal = "https://portalbridge.com/";
 export const blog = "https://wormholecrypto.medium.com/";
 export const docs = "https://docs.wormholenetwork.com/";
 export const jobs = "https://boards.greenhouse.io/wormhole";
