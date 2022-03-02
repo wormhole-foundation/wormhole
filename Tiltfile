@@ -412,10 +412,10 @@ if explorer:
 
     docker_build(
         ref = "cloud-functions",
-        context = "./event_database/cloud_functions",
-        dockerfile = "./event_database/cloud_functions/Dockerfile",
+        context = "./event_database",
+        dockerfile = "./event_database/functions_server/Dockerfile",
         live_update = [
-            sync("./event_database/cloud_functions", "/app"),
+            sync("./event_database/cloud_functions", "/app/cloud_functions"),
         ],
     )
     k8s_resource(

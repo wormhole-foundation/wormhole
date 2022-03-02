@@ -55,7 +55,12 @@ func transferredToSince(tbl *bigtable.Table, ctx context.Context, prefix string,
 
 	if cacheData, ok := transferredToUpToYesterday[cachePrefix][yesterday]; ok {
 		// cache has data through midnight yesterday
-		result = cacheData
+		for chain, symbols := range cacheData {
+			result[chain] = map[string]float64{}
+			for symbol, amount := range symbols {
+				result[chain][symbol] = amount
+			}
+		}
 		// set the start to be the start of today
 		start = time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 	}
@@ -83,14 +88,30 @@ func transferredToSince(tbl *bigtable.Table, ctx context.Context, prefix string,
 
 	muTransferredToUpToYesterday.Lock()
 	if _, ok := transferredToUpToYesterday[cachePrefix][yesterday]; !ok {
+		transferredToUpToYesterday[cachePrefix][yesterday] = map[string]map[string]float64{}
 		// no cache, populate it
-		upToYesterday := result
-		for chain, tokens := range dailyTotals[today] {
+		upToYesterday := map[string]map[string]float64{}
+		for chain, tokens := range result {
+			upToYesterday[chain] = map[string]float64{}
 			for symbol, amount := range tokens {
-				upToYesterday[chain][symbol] = upToYesterday[chain][symbol] - amount
+				upToYesterday[chain][symbol] = amount
 			}
 		}
-		transferredToUpToYesterday[cachePrefix][yesterday] = upToYesterday
+		for chain, tokens := range dailyTotals[today] {
+			for symbol, amount := range tokens {
+				// subtract the amounts from today, in order to create an "upToYesterday" amount
+				upToYesterday[chain][symbol] = result[chain][symbol] - amount
+			}
+		}
+		// loop again to assign values to the cache
+		for chain, tokens := range upToYesterday {
+			if _, ok := transferredToUpToYesterday[cachePrefix][yesterday][chain]; !ok {
+				transferredToUpToYesterday[cachePrefix][yesterday][chain] = map[string]float64{}
+			}
+			for symbol, amount := range tokens {
+				transferredToUpToYesterday[cachePrefix][yesterday][chain][symbol] = amount
+			}
+		}
 		muTransferredToUpToYesterday.Unlock()
 		// write the updated cache to disc
 		persistInterfaceToJson(ctx, transferredToUpToYesterdayFilePath, &muTransferredToUpToYesterday, transferredToUpToYesterday)
@@ -154,19 +175,30 @@ func createCumulativeAmountsOfInterval(tbl *bigtable.Table, ctx context.Context,
 	// iterate through the dates in the result set, and accumulate the amounts
 	// of each token transfer by symbol, based on the destination of the transfer.
 	for i, date := range dateKeys {
+		results[date] = map[string]map[string]float64{"*": {"*": 0}}
 		muWarmCumulativeCache.RLock()
 		if dateCache, ok := warmCumulativeCache[cachePrefix][date]; ok && dateCache != nil && useCache(date) {
 			// have a cached value for this day, use it.
-			results[date] = dateCache
+			// iterate through cache and copy values to the result
+			for chain, tokens := range dateCache {
+				results[date][chain] = map[string]float64{}
+				for token, amount := range tokens {
+					results[date][chain][token] = amount
+				}
+			}
 			muWarmCumulativeCache.RUnlock()
 		} else {
 			// no cached value for this day, must calculate it
 			muWarmCumulativeCache.RUnlock()
 			if i == 0 {
 				// special case for first day, no need to sum.
-				results[date] = dailyAmounts[date]
+				for chain, tokens := range dailyAmounts[date] {
+					results[date][chain] = map[string]float64{}
+					for token, amount := range tokens {
+						results[date][chain][token] = amount
+					}
+				}
 			} else {
-				results[date] = map[string]map[string]float64{"*": {"*": 0}}
 				// find the string of the previous day
 				prevDate := dateKeys[i-1]
 				prevDayAmounts := results[prevDate]
@@ -207,9 +239,15 @@ func createCumulativeAmountsOfInterval(tbl *bigtable.Table, ctx context.Context,
 			if date != today {
 				// set the result in the cache
 				muWarmCumulativeCache.Lock()
-				if _, ok := warmCumulativeCache[cachePrefix][date]; !ok {
+				if _, ok := warmCumulativeCache[cachePrefix][date]; !ok || !useCache(date) {
 					// cache does not have this date, persist it for other instances.
-					warmCumulativeCache[cachePrefix][date] = results[date]
+					warmCumulativeCache[cachePrefix][date] = map[string]map[string]float64{}
+					for chain, tokens := range results[date] {
+						warmCumulativeCache[cachePrefix][date][chain] = map[string]float64{}
+						for token, amount := range tokens {
+							warmCumulativeCache[cachePrefix][date][chain][token] = amount
+						}
+					}
 					cacheNeedsUpdate = true
 				}
 				muWarmCumulativeCache.Unlock()
@@ -226,7 +264,13 @@ func createCumulativeAmountsOfInterval(tbl *bigtable.Table, ctx context.Context,
 	selectDays := map[string]map[string]map[string]float64{}
 	days := getDaysInRange(start, now)
 	for _, day := range days {
-		selectDays[day] = results[day]
+		selectDays[day] = map[string]map[string]float64{}
+		for chain, tokens := range results[day] {
+			selectDays[day][chain] = map[string]float64{}
+			for symbol, amount := range tokens {
+				selectDays[day][chain][symbol] = amount
+			}
+		}
 	}
 	return selectDays
 

@@ -65,7 +65,7 @@ func fetchCoinGeckoCoins() map[string][]CoinGeckoCoin {
 
 	parseErr := json.Unmarshal(body, &parsed)
 	if parseErr != nil {
-		log.Printf("failed parsing body. err %v\n", parseErr)
+		log.Printf("fetchCoinGeckoCoins failed parsing body. err %v\n", parseErr)
 	}
 	var geckoCoins = map[string][]CoinGeckoCoin{}
 	for _, coin := range parsed {
@@ -133,7 +133,7 @@ func fetchCoinGeckoCoinFromContract(chainId vaa.ChainID, address string) CoinGec
 
 	parseErr := json.Unmarshal(body, &parsed)
 	if parseErr != nil {
-		log.Printf("failed parsing body. err %v\n", parseErr)
+		log.Printf("fetchCoinGeckoCoinFromContract failed parsing body. err %v\n", parseErr)
 		var errRes CoinGeckoErrorRes
 		if err := json.Unmarshal(body, &errRes); err == nil {
 			if errRes.Error == "Could not find coin with the given id" {
@@ -195,7 +195,7 @@ func fetchCoinGeckoCoinId(chainId vaa.ChainID, address, symbol, name string) (co
 func fetchCoinGeckoPrice(coinId string, timestamp time.Time) (float64, error) {
 	hourAgo := time.Now().Add(-time.Duration(1) * time.Hour)
 	withinLastHour := timestamp.After(hourAgo)
-	start, end := rangeFromTime(timestamp, 4)
+	start, end := rangeFromTime(timestamp, 12)
 
 	baseUrl := cgBaseUrl
 	cgApiKey := os.Getenv("COINGECKO_API_KEY")
@@ -226,7 +226,7 @@ func fetchCoinGeckoPrice(coinId string, timestamp time.Time) (float64, error) {
 
 	parseErr := json.Unmarshal(body, &parsed)
 	if parseErr != nil {
-		log.Printf("failed parsing body. err %v\n", parseErr)
+		log.Printf("fetchCoinGeckoPrice failed parsing body. err %v\n", parseErr)
 		var errRes CoinGeckoErrorRes
 		if err := json.Unmarshal(body, &errRes); err == nil {
 			log.Println("Failed calling CoinGecko, got err", errRes.Error)
@@ -369,7 +369,7 @@ func fetchSolanaTokenList() map[string]SolanaToken {
 
 	parseErr := json.Unmarshal(body, &parsed)
 	if parseErr != nil {
-		log.Printf("failed parsing body. err %v\n", parseErr)
+		log.Printf("fetchSolanaTokenList failed parsing body. err %v\n", parseErr)
 	}
 	var solTokens = map[string]SolanaToken{}
 	for _, token := range parsed.Tokens {
@@ -398,6 +398,9 @@ type SolanaBeachAccountResponse struct {
 }
 
 func fetchSolanaAccountOwner(account string) string {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
+	defer cancel()
+
 	baseUrl := solanaBeachPublicBaseURL
 
 	sbApiKey := os.Getenv("SOLANABEACH_API_KEY")
@@ -406,9 +409,10 @@ func fetchSolanaAccountOwner(account string) string {
 	}
 
 	url := fmt.Sprintf("%vaccount/%v", baseUrl, account)
-	req, reqErr := http.NewRequest("GET", url, nil)
+	req, reqErr := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if reqErr != nil {
-		log.Fatalf("failed solanabeach request, err: %v", reqErr)
+		log.Printf("failed solanabeach request, err: %v", reqErr)
+		return ""
 	}
 
 	if sbApiKey != "" {
@@ -417,22 +421,27 @@ func fetchSolanaAccountOwner(account string) string {
 
 	res, resErr := http.DefaultClient.Do(req)
 	if resErr != nil {
-		log.Fatalf("failed get solana beach account response, err: %v", resErr)
+		log.Printf("failed get solana beach account response, err: %v", resErr)
+		return ""
 	}
 
 	defer res.Body.Close()
 	body, bodyErr := ioutil.ReadAll(res.Body)
 	if bodyErr != nil {
-		log.Fatalf("failed decoding solana beach account body, err: %v", bodyErr)
+		log.Printf("failed decoding solana beach account body, err: %v", bodyErr)
+		return ""
 	}
 
 	var parsed SolanaBeachAccountResponse
 
 	parseErr := json.Unmarshal(body, &parsed)
 	if parseErr != nil {
-		log.Printf("failed parsing body. err %v\n", parseErr)
+		log.Printf("fetchSolanaAccountOwner failed parsing body. err %v\n", parseErr)
+		return ""
 	}
 	address := parsed.Value.Extended.Owner.Address
-	log.Println("got owner address from Solana Beach! ", address)
+	if address == "" {
+		log.Println("failed to find owner address for Solana account", account)
+	}
 	return address
 }

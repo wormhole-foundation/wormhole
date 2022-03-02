@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"sync"
 
@@ -45,6 +46,35 @@ func createAndSubscribe(client *pubsub.Client, topicName, subscriptionName strin
 	}
 }
 
+var mux = newMux()
+
+// Entry is the cloud function entry point
+func Entry(w http.ResponseWriter, r *http.Request) {
+	mux.ServeHTTP(w, r)
+}
+
+func newMux() *http.ServeMux {
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("/notionaltransferred", p.NotionalTransferred)
+	mux.HandleFunc("/notionaltransferredto", p.NotionalTransferredTo)
+	mux.HandleFunc("/notionaltransferredtocumulative", p.NotionalTransferredToCumulative)
+	mux.HandleFunc("/notionaltvl", p.TVL)
+	mux.HandleFunc("/notionaltvlcumulative", p.TvlCumulative)
+	mux.HandleFunc("/addressestransferredto", p.AddressesTransferredTo)
+	mux.HandleFunc("/addressestransferredtocumulative", p.AddressesTransferredToCumulative)
+	mux.HandleFunc("/totals", p.Totals)
+	mux.HandleFunc("/nfts", p.NFTs)
+	mux.HandleFunc("/recent", p.Recent)
+	mux.HandleFunc("/transaction", p.Transaction)
+	mux.HandleFunc("/readrow", p.ReadRow)
+	mux.HandleFunc("/findvalues", p.FindValues)
+
+	mux.HandleFunc("/readyz", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusOK) })
+
+	return mux
+}
+
 func main() {
 	var wg sync.WaitGroup
 
@@ -53,7 +83,7 @@ func main() {
 	go func() {
 		defer wg.Done()
 		ctx := context.Background()
-		if err := funcframework.RegisterHTTPFunctionContext(ctx, "/", p.Entry); err != nil {
+		if err := funcframework.RegisterHTTPFunctionContext(ctx, "/", Entry); err != nil {
 			log.Fatalf("funcframework.RegisterHTTPFunctionContext: %v\n", err)
 		}
 		// Use PORT environment variable, or default to 8080.
