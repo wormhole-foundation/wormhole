@@ -1,5 +1,7 @@
 import {
   ChainId,
+  CHAIN_ID_FANTOM,
+  CHAIN_ID_OASIS,
   CHAIN_ID_POLYGON,
   CHAIN_ID_SOLANA,
   isEVMChain,
@@ -73,6 +75,8 @@ export default function TransactionProgress({
   const expectedBlocks =
     chainId === CHAIN_ID_POLYGON
       ? 512 // minimum confirmations enforced by guardians
+      : chainId === CHAIN_ID_FANTOM || chainId === CHAIN_ID_OASIS
+      ? 1 // these chains only require 1 conf
       : chainId === CHAIN_ID_SOLANA
       ? 32
       : isEVMChain(chainId)
