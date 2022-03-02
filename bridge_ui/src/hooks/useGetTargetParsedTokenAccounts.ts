@@ -2,6 +2,7 @@ import {
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
   isEVMChain,
+  isNativeDenom,
   TokenImplementation__factory,
 } from "@certusone/wormhole-sdk";
 import { Connection, PublicKey } from "@solana/web3.js";
@@ -18,6 +19,7 @@ import {
 } from "../store/selectors";
 import { setTargetParsedTokenAccount } from "../store/transferSlice";
 import { getEvmChainId, SOLANA_HOST, TERRA_HOST } from "../utils/consts";
+import { NATIVE_TERRA_DECIMALS } from "../utils/terra";
 import { createParsedTokenAccount } from "./useGetSourceParsedTokenAccounts";
 import useMetadata from "./useMetadata";
 
@@ -56,37 +58,72 @@ function useGetTargetParsedTokenAccounts() {
 
     if (targetChain === CHAIN_ID_TERRA && terraWallet) {
       const lcd = new LCDClient(TERRA_HOST);
-      lcd.wasm
-        .contractQuery(targetAsset, {
-          token_info: {},
-        })
-        .then((info: any) =>
-          lcd.wasm
-            .contractQuery(targetAsset, {
-              balance: {
-                address: terraWallet.walletAddress,
-              },
-            })
-            .then((balance: any) => {
-              if (balance && info) {
-                dispatch(
-                  setTargetParsedTokenAccount(
-                    createParsedTokenAccount(
-                      "",
-                      "",
-                      balance.balance.toString(),
-                      info.decimals,
-                      Number(formatUnits(balance.balance, info.decimals)),
-                      formatUnits(balance.balance, info.decimals),
-                      symbol,
-                      tokenName,
-                      logo
-                    )
+      if (isNativeDenom(targetAsset)) {
+        lcd.bank
+          .balance(terraWallet.walletAddress)
+          .then(([coins]) => {
+            const balance = coins.get(targetAsset)?.amount?.toString();
+            if (balance && !cancelled) {
+              dispatch(
+                setTargetParsedTokenAccount(
+                  createParsedTokenAccount(
+                    "",
+                    "",
+                    balance,
+                    NATIVE_TERRA_DECIMALS,
+                    Number(formatUnits(balance, NATIVE_TERRA_DECIMALS)),
+                    formatUnits(balance, NATIVE_TERRA_DECIMALS),
+                    symbol,
+                    tokenName,
+                    logo
                   )
-                );
-              }
-            })
-        );
+                )
+              );
+            }
+          })
+          .catch(() => {
+            if (!cancelled) {
+              // TODO: error state
+            }
+          });
+      } else {
+        lcd.wasm
+          .contractQuery(targetAsset, {
+            token_info: {},
+          })
+          .then((info: any) =>
+            lcd.wasm
+              .contractQuery(targetAsset, {
+                balance: {
+                  address: terraWallet.walletAddress,
+                },
+              })
+              .then((balance: any) => {
+                if (balance && info && !cancelled) {
+                  dispatch(
+                    setTargetParsedTokenAccount(
+                      createParsedTokenAccount(
+                        "",
+                        "",
+                        balance.balance.toString(),
+                        info.decimals,
+                        Number(formatUnits(balance.balance, info.decimals)),
+                        formatUnits(balance.balance, info.decimals),
+                        symbol,
+                        tokenName,
+                        logo
+                      )
+                    )
+                  );
+                }
+              })
+          )
+          .catch(() => {
+            if (!cancelled) {
+              // TODO: error state
+            }
+          });
+      }
     }
     if (targetChain === CHAIN_ID_SOLANA && solPK) {
       let mint;

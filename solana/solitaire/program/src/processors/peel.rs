@@ -17,6 +17,7 @@ use solana_program::{
 use std::marker::PhantomData;
 
 use crate::{
+    trace,
     processors::seeded::{
         AccountOwner,
         Owned,
@@ -39,6 +40,32 @@ pub trait Peel<'a, 'b: 'a, 'c> {
     fn deps() -> Vec<Pubkey>;
 
     fn persist(&self, program_id: &Pubkey) -> Result<()>;
+}
+
+/// Peel a nullable value (0-account means None)
+impl<'a, 'b: 'a, 'c, T: Peel<'a, 'b, 'c>> Peel<'a, 'b, 'c> for Option<T> {
+    fn peel<I>(ctx: &'c mut Context<'a, 'b, 'c, I>) -> Result<Self> {
+	// Check for 0-account
+	if ctx.info().key == &Pubkey::new_from_array([0u8; 32]) {
+	    trace!(&format!("Peeled {} is None, returning", std::any::type_name::<Option<T>>()));
+	    Ok(None)
+	} else {
+	    Ok(Some(T::peel(ctx)?))
+	}
+    }
+
+    fn deps() -> Vec<Pubkey> {
+	T::deps()
+    }
+
+    fn persist(&self, program_id: &Pubkey) -> Result<()> {
+	if let Some(s) = self.as_ref() {
+            T::persist(s, program_id)
+	} else {
+	    trace!(&format!("Peeled {} is None, not persisting", std::any::type_name::<Option<T>>()));
+	    Ok(())
+	}
+    }
 }
 
 /// Peel a Derived Key

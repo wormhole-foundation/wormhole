@@ -6,10 +6,12 @@
 	"declaration": true,
 	"outDir": "./lib",
 	"strict": true,
+	"skipLibCheck": true,
 	"esModuleInterop": true,
 	"downlevelIteration": true,
 	"allowJs": true,
     },
+    "types": [],
     "include": ["src", "types"],
     "exclude": ["node_modules", "**/__tests__/*"]
 }

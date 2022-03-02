@@ -4,7 +4,7 @@
 
 The Pricekeeper II Program
 
-(c) 2021-22 Randlabs, Inc.
+(c) 2022 Wormhole Project Contributors
 
 ------------------------------------------------------------------------------------------------
 
@@ -152,7 +152,7 @@ if __name__ == "__main__":
     if len(sys.argv) >= 3:
         clear_state_outfile = sys.argv[2]
 
-    print("Pricekeeper V2 Program, (c) 2021-22 Randlabs Inc. ")
+    print("Pricekeeper V2 Program, (c) 2022 Wormhole Project Contributors")
     print("Compiling approval program...")
 
     with open(approval_outfile, "w") as f:

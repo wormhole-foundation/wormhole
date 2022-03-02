@@ -667,13 +667,13 @@
     "treasury": {
       "params": {
         "tax_policy": {
-          "rate_min": "0.000500000000000000",
-          "rate_max": "0.010000000000000000",
+          "rate_min": "0.000000000000000000",
+          "rate_max": "0.000000000000000000",
           "cap": {
             "denom": "usdr",
-            "amount": "1000000"
+            "amount": "0"
           },
-          "change_rate_max": "0.000250000000000000"
+          "change_rate_max": "0.000000000000000000"
         },
         "reward_policy": {
           "rate_min": "0.000000000000000000",

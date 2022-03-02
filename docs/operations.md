@@ -185,7 +185,7 @@ alerting will be documented here.
 
 See [Wormhole.json](../dashboards/Wormhole.json) for an example Grafana dashboard.
 
-**NOTE:** Parsing the log output for monitoring is NOT recommended. Log output is meant for human consumption and are
+**NOTE:** Parsing the log output for monitoring is NOT recommended. Log output is meant for human consumption and is
 not considered a stable API. Log messages may be added, modified or removed without notice. Use the metrics :-)
 
 ## Running a public API endpoint

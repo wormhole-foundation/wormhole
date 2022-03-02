@@ -6,6 +6,7 @@ import { Connection, PublicKey } from "@solana/web3.js";
 import { LCDClient } from "@terra-money/terra.js";
 import axios from "axios";
 import { redeemOnTerra } from ".";
+import { TERRA_REDEEMED_CHECK_WALLET_ADDRESS } from "..";
 
 export async function getIsTransferCompletedEth(
   tokenBridgeAddress: string,
@@ -20,22 +21,37 @@ export async function getIsTransferCompletedEth(
 export async function getIsTransferCompletedTerra(
   tokenBridgeAddress: string,
   signedVAA: Uint8Array,
-  walletAddress: string,
   client: LCDClient,
   gasPriceUrl: string
 ) {
-  const msg = await redeemOnTerra(tokenBridgeAddress, walletAddress, signedVAA);
+  const msg = await redeemOnTerra(
+    tokenBridgeAddress,
+    TERRA_REDEEMED_CHECK_WALLET_ADDRESS,
+    signedVAA
+  );
   // TODO: remove gasPriceUrl and just use the client's gas prices
   const gasPrices = await axios.get(gasPriceUrl).then((result) => result.data);
+  const account = await client.auth.accountInfo(
+    TERRA_REDEEMED_CHECK_WALLET_ADDRESS
+  );
   try {
-    await client.tx.estimateFee(walletAddress, [msg], {
-      memo: "already redeemed calculation",
-      feeDenoms: ["uluna"],
-      gasPrices,
-    });
+    await client.tx.estimateFee(
+      [
+        {
+          sequenceNumber: account.getSequenceNumber(),
+          publicKey: account.getPublicKey(),
+        },
+      ],
+      {
+        msgs: [msg],
+        memo: "already redeemed calculation",
+        feeDenoms: ["uluna"],
+        gasPrices,
+      }
+    );
   } catch (e) {
     // redeemed if the VAA was already executed
-    return e.response.data.error.includes("VaaAlreadyExecuted");
+    return e.response.data.message.includes("VaaAlreadyExecuted");
   }
   return false;
 }

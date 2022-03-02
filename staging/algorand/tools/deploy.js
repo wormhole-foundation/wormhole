@@ -32,8 +32,8 @@ async function startOp (algodClient, symbol, vaddr, fromAddress) {
 }
 
 (async () => {
-  console.log('\nPricekeeper Deployment Tool -- (c)2021-22 Randlabs, Inc.')
-  console.log('----------------------------------------------------------\n')
+  console.log('\nPricekeeper Deployment Tool')
+  console.log('-----------------------------\n')
 
   if (process.argv.length !== 6) {
     console.log('Usage: deploy <symbol> <vaddr> <from> <network>\n')

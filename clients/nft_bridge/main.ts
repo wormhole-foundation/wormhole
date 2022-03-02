@@ -2,15 +2,15 @@ import yargs from "yargs";
 
 const {hideBin} = require('yargs/helpers')
 
-import * as bridge from "bridge";
 import * as elliptic from "elliptic";
 import * as ethers from "ethers";
-import * as nft_bridge from "nft-bridge";
 import * as web3s from '@solana/web3.js';
 
-import {BridgeImplementation__factory} from "./src/ethers-contracts";
 import {PublicKey, TransactionInstruction, AccountMeta, Keypair, Connection} from "@solana/web3.js";
 import {solidityKeccak256} from "ethers/lib/utils";
+
+import {setDefaultWasm, importCoreWasm, importNftWasm, ixFromRust, BridgeImplementation__factory} from '@certusone/wormhole-sdk'
+setDefaultWasm("node")
 
 const signAndEncodeVM = function (
     timestamp,
@@ -136,6 +136,9 @@ yargs(hideBin(process.argv))
                 default: "NFTWqJR8YnRVqPDvTJrYuLrQDitTG5AScqbeghi4zSA"
             })
     }, async (argv: any) => {
+        const bridge = await importCoreWasm()
+        const nft_bridge = await importNftWasm()
+
         let connection = setupConnection(argv);
         let bridge_id = new PublicKey(argv.bridge);
         let nft_bridge_id = new PublicKey(argv.nft_bridge);
@@ -204,6 +207,8 @@ yargs(hideBin(process.argv))
                 default: "0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d"
             })
     }, async (argv: any) => {
+        const bridge = await importCoreWasm()
+
         let provider = new ethers.providers.JsonRpcProvider(argv.rpc)
         let signer = new ethers.Wallet(argv.key, provider)
         let t = new BridgeImplementation__factory(signer);
@@ -228,6 +233,8 @@ yargs(hideBin(process.argv))
     .argv;
 
 async function post_vaa(connection: Connection, bridge_id: PublicKey, payer: Keypair, vaa: Buffer) {
+    const bridge = await importCoreWasm()
+
     let bridge_state = await get_bridge_state(connection, bridge_id);
     let guardian_addr = new PublicKey(bridge.guardian_set_address(bridge_id.toString(), bridge_state.guardian_set_index));
     let acc = await connection.getAccountInfo(guardian_addr);
@@ -272,6 +279,8 @@ async function post_vaa(connection: Connection, bridge_id: PublicKey, payer: Key
 }
 
 async function get_bridge_state(connection: Connection, bridge_id: PublicKey): Promise<BridgeState> {
+    const bridge = await importCoreWasm()
+
     let bridge_state = new PublicKey(bridge.state_address(bridge_id.toString()));
     let acc = await connection.getAccountInfo(bridge_state);
     if (acc?.data === undefined) {
@@ -285,23 +294,6 @@ function setupConnection(argv: yargs.Arguments): web3s.Connection {
         argv.rpc as string,
         'confirmed',
     );
-}
-
-function ixFromRust(data: any): TransactionInstruction {
-    let keys: Array<AccountMeta> = data.accounts.map(accountMetaFromRust)
-    return new TransactionInstruction({
-        programId: new PublicKey(data.program_id),
-        data: Buffer.from(data.data),
-        keys: keys,
-    })
-}
-
-function accountMetaFromRust(meta: any): AccountMeta {
-    return {
-        pubkey: new PublicKey(meta.pubkey),
-        isSigner: meta.is_signer,
-        isWritable: meta.is_writable,
-    }
 }
 
 interface BridgeState {

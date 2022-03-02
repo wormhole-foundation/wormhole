@@ -102,6 +102,7 @@ func runListNodes(cmd *cobra.Command, args []string) {
 		{"Polygon", vaa.ChainIDPolygon},
 		{"Avalanche", vaa.ChainIDAvalanche},
 		{"Oasis", vaa.ChainIDOasis},
+		{"Fantom", vaa.ChainIDFantom},
 	}
 
 	if isTestnet {

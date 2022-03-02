@@ -1,5 +1,6 @@
 #![allow(incomplete_features)]
-#![feature(const_generics)]
+
+#![feature(adt_const_params)]
 
 use api::{
     add_liquidity::*,
