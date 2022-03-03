@@ -1,13 +1,15 @@
 build:
   main: "cmd/wormhole-chaind/"
+host:
+  api: ":1318"
 accounts:
   - name: alice
-    coins: ["20000token", "200000000hole"]
+    coins: ["20000token", "200000000uhole"]
   - name: bob
-    coins: ["10000token", "100000000hole"]
+    coins: ["10000token", "100000000uhole"]
 validator:
   name: alice
-  staked: "0hole"
+  staked: "0uhole"
 client:
   openapi:
     path: "docs/static/openapi.yml"
@@ -15,12 +17,13 @@ client:
     path: "vue/src/store"
 faucet:
   name: bob
-  coins: ["5token", "100000hole"]
+  coins: ["5token", "100000uhole"]
+  host: ":4501"
 genesis:
   app_state:
     staking:
       params:
-        bond_denom: "hole"
+        bond_denom: "uhole"
         max_validators: 1
     bank:
       denom_metadata:
@@ -53,7 +56,7 @@ genesis:
           emitterAddress: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQ="
     wormhole:
       config:
-        chain_id: 7
+        chain_id: 2
         governance_chain: 1
         governance_emitter: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQ="
         guardian_set_expiration: 86400
