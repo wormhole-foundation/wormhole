@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.1
+
+### Changed
+
+Added a default relayerFee parameter (defaults to 0) to each token bridge transfer function
+
 ## 0.2.0
 
 ### Changed

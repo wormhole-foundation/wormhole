@@ -7,7 +7,7 @@ import {
   Transaction,
 } from "@solana/web3.js";
 import { MsgExecuteContract } from "@terra-money/terra.js";
-import { BigNumber, ethers } from "ethers";
+import { ethers } from "ethers";
 import { isNativeDenom } from "..";
 import {
   Bridge__factory,
@@ -45,16 +45,16 @@ export async function transferFromEth(
   tokenAddress: string,
   amount: ethers.BigNumberish,
   recipientChain: ChainId,
-  recipientAddress: Uint8Array
+  recipientAddress: Uint8Array,
+  relayerFee: ethers.BigNumberish = 0
 ) {
-  const fee = 0; // for now, this won't do anything, we may add later
   const bridge = Bridge__factory.connect(tokenBridgeAddress, signer);
   const v = await bridge.transferTokens(
     tokenAddress,
     amount,
     recipientChain,
     recipientAddress,
-    fee,
+    relayerFee,
     createNonce()
   );
   const receipt = await v.wait();
@@ -66,14 +66,14 @@ export async function transferFromEthNative(
   signer: ethers.Signer,
   amount: ethers.BigNumberish,
   recipientChain: ChainId,
-  recipientAddress: Uint8Array
+  recipientAddress: Uint8Array,
+  relayerFee: ethers.BigNumberish = 0
 ) {
-  const fee = 0; // for now, this won't do anything, we may add later
   const bridge = Bridge__factory.connect(tokenBridgeAddress, signer);
   const v = await bridge.wrapAndTransferETH(
     recipientChain,
     recipientAddress,
-    fee,
+    relayerFee,
     createNonce(),
     {
       value: amount,
@@ -89,7 +89,8 @@ export async function transferFromTerra(
   tokenAddress: string,
   amount: string,
   recipientChain: ChainId,
-  recipientAddress: Uint8Array
+  recipientAddress: Uint8Array,
+  relayerFee: string = "0"
 ) {
   const nonce = Math.round(Math.random() * 100000);
   const isNativeAsset = isNativeDenom(tokenAddress);
@@ -118,7 +119,7 @@ export async function transferFromTerra(
               },
               recipient_chain: recipientChain,
               recipient: Buffer.from(recipientAddress).toString("base64"),
-              fee: "0",
+              fee: relayerFee,
               nonce: nonce,
             },
           },
@@ -155,7 +156,7 @@ export async function transferFromTerra(
               },
               recipient_chain: recipientChain,
               recipient: Buffer.from(recipientAddress).toString("base64"),
-              fee: "0",
+              fee: relayerFee,
               nonce: nonce,
             },
           },
@@ -171,7 +172,8 @@ export async function transferNativeSol(
   payerAddress: string,
   amount: BigInt,
   targetAddress: Uint8Array,
-  targetChain: ChainId
+  targetChain: ChainId,
+  relayerFee: BigInt = BigInt(0)
 ) {
   //https://github.com/solana-labs/solana-program-library/blob/master/token/js/client/token.js
   const rentBalance = await Token.getMinBalanceRentForExemptAccount(connection);
@@ -206,7 +208,6 @@ export async function transferNativeSol(
   const { transfer_native_ix, approval_authority_address } =
     await importTokenWasm();
   const nonce = createNonce().readUInt32LE(0);
-  const fee = BigInt(0); // for now, this won't do anything, we may add later
   const transferIx = await getBridgeFeeIx(
     connection,
     bridgeAddress,
@@ -232,7 +233,7 @@ export async function transferNativeSol(
       WSOL_ADDRESS,
       nonce,
       amount,
-      fee,
+      relayerFee,
       targetAddress,
       targetChain
     )
@@ -273,10 +274,10 @@ export async function transferFromSolana(
   targetChain: ChainId,
   originAddress?: Uint8Array,
   originChain?: ChainId,
-  fromOwnerAddress?: string
+  fromOwnerAddress?: string,
+  relayerFee: BigInt = BigInt(0)
 ) {
   const nonce = createNonce().readUInt32LE(0);
-  const fee = BigInt(0); // for now, this won't do anything, we may add later
   const transferIx = await getBridgeFeeIx(
     connection,
     bridgeAddress,
@@ -312,7 +313,7 @@ export async function transferFromSolana(
           mintAddress,
           nonce,
           amount,
-          fee,
+          relayerFee,
           targetAddress,
           targetChain
         )
@@ -327,7 +328,7 @@ export async function transferFromSolana(
           originAddress as Uint8Array, // checked by throw
           nonce,
           amount,
-          fee,
+          relayerFee,
           targetAddress,
           targetChain
         )
