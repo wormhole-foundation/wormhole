@@ -155,6 +155,30 @@ module.exports = {
       gas: 4465030,
       gasPrice: 300000000000,
     },
+    karura_testnet: {
+      provider: () => {
+        return new HDWalletProvider(
+          process.env.MNEMONIC,
+          "http://103.253.145.222:8545"
+        );
+      },
+      network_id: 686,
+      gasPrice: 202184721385,
+      gasLimit: 117096000,
+      gas: 117096000,
+    },
+    acala_testnet: {
+      provider: () => {
+        return new HDWalletProvider(
+          process.env.MNEMONIC,
+          "http://157.245.252.103:8545"
+        );
+      },
+      network_id: 787,
+      gasPrice: 202184721385,
+      gasLimit: 213192000,
+      gas: 213192000,
+    },
   },
 
   compilers: {
