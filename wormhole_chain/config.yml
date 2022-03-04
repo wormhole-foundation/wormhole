@@ -1,12 +1,12 @@
 build:
   main: "cmd/wormhole-chaind/"
 host:
-  api: ":1318"
+  api: ":1317"
 accounts:
   - name: alice
-    coins: ["20000token", "200000000uhole"]
+    coins: ["20000utest", "200000000uhole"]
   - name: bob
-    coins: ["10000token", "100000000uhole"]
+    coins: ["10000utest", "100000000uhole"]
 validator:
   name: alice
   staked: "0uhole"
@@ -17,8 +17,8 @@ client:
     path: "vue/src/store"
 faucet:
   name: bob
-  coins: ["5token", "100000uhole"]
-  host: ":4501"
+  coins: ["5utest", "100000uhole"]
+  host: ":4500"
 genesis:
   app_state:
     staking:
@@ -47,9 +47,31 @@ genesis:
               exponent: 0
             - denom: "hole"
               exponent: 6
+    mint:
+      minter:
+        annual_provisions: "0.0"
+        inflation: "0.0"
+      params:
+        blocks_per_year: "6311520"
+        goal_bonded: "0.67"
+        inflation_max: "0.0"
+        inflation_min: "0.0"
+        inflation_rate_change: "0.0"
+        mint_denom: "uhole"
+    crisis:
+      #TODO assess what the best course of action is here
+      #TODO this can't handle 0 tokens
+      constant_fee:
+        amount: "1000"
+        denom: "hole"
     gov:
-       voting_params:
-          voting_period: "50s"
+      deposit_params:
+        max_deposit_period: "172800s"
+        min_deposit:
+          - amount: "1000000"
+            denom: "uhole"
+      voting_params:
+        voting_period: "50s"
     tokenbridge:
       chainRegistrationList:
         - chainID: 1
