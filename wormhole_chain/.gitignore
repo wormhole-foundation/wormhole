@@ -4,6 +4,7 @@ vue/src/store/generated/
 release/
 testing/js/node_modules
 .vscode/
+build/
 
 .idea
 *.iml

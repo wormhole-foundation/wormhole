@@ -28,13 +28,13 @@ EXPOSE 1317
 
 RUN unset GOPATH
 
+RUN starport chain init --home build
 RUN starport chain build --output build
 WORKDIR ./build
 
-#TODO allow moniker from args
-# RUN ./wormhole-chaind init bootstrapValidator --chain-id wormhole-chain-devnet
-RUN ["/bin/bash", "-c", "./wormhole-chaind init bootstrapValidator --chain-id wormhole-chain-devnet"]
+# This is the command to allow the binary to init the chain, rather than starport
+# RUN ["/bin/bash", "-c", "./wormhole-chaind init bootstrapValidator --chain-id wormhole-chain-devnet --home ./validator"]
 
-# #TODO allow config file changes here
+#TODO allow moniker from args, and be able to modify other things in the config files here.
 
-ENTRYPOINT ["/bin/bash","-c","./wormhole-chaind start"]
+ENTRYPOINT ["/bin/bash","-c","./wormhole-chaind start --home ."]
