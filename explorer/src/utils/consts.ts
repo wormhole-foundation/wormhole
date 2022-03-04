@@ -13,7 +13,11 @@ export const chainEnums = [
   "Polygon",
   "Avalanche",
   "Oasis",
+  "Algorand",
+  "Aurora",
   "Fantom",
+  "Karura",
+  "Acala",
 ];
 
 export interface ChainIDs {
@@ -24,7 +28,11 @@ export interface ChainIDs {
   polygon: 5;
   avalanche: 6;
   oasis: 7;
+  algorand: 8,
+  aurora: 9,
   fantom: 10,
+  karura: 11,
+  acala: 12,
 }
 export const chainIDs: ChainIDs = {
   solana: 1,
@@ -34,7 +42,12 @@ export const chainIDs: ChainIDs = {
   polygon: 5,
   avalanche: 6,
   oasis: 7,
-  fantom: 10
+  // chains without mainnet contract addresses commented out
+  // algorand: 8,
+  // aurora: 9,
+  fantom: 10,
+  // kurura: 11,
+  // acala: 12,
 };
 export const chainIDStrings: { [chainIDString: string]: string } = {
   "1": "solana",
@@ -44,7 +57,11 @@ export const chainIDStrings: { [chainIDString: string]: string } = {
   "5": "polygon",
   "6": "avalanche",
   "7": "oasis",
-  "10": "fantom"
+  "8": "algorand",
+  "9": "aurora",
+  "10": "fantom",
+  "11": "karura",
+  "12": "acala",
 };
 
 export enum ChainID {
@@ -56,7 +73,11 @@ export enum ChainID {
   Polygon,
   Avalanche,
   Oasis,
-  Fantom
+  Algorand,
+  Aurora,
+  Fantom,
+  Karura,
+  Acala,
 }
 export type ChainName = keyof ChainIDs;
 export type ChainIDNumber = ChainIDs[ChainName];
