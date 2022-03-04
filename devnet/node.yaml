@@ -75,6 +75,10 @@ spec:
             - ws://eth-devnet:8545
             - --avalancheRPC
             - ws://eth-devnet:8545
+           - --auroraRPC
+            - wss://testnet.aurora.dev
+            - --auroraContract
+            - 0xBd07292de7b505a4E803CEe286184f7Acf908F5e
             - --fantomRPC
             - ws://eth-devnet:8545
             - --oasisRPC
