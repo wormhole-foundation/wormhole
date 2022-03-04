@@ -1,6 +1,7 @@
 package common
 
 import (
+	"encoding/hex"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -9,28 +10,53 @@ func TestAESGCM(t *testing.T) {
 
 	type test struct {
 		data []byte
-	}
-
-	tests := []test{
-		{data: []byte("lower")},
-		{data: []byte("UPPER")},
-		{data: []byte("Mixed")},
-		{data: []byte("AlphaNum1")},
-		{data: []byte("12345")},
+		enc  string
 	}
 
 	key := []byte("01234567890123456789012345678901")
 
-	for _, tc := range tests {
-		// Test that we can encrypt data without error.
-		enc, enc_err := EncryptAESGCM(tc.data, key)
-		assert.Nil(t, enc_err)
+	tests := []test{
+		{data: []byte("lower"), enc: "7b3023dde90ca9598eff203d92145d0c363c61743edf23110bee39c1b01200fc6f"},
+		{data: []byte("UPPER"), enc: "f70a6549fd8a004551f2f3aeebc74d03efd3520aace6bd51f1b38cac8a94aae352"},
+		{data: []byte("Mixed"), enc: "95af0109040796bda46a223acebca97305aff135bd628ce70812d59a13c1a821ac"},
+		{data: []byte("AlphaNum1"), enc: "6385f1d2ae006fc7fa2b5e0b74f12b71bf25e2ec3d9ee70baf142703a7c187de08a22806d3"},
+		{data: []byte("12345"), enc: "bd083e01ca72af788a04866ddd9c0d061f64bc0a0e0d23432fbf1d6fcc724c126c"},
+	}
 
-		// Test that we can decrypt data without error.
-		dec, dec_err := DecryptAESGCM(enc, key)
-		assert.Nil(t, dec_err)
+	for _, testCase := range tests {
+		// Verify that we can encrypt plain text
+		t.Run(string(testCase.data), func(t *testing.T) {
+			enc, err := EncryptAESGCM(testCase.data, key)
+			assert.Nil(t, err)
+			assert.NotNil(t, enc)
+			// AESGCM is non-deterministic, so we cannot expect consistent cipher text
+		})
 
-		// Test that our origin data and our decrypted data are exactly the same.
-		assert.Equal(t, dec, tc.data)
+		// Verify that we can decrypt cipher text
+		t.Run(string(testCase.data), func(t *testing.T) {
+			// Convert the test hexified cipher text back to bytes, mostly for testcase readability purposes
+			enc, err := hex.DecodeString(testCase.enc)
+			assert.Nil(t, err)
+			assert.NotNil(t, enc)
+
+			dec, err := DecryptAESGCM(enc, key)
+			assert.Nil(t, err)
+			assert.NotNil(t, dec)
+			assert.Equal(t, testCase.data, dec)
+		})
+
+		// Verify that we can encrypt plain text, decrypt cipher text, and verify that both match
+		t.Run(string(testCase.data), func(t *testing.T) {
+			enc, err := EncryptAESGCM(testCase.data, key)
+			assert.Nil(t, err)
+			assert.NotNil(t, enc)
+
+			dec, err := DecryptAESGCM(enc, key)
+			assert.Nil(t, err)
+			assert.NotNil(t, dec)
+			assert.Equal(t, testCase.data, dec)
+
+			assert.Equal(t, dec, testCase.data)
+		})
 	}
 }
