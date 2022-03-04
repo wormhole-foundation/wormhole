@@ -335,36 +335,6 @@ export default {
 		},
 		
 		
-		async sendMsgExecuteGovernanceVAA({ rootGetters }, { value, fee = [], memo = '' }) {
-			try {
-				const txClient=await initTxClient(rootGetters)
-				const msg = await txClient.msgExecuteGovernanceVAA(value)
-				const result = await txClient.signAndBroadcast([msg], {fee: { amount: fee, 
-	gas: "200000" }, memo})
-				return result
-			} catch (e) {
-				if (e == MissingWalletError) {
-					throw new SpVuexError('TxClient:MsgExecuteGovernanceVAA:Init', 'Could not initialize signing client. Wallet is required.')
-				}else{
-					throw new SpVuexError('TxClient:MsgExecuteGovernanceVAA:Send', 'Could not broadcast Tx: '+ e.message)
-				}
-			}
-		},
-		async sendMsgExecuteVAA({ rootGetters }, { value, fee = [], memo = '' }) {
-			try {
-				const txClient=await initTxClient(rootGetters)
-				const msg = await txClient.msgExecuteVAA(value)
-				const result = await txClient.signAndBroadcast([msg], {fee: { amount: fee, 
-	gas: "200000" }, memo})
-				return result
-			} catch (e) {
-				if (e == MissingWalletError) {
-					throw new SpVuexError('TxClient:MsgExecuteVAA:Init', 'Could not initialize signing client. Wallet is required.')
-				}else{
-					throw new SpVuexError('TxClient:MsgExecuteVAA:Send', 'Could not broadcast Tx: '+ e.message)
-				}
-			}
-		},
 		async sendMsgTransfer({ rootGetters }, { value, fee = [], memo = '' }) {
 			try {
 				const txClient=await initTxClient(rootGetters)
@@ -395,35 +365,37 @@ export default {
 				}
 			}
 		},
-		
-		async MsgExecuteGovernanceVAA({ rootGetters }, { value }) {
+		async sendMsgExecuteGovernanceVAA({ rootGetters }, { value, fee = [], memo = '' }) {
 			try {
 				const txClient=await initTxClient(rootGetters)
 				const msg = await txClient.msgExecuteGovernanceVAA(value)
-				return msg
+				const result = await txClient.signAndBroadcast([msg], {fee: { amount: fee, 
+	gas: "200000" }, memo})
+				return result
 			} catch (e) {
 				if (e == MissingWalletError) {
 					throw new SpVuexError('TxClient:MsgExecuteGovernanceVAA:Init', 'Could not initialize signing client. Wallet is required.')
 				}else{
-					throw new SpVuexError('TxClient:MsgExecuteGovernanceVAA:Create', 'Could not create message: ' + e.message)
-					
+					throw new SpVuexError('TxClient:MsgExecuteGovernanceVAA:Send', 'Could not broadcast Tx: '+ e.message)
 				}
 			}
 		},
-		async MsgExecuteVAA({ rootGetters }, { value }) {
+		async sendMsgExecuteVAA({ rootGetters }, { value, fee = [], memo = '' }) {
 			try {
 				const txClient=await initTxClient(rootGetters)
 				const msg = await txClient.msgExecuteVAA(value)
-				return msg
+				const result = await txClient.signAndBroadcast([msg], {fee: { amount: fee, 
+	gas: "200000" }, memo})
+				return result
 			} catch (e) {
 				if (e == MissingWalletError) {
 					throw new SpVuexError('TxClient:MsgExecuteVAA:Init', 'Could not initialize signing client. Wallet is required.')
 				}else{
-					throw new SpVuexError('TxClient:MsgExecuteVAA:Create', 'Could not create message: ' + e.message)
-					
+					throw new SpVuexError('TxClient:MsgExecuteVAA:Send', 'Could not broadcast Tx: '+ e.message)
 				}
 			}
 		},
+		
 		async MsgTransfer({ rootGetters }, { value }) {
 			try {
 				const txClient=await initTxClient(rootGetters)
@@ -448,6 +420,34 @@ export default {
 					throw new SpVuexError('TxClient:MsgAttestToken:Init', 'Could not initialize signing client. Wallet is required.')
 				}else{
 					throw new SpVuexError('TxClient:MsgAttestToken:Create', 'Could not create message: ' + e.message)
+					
+				}
+			}
+		},
+		async MsgExecuteGovernanceVAA({ rootGetters }, { value }) {
+			try {
+				const txClient=await initTxClient(rootGetters)
+				const msg = await txClient.msgExecuteGovernanceVAA(value)
+				return msg
+			} catch (e) {
+				if (e == MissingWalletError) {
+					throw new SpVuexError('TxClient:MsgExecuteGovernanceVAA:Init', 'Could not initialize signing client. Wallet is required.')
+				}else{
+					throw new SpVuexError('TxClient:MsgExecuteGovernanceVAA:Create', 'Could not create message: ' + e.message)
+					
+				}
+			}
+		},
+		async MsgExecuteVAA({ rootGetters }, { value }) {
+			try {
+				const txClient=await initTxClient(rootGetters)
+				const msg = await txClient.msgExecuteVAA(value)
+				return msg
+			} catch (e) {
+				if (e == MissingWalletError) {
+					throw new SpVuexError('TxClient:MsgExecuteVAA:Init', 'Could not initialize signing client. Wallet is required.')
+				}else{
+					throw new SpVuexError('TxClient:MsgExecuteVAA:Create', 'Could not create message: ' + e.message)
 					
 				}
 			}
