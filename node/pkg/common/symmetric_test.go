@@ -55,8 +55,6 @@ func TestAESGCM(t *testing.T) {
 			assert.Nil(t, err)
 			assert.NotNil(t, dec)
 			assert.Equal(t, testCase.data, dec)
-
-			assert.Equal(t, dec, testCase.data)
 		})
 	}
 }
