@@ -1,24 +1,36 @@
 package common
 
 import (
+	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
 func TestAESGCM(t *testing.T) {
-	data := []byte("cat")
+
+	type test struct {
+		data []byte
+	}
+
+	tests := []test{
+		{data: []byte("lower")},
+		{data: []byte("UPPER")},
+		{data: []byte("Mixed")},
+		{data: []byte("AlphaNum1")},
+		{data: []byte("12345")},
+	}
+
 	key := []byte("01234567890123456789012345678901")
 
-	enc, err := EncryptAESGCM(data, key)
-	if err != nil {
-		t.Fatal(err)
-	}
+	for _, tc := range tests {
+		// Test that we can encrypt data without error.
+		enc, enc_err := EncryptAESGCM(tc.data, key)
+		assert.Nil(t, enc_err)
 
-	dec, err := DecryptAESGCM(enc, key)
-	if err != nil {
-		t.Fatal(err)
-	}
+		// Test that we can decrypt data without error.
+		dec, dec_err := DecryptAESGCM(enc, key)
+		assert.Nil(t, dec_err)
 
-	if string(dec) != string(data) {
-		t.Fatalf("expected %s got %s", string(data), string(dec))
+		// Test that our origin data and our decrypted data are exactly the same.
+		assert.Equal(t, dec, tc.data)
 	}
 }
