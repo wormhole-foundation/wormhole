@@ -143,7 +143,7 @@ func (k Keeper) ApplyAndReturnValidatorSetUpdates(ctx sdk.Context) (updates []ab
 
 		// if we get to a validator that's not a guardian (after a guardian set
 		// update), we kick it out
-		if !validator.IsGuardian() {
+		if !k.IsGuardian(ctx, valAddr) {
 			continue
 		}
 
