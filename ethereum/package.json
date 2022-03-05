@@ -11,6 +11,7 @@
     "@openzeppelin/test-helpers": "^0.5.9",
     "@poanet/solidity-flattener": "^3.0.6",
     "@truffle/hdwallet-provider": "^1.7.0",
+    "caver-js": "^1.6.8",
     "chai": "^4.2.0",
     "mocha": "^8.2.1",
     "truffle": "^5.3.14",
