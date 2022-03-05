@@ -108,6 +108,10 @@ func (k Keeper) GetGuardianSet(ctx sdk.Context, id uint32) (val types.GuardianSe
 	return val, true
 }
 
+func (k Keeper) IsGuardian(ctx sdk.Context, addr sdk.ValAddress) bool {
+	return true
+}
+
 // RemoveGuardianSet removes a guardianSet from the store
 func (k Keeper) RemoveGuardianSet(ctx sdk.Context, id uint32) {
 	store := prefix.NewStore(ctx.KVStore(k.storeKey), types.KeyPrefix(types.GuardianSetKey))
