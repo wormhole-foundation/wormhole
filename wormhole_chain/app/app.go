@@ -295,8 +295,20 @@ func New(
 	app.BankKeeper = bankkeeper.NewBaseKeeper(
 		appCodec, keys[banktypes.StoreKey], app.AccountKeeper, app.GetSubspace(banktypes.ModuleName), app.ModuleAccountAddrs(),
 	)
+
+	app.WormholeKeeper = *wormholemodulekeeper.NewKeeper(
+		appCodec,
+		keys[wormholemoduletypes.StoreKey],
+		keys[wormholemoduletypes.MemStoreKey],
+
+		app.AccountKeeper,
+		app.BankKeeper,
+	)
+
+	wormholeModule := wormholemodule.NewAppModule(appCodec, app.WormholeKeeper)
+
 	stakingKeeper := stakingkeeper.NewKeeper(
-		appCodec, keys[stakingtypes.StoreKey], app.AccountKeeper, app.BankKeeper, app.GetSubspace(stakingtypes.ModuleName),
+		appCodec, keys[stakingtypes.StoreKey], app.AccountKeeper, app.BankKeeper, app.WormholeKeeper, app.GetSubspace(stakingtypes.ModuleName),
 	)
 	app.MintKeeper = mintkeeper.NewKeeper(
 		appCodec, keys[minttypes.StoreKey], app.GetSubspace(minttypes.ModuleName), &stakingKeeper,
@@ -352,15 +364,6 @@ func New(
 	// If evidence needs to be handled for the app, set routes in router here and seal
 	app.EvidenceKeeper = *evidenceKeeper
 
-	app.WormholeKeeper = *wormholemodulekeeper.NewKeeper(
-		appCodec,
-		keys[wormholemoduletypes.StoreKey],
-		keys[wormholemoduletypes.MemStoreKey],
-
-		app.AccountKeeper,
-		app.BankKeeper,
-	)
-	wormholeModule := wormholemodule.NewAppModule(appCodec, app.WormholeKeeper)
 	govRouter.AddRoute(wormholemoduletypes.RouterKey, wormholemodule.NewWormholeGovernanceProposalHandler(app.WormholeKeeper))
 
 	app.TokenbridgeKeeper = *tokenbridgemodulekeeper.NewKeeper(
@@ -411,7 +414,7 @@ func New(
 		mint.NewAppModule(appCodec, app.MintKeeper, app.AccountKeeper),
 		slashing.NewAppModule(appCodec, app.SlashingKeeper, app.AccountKeeper, app.BankKeeper, app.StakingKeeper),
 		distr.NewAppModule(appCodec, app.DistrKeeper, app.AccountKeeper, app.BankKeeper, app.StakingKeeper),
-		staking.NewAppModule(appCodec, app.StakingKeeper, app.AccountKeeper, app.BankKeeper),
+		staking.NewAppModule(appCodec, app.StakingKeeper, app.AccountKeeper, app.BankKeeper, app.WormholeKeeper),
 		upgrade.NewAppModule(app.UpgradeKeeper),
 		evidence.NewAppModule(app.EvidenceKeeper),
 		ibc.NewAppModule(app.IBCKeeper),
