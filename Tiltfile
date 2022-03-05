@@ -54,7 +54,7 @@ namespace = cfg.get("namespace", "wormhole")
 gcpProject = cfg.get("gcpProject", "local-dev")
 bigTableKeyPath = cfg.get("bigTableKeyPath", "./event_database/devnet_key.json")
 webHost = cfg.get("webHost", "localhost")
-algorand = cfg.get("algorand", True)
+algorand = cfg.get("algorand", False)
 solana = cfg.get("solana", True)
 ci = cfg.get("ci", False)
 pyth = cfg.get("pyth", ci)
@@ -103,17 +103,6 @@ local_resource(
     allow_parallel = True,
     trigger_mode = trigger_mode,
 )
-
-if algorand:
-    local_resource(
-        name = "teal-gen",
-        deps = ["staging/algorand/teal"],
-        cmd = "tilt docker build -- --target teal-export -f Dockerfile.teal -o type=local,dest=. .",
-        env = {"DOCKER_BUILDKIT": "1"},
-        labels = ["algorand"],
-        allow_parallel = True,
-        trigger_mode = trigger_mode,
-    )
 
 # wasm
 
@@ -413,7 +402,6 @@ if algorand:
 
     k8s_resource(
         "algorand",
-        resource_deps = ["teal-gen"],
         port_forwards = [
             port_forward(4001, name = "Algorand RPC [:4001]", host = webHost),
             port_forward(4002, name = "Algorand KMD [:4002]", host = webHost),
