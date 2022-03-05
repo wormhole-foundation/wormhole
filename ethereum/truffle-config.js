@@ -1,5 +1,6 @@
 require("dotenv").config({ path: ".env" });
 const HDWalletProvider = require("@truffle/hdwallet-provider");
+const Caver = require('caver-js'); // Needed for Klaytn
 
 module.exports = {
   networks: {
@@ -178,6 +179,23 @@ module.exports = {
       gasPrice: 202184721385,
       gasLimit: 213192000,
       gas: 213192000,
+    },
+    klaytn_testnet: {
+      provider: () => {
+        const option = {
+          headers: [
+            { name: 'Authorization', value: 'Basic ' +
+                    Buffer.from(process.env.KLAYTN_TN_ACCESS_KEY_ID + ':' +
+                    process.env.KLAYTN_TN_SECURITY_ACCESS_KEY).toString('base64') },
+            { name: 'x-chain-id', value: '1001' }
+          ],
+          keepAlive: false,
+        }
+        return new HDWalletProvider(process.env.MNEMONIC, new Caver.providers.HttpProvider("https://node-api.klaytnapi.com/v1/klaytn", option))
+      },
+      network_id: '1001', //Klaytn baobab testnet's network id
+      gas: '8500000',
+      //gasPrice:'25000000000'
     },
   },
 
