@@ -167,6 +167,12 @@ func (v Validator) IsBonded() bool {
 	return v.GetStatus() == Bonded
 }
 
+func (*Validator) IsGuardian() bool {
+	// TODO(csongor): write logic to work out if this is a guardian
+	// This will require the staking module to use the wormhole module's state keeper
+	return true
+}
+
 // IsUnbonded checks if the validator status equals Unbonded
 func (v Validator) IsUnbonded() bool {
 	return v.GetStatus() == Unbonded
