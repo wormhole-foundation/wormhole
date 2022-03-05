@@ -58,7 +58,6 @@ func TestKeysAsHexStrings(t *testing.T) {
 func TestNewGuardianSetState(t *testing.T) {
 	gss := NewGuardianSetState()
 	assert.NotNil(t, gss)
-	assert.NotNil(t, gss.mu)
 	assert.Nil(t, gss.current)
 	assert.Nil(t, gss.Get())
 }
