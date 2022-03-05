@@ -23,6 +23,10 @@ type AccountKeeper interface {
 	SetModuleAccount(sdk.Context, authtypes.ModuleAccountI)
 }
 
+type WormholeKeeper interface {
+	IsGuardian(ctx sdk.Context, addr sdk.ValAddress) bool
+}
+
 // BankKeeper defines the expected interface needed to retrieve account balances.
 type BankKeeper interface {
 	GetAllBalances(ctx sdk.Context, addr sdk.AccAddress) sdk.Coins
