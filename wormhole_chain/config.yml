@@ -3,12 +3,13 @@ build:
 host:
   api: ":1317"
 accounts:
-  - name: alice
-    coins: ["20000utest", "200000000uhole"]
+  - name: tiltGuardian
+    coins: ["20000utest", "0uhole"]
+    mnemonic: "notice oak worry limit wrap speak medal online prefer cluster roof addict wrist behave treat actual wasp year salad speed social layer crew genius"
   - name: bob
     coins: ["10000utest", "100000000uhole"]
 validator:
-  name: alice
+  name: tiltGuardian
   staked: "0uhole"
 client:
   openapi:
@@ -87,3 +88,6 @@ genesis:
           keys:
             - "vvpCnVfNGLf4pNkaLamrSvBdD74="
           expirationTime: 0
+      # guardianMap:
+      #   - bechAddress: "wormhole1cyyzpxplxdzkeea7kwsydadg87357qna3zg3tq"
+      #     guardianKeyBase64: "vvpCnVfNGLf4pNkaLamrSvBdD74="
