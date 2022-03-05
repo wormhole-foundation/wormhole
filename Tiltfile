@@ -40,7 +40,6 @@ config.define_string("webHost", False, "Public hostname for port forwards")
 # Components
 config.define_bool("algorand", False, "Enable Algorand component")
 config.define_bool("solana", False, "Enable Solana component")
-config.define_bool("pyth", False, "Enable Pyth-to-Wormhole component")
 config.define_bool("explorer", False, "Enable explorer component")
 config.define_bool("bridge_ui", False, "Enable bridge UI component")
 config.define_bool("e2e", False, "Enable E2E testing stack")
@@ -57,7 +56,6 @@ webHost = cfg.get("webHost", "localhost")
 algorand = cfg.get("algorand", True)
 solana = cfg.get("solana", True)
 ci = cfg.get("ci", False)
-pyth = cfg.get("pyth", ci)
 explorer = cfg.get("explorer", ci)
 bridge_ui = cfg.get("bridge_ui", ci)
 e2e = cfg.get("e2e", ci)
@@ -278,54 +276,6 @@ docker_build(
         sync("./ethereum/src", "/home/node/app/src"),
     ],
 )
-
-if solana and pyth:
-    # pyth autopublisher
-    docker_build(
-        ref = "pyth",
-        context = ".",
-        dockerfile = "third_party/pyth/Dockerfile.pyth",
-    )
-    k8s_yaml_with_ns("./devnet/pyth.yaml")
-
-    k8s_resource(
-        "pyth",
-        resource_deps = ["solana-devnet"],
-        labels = ["solana"],
-        trigger_mode = trigger_mode,
-    )
-
-    # pyth2wormhole client autoattester
-    docker_build(
-        ref = "p2w-attest",
-        context = ".",
-        only = ["./solana", "./third_party"],
-        dockerfile = "./third_party/pyth/Dockerfile.p2w-attest",
-        ignore = ["./solana/*/target"],
-    )
-
-    # Automatic pyth2wormhole relay, showcasing p2w-sdk
-    docker_build(
-        ref = "p2w-relay",
-        context = ".",
-        dockerfile = "./third_party/pyth/p2w-relay/Dockerfile",
-    )
-
-    k8s_yaml_with_ns("devnet/p2w-attest.yaml")
-    k8s_resource(
-        "p2w-attest",
-        resource_deps = ["solana-devnet", "pyth", "guardian"],
-        port_forwards = [],
-        labels = ["solana"],
-        trigger_mode = trigger_mode,
-    )
-
-    k8s_yaml_with_ns("devnet/p2w-relay.yaml")
-    k8s_resource(
-        "p2w-relay",
-        resource_deps = ["solana-devnet", "eth-devnet", "pyth", "guardian", "p2w-attest", "proto-gen-web", "wasm-gen"],
-        port_forwards = [],
-    )
 
 k8s_yaml_with_ns("devnet/eth-devnet.yaml")
 
