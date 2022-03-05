@@ -28,17 +28,6 @@ RUN cargo init --lib /tmp/decoy-crate && \
     cd /tmp/decoy-crate && cargo build-bpf && \
     rm -rf /tmp/decoy-crate
 
-# Cache Pyth sources
-# This comes soon after mainnet-v2.1
-ENV PYTH_SRC_REV=31e3188bbf52ec1a25f71e4ab969378b27415b0a
-ENV PYTH_DIR=/usr/src/pyth/pyth-client
-
-WORKDIR $PYTH_DIR
-ADD https://github.com/pyth-network/pyth-client/archive/$PYTH_SRC_REV.tar.gz .
-
-# GitHub appends revision to dir in archive
-RUN tar -xvf *.tar.gz && rm -rf *.tar.gz && mv pyth-client-$PYTH_SRC_REV pyth-client
-
 # Add bridge contract sources
 WORKDIR /usr/src/bridge
 
@@ -52,12 +41,10 @@ ENV BRIDGE_ADDRESS="Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o"
 RUN --mount=type=cache,target=bridge/target \
     --mount=type=cache,target=modules/token_bridge/target \
     --mount=type=cache,target=modules/nft_bridge/target \
-    --mount=type=cache,target=pyth2wormhole/target \
     --mount=type=cache,target=migration/target \
     cargo build-bpf --manifest-path "bridge/program/Cargo.toml" -- --locked && \
     cargo build-bpf --manifest-path "bridge/cpi_poster/Cargo.toml" -- --locked && \
     cargo build-bpf --manifest-path "modules/token_bridge/program/Cargo.toml" -- --locked && \
-    cargo build-bpf --manifest-path "pyth2wormhole/program/Cargo.toml" -- --locked && \
     cargo build-bpf --manifest-path "modules/nft_bridge/program/Cargo.toml" -- --locked && \
     cargo build-bpf --manifest-path "migration/Cargo.toml" -- --locked && \
     cp bridge/target/deploy/bridge.so /opt/solana/deps/bridge.so && \
@@ -65,13 +52,7 @@ RUN --mount=type=cache,target=bridge/target \
     cp migration/target/deploy/wormhole_migration.so /opt/solana/deps/wormhole_migration.so && \
     cp modules/token_bridge/target/deploy/token_bridge.so /opt/solana/deps/token_bridge.so && \
     cp modules/nft_bridge/target/deploy/nft_bridge.so /opt/solana/deps/nft_bridge.so && \
-    cp modules/token_bridge/token-metadata/spl_token_metadata.so /opt/solana/deps/spl_token_metadata.so && \
-    cp pyth2wormhole/target/deploy/pyth2wormhole.so /opt/solana/deps/pyth2wormhole.so
-
-# Build the Pyth Solana program
-WORKDIR $PYTH_DIR/pyth-client/program
-RUN make SOLANA=~/.local/share/solana/install/active_release/bin OUT_DIR=../target && \
-    cp ../target/oracle.so /opt/solana/deps/pyth_oracle.so
+    cp modules/token_bridge/token-metadata/spl_token_metadata.so /opt/solana/deps/spl_token_metadata.so
 
 ENV RUST_LOG="solana_runtime::system_instruction_processor=trace,solana_runtime::message_processor=trace,solana_bpf_loader=debug,solana_rbpf=debug"
 ENV RUST_BACKTRACE=1

@@ -20,7 +20,7 @@
   "scripts": {
     "build": "truffle compile",
     "test": "mkdir -p build/contracts && cp node_modules/@openzeppelin/contracts/build/contracts/* build/contracts/ && truffle test",
-    "migrate": "mkdir -p build/contracts && cp node_modules/@openzeppelin/contracts/build/contracts/* build/contracts/ && truffle migrate --to 5",
+    "migrate": "mkdir -p build/contracts && cp node_modules/@openzeppelin/contracts/build/contracts/* build/contracts/ && truffle migrate --to 4",
     "flatten": "mkdir -p node_modules/@poanet/solidity-flattener/contracts && cp -r contracts/* node_modules/@poanet/solidity-flattener/contracts/ && poa-solidity-flattener",
     "deploy-bridge-implementation-only": "mkdir -p build/contracts && cp node_modules/@openzeppelin/contracts/build/contracts/* build/contracts/ && truffle migrate --f 6 --to 6",
     "deploy_weth9": "mkdir -p build/contracts && cp node_modules/@openzeppelin/contracts/build/contracts/* build/contracts/ && truffle migrate --f 9",
