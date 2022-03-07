@@ -200,7 +200,14 @@ def getCoreContracts(   client: AlgodClient,
                         # Write everything out to the auxilliary storage
                         off.store(off.load() + Int(4)),
                         len.store(Btoi(Extract(Txn.application_args[1], off.load(), Int(1)))),
-                        Pop(blob.write(Int(3), Int(0), Extract(Txn.application_args[1], off.load(), Int(1) + (Int(20) * len.load()))))
+                        Pop(blob.write(Int(3), Int(0), Extract(Txn.application_args[1], off.load(), Int(1) + (Int(20) * len.load())))),
+                        # Make this block expire.. as long as it is
+                        # not being used to sign itself.  We stick the
+                        # expiration 1000 bytes into the account...
+                        #
+                        # 19200 is approx 24 hours assuming a 4.5 seconds per block   (24 * 3600 / 4.5) = 19200
+                        If(Txn.accounts[3] != Txn.accounts[2],
+                           Pop(blob.write(Int(2), Int(1000), Itob(Txn.first_valid() + Int(19200)))))
                     ])]
                      ),
                 Approve()
@@ -286,6 +293,12 @@ def getCoreContracts(   client: AlgodClient,
                 # Lets grab the total keyset
                 total_guardians.store(blob.get_byte(Int(2), Int(0))),
                 guardian_keys.store(blob.read(Int(2), Int(1), Int(1) + Int(20) * total_guardians.load())),
+
+                # I wonder if this is an expired guardian set
+                s.store(Btoi(blob.read(Int(2), Int(1000), Int(1008)))),
+                If(s.load() != Int(0),
+                   Assert(Txn.first_valid() < s.load())),
+
                 hits.store(Bytes("base16", "0x00000000")),
 
                 # How many signatures are in this vaa?
