@@ -415,6 +415,24 @@ func (e *Watcher) Run(ctx context.Context) error {
 						tx, err := c.TransactionReceipt(timeout, pLock.message.TxHash)
 						cancel()
 
+						// This should never happen - if we got this far, it means that logs were emitted,
+						// which is only possible if the transaction succeeded. We check it anyway just
+						// in case the EVM implementation is buggy.
+						if tx.Status != 1 {
+							logger.Error("transaction receipt with non-success status",
+								zap.Stringer("tx", pLock.message.TxHash),
+								zap.Stringer("blockhash", key.BlockHash),
+								zap.Stringer("emitter_address", key.EmitterAddress),
+								zap.Uint64("sequence", key.Sequence),
+								zap.Stringer("current_block", ev.Number),
+								zap.Stringer("current_blockhash", currentHash),
+								zap.String("eth_network", e.networkName),
+								zap.Error(err))
+							delete(e.pending, key)
+							ethMessagesOrphaned.WithLabelValues(e.networkName, "tx_failed").Inc()
+							continue
+						}
+
 						// If the node returns an error after waiting expectedConfirmation blocks,
 						// it means the chain reorged and the transaction was orphaned. The
 						// TransactionReceipt call is using the same websocket connection than the
