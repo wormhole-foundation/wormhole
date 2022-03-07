@@ -14,6 +14,7 @@ import uvarint
 from local_blob import LocalBlob
 from portal_core import getCoreContracts
 from TmplSig import TmplSig
+import argparse
 
 from algosdk.v2client.algod import AlgodClient
 from algosdk.kmd import KMDClient
@@ -98,7 +99,6 @@ class PortalCore:
         self.INDEXER_ROUND = 0
         self.NOTE_PREFIX = 'publishMessage'.encode()
 
-
         self.myindexer = indexer.IndexerClient(indexer_token=self.INDEXER_TOKEN, indexer_address=self.INDEXER_ADDRESS)
 
         self.seed_amt = int(1002000)  # The black magic in this number... 
@@ -109,6 +109,16 @@ class PortalCore:
 
         self.accountList : List[Account] = []
         self.zeroPadBytes = "00"*32
+
+    def init(self, args) -> None:
+        self.args = args
+        self.ALGOD_ADDRESS = args.algod_address
+        self.ALGOD_TOKEN = args.algod_token
+        self.KMD_ADDRESS = args.kmd_address
+        self.KMD_TOKEN = args.kmd_token
+        self.KMD_WALLET_NAME = args.kmd_name
+        self.KMD_WALLET_PASSWORD = args.kmd_password
+        self.TARGET_ACCOUNT = args.mnemonic
 
     def waitForTransaction(
             self, client: AlgodClient, txID: str, timeout: int = 10
@@ -489,7 +499,7 @@ class PortalCore:
         # A lot of our logic here depends on parseVAA and knowing what the payload is..
         p = self.parseVAA(vaa)
 
-        pprint.pprint(p)
+        #pprint.pprint(p)
 
         # First we need to opt into the sequence number 
         if p["Meta"] == "CoreGovernance":
@@ -538,7 +548,7 @@ class PortalCore:
         if ((200000 - bal[0]) >= pmt):
             pmt = 200000 - bal[0]
 
-        print("Sending %d algo to cover fees" % (pmt))
+        #print("Sending %d algo to cover fees" % (pmt))
         txns.append(
             transaction.PaymentTxn(
                 sender = sender.getAddress(), 
@@ -705,14 +715,12 @@ class PortalCore:
                 grp.append(t.sign(pk))
 
         client.send_transactions(grp)
-        fees = []
+        ret = []
         for x in grp:
             response = self.waitForTransaction(client, x.get_txid())
             if "logs" in response.__dict__ and len(response.__dict__["logs"]) > 0:
-                pprint.pprint(response.__dict__["logs"])
-            fees.append(response.__dict__["txn"]["txn"]["fee"])
-
-        pprint.pprint(fees)
+                ret.append(response.__dict__["logs"])
+        return ret
 
     def parseVAA(self, vaa):
 #        print (vaa.hex())
@@ -821,7 +829,7 @@ class PortalCore:
 
         print("bootstrapping the guardian set...")
         bootVAA = bytes.fromhex("0100000001010001ca2fbf60ac6227d47dda4fe2e7bccc087f27d22170a212b9800da5b4cbf0d64c52deb2f65ce58be2267bf5b366437c267b5c7b795cd6cea1ac2fee8a1db3ad006225f801000000010001000000000000000000000000000000000000000000000000000000000000000400000000000000012000000000000000000000000000000000000000000000000000000000436f72650200000000000001beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe")
-        pprint.pprint(self.parseVAA(bootVAA))
+#        pprint.pprint(self.parseVAA(bootVAA))
         self.bootGuardians(bootVAA, client, foundation, self.coreid)
 
         print("Create the token bridge")
@@ -843,5 +851,34 @@ class PortalCore:
             print("Submitting: " + v)
             self.submitVAA(bytes.fromhex(v), client, foundation)
 
+    def main(self) -> None:
+        parser = argparse.ArgumentParser(description='algorand setup')
+    
+        parser.add_argument('--algod_address', type=str, help='algod address (default: http://localhost:4001)', 
+                            default="http://localhost:4001")
+        parser.add_argument('--algod_token', type=str, help='algod access token', 
+                            default="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+        parser.add_argument('--kmd_address', type=str, help='kmd wallet address (default: http://localhost:4002)',
+                            default="http://localhost:4002")
+        parser.add_argument('--kmd_token', type=str, help='kmd wallet access token', 
+                            default="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+        parser.add_argument('--kmd_name', type=str, help='kmd wallet name', 
+                            default="unencrypted-default-wallet")
+        parser.add_argument('--kmd_password', type=str, help='kmd wallet password', default="")
+
+        parser.add_argument('--mnemonic', type=str, help='account mnemonic', 
+                            default="assault approve result rare float sugar power float soul kind galaxy edit unusual pretty tone tilt net range pelican avoid unhappy amused recycle abstract master")
+
+        parser.add_argument('--appid', type=int, help='setup devnet')
+        parser.add_argument('--devnet', action='store_true', help='setup devnet')
+        parser.add_argument('--print', action='store_true', help='print')
+    
+        args = parser.parse_args()
+
+        if args.devnet:
+            self.init(args)
+            self.dev_deploy()
+            sys.exit(0)
+
 core = PortalCore()
-core.dev_deploy()
+core.main()
