@@ -3,10 +3,24 @@ export const TEST_WALLET_MNEMONIC_1 =
 export const TEST_WALLET_MNEMONIC_2 =
   "maple pudding enjoy pole real rabbit soft make square city wrestle area aisle dwarf spike voice over still post lend genius bitter exit shoot";
 
+export const TEST_WALLET_ADDRESS_1 =
+  "wormhole1cyyzpxplxdzkeea7kwsydadg87357qna3zg3tq";
+
 export const DEVNET_GUARDIAN_PUBLIC_KEY =
   "0xbeFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe";
 export const DEVNET_GUARDIAN_PRIVATE_KEY =
   "cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0";
+//This assume guardian 1 uses test wallet 1.
+export const GUARDIAN_VALIDATOR_PUBLIC_KEY =
+  "wormholevaloper1cyyzpxplxdzkeea7kwsydadg87357qna87hzv8";
+
+export const DEVNET_GUARDIAN2_PUBLIC_KEY = "";
+export const DEVNET_GUARDIAN2_PRIVATE_KEY = "";
+//This assume guardian 1 uses test wallet 1.
+export const GUARDIAN_VALIDATOR2_PUBLIC_KEY = "";
+
+//This is a VAA in hex which is for guardian set 2, where Guardian 2 is the only active guardian.
+export const GUARDIAN2_UPGRADE_VAA = "";
 
 export const NODE_URL = "http://localhost:1317"; // TODO kube support
 export const TENDERMINT_URL = "http://localhost:26657";
@@ -14,6 +28,7 @@ export const FAUCET_URL = "http://localhost:4500";
 
 export const HOLE_DENOM = "uhole";
 export const ADDRESS_PREFIX = "wormhole";
+export const OPERATOR_PREFIX = "wormholevaloper";
 
 export const DEVNET_SOLT = "2WDq7wSs9zYrpx2kbHDA4RUTRch2CCTP6ZWaH4GNfnQQ";
 
