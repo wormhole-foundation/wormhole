@@ -635,7 +635,15 @@ class PortalCore:
                 sender=sender.getAddress(),
                 index=self.tokenid,
                 on_complete=transaction.OnComplete.NoOpOC,
-                app_args=[b"nop"],
+                app_args=[b"nop", 1],
+                sp=sp
+            ))
+
+            txns.append(transaction.ApplicationCallTxn(
+                sender=sender.getAddress(),
+                index=self.tokenid,
+                on_complete=transaction.OnComplete.NoOpOC,
+                app_args=[b"nop", 2],
                 sp=sp
             ))
 

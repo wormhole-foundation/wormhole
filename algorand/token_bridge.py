@@ -232,26 +232,32 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
 
             Assert(And(
                 # Lets see if the vaa we are about to process was actually verified by the core
-                Gtxn[Txn.group_index() - Int(3)].type_enum() == TxnType.ApplicationCall,
-                Gtxn[Txn.group_index() - Int(3)].application_id() == App.globalGet(Bytes("coreid")),
-                Gtxn[Txn.group_index() - Int(3)].application_args[0] == Bytes("verifyVAA"),
-                Gtxn[Txn.group_index() - Int(3)].sender() == Txn.sender(),
-                Gtxn[Txn.group_index() - Int(3)].rekey_to() == Global.zero_address(),
-                Gtxn[Txn.group_index() - Int(3)].application_args[1] == Txn.application_args[1],
+                Gtxn[Txn.group_index() - Int(4)].type_enum() == TxnType.ApplicationCall,
+                Gtxn[Txn.group_index() - Int(4)].application_id() == App.globalGet(Bytes("coreid")),
+                Gtxn[Txn.group_index() - Int(4)].application_args[0] == Bytes("verifyVAA"),
+                Gtxn[Txn.group_index() - Int(4)].sender() == Txn.sender(),
+                Gtxn[Txn.group_index() - Int(4)].rekey_to() == Global.zero_address(),
+                Gtxn[Txn.group_index() - Int(4)].application_args[1] == Txn.application_args[1],
 
                 # We all opted into the same accounts?
-                Gtxn[Txn.group_index() - Int(3)].accounts[0] == Txn.accounts[0],
-                Gtxn[Txn.group_index() - Int(3)].accounts[1] == Txn.accounts[1],
-                Gtxn[Txn.group_index() - Int(3)].accounts[2] == Txn.accounts[2],
+                Gtxn[Txn.group_index() - Int(4)].accounts[0] == Txn.accounts[0],
+                Gtxn[Txn.group_index() - Int(4)].accounts[1] == Txn.accounts[1],
+                Gtxn[Txn.group_index() - Int(4)].accounts[2] == Txn.accounts[2],
                 
                 # Did the user pay the lsig to attest a new product?
-                Gtxn[Txn.group_index() - Int(2)].type_enum() == TxnType.Payment,
-                Gtxn[Txn.group_index() - Int(2)].amount() >= Int(100000),
-                Gtxn[Txn.group_index() - Int(2)].sender() == Txn.sender(),
-                Gtxn[Txn.group_index() - Int(2)].receiver() == Txn.accounts[3],
-                Gtxn[Txn.group_index() - Int(2)].rekey_to() == Global.zero_address(),
+                Gtxn[Txn.group_index() - Int(3)].type_enum() == TxnType.Payment,
+                Gtxn[Txn.group_index() - Int(3)].amount() >= Int(100000),
+                Gtxn[Txn.group_index() - Int(3)].sender() == Txn.sender(),
+                Gtxn[Txn.group_index() - Int(3)].receiver() == Txn.accounts[3],
+                Gtxn[Txn.group_index() - Int(3)].rekey_to() == Global.zero_address(),
 
                 # We had to buy some extra CPU
+                Gtxn[Txn.group_index() - Int(2)].type_enum() == TxnType.ApplicationCall,
+                Gtxn[Txn.group_index() - Int(2)].application_id() == Global.current_application_id(),
+                Gtxn[Txn.group_index() - Int(2)].application_args[0] == Bytes("nop"),
+                Gtxn[Txn.group_index() - Int(2)].sender() == Txn.sender(),
+                Gtxn[Txn.group_index() - Int(2)].rekey_to() == Global.zero_address(),
+
                 Gtxn[Txn.group_index() - Int(1)].type_enum() == TxnType.ApplicationCall,
                 Gtxn[Txn.group_index() - Int(1)].application_id() == Global.current_application_id(),
                 Gtxn[Txn.group_index() - Int(1)].application_args[0] == Bytes("nop"),
