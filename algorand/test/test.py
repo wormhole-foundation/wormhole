@@ -494,6 +494,7 @@ class AlgoTest(PortalCore):
 
         print("Create a asset")
         attestVAA = bytes.fromhex(gt.genAssetMeta(gt.guardianPrivKeys, 2, seq, seq, bytes.fromhex("4523c3F29447d1f32AEa95BEBD00383c4640F1b4"), 1, 8, b"USDC", b"CircleCoin"))
+        # paul - createWrappedOnAlgorand
         self.submitVAA(attestVAA, client, player)
         seq += 1
 
@@ -501,17 +502,20 @@ class AlgoTest(PortalCore):
         chain_addr = self.optin(client, player, self.tokenid, p["FromChain"], p["Contract"])
 
         print("Create the same asset " + str(seq))
+        # paul - updateWrappedOnAlgorand
         attestVAA = bytes.fromhex(gt.genAssetMeta(gt.guardianPrivKeys, 2, seq, seq, bytes.fromhex("4523c3F29447d1f32AEa95BEBD00383c4640F1b4"), 1, 8, b"USD2C", b"Circle2Coin"))
         self.submitVAA(attestVAA, client, player)
         seq += 1
 
         print("Transfer the asset " + str(seq))
         transferVAA = bytes.fromhex(gt.genTransfer(gt.guardianPrivKeys, 1, 1, 1, 1, bytes.fromhex("4523c3F29447d1f32AEa95BEBD00383c4640F1b4"), 1, decode_address(player.getAddress()), 8, 0))
+        # paul - redeemOnAlgorand
         self.submitVAA(transferVAA, client, player)
         seq += 1
 
         aid = client.account_info(player.getAddress())["assets"][0]["asset-id"]
         print("generate an attest of the asset we just received")
+        # paul - attestFromAlgorand
         self.testAttest(client, player, aid)
 
         print("Create the test app we will use to torture ourselves using a new player")
@@ -534,6 +538,7 @@ class AlgoTest(PortalCore):
         print("test asset id: " + str(self.testasset))
 
         print("Lets try to create an attest for a non-wormhole thing with a huge number of decimals")
+        # paul - attestFromAlgorand
         sid = self.testAttest(client, player2, self.testasset)
         print("... track down the generated VAA")
         vaa = self.getVAA(client, player, sid, self.testid)
@@ -544,6 +549,7 @@ class AlgoTest(PortalCore):
         pprint.pprint(self.getBalances(client, player3.getAddress()))
 
         print("Lets transfer that asset to one of our other accounts... first lets create the vaa")
+        # paul - transferFromAlgorand
         sid = self.transferAsset(client, player2, self.testasset, 100, player3.getAddress())
         print("... track down the generated VAA")
         vaa = self.getVAA(client, player, sid, self.testid)
@@ -553,12 +559,15 @@ class AlgoTest(PortalCore):
         pprint.pprint(self.getBalances(client, player2.getAddress()))
         pprint.pprint(self.getBalances(client, player3.getAddress()))
 
+        # paul - transferFromAlgorand
         print("Lets transfer algo this time.... first lets create the vaa")
         sid = self.transferAsset(client, player2, 0, 10000000, player3.getAddress())
         print("... track down the generated VAA")
         vaa = self.getVAA(client, player, sid, self.testid)
 #        pprint.pprint(vaa)
         print(".. and lets pass that to player3")
+
+        # paul - redeemOnAlgorand
         self.submitVAA(bytes.fromhex(vaa), client, player3)
 
         pprint.pprint(self.getBalances(client, player2.getAddress()))
