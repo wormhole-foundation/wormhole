@@ -385,9 +385,13 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
 
         factor = ScratchVar()
         d = ScratchVar()
+        zb = ScratchVar()
         
         return Seq([
             checkForDuplicate(),
+
+            zb.store(Bytes("base16", "0000000000000000000000000000000000000000000000000000000000000000")),
+
 
             Assert(And(
                 # Lets see if the vaa we are about to process was actually verified by the core
@@ -422,13 +426,15 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
             # This is a transfer message... right?
             Assert(Int(1) ==      Btoi(Extract(Txn.application_args[1], off.load(),           Int(1)))),
 
-            # TODO: add assert that the first 24 bytes are zero
+            Assert(Extract(Txn.application_args[1], off.load() + Int(1), Int(24)) == Extract(zb.load(), Int(0), Int(24))),
             Amount.store(        Btoi(Extract(Txn.application_args[1], off.load() + Int(25), Int(8)))),  # uint256
+
             Origin.store(             Extract(Txn.application_args[1], off.load() + Int(33), Int(32))),
             OriginChain.store(   Btoi(Extract(Txn.application_args[1], off.load() + Int(65), Int(2)))),
             Destination.store(        Extract(Txn.application_args[1], off.load() + Int(67), Int(32))),
             DestChain.store(     Btoi(Extract(Txn.application_args[1], off.load() + Int(99), Int(2)))),
-            # TODO: add assert that the first 24 bytes are zero
+
+            Assert(Extract(Txn.application_args[1], off.load() + Int(101),Int(24)) == Extract(zb.load(), Int(0), Int(24))),
             Fee.store(           Btoi(Extract(Txn.application_args[1], off.load() + Int(125),Int(8)))),  # uint256
 
             # This directed at us?
@@ -581,6 +587,7 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
         Address = ScratchVar()
         FromChain = ScratchVar()
         zb = ScratchVar()
+        factor = ScratchVar()
 
         return Seq([
             zb.store(Bytes("base16", "0000000000000000000000000000000000000000000000000000000000000000")),
@@ -619,24 +626,30 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
                    amount.store(Gtxn[Txn.group_index() - Int(1)].asset_amount()),
                    d.store(Btoi(extract_decimal(aid.load()))),
 
-                   # Throw away the dust..
+                   factor.store(Int(1)),
                    Cond(
-                       [d.load() == Int(9),  amount.store(amount.load() / Int(10))],
-                       [d.load() == Int(10), amount.store(amount.load() / Int(100))],
-                       [d.load() == Int(11), amount.store(amount.load() / Int(1000))],
-                       [d.load() == Int(12), amount.store(amount.load() / Int(10000))],
-                       [d.load() == Int(13), amount.store(amount.load() / Int(100000))],
-                       [d.load() == Int(14), amount.store(amount.load() / Int(1000000))],
-                       [d.load() == Int(15), amount.store(amount.load() / Int(10000000))],
-                       [d.load() == Int(16), amount.store(amount.load() / Int(100000000))],
+                       [d.load() == Int(9),  factor.store(Int(10))],
+                       [d.load() == Int(10), factor.store(Int(100))],
+                       [d.load() == Int(11), factor.store(Int(1000))],
+                       [d.load() == Int(12), factor.store(Int(10000))],
+                       [d.load() == Int(13), factor.store(Int(100000))],
+                       [d.load() == Int(14), factor.store(Int(1000000))],
+                       [d.load() == Int(15), factor.store(Int(10000000))],
+                       [d.load() == Int(16), factor.store(Int(100000000))],
                        [d.load() >  Int(16), Assert(d.load() < Int(16))],
                    ),
+
+                   If(factor.load() != Int(1),
+                      Seq([
+                          amount.store(amount.load() / factor.load()),
+                          #Fee.store(Fee.load() / factor.load())
+                      ])
+                    ),       # If(factor.load() != Int(1),
                ]),
             ),
 
             # If it is nothing but dust lets just abort the whole transaction and save 
             Assert(amount.load() > Int(0)),
-
 
             If(aid.load() != Int(0),
                aaddr.store(auth_addr(extract_creator(aid.load()))),
