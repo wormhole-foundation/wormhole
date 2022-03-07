@@ -70,7 +70,7 @@
     ]
   },
   "devDependencies": {
-    "@craco/craco": "^6.2.0",
+    "@craco/craco": "^6.4.3",
     "@truffle/hdwallet-provider": "^1.4.1",
     "@types/node": "^16.6.1",
     "@types/numeral": "^2.0.2",
