@@ -32,7 +32,7 @@
   "author": "certusone",
   "license": "Apache-2.0",
   "devDependencies": {
-    "@certusone/wormhole-sdk": "^0.1.1",
+    "@certusone/wormhole-sdk": "^0.2.1",
     "@solana/web3.js": "^1.31.0",
     "@types/jest": "^27.0.2",
     "@types/node": "^16.6.1",
