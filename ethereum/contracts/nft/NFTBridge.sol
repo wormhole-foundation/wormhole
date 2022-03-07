@@ -72,9 +72,8 @@ contract NFTBridge is NFTBridgeGovernance {
             }
         }
 
-        if (tokenChain == chainId()) {
-            IERC721(token).safeTransferFrom(msg.sender, address(this), tokenID);
-        } else {
+        IERC721(token).safeTransferFrom(msg.sender, address(this), tokenID);
+        if (tokenChain != chainId()) {
             NFTImplementation(token).burn(tokenID);
         }
 
