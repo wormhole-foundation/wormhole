@@ -32,10 +32,29 @@ class TmplSig:
     def __init__(self, name):
         # Read the source map
 
-        with open("{}.json".format(name)) as f:
-            self.map = json.loads(f.read())
+#        with open("{}.json".format(name)) as f:
+#            self.map = json.loads(f.read())
 
-        print(json.dumps(self.map))
+        self.map = {
+            'bytecode': 'BiABAYEASIAASIgAAUMyBIEDEjMAECISEDMACIEAEhAzACAyAxIQMwAJMgMSEDMBEIEGEhAzARkiEhAzARiBABIQMwEgMgMSEDMCECISEDMCCIEAEhAzAiCAABIQMwIJMgMSEIk=',
+            'label_map': {'init_0': 9},
+            'name': 'sig.teal',
+            'template_labels': {'TMPL_ADDR_IDX': {'bytes': False,
+                                                  'position': 5,
+                                                  'source_line': 3},
+                                'TMPL_APP_ADDRESS': {'bytes': True,
+                                                     'position': 90,
+                                                     'source_line': 55},
+                                'TMPL_APP_ID': {'bytes': False,
+                                                'position': 63,
+                                                'source_line': 39},
+                                'TMPL_EMITTER_ID': {'bytes': True,
+                                                    'position': 8,
+                                                    'source_line': 5},
+                                'TMPL_SEED_AMT': {'bytes': False,
+                                                  'position': 29,
+                                                  'source_line': 19}},
+            'version': 6}
 
         self.src = base64.b64decode(self.map["bytecode"])
         self.sorted = dict(
