@@ -1,49 +1,102 @@
 import {
-  Secp256k1HdWallet,
-  SigningCosmosClient,
-  Msg,
-  coins,
-  LcdClient,
-  setupAuthExtension,
-  setupBankExtension,
-  setupDistributionExtension,
-  setupGovExtension,
-  setupMintExtension,
-  setupSlashingExtension,
-  setupStakingExtension,
-  setupSupplyExtension,
-} from "@cosmjs/launchpad";
-import { ADDRESS_PREFIX, FAUCET_URL, HOLE_DENOM, NODE_URL } from "../consts";
+  ADDRESS_PREFIX,
+  FAUCET_URL,
+  HOLE_DENOM,
+  NODE_URL,
+  OPERATOR_PREFIX,
+  TENDERMINT_URL,
+} from "../consts";
 import axios from "axios";
 import { DeclarationName } from "typescript";
+import {
+  Coin,
+  coins,
+  DirectSecp256k1HdWallet,
+  EncodeObject,
+} from "@cosmjs/proto-signing";
+import {
+  SigningStargateClient,
+  StargateClient,
+  isDeliverTxSuccess,
+  StdFee,
+  QueryClient,
+  TxExtension,
+  GovExtension,
+  IbcExtension,
+  AuthExtension,
+  BankExtension,
+  MintExtension,
+  StakingExtension,
+  setupTxExtension,
+  setupGovExtension,
+  setupIbcExtension,
+  setupAuthExtension,
+  setupBankExtension,
+  setupMintExtension,
+  setupStakingExtension,
+} from "@cosmjs/stargate";
+import { Decimal } from "@cosmjs/math";
+import { Tendermint34Client } from "@cosmjs/tendermint-rpc";
 
-//https://www.npmjs.com/package/@cosmjs/launchpad
+//https://www.npmjs.com/package/@cosmjs/stargate
+//https://gist.github.com/webmaster128/8444d42a7eceeda2544c8a59fbd7e1d9
 
-export function getClient() {
-  return LcdClient.withExtensions(
-    { apiUrl: NODE_URL },
+//TODO: make a custom gov, staking, etc extension for items which were hard forked in the cosmos SDK
+//TODO: make an extension for items in the wormhole module
+
+//One of these is inside the stargate client, but is protected for whatever reason. Not sure how else the functions get exposed.
+export async function getQueryClient() {
+  const tmClient = await Tendermint34Client.connect(TENDERMINT_URL);
+  const client = QueryClient.withExtensions(
+    tmClient,
+    setupTxExtension,
+    setupGovExtension,
+    setupIbcExtension,
     setupAuthExtension,
     setupBankExtension,
-    setupDistributionExtension,
-    setupGovExtension,
     setupMintExtension,
-    setupSlashingExtension,
-    setupStakingExtension,
-    setupSupplyExtension
+    setupStakingExtension
   );
+
+  return client;
 }
 
-export async function getWallet(mnemonic: string): Promise<Secp256k1HdWallet> {
-  return await Secp256k1HdWallet.fromMnemonic(mnemonic, {
+export async function getStargateClient() {
+  const client: StargateClient = await StargateClient.connect(TENDERMINT_URL);
+  return client;
+}
+
+export async function getWallet(
+  mnemonic: string
+): Promise<DirectSecp256k1HdWallet> {
+  const wallet = await DirectSecp256k1HdWallet.fromMnemonic(mnemonic, {
     prefix: ADDRESS_PREFIX,
   });
+  return wallet;
 }
 
-export async function getAddress(wallet: Secp256k1HdWallet): Promise<string> {
+export function getZeroFee(): StdFee {
+  return {
+    amount: coins(0, HOLE_DENOM),
+    gas: "180000", // 180k",
+  };
+}
+
+export async function getAddress(
+  wallet: DirectSecp256k1HdWallet
+): Promise<string> {
   //There are actually up to 5 accounts in a cosmos wallet. I believe this returns the first wallet.
   const [{ address }] = await wallet.getAccounts();
 
   return address;
+}
+
+export async function getOperatorAddress(mnemonic: string): Promise<string> {
+  return await getAddress(
+    await DirectSecp256k1HdWallet.fromMnemonic(mnemonic, {
+      prefix: OPERATOR_PREFIX,
+    })
+  );
 }
 
 export async function faucet(denom: string, amount: string, address: string) {
@@ -55,43 +108,55 @@ export async function faucet(denom: string, amount: string, address: string) {
 }
 
 export async function signSendAndConfirm(
-  wallet: Secp256k1HdWallet,
-  msgs: Msg[]
+  wallet: DirectSecp256k1HdWallet,
+  msgs: EncodeObject[],
+  memo?: string
 ) {
   const address = await getAddress(wallet);
-  const client = new SigningCosmosClient(NODE_URL, address, wallet);
+  const client = await SigningStargateClient.connectWithSigner(
+    TENDERMINT_URL,
+    wallet
+    //{ gasPrice: { amount: Decimal.fromUserInput("0.0", 0), denom: "uhole" } }
+  );
 
   //TODO figure out fees
-  const fee = {
-    amount: coins(0, HOLE_DENOM),
-    gas: "0",
-  };
-  const result = await client.signAndBroadcast(msgs, fee);
+  const fee = getZeroFee();
+
+  const result = await client.signAndBroadcast(address, msgs, fee, memo);
 
   return result;
 }
-
 export async function sendTokens(
-  wallet: Secp256k1HdWallet,
+  wallet: DirectSecp256k1HdWallet,
   denom: string,
-  amount: BigInt,
-  recipient: string
+  amount: string,
+  recipient: string,
+  fee?: number | StdFee | undefined,
+  memo?: string
 ) {
-  const address = await getAddress(wallet);
-  const client = new SigningCosmosClient(NODE_URL, address, wallet);
+  const signer = await getAddress(wallet);
+  const client = await SigningStargateClient.connectWithSigner(
+    TENDERMINT_URL,
+    wallet
+  );
 
+  const coin: Coin = {
+    denom,
+    amount,
+  };
   const result = await client.sendTokens(
+    signer,
     recipient,
-    coins(amount.toString(), denom)
+    [coin],
+    getZeroFee(),
+    memo
   );
   return result;
 }
 
 export async function getBalance(denom: string, address: string) {
-  const client = getClient();
-  const balances = await client.bank.balances(address);
+  const client = await getQueryClient();
+  const coin = await client.bank.balance(address, denom);
 
-  const balance = balances.result.find((x) => x.denom === denom);
-
-  return balance ? parseInt(balance.amount) : 0;
+  return coin.amount;
 }
