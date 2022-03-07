@@ -1,4 +1,5 @@
 import {
+  CHAIN_ID_POLYGON,
   CHAIN_ID_SOLANA,
   hexToNativeString,
   hexToUint8Array,
@@ -31,6 +32,7 @@ import ButtonWithLoader from "../ButtonWithLoader";
 import ChainSelect from "../ChainSelect";
 import KeyAndBalance from "../KeyAndBalance";
 import LowBalanceWarning from "../LowBalanceWarning";
+import PolygonNetworkDownWarning from "../PolygonNetworkDownWarning";
 import SolanaTPSWarning from "../SolanaTPSWarning";
 import StepDescription from "../StepDescription";
 
@@ -138,8 +140,9 @@ function Target() {
       </Alert>
       <LowBalanceWarning chainId={targetChain} />
       {targetChain === CHAIN_ID_SOLANA && <SolanaTPSWarning />}
+      {targetChain === CHAIN_ID_POLYGON && <PolygonNetworkDownWarning />}
       <ButtonWithLoader
-        disabled={!isTargetComplete} //|| !associatedAccountExists}
+        disabled={!isTargetComplete || targetChain === CHAIN_ID_POLYGON} //|| !associatedAccountExists}
         onClick={handleNextClick}
         showLoader={false}
         error={statusMessage || error}
