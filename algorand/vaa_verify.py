@@ -104,4 +104,9 @@ def vaa_verify_program():
     )
 
 def get_vaa_verify():
-    return compileTeal(vaa_verify_program(), mode=Mode.Signature, version=5)
+    teal = compileTeal(vaa_verify_program(), mode=Mode.Signature, version=6)
+
+    with open("vaa_verify.teal", "w") as f:
+        f.write(teal)
+
+    return teal

@@ -41,8 +41,12 @@ bits_per_key = max_bytes_per_key * bits_per_byte
 max_bytes = max_bytes_per_key * max_keys
 max_bits = bits_per_byte * max_bytes
 
-def fullyCompileContract(client: AlgodClient, contract: Expr) -> bytes:
+def fullyCompileContract(client: AlgodClient, contract: Expr, name) -> bytes:
     teal = compileTeal(contract, mode=Mode.Application, version=6)
+
+    with open(name, "w") as f:
+        f.write(teal)
+
     response = client.compile(teal)
     return response
 
@@ -968,7 +972,7 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
     )
 
 def get_token_bridge(client: AlgodClient, seed_amt: int = 0, tmpl_sig: TmplSig = None) -> Tuple[bytes, bytes]:
-    APPROVAL_PROGRAM = fullyCompileContract(client, approve_token_bridge(seed_amt, tmpl_sig))
-    CLEAR_STATE_PROGRAM = fullyCompileContract(client, clear_token_bridge())
+    APPROVAL_PROGRAM = fullyCompileContract(client, approve_token_bridge(seed_amt, tmpl_sig), "token_approve.teal")
+    CLEAR_STATE_PROGRAM = fullyCompileContract(client, clear_token_bridge(), "token_clear.teal")
 
     return APPROVAL_PROGRAM, CLEAR_STATE_PROGRAM

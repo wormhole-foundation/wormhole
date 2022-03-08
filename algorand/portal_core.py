@@ -33,8 +33,12 @@ bits_per_key = max_bytes_per_key * bits_per_byte
 max_bytes = max_bytes_per_key * max_keys
 max_bits = bits_per_byte * max_bytes
 
-def fullyCompileContract(client: AlgodClient, contract: Expr) -> bytes:
+def fullyCompileContract(client: AlgodClient, contract: Expr, name) -> bytes:
     teal = compileTeal(contract, mode=Mode.Application, version=6)
+
+    with open(name, "w") as f:
+        f.write(teal)
+
     response = client.compile(teal)
     return response
 
@@ -449,7 +453,8 @@ def getCoreContracts(   client: AlgodClient,
     def clear_state_program():
         return Int(1)
 
-    APPROVAL_PROGRAM = fullyCompileContract(client, vaa_processor_program(seed_amt, tmpl_sig))
-    CLEAR_STATE_PROGRAM = fullyCompileContract(client, clear_state_program())
+    APPROVAL_PROGRAM = fullyCompileContract(client, vaa_processor_program(seed_amt, tmpl_sig), "core_approve.teal")
+    CLEAR_STATE_PROGRAM = fullyCompileContract(client, clear_state_program(), "core_clear.teal")
 
     return APPROVAL_PROGRAM, CLEAR_STATE_PROGRAM
+
