@@ -54,6 +54,8 @@ It is important to note that Wormhole wrapped tokens are distinct from and incom
 
 ## Examples
 
+The integration tests in the [source code](https://github.com/certusone/wormhole/blob/dev.v2/sdk/js/src/token_bridge/__tests__/integration.ts) have many full-path examples, while the [example Token Bridge UI](https://github.com/certusone/wormhole/tree/dev.v2/bridge_ui) demonstrates how to integrate it.
+
 ### Attest
 
 #### Solana to Ethereum
@@ -165,6 +167,21 @@ await redeemOnEth(ETH_TOKEN_BRIDGE_ADDRESS, signer, signedVAA);
 #### Ethereum to Solana
 
 ```js
+// determine destination address - an associated token account
+const solanaMintKey = new PublicKey(
+  (await getForeignAssetSolana(
+    connection,
+    SOLANA_TOKEN_BRIDGE_ADDRESS,
+    CHAIN_ID_ETH,
+    hexToUint8Array(nativeToHexString(tokenAddress, CHAIN_ID_ETH) || "")
+  )) || ""
+);
+const recipientAddress = await Token.getAssociatedTokenAddress(
+  ASSOCIATED_TOKEN_PROGRAM_ID,
+  TOKEN_PROGRAM_ID,
+  solanaMintKey,
+  walletAddress
+);
 // Submit transaction - results in a Wormhole message being published
 const receipt = await transferFromEth(
   ETH_TOKEN_BRIDGE_ADDRESS,

@@ -14,7 +14,7 @@ allow_k8s_contexts("ci")
 analytics_settings(False)
 
 # Moar updates (default is 3)
-update_settings(max_parallel_updates=10)
+update_settings(max_parallel_updates = 10)
 
 # Runtime configuration
 config.define_bool("ci", False, "We are running in CI")
@@ -40,12 +40,12 @@ config.define_string("webHost", False, "Public hostname for port forwards")
 # Components
 config.define_bool("algorand", False, "Enable Algorand component")
 config.define_bool("solana", False, "Enable Solana component")
-config.define_bool("pyth", False, "Enable Pyth-to-Wormhole component")
 config.define_bool("explorer", False, "Enable explorer component")
 config.define_bool("bridge_ui", False, "Enable bridge UI component")
 config.define_bool("e2e", False, "Enable E2E testing stack")
 config.define_bool("ci_tests", False, "Enable tests runner component")
 config.define_bool("bridge_ui_hot", False, "Enable hot loading bridge_ui")
+config.define_bool("guardiand_debug", False, "Enable dlv endpoint for guardiand")
 
 cfg = config.parse()
 num_guardians = int(cfg.get("num", "1"))
@@ -56,11 +56,11 @@ webHost = cfg.get("webHost", "localhost")
 algorand = cfg.get("algorand", True)
 solana = cfg.get("solana", True)
 ci = cfg.get("ci", False)
-pyth = cfg.get("pyth", ci)
 explorer = cfg.get("explorer", ci)
 bridge_ui = cfg.get("bridge_ui", ci)
 e2e = cfg.get("e2e", ci)
 ci_tests = cfg.get("ci_tests", ci)
+guardiand_debug = cfg.get("guardiand_debug", False)
 
 bridge_ui_hot = not ci
 
@@ -87,7 +87,7 @@ local_resource(
     cmd = "tilt docker build -- --target go-export -f Dockerfile.proto -o type=local,dest=node .",
     env = {"DOCKER_BUILDKIT": "1"},
     labels = ["protobuf"],
-    allow_parallel=True,
+    allow_parallel = True,
     trigger_mode = trigger_mode,
 )
 
@@ -98,7 +98,7 @@ local_resource(
     cmd = "tilt docker build -- --target node-export -f Dockerfile.proto -o type=local,dest=. .",
     env = {"DOCKER_BUILDKIT": "1"},
     labels = ["protobuf"],
-    allow_parallel=True,
+    allow_parallel = True,
     trigger_mode = trigger_mode,
 )
 
@@ -109,7 +109,7 @@ if algorand:
         cmd = "tilt docker build -- --target teal-export -f Dockerfile.teal -o type=local,dest=. .",
         env = {"DOCKER_BUILDKIT": "1"},
         labels = ["algorand"],
-        allow_parallel=True,
+        allow_parallel = True,
         trigger_mode = trigger_mode,
     )
 
@@ -123,7 +123,7 @@ if solana:
         cmd = "tilt docker build -- -f Dockerfile.wasm -o type=local,dest=.. .",
         env = {"DOCKER_BUILDKIT": "1"},
         labels = ["solana"],
-        allow_parallel=True,
+        allow_parallel = True,
         trigger_mode = trigger_mode,
     )
 
@@ -143,6 +143,19 @@ docker_build(
     dockerfile = "node/Dockerfile",
 )
 
+def command_with_dlv(argv):
+    return [
+        "/dlv",
+        "--listen=0.0.0.0:2345",
+        "--accept-multiclient",
+        "--headless=true",
+        "--api-version=2",
+        "--continue=true",
+        "exec",
+        argv[0],
+        "--",
+    ] + argv[1:]
+
 def build_node_yaml():
     node_yaml = read_yaml_stream("devnet/node.yaml")
 
@@ -153,6 +166,11 @@ def build_node_yaml():
             if container["name"] != "guardiand":
                 fail("container 0 is not guardiand")
             container["command"] += ["--devNumGuardians", str(num_guardians)]
+
+            if guardiand_debug:
+                container["command"] = command_with_dlv(container["command"])
+                container["command"] += ["--logLevel=debug"]
+                print(container["command"])
 
             if explorer:
                 container["command"] += [
@@ -205,7 +223,6 @@ k8s_resource(
 )
 
 if solana:
-
     # solana client cli (used for devnet setup)
 
     docker_build(
@@ -259,54 +276,6 @@ docker_build(
         sync("./ethereum/src", "/home/node/app/src"),
     ],
 )
-
-if solana and pyth:
-    # pyth autopublisher
-    docker_build(
-        ref = "pyth",
-        context = ".",
-        dockerfile = "third_party/pyth/Dockerfile.pyth",
-    )
-    k8s_yaml_with_ns("./devnet/pyth.yaml")
-
-    k8s_resource(
-        "pyth", 
-        resource_deps = ["solana-devnet"], 
-        labels = ["solana"],
-        trigger_mode = trigger_mode,
-    )
-
-    # pyth2wormhole client autoattester
-    docker_build(
-        ref = "p2w-attest",
-        context = ".",
-        only = ["./solana", "./third_party"],
-        dockerfile = "./third_party/pyth/Dockerfile.p2w-attest",
-        ignore = ["./solana/*/target"],
-    )
-
-    # Automatic pyth2wormhole relay, showcasing p2w-sdk
-    docker_build(
-        ref = "p2w-relay",
-	context = ".",
-	dockerfile = "./third_party/pyth/p2w-relay/Dockerfile",
-    )
-
-    k8s_yaml_with_ns("devnet/p2w-attest.yaml")
-    k8s_resource(
-        "p2w-attest",
-        resource_deps = ["solana-devnet", "pyth", "guardian"],
-        port_forwards = [],
-        labels = ["solana"],
-        trigger_mode = trigger_mode,
-    )
-
-    k8s_yaml_with_ns("devnet/p2w-relay.yaml")
-    k8s_resource(
-        "p2w-relay",
-        resource_deps = ["solana-devnet", "eth-devnet", "pyth", "guardian", "p2w-attest", "proto-gen-web", "wasm-gen"],
-        port_forwards = [],
-    )
 
 k8s_yaml_with_ns("devnet/eth-devnet.yaml")
 
@@ -426,7 +395,6 @@ if e2e:
 # bigtable
 
 if explorer:
-
     k8s_yaml_with_ns("devnet/bigtable.yaml")
 
     k8s_resource(
@@ -436,7 +404,8 @@ if explorer:
         trigger_mode = trigger_mode,
     )
 
-    k8s_resource("pubsub-emulator",
+    k8s_resource(
+        "pubsub-emulator",
         port_forwards = [port_forward(8085, name = "PubSub listeners [:8085]")],
         labels = ["explorer"],
     )

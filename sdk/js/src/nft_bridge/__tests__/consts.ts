@@ -34,12 +34,12 @@ export const TERRA_GAS_PRICES_URL = ci
 export const TERRA_CORE_BRIDGE_ADDRESS =
   "terra18vd8fpwxzck93qlwghaj6arh4p7c5n896xzem5";
 export const TERRA_NFT_BRIDGE_ADDRESS =
-  "terra19zpyd046u4swqpksr3n44cej4j8pg6ah2y6dcg";
+  "terra1plju286nnfj3z54wgcggd4enwaa9fgf5kgrgzl";
 export const TERRA_PRIVATE_KEY =
   "quality vacuum heart guard buzz spike sight swarm shove special gym robust assume sudden deposit grid alcohol choice devote leader tilt noodle tide penalty";
 export const TEST_ERC721 = "0x5b9b42d6e4B2e4Bf8d42Eba32D46918e10899B66";
-export const TERRA_CW721_CODE_ID = 8;
-export const TEST_CW721 = "terra1l425neayde0fzfcv3apkyk4zqagvflm6cmha9v";
+export const TERRA_CW721_CODE_ID = 7;
+export const TEST_CW721 = "terra18dt935pdcn2ka6l0syy5gt20wa48n3mktvdvjj";
 export const TEST_SOLANA_TOKEN = "BVxyYhm498L79r4HMQ9sxZ5bi41DmJmeWZ7SCS7Cyvna";
 export const WORMHOLE_RPC_HOSTS = ci
   ? ["http://guardian:7071"]

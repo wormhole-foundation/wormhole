@@ -1,4 +1,8 @@
-import { CHAIN_ID_SOLANA, isEVMChain } from "@certusone/wormhole-sdk";
+import {
+  CHAIN_ID_OASIS,
+  CHAIN_ID_SOLANA,
+  isEVMChain,
+} from "@certusone/wormhole-sdk";
 import { Button, makeStyles } from "@material-ui/core";
 import { VerifiedUser } from "@material-ui/icons";
 import { Alert } from "@material-ui/lab";
@@ -19,6 +23,7 @@ import ButtonWithLoader from "../ButtonWithLoader";
 import ChainSelect from "../ChainSelect";
 import KeyAndBalance from "../KeyAndBalance";
 import LowBalanceWarning from "../LowBalanceWarning";
+import OasisNetworkUpgradeWarning from "../OasisNetworkUpgradeWarning";
 import SolanaTPSWarning from "../SolanaTPSWarning";
 import StepDescription from "../StepDescription";
 import { TokenSelector } from "../TokenSelectors/SourceTokenSelector";
@@ -92,9 +97,10 @@ function Source() {
         </div>
       ) : null}
       <LowBalanceWarning chainId={sourceChain} />
+      {sourceChain === CHAIN_ID_OASIS && <OasisNetworkUpgradeWarning />}
       {sourceChain === CHAIN_ID_SOLANA && <SolanaTPSWarning />}
       <ButtonWithLoader
-        disabled={!isSourceComplete}
+        disabled={!isSourceComplete || sourceChain === CHAIN_ID_OASIS}
         onClick={handleNextClick}
         showLoader={false}
         error={statusMessage || error}

@@ -40,6 +40,7 @@ var NFTEmitters = map[string]string{
 	"000000000000000000000000C5c25B41AB0b797571620F5204Afa116A44c0ebA": "0xC5c25B41AB0b797571620F5204Afa116A44c0ebA",   // oasis
 	"0000000000000000000000002b048Da40f69c8dc386a56705915f8E966fe1eba": "0x2b048Da40f69c8dc386a56705915f8E966fe1eba",   // ethereum ropesten
 	// TODO "": "",  // fantom
+
 }
 var TokenTransferEmitters = map[string]string{
 	// mainnet

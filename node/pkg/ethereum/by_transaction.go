@@ -38,6 +38,18 @@ func MessageEventsForTransaction(
 		return 0, nil, fmt.Errorf("failed to get transaction receipt: %w", err)
 	}
 
+	// Bail early when the transaction receipt status is anything other than
+	// 1 (success). In theory, this check isn't strictly necessary - a failed
+	// transaction cannot emit logs and will trigger neither subscription
+	// messages nor have log messages in its receipt.
+	//
+	// However, relying on that invariant is brittle - we connect to a lot of
+	// EVM-compatible chains which might accidentally break this API contract
+	// and return logs for failed transactions. Check explicitly instead.
+	if receipt.Status != 1 {
+		return 0, nil, fmt.Errorf("non-success transaction status: %d", receipt.Status)
+	}
+
 	// Get block
 	block, err := c.BlockByHash(ctx, receipt.BlockHash)
 	if err != nil {

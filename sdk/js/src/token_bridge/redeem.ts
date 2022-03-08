@@ -7,7 +7,7 @@ import {
   Transaction,
 } from "@solana/web3.js";
 import { MsgExecuteContract } from "@terra-money/terra.js";
-import { ethers } from "ethers";
+import { ethers, Overrides } from "ethers";
 import { fromUint8Array } from "js-base64";
 import { Bridge__factory } from "../ethers-contracts";
 import { ixFromRust } from "../solana";
@@ -24,10 +24,11 @@ import { parseTransferPayload } from "../utils/parseVaa";
 export async function redeemOnEth(
   tokenBridgeAddress: string,
   signer: ethers.Signer,
-  signedVAA: Uint8Array
+  signedVAA: Uint8Array,
+  overrides: Overrides & { from?: string | Promise<string> } = {}
 ) {
   const bridge = Bridge__factory.connect(tokenBridgeAddress, signer);
-  const v = await bridge.completeTransfer(signedVAA);
+  const v = await bridge.completeTransfer(signedVAA, overrides);
   const receipt = await v.wait();
   return receipt;
 }
@@ -35,10 +36,11 @@ export async function redeemOnEth(
 export async function redeemOnEthNative(
   tokenBridgeAddress: string,
   signer: ethers.Signer,
-  signedVAA: Uint8Array
+  signedVAA: Uint8Array,
+  overrides: Overrides & { from?: string | Promise<string> } = {}
 ) {
   const bridge = Bridge__factory.connect(tokenBridgeAddress, signer);
-  const v = await bridge.completeTransferAndUnwrapETH(signedVAA);
+  const v = await bridge.completeTransferAndUnwrapETH(signedVAA, overrides);
   const receipt = await v.wait();
   return receipt;
 }

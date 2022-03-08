@@ -1,6 +1,6 @@
 import { Connection, Keypair, PublicKey, Transaction } from "@solana/web3.js";
 import { MsgExecuteContract } from "@terra-money/terra.js";
-import { ethers } from "ethers";
+import { ethers, PayableOverrides } from "ethers";
 import { isNativeDenom } from "..";
 import { Bridge__factory } from "../ethers-contracts";
 import { getBridgeFeeIx, ixFromRust } from "../solana";
@@ -10,10 +10,11 @@ import { createNonce } from "../utils/createNonce";
 export async function attestFromEth(
   tokenBridgeAddress: string,
   signer: ethers.Signer,
-  tokenAddress: string
+  tokenAddress: string,
+  overrides: PayableOverrides & { from?: string | Promise<string> } = {}
 ) {
   const bridge = Bridge__factory.connect(tokenBridgeAddress, signer);
-  const v = await bridge.attestToken(tokenAddress, createNonce());
+  const v = await bridge.attestToken(tokenAddress, createNonce(), overrides);
   const receipt = await v.wait();
   return receipt;
 }

@@ -16,7 +16,7 @@ jobs:
     # (unfortunately, we can't differentiate between temporary and permanent
     # refs without duplicating the entire logic).
     concurrency:
-      group: ${{ github.workflow }}-${{ github.ref }}
+      group: ${{ github.workflow }}-tilt-${{ github.ref }}
       cancel-in-progress: true
 
     steps:
@@ -50,7 +50,7 @@ jobs:
     # The linter is slow enough that we want to run it on the self-hosted runner
     runs-on: tilt-kube-public
     concurrency:
-      group: ${{ github.workflow }}-${{ github.ref }}
+      group: ${{ github.workflow }}-lint-${{ github.ref }}
       cancel-in-progress: true
     steps:
       - uses: actions/checkout@v2
