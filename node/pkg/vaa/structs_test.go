@@ -1,13 +1,9 @@
 package vaa
 
 import (
-	// "crypto/ecdsa"
-	// "crypto/elliptic"
-	// "crypto/rand"
 	"encoding/hex"
 	"github.com/stretchr/testify/assert"
 	"testing"
-	// "time"
 )
 
 func TestChainIDFromString(t *testing.T) {
