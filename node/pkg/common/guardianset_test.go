@@ -72,7 +72,7 @@ func TestSet(t *testing.T) {
 	}
 
 	gss := NewGuardianSetState()
-	assert.Nil(t, gss.current, &gs)
+	assert.Nil(t, gss.current)
 	gss.Set(&gs)
 	assert.Equal(t, gss.current, &gs)
 }
