@@ -770,7 +770,7 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
     def transferWithPayload():
         return Seq([Approve()])
 
-    # This is for attesting everything except ALGO itself...
+    # This is for attesting
     def attestToken():
         asset = ScratchVar()
         p = ScratchVar()
@@ -815,10 +815,19 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
                    
                    aid.store(Btoi(Txn.application_args[1])),
 
-                   d.store(extract_decimal(aid.load())),
-                   If(Btoi(d.load()) > Int(8), d.store(Bytes("base16", "08"))),
-                   uname.store(extract_unit_name(aid.load())),
-                   name.store(extract_name(aid.load())),
+                   If(aid.load() == Int(0),
+                      Seq([
+                          d.store(Bytes("base16", "06")),
+                          uname.store(Bytes("ALGO")),
+                          name.store(Bytes("ALGO"))
+                      ]),
+                      Seq([
+                          d.store(extract_decimal(aid.load())),
+                          If(Btoi(d.load()) > Int(8), d.store(Bytes("base16", "08"))),
+                          uname.store(extract_unit_name(aid.load())),
+                          name.store(extract_name(aid.load())),
+                      ])
+                    ),
 
                    p.store(
                        Concat(
