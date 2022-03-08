@@ -100,9 +100,9 @@ type logResponse struct {
 }
 
 func getCurrentHeight(chainId vaa.ChainID, ctx context.Context, c *http.Client, api, key string) (uint64, error) {
-	var req *http.Request;
-	var err error;
-	if (chainId == vaa.ChainIDOasis) {
+	var req *http.Request
+	var err error
+	if chainId == vaa.ChainIDOasis {
 		req, err = http.NewRequest("GET", fmt.Sprintf("%s?module=block&action=eth_block_number", api), nil)
 	} else {
 		req, err = http.NewRequest("GET", fmt.Sprintf("%s?module=proxy&action=eth_blockNumber&apikey=%s", api, key), nil)
@@ -130,9 +130,9 @@ func getCurrentHeight(chainId vaa.ChainID, ctx context.Context, c *http.Client, 
 }
 
 func getLogs(chainId vaa.ChainID, ctx context.Context, c *http.Client, api, key, contract, topic0 string, from, to string) ([]*logEntry, error) {
-	var req *http.Request;
-	var err error;
-	if (chainId == vaa.ChainIDOasis) {
+	var req *http.Request
+	var err error
+	if chainId == vaa.ChainIDOasis {
 		// This is the Oasis leg
 		req, err = http.NewRequestWithContext(ctx, "GET", fmt.Sprintf(
 			"%s?module=logs&action=getLogs&fromBlock=%s&toBlock=%s&topic0=%s",
@@ -170,17 +170,17 @@ func getLogs(chainId vaa.ChainID, ctx context.Context, c *http.Client, api, key,
 		return nil, fmt.Errorf("failed to unmarshal log entry: %w", err)
 	}
 
-	if (chainId == vaa.ChainIDOasis) {
-		// Because of a bug in BlockScout we need to check the address 
+	if chainId == vaa.ChainIDOasis {
+		// Because of a bug in BlockScout we need to check the address
 		// in the log to see if it is the Oasis core bridge
 		var filtered []*logEntry
 		for _, logLine := range logs {
 			// Check value of address in log
-			if (logLine.Address == contract) {
+			if logLine.Address == contract {
 				filtered = append(filtered, logLine)
 			}
 		}
-		logs = filtered;
+		logs = filtered
 	}
 
 	return logs, nil
@@ -194,7 +194,7 @@ func main() {
 	}
 
 	if *etherscanKey == "" {
-		if (chainID != vaa.ChainIDOasis) {
+		if chainID != vaa.ChainIDOasis {
 			log.Fatal("Etherscan API Key is required")
 		}
 	}
@@ -395,7 +395,7 @@ func main() {
 				log.Fatalf("SendObservationRequest: %v", err)
 			}
 
-			for {
+			for i := 0; i < 10; i++ {
 				log.Printf("verifying %d", seq)
 				req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf(
 					"%s/v1/signed_vaa/%d/%s/%d",
