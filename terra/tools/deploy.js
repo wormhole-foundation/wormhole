@@ -19,7 +19,6 @@ const artifacts = [
   "token_bridge.wasm",
   "cw20_wrapped.wasm",
   "cw20_base.wasm",
-  "pyth_bridge.wasm",
   "nft_bridge.wasm",
   "cw721_wrapped.wasm",
   "cw721_base.wasm",
@@ -134,7 +133,11 @@ async function instantiate(contract, inst_msg) {
     .then((rs) => {
       address = /"contract_address","value":"([^"]+)/gm.exec(rs.raw_log)[1];
     });
-  console.log(`Instantiated ${contract} at ${address} (${convert_terra_address_to_hex(address)})`);
+  console.log(
+    `Instantiated ${contract} at ${address} (${convert_terra_address_to_hex(
+      address
+    )})`
+  );
   return address;
 }
 
@@ -180,20 +183,6 @@ addresses["mock.wasm"] = await instantiate("cw20_base.wasm", {
   mint: null,
 });
 
-const pythEmitterAddress =
-  "71f8dcb863d176e2c420ad6610cf687359612b6fb392e0642b0ca6b1f186aa3b";
-const pythChain = 1;
-
-addresses["pyth_bridge.wasm"] = await instantiate("pyth_bridge.wasm", {
-  gov_chain: govChain,
-  gov_address: Buffer.from(govAddress, "hex").toString("base64"),
-  wormhole_contract: addresses["wormhole.wasm"],
-  pyth_emitter: Buffer.from(pythEmitterAddress, "hex").toString(
-    "base64"
-  ),
-  pyth_emitter_chain: pythChain,
-});
-
 addresses["nft_bridge.wasm"] = await instantiate("nft_bridge.wasm", {
   gov_chain: govChain,
   gov_address: Buffer.from(govAddress, "hex").toString("base64"),
@@ -230,12 +219,19 @@ async function mint_cw721(token_id, token_uri) {
       }),
     })
     .then((tx) => terra.tx.broadcast(tx));
-  console.log(`Minted NFT with token_id ${token_id} at ${addresses["cw721_base.wasm"]}`);
+  console.log(
+    `Minted NFT with token_id ${token_id} at ${addresses["cw721_base.wasm"]}`
+  );
 }
 
-await mint_cw721(0, 'https://ixmfkhnh2o4keek2457f2v2iw47cugsx23eynlcfpstxihsay7nq.arweave.net/RdhVHafTuKIRWud-XVdItz4qGlfWyYasRXyndB5Ax9s/');
-await mint_cw721(1, 'https://portal.neondistrict.io/api/getNft/158456327500392944014123206890');
-
+await mint_cw721(
+  0,
+  "https://ixmfkhnh2o4keek2457f2v2iw47cugsx23eynlcfpstxihsay7nq.arweave.net/RdhVHafTuKIRWud-XVdItz4qGlfWyYasRXyndB5Ax9s/"
+);
+await mint_cw721(
+  1,
+  "https://portal.neondistrict.io/api/getNft/158456327500392944014123206890"
+);
 
 /* Registrations: tell the bridge contracts to know about each other */
 
@@ -284,7 +280,6 @@ for (const [contract, registrations] of Object.entries(
       .then((rs) => console.log(rs));
   }
 }
-
 
 // Terra addresses are "human-readable", but for cross-chain registrations, we
 // want the "canonical" version

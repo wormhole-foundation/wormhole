@@ -42,7 +42,7 @@ module.exports = async function(callback) {
 
     //Contracts deployed via this script deploy to an address which is determined by the number of transactions
     //which have been performed on the chain.
-    //This is, however, variable. For example, if you optionally deploy the pyth contracts, more transactions are
+    //This is, however, variable. For example, if you optionally deploy contracts, more transactions are
     //performed than if you didn't.
     //In order to make sure the test contracts deploy to a location
     //which is deterministic with regard to other environment conditions, we fire bogus transactions up to a safe
