@@ -386,6 +386,7 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
         factor = ScratchVar()
         d = ScratchVar()
         zb = ScratchVar()
+        action = ScratchVar()
         
         return Seq([
             checkForDuplicate(),
@@ -424,7 +425,9 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
             off.store(off.load()+Int(43)),
 
             # This is a transfer message... right?
-            Assert(Int(1) ==      Btoi(Extract(Txn.application_args[1], off.load(),           Int(1)))),
+            action.store(Btoi(Extract(Txn.application_args[1], off.load(), Int(1)))),
+
+            Assert(Or(action.load() == Int(1), action.load() == Int(3))),
 
             Assert(Extract(Txn.application_args[1], off.load() + Int(1), Int(24)) == Extract(zb.load(), Int(0), Int(24))),
             Amount.store(        Btoi(Extract(Txn.application_args[1], off.load() + Int(25), Int(8)))),  # uint256
@@ -439,6 +442,8 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
 
             # This directed at us?
             Assert(DestChain.load() == Int(8)),
+
+            If (action.load() == Int(3), Assert(Destination.load() == Txn.sender())),
 
             If(OriginChain.load() == Int(8),
                Seq([
@@ -513,8 +518,9 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
                ])  # OriginChain.load() != Int(8),
             ),  #  If(OriginChain.load() == Int(8)
 
+
             # Actually send the coins...
-            Log(Bytes("Main")),
+#            Log(Bytes("Main")),
             InnerTxnBuilder.Begin(),
             InnerTxnBuilder.SetFields(
                 {
@@ -529,7 +535,7 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
             InnerTxnBuilder.Submit(),
 
             If(Fee.load() > Int(0), Seq([
-                    Log(Bytes("Fees")),
+#                    Log(Bytes("Fees")),
                     InnerTxnBuilder.Begin(),
                     InnerTxnBuilder.SetFields(
                         {
