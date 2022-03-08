@@ -15,6 +15,10 @@ import {base58, solidityKeccak256} from "ethers/lib/utils";
 import {setDefaultWasm, importCoreWasm, importTokenWasm, ixFromRust, BridgeImplementation__factory} from '@certusone/wormhole-sdk'
 setDefaultWasm("node")
 
+// Used for Klaytn
+const Caver = require('caver-js');
+import { abi as BridgeABI } from "../../ethereum/build/contracts/Bridge.json";
+
 const signAndEncodeVM = function (
     timestamp,
     nonce,
@@ -311,7 +315,7 @@ yargs(hideBin(process.argv))
         );
         console.log('SIGNATURE', signature);
     })
-    .command('eth execute_governance_vaa [vaa]', 'execute a governance VAA on Solana', (yargs) => {
+    .command('eth execute_governance_vaa [vaa]', 'execute a governance VAA on evm', (yargs) => {
         return yargs
             .positional('vaa', {
                 describe: 'vaa to post',
@@ -355,6 +359,57 @@ yargs(hideBin(process.argv))
             case 2:
                 console.log("Upgrading contract")
                 console.log("Hash: " + (await tb.upgrade(vaa)).hash)
+                console.log("Don't forget to verify the new implementation! See ethereum/VERIFY.md for instructions")
+                break
+            default:
+                throw new Error("unknown governance action")
+        }
+    })
+    .command('klaytn execute_governance_vaa [vaa]', 'execute a governance VAA on klaytn', (yargs) => {
+        return yargs
+            .positional('vaa', {
+                describe: 'vaa to post',
+                type: "string",
+                required: true
+            })
+            .option('rpc', {
+                alias: 'u',
+                type: 'string',
+                description: 'URL of the Klaytn RPC',
+                default: "https://api.baobab.klaytn.net:8651/"
+            })
+            .option('token_bridge', {
+                alias: 't',
+                type: 'string',
+                description: 'Token Bridge address',
+                default: "0xC7A13BE098720840dEa132D860fDfa030884b09A"
+            })
+            .option('key', {
+                alias: 'k',
+                type: 'string',
+                description: 'Private key of the wallet (without 0x on the front)',
+                default: "bcaf97c46f6b13d8b9844625c01382ace8f50d31802e0bc63d0e68c1efdcd4fd"
+            })
+    }, async (argv: any) => {
+        const bridge = await importCoreWasm();
+        let vaa = Buffer.from(argv.vaa, "hex");
+        let parsed_vaa = await bridge.parse_vaa(vaa);
+
+        const caver =  new Caver(new Caver.providers.HttpProvider(argv.rpc));
+        const keyring = caver.wallet.keyring.createFromPrivateKey(argv.key);
+        caver.wallet.add(keyring)
+        const tb = new caver.contract(BridgeABI, argv.token_bridge);
+        // const receipt = await tb.methods.registerChain(vaa).send({from:keyring.address, gas:'0x4bfd200'});
+        // console.log(receipt);
+
+        switch (parsed_vaa.payload[32]) {
+            case 1:
+                console.log("Registering chain")
+                console.log("Hash: " + (await tb.methods.registerChain(vaa).send({from:keyring.address, gas:'0x4bfd200'})).transactionHash)
+                break
+            case 2:
+                console.log("Upgrading contract")
+                console.log("Hash: " + (await tb.methods.upgrade(vaa).send({from:keyring.address, gas:'0x4bfd200'})).transactionHash)
                 console.log("Don't forget to verify the new implementation! See ethereum/VERIFY.md for instructions")
                 break
             default:
