@@ -1,7 +1,6 @@
 import {
   CHAIN_ID_BSC,
   CHAIN_ID_ETH,
-  CHAIN_ID_OASIS,
   CHAIN_ID_SOLANA,
 } from "@certusone/wormhole-sdk";
 import { getAddress } from "@ethersproject/address";
@@ -40,7 +39,6 @@ import ChainSelectArrow from "../ChainSelectArrow";
 import KeyAndBalance from "../KeyAndBalance";
 import LowBalanceWarning from "../LowBalanceWarning";
 import NumberTextField from "../NumberTextField";
-import OasisNetworkUpgradeWarning from "../OasisNetworkUpgradeWarning";
 import SolanaTPSWarning from "../SolanaTPSWarning";
 import StepDescription from "../StepDescription";
 import { TokenSelector } from "../TokenSelectors/SourceTokenSelector";
@@ -214,7 +212,6 @@ function Source() {
         <>
           <LowBalanceWarning chainId={sourceChain} />
           {sourceChain === CHAIN_ID_SOLANA && <SolanaTPSWarning />}
-          {sourceChain === CHAIN_ID_OASIS && <OasisNetworkUpgradeWarning />}
           <SourceAssetWarning
             sourceChain={sourceChain}
             sourceAsset={parsedTokenAccount?.mintKey}
@@ -236,7 +233,7 @@ function Source() {
             />
           ) : null}
           <ButtonWithLoader
-            disabled={!isSourceComplete || sourceChain === CHAIN_ID_OASIS}
+            disabled={!isSourceComplete}
             onClick={handleNextClick}
             showLoader={false}
             error={statusMessage || error}
