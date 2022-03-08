@@ -680,13 +680,16 @@ class PortalCore:
 
             # The receiver needs to be optin in to receive the coins... Yeah, the relayer pays for this
 
+            addr = encode_address(bytes.fromhex(p["ToAddress"]))
+
             if a != 0:
                 foreign_assets.append(a)
-                self.asset_optin(client, sender, foreign_assets[0], encode_address(bytes.fromhex(p["ToAddress"])))
-
-            # And this is how the relayer gets paid...
+                self.asset_optin(client, sender, foreign_assets[0], addr)
+                # And this is how the relayer gets paid...
                 if p["Fee"] != self.zeroPadBytes:
                     self.asset_optin(client, sender, foreign_assets[0], sender.getAddress())
+
+            accts.append(addr)
 
             txns.append(transaction.ApplicationCallTxn(
                 sender=sender.getAddress(),

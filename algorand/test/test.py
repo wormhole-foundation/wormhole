@@ -282,7 +282,7 @@ class AlgoTest(PortalCore):
 #        print(encode_address(resp.__dict__["logs"][1]))
         return self.parseSeqFromLog(resp)
 
-    def transferAsset(self, client, sender, asset_id, quantity, receiver):
+    def transferAsset(self, client, sender, asset_id, quantity, receiver, chain, fee):
         taddr = get_application_address(self.tokenid)
         aa = decode_address(taddr).hex()
         emitter_addr = self.optin(client, sender, self.coreid, 0, aa)
@@ -359,7 +359,7 @@ class AlgoTest(PortalCore):
             sender=sender.getAddress(),
             index=self.tokenid,
             on_complete=transaction.OnComplete.NoOpOC,
-            app_args=[b"sendTransfer", asset_id, quantity, decode_address(receiver), 8, 0],
+            app_args=[b"sendTransfer", asset_id, quantity, decode_address(receiver), chain, fee],
             foreign_apps = [self.coreid],
             foreign_assets = [asset_id],
             accounts=accounts,
@@ -431,6 +431,7 @@ class AlgoTest(PortalCore):
         self.gt = gt
 
         client = self.getAlgodClient()
+
 
         print("building our stateless vaa_verify...")
         self.vaa_verify = client.compile(get_vaa_verify())
@@ -545,32 +546,77 @@ class AlgoTest(PortalCore):
         v = self.parseVAA(bytes.fromhex(vaa))
         print("We got a " + v["Meta"])
 
+        pprint.pprint(self.getBalances(client, player.getAddress()))
         pprint.pprint(self.getBalances(client, player2.getAddress()))
         pprint.pprint(self.getBalances(client, player3.getAddress()))
 
         print("Lets transfer that asset to one of our other accounts... first lets create the vaa")
         # paul - transferFromAlgorand
-        sid = self.transferAsset(client, player2, self.testasset, 100, player3.getAddress())
+        sid = self.transferAsset(client, player2, self.testasset, 100, player3.getAddress(), 8, 0)
         print("... track down the generated VAA")
         vaa = self.getVAA(client, player, sid, self.testid)
         print(".. and lets pass that to player3")
         self.submitVAA(bytes.fromhex(vaa), client, player3)
 
+        pprint.pprint(self.getBalances(client, player.getAddress()))
         pprint.pprint(self.getBalances(client, player2.getAddress()))
         pprint.pprint(self.getBalances(client, player3.getAddress()))
 
+        # Lets split it into two parts... the payload and the fee
+        print("Lets split it into two parts... the payload and the fee")
+        sid = self.transferAsset(client, player2, self.testasset, 1000, player3.getAddress(), 8, 500)
+        print("... track down the generated VAA")
+        vaa = self.getVAA(client, player, sid, self.testid)
+        print(".. and lets pass that to player3 with fees being passed to player acting as a relayer")
+        self.submitVAA(bytes.fromhex(vaa), client, player)
+
+        pprint.pprint(self.getBalances(client, player.getAddress()))
+        pprint.pprint(self.getBalances(client, player2.getAddress()))
+        pprint.pprint(self.getBalances(client, player3.getAddress()))
+
+        # Now it gets tricky, lets create a virgin account...
+        pk, addr  = account.generate_account()
+        emptyAccount = Account(pk)
+
+        print("How much is in the empty account? (" + addr + ")")
+        pprint.pprint(self.getBalances(client, emptyAccount.getAddress()))
+
         # paul - transferFromAlgorand
         print("Lets transfer algo this time.... first lets create the vaa")
-        sid = self.transferAsset(client, player2, 0, 10000000, player3.getAddress())
+        sid = self.transferAsset(client, player2, 0, 1000000, emptyAccount.getAddress(), 8, 0)
         print("... track down the generated VAA")
         vaa = self.getVAA(client, player, sid, self.testid)
 #        pprint.pprint(vaa)
-        print(".. and lets pass that to player3")
+        print(".. and lets pass that to the empty account.. but use somebody else to relay since we cannot pay for it")
 
         # paul - redeemOnAlgorand
-        self.submitVAA(bytes.fromhex(vaa), client, player3)
+        self.submitVAA(bytes.fromhex(vaa), client, player)
 
+        print("=================================================")
+
+        print("How much is in the source account now?")
         pprint.pprint(self.getBalances(client, player2.getAddress()))
+
+        print("How much is in the empty account now?")
+        pprint.pprint(self.getBalances(client, emptyAccount.getAddress()))
+
+        print("How much is in the player3 account now?")
+        pprint.pprint(self.getBalances(client, player3.getAddress()))
+
+        print("Lets transfer more algo.. splut 50/50 with the relayer.. going to player3")
+        sid = self.transferAsset(client, player2, 0, 1000000, player3.getAddress(), 8, 500000)
+        print("... track down the generated VAA")
+        vaa = self.getVAA(client, player, sid, self.testid)
+        print(".. and lets pass that to player3.. but use the previously empty account to relay it")
+        self.submitVAA(bytes.fromhex(vaa), client, emptyAccount)
+
+        print("How much is in the source account now?")
+        pprint.pprint(self.getBalances(client, player2.getAddress()))
+
+        print("How much is in the empty account now?")
+        pprint.pprint(self.getBalances(client, emptyAccount.getAddress()))
+
+        print("How much is in the player3 account now?")
         pprint.pprint(self.getBalances(client, player3.getAddress()))
 
 #        print("player account: " + player.getAddress())

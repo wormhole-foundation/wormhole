@@ -107,7 +107,7 @@ def approve_app():
                      TxnField.sender: Global.current_application_address(),
                      TxnField.type_enum: TxnType.AssetTransfer,
                      TxnField.xfer_asset: Btoi(App.globalGet(Bytes("asset"))),
-                     TxnField.asset_amount: Int(1000),
+                     TxnField.asset_amount: Int(100000),
                      TxnField.asset_receiver: Txn.sender(),
                      TxnField.fee: Int(0),
                  }
