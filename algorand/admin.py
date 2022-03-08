@@ -520,7 +520,7 @@ class PortalCore:
 
         # When we attest for a new token, we need some place to store the info... later we will need to 
         # mirror the other way as well
-        if p["Meta"] == "TokenBridge Attest" or p["Meta"] == "TokenBridge Transfer":
+        if p["Meta"] == "TokenBridge Attest" or p["Meta"] == "TokenBridge Transfer" or p["Meta"] == "TokenBridge Transfer With Payload":
             if p["FromChain"] != 8:
                 chain_addr = self.optin(client, sender, self.tokenid, p["FromChain"], p["Contract"])
             else:
@@ -668,7 +668,7 @@ class PortalCore:
             ))
             txns[-1].fee = txns[-1].fee * 2
 
-        if p["Meta"] == "TokenBridge Transfer":
+        if p["Meta"] == "TokenBridge Transfer" or p["Meta"] == "TokenBridge Transfer With Payload":
             foreign_assets = []
             a = 0
             if p["FromChain"] != 8:
@@ -810,6 +810,24 @@ class PortalCore:
             ret["ToChain"] = int.from_bytes(vaa[off:(off + 2)], "big")
             off += 2
             ret["Fee"] = vaa[off:(off + 32)].hex()
+
+        if int.from_bytes((vaa[off:off+1]), "big") == 3:
+            ret["Meta"] = "TokenBridge Transfer With Payload"
+            ret["Type"] = int.from_bytes((vaa[off:off+1]), "big")
+            off += 1
+            ret["Amount"] = vaa[off:(off + 32)].hex()
+            off += 32
+            ret["Contract"] = vaa[off:(off + 32)].hex()
+            off += 32
+            ret["FromChain"] = int.from_bytes(vaa[off:(off + 2)], "big")
+            off += 2
+            ret["ToAddress"] = vaa[off:(off + 32)].hex()
+            off += 32
+            ret["ToChain"] = int.from_bytes(vaa[off:(off + 2)], "big")
+            off += 2
+            ret["Fee"] = vaa[off:(off + 32)].hex()
+            off += 32
+            ret["Payload"] = vaa[off:].hex()
         
         return ret
 

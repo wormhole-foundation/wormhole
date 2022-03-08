@@ -96,6 +96,9 @@ class AlgoTest(PortalCore):
     def getVAA(self, client, sender, sid, app):
         if sid == None:
             raise Exception("getVAA called with a sid of None")
+
+        saddr = get_application_address(app)
+
         # SOOO, we send a nop txn through to push the block forward
         # one
 
@@ -141,6 +144,8 @@ class AlgoTest(PortalCore):
                         if seq != sid:
 #                            print(str(seq) + " != " + str(sid))
                             continue
+                        if y["sender"] != saddr:
+                            continue;
                         emitter = decode_address(y["sender"])
                         payload = base64.b64decode(args[1])
 #                        pprint.pprint([seq, y["sender"], payload.hex()])
@@ -282,7 +287,7 @@ class AlgoTest(PortalCore):
 #        print(encode_address(resp.__dict__["logs"][1]))
         return self.parseSeqFromLog(resp)
 
-    def transferAsset(self, client, sender, asset_id, quantity, receiver, chain, fee):
+    def transferAsset(self, client, sender, asset_id, quantity, receiver, chain, fee, payload = None):
         taddr = get_application_address(self.tokenid)
         aa = decode_address(taddr).hex()
         emitter_addr = self.optin(client, sender, self.coreid, 0, aa)
@@ -353,13 +358,17 @@ class AlgoTest(PortalCore):
                 ))
             accounts=[emitter_addr, creator, c["address"]]
 
-        print(accounts)
+        args = [b"sendTransfer", asset_id, quantity, decode_address(receiver), chain, fee]
+        if None != payload:
+            args.append(payload)
+
+        pprint.pprint(args)
 
         a = transaction.ApplicationCallTxn(
             sender=sender.getAddress(),
             index=self.tokenid,
             on_complete=transaction.OnComplete.NoOpOC,
-            app_args=[b"sendTransfer", asset_id, quantity, decode_address(receiver), chain, fee],
+            app_args=args,
             foreign_apps = [self.coreid],
             foreign_assets = [asset_id],
             accounts=accounts,
@@ -423,9 +432,9 @@ class AlgoTest(PortalCore):
 #        sys.exit(0)
 
 
-#        vaa = self.parseVAA(bytes.fromhex("01000000011300824c52c3006f0bce5a232b2a09254f894bbf48a0f1c0a47236cc251d99831dc42fce18f34ce35b054f9f2ac2d5e3549654e971c89eeb89803012a8a3ef5476c40001550ba2b7d7692711edf31dcf4b94464d0f7b83862591d1dc0b2672f47181945b4a1542cc35eccf6c675ac80d897be0822e47983696dfbe23e1888e9d36dc72940102bab0321d45d8c8f004c15e5b0ede287d72c967d6d7b654846002796600bd7ac859a7136d777f7157ba05985230343c25ee22bef64f0528d3237f45e2e5c1cc000103694388fbca8bf9d42de22b6d2012516a2fa798ec95c6f2ad6ff54f6f376fba262e436f40d4191d2898fb3fd8d79f9341c2be38ea525772650a5f8bc3ee5fa3a00104a57a8383a2f707e98b7ab2f961652b4d727a64db6188c538e72f759a102ba62f1056d0808bbe9a64fc60f080c90b015295eaa620b3e188c81dd876bb694a1dcf0005efa216354b821c8488e1633a13bdd716c5e66ae3f43b895fb821bd0291cc53fc7af91a665662421d815ca9fc15887027c91aa84022c23d4f38e2ee09eed49a8f00063f53dff770e70cea6e2750f771cb462864988d3038f6b266a1e03b956a1a8dab000585aa41cc43f6974d9f4c5cb49f560962115554684fa92136fd794084572e000732a28ef7a2831ed977813cd2b2e789840eb898fc14658b58eab6c2290ea0a73414edf76d3cde2c148d663b2ddb3ee27bb4de1c42d3310b575f0e99ac62f857f90008653143d0e5dbf5fa7dca753a5516379bddfdd4008d64c506f7a02b1311ffa80e21c6d56971182c4faeab38a1ebe23ce6b3a43172a01294d735e2fe6ba118aeeb0009dac4a120d4c6b51f8e27ff52f116ffaf0e8ebdda575c8cee0af7a18e33562c9a0bf7948a11af871f56fb6184b33c1f3df1f8269f4f2366fb45714dd88b8e0077010a17221ee2c340c5de1d6a7112a8c31a322ec0de9d051e61225e62907a8f3309ab200584d4c980098af1bddeb0f1129834f2518a623c30819aa0f6af2a202f471c010b61eb98efbbdc32d73372a4eb9d29795efa571d15855360ba71ace3cef333c60a30bd95439052740567e84bd6f361ed1f413c257010e67754b5f1c9723a9587f8000c9af742874d8e4a11bcc17ddfdad55c61cd8090f34d33e2a576b1e36a07af82c6099bffc8e4f9d887c4933266ca8c362e0bec0f0dea065e1944465ad8813e34ae010deddbcc9b74e15757fd1e5b71b63c92eb42a6929d24806e8f3092da946c369f556bf7ef1e7c9345524844703387c00a04439b7e90e68acdb008c466f8b4c9cc1e010efd779d005e30395b41bc4a4296a693286f23f385dbf5ea53cc06ebebd2d35cb13efe1b4d5e2e49aaa9ef1a09e1ed5fd21189f7ee230cb90be1708fbbc423d92d010f06fe0519195c3ae8706a2051924854b78ee37ab9e186c4df7986abb6311b3d5216a0c67ef40c4cd7df0b1234a625ab05de6789a633effef2daada2943ee7100e0110fdf02517186467aa2361cd092459d771944e7fe31f194c98fede059bc685e9055e0a2ecacc6a748e356397b116acc212d22efd85a7f24cee4cc88d5355e9f68501111033706847bbd4eefbbf5a39cbfbcbff809835166a6297707523ad6bf48203e111f3ac5e774f57b22e66833f79a03e8ebad70644edb2f37c21d6ed5093580ace0112287e2ae31dd9efac5051f1b375cbb95a59f46ac85a6967916f98688b1200339b0a003734379624933eb68e659022877b0a1d4de50c02a9978534ffcc684eda1900622267030026eb6800085b4a13df47196af4a9e256e339481b50537054863778fe01bb9c29689e5949e000000000000000032001000000000000000000000000000000000000000000000000000000000098968000000000000000000000000000000000000000000000000000000000000000000008033130fc322c2042da2c8fed5cfbfc96bbf7d1eca687ca17110be1686eee7c3a00080000000000000000000000000000000000000000000000000000000000000000"))
-#        pprint.pprint(vaa)
-#        sys.exit(0)
+        vaa = self.parseVAA(bytes.fromhex("01000000011300c412b9e5b304bde8f8633a41568991ca56b7c11a925847f0059e95010ec5241b761719f12d3f4a79d1515e08152b2e8584cd1e8217dd7743c2bf863b78b2bf040001aebade2f601a4e9083585b1bb5f98d421f116e0393f525b95d51afbe69051587531771dc127a5e9d7b74662bb7ac378d44181522dc748b1b0cbfe1b1de6ed39d01024b4e9fc86ac64aaeef84ea14e4265c3c186042a3ae9ab2933bf06c0cbf326b3c2b89e7d9854fc5204a447bd202592a72d1d6db3d007bef9fea0e35953afbd9f1010342e4446ac94545a0447851eda5d5e3b8c97c6f4ef338977562cd4ecbee2b8fea42d536d7655c28a7f7fb2ff5fc8e5775e892d853c9b2e4969f9ce054ede801700104af0d783996ccfd31d6fc6f86b634288cd2f9cc29695cfcbf12d915c1b9c383dc792c7abbe8126cd917fb8658a8de843d64171122db182453584c0c330e8889730105f34d45ec63ec0a0c4535303fd9c83a0fad6b0a112b27306a288c1b46f2a78399754536ecb07f1ab6c32d92ed50b11fef3668b23d5c1ca010ec4c924441367eac0006566671ff859eec8429874ba9e07dd107b22859cf5029928bebec6eb73cdca6752f91bb252bca76cb15ede1121a84a9a54dad126f50f282a47f7d30880ef86a3900076d0d1241e1fc9d039810a8aebd7cab863017c9420eb67f4578577c5ec4d37162723dcd6213ff6895f280a88ba70de1a5b9257fe2937cbdea007e84886abc46dd0108b24dcddaae10f5e12b7085a0c3885a050640af17ba265a448102401854183e9f3ae9a14cad1af64eb57c6f145c6f709d7ed6bb8712a6b315dc2780c9eb42812e0109df696bf506dfcd8fce57968a84d5f773706b117fad31f86bbb089ede77d71a6e54b7729f79a82e7d6e4a6797380796fbcb9ba9428e8fcdf0400515f8205b31c5010a90a03c76fdec510712b2a6ee52cc0b6df5c921437896756f34b3782aa486eb5b5d02df783664257539233502ec25bbda7dd754afc139823da8a43c0d3c91c279000b33549edd8353c4d577cb273b88b545ae547ad01e85161a4fbbbb371cff453d6311c787254e2852c3b874ea60c67d40efc3ee3f24b51bc3fe95cc0a873e8a3fb6000ce2e206214ae2b4b048857f061ed3cf8cef060c67a85ad863f266145238c5d2a85e38b4eb9b3be4d33f502df4c45762504eb43a6bf78f01363d1399b67c354df8000d2d362d64a2e3d1583e1299238829cc11d81e9b9820121c0a2eb91d542aa54c993861e8225bc3e8d028dc128d284118703a4ec69144d69402efd72a29bb9f6b8f000e6bf56fa3ae6303f495f1379b450eb52580d7d9098dd909762e6186d19e06480d2bba8f06602dbd6d3d5deac7080fc2e61bd1be97e442b63435c91fa72b33534c000fad870b47c86f6997286bd4def4bacc5a8abbfef3f730f62183c638131004ea2f706ab73ebfe8f4879bf54f580444acec212e96e41abaf4acfc3383f05478e528001089599974feaab33862cd881af13f1645079bd2fa2ff07ca744674c8556aaf97c5c9c90df332d5b4ad1428776b68612f0b1ecb98c2ebc83f44f42426f180062cd00116aa93eecb4d528afaa07b72484acd5b79ad20e9ad8e55ce37cb9138b4c12a8eb3d10fa7d932b06ac441905e0226d3420101971a72c5488e4bfef222de8c3acd1011203a3e3d8ec938ffbc3a27d8caf50fc925bd25bd286d5ad6077dffd7e205ce0806e166b661d502f8c49acf88d42fde20e6015830d5517a0bfd40f79963ded4d2d006227697a000f68690008a0ae83030f1423aa97121527f65bbbb97925b43b95231bb0478fd650a057cc4b00000000000000072003000000000000000000000000000000000000000000000000000000000007a12000000000000000000000000000000000000000000000000000000000000000000008cf9ee7255420a50c55ef35d4bdcdd8048dee5c3c1333ecd97aff98869ea280780008000000000000000000000000000000000000000000000000000000000007a1206869206d6f6d"))
+        pprint.pprint(vaa)
+        sys.exit(0)
 
         gt = GenTest()
         self.gt = gt
@@ -542,7 +551,7 @@ class AlgoTest(PortalCore):
         # paul - attestFromAlgorand
         sid = self.testAttest(client, player2, self.testasset)
         print("... track down the generated VAA")
-        vaa = self.getVAA(client, player, sid, self.testid)
+        vaa = self.getVAA(client, player, sid, self.tokenid)
         v = self.parseVAA(bytes.fromhex(vaa))
         print("We got a " + v["Meta"])
 
@@ -554,7 +563,7 @@ class AlgoTest(PortalCore):
         # paul - transferFromAlgorand
         sid = self.transferAsset(client, player2, self.testasset, 100, player3.getAddress(), 8, 0)
         print("... track down the generated VAA")
-        vaa = self.getVAA(client, player, sid, self.testid)
+        vaa = self.getVAA(client, player, sid, self.tokenid)
         print(".. and lets pass that to player3")
         self.submitVAA(bytes.fromhex(vaa), client, player3)
 
@@ -566,7 +575,7 @@ class AlgoTest(PortalCore):
         print("Lets split it into two parts... the payload and the fee")
         sid = self.transferAsset(client, player2, self.testasset, 1000, player3.getAddress(), 8, 500)
         print("... track down the generated VAA")
-        vaa = self.getVAA(client, player, sid, self.testid)
+        vaa = self.getVAA(client, player, sid, self.tokenid)
         print(".. and lets pass that to player3 with fees being passed to player acting as a relayer")
         self.submitVAA(bytes.fromhex(vaa), client, player)
 
@@ -585,7 +594,7 @@ class AlgoTest(PortalCore):
         print("Lets transfer algo this time.... first lets create the vaa")
         sid = self.transferAsset(client, player2, 0, 1000000, emptyAccount.getAddress(), 8, 0)
         print("... track down the generated VAA")
-        vaa = self.getVAA(client, player, sid, self.testid)
+        vaa = self.getVAA(client, player, sid, self.tokenid)
 #        pprint.pprint(vaa)
         print(".. and lets pass that to the empty account.. but use somebody else to relay since we cannot pay for it")
 
@@ -606,7 +615,7 @@ class AlgoTest(PortalCore):
         print("Lets transfer more algo.. splut 50/50 with the relayer.. going to player3")
         sid = self.transferAsset(client, player2, 0, 1000000, player3.getAddress(), 8, 500000)
         print("... track down the generated VAA")
-        vaa = self.getVAA(client, player, sid, self.testid)
+        vaa = self.getVAA(client, player, sid, self.tokenid)
         print(".. and lets pass that to player3.. but use the previously empty account to relay it")
         self.submitVAA(bytes.fromhex(vaa), client, emptyAccount)
 
@@ -618,6 +627,12 @@ class AlgoTest(PortalCore):
 
         print("How much is in the player3 account now?")
         pprint.pprint(self.getBalances(client, player3.getAddress()))
+
+        print("How about a payload3")
+        sid = self.transferAsset(client, player2, 0, 1000000, player3.getAddress(), 8, 500000, b'hi mom')
+        print("... track down the generated VAA")
+        vaa = self.getVAA(client, player, sid, self.tokenid)
+        pprint.pprint((vaa, self.parseVAA(bytes.fromhex(vaa))))
 
 #        print("player account: " + player.getAddress())
 #        pprint.pprint(client.account_info(player.getAddress()))
