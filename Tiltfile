@@ -477,4 +477,4 @@ k8s_resource(
     trigger_mode = trigger_mode,
 )
 
-docker_compose("./algorand/_sandbox/tilt-compose.yml")
+docker_compose("./algorand/sandbox/tilt-compose.yml")
