@@ -94,7 +94,7 @@ spec:
             - --algorandIndexerRPC
             - http://localhost:8980
             - --algorandAppID
-            - 4
+            - "4"
             - --solanaContract
             - Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o
             - --solanaWS
