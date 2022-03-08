@@ -181,8 +181,8 @@ func init() {
 
 	algorandRPC = NodeCmd.Flags().String("algorandRPC", "", "Algorand RPC URL")
 	algorandToken = NodeCmd.Flags().String("algorandToken", "", "Algorand access token")
-	algorandIndexerRPC = NodeCmd.Flags().String("algorandRPC", "", "Algorand Indexer RPC URL")
-	algorandIndexerToken = NodeCmd.Flags().String("algorandToken", "", "Algorand Indexer access token")
+	algorandIndexerRPC = NodeCmd.Flags().String("algorandIndexerRPC", "", "Algorand Indexer RPC URL")
+	algorandIndexerToken = NodeCmd.Flags().String("algorandIndexerToken", "", "Algorand Indexer access token")
 	algorandAppID = NodeCmd.Flags().String("algorandAppID", "", "Algorand contract")
 
 	solanaWsRPC = NodeCmd.Flags().String("solanaWS", "", "Solana Websocket URL (required")

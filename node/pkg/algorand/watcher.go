@@ -73,10 +73,15 @@ func (e *Watcher) Run(ctx context.Context) error {
 			case <-ctx.Done():
 				return
 			case <-timer.C:
+                        	logger.Info("Algorand tick")
+
 				var nextToken = ""
 				for true {
 					result, err := indexerClient.SearchForTransactions().NotePrefix([]byte(notePrefix)).MinRound(next_round).NextToken(nextToken).Do(context.Background())
-					_ = err
+                                        if err != nil {
+                                           logger.Info(err.Error())
+                                           break
+                                        }
 
 					for i := 0; i < len(result.Transactions); i++ {
 						var t = result.Transactions[i]
