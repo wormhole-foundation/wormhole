@@ -96,6 +96,8 @@ var (
 
 	algorandRPC      *string
 	algorandToken    *string
+	algorandIndexerRPC   *string
+	algorandIndexerToken *string
 	algorandContract *string
 
 	solanaWsRPC *string
@@ -179,6 +181,8 @@ func init() {
 
 	algorandRPC = NodeCmd.Flags().String("algorandRPC", "", "Algorand RPC URL")
 	algorandToken = NodeCmd.Flags().String("algorandToken", "", "Algorand access token")
+	algorandIndexerRPC = NodeCmd.Flags().String("algorandRPC", "", "Algorand Indexer RPC URL")
+	algorandIndexerToken = NodeCmd.Flags().String("algorandToken", "", "Algorand Indexer access token")
 	algorandContract = NodeCmd.Flags().String("algorandContract", "", "Algorand contract")
 
 	solanaWsRPC = NodeCmd.Flags().String("solanaWS", "", "Solana Websocket URL (required")
@@ -464,6 +468,12 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 		if *algorandToken == "" {
 			logger.Fatal("Please specify --algorandToken")
+		}
+		if *algorandIndexerRPC == "" {
+			logger.Fatal("Please specify --algorandIndexerRPC")
+		}
+		if *algorandIndexerToken == "" {
+			logger.Fatal("Please specify --algorandIndexerToken")
 		}
 		if *algorandContract == "" {
 			logger.Fatal("Please specify --algorandContract")
@@ -774,7 +784,7 @@ func runNode(cmd *cobra.Command, args []string) {
 
 		if *unsafeDevMode {
 			if err := supervisor.Run(ctx, "algorandwatch",
-				algorand.NewWatcher(*algorandRPC, *algorandToken, *algorandContract, lockC, setC).Run); err != nil {
+				algorand.NewWatcher(*algorandRPC, *algorandToken, *algorandIndexerRPC, *algorandIndexerToken, *algorandContract, lockC, setC).Run); err != nil {
 				return err
 			}
 		}

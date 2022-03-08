@@ -4,18 +4,23 @@ import (
 	"context"
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/readiness"
-
+	"github.com/certusone/wormhole/node/pkg/supervisor"
+        "time"
+        "fmt"
 	"encoding/json"
 	"github.com/algorand/go-algorand-sdk/client/v2/common/models"
 	"github.com/algorand/go-algorand-sdk/client/v2/indexer"
+	"go.uber.org/zap"
 )
 
 type (
 	// Watcher is responsible for looking over Algorand blockchain and reporting new transactions to the contract
 	Watcher struct {
-		urlRPC   string
-		urlToken string
-		contract string
+		urlRPC       string
+		urlToken     string
+		indexerRPC   string
+		indexerToken string
+		contract     string
 
 		msgChan chan *common.MessagePublication
 		setChan chan *common.GuardianSet
@@ -23,8 +28,8 @@ type (
 )
 
 // NewWatcher creates a new Algorand contract watcher
-func NewWatcher(urlRPC string, urlToken string, contract string, lockEvents chan *common.MessagePublication, setEvents chan *common.GuardianSet) *Watcher {
-	return &Watcher{urlRPC: urlRPC, urlToken: urlToken, contract: contract, msgChan: lockEvents, setChan: setEvents}
+func NewWatcher(urlRPC string, urlToken string, indexerRPC string, indexerToken string, contract string, lockEvents chan *common.MessagePublication, setEvents chan *common.GuardianSet) *Watcher {
+	return &Watcher{urlRPC: urlRPC, urlToken: urlToken, indexerRPC: indexerRPC, indexerToken: indexerToken, contract: contract, msgChan: lockEvents, setChan: setEvents}
 }
 
 func lookAtTxn(e *Watcher, t models.Transaction) {
@@ -47,8 +52,13 @@ func lookAtTxn(e *Watcher, t models.Transaction) {
 func (e *Watcher) Run(ctx context.Context) error {
 	readiness.SetReady(common.ReadinessAlgorandSyncing)
 
+	logger := supervisor.Logger(ctx)
+	errC := make(chan error)
+
+        logger.Info("Algorand watcher connecting", zap.String("url", e.indexerRPC))
+
 	go func() {
-		indexerClient, err := indexer.MakeClient(indexerAddress, indexerToken)
+		indexerClient, err := indexer.MakeClient(e.indexerRPC, e.indexerToken)
 		_ = err
 
 		// Parameters
@@ -65,10 +75,10 @@ func (e *Watcher) Run(ctx context.Context) error {
 					var t = result.Transactions[i]
 					if len(t.InnerTxns) > 0 {
 						for q := 0; q < len(t.InnerTxns); q++ {
-							lookAtTxn(t.InnerTxns[q])
+							lookAtTxn(e, t.InnerTxns[q])
 						}
 					} else {
-						lookAtTxn(t)
+						lookAtTxn(e, t)
 					}
 				}
 
