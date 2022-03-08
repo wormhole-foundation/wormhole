@@ -476,3 +476,5 @@ k8s_resource(
     labels = ["terra"],
     trigger_mode = trigger_mode,
 )
+
+docker_compose("./algorand/_sandbox/tilt-compose.yml")
