@@ -1,0 +1,4 @@
+{  
+  "address":"0.0.0.0:4002",
+  "allowed_origins":["*"]
+}
