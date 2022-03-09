@@ -3,8 +3,7 @@ package algorand
 import (
 	"context"
 	"encoding/json"
-	"fmt"
-	"github.com/algorand/go-algorand-sdk/client/v2/common/models"
+        "fmt"
 	"github.com/algorand/go-algorand-sdk/client/v2/indexer"
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/readiness"
@@ -14,39 +13,22 @@ import (
 )
 
 type (
-	// Watcher is responsible for looking over Algorand blockchain and reporting new transactions to the contract
+	// Watcher is responsible for looking over Algorand blockchain and reporting new transactions to the appid
 	Watcher struct {
 		urlRPC       string
 		urlToken     string
 		indexerRPC   string
 		indexerToken string
-		contract     string
+		appid        uint64
 
 		msgChan chan *common.MessagePublication
 		setChan chan *common.GuardianSet
 	}
 )
 
-// NewWatcher creates a new Algorand contract watcher
-func NewWatcher(urlRPC string, urlToken string, indexerRPC string, indexerToken string, contract string, lockEvents chan *common.MessagePublication, setEvents chan *common.GuardianSet) *Watcher {
-	return &Watcher{urlRPC: urlRPC, urlToken: urlToken, indexerRPC: indexerRPC, indexerToken: indexerToken, contract: contract, msgChan: lockEvents, setChan: setEvents}
-}
-
-func lookAtTxn(e *Watcher, t models.Transaction) {
-	var at = t.ApplicationTransaction
-	if len(at.ApplicationArgs) == 0 {
-		return
-	}
-
-	JSON, err := json.Marshal(t)
-	_ = err
-	fmt.Printf(string(JSON))
-
-	fmt.Printf("%d\n", at.ApplicationId)
-	if string(at.ApplicationArgs[0]) == "publishMessage" { // The note filter is effectively the same thing
-		var vaa = at.ApplicationArgs[1]
-		fmt.Printf(t.Sender + " -> " + string(vaa) + "\n")
-	}
+// NewWatcher creates a new Algorand appid watcher
+func NewWatcher(urlRPC string, urlToken string, indexerRPC string, indexerToken string, appid uint64, lockEvents chan *common.MessagePublication, setEvents chan *common.GuardianSet) *Watcher {
+	return &Watcher{urlRPC: urlRPC, urlToken: urlToken, indexerRPC: indexerRPC, indexerToken: indexerToken, appid: appid, msgChan: lockEvents, setChan: setEvents}
 }
 
 func (e *Watcher) Run(ctx context.Context) error {
@@ -73,24 +55,42 @@ func (e *Watcher) Run(ctx context.Context) error {
 			case <-ctx.Done():
 				return
 			case <-timer.C:
-                        	logger.Info("Algorand tick")
+				logger.Info("Algorand tick")
 
 				var nextToken = ""
 				for true {
 					result, err := indexerClient.SearchForTransactions().NotePrefix([]byte(notePrefix)).MinRound(next_round).NextToken(nextToken).Do(context.Background())
-                                        if err != nil {
-                                           logger.Info(err.Error())
-                                           break
-                                        }
+					if err != nil {
+						logger.Info(err.Error())
+						break
+					}
 
 					for i := 0; i < len(result.Transactions); i++ {
 						var t = result.Transactions[i]
 						if len(t.InnerTxns) > 0 {
 							for q := 0; q < len(t.InnerTxns); q++ {
-								lookAtTxn(e, t.InnerTxns[q])
+								var it = t.InnerTxns[q]
+								var at = it.ApplicationTransaction
+
+//	                                                        logger.Info(fmt.Sprintf("%d", at.ApplicationId))
+								if (len(at.ApplicationArgs) == 0) || (at.ApplicationId != e.appid) {
+									continue
+								}
+
+
+								if string(at.ApplicationArgs[0]) != "publishMessage" { 
+                                                                        continue
+                                                                }
+                                                                
+
+								JSON, err := json.Marshal(it)
+								_ = err
+								logger.Info(string(JSON))
+
+	                                                        logger.Info(fmt.Sprintf("%d", at.ApplicationId))
+									var vaa = at.ApplicationArgs[1]
+									logger.Info(fmt.Sprintf(t.Sender + " -> " + string(vaa)))
 							}
-						} else {
-							lookAtTxn(e, t)
 						}
 					}
 
