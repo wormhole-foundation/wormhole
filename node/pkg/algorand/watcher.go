@@ -2,7 +2,7 @@ package algorand
 
 import (
 	"context"
-	"encoding/base64"
+//	"encoding/base64"
 	"encoding/binary"
 //	"encoding/hex"
 	"encoding/json"
@@ -60,8 +60,6 @@ func (e *Watcher) Run(ctx context.Context) error {
 			case <-ctx.Done():
 				return
 			case <-timer.C:
-				logger.Info("Algorand tick")
-
 				var nextToken = ""
 				for true {
 					result, err := indexerClient.SearchForTransactions().NotePrefix([]byte(notePrefix)).MinRound(next_round).NextToken(nextToken).Do(context.Background())
@@ -76,7 +74,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 							for q := 0; q < len(t.InnerTxns); q++ {
 								var it = t.InnerTxns[q]
 								var at = it.ApplicationTransaction
-;
+
 								if (len(at.ApplicationArgs) == 0) || (at.ApplicationId != e.appid) || (len(it.Logs) == 0) {
 									continue
 								}
@@ -85,29 +83,28 @@ func (e *Watcher) Run(ctx context.Context) error {
                                                                         continue
                                                                 }
 
-								payload, err := base64.StdEncoding.DecodeString(string(at.ApplicationArgs[1]))
-								seqStr, err := base64.StdEncoding.DecodeString(string(it.Logs[0]))
-								var seq = binary.BigEndian.Uint64(seqStr)
+								JSON, err := json.Marshal(it)
+								_ = err
+								logger.Info(string(JSON))
+
+								var seq = binary.BigEndian.Uint64(it.Logs[0])
 
 								emitter, err := types.DecodeAddress(it.Sender)
 								var a vaa.Address
 								copy(a[:], emitter[:])
 
-								JSON, err := json.Marshal(it)
-								_ = err
-								logger.Info(string(JSON))
 
 								var txHash eth_common.Hash
-//								copy(txHash[:], acc[:])
-//
+								copy(txHash[:], it.Id)
+
 								observation := &common.MessagePublication{
 									TxHash:           txHash,
-									Timestamp:        time.Unix(0, 0),
+									Timestamp:        time.Unix(int64(it.RoundTime), 0),
 									Nonce:            0,
 									Sequence:         seq,
 									EmitterChain:     vaa.ChainIDAlgorand,
 									EmitterAddress:   a,
-									Payload:          payload,
+									Payload:          at.ApplicationArgs[1],
 									ConsistencyLevel: 32,
 								}
 //

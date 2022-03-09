@@ -737,7 +737,7 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
                 {
                     TxnField.type_enum: TxnType.ApplicationCall,
                     TxnField.application_id: App.globalGet(Bytes("coreid")),
-                    TxnField.application_args: [Bytes("publishMessage"), p.load()],
+                    TxnField.application_args: [Bytes("publishMessage"), p.load(), 0],
                     TxnField.accounts: [Txn.accounts[1]],
                     TxnField.note: Bytes("publishMessage"),
                     TxnField.fee: Int(0),
@@ -862,7 +862,7 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
                 {
                     TxnField.type_enum: TxnType.ApplicationCall,
                     TxnField.application_id: App.globalGet(Bytes("coreid")),
-                    TxnField.application_args: [Bytes("publishMessage"), p.load()],
+                    TxnField.application_args: [Bytes("publishMessage"), p.load(), 0],
                     TxnField.accounts: [Txn.accounts[1]],
                     TxnField.note: Bytes("publishMessage"),
                     TxnField.fee: Int(0),
