@@ -14,6 +14,7 @@ import {
   getWallet,
   sendTokens,
 } from "../core/walletHelpers";
+import { executeGovernanceVAA } from "wormhole-chain-sdk";
 
 jest.setTimeout(60000);
 
@@ -43,6 +44,13 @@ test("Verify guardian validator", async () => {
   //TODO determine if active validators should be instantly bonded / unbonded. What impact does this have on delegated bonds?
   //Alternately, if bonded !== active, how will validators become bonded?
   expect(guardianValidator?.status).toBe(3); //BondStatus can't be easily imported, but 3 evidently means bonded.
+});
+
+test("Process guardian set upgrade", async () => {
+  const wallet1 = await getWallet(TEST_WALLET_MNEMONIC_1);
+  const result = await executeGovernanceVAA(wallet1, "not a real thing");
+
+  console.log("RESULT FROM GUARDIAN SET UPGRADE", result);
 });
 
 test("Full bootstrap test", async () => {
