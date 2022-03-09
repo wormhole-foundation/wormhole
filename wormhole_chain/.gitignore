@@ -1,10 +1,12 @@
 vue/node_modules
 vue/dist
 vue/src/store/generated/
+vue/
 release/
 testing/js/node_modules
 .vscode/
 build/
+ts-sdk/node_modules
 
 .idea
 *.iml
