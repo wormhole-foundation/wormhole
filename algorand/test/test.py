@@ -142,7 +142,6 @@ class AlgoTest(PortalCore):
                             continue
                         seq = int.from_bytes(base64.b64decode(y["logs"][0]), "big")
                         if seq != sid:
-#                            print(str(seq) + " != " + str(sid))
                             continue
                         if y["sender"] != saddr:
                             continue;
