@@ -1,0 +1,93 @@
+[
+    {
+      "chainId": 1,
+      "chainName": "Solana",
+      "nodeUrl": "CHANGE ME",
+      "tokenBridgeAddress": "wormDTUJ6AWPNvk59vGQbDvGJmqbDTdgWgAqcLBCgUb",
+      "bridgeAddress": "worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth",
+      "walletPrivateKey": [
+        [
+          "CHANGE", "ME", 153, 4, 176, 224, 201, 111, 32, 237, 183, 185, 159, 247, 22,
+          161, 89, 84, 215, 209, 212, 137, 10, 92, 157, 49, 29, 192, 101, 164,
+          152, 70, 87, 65, 8, 174, 214, 157, 175, 126, 98, 90, 54, 24, 100, 177,
+          247, 77, 19, 112, 47, 44, 165, 109, 233, 102, 14, 86, 109, 29, 134, 145,
+          132, 141
+        ]
+      ],
+      "wrappedAsset": "So11111111111111111111111111111111111111112"
+    },
+    {
+      "chainId": 2,
+      "chainName": "Ethereum",
+      "nodeUrl": "CHANGE ME",
+      "tokenBridgeAddress": "0x3ee18B2214AFF97000D974cf647E7C347E8fa585",
+      "walletPrivateKey": [
+        "0xCHANGEME"
+      ],
+      "wrappedAsset": "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
+    },
+    {
+      "chainId": 3,
+      "chainName": "Terra",
+      "nodeUrl": "https://fcd.terra.dev OR SOMETHING ELSE... ALSO UPDATE GAS PRICE URL",
+      "tokenBridgeAddress": "terra10nmmwe8r3g99a9newtqa7a75xfgs2e8z87r2sf",
+      "walletPrivateKey": [
+        "CHANGE ME worry limit wrap speak medal online prefer cluster roof addict wrist behave treat actual wasp year salad speed social layer crew genius"
+      ],
+      "terraName": "mainnet",
+      "terraChainId": "columbus-5",
+      "terraCoin": "uluna",
+      "terraGasPriceUrl": "https://fcd.terra.dev/v1/txs/gas_prices  <- SHOULD BE SAME AS NODE URL"
+    },
+    {
+      "chainId": 4,
+      "chainName": "Binance Smart Chain",
+      "nodeUrl": "CHANGE ME",
+      "tokenBridgeAddress": "0xB6F6D86a8f9879A9c87f643768d9efc38c1Da6E7",
+      "walletPrivateKey": [
+        "0xCHANGEME"
+      ],
+      "wrappedAsset": "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c"
+    },
+    {
+        "chainId": 5,
+        "chainName": "Polygon",
+        "nodeUrl": "CHANGE ME",
+        "tokenBridgeAddress": "0x5a58505a96D1dbf8dF91cB21B54419FC36e93fdE",
+        "walletPrivateKey": [
+          "0xCHANGEME"
+        ],
+        "wrappedAsset": "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270"
+      },
+      {
+        "chainId": 6,
+        "chainName": "Avalanche",
+        "nodeUrl": "CHANGE ME",
+        "tokenBridgeAddress": "0x0e082F06FF657D94310cB8cE8B0D9a04541d8052",
+        "walletPrivateKey": [
+          "0xCHANGEME"
+        ],
+        "wrappedAsset": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7"
+      }, 
+      {
+        "chainId": 7,
+        "chainName": "Oasis",
+        "nodeUrl": "CHANGE ME",
+        "tokenBridgeAddress": "0x5848C791e09901b40A9Ef749f2a6735b418d7564",
+        "walletPrivateKey": [
+          "0xCHANGEME"
+        ],
+        "wrappedAsset": "0x21C718C22D52d0F3a789b752D4c2fD5908a8A733"
+      }, 
+      {
+        "chainId": 10,
+        "chainName": "Fantom",
+        "nodeUrl": "CHANGE ME",
+        "tokenBridgeAddress": "0x7C9Fc5741288cDFdD83CeB07f3ea7e22618D79D2",
+        "walletPrivateKey": [
+          "0xCHANGEME"
+        ],
+        "wrappedAsset": "0x21be370D5312f44cB42ce377BC9b8a0cEF1A4C83"
+      }
+  ]
+  
