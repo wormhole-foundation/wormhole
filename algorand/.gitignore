@@ -1,3 +1,4 @@
 *.teal
 __pycache__
 
+_sandbox
