@@ -1,7 +1,7 @@
 version: '3'
 
 services:
-  algod:
+  algo-algod:
     container_name: "algorand-tilt-algod"
     build:
       context: .
@@ -23,7 +23,7 @@ services:
       - 4002:4002
       - 9392:9392
 
-  indexer:
+  algo-indexer:
     container_name: "algorand-tilt-indexer"
     build:
       context: .
@@ -43,10 +43,10 @@ services:
       ALGOD_ADDR: "algod:4001"
       ALGOD_TOKEN: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     depends_on:
-      - indexer-db
-      - algod
+      - algo-indexer-db
+      - algo-algod
 
-  indexer-db:
+  algo-indexer-db:
     image: "postgres:13-alpine"
     container_name: "algorand-tilt-postgres"
     ports:
