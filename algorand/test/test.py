@@ -479,7 +479,7 @@ class AlgoTest(PortalCore):
 
         print("upgrading the the guardian set using untrusted account...")
         upgradeVAA = bytes.fromhex(gt.genGuardianSetUpgrade(gt.guardianPrivKeys, 1, seq, seq, seq))
-        self.submitVAA(upgradeVAA, client, player)
+        self.submitVAA(upgradeVAA, client, player, self.coreid)
 
         bal = self.getBalances(client, player.getAddress())
         pprint.pprint(bal)
@@ -496,7 +496,7 @@ class AlgoTest(PortalCore):
             v = gt.genRegisterChain(gt.guardianPrivKeys, 2, seq, seq, r)
             vaa = bytes.fromhex(v)
 #            pprint.pprint((v, self.parseVAA(vaa)))
-            self.submitVAA(vaa, client, player)
+            self.submitVAA(vaa, client, player, self.tokenid)
             seq += 1
 
             bal = self.getBalances(client, player.getAddress())
@@ -505,7 +505,7 @@ class AlgoTest(PortalCore):
         print("Create a asset")
         attestVAA = bytes.fromhex(gt.genAssetMeta(gt.guardianPrivKeys, 2, seq, seq, bytes.fromhex("4523c3F29447d1f32AEa95BEBD00383c4640F1b4"), 1, 8, b"USDC", b"CircleCoin"))
         # paul - createWrappedOnAlgorand
-        self.submitVAA(attestVAA, client, player)
+        self.submitVAA(attestVAA, client, player, self.tokenid)
         seq += 1
 
         p = self.parseVAA(attestVAA)
@@ -514,13 +514,13 @@ class AlgoTest(PortalCore):
         print("Create the same asset " + str(seq))
         # paul - updateWrappedOnAlgorand
         attestVAA = bytes.fromhex(gt.genAssetMeta(gt.guardianPrivKeys, 2, seq, seq, bytes.fromhex("4523c3F29447d1f32AEa95BEBD00383c4640F1b4"), 1, 8, b"USD2C", b"Circle2Coin"))
-        self.submitVAA(attestVAA, client, player)
+        self.submitVAA(attestVAA, client, player, self.tokenid)
         seq += 1
 
         print("Transfer the asset " + str(seq))
         transferVAA = bytes.fromhex(gt.genTransfer(gt.guardianPrivKeys, 1, 1, 1, 1, bytes.fromhex("4523c3F29447d1f32AEa95BEBD00383c4640F1b4"), 1, decode_address(player.getAddress()), 8, 0))
         # paul - redeemOnAlgorand
-        self.submitVAA(transferVAA, client, player)
+        self.submitVAA(transferVAA, client, player, self.tokenid)
         seq += 1
 
         aid = client.account_info(player.getAddress())["assets"][0]["asset-id"]
@@ -565,7 +565,7 @@ class AlgoTest(PortalCore):
         print("... track down the generated VAA")
         vaa = self.getVAA(client, player, sid, self.tokenid)
         print(".. and lets pass that to player3")
-        self.submitVAA(bytes.fromhex(vaa), client, player3)
+        self.submitVAA(bytes.fromhex(vaa), client, player3, self.tokenid)
 
         pprint.pprint(self.getBalances(client, player.getAddress()))
         pprint.pprint(self.getBalances(client, player2.getAddress()))
@@ -577,7 +577,7 @@ class AlgoTest(PortalCore):
         print("... track down the generated VAA")
         vaa = self.getVAA(client, player, sid, self.tokenid)
         print(".. and lets pass that to player3 with fees being passed to player acting as a relayer")
-        self.submitVAA(bytes.fromhex(vaa), client, player)
+        self.submitVAA(bytes.fromhex(vaa), client, player, self.tokenid)
 
         pprint.pprint(self.getBalances(client, player.getAddress()))
         pprint.pprint(self.getBalances(client, player2.getAddress()))
@@ -599,7 +599,7 @@ class AlgoTest(PortalCore):
         print(".. and lets pass that to the empty account.. but use somebody else to relay since we cannot pay for it")
 
         # paul - redeemOnAlgorand
-        self.submitVAA(bytes.fromhex(vaa), client, player)
+        self.submitVAA(bytes.fromhex(vaa), client, player, self.tokenid)
 
         print("=================================================")
 
@@ -617,7 +617,7 @@ class AlgoTest(PortalCore):
         print("... track down the generated VAA")
         vaa = self.getVAA(client, player, sid, self.tokenid)
         print(".. and lets pass that to player3.. but use the previously empty account to relay it")
-        self.submitVAA(bytes.fromhex(vaa), client, emptyAccount)
+        self.submitVAA(bytes.fromhex(vaa), client, emptyAccount, self.tokenid)
 
         print("How much is in the source account now?")
         pprint.pprint(self.getBalances(client, player2.getAddress()))
@@ -635,12 +635,12 @@ class AlgoTest(PortalCore):
 
         print(".. and lets pass that to the wrong account")
         try:
-            self.submitVAA(bytes.fromhex(vaa), client, emptyAccount)
+            self.submitVAA(bytes.fromhex(vaa), client, emptyAccount, self.tokenid)
         except:
             print("Exception thrown... nice")
 
         print(".. and lets pass that to the right account")
-        self.submitVAA(bytes.fromhex(vaa), client, player3)
+        self.submitVAA(bytes.fromhex(vaa), client, player3, self.tokenid)
 
 #        print("player account: " + player.getAddress())
 #        pprint.pprint(client.account_info(player.getAddress()))

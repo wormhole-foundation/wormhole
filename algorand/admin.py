@@ -498,18 +498,12 @@ class PortalCore:
     # the contract itself and we want to use this to drive the failure test
     # cases
 
-    def submitVAA(self, vaa, client, sender):
+    def submitVAA(self, vaa, client, sender, appid):
         # A lot of our logic here depends on parseVAA and knowing what the payload is..
         p = self.parseVAA(vaa)
 
         #pprint.pprint(p)
 
-        # First we need to opt into the sequence number 
-        if p["Meta"] == "CoreGovernance":
-            appid = self.coreid
-        else:
-            appid = self.tokenid
-        
         seq_addr = self.optin(client, sender, appid, int(p["sequence"] / max_bits), p["chainRaw"].hex() + p["emitter"].hex())
         # And then the signatures to help us verify the vaa_s
         guardian_addr = self.optin(client, sender, self.coreid, p["index"], b"guardian".hex())
@@ -867,7 +861,7 @@ class PortalCore:
 
         for v in vaas:
             print("Submitting: " + v)
-            self.submitVAA(bytes.fromhex(v), self.client, foundation)
+            self.submitVAA(bytes.fromhex(v), self.client, foundation, self.coreid)
 
     def main(self) -> None:
         parser = argparse.ArgumentParser(description='algorand setup')
