@@ -288,7 +288,7 @@ function EthGasEstimateSummary({
 const terraEstimatesByContract = {
   transfer: {
     lowGasEstimate: BigInt(50000),
-    highGasEstimate: BigInt(90000),
+    highGasEstimate: BigInt(150000),
   },
 };
 
@@ -343,13 +343,7 @@ export async function getGasEstimates(
   return output;
 }
 
-function TerraGasEstimateSummary({
-  methodType,
-  chainId,
-}: {
-  methodType: MethodType;
-  chainId: ChainId;
-}) {
+function TerraGasEstimateSummary({ methodType }: { methodType: MethodType }) {
   if (methodType === "transfer") {
     const lowEstimate = formatUnits(
       terraEstimatesByContract.transfer.lowGasEstimate,
@@ -370,8 +364,8 @@ function TerraGasEstimateSummary({
         }}
       >
         <div>
-          Est. Fees: {lowEstimate} - {highEstimate}{" "}
-          {getDefaultNativeCurrencySymbol(chainId)}
+          Est. Fees: {lowEstimate} - {highEstimate}
+          {" UST"}
         </div>
       </Typography>
     );
@@ -390,9 +384,7 @@ export function GasEstimateSummary({
   if (isEVMChain(chainId)) {
     return <EthGasEstimateSummary chainId={chainId} methodType={methodType} />;
   } else if (chainId === CHAIN_ID_TERRA) {
-    return (
-      <TerraGasEstimateSummary chainId={chainId} methodType={methodType} />
-    );
+    return <TerraGasEstimateSummary methodType={methodType} />;
   } else {
     return null;
   }
