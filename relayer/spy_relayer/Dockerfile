@@ -16,11 +16,8 @@ RUN echo $(less Dockerfile)
 
 WORKDIR ./relayer/spy_relayer
 
-RUN --mount=type=cache,uid=1000,gid=1000,target=/home/node/.npm \
-  npm ci
-
-RUN --mount=type=cache,uid=1000,gid=1000,target=/home/node/.npm \
-  npm run build
+RUN npm ci && \
+    npm run build
 
 #TODO don't hardcode for tilt but accept env file
 # RUN --mount=type=cache,uid=1000,gid=1000,target=/home/node/.npm \
