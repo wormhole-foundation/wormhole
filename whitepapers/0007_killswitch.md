@@ -4,22 +4,24 @@
 
 ## Objective
 
-To enable/disable send and recieve transactions on the Wormhole Token Bridge and NFT Bridge.
+To enable/disable send and receive transactions on the Wormhole Token Bridge and NFT Bridge.
 
 ## Background
 
-Wormhole facilitates value exchange cross-chain via the Token Bridge and the NFT bridge.  Given the significant value exchange using smart contracts and accepting that security bugs may exist in the future, Wormhole security guardians (a subset of the 19) may need to take quick and decisive action (typically minutes) to enable/disable transactions without a 2/3s governance vote of the full 19 (typically hours/days).
+Wormhole facilitates value exchange cross-chain via the Token Bridge and the NFT bridge.  Given value exchange using smart contracts and accepting that security bugs may exist in the future, Guardians may need to take quick and decisive action to enable/disable transactions without a full 2/3s governance vote to ensure the integrity of the value stored within the bridge.
 
 ## Goals
 
-Implement a safe guard in smart contracts that facilitate the enabling or disabling of Token Bridge and NFT Bridge send/recieve functionality in the event of an existential security threat.
+Implement a safeguard that facilitate the enabling or disabling of Token Bridge and NFT Bridge send/receive functionality in the event of an existential threat.
 
-* Enable/Disable send/recieve Token/NFT bridge transactions
-* Effectiveness of the control within minutes of defined need (instead of hours/days)
+* Enable/Disable Token bridge transactions
+* Enable/Disable NFT bridge transactions
+* Effectiveness of the control acheived in minutes of defined need (instead of hours/days)
+* Provide safety while security patches are public, but not yet effective while waiting for governance ceremony and contract upgrades to complete
 
 ## Non-Goals
 
-* Solving for undercolleralized assets
+* Solving for collateralization assets
 * Solving for transaction thresholding/volume limits
 * Solving at the core layer
 * Solving for wallet segmentation or hot/cold wallets
@@ -27,61 +29,37 @@ Implement a safe guard in smart contracts that facilitate the enabling or disabl
 
 ## Overview
 
-The shutdown functionality aims to extend exisiting smart contracts that enable Token and NFT bridge to respond to a set of votes from the Wormhole Security Counsel (a subset of the 19 Guardians) that would enable/disable send and receive functionality during an existential threat scenario at a speed greater than could be acheived with a 2/3+ majority vote from the full guardian set of 19.
+The shutdown functionality aims to extend existing smart contracts that enable Token and NFT bridge to respond to a smaller set of Guardian votes (eg. 5 instead of 13) that would enable/disable send and receive functionality during an existential threat scenario at a speed greater than could be achieved with a 2/3+ majority vote from the full guardian set of 19.
 
-During an existential threat scenario where a member of the security counsel believes there is a need to disable send/receive transactions on the Token/NFT Bridge they would send a message to the relevant smart contract(s) to indicate their vote to disable send/receive transactions.  Once these bridge smart contracts receive a majority of security guardian votes to shutdown the disabling of send/receive becomes effective.  If concensus votes falls out of majority, send/receive functionality would be restored.
+During an existential threat scenario where any Guardian believes there is a need to disable send/receive transactions on the Token/NFT Bridge they would send a message to the relevant smart contract(s) to indicate their vote to disable send/receive transactions.  Once these bridge smart contracts receive a set of votes (eg 5 votes) to shut down then the contract will no longer perform transactions.  Similarly, if the guardian votes lose a majority (eg less than 5) the contract will begin processing transactions again allowing for shorter downtime windows.
 
-## Detailed Design (Option 1)
+## Design Expectations
 
-Each smart contract must implement the following 3 storage components:
+Contracts will only ever trust the Guardians to perform shutdown votes.
 
-* `nonce`: an `int` that increments for each signer to guard against replay attacks
-* `signers`: a `list` of public keys from the security guardians who are authorized to vote
-* `votes`: a `list` of security guardian votes as signers + bools (true = up, false = down)
+There will be a `votes` structure on each contract, this structure will retain the votes of any guardians who wishes to shutdown.  Each vote should contain `SignatureID` of the Guardian who voted to shutdown.  Guardians will be able to submit their shutdown vote or revoke it at any time without a Govenernance ceremony.  `votes` should be a set of Guardian votes and should only contain one vote status per Guardian, such that a single Guardian cannot vote more than once.
 
-For each send/receive capability for a token/nft bridge contract, it must implement a check against votes to ensure a majority up vote to enable/disable transactions.
+A Guardian would send a `signed_message` to the `shutdown` function, which would need to include the following:
+- A rolling uint32 `nonce` to prevent replay attacks
+- A bool `vote` to indicate intent to halt transactions
 
-To initiate a vote, each security guardian must retrieve the current `nonce` and send a `signed message` that includes the `nonce` and their `vote`.  Once a `vote` is placed, it increments the nonce by 1.  Any implementation must check the `signed message` and make sure it matches the existing `nonce`  and is a valid signer before registering a vote.
+The `shutdown` function would need to perform the following:
+* Receive the `signed_message`
+* Verify that the `signatureID` is a valid Guardian
+* Verify that the signed `nonce` is equal to the current `nonce`
+* Set `vote` for `signatureID` within `votes` structure
+* Increment `nonce` by 1 (this serves as replay detection)
 
-Each smart contract must implement one function:
+For each send/receive capability for a token/nft bridge, it must consult the `votes` structure to determine whether transactions can flow.  If there are a certian number of votes to shutdown in `votes` transactions must be halted.
 
-* `shutdown`: a function that accepts `signed_message` which includes `nonce` and `vote` from a given signer.  This method will validate the signer ID is in `signers` and the `nonce` is valid (to prevent replay attacks) before adding the `vote` (true = down, false = up) for that signer and incrementing the nonce.
+If at any point there was an abuse of this shutdown capability causing a transaction denial of service, the expected recourse would be that the Guardians would perform a governance ceremony and upgrade the contracts to patch the contracts directly.  This would be slow, but it is effectively the same speed in concept to what an effective shutdown behavior would look like if the shutdown feature did not exist.
 
 ### Pros
 
-* Eliminates the burden of binding shutdown actions from a specific wallet
-* Normal governance can be used to update signers as the security gaurdians change
-
+* Allows any subset of N (eg. 5) Guardians to stop value transfer in the face of an existential threat.
+* Adds a layer of maintenance safety when Guardians need to publicize an upgrade, obtain governance, and upgrade contracts.
 ### Cons
 
-* Will require some CLI tooling or manual steps for a signer to obtain the current nonce before signing a message to ensure speed
+* Will require CLI tooling or manual steps for a signer to obtain the current nonce before signing a message to ensure speed
 * If for some reason the nonce rolls over and becomes non-unique, it could be succeptable to replay attacks that the nonce aims to solve for
 * Will require each signer to wait until the next block before signing
-
-
-## Detailed Design (Option 2)
-
-Each smart contract must implement the following 3 storage components:
-
-* `wallets`: a `list` of wallets for which we will receive signed votes from
-* `signers`: a `list` keys of security guardians within the security counsel who are authorized to vote
-* `votes`: a `list` of security guardian votes as signers + bools (true = up, false = down)
-
-For each send/receive capability for a token/nft bridge contract, it must implement a check against votes to ensure a majority up vote to enable/disable transactions.
-
-Each smart contract must implment one function:
-
-* `shutdown`: a function that accepts `signed_message` which includes `vote` from a given signer.  This method will validate the `signer` and the `wallet` are in `signers` and `wallets` before adding the `vote` (true = down, false = up) for that signer.
-
-### Pros
-
-* Less complexity and thus less potential for abuse when compared to option 1
-* Normal governance can be used to update signers as the security gaurdians change
-
-### Cons
-
-* Security Guardians would be limited from sending a `vote` from a single wallet.  Alternatively, if an implementation didn't bind wallets and signers 1:1, a single guardian could send `signed message` on another security guardians behalf if that guardian couldn't use their wallet.
-
-## Detailed Design (Option N)
-
-If you have other proposals, please add them here or suggest them via the PR.
