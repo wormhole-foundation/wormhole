@@ -498,6 +498,126 @@ class PortalCore:
     # the contract itself and we want to use this to drive the failure test
     # cases
 
+    def simpleVAA(self, vaa, client, sender, appid):
+        p = {"version": int.from_bytes(vaa[0:1], "big"), "index": int.from_bytes(vaa[1:5], "big"), "siglen": int.from_bytes(vaa[5:6], "big")}
+        ret["signatures"] = vaa[6:(ret["siglen"] * 66) + 6]
+        ret["sigs"] = []
+        for i in range(ret["siglen"]):
+            ret["sigs"].append(vaa[(6 + (i * 66)):(6 + (i * 66)) + 66].hex())
+        off = (ret["siglen"] * 66) + 6
+        ret["digest"] = vaa[off:]  # This is what is actually signed...
+        ret["timestamp"] = int.from_bytes(vaa[off:(off + 4)], "big")
+        off += 4
+        ret["nonce"] = int.from_bytes(vaa[off:(off + 4)], "big")
+        off += 4
+        ret["chainRaw"] = vaa[off:(off + 2)]
+        ret["chain"] = int.from_bytes(vaa[off:(off + 2)], "big")
+        off += 2
+        ret["emitter"] = vaa[off:(off + 32)]
+        off += 32
+        ret["sequence"] = int.from_bytes(vaa[off:(off + 8)], "big")
+        off += 8
+        ret["consistency"] = int.from_bytes(vaa[off:(off + 1)], "big")
+        off += 1
+
+        seq_addr = self.optin(client, sender, appid, int(p["sequence"] / max_bits), p["chainRaw"].hex() + p["emitter"].hex())
+        # And then the signatures to help us verify the vaa_s
+        guardian_addr = self.optin(client, sender, self.coreid, p["index"], b"guardian".hex())
+
+        accts = [seq_addr, guardian_addr]
+
+        keys = self.decodeLocalState(client, sender, self.coreid, guardian_addr)
+
+        sp = client.suggested_params()
+
+        txns = []
+
+        # Right now there is not really a good way to estimate the fees,
+        # in production, on a conjested network, how much verifying
+        # the signatures is going to cost.
+
+        # So, what we do instead
+        # is we top off the verifier back up to 2A so effectively we
+        # are paying for the previous persons overrage which on a
+        # unconjested network should be zero
+
+        pmt = 3000
+        bal = self.getBalances(client, self.vaa_verify["hash"])
+        if ((200000 - bal[0]) >= pmt):
+            pmt = 200000 - bal[0]
+
+        #print("Sending %d algo to cover fees" % (pmt))
+        txns.append(
+            transaction.PaymentTxn(
+                sender = sender.getAddress(), 
+                sp = sp, 
+                receiver = self.vaa_verify["hash"], 
+                amt = pmt * 2
+            )
+        )
+
+        # How many signatures can we process in a single txn... we can do 9!
+        bsize = (9*66)
+        blocks = int(len(p["signatures"]) / bsize) + 1
+
+        # We don't pass the entire payload in but instead just pass it pre digested.  This gets around size
+        # limitations with lsigs AND reduces the cost of the entire operation on a conjested network by reducing the
+        # bytes passed into the transaction
+        digest = keccak.new(digest_bits=256).update(keccak.new(digest_bits=256).update(p["digest"]).digest()).digest()
+
+        for i in range(blocks):
+            # Which signatures will we be verifying in this block
+            sigs = p["signatures"][(i * bsize):]
+            if (len(sigs) > bsize):
+                sigs = sigs[:bsize]
+            # keys
+            kset = b''
+            # Grab the key associated the signature
+            for q in range(int(len(sigs) / 66)):
+                # Which guardian is this signature associated with
+                g = sigs[q * 66]
+                key = keys[((g * 20) + 1) : (((g + 1) * 20) + 1)]
+                kset = kset + key
+
+            txns.append(transaction.ApplicationCallTxn(
+                    sender=self.vaa_verify["hash"],
+                    index=self.coreid,
+                    on_complete=transaction.OnComplete.NoOpOC,
+                    app_args=[b"verifySigs", sigs, kset, digest],
+                    accounts=accts,
+                    sp=sp
+                ))
+
+        txns.append(transaction.ApplicationCallTxn(
+            sender=sender.getAddress(),
+            index=self.coreid,
+            on_complete=transaction.OnComplete.NoOpOC,
+            app_args=[b"verifyVAA", vaa],
+            accounts=accts,
+            sp=sp
+        ))
+
+        return txns
+
+    def signVAA(self, client, sender, txns):
+        transaction.assign_group_id(txns)
+
+        grp = []
+        pk = sender.getPrivateKey()
+        for t in txns:
+            if ("app_args" in t.__dict__ and len(t.app_args) > 0 and t.app_args[0] == b"verifySigs"):
+                grp.append(transaction.LogicSigTransaction(t, self.vaa_verify["lsig"]))
+            else:
+                grp.append(t.sign(pk))
+
+        client.send_transactions(grp)
+        ret = []
+        for x in grp:
+            response = self.waitForTransaction(client, x.get_txid())
+            if "logs" in response.__dict__ and len(response.__dict__["logs"]) > 0:
+                ret.append(response.__dict__["logs"])
+        return ret
+
     def submitVAA(self, vaa, client, sender, appid):
         # A lot of our logic here depends on parseVAA and knowing what the payload is..
         p = self.parseVAA(vaa)
