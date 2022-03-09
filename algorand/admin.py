@@ -110,6 +110,12 @@ class PortalCore:
         self.accountList : List[Account] = []
         self.zeroPadBytes = "00"*32
 
+        self.tsig = TmplSig("sig")
+
+        self.client = self.getAlgodClient()
+        self.vaa_verify = self.client.compile(get_vaa_verify())
+        self.vaa_verify["lsig"] = LogicSig(base64.b64decode(self.vaa_verify["result"]))
+
     def init(self, args) -> None:
         self.args = args
         self.ALGOD_ADDRESS = args.algod_address
@@ -272,9 +278,6 @@ class PortalCore:
         client: AlgodClient,
         sender: Account,
     ) -> int:
-        # reads from sig.json
-        self.tsig = TmplSig("sig")
-
         approval, clear = getCoreContracts(client, seed_amt=self.seed_amt, tmpl_sig=self.tsig)
 
         globalSchema = transaction.StateSchema(num_uints=8, num_byte_slices=16)
@@ -832,30 +835,22 @@ class PortalCore:
         return ret
 
     def dev_deploy(self):
-        client = self.getAlgodClient()
-
-        print("building our stateless vaa_verify...")
-        self.vaa_verify = client.compile(get_vaa_verify())
-        self.vaa_verify["lsig"] = LogicSig(base64.b64decode(self.vaa_verify["result"]))
-        print(self.vaa_verify["hash"])
-        print("")
-
         print("Generating the foundation account...")
-        foundation = self.getTemporaryAccount(client)
+        foundation = self.getTemporaryAccount(self.client)
         print("")
 
         print("Creating the PortalCore app")
-        self.coreid = self.createPortalCoreApp(client=client, sender=foundation)
+        self.coreid = self.createPortalCoreApp(client=self.client, sender=foundation)
         print("coreid = " + str(self.coreid))
 
         print("Create the token bridge")
-        self.tokenid = self.createTokenBridgeApp(client, foundation)
+        self.tokenid = self.createTokenBridgeApp(self.client, foundation)
         print("token bridge " + str(self.tokenid) + " address " + get_application_address(self.tokenid))
 
         print("bootstrapping the guardian set...")
         bootVAA = bytes.fromhex("0100000001010001ca2fbf60ac6227d47dda4fe2e7bccc087f27d22170a212b9800da5b4cbf0d64c52deb2f65ce58be2267bf5b366437c267b5c7b795cd6cea1ac2fee8a1db3ad006225f801000000010001000000000000000000000000000000000000000000000000000000000000000400000000000000012000000000000000000000000000000000000000000000000000000000436f72650200000000000001beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe")
 #        pprint.pprint(self.parseVAA(bootVAA))
-        self.bootGuardians(bootVAA, client, foundation, self.coreid)
+        self.bootGuardians(bootVAA, self.client, foundation, self.coreid)
 
         print("bootstrapping the chain registrationst...")
 
@@ -872,7 +867,7 @@ class PortalCore:
 
         for v in vaas:
             print("Submitting: " + v)
-            self.submitVAA(bytes.fromhex(v), client, foundation)
+            self.submitVAA(bytes.fromhex(v), self.client, foundation)
 
     def main(self) -> None:
         parser = argparse.ArgumentParser(description='algorand setup')
