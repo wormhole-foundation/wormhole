@@ -102,7 +102,6 @@ export async function getBalances(
     return balances;
 }
 
-
 export async function attestFromAlgorand(
     senderAcct: Account,
     assetId: number,
@@ -117,20 +116,20 @@ export async function attestFromAlgorand(
     const creatorAcctInfo = await algodClient
         .accountInformation(creatorAddr)
         .do();
+    const PgmName: string = "attestToken";
+    const encoder: TextEncoder = new TextEncoder();
+    const bPgmName: Uint8Array = encoder.encode(PgmName);
     const wormhole: boolean = creatorAcctInfo["auth-addr"] === appAddr;
     if (!wormhole) {
-        // TODO:   creator = self.optin(client, sender, self.tokenid, asset_id, b"native".hex())
+        await optin(senderAcct, TOKEN_BRIDGE_ID, bPgmName);
     }
     const params: algosdk.SuggestedParams = await algodClient
         .getTransactionParams()
         .do();
-    const PgmName: string = "attestToken";
-    const encoder: TextEncoder = new TextEncoder();
-    const bPgmName: Uint8Array = encoder.encode(PgmName);
-    const emitterAddr = await optin(senderAcct, bPgmName);
+    await optin(senderAcct, CORE_ID, bPgmName);
     const appTxn = makeApplicationCallTxnFromObject({
         appArgs: [bPgmName, numberToUint8Array(assetId)],
-        accounts: [creatorAddr, creatorAcctInfo["address"]], // TODO: add emitterAddr
+        accounts: [creatorAddr, creatorAcctInfo["address"], senderAcct],
         appIndex: TOKEN_BRIDGE_ID,
         foreignApps: [CORE_ID],
         foreignAssets: [assetId],
@@ -147,10 +146,13 @@ export async function attestFromAlgorand(
     // TODO: return something?
 }
 
-export async function optin(sender: Account, pgmName: Uint8Array) {
+export async function optin(
+    sender: Account,
+    appIndex: number,
+    pgmName: Uint8Array
+) {
     const algodClient = getAlgoClient();
     const appAddr: string = getApplicationAddress(CORE_ID);
-    const decodedAddr = decodeAddress(appAddr);
     const params = await algodClient.getTransactionParams().do();
     const seedTxn = makePaymentTxnWithSuggestedParamsFromObject({
         from: sender.getAddress(),
@@ -161,7 +163,7 @@ export async function optin(sender: Account, pgmName: Uint8Array) {
     const optinTxn = makeApplicationOptInTxnFromObject({
         from: sender.getAddress(),
         suggestedParams: params,
-        appIndex: CORE_ID,
+        appIndex: appIndex,
     });
     const rekeyTxn = makePaymentTxnWithSuggestedParamsFromObject({
         from: sender.getAddress(),
@@ -220,12 +222,10 @@ export function parseVAA(vaa: Uint8Array) {
     }
     let sigs = [];
     for (let i = 0; i < siglen; i++) {
-        // TODO:  finish figuring this out.
         const start = 6 + i * 66;
         const len = 66;
         const sigBuf = Buffer.from(vaa, start, len);
         sigs.push(sigBuf);
-        // ret["sigs"].append(vaa[(6 + (i * 66)):(6 + (i * 66)) + 66].hex())
     }
     ret.set("sigs", sigs);
     let off = siglen * 66 + 6;
