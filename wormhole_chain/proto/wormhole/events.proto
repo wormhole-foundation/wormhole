@@ -14,3 +14,6 @@ message EventPostedMessage{
   uint32 nonce = 3;
   bytes payload = 4;
 }
+
+
+// TODO(csongor): add guardian registration event here
