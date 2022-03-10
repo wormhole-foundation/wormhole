@@ -15,6 +15,7 @@ import terraIcon from "../../images/terra.svg";
 import polygonIcon from "../../images/polygon.svg";
 import avalancheIcon from "../../images/avalanche.svg";
 import oasisIcon from "../../images/oasis.svg";
+import fantomIcon from "../../images/fantom.svg"
 import GridWithCards from "../GridWithCards";
 import { explorer } from "../../utils/urls";
 
@@ -589,8 +590,28 @@ const ExplorerStats: React.FC<StatsProps> = ({
                       />
                     ),
                     imgStyle: { height: 110 },
-                  },
-                ]}
+                  }
+                ].concat(
+                  // check the we have transfer data before adding the fantom card
+                  ("10" in notionalTransferredToCumulative.AllTime) &&
+                    ("*" in notionalTransferredToCumulative.AllTime["10"]) ?
+                    [{
+                      header: ChainID[10],
+                      src: fantomIcon,
+                      to: `${explorer}?emitterChain=10`,
+                      description: (
+                        <ChainOverviewCard
+                          totals={totals}
+                          notionalTransferredToCumulative={
+                            notionalTransferredToCumulative
+                          }
+                          notionalTransferred={notionalTransferred}
+                          dataKey="10"
+                        />
+                      ),
+                      imgStyle: { height: 110 },
+                    }] : []
+                )}
               />
             ) : (
               <Box

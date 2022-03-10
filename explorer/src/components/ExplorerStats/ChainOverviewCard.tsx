@@ -56,6 +56,14 @@ const ChainOverviewCard: React.FC<ChainOverviewCardProps> = ({
     alignItems: "center",
     flexDirection: "column",
   };
+  // prevent an exception if data is missing (ie. new chain)
+  if (
+    !notionalTransferredToCumulative ||
+    !(dataKey in notionalTransferredToCumulative.AllTime) ||
+    !("*" in notionalTransferredToCumulative.AllTime[dataKey])
+  ) {
+    return <>coming soon</>
+  }
   return (
     <>
       <div style={{ ...centerStyles, gap: 8 }}>
@@ -79,11 +87,11 @@ const ChainOverviewCard: React.FC<ChainOverviewCardProps> = ({
             </div>
           )}
         {notionalTransferred &&
-        notionalTransferred.WithinPeriod &&
-        dataKey in notionalTransferred.WithinPeriod &&
-        "*" in notionalTransferred.WithinPeriod[dataKey] &&
-        "*" in notionalTransferred.WithinPeriod[dataKey]["*"] &&
-        notionalTransferred.WithinPeriod[dataKey]["*"]["*"] > 0 ? (
+          notionalTransferred.WithinPeriod &&
+          dataKey in notionalTransferred.WithinPeriod &&
+          "*" in notionalTransferred.WithinPeriod[dataKey] &&
+          "*" in notionalTransferred.WithinPeriod[dataKey]["*"] &&
+          notionalTransferred.WithinPeriod[dataKey]["*"]["*"] > 0 ? (
           <div style={centerStyles}>
             <div>
               <Typography
@@ -92,9 +100,9 @@ const ChainOverviewCard: React.FC<ChainOverviewCardProps> = ({
               >
                 {notionalTransferred.WithinPeriod[dataKey]["*"]["*"]
                   ? "$" +
-                    amountFormatter(
-                      notionalTransferred.WithinPeriod[dataKey]["*"]["*"]
-                    )
+                  amountFormatter(
+                    notionalTransferred.WithinPeriod[dataKey]["*"]["*"]
+                  )
                   : "..."}
               </Typography>
             </div>
@@ -104,12 +112,13 @@ const ChainOverviewCard: React.FC<ChainOverviewCardProps> = ({
           </div>
         ) : (
           <div style={centerStyles}>
-            <div style={{ marginTop: -10 }}>
-              <Typography variant="body1">
-                amount sent
-                <br />
-                coming soon
+            <div>
+              <Typography variant="h5">
+                <span style={{ fontSize: "75%", verticalAlign: 'middle' }}>Coming Soon</span>
               </Typography>
+            </div>
+            <div style={{ marginTop: -10 }}>
+              <Typography variant="caption">sent</Typography>
             </div>
           </div>
         )}

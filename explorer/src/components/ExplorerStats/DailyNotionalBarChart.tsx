@@ -51,6 +51,9 @@ const DailyNotionalBarChart = (props: DailyCountProps) => {
             const chains = props.daily[date]
 
             return [...accum, Object.keys(chains).reduce<BarDatum>((subAccum, chain) => {
+                if (chain === "*") {
+                    return subAccum
+                }
 
                 const group = makeGroupName(chain, activeNetwork)
                 // const group = chain
@@ -76,7 +79,7 @@ const DailyNotionalBarChart = (props: DailyCountProps) => {
 
     return (
         <div style={{ height: 400, minWidth: 360, flex: '1', marginBottom: 40 }}>
-            <Typography variant="h4" style={{ marginLeft: 20 }}>value received (USD)</Typography>
+            <Typography variant="subtitle1" gutterBottom>Value Received (USD)</Typography>
 
             <ResponsiveBar
                 theme={{ textColor: "rgba(255, 255, 255, 0.85)" }}
@@ -93,7 +96,7 @@ const DailyNotionalBarChart = (props: DailyCountProps) => {
                     left: 40,
                 }}
                 padding={0.3}
-                valueScale={{ type: 'linear', max }}
+                valueScale={{ type: 'linear' }}
                 indexScale={{ type: 'band', round: true }}
                 borderColor={{ from: 'color', modifiers: [['darker', 1.6]] }}
                 axisTop={null}

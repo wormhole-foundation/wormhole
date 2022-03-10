@@ -1,17 +1,21 @@
 #!/usr/bin/env bash
 set -euo pipefail
 #
-# This script provisions a working Wormhole dev environment on a blank Debian VM.
+# This script provisions a working Wormhole dev environment on a minimally provisioned VM.
 # It expects to run as a user without root permissions.
 #
 # Can safely run multiple times to update to the latest versions.
 #
 
-# Make sure this is Debian 10 or 11
-if [ "$(lsb_release -rs)" != "10" ] && [ "$(lsb_release -rs)" != "11" ]; then
-  echo "This script is only for Debian 10 or 11"
-  exit 1
-fi
+# Make sure this is a supported OS.
+DISTRO="$(lsb_release --id --short)-$(lsb_release --release --short)"
+case "$DISTRO" in
+    Debian-10 | Debian-11 | RedHatEnterprise-8.*) true ;;  # okay (no operation)
+    *)
+        echo "This script is only for Debian 10 or 11, or RHEL 8"
+        exit 1
+    ;;
+esac
 
 # Refuse to run as root
 if [[ $EUID -eq 0 ]]; then
@@ -25,18 +29,37 @@ if ! sudo -n true; then
     exit 1
 fi
 
-# Make sure Docker Debian package isn't installed
-if dpkg -s docker.io &>/dev/null; then
-    echo "Docker is already installed from Debian's repository. Please uninstall it first."
-    exit 1
-fi
+# Make sure OS-provided Docker package isn't installed
+case "$DISTRO" in
+    Debian-*)
+        if dpkg -s docker.io &>/dev/null; then
+            echo "Docker is already installed from Debian's repository. Please uninstall it first."
+            exit 1
+        fi
+    ;;
+    RedHatEnterprise-8.*)
+        if rpm -q podman-docker &>/dev/null; then
+            echo "podman-docker is installed. Please uninstall it first."
+            exit 1
+        fi
+    ;;
+    *) echo "Internal error: $DISTRO not matched in case block." && exit 1 ;;
+esac
 
 # Upgrade everything
 # (this ensures that an existing Docker CE installation is up to date before continuing)
-sudo apt-get update && sudo apt-get upgrade -y
+case "$DISTRO" in
+    Debian-*)             sudo apt-get update && sudo apt-get upgrade -y ;;
+    RedHatEnterprise-8.*) sudo dnf upgrade -y ;;
+    *) echo "Internal error: $DISTRO not matched in case block." && exit 1 ;;
+esac
 
 # Install dependencies
-sudo apt-get -y install bash-completion git git-review vim
+case "$DISTRO" in
+    Debian-*)             sudo apt-get -y install bash-completion git git-review vim ;;
+    RedHatEnterprise-8.*) sudo dnf -y install bash-completion git git-review vim ;;
+    *) echo "Internal error: $DISTRO not matched in case block." && exit 1 ;;
+esac
 
 # Install Go
 ARCH=amd64
@@ -67,8 +90,19 @@ if [[ ! -f /usr/bin/docker ]]; then
   TMP=$(mktemp -d)
   (
     cd "$TMP"
-    curl -fsSL https://get.docker.com -o get-docker.sh
-    sudo sh get-docker.sh
+    case "$DISTRO" in
+      Debian-*)
+        curl -fsSL https://get.docker.com -o get-docker.sh
+        sudo sh get-docker.sh
+      ;;
+      RedHatEnterprise-8.*)
+        # get-docker.sh doesn't support RHEL x86_64.
+        curl -fsSL https://download.docker.com/linux/centos/docker-ce.repo -o docker-ce.repo
+        sudo cp docker-ce.repo /etc/yum.repos.d/docker-ce.repo
+        # This is a no-op if the packages are already installed, but the "upgrade everything" step above will keep them up to date.
+        sudo dnf -y install docker-ce docker-ce-cli containerd.io
+      ;;
+    esac
   )
   rm -rf "$TMP"
   sudo gpasswd -a $USER docker
@@ -77,15 +111,34 @@ fi
 sudo systemctl enable --now docker
 
 # Install Minikube
-TMP=$(mktemp -d)
-(
-  cd "$TMP"
-  curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube_latest_amd64.deb
-  sudo dpkg -i minikube_latest_amd64.deb
-)
-rm -rf "$TMP"
+# Use 1.24 until this regression is resolved:
+#    https://github.com/kubernetes/minikube/issues/13542
+case "$DISTRO" in
+  Debian-*)
+    TMP=$(mktemp -d)
+    (
+      cd "$TMP"
+      curl -LO https://github.com/kubernetes/minikube/releases/download/v1.24.0/minikube_1.24.0-0_amd64.deb
+      sudo dpkg -i minikube_1.24.0-0_amd64.deb
+    )
+    rm -rf "$TMP"
+  ;;
+  RedHatEnterprise-*)
+    sudo dnf -y install https://github.com/kubernetes/minikube/releases/download/v1.24.0/minikube-1.24.0-0.x86_64.rpm
+  ;;
+  *) echo "Internal error: $DISTRO not matched in case block." && exit 1 ;;
+esac
 
-# Install tilt
+# Install tilt.
+# This script places the binary at /usr/local/bin/tilt and then self-tests by trying to execute it from PATH.
+# So we need to ensure that PATH contains /usr/local/bin, which is not the case in the environment created by sudo by default on RHEL.
+case "$DISTRO" in
+  Debian-*) true ;;
+  RedHatEnterprise-*)
+    echo -e "Defaults\tsecure_path=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin" | sudo tee /etc/sudoers.d/tilt_installer_path
+  ;;
+  *) echo "Internal error: $DISTRO not matched in case block." && exit 1 ;;
+esac
 curl -fsSL https://raw.githubusercontent.com/tilt-dev/tilt/master/scripts/install.sh | sudo bash
 
 # Shell aliases
