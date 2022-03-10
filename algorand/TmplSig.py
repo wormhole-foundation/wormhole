@@ -87,7 +87,10 @@ class TmplSig:
                     # +1 to overwrite existing 00 byte
                     contract[pos : pos + 1] = val
 
-        # Create a new LogicSigAccount given the populated bytecode
+        # Create a new LogicSigAccount given the populated bytecode,
+
+#        pprint.pprint({"values": values, "contract": bytes(contract).hex()})
+
         return LogicSigAccount(bytes(contract))
 
     def get_bytecode_chunk(self, idx: int) -> Bytes:
