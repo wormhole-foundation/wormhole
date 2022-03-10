@@ -218,3 +218,4 @@ Registering chain 5
   'targetEmitter': '0000000000000000000000005a58505a96d1dbf8df91cb21b54419fc36e93fde',
   'timestamp': 1646654976,
   'version': 1})
+./sandbox down; ./sandbox clean; ./sandbox up dev -v; python3 admin.py --devnet
