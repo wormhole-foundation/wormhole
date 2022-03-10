@@ -779,7 +779,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		if *unsafeDevMode {
 			if err := supervisor.Run(ctx, "algorandwatch",
 
-				algorand.NewWatcher(*algorandRPC, *algorandToken, *algorandIndexerRPC, *algorandIndexerToken, *algorandAppID, lockC, setC).Run); err != nil {
+				algorand.NewWatcher(*algorandRPC, *algorandToken, *algorandIndexerRPC, *algorandIndexerToken, *algorandAppID, lockC, setC, chainObsvReqC[vaa.ChainIDAlgorand]).Run); err != nil {
 				return err
 			}
 		}
