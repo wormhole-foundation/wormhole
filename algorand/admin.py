@@ -981,7 +981,7 @@ class PortalCore:
 
         for v in vaas:
             print("Submitting: " + v)
-            self.submitVAA(bytes.fromhex(v), self.client, foundation, self.coreid)
+            self.submitVAA(bytes.fromhex(v), self.client, foundation, self.tokenid)
 
     def main(self) -> None:
         parser = argparse.ArgumentParser(description='algorand setup')
