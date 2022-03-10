@@ -107,6 +107,7 @@ export async function attestFromAlgorand(
     assetId: number,
     appId: number
 ) {
+    const appIndex: number = 0; // TODO:  This needs to be fixed!
     const algodClient = getAlgoClient();
     const appAddr: string = getApplicationAddress(appId);
     const acctInfo = await algodClient
@@ -121,12 +122,12 @@ export async function attestFromAlgorand(
     const bPgmName: Uint8Array = encoder.encode(PgmName);
     const wormhole: boolean = creatorAcctInfo["auth-addr"] === appAddr;
     if (!wormhole) {
-        await optin(senderAcct, TOKEN_BRIDGE_ID, bPgmName);
+        await optin(senderAcct, TOKEN_BRIDGE_ID, appIndex, bPgmName);
     }
     const params: algosdk.SuggestedParams = await algodClient
         .getTransactionParams()
         .do();
-    await optin(senderAcct, CORE_ID, bPgmName);
+    await optin(senderAcct, CORE_ID, appIndex, bPgmName);
     const appTxn = makeApplicationCallTxnFromObject({
         appArgs: [bPgmName, numberToUint8Array(assetId)],
         accounts: [creatorAddr, creatorAcctInfo["address"], senderAcct],
@@ -146,13 +147,18 @@ export async function attestFromAlgorand(
     // TODO: return something?
 }
 
+// TODO:  This needs to be rewritten
 export async function optin(
     sender: Account,
+    appId: number,
     appIndex: number,
     pgmName: Uint8Array
 ) {
+    // This is the client
     const algodClient = getAlgoClient();
-    const appAddr: string = getApplicationAddress(CORE_ID);
+    // This is the application address associated with the application ID
+    const appAddr: string = getApplicationAddress(appId);
+    // These are the suggested params from the system
     const params = await algodClient.getTransactionParams().do();
     const seedTxn = makePaymentTxnWithSuggestedParamsFromObject({
         from: sender.getAddress(),
@@ -210,7 +216,11 @@ export function numberToUint8Array(n: number) {
     return new Uint8Array(a);
 }
 
-export function parseVAA(vaa: Uint8Array) {
+function extract3(buffer: any, start: number, size: number): string {
+    return buffer.slice(start, start + size);
+}
+
+export function parseVAA(vaa: Uint8Array): Map<string, any> {
     let ret = new Map<string, any>();
     let buf = Buffer.from(vaa);
     ret.set("version", buf.readIntBE(0, 1));
@@ -218,28 +228,28 @@ export function parseVAA(vaa: Uint8Array) {
     ret.set("siglen", buf.readIntBE(5, 1));
     const siglen = ret.get("siglen");
     if (siglen) {
-        ret.set("signatures", buf.readIntBE(6, siglen * 66));
+        ret.set("signatures", extract3(vaa, 6, siglen * 66));
     }
-    let sigs = [];
+    const sigs = [];
     for (let i = 0; i < siglen; i++) {
         const start = 6 + i * 66;
         const len = 66;
-        const sigBuf = Buffer.from(vaa, start, len);
+        const sigBuf = extract3(vaa, start, len);
         sigs.push(sigBuf);
     }
     ret.set("sigs", sigs);
     let off = siglen * 66 + 6;
-    ret.set("digest", Buffer.from(vaa, off)); // This is what is actually signed...
+    ret.set("digest", vaa.slice(off)); // This is what is actually signed...
     ret.set("timestamp", buf.readIntBE(off, 4));
     off += 4;
     ret.set("nonce", buf.readIntBE(off, 4));
     off += 4;
-    ret.set("chainRaw", Buffer.from(vaa, off, 2));
+    ret.set("chainRaw", extract3(vaa, off, 2));
     ret.set("chain", buf.readIntBE(off, 2));
     off += 2;
-    ret.set("emitter", Buffer.from(vaa, off, 32));
+    ret.set("emitter", extract3(vaa, off, 32));
     off += 32;
-    ret.set("sequence", buf.readIntBE(off, 8));
+    ret.set("sequence", buf.readBigUInt64BE(off));
     off += 8;
     ret.set("consistency", buf.readIntBE(off, 1));
     off += 1;
