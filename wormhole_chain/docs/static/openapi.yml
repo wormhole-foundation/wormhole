@@ -14170,6 +14170,12 @@ definitions:
       chainId:
         type: integer
         format: int64
+  certusone.wormholechain.wormhole.GuardianKey:
+    type: object
+    properties:
+      key:
+        type: string
+        format: byte
   certusone.wormholechain.wormhole.GuardianSet:
     type: object
     properties:
@@ -14185,6 +14191,8 @@ definitions:
         type: string
         format: uint64
   certusone.wormholechain.wormhole.MsgExecuteGovernanceVAAResponse:
+    type: object
+  certusone.wormholechain.wormhole.MsgRegisterAccountAsGuardianResponse:
     type: object
   certusone.wormholechain.wormhole.QueryAllGuardianSetResponse:
     type: object
