@@ -2,7 +2,9 @@ package algorand
 
 import (
 	"context"
+	"encoding/base32"
 	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	"github.com/algorand/go-algorand-sdk/client/v2/common/models"
 	"github.com/algorand/go-algorand-sdk/client/v2/indexer"
@@ -32,6 +34,9 @@ type (
 		msgChan  chan *common.MessagePublication
 		setChan  chan *common.GuardianSet
 		obsvReqC chan *gossipv1.ObservationRequest
+
+		next_round   uint64
+		debug        bool
 	}
 )
 
@@ -69,6 +74,8 @@ func NewWatcher(
 		msgChan:      lockEvents,
 		setChan:      setEvents,
 		obsvReqC:     obsvReqC,
+		next_round:   0,
+		debug:        true,
 	}
 }
 
@@ -84,30 +91,50 @@ func lookAtTxn(e *Watcher, t models.Transaction, logger *zap.Logger) {
 
 			if string(at.ApplicationArgs[0]) != "publishMessage" {
 				continue
+
 			}
 
-			JSON, err := json.Marshal(it)
-			_ = err
-			logger.Info(string(JSON))
+			if e.debug {
+				JSON, _ := json.Marshal(it)
+				logger.Info(string(JSON))
+			}
 
 			var seq = binary.BigEndian.Uint64(it.Logs[0])
 
 			emitter, err := types.DecodeAddress(it.Sender)
-			var a vaa.Address
-			copy(a[:], emitter[:])
+			if nil != err {
+				logger.Info(err.Error())
+				continue;
+			}
 
-			var txHash eth_common.Hash
-			copy(txHash[:], it.Id)
+			var a vaa.Address
+			copy(a[:], emitter[:]) // 32 bytes = 8edf5b0e108c3a1a0a4b704cc89591f2ad8d50df24e991567e640ed720a94be2
+                                                             
+			if e.debug {
+				logger.Info("emitter: " + hex.EncodeToString(emitter[:]))
+			}
+
+			id, err := base32.StdEncoding.WithPadding(base32.NoPadding).DecodeString(t.Id)
+			if nil != err {
+				logger.Info(err.Error())
+				continue;
+			}
+
+			if e.debug {
+				logger.Info("id: " + hex.EncodeToString(id))
+			}
+
+			var txHash = eth_common.BytesToHash(id)   // 32 bytes = d3b136a6a182a40554b2fafbc8d12a7a22737c10c81e33b33d1dcb74c532708b
 
 			observation := &common.MessagePublication{
 				TxHash:           txHash,
 				Timestamp:        time.Unix(int64(it.RoundTime), 0),
-				Nonce:            0,
+				Nonce:            0,    // Right now, these are all 0
 				Sequence:         seq,
 				EmitterChain:     vaa.ChainIDAlgorand,
 				EmitterAddress:   a,
 				Payload:          at.ApplicationArgs[1],
-				ConsistencyLevel: 32,
+				ConsistencyLevel: 32,   // What SHOULD this be?
 			}
 			
 			algorandMessagesConfirmed.Inc()
@@ -152,7 +179,18 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 		// Parameters
 		var notePrefix = "publishMessage"
-		var next_round uint64 = 0
+
+//		if !e.debug && e.next_round == 0 {
+//			// What is the latest round...
+//			result, err := indexerClient.SearchForTransactions().Limit(0).Do(context.Background())
+//			if err != nil {
+//				logger.Info(err.Error())
+//				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAlgorand, 1)
+//				errC <- err
+//				return
+//			}
+//			e.next_round = result.CurrentRound + 1
+//		}
 
 		for {
 			select {
@@ -179,7 +217,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 			case <-timer.C:
 				var nextToken = ""
 				for true {
-					result, err := indexerClient.SearchForTransactions().NotePrefix([]byte(notePrefix)).MinRound(next_round).NextToken(nextToken).Do(context.Background())
+					result, err := indexerClient.SearchForTransactions().NotePrefix([]byte(notePrefix)).MinRound(e.next_round).NextToken(nextToken).Do(context.Background())
 					if err != nil {
 						logger.Info(err.Error())
 						p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAlgorand, 1)
@@ -195,14 +233,14 @@ func (e *Watcher) Run(ctx context.Context) error {
 					if result.NextToken != "" {
 						nextToken = result.NextToken
 					} else {
-						next_round = result.CurrentRound + 1
+						e.next_round = result.CurrentRound + 1
 						break
 					}
 				}
 				readiness.SetReady(common.ReadinessAlgorandSyncing)
-				currentAlgorandHeight.Set(float64(next_round - 1))
+				currentAlgorandHeight.Set(float64(e.next_round - 1))
 				p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDAlgorand, &gossipv1.Heartbeat_Network{
-					Height:          int64(next_round - 1),
+					Height:          int64(e.next_round - 1),
 					ContractAddress: string(e.appid),
 				})
 			}
