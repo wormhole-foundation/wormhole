@@ -436,7 +436,7 @@ class AlgoTest(PortalCore):
 #        pprint.pprint(vaa)
 #        sys.exit(0)
 
-        gt = GenTest()
+        gt = GenTest(False)
         self.gt = gt
 
         client = self.getAlgodClient()
