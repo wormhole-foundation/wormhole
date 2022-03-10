@@ -1,4 +1,5 @@
 import {
+  ChainId,
   getEmitterAddressEth,
   getEmitterAddressSolana,
   getEmitterAddressTerra,
@@ -21,19 +22,9 @@ export const chainEnums = [
 ];
 
 export interface ChainIDs {
-  solana: 1;
-  ethereum: 2;
-  terra: 3;
-  bsc: 4;
-  polygon: 5;
-  avalanche: 6;
-  oasis: 7;
-  algorand: 8,
-  aurora: 9,
-  fantom: 10,
-  karura: 11,
-  acala: 12,
+  [index: string]: ChainId;
 }
+
 export const chainIDs: ChainIDs = {
   solana: 1,
   ethereum: 2,
@@ -49,6 +40,7 @@ export const chainIDs: ChainIDs = {
   // kurura: 11,
   // acala: 12,
 };
+
 export const chainIDStrings: { [chainIDString: string]: string } = {
   "1": "solana",
   "2": "ethereum",
@@ -125,8 +117,7 @@ const envVarMap: { [name: string]: string | undefined } = {
     process.env.GATSBY_DEVNET_FANTOM_CORE_BRIDGE,
   GATSBY_DEVNET_FANTOM_TOKEN_BRIDGE:
     process.env.GATSBY_DEVNET_FANTOM_TOKEN_BRIDGE,
-  GATSBY_DEVNET_FANTOM_NFT_BRIDGE:
-    process.env.GATSBY_DEVNET_FANTOM_NFT_BRIDGE,
+  GATSBY_DEVNET_FANTOM_NFT_BRIDGE: process.env.GATSBY_DEVNET_FANTOM_NFT_BRIDGE,
 
   GATSBY_TESTNET_SOLANA_CORE_BRIDGE:
     process.env.GATSBY_TESTNET_SOLANA_CORE_BRIDGE,
