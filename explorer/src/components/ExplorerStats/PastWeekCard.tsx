@@ -1,16 +1,14 @@
-import React from "react";
-
 import { Box, Card, Typography } from "@mui/material";
-
+import React from "react";
+import { chainEnums, chainIDs } from "../../utils/consts";
+import { chainColors } from "../../utils/explorer";
+import DailyCountBarChart from "./DailyCountBarChart";
+import DailyNotionalBarChart from "./DailyNotionalBarChart";
 import {
   NotionalTransferred,
   NotionalTransferredTo,
   Totals,
 } from "./ExplorerStats";
-import { chainColors } from "../../utils/explorer";
-import DailyNotionalBarChart from "./DailyNotionalBarChart";
-import DailyCountBarChart from "./DailyCountBarChart";
-import { chainEnums } from "../../utils/consts";
 
 interface PastWeekCardProps {
   title: string;
@@ -87,20 +85,20 @@ const PastWeekCard: React.FC<PastWeekCardProps> = ({
           width: "100%",
         }}
       >
-        {chainEnums.slice(1).map((chain, index) => (
+        {Object.values(chainIDs).map((chainId) => (
           <Box
-            key={chain}
+            key={chainId}
             sx={{ display: "flex", alignItems: "center", mx: 1 }}
           >
             <div
               style={{
-                background: chainColors[String(index + 1)],
+                background: chainColors[String(chainId)],
                 height: 12,
                 width: 12,
                 display: "inline-block",
               }}
             />
-            <div>&nbsp;{chain}</div>
+            <div>&nbsp;{chainEnums[chainId]}</div>
           </Box>
         ))}
       </div>

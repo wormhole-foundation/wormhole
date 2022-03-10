@@ -112,12 +112,13 @@ const ChainOverviewCard: React.FC<ChainOverviewCardProps> = ({
           </div>
         ) : (
           <div style={centerStyles}>
-            <div style={{ marginTop: -10 }}>
-              <Typography variant="body1">
-                amount sent
-                <br />
-                coming soon
+            <div>
+              <Typography variant="h5">
+                <span style={{ fontSize: "75%", verticalAlign: 'middle' }}>Coming Soon</span>
               </Typography>
+            </div>
+            <div style={{ marginTop: -10 }}>
+              <Typography variant="caption">sent</Typography>
             </div>
           </div>
         )}
