@@ -129,9 +129,8 @@ func lookAtTxn(e *Watcher, t models.Transaction, logger *zap.Logger) {
 
 func (e *Watcher) Run(ctx context.Context) error {
 	// an odd thing to broadcast... 
-	contractAddr := string(e.appid)
 	p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDAlgorand, &gossipv1.Heartbeat_Network{
-		ContractAddress: contractAddr,
+		ContractAddress: string(e.appid),
 	})
 
 	logger := supervisor.Logger(ctx)
@@ -188,10 +187,6 @@ func (e *Watcher) Run(ctx context.Context) error {
 						return
 					}
 
-					// Indexer returned "stuff"...  the world is good
-					readiness.SetReady(common.ReadinessAlgorandSyncing)
-					currentAlgorandHeight.Set(float64(result.CurrentRound))
-
 					for i := 0; i < len(result.Transactions); i++ {
 						var t = result.Transactions[i]
 						lookAtTxn(e, t, logger)
@@ -204,6 +199,12 @@ func (e *Watcher) Run(ctx context.Context) error {
 						break
 					}
 				}
+				readiness.SetReady(common.ReadinessAlgorandSyncing)
+				currentAlgorandHeight.Set(float64(next_round - 1))
+				p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDAlgorand, &gossipv1.Heartbeat_Network{
+					Height:          int64(next_round - 1),
+					ContractAddress: string(e.appid),
+				})
 			}
 		}
 	}()
