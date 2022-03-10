@@ -143,7 +143,6 @@ const createListenerEnvironment: () => ListenerEnvironment = () => {
     );
   } else {
     const array = JSON.parse(process.env.SPY_SERVICE_FILTERS);
-    console.log("Spy service filters: ", array);
     // if (!array.foreach) {
     if (!array || !Array.isArray(array)) {
       throw new Error("Spy service filters is not an array.");
@@ -241,7 +240,7 @@ const createRelayerEnvironment: () => RelayerEnvironment = () => {
     redisPort = parseInt(process.env.REDIS_PORT);
   }
 
-  if (!process.env.CLEAR_REDIS_ON_INIT) {
+  if (process.env.CLEAR_REDIS_ON_INIT === undefined) {
     throw new Error(
       "Missing required environment variable: CLEAR_REDIS_ON_INIT"
     );
@@ -290,31 +289,58 @@ export function loadChainConfig(): ChainConfigInfo[] {
   if (!process.env.SUPPORTED_CHAINS) {
     throw new Error("Missing required environment variable: SUPPORTED_CHAINS");
   }
+  if (!process.env.PRIVATE_KEYS) {
+    throw new Error("Missing required environment variable: PRIVATE_KEYS");
+  }
 
   const unformattedChains = JSON.parse(process.env.SUPPORTED_CHAINS);
+  const unformattedPrivateKeys = JSON.parse(process.env.PRIVATE_KEYS);
   const supportedChains: ChainConfigInfo[] = [];
 
   if (!unformattedChains.forEach) {
     throw new Error("SUPPORTED_CHAINS arg was not an array.");
+  }
+  if (!unformattedPrivateKeys.forEach) {
+    throw new Error("PRIVATE_KEYS arg was not an array.");
   }
 
   unformattedChains.forEach((element: any) => {
     if (!element.chainId) {
       throw new Error("Invalid chain config: " + element);
     }
+
+    const privateKeyObj = unformattedPrivateKeys.find(
+      (x: any) => x.chainId === element.chainId
+    );
+    if (!privateKeyObj) {
+      throw new Error(
+        "Failed to find private key object for configured chain ID: " +
+          element.chainId
+      );
+    }
+
     if (element.chainId === CHAIN_ID_SOLANA) {
-      supportedChains.push(createSolanaChainConfig(element));
+      supportedChains.push(
+        createSolanaChainConfig(element, privateKeyObj.privateKeys)
+      );
     } else if (element.chainId === CHAIN_ID_TERRA) {
-      supportedChains.push(createTerraChainConfig(element));
+      supportedChains.push(
+        createTerraChainConfig(element, privateKeyObj.privateKeys)
+      );
     } else {
-      supportedChains.push(createEvmChainConfig(element));
+      supportedChains.push(
+        createEvmChainConfig(element, privateKeyObj.privateKeys)
+      );
     }
   });
 
   return supportedChains;
 }
 
-function createSolanaChainConfig(config: any): ChainConfigInfo {
+function createSolanaChainConfig(
+  config: any,
+  privateKeys: any[]
+): ChainConfigInfo {
   let chainId: ChainId;
   let chainName: string;
   let nodeUrl: string;
@@ -337,15 +363,9 @@ function createSolanaChainConfig(config: any): ChainConfigInfo {
       "Missing required field in chain config: tokenBridgeAddress"
     );
   }
-  if (
-    !(
-      config.walletPrivateKey &&
-      config.walletPrivateKey.length &&
-      config.walletPrivateKey.forEach
-    )
-  ) {
+  if (!(privateKeys && privateKeys.length && privateKeys.forEach)) {
     throw new Error(
-      "Missing required field in chain config: walletPrivateKey (SOLANA!)"
+      "Ill formatted object received as private keys for Solana."
     );
   }
   if (!config.bridgeAddress) {
@@ -362,9 +382,15 @@ function createSolanaChainConfig(config: any): ChainConfigInfo {
   bridgeAddress = config.bridgeAddress;
   wrappedAsset = config.wrappedAsset;
 
-  config.walletPrivateKey.forEach((item: any) => {
-    const uint = Uint8Array.from(item);
-    solanaPrivateKey.push(uint);
+  privateKeys.forEach((item: any) => {
+    try {
+      const uint = Uint8Array.from(item);
+      solanaPrivateKey.push(uint);
+    } catch (e) {
+      throw new Error(
+        "Failed to coerce Solana private keys into a uint array. ENV JSON is possibly incorrect."
+      );
+    }
   });
 
   return {
@@ -378,7 +404,10 @@ function createSolanaChainConfig(config: any): ChainConfigInfo {
   };
 }
 
-function createTerraChainConfig(config: any): ChainConfigInfo {
+function createTerraChainConfig(
+  config: any,
+  privateKeys: any[]
+): ChainConfigInfo {
   let chainId: ChainId;
   let chainName: string;
   let nodeUrl: string;
@@ -403,12 +432,8 @@ function createTerraChainConfig(config: any): ChainConfigInfo {
       "Missing required field in chain config: tokenBridgeAddress"
     );
   }
-  if (
-    !config.walletPrivateKey &&
-    config.walletPrivateKey.length &&
-    config.walletPrivateKey.forEach
-  ) {
-    throw new Error("Missing required field in chain config: walletPrivateKey");
+  if (!(privateKeys && privateKeys.length && privateKeys.forEach)) {
+    throw new Error("Private keys for Terra are length zero or not an array.");
   }
   if (!config.terraName) {
     throw new Error("Missing required field in chain config: terraName");
@@ -427,7 +452,7 @@ function createTerraChainConfig(config: any): ChainConfigInfo {
   chainName = config.chainName;
   nodeUrl = config.nodeUrl;
   tokenBridgeAddress = config.tokenBridgeAddress;
-  walletPrivateKey = config.walletPrivateKey;
+  walletPrivateKey = privateKeys;
   terraName = config.terraName;
   terraChainId = config.terraChainId;
   terraCoin = config.terraCoin;
@@ -446,7 +471,10 @@ function createTerraChainConfig(config: any): ChainConfigInfo {
   };
 }
 
-function createEvmChainConfig(config: any): ChainConfigInfo {
+function createEvmChainConfig(
+  config: any,
+  privateKeys: any[]
+): ChainConfigInfo {
   let chainId: ChainId;
   let chainName: string;
   let nodeUrl: string;
@@ -468,12 +496,10 @@ function createEvmChainConfig(config: any): ChainConfigInfo {
       "Missing required field in chain config: tokenBridgeAddress"
     );
   }
-  if (
-    !config.walletPrivateKey &&
-    config.walletPrivateKey.length &&
-    config.walletPrivateKey.forEach
-  ) {
-    throw new Error("Missing required field in chain config: walletPrivateKey");
+  if (!(privateKeys && privateKeys.length && privateKeys.forEach)) {
+    throw new Error(
+      `Private keys for chain id ${config.chainId} are length zero or not an array.`
+    );
   }
 
   if (!config.wrappedAsset) {

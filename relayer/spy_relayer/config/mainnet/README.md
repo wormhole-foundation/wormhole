@@ -1,12 +1,13 @@
 To utilize:
 
 - Alter the information supportedChains.json marked as CHANGE ME.
-- Modify supportedTokens as needed
+- Modify supportedTokens.json as needed
+- Modify privateKeys.json as needed
 - Remove newlines from supportedChains.json
 - Remove newlines from emitterAddress.json
-- Remove newline from supportedTokens.json
+- Remove newlines from supportedTokens.json
+- Remove newlines from privateKeys.json
 - Add the required information to .env.listener & .env.relayer
-
 
 Useful addresses:
 
