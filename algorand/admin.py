@@ -1110,7 +1110,7 @@ class PortalCore:
                 print(self.genUpgradePayload())
                 sys.exit(0)
     
-            if args.deploy:
+            if args.boot:
                 self.init(args)
                 self.dev_deploy()
                 sys.exit(0)
