@@ -31,6 +31,7 @@ import {
   BSC_MIGRATION_ASSET_MAP,
   CHAINS,
   ETH_MIGRATION_ASSET_MAP,
+  getIsTransferDisabled,
   MIGRATION_ASSET_MAP,
 } from "../../utils/consts";
 import ButtonWithLoader from "../ButtonWithLoader";
@@ -43,6 +44,7 @@ import SolanaTPSWarning from "../SolanaTPSWarning";
 import StepDescription from "../StepDescription";
 import { TokenSelector } from "../TokenSelectors/SourceTokenSelector";
 import SourceAssetWarning from "./SourceAssetWarning";
+import ChainWarningMessage from "../ChainWarningMessage";
 
 const useStyles = makeStyles((theme) => ({
   chainSelectWrapper: {
@@ -78,6 +80,12 @@ function Source() {
     () => CHAINS.filter((c) => c.id !== sourceChain),
     [sourceChain]
   );
+  const isSourceTransferDisabled = useMemo(() => {
+    return getIsTransferDisabled(sourceChain, true);
+  }, [sourceChain]);
+  const isTargetTransferDisabled = useMemo(() => {
+    return getIsTransferDisabled(targetChain, false);
+  }, [targetChain]);
   const parsedTokenAccount = useSelector(
     selectTransferSourceParsedTokenAccount
   );
@@ -235,8 +243,14 @@ function Source() {
               }
             />
           ) : null}
+          <ChainWarningMessage chainId={sourceChain} />
+          <ChainWarningMessage chainId={targetChain} />
           <ButtonWithLoader
-            disabled={!isSourceComplete}
+            disabled={
+              !isSourceComplete ||
+              isSourceTransferDisabled ||
+              isTargetTransferDisabled
+            }
             onClick={handleNextClick}
             showLoader={false}
             error={statusMessage || error}
