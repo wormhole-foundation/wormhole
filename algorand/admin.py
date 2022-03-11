@@ -305,8 +305,8 @@ class PortalCore:
             self.gt.createSignedVAA(guardianSet, self.gt.guardianPrivKeys, int(time.time()), nonce, 1, emitter, int(random.random() * 20000), 32, 8, v[1]),
         ]
         
-        pprint.pprint(self.parseVAA(bytes.fromhex(ret[0])))
-        pprint.pprint(self.parseVAA(bytes.fromhex(ret[1])))
+#        pprint.pprint(self.parseVAA(bytes.fromhex(ret[0])))
+#        pprint.pprint(self.parseVAA(bytes.fromhex(ret[1])))
 
         return ret
 

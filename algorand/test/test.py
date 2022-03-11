@@ -435,11 +435,10 @@ class AlgoTest(PortalCore):
 #        pprint.pprint(vaa)
 #        sys.exit(0)
 
-        gt = GenTest(False)
+        gt = GenTest(True)
         self.gt = gt
 
         client = self.getAlgodClient()
-
 
         print("building our stateless vaa_verify...")
         self.vaa_verify = client.compile(get_vaa_verify())
@@ -460,10 +459,6 @@ class AlgoTest(PortalCore):
 
         print("bootstrapping the guardian set...")
         bootVAA = bytes.fromhex(gt.genGuardianSetUpgrade(gt.guardianPrivKeys, 1, seq, seq, seq))
-        #vaa = gt.genGuardianSetUpgrade(gt.guardianPrivKeys, 1, 0, seq, seq)
-        #bootVAA = bytes.fromhex(vaa)
-        #pprint.pprint((vaa, self.parseVAA(bootVAA)))
-        #sys.exit(0)
         self.bootGuardians(bootVAA, client, foundation, self.coreid)
 
         seq += 1
@@ -478,7 +473,7 @@ class AlgoTest(PortalCore):
 
         print("upgrading the the guardian set using untrusted account...")
         upgradeVAA = bytes.fromhex(gt.genGuardianSetUpgrade(gt.guardianPrivKeys, 1, seq, seq, seq))
-        #self.submitVAA(upgradeVAA, client, player, self.coreid)
+        self.submitVAA(upgradeVAA, client, player, self.coreid)
 
         bal = self.getBalances(client, player.getAddress())
         pprint.pprint(bal)
@@ -490,7 +485,7 @@ class AlgoTest(PortalCore):
         print("token bridge " + str(self.tokenid) + " address " + get_application_address(self.tokenid))
 
         ret = self.devnetUpgradeVAA()
-        pprint.pprint(ret)
+#        pprint.pprint(ret)
         print("Submitting core")
         self.submitVAA(bytes.fromhex(ret[0]), self.client, foundation, self.coreid)
         print("Submitting token")
@@ -498,8 +493,6 @@ class AlgoTest(PortalCore):
 
         print("successfully sent upgrade requests")
         
-        sys.exit(0)
-
         for r in range(1, 6):
             print("Registering chain " + str(r))
             v = gt.genRegisterChain(gt.guardianPrivKeys, 2, seq, seq, r)
