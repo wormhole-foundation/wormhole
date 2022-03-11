@@ -9,6 +9,7 @@ const TokenImplementation = artifacts.require("TokenImplementation");
 const FeeToken = artifacts.require("FeeToken");
 const MockBridgeImplementation = artifacts.require("MockBridgeImplementation");
 const MockWETH9 = artifacts.require("MockWETH9");
+const Deposit = artifacts.require("Deposit");
 
 const testSigner1PK = "cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0";
 const testSigner2PK = "892330666a850761e7370376430bb8c2aa1494072d3bfeaed0c4fa3d5a9135fe";
@@ -23,7 +24,7 @@ contract("Bridge", function () {
     const testChainId = "2";
     const testGovernanceChainId = "1";
     const testGovernanceContract = "0x0000000000000000000000000000000000000000000000000000000000000004";
-    let WETH = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
+    let WETH = process.env.BRIDGE_INIT_WETH;
     const testForeignChainId = "1";
     const testForeignBridgeContract = "0x000000000000000000000000000000000000000000000000000000000000ffff";
     const testBridgedAssetChain = "0001";
@@ -616,7 +617,7 @@ contract("Bridge", function () {
 
     it("should mint bridged assets wrappers on transfer from another chain and handle fees correctly", async function () {
         const accounts = await web3.eth.getAccounts();
-        const amount = "1000000000000000000";
+        const amount = "2000000000000000000";
         const fee = "1000000000000000";
 
         const initialized = new web3.eth.Contract(BridgeImplementationFullABI, TokenBridge.address);
@@ -697,7 +698,7 @@ contract("Bridge", function () {
 
         const accountBalanceBefore = await wrappedAsset.methods.balanceOf(accounts[0]).call();
 
-        assert.equal(accountBalanceBefore.toString(10), amount);
+        assert.equal(accountBalanceBefore.toString(10), "2000000000000000000");
 
         await initialized.methods.transferTokens(
             wrappedAddress,
@@ -713,13 +714,13 @@ contract("Bridge", function () {
         });
 
         const accountBalanceAfter = await wrappedAsset.methods.balanceOf(accounts[0]).call();
-        assert.equal(accountBalanceAfter.toString(10), "0");
+        assert.equal(accountBalanceAfter.toString(10), "1000000000000000000");
 
         const bridgeBalanceAfter = await wrappedAsset.methods.balanceOf(TokenBridge.address).call();
         assert.equal(bridgeBalanceAfter.toString(10), "0");
 
         const totalSupplyAfter = await wrappedAsset.methods.totalSupply().call();
-        assert.equal(totalSupplyAfter.toString(10), "0");
+        assert.equal(totalSupplyAfter.toString(10), "1000000000000000000");
     })
 
     it("should handle ETH deposits correctly", async function () {
@@ -911,6 +912,158 @@ contract("Bridge", function () {
 
         assert.ok(failed)
     })
+
+
+    it("should do deposit address transfers correctly", async function () {
+        const accounts = await web3.eth.getAccounts();
+        const amount = "1000000000000000000";
+        const fee = "100000000000000000";
+
+        let depositAddr = getDepositAddress(TokenBridge.address, TokenImplementation.address, 10, "0x000000000000000000000000b7a2211e8165943192ad04f5dd21bedc29ff003e", fee)
+
+        const token = new web3.eth.Contract(TokenImplementation.abi, TokenImplementation.address);
+
+        // Clean token bridge of coins
+        await token.methods.burn(TokenBridge.address, await token.methods.balanceOf(TokenBridge.address).call()).send({
+            value: 0,
+            from: accounts[0],
+            gasLimit: 2000000
+        });
+
+        // mint and transfer tokens
+        await token.methods.mint(accounts[0], amount).send({
+            value: 0,
+            from: accounts[0],
+            gasLimit: 2000000
+        });
+        await token.methods.transfer(depositAddr, amount).send({
+            value: 0,
+            from: accounts[0],
+            gasLimit: 2000000
+        });
+
+        const initialized = new web3.eth.Contract(BridgeImplementationFullABI, TokenBridge.address);
+
+        const accountBalanceBefore = await token.methods.balanceOf(depositAddr).call();
+        const bridgeBalanceBefore = await token.methods.balanceOf(TokenBridge.address).call();
+
+        assert.equal(accountBalanceBefore.toString(10), amount);
+        assert.equal(bridgeBalanceBefore.toString(10), "0");
+
+        await initialized.methods.transferTokensFromDeposit(
+            TokenImplementation.address,
+            "10",
+            "0x000000000000000000000000b7a2211e8165943192ad04f5dd21bedc29ff003e",
+            fee,
+        ).send({
+            value: 0,
+            from: accounts[0],
+            gasLimit: 2000000
+        });
+
+        const accountBalanceAfter = await token.methods.balanceOf(depositAddr).call();
+        const bridgeBalanceAfter = await token.methods.balanceOf(TokenBridge.address).call();
+
+        assert.equal(accountBalanceAfter.toString(10), "0");
+        assert.equal(bridgeBalanceAfter.toString(10), amount);
+
+        // check transfer log
+        const wormhole = new web3.eth.Contract(WormholeImplementationFullABI, Wormhole.address);
+        const log = (await wormhole.getPastEvents('LogMessagePublished', {
+            fromBlock: 'latest'
+        }))[0].returnValues
+
+        assert.equal(log.sender, TokenBridge.address)
+
+        assert.equal(log.payload.length - 2, 266);
+
+        // payload id
+        assert.equal(log.payload.substr(2, 2), "01");
+
+        // amount
+        assert.equal(log.payload.substr(4, 64), web3.eth.abi.encodeParameter("uint256", new BigNumber(amount).div(1e10).toString()).substring(2));
+
+        // token
+        assert.equal(log.payload.substr(68, 64), web3.eth.abi.encodeParameter("address", TokenImplementation.address).substring(2));
+
+        // chain id
+        assert.equal(log.payload.substr(132, 4), web3.eth.abi.encodeParameter("uint16", testChainId).substring(2 + 64 - 4))
+
+        // to
+        assert.equal(log.payload.substr(136, 64), "000000000000000000000000b7a2211e8165943192ad04f5dd21bedc29ff003e");
+
+        // to chain id
+        assert.equal(log.payload.substr(200, 4), web3.eth.abi.encodeParameter("uint16", 10).substring(2 + 64 - 4))
+
+        // fee
+        assert.equal(log.payload.substr(204, 64), web3.eth.abi.encodeParameter("uint256", new BigNumber(fee).div(1e10).toString()).substring(2))
+    })
+
+    it("should do wrapped deposit address transfers correctly", async function () {
+        const accounts = await web3.eth.getAccounts();
+        const amount = "1000000000000000000";
+        const fee = "100000000000000000";
+
+        const initialized = new web3.eth.Contract(BridgeImplementationFullABI, TokenBridge.address);
+
+        const wrappedAddress = await initialized.methods.wrappedAsset("0x" + testBridgedAssetChain, "0x" + testBridgedAssetAddress).call();
+        const wrappedAsset = new web3.eth.Contract(TokenImplementation.abi, wrappedAddress);
+
+        let depositAddr = getDepositAddress(TokenBridge.address, wrappedAddress, 10, "0x000000000000000000000000b7a2211e8165943192ad04f5dd21bedc29ff003e", fee)
+        await wrappedAsset.methods.transfer(depositAddr, amount).send({
+            value: 0,
+            from: accounts[0],
+            gasLimit: 2000000
+        });
+
+        const accountBalanceBefore = await wrappedAsset.methods.balanceOf(depositAddr).call();
+        assert.equal(accountBalanceBefore.toString(10), amount);
+
+        await initialized.methods.transferTokensFromDeposit(
+            wrappedAddress,
+            "10",
+            "0x000000000000000000000000b7a2211e8165943192ad04f5dd21bedc29ff003e",
+            fee,
+        ).send({
+            value: 0,
+            from: accounts[0],
+            gasLimit: 2000000
+        });
+
+        const accountBalanceAfter = await wrappedAsset.methods.balanceOf(depositAddr).call();
+        assert.equal(accountBalanceAfter.toString(10), "0");
+
+        // check transfer log
+        const wormhole = new web3.eth.Contract(WormholeImplementationFullABI, Wormhole.address);
+        const log = (await wormhole.getPastEvents('LogMessagePublished', {
+            fromBlock: 'latest'
+        }))[0].returnValues
+
+        assert.equal(log.sender, TokenBridge.address)
+
+        assert.equal(log.payload.length - 2, 266);
+
+        // payload id
+        assert.equal(log.payload.substr(2, 2), "01");
+
+        // amount
+        assert.equal(log.payload.substr(4, 64), web3.eth.abi.encodeParameter("uint256", new BigNumber(amount).div(1e10).toString()).substring(2));
+
+        // token
+        assert.equal(log.payload.substr(68, 64), web3.eth.abi.encodeParameter("bytes32", "0x" + testBridgedAssetAddress).substring(2));
+
+        // chain id
+        assert.equal(log.payload.substr(132, 4), web3.eth.abi.encodeParameter("uint16", testBridgedAssetChain).substring(2 + 64 - 4))
+
+        // to
+        assert.equal(log.payload.substr(136, 64), "000000000000000000000000b7a2211e8165943192ad04f5dd21bedc29ff003e");
+
+        // to chain id
+        assert.equal(log.payload.substr(200, 4), web3.eth.abi.encodeParameter("uint16", 10).substring(2 + 64 - 4))
+
+        // fee
+        assert.equal(log.payload.substr(204, 64), web3.eth.abi.encodeParameter("uint256", new BigNumber(fee).div(1e10).toString()).substring(2))
+    })
 });
 
 const signAndEncodeVM = async function (
@@ -970,4 +1123,16 @@ function zeroPadBytes(value, length) {
         value = "0" + value;
     }
     return value;
+}
+
+function getDepositAddress(bridge_address, token, recipientChain, recipient, arbiterFee) {
+    let hashData = "0xff" + bridge_address.slice(2);
+    // token, recipientChain, recipient, arbiterFee
+    hashData += web3.utils.soliditySha3({"t": "address", "v": token}, {
+        "t": "uint16",
+        "v": recipientChain
+    }, {"t": "bytes32", "v": recipient}, {"t": "uint256", "v": arbiterFee}).slice(2) // asset_id
+    hashData += web3.utils.keccak256(Deposit.bytecode + "000000000000000000000000" + token.slice(2)).slice(2) // Bytecode
+
+    return "0x" + web3.utils.keccak256(hashData).slice(26)
 }

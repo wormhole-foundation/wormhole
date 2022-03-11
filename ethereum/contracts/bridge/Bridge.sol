@@ -16,6 +16,7 @@ import "./BridgeGovernance.sol";
 
 import "./token/Token.sol";
 import "./token/TokenImplementation.sol";
+import "./deposit/Deposit.sol";
 
 contract Bridge is BridgeGovernance, ReentrancyGuard {
     using BytesLib for bytes;
@@ -35,7 +36,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         bytes32 symbol;
         bytes32 name;
         assembly {
-            // first 32 bytes hold string length
+        // first 32 bytes hold string length
             symbol := mload(add(symbolString, 32))
             name := mload(add(nameString, 32))
         }
@@ -57,7 +58,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         bytes memory encoded = encodeAssetMeta(meta);
 
         sequence = wormhole().publishMessage{
-            value : msg.value
+        value : msg.value
         }(nonce, encoded, 15);
     }
 
@@ -81,7 +82,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
 
         // deposit into WETH
         WETH().deposit{
-            value : amount - dust
+        value : amount - dust
         }();
 
         // track and check outstanding token amounts
@@ -142,14 +143,76 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         sequence = logTransfer(tokenChain, tokenAddress, normalizedAmount, recipientChain, recipient, normalizedArbiterFee, msg.value, nonce);
     }
 
-    function normalizeAmount(uint256 amount, uint8 decimals) internal pure returns(uint256){
+    // Initiate a Transfer using a deposit address
+    function transferTokensFromDeposit(address token, uint16 recipientChain, bytes32 recipient, uint256 arbiterFee) public payable nonReentrant returns (uint64 sequence) {
+        // determine token parameters
+        uint16 tokenChain;
+        bytes32 tokenAddress;
+        if (isWrappedAsset(token)) {
+            tokenChain = TokenImplementation(token).chainId();
+            tokenAddress = TokenImplementation(token).nativeContract();
+        } else {
+            tokenChain = chainId();
+            tokenAddress = bytes32(uint256(uint160(token)));
+        }
+
+        // query tokens decimals
+        (,bytes memory queriedDecimals) = token.staticcall(abi.encodeWithSignature("decimals()"));
+        uint8 decimals = abi.decode(queriedDecimals, (uint8));
+
+        uint256 amount = 0;
+
+        if (tokenChain == chainId()) {
+            // query own token balance before transfer
+            (,bytes memory queriedBalanceBefore) = token.staticcall(abi.encodeWithSelector(IERC20.balanceOf.selector, address(this)));
+            uint256 balanceBefore = abi.decode(queriedBalanceBefore, (uint256));
+
+            // transfer tokens
+            bytes memory constructorArgs = abi.encode(token);
+
+            // deployment code
+            bytes memory bytecode = abi.encodePacked(type(Deposit).creationCode, constructorArgs);
+            bytes32 salt = keccak256(abi.encodePacked(token, recipientChain, recipient, arbiterFee));
+
+            assembly {
+                pop(create2(0, add(bytecode, 0x20), mload(bytecode), salt))
+            }
+
+            // query own token balance after transfer
+            (,bytes memory queriedBalanceAfter) = token.staticcall(abi.encodeWithSelector(IERC20.balanceOf.selector, address(this)));
+            uint256 balanceAfter = abi.decode(queriedBalanceAfter, (uint256));
+
+            // correct amount for potential transfer fees
+            amount = balanceAfter - balanceBefore;
+        } else {
+            bytes32 salt = keccak256(abi.encodePacked(token, recipientChain, recipient, arbiterFee));
+            bytes32 bytecodeHash = keccak256(abi.encodePacked(type(Deposit).creationCode, abi.encode(token)));
+            address depositAddress = address(uint160(uint256(keccak256(abi.encodePacked(uint8(0xff), address(this), salt, bytecodeHash)))));
+
+            amount = TokenImplementation(token).balanceOf(depositAddress);
+            TokenImplementation(token).burn(depositAddress, amount);
+        }
+
+        // normalize amounts decimals
+        uint256 normalizedAmount = normalizeAmount(amount, decimals);
+        uint256 normalizedArbiterFee = normalizeAmount(arbiterFee, decimals);
+
+        // track and check outstanding token amounts
+        if (tokenChain == chainId()) {
+            bridgeOut(token, normalizedAmount);
+        }
+
+        sequence = logTransfer(tokenChain, tokenAddress, normalizedAmount, recipientChain, recipient, normalizedArbiterFee, msg.value, 0);
+    }
+
+    function normalizeAmount(uint256 amount, uint8 decimals) internal pure returns (uint256){
         if (decimals > 8) {
             amount /= 10 ** (decimals - 8);
         }
         return amount;
     }
 
-    function deNormalizeAmount(uint256 amount, uint8 decimals) internal pure returns(uint256){
+    function deNormalizeAmount(uint256 amount, uint8 decimals) internal pure returns (uint256){
         if (decimals > 8) {
             amount *= 10 ** (decimals - 8);
         }
@@ -160,19 +223,19 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         require(fee <= amount, "fee exceeds amount");
 
         BridgeStructs.Transfer memory transfer = BridgeStructs.Transfer({
-            payloadID : 1,
-            amount : amount,
-            tokenAddress : tokenAddress,
-            tokenChain : tokenChain,
-            to : recipient,
-            toChain : recipientChain,
-            fee : fee
+        payloadID : 1,
+        amount : amount,
+        tokenAddress : tokenAddress,
+        tokenChain : tokenChain,
+        to : recipient,
+        toChain : recipientChain,
+        fee : fee
         });
 
         bytes memory encoded = encodeTransfer(transfer);
 
         sequence = wormhole().publishMessage{
-            value : callValue
+        value : callValue
         }(nonce, encoded, 15);
     }
 
