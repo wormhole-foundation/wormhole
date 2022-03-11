@@ -1,6 +1,7 @@
-import { LogicSigAccount } from "algosdk";
-import { base64, isHexString } from "ethers/lib/utils";
+import algosdk, { LogicSigAccount } from "algosdk";
+import { base64, id, isHexString } from "ethers/lib/utils";
 import { isStringObject } from "util/types";
+import { tealSource } from "./TmplSigSource";
 
 enum TemplateName {
     TMPL_ADDR_IDX = 0,
@@ -36,135 +37,42 @@ export function hexStringToUint8Array(hs: string): Uint8Array {
 }
 
 export class TmplSig {
-    bytecode: string;
-    src: Uint8Array;
-    mapByLabel: Map<TemplateName, TemplateData>;
-    mapByPosition: Map<number, TemplateData>;
+    algoClient: algosdk.Algodv2
+    sourceHash: string
+    bytecode: Uint8Array
 
-    constructor() {
-        // Construct static template data
-        const addrIdx: TemplateData = {
-            name: TemplateName.TMPL_ADDR_IDX,
-            bytes: false,
-            position: 5,
-            sourceLine: 3,
-        };
-        const appAddr: TemplateData = {
-            name: TemplateName.TMPL_APP_ADDRESS,
-            bytes: true,
-            position: 90,
-            sourceLine: 55,
-        };
-        const appId: TemplateData = {
-            name: TemplateName.TMPL_APP_ID,
-            bytes: false,
-            position: 63,
-            sourceLine: 39,
-        };
-        const emmId: TemplateData = {
-            name: TemplateName.TMPL_EMITTER_ID,
-            bytes: true,
-            position: 8,
-            sourceLine: 5,
-        };
-        const seedAmt: TemplateData = {
-            name: TemplateName.TMPL_SEED_AMT,
-            bytes: false,
-            position: 29,
-            sourceLine: 19,
-        };
-        // Create a template data map keyed by name
-        // const tmplMapByLabel: Map<string, TemplateData> = new Map([
-        this.mapByLabel = new Map([
-            [TemplateName.TMPL_ADDR_IDX, addrIdx],
-            [TemplateName.TMPL_APP_ADDRESS, appAddr],
-            [TemplateName.TMPL_APP_ID, appId],
-            [TemplateName.TMPL_EMITTER_ID, emmId],
-            [TemplateName.TMPL_SEED_AMT, seedAmt],
-        ]);
-        // Create a template data map keyed by position
-        this.mapByPosition = new Map([
-            [addrIdx.position, addrIdx],
-            [emmId.position, emmId],
-            [seedAmt.position, seedAmt],
-            [appId.position, appId],
-            [appAddr.position, appAddr],
-        ]);
-
-        this.bytecode =
-            "BiABAYEASIAASIgAAUMyBIEDEjMAECISEDMACIEAEhAzACAyAxIQMwAJMgMSEDMBEIEGEhAzARkiEhAzARiBABIQMwEgMgMSEDMCECISEDMCCIEAEhAzAiCAABIQMwIJMgMSEIk=";
-        this.src = base64.decode(this.bytecode);
+    constructor(algoClient: algosdk.Algodv2) {
+        this.algoClient = algoClient
+        this.sourceHash = ""
+        this.bytecode = new Uint8Array
+    }
+    
+    async compile(source: string) {
+        const hash = id(source)
+        if (hash !== this.sourceHash) {
+            const response = await this.algoClient.compile(source).do()
+            this.bytecode = new Uint8Array(Buffer.from(response.result, 'base64'))
+            this.sourceHash = hash
+        }
     }
 
-    populate(data: PopulateData): LogicSigAccount {
-        // populate uses the map to fill in the variable of the bytecode and returns a logic sig with the populated bytecode
+    /**
+     * Populate data in the TEAL source and return the LogicSig object based on the resulting compiled bytecode.
+     * @param data The data to populate fields with. 
+     * @notes emitterId must be prefixed with '0x'. appAddress must be decoded with algoSDK and prefixed with '0x'.
+     * @returns A LogicSig object.
+     */
+    async populate(data: PopulateData): Promise<LogicSigAccount> {
+        let program = tealSource
+        program = program.replace(/TMPL_ADDR_IDX/, data.addrIdx.toString())
+        program = program.replace(/TMPL_EMITTER_ID/, data.emitterId)
+        program = program.replace(/TMPL_SEED_AMT/, data.seedAmt.toString())
+        program = program.replace(/TMPL_APP_ID/, data.appId.toString())
+        program = program.replace(/TMPL_APP_ADDRESS/, data.appAddress)
+        await this.compile(program)
 
-        // Get the template source
-        let contract: Uint8Array = this.src;
-        let shift: number = 0;
-        // Walk the mapByPosition and modify the bytecode in order
-        this.mapByPosition.forEach((value: TemplateData, key: number) => {
-            let dataVal: string | number;
-            const pos: number = value.position + shift;
-            switch (value.name) {
-                case TemplateName.TMPL_ADDR_IDX:
-                    dataVal = data.addrIdx;
-                    break;
-                case TemplateName.TMPL_APP_ADDRESS:
-                    dataVal = data.appAddress;
-                    break;
-                case TemplateName.TMPL_APP_ID:
-                    dataVal = data.appId;
-                    break;
-                case TemplateName.TMPL_EMITTER_ID:
-                    dataVal = data.emitterId;
-                    break;
-                case TemplateName.TMPL_SEED_AMT:
-                    dataVal = data.seedAmt;
-                    break;
-                default:
-                    throw new Error("Invalid name in populate()");
-            }
-            if (value.bytes && isStringObject(dataVal)) {
-                const val: Uint8Array = hexStringToUint8Array(dataVal);
-                const lbyte: Uint8Array = hexStringToUint8Array(
-                    val.length.toString(16)
-                );
-                // -1 to account for the existing 00 byte for length
-                shift += lbyte.length - 1 + val.length;
-                // +1 to overwrite the existing 00 byte for length
-                const part1: Uint8Array = contract.subarray(0, pos);
-                const part4: Uint8Array = contract.subarray(pos + 2);
-                let len: number = 0;
-                contract = new Uint8Array([]);
-                contract.set(part1);
-                len += part1.length;
-                contract.set(lbyte, len);
-                len += lbyte.length;
-                contract.set(val, len);
-                len += val.length;
-                contract.set(part4, len);
-            } else {
-                const val: Uint8Array = hexStringToUint8Array(
-                    dataVal.toString(16)
-                );
-                // -1 to account for existing 00 byte
-                shift += val.length - 1;
-                // +1 to overwrite existing 00 byte
-                const part1: Uint8Array = contract.subarray(0, pos);
-                const part4: Uint8Array = contract.subarray(pos + 2);
-                let len: number = 0;
-                contract = new Uint8Array([]);
-                contract.set(part1);
-                len += part1.length;
-                contract.set(val, len);
-                len += val.length;
-                contract.set(part4, len);
-            }
-        });
-
-        // Create a new LogicSigAccount given the populated bytecode
-        return new LogicSigAccount(contract);
+        // Create a new LogicSigAccount given the populated TEAL code
+        return new LogicSigAccount(this.bytecode);
     }
 
     //     def get_bytecode_chunk(self, idx: int) -> Bytes:
