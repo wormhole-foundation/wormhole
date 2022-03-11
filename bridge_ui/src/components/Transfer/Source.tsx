@@ -1,7 +1,6 @@
 import {
   CHAIN_ID_BSC,
   CHAIN_ID_ETH,
-  CHAIN_ID_POLYGON,
   CHAIN_ID_SOLANA,
 } from "@certusone/wormhole-sdk";
 import { getAddress } from "@ethersproject/address";
@@ -32,6 +31,7 @@ import {
   BSC_MIGRATION_ASSET_MAP,
   CHAINS,
   ETH_MIGRATION_ASSET_MAP,
+  getIsTransferDisabled,
   MIGRATION_ASSET_MAP,
 } from "../../utils/consts";
 import ButtonWithLoader from "../ButtonWithLoader";
@@ -40,11 +40,11 @@ import ChainSelectArrow from "../ChainSelectArrow";
 import KeyAndBalance from "../KeyAndBalance";
 import LowBalanceWarning from "../LowBalanceWarning";
 import NumberTextField from "../NumberTextField";
-import PolygonNetworkDownWarning from "../PolygonNetworkDownWarning";
 import SolanaTPSWarning from "../SolanaTPSWarning";
 import StepDescription from "../StepDescription";
 import { TokenSelector } from "../TokenSelectors/SourceTokenSelector";
 import SourceAssetWarning from "./SourceAssetWarning";
+import ChainWarningMessage from "../ChainWarningMessage";
 
 const useStyles = makeStyles((theme) => ({
   chainSelectWrapper: {
@@ -80,6 +80,12 @@ function Source() {
     () => CHAINS.filter((c) => c.id !== sourceChain),
     [sourceChain]
   );
+  const isSourceTransferDisabled = useMemo(() => {
+    return getIsTransferDisabled(sourceChain, true);
+  }, [sourceChain]);
+  const isTargetTransferDisabled = useMemo(() => {
+    return getIsTransferDisabled(targetChain, false);
+  }, [targetChain]);
   const parsedTokenAccount = useSelector(
     selectTransferSourceParsedTokenAccount
   );
@@ -141,9 +147,6 @@ function Source() {
   const handleNextClick = useCallback(() => {
     dispatch(incrementStep());
   }, [dispatch]);
-
-  const isPolygonTransfer =
-    sourceChain === CHAIN_ID_POLYGON || targetChain === CHAIN_ID_POLYGON;
 
   return (
     <>
@@ -220,7 +223,6 @@ function Source() {
         <>
           <LowBalanceWarning chainId={sourceChain} />
           {sourceChain === CHAIN_ID_SOLANA && <SolanaTPSWarning />}
-          {isPolygonTransfer && <PolygonNetworkDownWarning />}
           <SourceAssetWarning
             sourceChain={sourceChain}
             sourceAsset={parsedTokenAccount?.mintKey}
@@ -241,8 +243,14 @@ function Source() {
               }
             />
           ) : null}
+          <ChainWarningMessage chainId={sourceChain} />
+          <ChainWarningMessage chainId={targetChain} />
           <ButtonWithLoader
-            disabled={!isSourceComplete || isPolygonTransfer}
+            disabled={
+              !isSourceComplete ||
+              isSourceTransferDisabled ||
+              isTargetTransferDisabled
+            }
             onClick={handleNextClick}
             showLoader={false}
             error={statusMessage || error}

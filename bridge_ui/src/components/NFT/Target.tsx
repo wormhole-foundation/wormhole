@@ -1,5 +1,4 @@
 import {
-  CHAIN_ID_POLYGON,
   CHAIN_ID_SOLANA,
   hexToNativeString,
   hexToUint8Array,
@@ -27,14 +26,18 @@ import {
   selectNFTTargetChain,
   selectNFTTargetError,
 } from "../../store/selectors";
-import { CHAINS_BY_ID, CHAINS_WITH_NFT_SUPPORT } from "../../utils/consts";
+import {
+  CHAINS_BY_ID,
+  CHAINS_WITH_NFT_SUPPORT,
+  getIsTransferDisabled,
+} from "../../utils/consts";
 import ButtonWithLoader from "../ButtonWithLoader";
 import ChainSelect from "../ChainSelect";
 import KeyAndBalance from "../KeyAndBalance";
 import LowBalanceWarning from "../LowBalanceWarning";
-import PolygonNetworkDownWarning from "../PolygonNetworkDownWarning";
 import SolanaTPSWarning from "../SolanaTPSWarning";
 import StepDescription from "../StepDescription";
+import ChainWarningMessage from "../ChainWarningMessage";
 
 const useStyles = makeStyles((theme) => ({
   transferField: {
@@ -87,6 +90,9 @@ function Target() {
   const handleNextClick = useCallback(() => {
     dispatch(incrementStep());
   }, [dispatch]);
+  const isTransferDisabled = useMemo(() => {
+    return getIsTransferDisabled(targetChain, false);
+  }, [targetChain]);
   return (
     <>
       <StepDescription>Select a recipient chain and address.</StepDescription>
@@ -140,9 +146,9 @@ function Target() {
       </Alert>
       <LowBalanceWarning chainId={targetChain} />
       {targetChain === CHAIN_ID_SOLANA && <SolanaTPSWarning />}
-      {targetChain === CHAIN_ID_POLYGON && <PolygonNetworkDownWarning />}
+      <ChainWarningMessage chainId={targetChain} />
       <ButtonWithLoader
-        disabled={!isTargetComplete || targetChain === CHAIN_ID_POLYGON} //|| !associatedAccountExists}
+        disabled={!isTargetComplete || isTransferDisabled} //|| !associatedAccountExists}
         onClick={handleNextClick}
         showLoader={false}
         error={statusMessage || error}
