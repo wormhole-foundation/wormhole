@@ -154,11 +154,12 @@ def getCoreContracts(   client: AlgodClient,
             v = ScratchVar()
 
             return Seq([
+
                 # All governance must be done with the most recent guardian set
                 set.store(App.globalGet(Bytes("currentGuardianSetIndex"))),
-                If(set.load() != Bytes(""), Seq([
+                If(set.load() != Int(0), Seq([
                         idx.store(Extract(Txn.application_args[1], Int(1), Int(4))),
-                        Assert(idx.load() == set.load()),
+                        Assert(Btoi(idx.load()) == set.load()),
                 ])),
 
                 # The offset of the chain
@@ -199,7 +200,7 @@ def getCoreContracts(   client: AlgodClient,
                         Assert(Txn.accounts[3] == get_sig_address(idx.load(), Bytes("guardian"))), 
 
                         # Write this away till the next time
-                        App.globalPut(Bytes("currentGuardianSetIndex"), v.load()),
+                        App.globalPut(Bytes("currentGuardianSetIndex"), Btoi(v.load())),
 
                         # Write everything out to the auxilliary storage
                         off.store(off.load() + Int(4)),
@@ -426,7 +427,7 @@ def getCoreContracts(   client: AlgodClient,
 
         on_create = Seq( [
             App.globalPut(Bytes("vphash"), Bytes("")),
-            App.globalPut(Bytes("currentGuardianSetIndex"), Bytes("")),
+            App.globalPut(Bytes("currentGuardianSetIndex"), Int(0)),
             App.globalPut(Bytes("validUpdateApproveHash"), Bytes("")),
             App.globalPut(Bytes("validUpdateClearHash"), Bytes("BJATCHES5YJZJ7JITYMVLSSIQAVAWBQRVGPQUDT5AZ2QSLDSXWWM46THOY")), # empty clear state program
             Return(Int(1))

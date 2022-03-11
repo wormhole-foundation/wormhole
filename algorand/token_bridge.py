@@ -150,7 +150,7 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
             # All governance must be done with the most recent guardian set...
             set.store(governanceSet()),
             idx.store(Extract(Txn.application_args[1], Int(1), Int(4))),
-            Assert(idx.load() == set.load()),
+            Assert(Btoi(idx.load()) == set.load()),
 
             # The offset of the chain
             off.store(Btoi(Extract(Txn.application_args[1], Int(5), Int(1))) * Int(66) + Int(14)), 

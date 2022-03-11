@@ -293,20 +293,30 @@ class PortalCore:
     def devnetUpgradeVAA(self):
         v = self.genUpgradePayload()
         print("The payload: " + str(v))
-        gt = GenTest(False)
+        if self.gt == None:
+            self.gt = GenTest(False)
 
         emitter = bytes.fromhex(self.zeroPadBytes[0:(31*2)] + "04")
-        guardianSet = 2
+
+        guardianSet = self.getGovSet()
         nonce = int(random.random() * 20000)
         ret = [
-            gt.createSignedVAA(guardianSet, gt.guardianPrivKeys, int(time.time()), nonce, 1, emitter, int(random.random() * 20000), 32, 8, v[0]),
-            gt.createSignedVAA(guardianSet, gt.guardianPrivKeys, int(time.time()), nonce, 1, emitter, int(random.random() * 20000), 32, 8, v[1]),
+            self.gt.createSignedVAA(guardianSet, self.gt.guardianPrivKeys, int(time.time()), nonce, 1, emitter, int(random.random() * 20000), 32, 8, v[0]),
+            self.gt.createSignedVAA(guardianSet, self.gt.guardianPrivKeys, int(time.time()), nonce, 1, emitter, int(random.random() * 20000), 32, 8, v[1]),
         ]
         
         pprint.pprint(self.parseVAA(bytes.fromhex(ret[0])))
         pprint.pprint(self.parseVAA(bytes.fromhex(ret[1])))
 
         return ret
+
+    def getGovSet(self):
+        s = self.client.application_info(self.coreid)["params"]["global-state"]
+        k = base64.b64encode(b"currentGuardianSetIndex").decode('utf-8')
+        for x in s:
+            if x["key"] == k:
+                return x["value"]["uint"]
+        return -1
 
     def genUpgradePayload(self):
         approval, clear = getCoreContracts(self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig)
