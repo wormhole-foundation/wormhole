@@ -10,10 +10,11 @@ const DefaultIndex uint64 = 1
 // DefaultGenesis returns the default Capability genesis state
 func DefaultGenesis() *GenesisState {
 	return &GenesisState{
-		GuardianSetList:      []GuardianSet{},
-		Config:               nil,
-		ReplayProtectionList: []ReplayProtection{},
-		SequenceCounterList:  []SequenceCounter{},
+		GuardianSetList:           []GuardianSet{},
+		Config:                    nil,
+		ReplayProtectionList:      []ReplayProtection{},
+		SequenceCounterList:       []SequenceCounter{},
+		ActiveGuardianSetIndex:    nil,
 		// this line is used by starport scaffolding # genesis/types/default
 	}
 }

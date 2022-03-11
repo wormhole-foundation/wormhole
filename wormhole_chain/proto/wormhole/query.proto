@@ -7,6 +7,7 @@ import "wormhole/guardian_set.proto";
 import "wormhole/config.proto";
 import "wormhole/replay_protection.proto";
 import "wormhole/sequence_counter.proto";
+import "wormhole/active_guardian_set_index.proto";
 // this line is used by starport scaffolding # 1
 import "gogoproto/gogo.proto";
 
@@ -48,6 +49,10 @@ service Query {
 		option (google.api.http).get = "/certusone/wormholechain/wormhole/sequenceCounter";
 	}
 
+// Queries a ActiveGuardianSetIndex by index.
+	rpc ActiveGuardianSetIndex(QueryGetActiveGuardianSetIndexRequest) returns (QueryGetActiveGuardianSetIndexResponse) {
+		option (google.api.http).get = "/certusone/wormholechain/wormhole/active_guardian_set_index";
+	}
 // this line is used by starport scaffolding # 2
 }
 
@@ -109,4 +114,9 @@ message QueryAllSequenceCounterResponse {
 	cosmos.base.query.v1beta1.PageResponse pagination = 2;
 }
 
+message QueryGetActiveGuardianSetIndexRequest {}
+
+message QueryGetActiveGuardianSetIndexResponse {
+	ActiveGuardianSetIndex ActiveGuardianSetIndex = 1 [(gogoproto.nullable) = false];
+}
 // this line is used by starport scaffolding # 3

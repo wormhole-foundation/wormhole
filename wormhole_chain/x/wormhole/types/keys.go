@@ -29,3 +29,7 @@ const (
 const (
 	ConfigKey = "Config-value-"
 )
+
+const (
+	ActiveGuardianSetIndexKey = "ActiveGuardianSetIndex-value-"
+)

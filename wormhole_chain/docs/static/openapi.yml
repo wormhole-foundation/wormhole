@@ -525,6 +525,42 @@ paths:
           type: string
       tags:
         - Query
+  /certusone/wormholechain/wormhole/active_guardian_set_index:
+    get:
+      summary: Queries a ActiveGuardianSetIndex by index.
+      operationId: CertusoneWormholechainWormholeActiveGuardianSetIndex
+      responses:
+        '200':
+          description: A successful response.
+          schema:
+            type: object
+            properties:
+              ActiveGuardianSetIndex:
+                type: object
+                properties:
+                  index:
+                    type: integer
+                    format: int64
+        default:
+          description: An unexpected error response.
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                format: int32
+              message:
+                type: string
+              details:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    '@type':
+                      type: string
+                  additionalProperties: {}
+      tags:
+        - Query
   /certusone/wormholechain/wormhole/config:
     get:
       summary: Queries a config by index.
@@ -14155,6 +14191,12 @@ definitions:
                   "@type": "type.googleapis.com/google.protobuf.Duration",
                   "value": "1.212s"
                 }
+  certusone.wormholechain.wormhole.ActiveGuardianSetIndex:
+    type: object
+    properties:
+      index:
+        type: integer
+        format: int64
   certusone.wormholechain.wormhole.Config:
     type: object
     properties:
@@ -14311,6 +14353,15 @@ definitions:
                    repeated Bar results = 1;
                    PageResponse page = 2;
            }
+  certusone.wormholechain.wormhole.QueryGetActiveGuardianSetIndexResponse:
+    type: object
+    properties:
+      ActiveGuardianSetIndex:
+        type: object
+        properties:
+          index:
+            type: integer
+            format: int64
   certusone.wormholechain.wormhole.QueryGetConfigResponse:
     type: object
     properties:
