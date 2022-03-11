@@ -37,6 +37,9 @@ func TestGenesis(t *testing.T) {
 				Index: "1",
 			},
 		},
+		ActiveGuardianSetIndex: &types.ActiveGuardianSetIndex{
+			Index: 70,
+		},
 		// this line is used by starport scaffolding # genesis/test/state
 	}
 
@@ -53,5 +56,6 @@ func TestGenesis(t *testing.T) {
 	require.Subset(t, genesisState.ReplayProtectionList, got.ReplayProtectionList)
 	require.Len(t, got.SequenceCounterList, len(genesisState.SequenceCounterList))
 	require.Subset(t, genesisState.SequenceCounterList, got.SequenceCounterList)
+	require.Equal(t, genesisState.ActiveGuardianSetIndex, got.ActiveGuardianSetIndex)
 	// this line is used by starport scaffolding # genesis/test/assert
 }
