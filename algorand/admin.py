@@ -1,6 +1,7 @@
 # python3 -m pip install pycryptodomex uvarint pyteal web3 coincurve
 
 from time import time, sleep
+from eth_abi import encode_single, encode_abi
 from typing import List, Tuple, Dict, Any, Optional, Union
 from base64 import b64decode
 import base64
@@ -15,6 +16,7 @@ from local_blob import LocalBlob
 from portal_core import getCoreContracts
 from TmplSig import TmplSig
 import argparse
+from gentest import GenTest
 
 from algosdk.v2client.algod import AlgodClient
 from algosdk.kmd import KMDClient
@@ -272,6 +274,76 @@ class PortalCore:
             if app['id'] == app_id:
                 return app
         return {}
+
+    def encoder(self, type, val):
+        if type == 'uint8':
+            return encode_single(type, val).hex()[62:64]
+        if type == 'uint16':
+            return encode_single(type, val).hex()[60:64]
+        if type == 'uint32':
+            return encode_single(type, val).hex()[56:64]
+        if type == 'uint64':
+            return encode_single(type, val).hex()[64-(16):64]
+        if type == 'uint128':
+            return encode_single(type, val).hex()[64-(32):64]
+        if type == 'uint256' or type == 'bytes32':
+            return encode_single(type, val).hex()[64-(64):64]
+        raise Exception("you suck")
+
+    def devnetUpgradeVAA(self):
+        v = self.genUpgradePayload()
+        print("The payload: " + str(v))
+        gt = GenTest(False)
+
+        emitter = bytes.fromhex(self.zeroPadBytes[0:(31*2)] + "04")
+        guardianSet = 2
+        nonce = int(random.random() * 20000)
+        ret = [
+            gt.createSignedVAA(guardianSet, gt.guardianPrivKeys, int(time.time()), nonce, 1, emitter, int(random.random() * 20000), 32, 8, v[0]),
+            gt.createSignedVAA(guardianSet, gt.guardianPrivKeys, int(time.time()), nonce, 1, emitter, int(random.random() * 20000), 32, 8, v[1]),
+        ]
+        
+        pprint.pprint(self.parseVAA(bytes.fromhex(ret[0])))
+        pprint.pprint(self.parseVAA(bytes.fromhex(ret[1])))
+
+        return ret
+
+    def genUpgradePayload(self):
+        approval, clear = getCoreContracts(self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig)
+
+        b  = self.zeroPadBytes[0:(28*2)]
+        b += self.encoder("uint8", ord("C"))
+        b += self.encoder("uint8", ord("o"))
+        b += self.encoder("uint8", ord("r"))
+        b += self.encoder("uint8", ord("e"))
+        b += self.encoder("uint8", 1)
+        b += self.encoder("uint16", 8)
+
+        b += decode_address(approval["hash"]).hex()
+
+        ret = [b]
+
+        approval, clear = get_token_bridge(self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig)
+
+        b  = self.zeroPadBytes[0:((32 -11)*2)]
+        b += self.encoder("uint8", ord("T"))
+        b += self.encoder("uint8", ord("o"))
+        b += self.encoder("uint8", ord("k"))
+        b += self.encoder("uint8", ord("e"))
+        b += self.encoder("uint8", ord("n"))
+        b += self.encoder("uint8", ord("B"))
+        b += self.encoder("uint8", ord("r"))
+        b += self.encoder("uint8", ord("i"))
+        b += self.encoder("uint8", ord("d"))
+        b += self.encoder("uint8", ord("g"))
+        b += self.encoder("uint8", ord("e"))
+
+        b += self.encoder("uint8", 2)  # action
+        b += self.encoder("uint16", 8) # target chain
+        b += decode_address(approval["hash"]).hex()
+
+        ret.append(b)
+        return ret
 
     def createPortalCoreApp(
         self,
@@ -896,7 +968,10 @@ class PortalCore:
             off += 1
             ret["targetChain"] = int.from_bytes(vaa[off:(off + 2)], "big")
             off += 2
-            ret["NewGuardianSetIndex"] = int.from_bytes(vaa[off:(off + 4)], "big")
+            if ret["action"] == 2:
+                ret["NewGuardianSetIndex"] = int.from_bytes(vaa[off:(off + 4)], "big")
+            else:
+                ret["Contract"] = vaa[off:(off + 32)].hex()
 
         if ((len(vaa[off:])) == 100) and int.from_bytes((vaa[off:off+1]), "big") == 2:
             ret["Meta"] = "TokenBridge Attest"
@@ -963,7 +1038,6 @@ class PortalCore:
 
         print("bootstrapping the guardian set...")
         bootVAA = bytes.fromhex("0100000001010001ca2fbf60ac6227d47dda4fe2e7bccc087f27d22170a212b9800da5b4cbf0d64c52deb2f65ce58be2267bf5b366437c267b5c7b795cd6cea1ac2fee8a1db3ad006225f801000000010001000000000000000000000000000000000000000000000000000000000000000400000000000000012000000000000000000000000000000000000000000000000000000000436f72650200000000000001beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe")
-#        pprint.pprint(self.parseVAA(bootVAA))
         self.bootGuardians(bootVAA, self.client, foundation, self.coreid)
 
         print("bootstrapping the chain registrationst...")
@@ -971,10 +1045,6 @@ class PortalCore:
         vaas = [
             # Solana
             "01000000000100c9f4230109e378f7efc0605fb40f0e1869f2d82fda5b1dfad8a5a2dafee85e033d155c18641165a77a2db6a7afbf2745b458616cb59347e89ae0c7aa3e7cc2d400000000010000000100010000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000546f6b656e4272696467650100000001c69a1b1a65dd336bf1df6a77afb501fc25db7fc0938cb08595a9ef473265cb4f",
-            # Ethereum  (Don't submit this... sequence number is a duplicate of the solana one)
-#            "01000000000100e2e1975d14734206e7a23d90db48a6b5b6696df72675443293c6057dcb936bf224b5df67d32967adeb220d4fe3cb28be515be5608c74aab6adb31099a478db5c01000000010000000100010000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000546f6b656e42726964676501000000020000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16",
-            # BSC  (Don't submit this... sequence number is a duplicate of the solana one)
-#            "01000000000100719b4ada436f614489dbf87593c38ba9aea35aa7b997387f8ae09f819806f5654c8d45b6b751faa0e809ccbc294794885efa205bd8a046669464c7cbfb03d183010000000100000001000100000000000000000000000000000000000000000000000000000000000000040000000002c8bb0600000000000000000000000000000000000000000000546f6b656e42726964676501000000040000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16"
         ]
 
         print("Registering chains")
@@ -998,19 +1068,42 @@ class PortalCore:
                             default="unencrypted-default-wallet")
         parser.add_argument('--kmd_password', type=str, help='kmd wallet password', default="")
 
-        parser.add_argument('--mnemonic', type=str, help='account mnemonic', 
-                            default="assault approve result rare float sugar power float soul kind galaxy edit unusual pretty tone tilt net range pelican avoid unhappy amused recycle abstract master")
+        parser.add_argument('--mnemonic', type=str, help='account mnemonic', default="")
 
-        parser.add_argument('--appid', type=int, help='setup devnet')
+        parser.add_argument('--coreid', type=int, help='core contract', default=4)
+        parser.add_argument('--tokenid', type=int, help='token bridge contract', default=6)
         parser.add_argument('--devnet', action='store_true', help='setup devnet')
+        parser.add_argument('--boot', action='store_true', help='bootstrap')
+        parser.add_argument('--upgradePayload', action='store_true', help='gen the upgrade payload for the guardians to sign')
+        parser.add_argument('--vaa', type=str, help='Submit the supplied VAA', default="")
+        parser.add_argument('--submit', action='store_true', help='submit the synthetic vaas')
+        parser.add_argument('--upgradeVAA', action='store_true', help='generate a upgrade vaa for devnet')
         parser.add_argument('--print', action='store_true', help='print')
     
         args = parser.parse_args()
 
         if args.devnet:
-            self.init(args)
-            self.dev_deploy()
-            sys.exit(0)
+            if args.upgradeVAA:
+                self.init(args)
+                ret = self.devnetUpgradeVAA()
+                pprint.pprint(ret)
+                if (args.submit) :
+                    self.coreid = args.coreid
+                    self.tokenid = args.tokenid
+                    foundation = self.getTemporaryAccount(self.client)
+                    self.submitVAA(bytes.fromhex(ret[0]), self.client, foundation, self.coreid)
+                    self.submitVAA(bytes.fromhex(ret[1]), self.client, foundation, self.tokenid)
+                sys.exit(0)
+    
+            if args.upgradePayload:
+                self.init(args)
+                print(self.genUpgradePayload())
+                sys.exit(0)
+    
+            if args.deploy:
+                self.init(args)
+                self.dev_deploy()
+                sys.exit(0)
 
 core = PortalCore()
 core.main()
