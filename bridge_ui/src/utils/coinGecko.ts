@@ -681,4 +681,6 @@ export const COIN_GECKO_IMAGE_URLS: CoinGeckoIdToImageUrl = {
     "https://assets.coingecko.com/coins/images/7137/small/logo-circle-green.png?1619593365",
   "celer-network":
     "https://assets.coingecko.com/coins/images/4379/small/Celr.png?1554705437",
+  "wrapped-fantom":
+    "https://assets.coingecko.com/coins/images/16036/small/Fantom.png?1622679930",
 };
