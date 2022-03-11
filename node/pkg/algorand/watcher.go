@@ -85,7 +85,7 @@ func lookAtTxn(e *Watcher, t models.Transaction, logger *zap.Logger) {
 			var it = t.InnerTxns[q]
 			var at = it.ApplicationTransaction
 
-			if (len(at.ApplicationArgs) == 0) || (at.ApplicationId != e.appid) || (len(it.Logs) == 0) {
+			if (len(at.ApplicationArgs) != 3) || (at.ApplicationId != e.appid) || (len(it.Logs) == 0) {
 				continue
 			}
 
@@ -98,8 +98,6 @@ func lookAtTxn(e *Watcher, t models.Transaction, logger *zap.Logger) {
 				JSON, _ := json.Marshal(it)
 				logger.Info(string(JSON))
 			}
-
-			var seq = binary.BigEndian.Uint64(it.Logs[0])
 
 			emitter, err := types.DecodeAddress(it.Sender)
 			if nil != err {
@@ -121,7 +119,7 @@ func lookAtTxn(e *Watcher, t models.Transaction, logger *zap.Logger) {
 			}
 
 			if e.debug {
-				logger.Info("id: " + hex.EncodeToString(id))
+				logger.Info("id: " + hex.EncodeToString(id) + " " + t.Id)
 			}
 
 			var txHash = eth_common.BytesToHash(id)   // 32 bytes = d3b136a6a182a40554b2fafbc8d12a7a22737c10c81e33b33d1dcb74c532708b
@@ -129,8 +127,8 @@ func lookAtTxn(e *Watcher, t models.Transaction, logger *zap.Logger) {
 			observation := &common.MessagePublication{
 				TxHash:           txHash,
 				Timestamp:        time.Unix(int64(it.RoundTime), 0),
-				Nonce:            0,    // Right now, these are all 0
-				Sequence:         seq,
+				Nonce:            uint32(binary.BigEndian.Uint64(at.ApplicationArgs[2])),
+				Sequence:         binary.BigEndian.Uint64(it.Logs[0]),
 				EmitterChain:     vaa.ChainIDAlgorand,
 				EmitterAddress:   a,
 				Payload:          at.ApplicationArgs[1],
@@ -180,29 +178,30 @@ func (e *Watcher) Run(ctx context.Context) error {
 		// Parameters
 		var notePrefix = "publishMessage"
 
-//		if !e.debug && e.next_round == 0 {
-//			// What is the latest round...
-//			result, err := indexerClient.SearchForTransactions().Limit(0).Do(context.Background())
-//			if err != nil {
-//				logger.Info(err.Error())
-//				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAlgorand, 1)
-//				errC <- err
-//				return
-//			}
-//			e.next_round = result.CurrentRound + 1
-//		}
+		if e.next_round == 0 {
+			// What is the latest round...
+			result, err := indexerClient.SearchForTransactions().Limit(0).Do(context.Background())
+			if err != nil {
+				logger.Info(err.Error())
+				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAlgorand, 1)
+				errC <- err
+				return
+			}
+			e.next_round = result.CurrentRound + 1
+		}
 
 		for {
 			select {
 			case <-ctx.Done():
 				return
 			case r := <-e.obsvReqC:
-				// Can somebody tell me how to test this?
 				if vaa.ChainID(r.ChainId) != vaa.ChainIDAlgorand {
 					panic("invalid chain ID")
 				}
 
-				result, err := indexerClient.SearchForTransactions().TXID(string(r.TxHash)).Do(context.Background())
+				logger.Info("Received obsv request: " + hex.EncodeToString(r.TxHash) + " -> " + base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(r.TxHash))
+
+				result, err := indexerClient.SearchForTransactions().TXID(base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(r.TxHash)).Do(context.Background())
 				if err != nil {
 					logger.Info(err.Error())
 					p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAlgorand, 1)
