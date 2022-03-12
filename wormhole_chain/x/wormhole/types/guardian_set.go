@@ -8,9 +8,7 @@ import (
 
 func (gs GuardianSet) KeysAsAddresses() (addresses []common.Address) {
 	for _, key := range gs.Keys {
-		address := common.Address{}
-		copy(address[:], key)
-		addresses = append(addresses, address)
+		addresses = append(addresses, common.BytesToAddress(key))
 	}
 
 	return
