@@ -69,6 +69,12 @@ func (k msgServer) RegisterAccountAsGuardian(goCtx context.Context, msg *types.M
 
 	// TODO(csongor): implement k.GetValidatorByGuardianAddr/SetValidatorByGuardianAddr
 
+	// register validator in store for guardian
+	k.Keeper.SetGuardianValidator(ctx, types.GuardianValidator{
+		GuardianKey:   guardianKey,
+		ValidatorAddr: claimedSigner,
+	})
+
 	// call the after-registration hook
 	// TODO(csongor): k.AfterGuardianRegistered(ctx, ...)
 
@@ -77,14 +83,15 @@ func (k msgServer) RegisterAccountAsGuardian(goCtx context.Context, msg *types.M
 
 	// TODO(csongor): emit event about guardian registration
 
-	k.tryNewConsensusGuardianSet(ctx)
+	k.Keeper.tryNewConsensusGuardianSet(ctx)
 
 	return &types.MsgRegisterAccountAsGuardianResponse{}, nil
 }
 
-func (k msgServer) tryNewConsensusGuardianSet(ctx sdk.Context) error {
-	latestGuardianSetIndex := k.Keeper.GetLatestGuardianSetIndex(ctx)
-	consensusGuardianSetIndex, found := k.Keeper.GetActiveGuardianSetIndex(ctx)
+// TODO(csongor): call this when a new guardian set is added (maybe move the function?)
+func (k Keeper) tryNewConsensusGuardianSet(ctx sdk.Context) error {
+	latestGuardianSetIndex := k.GetLatestGuardianSetIndex(ctx)
+	consensusGuardianSetIndex, found := k.GetActiveGuardianSetIndex(ctx)
 	if !found {
 		return types.ErrGuardianNotFound
 	}
@@ -94,14 +101,29 @@ func (k msgServer) tryNewConsensusGuardianSet(ctx sdk.Context) error {
 		return nil
 	}
 
-	consensusGuardianSet, found := k.Keeper.GetGuardianSet(ctx, consensusGuardianSetIndex.Index)
+	consensusGuardianSet, found := k.GetGuardianSet(ctx, consensusGuardianSetIndex.Index)
 	if !found {
 		return types.ErrGuardianNotFound
 	}
 
-	quorum := CalculateQuorum(len(consensusGuardianSet.Keys))
+	// count how many registrations we have
+	registered := 0
+	for _, key := range consensusGuardianSet.Keys {
+		_, found := k.GetGuardianValidator(ctx, key)
+		if found {
+			registered++
+		}
+	}
 
-	_ = quorum
+	// see if we have enough validators registered to produce blocks.
+	// TODO(csongor): this has to be kept in sync with tendermint consensus
+	quorum := CalculateQuorum(len(consensusGuardianSet.Keys))
+	if registered >= quorum {
+		// we have enough, set consensus set to the latest one. Guardian set upgrade complete.
+		k.SetActiveGuardianSetIndex(ctx, types.ActiveGuardianSetIndex{
+			Index: latestGuardianSetIndex,
+		})
+	}
 
 	return nil
 }
