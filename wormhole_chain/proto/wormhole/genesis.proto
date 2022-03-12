@@ -6,6 +6,7 @@ import "wormhole/config.proto";
 import "wormhole/replay_protection.proto";
 import "wormhole/sequence_counter.proto";
 import "wormhole/active_guardian_set_index.proto";
+import "wormhole/guardian_validator.proto";
 // this line is used by starport scaffolding # genesis/proto/import
 import "gogoproto/gogo.proto";
 
@@ -19,5 +20,6 @@ message GenesisState {
   repeated ReplayProtection replayProtectionList = 4 [(gogoproto.nullable) = false];
   repeated SequenceCounter sequenceCounterList = 5 [(gogoproto.nullable) = false];
   ActiveGuardianSetIndex activeGuardianSetIndex = 6;
+  repeated GuardianValidator guardianValidatorList = 7 [(gogoproto.nullable) = false];
   // this line is used by starport scaffolding # genesis/proto/state
 }

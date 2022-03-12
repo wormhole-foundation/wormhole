@@ -24,7 +24,7 @@ func CalculateQuorum(numGuardians int) int {
 }
 
 func (k Keeper) VerifyVAA(ctx sdk.Context, vaa *vaa.VAA) error {
-	// TODO(csongor): shouldn't we check guardian set expiry date here?
+	// TODO(csongor): shouldn't we check guardian set expiry date here? (yes, we should)
 	guardianSet, exists := k.GetGuardianSet(ctx, vaa.GuardianSetIndex)
 	if !exists {
 		return types.ErrGuardianSetNotFound
