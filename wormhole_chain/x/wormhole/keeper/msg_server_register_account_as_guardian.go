@@ -77,5 +77,31 @@ func (k msgServer) RegisterAccountAsGuardian(goCtx context.Context, msg *types.M
 
 	// TODO(csongor): emit event about guardian registration
 
+	k.tryNewConsensusGuardianSet(ctx)
+
 	return &types.MsgRegisterAccountAsGuardianResponse{}, nil
+}
+
+func (k msgServer) tryNewConsensusGuardianSet(ctx sdk.Context) error {
+	latestGuardianSetIndex := k.Keeper.GetLatestGuardianSetIndex(ctx)
+	consensusGuardianSetIndex, found := k.Keeper.GetActiveGuardianSetIndex(ctx)
+	if !found {
+		return types.ErrGuardianNotFound
+	}
+
+	// nothing to do if the latest set is already the consensus set
+	if latestGuardianSetIndex == consensusGuardianSetIndex.Index {
+		return nil
+	}
+
+	consensusGuardianSet, found := k.Keeper.GetGuardianSet(ctx, consensusGuardianSetIndex.Index)
+	if !found {
+		return types.ErrGuardianNotFound
+	}
+
+	quorum := CalculateQuorum(len(consensusGuardianSet.Keys))
+
+	_ = quorum
+
+	return nil
 }
