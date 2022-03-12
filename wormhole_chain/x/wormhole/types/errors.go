@@ -24,4 +24,5 @@ var (
 	ErrVAAAlreadyExecuted             = sdkerrors.Register(ModuleName, 1113, "VAA was already executed")
 	ErrGuardianSignatureMismatch      = sdkerrors.Register(ModuleName, 1114, "guardian signature mismatch")
 	ErrSignerMismatch                 = sdkerrors.Register(ModuleName, 1115, "transaction signer doesn't match validator key")
+	ErrGuardianNotFound               = sdkerrors.Register(ModuleName, 1116, "guardian not found in guardian set")
 )
