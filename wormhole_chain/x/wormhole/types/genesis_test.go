@@ -50,6 +50,14 @@ func TestGenesisState_Validate(t *testing.T) {
 				ActiveGuardianSetIndex: &types.ActiveGuardianSetIndex{
 					Index: 14,
 				},
+				GuardianValidatorList: []types.GuardianValidator{
+					{
+						GuardianKey: "0",
+					},
+					{
+						GuardianKey: "1",
+					},
+				},
 				// this line is used by starport scaffolding # types/genesis/validField
 			},
 			valid: true,
@@ -103,6 +111,20 @@ func TestGenesisState_Validate(t *testing.T) {
 					},
 					{
 						Index: "0",
+					},
+				},
+			},
+			valid: false,
+		},
+		{
+			desc: "duplicated guardianValidator",
+			genState: &types.GenesisState{
+				GuardianValidatorList: []types.GuardianValidator{
+					{
+						GuardianKey: "0",
+					},
+					{
+						GuardianKey: "0",
 					},
 				},
 			},

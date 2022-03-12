@@ -40,6 +40,14 @@ func TestGenesis(t *testing.T) {
 		ActiveGuardianSetIndex: &types.ActiveGuardianSetIndex{
 			Index: 70,
 		},
+		GuardianValidatorList: []types.GuardianValidator{
+			{
+				GuardianKey: "0",
+			},
+			{
+				GuardianKey: "1",
+			},
+		},
 		// this line is used by starport scaffolding # genesis/test/state
 	}
 
@@ -57,5 +65,6 @@ func TestGenesis(t *testing.T) {
 	require.Len(t, got.SequenceCounterList, len(genesisState.SequenceCounterList))
 	require.Subset(t, genesisState.SequenceCounterList, got.SequenceCounterList)
 	require.Equal(t, genesisState.ActiveGuardianSetIndex, got.ActiveGuardianSetIndex)
+	require.ElementsMatch(t, genesisState.GuardianValidatorList, got.GuardianValidatorList)
 	// this line is used by starport scaffolding # genesis/test/assert
 }
