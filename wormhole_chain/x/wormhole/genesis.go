@@ -30,6 +30,10 @@ func InitGenesis(ctx sdk.Context, k keeper.Keeper, genState types.GenesisState) 
 	if genState.ActiveGuardianSetIndex != nil {
 		k.SetActiveGuardianSetIndex(ctx, *genState.ActiveGuardianSetIndex)
 	}
+	// Set all the guardianValidator
+	for _, elem := range genState.GuardianValidatorList {
+		k.SetGuardianValidator(ctx, elem)
+	}
 	// this line is used by starport scaffolding # genesis/module/init
 }
 
@@ -50,6 +54,7 @@ func ExportGenesis(ctx sdk.Context, k keeper.Keeper) *types.GenesisState {
 	if found {
 		genesis.ActiveGuardianSetIndex = &activeGuardianSetIndex
 	}
+	genesis.GuardianValidatorList = k.GetAllGuardianValidator(ctx)
 	// this line is used by starport scaffolding # genesis/module/export
 
 	return genesis

@@ -8,6 +8,7 @@ import "wormhole/config.proto";
 import "wormhole/replay_protection.proto";
 import "wormhole/sequence_counter.proto";
 import "wormhole/active_guardian_set_index.proto";
+import "wormhole/guardian_validator.proto";
 // this line is used by starport scaffolding # 1
 import "gogoproto/gogo.proto";
 
@@ -53,6 +54,16 @@ service Query {
 	rpc ActiveGuardianSetIndex(QueryGetActiveGuardianSetIndexRequest) returns (QueryGetActiveGuardianSetIndexResponse) {
 		option (google.api.http).get = "/certusone/wormholechain/wormhole/active_guardian_set_index";
 	}
+// Queries a GuardianValidator by index.
+	rpc GuardianValidator(QueryGetGuardianValidatorRequest) returns (QueryGetGuardianValidatorResponse) {
+		option (google.api.http).get = "/certusone/wormholechain/wormhole/guardian_validator/{guardianKey}";
+	}
+
+	// Queries a list of GuardianValidator items.
+	rpc GuardianValidatorAll(QueryAllGuardianValidatorRequest) returns (QueryAllGuardianValidatorResponse) {
+		option (google.api.http).get = "/certusone/wormholechain/wormhole/guardian_validator";
+	}
+
 // this line is used by starport scaffolding # 2
 }
 
@@ -119,4 +130,22 @@ message QueryGetActiveGuardianSetIndexRequest {}
 message QueryGetActiveGuardianSetIndexResponse {
 	ActiveGuardianSetIndex ActiveGuardianSetIndex = 1 [(gogoproto.nullable) = false];
 }
+message QueryGetGuardianValidatorRequest {
+	  bytes guardianKey = 1;
+
+}
+
+message QueryGetGuardianValidatorResponse {
+	GuardianValidator guardianValidator = 1 [(gogoproto.nullable) = false];
+}
+
+message QueryAllGuardianValidatorRequest {
+	cosmos.base.query.v1beta1.PageRequest pagination = 1;
+}
+
+message QueryAllGuardianValidatorResponse {
+	repeated GuardianValidator guardianValidator = 1 [(gogoproto.nullable) = false];
+	cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+
 // this line is used by starport scaffolding # 3

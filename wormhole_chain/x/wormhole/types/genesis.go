@@ -15,6 +15,7 @@ func DefaultGenesis() *GenesisState {
 		ReplayProtectionList:      []ReplayProtection{},
 		SequenceCounterList:       []SequenceCounter{},
 		ActiveGuardianSetIndex:    nil,
+		GuardianValidatorList:     []GuardianValidator{},
 		// this line is used by starport scaffolding # genesis/types/default
 	}
 }
@@ -49,6 +50,16 @@ func (gs GenesisState) Validate() error {
 			return fmt.Errorf("duplicated index for sequenceCounter")
 		}
 		sequenceCounterIndexMap[index] = struct{}{}
+	}
+	// Check for duplicated index in guardianValidator
+	guardianValidatorIndexMap := make(map[string]struct{})
+
+	for _, elem := range gs.GuardianValidatorList {
+		index := string(GuardianValidatorKey(elem.GuardianKey))
+		if _, ok := guardianValidatorIndexMap[index]; ok {
+			return fmt.Errorf("duplicated index for guardianValidator")
+		}
+		guardianValidatorIndexMap[index] = struct{}{}
 	}
 	// this line is used by starport scaffolding # genesis/types/validate
 
