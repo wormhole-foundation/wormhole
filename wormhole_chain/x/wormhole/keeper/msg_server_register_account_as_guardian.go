@@ -83,47 +83,7 @@ func (k msgServer) RegisterAccountAsGuardian(goCtx context.Context, msg *types.M
 
 	// TODO(csongor): emit event about guardian registration
 
-	k.Keeper.tryNewConsensusGuardianSet(ctx)
+	k.Keeper.TrySwitchToNewConsensusGuardianSet(ctx)
 
 	return &types.MsgRegisterAccountAsGuardianResponse{}, nil
-}
-
-// TODO(csongor): call this when a new guardian set is added (maybe move the function?)
-func (k Keeper) tryNewConsensusGuardianSet(ctx sdk.Context) error {
-	latestGuardianSetIndex := k.GetLatestGuardianSetIndex(ctx)
-	consensusGuardianSetIndex, found := k.GetActiveGuardianSetIndex(ctx)
-	if !found {
-		return types.ErrGuardianNotFound
-	}
-
-	// nothing to do if the latest set is already the consensus set
-	if latestGuardianSetIndex == consensusGuardianSetIndex.Index {
-		return nil
-	}
-
-	consensusGuardianSet, found := k.GetGuardianSet(ctx, consensusGuardianSetIndex.Index)
-	if !found {
-		return types.ErrGuardianNotFound
-	}
-
-	// count how many registrations we have
-	registered := 0
-	for _, key := range consensusGuardianSet.Keys {
-		_, found := k.GetGuardianValidator(ctx, key)
-		if found {
-			registered++
-		}
-	}
-
-	// see if we have enough validators registered to produce blocks.
-	// TODO(csongor): this has to be kept in sync with tendermint consensus
-	quorum := CalculateQuorum(len(consensusGuardianSet.Keys))
-	if registered >= quorum {
-		// we have enough, set consensus set to the latest one. Guardian set upgrade complete.
-		k.SetActiveGuardianSetIndex(ctx, types.ActiveGuardianSetIndex{
-			Index: latestGuardianSetIndex,
-		})
-	}
-
-	return nil
 }

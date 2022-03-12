@@ -45,7 +45,50 @@ func (k Keeper) UpdateGuardianSet(ctx sdk.Context, newGuardianSet types.Guardian
 		return err
 	}
 
+	err = k.TrySwitchToNewConsensusGuardianSet(ctx)
+	if err != nil {
+		return err
+	}
 	return err
+}
+
+func (k Keeper) TrySwitchToNewConsensusGuardianSet(ctx sdk.Context) error {
+	latestGuardianSetIndex := k.GetLatestGuardianSetIndex(ctx)
+	consensusGuardianSetIndex, found := k.GetActiveGuardianSetIndex(ctx)
+	if !found {
+		return types.ErrGuardianNotFound
+	}
+
+	// nothing to do if the latest set is already the consensus set
+	if latestGuardianSetIndex == consensusGuardianSetIndex.Index {
+		return nil
+	}
+
+	consensusGuardianSet, found := k.GetGuardianSet(ctx, consensusGuardianSetIndex.Index)
+	if !found {
+		return types.ErrGuardianNotFound
+	}
+
+	// count how many registrations we have
+	registered := 0
+	for _, key := range consensusGuardianSet.Keys {
+		_, found := k.GetGuardianValidator(ctx, key)
+		if found {
+			registered++
+		}
+	}
+
+	// see if we have enough validators registered to produce blocks.
+	// TODO(csongor): this has to be kept in sync with tendermint consensus
+	quorum := CalculateQuorum(len(consensusGuardianSet.Keys))
+	if registered >= quorum {
+		// we have enough, set consensus set to the latest one. Guardian set upgrade complete.
+		k.SetActiveGuardianSetIndex(ctx, types.ActiveGuardianSetIndex{
+			Index: latestGuardianSetIndex,
+		})
+	}
+
+	return nil
 }
 
 // GetGuardianSetCount get the total number of guardianSet
@@ -112,8 +155,15 @@ func (k Keeper) GetGuardianSet(ctx sdk.Context, id uint32) (val types.GuardianSe
 	return val, true
 }
 
-func (k Keeper) IsGuardian(ctx sdk.Context, addr sdk.ValAddress) bool {
-	return true
+func (k Keeper) IsGuardian(ctx sdk.Context, addr sdk.ValAddress) (bool, error) {
+	consensusGuardianSet, found := k.GetActiveGuardianSetIndex(ctx)
+	if !found {
+		return false, types.ErrGuardianSetNotFound
+	}
+
+	_, found = k.GetValidatorGuardianKeys(ctx, addr.Bytes(), consensusGuardianSet.Index)
+
+	return found, nil
 }
 
 // RemoveGuardianSet removes a guardianSet from the store
