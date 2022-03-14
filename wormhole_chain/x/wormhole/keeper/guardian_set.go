@@ -155,15 +155,17 @@ func (k Keeper) GetGuardianSet(ctx sdk.Context, id uint32) (val types.GuardianSe
 	return val, true
 }
 
+// TODO(csongor): delete this function
 func (k Keeper) IsConsensusGuardian(ctx sdk.Context, addr sdk.ValAddress) (bool, error) {
-	consensusGuardianSet, found := k.GetActiveGuardianSetIndex(ctx)
+	_, found := k.GetActiveGuardianSetIndex(ctx)
 	if !found {
 		return false, types.ErrGuardianSetNotFound
 	}
 
-	_, found = k.GetValidatorGuardianKeys(ctx, addr.Bytes(), consensusGuardianSet.Index)
+	// _, found = k.GetValidatorGuardianKeys(ctx, addr.Bytes(), consensusGuardianSet.Index)
+	return true, nil
 
-	return found, nil
+	// return found, nil
 }
 
 // RemoveGuardianSet removes a guardianSet from the store
