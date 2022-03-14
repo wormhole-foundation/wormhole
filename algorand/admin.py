@@ -403,6 +403,9 @@ class PortalCore:
     ) -> int:
         approval, clear = get_token_bridge(client, seed_amt=self.seed_amt, tmpl_sig=self.tsig)
 
+        if len(b64decode(approval["result"])) > 4060:
+            print("token bridge contract is too large... This might prevent updates later")
+
         globalSchema = transaction.StateSchema(num_uints=4, num_byte_slices=30)
         localSchema = transaction.StateSchema(num_uints=0, num_byte_slices=16)
     

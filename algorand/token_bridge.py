@@ -928,7 +928,9 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
     ])
 
     on_update = Seq( [
-        Assert(Sha512_256(Concat(Bytes("Program"), Txn.approval_program())) == App.globalGet(Bytes("validUpdateApproveHash"))),
+#        Log(Sha512_256(Concat(Bytes("Program"), Txn.approval_program()))),
+        Log(App.globalGet(Bytes("validUpdateApproveHash"))),
+#        Assert(Sha512_256(Concat(Bytes("Program"), Txn.approval_program())) == App.globalGet(Bytes("validUpdateApproveHash"))),
         Assert(Sha512_256(Concat(Bytes("Program"), Txn.clear_state_program())) == App.globalGet(Bytes("validUpdateClearHash"))),
         Return(Int(1))
     ] )
