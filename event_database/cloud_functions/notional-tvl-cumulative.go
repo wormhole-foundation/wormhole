@@ -294,7 +294,6 @@ func TvlCumulative(w http.ResponseWriter, r *http.Request) {
 
 				notional := asset.Amount * asset.TokenPrice
 				if notional <= 0 {
-					log.Printf("skipping token with no/negative value. notional: %v, chain: %v, symbol %v, address %v", notional, chain, asset.Symbol, asset.Address)
 					continue
 				}
 

@@ -380,7 +380,6 @@ func TVL(w http.ResponseWriter, r *http.Request) {
 					currentPrice := tokenPrices[coinId]
 					notionalVal := amount * currentPrice
 					if notionalVal <= 0 {
-						log.Printf("skipping token with no value. chain: %v, symbol %v, address %v", chain, lockedAsset.Symbol, lockedAsset.Address)
 						continue
 					}
 
