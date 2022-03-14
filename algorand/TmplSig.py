@@ -119,25 +119,26 @@ class TmplSig:
                 algo_seed = Gtxn[0]
                 optin = Gtxn[1]
                 rekey = Gtxn[2]
+
+                return Seq([
+                    Assert(Global.group_size() == Int(3)),
         
-                return And(
-                    Global.group_size() == Int(3),
+                    Assert(algo_seed.type_enum() == TxnType.Payment),
+                    Assert(algo_seed.amount() == seed_amt),
+                    Assert(algo_seed.rekey_to() == Global.zero_address()),
+                    Assert(algo_seed.close_remainder_to() == Global.zero_address()),
         
-                    algo_seed.type_enum() == TxnType.Payment,
-                    algo_seed.amount() == seed_amt,
-                    algo_seed.rekey_to() == Global.zero_address(),
-                    algo_seed.close_remainder_to() == Global.zero_address(),
+                    Assert(optin.type_enum() == TxnType.ApplicationCall),
+                    Assert(optin.on_completion() == OnComplete.OptIn),
+                    Assert(optin.application_id() == admin_app_id),
+                    Assert(optin.rekey_to() == Global.zero_address()),
         
-                    optin.type_enum() == TxnType.ApplicationCall,
-                    optin.on_completion() == OnComplete.OptIn,
-                    optin.application_id() == admin_app_id,
-                    optin.rekey_to() == Global.zero_address(),
-        
-                    rekey.type_enum() == TxnType.Payment,
-                    rekey.amount() == Int(0),
-                    rekey.rekey_to() == admin_address,
-                    rekey.close_remainder_to() == Global.zero_address(),
-                )
+                    Assert(rekey.type_enum() == TxnType.Payment),
+                    Assert(rekey.amount() == Int(0)),
+                    Assert(rekey.rekey_to() == admin_address),
+                    Assert(rekey.close_remainder_to() == Global.zero_address()),
+                    Approve()
+                ])
         
             return Seq(
                 # Just putting adding this as a tmpl var to make the address unique and deterministic
