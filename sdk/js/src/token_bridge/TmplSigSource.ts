@@ -13,53 +13,55 @@ init_0:
 global GroupSize
 pushint 3 // 3
 ==
+assert
 gtxn 0 TypeEnum
 intc_0 // pay
 ==
-&&
+assert
 gtxn 0 Amount
 pushint TMPL_SEED_AMT // TMPL_SEED_AMT
 ==
-&&
+assert
 gtxn 0 RekeyTo
 global ZeroAddress
 ==
-&&
+assert
 gtxn 0 CloseRemainderTo
 global ZeroAddress
 ==
-&&
+assert
 gtxn 1 TypeEnum
 pushint 6 // appl
 ==
-&&
+assert
 gtxn 1 OnCompletion
 intc_0 // OptIn
 ==
-&&
+assert
 gtxn 1 ApplicationID
 pushint TMPL_APP_ID // TMPL_APP_ID
 ==
-&&
+assert
 gtxn 1 RekeyTo
 global ZeroAddress
 ==
-&&
+assert
 gtxn 2 TypeEnum
 intc_0 // pay
 ==
-&&
+assert
 gtxn 2 Amount
 pushint 0 // 0
 ==
-&&
+assert
 gtxn 2 RekeyTo
 pushbytes TMPL_APP_ADDRESS // TMPL_APP_ADDRESS
 ==
-&&
+assert
 gtxn 2 CloseRemainderTo
 global ZeroAddress
 ==
-&&
-retsub
+assert
+intc_0 // 1
+return
 `
