@@ -64,14 +64,14 @@ func (k Keeper) TrySwitchToNewConsensusGuardianSet(ctx sdk.Context) error {
 		return nil
 	}
 
-	consensusGuardianSet, found := k.GetGuardianSet(ctx, consensusGuardianSetIndex.Index)
+	latestGuardianSet, found := k.GetGuardianSet(ctx, latestGuardianSetIndex)
 	if !found {
 		return types.ErrGuardianNotFound
 	}
 
 	// count how many registrations we have
 	registered := 0
-	for _, key := range consensusGuardianSet.Keys {
+	for _, key := range latestGuardianSet.Keys {
 		_, found := k.GetGuardianValidator(ctx, key)
 		if found {
 			registered++
@@ -80,7 +80,7 @@ func (k Keeper) TrySwitchToNewConsensusGuardianSet(ctx sdk.Context) error {
 
 	// see if we have enough validators registered to produce blocks.
 	// TODO(csongor): this has to be kept in sync with tendermint consensus
-	quorum := CalculateQuorum(len(consensusGuardianSet.Keys))
+	quorum := CalculateQuorum(len(latestGuardianSet.Keys))
 	if registered >= quorum {
 		// we have enough, set consensus set to the latest one. Guardian set upgrade complete.
 		k.SetActiveGuardianSetIndex(ctx, types.ActiveGuardianSetIndex{
