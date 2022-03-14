@@ -429,7 +429,7 @@ def getCoreContracts(   client: AlgodClient,
             App.globalPut(Bytes("vphash"), Bytes("")),
             App.globalPut(Bytes("currentGuardianSetIndex"), Int(0)),
             App.globalPut(Bytes("validUpdateApproveHash"), Bytes("")),
-            App.globalPut(Bytes("validUpdateClearHash"), Bytes("BJATCHES5YJZJ7JITYMVLSSIQAVAWBQRVGPQUDT5AZ2QSLDSXWWM46THOY")), # empty clear state program
+            App.globalPut(Bytes("validUpdateClearHash"), Bytes("base16", "73be5fd7cd378289177bf4a7ca5433ab30d91b417381bba8bd704aff2dec424f")), # empty clear state program
             Return(Int(1))
         ])
 

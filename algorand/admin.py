@@ -87,6 +87,9 @@ class PendingTxnResponse:
 
 class PortalCore:
     def __init__(self) -> None:
+        self.gt = None
+        self.foundation = None
+
         self.ALGOD_ADDRESS = "http://localhost:4001"
         self.ALGOD_TOKEN = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
         self.FUNDING_AMOUNT = 100_000_000_000
@@ -1034,21 +1037,19 @@ class PortalCore:
         return ret
 
     def dev_deploy(self):
-        print("Generating the foundation account...")
-        foundation = self.getTemporaryAccount(self.client)
         print("")
 
         print("Creating the PortalCore app")
-        self.coreid = self.createPortalCoreApp(client=self.client, sender=foundation)
+        self.coreid = self.createPortalCoreApp(client=self.client, sender=self.foundation)
         print("coreid = " + str(self.coreid))
 
         print("Create the token bridge")
-        self.tokenid = self.createTokenBridgeApp(self.client, foundation)
+        self.tokenid = self.createTokenBridgeApp(self.client, self.foundation)
         print("token bridge " + str(self.tokenid) + " address " + get_application_address(self.tokenid))
 
         print("bootstrapping the guardian set...")
         bootVAA = bytes.fromhex("0100000001010001ca2fbf60ac6227d47dda4fe2e7bccc087f27d22170a212b9800da5b4cbf0d64c52deb2f65ce58be2267bf5b366437c267b5c7b795cd6cea1ac2fee8a1db3ad006225f801000000010001000000000000000000000000000000000000000000000000000000000000000400000000000000012000000000000000000000000000000000000000000000000000000000436f72650200000000000001beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe")
-        self.bootGuardians(bootVAA, self.client, foundation, self.coreid)
+        self.bootGuardians(bootVAA, self.client, self.foundation, self.coreid)
 
         print("bootstrapping the chain registrationst...")
 
@@ -1061,7 +1062,50 @@ class PortalCore:
 
         for v in vaas:
             print("Submitting: " + v)
-            self.submitVAA(bytes.fromhex(v), self.client, foundation, self.tokenid)
+            self.submitVAA(bytes.fromhex(v), self.client, self.foundation, self.tokenid)
+
+
+    def updateCore(self) -> None:
+        print("Updating the core contracts")
+        approval, clear = getCoreContracts(self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig)
+
+#        print(decode_address(clear["hash"]).hex())
+#        sys.exit(0)
+
+        txn = transaction.ApplicationUpdateTxn(
+            index=self.coreid,
+            sender=self.foundation.getAddress(),
+            approval_program=b64decode(approval["result"]),
+            clear_program=b64decode(clear["result"]),
+            app_args=[ ],
+            sp=self.client.suggested_params(),
+        )
+    
+        signedTxn = txn.sign(self.foundation.getPrivateKey())
+        print("sending transaction")
+        self.client.send_transaction(signedTxn)
+        resp = self.waitForTransaction(self.client, signedTxn.get_txid())
+        pprint.pprint(resp.__dict__["logs"])
+        print("complete")
+
+    def updateToken(self) -> None:
+        approval, clear = get_token_bridge(self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig)
+        print("Updating the token contracts: " + str(len(b64decode(approval["result"]))))
+
+        txn = transaction.ApplicationUpdateTxn(
+            index=self.tokenid,
+            sender=self.foundation.getAddress(),
+            approval_program=b64decode(approval["result"]),
+            clear_program=b64decode(clear["result"]),
+            app_args=[ ],
+            sp=self.client.suggested_params(),
+        )
+    
+        signedTxn = txn.sign(self.foundation.getPrivateKey())
+        print("sending transaction")
+        self.client.send_transaction(signedTxn)
+        self.waitForTransaction(self.client, signedTxn.get_txid())
+        print("complete")
 
     def main(self) -> None:
         parser = argparse.ArgumentParser(description='algorand setup')
@@ -1087,33 +1131,47 @@ class PortalCore:
         parser.add_argument('--upgradePayload', action='store_true', help='gen the upgrade payload for the guardians to sign')
         parser.add_argument('--vaa', type=str, help='Submit the supplied VAA', default="")
         parser.add_argument('--submit', action='store_true', help='submit the synthetic vaas')
+        parser.add_argument('--updateCore', action='store_true', help='update the Core contracts')
+        parser.add_argument('--updateToken', action='store_true', help='update the Token contracts')
         parser.add_argument('--upgradeVAA', action='store_true', help='generate a upgrade vaa for devnet')
         parser.add_argument('--print', action='store_true', help='print')
     
         args = parser.parse_args()
 
         if args.devnet:
+            self.init(args)
+
+            if self.foundation == None:
+                print("Generating the foundation account...")
+                self.foundation = self.getTemporaryAccount(self.client)
+
+            self.coreid = args.coreid
+            self.tokenid = args.tokenid
+
             if args.upgradeVAA:
-                self.init(args)
                 ret = self.devnetUpgradeVAA()
                 pprint.pprint(ret)
                 if (args.submit) :
-                    self.coreid = args.coreid
-                    self.tokenid = args.tokenid
-                    foundation = self.getTemporaryAccount(self.client)
-                    self.submitVAA(bytes.fromhex(ret[0]), self.client, foundation, self.coreid)
-                    self.submitVAA(bytes.fromhex(ret[1]), self.client, foundation, self.tokenid)
-                sys.exit(0)
+                    print("submitting vaa to upgrade core")
+                    self.submitVAA(bytes.fromhex(ret[0]), self.client, self.foundation, self.coreid)
+                    print("submitting vaa to upgrade token")
+                    self.submitVAA(bytes.fromhex(ret[1]), self.client, self.foundation, self.tokenid)
     
             if args.upgradePayload:
                 self.init(args)
                 print(self.genUpgradePayload())
                 sys.exit(0)
     
-            if args.boot:
-                self.init(args)
-                self.dev_deploy()
-                sys.exit(0)
+        if args.boot:
+            self.dev_deploy()
+
+        if args.updateCore:
+            self.updateCore()
+
+        if args.updateToken:
+            self.updateToken()
 
 core = PortalCore()
 core.main()
+
+# python3 admin.py --devnet --upgradeVAA --submit

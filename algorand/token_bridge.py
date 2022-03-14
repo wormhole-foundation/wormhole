@@ -923,7 +923,7 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
     on_create = Seq( [
         App.globalPut(Bytes("coreid"), Btoi(Txn.application_args[0])),
         App.globalPut(Bytes("validUpdateApproveHash"), Bytes("")),
-        App.globalPut(Bytes("validUpdateClearHash"), Bytes("BJATCHES5YJZJ7JITYMVLSSIQAVAWBQRVGPQUDT5AZ2QSLDSXWWM46THOY")), # empty clear state program
+        App.globalPut(Bytes("validUpdateClearHash"), Bytes("base16", "73be5fd7cd378289177bf4a7ca5433ab30d91b417381bba8bd704aff2dec424f")), # empty clear state program
         Return(Int(1))
     ])
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-# ./sandbox down; ./sandbox clean; ./sandbox up dev -v; python3 admin.py --devnet --boot
+# ./sandbox down; ./sandbox clean; ./sandbox up dev; python3 admin.py --devnet --boot
 
 PARENT_DIR=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )
 SANDBOX_DIR=$PARENT_DIR/_sandbox
