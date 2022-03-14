@@ -142,7 +142,11 @@ func InitGenesis(
 			}
 
 			var update abci.ValidatorUpdate
-			if wormholeKeeper.IsGuardian(ctx, valAddr) {
+			isGuardian, err := wormholeKeeper.IsConsensusGuardian(ctx, valAddr)
+			if err != nil {
+				panic(err)
+			}
+			if isGuardian {
 				update = validator.ABCIValidatorUpdate()
 			} else {
 				update = validator.ABCIValidatorUpdateZero()
