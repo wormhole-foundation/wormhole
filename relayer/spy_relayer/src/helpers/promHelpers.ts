@@ -117,13 +117,26 @@ export class PromHelper {
           bal.currencyName = "UNK";
         }
         logger.debug(
-          "handleWalletBalances: " +
+          "handleWalletBalance - " +
             bal.currencyName +
+            " ChainId: " +
+            bal.chainId +
+            " Wallet: " +
+            bal.walletAddress +
+            " Mint: " +
+            bal.currencyAddressNative +
             " => " +
             bal.balanceFormatted
         );
         let walletGauge = new client.Gauge({
-          name: bal.currencyName,
+          name:
+            bal.currencyName +
+            " ChainId: " +
+            bal.chainId +
+            " Wallet: " +
+            bal.walletAddress +
+            " Mint: " +
+            bal.currencyAddressNative,
           help: " balance",
           // labelNames: ["timestamp"],
           registers: [this._walletReg],

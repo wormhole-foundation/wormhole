@@ -35,6 +35,7 @@ export type WalletBalance = {
   balanceFormatted?: string;
   currencyName: string;
   currencyAddressNative: string;
+  walletAddress: string;
 };
 
 export interface TerraNativeBalances {
@@ -128,6 +129,7 @@ async function pullEVMBalance(
   }
   let provider = new ethers.providers.WebSocketProvider(chainInfo.nodeUrl);
   const signer: Signer = new ethers.Wallet(privateKey, provider);
+  const publicAddress = await signer.getAddress();
 
   logger.debug("About to get token for address: " + tokenAddress);
   const token = await getEthereumToken(tokenAddress, provider);
@@ -146,6 +148,7 @@ async function pullEVMBalance(
     balanceFormatted: balanceFormatted,
     currencyName: symbol,
     currencyAddressNative: tokenAddress,
+    walletAddress: publicAddress,
   };
 }
 
@@ -195,6 +198,7 @@ async function pullTerraBalance(
     ),
     currencyName: tokenInfo.symbol,
     currencyAddressNative: tokenAddress,
+    walletAddress: walletAddress,
   };
 }
 
@@ -256,6 +260,7 @@ async function pullSolanaTokenBalances(
           account.account.data.parsed?.info?.tokenAmount?.uiAmount,
         currencyName: cName,
         currencyAddressNative: account.account.data.parsed?.info?.mint,
+        walletAddress: account.pubkey.toString(),
       });
     }
   } catch (e) {
@@ -300,6 +305,7 @@ async function pullEVMNativeBalance(
     balanceFormatted: balanceInEth.toString(),
     currencyName: chainInfo.chainName,
     currencyAddressNative: chainInfo.chainName,
+    walletAddress: addr,
   };
 }
 
@@ -362,6 +368,7 @@ async function pullTerraNativeBalance(
         balanceFormatted: formatUnits(balance[key], 6).toString(),
         currencyName: key,
         currencyAddressNative: key,
+        walletAddress: walletAddress,
       });
     });
   });
@@ -387,6 +394,7 @@ async function pullSolanaNativeBalance(
       balanceFormatted: "0",
       currencyName: chainInfo.chainName,
       currencyAddressNative: chainInfo.chainName,
+      walletAddress: keyPair.publicKey.toString(),
     };
   }
 
@@ -402,6 +410,7 @@ async function pullSolanaNativeBalance(
     balanceFormatted: amountSol,
     currencyName: chainInfo.chainName,
     currencyAddressNative: chainInfo.chainName,
+    walletAddress: keyPair.publicKey.toString(),
   };
 }
 
