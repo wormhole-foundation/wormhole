@@ -4,10 +4,12 @@ package p
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 
 	"sort"
+	"strconv"
 	"sync"
 	"time"
 
@@ -237,8 +239,26 @@ func TvlCumulative(w http.ResponseWriter, r *http.Request) {
 	// Set CORS headers for the main request.
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
-	// get the number of days to query - days since launch day
-	queryDays := int(time.Now().UTC().Sub(releaseDay).Hours() / 24)
+	var numDays string
+	switch r.Method {
+	case http.MethodGet:
+		queryParams := r.URL.Query()
+		numDays = queryParams.Get("numDays")
+	}
+
+	var queryDays int
+	if numDays == "" {
+		// days since launch day
+		queryDays = int(time.Now().UTC().Sub(releaseDay).Hours() / 24)
+	} else {
+		var convErr error
+		queryDays, convErr = strconv.Atoi(numDays)
+		if convErr != nil {
+			fmt.Fprint(w, "numDays must be an integer")
+			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+			return
+		}
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 600*time.Second)
 	defer cancel()
@@ -262,12 +282,8 @@ func TvlCumulative(w http.ResponseWriter, r *http.Request) {
 		dailyTvl[date] = map[string]map[string]LockedAsset{}
 		dailyTvl[date]["*"] = map[string]LockedAsset{}
 		dailyTvl[date]["*"]["*"] = LockedAsset{
-			Symbol:      "*",
-			Address:     "",
-			CoinGeckoId: "",
-			TokenPrice:  0,
-			Amount:      0,
-			Notional:    0,
+			Symbol:   "*",
+			Notional: 0,
 		}
 		for chain, tokens := range chains {
 			if chain == "*" {
@@ -275,12 +291,8 @@ func TvlCumulative(w http.ResponseWriter, r *http.Request) {
 			}
 			dailyTvl[date][chain] = map[string]LockedAsset{}
 			dailyTvl[date][chain]["*"] = LockedAsset{
-				Symbol:      "*",
-				Address:     "",
-				CoinGeckoId: "",
-				TokenPrice:  0,
-				Amount:      0,
-				Notional:    0,
+				Symbol:   "*",
+				Notional: 0,
 			}
 
 			for symbol, asset := range tokens {
@@ -298,7 +310,13 @@ func TvlCumulative(w http.ResponseWriter, r *http.Request) {
 				}
 
 				asset.Notional = roundToTwoDecimalPlaces(notional)
-				dailyTvl[date][chain][symbol] = asset
+				// create a new LockAsset in order to exclude TokenPrice and Amount
+				dailyTvl[date][chain][symbol] = LockedAsset{
+					Symbol:      asset.Symbol,
+					Address:     asset.Address,
+					CoinGeckoId: asset.CoinGeckoId,
+					Notional:    asset.Notional,
+				}
 
 				// add this asset's notional to the date/chain/*
 				if allAssets, ok := dailyTvl[date][chain]["*"]; ok {
