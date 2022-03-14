@@ -58,8 +58,8 @@ func NewKeeper(
 	}
 }
 
-func (k Keeper) IsGuardian(ctx sdk.Context, addr sdk.ValAddress) bool {
-	return k.wormholeKeeper.IsGuardian(ctx, addr)
+func (k Keeper) IsConsensusGuardian(ctx sdk.Context, addr sdk.ValAddress) (bool, error) {
+	return k.wormholeKeeper.IsConsensusGuardian(ctx, addr)
 }
 
 // Logger returns a module-specific logger.
