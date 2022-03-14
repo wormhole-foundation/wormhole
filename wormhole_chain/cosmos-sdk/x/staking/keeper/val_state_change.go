@@ -118,6 +118,8 @@ func (k Keeper) ApplyAndReturnValidatorSetUpdates(ctx sdk.Context) (updates []ab
 	amtFromBondedToNotBonded, amtFromNotBondedToBonded := sdk.ZeroInt(), sdk.ZeroInt()
 
 	// TODO(csongor): add new guardians that were not here before (from gov)
+	// TODO(csongor): total voting power should be size of the guardian set.
+	// I'll just rewrite this whole function
 
 	// Retrieve the last validator set.
 	// The persistent set is updated later in this function.
@@ -143,7 +145,12 @@ func (k Keeper) ApplyAndReturnValidatorSetUpdates(ctx sdk.Context) (updates []ab
 
 		// if we get to a validator that's not a guardian (after a guardian set
 		// update), we kick it out
-		if !k.IsGuardian(ctx, valAddr) {
+		isGuardian := false
+		isGuardian, err = k.IsConsensusGuardian(ctx, valAddr)
+		if err != nil {
+			return nil, err
+		}
+		if !isGuardian {
 			continue
 		}
 
@@ -202,7 +209,7 @@ func (k Keeper) ApplyAndReturnValidatorSetUpdates(ctx sdk.Context) (updates []ab
 			return
 		}
 		amtFromBondedToNotBonded = amtFromBondedToNotBonded.Add(validator.GetTokens())
-		k.DeleteLastValidatorPower(ctx, validator.GetOperator()) // remove from gov validators
+		k.DeleteLastValidatorPower(ctx, validator.GetOperator())       // remove from gov validators
 		updates = append(updates, validator.ABCIValidatorUpdateZero()) // remove from tendermint validators
 	}
 
