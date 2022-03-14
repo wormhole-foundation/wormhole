@@ -509,7 +509,7 @@ function createEvmChainConfig(
   chainName = config.chainName;
   nodeUrl = config.nodeUrl;
   tokenBridgeAddress = config.tokenBridgeAddress;
-  walletPrivateKey = config.walletPrivateKey;
+  walletPrivateKey = privateKeys;
   wrappedAsset = config.wrappedAsset;
 
   return {
