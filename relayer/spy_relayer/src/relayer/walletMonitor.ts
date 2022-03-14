@@ -380,7 +380,14 @@ async function pullSolanaNativeBalance(
   ]);
 
   if (!fetchAccounts[0]) {
-    throw new Error("Failed to fetch native wallet balance for solana");
+    //Accounts with zero balance report as not existing.
+    return {
+      chainId: chainInfo.chainId,
+      balanceAbs: "0",
+      balanceFormatted: "0",
+      currencyName: chainInfo.chainName,
+      currencyAddressNative: chainInfo.chainName,
+    };
   }
 
   const amountLamports = fetchAccounts[0].lamports.toString();
