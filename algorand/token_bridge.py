@@ -31,6 +31,7 @@ from TmplSig import TmplSig
 
 from local_blob import LocalBlob
 
+import pprint
 import sys
 
 max_keys = 16
@@ -56,7 +57,7 @@ def clear_token_bridge():
 def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
     blob = LocalBlob()
 
-    @Subroutine(TealType.bytes)
+    @Subroutine(TealType.uint64)
     def governanceSet() -> Expr:
         maybe = App.globalGetEx(App.globalGet(Bytes("coreid")), Bytes("currentGuardianSetIndex"))
         
@@ -104,6 +105,21 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
             ])),
             r.load()
         ])
+
+    @Subroutine(TealType.uint64)
+    def getFactor(dec: Expr):
+        return Cond(
+            [dec == Int(9),  Int(10)],
+            [dec == Int(10), Int(100)],
+            [dec == Int(11), Int(1000)],
+            [dec == Int(12), Int(10000)],
+            [dec == Int(13), Int(100000)],
+            [dec == Int(14), Int(1000000)],
+            [dec == Int(15), Int(10000000)],
+            [dec == Int(16), Int(100000000)],
+            [dec >  Int(16), Seq([Assert(dec < Int(16)), Int(1)])],
+            [dec < Int(9), Int(1)]
+        )
 
     @Subroutine(TealType.bytes)
     def get_sig_address(acct_seq_start: Expr, emitter: Expr):
@@ -489,17 +505,7 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
                       Seq([          # Start of handling code for algorand tokens
                           factor.store(Int(1)),
                           d.store(Btoi(extract_decimal(asset.load()))),
-                          Cond(
-                              [d.load() == Int(9),  factor.store(Int(10))],
-                              [d.load() == Int(10), factor.store(Int(100))],
-                              [d.load() == Int(11), factor.store(Int(1000))],
-                              [d.load() == Int(12), factor.store(Int(10000))],
-                              [d.load() == Int(13), factor.store(Int(100000))],
-                              [d.load() == Int(14), factor.store(Int(1000000))],
-                              [d.load() == Int(15), factor.store(Int(10000000))],
-                              [d.load() == Int(16), factor.store(Int(100000000))],
-                              [d.load() >  Int(16), Assert(d.load() < Int(16))],
-                          ),
+                          factor.store(getFactor(d.load())),
                           If(factor.load() != Int(1),
                              Seq([
                                  Amount.store(Amount.load() * factor.load()),
@@ -651,17 +657,7 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
                    Assert(d.load() >= Int(0)),
 
                    factor.store(Int(1)),
-                   Cond(
-                       [d.load() == Int(9),  factor.store(Int(10))],
-                       [d.load() == Int(10), factor.store(Int(100))],
-                       [d.load() == Int(11), factor.store(Int(1000))],
-                       [d.load() == Int(12), factor.store(Int(10000))],
-                       [d.load() == Int(13), factor.store(Int(100000))],
-                       [d.load() == Int(14), factor.store(Int(1000000))],
-                       [d.load() == Int(15), factor.store(Int(10000000))],
-                       [d.load() == Int(16), factor.store(Int(100000000))],
-                       [d.load() >  Int(16), Assert(d.load() < Int(16))],
-                   ),
+                   factor.store(getFactor(d.load())),
 
                    If(factor.load() != Int(1),
                       Seq([
@@ -928,10 +924,12 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
     ])
 
     on_update = Seq( [
-#        Log(Sha512_256(Concat(Bytes("Program"), Txn.approval_program()))),
+        Log(Sha512_256(Concat(Bytes("Program"), Txn.approval_program()))),
         Log(App.globalGet(Bytes("validUpdateApproveHash"))),
 #        Assert(Sha512_256(Concat(Bytes("Program"), Txn.approval_program())) == App.globalGet(Bytes("validUpdateApproveHash"))),
-        Assert(Sha512_256(Concat(Bytes("Program"), Txn.clear_state_program())) == App.globalGet(Bytes("validUpdateClearHash"))),
+        Log(Sha512_256(Concat(Bytes("Program"), Txn.clear_state_program()))),
+        Log(App.globalGet(Bytes("validUpdateClearHash"))),
+#        Assert(Sha512_256(Concat(Bytes("Program"), Txn.clear_state_program())) == App.globalGet(Bytes("validUpdateClearHash"))),
         Return(Int(1))
     ] )
 

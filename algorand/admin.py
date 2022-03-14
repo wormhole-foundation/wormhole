@@ -354,6 +354,7 @@ class PortalCore:
         b += self.encoder("uint8", 2)  # action
         b += self.encoder("uint16", 8) # target chain
         b += decode_address(approval["hash"]).hex()
+        print(decode_address(approval["hash"]).hex())
 
         ret.append(b)
         return ret
@@ -1107,7 +1108,9 @@ class PortalCore:
         signedTxn = txn.sign(self.foundation.getPrivateKey())
         print("sending transaction")
         self.client.send_transaction(signedTxn)
-        self.waitForTransaction(self.client, signedTxn.get_txid())
+        resp = self.waitForTransaction(self.client, signedTxn.get_txid())
+        for x in resp.__dict__["logs"]:
+            print(x.hex())
         print("complete")
 
     def main(self) -> None:
