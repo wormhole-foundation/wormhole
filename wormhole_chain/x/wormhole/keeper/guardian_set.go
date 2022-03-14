@@ -8,6 +8,16 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
+func (k Keeper) GetLatestGuardianSetIndex(ctx sdk.Context) uint32 {
+	return k.GetGuardianSetCount(ctx) - 1
+}
+
+// TODO(csongor): implement active guardian set
+func (k Keeper) GetActiveGuardianSetIndex(ctx sdk.Context) uint32 {
+	return 0
+}
+
+
 func (k Keeper) UpdateGuardianSet(ctx sdk.Context, newGuardianSet types.GuardianSet) error {
 	config, ok := k.GetConfig(ctx)
 	if !ok {
