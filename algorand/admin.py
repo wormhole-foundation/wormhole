@@ -1130,6 +1130,12 @@ class PortalCore:
 
         parser.add_argument('--mnemonic', type=str, help='account mnemonic', default="")
 
+        parser.add_argument('--core_approve', type=str, help='core approve teal', default="core_approve.teal")
+        parser.add_argument('--core_clear', type=str, help='core clear teal', default="core_clear.teal")
+
+        parser.add_argument('--token_approve', type=str, help='token approve teal', default="token_approve.teal")
+        parser.add_argument('--token_clear', type=str, help='token clear teal', default="token_clear.teal")
+
         parser.add_argument('--coreid', type=int, help='core contract', default=4)
         parser.add_argument('--tokenid', type=int, help='token bridge contract', default=6)
         parser.add_argument('--devnet', action='store_true', help='setup devnet')
