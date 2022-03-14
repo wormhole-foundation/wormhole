@@ -271,13 +271,13 @@ func Recent(w http.ResponseWriter, r *http.Request) {
 	// create the rowkey prefix for querying, and the keySegments to use for indexing results.
 	prefix := ""
 	if forChain != "" {
-		prefix = forChain
+		prefix = forChain + ":"
 		if groupBy == "" {
 			// groupBy was not set, but forChain was, so set the keySegments to index by chain
 			keySegments = 1
 		}
 		if forAddress != "" {
-			prefix = forChain + ":" + forAddress
+			prefix = forChain + forAddress
 			if groupBy == "" {
 				// groupBy was not set, but forAddress was, so set the keySegments to index by address
 				keySegments = 2
