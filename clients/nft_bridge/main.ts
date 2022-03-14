@@ -110,6 +110,48 @@ yargs(hideBin(process.argv))
 
         console.log(vm)
     })
+    .command('generate_upgrade_chain_vaa [chain_id] [contract_address]', 'create a VAA to upgrade a chain (debug-only)', (yargs) => {
+        return yargs
+            .positional('chain_id', {
+                describe: 'chain id to upgrade',
+                type: "number",
+                required: true
+            })
+            .positional('contract_address', {
+                describe: 'contract to upgrade to',
+                type: "string",
+                required: true
+            })
+            .option('guardian_secret', {
+                describe: 'Guardian\'s secret key',
+                type: "string",
+                default: "cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0"
+            })
+    }, async (argv: any) => {
+        let data = [
+            "0x",
+            "00000000000000000000000000000000000000000000004e4654427269646765", // NFT Bridge header
+            "02",
+            ethers.utils.defaultAbiCoder.encode(["uint16"], [argv.chain_id]).substring(2 + (64 - 4)),
+            ethers.utils.defaultAbiCoder.encode(["bytes32"], [argv.contract_address]).substring(2),
+        ].join('')
+
+        const vm = signAndEncodeVM(
+            1,
+            1,
+            1,
+            "0x0000000000000000000000000000000000000000000000000000000000000004",
+            Math.floor(Math.random() * 100000000),
+            data,
+            [
+               argv.guardian_secret
+            ],
+            0,
+            0
+        );
+
+        console.log(vm)
+    })      
     .command('solana execute_governance_vaa [vaa]', 'execute a governance VAA on Solana', (yargs) => {
         return yargs
             .positional('vaa', {

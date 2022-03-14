@@ -6,7 +6,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/p2p"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/prometheus/client_golang/prometheus/promauto"	
 	"math/big"
 	"sync"
 	"sync/atomic"
@@ -369,6 +369,11 @@ func (e *Watcher) Run(ctx context.Context) error {
 				p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
 				return
 			case ev := <-headSink:
+				if (ev == nil) {
+					logger.Error("new header event is nil", zap.String("eth_network", e.networkName))
+					continue;
+				}
+
 				start := time.Now()
 				currentHash := ev.Hash()
 				logger.Info("processing new header",
@@ -489,7 +494,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 					zap.Stringer("current_blockhash", currentHash),
 					zap.Duration("took", time.Since(start)),
 					zap.String("eth_network", e.networkName))
-			}
+		}
 		}
 	}()
 

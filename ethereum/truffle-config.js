@@ -130,7 +130,7 @@ module.exports = {
       },
       network_id: 0x4e454153,
       gas: 10000000,
-      from: process.env.MNEMONIC,
+      from: "0xFFcf8FDEE72ac11b5c542428B35EEF5769C409f0", // public key
     },
     fantom: {
       provider: () => {
