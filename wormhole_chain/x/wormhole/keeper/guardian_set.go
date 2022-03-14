@@ -155,7 +155,7 @@ func (k Keeper) GetGuardianSet(ctx sdk.Context, id uint32) (val types.GuardianSe
 	return val, true
 }
 
-func (k Keeper) IsGuardian(ctx sdk.Context, addr sdk.ValAddress) (bool, error) {
+func (k Keeper) IsConsensusGuardian(ctx sdk.Context, addr sdk.ValAddress) (bool, error) {
 	consensusGuardianSet, found := k.GetActiveGuardianSetIndex(ctx)
 	if !found {
 		return false, types.ErrGuardianSetNotFound
