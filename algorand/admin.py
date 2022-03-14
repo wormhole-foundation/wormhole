@@ -1147,12 +1147,13 @@ class PortalCore:
         parser.add_argument('--updateToken', action='store_true', help='update the Token contracts')
         parser.add_argument('--upgradeVAA', action='store_true', help='generate a upgrade vaa for devnet')
         parser.add_argument('--print', action='store_true', help='print')
+        parser.add_argument('--genParts', action='store_true', help='Get tssig parts')
     
         args = parser.parse_args()
 
-        if args.devnet:
-            self.init(args)
+        self.init(args)
 
+        if args.devnet:
             if self.foundation == None:
                 print("Generating the foundation account...")
                 self.foundation = self.getTemporaryAccount(self.client)
@@ -1173,7 +1174,19 @@ class PortalCore:
                 self.init(args)
                 print(self.genUpgradePayload())
                 sys.exit(0)
-    
+
+        if args.genParts:
+            parts = [
+                self.tsig.get_bytecode_raw(0).hex(),
+                self.tsig.get_bytecode_raw(1).hex(),
+                self.tsig.get_bytecode_raw(2).hex(),
+                self.tsig.get_bytecode_raw(3).hex(),
+                self.tsig.get_bytecode_raw(4).hex(),
+                self.tsig.get_bytecode_raw(5).hex()
+            ]
+
+            pprint.pprint(parts)
+
         if args.boot:
             self.dev_deploy()
 

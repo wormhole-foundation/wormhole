@@ -105,6 +105,18 @@ class TmplSig:
         chunk = self.src[start:stop]
         return Bytes(chunk)
 
+    def get_bytecode_raw(self, idx: int):
+        start = 0
+        if idx > 0:
+            start = list(self.sorted.values())[idx - 1]["position"] + 1
+
+        stop = len(self.src)
+        if idx < len(self.sorted):
+            stop = list(self.sorted.values())[idx]["position"]
+
+        chunk = self.src[start:stop]
+        return chunk
+
     def get_sig_tmpl(self):
         def sig_tmpl():
             # We encode the app id as an 8 byte integer to ensure its a known size
