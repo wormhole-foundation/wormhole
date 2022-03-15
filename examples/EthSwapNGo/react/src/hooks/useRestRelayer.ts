@@ -55,7 +55,7 @@ export default function useRestRelayer(
         console.log("got Vaa with retry.");
         if (VAA) {
           axios
-            .post(RELAYER_URL, {
+            .post(RELAYER_ENDPOINT_URL, {
               signedVAA: signedVaaHex,
               chainId: targetChain,
               unwrapNative: true,

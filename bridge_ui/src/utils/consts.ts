@@ -1068,8 +1068,8 @@ export const ACALA_RELAYER_URL =
   CLUSTER === "mainnet"
     ? ""
     : CLUSTER === "testnet"
-      // ? "http://103.253.145.222:3111"
-      ? "http://localhost:3111"
+      ? "http://103.253.145.222:3111"
+      // ? "http://localhost:3111"
       : "";
 
 export const ACALA_RELAY_URL = `${ACALA_RELAYER_URL}/relay`;
