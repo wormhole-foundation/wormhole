@@ -204,6 +204,8 @@ export const selectTransferRedeemTx = (state: RootState) =>
   state.transfer.redeemTx;
 export const selectTransferIsApproving = (state: RootState) =>
   state.transfer.isApproving;
+export const selectRelayerInfo = (state: RootState) =>
+  state.transfer.relayerInfo;
 export const selectTransferSourceError = (
   state: RootState
 ): string | undefined => {

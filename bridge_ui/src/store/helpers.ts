@@ -1,3 +1,5 @@
+import { RelayerInfo } from "./transferSlice";
+
 export type DataWrapper<T> = {
   data: T | null;
   error: any | null;
@@ -12,6 +14,13 @@ export function getEmptyDataWrapper() {
     error: null,
     isFetching: false,
     receivedAt: null,
+  };
+}
+
+export function getEmptyRelayerInfo(): RelayerInfo {
+  return {
+    shouldRelay: false,
+    msg: 'never checked shouldRelay with relayer',
   };
 }
 

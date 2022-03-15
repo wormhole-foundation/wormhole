@@ -1062,3 +1062,15 @@ export const POLYGON_TERRA_WRAPPED_TOKENS = [
 ];
 
 export const JUPITER_SWAP_BASE_URL = "https://jup.ag/swap";
+
+// also for karura
+export const ACALA_RELAYER_URL =
+  CLUSTER === "mainnet"
+    ? ""
+    : CLUSTER === "testnet"
+      // ? "http://103.253.145.222:3111"
+      ? "http://localhost:3111"
+      : "";
+
+export const ACALA_RELAY_URL = `${ACALA_RELAYER_URL}/relay`;
+export const ACALA_SHOULD_RELAY_URL = `${ACALA_RELAYER_URL}/shouldRelay`;

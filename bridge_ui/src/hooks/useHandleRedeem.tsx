@@ -18,6 +18,7 @@ import {
 } from "@terra-money/wallet-provider";
 import { Signer } from "ethers";
 import { useSnackbar } from "notistack";
+import axios from "axios";
 import { useCallback, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useEthereumProvider } from "../contexts/EthereumProviderContext";
@@ -27,10 +28,12 @@ import {
   selectTerraFeeDenom,
   selectTransferIsRedeeming,
   selectTransferTargetChain,
+  selectTransferSignedVAAHex
 } from "../store/selectors";
 import { setIsRedeeming, setRedeemTx } from "../store/transferSlice";
 import {
   getTokenBridgeAddressForChain,
+  ACALA_RELAY_URL,
   MAX_VAA_UPLOAD_RETRIES_SOLANA,
   SOLANA_HOST,
   SOL_BRIDGE_ADDRESS,
@@ -173,6 +176,7 @@ export function useHandleRedeem() {
   const terraWallet = useConnectedWallet();
   const terraFeeDenom = useSelector(selectTerraFeeDenom);
   const signedVAA = useTransferSignedVAA();
+  const signedVAAHex = useSelector(selectTransferSignedVAAHex);
   const isRedeeming = useSelector(selectTransferIsRedeeming);
   const handleRedeemClick = useCallback(() => {
     if (isEVMChain(targetChain) && !!signer && signedVAA) {
@@ -240,13 +244,43 @@ export function useHandleRedeem() {
     terraFeeDenom,
   ]);
 
+  const handleRelayerRedeemClick = useCallback(async () => {
+    dispatch(setIsRedeeming(true));
+
+    try {
+      const res = await axios.post(ACALA_RELAY_URL, {
+        targetChain,
+        signedVAA: signedVAAHex,
+      });
+
+      dispatch(
+        setRedeemTx({ id: res.data.transactionHash, block: res.data.blockNumber })
+      );
+      enqueueSnackbar(null, {
+        content: <Alert severity="success">Transaction confirmed</Alert>,
+      });
+    } catch (e) {
+      enqueueSnackbar(null, {
+        content: <Alert severity="error">{parseError(e)}</Alert>,
+      });
+      dispatch(setIsRedeeming(false));
+    }
+
+  }, [
+    targetChain,
+    signedVAAHex,
+    enqueueSnackbar,
+    dispatch,
+  ]);
+
   return useMemo(
     () => ({
       handleNativeClick: handleRedeemNativeClick,
       handleClick: handleRedeemClick,
+      handleRelayerRedeemClick,
       disabled: !!isRedeeming,
       showLoader: !!isRedeeming,
     }),
-    [handleRedeemClick, isRedeeming, handleRedeemNativeClick]
+    [handleRedeemClick, isRedeeming, handleRedeemNativeClick, handleRelayerRedeemClick]
   );
 }

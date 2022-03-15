@@ -38,6 +38,11 @@ export default function useAllowance(
         signer
       ).then(
         (result) => {
+          console.log('getAllowanceEth:', {
+            chainId,
+            tokenAddress,
+            result,
+          })
           if (!cancelled) {
             setIsAllowanceFetching(false);
             setAllowance(result.toBigInt());

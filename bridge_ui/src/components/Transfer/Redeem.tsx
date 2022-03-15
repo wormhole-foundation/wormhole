@@ -24,6 +24,7 @@ import useGetIsTransferCompleted from "../../hooks/useGetIsTransferCompleted";
 import { useHandleRedeem } from "../../hooks/useHandleRedeem";
 import useIsWalletReady from "../../hooks/useIsWalletReady";
 import {
+  selectRelayerInfo,
   selectTransferIsRecovery,
   selectTransferTargetAsset,
   selectTransferTargetChain,
@@ -38,6 +39,7 @@ import {
   WFTM_ADDRESS,
   WMATIC_ADDRESS,
   WROSE_ADDRESS,
+  CHAINS_BY_ID,
 } from "../../utils/consts";
 import ButtonWithLoader from "../ButtonWithLoader";
 import KeyAndBalance from "../KeyAndBalance";
@@ -57,11 +59,12 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 function Redeem() {
-  const { handleClick, handleNativeClick, disabled, showLoader } =
+  const { handleClick, handleNativeClick, disabled, showLoader, handleRelayerRedeemClick } =
     useHandleRedeem();
   const targetChain = useSelector(selectTransferTargetChain);
   const targetAsset = useSelector(selectTransferTargetAsset);
   const isRecovery = useSelector(selectTransferIsRecovery);
+  const { shouldRelay } = useSelector(selectRelayerInfo);
   const { isTransferCompletedLoading, isTransferCompleted } =
     useGetIsTransferCompleted(true);
   const classes = useStyles();
@@ -150,14 +153,21 @@ function Redeem() {
           (isRecovery && (isTransferCompletedLoading || isTransferCompleted))
         }
         onClick={
-          isNativeEligible && useNativeRedeem ? handleNativeClick : handleClick
+          shouldRelay
+            ? handleRelayerRedeemClick
+            : isNativeEligible && useNativeRedeem
+              ? handleNativeClick
+              : handleClick
         }
         showLoader={showLoader || (isRecovery && isTransferCompletedLoading)}
         error={statusMessage}
       >
-        Redeem
+        { `Redeem ${ shouldRelay
+          ? `(${CHAINS_BY_ID[targetChain].name} pays gas for you 🎉)`
+          : '' }` }
       </ButtonWithLoader>
-      <WaitingForWalletMessage />
+
+      { !shouldRelay && <WaitingForWalletMessage /> }
 
       {isRecovery && isReady && isTransferCompleted ? (
         <>

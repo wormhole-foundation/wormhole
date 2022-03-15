@@ -11,6 +11,7 @@ import {
   errorDataWrapper,
   fetchDataWrapper,
   getEmptyDataWrapper,
+  getEmptyRelayerInfo,
   receiveDataWrapper,
 } from "./helpers";
 
@@ -36,6 +37,11 @@ export interface Transaction {
   block: number;
 }
 
+export interface RelayerInfo {
+  shouldRelay: boolean;
+  msg: string;
+}
+
 export interface TransferState {
   activeStep: Steps;
   sourceChain: ChainId;
@@ -57,6 +63,7 @@ export interface TransferState {
   redeemTx: Transaction | undefined;
   isApproving: boolean;
   isRecovery: boolean;
+  relayerInfo: RelayerInfo;
 }
 
 const initialState: TransferState = {
@@ -80,6 +87,7 @@ const initialState: TransferState = {
   redeemTx: undefined,
   isApproving: false,
   isRecovery: false,
+  relayerInfo: getEmptyRelayerInfo(),
 };
 
 export const transferSlice = createSlice({
@@ -257,6 +265,12 @@ export const transferSlice = createSlice({
       state.activeStep = 3;
       state.isRecovery = true;
     },
+    setRelayerInfo: (state, action: PayloadAction<RelayerInfo>) => {
+      state.relayerInfo = {
+        ...state.relayerInfo,
+        ...action.payload,
+      };
+    },
   },
 });
 
@@ -285,6 +299,7 @@ export const {
   setIsApproving,
   reset,
   setRecoveryVaa,
+  setRelayerInfo,
 } = transferSlice.actions;
 
 export default transferSlice.reducer;

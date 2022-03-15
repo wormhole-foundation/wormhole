@@ -6,17 +6,21 @@ import {
 } from "@certusone/wormhole-sdk";
 import { makeStyles, Typography } from "@material-ui/core";
 import { Alert } from "@material-ui/lab";
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import axios from "axios";
 import useGetTargetParsedTokenAccounts from "../../hooks/useGetTargetParsedTokenAccounts";
 import useIsWalletReady from "../../hooks/useIsWalletReady";
 import useSyncTargetAddress from "../../hooks/useSyncTargetAddress";
 import { GasEstimateSummary } from "../../hooks/useTransactionFees";
 import {
+  selectRelayerInfo,
   selectTransferAmount,
   selectTransferIsTargetComplete,
   selectTransferShouldLockFields,
+  selectTransferSourceAsset,
   selectTransferSourceChain,
+  selectTransferSourceParsedTokenAccount,
   selectTransferTargetAddressHex,
   selectTransferTargetAsset,
   selectTransferTargetAssetWrapper,
@@ -25,8 +29,8 @@ import {
   selectTransferTargetError,
   selectTransferTargetParsedTokenAccount,
 } from "../../store/selectors";
-import { incrementStep, setTargetChain } from "../../store/transferSlice";
-import { CHAINS, CHAINS_BY_ID } from "../../utils/consts";
+import { incrementStep, setRelayerInfo, setTargetChain } from "../../store/transferSlice";
+import { ACALA_SHOULD_RELAY_URL, CHAINS, CHAINS_BY_ID } from "../../utils/consts";
 import ButtonWithLoader from "../ButtonWithLoader";
 import ChainSelect from "../ChainSelect";
 import KeyAndBalance from "../KeyAndBalance";
@@ -38,6 +42,7 @@ import SolanaCreateAssociatedAddress, {
 import SolanaTPSWarning from "../SolanaTPSWarning";
 import StepDescription from "../StepDescription";
 import RegisterNowButton from "./RegisterNowButton";
+import { parseUnits } from "ethers/lib/utils";
 
 const useStyles = makeStyles((theme) => ({
   transferField: {
@@ -99,7 +104,13 @@ function Target() {
   const error = useSelector(selectTransferTargetError);
   const isTargetComplete = useSelector(selectTransferIsTargetComplete);
   const shouldLockFields = useSelector(selectTransferShouldLockFields);
+  const { shouldRelay } = useSelector(selectRelayerInfo);
+  const sourceAsset = useSelector(selectTransferSourceAsset);
   const { statusMessage } = useIsWalletReady(targetChain);
+  const sourceParsedTokenAccount = useSelector(
+    selectTransferSourceParsedTokenAccount
+  );
+  const decimals = sourceParsedTokenAccount?.decimals;
   const isLoading = !statusMessage && !targetAssetError && !data;
   const { associatedAccountExists, setAssociatedAccountExists } =
     useAssociatedAccountExistsState(
@@ -117,6 +128,31 @@ function Target() {
   const handleNextClick = useCallback(() => {
     dispatch(incrementStep());
   }, [dispatch]);
+
+  useEffect(() => {
+    (async () => {
+      if (!targetChain || !transferAmount || !sourceAsset) return;
+      const amountParsed = parseUnits(transferAmount, decimals).toString();
+
+      const result = await axios.get(ACALA_SHOULD_RELAY_URL, {
+        params: {
+          targetChain,
+          sourceAsset,
+          amount: amountParsed,
+        },
+      });
+
+      console.log('check should relay: ', {
+        targetChain,
+        sourceAsset,
+        amount: amountParsed,
+        result: result.data?.shouldRelay,
+      });
+      
+      dispatch(setRelayerInfo(result.data));
+    })();
+  }, [targetChain, transferAmount, sourceAsset, decimals, dispatch]);
+  
   return (
     <>
       <StepDescription>Select a recipient chain and address.</StepDescription>
@@ -169,15 +205,18 @@ function Target() {
           setAssociatedAccountExists={setAssociatedAccountExists}
         />
       ) : null}
-      <Alert severity="info" variant="outlined" className={classes.alert}>
-        <Typography>
-          You will have to pay transaction fees on{" "}
-          {CHAINS_BY_ID[targetChain].name} to redeem your tokens.
-        </Typography>
-        {(isEVMChain(targetChain) || targetChain === CHAIN_ID_TERRA) && (
-          <GasEstimateSummary methodType="transfer" chainId={targetChain} />
-        )}
-      </Alert>
+      { !shouldRelay && (
+        <Alert severity="info" variant="outlined" className={classes.alert}>
+          <Typography>
+            You will have to pay transaction fees on{" "}
+            {CHAINS_BY_ID[targetChain].name} to redeem your tokens.
+          </Typography>
+          {(isEVMChain(targetChain) || targetChain === CHAIN_ID_TERRA) && (
+            <GasEstimateSummary methodType="transfer" chainId={targetChain} />
+          )}
+        </Alert>
+      )}
+
       <LowBalanceWarning chainId={targetChain} />
       {targetChain === CHAIN_ID_SOLANA && <SolanaTPSWarning />}
       <ButtonWithLoader
