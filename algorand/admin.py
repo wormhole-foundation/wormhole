@@ -1140,13 +1140,17 @@ class PortalCore:
         parser.add_argument('--print', action='store_true', help='print')
     
         args = parser.parse_args()
-
         if args.devnet:
             self.init(args)
+
+            if args.mnemonic:
+                self.foundation = Account.FromMnemonic(args.mnemonic)
 
             if self.foundation == None:
                 print("Generating the foundation account...")
                 self.foundation = self.getTemporaryAccount(self.client)
+
+            print("foundation address " + self.foundation.addr)
 
             self.coreid = args.coreid
             self.tokenid = args.tokenid
