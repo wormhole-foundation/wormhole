@@ -5,9 +5,9 @@ members = [
     "contracts/token-bridge",
     "contracts/nft-bridge",
     "contracts/cw721-wrapped",
-    "packages/cw721",
     "contracts/cw721-base",
     "contracts/mock-bridge-integration",
+    "packages/cw721",
 ]
 
 [profile.release]
