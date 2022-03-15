@@ -1,7 +1,6 @@
 import {
   CHAIN_ID_BSC,
   CHAIN_ID_ETH,
-  CHAIN_ID_POLYGON,
   CHAIN_ID_SOLANA,
 } from "@certusone/wormhole-sdk";
 import { getAddress } from "@ethersproject/address";
@@ -40,7 +39,6 @@ import ChainSelectArrow from "../ChainSelectArrow";
 import KeyAndBalance from "../KeyAndBalance";
 import LowBalanceWarning from "../LowBalanceWarning";
 import NumberTextField from "../NumberTextField";
-import PolygonNetworkDownWarning from "../PolygonNetworkDownWarning";
 import SolanaTPSWarning from "../SolanaTPSWarning";
 import StepDescription from "../StepDescription";
 import { TokenSelector } from "../TokenSelectors/SourceTokenSelector";
@@ -142,9 +140,6 @@ function Source() {
     dispatch(incrementStep());
   }, [dispatch]);
 
-  const isPolygonTransfer =
-    sourceChain === CHAIN_ID_POLYGON || targetChain === CHAIN_ID_POLYGON;
-
   return (
     <>
       <StepDescription>
@@ -220,7 +215,6 @@ function Source() {
         <>
           <LowBalanceWarning chainId={sourceChain} />
           {sourceChain === CHAIN_ID_SOLANA && <SolanaTPSWarning />}
-          {isPolygonTransfer && <PolygonNetworkDownWarning />}
           <SourceAssetWarning
             sourceChain={sourceChain}
             sourceAsset={parsedTokenAccount?.mintKey}
@@ -242,7 +236,7 @@ function Source() {
             />
           ) : null}
           <ButtonWithLoader
-            disabled={!isSourceComplete || isPolygonTransfer}
+            disabled={!isSourceComplete}
             onClick={handleNextClick}
             showLoader={false}
             error={statusMessage || error}
