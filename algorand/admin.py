@@ -1091,7 +1091,8 @@ class PortalCore:
         print("sending transaction")
         self.client.send_transaction(signedTxn)
         resp = self.waitForTransaction(self.client, signedTxn.get_txid())
-        pprint.pprint(resp.__dict__["logs"])
+        for x in resp.__dict__["logs"]:
+            print(x.hex())
         print("complete")
 
     def updateToken(self) -> None:

@@ -440,13 +440,24 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
             Return(Int(1))
         ])
 
+        progHash = ScratchVar()
+        progSet = ScratchVar()
+        clearHash = ScratchVar()
+        clearSet = ScratchVar()
+        
         on_update = Seq( [
-            Log(Sha512_256(Concat(Bytes("Program"), Txn.approval_program()))),
-            Log(App.globalGet(Bytes("validUpdateApproveHash"))),
-#            Assert(Sha512_256(Concat(Bytes("Program"), Txn.approval_program())) == App.globalGet(Bytes("validUpdateApproveHash"))),
-            Log(Sha512_256(Concat(Bytes("Program"), Txn.clear_state_program()))),
-            Log(App.globalGet(Bytes("validUpdateClearHash"))),
-#            Assert(Sha512_256(Concat(Bytes("Program"), Txn.clear_state_program())) == App.globalGet(Bytes("validUpdateClearHash"))),
+            progHash.store(Sha512_256(Concat(Bytes("Program"), Txn.approval_program()))),
+            progSet.store(App.globalGet(Bytes("validUpdateApproveHash"))),
+            Log(progHash.load()),
+            Log(progSet.load()),
+            Assert(progHash.load() == progSet.load()),
+
+            clearHash.store(Sha512_256(Concat(Bytes("Program"), Txn.clear_state_program()))),
+            clearSet.store(App.globalGet(Bytes("validUpdateClearHash"))),
+            Log(clearHash.load()),
+            Log(clearSet.load()),
+            Assert(clearHash.load() == clearSet.load()),
+
             Return(Int(1))
         ] )
 

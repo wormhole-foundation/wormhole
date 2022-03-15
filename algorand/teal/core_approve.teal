@@ -746,18 +746,34 @@ byte "Program"
 txn ApprovalProgram
 concat
 sha512_256
-log
+store 24
 byte "validUpdateApproveHash"
 app_global_get
+store 25
+load 24
 log
+load 25
+log
+load 24
+load 25
+==
+assert
 byte "Program"
 txn ClearStateProgram
 concat
 sha512_256
-log
+store 26
 byte "validUpdateClearHash"
 app_global_get
+store 27
+load 26
 log
+load 27
+log
+load 26
+load 27
+==
+assert
 int 1
 return
 main_l51:
@@ -778,47 +794,47 @@ return
 
 // intkey
 intkey_0:
-store 26
-load 26
+store 30
+load 30
 itob
 extract 7 1
 retsub
 
 // zero
 zero_1:
-store 47
+store 51
 int 0
-store 48
+store 52
 zero_1_l1:
-load 48
+load 52
 int 16
 <
 bz zero_1_l3
-load 47
-load 48
+load 51
+load 52
 callsub intkey_0
 int 127
 bzero
 app_local_put
-load 48
+load 52
 int 1
 +
-store 48
+store 52
 b zero_1_l1
 zero_1_l3:
 retsub
 
 // get_byte
 getbyte_2:
-store 25
-store 24
-load 24
-load 25
+store 29
+store 28
+load 28
+load 29
 int 127
 /
 callsub intkey_0
 app_local_get
-load 25
+load 29
 int 127
 %
 getbyte
@@ -826,126 +842,126 @@ retsub
 
 // set_byte
 setbyte_3:
-store 56
-store 55
-store 54
-load 54
-load 55
+store 60
+store 59
+store 58
+load 58
+load 59
 int 127
 /
 callsub intkey_0
-load 54
-load 55
+load 58
+load 59
 int 127
 /
 callsub intkey_0
 app_local_get
-load 55
+load 59
 int 127
 %
-load 56
+load 60
 setbyte
 app_local_put
 retsub
 
 // read
 read_4:
-store 29
-store 28
-store 27
-byte ""
+store 33
+store 32
 store 31
-load 28
+byte ""
+store 35
+load 32
 int 127
 /
-store 30
+store 34
 read_4_l1:
-load 30
-load 29
+load 34
+load 33
 int 127
 /
 <=
 bz read_4_l9
-load 30
-load 28
+load 34
+load 32
 int 127
 /
 ==
 bnz read_4_l8
 int 0
 read_4_l4:
-store 32
-load 30
-load 29
+store 36
+load 34
+load 33
 int 127
 /
 ==
 bnz read_4_l7
 int 127
 read_4_l6:
-store 33
+store 37
+load 35
 load 31
-load 27
-load 30
+load 34
 callsub intkey_0
 app_local_get
-load 32
-load 33
+load 36
+load 37
 substring3
 concat
-store 31
-load 30
+store 35
+load 34
 int 1
 +
-store 30
+store 34
 b read_4_l1
 read_4_l7:
-load 29
+load 33
 int 127
 %
 b read_4_l6
 read_4_l8:
-load 28
+load 32
 int 127
 %
 b read_4_l4
 read_4_l9:
-load 31
+load 35
 retsub
 
 // write
 write_5:
-store 36
-store 35
-store 34
-int 0
 store 40
-load 35
+store 39
+store 38
+int 0
+store 44
+load 39
 int 127
 /
-store 37
+store 41
 write_5_l1:
-load 37
-load 35
-load 36
+load 41
+load 39
+load 40
 len
 +
 int 127
 /
 <=
 bz write_5_l12
-load 37
-load 35
+load 41
+load 39
 int 127
 /
 ==
 bnz write_5_l11
 int 0
 write_5_l4:
-store 38
-load 37
-load 35
-load 36
+store 42
+load 41
+load 39
+load 40
 len
 +
 int 127
@@ -954,139 +970,139 @@ int 127
 bnz write_5_l10
 int 127
 write_5_l6:
-store 39
-load 34
-load 37
+store 43
+load 38
+load 41
 callsub intkey_0
-load 39
+load 43
 int 127
 !=
-load 38
+load 42
 int 0
 !=
 ||
 bnz write_5_l9
 int 127
-store 41
-load 36
+store 45
 load 40
+load 44
 int 127
 extract3
 write_5_l8:
 app_local_put
-load 40
-load 41
+load 44
+load 45
 +
-store 40
-load 37
+store 44
+load 41
 int 1
 +
-store 37
+store 41
 b write_5_l1
 write_5_l9:
-load 39
-load 38
+load 43
+load 42
 -
-store 41
-load 34
-load 37
+store 45
+load 38
+load 41
 callsub intkey_0
 app_local_get
 int 0
-load 38
+load 42
 substring3
-load 36
 load 40
-load 41
+load 44
+load 45
 extract3
 concat
-load 34
-load 37
+load 38
+load 41
 callsub intkey_0
 app_local_get
-load 39
+load 43
 int 127
 substring3
 concat
 b write_5_l8
 write_5_l10:
-load 35
-load 36
+load 39
+load 40
 len
 +
 int 127
 %
 b write_5_l6
 write_5_l11:
-load 35
+load 39
 int 127
 %
 b write_5_l4
 write_5_l12:
-load 40
+load 44
 retsub
 
 // encode_uvarint
 encodeuvarint_6:
-store 45
-store 44
-load 45
-store 46
-load 46
-load 44
+store 49
+store 48
+load 49
+store 50
+load 50
+load 48
 int 128
 >=
 bnz encodeuvarint_6_l2
-load 44
+load 48
 int 255
 &
 itob
 extract 7 1
 b encodeuvarint_6_l3
 encodeuvarint_6_l2:
-load 44
+load 48
 int 7
 shr
-load 44
+load 48
 int 255
 &
 int 128
 |
 itob
 extract 7 1
-load 44
-load 45
-load 46
+load 48
+load 49
+load 50
 uncover 4
 uncover 4
 callsub encodeuvarint_6
 cover 3
-store 46
-store 45
-store 44
+store 50
+store 49
+store 48
 encodeuvarint_6_l3:
 concat
 retsub
 
 // get_sig_address
 getsigaddress_7:
-store 43
-store 42
+store 47
+store 46
 byte "Program"
 byte 0x0620010181
 concat
-load 42
+load 46
 byte ""
 callsub encodeuvarint_6
 concat
 byte 0x4880
 concat
-load 43
+load 47
 len
 byte ""
 callsub encodeuvarint_6
 concat
-load 43
+load 47
 concat
 byte 0x488800014332048103124433001022124433000881
 concat
@@ -1156,42 +1172,42 @@ int 66
 *
 int 14
 +
-store 49
+store 53
 txna ApplicationArgs 1
-load 49
+load 53
 int 34
 extract3
-store 50
+store 54
 txna ApplicationArgs 1
-load 49
+load 53
 int 34
 +
 int 8
 extract3
 btoi
-store 51
-load 51
+store 55
+load 55
 int 16256
 /
-store 53
+store 57
 txna Accounts 1
-load 53
-load 50
+load 57
+load 54
 callsub getsigaddress_7
 ==
 assert
-load 51
+load 55
 int 8
 /
 int 2032
 %
-store 53
+store 57
 int 1
-load 53
+load 57
 callsub getbyte_2
-store 52
-load 52
-load 51
+store 56
+load 56
+load 55
 int 8
 %
 getbit
@@ -1199,9 +1215,9 @@ int 0
 ==
 assert
 int 1
-load 53
-load 52
-load 51
+load 57
+load 56
+load 55
 int 8
 %
 int 1
