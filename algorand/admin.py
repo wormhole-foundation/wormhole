@@ -324,7 +324,7 @@ class PortalCore:
         return -1
 
     def genUpgradePayload(self):
-        approval, clear = getCoreContracts(self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig)
+        approval, clear = getCoreContracts(False, self.args.core_approve, self.args.core_clear, self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig)
 
         b  = self.zeroPadBytes[0:(28*2)]
         b += self.encoder("uint8", ord("C"))
@@ -338,7 +338,7 @@ class PortalCore:
 
         ret = [b]
 
-        approval, clear = get_token_bridge(self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig)
+        approval, clear = get_token_bridge(False, self.args.token_approve, self.args.token_clear, self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig)
 
         b  = self.zeroPadBytes[0:((32 -11)*2)]
         b += self.encoder("uint8", ord("T"))
@@ -366,7 +366,7 @@ class PortalCore:
         client: AlgodClient,
         sender: Account,
     ) -> int:
-        approval, clear = getCoreContracts(client, seed_amt=self.seed_amt, tmpl_sig=self.tsig)
+        approval, clear = getCoreContracts(False, self.args.core_approve, self.args.core_clear, client, seed_amt=self.seed_amt, tmpl_sig=self.tsig)
 
         globalSchema = transaction.StateSchema(num_uints=8, num_byte_slices=16)
         localSchema = transaction.StateSchema(num_uints=0, num_byte_slices=16)
@@ -404,7 +404,7 @@ class PortalCore:
         client: AlgodClient,
         sender: Account,
     ) -> int:
-        approval, clear = get_token_bridge(client, seed_amt=self.seed_amt, tmpl_sig=self.tsig)
+        approval, clear = get_token_bridge(False, self.args.token_approve, self.args.token_clear, client, seed_amt=self.seed_amt, tmpl_sig=self.tsig)
 
         if len(b64decode(approval["result"])) > 4060:
             print("token bridge contract is too large... This might prevent updates later")
@@ -1073,7 +1073,7 @@ class PortalCore:
 
     def updateCore(self) -> None:
         print("Updating the core contracts")
-        approval, clear = getCoreContracts(self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig)
+        approval, clear = getCoreContracts(False, self.args.core_approve, self.args.core_clear, self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig)
 
 #        print(decode_address(clear["hash"]).hex())
 #        sys.exit(0)
@@ -1095,7 +1095,7 @@ class PortalCore:
         print("complete")
 
     def updateToken(self) -> None:
-        approval, clear = get_token_bridge(self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig)
+        approval, clear = get_token_bridge(False, self.args.token_approve, self.args.token_clear, self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig)
         print("Updating the token contracts: " + str(len(b64decode(approval["result"]))))
 
         txn = transaction.ApplicationUpdateTxn(
@@ -1115,6 +1115,12 @@ class PortalCore:
             print(x.hex())
         print("complete")
 
+    def genTeal(self) -> None:
+        approval, clear = getCoreContracts(True, self.args.core_approve, self.args.core_clear, self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig)
+        print("Generating the teal for the core contracts")
+        approval, clear = get_token_bridge(True, self.args.token_approve, self.args.token_clear, self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig)
+        print("Generating the teal for the token contracts: " + str(len(b64decode(approval["result"]))))
+
     def main(self) -> None:
         parser = argparse.ArgumentParser(description='algorand setup')
     
@@ -1132,11 +1138,11 @@ class PortalCore:
 
         parser.add_argument('--mnemonic', type=str, help='account mnemonic', default="")
 
-        parser.add_argument('--core_approve', type=str, help='core approve teal', default="core_approve.teal")
-        parser.add_argument('--core_clear', type=str, help='core clear teal', default="core_clear.teal")
+        parser.add_argument('--core_approve', type=str, help='core approve teal', default="teal/core_approve.teal")
+        parser.add_argument('--core_clear', type=str, help='core clear teal', default="teal/core_clear.teal")
 
-        parser.add_argument('--token_approve', type=str, help='token approve teal', default="token_approve.teal")
-        parser.add_argument('--token_clear', type=str, help='token clear teal', default="token_clear.teal")
+        parser.add_argument('--token_approve', type=str, help='token approve teal', default="teal/token_approve.teal")
+        parser.add_argument('--token_clear', type=str, help='token clear teal', default="teal/token_clear.teal")
 
         parser.add_argument('--coreid', type=int, help='core contract', default=4)
         parser.add_argument('--tokenid', type=int, help='token bridge contract', default=6)
@@ -1156,11 +1162,16 @@ class PortalCore:
 
         self.init(args)
 
+        if args.genTeal or args.boot:
+            self.genTeal()
+
         # Generate the upgrade payload we need the guardians to sign
         if args.upgradePayload:
             print(self.genUpgradePayload())
             sys.exit(0)
 
+        # This breaks the tsig up into the various parts so that we
+        # can embed it into the Typescript code for reassembly  
         if args.genParts:
             parts = [
                 self.tsig.get_bytecode_raw(0).hex(),
