@@ -42,11 +42,17 @@ bits_per_key = max_bytes_per_key * bits_per_byte
 max_bytes = max_bytes_per_key * max_keys
 max_bits = bits_per_byte * max_bytes
 
-def fullyCompileContract(client: AlgodClient, contract: Expr, name) -> bytes:
+def fullyCompileContract(genTeal, client: AlgodClient, contract: Expr, name) -> bytes:
     teal = compileTeal(contract, mode=Mode.Application, version=6)
 
-    with open(name, "w") as f:
-        f.write(teal)
+    if genTeal:
+        with open(name, "w") as f:
+            print("Writing " + name)
+            f.write(teal)
+    else:
+        with open(name, "r") as f:
+            print("Reading " + name)
+            teal = f.read()
 
     response = client.compile(teal)
     return response
@@ -923,15 +929,27 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
         Return(Int(1))
     ])
 
+    progHash = ScratchVar()
+    progSet = ScratchVar()
+    clearHash = ScratchVar()
+    clearSet = ScratchVar()
+    
     on_update = Seq( [
-        Log(Sha512_256(Concat(Bytes("Program"), Txn.approval_program()))),
-        Log(App.globalGet(Bytes("validUpdateApproveHash"))),
-#        Assert(Sha512_256(Concat(Bytes("Program"), Txn.approval_program())) == App.globalGet(Bytes("validUpdateApproveHash"))),
-        Log(Sha512_256(Concat(Bytes("Program"), Txn.clear_state_program()))),
-        Log(App.globalGet(Bytes("validUpdateClearHash"))),
-#        Assert(Sha512_256(Concat(Bytes("Program"), Txn.clear_state_program())) == App.globalGet(Bytes("validUpdateClearHash"))),
+        progHash.store(Sha512_256(Concat(Bytes("Program"), Txn.approval_program()))),
+        progSet.store(App.globalGet(Bytes("validUpdateApproveHash"))),
+        Log(progHash.load()),
+        Log(progSet.load()),
+        Assert(progHash.load() == progSet.load()),
+
+        clearHash.store(Sha512_256(Concat(Bytes("Program"), Txn.clear_state_program()))),
+        clearSet.store(App.globalGet(Bytes("validUpdateClearHash"))),
+        Log(clearHash.load()),
+        Log(clearSet.load()),
+        Assert(clearHash.load() == clearSet.load()),
+
         Return(Int(1))
     ] )
+
 
     @Subroutine(TealType.uint64)
     def optin():
@@ -971,8 +989,8 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
         [Txn.on_completion() == OnComplete.NoOp, router]
     )
 
-def get_token_bridge(client: AlgodClient, seed_amt: int = 0, tmpl_sig: TmplSig = None) -> Tuple[bytes, bytes]:
-    APPROVAL_PROGRAM = fullyCompileContract(client, approve_token_bridge(seed_amt, tmpl_sig), "token_approve.teal")
-    CLEAR_STATE_PROGRAM = fullyCompileContract(client, clear_token_bridge(), "token_clear.teal")
+def get_token_bridge(genTeal, approve_name, clear_name, client: AlgodClient, seed_amt: int = 0, tmpl_sig: TmplSig = None) -> Tuple[bytes, bytes]:
+    APPROVAL_PROGRAM = fullyCompileContract(genTeal, client, approve_token_bridge(seed_amt, tmpl_sig), approve_name)
+    CLEAR_STATE_PROGRAM = fullyCompileContract(genTeal, client, clear_token_bridge(), clear_name)
 
     return APPROVAL_PROGRAM, CLEAR_STATE_PROGRAM

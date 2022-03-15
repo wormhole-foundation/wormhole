@@ -130,6 +130,8 @@ class PortalCore:
         self.KMD_WALLET_NAME = args.kmd_name
         self.KMD_WALLET_PASSWORD = args.kmd_password
         self.TARGET_ACCOUNT = args.mnemonic
+        self.coreid = args.coreid
+        self.tokenid = args.tokenid
 
     def waitForTransaction(
             self, client: AlgodClient, txID: str, timeout: int = 10
@@ -322,7 +324,7 @@ class PortalCore:
         return -1
 
     def genUpgradePayload(self):
-        approval, clear = getCoreContracts(self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig)
+        approval, clear = getCoreContracts(False, self.args.core_approve, self.args.core_clear, self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig)
 
         b  = self.zeroPadBytes[0:(28*2)]
         b += self.encoder("uint8", ord("C"))
@@ -336,7 +338,7 @@ class PortalCore:
 
         ret = [b]
 
-        approval, clear = get_token_bridge(self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig)
+        approval, clear = get_token_bridge(False, self.args.token_approve, self.args.token_clear, self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig)
 
         b  = self.zeroPadBytes[0:((32 -11)*2)]
         b += self.encoder("uint8", ord("T"))
@@ -364,7 +366,7 @@ class PortalCore:
         client: AlgodClient,
         sender: Account,
     ) -> int:
-        approval, clear = getCoreContracts(client, seed_amt=self.seed_amt, tmpl_sig=self.tsig)
+        approval, clear = getCoreContracts(False, self.args.core_approve, self.args.core_clear, client, seed_amt=self.seed_amt, tmpl_sig=self.tsig)
 
         globalSchema = transaction.StateSchema(num_uints=8, num_byte_slices=16)
         localSchema = transaction.StateSchema(num_uints=0, num_byte_slices=16)
@@ -402,7 +404,7 @@ class PortalCore:
         client: AlgodClient,
         sender: Account,
     ) -> int:
-        approval, clear = get_token_bridge(client, seed_amt=self.seed_amt, tmpl_sig=self.tsig)
+        approval, clear = get_token_bridge(False, self.args.token_approve, self.args.token_clear, client, seed_amt=self.seed_amt, tmpl_sig=self.tsig)
 
         if len(b64decode(approval["result"])) > 4060:
             print("token bridge contract is too large... This might prevent updates later")
@@ -1040,7 +1042,7 @@ class PortalCore:
         
         return ret
 
-    def dev_deploy(self):
+    def boot(self):
         print("")
 
         print("Creating the PortalCore app")
@@ -1051,27 +1053,28 @@ class PortalCore:
         self.tokenid = self.createTokenBridgeApp(self.client, self.foundation)
         print("token bridge " + str(self.tokenid) + " address " + get_application_address(self.tokenid))
 
-        print("bootstrapping the guardian set...")
-        bootVAA = bytes.fromhex("0100000001010001ca2fbf60ac6227d47dda4fe2e7bccc087f27d22170a212b9800da5b4cbf0d64c52deb2f65ce58be2267bf5b366437c267b5c7b795cd6cea1ac2fee8a1db3ad006225f801000000010001000000000000000000000000000000000000000000000000000000000000000400000000000000012000000000000000000000000000000000000000000000000000000000436f72650200000000000001beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe")
-        self.bootGuardians(bootVAA, self.client, self.foundation, self.coreid)
 
-        print("bootstrapping the chain registrationst...")
-
-        vaas = [
-            # Solana
-            "01000000000100c9f4230109e378f7efc0605fb40f0e1869f2d82fda5b1dfad8a5a2dafee85e033d155c18641165a77a2db6a7afbf2745b458616cb59347e89ae0c7aa3e7cc2d400000000010000000100010000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000546f6b656e4272696467650100000001c69a1b1a65dd336bf1df6a77afb501fc25db7fc0938cb08595a9ef473265cb4f",
-        ]
-
-        print("Registering chains")
-
-        for v in vaas:
-            print("Submitting: " + v)
-            self.submitVAA(bytes.fromhex(v), self.client, self.foundation, self.tokenid)
-
+        if args.devnet:
+            print("bootstrapping the guardian set...")
+            bootVAA = bytes.fromhex("0100000001010001ca2fbf60ac6227d47dda4fe2e7bccc087f27d22170a212b9800da5b4cbf0d64c52deb2f65ce58be2267bf5b366437c267b5c7b795cd6cea1ac2fee8a1db3ad006225f801000000010001000000000000000000000000000000000000000000000000000000000000000400000000000000012000000000000000000000000000000000000000000000000000000000436f72650200000000000001beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe")
+            self.bootGuardians(bootVAA, self.client, self.foundation, self.coreid)
+    
+            print("bootstrapping the chain registrationst...")
+    
+            vaas = [
+                # Solana
+                "01000000000100c9f4230109e378f7efc0605fb40f0e1869f2d82fda5b1dfad8a5a2dafee85e033d155c18641165a77a2db6a7afbf2745b458616cb59347e89ae0c7aa3e7cc2d400000000010000000100010000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000546f6b656e4272696467650100000001c69a1b1a65dd336bf1df6a77afb501fc25db7fc0938cb08595a9ef473265cb4f",
+            ]
+    
+            print("Registering chains")
+    
+            for v in vaas:
+                print("Submitting: " + v)
+                self.submitVAA(bytes.fromhex(v), self.client, self.foundation, self.tokenid)
 
     def updateCore(self) -> None:
         print("Updating the core contracts")
-        approval, clear = getCoreContracts(self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig)
+        approval, clear = getCoreContracts(False, self.args.core_approve, self.args.core_clear, self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig)
 
 #        print(decode_address(clear["hash"]).hex())
 #        sys.exit(0)
@@ -1089,11 +1092,12 @@ class PortalCore:
         print("sending transaction")
         self.client.send_transaction(signedTxn)
         resp = self.waitForTransaction(self.client, signedTxn.get_txid())
-        pprint.pprint(resp.__dict__["logs"])
+        for x in resp.__dict__["logs"]:
+            print(x.hex())
         print("complete")
 
     def updateToken(self) -> None:
-        approval, clear = get_token_bridge(self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig)
+        approval, clear = get_token_bridge(False, self.args.token_approve, self.args.token_clear, self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig)
         print("Updating the token contracts: " + str(len(b64decode(approval["result"]))))
 
         txn = transaction.ApplicationUpdateTxn(
@@ -1113,6 +1117,12 @@ class PortalCore:
             print(x.hex())
         print("complete")
 
+    def genTeal(self) -> None:
+        approval, clear = getCoreContracts(True, self.args.core_approve, self.args.core_clear, self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig)
+        print("Generating the teal for the core contracts")
+        approval, clear = get_token_bridge(True, self.args.token_approve, self.args.token_clear, self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig)
+        print("Generating the teal for the token contracts: " + str(len(b64decode(approval["result"]))))
+
     def main(self) -> None:
         parser = argparse.ArgumentParser(description='algorand setup')
     
@@ -1130,11 +1140,11 @@ class PortalCore:
 
         parser.add_argument('--mnemonic', type=str, help='account mnemonic', default="")
 
-        parser.add_argument('--core_approve', type=str, help='core approve teal', default="core_approve.teal")
-        parser.add_argument('--core_clear', type=str, help='core clear teal', default="core_clear.teal")
+        parser.add_argument('--core_approve', type=str, help='core approve teal', default="teal/core_approve.teal")
+        parser.add_argument('--core_clear', type=str, help='core clear teal', default="teal/core_clear.teal")
 
-        parser.add_argument('--token_approve', type=str, help='token approve teal', default="token_approve.teal")
-        parser.add_argument('--token_clear', type=str, help='token clear teal', default="token_clear.teal")
+        parser.add_argument('--token_approve', type=str, help='token approve teal', default="teal/token_approve.teal")
+        parser.add_argument('--token_clear', type=str, help='token clear teal', default="teal/token_clear.teal")
 
         parser.add_argument('--coreid', type=int, help='core contract', default=4)
         parser.add_argument('--tokenid', type=int, help='token bridge contract', default=6)
@@ -1142,12 +1152,14 @@ class PortalCore:
         parser.add_argument('--boot', action='store_true', help='bootstrap')
         parser.add_argument('--upgradePayload', action='store_true', help='gen the upgrade payload for the guardians to sign')
         parser.add_argument('--vaa', type=str, help='Submit the supplied VAA', default="")
+        parser.add_argument('--appid', type=str, help='The appid that the vaa submit is applied to', default="")
         parser.add_argument('--submit', action='store_true', help='submit the synthetic vaas')
         parser.add_argument('--updateCore', action='store_true', help='update the Core contracts')
         parser.add_argument('--updateToken', action='store_true', help='update the Token contracts')
         parser.add_argument('--upgradeVAA', action='store_true', help='generate a upgrade vaa for devnet')
         parser.add_argument('--print', action='store_true', help='print')
         parser.add_argument('--genParts', action='store_true', help='Get tssig parts')
+        parser.add_argument('--genTeal', action='store_true', help='Generate all the teal from the pyteal')
     
         args = parser.parse_args()
         if args.devnet:
@@ -1179,6 +1191,8 @@ class PortalCore:
                 print(self.genUpgradePayload())
                 sys.exit(0)
 
+        # This breaks the tsig up into the various parts so that we
+        # can embed it into the Typescript code for reassembly  
         if args.genParts:
             parts = [
                 self.tsig.get_bytecode_raw(0).hex(),
@@ -1190,15 +1204,39 @@ class PortalCore:
             ]
 
             pprint.pprint(parts)
+            sys.exit(0)
+
+        if args.mnemonic:
+            self.foundation = Account.FromMnemonic(args.mnemonic)
+
+        if args.devnet and self.foundation == None:
+            print("Generating the foundation account...")
+            self.foundation = self.getTemporaryAccount(self.client)
+
+        print("foundation address " + self.foundation.addr)
+
+        if args.upgradeVAA:
+            ret = self.devnetUpgradeVAA()
+            pprint.pprint(ret)
+            if (args.submit) :
+                print("submitting vaa to upgrade core")
+                self.submitVAA(bytes.fromhex(ret[0]), self.client, self.foundation, self.coreid)
+                print("submitting vaa to upgrade token")
+                self.submitVAA(bytes.fromhex(ret[1]), self.client, self.foundation, self.tokenid)
 
         if args.boot:
-            self.dev_deploy()
+            self.boot()
 
         if args.updateCore:
             self.updateCore()
 
         if args.updateToken:
             self.updateToken()
+
+        if args.vaa:
+            if self.args.appid == "":
+                raise Exception("You need to specifiy the appid when you are submitting vaas")
+            self.submitVAA(bytes.fromhex(args.vaa), self.client, self.foundation, int(self.args.appid))
 
 core = PortalCore()
 core.main()
