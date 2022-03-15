@@ -354,6 +354,7 @@ class PortalCore:
         b += self.encoder("uint8", 2)  # action
         b += self.encoder("uint16", 8) # target chain
         b += decode_address(approval["hash"]).hex()
+        print(decode_address(approval["hash"]).hex())
 
         ret.append(b)
         return ret
@@ -1107,7 +1108,9 @@ class PortalCore:
         signedTxn = txn.sign(self.foundation.getPrivateKey())
         print("sending transaction")
         self.client.send_transaction(signedTxn)
-        self.waitForTransaction(self.client, signedTxn.get_txid())
+        resp = self.waitForTransaction(self.client, signedTxn.get_txid())
+        for x in resp.__dict__["logs"]:
+            print(x.hex())
         print("complete")
 
     def main(self) -> None:
@@ -1127,6 +1130,12 @@ class PortalCore:
 
         parser.add_argument('--mnemonic', type=str, help='account mnemonic', default="")
 
+        parser.add_argument('--core_approve', type=str, help='core approve teal', default="core_approve.teal")
+        parser.add_argument('--core_clear', type=str, help='core clear teal', default="core_clear.teal")
+
+        parser.add_argument('--token_approve', type=str, help='token approve teal', default="token_approve.teal")
+        parser.add_argument('--token_clear', type=str, help='token clear teal', default="token_clear.teal")
+
         parser.add_argument('--coreid', type=int, help='core contract', default=4)
         parser.add_argument('--tokenid', type=int, help='token bridge contract', default=6)
         parser.add_argument('--devnet', action='store_true', help='setup devnet')
@@ -1138,6 +1147,7 @@ class PortalCore:
         parser.add_argument('--updateToken', action='store_true', help='update the Token contracts')
         parser.add_argument('--upgradeVAA', action='store_true', help='generate a upgrade vaa for devnet')
         parser.add_argument('--print', action='store_true', help='print')
+        parser.add_argument('--genParts', action='store_true', help='Get tssig parts')
     
         args = parser.parse_args()
         if args.devnet:
@@ -1168,7 +1178,19 @@ class PortalCore:
                 self.init(args)
                 print(self.genUpgradePayload())
                 sys.exit(0)
-    
+
+        if args.genParts:
+            parts = [
+                self.tsig.get_bytecode_raw(0).hex(),
+                self.tsig.get_bytecode_raw(1).hex(),
+                self.tsig.get_bytecode_raw(2).hex(),
+                self.tsig.get_bytecode_raw(3).hex(),
+                self.tsig.get_bytecode_raw(4).hex(),
+                self.tsig.get_bytecode_raw(5).hex()
+            ]
+
+            pprint.pprint(parts)
+
         if args.boot:
             self.dev_deploy()
 

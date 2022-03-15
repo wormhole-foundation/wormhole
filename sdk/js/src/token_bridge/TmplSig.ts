@@ -1,6 +1,7 @@
 import algosdk, { LogicSigAccount } from "algosdk";
 import { id } from "ethers/lib/utils";
 import { tealSource } from "./TmplSigSource";
+var varint = require("varint");
 
 enum TemplateName {
     TMPL_ADDR_IDX = 0,
@@ -51,6 +52,14 @@ export function uint8ArrayToHexString(arr: Uint8Array, add0x: boolean) {
     return "0x" + ret;
 }
 
+export function properHex(v: number) {
+    if (v < 10) {
+        return "0" + v.toString(16);
+    } else {
+        return v.toString(16);
+    }
+}
+
 export class TmplSig {
     algoClient: algosdk.Algodv2;
     sourceHash: string;
@@ -80,19 +89,56 @@ export class TmplSig {
      * @returns A LogicSig object.
      */
     async populate(data: PopulateData): Promise<LogicSigAccount> {
-        let program = tealSource;
-        program = program.replace(/TMPL_ADDR_IDX/, data.addrIdx.toString());
-        program = program.replace(/TMPL_EMITTER_ID/, data.emitterId);
-        program = program.replace(/TMPL_SEED_AMT/, data.seedAmt.toString());
-        program = program.replace(/TMPL_APP_ID/, data.appId.toString());
-        program = program.replace(/TMPL_APP_ADDRESS/, data.appAddress);
-        await this.compile(program);
+        // let program = tealSource;
+        // program = program.replace(/TMPL_ADDR_IDX/, data.addrIdx.toString());
+        // program = program.replace(/TMPL_EMITTER_ID/, data.emitterId);
+        // program = program.replace(/TMPL_SEED_AMT/, data.seedAmt.toString());
+        // program = program.replace(/TMPL_APP_ID/, data.appId.toString());
+        // program = program.replace(/TMPL_APP_ADDRESS/, data.appAddress);
+        // await this.compile(program);
 
+        // console.log(
+        //     "This is the final product:",
+        //     Buffer.from(this.bytecode).toString("hex")
+        // );
+        // // Create a new LogicSigAccount given the populated TEAL code
+        // return new LogicSigAccount(this.bytecode);
+        const byteString: string = [
+            "0620010181",
+            varint
+                .encode(data.addrIdx)
+                .map((n: number) => properHex(n))
+                .join(""),
+            "4880",
+            varint
+                .encode(data.emitterId.length / 2)
+                .map((n: number) => properHex(n))
+                .join(""),
+            data.emitterId,
+            "488800014332048103124433001022124433000881",
+            varint
+                .encode(data.seedAmt)
+                .map((n: number) => properHex(n))
+                .join(""),
+            "124433002032031244330009320312443301108106124433011922124433011881",
+            varint
+                .encode(data.appId)
+                .map((n: number) => properHex(n))
+                .join(""),
+            "1244330120320312443302102212443302088100124433022080",
+            varint
+                .encode(data.appAddress.length / 2)
+                .map((n: number) => properHex(n))
+                .join(""),
+            data.appAddress,
+            "1244330209320312442243",
+        ].join("");
+        // return foo;
+        this.bytecode = hexStringToUint8Array(byteString);
         console.log(
             "This is the final product:",
             Buffer.from(this.bytecode).toString("hex")
         );
-        // Create a new LogicSigAccount given the populated TEAL code
         return new LogicSigAccount(this.bytecode);
     }
 }

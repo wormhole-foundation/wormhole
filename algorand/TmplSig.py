@@ -36,24 +36,24 @@ class TmplSig:
 #            self.map = json.loads(f.read())
 
         self.map = {
-            'bytecode': 'BiABAYEASIAASIgAAUMyBIEDEjMAECISEDMACIEAEhAzACAyAxIQMwAJMgMSEDMBEIEGEhAzARkiEhAzARiBABIQMwEgMgMSEDMCECISEDMCCIEAEhAzAiCAABIQMwIJMgMSEIk=',
+            'bytecode': 'BiABAYEASIAASIgAAUMyBIEDEkQzABAiEkQzAAiBABJEMwAgMgMSRDMACTIDEkQzARCBBhJEMwEZIhJEMwEYgQASRDMBIDIDEkQzAhAiEkQzAgiBABJEMwIggAASRDMCCTIDEkQiQw==',
             'label_map': {'init_0': 9},
             'name': 'sig.teal',
             'template_labels': {'TMPL_ADDR_IDX': {'bytes': False,
                                                   'position': 5,
                                                   'source_line': 3},
                                 'TMPL_APP_ADDRESS': {'bytes': True,
-                                                     'position': 90,
-                                                     'source_line': 55},
+                                                     'position': 91,
+                                                     'source_line': 57},
                                 'TMPL_APP_ID': {'bytes': False,
-                                                'position': 63,
-                                                'source_line': 39},
+                                                'position': 64,
+                                                'source_line': 41},
                                 'TMPL_EMITTER_ID': {'bytes': True,
                                                     'position': 8,
                                                     'source_line': 5},
                                 'TMPL_SEED_AMT': {'bytes': False,
-                                                  'position': 29,
-                                                  'source_line': 19}},
+                                                  'position': 30,
+                                                  'source_line': 21}},
             'version': 6}
 
         self.src = base64.b64decode(self.map["bytecode"])
@@ -104,6 +104,18 @@ class TmplSig:
 
         chunk = self.src[start:stop]
         return Bytes(chunk)
+
+    def get_bytecode_raw(self, idx: int):
+        start = 0
+        if idx > 0:
+            start = list(self.sorted.values())[idx - 1]["position"] + 1
+
+        stop = len(self.src)
+        if idx < len(self.sorted):
+            stop = list(self.sorted.values())[idx]["position"]
+
+        chunk = self.src[start:stop]
+        return chunk
 
     def get_sig_tmpl(self):
         def sig_tmpl():
