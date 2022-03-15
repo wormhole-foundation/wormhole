@@ -1,5 +1,6 @@
 [workspace]
 members = [
   "core",
-  "sdk"
+  "sdk",
+  "vaa_payload",
 ]
