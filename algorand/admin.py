@@ -89,6 +89,7 @@ class PortalCore:
     def __init__(self) -> None:
         self.gt = None
         self.foundation = None
+        self.devnet = False
 
         self.ALGOD_ADDRESS = "http://localhost:4001"
         self.ALGOD_TOKEN = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
@@ -1054,7 +1055,7 @@ class PortalCore:
         print("token bridge " + str(self.tokenid) + " address " + get_application_address(self.tokenid))
 
 
-        if args.devnet:
+        if self.devnet:
             print("bootstrapping the guardian set...")
             bootVAA = bytes.fromhex("0100000001010001ca2fbf60ac6227d47dda4fe2e7bccc087f27d22170a212b9800da5b4cbf0d64c52deb2f65ce58be2267bf5b366437c267b5c7b795cd6cea1ac2fee8a1db3ad006225f801000000010001000000000000000000000000000000000000000000000000000000000000000400000000000000012000000000000000000000000000000000000000000000000000000000436f72650200000000000001beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe")
             self.bootGuardians(bootVAA, self.client, self.foundation, self.coreid)
@@ -1164,6 +1165,8 @@ class PortalCore:
         args = parser.parse_args()
 
         self.init(args)
+
+        self.devnet = args.devnet
 
         if args.genTeal or args.boot:
             self.genTeal()
