@@ -297,7 +297,9 @@ class PortalCore:
 
     def devnetUpgradeVAA(self):
         v = self.genUpgradePayload()
-        print("The payload: " + str(v))
+        print("core payload: " + str(v[0]))
+        print("token payload: " + str(v[1]))
+
         if self.gt == None:
             self.gt = GenTest(False)
 
@@ -368,7 +370,7 @@ class PortalCore:
     ) -> int:
         approval, clear = getCoreContracts(False, self.args.core_approve, self.args.core_clear, client, seed_amt=self.seed_amt, tmpl_sig=self.tsig)
 
-        globalSchema = transaction.StateSchema(num_uints=8, num_byte_slices=16)
+        globalSchema = transaction.StateSchema(num_uints=8, num_byte_slices=40)
         localSchema = transaction.StateSchema(num_uints=0, num_byte_slices=16)
     
         app_args = [ ]

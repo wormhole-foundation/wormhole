@@ -155,6 +155,8 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
             off = ScratchVar()
             a = ScratchVar()
             emitter = ScratchVar()
+            dest = ScratchVar()
+            fee = ScratchVar()
             idx = ScratchVar()
             set = ScratchVar()
             len = ScratchVar()
@@ -220,8 +222,34 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
                         # 19200 is approx 24 hours assuming a 4.5 seconds per block   (24 * 3600 / 4.5) = 19200
                         If(Txn.accounts[3] != Txn.accounts[2],
                            Pop(blob.write(Int(2), Int(1000), Itob(Txn.first_valid() + Int(19200)))))
+                    ])],
+                    [a.load() == Int(3), Seq([
+                        off.store(off.load() + Int(1)),
+                        Assert(Extract(Txn.application_args[1], off.load(), Int(2)) == Bytes("base16", "0008")),
+                        off.store(off.load() + Int(2) + Int(24)),
+                        fee.store(Btoi(Extract(Txn.application_args[1], off.load(), Int(8)))),
+                        App.globalPut(Bytes("MessageFee"), fee.load()),
+                    ])],
+                    [a.load() == Int(4), Seq([
+                        off.store(off.load() + Int(1)),
+                        Assert(Extract(Txn.application_args[1], off.load(), Int(2)) == Bytes("base16", "0008")),
+                        off.store(off.load() + Int(2) + Int(24)),
+                        fee.store(Btoi(Extract(Txn.application_args[1], off.load(), Int(8)))),
+                        off.store(off.load() + Int(8)),
+                        dest.store(Extract(Txn.application_args[1], off.load(), Int(32))),
+
+                        InnerTxnBuilder.Begin(),
+                        InnerTxnBuilder.SetFields(
+                              {
+                                  TxnField.type_enum: TxnType.Payment,
+                                  TxnField.receiver: dest.load(),
+                                  TxnField.amount: fee.load(),
+                                  TxnField.fee: Int(0),
+                              }
+                        ),
+                        InnerTxnBuilder.Submit(),
                     ])]
-                     ),
+               ),
                 Approve()
             ])
 
@@ -433,6 +461,7 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
         )
 
         on_create = Seq( [
+            App.globalPut(Bytes("MessageFee"), Int(0)),
             App.globalPut(Bytes("vphash"), Bytes("")),
             App.globalPut(Bytes("currentGuardianSetIndex"), Int(0)),
             App.globalPut(Bytes("validUpdateApproveHash"), Bytes("")),
