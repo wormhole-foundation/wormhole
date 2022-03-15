@@ -1,6 +1,7 @@
 package keeper
 
 import (
+	"bytes"
 	"encoding/binary"
 
 	"github.com/certusone/wormhole-chain/x/wormhole/types"
@@ -56,7 +57,7 @@ func (k Keeper) TrySwitchToNewConsensusGuardianSet(ctx sdk.Context) error {
 	latestGuardianSetIndex := k.GetLatestGuardianSetIndex(ctx)
 	consensusGuardianSetIndex, found := k.GetActiveGuardianSetIndex(ctx)
 	if !found {
-		return types.ErrGuardianNotFound
+		return types.ErrGuardianSetNotFound
 	}
 
 	// nothing to do if the latest set is already the consensus set
@@ -66,7 +67,7 @@ func (k Keeper) TrySwitchToNewConsensusGuardianSet(ctx sdk.Context) error {
 
 	latestGuardianSet, found := k.GetGuardianSet(ctx, latestGuardianSetIndex)
 	if !found {
-		return types.ErrGuardianNotFound
+		return types.ErrGuardianSetNotFound
 	}
 
 	// count how many registrations we have
@@ -155,17 +156,34 @@ func (k Keeper) GetGuardianSet(ctx sdk.Context, id uint32) (val types.GuardianSe
 	return val, true
 }
 
-// TODO(csongor): delete this function
+// TODO(csongor): Should we keep this function? It's linear in the size of the
+// guardian set and it's executed on each endblocker when assigning voting power
+// to validators. We could rewrite that method instead to loop through the
+// guardian keys instead, which might be more efficient.
 func (k Keeper) IsConsensusGuardian(ctx sdk.Context, addr sdk.ValAddress) (bool, error) {
-	_, found := k.GetActiveGuardianSetIndex(ctx)
+	consensusGuardianSetIndex, found := k.GetActiveGuardianSetIndex(ctx)
 	if !found {
 		return false, types.ErrGuardianSetNotFound
 	}
 
-	// _, found = k.GetValidatorGuardianKeys(ctx, addr.Bytes(), consensusGuardianSet.Index)
-	return true, nil
+	consensusGuardianSet, found := k.GetGuardianSet(ctx, consensusGuardianSetIndex.Index)
+	if !found {
+		return false, types.ErrGuardianSetNotFound
+	}
 
-	// return found, nil
+	isConsensusGuardian := false
+	for _, key := range consensusGuardianSet.Keys {
+		validator, found := k.GetGuardianValidator(ctx, key)
+		if !found {
+			continue
+		}
+		if bytes.Equal(validator.ValidatorAddr, addr.Bytes()) {
+			isConsensusGuardian = true
+			break
+		}
+	}
+
+	return isConsensusGuardian, nil
 }
 
 // RemoveGuardianSet removes a guardianSet from the store
