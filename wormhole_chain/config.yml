@@ -88,6 +88,8 @@ genesis:
           keys:
             - "vvpCnVfNGLf4pNkaLamrSvBdD74="
           expirationTime: 0
-      # guardianMap:
-      #   - bechAddress: "wormhole1cyyzpxplxdzkeea7kwsydadg87357qna3zg3tq"
-      #     guardianKeyBase64: "vvpCnVfNGLf4pNkaLamrSvBdD74="
+      activeGuardianSetIndex:
+        index: 0
+      guardianValidatorList:
+        - validatorAddr: "wQggmD8zRWznvrOgRvWoP6NPAn0=" # base64(fromBech32("wormholevaloper1cyyzpxplxdzkeea7kwsydadg87357qna87hzv8"))
+          guardianKey: "vvpCnVfNGLf4pNkaLamrSvBdD74="
