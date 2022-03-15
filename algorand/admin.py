@@ -130,6 +130,8 @@ class PortalCore:
         self.KMD_WALLET_NAME = args.kmd_name
         self.KMD_WALLET_PASSWORD = args.kmd_password
         self.TARGET_ACCOUNT = args.mnemonic
+        self.coreid = args.coreid
+        self.tokenid = args.tokenid
 
     def waitForTransaction(
             self, client: AlgodClient, txID: str, timeout: int = 10
@@ -1148,36 +1150,16 @@ class PortalCore:
         parser.add_argument('--upgradeVAA', action='store_true', help='generate a upgrade vaa for devnet')
         parser.add_argument('--print', action='store_true', help='print')
         parser.add_argument('--genParts', action='store_true', help='Get tssig parts')
+        parser.add_argument('--genTeal', action='store_true', help='Generate all the teal from the pyteal')
     
         args = parser.parse_args()
-        if args.devnet:
-            self.init(args)
 
-            if args.mnemonic:
-                self.foundation = Account.FromMnemonic(args.mnemonic)
+        self.init(args)
 
-            if self.foundation == None:
-                print("Generating the foundation account...")
-                self.foundation = self.getTemporaryAccount(self.client)
-
-            print("foundation address " + self.foundation.addr)
-
-            self.coreid = args.coreid
-            self.tokenid = args.tokenid
-
-            if args.upgradeVAA:
-                ret = self.devnetUpgradeVAA()
-                pprint.pprint(ret)
-                if (args.submit) :
-                    print("submitting vaa to upgrade core")
-                    self.submitVAA(bytes.fromhex(ret[0]), self.client, self.foundation, self.coreid)
-                    print("submitting vaa to upgrade token")
-                    self.submitVAA(bytes.fromhex(ret[1]), self.client, self.foundation, self.tokenid)
-    
-            if args.upgradePayload:
-                self.init(args)
-                print(self.genUpgradePayload())
-                sys.exit(0)
+        # Generate the upgrade payload we need the guardians to sign
+        if args.upgradePayload:
+            print(self.genUpgradePayload())
+            sys.exit(0)
 
         if args.genParts:
             parts = [
@@ -1190,6 +1172,25 @@ class PortalCore:
             ]
 
             pprint.pprint(parts)
+            sys.exit(0)
+
+        if args.mnemonic:
+            self.foundation = Account.FromMnemonic(args.mnemonic)
+
+        if args.devnet and self.foundation == None:
+            print("Generating the foundation account...")
+            self.foundation = self.getTemporaryAccount(self.client)
+
+        print("foundation address " + self.foundation.addr)
+
+        if args.upgradeVAA:
+            ret = self.devnetUpgradeVAA()
+            pprint.pprint(ret)
+            if (args.submit) :
+                print("submitting vaa to upgrade core")
+                self.submitVAA(bytes.fromhex(ret[0]), self.client, self.foundation, self.coreid)
+                print("submitting vaa to upgrade token")
+                self.submitVAA(bytes.fromhex(ret[1]), self.client, self.foundation, self.tokenid)
 
         if args.boot:
             self.dev_deploy()
