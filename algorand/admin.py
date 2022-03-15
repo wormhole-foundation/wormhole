@@ -1126,7 +1126,7 @@ class PortalCore:
         approval, clear = get_token_bridge(True, self.args.token_approve, self.args.token_clear, self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig)
         print("Generating the teal for the token contracts: " + str(len(b64decode(approval["result"]))))
 
-    def main(self) -> None:
+    def setup_args(self) -> None:
         parser = argparse.ArgumentParser(description='algorand setup')
     
         parser.add_argument('--algod_address', type=str, help='algod address (default: http://localhost:4001)', 
@@ -1165,10 +1165,12 @@ class PortalCore:
         parser.add_argument('--genTeal', action='store_true', help='Generate all the teal from the pyteal')
     
         args = parser.parse_args()
-
         self.init(args)
 
         self.devnet = args.devnet
+
+    def main(self) -> None:
+        self.setup_args()
 
         if args.genTeal or args.boot:
             self.genTeal()
@@ -1225,7 +1227,6 @@ class PortalCore:
                 raise Exception("You need to specifiy the appid when you are submitting vaas")
             self.submitVAA(bytes.fromhex(args.vaa), self.client, self.foundation, int(self.args.appid))
 
-core = PortalCore()
-core.main()
-
-# python3 admin.py --devnet --upgradeVAA --submit
+if __name__ == "__main__":
+    core = PortalCore()
+    core.main()

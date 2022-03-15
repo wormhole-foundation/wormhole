@@ -438,13 +438,15 @@ class AlgoTest(PortalCore):
         gt = GenTest(True)
         self.gt = gt
 
+        self.setup_args()
+
         client = self.getAlgodClient()
 
-        print("building our stateless vaa_verify...")
-        self.vaa_verify = client.compile(get_vaa_verify())
-        self.vaa_verify["lsig"] = LogicSig(base64.b64decode(self.vaa_verify["result"]))
-        print(self.vaa_verify["hash"])
-        print("")
+#        print("building our stateless vaa_verify...")
+#        self.vaa_verify = client.compile(get_vaa_verify())
+#        self.vaa_verify["lsig"] = LogicSig(base64.b64decode(self.vaa_verify["result"]))
+#        print(self.vaa_verify["hash"])
+#        print("")
 
         print("Generating the foundation account...")
         foundation = self.getTemporaryAccount(client)
@@ -459,6 +461,7 @@ class AlgoTest(PortalCore):
 
         print("bootstrapping the guardian set...")
         bootVAA = bytes.fromhex(gt.genGuardianSetUpgrade(gt.guardianPrivKeys, 1, seq, seq, seq))
+
         self.bootGuardians(bootVAA, client, foundation, self.coreid)
 
         seq += 1
@@ -662,5 +665,6 @@ class AlgoTest(PortalCore):
 #        print("asset app: " + chain_addr)
 #        pprint.pprint(client.account_info(chain_addr))
 
-core = AlgoTest()
-core.simple_test()
+if __name__ == "__main__":
+    core = AlgoTest()
+    core.simple_test()
