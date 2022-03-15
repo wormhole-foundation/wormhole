@@ -647,6 +647,19 @@ class AlgoTest(PortalCore):
         print(".. and lets pass that to the right account")
         self.submitVAA(bytes.fromhex(vaa), client, player3, self.tokenid)
 
+        print(".. Ok, now it is time to up the message fees")
+
+        bal = self.getBalances(client, get_application_address(self.coreid))
+        print("core contract has " + str(bal) + " algo")
+        print("core contract has a MessageFee set to " + str(self.getMessageFee()))
+
+        seq += 1
+        v = gt.genGSetFee(gt.guardianPrivKeys, 2, seq, seq)
+        self.submitVAA(bytes.fromhex(v), client, player, self.coreid)
+        seq += 1
+
+        print("core contract now has a MessageFee set to " + str(self.getMessageFee()))
+
 #        print("player account: " + player.getAddress())
 #        pprint.pprint(client.account_info(player.getAddress()))
 

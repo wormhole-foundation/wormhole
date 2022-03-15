@@ -318,6 +318,14 @@ class PortalCore:
 
         return ret
 
+    def getMessageFee(self):
+        s = self.client.application_info(self.coreid)["params"]["global-state"]
+        k = base64.b64encode(b"MessageFee").decode('utf-8')
+        for x in s:
+            if x["key"] == k:
+                return x["value"]["uint"]
+        return -1
+
     def getGovSet(self):
         s = self.client.application_info(self.coreid)["params"]["global-state"]
         k = base64.b64encode(b"currentGuardianSetIndex").decode('utf-8')
