@@ -287,8 +287,8 @@ function EthGasEstimateSummary({
 
 const terraEstimatesByContract = {
   transfer: {
-    lowGasEstimate: BigInt(50000),
-    highGasEstimate: BigInt(150000),
+    lowGasEstimate: BigInt(400000),
+    highGasEstimate: BigInt(700000),
   },
 };
 

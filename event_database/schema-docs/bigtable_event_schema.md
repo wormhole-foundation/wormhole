@@ -35,6 +35,7 @@ The column families listed below represent data unique to a phase of the attesta
 Each column qualifier below is prefixed with its column family.
 
 #### MessagePublication
+
 - `MessagePublication:Version` Version of the VAA schema.
 - `MessagePublication:GuardianSetIndex` The index of the active Guardian set.
 - `MessagePublication:Timestamp` Timestamp when the VAA was created by the Guardian.
@@ -46,9 +47,11 @@ Each column qualifier below is prefixed with its column family.
 - `MessagePublication:Payload` The payload of the user's message.
 
 #### QuorumState
+
 - `QuorumState:SignedVAA` the VAA with the signatures that contributed to quorum.
 
 #### TokenTransferPayload
+
 - `TokenTransferPayload:PayloadId` the payload identifier of the payload.
 - `TokenTransferPayload:Amount` the amount of the transfer.
 - `TokenTransferPayload:OriginAddress` the address the transfer originates from.
@@ -57,14 +60,16 @@ Each column qualifier below is prefixed with its column family.
 - `TokenTransferPayload:TargetChain` the destination chain identifier of the transfer.
 
 #### AssetMetaPayload
+
 - `AssetMetaPayload:PayloadId` the payload identifier of the payload.
 - `AssetMetaPayload:TokenAddress` the address of the token. left padded with `0`s to 32 bytes.
-- `AssetMetaPayload:TokenChain`  the chain identifier of the chain the transfer originates from.
+- `AssetMetaPayload:TokenChain` the chain identifier of the chain the transfer originates from.
 - `AssetMetaPayload:Decimals` the number of decimals of the token.
 - `AssetMetaPayload:Symbol` the ticker symbol of the token.
 - `AssetMetaPayload:Name` the name of the token.
 
 #### NFTTransferPayload
+
 - `NFTTransferPayload:PayloadId` the payload identifier of the payload.
 - `NFTTransferPayload:OriginAddress` the address the transfer originates from.
 - `NFTTransferPayload:OriginChain` the chain identifier of the chain the transfer originates from.
@@ -72,10 +77,11 @@ Each column qualifier below is prefixed with its column family.
 - `NFTTransferPayload:Name` the name of the nft.
 - `NFTTransferPayload:TokenId` the token identifier of the nft.
 - `NFTTransferPayload:URI` the URI of the nft.
-- `NFTTransferPayload:TargetAddress`  the destination address of the transfer.
+- `NFTTransferPayload:TargetAddress` the destination address of the transfer.
 - `NFTTransferPayload:TargetChain` the destination chain identifier of the transfer.
 
 #### TokenTransferDetails
+
 - `TokenTransferDetails:Amount` the amount transfered.
 - `TokenTransferDetails:NotionalUSD` the notional value of the transfer in USD.
 - `TokenTransferDetails:OriginSymbol` the symbol of the token sent to wormhole.
@@ -83,5 +89,9 @@ Each column qualifier below is prefixed with its column family.
 - `TokenTransferDetails:OriginTokenAddress` the address of the token sent to wormhole.
 
 #### ChainDetails
+
 - `ChainDetails:SenderAddress` the native address that sent the message.
 - `ChainDetails:ReceiverAddress` the native address that received the message.
+- `ChainDetails:ResultingTokenAddress` the address of the token on the target chain.
+- `ChainDetails:ResultingTokenSymbol` the symbol of the token that was the final result of the transfer.
+- `ChainDetails:ResultingTokenName` the name of the token that was the final result of the transfer.

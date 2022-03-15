@@ -1,4 +1,4 @@
-package main
+package initialize_db
 
 import (
 	"flag"
@@ -18,7 +18,7 @@ var columnFamilies = []string{
 	"AssetMetaPayload",
 	"NFTTransferPayload",
 	"TokenTransferDetails",
-	"ChainDetails"
+	"ChainDetails",
 }
 
 func main() {
@@ -26,8 +26,6 @@ func main() {
 	instance := flag.String("instance", "", "The Google Cloud Bigtable instance ID. Required.")
 	keyFilePath := flag.String("keyFilePath", "", "The Google Cloud Service Account json key file path.")
 	setupDB := flag.Bool("setupDB", false, "Run database setup - create table and column families.")
-	rowKey := flag.String("queryRowKey", "", "Query by row key, print the retrieved values.")
-	previousMinutes := flag.Int("queryPreviousMinutes", 0, "Query for rows with a Timestamp in the last X minutes.")
 
 	flag.Parse()
 
@@ -39,9 +37,6 @@ func main() {
 
 	if *setupDB {
 		RunSetup(*project, *instance, *keyFilePath)
-	}
-	if *rowKey != "" || *previousMinutes != 0 {
-		Query(*project, *instance, *keyFilePath, *rowKey, *previousMinutes)
 	}
 
 }

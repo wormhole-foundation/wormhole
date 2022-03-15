@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log"
+	"strings"
 
 	"cloud.google.com/go/bigtable"
 	"cloud.google.com/go/pubsub"
@@ -20,31 +21,56 @@ type PubSubMessage struct {
 
 // The keys are emitterAddress hex values, so that we can quickly check a message against the index to see if it
 // meets the criteria for saving payload info: if it is a token transfer, or an NFT transfer.
-var NFTEmitters = map[string]string{
+var nftEmitters = map[string]string{
 	// mainnet
 	"0def15a24423e1edd1a5ab16f557b9060303ddbab8c803d2ee48f4b78a1cfd6b": "WnFt12ZrnzZrFZkt2xsNsaNWoQribnuQ5B5FrDbwDhD", // solana
 	"0000000000000000000000006ffd7ede62328b3af38fcd61461bbfc52f5651fe": "0x6FFd7EdE62328b3Af38FCD61461Bbfc52F5651fE",  // ethereum
 	"0000000000000000000000005a58505a96d1dbf8df91cb21b54419fc36e93fde": "0x5a58505a96D1dbf8dF91cB21B54419FC36e93fdE",  // bsc
 	"00000000000000000000000090bbd86a6fe93d3bc3ed6335935447e75fab7fcf": "0x90bbd86a6fe93d3bc3ed6335935447e75fab7fcf",  // polygon
+	"000000000000000000000000f7B6737Ca9c4e08aE573F75A97B73D7a813f5De5": "0xf7B6737Ca9c4e08aE573F75A97B73D7a813f5De5",  // avalanche
+	"00000000000000000000000004952d522ff217f40b5ef3cbf659eca7b952a6c1": "0x04952d522ff217f40b5ef3cbf659eca7b952a6c1",  // oasis
+	"000000000000000000000000A9c7119aBDa80d4a4E0C06C8F4d8cF5893234535": "0xA9c7119aBDa80d4a4E0C06C8F4d8cF5893234535",  // fantom
 
 	// devnet
-	"96ee982293251b48729804c8e8b24b553eb6b887867024948d2236fd37a577ab": "NFTWqJR8YnRVqPDvTJrYuLrQDitTG5AScqbeghi4zSA", // solana
-	"00000000000000000000000026b4afb60d6c903165150c6f0aa14f8016be4aec": "0x26b4afb60d6c903165150c6f0aa14f8016be4aec",  // ethereum
-	"0000000000000000000000000fe5c51f539a651152ae461086d733777a54a134": "terra1plju286nnfj3z54wgcggd4enwaa9fgf5kgrgzl",// terra
+	"96ee982293251b48729804c8e8b24b553eb6b887867024948d2236fd37a577ab": "NFTWqJR8YnRVqPDvTJrYuLrQDitTG5AScqbeghi4zSA",  // solana
+	"00000000000000000000000026b4afb60d6c903165150c6f0aa14f8016be4aec": "0x26b4afb60d6c903165150c6f0aa14f8016be4aec",   // ethereum goerli
+	"0000000000000000000000000fe5c51f539a651152ae461086d733777a54a134": "terra1plju286nnfj3z54wgcggd4enwaa9fgf5kgrgzl", // terra
+	"000000000000000000000000cD16E5613EF35599dc82B24Cb45B5A93D779f1EE": "0xcD16E5613EF35599dc82B24Cb45B5A93D779f1EE",   // bsc
+	"00000000000000000000000051a02d0dcb5e52F5b92bdAA38FA013C91c7309A9": "0x51a02d0dcb5e52F5b92bdAA38FA013C91c7309A9",   // polygon
+	"000000000000000000000000D601BAf2EEE3C028344471684F6b27E789D9075D": "0xD601BAf2EEE3C028344471684F6b27E789D9075D",   // avalance
+	"000000000000000000000000C5c25B41AB0b797571620F5204Afa116A44c0ebA": "0xC5c25B41AB0b797571620F5204Afa116A44c0ebA",   // oasis
+	"0000000000000000000000002b048Da40f69c8dc386a56705915f8E966fe1eba": "0x2b048Da40f69c8dc386a56705915f8E966fe1eba",   // ethereum ropesten
+	// TODO "": "",  // fantom
 }
-var TokenTransferEmitters = map[string]string{
+
+// NFTEmitters will be populated with lowercase addresses
+var NFTEmitters = map[string]string{}
+
+var tokenTransferEmitters = map[string]string{
 	// mainnet
 	"ec7372995d5cc8732397fb0ad35c0121e0eaa90d26f828a534cab54391b3a4f5": "wormDTUJ6AWPNvk59vGQbDvGJmqbDTdgWgAqcLBCgUb",  // solana
 	"0000000000000000000000003ee18b2214aff97000d974cf647e7c347e8fa585": "0x3ee18B2214AFF97000D974cf647E7C347E8fa585",   // ethereum
 	"0000000000000000000000007cf7b764e38a0a5e967972c1df77d432510564e2": "terra10nmmwe8r3g99a9newtqa7a75xfgs2e8z87r2sf", // terra
 	"000000000000000000000000b6f6d86a8f9879a9c87f643768d9efc38c1da6e7": "0xB6F6D86a8f9879A9c87f643768d9efc38c1Da6E7",   // bsc
 	"0000000000000000000000005a58505a96d1dbf8df91cb21b54419fc36e93fde": "0x5a58505a96d1dbf8df91cb21b54419fc36e93fde",   // polygon
+	"0000000000000000000000000e082f06ff657d94310cb8ce8b0d9a04541d8052": "0x0e082F06FF657D94310cB8cE8B0D9a04541d8052",   // avalanche
+	"0000000000000000000000005848c791e09901b40a9ef749f2a6735b418d7564": "0x5848c791e09901b40a9ef749f2a6735b418d7564",   // oasis
+	"0000000000000000000000007c9fc5741288cdfdd83ceb07f3ea7e22618d79d2": "0x7c9fc5741288cdfdd83ceb07f3ea7e22618d79d2",   // fantom
 
 	// devnet
 	"c69a1b1a65dd336bf1df6a77afb501fc25db7fc0938cb08595a9ef473265cb4f": "B6RHG3mfcckmrYN1UhmJzyS1XX3fZKbkeUcpJe9Sy3FE", // solana
-	"0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16": "0x0290fb167208af455bb137780163b7b7a9a10c16",   // EVM chains
+	"0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16": "0x0290fb167208af455bb137780163b7b7a9a10c16",   // ethereumn goerli
 	"000000000000000000000000784999135aaa8a3ca5914468852fdddbddd8789d": "terra10pyejy66429refv3g35g2t7am0was7ya7kz2a4", // terra
+	"0000000000000000000000009dcF9D205C9De35334D646BeE44b2D2859712A09": "0x9dcF9D205C9De35334D646BeE44b2D2859712A09",   // bsc
+	"000000000000000000000000377D55a7928c046E18eEbb61977e714d2a76472a": "0x377D55a7928c046E18eEbb61977e714d2a76472a",   // polygon
+	"00000000000000000000000061E44E506Ca5659E6c0bba9b678586fA2d729756": "0x61E44E506Ca5659E6c0bba9b678586fA2d729756",   // avalanche
+	"00000000000000000000000088d8004A9BdbfD9D28090A02010C19897a29605c": "0x88d8004A9BdbfD9D28090A02010C19897a29605c",   // oasis
+	"000000000000000000000000F174F9A837536C449321df1Ca093Bb96948D5386": "0xF174F9A837536C449321df1Ca093Bb96948D5386",   // ethereum ropesten
+	// TODO "": "",  // fantom
 }
+
+// TokenTransferEmitters will be populated with lowercase addresses
+var TokenTransferEmitters = map[string]string{}
 
 // this address is an emitter for BSC and Polygon.
 var sharedEmitterAddress = "0000000000000000000000005a58505a96d1dbf8df91cb21b54419fc36e93fde"
@@ -223,18 +249,26 @@ func TrimUnicodeFromByteArray(b []byte) []byte {
 func addReceiverAddressToMutation(mut *bigtable.Mutation, ts bigtable.Timestamp, chainID uint16, hexAddress string) {
 	nativeAddress := transformHexAddressToNative(vaa.ChainID(chainID), hexAddress)
 	if vaa.ChainID(chainID) == vaa.ChainIDSolana {
-		ownerAddress := fetchSolanaAccountOwner(nativeAddress)
-		if ownerAddress == "" {
-			// exit with a failure code so the pubsub message is retried.
-			log.Fatalf("failed to find owner address for Solana account.")
-		}
-		nativeAddress = ownerAddress
+		nativeAddress = fetchSolanaAccountOwner(nativeAddress)
 	}
-	mut.Set(columnFamilies[6], "ReceiverAddress", ts, []byte(nativeAddress))
+	if nativeAddress != "" {
+		mut.Set(columnFamilies[6], "ReceiverAddress", ts, []byte(nativeAddress))
+	}
 }
 
 // ProcessVAA is triggered by a PubSub message, emitted after row is saved to BigTable by guardiand
 func ProcessVAA(ctx context.Context, m PubSubMessage) error {
+	if len(NFTEmitters) == 0 {
+		for k, v := range nftEmitters {
+			NFTEmitters[strings.ToLower(k)] = strings.ToLower(v)
+		}
+	}
+	if len(TokenTransferEmitters) == 0 {
+		for k, v := range tokenTransferEmitters {
+			TokenTransferEmitters[strings.ToLower(k)] = strings.ToLower(v)
+		}
+	}
+
 	data := string(m.Data)
 	if data == "" {
 		return fmt.Errorf("no data to process in message")
@@ -248,7 +282,7 @@ func ProcessVAA(ctx context.Context, m PubSubMessage) error {
 
 	// create the bigtable identifier from the VAA data
 	rowKey := makeRowKey(signedVaa.EmitterChain, signedVaa.EmitterAddress, signedVaa.Sequence)
-	emitterHex := signedVaa.EmitterAddress.String()
+	emitterHex := strings.ToLower(signedVaa.EmitterAddress.String())
 	payloadId := int(signedVaa.Payload[0])
 
 	// BSC and Polygon have the same contract address: "0x5a58505a96d1dbf8df91cb21b54419fc36e93fde".
