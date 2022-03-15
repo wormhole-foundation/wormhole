@@ -135,10 +135,23 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
 
         def publishMessage():
             seq = ScratchVar()
+            fee = ScratchVar()
+
+            pmt = Gtxn[Txn.group_index() - Int(1)]
 
             return Seq([
                 # Lets see if we were handed the correct account to store the sequence number in
                 Assert(Txn.accounts[1] == get_sig_address(Int(0), Txn.sender())),
+
+                fee.store(App.globalGet(Bytes("MessageFee"))),
+                If(fee.load() > Int(0), Seq([
+                        Assert(And(
+                            pmt.type_enum() == TxnType.Payment,
+                            pmt.amount() >= fee.load(),
+                            pmt.receiver() == Global.current_application_address(),
+                            pmt.rekey_to() == Global.zero_address()
+                        )),
+                ])),
 
                 # emitter sequence number
                 seq.store(Itob(Btoi(blob.read(Int(1), Int(0), Int(8))) + Int(1))),
@@ -148,7 +161,6 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
                 Log(seq.load()),
                 
                 Approve()
-#                Reject()
             ])
 
         def hdlGovernance():
