@@ -164,8 +164,9 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
         emitter = ScratchVar()
         set = ScratchVar()
         idx = ScratchVar()
+        verifyIdx = ScratchVar()
 
-        verifyVAA = Gtxn[Txn.group_index() - Int(1)]
+        verifyVAA = Gtxn[verifyIdx.load()]
 
     
         return Seq([
@@ -178,6 +179,8 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
 
             # The offset of the chain
             off.store(Btoi(Extract(Txn.application_args[1], Int(5), Int(1))) * Int(66) + Int(14)), 
+
+            verifyIdx.store(Txn.group_index() - Int(1)),
 
             Assert(And(
                 # Did verifyVAA pass?
@@ -255,43 +258,55 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
         buf = ScratchVar()
         c = ScratchVar()
         a = ScratchVar()
+
+        tidx = ScratchVar()
         
         return Seq([
             checkForDuplicate(),
 
+            tidx.store(Txn.group_index() - Int(4)),
             Assert(And(
                 # Lets see if the vaa we are about to process was actually verified by the core
-                Gtxn[Txn.group_index() - Int(4)].type_enum() == TxnType.ApplicationCall,
-                Gtxn[Txn.group_index() - Int(4)].application_id() == App.globalGet(Bytes("coreid")),
-                Gtxn[Txn.group_index() - Int(4)].application_args[0] == Bytes("verifyVAA"),
-                Gtxn[Txn.group_index() - Int(4)].sender() == Txn.sender(),
-                Gtxn[Txn.group_index() - Int(4)].rekey_to() == Global.zero_address(),
-                Gtxn[Txn.group_index() - Int(4)].application_args[1] == Txn.application_args[1],
+                Gtxn[tidx.load()].type_enum() == TxnType.ApplicationCall,
+                Gtxn[tidx.load()].application_id() == App.globalGet(Bytes("coreid")),
+                Gtxn[tidx.load()].application_args[0] == Bytes("verifyVAA"),
+                Gtxn[tidx.load()].sender() == Txn.sender(),
+                Gtxn[tidx.load()].rekey_to() == Global.zero_address(),
+                Gtxn[tidx.load()].application_args[1] == Txn.application_args[1],
 
                 # We all opted into the same accounts?
-                Gtxn[Txn.group_index() - Int(4)].accounts[0] == Txn.accounts[0],
-                Gtxn[Txn.group_index() - Int(4)].accounts[1] == Txn.accounts[1],
-                Gtxn[Txn.group_index() - Int(4)].accounts[2] == Txn.accounts[2],
+                Gtxn[tidx.load()].accounts[0] == Txn.accounts[0],
+                Gtxn[tidx.load()].accounts[1] == Txn.accounts[1],
+                Gtxn[tidx.load()].accounts[2] == Txn.accounts[2],
+                )),
                 
+            tidx.store(Txn.group_index() - Int(3)),
+            Assert(And(
                 # Did the user pay the lsig to attest a new product?
-                Gtxn[Txn.group_index() - Int(3)].type_enum() == TxnType.Payment,
-                Gtxn[Txn.group_index() - Int(3)].amount() >= Int(100000),
-                Gtxn[Txn.group_index() - Int(3)].sender() == Txn.sender(),
-                Gtxn[Txn.group_index() - Int(3)].receiver() == Txn.accounts[3],
-                Gtxn[Txn.group_index() - Int(3)].rekey_to() == Global.zero_address(),
+                Gtxn[tidx.load()].type_enum() == TxnType.Payment,
+                Gtxn[tidx.load()].amount() >= Int(100000),
+                Gtxn[tidx.load()].sender() == Txn.sender(),
+                Gtxn[tidx.load()].receiver() == Txn.accounts[3],
+                Gtxn[tidx.load()].rekey_to() == Global.zero_address(),
+                )),
 
+            tidx.store(Txn.group_index() - Int(2)),
+            Assert(And(
                 # We had to buy some extra CPU
-                Gtxn[Txn.group_index() - Int(2)].type_enum() == TxnType.ApplicationCall,
-                Gtxn[Txn.group_index() - Int(2)].application_id() == Global.current_application_id(),
-                Gtxn[Txn.group_index() - Int(2)].application_args[0] == Bytes("nop"),
-                Gtxn[Txn.group_index() - Int(2)].sender() == Txn.sender(),
-                Gtxn[Txn.group_index() - Int(2)].rekey_to() == Global.zero_address(),
+                Gtxn[tidx.load()].type_enum() == TxnType.ApplicationCall,
+                Gtxn[tidx.load()].application_id() == Global.current_application_id(),
+                Gtxn[tidx.load()].application_args[0] == Bytes("nop"),
+                Gtxn[tidx.load()].sender() == Txn.sender(),
+                Gtxn[tidx.load()].rekey_to() == Global.zero_address(),
+                )),
 
-                Gtxn[Txn.group_index() - Int(1)].type_enum() == TxnType.ApplicationCall,
-                Gtxn[Txn.group_index() - Int(1)].application_id() == Global.current_application_id(),
-                Gtxn[Txn.group_index() - Int(1)].application_args[0] == Bytes("nop"),
-                Gtxn[Txn.group_index() - Int(1)].sender() == Txn.sender(),
-                Gtxn[Txn.group_index() - Int(1)].rekey_to() == Global.zero_address(),
+            tidx.store(Txn.group_index() - Int(1)),
+            Assert(And(
+                Gtxn[tidx.load()].type_enum() == TxnType.ApplicationCall,
+                Gtxn[tidx.load()].application_id() == Global.current_application_id(),
+                Gtxn[tidx.load()].application_args[0] == Bytes("nop"),
+                Gtxn[tidx.load()].sender() == Txn.sender(),
+                Gtxn[tidx.load()].rekey_to() == Global.zero_address(),
                 
                 (Global.group_size() - Int(1)) == Txn.group_index()    # This should be the last entry...
             )),
@@ -416,26 +431,28 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
         d = ScratchVar()
         zb = ScratchVar()
         action = ScratchVar()
+        tidx = ScratchVar()
         
         return Seq([
             checkForDuplicate(),
 
             zb.store(BytesZero(Int(32))),
 
+            tidx.store(Txn.group_index() - Int(1)),
 
             Assert(And(
                 # Lets see if the vaa we are about to process was actually verified by the core
-                Gtxn[Txn.group_index() - Int(1)].type_enum() == TxnType.ApplicationCall,
-                Gtxn[Txn.group_index() - Int(1)].application_id() == App.globalGet(Bytes("coreid")),
-                Gtxn[Txn.group_index() - Int(1)].application_args[0] == Bytes("verifyVAA"),
-                Gtxn[Txn.group_index() - Int(1)].sender() == Txn.sender(),
-                Gtxn[Txn.group_index() - Int(1)].rekey_to() == Global.zero_address(),
-                Gtxn[Txn.group_index() - Int(1)].application_args[1] == Txn.application_args[1],
+                Gtxn[tidx.load()].type_enum() == TxnType.ApplicationCall,
+                Gtxn[tidx.load()].application_id() == App.globalGet(Bytes("coreid")),
+                Gtxn[tidx.load()].application_args[0] == Bytes("verifyVAA"),
+                Gtxn[tidx.load()].sender() == Txn.sender(),
+                Gtxn[tidx.load()].rekey_to() == Global.zero_address(),
+                Gtxn[tidx.load()].application_args[1] == Txn.application_args[1],
 
                 # We all opted into the same accounts?
-                Gtxn[Txn.group_index() - Int(1)].accounts[0] == Txn.accounts[0],
-                Gtxn[Txn.group_index() - Int(1)].accounts[1] == Txn.accounts[1],
-                Gtxn[Txn.group_index() - Int(1)].accounts[2] == Txn.accounts[2],
+                Gtxn[tidx.load()].accounts[0] == Txn.accounts[0],
+                Gtxn[tidx.load()].accounts[1] == Txn.accounts[1],
+                Gtxn[tidx.load()].accounts[2] == Txn.accounts[2],
                 
                 (Global.group_size() - Int(1)) == Txn.group_index()    # This should be the last entry...
             )),
@@ -611,6 +628,7 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
         zb = ScratchVar()
         factor = ScratchVar()
         fee = ScratchVar()
+        tidx = ScratchVar()
 
         return Seq([
             zb.store(BytesZero(Int(32))),
@@ -630,29 +648,31 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
             # what should we pass as a fee...
             fee.store(Btoi(Txn.application_args[5])),
 
+            tidx.store(Txn.group_index() - Int(1)),
+
             If(aid.load() == Int(0),
                Seq([
                    Assert(And(
                        # The previous txn is the asset transfer itself
-                       Gtxn[Txn.group_index() - Int(1)].type_enum() == TxnType.Payment,
-                       Gtxn[Txn.group_index() - Int(1)].sender() == Txn.sender(),
-                       Gtxn[Txn.group_index() - Int(1)].receiver() == Txn.accounts[2],
-                       Gtxn[Txn.group_index() - Int(1)].rekey_to() == Global.zero_address(),
+                       Gtxn[tidx.load()].type_enum() == TxnType.Payment,
+                       Gtxn[tidx.load()].sender() == Txn.sender(),
+                       Gtxn[tidx.load()].receiver() == Txn.accounts[2],
+                       Gtxn[tidx.load()].rekey_to() == Global.zero_address(),
                    )),
-                   amount.store(Gtxn[Txn.group_index() - Int(1)].amount()),
+                   amount.store(Gtxn[tidx.load()].amount()),
                    Assert(fee.load() < amount.load()),
                    amount.store(amount.load() - fee.load())
                ]),
                Seq([
                    Assert(And(
                        # The previous txn is the asset transfer itself
-                       Gtxn[Txn.group_index() - Int(1)].type_enum() == TxnType.AssetTransfer,
-                       Gtxn[Txn.group_index() - Int(1)].sender() == Txn.sender(),
-                       Gtxn[Txn.group_index() - Int(1)].xfer_asset() == aid.load(),
-                       Gtxn[Txn.group_index() - Int(1)].asset_receiver() == Txn.accounts[2],
-                       Gtxn[Txn.group_index() - Int(1)].rekey_to() == Global.zero_address(),
+                       Gtxn[tidx.load()].type_enum() == TxnType.AssetTransfer,
+                       Gtxn[tidx.load()].sender() == Txn.sender(),
+                       Gtxn[tidx.load()].xfer_asset() == aid.load(),
+                       Gtxn[tidx.load()].asset_receiver() == Txn.accounts[2],
+                       Gtxn[tidx.load()].rekey_to() == Global.zero_address(),
                    )),
-                   amount.store(Gtxn[Txn.group_index() - Int(1)].asset_amount()),
+                   amount.store(Gtxn[tidx.load()].asset_amount()),
 
                    # peal the fee off the amount
                    Assert(fee.load() <= amount.load()),
