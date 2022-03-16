@@ -5,6 +5,8 @@ import { PageRequest, PageResponse } from "../cosmos/base/query/v1beta1/paginati
 import { Config } from "../wormhole/config";
 import { ReplayProtection } from "../wormhole/replay_protection";
 import { SequenceCounter } from "../wormhole/sequence_counter";
+import { ActiveGuardianSetIndex } from "../wormhole/active_guardian_set_index";
+import { GuardianValidator } from "../wormhole/guardian_validator";
 export declare const protobufPackage = "certusone.wormholechain.wormhole";
 export interface QueryGetGuardianSetRequest {
     index: number;
@@ -48,6 +50,24 @@ export interface QueryAllSequenceCounterRequest {
 }
 export interface QueryAllSequenceCounterResponse {
     sequenceCounter: SequenceCounter[];
+    pagination: PageResponse | undefined;
+}
+export interface QueryGetActiveGuardianSetIndexRequest {
+}
+export interface QueryGetActiveGuardianSetIndexResponse {
+    ActiveGuardianSetIndex: ActiveGuardianSetIndex | undefined;
+}
+export interface QueryGetGuardianValidatorRequest {
+    guardianKey: Uint8Array;
+}
+export interface QueryGetGuardianValidatorResponse {
+    guardianValidator: GuardianValidator | undefined;
+}
+export interface QueryAllGuardianValidatorRequest {
+    pagination: PageRequest | undefined;
+}
+export interface QueryAllGuardianValidatorResponse {
+    guardianValidator: GuardianValidator[];
     pagination: PageResponse | undefined;
 }
 export declare const QueryGetGuardianSetRequest: {
@@ -148,6 +168,48 @@ export declare const QueryAllSequenceCounterResponse: {
     toJSON(message: QueryAllSequenceCounterResponse): unknown;
     fromPartial(object: DeepPartial<QueryAllSequenceCounterResponse>): QueryAllSequenceCounterResponse;
 };
+export declare const QueryGetActiveGuardianSetIndexRequest: {
+    encode(_: QueryGetActiveGuardianSetIndexRequest, writer?: Writer): Writer;
+    decode(input: Reader | Uint8Array, length?: number): QueryGetActiveGuardianSetIndexRequest;
+    fromJSON(_: any): QueryGetActiveGuardianSetIndexRequest;
+    toJSON(_: QueryGetActiveGuardianSetIndexRequest): unknown;
+    fromPartial(_: DeepPartial<QueryGetActiveGuardianSetIndexRequest>): QueryGetActiveGuardianSetIndexRequest;
+};
+export declare const QueryGetActiveGuardianSetIndexResponse: {
+    encode(message: QueryGetActiveGuardianSetIndexResponse, writer?: Writer): Writer;
+    decode(input: Reader | Uint8Array, length?: number): QueryGetActiveGuardianSetIndexResponse;
+    fromJSON(object: any): QueryGetActiveGuardianSetIndexResponse;
+    toJSON(message: QueryGetActiveGuardianSetIndexResponse): unknown;
+    fromPartial(object: DeepPartial<QueryGetActiveGuardianSetIndexResponse>): QueryGetActiveGuardianSetIndexResponse;
+};
+export declare const QueryGetGuardianValidatorRequest: {
+    encode(message: QueryGetGuardianValidatorRequest, writer?: Writer): Writer;
+    decode(input: Reader | Uint8Array, length?: number): QueryGetGuardianValidatorRequest;
+    fromJSON(object: any): QueryGetGuardianValidatorRequest;
+    toJSON(message: QueryGetGuardianValidatorRequest): unknown;
+    fromPartial(object: DeepPartial<QueryGetGuardianValidatorRequest>): QueryGetGuardianValidatorRequest;
+};
+export declare const QueryGetGuardianValidatorResponse: {
+    encode(message: QueryGetGuardianValidatorResponse, writer?: Writer): Writer;
+    decode(input: Reader | Uint8Array, length?: number): QueryGetGuardianValidatorResponse;
+    fromJSON(object: any): QueryGetGuardianValidatorResponse;
+    toJSON(message: QueryGetGuardianValidatorResponse): unknown;
+    fromPartial(object: DeepPartial<QueryGetGuardianValidatorResponse>): QueryGetGuardianValidatorResponse;
+};
+export declare const QueryAllGuardianValidatorRequest: {
+    encode(message: QueryAllGuardianValidatorRequest, writer?: Writer): Writer;
+    decode(input: Reader | Uint8Array, length?: number): QueryAllGuardianValidatorRequest;
+    fromJSON(object: any): QueryAllGuardianValidatorRequest;
+    toJSON(message: QueryAllGuardianValidatorRequest): unknown;
+    fromPartial(object: DeepPartial<QueryAllGuardianValidatorRequest>): QueryAllGuardianValidatorRequest;
+};
+export declare const QueryAllGuardianValidatorResponse: {
+    encode(message: QueryAllGuardianValidatorResponse, writer?: Writer): Writer;
+    decode(input: Reader | Uint8Array, length?: number): QueryAllGuardianValidatorResponse;
+    fromJSON(object: any): QueryAllGuardianValidatorResponse;
+    toJSON(message: QueryAllGuardianValidatorResponse): unknown;
+    fromPartial(object: DeepPartial<QueryAllGuardianValidatorResponse>): QueryAllGuardianValidatorResponse;
+};
 /** Query defines the gRPC querier service. */
 export interface Query {
     /** Queries a guardianSet by index. */
@@ -164,6 +226,12 @@ export interface Query {
     SequenceCounter(request: QueryGetSequenceCounterRequest): Promise<QueryGetSequenceCounterResponse>;
     /** Queries a list of sequenceCounter items. */
     SequenceCounterAll(request: QueryAllSequenceCounterRequest): Promise<QueryAllSequenceCounterResponse>;
+    /** Queries a ActiveGuardianSetIndex by index. */
+    ActiveGuardianSetIndex(request: QueryGetActiveGuardianSetIndexRequest): Promise<QueryGetActiveGuardianSetIndexResponse>;
+    /** Queries a GuardianValidator by index. */
+    GuardianValidator(request: QueryGetGuardianValidatorRequest): Promise<QueryGetGuardianValidatorResponse>;
+    /** Queries a list of GuardianValidator items. */
+    GuardianValidatorAll(request: QueryAllGuardianValidatorRequest): Promise<QueryAllGuardianValidatorResponse>;
 }
 export declare class QueryClientImpl implements Query {
     private readonly rpc;
@@ -175,6 +243,9 @@ export declare class QueryClientImpl implements Query {
     ReplayProtectionAll(request: QueryAllReplayProtectionRequest): Promise<QueryAllReplayProtectionResponse>;
     SequenceCounter(request: QueryGetSequenceCounterRequest): Promise<QueryGetSequenceCounterResponse>;
     SequenceCounterAll(request: QueryAllSequenceCounterRequest): Promise<QueryAllSequenceCounterResponse>;
+    ActiveGuardianSetIndex(request: QueryGetActiveGuardianSetIndexRequest): Promise<QueryGetActiveGuardianSetIndexResponse>;
+    GuardianValidator(request: QueryGetGuardianValidatorRequest): Promise<QueryGetGuardianValidatorResponse>;
+    GuardianValidatorAll(request: QueryAllGuardianValidatorRequest): Promise<QueryAllGuardianValidatorResponse>;
 }
 interface Rpc {
     request(service: string, method: string, data: Uint8Array): Promise<Uint8Array>;

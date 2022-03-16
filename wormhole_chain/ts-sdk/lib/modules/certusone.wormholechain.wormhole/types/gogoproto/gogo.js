@@ -1,3 +1,6 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.protobufPackage = void 0;
 //@ts-nocheck
 /* eslint-disable */
-export var protobufPackage = "gogoproto";
+exports.protobufPackage = "gogoproto";

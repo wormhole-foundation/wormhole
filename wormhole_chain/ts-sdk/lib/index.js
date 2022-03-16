@@ -1,138 +1,126 @@
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-var __generator = (this && this.__generator) || function (thisArg, body) {
-    var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g;
-    return g = { next: verb(0), "throw": verb(1), "return": verb(2) }, typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
-    function verb(n) { return function (v) { return step([n, v]); }; }
-    function step(op) {
-        if (f) throw new TypeError("Generator is already executing.");
-        while (_) try {
-            if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done) return t;
-            if (y = 0, t) op = [op[0] & 2, t.value];
-            switch (op[0]) {
-                case 0: case 1: t = op; break;
-                case 4: _.label++; return { value: op[1], done: false };
-                case 5: _.label++; y = op[1]; op = [0]; continue;
-                case 7: op = _.ops.pop(); _.trys.pop(); continue;
-                default:
-                    if (!(t = _.trys, t = t.length > 0 && t[t.length - 1]) && (op[0] === 6 || op[0] === 2)) { _ = 0; continue; }
-                    if (op[0] === 3 && (!t || (op[1] > t[0] && op[1] < t[3]))) { _.label = op[1]; break; }
-                    if (op[0] === 6 && _.label < t[1]) { _.label = t[1]; t = op; break; }
-                    if (t && _.label < t[2]) { _.label = t[2]; _.ops.push(op); break; }
-                    if (t[2]) _.ops.pop();
-                    _.trys.pop(); continue;
-            }
-            op = body.call(thisArg, _);
-        } catch (e) { op = [6, e]; y = 0; } finally { f = t = 0; }
-        if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
-    }
-};
-var __read = (this && this.__read) || function (o, n) {
-    var m = typeof Symbol === "function" && o[Symbol.iterator];
-    if (!m) return o;
-    var i = m.call(o), r, ar = [], e;
-    try {
-        while ((n === void 0 || n-- > 0) && !(r = i.next()).done) ar.push(r.value);
-    }
-    catch (error) { e = { error: error }; }
-    finally {
-        try {
-            if (r && !r.done && (m = i["return"])) m.call(i);
-        }
-        finally { if (e) throw e.error; }
-    }
-    return ar;
-};
-import { coins, DirectSecp256k1HdWallet, } from "@cosmjs/proto-signing";
-import { SigningStargateClient, StargateClient, } from "@cosmjs/stargate";
-import { txClient } from "./modules/certusone.wormholechain.wormhole";
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.fromBase64 = exports.toValAddress = exports.toBech32 = exports.fromValAddress = exports.fromBech32 = exports.unpackHttpReponse = exports.getGuardianValidatorRegistrations = exports.getValidators = exports.getActiveGuardianSet = exports.getGuardianSets = exports.executeGovernanceVAA = exports.getAddress = exports.getWallet = exports.getZeroFee = exports.getStargateClient = exports.getStargateQueryClient = exports.LCD_URL = exports.HOLE_DENOM = exports.TENDERMINT_URL = void 0;
+var fetch = require("node-fetch");
+//@ts-ignore
+globalThis.fetch = fetch;
+const bech32_1 = require("bech32");
+const proto_signing_1 = require("@cosmjs/proto-signing");
+const stargate_1 = require("@cosmjs/stargate");
+const tendermint_rpc_1 = require("@cosmjs/tendermint-rpc");
+const certusone_wormholechain_wormhole_1 = require("./modules/certusone.wormholechain.wormhole");
 //https://tutorials.cosmos.network/academy/4-my-own-chain/cosmjs.html
-var ADDRESS_PREFIX = "wormhole";
-export var TENDERMINT_URL = "http://localhost:26657";
-export var HOLE_DENOM = "uhole";
-export function getStargateClient() {
-    return __awaiter(this, void 0, void 0, function () {
-        var client;
-        return __generator(this, function (_a) {
-            switch (_a.label) {
-                case 0: return [4 /*yield*/, StargateClient.connect(TENDERMINT_URL)];
-                case 1:
-                    client = _a.sent();
-                    return [2 /*return*/, client];
-            }
-        });
-    });
+const ADDRESS_PREFIX = "wormhole";
+const OPERATOR_PREFIX = "wormholevaloper";
+exports.TENDERMINT_URL = "http://localhost:26657";
+exports.HOLE_DENOM = "uhole";
+exports.LCD_URL = "http://localhost:1317";
+async function getStargateQueryClient() {
+    const tmClient = await tendermint_rpc_1.Tendermint34Client.connect(exports.TENDERMINT_URL);
+    const client = stargate_1.QueryClient.withExtensions(tmClient, stargate_1.setupTxExtension, stargate_1.setupGovExtension, stargate_1.setupIbcExtension, stargate_1.setupAuthExtension, stargate_1.setupBankExtension, stargate_1.setupMintExtension, stargate_1.setupStakingExtension);
+    return client;
 }
-export function getZeroFee() {
+exports.getStargateQueryClient = getStargateQueryClient;
+async function getStargateClient() {
+    const client = await stargate_1.StargateClient.connect(exports.TENDERMINT_URL);
+    return client;
+}
+exports.getStargateClient = getStargateClient;
+function getZeroFee() {
     return {
-        amount: coins(0, HOLE_DENOM),
+        amount: (0, proto_signing_1.coins)(0, exports.HOLE_DENOM),
         gas: "180000", // 180k",
     };
 }
-export function getWallet(mnemonic) {
-    return __awaiter(this, void 0, void 0, function () {
-        var wallet;
-        return __generator(this, function (_a) {
-            switch (_a.label) {
-                case 0: return [4 /*yield*/, DirectSecp256k1HdWallet.fromMnemonic(mnemonic, {
-                        prefix: ADDRESS_PREFIX,
-                    })];
-                case 1:
-                    wallet = _a.sent();
-                    return [2 /*return*/, wallet];
-            }
-        });
+exports.getZeroFee = getZeroFee;
+async function getWallet(mnemonic) {
+    const wallet = await proto_signing_1.DirectSecp256k1HdWallet.fromMnemonic(mnemonic, {
+        prefix: ADDRESS_PREFIX,
     });
+    return wallet;
 }
-export function getAddress(wallet) {
-    return __awaiter(this, void 0, void 0, function () {
-        var _a, address;
-        return __generator(this, function (_b) {
-            switch (_b.label) {
-                case 0: return [4 /*yield*/, wallet.getAccounts()];
-                case 1:
-                    _a = __read.apply(void 0, [_b.sent(), 1]), address = _a[0].address;
-                    return [2 /*return*/, address];
-            }
-        });
-    });
+exports.getWallet = getWallet;
+async function getAddress(wallet) {
+    //There are actually up to 5 accounts in a cosmos wallet. I believe this returns the first wallet.
+    const [{ address }] = await wallet.getAccounts();
+    return address;
 }
-export function executeGovernanceVAA(wallet, hexVaa) {
-    return __awaiter(this, void 0, void 0, function () {
-        var offline, client, msg, _a, _b, signingClient, output;
-        var _c;
-        return __generator(this, function (_d) {
-            switch (_d.label) {
-                case 0:
-                    offline = wallet;
-                    return [4 /*yield*/, txClient(offline)];
-                case 1:
-                    client = _d.sent();
-                    _b = (_a = client).msgExecuteGovernanceVAA;
-                    _c = {
-                        vaa: new Uint8Array()
-                    };
-                    return [4 /*yield*/, getAddress(wallet)];
-                case 2:
-                    msg = _b.apply(_a, [(_c.signer = _d.sent(),
-                            _c)]);
-                    return [4 /*yield*/, SigningStargateClient.connectWithSigner(TENDERMINT_URL, wallet
-                        //{ gasPrice: { amount: Decimal.fromUserInput("0.0", 0), denom: "uhole" } }
-                        )];
-                case 3:
-                    signingClient = _d.sent();
-                    return [4 /*yield*/, client.signAndBroadcast([msg])];
-                case 4:
-                    output = _d.sent();
-                    return [2 /*return*/, output];
-            }
-        });
-    });
+exports.getAddress = getAddress;
+async function executeGovernanceVAA(wallet, hexVaa) {
+    const offline = wallet;
+    const client = await (0, certusone_wormholechain_wormhole_1.txClient)(offline);
+    const msg = client.msgExecuteGovernanceVAA({
+        vaa: new Uint8Array(),
+        signer: await getAddress(wallet),
+    }); //TODO convert type
+    const signingClient = await stargate_1.SigningStargateClient.connectWithSigner(exports.TENDERMINT_URL, wallet
+    //{ gasPrice: { amount: Decimal.fromUserInput("0.0", 0), denom: "uhole" } }
+    );
+    //TODO investigate signing with the stargate client, as the module txClients can't do 100% of the operations
+    //   const output = signingClient.signAndBroadcast(
+    //     await getAddress(wallet),
+    //     [msg],
+    //     getZeroFee(),
+    //     "executing governance VAA"
+    //   );
+    //TODO the EncodingObjects from the txClient seem to be incompatible with the
+    //stargate client
+    // In order for all the encoding objects to be interoperable, we will have to either coerce the txClient msgs into the format of stargate,
+    // or we could just just txClients for everything. I am currently leaning towards the latter, as we can generate txClients for everything out of the cosmos-sdk,
+    // and we will likely need to generate txClients for our forked version of the cosmos SDK anyway.
+    const output = await client.signAndBroadcast([msg]);
+    return output;
 }
+exports.executeGovernanceVAA = executeGovernanceVAA;
+async function getGuardianSets() {
+    const client = await (0, certusone_wormholechain_wormhole_1.queryClient)({ addr: exports.LCD_URL });
+    const response = client.queryGuardianSetAll();
+    return await unpackHttpReponse(response);
+}
+exports.getGuardianSets = getGuardianSets;
+async function getActiveGuardianSet() {
+    const client = await (0, certusone_wormholechain_wormhole_1.queryClient)({ addr: exports.LCD_URL });
+    const response = client.queryActiveGuardianSetIndex();
+    return await unpackHttpReponse(response);
+}
+exports.getActiveGuardianSet = getActiveGuardianSet;
+async function getValidators() {
+    const client = await getStargateQueryClient();
+    //TODO handle pagination here
+    const validators = await client.staking.validators("BOND_STATUS_BONDED");
+    return validators;
+}
+exports.getValidators = getValidators;
+async function getGuardianValidatorRegistrations() {
+    const client = await (0, certusone_wormholechain_wormhole_1.queryClient)({ addr: exports.LCD_URL });
+    const response = client.queryGuardianValidatorAll();
+    return await unpackHttpReponse(response);
+}
+exports.getGuardianValidatorRegistrations = getGuardianValidatorRegistrations;
+async function unpackHttpReponse(response) {
+    const http = await response;
+    //TODO check rpc status
+    const content = http.data;
+    return content;
+}
+exports.unpackHttpReponse = unpackHttpReponse;
+function fromBech32(address) {
+    return Buffer.from(bech32_1.bech32.decode(address).words);
+}
+exports.fromBech32 = fromBech32;
+function fromValAddress(valAddress) {
+    return Buffer.from(bech32_1.bech32.decode(valAddress).words);
+}
+exports.fromValAddress = fromValAddress;
+function toBech32(address) {
+    return bech32_1.bech32.encode(ADDRESS_PREFIX, address);
+}
+exports.toBech32 = toBech32;
+function toValAddress(address) {
+    return bech32_1.bech32.encode(OPERATOR_PREFIX, address);
+}
+exports.toValAddress = toValAddress;
+function fromBase64(address) {
+    return Buffer.from(bech32_1.bech32.toWords(Buffer.from(address, "base64")));
+}
+exports.fromBase64 = fromBase64;

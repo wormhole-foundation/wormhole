@@ -1,33 +1,27 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ChainRegistration = exports.protobufPackage = void 0;
+exports.GuardianKey = exports.protobufPackage = void 0;
 //@ts-nocheck
 /* eslint-disable */
 const minimal_1 = require("protobufjs/minimal");
-exports.protobufPackage = "certusone.wormholechain.tokenbridge";
-const baseChainRegistration = { chainID: 0 };
-exports.ChainRegistration = {
+exports.protobufPackage = "certusone.wormholechain.wormhole";
+const baseGuardianKey = {};
+exports.GuardianKey = {
     encode(message, writer = minimal_1.Writer.create()) {
-        if (message.chainID !== 0) {
-            writer.uint32(8).uint32(message.chainID);
-        }
-        if (message.emitterAddress.length !== 0) {
-            writer.uint32(18).bytes(message.emitterAddress);
+        if (message.key.length !== 0) {
+            writer.uint32(10).bytes(message.key);
         }
         return writer;
     },
     decode(input, length) {
         const reader = input instanceof Uint8Array ? new minimal_1.Reader(input) : input;
         let end = length === undefined ? reader.len : reader.pos + length;
-        const message = { ...baseChainRegistration };
+        const message = { ...baseGuardianKey };
         while (reader.pos < end) {
             const tag = reader.uint32();
             switch (tag >>> 3) {
                 case 1:
-                    message.chainID = reader.uint32();
-                    break;
-                case 2:
-                    message.emitterAddress = reader.bytes();
+                    message.key = reader.bytes();
                     break;
                 default:
                     reader.skipType(tag & 7);
@@ -37,40 +31,25 @@ exports.ChainRegistration = {
         return message;
     },
     fromJSON(object) {
-        const message = { ...baseChainRegistration };
-        if (object.chainID !== undefined && object.chainID !== null) {
-            message.chainID = Number(object.chainID);
-        }
-        else {
-            message.chainID = 0;
-        }
-        if (object.emitterAddress !== undefined && object.emitterAddress !== null) {
-            message.emitterAddress = bytesFromBase64(object.emitterAddress);
+        const message = { ...baseGuardianKey };
+        if (object.key !== undefined && object.key !== null) {
+            message.key = bytesFromBase64(object.key);
         }
         return message;
     },
     toJSON(message) {
         const obj = {};
-        message.chainID !== undefined && (obj.chainID = message.chainID);
-        message.emitterAddress !== undefined &&
-            (obj.emitterAddress = base64FromBytes(message.emitterAddress !== undefined
-                ? message.emitterAddress
-                : new Uint8Array()));
+        message.key !== undefined &&
+            (obj.key = base64FromBytes(message.key !== undefined ? message.key : new Uint8Array()));
         return obj;
     },
     fromPartial(object) {
-        const message = { ...baseChainRegistration };
-        if (object.chainID !== undefined && object.chainID !== null) {
-            message.chainID = object.chainID;
+        const message = { ...baseGuardianKey };
+        if (object.key !== undefined && object.key !== null) {
+            message.key = object.key;
         }
         else {
-            message.chainID = 0;
-        }
-        if (object.emitterAddress !== undefined && object.emitterAddress !== null) {
-            message.emitterAddress = object.emitterAddress;
-        }
-        else {
-            message.emitterAddress = new Uint8Array();
+            message.key = new Uint8Array();
         }
         return message;
     },

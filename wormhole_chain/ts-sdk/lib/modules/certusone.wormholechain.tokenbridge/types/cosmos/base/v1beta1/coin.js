@@ -1,22 +1,13 @@
-var __assign = (this && this.__assign) || function () {
-    __assign = Object.assign || function(t) {
-        for (var s, i = 1, n = arguments.length; i < n; i++) {
-            s = arguments[i];
-            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
-                t[p] = s[p];
-        }
-        return t;
-    };
-    return __assign.apply(this, arguments);
-};
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.DecProto = exports.IntProto = exports.DecCoin = exports.Coin = exports.protobufPackage = void 0;
 //@ts-nocheck
 /* eslint-disable */
-import { Writer, Reader } from "protobufjs/minimal";
-export var protobufPackage = "cosmos.base.v1beta1";
-var baseCoin = { denom: "", amount: "" };
-export var Coin = {
-    encode: function (message, writer) {
-        if (writer === void 0) { writer = Writer.create(); }
+const minimal_1 = require("protobufjs/minimal");
+exports.protobufPackage = "cosmos.base.v1beta1";
+const baseCoin = { denom: "", amount: "" };
+exports.Coin = {
+    encode(message, writer = minimal_1.Writer.create()) {
         if (message.denom !== "") {
             writer.uint32(10).string(message.denom);
         }
@@ -25,12 +16,12 @@ export var Coin = {
         }
         return writer;
     },
-    decode: function (input, length) {
-        var reader = input instanceof Uint8Array ? new Reader(input) : input;
-        var end = length === undefined ? reader.len : reader.pos + length;
-        var message = __assign({}, baseCoin);
+    decode(input, length) {
+        const reader = input instanceof Uint8Array ? new minimal_1.Reader(input) : input;
+        let end = length === undefined ? reader.len : reader.pos + length;
+        const message = { ...baseCoin };
         while (reader.pos < end) {
-            var tag = reader.uint32();
+            const tag = reader.uint32();
             switch (tag >>> 3) {
                 case 1:
                     message.denom = reader.string();
@@ -45,8 +36,8 @@ export var Coin = {
         }
         return message;
     },
-    fromJSON: function (object) {
-        var message = __assign({}, baseCoin);
+    fromJSON(object) {
+        const message = { ...baseCoin };
         if (object.denom !== undefined && object.denom !== null) {
             message.denom = String(object.denom);
         }
@@ -61,14 +52,14 @@ export var Coin = {
         }
         return message;
     },
-    toJSON: function (message) {
-        var obj = {};
+    toJSON(message) {
+        const obj = {};
         message.denom !== undefined && (obj.denom = message.denom);
         message.amount !== undefined && (obj.amount = message.amount);
         return obj;
     },
-    fromPartial: function (object) {
-        var message = __assign({}, baseCoin);
+    fromPartial(object) {
+        const message = { ...baseCoin };
         if (object.denom !== undefined && object.denom !== null) {
             message.denom = object.denom;
         }
@@ -84,10 +75,9 @@ export var Coin = {
         return message;
     },
 };
-var baseDecCoin = { denom: "", amount: "" };
-export var DecCoin = {
-    encode: function (message, writer) {
-        if (writer === void 0) { writer = Writer.create(); }
+const baseDecCoin = { denom: "", amount: "" };
+exports.DecCoin = {
+    encode(message, writer = minimal_1.Writer.create()) {
         if (message.denom !== "") {
             writer.uint32(10).string(message.denom);
         }
@@ -96,12 +86,12 @@ export var DecCoin = {
         }
         return writer;
     },
-    decode: function (input, length) {
-        var reader = input instanceof Uint8Array ? new Reader(input) : input;
-        var end = length === undefined ? reader.len : reader.pos + length;
-        var message = __assign({}, baseDecCoin);
+    decode(input, length) {
+        const reader = input instanceof Uint8Array ? new minimal_1.Reader(input) : input;
+        let end = length === undefined ? reader.len : reader.pos + length;
+        const message = { ...baseDecCoin };
         while (reader.pos < end) {
-            var tag = reader.uint32();
+            const tag = reader.uint32();
             switch (tag >>> 3) {
                 case 1:
                     message.denom = reader.string();
@@ -116,8 +106,8 @@ export var DecCoin = {
         }
         return message;
     },
-    fromJSON: function (object) {
-        var message = __assign({}, baseDecCoin);
+    fromJSON(object) {
+        const message = { ...baseDecCoin };
         if (object.denom !== undefined && object.denom !== null) {
             message.denom = String(object.denom);
         }
@@ -132,14 +122,14 @@ export var DecCoin = {
         }
         return message;
     },
-    toJSON: function (message) {
-        var obj = {};
+    toJSON(message) {
+        const obj = {};
         message.denom !== undefined && (obj.denom = message.denom);
         message.amount !== undefined && (obj.amount = message.amount);
         return obj;
     },
-    fromPartial: function (object) {
-        var message = __assign({}, baseDecCoin);
+    fromPartial(object) {
+        const message = { ...baseDecCoin };
         if (object.denom !== undefined && object.denom !== null) {
             message.denom = object.denom;
         }
@@ -155,21 +145,20 @@ export var DecCoin = {
         return message;
     },
 };
-var baseIntProto = { int: "" };
-export var IntProto = {
-    encode: function (message, writer) {
-        if (writer === void 0) { writer = Writer.create(); }
+const baseIntProto = { int: "" };
+exports.IntProto = {
+    encode(message, writer = minimal_1.Writer.create()) {
         if (message.int !== "") {
             writer.uint32(10).string(message.int);
         }
         return writer;
     },
-    decode: function (input, length) {
-        var reader = input instanceof Uint8Array ? new Reader(input) : input;
-        var end = length === undefined ? reader.len : reader.pos + length;
-        var message = __assign({}, baseIntProto);
+    decode(input, length) {
+        const reader = input instanceof Uint8Array ? new minimal_1.Reader(input) : input;
+        let end = length === undefined ? reader.len : reader.pos + length;
+        const message = { ...baseIntProto };
         while (reader.pos < end) {
-            var tag = reader.uint32();
+            const tag = reader.uint32();
             switch (tag >>> 3) {
                 case 1:
                     message.int = reader.string();
@@ -181,8 +170,8 @@ export var IntProto = {
         }
         return message;
     },
-    fromJSON: function (object) {
-        var message = __assign({}, baseIntProto);
+    fromJSON(object) {
+        const message = { ...baseIntProto };
         if (object.int !== undefined && object.int !== null) {
             message.int = String(object.int);
         }
@@ -191,13 +180,13 @@ export var IntProto = {
         }
         return message;
     },
-    toJSON: function (message) {
-        var obj = {};
+    toJSON(message) {
+        const obj = {};
         message.int !== undefined && (obj.int = message.int);
         return obj;
     },
-    fromPartial: function (object) {
-        var message = __assign({}, baseIntProto);
+    fromPartial(object) {
+        const message = { ...baseIntProto };
         if (object.int !== undefined && object.int !== null) {
             message.int = object.int;
         }
@@ -207,21 +196,20 @@ export var IntProto = {
         return message;
     },
 };
-var baseDecProto = { dec: "" };
-export var DecProto = {
-    encode: function (message, writer) {
-        if (writer === void 0) { writer = Writer.create(); }
+const baseDecProto = { dec: "" };
+exports.DecProto = {
+    encode(message, writer = minimal_1.Writer.create()) {
         if (message.dec !== "") {
             writer.uint32(10).string(message.dec);
         }
         return writer;
     },
-    decode: function (input, length) {
-        var reader = input instanceof Uint8Array ? new Reader(input) : input;
-        var end = length === undefined ? reader.len : reader.pos + length;
-        var message = __assign({}, baseDecProto);
+    decode(input, length) {
+        const reader = input instanceof Uint8Array ? new minimal_1.Reader(input) : input;
+        let end = length === undefined ? reader.len : reader.pos + length;
+        const message = { ...baseDecProto };
         while (reader.pos < end) {
-            var tag = reader.uint32();
+            const tag = reader.uint32();
             switch (tag >>> 3) {
                 case 1:
                     message.dec = reader.string();
@@ -233,8 +221,8 @@ export var DecProto = {
         }
         return message;
     },
-    fromJSON: function (object) {
-        var message = __assign({}, baseDecProto);
+    fromJSON(object) {
+        const message = { ...baseDecProto };
         if (object.dec !== undefined && object.dec !== null) {
             message.dec = String(object.dec);
         }
@@ -243,13 +231,13 @@ export var DecProto = {
         }
         return message;
     },
-    toJSON: function (message) {
-        var obj = {};
+    toJSON(message) {
+        const obj = {};
         message.dec !== undefined && (obj.dec = message.dec);
         return obj;
     },
-    fromPartial: function (object) {
-        var message = __assign({}, baseDecProto);
+    fromPartial(object) {
+        const message = { ...baseDecProto };
         if (object.dec !== undefined && object.dec !== null) {
             message.dec = object.dec;
         }

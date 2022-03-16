@@ -80,6 +80,11 @@ export interface V1Beta1PageResponse {
   total?: string;
 }
 
+export interface WormholeActiveGuardianSetIndex {
+  /** @format int64 */
+  index?: number;
+}
+
 export interface WormholeConfig {
   /** @format uint64 */
   guardianSetExpiration?: string;
@@ -94,6 +99,11 @@ export interface WormholeConfig {
   chainId?: number;
 }
 
+export interface WormholeGuardianKey {
+  /** @format byte */
+  key?: string;
+}
+
 export interface WormholeGuardianSet {
   /** @format int64 */
   index?: number;
@@ -103,10 +113,35 @@ export interface WormholeGuardianSet {
   expirationTime?: string;
 }
 
+export interface WormholeGuardianValidator {
+  /** @format byte */
+  guardianKey?: string;
+
+  /** @format byte */
+  validatorAddr?: string;
+}
+
 export type WormholeMsgExecuteGovernanceVAAResponse = object;
+
+export type WormholeMsgRegisterAccountAsGuardianResponse = object;
 
 export interface WormholeQueryAllGuardianSetResponse {
   GuardianSet?: WormholeGuardianSet[];
+
+  /**
+   * PageResponse is to be embedded in gRPC response messages where the
+   * corresponding request message has used PageRequest.
+   *
+   *  message SomeResponse {
+   *          repeated Bar results = 1;
+   *          PageResponse page = 2;
+   *  }
+   */
+  pagination?: V1Beta1PageResponse;
+}
+
+export interface WormholeQueryAllGuardianValidatorResponse {
+  guardianValidator?: WormholeGuardianValidator[];
 
   /**
    * PageResponse is to be embedded in gRPC response messages where the
@@ -150,12 +185,20 @@ export interface WormholeQueryAllSequenceCounterResponse {
   pagination?: V1Beta1PageResponse;
 }
 
+export interface WormholeQueryGetActiveGuardianSetIndexResponse {
+  ActiveGuardianSetIndex?: WormholeActiveGuardianSetIndex;
+}
+
 export interface WormholeQueryGetConfigResponse {
   Config?: WormholeConfig;
 }
 
 export interface WormholeQueryGetGuardianSetResponse {
   GuardianSet?: WormholeGuardianSet;
+}
+
+export interface WormholeQueryGetGuardianValidatorResponse {
+  guardianValidator?: WormholeGuardianValidator;
 }
 
 export interface WormholeQueryGetReplayProtectionResponse {
@@ -369,10 +412,26 @@ export class HttpClient<SecurityDataType = unknown> {
 }
 
 /**
- * @title wormhole/config.proto
+ * @title wormhole/active_guardian_set_index.proto
  * @version version not set
  */
 export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDataType> {
+  /**
+   * No description
+   *
+   * @tags Query
+   * @name QueryActiveGuardianSetIndex
+   * @summary Queries a ActiveGuardianSetIndex by index.
+   * @request GET:/certusone/wormholechain/wormhole/active_guardian_set_index
+   */
+  queryActiveGuardianSetIndex = (params: RequestParams = {}) =>
+    this.request<WormholeQueryGetActiveGuardianSetIndexResponse, RpcStatus>({
+      path: `/certusone/wormholechain/wormhole/active_guardian_set_index`,
+      method: "GET",
+      format: "json",
+      ...params,
+    });
+
   /**
    * No description
    *
@@ -426,6 +485,48 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
   queryGuardianSet = (index: number, params: RequestParams = {}) =>
     this.request<WormholeQueryGetGuardianSetResponse, RpcStatus>({
       path: `/certusone/wormholechain/wormhole/guardianSet/${index}`,
+      method: "GET",
+      format: "json",
+      ...params,
+    });
+
+  /**
+   * No description
+   *
+   * @tags Query
+   * @name QueryGuardianValidatorAll
+   * @summary Queries a list of GuardianValidator items.
+   * @request GET:/certusone/wormholechain/wormhole/guardian_validator
+   */
+  queryGuardianValidatorAll = (
+    query?: {
+      "pagination.key"?: string;
+      "pagination.offset"?: string;
+      "pagination.limit"?: string;
+      "pagination.countTotal"?: boolean;
+      "pagination.reverse"?: boolean;
+    },
+    params: RequestParams = {},
+  ) =>
+    this.request<WormholeQueryAllGuardianValidatorResponse, RpcStatus>({
+      path: `/certusone/wormholechain/wormhole/guardian_validator`,
+      method: "GET",
+      query: query,
+      format: "json",
+      ...params,
+    });
+
+  /**
+   * No description
+   *
+   * @tags Query
+   * @name QueryGuardianValidator
+   * @summary Queries a GuardianValidator by index.
+   * @request GET:/certusone/wormholechain/wormhole/guardian_validator/{guardianKey}
+   */
+  queryGuardianValidator = (guardianKey: string, params: RequestParams = {}) =>
+    this.request<WormholeQueryGetGuardianValidatorResponse, RpcStatus>({
+      path: `/certusone/wormholechain/wormhole/guardian_validator/${guardianKey}`,
       method: "GET",
       format: "json",
       ...params,

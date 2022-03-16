@@ -64,7 +64,7 @@ if singleNode:
         context = ".",
         dockerfile = "./Dockerfile",
         only = [],
-        #these are the important dirs live_update = ["./x","./cosmos-sdk","./app","./config.yml"],
+        ignore = ["./testing", "./ts-sdk", "./design"],
     )
 
     k8s_yaml_with_ns("testing/validators/kubernetes/wormchain-devnet.yaml")

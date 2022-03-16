@@ -1,3 +1,8 @@
+var fetch = require("node-fetch");
+//@ts-ignore
+globalThis.fetch = fetch;
+
+import { bech32 } from "bech32";
 import {
   coins,
   DirectSecp256k1HdWallet,
@@ -5,17 +10,51 @@ import {
   OfflineSigner,
 } from "@cosmjs/proto-signing";
 import {
+  QueryClient,
+  setupAuthExtension,
+  setupBankExtension,
+  setupGovExtension,
+  setupIbcExtension,
+  setupMintExtension,
+  setupStakingExtension,
+  setupTxExtension,
   SigningStargateClient,
   StargateClient,
   StdFee,
 } from "@cosmjs/stargate";
+import { Tendermint34Client } from "@cosmjs/tendermint-rpc";
+import {
+  RpcStatus,
+  HttpResponse,
+} from "./modules/certusone.wormholechain.tokenbridge/rest";
 import { ChainRegistration } from "./modules/certusone.wormholechain.tokenbridge/types/tokenbridge/chain_registration";
-import { txClient } from "./modules/certusone.wormholechain.wormhole";
+import {
+  txClient,
+  queryClient,
+} from "./modules/certusone.wormholechain.wormhole";
 
 //https://tutorials.cosmos.network/academy/4-my-own-chain/cosmjs.html
 const ADDRESS_PREFIX = "wormhole";
+const OPERATOR_PREFIX = "wormholevaloper";
 export const TENDERMINT_URL = "http://localhost:26657";
 export const HOLE_DENOM = "uhole";
+export const LCD_URL = "http://localhost:1317";
+
+export async function getStargateQueryClient() {
+  const tmClient = await Tendermint34Client.connect(TENDERMINT_URL);
+  const client = QueryClient.withExtensions(
+    tmClient,
+    setupTxExtension,
+    setupGovExtension,
+    setupIbcExtension,
+    setupAuthExtension,
+    setupBankExtension,
+    setupMintExtension,
+    setupStakingExtension
+  );
+
+  return client;
+}
 
 export async function getStargateClient() {
   const client: StargateClient = await StargateClient.connect(TENDERMINT_URL);
@@ -83,3 +122,70 @@ export async function executeGovernanceVAA(
 
   return output;
 }
+
+export async function getGuardianSets() {
+  const client = await queryClient({ addr: LCD_URL });
+  const response = client.queryGuardianSetAll();
+
+  return await unpackHttpReponse(response);
+}
+
+export async function getActiveGuardianSet() {
+  const client = await queryClient({ addr: LCD_URL });
+  const response = client.queryActiveGuardianSetIndex();
+
+  return await unpackHttpReponse(response);
+}
+
+export async function getValidators() {
+  const client = await getStargateQueryClient();
+  //TODO handle pagination here
+  const validators = await client.staking.validators("BOND_STATUS_BONDED");
+
+  return validators;
+}
+
+export async function getGuardianValidatorRegistrations() {
+  const client = await queryClient({ addr: LCD_URL });
+  const response = client.queryGuardianValidatorAll();
+
+  return await unpackHttpReponse(response);
+}
+
+export async function unpackHttpReponse<T>(
+  response: Promise<HttpResponse<T, RpcStatus>>
+) {
+  const http = await response;
+  //TODO check rpc status
+  const content = http.data;
+
+  return content;
+}
+
+export function fromAccAddress(address: string): BinaryAddress {
+  return { words: Buffer.from(bech32.decode(address).words) };
+}
+
+export function fromValAddress(valAddress: string): BinaryAddress {
+  return { words: Buffer.from(bech32.decode(valAddress).words) };
+}
+
+export function fromBase64(address: string): BinaryAddress {
+  return { words: Buffer.from(bech32.toWords(Buffer.from(address, "base64"))) };
+}
+
+export function toAccAddress(address: BinaryAddress): string {
+  return bech32.encode(ADDRESS_PREFIX, address.words);
+}
+
+export function toValAddress(address: BinaryAddress): string {
+  return bech32.encode(OPERATOR_PREFIX, address.words);
+}
+
+export function toBase64(address: BinaryAddress): string {
+  return Buffer.from(bech32.fromWords(address.words)).toString("base64");
+}
+
+type BinaryAddress = {
+  words: Uint8Array;
+};

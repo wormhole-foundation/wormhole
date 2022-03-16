@@ -1,22 +1,13 @@
-var __assign = (this && this.__assign) || function () {
-    __assign = Object.assign || function(t) {
-        for (var s, i = 1, n = arguments.length; i < n; i++) {
-            s = arguments[i];
-            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
-                t[p] = s[p];
-        }
-        return t;
-    };
-    return __assign.apply(this, arguments);
-};
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.EventTransferReceived = exports.EventAssetRegistrationUpdate = exports.EventChainRegistered = exports.protobufPackage = void 0;
 //@ts-nocheck
 /* eslint-disable */
-import { Writer, Reader } from "protobufjs/minimal";
-export var protobufPackage = "certusone.wormholechain.tokenbridge";
-var baseEventChainRegistered = { chainID: 0 };
-export var EventChainRegistered = {
-    encode: function (message, writer) {
-        if (writer === void 0) { writer = Writer.create(); }
+const minimal_1 = require("protobufjs/minimal");
+exports.protobufPackage = "certusone.wormholechain.tokenbridge";
+const baseEventChainRegistered = { chainID: 0 };
+exports.EventChainRegistered = {
+    encode(message, writer = minimal_1.Writer.create()) {
         if (message.chainID !== 0) {
             writer.uint32(8).uint32(message.chainID);
         }
@@ -25,12 +16,12 @@ export var EventChainRegistered = {
         }
         return writer;
     },
-    decode: function (input, length) {
-        var reader = input instanceof Uint8Array ? new Reader(input) : input;
-        var end = length === undefined ? reader.len : reader.pos + length;
-        var message = __assign({}, baseEventChainRegistered);
+    decode(input, length) {
+        const reader = input instanceof Uint8Array ? new minimal_1.Reader(input) : input;
+        let end = length === undefined ? reader.len : reader.pos + length;
+        const message = { ...baseEventChainRegistered };
         while (reader.pos < end) {
-            var tag = reader.uint32();
+            const tag = reader.uint32();
             switch (tag >>> 3) {
                 case 1:
                     message.chainID = reader.uint32();
@@ -45,8 +36,8 @@ export var EventChainRegistered = {
         }
         return message;
     },
-    fromJSON: function (object) {
-        var message = __assign({}, baseEventChainRegistered);
+    fromJSON(object) {
+        const message = { ...baseEventChainRegistered };
         if (object.chainID !== undefined && object.chainID !== null) {
             message.chainID = Number(object.chainID);
         }
@@ -58,8 +49,8 @@ export var EventChainRegistered = {
         }
         return message;
     },
-    toJSON: function (message) {
-        var obj = {};
+    toJSON(message) {
+        const obj = {};
         message.chainID !== undefined && (obj.chainID = message.chainID);
         message.emitterAddress !== undefined &&
             (obj.emitterAddress = base64FromBytes(message.emitterAddress !== undefined
@@ -67,8 +58,8 @@ export var EventChainRegistered = {
                 : new Uint8Array()));
         return obj;
     },
-    fromPartial: function (object) {
-        var message = __assign({}, baseEventChainRegistered);
+    fromPartial(object) {
+        const message = { ...baseEventChainRegistered };
         if (object.chainID !== undefined && object.chainID !== null) {
             message.chainID = object.chainID;
         }
@@ -84,15 +75,14 @@ export var EventChainRegistered = {
         return message;
     },
 };
-var baseEventAssetRegistrationUpdate = {
+const baseEventAssetRegistrationUpdate = {
     tokenChain: 0,
     name: "",
     symbol: "",
     decimals: 0,
 };
-export var EventAssetRegistrationUpdate = {
-    encode: function (message, writer) {
-        if (writer === void 0) { writer = Writer.create(); }
+exports.EventAssetRegistrationUpdate = {
+    encode(message, writer = minimal_1.Writer.create()) {
         if (message.tokenChain !== 0) {
             writer.uint32(8).uint32(message.tokenChain);
         }
@@ -110,12 +100,14 @@ export var EventAssetRegistrationUpdate = {
         }
         return writer;
     },
-    decode: function (input, length) {
-        var reader = input instanceof Uint8Array ? new Reader(input) : input;
-        var end = length === undefined ? reader.len : reader.pos + length;
-        var message = __assign({}, baseEventAssetRegistrationUpdate);
+    decode(input, length) {
+        const reader = input instanceof Uint8Array ? new minimal_1.Reader(input) : input;
+        let end = length === undefined ? reader.len : reader.pos + length;
+        const message = {
+            ...baseEventAssetRegistrationUpdate,
+        };
         while (reader.pos < end) {
-            var tag = reader.uint32();
+            const tag = reader.uint32();
             switch (tag >>> 3) {
                 case 1:
                     message.tokenChain = reader.uint32();
@@ -139,8 +131,10 @@ export var EventAssetRegistrationUpdate = {
         }
         return message;
     },
-    fromJSON: function (object) {
-        var message = __assign({}, baseEventAssetRegistrationUpdate);
+    fromJSON(object) {
+        const message = {
+            ...baseEventAssetRegistrationUpdate,
+        };
         if (object.tokenChain !== undefined && object.tokenChain !== null) {
             message.tokenChain = Number(object.tokenChain);
         }
@@ -170,8 +164,8 @@ export var EventAssetRegistrationUpdate = {
         }
         return message;
     },
-    toJSON: function (message) {
-        var obj = {};
+    toJSON(message) {
+        const obj = {};
         message.tokenChain !== undefined && (obj.tokenChain = message.tokenChain);
         message.tokenAddress !== undefined &&
             (obj.tokenAddress = base64FromBytes(message.tokenAddress !== undefined
@@ -182,8 +176,10 @@ export var EventAssetRegistrationUpdate = {
         message.decimals !== undefined && (obj.decimals = message.decimals);
         return obj;
     },
-    fromPartial: function (object) {
-        var message = __assign({}, baseEventAssetRegistrationUpdate);
+    fromPartial(object) {
+        const message = {
+            ...baseEventAssetRegistrationUpdate,
+        };
         if (object.tokenChain !== undefined && object.tokenChain !== null) {
             message.tokenChain = object.tokenChain;
         }
@@ -217,7 +213,7 @@ export var EventAssetRegistrationUpdate = {
         return message;
     },
 };
-var baseEventTransferReceived = {
+const baseEventTransferReceived = {
     tokenChain: 0,
     to: "",
     feeRecipient: "",
@@ -225,9 +221,8 @@ var baseEventTransferReceived = {
     fee: "",
     localDenom: "",
 };
-export var EventTransferReceived = {
-    encode: function (message, writer) {
-        if (writer === void 0) { writer = Writer.create(); }
+exports.EventTransferReceived = {
+    encode(message, writer = minimal_1.Writer.create()) {
         if (message.tokenChain !== 0) {
             writer.uint32(8).uint32(message.tokenChain);
         }
@@ -251,12 +246,12 @@ export var EventTransferReceived = {
         }
         return writer;
     },
-    decode: function (input, length) {
-        var reader = input instanceof Uint8Array ? new Reader(input) : input;
-        var end = length === undefined ? reader.len : reader.pos + length;
-        var message = __assign({}, baseEventTransferReceived);
+    decode(input, length) {
+        const reader = input instanceof Uint8Array ? new minimal_1.Reader(input) : input;
+        let end = length === undefined ? reader.len : reader.pos + length;
+        const message = { ...baseEventTransferReceived };
         while (reader.pos < end) {
-            var tag = reader.uint32();
+            const tag = reader.uint32();
             switch (tag >>> 3) {
                 case 1:
                     message.tokenChain = reader.uint32();
@@ -286,8 +281,8 @@ export var EventTransferReceived = {
         }
         return message;
     },
-    fromJSON: function (object) {
-        var message = __assign({}, baseEventTransferReceived);
+    fromJSON(object) {
+        const message = { ...baseEventTransferReceived };
         if (object.tokenChain !== undefined && object.tokenChain !== null) {
             message.tokenChain = Number(object.tokenChain);
         }
@@ -329,8 +324,8 @@ export var EventTransferReceived = {
         }
         return message;
     },
-    toJSON: function (message) {
-        var obj = {};
+    toJSON(message) {
+        const obj = {};
         message.tokenChain !== undefined && (obj.tokenChain = message.tokenChain);
         message.tokenAddress !== undefined &&
             (obj.tokenAddress = base64FromBytes(message.tokenAddress !== undefined
@@ -344,8 +339,8 @@ export var EventTransferReceived = {
         message.localDenom !== undefined && (obj.localDenom = message.localDenom);
         return obj;
     },
-    fromPartial: function (object) {
-        var message = __assign({}, baseEventTransferReceived);
+    fromPartial(object) {
+        const message = { ...baseEventTransferReceived };
         if (object.tokenChain !== undefined && object.tokenChain !== null) {
             message.tokenChain = object.tokenChain;
         }
@@ -391,7 +386,7 @@ export var EventTransferReceived = {
         return message;
     },
 };
-var globalThis = (function () {
+var globalThis = (() => {
     if (typeof globalThis !== "undefined")
         return globalThis;
     if (typeof self !== "undefined")
@@ -402,21 +397,21 @@ var globalThis = (function () {
         return global;
     throw "Unable to locate global object";
 })();
-var atob = globalThis.atob ||
-    (function (b64) { return globalThis.Buffer.from(b64, "base64").toString("binary"); });
+const atob = globalThis.atob ||
+    ((b64) => globalThis.Buffer.from(b64, "base64").toString("binary"));
 function bytesFromBase64(b64) {
-    var bin = atob(b64);
-    var arr = new Uint8Array(bin.length);
-    for (var i = 0; i < bin.length; ++i) {
+    const bin = atob(b64);
+    const arr = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; ++i) {
         arr[i] = bin.charCodeAt(i);
     }
     return arr;
 }
-var btoa = globalThis.btoa ||
-    (function (bin) { return globalThis.Buffer.from(bin, "binary").toString("base64"); });
+const btoa = globalThis.btoa ||
+    ((bin) => globalThis.Buffer.from(bin, "binary").toString("base64"));
 function base64FromBytes(arr) {
-    var bin = [];
-    for (var i = 0; i < arr.byteLength; ++i) {
+    const bin = [];
+    for (let i = 0; i < arr.byteLength; ++i) {
         bin.push(String.fromCharCode(arr[i]));
     }
     return btoa(bin.join(""));

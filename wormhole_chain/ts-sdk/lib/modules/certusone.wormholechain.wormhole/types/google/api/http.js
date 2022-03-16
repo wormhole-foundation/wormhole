@@ -1,62 +1,31 @@
-var __assign = (this && this.__assign) || function () {
-    __assign = Object.assign || function(t) {
-        for (var s, i = 1, n = arguments.length; i < n; i++) {
-            s = arguments[i];
-            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
-                t[p] = s[p];
-        }
-        return t;
-    };
-    return __assign.apply(this, arguments);
-};
-var __values = (this && this.__values) || function(o) {
-    var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
-    if (m) return m.call(o);
-    if (o && typeof o.length === "number") return {
-        next: function () {
-            if (o && i >= o.length) o = void 0;
-            return { value: o && o[i++], done: !o };
-        }
-    };
-    throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
-};
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.CustomHttpPattern = exports.HttpRule = exports.Http = exports.protobufPackage = void 0;
 //@ts-nocheck
 /* eslint-disable */
-import { Writer, Reader } from "protobufjs/minimal";
-export var protobufPackage = "google.api";
-var baseHttp = { fullyDecodeReservedExpansion: false };
-export var Http = {
-    encode: function (message, writer) {
-        var e_1, _a;
-        if (writer === void 0) { writer = Writer.create(); }
-        try {
-            for (var _b = __values(message.rules), _c = _b.next(); !_c.done; _c = _b.next()) {
-                var v = _c.value;
-                HttpRule.encode(v, writer.uint32(10).fork()).ldelim();
-            }
-        }
-        catch (e_1_1) { e_1 = { error: e_1_1 }; }
-        finally {
-            try {
-                if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
-            }
-            finally { if (e_1) throw e_1.error; }
+const minimal_1 = require("protobufjs/minimal");
+exports.protobufPackage = "google.api";
+const baseHttp = { fullyDecodeReservedExpansion: false };
+exports.Http = {
+    encode(message, writer = minimal_1.Writer.create()) {
+        for (const v of message.rules) {
+            exports.HttpRule.encode(v, writer.uint32(10).fork()).ldelim();
         }
         if (message.fullyDecodeReservedExpansion === true) {
             writer.uint32(16).bool(message.fullyDecodeReservedExpansion);
         }
         return writer;
     },
-    decode: function (input, length) {
-        var reader = input instanceof Uint8Array ? new Reader(input) : input;
-        var end = length === undefined ? reader.len : reader.pos + length;
-        var message = __assign({}, baseHttp);
+    decode(input, length) {
+        const reader = input instanceof Uint8Array ? new minimal_1.Reader(input) : input;
+        let end = length === undefined ? reader.len : reader.pos + length;
+        const message = { ...baseHttp };
         message.rules = [];
         while (reader.pos < end) {
-            var tag = reader.uint32();
+            const tag = reader.uint32();
             switch (tag >>> 3) {
                 case 1:
-                    message.rules.push(HttpRule.decode(reader, reader.uint32()));
+                    message.rules.push(exports.HttpRule.decode(reader, reader.uint32()));
                     break;
                 case 2:
                     message.fullyDecodeReservedExpansion = reader.bool();
@@ -68,23 +37,12 @@ export var Http = {
         }
         return message;
     },
-    fromJSON: function (object) {
-        var e_2, _a;
-        var message = __assign({}, baseHttp);
+    fromJSON(object) {
+        const message = { ...baseHttp };
         message.rules = [];
         if (object.rules !== undefined && object.rules !== null) {
-            try {
-                for (var _b = __values(object.rules), _c = _b.next(); !_c.done; _c = _b.next()) {
-                    var e = _c.value;
-                    message.rules.push(HttpRule.fromJSON(e));
-                }
-            }
-            catch (e_2_1) { e_2 = { error: e_2_1 }; }
-            finally {
-                try {
-                    if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
-                }
-                finally { if (e_2) throw e_2.error; }
+            for (const e of object.rules) {
+                message.rules.push(exports.HttpRule.fromJSON(e));
             }
         }
         if (object.fullyDecodeReservedExpansion !== undefined &&
@@ -96,12 +54,10 @@ export var Http = {
         }
         return message;
     },
-    toJSON: function (message) {
-        var obj = {};
+    toJSON(message) {
+        const obj = {};
         if (message.rules) {
-            obj.rules = message.rules.map(function (e) {
-                return e ? HttpRule.toJSON(e) : undefined;
-            });
+            obj.rules = message.rules.map((e) => e ? exports.HttpRule.toJSON(e) : undefined);
         }
         else {
             obj.rules = [];
@@ -110,23 +66,12 @@ export var Http = {
             (obj.fullyDecodeReservedExpansion = message.fullyDecodeReservedExpansion);
         return obj;
     },
-    fromPartial: function (object) {
-        var e_3, _a;
-        var message = __assign({}, baseHttp);
+    fromPartial(object) {
+        const message = { ...baseHttp };
         message.rules = [];
         if (object.rules !== undefined && object.rules !== null) {
-            try {
-                for (var _b = __values(object.rules), _c = _b.next(); !_c.done; _c = _b.next()) {
-                    var e = _c.value;
-                    message.rules.push(HttpRule.fromPartial(e));
-                }
-            }
-            catch (e_3_1) { e_3 = { error: e_3_1 }; }
-            finally {
-                try {
-                    if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
-                }
-                finally { if (e_3) throw e_3.error; }
+            for (const e of object.rules) {
+                message.rules.push(exports.HttpRule.fromPartial(e));
             }
         }
         if (object.fullyDecodeReservedExpansion !== undefined &&
@@ -140,11 +85,9 @@ export var Http = {
         return message;
     },
 };
-var baseHttpRule = { selector: "", body: "", responseBody: "" };
-export var HttpRule = {
-    encode: function (message, writer) {
-        var e_4, _a;
-        if (writer === void 0) { writer = Writer.create(); }
+const baseHttpRule = { selector: "", body: "", responseBody: "" };
+exports.HttpRule = {
+    encode(message, writer = minimal_1.Writer.create()) {
         if (message.selector !== "") {
             writer.uint32(10).string(message.selector);
         }
@@ -164,7 +107,7 @@ export var HttpRule = {
             writer.uint32(50).string(message.patch);
         }
         if (message.custom !== undefined) {
-            CustomHttpPattern.encode(message.custom, writer.uint32(66).fork()).ldelim();
+            exports.CustomHttpPattern.encode(message.custom, writer.uint32(66).fork()).ldelim();
         }
         if (message.body !== "") {
             writer.uint32(58).string(message.body);
@@ -172,28 +115,18 @@ export var HttpRule = {
         if (message.responseBody !== "") {
             writer.uint32(98).string(message.responseBody);
         }
-        try {
-            for (var _b = __values(message.additionalBindings), _c = _b.next(); !_c.done; _c = _b.next()) {
-                var v = _c.value;
-                HttpRule.encode(v, writer.uint32(90).fork()).ldelim();
-            }
-        }
-        catch (e_4_1) { e_4 = { error: e_4_1 }; }
-        finally {
-            try {
-                if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
-            }
-            finally { if (e_4) throw e_4.error; }
+        for (const v of message.additionalBindings) {
+            exports.HttpRule.encode(v, writer.uint32(90).fork()).ldelim();
         }
         return writer;
     },
-    decode: function (input, length) {
-        var reader = input instanceof Uint8Array ? new Reader(input) : input;
-        var end = length === undefined ? reader.len : reader.pos + length;
-        var message = __assign({}, baseHttpRule);
+    decode(input, length) {
+        const reader = input instanceof Uint8Array ? new minimal_1.Reader(input) : input;
+        let end = length === undefined ? reader.len : reader.pos + length;
+        const message = { ...baseHttpRule };
         message.additionalBindings = [];
         while (reader.pos < end) {
-            var tag = reader.uint32();
+            const tag = reader.uint32();
             switch (tag >>> 3) {
                 case 1:
                     message.selector = reader.string();
@@ -214,7 +147,7 @@ export var HttpRule = {
                     message.patch = reader.string();
                     break;
                 case 8:
-                    message.custom = CustomHttpPattern.decode(reader, reader.uint32());
+                    message.custom = exports.CustomHttpPattern.decode(reader, reader.uint32());
                     break;
                 case 7:
                     message.body = reader.string();
@@ -223,7 +156,7 @@ export var HttpRule = {
                     message.responseBody = reader.string();
                     break;
                 case 11:
-                    message.additionalBindings.push(HttpRule.decode(reader, reader.uint32()));
+                    message.additionalBindings.push(exports.HttpRule.decode(reader, reader.uint32()));
                     break;
                 default:
                     reader.skipType(tag & 7);
@@ -232,9 +165,8 @@ export var HttpRule = {
         }
         return message;
     },
-    fromJSON: function (object) {
-        var e_5, _a;
-        var message = __assign({}, baseHttpRule);
+    fromJSON(object) {
+        const message = { ...baseHttpRule };
         message.additionalBindings = [];
         if (object.selector !== undefined && object.selector !== null) {
             message.selector = String(object.selector);
@@ -273,7 +205,7 @@ export var HttpRule = {
             message.patch = undefined;
         }
         if (object.custom !== undefined && object.custom !== null) {
-            message.custom = CustomHttpPattern.fromJSON(object.custom);
+            message.custom = exports.CustomHttpPattern.fromJSON(object.custom);
         }
         else {
             message.custom = undefined;
@@ -292,24 +224,14 @@ export var HttpRule = {
         }
         if (object.additionalBindings !== undefined &&
             object.additionalBindings !== null) {
-            try {
-                for (var _b = __values(object.additionalBindings), _c = _b.next(); !_c.done; _c = _b.next()) {
-                    var e = _c.value;
-                    message.additionalBindings.push(HttpRule.fromJSON(e));
-                }
-            }
-            catch (e_5_1) { e_5 = { error: e_5_1 }; }
-            finally {
-                try {
-                    if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
-                }
-                finally { if (e_5) throw e_5.error; }
+            for (const e of object.additionalBindings) {
+                message.additionalBindings.push(exports.HttpRule.fromJSON(e));
             }
         }
         return message;
     },
-    toJSON: function (message) {
-        var obj = {};
+    toJSON(message) {
+        const obj = {};
         message.selector !== undefined && (obj.selector = message.selector);
         message.get !== undefined && (obj.get = message.get);
         message.put !== undefined && (obj.put = message.put);
@@ -318,24 +240,21 @@ export var HttpRule = {
         message.patch !== undefined && (obj.patch = message.patch);
         message.custom !== undefined &&
             (obj.custom = message.custom
-                ? CustomHttpPattern.toJSON(message.custom)
+                ? exports.CustomHttpPattern.toJSON(message.custom)
                 : undefined);
         message.body !== undefined && (obj.body = message.body);
         message.responseBody !== undefined &&
             (obj.responseBody = message.responseBody);
         if (message.additionalBindings) {
-            obj.additionalBindings = message.additionalBindings.map(function (e) {
-                return e ? HttpRule.toJSON(e) : undefined;
-            });
+            obj.additionalBindings = message.additionalBindings.map((e) => e ? exports.HttpRule.toJSON(e) : undefined);
         }
         else {
             obj.additionalBindings = [];
         }
         return obj;
     },
-    fromPartial: function (object) {
-        var e_6, _a;
-        var message = __assign({}, baseHttpRule);
+    fromPartial(object) {
+        const message = { ...baseHttpRule };
         message.additionalBindings = [];
         if (object.selector !== undefined && object.selector !== null) {
             message.selector = object.selector;
@@ -374,7 +293,7 @@ export var HttpRule = {
             message.patch = undefined;
         }
         if (object.custom !== undefined && object.custom !== null) {
-            message.custom = CustomHttpPattern.fromPartial(object.custom);
+            message.custom = exports.CustomHttpPattern.fromPartial(object.custom);
         }
         else {
             message.custom = undefined;
@@ -393,27 +312,16 @@ export var HttpRule = {
         }
         if (object.additionalBindings !== undefined &&
             object.additionalBindings !== null) {
-            try {
-                for (var _b = __values(object.additionalBindings), _c = _b.next(); !_c.done; _c = _b.next()) {
-                    var e = _c.value;
-                    message.additionalBindings.push(HttpRule.fromPartial(e));
-                }
-            }
-            catch (e_6_1) { e_6 = { error: e_6_1 }; }
-            finally {
-                try {
-                    if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
-                }
-                finally { if (e_6) throw e_6.error; }
+            for (const e of object.additionalBindings) {
+                message.additionalBindings.push(exports.HttpRule.fromPartial(e));
             }
         }
         return message;
     },
 };
-var baseCustomHttpPattern = { kind: "", path: "" };
-export var CustomHttpPattern = {
-    encode: function (message, writer) {
-        if (writer === void 0) { writer = Writer.create(); }
+const baseCustomHttpPattern = { kind: "", path: "" };
+exports.CustomHttpPattern = {
+    encode(message, writer = minimal_1.Writer.create()) {
         if (message.kind !== "") {
             writer.uint32(10).string(message.kind);
         }
@@ -422,12 +330,12 @@ export var CustomHttpPattern = {
         }
         return writer;
     },
-    decode: function (input, length) {
-        var reader = input instanceof Uint8Array ? new Reader(input) : input;
-        var end = length === undefined ? reader.len : reader.pos + length;
-        var message = __assign({}, baseCustomHttpPattern);
+    decode(input, length) {
+        const reader = input instanceof Uint8Array ? new minimal_1.Reader(input) : input;
+        let end = length === undefined ? reader.len : reader.pos + length;
+        const message = { ...baseCustomHttpPattern };
         while (reader.pos < end) {
-            var tag = reader.uint32();
+            const tag = reader.uint32();
             switch (tag >>> 3) {
                 case 1:
                     message.kind = reader.string();
@@ -442,8 +350,8 @@ export var CustomHttpPattern = {
         }
         return message;
     },
-    fromJSON: function (object) {
-        var message = __assign({}, baseCustomHttpPattern);
+    fromJSON(object) {
+        const message = { ...baseCustomHttpPattern };
         if (object.kind !== undefined && object.kind !== null) {
             message.kind = String(object.kind);
         }
@@ -458,14 +366,14 @@ export var CustomHttpPattern = {
         }
         return message;
     },
-    toJSON: function (message) {
-        var obj = {};
+    toJSON(message) {
+        const obj = {};
         message.kind !== undefined && (obj.kind = message.kind);
         message.path !== undefined && (obj.path = message.path);
         return obj;
     },
-    fromPartial: function (object) {
-        var message = __assign({}, baseCustomHttpPattern);
+    fromPartial(object) {
+        const message = { ...baseCustomHttpPattern };
         if (object.kind !== undefined && object.kind !== null) {
             message.kind = object.kind;
         }

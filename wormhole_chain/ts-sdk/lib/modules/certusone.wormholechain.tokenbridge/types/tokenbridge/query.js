@@ -1,46 +1,26 @@
-var __assign = (this && this.__assign) || function () {
-    __assign = Object.assign || function(t) {
-        for (var s, i = 1, n = arguments.length; i < n; i++) {
-            s = arguments[i];
-            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
-                t[p] = s[p];
-        }
-        return t;
-    };
-    return __assign.apply(this, arguments);
-};
-var __values = (this && this.__values) || function(o) {
-    var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
-    if (m) return m.call(o);
-    if (o && typeof o.length === "number") return {
-        next: function () {
-            if (o && i >= o.length) o = void 0;
-            return { value: o && o[i++], done: !o };
-        }
-    };
-    throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
-};
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.QueryClientImpl = exports.QueryAllCoinMetaRollbackProtectionResponse = exports.QueryAllCoinMetaRollbackProtectionRequest = exports.QueryGetCoinMetaRollbackProtectionResponse = exports.QueryGetCoinMetaRollbackProtectionRequest = exports.QueryAllChainRegistrationResponse = exports.QueryAllChainRegistrationRequest = exports.QueryGetChainRegistrationResponse = exports.QueryGetChainRegistrationRequest = exports.QueryAllReplayProtectionResponse = exports.QueryAllReplayProtectionRequest = exports.QueryGetReplayProtectionResponse = exports.QueryGetReplayProtectionRequest = exports.QueryGetConfigResponse = exports.QueryGetConfigRequest = exports.protobufPackage = void 0;
 //@ts-nocheck
 /* eslint-disable */
-import { Reader, Writer } from "protobufjs/minimal";
-import { Config } from "../tokenbridge/config";
-import { ReplayProtection } from "../tokenbridge/replay_protection";
-import { PageRequest, PageResponse, } from "../cosmos/base/query/v1beta1/pagination";
-import { ChainRegistration } from "../tokenbridge/chain_registration";
-import { CoinMetaRollbackProtection } from "../tokenbridge/coin_meta_rollback_protection";
-export var protobufPackage = "certusone.wormholechain.tokenbridge";
-var baseQueryGetConfigRequest = {};
-export var QueryGetConfigRequest = {
-    encode: function (_, writer) {
-        if (writer === void 0) { writer = Writer.create(); }
+const minimal_1 = require("protobufjs/minimal");
+const config_1 = require("../tokenbridge/config");
+const replay_protection_1 = require("../tokenbridge/replay_protection");
+const pagination_1 = require("../cosmos/base/query/v1beta1/pagination");
+const chain_registration_1 = require("../tokenbridge/chain_registration");
+const coin_meta_rollback_protection_1 = require("../tokenbridge/coin_meta_rollback_protection");
+exports.protobufPackage = "certusone.wormholechain.tokenbridge";
+const baseQueryGetConfigRequest = {};
+exports.QueryGetConfigRequest = {
+    encode(_, writer = minimal_1.Writer.create()) {
         return writer;
     },
-    decode: function (input, length) {
-        var reader = input instanceof Uint8Array ? new Reader(input) : input;
-        var end = length === undefined ? reader.len : reader.pos + length;
-        var message = __assign({}, baseQueryGetConfigRequest);
+    decode(input, length) {
+        const reader = input instanceof Uint8Array ? new minimal_1.Reader(input) : input;
+        let end = length === undefined ? reader.len : reader.pos + length;
+        const message = { ...baseQueryGetConfigRequest };
         while (reader.pos < end) {
-            var tag = reader.uint32();
+            const tag = reader.uint32();
             switch (tag >>> 3) {
                 default:
                     reader.skipType(tag & 7);
@@ -49,37 +29,36 @@ export var QueryGetConfigRequest = {
         }
         return message;
     },
-    fromJSON: function (_) {
-        var message = __assign({}, baseQueryGetConfigRequest);
+    fromJSON(_) {
+        const message = { ...baseQueryGetConfigRequest };
         return message;
     },
-    toJSON: function (_) {
-        var obj = {};
+    toJSON(_) {
+        const obj = {};
         return obj;
     },
-    fromPartial: function (_) {
-        var message = __assign({}, baseQueryGetConfigRequest);
+    fromPartial(_) {
+        const message = { ...baseQueryGetConfigRequest };
         return message;
     },
 };
-var baseQueryGetConfigResponse = {};
-export var QueryGetConfigResponse = {
-    encode: function (message, writer) {
-        if (writer === void 0) { writer = Writer.create(); }
+const baseQueryGetConfigResponse = {};
+exports.QueryGetConfigResponse = {
+    encode(message, writer = minimal_1.Writer.create()) {
         if (message.Config !== undefined) {
-            Config.encode(message.Config, writer.uint32(10).fork()).ldelim();
+            config_1.Config.encode(message.Config, writer.uint32(10).fork()).ldelim();
         }
         return writer;
     },
-    decode: function (input, length) {
-        var reader = input instanceof Uint8Array ? new Reader(input) : input;
-        var end = length === undefined ? reader.len : reader.pos + length;
-        var message = __assign({}, baseQueryGetConfigResponse);
+    decode(input, length) {
+        const reader = input instanceof Uint8Array ? new minimal_1.Reader(input) : input;
+        let end = length === undefined ? reader.len : reader.pos + length;
+        const message = { ...baseQueryGetConfigResponse };
         while (reader.pos < end) {
-            var tag = reader.uint32();
+            const tag = reader.uint32();
             switch (tag >>> 3) {
                 case 1:
-                    message.Config = Config.decode(reader, reader.uint32());
+                    message.Config = config_1.Config.decode(reader, reader.uint32());
                     break;
                 default:
                     reader.skipType(tag & 7);
@@ -88,26 +67,26 @@ export var QueryGetConfigResponse = {
         }
         return message;
     },
-    fromJSON: function (object) {
-        var message = __assign({}, baseQueryGetConfigResponse);
+    fromJSON(object) {
+        const message = { ...baseQueryGetConfigResponse };
         if (object.Config !== undefined && object.Config !== null) {
-            message.Config = Config.fromJSON(object.Config);
+            message.Config = config_1.Config.fromJSON(object.Config);
         }
         else {
             message.Config = undefined;
         }
         return message;
     },
-    toJSON: function (message) {
-        var obj = {};
+    toJSON(message) {
+        const obj = {};
         message.Config !== undefined &&
-            (obj.Config = message.Config ? Config.toJSON(message.Config) : undefined);
+            (obj.Config = message.Config ? config_1.Config.toJSON(message.Config) : undefined);
         return obj;
     },
-    fromPartial: function (object) {
-        var message = __assign({}, baseQueryGetConfigResponse);
+    fromPartial(object) {
+        const message = { ...baseQueryGetConfigResponse };
         if (object.Config !== undefined && object.Config !== null) {
-            message.Config = Config.fromPartial(object.Config);
+            message.Config = config_1.Config.fromPartial(object.Config);
         }
         else {
             message.Config = undefined;
@@ -115,21 +94,22 @@ export var QueryGetConfigResponse = {
         return message;
     },
 };
-var baseQueryGetReplayProtectionRequest = { index: "" };
-export var QueryGetReplayProtectionRequest = {
-    encode: function (message, writer) {
-        if (writer === void 0) { writer = Writer.create(); }
+const baseQueryGetReplayProtectionRequest = { index: "" };
+exports.QueryGetReplayProtectionRequest = {
+    encode(message, writer = minimal_1.Writer.create()) {
         if (message.index !== "") {
             writer.uint32(10).string(message.index);
         }
         return writer;
     },
-    decode: function (input, length) {
-        var reader = input instanceof Uint8Array ? new Reader(input) : input;
-        var end = length === undefined ? reader.len : reader.pos + length;
-        var message = __assign({}, baseQueryGetReplayProtectionRequest);
+    decode(input, length) {
+        const reader = input instanceof Uint8Array ? new minimal_1.Reader(input) : input;
+        let end = length === undefined ? reader.len : reader.pos + length;
+        const message = {
+            ...baseQueryGetReplayProtectionRequest,
+        };
         while (reader.pos < end) {
-            var tag = reader.uint32();
+            const tag = reader.uint32();
             switch (tag >>> 3) {
                 case 1:
                     message.index = reader.string();
@@ -141,8 +121,10 @@ export var QueryGetReplayProtectionRequest = {
         }
         return message;
     },
-    fromJSON: function (object) {
-        var message = __assign({}, baseQueryGetReplayProtectionRequest);
+    fromJSON(object) {
+        const message = {
+            ...baseQueryGetReplayProtectionRequest,
+        };
         if (object.index !== undefined && object.index !== null) {
             message.index = String(object.index);
         }
@@ -151,13 +133,15 @@ export var QueryGetReplayProtectionRequest = {
         }
         return message;
     },
-    toJSON: function (message) {
-        var obj = {};
+    toJSON(message) {
+        const obj = {};
         message.index !== undefined && (obj.index = message.index);
         return obj;
     },
-    fromPartial: function (object) {
-        var message = __assign({}, baseQueryGetReplayProtectionRequest);
+    fromPartial(object) {
+        const message = {
+            ...baseQueryGetReplayProtectionRequest,
+        };
         if (object.index !== undefined && object.index !== null) {
             message.index = object.index;
         }
@@ -167,24 +151,25 @@ export var QueryGetReplayProtectionRequest = {
         return message;
     },
 };
-var baseQueryGetReplayProtectionResponse = {};
-export var QueryGetReplayProtectionResponse = {
-    encode: function (message, writer) {
-        if (writer === void 0) { writer = Writer.create(); }
+const baseQueryGetReplayProtectionResponse = {};
+exports.QueryGetReplayProtectionResponse = {
+    encode(message, writer = minimal_1.Writer.create()) {
         if (message.replayProtection !== undefined) {
-            ReplayProtection.encode(message.replayProtection, writer.uint32(10).fork()).ldelim();
+            replay_protection_1.ReplayProtection.encode(message.replayProtection, writer.uint32(10).fork()).ldelim();
         }
         return writer;
     },
-    decode: function (input, length) {
-        var reader = input instanceof Uint8Array ? new Reader(input) : input;
-        var end = length === undefined ? reader.len : reader.pos + length;
-        var message = __assign({}, baseQueryGetReplayProtectionResponse);
+    decode(input, length) {
+        const reader = input instanceof Uint8Array ? new minimal_1.Reader(input) : input;
+        let end = length === undefined ? reader.len : reader.pos + length;
+        const message = {
+            ...baseQueryGetReplayProtectionResponse,
+        };
         while (reader.pos < end) {
-            var tag = reader.uint32();
+            const tag = reader.uint32();
             switch (tag >>> 3) {
                 case 1:
-                    message.replayProtection = ReplayProtection.decode(reader, reader.uint32());
+                    message.replayProtection = replay_protection_1.ReplayProtection.decode(reader, reader.uint32());
                     break;
                 default:
                     reader.skipType(tag & 7);
@@ -193,30 +178,34 @@ export var QueryGetReplayProtectionResponse = {
         }
         return message;
     },
-    fromJSON: function (object) {
-        var message = __assign({}, baseQueryGetReplayProtectionResponse);
+    fromJSON(object) {
+        const message = {
+            ...baseQueryGetReplayProtectionResponse,
+        };
         if (object.replayProtection !== undefined &&
             object.replayProtection !== null) {
-            message.replayProtection = ReplayProtection.fromJSON(object.replayProtection);
+            message.replayProtection = replay_protection_1.ReplayProtection.fromJSON(object.replayProtection);
         }
         else {
             message.replayProtection = undefined;
         }
         return message;
     },
-    toJSON: function (message) {
-        var obj = {};
+    toJSON(message) {
+        const obj = {};
         message.replayProtection !== undefined &&
             (obj.replayProtection = message.replayProtection
-                ? ReplayProtection.toJSON(message.replayProtection)
+                ? replay_protection_1.ReplayProtection.toJSON(message.replayProtection)
                 : undefined);
         return obj;
     },
-    fromPartial: function (object) {
-        var message = __assign({}, baseQueryGetReplayProtectionResponse);
+    fromPartial(object) {
+        const message = {
+            ...baseQueryGetReplayProtectionResponse,
+        };
         if (object.replayProtection !== undefined &&
             object.replayProtection !== null) {
-            message.replayProtection = ReplayProtection.fromPartial(object.replayProtection);
+            message.replayProtection = replay_protection_1.ReplayProtection.fromPartial(object.replayProtection);
         }
         else {
             message.replayProtection = undefined;
@@ -224,24 +213,25 @@ export var QueryGetReplayProtectionResponse = {
         return message;
     },
 };
-var baseQueryAllReplayProtectionRequest = {};
-export var QueryAllReplayProtectionRequest = {
-    encode: function (message, writer) {
-        if (writer === void 0) { writer = Writer.create(); }
+const baseQueryAllReplayProtectionRequest = {};
+exports.QueryAllReplayProtectionRequest = {
+    encode(message, writer = minimal_1.Writer.create()) {
         if (message.pagination !== undefined) {
-            PageRequest.encode(message.pagination, writer.uint32(10).fork()).ldelim();
+            pagination_1.PageRequest.encode(message.pagination, writer.uint32(10).fork()).ldelim();
         }
         return writer;
     },
-    decode: function (input, length) {
-        var reader = input instanceof Uint8Array ? new Reader(input) : input;
-        var end = length === undefined ? reader.len : reader.pos + length;
-        var message = __assign({}, baseQueryAllReplayProtectionRequest);
+    decode(input, length) {
+        const reader = input instanceof Uint8Array ? new minimal_1.Reader(input) : input;
+        let end = length === undefined ? reader.len : reader.pos + length;
+        const message = {
+            ...baseQueryAllReplayProtectionRequest,
+        };
         while (reader.pos < end) {
-            var tag = reader.uint32();
+            const tag = reader.uint32();
             switch (tag >>> 3) {
                 case 1:
-                    message.pagination = PageRequest.decode(reader, reader.uint32());
+                    message.pagination = pagination_1.PageRequest.decode(reader, reader.uint32());
                     break;
                 default:
                     reader.skipType(tag & 7);
@@ -250,28 +240,32 @@ export var QueryAllReplayProtectionRequest = {
         }
         return message;
     },
-    fromJSON: function (object) {
-        var message = __assign({}, baseQueryAllReplayProtectionRequest);
+    fromJSON(object) {
+        const message = {
+            ...baseQueryAllReplayProtectionRequest,
+        };
         if (object.pagination !== undefined && object.pagination !== null) {
-            message.pagination = PageRequest.fromJSON(object.pagination);
+            message.pagination = pagination_1.PageRequest.fromJSON(object.pagination);
         }
         else {
             message.pagination = undefined;
         }
         return message;
     },
-    toJSON: function (message) {
-        var obj = {};
+    toJSON(message) {
+        const obj = {};
         message.pagination !== undefined &&
             (obj.pagination = message.pagination
-                ? PageRequest.toJSON(message.pagination)
+                ? pagination_1.PageRequest.toJSON(message.pagination)
                 : undefined);
         return obj;
     },
-    fromPartial: function (object) {
-        var message = __assign({}, baseQueryAllReplayProtectionRequest);
+    fromPartial(object) {
+        const message = {
+            ...baseQueryAllReplayProtectionRequest,
+        };
         if (object.pagination !== undefined && object.pagination !== null) {
-            message.pagination = PageRequest.fromPartial(object.pagination);
+            message.pagination = pagination_1.PageRequest.fromPartial(object.pagination);
         }
         else {
             message.pagination = undefined;
@@ -279,42 +273,32 @@ export var QueryAllReplayProtectionRequest = {
         return message;
     },
 };
-var baseQueryAllReplayProtectionResponse = {};
-export var QueryAllReplayProtectionResponse = {
-    encode: function (message, writer) {
-        var e_1, _a;
-        if (writer === void 0) { writer = Writer.create(); }
-        try {
-            for (var _b = __values(message.replayProtection), _c = _b.next(); !_c.done; _c = _b.next()) {
-                var v = _c.value;
-                ReplayProtection.encode(v, writer.uint32(10).fork()).ldelim();
-            }
-        }
-        catch (e_1_1) { e_1 = { error: e_1_1 }; }
-        finally {
-            try {
-                if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
-            }
-            finally { if (e_1) throw e_1.error; }
+const baseQueryAllReplayProtectionResponse = {};
+exports.QueryAllReplayProtectionResponse = {
+    encode(message, writer = minimal_1.Writer.create()) {
+        for (const v of message.replayProtection) {
+            replay_protection_1.ReplayProtection.encode(v, writer.uint32(10).fork()).ldelim();
         }
         if (message.pagination !== undefined) {
-            PageResponse.encode(message.pagination, writer.uint32(18).fork()).ldelim();
+            pagination_1.PageResponse.encode(message.pagination, writer.uint32(18).fork()).ldelim();
         }
         return writer;
     },
-    decode: function (input, length) {
-        var reader = input instanceof Uint8Array ? new Reader(input) : input;
-        var end = length === undefined ? reader.len : reader.pos + length;
-        var message = __assign({}, baseQueryAllReplayProtectionResponse);
+    decode(input, length) {
+        const reader = input instanceof Uint8Array ? new minimal_1.Reader(input) : input;
+        let end = length === undefined ? reader.len : reader.pos + length;
+        const message = {
+            ...baseQueryAllReplayProtectionResponse,
+        };
         message.replayProtection = [];
         while (reader.pos < end) {
-            var tag = reader.uint32();
+            const tag = reader.uint32();
             switch (tag >>> 3) {
                 case 1:
-                    message.replayProtection.push(ReplayProtection.decode(reader, reader.uint32()));
+                    message.replayProtection.push(replay_protection_1.ReplayProtection.decode(reader, reader.uint32()));
                     break;
                 case 2:
-                    message.pagination = PageResponse.decode(reader, reader.uint32());
+                    message.pagination = pagination_1.PageResponse.decode(reader, reader.uint32());
                     break;
                 default:
                     reader.skipType(tag & 7);
@@ -323,72 +307,52 @@ export var QueryAllReplayProtectionResponse = {
         }
         return message;
     },
-    fromJSON: function (object) {
-        var e_2, _a;
-        var message = __assign({}, baseQueryAllReplayProtectionResponse);
+    fromJSON(object) {
+        const message = {
+            ...baseQueryAllReplayProtectionResponse,
+        };
         message.replayProtection = [];
         if (object.replayProtection !== undefined &&
             object.replayProtection !== null) {
-            try {
-                for (var _b = __values(object.replayProtection), _c = _b.next(); !_c.done; _c = _b.next()) {
-                    var e = _c.value;
-                    message.replayProtection.push(ReplayProtection.fromJSON(e));
-                }
-            }
-            catch (e_2_1) { e_2 = { error: e_2_1 }; }
-            finally {
-                try {
-                    if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
-                }
-                finally { if (e_2) throw e_2.error; }
+            for (const e of object.replayProtection) {
+                message.replayProtection.push(replay_protection_1.ReplayProtection.fromJSON(e));
             }
         }
         if (object.pagination !== undefined && object.pagination !== null) {
-            message.pagination = PageResponse.fromJSON(object.pagination);
+            message.pagination = pagination_1.PageResponse.fromJSON(object.pagination);
         }
         else {
             message.pagination = undefined;
         }
         return message;
     },
-    toJSON: function (message) {
-        var obj = {};
+    toJSON(message) {
+        const obj = {};
         if (message.replayProtection) {
-            obj.replayProtection = message.replayProtection.map(function (e) {
-                return e ? ReplayProtection.toJSON(e) : undefined;
-            });
+            obj.replayProtection = message.replayProtection.map((e) => e ? replay_protection_1.ReplayProtection.toJSON(e) : undefined);
         }
         else {
             obj.replayProtection = [];
         }
         message.pagination !== undefined &&
             (obj.pagination = message.pagination
-                ? PageResponse.toJSON(message.pagination)
+                ? pagination_1.PageResponse.toJSON(message.pagination)
                 : undefined);
         return obj;
     },
-    fromPartial: function (object) {
-        var e_3, _a;
-        var message = __assign({}, baseQueryAllReplayProtectionResponse);
+    fromPartial(object) {
+        const message = {
+            ...baseQueryAllReplayProtectionResponse,
+        };
         message.replayProtection = [];
         if (object.replayProtection !== undefined &&
             object.replayProtection !== null) {
-            try {
-                for (var _b = __values(object.replayProtection), _c = _b.next(); !_c.done; _c = _b.next()) {
-                    var e = _c.value;
-                    message.replayProtection.push(ReplayProtection.fromPartial(e));
-                }
-            }
-            catch (e_3_1) { e_3 = { error: e_3_1 }; }
-            finally {
-                try {
-                    if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
-                }
-                finally { if (e_3) throw e_3.error; }
+            for (const e of object.replayProtection) {
+                message.replayProtection.push(replay_protection_1.ReplayProtection.fromPartial(e));
             }
         }
         if (object.pagination !== undefined && object.pagination !== null) {
-            message.pagination = PageResponse.fromPartial(object.pagination);
+            message.pagination = pagination_1.PageResponse.fromPartial(object.pagination);
         }
         else {
             message.pagination = undefined;
@@ -396,21 +360,22 @@ export var QueryAllReplayProtectionResponse = {
         return message;
     },
 };
-var baseQueryGetChainRegistrationRequest = { chainID: 0 };
-export var QueryGetChainRegistrationRequest = {
-    encode: function (message, writer) {
-        if (writer === void 0) { writer = Writer.create(); }
+const baseQueryGetChainRegistrationRequest = { chainID: 0 };
+exports.QueryGetChainRegistrationRequest = {
+    encode(message, writer = minimal_1.Writer.create()) {
         if (message.chainID !== 0) {
             writer.uint32(8).uint32(message.chainID);
         }
         return writer;
     },
-    decode: function (input, length) {
-        var reader = input instanceof Uint8Array ? new Reader(input) : input;
-        var end = length === undefined ? reader.len : reader.pos + length;
-        var message = __assign({}, baseQueryGetChainRegistrationRequest);
+    decode(input, length) {
+        const reader = input instanceof Uint8Array ? new minimal_1.Reader(input) : input;
+        let end = length === undefined ? reader.len : reader.pos + length;
+        const message = {
+            ...baseQueryGetChainRegistrationRequest,
+        };
         while (reader.pos < end) {
-            var tag = reader.uint32();
+            const tag = reader.uint32();
             switch (tag >>> 3) {
                 case 1:
                     message.chainID = reader.uint32();
@@ -422,8 +387,10 @@ export var QueryGetChainRegistrationRequest = {
         }
         return message;
     },
-    fromJSON: function (object) {
-        var message = __assign({}, baseQueryGetChainRegistrationRequest);
+    fromJSON(object) {
+        const message = {
+            ...baseQueryGetChainRegistrationRequest,
+        };
         if (object.chainID !== undefined && object.chainID !== null) {
             message.chainID = Number(object.chainID);
         }
@@ -432,13 +399,15 @@ export var QueryGetChainRegistrationRequest = {
         }
         return message;
     },
-    toJSON: function (message) {
-        var obj = {};
+    toJSON(message) {
+        const obj = {};
         message.chainID !== undefined && (obj.chainID = message.chainID);
         return obj;
     },
-    fromPartial: function (object) {
-        var message = __assign({}, baseQueryGetChainRegistrationRequest);
+    fromPartial(object) {
+        const message = {
+            ...baseQueryGetChainRegistrationRequest,
+        };
         if (object.chainID !== undefined && object.chainID !== null) {
             message.chainID = object.chainID;
         }
@@ -448,24 +417,25 @@ export var QueryGetChainRegistrationRequest = {
         return message;
     },
 };
-var baseQueryGetChainRegistrationResponse = {};
-export var QueryGetChainRegistrationResponse = {
-    encode: function (message, writer) {
-        if (writer === void 0) { writer = Writer.create(); }
+const baseQueryGetChainRegistrationResponse = {};
+exports.QueryGetChainRegistrationResponse = {
+    encode(message, writer = minimal_1.Writer.create()) {
         if (message.chainRegistration !== undefined) {
-            ChainRegistration.encode(message.chainRegistration, writer.uint32(10).fork()).ldelim();
+            chain_registration_1.ChainRegistration.encode(message.chainRegistration, writer.uint32(10).fork()).ldelim();
         }
         return writer;
     },
-    decode: function (input, length) {
-        var reader = input instanceof Uint8Array ? new Reader(input) : input;
-        var end = length === undefined ? reader.len : reader.pos + length;
-        var message = __assign({}, baseQueryGetChainRegistrationResponse);
+    decode(input, length) {
+        const reader = input instanceof Uint8Array ? new minimal_1.Reader(input) : input;
+        let end = length === undefined ? reader.len : reader.pos + length;
+        const message = {
+            ...baseQueryGetChainRegistrationResponse,
+        };
         while (reader.pos < end) {
-            var tag = reader.uint32();
+            const tag = reader.uint32();
             switch (tag >>> 3) {
                 case 1:
-                    message.chainRegistration = ChainRegistration.decode(reader, reader.uint32());
+                    message.chainRegistration = chain_registration_1.ChainRegistration.decode(reader, reader.uint32());
                     break;
                 default:
                     reader.skipType(tag & 7);
@@ -474,30 +444,34 @@ export var QueryGetChainRegistrationResponse = {
         }
         return message;
     },
-    fromJSON: function (object) {
-        var message = __assign({}, baseQueryGetChainRegistrationResponse);
+    fromJSON(object) {
+        const message = {
+            ...baseQueryGetChainRegistrationResponse,
+        };
         if (object.chainRegistration !== undefined &&
             object.chainRegistration !== null) {
-            message.chainRegistration = ChainRegistration.fromJSON(object.chainRegistration);
+            message.chainRegistration = chain_registration_1.ChainRegistration.fromJSON(object.chainRegistration);
         }
         else {
             message.chainRegistration = undefined;
         }
         return message;
     },
-    toJSON: function (message) {
-        var obj = {};
+    toJSON(message) {
+        const obj = {};
         message.chainRegistration !== undefined &&
             (obj.chainRegistration = message.chainRegistration
-                ? ChainRegistration.toJSON(message.chainRegistration)
+                ? chain_registration_1.ChainRegistration.toJSON(message.chainRegistration)
                 : undefined);
         return obj;
     },
-    fromPartial: function (object) {
-        var message = __assign({}, baseQueryGetChainRegistrationResponse);
+    fromPartial(object) {
+        const message = {
+            ...baseQueryGetChainRegistrationResponse,
+        };
         if (object.chainRegistration !== undefined &&
             object.chainRegistration !== null) {
-            message.chainRegistration = ChainRegistration.fromPartial(object.chainRegistration);
+            message.chainRegistration = chain_registration_1.ChainRegistration.fromPartial(object.chainRegistration);
         }
         else {
             message.chainRegistration = undefined;
@@ -505,24 +479,25 @@ export var QueryGetChainRegistrationResponse = {
         return message;
     },
 };
-var baseQueryAllChainRegistrationRequest = {};
-export var QueryAllChainRegistrationRequest = {
-    encode: function (message, writer) {
-        if (writer === void 0) { writer = Writer.create(); }
+const baseQueryAllChainRegistrationRequest = {};
+exports.QueryAllChainRegistrationRequest = {
+    encode(message, writer = minimal_1.Writer.create()) {
         if (message.pagination !== undefined) {
-            PageRequest.encode(message.pagination, writer.uint32(10).fork()).ldelim();
+            pagination_1.PageRequest.encode(message.pagination, writer.uint32(10).fork()).ldelim();
         }
         return writer;
     },
-    decode: function (input, length) {
-        var reader = input instanceof Uint8Array ? new Reader(input) : input;
-        var end = length === undefined ? reader.len : reader.pos + length;
-        var message = __assign({}, baseQueryAllChainRegistrationRequest);
+    decode(input, length) {
+        const reader = input instanceof Uint8Array ? new minimal_1.Reader(input) : input;
+        let end = length === undefined ? reader.len : reader.pos + length;
+        const message = {
+            ...baseQueryAllChainRegistrationRequest,
+        };
         while (reader.pos < end) {
-            var tag = reader.uint32();
+            const tag = reader.uint32();
             switch (tag >>> 3) {
                 case 1:
-                    message.pagination = PageRequest.decode(reader, reader.uint32());
+                    message.pagination = pagination_1.PageRequest.decode(reader, reader.uint32());
                     break;
                 default:
                     reader.skipType(tag & 7);
@@ -531,28 +506,32 @@ export var QueryAllChainRegistrationRequest = {
         }
         return message;
     },
-    fromJSON: function (object) {
-        var message = __assign({}, baseQueryAllChainRegistrationRequest);
+    fromJSON(object) {
+        const message = {
+            ...baseQueryAllChainRegistrationRequest,
+        };
         if (object.pagination !== undefined && object.pagination !== null) {
-            message.pagination = PageRequest.fromJSON(object.pagination);
+            message.pagination = pagination_1.PageRequest.fromJSON(object.pagination);
         }
         else {
             message.pagination = undefined;
         }
         return message;
     },
-    toJSON: function (message) {
-        var obj = {};
+    toJSON(message) {
+        const obj = {};
         message.pagination !== undefined &&
             (obj.pagination = message.pagination
-                ? PageRequest.toJSON(message.pagination)
+                ? pagination_1.PageRequest.toJSON(message.pagination)
                 : undefined);
         return obj;
     },
-    fromPartial: function (object) {
-        var message = __assign({}, baseQueryAllChainRegistrationRequest);
+    fromPartial(object) {
+        const message = {
+            ...baseQueryAllChainRegistrationRequest,
+        };
         if (object.pagination !== undefined && object.pagination !== null) {
-            message.pagination = PageRequest.fromPartial(object.pagination);
+            message.pagination = pagination_1.PageRequest.fromPartial(object.pagination);
         }
         else {
             message.pagination = undefined;
@@ -560,42 +539,32 @@ export var QueryAllChainRegistrationRequest = {
         return message;
     },
 };
-var baseQueryAllChainRegistrationResponse = {};
-export var QueryAllChainRegistrationResponse = {
-    encode: function (message, writer) {
-        var e_4, _a;
-        if (writer === void 0) { writer = Writer.create(); }
-        try {
-            for (var _b = __values(message.chainRegistration), _c = _b.next(); !_c.done; _c = _b.next()) {
-                var v = _c.value;
-                ChainRegistration.encode(v, writer.uint32(10).fork()).ldelim();
-            }
-        }
-        catch (e_4_1) { e_4 = { error: e_4_1 }; }
-        finally {
-            try {
-                if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
-            }
-            finally { if (e_4) throw e_4.error; }
+const baseQueryAllChainRegistrationResponse = {};
+exports.QueryAllChainRegistrationResponse = {
+    encode(message, writer = minimal_1.Writer.create()) {
+        for (const v of message.chainRegistration) {
+            chain_registration_1.ChainRegistration.encode(v, writer.uint32(10).fork()).ldelim();
         }
         if (message.pagination !== undefined) {
-            PageResponse.encode(message.pagination, writer.uint32(18).fork()).ldelim();
+            pagination_1.PageResponse.encode(message.pagination, writer.uint32(18).fork()).ldelim();
         }
         return writer;
     },
-    decode: function (input, length) {
-        var reader = input instanceof Uint8Array ? new Reader(input) : input;
-        var end = length === undefined ? reader.len : reader.pos + length;
-        var message = __assign({}, baseQueryAllChainRegistrationResponse);
+    decode(input, length) {
+        const reader = input instanceof Uint8Array ? new minimal_1.Reader(input) : input;
+        let end = length === undefined ? reader.len : reader.pos + length;
+        const message = {
+            ...baseQueryAllChainRegistrationResponse,
+        };
         message.chainRegistration = [];
         while (reader.pos < end) {
-            var tag = reader.uint32();
+            const tag = reader.uint32();
             switch (tag >>> 3) {
                 case 1:
-                    message.chainRegistration.push(ChainRegistration.decode(reader, reader.uint32()));
+                    message.chainRegistration.push(chain_registration_1.ChainRegistration.decode(reader, reader.uint32()));
                     break;
                 case 2:
-                    message.pagination = PageResponse.decode(reader, reader.uint32());
+                    message.pagination = pagination_1.PageResponse.decode(reader, reader.uint32());
                     break;
                 default:
                     reader.skipType(tag & 7);
@@ -604,72 +573,52 @@ export var QueryAllChainRegistrationResponse = {
         }
         return message;
     },
-    fromJSON: function (object) {
-        var e_5, _a;
-        var message = __assign({}, baseQueryAllChainRegistrationResponse);
+    fromJSON(object) {
+        const message = {
+            ...baseQueryAllChainRegistrationResponse,
+        };
         message.chainRegistration = [];
         if (object.chainRegistration !== undefined &&
             object.chainRegistration !== null) {
-            try {
-                for (var _b = __values(object.chainRegistration), _c = _b.next(); !_c.done; _c = _b.next()) {
-                    var e = _c.value;
-                    message.chainRegistration.push(ChainRegistration.fromJSON(e));
-                }
-            }
-            catch (e_5_1) { e_5 = { error: e_5_1 }; }
-            finally {
-                try {
-                    if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
-                }
-                finally { if (e_5) throw e_5.error; }
+            for (const e of object.chainRegistration) {
+                message.chainRegistration.push(chain_registration_1.ChainRegistration.fromJSON(e));
             }
         }
         if (object.pagination !== undefined && object.pagination !== null) {
-            message.pagination = PageResponse.fromJSON(object.pagination);
+            message.pagination = pagination_1.PageResponse.fromJSON(object.pagination);
         }
         else {
             message.pagination = undefined;
         }
         return message;
     },
-    toJSON: function (message) {
-        var obj = {};
+    toJSON(message) {
+        const obj = {};
         if (message.chainRegistration) {
-            obj.chainRegistration = message.chainRegistration.map(function (e) {
-                return e ? ChainRegistration.toJSON(e) : undefined;
-            });
+            obj.chainRegistration = message.chainRegistration.map((e) => e ? chain_registration_1.ChainRegistration.toJSON(e) : undefined);
         }
         else {
             obj.chainRegistration = [];
         }
         message.pagination !== undefined &&
             (obj.pagination = message.pagination
-                ? PageResponse.toJSON(message.pagination)
+                ? pagination_1.PageResponse.toJSON(message.pagination)
                 : undefined);
         return obj;
     },
-    fromPartial: function (object) {
-        var e_6, _a;
-        var message = __assign({}, baseQueryAllChainRegistrationResponse);
+    fromPartial(object) {
+        const message = {
+            ...baseQueryAllChainRegistrationResponse,
+        };
         message.chainRegistration = [];
         if (object.chainRegistration !== undefined &&
             object.chainRegistration !== null) {
-            try {
-                for (var _b = __values(object.chainRegistration), _c = _b.next(); !_c.done; _c = _b.next()) {
-                    var e = _c.value;
-                    message.chainRegistration.push(ChainRegistration.fromPartial(e));
-                }
-            }
-            catch (e_6_1) { e_6 = { error: e_6_1 }; }
-            finally {
-                try {
-                    if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
-                }
-                finally { if (e_6) throw e_6.error; }
+            for (const e of object.chainRegistration) {
+                message.chainRegistration.push(chain_registration_1.ChainRegistration.fromPartial(e));
             }
         }
         if (object.pagination !== undefined && object.pagination !== null) {
-            message.pagination = PageResponse.fromPartial(object.pagination);
+            message.pagination = pagination_1.PageResponse.fromPartial(object.pagination);
         }
         else {
             message.pagination = undefined;
@@ -677,21 +626,22 @@ export var QueryAllChainRegistrationResponse = {
         return message;
     },
 };
-var baseQueryGetCoinMetaRollbackProtectionRequest = { index: "" };
-export var QueryGetCoinMetaRollbackProtectionRequest = {
-    encode: function (message, writer) {
-        if (writer === void 0) { writer = Writer.create(); }
+const baseQueryGetCoinMetaRollbackProtectionRequest = { index: "" };
+exports.QueryGetCoinMetaRollbackProtectionRequest = {
+    encode(message, writer = minimal_1.Writer.create()) {
         if (message.index !== "") {
             writer.uint32(10).string(message.index);
         }
         return writer;
     },
-    decode: function (input, length) {
-        var reader = input instanceof Uint8Array ? new Reader(input) : input;
-        var end = length === undefined ? reader.len : reader.pos + length;
-        var message = __assign({}, baseQueryGetCoinMetaRollbackProtectionRequest);
+    decode(input, length) {
+        const reader = input instanceof Uint8Array ? new minimal_1.Reader(input) : input;
+        let end = length === undefined ? reader.len : reader.pos + length;
+        const message = {
+            ...baseQueryGetCoinMetaRollbackProtectionRequest,
+        };
         while (reader.pos < end) {
-            var tag = reader.uint32();
+            const tag = reader.uint32();
             switch (tag >>> 3) {
                 case 1:
                     message.index = reader.string();
@@ -703,8 +653,10 @@ export var QueryGetCoinMetaRollbackProtectionRequest = {
         }
         return message;
     },
-    fromJSON: function (object) {
-        var message = __assign({}, baseQueryGetCoinMetaRollbackProtectionRequest);
+    fromJSON(object) {
+        const message = {
+            ...baseQueryGetCoinMetaRollbackProtectionRequest,
+        };
         if (object.index !== undefined && object.index !== null) {
             message.index = String(object.index);
         }
@@ -713,13 +665,15 @@ export var QueryGetCoinMetaRollbackProtectionRequest = {
         }
         return message;
     },
-    toJSON: function (message) {
-        var obj = {};
+    toJSON(message) {
+        const obj = {};
         message.index !== undefined && (obj.index = message.index);
         return obj;
     },
-    fromPartial: function (object) {
-        var message = __assign({}, baseQueryGetCoinMetaRollbackProtectionRequest);
+    fromPartial(object) {
+        const message = {
+            ...baseQueryGetCoinMetaRollbackProtectionRequest,
+        };
         if (object.index !== undefined && object.index !== null) {
             message.index = object.index;
         }
@@ -729,24 +683,25 @@ export var QueryGetCoinMetaRollbackProtectionRequest = {
         return message;
     },
 };
-var baseQueryGetCoinMetaRollbackProtectionResponse = {};
-export var QueryGetCoinMetaRollbackProtectionResponse = {
-    encode: function (message, writer) {
-        if (writer === void 0) { writer = Writer.create(); }
+const baseQueryGetCoinMetaRollbackProtectionResponse = {};
+exports.QueryGetCoinMetaRollbackProtectionResponse = {
+    encode(message, writer = minimal_1.Writer.create()) {
         if (message.coinMetaRollbackProtection !== undefined) {
-            CoinMetaRollbackProtection.encode(message.coinMetaRollbackProtection, writer.uint32(10).fork()).ldelim();
+            coin_meta_rollback_protection_1.CoinMetaRollbackProtection.encode(message.coinMetaRollbackProtection, writer.uint32(10).fork()).ldelim();
         }
         return writer;
     },
-    decode: function (input, length) {
-        var reader = input instanceof Uint8Array ? new Reader(input) : input;
-        var end = length === undefined ? reader.len : reader.pos + length;
-        var message = __assign({}, baseQueryGetCoinMetaRollbackProtectionResponse);
+    decode(input, length) {
+        const reader = input instanceof Uint8Array ? new minimal_1.Reader(input) : input;
+        let end = length === undefined ? reader.len : reader.pos + length;
+        const message = {
+            ...baseQueryGetCoinMetaRollbackProtectionResponse,
+        };
         while (reader.pos < end) {
-            var tag = reader.uint32();
+            const tag = reader.uint32();
             switch (tag >>> 3) {
                 case 1:
-                    message.coinMetaRollbackProtection = CoinMetaRollbackProtection.decode(reader, reader.uint32());
+                    message.coinMetaRollbackProtection = coin_meta_rollback_protection_1.CoinMetaRollbackProtection.decode(reader, reader.uint32());
                     break;
                 default:
                     reader.skipType(tag & 7);
@@ -755,30 +710,34 @@ export var QueryGetCoinMetaRollbackProtectionResponse = {
         }
         return message;
     },
-    fromJSON: function (object) {
-        var message = __assign({}, baseQueryGetCoinMetaRollbackProtectionResponse);
+    fromJSON(object) {
+        const message = {
+            ...baseQueryGetCoinMetaRollbackProtectionResponse,
+        };
         if (object.coinMetaRollbackProtection !== undefined &&
             object.coinMetaRollbackProtection !== null) {
-            message.coinMetaRollbackProtection = CoinMetaRollbackProtection.fromJSON(object.coinMetaRollbackProtection);
+            message.coinMetaRollbackProtection = coin_meta_rollback_protection_1.CoinMetaRollbackProtection.fromJSON(object.coinMetaRollbackProtection);
         }
         else {
             message.coinMetaRollbackProtection = undefined;
         }
         return message;
     },
-    toJSON: function (message) {
-        var obj = {};
+    toJSON(message) {
+        const obj = {};
         message.coinMetaRollbackProtection !== undefined &&
             (obj.coinMetaRollbackProtection = message.coinMetaRollbackProtection
-                ? CoinMetaRollbackProtection.toJSON(message.coinMetaRollbackProtection)
+                ? coin_meta_rollback_protection_1.CoinMetaRollbackProtection.toJSON(message.coinMetaRollbackProtection)
                 : undefined);
         return obj;
     },
-    fromPartial: function (object) {
-        var message = __assign({}, baseQueryGetCoinMetaRollbackProtectionResponse);
+    fromPartial(object) {
+        const message = {
+            ...baseQueryGetCoinMetaRollbackProtectionResponse,
+        };
         if (object.coinMetaRollbackProtection !== undefined &&
             object.coinMetaRollbackProtection !== null) {
-            message.coinMetaRollbackProtection = CoinMetaRollbackProtection.fromPartial(object.coinMetaRollbackProtection);
+            message.coinMetaRollbackProtection = coin_meta_rollback_protection_1.CoinMetaRollbackProtection.fromPartial(object.coinMetaRollbackProtection);
         }
         else {
             message.coinMetaRollbackProtection = undefined;
@@ -786,24 +745,25 @@ export var QueryGetCoinMetaRollbackProtectionResponse = {
         return message;
     },
 };
-var baseQueryAllCoinMetaRollbackProtectionRequest = {};
-export var QueryAllCoinMetaRollbackProtectionRequest = {
-    encode: function (message, writer) {
-        if (writer === void 0) { writer = Writer.create(); }
+const baseQueryAllCoinMetaRollbackProtectionRequest = {};
+exports.QueryAllCoinMetaRollbackProtectionRequest = {
+    encode(message, writer = minimal_1.Writer.create()) {
         if (message.pagination !== undefined) {
-            PageRequest.encode(message.pagination, writer.uint32(10).fork()).ldelim();
+            pagination_1.PageRequest.encode(message.pagination, writer.uint32(10).fork()).ldelim();
         }
         return writer;
     },
-    decode: function (input, length) {
-        var reader = input instanceof Uint8Array ? new Reader(input) : input;
-        var end = length === undefined ? reader.len : reader.pos + length;
-        var message = __assign({}, baseQueryAllCoinMetaRollbackProtectionRequest);
+    decode(input, length) {
+        const reader = input instanceof Uint8Array ? new minimal_1.Reader(input) : input;
+        let end = length === undefined ? reader.len : reader.pos + length;
+        const message = {
+            ...baseQueryAllCoinMetaRollbackProtectionRequest,
+        };
         while (reader.pos < end) {
-            var tag = reader.uint32();
+            const tag = reader.uint32();
             switch (tag >>> 3) {
                 case 1:
-                    message.pagination = PageRequest.decode(reader, reader.uint32());
+                    message.pagination = pagination_1.PageRequest.decode(reader, reader.uint32());
                     break;
                 default:
                     reader.skipType(tag & 7);
@@ -812,28 +772,32 @@ export var QueryAllCoinMetaRollbackProtectionRequest = {
         }
         return message;
     },
-    fromJSON: function (object) {
-        var message = __assign({}, baseQueryAllCoinMetaRollbackProtectionRequest);
+    fromJSON(object) {
+        const message = {
+            ...baseQueryAllCoinMetaRollbackProtectionRequest,
+        };
         if (object.pagination !== undefined && object.pagination !== null) {
-            message.pagination = PageRequest.fromJSON(object.pagination);
+            message.pagination = pagination_1.PageRequest.fromJSON(object.pagination);
         }
         else {
             message.pagination = undefined;
         }
         return message;
     },
-    toJSON: function (message) {
-        var obj = {};
+    toJSON(message) {
+        const obj = {};
         message.pagination !== undefined &&
             (obj.pagination = message.pagination
-                ? PageRequest.toJSON(message.pagination)
+                ? pagination_1.PageRequest.toJSON(message.pagination)
                 : undefined);
         return obj;
     },
-    fromPartial: function (object) {
-        var message = __assign({}, baseQueryAllCoinMetaRollbackProtectionRequest);
+    fromPartial(object) {
+        const message = {
+            ...baseQueryAllCoinMetaRollbackProtectionRequest,
+        };
         if (object.pagination !== undefined && object.pagination !== null) {
-            message.pagination = PageRequest.fromPartial(object.pagination);
+            message.pagination = pagination_1.PageRequest.fromPartial(object.pagination);
         }
         else {
             message.pagination = undefined;
@@ -841,42 +805,32 @@ export var QueryAllCoinMetaRollbackProtectionRequest = {
         return message;
     },
 };
-var baseQueryAllCoinMetaRollbackProtectionResponse = {};
-export var QueryAllCoinMetaRollbackProtectionResponse = {
-    encode: function (message, writer) {
-        var e_7, _a;
-        if (writer === void 0) { writer = Writer.create(); }
-        try {
-            for (var _b = __values(message.coinMetaRollbackProtection), _c = _b.next(); !_c.done; _c = _b.next()) {
-                var v = _c.value;
-                CoinMetaRollbackProtection.encode(v, writer.uint32(10).fork()).ldelim();
-            }
-        }
-        catch (e_7_1) { e_7 = { error: e_7_1 }; }
-        finally {
-            try {
-                if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
-            }
-            finally { if (e_7) throw e_7.error; }
+const baseQueryAllCoinMetaRollbackProtectionResponse = {};
+exports.QueryAllCoinMetaRollbackProtectionResponse = {
+    encode(message, writer = minimal_1.Writer.create()) {
+        for (const v of message.coinMetaRollbackProtection) {
+            coin_meta_rollback_protection_1.CoinMetaRollbackProtection.encode(v, writer.uint32(10).fork()).ldelim();
         }
         if (message.pagination !== undefined) {
-            PageResponse.encode(message.pagination, writer.uint32(18).fork()).ldelim();
+            pagination_1.PageResponse.encode(message.pagination, writer.uint32(18).fork()).ldelim();
         }
         return writer;
     },
-    decode: function (input, length) {
-        var reader = input instanceof Uint8Array ? new Reader(input) : input;
-        var end = length === undefined ? reader.len : reader.pos + length;
-        var message = __assign({}, baseQueryAllCoinMetaRollbackProtectionResponse);
+    decode(input, length) {
+        const reader = input instanceof Uint8Array ? new minimal_1.Reader(input) : input;
+        let end = length === undefined ? reader.len : reader.pos + length;
+        const message = {
+            ...baseQueryAllCoinMetaRollbackProtectionResponse,
+        };
         message.coinMetaRollbackProtection = [];
         while (reader.pos < end) {
-            var tag = reader.uint32();
+            const tag = reader.uint32();
             switch (tag >>> 3) {
                 case 1:
-                    message.coinMetaRollbackProtection.push(CoinMetaRollbackProtection.decode(reader, reader.uint32()));
+                    message.coinMetaRollbackProtection.push(coin_meta_rollback_protection_1.CoinMetaRollbackProtection.decode(reader, reader.uint32()));
                     break;
                 case 2:
-                    message.pagination = PageResponse.decode(reader, reader.uint32());
+                    message.pagination = pagination_1.PageResponse.decode(reader, reader.uint32());
                     break;
                 default:
                     reader.skipType(tag & 7);
@@ -885,70 +839,52 @@ export var QueryAllCoinMetaRollbackProtectionResponse = {
         }
         return message;
     },
-    fromJSON: function (object) {
-        var e_8, _a;
-        var message = __assign({}, baseQueryAllCoinMetaRollbackProtectionResponse);
+    fromJSON(object) {
+        const message = {
+            ...baseQueryAllCoinMetaRollbackProtectionResponse,
+        };
         message.coinMetaRollbackProtection = [];
         if (object.coinMetaRollbackProtection !== undefined &&
             object.coinMetaRollbackProtection !== null) {
-            try {
-                for (var _b = __values(object.coinMetaRollbackProtection), _c = _b.next(); !_c.done; _c = _b.next()) {
-                    var e = _c.value;
-                    message.coinMetaRollbackProtection.push(CoinMetaRollbackProtection.fromJSON(e));
-                }
-            }
-            catch (e_8_1) { e_8 = { error: e_8_1 }; }
-            finally {
-                try {
-                    if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
-                }
-                finally { if (e_8) throw e_8.error; }
+            for (const e of object.coinMetaRollbackProtection) {
+                message.coinMetaRollbackProtection.push(coin_meta_rollback_protection_1.CoinMetaRollbackProtection.fromJSON(e));
             }
         }
         if (object.pagination !== undefined && object.pagination !== null) {
-            message.pagination = PageResponse.fromJSON(object.pagination);
+            message.pagination = pagination_1.PageResponse.fromJSON(object.pagination);
         }
         else {
             message.pagination = undefined;
         }
         return message;
     },
-    toJSON: function (message) {
-        var obj = {};
+    toJSON(message) {
+        const obj = {};
         if (message.coinMetaRollbackProtection) {
-            obj.coinMetaRollbackProtection = message.coinMetaRollbackProtection.map(function (e) { return (e ? CoinMetaRollbackProtection.toJSON(e) : undefined); });
+            obj.coinMetaRollbackProtection = message.coinMetaRollbackProtection.map((e) => (e ? coin_meta_rollback_protection_1.CoinMetaRollbackProtection.toJSON(e) : undefined));
         }
         else {
             obj.coinMetaRollbackProtection = [];
         }
         message.pagination !== undefined &&
             (obj.pagination = message.pagination
-                ? PageResponse.toJSON(message.pagination)
+                ? pagination_1.PageResponse.toJSON(message.pagination)
                 : undefined);
         return obj;
     },
-    fromPartial: function (object) {
-        var e_9, _a;
-        var message = __assign({}, baseQueryAllCoinMetaRollbackProtectionResponse);
+    fromPartial(object) {
+        const message = {
+            ...baseQueryAllCoinMetaRollbackProtectionResponse,
+        };
         message.coinMetaRollbackProtection = [];
         if (object.coinMetaRollbackProtection !== undefined &&
             object.coinMetaRollbackProtection !== null) {
-            try {
-                for (var _b = __values(object.coinMetaRollbackProtection), _c = _b.next(); !_c.done; _c = _b.next()) {
-                    var e = _c.value;
-                    message.coinMetaRollbackProtection.push(CoinMetaRollbackProtection.fromPartial(e));
-                }
-            }
-            catch (e_9_1) { e_9 = { error: e_9_1 }; }
-            finally {
-                try {
-                    if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
-                }
-                finally { if (e_9) throw e_9.error; }
+            for (const e of object.coinMetaRollbackProtection) {
+                message.coinMetaRollbackProtection.push(coin_meta_rollback_protection_1.CoinMetaRollbackProtection.fromPartial(e));
             }
         }
         if (object.pagination !== undefined && object.pagination !== null) {
-            message.pagination = PageResponse.fromPartial(object.pagination);
+            message.pagination = pagination_1.PageResponse.fromPartial(object.pagination);
         }
         else {
             message.pagination = undefined;
@@ -956,59 +892,45 @@ export var QueryAllCoinMetaRollbackProtectionResponse = {
         return message;
     },
 };
-var QueryClientImpl = /** @class */ (function () {
-    function QueryClientImpl(rpc) {
+class QueryClientImpl {
+    rpc;
+    constructor(rpc) {
         this.rpc = rpc;
     }
-    QueryClientImpl.prototype.Config = function (request) {
-        var data = QueryGetConfigRequest.encode(request).finish();
-        var promise = this.rpc.request("certusone.wormholechain.tokenbridge.Query", "Config", data);
-        return promise.then(function (data) {
-            return QueryGetConfigResponse.decode(new Reader(data));
-        });
-    };
-    QueryClientImpl.prototype.ReplayProtection = function (request) {
-        var data = QueryGetReplayProtectionRequest.encode(request).finish();
-        var promise = this.rpc.request("certusone.wormholechain.tokenbridge.Query", "ReplayProtection", data);
-        return promise.then(function (data) {
-            return QueryGetReplayProtectionResponse.decode(new Reader(data));
-        });
-    };
-    QueryClientImpl.prototype.ReplayProtectionAll = function (request) {
-        var data = QueryAllReplayProtectionRequest.encode(request).finish();
-        var promise = this.rpc.request("certusone.wormholechain.tokenbridge.Query", "ReplayProtectionAll", data);
-        return promise.then(function (data) {
-            return QueryAllReplayProtectionResponse.decode(new Reader(data));
-        });
-    };
-    QueryClientImpl.prototype.ChainRegistration = function (request) {
-        var data = QueryGetChainRegistrationRequest.encode(request).finish();
-        var promise = this.rpc.request("certusone.wormholechain.tokenbridge.Query", "ChainRegistration", data);
-        return promise.then(function (data) {
-            return QueryGetChainRegistrationResponse.decode(new Reader(data));
-        });
-    };
-    QueryClientImpl.prototype.ChainRegistrationAll = function (request) {
-        var data = QueryAllChainRegistrationRequest.encode(request).finish();
-        var promise = this.rpc.request("certusone.wormholechain.tokenbridge.Query", "ChainRegistrationAll", data);
-        return promise.then(function (data) {
-            return QueryAllChainRegistrationResponse.decode(new Reader(data));
-        });
-    };
-    QueryClientImpl.prototype.CoinMetaRollbackProtection = function (request) {
-        var data = QueryGetCoinMetaRollbackProtectionRequest.encode(request).finish();
-        var promise = this.rpc.request("certusone.wormholechain.tokenbridge.Query", "CoinMetaRollbackProtection", data);
-        return promise.then(function (data) {
-            return QueryGetCoinMetaRollbackProtectionResponse.decode(new Reader(data));
-        });
-    };
-    QueryClientImpl.prototype.CoinMetaRollbackProtectionAll = function (request) {
-        var data = QueryAllCoinMetaRollbackProtectionRequest.encode(request).finish();
-        var promise = this.rpc.request("certusone.wormholechain.tokenbridge.Query", "CoinMetaRollbackProtectionAll", data);
-        return promise.then(function (data) {
-            return QueryAllCoinMetaRollbackProtectionResponse.decode(new Reader(data));
-        });
-    };
-    return QueryClientImpl;
-}());
-export { QueryClientImpl };
+    Config(request) {
+        const data = exports.QueryGetConfigRequest.encode(request).finish();
+        const promise = this.rpc.request("certusone.wormholechain.tokenbridge.Query", "Config", data);
+        return promise.then((data) => exports.QueryGetConfigResponse.decode(new minimal_1.Reader(data)));
+    }
+    ReplayProtection(request) {
+        const data = exports.QueryGetReplayProtectionRequest.encode(request).finish();
+        const promise = this.rpc.request("certusone.wormholechain.tokenbridge.Query", "ReplayProtection", data);
+        return promise.then((data) => exports.QueryGetReplayProtectionResponse.decode(new minimal_1.Reader(data)));
+    }
+    ReplayProtectionAll(request) {
+        const data = exports.QueryAllReplayProtectionRequest.encode(request).finish();
+        const promise = this.rpc.request("certusone.wormholechain.tokenbridge.Query", "ReplayProtectionAll", data);
+        return promise.then((data) => exports.QueryAllReplayProtectionResponse.decode(new minimal_1.Reader(data)));
+    }
+    ChainRegistration(request) {
+        const data = exports.QueryGetChainRegistrationRequest.encode(request).finish();
+        const promise = this.rpc.request("certusone.wormholechain.tokenbridge.Query", "ChainRegistration", data);
+        return promise.then((data) => exports.QueryGetChainRegistrationResponse.decode(new minimal_1.Reader(data)));
+    }
+    ChainRegistrationAll(request) {
+        const data = exports.QueryAllChainRegistrationRequest.encode(request).finish();
+        const promise = this.rpc.request("certusone.wormholechain.tokenbridge.Query", "ChainRegistrationAll", data);
+        return promise.then((data) => exports.QueryAllChainRegistrationResponse.decode(new minimal_1.Reader(data)));
+    }
+    CoinMetaRollbackProtection(request) {
+        const data = exports.QueryGetCoinMetaRollbackProtectionRequest.encode(request).finish();
+        const promise = this.rpc.request("certusone.wormholechain.tokenbridge.Query", "CoinMetaRollbackProtection", data);
+        return promise.then((data) => exports.QueryGetCoinMetaRollbackProtectionResponse.decode(new minimal_1.Reader(data)));
+    }
+    CoinMetaRollbackProtectionAll(request) {
+        const data = exports.QueryAllCoinMetaRollbackProtectionRequest.encode(request).finish();
+        const promise = this.rpc.request("certusone.wormholechain.tokenbridge.Query", "CoinMetaRollbackProtectionAll", data);
+        return promise.then((data) => exports.QueryAllCoinMetaRollbackProtectionResponse.decode(new minimal_1.Reader(data)));
+    }
+}
+exports.QueryClientImpl = QueryClientImpl;

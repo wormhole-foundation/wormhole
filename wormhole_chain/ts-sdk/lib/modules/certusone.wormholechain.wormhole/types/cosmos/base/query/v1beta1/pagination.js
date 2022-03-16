@@ -1,28 +1,38 @@
-var __assign = (this && this.__assign) || function () {
-    __assign = Object.assign || function(t) {
-        for (var s, i = 1, n = arguments.length; i < n; i++) {
-            s = arguments[i];
-            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
-                t[p] = s[p];
-        }
-        return t;
-    };
-    return __assign.apply(this, arguments);
+"use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
 };
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.PageResponse = exports.PageRequest = exports.protobufPackage = void 0;
 //@ts-nocheck
 /* eslint-disable */
-import * as Long from "long";
-import { util, configure, Writer, Reader } from "protobufjs/minimal";
-export var protobufPackage = "cosmos.base.query.v1beta1";
-var basePageRequest = {
+const Long = __importStar(require("long"));
+const minimal_1 = require("protobufjs/minimal");
+exports.protobufPackage = "cosmos.base.query.v1beta1";
+const basePageRequest = {
     offset: 0,
     limit: 0,
     countTotal: false,
     reverse: false,
 };
-export var PageRequest = {
-    encode: function (message, writer) {
-        if (writer === void 0) { writer = Writer.create(); }
+exports.PageRequest = {
+    encode(message, writer = minimal_1.Writer.create()) {
         if (message.key.length !== 0) {
             writer.uint32(10).bytes(message.key);
         }
@@ -40,12 +50,12 @@ export var PageRequest = {
         }
         return writer;
     },
-    decode: function (input, length) {
-        var reader = input instanceof Uint8Array ? new Reader(input) : input;
-        var end = length === undefined ? reader.len : reader.pos + length;
-        var message = __assign({}, basePageRequest);
+    decode(input, length) {
+        const reader = input instanceof Uint8Array ? new minimal_1.Reader(input) : input;
+        let end = length === undefined ? reader.len : reader.pos + length;
+        const message = { ...basePageRequest };
         while (reader.pos < end) {
-            var tag = reader.uint32();
+            const tag = reader.uint32();
             switch (tag >>> 3) {
                 case 1:
                     message.key = reader.bytes();
@@ -69,8 +79,8 @@ export var PageRequest = {
         }
         return message;
     },
-    fromJSON: function (object) {
-        var message = __assign({}, basePageRequest);
+    fromJSON(object) {
+        const message = { ...basePageRequest };
         if (object.key !== undefined && object.key !== null) {
             message.key = bytesFromBase64(object.key);
         }
@@ -100,8 +110,8 @@ export var PageRequest = {
         }
         return message;
     },
-    toJSON: function (message) {
-        var obj = {};
+    toJSON(message) {
+        const obj = {};
         message.key !== undefined &&
             (obj.key = base64FromBytes(message.key !== undefined ? message.key : new Uint8Array()));
         message.offset !== undefined && (obj.offset = message.offset);
@@ -110,8 +120,8 @@ export var PageRequest = {
         message.reverse !== undefined && (obj.reverse = message.reverse);
         return obj;
     },
-    fromPartial: function (object) {
-        var message = __assign({}, basePageRequest);
+    fromPartial(object) {
+        const message = { ...basePageRequest };
         if (object.key !== undefined && object.key !== null) {
             message.key = object.key;
         }
@@ -145,10 +155,9 @@ export var PageRequest = {
         return message;
     },
 };
-var basePageResponse = { total: 0 };
-export var PageResponse = {
-    encode: function (message, writer) {
-        if (writer === void 0) { writer = Writer.create(); }
+const basePageResponse = { total: 0 };
+exports.PageResponse = {
+    encode(message, writer = minimal_1.Writer.create()) {
         if (message.nextKey.length !== 0) {
             writer.uint32(10).bytes(message.nextKey);
         }
@@ -157,12 +166,12 @@ export var PageResponse = {
         }
         return writer;
     },
-    decode: function (input, length) {
-        var reader = input instanceof Uint8Array ? new Reader(input) : input;
-        var end = length === undefined ? reader.len : reader.pos + length;
-        var message = __assign({}, basePageResponse);
+    decode(input, length) {
+        const reader = input instanceof Uint8Array ? new minimal_1.Reader(input) : input;
+        let end = length === undefined ? reader.len : reader.pos + length;
+        const message = { ...basePageResponse };
         while (reader.pos < end) {
-            var tag = reader.uint32();
+            const tag = reader.uint32();
             switch (tag >>> 3) {
                 case 1:
                     message.nextKey = reader.bytes();
@@ -177,8 +186,8 @@ export var PageResponse = {
         }
         return message;
     },
-    fromJSON: function (object) {
-        var message = __assign({}, basePageResponse);
+    fromJSON(object) {
+        const message = { ...basePageResponse };
         if (object.nextKey !== undefined && object.nextKey !== null) {
             message.nextKey = bytesFromBase64(object.nextKey);
         }
@@ -190,15 +199,15 @@ export var PageResponse = {
         }
         return message;
     },
-    toJSON: function (message) {
-        var obj = {};
+    toJSON(message) {
+        const obj = {};
         message.nextKey !== undefined &&
             (obj.nextKey = base64FromBytes(message.nextKey !== undefined ? message.nextKey : new Uint8Array()));
         message.total !== undefined && (obj.total = message.total);
         return obj;
     },
-    fromPartial: function (object) {
-        var message = __assign({}, basePageResponse);
+    fromPartial(object) {
+        const message = { ...basePageResponse };
         if (object.nextKey !== undefined && object.nextKey !== null) {
             message.nextKey = object.nextKey;
         }
@@ -214,7 +223,7 @@ export var PageResponse = {
         return message;
     },
 };
-var globalThis = (function () {
+var globalThis = (() => {
     if (typeof globalThis !== "undefined")
         return globalThis;
     if (typeof self !== "undefined")
@@ -225,21 +234,21 @@ var globalThis = (function () {
         return global;
     throw "Unable to locate global object";
 })();
-var atob = globalThis.atob ||
-    (function (b64) { return globalThis.Buffer.from(b64, "base64").toString("binary"); });
+const atob = globalThis.atob ||
+    ((b64) => globalThis.Buffer.from(b64, "base64").toString("binary"));
 function bytesFromBase64(b64) {
-    var bin = atob(b64);
-    var arr = new Uint8Array(bin.length);
-    for (var i = 0; i < bin.length; ++i) {
+    const bin = atob(b64);
+    const arr = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; ++i) {
         arr[i] = bin.charCodeAt(i);
     }
     return arr;
 }
-var btoa = globalThis.btoa ||
-    (function (bin) { return globalThis.Buffer.from(bin, "binary").toString("base64"); });
+const btoa = globalThis.btoa ||
+    ((bin) => globalThis.Buffer.from(bin, "binary").toString("base64"));
 function base64FromBytes(arr) {
-    var bin = [];
-    for (var i = 0; i < arr.byteLength; ++i) {
+    const bin = [];
+    for (let i = 0; i < arr.byteLength; ++i) {
         bin.push(String.fromCharCode(arr[i]));
     }
     return btoa(bin.join(""));
@@ -250,7 +259,7 @@ function longToNumber(long) {
     }
     return long.toNumber();
 }
-if (util.Long !== Long) {
-    util.Long = Long;
-    configure();
+if (minimal_1.util.Long !== Long) {
+    minimal_1.util.Long = Long;
+    (0, minimal_1.configure)();
 }
