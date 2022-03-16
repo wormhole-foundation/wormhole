@@ -55,16 +55,7 @@ func (k msgServer) RegisterAccountAsGuardian(goCtx context.Context, msg *types.M
 		return nil, types.ErrGuardianSetNotFound
 	}
 
-	// TODO: should we just take an index and look up in the list, instead of
-	// iterating through?
-	contains := false
-	for _, key := range latestGuardianSet.Keys {
-		bytes.Equal(guardianKeyAddr.Bytes(), key)
-		contains = true
-		break
-	}
-
-	if !contains {
+	if !latestGuardianSet.ContainsKey(guardianKeyAddr) {
 		return nil, types.ErrGuardianNotFound
 	}
 
