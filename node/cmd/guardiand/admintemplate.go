@@ -38,6 +38,7 @@ func init() {
 	templateGuardianIndex = TemplateCmd.PersistentFlags().Int("idx", 1, "Default current guardian set index")
 
 	setUpdateNumGuardians = AdminClientGuardianSetTemplateCmd.Flags().Int("num", 1, "Number of devnet guardians in example file")
+	TemplateCmd.AddCommand(AdminClientGuardianSetTemplateCmd)
 
 	AdminClientContractUpgradeTemplateCmd.Flags().AddFlagSet(governanceFlagSet)
 	TemplateCmd.AddCommand(AdminClientContractUpgradeTemplateCmd)
