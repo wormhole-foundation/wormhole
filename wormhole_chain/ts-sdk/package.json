@@ -31,6 +31,7 @@
     "bech32": "^2.0.0",
     "elliptic": "^6.5.4",
     "ethers": "^5.5.4",
+    "keccak256": "^1.0.6",
     "node-fetch": "^2.6.7",
     "protobufjs": "^6.11.2",
     "ts-jest": "^27.1.3",

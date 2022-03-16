@@ -4,6 +4,7 @@ import {
   HOLE_DENOM,
   TEST_WALLET_MNEMONIC_1,
   TEST_WALLET_MNEMONIC_2,
+  TILTNET_GUARDIAN_PRIVATE_KEY,
   TILTNET_GUARDIAN_PUBKEY,
 } from "../consts";
 import { getValidators } from "../core/validator";
@@ -21,6 +22,7 @@ import {
   getGuardianValidatorRegistrations,
   fromBase64,
   toValAddress,
+  registerGuardianValidator,
 } from "wormhole-chain-sdk";
 import { WormholeGuardianSet } from "wormhole-chain-sdk/lib/modules/certusone.wormholechain.wormhole/rest";
 
@@ -84,6 +86,18 @@ test("Process guardian set upgrade", async () => {
   const result = await executeGovernanceVAA(wallet1, "not a real thing");
 
   console.log("RESULT FROM GUARDIAN SET UPGRADE", result);
+});
+
+test("Register guardian to validator", async () => {
+  const wallet1 = await getWallet(TEST_WALLET_MNEMONIC_1);
+  const result = await registerGuardianValidator(
+    wallet1,
+    TILTNET_GUARDIAN_PUBKEY,
+    TILTNET_GUARDIAN_PRIVATE_KEY,
+    GUARDIAN_VALIDATOR_PUBLIC_KEY
+  );
+
+  console.log("RESULT FROM REGISTER GUARDIAN VALIDATOR", result);
 });
 
 test("Full bootstrap test", async () => {

@@ -32,6 +32,10 @@ import {
   txClient,
   queryClient,
 } from "./modules/certusone.wormholechain.wormhole";
+import { keccak256 } from "ethers/lib/utils";
+import { MsgRegisterAccountAsGuardian } from "./modules/certusone.wormholechain.wormhole/types/wormhole/tx";
+import { GuardianKey } from "./modules/certusone.wormholechain.wormhole/types/wormhole/guardian_key";
+let elliptic = require("elliptic"); //No TS defs?
 
 //https://tutorials.cosmos.network/academy/4-my-own-chain/cosmjs.html
 const ADDRESS_PREFIX = "wormhole";
@@ -160,6 +164,38 @@ export async function unpackHttpReponse<T>(
   const content = http.data;
 
   return content;
+}
+
+export async function registerGuardianValidator(
+  wallet: DirectSecp256k1HdWallet,
+  guardianPubkeyBase64: string,
+  guardianPrivkeyHex: string,
+  valAddress: string
+) {
+  const ec = new elliptic.ec("secp256k1");
+  const key = ec.keyFromPrivate(guardianPrivkeyHex);
+
+  const binaryData = fromValAddress(valAddress);
+  const bytes = binaryData.bytes;
+
+  const hash = keccak256(bytes);
+
+  const signature = key.sign(hash, { canonical: true });
+
+  const args: MsgRegisterAccountAsGuardian = {
+    signer: await getAddress(wallet),
+    guardianPubkey: GuardianKey.fromJSON(guardianPubkeyBase64), //TODO fix this type, it's bad
+    addressBech32: valAddress, //this should be val address, not address bech32. The name is wrong
+    signature: signature,
+  };
+
+  const offline: OfflineSigner = wallet;
+  const client = await txClient(offline);
+  const msg = client.msgRegisterAccountAsGuardian(args);
+
+  const output = await client.signAndBroadcast([msg]);
+
+  return output;
 }
 
 export function fromAccAddress(address: string): BinaryAddress {
