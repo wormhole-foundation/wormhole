@@ -35,7 +35,7 @@ max_bits = bits_per_byte * max_bytes
 
 def fullyCompileContract(genTeal, client: AlgodClient, contract: Expr, name) -> bytes:
     if genTeal:
-        teal = compileTeal(contract, mode=Mode.Application, version=6)
+        teal = compileTeal(contract, mode=Mode.Application, version=6, assembleConstants=True)
 
         with open(name, "w") as f:
             print("Writing " + name)
