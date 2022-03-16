@@ -262,6 +262,10 @@ class AlgoTest(PortalCore):
         txns = []
         sp = client.suggested_params()
 
+        fee = self.getMessageFee()
+        if (fee > 0):
+            txns.append(transaction.PaymentTxn(sender = sender.getAddress(), sp = sp, receiver = get_application_address(self.tokenid), amt = fee))
+
         a = transaction.ApplicationCallTxn(
             sender=sender.getAddress(),
             index=self.tokenid,
@@ -301,6 +305,10 @@ class AlgoTest(PortalCore):
             wormhole = c.get("auth-addr") == taddr
 
         txns = []
+
+        fee = self.getMessageFee()
+        if (fee > 0):
+            txns.append(transaction.PaymentTxn(sender = sender.getAddress(), sp = sp, receiver = get_application_address(self.tokenid), amt = fee))
 
         if not wormhole:
             creator = self.optin(client, sender, self.tokenid, asset_id, b"native".hex())
@@ -448,6 +456,8 @@ class AlgoTest(PortalCore):
 #        print(self.vaa_verify["hash"])
 #        print("")
 
+        vaaLogs = []
+
         print("Generating the foundation account...")
         foundation = self.getTemporaryAccount(client)
         print(foundation.getAddress())
@@ -476,6 +486,7 @@ class AlgoTest(PortalCore):
 
         print("upgrading the the guardian set using untrusted account...")
         upgradeVAA = bytes.fromhex(gt.genGuardianSetUpgrade(gt.guardianPrivKeys, 1, seq, seq, seq))
+        vaaLogs.append(["guardianUpgrade", upgradeVAA.hex()])
         self.submitVAA(upgradeVAA, client, player, self.coreid)
 
         bal = self.getBalances(client, player.getAddress())
@@ -501,6 +512,8 @@ class AlgoTest(PortalCore):
             v = gt.genRegisterChain(gt.guardianPrivKeys, 2, seq, seq, r)
             vaa = bytes.fromhex(v)
 #            pprint.pprint((v, self.parseVAA(vaa)))
+            if r == 2:
+                vaaLogs.append(["registerChain", v])
             self.submitVAA(vaa, client, player, self.tokenid)
             seq += 1
 
@@ -510,6 +523,7 @@ class AlgoTest(PortalCore):
         print("Create a asset")
         attestVAA = bytes.fromhex(gt.genAssetMeta(gt.guardianPrivKeys, 2, seq, seq, bytes.fromhex("4523c3F29447d1f32AEa95BEBD00383c4640F1b4"), 1, 8, b"USDC", b"CircleCoin"))
         # paul - createWrappedOnAlgorand
+        vaaLogs.append(["createWrappedOnAlgorand", attestVAA.hex()])
         self.submitVAA(attestVAA, client, player, self.tokenid)
         seq += 1
 
@@ -525,6 +539,7 @@ class AlgoTest(PortalCore):
         print("Transfer the asset " + str(seq))
         transferVAA = bytes.fromhex(gt.genTransfer(gt.guardianPrivKeys, 1, 1, 1, 1, bytes.fromhex("4523c3F29447d1f32AEa95BEBD00383c4640F1b4"), 1, decode_address(player.getAddress()), 8, 0))
         # paul - redeemOnAlgorand
+        vaaLogs.append(["redeemOnAlgorand", transferVAA.hex()])
         self.submitVAA(transferVAA, client, player, self.tokenid)
         seq += 1
 
@@ -570,6 +585,8 @@ class AlgoTest(PortalCore):
         print("... track down the generated VAA")
         vaa = self.getVAA(client, player, sid, self.tokenid)
         print(".. and lets pass that to player3")
+        vaaLogs.append(["transferFromAlgorand", vaa])
+        pprint.pprint(vaaLogs)
         self.submitVAA(bytes.fromhex(vaa), client, player3, self.tokenid)
 
         pprint.pprint(self.getBalances(client, player.getAddress()))
@@ -659,6 +676,15 @@ class AlgoTest(PortalCore):
         seq += 1
 
         print("core contract now has a MessageFee set to " + str(self.getMessageFee()))
+
+        print("Generating an attest.. This will cause a message to get published .. which should cause fees to get sent to the core contract")
+        sid = self.testAttest(client, player2, self.testasset)
+        print("... track down the generated VAA")
+        vaa = self.getVAA(client, player, sid, self.tokenid)
+        v = self.parseVAA(bytes.fromhex(vaa))
+        print("We got a " + v["Meta"])
+
+        print("core contract has " + str(bal) + " algo")
 
 #        print("player account: " + player.getAddress())
 #        pprint.pprint(client.account_info(player.getAddress()))

@@ -1180,6 +1180,8 @@ class PortalCore:
     def main(self) -> None:
         self.setup_args()
 
+        args = self.args
+
         if args.genTeal or args.boot:
             self.genTeal()
 
@@ -1191,6 +1193,12 @@ class PortalCore:
         # This breaks the tsig up into the various parts so that we
         # can embed it into the Typescript code for reassembly  
         if args.genParts:
+            print("this.ALGO_VERIFY_HASH = \"%s\""%self.vaa_verify["hash"]);
+            print("this.ALGO_VERIFY = new Uint8Array([", end='')
+            for x in b64decode(self.vaa_verify["result"]):
+                print("%d, "%(x), end='')
+            print("])")
+    
             parts = [
                 self.tsig.get_bytecode_raw(0).hex(),
                 self.tsig.get_bytecode_raw(1).hex(),
@@ -1202,6 +1210,8 @@ class PortalCore:
 
             pprint.pprint(parts)
             sys.exit(0)
+
+
 
         if args.mnemonic:
             self.foundation = Account.FromMnemonic(args.mnemonic)
