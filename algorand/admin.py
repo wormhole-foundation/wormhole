@@ -423,7 +423,7 @@ class PortalCore:
         globalSchema = transaction.StateSchema(num_uints=4, num_byte_slices=30)
         localSchema = transaction.StateSchema(num_uints=0, num_byte_slices=16)
     
-        app_args = [self.coreid]
+        app_args = [self.coreid, get_application_address(self.coreid)]
 
         txn = transaction.ApplicationCreateTxn(
             sender=sender.getAddress(),

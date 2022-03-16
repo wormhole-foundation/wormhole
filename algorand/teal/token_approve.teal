@@ -1491,6 +1491,9 @@ bytec_1 // "coreid"
 txna ApplicationArgs 0
 btoi
 app_global_put
+pushbytes 0x636f726541646472 // "coreAddr"
+txna ApplicationArgs 1
+app_global_put
 bytec 8 // "validUpdateApproveHash"
 bytec_0 // ""
 app_global_put
