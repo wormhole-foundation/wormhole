@@ -1,24 +1,7 @@
 import algosdk, { LogicSigAccount } from "algosdk";
 import { id } from "ethers/lib/utils";
-import { tealSource } from "./TmplSigSource";
+// import { tealSource } from "./TmplSigSource";
 var varint = require("varint");
-
-enum TemplateName {
-    TMPL_ADDR_IDX = 0,
-    TMPL_APP_ADDRESS,
-    TMPL_APP_ID,
-    TMPL_EMITTER_ID,
-    TMPL_SEED_AMT,
-}
-
-// This is an entry in the template data table
-interface ITemplateData {
-    name: TemplateName;
-    bytes: boolean;
-    position: number;
-    sourceLine: number;
-}
-export type TemplateData = Required<ITemplateData>;
 
 // This is the data structure to be populated in the call to populate() below
 // Yes, it needs to be filled out before calling populate()
@@ -31,7 +14,7 @@ interface IPopulateData {
 }
 export type PopulateData = Required<IPopulateData>;
 
-// Maybe move this to a helpers file
+// Maybe move these to a helpers file
 export function hexStringToUint8Array(hs: string): Uint8Array {
     if (hs.length % 2 === 1) {
         // prepend a 0
@@ -41,7 +24,6 @@ export function hexStringToUint8Array(hs: string): Uint8Array {
     const retval = Uint8Array.from(buf);
     console.log("input:", hs, ", buf:", buf, ", retval:", retval);
     return retval;
-    // return Uint8Array.from(Buffer.from(hs, "hex"));
 }
 
 export function uint8ArrayToHexString(arr: Uint8Array, add0x: boolean) {
@@ -133,7 +115,6 @@ export class TmplSig {
             data.appAddress,
             "1244330209320312442243",
         ].join("");
-        // return foo;
         this.bytecode = hexStringToUint8Array(byteString);
         console.log(
             "This is the final product:",
