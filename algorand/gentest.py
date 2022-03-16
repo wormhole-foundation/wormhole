@@ -128,7 +128,7 @@ class GenTest:
         emitter = bytes.fromhex(self.zeroPadBytes[0:(31*2)] + "04")
         return self.createSignedVAA(guardianSet, signers, int(time.time()), nonce, 1, emitter, seq, 32, 0, b)
 
-    def genGSetFee(self, signers, guardianSet, nonce, seq):
+    def genGSetFee(self, signers, guardianSet, nonce, seq, amt):
         b  = self.zeroPadBytes[0:(28*2)]
         b += self.encoder("uint8", ord("C"))
         b += self.encoder("uint8", ord("o"))
@@ -136,7 +136,7 @@ class GenTest:
         b += self.encoder("uint8", ord("e"))
         b += self.encoder("uint8", 3)
         b += self.encoder("uint16", 8)
-        b += self.encoder("uint256", int(1000000))  # a whole algo!
+        b += self.encoder("uint256", int(amt))  # a whole algo!
 
         emitter = bytes.fromhex(self.zeroPadBytes[0:(31*2)] + "04")
         return self.createSignedVAA(guardianSet, signers, int(time.time()), nonce, 1, emitter, seq, 32, 0, b)

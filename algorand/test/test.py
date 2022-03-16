@@ -685,11 +685,17 @@ class AlgoTest(PortalCore):
         print("core contract has a MessageFee set to " + str(self.getMessageFee()))
 
         seq += 1
-        v = gt.genGSetFee(gt.guardianPrivKeys, 2, seq, seq)
+        v = gt.genGSetFee(gt.guardianPrivKeys, 2, seq, seq, 1000000)
         self.submitVAA(bytes.fromhex(v), client, player, self.coreid)
         seq += 1
 
         print("core contract now has a MessageFee set to " + str(self.getMessageFee()))
+
+        v = gt.genGSetFee(gt.guardianPrivKeys, 2, seq, seq, 0)
+        self.submitVAA(bytes.fromhex(v), client, player, self.coreid)
+        seq += 1
+
+        print("core contract is back to  " + str(self.getMessageFee()))
 
         print("Generating an attest.. This will cause a message to get published .. which should cause fees to get sent to the core contract")
         sid = self.testAttest(client, player2, self.testasset)
