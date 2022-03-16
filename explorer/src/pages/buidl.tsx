@@ -37,16 +37,19 @@ const BuidlPage = ({ location }: PageProps) => {
   useEffect(() => {
 
     gsap.registerPlugin(ScrollTrigger);
+    var viewportWidth = window.innerWidth || document.documentElement.clientWidth;
+    if (viewportWidth > 992) {
+      animateSwirl(headerImage);
+      paralaxGsap(gradient1, 1000, "-50% 100%");
+      paralaxGsap(gradient2, 1000, "-50% 100%");
+      paralaxGsap(shapeLeft, 200, "20% 100%");
+      paralaxGsap(shapeRight, 200, "20% 100%");
 
-    animateSwirl(headerImage);
-    paralaxGsap(gradient1, 1000, "-50% 100%");
-    paralaxGsap(gradient2, 1000, "-50% 100%");
-    paralaxGsap(shapeLeft, 200, "20% 100%");
-    paralaxGsap(shapeRight, 200, "20% 100%");
+      fadeInGsap(row1);
+      fadeInGsap(row2);
+      fadeInGsap(row3);
 
-    fadeInGsap(row1);
-    fadeInGsap(row2);
-    fadeInGsap(row3);
+    }
   }, [])
 
   return (

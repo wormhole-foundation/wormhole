@@ -128,43 +128,47 @@ const IndexPage = ({ location }: PageProps) => {
 
     // let icons = row5.current?.children[0];
 
-    gsap.utils.toArray(row5.current).forEach((section:any, i) => {
-      const img1 = section.children[0].children[0].children[0].children[0].children[0];
-      const img2 = section.children[0].children[1].children[0].children[0].children[0];
-      const img3 = section.children[0].children[2].children[0].children[0].children[0];
-
-      gsap.from(img1, {
-        rotation: 30,
-        duration: 2,
-        ease: "Power3.easeOut",
-        scrollTrigger: {
-          trigger: img1,
-        },
-      });
-
-      gsap.from(img2, {
-        rotation: 30,
-        duration: 3,
-        ease: "Power3.easeOut",
-        scrollTrigger: {
-          trigger: img2,
-        },
-      });
-
-      gsap.from(img3, {
-        rotation: -20,
-        duration: 3,
-        ease: "Power3.easeOut",
-        scrollTrigger: {
-          trigger: img3,
-        },
-      });
     
-    })
 
 
     var viewportWidth = window.innerWidth || document.documentElement.clientWidth;
-    if (viewportWidth > 768) {
+    if (viewportWidth > 992) {
+
+      gsap.utils.toArray(row5.current).forEach((section:any, i) => {
+        const img1 = section.children[0].children[0].children[0].children[0].children[0];
+        const img2 = section.children[0].children[1].children[0].children[0].children[0];
+        const img3 = section.children[0].children[2].children[0].children[0].children[0];
+  
+        gsap.from(img1, {
+          rotation: 30,
+          duration: 2,
+          ease: "Power3.easeOut",
+          scrollTrigger: {
+            trigger: img1,
+          },
+        });
+  
+        gsap.from(img2, {
+          rotation: 30,
+          duration: 3,
+          ease: "Power3.easeOut",
+          scrollTrigger: {
+            trigger: img2,
+          },
+        });
+  
+        gsap.from(img3, {
+          rotation: -20,
+          duration: 3,
+          ease: "Power3.easeOut",
+          scrollTrigger: {
+            trigger: img3,
+          },
+        });
+      
+      })
+
+
       animateSwirl(headerImage);
       paralaxGsap(gradient1, 1000, "-50% 100%");
       paralaxGsap(gradient2, 1000, "-50% 100%");

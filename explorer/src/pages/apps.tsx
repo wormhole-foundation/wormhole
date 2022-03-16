@@ -33,7 +33,7 @@ const AppsPage = ({ location }: PageProps) => {
 
     gsap.registerPlugin(ScrollTrigger);
     var viewportWidth = window.innerWidth || document.documentElement.clientWidth;
-    if (viewportWidth > 768) {
+    if (viewportWidth > 992) {
       animateSwirl(headerImage);
       paralaxGsap(gradient1, 1000, "-50% 100%");
       paralaxGsap(gradient2, 1000, "-50% 100%");

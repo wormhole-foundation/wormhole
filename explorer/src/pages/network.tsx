@@ -226,7 +226,7 @@ const NetworkPage = ({ location }: PageProps) => {
     gsap.registerPlugin(ScrollTrigger);
 
     var viewportWidth = window.innerWidth || document.documentElement.clientWidth;
-    if (viewportWidth > 768) {
+    if (viewportWidth > 992) {
       animateSwirl(headerImage);
       paralaxGsap(gradient_1, 1000, "-50% 100%");
       paralaxGsap(shapeRight, 200, "20% 100%");

@@ -52,7 +52,7 @@ const socialIcon = {
     gsap.registerPlugin(ScrollTrigger);
 
     var viewportWidth = window.innerWidth || document.documentElement.clientWidth;
-    if (viewportWidth > 768) {
+    if (viewportWidth > 992) {
       gsap.from(shapeLeftf.current, {
         y: 200,
         x: 200,
@@ -77,7 +77,7 @@ const socialIcon = {
       sx={{
         position: "absolute",
         zIndex: -1,
-        transform: { xs: "", md: "translate(-50%, 0%)" },
+        transform: { xs: "translate(none)", md: "translate(-50%, 0%)" },
         background: `url(${shape})`,
         backgroundRepeat: "no-repeat",
         backgroundPosition: { xs: "center center", md: "right top -426px" },
