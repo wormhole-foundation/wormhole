@@ -18,8 +18,8 @@ export enum PromMode {
 export class PromHelper {
   private _register = new client.Registry();
   private _walletReg = new client.Registry();
-  // private collectDefaultMetrics = client.collectDefaultMetrics;
   private _mode: PromMode;
+  private collectDefaultMetrics = client.collectDefaultMetrics;
 
   // Actual metrics
   private successCounter = new client.Counter({
@@ -69,7 +69,7 @@ export class PromHelper {
     this._register.setDefaultLabels({
       app: name,
     });
-    // this.collectDefaultMetrics({ register: this.register });
+    this.collectDefaultMetrics({ register: this._register, prefix: "relayer_" });
 
     this._mode = mode;
     // Register each metric
