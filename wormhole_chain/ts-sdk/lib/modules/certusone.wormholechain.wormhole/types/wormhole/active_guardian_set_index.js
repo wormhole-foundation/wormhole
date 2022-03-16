@@ -1,27 +1,27 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ReplayProtection = exports.protobufPackage = void 0;
+exports.ActiveGuardianSetIndex = exports.protobufPackage = void 0;
 //@ts-nocheck
 /* eslint-disable */
 const minimal_1 = require("protobufjs/minimal");
 exports.protobufPackage = "certusone.wormholechain.wormhole";
-const baseReplayProtection = { index: "" };
-exports.ReplayProtection = {
+const baseActiveGuardianSetIndex = { index: 0 };
+exports.ActiveGuardianSetIndex = {
     encode(message, writer = minimal_1.Writer.create()) {
-        if (message.index !== "") {
-            writer.uint32(10).string(message.index);
+        if (message.index !== 0) {
+            writer.uint32(8).uint32(message.index);
         }
         return writer;
     },
     decode(input, length) {
         const reader = input instanceof Uint8Array ? new minimal_1.Reader(input) : input;
         let end = length === undefined ? reader.len : reader.pos + length;
-        const message = { ...baseReplayProtection };
+        const message = { ...baseActiveGuardianSetIndex };
         while (reader.pos < end) {
             const tag = reader.uint32();
             switch (tag >>> 3) {
                 case 1:
-                    message.index = reader.string();
+                    message.index = reader.uint32();
                     break;
                 default:
                     reader.skipType(tag & 7);
@@ -31,12 +31,12 @@ exports.ReplayProtection = {
         return message;
     },
     fromJSON(object) {
-        const message = { ...baseReplayProtection };
+        const message = { ...baseActiveGuardianSetIndex };
         if (object.index !== undefined && object.index !== null) {
-            message.index = String(object.index);
+            message.index = Number(object.index);
         }
         else {
-            message.index = "";
+            message.index = 0;
         }
         return message;
     },
@@ -46,12 +46,12 @@ exports.ReplayProtection = {
         return obj;
     },
     fromPartial(object) {
-        const message = { ...baseReplayProtection };
+        const message = { ...baseActiveGuardianSetIndex };
         if (object.index !== undefined && object.index !== null) {
             message.index = object.index;
         }
         else {
-            message.index = "";
+            message.index = 0;
         }
         return message;
     },

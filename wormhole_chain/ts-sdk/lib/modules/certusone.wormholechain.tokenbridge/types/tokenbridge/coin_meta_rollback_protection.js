@@ -1,26 +1,36 @@
-var __assign = (this && this.__assign) || function () {
-    __assign = Object.assign || function(t) {
-        for (var s, i = 1, n = arguments.length; i < n; i++) {
-            s = arguments[i];
-            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
-                t[p] = s[p];
-        }
-        return t;
-    };
-    return __assign.apply(this, arguments);
+"use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
 };
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.CoinMetaRollbackProtection = exports.protobufPackage = void 0;
 //@ts-nocheck
 /* eslint-disable */
-import * as Long from "long";
-import { util, configure, Writer, Reader } from "protobufjs/minimal";
-export var protobufPackage = "certusone.wormholechain.tokenbridge";
-var baseCoinMetaRollbackProtection = {
+const Long = __importStar(require("long"));
+const minimal_1 = require("protobufjs/minimal");
+exports.protobufPackage = "certusone.wormholechain.tokenbridge";
+const baseCoinMetaRollbackProtection = {
     index: "",
     lastUpdateSequence: 0,
 };
-export var CoinMetaRollbackProtection = {
-    encode: function (message, writer) {
-        if (writer === void 0) { writer = Writer.create(); }
+exports.CoinMetaRollbackProtection = {
+    encode(message, writer = minimal_1.Writer.create()) {
         if (message.index !== "") {
             writer.uint32(10).string(message.index);
         }
@@ -29,12 +39,14 @@ export var CoinMetaRollbackProtection = {
         }
         return writer;
     },
-    decode: function (input, length) {
-        var reader = input instanceof Uint8Array ? new Reader(input) : input;
-        var end = length === undefined ? reader.len : reader.pos + length;
-        var message = __assign({}, baseCoinMetaRollbackProtection);
+    decode(input, length) {
+        const reader = input instanceof Uint8Array ? new minimal_1.Reader(input) : input;
+        let end = length === undefined ? reader.len : reader.pos + length;
+        const message = {
+            ...baseCoinMetaRollbackProtection,
+        };
         while (reader.pos < end) {
-            var tag = reader.uint32();
+            const tag = reader.uint32();
             switch (tag >>> 3) {
                 case 1:
                     message.index = reader.string();
@@ -49,8 +61,10 @@ export var CoinMetaRollbackProtection = {
         }
         return message;
     },
-    fromJSON: function (object) {
-        var message = __assign({}, baseCoinMetaRollbackProtection);
+    fromJSON(object) {
+        const message = {
+            ...baseCoinMetaRollbackProtection,
+        };
         if (object.index !== undefined && object.index !== null) {
             message.index = String(object.index);
         }
@@ -66,15 +80,17 @@ export var CoinMetaRollbackProtection = {
         }
         return message;
     },
-    toJSON: function (message) {
-        var obj = {};
+    toJSON(message) {
+        const obj = {};
         message.index !== undefined && (obj.index = message.index);
         message.lastUpdateSequence !== undefined &&
             (obj.lastUpdateSequence = message.lastUpdateSequence);
         return obj;
     },
-    fromPartial: function (object) {
-        var message = __assign({}, baseCoinMetaRollbackProtection);
+    fromPartial(object) {
+        const message = {
+            ...baseCoinMetaRollbackProtection,
+        };
         if (object.index !== undefined && object.index !== null) {
             message.index = object.index;
         }
@@ -91,7 +107,7 @@ export var CoinMetaRollbackProtection = {
         return message;
     },
 };
-var globalThis = (function () {
+var globalThis = (() => {
     if (typeof globalThis !== "undefined")
         return globalThis;
     if (typeof self !== "undefined")
@@ -108,7 +124,7 @@ function longToNumber(long) {
     }
     return long.toNumber();
 }
-if (util.Long !== Long) {
-    util.Long = Long;
-    configure();
+if (minimal_1.util.Long !== Long) {
+    minimal_1.util.Long = Long;
+    (0, minimal_1.configure)();
 }

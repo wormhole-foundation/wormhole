@@ -1,109 +1,67 @@
-var __assign = (this && this.__assign) || function () {
-    __assign = Object.assign || function(t) {
-        for (var s, i = 1, n = arguments.length; i < n; i++) {
-            s = arguments[i];
-            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
-                t[p] = s[p];
-        }
-        return t;
-    };
-    return __assign.apply(this, arguments);
-};
-var __values = (this && this.__values) || function(o) {
-    var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
-    if (m) return m.call(o);
-    if (o && typeof o.length === "number") return {
-        next: function () {
-            if (o && i >= o.length) o = void 0;
-            return { value: o && o[i++], done: !o };
-        }
-    };
-    throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
-};
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.GenesisState = exports.protobufPackage = void 0;
 //@ts-nocheck
 /* eslint-disable */
-import { GuardianSet } from "../wormhole/guardian_set";
-import { Config } from "../wormhole/config";
-import { ReplayProtection } from "../wormhole/replay_protection";
-import { SequenceCounter } from "../wormhole/sequence_counter";
-import { Writer, Reader } from "protobufjs/minimal";
-export var protobufPackage = "certusone.wormholechain.wormhole";
-var baseGenesisState = { guardianSetCount: 0 };
-export var GenesisState = {
-    encode: function (message, writer) {
-        var e_1, _a, e_2, _b, e_3, _c;
-        if (writer === void 0) { writer = Writer.create(); }
-        try {
-            for (var _d = __values(message.guardianSetList), _e = _d.next(); !_e.done; _e = _d.next()) {
-                var v = _e.value;
-                GuardianSet.encode(v, writer.uint32(10).fork()).ldelim();
-            }
-        }
-        catch (e_1_1) { e_1 = { error: e_1_1 }; }
-        finally {
-            try {
-                if (_e && !_e.done && (_a = _d.return)) _a.call(_d);
-            }
-            finally { if (e_1) throw e_1.error; }
-        }
-        if (message.guardianSetCount !== 0) {
-            writer.uint32(16).uint32(message.guardianSetCount);
+const guardian_set_1 = require("../wormhole/guardian_set");
+const config_1 = require("../wormhole/config");
+const replay_protection_1 = require("../wormhole/replay_protection");
+const sequence_counter_1 = require("../wormhole/sequence_counter");
+const active_guardian_set_index_1 = require("../wormhole/active_guardian_set_index");
+const guardian_validator_1 = require("../wormhole/guardian_validator");
+const minimal_1 = require("protobufjs/minimal");
+exports.protobufPackage = "certusone.wormholechain.wormhole";
+const baseGenesisState = {};
+exports.GenesisState = {
+    encode(message, writer = minimal_1.Writer.create()) {
+        for (const v of message.guardianSetList) {
+            guardian_set_1.GuardianSet.encode(v, writer.uint32(10).fork()).ldelim();
         }
         if (message.config !== undefined) {
-            Config.encode(message.config, writer.uint32(26).fork()).ldelim();
+            config_1.Config.encode(message.config, writer.uint32(18).fork()).ldelim();
         }
-        try {
-            for (var _f = __values(message.replayProtectionList), _g = _f.next(); !_g.done; _g = _f.next()) {
-                var v = _g.value;
-                ReplayProtection.encode(v, writer.uint32(34).fork()).ldelim();
-            }
+        for (const v of message.replayProtectionList) {
+            replay_protection_1.ReplayProtection.encode(v, writer.uint32(26).fork()).ldelim();
         }
-        catch (e_2_1) { e_2 = { error: e_2_1 }; }
-        finally {
-            try {
-                if (_g && !_g.done && (_b = _f.return)) _b.call(_f);
-            }
-            finally { if (e_2) throw e_2.error; }
+        for (const v of message.sequenceCounterList) {
+            sequence_counter_1.SequenceCounter.encode(v, writer.uint32(34).fork()).ldelim();
         }
-        try {
-            for (var _h = __values(message.sequenceCounterList), _j = _h.next(); !_j.done; _j = _h.next()) {
-                var v = _j.value;
-                SequenceCounter.encode(v, writer.uint32(42).fork()).ldelim();
-            }
+        if (message.activeGuardianSetIndex !== undefined) {
+            active_guardian_set_index_1.ActiveGuardianSetIndex.encode(message.activeGuardianSetIndex, writer.uint32(42).fork()).ldelim();
         }
-        catch (e_3_1) { e_3 = { error: e_3_1 }; }
-        finally {
-            try {
-                if (_j && !_j.done && (_c = _h.return)) _c.call(_h);
-            }
-            finally { if (e_3) throw e_3.error; }
+        for (const v of message.guardianValidatorList) {
+            guardian_validator_1.GuardianValidator.encode(v, writer.uint32(50).fork()).ldelim();
         }
         return writer;
     },
-    decode: function (input, length) {
-        var reader = input instanceof Uint8Array ? new Reader(input) : input;
-        var end = length === undefined ? reader.len : reader.pos + length;
-        var message = __assign({}, baseGenesisState);
+    decode(input, length) {
+        const reader = input instanceof Uint8Array ? new minimal_1.Reader(input) : input;
+        let end = length === undefined ? reader.len : reader.pos + length;
+        const message = { ...baseGenesisState };
         message.guardianSetList = [];
         message.replayProtectionList = [];
         message.sequenceCounterList = [];
+        message.guardianValidatorList = [];
         while (reader.pos < end) {
-            var tag = reader.uint32();
+            const tag = reader.uint32();
             switch (tag >>> 3) {
                 case 1:
-                    message.guardianSetList.push(GuardianSet.decode(reader, reader.uint32()));
+                    message.guardianSetList.push(guardian_set_1.GuardianSet.decode(reader, reader.uint32()));
                     break;
                 case 2:
-                    message.guardianSetCount = reader.uint32();
+                    message.config = config_1.Config.decode(reader, reader.uint32());
                     break;
                 case 3:
-                    message.config = Config.decode(reader, reader.uint32());
+                    message.replayProtectionList.push(replay_protection_1.ReplayProtection.decode(reader, reader.uint32()));
                     break;
                 case 4:
-                    message.replayProtectionList.push(ReplayProtection.decode(reader, reader.uint32()));
+                    message.sequenceCounterList.push(sequence_counter_1.SequenceCounter.decode(reader, reader.uint32()));
                     break;
                 case 5:
-                    message.sequenceCounterList.push(SequenceCounter.decode(reader, reader.uint32()));
+                    message.activeGuardianSetIndex = active_guardian_set_index_1.ActiveGuardianSetIndex.decode(reader, reader.uint32());
+                    break;
+                case 6:
+                    message.guardianValidatorList.push(guardian_validator_1.GuardianValidator.decode(reader, reader.uint32()));
                     break;
                 default:
                     reader.skipType(tag & 7);
@@ -112,172 +70,126 @@ export var GenesisState = {
         }
         return message;
     },
-    fromJSON: function (object) {
-        var e_4, _a, e_5, _b, e_6, _c;
-        var message = __assign({}, baseGenesisState);
+    fromJSON(object) {
+        const message = { ...baseGenesisState };
         message.guardianSetList = [];
         message.replayProtectionList = [];
         message.sequenceCounterList = [];
+        message.guardianValidatorList = [];
         if (object.guardianSetList !== undefined &&
             object.guardianSetList !== null) {
-            try {
-                for (var _d = __values(object.guardianSetList), _e = _d.next(); !_e.done; _e = _d.next()) {
-                    var e = _e.value;
-                    message.guardianSetList.push(GuardianSet.fromJSON(e));
-                }
+            for (const e of object.guardianSetList) {
+                message.guardianSetList.push(guardian_set_1.GuardianSet.fromJSON(e));
             }
-            catch (e_4_1) { e_4 = { error: e_4_1 }; }
-            finally {
-                try {
-                    if (_e && !_e.done && (_a = _d.return)) _a.call(_d);
-                }
-                finally { if (e_4) throw e_4.error; }
-            }
-        }
-        if (object.guardianSetCount !== undefined &&
-            object.guardianSetCount !== null) {
-            message.guardianSetCount = Number(object.guardianSetCount);
-        }
-        else {
-            message.guardianSetCount = 0;
         }
         if (object.config !== undefined && object.config !== null) {
-            message.config = Config.fromJSON(object.config);
+            message.config = config_1.Config.fromJSON(object.config);
         }
         else {
             message.config = undefined;
         }
         if (object.replayProtectionList !== undefined &&
             object.replayProtectionList !== null) {
-            try {
-                for (var _f = __values(object.replayProtectionList), _g = _f.next(); !_g.done; _g = _f.next()) {
-                    var e = _g.value;
-                    message.replayProtectionList.push(ReplayProtection.fromJSON(e));
-                }
-            }
-            catch (e_5_1) { e_5 = { error: e_5_1 }; }
-            finally {
-                try {
-                    if (_g && !_g.done && (_b = _f.return)) _b.call(_f);
-                }
-                finally { if (e_5) throw e_5.error; }
+            for (const e of object.replayProtectionList) {
+                message.replayProtectionList.push(replay_protection_1.ReplayProtection.fromJSON(e));
             }
         }
         if (object.sequenceCounterList !== undefined &&
             object.sequenceCounterList !== null) {
-            try {
-                for (var _h = __values(object.sequenceCounterList), _j = _h.next(); !_j.done; _j = _h.next()) {
-                    var e = _j.value;
-                    message.sequenceCounterList.push(SequenceCounter.fromJSON(e));
-                }
+            for (const e of object.sequenceCounterList) {
+                message.sequenceCounterList.push(sequence_counter_1.SequenceCounter.fromJSON(e));
             }
-            catch (e_6_1) { e_6 = { error: e_6_1 }; }
-            finally {
-                try {
-                    if (_j && !_j.done && (_c = _h.return)) _c.call(_h);
-                }
-                finally { if (e_6) throw e_6.error; }
+        }
+        if (object.activeGuardianSetIndex !== undefined &&
+            object.activeGuardianSetIndex !== null) {
+            message.activeGuardianSetIndex = active_guardian_set_index_1.ActiveGuardianSetIndex.fromJSON(object.activeGuardianSetIndex);
+        }
+        else {
+            message.activeGuardianSetIndex = undefined;
+        }
+        if (object.guardianValidatorList !== undefined &&
+            object.guardianValidatorList !== null) {
+            for (const e of object.guardianValidatorList) {
+                message.guardianValidatorList.push(guardian_validator_1.GuardianValidator.fromJSON(e));
             }
         }
         return message;
     },
-    toJSON: function (message) {
-        var obj = {};
+    toJSON(message) {
+        const obj = {};
         if (message.guardianSetList) {
-            obj.guardianSetList = message.guardianSetList.map(function (e) {
-                return e ? GuardianSet.toJSON(e) : undefined;
-            });
+            obj.guardianSetList = message.guardianSetList.map((e) => e ? guardian_set_1.GuardianSet.toJSON(e) : undefined);
         }
         else {
             obj.guardianSetList = [];
         }
-        message.guardianSetCount !== undefined &&
-            (obj.guardianSetCount = message.guardianSetCount);
         message.config !== undefined &&
-            (obj.config = message.config ? Config.toJSON(message.config) : undefined);
+            (obj.config = message.config ? config_1.Config.toJSON(message.config) : undefined);
         if (message.replayProtectionList) {
-            obj.replayProtectionList = message.replayProtectionList.map(function (e) {
-                return e ? ReplayProtection.toJSON(e) : undefined;
-            });
+            obj.replayProtectionList = message.replayProtectionList.map((e) => e ? replay_protection_1.ReplayProtection.toJSON(e) : undefined);
         }
         else {
             obj.replayProtectionList = [];
         }
         if (message.sequenceCounterList) {
-            obj.sequenceCounterList = message.sequenceCounterList.map(function (e) {
-                return e ? SequenceCounter.toJSON(e) : undefined;
-            });
+            obj.sequenceCounterList = message.sequenceCounterList.map((e) => e ? sequence_counter_1.SequenceCounter.toJSON(e) : undefined);
         }
         else {
             obj.sequenceCounterList = [];
         }
+        message.activeGuardianSetIndex !== undefined &&
+            (obj.activeGuardianSetIndex = message.activeGuardianSetIndex
+                ? active_guardian_set_index_1.ActiveGuardianSetIndex.toJSON(message.activeGuardianSetIndex)
+                : undefined);
+        if (message.guardianValidatorList) {
+            obj.guardianValidatorList = message.guardianValidatorList.map((e) => e ? guardian_validator_1.GuardianValidator.toJSON(e) : undefined);
+        }
+        else {
+            obj.guardianValidatorList = [];
+        }
         return obj;
     },
-    fromPartial: function (object) {
-        var e_7, _a, e_8, _b, e_9, _c;
-        var message = __assign({}, baseGenesisState);
+    fromPartial(object) {
+        const message = { ...baseGenesisState };
         message.guardianSetList = [];
         message.replayProtectionList = [];
         message.sequenceCounterList = [];
+        message.guardianValidatorList = [];
         if (object.guardianSetList !== undefined &&
             object.guardianSetList !== null) {
-            try {
-                for (var _d = __values(object.guardianSetList), _e = _d.next(); !_e.done; _e = _d.next()) {
-                    var e = _e.value;
-                    message.guardianSetList.push(GuardianSet.fromPartial(e));
-                }
+            for (const e of object.guardianSetList) {
+                message.guardianSetList.push(guardian_set_1.GuardianSet.fromPartial(e));
             }
-            catch (e_7_1) { e_7 = { error: e_7_1 }; }
-            finally {
-                try {
-                    if (_e && !_e.done && (_a = _d.return)) _a.call(_d);
-                }
-                finally { if (e_7) throw e_7.error; }
-            }
-        }
-        if (object.guardianSetCount !== undefined &&
-            object.guardianSetCount !== null) {
-            message.guardianSetCount = object.guardianSetCount;
-        }
-        else {
-            message.guardianSetCount = 0;
         }
         if (object.config !== undefined && object.config !== null) {
-            message.config = Config.fromPartial(object.config);
+            message.config = config_1.Config.fromPartial(object.config);
         }
         else {
             message.config = undefined;
         }
         if (object.replayProtectionList !== undefined &&
             object.replayProtectionList !== null) {
-            try {
-                for (var _f = __values(object.replayProtectionList), _g = _f.next(); !_g.done; _g = _f.next()) {
-                    var e = _g.value;
-                    message.replayProtectionList.push(ReplayProtection.fromPartial(e));
-                }
-            }
-            catch (e_8_1) { e_8 = { error: e_8_1 }; }
-            finally {
-                try {
-                    if (_g && !_g.done && (_b = _f.return)) _b.call(_f);
-                }
-                finally { if (e_8) throw e_8.error; }
+            for (const e of object.replayProtectionList) {
+                message.replayProtectionList.push(replay_protection_1.ReplayProtection.fromPartial(e));
             }
         }
         if (object.sequenceCounterList !== undefined &&
             object.sequenceCounterList !== null) {
-            try {
-                for (var _h = __values(object.sequenceCounterList), _j = _h.next(); !_j.done; _j = _h.next()) {
-                    var e = _j.value;
-                    message.sequenceCounterList.push(SequenceCounter.fromPartial(e));
-                }
+            for (const e of object.sequenceCounterList) {
+                message.sequenceCounterList.push(sequence_counter_1.SequenceCounter.fromPartial(e));
             }
-            catch (e_9_1) { e_9 = { error: e_9_1 }; }
-            finally {
-                try {
-                    if (_j && !_j.done && (_c = _h.return)) _c.call(_h);
-                }
-                finally { if (e_9) throw e_9.error; }
+        }
+        if (object.activeGuardianSetIndex !== undefined &&
+            object.activeGuardianSetIndex !== null) {
+            message.activeGuardianSetIndex = active_guardian_set_index_1.ActiveGuardianSetIndex.fromPartial(object.activeGuardianSetIndex);
+        }
+        else {
+            message.activeGuardianSetIndex = undefined;
+        }
+        if (object.guardianValidatorList !== undefined &&
+            object.guardianValidatorList !== null) {
+            for (const e of object.guardianValidatorList) {
+                message.guardianValidatorList.push(guardian_validator_1.GuardianValidator.fromPartial(e));
             }
         }
         return message;

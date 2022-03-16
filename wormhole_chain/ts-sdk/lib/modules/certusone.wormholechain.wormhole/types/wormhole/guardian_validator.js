@@ -1,33 +1,33 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ChainRegistration = exports.protobufPackage = void 0;
+exports.GuardianValidator = exports.protobufPackage = void 0;
 //@ts-nocheck
 /* eslint-disable */
 const minimal_1 = require("protobufjs/minimal");
-exports.protobufPackage = "certusone.wormholechain.tokenbridge";
-const baseChainRegistration = { chainID: 0 };
-exports.ChainRegistration = {
+exports.protobufPackage = "certusone.wormholechain.wormhole";
+const baseGuardianValidator = {};
+exports.GuardianValidator = {
     encode(message, writer = minimal_1.Writer.create()) {
-        if (message.chainID !== 0) {
-            writer.uint32(8).uint32(message.chainID);
+        if (message.guardianKey.length !== 0) {
+            writer.uint32(10).bytes(message.guardianKey);
         }
-        if (message.emitterAddress.length !== 0) {
-            writer.uint32(18).bytes(message.emitterAddress);
+        if (message.validatorAddr.length !== 0) {
+            writer.uint32(18).bytes(message.validatorAddr);
         }
         return writer;
     },
     decode(input, length) {
         const reader = input instanceof Uint8Array ? new minimal_1.Reader(input) : input;
         let end = length === undefined ? reader.len : reader.pos + length;
-        const message = { ...baseChainRegistration };
+        const message = { ...baseGuardianValidator };
         while (reader.pos < end) {
             const tag = reader.uint32();
             switch (tag >>> 3) {
                 case 1:
-                    message.chainID = reader.uint32();
+                    message.guardianKey = reader.bytes();
                     break;
                 case 2:
-                    message.emitterAddress = reader.bytes();
+                    message.validatorAddr = reader.bytes();
                     break;
                 default:
                     reader.skipType(tag & 7);
@@ -37,40 +37,40 @@ exports.ChainRegistration = {
         return message;
     },
     fromJSON(object) {
-        const message = { ...baseChainRegistration };
-        if (object.chainID !== undefined && object.chainID !== null) {
-            message.chainID = Number(object.chainID);
+        const message = { ...baseGuardianValidator };
+        if (object.guardianKey !== undefined && object.guardianKey !== null) {
+            message.guardianKey = bytesFromBase64(object.guardianKey);
         }
-        else {
-            message.chainID = 0;
-        }
-        if (object.emitterAddress !== undefined && object.emitterAddress !== null) {
-            message.emitterAddress = bytesFromBase64(object.emitterAddress);
+        if (object.validatorAddr !== undefined && object.validatorAddr !== null) {
+            message.validatorAddr = bytesFromBase64(object.validatorAddr);
         }
         return message;
     },
     toJSON(message) {
         const obj = {};
-        message.chainID !== undefined && (obj.chainID = message.chainID);
-        message.emitterAddress !== undefined &&
-            (obj.emitterAddress = base64FromBytes(message.emitterAddress !== undefined
-                ? message.emitterAddress
+        message.guardianKey !== undefined &&
+            (obj.guardianKey = base64FromBytes(message.guardianKey !== undefined
+                ? message.guardianKey
+                : new Uint8Array()));
+        message.validatorAddr !== undefined &&
+            (obj.validatorAddr = base64FromBytes(message.validatorAddr !== undefined
+                ? message.validatorAddr
                 : new Uint8Array()));
         return obj;
     },
     fromPartial(object) {
-        const message = { ...baseChainRegistration };
-        if (object.chainID !== undefined && object.chainID !== null) {
-            message.chainID = object.chainID;
+        const message = { ...baseGuardianValidator };
+        if (object.guardianKey !== undefined && object.guardianKey !== null) {
+            message.guardianKey = object.guardianKey;
         }
         else {
-            message.chainID = 0;
+            message.guardianKey = new Uint8Array();
         }
-        if (object.emitterAddress !== undefined && object.emitterAddress !== null) {
-            message.emitterAddress = object.emitterAddress;
+        if (object.validatorAddr !== undefined && object.validatorAddr !== null) {
+            message.validatorAddr = object.validatorAddr;
         }
         else {
-            message.emitterAddress = new Uint8Array();
+            message.validatorAddr = new Uint8Array();
         }
         return message;
     },
