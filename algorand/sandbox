@@ -3,7 +3,7 @@ set -e
 
 # ./sandbox down; ./sandbox clean; ./sandbox up dev; python3 admin.py --devnet --boot
 
-# ./sandbox reset; python3 admin.py --devnet --boot
+# ./sandbox reset -v; python3 admin.py --devnet --boot
 
 # python3 admin.py --devnet --genTeal
 

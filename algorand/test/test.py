@@ -91,7 +91,7 @@ class AlgoTest(PortalCore):
         return response.applicationIndex
 
     def parseSeqFromLog(self, txn):
-        return int.from_bytes(b64decode(txn.innerTxns[0]["logs"][0]), "big")
+        return int.from_bytes(b64decode(txn.innerTxns[-1]["logs"][0]), "big")
 
     def getVAA(self, client, sender, sid, app):
         if sid == None:
@@ -131,6 +131,8 @@ class AlgoTest(PortalCore):
                 for x in response["transactions"]:
 #                    pprint.pprint(x)
                     for y in x["inner-txns"]:
+                        if "application-transaction" not in y:
+                            continue
                         if y["application-transaction"]["application-id"] != self.coreid:
                             continue
                         if len(y["logs"]) == 0:
@@ -273,11 +275,14 @@ class AlgoTest(PortalCore):
             app_args=[b"attestToken", asset_id],
             foreign_apps = [self.coreid],
             foreign_assets = [asset_id],
-            accounts=[emitter_addr, creator, c["address"]],
+            accounts=[emitter_addr, creator, c["address"], get_application_address(self.coreid)],
             sp=sp
         )
 
-        a.fee = a.fee * 2
+        if (mfee > 0):
+            a.fee = a.fee * 3
+        else:
+            a.fee = a.fee * 2
 
         txns.append(a)
 
@@ -288,6 +293,7 @@ class AlgoTest(PortalCore):
 
 #        print(encode_address(resp.__dict__["logs"][0]))
 #        print(encode_address(resp.__dict__["logs"][1]))
+#        pprint.pprint(resp.__dict__)
         return self.parseSeqFromLog(resp)
 
     def transferAsset(self, client, sender, asset_id, quantity, receiver, chain, fee, payload = None):
@@ -476,7 +482,7 @@ class AlgoTest(PortalCore):
 
         print("Creating the PortalCore app")
         self.coreid = self.createPortalCoreApp(client=client, sender=foundation)
-        print("coreid = " + str(self.coreid))
+        print("coreid = " + str(self.coreid) + " " + get_application_address(self.coreid))
 
         seq = 1
 
@@ -681,21 +687,21 @@ class AlgoTest(PortalCore):
         print(".. Ok, now it is time to up the message fees")
 
         bal = self.getBalances(client, get_application_address(self.coreid))
-        print("core contract has " + str(bal) + " algo")
+        print("core contract has " + str(bal) + " algo (" + get_application_address(self.coreid) + ")")
         print("core contract has a MessageFee set to " + str(self.getMessageFee()))
 
         seq += 1
-        v = gt.genGSetFee(gt.guardianPrivKeys, 2, seq, seq, 1000000)
+        v = gt.genGSetFee(gt.guardianPrivKeys, 2, seq, seq, 2000000)
         self.submitVAA(bytes.fromhex(v), client, player, self.coreid)
         seq += 1
 
         print("core contract now has a MessageFee set to " + str(self.getMessageFee()))
 
-        v = gt.genGSetFee(gt.guardianPrivKeys, 2, seq, seq, 0)
-        self.submitVAA(bytes.fromhex(v), client, player, self.coreid)
-        seq += 1
+#        v = gt.genGSetFee(gt.guardianPrivKeys, 2, seq, seq, 0)
+#        self.submitVAA(bytes.fromhex(v), client, player, self.coreid)
+#        seq += 1
 
-        print("core contract is back to  " + str(self.getMessageFee()))
+#        print("core contract is back to  " + str(self.getMessageFee()))
 
         print("Generating an attest.. This will cause a message to get published .. which should cause fees to get sent to the core contract")
         sid = self.testAttest(client, player2, self.testasset)
@@ -704,7 +710,8 @@ class AlgoTest(PortalCore):
         v = self.parseVAA(bytes.fromhex(vaa))
         print("We got a " + v["Meta"])
 
-        print("core contract has " + str(bal) + " algo")
+        bal = self.getBalances(client, get_application_address(self.coreid))
+        print("core contract has " + str(bal) + " algo (" + get_application_address(self.coreid) + ")")
 
 #        print("player account: " + player.getAddress())
 #        pprint.pprint(client.account_info(player.getAddress()))

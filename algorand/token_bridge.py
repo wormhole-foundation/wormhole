@@ -97,7 +97,7 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
                     InnerTxnBuilder.SetFields(
                         {
                             TxnField.type_enum: TxnType.Payment,
-                            TxnField.receiver: App.globalGet(Bytes("coreaddr")),
+                            TxnField.receiver: App.globalGet(Bytes("coreAddr")),
                             TxnField.amount: mfee.load(),
                             TxnField.fee: Int(0),
                         }
