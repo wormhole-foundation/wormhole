@@ -57,13 +57,13 @@ err
 main_l15:
 callsub checkForDuplicate_16
 callsub governanceSet_6
-store 71
+store 69
 txna ApplicationArgs 1
 extract 1 4
-store 72
-load 72
+store 70
+load 70
 btoi
-load 71
+load 69
 ==
 assert
 txna ApplicationArgs 1
@@ -73,7 +73,7 @@ int 66
 *
 int 14
 +
-store 66
+store 64
 txn GroupIndex
 int 1
 -
@@ -142,14 +142,14 @@ txna Accounts 2
 ==
 &&
 txna ApplicationArgs 1
-load 66
+load 64
 int 2
 extract3
 byte 0x0001
 ==
 &&
 txna ApplicationArgs 1
-load 66
+load 64
 int 2
 +
 int 32
@@ -164,55 +164,55 @@ txn GroupIndex
 ==
 &&
 assert
-load 66
+load 64
 int 43
 +
-store 66
+store 64
 txna ApplicationArgs 1
-load 66
+load 64
 int 32
 extract3
 byte 0x000000000000000000000000000000000000000000546f6b656e427269646765
 ==
 assert
-load 66
+load 64
 int 32
 +
-store 66
+store 64
 txna ApplicationArgs 1
-load 66
+load 64
 int 1
 extract3
 btoi
-store 67
-load 66
+store 65
+load 64
 int 1
 +
-store 66
-load 67
+store 64
+load 65
 int 1
 ==
 bnz main_l20
-load 67
+load 65
 int 2
 ==
 bnz main_l18
 err
 main_l18:
 txna ApplicationArgs 1
-load 66
+load 64
 int 2
 extract3
 byte 0x0008
 ==
 assert
-load 66
+load 64
 int 2
 +
-store 66
+store 64
 byte "validUpdateApproveHash"
 txna ApplicationArgs 1
-load 66
+load 64
 int 32
 extract3
 app_global_put
@@ -221,48 +221,48 @@ int 1
 return
 main_l20:
 txna ApplicationArgs 1
-load 66
+load 64
 int 2
 extract3
 btoi
-store 68
-load 68
+store 66
+load 66
 int 0
 ==
-load 68
+load 66
 int 8
 ==
 ||
 assert
-load 66
+load 64
 int 2
 +
-store 66
+store 64
 txna ApplicationArgs 1
-load 66
+load 64
 int 2
 extract3
-store 69
-load 66
+store 67
+load 64
 int 2
 +
-store 66
+store 64
 txna ApplicationArgs 1
-load 66
+load 64
 int 32
 extract3
-store 70
+store 68
 byte "Chain"
-load 69
+load 67
 concat
 app_global_get
 int 0
 ==
 assert
 byte "Chain"
-load 69
+load 67
 concat
-load 70
+load 68
 app_global_put
 b main_l19
 main_l21:
@@ -299,10 +299,10 @@ int 1
 return
 main_l23:
 byte 0x0000000000000000000000000000000000000000000000000000000000000000
-store 63
+store 61
 txna ApplicationArgs 1
 btoi
-store 55
+store 54
 txn GroupIndex
 int 1
 ==
@@ -318,11 +318,11 @@ int 32
 assert
 txna ApplicationArgs 1
 btoi
-store 55
+store 54
 txna ApplicationArgs 5
 btoi
-store 65
-load 55
+store 63
+load 54
 int 0
 ==
 bnz main_l42
@@ -343,7 +343,7 @@ txn GroupIndex
 int 1
 -
 gtxns XferAsset
-load 55
+load 54
 ==
 &&
 txn GroupIndex
@@ -365,68 +365,60 @@ txn GroupIndex
 int 1
 -
 gtxns AssetAmount
-store 56
-load 65
-load 56
+store 55
+load 63
+load 55
 <
 assert
-load 56
-load 65
--
-store 56
 load 55
+load 63
+-
+store 55
+load 54
 callsub extractdecimal_15
 btoi
-store 57
-load 57
-int 0
->=
-assert
-int 1
-store 64
-load 57
 callsub getFactor_9
-store 64
-load 64
+store 62
+load 62
 int 1
 !=
 bnz main_l41
 main_l25:
-load 56
+load 55
 int 0
 >
-load 65
+load 63
 int 0
 >=
 &&
 assert
-load 55
+load 54
 int 0
 !=
 bnz main_l40
 byte ""
-store 60
+store 58
 main_l27:
-load 60
+load 58
 global CurrentApplicationAddress
 ==
 bnz main_l39
 txna Accounts 2
-load 55
+load 54
 byte "native"
 callsub getsigaddress_10
 ==
 assert
 byte 0x0008
-store 62
+store 60
 txna ApplicationArgs 1
-store 61
+store 59
 main_l29:
-load 61
+load 59
 len
 int 32
 <=
-load 62
+load 60
 len
 int 2
 ==
@@ -443,25 +435,25 @@ int 6
 bnz main_l38
 byte 0x03
 main_l31:
-load 63
+load 61
 extract 0 24
 concat
-load 56
+load 55
 itob
 concat
-load 63
+load 61
 int 0
 int 32
-load 61
+load 59
 len
 -
 extract3
 concat
+load 59
+concat
+load 60
+concat
 load 61
-concat
-load 62
-concat
-load 63
 int 0
 int 32
 txna ApplicationArgs 3
@@ -474,10 +466,10 @@ concat
 txna ApplicationArgs 4
 extract 6 2
 concat
-load 63
+load 61
 extract 0 24
 concat
-load 65
+load 63
 itob
 concat
 txn NumAppArgs
@@ -487,12 +479,12 @@ bnz main_l37
 byte ""
 main_l33:
 concat
-store 58
+store 56
 txn NumAppArgs
 int 7
 ==
 bnz main_l36
-load 58
+load 56
 len
 int 133
 ==
@@ -506,7 +498,7 @@ app_global_get
 itxn_field ApplicationID
 byte "publishMessage"
 itxn_field ApplicationArgs
-load 58
+load 56
 itxn_field ApplicationArgs
 int 0
 itob
@@ -521,7 +513,7 @@ itxn_submit
 int 1
 return
 main_l36:
-load 58
+load 56
 len
 int 133
 txna ApplicationArgs 6
@@ -541,44 +533,44 @@ int 2
 int 0
 int 8
 callsub read_4
-store 59
+store 57
 txna ApplicationArgs 1
-load 59
+load 57
 ==
 assert
 int 2
 int 60
 int 92
 callsub read_4
-store 61
+store 59
 int 2
 int 92
 int 94
 callsub read_4
-store 62
+store 60
 txna Accounts 2
-load 62
+load 60
 btoi
-load 61
+load 59
 callsub getsigaddress_10
 ==
 assert
 b main_l29
 main_l40:
-load 55
+load 54
 callsub extractcreator_13
 callsub authaddr_11
-store 60
+store 58
 b main_l27
 main_l41:
-load 56
-load 64
+load 55
+load 62
 /
-store 56
-load 65
-load 64
+store 55
+load 63
+load 62
 /
-store 65
+store 63
 b main_l25
 main_l42:
 txn GroupIndex
@@ -613,20 +605,20 @@ txn GroupIndex
 int 1
 -
 gtxns Amount
-store 56
-load 65
-load 56
+store 55
+load 63
+load 55
 <
 assert
-load 56
-load 65
+load 55
+load 63
 -
-store 56
+store 55
 b main_l25
 main_l43:
 callsub checkForDuplicate_16
 byte 0x0000000000000000000000000000000000000000000000000000000000000000
-store 53
+store 52
 txn GroupIndex
 int 1
 -
@@ -744,11 +736,11 @@ load 41
 int 1
 extract3
 btoi
-store 54
-load 54
+store 53
+load 53
 int 1
 ==
-load 54
+load 53
 int 3
 ==
 ||
@@ -759,7 +751,7 @@ int 1
 +
 int 24
 extract3
-load 53
+load 52
 extract 0 24
 ==
 assert
@@ -807,7 +799,7 @@ int 101
 +
 int 24
 extract3
-load 53
+load 52
 extract 0 24
 ==
 assert
@@ -823,7 +815,11 @@ load 48
 int 8
 ==
 assert
-load 54
+load 49
+load 44
+<
+assert
+load 53
 int 3
 ==
 bnz main_l57
@@ -901,13 +897,9 @@ load 50
 int 0
 ==
 bnz main_l54
-int 1
-store 51
 load 50
 callsub extractdecimal_15
 btoi
-store 52
-load 52
 callsub getFactor_9
 store 51
 load 51
@@ -1525,8 +1517,24 @@ byte "Program"
 txn ApprovalProgram
 concat
 sha512_256
-store 73
+store 71
 byte "validUpdateApproveHash"
+app_global_get
+store 72
+load 71
+log
+load 72
+log
+load 71
+load 72
+==
+assert
+byte "Program"
+txn ClearStateProgram
+concat
+sha512_256
+store 73
+byte "validUpdateClearHash"
 app_global_get
 store 74
 load 73
@@ -1535,22 +1543,6 @@ load 74
 log
 load 73
 load 74
-==
-assert
-byte "Program"
-txn ClearStateProgram
-concat
-sha512_256
-store 75
-byte "validUpdateClearHash"
-app_global_get
-store 76
-load 75
-log
-load 76
-log
-load 75
-load 76
 ==
 assert
 int 1
@@ -1825,139 +1817,139 @@ byte "coreid"
 app_global_get
 byte "currentGuardianSetIndex"
 app_global_get_ex
-store 78
-store 77
-load 78
+store 76
+store 75
+load 76
 assert
-load 77
+load 75
 retsub
 
 // encode_uvarint
 encodeuvarint_7:
-store 88
+store 86
+store 85
+load 86
 store 87
-load 88
-store 89
-load 89
 load 87
+load 85
 int 128
 >=
 bnz encodeuvarint_7_l2
-load 87
+load 85
 int 255
 &
 itob
 extract 7 1
 b encodeuvarint_7_l3
 encodeuvarint_7_l2:
-load 87
+load 85
 int 7
 shr
-load 87
+load 85
 int 255
 &
 int 128
 |
 itob
 extract 7 1
+load 85
+load 86
 load 87
-load 88
-load 89
 uncover 4
 uncover 4
 callsub encodeuvarint_7
 cover 3
-store 89
-store 88
 store 87
+store 86
+store 85
 encodeuvarint_7_l3:
 concat
 retsub
 
 // trim_bytes
 trimbytes_8:
-store 79
-load 79
-store 83
-load 83
+store 77
+load 77
+store 81
+load 81
 len
-store 80
+store 78
 int 1
 bzero
-store 82
+store 80
 int 0
-store 81
+store 79
 trimbytes_8_l1:
-load 81
-load 80
+load 79
+load 78
 <
 bz trimbytes_8_l5
-load 83
 load 81
+load 79
 int 1
 extract3
-load 82
+load 80
 ==
 bnz trimbytes_8_l4
 trimbytes_8_l3:
-load 81
+load 79
 int 1
 +
-store 81
+store 79
 b trimbytes_8_l1
 trimbytes_8_l4:
-load 83
-int 0
 load 81
+int 0
+load 79
 extract3
-store 83
-load 80
 store 81
+load 78
+store 79
 b trimbytes_8_l3
 trimbytes_8_l5:
-load 83
+load 81
 retsub
 
 // getFactor
 getFactor_9:
-store 84
-load 84
+store 82
+load 82
 int 9
 ==
 bnz getFactor_9_l20
-load 84
+load 82
 int 10
 ==
 bnz getFactor_9_l19
-load 84
+load 82
 int 11
 ==
 bnz getFactor_9_l18
-load 84
+load 82
 int 12
 ==
 bnz getFactor_9_l17
-load 84
+load 82
 int 13
 ==
 bnz getFactor_9_l16
-load 84
+load 82
 int 14
 ==
 bnz getFactor_9_l15
-load 84
+load 82
 int 15
 ==
 bnz getFactor_9_l14
-load 84
+load 82
 int 16
 ==
 bnz getFactor_9_l13
-load 84
+load 82
 int 16
 >
 bnz getFactor_9_l12
-load 84
+load 82
 int 9
 <
 bnz getFactor_9_l11
@@ -1966,7 +1958,7 @@ getFactor_9_l11:
 int 1
 b getFactor_9_l21
 getFactor_9_l12:
-load 84
+load 82
 int 16
 <
 assert
@@ -2000,23 +1992,23 @@ retsub
 
 // get_sig_address
 getsigaddress_10:
-store 86
-store 85
+store 84
+store 83
 byte "Program"
 byte 0x0620010181
 concat
-load 85
+load 83
 byte ""
 callsub encodeuvarint_7
 concat
 byte 0x4880
 concat
-load 86
+load 84
 len
 byte ""
 callsub encodeuvarint_7
 concat
-load 86
+load 84
 concat
 byte 0x488800014332048103124433001022124433000881
 concat
@@ -2046,81 +2038,81 @@ retsub
 
 // auth_addr
 authaddr_11:
-store 90
-load 90
+store 88
+load 88
 acct_params_get AcctAuthAddr
-store 92
-store 91
-load 92
+store 90
+store 89
+load 90
 bnz authaddr_11_l2
 byte ""
 b authaddr_11_l3
 authaddr_11_l2:
-load 91
+load 89
 authaddr_11_l3:
 retsub
 
 // extract_name
 extractname_12:
-store 93
-load 93
+store 91
+load 91
 asset_params_get AssetName
-store 95
-store 94
-load 95
+store 93
+store 92
+load 93
 bnz extractname_12_l2
 byte ""
 b extractname_12_l3
 extractname_12_l2:
-load 94
+load 92
 extractname_12_l3:
 retsub
 
 // extract_creator
 extractcreator_13:
-store 96
-load 96
+store 94
+load 94
 asset_params_get AssetCreator
-store 98
-store 97
-load 98
+store 96
+store 95
+load 96
 bnz extractcreator_13_l2
 byte ""
 b extractcreator_13_l3
 extractcreator_13_l2:
-load 97
+load 95
 extractcreator_13_l3:
 retsub
 
 // extract_unit_name
 extractunitname_14:
-store 99
-load 99
+store 97
+load 97
 asset_params_get AssetUnitName
-store 101
-store 100
-load 101
+store 99
+store 98
+load 99
 bnz extractunitname_14_l2
 byte ""
 b extractunitname_14_l3
 extractunitname_14_l2:
-load 100
+load 98
 extractunitname_14_l3:
 retsub
 
 // extract_decimal
 extractdecimal_15:
-store 102
-load 102
+store 100
+load 100
 asset_params_get AssetDecimals
-store 104
-store 103
-load 104
+store 102
+store 101
+load 102
 bnz extractdecimal_15_l2
 byte 0x00
 b extractdecimal_15_l3
 extractdecimal_15_l2:
-load 103
+load 101
 itob
 extract 7 1
 extractdecimal_15_l3:
@@ -2141,42 +2133,42 @@ int 66
 *
 int 14
 +
-store 105
+store 103
 txna ApplicationArgs 1
-load 105
+load 103
 int 34
 extract3
-store 106
+store 104
 txna ApplicationArgs 1
-load 105
+load 103
 int 34
 +
 int 8
 extract3
 btoi
-store 107
-load 107
+store 105
+load 105
 int 16256
 /
-store 109
+store 107
 txna Accounts 1
-load 109
-load 106
+load 107
+load 104
 callsub getsigaddress_10
 ==
 assert
-load 107
+load 105
 int 8
 /
 int 2032
 %
-store 109
+store 107
 int 1
-load 109
-callsub getbyte_2
-store 108
-load 108
 load 107
+callsub getbyte_2
+store 106
+load 106
+load 105
 int 8
 %
 getbit
@@ -2184,9 +2176,9 @@ int 0
 ==
 assert
 int 1
-load 109
-load 108
 load 107
+load 106
+load 105
 int 8
 %
 int 1

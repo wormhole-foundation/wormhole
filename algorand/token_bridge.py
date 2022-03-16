@@ -165,6 +165,8 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
         set = ScratchVar()
         idx = ScratchVar()
 
+        verifyVAA = Gtxn[Txn.group_index() - Int(1)]
+
     
         return Seq([
             checkForDuplicate(),
@@ -179,22 +181,22 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
 
             Assert(And(
                 # Did verifyVAA pass?
-                Gtxn[Txn.group_index() - Int(1)].type_enum() == TxnType.ApplicationCall,
-                Gtxn[Txn.group_index() - Int(1)].application_id() == App.globalGet(Bytes("coreid")),
-                Gtxn[Txn.group_index() - Int(1)].application_args[0] == Bytes("verifyVAA"),
-                Gtxn[Txn.group_index() - Int(1)].sender() == Txn.sender(),
-                Gtxn[Txn.group_index() - Int(1)].rekey_to() == Global.zero_address(),
+                verifyVAA.type_enum() == TxnType.ApplicationCall,
+                verifyVAA.application_id() == App.globalGet(Bytes("coreid")),
+                verifyVAA.application_args[0] == Bytes("verifyVAA"),
+                verifyVAA.sender() == Txn.sender(),
+                verifyVAA.rekey_to() == Global.zero_address(),
 
                 # Lets see if the vaa we are about to process was actually verified by the core
-                Gtxn[Txn.group_index() - Int(1)].application_args[1] == Txn.application_args[1],
+                verifyVAA.application_args[1] == Txn.application_args[1],
 
                 # What checks should I give myself
                 Txn.rekey_to() == Global.zero_address(),
 
                 # We all opted into the same accounts?
-                Gtxn[Txn.group_index() - Int(1)].accounts[0] == Txn.accounts[0],
-                Gtxn[Txn.group_index() - Int(1)].accounts[1] == Txn.accounts[1],
-                Gtxn[Txn.group_index() - Int(1)].accounts[2] == Txn.accounts[2],
+                verifyVAA.accounts[0] == Txn.accounts[0],
+                verifyVAA.accounts[1] == Txn.accounts[1],
+                verifyVAA.accounts[2] == Txn.accounts[2],
 
                 # Better be the right emitters
                 Extract(Txn.application_args[1], off.load(), Int(2)) == Bytes("base16", "0001"),
@@ -469,6 +471,8 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
             # This directed at us?
             Assert(DestChain.load() == Int(8)),
 
+            Assert(Fee.load() < Amount.load()),
+
             If (action.load() == Int(3), Assert(Destination.load() == Txn.sender())),
 
             If(OriginChain.load() == Int(8),
@@ -490,10 +494,8 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
                                   TxnField.fee: Int(0),
                               }
                           ),
-                          InnerTxnBuilder.Submit(),
-
                           If(Fee.load() > Int(0), Seq([
-                                  InnerTxnBuilder.Begin(),
+                                  InnerTxnBuilder.Next(),
                                   InnerTxnBuilder.SetFields(
                                       {
                                           TxnField.sender: Txn.accounts[3],
@@ -503,15 +505,13 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
                                           TxnField.fee: Int(0),
                                       }
                                   ),
-                                  InnerTxnBuilder.Submit(),
                           ])),
+                          InnerTxnBuilder.Submit(),
 
                           Approve()
                       ]),            # End of special case for algo
                       Seq([          # Start of handling code for algorand tokens
-                          factor.store(Int(1)),
-                          d.store(Btoi(extract_decimal(asset.load()))),
-                          factor.store(getFactor(d.load())),
+                          factor.store(getFactor(Btoi(extract_decimal(asset.load())))),
                           If(factor.load() != Int(1),
                              Seq([
                                  Amount.store(Amount.load() * factor.load()),
@@ -548,11 +548,10 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
                     TxnField.fee: Int(0),
                 }
             ),
-            InnerTxnBuilder.Submit(),
 
             If(Fee.load() > Int(0), Seq([
 #                    Log(Bytes("Fees")),
-                    InnerTxnBuilder.Begin(),
+                    InnerTxnBuilder.Next(),
                     InnerTxnBuilder.SetFields(
                         {
                             TxnField.sender: Txn.accounts[3],
@@ -565,6 +564,7 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
                     ),
                     InnerTxnBuilder.Submit(),
             ])),
+            InnerTxnBuilder.Submit(),
 
             Approve()
         ])
@@ -658,12 +658,7 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
                    Assert(fee.load() < amount.load()),
                    amount.store(amount.load() - fee.load()),
 
-                   d.store(Btoi(extract_decimal(aid.load()))),
-
-                   Assert(d.load() >= Int(0)),
-
-                   factor.store(Int(1)),
-                   factor.store(getFactor(d.load())),
+                   factor.store(getFactor(Btoi(extract_decimal(aid.load())))),
 
                    If(factor.load() != Int(1),
                       Seq([

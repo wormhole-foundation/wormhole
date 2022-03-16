@@ -586,7 +586,7 @@ class AlgoTest(PortalCore):
         vaa = self.getVAA(client, player, sid, self.tokenid)
         print(".. and lets pass that to player3")
         vaaLogs.append(["transferFromAlgorand", vaa])
-        pprint.pprint(vaaLogs)
+        #pprint.pprint(vaaLogs)
         self.submitVAA(bytes.fromhex(vaa), client, player3, self.tokenid)
 
         pprint.pprint(self.getBalances(client, player.getAddress()))
