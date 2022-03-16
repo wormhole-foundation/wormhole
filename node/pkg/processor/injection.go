@@ -28,7 +28,7 @@ func (p *Processor) handleInjection(ctx context.Context, v *vaa.VAA) {
 
 	// The internal originator is responsible for logging the full VAA, just log the digest here.
 	supervisor.Logger(ctx).Info("signing injected VAA",
-		zap.Stringer("digest", digest))
+		zap.String("digest", hex.EncodeToString(digest.Bytes())))
 
 	// Sign the digest using our node's guardian key.
 	s, err := crypto.Sign(digest.Bytes(), p.gk)
