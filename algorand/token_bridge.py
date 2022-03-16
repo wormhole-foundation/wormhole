@@ -200,14 +200,15 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
 
                 # Better be the right emitters
                 Extract(Txn.application_args[1], off.load(), Int(2)) == Bytes("base16", "0001"),
-                Extract(Txn.application_args[1], off.load() + Int(2), Int(32)) == Bytes("base16", "0000000000000000000000000000000000000000000000000000000000000004"),
+                Extract(Txn.application_args[1], off.load() + Int(2), Int(32)) == Concat(BytesZero(Int(31)), Bytes("base16", "04")),
                 
                 (Global.group_size() - Int(1)) == Txn.group_index()    # This should be the last entry...
             )),
 
             off.store(off.load() + Int(43)),
             # correct module?
-            Assert(Extract(Txn.application_args[1], off.load(), Int(32)) == Bytes("base16", "000000000000000000000000000000000000000000546f6b656e427269646765")),
+            Assert(Extract(Txn.application_args[1], off.load(), Int(32)) == Concat(BytesZero(Int(21)), Bytes("base16", "546f6b656e427269646765"))),
+
             off.store(off.load() + Int(32)),
             a.store(Btoi(Extract(Txn.application_args[1], off.load(), Int(1)))),
             off.store(off.load() + Int(1)),
@@ -419,7 +420,7 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
         return Seq([
             checkForDuplicate(),
 
-            zb.store(Bytes("base16", "0000000000000000000000000000000000000000000000000000000000000000")),
+            zb.store(BytesZero(Int(32))),
 
 
             Assert(And(
@@ -612,7 +613,7 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
         fee = ScratchVar()
 
         return Seq([
-            zb.store(Bytes("base16", "0000000000000000000000000000000000000000000000000000000000000000")),
+            zb.store(BytesZero(Int(32))),
 
             aid.store(Btoi(Txn.application_args[1])),
             Assert(And(
@@ -812,7 +813,7 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
 #                   Log(Bytes("Non Wormhole wrapped")),
                    Assert(Txn.accounts[2] == get_sig_address(aid.load(), Bytes("native"))),
 
-                   zb.store(Bytes("base16", "0000000000000000000000000000000000000000000000000000000000000000")),
+                   zb.store(BytesZero(Int(32))),
                    
                    aid.store(Btoi(Txn.application_args[1])),
 

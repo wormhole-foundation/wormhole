@@ -1,6 +1,6 @@
 #pragma version 6
 intcblock 1 0 2 127 133 100000 128 255 1002000
-bytecblock 0x 0x636f72656964 0x436861696e 0x6e6174697665 0x7075626c6973684d657373616765 0x6e6f70 0x766572696679564141 0x0008 0x76616c6964557064617465417070726f766548617368 0x0000000000000000000000000000000000000000000000000000000000000000 0x50726f6772616d 0x414c474f 0x76616c6964557064617465436c65617248617368
+bytecblock 0x 0x636f72656964 0x436861696e 0x6e6174697665 0x7075626c6973684d657373616765 0x6e6f70 0x766572696679564141 0x0008 0x76616c6964557064617465417070726f766548617368 0x50726f6772616d 0x414c474f 0x76616c6964557064617465436c65617248617368
 txn ApplicationID
 intc_1 // 0
 ==
@@ -156,7 +156,10 @@ intc_2 // 2
 +
 pushint 32 // 32
 extract3
-pushbytes 0x0000000000000000000000000000000000000000000000000000000000000004 // 0x0000000000000000000000000000000000000000000000000000000000000004
+pushint 31 // 31
+bzero
+pushbytes 0x04 // 0x04
+concat
 ==
 &&
 global GroupSize
@@ -174,7 +177,10 @@ txna ApplicationArgs 1
 load 64
 pushint 32 // 32
 extract3
-pushbytes 0x000000000000000000000000000000000000000000546f6b656e427269646765 // 0x000000000000000000000000000000000000000000546f6b656e427269646765
+pushint 21 // 21
+bzero
+pushbytes 0x546f6b656e427269646765 // 0x546f6b656e427269646765
+concat
 ==
 assert
 load 64
@@ -300,7 +306,8 @@ itxn_submit
 intc_0 // 1
 return
 main_l23:
-bytec 9 // 0x0000000000000000000000000000000000000000000000000000000000000000
+pushint 32 // 32
+bzero
 store 61
 txna ApplicationArgs 1
 btoi
@@ -619,7 +626,8 @@ store 55
 b main_l25
 main_l43:
 callsub checkForDuplicate_16
-bytec 9 // 0x0000000000000000000000000000000000000000000000000000000000000000
+pushint 32 // 32
+bzero
 store 52
 txn GroupIndex
 intc_0 // 1
@@ -977,7 +985,8 @@ bytec_3 // "native"
 callsub getsigaddress_10
 ==
 assert
-bytec 9 // 0x0000000000000000000000000000000000000000000000000000000000000000
+pushint 32 // 32
+bzero
 store 34
 txna ApplicationArgs 1
 btoi
@@ -1068,9 +1077,9 @@ b main_l62
 main_l66:
 pushbytes 0x06 // 0x06
 store 35
-bytec 11 // "ALGO"
+bytec 10 // "ALGO"
 store 36
-bytec 11 // "ALGO"
+bytec 10 // "ALGO"
 store 37
 b main_l63
 main_l67:
@@ -1513,7 +1522,7 @@ main_l78:
 intc_1 // 0
 return
 main_l79:
-bytec 10 // "Program"
+bytec 9 // "Program"
 txn ApprovalProgram
 concat
 sha512_256
@@ -1529,12 +1538,12 @@ load 71
 load 72
 ==
 assert
-bytec 10 // "Program"
+bytec 9 // "Program"
 txn ClearStateProgram
 concat
 sha512_256
 store 73
-bytec 12 // "validUpdateClearHash"
+bytec 11 // "validUpdateClearHash"
 app_global_get
 store 74
 load 73
@@ -1555,7 +1564,7 @@ app_global_put
 bytec 8 // "validUpdateApproveHash"
 bytec_0 // ""
 app_global_put
-bytec 12 // "validUpdateClearHash"
+bytec 11 // "validUpdateClearHash"
 pushbytes 0x73be5fd7cd378289177bf4a7ca5433ab30d91b417381bba8bd704aff2dec424f // 0x73be5fd7cd378289177bf4a7ca5433ab30d91b417381bba8bd704aff2dec424f
 app_global_put
 intc_0 // 1
@@ -1994,7 +2003,7 @@ retsub
 getsigaddress_10:
 store 84
 store 83
-bytec 10 // "Program"
+bytec 9 // "Program"
 pushbytes 0x0620010181 // 0x0620010181
 concat
 load 83
