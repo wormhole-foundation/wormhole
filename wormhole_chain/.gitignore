@@ -7,6 +7,7 @@ testing/js/node_modules
 .vscode/
 build/
 ts-sdk/node_modules
+ts-sdk/lib
 
 .idea
 *.iml
