@@ -128,6 +128,33 @@ class GenTest:
         emitter = bytes.fromhex(self.zeroPadBytes[0:(31*2)] + "04")
         return self.createSignedVAA(guardianSet, signers, int(time.time()), nonce, 1, emitter, seq, 32, 0, b)
 
+    def genGSetFee(self, signers, guardianSet, nonce, seq, amt):
+        b  = self.zeroPadBytes[0:(28*2)]
+        b += self.encoder("uint8", ord("C"))
+        b += self.encoder("uint8", ord("o"))
+        b += self.encoder("uint8", ord("r"))
+        b += self.encoder("uint8", ord("e"))
+        b += self.encoder("uint8", 3)
+        b += self.encoder("uint16", 8)
+        b += self.encoder("uint256", int(amt))  # a whole algo!
+
+        emitter = bytes.fromhex(self.zeroPadBytes[0:(31*2)] + "04")
+        return self.createSignedVAA(guardianSet, signers, int(time.time()), nonce, 1, emitter, seq, 32, 0, b)
+
+    def genGFeePayout(self, signers, guardianSet, targetSet, nonce, seq, amt, dest):
+        b  = self.zeroPadBytes[0:(28*2)]
+        b += self.encoder("uint8", ord("C"))
+        b += self.encoder("uint8", ord("o"))
+        b += self.encoder("uint8", ord("r"))
+        b += self.encoder("uint8", ord("e"))
+        b += self.encoder("uint8", 4)
+        b += self.encoder("uint16", 8)
+        b += self.encoder("uint256", int(amt * 1000000))
+        b += decode_address(dest).hex()
+
+        emitter = bytes.fromhex(self.zeroPadBytes[0:(31*2)] + "04")
+        return self.createSignedVAA(guardianSet, signers, int(time.time()), nonce, 1, emitter, seq, 32, 0, b)
+
     def getEmitter(self, chain):
         if chain == 1:
             return "ec7372995d5cc8732397fb0ad35c0121e0eaa90d26f828a534cab54391b3a4f5"

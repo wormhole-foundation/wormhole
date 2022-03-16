@@ -91,7 +91,7 @@ class AlgoTest(PortalCore):
         return response.applicationIndex
 
     def parseSeqFromLog(self, txn):
-        return int.from_bytes(b64decode(txn.innerTxns[0]["logs"][0]), "big")
+        return int.from_bytes(b64decode(txn.innerTxns[-1]["logs"][0]), "big")
 
     def getVAA(self, client, sender, sid, app):
         if sid == None:
@@ -131,6 +131,8 @@ class AlgoTest(PortalCore):
                 for x in response["transactions"]:
 #                    pprint.pprint(x)
                     for y in x["inner-txns"]:
+                        if "application-transaction" not in y:
+                            continue
                         if y["application-transaction"]["application-id"] != self.coreid:
                             continue
                         if len(y["logs"]) == 0:
@@ -262,6 +264,10 @@ class AlgoTest(PortalCore):
         txns = []
         sp = client.suggested_params()
 
+        mfee = self.getMessageFee()
+        if (mfee > 0):
+            txns.append(transaction.PaymentTxn(sender = sender.getAddress(), sp = sp, receiver = get_application_address(self.tokenid), amt = mfee))
+
         a = transaction.ApplicationCallTxn(
             sender=sender.getAddress(),
             index=self.tokenid,
@@ -269,11 +275,14 @@ class AlgoTest(PortalCore):
             app_args=[b"attestToken", asset_id],
             foreign_apps = [self.coreid],
             foreign_assets = [asset_id],
-            accounts=[emitter_addr, creator, c["address"]],
+            accounts=[emitter_addr, creator, c["address"], get_application_address(self.coreid)],
             sp=sp
         )
 
-        a.fee = a.fee * 2
+        if (mfee > 0):
+            a.fee = a.fee * 3
+        else:
+            a.fee = a.fee * 2
 
         txns.append(a)
 
@@ -284,9 +293,12 @@ class AlgoTest(PortalCore):
 
 #        print(encode_address(resp.__dict__["logs"][0]))
 #        print(encode_address(resp.__dict__["logs"][1]))
+#        pprint.pprint(resp.__dict__)
         return self.parseSeqFromLog(resp)
 
     def transferAsset(self, client, sender, asset_id, quantity, receiver, chain, fee, payload = None):
+#        pprint.pprint(["transferAsset", asset_id, quantity, receiver, chain, fee])
+
         taddr = get_application_address(self.tokenid)
         aa = decode_address(taddr).hex()
         emitter_addr = self.optin(client, sender, self.coreid, 0, aa)
@@ -301,6 +313,10 @@ class AlgoTest(PortalCore):
             wormhole = c.get("auth-addr") == taddr
 
         txns = []
+
+        mfee = self.getMessageFee()
+        if (mfee > 0):
+            txns.append(transaction.PaymentTxn(sender = sender.getAddress(), sp = sp, receiver = get_application_address(self.tokenid), amt = mfee))
 
         if not wormhole:
             creator = self.optin(client, sender, self.tokenid, asset_id, b"native".hex())
@@ -361,8 +377,9 @@ class AlgoTest(PortalCore):
         if None != payload:
             args.append(payload)
 
-#        pprint.pprint(args)
+        #pprint.pprint(args)
 
+#        print(self.tokenid)
         a = transaction.ApplicationCallTxn(
             sender=sender.getAddress(),
             index=self.tokenid,
@@ -382,7 +399,13 @@ class AlgoTest(PortalCore):
 
         self.INDEXER_ROUND = resp.confirmedRound
 
-#        pprint.pprint(resp.__dict__)
+#        pprint.pprint([self.coreid, self.tokenid, resp.__dict__,
+#                       int.from_bytes(resp.__dict__["logs"][1], "big"),
+#                       int.from_bytes(resp.__dict__["logs"][2], "big"),
+#                       int.from_bytes(resp.__dict__["logs"][3], "big"),
+#                       int.from_bytes(resp.__dict__["logs"][4], "big"),
+#                       int.from_bytes(resp.__dict__["logs"][5], "big")
+#                       ])
 #        print(encode_address(resp.__dict__["logs"][0]))
 #        print(encode_address(resp.__dict__["logs"][1]))
         return self.parseSeqFromLog(resp)
@@ -438,13 +461,19 @@ class AlgoTest(PortalCore):
         gt = GenTest(True)
         self.gt = gt
 
+        self.setup_args()
+
         client = self.getAlgodClient()
 
-        print("building our stateless vaa_verify...")
-        self.vaa_verify = client.compile(get_vaa_verify())
-        self.vaa_verify["lsig"] = LogicSig(base64.b64decode(self.vaa_verify["result"]))
-        print(self.vaa_verify["hash"])
-        print("")
+        self.genTeal()
+
+#        print("building our stateless vaa_verify...")
+#        self.vaa_verify = client.compile(get_vaa_verify())
+#        self.vaa_verify["lsig"] = LogicSig(base64.b64decode(self.vaa_verify["result"]))
+#        print(self.vaa_verify["hash"])
+#        print("")
+
+        vaaLogs = []
 
         print("Generating the foundation account...")
         foundation = self.getTemporaryAccount(client)
@@ -453,12 +482,13 @@ class AlgoTest(PortalCore):
 
         print("Creating the PortalCore app")
         self.coreid = self.createPortalCoreApp(client=client, sender=foundation)
-        print("coreid = " + str(self.coreid))
+        print("coreid = " + str(self.coreid) + " " + get_application_address(self.coreid))
 
         seq = 1
 
         print("bootstrapping the guardian set...")
         bootVAA = bytes.fromhex(gt.genGuardianSetUpgrade(gt.guardianPrivKeys, 1, seq, seq, seq))
+
         self.bootGuardians(bootVAA, client, foundation, self.coreid)
 
         seq += 1
@@ -473,6 +503,7 @@ class AlgoTest(PortalCore):
 
         print("upgrading the the guardian set using untrusted account...")
         upgradeVAA = bytes.fromhex(gt.genGuardianSetUpgrade(gt.guardianPrivKeys, 1, seq, seq, seq))
+        vaaLogs.append(["guardianUpgrade", upgradeVAA.hex()])
         self.submitVAA(upgradeVAA, client, player, self.coreid)
 
         bal = self.getBalances(client, player.getAddress())
@@ -498,6 +529,8 @@ class AlgoTest(PortalCore):
             v = gt.genRegisterChain(gt.guardianPrivKeys, 2, seq, seq, r)
             vaa = bytes.fromhex(v)
 #            pprint.pprint((v, self.parseVAA(vaa)))
+            if r == 2:
+                vaaLogs.append(["registerChain", v])
             self.submitVAA(vaa, client, player, self.tokenid)
             seq += 1
 
@@ -507,6 +540,7 @@ class AlgoTest(PortalCore):
         print("Create a asset")
         attestVAA = bytes.fromhex(gt.genAssetMeta(gt.guardianPrivKeys, 2, seq, seq, bytes.fromhex("4523c3F29447d1f32AEa95BEBD00383c4640F1b4"), 1, 8, b"USDC", b"CircleCoin"))
         # paul - createWrappedOnAlgorand
+        vaaLogs.append(["createWrappedOnAlgorand", attestVAA.hex()])
         self.submitVAA(attestVAA, client, player, self.tokenid)
         seq += 1
 
@@ -522,6 +556,7 @@ class AlgoTest(PortalCore):
         print("Transfer the asset " + str(seq))
         transferVAA = bytes.fromhex(gt.genTransfer(gt.guardianPrivKeys, 1, 1, 1, 1, bytes.fromhex("4523c3F29447d1f32AEa95BEBD00383c4640F1b4"), 1, decode_address(player.getAddress()), 8, 0))
         # paul - redeemOnAlgorand
+        vaaLogs.append(["redeemOnAlgorand", transferVAA.hex()])
         self.submitVAA(transferVAA, client, player, self.tokenid)
         seq += 1
 
@@ -567,23 +602,28 @@ class AlgoTest(PortalCore):
         print("... track down the generated VAA")
         vaa = self.getVAA(client, player, sid, self.tokenid)
         print(".. and lets pass that to player3")
+        vaaLogs.append(["transferFromAlgorand", vaa])
+        #pprint.pprint(vaaLogs)
         self.submitVAA(bytes.fromhex(vaa), client, player3, self.tokenid)
 
-        pprint.pprint(self.getBalances(client, player.getAddress()))
-        pprint.pprint(self.getBalances(client, player2.getAddress()))
-        pprint.pprint(self.getBalances(client, player3.getAddress()))
+        pprint.pprint(["player", self.getBalances(client, player.getAddress())])
+        pprint.pprint(["player2", self.getBalances(client, player2.getAddress())])
+        pprint.pprint(["player3", self.getBalances(client, player3.getAddress())])
 
         # Lets split it into two parts... the payload and the fee
-        print("Lets split it into two parts... the payload and the fee")
-        sid = self.transferAsset(client, player2, self.testasset, 1000, player3.getAddress(), 8, 500)
+        print("Lets split it into two parts... the payload and the fee (400 should go to player, 600 should go to player3)")
+        sid = self.transferAsset(client, player2, self.testasset, 1000, player3.getAddress(), 8, 400)
         print("... track down the generated VAA")
         vaa = self.getVAA(client, player, sid, self.tokenid)
-        print(".. and lets pass that to player3 with fees being passed to player acting as a relayer")
+#        pprint.pprint(self.parseVAA(bytes.fromhex(vaa)))
+        print(".. and lets pass that to player3 with fees being passed to player acting as a relayer (" + str(self.tokenid) + ")")
         self.submitVAA(bytes.fromhex(vaa), client, player, self.tokenid)
 
-        pprint.pprint(self.getBalances(client, player.getAddress()))
-        pprint.pprint(self.getBalances(client, player2.getAddress()))
-        pprint.pprint(self.getBalances(client, player3.getAddress()))
+        pprint.pprint(["player", self.getBalances(client, player.getAddress())])
+        pprint.pprint(["player2", self.getBalances(client, player2.getAddress())])
+        pprint.pprint(["player3", self.getBalances(client, player3.getAddress())])
+
+#        sys.exit(0)
 
         # Now it gets tricky, lets create a virgin account...
         pk, addr  = account.generate_account()
@@ -614,8 +654,8 @@ class AlgoTest(PortalCore):
         print("How much is in the player3 account now?")
         pprint.pprint(self.getBalances(client, player3.getAddress()))
 
-        print("Lets transfer more algo.. splut 50/50 with the relayer.. going to player3")
-        sid = self.transferAsset(client, player2, 0, 1000000, player3.getAddress(), 8, 500000)
+        print("Lets transfer more algo.. split 40/60 with the relayer.. going to player3")
+        sid = self.transferAsset(client, player2, 0, 1000000, player3.getAddress(), 8, 400000)
         print("... track down the generated VAA")
         vaa = self.getVAA(client, player, sid, self.tokenid)
         print(".. and lets pass that to player3.. but use the previously empty account to relay it")
@@ -644,6 +684,35 @@ class AlgoTest(PortalCore):
         print(".. and lets pass that to the right account")
         self.submitVAA(bytes.fromhex(vaa), client, player3, self.tokenid)
 
+        print(".. Ok, now it is time to up the message fees")
+
+        bal = self.getBalances(client, get_application_address(self.coreid))
+        print("core contract has " + str(bal) + " algo (" + get_application_address(self.coreid) + ")")
+        print("core contract has a MessageFee set to " + str(self.getMessageFee()))
+
+        seq += 1
+        v = gt.genGSetFee(gt.guardianPrivKeys, 2, seq, seq, 2000000)
+        self.submitVAA(bytes.fromhex(v), client, player, self.coreid)
+        seq += 1
+
+        print("core contract now has a MessageFee set to " + str(self.getMessageFee()))
+
+#        v = gt.genGSetFee(gt.guardianPrivKeys, 2, seq, seq, 0)
+#        self.submitVAA(bytes.fromhex(v), client, player, self.coreid)
+#        seq += 1
+
+#        print("core contract is back to  " + str(self.getMessageFee()))
+
+        print("Generating an attest.. This will cause a message to get published .. which should cause fees to get sent to the core contract")
+        sid = self.testAttest(client, player2, self.testasset)
+        print("... track down the generated VAA")
+        vaa = self.getVAA(client, player, sid, self.tokenid)
+        v = self.parseVAA(bytes.fromhex(vaa))
+        print("We got a " + v["Meta"])
+
+        bal = self.getBalances(client, get_application_address(self.coreid))
+        print("core contract has " + str(bal) + " algo (" + get_application_address(self.coreid) + ")")
+
 #        print("player account: " + player.getAddress())
 #        pprint.pprint(client.account_info(player.getAddress()))
 
@@ -662,5 +731,6 @@ class AlgoTest(PortalCore):
 #        print("asset app: " + chain_addr)
 #        pprint.pprint(client.account_info(chain_addr))
 
-core = AlgoTest()
-core.simple_test()
+if __name__ == "__main__":
+    core = AlgoTest()
+    core.simple_test()

@@ -298,7 +298,9 @@ class PortalCore:
 
     def devnetUpgradeVAA(self):
         v = self.genUpgradePayload()
-        print("The payload: " + str(v))
+        print("core payload: " + str(v[0]))
+        print("token payload: " + str(v[1]))
+
         if self.gt == None:
             self.gt = GenTest(False)
 
@@ -315,6 +317,14 @@ class PortalCore:
 #        pprint.pprint(self.parseVAA(bytes.fromhex(ret[1])))
 
         return ret
+
+    def getMessageFee(self):
+        s = self.client.application_info(self.coreid)["params"]["global-state"]
+        k = base64.b64encode(b"MessageFee").decode('utf-8')
+        for x in s:
+            if x["key"] == k:
+                return x["value"]["uint"]
+        return -1
 
     def getGovSet(self):
         s = self.client.application_info(self.coreid)["params"]["global-state"]
@@ -369,7 +379,7 @@ class PortalCore:
     ) -> int:
         approval, clear = getCoreContracts(False, self.args.core_approve, self.args.core_clear, client, seed_amt=self.seed_amt, tmpl_sig=self.tsig)
 
-        globalSchema = transaction.StateSchema(num_uints=8, num_byte_slices=16)
+        globalSchema = transaction.StateSchema(num_uints=8, num_byte_slices=40)
         localSchema = transaction.StateSchema(num_uints=0, num_byte_slices=16)
     
         app_args = [ ]
@@ -413,7 +423,7 @@ class PortalCore:
         globalSchema = transaction.StateSchema(num_uints=4, num_byte_slices=30)
         localSchema = transaction.StateSchema(num_uints=0, num_byte_slices=16)
     
-        app_args = [self.coreid]
+        app_args = [self.coreid, decode_address(get_application_address(self.coreid))]
 
         txn = transaction.ApplicationCreateTxn(
             sender=sender.getAddress(),
@@ -432,6 +442,7 @@ class PortalCore:
         client.send_transaction(signedTxn)
     
         response = self.waitForTransaction(client, signedTxn.get_txid())
+        #pprint.pprint(response.__dict__)
         assert response.applicationIndex is not None and response.applicationIndex > 0
 
         # Lets give it a bit of money so that it is not a "ghost" account
@@ -1124,7 +1135,7 @@ class PortalCore:
         approval, clear = get_token_bridge(True, self.args.token_approve, self.args.token_clear, self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig)
         print("Generating the teal for the token contracts: " + str(len(b64decode(approval["result"]))))
 
-    def main(self) -> None:
+    def setup_args(self) -> None:
         parser = argparse.ArgumentParser(description='algorand setup')
     
         parser.add_argument('--algod_address', type=str, help='algod address (default: http://localhost:4001)', 
@@ -1163,7 +1174,6 @@ class PortalCore:
         parser.add_argument('--genTeal', action='store_true', help='Generate all the teal from the pyteal')
     
         args = parser.parse_args()
-
         self.init(args)
 
         self.devnet = args.devnet
@@ -1179,6 +1189,12 @@ class PortalCore:
         # This breaks the tsig up into the various parts so that we
         # can embed it into the Typescript code for reassembly  
         if args.genParts:
+            print("this.ALGO_VERIFY_HASH = \"%s\""%self.vaa_verify["hash"]);
+            print("this.ALGO_VERIFY = new Uint8Array([", end='')
+            for x in b64decode(self.vaa_verify["result"]):
+                print("%d, "%(x), end='')
+            print("])")
+    
             parts = [
                 self.tsig.get_bytecode_raw(0).hex(),
                 self.tsig.get_bytecode_raw(1).hex(),
@@ -1190,6 +1206,8 @@ class PortalCore:
 
             pprint.pprint(parts)
             sys.exit(0)
+
+
 
         if args.mnemonic:
             self.foundation = Account.FromMnemonic(args.mnemonic)
@@ -1223,7 +1241,6 @@ class PortalCore:
                 raise Exception("You need to specifiy the appid when you are submitting vaas")
             self.submitVAA(bytes.fromhex(args.vaa), self.client, self.foundation, int(self.args.appid))
 
-core = PortalCore()
-core.main()
-
-# python3 admin.py --devnet --upgradeVAA --submit
+if __name__ == "__main__":
+    core = PortalCore()
+    core.main()

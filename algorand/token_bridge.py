@@ -43,7 +43,7 @@ max_bytes = max_bytes_per_key * max_keys
 max_bits = bits_per_byte * max_bytes
 
 def fullyCompileContract(genTeal, client: AlgodClient, contract: Expr, name) -> bytes:
-    teal = compileTeal(contract, mode=Mode.Application, version=6)
+    teal = compileTeal(contract, mode=Mode.Application, version=6, assembleConstants=True)
 
     if genTeal:
         with open(name, "w") as f:
@@ -62,13 +62,49 @@ def clear_token_bridge():
 
 def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
     blob = LocalBlob()
+    tidx = ScratchVar()
+    mfee = ScratchVar()
 
     @Subroutine(TealType.uint64)
     def governanceSet() -> Expr:
         maybe = App.globalGetEx(App.globalGet(Bytes("coreid")), Bytes("currentGuardianSetIndex"))
-        
         return Seq(maybe, Assert(maybe.hasValue()), maybe.value())
-    
+
+    @Subroutine(TealType.uint64)
+    def getMessageFee() -> Expr:
+        maybe = App.globalGetEx(App.globalGet(Bytes("coreid")), Bytes("MessageFee"))
+        return Seq(maybe, Assert(maybe.hasValue()), maybe.value())
+
+    @Subroutine(TealType.none)
+    def checkFeePmt(off : Expr):
+        return Seq([
+            If(mfee.load() > Int(0), Seq([
+                    tidx.store(Txn.group_index() - off),
+                    Assert(And(
+                        Gtxn[tidx.load()].type_enum() == TxnType.Payment,
+                        Gtxn[tidx.load()].sender() == Txn.sender(),
+                        Gtxn[tidx.load()].receiver() == Global.current_application_address(),
+                        Gtxn[tidx.load()].rekey_to() == Global.zero_address(),
+                        Gtxn[tidx.load()].amount() >= mfee.load()
+                    ))
+            ]))
+        ])
+
+    @Subroutine(TealType.none)
+    def sendMfee():
+        return Seq([
+            If (mfee.load() > Int(0), Seq([
+                    InnerTxnBuilder.SetFields(
+                        {
+                            TxnField.type_enum: TxnType.Payment,
+                            TxnField.receiver: App.globalGet(Bytes("coreAddr")),
+                            TxnField.amount: mfee.load(),
+                            TxnField.fee: Int(0),
+                        }
+                    ),
+                    InnerTxnBuilder.Next(),
+            ])),
+        ])
     
     @Subroutine(TealType.bytes)
     def encode_uvarint(val: Expr, b: Expr):
@@ -164,6 +200,9 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
         emitter = ScratchVar()
         set = ScratchVar()
         idx = ScratchVar()
+        verifyIdx = ScratchVar()
+
+        verifyVAA = Gtxn[verifyIdx.load()]
 
     
         return Seq([
@@ -177,35 +216,38 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
             # The offset of the chain
             off.store(Btoi(Extract(Txn.application_args[1], Int(5), Int(1))) * Int(66) + Int(14)), 
 
+            verifyIdx.store(Txn.group_index() - Int(1)),
+
             Assert(And(
                 # Did verifyVAA pass?
-                Gtxn[Txn.group_index() - Int(1)].type_enum() == TxnType.ApplicationCall,
-                Gtxn[Txn.group_index() - Int(1)].application_id() == App.globalGet(Bytes("coreid")),
-                Gtxn[Txn.group_index() - Int(1)].application_args[0] == Bytes("verifyVAA"),
-                Gtxn[Txn.group_index() - Int(1)].sender() == Txn.sender(),
-                Gtxn[Txn.group_index() - Int(1)].rekey_to() == Global.zero_address(),
+                verifyVAA.type_enum() == TxnType.ApplicationCall,
+                verifyVAA.application_id() == App.globalGet(Bytes("coreid")),
+                verifyVAA.application_args[0] == Bytes("verifyVAA"),
+                verifyVAA.sender() == Txn.sender(),
+                verifyVAA.rekey_to() == Global.zero_address(),
 
                 # Lets see if the vaa we are about to process was actually verified by the core
-                Gtxn[Txn.group_index() - Int(1)].application_args[1] == Txn.application_args[1],
+                verifyVAA.application_args[1] == Txn.application_args[1],
 
                 # What checks should I give myself
                 Txn.rekey_to() == Global.zero_address(),
 
                 # We all opted into the same accounts?
-                Gtxn[Txn.group_index() - Int(1)].accounts[0] == Txn.accounts[0],
-                Gtxn[Txn.group_index() - Int(1)].accounts[1] == Txn.accounts[1],
-                Gtxn[Txn.group_index() - Int(1)].accounts[2] == Txn.accounts[2],
+                verifyVAA.accounts[0] == Txn.accounts[0],
+                verifyVAA.accounts[1] == Txn.accounts[1],
+                verifyVAA.accounts[2] == Txn.accounts[2],
 
                 # Better be the right emitters
                 Extract(Txn.application_args[1], off.load(), Int(2)) == Bytes("base16", "0001"),
-                Extract(Txn.application_args[1], off.load() + Int(2), Int(32)) == Bytes("base16", "0000000000000000000000000000000000000000000000000000000000000004"),
+                Extract(Txn.application_args[1], off.load() + Int(2), Int(32)) == Concat(BytesZero(Int(31)), Bytes("base16", "04")),
                 
                 (Global.group_size() - Int(1)) == Txn.group_index()    # This should be the last entry...
             )),
 
             off.store(off.load() + Int(43)),
             # correct module?
-            Assert(Extract(Txn.application_args[1], off.load(), Int(32)) == Bytes("base16", "000000000000000000000000000000000000000000546f6b656e427269646765")),
+            Assert(Extract(Txn.application_args[1], off.load(), Int(32)) == Concat(BytesZero(Int(21)), Bytes("base16", "546f6b656e427269646765"))),
+
             off.store(off.load() + Int(32)),
             a.store(Btoi(Extract(Txn.application_args[1], off.load(), Int(1)))),
             off.store(off.load() + Int(1)),
@@ -252,43 +294,53 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
         buf = ScratchVar()
         c = ScratchVar()
         a = ScratchVar()
-        
+
         return Seq([
             checkForDuplicate(),
 
+            tidx.store(Txn.group_index() - Int(4)),
             Assert(And(
                 # Lets see if the vaa we are about to process was actually verified by the core
-                Gtxn[Txn.group_index() - Int(4)].type_enum() == TxnType.ApplicationCall,
-                Gtxn[Txn.group_index() - Int(4)].application_id() == App.globalGet(Bytes("coreid")),
-                Gtxn[Txn.group_index() - Int(4)].application_args[0] == Bytes("verifyVAA"),
-                Gtxn[Txn.group_index() - Int(4)].sender() == Txn.sender(),
-                Gtxn[Txn.group_index() - Int(4)].rekey_to() == Global.zero_address(),
-                Gtxn[Txn.group_index() - Int(4)].application_args[1] == Txn.application_args[1],
+                Gtxn[tidx.load()].type_enum() == TxnType.ApplicationCall,
+                Gtxn[tidx.load()].application_id() == App.globalGet(Bytes("coreid")),
+                Gtxn[tidx.load()].application_args[0] == Bytes("verifyVAA"),
+                Gtxn[tidx.load()].sender() == Txn.sender(),
+                Gtxn[tidx.load()].rekey_to() == Global.zero_address(),
+                Gtxn[tidx.load()].application_args[1] == Txn.application_args[1],
 
                 # We all opted into the same accounts?
-                Gtxn[Txn.group_index() - Int(4)].accounts[0] == Txn.accounts[0],
-                Gtxn[Txn.group_index() - Int(4)].accounts[1] == Txn.accounts[1],
-                Gtxn[Txn.group_index() - Int(4)].accounts[2] == Txn.accounts[2],
+                Gtxn[tidx.load()].accounts[0] == Txn.accounts[0],
+                Gtxn[tidx.load()].accounts[1] == Txn.accounts[1],
+                Gtxn[tidx.load()].accounts[2] == Txn.accounts[2],
+                )),
                 
+            tidx.store(Txn.group_index() - Int(3)),
+            Assert(And(
                 # Did the user pay the lsig to attest a new product?
-                Gtxn[Txn.group_index() - Int(3)].type_enum() == TxnType.Payment,
-                Gtxn[Txn.group_index() - Int(3)].amount() >= Int(100000),
-                Gtxn[Txn.group_index() - Int(3)].sender() == Txn.sender(),
-                Gtxn[Txn.group_index() - Int(3)].receiver() == Txn.accounts[3],
-                Gtxn[Txn.group_index() - Int(3)].rekey_to() == Global.zero_address(),
+                Gtxn[tidx.load()].type_enum() == TxnType.Payment,
+                Gtxn[tidx.load()].amount() >= Int(100000),
+                Gtxn[tidx.load()].sender() == Txn.sender(),
+                Gtxn[tidx.load()].receiver() == Txn.accounts[3],
+                Gtxn[tidx.load()].rekey_to() == Global.zero_address(),
+                )),
 
+            tidx.store(Txn.group_index() - Int(2)),
+            Assert(And(
                 # We had to buy some extra CPU
-                Gtxn[Txn.group_index() - Int(2)].type_enum() == TxnType.ApplicationCall,
-                Gtxn[Txn.group_index() - Int(2)].application_id() == Global.current_application_id(),
-                Gtxn[Txn.group_index() - Int(2)].application_args[0] == Bytes("nop"),
-                Gtxn[Txn.group_index() - Int(2)].sender() == Txn.sender(),
-                Gtxn[Txn.group_index() - Int(2)].rekey_to() == Global.zero_address(),
+                Gtxn[tidx.load()].type_enum() == TxnType.ApplicationCall,
+                Gtxn[tidx.load()].application_id() == Global.current_application_id(),
+                Gtxn[tidx.load()].application_args[0] == Bytes("nop"),
+                Gtxn[tidx.load()].sender() == Txn.sender(),
+                Gtxn[tidx.load()].rekey_to() == Global.zero_address(),
+                )),
 
-                Gtxn[Txn.group_index() - Int(1)].type_enum() == TxnType.ApplicationCall,
-                Gtxn[Txn.group_index() - Int(1)].application_id() == Global.current_application_id(),
-                Gtxn[Txn.group_index() - Int(1)].application_args[0] == Bytes("nop"),
-                Gtxn[Txn.group_index() - Int(1)].sender() == Txn.sender(),
-                Gtxn[Txn.group_index() - Int(1)].rekey_to() == Global.zero_address(),
+            tidx.store(Txn.group_index() - Int(1)),
+            Assert(And(
+                Gtxn[tidx.load()].type_enum() == TxnType.ApplicationCall,
+                Gtxn[tidx.load()].application_id() == Global.current_application_id(),
+                Gtxn[tidx.load()].application_args[0] == Bytes("nop"),
+                Gtxn[tidx.load()].sender() == Txn.sender(),
+                Gtxn[tidx.load()].rekey_to() == Global.zero_address(),
                 
                 (Global.group_size() - Int(1)) == Txn.group_index()    # This should be the last entry...
             )),
@@ -417,22 +469,23 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
         return Seq([
             checkForDuplicate(),
 
-            zb.store(Bytes("base16", "0000000000000000000000000000000000000000000000000000000000000000")),
+            zb.store(BytesZero(Int(32))),
 
+            tidx.store(Txn.group_index() - Int(1)),
 
             Assert(And(
                 # Lets see if the vaa we are about to process was actually verified by the core
-                Gtxn[Txn.group_index() - Int(1)].type_enum() == TxnType.ApplicationCall,
-                Gtxn[Txn.group_index() - Int(1)].application_id() == App.globalGet(Bytes("coreid")),
-                Gtxn[Txn.group_index() - Int(1)].application_args[0] == Bytes("verifyVAA"),
-                Gtxn[Txn.group_index() - Int(1)].sender() == Txn.sender(),
-                Gtxn[Txn.group_index() - Int(1)].rekey_to() == Global.zero_address(),
-                Gtxn[Txn.group_index() - Int(1)].application_args[1] == Txn.application_args[1],
+                Gtxn[tidx.load()].type_enum() == TxnType.ApplicationCall,
+                Gtxn[tidx.load()].application_id() == App.globalGet(Bytes("coreid")),
+                Gtxn[tidx.load()].application_args[0] == Bytes("verifyVAA"),
+                Gtxn[tidx.load()].sender() == Txn.sender(),
+                Gtxn[tidx.load()].rekey_to() == Global.zero_address(),
+                Gtxn[tidx.load()].application_args[1] == Txn.application_args[1],
 
                 # We all opted into the same accounts?
-                Gtxn[Txn.group_index() - Int(1)].accounts[0] == Txn.accounts[0],
-                Gtxn[Txn.group_index() - Int(1)].accounts[1] == Txn.accounts[1],
-                Gtxn[Txn.group_index() - Int(1)].accounts[2] == Txn.accounts[2],
+                Gtxn[tidx.load()].accounts[0] == Txn.accounts[0],
+                Gtxn[tidx.load()].accounts[1] == Txn.accounts[1],
+                Gtxn[tidx.load()].accounts[2] == Txn.accounts[2],
                 
                 (Global.group_size() - Int(1)) == Txn.group_index()    # This should be the last entry...
             )),
@@ -469,6 +522,8 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
             # This directed at us?
             Assert(DestChain.load() == Int(8)),
 
+            Assert(Fee.load() <= Amount.load()),
+
             If (action.load() == Int(3), Assert(Destination.load() == Txn.sender())),
 
             If(OriginChain.load() == Int(8),
@@ -490,10 +545,8 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
                                   TxnField.fee: Int(0),
                               }
                           ),
-                          InnerTxnBuilder.Submit(),
-
                           If(Fee.load() > Int(0), Seq([
-                                  InnerTxnBuilder.Begin(),
+                                  InnerTxnBuilder.Next(),
                                   InnerTxnBuilder.SetFields(
                                       {
                                           TxnField.sender: Txn.accounts[3],
@@ -503,15 +556,13 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
                                           TxnField.fee: Int(0),
                                       }
                                   ),
-                                  InnerTxnBuilder.Submit(),
                           ])),
+                          InnerTxnBuilder.Submit(),
 
                           Approve()
                       ]),            # End of special case for algo
                       Seq([          # Start of handling code for algorand tokens
-                          factor.store(Int(1)),
-                          d.store(Btoi(extract_decimal(asset.load()))),
-                          factor.store(getFactor(d.load())),
+                          factor.store(getFactor(Btoi(extract_decimal(asset.load())))),
                           If(factor.load() != Int(1),
                              Seq([
                                  Amount.store(Amount.load() * factor.load()),
@@ -548,11 +599,10 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
                     TxnField.fee: Int(0),
                 }
             ),
-            InnerTxnBuilder.Submit(),
 
             If(Fee.load() > Int(0), Seq([
 #                    Log(Bytes("Fees")),
-                    InnerTxnBuilder.Begin(),
+                    InnerTxnBuilder.Next(),
                     InnerTxnBuilder.SetFields(
                         {
                             TxnField.sender: Txn.accounts[3],
@@ -563,8 +613,8 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
                             TxnField.fee: Int(0),
                         }
                     ),
-                    InnerTxnBuilder.Submit(),
             ])),
+            InnerTxnBuilder.Submit(),
 
             Approve()
         ])
@@ -613,7 +663,9 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
         fee = ScratchVar()
 
         return Seq([
-            zb.store(Bytes("base16", "0000000000000000000000000000000000000000000000000000000000000000")),
+            mfee.store(getMessageFee()),
+
+            zb.store(BytesZero(Int(32))),
 
             aid.store(Btoi(Txn.application_args[1])),
             Assert(And(
@@ -630,40 +682,42 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
             # what should we pass as a fee...
             fee.store(Btoi(Txn.application_args[5])),
 
+            checkFeePmt(Int(2)),
+
+            tidx.store(Txn.group_index() - Int(1)),
+
             If(aid.load() == Int(0),
                Seq([
                    Assert(And(
                        # The previous txn is the asset transfer itself
-                       Gtxn[Txn.group_index() - Int(1)].type_enum() == TxnType.Payment,
-                       Gtxn[Txn.group_index() - Int(1)].sender() == Txn.sender(),
-                       Gtxn[Txn.group_index() - Int(1)].receiver() == Txn.accounts[2],
-                       Gtxn[Txn.group_index() - Int(1)].rekey_to() == Global.zero_address(),
+                       Gtxn[tidx.load()].type_enum() == TxnType.Payment,
+                       Gtxn[tidx.load()].sender() == Txn.sender(),
+                       Gtxn[tidx.load()].receiver() == Txn.accounts[2],
+                       Gtxn[tidx.load()].rekey_to() == Global.zero_address(),
                    )),
-                   amount.store(Gtxn[Txn.group_index() - Int(1)].amount()),
+                   amount.store(Gtxn[tidx.load()].amount()),
+                   
                    Assert(fee.load() < amount.load()),
                    amount.store(amount.load() - fee.load())
                ]),
                Seq([
+
                    Assert(And(
                        # The previous txn is the asset transfer itself
-                       Gtxn[Txn.group_index() - Int(1)].type_enum() == TxnType.AssetTransfer,
-                       Gtxn[Txn.group_index() - Int(1)].sender() == Txn.sender(),
-                       Gtxn[Txn.group_index() - Int(1)].xfer_asset() == aid.load(),
-                       Gtxn[Txn.group_index() - Int(1)].asset_receiver() == Txn.accounts[2],
-                       Gtxn[Txn.group_index() - Int(1)].rekey_to() == Global.zero_address(),
+                       Gtxn[tidx.load()].type_enum() == TxnType.AssetTransfer,
+                       Gtxn[tidx.load()].sender() == Txn.sender(),
+                       Gtxn[tidx.load()].xfer_asset() == aid.load(),
+                       Gtxn[tidx.load()].asset_receiver() == Txn.accounts[2],
+                       Gtxn[tidx.load()].rekey_to() == Global.zero_address(),
                    )),
-                   amount.store(Gtxn[Txn.group_index() - Int(1)].asset_amount()),
+                   amount.store(Gtxn[tidx.load()].asset_amount()),
+
 
                    # peal the fee off the amount
-                   Assert(fee.load() < amount.load()),
+                   Assert(fee.load() <= amount.load()),
                    amount.store(amount.load() - fee.load()),
 
-                   d.store(Btoi(extract_decimal(aid.load()))),
-
-                   Assert(d.load() >= Int(0)),
-
-                   factor.store(Int(1)),
-                   factor.store(getFactor(d.load())),
+                   factor.store(getFactor(Btoi(extract_decimal(aid.load())))),
 
                    If(factor.load() != Int(1),
                       Seq([
@@ -673,6 +727,7 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
                     ),       # If(factor.load() != Int(1),
                ]),
             ),
+
 
             # If it is nothing but dust lets just abort the whole transaction and save 
             Assert(And(amount.load() > Int(0), fee.load() >= Int(0))),
@@ -735,6 +790,7 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
                Assert(Len(p.load()) == Int(133))),
 
             InnerTxnBuilder.Begin(),
+            sendMfee(),
             InnerTxnBuilder.SetFields(
                 {
                     TxnField.type_enum: TxnType.ApplicationCall,
@@ -790,6 +846,10 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
         FromChain = ScratchVar()
 
         return Seq([
+            mfee.store(getMessageFee()),
+
+            checkFeePmt(Int(1)),
+
             aid.store(Btoi(Txn.application_args[1])),
             # Is the authorizing signature of the creator of the asset the address of the token_bridge app itself?
             If(auth_addr(extract_creator(aid.load())) == Global.current_application_address(),
@@ -817,7 +877,7 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
 #                   Log(Bytes("Non Wormhole wrapped")),
                    Assert(Txn.accounts[2] == get_sig_address(aid.load(), Bytes("native"))),
 
-                   zb.store(Bytes("base16", "0000000000000000000000000000000000000000000000000000000000000000")),
+                   zb.store(BytesZero(Int(32))),
                    
                    aid.store(Btoi(Txn.application_args[1])),
 
@@ -860,6 +920,7 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
             Assert(Len(p.load()) == Int(100)),
 
             InnerTxnBuilder.Begin(),
+            sendMfee(),
             InnerTxnBuilder.SetFields(
                 {
                     TxnField.type_enum: TxnType.ApplicationCall,
@@ -924,6 +985,7 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
 
     on_create = Seq( [
         App.globalPut(Bytes("coreid"), Btoi(Txn.application_args[0])),
+        App.globalPut(Bytes("coreAddr"), Txn.application_args[1]),
         App.globalPut(Bytes("validUpdateApproveHash"), Bytes("")),
         App.globalPut(Bytes("validUpdateClearHash"), Bytes("base16", "73be5fd7cd378289177bf4a7ca5433ab30d91b417381bba8bd704aff2dec424f")), # empty clear state program
         Return(Int(1))
