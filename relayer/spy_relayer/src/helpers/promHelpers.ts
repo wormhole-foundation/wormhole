@@ -22,31 +22,31 @@ export class PromHelper {
 
   // Actual metrics
   private successCounter = new client.Counter({
-    name: "successes",
+    name: "spy_relay_successes",
     help: "number of successful relays",
   });
   private failureCounter = new client.Counter({
-    name: "failures",
+    name: "spy_relay_failures",
     help: "number of failed relays",
   });
   private completeTime = new client.Histogram({
-    name: "complete_time",
+    name: "spy_relay_complete_time",
     help: "Time is took to complete transfer",
     buckets: [400, 800, 1600, 3200, 6400, 12800],
   });
   private listenCounter = new client.Counter({
-    name: "VAAs_received",
+    name: "spy_relay_VAAs_received",
     help: "number of VAAs received",
   });
   private alreadyExecutedCounter = new client.Counter({
-    name: "already_executed",
+    name: "spy_relay_already_executed",
     help: "number of transfers rejected due to already having been executed",
   });
 
   // Wallet metrics
   private walletBalance = new client.Gauge({
-    name: "wallet_balance",
-    help: "wallet_balance",
+    name: "spy_relay_wallet_balance",
+    help: "Wallet balance for a supported token",
     labelNames: ["currency", "chain_id", "wallet", "currency_address"],
   });
   // End metrics
@@ -81,7 +81,8 @@ export class PromHelper {
       app: name,
       mode: mode_name,
     });
-    this.collectDefaultMetrics({ register: this._register, prefix: "relayer_" });
+    // Uncomment to collect the default metrics (cpu/memory/nodejs gc stuff/etc)
+    //this.collectDefaultMetrics({ register: this._register, prefix: "spy_relayer_" });
 
     this._mode = mode;
     // Register each metric
