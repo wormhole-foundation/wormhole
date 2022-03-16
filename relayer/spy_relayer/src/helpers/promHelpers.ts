@@ -17,7 +17,6 @@ export enum PromMode {
 
 export class PromHelper {
   private _register = new client.Registry();
-  private _walletReg = new client.Registry();
   private _mode: PromMode;
   private collectDefaultMetrics = client.collectDefaultMetrics;
 
@@ -45,7 +44,11 @@ export class PromHelper {
   });
 
   // Wallet metrics
-  private walletMetrics: client.Gauge<string>[] = [];
+  private walletBalance = new client.Gauge({
+    name: "wallet_balance",
+    help: "wallet_balance",
+    labelNames: ["currency", "chain_id", "wallet", "currency_address"],
+  });
   // End metrics
 
   private server = http.createServer(async (req, res) => {
@@ -58,9 +61,7 @@ export class PromHelper {
       }
       if (this._mode === PromMode.Relay || this._mode == PromMode.Both) {
         res.setHeader("Content-Type", this._register.contentType);
-        res.write(await this._register.metrics());
-        res.write("\n");
-        res.end(await this._walletReg.metrics());
+        res.end(await this._register.metrics());
       }
     }
   });
@@ -80,6 +81,7 @@ export class PromHelper {
       this._register.registerMetric(this.successCounter);
       this._register.registerMetric(this.failureCounter);
       this._register.registerMetric(this.alreadyExecutedCounter);
+      this._register.registerMetric(this.walletBalance);
     }
     // End registering metric
 
@@ -109,8 +111,7 @@ export class PromHelper {
     // Walk through each wallet
     // create a gauge for the balance
     // set the gauge
-    this._walletReg.clear();
-    this.walletMetrics = [];
+    //this.walletMetrics = [];
     for (const bal of balances) {
       try {
         if (bal.currencyName.length === 0) {
@@ -128,28 +129,18 @@ export class PromHelper {
             " => " +
             bal.balanceFormatted
         );
-        let walletGauge = new client.Gauge({
-          name:
-            bal.currencyName +
-            " ChainId: " +
-            bal.chainId +
-            " Wallet: " +
-            bal.walletAddress +
-            " Mint: " +
-            bal.currencyAddressNative,
-          help: " balance",
-          // labelNames: ["timestamp"],
-          registers: [this._walletReg],
-        });
         let formBal: number;
         if (!bal.balanceFormatted) {
           formBal = 0;
         } else {
           formBal = parseFloat(bal.balanceFormatted);
         }
-        walletGauge.set(formBal);
-        this._walletReg.registerMetric(walletGauge);
-        this.walletMetrics.push(walletGauge);
+	this.walletBalance.labels({
+	  currency: bal.currencyName,
+	  chain_id: bal.chainId,
+	  wallet: bal.walletAddress,
+	  currency_address: bal.currencyAddressNative,
+	}).set(formBal);
       } catch (e: any) {
         // logger.error("handleWalletBalances() - caught error: %o", e);
         if (e.message) {
