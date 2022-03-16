@@ -1,23 +1,14 @@
-var __assign = (this && this.__assign) || function () {
-    __assign = Object.assign || function(t) {
-        for (var s, i = 1, n = arguments.length; i < n; i++) {
-            s = arguments[i];
-            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
-                t[p] = s[p];
-        }
-        return t;
-    };
-    return __assign.apply(this, arguments);
-};
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.MsgClientImpl = exports.MsgTransferResponse = exports.MsgTransfer = exports.MsgAttestTokenResponse = exports.MsgAttestToken = exports.MsgExecuteVAAResponse = exports.MsgExecuteVAA = exports.MsgExecuteGovernanceVAAResponse = exports.MsgExecuteGovernanceVAA = exports.protobufPackage = void 0;
 //@ts-nocheck
 /* eslint-disable */
-import { Reader, Writer } from "protobufjs/minimal";
-import { Coin } from "../cosmos/base/v1beta1/coin";
-export var protobufPackage = "certusone.wormholechain.tokenbridge";
-var baseMsgExecuteGovernanceVAA = { creator: "" };
-export var MsgExecuteGovernanceVAA = {
-    encode: function (message, writer) {
-        if (writer === void 0) { writer = Writer.create(); }
+const minimal_1 = require("protobufjs/minimal");
+const coin_1 = require("../cosmos/base/v1beta1/coin");
+exports.protobufPackage = "certusone.wormholechain.tokenbridge";
+const baseMsgExecuteGovernanceVAA = { creator: "" };
+exports.MsgExecuteGovernanceVAA = {
+    encode(message, writer = minimal_1.Writer.create()) {
         if (message.creator !== "") {
             writer.uint32(10).string(message.creator);
         }
@@ -26,12 +17,14 @@ export var MsgExecuteGovernanceVAA = {
         }
         return writer;
     },
-    decode: function (input, length) {
-        var reader = input instanceof Uint8Array ? new Reader(input) : input;
-        var end = length === undefined ? reader.len : reader.pos + length;
-        var message = __assign({}, baseMsgExecuteGovernanceVAA);
+    decode(input, length) {
+        const reader = input instanceof Uint8Array ? new minimal_1.Reader(input) : input;
+        let end = length === undefined ? reader.len : reader.pos + length;
+        const message = {
+            ...baseMsgExecuteGovernanceVAA,
+        };
         while (reader.pos < end) {
-            var tag = reader.uint32();
+            const tag = reader.uint32();
             switch (tag >>> 3) {
                 case 1:
                     message.creator = reader.string();
@@ -46,8 +39,10 @@ export var MsgExecuteGovernanceVAA = {
         }
         return message;
     },
-    fromJSON: function (object) {
-        var message = __assign({}, baseMsgExecuteGovernanceVAA);
+    fromJSON(object) {
+        const message = {
+            ...baseMsgExecuteGovernanceVAA,
+        };
         if (object.creator !== undefined && object.creator !== null) {
             message.creator = String(object.creator);
         }
@@ -59,15 +54,17 @@ export var MsgExecuteGovernanceVAA = {
         }
         return message;
     },
-    toJSON: function (message) {
-        var obj = {};
+    toJSON(message) {
+        const obj = {};
         message.creator !== undefined && (obj.creator = message.creator);
         message.vaa !== undefined &&
             (obj.vaa = base64FromBytes(message.vaa !== undefined ? message.vaa : new Uint8Array()));
         return obj;
     },
-    fromPartial: function (object) {
-        var message = __assign({}, baseMsgExecuteGovernanceVAA);
+    fromPartial(object) {
+        const message = {
+            ...baseMsgExecuteGovernanceVAA,
+        };
         if (object.creator !== undefined && object.creator !== null) {
             message.creator = object.creator;
         }
@@ -83,18 +80,19 @@ export var MsgExecuteGovernanceVAA = {
         return message;
     },
 };
-var baseMsgExecuteGovernanceVAAResponse = {};
-export var MsgExecuteGovernanceVAAResponse = {
-    encode: function (_, writer) {
-        if (writer === void 0) { writer = Writer.create(); }
+const baseMsgExecuteGovernanceVAAResponse = {};
+exports.MsgExecuteGovernanceVAAResponse = {
+    encode(_, writer = minimal_1.Writer.create()) {
         return writer;
     },
-    decode: function (input, length) {
-        var reader = input instanceof Uint8Array ? new Reader(input) : input;
-        var end = length === undefined ? reader.len : reader.pos + length;
-        var message = __assign({}, baseMsgExecuteGovernanceVAAResponse);
+    decode(input, length) {
+        const reader = input instanceof Uint8Array ? new minimal_1.Reader(input) : input;
+        let end = length === undefined ? reader.len : reader.pos + length;
+        const message = {
+            ...baseMsgExecuteGovernanceVAAResponse,
+        };
         while (reader.pos < end) {
-            var tag = reader.uint32();
+            const tag = reader.uint32();
             switch (tag >>> 3) {
                 default:
                     reader.skipType(tag & 7);
@@ -103,23 +101,26 @@ export var MsgExecuteGovernanceVAAResponse = {
         }
         return message;
     },
-    fromJSON: function (_) {
-        var message = __assign({}, baseMsgExecuteGovernanceVAAResponse);
+    fromJSON(_) {
+        const message = {
+            ...baseMsgExecuteGovernanceVAAResponse,
+        };
         return message;
     },
-    toJSON: function (_) {
-        var obj = {};
+    toJSON(_) {
+        const obj = {};
         return obj;
     },
-    fromPartial: function (_) {
-        var message = __assign({}, baseMsgExecuteGovernanceVAAResponse);
+    fromPartial(_) {
+        const message = {
+            ...baseMsgExecuteGovernanceVAAResponse,
+        };
         return message;
     },
 };
-var baseMsgExecuteVAA = { creator: "" };
-export var MsgExecuteVAA = {
-    encode: function (message, writer) {
-        if (writer === void 0) { writer = Writer.create(); }
+const baseMsgExecuteVAA = { creator: "" };
+exports.MsgExecuteVAA = {
+    encode(message, writer = minimal_1.Writer.create()) {
         if (message.creator !== "") {
             writer.uint32(10).string(message.creator);
         }
@@ -128,12 +129,12 @@ export var MsgExecuteVAA = {
         }
         return writer;
     },
-    decode: function (input, length) {
-        var reader = input instanceof Uint8Array ? new Reader(input) : input;
-        var end = length === undefined ? reader.len : reader.pos + length;
-        var message = __assign({}, baseMsgExecuteVAA);
+    decode(input, length) {
+        const reader = input instanceof Uint8Array ? new minimal_1.Reader(input) : input;
+        let end = length === undefined ? reader.len : reader.pos + length;
+        const message = { ...baseMsgExecuteVAA };
         while (reader.pos < end) {
-            var tag = reader.uint32();
+            const tag = reader.uint32();
             switch (tag >>> 3) {
                 case 1:
                     message.creator = reader.string();
@@ -148,8 +149,8 @@ export var MsgExecuteVAA = {
         }
         return message;
     },
-    fromJSON: function (object) {
-        var message = __assign({}, baseMsgExecuteVAA);
+    fromJSON(object) {
+        const message = { ...baseMsgExecuteVAA };
         if (object.creator !== undefined && object.creator !== null) {
             message.creator = String(object.creator);
         }
@@ -161,15 +162,15 @@ export var MsgExecuteVAA = {
         }
         return message;
     },
-    toJSON: function (message) {
-        var obj = {};
+    toJSON(message) {
+        const obj = {};
         message.creator !== undefined && (obj.creator = message.creator);
         message.vaa !== undefined &&
             (obj.vaa = base64FromBytes(message.vaa !== undefined ? message.vaa : new Uint8Array()));
         return obj;
     },
-    fromPartial: function (object) {
-        var message = __assign({}, baseMsgExecuteVAA);
+    fromPartial(object) {
+        const message = { ...baseMsgExecuteVAA };
         if (object.creator !== undefined && object.creator !== null) {
             message.creator = object.creator;
         }
@@ -185,18 +186,17 @@ export var MsgExecuteVAA = {
         return message;
     },
 };
-var baseMsgExecuteVAAResponse = {};
-export var MsgExecuteVAAResponse = {
-    encode: function (_, writer) {
-        if (writer === void 0) { writer = Writer.create(); }
+const baseMsgExecuteVAAResponse = {};
+exports.MsgExecuteVAAResponse = {
+    encode(_, writer = minimal_1.Writer.create()) {
         return writer;
     },
-    decode: function (input, length) {
-        var reader = input instanceof Uint8Array ? new Reader(input) : input;
-        var end = length === undefined ? reader.len : reader.pos + length;
-        var message = __assign({}, baseMsgExecuteVAAResponse);
+    decode(input, length) {
+        const reader = input instanceof Uint8Array ? new minimal_1.Reader(input) : input;
+        let end = length === undefined ? reader.len : reader.pos + length;
+        const message = { ...baseMsgExecuteVAAResponse };
         while (reader.pos < end) {
-            var tag = reader.uint32();
+            const tag = reader.uint32();
             switch (tag >>> 3) {
                 default:
                     reader.skipType(tag & 7);
@@ -205,23 +205,22 @@ export var MsgExecuteVAAResponse = {
         }
         return message;
     },
-    fromJSON: function (_) {
-        var message = __assign({}, baseMsgExecuteVAAResponse);
+    fromJSON(_) {
+        const message = { ...baseMsgExecuteVAAResponse };
         return message;
     },
-    toJSON: function (_) {
-        var obj = {};
+    toJSON(_) {
+        const obj = {};
         return obj;
     },
-    fromPartial: function (_) {
-        var message = __assign({}, baseMsgExecuteVAAResponse);
+    fromPartial(_) {
+        const message = { ...baseMsgExecuteVAAResponse };
         return message;
     },
 };
-var baseMsgAttestToken = { creator: "", denom: "" };
-export var MsgAttestToken = {
-    encode: function (message, writer) {
-        if (writer === void 0) { writer = Writer.create(); }
+const baseMsgAttestToken = { creator: "", denom: "" };
+exports.MsgAttestToken = {
+    encode(message, writer = minimal_1.Writer.create()) {
         if (message.creator !== "") {
             writer.uint32(10).string(message.creator);
         }
@@ -230,12 +229,12 @@ export var MsgAttestToken = {
         }
         return writer;
     },
-    decode: function (input, length) {
-        var reader = input instanceof Uint8Array ? new Reader(input) : input;
-        var end = length === undefined ? reader.len : reader.pos + length;
-        var message = __assign({}, baseMsgAttestToken);
+    decode(input, length) {
+        const reader = input instanceof Uint8Array ? new minimal_1.Reader(input) : input;
+        let end = length === undefined ? reader.len : reader.pos + length;
+        const message = { ...baseMsgAttestToken };
         while (reader.pos < end) {
-            var tag = reader.uint32();
+            const tag = reader.uint32();
             switch (tag >>> 3) {
                 case 1:
                     message.creator = reader.string();
@@ -250,8 +249,8 @@ export var MsgAttestToken = {
         }
         return message;
     },
-    fromJSON: function (object) {
-        var message = __assign({}, baseMsgAttestToken);
+    fromJSON(object) {
+        const message = { ...baseMsgAttestToken };
         if (object.creator !== undefined && object.creator !== null) {
             message.creator = String(object.creator);
         }
@@ -266,14 +265,14 @@ export var MsgAttestToken = {
         }
         return message;
     },
-    toJSON: function (message) {
-        var obj = {};
+    toJSON(message) {
+        const obj = {};
         message.creator !== undefined && (obj.creator = message.creator);
         message.denom !== undefined && (obj.denom = message.denom);
         return obj;
     },
-    fromPartial: function (object) {
-        var message = __assign({}, baseMsgAttestToken);
+    fromPartial(object) {
+        const message = { ...baseMsgAttestToken };
         if (object.creator !== undefined && object.creator !== null) {
             message.creator = object.creator;
         }
@@ -289,18 +288,17 @@ export var MsgAttestToken = {
         return message;
     },
 };
-var baseMsgAttestTokenResponse = {};
-export var MsgAttestTokenResponse = {
-    encode: function (_, writer) {
-        if (writer === void 0) { writer = Writer.create(); }
+const baseMsgAttestTokenResponse = {};
+exports.MsgAttestTokenResponse = {
+    encode(_, writer = minimal_1.Writer.create()) {
         return writer;
     },
-    decode: function (input, length) {
-        var reader = input instanceof Uint8Array ? new Reader(input) : input;
-        var end = length === undefined ? reader.len : reader.pos + length;
-        var message = __assign({}, baseMsgAttestTokenResponse);
+    decode(input, length) {
+        const reader = input instanceof Uint8Array ? new minimal_1.Reader(input) : input;
+        let end = length === undefined ? reader.len : reader.pos + length;
+        const message = { ...baseMsgAttestTokenResponse };
         while (reader.pos < end) {
-            var tag = reader.uint32();
+            const tag = reader.uint32();
             switch (tag >>> 3) {
                 default:
                     reader.skipType(tag & 7);
@@ -309,28 +307,27 @@ export var MsgAttestTokenResponse = {
         }
         return message;
     },
-    fromJSON: function (_) {
-        var message = __assign({}, baseMsgAttestTokenResponse);
+    fromJSON(_) {
+        const message = { ...baseMsgAttestTokenResponse };
         return message;
     },
-    toJSON: function (_) {
-        var obj = {};
+    toJSON(_) {
+        const obj = {};
         return obj;
     },
-    fromPartial: function (_) {
-        var message = __assign({}, baseMsgAttestTokenResponse);
+    fromPartial(_) {
+        const message = { ...baseMsgAttestTokenResponse };
         return message;
     },
 };
-var baseMsgTransfer = { creator: "", toChain: 0, fee: "" };
-export var MsgTransfer = {
-    encode: function (message, writer) {
-        if (writer === void 0) { writer = Writer.create(); }
+const baseMsgTransfer = { creator: "", toChain: 0, fee: "" };
+exports.MsgTransfer = {
+    encode(message, writer = minimal_1.Writer.create()) {
         if (message.creator !== "") {
             writer.uint32(10).string(message.creator);
         }
         if (message.amount !== undefined) {
-            Coin.encode(message.amount, writer.uint32(18).fork()).ldelim();
+            coin_1.Coin.encode(message.amount, writer.uint32(18).fork()).ldelim();
         }
         if (message.toChain !== 0) {
             writer.uint32(24).uint32(message.toChain);
@@ -343,18 +340,18 @@ export var MsgTransfer = {
         }
         return writer;
     },
-    decode: function (input, length) {
-        var reader = input instanceof Uint8Array ? new Reader(input) : input;
-        var end = length === undefined ? reader.len : reader.pos + length;
-        var message = __assign({}, baseMsgTransfer);
+    decode(input, length) {
+        const reader = input instanceof Uint8Array ? new minimal_1.Reader(input) : input;
+        let end = length === undefined ? reader.len : reader.pos + length;
+        const message = { ...baseMsgTransfer };
         while (reader.pos < end) {
-            var tag = reader.uint32();
+            const tag = reader.uint32();
             switch (tag >>> 3) {
                 case 1:
                     message.creator = reader.string();
                     break;
                 case 2:
-                    message.amount = Coin.decode(reader, reader.uint32());
+                    message.amount = coin_1.Coin.decode(reader, reader.uint32());
                     break;
                 case 3:
                     message.toChain = reader.uint32();
@@ -372,8 +369,8 @@ export var MsgTransfer = {
         }
         return message;
     },
-    fromJSON: function (object) {
-        var message = __assign({}, baseMsgTransfer);
+    fromJSON(object) {
+        const message = { ...baseMsgTransfer };
         if (object.creator !== undefined && object.creator !== null) {
             message.creator = String(object.creator);
         }
@@ -381,7 +378,7 @@ export var MsgTransfer = {
             message.creator = "";
         }
         if (object.amount !== undefined && object.amount !== null) {
-            message.amount = Coin.fromJSON(object.amount);
+            message.amount = coin_1.Coin.fromJSON(object.amount);
         }
         else {
             message.amount = undefined;
@@ -403,19 +400,19 @@ export var MsgTransfer = {
         }
         return message;
     },
-    toJSON: function (message) {
-        var obj = {};
+    toJSON(message) {
+        const obj = {};
         message.creator !== undefined && (obj.creator = message.creator);
         message.amount !== undefined &&
-            (obj.amount = message.amount ? Coin.toJSON(message.amount) : undefined);
+            (obj.amount = message.amount ? coin_1.Coin.toJSON(message.amount) : undefined);
         message.toChain !== undefined && (obj.toChain = message.toChain);
         message.toAddress !== undefined &&
             (obj.toAddress = base64FromBytes(message.toAddress !== undefined ? message.toAddress : new Uint8Array()));
         message.fee !== undefined && (obj.fee = message.fee);
         return obj;
     },
-    fromPartial: function (object) {
-        var message = __assign({}, baseMsgTransfer);
+    fromPartial(object) {
+        const message = { ...baseMsgTransfer };
         if (object.creator !== undefined && object.creator !== null) {
             message.creator = object.creator;
         }
@@ -423,7 +420,7 @@ export var MsgTransfer = {
             message.creator = "";
         }
         if (object.amount !== undefined && object.amount !== null) {
-            message.amount = Coin.fromPartial(object.amount);
+            message.amount = coin_1.Coin.fromPartial(object.amount);
         }
         else {
             message.amount = undefined;
@@ -449,18 +446,17 @@ export var MsgTransfer = {
         return message;
     },
 };
-var baseMsgTransferResponse = {};
-export var MsgTransferResponse = {
-    encode: function (_, writer) {
-        if (writer === void 0) { writer = Writer.create(); }
+const baseMsgTransferResponse = {};
+exports.MsgTransferResponse = {
+    encode(_, writer = minimal_1.Writer.create()) {
         return writer;
     },
-    decode: function (input, length) {
-        var reader = input instanceof Uint8Array ? new Reader(input) : input;
-        var end = length === undefined ? reader.len : reader.pos + length;
-        var message = __assign({}, baseMsgTransferResponse);
+    decode(input, length) {
+        const reader = input instanceof Uint8Array ? new minimal_1.Reader(input) : input;
+        let end = length === undefined ? reader.len : reader.pos + length;
+        const message = { ...baseMsgTransferResponse };
         while (reader.pos < end) {
-            var tag = reader.uint32();
+            const tag = reader.uint32();
             switch (tag >>> 3) {
                 default:
                     reader.skipType(tag & 7);
@@ -469,53 +465,47 @@ export var MsgTransferResponse = {
         }
         return message;
     },
-    fromJSON: function (_) {
-        var message = __assign({}, baseMsgTransferResponse);
+    fromJSON(_) {
+        const message = { ...baseMsgTransferResponse };
         return message;
     },
-    toJSON: function (_) {
-        var obj = {};
+    toJSON(_) {
+        const obj = {};
         return obj;
     },
-    fromPartial: function (_) {
-        var message = __assign({}, baseMsgTransferResponse);
+    fromPartial(_) {
+        const message = { ...baseMsgTransferResponse };
         return message;
     },
 };
-var MsgClientImpl = /** @class */ (function () {
-    function MsgClientImpl(rpc) {
+class MsgClientImpl {
+    rpc;
+    constructor(rpc) {
         this.rpc = rpc;
     }
-    MsgClientImpl.prototype.ExecuteGovernanceVAA = function (request) {
-        var data = MsgExecuteGovernanceVAA.encode(request).finish();
-        var promise = this.rpc.request("certusone.wormholechain.tokenbridge.Msg", "ExecuteGovernanceVAA", data);
-        return promise.then(function (data) {
-            return MsgExecuteGovernanceVAAResponse.decode(new Reader(data));
-        });
-    };
-    MsgClientImpl.prototype.ExecuteVAA = function (request) {
-        var data = MsgExecuteVAA.encode(request).finish();
-        var promise = this.rpc.request("certusone.wormholechain.tokenbridge.Msg", "ExecuteVAA", data);
-        return promise.then(function (data) {
-            return MsgExecuteVAAResponse.decode(new Reader(data));
-        });
-    };
-    MsgClientImpl.prototype.AttestToken = function (request) {
-        var data = MsgAttestToken.encode(request).finish();
-        var promise = this.rpc.request("certusone.wormholechain.tokenbridge.Msg", "AttestToken", data);
-        return promise.then(function (data) {
-            return MsgAttestTokenResponse.decode(new Reader(data));
-        });
-    };
-    MsgClientImpl.prototype.Transfer = function (request) {
-        var data = MsgTransfer.encode(request).finish();
-        var promise = this.rpc.request("certusone.wormholechain.tokenbridge.Msg", "Transfer", data);
-        return promise.then(function (data) { return MsgTransferResponse.decode(new Reader(data)); });
-    };
-    return MsgClientImpl;
-}());
-export { MsgClientImpl };
-var globalThis = (function () {
+    ExecuteGovernanceVAA(request) {
+        const data = exports.MsgExecuteGovernanceVAA.encode(request).finish();
+        const promise = this.rpc.request("certusone.wormholechain.tokenbridge.Msg", "ExecuteGovernanceVAA", data);
+        return promise.then((data) => exports.MsgExecuteGovernanceVAAResponse.decode(new minimal_1.Reader(data)));
+    }
+    ExecuteVAA(request) {
+        const data = exports.MsgExecuteVAA.encode(request).finish();
+        const promise = this.rpc.request("certusone.wormholechain.tokenbridge.Msg", "ExecuteVAA", data);
+        return promise.then((data) => exports.MsgExecuteVAAResponse.decode(new minimal_1.Reader(data)));
+    }
+    AttestToken(request) {
+        const data = exports.MsgAttestToken.encode(request).finish();
+        const promise = this.rpc.request("certusone.wormholechain.tokenbridge.Msg", "AttestToken", data);
+        return promise.then((data) => exports.MsgAttestTokenResponse.decode(new minimal_1.Reader(data)));
+    }
+    Transfer(request) {
+        const data = exports.MsgTransfer.encode(request).finish();
+        const promise = this.rpc.request("certusone.wormholechain.tokenbridge.Msg", "Transfer", data);
+        return promise.then((data) => exports.MsgTransferResponse.decode(new minimal_1.Reader(data)));
+    }
+}
+exports.MsgClientImpl = MsgClientImpl;
+var globalThis = (() => {
     if (typeof globalThis !== "undefined")
         return globalThis;
     if (typeof self !== "undefined")
@@ -526,21 +516,21 @@ var globalThis = (function () {
         return global;
     throw "Unable to locate global object";
 })();
-var atob = globalThis.atob ||
-    (function (b64) { return globalThis.Buffer.from(b64, "base64").toString("binary"); });
+const atob = globalThis.atob ||
+    ((b64) => globalThis.Buffer.from(b64, "base64").toString("binary"));
 function bytesFromBase64(b64) {
-    var bin = atob(b64);
-    var arr = new Uint8Array(bin.length);
-    for (var i = 0; i < bin.length; ++i) {
+    const bin = atob(b64);
+    const arr = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; ++i) {
         arr[i] = bin.charCodeAt(i);
     }
     return arr;
 }
-var btoa = globalThis.btoa ||
-    (function (bin) { return globalThis.Buffer.from(bin, "binary").toString("base64"); });
+const btoa = globalThis.btoa ||
+    ((bin) => globalThis.Buffer.from(bin, "binary").toString("base64"));
 function base64FromBytes(arr) {
-    var bin = [];
-    for (var i = 0; i < arr.byteLength; ++i) {
+    const bin = [];
+    for (let i = 0; i < arr.byteLength; ++i) {
         bin.push(String.fromCharCode(arr[i]));
     }
     return btoa(bin.join(""));

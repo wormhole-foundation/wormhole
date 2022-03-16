@@ -1,33 +1,24 @@
-var __assign = (this && this.__assign) || function () {
-    __assign = Object.assign || function(t) {
-        for (var s, i = 1, n = arguments.length; i < n; i++) {
-            s = arguments[i];
-            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
-                t[p] = s[p];
-        }
-        return t;
-    };
-    return __assign.apply(this, arguments);
-};
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.ReplayProtection = exports.protobufPackage = void 0;
 //@ts-nocheck
 /* eslint-disable */
-import { Writer, Reader } from "protobufjs/minimal";
-export var protobufPackage = "certusone.wormholechain.tokenbridge";
-var baseReplayProtection = { index: "" };
-export var ReplayProtection = {
-    encode: function (message, writer) {
-        if (writer === void 0) { writer = Writer.create(); }
+const minimal_1 = require("protobufjs/minimal");
+exports.protobufPackage = "certusone.wormholechain.tokenbridge";
+const baseReplayProtection = { index: "" };
+exports.ReplayProtection = {
+    encode(message, writer = minimal_1.Writer.create()) {
         if (message.index !== "") {
             writer.uint32(10).string(message.index);
         }
         return writer;
     },
-    decode: function (input, length) {
-        var reader = input instanceof Uint8Array ? new Reader(input) : input;
-        var end = length === undefined ? reader.len : reader.pos + length;
-        var message = __assign({}, baseReplayProtection);
+    decode(input, length) {
+        const reader = input instanceof Uint8Array ? new minimal_1.Reader(input) : input;
+        let end = length === undefined ? reader.len : reader.pos + length;
+        const message = { ...baseReplayProtection };
         while (reader.pos < end) {
-            var tag = reader.uint32();
+            const tag = reader.uint32();
             switch (tag >>> 3) {
                 case 1:
                     message.index = reader.string();
@@ -39,8 +30,8 @@ export var ReplayProtection = {
         }
         return message;
     },
-    fromJSON: function (object) {
-        var message = __assign({}, baseReplayProtection);
+    fromJSON(object) {
+        const message = { ...baseReplayProtection };
         if (object.index !== undefined && object.index !== null) {
             message.index = String(object.index);
         }
@@ -49,13 +40,13 @@ export var ReplayProtection = {
         }
         return message;
     },
-    toJSON: function (message) {
-        var obj = {};
+    toJSON(message) {
+        const obj = {};
         message.index !== undefined && (obj.index = message.index);
         return obj;
     },
-    fromPartial: function (object) {
-        var message = __assign({}, baseReplayProtection);
+    fromPartial(object) {
+        const message = { ...baseReplayProtection };
         if (object.index !== undefined && object.index !== null) {
             message.index = object.index;
         }

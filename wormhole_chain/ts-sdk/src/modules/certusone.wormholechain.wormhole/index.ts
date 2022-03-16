@@ -6,10 +6,12 @@ import { SigningStargateClient } from "@cosmjs/stargate";
 import { Registry, OfflineSigner, EncodeObject, DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 import { Api } from "./rest";
 import { MsgExecuteGovernanceVAA } from "./types/wormhole/tx";
+import { MsgRegisterAccountAsGuardian } from "./types/wormhole/tx";
 
 
 const types = [
   ["/certusone.wormholechain.wormhole.MsgExecuteGovernanceVAA", MsgExecuteGovernanceVAA],
+  ["/certusone.wormholechain.wormhole.MsgRegisterAccountAsGuardian", MsgRegisterAccountAsGuardian],
   
 ];
 export const MissingWalletError = new Error("wallet is required");
@@ -43,6 +45,7 @@ const txClient = async (wallet: OfflineSigner, { addr: addr }: TxClientOptions =
   return {
     signAndBroadcast: (msgs: EncodeObject[], { fee, memo }: SignAndBroadcastOptions = {fee: defaultFee, memo: ""}) => client.signAndBroadcast(address, msgs, fee,memo),
     msgExecuteGovernanceVAA: (data: MsgExecuteGovernanceVAA): EncodeObject => ({ typeUrl: "/certusone.wormholechain.wormhole.MsgExecuteGovernanceVAA", value: MsgExecuteGovernanceVAA.fromPartial( data ) }),
+    msgRegisterAccountAsGuardian: (data: MsgRegisterAccountAsGuardian): EncodeObject => ({ typeUrl: "/certusone.wormholechain.wormhole.MsgRegisterAccountAsGuardian", value: MsgRegisterAccountAsGuardian.fromPartial( data ) }),
     
   };
 };

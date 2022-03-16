@@ -2,16 +2,19 @@ import { GuardianSet } from "../wormhole/guardian_set";
 import { Config } from "../wormhole/config";
 import { ReplayProtection } from "../wormhole/replay_protection";
 import { SequenceCounter } from "../wormhole/sequence_counter";
+import { ActiveGuardianSetIndex } from "../wormhole/active_guardian_set_index";
+import { GuardianValidator } from "../wormhole/guardian_validator";
 import { Writer, Reader } from "protobufjs/minimal";
 export declare const protobufPackage = "certusone.wormholechain.wormhole";
 /** GenesisState defines the wormhole module's genesis state. */
 export interface GenesisState {
     guardianSetList: GuardianSet[];
-    guardianSetCount: number;
     config: Config | undefined;
     replayProtectionList: ReplayProtection[];
-    /** this line is used by starport scaffolding # genesis/proto/state */
     sequenceCounterList: SequenceCounter[];
+    activeGuardianSetIndex: ActiveGuardianSetIndex | undefined;
+    /** this line is used by starport scaffolding # genesis/proto/state */
+    guardianValidatorList: GuardianValidator[];
 }
 export declare const GenesisState: {
     encode(message: GenesisState, writer?: Writer): Writer;

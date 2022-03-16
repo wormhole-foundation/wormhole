@@ -1,6 +1,7 @@
 //@ts-nocheck
 /* eslint-disable */
 import { Reader, Writer } from "protobufjs/minimal";
+import { GuardianKey } from "../wormhole/guardian_key";
 
 export const protobufPackage = "certusone.wormholechain.wormhole";
 
@@ -10,6 +11,15 @@ export interface MsgExecuteGovernanceVAA {
 }
 
 export interface MsgExecuteGovernanceVAAResponse {}
+
+export interface MsgRegisterAccountAsGuardian {
+  signer: string;
+  guardianPubkey: GuardianKey | undefined;
+  addressBech32: string;
+  signature: Uint8Array;
+}
+
+export interface MsgRegisterAccountAsGuardianResponse {}
 
 const baseMsgExecuteGovernanceVAA: object = { signer: "" };
 
@@ -147,12 +157,198 @@ export const MsgExecuteGovernanceVAAResponse = {
   },
 };
 
+const baseMsgRegisterAccountAsGuardian: object = {
+  signer: "",
+  addressBech32: "",
+};
+
+export const MsgRegisterAccountAsGuardian = {
+  encode(
+    message: MsgRegisterAccountAsGuardian,
+    writer: Writer = Writer.create()
+  ): Writer {
+    if (message.signer !== "") {
+      writer.uint32(10).string(message.signer);
+    }
+    if (message.guardianPubkey !== undefined) {
+      GuardianKey.encode(
+        message.guardianPubkey,
+        writer.uint32(18).fork()
+      ).ldelim();
+    }
+    if (message.addressBech32 !== "") {
+      writer.uint32(26).string(message.addressBech32);
+    }
+    if (message.signature.length !== 0) {
+      writer.uint32(34).bytes(message.signature);
+    }
+    return writer;
+  },
+
+  decode(
+    input: Reader | Uint8Array,
+    length?: number
+  ): MsgRegisterAccountAsGuardian {
+    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = {
+      ...baseMsgRegisterAccountAsGuardian,
+    } as MsgRegisterAccountAsGuardian;
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          message.signer = reader.string();
+          break;
+        case 2:
+          message.guardianPubkey = GuardianKey.decode(reader, reader.uint32());
+          break;
+        case 3:
+          message.addressBech32 = reader.string();
+          break;
+        case 4:
+          message.signature = reader.bytes();
+          break;
+        default:
+          reader.skipType(tag & 7);
+          break;
+      }
+    }
+    return message;
+  },
+
+  fromJSON(object: any): MsgRegisterAccountAsGuardian {
+    const message = {
+      ...baseMsgRegisterAccountAsGuardian,
+    } as MsgRegisterAccountAsGuardian;
+    if (object.signer !== undefined && object.signer !== null) {
+      message.signer = String(object.signer);
+    } else {
+      message.signer = "";
+    }
+    if (object.guardianPubkey !== undefined && object.guardianPubkey !== null) {
+      message.guardianPubkey = GuardianKey.fromJSON(object.guardianPubkey);
+    } else {
+      message.guardianPubkey = undefined;
+    }
+    if (object.addressBech32 !== undefined && object.addressBech32 !== null) {
+      message.addressBech32 = String(object.addressBech32);
+    } else {
+      message.addressBech32 = "";
+    }
+    if (object.signature !== undefined && object.signature !== null) {
+      message.signature = bytesFromBase64(object.signature);
+    }
+    return message;
+  },
+
+  toJSON(message: MsgRegisterAccountAsGuardian): unknown {
+    const obj: any = {};
+    message.signer !== undefined && (obj.signer = message.signer);
+    message.guardianPubkey !== undefined &&
+      (obj.guardianPubkey = message.guardianPubkey
+        ? GuardianKey.toJSON(message.guardianPubkey)
+        : undefined);
+    message.addressBech32 !== undefined &&
+      (obj.addressBech32 = message.addressBech32);
+    message.signature !== undefined &&
+      (obj.signature = base64FromBytes(
+        message.signature !== undefined ? message.signature : new Uint8Array()
+      ));
+    return obj;
+  },
+
+  fromPartial(
+    object: DeepPartial<MsgRegisterAccountAsGuardian>
+  ): MsgRegisterAccountAsGuardian {
+    const message = {
+      ...baseMsgRegisterAccountAsGuardian,
+    } as MsgRegisterAccountAsGuardian;
+    if (object.signer !== undefined && object.signer !== null) {
+      message.signer = object.signer;
+    } else {
+      message.signer = "";
+    }
+    if (object.guardianPubkey !== undefined && object.guardianPubkey !== null) {
+      message.guardianPubkey = GuardianKey.fromPartial(object.guardianPubkey);
+    } else {
+      message.guardianPubkey = undefined;
+    }
+    if (object.addressBech32 !== undefined && object.addressBech32 !== null) {
+      message.addressBech32 = object.addressBech32;
+    } else {
+      message.addressBech32 = "";
+    }
+    if (object.signature !== undefined && object.signature !== null) {
+      message.signature = object.signature;
+    } else {
+      message.signature = new Uint8Array();
+    }
+    return message;
+  },
+};
+
+const baseMsgRegisterAccountAsGuardianResponse: object = {};
+
+export const MsgRegisterAccountAsGuardianResponse = {
+  encode(
+    _: MsgRegisterAccountAsGuardianResponse,
+    writer: Writer = Writer.create()
+  ): Writer {
+    return writer;
+  },
+
+  decode(
+    input: Reader | Uint8Array,
+    length?: number
+  ): MsgRegisterAccountAsGuardianResponse {
+    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = {
+      ...baseMsgRegisterAccountAsGuardianResponse,
+    } as MsgRegisterAccountAsGuardianResponse;
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        default:
+          reader.skipType(tag & 7);
+          break;
+      }
+    }
+    return message;
+  },
+
+  fromJSON(_: any): MsgRegisterAccountAsGuardianResponse {
+    const message = {
+      ...baseMsgRegisterAccountAsGuardianResponse,
+    } as MsgRegisterAccountAsGuardianResponse;
+    return message;
+  },
+
+  toJSON(_: MsgRegisterAccountAsGuardianResponse): unknown {
+    const obj: any = {};
+    return obj;
+  },
+
+  fromPartial(
+    _: DeepPartial<MsgRegisterAccountAsGuardianResponse>
+  ): MsgRegisterAccountAsGuardianResponse {
+    const message = {
+      ...baseMsgRegisterAccountAsGuardianResponse,
+    } as MsgRegisterAccountAsGuardianResponse;
+    return message;
+  },
+};
+
 /** Msg defines the Msg service. */
 export interface Msg {
-  /** this line is used by starport scaffolding # proto/tx/rpc */
   ExecuteGovernanceVAA(
     request: MsgExecuteGovernanceVAA
   ): Promise<MsgExecuteGovernanceVAAResponse>;
+  /** this line is used by starport scaffolding # proto/tx/rpc */
+  RegisterAccountAsGuardian(
+    request: MsgRegisterAccountAsGuardian
+  ): Promise<MsgRegisterAccountAsGuardianResponse>;
 }
 
 export class MsgClientImpl implements Msg {
@@ -171,6 +367,20 @@ export class MsgClientImpl implements Msg {
     );
     return promise.then((data) =>
       MsgExecuteGovernanceVAAResponse.decode(new Reader(data))
+    );
+  }
+
+  RegisterAccountAsGuardian(
+    request: MsgRegisterAccountAsGuardian
+  ): Promise<MsgRegisterAccountAsGuardianResponse> {
+    const data = MsgRegisterAccountAsGuardian.encode(request).finish();
+    const promise = this.rpc.request(
+      "certusone.wormholechain.wormhole.Msg",
+      "RegisterAccountAsGuardian",
+      data
+    );
+    return promise.then((data) =>
+      MsgRegisterAccountAsGuardianResponse.decode(new Reader(data))
     );
   }
 }

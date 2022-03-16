@@ -4,6 +4,7 @@ import {
   HOLE_DENOM,
   TEST_WALLET_MNEMONIC_1,
   TEST_WALLET_MNEMONIC_2,
+  TILTNET_GUARDIAN_PUBKEY,
 } from "../consts";
 import { getValidators } from "../core/validator";
 import {
@@ -14,7 +15,14 @@ import {
   getWallet,
   sendTokens,
 } from "../core/walletHelpers";
-import { executeGovernanceVAA } from "wormhole-chain-sdk";
+import {
+  executeGovernanceVAA,
+  getGuardianSets,
+  getGuardianValidatorRegistrations,
+  fromBase64,
+  toValAddress,
+} from "wormhole-chain-sdk";
+import { WormholeGuardianSet } from "wormhole-chain-sdk/lib/modules/certusone.wormholechain.wormhole/rest";
 
 jest.setTimeout(60000);
 
@@ -44,8 +52,33 @@ test("Verify guardian validator", async () => {
   //TODO determine if active validators should be instantly bonded / unbonded. What impact does this have on delegated bonds?
   //Alternately, if bonded !== active, how will validators become bonded?
   expect(guardianValidator?.status).toBe(3); //BondStatus can't be easily imported, but 3 evidently means bonded.
+
+  //Pull our guardian set
+  const guardianSets = await getGuardianSets();
+  expect(guardianSets.GuardianSet?.length).toBe(1);
+
+  const guardianSet: WormholeGuardianSet[] = guardianSets.GuardianSet || [];
+  const foundTiltGuardian = guardianSet[0].keys?.find(
+    (x) => x === TILTNET_GUARDIAN_PUBKEY
+  );
+
+  expect(!!foundTiltGuardian).toBe(true);
+
+  const guardianRegistrations = await getGuardianValidatorRegistrations();
+  const guardianValidators = guardianRegistrations.guardianValidator || [];
+  const foundGuardianValidator = guardianValidators.find(
+    (x) =>
+      x.validatorAddr &&
+      x.guardianKey &&
+      x.guardianKey === TILTNET_GUARDIAN_PUBKEY &&
+      toValAddress(fromBase64(x.validatorAddr)) ===
+        GUARDIAN_VALIDATOR_PUBLIC_KEY
+  );
+
+  expect(!!foundGuardianValidator).toBe(true);
 });
 
+//TODO sequence number mismatch when rerunning tests?
 test("Process guardian set upgrade", async () => {
   const wallet1 = await getWallet(TEST_WALLET_MNEMONIC_1);
   const result = await executeGovernanceVAA(wallet1, "not a real thing");

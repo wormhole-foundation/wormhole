@@ -9,6 +9,8 @@ import {
 import { Config } from "../wormhole/config";
 import { ReplayProtection } from "../wormhole/replay_protection";
 import { SequenceCounter } from "../wormhole/sequence_counter";
+import { ActiveGuardianSetIndex } from "../wormhole/active_guardian_set_index";
+import { GuardianValidator } from "../wormhole/guardian_validator";
 
 export const protobufPackage = "certusone.wormholechain.wormhole";
 
@@ -66,6 +68,29 @@ export interface QueryAllSequenceCounterRequest {
 
 export interface QueryAllSequenceCounterResponse {
   sequenceCounter: SequenceCounter[];
+  pagination: PageResponse | undefined;
+}
+
+export interface QueryGetActiveGuardianSetIndexRequest {}
+
+export interface QueryGetActiveGuardianSetIndexResponse {
+  ActiveGuardianSetIndex: ActiveGuardianSetIndex | undefined;
+}
+
+export interface QueryGetGuardianValidatorRequest {
+  guardianKey: Uint8Array;
+}
+
+export interface QueryGetGuardianValidatorResponse {
+  guardianValidator: GuardianValidator | undefined;
+}
+
+export interface QueryAllGuardianValidatorRequest {
+  pagination: PageRequest | undefined;
+}
+
+export interface QueryAllGuardianValidatorResponse {
+  guardianValidator: GuardianValidator[];
   pagination: PageResponse | undefined;
 }
 
@@ -1161,6 +1186,487 @@ export const QueryAllSequenceCounterResponse = {
   },
 };
 
+const baseQueryGetActiveGuardianSetIndexRequest: object = {};
+
+export const QueryGetActiveGuardianSetIndexRequest = {
+  encode(
+    _: QueryGetActiveGuardianSetIndexRequest,
+    writer: Writer = Writer.create()
+  ): Writer {
+    return writer;
+  },
+
+  decode(
+    input: Reader | Uint8Array,
+    length?: number
+  ): QueryGetActiveGuardianSetIndexRequest {
+    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = {
+      ...baseQueryGetActiveGuardianSetIndexRequest,
+    } as QueryGetActiveGuardianSetIndexRequest;
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        default:
+          reader.skipType(tag & 7);
+          break;
+      }
+    }
+    return message;
+  },
+
+  fromJSON(_: any): QueryGetActiveGuardianSetIndexRequest {
+    const message = {
+      ...baseQueryGetActiveGuardianSetIndexRequest,
+    } as QueryGetActiveGuardianSetIndexRequest;
+    return message;
+  },
+
+  toJSON(_: QueryGetActiveGuardianSetIndexRequest): unknown {
+    const obj: any = {};
+    return obj;
+  },
+
+  fromPartial(
+    _: DeepPartial<QueryGetActiveGuardianSetIndexRequest>
+  ): QueryGetActiveGuardianSetIndexRequest {
+    const message = {
+      ...baseQueryGetActiveGuardianSetIndexRequest,
+    } as QueryGetActiveGuardianSetIndexRequest;
+    return message;
+  },
+};
+
+const baseQueryGetActiveGuardianSetIndexResponse: object = {};
+
+export const QueryGetActiveGuardianSetIndexResponse = {
+  encode(
+    message: QueryGetActiveGuardianSetIndexResponse,
+    writer: Writer = Writer.create()
+  ): Writer {
+    if (message.ActiveGuardianSetIndex !== undefined) {
+      ActiveGuardianSetIndex.encode(
+        message.ActiveGuardianSetIndex,
+        writer.uint32(10).fork()
+      ).ldelim();
+    }
+    return writer;
+  },
+
+  decode(
+    input: Reader | Uint8Array,
+    length?: number
+  ): QueryGetActiveGuardianSetIndexResponse {
+    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = {
+      ...baseQueryGetActiveGuardianSetIndexResponse,
+    } as QueryGetActiveGuardianSetIndexResponse;
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          message.ActiveGuardianSetIndex = ActiveGuardianSetIndex.decode(
+            reader,
+            reader.uint32()
+          );
+          break;
+        default:
+          reader.skipType(tag & 7);
+          break;
+      }
+    }
+    return message;
+  },
+
+  fromJSON(object: any): QueryGetActiveGuardianSetIndexResponse {
+    const message = {
+      ...baseQueryGetActiveGuardianSetIndexResponse,
+    } as QueryGetActiveGuardianSetIndexResponse;
+    if (
+      object.ActiveGuardianSetIndex !== undefined &&
+      object.ActiveGuardianSetIndex !== null
+    ) {
+      message.ActiveGuardianSetIndex = ActiveGuardianSetIndex.fromJSON(
+        object.ActiveGuardianSetIndex
+      );
+    } else {
+      message.ActiveGuardianSetIndex = undefined;
+    }
+    return message;
+  },
+
+  toJSON(message: QueryGetActiveGuardianSetIndexResponse): unknown {
+    const obj: any = {};
+    message.ActiveGuardianSetIndex !== undefined &&
+      (obj.ActiveGuardianSetIndex = message.ActiveGuardianSetIndex
+        ? ActiveGuardianSetIndex.toJSON(message.ActiveGuardianSetIndex)
+        : undefined);
+    return obj;
+  },
+
+  fromPartial(
+    object: DeepPartial<QueryGetActiveGuardianSetIndexResponse>
+  ): QueryGetActiveGuardianSetIndexResponse {
+    const message = {
+      ...baseQueryGetActiveGuardianSetIndexResponse,
+    } as QueryGetActiveGuardianSetIndexResponse;
+    if (
+      object.ActiveGuardianSetIndex !== undefined &&
+      object.ActiveGuardianSetIndex !== null
+    ) {
+      message.ActiveGuardianSetIndex = ActiveGuardianSetIndex.fromPartial(
+        object.ActiveGuardianSetIndex
+      );
+    } else {
+      message.ActiveGuardianSetIndex = undefined;
+    }
+    return message;
+  },
+};
+
+const baseQueryGetGuardianValidatorRequest: object = {};
+
+export const QueryGetGuardianValidatorRequest = {
+  encode(
+    message: QueryGetGuardianValidatorRequest,
+    writer: Writer = Writer.create()
+  ): Writer {
+    if (message.guardianKey.length !== 0) {
+      writer.uint32(10).bytes(message.guardianKey);
+    }
+    return writer;
+  },
+
+  decode(
+    input: Reader | Uint8Array,
+    length?: number
+  ): QueryGetGuardianValidatorRequest {
+    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = {
+      ...baseQueryGetGuardianValidatorRequest,
+    } as QueryGetGuardianValidatorRequest;
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          message.guardianKey = reader.bytes();
+          break;
+        default:
+          reader.skipType(tag & 7);
+          break;
+      }
+    }
+    return message;
+  },
+
+  fromJSON(object: any): QueryGetGuardianValidatorRequest {
+    const message = {
+      ...baseQueryGetGuardianValidatorRequest,
+    } as QueryGetGuardianValidatorRequest;
+    if (object.guardianKey !== undefined && object.guardianKey !== null) {
+      message.guardianKey = bytesFromBase64(object.guardianKey);
+    }
+    return message;
+  },
+
+  toJSON(message: QueryGetGuardianValidatorRequest): unknown {
+    const obj: any = {};
+    message.guardianKey !== undefined &&
+      (obj.guardianKey = base64FromBytes(
+        message.guardianKey !== undefined
+          ? message.guardianKey
+          : new Uint8Array()
+      ));
+    return obj;
+  },
+
+  fromPartial(
+    object: DeepPartial<QueryGetGuardianValidatorRequest>
+  ): QueryGetGuardianValidatorRequest {
+    const message = {
+      ...baseQueryGetGuardianValidatorRequest,
+    } as QueryGetGuardianValidatorRequest;
+    if (object.guardianKey !== undefined && object.guardianKey !== null) {
+      message.guardianKey = object.guardianKey;
+    } else {
+      message.guardianKey = new Uint8Array();
+    }
+    return message;
+  },
+};
+
+const baseQueryGetGuardianValidatorResponse: object = {};
+
+export const QueryGetGuardianValidatorResponse = {
+  encode(
+    message: QueryGetGuardianValidatorResponse,
+    writer: Writer = Writer.create()
+  ): Writer {
+    if (message.guardianValidator !== undefined) {
+      GuardianValidator.encode(
+        message.guardianValidator,
+        writer.uint32(10).fork()
+      ).ldelim();
+    }
+    return writer;
+  },
+
+  decode(
+    input: Reader | Uint8Array,
+    length?: number
+  ): QueryGetGuardianValidatorResponse {
+    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = {
+      ...baseQueryGetGuardianValidatorResponse,
+    } as QueryGetGuardianValidatorResponse;
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          message.guardianValidator = GuardianValidator.decode(
+            reader,
+            reader.uint32()
+          );
+          break;
+        default:
+          reader.skipType(tag & 7);
+          break;
+      }
+    }
+    return message;
+  },
+
+  fromJSON(object: any): QueryGetGuardianValidatorResponse {
+    const message = {
+      ...baseQueryGetGuardianValidatorResponse,
+    } as QueryGetGuardianValidatorResponse;
+    if (
+      object.guardianValidator !== undefined &&
+      object.guardianValidator !== null
+    ) {
+      message.guardianValidator = GuardianValidator.fromJSON(
+        object.guardianValidator
+      );
+    } else {
+      message.guardianValidator = undefined;
+    }
+    return message;
+  },
+
+  toJSON(message: QueryGetGuardianValidatorResponse): unknown {
+    const obj: any = {};
+    message.guardianValidator !== undefined &&
+      (obj.guardianValidator = message.guardianValidator
+        ? GuardianValidator.toJSON(message.guardianValidator)
+        : undefined);
+    return obj;
+  },
+
+  fromPartial(
+    object: DeepPartial<QueryGetGuardianValidatorResponse>
+  ): QueryGetGuardianValidatorResponse {
+    const message = {
+      ...baseQueryGetGuardianValidatorResponse,
+    } as QueryGetGuardianValidatorResponse;
+    if (
+      object.guardianValidator !== undefined &&
+      object.guardianValidator !== null
+    ) {
+      message.guardianValidator = GuardianValidator.fromPartial(
+        object.guardianValidator
+      );
+    } else {
+      message.guardianValidator = undefined;
+    }
+    return message;
+  },
+};
+
+const baseQueryAllGuardianValidatorRequest: object = {};
+
+export const QueryAllGuardianValidatorRequest = {
+  encode(
+    message: QueryAllGuardianValidatorRequest,
+    writer: Writer = Writer.create()
+  ): Writer {
+    if (message.pagination !== undefined) {
+      PageRequest.encode(message.pagination, writer.uint32(10).fork()).ldelim();
+    }
+    return writer;
+  },
+
+  decode(
+    input: Reader | Uint8Array,
+    length?: number
+  ): QueryAllGuardianValidatorRequest {
+    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = {
+      ...baseQueryAllGuardianValidatorRequest,
+    } as QueryAllGuardianValidatorRequest;
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          message.pagination = PageRequest.decode(reader, reader.uint32());
+          break;
+        default:
+          reader.skipType(tag & 7);
+          break;
+      }
+    }
+    return message;
+  },
+
+  fromJSON(object: any): QueryAllGuardianValidatorRequest {
+    const message = {
+      ...baseQueryAllGuardianValidatorRequest,
+    } as QueryAllGuardianValidatorRequest;
+    if (object.pagination !== undefined && object.pagination !== null) {
+      message.pagination = PageRequest.fromJSON(object.pagination);
+    } else {
+      message.pagination = undefined;
+    }
+    return message;
+  },
+
+  toJSON(message: QueryAllGuardianValidatorRequest): unknown {
+    const obj: any = {};
+    message.pagination !== undefined &&
+      (obj.pagination = message.pagination
+        ? PageRequest.toJSON(message.pagination)
+        : undefined);
+    return obj;
+  },
+
+  fromPartial(
+    object: DeepPartial<QueryAllGuardianValidatorRequest>
+  ): QueryAllGuardianValidatorRequest {
+    const message = {
+      ...baseQueryAllGuardianValidatorRequest,
+    } as QueryAllGuardianValidatorRequest;
+    if (object.pagination !== undefined && object.pagination !== null) {
+      message.pagination = PageRequest.fromPartial(object.pagination);
+    } else {
+      message.pagination = undefined;
+    }
+    return message;
+  },
+};
+
+const baseQueryAllGuardianValidatorResponse: object = {};
+
+export const QueryAllGuardianValidatorResponse = {
+  encode(
+    message: QueryAllGuardianValidatorResponse,
+    writer: Writer = Writer.create()
+  ): Writer {
+    for (const v of message.guardianValidator) {
+      GuardianValidator.encode(v!, writer.uint32(10).fork()).ldelim();
+    }
+    if (message.pagination !== undefined) {
+      PageResponse.encode(
+        message.pagination,
+        writer.uint32(18).fork()
+      ).ldelim();
+    }
+    return writer;
+  },
+
+  decode(
+    input: Reader | Uint8Array,
+    length?: number
+  ): QueryAllGuardianValidatorResponse {
+    const reader = input instanceof Uint8Array ? new Reader(input) : input;
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = {
+      ...baseQueryAllGuardianValidatorResponse,
+    } as QueryAllGuardianValidatorResponse;
+    message.guardianValidator = [];
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          message.guardianValidator.push(
+            GuardianValidator.decode(reader, reader.uint32())
+          );
+          break;
+        case 2:
+          message.pagination = PageResponse.decode(reader, reader.uint32());
+          break;
+        default:
+          reader.skipType(tag & 7);
+          break;
+      }
+    }
+    return message;
+  },
+
+  fromJSON(object: any): QueryAllGuardianValidatorResponse {
+    const message = {
+      ...baseQueryAllGuardianValidatorResponse,
+    } as QueryAllGuardianValidatorResponse;
+    message.guardianValidator = [];
+    if (
+      object.guardianValidator !== undefined &&
+      object.guardianValidator !== null
+    ) {
+      for (const e of object.guardianValidator) {
+        message.guardianValidator.push(GuardianValidator.fromJSON(e));
+      }
+    }
+    if (object.pagination !== undefined && object.pagination !== null) {
+      message.pagination = PageResponse.fromJSON(object.pagination);
+    } else {
+      message.pagination = undefined;
+    }
+    return message;
+  },
+
+  toJSON(message: QueryAllGuardianValidatorResponse): unknown {
+    const obj: any = {};
+    if (message.guardianValidator) {
+      obj.guardianValidator = message.guardianValidator.map((e) =>
+        e ? GuardianValidator.toJSON(e) : undefined
+      );
+    } else {
+      obj.guardianValidator = [];
+    }
+    message.pagination !== undefined &&
+      (obj.pagination = message.pagination
+        ? PageResponse.toJSON(message.pagination)
+        : undefined);
+    return obj;
+  },
+
+  fromPartial(
+    object: DeepPartial<QueryAllGuardianValidatorResponse>
+  ): QueryAllGuardianValidatorResponse {
+    const message = {
+      ...baseQueryAllGuardianValidatorResponse,
+    } as QueryAllGuardianValidatorResponse;
+    message.guardianValidator = [];
+    if (
+      object.guardianValidator !== undefined &&
+      object.guardianValidator !== null
+    ) {
+      for (const e of object.guardianValidator) {
+        message.guardianValidator.push(GuardianValidator.fromPartial(e));
+      }
+    }
+    if (object.pagination !== undefined && object.pagination !== null) {
+      message.pagination = PageResponse.fromPartial(object.pagination);
+    } else {
+      message.pagination = undefined;
+    }
+    return message;
+  },
+};
+
 /** Query defines the gRPC querier service. */
 export interface Query {
   /** Queries a guardianSet by index. */
@@ -1189,6 +1695,18 @@ export interface Query {
   SequenceCounterAll(
     request: QueryAllSequenceCounterRequest
   ): Promise<QueryAllSequenceCounterResponse>;
+  /** Queries a ActiveGuardianSetIndex by index. */
+  ActiveGuardianSetIndex(
+    request: QueryGetActiveGuardianSetIndexRequest
+  ): Promise<QueryGetActiveGuardianSetIndexResponse>;
+  /** Queries a GuardianValidator by index. */
+  GuardianValidator(
+    request: QueryGetGuardianValidatorRequest
+  ): Promise<QueryGetGuardianValidatorResponse>;
+  /** Queries a list of GuardianValidator items. */
+  GuardianValidatorAll(
+    request: QueryAllGuardianValidatorRequest
+  ): Promise<QueryAllGuardianValidatorResponse>;
 }
 
 export class QueryClientImpl implements Query {
@@ -1291,6 +1809,48 @@ export class QueryClientImpl implements Query {
       QueryAllSequenceCounterResponse.decode(new Reader(data))
     );
   }
+
+  ActiveGuardianSetIndex(
+    request: QueryGetActiveGuardianSetIndexRequest
+  ): Promise<QueryGetActiveGuardianSetIndexResponse> {
+    const data = QueryGetActiveGuardianSetIndexRequest.encode(request).finish();
+    const promise = this.rpc.request(
+      "certusone.wormholechain.wormhole.Query",
+      "ActiveGuardianSetIndex",
+      data
+    );
+    return promise.then((data) =>
+      QueryGetActiveGuardianSetIndexResponse.decode(new Reader(data))
+    );
+  }
+
+  GuardianValidator(
+    request: QueryGetGuardianValidatorRequest
+  ): Promise<QueryGetGuardianValidatorResponse> {
+    const data = QueryGetGuardianValidatorRequest.encode(request).finish();
+    const promise = this.rpc.request(
+      "certusone.wormholechain.wormhole.Query",
+      "GuardianValidator",
+      data
+    );
+    return promise.then((data) =>
+      QueryGetGuardianValidatorResponse.decode(new Reader(data))
+    );
+  }
+
+  GuardianValidatorAll(
+    request: QueryAllGuardianValidatorRequest
+  ): Promise<QueryAllGuardianValidatorResponse> {
+    const data = QueryAllGuardianValidatorRequest.encode(request).finish();
+    const promise = this.rpc.request(
+      "certusone.wormholechain.wormhole.Query",
+      "GuardianValidatorAll",
+      data
+    );
+    return promise.then((data) =>
+      QueryAllGuardianValidatorResponse.decode(new Reader(data))
+    );
+  }
 }
 
 interface Rpc {
@@ -1299,6 +1859,39 @@ interface Rpc {
     method: string,
     data: Uint8Array
   ): Promise<Uint8Array>;
+}
+
+declare var self: any | undefined;
+declare var window: any | undefined;
+var globalThis: any = (() => {
+  if (typeof globalThis !== "undefined") return globalThis;
+  if (typeof self !== "undefined") return self;
+  if (typeof window !== "undefined") return window;
+  if (typeof global !== "undefined") return global;
+  throw "Unable to locate global object";
+})();
+
+const atob: (b64: string) => string =
+  globalThis.atob ||
+  ((b64) => globalThis.Buffer.from(b64, "base64").toString("binary"));
+function bytesFromBase64(b64: string): Uint8Array {
+  const bin = atob(b64);
+  const arr = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; ++i) {
+    arr[i] = bin.charCodeAt(i);
+  }
+  return arr;
+}
+
+const btoa: (bin: string) => string =
+  globalThis.btoa ||
+  ((bin) => globalThis.Buffer.from(bin, "binary").toString("base64"));
+function base64FromBytes(arr: Uint8Array): string {
+  const bin: string[] = [];
+  for (let i = 0; i < arr.byteLength; ++i) {
+    bin.push(String.fromCharCode(arr[i]));
+  }
+  return btoa(bin.join(""));
 }
 
 type Builtin = Date | Function | Uint8Array | string | number | undefined;
