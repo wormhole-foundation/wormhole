@@ -2,11 +2,28 @@ package common
 
 import (
 	"fmt"
+	"sync"
+	"time"
+
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/libp2p/go-libp2p-core/peer"
-	"sync"
-	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
+)
+
+var (
+	gsIndex = promauto.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "wormhole_guardian_set_index",
+			Help: "The guardians set index",
+		})
+	gsSigners = promauto.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "wormhole_guardian_set_signers",
+			Help: "Number of signers in the guardian set.",
+		})
 )
 
 // MaxGuardianCount specifies the maximum number of guardians supported by on-chain contracts.
@@ -75,6 +92,8 @@ func NewGuardianSetState() *GuardianSetState {
 
 func (st *GuardianSetState) Set(set *GuardianSet) {
 	st.mu.Lock()
+	gsIndex.Set(float64(set.Index))
+	gsSigners.Set(float64(len(set.Keys)))
 	defer st.mu.Unlock()
 
 	st.current = set
