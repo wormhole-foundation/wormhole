@@ -1,15 +1,18 @@
 import { PageProps } from "gatsby";
 import { Box, } from "@mui/material";
-import * as React from "react";
+import React, { useEffect } from "react";
 import ExplorerSearch from "../components/ExplorerSearch/ExplorerSearch"
 import ExplorerStats from "../components/ExplorerStats/ExplorerStats";
 import HeroText from "../components/HeroText";
 import Layout from "../components/Layout";
 import NetworkSelect from "../components/NetworkSelect";
-import shape1 from "../images/index/shape1.svg";
+import shape1 from "../images/index/shape2.svg";
 import { SEO } from "../components/SEO";
 import shapes from "../images/shape.png";
 
+import { paralaxGsap, animateSwirl } from "../utils/animations";
+import { gsap } from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 interface ExplorerQueryValues {
   emitterChain: number;
@@ -63,6 +66,23 @@ const ExplorerPage = ({ location }: PageProps) => {
     setDoneReadingQueryParams(true);
   }, [location.search]);
 
+
+  const headerImage = React.useRef<HTMLCanvasElement>(null);
+  const gradient_1 = React.useRef<HTMLCanvasElement>(null);
+  const shapeRight = React.useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+
+    gsap.registerPlugin(ScrollTrigger);
+    var viewportWidth = window.innerWidth || document.documentElement.clientWidth;
+    if (viewportWidth > 992) {
+      animateSwirl(headerImage);
+      paralaxGsap(gradient_1, 1000, "-50% 100%");
+      paralaxGsap(shapeRight, 200, "20% 100%");
+    }
+    
+  }, [])
+
   return (
     <Layout>
       <SEO
@@ -86,10 +106,11 @@ const ExplorerPage = ({ location }: PageProps) => {
             }}
           />
         <Box
+          ref={headerImage}
           sx={{
             position: "absolute",
             zIndex: -1,
-            transform: "translate(0px, -25%) scaleX(-1)",
+            transform: "translate(0px, -25%)",
             background: `url(${shape1})`,
             backgroundRepeat: "no-repeat",
             backgroundPosition: "top -540px center",
@@ -108,6 +129,7 @@ const ExplorerPage = ({ location }: PageProps) => {
       </Box>
       <Box sx={{position: 'relative'}}>
       <Box
+          ref={gradient_1}
           sx={{
             position: "absolute",
             zIndex: -2,
@@ -122,6 +144,7 @@ const ExplorerPage = ({ location }: PageProps) => {
           }}
         /> 
       <Box
+            ref={shapeRight}
             sx={{
               position: "absolute",
               zIndex: -1,
