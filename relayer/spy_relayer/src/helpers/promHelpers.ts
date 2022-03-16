@@ -67,8 +67,19 @@ export class PromHelper {
   });
 
   constructor(name: string, port: number, mode: PromMode) {
+    var mode_name:string = "";
+    // Human readable mode name for the metrics
+    if (mode === PromMode.Listen) {
+      mode_name = "listener";
+    } else if (mode === PromMode.Relay) {
+      mode_name = "relayer";
+    } else if (mode === PromMode.Both) {
+      mode_name = "both";
+    }
+
     this._register.setDefaultLabels({
       app: name,
+      mode: mode_name,
     });
     this.collectDefaultMetrics({ register: this._register, prefix: "relayer_" });
 
