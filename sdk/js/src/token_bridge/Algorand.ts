@@ -453,7 +453,7 @@ export async function decodeLocalState(
     client: algosdk.Algodv2,
     appId: number,
     address: string
-): Promise<string> {
+): Promise<Uint8Array> {
     let app_state = null;
     const ai = await client.accountInformation(address).do();
     for (const app of ai["apps-local-state"]) {
@@ -482,7 +482,7 @@ export async function decodeLocalState(
             ret += vals.get(parseInt(k));
         }
     }
-    return ret;
+    return hexStringToUint8Array(ret);
 }
 
 export async function compileTeal(
@@ -568,7 +568,11 @@ export async function submitVAA(
         }
         accts.push(chainAddr);
     }
-    const keys: string = await decodeLocalState(client, CORE_ID, guardianAddr);
+    const keys: Uint8Array = await decodeLocalState(
+        client,
+        CORE_ID,
+        guardianAddr
+    );
     const params: algosdk.SuggestedParams = await client
         .getTransactionParams()
         .do();
@@ -643,8 +647,7 @@ export async function submitVAA(
             // Use that index to get the appropriate guardian key
             const idx = sigs[i * SIG_LEN];
             const key = keys.slice(idx * GuardianKeyLen + 1, 20);
-            const uKey = hexStringToUint8Array(key);
-            keySet.set(uKey, i * 20);
+            keySet.set(key, i * 20);
         }
 
         const appTxn = makeApplicationCallTxnFromObject({
