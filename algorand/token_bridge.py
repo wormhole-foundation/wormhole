@@ -62,13 +62,33 @@ def clear_token_bridge():
 
 def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
     blob = LocalBlob()
+    tidx = ScratchVar()
+    mfee = ScratchVar()
 
     @Subroutine(TealType.uint64)
     def governanceSet() -> Expr:
         maybe = App.globalGetEx(App.globalGet(Bytes("coreid")), Bytes("currentGuardianSetIndex"))
-        
         return Seq(maybe, Assert(maybe.hasValue()), maybe.value())
-    
+
+    @Subroutine(TealType.uint64)
+    def getMessageFee() -> Expr:
+        maybe = App.globalGetEx(App.globalGet(Bytes("coreid")), Bytes("MessageFee"))
+        return Seq(maybe, Assert(maybe.hasValue()), maybe.value())
+
+    @Subroutine(TealType.none)
+    def checkFeePmt(off : Expr):
+        return Seq([
+            If(mfee.load() > Int(0), Seq([
+                    tidx.store(Txn.group_index() - off),
+                    Assert(And(
+                        Gtxn[tidx.load()].type_enum() == TxnType.Payment,
+                        Gtxn[tidx.load()].sender() == Txn.sender(),
+                        Gtxn[tidx.load()].receiver() == Global.current_application_address(),
+                        Gtxn[tidx.load()].rekey_to() == Global.zero_address(),
+                        Gtxn[tidx.load()].amount() >= mfee.load()
+                    ))
+            ]))
+        ])
     
     @Subroutine(TealType.bytes)
     def encode_uvarint(val: Expr, b: Expr):
@@ -259,8 +279,6 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
         c = ScratchVar()
         a = ScratchVar()
 
-        tidx = ScratchVar()
-        
         return Seq([
             checkForDuplicate(),
 
@@ -431,7 +449,6 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
         d = ScratchVar()
         zb = ScratchVar()
         action = ScratchVar()
-        tidx = ScratchVar()
         
         return Seq([
             checkForDuplicate(),
@@ -628,9 +645,10 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
         zb = ScratchVar()
         factor = ScratchVar()
         fee = ScratchVar()
-        tidx = ScratchVar()
 
         return Seq([
+            mfee.store(getMessageFee()),
+
             zb.store(BytesZero(Int(32))),
 
             aid.store(Btoi(Txn.application_args[1])),
@@ -648,6 +666,8 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
             # what should we pass as a fee...
             fee.store(Btoi(Txn.application_args[5])),
 
+            checkFeePmt(Int(2)),
+
             tidx.store(Txn.group_index() - Int(1)),
 
             If(aid.load() == Int(0),
@@ -660,10 +680,12 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
                        Gtxn[tidx.load()].rekey_to() == Global.zero_address(),
                    )),
                    amount.store(Gtxn[tidx.load()].amount()),
+                   
                    Assert(fee.load() < amount.load()),
                    amount.store(amount.load() - fee.load())
                ]),
                Seq([
+
                    Assert(And(
                        # The previous txn is the asset transfer itself
                        Gtxn[tidx.load()].type_enum() == TxnType.AssetTransfer,
@@ -673,6 +695,7 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
                        Gtxn[tidx.load()].rekey_to() == Global.zero_address(),
                    )),
                    amount.store(Gtxn[tidx.load()].asset_amount()),
+
 
                    # peal the fee off the amount
                    Assert(fee.load() <= amount.load()),
@@ -806,6 +829,10 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
         FromChain = ScratchVar()
 
         return Seq([
+            mfee.store(getMessageFee()),
+
+            checkFeePmt(Int(1)),
+
             aid.store(Btoi(Txn.application_args[1])),
             # Is the authorizing signature of the creator of the asset the address of the token_bridge app itself?
             If(auth_addr(extract_creator(aid.load())) == Global.current_application_address(),
