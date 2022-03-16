@@ -643,6 +643,8 @@ export async function submitVAA(
             // Use that index to get the appropriate guardian key
             const idx = sigs[i * SIG_LEN];
             const key = keys.slice(idx * GuardianKeyLen + 1, 20);
+            const uKey = hexStringToUint8Array(key);
+            keySet.set(uKey, i * 20);
         }
 
         const appTxn = makeApplicationCallTxnFromObject({
