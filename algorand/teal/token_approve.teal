@@ -368,7 +368,7 @@ gtxns AssetAmount
 store 55
 load 63
 load 55
-<
+<=
 assert
 load 55
 load 63
@@ -817,7 +817,7 @@ int 8
 assert
 load 49
 load 44
-<
+<=
 assert
 load 53
 int 3
@@ -858,16 +858,16 @@ load 47
 itxn_field AssetReceiver
 int 0
 itxn_field Fee
-itxn_submit
 load 49
 int 0
 >
 bnz main_l50
 main_l49:
+itxn_submit
 int 1
 return
 main_l50:
-itxn_begin
+itxn_next
 txna Accounts 3
 itxn_field Sender
 int axfer
@@ -880,7 +880,6 @@ txn Sender
 itxn_field AssetReceiver
 int 0
 itxn_field Fee
-itxn_submit
 b main_l49
 main_l51:
 load 45
@@ -927,16 +926,16 @@ load 44
 itxn_field Amount
 int 0
 itxn_field Fee
-itxn_submit
 load 49
 int 0
 >
 bnz main_l56
 main_l55:
+itxn_submit
 int 1
 return
 main_l56:
-itxn_begin
+itxn_next
 txna Accounts 3
 itxn_field Sender
 int pay
@@ -947,7 +946,6 @@ load 49
 itxn_field Amount
 int 0
 itxn_field Fee
-itxn_submit
 b main_l55
 main_l57:
 load 47

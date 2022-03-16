@@ -471,7 +471,7 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
             # This directed at us?
             Assert(DestChain.load() == Int(8)),
 
-            Assert(Fee.load() < Amount.load()),
+            Assert(Fee.load() <= Amount.load()),
 
             If (action.load() == Int(3), Assert(Destination.load() == Txn.sender())),
 
@@ -562,7 +562,6 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
                             TxnField.fee: Int(0),
                         }
                     ),
-                    InnerTxnBuilder.Submit(),
             ])),
             InnerTxnBuilder.Submit(),
 
@@ -655,7 +654,7 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
                    amount.store(Gtxn[Txn.group_index() - Int(1)].asset_amount()),
 
                    # peal the fee off the amount
-                   Assert(fee.load() < amount.load()),
+                   Assert(fee.load() <= amount.load()),
                    amount.store(amount.load() - fee.load()),
 
                    factor.store(getFactor(Btoi(extract_decimal(aid.load())))),
@@ -668,6 +667,7 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
                     ),       # If(factor.load() != Int(1),
                ]),
             ),
+
 
             # If it is nothing but dust lets just abort the whole transaction and save 
             Assert(And(amount.load() > Int(0), fee.load() >= Int(0))),
