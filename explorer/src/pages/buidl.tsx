@@ -6,7 +6,7 @@ import {
   TimelineSeparator,
 } from "@mui/lab";
 import { Box, Typography } from "@mui/material";
-import * as React from "react";
+import React, { useEffect } from "react";
 import { PageProps } from 'gatsby'
 import AvoidBreak from "../components/AvoidBreak";
 import HeroText from "../components/HeroText";
@@ -18,7 +18,37 @@ import shape1 from "../images/index/shape1.svg";
 import { SEO } from "../components/SEO";
 import shapes from "../images/shape.png";
 
+import { gsap } from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { paralaxGsap, animateSwirl, fadeInGsap } from "../utils/animations";
+
 const BuidlPage = ({ location }: PageProps) => {
+
+  const headerImage = React.useRef<HTMLCanvasElement>(null);
+  const gradient1 = React.useRef<HTMLCanvasElement>(null);
+  const gradient2 = React.useRef<HTMLCanvasElement>(null);
+  const shapeLeft = React.useRef<HTMLCanvasElement>(null);
+  const shapeRight = React.useRef<HTMLCanvasElement>(null);
+
+  const row1 = React.useRef<HTMLCanvasElement>(null);
+  const row2 = React.useRef<HTMLCanvasElement>(null);
+  const row3 = React.useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+
+    gsap.registerPlugin(ScrollTrigger);
+
+    animateSwirl(headerImage);
+    paralaxGsap(gradient1, 1000, "-50% 100%");
+    paralaxGsap(gradient2, 1000, "-50% 100%");
+    paralaxGsap(shapeLeft, 200, "20% 100%");
+    paralaxGsap(shapeRight, 200, "20% 100%");
+
+    fadeInGsap(row1);
+    fadeInGsap(row2);
+    fadeInGsap(row3);
+  }, [])
+
   return (
     <Layout>
       <SEO
@@ -42,6 +72,7 @@ const BuidlPage = ({ location }: PageProps) => {
             }}
           />   
         <Box
+          ref={headerImage}
           sx={{
             position: "absolute",
             zIndex: -1,
@@ -75,6 +106,7 @@ const BuidlPage = ({ location }: PageProps) => {
       </Box>
       <Box sx={{position: 'relative'}}>
           <Box
+              ref={gradient1}
               sx={{
                 position: "absolute",
                 zIndex: -2,
@@ -89,6 +121,7 @@ const BuidlPage = ({ location }: PageProps) => {
               }}
             />   
           <Box
+              ref={gradient2}
               sx={{
                 position: "absolute",
                 zIndex: -2,
@@ -103,6 +136,7 @@ const BuidlPage = ({ location }: PageProps) => {
               }}
             />   
       <Box
+            ref={shapeLeft}
             sx={{
               position: "absolute",
               zIndex: -1,
@@ -117,6 +151,7 @@ const BuidlPage = ({ location }: PageProps) => {
             }}
           />
         <Box
+            ref={shapeRight}
             sx={{
               position: "absolute",
               zIndex: -1,
@@ -134,6 +169,7 @@ const BuidlPage = ({ location }: PageProps) => {
 
         <Box sx={{ m: "auto", maxWidth: 1164, px: 3.75, mt: 15.5 }}>
           <Box
+            ref={row1}
             sx={{
               display: "flex",
               flexWrap: "wrap",
@@ -178,6 +214,7 @@ const BuidlPage = ({ location }: PageProps) => {
             </Box>
           </Box>
           <Box
+            ref={row2}
             sx={{
               display: "flex",
               flexWrap: "wrap-reverse",
@@ -223,6 +260,7 @@ const BuidlPage = ({ location }: PageProps) => {
             </Box>
           </Box>
           <Box
+            ref={row3}
             sx={{
               display: "flex",
               flexWrap: "wrap",

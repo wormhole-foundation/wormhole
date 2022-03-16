@@ -1,7 +1,10 @@
 import { Box, IconButton, Link, Typography } from "@mui/material";
 import { Link as RouterLink } from "gatsby";
 
-import React from "react";
+import { gsap } from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+
+import React, { useEffect } from "react";
 import Discord from "../images/Discord.svg";
 import shape from "../images/footer/shape.svg";
 import Github from "../images/Github.svg";
@@ -40,11 +43,37 @@ const socialIcon = {
   },
 };
 
-const Footer = () => (
- <>
+  const Footer = () => {
+
+  const shapeLeftf = React.useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+
+    gsap.registerPlugin(ScrollTrigger);
+
+    var viewportWidth = window.innerWidth || document.documentElement.clientWidth;
+    if (viewportWidth > 768) {
+      gsap.from(shapeLeftf.current, {
+        y: 200,
+        x: 200,
+        ease: "Power3.easeOut",
+        scrollTrigger: {
+          trigger: shapeLeftf.current,
+          start: "60% 100%",
+          scrub: 1
+        },
+      })
+    }
+
+    
+  }, [])  
+
+
+  return (
  
   <Box sx={{ position: "relative" }}>
     <Box
+      ref={shapeLeftf}
       sx={{
         position: "absolute",
         zIndex: -1,
@@ -275,6 +304,6 @@ const Footer = () => (
     </Box>
   </Box>
  
-</>
-);
+)
+}
 export default Footer;
