@@ -35,7 +35,7 @@ func (k Keeper) UpdateGuardianSet(ctx sdk.Context, newGuardianSet types.Guardian
 
 	// Expire old set
 	oldSet.ExpirationTime = uint64(ctx.BlockTime().Unix()) + config.GuardianSetExpiration
-	k.SetGuardianSet(ctx, oldSet)
+	k.setGuardianSet(ctx, oldSet)
 
 	// Emit event
 	err := ctx.EventManager().EmitTypedEvent(&types.EventGuardianSetUpdate{
@@ -139,7 +139,7 @@ func (k Keeper) AppendGuardianSet(
 }
 
 // SetGuardianSet set a specific guardianSet in the store
-func (k Keeper) SetGuardianSet(ctx sdk.Context, guardianSet types.GuardianSet) {
+func (k Keeper) setGuardianSet(ctx sdk.Context, guardianSet types.GuardianSet) {
 	store := prefix.NewStore(ctx.KVStore(k.storeKey), types.KeyPrefix(types.GuardianSetKey))
 	b := k.cdc.MustMarshal(&guardianSet)
 	store.Set(GetGuardianSetIDBytes(guardianSet.Index), b)
@@ -184,12 +184,6 @@ func (k Keeper) IsConsensusGuardian(ctx sdk.Context, addr sdk.ValAddress) (bool,
 	}
 
 	return isConsensusGuardian, nil
-}
-
-// RemoveGuardianSet removes a guardianSet from the store
-func (k Keeper) RemoveGuardianSet(ctx sdk.Context, id uint32) {
-	store := prefix.NewStore(ctx.KVStore(k.storeKey), types.KeyPrefix(types.GuardianSetKey))
-	store.Delete(GetGuardianSetIDBytes(id))
 }
 
 // GetAllGuardianSet returns all guardianSet

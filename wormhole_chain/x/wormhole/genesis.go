@@ -44,7 +44,6 @@ func ExportGenesis(ctx sdk.Context, k keeper.Keeper) *types.GenesisState {
 	genesis := types.DefaultGenesis()
 
 	genesis.GuardianSetList = k.GetAllGuardianSet(ctx)
-	genesis.GuardianSetCount = uint32(len(genesis.GuardianSetList))
 
 	// Get all config
 	config, found := k.GetConfig(ctx)

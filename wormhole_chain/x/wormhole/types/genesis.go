@@ -23,11 +23,6 @@ func DefaultGenesis() *GenesisState {
 // Validate performs basic genesis state validation returning an error upon any
 // failure.
 func (gs GenesisState) Validate() error {
-	// Check if the guardian set count doesn't match the list.
-	if len(gs.GuardianSetList) != int(gs.GuardianSetCount) {
-		return fmt.Errorf("invalid guardian set count")
-	}
-
 	// Check for duplicated ID in guardianSet
 	guardianSetIdMap := make(map[uint32]bool)
 	for _, elem := range gs.GuardianSetList {
