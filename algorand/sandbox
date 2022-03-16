@@ -5,6 +5,8 @@ set -e
 
 # ./sandbox reset; python3 admin.py --devnet --boot
 
+# python3 admin.py --devnet --genTeal
+
 PARENT_DIR=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )
 SANDBOX_DIR=$PARENT_DIR/_sandbox
 if [ ! -d "$SANDBOX_DIR" ]; then
