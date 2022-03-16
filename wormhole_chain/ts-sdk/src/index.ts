@@ -163,29 +163,31 @@ export async function unpackHttpReponse<T>(
 }
 
 export function fromAccAddress(address: string): BinaryAddress {
-  return { words: Buffer.from(bech32.decode(address).words) };
+  return { bytes: Buffer.from(bech32.fromWords(bech32.decode(address).words)) };
 }
 
 export function fromValAddress(valAddress: string): BinaryAddress {
-  return { words: Buffer.from(bech32.decode(valAddress).words) };
+  return {
+    bytes: Buffer.from(bech32.fromWords(bech32.decode(valAddress).words)),
+  };
 }
 
 export function fromBase64(address: string): BinaryAddress {
-  return { words: Buffer.from(bech32.toWords(Buffer.from(address, "base64"))) };
+  return { bytes: Buffer.from(address, "base64") };
 }
 
 export function toAccAddress(address: BinaryAddress): string {
-  return bech32.encode(ADDRESS_PREFIX, address.words);
+  return bech32.encode(ADDRESS_PREFIX, bech32.toWords(address.bytes));
 }
 
 export function toValAddress(address: BinaryAddress): string {
-  return bech32.encode(OPERATOR_PREFIX, address.words);
+  return bech32.encode(OPERATOR_PREFIX, bech32.toWords(address.bytes));
 }
 
 export function toBase64(address: BinaryAddress): string {
-  return Buffer.from(bech32.fromWords(address.words)).toString("base64");
+  return Buffer.from(address.bytes).toString("base64");
 }
 
 type BinaryAddress = {
-  words: Uint8Array;
+  bytes: Uint8Array;
 };
