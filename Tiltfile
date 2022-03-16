@@ -208,6 +208,16 @@ k8s_resource(
     trigger_mode = trigger_mode,
 )
 
+if num_guardians >= 2:
+    local_resource(
+        name = "guardian-set-update",
+        resource_deps = guardian_resource_deps,
+        deps = ["scripts/send-vaa.sh", "clients/eth"],
+        cmd = './scripts/update-guardian-set.sh %s' % (num_guardians),
+        labels = ["guardian"],
+        trigger_mode = trigger_mode,
+    )
+
 # spy
 k8s_yaml_with_ns("devnet/spy.yaml")
 
