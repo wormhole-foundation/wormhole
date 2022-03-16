@@ -15,11 +15,10 @@ option go_package = "github.com/certusone/wormhole-chain/x/wormhole/types";
 // GenesisState defines the wormhole module's genesis state.
 message GenesisState {
   repeated GuardianSet guardianSetList = 1 [(gogoproto.nullable) = false];
-  uint32 guardianSetCount = 2;
-  Config config = 3;
-  repeated ReplayProtection replayProtectionList = 4 [(gogoproto.nullable) = false];
-  repeated SequenceCounter sequenceCounterList = 5 [(gogoproto.nullable) = false];
-  ActiveGuardianSetIndex activeGuardianSetIndex = 6;
-  repeated GuardianValidator guardianValidatorList = 7 [(gogoproto.nullable) = false];
+  Config config = 2;
+  repeated ReplayProtection replayProtectionList = 3 [(gogoproto.nullable) = false];
+  repeated SequenceCounter sequenceCounterList = 4 [(gogoproto.nullable) = false];
+  ActiveGuardianSetIndex activeGuardianSetIndex = 5;
+  repeated GuardianValidator guardianValidatorList = 6 [(gogoproto.nullable) = false];
   // this line is used by starport scaffolding # genesis/proto/state
 }

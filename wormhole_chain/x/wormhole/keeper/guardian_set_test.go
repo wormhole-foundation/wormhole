@@ -32,16 +32,6 @@ func TestGuardianSetGet(t *testing.T) {
 	}
 }
 
-func TestGuardianSetRemove(t *testing.T) {
-	keeper, ctx := keepertest.WormholeKeeper(t)
-	items := createNGuardianSet(t, keeper, ctx, 10)
-	for _, item := range items {
-		keeper.RemoveGuardianSet(ctx, item.Index)
-		_, found := keeper.GetGuardianSet(ctx, item.Index)
-		require.False(t, found)
-	}
-}
-
 func TestGuardianSetGetAll(t *testing.T) {
 	keeper, ctx := keepertest.WormholeKeeper(t)
 	items := createNGuardianSet(t, keeper, ctx, 10)
