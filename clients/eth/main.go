@@ -3,6 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
+	"strconv"
+
 	"github.com/certusone/wormhole/node/pkg/ethereum/abi"
 	"github.com/certusone/wormhole/node/pkg/vaa"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -11,9 +14,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/spf13/cobra"
-	"math"
-	"os"
-	"strconv"
 )
 
 // rootCmd represents the base command when called without any subcommands
