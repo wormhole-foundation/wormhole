@@ -89,6 +89,22 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
                     ))
             ]))
         ])
+
+    @Subroutine(TealType.none)
+    def sendMfee():
+        return Seq([
+            If (mfee.load() > Int(0), Seq([
+                    InnerTxnBuilder.SetFields(
+                        {
+                            TxnField.type_enum: TxnType.Payment,
+                            TxnField.receiver: App.globalGet(Bytes("coreaddr")),
+                            TxnField.amount: mfee.load(),
+                            TxnField.fee: Int(0),
+                        }
+                    ),
+                    InnerTxnBuilder.Next(),
+            ])),
+        ])
     
     @Subroutine(TealType.bytes)
     def encode_uvarint(val: Expr, b: Expr):
@@ -774,6 +790,7 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
                Assert(Len(p.load()) == Int(133))),
 
             InnerTxnBuilder.Begin(),
+            sendMfee(),
             InnerTxnBuilder.SetFields(
                 {
                     TxnField.type_enum: TxnType.ApplicationCall,
@@ -903,6 +920,7 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
             Assert(Len(p.load()) == Int(100)),
 
             InnerTxnBuilder.Begin(),
+            sendMfee(),
             InnerTxnBuilder.SetFields(
                 {
                     TxnField.type_enum: TxnType.ApplicationCall,
