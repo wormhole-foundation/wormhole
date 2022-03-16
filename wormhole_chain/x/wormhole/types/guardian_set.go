@@ -1,6 +1,7 @@
 package types
 
 import (
+	bytes "bytes"
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -12,6 +13,17 @@ func (gs GuardianSet) KeysAsAddresses() (addresses []common.Address) {
 	}
 
 	return
+}
+
+// TODO(csongor): do we store these ordered? binary search would be better
+func (gs GuardianSet) ContainsKey(key common.Address) (contains bool) {
+	for _, gKey := range gs.Keys {
+		if bytes.Equal(key.Bytes(), gKey) {
+			contains = true
+			break
+		}
+	}
+	return contains
 }
 
 func (gs GuardianSet) ValidateBasic() error {
