@@ -37,7 +37,6 @@ const IndexPage = ({ location }: PageProps) => {
   const [tvl, setTvl] = useState<number | undefined>(undefined)
   const [messageTotal, setMessageTotal] = useState<number | undefined>(undefined)
 
-  let statsInterval: NodeJS.Timer | undefined = undefined
   const controller = new AbortController()
   const { signal } = controller
 
@@ -122,7 +121,6 @@ const IndexPage = ({ location }: PageProps) => {
 
   useEffect(() => {
     fetchStats()  // fetchStats on first load
-    statsInterval = setInterval(fetchStats, 30000) // fetch every 30 seconds
 
     gsap.registerPlugin(ScrollTrigger);
 
@@ -184,10 +182,6 @@ const IndexPage = ({ location }: PageProps) => {
 
 
     return function cleanup() {
-      // clear any ongoing intervals
-      if (statsInterval) {
-        clearInterval(statsInterval);
-      }
       // abort any in-flight requests
       controller.abort();
     }

@@ -335,7 +335,12 @@ const ExplorerStats: React.FC<StatsProps> = ({
       );
   };
 
-  const getData = (props: StatsProps, baseUrl: string, signal: AbortSignal) => {
+  const getData = (props: StatsProps, baseUrl: string, signal: AbortSignal, func: (baseUrl: string,
+    recentGroupBy: GroupBy,
+    totalsGroupBy: GroupBy,
+    forChain: ForChain,
+    forAddress: string | undefined,
+    signal: AbortSignal) => Promise<any>) => {
     let forChain: ForChain = undefined;
     let forAddress: ForAddress = undefined;
     let recentGroupBy: GroupBy = undefined;
@@ -348,6 +353,15 @@ const ExplorerStats: React.FC<StatsProps> = ({
     if (props.emitterChain && props.emitterAddress) {
       forAddress = props.emitterAddress;
     }
+    return func(baseUrl, recentGroupBy, totalsGroupBy, forChain, forAddress, signal)
+  };
+  const getAllEndpoints = (
+    baseUrl: string,
+    recentGroupBy: GroupBy,
+    totalsGroupBy: GroupBy,
+    forChain: ForChain,
+    forAddress: string | undefined,
+    signal: AbortSignal) => {
     return Promise.all([
       fetchTotals(baseUrl, totalsGroupBy, forChain, forAddress, signal),
       fetchRecent(baseUrl, recentGroupBy, forChain, forAddress, signal),
@@ -362,11 +376,19 @@ const ExplorerStats: React.FC<StatsProps> = ({
       ),
     ]);
   };
+  const getRecents = (
+    baseUrl: string,
+    recentGroupBy: GroupBy,
+    totalsGroupBy: GroupBy,
+    forChain: ForChain,
+    forAddress: string | undefined,
+    signal: AbortSignal) => fetchRecent(baseUrl, recentGroupBy, forChain, forAddress, signal)
+
 
   const pollingController = (
     emitterChain: StatsProps["emitterChain"],
     emitterAddress: StatsProps["emitterAddress"],
-    baseUrl: string
+    baseUrl: string,
   ) => {
     // clear any ongoing intervals
     if (pollInterval) {
@@ -382,8 +404,8 @@ const ExplorerStats: React.FC<StatsProps> = ({
     const { signal } = newController;
     // start polling
     let interval = setInterval(() => {
-      getData({ emitterChain, emitterAddress }, baseUrl, signal);
-    }, 12000);
+      getData({ emitterChain, emitterAddress }, baseUrl, signal, getRecents);
+    }, 30000);
     setPollInterval(interval);
   };
 
@@ -397,7 +419,8 @@ const ExplorerStats: React.FC<StatsProps> = ({
       getData(
         { emitterChain, emitterAddress },
         activeNetwork.endpoints.bigtableFunctionsBase,
-        new AbortController().signal
+        new AbortController().signal,
+        getAllEndpoints
       );
     }
     controller.abort();
