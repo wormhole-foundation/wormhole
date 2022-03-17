@@ -1,4 +1,5 @@
 import {
+  CHAIN_ID_AURORA,
   CHAIN_ID_AVAX,
   CHAIN_ID_BSC,
   CHAIN_ID_ETH,
@@ -35,6 +36,7 @@ import {
   WAVAX_ADDRESS,
   WBNB_ADDRESS,
   WETH_ADDRESS,
+  WETH_AURORA_ADDRESS,
   WFTM_ADDRESS,
   WMATIC_ADDRESS,
   WROSE_ADDRESS,
@@ -92,6 +94,10 @@ function Redeem() {
     targetChain === CHAIN_ID_OASIS &&
     targetAsset &&
     targetAsset.toLowerCase() === WROSE_ADDRESS.toLowerCase();
+  const isAuroraNative =
+    targetChain === CHAIN_ID_AURORA &&
+    targetAsset &&
+    targetAsset.toLowerCase() === WETH_AURORA_ADDRESS.toLowerCase();
   const isFantomNative =
     targetChain === CHAIN_ID_FANTOM &&
     targetAsset &&
@@ -107,6 +113,7 @@ function Redeem() {
     isPolygonNative ||
     isAvaxNative ||
     isOasisNative ||
+    isAuroraNative ||
     isFantomNative ||
     isSolNative;
   const [useNativeRedeem, setUseNativeRedeem] = useState(true);

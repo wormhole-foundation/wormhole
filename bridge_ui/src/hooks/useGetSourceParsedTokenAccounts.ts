@@ -1,5 +1,6 @@
 import {
   ChainId,
+  CHAIN_ID_AURORA,
   CHAIN_ID_AVAX,
   CHAIN_ID_BSC,
   CHAIN_ID_ETH,
@@ -75,6 +76,8 @@ import {
   WBNB_ADDRESS,
   WBNB_DECIMALS,
   WETH_ADDRESS,
+  WETH_AURORA_ADDRESS,
+  WETH_AURORA_DECIMALS,
   WETH_DECIMALS,
   WFTM_ADDRESS,
   WFTM_DECIMALS,
@@ -343,6 +346,29 @@ const createNativeOasisParsedTokenAccount = (
           "ROSE", //A white lie for display purposes
           "Rose", //A white lie for display purposes
           oasisIcon,
+          true //isNativeAsset
+        );
+      });
+};
+
+const createNativeAuroraParsedTokenAccount = (
+  provider: Provider,
+  signerAddress: string | undefined
+) => {
+  return !(provider && signerAddress)
+    ? Promise.reject()
+    : provider.getBalance(signerAddress).then((balanceInWei) => {
+        const balanceInEth = ethers.utils.formatEther(balanceInWei);
+        return createParsedTokenAccount(
+          signerAddress, //public key
+          WETH_AURORA_ADDRESS, //Mint key, On the other side this will be wavax, so this is hopefully a white lie.
+          balanceInWei.toString(), //amount, in wei
+          WETH_AURORA_DECIMALS,
+          parseFloat(balanceInEth), //This loses precision, but is a limitation of the current datamodel. This field is essentially deprecated
+          balanceInEth.toString(), //This is the actual display field, which has full precision.
+          "ETH", //A white lie for display purposes
+          "Aurora ETH", //A white lie for display purposes
+          fantomIcon,
           true //isNativeAsset
         );
       });
@@ -876,6 +902,39 @@ function useGetAvailableTokens(nft: boolean = false) {
             setEthNativeAccount(undefined);
             setEthNativeAccountLoading(false);
             setEthNativeAccountError("Unable to retrieve your Oasis balance.");
+          }
+        }
+      );
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [lookupChain, provider, signerAddress, nft, ethNativeAccount]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (
+      signerAddress &&
+      lookupChain === CHAIN_ID_AURORA &&
+      !ethNativeAccount &&
+      !nft
+    ) {
+      setEthNativeAccountLoading(true);
+      createNativeAuroraParsedTokenAccount(provider, signerAddress).then(
+        (result) => {
+          console.log("create native account returned with value", result);
+          if (!cancelled) {
+            setEthNativeAccount(result);
+            setEthNativeAccountLoading(false);
+            setEthNativeAccountError("");
+          }
+        },
+        (error) => {
+          if (!cancelled) {
+            setEthNativeAccount(undefined);
+            setEthNativeAccountLoading(false);
+            setEthNativeAccountError("Unable to retrieve your Fantom balance.");
           }
         }
       );
