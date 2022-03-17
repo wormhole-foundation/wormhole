@@ -24,7 +24,7 @@ contract("Bridge", function () {
     const testChainId = "2";
     const testGovernanceChainId = "1";
     const testGovernanceContract = "0x0000000000000000000000000000000000000000000000000000000000000004";
-    let WETH = process.env.BRIDGE_INIT_WETH;;
+    let WETH = process.env.BRIDGE_INIT_WETH;
     const testForeignChainId = "1";
     const testForeignBridgeContract = "0x000000000000000000000000000000000000000000000000000000000000ffff";
     const testBridgedAssetChain = "0001";
@@ -701,6 +701,7 @@ contract("Bridge", function () {
     it("should transfer out locked assets for a valid transfer with payload vm", async function () {
         const accounts = await web3.eth.getAccounts();
         const amount = "1000000000000000000";
+        const feeRecipient = accounts[1];
 
         const token = new web3.eth.Contract(TokenImplementation.abi, TokenImplementation.address);
         const initialized = new web3.eth.Contract(BridgeImplementationFullABI, TokenBridge.address);
@@ -742,7 +743,7 @@ contract("Bridge", function () {
             0
         );
 
-        await initialized.methods.completeTransfer("0x" + vm).send({
+        await initialized.methods.completeTransferWithPayload("0x" + vm, feeRecipient).send({
             value: 0,
             from: accounts[0],
             gasLimit: 2000000
@@ -819,10 +820,11 @@ contract("Bridge", function () {
         });
     })
 
-    it("should handle additional data on token bridge transfer with payload", async function () {
+    it("should handle additional data on token bridge transfer with payload in single transaction when feeRecipient == transferRecipient", async function () {
         const accounts = await web3.eth.getAccounts();
         const amount = "1000000000000000000";
         const fee = "1000000000000000";
+        const feeRecipient = accounts[0]; // same account as sender to check feeRecipient != transferRecipient condition
 
         const initialized = new web3.eth.Contract(BridgeImplementationFullABI, TokenBridge.address);
 
@@ -864,7 +866,7 @@ contract("Bridge", function () {
             0
         );
 
-        await initialized.methods.completeTransfer("0x" + vm).send({
+        await initialized.methods.completeTransferWithPayload("0x" + vm, feeRecipient).send({
             value: 0,
             from: accounts[0],
             gasLimit: 2000000
@@ -877,10 +879,11 @@ contract("Bridge", function () {
         assert.equal(totalSupplyAfter.toString(10), new BigNumber(totalSupplyBefore).plus(amount).toString(10));
     })
 
-    it("should not allow a redemtion from msg.sender other than 'to' on token bridge transfer with payload", async function () {
+    it("should not allow a redemption from msg.sender other than 'to' on token bridge transfer with payload", async function () {
         const accounts = await web3.eth.getAccounts();
         const amount = "1000000000000000000";
         const fee = "1000000000000000";
+        const feeRecipient = accounts[1];
 
         const initialized = new web3.eth.Contract(BridgeImplementationFullABI, TokenBridge.address);
 
@@ -921,7 +924,7 @@ contract("Bridge", function () {
 
         let hadSenderError = false
         try {
-            await initialized.methods.completeTransfer("0x" + vm).send({
+            await initialized.methods.completeTransferWithPayload("0x" + vm, feeRecipient).send({
                 value: 0,
                 from: accounts[1],
                 gasLimit: 2000000
@@ -932,10 +935,11 @@ contract("Bridge", function () {
         assert.equal(hadSenderError, true)
     })
 
-    it("should allow a redemtion from msg.sender == 'to' on token bridge transfer with payload", async function () {
+    it("should allow a redemption from msg.sender == 'to' on token bridge transfer with payload and check that sender recieves fee", async function () {
         const accounts = await web3.eth.getAccounts();
         const amount = "1000000000000000000";
         const fee = "1000000000000000";
+        const feeRecipient = accounts[1];
 
         const initialized = new web3.eth.Contract(BridgeImplementationFullABI, TokenBridge.address);
         
@@ -988,25 +992,28 @@ contract("Bridge", function () {
 
         await MockIntegration.methods.completeTransferAndSwap("0x" + vm).send({
             value: 0,
-            from: accounts[1],
+            from: feeRecipient,
             gasLimit: 2000000
         });
 
         const accountBalanceAfter = await wrappedAsset.methods.balanceOf(accounts[0]).call();
-        const senderBalanceAfter = await wrappedAsset.methods.balanceOf(accounts[1]).call();
+        const senderBalanceAfter = await wrappedAsset.methods.balanceOf(accounts[1]).call(); 
         const totalSupplyAfter = await wrappedAsset.methods.totalSupply().call();
 
-        // Note: no fees implemented on this mock
-        assert.equal(accountBalanceAfter.toString(10), new BigNumber(accountBalanceBefore).plus(amount).toString(10));
-        assert.equal(senderBalanceAfter.toString(10), new BigNumber(senderBalanceBefore));
+        // account for fees
+        const amountLessFees = new BigNumber(amount).minus(fee);
+
+        // sender should receive fees
+        assert.equal(accountBalanceAfter.toString(10), new BigNumber(accountBalanceBefore).plus(amountLessFees).toString(10));
+        assert.equal(senderBalanceAfter.toString(10), new BigNumber(senderBalanceBefore).plus(fee));
         assert.equal(totalSupplyAfter.toString(10), new BigNumber(totalSupplyBefore).plus(amount).toString(10));
     })
 
     it("should burn bridged assets wrappers on transfer to another chain", async function () {
-
         const accounts = await web3.eth.getAccounts();
         const initialized = new web3.eth.Contract(BridgeImplementationFullABI, TokenBridge.address);
-        const amount = "3000000000000000000";
+        const amount = "2999000000000000000";
+        const wrappedFeesPaid = "1000000000000000"; 
 
         const wrappedAddress = await initialized.methods.wrappedAsset("0x" + testBridgedAssetChain, "0x" + testBridgedAssetAddress).call();
         const wrappedAsset = new web3.eth.Contract(TokenImplementation.abi, wrappedAddress);
@@ -1043,7 +1050,7 @@ contract("Bridge", function () {
         assert.equal(bridgeBalanceAfter.toString(10), "0");
 
         const totalSupplyAfter = await wrappedAsset.methods.totalSupply().call();
-        assert.equal(totalSupplyAfter.toString(10), "0");
+        assert.equal(totalSupplyAfter.toString(10), wrappedFeesPaid);
     })
 
     it("should handle ETH deposits correctly", async function () {
@@ -1264,6 +1271,7 @@ contract("Bridge", function () {
         const accounts = await web3.eth.getAccounts();
         const amount = "100000000000000000";
         const fee = "0";
+        const feeRecipient = accounts[1];
 
         const initialized = new web3.eth.Contract(BridgeImplementationFullABI, TokenBridge.address);
 
@@ -1305,8 +1313,8 @@ contract("Bridge", function () {
             0,
             0
         );
-
-        const transferTX = await initialized.methods.completeTransferAndUnwrapETHWithPayload("0x" + vm).send({
+        
+        const transferTX = await initialized.methods.completeTransferAndUnwrapETHWithPayload("0x" + vm, feeRecipient).send({
             from: accounts[0], //must be same as receiver
             gasLimit: 2000000
         });

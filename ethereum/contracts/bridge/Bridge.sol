@@ -297,24 +297,24 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         setWrappedAsset(meta.tokenChain, meta.tokenAddress, token);
     }
 
-    function completeTransferWithPayload(bytes memory encodedVm) public returns (IWormhole.VM memory) {
-        return _completeTransfer(encodedVm, false);
+    function completeTransferWithPayload(bytes memory encodedVm, address feeRecipient) public returns (IWormhole.VM memory) {
+        return _completeTransfer(encodedVm, false, feeRecipient);
     }
 
-    function completeTransferAndUnwrapETHWithPayload(bytes memory encodedVm) public returns (IWormhole.VM memory) {
-        return _completeTransfer(encodedVm, true);
+    function completeTransferAndUnwrapETHWithPayload(bytes memory encodedVm, address feeRecipient) public returns (IWormhole.VM memory) {
+        return _completeTransfer(encodedVm, true, feeRecipient);
     }
 
     function completeTransfer(bytes memory encodedVm) public {
-        _completeTransfer(encodedVm, false);
+        _completeTransfer(encodedVm, false, msg.sender);
     }
 
     function completeTransferAndUnwrapETH(bytes memory encodedVm) public {
-        _completeTransfer(encodedVm, true);
+        _completeTransfer(encodedVm, true, msg.sender);
     }
 
     // Execute a Transfer message
-    function _completeTransfer(bytes memory encodedVm, bool unwrapWETH) internal returns (IWormhole.VM memory) {
+    function _completeTransfer(bytes memory encodedVm, bool unwrapWETH, address feeRecipient) internal returns (IWormhole.VM memory) {
         (IWormhole.VM memory vm, bool valid, string memory reason) = wormhole().parseAndVerifyVM(encodedVm);
 
         require(valid, reason);
@@ -357,21 +357,24 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         uint256 nativeFee = deNormalizeAmount(transfer.fee, decimals);
 
         // transfer fee to arbiter
-        if (nativeFee > 0) {
+        if (nativeFee > 0 && transferRecipient != feeRecipient) {
             require(nativeFee <= nativeAmount, "fee higher than transferred amount");
 
             if (unwrapWETH) {
                 WETH().withdraw(nativeFee);
 
-                payable(msg.sender).transfer(nativeFee);
+                payable(feeRecipient).transfer(nativeFee);
             } else {
                 if (transfer.tokenChain != chainId()) {
                     // mint wrapped asset
-                    TokenImplementation(address(transferToken)).mint(msg.sender, nativeFee);
+                    TokenImplementation(address(transferToken)).mint(feeRecipient, nativeFee);
                 } else {
-                    SafeERC20.safeTransfer(transferToken, msg.sender, nativeFee);
+                    SafeERC20.safeTransfer(transferToken, feeRecipient, nativeFee);
                 }
             }
+        } else {
+            // set fee to zero in case transferRecipient == feeRecipient
+            nativeFee = 0;
         }
 
         // transfer bridged amount to recipient
