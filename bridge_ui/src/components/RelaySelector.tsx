@@ -42,7 +42,7 @@ export default function RelaySelector({
           )
         : onChange(null);
     },
-    [onChange]
+    [onChange, availableRelayers]
   );
 
   console.log("selectedValue in relay selector", selectedValue);

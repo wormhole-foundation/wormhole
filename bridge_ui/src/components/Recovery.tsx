@@ -228,7 +228,7 @@ function RelayerRecovery({
           });
         }
       );
-  }, [selectedRelayer, enqueueSnackbar, onClick, signedVaa]);
+  }, [selectedRelayer, enqueueSnackbar, onClick, signedVaa, parsedPayload]);
 
   if (!isEligible) {
     return null;

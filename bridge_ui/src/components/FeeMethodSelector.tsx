@@ -179,7 +179,10 @@ function FeeMethodSelector() {
         <div className={classes.inlineBlock}>
           <Typography variant="body1">{"Manual Payment"}</Typography>
           <Typography variant="body2" color="textSecondary">
-            {"Pay with your own " + getDefaultNativeCurrencySymbol(targetChain)}
+            {"Pay with your own " +
+              (targetChain === CHAIN_ID_TERRA
+                ? "UST"
+                : getDefaultNativeCurrencySymbol(targetChain))}
           </Typography>
         </div>
       </div>

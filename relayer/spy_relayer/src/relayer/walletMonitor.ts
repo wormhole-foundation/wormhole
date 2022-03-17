@@ -156,7 +156,7 @@ async function pullTerraBalance(
   chainInfo: ChainConfigInfo,
   walletPrivateKey: string,
   tokenAddress: string
-): Promise<WalletBalance> {
+): Promise<WalletBalance | undefined> {
   if (
     !(
       chainInfo.terraChainId &&
@@ -188,6 +188,10 @@ async function pullTerraBalance(
       address: walletAddress,
     },
   });
+
+  if (!tokenInfo || !balanceInfo) {
+    return undefined;
+  }
 
   return {
     chainId: CHAIN_ID_TERRA,
