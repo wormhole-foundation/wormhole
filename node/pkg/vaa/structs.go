@@ -102,10 +102,6 @@ func (c ChainID) String() string {
 		return "fantom"
 	case ChainIDAlgorand:
 		return "algorand"
-	case ChainIDKarura:
-		return "karura"
-	case ChainIDAcala:
-		return "acala"
 	case ChainIDEthereumRopsten:
 		return "ethereum-ropsten"
 	case ChainIDKarura:
@@ -139,10 +135,6 @@ func ChainIDFromString(s string) (ChainID, error) {
 		return ChainIDFantom, nil
 	case "algorand":
 		return ChainIDAlgorand, nil
-	case "karura":
-		return ChainIDKarura, nil
-	case "acala":
-		return ChainIDAcala, nil
 	case "ethereum-ropsten":
 		return ChainIDEthereumRopsten, nil
 	case "karura":

@@ -101,9 +101,6 @@ var (
 	solanaWsRPC *string
 	solanaRPC   *string
 
-	karuraRPC      *string
-	karuraContract *string
-
 	logLevel *string
 
 	unsafeDevMode   *bool
@@ -186,9 +183,6 @@ func init() {
 
 	solanaWsRPC = NodeCmd.Flags().String("solanaWS", "", "Solana Websocket URL (required")
 	solanaRPC = NodeCmd.Flags().String("solanaRPC", "", "Solana RPC URL (required")
-
-	karuraRPC = NodeCmd.Flags().String("karuraRPC", "", "Karura RPC URL")
-	karuraContract = NodeCmd.Flags().String("karuraContract", "", "Karura contract address")
 
 	logLevel = NodeCmd.Flags().String("logLevel", "info", "Logging level (debug, info, warn, error, dpanic, panic, fatal)")
 
