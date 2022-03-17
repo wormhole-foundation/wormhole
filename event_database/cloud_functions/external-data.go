@@ -35,6 +35,7 @@ type CoinGeckoErrorRes struct {
 }
 
 func fetchCoinGeckoCoins() map[string][]CoinGeckoCoin {
+	defer timeTrack(time.Now(), "fetchCoinGeckoCoins")
 	baseUrl := cgBaseUrl
 	cgApiKey := os.Getenv("COINGECKO_API_KEY")
 	if cgApiKey != "" {
@@ -348,6 +349,7 @@ type SolanaTokenListRes struct {
 }
 
 func fetchSolanaTokenList() map[string]SolanaToken {
+	defer timeTrack(time.Now(), "fetchSolanaTokenList")
 
 	req, reqErr := http.NewRequest("GET", solanaTokenListURL, nil)
 	if reqErr != nil {
