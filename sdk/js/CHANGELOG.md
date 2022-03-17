@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.2.1
+
+### Added
+
+Default relayerFee parameter (defaults to 0) to each token bridge transfer function
+
+Expose overrides parameter for signer \*Eth functions
+
+Karura support
+
+Acala support
+
 ## 0.2.0
 
 ### Changed

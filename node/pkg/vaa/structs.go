@@ -108,6 +108,10 @@ func (c ChainID) String() string {
 		return "acala"
 	case ChainIDEthereumRopsten:
 		return "ethereum-ropsten"
+	case ChainIDKarura:
+		return "karura"
+	case ChainIDAcala:
+		return "acala"
 	default:
 		return fmt.Sprintf("unknown chain ID: %d", c)
 	}
@@ -141,6 +145,10 @@ func ChainIDFromString(s string) (ChainID, error) {
 		return ChainIDAcala, nil
 	case "ethereum-ropsten":
 		return ChainIDEthereumRopsten, nil
+	case "karura":
+		return ChainIDKarura, nil
+	case "acala":
+		return ChainIDAcala, nil
 	default:
 		return ChainIDUnset, fmt.Errorf("unknown chain ID: %s", s)
 	}

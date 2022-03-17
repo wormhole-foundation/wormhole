@@ -25,11 +25,15 @@ type transfersResult struct {
 // an in-memory cache of previously calculated results
 var warmTransfersCache = map[string]map[string]map[string]map[string]map[string]float64{}
 var muWarmTransfersCache sync.RWMutex
-var warmTransfersCacheFilePath = "/notional-transferred-cache.json"
+var warmTransfersCacheFilePath = "notional-transferred-cache.json"
 
 // finds the daily amount of each symbol transferred from each chain, to each chain,
 // from the specified start to the present.
 func createTransfersOfInterval(tbl *bigtable.Table, ctx context.Context, prefix string, start time.Time) map[string]map[string]map[string]map[string]float64 {
+	if _, ok := warmTransfersCache["*"]; !ok {
+		loadJsonToInterface(ctx, warmTransfersCacheFilePath, &muWarmTransfersCache, &warmTransfersCache)
+	}
+
 	results := map[string]map[string]map[string]map[string]float64{}
 
 	now := time.Now().UTC()
@@ -71,7 +75,7 @@ func createTransfersOfInterval(tbl *bigtable.Table, ctx context.Context, prefix 
 			if dates, ok := warmTransfersCache[cachePrefix]; ok {
 				// have a cache for this query
 
-				if dateCache, ok := dates[dateStr]; ok && len(dateCache) > 1 {
+				if dateCache, ok := dates[dateStr]; ok && len(dateCache) > 1 && useCache(dateStr) {
 					// have a cache for this date
 
 					if daysAgo >= 1 {
@@ -127,7 +131,7 @@ func createTransfersOfInterval(tbl *bigtable.Table, ctx context.Context, prefix 
 			if daysAgo >= 1 {
 				// set the result in the cache
 				muWarmTransfersCache.Lock()
-				if cacheData, ok := warmTransfersCache[cachePrefix][dateStr]; !ok || len(cacheData) == 1 {
+				if cacheData, ok := warmTransfersCache[cachePrefix][dateStr]; !ok || len(cacheData) == 1 || !useCache(dateStr) {
 					// cache does not have this date, add the data, and mark the cache stale
 					warmTransfersCache[cachePrefix][dateStr] = results[dateStr]
 					cacheNeedsUpdate = true
@@ -140,7 +144,7 @@ func createTransfersOfInterval(tbl *bigtable.Table, ctx context.Context, prefix 
 	intervalsWG.Wait()
 
 	if cacheNeedsUpdate {
-		persistInterfaceToJson(warmTransfersCacheFilePath, &muWarmTransfersCache, warmTransfersCache)
+		persistInterfaceToJson(ctx, warmTransfersCacheFilePath, &muWarmTransfersCache, warmTransfersCache)
 	}
 
 	// having consistent keys in each object is helpful for clients, explorer GUI

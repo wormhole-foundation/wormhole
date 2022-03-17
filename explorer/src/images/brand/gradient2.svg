@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="156" height="85" viewBox="0 0 156 85">
+  <defs>
+    <linearGradient id="linear-gradient" x1="1" y1="0.012" x2="0" y2="1" gradientUnits="objectBoundingBox">
+      <stop offset="0" stop-color="#e72850"/>
+      <stop offset="1" stop-color="#3d2670"/>
+    </linearGradient>
+    <linearGradient id="linear-gradient-2" x1="1" x2="0" y2="1" gradientUnits="objectBoundingBox">
+      <stop offset="0" stop-color="#e72850"/>
+      <stop offset="1" stop-color="#5189c8"/>
+    </linearGradient>
+    <linearGradient id="linear-gradient-3" x1="1" x2="0" y2="1" gradientUnits="objectBoundingBox">
+      <stop offset="0" stop-color="#26276f"/>
+      <stop offset="1" stop-color="#5189c8"/>
+    </linearGradient>
+    <linearGradient id="linear-gradient-4" x1="0.5" x2="0.5" y2="1" gradientUnits="objectBoundingBox">
+      <stop offset="0" stop-color="#eeb430"/>
+      <stop offset="1" stop-color="#5189c8"/>
+    </linearGradient>
+    <linearGradient id="linear-gradient-5" x1="0.5" x2="0.5" y2="1" gradientUnits="objectBoundingBox">
+      <stop offset="0" stop-color="#f44b1b"/>
+      <stop offset="1" stop-color="#3d2670"/>
+    </linearGradient>
+    <linearGradient id="linear-gradient-6" x1="0.5" x2="0.5" y2="1" gradientUnits="objectBoundingBox">
+      <stop offset="0" stop-color="#f44b1b"/>
+      <stop offset="1" stop-color="#eeb430"/>
+    </linearGradient>
+  </defs>
+  <g id="Group_3235" data-name="Group 3235" transform="translate(9958 2714)">
+    <g id="Group_3234" data-name="Group 3234">
+      <rect id="Rectangle_1659" data-name="Rectangle 1659" width="47" height="40" transform="translate(-9958 -2714)" fill="url(#linear-gradient)"/>
+      <rect id="Rectangle_1660" data-name="Rectangle 1660" width="47" height="40" transform="translate(-9903 -2714)" fill="url(#linear-gradient-2)"/>
+      <rect id="Rectangle_1662" data-name="Rectangle 1662" width="47" height="40" transform="translate(-9849 -2714)" fill="url(#linear-gradient-3)"/>
+      <rect id="Rectangle_1663" data-name="Rectangle 1663" width="47" height="40" transform="translate(-9849 -2669)" fill="url(#linear-gradient-4)"/>
+      <rect id="Rectangle_1664" data-name="Rectangle 1664" width="47" height="40" transform="translate(-9903 -2669)" fill="url(#linear-gradient-5)"/>
+    </g>
+    <rect id="Rectangle_1665" data-name="Rectangle 1665" width="47" height="40" transform="translate(-9958 -2669)" fill="url(#linear-gradient-6)"/>
+  </g>
+</svg>

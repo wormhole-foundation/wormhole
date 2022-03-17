@@ -10,7 +10,7 @@
     "clean": "gatsby clean"
   },
   "dependencies": {
-    "@certusone/wormhole-sdk": "^0.1.6",
+    "@certusone/wormhole-sdk": "0.2.0",
     "@cosmjs/encoding": "^0.27.0",
     "@emotion/react": "^11.7.1",
     "@emotion/styled": "^11.6.0",
@@ -30,6 +30,7 @@
     "gatsby-plugin-react-helmet": "^5.4.0",
     "gatsby-plugin-robots-txt": "^1.6.14",
     "gatsby-plugin-sitemap": "^5.4.0",
+    "gsap": "3.9.1",
     "javascript-time-ago": "^2.3.10",
     "path-browserify": "^1.0.1",
     "react": "^17.0.1",

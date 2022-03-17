@@ -62,6 +62,7 @@ const useStyles = makeStyles((theme) => ({
   },
   totalValue: {
     fontWeight: 600,
+    fontFamily: "Suisse BP Intl, sans-serif",
   },
   typog: {
     marginTop: theme.spacing(3),
@@ -105,7 +106,7 @@ const TransactionMetrics: React.FC<any> = () => {
           noWrap
           className={classes.totalValue}
         >
-          {numeral(transactionCount.data?.total24h || 0).format("0,0")}
+          {numeral(transactionCount.data?.total48h || 0).format("0,0")}
         </Typography>
       </div>
       <div className={classes.totalContainer}>

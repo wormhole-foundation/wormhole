@@ -10,7 +10,7 @@ import {fromUint8Array} from "js-base64";
 import {LCDClient, MnemonicKey} from '@terra-money/terra.js';
 import {MsgExecuteContract} from "@terra-money/terra.js";
 import {PublicKey, TransactionInstruction, AccountMeta, Keypair, Connection} from "@solana/web3.js";
-import {solidityKeccak256} from "ethers/lib/utils";
+import {base58, solidityKeccak256} from "ethers/lib/utils";
 
 import {setDefaultWasm, importCoreWasm, importTokenWasm, ixFromRust, BridgeImplementation__factory} from '@certusone/wormhole-sdk'
 setDefaultWasm("node")
@@ -255,6 +255,12 @@ yargs(hideBin(process.argv))
                 description: 'Token Bridge address',
                 default: "B6RHG3mfcckmrYN1UhmJzyS1XX3fZKbkeUcpJe9Sy3FE"
             })
+            .option('key', {
+                alias: 'k',
+                type: 'string',
+                description: 'Private key of the wallet',
+                required: false
+            })
     }, async (argv: any) => {
         const bridge = await importCoreWasm()
         const token_bridge = await importTokenWasm()
@@ -263,13 +269,17 @@ yargs(hideBin(process.argv))
         let bridge_id = new PublicKey(argv.bridge);
         let token_bridge_id = new PublicKey(argv.token_bridge);
 
-        // Generate a new random public key
-        let from = web3s.Keypair.generate();
-        let airdropSignature = await connection.requestAirdrop(
-            from.publicKey,
-            web3s.LAMPORTS_PER_SOL,
-        );
-        await connection.confirmTransaction(airdropSignature);
+        var from: web3s.Keypair;
+        if (argv.key) {
+            from = web3s.Keypair.fromSecretKey(base58.decode(argv.key));
+        } else {
+            from = web3s.Keypair.generate();
+            let airdropSignature = await connection.requestAirdrop(
+                from.publicKey,
+                web3s.LAMPORTS_PER_SOL,
+            );
+            await connection.confirmTransaction(airdropSignature);
+        }
 
         let vaa = Buffer.from(argv.vaa, "hex");
         await post_vaa(connection, bridge_id, from, vaa);

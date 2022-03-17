@@ -1,4 +1,4 @@
-import { ethers } from "ethers";
+import { ethers, Overrides } from "ethers";
 import { createWrappedOnSolana, createWrappedOnTerra } from ".";
 import { Bridge__factory } from "../ethers-contracts";
 
@@ -6,7 +6,7 @@ export async function updateWrappedOnEth(
   tokenBridgeAddress: string,
   signer: ethers.Signer,
   signedVAA: Uint8Array,
-  overrides: ethers.Overrides & { from?: string | Promise<string> } = {},
+  overrides: Overrides & { from?: string | Promise<string> } = {}
 ) {
   const bridge = Bridge__factory.connect(tokenBridgeAddress, signer);
   const v = await bridge.updateWrapped(signedVAA, overrides);

@@ -86,7 +86,7 @@ pub fn post_message(
     message: Pubkey,
     payload: impl AsRef<[u8]>,
     consistency: ConsistencyLevel,
-    seeds: Option<&[&[u8]]>,
+    pda_seeds: Option<&[&[&[u8]]]>,
     accounts: &[AccountInfo],
     nonce: u32,
 ) -> ProgramResult {
@@ -102,6 +102,11 @@ pub fn post_message(
     let config = config(&id);
     let config = accounts.iter().find(|item| *item.key == config).unwrap();
     let config = read_config(config).unwrap();
+
+    let mut seeds = vec![&*emitter_seeds];
+    if let Some(v) = pda_seeds {
+        seeds.extend(v);
+    }
 
     // Pay Fee to the Wormhole
     invoke_signed(
@@ -127,7 +132,7 @@ pub fn post_message(
         )
         .unwrap(),
         accounts,
-        &[&emitter_seeds, seeds.unwrap_or(&[])],
+        &seeds
     )?;
 
     Ok(())

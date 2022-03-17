@@ -20,11 +20,13 @@ import {
   CHAIN_ID_POLYGON,
   CHAIN_ID_SOLANA,
   CHAIN_ID_OASIS,
+  CHAIN_ID_FANTOM,
 } from "@certusone/wormhole-sdk";
 import SmartAddress from "../SmartAddress";
 import avaxIcon from "../../icons/avax.svg";
 import bscIcon from "../../icons/bsc.svg";
 import ethIcon from "../../icons/eth.svg";
+import fantomIcon from "../../icons/fantom.svg";
 import solanaIcon from "../../icons/solana.svg";
 import polygonIcon from "../../icons/polygon.svg";
 import oasisIcon from "../../icons/oasis-network-rose-logo.svg";
@@ -112,6 +114,18 @@ const LogoIcon = ({ chainId }: { chainId: ChainId }) =>
       }}
       src={oasisIcon}
       alt="Oasis"
+    />
+  ) : chainId === CHAIN_ID_FANTOM ? (
+    <Avatar
+      style={{
+        backgroundColor: "black",
+        height: "1em",
+        width: "1em",
+        marginLeft: "4px",
+        padding: "3px",
+      }}
+      src={fantomIcon}
+      alt="Fantom"
     />
   ) : null;
 
@@ -415,7 +429,8 @@ export default function NFTViewer({
               chainId === CHAIN_ID_ETH ||
               chainId === CHAIN_ID_ETHEREUM_ROPSTEN ||
               chainId === CHAIN_ID_AVAX || //TODO: give avax it's own bg
-              chainId === CHAIN_ID_OASIS, //TODO: give oasis it's own bg
+              chainId === CHAIN_ID_OASIS || //TODO: give oasis it's own bg
+              chainId === CHAIN_ID_FANTOM, //TODO: give fantom it's own bg
             [classes.bsc]: chainId === CHAIN_ID_BSC,
             [classes.solana]: chainId === CHAIN_ID_SOLANA,
             [classes.polygon]: chainId === CHAIN_ID_POLYGON,

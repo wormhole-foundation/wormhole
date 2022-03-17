@@ -15,7 +15,7 @@ const HeroText = ({
     <Typography variant="h1">
       <AvoidBreak spans={heroSpans} />
     </Typography>
-    <Typography sx={{ marginTop: 2 }}>
+    <Typography sx={{ marginTop: 2, fontWeight: 400 }}>
       {Array.isArray(subtitleText) ? (
         <AvoidBreak spans={subtitleText} />
       ) : (

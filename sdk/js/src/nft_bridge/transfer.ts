@@ -1,7 +1,7 @@
 import { Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { Connection, Keypair, PublicKey, Transaction } from "@solana/web3.js";
 import { MsgExecuteContract } from "@terra-money/terra.js";
-import { ethers } from "ethers";
+import { ethers, Overrides } from "ethers";
 import {
   NFTBridge__factory,
   NFTImplementation__factory,
@@ -16,18 +16,20 @@ export async function transferFromEth(
   tokenAddress: string,
   tokenID: ethers.BigNumberish,
   recipientChain: ChainId,
-  recipientAddress: Uint8Array
+  recipientAddress: Uint8Array,
+  overrides: Overrides & { from?: string | Promise<string> } = {}
 ): Promise<ethers.ContractReceipt> {
   //TODO: should we check if token attestation exists on the target chain
   const token = NFTImplementation__factory.connect(tokenAddress, signer);
-  await (await token.approve(tokenBridgeAddress, tokenID)).wait();
+  await (await token.approve(tokenBridgeAddress, tokenID, overrides)).wait();
   const bridge = NFTBridge__factory.connect(tokenBridgeAddress, signer);
   const v = await bridge.transferNFT(
     tokenAddress,
     tokenID,
     recipientChain,
     recipientAddress,
-    createNonce()
+    createNonce(),
+    overrides
   );
   const receipt = await v.wait();
   return receipt;

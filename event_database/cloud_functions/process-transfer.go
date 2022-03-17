@@ -45,7 +45,11 @@ func transformHexAddressToNative(chain vaa.ChainID, address string) string {
 		return solPk.String()
 	case vaa.ChainIDEthereum,
 		vaa.ChainIDBSC,
-		vaa.ChainIDPolygon:
+		vaa.ChainIDPolygon,
+		vaa.ChainIDAvalanche,
+		vaa.ChainIDOasis,
+		vaa.ChainIDEthereumRopsten,
+		vaa.ChainIDFantom:
 		addr := fmt.Sprintf("0x%v", address[(len(address)-40):])
 		return addr
 	case vaa.ChainIDTerra:
@@ -64,8 +68,12 @@ func transformHexAddressToNative(chain vaa.ChainID, address string) string {
 			fmt.Println("convert error from cosmos bech32. err", convertErr)
 		}
 		return encodedAddr
+	case vaa.ChainIDAlgorand:
+		// TODO
+		return ""
 	default:
-		panic(fmt.Errorf("cannot process address for unknown chain: %v", chain))
+		log.Println("cannot process address for unknown chain: ", chain)
+		return ""
 	}
 }
 
@@ -111,13 +119,33 @@ func ProcessTransfer(ctx context.Context, m PubSubMessage) error {
 	var result bigtable.Row
 	chainIDPrefix := fmt.Sprintf("%d", tokenChain) // create a string containing the tokenChain chainID, ie "2"
 	queryErr := tbl.ReadRows(ctx, bigtable.PrefixRange(chainIDPrefix), func(row bigtable.Row) bool {
-		result = row
+		if _, ok := row[metaPayloadFam]; ok {
+			for _, item := range row[metaPayloadFam] {
+				switch item.Column {
+				case "AssetMetaPayload:CoinGeckoCoinId":
+					CoinGeckoCoinId := string(item.Value)
+					if CoinGeckoCoinId != "" {
+						result = row
+					}
+				}
+			}
+
+		}
+		// result = row
 		return true
 	}, bigtable.RowFilter(
-		bigtable.ChainFilters(
-			bigtable.FamilyFilter(columnFamilies[3]),
-			bigtable.ColumnFilter("TokenAddress"),
-			bigtable.ValueFilter(tokenAddress),
+		bigtable.ConditionFilter(
+			bigtable.ChainFilters(
+				bigtable.FamilyFilter(columnFamilies[3]),
+				bigtable.ColumnFilter("TokenAddress"),
+				bigtable.ValueFilter(tokenAddress),
+			),
+			bigtable.ChainFilters(
+				bigtable.FamilyFilter(columnFamilies[3]),
+				bigtable.ColumnFilter("CoinGeckoCoinId"),
+				bigtable.LatestNFilter(1),
+			),
+			bigtable.BlockAllFilter(),
 		)))
 
 	if queryErr != nil {
@@ -219,6 +247,7 @@ func ProcessTransfer(ctx context.Context, m PubSubMessage) error {
 	mutation.Set(colFam, "OriginSymbol", ts, []byte(symbol))
 	mutation.Set(colFam, "OriginName", ts, []byte(name))
 	mutation.Set(colFam, "OriginTokenAddress", ts, []byte(nativeTokenAddress))
+	mutation.Set(colFam, "CoinGeckoCoinId", ts, []byte(coinId))
 
 	// TODO - find the symbol & name of the asset on the target chain?
 	// mutation.Set(colFam, "TargetSymbol", ts, []byte())

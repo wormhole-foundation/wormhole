@@ -1,0 +1,11 @@
+{
+	"folders": [
+		{
+			"path": "../functions_server"
+		},
+		{
+			"path": "."
+		}
+	],
+	"settings": {}
+}

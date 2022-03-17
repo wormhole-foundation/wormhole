@@ -27,14 +27,18 @@ type cumulativeAddressesResult struct {
 // an in-memory cache of previously calculated results
 var warmCumulativeAddressesCache = map[string]map[string]map[string]map[string]float64{}
 var muWarmCumulativeAddressesCache sync.RWMutex
-var warmCumulativeAddressesCacheFilePath = "/addresses-transferred-to-cumulative-cache.json"
+var warmCumulativeAddressesCacheFilePath = "addresses-transferred-to-cumulative-cache.json"
 
 var addressesToUpToYesterday = map[string]map[string]map[string]map[string]float64{}
 var muAddressesToUpToYesterday sync.RWMutex
-var addressesToUpToYesterdayFilePath = "/addresses-transferred-to-up-to-yesterday-cache.json"
+var addressesToUpToYesterdayFilePath = "addresses-transferred-to-up-to-yesterday-cache.json"
 
 // finds all the unique addresses that have received tokens since a particular moment.
 func addressesTransferredToSince(tbl *bigtable.Table, ctx context.Context, prefix string, start time.Time) map[string]map[string]float64 {
+	if _, ok := addressesToUpToYesterday["*"]; !ok {
+		loadJsonToInterface(ctx, addressesToUpToYesterdayFilePath, &muAddressesToUpToYesterday, &addressesToUpToYesterday)
+	}
+
 	now := time.Now().UTC()
 	today := now.Format("2006-01-02")
 	oneDayAgo := -time.Duration(24) * time.Hour
@@ -51,7 +55,12 @@ func addressesTransferredToSince(tbl *bigtable.Table, ctx context.Context, prefi
 
 	if cacheData, ok := addressesToUpToYesterday[cachePrefix][yesterday]; ok {
 		// cache has data through midnight yesterday
-		result = cacheData
+		for chain, addresses := range cacheData {
+			result[chain] = map[string]float64{}
+			for address, amount := range addresses {
+				result[chain][address] = amount
+			}
+		}
 		// set the start to be the start of today
 		start = time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 	}
@@ -80,17 +89,33 @@ func addressesTransferredToSince(tbl *bigtable.Table, ctx context.Context, prefi
 
 	muAddressesToUpToYesterday.Lock()
 	if _, ok := addressesToUpToYesterday[cachePrefix][yesterday]; !ok {
+		addressesToUpToYesterday[cachePrefix][yesterday] = map[string]map[string]float64{}
 		// no cache, populate it
-		upToYesterday := result
-		for chain, addresses := range dailyAddresses[today] {
+		upToYesterday := map[string]map[string]float64{}
+		for chain, addresses := range result {
+			upToYesterday[chain] = map[string]float64{}
 			for address, amount := range addresses {
-				upToYesterday[chain][address] = upToYesterday[chain][address] - amount
+				upToYesterday[chain][address] = amount
 			}
 		}
-		addressesToUpToYesterday[cachePrefix][yesterday] = upToYesterday
+		for chain, addresses := range dailyAddresses[today] {
+			for address, amount := range addresses {
+				// subtract the amounts from today, in order to create an "upToYesterday" amount
+				upToYesterday[chain][address] = result[chain][address] - amount
+			}
+		}
+		// loop again to assign values to the cache
+		for chain, addresses := range upToYesterday {
+			if _, ok := addressesToUpToYesterday[cachePrefix][yesterday][chain]; !ok {
+				addressesToUpToYesterday[cachePrefix][yesterday][chain] = map[string]float64{}
+			}
+			for address, amount := range addresses {
+				addressesToUpToYesterday[cachePrefix][yesterday][chain][address] = amount
+			}
+		}
 		muAddressesToUpToYesterday.Unlock()
 		// write cache to disc
-		persistInterfaceToJson(addressesToUpToYesterdayFilePath, &muAddressesToUpToYesterday, addressesToUpToYesterday)
+		persistInterfaceToJson(ctx, addressesToUpToYesterdayFilePath, &muAddressesToUpToYesterday, addressesToUpToYesterday)
 	} else {
 		muAddressesToUpToYesterday.Unlock()
 	}
@@ -100,6 +125,10 @@ func addressesTransferredToSince(tbl *bigtable.Table, ctx context.Context, prefi
 
 // calcuates a map of recepient address to notional value received, by chain, since the start time specified.
 func createCumulativeAddressesOfInterval(tbl *bigtable.Table, ctx context.Context, prefix string, start time.Time) map[string]map[string]map[string]float64 {
+	if _, ok := warmCumulativeAddressesCache["*"]; !ok {
+		loadJsonToInterface(ctx, warmCumulativeAddressesCacheFilePath, &muWarmCumulativeAddressesCache, &warmCumulativeAddressesCache)
+	}
+
 	now := time.Now().UTC()
 	today := now.Format("2006-01-02")
 
@@ -124,19 +153,30 @@ func createCumulativeAddressesOfInterval(tbl *bigtable.Table, ctx context.Contex
 	// iterate through the dates in the result set, and accumulate the amounts
 	// of each token transfer by symbol, based on the destination of the transfer.
 	for i, date := range dateKeys {
+		results[date] = map[string]map[string]float64{"*": {"*": 0}}
 		muWarmCumulativeAddressesCache.RLock()
-		if dateCache, ok := warmCumulativeAddressesCache[cachePrefix][date]; ok && dateCache != nil {
+		if dateCache, ok := warmCumulativeAddressesCache[cachePrefix][date]; ok && dateCache != nil && useCache(date) {
 			// have a cached value for this day, use it.
-			results[date] = dateCache
+			// iterate through cache and copy values to the result
+			for chain, addresses := range dateCache {
+				results[date][chain] = map[string]float64{}
+				for address, amount := range addresses {
+					results[date][chain][address] = amount
+				}
+			}
 			muWarmCumulativeAddressesCache.RUnlock()
 		} else {
 			// no cached value for this day, must calculate it
 			muWarmCumulativeAddressesCache.RUnlock()
 			if i == 0 {
 				// special case for first day, no need to sum.
-				results[date] = dailyAddresses[date]
+				for chain, addresses := range dailyAddresses[date] {
+					results[date][chain] = map[string]float64{}
+					for address, amount := range addresses {
+						results[date][chain][address] = amount
+					}
+				}
 			} else {
-				results[date] = map[string]map[string]float64{}
 				// find the string of the previous day
 				prevDate := dateKeys[i-1]
 				prevDayChains := results[prevDate]
@@ -175,9 +215,15 @@ func createCumulativeAddressesOfInterval(tbl *bigtable.Table, ctx context.Contex
 			if date != today {
 				// set the result in the cache
 				muWarmCumulativeAddressesCache.Lock()
-				if _, ok := warmCumulativeAddressesCache[cachePrefix][date]; !ok {
+				if _, ok := warmCumulativeAddressesCache[cachePrefix][date]; !ok || !useCache(date) {
 					// cache does not have this date, persist it for other instances.
-					warmCumulativeAddressesCache[cachePrefix][date] = results[date]
+					warmCumulativeAddressesCache[cachePrefix][date] = map[string]map[string]float64{}
+					for chain, addresses := range results[date] {
+						warmCumulativeAddressesCache[cachePrefix][date][chain] = map[string]float64{}
+						for address, amount := range addresses {
+							warmCumulativeAddressesCache[cachePrefix][date][chain][address] = amount
+						}
+					}
 					cacheNeedsUpdate = true
 				}
 				muWarmCumulativeAddressesCache.Unlock()
@@ -186,13 +232,20 @@ func createCumulativeAddressesOfInterval(tbl *bigtable.Table, ctx context.Contex
 	}
 
 	if cacheNeedsUpdate {
-		persistInterfaceToJson(warmCumulativeAddressesCacheFilePath, &muWarmCumulativeAddressesCache, warmCumulativeAddressesCache)
+		persistInterfaceToJson(ctx, warmCumulativeAddressesCacheFilePath, &muWarmCumulativeAddressesCache, warmCumulativeAddressesCache)
 	}
 
+	// take the most recent n days, rather than returning all days since launch
 	selectDays := map[string]map[string]map[string]float64{}
 	days := getDaysInRange(start, now)
 	for _, day := range days {
-		selectDays[day] = results[day]
+		selectDays[day] = map[string]map[string]float64{}
+		for chain, addresses := range results[day] {
+			selectDays[day][chain] = map[string]float64{}
+			for address, amount := range addresses {
+				selectDays[day][chain][address] = amount
+			}
+		}
 	}
 	return selectDays
 

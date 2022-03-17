@@ -7,8 +7,8 @@ go 1.16
 require (
 	cloud.google.com/go/bigtable v1.12.0
 	cloud.google.com/go/pubsub v1.17.1
-	github.com/GoogleCloudPlatform/functions-framework-go v1.5.2 // indirect
-	github.com/certusone/wormhole/node v0.0.0-20211115153408-0a93202f6e5d
+	cloud.google.com/go/storage v1.18.2
+	github.com/certusone/wormhole/node v0.0.0-20220302191816-1ac00415e907
 	github.com/cosmos/cosmos-sdk v0.44.0
 	github.com/gagliardetto/solana-go v1.0.2
 	github.com/holiman/uint256 v1.2.0
