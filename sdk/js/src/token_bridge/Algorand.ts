@@ -5,16 +5,19 @@ import algosdk, {
     assignGroupID,
     computeGroupID,
     decodeAddress,
+    encodeAddress,
     getApplicationAddress,
     LogicSigAccount,
     makeApplicationCallTxnFromObject,
     makeApplicationOptInTxnFromObject,
     makeAssetCreateTxnWithSuggestedParamsFromObject,
+    makeAssetTransferTxnWithSuggestedParamsFromObject,
     makePaymentTxnWithSuggestedParams,
     makePaymentTxnWithSuggestedParamsFromObject,
     OnApplicationComplete,
     signLogicSigTransaction,
     Transaction,
+    waitForConfirmation,
 } from "algosdk";
 import {
     hexStringToUint8Array,
@@ -23,6 +26,9 @@ import {
     uint8ArrayToHexString,
 } from "./TmplSig";
 import { VaaVerifyTealSource } from "./VaaVerifyTealSource";
+import { parse } from "path";
+import AccountInformation from "algosdk/dist/types/src/client/v2/algod/accountInformation";
+import { SendObservationRequestRequest } from "../proto/node/v1/node";
 
 // Some constants
 export const ALGO_TOKEN =
@@ -36,6 +42,8 @@ export const ALGOD_PORT: number = 4001;
 export const CORE_ID: number = 4;
 export const TOKEN_BRIDGE_ID: number = 6;
 export const SEED_AMT: number = 1002000;
+const ZERO_PAD_BYTES =
+    "0000000000000000000000000000000000000000000000000000000000000000";
 const MAX_KEYS: number = 16;
 const MAX_BYTES_PER_KEY: number = 127;
 const BITS_PER_BYTE: number = 8;
@@ -493,6 +501,59 @@ export async function compileTeal(
     return { hash: response.hash, result: response.result };
 }
 
+export async function assetOptinCheck(
+    client: algosdk.Algodv2,
+    asset: number,
+    receiver: string
+): Promise<boolean> {
+    const acctInfo = await client.accountInformation(receiver).do();
+    const assets: Array<any> = acctInfo.assets;
+    console.log("assets", assets);
+    assets.forEach(function (asset) {
+        console.log("inside foreach", asset);
+        const assetId = asset["asset-id"];
+        if (assetId === asset) {
+            return true;
+        }
+    });
+    return false;
+}
+
+export async function assetOptin(
+    client: algosdk.Algodv2,
+    sender: Account,
+    asset: number,
+    receiver: string
+) {
+    const params: algosdk.SuggestedParams = await client
+        .getTransactionParams()
+        .do();
+
+    // Create transaction
+    const optinTxn: Transaction =
+        makeAssetTransferTxnWithSuggestedParamsFromObject({
+            amount: 0,
+            assetIndex: asset,
+            from: sender.getAddress(),
+            suggestedParams: params,
+            to: receiver,
+        });
+
+    // Sign transaction
+    const signedOptinTxn: Uint8Array = optinTxn.signTxn(sender.getPrivateKey());
+
+    // Send transaction
+    const txId: string = await client.sendRawTransaction(signedOptinTxn).do();
+
+    // Wait for response
+    const confirmedTxn = await waitForConfirmation(client, txId, 4);
+
+    // Double check the result
+    if (!assetOptinCheck(client, asset, receiver)) {
+        throw new Error("assetOptin() failed ");
+    }
+}
+
 export async function submitVAA(
     vaa: Uint8Array,
     client: algosdk.Algodv2,
@@ -540,13 +601,13 @@ export async function submitVAA(
 
     // When we attest for a new token, we need some place to store the info... later we will need to
     // mirror the other way as well
+    let chainAddr: string = "";
     const meta = parsedVAA.get("Meta");
     if (
         meta === "TokenBridge Attest" ||
         meta === "TokenBridge Transfer" ||
         meta === "TokenBridge Transfer With Payload"
     ) {
-        let chainAddr: string;
         if (parsedVAA.get("FromChain") != 8) {
             chainAddr = await optin(
                 client,
@@ -664,5 +725,198 @@ export async function submitVAA(
             onComplete: OnApplicationComplete.NoOpOC,
             suggestedParams: params,
         });
+        txns.push(appTxn);
+    }
+    const appTxn = makeApplicationCallTxnFromObject({
+        appArgs: [verifySigArg, vaa],
+        accounts: accts,
+        appIndex: CORE_ID,
+        from: sender.getAddress(),
+        onComplete: OnApplicationComplete.NoOpOC,
+        suggestedParams: params,
+    });
+    txns.push(appTxn);
+
+    if (meta === "CoreGovernance") {
+        txns.push(
+            makeApplicationCallTxnFromObject({
+                appArgs: [
+                    hexStringToUint8Array(pgmNameToHexString("governance")),
+                    vaa,
+                ],
+                accounts: accts,
+                appIndex: CORE_ID,
+                from: sender.getAddress(),
+                onComplete: OnApplicationComplete.NoOpOC,
+                suggestedParams: params,
+                note: parsedVAA.get("digest"),
+            })
+        );
+    }
+    if (
+        meta === "TokenBridge RegisterChain" ||
+        meta === "TokenBridge UpgradeContract"
+    ) {
+        txns.push(
+            makeApplicationCallTxnFromObject({
+                appArgs: [
+                    hexStringToUint8Array(pgmNameToHexString("governance")),
+                    vaa,
+                ],
+                accounts: accts,
+                appIndex: TOKEN_BRIDGE_ID,
+                foreignApps: [CORE_ID],
+                from: sender.getAddress(),
+                onComplete: OnApplicationComplete.NoOpOC,
+                suggestedParams: params,
+                note: parsedVAA.get("digest"),
+            })
+        );
+    }
+
+    if (meta === "TokenBridge Attest") {
+        let asset: Uint8Array = await decodeLocalState(
+            client,
+            TOKEN_BRIDGE_ID,
+            chainAddr
+        );
+        let foreignAssets: number[] = [];
+        if (asset.length > 8) {
+            const tmp = Buffer.from(asset.slice(0, 8));
+            foreignAssets.push(Number(tmp.readBigUInt64BE(0)));
+        }
+        txns.push(
+            makePaymentTxnWithSuggestedParamsFromObject({
+                from: sender.getAddress(),
+                to: chainAddr,
+                amount: 100000,
+                suggestedParams: params,
+            })
+        );
+        let buf: Uint8Array = new Uint8Array(1);
+        buf[0] = 0x01;
+        txns.push(
+            makeApplicationCallTxnFromObject({
+                appArgs: [
+                    hexStringToUint8Array(pgmNameToHexString("nop")),
+                    buf,
+                ],
+                appIndex: TOKEN_BRIDGE_ID,
+                from: sender.getAddress(),
+                onComplete: OnApplicationComplete.NoOpOC,
+                suggestedParams: params,
+            })
+        );
+
+        buf[0] = 0x02;
+        txns.push(
+            makeApplicationCallTxnFromObject({
+                appArgs: [
+                    hexStringToUint8Array(pgmNameToHexString("nop")),
+                    buf,
+                ],
+                appIndex: TOKEN_BRIDGE_ID,
+                from: sender.getAddress(),
+                onComplete: OnApplicationComplete.NoOpOC,
+                suggestedParams: params,
+            })
+        );
+
+        txns.push(
+            makeApplicationCallTxnFromObject({
+                accounts: accts,
+                appArgs: [
+                    hexStringToUint8Array(pgmNameToHexString("receiveAttest")),
+                    vaa,
+                ],
+                appIndex: TOKEN_BRIDGE_ID,
+                foreignAssets: foreignAssets,
+                from: sender.getAddress(),
+                onComplete: OnApplicationComplete.NoOpOC,
+                suggestedParams: params,
+            })
+        );
+        txns[-1].fee = txns[-1].fee * 2;
+
+        if (
+            meta === "TokenBridge Transfer" ||
+            meta === "TokenBridge Transfer With Payload"
+        ) {
+            foreignAssets = [];
+            let a: number = 0;
+            if (parsedVAA.get("FromChain") != 8) {
+                asset = await decodeLocalState(
+                    client,
+                    TOKEN_BRIDGE_ID,
+                    chainAddr
+                );
+                if (asset.length > 8) {
+                    const tmp = Buffer.from(asset.slice(0, 8));
+                    a = Number(tmp.readBigUInt64BE(0));
+                }
+            } else {
+                const tmp = Buffer.from(
+                    hexStringToUint8Array(parsedVAA.get("Contract"))
+                );
+                a = Number(tmp.readBigUInt64BE(0));
+            }
+
+            // The receiver needs to be optin in to receive the coins... Yeah, the relayer pays for this
+
+            const addr = encodeAddress(
+                hexStringToUint8Array(parsedVAA.get("ToAddress"))
+            );
+
+            if (a != 0) {
+                foreignAssets.push(a);
+                assetOptin(client, sender, foreignAssets[0], addr);
+                // And this is how the relayer gets paid...
+                if (parsedVAA.get("Fee") != ZERO_PAD_BYTES) {
+                    assetOptin(
+                        client,
+                        sender,
+                        foreignAssets[0],
+                        sender.getAddress()
+                    );
+                }
+            }
+            accts.push(addr);
+            txns.push(
+                makeApplicationCallTxnFromObject({
+                    accounts: accts,
+                    appArgs: [
+                        hexStringToUint8Array(
+                            pgmNameToHexString("receiveTransfer")
+                        ),
+                        vaa,
+                    ],
+                    appIndex: TOKEN_BRIDGE_ID,
+                    foreignAssets: foreignAssets,
+                    from: sender.getAddress(),
+                    onComplete: OnApplicationComplete.NoOpOC,
+                    suggestedParams: params,
+                })
+            );
+
+            // We need to cover the inner transactions
+            if (parsedVAA.get("Fee") != ZERO_PAD_BYTES) {
+                txns[-1].fee = txns[-1].fee * 3;
+            } else {
+                txns[-1].fee = txns[-1].fee * 2;
+            }
+        }
+        assignGroupID(txns);
+        const signedTxns: Uint8Array[] = [];
+        txns.forEach((txn) => {
+            // TODO: add lsig signing
+            signedTxns.push(txn.signTxn(sender.getPrivateKey()));
+        });
+        const signedTxnsId = await client.sendRawTransaction(signedTxns).do();
+        const ret: string[] = [];
+        const response = await waitForConfirmation(client, signedTxnsId, 4);
+        if (response["logs"]) {
+            ret.push(response["logs"]);
+        }
+        return ret;
     }
 }
