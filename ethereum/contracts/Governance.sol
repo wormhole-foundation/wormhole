@@ -10,12 +10,20 @@ import "./Setters.sol";
 
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Upgrade.sol";
 
+interface CoreBridgeModule {
+  function getModule() external returns (bytes32);
+}
+
 abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upgrade {
     event ContractUpgraded(address indexed oldContract, address indexed newContract);
     event GuardianSetAdded(uint32 indexed index);
 
     // "Core" (left padded)
     bytes32 constant module = 0x00000000000000000000000000000000000000000000000000000000436f7265;
+
+    function getModule() public pure returns (bytes32) {
+        return module;
+    }
 
     function submitContractUpgrade(bytes memory _vm) public {
         Structs.VM memory vm = parseVM(_vm);
@@ -89,6 +97,8 @@ abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upg
     }
 
     function upgradeImplementation(address newImplementation) internal {
+        require(CoreBridgeModule(newImplementation).getModule() == module, "new implementation is not a CoreBridge");
+
         address currentImplementation = _getImplementation();
 
         _upgradeTo(newImplementation);

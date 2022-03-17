@@ -17,11 +17,19 @@ import "./token/NFTImplementation.sol";
 
 import "../interfaces/IWormhole.sol";
 
+interface NFTBridgeModule {
+  function getModule() external returns (bytes32);
+}
+
 contract NFTBridgeGovernance is NFTBridgeGetters, NFTBridgeSetters, ERC1967Upgrade {
     using BytesLib for bytes;
 
     // "NFTBridge" (left padded)
     bytes32 constant module = 0x00000000000000000000000000000000000000000000004e4654427269646765;
+
+    function getModule() public pure returns (bytes32) {
+        return module;
+    }
 
     // Execute a RegisterChain governance message
     function registerChain(bytes memory encodedVM) public {
@@ -73,7 +81,10 @@ contract NFTBridgeGovernance is NFTBridgeGetters, NFTBridgeSetters, ERC1967Upgra
     }
 
     event ContractUpgraded(address indexed oldContract, address indexed newContract);
+    
     function upgradeImplementation(address newImplementation) internal {
+        require(NFTBridgeModule(newImplementation).getModule() == module, "new implementation is not an NFTBridge");
+
         address currentImplementation = _getImplementation();
 
         _upgradeTo(newImplementation);

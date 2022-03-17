@@ -18,11 +18,19 @@ import "./token/TokenImplementation.sol";
 
 import "../interfaces/IWormhole.sol";
 
+interface TokenBridgeModule {
+  function getModule() external returns (bytes32);
+}
+
 contract BridgeGovernance is BridgeGetters, BridgeSetters, ERC1967Upgrade {
     using BytesLib for bytes;
 
     // "TokenBridge" (left padded)
     bytes32 constant module = 0x000000000000000000000000000000000000000000546f6b656e427269646765;
+
+    function getModule() public pure returns (bytes32) {
+        return module;
+    }
 
     // Execute a RegisterChain governance message
     function registerChain(bytes memory encodedVM) public {
@@ -77,6 +85,8 @@ contract BridgeGovernance is BridgeGetters, BridgeSetters, ERC1967Upgrade {
     event ContractUpgraded(address indexed oldContract, address indexed newContract);
 
     function upgradeImplementation(address newImplementation) internal {
+        require(TokenBridgeModule(newImplementation).getModule() == module, "new implementation is not a TokenBridge");
+
         address currentImplementation = _getImplementation();
 
         _upgradeTo(newImplementation);
