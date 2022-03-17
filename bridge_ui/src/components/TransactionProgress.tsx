@@ -6,6 +6,7 @@ import {
   CHAIN_ID_SOLANA,
   isEVMChain,
 } from "@certusone/wormhole-sdk";
+import { CHAIN_ID_AURORA } from "@certusone/wormhole-sdk/lib/esm";
 import { LinearProgress, makeStyles, Typography } from "@material-ui/core";
 import { Connection } from "@solana/web3.js";
 import { useEffect, useState } from "react";
@@ -75,7 +76,9 @@ export default function TransactionProgress({
   const expectedBlocks =
     chainId === CHAIN_ID_POLYGON
       ? 512 // minimum confirmations enforced by guardians
-      : chainId === CHAIN_ID_FANTOM || chainId === CHAIN_ID_OASIS
+      : chainId === CHAIN_ID_OASIS ||
+        chainId === CHAIN_ID_AURORA ||
+        chainId === CHAIN_ID_FANTOM
       ? 1 // these chains only require 1 conf
       : chainId === CHAIN_ID_SOLANA
       ? 32
