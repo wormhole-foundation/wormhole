@@ -240,32 +240,45 @@ func TestMessageID(t *testing.T) {
 	assert.Equal(t, vaa.MessageID(), expected)
 }
 
-func TestDuplicateAddress(t *testing.T) {
-	type test struct {
-		label  string
-		array  []common.Address
-		result bool
+func TestDuplicateSignatures(t *testing.T) {
+	var payload = []byte{97, 97, 97, 97, 97, 97}
+	var governanceEmitter = Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
+
+	vaa := &VAA{
+		Version:          uint8(1),
+		GuardianSetIndex: uint32(1),
+		Signatures:       nil,
+		Timestamp:        time.Unix(0, 0),
+		Nonce:            uint32(1),
+		Sequence:         uint64(1),
+		ConsistencyLevel: uint8(32),
+		EmitterChain:     ChainIDSolana,
+		EmitterAddress:   governanceEmitter,
+		Payload:          payload,
 	}
 
-	addr1 := common.HexToAddress("0x5aaeb6053f3e94c9b9a09f33669435e7ef1beaed")
-	addr2 := common.HexToAddress("0x5aaeb6053f3e94c9b9a09f33669435e7ef1beaee")
+	// Verify our default state is false
+	assert.Nil(t, vaa.Signatures)
+	assert.Equal(t, vaa.DuplicateSignatures(), false)
 
-	single := []common.Address{addr1}
-	mult_duplicate := []common.Address{addr1, addr1}
-	mult_uniq := []common.Address{addr1, addr2}
+	// Generate some random private keys to sign with
+	privKey1, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	privKey2, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 
-	tests := []test{
-		{label: "single", array: single, result: false},
-		{label: "mult_duplicate", array: mult_duplicate, result: true},
-		{label: "mult_uniq", array: mult_uniq, result: false},
-	}
+	// Add a signature and make sure it's false
+	vaa.AddSignature(privKey1, 0)
+	assert.Equal(t, len(vaa.Signatures), 1)
+	assert.Equal(t, vaa.DuplicateSignatures(), false)
 
-	for _, tc := range tests {
-		t.Run(tc.label, func(t *testing.T) {
-			assert.Equal(t, DuplicateAddress(tc.array), tc.result)
-		})
-	}
+	// // Add a uniq signature and make sure it's false
+	vaa.AddSignature(privKey2, 1)
+	assert.Equal(t, len(vaa.Signatures), 2)
+	assert.Equal(t, vaa.DuplicateSignatures(), false)
 
+	// // Add a duplicate signature and make sure it's true
+	vaa.AddSignature(privKey1, 2)
+	assert.Equal(t, len(vaa.Signatures), 3)
+	assert.Equal(t, vaa.DuplicateSignatures(), true)
 }
 
 func TestHexDigest(t *testing.T) {

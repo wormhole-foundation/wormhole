@@ -276,19 +276,24 @@ func (v *VAA) SigningMsg() common.Hash {
 	return hash
 }
 
-// Detects duplicates in an array of common.Address
-func DuplicateAddress(arr []common.Address) bool {
-	for i, x := range arr {
-		for g, y := range arr {
+// Detects duplicates signatures within a VAA
+func (v *VAA) DuplicateSignatures() bool {
+	if v.Signatures == nil {
+		return false
+	}
+
+	for i, sig_x := range v.Signatures {
+		for g, sig_y := range v.Signatures {
 			if i == g {
 				continue
 			}
 
-			if x == y {
+			if bytes.Equal(sig_x.Signature[:], sig_y.Signature[:]) {
 				return true
 			}
 		}
 	}
+
 	return false
 }
 
@@ -300,7 +305,7 @@ func (v *VAA) VerifySignatures(addresses []common.Address) bool {
 	}
 
 	// False to verify when we have the same signer signing more than once
-	if DuplicateAddress(addresses) {
+	if v.DuplicateSignatures() {
 		return false
 	}
 
