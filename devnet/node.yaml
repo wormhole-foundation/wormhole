@@ -80,7 +80,7 @@ spec:
             - --oasisRPC
             - ws://eth-devnet:8545
             - --karuraRPC
-            - ws://eth-devnet:8545
+            - ws://acala-devnet:3331
             - --acalaRPC
             - ws://eth-devnet:8545
             - --terraWS
@@ -101,8 +101,6 @@ spec:
             - ws://solana-devnet:8900
             - --solanaRPC
             - http://solana-devnet:8899
-            - --karuraRPC
-            - ws://acala-devnet:3331
             - --unsafeDevMode
             - --guardianKey
             - /tmp/bridge.key
