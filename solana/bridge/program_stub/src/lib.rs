@@ -23,7 +23,7 @@ pub use api::{
 use bridge::PostVAAData;
 
 solitaire! {
-    Initialize(InitializeData)                  => initialize,
-    PostMessage(PostMessageData)                => post_message,
-    PostVAA(PostVAAData)                        => post_vaa,
+    Initialize  => initialize,
+    PostMessage => post_message,
+    PostVAA     => post_vaa,
 }

@@ -11,11 +11,11 @@ import {
   TableRow,
   Typography,
 } from "@mui/material";
-import * as React from "react";
+import React, { useEffect } from "react";
 import { PageProps } from 'gatsby'
 import HeroText from "../components/HeroText";
 import Layout from "../components/Layout";
-import shape1 from "../images/index/shape1.svg";
+import shape1 from "../images/index/shape2.svg";
 import { Heartbeat } from "@certusone/wormhole-sdk/lib/esm/proto/gossip/v1/gossip";
 import {
   GrpcWebImpl,
@@ -30,6 +30,11 @@ import { KeyboardArrowDown, KeyboardArrowUp } from "@mui/icons-material";
 import { ChainID } from "../utils/consts";
 import { SEO } from "../components/SEO";
 import shapes from "../images/shape.png";
+
+
+import { paralaxGsap, animateSwirl } from "../utils/animations";
+import { gsap } from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 const GuardianRow = ({ hb }: { hb: Heartbeat }) => {
   const [open, setOpen] = React.useState(false);
@@ -211,6 +216,25 @@ const GuardiansList = () => {
 };
 
 const NetworkPage = ({ location }: PageProps) => {
+
+  const headerImage = React.useRef<HTMLCanvasElement>(null);
+  const gradient_1 = React.useRef<HTMLCanvasElement>(null);
+  const shapeRight = React.useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+
+    gsap.registerPlugin(ScrollTrigger);
+
+    var viewportWidth = window.innerWidth || document.documentElement.clientWidth;
+    if (viewportWidth > 992) {
+      animateSwirl(headerImage);
+      paralaxGsap(gradient_1, 1000, "-50% 100%");
+      paralaxGsap(shapeRight, 200, "20% 100%");
+    }
+
+    
+  }, [])
+
   return (
     <Layout>
       <SEO
@@ -234,10 +258,11 @@ const NetworkPage = ({ location }: PageProps) => {
             }}
           />   
         <Box
+          ref={headerImage}
           sx={{
             position: "absolute",
             zIndex: -1,
-            transform: "translate(0px, -25%) scaleX(-1)",
+            transform: "translate(0px, -25%)",
             background: `url(${shape1})`,
             backgroundRepeat: "no-repeat",
             backgroundPosition: "top -540px center",
@@ -256,6 +281,7 @@ const NetworkPage = ({ location }: PageProps) => {
       </Box>
       <Box sx={{position: 'relative'}}>
         <Box
+            ref={gradient_1}
             sx={{
               position: "absolute",
               zIndex: -2,
@@ -270,6 +296,7 @@ const NetworkPage = ({ location }: PageProps) => {
             }}
           /> 
         <Box
+              ref={shapeRight}
               sx={{
                 position: "absolute",
                 zIndex: -1,
