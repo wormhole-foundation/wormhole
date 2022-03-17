@@ -131,7 +131,7 @@ const ExplorerStats: React.FC<StatsProps> = ({
     signal: AbortSignal
   ) => {
     const totalsUrl = `${baseUrl}totals`;
-    let url = `${totalsUrl}?&daily=true&last24Hours=true`
+    let url = `${totalsUrl}?&daily=true`
     if (groupBy) {
       url = `${url}&groupBy=${groupBy}`;
     }
@@ -215,7 +215,7 @@ const ExplorerStats: React.FC<StatsProps> = ({
     signal: AbortSignal
   ) => {
     const transferredUrl = `${baseUrl}notionaltransferred`;
-    let url = `${transferredUrl}?forPeriod=true&numDays=${daysSinceDataStart}`; // ${daysSinceDataStart}`
+    let url = `${transferredUrl}?forPeriod=true&numDays=${daysSinceDataStart}`;
     if (groupBy) {
       url = `${url}&groupBy=${groupBy}`;
     }
@@ -256,7 +256,7 @@ const ExplorerStats: React.FC<StatsProps> = ({
     signal: AbortSignal
   ) => {
     const transferredUrl = `${baseUrl}notionaltransferredto`;
-    let url = `${transferredUrl}?forPeriod=true&daily=true&numDays=${daysSinceDataStart}`; // ${daysSinceDataStart}`
+    let url = `${transferredUrl}?forPeriod=true&daily=true&numDays=${daysSinceDataStart}`;
     if (groupBy) {
       url = `${url}&groupBy=${groupBy}`;
     }
@@ -297,7 +297,7 @@ const ExplorerStats: React.FC<StatsProps> = ({
     signal: AbortSignal
   ) => {
     const transferredToUrl = `${baseUrl}notionaltransferredtocumulative`;
-    let url = `${transferredToUrl}?allTime=true`; // &daily=true&numDays=${daysSinceDataStart}` // TEMP - rm daily=true  //${daysSinceDataStart}`
+    let url = `${transferredToUrl}?allTime=true`
     if (groupBy) {
       url = `${url}&groupBy=${groupBy}`;
     }
@@ -416,14 +416,15 @@ const ExplorerStats: React.FC<StatsProps> = ({
       emitterAddress !== address ||
       emitterChain !== chain
     ) {
+      const newController = new AbortController();
+      setController(newController);
       getData(
         { emitterChain, emitterAddress },
         activeNetwork.endpoints.bigtableFunctionsBase,
-        new AbortController().signal,
+        newController.signal,
         getAllEndpoints
       );
     }
-    controller.abort();
     setTotals(undefined);
     setRecent(undefined);
     setNotionalTransferred(undefined);
