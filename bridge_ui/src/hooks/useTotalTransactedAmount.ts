@@ -6,7 +6,7 @@ import { formatUnits } from "@ethersproject/units";
 import axios from "axios";
 import { useEffect, useMemo, useState } from "react";
 import { DataWrapper } from "../store/helpers";
-import useTVL from "./useTVL";
+import { createTVLArray, useTVL } from "./useTVL";
 
 function convertbase64ToBinary(base64: string) {
   var raw = window.atob(base64);
@@ -24,6 +24,9 @@ function convertbase64ToBinary(base64: string) {
 //Don't actually mount this hook, it's way to expensive for the prod site.
 const useTotalTransactedAmount = (): DataWrapper<number> => {
   const tvl = useTVL();
+  const tvlArray = useMemo(() => {
+    return tvl.data ? createTVLArray(tvl.data) : [];
+  }, [tvl]);
   const [everyVaaPayloadInHistory, setEveryVaaPayloadInHistory] = useState<
     { EmitterChain: string; EmitterAddress: string; Payload: string }[] | null
   >(null);
@@ -84,7 +87,7 @@ const useTotalTransactedAmount = (): DataWrapper<number> => {
       const assetAddress =
         hexToNativeString(payload.originAddress, payload.originChain) || "";
 
-      const tvlItem = tvl.data?.find((item) => {
+      const tvlItem = tvlArray.find((item) => {
         return (
           assetAddress &&
           item.assetAddress.toLowerCase() === assetAddress.toLowerCase()

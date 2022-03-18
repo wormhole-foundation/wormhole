@@ -5,9 +5,7 @@ import { COLORS } from "../muiTheme";
 
 const useStyles = makeStyles((theme) => ({
   centeredContainer: {
-    marginTop: theme.spacing(14),
-    marginBottom: theme.spacing(26),
-    minHeight: 208,
+    marginBottom: theme.spacing(24),
     textAlign: "center",
     width: "100%",
   },
@@ -18,6 +16,9 @@ const useStyles = makeStyles((theme) => ({
     WebkitTextFillColor: "transparent",
     MozBackgroundClip: "text",
     MozTextFillColor: "transparent",
+  },
+  subtitle: {
+    marginTop: theme.spacing(2),
   },
 }));
 
@@ -39,11 +40,14 @@ export default function HeaderText({
         variant={small ? "h2" : "h1"}
         component="h1"
         className={clsx({ [classes.linearGradient]: !white })}
-        gutterBottom={!!subtitle}
       >
         {children}
       </Typography>
-      {subtitle ? <Typography component="div">{subtitle}</Typography> : null}
+      {subtitle ? (
+        <Typography component="div" className={classes.subtitle}>
+          {subtitle}
+        </Typography>
+      ) : null}
     </div>
   );
 }

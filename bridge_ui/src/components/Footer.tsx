@@ -189,6 +189,16 @@ export default function Footer() {
               >
                 Wormhole
               </Link>
+              <Link
+                component={NavLink}
+                to={"/custody-addresses"}
+                color="inherit"
+                underline="hover"
+                className={classes.linkStyle}
+                activeClassName={classes.linkActiveStyle}
+              >
+                Custody
+              </Link>
             </div>
           </div>
           <div className={classes.spacer} />

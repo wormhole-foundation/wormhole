@@ -36,6 +36,7 @@ import NFT from "./components/NFT";
 import NFTOriginVerifier from "./components/NFTOriginVerifier";
 import Recovery from "./components/Recovery";
 import Stats from "./components/Stats";
+import CustodyAddresses from "./components/Stats/CustodyAddresses";
 import TokenOriginVerifier from "./components/TokenOriginVerifier";
 import Transfer from "./components/Transfer";
 import UnwrapNative from "./components/UnwrapNative";
@@ -85,19 +86,13 @@ const useStyles = makeStyles((theme) => ({
     position: "relative",
     overflow: "hidden",
   },
-  content: {
-    margin: theme.spacing(2, 0),
-    [theme.breakpoints.up("md")]: {
-      margin: theme.spacing(4, 0),
-    },
-  },
   headerImage: {
     position: "absolute",
     zIndex: -1,
     top: 0,
     background: `url(${Header})`,
     backgroundRepeat: "no-repeat",
-    backgroundPosition: "top -500px center",
+    backgroundPosition: "top -750px center",
     backgroundSize: "2070px 1155px",
     width: "100%",
     height: 1155,
@@ -291,90 +286,91 @@ function App() {
           </Typography>
         </AppBar>
       ) : null}
-      <div className={classes.content}>
-        <div className={classes.headerImage} />
-        {["/transfer", "/nft", "/redeem"].includes(pathname) ? (
-          <Container maxWidth="md" style={{ paddingBottom: 24 }}>
-            <HeaderText
-              white
-              subtitle={
-                <>
-                  <Typography>
-                    Portal is a bridge that offers unlimited transfers across
-                    chains for tokens and NFTs wrapped by Wormhole.
-                  </Typography>
-                  <Typography>
-                    Unlike many other bridges, you avoid double wrapping and
-                    never have to retrace your steps.
-                  </Typography>
-                </>
-              }
-            >
-              Token Bridge
-            </HeaderText>
-            <Tabs
-              value={pathname}
-              variant="fullWidth"
-              onChange={handleTabChange}
-              indicatorColor="primary"
-            >
-              <Tab label="Tokens" value="/transfer" />
-              <Tab label="NFTs" value="/nft" />
-              <Tab label="Redeem" value="/redeem" to="/redeem" />
-            </Tabs>
-          </Container>
-        ) : null}
-        <Switch>
-          <Route exact path="/transfer">
-            <Transfer />
-          </Route>
-          <Route exact path="/nft">
-            <NFT />
-          </Route>
-          <Route exact path="/redeem">
-            <Recovery />
-          </Route>
-          <Route exact path="/nft-origin-verifier">
-            <NFTOriginVerifier />
-          </Route>
-          <Route exact path="/token-origin-verifier">
-            <TokenOriginVerifier />
-          </Route>
-          <Route exact path="/register">
-            <Attest />
-          </Route>
-          <Route exact path="/migrate/Solana/:legacyAsset/:fromTokenAccount">
-            <Migration chainId={CHAIN_ID_SOLANA} />
-          </Route>
-          <Route exact path="/migrate/Ethereum/:legacyAsset/">
-            <Migration chainId={CHAIN_ID_ETH} />
-          </Route>
-          <Route exact path="/migrate/BinanceSmartChain/:legacyAsset/">
-            <Migration chainId={CHAIN_ID_BSC} />
-          </Route>
-          <Route exact path="/migrate/Ethereum/">
-            <EvmQuickMigrate chainId={CHAIN_ID_ETH} />
-          </Route>
-          <Route exact path="/migrate/BinanceSmartChain/">
-            <EvmQuickMigrate chainId={CHAIN_ID_BSC} />
-          </Route>
-          <Route exact path="/migrate/Solana/">
-            <SolanaQuickMigrate />
-          </Route>
-          <Route exact path="/stats">
-            <Stats />
-          </Route>
-          <Route exact path="/withdraw-tokens-terra">
-            <WithdrawTokensTerra />
-          </Route>
-          <Route exact path="/unwrap-native">
-            <UnwrapNative />
-          </Route>
-          <Route>
-            <Redirect to="/transfer" />
-          </Route>
-        </Switch>
-      </div>
+      <div className={classes.headerImage} />
+      {["/transfer", "/nft", "/redeem"].includes(pathname) ? (
+        <Container maxWidth="md" style={{ paddingBottom: 24 }}>
+          <HeaderText
+            white
+            subtitle={
+              <>
+                <Typography>
+                  Portal is a bridge that offers unlimited transfers across
+                  chains for tokens and NFTs wrapped by Wormhole.
+                </Typography>
+                <Typography>
+                  Unlike many other bridges, you avoid double wrapping and never
+                  have to retrace your steps.
+                </Typography>
+              </>
+            }
+          >
+            Token Bridge
+          </HeaderText>
+          <Tabs
+            value={pathname}
+            variant="fullWidth"
+            onChange={handleTabChange}
+            indicatorColor="primary"
+          >
+            <Tab label="Tokens" value="/transfer" />
+            <Tab label="NFTs" value="/nft" />
+            <Tab label="Redeem" value="/redeem" to="/redeem" />
+          </Tabs>
+        </Container>
+      ) : null}
+      <Switch>
+        <Route exact path="/transfer">
+          <Transfer />
+        </Route>
+        <Route exact path="/nft">
+          <NFT />
+        </Route>
+        <Route exact path="/redeem">
+          <Recovery />
+        </Route>
+        <Route exact path="/nft-origin-verifier">
+          <NFTOriginVerifier />
+        </Route>
+        <Route exact path="/token-origin-verifier">
+          <TokenOriginVerifier />
+        </Route>
+        <Route exact path="/register">
+          <Attest />
+        </Route>
+        <Route exact path="/migrate/Solana/:legacyAsset/:fromTokenAccount">
+          <Migration chainId={CHAIN_ID_SOLANA} />
+        </Route>
+        <Route exact path="/migrate/Ethereum/:legacyAsset/">
+          <Migration chainId={CHAIN_ID_ETH} />
+        </Route>
+        <Route exact path="/migrate/BinanceSmartChain/:legacyAsset/">
+          <Migration chainId={CHAIN_ID_BSC} />
+        </Route>
+        <Route exact path="/migrate/Ethereum/">
+          <EvmQuickMigrate chainId={CHAIN_ID_ETH} />
+        </Route>
+        <Route exact path="/migrate/BinanceSmartChain/">
+          <EvmQuickMigrate chainId={CHAIN_ID_BSC} />
+        </Route>
+        <Route exact path="/migrate/Solana/">
+          <SolanaQuickMigrate />
+        </Route>
+        <Route exact path="/stats">
+          <Stats />
+        </Route>
+        <Route exact path="/withdraw-tokens-terra">
+          <WithdrawTokensTerra />
+        </Route>
+        <Route exact path="/unwrap-native">
+          <UnwrapNative />
+        </Route>
+        <Route exact path="/custody-addresses">
+          <CustodyAddresses />
+        </Route>
+        <Route>
+          <Redirect to="/transfer" />
+        </Route>
+      </Switch>
       <div className={classes.spacer} />
       <div className={classes.gradientRight}></div>
       <div className={classes.gradientRight2}></div>
