@@ -41,12 +41,12 @@ interface ChainsAssets {
   [chainId: string]: LockedAssets;
 }
 
-interface NotionalTvl {
+export interface NotionalTVL {
   Last24HoursChange: ChainsAssets;
   AllTime: ChainsAssets;
 }
 
-const createTVLArray = (notionalTvl: NotionalTvl) => {
+export const createTVLArray = (notionalTvl: NotionalTVL) => {
   const tvl: TVL[] = [];
   for (const [chainId, chainAssets] of Object.entries(notionalTvl.AllTime)) {
     if (chainId === "*") continue;
@@ -71,16 +71,16 @@ const createTVLArray = (notionalTvl: NotionalTvl) => {
   return tvl;
 };
 
-const useTVL = () => {
-  const [tvl, setTvl] = useState<DataWrapper<TVL[]>>(fetchDataWrapper());
+export const useTVL = () => {
+  const [tvl, setTvl] = useState<DataWrapper<NotionalTVL>>(fetchDataWrapper());
 
   useEffect(() => {
     let cancelled = false;
     axios
-      .get<NotionalTvl>(TVL_URL)
+      .get<NotionalTVL>(TVL_URL)
       .then((response) => {
         if (!cancelled) {
-          setTvl(receiveDataWrapper(createTVLArray(response.data)));
+          setTvl(receiveDataWrapper(response.data));
         }
       })
       .catch((error) => {

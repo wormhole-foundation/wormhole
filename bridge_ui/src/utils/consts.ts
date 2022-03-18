@@ -705,6 +705,8 @@ export const COVALENT_GET_TOKENS_URL = (
 };
 export const TVL_URL =
   "https://europe-west3-wormhole-315720.cloudfunctions.net/mainnet-notionaltvl";
+export const TVL_CUMULATIVE_URL =
+  "https://europe-west3-wormhole-315720.cloudfunctions.net/mainnet-notionaltvlcumulative?totalsOnly=true";
 export const TERRA_SWAPRATE_URL =
   "https://fcd.terra.dev/v1/market/swaprate/uusd";
 
@@ -1043,6 +1045,9 @@ export const TOTAL_TRANSACTIONS_WORMHOLE = `https://europe-west3-wormhole-315720
 
 export const RECENT_TRANSACTIONS_WORMHOLE = `https://europe-west3-wormhole-315720.cloudfunctions.net/mainnet-recent?groupBy=address&numRows=2`;
 
+export const NOTIONAL_TRANSFERRED_URL =
+  "https://europe-west3-wormhole-315720.cloudfunctions.net/mainnet-notionaltransferredfrom";
+
 export const VAA_EMITTER_ADDRESSES = [
   `${CHAIN_ID_SOLANA}:ec7372995d5cc8732397fb0ad35c0121e0eaa90d26f828a534cab54391b3a4f5`, //SOLANA TOKEN
   `${CHAIN_ID_SOLANA}:0def15a24423e1edd1a5ab16f557b9060303ddbab8c803d2ee48f4b78a1cfd6b`, //SOLAN NFT
@@ -1193,3 +1198,21 @@ export const ACALA_RELAYER_URL =
 
 export const ACALA_RELAY_URL = `${ACALA_RELAYER_URL}/relay`;
 export const ACALA_SHOULD_RELAY_URL = `${ACALA_RELAYER_URL}/shouldRelay`;
+
+export const getChainShortName = (chainId: ChainId) => {
+  return chainId === CHAIN_ID_BSC ? "BSC" : CHAINS_BY_ID[chainId]?.name;
+};
+
+export const COLOR_BY_CHAIN_ID: { [key in ChainId]?: string } = {
+  [CHAIN_ID_SOLANA]: "#31D7BB",
+  [CHAIN_ID_ETH]: "#8A92B2",
+  [CHAIN_ID_TERRA]: "#5493F7",
+  [CHAIN_ID_BSC]: "#F0B90B",
+  [CHAIN_ID_POLYGON]: "#8247E5",
+  [CHAIN_ID_AVAX]: "#E84142",
+  [CHAIN_ID_OASIS]: "#0092F6",
+  [CHAIN_ID_AURORA]: "#23685A",
+  [CHAIN_ID_FANTOM]: "#1969FF",
+  [CHAIN_ID_KARURA]: "#FF4B3B",
+  [CHAIN_ID_ACALA]: "#E00F51",
+};
