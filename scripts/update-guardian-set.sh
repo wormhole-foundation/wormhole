@@ -9,6 +9,9 @@ sleep 30
 newNumGuardians=$1
 echo "new number of guardians: ${newNumGuardians}"
 
+webHost=$2
+echo "webHost ${webHost}"
+
 # file & path to save governance VAA
 fileName=new-guardianset.prototxt
 localPath=./scripts/$fileName
@@ -18,7 +21,7 @@ echo "containerPath: ${containerPath}"
 
 sock=/tmp/admin.sock
 
-guardianPublicWebBaseUrl=http://localhost:70713
+guardianPublicWebBaseUrl="${webHost}:7071"
 
 currentGuardianSetUrl="${guardianPublicWebBaseUrl}/v1/guardianset/current"
 
@@ -84,7 +87,7 @@ hexVaa=$(base64_to_hex ${b64Vaa})
 echo "got hex VAA: ${hexVaa}"
 
 # fire off the Golang script in clients/eth:
-./scripts/send-vaa.sh $hexVaa
+./scripts/send-vaa.sh $webHost $hexVaa
 
 # give some time for guardians to observe the tx and update their state
 sleep 30

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"sync"
 
 	"cloud.google.com/go/bigtable"
 	"cloud.google.com/go/pubsub"
@@ -42,6 +43,7 @@ var nftEmitters = map[string]string{
 	"0000000000000000000000002b048Da40f69c8dc386a56705915f8E966fe1eba": "0x2b048Da40f69c8dc386a56705915f8E966fe1eba",   // ethereum ropesten
 	// TODO "": "",  // fantom
 }
+var muNFTEmitters sync.RWMutex
 
 // NFTEmitters will be populated with lowercase addresses
 var NFTEmitters = map[string]string{}
@@ -68,6 +70,8 @@ var tokenTransferEmitters = map[string]string{
 	"000000000000000000000000F174F9A837536C449321df1Ca093Bb96948D5386": "0xF174F9A837536C449321df1Ca093Bb96948D5386",   // ethereum ropesten
 	// TODO "": "",  // fantom
 }
+
+var muTokenTransferEmitters sync.RWMutex
 
 // TokenTransferEmitters will be populated with lowercase addresses
 var TokenTransferEmitters = map[string]string{}
@@ -258,16 +262,20 @@ func addReceiverAddressToMutation(mut *bigtable.Mutation, ts bigtable.Timestamp,
 
 // ProcessVAA is triggered by a PubSub message, emitted after row is saved to BigTable by guardiand
 func ProcessVAA(ctx context.Context, m PubSubMessage) error {
+	muNFTEmitters.Lock()
 	if len(NFTEmitters) == 0 {
 		for k, v := range nftEmitters {
 			NFTEmitters[strings.ToLower(k)] = strings.ToLower(v)
 		}
 	}
+	muNFTEmitters.Unlock()
+	muTokenTransferEmitters.Lock()
 	if len(TokenTransferEmitters) == 0 {
 		for k, v := range tokenTransferEmitters {
 			TokenTransferEmitters[strings.ToLower(k)] = strings.ToLower(v)
 		}
 	}
+	muTokenTransferEmitters.Unlock()
 
 	data := string(m.Data)
 	if data == "" {
