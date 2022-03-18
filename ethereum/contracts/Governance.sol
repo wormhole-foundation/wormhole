@@ -8,20 +8,18 @@ import "./GovernanceStructs.sol";
 import "./Messages.sol";
 import "./Setters.sol";
 
+import "./interfaces/IWormholeModule.sol";
+
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Upgrade.sol";
 
-interface CoreBridgeModule {
-  function getModule() external returns (bytes32);
-}
-
-abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upgrade {
+abstract contract Governance is IWormholeModule, GovernanceStructs, Messages, Setters, ERC1967Upgrade {
     event ContractUpgraded(address indexed oldContract, address indexed newContract);
     event GuardianSetAdded(uint32 indexed index);
 
     // "Core" (left padded)
     bytes32 constant module = 0x00000000000000000000000000000000000000000000000000000000436f7265;
 
-    function getModule() public pure returns (bytes32) {
+    function getModule() public pure override returns (bytes32) {
         return module;
     }
 
@@ -96,9 +94,7 @@ abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upg
         recipient.transfer(transfer.amount);
     }
 
-    function upgradeImplementation(address newImplementation) internal {
-        require(CoreBridgeModule(newImplementation).getModule() == module, "new implementation is not a CoreBridge");
-
+    function upgradeImplementation(address newImplementation) sameModule(newImplementation) internal {
         address currentImplementation = _getImplementation();
 
         _upgradeTo(newImplementation);

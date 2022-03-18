@@ -16,18 +16,15 @@ import "./token/NFT.sol";
 import "./token/NFTImplementation.sol";
 
 import "../interfaces/IWormhole.sol";
+import "../interfaces/IWormholeModule.sol";
 
-interface NFTBridgeModule {
-  function getModule() external returns (bytes32);
-}
-
-contract NFTBridgeGovernance is NFTBridgeGetters, NFTBridgeSetters, ERC1967Upgrade {
+contract NFTBridgeGovernance is IWormholeModule, NFTBridgeGetters, NFTBridgeSetters, ERC1967Upgrade {
     using BytesLib for bytes;
 
     // "NFTBridge" (left padded)
     bytes32 constant module = 0x00000000000000000000000000000000000000000000004e4654427269646765;
 
-    function getModule() public pure returns (bytes32) {
+    function getModule() public pure override returns (bytes32) {
         return module;
     }
 
@@ -82,9 +79,7 @@ contract NFTBridgeGovernance is NFTBridgeGetters, NFTBridgeSetters, ERC1967Upgra
 
     event ContractUpgraded(address indexed oldContract, address indexed newContract);
     
-    function upgradeImplementation(address newImplementation) internal {
-        require(NFTBridgeModule(newImplementation).getModule() == module, "new implementation is not an NFTBridge");
-
+    function upgradeImplementation(address newImplementation) sameModule(newImplementation) internal {
         address currentImplementation = _getImplementation();
 
         _upgradeTo(newImplementation);
