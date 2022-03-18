@@ -1140,8 +1140,8 @@ class PortalCore:
     def testnet(self):
         self.ALGOD_ADDRESS = self.args.algod_address = "https://testnet-api.algonode.cloud"
         self.INDEXER_ADDRESS = self.args.algod_address = "https://testnet-idx.algonode.cloud"
-        self.args.coreid = self.coreid = 78590198
-        self.args.tokenid = self.tokenid = 78590215
+        self.args.coreid = self.coreid = 78818623
+        self.args.tokenid = self.tokenid = 78818649
 
 # pk:        qn9d29uU4sSnn5Znm1rnuiEhlyP+hwxiz3YM8q1hOfpSaxdeGtt/k4+l1hgxEHNc2OArCUdHZeGPVILl+itMLA==
 # address:   KJVROXQ23N7ZHD5F2YMDCEDTLTMOAKYJI5DWLYMPKSBOL6RLJQWBN7375Y
@@ -1162,8 +1162,6 @@ class PortalCore:
 # pk:        SOBbyqME9O2I6RM7gdnh4S1khAVfzvPxG66FfFLCVECsB0J2MMGrEaI6cl8Rp3AjoK/oLcrdxXDNC2b04a/RrQ==
 # address:   VQDUE5RQYGVRDIR2OJPRDJ3QEOQK72BNZLO4K4GNBNTPJYNP2GWW7QEK4I
 # mnemonic:  animal hurdle topple enforce trend derive era become cherry gravity valley task sign genre wealth soft dinosaur hurt strike sign pilot correct actor able firm
-
-
 
         self.accountList.append(Account("qn9d29uU4sSnn5Znm1rnuiEhlyP+hwxiz3YM8q1hOfpSaxdeGtt/k4+l1hgxEHNc2OArCUdHZeGPVILl+itMLA=="))
         self.accountList.append(Account("WwDSdDQciVV4XkeycP25oyEUqjKLO83yZqfT1RSRYQim9yXQuxgcGJbTQpt7LkiXvfhqaamXJnHwG+lNaKkaFw=="))
