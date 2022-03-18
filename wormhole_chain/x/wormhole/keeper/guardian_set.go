@@ -23,22 +23,27 @@ func (k Keeper) UpdateGuardianSet(ctx sdk.Context, newGuardianSet types.Guardian
 	if !exists {
 		return types.ErrGuardianSetNotFound
 	}
+
 	if oldSet.Index+1 != newGuardianSet.Index {
 		return types.ErrGuardianSetNotSequential
 	}
 
 	// Create new set
-	k.AppendGuardianSet(ctx, types.GuardianSet{
+	_, err := k.AppendGuardianSet(ctx, types.GuardianSet{
 		Keys:           newGuardianSet.Keys,
+		Index:          newGuardianSet.Index,
 		ExpirationTime: 0,
 	})
+	if err != nil {
+		return err
+	}
 
 	// Expire old set
 	oldSet.ExpirationTime = uint64(ctx.BlockTime().Unix()) + config.GuardianSetExpiration
 	k.setGuardianSet(ctx, oldSet)
 
 	// Emit event
-	err := ctx.EventManager().EmitTypedEvent(&types.EventGuardianSetUpdate{
+	err = ctx.EventManager().EmitTypedEvent(&types.EventGuardianSetUpdate{
 		OldIndex: oldSet.Index,
 		NewIndex: oldSet.Index + 1,
 	})

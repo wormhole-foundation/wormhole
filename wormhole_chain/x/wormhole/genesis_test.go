@@ -19,7 +19,6 @@ func TestGenesis(t *testing.T) {
 				Index: 1,
 			},
 		},
-		GuardianSetCount: 2,
 		Config:           &types.Config{},
 		ReplayProtectionList: []types.ReplayProtection{
 			{
@@ -42,10 +41,10 @@ func TestGenesis(t *testing.T) {
 		},
 		GuardianValidatorList: []types.GuardianValidator{
 			{
-				GuardianKey: "0",
+				GuardianKey: []byte{0},
 			},
 			{
-				GuardianKey: "1",
+				GuardianKey: []byte{1},
 			},
 		},
 		// this line is used by starport scaffolding # genesis/test/state
@@ -60,7 +59,6 @@ func TestGenesis(t *testing.T) {
 
 	require.Len(t, got.GuardianSetList, len(genesisState.GuardianSetList))
 	require.Subset(t, genesisState.GuardianSetList, got.GuardianSetList)
-	require.Equal(t, genesisState.GuardianSetCount, got.GuardianSetCount)
 	require.Equal(t, genesisState.Config, got.Config)
 	require.Len(t, got.ReplayProtectionList, len(genesisState.ReplayProtectionList))
 	require.Subset(t, genesisState.ReplayProtectionList, got.ReplayProtectionList)
