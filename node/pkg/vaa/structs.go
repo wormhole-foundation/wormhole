@@ -276,25 +276,18 @@ func (v *VAA) SigningMsg() common.Hash {
 	return hash
 }
 
-// Detects duplicates signatures within a VAA
-func (v *VAA) DuplicateSignatures() bool {
-	if v.Signatures == nil {
-		return false
-	}
+// Verifies montonic signature index
+func (v *VAA) MonotonicSignatures() bool {
+	last_index := -1
 
-	for i, sig_x := range v.Signatures {
-		for g, sig_y := range v.Signatures {
-			if i == g {
-				continue
-			}
-
-			if bytes.Equal(sig_x.Signature[:], sig_y.Signature[:]) {
-				return true
-			}
+	for _, sig := range v.Signatures {
+		if int(sig.Index) <= last_index {
+			return false
 		}
+		last_index = int(sig.Index)
 	}
 
-	return false
+	return true
 }
 
 // VerifySignatures verifies the signature of the VAA given the signer addresses.
@@ -304,8 +297,7 @@ func (v *VAA) VerifySignatures(addresses []common.Address) bool {
 		return false
 	}
 
-	// False to verify when we have the same signer signing more than once
-	if v.DuplicateSignatures() {
+	if !v.MonotonicSignatures() {
 		return false
 	}
 

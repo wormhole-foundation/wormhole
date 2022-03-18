@@ -240,7 +240,7 @@ func TestMessageID(t *testing.T) {
 	assert.Equal(t, vaa.MessageID(), expected)
 }
 
-func TestDuplicateSignatures(t *testing.T) {
+func TestMonotonicSignatures(t *testing.T) {
 	var payload = []byte{97, 97, 97, 97, 97, 97}
 	var governanceEmitter = Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
 
@@ -259,7 +259,6 @@ func TestDuplicateSignatures(t *testing.T) {
 
 	// Verify our default state is false
 	assert.Nil(t, vaa.Signatures)
-	assert.Equal(t, vaa.DuplicateSignatures(), false)
 
 	// Generate some random private keys to sign with
 	privKey1, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
@@ -268,17 +267,17 @@ func TestDuplicateSignatures(t *testing.T) {
 	// Add a signature and make sure it's false
 	vaa.AddSignature(privKey1, 0)
 	assert.Equal(t, len(vaa.Signatures), 1)
-	assert.Equal(t, vaa.DuplicateSignatures(), false)
+	assert.Equal(t, vaa.MonotonicSignatures(), true)
 
-	// // Add a uniq signature and make sure it's false
-	vaa.AddSignature(privKey2, 1)
+	// Add an incrementing signature and make sure it's false
+	vaa.AddSignature(privKey2, 2)
 	assert.Equal(t, len(vaa.Signatures), 2)
-	assert.Equal(t, vaa.DuplicateSignatures(), false)
+	assert.Equal(t, vaa.MonotonicSignatures(), true)
 
-	// // Add a duplicate signature and make sure it's true
-	vaa.AddSignature(privKey1, 2)
+	// Add a signature that's in between and make sure it's true
+	vaa.AddSignature(privKey1, 1)
 	assert.Equal(t, len(vaa.Signatures), 3)
-	assert.Equal(t, vaa.DuplicateSignatures(), true)
+	assert.Equal(t, vaa.MonotonicSignatures(), false)
 }
 
 func TestHexDigest(t *testing.T) {
@@ -327,20 +326,18 @@ func TestVerifySignatures(t *testing.T) {
 	vaa.AddSignature(privKey, 0)
 	assert.Equal(t, len(vaa.Signatures), 1)
 
-	// Generate a public key to compare to from our private key
+	// // Generate a public key to compare to from our private key
 	h := vaa.SigningMsg()
-	pubKey, err := crypto.Ecrecover(h.Bytes(), vaa.Signatures[0].Signature[:])
-	assert.Nil(t, err)
-	assert.NotNil(t, pubKey)
+	pubKey, _ := crypto.Ecrecover(h.Bytes(), vaa.Signatures[0].Signature[:])
 
-	// Translate that public key back to an address
+	// // Translate that public key back to an address
 	addr := common.BytesToAddress(crypto.Keccak256(pubKey[1:])[12:])
 
 	// Make sure that it verifies
 	assert.True(t, vaa.VerifySignatures([]common.Address{addr}))
 }
 
-func TestVerifySignaturesDuplicateSig(t *testing.T) {
+func TestVerifySignaturesNonMonotonicSigs(t *testing.T) {
 	var payload = []byte{97, 97, 97, 97, 97, 97}
 	var governanceEmitter = Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
 
@@ -357,29 +354,24 @@ func TestVerifySignaturesDuplicateSig(t *testing.T) {
 		Payload:          payload,
 	}
 
-	// Generate a random private key to sign with
-	privKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	assert.Nil(t, vaa.Signatures)
+	// Generate some random private keys to sign with
+	privKey1, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	privKey2, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 
-	// Add a signature and make sure it's added
-	vaa.AddSignature(privKey, 0)
-	assert.Equal(t, len(vaa.Signatures), 1)
-
-	//Add a duplicate signature and make sure it's added
-	vaa.AddSignature(privKey, 1)
-	assert.Equal(t, len(vaa.Signatures), 2)
+	// Add nonmonotonic sigs
+	vaa.AddSignature(privKey1, 0)
+	vaa.AddSignature(privKey2, 2)
+	vaa.AddSignature(privKey2, 1)
 
 	// Generate a public key to compare to from our private key
 	h := vaa.SigningMsg()
-	pubKey, err := crypto.Ecrecover(h.Bytes(), vaa.Signatures[0].Signature[:])
-	assert.Nil(t, err)
-	assert.NotNil(t, pubKey)
-
-	// Translate that public key back to an address
-	addr := common.BytesToAddress(crypto.Keccak256(pubKey[1:])[12:])
+	pubKey1, _ := crypto.Ecrecover(h.Bytes(), vaa.Signatures[0].Signature[:])
+	pubKey2, _ := crypto.Ecrecover(h.Bytes(), vaa.Signatures[1].Signature[:])
+	addr1 := common.BytesToAddress(crypto.Keccak256(pubKey1[1:])[12:])
+	addr2 := common.BytesToAddress(crypto.Keccak256(pubKey2[1:])[12:])
 
 	// Make sure that it doesn't verify
-	assert.False(t, vaa.VerifySignatures([]common.Address{addr, addr}))
+	assert.False(t, vaa.VerifySignatures([]common.Address{addr1, addr2, addr2}))
 }
 
 func TestStringToAddress(t *testing.T) {
