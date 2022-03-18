@@ -451,8 +451,6 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
                     Gtxn[Txn.group_index() - Int(1)].accounts[0] == Txn.accounts[0],
                     Gtxn[Txn.group_index() - Int(1)].accounts[1] == Txn.accounts[1],
                     Gtxn[Txn.group_index() - Int(1)].accounts[2] == Txn.accounts[2],
-
-                    (Global.group_size() - Int(1)) == Txn.group_index()    # governance should be the last entry...
                 )),
                     
                 hdlGovernance(),

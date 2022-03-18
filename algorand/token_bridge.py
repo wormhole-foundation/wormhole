@@ -672,8 +672,8 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
                 # We dont know what we don't know.   Is it readonable
                 # to be so restrictive in a wormhole asset transfer?
                 # to not let you put more crap in the same txn block?
-                Txn.group_index() == Int(1),
-                Global.group_size() == Int(2),
+                Txn.group_index() == Int(2),
+                Global.group_size() == Int(3),
                 Len(Txn.application_args[3]) <= Int(32)
             )),
 

@@ -301,10 +301,10 @@ txna ApplicationArgs 1
 btoi
 store 56
 txn GroupIndex
-intc_0 // 1
+intc_2 // 2
 ==
 global GroupSize
-intc_2 // 2
+pushint 3 // 3
 ==
 &&
 txna ApplicationArgs 3

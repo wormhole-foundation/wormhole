@@ -105,7 +105,7 @@ class PortalCore:
         self.INDEXER_ROUND = 0
         self.NOTE_PREFIX = 'publishMessage'.encode()
 
-        self.myindexer = indexer.IndexerClient(indexer_token=self.INDEXER_TOKEN, indexer_address=self.INDEXER_ADDRESS)
+        self.myindexer = None
 
         self.seed_amt = int(1002000)  # The black magic in this number... 
         self.cache = {}
@@ -118,9 +118,6 @@ class PortalCore:
 
         self.tsig = TmplSig("sig")
 
-        self.client = self.getAlgodClient()
-        self.vaa_verify = self.client.compile(get_vaa_verify())
-        self.vaa_verify["lsig"] = LogicSig(base64.b64decode(self.vaa_verify["result"]))
 
     def init(self, args) -> None:
         self.args = args
@@ -826,7 +823,13 @@ class PortalCore:
                 on_complete=transaction.OnComplete.NoOpOC,
                 app_args=[b"governance", vaa],
                 accounts=accts,
-                note = p["digest"],
+                sp=sp
+            ))
+            txns.append(transaction.ApplicationCallTxn(
+                sender=sender.getAddress(),
+                index=self.coreid,
+                on_complete=transaction.OnComplete.NoOpOC,
+                app_args=[b"nop", 5],
                 sp=sp
             ))
 
@@ -837,7 +840,6 @@ class PortalCore:
                 on_complete=transaction.OnComplete.NoOpOC,
                 app_args=[b"governance", vaa],
                 accounts=accts,
-                note = p["digest"],
                 foreign_apps = [self.coreid],
                 sp=sp
             ))
@@ -1066,7 +1068,7 @@ class PortalCore:
         print("token bridge " + str(self.tokenid) + " address " + get_application_address(self.tokenid))
 
 
-        if self.devnet:
+        if self.devnet or self.args.testnet:
             print("bootstrapping the guardian set...")
             bootVAA = bytes.fromhex("0100000001010001ca2fbf60ac6227d47dda4fe2e7bccc087f27d22170a212b9800da5b4cbf0d64c52deb2f65ce58be2267bf5b366437c267b5c7b795cd6cea1ac2fee8a1db3ad006225f801000000010001000000000000000000000000000000000000000000000000000000000000000400000000000000012000000000000000000000000000000000000000000000000000000000436f72650200000000000001beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe")
             self.bootGuardians(bootVAA, self.client, self.foundation, self.coreid)
@@ -1135,6 +1137,46 @@ class PortalCore:
         approval, clear = get_token_bridge(True, self.args.token_approve, self.args.token_clear, self.client, seed_amt=self.seed_amt, tmpl_sig=self.tsig)
         print("Generating the teal for the token contracts: " + str(len(b64decode(approval["result"]))))
 
+    def testnet(self):
+        self.ALGOD_ADDRESS = self.args.algod_address = "https://testnet-api.algonode.cloud"
+        self.INDEXER_ADDRESS = self.args.algod_address = "https://testnet-idx.algonode.cloud"
+        self.args.coreid = self.coreid = 78590198
+        self.args.tokenid = self.tokenid = 78590215
+
+# pk:        qn9d29uU4sSnn5Znm1rnuiEhlyP+hwxiz3YM8q1hOfpSaxdeGtt/k4+l1hgxEHNc2OArCUdHZeGPVILl+itMLA==
+# address:   KJVROXQ23N7ZHD5F2YMDCEDTLTMOAKYJI5DWLYMPKSBOL6RLJQWBN7375Y
+# mnemonic:  vocal invest unit ethics share van wood notable hollow heavy inhale brick drastic total valve margin dose diesel derive camp fossil flash spike abstract arm
+
+# pk:        WwDSdDQciVV4XkeycP25oyEUqjKLO83yZqfT1RSRYQim9yXQuxgcGJbTQpt7LkiXvfhqaamXJnHwG+lNaKkaFw==
+# address:   U33SLUF3DAOBRFWTIKNXWLSIS667Q2TJVGLSM4PQDPUU22FJDILZ6CRM4A
+# mnemonic:  arena elite denial select banana betray video elder bind volume table boss choose pride flower describe fluid orange squirrel frog claim gold drink abandon fire
+
+# pk:        UiQYU0pfeVPcqfttpXDw8unh8NE27rpsClcv1V+CYi9XP6Iz1CWwxYHpR06gvUAMfXBZ+E1Q+gL2RqICY6/SXQ==
+# address:   K472EM6UEWYMLAPJI5HKBPKABR6XAWPYJVIPUAXWI2RAEY5P2JO23SQJFY
+# mnemonic:  medal gauge civil visa verify below exclude wing pumpkin secret join palace sense label repair until nuclear claim process fancy sausage party kitchen ability weasel
+#
+# pk:        bNIbVmqBU1+p1+aQDh+kffylRrrK7RTBy66Dla6nzQvIrx46tPocZw4WysJlhbm0UyOku67feBGTZlxIUa7aZQ==
+# address:   ZCXR4OVU7IOGODQWZLBGLBNZWRJSHJF3V3PXQEMTMZOEQUNO3JS4CUVLHE
+# mnemonic:  eternal hungry climb birth poem fit run traffic spirit label spirit sick episode museum fiction universe card congress student flag frog hazard fury abandon mom
+#
+# pk:        SOBbyqME9O2I6RM7gdnh4S1khAVfzvPxG66FfFLCVECsB0J2MMGrEaI6cl8Rp3AjoK/oLcrdxXDNC2b04a/RrQ==
+# address:   VQDUE5RQYGVRDIR2OJPRDJ3QEOQK72BNZLO4K4GNBNTPJYNP2GWW7QEK4I
+# mnemonic:  animal hurdle topple enforce trend derive era become cherry gravity valley task sign genre wealth soft dinosaur hurt strike sign pilot correct actor able firm
+
+
+
+        self.accountList.append(Account("qn9d29uU4sSnn5Znm1rnuiEhlyP+hwxiz3YM8q1hOfpSaxdeGtt/k4+l1hgxEHNc2OArCUdHZeGPVILl+itMLA=="))
+        self.accountList.append(Account("WwDSdDQciVV4XkeycP25oyEUqjKLO83yZqfT1RSRYQim9yXQuxgcGJbTQpt7LkiXvfhqaamXJnHwG+lNaKkaFw=="))
+        self.accountList.append(Account("UiQYU0pfeVPcqfttpXDw8unh8NE27rpsClcv1V+CYi9XP6Iz1CWwxYHpR06gvUAMfXBZ+E1Q+gL2RqICY6/SXQ=="))
+        self.accountList.append(Account("bNIbVmqBU1+p1+aQDh+kffylRrrK7RTBy66Dla6nzQvIrx46tPocZw4WysJlhbm0UyOku67feBGTZlxIUa7aZQ=="))
+        self.accountList.append(Account("SOBbyqME9O2I6RM7gdnh4S1khAVfzvPxG66FfFLCVECsB0J2MMGrEaI6cl8Rp3AjoK/oLcrdxXDNC2b04a/RrQ=="))
+
+    def mainnet(self):
+        self.ALGOD_ADDRESS = self.args.algod_address = "https://mainnet-api.algonode.cloud"
+        self.INDEXER_ADDRESS = self.args.algod_address = "https://mainnet-idx.algonode.cloud"
+        self.args.coreid = self.coreid = 78590198
+        self.args.tokenid = self.tokenid = 78590215
+
     def setup_args(self) -> None:
         parser = argparse.ArgumentParser(description='algorand setup')
     
@@ -1172,6 +1214,8 @@ class PortalCore:
         parser.add_argument('--print', action='store_true', help='print')
         parser.add_argument('--genParts', action='store_true', help='Get tssig parts')
         parser.add_argument('--genTeal', action='store_true', help='Generate all the teal from the pyteal')
+        parser.add_argument('--testnet', action='store_true', help='Connect to testnet')
+        parser.add_argument('--mainnet', action='store_true', help='Connect to mainnet')
     
         args = parser.parse_args()
         self.init(args)
@@ -1182,6 +1226,16 @@ class PortalCore:
         self.setup_args()
 
         args = self.args
+
+        if args.testnet:
+            self.testnet()
+
+        if args.mainnet:
+            self.mainnet()
+
+        self.client = self.getAlgodClient()
+        self.vaa_verify = self.client.compile(get_vaa_verify())
+        self.vaa_verify["lsig"] = LogicSig(base64.b64decode(self.vaa_verify["result"]))
 
         if args.genTeal or args.boot:
             self.genTeal()
@@ -1212,8 +1266,6 @@ class PortalCore:
             pprint.pprint(parts)
             sys.exit(0)
 
-
-
         if args.mnemonic:
             self.foundation = Account.FromMnemonic(args.mnemonic)
 
@@ -1221,7 +1273,21 @@ class PortalCore:
             print("Generating the foundation account...")
             self.foundation = self.getTemporaryAccount(self.client)
 
-        print("foundation address " + self.foundation.addr)
+        if self.foundation == None:
+            print("We dont have a account?  Here is a random one I just made up...")
+            pk = account.generate_account()[0]
+            print(" pk:        " + pk)
+            print(" address:   " + account.address_from_private_key(pk))
+            print(" mnemonic:  " + mnemonic.from_private_key(pk))
+            if args.testnet:
+                print("go to https://bank.testnet.algorand.network/ to fill it up  (You will probably want to send at least 2 loads to the wallet)")
+            sys.exit(0)
+
+        bal = self.getBalances(self.client, self.foundation.addr)
+        print("foundation address " + self.foundation.addr + "  (" + str(float(bal[0]) / 1000000.0) + " ALGO)")
+        if bal[0] < 10000000:
+            print("you need at least 10 ALGO to do darn near anything...")
+            sys.exit(0)
 
         if args.upgradeVAA:
             ret = self.devnetUpgradeVAA()

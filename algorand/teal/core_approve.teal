@@ -122,12 +122,6 @@ gtxnsa Accounts 2
 txna Accounts 2
 ==
 &&
-global GroupSize
-intc_0 // 1
--
-txn GroupIndex
-==
-&&
 assert
 bytec_2 // "currentGuardianSetIndex"
 app_global_get
