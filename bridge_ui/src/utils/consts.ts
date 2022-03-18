@@ -1,6 +1,7 @@
 import {
   ChainId,
   CHAIN_ID_ACALA,
+  CHAIN_ID_AURORA,
   CHAIN_ID_AVAX,
   CHAIN_ID_BSC,
   CHAIN_ID_ETH,
@@ -17,6 +18,7 @@ import { clusterApiUrl } from "@solana/web3.js";
 import { getAddress } from "ethers/lib/utils";
 import { CHAIN_CONFIG_MAP } from "../config";
 import acalaIcon from "../icons/acala.svg";
+import auroraIcon from "../icons/aurora.svg";
 import avaxIcon from "../icons/avax.svg";
 import bscIcon from "../icons/bsc.svg";
 import ethIcon from "../icons/eth.svg";
@@ -89,6 +91,11 @@ export const CHAINS: ChainInfo[] =
           id: CHAIN_ID_ACALA,
           name: "Acala",
           logo: acalaIcon,
+        },
+        {
+          id: CHAIN_ID_AURORA,
+          name: "Aurora",
+          logo: auroraIcon,
         },
         {
           id: CHAIN_ID_AVAX,
@@ -173,6 +180,7 @@ export const CHAINS_WITH_NFT_SUPPORT = CHAINS.filter(
     id === CHAIN_ID_POLYGON ||
     id === CHAIN_ID_OASIS ||
     id === CHAIN_ID_SOLANA ||
+    id === CHAIN_ID_AURORA ||
     id === CHAIN_ID_FANTOM ||
     id === CHAIN_ID_KARURA ||
     id === CHAIN_ID_ACALA
@@ -199,6 +207,8 @@ export const getDefaultNativeCurrencySymbol = (chainId: ChainId) =>
     ? "AVAX"
     : chainId === CHAIN_ID_OASIS
     ? "ROSE"
+    : chainId === CHAIN_ID_AURORA
+    ? "ETH"
     : chainId === CHAIN_ID_FANTOM
     ? "FTM"
     : chainId === CHAIN_ID_KARURA
@@ -245,6 +255,12 @@ export const AVAX_NETWORK_CHAIN_ID =
   CLUSTER === "mainnet" ? 43114 : CLUSTER === "testnet" ? 43113 : 1381;
 export const OASIS_NETWORK_CHAIN_ID =
   CLUSTER === "mainnet" ? 42262 : CLUSTER === "testnet" ? 42261 : 1381;
+export const AURORA_NETWORK_CHAIN_ID =
+  CLUSTER === "mainnet"
+    ? 1313161554
+    : CLUSTER === "testnet"
+    ? 1313161555
+    : 1381;
 export const FANTOM_NETWORK_CHAIN_ID =
   CLUSTER === "mainnet" ? 250 : CLUSTER === "testnet" ? 4002 : 1381;
 export const KARURA_NETWORK_CHAIN_ID =
@@ -264,6 +280,8 @@ export const getEvmChainId = (chainId: ChainId) =>
     ? AVAX_NETWORK_CHAIN_ID
     : chainId === CHAIN_ID_OASIS
     ? OASIS_NETWORK_CHAIN_ID
+    : chainId === CHAIN_ID_AURORA
+    ? AURORA_NETWORK_CHAIN_ID
     : chainId === CHAIN_ID_FANTOM
     ? FANTOM_NETWORK_CHAIN_ID
     : chainId === CHAIN_ID_KARURA
@@ -414,6 +432,27 @@ export const OASIS_TOKEN_BRIDGE_ADDRESS = getAddress(
     ? "0x88d8004A9BdbfD9D28090A02010C19897a29605c"
     : "0x0290FB167208Af455bB137780163b7B7a9a10C16"
 );
+export const AURORA_BRIDGE_ADDRESS = getAddress(
+  CLUSTER === "mainnet"
+    ? "0x0000000000000000000000000000000000000000"
+    : CLUSTER === "testnet"
+    ? "0xBd07292de7b505a4E803CEe286184f7Acf908F5e"
+    : "0xC89Ce4735882C9F0f0FE26686c53074E09B0D550"
+);
+export const AURORA_NFT_BRIDGE_ADDRESS = getAddress(
+  CLUSTER === "mainnet"
+    ? "0x0000000000000000000000000000000000000000"
+    : CLUSTER === "testnet"
+    ? "0x8F399607E9BA2405D87F5f3e1B78D950b44b2e24"
+    : "0x26b4afb60d6c903165150c6f0aa14f8016be4aec"
+);
+export const AURORA_TOKEN_BRIDGE_ADDRESS = getAddress(
+  CLUSTER === "mainnet"
+    ? "0x0000000000000000000000000000000000000000"
+    : CLUSTER === "testnet"
+    ? "0xD05eD3ad637b890D68a854d607eEAF11aF456fba"
+    : "0x0290FB167208Af455bB137780163b7B7a9a10C16"
+);
 export const FANTOM_BRIDGE_ADDRESS = getAddress(
   CLUSTER === "mainnet"
     ? "0x126783A6Cb203a3E35344528B26ca3a0489a1485"
@@ -553,6 +592,8 @@ export const getBridgeAddressForChain = (chainId: ChainId) =>
     ? AVAX_BRIDGE_ADDRESS
     : chainId === CHAIN_ID_OASIS
     ? OASIS_BRIDGE_ADDRESS
+    : chainId === CHAIN_ID_AURORA
+    ? AURORA_BRIDGE_ADDRESS
     : chainId === CHAIN_ID_FANTOM
     ? FANTOM_BRIDGE_ADDRESS
     : chainId === CHAIN_ID_KARURA
@@ -575,6 +616,8 @@ export const getNFTBridgeAddressForChain = (chainId: ChainId) =>
     ? AVAX_NFT_BRIDGE_ADDRESS
     : chainId === CHAIN_ID_OASIS
     ? OASIS_NFT_BRIDGE_ADDRESS
+    : chainId === CHAIN_ID_AURORA
+    ? AURORA_NFT_BRIDGE_ADDRESS
     : chainId === CHAIN_ID_FANTOM
     ? FANTOM_NFT_BRIDGE_ADDRESS
     : chainId === CHAIN_ID_KARURA
@@ -599,6 +642,8 @@ export const getTokenBridgeAddressForChain = (chainId: ChainId) =>
     ? AVAX_TOKEN_BRIDGE_ADDRESS
     : chainId === CHAIN_ID_OASIS
     ? OASIS_TOKEN_BRIDGE_ADDRESS
+    : chainId === CHAIN_ID_AURORA
+    ? AURORA_TOKEN_BRIDGE_ADDRESS
     : chainId === CHAIN_ID_FANTOM
     ? FANTOM_TOKEN_BRIDGE_ADDRESS
     : chainId === CHAIN_ID_KARURA
@@ -617,6 +662,7 @@ export const COVALENT_POLYGON =
   CLUSTER === "devnet" ? 137 : POLYGON_NETWORK_CHAIN_ID;
 export const COVALENT_AVAX = CLUSTER === "devnet" ? 137 : AVAX_NETWORK_CHAIN_ID;
 export const COVALENT_OASIS = CLUSTER === "devnet" ? null : null;
+export const COVALENT_AURORA = CLUSTER === "devnet" ? null : null;
 export const COVALENT_FANTOM =
   CLUSTER === "devnet" ? 250 : FANTOM_NETWORK_CHAIN_ID;
 export const COVALENT_KARURA = CLUSTER === "devnet" ? null : null;
@@ -638,6 +684,8 @@ export const COVALENT_GET_TOKENS_URL = (
       ? COVALENT_AVAX
       : chainId === CHAIN_ID_OASIS
       ? COVALENT_OASIS
+      : chainId === CHAIN_ID_AURORA
+      ? COVALENT_AURORA
       : chainId === CHAIN_ID_FANTOM
       ? COVALENT_FANTOM
       : chainId === CHAIN_ID_KARURA
@@ -702,6 +750,14 @@ export const WROSE_ADDRESS =
     ? "0x792296e2a15e6Ceb5f5039DecaE7A1f25b00B0B0"
     : "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E";
 export const WROSE_DECIMALS = 18;
+
+export const WETH_AURORA_ADDRESS =
+  CLUSTER === "mainnet"
+    ? "0x0000000000000000000000000000000000000000"
+    : CLUSTER === "testnet"
+    ? "0x9D29f395524B3C817ed86e2987A14c1897aFF849"
+    : "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E";
+export const WETH_AURORA_DECIMALS = 18;
 
 export const WFTM_ADDRESS =
   CLUSTER === "mainnet"

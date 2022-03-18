@@ -1,6 +1,29 @@
-## Google Cloud function for reading BigTable
+## Google Cloud functions for BigTable
 
 This is a reference implementaion for getting data out of BigTable.
+
+## Contents
+
+This directory holds GCP Cloud Functions, one per file, along with shared utilities in `shared.go`. The file names correspond to the hosted endpoints. ie endpoint `.../*-notionaltvl` is the file `notional-tvl.go`
+
+## Debugging with VSCode
+
+### prereqs
+
+- Golang >= 1.16 installed and available on your path.
+- The Go VSCode extension, and gopls installed.
+
+### IDE setup
+
+- open a new VSCode window
+- File menu --> "Open Workspace from File..."
+- Select `event_database/cloud_functions/workspace.code-workspace`
+
+Opening the workspace file as described above will open both `cloud_functions` and `functions_server`, so that you get all the VSCode goodness of intellesense, ability to run the code with the Go debugger, set breakpoints, etc.
+
+Add your environment variables to `functions_server/.vscode/launch.json`
+
+Start the debug server by pressing `F5`. You can check your server is up by requesting http://localhost:8080/readyz.
 
 ### deploying
 

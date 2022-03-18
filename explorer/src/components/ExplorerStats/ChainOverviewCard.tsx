@@ -30,8 +30,8 @@ const ChainOverviewCard: React.FC<ChainOverviewCardProps> = ({
 
     let timeout: NodeJS.Timeout;
     if (
-      totals?.LastDayCount[dataKey] &&
-      totalCount !== totals?.LastDayCount[dataKey]
+      totals?.TotalCount[dataKey] &&
+      totalCount !== totals?.TotalCount[dataKey]
     ) {
       setAnimate(true);
       timeout = setTimeout(() => {
@@ -45,7 +45,6 @@ const ChainOverviewCard: React.FC<ChainOverviewCardProps> = ({
     };
   }, [
     totals?.TotalCount[dataKey],
-    totals?.LastDayCount[dataKey],
     dataKey,
     totalCount,
   ]);
