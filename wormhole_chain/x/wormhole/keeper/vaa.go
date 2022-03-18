@@ -9,7 +9,7 @@ import (
 func ParseVAA(data []byte) (*vaa.VAA, error) {
 	v, err := vaa.Unmarshal(data)
 	if err != nil {
-		return nil, types.ErrVAAUnmarshal
+		return nil, err
 	}
 
 	return v, nil
