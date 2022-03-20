@@ -3,6 +3,8 @@ Install the algorand requirements
 
   python3 -m pip  install  -r requirements.txt 
 
+install docker-compile
+
 bring up the dev sandbox
 
   ./sandbox up dev
