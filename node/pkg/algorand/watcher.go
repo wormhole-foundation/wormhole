@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"github.com/algorand/go-algorand-sdk/client/v2/common/models"
 	"github.com/algorand/go-algorand-sdk/client/v2/indexer"
 	"github.com/algorand/go-algorand-sdk/types"
@@ -155,7 +156,7 @@ func lookAtTxn(e *Watcher, t models.Transaction, logger *zap.Logger) {
 func (e *Watcher) Run(ctx context.Context) error {
 	// an odd thing to broadcast... 
 	p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDAlgorand, &gossipv1.Heartbeat_Network{
-		ContractAddress: string(e.appid),
+		ContractAddress: fmt.Sprintf("%d", e.appid),
 	})
 
 	logger := supervisor.Logger(ctx)
@@ -240,7 +241,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 				currentAlgorandHeight.Set(float64(e.next_round - 1))
 				p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDAlgorand, &gossipv1.Heartbeat_Network{
 					Height:          int64(e.next_round - 1),
-					ContractAddress: string(e.appid),
+					ContractAddress: fmt.Sprintf("%d", e.appid),
 				})
 			}
 		}
