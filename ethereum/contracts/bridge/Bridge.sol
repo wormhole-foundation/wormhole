@@ -297,11 +297,11 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         setWrappedAsset(meta.tokenChain, meta.tokenAddress, token);
     }
 
-    function completeTransferWithPayload(bytes memory encodedVm, address feeRecipient) public returns (IWormhole.VM memory) {
+    function completeTransferWithPayload(bytes memory encodedVm, address feeRecipient) public returns (bytes memory) {
         return _completeTransfer(encodedVm, false, feeRecipient);
     }
 
-    function completeTransferAndUnwrapETHWithPayload(bytes memory encodedVm, address feeRecipient) public returns (IWormhole.VM memory) {
+    function completeTransferAndUnwrapETHWithPayload(bytes memory encodedVm, address feeRecipient) public returns (bytes memory) {
         return _completeTransfer(encodedVm, true, feeRecipient);
     }
 
@@ -314,7 +314,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
     }
 
     // Execute a Transfer message
-    function _completeTransfer(bytes memory encodedVm, bool unwrapWETH, address feeRecipient) internal returns (IWormhole.VM memory) {
+    function _completeTransfer(bytes memory encodedVm, bool unwrapWETH, address feeRecipient) internal returns (bytes memory) {
         (IWormhole.VM memory vm, bool valid, string memory reason) = wormhole().parseAndVerifyVM(encodedVm);
 
         require(valid, reason);
@@ -393,7 +393,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
             }
         }
 
-        return vm;
+        return vm.payload;
     }
 
     function bridgeOut(address token, uint normalizedAmount) internal {
