@@ -52,7 +52,7 @@ class Account:
     def __init__(self, privateKey: str) -> None:
         self.sk = privateKey
         self.addr = account.address_from_private_key(privateKey)
-        #print (privateKey + " -> " + self.getMnemonic())
+        print (privateKey + " -> " + self.getMnemonic())
 
     def getAddress(self) -> str:
         return self.addr
@@ -883,7 +883,7 @@ class PortalCore:
                 sender=sender.getAddress(),
                 index=self.tokenid,
                 on_complete=transaction.OnComplete.NoOpOC,
-                app_args=[b"receiveAttest", vaa],
+                app_args=[b"createWrapped", vaa],
                 accounts=accts,
                 foreign_assets = foreign_assets,
                 sp=sp
@@ -917,7 +917,7 @@ class PortalCore:
                 sender=sender.getAddress(),
                 index=self.tokenid,
                 on_complete=transaction.OnComplete.NoOpOC,
-                app_args=[b"receiveTransfer", vaa],
+                app_args=[b"completeTransfer", vaa],
                 accounts=accts,
                 foreign_assets = foreign_assets,
                 sp=sp

@@ -28,7 +28,7 @@ bytec 5 // "nop"
 ==
 bnz main_l76
 txna ApplicationArgs 0
-pushbytes 0x72656365697665417474657374 // "receiveAttest"
+pushbytes 0x63726561746557726170706564 // "createWrapped"
 ==
 bnz main_l68
 txna ApplicationArgs 0
@@ -36,7 +36,7 @@ pushbytes 0x617474657374546f6b656e // "attestToken"
 ==
 bnz main_l59
 txna ApplicationArgs 0
-pushbytes 0x726563656976655472616e73666572 // "receiveTransfer"
+pushbytes 0x636f6d706c6574655472616e73666572 // "completeTransfer"
 ==
 bnz main_l43
 txna ApplicationArgs 0
@@ -146,12 +146,6 @@ pushint 31 // 31
 bzero
 pushbytes 0x04 // 0x04
 concat
-==
-&&
-global GroupSize
-intc_0 // 1
--
-txn GroupIndex
 ==
 &&
 assert

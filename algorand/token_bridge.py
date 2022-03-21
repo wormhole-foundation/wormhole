@@ -240,8 +240,6 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
                 # Better be the right emitters
                 Extract(Txn.application_args[1], off.load(), Int(2)) == Bytes("base16", "0001"),
                 Extract(Txn.application_args[1], off.load() + Int(2), Int(32)) == Concat(BytesZero(Int(31)), Bytes("base16", "04")),
-                
-                (Global.group_size() - Int(1)) == Txn.group_index()    # This should be the last entry...
             )),
 
             off.store(off.load() + Int(43)),
@@ -279,7 +277,7 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
             Approve()
         ])
     
-    def receiveAttest():
+    def createWrapped():
         me = Global.current_application_address()
         off = ScratchVar()
         
@@ -446,7 +444,7 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
             Approve()
         ])
 
-    def receiveTransfer():
+    def completeTransfer():
         me = Global.current_application_address()
         off = ScratchVar()
         
@@ -974,9 +972,9 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
 
     router = Cond(
         [METHOD == Bytes("nop"), nop()],
-        [METHOD == Bytes("receiveAttest"), receiveAttest()],
+        [METHOD == Bytes("createWrapped"), createWrapped()],
         [METHOD == Bytes("attestToken"), attestToken()],
-        [METHOD == Bytes("receiveTransfer"), receiveTransfer()],
+        [METHOD == Bytes("completeTransfer"), completeTransfer()],
         [METHOD == Bytes("sendTransfer"), sendTransfer()],
         [METHOD == Bytes("optin"), do_optin()],
         [METHOD == Bytes("transferWithPayload"), transferWithPayload()],
