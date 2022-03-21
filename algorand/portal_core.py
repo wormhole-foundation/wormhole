@@ -397,10 +397,18 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
                             Cond(
                                 [a.load() == Bytes("verifySigs"), Seq([
                                     # Lets see if they are actually verifying the correct signatures!
-                                    s.store(Gtxn[i.load()].application_args[1]), # find a different way to get length
+                                    
+                                    # What signatures did this verifySigs check?
+                                    s.store(Gtxn[i.load()].application_args[1]),
+
+                                    # Look at the vaa and confirm those were the expected signatures we should have been checking
+                                    # at this point in the process
                                     Assert(Extract(Txn.application_args[1], off.load(), Len(s.load())) == s.load()),
+
+                                    # Where is the end pointer...
                                     eoff.store(off.load() + Len(s.load())),
 
+                                    # Now we will reset s and collect the keys
                                     s.store(Bytes("")),
 
                                     While(off.load() < eoff.load()).Do(Seq( [
@@ -408,7 +416,8 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
                                             guardian.store(Btoi(Extract(Txn.application_args[1], off.load(), Int(1)))),
                                             Assert(GetBit(hits.load(), guardian.load()) == Int(0)),
                                             hits.store(SetBit(hits.load(), guardian.load(), Int(1))),
-                                            
+
+                                            # This extracts out of the keys THIS guardian's public key
                                             s.store(Concat(s.load(), Extract(guardian_keys.load(), guardian.load() * Int(20), Int(20)))),
 
                                             off.store(off.load() + Int(66))
@@ -423,11 +432,12 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
                                 ])],
                                 [a.load() == Bytes("nop"), Seq([])],       # if there is a function call not listed here, it will throw an error
                                 [a.load() == Bytes("verifyVAA"), Seq([])],
+                                [Int(1) == Int(1), Seq([Reject()])]   # Nothing should get snuck in between...
                             )
                         ])
                 ),
 
-                # Did we verify all the signatures?
+                # Did we verify all the signatures?  If the answer is no, something is sus
                 Assert(off.load() == Int(6) + (num_sigs.load() * Int(66))),
 
                 Approve(),

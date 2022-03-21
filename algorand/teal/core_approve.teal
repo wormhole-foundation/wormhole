@@ -1,22 +1,22 @@
 #pragma version 6
-intcblock 1 0 2 127 1000 19200 128 255 1002000
+intcblock 1 0 127 2 1000 19200 128 255 1002000
 bytecblock 0x 0x0008 0x63757272656e74477561726469616e536574496e646578 0x4d657373616765466565 0x76616c6964557064617465417070726f766548617368 0x767068617368 0x766572696679564141 0x677561726469616e 0x50726f6772616d 0x6e6f70 0x76657269667953696773 0x0001 0x0000000000000000000000000000000000000000000000000000000000000004 0x00000000000000000000000000000000000000000000000000000000436f7265 0x0000 0x626f6f746564 0x76616c6964557064617465436c65617248617368
 txn ApplicationID
 intc_1 // 0
 ==
-bnz main_l61
+bnz main_l63
 txn OnCompletion
 pushint 4 // UpdateApplication
 ==
-bnz main_l60
+bnz main_l62
 txn OnCompletion
 pushint 5 // DeleteApplication
 ==
-bnz main_l59
+bnz main_l61
 txn OnCompletion
 intc_0 // OptIn
 ==
-bnz main_l58
+bnz main_l60
 txn OnCompletion
 intc_1 // NoOp
 ==
@@ -26,19 +26,19 @@ main_l6:
 txna ApplicationArgs 0
 pushbytes 0x7075626c6973684d657373616765 // "publishMessage"
 ==
-bnz main_l55
+bnz main_l57
 txna ApplicationArgs 0
 bytec 9 // "nop"
 ==
-bnz main_l54
+bnz main_l56
 txna ApplicationArgs 0
 pushbytes 0x696e6974 // "init"
 ==
-bnz main_l41
+bnz main_l43
 txna ApplicationArgs 0
 bytec 10 // "verifySigs"
 ==
-bnz main_l40
+bnz main_l42
 txna ApplicationArgs 0
 bytec 6 // "verifyVAA"
 ==
@@ -125,8 +125,8 @@ txna Accounts 2
 assert
 bytec_2 // "currentGuardianSetIndex"
 app_global_get
-store 26
-load 26
+store 27
+load 27
 intc_1 // 0
 !=
 bnz main_l25
@@ -138,100 +138,110 @@ pushint 66 // 66
 *
 pushint 14 // 14
 +
-store 21
+store 22
 txna ApplicationArgs 1
-load 21
-intc_2 // 2
+load 22
+intc_3 // 2
 extract3
 bytec 11 // 0x0001
 ==
 assert
 txna ApplicationArgs 1
-load 21
-intc_2 // 2
+load 22
+intc_3 // 2
 +
 pushint 32 // 32
 extract3
 bytec 12 // 0x0000000000000000000000000000000000000000000000000000000000000004
 ==
 assert
-load 21
+load 22
 pushint 43 // 43
 +
-store 21
+store 22
 txna ApplicationArgs 1
-load 21
+load 22
 pushint 32 // 32
 extract3
 bytec 13 // 0x00000000000000000000000000000000000000000000000000000000436f7265
 ==
 assert
-load 21
+load 22
 pushint 32 // 32
 +
-store 21
+store 22
 txna ApplicationArgs 1
-load 21
+load 22
+intc_0 // 1
++
+intc_3 // 2
+extract3
+store 30
+load 30
+bytec_1 // 0x0008
+==
+load 30
+bytec 14 // 0x0000
+==
+||
+assert
+txna ApplicationArgs 1
+load 22
 intc_0 // 1
 extract3
 btoi
-store 22
-load 22
+store 23
+load 23
 intc_0 // 1
 ==
 bnz main_l24
-load 22
-intc_2 // 2
+load 23
+intc_3 // 2
 ==
 bnz main_l22
-load 22
+load 23
 pushint 3 // 3
 ==
 bnz main_l21
-load 22
+load 23
 pushint 4 // 4
 ==
 bnz main_l19
 err
 main_l19:
-load 21
+load 22
 intc_0 // 1
 +
-store 21
-txna ApplicationArgs 1
-load 21
-intc_2 // 2
-extract3
+store 22
+load 30
 bytec_1 // 0x0008
 ==
 assert
-load 21
-intc_2 // 2
+load 22
+pushint 26 // 26
 +
-pushint 24 // 24
-+
-store 21
+store 22
 txna ApplicationArgs 1
-load 21
+load 22
 pushint 8 // 8
 extract3
 btoi
-store 24
-load 21
+store 25
+load 22
 pushint 8 // 8
 +
-store 21
+store 22
 txna ApplicationArgs 1
-load 21
+load 22
 pushint 32 // 32
 extract3
-store 23
+store 24
 itxn_begin
 intc_0 // pay
 itxn_field TypeEnum
-load 23
-itxn_field Receiver
 load 24
+itxn_field Receiver
+load 25
 itxn_field Amount
 intc_1 // 0
 itxn_field Fee
@@ -242,82 +252,70 @@ return
 intc_0 // 1
 return
 main_l21:
-load 21
+load 22
 intc_0 // 1
 +
-store 21
-txna ApplicationArgs 1
-load 21
-intc_2 // 2
-extract3
+store 22
+load 30
 bytec_1 // 0x0008
 ==
 assert
-load 21
-intc_2 // 2
+load 22
+intc_3 // 2
 +
 pushint 24 // 24
 +
-store 21
+store 22
 txna ApplicationArgs 1
-load 21
+load 22
 pushint 8 // 8
 extract3
 btoi
-store 24
+store 25
 bytec_3 // "MessageFee"
-load 24
+load 25
 app_global_put
 b main_l20
 main_l22:
-txna ApplicationArgs 1
-load 21
-intc_0 // 1
-+
-intc_2 // 2
-extract3
-bytec 14 // 0x0000
-==
-assert
-load 21
+load 22
 pushint 3 // 3
 +
-store 21
+store 22
 txna ApplicationArgs 1
-load 21
+load 22
 pushint 4 // 4
 extract3
-store 28
-load 28
+store 29
+load 29
 btoi
-store 25
+store 26
 txna Accounts 3
-load 25
+load 26
 bytec 7 // "guardian"
 callsub getsigaddress_7
 ==
 assert
 bytec_2 // "currentGuardianSetIndex"
-load 28
+load 29
 btoi
 app_global_put
-load 21
+load 22
 pushint 4 // 4
 +
-store 21
+store 22
 txna ApplicationArgs 1
-load 21
+load 22
 intc_0 // 1
 extract3
 btoi
-store 27
+store 28
 pushint 3 // 3
 intc_1 // 0
 txna ApplicationArgs 1
-load 21
+load 22
 intc_0 // 1
 pushint 20 // 20
-load 27
+load 28
 *
 +
 extract3
@@ -327,7 +325,7 @@ txna Accounts 3
 txna Accounts 2
 !=
 bz main_l20
-intc_2 // 2
+intc_3 // 2
 intc 4 // 1000
 txn FirstValid
 intc 5 // 19200
@@ -337,22 +335,13 @@ callsub write_5
 pop
 b main_l20
 main_l24:
-txna ApplicationArgs 1
-load 21
-intc_0 // 1
-+
-intc_2 // 2
-extract3
-bytec_1 // 0x0008
-==
-assert
-load 21
+load 22
 pushint 3 // 3
 +
-store 21
+store 22
 bytec 4 // "validUpdateApproveHash"
 txna ApplicationArgs 1
-load 21
+load 22
 pushint 32 // 32
 extract3
 app_global_put
@@ -360,10 +349,10 @@ b main_l20
 main_l25:
 txna ApplicationArgs 1
 extract 1 4
-store 25
-load 25
-btoi
+store 26
 load 26
+btoi
+load 27
 ==
 assert
 b main_l14
@@ -376,62 +365,62 @@ bytec 7 // "guardian"
 callsub getsigaddress_7
 ==
 assert
-intc_2 // 2
+intc_3 // 2
 intc_1 // 0
 callsub getbyte_2
-store 12
-intc_2 // 2
+store 13
+intc_3 // 2
 intc_0 // 1
 intc_0 // 1
 pushint 20 // 20
-load 12
+load 13
 *
 +
 callsub read_4
-store 13
-intc_2 // 2
+store 14
+intc_3 // 2
 intc 4 // 1000
 pushint 1008 // 1008
 callsub read_4
 btoi
-store 18
-load 18
+store 19
+load 19
 intc_1 // 0
 !=
-bnz main_l39
+bnz main_l41
 main_l27:
 pushbytes 0x00000000 // 0x00000000
-store 17
+store 18
 txna ApplicationArgs 1
 extract 5 1
 btoi
-store 14
+store 15
 pushint 6 // 6
-load 14
+load 15
 pushint 66 // 66
 *
 +
-store 15
+store 16
 txna ApplicationArgs 1
-load 15
+load 16
 txna ApplicationArgs 1
 len
-load 15
+load 16
 -
 extract3
 keccak256
 keccak256
-store 16
-load 12
+store 17
+load 13
 intc_1 // 0
 >
-load 14
-load 12
+load 15
+load 13
 <=
 &&
-load 14
-load 12
-intc_2 // 2
+load 15
+load 13
+intc_3 // 2
 *
 pushint 3 // 3
 /
@@ -452,17 +441,17 @@ app_global_get
 &&
 assert
 pushint 6 // 6
-store 15
+store 16
 intc_0 // 1
-store 10
+store 11
 main_l28:
-load 10
+load 11
 txn GroupIndex
 <=
 bnz main_l30
-load 15
+load 16
 pushint 6 // 6
-load 14
+load 15
 pushint 66 // 66
 *
 +
@@ -471,136 +460,143 @@ assert
 intc_0 // 1
 return
 main_l30:
-load 10
+load 11
 gtxns TypeEnum
 pushint 6 // appl
 ==
-load 10
+load 11
 gtxns RekeyTo
 global ZeroAddress
 ==
 &&
-load 10
+load 11
 gtxns ApplicationID
 txn ApplicationID
 ==
 &&
-load 10
+load 11
 gtxnsa Accounts 1
 txna Accounts 1
 ==
 &&
-load 10
+load 11
 gtxnsa Accounts 2
 txna Accounts 2
 ==
 &&
 assert
-load 10
-gtxnsa ApplicationArgs 0
-store 11
 load 11
+gtxnsa ApplicationArgs 0
+store 12
+load 12
 bytec 10 // "verifySigs"
 ==
-bnz main_l35
-load 11
+bnz main_l37
+load 12
 bytec 9 // "nop"
 ==
-bnz main_l34
-load 11
+bnz main_l36
+load 12
 bytec 6 // "verifyVAA"
 ==
-bnz main_l34
+bnz main_l36
+intc_0 // 1
+intc_0 // 1
+==
+bnz main_l35
 err
-main_l34:
-load 10
+main_l35:
+intc_1 // 0
+return
+main_l36:
+load 11
 intc_0 // 1
 +
-store 10
+store 11
 b main_l28
-main_l35:
-load 10
+main_l37:
+load 11
 gtxnsa ApplicationArgs 1
-store 18
+store 19
 txna ApplicationArgs 1
-load 15
-load 18
+load 16
+load 19
 len
 extract3
-load 18
+load 19
 ==
 assert
-load 15
-load 18
+load 16
+load 19
 len
 +
-store 19
+store 20
 bytec_0 // ""
-store 18
-main_l36:
-load 15
-load 19
+store 19
+main_l38:
+load 16
+load 20
 <
-bnz main_l38
-load 10
+bnz main_l40
+load 11
 gtxnsa ApplicationArgs 2
-load 18
+load 19
 ==
-load 10
+load 11
 gtxns Sender
 bytec 5 // "vphash"
 app_global_get
 ==
 &&
-load 10
+load 11
 gtxnsa ApplicationArgs 3
-load 16
+load 17
 ==
 &&
 assert
-b main_l34
-main_l38:
+b main_l36
+main_l40:
 txna ApplicationArgs 1
-load 15
+load 16
 intc_0 // 1
 extract3
 btoi
-store 20
-load 17
-load 20
+store 21
+load 18
+load 21
 getbit
 intc_1 // 0
 ==
 assert
-load 17
-load 20
+load 18
+load 21
 intc_0 // 1
 setbit
-store 17
-load 18
-load 13
-load 20
+store 18
+load 19
+load 14
+load 21
 pushint 20 // 20
 *
 pushint 20 // 20
 extract3
 concat
-store 18
-load 15
+store 19
+load 16
 pushint 66 // 66
 +
-store 15
-b main_l36
-main_l39:
+store 16
+b main_l38
+main_l41:
 txn FirstValid
-load 18
+load 19
 <
 assert
 b main_l27
-main_l40:
+main_l42:
 intc_0 // 1
 return
-main_l41:
+main_l43:
 bytec 5 // "vphash"
 txna ApplicationArgs 2
 app_global_put
@@ -623,8 +619,8 @@ store 7
 load 7
 intc_1 // 0
 !=
-bnz main_l53
-main_l42:
+bnz main_l55
+main_l44:
 txna ApplicationArgs 1
 extract 5 1
 btoi
@@ -635,14 +631,14 @@ pushint 14 // 14
 store 2
 txna ApplicationArgs 1
 load 2
-intc_2 // 2
+intc_3 // 2
 extract3
 bytec 11 // 0x0001
 ==
 assert
 txna ApplicationArgs 1
 load 2
-intc_2 // 2
+intc_3 // 2
 +
 pushint 32 // 32
 extract3
@@ -667,42 +663,52 @@ store 2
 txna ApplicationArgs 1
 load 2
 intc_0 // 1
++
+intc_3 // 2
+extract3
+store 10
+load 10
+bytec_1 // 0x0008
+==
+load 10
+bytec 14 // 0x0000
+==
+||
+assert
+txna ApplicationArgs 1
+load 2
+intc_0 // 1
 extract3
 btoi
 store 3
 load 3
 intc_0 // 1
 ==
-bnz main_l52
+bnz main_l54
 load 3
-intc_2 // 2
+intc_3 // 2
 ==
-bnz main_l50
+bnz main_l52
 load 3
 pushint 3 // 3
 ==
-bnz main_l49
+bnz main_l51
 load 3
 pushint 4 // 4
 ==
-bnz main_l47
+bnz main_l49
 err
-main_l47:
+main_l49:
 load 2
 intc_0 // 1
 +
 store 2
-txna ApplicationArgs 1
-load 2
-intc_2 // 2
-extract3
+load 10
 bytec_1 // 0x0008
 ==
 assert
 load 2
-intc_2 // 2
-+
-pushint 24 // 24
+pushint 26 // 26
 +
 store 2
 txna ApplicationArgs 1
@@ -730,23 +736,20 @@ itxn_field Amount
 intc_1 // 0
 itxn_field Fee
 itxn_submit
-main_l48:
+main_l50:
 intc_0 // 1
 return
-main_l49:
+main_l51:
 load 2
 intc_0 // 1
 +
 store 2
-txna ApplicationArgs 1
-load 2
-intc_2 // 2
-extract3
+load 10
 bytec_1 // 0x0008
 ==
 assert
 load 2
-intc_2 // 2
+intc_3 // 2
 +
 pushint 24 // 24
 +
@@ -760,17 +763,8 @@ store 5
 bytec_3 // "MessageFee"
 load 5
 app_global_put
-b main_l48
-main_l50:
-txna ApplicationArgs 1
-load 2
-intc_0 // 1
-+
-intc_2 // 2
-extract3
-bytec 14 // 0x0000
-==
-assert
+b main_l50
+main_l52:
 load 2
 pushint 3 // 3
 +
@@ -818,8 +812,8 @@ pop
 txna Accounts 3
 txna Accounts 2
 !=
-bz main_l48
-intc_2 // 2
+bz main_l50
+intc_3 // 2
 intc 4 // 1000
 txn FirstValid
 intc 5 // 19200
@@ -827,17 +821,8 @@ intc 5 // 19200
 itob
 callsub write_5
 pop
-b main_l48
-main_l52:
-txna ApplicationArgs 1
-load 2
-intc_0 // 1
-+
-intc_2 // 2
-extract3
-bytec_1 // 0x0008
-==
-assert
+b main_l50
+main_l54:
 load 2
 pushint 3 // 3
 +
@@ -848,8 +833,8 @@ load 2
 pushint 32 // 32
 extract3
 app_global_put
-b main_l48
-main_l53:
+b main_l50
+main_l55:
 txna ApplicationArgs 1
 extract 1 4
 store 6
@@ -858,11 +843,11 @@ btoi
 load 7
 ==
 assert
-b main_l42
-main_l54:
+b main_l44
+main_l56:
 intc_0 // 1
 return
-main_l55:
+main_l57:
 txna Accounts 1
 intc_1 // 0
 txn Sender
@@ -875,8 +860,8 @@ store 1
 load 1
 intc_1 // 0
 >
-bnz main_l57
-main_l56:
+bnz main_l59
+main_l58:
 intc_0 // 1
 intc_1 // 0
 pushint 8 // 8
@@ -895,7 +880,7 @@ load 0
 log
 intc_0 // 1
 return
-main_l57:
+main_l59:
 txn GroupIndex
 intc_0 // 1
 -
@@ -924,36 +909,20 @@ global ZeroAddress
 ==
 &&
 assert
-b main_l56
-main_l58:
+b main_l58
+main_l60:
 callsub optin_8
 return
-main_l59:
+main_l61:
 intc_1 // 0
 return
-main_l60:
+main_l62:
 bytec 8 // "Program"
 txn ApprovalProgram
 concat
 sha512_256
-store 29
-bytec 4 // "validUpdateApproveHash"
-app_global_get
-store 30
-load 29
-log
-load 30
-log
-load 29
-load 30
-==
-assert
-bytec 8 // "Program"
-txn ClearStateProgram
-concat
-sha512_256
 store 31
-bytec 16 // "validUpdateClearHash"
+bytec 4 // "validUpdateApproveHash"
 app_global_get
 store 32
 load 31
@@ -964,9 +933,25 @@ load 31
 load 32
 ==
 assert
+bytec 8 // "Program"
+txn ClearStateProgram
+concat
+sha512_256
+store 33
+bytec 16 // "validUpdateClearHash"
+app_global_get
+store 34
+load 33
+log
+load 34
+log
+load 33
+load 34
+==
+assert
 intc_0 // 1
 return
-main_l61:
+main_l63:
 bytec_3 // "MessageFee"
 intc_1 // 0
 app_global_put
@@ -987,315 +972,315 @@ return
 
 // intkey
 intkey_0:
-store 35
-load 35
+store 37
+load 37
 itob
 extract 7 1
 retsub
 
 // zero
 zero_1:
-store 56
+store 58
 intc_1 // 0
-store 57
+store 59
 zero_1_l1:
-load 57
+load 59
 pushint 16 // 16
 <
 bz zero_1_l3
-load 56
-load 57
+load 58
+load 59
 callsub intkey_0
-intc_3 // 127
+intc_2 // 127
 bzero
 app_local_put
-load 57
+load 59
 intc_0 // 1
 +
-store 57
+store 59
 b zero_1_l1
 zero_1_l3:
 retsub
 
 // get_byte
 getbyte_2:
-store 34
-store 33
-load 33
-load 34
-intc_3 // 127
+store 36
+store 35
+load 35
+load 36
+intc_2 // 127
 /
 callsub intkey_0
 app_local_get
-load 34
-intc_3 // 127
+load 36
+intc_2 // 127
 %
 getbyte
 retsub
 
 // set_byte
 setbyte_3:
+store 67
+store 66
 store 65
-store 64
-store 63
-load 63
-load 64
-intc_3 // 127
+load 65
+load 66
+intc_2 // 127
 /
 callsub intkey_0
-load 63
-load 64
-intc_3 // 127
+load 65
+load 66
+intc_2 // 127
 /
 callsub intkey_0
 app_local_get
-load 64
-intc_3 // 127
+load 66
+intc_2 // 127
 %
-load 65
+load 67
 setbyte
 app_local_put
 retsub
 
 // read
 read_4:
-store 38
-store 37
-store 36
-bytec_0 // ""
 store 40
-load 37
-intc_3 // 127
-/
 store 39
-read_4_l1:
+store 38
+bytec_0 // ""
+store 42
 load 39
-load 38
-intc_3 // 127
+intc_2 // 127
+/
+store 41
+read_4_l1:
+load 41
+load 40
+intc_2 // 127
 /
 <=
 bz read_4_l9
+load 41
 load 39
-load 37
-intc_3 // 127
+intc_2 // 127
 /
 ==
 bnz read_4_l8
 intc_1 // 0
 read_4_l4:
-store 41
-load 39
-load 38
-intc_3 // 127
+store 43
+load 41
+load 40
+intc_2 // 127
 /
 ==
 bnz read_4_l7
-intc_3 // 127
+intc_2 // 127
 read_4_l6:
-store 42
-load 40
-load 36
-load 39
+store 44
+load 42
+load 38
+load 41
 callsub intkey_0
 app_local_get
-load 41
-load 42
+load 43
+load 44
 substring3
 concat
-store 40
-load 39
+store 42
+load 41
 intc_0 // 1
 +
-store 39
+store 41
 b read_4_l1
 read_4_l7:
-load 38
-intc_3 // 127
+load 40
+intc_2 // 127
 %
 b read_4_l6
 read_4_l8:
-load 37
-intc_3 // 127
+load 39
+intc_2 // 127
 %
 b read_4_l4
 read_4_l9:
-load 40
+load 42
 retsub
 
 // write
 write_5:
-store 45
-store 44
-store 43
-intc_1 // 0
-store 49
-load 44
-intc_3 // 127
-/
+store 47
 store 46
-write_5_l1:
+store 45
+intc_1 // 0
+store 51
 load 46
-load 44
-load 45
+intc_2 // 127
+/
+store 48
+write_5_l1:
+load 48
+load 46
+load 47
 len
 +
-intc_3 // 127
+intc_2 // 127
 /
 <=
 bz write_5_l12
+load 48
 load 46
-load 44
-intc_3 // 127
+intc_2 // 127
 /
 ==
 bnz write_5_l11
 intc_1 // 0
 write_5_l4:
-store 47
+store 49
+load 48
 load 46
-load 44
-load 45
+load 47
 len
 +
-intc_3 // 127
+intc_2 // 127
 /
 ==
 bnz write_5_l10
-intc_3 // 127
+intc_2 // 127
 write_5_l6:
-store 48
-load 43
-load 46
-callsub intkey_0
+store 50
+load 45
 load 48
-intc_3 // 127
+callsub intkey_0
+load 50
+intc_2 // 127
 !=
-load 47
+load 49
 intc_1 // 0
 !=
 ||
 bnz write_5_l9
-intc_3 // 127
-store 50
-load 45
-load 49
-intc_3 // 127
+intc_2 // 127
+store 52
+load 47
+load 51
+intc_2 // 127
 extract3
 write_5_l8:
 app_local_put
-load 49
-load 50
+load 51
+load 52
 +
-store 49
-load 46
+store 51
+load 48
 intc_0 // 1
 +
-store 46
+store 48
 b write_5_l1
 write_5_l9:
-load 48
-load 47
+load 50
+load 49
 -
-store 50
-load 43
-load 46
+store 52
+load 45
+load 48
 callsub intkey_0
 app_local_get
 intc_1 // 0
-load 47
-substring3
-load 45
 load 49
-load 50
+substring3
+load 47
+load 51
+load 52
 extract3
 concat
-load 43
-load 46
+load 45
+load 48
 callsub intkey_0
 app_local_get
-load 48
-intc_3 // 127
+load 50
+intc_2 // 127
 substring3
 concat
 b write_5_l8
 write_5_l10:
-load 44
-load 45
+load 46
+load 47
 len
 +
-intc_3 // 127
+intc_2 // 127
 %
 b write_5_l6
 write_5_l11:
-load 44
-intc_3 // 127
+load 46
+intc_2 // 127
 %
 b write_5_l4
 write_5_l12:
-load 49
+load 51
 retsub
 
 // encode_uvarint
 encodeuvarint_6:
-store 54
-store 53
-load 54
+store 56
 store 55
+load 56
+store 57
+load 57
 load 55
-load 53
 intc 6 // 128
 >=
 bnz encodeuvarint_6_l2
-load 53
+load 55
 intc 7 // 255
 &
 itob
 extract 7 1
 b encodeuvarint_6_l3
 encodeuvarint_6_l2:
-load 53
+load 55
 pushint 7 // 7
 shr
-load 53
+load 55
 intc 7 // 255
 &
 intc 6 // 128
 |
 itob
 extract 7 1
-load 53
-load 54
 load 55
+load 56
+load 57
 uncover 4
 uncover 4
 callsub encodeuvarint_6
 cover 3
+store 57
+store 56
 store 55
-store 54
-store 53
 encodeuvarint_6_l3:
 concat
 retsub
 
 // get_sig_address
 getsigaddress_7:
-store 52
-store 51
+store 54
+store 53
 bytec 8 // "Program"
 pushbytes 0x0620010181 // 0x0620010181
 concat
-load 51
+load 53
 bytec_0 // ""
 callsub encodeuvarint_6
 concat
 pushbytes 0x4880 // 0x4880
 concat
-load 52
+load 54
 len
 bytec_0 // ""
 callsub encodeuvarint_6
 concat
-load 52
+load 54
 concat
 pushbytes 0x488800014332048103124433001022124433000881 // 0x488800014332048103124433001022124433000881
 concat
@@ -1365,42 +1350,42 @@ pushint 66 // 66
 *
 pushint 14 // 14
 +
-store 58
+store 60
 txna ApplicationArgs 1
-load 58
+load 60
 pushint 34 // 34
 extract3
-store 59
+store 61
 txna ApplicationArgs 1
-load 58
+load 60
 pushint 34 // 34
 +
 pushint 8 // 8
 extract3
 btoi
-store 60
-load 60
+store 62
+load 62
 pushint 16256 // 16256
 /
-store 62
+store 64
 txna Accounts 1
-load 62
-load 59
+load 64
+load 61
 callsub getsigaddress_7
 ==
 assert
-load 60
+load 62
 pushint 8 // 8
 /
 pushint 2032 // 2032
 %
-store 62
+store 64
 intc_0 // 1
-load 62
+load 64
 callsub getbyte_2
-store 61
-load 61
-load 60
+store 63
+load 63
+load 62
 pushint 8 // 8
 %
 getbit
@@ -1408,9 +1393,9 @@ intc_1 // 0
 ==
 assert
 intc_0 // 1
+load 64
+load 63
 load 62
-load 61
-load 60
 pushint 8 // 8
 %
 intc_0 // 1

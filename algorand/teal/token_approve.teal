@@ -4,19 +4,19 @@ bytecblock 0x 0x636f72656964 0x436861696e 0x6e6174697665 0x7075626c6973684d65737
 txn ApplicationID
 intc_1 // 0
 ==
-bnz main_l80
+bnz main_l79
 txn OnCompletion
 pushint 4 // UpdateApplication
 ==
-bnz main_l79
+bnz main_l78
 txn OnCompletion
 pushint 5 // DeleteApplication
 ==
-bnz main_l78
+bnz main_l77
 txn OnCompletion
 intc_0 // OptIn
 ==
-bnz main_l77
+bnz main_l76
 txn OnCompletion
 intc_1 // NoOp
 ==
@@ -26,7 +26,7 @@ main_l6:
 txna ApplicationArgs 0
 bytec 5 // "nop"
 ==
-bnz main_l76
+bnz main_l75
 txna ApplicationArgs 0
 pushbytes 0x63726561746557726170706564 // "createWrapped"
 ==
@@ -1311,7 +1311,7 @@ load 30
 len
 pushint 7 // 7
 >
-bnz main_l75
+bnz main_l74
 main_l69:
 load 31
 callsub trimbytes_11
@@ -1319,7 +1319,7 @@ store 31
 load 29
 pushint 8 // 8
 >
-bnz main_l74
+bnz main_l73
 main_l70:
 txna Accounts 3
 load 28
@@ -1344,42 +1344,8 @@ load 32
 intc_1 // 0
 itob
 ==
-bnz main_l73
-pushint 3 // 3
-pushint 60 // 60
-pushint 92 // 92
-callsub read_4
-load 26
-==
-pushint 3 // 3
-pushint 92 // 92
-pushint 94 // 94
-callsub read_4
-btoi
-load 27
-==
-&&
-assert
-load 31
-callsub trimbytes_11
-store 31
-load 30
-callsub trimbytes_11
-store 30
-itxn_begin
-pushint 3 // acfg
-itxn_field TypeEnum
-load 32
-btoi
-itxn_field ConfigAsset
-load 31
-itxn_field ConfigAssetName
-load 30
-itxn_field ConfigAssetUnitName
-intc_1 // 0
-itxn_field Fee
-itxn_submit
-main_l72:
+bnz main_l72
+main_l71:
 txna ApplicationArgs 1
 store 33
 pushint 3 // 3
@@ -1395,7 +1361,7 @@ callsub write_5
 pop
 intc_0 // 1
 return
-main_l73:
+main_l72:
 itxn_begin
 txna Accounts 3
 itxn_field Sender
@@ -1428,26 +1394,26 @@ intc_1 // 0
 load 32
 callsub write_5
 pop
-b main_l72
-main_l74:
+b main_l71
+main_l73:
 pushint 8 // 8
 store 29
 b main_l70
-main_l75:
+main_l74:
 load 30
 extract 0 7
 store 30
 b main_l69
-main_l76:
+main_l75:
 intc_0 // 1
 return
-main_l77:
+main_l76:
 callsub optin_20
 return
-main_l78:
+main_l77:
 intc_1 // 0
 return
-main_l79:
+main_l78:
 bytec 9 // "Program"
 txn ApprovalProgram
 concat
@@ -1482,7 +1448,7 @@ load 77
 assert
 intc_0 // 1
 return
-main_l80:
+main_l79:
 bytec_1 // "coreid"
 txna ApplicationArgs 0
 btoi
