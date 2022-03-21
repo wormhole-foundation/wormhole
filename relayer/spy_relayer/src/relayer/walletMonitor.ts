@@ -556,11 +556,20 @@ async function pullAllEVMTokens(
   supportedTokens: SupportedToken[],
   chainConfig: ChainConfigInfo
 ) {
+  logger.debug(
+    "chain: %i, supportedTokens: %o",
+    chainConfig.chainId,
+    supportedTokens
+  );
   const foreignAddresses = await calcForeignAddressesEVM(
     supportedTokens,
     chainConfig
   );
-  // logger.debug("foreignAddress: %o", foreignAddresses);
+  logger.debug(
+    "chain: %i, foreignAddress: %o",
+    chainConfig.chainId,
+    foreignAddresses
+  );
   const output: WalletBalance[] = [];
   if (!chainConfig.walletPrivateKey) {
     return output;
