@@ -112,8 +112,11 @@ async function pullBalances(): Promise<WalletBalance[]> {
         }
       }
     }
-  } catch (e) {
+  } catch (e: any) {
     logger.error("pullBalance() - for loop failed: " + e);
+    if (e && e.stack) {
+      logger.error(e.stack);
+    }
   }
   // logger.debug("returning balances:  %o", balances);
   return balances;
