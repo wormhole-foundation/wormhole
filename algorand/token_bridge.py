@@ -304,6 +304,8 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
                 Gtxn[tidx.load()].application_args[0] == Bytes("verifyVAA"),
                 Gtxn[tidx.load()].sender() == Txn.sender(),
                 Gtxn[tidx.load()].rekey_to() == Global.zero_address(),
+
+                # we are all taking about the same vaa?
                 Gtxn[tidx.load()].application_args[1] == Txn.application_args[1],
 
                 # We all opted into the same accounts?
@@ -400,41 +402,18 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
                             TxnField.config_asset_reserve: me,
 
                         # We cannot freeze or clawback assets... per the spirit of 
-                        TxnField.config_asset_freeze: Global.zero_address(),
+                            TxnField.config_asset_freeze: Global.zero_address(),
                             TxnField.config_asset_clawback: Global.zero_address(),
 
-                        TxnField.fee: Int(0),
+                            TxnField.fee: Int(0),
                         }
                     ),
                     InnerTxnBuilder.Submit(),
 
-                asset.store(Itob(InnerTxn.created_asset_id())),
+                    asset.store(Itob(InnerTxn.created_asset_id())),
                     Pop(blob.write(Int(3), Int(0), asset.load())),
-            ])).Else(Seq([
-                Assert(And(
-                    # Same address?
-                    blob.read(Int(3), Int(60), Int(92)) == Address.load(),
-                    # Same chain
-                    Btoi(blob.read(Int(3), Int(92), Int(94))) == Chain.load()
-                )),
+            ]))
 
-                # I've been told we are supposted to update the name if we see it a second time
-                Name.store(trim_bytes(Name.load())),
-                Symbol.store(trim_bytes(Symbol.load())),
-
-                InnerTxnBuilder.Begin(),
-                InnerTxnBuilder.SetFields(
-                    {
-                        TxnField.type_enum: TxnType.AssetConfig,
-                        TxnField.config_asset: Btoi(asset.load()),
-                        TxnField.config_asset_name: Name.load(),
-                        TxnField.config_asset_unit_name: Symbol.load(),
-                        TxnField.fee: Int(0)
-                    }
-                ),
-                InnerTxnBuilder.Submit(),
-            ])),
-            
             # We save away the entire digest that created this asset in case we ever need to reproduce it while sending this
             # coin to another chain
 
@@ -478,12 +457,15 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
                 Gtxn[tidx.load()].application_args[0] == Bytes("verifyVAA"),
                 Gtxn[tidx.load()].sender() == Txn.sender(),
                 Gtxn[tidx.load()].rekey_to() == Global.zero_address(),
+
+                # Lets see if the vaa we are about to process was actually verified by the core
                 Gtxn[tidx.load()].application_args[1] == Txn.application_args[1],
 
                 # We all opted into the same accounts?
                 Gtxn[tidx.load()].accounts[0] == Txn.accounts[0],
                 Gtxn[tidx.load()].accounts[1] == Txn.accounts[1],
                 Gtxn[tidx.load()].accounts[2] == Txn.accounts[2],
+
                 
                 (Global.group_size() - Int(1)) == Txn.group_index()    # This should be the last entry...
             )),
