@@ -240,46 +240,6 @@ func TestMessageID(t *testing.T) {
 	assert.Equal(t, vaa.MessageID(), expected)
 }
 
-func TestMonotonicSignatures(t *testing.T) {
-	var payload = []byte{97, 97, 97, 97, 97, 97}
-	var governanceEmitter = Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
-
-	vaa := &VAA{
-		Version:          uint8(1),
-		GuardianSetIndex: uint32(1),
-		Signatures:       nil,
-		Timestamp:        time.Unix(0, 0),
-		Nonce:            uint32(1),
-		Sequence:         uint64(1),
-		ConsistencyLevel: uint8(32),
-		EmitterChain:     ChainIDSolana,
-		EmitterAddress:   governanceEmitter,
-		Payload:          payload,
-	}
-
-	// Verify our default state is false
-	assert.Nil(t, vaa.Signatures)
-
-	// Generate some random private keys to sign with
-	privKey1, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	privKey2, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-
-	// Add a signature and make sure it's false
-	vaa.AddSignature(privKey1, 0)
-	assert.Equal(t, len(vaa.Signatures), 1)
-	assert.Equal(t, vaa.MonotonicSignatures(), true)
-
-	// Add an incrementing signature and make sure it's false
-	vaa.AddSignature(privKey2, 2)
-	assert.Equal(t, len(vaa.Signatures), 2)
-	assert.Equal(t, vaa.MonotonicSignatures(), true)
-
-	// Add a signature that's in between and make sure it's true
-	vaa.AddSignature(privKey1, 1)
-	assert.Equal(t, len(vaa.Signatures), 3)
-	assert.Equal(t, vaa.MonotonicSignatures(), false)
-}
-
 func TestHexDigest(t *testing.T) {
 	var payload = []byte{97, 97, 97, 97, 97, 97}
 	var governanceEmitter = Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
@@ -301,7 +261,7 @@ func TestHexDigest(t *testing.T) {
 	assert.Equal(t, vaa.HexDigest(), expected)
 }
 
-func TestVerifySignatures(t *testing.T) {
+func TestVerifySignatures_Single(t *testing.T) {
 	var payload = []byte{97, 97, 97, 97, 97, 97}
 	var governanceEmitter = Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
 
@@ -337,7 +297,164 @@ func TestVerifySignatures(t *testing.T) {
 	assert.True(t, vaa.VerifySignatures([]common.Address{addr}))
 }
 
-func TestVerifySignaturesNonMonotonicSigs(t *testing.T) {
+func TestVerifySignatures_MultiplesUniqKeyOrderedIndex(t *testing.T) {
+	var payload = []byte{97, 97, 97, 97, 97, 97}
+	var governanceEmitter = Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
+
+	vaa := &VAA{
+		Version:          uint8(1),
+		GuardianSetIndex: uint32(1),
+		Signatures:       nil,
+		Timestamp:        time.Unix(0, 0),
+		Nonce:            uint32(1),
+		Sequence:         uint64(1),
+		ConsistencyLevel: uint8(32),
+		EmitterChain:     ChainIDSolana,
+		EmitterAddress:   governanceEmitter,
+		Payload:          payload,
+	}
+
+	// Generate some random private keys to sign with
+	privKey1, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	privKey2, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	privKey3, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+
+	// Add nonmonotonic sigs
+	vaa.AddSignature(privKey1, 0)
+	vaa.AddSignature(privKey2, 1)
+	vaa.AddSignature(privKey3, 2)
+
+	// Generate a public key to compare to from our private key
+	h := vaa.SigningMsg()
+	pubKey1, _ := crypto.Ecrecover(h.Bytes(), vaa.Signatures[0].Signature[:])
+	pubKey2, _ := crypto.Ecrecover(h.Bytes(), vaa.Signatures[1].Signature[:])
+	pubKey3, _ := crypto.Ecrecover(h.Bytes(), vaa.Signatures[2].Signature[:])
+	addr1 := common.BytesToAddress(crypto.Keccak256(pubKey1[1:])[12:])
+	addr2 := common.BytesToAddress(crypto.Keccak256(pubKey2[1:])[12:])
+	addr3 := common.BytesToAddress(crypto.Keccak256(pubKey3[1:])[12:])
+
+	// Make sure that it does verify
+	assert.True(t, vaa.VerifySignatures([]common.Address{addr1, addr2, addr3}))
+}
+
+func TestVerifySignatures_MultiplesUniqKeysUnOrderedIndex(t *testing.T) {
+	var payload = []byte{97, 97, 97, 97, 97, 97}
+	var governanceEmitter = Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
+
+	vaa := &VAA{
+		Version:          uint8(1),
+		GuardianSetIndex: uint32(1),
+		Signatures:       nil,
+		Timestamp:        time.Unix(0, 0),
+		Nonce:            uint32(1),
+		Sequence:         uint64(1),
+		ConsistencyLevel: uint8(32),
+		EmitterChain:     ChainIDSolana,
+		EmitterAddress:   governanceEmitter,
+		Payload:          payload,
+	}
+
+	// Generate some random private keys to sign with
+	privKey1, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	privKey2, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	privKey3, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+
+	// Add nonmonotonic sigs
+	vaa.AddSignature(privKey1, 0)
+	vaa.AddSignature(privKey2, 2)
+	vaa.AddSignature(privKey3, 1)
+
+	// Generate a public key to compare to from our private key
+	h := vaa.SigningMsg()
+	pubKey1, _ := crypto.Ecrecover(h.Bytes(), vaa.Signatures[0].Signature[:])
+	pubKey2, _ := crypto.Ecrecover(h.Bytes(), vaa.Signatures[1].Signature[:])
+	pubKey3, _ := crypto.Ecrecover(h.Bytes(), vaa.Signatures[2].Signature[:])
+	addr1 := common.BytesToAddress(crypto.Keccak256(pubKey1[1:])[12:])
+	addr2 := common.BytesToAddress(crypto.Keccak256(pubKey2[1:])[12:])
+	addr3 := common.BytesToAddress(crypto.Keccak256(pubKey3[1:])[12:])
+
+	// Make sure that it fails to verify, because the index is not monotonic
+	assert.False(t, vaa.VerifySignatures([]common.Address{addr1, addr3, addr2}))
+}
+
+func TestVerifySignatures_MultiplesUniqKeysDuplicateIndex(t *testing.T) {
+	var payload = []byte{97, 97, 97, 97, 97, 97}
+	var governanceEmitter = Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
+
+	vaa := &VAA{
+		Version:          uint8(1),
+		GuardianSetIndex: uint32(1),
+		Signatures:       nil,
+		Timestamp:        time.Unix(0, 0),
+		Nonce:            uint32(1),
+		Sequence:         uint64(1),
+		ConsistencyLevel: uint8(32),
+		EmitterChain:     ChainIDSolana,
+		EmitterAddress:   governanceEmitter,
+		Payload:          payload,
+	}
+
+	// Generate some random private keys to sign with
+	privKey1, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	privKey2, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	privKey3, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+
+	// Add nonmonotonic sigs
+	vaa.AddSignature(privKey1, 0)
+	vaa.AddSignature(privKey2, 1)
+	vaa.AddSignature(privKey3, 1)
+
+	// Generate a public key to compare to from our private key
+	h := vaa.SigningMsg()
+	pubKey1, _ := crypto.Ecrecover(h.Bytes(), vaa.Signatures[0].Signature[:])
+	pubKey2, _ := crypto.Ecrecover(h.Bytes(), vaa.Signatures[1].Signature[:])
+	pubKey3, _ := crypto.Ecrecover(h.Bytes(), vaa.Signatures[2].Signature[:])
+	addr1 := common.BytesToAddress(crypto.Keccak256(pubKey1[1:])[12:])
+	addr2 := common.BytesToAddress(crypto.Keccak256(pubKey2[1:])[12:])
+	addr3 := common.BytesToAddress(crypto.Keccak256(pubKey3[1:])[12:])
+
+	// Make sure that it fails to verify, because the index is not monotonic
+	assert.False(t, vaa.VerifySignatures([]common.Address{addr1, addr3, addr2}))
+}
+
+func TestVerifySignatures_MultiplesDuplicateKeysOrderedIndex(t *testing.T) {
+	var payload = []byte{97, 97, 97, 97, 97, 97}
+	var governanceEmitter = Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
+
+	vaa := &VAA{
+		Version:          uint8(1),
+		GuardianSetIndex: uint32(1),
+		Signatures:       nil,
+		Timestamp:        time.Unix(0, 0),
+		Nonce:            uint32(1),
+		Sequence:         uint64(1),
+		ConsistencyLevel: uint8(32),
+		EmitterChain:     ChainIDSolana,
+		EmitterAddress:   governanceEmitter,
+		Payload:          payload,
+	}
+
+	// Generate some random private keys to sign with
+	privKey1, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	privKey2, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+
+	// Add nonmonotonic sigs
+	vaa.AddSignature(privKey1, 0)
+	vaa.AddSignature(privKey2, 1)
+	vaa.AddSignature(privKey2, 2)
+
+	// Generate a public key to compare to from our private key
+	h := vaa.SigningMsg()
+	pubKey1, _ := crypto.Ecrecover(h.Bytes(), vaa.Signatures[0].Signature[:])
+	pubKey2, _ := crypto.Ecrecover(h.Bytes(), vaa.Signatures[1].Signature[:])
+	addr1 := common.BytesToAddress(crypto.Keccak256(pubKey1[1:])[12:])
+	addr2 := common.BytesToAddress(crypto.Keccak256(pubKey2[1:])[12:])
+
+	// Make sure that it fails to verify, because it contains a duplicate signature
+	assert.False(t, vaa.VerifySignatures([]common.Address{addr1, addr2, addr2}))
+}
+
+func TestVerifySignatures_MultiplesDuplicateKeysUnOrderedIndex(t *testing.T) {
 	var payload = []byte{97, 97, 97, 97, 97, 97}
 	var governanceEmitter = Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
 
@@ -370,7 +487,7 @@ func TestVerifySignaturesNonMonotonicSigs(t *testing.T) {
 	addr1 := common.BytesToAddress(crypto.Keccak256(pubKey1[1:])[12:])
 	addr2 := common.BytesToAddress(crypto.Keccak256(pubKey2[1:])[12:])
 
-	// Make sure that it doesn't verify
+	// Make sure that it fails to verify, because it is not monotonic and it has a duplicate signature
 	assert.False(t, vaa.VerifySignatures([]common.Address{addr1, addr2, addr2}))
 }
 

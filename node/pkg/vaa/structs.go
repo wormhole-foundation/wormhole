@@ -276,20 +276,6 @@ func (v *VAA) SigningMsg() common.Hash {
 	return hash
 }
 
-// Verifies montonic signature index
-func (v *VAA) MonotonicSignatures() bool {
-	last_index := -1
-
-	for _, sig := range v.Signatures {
-		if int(sig.Index) <= last_index {
-			return false
-		}
-		last_index = int(sig.Index)
-	}
-
-	return true
-}
-
 // VerifySignatures verifies the signature of the VAA given the signer addresses.
 // Returns true if the signatures were verified successfully.
 func (v *VAA) VerifySignatures(addresses []common.Address) bool {
@@ -297,16 +283,20 @@ func (v *VAA) VerifySignatures(addresses []common.Address) bool {
 		return false
 	}
 
-	if !v.MonotonicSignatures() {
-		return false
-	}
-
 	h := v.SigningMsg()
+
+	last_index := -1
 
 	for _, sig := range v.Signatures {
 		if int(sig.Index) >= len(addresses) {
 			return false
 		}
+
+		// Enforce increasing indexes
+		if int(sig.Index) <= last_index {
+			return false
+		}
+		last_index = int(sig.Index)
 
 		pubKey, err := crypto.Ecrecover(h.Bytes(), sig.Signature[:])
 		if err != nil {
