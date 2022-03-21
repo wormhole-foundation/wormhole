@@ -173,6 +173,7 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
             set = ScratchVar()
             len = ScratchVar()
             v = ScratchVar()
+            tchain = ScratchVar()
 
             return Seq([
 
@@ -185,7 +186,7 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
 
                 # The offset of the chain
                 off.store(Btoi(Extract(Txn.application_args[1], Int(5), Int(1))) * Int(66) + Int(14)), 
-                # Correct chain? 
+                # Correct source chain? 
                 Assert(Extract(Txn.application_args[1], off.load(), Int(2)) == Bytes("base16", "0001")),
                 # Correct emitter?
                 Assert(Extract(Txn.application_args[1], off.load() + Int(2), Int(32)) == Bytes("base16", "0000000000000000000000000000000000000000000000000000000000000004")),
@@ -194,6 +195,11 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
                 # Is this a governance message?
                 Assert(Extract(Txn.application_args[1], off.load(), Int(32)) == Bytes("base16", "00000000000000000000000000000000000000000000000000000000436f7265")),
                 off.store(off.load() + Int(32)),
+                # What is the target of this governance message?
+                tchain.store(Extract(Txn.application_args[1], off.load() + Int(1), Int(2))),
+                # Needs to point at us or to all chains
+                Assert(Or(tchain.load() == Bytes("base16", "0008"), tchain.load() == Bytes("base16", "0000"))),
+
                 a.store(Btoi(Extract(Txn.application_args[1], off.load(), Int(1)))),
                 Cond( 
                     [a.load() == Int(1), Seq([
@@ -201,7 +207,6 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
                         # 
                         # In the case of Algorand, it contains the hash of the program that we are allowed to upgrade ourselves to.  We would then run the upgrade program itself
                         # to perform the actual upgrade
-                        Assert(Extract(Txn.application_args[1], off.load() + Int(1), Int(2)) == Bytes("base16", "0008")),
                         off.store(off.load() + Int(3)),
 
                         App.globalPut(Bytes("validUpdateApproveHash"), Extract(Txn.application_args[1], off.load(), Int(32)))
@@ -210,7 +215,6 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
                         # We are updating the guardian set
 
                         # This should point at all chains
-                        Assert(Extract(Txn.application_args[1], off.load() + Int(1), Int(2)) == Bytes("base16", "0000")),
 
                         # move off to point at the NewGuardianSetIndex and grab it
                         off.store(off.load() + Int(3)),
@@ -237,15 +241,15 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
                     ])],
                     [a.load() == Int(3), Seq([
                         off.store(off.load() + Int(1)),
-                        Assert(Extract(Txn.application_args[1], off.load(), Int(2)) == Bytes("base16", "0008")),
+                        Assert(tchain.load() == Bytes("base16", "0008")),
                         off.store(off.load() + Int(2) + Int(24)),
                         fee.store(Btoi(Extract(Txn.application_args[1], off.load(), Int(8)))),
                         App.globalPut(Bytes("MessageFee"), fee.load()),
                     ])],
                     [a.load() == Int(4), Seq([
                         off.store(off.load() + Int(1)),
-                        Assert(Extract(Txn.application_args[1], off.load(), Int(2)) == Bytes("base16", "0008")),
-                        off.store(off.load() + Int(2) + Int(24)),
+                        Assert(tchain.load() == Bytes("base16", "0008")),
+                        off.store(off.load() + Int(26)),
                         fee.store(Btoi(Extract(Txn.application_args[1], off.load(), Int(8)))),
                         off.store(off.load() + Int(8)),
                         dest.store(Extract(Txn.application_args[1], off.load(), Int(32))),
