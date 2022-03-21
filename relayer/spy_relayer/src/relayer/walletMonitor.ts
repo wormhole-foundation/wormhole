@@ -106,7 +106,7 @@ async function pullBalances(): Promise<WalletBalance[]> {
           balances.push(
             await pullSolanaNativeBalance(chainInfo, solanaPrivateKey)
           );
-          logger.info("pullBalances() - calling pullSolanaTokanBalances...");
+          logger.info("pullBalances() - calling pullSolanaTokenBalances...");
           balances = balances.concat(
             await pullSolanaTokenBalances(chainInfo, solanaPrivateKey)
           );
@@ -114,7 +114,7 @@ async function pullBalances(): Promise<WalletBalance[]> {
       }
     }
   } catch (e: any) {
-    logger.error("pullBalance() - for loop failed: " + e);
+    logger.error("pullBalances() - for loop failed: " + e);
     if (e && e.stack) {
       logger.error(e.stack);
     }
@@ -447,29 +447,33 @@ export async function collectWallets(metrics: PromHelper) {
   }
 }
 
-async function calcForeignAddressesEVM(
+async function calcLocalAddressesEVM(
   supportedTokens: SupportedToken[],
   chainConfigInfo: ChainConfigInfo
 ): Promise<string[]> {
   let provider = newProvider(chainConfigInfo.nodeUrl);
 
-  // logger.debug("calcForeignAddressesEVM() - entered.");
+  // logger.debug("calcLocalAddressesEVM() - entered.");
   let output: string[] = [];
   for (const supportedToken of supportedTokens) {
+    if (supportedToken.chainId === chainConfigInfo.chainId) {
+      output.push(supportedToken.address);
+      continue;
+    }
     const hexAddress = nativeToHexString(
       supportedToken.address,
       supportedToken.chainId
     );
     if (!hexAddress) {
       logger.debug(
-        "calcForeignAddressesEVM() - no hexAddress for chainId: " +
+        "calcLocalAddressesEVM() - no hexAddress for chainId: " +
           supportedToken.chainId +
           ", address: " +
           supportedToken.address
       );
       continue;
     }
-    // logger.debug("calcForeignAddressesEVM() - got hex address: " + hexAddress);
+    // logger.debug("calcLocalAddressesEVM() - got hex address: " + hexAddress);
     //This returns a native address
     let foreignAddress;
     try {
@@ -495,7 +499,7 @@ async function calcForeignAddressesEVM(
   return output;
 }
 
-async function calcForeignAddressesTerra(
+async function calcLocalAddressesTerra(
   supportedTokens: SupportedToken[],
   chainConfigInfo: ChainConfigInfo
 ) {
@@ -523,6 +527,10 @@ async function calcForeignAddressesTerra(
 
   const output: string[] = [];
   for (const supportedToken of supportedTokens) {
+    if (supportedToken.chainId === chainConfigInfo.chainId) {
+      output.push(supportedToken.address);
+      continue;
+    }
     const hexAddress = nativeToHexString(
       supportedToken.address,
       supportedToken.chainId
@@ -561,21 +569,21 @@ async function pullAllEVMTokens(
     chainConfig.chainId,
     supportedTokens
   );
-  const foreignAddresses = await calcForeignAddressesEVM(
+  const localAddresses = await calcLocalAddressesEVM(
     supportedTokens,
     chainConfig
   );
   logger.debug(
     "chain: %i, foreignAddress: %o",
     chainConfig.chainId,
-    foreignAddresses
+    localAddresses
   );
   const output: WalletBalance[] = [];
   if (!chainConfig.walletPrivateKey) {
     return output;
   }
   for (const privateKey of chainConfig.walletPrivateKey) {
-    for (const address of foreignAddresses) {
+    for (const address of localAddresses) {
       try {
         const balance = await pullEVMBalance(chainConfig, privateKey, address);
         if (balance) {
@@ -594,24 +602,24 @@ async function pullAllTerraTokens(
   supportedTokens: SupportedToken[],
   chainConfig: ChainConfigInfo
 ) {
-  const foreignAddresses = await calcForeignAddressesTerra(
+  const localAddresses = await calcLocalAddressesTerra(
     supportedTokens,
     chainConfig
   );
-  logger.debug("pullAllTerraTokens() - foreignAddresses: %o", foreignAddresses);
+  logger.debug("pullAllTerraTokens() - localAddresses: %o", localAddresses);
   const output: WalletBalance[] = [];
   if (!chainConfig.walletPrivateKey) {
     return output;
   }
   for (const privateKey of chainConfig.walletPrivateKey) {
-    for (const address of foreignAddresses) {
+    for (const address of localAddresses) {
       const balance = await pullTerraBalance(chainConfig, privateKey, address);
       if (balance) {
         output.push(balance);
       }
     }
   }
-  logger.debug("pullAllTerraTokens() - returning %o", output);
+  // logger.debug("pullAllTerraTokens() - returning %o", output);
 
   return output;
 }
