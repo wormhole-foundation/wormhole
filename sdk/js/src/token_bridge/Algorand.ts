@@ -563,9 +563,9 @@ export async function submitVAA(
     // A lot of our logic here depends on parseVAA and knowing what the payload is..
     const parsedVAA: Map<string, any> = parseVAA(vaa);
     const seq: number = parsedVAA.get("sequence") / MAX_BITS;
-    const chainRaw = parsedVAA.get("chainRaw"); // TODO: add the .hex()
-    const em = parsedVAA.get("emitter"); // TODO: add the .hex()
-    const index = parsedVAA.get("index");
+    const chainRaw: string = parsedVAA.get("chainRaw"); // TODO: this needs to be a hex string
+    const em: string = parsedVAA.get("emitter"); // TODO: this needs to be a hex string
+    const index: number = parsedVAA.get("index");
     const seqAddr: string = await optin(
         client,
         sender,
@@ -678,8 +678,6 @@ export async function submitVAA(
 
     // How many signatures can we process in a single txn... we can do 9!
     // There are likely upwards of 19 signatures.  So, we ned to split things up
-    // const bsize: number = 9 * 66;
-    // const numBlocks: number = parsedVAA.get("signatures").length / bsize + 1;
     const numSigs: number = parsedVAA.get("siglen");
     let numTxns: number = numSigs / MAX_SIGS_PER_TXN;
     if (numSigs % MAX_SIGS_PER_TXN) {
@@ -908,7 +906,17 @@ export async function submitVAA(
         assignGroupID(txns);
         const signedTxns: Uint8Array[] = [];
         txns.forEach((txn) => {
-            // TODO: add lsig signing
+            if (
+                txn.appArgs &&
+                txn.appArgs.length > 0 &&
+                txn.appArgs[0] ===
+                    hexStringToUint8Array(pgmNameToHexString("verifySigs"))
+            ) {
+                const lsa = new LogicSigAccount(
+                    hexStringToUint8Array(vaaVerifyResult.result)
+                );
+                signedTxns.push(signLogicSigTransaction(txn, lsa).blob);
+            }
             signedTxns.push(txn.signTxn(sender.getPrivateKey()));
         });
         const signedTxnsId = await client.sendRawTransaction(signedTxns).do();
@@ -919,4 +927,12 @@ export async function submitVAA(
         }
         return ret;
     }
+}
+
+export function createWrappedOnAlgorand(
+    client: algosdk.Algodv2,
+    sender: Account,
+    unsignedVAA: Uint8Array
+) {
+    submitVAA(unsignedVAA, client, sender, TOKEN_BRIDGE_ID);
 }
