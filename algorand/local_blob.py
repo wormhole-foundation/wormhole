@@ -23,7 +23,7 @@ from pyteal import (
     TealType,
 )
 
-_max_keys = 16
+_max_keys = 15
 _page_size = 128 - 1  # need 1 byte for key
 _max_bytes = _max_keys * _page_size
 _max_bits = _max_bytes * 8
@@ -128,6 +128,15 @@ class LocalBlob:
                 )
             ),
             buff.load(),
+        )
+
+    @staticmethod
+    @Subroutine(TealType.none)
+    def meta(
+        acct: Expr, val: Expr
+    ):
+        return Seq(
+            App.localPut(acct, Bytes("meta"), val)
         )
 
     @staticmethod

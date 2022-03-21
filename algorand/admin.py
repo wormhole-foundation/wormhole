@@ -38,7 +38,7 @@ from algosdk.v2client import indexer
 
 import pprint
 
-max_keys = 16
+max_keys = 15
 max_bytes_per_key = 127
 bits_per_byte = 8
 

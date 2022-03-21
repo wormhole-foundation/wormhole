@@ -44,7 +44,7 @@ export const TOKEN_BRIDGE_ID: number = 6;
 export const SEED_AMT: number = 1002000;
 const ZERO_PAD_BYTES =
     "0000000000000000000000000000000000000000000000000000000000000000";
-const MAX_KEYS: number = 16;
+const MAX_KEYS: number = 15;
 const MAX_BYTES_PER_KEY: number = 127;
 const BITS_PER_BYTE: number = 8;
 

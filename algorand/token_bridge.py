@@ -34,7 +34,7 @@ from local_blob import LocalBlob
 import pprint
 import sys
 
-max_keys = 16
+max_keys = 15
 max_bytes_per_key = 127
 bits_per_byte = 8
 
@@ -412,6 +412,7 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
 
                     asset.store(Itob(InnerTxn.created_asset_id())),
                     Pop(blob.write(Int(3), Int(0), asset.load())),
+                    blob.meta(Int(3), Bytes("asset"))
             ])),
 
             # We save away the entire digest that created this asset in case we ever need to reproduce it while sending this

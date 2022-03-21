@@ -25,7 +25,7 @@ from algosdk.future.transaction import LogicSigAccount
 
 import pprint
 
-max_keys = 16
+max_keys = 15
 max_bytes_per_key = 127
 bits_per_byte = 8
 
@@ -159,6 +159,8 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
 
                 # Log it so that we can look for this on the guardian network
                 Log(seq.load()),
+
+                blob.meta(Int(1), Bytes("publishMessage")),
                 
                 Approve()
             ])
@@ -237,7 +239,8 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
                         #
                         # 19200 is approx 24 hours assuming a 4.5 seconds per block   (24 * 3600 / 4.5) = 19200
                         If(Txn.accounts[3] != Txn.accounts[2],
-                           Pop(blob.write(Int(2), Int(1000), Itob(Txn.first_valid() + Int(19200)))))
+                           Pop(blob.write(Int(2), Int(1000), Itob(Txn.first_valid() + Int(19200))))),
+                        blob.meta(Int(3), Bytes("guardian"))
                     ])],
                     [a.load() == Int(3), Seq([
                         off.store(off.load() + Int(1)),
@@ -324,7 +327,9 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
                 Assert(GetBit(b.load(), sequence.load() % Int(8)) == Int(0)),
 
                 # Lets mark this bit so that we never see it again
-                blob.set_byte(Int(1), byte_offset.load(), SetBit(b.load(), sequence.load() % Int(8), Int(1)))
+                blob.set_byte(Int(1), byte_offset.load(), SetBit(b.load(), sequence.load() % Int(8), Int(1))),
+
+                blob.meta(Int(1), Bytes("duplicate"))
             )
 
         STATELESS_LOGIC_HASH = App.globalGet(Bytes("vphash"))
