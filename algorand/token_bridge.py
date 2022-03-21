@@ -412,7 +412,7 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig):
 
                     asset.store(Itob(InnerTxn.created_asset_id())),
                     Pop(blob.write(Int(3), Int(0), asset.load())),
-            ]))
+            ])),
 
             # We save away the entire digest that created this asset in case we ever need to reproduce it while sending this
             # coin to another chain
