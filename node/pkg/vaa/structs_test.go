@@ -374,7 +374,7 @@ func TestVerifySignatures_MultiplesUniqKeysUnOrderedIndex(t *testing.T) {
 	addr3 := common.BytesToAddress(crypto.Keccak256(pubKey3[1:])[12:])
 
 	// Make sure that it fails to verify, because the index is not monotonic
-	assert.False(t, vaa.VerifySignatures([]common.Address{addr1, addr3, addr2}))
+	assert.False(t, vaa.VerifySignatures([]common.Address{addr1, addr2, addr3}))
 }
 
 func TestVerifySignatures_MultiplesUniqKeysDuplicateIndex(t *testing.T) {
@@ -414,7 +414,7 @@ func TestVerifySignatures_MultiplesUniqKeysDuplicateIndex(t *testing.T) {
 	addr3 := common.BytesToAddress(crypto.Keccak256(pubKey3[1:])[12:])
 
 	// Make sure that it fails to verify, because the index is not monotonic
-	assert.False(t, vaa.VerifySignatures([]common.Address{addr1, addr3, addr2}))
+	assert.False(t, vaa.VerifySignatures([]common.Address{addr1, addr2, addr3}))
 }
 
 func TestVerifySignatures_MultiplesDuplicateKeysOrderedIndex(t *testing.T) {
@@ -437,6 +437,7 @@ func TestVerifySignatures_MultiplesDuplicateKeysOrderedIndex(t *testing.T) {
 	// Generate some random private keys to sign with
 	privKey1, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	privKey2, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	privKey3, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 
 	// Add nonmonotonic sigs
 	vaa.AddSignature(privKey1, 0)
@@ -449,9 +450,10 @@ func TestVerifySignatures_MultiplesDuplicateKeysOrderedIndex(t *testing.T) {
 	pubKey2, _ := crypto.Ecrecover(h.Bytes(), vaa.Signatures[1].Signature[:])
 	addr1 := common.BytesToAddress(crypto.Keccak256(pubKey1[1:])[12:])
 	addr2 := common.BytesToAddress(crypto.Keccak256(pubKey2[1:])[12:])
+	addr3 := crypto.PubkeyToAddress(privKey3.PublicKey)
 
 	// Make sure that it fails to verify, because it contains a duplicate signature
-	assert.False(t, vaa.VerifySignatures([]common.Address{addr1, addr2, addr2}))
+	assert.False(t, vaa.VerifySignatures([]common.Address{addr1, addr2, addr3}))
 }
 
 func TestVerifySignatures_MultiplesDuplicateKeysUnOrderedIndex(t *testing.T) {
@@ -474,6 +476,7 @@ func TestVerifySignatures_MultiplesDuplicateKeysUnOrderedIndex(t *testing.T) {
 	// Generate some random private keys to sign with
 	privKey1, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	privKey2, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	privKey3, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 
 	// Add nonmonotonic sigs
 	vaa.AddSignature(privKey1, 0)
@@ -486,9 +489,10 @@ func TestVerifySignatures_MultiplesDuplicateKeysUnOrderedIndex(t *testing.T) {
 	pubKey2, _ := crypto.Ecrecover(h.Bytes(), vaa.Signatures[1].Signature[:])
 	addr1 := common.BytesToAddress(crypto.Keccak256(pubKey1[1:])[12:])
 	addr2 := common.BytesToAddress(crypto.Keccak256(pubKey2[1:])[12:])
+	addr3 := crypto.PubkeyToAddress(privKey3.PublicKey)
 
 	// Make sure that it fails to verify, because it is not monotonic and it has a duplicate signature
-	assert.False(t, vaa.VerifySignatures([]common.Address{addr1, addr2, addr2}))
+	assert.False(t, vaa.VerifySignatures([]common.Address{addr1, addr2, addr3}))
 }
 
 func TestStringToAddress(t *testing.T) {

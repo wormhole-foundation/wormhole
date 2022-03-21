@@ -311,8 +311,7 @@ func (v *VAA) VerifySignatures(addresses []common.Address) bool {
 			return false
 		}
 
-		// This should never happen due to fixed addr positioning, but
-		// guarantee we never see the same signer twice
+		// Ensure we never see the same signer twice
 		for _, signing_address := range signing_addresses {
 			if signing_address == addr {
 				return false
