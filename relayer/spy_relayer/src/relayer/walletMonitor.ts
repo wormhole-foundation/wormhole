@@ -528,7 +528,10 @@ async function calcLocalAddressesTerra(
   const output: string[] = [];
   for (const supportedToken of supportedTokens) {
     if (supportedToken.chainId === chainConfigInfo.chainId) {
-      output.push(supportedToken.address);
+      // skip natives, like uluna and uusd
+      if (supportedToken.address.startsWith("terra")) {
+        output.push(supportedToken.address);
+      }
       continue;
     }
     const hexAddress = nativeToHexString(
