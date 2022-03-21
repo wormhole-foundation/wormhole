@@ -11,6 +11,17 @@ import { getLogger } from "../helpers/logHelper";
 
 const logger = getLogger();
 
+export function newProvider(
+  url: string
+): ethers.providers.WebSocketProvider | ethers.providers.JsonRpcProvider {
+  if (url.startsWith("ws")) {
+    return new ethers.providers.WebSocketProvider(url);
+  } else if (url.startsWith("http")) {
+    return new ethers.providers.JsonRpcProvider(url);
+  }
+  throw new Error("url does not start with ws or http!");
+}
+
 export async function relayEVM(
   chainConfigInfo: ChainConfigInfo,
   signedVAA: string,
@@ -19,9 +30,7 @@ export async function relayEVM(
   walletPrivateKey: string
 ) {
   const signedVaaArray = hexToUint8Array(signedVAA);
-  let provider = new ethers.providers.WebSocketProvider(
-    chainConfigInfo.nodeUrl
-  );
+  let provider = newProvider(chainConfigInfo.nodeUrl);
   const signer: Signer = new ethers.Wallet(walletPrivateKey, provider);
 
   logger.info(
@@ -82,7 +91,9 @@ export async function relayEVM(
     signedVaaArray
   );
 
-  provider.destroy();
+  if (provider instanceof ethers.providers.WebSocketProvider) {
+    await provider.destroy();
+  }
 
   logger.info(
     "relayEVM(" +

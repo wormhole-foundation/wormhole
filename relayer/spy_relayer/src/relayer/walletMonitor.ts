@@ -25,6 +25,7 @@ import { PromHelper } from "../helpers/promHelpers";
 import { getMetaplexData, sleep } from "../helpers/utils";
 import { getEthereumToken } from "../utils/ethereum";
 import { getMultipleAccountsRPC } from "../utils/solana";
+import { newProvider } from "./evm";
 
 let env: RelayerEnvironment;
 const logger = getLogger();
@@ -130,7 +131,7 @@ async function pullEVMBalance(
   if (parseInt(tokenAddress) === 0) {
     throw new Error("tokenAddress is 0");
   }
-  let provider = new ethers.providers.WebSocketProvider(chainInfo.nodeUrl);
+  let provider = newProvider(chainInfo.nodeUrl);
   const signer: Signer = new ethers.Wallet(privateKey, provider);
   const publicAddress = await signer.getAddress();
 
@@ -144,6 +145,10 @@ async function pullEVMBalance(
   const symbol = await token.symbol();
   //const name = await token.name();
   const balanceFormatted = formatUnits(balance, decimals);
+
+  if (provider instanceof ethers.providers.WebSocketProvider) {
+    await provider.destroy();
+  }
 
   return {
     chainId: chainInfo.chainId,
@@ -294,15 +299,15 @@ async function pullEVMNativeBalance(
     throw new Error("Bad chainInfo config for EVM chain: " + chainInfo.chainId);
   }
 
-  let provider = await new ethers.providers.WebSocketProvider(
-    chainInfo.nodeUrl
-  );
+  let provider = newProvider(chainInfo.nodeUrl);
   if (!provider) throw new Error("bad provider");
   const signer: Signer = new ethers.Wallet(privateKey, provider);
   const addr: string = await signer.getAddress();
   const weiAmount = await provider.getBalance(addr);
   const balanceInEth = ethers.utils.formatEther(weiAmount);
-  await provider.destroy();
+  if (provider instanceof ethers.providers.WebSocketProvider) {
+    await provider.destroy();
+  }
 
   logger.debug(
     "chainId: " +
@@ -455,9 +460,7 @@ async function calcForeignAddressesEVM(
   supportedTokens: SupportedToken[],
   chainConfigInfo: ChainConfigInfo
 ): Promise<string[]> {
-  let provider = await new ethers.providers.WebSocketProvider(
-    chainConfigInfo.nodeUrl
-  );
+  let provider = newProvider(chainConfigInfo.nodeUrl);
 
   // logger.debug("calcForeignAddressesEVM() - entered.");
   let output: string[] = [];
@@ -495,7 +498,9 @@ async function calcForeignAddressesEVM(
     output.push(foreignAddress);
   }
 
-  provider.destroy();
+  if (provider instanceof ethers.providers.WebSocketProvider) {
+    await provider.destroy();
+  }
   return output;
 }
 
