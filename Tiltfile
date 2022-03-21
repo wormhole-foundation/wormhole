@@ -197,6 +197,16 @@ k8s_resource(
     trigger_mode = trigger_mode,
 )
 
+if num_guardians >= 2:
+    local_resource(
+        name = "guardian-set-update",
+        resource_deps = guardian_resource_deps + ["guardian"],
+        deps = ["scripts/send-vaa.sh", "clients/eth"],
+        cmd = './scripts/update-guardian-set.sh %s %s' % (num_guardians, webHost),
+        labels = ["guardian"],
+        trigger_mode = trigger_mode,
+    )
+
 # spy
 k8s_yaml_with_ns("devnet/spy.yaml")
 
@@ -367,7 +377,7 @@ if explorer:
 
     k8s_resource(
         "bigtable-emulator",
-        port_forwards = [port_forward(8086, name = "BigTable clients [:8086]", host = webHost)],
+        port_forwards = [port_forward(8086, name = "BigTable clients [:8086]")],
         labels = ["explorer"],
         trigger_mode = trigger_mode,
     )
@@ -389,7 +399,7 @@ if explorer:
     k8s_resource(
         "cloud-functions",
         resource_deps = ["proto-gen", "bigtable-emulator", "pubsub-emulator"],
-        port_forwards = [port_forward(8090, name = "Cloud Functions [:8090]")],
+        port_forwards = [port_forward(8090, name = "Cloud Functions [:8090]", host = webHost)],
         labels = ["explorer"],
         trigger_mode = trigger_mode,
     )

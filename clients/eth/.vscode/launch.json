@@ -1,0 +1,53 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "execute_governance",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}/main.go",
+            "args": [
+                "execute_governance",
+                "--contract", "${input:contract}",
+                "--rpc", "${input:rpc}",
+                "--key", "${input:key}",
+                "${input:vaa}",
+            ],
+            "env": {},
+        },
+
+    ],
+        "inputs": [
+            {
+                "id": "contract",
+                "type": "promptString",
+                "description": "contract address",
+                // devnet eth core contract
+                "default": "0xC89Ce4735882C9F0f0FE26686c53074E09B0D550"
+            },
+            {
+                "id": "rpc",
+                "type": "promptString",
+                "description": "RPC url",
+                "default": "http://localhost:8545",
+            },
+            {
+                "id": "key",
+                "type": "promptString",
+                "description": "key of wallet sending transaction",
+                // ganche default account key
+                "default": "4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d",
+            },
+            {
+                "id": "vaa",
+                "type": "promptString",
+                "description": "hex VAA string",
+                // this vaa is GuardianSetIndex: 1, which contains two signers: guardian-0 & guardian-1
+                "default": "010000000001005e56dff434b7c2d81b38aa2544038839b61fd7654cc6c7bcf5c3cc61ad8f9e5d21df20d2f4c910c813dca110a627fa6db7d349d5988f28dd45971a7361bcc65d00000000001d0acf0400010000000000000000000000000000000000000000000000000000000000000004b5cc4c23133077212000000000000000000000000000000000000000000000000000000000436f72650200000000000102befa429d57cd18b7f8a4d91a2da9ab4af05d0fbe88d7d8b32a9105d228100e72dffe2fae0705d31c",
+            },
+        ]
+}
