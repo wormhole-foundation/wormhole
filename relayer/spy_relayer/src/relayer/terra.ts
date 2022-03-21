@@ -54,7 +54,6 @@ export async function relayTerra(
   const alreadyRedeemed = await getIsTransferCompletedTerra(
     chainConfigInfo.tokenBridgeAddress,
     signedVaaArray,
-    wallet.key.accAddress,
     lcd,
     chainConfigInfo.terraGasPriceUrl
   );
@@ -79,12 +78,21 @@ export async function relayTerra(
   const gasPrices = await lcd.config.gasPrices;
 
   logger.debug("relayTerra: estimating fees");
-  //const walletSequence = await wallet.sequence();
-  const feeEstimate = await lcd.tx.estimateFee(wallet.key.accAddress, [msg], {
-    //TODO figure out type mismatch
-    feeDenoms: [chainConfigInfo.terraCoin],
-    gasPrices,
-  });
+  const account = await lcd.auth.accountInfo(wallet.key.accAddress);
+  const feeEstimate = await lcd.tx.estimateFee(
+    [
+      {
+        sequenceNumber: account.getSequenceNumber(),
+        publicKey: account.getPublicKey(),
+      },
+    ],
+    {
+      msgs: [msg],
+      //TODO figure out type mismatch
+      feeDenoms: [chainConfigInfo.terraCoin],
+      gasPrices,
+    }
+  );
 
   logger.debug("relayTerra: createAndSign");
   const tx = await wallet.createAndSignTx({
@@ -102,7 +110,6 @@ export async function relayTerra(
   const success = await getIsTransferCompletedTerra(
     chainConfigInfo.tokenBridgeAddress,
     signedVaaArray,
-    wallet.key.accAddress,
     lcd,
     chainConfigInfo.terraGasPriceUrl
   );

@@ -197,14 +197,6 @@ async function pullTerraBalance(
     },
   });
 
-  logger.debug(
-    "pullTerraBalance() - result for wallet %s token %s: %o, %o",
-    walletAddress,
-    tokenAddress,
-    tokenInfo,
-    balanceInfo
-  );
-
   if (!tokenInfo || !balanceInfo) {
     return undefined;
   }
@@ -362,34 +354,33 @@ async function pullTerraNativeBalance(
   const walletAddress = wallet.key.accAddress;
   // logger.debug("Terra wallet address: " + walletAddress);
 
-  await lcd.bank.balance(walletAddress).then((coins) => {
-    // coins doesn't support reduce
-    const balancePairs = coins.map(({ amount, denom }) => [denom, amount]);
-    const balance = balancePairs.reduce((obj, current) => {
-      obj[current[0].toString()] = current[1].toString();
-      // logger.debug("Terra coins thingy: " + current[0] + ", => " + current[1]);
-      // logger.debug("TerraBalance returning reduced obj: %o", obj);
-      return obj;
-    }, {} as TerraNativeBalances);
-    Object.keys(balance).forEach((key) => {
-      logger.debug(
-        "chainId: " +
-          chainInfo.chainId +
-          ", balanceAbs: " +
-          balance[key] +
-          ", balanceFormatted: " +
-          formatUnits(balance[key], 6).toString() +
-          ", currencyName: " +
-          key
-      );
-      output.push({
-        chainId: chainInfo.chainId,
-        balanceAbs: balance[key],
-        balanceFormatted: formatUnits(balance[key], 6).toString(),
-        currencyName: key,
-        currencyAddressNative: key,
-        walletAddress: walletAddress,
-      });
+  const [coins] = await lcd.bank.balance(walletAddress);
+  // coins doesn't support reduce
+  const balancePairs = coins.map(({ amount, denom }) => [denom, amount]);
+  const balance = balancePairs.reduce((obj, current) => {
+    obj[current[0].toString()] = current[1].toString();
+    // logger.debug("Terra coins thingy: " + current[0] + ", => " + current[1]);
+    // logger.debug("TerraBalance returning reduced obj: %o", obj);
+    return obj;
+  }, {} as TerraNativeBalances);
+  Object.keys(balance).forEach((key) => {
+    logger.debug(
+      "chainId: " +
+        chainInfo.chainId +
+        ", balanceAbs: " +
+        balance[key] +
+        ", balanceFormatted: " +
+        formatUnits(balance[key], 6).toString() +
+        ", currencyName: " +
+        key
+    );
+    output.push({
+      chainId: chainInfo.chainId,
+      balanceAbs: balance[key],
+      balanceFormatted: formatUnits(balance[key], 6).toString(),
+      currencyName: key,
+      currencyAddressNative: key,
+      walletAddress: walletAddress,
     });
   });
   // logger.debug("TerraBalance returning: %o", output);
