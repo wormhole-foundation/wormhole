@@ -192,15 +192,23 @@ async function pullTerraBalance(
     },
   });
 
+  logger.debug(
+    "pullTerraBalance() - result for wallet %s token %s: %o, %o",
+    walletAddress,
+    tokenAddress,
+    tokenInfo,
+    balanceInfo
+  );
+
   if (!tokenInfo || !balanceInfo) {
     return undefined;
   }
 
   return {
     chainId: CHAIN_ID_TERRA,
-    balanceAbs: balanceInfo.balance.toString(),
+    balanceAbs: balanceInfo?.balance?.toString() || "0",
     balanceFormatted: formatUnits(
-      balanceInfo.balance.toString(),
+      balanceInfo?.balance?.toString() || "0",
       tokenInfo.decimals
     ),
     currencyName: tokenInfo.symbol,
