@@ -11,7 +11,7 @@ import "../../libraries/external/BytesLib.sol";
 import "../../interfaces/IWormhole.sol";
 
 interface ITokenBridge {
-    function completeTransferWithPayload(bytes memory encodedVm, address feeRecipient) external returns (IWormhole.VM memory);
+    function completeTransferWithPayload(bytes memory encodedVm, address feeRecipient) external returns (bytes memory);
     function wrappedAsset(uint16 tokenChainId, bytes32 tokenAddress) external view returns (address);
 }
 
@@ -28,18 +28,18 @@ contract MockTokenBridgeIntegration {
         address wrappedAddress = tokenBridge().wrappedAsset(tokenChainId, tokenAddress);
         IERC20 transferToken = IERC20(wrappedAddress);
         uint256 balanceBefore = transferToken.balanceOf(address(this));
-        IWormhole.VM memory vm = tokenBridge().completeTransferWithPayload(encodedVm, msg.sender);
+        bytes memory payload = tokenBridge().completeTransferWithPayload(encodedVm, msg.sender);
         // make sure this vm is a payload 3 
-        uint8 payloadType = vm.payload.toUint8(0);
+        uint8 payloadType = payload.toUint8(0);
         require(payloadType == 3, "invalid payload type");
-        bytes32 vmTokenAddress = vm.payload.toBytes32(33);
+        bytes32 vmTokenAddress = payload.toBytes32(33);
         require(tokenAddress == vmTokenAddress, 'Address parsed from VAA and payload do not match');
-        uint16 vmTokenChainId = vm.payload.toUint16(65);
+        uint16 vmTokenChainId = payload.toUint16(65);
         require(tokenChainId == vmTokenChainId, 'ChainId parsed from VAA and payload do not match');
         uint256 balanceAfter = transferToken.balanceOf(address(this));
         uint256 amount = balanceAfter - balanceBefore;
         // additional field(s)
-        bytes32 receiver = vm.payload.toBytes32(133);
+        bytes32 receiver = payload.toBytes32(133);
         address receiverAddress = address(uint160(uint256(receiver)));
         transferToken.safeTransfer(receiverAddress, amount);
     }
