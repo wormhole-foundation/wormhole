@@ -52,7 +52,9 @@ class Account:
     def __init__(self, privateKey: str) -> None:
         self.sk = privateKey
         self.addr = account.address_from_private_key(privateKey)
-        print (privateKey + " -> " + self.getMnemonic())
+        print (privateKey)
+        print ("    " + self.getMnemonic())
+        print ("    " + self.addr)
 
     def getAddress(self) -> str:
         return self.addr
@@ -1212,6 +1214,7 @@ class PortalCore:
         parser.add_argument('--print', action='store_true', help='print')
         parser.add_argument('--genParts', action='store_true', help='Get tssig parts')
         parser.add_argument('--genTeal', action='store_true', help='Generate all the teal from the pyteal')
+        parser.add_argument('--fund', action='store_true', help='Generate some accounts and fund them')
         parser.add_argument('--testnet', action='store_true', help='Connect to testnet')
         parser.add_argument('--mainnet', action='store_true', help='Connect to mainnet')
     
@@ -1270,6 +1273,9 @@ class PortalCore:
         if args.devnet and self.foundation == None:
             print("Generating the foundation account...")
             self.foundation = self.getTemporaryAccount(self.client)
+
+        if self.args.fund:
+            sys.exit(0)
 
         if self.foundation == None:
             print("We dont have a account?  Here is a random one I just made up...")

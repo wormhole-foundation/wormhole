@@ -2,8 +2,8 @@ const algosdk = require('algosdk');
 const TestLib = require('./testlib.js')
 const testLib = new TestLib.TestLib()
 
-const AlgorandLib = require('../../sdk/js/src/token_bridge/Algorand.ts')
-const algorandLib = new AlgorandLib.AlgorandLib()
+#const AlgorandLib = require('../../sdk/js/src/token_bridge/Algorand.ts')
+#const algorandLib = new AlgorandLib.AlgorandLib()
 
 const guardianKeys = [
     "beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe"
