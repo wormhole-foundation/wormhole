@@ -1223,6 +1223,21 @@ class PortalCore:
 
         self.devnet = args.devnet
 
+    def main(self) -> None:
+        self.setup_args()
+
+        args = self.args
+
+        if args.testnet:
+            self.testnet()
+
+        if args.mainnet:
+            self.mainnet()
+
+        self.client = self.getAlgodClient()
+        self.vaa_verify = self.client.compile(get_vaa_verify())
+        self.vaa_verify["lsig"] = LogicSig(base64.b64decode(self.vaa_verify["result"]))
+
         if args.genTeal or args.boot:
             self.genTeal()
 
