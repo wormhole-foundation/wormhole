@@ -135,7 +135,6 @@ async function pullEVMBalance(
   const signer: Signer = new ethers.Wallet(privateKey, provider);
   const publicAddress = await signer.getAddress();
 
-  logger.debug("About to get token for address: " + tokenAddress);
   const token = await getEthereumToken(tokenAddress, provider);
   // logger.debug("About to get decimals...");
   const decimals = await token.decimals();
@@ -593,7 +592,14 @@ async function pullAllEVMTokens(
           output.push(balance);
         }
       } catch (e) {
-        logger.error("pullEVMBalance failed: " + e);
+        logger.error(
+          "pullEVMBalance failed: for token " +
+            address +
+            " on chain " +
+            chainConfig.chainId +
+            ", error: " +
+            e
+        );
       }
     }
   }

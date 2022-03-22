@@ -64,7 +64,7 @@ export function validateInit(): boolean {
 export async function parseAndValidateVaa(
   rawVaa: Uint8Array
 ): Promise<string | ParsedVaa<ParsedTransferPayload>> {
-  logger.debug("About to validate: " + rawVaa);
+  logger.debug("About to validate: " + uint8ArrayToHex(rawVaa));
   let parsedVaa: ParsedVaa<Uint8Array> | null = null;
   try {
     parsedVaa = await parseVaaTyped(rawVaa);
@@ -135,10 +135,6 @@ export async function parseAndValidateVaa(
   );
 
   const isApprovedToken = env.supportedTokens.find((token) => {
-    console.log(
-      "in approved token, origin address native is: ",
-      originAddressNative
-    );
     return (
       originAddressNative &&
       token.address.toLowerCase() === originAddressNative.toLowerCase() &&
@@ -223,12 +219,8 @@ export const parseTransferPayload = (arr: Buffer) => ({
 
 //TODO move these to the official SDK
 export async function parseVaaTyped(signedVAA: Uint8Array) {
-  logger.info("about to parse this signedVaa: " + signedVAA);
   const { parse_vaa } = await importCoreWasm();
   const parsedVAA = parse_vaa(signedVAA);
-  logger.info(
-    "Here is the parsedVaa after it's through the wasm: " + parsedVAA
-  );
   return {
     timestamp: parseInt(parsedVAA.timestamp),
     nonce: parseInt(parsedVAA.nonce),

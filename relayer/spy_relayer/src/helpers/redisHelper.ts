@@ -71,11 +71,11 @@ export async function connectToRedis() {
 
 export async function storeInRedis(name: string, value: string) {
   if (!name) {
-    logger.error("storeInRedis: invalid name");
+    logger.error("storeInRedis: missing name");
     return;
   }
   if (!value) {
-    logger.error("storeInRedis: invalid value");
+    logger.error("storeInRedis: missing value");
     return;
   }
 
@@ -115,7 +115,7 @@ export async function addToRedis(
   value: string
 ) {
   try {
-    logger.debug("storeInRedis: storing in redis.");
+    logger.debug("storeInRedis: storing in redis. name: " + name);
     await redisClient.select(RedisTables.INCOMING);
     await redisClient.set(name, value);
 

@@ -17,6 +17,7 @@ import { getLogger } from "../helpers/logHelper";
 import { PromHelper } from "../helpers/promHelpers";
 import {
   initPayloadWithVAA,
+  pushVaaToRedis,
   storeInRedis,
   storeKeyFromParsedVAA,
   storeKeyToJson,
@@ -159,73 +160,21 @@ async function processVaa(rawVaa: Uint8Array) {
   }
 
   const parsedVAA: ParsedVaa<ParsedTransferPayload> = validationResults;
-  const transferPayload = parsedVAA.payload;
 
-  logger.info(
-    "forwarding vaa to relayer: emitter: [" +
-      parsedVAA.emitterChain +
-      ":" +
-      uint8ArrayToHex(parsedVAA.emitterAddress) +
-      "], seqNum: " +
-      parsedVAA.sequence +
-      ", payload: origin: [" +
-      transferPayload.originAddress +
-      ":" +
-      transferPayload.originAddress +
-      "], target: [" +
-      transferPayload.targetChain +
-      ":" +
-      transferPayload.targetAddress +
-      "],  amount: " +
-      transferPayload.amount +
-      "],  fee: " +
-      transferPayload.fee +
-      ", [" +
-      vaaUri +
-      "]"
-  );
-  const storeKey = storeKeyFromParsedVAA(parsedVAA);
-  const storePayload = initPayloadWithVAA(uint8ArrayToHex(rawVaa));
-
-  logger.debug(
-    "storing: key: [" +
-      storeKey.chain_id +
-      "/" +
-      storeKey.emitter_address +
-      "/" +
-      storeKey.sequence +
-      "], payload: [" +
-      storePayloadToJson(storePayload) +
-      "]"
-  );
-
-  await storeInRedis(
-    storeKeyToJson(storeKey),
-    storePayloadToJson(storePayload)
-  );
+  await pushVaaToRedis(parsedVAA, uint8ArrayToHex(rawVaa));
 }
 
 async function encodeEmitterAddress(
   myChainId: ChainId,
   emitterAddressStr: string
 ): Promise<string> {
-  logger.info(
-    "encodeEmitterAddress myChainId: " +
-      myChainId +
-      ", emitterAddressStr: [" +
-      emitterAddressStr +
-      "]"
-  );
   if (myChainId === CHAIN_ID_SOLANA) {
-    logger.info("encodeEmitterAddress b");
     return await getEmitterAddressSolana(emitterAddressStr);
   }
 
   if (myChainId === CHAIN_ID_TERRA) {
-    logger.info("encodeEmitterAddress c");
     return await getEmitterAddressTerra(emitterAddressStr);
   }
 
-  logger.info("encodeEmitterAddress d");
   return getEmitterAddressEth(emitterAddressStr);
 }
