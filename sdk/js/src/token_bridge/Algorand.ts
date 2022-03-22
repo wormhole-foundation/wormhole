@@ -652,7 +652,7 @@ export async function submitVAA(
     // If this happens to be setting up a new guardian set, we probably need it as well...
     if (
         parsedVAA.get("Meta") === "CoreGovernance" &&
-        parsedVAA.get("action") === 2
+            parsedVAA.get("action") === 2
     ) {
         const ngsi = parsedVAA.get("NewGuardianSetIndex");
         const newGuardianAddr = await optin(
@@ -671,8 +671,8 @@ export async function submitVAA(
     const meta = parsedVAA.get("Meta");
     if (
         meta === "TokenBridge Attest" ||
-        meta === "TokenBridge Transfer" ||
-        meta === "TokenBridge Transfer With Payload"
+            meta === "TokenBridge Transfer" ||
+            meta === "TokenBridge Transfer With Payload"
     ) {
         if (parsedVAA.get("FromChain") != 8) {
             chainAddr = await optin(
@@ -701,8 +701,8 @@ export async function submitVAA(
         guardianAddr
     );
     const params: algosdk.SuggestedParams = await client
-        .getTransactionParams()
-        .do();
+          .getTransactionParams()
+          .do();
     let txns = [];
 
     // Right now there is not really a good way to estimate the fees,
@@ -783,7 +783,6 @@ export async function submitVAA(
             accounts: accts,
             appIndex: CORE_ID,
             from: vaaVerifyResult.hash,
-            note: parsedVAA.get("digest"),
             onComplete: OnApplicationComplete.NoOpOC,
             suggestedParams: params,
         });
@@ -808,13 +807,12 @@ export async function submitVAA(
                 from: sender.addr,
                 onComplete: OnApplicationComplete.NoOpOC,
                 suggestedParams: params,
-                note: parsedVAA.get("digest"),
             })
         );
     }
     if (
         meta === "TokenBridge RegisterChain" ||
-        meta === "TokenBridge UpgradeContract"
+            meta === "TokenBridge UpgradeContract"
     ) {
         txns.push(
             makeApplicationCallTxnFromObject({
@@ -825,7 +823,6 @@ export async function submitVAA(
                 from: sender.addr,
                 onComplete: OnApplicationComplete.NoOpOC,
                 suggestedParams: params,
-                note: parsedVAA.get("digest"),
             })
         );
     }
@@ -884,88 +881,85 @@ export async function submitVAA(
             })
         );
         txns[-1].fee = txns[-1].fee * 2;
+    }
 
-        if (
-            meta === "TokenBridge Transfer" ||
-            meta === "TokenBridge Transfer With Payload"
-        ) {
-            foreignAssets = [];
-            let a: number = 0;
-            if (parsedVAA.get("FromChain") != 8) {
-                asset = await decodeLocalState(
-                    client,
-                    TOKEN_BRIDGE_ID,
-                    chainAddr
-                );
-                if (asset.length > 8) {
-                    const tmp = Buffer.from(asset.slice(0, 8));
-                    a = Number(tmp.readBigUInt64BE(0));
-                }
-            } else {
-                const tmp = Buffer.from(
-                    hexStringToUint8Array(parsedVAA.get("Contract"))
-                );
+    if (meta === "TokenBridge Transfer" || meta === "TokenBridge Transfer With Payload") {
+        let foreignAssets = [];
+        let a: number = 0;
+        if (parsedVAA.get("FromChain") != 8) {
+            let asset = await decodeLocalState(
+                client,
+                TOKEN_BRIDGE_ID,
+                chainAddr
+            );
+            if (asset.length > 8) {
+                const tmp = Buffer.from(asset.slice(0, 8));
                 a = Number(tmp.readBigUInt64BE(0));
             }
-
-            // The receiver needs to be optin in to receive the coins... Yeah, the relayer pays for this
-
-            const addr = encodeAddress(
-                hexStringToUint8Array(parsedVAA.get("ToAddress"))
+        } else {
+            const tmp = Buffer.from(
+                hexStringToUint8Array(parsedVAA.get("Contract"))
             );
+            a = Number(tmp.readBigUInt64BE(0));
+        }
 
-            if (a != 0) {
-                foreignAssets.push(a);
-                assetOptin(client, sender, foreignAssets[0], addr);
-                // And this is how the relayer gets paid...
-                if (parsedVAA.get("Fee") != ZERO_PAD_BYTES) {
-                    assetOptin(client, sender, foreignAssets[0], sender.addr);
-                }
-            }
-            accts.push(addr);
-            txns.push(
-                makeApplicationCallTxnFromObject({
-                    accounts: accts,
-                    appArgs: [textToUint8Array("receiveTransfer"), vaa],
-                    appIndex: TOKEN_BRIDGE_ID,
-                    foreignAssets: foreignAssets,
-                    from: sender.addr,
-                    onComplete: OnApplicationComplete.NoOpOC,
-                    suggestedParams: params,
-                })
-            );
+        // The receiver needs to be optin in to receive the coins... Yeah, the relayer pays for this
 
-            // We need to cover the inner transactions
+        const addr = encodeAddress(
+            hexStringToUint8Array(parsedVAA.get("ToAddress"))
+        );
+
+        if (a != 0) {
+            foreignAssets.push(a);
+            assetOptin(client, sender, foreignAssets[0], addr);
+            // And this is how the relayer gets paid...
             if (parsedVAA.get("Fee") != ZERO_PAD_BYTES) {
-                txns[-1].fee = txns[-1].fee * 3;
-            } else {
-                txns[-1].fee = txns[-1].fee * 2;
+                assetOptin(client, sender, foreignAssets[0], sender.addr);
             }
         }
-        assignGroupID(txns);
-        const signedTxns: Uint8Array[] = [];
-        txns.forEach((txn) => {
-            if (
-                txn.appArgs &&
+        accts.push(addr);
+        txns.push(
+            makeApplicationCallTxnFromObject({
+                accounts: accts,
+                appArgs: [textToUint8Array("receiveTransfer"), vaa],
+                appIndex: TOKEN_BRIDGE_ID,
+                foreignAssets: foreignAssets,
+                from: sender.addr,
+                onComplete: OnApplicationComplete.NoOpOC,
+                suggestedParams: params,
+            })
+        );
+
+        // We need to cover the inner transactions
+        if (parsedVAA.get("Fee") != ZERO_PAD_BYTES) {
+            txns[-1].fee = txns[-1].fee * 3;
+        } else {
+            txns[-1].fee = txns[-1].fee * 2;
+        }
+    }
+    assignGroupID(txns);
+    const signedTxns: Uint8Array[] = [];
+    txns.forEach((txn) => {
+        if (
+            txn.appArgs &&
                 txn.appArgs.length > 0 &&
                 txn.appArgs[0] === textToUint8Array("verifySigs")
-            ) {
-                const lsa = new LogicSigAccount(
-                    hexStringToUint8Array(vaaVerifyResult.result)
-                );
-                signedTxns.push(signLogicSigTransaction(txn, lsa).blob);
-            }
-            signedTxns.push(txn.signTxn(sender.sk));
-        });
-        const signedTxnsId = await client.sendRawTransaction(signedTxns).do();
-        const ret: string[] = [];
-        const response = await waitForConfirmation(client, signedTxnsId, 4);
-        console.log("submitVAA confirmation", response);
-        if (response["logs"]) {
-            ret.push(response["logs"]);
+        ) {
+            const lsa = new LogicSigAccount(
+                hexStringToUint8Array(vaaVerifyResult.result)
+            );
+            signedTxns.push(signLogicSigTransaction(txn, lsa).blob);
         }
-        return ret;
+        signedTxns.push(txn.signTxn(sender.sk));
+    });
+    const signedTxnsId = await client.sendRawTransaction(signedTxns).do();
+    const ret: string[] = [];
+    const response = await waitForConfirmation(client, signedTxnsId, 4);
+    console.log("submitVAA confirmation", response);
+    if (response["logs"]) {
+        ret.push(response["logs"]);
     }
+    return ret;
 }
 
 export async function transferAsset(
