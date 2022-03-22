@@ -26,6 +26,7 @@ import {
 import { VaaVerifyTealSource } from "./VaaVerifyTealSource";
 
 import { TextEncoder } from "util";
+import { first } from "rxjs";
 
 // Some constants
 export const ALGO_TOKEN =
@@ -190,31 +191,55 @@ export async function attestFromAlgorand(
         .do();
     let creatorAddr = acctInfo["created-assets"]["creator"];
     const creatorAcctInfo = await client.accountInformation(creatorAddr).do();
-    const PgmName: string = "attestToken";
-    const encoder: TextEncoder = new TextEncoder();
-    const bPgmName: Uint8Array = encoder.encode(PgmName);
+    const bPgmName: Uint8Array = textToUint8Array("attestToken");
     const wormhole: boolean = creatorAcctInfo["auth-addr"] === tbAddr;
     if (!wormhole) {
         console.log("Not wormhole.  Need to optin...");
-        const natName: string = "native";
-        const enc: TextEncoder = new TextEncoder();
-        const bNatName: Uint8Array = enc.encode(natName);
-        const sNatName: string = uint8ArrayToHexString(bNatName, false);
         creatorAddr = await optin(
             client,
             senderAcct,
             TOKEN_BRIDGE_ID,
             appIndex,
-            sNatName
+            textToHexString("native")
         );
     }
     const params: algosdk.SuggestedParams = await client
         .getTransactionParams()
         .do();
-    console.log("Making app call txn...");
-    const appTxn = makeApplicationCallTxnFromObject({
+
+    let txns = [];
+    let signedTxns = [];
+
+    const firstTxn = makeApplicationCallTxnFromObject({
+        from: senderAcct.getAddress(),
+        appIndex: TOKEN_BRIDGE_ID,
+        onComplete: OnApplicationComplete.NoOpOC,
+        appArgs: [textToUint8Array("nop")],
+        suggestedParams: params,
+    });
+    txns.push(firstTxn);
+    signedTxns.push(firstTxn.signTxn(senderAcct.getPrivateKey()));
+
+    const mfee = await getMessageFee(client);
+    if (mfee > 0) {
+        const feeTxn = makePaymentTxnWithSuggestedParamsFromObject({
+            from: senderAcct.getAddress(),
+            suggestedParams: params,
+            to: getApplicationAddress(TOKEN_BRIDGE_ID),
+            amount: mfee,
+        });
+        txns.push(feeTxn);
+        signedTxns.push(feeTxn.signTxn(senderAcct.getPrivateKey()));
+    }
+
+    let appTxn = makeApplicationCallTxnFromObject({
         appArgs: [bPgmName, numberToUint8Array(assetId)],
-        accounts: [creatorAddr, creatorAcctInfo["address"], emitterAddr],
+        accounts: [
+            emitterAddr,
+            creatorAddr,
+            creatorAcctInfo["address"],
+            getApplicationAddress(CORE_ID),
+        ],
         appIndex: TOKEN_BRIDGE_ID,
         foreignApps: [CORE_ID],
         foreignAssets: [assetId],
@@ -222,13 +247,18 @@ export async function attestFromAlgorand(
         onComplete: OnApplicationComplete.NoOpOC,
         suggestedParams: params,
     });
-    const rawSignedTxn = appTxn.signTxn(senderAcct.sk);
-    console.log("rawSignedTxn:", rawSignedTxn);
-    const tx = await client.sendRawTransaction(rawSignedTxn).do();
+    if (mfee > 0) {
+        appTxn.fee *= 3;
+    } else {
+        appTxn.fee *= 2;
+    }
+    txns.push(appTxn);
+    signedTxns.push(appTxn.signTxn(senderAcct.getPrivateKey()));
+    const { txId } = await client.sendRawTransaction(signedTxns).do();
     // wait for transaction to be confirmed
-    const ptx = await waitForConfirmation(client, tx.txId, 4);
+    const ptx = await waitForConfirmation(client, txId, 4);
 
-    return tx.txid;
+    return txId;
 }
 
 export async function accountExists(
