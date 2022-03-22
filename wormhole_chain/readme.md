@@ -71,10 +71,10 @@ https://github.com/cosmos/awesome#block-explorers
 
 ## How to run the tests
 
-run either "starport chain serve" or "tilt up -- --singleNode"
-cd ./ts-sdk
-npm ci
-npm run build
-cd ../testing/js
-npm ci
-npm run test
+    run either "starport chain serve" or "tilt up -- --singleNode"
+    cd ./ts-sdk
+    npm ci
+    npm run build
+    cd ../testing/js
+    npm ci
+    npm run test

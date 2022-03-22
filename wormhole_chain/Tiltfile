@@ -38,13 +38,15 @@ config.define_string("bigTableKeyPath", False, "Path to BigTable json key file")
 config.define_string("webHost", False, "Public hostname for port forwards")
 
 # Components
-config.define_bool("singleNode", False, "Enable single wormhole node with tiltnet guardian validator keys")
+config.define_bool("singleNode", False, "Enable single wormchain node with tiltnet guardian validator keys")
+config.define_bool("secondNode", False, "Enable a second wormchain node with different validator keys")
 
 cfg = config.parse()
 namespace = "wormhole-chain"
 gcpProject = cfg.get("gcpProject", "local-dev")
 webHost = cfg.get("webHost", "localhost")
-singleNode = cfg.get("singleNode", True)
+singleNode = cfg.get("singleNode", False)
+secondNode = cfg.get("secondNode", False)
 
 
 if cfg.get("manual", False):
@@ -67,13 +69,27 @@ if singleNode:
         ignore = ["./testing", "./ts-sdk", "./design"],
     )
 
-    k8s_yaml_with_ns("testing/validators/kubernetes/wormchain-devnet.yaml")
+    k8s_yaml_with_ns("validators/kubernetes/wormchain-guardian-devnet.yaml")
 
     k8s_resource(
-        "wormhole-chaind",
+        "guardian-validator",
         port_forwards = [
             port_forward(1317, container_port = 1317, name = "REST", host = webHost),
             port_forward(26657, container_port = 26657, name = "TENDERMINT", host = webHost)
+        ],
+        resource_deps = [],
+        labels = [],
+        trigger_mode = trigger_mode,
+    )
+
+if secondNode:
+    k8s_yaml_with_ns("validators/kubernetes/wormchain-validator2-devnet.yaml")
+
+    k8s_resource(
+        "second-validator",
+        port_forwards = [
+            port_forward(1318, container_port = 1317, name = "REST", host = webHost),
+            port_forward(26658, container_port = 26657, name = "TENDERMINT", host = webHost)
         ],
         resource_deps = [],
         labels = [],

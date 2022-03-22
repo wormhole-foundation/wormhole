@@ -5,6 +5,8 @@ export const TEST_WALLET_MNEMONIC_2 =
 
 export const TEST_WALLET_ADDRESS_1 =
   "wormhole1cyyzpxplxdzkeea7kwsydadg87357qna3zg3tq";
+export const TEST_WALLET_ADDRESS_2 =
+  "wormhole1wqwywkce50mg6077huy4j9y8lt80943ks5udzr";
 
 export const DEVNET_GUARDIAN_PUBLIC_KEY =
   "0xbeFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe";

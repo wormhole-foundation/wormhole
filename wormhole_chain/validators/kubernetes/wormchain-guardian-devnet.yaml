@@ -2,46 +2,54 @@ apiVersion: v1
 kind: Service
 metadata:
   labels:
-    app: wormhole-chaind
-  name: wormhole-chaind
+    app: guardian-validator
+  name: guardian-validator
 spec:
   ports:
     - name: rpc
       port: 26657
       protocol: TCP
+    - name: rpctwo
+      port: 26656
+      protocol: TCP
     - name: rest
       port: 1317
       protocol: TCP
   selector:
-    app: wormhole-chaind
+    app: guardian-validator
 ---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   labels:
-    app: wormhole-chaind
-  name: wormhole-chaind
+    app: guardian-validator
+  name: guardian-validator
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: wormhole-chaind
+      app: guardian-validator
   template:
     metadata:
       labels:
-        app: wormhole-chaind
+        app: guardian-validator
     spec:
       containers:
         - name: wormhole-chaind
           image: wormhole-chaind-image
           command:
-            - ./wormhole-chaind
+            - /app/validators/guardian_validator/wormhole-chaind
             - start
             - --home
-            - .
+            - /app/validators/first_validator
+            - --log_level
+            - info
           ports:
             - containerPort: 26657
               name: tendermint
+              protocol: TCP
+            - containerPort: 26656
+              name: tenderminttwo
               protocol: TCP
             - containerPort: 1317
               name: rest
@@ -52,4 +60,4 @@ spec:
               path: /
             periodSeconds: 1
       restartPolicy: Always
-  serviceName: wormhole-chaind
+  serviceName: guardian-validator
