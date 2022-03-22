@@ -52,8 +52,16 @@ export class PromHelper {
   // End metrics
 
   private server = http.createServer(async (req, res) => {
-    // console.log("promHelpers received a request: ", req);
-    if (req.url === "/metrics") {
+    logger.debug("Prometheus request: " + req);
+
+    // GKE's ingress-gce doesn't support custom URLs for healthchecks
+    // without some stupid, so return 200 on / for prometheus to make
+    // it happy.
+    if (req.url === "/") {
+        res.writeHead(200, {"Content-Type": "text/plain"});
+        res.write('ok');
+        res.end();
+    } else if (req.url === "/metrics") {
       // Return all metrics in the Prometheus exposition format
       if (this._mode === PromMode.Listen || this._mode == PromMode.Both) {
         res.setHeader("Content-Type", this._register.contentType);
