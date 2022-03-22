@@ -3,14 +3,12 @@
 import { id, keccak256 } from "ethers/lib/utils";
 import algosdk, {
     assignGroupID,
-    computeGroupID,
     decodeAddress,
     encodeAddress,
     getApplicationAddress,
     LogicSigAccount,
     makeApplicationCallTxnFromObject,
     makeApplicationOptInTxnFromObject,
-    makeAssetCreateTxnWithSuggestedParamsFromObject,
     makeAssetTransferTxnWithSuggestedParamsFromObject,
     makePaymentTxnWithSuggestedParamsFromObject,
     OnApplicationComplete,
@@ -25,15 +23,8 @@ import {
     uint8ArrayToHexString,
 } from "./TmplSig";
 import { VaaVerifyTealSource } from "./VaaVerifyTealSource";
-import { parse } from "path";
-import AccountInformation from "algosdk/dist/types/src/client/v2/algod/accountInformation";
-import { SendObservationRequestRequest } from "../proto/node/v1/node";
-import SendRawTransaction from "algosdk/dist/types/src/client/v2/algod/sendRawTransaction";
-import { send } from "process";
 
-import {
-       TextEncoder
-} from "util";
+import { TextEncoder } from "util";
 
 // Some constants
 export const ALGO_TOKEN =
@@ -136,12 +127,18 @@ export function numberToUint8Array(n: number) {
     return new Uint8Array(a);
 }
 
-export function pgmNameToHexString(name: string): string {
+export function textToHexString(name: string): string {
     // const enc: TextEncoder = new TextEncoder();
     // const bName: Uint8Array = enc.encode(name);
     // const sName: string = uint8ArrayToHexString(bName, false);
     // return sName;
     return Buffer.from(name, "binary").toString("hex");
+}
+
+export function textToUint8Array(name: string): Uint8Array {
+    const enc: TextEncoder = new TextEncoder();
+    const bName: Uint8Array = enc.encode(name);
+    return bName;
 }
 
 export function appIdToAppAddr(appId: number): string {
@@ -623,7 +620,7 @@ export async function submitVAA(
         seq,
         chainRaw + em
     );
-    const guardianPgmName = pgmNameToHexString("guardian");
+    const guardianPgmName = textToHexString("guardian");
     // And then the signatures to help us verify the vaa_s
     const guardianAddr: string = await optin(
         client,
@@ -674,7 +671,7 @@ export async function submitVAA(
                 sender,
                 TOKEN_BRIDGE_ID,
                 assetId,
-                pgmNameToHexString("native")
+                textToHexString("native")
             );
         }
         accts.push(chainAddr);
@@ -735,9 +732,7 @@ export async function submitVAA(
     }
     const SIG_LEN: number = 66;
     const signatures: Uint8Array = parsedVAA.get("signatures");
-    const verifySigArg: Uint8Array = hexStringToUint8Array(
-        pgmNameToHexString("verifySigs")
-    );
+    const verifySigArg: Uint8Array = textToUint8Array("verifySigs");
     for (let nt = 0; nt < numTxns; nt++) {
         let sigs: Uint8Array = signatures.slice(nt * SIG_LEN);
         if (sigs.length > SIG_LEN) {
@@ -788,10 +783,7 @@ export async function submitVAA(
     if (meta === "CoreGovernance") {
         txns.push(
             makeApplicationCallTxnFromObject({
-                appArgs: [
-                    hexStringToUint8Array(pgmNameToHexString("governance")),
-                    vaa,
-                ],
+                appArgs: [textToUint8Array("governance"), vaa],
                 accounts: accts,
                 appIndex: CORE_ID,
                 from: sender.getAddress(),
@@ -807,10 +799,7 @@ export async function submitVAA(
     ) {
         txns.push(
             makeApplicationCallTxnFromObject({
-                appArgs: [
-                    hexStringToUint8Array(pgmNameToHexString("governance")),
-                    vaa,
-                ],
+                appArgs: [textToUint8Array("governance"), vaa],
                 accounts: accts,
                 appIndex: TOKEN_BRIDGE_ID,
                 foreignApps: [CORE_ID],
@@ -845,10 +834,7 @@ export async function submitVAA(
         buf[0] = 0x01;
         txns.push(
             makeApplicationCallTxnFromObject({
-                appArgs: [
-                    hexStringToUint8Array(pgmNameToHexString("nop")),
-                    buf,
-                ],
+                appArgs: [textToUint8Array("nop"), buf],
                 appIndex: TOKEN_BRIDGE_ID,
                 from: sender.getAddress(),
                 onComplete: OnApplicationComplete.NoOpOC,
@@ -859,10 +845,7 @@ export async function submitVAA(
         buf[0] = 0x02;
         txns.push(
             makeApplicationCallTxnFromObject({
-                appArgs: [
-                    hexStringToUint8Array(pgmNameToHexString("nop")),
-                    buf,
-                ],
+                appArgs: [textToUint8Array("nop"), buf],
                 appIndex: TOKEN_BRIDGE_ID,
                 from: sender.getAddress(),
                 onComplete: OnApplicationComplete.NoOpOC,
@@ -873,10 +856,7 @@ export async function submitVAA(
         txns.push(
             makeApplicationCallTxnFromObject({
                 accounts: accts,
-                appArgs: [
-                    hexStringToUint8Array(pgmNameToHexString("receiveAttest")),
-                    vaa,
-                ],
+                appArgs: [textToUint8Array("receiveAttest"), vaa],
                 appIndex: TOKEN_BRIDGE_ID,
                 foreignAssets: foreignAssets,
                 from: sender.getAddress(),
@@ -932,12 +912,7 @@ export async function submitVAA(
             txns.push(
                 makeApplicationCallTxnFromObject({
                     accounts: accts,
-                    appArgs: [
-                        hexStringToUint8Array(
-                            pgmNameToHexString("receiveTransfer")
-                        ),
-                        vaa,
-                    ],
+                    appArgs: [textToUint8Array("receiveTransfer"), vaa],
                     appIndex: TOKEN_BRIDGE_ID,
                     foreignAssets: foreignAssets,
                     from: sender.getAddress(),
@@ -959,8 +934,7 @@ export async function submitVAA(
             if (
                 txn.appArgs &&
                 txn.appArgs.length > 0 &&
-                txn.appArgs[0] ===
-                    hexStringToUint8Array(pgmNameToHexString("verifySigs"))
+                txn.appArgs[0] === textToUint8Array("verifySigs")
             ) {
                 const lsa = new LogicSigAccount(
                     hexStringToUint8Array(vaaVerifyResult.result)
@@ -1068,7 +1042,7 @@ export async function transferAsset(
         from: sender.getAddress(),
         appIndex: TOKEN_BRIDGE_ID,
         onComplete: OnApplicationComplete.NoOpOC,
-        appArgs: [hexStringToUint8Array(pgmNameToHexString("nop"))],
+        appArgs: [textToUint8Array("nop")],
         suggestedParams: params,
     });
     txns.push(t);
@@ -1098,7 +1072,7 @@ export async function transferAsset(
         accounts = [emitterAddr, creator, creatorAcctInfo["address"]];
     }
     let args = [
-        hexStringToUint8Array(pgmNameToHexString("sendTransfer")),
+        textToUint8Array("sendTransfer"),
         numberToUint8Array(assetId),
         numberToUint8Array(qty),
         decodeAddress(receiver.getAddress()).publicKey,
