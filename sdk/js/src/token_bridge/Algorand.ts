@@ -278,7 +278,7 @@ export async function accountExists(
         als.forEach( app => {
             console.log("Inside for loop");
 
-            if (app["id"] == appId) {
+            if (app["id"] === appId) {
                 ret = true;
                 return;
             }
@@ -424,7 +424,7 @@ export function parseVAA(vaa: Uint8Array): Map<string, any> {
     ret.set("Meta", "Unknown");
 
     if (
-        Buffer.from(vaa, off, 32) ==
+        Buffer.from(vaa, off, 32) ===
         Buffer.from(
             "000000000000000000000000000000000000000000546f6b656e427269646765"
         )
@@ -434,7 +434,7 @@ export function parseVAA(vaa: Uint8Array): Map<string, any> {
         off += 32;
         ret.set("action", buf.readIntBE(off, 1));
         off += 1;
-        if (ret.get("action") == 1) {
+        if (ret.get("action") === 1) {
             ret.set("Meta", "TokenBridge RegisterChain");
             ret.set("targetChain", buf.readIntBE(off, 2));
             off += 2;
@@ -442,7 +442,7 @@ export function parseVAA(vaa: Uint8Array): Map<string, any> {
             off += 2;
             ret.set("targetEmitter", Buffer.from(vaa, off, 32));
             off += 32;
-        } else if (ret.get("action") == 2) {
+        } else if (ret.get("action") === 2) {
             ret.set("Meta", "TokenBridge UpgradeContract");
             ret.set("targetChain", buf.readIntBE(off, 2));
             off += 2;
@@ -450,7 +450,7 @@ export function parseVAA(vaa: Uint8Array): Map<string, any> {
             off += 32;
         }
     } else if (
-        Buffer.from(vaa, off, 32) ==
+        Buffer.from(vaa, off, 32) ===
         Buffer.from(
             "00000000000000000000000000000000000000000000000000000000436f7265"
         )
@@ -464,7 +464,7 @@ export function parseVAA(vaa: Uint8Array): Map<string, any> {
         off += 2;
         ret.set("NewGuardianSetIndex", buf.readIntBE(off, 4));
     }
-    if (Buffer.from(vaa, off).length == 100 && buf.readIntBE(off, 1) == 2) {
+    if (Buffer.from(vaa, off).length === 100 && buf.readIntBE(off, 1) === 2) {
         ret.set("Meta", "TokenBridge Attest");
         ret.set("Type", buf.readIntBE(off, 1));
         off += 1;
@@ -479,7 +479,7 @@ export function parseVAA(vaa: Uint8Array): Map<string, any> {
         ret.set("Name", Buffer.from(vaa, off, 32));
     }
 
-    if (Buffer.from(vaa, off).length == 133 && buf.readIntBE(off, 1) == 1) {
+    if (Buffer.from(vaa, off).length === 133 && buf.readIntBE(off, 1) === 1) {
         ret.set("Meta", "TokenBridge Transfer");
         ret.set("Type", buf.readIntBE(off, 1));
         off += 1;
@@ -496,7 +496,7 @@ export function parseVAA(vaa: Uint8Array): Map<string, any> {
         ret.set("Fee", Buffer.from(vaa, off, 32));
     }
 
-    if (buf.readIntBE(off, 1) == 3) {
+    if (buf.readIntBE(off, 1) === 3) {
         ret.set("Meta", "TokenBridge Transfer With Payload");
         ret.set("Type", buf.readIntBE(off, 1));
         off += 1;
@@ -526,7 +526,7 @@ export async function decodeLocalState(
     let app_state = null;
     const ai = await client.accountInformation(address).do();
     for (const app of ai["apps-local-state"]) {
-        if (app["id"] == appId) {
+        if (app["id"] === appId) {
             app_state = app["key-value"];
             break;
         }
@@ -574,7 +574,7 @@ export async function assetOptinCheck(
     assets.forEach(function (asset) {
         console.log("inside foreach", asset);
         const assetId = asset["asset-id"];
-        if (assetId == asset) {
+        if (assetId === asset) {
             ret = true;
             return;
         }
@@ -651,8 +651,8 @@ export async function submitVAA(
     let accts: string[] = [seqAddr, guardianAddr];
     // If this happens to be setting up a new guardian set, we probably need it as well...
     if (
-        parsedVAA.get("Meta") == "CoreGovernance" &&
-        parsedVAA.get("action") == 2
+        parsedVAA.get("Meta") === "CoreGovernance" &&
+        parsedVAA.get("action") === 2
     ) {
         const ngsi = parsedVAA.get("NewGuardianSetIndex");
         const newGuardianAddr = await optin(
@@ -670,9 +670,9 @@ export async function submitVAA(
     let chainAddr: string = "";
     const meta = parsedVAA.get("Meta");
     if (
-        meta == "TokenBridge Attest" ||
-        meta == "TokenBridge Transfer" ||
-        meta == "TokenBridge Transfer With Payload"
+        meta === "TokenBridge Attest" ||
+        meta === "TokenBridge Transfer" ||
+        meta === "TokenBridge Transfer With Payload"
     ) {
         if (parsedVAA.get("FromChain") != 8) {
             chainAddr = await optin(
@@ -799,7 +799,7 @@ export async function submitVAA(
     });
     txns.push(appTxn);
 
-    if (meta == "CoreGovernance") {
+    if (meta === "CoreGovernance") {
         txns.push(
             makeApplicationCallTxnFromObject({
                 appArgs: [textToUint8Array("governance"), vaa],
@@ -813,8 +813,8 @@ export async function submitVAA(
         );
     }
     if (
-        meta == "TokenBridge RegisterChain" ||
-        meta == "TokenBridge UpgradeContract"
+        meta === "TokenBridge RegisterChain" ||
+        meta === "TokenBridge UpgradeContract"
     ) {
         txns.push(
             makeApplicationCallTxnFromObject({
@@ -830,7 +830,7 @@ export async function submitVAA(
         );
     }
 
-    if (meta == "TokenBridge Attest") {
+    if (meta === "TokenBridge Attest") {
         let asset: Uint8Array = await decodeLocalState(
             client,
             TOKEN_BRIDGE_ID,
@@ -886,8 +886,8 @@ export async function submitVAA(
         txns[-1].fee = txns[-1].fee * 2;
 
         if (
-            meta == "TokenBridge Transfer" ||
-            meta == "TokenBridge Transfer With Payload"
+            meta === "TokenBridge Transfer" ||
+            meta === "TokenBridge Transfer With Payload"
         ) {
             foreignAssets = [];
             let a: number = 0;
@@ -948,7 +948,7 @@ export async function submitVAA(
             if (
                 txn.appArgs &&
                 txn.appArgs.length > 0 &&
-                txn.appArgs[0] == textToUint8Array("verifySigs")
+                txn.appArgs[0] === textToUint8Array("verifySigs")
             ) {
                 const lsa = new LogicSigAccount(
                     hexStringToUint8Array(vaaVerifyResult.result)
@@ -997,7 +997,7 @@ export async function transferAsset(
     if (assetId != 0) {
         creator = assetInfo["params"]["creator"];
         creatorAcctInfo = await client.accountInformation(creator).do();
-        if (authAddr == tokenAddr) {
+        if (authAddr === tokenAddr) {
             wormhole = true;
         }
     }
@@ -1063,7 +1063,7 @@ export async function transferAsset(
     signedTxns.push(t.signTxn(sender.sk));
 
     let accounts: string[] = [];
-    if (assetId == 0) {
+    if (assetId === 0) {
         const t = makePaymentTxnWithSuggestedParamsFromObject({
             from: sender.addr,
             to: creator,
