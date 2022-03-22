@@ -71,6 +71,8 @@ Governance messages can carry requests for:
 
 * Update the active guardian set
 * Upgrade contracts: For Algorand, an upgrade-contract governance VAA must contain the hash of the program that is approved as an upgrade (stored in global `validUpdateApproveHash`).  The upgrade process itself is triggered with the **update** action, where the clear and approval program hashes are checked against what the governance VAA carried.  If they differ, an assertion is thrown and the update call is aborted.  A successful call writes an onchain Log with the new hashes and allows the update process to go on.  
+* Setting the per-message fee
+* Retrieving previously paid message fees
 
 A governance request packed in a VAA must be verified by a `verifyVaa` call in the transaction group.
 
