@@ -1,3 +1,4 @@
+chain_id: "wormhole-chain"
 build:
   main: "cmd/wormhole-chaind/"
 host:
@@ -6,8 +7,9 @@ accounts:
   - name: tiltGuardian
     coins: ["20000utest", "0uhole"]
     mnemonic: "notice oak worry limit wrap speak medal online prefer cluster roof addict wrist behave treat actual wasp year salad speed social layer crew genius"
-  - name: bob
-    coins: ["10000utest", "100000000uhole"]
+  - name: secondValidator
+    coins: ["10000utest", "0uhole"]
+    mnemonic: "maple pudding enjoy pole real rabbit soft make square city wrestle area aisle dwarf spike voice over still post lend genius bitter exit shoot"
 validator:
   name: tiltGuardian
   staked: "0uhole"
@@ -17,8 +19,8 @@ client:
   vuex:
     path: "vue/src/store"
 faucet:
-  name: bob
-  coins: ["5utest", "100000uhole"]
+  name: secondValidator
+  coins: ["5utest", "0uhole"]
   host: ":4500"
 genesis:
   app_state:
