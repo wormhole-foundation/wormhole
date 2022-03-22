@@ -412,14 +412,14 @@ async function findWorkableItems(
 
         // Check to see if this is a retry and if it is time to retry
         if (storePayload.retries > 0) {
-          const BACKOFF_TIME = 10000; // 10 seconds in milliseconds
-          const MAX_BACKOFF_TIME = 86400000; // 24 hours in milliseconds
+          const BACKOFF_TIME = 1000; // 1 second in milliseconds
+          const MAX_BACKOFF_TIME = 4 * 60 * 60 * 1000; // 4 hours in milliseconds
           // calculate retry time
           const now: Date = new Date();
           const old: Date = new Date(storePayload.timestamp);
           const timeDelta: number = now.getTime() - old.getTime(); // delta is in mS
           const waitTime: number = Math.min(
-            BACKOFF_TIME ** storePayload.retries,
+            BACKOFF_TIME * 10 ** storePayload.retries, //First retry is 10 second, then 100, 1,000... Max of 4 hours.
             MAX_BACKOFF_TIME
           );
           if (timeDelta < waitTime) {
