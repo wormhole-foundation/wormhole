@@ -186,9 +186,7 @@ export async function attestFromAlgorand(
     const decTbAddr: Uint8Array = decodeAddress(tbAddr).publicKey;
     const aa: string = uint8ArrayToHexString(decTbAddr, false);
     const emitterAddr: string = await optin(client, senderAcct, CORE_ID, 0, aa);
-    const acctInfo = await client
-        .accountInformation(senderAcct.addr)
-        .do();
+    const acctInfo = await client.accountInformation(senderAcct.addr).do();
     let creatorAddr = acctInfo["created-assets"]["creator"];
     const creatorAcctInfo = await client.accountInformation(creatorAddr).do();
     const bPgmName: Uint8Array = textToUint8Array("attestToken");
@@ -211,25 +209,25 @@ export async function attestFromAlgorand(
     let signedTxns = [];
 
     const firstTxn = makeApplicationCallTxnFromObject({
-        from: senderAcct.getAddress(),
+        from: senderAcct.addr,
         appIndex: TOKEN_BRIDGE_ID,
         onComplete: OnApplicationComplete.NoOpOC,
         appArgs: [textToUint8Array("nop")],
         suggestedParams: params,
     });
     txns.push(firstTxn);
-    signedTxns.push(firstTxn.signTxn(senderAcct.getPrivateKey()));
+    signedTxns.push(firstTxn.signTxn(senderAcct.sk));
 
     const mfee = await getMessageFee(client);
     if (mfee > 0) {
         const feeTxn = makePaymentTxnWithSuggestedParamsFromObject({
-            from: senderAcct.getAddress(),
+            from: senderAcct.addr,
             suggestedParams: params,
             to: getApplicationAddress(TOKEN_BRIDGE_ID),
             amount: mfee,
         });
         txns.push(feeTxn);
-        signedTxns.push(feeTxn.signTxn(senderAcct.getPrivateKey()));
+        signedTxns.push(feeTxn.signTxn(senderAcct.sk));
     }
 
     let appTxn = makeApplicationCallTxnFromObject({
@@ -253,7 +251,7 @@ export async function attestFromAlgorand(
         appTxn.fee *= 2;
     }
     txns.push(appTxn);
-    signedTxns.push(appTxn.signTxn(senderAcct.getPrivateKey()));
+    signedTxns.push(appTxn.signTxn(senderAcct.sk));
     const { txId } = await client.sendRawTransaction(signedTxns).do();
     // wait for transaction to be confirmed
     const ptx = await waitForConfirmation(client, txId, 4);
@@ -911,12 +909,7 @@ export async function submitVAA(
                 assetOptin(client, sender, foreignAssets[0], addr);
                 // And this is how the relayer gets paid...
                 if (parsedVAA.get("Fee") != ZERO_PAD_BYTES) {
-                    assetOptin(
-                        client,
-                        sender,
-                        foreignAssets[0],
-                        sender.addr
-                    );
+                    assetOptin(client, sender, foreignAssets[0], sender.addr);
                 }
             }
             accts.push(addr);
