@@ -2,7 +2,10 @@ const algosdk = require('algosdk');
 const TestLib = require('./testlib.js')
 const testLib = new TestLib.TestLib()
 
-const TestLib = require('./testlib.js')
+import {
+       submitVAA, 
+//       Account,
+} from "../../sdk/js/src/token_bridge/Algorand";
 
 //const AlgorandLib = require('../../sdk/js/src/token_bridge/Algorand.ts')
 //const algorandLib = new AlgorandLib.AlgorandLib()
@@ -17,12 +20,12 @@ const guardianPrivKeys = [
 const PYTH_EMITTER = '0x3afda841c1f43dd7d546c8a581ba1f92a139f4133f9f6ab095558f6a359df5d4'
 const PYTH_PAYLOAD = '0x50325748000101230abfe0ec3b460bd55fc4fb36356716329915145497202b8eb8bf1af6a0a3b9fe650f0367d4a7ef9815a593ea15d36593f0643aaaf0149bb04be67ab851decd010000002f17254388fffffff70000002eed73d9000000000070d3b43f0000000037faa03d000000000e9e555100000000894af11c0000000037faa03d000000000dda6eb801000000000061a5ff9a'
 
-
-
 async function firstTransaction() {
     try {
         // This is a funded account... 
-        let myAccount = algosdk.mnemonicToSecretKey("tennis idle deal present affair three banner uncover champion evidence tag movie balcony iron equal man athlete mix actress fold fiscal increase mosquito above isolate")
+        let myAccount = algosdk.mnemonicToSecretKey("flock canal budget arrow setup pioneer ski aerobic matrix tuna hurdle then cause history friend dutch uncover viable feel gather thought forest vibrant above gate")
+
+        console.log(myAccount)
 
         // Connect your client
         const algodToken = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
@@ -36,6 +39,7 @@ async function firstTransaction() {
 
         let vaa = testLib.createSignedVAA(0, guardianPrivKeys, 1, 1, 1, PYTH_EMITTER, 0, 0, PYTH_PAYLOAD)
         console.log(vaa)
+        console.log(await submitVAA(new Uint8Array(Buffer.from(vaa, "hex")), algodClient, myAccount, 4))
 //console.log(parseVAA(vaa))
 //        console.log(await submitVAA(vaa, algodClient, myAccount, 4))
 
