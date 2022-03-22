@@ -1,4 +1,4 @@
-# Token/NFT Bridge Shutdown (aka: "KillSwitch") [DRAFT]
+# Token/NFT Bridge Shutdown (aka: "Emergency Shutdown") [DRAFT]
 
 [TOC]
 
