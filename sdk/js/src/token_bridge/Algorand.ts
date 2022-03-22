@@ -159,12 +159,14 @@ export async function getMessageFee(client: algosdk.Algodv2): Promise<number> {
     console.log("globalState:", globalState);
     const key: string = Buffer.from("MessageFee", "binary").toString("base64");
     console.log("key", key);
+    let ret = -1;
     globalState.forEach((el: any) => {
         if (el["key"] === key) {
-            return el["value"]["uint"];
+            ret = el["value"]["uint"];
+            return
         }
     });
-    return -1;
+    return ret;
 }
 
 export function parseSeqFromLog(txn: any): bigint {
@@ -568,14 +570,16 @@ export async function assetOptinCheck(
     const acctInfo = await client.accountInformation(receiver).do();
     const assets: Array<any> = acctInfo.assets;
     console.log("assets", assets);
+    let ret = false;
     assets.forEach(function (asset) {
         console.log("inside foreach", asset);
         const assetId = asset["asset-id"];
         if (assetId == asset) {
-            return true;
+            ret = true;
+            return;
         }
     });
-    return false;
+    return ret;
 }
 
 export async function assetOptin(
