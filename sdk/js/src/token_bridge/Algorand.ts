@@ -31,6 +31,10 @@ import { SendObservationRequestRequest } from "../proto/node/v1/node";
 import SendRawTransaction from "algosdk/dist/types/src/client/v2/algod/sendRawTransaction";
 import { send } from "process";
 
+import {
+       TextEncoder
+} from "util";
+
 // Some constants
 export const ALGO_TOKEN =
     "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
@@ -610,7 +614,7 @@ export async function submitVAA(
 ) {
     // A lot of our logic here depends on parseVAA and knowing what the payload is..
     const parsedVAA: Map<string, any> = parseVAA(vaa);
-    const seq: number = parsedVAA.get("sequence") / MAX_BITS;
+    const seq: number = Number(parsedVAA.get("sequence")) / MAX_BITS;
     const chainRaw: string = parsedVAA.get("chainRaw"); // TODO: this needs to be a hex string
     const em: string = parsedVAA.get("emitter"); // TODO: this needs to be a hex string
     const index: number = parsedVAA.get("index");
