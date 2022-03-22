@@ -18,17 +18,17 @@ contract Messages is Getters {
         (valid, reason) = verifyVM(vm);
     }
 
-    // verifyVM serves to validate an arbitrary vm against the current Guardian set
-    //  - it aims to make sure the VM is for the current guardianSet
+    // verifyVM serves to validate an arbitrary vm against a valid Guardian set
+    //  - it aims to make sure the VM is for a known guardianSet
     //  - it aims to ensure the guardianSet is not expired
     //  - it aims to ensure the VM has reached quorum
-    //  - it aims to verify the signatures provided against the current guardianSet
+    //  - it aims to verify the signatures provided against the guardianSet
     function verifyVM(Structs.VM memory vm) public view returns (bool valid, string memory reason) {
         // Obtain the current guardianSet for the guardianSetIndex provided
         Structs.GuardianSet memory guardianSet = getGuardianSet(vm.guardianSetIndex);
 
-        // Checks whether the current guardian set has zero keys
-        //   WARNING: This keys check is critical to ensure the current guardianSet has keys present AND to ensure 
+        // Checks whether the guardianSet has zero keys
+        //   WARNING: This keys check is critical to ensure the guardianSet has keys present AND to ensure 
         //   that guardianSet key size doesn't fall to zero and negatively impact quorum assessment.  If guardianSet
         //   key length is 0 and vm.signatures length is 0, this could compromise the integrity of both vm and 
         //   signature verification.
@@ -36,7 +36,7 @@ contract Messages is Getters {
             return (false, "invalid guardian set");
         }
 
-        // Checks whether the proposed GuardianSetIndex is not equal to the current GuardianSetIndex
+        // Checks whether the proposed GuardianSetIndex is expired
         //   and if the current GuardianSet is expired. 
         if(vm.guardianSetIndex != getCurrentGuardianSetIndex() && guardianSet.expirationTime < block.timestamp){
             return (false, "guardian set has expired");
@@ -50,18 +50,18 @@ contract Messages is Getters {
             return (false, "no quorum");
         }
 
-        // Verify the proposed vm.signatures against the current guardianSet
+        // Verify the proposed vm.signatures against the guardianSet
         (bool signaturesValid, string memory invalidReason) = verifySignatures(vm.hash, vm.signatures, guardianSet);
         if(!signaturesValid){
             return (false, invalidReason);
         }
 
-        // If we are here, we've validated the VM is a valid multi-sig that matches the currentGuardianSet.
+        // If we are here, we've validated the VM is a valid multi-sig that matches the guardianSet.
         return (true, "");
     }
 
-    // verifySignatures serves to validate arbitrary sigatures against an arbitrary guardianset
-    //  - it intentionally does not solve for expectations within a current/proposed GaurdianSet (you should use verifyVM if you need these protections)
+    // verifySignatures serves to validate arbitrary sigatures against an arbitrary guardianSet
+    //  - it intentionally does not solve for expectations within guardianSet (you should use verifyVM if you need these protections)
     //  - it intentioanlly does not solve for quorum (you should use verifyVM if you need these protections)
     //  - it intentionally returns true when signatures is an empty set (you should use verifyVM if you need these protections)
     function verifySignatures(bytes32 hash, Structs.Signature[] memory signatures, Structs.GuardianSet memory guardianSet) public pure returns (bool valid, string memory reason) {
