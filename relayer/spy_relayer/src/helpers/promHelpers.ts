@@ -1,6 +1,7 @@
 import http = require("http");
 import client = require("prom-client");
 import { WalletBalance } from "../relayer/walletMonitor";
+import { chainIDStrings } from "../utils/wormhole";
 import { getLogger } from "./logHelper";
 
 // NOTE:  To create a new metric:
@@ -75,7 +76,7 @@ export class PromHelper {
   });
 
   constructor(name: string, port: number, mode: PromMode) {
-    var mode_name:string = "";
+    var mode_name: string = "";
     // Human readable mode name for the metrics
     if (mode === PromMode.Listen) {
       mode_name = "listener";
@@ -155,12 +156,14 @@ export class PromHelper {
         } else {
           formBal = parseFloat(bal.balanceFormatted);
         }
-	this.walletBalance.labels({
-	  currency: bal.currencyName,
-	  chain_id: bal.chainId,
-	  wallet: bal.walletAddress,
-	  currency_address: bal.currencyAddressNative,
-	}).set(formBal);
+        this.walletBalance
+          .labels({
+            currency: bal.currencyName,
+            chain_id: chainIDStrings[bal.chainId],
+            wallet: bal.walletAddress,
+            currency_address: bal.currencyAddressNative,
+          })
+          .set(formBal);
       } catch (e: any) {
         // logger.error("handleWalletBalances() - caught error: %o", e);
         if (e.message) {
