@@ -34,6 +34,21 @@ use crate::{
 /// A short alias for AccountInfo.
 pub type Info<'r> = AccountInfo<'r>;
 
+/// Represents an account's state in terms of initialization, which we use as
+/// preconditions in our instructions.
+///
+/// * An [`Initialized`] account is one that has some data stored in it. If we
+/// (the program) own the account, this means that we had written that data in
+/// the first place. For security reasons, initialisation check should always be
+/// in conjuction with an appropriate ownership check.
+/// * An [`Uninitialized`] account is an account that has no data inside of it.
+/// We may require an account to be [`Uninitialized`] when we want to initialize
+/// it ourselves. Once initialized, an account's size and owner are immutable
+/// (as guaranteed by the Solana runtime), so when we initialize a previously
+/// uninitialized account, we will want to make sure to assign the right size
+/// and owner.
+/// * A [`MaybeInitialized`] account can be in either state. The instruction can
+/// then query the state of the account and decide on a next step based on it.
 #[derive(Debug, Eq, PartialEq)]
 pub enum AccountState {
     Initialized,
