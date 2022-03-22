@@ -2,6 +2,7 @@
 
 import { id, keccak256 } from "ethers/lib/utils";
 import algosdk, {
+    Account,
     assignGroupID,
     decodeAddress,
     encodeAddress,
@@ -85,28 +86,6 @@ export function getAlgoClient(): algosdk.Algodv2 {
         ALGOD_PORT
     );
     return algodClient;
-}
-
-export class Account {
-    pk: Buffer;
-    addr: string;
-    mn: string;
-
-    constructor(address: string, privateKey: Buffer) {
-        this.pk = privateKey;
-        this.addr = address;
-        this.mn = algosdk.secretKeyToMnemonic(privateKey);
-    }
-
-    getPrivateKey(): Buffer {
-        return this.pk;
-    }
-    getAddress(): string {
-        return this.addr;
-    }
-    getMnemonic(): string {
-        return this.mn;
-    }
 }
 
 export type TealCompileRsp = {
@@ -207,7 +186,7 @@ export async function attestFromAlgorand(
     const aa: string = uint8ArrayToHexString(decTbAddr, false);
     const emitterAddr: string = await optin(client, senderAcct, CORE_ID, 0, aa);
     const acctInfo = await client
-        .accountInformation(senderAcct.getAddress())
+        .accountInformation(senderAcct.addr)
         .do();
     let creatorAddr = acctInfo["created-assets"]["creator"];
     const creatorAcctInfo = await client.accountInformation(creatorAddr).do();
@@ -239,11 +218,11 @@ export async function attestFromAlgorand(
         appIndex: TOKEN_BRIDGE_ID,
         foreignApps: [CORE_ID],
         foreignAssets: [assetId],
-        from: senderAcct.getAddress(),
+        from: senderAcct.addr,
         onComplete: OnApplicationComplete.NoOpOC,
         suggestedParams: params,
     });
-    const rawSignedTxn = appTxn.signTxn(senderAcct.getPrivateKey());
+    const rawSignedTxn = appTxn.signTxn(senderAcct.sk);
     console.log("rawSignedTxn:", rawSignedTxn);
     const tx = await client.sendRawTransaction(rawSignedTxn).do();
     // wait for transaction to be confirmed
@@ -313,7 +292,7 @@ export async function optin(
         const params = await client.getTransactionParams().do();
         console.log("Creating payment txn...");
         const seedTxn = makePaymentTxnWithSuggestedParamsFromObject({
-            from: sender.getAddress(),
+            from: sender.addr,
             to: sigAddr,
             amount: SEED_AMT,
             suggestedParams: params,
@@ -337,7 +316,7 @@ export async function optin(
         assignGroupID([seedTxn, optinTxn, rekeyTxn]);
 
         console.log("Signing seed...");
-        const signedSeedTxn = seedTxn.signTxn(sender.getPrivateKey());
+        const signedSeedTxn = seedTxn.signTxn(sender.sk);
         console.log("Signing optin...");
         const signedOptinTxn = signLogicSigTransaction(optinTxn, lsa);
         console.log("Signing rekey...");
@@ -396,10 +375,10 @@ export function parseVAA(vaa: Uint8Array): Map<string, any> {
     off += 4;
     ret.set("nonce", buf.readIntBE(off, 4));
     off += 4;
-    ret.set("chainRaw", extract3(vaa, off, 2));
+    ret.set("chainRaw", Buffer.from(extract3(vaa, off, 2)).toString("hex"));
     ret.set("chain", buf.readIntBE(off, 2));
     off += 2;
-    ret.set("emitter", extract3(vaa, off, 32));
+    ret.set("emitter", Buffer.from(extract3(vaa, off, 32)).toString("hex"));
     off += 32;
     ret.set("sequence", buf.readBigUInt64BE(off));
     off += 8;
@@ -580,13 +559,13 @@ export async function assetOptin(
         makeAssetTransferTxnWithSuggestedParamsFromObject({
             amount: 0,
             assetIndex: asset,
-            from: sender.getAddress(),
+            from: sender.addr,
             suggestedParams: params,
             to: receiver,
         });
 
     // Sign transaction
-    const signedOptinTxn: Uint8Array = optinTxn.signTxn(sender.getPrivateKey());
+    const signedOptinTxn: Uint8Array = optinTxn.signTxn(sender.sk);
 
     // Send transaction
     const txId: string = await client.sendRawTransaction(signedOptinTxn).do();
@@ -613,6 +592,8 @@ export async function submitVAA(
     const chainRaw: string = parsedVAA.get("chainRaw"); // TODO: this needs to be a hex string
     const em: string = parsedVAA.get("emitter"); // TODO: this needs to be a hex string
     const index: number = parsedVAA.get("index");
+    console.log(parsedVAA);
+
     const seqAddr: string = await optin(
         client,
         sender,
@@ -710,7 +691,7 @@ export async function submitVAA(
     }
 
     const payTxn = makePaymentTxnWithSuggestedParamsFromObject({
-        from: sender.getAddress(),
+        from: sender.addr,
         to: vaaVerifyResult.hash,
         amount: pmt * 2,
         suggestedParams: params,
@@ -774,7 +755,7 @@ export async function submitVAA(
         appArgs: [verifySigArg, vaa],
         accounts: accts,
         appIndex: CORE_ID,
-        from: sender.getAddress(),
+        from: sender.addr,
         onComplete: OnApplicationComplete.NoOpOC,
         suggestedParams: params,
     });
@@ -786,7 +767,7 @@ export async function submitVAA(
                 appArgs: [textToUint8Array("governance"), vaa],
                 accounts: accts,
                 appIndex: CORE_ID,
-                from: sender.getAddress(),
+                from: sender.addr,
                 onComplete: OnApplicationComplete.NoOpOC,
                 suggestedParams: params,
                 note: parsedVAA.get("digest"),
@@ -803,7 +784,7 @@ export async function submitVAA(
                 accounts: accts,
                 appIndex: TOKEN_BRIDGE_ID,
                 foreignApps: [CORE_ID],
-                from: sender.getAddress(),
+                from: sender.addr,
                 onComplete: OnApplicationComplete.NoOpOC,
                 suggestedParams: params,
                 note: parsedVAA.get("digest"),
@@ -824,7 +805,7 @@ export async function submitVAA(
         }
         txns.push(
             makePaymentTxnWithSuggestedParamsFromObject({
-                from: sender.getAddress(),
+                from: sender.addr,
                 to: chainAddr,
                 amount: 100000,
                 suggestedParams: params,
@@ -836,7 +817,7 @@ export async function submitVAA(
             makeApplicationCallTxnFromObject({
                 appArgs: [textToUint8Array("nop"), buf],
                 appIndex: TOKEN_BRIDGE_ID,
-                from: sender.getAddress(),
+                from: sender.addr,
                 onComplete: OnApplicationComplete.NoOpOC,
                 suggestedParams: params,
             })
@@ -847,7 +828,7 @@ export async function submitVAA(
             makeApplicationCallTxnFromObject({
                 appArgs: [textToUint8Array("nop"), buf],
                 appIndex: TOKEN_BRIDGE_ID,
-                from: sender.getAddress(),
+                from: sender.addr,
                 onComplete: OnApplicationComplete.NoOpOC,
                 suggestedParams: params,
             })
@@ -859,7 +840,7 @@ export async function submitVAA(
                 appArgs: [textToUint8Array("receiveAttest"), vaa],
                 appIndex: TOKEN_BRIDGE_ID,
                 foreignAssets: foreignAssets,
-                from: sender.getAddress(),
+                from: sender.addr,
                 onComplete: OnApplicationComplete.NoOpOC,
                 suggestedParams: params,
             })
@@ -904,7 +885,7 @@ export async function submitVAA(
                         client,
                         sender,
                         foreignAssets[0],
-                        sender.getAddress()
+                        sender.addr
                     );
                 }
             }
@@ -915,7 +896,7 @@ export async function submitVAA(
                     appArgs: [textToUint8Array("receiveTransfer"), vaa],
                     appIndex: TOKEN_BRIDGE_ID,
                     foreignAssets: foreignAssets,
-                    from: sender.getAddress(),
+                    from: sender.addr,
                     onComplete: OnApplicationComplete.NoOpOC,
                     suggestedParams: params,
                 })
@@ -941,7 +922,7 @@ export async function submitVAA(
                 );
                 signedTxns.push(signLogicSigTransaction(txn, lsa).blob);
             }
-            signedTxns.push(txn.signTxn(sender.getPrivateKey()));
+            signedTxns.push(txn.signTxn(sender.sk));
         });
         const signedTxnsId = await client.sendRawTransaction(signedTxns).do();
         const ret: string[] = [];
@@ -996,13 +977,13 @@ export async function transferAsset(
     if (msgFee > 0) {
         const payTxn: algosdk.Transaction =
             makePaymentTxnWithSuggestedParamsFromObject({
-                from: sender.getAddress(),
+                from: sender.addr,
                 suggestedParams: params,
                 to: getApplicationAddress(TOKEN_BRIDGE_ID),
                 amount: msgFee,
             });
         txns.push(payTxn);
-        signedTxns.push(payTxn.signTxn(sender.getPrivateKey()));
+        signedTxns.push(payTxn.signTxn(sender.sk));
     }
     if (!wormhole) {
         const bNat = Buffer.from("native", "binary").toString("hex");
@@ -1012,17 +993,17 @@ export async function transferAsset(
         // Looks like we need to optin
         const payTxn: algosdk.Transaction =
             makePaymentTxnWithSuggestedParamsFromObject({
-                from: sender.getAddress(),
+                from: sender.addr,
                 to: creator,
                 amount: 100000,
                 suggestedParams: params,
             });
         txns.push(payTxn);
-        signedTxns.push(payTxn.signTxn(sender.getPrivateKey()));
+        signedTxns.push(payTxn.signTxn(sender.sk));
         // The tokenid app needs to do the optin since it has signature authority
         const bOptin = Buffer.from("optin", "binary");
         let txn = makeApplicationCallTxnFromObject({
-            from: sender.getAddress(),
+            from: sender.addr,
             appIndex: TOKEN_BRIDGE_ID,
             onComplete: OnApplicationComplete.NoOpOC,
             appArgs: [bOptin, numberToUint8Array(assetId)],
@@ -1032,55 +1013,55 @@ export async function transferAsset(
         });
         txn.fee *= 2;
         txns.push(txn);
-        signedTxns.push(txn.signTxn(sender.getPrivateKey()));
+        signedTxns.push(txn.signTxn(sender.sk));
         const { txId } = await client.sendRawTransaction(signedTxns).do();
         await waitForConfirmation(client, txId, 4);
         txns = [];
         signedTxns = [];
     }
     const t = makeApplicationCallTxnFromObject({
-        from: sender.getAddress(),
+        from: sender.addr,
         appIndex: TOKEN_BRIDGE_ID,
         onComplete: OnApplicationComplete.NoOpOC,
         appArgs: [textToUint8Array("nop")],
         suggestedParams: params,
     });
     txns.push(t);
-    signedTxns.push(t.signTxn(sender.getPrivateKey()));
+    signedTxns.push(t.signTxn(sender.sk));
 
     let accounts: string[] = [];
     if (assetId === 0) {
         const t = makePaymentTxnWithSuggestedParamsFromObject({
-            from: sender.getAddress(),
+            from: sender.addr,
             to: creator,
             amount: qty,
             suggestedParams: params,
         });
         txns.push(t);
-        signedTxns.push(t.signTxn(sender.getPrivateKey()));
+        signedTxns.push(t.signTxn(sender.sk));
         accounts = [emitterAddr, creator, creator];
     } else {
         const t = makeAssetTransferTxnWithSuggestedParamsFromObject({
-            from: sender.getAddress(),
+            from: sender.addr,
             to: creator,
             suggestedParams: params,
             amount: qty,
             assetIndex: assetId,
         });
         txns.push(t);
-        signedTxns.push(t.signTxn(sender.getPrivateKey()));
+        signedTxns.push(t.signTxn(sender.sk));
         accounts = [emitterAddr, creator, creatorAcctInfo["address"]];
     }
     let args = [
         textToUint8Array("sendTransfer"),
         numberToUint8Array(assetId),
         numberToUint8Array(qty),
-        decodeAddress(receiver.getAddress()).publicKey,
+        decodeAddress(receiver.addr).publicKey,
         numberToUint8Array(chain),
         numberToUint8Array(fee),
     ];
     let acTxn = makeApplicationCallTxnFromObject({
-        from: sender.getAddress(),
+        from: sender.addr,
         appIndex: TOKEN_BRIDGE_ID,
         onComplete: OnApplicationComplete.NoOpOC,
         appArgs: args,
@@ -1091,7 +1072,7 @@ export async function transferAsset(
     });
     acTxn.fee *= 2;
     txns.push(acTxn);
-    signedTxns.push(acTxn.signTxn(sender.getPrivateKey()));
+    signedTxns.push(acTxn.signTxn(sender.sk));
     const { txId } = await client.sendRawTransaction(signedTxns).do();
     const resp: Record<string, any> = await waitForConfirmation(
         client,
@@ -1150,7 +1131,7 @@ export function nativeToHexString() {
 
 export function transferFromAlgorand() {
     // TODO:
-    // sid = self.transferAsset(client, player2, self.testasset, 100, player3.getAddress(), 8, 0)
+    // sid = self.transferAsset(client, player2, self.testasset, 100, player3.addr, 8, 0)
     // print("... track down the generated VAA")
     // vaa = self.getVAA(client, player, sid, self.tokenid)
     // print(".. and lets pass that to player3")
