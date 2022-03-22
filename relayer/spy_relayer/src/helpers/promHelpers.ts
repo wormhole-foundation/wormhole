@@ -48,12 +48,12 @@ export class PromHelper {
   private walletBalance = new client.Gauge({
     name: "spy_relay_wallet_balance",
     help: "Wallet balance for a supported token",
-    labelNames: ["currency", "chain_id", "wallet", "currency_address"],
+    labelNames: ["currency", "chain_name", "wallet", "currency_address"],
   });
   // End metrics
 
   private server = http.createServer(async (req, res) => {
-    logger.debug("Prometheus request: " + req);
+    logger.debug("Prometheus request: %j", req);
 
     // GKE's ingress-gce doesn't support custom URLs for healthchecks
     // without some stupid, so return 200 on / for prometheus to make
@@ -62,7 +62,8 @@ export class PromHelper {
         res.writeHead(200, {"Content-Type": "text/plain"});
         res.write('ok');
         res.end();
-    } else if (req.url === "/metrics") {
+    // The gke ingress-gce does not support stripping path prefixes
+    } else if (req.url === "/metrics" || req.url === "/relayer" || req.url === "/listener") {
       // Return all metrics in the Prometheus exposition format
       if (this._mode === PromMode.Listen || this._mode == PromMode.Both) {
         res.setHeader("Content-Type", this._register.contentType);
@@ -72,6 +73,10 @@ export class PromHelper {
         res.setHeader("Content-Type", this._register.contentType);
         res.end(await this._register.metrics());
       }
+    } else {
+      res.writeHead(404, {"Content-Type": "text/plain"});
+      res.write("404 Not Found - " + req.url + "\n");
+      res.end();
     }
   });
 
@@ -159,7 +164,7 @@ export class PromHelper {
         this.walletBalance
           .labels({
             currency: bal.currencyName,
-            chain_id: chainIDStrings[bal.chainId],
+            chain_name: chainIDStrings[bal.chainId],
             wallet: bal.walletAddress,
             currency_address: bal.currencyAddressNative,
           })
