@@ -91,7 +91,12 @@ class AlgoTest(PortalCore):
         return response.applicationIndex
 
     def parseSeqFromLog(self, txn):
-        return int.from_bytes(b64decode(txn.innerTxns[-1]["logs"][0]), "big")
+        try:
+            return int.from_bytes(b64decode(txn.innerTxns[-1]["logs"][0]), "big")
+        except Exception as err:
+            print(f"Unexpected {err=}, {type(err)=}")
+            pprint.pprint(txn.__dict__)
+            raise
 
     def getVAA(self, client, sender, sid, app):
         if sid == None:
@@ -106,7 +111,7 @@ class AlgoTest(PortalCore):
         # on the last block for 30 to 60 seconds... we don't want this
         # log in prod since it is wasteful of gas
 
-        if (self.INDEXER_ROUND > 512):  # until they fix it
+        if (self.INDEXER_ROUND > 512 and not self.args.testnet):  # until they fix it
             print("indexer is broken in local net... stop/clean/restart the sandbox")
             sys.exit(0)
 
@@ -122,6 +127,10 @@ class AlgoTest(PortalCore):
             )
         )
         self.sendTxn(client, sender, txns, False)
+
+        if self.myindexer == None:
+            print("indexer address: " + self.INDEXER_ADDRESS)
+            self.myindexer = indexer.IndexerClient(indexer_token=self.INDEXER_TOKEN, indexer_address=self.INDEXER_ADDRESS)
 
         while True:
             nexttoken = ""
@@ -264,6 +273,14 @@ class AlgoTest(PortalCore):
         txns = []
         sp = client.suggested_params()
 
+        txns.append(transaction.ApplicationCallTxn(
+            sender=sender.getAddress(),
+            index=self.tokenid,
+            on_complete=transaction.OnComplete.NoOpOC,
+            app_args=[b"nop"],
+            sp=sp
+        ))
+
         mfee = self.getMessageFee()
         if (mfee > 0):
             txns.append(transaction.PaymentTxn(sender = sender.getAddress(), sp = sp, receiver = get_application_address(self.tokenid), amt = mfee))
@@ -314,6 +331,7 @@ class AlgoTest(PortalCore):
 
         txns = []
 
+
         mfee = self.getMessageFee()
         if (mfee > 0):
             txns.append(transaction.PaymentTxn(sender = sender.getAddress(), sp = sp, receiver = get_application_address(self.tokenid), amt = mfee))
@@ -351,6 +369,16 @@ class AlgoTest(PortalCore):
             txns.append(a)
             self.sendTxn(client, sender, txns, False)
             txns = []
+
+        txns.insert(0, 
+            transaction.ApplicationCallTxn(
+                sender=sender.getAddress(),
+                index=self.tokenid,
+                on_complete=transaction.OnComplete.NoOpOC,
+                app_args=[b"nop"],
+                sp=client.suggested_params(),
+            )
+        )
 
         if asset_id == 0:
             print("asset_id == 0")
@@ -463,31 +491,41 @@ class AlgoTest(PortalCore):
 
         self.setup_args()
 
-        client = self.getAlgodClient()
+        if self.args.testnet:
+            self.testnet()
+
+        client = self.client = self.getAlgodClient()
 
         self.genTeal()
 
-#        print("building our stateless vaa_verify...")
-#        self.vaa_verify = client.compile(get_vaa_verify())
-#        self.vaa_verify["lsig"] = LogicSig(base64.b64decode(self.vaa_verify["result"]))
-#        print(self.vaa_verify["hash"])
-#        print("")
+        self.vaa_verify = self.client.compile(get_vaa_verify())
+        self.vaa_verify["lsig"] = LogicSig(base64.b64decode(self.vaa_verify["result"]))
 
         vaaLogs = []
 
-        print("Generating the foundation account...")
-        foundation = self.getTemporaryAccount(client)
-        print(foundation.getAddress())
-        print("")
+        args = self.args
+
+        if self.args.mnemonic:
+            self.foundation = Account.FromMnemonic(self.args.mnemonic)
+
+        if self.foundation == None:
+            print("Generating the foundation account...")
+            self.foundation = self.getTemporaryAccount(self.client)
+
+        if self.foundation == None:
+            print("We dont have a account?  ")
+            sys.exit(0)
+
+        foundation = self.foundation
+
+        seq = int(time.time())
 
         print("Creating the PortalCore app")
         self.coreid = self.createPortalCoreApp(client=client, sender=foundation)
         print("coreid = " + str(self.coreid) + " " + get_application_address(self.coreid))
 
-        seq = 1
-
         print("bootstrapping the guardian set...")
-        bootVAA = bytes.fromhex(gt.genGuardianSetUpgrade(gt.guardianPrivKeys, 1, seq, seq, seq))
+        bootVAA = bytes.fromhex(gt.genGuardianSetUpgrade(gt.guardianPrivKeys, 1, 1, seq, seq))
 
         self.bootGuardians(bootVAA, client, foundation, self.coreid)
 
@@ -502,7 +540,7 @@ class AlgoTest(PortalCore):
         pprint.pprint(bal)
 
         print("upgrading the the guardian set using untrusted account...")
-        upgradeVAA = bytes.fromhex(gt.genGuardianSetUpgrade(gt.guardianPrivKeys, 1, seq, seq, seq))
+        upgradeVAA = bytes.fromhex(gt.genGuardianSetUpgrade(gt.guardianPrivKeys, 1, 2, seq, seq))
         vaaLogs.append(["guardianUpgrade", upgradeVAA.hex()])
         self.submitVAA(upgradeVAA, client, player, self.coreid)
 
@@ -523,7 +561,7 @@ class AlgoTest(PortalCore):
         self.submitVAA(bytes.fromhex(ret[1]), self.client, foundation, self.tokenid)
 
         print("successfully sent upgrade requests")
-        
+
         for r in range(1, 6):
             print("Registering chain " + str(r))
             v = gt.genRegisterChain(gt.guardianPrivKeys, 2, seq, seq, r)

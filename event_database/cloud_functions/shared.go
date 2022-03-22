@@ -43,6 +43,7 @@ var releaseDay = time.Date(2021, 9, 13, 0, 0, 0, 0, time.UTC)
 // an instance's cold start.
 // https://cloud.google.com/functions/docs/bestpractices/networking#accessing_google_apis
 func init() {
+	defer timeTrack(time.Now(), "init")
 	clientOnce.Do(func() {
 		// Declare a separate err variable to avoid shadowing client.
 		var err error
@@ -56,11 +57,19 @@ func init() {
 			return
 		}
 
-		var pubsubErr error
-		pubsubClient, pubsubErr = pubsub.NewClient(context.Background(), project)
-		if pubsubErr != nil {
-			log.Printf("pubsub.NewClient error: %v", pubsubErr)
-			return
+		// create the topic that will be published to after decoding token transfer payloads
+		tokenTransferDetailsTopic := os.Getenv("PUBSUB_TOKEN_TRANSFER_DETAILS_TOPIC")
+		if tokenTransferDetailsTopic != "" {
+			var pubsubErr error
+			pubsubClient, pubsubErr = pubsub.NewClient(context.Background(), project)
+			if pubsubErr != nil {
+				log.Printf("pubsub.NewClient error: %v", pubsubErr)
+				return
+			}
+			pubSubTokenTransferDetailsTopic = pubsubClient.Topic(tokenTransferDetailsTopic)
+			// fetch the token lists once at start up
+			coinGeckoCoins = fetchCoinGeckoCoins()
+			solanaTokens = fetchSolanaTokenList()
 		}
 	})
 	tbl = client.Open("v2Events")
@@ -75,15 +84,6 @@ func init() {
 		}
 		cacheBucket = storageClient.Bucket(cacheBucketName)
 	}
-
-	// create the topic that will be published to after decoding token transfer payloads
-	tokenTransferDetailsTopic := os.Getenv("PUBSUB_TOKEN_TRANSFER_DETAILS_TOPIC")
-	if tokenTransferDetailsTopic != "" {
-		pubSubTokenTransferDetailsTopic = pubsubClient.Topic(tokenTransferDetailsTopic)
-		// fetch the token lists once at start up
-	}
-	coinGeckoCoins = fetchCoinGeckoCoins()
-	solanaTokens = fetchSolanaTokenList()
 
 }
 

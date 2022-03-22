@@ -527,8 +527,15 @@ contract("NFT", function () {
         const initialized = new web3.eth.Contract(BridgeImplementationFullABI, NFTBridge.address);
 
         const wrappedAddress = await initialized.methods.wrappedAsset("0x0001", "0x" + testBridgedAssetAddress).call();
+        const wrappedAsset = new web3.eth.Contract(NFTImplementation.abi, wrappedAddress);
 
-        const transfer =         await initialized.methods.transferNFT(
+        await wrappedAsset.methods.approve(NFTBridge.address, tokenId).send({
+            value: 0,
+            from: accounts[0],
+            gasLimit: 2000000
+        });
+
+        const transfer = await initialized.methods.transferNFT(
             wrappedAddress,
             tokenId,
             "10",
@@ -541,9 +548,9 @@ contract("NFT", function () {
         });
 
         // symbol
-        assert.ok(transfer.events[2].raw.data.includes('464f520000000000000000000000000000000000000000000000000000000000'))
+        assert.ok(transfer.events[4].raw.data.includes('464f520000000000000000000000000000000000000000000000000000000000'))
         // name
-        assert.ok(transfer.events[2].raw.data.includes('466f726569676e20436861696e204e4654000000000000000000000000000000'))
+        assert.ok(transfer.events[4].raw.data.includes('466f726569676e20436861696e204e4654000000000000000000000000000000'))
 
         // check if cache is cleared
         const cache = await initialized.methods.splCache(tokenId).call()
@@ -551,8 +558,73 @@ contract("NFT", function () {
         assert.equal(cache.name, "0x0000000000000000000000000000000000000000000000000000000000000000");
     })
 
-    it("should burn bridged assets wrappers on transfer to another chain", async function () {
+    it("should should fail deposit unapproved NFTs", async function () {
+        const accounts = await web3.eth.getAccounts();
+        const initialized = new web3.eth.Contract(BridgeImplementationFullABI, NFTBridge.address);
+        const tokenId = "1000000000000000001";
 
+        const wrappedAddress = await initialized.methods.wrappedAsset("0x" + testBridgedAssetChain, "0x" + testBridgedAssetAddress).call();
+
+        // deposit tokens
+        let failed = false
+        try {
+            await initialized.methods.transferNFT(
+                wrappedAddress,
+                tokenId,
+                "10",
+                "0x000000000000000000000000b7a2211e8165943192ad04f5dd21bedc29ff003e",
+                "234"
+            ).send({
+                value: 0,
+                from: accounts[0],
+                gasLimit: 2000000
+            });
+        } catch (e) {
+            assert.equal(e.message, "Returned error: VM Exception while processing transaction: revert ERC721: transfer caller is not owner nor approved")
+            failed = true
+        }
+
+        assert.ok(failed)
+    })
+
+    it("should refuse to burn wrappers not held by msg.sender", async function () {
+        const accounts = await web3.eth.getAccounts();
+        const initialized = new web3.eth.Contract(BridgeImplementationFullABI, NFTBridge.address);
+        const tokenId = "1000000000000000001";
+
+        const wrappedAddress = await initialized.methods.wrappedAsset("0x" + testBridgedAssetChain, "0x" + testBridgedAssetAddress).call();
+        const wrappedAsset = new web3.eth.Contract(NFTImplementation.abi, wrappedAddress);
+
+        // approve from 0
+        await wrappedAsset.methods.approve(NFTBridge.address, tokenId).send({
+            value: 0,
+            from: accounts[0],
+            gasLimit: 2000000
+        });
+
+        // deposit tokens from 1
+        let failed = false
+        try {
+            await initialized.methods.transferNFT(
+                wrappedAddress,
+                tokenId,
+                "10",
+                "0x000000000000000000000000b7a2211e8165943192ad04f5dd21bedc29ff003e",
+                "234"
+            ).send({
+                value: 0,
+                from: accounts[1],
+                gasLimit: 2000000
+            });
+        } catch (e) {
+            assert.equal(e.message, "Returned error: VM Exception while processing transaction: revert ERC721: transfer of token that is not own")
+            failed = true
+        }
+
+        assert.ok(failed)
+    })
+
+    it("should deposit and burn approved bridged assets wrappers on transfer to another chain", async function () {
         const accounts = await web3.eth.getAccounts();
         const initialized = new web3.eth.Contract(BridgeImplementationFullABI, NFTBridge.address);
         const tokenId = "1000000000000000001";

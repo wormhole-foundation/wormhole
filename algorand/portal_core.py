@@ -25,7 +25,7 @@ from algosdk.future.transaction import LogicSigAccount
 
 import pprint
 
-max_keys = 16
+max_keys = 15
 max_bytes_per_key = 127
 bits_per_byte = 8
 
@@ -159,6 +159,8 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
 
                 # Log it so that we can look for this on the guardian network
                 Log(seq.load()),
+
+                blob.meta(Int(1), Bytes("publishMessage")),
                 
                 Approve()
             ])
@@ -173,6 +175,7 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
             set = ScratchVar()
             len = ScratchVar()
             v = ScratchVar()
+            tchain = ScratchVar()
 
             return Seq([
 
@@ -185,7 +188,7 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
 
                 # The offset of the chain
                 off.store(Btoi(Extract(Txn.application_args[1], Int(5), Int(1))) * Int(66) + Int(14)), 
-                # Correct chain? 
+                # Correct source chain? 
                 Assert(Extract(Txn.application_args[1], off.load(), Int(2)) == Bytes("base16", "0001")),
                 # Correct emitter?
                 Assert(Extract(Txn.application_args[1], off.load() + Int(2), Int(32)) == Bytes("base16", "0000000000000000000000000000000000000000000000000000000000000004")),
@@ -194,6 +197,11 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
                 # Is this a governance message?
                 Assert(Extract(Txn.application_args[1], off.load(), Int(32)) == Bytes("base16", "00000000000000000000000000000000000000000000000000000000436f7265")),
                 off.store(off.load() + Int(32)),
+                # What is the target of this governance message?
+                tchain.store(Extract(Txn.application_args[1], off.load() + Int(1), Int(2))),
+                # Needs to point at us or to all chains
+                Assert(Or(tchain.load() == Bytes("base16", "0008"), tchain.load() == Bytes("base16", "0000"))),
+
                 a.store(Btoi(Extract(Txn.application_args[1], off.load(), Int(1)))),
                 Cond( 
                     [a.load() == Int(1), Seq([
@@ -201,7 +209,6 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
                         # 
                         # In the case of Algorand, it contains the hash of the program that we are allowed to upgrade ourselves to.  We would then run the upgrade program itself
                         # to perform the actual upgrade
-                        Assert(Extract(Txn.application_args[1], off.load() + Int(1), Int(2)) == Bytes("base16", "0008")),
                         off.store(off.load() + Int(3)),
 
                         App.globalPut(Bytes("validUpdateApproveHash"), Extract(Txn.application_args[1], off.load(), Int(32)))
@@ -210,7 +217,6 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
                         # We are updating the guardian set
 
                         # This should point at all chains
-                        Assert(Extract(Txn.application_args[1], off.load() + Int(1), Int(2)) == Bytes("base16", "0000")),
 
                         # move off to point at the NewGuardianSetIndex and grab it
                         off.store(off.load() + Int(3)),
@@ -233,19 +239,20 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
                         #
                         # 19200 is approx 24 hours assuming a 4.5 seconds per block   (24 * 3600 / 4.5) = 19200
                         If(Txn.accounts[3] != Txn.accounts[2],
-                           Pop(blob.write(Int(2), Int(1000), Itob(Txn.first_valid() + Int(19200)))))
+                           Pop(blob.write(Int(2), Int(1000), Itob(Txn.first_valid() + Int(19200))))),
+                        blob.meta(Int(3), Bytes("guardian"))
                     ])],
                     [a.load() == Int(3), Seq([
                         off.store(off.load() + Int(1)),
-                        Assert(Extract(Txn.application_args[1], off.load(), Int(2)) == Bytes("base16", "0008")),
+                        Assert(tchain.load() == Bytes("base16", "0008")),
                         off.store(off.load() + Int(2) + Int(24)),
                         fee.store(Btoi(Extract(Txn.application_args[1], off.load(), Int(8)))),
                         App.globalPut(Bytes("MessageFee"), fee.load()),
                     ])],
                     [a.load() == Int(4), Seq([
                         off.store(off.load() + Int(1)),
-                        Assert(Extract(Txn.application_args[1], off.load(), Int(2)) == Bytes("base16", "0008")),
-                        off.store(off.load() + Int(2) + Int(24)),
+                        Assert(tchain.load() == Bytes("base16", "0008")),
+                        off.store(off.load() + Int(26)),
                         fee.store(Btoi(Extract(Txn.application_args[1], off.load(), Int(8)))),
                         off.store(off.load() + Int(8)),
                         dest.store(Extract(Txn.application_args[1], off.load(), Int(32))),
@@ -320,7 +327,9 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
                 Assert(GetBit(b.load(), sequence.load() % Int(8)) == Int(0)),
 
                 # Lets mark this bit so that we never see it again
-                blob.set_byte(Int(1), byte_offset.load(), SetBit(b.load(), sequence.load() % Int(8), Int(1)))
+                blob.set_byte(Int(1), byte_offset.load(), SetBit(b.load(), sequence.load() % Int(8), Int(1))),
+
+                blob.meta(Int(1), Bytes("duplicate"))
             )
 
         STATELESS_LOGIC_HASH = App.globalGet(Bytes("vphash"))
@@ -393,10 +402,18 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
                             Cond(
                                 [a.load() == Bytes("verifySigs"), Seq([
                                     # Lets see if they are actually verifying the correct signatures!
-                                    s.store(Gtxn[i.load()].application_args[1]), # find a different way to get length
+                                    
+                                    # What signatures did this verifySigs check?
+                                    s.store(Gtxn[i.load()].application_args[1]),
+
+                                    # Look at the vaa and confirm those were the expected signatures we should have been checking
+                                    # at this point in the process
                                     Assert(Extract(Txn.application_args[1], off.load(), Len(s.load())) == s.load()),
+
+                                    # Where is the end pointer...
                                     eoff.store(off.load() + Len(s.load())),
 
+                                    # Now we will reset s and collect the keys
                                     s.store(Bytes("")),
 
                                     While(off.load() < eoff.load()).Do(Seq( [
@@ -404,7 +421,8 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
                                             guardian.store(Btoi(Extract(Txn.application_args[1], off.load(), Int(1)))),
                                             Assert(GetBit(hits.load(), guardian.load()) == Int(0)),
                                             hits.store(SetBit(hits.load(), guardian.load(), Int(1))),
-                                            
+
+                                            # This extracts out of the keys THIS guardian's public key
                                             s.store(Concat(s.load(), Extract(guardian_keys.load(), guardian.load() * Int(20), Int(20)))),
 
                                             off.store(off.load() + Int(66))
@@ -419,11 +437,12 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
                                 ])],
                                 [a.load() == Bytes("nop"), Seq([])],       # if there is a function call not listed here, it will throw an error
                                 [a.load() == Bytes("verifyVAA"), Seq([])],
+                                [Int(1) == Int(1), Seq([Reject()])]   # Nothing should get snuck in between...
                             )
                         ])
                 ),
 
-                # Did we verify all the signatures?
+                # Did we verify all the signatures?  If the answer is no, something is sus
                 Assert(off.load() == Int(6) + (num_sigs.load() * Int(66))),
 
                 Approve(),
@@ -451,8 +470,6 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
                     Gtxn[Txn.group_index() - Int(1)].accounts[0] == Txn.accounts[0],
                     Gtxn[Txn.group_index() - Int(1)].accounts[1] == Txn.accounts[1],
                     Gtxn[Txn.group_index() - Int(1)].accounts[2] == Txn.accounts[2],
-
-                    (Global.group_size() - Int(1)) == Txn.group_index()    # governance should be the last entry...
                 )),
                     
                 hdlGovernance(),

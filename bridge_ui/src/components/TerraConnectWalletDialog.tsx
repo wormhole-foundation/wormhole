@@ -1,6 +1,7 @@
 import {
   Dialog,
   DialogTitle,
+  Divider,
   IconButton,
   List,
   ListItem,
@@ -94,6 +95,7 @@ const TerraConnectWalletDialog = ({
       <ListItem
         button
         component="a"
+        onClick={onClose}
         key={"install-" + type + identifier}
         href={url}
         target="_blank"
@@ -117,6 +119,7 @@ const TerraConnectWalletDialog = ({
       </DialogTitle>
       <List>
         {filteredConnections}
+        {filteredInstallations && <Divider variant="middle" />}
         {filteredInstallations}
       </List>
     </Dialog>

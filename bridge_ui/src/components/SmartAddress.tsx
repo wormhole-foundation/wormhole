@@ -1,5 +1,6 @@
 import {
   ChainId,
+  CHAIN_ID_AURORA,
   CHAIN_ID_AVAX,
   CHAIN_ID_BSC,
   CHAIN_ID_ETH,
@@ -121,6 +122,10 @@ export default function SmartAddress({
     ? `https://${
         CLUSTER === "testnet" ? "testnet." : ""
       }explorer.emerald.oasis.dev/address/${useableAddress}`
+    : chainId === CHAIN_ID_AURORA
+    ? `https://${
+        CLUSTER === "testnet" ? "testnet." : ""
+      }aurorascan.dev/address/${useableAddress}`
     : chainId === CHAIN_ID_FANTOM
     ? `https://${
         CLUSTER === "testnet" ? "testnet." : ""

@@ -27,6 +27,7 @@ import shape from "../images/shape.png";
 import shape2 from "../images/shape2.png";
 import { Totals, NotionalTvl } from "../components/ExplorerStats/ExplorerStats";
 import { amountFormatter } from "../utils/explorer";
+import { paralaxGsap, fadeInGsap, animateSwirl } from "../utils/animations";
 
 const featuredNumber = { fontSize: 42, fontFamily: "Suisse BP Intl", fontWeight: "bold" };
 const statsBaseUrl = "https://europe-west3-wormhole-315720.cloudfunctions.net/mainnet-"
@@ -36,7 +37,6 @@ const IndexPage = ({ location }: PageProps) => {
   const [tvl, setTvl] = useState<number | undefined>(undefined)
   const [messageTotal, setMessageTotal] = useState<number | undefined>(undefined)
 
-  let statsInterval: NodeJS.Timer | undefined = undefined
   const controller = new AbortController()
   const { signal } = controller
 
@@ -90,6 +90,14 @@ const IndexPage = ({ location }: PageProps) => {
   const gradient1 = React.useRef<HTMLCanvasElement>(null);
   const gradient2 = React.useRef<HTMLCanvasElement>(null);
 
+  const shapeLeft = React.useRef<HTMLCanvasElement>(null);
+  const shapeRight = React.useRef<HTMLCanvasElement>(null);
+  const row1 = React.useRef<HTMLCanvasElement>(null);
+  const row2 = React.useRef<HTMLCanvasElement>(null);
+  const row3 = React.useRef<HTMLCanvasElement>(null);
+  const row4 = React.useRef<HTMLCanvasElement>(null);
+  const row5 = React.useRef<HTMLCanvasElement>(null);
+
 
   function fetchStats() {
     const tvlUrl = `${statsBaseUrl}notionaltvl`
@@ -113,47 +121,67 @@ const IndexPage = ({ location }: PageProps) => {
 
   useEffect(() => {
     fetchStats()  // fetchStats on first load
-    statsInterval = setInterval(fetchStats, 30000) // fetch every 30 seconds
 
     gsap.registerPlugin(ScrollTrigger);
 
+    // let icons = row5.current?.children[0];
 
-    gsap.from(headerImage.current, {
-      scale: 1.1,
-      duration: 10,
-      delay: 1,
-      rotation: 3,
-      ease: "Power3.easeOut",
-    })
+    
 
-    gsap.to(gradient1.current, {
-      scale: 1.2,
-      ease: "Power3.easeOut",
-      x: 300,
-      scrollTrigger: {
-        trigger: gradient1.current,
-        start: "-0% 0%",
-        end: "+=500",
-        scrub: 1,
-      },
-    })
 
-    gsap.from(gradient2.current, {
-      scale: 0.5,
-      ease: "Power3.easeOut",
-      scrollTrigger: {
-        trigger: gradient2.current,
-        start: "-50% 50%",
-        end: "+=1000",
-        scrub: 1,
-      },
-    })
+    var viewportWidth = window.innerWidth || document.documentElement.clientWidth;
+    if (viewportWidth > 992) {
+
+      gsap.utils.toArray(row5.current).forEach((section:any, i) => {
+        const img1 = section.children[0].children[0].children[0].children[0].children[0];
+        const img2 = section.children[0].children[1].children[0].children[0].children[0];
+        const img3 = section.children[0].children[2].children[0].children[0].children[0];
+  
+        gsap.from(img1, {
+          rotation: 30,
+          duration: 2,
+          ease: "Power3.easeOut",
+          scrollTrigger: {
+            trigger: img1,
+          },
+        });
+  
+        gsap.from(img2, {
+          rotation: 30,
+          duration: 3,
+          ease: "Power3.easeOut",
+          scrollTrigger: {
+            trigger: img2,
+          },
+        });
+  
+        gsap.from(img3, {
+          rotation: -20,
+          duration: 3,
+          ease: "Power3.easeOut",
+          scrollTrigger: {
+            trigger: img3,
+          },
+        });
+      
+      })
+
+
+      animateSwirl(headerImage);
+      paralaxGsap(gradient1, 1000, "-50% 100%");
+      paralaxGsap(gradient2, 1000, "-50% 100%");
+      paralaxGsap(shapeLeft, 200, "20% 100%");
+      paralaxGsap(shapeRight, 200, "20% 100%");
+
+      fadeInGsap(row1);
+      fadeInGsap(row2);
+      fadeInGsap(row3);
+      fadeInGsap(row4);
+      fadeInGsap(row5);
+    }
+
 
     return function cleanup() {
-      // clear any ongoing intervals
-      if (statsInterval) {
-        clearInterval(statsInterval);
-      }
       // abort any in-flight requests
       controller.abort();
     }
@@ -234,7 +262,7 @@ const IndexPage = ({ location }: PageProps) => {
                 borderTop: "1px solid white",
               }}
             >
-              <Typography sx={featuredNumber}>7</Typography>
+              <Typography sx={featuredNumber}>8</Typography>
               <Typography variant="body2">chain integrations</Typography>
             </Box>
             {messageTotal && <Box
@@ -291,6 +319,7 @@ const IndexPage = ({ location }: PageProps) => {
           }}
         />
         <Box
+          ref={shapeLeft}
           sx={{
             position: "absolute",
             zIndex: -1,
@@ -305,6 +334,7 @@ const IndexPage = ({ location }: PageProps) => {
           }}
         />
         <Box
+          ref={row1}
           sx={{
             display: "flex",
             flexWrap: "wrap",
@@ -369,6 +399,7 @@ const IndexPage = ({ location }: PageProps) => {
 
 
       <Box
+        ref={row2}
         sx={{
           display: "flex",
           flexWrap: "wrap-reverse",
@@ -420,6 +451,7 @@ const IndexPage = ({ location }: PageProps) => {
 
       <Box sx={{ position: 'relative' }}>
         <Box
+          ref={shapeRight}
           sx={{
             position: "absolute",
             zIndex: -1,
@@ -435,6 +467,7 @@ const IndexPage = ({ location }: PageProps) => {
           }}
         />
         <Box
+         ref={row3}
           sx={{
             display: "flex",
             flexWrap: "wrap",
@@ -500,7 +533,7 @@ const IndexPage = ({ location }: PageProps) => {
         </Box>
       </Box>
 
-      <Box sx={{ textAlign: "center", mt: 12.5, px: 2 }}>
+      <Box ref={row4} sx={{ textAlign: "center", mt: 12.5, px: 2 }}>
         <Typography variant="h3">
           <Box component="span" sx={{ color: "#FFCE00" }}>
             Cross-chain
@@ -512,7 +545,7 @@ const IndexPage = ({ location }: PageProps) => {
           best out of every blockchain without compromise.
         </Typography>
       </Box>
-      <Box sx={{ maxWidth: 1220, mx: "auto", mt: 12, px: 3.75 }}>
+      <Box ref={row5} sx={{ maxWidth: 1220, mx: "auto", mt: 12, px: 3.75 }}>
         <GridWithCards
           data={[
             {

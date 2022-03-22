@@ -131,7 +131,7 @@ const ExplorerStats: React.FC<StatsProps> = ({
     signal: AbortSignal
   ) => {
     const totalsUrl = `${baseUrl}totals`;
-    let url = `${totalsUrl}?&daily=true&last24Hours=true`
+    let url = `${totalsUrl}?&daily=true`
     if (groupBy) {
       url = `${url}&groupBy=${groupBy}`;
     }
@@ -215,7 +215,7 @@ const ExplorerStats: React.FC<StatsProps> = ({
     signal: AbortSignal
   ) => {
     const transferredUrl = `${baseUrl}notionaltransferred`;
-    let url = `${transferredUrl}?forPeriod=true&numDays=${daysSinceDataStart}`; // ${daysSinceDataStart}`
+    let url = `${transferredUrl}?forPeriod=true&numDays=${daysSinceDataStart}`;
     if (groupBy) {
       url = `${url}&groupBy=${groupBy}`;
     }
@@ -256,7 +256,7 @@ const ExplorerStats: React.FC<StatsProps> = ({
     signal: AbortSignal
   ) => {
     const transferredUrl = `${baseUrl}notionaltransferredto`;
-    let url = `${transferredUrl}?forPeriod=true&daily=true&numDays=${daysSinceDataStart}`; // ${daysSinceDataStart}`
+    let url = `${transferredUrl}?forPeriod=true&daily=true&numDays=${daysSinceDataStart}`;
     if (groupBy) {
       url = `${url}&groupBy=${groupBy}`;
     }
@@ -297,7 +297,7 @@ const ExplorerStats: React.FC<StatsProps> = ({
     signal: AbortSignal
   ) => {
     const transferredToUrl = `${baseUrl}notionaltransferredtocumulative`;
-    let url = `${transferredToUrl}?allTime=true`; // &daily=true&numDays=${daysSinceDataStart}` // TEMP - rm daily=true  //${daysSinceDataStart}`
+    let url = `${transferredToUrl}?allTime=true`
     if (groupBy) {
       url = `${url}&groupBy=${groupBy}`;
     }
@@ -335,7 +335,12 @@ const ExplorerStats: React.FC<StatsProps> = ({
       );
   };
 
-  const getData = (props: StatsProps, baseUrl: string, signal: AbortSignal) => {
+  const getData = (props: StatsProps, baseUrl: string, signal: AbortSignal, func: (baseUrl: string,
+    recentGroupBy: GroupBy,
+    totalsGroupBy: GroupBy,
+    forChain: ForChain,
+    forAddress: string | undefined,
+    signal: AbortSignal) => Promise<any>) => {
     let forChain: ForChain = undefined;
     let forAddress: ForAddress = undefined;
     let recentGroupBy: GroupBy = undefined;
@@ -348,6 +353,15 @@ const ExplorerStats: React.FC<StatsProps> = ({
     if (props.emitterChain && props.emitterAddress) {
       forAddress = props.emitterAddress;
     }
+    return func(baseUrl, recentGroupBy, totalsGroupBy, forChain, forAddress, signal)
+  };
+  const getAllEndpoints = (
+    baseUrl: string,
+    recentGroupBy: GroupBy,
+    totalsGroupBy: GroupBy,
+    forChain: ForChain,
+    forAddress: string | undefined,
+    signal: AbortSignal) => {
     return Promise.all([
       fetchTotals(baseUrl, totalsGroupBy, forChain, forAddress, signal),
       fetchRecent(baseUrl, recentGroupBy, forChain, forAddress, signal),
@@ -362,11 +376,19 @@ const ExplorerStats: React.FC<StatsProps> = ({
       ),
     ]);
   };
+  const getRecents = (
+    baseUrl: string,
+    recentGroupBy: GroupBy,
+    totalsGroupBy: GroupBy,
+    forChain: ForChain,
+    forAddress: string | undefined,
+    signal: AbortSignal) => fetchRecent(baseUrl, recentGroupBy, forChain, forAddress, signal)
+
 
   const pollingController = (
     emitterChain: StatsProps["emitterChain"],
     emitterAddress: StatsProps["emitterAddress"],
-    baseUrl: string
+    baseUrl: string,
   ) => {
     // clear any ongoing intervals
     if (pollInterval) {
@@ -382,8 +404,8 @@ const ExplorerStats: React.FC<StatsProps> = ({
     const { signal } = newController;
     // start polling
     let interval = setInterval(() => {
-      getData({ emitterChain, emitterAddress }, baseUrl, signal);
-    }, 12000);
+      getData({ emitterChain, emitterAddress }, baseUrl, signal, getRecents);
+    }, 30000);
     setPollInterval(interval);
   };
 
@@ -394,13 +416,15 @@ const ExplorerStats: React.FC<StatsProps> = ({
       emitterAddress !== address ||
       emitterChain !== chain
     ) {
+      const newController = new AbortController();
+      setController(newController);
       getData(
         { emitterChain, emitterAddress },
         activeNetwork.endpoints.bigtableFunctionsBase,
-        new AbortController().signal
+        newController.signal,
+        getAllEndpoints
       );
     }
-    controller.abort();
     setTotals(undefined);
     setRecent(undefined);
     setNotionalTransferred(undefined);

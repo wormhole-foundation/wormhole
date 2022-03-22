@@ -1,4 +1,4 @@
-import * as React from "react";
+import React, { useEffect } from "react";
 import { Box, Button, Grid, Typography } from "@mui/material";
 import ArrowCircleDownIcon from '@mui/icons-material/ArrowCircleDown';
 import { PageProps } from 'gatsby'
@@ -7,7 +7,7 @@ import HeroText from "../components/HeroText";
 import Layout from "../components/Layout";
 import logos from "../images/brand/logos.svg";
 import world from "../images/brand/world.svg";
-import shape1 from "../images/index/shape1.svg";
+import shape1 from "../images/index/shape2.svg";
 import { SEO } from "../components/SEO";
 import shapes from "../images/shape.png";
 import shapes2 from "../images/shape2.png";
@@ -35,7 +35,61 @@ import {
   contact
 } from "../utils/urls";
 
+import { gsap } from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { paralaxGsap, animateSwirl, fadeInGsap } from "../utils/animations";
+
+
 const BrandPage = ({ location }: PageProps) => {
+
+  const headerImage = React.useRef<HTMLCanvasElement>(null);
+  const gradient_1 = React.useRef<HTMLCanvasElement>(null);
+  const gradient_2 = React.useRef<HTMLCanvasElement>(null);
+  const shapeLeft = React.useRef<HTMLCanvasElement>(null);
+  const shapeRight = React.useRef<HTMLCanvasElement>(null);
+  const shapeLeft_2 = React.useRef<HTMLCanvasElement>(null);
+  const gradient_3 = React.useRef<HTMLCanvasElement>(null);
+
+  const row1 = React.useRef<HTMLCanvasElement>(null);
+  const row2 = React.useRef<HTMLCanvasElement>(null);
+  const row3 = React.useRef<HTMLCanvasElement>(null);
+  const row4 = React.useRef<HTMLCanvasElement>(null);
+  const row5 = React.useRef<HTMLCanvasElement>(null);
+  const row6 = React.useRef<HTMLCanvasElement>(null);
+  const row7 = React.useRef<HTMLCanvasElement>(null);
+  const row8 = React.useRef<HTMLCanvasElement>(null);
+  const row9 = React.useRef<HTMLCanvasElement>(null);
+  
+
+  useEffect(() => {
+
+    gsap.registerPlugin(ScrollTrigger);
+    var viewportWidth = window.innerWidth || document.documentElement.clientWidth;
+    if (viewportWidth > 992) {
+      animateSwirl(headerImage);
+      paralaxGsap(gradient_1, 1000, "-50% 100%");
+      paralaxGsap(gradient_2, 1000, "-50% 100%");
+      paralaxGsap(gradient_3, 1000, "0 100%");
+
+      paralaxGsap(shapeLeft, 200, "20% 100%");
+      paralaxGsap(shapeLeft_2, 200, "20% 100%");
+      paralaxGsap(shapeRight, 200, "20% 100%");
+
+      fadeInGsap(row1);
+      fadeInGsap(row2);
+      fadeInGsap(row3);
+      fadeInGsap(row4);
+      fadeInGsap(row5);
+      fadeInGsap(row6);
+      fadeInGsap(row7);
+      fadeInGsap(row8);
+      fadeInGsap(row9);
+    }
+      
+  }, [])
+
+
+
   return (
     <Layout>
       <SEO
@@ -45,6 +99,7 @@ const BrandPage = ({ location }: PageProps) => {
       />
       <Box sx={{ position: "relative", marginTop: 17 }}>
         <Box
+            ref={row1}
             sx={{
               position: "absolute",
               zIndex: -2,
@@ -59,10 +114,11 @@ const BrandPage = ({ location }: PageProps) => {
             }}
           />   
         <Box
+          ref={headerImage}
           sx={{
             position: "absolute",
             zIndex: -1,
-            transform: "translate(0px, -25%) scaleX(-1)",
+            transform: "translate(0px, -25%)",
             background: `url(${shape1})`,
             backgroundRepeat: "no-repeat",
             backgroundPosition: "top -500px center",
@@ -72,21 +128,15 @@ const BrandPage = ({ location }: PageProps) => {
           }}
         />
         <HeroText
-          heroSpans={["Brand"]}
-          subtitleText="Integrate proudly with everything you need to show off Wormhole."
+          heroSpans={["Brand", "assets"]}
+          subtitleText="Everything you need to show off Wormhole to the world."
         />
       </Box>
-      <Box sx={{ textAlign: "center", mt: 40, px: 2 }}>
-        <Typography variant="h3">
-          <Box component="span" sx={{ color: "#FFCE00" }}>
-          Brand {" "}
-          </Box>
-          <Box component="span"> assets</Box>
-        </Typography>
-        <Typography sx={{ mt: 2, maxWidth: 860, mx: "auto" }}>Everything you need to show off Wormhole to the world.</Typography>
-      </Box>
-      <Box sx={{position: 'relative'}}>
+     
+      
+      <Box sx={{position: 'relative', mt: 40,}}>
         <Box
+              ref={gradient_1}
             sx={{
               position: "absolute",
               zIndex: -2,
@@ -101,6 +151,7 @@ const BrandPage = ({ location }: PageProps) => {
             }}
           />
           <Box
+            ref={shapeLeft}
             sx={{
               position: "absolute",
               zIndex: -1,
@@ -115,7 +166,7 @@ const BrandPage = ({ location }: PageProps) => {
               display:{xs: 'none', md: 'block'},
             }}
           />
-        <Box sx={{ m: "auto", maxWidth: 1164, px: 3.75, mt: {xs: 10, md:15.5} }}>
+        <Box ref={row2} sx={{ m: "auto", maxWidth: 1164, px: 3.75, mt: {xs: 10, md:15.5} }}>
           <Box
             sx={{
               display: "flex",
@@ -169,6 +220,7 @@ const BrandPage = ({ location }: PageProps) => {
             </Box>
           </Box>
           <Box
+             ref={row3}
             sx={{
               display: "flex",
               flexWrap: "wrap-reverse",
@@ -215,6 +267,7 @@ const BrandPage = ({ location }: PageProps) => {
       </Box>
       <Box sx={{position: 'relative'}}>
           <Box
+              ref={gradient_2}
               sx={{
                 position: "absolute",
                 zIndex: -2,
@@ -229,6 +282,7 @@ const BrandPage = ({ location }: PageProps) => {
               }}
             />   
              <Box
+                ref={shapeRight}
                 sx={{
                   position: "absolute",
                   zIndex: -1,
@@ -257,7 +311,7 @@ const BrandPage = ({ location }: PageProps) => {
                   opacity: 0.7,
               }}
             />   
-          <Box sx={{ textAlign: "center", mt: 12, px: 2 }}>
+          <Box ref={row4} sx={{ textAlign: "center", mt: 12, px: 2 }}>
             <Typography variant="h3">
               <Box component="span" sx={{ color: "#FFCE00" }}>
               Color {" "}
@@ -266,7 +320,7 @@ const BrandPage = ({ location }: PageProps) => {
             </Typography>
             <Typography sx={{ mt: 2, maxWidth: 860, mx: "auto" }}>Mix and match from the color palette to fits your need.</Typography>
           </Box>
-          <Box sx={{ m: "auto", maxWidth: 1006, px: 3.75 }}>
+          <Box ref={row5} sx={{ m: "auto", maxWidth: 1006, px: 3.75 }}>
           <Grid container spacing={2}>
             <Grid item xs={12} md={4}>
               <Box
@@ -455,14 +509,14 @@ const BrandPage = ({ location }: PageProps) => {
 
       </Box>
       <Box sx={{position: 'relative'}}>
-          <Box sx={{ textAlign: "center", mt: 12, px: 2 }}>
+          <Box ref={row6} sx={{ textAlign: "center", mt: 12, px: 2 }}>
             <Typography variant="h3">
               <Box component="span" sx={{ color: "#FFCE00" }}>
               Iconography
               </Box>
             </Typography>
           </Box>
-        <Box sx={{ m: "auto", maxWidth: 950, px: 3.75 }}>
+        <Box ref={row7} sx={{ m: "auto", maxWidth: 950, px: 3.75 }}>
           <Grid container spacing={2}>
             <Grid item xs={12} md={6}>
               <Box
@@ -528,6 +582,7 @@ const BrandPage = ({ location }: PageProps) => {
       </Box>
       <Box sx={{position: 'relative'}}>
         <Box
+        ref={gradient_3}
               sx={{
                 position: "absolute",
                 zIndex: -2,
@@ -542,7 +597,8 @@ const BrandPage = ({ location }: PageProps) => {
               }}
             />   
           <Box
-              sx={{
+            ref={shapeLeft_2}
+            sx={{
                 position: "absolute",
                 zIndex: -1,
                 background: `url(${shapes})`,
@@ -555,7 +611,7 @@ const BrandPage = ({ location }: PageProps) => {
                 display:{xs: 'none', md: 'block'},
               }}
             />
-          <Box sx={{ textAlign: "center", mt: 12, px: 2 }}>
+          <Box ref={row8} sx={{ textAlign: "center", mt: 12, px: 2 }}>
             <Typography variant="h3">
               <Box component="span" sx={{ color: "#FFCE00" }}>
               Get the {" "}
@@ -576,7 +632,7 @@ const BrandPage = ({ location }: PageProps) => {
               </Button>
           </Box>
          
-          <Box sx={{maxWidth: 800, m:'60px auto 0',  borderTop: '1px solid #585587'}}>
+          <Box ref={row9} sx={{maxWidth: 800, m:'60px auto 0',  borderTop: '1px solid #585587'}}>
             <Box sx={{
                       px: 3, 
                       py:2 , 

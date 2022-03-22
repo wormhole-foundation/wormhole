@@ -369,6 +369,11 @@ func (e *Watcher) Run(ctx context.Context) error {
 				p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
 				return
 			case ev := <-headSink:
+				if ev == nil {
+					logger.Error("new header event is nil", zap.String("eth_network", e.networkName))
+					continue
+				}
+
 				start := time.Now()
 				currentHash := ev.Hash()
 				logger.Info("processing new header",

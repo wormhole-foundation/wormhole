@@ -51,7 +51,8 @@ const createTVLArray = (notionalTvl: NotionalTvl) => {
   for (const [chainId, chainAssets] of Object.entries(notionalTvl.AllTime)) {
     if (chainId === "*") continue;
     const originChainId = +chainId as ChainId;
-    const originChain = CHAINS_BY_ID[originChainId].name;
+    const originChain =
+      CHAINS_BY_ID[originChainId]?.name || `Unknown [${chainId}]`;
     for (const [tokenAddress, lockedAsset] of Object.entries(chainAssets)) {
       if (tokenAddress === "*") continue;
       tvl.push({

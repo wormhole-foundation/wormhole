@@ -111,9 +111,30 @@ Install the algorand requirements
 
   python3 -m pip  install  -r requirements.txt 
 
+install docker-compile
+
+./sandbox down; ./sandbox clean; ./sandbox up dev -v; python3 admin.py --devnet
+
 bring up the dev sandbox
 
+  ./sandbox down; ./sandbox clean
+
+
+[jsiegel@gusc1a-ossdev-jsl1 ~/.../algorand/_sandbox]{master} git diff
+diff --git a/images/indexer/start.sh b/images/indexer/start.sh
+index 9e224c2..f1714ea 100755
+--- a/images/indexer/start.sh
++++ b/images/indexer/start.sh
+@@ -28,6 +28,7 @@ start_with_algod() {
+   /tmp/algorand-indexer daemon \
+     --dev-mode \
++    --enable-all-parameters \
+     --server ":$PORT" \
+     -P "$CONNECTION_STRING" \
+     --algod-net "${ALGOD_ADDR}" \
+
   ./sandbox up dev
+
 
 docker_compose("./algorand/sandbox/tilt-compose.yml")
 
@@ -326,4 +347,19 @@ Registering chain 5
   'targetEmitter': '0000000000000000000000005a58505a96d1dbf8df91cb21b54419fc36e93fde',
   'timestamp': 1646654976,
   'version': 1})
+
 ./sandbox down; ./sandbox clean; ./sandbox up dev -v; python3 admin.py --devnet
+
+
+[jsiegel@gusc1a-ossdev-jsl1 ~/.../algorand/_sandbox]{master} git diff
+diff --git a/images/indexer/start.sh b/images/indexer/start.sh
+index 9e224c2..f1714ea 100755
+--- a/images/indexer/start.sh
++++ b/images/indexer/start.sh
+@@ -28,6 +28,7 @@ start_with_algod() {
+   /tmp/algorand-indexer daemon \
+     --dev-mode \
++    --enable-all-parameters \
+     --server ":$PORT" \
+     -P "$CONNECTION_STRING" \
+     --algod-net "${ALGOD_ADDR}" \
