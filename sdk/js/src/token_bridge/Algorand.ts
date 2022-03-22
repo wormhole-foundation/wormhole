@@ -169,15 +169,13 @@ export async function getMessageFee(client: algosdk.Algodv2): Promise<number> {
     return -1;
 }
 
-export function parseSeqFromLog(txn: any): number {
-    console.error("NOT IMPLEMENTED");
-    return -1;
-    //     try:
-    //             return int.from_bytes(b64decode(txn.innerTxns[-1]["logs"][0]), "big")
-    //         except Exception as err:
-    //             print(f"Unexpected {err=}, {type(err)=}")
-    //             pprint.pprint(txn.__dict__)
-    //             raise
+export function parseSeqFromLog(txn: any): bigint {
+    const innerTxns = txn.innerTxns[-1];
+    const logs = innerTxns["logs"];
+    const seqNum = logs[0];
+    const bufSN = Buffer.from(seqNum, "base64");
+    const sn = bufSN.readBigUInt64BE();
+    return sn;
 }
 
 export async function attestFromAlgorand(
