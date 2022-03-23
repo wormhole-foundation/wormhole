@@ -66,7 +66,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         sequence = logTransfer(transferResult.tokenChain, transferResult.tokenAddress, transferResult.normalizedAmount, recipientChain, recipient, transferResult.normalizedArbiterFee, transferResult.wormholeFee, nonce);
     }
 
-    function wrapAndTransferETHWithPayload(uint16 recipientChain, bytes32 recipient, uint256 arbiterFee, uint32 nonce, bytes memory payload) public payable returns (uint64 sequence) {
+    function wrapAndTransferETHWithPayload(uint16 recipientChain, bytes32 recipient, uint256 arbiterFee, uint32 nonce, bytes memory payload) public payable isEnabled returns (uint64 sequence) {
         BridgeStructs.TransferResult memory transferResult = _wrapAndTransferETH(arbiterFee);
         sequence = logTransferWithPayload(transferResult.tokenChain, transferResult.tokenAddress, transferResult.normalizedAmount, recipientChain, recipient, transferResult.normalizedArbiterFee, transferResult.wormholeFee, nonce, payload);
     }
@@ -111,7 +111,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         sequence = logTransfer(transferResult.tokenChain, transferResult.tokenAddress, transferResult.normalizedAmount, recipientChain, recipient, transferResult.normalizedArbiterFee, transferResult.wormholeFee, nonce);
     }
 
-    function transferTokensWithPayload(address token, uint256 amount, uint16 recipientChain, bytes32 recipient, uint256 arbiterFee, uint32 nonce, bytes memory payload) public payable nonReentrant returns (uint64 sequence) {
+    function transferTokensWithPayload(address token, uint256 amount, uint16 recipientChain, bytes32 recipient, uint256 arbiterFee, uint32 nonce, bytes memory payload) public payable nonReentrant isEnabled returns (uint64 sequence) {
         BridgeStructs.TransferResult memory transferResult = _transferTokens(token, amount, arbiterFee);
         sequence = logTransferWithPayload(transferResult.tokenChain, transferResult.tokenAddress, transferResult.normalizedAmount, recipientChain, recipient, transferResult.normalizedArbiterFee, transferResult.wormholeFee, nonce, payload);
     }
@@ -229,7 +229,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         }(nonce, encoded, 15);
     }
 
-    function updateWrapped(bytes memory encodedVm) external returns (address token) {
+    function updateWrapped(bytes memory encodedVm) external isEnabled returns (address token) {
         (IWormhole.VM memory vm, bool valid, string memory reason) = wormhole().parseAndVerifyVM(encodedVm);
 
         require(valid, reason);
@@ -297,19 +297,19 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         setWrappedAsset(meta.tokenChain, meta.tokenAddress, token);
     }
 
-    function completeTransferWithPayload(bytes memory encodedVm, address feeRecipient) public returns (bytes memory) {
+    function completeTransferWithPayload(bytes memory encodedVm, address feeRecipient) public isEnabled returns (bytes memory) {
         return _completeTransfer(encodedVm, false, feeRecipient);
     }
 
-    function completeTransferAndUnwrapETHWithPayload(bytes memory encodedVm, address feeRecipient) public returns (bytes memory) {
+    function completeTransferAndUnwrapETHWithPayload(bytes memory encodedVm, address feeRecipient) public isEnabled returns (bytes memory) {
         return _completeTransfer(encodedVm, true, feeRecipient);
     }
 
-    function completeTransfer(bytes memory encodedVm) public {
+    function completeTransfer(bytes memory encodedVm) public isEnabled {
         _completeTransfer(encodedVm, false, msg.sender);
     }
 
-    function completeTransferAndUnwrapETH(bytes memory encodedVm) public {
+    function completeTransferAndUnwrapETH(bytes memory encodedVm) public isEnabled {
         _completeTransfer(encodedVm, true, msg.sender);
     }
 

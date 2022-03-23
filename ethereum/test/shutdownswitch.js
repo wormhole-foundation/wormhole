@@ -187,6 +187,7 @@ contract("ShutdownSwitch", function () {
     it("should reject transfers when they are disabled", async function () {
         const accounts = await web3.eth.getAccounts();
         const initialized = new web3.eth.Contract(BridgeImplementationFullABI, TokenBridge.address);
+
         await clearAllVotes(initialized);
         assert.equal((await initialized.methods.enabledFlag().call()), true)
 
@@ -299,6 +300,7 @@ contract("ShutdownSwitch", function () {
     it("a vote changing back to enabled should allow transfers again", async function () {
         const accounts = await web3.eth.getAccounts();
         const initialized = new web3.eth.Contract(BridgeImplementationFullABI, TokenBridge.address);
+
         // Don't clear the votes here.
 
         // This assumes the previous test left us disabled.
