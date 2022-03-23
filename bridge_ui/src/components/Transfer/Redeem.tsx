@@ -12,11 +12,13 @@ import {
   WSOL_ADDRESS,
 } from "@certusone/wormhole-sdk";
 import {
+  Button,
   Checkbox,
   CircularProgress,
   FormControlLabel,
   Link,
   makeStyles,
+  Tooltip,
   Typography,
 } from "@material-ui/core";
 import { Alert } from "@material-ui/lab";
@@ -58,7 +60,7 @@ const useStyles = makeStyles((theme) => ({
     marginBottom: theme.spacing(1),
   },
   centered: {
-    marginTop: theme.spacing(1),
+    margin: theme.spacing(4, 0, 2),
     textAlign: "center",
   },
 }));
@@ -67,6 +69,10 @@ function Redeem() {
   const { handleClick, handleNativeClick, disabled, showLoader } =
     useHandleRedeem();
   const useRelayer = useSelector(selectTransferUseRelayer);
+  const [manualRedeem, setManualRedeem] = useState(!useRelayer);
+  const handleManuallyRedeemClick = useCallback(() => {
+    setManualRedeem(true);
+  }, []);
   const targetChain = useSelector(selectTransferTargetChain);
   const targetAsset = useSelector(selectTransferTargetAsset);
   const isRecovery = useSelector(selectTransferIsRecovery);
@@ -134,17 +140,27 @@ function Redeem() {
       {isEVMChain(targetChain) ? <KeyAndBalance chainId={targetChain} /> : null}
 
       {!isReady && isEVMChain(targetChain) ? (
-        <Typography>
+        <Typography className={classes.centered}>
           {"Please connect your wallet to check for transfer completion."}
         </Typography>
       ) : null}
 
       {(!isEVMChain(targetChain) || isReady) && !isTransferCompleted ? (
         <div className={classes.centered}>
-          <CircularProgress />
+          <CircularProgress style={{ marginBottom: 16 }} />
           <Typography>
             {"Waiting for a relayer to process your transfer."}
           </Typography>
+          <Tooltip title="Your fees will be refunded on the target chain">
+            <Button
+              onClick={handleManuallyRedeemClick}
+              size="small"
+              variant="outlined"
+              style={{ marginTop: 16 }}
+            >
+              Manually redeem instead
+            </Button>
+          </Tooltip>
         </div>
       ) : null}
       {isTransferCompleted && isEVMChain(targetChain) ? (
@@ -239,7 +255,7 @@ function Redeem() {
   return (
     <>
       <StepDescription>Receive the tokens on the target chain</StepDescription>
-      {useRelayer ? relayerContent : nonRelayContent}
+      {manualRedeem ? nonRelayContent : relayerContent}
     </>
   );
 }

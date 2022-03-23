@@ -235,7 +235,7 @@ function RelayerRecovery({
   }
 
   return (
-    <Alert severity="info">
+    <Alert variant="outlined" severity="info">
       <Typography>{"This transaction is eligible to be relayed"}</Typography>
       <RelaySelector
         selectedValue={selectedRelayer}
@@ -693,15 +693,26 @@ export default function Recovery() {
                   margin="normal"
                 />
                 {isNFT ? null : (
-                  <TextField
-                    variant="outlined"
-                    label="Amount"
-                    disabled
-                    // @ts-ignore
-                    value={parsedPayload?.amount.toString() || ""}
-                    fullWidth
-                    margin="normal"
-                  />
+                  <>
+                    <TextField
+                      variant="outlined"
+                      label="Amount"
+                      disabled
+                      // @ts-ignore
+                      value={parsedPayload?.amount.toString() || ""}
+                      fullWidth
+                      margin="normal"
+                    />
+                    <TextField
+                      variant="outlined"
+                      label="Relayer Fee"
+                      disabled
+                      // @ts-ignore
+                      value={parsedPayload?.fee.toString() || ""}
+                      fullWidth
+                      margin="normal"
+                    />
+                  </>
                 )}
               </div>
             </AccordionDetails>
