@@ -1,5 +1,6 @@
 import { CHAIN_ID_TERRA, isEVMChain } from "@certusone/wormhole-sdk";
 import { Card, Checkbox, makeStyles, Typography } from "@material-ui/core";
+import clsx from "clsx";
 import { useCallback, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import SmartAddress from "../components/SmartAddress";
@@ -15,7 +16,7 @@ import {
   selectTransferUseRelayer,
 } from "../store/selectors";
 import { setRelayerFee, setUseRelayer } from "../store/transferSlice";
-import { getDefaultNativeCurrencySymbol } from "../utils/consts";
+import { CHAINS_BY_ID, getDefaultNativeCurrencySymbol } from "../utils/consts";
 
 const useStyles = makeStyles((theme) => ({
   feeSelectorContainer: {
@@ -55,6 +56,9 @@ const useStyles = makeStyles((theme) => ({
   },
   inlineBlock: {
     display: "inline-block",
+  },
+  alignLeft: {
+    textAlign: "left",
   },
 }));
 
@@ -119,15 +123,14 @@ function FeeMethodSelector() {
           onClick={chooseRelayer}
           className={classes.inlineBlock}
         />
-        <div className={classes.inlineBlock}>
+        <div className={clsx(classes.inlineBlock, classes.alignLeft)}>
           {relayerEligible ? (
             <div>
               <Typography variant="body1">{"Automatic Payment"}</Typography>
               <Typography variant="body2" color="textSecondary">
-                {"Use a relayer to pay with additional " +
-                  (sourceSymbol
-                    ? sourceSymbol + ""
-                    : "the token you're transferring.")}{" "}
+                {`Pay with additional ${
+                  sourceSymbol ? sourceSymbol : "tokens"
+                } and use a relayer`}
               </Typography>
             </div>
           ) : (
@@ -152,7 +155,7 @@ function FeeMethodSelector() {
               chainId={sourceChain}
               parsedTokenAccount={sourceParsedTokenAccount}
             />
-          </div>
+          </div>{" "}
           <Typography>{`($ ${relayerInfo.data?.feeUsd})`}</Typography>
         </div>
       ) : null}
@@ -176,13 +179,14 @@ function FeeMethodSelector() {
           onClick={chooseManual}
           className={classes.inlineBlock}
         />
-        <div className={classes.inlineBlock}>
+        <div className={clsx(classes.inlineBlock, classes.alignLeft)}>
           <Typography variant="body1">{"Manual Payment"}</Typography>
           <Typography variant="body2" color="textSecondary">
-            {"Pay with your own " +
-              (targetChain === CHAIN_ID_TERRA
-                ? "UST"
-                : getDefaultNativeCurrencySymbol(targetChain))}
+            {`Pay with your own ${
+              targetChain === CHAIN_ID_TERRA
+                ? "funds"
+                : getDefaultNativeCurrencySymbol(targetChain)
+            } on ${CHAINS_BY_ID[targetChain]?.name || "target chain"}`}
           </Typography>
         </div>
       </div>

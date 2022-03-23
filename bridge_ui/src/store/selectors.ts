@@ -288,25 +288,33 @@ export const selectTransferTargetError = (state: RootState) => {
     return "Invalid relayer fee.";
   }
   if (state.transfer.relayerFee && state.transfer.sourceParsedTokenAccount) {
-    if (
-      parseUnits(
-        state.transfer.amount,
-        state.transfer.sourceParsedTokenAccount.decimals
-      )
-        .add(
-          parseUnits(
-            state.transfer.relayerFee.toString(),
-            state.transfer.sourceParsedTokenAccount.decimals
-          )
+    try {
+      // these may trigger error: fractional component exceeds decimals
+      if (
+        parseUnits(
+          state.transfer.amount,
+          state.transfer.sourceParsedTokenAccount.decimals
         )
-        .gt(
-          parseUnits(
-            state.transfer.sourceParsedTokenAccount.uiAmountString,
-            state.transfer.sourceParsedTokenAccount.decimals
+          .add(
+            parseUnits(
+              state.transfer.relayerFee.toString(),
+              state.transfer.sourceParsedTokenAccount.decimals
+            )
           )
-        )
-    ) {
-      return "The amount being transferred plus fees exceeds the wallet's balance.";
+          .gt(
+            parseUnits(
+              state.transfer.sourceParsedTokenAccount.uiAmountString,
+              state.transfer.sourceParsedTokenAccount.decimals
+            )
+          )
+      ) {
+        return "The amount being transferred plus fees exceeds the wallet's balance.";
+      }
+    } catch (e: any) {
+      if (e?.message) {
+        return e.message.substring(0, e.message.indexOf("("));
+      }
+      return "Invalid amount";
     }
   }
 };

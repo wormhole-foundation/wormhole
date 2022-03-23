@@ -290,16 +290,15 @@ function EthGasEstimateSummary({
         flexWrap: "wrap",
       }}
     >
-      <div style={{ display: "flex", alignItems: "center" }}>
+      <div style={{ display: "flex", alignItems: "center", marginRight: 32 }}>
         <LocalGasStation fontSize="inherit" />
         &nbsp;{estimate.currentGasPrice}
       </div>
-      <div>&nbsp;&nbsp;&nbsp;</div>
       <div>
         Est. Fees: {estimate.lowEstimate} - {estimate.highEstimate}{" "}
         {getDefaultNativeCurrencySymbol(chainId)}
+        {priceQuote ? <div>{`($${lowUsd} - $${highUsd})`}</div> : null}
       </div>
-      {priceQuote ? <div>{`($${lowUsd} - $${highUsd})`}</div> : null}
     </Typography>
   );
 }
@@ -311,7 +310,7 @@ const terraEstimatesByContract = {
   },
 };
 
-const evmEstimatesByContract = {
+export const evmEstimatesByContract = {
   transfer: {
     lowGasEstimate: BigInt(80000),
     highGasEstimate: BigInt(130000),

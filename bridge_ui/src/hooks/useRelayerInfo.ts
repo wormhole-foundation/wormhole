@@ -3,6 +3,7 @@ import {
   CHAIN_ID_AVAX,
   CHAIN_ID_BSC,
   CHAIN_ID_ETH,
+  CHAIN_ID_FANTOM,
   CHAIN_ID_OASIS,
   CHAIN_ID_POLYGON,
   CHAIN_ID_SOLANA,
@@ -19,6 +20,7 @@ import {
 } from "../store/selectors";
 import { getCoinGeckoURL, RELAYER_COMPARE_ASSET } from "../utils/consts";
 import useRelayersAvailable, { RelayerTokenInfo } from "./useRelayersAvailable";
+import { evmEstimatesByContract } from "./useTransactionFees";
 
 export function getRelayAssetInfo(
   originChain: ChainId,
@@ -57,8 +59,7 @@ function isRelayable(
   );
 }
 
-const AVERAGE_ETH_REDEEM_GAS = 100000; //TODO not a great estimate, coordinate this with useTransactionFees hook
-const ETH_SAFETY_TOLERANCE = 1.1;
+const ETH_SAFETY_TOLERANCE = 1.25;
 
 export type RelayerInfo = {
   isRelayable: boolean;
@@ -81,21 +82,25 @@ function calculateFeeUsd(
     if (!gasPrice) {
       feeUsd = 0; //catch this error elsewhere
     } else {
+      // Number should be safe as long as we don't modify highGasEstimate to be in the BigInt range
       feeUsd =
-        ((AVERAGE_ETH_REDEEM_GAS * gasPrice) / 1000000000) *
+        ((Number(evmEstimatesByContract.transfer.highGasEstimate) * gasPrice) /
+          1000000000) *
         comparisonAssetPrice *
         ETH_SAFETY_TOLERANCE;
     }
   } else if (targetChain === CHAIN_ID_TERRA) {
-    feeUsd = 5;
+    feeUsd = 2;
   } else if (targetChain === CHAIN_ID_BSC) {
-    feeUsd = 5;
+    feeUsd = 2;
   } else if (targetChain === CHAIN_ID_POLYGON) {
     feeUsd = 0.5;
   } else if (targetChain === CHAIN_ID_AVAX) {
     feeUsd = 1;
   } else if (targetChain === CHAIN_ID_OASIS) {
-    feeUsd = 1;
+    feeUsd = 0.5;
+  } else if (targetChain === CHAIN_ID_FANTOM) {
+    feeUsd = 0.5;
   }
 
   return feeUsd;
@@ -114,7 +119,13 @@ function calculateFeeFormatted(
   originAssetPrice: number,
   sourceAssetDecimals: number
 ) {
-  return (feeUsd / originAssetPrice).toFixed(sourceAssetDecimals);
+  const sendableDecimals = Math.min(8, sourceAssetDecimals);
+  const minimumFee = parseFloat(
+    (10 ** -sendableDecimals).toFixed(sendableDecimals)
+  );
+  const calculatedFee = feeUsd / originAssetPrice;
+  console.log("min", minimumFee, "calc", calculatedFee);
+  return Math.max(minimumFee, calculatedFee).toFixed(sourceAssetDecimals);
 }
 
 //This potentially returns the same chain as the foreign chain, in the case where the asset is native
@@ -135,6 +146,7 @@ function useRelayerInfo(
   const sourceAssetDecimals = sourceParsedTokenAccount?.decimals;
   const gasPrice = useSelector(selectTransferGasPrice);
   const relayerInfo = useRelayersAvailable(true);
+  console.log("relayerInfo", relayerInfo);
 
   const originAssetNative =
     originAsset && originChain

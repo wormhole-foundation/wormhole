@@ -82,6 +82,14 @@ async function evm(
     const baseAmountParsed = parseUnits(amount, decimals);
     const feeParsed = parseUnits(relayerFee || "0", decimals);
     const transferAmountParsed = baseAmountParsed.add(feeParsed);
+    console.log(
+      "base",
+      baseAmountParsed,
+      "fee",
+      feeParsed,
+      "total",
+      transferAmountParsed
+    );
     const receipt = isNative
       ? await transferFromEthNative(
           getTokenBridgeAddressForChain(chainId),
@@ -310,6 +318,7 @@ export function useHandleTransfer() {
     selectTransferSourceParsedTokenAccount
   );
   const relayerFee = useSelector(selectTransferRelayerFee);
+  console.log("relayerFee", relayerFee);
 
   const sourceTokenPublicKey = sourceParsedTokenAccount?.publicKey;
   const decimals = sourceParsedTokenAccount?.decimals;

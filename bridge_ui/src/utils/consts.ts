@@ -1123,11 +1123,12 @@ export const RELAYER_COMPARE_ASSET: RelayerCompareAsset = {
   [CHAIN_ID_POLYGON]: "matic-network",
   [CHAIN_ID_AVAX]: "avalanche-2",
   [CHAIN_ID_OASIS]: "oasis-network",
+  [CHAIN_ID_FANTOM]: "fantom",
 } as RelayerCompareAsset;
 export const getCoinGeckoURL = (coinGeckoId: string) =>
   `https://api.coingecko.com/api/v3/simple/price?ids=${coinGeckoId}&vs_currencies=usd`;
 
 export const RELAYER_INFO_URL =
-  CLUSTER === "mainnet" ? "" : "/relayerExample.json";
+  CLUSTER === "mainnet" ? "/relayerExample.json" : "/relayerExample.json";
 
 export const RELAY_URL_EXTENSION = "/relayvaa/";
