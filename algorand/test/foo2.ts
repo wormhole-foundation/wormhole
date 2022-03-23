@@ -4,6 +4,8 @@ const testLib = new TestLib.TestLib()
 
 import {
        submitVAA, 
+       submitVAAHdr, 
+       simpleSignVAA, 
 //       Account,
 } from "../../sdk/js/src/token_bridge/Algorand";
 
@@ -39,7 +41,12 @@ async function firstTransaction() {
 
         let vaa = testLib.createSignedVAA(0, guardianPrivKeys, 1, 1, 1, PYTH_EMITTER, 0, 0, PYTH_PAYLOAD)
         console.log(vaa)
-        console.log(await submitVAA(new Uint8Array(Buffer.from(vaa, "hex")), algodClient, myAccount, 4))
+        let evaa = new Uint8Array(Buffer.from(vaa, "hex"))
+
+        let sstate = await submitVAAHdr(evaa, algodClient, myAccount, 4);
+        console.log(await simpleSignVAA(evaa, algodClient, myAccount, 4, sstate.txns));
+        
+//        console.log(await submitVAA(new Uint8Array(Buffer.from(vaa, "hex")), algodClient, myAccount, 4))
 //console.log(parseVAA(vaa))
 //        console.log(await submitVAA(vaa, algodClient, myAccount, 4))
 

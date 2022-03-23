@@ -1,6 +1,5 @@
 import algosdk, { LogicSigAccount } from "algosdk";
 import { id } from "ethers/lib/utils";
-// import { tealSource } from "./TmplSigSource";
 var varint = require("varint");
 
 // This is the data structure to be populated in the call to populate() below
@@ -71,20 +70,6 @@ export class TmplSig {
      * @returns A LogicSig object.
      */
     async populate(data: PopulateData): Promise<LogicSigAccount> {
-        // let program = tealSource;
-        // program = program.replace(/TMPL_ADDR_IDX/, data.addrIdx.toString());
-        // program = program.replace(/TMPL_EMITTER_ID/, data.emitterId);
-        // program = program.replace(/TMPL_SEED_AMT/, data.seedAmt.toString());
-        // program = program.replace(/TMPL_APP_ID/, data.appId.toString());
-        // program = program.replace(/TMPL_APP_ADDRESS/, data.appAddress);
-        // await this.compile(program);
-
-        // console.log(
-        //     "This is the final product:",
-        //     Buffer.from(this.bytecode).toString("hex")
-        // );
-        // // Create a new LogicSigAccount given the populated TEAL code
-        // return new LogicSigAccount(this.bytecode);
         const byteString: string = [
             "0620010181",
             varint
