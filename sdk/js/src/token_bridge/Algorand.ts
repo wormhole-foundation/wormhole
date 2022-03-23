@@ -24,7 +24,7 @@ import {
     uint8ArrayToHexString,
 } from "./TmplSig";
 
-import { TextEncoder } from "util";
+import { TextEncoder , inspect} from "util";
 import { first } from "rxjs";
 
 // Some constants
@@ -691,22 +691,26 @@ export async function submitVAAHdr (
     // limitations with lsigs AND reduces the cost of the entire operation on a conjested network by reducing the
     // bytes passed into the transaction
     // This is a 2 pass digest
-    const digest = keccak256(keccak256(parsedVAA.get("digest")));
+    const digest = keccak256(keccak256(parsedVAA.get("digest"))).slice(2);
+
+//    const data = parsedVAA.get("digest")
+//    process.stdout.write("srcDigest" + `${inspect(data, { maxArrayLength: 1000 })}\n`)
+//    console.log("digest", digest);
+//    console.log("adigest", hexStringToUint8Array(digest));
 
     // How many signatures can we process in a single txn... we can do 9!
     // There are likely upwards of 19 signatures.  So, we ned to split things up
     const numSigs: number = parsedVAA.get("siglen");
-    let numTxns: number = numSigs / MAX_SIGS_PER_TXN;
-    if (numSigs % MAX_SIGS_PER_TXN) {
-        numTxns++;
-    }
+    let numTxns: number = Math.floor(numSigs / MAX_SIGS_PER_TXN) + 1;
+
     const SIG_LEN: number = 66;
+    const BSIZE: number = SIG_LEN * MAX_SIGS_PER_TXN;
     const signatures: Uint8Array = parsedVAA.get("signatures");
     const verifySigArg: Uint8Array = textToUint8Array("verifySigs");
     for (let nt = 0; nt < numTxns; nt++) {
-        let sigs: Uint8Array = signatures.slice(nt * SIG_LEN);
-        if (sigs.length > SIG_LEN) {
-            sigs = sigs.slice(0, SIG_LEN);
+        let sigs: Uint8Array = signatures.slice(nt * BSIZE);
+        if (sigs.length > BSIZE) {
+            sigs = sigs.slice(0, BSIZE);
         }
 
         // The keyset is the set of guardians that correspond
@@ -720,7 +724,7 @@ export async function submitVAAHdr (
             // The first byte of the sig is the relative index of that signature in the signatures array
             // Use that index to get the appropriate guardian key
             const idx = sigs[i * SIG_LEN];
-            const key = keys.slice(idx * GuardianKeyLen + 1, 20);
+            const key = keys.slice((idx * GuardianKeyLen) + 1, ((idx + 1) * GuardianKeyLen) + 1);
             keySet.set(key, i * 20);
         }
 
