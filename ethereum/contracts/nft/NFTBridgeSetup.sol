@@ -26,6 +26,8 @@ contract NFTBridgeSetup is NFTBridgeSetters, ERC1967Upgrade {
 
         setTokenImplementation(tokenImplementation);
 
+        setUpShutdownSwitch();
+
         _upgradeTo(implementation);
     }
 }
