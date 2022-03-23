@@ -58,12 +58,18 @@ export default function useGetIsTransferCompleted(
   );
 
   useEffect(() => {
-    if (pollFrequency && pollState && !isTransferCompleted) {
+    let cancelled = false;
+    if (pollFrequency && !isLoading && !isTransferCompleted) {
       setTimeout(() => {
-        setPollState((prevState) => (prevState || 0) + 1);
+        if (!cancelled) {
+          setPollState((prevState) => (prevState || 0) + 1);
+        }
       }, pollFrequency);
     }
-  }, [pollFrequency, pollState, isTransferCompleted]);
+    return () => {
+      cancelled = true;
+    };
+  }, [pollFrequency, isLoading, isTransferCompleted]);
 
   useEffect(() => {
     if (!shouldFire) {

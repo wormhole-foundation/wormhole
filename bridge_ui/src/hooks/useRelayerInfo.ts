@@ -77,7 +77,7 @@ function calculateFeeUsd(
   let feeUsd = 0;
 
   if (targetChain === CHAIN_ID_SOLANA) {
-    feeUsd = 1;
+    feeUsd = 0; // minimum fee until the sdk is fixed to accept
   } else if (targetChain === CHAIN_ID_ETH) {
     if (!gasPrice) {
       feeUsd = 0; //catch this error elsewhere

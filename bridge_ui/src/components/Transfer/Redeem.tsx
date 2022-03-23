@@ -52,6 +52,7 @@ import SolanaTPSWarning from "../SolanaTPSWarning";
 import StepDescription from "../StepDescription";
 import TerraFeeDenomPicker from "../TerraFeeDenomPicker";
 import AddToMetamask from "./AddToMetamask";
+import RedeemPreview from "./RedeemPreview";
 import WaitingForWalletMessage from "./WaitingForWalletMessage";
 
 const useStyles = makeStyles((theme) => ({
@@ -79,7 +80,7 @@ function Redeem() {
   const { isTransferCompletedLoading, isTransferCompleted } =
     useGetIsTransferCompleted(
       useRelayer ? false : true,
-      useRelayer ? 2000 : undefined
+      useRelayer ? 5000 : undefined
     );
   const classes = useStyles();
   const dispatch = useDispatch();
@@ -137,9 +138,11 @@ function Redeem() {
 
   const relayerContent = (
     <>
-      {isEVMChain(targetChain) ? <KeyAndBalance chainId={targetChain} /> : null}
+      {isEVMChain(targetChain) && !isTransferCompleted ? (
+        <KeyAndBalance chainId={targetChain} />
+      ) : null}
 
-      {!isReady && isEVMChain(targetChain) ? (
+      {!isReady && isEVMChain(targetChain) && !isTransferCompleted ? (
         <Typography className={classes.centered}>
           {"Please connect your wallet to check for transfer completion."}
         </Typography>
@@ -163,14 +166,9 @@ function Redeem() {
           </Tooltip>
         </div>
       ) : null}
-      {isTransferCompleted && isEVMChain(targetChain) ? (
-        <AddToMetamask />
-      ) : null}
 
       {isTransferCompleted ? (
-        <ButtonWithLoader onClick={handleResetClick}>
-          Transfer More Tokens!
-        </ButtonWithLoader>
+        <RedeemPreview overrideExplainerString="Success! Your transfer is complete." />
       ) : null}
     </>
   );

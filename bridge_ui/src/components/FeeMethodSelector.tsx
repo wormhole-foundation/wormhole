@@ -1,5 +1,11 @@
 import { CHAIN_ID_TERRA, isEVMChain } from "@certusone/wormhole-sdk";
-import { Card, Checkbox, makeStyles, Typography } from "@material-ui/core";
+import {
+  Card,
+  Checkbox,
+  Chip,
+  makeStyles,
+  Typography,
+} from "@material-ui/core";
 import clsx from "clsx";
 import { useCallback, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
@@ -59,6 +65,12 @@ const useStyles = makeStyles((theme) => ({
   },
   alignLeft: {
     textAlign: "left",
+  },
+  betaLabel: {
+    color: COLORS.white,
+    background: "linear-gradient(20deg, #f44b1b 0%, #eeb430 100%)",
+    marginLeft: theme.spacing(1),
+    fontSize: "120%",
   },
 }));
 
@@ -126,7 +138,7 @@ function FeeMethodSelector() {
         <div className={clsx(classes.inlineBlock, classes.alignLeft)}>
           {relayerEligible ? (
             <div>
-              <Typography variant="body1">{"Automatic Payment"}</Typography>
+              <Typography variant="body1">Automatic Payment</Typography>
               <Typography variant="body2" color="textSecondary">
                 {`Pay with additional ${
                   sourceSymbol ? sourceSymbol : "tokens"
@@ -145,19 +157,26 @@ function FeeMethodSelector() {
       </div>
       {/* TODO fixed number of decimals on these strings */}
       {relayerEligible ? (
-        <div>
+        <>
           <div>
-            <Typography className={classes.inlineBlock}>
-              {"~ " +
-                parseFloat(relayerInfo.data?.feeFormatted || "0").toFixed(5)}
-            </Typography>
-            <SmartAddress
-              chainId={sourceChain}
-              parsedTokenAccount={sourceParsedTokenAccount}
-            />
-          </div>{" "}
-          <Typography>{`($ ${relayerInfo.data?.feeUsd})`}</Typography>
-        </div>
+            <Chip label="Beta" className={classes.betaLabel} />
+          </div>
+          <div>
+            <div>
+              <Typography className={classes.inlineBlock}>
+                {/* Transfers are max 8 decimals */}
+                {parseFloat(relayerInfo.data?.feeFormatted || "0").toFixed(
+                  Math.min(sourceParsedTokenAccount?.decimals || 8, 8)
+                )}
+              </Typography>
+              <SmartAddress
+                chainId={sourceChain}
+                parsedTokenAccount={sourceParsedTokenAccount}
+              />
+            </div>{" "}
+            <Typography>{`($ ${relayerInfo.data?.feeUsd})`}</Typography>
+          </div>
+        </>
       ) : null}
     </Card>
   );

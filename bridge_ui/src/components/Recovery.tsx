@@ -75,6 +75,13 @@ const useStyles = makeStyles((theme) => ({
   advancedContainer: {
     padding: theme.spacing(2, 0),
   },
+  relayAlert: {
+    marginTop: theme.spacing(2),
+    marginBottom: theme.spacing(2),
+    "& > .MuiAlert-message": {
+      width: "100%",
+    },
+  },
 }));
 
 async function evm(
@@ -174,6 +181,7 @@ function RelayerRecovery({
   signedVaa: string;
   onClick: () => void;
 }) {
+  const classes = useStyles();
   const relayerInfo = useRelayersAvailable(true);
   const [selectedRelayer, setSelectedRelayer] = useState<Relayer | null>(null);
   const [isAttemptingToSchedule, setIsAttemptingToSchedule] = useState(false);
@@ -235,7 +243,7 @@ function RelayerRecovery({
   }
 
   return (
-    <Alert variant="outlined" severity="info">
+    <Alert variant="outlined" severity="info" className={classes.relayAlert}>
       <Typography>{"This transaction is eligible to be relayed"}</Typography>
       <RelaySelector
         selectedValue={selectedRelayer}

@@ -2,7 +2,7 @@ import {
   CircularProgress,
   makeStyles,
   MenuItem,
-  Select,
+  TextField,
   Typography,
 } from "@material-ui/core";
 import { useCallback } from "react";
@@ -48,16 +48,19 @@ export default function RelaySelector({
   console.log("selectedValue in relay selector", selectedValue);
 
   const selector = (
-    <Select
+    <TextField
       onChange={onChangeWrapper}
-      value={selectedValue ? selectedValue.url : null}
+      value={selectedValue ? selectedValue.url : ""}
+      label="Select a relayer"
+      select
+      fullWidth
     >
       {availableRelayers.data?.relayers?.map((item) => (
         <MenuItem key={item.url} value={item.url}>
           {item.name}
         </MenuItem>
       ))}
-    </Select>
+    </TextField>
   );
 
   const error = (
