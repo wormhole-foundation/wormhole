@@ -29,6 +29,8 @@ contract BridgeSetup is BridgeSetters, ERC1967Upgrade {
 
         setWETH(WETH);
 
+        setUpShutdownSwitch();
+
         _upgradeTo(implementation);
     }
 }

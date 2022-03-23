@@ -17,6 +17,7 @@ contract BridgeImplementation is Bridge {
 
     function initialize() initializer public virtual {
         // this function needs to be exposed for an upgrade to pass
+        setUpShutdownSwitch();
     }
 
     modifier initializer() {
