@@ -65,7 +65,6 @@ if (!foundOne) {
 
 if (
   !error &&
-  redisHelper.init() &&
   spyListener.init(runListen) &&
   relayWorker.init(runWorker) &&
   restListener.init(runRest)
@@ -86,6 +85,8 @@ if (
     promClient = new PromHelper("spy_relay", promPort, PromMode.Both);
   }
 
+  redisHelper.init(promClient);
+
   if (runListen) spyListener.run(promClient);
   if (runWorker) relayWorker.run(promClient);
   if (runRest) restListener.run();
@@ -101,4 +102,6 @@ if (
       //logger.debug("readiness connection");
     });
   }
+} else {
+  logger.error("Initialization failed.");
 }

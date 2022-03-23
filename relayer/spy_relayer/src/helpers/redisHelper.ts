@@ -4,6 +4,7 @@ import { Mutex } from "async-mutex";
 import { getLogger } from "./logHelper";
 import { ChainId } from "@certusone/wormhole-sdk";
 import { connect } from "http2";
+import { PromHelper } from "./promHelpers";
 
 import { uint8ArrayToHex } from "@certusone/wormhole-sdk";
 import { ParsedTransferPayload, ParsedVaa } from "../listener/validation";
@@ -11,6 +12,7 @@ import { ParsedTransferPayload, ParsedVaa } from "../listener/validation";
 const logger = getLogger();
 const commonEnv = getCommonEnvironment();
 const { redisHost, redisPort } = commonEnv;
+let promHelper: PromHelper;
 
 //Module internals
 const redisMutex = new Mutex();
@@ -25,9 +27,9 @@ export enum RedisTables {
   WORKING = 1,
 }
 
-export function init(): boolean {
+export function init(ph: PromHelper): boolean {
   logger.info("will connect to redis at [" + redisHost + ":" + redisPort + "]");
-
+  promHelper = ph;
   return true;
 }
 
@@ -81,32 +83,49 @@ export async function storeInRedis(name: string, value: string) {
 
   await redisMutex.runExclusive(async () => {
     logger.debug("storeInRedis: connecting to redis.");
-    const redisClient = await connectToRedis();
-    if (!redisClient) {
+    let redisClient;
+    try {
       redisQueue.push([name, value]);
-      logger.error(
-        "Failed to connect to redis, enqueued vaa, there are now " +
-          redisQueue.length +
-          " enqueued events"
-      );
-      return;
-    }
-
-    if (redisQueue.length !== 0) {
-      logger.info(
-        "now connected to redis, playing out " +
-          redisQueue.length +
-          " enqueued events"
-      );
-      for (let idx = 0; idx < redisQueue.length; ++idx) {
-        await addToRedis(redisClient, redisQueue[idx][0], redisQueue[idx][1]);
+      redisClient = await connectToRedis();
+      if (!redisClient) {
+        logger.error(
+          "Failed to connect to redis, enqueued vaa, there are now " +
+            redisQueue.length +
+            " enqueued events"
+        );
+        return;
       }
-      redisQueue = [];
+
+      logger.debug(
+        "now connected to redis, attempting to push " +
+          redisQueue.length +
+          " queued items"
+      );
+      for (let item = redisQueue.pop(); item; item = redisQueue.pop()) {
+        await addToRedis(redisClient, item[0], item[1]);
+      }
+    } catch (e) {
+      logger.error(
+        "Failed during redis item push. Currently" +
+          redisQueue.length +
+          " enqueued items"
+      );
+      logger.error(
+        "encountered an exception while pushing items to redis %o",
+        e
+      );
     }
 
-    await addToRedis(redisClient, name, value);
-    await redisClient.quit();
+    try {
+      if (redisClient) {
+        await redisClient.quit();
+      }
+    } catch (e) {
+      logger.error("Failed to quit redis client");
+    }
   });
+
+  promHelper.handleListenerMemqueue(redisQueue.length);
 }
 
 export async function addToRedis(

@@ -65,10 +65,10 @@ async function pullBalances(): Promise<WalletBalance[]> {
     logger.error("pullBalances() - no supportedChains");
     return balances;
   }
-  try {
-    for (const chainInfo of env.supportedChains) {
-      if (!chainInfo) break;
-      for (const privateKey of chainInfo.walletPrivateKey || []) {
+  for (const chainInfo of env.supportedChains) {
+    if (!chainInfo) break;
+    for (const privateKey of chainInfo.walletPrivateKey || []) {
+      try {
         if (!privateKey) break;
         logger.debug(
           "Attempting to pull native balance for chainId: " + chainInfo.chainId
@@ -98,9 +98,18 @@ async function pullBalances(): Promise<WalletBalance[]> {
             "Invalid chain ID in wallet monitor " + chainInfo.chainId
           );
         }
+      } catch (e: any) {
+        logger.error(
+          "pulling balances failed failed for chain: " + chainInfo.chainName
+        );
+        if (e && e.stack) {
+          logger.error(e.stack);
+        }
       }
+    }
 
-      for (const solanaPrivateKey of chainInfo.solanaPrivateKey || []) {
+    for (const solanaPrivateKey of chainInfo.solanaPrivateKey || []) {
+      try {
         if (chainInfo.chainId === CHAIN_ID_SOLANA) {
           logger.info("pullBalances() - calling pullSolanaNativeBalance...");
           balances.push(
@@ -111,14 +120,17 @@ async function pullBalances(): Promise<WalletBalance[]> {
             await pullSolanaTokenBalances(chainInfo, solanaPrivateKey)
           );
         }
+      } catch (e: any) {
+        logger.error(
+          "pulling balances failed failed for chain: " + chainInfo.chainName
+        );
+        if (e && e.stack) {
+          logger.error(e.stack);
+        }
       }
     }
-  } catch (e: any) {
-    logger.error("pullBalances() - for loop failed: " + e);
-    if (e && e.stack) {
-      logger.error(e.stack);
-    }
   }
+
   // logger.debug("returning balances:  %o", balances);
   return balances;
 }

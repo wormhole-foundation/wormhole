@@ -43,6 +43,10 @@ export class PromHelper {
     name: "spy_relay_already_executed",
     help: "number of transfers rejected due to already having been executed",
   });
+  private listenerMemqueue = new client.Gauge({
+    name: "listener_memqueue_size",
+    help: "number of items in memory in the listener waiting to be pushed to redis.",
+  });
 
   // Wallet metrics
   private walletBalance = new client.Gauge({
@@ -59,11 +63,10 @@ export class PromHelper {
     // without some stupid, so return 200 on / for prometheus to make
     // it happy.
     if (req.url === "/") {
-        res.writeHead(200, {"Content-Type": "text/plain"});
-        res.write('ok');
-        res.end();
-    // The gke ingress-gce does not support stripping path prefixes
-    } else if (req.url === "/metrics" || req.url === "/relayer" || req.url === "/listener") {
+      res.writeHead(200, { "Content-Type": "text/plain" });
+      res.write("ok");
+      res.end();
+    } else if (req.url === "/metrics") {
       // Return all metrics in the Prometheus exposition format
       if (this._mode === PromMode.Listen || this._mode == PromMode.Both) {
         res.setHeader("Content-Type", this._register.contentType);
@@ -74,7 +77,7 @@ export class PromHelper {
         res.end(await this._register.metrics());
       }
     } else {
-      res.writeHead(404, {"Content-Type": "text/plain"});
+      res.writeHead(404, { "Content-Type": "text/plain" });
       res.write("404 Not Found - " + req.url + "\n");
       res.end();
     }
@@ -129,6 +132,10 @@ export class PromHelper {
   }
   incAlreadyExec() {
     this.alreadyExecutedCounter.inc();
+  }
+
+  handleListenerMemqueue(size: number) {
+    this.listenerMemqueue.set(size);
   }
 
   // Wallet metrics
