@@ -21,7 +21,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
     using BytesLib for bytes;
 
     // Produce a AssetMeta message for a given token
-    function attestToken(address tokenAddress, uint32 nonce) public payable returns (uint64 sequence){
+    function attestToken(address tokenAddress, uint32 nonce) public payable isEnabled() returns (uint64 sequence) {
         // decimals, symbol & token are not part of the core ERC20 token standard, so we need to support contracts that dont implement them
         (,bytes memory queriedDecimals) = tokenAddress.staticcall(abi.encodeWithSignature("decimals()"));
         (,bytes memory queriedSymbol) = tokenAddress.staticcall(abi.encodeWithSignature("symbol()"));
@@ -61,7 +61,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         }(nonce, encoded, 15);
     }
 
-    function wrapAndTransferETH(uint16 recipientChain, bytes32 recipient, uint256 arbiterFee, uint32 nonce) public payable returns (uint64 sequence) {
+    function wrapAndTransferETH(uint16 recipientChain, bytes32 recipient, uint256 arbiterFee, uint32 nonce) public payable isEnabled() returns (uint64 sequence) {
         uint wormholeFee = wormhole().messageFee();
 
         require(wormholeFee < msg.value, "value is smaller than wormhole fee");
@@ -91,7 +91,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
     }
 
     // Initiate a Transfer
-    function transferTokens(address token, uint256 amount, uint16 recipientChain, bytes32 recipient, uint256 arbiterFee, uint32 nonce) public payable nonReentrant returns (uint64 sequence) {
+    function transferTokens(address token, uint256 amount, uint16 recipientChain, bytes32 recipient, uint256 arbiterFee, uint32 nonce) public payable nonReentrant isEnabled() returns (uint64 sequence) {
         // determine token parameters
         uint16 tokenChain;
         bytes32 tokenAddress;
@@ -176,7 +176,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         }(nonce, encoded, 15);
     }
 
-    function updateWrapped(bytes memory encodedVm) external returns (address token) {
+    function updateWrapped(bytes memory encodedVm) external isEnabled() returns (address token) {
         (IWormhole.VM memory vm, bool valid, string memory reason) = wormhole().parseAndVerifyVM(encodedVm);
 
         require(valid, reason);
@@ -196,7 +196,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         return wrapped;
     }
 
-    function createWrapped(bytes memory encodedVm) external returns (address token) {
+    function createWrapped(bytes memory encodedVm) external isEnabled() returns (address token) {
         (IWormhole.VM memory vm, bool valid, string memory reason) = wormhole().parseAndVerifyVM(encodedVm);
 
         require(valid, reason);
@@ -244,11 +244,11 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
         setWrappedAsset(meta.tokenChain, meta.tokenAddress, token);
     }
 
-    function completeTransfer(bytes memory encodedVm) public {
+    function completeTransfer(bytes memory encodedVm) public isEnabled() {
         _completeTransfer(encodedVm, false);
     }
 
-    function completeTransferAndUnwrapETH(bytes memory encodedVm) public {
+    function completeTransferAndUnwrapETH(bytes memory encodedVm) public isEnabled() {
         _completeTransfer(encodedVm, true);
     }
 
