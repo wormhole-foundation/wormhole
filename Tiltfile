@@ -252,6 +252,8 @@ if solana:
         ref = "solana-contract",
         context = "solana",
         dockerfile = "solana/Dockerfile",
+        target = "builder",
+        build_args = {"BRIDGE_ADDRESS": "Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o"}
     )
 
     # solana local devnet
