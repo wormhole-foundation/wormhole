@@ -1,6 +1,8 @@
 const algosdk = require('algosdk');
 const TestLib = require('./testlib.js')
 const testLib = new TestLib.TestLib()
+const fs = require('fs');
+const path = require('path');
 
 import {
        submitVAA, 
@@ -34,6 +36,13 @@ async function firstTransaction() {
         const algodServer = 'http://localhost';
         const algodPort = 4001;
         let algodClient = new algosdk.Algodv2(algodToken, algodServer, algodPort);
+
+//        const filePath = path.join(__dirname, '../teal/vaa_verify.teal');
+//        const data = fs.readFileSync(filePath);
+//
+//        // Compile teal
+//        const results = await algodClient.compile(data).do();
+//        console.log(results);
 
         //Check your balance
         let accountInfo = await algodClient.accountInformation(myAccount.addr).do();
