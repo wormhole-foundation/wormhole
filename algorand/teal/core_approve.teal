@@ -1,6 +1,6 @@
 #pragma version 6
 intcblock 1 0 127 2 1000 19200 128 255 1002000
-bytecblock 0x 0x0008 0x63757272656e74477561726469616e536574496e646578 0x677561726469616e 0x4d657373616765466565 0x76616c6964557064617465417070726f766548617368 0x767068617368 0x766572696679564141 0x50726f6772616d 0x7075626c6973684d657373616765 0x6e6f70 0x76657269667953696773 0x0001 0x0000000000000000000000000000000000000000000000000000000000000004 0x00000000000000000000000000000000000000000000000000000000436f7265 0x0000 0x626f6f746564 0x76616c6964557064617465436c65617248617368
+bytecblock 0x 0x0008 0x63757272656e74477561726469616e536574496e646578 0x677561726469616e 0x4d657373616765466565 0x76616c6964557064617465417070726f766548617368 0x766572696679564141 0x767068617368 0x50726f6772616d 0x7075626c6973684d657373616765 0x6e6f70 0x76657269667953696773 0x0001 0x0000000000000000000000000000000000000000000000000000000000000004 0x00000000000000000000000000000000000000000000000000000000436f7265 0x0000 0x626f6f746564 0x76616c6964557064617465436c65617248617368
 txn ApplicationID
 intc_1 // 0
 ==
@@ -40,7 +40,7 @@ bytec 11 // "verifySigs"
 ==
 bnz main_l43
 txna ApplicationArgs 0
-bytec 7 // "verifyVAA"
+bytec 6 // "verifyVAA"
 ==
 bnz main_l27
 txna ApplicationArgs 0
@@ -67,7 +67,7 @@ txn GroupIndex
 intc_0 // 1
 -
 gtxnsa ApplicationArgs 0
-bytec 7 // "verifyVAA"
+bytec 6 // "verifyVAA"
 ==
 &&
 txn GroupIndex
@@ -433,22 +433,9 @@ pushint 3 // 3
 >
 &&
 assert
-gtxn 0 TypeEnum
-intc_0 // pay
-==
-gtxn 0 Amount
-pushint 3000 // 3000
->=
-&&
-gtxn 0 Receiver
-bytec 6 // "vphash"
-app_global_get
-==
-&&
-assert
 pushint 6 // 6
 store 16
-intc_0 // 1
+intc_1 // 0
 store 11
 main_l29:
 load 11
@@ -503,7 +490,7 @@ bytec 10 // "nop"
 ==
 bnz main_l37
 load 12
-bytec 7 // "verifyVAA"
+bytec 6 // "verifyVAA"
 ==
 bnz main_l37
 intc_0 // 1
@@ -550,7 +537,7 @@ load 19
 ==
 load 11
 gtxns Sender
-bytec 6 // "vphash"
+bytec 7 // "vphash"
 app_global_get
 ==
 &&
@@ -603,7 +590,7 @@ main_l43:
 intc_0 // 1
 return
 main_l44:
-bytec 6 // "vphash"
+bytec 7 // "vphash"
 txna ApplicationArgs 2
 app_global_put
 txn Sender
@@ -970,7 +957,7 @@ main_l65:
 bytec 4 // "MessageFee"
 intc_1 // 0
 app_global_put
-bytec 6 // "vphash"
+bytec 7 // "vphash"
 bytec_0 // ""
 app_global_put
 bytec_2 // "currentGuardianSetIndex"

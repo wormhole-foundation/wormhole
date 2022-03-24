@@ -540,40 +540,43 @@ class PortalCore:
         # some extra CPU cycles by having an early txn do nothing.
         # This leaves cycles over for later txn's in the same group
 
-        txn0 = transaction.ApplicationCallTxn(
-            sender=sender.getAddress(),
-            index=coreid,
-            on_complete=transaction.OnComplete.NoOpOC,
-            app_args=[b"nop", b"0"],
-            sp=client.suggested_params(),
-        )
+        sp = client.suggested_params()
 
-        txn1 = transaction.ApplicationCallTxn(
-            sender=sender.getAddress(),
-            index=coreid,
-            on_complete=transaction.OnComplete.NoOpOC,
-            app_args=[b"nop", b"1"],
-            sp=client.suggested_params(),
-        )
+        txns = [
+            transaction.ApplicationCallTxn(
+                sender=sender.getAddress(),
+                index=coreid,
+                on_complete=transaction.OnComplete.NoOpOC,
+                app_args=[b"nop", b"0"],
+                sp=sp
+            ),
 
-        txn2 = transaction.ApplicationCallTxn(
-            sender=sender.getAddress(),
-            index=coreid,
-            on_complete=transaction.OnComplete.NoOpOC,
-            app_args=[b"init", vaa, decode_address(self.vaa_verify["hash"])],
-            accounts=[seq_addr, guardian_addr, newguardian_addr],
-            sp=client.suggested_params(),
-        )
+            transaction.ApplicationCallTxn(
+                sender=sender.getAddress(),
+                index=coreid,
+                on_complete=transaction.OnComplete.NoOpOC,
+                app_args=[b"nop", b"1"],
+                sp=sp
+            ),
 
-        transaction.assign_group_id([txn0, txn1, txn2])
-    
-        signedTxn0 = txn0.sign(sender.getPrivateKey())
-        signedTxn1 = txn1.sign(sender.getPrivateKey())
-        signedTxn2 = txn2.sign(sender.getPrivateKey())
+            transaction.ApplicationCallTxn(
+                sender=sender.getAddress(),
+                index=coreid,
+                on_complete=transaction.OnComplete.NoOpOC,
+                app_args=[b"init", vaa, decode_address(self.vaa_verify["hash"])],
+                accounts=[seq_addr, guardian_addr, newguardian_addr],
+                sp=sp
+            ),
 
-        client.send_transactions([signedTxn0, signedTxn1, signedTxn2])
-        response = self.waitForTransaction(client, signedTxn2.get_txid())
-        #pprint.pprint(response.__dict__)
+            transaction.PaymentTxn(
+                sender=sender.getAddress(),
+                receiver=self.vaa_verify["hash"],
+                amt=100000,
+                sp=sp
+            )
+        ]
+
+        self.sendTxn(client, sender, txns, True)
 
     def decodeLocalState(self, client, sender, appid, addr):
         app_state = None
@@ -756,30 +759,6 @@ class PortalCore:
 
         txns = []
 
-        # Right now there is not really a good way to estimate the fees,
-        # in production, on a conjested network, how much verifying
-        # the signatures is going to cost.
-
-        # So, what we do instead
-        # is we top off the verifier back up to 2A so effectively we
-        # are paying for the previous persons overrage which on a
-        # unconjested network should be zero
-
-        pmt = 3000
-        bal = self.getBalances(client, self.vaa_verify["hash"])
-        if ((200000 - bal[0]) >= pmt):
-            pmt = 200000 - bal[0]
-
-        #print("Sending %d algo to cover fees" % (pmt))
-        txns.append(
-            transaction.PaymentTxn(
-                sender = sender.getAddress(), 
-                sp = sp, 
-                receiver = self.vaa_verify["hash"], 
-                amt = pmt * 2
-            )
-        )
-
         # How many signatures can we process in a single txn... we can do 9!
         bsize = (9*66)
         blocks = int(len(p["signatures"]) / bsize) + 1
@@ -811,6 +790,7 @@ class PortalCore:
                     accounts=accts,
                     sp=sp
                 ))
+            txns[-1].fee = 0
 
         txns.append(transaction.ApplicationCallTxn(
             sender=sender.getAddress(),
@@ -820,6 +800,7 @@ class PortalCore:
             accounts=accts,
             sp=sp
         ))
+        txns[-1].fee = txns[-1].fee * (1 + blocks)
 
         if p["Meta"] == "CoreGovernance":
             txns.append(transaction.ApplicationCallTxn(

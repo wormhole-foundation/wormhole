@@ -52,7 +52,6 @@ const BITS_PER_KEY: number = MAX_BYTES_PER_KEY * BITS_PER_BYTE;
 const MAX_BYTES: number = MAX_BYTES_PER_KEY * MAX_KEYS;
 const MAX_BITS: number = BITS_PER_BYTE * MAX_BYTES;
 const COST_PER_VERIF: number = 1000;
-const WALLET_BUFFER: number = 200000;
 const MAX_SIGS_PER_TXN: number = 9;
 const INDEXER_TOKEN: string =
     "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
@@ -65,18 +64,8 @@ export const TESTNET_ACCOUNT_ADDRESS =
 export const TESTNET_ACCOUNT_MN =
     "enforce sail meat library retreat rain praise run floor drastic flat end true olympic boy dune dust regular feed allow top universe borrow able ginger";
 
-const ALGO_VERIFY_HASH =
-    "5PKAA6VERF6XZQAOJVKST262JKLKIYP3EGFO54ZD7YPUV7TRQOZ2BN6SPA";
-
-const ALGO_VERIFY = new Uint8Array([
-    6, 32, 4, 1, 0, 32, 20, 38, 1, 0, 49, 32, 50, 3, 18, 68, 49, 16, 129, 6, 18,
-    68, 54, 26, 1, 54, 26, 3, 54, 26, 2, 136, 0, 3, 68, 34, 67, 53, 2, 53, 1,
-    53, 0, 40, 53, 240, 40, 53, 241, 52, 0, 21, 53, 5, 35, 53, 3, 35, 53, 4, 52,
-    3, 52, 5, 12, 65, 0, 68, 52, 1, 52, 0, 52, 3, 129, 65, 8, 34, 88, 23, 52, 0,
-    52, 3, 34, 8, 36, 88, 52, 0, 52, 3, 129, 33, 8, 36, 88, 7, 0, 53, 241, 53,
-    240, 52, 2, 52, 4, 37, 88, 52, 240, 52, 241, 80, 2, 87, 12, 20, 18, 68, 52,
-    3, 129, 66, 8, 53, 3, 52, 4, 37, 8, 53, 4, 66, 255, 180, 34, 137,
-]);
+const ALGO_VERIFY_HASH = "EZATROXX2HISIRZDRGXW4LRQ46Z6IUJYYIHU3PJGP7P5IQDPKVX42N767A"
+const ALGO_VERIFY = new Uint8Array([6, 32, 4, 1, 0, 32, 20, 38, 1, 0, 49, 32, 50, 3, 18, 68, 49, 1, 35, 18, 68, 49, 16, 129, 6, 18, 68, 54, 26, 1, 54, 26, 3, 54, 26, 2, 136, 0, 3, 68, 34, 67, 53, 2, 53, 1, 53, 0, 40, 53, 240, 40, 53, 241, 52, 0, 21, 53, 5, 35, 53, 3, 35, 53, 4, 52, 3, 52, 5, 12, 65, 0, 68, 52, 1, 52, 0, 52, 3, 129, 65, 8, 34, 88, 23, 52, 0, 52, 3, 34, 8, 36, 88, 52, 0, 52, 3, 129, 33, 8, 36, 88, 7, 0, 53, 241, 53, 240, 52, 2, 52, 4, 37, 88, 52, 240, 52, 241, 80, 2, 87, 12, 20, 18, 68, 52, 3, 129, 66, 8, 53, 3, 52, 4, 37, 8, 53, 4, 66, 255, 180, 34, 137, ])
 
 // Globals?
 class IndexerInfo {
@@ -726,39 +715,6 @@ export async function submitVAAHdr(
         .do();
     let txns: Array<algosdk.Transaction> = [];
 
-    // Right now there is not really a good way to estimate the fees,
-    // in production, on a conjested network, how much verifying
-    // the signatures is going to cost.
-
-    // So, what we do instead
-    // is we top off the verifier back up to 2A so effectively we
-    // are paying for the previous persons overrage which on a
-    // unconjested network should be zero
-
-    let pmt: number = 3 * COST_PER_VERIF;
-    let bal = await getBalance(client, ALGO_VERIFY_HASH, 0);
-    console.log("bal", bal);
-    if (WALLET_BUFFER - bal >= pmt) {
-        pmt = WALLET_BUFFER - bal;
-    }
-
-    console.log("payTxn", {
-        from: sender.addr,
-        to: ALGO_VERIFY_HASH,
-        amount: pmt,
-        suggestedParams: params,
-    });
-    console.log("pmt", typeof pmt);
-
-    const payTxn = makePaymentTxnWithSuggestedParamsFromObject({
-        from: sender.addr,
-        to: ALGO_VERIFY_HASH,
-        amount: pmt,
-        suggestedParams: params,
-    });
-    console.log("fnlTxn", payTxn);
-    txns.push(payTxn);
-
     // We don't pass the entire payload in but instead just pass it pre digested.  This gets around size
     // limitations with lsigs AND reduces the cost of the entire operation on a conjested network by reducing the
     // bytes passed into the transaction
@@ -818,6 +774,7 @@ export async function submitVAAHdr(
             onComplete: OnApplicationComplete.NoOpOC,
             suggestedParams: params,
         });
+        appTxn.fee = 0
         txns.push(appTxn);
     }
     const appTxn = makeApplicationCallTxnFromObject({
@@ -828,6 +785,7 @@ export async function submitVAAHdr(
         onComplete: OnApplicationComplete.NoOpOC,
         suggestedParams: params,
     });
+    appTxn.fee = appTxn.fee * (1 + numTxns)
     txns.push(appTxn);
 
     return new SubmitVAAState(parsedVAA, accts, txns, guardianAddr);

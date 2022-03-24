@@ -377,18 +377,11 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
                     )),
 
 
-                # There should always be 1 payment txid at the start for at least 3000 to the vphash...
-                Assert(And(
-                    Gtxn[0].type_enum() == TxnType.Payment,
-                    Gtxn[0].amount() >= Int(3000),
-                    Gtxn[0].receiver() == STATELESS_LOGIC_HASH
-                )),
-
                 # Point it at the start of the signatures in the VAA
                 off.store(Int(6)),
 
                 For(
-                        i.store(Int(1)),
+                        i.store(Int(0)),
                         i.load() <= Txn.group_index(),
                         i.store(i.load() + Int(1))).Do(Seq([
                             Assert(And(

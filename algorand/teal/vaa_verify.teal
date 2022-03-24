@@ -3,6 +3,10 @@ txn RekeyTo
 global ZeroAddress
 ==
 assert
+txn Fee
+int 0
+==
+assert
 txn TypeEnum
 int appl
 ==

@@ -98,6 +98,7 @@ def vaa_verify_program():
 
     return Seq([
         Assert(Txn.rekey_to() == Global.zero_address()),
+        Assert(Txn.fee() == Int(0)),
         Assert(Txn.type_enum() == TxnType.ApplicationCall),
         Assert(sig_check(signatures, dhash, keys)),
         Approve()]

@@ -82,7 +82,6 @@ The VAA verify call will work by design *only* in a transaction group structured
 
 | TX    | args                                                    | accounts                | sender               |
 | ---------- | ------------------------------------------------------- | ----------------------- | -------------------- |
-| paymentTxn | pay operation fee >= 3000 | - | foundation | 
 | verifySigs | [sigs<sub>0..n</sub>, keyset<sub>0..n</sub>, digest]    | seq_addr, guardian_addr     | vaa_verify_stateless |
 | verifySigs    | ...    |  seq_addr, guardian_addr   | vaa_verify_stateless 
 | verifyVAA | vaa | seq_addr, guardian_addr | foundation |
@@ -94,7 +93,6 @@ A successful call must:
 * Retrieve the guardian keys from the proper local dynamic storage
 * Validate if the VAA passed in Argument #1 has enough guardians to be verified
 * Check that it's not expired.
-* Check that the transaction group includes a fee payment Tx at GTxn[0]
 * Verify that each _verifySigs_ TX is validated by the correct stateless _VerifyVaa_
 * Verify that each _verifySigs_ TX is verifying the expected signature subset.
 * Verify that each _verifySigs_ TX is verifying against the same guardian keys.
