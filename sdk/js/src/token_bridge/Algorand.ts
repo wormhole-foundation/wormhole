@@ -803,8 +803,8 @@ export async function simpleSignVAA(
     appid: number,
     txns: Array<algosdk.Transaction>
 ) {
-    console.log("simpleSignVAA")
-    console.log(txns)
+//    console.log("simpleSignVAA")
+//    console.log(txns)
     assignGroupID(txns);
     const signedTxns: Uint8Array[] = [];
     txns.forEach((txn) => {
@@ -818,14 +818,14 @@ export async function simpleSignVAA(
         }
     });
 
-    console.log("sendRawTransaction")
+//    console.log("sendRawTransaction", signedTxns)
     const resp = await client.sendRawTransaction(signedTxns).do();
 
-    console.log("waiting for confirmation")
+//    console.log("waiting for confirmation", txns[txns.length-1].txID())
     const ret: string[] = [];
-    const response = await waitForConfirmation(client, resp.txId, 1);
+    const response = await waitForConfirmation(client, txns[txns.length-1].txID(), 1);
 
-    console.log("submitVAA confirmation", response);
+//    console.log("submitVAA confirmation", response);
     if (response["logs"]) {
         ret.push(response["logs"]);
     }
