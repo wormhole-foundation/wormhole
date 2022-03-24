@@ -1,6 +1,9 @@
 // Algorand.ts
 
 import { id, keccak256 } from "ethers/lib/utils";
+
+import * as fs from 'fs';
+
 import algosdk, {
     Account,
     assignGroupID,
@@ -140,7 +143,31 @@ export async function getBalances(
         const amount = asset.amount;
         balances.set(assetId, amount);
     });
+    console.log("balances", balances);
     return balances;
+}
+
+export async function getBalance(
+    client: algosdk.Algodv2,
+    account: string,
+    key: number
+): Promise<number> {
+    let balances = new Map<number, number>();
+    const accountInfo = await client.accountInformation(account).do();
+
+    if (key == 0) {
+        return accountInfo.amount;
+    }
+
+    let ret = 0;
+    const assets: Array<any> = accountInfo.assets;
+    assets.forEach(asset => {
+        if (key === asset["asset-id"]) {
+            ret = asset.amount;
+            return;
+        }
+    });
+    return ret;
 }
 
 export async function getMessageFee(client: algosdk.Algodv2): Promise<number> {
@@ -248,7 +275,7 @@ export async function attestFromAlgorand(
     signedTxns.push(appTxn.signTxn(senderAcct.sk));
     const { txId } = await client.sendRawTransaction(signedTxns).do();
     // wait for transaction to be confirmed
-    const ptx = await waitForConfirmation(client, txId, 4);
+    const ptx = await waitForConfirmation(client, txId, 1);
 
     return txId;
 }
@@ -524,26 +551,29 @@ export async function decodeLocalState(
         }
     }
 
-    let ret = "";
+    let ret = Buffer.alloc(0);
     if (app_state) {
         const e = Buffer.alloc(127);
-        // let vals = {};
+        const m = Buffer.from("meta")
+        
         const vals: Map<number, Buffer> = new Map<number, Buffer>();
-        console.log(app_state);
         for (const kv of app_state) {
-            const key: number = Buffer.from(kv["key"], "base64").readInt8();
+            const k = Buffer.from(kv["key"], "base64")
+            if (!Buffer.compare(k, m)) {
+                continue;
+            }
+            const key: number = k.readInt8();
             const v: Buffer = Buffer.from(kv["value"]["bytes"], "base64");
             if (Buffer.compare(v, e)) {
-                // vals[key] = v;
                 vals.set(key, v);
             }
         }
-        for (const k in Object.keys(vals)) {
-            // ret += vals[k];
-            ret += vals.get(parseInt(k));
-        }
+
+        vals.forEach(v => {
+            ret = Buffer.concat([ret, v])
+        });
     }
-    return hexStringToUint8Array(ret);
+    return new Uint8Array(ret);
 }
 
 export async function assetOptinCheck(
@@ -646,6 +676,7 @@ export async function submitVAAHdr (
         index,
         guardianPgmName
     );
+
     let accts: string[] = [seqAddr, guardianAddr];
 
     // When we attest for a new token, we need some place to store the info... later we will need to
@@ -655,6 +686,7 @@ export async function submitVAAHdr (
         CORE_ID,
         guardianAddr
     );
+
     const params: algosdk.SuggestedParams = await client
           .getTransactionParams()
           .do();
@@ -670,21 +702,27 @@ export async function submitVAAHdr (
     // unconjested network should be zero
 
     let pmt: number = 3 * COST_PER_VERIF;
-    const balances = await getBalances(client, ALGO_VERIFY_HASH);
-    let bal: number | undefined = balances.get(0);
-    if (!bal) {
-        throw new Error("undefined balance");
-    }
-    if (WALLET_BUFFER - bal >= pmt) {
+    let bal = await getBalance(client, ALGO_VERIFY_HASH, 0);
+    console.log("bal", bal)
+    if ((WALLET_BUFFER - bal) >= pmt) {
         pmt = WALLET_BUFFER - bal;
     }
+
+    console.log("payTxn", {
+        from: sender.addr,
+        to: ALGO_VERIFY_HASH,
+        amount: pmt,
+        suggestedParams: params,
+    });
+    console.log("pmt", typeof pmt)
 
     const payTxn = makePaymentTxnWithSuggestedParamsFromObject({
         from: sender.addr,
         to: ALGO_VERIFY_HASH,
-        amount: pmt * 2,
+        amount: pmt,
         suggestedParams: params,
     });
+    console.log("fnlTxn", payTxn)
     txns.push(payTxn);
 
     // We don't pass the entire payload in but instead just pass it pre digested.  This gets around size
@@ -728,6 +766,8 @@ export async function submitVAAHdr (
             keySet.set(key, i * 20);
         }
 
+        console.log("xxx", keySet)
+
         const appTxn = makeApplicationCallTxnFromObject({
             appArgs: [
                 verifySigArg,
@@ -744,7 +784,7 @@ export async function submitVAAHdr (
         txns.push(appTxn);
     }
     const appTxn = makeApplicationCallTxnFromObject({
-        appArgs: [verifySigArg, vaa],
+        appArgs: [textToUint8Array("verifyVAA"), vaa],
         accounts: accts,
         appIndex: CORE_ID,
         from: sender.addr,
@@ -763,9 +803,12 @@ export async function simpleSignVAA(
     appid: number,
     txns: Array<algosdk.Transaction>
 ) {
+    console.log("simpleSignVAA")
+    console.log(txns)
     assignGroupID(txns);
     const signedTxns: Uint8Array[] = [];
     txns.forEach((txn) => {
+        console.log(txn)
         if (txn.appArgs && txn.appArgs?.length > 0 && JSON.stringify(txn.appArgs[0]) === JSON.stringify(textToUint8Array("verifySigs")))  {
             const lsa = new LogicSigAccount(ALGO_VERIFY);
             const stxn = signLogicSigTransaction(txn, lsa);
@@ -775,9 +818,13 @@ export async function simpleSignVAA(
         }
     });
 
-    const signedTxnsId = await client.sendRawTransaction(signedTxns).do();
+    console.log("sendRawTransaction")
+    const resp = await client.sendRawTransaction(signedTxns).do();
+
+    console.log("waiting for confirmation")
     const ret: string[] = [];
-    const response = await waitForConfirmation(client, signedTxnsId, 1);
+    const response = await waitForConfirmation(client, resp.txId, 1);
+
     console.log("submitVAA confirmation", response);
     if (response["logs"]) {
         ret.push(response["logs"]);
@@ -844,103 +891,8 @@ export async function submitVAA(
         }
         accts.push(chainAddr);
     }
-    const keys: Uint8Array = await decodeLocalState(
-        client,
-        CORE_ID,
-        sstate.guardianAddr
-    );
-    const params: algosdk.SuggestedParams = await client
-          .getTransactionParams()
-          .do();
 
-    // Right now there is not really a good way to estimate the fees,
-    // in production, on a conjested network, how much verifying
-    // the signatures is going to cost.
-
-    // So, what we do instead
-    // is we top off the verifier back up to 2A so effectively we
-    // are paying for the previous persons overrage which on a
-    // unconjested network should be zero
-
-    let pmt: number = 3 * COST_PER_VERIF;
-    const balances = await getBalances(client, ALGO_VERIFY_HASH);
-    let bal: number | undefined = balances.get(0);
-    if (!bal) {
-        throw new Error("undefined balance");
-    }
-    if (WALLET_BUFFER - bal >= pmt) {
-        pmt = WALLET_BUFFER - bal;
-    }
-
-    const payTxn = makePaymentTxnWithSuggestedParamsFromObject({
-        from: sender.addr,
-        to: ALGO_VERIFY_HASH,
-        amount: pmt * 2,
-        suggestedParams: params,
-    });
-    txns.push(payTxn);
-
-    // We don't pass the entire payload in but instead just pass it pre digested.  This gets around size
-    // limitations with lsigs AND reduces the cost of the entire operation on a conjested network by reducing the
-    // bytes passed into the transaction
-    // This is a 2 pass digest
-    const digest = keccak256(keccak256(parsedVAA.get("digest")));
-
-    // How many signatures can we process in a single txn... we can do 9!
-    // There are likely upwards of 19 signatures.  So, we ned to split things up
-    const numSigs: number = parsedVAA.get("siglen");
-    let numTxns: number = numSigs / MAX_SIGS_PER_TXN;
-    if (numSigs % MAX_SIGS_PER_TXN) {
-        numTxns++;
-    }
-    const SIG_LEN: number = 66;
-    const signatures: Uint8Array = parsedVAA.get("signatures");
-    const verifySigArg: Uint8Array = textToUint8Array("verifySigs");
-    for (let nt = 0; nt < numTxns; nt++) {
-        let sigs: Uint8Array = signatures.slice(nt * SIG_LEN);
-        if (sigs.length > SIG_LEN) {
-            sigs = sigs.slice(0, SIG_LEN);
-        }
-
-        // The keyset is the set of guardians that correspond
-        // to the current set of signatures in this loop.
-        // Each signature in 20 bytes and comes from decodeLocalState()
-        const GuardianKeyLen: number = 20;
-        const numSigsThisTxn = sigs.length / SIG_LEN;
-        let arraySize: number = numSigsThisTxn * GuardianKeyLen;
-        let keySet: Uint8Array = new Uint8Array(arraySize);
-        for (let i = 0; i < numSigsThisTxn; i++) {
-            // The first byte of the sig is the relative index of that signature in the signatures array
-            // Use that index to get the appropriate guardian key
-            const idx = sigs[i * SIG_LEN];
-            const key = keys.slice(idx * GuardianKeyLen + 1, 20);
-            keySet.set(key, i * 20);
-        }
-
-        const appTxn = makeApplicationCallTxnFromObject({
-            appArgs: [
-                verifySigArg,
-                sigs,
-                keySet,
-                hexStringToUint8Array(digest),
-            ],
-            accounts: accts,
-            appIndex: CORE_ID,
-            from: ALGO_VERIFY_HASH,
-            onComplete: OnApplicationComplete.NoOpOC,
-            suggestedParams: params,
-        });
-        txns.push(appTxn);
-    }
-    const appTxn = makeApplicationCallTxnFromObject({
-        appArgs: [verifySigArg, vaa],
-        accounts: accts,
-        appIndex: CORE_ID,
-        from: sender.addr,
-        onComplete: OnApplicationComplete.NoOpOC,
-        suggestedParams: params,
-    });
-    txns.push(appTxn);
+    const params: algosdk.SuggestedParams = await client .getTransactionParams() .do();
 
     if (meta === "CoreGovernance") {
         txns.push(

@@ -481,7 +481,7 @@ class PortalCore:
 
         if sig_addr not in self.cache and not self.account_exists(client, app_id, sig_addr):
             if doCreate:
-#                pprint.pprint(("Creating", app_id, idx, emitter, sig_addr))
+                pprint.pprint(("Creating", app_id, idx, emitter, sig_addr))
 
                 # Create it
                 sp = client.suggested_params()
@@ -587,7 +587,10 @@ class PortalCore:
             vals = {}
             e = bytes.fromhex("00"*127)
             for kv in app_state:
-                key = int.from_bytes(base64.b64decode(kv["key"]), "big")
+                k = base64.b64decode(kv["key"])
+                if k == "meta":
+                    continue
+                key = int.from_bytes(k, "big")
                 v = base64.b64decode(kv["value"]["bytes"])
                 if v != e:
                     vals[key] = v
@@ -654,7 +657,7 @@ class PortalCore:
                 sender = sender.getAddress(), 
                 sp = sp, 
                 receiver = self.vaa_verify["hash"], 
-                amt = pmt * 2
+                amt = pmt
             )
         )
 
