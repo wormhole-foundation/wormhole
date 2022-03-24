@@ -21,7 +21,7 @@ export class PromHelper {
   private _mode: PromMode;
   private collectDefaultMetrics = client.collectDefaultMetrics;
 
-  // Actual metrics
+  // Actual metrics (please prefix all metrics with `spy_relay_`)
   private successCounter = new client.Counter({
     name: "spy_relay_successes",
     help: "number of successful relays",
@@ -44,7 +44,7 @@ export class PromHelper {
     help: "number of transfers rejected due to already having been executed",
   });
   private listenerMemqueue = new client.Gauge({
-    name: "listener_memqueue_size",
+    name: "spy_relay_listener_memqueue_length",
     help: "number of items in memory in the listener waiting to be pushed to redis.",
   });
 
