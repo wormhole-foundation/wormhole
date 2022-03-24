@@ -30,17 +30,16 @@ import {
 import { TextEncoder , inspect} from "util";
 import { first } from "rxjs";
 
-// Some constants
-export const ALGO_TOKEN =
-    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-export const KMD_ADDRESS: string = "http://localhost";
-export const KMD_PORT: number = 4002;
-export const KMD_WALLET_NAME: string = "unencrypted-default-wallet";
-export const KMD_WALLET_PASSWORD: string = "";
-export const ALGOD_ADDRESS: string = "http://localhost";
-export const ALGOD_PORT: number = 4001;
-export const CORE_ID: number = 4;
-export const TOKEN_BRIDGE_ID: number = 6;
+let ALGO_TOKEN = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+let KMD_ADDRESS: string = "http://localhost";
+let KMD_PORT: number = 4002;
+let KMD_WALLET_NAME: string = "unencrypted-default-wallet";
+let KMD_WALLET_PASSWORD: string = "";
+let ALGOD_ADDRESS: string = "http://localhost";
+let ALGOD_PORT: number = 4001;
+let CORE_ID: number = 4;
+let TOKEN_BRIDGE_ID: number = 6;
+
 export const SEED_AMT: number = 1002000;
 const ZERO_PAD_BYTES =
     "0000000000000000000000000000000000000000000000000000000000000000";
@@ -402,7 +401,7 @@ export function getLogicSigAccount(program: Uint8Array): LogicSigAccount {
     return lsa;
 }
 
-function extract3(buffer: any, start: number, size: number): string {
+function extract3(buffer: any, start: number, size: number) {
     return buffer.slice(start, start + size);
 }
 
@@ -443,13 +442,10 @@ export function parseVAA(vaa: Uint8Array): Map<string, any> {
     ret.set("Meta", "Unknown");
 
     if (
-        Buffer.from(vaa, off, 32) ===
-        Buffer.from(
-            "000000000000000000000000000000000000000000546f6b656e427269646765"
-        )
+        !Buffer.compare(extract3(buf, off, 32), Buffer.from("000000000000000000000000000000000000000000546f6b656e427269646765", "hex"))
     ) {
         ret.set("Meta", "TokenBridge");
-        ret.set("module", Buffer.from(vaa, off, 32));
+        ret.set("module", extract3(vaa, off, 32));
         off += 32;
         ret.set("action", buf.readIntBE(off, 1));
         off += 1;
@@ -459,23 +455,20 @@ export function parseVAA(vaa: Uint8Array): Map<string, any> {
             off += 2;
             ret.set("EmitterChainID", buf.readIntBE(off, 2));
             off += 2;
-            ret.set("targetEmitter", Buffer.from(vaa, off, 32));
+            ret.set("targetEmitter", extract3(vaa, off, 32));
             off += 32;
         } else if (ret.get("action") === 2) {
             ret.set("Meta", "TokenBridge UpgradeContract");
             ret.set("targetChain", buf.readIntBE(off, 2));
             off += 2;
-            ret.set("newContract", Buffer.from(vaa, off, 32));
+            ret.set("newContract", extract3(vaa, off, 32));
             off += 32;
         }
     } else if (
-        Buffer.from(vaa, off, 32) ===
-        Buffer.from(
-            "00000000000000000000000000000000000000000000000000000000436f7265"
-        )
+        !Buffer.compare(extract3(buf, off, 32), Buffer.from("00000000000000000000000000000000000000000000000000000000436f7265", "hex"))
     ) {
         ret.set("Meta", "CoreGovernance");
-        ret.set("module", Buffer.from(vaa, off, 32));
+        ret.set("module", extract3(vaa, off, 32));
         off += 32;
         ret.set("action", buf.readIntBE(off, 1));
         off += 1;
@@ -487,49 +480,49 @@ export function parseVAA(vaa: Uint8Array): Map<string, any> {
         ret.set("Meta", "TokenBridge Attest");
         ret.set("Type", buf.readIntBE(off, 1));
         off += 1;
-        ret.set("Contract", Buffer.from(vaa, off, 32));
+        ret.set("Contract", extract3(vaa, off, 32));
         off += 32;
         ret.set("FromChain", buf.readIntBE(off, 2));
         off += 2;
         ret.set("Decimals", buf.readIntBE(off, 1));
         off += 1;
-        ret.set("Symbol", Buffer.from(vaa, off, 32));
+        ret.set("Symbol", extract3(vaa, off, 32));
         off += 32;
-        ret.set("Name", Buffer.from(vaa, off, 32));
+        ret.set("Name", extract3(vaa, off, 32));
     }
 
     if (Buffer.from(vaa, off).length === 133 && buf.readIntBE(off, 1) === 1) {
         ret.set("Meta", "TokenBridge Transfer");
         ret.set("Type", buf.readIntBE(off, 1));
         off += 1;
-        ret.set("Amount", Buffer.from(vaa, off, 32));
+        ret.set("Amount", extract3(vaa, off, 32));
         off += 32;
-        ret.set("Contract", Buffer.from(vaa, off, 32));
+        ret.set("Contract", extract3(vaa, off, 32));
         off += 32;
         ret.set("FromChain", buf.readIntBE(off, 2));
         off += 2;
-        ret.set("ToAddress", Buffer.from(vaa, off, 32));
+        ret.set("ToAddress", extract3(vaa, off, 32));
         off += 32;
         ret.set("ToChain", buf.readIntBE(off, 2));
         off += 2;
-        ret.set("Fee", Buffer.from(vaa, off, 32));
+        ret.set("Fee", extract3(vaa, off, 32));
     }
 
     if (buf.readIntBE(off, 1) === 3) {
         ret.set("Meta", "TokenBridge Transfer With Payload");
         ret.set("Type", buf.readIntBE(off, 1));
         off += 1;
-        ret.set("Amount", Buffer.from(vaa, off, 32));
+        ret.set("Amount", extract3(vaa, off, 32));
         off += 32;
-        ret.set("Contract", Buffer.from(vaa, off, 32));
+        ret.set("Contract", extract3(vaa, off, 32));
         off += 32;
         ret.set("FromChain", buf.readIntBE(off, 2));
         off += 2;
-        ret.set("ToAddress", Buffer.from(vaa, off, 32));
+        ret.set("ToAddress", extract3(vaa, off, 32));
         off += 32;
         ret.set("ToChain", buf.readIntBE(off, 2));
         off += 2;
-        ret.set("Fee", Buffer.from(vaa, off, 32));
+        ret.set("Fee", extract3(vaa, off, 32));
         off += 32;
         ret.set("Payload", Buffer.from(vaa, off));
     }

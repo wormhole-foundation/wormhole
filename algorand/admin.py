@@ -997,7 +997,7 @@ class PortalCore:
                 off += 2
                 ret["newContract"] = vaa[off:(off + 32)].hex()
                 off += 32
-
+        pprint.pprint((vaa[off:(off + 32)].hex(), "00000000000000000000000000000000000000000000000000000000436f7265"))
         if vaa[off:(off + 32)].hex() == "00000000000000000000000000000000000000000000000000000000436f7265":
             ret["Meta"] = "CoreGovernance"
             ret["module"] = vaa[off:(off + 32)].hex()
