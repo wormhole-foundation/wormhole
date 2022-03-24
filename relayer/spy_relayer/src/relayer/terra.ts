@@ -4,6 +4,7 @@ import {
   redeemOnTerra,
 } from "@certusone/wormhole-sdk";
 import { LCDClient, MnemonicKey } from "@terra-money/terra.js";
+import axios from "axios";
 import { ChainConfigInfo } from "../configureEnv";
 import { getLogger } from "../helpers/logHelper";
 
@@ -73,9 +74,11 @@ export async function relayTerra(
   );
 
   logger.debug("relayTerra: getting gas prices");
-  //Alternate FCD methodology
-  //let gasPrices = await axios.get("http://localhost:3060/v1/txs/gas_prices").then((result) => result.data);
-  const gasPrices = await lcd.config.gasPrices;
+  //let gasPrices = await lcd.config.gasPrices //Unsure if the values returned from this are hardcoded or not.
+  //Thus, we are going to pull it directly from the current FCD.
+  const gasPrices = await axios
+    .get(chainConfigInfo.terraGasPriceUrl)
+    .then((result) => result.data);
 
   logger.debug("relayTerra: estimating fees");
   const account = await lcd.auth.accountInfo(wallet.key.accAddress);
@@ -89,7 +92,7 @@ export async function relayTerra(
     {
       msgs: [msg],
       //TODO figure out type mismatch
-      feeDenoms: [chainConfigInfo.terraCoin],
+      feeDenoms: ["uluna"],
       gasPrices,
     }
   );
@@ -98,7 +101,7 @@ export async function relayTerra(
   const tx = await wallet.createAndSignTx({
     msgs: [msg],
     memo: "Relayer - Complete Transfer",
-    feeDenoms: [chainConfigInfo.terraCoin],
+    feeDenoms: ["uluna"],
     gasPrices,
     fee: feeEstimate,
   });
