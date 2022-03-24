@@ -26,7 +26,4 @@ test: build .env dependencies
 	pkill ganache-cli
 
 clean:
-	rm -f ganache.log
-	rm -f .env
-	rm -rf node_modules
-	rm -rf build
+	rm -rf ganache.log .env node_modules build
