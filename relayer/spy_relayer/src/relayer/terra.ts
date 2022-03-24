@@ -117,6 +117,8 @@ export async function relayTerra(
     chainConfigInfo.terraGasPriceUrl
   );
 
-  logger.info("relayTerra: success: " + success + ", receipt: %o", receipt);
+  logger.info(
+    "relayTerra: success: " + success + ", tx hash: " + receipt.txhash
+  );
   return { redeemed: success, result: receipt.txhash };
 }
