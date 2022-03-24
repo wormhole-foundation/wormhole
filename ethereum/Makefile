@@ -19,7 +19,7 @@ build: node_modules ${SOURCE_FILES}
 	cp $< $@
 
 test: build .env dependencies
-	if pgrep ganache-cli; then pkill ganache-cli; fi
+	@if pgrep ganache-cli; then echo "Error: ganache-cli already running. Stop it before running tests"; exit 1; fi
 	npx ganache-cli > ganache.log &
 	sleep 5
 	npx truffle test || (pkill ganache-cli && exit 1)
