@@ -2,14 +2,16 @@
 
 import { id, keccak256 } from "ethers/lib/utils";
 
-import * as fs from 'fs';
+import * as fs from "fs";
 
 import algosdk, {
     Account,
+    Algodv2,
     assignGroupID,
     decodeAddress,
     encodeAddress,
     getApplicationAddress,
+    Indexer,
     LogicSigAccount,
     makeApplicationCallTxnFromObject,
     makeApplicationOptInTxnFromObject,
@@ -27,8 +29,7 @@ import {
     uint8ArrayToHexString,
 } from "./TmplSig";
 
-import { TextEncoder , inspect} from "util";
-import { first } from "rxjs";
+import { TextEncoder, inspect } from "util";
 
 let ALGO_TOKEN = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 let KMD_ADDRESS: string = "http://localhost";
@@ -53,6 +54,10 @@ const MAX_BITS: number = BITS_PER_BYTE * MAX_BYTES;
 const COST_PER_VERIF: number = 1000;
 const WALLET_BUFFER: number = 200000;
 const MAX_SIGS_PER_TXN: number = 9;
+const INDEXER_TOKEN: string =
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+const INDEXER_ADDRESS: string = "http://localhost";
+const INDEXER_PORT: number = 8980;
 
 // Generated Testnet wallet
 export const TESTNET_ACCOUNT_ADDRESS =
@@ -61,9 +66,35 @@ export const TESTNET_ACCOUNT_MN =
     "enforce sail meat library retreat rain praise run floor drastic flat end true olympic boy dune dust regular feed allow top universe borrow able ginger";
 
 const ALGO_VERIFY_HASH =
-      "5PKAA6VERF6XZQAOJVKST262JKLKIYP3EGFO54ZD7YPUV7TRQOZ2BN6SPA";
+    "5PKAA6VERF6XZQAOJVKST262JKLKIYP3EGFO54ZD7YPUV7TRQOZ2BN6SPA";
 
-const ALGO_VERIFY = new Uint8Array([6, 32, 4, 1, 0, 32, 20, 38, 1, 0, 49, 32, 50, 3, 18, 68, 49, 16, 129, 6, 18, 68, 54, 26, 1, 54, 26, 3, 54, 26, 2, 136, 0, 3, 68, 34, 67, 53, 2, 53, 1, 53, 0, 40, 53, 240, 40, 53, 241, 52, 0, 21, 53, 5, 35, 53, 3, 35, 53, 4, 52, 3, 52, 5, 12, 65, 0, 68, 52, 1, 52, 0, 52, 3, 129, 65, 8, 34, 88, 23, 52, 0, 52, 3, 34, 8, 36, 88, 52, 0, 52, 3, 129, 33, 8, 36, 88, 7, 0, 53, 241, 53, 240, 52, 2, 52, 4, 37, 88, 52, 240, 52, 241, 80, 2, 87, 12, 20, 18, 68, 52, 3, 129, 66, 8, 53, 3, 52, 4, 37, 8, 53, 4, 66, 255, 180, 34, 137, ])
+const ALGO_VERIFY = new Uint8Array([
+    6, 32, 4, 1, 0, 32, 20, 38, 1, 0, 49, 32, 50, 3, 18, 68, 49, 16, 129, 6, 18,
+    68, 54, 26, 1, 54, 26, 3, 54, 26, 2, 136, 0, 3, 68, 34, 67, 53, 2, 53, 1,
+    53, 0, 40, 53, 240, 40, 53, 241, 52, 0, 21, 53, 5, 35, 53, 3, 35, 53, 4, 52,
+    3, 52, 5, 12, 65, 0, 68, 52, 1, 52, 0, 52, 3, 129, 65, 8, 34, 88, 23, 52, 0,
+    52, 3, 34, 8, 36, 88, 52, 0, 52, 3, 129, 33, 8, 36, 88, 7, 0, 53, 241, 53,
+    240, 52, 2, 52, 4, 37, 88, 52, 240, 52, 241, 80, 2, 87, 12, 20, 18, 68, 52,
+    3, 129, 66, 8, 53, 3, 52, 4, 37, 8, 53, 4, 66, 255, 180, 34, 137,
+]);
+
+// Globals?
+class IndexerInfo {
+    private static instance: IndexerInfo;
+    client: Indexer;
+    round: number = 0;
+
+    private constructor() {
+        this.round = 0;
+        this.client = new Indexer(INDEXER_TOKEN, INDEXER_ADDRESS, INDEXER_PORT);
+    }
+    public static getInstance(): IndexerInfo {
+        if (!IndexerInfo.instance) {
+            IndexerInfo.instance = new IndexerInfo();
+        }
+        return IndexerInfo.instance;
+    }
+}
 
 export function getKmdClient(): algosdk.Kmd {
     const kmdClient: algosdk.Kmd = new algosdk.Kmd(
@@ -160,7 +191,7 @@ export async function getBalance(
 
     let ret = 0;
     const assets: Array<any> = accountInfo.assets;
-    assets.forEach(asset => {
+    assets.forEach((asset) => {
         if (key === asset["asset-id"]) {
             ret = asset.amount;
             return;
@@ -181,7 +212,7 @@ export async function getMessageFee(client: algosdk.Algodv2): Promise<number> {
     globalState.forEach((el: any) => {
         if (el["key"] === key) {
             ret = el["value"]["uint"];
-            return
+            return;
         }
     });
     return ret;
@@ -287,13 +318,20 @@ export async function accountExists(
     let ret = false;
     try {
         const acctInfo = await client.accountInformation(acctAddr).do();
-        console.log("appId", appId, "acctAddr", acctAddr, "acctInfo:", acctInfo);
+        console.log(
+            "appId",
+            appId,
+            "acctAddr",
+            acctAddr,
+            "acctInfo:",
+            acctInfo
+        );
         const als: Record<string, any>[] = acctInfo["apps-local-state"];
         console.log("als:", als);
         if (!als) {
             return ret;
         }
-        als.forEach( app => {
+        als.forEach((app) => {
             console.log("Inside for loop");
 
             if (app["id"] === appId) {
@@ -305,10 +343,8 @@ export async function accountExists(
         console.error("Failed to check for account existence:", e);
     }
 
-    if (ret)
-        console.log("returning true");
-    else
-        console.log("returning false");
+    if (ret) console.log("returning true");
+    else console.log("returning false");
     return ret;
 }
 
@@ -547,11 +583,11 @@ export async function decodeLocalState(
     let ret = Buffer.alloc(0);
     if (app_state) {
         const e = Buffer.alloc(127);
-        const m = Buffer.from("meta")
-        
+        const m = Buffer.from("meta");
+
         const vals: Map<number, Buffer> = new Map<number, Buffer>();
         for (const kv of app_state) {
-            const k = Buffer.from(kv["key"], "base64")
+            const k = Buffer.from(kv["key"], "base64");
             if (!Buffer.compare(k, m)) {
                 continue;
             }
@@ -562,8 +598,8 @@ export async function decodeLocalState(
             }
         }
 
-        vals.forEach(v => {
-            ret = Buffer.concat([ret, v])
+        vals.forEach((v) => {
+            ret = Buffer.concat([ret, v]);
         });
     }
     return new Uint8Array(ret);
@@ -631,7 +667,12 @@ class SubmitVAAState {
     txns: Array<algosdk.Transaction>;
     guardianAddr: string;
 
-    constructor(vaaMap: Map<string, any>, accounts: string[], txns: Array<algosdk.Transaction>, guardianAddr: string) {
+    constructor(
+        vaaMap: Map<string, any>,
+        accounts: string[],
+        txns: Array<algosdk.Transaction>,
+        guardianAddr: string
+    ) {
         this.vaaMap = vaaMap;
         this.accounts = accounts;
         this.txns = txns;
@@ -639,12 +680,12 @@ class SubmitVAAState {
     }
 }
 
-export async function submitVAAHdr (
+export async function submitVAAHdr(
     vaa: Uint8Array,
     client: algosdk.Algodv2,
     sender: Account,
     appid: number
-) : Promise<SubmitVAAState>  {
+): Promise<SubmitVAAState> {
     // A lot of our logic here depends on parseVAA and knowing what the payload is..
     const parsedVAA: Map<string, any> = parseVAA(vaa);
     const seq: number = Number(parsedVAA.get("sequence")) / MAX_BITS;
@@ -681,8 +722,8 @@ export async function submitVAAHdr (
     );
 
     const params: algosdk.SuggestedParams = await client
-          .getTransactionParams()
-          .do();
+        .getTransactionParams()
+        .do();
     let txns: Array<algosdk.Transaction> = [];
 
     // Right now there is not really a good way to estimate the fees,
@@ -696,8 +737,8 @@ export async function submitVAAHdr (
 
     let pmt: number = 3 * COST_PER_VERIF;
     let bal = await getBalance(client, ALGO_VERIFY_HASH, 0);
-    console.log("bal", bal)
-    if ((WALLET_BUFFER - bal) >= pmt) {
+    console.log("bal", bal);
+    if (WALLET_BUFFER - bal >= pmt) {
         pmt = WALLET_BUFFER - bal;
     }
 
@@ -707,7 +748,7 @@ export async function submitVAAHdr (
         amount: pmt,
         suggestedParams: params,
     });
-    console.log("pmt", typeof pmt)
+    console.log("pmt", typeof pmt);
 
     const payTxn = makePaymentTxnWithSuggestedParamsFromObject({
         from: sender.addr,
@@ -715,7 +756,7 @@ export async function submitVAAHdr (
         amount: pmt,
         suggestedParams: params,
     });
-    console.log("fnlTxn", payTxn)
+    console.log("fnlTxn", payTxn);
     txns.push(payTxn);
 
     // We don't pass the entire payload in but instead just pass it pre digested.  This gets around size
@@ -724,10 +765,10 @@ export async function submitVAAHdr (
     // This is a 2 pass digest
     const digest = keccak256(keccak256(parsedVAA.get("digest"))).slice(2);
 
-//    const data = parsedVAA.get("digest")
-//    process.stdout.write("srcDigest" + `${inspect(data, { maxArrayLength: 1000 })}\n`)
-//    console.log("digest", digest);
-//    console.log("adigest", hexStringToUint8Array(digest));
+    //    const data = parsedVAA.get("digest")
+    //    process.stdout.write("srcDigest" + `${inspect(data, { maxArrayLength: 1000 })}\n`)
+    //    console.log("digest", digest);
+    //    console.log("adigest", hexStringToUint8Array(digest));
 
     // How many signatures can we process in a single txn... we can do 9!
     // There are likely upwards of 19 signatures.  So, we ned to split things up
@@ -755,11 +796,14 @@ export async function submitVAAHdr (
             // The first byte of the sig is the relative index of that signature in the signatures array
             // Use that index to get the appropriate guardian key
             const idx = sigs[i * SIG_LEN];
-            const key = keys.slice((idx * GuardianKeyLen) + 1, ((idx + 1) * GuardianKeyLen) + 1);
+            const key = keys.slice(
+                idx * GuardianKeyLen + 1,
+                (idx + 1) * GuardianKeyLen + 1
+            );
             keySet.set(key, i * 20);
         }
 
-        console.log("xxx", keySet)
+        console.log("xxx", keySet);
 
         const appTxn = makeApplicationCallTxnFromObject({
             appArgs: [
@@ -796,13 +840,18 @@ export async function simpleSignVAA(
     appid: number,
     txns: Array<algosdk.Transaction>
 ) {
-//    console.log("simpleSignVAA")
-//    console.log(txns)
+    //    console.log("simpleSignVAA")
+    //    console.log(txns)
     assignGroupID(txns);
     const signedTxns: Uint8Array[] = [];
     txns.forEach((txn) => {
-        console.log(txn)
-        if (txn.appArgs && txn.appArgs?.length > 0 && JSON.stringify(txn.appArgs[0]) === JSON.stringify(textToUint8Array("verifySigs")))  {
+        console.log(txn);
+        if (
+            txn.appArgs &&
+            txn.appArgs?.length > 0 &&
+            JSON.stringify(txn.appArgs[0]) ===
+                JSON.stringify(textToUint8Array("verifySigs"))
+        ) {
             const lsa = new LogicSigAccount(ALGO_VERIFY);
             const stxn = signLogicSigTransaction(txn, lsa);
             signedTxns.push(stxn.blob);
@@ -811,14 +860,18 @@ export async function simpleSignVAA(
         }
     });
 
-//    console.log("sendRawTransaction", signedTxns)
+    //    console.log("sendRawTransaction", signedTxns)
     const resp = await client.sendRawTransaction(signedTxns).do();
 
-//    console.log("waiting for confirmation", txns[txns.length-1].txID())
+    //    console.log("waiting for confirmation", txns[txns.length-1].txID())
     const ret: string[] = [];
-    const response = await waitForConfirmation(client, txns[txns.length-1].txID(), 1);
+    const response = await waitForConfirmation(
+        client,
+        txns[txns.length - 1].txID(),
+        1
+    );
 
-//    console.log("submitVAA confirmation", response);
+    //    console.log("submitVAA confirmation", response);
     if (response["logs"]) {
         ret.push(response["logs"]);
     }
@@ -840,7 +893,7 @@ export async function submitVAA(
     // If this happens to be setting up a new guardian set, we probably need it as well...
     if (
         parsedVAA.get("Meta") === "CoreGovernance" &&
-            parsedVAA.get("action") === 2
+        parsedVAA.get("action") === 2
     ) {
         const ngsi = parsedVAA.get("NewGuardianSetIndex");
         const guardianPgmName = textToHexString("guardian");
@@ -860,8 +913,8 @@ export async function submitVAA(
     let chainAddr: string = "";
     if (
         meta === "TokenBridge Attest" ||
-            meta === "TokenBridge Transfer" ||
-            meta === "TokenBridge Transfer With Payload"
+        meta === "TokenBridge Transfer" ||
+        meta === "TokenBridge Transfer With Payload"
     ) {
         if (parsedVAA.get("FromChain") != 8) {
             chainAddr = await optin(
@@ -885,7 +938,9 @@ export async function submitVAA(
         accts.push(chainAddr);
     }
 
-    const params: algosdk.SuggestedParams = await client .getTransactionParams() .do();
+    const params: algosdk.SuggestedParams = await client
+        .getTransactionParams()
+        .do();
 
     if (meta === "CoreGovernance") {
         txns.push(
@@ -901,7 +956,7 @@ export async function submitVAA(
     }
     if (
         meta === "TokenBridge RegisterChain" ||
-            meta === "TokenBridge UpgradeContract"
+        meta === "TokenBridge UpgradeContract"
     ) {
         txns.push(
             makeApplicationCallTxnFromObject({
@@ -972,7 +1027,10 @@ export async function submitVAA(
         txns[-1].fee = txns[-1].fee * 2;
     }
 
-    if (meta === "TokenBridge Transfer" || meta === "TokenBridge Transfer With Payload") {
+    if (
+        meta === "TokenBridge Transfer" ||
+        meta === "TokenBridge Transfer With Payload"
+    ) {
         let foreignAssets = [];
         let a: number = 0;
         if (parsedVAA.get("FromChain") != 8) {
@@ -1028,6 +1086,158 @@ export async function submitVAA(
     }
 
     return await simpleSignVAA(vaa, client, sender, appid, txns);
+}
+
+export async function getVAA(
+    client: Algodv2,
+    sender: Account,
+    sid: bigint,
+    app: number
+): Promise<Uint8Array> {
+    if (!sid) {
+        throw new Error("getVAA called with a sid of None");
+    }
+    const sAddr: string = getApplicationAddress(app);
+    const params: algosdk.SuggestedParams = await client
+        .getTransactionParams()
+        .do();
+
+    // SOOO, we send a nop txn through to push the block forward one
+
+    // This is ONLY needed on a local net...  the indexer will sit
+    // on the last block for 30 to 60 seconds... we don't want this
+    // log in prod since it is wasteful of gas
+
+    if (IndexerInfo.getInstance().round > 512) {
+        // until they fix it
+        console.log(
+            "indexer is broken in local net... stop/clean/restart the sandbox"
+        );
+        throw new Error("Indexer > 512");
+    }
+
+    console.log("getVAA");
+    let txns = [];
+    let signedTxns = [];
+
+    let txn = makeApplicationCallTxnFromObject({
+        from: sender.addr,
+        appIndex: TOKEN_BRIDGE_ID,
+        onComplete: OnApplicationComplete.NoOpOC,
+        appArgs: [textToUint8Array("nop")],
+        suggestedParams: params,
+    });
+    txns.push(txn);
+    signedTxns.push(txn.signTxn(sender.sk));
+    const { txId } = await client.sendRawTransaction(signedTxns).do();
+
+    while (true) {
+        let nextToken: string = "";
+        while (true) {
+            const response: Record<string, any> =
+                await IndexerInfo.getInstance()
+                    .client.searchForTransactions()
+                    .nextToken(nextToken)
+                    .minRound(1)
+                    .notePrefix(textToUint8Array("publishMessage"))
+                    .do();
+            // console.log("getVAA() - response:", response);
+            let transactions = response["transactions"];
+            transactions.forEach((element: any) => {
+                // console.log("transaction element:", element);
+                let innerTxns = element["inner-txns"];
+                console.log("innerTxns:", innerTxns);
+                innerTxns.forEach((el: any) => {
+                    const at = el["application-transaction"];
+                    // console.log("checking at:", at);
+                    if (!at) return;
+                    // console.log("checking app id:", at["application-id"]);
+                    // if (at["application-id"] != CORE_ID) return;
+                    const logs = at["logs"];
+                    if (!logs || logs.length == 0) return;
+                    console.log("checking logs:", at["logs"]);
+                    const args = at["application-args"];
+                    if (args) {
+                        console.log("checking args:", at["application-args"]);
+                    }
+                    if (args.length < 2) return;
+                    if (
+                        Buffer.from(args[0], "base64").toString("hex") !=
+                        textToHexString("publishMessage")
+                    )
+                        return;
+                    const seq = parseSeqFromLog(element);
+                    if (seq != sid) return;
+                    if (el["sender"] != sAddr) return;
+                    const emitter = decodeAddress(el["sender"]);
+                    const payload = Buffer.from(args[1], "base64");
+                    // pprint.pprint([seq, y["sender"], payload.hex()])
+                    // sys.exit(0)
+                    // return self.gt.genVaa(emitter, seq, payload);
+                });
+            });
+            let numTransactions = transactions.length;
+            console.log(
+                "numTransactions",
+                numTransactions,
+                "next-token",
+                nextToken
+            );
+            if (response["next-token"]) {
+                nextToken = response["next-token"];
+                console.log("setting nextToken to", nextToken);
+            } else {
+                IndexerInfo.getInstance().round = response["current-round"] + 1;
+                console.log(
+                    "publishMessage = ",
+                    textToUint8Array("publishMessage")
+                );
+                break;
+            }
+        }
+        break;
+    }
+    // }
+    // }
+    //         while True:
+    //             nexttoken = ""
+    //             while True:
+    //                 response = self.myindexer.search_transactions( min_round=self.INDEXER_ROUND,
+    //note_prefix=self.NOTE_PREFIX, next_page=nexttoken)
+    // #                pprint.pprint(response)
+    //                 for x in response["transactions"]:
+    // #                    pprint.pprint(x)
+    //                     for y in x["inner-txns"]:
+    //                         if "application-transaction" not in y:
+    //                             continue
+    //                         if y["application-transaction"]["application-id"] != self.coreid:
+    //                             continue
+    //                         if len(y["logs"]) == 0:
+    //                             continue
+    //                         args = y["application-transaction"]["application-args"]
+    //                         if len(args) < 2:
+    //                             continue
+    //                         if base64.b64decode(args[0]) != b'publishMessage':
+    //                             continue
+    //                         seq = int.from_bytes(base64.b64decode(y["logs"][0]), "big")
+    //                         if seq != sid:
+    //                             continue
+    //                         if y["sender"] != saddr:
+    //                             continue;
+    //                         emitter = decode_address(y["sender"])
+    //                         payload = base64.b64decode(args[1])
+    // #                        pprint.pprint([seq, y["sender"], payload.hex()])
+    // #                        sys.exit(0)
+    //                         return self.gt.genVaa(emitter, seq, payload)
+
+    //                 if 'next-token' in response:
+    //                     nexttoken = response['next-token']
+    //                 else:
+    //                     self.INDEXER_ROUND = response['current-round'] + 1
+    //                     break
+    //             time.sleep(1)
+    const rv: Uint8Array = new Uint8Array();
+    return rv;
 }
 
 export async function transferAsset(
@@ -1224,13 +1434,29 @@ export function nativeToHexString() {
     // TODO:
 }
 
-export function transferFromAlgorand() {
+export async function transferFromAlgorand(
+    client: algosdk.Algodv2,
+    sender: Account,
+    assetId: number,
+    quantity: number,
+    receiver: Account,
+    chain: number,
+    fee: number
+) {
     // TODO:
-    // sid = self.transferAsset(client, player2, self.testasset, 100, player3.addr, 8, 0)
+    const sid: bigint = await transferAsset(
+        client,
+        sender,
+        assetId,
+        quantity,
+        receiver,
+        chain,
+        fee
+    );
     // print("... track down the generated VAA")
-    // vaa = self.getVAA(client, player, sid, self.tokenid)
+    const vaa = await getVAA(client, sender, sid, TOKEN_BRIDGE_ID);
     // print(".. and lets pass that to player3")
     // vaaLogs.append(["transferFromAlgorand", vaa])
     // #pprint.pprint(vaaLogs)
-    // self.submitVAA(bytes.fromhex(vaa), client, player3, self.tokenid)
+    submitVAA(vaa, client, sender, TOKEN_BRIDGE_ID);
 }
