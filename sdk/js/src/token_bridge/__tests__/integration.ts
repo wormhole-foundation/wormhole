@@ -69,14 +69,18 @@ import {
     WORMHOLE_RPC_HOSTS,
 } from "./consts";
 import { transferFromEthToSolana } from "./helpers";
-import algosdk, { decodeAddress, getApplicationAddress } from "algosdk";
-import {
+import algosdk, {
     Account,
+    decodeAddress,
+    getApplicationAddress,
+} from "algosdk";
+import {
     attestFromAlgorand,
     CORE_ID,
     getAlgoClient,
     getBalances,
     getMessageFee,
+    getVAA,
     optin,
     parseVAA,
     TOKEN_BRIDGE_ID,
@@ -989,7 +993,7 @@ describe("Integration Tests", () => {
                 done();
             })();
         });
-        test.only("Test optin", (done) => {
+        test("Test optin", (done) => {
             (async () => {
                 try {
                     const client: algosdk.Algodv2 = getAlgoClient();
@@ -1078,8 +1082,18 @@ describe("Integration Tests", () => {
         test.only("unit tests", (done) => {
             (async () => {
                 try {
+                    console.log("starting unit tests...");
+                    console.log("getting client...");
                     const client: algosdk.Algodv2 = getAlgoClient();
-                    await getMessageFee(client);
+                    console.log("getting temp accts...");
+                    const tempAccts: Account[] = await getTempAccounts();
+                    const numAccts: number = tempAccts.length;
+                    expect(numAccts).toBeGreaterThan(0);
+                    const wallet: Account = tempAccts[0];
+                    // await getMessageFee(client);
+                    const bi: bigint = BigInt(255);
+                    console.log("calling getVAA...");
+                    await getVAA(client, wallet, bi, TOKEN_BRIDGE_ID);
                 } catch (e) {
                     console.error("optin error:", e);
                 }
