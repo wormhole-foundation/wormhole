@@ -88,7 +88,8 @@ func (k msgServer) Transfer(goCtx context.Context, msg *types.MsgTransfer) (*typ
 	if overflow {
 		return nil, types.ErrInvalidAmount
 	}
-	buf.Write(tokenAmount.Bytes())
+	tokenAmountBytes32 := tokenAmount.Bytes32()
+	buf.Write(tokenAmountBytes32[:])
 	// TokenAddress
 	denomBytes, err := PadStringToByte32(msg.Amount.Denom)
 	if err != nil {
@@ -109,7 +110,8 @@ func (k msgServer) Transfer(goCtx context.Context, msg *types.MsgTransfer) (*typ
 	if overflow {
 		return nil, types.ErrInvalidFee
 	}
-	buf.Write(fee.Bytes())
+	feeBytes32 := fee.Bytes32()
+	buf.Write(feeBytes32[:])
 
 	// Check that the amount is sufficient to cover the fee
 	if truncAmount.Cmp(truncFees) != 1 {
@@ -117,7 +119,9 @@ func (k msgServer) Transfer(goCtx context.Context, msg *types.MsgTransfer) (*typ
 	}
 
 	// Post message
-	err = k.wormholeKeeper.PostMessage(ctx, k.accountKeeper.GetModuleAddress(types.ModuleName), 0, buf.Bytes())
+	moduleAddress := k.accountKeeper.GetModuleAddress(types.ModuleName)
+	emitterAddress := whtypes.EmitterAddressFromAccAddress(moduleAddress)
+	err = k.wormholeKeeper.PostMessage(ctx, emitterAddress, 0, buf.Bytes())
 	if err != nil {
 		return nil, err
 	}
