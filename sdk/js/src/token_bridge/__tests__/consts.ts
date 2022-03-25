@@ -43,6 +43,28 @@ export const WORMHOLE_RPC_HOSTS = ci
   ? ["http://guardian:7071"]
   : ["http://localhost:7071"];
 
+export type Environment = "devnet" | "testnet" | "mainnet";
+export const CLUSTER: Environment = "devnet" as Environment; //This is the currently selected environment.
+
+export const TERRA_HOST =
+  CLUSTER === "mainnet"
+    ? {
+        URL: "https://lcd.terra.dev",
+        chainID: "columbus-5",
+        name: "mainnet",
+      }
+    : CLUSTER === "testnet"
+    ? {
+        URL: "https://bombay-lcd.terra.dev",
+        chainID: "bombay-12",
+        name: "testnet",
+      }
+    : {
+        URL: "http://localhost:1317",
+        chainID: "columbus-5",
+        name: "localterra",
+      };
+
 describe("consts should exist", () => {
   it("has Solana test token", () => {
     expect.assertions(1);
