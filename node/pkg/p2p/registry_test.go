@@ -27,25 +27,29 @@ func TestSetGuardianAddress(t *testing.T) {
 
 func TestSetNetworkStats(t *testing.T) {
 	registry := NewRegistry()
-	assert.Equal(t, 0, len(registry.networkStats))
 
 	pub, _, _ := ed25519.GenerateKey(rand.Reader)
 	contractAddr := base58.Encode(pub[:])
 
-	heart_beat := &gossipv1.Heartbeat_Network{
+	heartBeat := &gossipv1.Heartbeat_Network{
 		ContractAddress: contractAddr,
 	}
 
-	registry.SetNetworkStats(vaa.ChainIDEthereum, heart_beat)
-	assert.Equal(t, 1, len(registry.networkStats))
+	expect := make(map[vaa.ChainID]*gossipv1.Heartbeat_Network)
+	expect[vaa.ChainIDEthereum] = heartBeat
+
+	registry.SetNetworkStats(vaa.ChainIDEthereum, heartBeat)
+	assert.Equal(t, expect, registry.networkStats)
 }
 
 func TestAddErrorCount(t *testing.T) {
 	registry := NewRegistry()
-	assert.Equal(t, 0, len(registry.errorCounters))
+
+	expect := make(map[vaa.ChainID]uint64)
+	expect[vaa.ChainIDEthereum] = 1
 
 	registry.AddErrorCount(vaa.ChainIDEthereum, uint64(1))
-	assert.Equal(t, 1, len(registry.errorCounters))
+	assert.Equal(t, expect, registry.errorCounters)
 }
 
 func TestGetErrorCount(t *testing.T) {
