@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.3
+
+### Added
+
+Expose feeRecipientAddress for redeemOnSolana
+
 ## 0.2.2
 
 ### Added
