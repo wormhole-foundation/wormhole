@@ -56,14 +56,10 @@ contract NFTBridgeSetters is NFTBridgeState, ShutdownSwitch {
     function clearSplCache(uint256 tokenId) internal {
         delete _state.splCache[tokenId];
     }
-            
-    // This is required by ShutdownSwitch.
-    function getWH() public virtual override view returns (IWormhole) {
-        return IWormhole(_state.wormhole);
-    }
 
     // This is required by ShutdownSwitch.
-    function getChainId() public virtual override view returns (uint16) {
-        return _state.provider.chainId;
-    }    
+    function getCurrentGuardianSet() public virtual override view returns (Structs.GuardianSet memory) {
+        IWormhole wh = IWormhole(_state.wormhole);
+        return wh.getGuardianSet(wh.getCurrentGuardianSetIndex());
+    }
 }

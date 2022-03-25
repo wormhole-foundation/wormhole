@@ -22,6 +22,16 @@ contract("ShutdownSwitch", function () {
     const testGovernanceChainId = "1";
     const testGovernanceContract = "0x0000000000000000000000000000000000000000000000000000000000000004";
 
+    it("should start out with transfers enabled", async function () {
+        const initialized = new web3.eth.Contract(BridgeImplementationFullABI, TokenBridge.address);
+
+        assert.equal((await initialized.methods.enabledFlag().call()), true)
+        assert.equal((await initialized.methods.numVotesToDisable().call()), 0)
+
+        // Since we start out with only one guardian, the required votes should be one.
+        assert.equal((await initialized.methods.requiredVotesToDisable().call()), 1)
+    })
+
     it("should block non-guardians from casting a shutdown vote", async function () {
         const accounts = await web3.eth.getAccounts();
         const initialized = new web3.eth.Contract(BridgeImplementationFullABI, TokenBridge.address);
@@ -29,11 +39,11 @@ contract("ShutdownSwitch", function () {
         // Cast a vote using the wrong key, and it should fail.
         let voteFailed = false;
         try {
-            await initialized.methods.castShutdownVote(testChainId, false).send({
+            await initialized.methods.castShutdownVote(false).send({
                 value: 0,
                 from: accounts[0],
                 gasLimit: 2000000
-            });            
+            });
         } catch (error) {
             assert.equal(error.message, "Returned error: VM Exception while processing transaction: revert you are not a registered voter")
             voteFailed = true
@@ -41,8 +51,8 @@ contract("ShutdownSwitch", function () {
 
         assert.ok(voteFailed)
         assert.equal((await initialized.methods.enabledFlag().call()), true)
-
-        // Can't check the number of no votes or required votes until after we have a successful vote.
+        assert.equal((await initialized.methods.numVotesToDisable().call()), 0)
+        assert.equal((await initialized.methods.requiredVotesToDisable().call()), 1)
     })
 
     it("should upgrade to four guardians", async function () {
@@ -65,7 +75,7 @@ contract("ShutdownSwitch", function () {
             web3.eth.abi.encodeParameter("address", accounts[0]).substring(2 + (64 - 40)),
             web3.eth.abi.encodeParameter("address", accounts[1]).substring(2 + (64 - 40)),
             web3.eth.abi.encodeParameter("address", accounts[2]).substring(2 + (64 - 40)),
-            web3.eth.abi.encodeParameter("address", accounts[3]).substring(2 + (64 - 40)),            
+            web3.eth.abi.encodeParameter("address", accounts[3]).substring(2 + (64 - 40)),
         ].join('')
 
         const vm = await signAndEncodeVM(
@@ -91,68 +101,66 @@ contract("ShutdownSwitch", function () {
 
     //////////////// NOTE: Every test after this assumes four guardians! ///////////////////////////////
 
-    it("should take two guardian votes to disable transfers", async function () {
+    it("should take three guardian votes to disable transfers", async function () {
         const accounts = await web3.eth.getAccounts();
         const initialized = new web3.eth.Contract(BridgeImplementationFullABI, TokenBridge.address);
-        clearAllVotes(initialized, accounts);
+        await clearAllVotes(initialized, accounts);
         assert.equal((await initialized.methods.enabledFlag().call()), true)
 
         // This first vote should succeed, but we should still be enabled.
-        await initialized.methods.castShutdownVote(testChainId, false).send({
+        await initialized.methods.castShutdownVote(false).send({
             value: 0,
             from: accounts[0],
             gasLimit: 2000000
         });
 
         assert.equal((await initialized.methods.numVotesToDisable().call()), 1)
-        assert.equal((await initialized.methods.requiredVotesToDisable().call()), 2)
+        assert.equal((await initialized.methods.requiredVotesToDisable().call()), 3)
+        assert.equal((await initialized.methods.enabledFlag().call()), true)
+
+        // This first vote should succeed, but we should still be enabled.
+        await initialized.methods.castShutdownVote(false).send({
+            value: 0,
+            from: accounts[0],
+            gasLimit: 2000000
+        });
+
+        assert.equal((await initialized.methods.numVotesToDisable().call()), 1)
+        assert.equal((await initialized.methods.requiredVotesToDisable().call()), 3)
         assert.equal((await initialized.methods.enabledFlag().call()), true)
 
         // A duplicate vote should change nothing.
-        await initialized.methods.castShutdownVote(testChainId, false).send({
+        await initialized.methods.castShutdownVote(false).send({
             value: 0,
             from: accounts[0],
             gasLimit: 2000000
         });
 
         assert.equal((await initialized.methods.numVotesToDisable().call()), 1)
-        assert.equal((await initialized.methods.requiredVotesToDisable().call()), 2)
+        assert.equal((await initialized.methods.requiredVotesToDisable().call()), 3)
         assert.equal((await initialized.methods.enabledFlag().call()), true)
 
-        // But a second vote should suspend transfers.
-        await initialized.methods.castShutdownVote(testChainId, false).send({
+        // The second vote should succeed, but we should still be enabled.
+        await initialized.methods.castShutdownVote(false).send({
             value: 0,
             from: accounts[1],
             gasLimit: 2000000
         });
 
         assert.equal((await initialized.methods.numVotesToDisable().call()), 2)
-        assert.equal((await initialized.methods.requiredVotesToDisable().call()), 2)
+        assert.equal((await initialized.methods.requiredVotesToDisable().call()), 3)
+        assert.equal((await initialized.methods.enabledFlag().call()), true)
+
+        // But a third vote should suspend transfers.
+        await initialized.methods.castShutdownVote(false).send({
+            value: 0,
+            from: accounts[2],
+            gasLimit: 2000000
+        });
+
+        assert.equal((await initialized.methods.numVotesToDisable().call()), 3)
+        assert.equal((await initialized.methods.requiredVotesToDisable().call()), 3)
         assert.equal((await initialized.methods.enabledFlag().call()), false)
-    })
-
-    it("should prevent a replay attack using a vote from another chain", async function () {
-        const accounts = await web3.eth.getAccounts();
-        const initialized = new web3.eth.Contract(BridgeImplementationFullABI, TokenBridge.address);
-        clearAllVotes(initialized, accounts);
-
-         // Cast a vote using the wrong chain id, and it should fail.
-         let voteFailed = false;
-         try {
-             await initialized.methods.castShutdownVote(testChainId + 1, false).send({
-                 value: 0,
-                 from: accounts[0],
-                 gasLimit: 2000000
-             });            
-         } catch (error) {
-             assert.equal(error.message, "Returned error: VM Exception while processing transaction: revert invalid chain id")
-             voteFailed = true
-         }
-
-         assert.ok(voteFailed)
-
-         // We should still be enabled.
-         assert.equal((await initialized.methods.enabledFlag().call()), true)
     })
 
     let vaa = null;
@@ -160,7 +168,7 @@ contract("ShutdownSwitch", function () {
     it("should reject transfers when they are disabled", async function () {
         const accounts = await web3.eth.getAccounts();
         const initialized = new web3.eth.Contract(BridgeImplementationFullABI, TokenBridge.address);
-        clearAllVotes(initialized, accounts);
+        await clearAllVotes(initialized, accounts);
         assert.equal((await initialized.methods.enabledFlag().call()), true)
 
         // Set up, mint and approve tokens.
@@ -181,7 +189,7 @@ contract("ShutdownSwitch", function () {
             gasLimit: 2000000
         });
 
-        const amount = "1000000000000000000";     
+        const amount = "1000000000000000000";
 
         await token.methods.mint(accounts[0], amount).send({
             value: 0,
@@ -214,10 +222,10 @@ contract("ShutdownSwitch", function () {
         const log = (await wormhole.getPastEvents('LogMessagePublished', {
             fromBlock: 'latest'
         }))[0].returnValues
-        vaa = log.payload.substr(2);          
+        vaa = log.payload.substr(2);
 
-        // Cast two votes to disable transfers.
-        await initialized.methods.castShutdownVote(testChainId, false).send({
+        // Cast three votes to disable transfers.
+        await initialized.methods.castShutdownVote(false).send({
             value: 0,
             from: accounts[0],
             gasLimit: 2000000
@@ -226,14 +234,20 @@ contract("ShutdownSwitch", function () {
         assert.equal((await initialized.methods.numVotesToDisable().call()), 1)
         assert.equal((await initialized.methods.enabledFlag().call()), true)
 
-        await initialized.methods.castShutdownVote(testChainId, false).send({
+        await initialized.methods.castShutdownVote(false).send({
             value: 0,
             from: accounts[1],
             gasLimit: 2000000
         });
-        
+
+        await initialized.methods.castShutdownVote(false).send({
+            value: 0,
+            from: accounts[2],
+            gasLimit: 2000000
+        });
+
         // Make sure transfers are now disabled.
-        assert.equal((await initialized.methods.numVotesToDisable().call()), 2)
+        assert.equal((await initialized.methods.numVotesToDisable().call()), 3)
         assert.equal((await initialized.methods.enabledFlag().call()), false)
 
         // This transfer should be blocked.
@@ -250,7 +264,7 @@ contract("ShutdownSwitch", function () {
                 value: 0,
                 from: accounts[0],
                 gasLimit: 2000000
-            });         
+            });
         } catch (error) {
             assert.equal(error.message, "Returned error: VM Exception while processing transaction: revert transfers are temporarily disabled")
             transferShouldFail = true
@@ -262,19 +276,20 @@ contract("ShutdownSwitch", function () {
     it("a vote changing back to enabled should allow transfers again", async function () {
         const accounts = await web3.eth.getAccounts();
         const initialized = new web3.eth.Contract(BridgeImplementationFullABI, TokenBridge.address);
+        // Don't clear the votes here.
 
         // This assumes the previous test left us disabled.
-        assert.equal((await initialized.methods.numVotesToDisable().call()), 2)
+        assert.equal((await initialized.methods.numVotesToDisable().call()), 3)
         assert.equal((await initialized.methods.enabledFlag().call()), false)
 
         // Change one vote to enabled and our status should change back to enabled.
-        await initialized.methods.castShutdownVote(testChainId, true).send({
+        await initialized.methods.castShutdownVote(true).send({
             value: 0,
             from: accounts[0],
             gasLimit: 2000000
         });
 
-        assert.equal((await initialized.methods.numVotesToDisable().call()), 1)
+        assert.equal((await initialized.methods.numVotesToDisable().call()), 2)
         assert.equal((await initialized.methods.enabledFlag().call()), true)
 
         // And now the transfer should go through.
@@ -289,7 +304,7 @@ contract("ShutdownSwitch", function () {
             value: 0,
             from: accounts[0],
             gasLimit: 2000000
-        });      
+        });
     })
 
     it("should reject redeems when they are disabled", async function () {
@@ -298,7 +313,7 @@ contract("ShutdownSwitch", function () {
 
         const accounts = await web3.eth.getAccounts();
         const initialized = new web3.eth.Contract(BridgeImplementationFullABI, TokenBridge.address);
-        clearAllVotes(initialized, accounts);
+        await clearAllVotes(initialized, accounts);
         assert.equal((await initialized.methods.enabledFlag().call()), true)
 
         // Redeem of this transfer should not be blocked by shutdown switch. It will instead fail with
@@ -311,10 +326,10 @@ contract("ShutdownSwitch", function () {
             })
         } catch (error) {
             assert.equal(error.message, "Returned error: VM Exception while processing transaction: revert no quorum")
-        }            
+        }
 
-        // Cast two votes to disable transfers.
-        await initialized.methods.castShutdownVote(testChainId, false).send({
+        // Cast three votes to disable transfers.
+        await initialized.methods.castShutdownVote(false).send({
             value: 0,
             from: accounts[0],
             gasLimit: 2000000
@@ -323,14 +338,23 @@ contract("ShutdownSwitch", function () {
         assert.equal((await initialized.methods.numVotesToDisable().call()), 1)
         assert.equal((await initialized.methods.enabledFlag().call()), true)
 
-        await initialized.methods.castShutdownVote(testChainId, false).send({
+        await initialized.methods.castShutdownVote(false).send({
             value: 0,
             from: accounts[1],
             gasLimit: 2000000
         });
-        
-        // Make sure transfers are now disabled.
+
         assert.equal((await initialized.methods.numVotesToDisable().call()), 2)
+        assert.equal((await initialized.methods.enabledFlag().call()), true)
+
+        await initialized.methods.castShutdownVote(false).send({
+            value: 0,
+            from: accounts[2],
+            gasLimit: 2000000
+        });
+
+        // Make sure transfers are now disabled.
+        assert.equal((await initialized.methods.numVotesToDisable().call()), 3)
         assert.equal((await initialized.methods.enabledFlag().call()), false)
 
         // This redeem should be blocked by shutdown switch rather than "no quorum".
@@ -348,19 +372,20 @@ contract("ShutdownSwitch", function () {
     it("a vote changing back to enabled should allow redeems again", async function () {
         const accounts = await web3.eth.getAccounts();
         const initialized = new web3.eth.Contract(BridgeImplementationFullABI, TokenBridge.address);
+        // Don't clear the votes here.
 
         // This assumes the previous test left us disabled.
-        assert.equal((await initialized.methods.numVotesToDisable().call()), 2)
+        assert.equal((await initialized.methods.numVotesToDisable().call()), 3)
         assert.equal((await initialized.methods.enabledFlag().call()), false)
-        
+
         // Change one vote to enabled and our status should change back to enabled.
-        await initialized.methods.castShutdownVote(testChainId, true).send({
+        await initialized.methods.castShutdownVote(true).send({
             value: 0,
             from: accounts[0],
             gasLimit: 2000000
         });
 
-        assert.equal((await initialized.methods.numVotesToDisable().call()), 1)
+        assert.equal((await initialized.methods.numVotesToDisable().call()), 2)
         assert.equal((await initialized.methods.enabledFlag().call()), true)
 
         // The redeem should be back to being blocked by "no quorum" rather than by shutdown switch.
@@ -372,12 +397,12 @@ contract("ShutdownSwitch", function () {
             })
         } catch (error) {
             assert.equal(error.message, "Returned error: VM Exception while processing transaction: revert no quorum")
-        }         
+        }
     })
 
     async function clearAllVotes(initialized, accounts) {
         for (let idx = 0; (idx < 4); ++idx) {
-            await initialized.methods.castShutdownVote(testChainId, true).send({
+            await initialized.methods.castShutdownVote(true).send({
                 value: 0,
                 from: accounts[idx],
                 gasLimit: 2000000
