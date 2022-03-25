@@ -15,7 +15,7 @@ import {
   selectTransferSourceChain,
   selectTransferSourceParsedTokenAccount,
 } from "../../store/selectors";
-import { CHAINS_BY_ID, MULTI_CHAIN_TOKENS } from "../../utils/consts";
+import { CHAINS_BY_ID, CLUSTER, MULTI_CHAIN_TOKENS } from "../../utils/consts";
 import SmartAddress from "../SmartAddress";
 import SolanaTPSWarning from "../SolanaTPSWarning";
 import { useTargetInfo } from "./Target";
@@ -125,7 +125,9 @@ function SendConfirmationContent({
           targetAsset={targetAsset ?? undefined}
           targetChain={targetChain}
         />
-        {sourceChain === CHAIN_ID_SOLANA && <SolanaTPSWarning />}
+        {sourceChain === CHAIN_ID_SOLANA && CLUSTER === "mainnet" && (
+          <SolanaTPSWarning />
+        )}
       </DialogContent>
       <DialogActions>
         <Button variant="outlined" onClick={onClose}>

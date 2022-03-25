@@ -35,6 +35,7 @@ import {
 } from "../../store/selectors";
 import { reset } from "../../store/transferSlice";
 import {
+  CLUSTER,
   getHowToAddTokensToWalletUrl,
   ROPSTEN_WETH_ADDRESS,
   WAVAX_ADDRESS,
@@ -191,7 +192,9 @@ function Redeem() {
           label="Automatically unwrap to native currency"
         />
       )}
-      {targetChain === CHAIN_ID_SOLANA && <SolanaTPSWarning />}
+      {targetChain === CHAIN_ID_SOLANA && CLUSTER === "mainnet" && (
+        <SolanaTPSWarning />
+      )}
       {targetChain === CHAIN_ID_SOLANA ? (
         <SolanaCreateAssociatedAddressAlternate />
       ) : null}
