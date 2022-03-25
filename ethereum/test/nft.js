@@ -7,6 +7,7 @@ const NFTBridge = artifacts.require("NFTBridgeEntrypoint");
 const NFTBridgeImplementation = artifacts.require("NFTBridgeImplementation");
 const NFTImplementation = artifacts.require("NFTImplementation");
 const MockBridgeImplementation = artifacts.require("MockNFTBridgeImplementation");
+const MockTokenBridgeImplementation = artifacts.require("MockBridgeImplementation");
 
 const testSigner1PK = "cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0";
 const testSigner2PK = "892330666a850761e7370376430bb8c2aa1494072d3bfeaed0c4fa3d5a9135fe";
@@ -590,6 +591,252 @@ contract("NFT", function () {
         } catch (e) {
             assert.equal(e.data[Object.keys(e.data)[0]].reason, "ERC721: owner query for nonexistent token")
         }
+    })
+
+    it("should reject upgrade vaa for the wrong governance chain id", async function () {
+        const initialized = new web3.eth.Contract(BridgeImplementationFullABI, NFTBridge.address);
+        const accounts = await web3.eth.getAccounts();
+
+        const mock = await MockBridgeImplementation.new();
+
+        let data = [
+            "0x",
+            "00000000000000000000000000000000000000000000004e4654427269646765", // NFT Bridge header
+            "02",
+            web3.eth.abi.encodeParameter("uint16", testChainId).substring(2 + (64 - 4)),
+            web3.eth.abi.encodeParameter("address", mock.address).substring(2),
+        ].join('')
+
+        const vm = await signAndEncodeVM(
+            1,
+            1,
+            testGovernanceChainId + 1,
+            testGovernanceContract,
+            0,
+            data,
+            [
+                testSigner1PK
+            ],
+            0,
+            0
+        );
+
+        let before = await web3.eth.getStorageAt(NFTBridge.address, "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc");
+
+        let failed = false;
+        try {
+            await initialized.methods.upgrade("0x" + vm).send({
+                value: 0,
+                from: accounts[0],
+                gasLimit: 2000000
+            });
+        } catch (error) {
+            assert.equal(error.message, "Returned error: VM Exception while processing transaction: revert wrong governance chain")
+            failed = true
+        }
+
+        assert.ok(failed)
+
+        // Make sure we didn't do the upgrade.
+        let after = await web3.eth.getStorageAt(NFTBridge.address, "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc");
+        assert.equal(after.toLowerCase(), before.toLowerCase());
+    })
+
+    it("should reject upgrade vaa for the wrong implementation chain id", async function () {
+        const initialized = new web3.eth.Contract(BridgeImplementationFullABI, NFTBridge.address);
+        const accounts = await web3.eth.getAccounts();
+
+        const mock = await MockBridgeImplementation.new();
+
+        let data = [
+            "0x",
+            "00000000000000000000000000000000000000000000004e4654427269646765", // NFT Bridge header
+            "02",
+            web3.eth.abi.encodeParameter("uint16", testChainId + 1).substring(2 + (64 - 4)),
+            web3.eth.abi.encodeParameter("address", mock.address).substring(2),
+        ].join('')
+
+        const vm = await signAndEncodeVM(
+            1,
+            1,
+            testGovernanceChainId,
+            testGovernanceContract,
+            0,
+            data,
+            [
+                testSigner1PK
+            ],
+            0,
+            0
+        );
+
+        let before = await web3.eth.getStorageAt(NFTBridge.address, "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc");
+
+        let failed = false;
+        try {
+            await initialized.methods.upgrade("0x" + vm).send({
+                value: 0,
+                from: accounts[0],
+                gasLimit: 2000000
+            });
+        } catch (error) {
+            assert.equal(error.message, "Returned error: VM Exception while processing transaction: revert wrong chain id")
+            failed = true
+        }
+
+        assert.ok(failed)
+
+        // Make sure we didn't do the upgrade.
+        let after = await web3.eth.getStorageAt(NFTBridge.address, "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc");
+        assert.equal(after.toLowerCase(), before.toLowerCase());
+    })
+
+    it("should reject upgrade vaa of the formatted for the core bridge", async function () {
+        const initialized = new web3.eth.Contract(BridgeImplementationFullABI, NFTBridge.address);
+        const accounts = await web3.eth.getAccounts();
+
+        const mock = await MockBridgeImplementation.new();
+
+        let data = [
+            "0x",
+            "0x00000000000000000000000000000000000000000000000000000000436f726501", // Core Bridge header
+            "02",
+            web3.eth.abi.encodeParameter("uint16", testChainId).substring(2 + (64 - 4)),
+            web3.eth.abi.encodeParameter("address", mock.address).substring(2),
+        ].join('')
+
+        const vm = await signAndEncodeVM(
+            1,
+            1,
+            testGovernanceChainId,
+            testGovernanceContract,
+            0,
+            data,
+            [
+                testSigner1PK
+            ],
+            0,
+            0
+        );
+
+        let before = await web3.eth.getStorageAt(NFTBridge.address, "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc");
+
+        let failed = false;
+        try {
+            await initialized.methods.upgrade("0x" + vm).send({
+                value: 0,
+                from: accounts[0],
+                gasLimit: 2000000
+            });
+        } catch (error) {
+            // This is not the greatest error message, but it works.
+            assert.equal(error.message.search("invalid arrayify value"), 0);
+            failed = true
+        }
+
+        assert.ok(failed)
+
+        // Make sure we didn't do the upgrade.
+        let after = await web3.eth.getStorageAt(NFTBridge.address, "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc");
+        assert.equal(after.toLowerCase(), before.toLowerCase());
+    })
+
+    it("should reject upgrade vaa of the formatted for the token bridge", async function () {
+        const initialized = new web3.eth.Contract(BridgeImplementationFullABI, NFTBridge.address);
+        const accounts = await web3.eth.getAccounts();
+
+        const mock = await MockBridgeImplementation.new();
+
+        let data = [
+            "0x",
+            "000000000000000000000000000000000000000000546f6b656e427269646765", // Token Bridge header
+            "02",
+            web3.eth.abi.encodeParameter("uint16", testChainId).substring(2 + (64 - 4)),
+            web3.eth.abi.encodeParameter("address", mock.address).substring(2),
+        ].join('')
+
+        const vm = await signAndEncodeVM(
+            1,
+            1,
+            testGovernanceChainId,
+            testGovernanceContract,
+            0,
+            data,
+            [
+                testSigner1PK
+            ],
+            0,
+            0
+        );
+
+        let before = await web3.eth.getStorageAt(NFTBridge.address, "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc");
+
+        let failed = false;
+        try {
+            await initialized.methods.upgrade("0x" + vm).send({
+                value: 0,
+                from: accounts[0],
+                gasLimit: 2000000
+            });
+        } catch (error) {
+            assert.equal(error.message, "Returned error: VM Exception while processing transaction: revert invalid UpgradeContract: wrong module")
+            failed = true
+        }
+
+        assert.ok(failed)
+
+        // Make sure we didn't do the upgrade.
+        let after = await web3.eth.getStorageAt(NFTBridge.address, "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc");
+        assert.equal(after.toLowerCase(), before.toLowerCase());
+    })
+
+    it("should reject upgrade vaa of the correct type but pointing to the wrong implementation type", async function () {
+        const initialized = new web3.eth.Contract(BridgeImplementationFullABI, NFTBridge.address);
+        const accounts = await web3.eth.getAccounts();
+
+        const mock = await MockTokenBridgeImplementation.new();
+
+        let data = [
+            "0x",
+            "00000000000000000000000000000000000000000000004e4654427269646765", // NFT Bridge header
+            "02",
+            web3.eth.abi.encodeParameter("uint16", testChainId).substring(2 + (64 - 4)),
+            web3.eth.abi.encodeParameter("address", mock.address).substring(2),
+        ].join('')
+
+        const vm = await signAndEncodeVM(
+            1,
+            1,
+            testGovernanceChainId,
+            testGovernanceContract,
+            0,
+            data,
+            [
+                testSigner1PK
+            ],
+            0,
+            0
+        );
+
+        let before = await web3.eth.getStorageAt(NFTBridge.address, "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc");
+
+        let failed = false;
+        try {
+            await initialized.methods.upgrade("0x" + vm).send({
+                value: 0,
+                from: accounts[0],
+                gasLimit: 2000000
+            });
+        } catch (error) {
+            assert.equal(error.message, "Returned error: VM Exception while processing transaction: revert Invalid module")
+            failed = true
+        }
+
+        assert.ok(failed)
+
+        // Make sure we didn't do the upgrade.
+        let after = await web3.eth.getStorageAt(NFTBridge.address, "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc");
+        assert.equal(after.toLowerCase(), before.toLowerCase());
     })
 });
 

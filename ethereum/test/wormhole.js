@@ -602,6 +602,222 @@ contract("Wormhole", function () {
             assert.equal(e.data[Object.keys(e.data)[0]].reason, "governance action already consumed")
         }
     })
+
+    it("should reject upgrade vaa for the wrong governance chain id", async function () {
+        const initialized = new web3.eth.Contract(ImplementationFullABI, Wormhole.address);
+        const accounts = await web3.eth.getAccounts();
+
+        const mock = await MockImplementation.new();
+
+        const timestamp = 1000;
+        const nonce = 1001;
+        const emitterChainId = testGovernanceChainId;
+        const emitterAddress = testGovernanceContract
+        let data = "0x00000000000000000000000000000000000000000000000000000000436f726501";
+
+        data += [
+            web3.eth.abi.encodeParameter("uint16", testChainId).substring(2 + (64 - 4)),
+            web3.eth.abi.encodeParameter("address", mock.address).substring(2),
+        ].join('')
+
+        const vm = await signAndEncodeVM(
+            timestamp,
+            nonce,
+            emitterChainId + 1,
+            emitterAddress,
+            0,
+            data,
+            [
+                testSigner1PK,
+                testSigner2PK,
+                testSigner3PK
+            ],
+            1,
+            2
+        );
+
+        let before = await web3.eth.getStorageAt(Wormhole.address, "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc");
+
+        let failed = false;
+        try {
+            await initialized.methods.submitContractUpgrade("0x" + vm).send({
+                value: 0,
+                from: accounts[0],
+                gasLimit: 1000000
+            });
+        } catch (error) {
+            assert.equal(error.message, "Returned error: VM Exception while processing transaction: revert wrong governance chain")
+            failed = true
+        }
+
+        assert.ok(failed)
+
+        // Make sure we didn't do the upgrade.
+        let after = await web3.eth.getStorageAt(Wormhole.address, "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc");
+        assert.equal(after.toLowerCase(), before.toLowerCase());
+    })
+
+    it("should reject upgrade vaa for the wrong implementation chain id", async function () {
+        const initialized = new web3.eth.Contract(ImplementationFullABI, Wormhole.address);
+        const accounts = await web3.eth.getAccounts();
+
+        const mock = await MockImplementation.new();
+
+        const timestamp = 1000;
+        const nonce = 1001;
+        const emitterChainId = testGovernanceChainId;
+        const emitterAddress = testGovernanceContract
+        let data = "0x00000000000000000000000000000000000000000000000000000000436f726501";
+
+        data += [
+            web3.eth.abi.encodeParameter("uint16", testChainId + 1).substring(2 + (64 - 4)),
+            web3.eth.abi.encodeParameter("address", mock.address).substring(2),
+        ].join('')
+
+        const vm = await signAndEncodeVM(
+            timestamp,
+            nonce,
+            emitterChainId,
+            emitterAddress,
+            0,
+            data,
+            [
+                testSigner1PK,
+                testSigner2PK,
+                testSigner3PK
+            ],
+            1,
+            2
+        );
+
+        let before = await web3.eth.getStorageAt(Wormhole.address, "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc");
+
+        let failed = false;
+        try {
+            await initialized.methods.submitContractUpgrade("0x" + vm).send({
+                value: 0,
+                from: accounts[0],
+                gasLimit: 1000000
+            });
+        } catch (error) {
+            assert.equal(error.message, "Returned error: VM Exception while processing transaction: revert Invalid Chain")
+            failed = true
+        }
+
+        assert.ok(failed)
+
+        // Make sure we didn't do the upgrade.
+        let after = await web3.eth.getStorageAt(Wormhole.address, "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc");
+        assert.equal(after.toLowerCase(), before.toLowerCase());
+    })
+
+    it("should reject upgrade vaa of the formatted for the token bridge", async function () {
+        const initialized = new web3.eth.Contract(ImplementationFullABI, Wormhole.address);
+        const accounts = await web3.eth.getAccounts();
+
+        const mock = await MockImplementation.new();
+
+        const timestamp = 1000;
+        const nonce = 1001;
+        const emitterChainId = testGovernanceChainId;
+        const emitterAddress = testGovernanceContract
+        let data = "000000000000000000000000000000000000000000546f6b656e427269646765"; // Token Bridge header
+
+        data += [
+            web3.eth.abi.encodeParameter("uint16", testChainId + 1).substring(2 + (64 - 4)),
+            web3.eth.abi.encodeParameter("address", mock.address).substring(2),
+        ].join('')
+
+        const vm = await signAndEncodeVM(
+            timestamp,
+            nonce,
+            emitterChainId,
+            emitterAddress,
+            0,
+            data,
+            [
+                testSigner1PK,
+                testSigner2PK,
+                testSigner3PK
+            ],
+            1,
+            2
+        );
+
+        let before = await web3.eth.getStorageAt(Wormhole.address, "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc");
+
+        let failed = false;
+        try {
+            await initialized.methods.submitContractUpgrade("0x" + vm).send({
+                value: 0,
+                from: accounts[0],
+                gasLimit: 1000000
+            });
+        } catch (error) {
+            assert.equal(error.message, "Returned error: VM Exception while processing transaction: revert invalid ContractUpgrade")
+            failed = true
+        }
+
+        assert.ok(failed)
+
+        // Make sure we didn't do the upgrade.
+        let after = await web3.eth.getStorageAt(Wormhole.address, "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc");
+        assert.equal(after.toLowerCase(), before.toLowerCase());
+    })
+
+    it("should reject upgrade vaa of the formatted for the nft bridge", async function () {
+        const initialized = new web3.eth.Contract(ImplementationFullABI, Wormhole.address);
+        const accounts = await web3.eth.getAccounts();
+
+        const mock = await MockImplementation.new();
+
+        const timestamp = 1000;
+        const nonce = 1001;
+        const emitterChainId = testGovernanceChainId;
+        const emitterAddress = testGovernanceContract
+        let data = "00000000000000000000000000000000000000000000004e4654427269646765"; // NFT Bridge header
+
+        data += [
+            web3.eth.abi.encodeParameter("uint16", testChainId + 1).substring(2 + (64 - 4)),
+            web3.eth.abi.encodeParameter("address", mock.address).substring(2),
+        ].join('')
+
+        const vm = await signAndEncodeVM(
+            timestamp,
+            nonce,
+            emitterChainId,
+            emitterAddress,
+            0,
+            data,
+            [
+                testSigner1PK,
+                testSigner2PK,
+                testSigner3PK
+            ],
+            1,
+            2
+        );
+
+        let before = await web3.eth.getStorageAt(Wormhole.address, "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc");
+
+        let failed = false;
+        try {
+            await initialized.methods.submitContractUpgrade("0x" + vm).send({
+                value: 0,
+                from: accounts[0],
+                gasLimit: 1000000
+            });
+        } catch (error) {
+            assert.equal(error.message, "Returned error: VM Exception while processing transaction: revert invalid ContractUpgrade")
+            failed = true
+        }
+
+        assert.ok(failed)
+
+        // Make sure we didn't do the upgrade.
+        let after = await web3.eth.getStorageAt(Wormhole.address, "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc");
+        assert.equal(after.toLowerCase(), before.toLowerCase());
+    })
 });
 
 const signAndEncodeVM = async function (
