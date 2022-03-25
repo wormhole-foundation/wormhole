@@ -19,8 +19,6 @@ func TestNewRegistry(t *testing.T) {
 
 func TestSetGuardianAddress(t *testing.T) {
 	registry := NewRegistry()
-	assert.Equal(t, "", registry.guardianAddress)
-
 	registry.SetGuardianAddress("foo")
 	assert.Equal(t, "foo", registry.guardianAddress)
 }
