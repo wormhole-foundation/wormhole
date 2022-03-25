@@ -30,8 +30,11 @@ import {
 } from "./TmplSig";
 
 import { TextEncoder, inspect } from "util";
+import { ChainId } from "../utils/consts";
+import IndexerClient from "algosdk/dist/types/src/client/v2/indexer/indexer";
 
-let ALGO_TOKEN = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+let ALGO_TOKEN =
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 let KMD_ADDRESS: string = "http://localhost";
 let KMD_PORT: number = 4002;
 let KMD_WALLET_NAME: string = "unencrypted-default-wallet";
@@ -64,8 +67,18 @@ export const TESTNET_ACCOUNT_ADDRESS =
 export const TESTNET_ACCOUNT_MN =
     "enforce sail meat library retreat rain praise run floor drastic flat end true olympic boy dune dust regular feed allow top universe borrow able ginger";
 
-const ALGO_VERIFY_HASH = "EZATROXX2HISIRZDRGXW4LRQ46Z6IUJYYIHU3PJGP7P5IQDPKVX42N767A"
-const ALGO_VERIFY = new Uint8Array([6, 32, 4, 1, 0, 32, 20, 38, 1, 0, 49, 32, 50, 3, 18, 68, 49, 1, 35, 18, 68, 49, 16, 129, 6, 18, 68, 54, 26, 1, 54, 26, 3, 54, 26, 2, 136, 0, 3, 68, 34, 67, 53, 2, 53, 1, 53, 0, 40, 53, 240, 40, 53, 241, 52, 0, 21, 53, 5, 35, 53, 3, 35, 53, 4, 52, 3, 52, 5, 12, 65, 0, 68, 52, 1, 52, 0, 52, 3, 129, 65, 8, 34, 88, 23, 52, 0, 52, 3, 34, 8, 36, 88, 52, 0, 52, 3, 129, 33, 8, 36, 88, 7, 0, 53, 241, 53, 240, 52, 2, 52, 4, 37, 88, 52, 240, 52, 241, 80, 2, 87, 12, 20, 18, 68, 52, 3, 129, 66, 8, 53, 3, 52, 4, 37, 8, 53, 4, 66, 255, 180, 34, 137, ])
+const ALGO_VERIFY_HASH =
+    "EZATROXX2HISIRZDRGXW4LRQ46Z6IUJYYIHU3PJGP7P5IQDPKVX42N767A";
+const ALGO_VERIFY = new Uint8Array([
+    6, 32, 4, 1, 0, 32, 20, 38, 1, 0, 49, 32, 50, 3, 18, 68, 49, 1, 35, 18, 68,
+    49, 16, 129, 6, 18, 68, 54, 26, 1, 54, 26, 3, 54, 26, 2, 136, 0, 3, 68, 34,
+    67, 53, 2, 53, 1, 53, 0, 40, 53, 240, 40, 53, 241, 52, 0, 21, 53, 5, 35, 53,
+    3, 35, 53, 4, 52, 3, 52, 5, 12, 65, 0, 68, 52, 1, 52, 0, 52, 3, 129, 65, 8,
+    34, 88, 23, 52, 0, 52, 3, 34, 8, 36, 88, 52, 0, 52, 3, 129, 33, 8, 36, 88,
+    7, 0, 53, 241, 53, 240, 52, 2, 52, 4, 37, 88, 52, 240, 52, 241, 80, 2, 87,
+    12, 20, 18, 68, 52, 3, 129, 66, 8, 53, 3, 52, 4, 37, 8, 53, 4, 66, 255, 180,
+    34, 137,
+]);
 
 // Globals?
 class IndexerInfo {
@@ -467,7 +480,13 @@ export function parseVAA(vaa: Uint8Array): Map<string, any> {
     ret.set("Meta", "Unknown");
 
     if (
-        !Buffer.compare(extract3(buf, off, 32), Buffer.from("000000000000000000000000000000000000000000546f6b656e427269646765", "hex"))
+        !Buffer.compare(
+            extract3(buf, off, 32),
+            Buffer.from(
+                "000000000000000000000000000000000000000000546f6b656e427269646765",
+                "hex"
+            )
+        )
     ) {
         ret.set("Meta", "TokenBridge");
         ret.set("module", extract3(vaa, off, 32));
@@ -490,7 +509,13 @@ export function parseVAA(vaa: Uint8Array): Map<string, any> {
             off += 32;
         }
     } else if (
-        !Buffer.compare(extract3(buf, off, 32), Buffer.from("00000000000000000000000000000000000000000000000000000000436f7265", "hex"))
+        !Buffer.compare(
+            extract3(buf, off, 32),
+            Buffer.from(
+                "00000000000000000000000000000000000000000000000000000000436f7265",
+                "hex"
+            )
+        )
     ) {
         ret.set("Meta", "CoreGovernance");
         ret.set("module", extract3(vaa, off, 32));
@@ -774,7 +799,7 @@ export async function submitVAAHdr(
             onComplete: OnApplicationComplete.NoOpOC,
             suggestedParams: params,
         });
-        appTxn.fee = 0
+        appTxn.fee = 0;
         txns.push(appTxn);
     }
     const appTxn = makeApplicationCallTxnFromObject({
@@ -785,7 +810,7 @@ export async function submitVAAHdr(
         onComplete: OnApplicationComplete.NoOpOC,
         suggestedParams: params,
     });
-    appTxn.fee = appTxn.fee * (1 + numTxns)
+    appTxn.fee = appTxn.fee * (1 + numTxns);
     txns.push(appTxn);
 
     return new SubmitVAAState(parsedVAA, accts, txns, guardianAddr);
@@ -1089,113 +1114,73 @@ export async function getVAA(
     signedTxns.push(txn.signTxn(sender.sk));
     const { txId } = await client.sendRawTransaction(signedTxns).do();
 
+    let retVal: Uint8Array = new Uint8Array();
+    let nextToken: string = "";
+    let done: boolean = false;
     while (true) {
-        let nextToken: string = "";
-        while (true) {
-            const response: Record<string, any> =
-                await IndexerInfo.getInstance()
-                    .client.searchForTransactions()
-                    .nextToken(nextToken)
-                    .minRound(1)
-                    .notePrefix(textToUint8Array("publishMessage"))
-                    .do();
-            // console.log("getVAA() - response:", response);
-            let transactions = response["transactions"];
-            transactions.forEach((element: any) => {
-                // console.log("transaction element:", element);
-                let innerTxns = element["inner-txns"];
-                console.log("innerTxns:", innerTxns);
-                innerTxns.forEach((el: any) => {
-                    const at = el["application-transaction"];
-                    // console.log("checking at:", at);
-                    if (!at) return;
-                    // console.log("checking app id:", at["application-id"]);
-                    // if (at["application-id"] != CORE_ID) return;
-                    const logs = at["logs"];
-                    if (!logs || logs.length == 0) return;
-                    console.log("checking logs:", at["logs"]);
-                    const args = at["application-args"];
-                    if (args) {
-                        console.log("checking args:", at["application-args"]);
-                    }
-                    if (args.length < 2) return;
-                    if (
-                        Buffer.from(args[0], "base64").toString("hex") !=
-                        textToHexString("publishMessage")
-                    )
-                        return;
-                    const seq = parseSeqFromLog(element);
-                    if (seq != sid) return;
-                    if (el["sender"] != sAddr) return;
-                    const emitter = decodeAddress(el["sender"]);
-                    const payload = Buffer.from(args[1], "base64");
-                    // pprint.pprint([seq, y["sender"], payload.hex()])
-                    // sys.exit(0)
-                    // return self.gt.genVaa(emitter, seq, payload);
-                });
+        const response: Record<string, any> = await IndexerInfo.getInstance()
+            .client.searchForTransactions()
+            .nextToken(nextToken)
+            .minRound(1)
+            .notePrefix(textToUint8Array("publishMessage"))
+            .do();
+        // console.log("getVAA() - response:", response);
+        let transactions = response["transactions"];
+        console.log("outer transaction:", transactions);
+        transactions.forEach((element: any) => {
+            // console.log("transaction element:", element);
+            let innerTxns = element["inner-txns"];
+            console.log("innerTxns:", innerTxns);
+            innerTxns.forEach((el: any) => {
+                const at = el["application-transaction"];
+                // console.log("checking at:", at);
+                if (!at) return;
+                // console.log("checking app id:", at["application-id"]);
+                // if (at["application-id"] != CORE_ID) return;
+                const logs = at["logs"];
+                if (!logs || logs.length == 0) return;
+                console.log("checking logs:", at["logs"]);
+                const args = at["application-args"];
+                if (args) {
+                    console.log("checking args:", at["application-args"]);
+                }
+                if (args.length < 2) return;
+                if (
+                    Buffer.from(args[0], "base64").toString("hex") !=
+                    textToHexString("publishMessage")
+                ) {
+                    return;
+                }
+                const seq = parseSeqFromLog(element);
+                if (seq != sid) return;
+                if (el["sender"] != sAddr) return;
+                const emitter = decodeAddress(el["sender"]);
+                const payload = Buffer.from(args[1], "base64");
+                // pprint.pprint([seq, y["sender"], payload.hex()])
+                // retVal = self.gt.genVaa(emitter, seq, payload);
+                done = true;
+                return;
             });
-            let numTransactions = transactions.length;
-            console.log(
-                "numTransactions",
-                numTransactions,
-                "next-token",
-                nextToken
-            );
-            if (response["next-token"]) {
-                nextToken = response["next-token"];
-                console.log("setting nextToken to", nextToken);
-            } else {
-                IndexerInfo.getInstance().round = response["current-round"] + 1;
-                console.log(
-                    "publishMessage = ",
-                    textToUint8Array("publishMessage")
-                );
-                break;
-            }
+            if (done) return;
+        });
+        if (done) break;
+        let numTransactions = transactions.length;
+        console.log(
+            "numTransactions",
+            numTransactions,
+            "next-token",
+            nextToken
+        );
+        if (response["next-token"]) {
+            nextToken = response["next-token"];
+            console.log("setting nextToken to", nextToken);
+        } else {
+            IndexerInfo.getInstance().round = response["current-round"] + 1;
+            console.log("publishMessage = ", textToHexString("publishMessage"));
+            break;
         }
-        break;
     }
-    // }
-    // }
-    //         while True:
-    //             nexttoken = ""
-    //             while True:
-    //                 response = self.myindexer.search_transactions( min_round=self.INDEXER_ROUND,
-    //note_prefix=self.NOTE_PREFIX, next_page=nexttoken)
-    // #                pprint.pprint(response)
-    //                 for x in response["transactions"]:
-    // #                    pprint.pprint(x)
-    //                     for y in x["inner-txns"]:
-    //                         if "application-transaction" not in y:
-    //                             continue
-    //                         if y["application-transaction"]["application-id"] != self.coreid:
-    //                             continue
-    //                         if len(y["logs"]) == 0:
-    //                             continue
-    //                         args = y["application-transaction"]["application-args"]
-    //                         if len(args) < 2:
-    //                             continue
-    //                         if base64.b64decode(args[0]) != b'publishMessage':
-    //                             continue
-    //                         seq = int.from_bytes(base64.b64decode(y["logs"][0]), "big")
-    //                         if seq != sid:
-    //                             continue
-    //                         if y["sender"] != saddr:
-    //                             continue;
-    //                         emitter = decode_address(y["sender"])
-    //                         payload = base64.b64decode(args[1])
-    // #                        pprint.pprint([seq, y["sender"], payload.hex()])
-    // #                        sys.exit(0)
-    //                         return self.gt.genVaa(emitter, seq, payload)
-
-    //                 if 'next-token' in response:
-    //                     nexttoken = response['next-token']
-    //                 else:
-    //                     self.INDEXER_ROUND = response['current-round'] + 1
-    //                     break
-    //             time.sleep(1)
-    const rv: Uint8Array = new Uint8Array();
-    return rv;
+    return retVal;
 }
 
 export async function transferAsset(
@@ -1372,12 +1357,32 @@ export function redeemOnAlgorand(
 
 /////////// These need to be written
 
-export function getForeignAssetAlgorand() {
+export async function getForeignAssetAlgorand(
+    client: Algodv2,
+    tokenBridgeAddress: string,
+    orginChain: ChainId,
+    originAsset: Uint8Array
+): Promise<string> {
     // TODO:
+    // Somehow check if it is a wrapped asset against the
+    // token bridge address
+    let assetInfo = await IndexerInfo.getInstance()
+        .client.searchForAssets()
+        .do();
+    let retVal: string = "";
+    return retVal;
 }
 
-export function getIsTransferCompletedAlgorand() {
+export function getIsTransferCompletedAlgorand(
+    client: Algodv2,
+    signedVAA: Uint8Array,
+    tokenBridgeAddr: string
+): boolean {
+    let retVal: boolean = false;
     // TODO:
+    // get txn from indexer
+    // if (txn.innerTxn.confirmed-round > 0) retval=true;
+    return retVal;
 }
 
 export function getIsWrappedAssetAlgorand() {
@@ -1386,10 +1391,12 @@ export function getIsWrappedAssetAlgorand() {
 
 export function hexToNativeString() {
     // TODO:
+    // Add the algorand case to sdk/js/src/utils/array.ts
 }
 
 export function nativeToHexString() {
     // TODO:
+    // Add the algorand case to sdk/js/src/utils/array.ts
 }
 
 export async function transferFromAlgorand(
