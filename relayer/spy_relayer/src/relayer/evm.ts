@@ -14,12 +14,12 @@ const logger = getLogger();
 export function newProvider(
   url: string
 ): ethers.providers.WebSocketProvider | ethers.providers.JsonRpcProvider {
-  if (url.startsWith("ws")) {
-    return new ethers.providers.WebSocketProvider(url);
-  } else if (url.startsWith("http")) {
+  // only support http(s), not ws(s) as the websocket constructor can blow up the entire process
+  // it uses a nasty setTimeout(()=>{},0) so we are unable to cleanly catch its errors
+  if (url.startsWith("http")) {
     return new ethers.providers.JsonRpcProvider(url);
   }
-  throw new Error("url does not start with ws or http!");
+  throw new Error("url does not start with http/https!");
 }
 
 export async function relayEVM(

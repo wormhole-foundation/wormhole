@@ -10,7 +10,7 @@
   {
     "chainId": 2,
     "chainName": "ETH",
-    "nodeUrl": "ws://eth-devnet:8545",
+    "nodeUrl": "http://eth-devnet:8545",
     "tokenBridgeAddress": "0x0290FB167208Af455bB137780163b7B7a9a10C16",
     "wrappedAsset": "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E"
   },
@@ -27,7 +27,7 @@
   {
     "chainId": 4,
     "chainName": "BSC",
-    "nodeUrl": "ws://eth-devnet2:8546",
+    "nodeUrl": "http://eth-devnet2:8546",
     "tokenBridgeAddress": "0x0290FB167208Af455bB137780163b7B7a9a10C16",
     "wrappedAsset": "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E"
   }
