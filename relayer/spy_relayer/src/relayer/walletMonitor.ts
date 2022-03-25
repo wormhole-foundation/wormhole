@@ -294,7 +294,7 @@ async function pullEVMNativeBalance(
     balanceAbs: weiAmount.toString(),
     balanceFormatted: balanceInEth.toString(),
     currencyName: chainInfo.nativeCurrencySymbol,
-    currencyAddressNative: chainInfo.chainName,
+    currencyAddressNative: "",
     isNative: true,
     walletAddress: addr,
   };
@@ -386,8 +386,8 @@ async function pullSolanaNativeBalance(
     chainId: chainInfo.chainId,
     balanceAbs: amountLamports,
     balanceFormatted: amountSol,
-    currencyName: chainInfo.chainName,
-    currencyAddressNative: chainInfo.chainName,
+    currencyName: chainInfo.nativeCurrencySymbol,
+    currencyAddressNative: "",
     isNative: true,
     walletAddress: keyPair.publicKey.toString(),
   };
