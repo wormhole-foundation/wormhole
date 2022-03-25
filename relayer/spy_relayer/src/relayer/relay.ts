@@ -49,7 +49,8 @@ export async function relay(
 
     if (isEVMChain(transferPayload.targetChain)) {
       const unwrapNative =
-        transferPayload.originAddress == chainConfigInfo.wrappedAsset;
+        transferPayload.originAddress.toLowerCase() ===
+        chainConfigInfo.wrappedAsset?.toLowerCase();
       logger.debug(
         "isEVMChain: originAddress: [" +
           transferPayload.originAddress +
