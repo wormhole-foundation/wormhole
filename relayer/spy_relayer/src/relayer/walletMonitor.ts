@@ -141,9 +141,6 @@ async function pullEVMBalance(
   privateKey: string,
   tokenAddress: string
 ): Promise<WalletBalance> {
-  if (parseInt(tokenAddress) === 0) {
-    throw new Error("tokenAddress is 0");
-  }
   let provider = newProvider(chainInfo.nodeUrl);
   const signer: Signer = new ethers.Wallet(privateKey, provider);
   const publicAddress = await signer.getAddress();
@@ -503,10 +500,10 @@ async function calcLocalAddressesEVM(
         hexToUint8Array(hexAddress)
       );
     } catch (e) {
-      logger.log("Exception thrown from getForeignAssetEth");
+      logger.error("Exception thrown from getForeignAssetEth");
     }
 
-    if (!foreignAddress) {
+    if (!foreignAddress || foreignAddress === ethers.constants.AddressZero) {
       continue;
     }
     output.push(foreignAddress);
@@ -570,7 +567,7 @@ async function calcLocalAddressesTerra(
         hexToUint8Array(hexAddress)
       );
     } catch (e) {
-      logger.log("Foreign address exception.");
+      logger.error("Foreign address exception.");
     }
 
     if (!foreignAddress) {
@@ -586,19 +583,9 @@ async function pullAllEVMTokens(
   supportedTokens: SupportedToken[],
   chainConfig: ChainConfigInfo
 ) {
-  logger.debug(
-    "chain: %i, supportedTokens: %o",
-    chainConfig.chainId,
-    supportedTokens
-  );
   const localAddresses = await calcLocalAddressesEVM(
     supportedTokens,
     chainConfig
-  );
-  logger.debug(
-    "chain: %i, foreignAddress: %o",
-    chainConfig.chainId,
-    localAddresses
   );
   const output: WalletBalance[] = [];
   if (!chainConfig.walletPrivateKey) {

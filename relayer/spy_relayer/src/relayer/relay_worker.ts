@@ -309,15 +309,22 @@ async function processRequest(
       relayResult = await relay(payload.vaa_bytes, false, myPrivateKey);
       logger.info(
         "[" + myWorkerIdx + "] processRequest() - relay returned: %o",
-        relayResult.status
+        Status[relayResult.status]
       );
     } catch (e: any) {
-      logger.error(
-        "[" +
-          myWorkerIdx +
-          "] processRequest() - failed to relay transfer vaa: %o",
-        e
-      );
+      if (e.message) {
+        logger.error(
+          "[%d] processRequest() - failed to relay transfer vaa: %s",
+          myWorkerIdx,
+          e.message
+        );
+      } else {
+        logger.error(
+          "[%d] processRequest() - failed to relay transfer vaa: %o",
+          myWorkerIdx,
+          e
+        );
+      }
 
       relayResult = {
         status: Status.Error,

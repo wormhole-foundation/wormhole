@@ -93,6 +93,6 @@ export async function relaySolana(
     connection
   );
 
-  logger.info("relaySolana: success: " + success + ", txid: " + txid);
+  logger.info("relaySolana: success: %s, tx hash: %s", success, txid);
   return { redeemed: success, result: txid };
 }

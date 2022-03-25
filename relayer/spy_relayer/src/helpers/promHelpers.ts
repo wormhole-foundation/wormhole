@@ -149,7 +149,6 @@ export class PromHelper {
 
   // Wallet metrics
   handleWalletBalances(balances: WalletBalance[]) {
-    logger.debug("Entered handleWalletBalances...");
     // Walk through each wallet
     // create a gauge for the balance
     // set the gauge
@@ -159,18 +158,6 @@ export class PromHelper {
         if (bal.currencyName.length === 0) {
           bal.currencyName = "UNK";
         }
-        logger.debug(
-          "handleWalletBalance - " +
-            bal.currencyName +
-            " ChainId: " +
-            bal.chainId +
-            " Wallet: " +
-            bal.walletAddress +
-            " Mint: " +
-            bal.currencyAddressNative +
-            " => " +
-            bal.balanceFormatted
-        );
         let formBal: number;
         if (!bal.balanceFormatted) {
           formBal = 0;
@@ -187,11 +174,10 @@ export class PromHelper {
           })
           .set(formBal);
       } catch (e: any) {
-        // logger.error("handleWalletBalances() - caught error: %o", e);
         if (e.message) {
           logger.error("handleWalletBalances() - caught error: " + e.message);
         } else {
-          logger.error("handleWalletBalances() - caught error ");
+          logger.error("handleWalletBalances() - caught error: %o", e);
         }
       }
     }

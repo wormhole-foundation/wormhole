@@ -1,7 +1,8 @@
+import winston = require("winston");
 import { getCommonEnvironment } from "../configureEnv";
 
 //Be careful not to access this before having called init logger, or it will be undefined
-let logger: any;
+let logger: winston.Logger | undefined;
 
 export function getLogger() {
   if (logger) {
@@ -12,8 +13,7 @@ export function getLogger() {
   }
 }
 
-function initLogger() {
-  const winston = require("winston");
+function initLogger(): winston.Logger {
   const loggingEnv = getCommonEnvironment();
 
   let useConsole = true;

@@ -33,15 +33,19 @@ export async function relayEVM(
   let provider = newProvider(chainConfigInfo.nodeUrl);
   const signer: Signer = new ethers.Wallet(walletPrivateKey, provider);
 
-  logger.info(
-    "relayEVM(" +
-      chainConfigInfo.chainName +
-      "): " +
-      (unwrapNative ? ", will unwrap" : "") +
-      ", " +
-      "pubkey : " +
-      signer.getAddress()
-  );
+  if (unwrapNative) {
+    logger.info(
+      "relayEVM(%s): will unwrap, pubkey: %s",
+      chainConfigInfo.chainName,
+      await signer.getAddress()
+    );
+  } else {
+    logger.info(
+      "relayEVM(%s): pubkey: %s",
+      chainConfigInfo.chainName,
+      await signer.getAddress()
+    );
+  }
 
   logger.debug(
     "relayEVM(" +
@@ -96,12 +100,10 @@ export async function relayEVM(
   }
 
   logger.info(
-    "relayEVM(" +
-      chainConfigInfo.chainName +
-      "): success: " +
-      success +
-      ", receipt: %o",
-    receipt
+    "relayEVM(%s): success: %s tx hash: %s",
+    chainConfigInfo.chainName,
+    success,
+    receipt.transactionHash
   );
   return { redeemed: success, result: receipt };
 }
