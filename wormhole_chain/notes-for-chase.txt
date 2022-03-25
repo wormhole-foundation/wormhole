@@ -1,0 +1,36 @@
+--------------------------------------------------------------------------------
+Registration (polygon)
+
+ckiss@R2F2R41 wormhole-chaind % ./main tx tokenbridge execute-governance-vaa 0100000000010019db40bb49a6519e3d15d94cd3569c7a587152862ec99717d42df5dd57882d0e66dee89ff51c9e9b9517fda0d3237946412d0da31a468c18b0a6b50b4e46d5ec01000000010000000100010000000000000000000000000000000000000000000000000000000000000004000000000489b7ee00000000000000000000000000000000000000000000546f6b656e4272696467650100000005000000000000000000000000377d55a7928c046e18eebb61977e714d2a76472a --from tiltGuardian --home ../../build
+
+code: 0
+codespace: ""
+data: 0A3E0A3C2F6365727475736F6E652E776F726D686F6C65636861696E2E746F6B656E6272696467652E4D736745786563757465476F7665726E616E6365564141
+gas_used: "49411"
+gas_wanted: "200000"
+height: "1686"
+info: ""
+logs:
+- events:
+  - attributes:
+    - key: emitterAddress
+      value: '"AAAAAAAAAAAAAAAAN31Vp5KMBG4Y7rthl35xTSp2Ryo="'
+    - key: chainID
+      value: "5"
+    type: certusone.wormholechain.tokenbridge.EventChainRegistered
+  - attributes:
+    - key: action
+      value: ExecuteGovernanceVAA
+    type: message
+  log: ""
+  msg_index: 0
+raw_log: '[{"events":[{"type":"certusone.wormholechain.tokenbridge.EventChainRegistered","attributes":[{"key":"emitterAddress","value":"\"AAAAAAAAAAAAAAAAN31Vp5KMBG4Y7rthl35xTSp2Ryo=\""},{"key":"chainID","value":"5"}]},{"type":"message","attributes":[{"key":"action","value":"ExecuteGovernanceVAA"}]}]}]'
+timestamp: ""
+tx: null
+txhash: BA52B1E363322730E40BB203D73FBDBD93853CD1057C0DC975F2BC36B7E8A907
+
+--------------------------------------------------------------------------------
+Send 100 utest out
+./main tx tokenbridge transfer 100utest 5 000000000000000000000000e99c31abdcbed4e6d31d276b04e02a6fd4b1a861 0 --from tiltGuardian --home ../../build
+
+--------------------------------------------------------------------------------
