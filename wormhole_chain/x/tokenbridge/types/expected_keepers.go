@@ -26,5 +26,5 @@ type WormholeKeeper interface {
 	// Methods imported from wormhole should be defined here
 	VerifyVAA(ctx sdk.Context, vaa *vaa.VAA) error
 	GetConfig(ctx sdk.Context) (val types.Config, found bool)
-	PostMessage(ctx sdk.Context, emitter []byte, nonce uint32, data []byte) error
+	PostMessage(ctx sdk.Context, emitter types.EmitterAddress, nonce uint32, data []byte) error
 }

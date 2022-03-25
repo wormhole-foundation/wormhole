@@ -75,7 +75,9 @@ func (k msgServer) AttestToken(goCtx context.Context, msg *types.MsgAttestToken)
 	buf.Write(nameBytes)
 
 	// Post message
-	err = k.wormholeKeeper.PostMessage(ctx, k.accountKeeper.GetModuleAddress(types.ModuleName), 0, buf.Bytes())
+	moduleAddress := k.accountKeeper.GetModuleAddress(types.ModuleName)
+	emitterAddress := whtypes.EmitterAddressFromAccAddress(moduleAddress)
+	err = k.wormholeKeeper.PostMessage(ctx, emitterAddress, 0, buf.Bytes())
 	if err != nil {
 		return nil, err
 	}
@@ -96,10 +98,8 @@ func PadStringToByte32(s string) ([]byte, error) {
 		return nil, fmt.Errorf("string is too long; %d > 32", len(s))
 	}
 
-	out := make([]byte, 32)
-	for i := 32 - len(s); i < 32; i++ {
-		out[i] = s[i-(32-len(s))]
-	}
+	b := []byte(s)
 
-	return out, nil
+	left := make([]byte, 32-len(s))
+	return append(left[:], b[:]...), nil
 }
