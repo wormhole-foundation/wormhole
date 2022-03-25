@@ -76,14 +76,12 @@ import algosdk, {
 } from "algosdk";
 import {
     attestFromAlgorand,
-    CORE_ID,
     getAlgoClient,
     getBalances,
     getMessageFee,
     getVAA,
     optin,
     parseVAA,
-    TOKEN_BRIDGE_ID,
 } from "../Algorand";
 import { createAsset, getTempAccounts } from "../Helpers";
 
@@ -996,6 +994,8 @@ describe("Integration Tests", () => {
         test("Test optin", (done) => {
             (async () => {
                 try {
+                    const CORE_ID: number = 4;
+                    const TOKEN_BRIDGE_ID: number = 6;
                     const client: algosdk.Algodv2 = getAlgoClient();
                     // Create a wallet
                     const tempAccts: Account[] = await getTempAccounts();
@@ -1082,6 +1082,8 @@ describe("Integration Tests", () => {
         test.only("unit tests", (done) => {
             (async () => {
                 try {
+                    const CORE_ID: number = 4;
+                    const TOKEN_BRIDGE_ID: number = 6;
                     console.log("starting unit tests...");
                     console.log("getting client...");
                     const client: algosdk.Algodv2 = getAlgoClient();
