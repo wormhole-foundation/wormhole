@@ -47,6 +47,7 @@ function initLogger(): winston.Logger {
   }
 
   const logConfiguration = {
+    defaultMeta: { labels: [] },
     transports: [transport],
     format: winston.format.combine(
       winston.format.splat(),
@@ -55,7 +56,12 @@ function initLogger(): winston.Logger {
         format: "YYYY-MM-DD HH:mm:ss.SSS",
       }),
       winston.format.printf(
-        (info: any) => `${[info.timestamp]}|${info.level}|${info.message}`
+        (info: any) =>
+          `${[info.timestamp]}|${info.level}|${
+            info.labels && info.labels.length > 0
+              ? `${info.labels.join("|")}|`
+              : ""
+          }${info.message}`
       )
     ),
   };

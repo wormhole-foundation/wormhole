@@ -67,4 +67,5 @@ see .env.tilt.relayer for an example
 - PROM_PORT - port where prometheus monitoring will listen
 - READINESS_PORT - port for kubernetes readiness probe
 - CLEAR_REDIS_ON_INIT - boolean, if TRUE the relayer will clear the PENDING and WORKING Redis tables before it starts up.
+- DEMOTE_WORKING_ON_INIT - boolean, if TRUE the relayer will move everything from the WORKING Redis table to the PENDING one.
 - LOG_LEVEL - log level, debug or info

@@ -450,7 +450,7 @@ export const getMetaplexData = async (
           const MetadataParsed = decodeMetadata(account.data);
           return MetadataParsed;
         } catch (e) {
-          console.error(e);
+          // console.error(e);
           return undefined;
         }
       } else {

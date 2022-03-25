@@ -190,7 +190,7 @@ export function initPayload(): StorePayload {
   return {
     vaa_bytes: "",
     status: Status.Pending,
-    timestamp: Date().toString(),
+    timestamp: new Date().toISOString(),
     retries: 0,
   };
 }
@@ -281,5 +281,26 @@ export async function clearRedis() {
     return;
   }
   await redisClient.FLUSHALL();
+  redisClient.quit();
+}
+
+export async function demoteWorkingRedis() {
+  const redisClient = await connectToRedis();
+  if (!redisClient) {
+    logger.error("Failed to connect to redis to clear tables.");
+    return;
+  }
+  await redisClient.select(RedisTables.WORKING);
+  for await (const si_key of redisClient.scanIterator()) {
+    const si_value = await redisClient.get(si_key);
+    if (!si_value) {
+      continue;
+    }
+
+    await redisClient.del(si_key);
+    await redisClient.select(RedisTables.INCOMING);
+    await redisClient.set(si_key, si_value);
+    await redisClient.select(RedisTables.WORKING);
+  }
   redisClient.quit();
 }

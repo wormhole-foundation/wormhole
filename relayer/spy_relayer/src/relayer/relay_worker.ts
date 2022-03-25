@@ -6,6 +6,7 @@ import { PromHelper } from "../helpers/promHelpers";
 import {
   clearRedis,
   connectToRedis,
+  demoteWorkingRedis,
   RedisTables,
   RelayResult,
   Status,
@@ -110,25 +111,27 @@ async function spawnAuditorThread(workerInfo: WorkerInfo) {
 //One auditor thread should be spawned per worker. This is perhaps overkill, but auditors
 //should not be allowed to block workers, or other auditors.
 async function doAuditorThread(workerInfo: WorkerInfo) {
+  const auditLogger = logger.child({
+    labels: [`audit-worker-${workerInfo.index}`],
+  });
   while (true) {
     try {
       let redisClient: any = null;
       while (!redisClient) {
         redisClient = await connectToRedis();
         if (!redisClient) {
-          logger.error("audit worker failed to connect to redis!");
+          auditLogger.error("Failed to connect to redis!");
           await sleep(REDIS_RETRY_MS);
         }
       }
       await redisClient.select(RedisTables.WORKING);
-      let now: Date = new Date();
       for await (const si_key of redisClient.scanIterator()) {
         const si_value = await redisClient.get(si_key);
         if (!si_value) {
           continue;
         }
 
-        let storePayload: StorePayload = storePayloadFromJson(si_value);
+        const storePayload: StorePayload = storePayloadFromJson(si_value);
         try {
           const { parse_vaa } = await importCoreWasm();
           const parsedVAA = parse_vaa(hexToUint8Array(storePayload.vaa_bytes));
@@ -140,19 +143,16 @@ async function doAuditorThread(workerInfo: WorkerInfo) {
             continue;
           }
         } catch (e) {
-          logger.error("Audit worker Failed to parse a stored VAA: " + e);
-          logger.error("si_value of failure: " + si_value);
+          auditLogger.error("Failed to parse a stored VAA: " + e);
+          auditLogger.error("si_value of failure: " + si_value);
           continue;
         }
-        logger.debug(
-          "audit thread: si_key " +
-            si_key +
-            " => status: " +
-            storePayload.status +
-            ", timestamp: " +
-            storePayload.timestamp +
-            ", retries: " +
-            storePayload.retries
+        auditLogger.debug(
+          "key %s => status: %s, timestamp: %s, retries: %d",
+          si_key,
+          Status[storePayload.status],
+          storePayload.timestamp,
+          storePayload.retries
         );
         // Let things sit in here for 10 minutes
         // After that:
@@ -160,14 +160,15 @@ async function doAuditorThread(workerInfo: WorkerInfo) {
         //    - Check to see if successful transactions were rolled back
         //    - Put roll backs into INCOMING table
         //    - Toss legitimately completed transactions
-        let old: Date = new Date(storePayload.timestamp);
-        let timeDelta: number = now.getTime() - old.getTime(); // delta is in mS
+        const now = new Date();
+        const old = new Date(storePayload.timestamp);
+        const timeDelta = now.getTime() - old.getTime(); // delta is in mS
         const TEN_MINUTES = 600000;
-        logger.debug(
-          "Audit worker checking timestamps:  now: " +
-            now.toString() +
+        auditLogger.debug(
+          "Checking timestamps:  now: " +
+            now.toISOString() +
             ", old: " +
-            old.toString() +
+            old.toISOString() +
             ", delta: " +
             timeDelta
         );
@@ -175,12 +176,12 @@ async function doAuditorThread(workerInfo: WorkerInfo) {
           // Deal with this item
           if (storePayload.status === Status.FatalError) {
             // Done with this failed transaction
-            logger.debug("Audit thread: discarding FatalError.");
+            auditLogger.debug("Discarding FatalError.");
             await redisClient.del(si_key);
             continue;
           } else if (storePayload.status === Status.Completed) {
             // Check for rollback
-            logger.debug("Audit thread: checking for rollback.");
+            auditLogger.debug("Checking for rollback.");
 
             //TODO actually do an isTransferCompleted
             const rr = await relay(
@@ -191,26 +192,20 @@ async function doAuditorThread(workerInfo: WorkerInfo) {
 
             await redisClient.del(si_key);
             if (rr.status !== Status.Completed) {
-              logger.info("Detected a rollback on " + si_key);
+              auditLogger.info("Detected a rollback on " + si_key);
               // Remove this item from the WORKING table and move it to INCOMING
               await redisClient.select(RedisTables.INCOMING);
               await redisClient.set(si_key, si_value);
               await redisClient.select(RedisTables.WORKING);
             }
           } else if (storePayload.status === Status.Error) {
-            logger.error("Audit thread received Error status.");
+            auditLogger.error("Received Error status.");
             continue;
           } else if (storePayload.status === Status.Pending) {
-            logger.error("Audit thread received Pending status.");
+            auditLogger.error("Received Pending status.");
             continue;
           } else {
-            logger.error(
-              "Audit thread: Unhandled Status of " + storePayload.status
-            );
-            console.log(
-              "Audit thread: Unhandled Status of ",
-              storePayload.status
-            );
+            auditLogger.error("Unhandled Status of " + storePayload.status);
             continue;
           }
         }
@@ -219,7 +214,7 @@ async function doAuditorThread(workerInfo: WorkerInfo) {
       // metrics.setDemoWalletBalance(now.getUTCSeconds());
       await sleep(AUDIT_INTERVAL_MS);
     } catch (e) {
-      logger.error("spawnAuditorThread: caught exception: " + e);
+      auditLogger.error("spawnAuditorThread: caught exception: " + e);
     }
   }
 }
@@ -230,6 +225,9 @@ export async function run(ph: PromHelper) {
   if (relayerEnv.clearRedisOnInit) {
     logger.info("Clearing REDIS as per tunable...");
     await clearRedis();
+  } else if (relayerEnv.demoteWorkingOnInit) {
+    logger.info("Demoting Working to Incoming as per tunable...");
+    await demoteWorkingRedis();
   } else {
     logger.info("NOT clearing REDIS.");
   }

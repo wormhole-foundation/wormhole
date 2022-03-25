@@ -84,6 +84,7 @@ export type RelayerEnvironment = {
   redisHost: string;
   redisPort: number;
   clearRedisOnInit: boolean;
+  demoteWorkingOnInit: boolean;
   supportedTokens: { chainId: ChainId; address: string }[];
 };
 
@@ -227,6 +228,7 @@ const createRelayerEnvironment: () => RelayerEnvironment = () => {
   let redisHost: string;
   let redisPort: number;
   let clearRedisOnInit: boolean;
+  let demoteWorkingOnInit: boolean;
   let supportedTokens: { chainId: ChainId; address: string }[] = [];
 
   if (!process.env.REDIS_HOST) {
@@ -250,6 +252,18 @@ const createRelayerEnvironment: () => RelayerEnvironment = () => {
       clearRedisOnInit = true;
     } else {
       clearRedisOnInit = false;
+    }
+  }
+
+  if (process.env.DEMOTE_WORKING_ON_INIT === undefined) {
+    throw new Error(
+      "Missing required environment variable: DEMOTE_WORKING_ON_INIT"
+    );
+  } else {
+    if (process.env.DEMOTE_WORKING_ON_INIT.toLowerCase() === "true") {
+      demoteWorkingOnInit = true;
+    } else {
+      demoteWorkingOnInit = false;
     }
   }
 
@@ -281,6 +295,7 @@ const createRelayerEnvironment: () => RelayerEnvironment = () => {
     redisHost,
     redisPort,
     clearRedisOnInit,
+    demoteWorkingOnInit,
     supportedTokens,
   };
 };
