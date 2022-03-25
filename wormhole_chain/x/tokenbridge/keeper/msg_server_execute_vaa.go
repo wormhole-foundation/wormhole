@@ -86,12 +86,21 @@ func (k msgServer) ExecuteVAA(goCtx context.Context, msg *types.MsgExecuteVAA) (
 		}
 
 		identifier := ""
+		mint := false
 		if IsHOLEToken(tokenChain, tokenAddress) {
-			identifier = "hole"
+			identifier = "uhole"
+			// We mint wormhole tokens because they are not native to wormhole chain
+			mint = true
 		} else if uint32(tokenChain) != wormholeConfig.ChainId {
 			// Mint new wrapped assets if the coin is from another chain
 			identifier = "b" + GetWrappedCoinIdentifier(tokenChain, tokenAddress)
+			mint = true
+		} else {
+			// Recover the coin denom from the token address if it's a native coin
+			identifier = strings.TrimLeft(string(tokenAddress[:]), "\x00")
+		}
 
+		if mint {
 			err = k.bankKeeper.MintCoins(ctx, types.ModuleName, sdk.Coins{
 				{
 					Denom:  identifier,
@@ -101,9 +110,6 @@ func (k msgServer) ExecuteVAA(goCtx context.Context, msg *types.MsgExecuteVAA) (
 			if err != nil {
 				return nil, err
 			}
-		} else {
-			// Recover the coin denom from the token address if it's a native coin
-			identifier = strings.TrimLeft(string(tokenAddress[:]), "\x00")
 		}
 
 		meta, found := k.bankKeeper.GetDenomMetaData(ctx, identifier)
@@ -133,13 +139,14 @@ func (k msgServer) ExecuteVAA(goCtx context.Context, msg *types.MsgExecuteVAA) (
 
 		moduleAccount := k.accountKeeper.GetModuleAddress(types.ModuleName)
 
-		// Transfer amount to recipient
-		err = k.bankKeeper.SendCoins(ctx, moduleAccount, to[:], sdk.Coins{
+		amtLessFees := sdk.Coins{
 			{
 				Denom:  identifier,
 				Amount: sdk.NewIntFromBigInt(new(big.Int).Sub(amount, fee)),
 			},
-		})
+		}
+
+		err = k.bankKeeper.SendCoins(ctx, moduleAccount, to[:], amtLessFees)
 		if err != nil {
 			return nil, err
 		}
@@ -243,7 +250,7 @@ func (k msgServer) ExecuteVAA(goCtx context.Context, msg *types.MsgExecuteVAA) (
 
 func IsHOLEToken(tokenChain uint16, tokenAddress [32]byte) bool {
 	// TODO: figure out HOLE token address on Solana
-	return tokenChain == 1 && tokenAddress == [32]byte{0}
+	return tokenChain == 1 && tokenAddress == [32]byte{0x16, 0x58, 0x09, 0x73, 0x92, 0x40, 0xa0, 0xac, 0x03, 0xb9, 0x84, 0x40, 0xfe, 0x89, 0x85, 0x54, 0x8e, 0x3a, 0xa6, 0x83, 0xcd, 0x0d, 0x4d, 0x9d, 0xf5, 0xb5, 0x65, 0x96, 0x69, 0xfa, 0xa3, 0x01}
 }
 
 func GetWrappedCoinIdentifier(tokenChain uint16, tokenAddress [32]byte) string {
