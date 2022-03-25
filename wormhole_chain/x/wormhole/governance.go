@@ -62,7 +62,12 @@ func handleGuardianSetUpdateProposal(ctx sdk.Context, k keeper.Keeper, proposal 
 		message.Write(key)
 	}
 
-	err = k.PostMessage(ctx, config.GovernanceEmitter, 0, message.Bytes())
+	emitterAddress, err := types.EmitterAddressFromBytes32(config.GovernanceEmitter)
+	if err != nil {
+		return fmt.Errorf("failed to post message: %w", err)
+	}
+
+	err = k.PostMessage(ctx, emitterAddress, 0, message.Bytes())
 	if err != nil {
 		return fmt.Errorf("failed to post message: %w", err)
 	}
@@ -83,7 +88,12 @@ func handleGovernanceWormholeMessageProposal(ctx sdk.Context, k keeper.Keeper, p
 	MustWrite(message, binary.BigEndian, uint16(proposal.TargetChain))
 	message.Write(proposal.Payload)
 
-	err := k.PostMessage(ctx, config.GovernanceEmitter, 0, message.Bytes())
+	emitterAddress, err := types.EmitterAddressFromBytes32(config.GovernanceEmitter)
+	if err != nil {
+		return fmt.Errorf("failed to post message: %w", err)
+	}
+
+	err = k.PostMessage(ctx, emitterAddress, 0, message.Bytes())
 	if err != nil {
 		return fmt.Errorf("failed to post message: %w", err)
 	}
