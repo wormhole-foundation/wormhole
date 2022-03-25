@@ -165,7 +165,7 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
                 Approve()
             ])
 
-        def hdlGovernance():
+        def hdlGovernance(isBoot: Expr):
             off = ScratchVar()
             a = ScratchVar()
             emitter = ScratchVar()
@@ -226,12 +226,22 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
                         # Lets see if the user handed us the correct memory... no hacky hacky
                         Assert(Txn.accounts[3] == get_sig_address(idx.load(), Bytes("guardian"))), 
 
+                        # Make sure it is different and we can only walk forward
+                        If(isBoot == Int(0), Seq(
+                                Assert(Txn.accounts[3] != Txn.accounts[2]),
+                                Assert(idx.load() > (set.load()))
+                        )),
+
                         # Write this away till the next time
-                        App.globalPut(Bytes("currentGuardianSetIndex"), Btoi(v.load())),
+                        App.globalPut(Bytes("currentGuardianSetIndex"), idx.load()),
 
                         # Write everything out to the auxilliary storage
                         off.store(off.load() + Int(4)),
                         len.store(Btoi(Extract(Txn.application_args[1], off.load(), Int(1)))),
+
+                        # Lets not let us get bricked by somebody submitting a stupid guardian set...
+                        Assert(len.load() > Int(0)),  
+
                         Pop(blob.write(Int(3), Int(0), Extract(Txn.application_args[1], off.load(), Int(1) + (Int(20) * len.load())))),
                         # Make this block expire.. as long as it is
                         # not being used to sign itself.  We stick the
@@ -288,7 +298,7 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
                 checkForDuplicate(),
 
                 # You can do anything you set your mind to...
-                hdlGovernance()
+                hdlGovernance(Int(1))
             ])
 
         def verifySigs():
@@ -465,7 +475,7 @@ def getCoreContracts(   genTeal, approve_name, clear_name,
                     Gtxn[Txn.group_index() - Int(1)].accounts[2] == Txn.accounts[2],
                 )),
                     
-                hdlGovernance(),
+                hdlGovernance(Int(0)),
                 Approve(),
             ])
 
