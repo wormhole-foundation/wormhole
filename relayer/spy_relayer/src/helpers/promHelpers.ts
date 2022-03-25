@@ -52,7 +52,13 @@ export class PromHelper {
   private walletBalance = new client.Gauge({
     name: "spy_relay_wallet_balance",
     help: "Wallet balance for a supported token",
-    labelNames: ["currency", "chain_name", "wallet", "currency_address"],
+    labelNames: [
+      "currency",
+      "chain_name",
+      "wallet",
+      "currency_address",
+      "is_native",
+    ],
   });
   // End metrics
 
@@ -177,6 +183,7 @@ export class PromHelper {
             chain_name: chainIDStrings[bal.chainId],
             wallet: bal.walletAddress,
             currency_address: bal.currencyAddressNative,
+            is_native: bal.isNative ? "1" : "0",
           })
           .set(formBal);
       } catch (e: any) {

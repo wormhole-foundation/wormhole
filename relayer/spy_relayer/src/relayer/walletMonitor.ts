@@ -36,6 +36,7 @@ export type WalletBalance = {
   balanceFormatted?: string;
   currencyName: string;
   currencyAddressNative: string;
+  isNative: boolean;
   walletAddress: string;
 };
 
@@ -167,6 +168,7 @@ async function pullEVMBalance(
     balanceFormatted: balanceFormatted,
     currencyName: symbol,
     currencyAddressNative: tokenAddress,
+    isNative: false,
     walletAddress: publicAddress,
   };
 }
@@ -221,6 +223,7 @@ async function pullTerraBalance(
     ),
     currencyName: tokenInfo.symbol,
     currencyAddressNative: tokenAddress,
+    isNative: false,
     walletAddress: walletAddress,
   };
 }
@@ -283,6 +286,7 @@ async function pullSolanaTokenBalances(
           account.account.data.parsed?.info?.tokenAmount?.uiAmount,
         currencyName: cName,
         currencyAddressNative: account.account.data.parsed?.info?.mint,
+        isNative: false,
         walletAddress: account.pubkey.toString(),
       });
     }
@@ -328,6 +332,7 @@ async function pullEVMNativeBalance(
     balanceFormatted: balanceInEth.toString(),
     currencyName: chainInfo.chainName,
     currencyAddressNative: chainInfo.chainName,
+    isNative: true,
     walletAddress: addr,
   };
 }
@@ -391,6 +396,7 @@ async function pullTerraNativeBalance(
       balanceFormatted: formatUnits(balance[key], 6).toString(),
       currencyName: key,
       currencyAddressNative: key,
+      isNative: true,
       walletAddress: walletAddress,
     });
   });
@@ -416,6 +422,7 @@ async function pullSolanaNativeBalance(
       balanceFormatted: "0",
       currencyName: chainInfo.chainName,
       currencyAddressNative: chainInfo.chainName,
+      isNative: true,
       walletAddress: keyPair.publicKey.toString(),
     };
   }
@@ -432,6 +439,7 @@ async function pullSolanaNativeBalance(
     balanceFormatted: amountSol,
     currencyName: chainInfo.chainName,
     currencyAddressNative: chainInfo.chainName,
+    isNative: true,
     walletAddress: keyPair.publicKey.toString(),
   };
 }
