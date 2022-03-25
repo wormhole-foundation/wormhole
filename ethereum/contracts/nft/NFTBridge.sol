@@ -20,7 +20,7 @@ contract NFTBridge is NFTBridgeGovernance {
     using BytesLib for bytes;
 
     // Initiate a Transfer
-    function transferNFT(address token, uint256 tokenID, uint16 recipientChain, bytes32 recipient, uint32 nonce) public payable isEnabled() returns (uint64 sequence) {
+    function transferNFT(address token, uint256 tokenID, uint16 recipientChain, bytes32 recipient, uint32 nonce) public payable isEnabled returns (uint64 sequence) {
         // determine token parameters
         uint16 tokenChain;
         bytes32 tokenAddress;
@@ -97,7 +97,7 @@ contract NFTBridge is NFTBridgeGovernance {
         }(nonce, encoded, 15);
     }
 
-    function completeTransfer(bytes memory encodedVm) public isEnabled() {     
+    function completeTransfer(bytes memory encodedVm) public isEnabled {     
         _completeTransfer(encodedVm);
     }
 
