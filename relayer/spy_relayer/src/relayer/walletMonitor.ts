@@ -25,6 +25,7 @@ import { PromHelper } from "../helpers/promHelpers";
 import { getMetaplexData, sleep } from "../helpers/utils";
 import { getEthereumToken } from "../utils/ethereum";
 import { getMultipleAccountsRPC } from "../utils/solana";
+import { formatNativeDenom } from "../utils/terra";
 import { newProvider } from "./evm";
 
 let env: RelayerEnvironment;
@@ -146,13 +147,9 @@ async function pullEVMBalance(
   const publicAddress = await signer.getAddress();
 
   const token = await getEthereumToken(tokenAddress, provider);
-  // logger.debug("About to get decimals...");
   const decimals = await token.decimals();
-  // logger.debug("About to get balance...");
   const balance = await token.balanceOf(await signer.getAddress());
-  // logger.debug("About to get symbol...");
   const symbol = await token.symbol();
-  //const name = await token.name();
   const balanceFormatted = formatUnits(balance, decimals);
 
   if (provider instanceof ethers.providers.WebSocketProvider) {
@@ -244,38 +241,18 @@ async function pullSolanaTokenBalances(
       mintAddresses.push(account.account.data.parsed?.info?.mint);
     });
     const mdArray = await getMetaplexData(mintAddresses, chainInfo);
-    logger.debug(
-      "pullSolanaTokenBalances() - mdArray.size = " + mdArray.length
-    );
-    mdArray.forEach((el) => {
-      if (el && el.data && el?.data.symbol) {
-        logger.debug(
-          "pullSolanaTokenBalances() - el.data.symbol: " + el.data.symbol
-        );
-      }
-    });
 
     for (const account of allAccounts.value) {
       let mintAddress: string[] = [];
       mintAddress.push(account.account.data.parsed?.info?.mint);
       const mdArray = await getMetaplexData(mintAddress, chainInfo);
-      logger.debug(
-        "pullSolanaTokenBalances() - mdArray.size = " + mdArray.length
-      );
       let cName: string = "";
       if (mdArray && mdArray[0] && mdArray[0].data && mdArray[0].data.symbol) {
         const encoded = mdArray[0].data.symbol;
         cName = encodeURIComponent(encoded);
         cName = cName.replace(/%/g, "_");
-        logger.debug(
-          "pullSolanaTokenBalances() - encoded: " +
-            encoded +
-            ", cName: " +
-            cName
-        );
       }
 
-      logger.debug("pullSolanaTokenBalances() - pushing output...");
       output.push({
         chainId: CHAIN_ID_SOLANA,
         balanceAbs: account.account.data.parsed?.info?.tokenAmount?.amount,
@@ -290,7 +267,6 @@ async function pullSolanaTokenBalances(
   } catch (e) {
     logger.error("pullSolanaTokenBalances() - ", e);
   }
-  logger.debug("pullSolanaTokenBalances() - output: %o", output);
 
   return output;
 }
@@ -313,21 +289,11 @@ async function pullEVMNativeBalance(
     await provider.destroy();
   }
 
-  logger.debug(
-    "chainId: " +
-      chainInfo.chainId +
-      ", balanceAbs: " +
-      weiAmount.toString() +
-      ", balanceFormatted: " +
-      balanceInEth.toString() +
-      ", currencyName: " +
-      chainInfo.chainName
-  );
   return {
     chainId: chainInfo.chainId,
     balanceAbs: weiAmount.toString(),
     balanceFormatted: balanceInEth.toString(),
-    currencyName: chainInfo.chainName,
+    currencyName: chainInfo.nativeCurrencySymbol,
     currencyAddressNative: chainInfo.chainName,
     isNative: true,
     walletAddress: addr,
@@ -365,39 +331,25 @@ async function pullTerraNativeBalance(
   });
   const wallet = lcd.wallet(mk);
   const walletAddress = wallet.key.accAddress;
-  // logger.debug("Terra wallet address: " + walletAddress);
 
   const [coins] = await lcd.bank.balance(walletAddress);
   // coins doesn't support reduce
   const balancePairs = coins.map(({ amount, denom }) => [denom, amount]);
   const balance = balancePairs.reduce((obj, current) => {
     obj[current[0].toString()] = current[1].toString();
-    // logger.debug("Terra coins thingy: " + current[0] + ", => " + current[1]);
-    // logger.debug("TerraBalance returning reduced obj: %o", obj);
     return obj;
   }, {} as TerraNativeBalances);
   Object.keys(balance).forEach((key) => {
-    logger.debug(
-      "chainId: " +
-        chainInfo.chainId +
-        ", balanceAbs: " +
-        balance[key] +
-        ", balanceFormatted: " +
-        formatUnits(balance[key], 6).toString() +
-        ", currencyName: " +
-        key
-    );
     output.push({
       chainId: chainInfo.chainId,
       balanceAbs: balance[key],
       balanceFormatted: formatUnits(balance[key], 6).toString(),
-      currencyName: key,
+      currencyName: formatNativeDenom(key),
       currencyAddressNative: key,
       isNative: true,
       walletAddress: walletAddress,
     });
   });
-  // logger.debug("TerraBalance returning: %o", output);
   return output;
 }
 
@@ -417,7 +369,7 @@ async function pullSolanaNativeBalance(
       chainId: chainInfo.chainId,
       balanceAbs: "0",
       balanceFormatted: "0",
-      currencyName: chainInfo.chainName,
+      currencyName: chainInfo.nativeCurrencySymbol,
       currencyAddressNative: chainInfo.chainName,
       isNative: true,
       walletAddress: keyPair.publicKey.toString(),
@@ -622,7 +574,6 @@ async function pullAllTerraTokens(
     supportedTokens,
     chainConfig
   );
-  logger.debug("pullAllTerraTokens() - localAddresses: %o", localAddresses);
   const output: WalletBalance[] = [];
   if (!chainConfig.walletPrivateKey) {
     return output;

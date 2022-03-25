@@ -2,6 +2,7 @@
   {
     "chainId": 1,
     "chainName": "Solana",
+    "nativeCurrencySymbol": "SOL",
     "nodeUrl": "http://solana-devnet:8899",
     "tokenBridgeAddress": "0x0290FB167208Af455bB137780163b7B7a9a10C16",
     "bridgeAddress": "Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o",
@@ -9,7 +10,8 @@
   },
   {
     "chainId": 2,
-    "chainName": "ETH",
+    "chainName": "Ethereum",
+    "nativeCurrencySymbol": "ETH",
     "nodeUrl": "http://eth-devnet:8545",
     "tokenBridgeAddress": "0x0290FB167208Af455bB137780163b7B7a9a10C16",
     "wrappedAsset": "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E"
@@ -17,6 +19,7 @@
   {
     "chainId": 3,
     "chainName": "Terra",
+    "nativeCurrencySymbol": "LUNA",
     "nodeUrl": "http://terra-terrad:1317",
     "tokenBridgeAddress": "terra10pyejy66429refv3g35g2t7am0was7ya7kz2a4",
     "terraName": "localterra",
@@ -26,7 +29,8 @@
   },
   {
     "chainId": 4,
-    "chainName": "BSC",
+    "chainName": "Binance Smart Chain",
+    "nativeCurrencySymbol": "BNB",
     "nodeUrl": "http://eth-devnet2:8546",
     "tokenBridgeAddress": "0x0290FB167208Af455bB137780163b7B7a9a10C16",
     "wrappedAsset": "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E"

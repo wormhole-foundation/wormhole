@@ -90,6 +90,7 @@ export type RelayerEnvironment = {
 export type ChainConfigInfo = {
   chainId: ChainId;
   chainName: string;
+  nativeCurrencySymbol: string;
   nodeUrl: string;
   tokenBridgeAddress: string;
   walletPrivateKey?: string[];
@@ -343,6 +344,7 @@ function createSolanaChainConfig(
 ): ChainConfigInfo {
   let chainId: ChainId;
   let chainName: string;
+  let nativeCurrencySymbol: string;
   let nodeUrl: string;
   let tokenBridgeAddress: string;
   let solanaPrivateKey: Uint8Array[] = [];
@@ -354,6 +356,11 @@ function createSolanaChainConfig(
   }
   if (!config.chainName) {
     throw new Error("Missing required field in chain config: chainName");
+  }
+  if (!config.nativeCurrencySymbol) {
+    throw new Error(
+      "Missing required field in chain config: nativeCurrencySymbol"
+    );
   }
   if (!config.nodeUrl) {
     throw new Error("Missing required field in chain config: nodeUrl");
@@ -377,6 +384,7 @@ function createSolanaChainConfig(
 
   chainId = config.chainId;
   chainName = config.chainName;
+  nativeCurrencySymbol = config.nativeCurrencySymbol;
   nodeUrl = config.nodeUrl;
   tokenBridgeAddress = config.tokenBridgeAddress;
   bridgeAddress = config.bridgeAddress;
@@ -396,6 +404,7 @@ function createSolanaChainConfig(
   return {
     chainId,
     chainName,
+    nativeCurrencySymbol,
     nodeUrl,
     tokenBridgeAddress,
     bridgeAddress,
@@ -410,6 +419,7 @@ function createTerraChainConfig(
 ): ChainConfigInfo {
   let chainId: ChainId;
   let chainName: string;
+  let nativeCurrencySymbol: string;
   let nodeUrl: string;
   let tokenBridgeAddress: string;
   let walletPrivateKey: string[];
@@ -423,6 +433,11 @@ function createTerraChainConfig(
   }
   if (!config.chainName) {
     throw new Error("Missing required field in chain config: chainName");
+  }
+  if (!config.nativeCurrencySymbol) {
+    throw new Error(
+      "Missing required field in chain config: nativeCurrencySymbol"
+    );
   }
   if (!config.nodeUrl) {
     throw new Error("Missing required field in chain config: nodeUrl");
@@ -450,6 +465,7 @@ function createTerraChainConfig(
 
   chainId = config.chainId;
   chainName = config.chainName;
+  nativeCurrencySymbol = config.nativeCurrencySymbol;
   nodeUrl = config.nodeUrl;
   tokenBridgeAddress = config.tokenBridgeAddress;
   walletPrivateKey = privateKeys;
@@ -461,6 +477,7 @@ function createTerraChainConfig(
   return {
     chainId,
     chainName,
+    nativeCurrencySymbol,
     nodeUrl,
     tokenBridgeAddress,
     walletPrivateKey,
@@ -477,6 +494,7 @@ function createEvmChainConfig(
 ): ChainConfigInfo {
   let chainId: ChainId;
   let chainName: string;
+  let nativeCurrencySymbol: string;
   let nodeUrl: string;
   let tokenBridgeAddress: string;
   let walletPrivateKey: string[];
@@ -487,6 +505,11 @@ function createEvmChainConfig(
   }
   if (!config.chainName) {
     throw new Error("Missing required field in chain config: chainName");
+  }
+  if (!config.nativeCurrencySymbol) {
+    throw new Error(
+      "Missing required field in chain config: nativeCurrencySymbol"
+    );
   }
   if (!config.nodeUrl) {
     throw new Error("Missing required field in chain config: nodeUrl");
@@ -507,6 +530,7 @@ function createEvmChainConfig(
   }
   chainId = config.chainId;
   chainName = config.chainName;
+  nativeCurrencySymbol = config.nativeCurrencySymbol;
   nodeUrl = config.nodeUrl;
   tokenBridgeAddress = config.tokenBridgeAddress;
   walletPrivateKey = privateKeys;
@@ -515,6 +539,7 @@ function createEvmChainConfig(
   return {
     chainId,
     chainName,
+    nativeCurrencySymbol,
     nodeUrl,
     tokenBridgeAddress,
     walletPrivateKey,
