@@ -227,7 +227,7 @@ export class EditionMarker {
     const indexOffset = Math.floor(editionOffset / 8);
 
     if (indexOffset > 30) {
-      throw Error("bad index for edition");
+      throw new Error("bad index for edition");
     }
 
     const positionInBitsetFromRight = 7 - (editionOffset % 8);

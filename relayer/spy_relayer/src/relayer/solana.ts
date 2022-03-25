@@ -1,10 +1,20 @@
 import {
+  CHAIN_ID_SOLANA,
+  getForeignAssetSolana,
   getIsTransferCompletedSolana,
+  hexToNativeString,
   hexToUint8Array,
+  importCoreWasm,
+  parseTransferPayload,
   postVaaSolana,
   redeemOnSolana,
 } from "@certusone/wormhole-sdk";
-import { Connection, Keypair } from "@solana/web3.js";
+import {
+  ASSOCIATED_TOKEN_PROGRAM_ID,
+  Token,
+  TOKEN_PROGRAM_ID,
+} from "@solana/spl-token";
+import { Connection, Keypair, PublicKey, Transaction } from "@solana/web3.js";
 import { ChainConfigInfo } from "../configureEnv";
 import { getLogger } from "../helpers/logHelper";
 
@@ -58,6 +68,67 @@ export async function relaySolana(
   const keypair = Keypair.fromSecretKey(walletPrivateKey);
   const payerAddress = keypair.publicKey.toString();
 
+  // determine fee destination address - an associated token account
+  const { parse_vaa } = await importCoreWasm();
+  const parsedVAA = parse_vaa(signedVaaArray);
+  const payload = parseTransferPayload(parsedVAA);
+  logger.debug("relaySolana: calculating the fee destination address");
+  const solanaMintAddress =
+    payload.originChain === CHAIN_ID_SOLANA
+      ? hexToNativeString(payload.originAddress, CHAIN_ID_SOLANA)
+      : await getForeignAssetSolana(
+          connection,
+          chainConfigInfo.tokenBridgeAddress,
+          payload.originChain,
+          hexToUint8Array(payload.originAddress)
+        );
+  if (!solanaMintAddress) {
+    throw new Error(
+      `Unable to determine mint for origin chain: ${
+        payload.originChain
+      }, address: ${payload.originAddress} (${hexToNativeString(
+        payload.originAddress,
+        payload.originChain
+      )})`
+    );
+  }
+  const solanaMintKey = new PublicKey(solanaMintAddress);
+  const feeRecipientAddress = await Token.getAssociatedTokenAddress(
+    ASSOCIATED_TOKEN_PROGRAM_ID,
+    TOKEN_PROGRAM_ID,
+    solanaMintKey,
+    keypair.publicKey
+  );
+  // create the associated token account if it doesn't exist
+  const associatedAddressInfo = await connection.getAccountInfo(
+    feeRecipientAddress
+  );
+  if (!associatedAddressInfo) {
+    logger.debug(
+      "relaySolana: fee destination address %s for wallet %s, mint %s does not exist, creating it.",
+      feeRecipientAddress.toString(),
+      keypair.publicKey,
+      solanaMintAddress
+    );
+    const transaction = new Transaction().add(
+      await Token.createAssociatedTokenAccountInstruction(
+        ASSOCIATED_TOKEN_PROGRAM_ID,
+        TOKEN_PROGRAM_ID,
+        solanaMintKey,
+        feeRecipientAddress,
+        keypair.publicKey, // owner
+        keypair.publicKey // payer
+      )
+    );
+    const { blockhash } = await connection.getRecentBlockhash();
+    transaction.recentBlockhash = blockhash;
+    transaction.feePayer = keypair.publicKey;
+    // sign, send, and confirm transaction
+    transaction.partialSign(keypair);
+    const txid = await connection.sendRawTransaction(transaction.serialize());
+    await connection.confirmTransaction(txid);
+  }
+
   logger.debug("relaySolana: posting the vaa.");
   await postVaaSolana(
     connection,
@@ -76,7 +147,8 @@ export async function relaySolana(
     chainConfigInfo.bridgeAddress,
     chainConfigInfo.tokenBridgeAddress,
     payerAddress,
-    signedVaaArray
+    signedVaaArray,
+    feeRecipientAddress.toString()
   );
 
   logger.debug("relaySolana: sending.");

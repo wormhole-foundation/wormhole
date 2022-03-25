@@ -1,21 +1,3 @@
-// import {
-//   createSpyRPCServiceClient,
-//   subscribeSignedVAA,
-// } from "@certusone/wormhole-spydk";
-
-// import {
-//   ChainId,
-//   CHAIN_ID_SOLANA,
-//   CHAIN_ID_TERRA,
-//   hexToUint8Array,
-//   uint8ArrayToHex,
-//   parseTransferPayload,
-//   getEmitterAddressEth,
-//   getEmitterAddressSolana,
-//   getEmitterAddressTerra,
-// } from "@certusone/wormhole-sdk";
-
-// import { storeKeyFromParsedVAA, storePayloadFromVaaBytes } from "./helpers";
 import { hexToUint8Array, parseTransferPayload } from "@certusone/wormhole-sdk";
 import { importCoreWasm } from "@certusone/wormhole-sdk/lib/cjs/solana/wasm";
 import { getRelayerEnvironment, RelayerEnvironment } from "../configureEnv";

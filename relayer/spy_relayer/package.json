@@ -30,7 +30,7 @@
     "typescript": "^4.3.5"
   },
   "dependencies": {
-    "@certusone/wormhole-sdk": "^0.2.1",
+    "@certusone/wormhole-sdk": "^0.2.3",
     "@certusone/wormhole-spydk": "^0.0.1",
     "@solana/spl-token": "^0.1.8",
     "@solana/web3.js": "^1.24.0",

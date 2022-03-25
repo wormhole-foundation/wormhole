@@ -1,15 +1,10 @@
 import {
   ChainId,
-  CHAIN_ID_BSC,
-  CHAIN_ID_SOLANA,
   hexToNativeString,
-  hexToUint8Array,
+  parseTransferPayload,
   uint8ArrayToHex,
 } from "@certusone/wormhole-sdk";
-import { ChainID } from "@certusone/wormhole-sdk/lib/cjs/proto/publicrpc/v1/publicrpc";
-import { emitter_address } from "@certusone/wormhole-sdk/lib/cjs/solana/nft/nft_bridge_bg";
 import { importCoreWasm } from "@certusone/wormhole-sdk/lib/cjs/solana/wasm";
-import { BigNumber } from "ethers";
 import { getListenerEnvironment } from "../configureEnv";
 import { getLogger } from "../helpers/logHelper";
 import {
@@ -207,15 +202,6 @@ async function checkQueue(key: string): Promise<string | null> {
 
   return null;
 }
-
-export const parseTransferPayload = (arr: Buffer) => ({
-  amount: BigNumber.from(arr.slice(1, 1 + 32)).toBigInt(),
-  originAddress: arr.slice(33, 33 + 32).toString("hex"),
-  originChain: arr.readUInt16BE(65) as ChainId,
-  targetAddress: arr.slice(67, 67 + 32).toString("hex"),
-  targetChain: arr.readUInt16BE(99) as ChainId,
-  fee: BigNumber.from(arr.slice(101, 101 + 32)).toBigInt(),
-});
 
 //TODO move these to the official SDK
 export async function parseVaaTyped(signedVAA: Uint8Array) {
