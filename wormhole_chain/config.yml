@@ -75,10 +75,6 @@ genesis:
             denom: "uhole"
       voting_params:
         voting_period: "50s"
-    tokenbridge:
-      chainRegistrationList:
-        - chainID: 1
-          emitterAddress: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQ="
     wormhole:
       config:
         chain_id: 2
