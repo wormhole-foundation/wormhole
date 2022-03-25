@@ -76,7 +76,7 @@ func (k msgServer) Transfer(goCtx context.Context, msg *types.MsgTransfer) (*typ
 	}
 
 	// Check that the total outflow of this asset does not exceed u64
-	if new(big.Int).Add(truncAmount, bridgeBalance).IsUint64() {
+	if !new(big.Int).Add(truncAmount, bridgeBalance).IsUint64() {
 		return nil, types.ErrAmountTooHigh
 	}
 
@@ -84,8 +84,8 @@ func (k msgServer) Transfer(goCtx context.Context, msg *types.MsgTransfer) (*typ
 	// PayloadID
 	buf.WriteByte(1)
 	// Amount
-	tokenAmount, ok := uint256.FromBig(truncAmount)
-	if !ok {
+	tokenAmount, overflow := uint256.FromBig(truncAmount)
+	if overflow {
 		return nil, types.ErrInvalidAmount
 	}
 	buf.Write(tokenAmount.Bytes())
@@ -105,8 +105,8 @@ func (k msgServer) Transfer(goCtx context.Context, msg *types.MsgTransfer) (*typ
 	}
 	MustWrite(buf, binary.BigEndian, uint16(msg.ToChain))
 	// Fee
-	fee, ok := uint256.FromBig(truncFees)
-	if !ok {
+	fee, overflow := uint256.FromBig(truncFees)
+	if overflow {
 		return nil, types.ErrInvalidFee
 	}
 	buf.Write(fee.Bytes())
