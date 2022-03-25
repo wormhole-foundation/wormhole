@@ -15,6 +15,11 @@ import (
 
 type GovernanceAction uint8
 
+
+// TokenBridgeModule is the identifier of the TokenBridge module (which is used for governance messages)
+// TODO(csongor): where's the best place to put this? CoreModule is in the node code, why is TokenBridgeModule not?
+var TokenBridgeModule = []byte{00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 0x54, 0x6f, 0x6b, 0x65, 0x6e, 0x42, 0x72, 0x69, 0x64, 0x67, 0x65}
+
 var (
 	ActionRegisterChain GovernanceAction = 1
 )
@@ -57,7 +62,7 @@ func (k msgServer) ExecuteGovernanceVAA(goCtx context.Context, msg *types.MsgExe
 	}
 
 	// Check governance header
-	if !bytes.Equal(v.Payload[:32], vaa.CoreModule) {
+	if !bytes.Equal(v.Payload[:32], TokenBridgeModule) {
 		return nil, types.ErrUnknownGovernanceModule
 	}
 
@@ -78,7 +83,7 @@ func (k msgServer) ExecuteGovernanceVAA(goCtx context.Context, msg *types.MsgExe
 		}
 		// Add chain registration
 		chainId := binary.BigEndian.Uint16(payload[:2])
-		bridgeEmitter := payload[2:32]
+		bridgeEmitter := payload[2:34]
 
 		if _, found := k.GetChainRegistration(ctx, uint32(chainId)); found {
 			return nil, types.ErrChainAlreadyRegistered
