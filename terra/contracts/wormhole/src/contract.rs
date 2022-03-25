@@ -261,6 +261,13 @@ fn vaa_update_guardian_set(deps: DepsMut, env: Env, data: &Vec<u8>) -> StdResult
         return ContractError::GuardianSetIndexIncreaseError.std_err();
     }
 
+    /* A new GuardianSet with zero addresses should never be accepted,
+     * it would break assumptions of the underlying contracts
+     */
+    if new_guardian_set.addresses.len() == 0
+        return ContractError::GuardianSetZeroAddresses.std_err();
+    }
+
     let old_guardian_set_index = state.guardian_set_index;
 
     state.guardian_set_index = new_guardian_set_index;
