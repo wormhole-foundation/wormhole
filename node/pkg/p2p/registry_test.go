@@ -54,7 +54,6 @@ func TestAddErrorCount(t *testing.T) {
 
 func TestGetErrorCount(t *testing.T) {
 	registry := NewRegistry()
-	assert.Equal(t, 0, len(registry.errorCounters))
 	assert.Equal(t, uint64(0), registry.GetErrorCount(vaa.ChainIDEthereum))
 	assert.Equal(t, uint64(0), registry.GetErrorCount(vaa.ChainIDSolana))
 
