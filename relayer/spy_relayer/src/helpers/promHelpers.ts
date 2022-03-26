@@ -3,6 +3,7 @@ import client = require("prom-client");
 import { WalletBalance } from "../relayer/walletMonitor";
 import { chainIDStrings } from "../utils/wormhole";
 import { getLogger } from "./logHelper";
+import { RedisTables } from "./redisHelper";
 
 // NOTE:  To create a new metric:
 // 1) Create a private counter/gauge with appropriate name and help
@@ -46,6 +47,11 @@ export class PromHelper {
   private listenerMemqueue = new client.Gauge({
     name: "spy_relay_listener_memqueue_length",
     help: "number of items in memory in the listener waiting to be pushed to redis.",
+  });
+  private redisQueue = new client.Gauge({
+    name: "spy_relay_redis_queue_length",
+    help: "number of items in the pending queue.",
+    labelNames: ["queue"],
   });
 
   // Wallet metrics
@@ -145,6 +151,9 @@ export class PromHelper {
 
   handleListenerMemqueue(size: number) {
     this.listenerMemqueue.set(size);
+  }
+  setRedisQueue(queue: RedisTables, size: number) {
+    this.redisQueue.labels({ queue }).set(size);
   }
 
   // Wallet metrics

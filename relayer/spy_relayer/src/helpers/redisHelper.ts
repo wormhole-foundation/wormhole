@@ -1,13 +1,11 @@
-import { createClient, RedisClientType } from "redis";
-import { getCommonEnvironment } from "../configureEnv";
+import { ChainId, uint8ArrayToHex } from "@certusone/wormhole-sdk";
 import { Mutex } from "async-mutex";
-import { getLogger } from "./logHelper";
-import { ChainId } from "@certusone/wormhole-sdk";
-import { connect } from "http2";
-import { PromHelper } from "./promHelpers";
-
-import { uint8ArrayToHex } from "@certusone/wormhole-sdk";
+import { createClient } from "redis";
+import { getCommonEnvironment } from "../configureEnv";
 import { ParsedTransferPayload, ParsedVaa } from "../listener/validation";
+import { getLogger, getScopedLogger } from "./logHelper";
+import { PromHelper } from "./promHelpers";
+import { sleep } from "./utils";
 
 const logger = getLogger();
 const commonEnv = getCommonEnvironment();
@@ -303,4 +301,28 @@ export async function demoteWorkingRedis() {
     await redisClient.select(RedisTables.WORKING);
   }
   redisClient.quit();
+}
+
+export async function monitorRedis(metrics: PromHelper) {
+  const logger = getScopedLogger(["redis", "monitor"]);
+  const ONE_MINUTE: number = 60000;
+  while (true) {
+    const redisClient = await connectToRedis();
+    if (!redisClient) {
+      logger.error("Failed to connect to redis!");
+    } else {
+      try {
+        await redisClient.select(RedisTables.INCOMING);
+        metrics.setRedisQueue(RedisTables.INCOMING, await redisClient.dbSize());
+        await redisClient.select(RedisTables.WORKING);
+        metrics.setRedisQueue(RedisTables.WORKING, await redisClient.dbSize());
+      } catch (e) {
+        logger.error("Failed to get dbSize and set metrics!");
+      }
+      try {
+        redisClient.quit();
+      } catch (e) {}
+    }
+    await sleep(ONE_MINUTE);
+  }
 }

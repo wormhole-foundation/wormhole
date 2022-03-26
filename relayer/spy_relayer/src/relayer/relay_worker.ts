@@ -7,6 +7,7 @@ import {
   clearRedis,
   connectToRedis,
   demoteWorkingRedis,
+  monitorRedis,
   RedisTables,
   RelayResult,
   Status,
@@ -237,6 +238,11 @@ export async function run(ph: PromHelper) {
     collectWallets(metrics);
   } catch (e) {
     logger.error("Failed to kick off collectWallets: " + e);
+  }
+  try {
+    monitorRedis(metrics);
+  } catch (e) {
+    logger.error("Failed to kick off monitorRedis: " + e);
   }
 }
 
