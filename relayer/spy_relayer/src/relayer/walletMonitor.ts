@@ -56,17 +56,16 @@ function init() {
 async function pullBalances(): Promise<WalletBalance[]> {
   //TODO loop through all the chain configs, calc the public keys, pull their balances, and push to a combo of the loggers and prmometheus
 
-  let balances: WalletBalance[] = [];
-
   logger.debug("pulling balances...");
   if (!env) {
     logger.error("pullBalances() - no env");
-    return balances;
+    return [];
   }
   if (!env.supportedChains) {
     logger.error("pullBalances() - no supportedChains");
-    return balances;
+    return [];
   }
+  const balancePromises: Promise<WalletBalance[]>[] = [];
   for (const chainInfo of env.supportedChains) {
     if (!chainInfo) break;
     for (const privateKey of chainInfo.walletPrivateKey || []) {
@@ -78,22 +77,20 @@ async function pullBalances(): Promise<WalletBalance[]> {
         if (isEVMChain(chainInfo.chainId)) {
           logger.info("Attempting to pull EVM native balance...");
           try {
-            balances.push(await pullEVMNativeBalance(chainInfo, privateKey));
+            balancePromises.push(pullEVMNativeBalance(chainInfo, privateKey));
           } catch (e) {
             logger.error("pullEVMNativeBalance() failed: " + e);
           }
           logger.info("Attempting to pull EVM non-native balance...");
-          balances = balances.concat(
-            await pullAllEVMTokens(env.supportedTokens, chainInfo)
+          balancePromises.push(
+            pullAllEVMTokens(env.supportedTokens, chainInfo)
           );
         } else if (chainInfo.chainId === CHAIN_ID_TERRA) {
           logger.info("Attempting to pull TERRA native balance...");
-          balances = balances.concat(
-            await pullTerraNativeBalance(chainInfo, privateKey)
-          );
+          balancePromises.push(pullTerraNativeBalance(chainInfo, privateKey));
           logger.info("Attempting to pull TERRA non-native balance...");
-          balances = balances.concat(
-            await pullAllTerraTokens(env.supportedTokens, chainInfo)
+          balancePromises.push(
+            pullAllTerraTokens(env.supportedTokens, chainInfo)
           );
         } else {
           logger.error(
@@ -114,12 +111,12 @@ async function pullBalances(): Promise<WalletBalance[]> {
       try {
         if (chainInfo.chainId === CHAIN_ID_SOLANA) {
           logger.info("pullBalances() - calling pullSolanaNativeBalance...");
-          balances.push(
-            await pullSolanaNativeBalance(chainInfo, solanaPrivateKey)
+          balancePromises.push(
+            pullSolanaNativeBalance(chainInfo, solanaPrivateKey)
           );
           logger.info("pullBalances() - calling pullSolanaTokenBalances...");
-          balances = balances.concat(
-            await pullSolanaTokenBalances(chainInfo, solanaPrivateKey)
+          balancePromises.push(
+            pullSolanaTokenBalances(chainInfo, solanaPrivateKey)
           );
         }
       } catch (e: any) {
@@ -133,7 +130,12 @@ async function pullBalances(): Promise<WalletBalance[]> {
     }
   }
 
-  // logger.debug("returning balances:  %o", balances);
+  const balancesArrays = await Promise.all(balancePromises);
+  const balances = balancesArrays.reduce(
+    (prev, curr) => [...prev, ...curr],
+    []
+  );
+
   return balances;
 }
 
@@ -272,7 +274,7 @@ async function pullSolanaTokenBalances(
 async function pullEVMNativeBalance(
   chainInfo: ChainConfigInfo,
   privateKey: string
-): Promise<WalletBalance> {
+): Promise<WalletBalance[]> {
   if (!privateKey || !chainInfo.nodeUrl) {
     throw new Error("Bad chainInfo config for EVM chain: " + chainInfo.chainId);
   }
@@ -287,15 +289,17 @@ async function pullEVMNativeBalance(
     await provider.destroy();
   }
 
-  return {
-    chainId: chainInfo.chainId,
-    balanceAbs: weiAmount.toString(),
-    balanceFormatted: balanceInEth.toString(),
-    currencyName: chainInfo.nativeCurrencySymbol,
-    currencyAddressNative: "",
-    isNative: true,
-    walletAddress: addr,
-  };
+  return [
+    {
+      chainId: chainInfo.chainId,
+      balanceAbs: weiAmount.toString(),
+      balanceFormatted: balanceInEth.toString(),
+      currencyName: chainInfo.nativeCurrencySymbol,
+      currencyAddressNative: "",
+      isNative: true,
+      walletAddress: addr,
+    },
+  ];
 }
 
 async function pullTerraNativeBalance(
@@ -354,7 +358,7 @@ async function pullTerraNativeBalance(
 async function pullSolanaNativeBalance(
   chainInfo: ChainConfigInfo,
   privateKey: Uint8Array
-): Promise<WalletBalance> {
+): Promise<WalletBalance[]> {
   const keyPair = Keypair.fromSecretKey(privateKey);
   const connection = new Connection(chainInfo.nodeUrl);
   const fetchAccounts = await getMultipleAccountsRPC(connection, [
@@ -363,15 +367,17 @@ async function pullSolanaNativeBalance(
 
   if (!fetchAccounts[0]) {
     //Accounts with zero balance report as not existing.
-    return {
-      chainId: chainInfo.chainId,
-      balanceAbs: "0",
-      balanceFormatted: "0",
-      currencyName: chainInfo.nativeCurrencySymbol,
-      currencyAddressNative: chainInfo.chainName,
-      isNative: true,
-      walletAddress: keyPair.publicKey.toString(),
-    };
+    return [
+      {
+        chainId: chainInfo.chainId,
+        balanceAbs: "0",
+        balanceFormatted: "0",
+        currencyName: chainInfo.nativeCurrencySymbol,
+        currencyAddressNative: chainInfo.chainName,
+        isNative: true,
+        walletAddress: keyPair.publicKey.toString(),
+      },
+    ];
   }
 
   const amountLamports = fetchAccounts[0].lamports.toString();
@@ -380,15 +386,17 @@ async function pullSolanaNativeBalance(
     WSOL_DECIMALS
   ).toString();
 
-  return {
-    chainId: chainInfo.chainId,
-    balanceAbs: amountLamports,
-    balanceFormatted: amountSol,
-    currencyName: chainInfo.nativeCurrencySymbol,
-    currencyAddressNative: "",
-    isNative: true,
-    walletAddress: keyPair.publicKey.toString(),
-  };
+  return [
+    {
+      chainId: chainInfo.chainId,
+      balanceAbs: amountLamports,
+      balanceFormatted: amountSol,
+      currencyName: chainInfo.nativeCurrencySymbol,
+      currencyAddressNative: "",
+      isNative: true,
+      walletAddress: keyPair.publicKey.toString(),
+    },
+  ];
 }
 
 export async function collectWallets(metrics: PromHelper) {
