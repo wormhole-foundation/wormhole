@@ -339,7 +339,7 @@ async function processRequest(
 
     // Put result back into store
     payload.status = relayResult.status;
-    payload.timestamp = new Date().toString();
+    payload.timestamp = new Date().toISOString();
     payload.retries++;
     value = storePayloadToJson(payload);
     if (!retry || payload.retries > MAX_RETRIES) {
