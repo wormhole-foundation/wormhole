@@ -436,14 +436,17 @@ async function doWorkerThread(workerInfo: WorkerInfo) {
       if (workItem) {
         //This will attempt to move the workable item to the WORKING table
         if (await moveToWorking(workItem, relayLogger)) {
-          relayLogger.info("Moved key: " + workItem.key + " to WORKING table.");
+          relayLogger.info("Moved key to WORKING table: %s", workItem.key);
           await processRequest(
             workItem.key,
             workerInfo.walletPrivateKey,
             relayLogger
           );
         } else {
-          relayLogger.error("Cannot move work item from INCOMING to WORKING.");
+          relayLogger.error(
+            "Cannot move work item from INCOMING to WORKING: %s",
+            workItem.key
+          );
         }
       }
     }
