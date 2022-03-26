@@ -81,7 +81,7 @@ function initLogger(): winston.Logger {
             info.labels && info.labels.length > 0
               ? info.labels.join("|")
               : "main"
-          }|${info.message}`
+          }: ${info.message}`
       )
     ),
   };
