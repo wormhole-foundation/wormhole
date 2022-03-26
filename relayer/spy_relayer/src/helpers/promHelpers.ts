@@ -154,7 +154,9 @@ export class PromHelper {
     this.listenerMemqueue.set(size);
   }
   setRedisQueue(queue: RedisTables, size: number) {
-    this.redisQueue.labels({ queue }).set(size);
+    this.redisQueue
+      .labels({ queue: RedisTables[queue].toLowerCase() })
+      .set(size);
   }
 
   // Wallet metrics
