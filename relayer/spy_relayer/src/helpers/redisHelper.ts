@@ -3,7 +3,7 @@ import { Mutex } from "async-mutex";
 import { createClient } from "redis";
 import { getCommonEnvironment } from "../configureEnv";
 import { ParsedTransferPayload, ParsedVaa } from "../listener/validation";
-import { getLogger, getScopedLogger } from "./logHelper";
+import { getLogger, getScopedLogger, ScopedLogger } from "./logHelper";
 import { PromHelper } from "./promHelpers";
 import { sleep } from "./utils";
 

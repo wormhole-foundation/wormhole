@@ -1,7 +1,7 @@
 import { hexToUint8Array, parseTransferPayload } from "@certusone/wormhole-sdk";
 import { importCoreWasm } from "@certusone/wormhole-sdk/lib/cjs/solana/wasm";
 import { getRelayerEnvironment, RelayerEnvironment } from "../configureEnv";
-import { getLogger, getScopedLogger } from "../helpers/logHelper";
+import { getLogger, getScopedLogger, ScopedLogger } from "../helpers/logHelper";
 import { PromHelper } from "../helpers/promHelpers";
 import {
   clearRedis,
@@ -247,67 +247,41 @@ export async function run(ph: PromHelper) {
 }
 
 async function processRequest(
-  myWorkerIdx: number,
   key: string,
-  myPrivateKey: any
+  myPrivateKey: any,
+  relayLogger: ScopedLogger
 ) {
+  const logger = getScopedLogger(["processRequest"], relayLogger);
   try {
-    logger.debug("[" + myWorkerIdx + "] Processing request [" + key + "]...");
+    logger.debug("Processing request %s...", key);
     // Get the entry from the working store
     const rClient = await connectToRedis();
     if (!rClient) {
-      logger.error(
-        "[" + myWorkerIdx + "] failed to connect to Redis in processRequest"
-      );
+      logger.error("Failed to connect to Redis in processRequest");
       return;
     }
     await rClient.select(RedisTables.WORKING);
     let value: string | null = await rClient.get(key);
     if (!value) {
-      logger.error(
-        "[" + myWorkerIdx + "] processRequest could not find key [" + key + "]"
-      );
+      logger.error("Could not find key %s", key);
       return;
     }
     let payload: StorePayload = storePayloadFromJson(value);
     if (payload.status !== Status.Pending) {
-      logger.info(
-        "[" +
-          myWorkerIdx +
-          "] This key [" +
-          key +
-          "] has already been processed."
-      );
+      logger.info("This key %s has already been processed.", key);
       return;
     }
     // Actually do the processing here and update status and time field
     let relayResult: RelayResult;
     try {
-      logger.info(
-        "[" +
-          myWorkerIdx +
-          "] processRequest() - Calling with vaa_bytes [" +
-          payload.vaa_bytes +
-          "]"
-      );
+      logger.info("Calling with vaa_bytes %s", payload.vaa_bytes);
       relayResult = await relay(payload.vaa_bytes, false, myPrivateKey);
-      logger.info(
-        "[" + myWorkerIdx + "] processRequest() - relay returned: %o",
-        Status[relayResult.status]
-      );
+      logger.info("Relay returned: %o", Status[relayResult.status]);
     } catch (e: any) {
       if (e.message) {
-        logger.error(
-          "[%d] processRequest() - failed to relay transfer vaa: %s",
-          myWorkerIdx,
-          e.message
-        );
+        logger.error("Failed to relay transfer vaa: %s", e.message);
       } else {
-        logger.error(
-          "[%d] processRequest() - failed to relay transfer vaa: %o",
-          myWorkerIdx,
-          e
-        );
+        logger.error("Failed to relay transfer vaa: %o", e);
       }
 
       relayResult = {
@@ -355,8 +329,7 @@ async function processRequest(
   } catch (e: any) {
     logger.error("Unexpected error in processRequest: " + e.message);
     logger.error("request key: " + key);
-    logger.error("worker index: " + myWorkerIdx);
-    logger.error("Exception trace: " + e.stack);
+    logger.error(e);
     return [];
   }
 }
@@ -365,17 +338,15 @@ async function processRequest(
 // pulled out one at a time, then some workItems could stay in the table indefinitely.
 // This function gathers all the items available at this moment to work on.
 async function findWorkableItems(
-  workerInfo: WorkerInfo
+  workerInfo: WorkerInfo,
+  relayLogger: ScopedLogger
 ): Promise<WorkableItem[]> {
+  const logger = getScopedLogger(["findWorkableItems"], relayLogger);
   try {
     let workableItems: WorkableItem[] = [];
     const redisClient = await connectToRedis();
     if (!redisClient) {
-      logger.error(
-        "Worker [" +
-          workerInfo.index +
-          "] Failed to connect to redis inside findWorkableItems()!"
-      );
+      logger.error("Failed to connect to redis inside findWorkableItems()!");
       return workableItems;
     }
     await redisClient.select(RedisTables.INCOMING);
@@ -391,12 +362,7 @@ async function findWorkableItems(
           const transferPayload = parseTransferPayload(payloadBuffer);
           const tgtChainId = transferPayload.targetChain;
           if (tgtChainId !== workerInfo.targetChainId) {
-            // logger.debug(
-            //   "Skipping mismatched chainId.  Received: " +
-            //     tgtChainId +
-            //     ", want: " +
-            //     workerInfo.targetChainId
-            // );
+            // Skipping mismatched chainId
             continue;
           }
         }
@@ -427,7 +393,7 @@ async function findWorkableItems(
     logger.error(
       "Recoverable exception scanning REDIS for workable items: " + e.message
     );
-    logger.error("Exception trace: " + e.stack);
+    logger.error(e);
     return [];
   }
 }
@@ -458,23 +424,24 @@ async function spawnWorkerThread(workerInfo: WorkerInfo) {
 }
 
 async function doWorkerThread(workerInfo: WorkerInfo) {
+  const relayLogger = getScopedLogger([`relay-worker-${workerInfo.index}`]);
   while (true) {
-    const workableItems: WorkableItem[] = await findWorkableItems(workerInfo);
-    // logger.debug( "[" + workerInfo.index + "] received " + workableItems.length + " workable items.");
+    const workableItems: WorkableItem[] = await findWorkableItems(
+      workerInfo,
+      relayLogger
+    );
     let i: number = 0;
     for (i = 0; i < workableItems.length; i++) {
       const workItem: WorkableItem = workableItems[i];
       if (workItem) {
-        // logger.debug("attempting to move key: " + workItem.key);
         //This will attempt to move the workable item to the WORKING table
-        if (await moveToWorking(workerInfo, workItem)) {
-          // logger.debug("Moved key: " + workItem.key + " to WORKING table.");
+        if (await moveToWorking(workItem, relayLogger)) {
+          logger.info("Moved key: " + workItem.key + " to WORKING table.");
           await processRequest(
-            workerInfo.index,
             workItem.key,
-            workerInfo.walletPrivateKey
+            workerInfo.walletPrivateKey,
+            relayLogger
           );
-          // logger.debug("Finished processing key: " + workItem.key);
         } else {
           logger.error("Cannot move work item from INCOMING to WORKING.");
         }
@@ -484,25 +451,20 @@ async function doWorkerThread(workerInfo: WorkerInfo) {
 }
 
 async function moveToWorking(
-  workerInfo: WorkerInfo,
-  workItem: WorkableItem
+  workItem: WorkableItem,
+  relayLogger: ScopedLogger
 ): Promise<boolean> {
+  const logger = getScopedLogger(["moveToWorking"], relayLogger);
   try {
     const redisClient = await connectToRedis();
     if (!redisClient) {
-      logger.error("moveToPending() - failed to connect to Redis.");
+      logger.error("Failed to connect to Redis.");
       return false;
     }
     // Move this entry from incoming store to working store
     await redisClient.select(RedisTables.INCOMING);
     if ((await redisClient.del(workItem.key)) === 0) {
-      logger.info(
-        "[" +
-          workerInfo.index +
-          "] The key [" +
-          workItem.key +
-          "] no longer exists in INCOMING"
-      );
+      logger.info("The key %s no longer exists in INCOMING", workItem.key);
       await redisClient.quit();
       return false;
     }
@@ -518,17 +480,14 @@ async function moveToWorking(
       return true;
     } else {
       metrics.incAlreadyExec();
-      logger.debug(
-        "dropping request [" + workItem.key + "] as already processed"
-      );
+      logger.debug("Dropping request %s as already processed", workItem.key);
       await redisClient.quit();
       return false;
     }
   } catch (e: any) {
     logger.error("Recoverable exception moving item to working: " + e.message);
-    logger.error("Problem item: " + workItem.key);
-    logger.error("Problem value: " + workItem.value);
-    logger.error("Exception trace: " + e.stack);
+    logger.error("%s => %s", workItem.key, workItem.value);
+    logger.error(e);
     return false;
   }
 }

@@ -13,7 +13,7 @@ export function getLogger(): winston.Logger {
   }
 }
 
-interface ScopedLogger extends winston.Logger {
+export interface ScopedLogger extends winston.Logger {
   scope?: string[];
 }
 
@@ -75,6 +75,7 @@ function initLogger(): winston.Logger {
       winston.format.timestamp({
         format: "YYYY-MM-DD HH:mm:ss.SSS",
       }),
+      winston.format.errors({ stack: true }),
       winston.format.printf(
         (info: any) =>
           `${[info.timestamp]}|${info.level}|${
