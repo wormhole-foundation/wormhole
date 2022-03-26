@@ -125,6 +125,7 @@ export class PromHelper {
       this._register.registerMetric(this.successCounter);
       this._register.registerMetric(this.failureCounter);
       this._register.registerMetric(this.alreadyExecutedCounter);
+      this._register.registerMetric(this.redisQueue);
       this._register.registerMetric(this.walletBalance);
     }
     // End registering metric
