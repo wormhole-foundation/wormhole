@@ -294,7 +294,7 @@ export async function demoteWorkingRedis() {
     if (!si_value) {
       continue;
     }
-
+    logger.info("Demoting %s", si_key);
     await redisClient.del(si_key);
     await redisClient.select(RedisTables.INCOMING);
     await redisClient.set(si_key, si_value);
