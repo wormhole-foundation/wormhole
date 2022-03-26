@@ -137,18 +137,16 @@ async function pullBalances(): Promise<WalletBalance[]> {
   return balances;
 }
 
-async function pullEVMBalance(
+export async function pullEVMBalance(
   chainInfo: ChainConfigInfo,
-  privateKey: string,
+  publicAddress: string,
   tokenAddress: string
 ): Promise<WalletBalance> {
   let provider = newProvider(chainInfo.nodeUrl);
-  const signer: Signer = new ethers.Wallet(privateKey, provider);
-  const publicAddress = await signer.getAddress();
 
   const token = await getEthereumToken(tokenAddress, provider);
   const decimals = await token.decimals();
-  const balance = await token.balanceOf(await signer.getAddress());
+  const balance = await token.balanceOf(publicAddress);
   const symbol = await token.symbol();
   const balanceFormatted = formatUnits(balance, decimals);
 
@@ -544,9 +542,14 @@ async function pullAllEVMTokens(
     return output;
   }
   for (const privateKey of chainConfig.walletPrivateKey) {
+    const publicAddress = await new ethers.Wallet(privateKey).getAddress();
     for (const address of localAddresses) {
       try {
-        const balance = await pullEVMBalance(chainConfig, privateKey, address);
+        const balance = await pullEVMBalance(
+          chainConfig,
+          publicAddress,
+          address
+        );
         if (balance) {
           output.push(balance);
         }
