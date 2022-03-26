@@ -49,7 +49,7 @@ function createCommonEnvironment(): CommonEnvironment {
   if (!process.env.LOG_DIR) {
     //Not mandatory
   } else {
-    logLevel = process.env.LOG_LEVEL;
+    logDir = process.env.LOG_DIR;
   }
 
   if (!process.env.PROM_PORT) {

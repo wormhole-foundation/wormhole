@@ -1,9 +1,5 @@
-//These have to run first so that the process variables are set up when the other modules are instantiated.
-const configFile: string = process.env.SPY_RELAY_CONFIG
-  ? process.env.SPY_RELAY_CONFIG
-  : ".env.sample";
-console.log("loading config file [%s]", configFile);
-require("dotenv").config({ path: configFile });
+//This has to run first so that the process variables are set up when the other modules are instantiated.
+require("./helpers/loadConfig");
 
 import { setDefaultWasm } from "@certusone/wormhole-sdk/lib/cjs/solana/wasm";
 import { getCommonEnvironment } from "./configureEnv";

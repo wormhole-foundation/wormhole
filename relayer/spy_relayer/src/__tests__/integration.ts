@@ -63,7 +63,7 @@ import {
   WORMHOLE_RPC_HOSTS,
 } from "./consts";
 
-import { sleep } from "../helpers";
+import { sleep } from "../helpers/utils";
 
 setDefaultWasm("node");
 
@@ -595,10 +595,16 @@ describe("Ethereum to Terra", () => {
         const gasPrices = await axios
           .get(TERRA_GAS_PRICES_URL)
           .then((result) => result.data);
+        const account = await lcd.auth.accountInfo(wallet.key.accAddress);
         const feeEstimate = await lcd.tx.estimateFee(
-          wallet.key.accAddress,
-          [msg],
+          [
+            {
+              sequenceNumber: account.getSequenceNumber(),
+              publicKey: account.getPublicKey(),
+            },
+          ],
           {
+            msgs: [msg],
             feeDenoms: ["uluna"],
             gasPrices,
           }
@@ -737,7 +743,6 @@ describe("Ethereum to Terra", () => {
           success = await await getIsTransferCompletedTerra(
             TERRA_TOKEN_BRIDGE_ADDRESS,
             transferSignedVAA,
-            wallet.key.accAddress,
             lcd,
             TERRA_GAS_PRICES_URL
           );

@@ -6,9 +6,9 @@ import {
 import { LCDClient, MnemonicKey } from "@terra-money/terra.js";
 import axios from "axios";
 import { ChainConfigInfo } from "../configureEnv";
-import { getLogger } from "../helpers/logHelper";
+import { getScopedLogger } from "../helpers/logHelper";
 
-const logger = getLogger();
+const logger = getScopedLogger(["relay", "terra"]);
 
 export async function relayTerra(
   chainConfigInfo: ChainConfigInfo,
@@ -40,18 +40,14 @@ export async function relayTerra(
   const wallet = lcd.wallet(mk);
 
   logger.info(
-    "relayTerra: terraChainId: [" +
-      chainConfigInfo.terraChainId +
-      "], tokenBridgeAddress: [" +
-      chainConfigInfo.tokenBridgeAddress +
-      "], accAddress: [" +
-      wallet.key.accAddress +
-      "], signedVAA: [" +
-      signedVAA +
-      "]"
+    "terraChainId: %s, tokenBridgeAddress: %s, accAddress: %s, signedVAA: $s",
+    chainConfigInfo.terraChainId,
+    chainConfigInfo.tokenBridgeAddress,
+    wallet.key.accAddress,
+    signedVAA
   );
 
-  logger.debug("relayTerra: checking to see if vaa has already been redeemed.");
+  logger.debug("Checking to see if vaa has already been redeemed.");
   const alreadyRedeemed = await getIsTransferCompletedTerra(
     chainConfigInfo.tokenBridgeAddress,
     signedVaaArray,
@@ -60,7 +56,7 @@ export async function relayTerra(
   );
 
   if (alreadyRedeemed) {
-    logger.info("relayTerra: vaa has already been redeemed!");
+    logger.info("VAA has already been redeemed!");
     return { redeemed: true, result: "already redeemed" };
   }
   if (checkOnly) {
@@ -73,14 +69,14 @@ export async function relayTerra(
     signedVaaArray
   );
 
-  logger.debug("relayTerra: getting gas prices");
+  logger.debug("Getting gas prices");
   //let gasPrices = await lcd.config.gasPrices //Unsure if the values returned from this are hardcoded or not.
   //Thus, we are going to pull it directly from the current FCD.
   const gasPrices = await axios
     .get(chainConfigInfo.terraGasPriceUrl)
     .then((result) => result.data);
 
-  logger.debug("relayTerra: estimating fees");
+  logger.debug("Estimating fees");
   const account = await lcd.auth.accountInfo(wallet.key.accAddress);
   const feeEstimate = await lcd.tx.estimateFee(
     [
@@ -91,13 +87,12 @@ export async function relayTerra(
     ],
     {
       msgs: [msg],
-      //TODO figure out type mismatch
       feeDenoms: ["uluna"],
       gasPrices,
     }
   );
 
-  logger.debug("relayTerra: createAndSign");
+  logger.debug("createAndSign");
   const tx = await wallet.createAndSignTx({
     msgs: [msg],
     memo: "Relayer - Complete Transfer",
@@ -106,10 +101,10 @@ export async function relayTerra(
     fee: feeEstimate,
   });
 
-  logger.debug("relayTerra: broadcasting");
+  logger.debug("Broadcasting");
   const receipt = await lcd.tx.broadcast(tx);
 
-  logger.debug("relayTerra: checking to see if the transaction is complete.");
+  logger.debug("Checking to see if the transaction is complete.");
   const success = await getIsTransferCompletedTerra(
     chainConfigInfo.tokenBridgeAddress,
     signedVaaArray,
@@ -117,6 +112,6 @@ export async function relayTerra(
     chainConfigInfo.terraGasPriceUrl
   );
 
-  logger.info("relayTerra: success: %s, tx hash: %s", success, receipt.txhash);
+  logger.info("success: %s, tx hash: %s", success, receipt.txhash);
   return { redeemed: success, result: receipt.txhash };
 }

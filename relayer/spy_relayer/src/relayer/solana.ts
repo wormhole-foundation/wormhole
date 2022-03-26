@@ -16,9 +16,9 @@ import {
 } from "@solana/spl-token";
 import { Connection, Keypair, PublicKey, Transaction } from "@solana/web3.js";
 import { ChainConfigInfo } from "../configureEnv";
-import { getLogger } from "../helpers/logHelper";
+import { getScopedLogger } from "../helpers/logHelper";
 
-const logger = getLogger();
+const logger = getScopedLogger(["relay", "solana"]);
 
 export async function relaySolana(
   chainConfigInfo: ChainConfigInfo,
@@ -33,24 +33,21 @@ export async function relaySolana(
   const connection = new Connection(chainConfigInfo.nodeUrl, "confirmed");
 
   if (!chainConfigInfo.bridgeAddress) {
+    // This should never be the case, as enforced by createSolanaChainConfig
     return { redeemed: false, result: null };
   }
 
-  //TODO log public key here
-  logger.info(
-    "relaySolana tokenBridgeAddress: [" +
-      chainConfigInfo.tokenBridgeAddress +
-      "]"
-  );
-  logger.info("bridgeAddress: [" + chainConfigInfo.bridgeAddress + "]");
-  // logger.info("signedVAAString: [" + signedVAAString + "]");
-  // logger.info(" signedVaaArray: %o", signedVaaArray);
-  // logger.info(", signedVaaBuffer: %o", signedVaaBuffer);
-  // logger.info(", connection: %o", connection);
+  const keypair = Keypair.fromSecretKey(walletPrivateKey);
+  const payerAddress = keypair.publicKey.toString();
 
-  logger.debug(
-    "relaySolana: checking to see if vaa has already been redeemed."
+  logger.info(
+    "publicKey: %s, bridgeAddress: %s, tokenBridgeAddress: %s",
+    payerAddress,
+    chainConfigInfo.bridgeAddress,
+    chainConfigInfo.tokenBridgeAddress
   );
+  logger.debug("Checking to see if vaa has already been redeemed.");
+
   const alreadyRedeemed = await getIsTransferCompletedSolana(
     chainConfigInfo.tokenBridgeAddress,
     signedVaaArray,
@@ -58,21 +55,18 @@ export async function relaySolana(
   );
 
   if (alreadyRedeemed) {
-    logger.info("relaySolana: vaa has already been redeemed!");
+    logger.info("VAA has already been redeemed!");
     return { redeemed: true, result: "already redeemed" };
   }
   if (checkOnly) {
     return { redeemed: false, result: "not redeemed" };
   }
 
-  const keypair = Keypair.fromSecretKey(walletPrivateKey);
-  const payerAddress = keypair.publicKey.toString();
-
   // determine fee destination address - an associated token account
   const { parse_vaa } = await importCoreWasm();
   const parsedVAA = parse_vaa(signedVaaArray);
   const payload = parseTransferPayload(parsedVAA);
-  logger.debug("relaySolana: calculating the fee destination address");
+  logger.debug("Calculating the fee destination address");
   const solanaMintAddress =
     payload.originChain === CHAIN_ID_SOLANA
       ? hexToNativeString(payload.originAddress, CHAIN_ID_SOLANA)
@@ -105,7 +99,7 @@ export async function relaySolana(
   );
   if (!associatedAddressInfo) {
     logger.debug(
-      "relaySolana: fee destination address %s for wallet %s, mint %s does not exist, creating it.",
+      "Fee destination address %s for wallet %s, mint %s does not exist, creating it.",
       feeRecipientAddress.toString(),
       keypair.publicKey,
       solanaMintAddress
@@ -129,7 +123,7 @@ export async function relaySolana(
     await connection.confirmTransaction(txid);
   }
 
-  logger.debug("relaySolana: posting the vaa.");
+  logger.debug("Posting the vaa.");
   await postVaaSolana(
     connection,
     async (transaction) => {
@@ -141,7 +135,7 @@ export async function relaySolana(
     signedVaaBuffer
   );
 
-  logger.debug("relaySolana: redeeming.");
+  logger.debug("Redeeming.");
   const unsignedTransaction = await redeemOnSolana(
     connection,
     chainConfigInfo.bridgeAddress,
@@ -151,20 +145,20 @@ export async function relaySolana(
     feeRecipientAddress.toString()
   );
 
-  logger.debug("relaySolana: sending.");
+  logger.debug("Sending.");
   unsignedTransaction.partialSign(keypair);
   const txid = await connection.sendRawTransaction(
     unsignedTransaction.serialize()
   );
   await connection.confirmTransaction(txid);
 
-  logger.debug("relaySolana: checking to see if the transaction is complete.");
+  logger.debug("Checking to see if the transaction is complete.");
   const success = await getIsTransferCompletedSolana(
     chainConfigInfo.tokenBridgeAddress,
     signedVaaArray,
     connection
   );
 
-  logger.info("relaySolana: success: %s, tx hash: %s", success, txid);
+  logger.info("success: %s, tx hash: %s", success, txid);
   return { redeemed: success, result: txid };
 }

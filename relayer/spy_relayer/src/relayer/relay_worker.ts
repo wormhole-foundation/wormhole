@@ -1,7 +1,7 @@
 import { hexToUint8Array, parseTransferPayload } from "@certusone/wormhole-sdk";
 import { importCoreWasm } from "@certusone/wormhole-sdk/lib/cjs/solana/wasm";
 import { getRelayerEnvironment, RelayerEnvironment } from "../configureEnv";
-import { getLogger } from "../helpers/logHelper";
+import { getLogger, getScopedLogger } from "../helpers/logHelper";
 import { PromHelper } from "../helpers/promHelpers";
 import {
   clearRedis,
@@ -111,9 +111,7 @@ async function spawnAuditorThread(workerInfo: WorkerInfo) {
 //One auditor thread should be spawned per worker. This is perhaps overkill, but auditors
 //should not be allowed to block workers, or other auditors.
 async function doAuditorThread(workerInfo: WorkerInfo) {
-  const auditLogger = logger.child({
-    labels: [`audit-worker-${workerInfo.index}`],
-  });
+  const auditLogger = getScopedLogger([`audit-worker-${workerInfo.index}`]);
   while (true) {
     try {
       let redisClient: any = null;
