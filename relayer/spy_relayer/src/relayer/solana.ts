@@ -65,24 +65,25 @@ export async function relaySolana(
   // determine fee destination address - an associated token account
   const { parse_vaa } = await importCoreWasm();
   const parsedVAA = parse_vaa(signedVaaArray);
-  const payload = parseTransferPayload(parsedVAA);
+  const payloadBuffer = Buffer.from(parsedVAA.payload);
+  const transferPayload = parseTransferPayload(payloadBuffer);
   logger.debug("Calculating the fee destination address");
   const solanaMintAddress =
-    payload.originChain === CHAIN_ID_SOLANA
-      ? hexToNativeString(payload.originAddress, CHAIN_ID_SOLANA)
+    transferPayload.originChain === CHAIN_ID_SOLANA
+      ? hexToNativeString(transferPayload.originAddress, CHAIN_ID_SOLANA)
       : await getForeignAssetSolana(
           connection,
           chainConfigInfo.tokenBridgeAddress,
-          payload.originChain,
-          hexToUint8Array(payload.originAddress)
+          transferPayload.originChain,
+          hexToUint8Array(transferPayload.originAddress)
         );
   if (!solanaMintAddress) {
     throw new Error(
       `Unable to determine mint for origin chain: ${
-        payload.originChain
-      }, address: ${payload.originAddress} (${hexToNativeString(
-        payload.originAddress,
-        payload.originChain
+        transferPayload.originChain
+      }, address: ${transferPayload.originAddress} (${hexToNativeString(
+        transferPayload.originAddress,
+        transferPayload.originChain
       )})`
     );
   }
