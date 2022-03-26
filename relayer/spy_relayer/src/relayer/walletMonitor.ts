@@ -20,7 +20,7 @@ import {
   RelayerEnvironment,
   SupportedToken,
 } from "../configureEnv";
-import { getLogger } from "../helpers/logHelper";
+import { getScopedLogger } from "../helpers/logHelper";
 import { PromHelper } from "../helpers/promHelpers";
 import { getMetaplexData, sleep } from "../helpers/utils";
 import { getEthereumToken } from "../utils/ethereum";
@@ -29,7 +29,7 @@ import { formatNativeDenom } from "../utils/terra";
 import { newProvider } from "./evm";
 
 let env: RelayerEnvironment;
-const logger = getLogger();
+const logger = getScopedLogger(["walletMonitor"]);
 
 export type WalletBalance = {
   chainId: ChainId;
@@ -400,23 +400,20 @@ async function pullSolanaNativeBalance(
 }
 
 export async function collectWallets(metrics: PromHelper) {
+  const scopedLogger = getScopedLogger(["collectWallets"], logger);
   const ONE_MINUTE: number = 60000;
-  logger.info("collectWallets() - starting up...");
+  scopedLogger.info("Starting up.");
   init();
   while (true) {
-    // get wallet amounts
-    logger.debug("collectWallets() - pulling balances...");
+    scopedLogger.debug("Pulling balances.");
     let wallets: WalletBalance[] = [];
     try {
       wallets = await pullBalances();
     } catch (e) {
-      logger.error("Failed to pullBalances: " + e);
+      scopedLogger.error("Failed to pullBalances: " + e);
     }
-    logger.debug("collectWallets() - done pulling balances...");
-    // peg prometheus metrics
-    // logger.debug("collectWallets() - Destined for Prometheus: %o", wallets);
+    scopedLogger.debug("Done pulling balances.");
     metrics.handleWalletBalances(wallets);
-    logger.debug("collectWallets() - Finished metrics call.");
     await sleep(ONE_MINUTE);
   }
 }

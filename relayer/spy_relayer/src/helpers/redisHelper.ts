@@ -3,11 +3,11 @@ import { Mutex } from "async-mutex";
 import { createClient } from "redis";
 import { getCommonEnvironment } from "../configureEnv";
 import { ParsedTransferPayload, ParsedVaa } from "../listener/validation";
-import { getLogger, getScopedLogger, ScopedLogger } from "./logHelper";
+import { getScopedLogger } from "./logHelper";
 import { PromHelper } from "./promHelpers";
 import { sleep } from "./utils";
 
-const logger = getLogger();
+const logger = getScopedLogger(["redisHelper"]);
 const commonEnv = getCommonEnvironment();
 const { redisHost, redisPort } = commonEnv;
 let promHelper: PromHelper;
@@ -304,12 +304,12 @@ export async function demoteWorkingRedis() {
 }
 
 export async function monitorRedis(metrics: PromHelper) {
-  const logger = getScopedLogger(["redis", "monitor"]);
+  const scopedLogger = getScopedLogger(["monitorRedis"], logger);
   const ONE_MINUTE: number = 60000;
   while (true) {
     const redisClient = await connectToRedis();
     if (!redisClient) {
-      logger.error("Failed to connect to redis!");
+      scopedLogger.error("Failed to connect to redis!");
     } else {
       try {
         await redisClient.select(RedisTables.INCOMING);
@@ -317,7 +317,7 @@ export async function monitorRedis(metrics: PromHelper) {
         await redisClient.select(RedisTables.WORKING);
         metrics.setRedisQueue(RedisTables.WORKING, await redisClient.dbSize());
       } catch (e) {
-        logger.error("Failed to get dbSize and set metrics!");
+        scopedLogger.error("Failed to get dbSize and set metrics!");
       }
       try {
         redisClient.quit();

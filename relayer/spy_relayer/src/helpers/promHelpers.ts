@@ -2,7 +2,7 @@ import http = require("http");
 import client = require("prom-client");
 import { WalletBalance } from "../relayer/walletMonitor";
 import { chainIDStrings } from "../utils/wormhole";
-import { getLogger } from "./logHelper";
+import { getScopedLogger } from "./logHelper";
 import { RedisTables } from "./redisHelper";
 
 // NOTE:  To create a new metric:
@@ -10,7 +10,7 @@ import { RedisTables } from "./redisHelper";
 // 2) Create a method to set the metric to a value
 // 3) Register the metric
 
-const logger = getLogger();
+const logger = getScopedLogger(["prometheusHelpers"]);
 export enum PromMode {
   Listen,
   Relay,
@@ -161,6 +161,7 @@ export class PromHelper {
 
   // Wallet metrics
   handleWalletBalances(balances: WalletBalance[]) {
+    const scopedLogger = getScopedLogger(["handleWalletBalances"], logger);
     // Walk through each wallet
     // create a gauge for the balance
     // set the gauge
@@ -187,9 +188,9 @@ export class PromHelper {
           .set(formBal);
       } catch (e: any) {
         if (e.message) {
-          logger.error("handleWalletBalances() - caught error: " + e.message);
+          scopedLogger.error("Caught error: " + e.message);
         } else {
-          logger.error("handleWalletBalances() - caught error: %o", e);
+          scopedLogger.error("Caught error: %o", e);
         }
       }
     }
