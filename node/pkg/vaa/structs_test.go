@@ -5,6 +5,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"testing"
+	"time"
 )
 
 func TestChainIDFromString(t *testing.T) {
@@ -122,4 +123,85 @@ func TestChainId_String(t *testing.T) {
 			assert.Equal(t, ChainID(tc.input).String(), tc.output)
 		})
 	}
+}
+
+func getVaa() VAA {
+	var nonce uint32 = 1
+	var sequence uint64 = 1
+	var guardianSetIndex uint32 = 1
+	var payload = []byte{97, 97, 97, 97, 97, 97}
+	var governanceEmitter = Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
+
+	return VAA{
+		Version:          uint8(1),
+		GuardianSetIndex: guardianSetIndex,
+		Signatures:       nil,
+		Timestamp:        time.Unix(0, 0),
+		Nonce:            nonce,
+		Sequence:         sequence,
+		ConsistencyLevel: uint8(32),
+		EmitterChain:     ChainIDSolana,
+		EmitterAddress:   governanceEmitter,
+		Payload:          payload,
+	}
+}
+
+// This is a known limitation of uint8 in Go 1.x, it lacks over/underflow safety
+// Ref:
+//   - https://github.com/golang/go/issues/31500
+//   - https://github.com/golang/go/issues/30209
+//
+// Must be mindful of any addition or subtraction operations
+//
+// Confirmed no add/sub on this attribute as of March 2022
+func TestVaaVersionOverflow(t *testing.T) {
+	vaa := getVaa()
+	vaa.Version = 255
+	vaa.Version = vaa.Version + 1
+	assert.Equal(t, uint8(0), vaa.Version)
+}
+
+// This is a known limitation of Go 1.x, it lacks over/underflow safety
+// Ref:
+//   - https://github.com/golang/go/issues/31500
+//   - https://github.com/golang/go/issues/30209
+//
+// Must be mindful of any addition or subtraction operations
+//
+// Confirmed no add/sub on this attribute as of March 2022
+func TestVaaVersionUnderflow(t *testing.T) {
+	vaa := getVaa()
+	vaa.Version = 0
+	vaa.Version = vaa.Version - 1
+	assert.Equal(t, uint8(255), vaa.Version)
+}
+
+// This is a known limitation of Go 1.x, it lacks over/underflow safety
+// Ref:
+//   - https://github.com/golang/go/issues/31500
+//   - https://github.com/golang/go/issues/30209
+//
+// Must be mindful of any addition or subtraction operations
+//
+// Confirmed no add/sub on this attribute as of March 2022
+func TestVaaConsistencyLevelOverflow(t *testing.T) {
+	vaa := getVaa()
+	vaa.ConsistencyLevel = 255
+	vaa.ConsistencyLevel = vaa.ConsistencyLevel + 1
+	assert.Equal(t, uint8(0), vaa.ConsistencyLevel)
+}
+
+// This is a known limitation of Go 1.x, it lacks over/underflow safety
+// Ref:
+//   - https://github.com/golang/go/issues/31500
+//   - https://github.com/golang/go/issues/30209
+//
+// Must be mindful of any addition or subtraction operations
+//
+// Confirmed no add/sub on this attribute as of March 2022
+func TestVaaConsistencyLevelUnderflow(t *testing.T) {
+	vaa := getVaa()
+	vaa.ConsistencyLevel = 0
+	vaa.ConsistencyLevel = vaa.ConsistencyLevel - 1
+	assert.Equal(t, uint8(255), vaa.ConsistencyLevel)
 }
