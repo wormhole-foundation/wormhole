@@ -6,7 +6,7 @@ import {
   hexToUint8Array,
   importCoreWasm,
   parseTransferPayload,
-  postVaaSolana,
+  postVaaSolanaWithRetry,
   redeemOnSolana,
 } from "@certusone/wormhole-sdk";
 import {
@@ -17,6 +17,8 @@ import {
 import { Connection, Keypair, PublicKey, Transaction } from "@solana/web3.js";
 import { ChainConfigInfo } from "../configureEnv";
 import { getScopedLogger } from "../helpers/logHelper";
+
+const MAX_VAA_UPLOAD_RETRIES_SOLANA = 5;
 
 const logger = getScopedLogger(["relay", "solana"]);
 
@@ -125,7 +127,7 @@ export async function relaySolana(
   }
 
   logger.debug("Posting the vaa.");
-  await postVaaSolana(
+  await postVaaSolanaWithRetry(
     connection,
     async (transaction) => {
       transaction.partialSign(keypair);
@@ -133,7 +135,8 @@ export async function relaySolana(
     },
     chainConfigInfo.bridgeAddress,
     payerAddress,
-    signedVaaBuffer
+    signedVaaBuffer,
+    MAX_VAA_UPLOAD_RETRIES_SOLANA
   );
 
   logger.debug("Redeeming.");
