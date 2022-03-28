@@ -312,8 +312,8 @@ const terraEstimatesByContract = {
 
 export const evmEstimatesByContract = {
   transfer: {
-    lowGasEstimate: BigInt(80000),
-    highGasEstimate: BigInt(130000),
+    lowGasEstimate: BigInt(250000),
+    highGasEstimate: BigInt(280000),
   },
   nft: {
     lowGasEstimate: BigInt(350000),
