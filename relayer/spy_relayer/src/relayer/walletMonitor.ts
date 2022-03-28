@@ -1,8 +1,8 @@
 import {
+  Bridge__factory,
   ChainId,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
-  getForeignAssetEth,
   getForeignAssetTerra,
   hexToUint8Array,
   isEVMChain,
@@ -414,11 +414,14 @@ async function calcLocalAddressesEVM(
   supportedTokens: SupportedToken[],
   chainConfigInfo: ChainConfigInfo
 ): Promise<string[]> {
-  // TODO: batch these
-  let output: string[] = [];
+  const tokenBridge = Bridge__factory.connect(
+    chainConfigInfo.tokenBridgeAddress,
+    provider
+  );
+  let tokenAddressPromises: Promise<string>[] = [];
   for (const supportedToken of supportedTokens) {
     if (supportedToken.chainId === chainConfigInfo.chainId) {
-      output.push(supportedToken.address);
+      tokenAddressPromises.push(Promise.resolve(supportedToken.address));
       continue;
     }
     const hexAddress = nativeToHexString(
@@ -434,26 +437,17 @@ async function calcLocalAddressesEVM(
       );
       continue;
     }
-    // logger.debug("calcLocalAddressesEVM() - got hex address: " + hexAddress);
-    //This returns a native address
-    let foreignAddress;
-    try {
-      foreignAddress = await getForeignAssetEth(
-        chainConfigInfo.tokenBridgeAddress,
-        provider as any, //why does this typecheck work elsewhere?
+    tokenAddressPromises.push(
+      tokenBridge.wrappedAsset(
         supportedToken.chainId,
         hexToUint8Array(hexAddress)
-      );
-    } catch (e) {
-      logger.error("Exception thrown from getForeignAssetEth");
-    }
-
-    if (!foreignAddress || foreignAddress === ethers.constants.AddressZero) {
-      continue;
-    }
-    output.push(foreignAddress);
+      )
+    );
   }
-  return output;
+  return (await Promise.all(tokenAddressPromises)).filter(
+    (tokenAddress) =>
+      tokenAddress && tokenAddress !== ethers.constants.AddressZero
+  );
 }
 
 async function calcLocalAddressesTerra(
