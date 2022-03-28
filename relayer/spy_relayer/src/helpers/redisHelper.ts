@@ -305,7 +305,7 @@ export async function demoteWorkingRedis() {
 
 export async function monitorRedis(metrics: PromHelper) {
   const scopedLogger = getScopedLogger(["monitorRedis"], logger);
-  const ONE_MINUTE: number = 60000;
+  const TEN_SECONDS: number = 10000;
   while (true) {
     const redisClient = await connectToRedis();
     if (!redisClient) {
@@ -323,6 +323,6 @@ export async function monitorRedis(metrics: PromHelper) {
         redisClient.quit();
       } catch (e) {}
     }
-    await sleep(ONE_MINUTE);
+    await sleep(TEN_SECONDS);
   }
 }
