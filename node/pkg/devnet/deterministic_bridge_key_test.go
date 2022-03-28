@@ -10,22 +10,22 @@ import (
 
 func TestDeterministicEcdsaKeyByIndex(t *testing.T) {
 	type test struct {
-		index            uint64
-		privKeyHexSubStr string
+		index      uint64
+		privKeyHex string
 	}
 
 	tests := []test{
-		{index: 0, privKeyHexSubStr: "cfb12303a1"},
-		{index: 1, privKeyHexSubStr: "c3b2e45c42"},
-		{index: 2, privKeyHexSubStr: "9f790d3f08"},
-		{index: 3, privKeyHexSubStr: "b20cc49d6f"},
+		{index: 0, privKeyHex: "cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0"},
+		{index: 1, privKeyHex: "c3b2e45c422a1602333a64078aeb42637370b0f48fe385f9cfa6ad54a8e0c47e"},
+		{index: 2, privKeyHex: "9f790d3f08bc4b5cd910d4278f3deb406e57bb5e924906ccd52052bb078ccd47"},
+		{index: 3, privKeyHex: "b20cc49d6f2c82a5e6519015fc18aa3e562867f85f872c58f1277cfbd2a0c8e4"},
 	}
 
 	for _, tc := range tests {
 		t.Run(fmt.Sprint(tc.index), func(t *testing.T) {
 			privKey := DeterministicEcdsaKeyByIndex(crypto.S256(), tc.index)
 			got := crypto.FromECDSA(privKey)
-			assert.Equal(t, tc.privKeyHexSubStr, hex.EncodeToString(got)[0:10])
+			assert.Equal(t, tc.privKeyHex, hex.EncodeToString(got))
 		})
 	}
 
