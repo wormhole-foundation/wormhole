@@ -96,6 +96,9 @@ var (
 	klaytnRPC      *string
 	klaytnContract *string
 
+	celoRPC      *string
+	celoContract *string
+
 	terraWS       *string
 	terraLCD      *string
 	terraContract *string
@@ -184,6 +187,9 @@ func init() {
 
 	klaytnRPC = NodeCmd.Flags().String("klaytnRPC", "", "Klaytn RPC URL")
 	klaytnContract = NodeCmd.Flags().String("klaytnContract", "", "Klaytn contract address")
+
+	celoRPC = NodeCmd.Flags().String("celoRPC", "", "Celo RPC URL")
+	celoContract = NodeCmd.Flags().String("celoContract", "", "Celo contract address")
 
 	terraWS = NodeCmd.Flags().String("terraWS", "", "Path to terrad root for websocket connection")
 	terraLCD = NodeCmd.Flags().String("terraLCD", "", "Path to LCD service root for http calls")
@@ -317,6 +323,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		readiness.RegisterComponent(common.ReadinessKaruraSyncing)
 		readiness.RegisterComponent(common.ReadinessAcalaSyncing)
 		readiness.RegisterComponent(common.ReadinessKlaytnSyncing)
+		readiness.RegisterComponent(common.ReadinessCeloSyncing)
 	}
 
 	if *statusAddr != "" {
@@ -365,6 +372,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		*karuraContract = devnet.GanacheWormholeContractAddress.Hex()
 		*acalaContract = devnet.GanacheWormholeContractAddress.Hex()
 		*klaytnContract = devnet.GanacheWormholeContractAddress.Hex()
+		*celoContract = devnet.GanacheWormholeContractAddress.Hex()
 	}
 
 	// Verify flags
@@ -442,6 +450,12 @@ func runNode(cmd *cobra.Command, args []string) {
 		if *klaytnContract == "" {
 			logger.Fatal("Please specify --klaytnContract")
 		}
+		if *celoRPC == "" {
+			logger.Fatal("Please specify --celoRPC")
+		}
+		if *celoContract == "" {
+			logger.Fatal("Please specify --celoContract")
+		}
 	} else {
 		if *ethRopstenRPC != "" {
 			logger.Fatal("Please do not specify --ethRopstenRPC in non-testnet mode")
@@ -472,6 +486,12 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 		if *klaytnContract != "" && !*unsafeDevMode {
 			logger.Fatal("Please do not specify --klaytnContract")
+		}
+		if *celoRPC != "" && !*unsafeDevMode {
+			logger.Fatal("Please do not specify --celoRPC")
+		}
+		if *celoContract != "" && !*unsafeDevMode {
+			logger.Fatal("Please do not specify --celoContract")
 		}
 	}
 	if *nodeName == "" {
@@ -562,6 +582,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	karuraContractAddr := eth_common.HexToAddress(*karuraContract)
 	acalaContractAddr := eth_common.HexToAddress(*acalaContract)
 	klaytnContractAddr := eth_common.HexToAddress(*klaytnContract)
+	celoContractAddr := eth_common.HexToAddress(*celoContract)
 	solAddress, err := solana_types.PublicKeyFromBase58(*solanaContract)
 	if err != nil {
 		logger.Fatal("invalid Solana contract address", zap.Error(err))
@@ -651,6 +672,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		chainObsvReqC[vaa.ChainIDKarura] = make(chan *gossipv1.ObservationRequest)
 		chainObsvReqC[vaa.ChainIDAcala] = make(chan *gossipv1.ObservationRequest)
 		chainObsvReqC[vaa.ChainIDKlaytn] = make(chan *gossipv1.ObservationRequest)
+		chainObsvReqC[vaa.ChainIDCelo] = make(chan *gossipv1.ObservationRequest)
 		chainObsvReqC[vaa.ChainIDEthereumRopsten] = make(chan *gossipv1.ObservationRequest)
 	}
 
@@ -813,6 +835,10 @@ func runNode(cmd *cobra.Command, args []string) {
 			}
 			if err := supervisor.Run(ctx, "klaytnwatch",
 				ethereum.NewEthWatcher(*klaytnRPC, klaytnContractAddr, "klaytn", common.ReadinessKlaytnSyncing, vaa.ChainIDKlaytn, lockC, nil, 1, chainObsvReqC[vaa.ChainIDKlaytn]).Run); err != nil {
+				return err
+			}
+			if err := supervisor.Run(ctx, "celowatch",
+				celo.NewCeloWatcher(*celoRPC, celoContractAddr, "celo", common.ReadinessCeloSyncing, vaa.ChainIDCelo, lockC, nil, 1, chainObsvReqC[vaa.ChainIDCelo]).Run); err != nil {
 				return err
 			}
 		}
