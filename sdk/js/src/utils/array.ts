@@ -8,6 +8,7 @@ import {
   CHAIN_ID_AURORA,
   CHAIN_ID_AVAX,
   CHAIN_ID_BSC,
+  CHAIN_ID_CELO,
   CHAIN_ID_ETH,
   CHAIN_ID_ETHEREUM_ROPSTEN,
   CHAIN_ID_FANTOM,
@@ -31,7 +32,8 @@ export const isEVMChain = (chainId: ChainId) => {
     chainId === CHAIN_ID_FANTOM ||
     chainId === CHAIN_ID_KARURA ||
     chainId === CHAIN_ID_ACALA ||
-    chainId === CHAIN_ID_KLAYTN
+    chainId === CHAIN_ID_KLAYTN ||
+    chainId === CHAIN_ID_CELO
   );
 };
 
