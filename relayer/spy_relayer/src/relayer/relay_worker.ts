@@ -23,6 +23,7 @@ import { collectWallets } from "./walletMonitor";
 const WORKER_THREAD_RESTART_MS = 10 * 1000;
 const AUDITOR_THREAD_RESTART_MS = 10 * 1000;
 const AUDIT_INTERVAL_MS = 30 * 1000;
+const WORKER_INTERVAL_MS = 5 * 1000;
 const REDIS_RETRY_MS = 10 * 1000;
 
 let metrics: PromHelper;
@@ -459,6 +460,7 @@ async function doWorkerThread(workerInfo: WorkerInfo) {
         }
       }
     }
+    await sleep(WORKER_INTERVAL_MS);
   }
 }
 

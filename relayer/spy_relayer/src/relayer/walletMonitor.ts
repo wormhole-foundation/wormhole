@@ -53,7 +53,7 @@ function init() {
   }
 }
 
-async function pullBalances(): Promise<WalletBalance[]> {
+async function pullBalances(metrics: PromHelper): Promise<WalletBalance[]> {
   //TODO loop through all the chain configs, calc the public keys, pull their balances, and push to a combo of the loggers and prmometheus
 
   logger.debug("pulling balances...");
@@ -82,9 +82,7 @@ async function pullBalances(): Promise<WalletBalance[]> {
             logger.error("pullEVMNativeBalance() failed: " + e);
           }
           logger.info("Attempting to pull EVM non-native balance...");
-          balancePromises.push(
-            pullAllEVMTokens(env.supportedTokens, chainInfo)
-          );
+          pullAllEVMTokens(env.supportedTokens, chainInfo, metrics);
         } else if (chainInfo.chainId === CHAIN_ID_TERRA) {
           logger.info("Attempting to pull TERRA native balance...");
           balancePromises.push(pullTerraNativeBalance(chainInfo, privateKey));
@@ -151,10 +149,6 @@ export async function pullEVMBalance(
   const balance = await token.balanceOf(publicAddress);
   const symbol = await token.symbol();
   const balanceFormatted = formatUnits(balance, decimals);
-
-  if (provider instanceof ethers.providers.WebSocketProvider) {
-    await provider.destroy();
-  }
 
   return {
     chainId: chainInfo.chainId,
@@ -285,9 +279,6 @@ async function pullEVMNativeBalance(
   const addr: string = await signer.getAddress();
   const weiAmount = await provider.getBalance(addr);
   const balanceInEth = ethers.utils.formatEther(weiAmount);
-  if (provider instanceof ethers.providers.WebSocketProvider) {
-    await provider.destroy();
-  }
 
   return [
     {
@@ -408,7 +399,7 @@ export async function collectWallets(metrics: PromHelper) {
     scopedLogger.debug("Pulling balances.");
     let wallets: WalletBalance[] = [];
     try {
-      wallets = await pullBalances();
+      wallets = await pullBalances(metrics);
     } catch (e) {
       scopedLogger.error("Failed to pullBalances: " + e);
     }
@@ -419,12 +410,11 @@ export async function collectWallets(metrics: PromHelper) {
 }
 
 async function calcLocalAddressesEVM(
+  provider: ethers.providers.JsonRpcBatchProvider,
   supportedTokens: SupportedToken[],
   chainConfigInfo: ChainConfigInfo
 ): Promise<string[]> {
-  let provider = newProvider(chainConfigInfo.nodeUrl);
-
-  // logger.debug("calcLocalAddressesEVM() - entered.");
+  // TODO: batch these
   let output: string[] = [];
   for (const supportedToken of supportedTokens) {
     if (supportedToken.chainId === chainConfigInfo.chainId) {
@@ -462,10 +452,6 @@ async function calcLocalAddressesEVM(
       continue;
     }
     output.push(foreignAddress);
-  }
-
-  if (provider instanceof ethers.providers.WebSocketProvider) {
-    await provider.destroy();
   }
   return output;
 }
@@ -536,42 +522,59 @@ async function calcLocalAddressesTerra(
 
 async function pullAllEVMTokens(
   supportedTokens: SupportedToken[],
-  chainConfig: ChainConfigInfo
+  chainConfig: ChainConfigInfo,
+  metrics: PromHelper
 ) {
+  let provider = newProvider(
+    chainConfig.nodeUrl,
+    true
+  ) as ethers.providers.JsonRpcBatchProvider;
   const localAddresses = await calcLocalAddressesEVM(
+    provider,
     supportedTokens,
     chainConfig
   );
-  const output: WalletBalance[] = [];
   if (!chainConfig.walletPrivateKey) {
-    return output;
+    return;
   }
   for (const privateKey of chainConfig.walletPrivateKey) {
-    const publicAddress = await new ethers.Wallet(privateKey).getAddress();
-    for (const address of localAddresses) {
-      try {
-        const balance = await pullEVMBalance(
-          chainConfig,
-          publicAddress,
-          address
-        );
-        if (balance) {
-          output.push(balance);
-        }
-      } catch (e) {
-        logger.error(
-          "pullEVMBalance failed: for token " +
-            address +
-            " on chain " +
-            chainConfig.chainId +
-            ", error: " +
-            e
-        );
-      }
+    try {
+      const publicAddress = await new ethers.Wallet(privateKey).getAddress();
+      const tokens = await Promise.all(
+        localAddresses.map((tokenAddress) =>
+          getEthereumToken(tokenAddress, provider)
+        )
+      );
+      const tokenInfos = await Promise.all(
+        tokens.map((token) =>
+          Promise.all([
+            token.decimals(),
+            token.balanceOf(publicAddress),
+            token.symbol(),
+          ])
+        )
+      );
+      const balances = tokenInfos.map(([decimals, balance, symbol], idx) => ({
+        chainId: chainConfig.chainId,
+        balanceAbs: balance.toString(),
+        balanceFormatted: formatUnits(balance, decimals),
+        currencyName: symbol,
+        currencyAddressNative: localAddresses[idx],
+        isNative: false,
+        walletAddress: publicAddress,
+      }));
+      metrics.handleWalletBalances(balances);
+    } catch (e) {
+      logger.error(
+        "pollEVMBalance failed: for tokens " +
+          JSON.stringify(localAddresses) +
+          " on chain " +
+          chainConfig.chainId +
+          ", error: " +
+          e
+      );
     }
   }
-
-  return output;
 }
 
 async function pullAllTerraTokens(

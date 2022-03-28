@@ -10,11 +10,15 @@ import { ChainConfigInfo } from "../configureEnv";
 import { getScopedLogger } from "../helpers/logHelper";
 
 export function newProvider(
-  url: string
-): ethers.providers.WebSocketProvider | ethers.providers.JsonRpcProvider {
+  url: string,
+  batch: boolean = false
+): ethers.providers.JsonRpcProvider | ethers.providers.JsonRpcBatchProvider {
   // only support http(s), not ws(s) as the websocket constructor can blow up the entire process
   // it uses a nasty setTimeout(()=>{},0) so we are unable to cleanly catch its errors
   if (url.startsWith("http")) {
+    if (batch) {
+      return new ethers.providers.JsonRpcBatchProvider(url);
+    }
     return new ethers.providers.JsonRpcProvider(url);
   }
   throw new Error("url does not start with http/https!");
