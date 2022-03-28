@@ -6,16 +6,16 @@ import {
 import { LCDClient, MnemonicKey } from "@terra-money/terra.js";
 import axios from "axios";
 import { ChainConfigInfo } from "../configureEnv";
-import { getScopedLogger } from "../helpers/logHelper";
-
-const logger = getScopedLogger(["relay", "terra"]);
+import { getScopedLogger, ScopedLogger } from "../helpers/logHelper";
 
 export async function relayTerra(
   chainConfigInfo: ChainConfigInfo,
   signedVAA: string,
   checkOnly: boolean,
-  walletPrivateKey: any
+  walletPrivateKey: any,
+  relayLogger: ScopedLogger
 ) {
+  const logger = getScopedLogger(["terra"], relayLogger);
   if (
     !(
       chainConfigInfo.terraChainId &&

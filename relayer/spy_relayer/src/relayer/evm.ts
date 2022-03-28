@@ -7,7 +7,7 @@ import {
 import { Signer } from "@ethersproject/abstract-signer";
 import { ethers } from "ethers";
 import { ChainConfigInfo } from "../configureEnv";
-import { getScopedLogger } from "../helpers/logHelper";
+import { getScopedLogger, ScopedLogger } from "../helpers/logHelper";
 
 export function newProvider(
   url: string,
@@ -29,9 +29,13 @@ export async function relayEVM(
   signedVAA: string,
   unwrapNative: boolean,
   checkOnly: boolean,
-  walletPrivateKey: string
+  walletPrivateKey: string,
+  relayLogger: ScopedLogger
 ) {
-  const logger = getScopedLogger(["relay", "evm", chainConfigInfo.chainName]);
+  const logger = getScopedLogger(
+    ["evm", chainConfigInfo.chainName],
+    relayLogger
+  );
   const signedVaaArray = hexToUint8Array(signedVAA);
   let provider = newProvider(chainConfigInfo.nodeUrl);
   const signer: Signer = new ethers.Wallet(walletPrivateKey, provider);

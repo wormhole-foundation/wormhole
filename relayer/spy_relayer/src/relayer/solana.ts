@@ -16,18 +16,18 @@ import {
 } from "@solana/spl-token";
 import { Connection, Keypair, PublicKey, Transaction } from "@solana/web3.js";
 import { ChainConfigInfo } from "../configureEnv";
-import { getScopedLogger } from "../helpers/logHelper";
+import { getScopedLogger, ScopedLogger } from "../helpers/logHelper";
 
 const MAX_VAA_UPLOAD_RETRIES_SOLANA = 5;
-
-const logger = getScopedLogger(["relay", "solana"]);
 
 export async function relaySolana(
   chainConfigInfo: ChainConfigInfo,
   signedVAAString: string,
   checkOnly: boolean,
-  walletPrivateKey: Uint8Array
+  walletPrivateKey: Uint8Array,
+  relayLogger: ScopedLogger
 ) {
+  const logger = getScopedLogger(["solana"], relayLogger);
   //TODO native transfer & create associated token account
   //TODO close connection
   const signedVaaArray = hexToUint8Array(signedVAAString);

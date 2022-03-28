@@ -14,7 +14,7 @@ import { relaySolana } from "./solana";
 import { relayTerra } from "./terra";
 import { getRelayerEnvironment } from "../configureEnv";
 import { RelayResult, Status } from "../helpers/redisHelper";
-import { getLogger } from "../helpers/logHelper";
+import { getLogger, getScopedLogger, ScopedLogger } from "../helpers/logHelper";
 
 const logger = getLogger();
 
@@ -26,8 +26,10 @@ function getChainConfigInfo(chainId: ChainId) {
 export async function relay(
   signedVAA: string,
   checkOnly: boolean,
-  walletPrivateKey: any
+  walletPrivateKey: any,
+  relayLogger: ScopedLogger
 ): Promise<RelayResult> {
+  const logger = getScopedLogger(["relay"], relayLogger);
   const { parse_vaa } = await importCoreWasm();
   const parsedVAA = parse_vaa(hexToUint8Array(signedVAA));
   if (parsedVAA.payload[0] === 1) {
@@ -64,7 +66,8 @@ export async function relay(
         signedVAA,
         unwrapNative,
         checkOnly,
-        walletPrivateKey
+        walletPrivateKey,
+        logger
       );
       return {
         status: evmResult.redeemed ? Status.Completed : Status.Error,
@@ -78,7 +81,8 @@ export async function relay(
         chainConfigInfo,
         signedVAA,
         checkOnly,
-        walletPrivateKey
+        walletPrivateKey,
+        logger
       );
       if (retVal.redeemed) {
         rResult.status = Status.Completed;
@@ -93,7 +97,8 @@ export async function relay(
         chainConfigInfo,
         signedVAA,
         checkOnly,
-        walletPrivateKey
+        walletPrivateKey,
+        logger
       );
       if (retVal.redeemed) {
         rResult.status = Status.Completed;
