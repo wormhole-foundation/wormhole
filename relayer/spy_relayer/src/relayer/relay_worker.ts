@@ -276,7 +276,15 @@ async function processRequest(
     // Actually do the processing here and update status and time field
     let relayResult: RelayResult;
     try {
-      logger.info("Calling with vaa_bytes %s", payload.vaa_bytes);
+      if (payload.retries > 0) {
+        logger.info(
+          "Calling with vaa_bytes %s, retry %d",
+          payload.vaa_bytes,
+          payload.retries
+        );
+      } else {
+        logger.info("Calling with vaa_bytes %s", payload.vaa_bytes);
+      }
       relayResult = await relay(payload.vaa_bytes, false, myPrivateKey, logger);
       logger.info("Relay returned: %o", Status[relayResult.status]);
     } catch (e: any) {
