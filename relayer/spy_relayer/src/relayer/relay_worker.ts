@@ -294,11 +294,20 @@ async function processRequest(
     }
 
     const MAX_RETRIES = 10;
+    let targetChain: any = 0; // 0 is unspecified, but not covered by the SDK
+    try {
+      const { parse_vaa } = await importCoreWasm();
+      const parsedVAA = parse_vaa(hexToUint8Array(payload.vaa_bytes));
+      const transferPayload = parseTransferPayload(
+        Buffer.from(parsedVAA.payload)
+      );
+      targetChain = transferPayload.targetChain;
+    } catch (e) {}
     let retry: boolean = false;
     if (relayResult.status === Status.Completed) {
-      metrics.incSuccesses();
+      metrics.incSuccesses(targetChain);
     } else {
-      metrics.incFailures();
+      metrics.incFailures(targetChain);
       if (payload.retries >= MAX_RETRIES) {
         relayResult.status = Status.FatalError;
       }

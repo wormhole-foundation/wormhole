@@ -1,3 +1,4 @@
+import { ChainId } from "@certusone/wormhole-sdk";
 import http = require("http");
 import client = require("prom-client");
 import { WalletBalance } from "../relayer/walletMonitor";
@@ -26,10 +27,12 @@ export class PromHelper {
   private successCounter = new client.Counter({
     name: "spy_relay_successes",
     help: "number of successful relays",
+    labelNames: ["chain_name"],
   });
   private failureCounter = new client.Counter({
     name: "spy_relay_failures",
     help: "number of failed relays",
+    labelNames: ["chain_name"],
   });
   private completeTime = new client.Histogram({
     name: "spy_relay_complete_time",
@@ -134,11 +137,15 @@ export class PromHelper {
   }
 
   // These are the accessor methods for the metrics
-  incSuccesses() {
-    this.successCounter.inc();
+  incSuccesses(chainId: ChainId) {
+    this.successCounter
+      .labels({ chain_name: chainIDStrings[chainId] || "Unknown" })
+      .inc();
   }
-  incFailures() {
-    this.failureCounter.inc();
+  incFailures(chainId: ChainId) {
+    this.failureCounter
+      .labels({ chain_name: chainIDStrings[chainId] || "Unknown" })
+      .inc();
   }
   addCompleteTime(val: number) {
     this.completeTime.observe(val);
@@ -180,7 +187,7 @@ export class PromHelper {
         this.walletBalance
           .labels({
             currency: bal.currencyName,
-            chain_name: chainIDStrings[bal.chainId],
+            chain_name: chainIDStrings[bal.chainId] || "Unknown",
             wallet: bal.walletAddress,
             currency_address: bal.currencyAddressNative,
             is_native: bal.isNative ? "1" : "0",
