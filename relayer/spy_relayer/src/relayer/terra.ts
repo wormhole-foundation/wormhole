@@ -87,7 +87,7 @@ export async function relayTerra(
     ],
     {
       msgs: [msg],
-      feeDenoms: ["uluna"],
+      feeDenoms: [chainConfigInfo.terraCoin],
       gasPrices,
     }
   );
@@ -96,7 +96,7 @@ export async function relayTerra(
   const tx = await wallet.createAndSignTx({
     msgs: [msg],
     memo: "Relayer - Complete Transfer",
-    feeDenoms: ["uluna"],
+    feeDenoms: [chainConfigInfo.terraCoin],
     gasPrices,
     fee: feeEstimate,
   });
