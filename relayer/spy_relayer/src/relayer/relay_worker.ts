@@ -445,12 +445,12 @@ async function spawnWorkerThread(workerInfo: WorkerInfo) {
 async function doWorkerThread(workerInfo: WorkerInfo) {
   const relayLogger = getScopedLogger([`relay-worker-${workerInfo.index}`]);
   while (true) {
-    relayLogger.debug("Finding workable items.");
+    // relayLogger.debug("Finding workable items.");
     const workableItems: WorkableItem[] = await findWorkableItems(
       workerInfo,
       relayLogger
     );
-    relayLogger.debug("Found items: %o", workableItems);
+    // relayLogger.debug("Found items: %o", workableItems);
     let i: number = 0;
     for (i = 0; i < workableItems.length; i++) {
       const workItem: WorkableItem = workableItems[i];
@@ -472,10 +472,10 @@ async function doWorkerThread(workerInfo: WorkerInfo) {
         }
       }
     }
-    relayLogger.debug(
-      "Taking a break for %i seconds",
-      WORKER_INTERVAL_MS / 1000
-    );
+    // relayLogger.debug(
+    //   "Taking a break for %i seconds",
+    //   WORKER_INTERVAL_MS / 1000
+    // );
     await sleep(WORKER_INTERVAL_MS);
   }
 }

@@ -297,7 +297,12 @@ export async function demoteWorkingRedis() {
     logger.info("Demoting %s", si_key);
     await redisClient.del(si_key);
     await redisClient.select(RedisTables.INCOMING);
-    await redisClient.set(si_key, si_value);
+    await redisClient.set(
+      si_key,
+      storePayloadToJson(
+        initPayloadWithVAA(storePayloadFromJson(si_value).vaa_bytes)
+      )
+    );
     await redisClient.select(RedisTables.WORKING);
   }
   redisClient.quit();
