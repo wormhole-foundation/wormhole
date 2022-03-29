@@ -55,8 +55,6 @@ function init() {
 
 async function pullBalances(metrics: PromHelper): Promise<WalletBalance[]> {
   //TODO loop through all the chain configs, calc the public keys, pull their balances, and push to a combo of the loggers and prmometheus
-
-  logger.debug("pulling balances...");
   if (!env) {
     logger.error("pullBalances() - no env");
     return [];
@@ -71,24 +69,17 @@ async function pullBalances(metrics: PromHelper): Promise<WalletBalance[]> {
     for (const privateKey of chainInfo.walletPrivateKey || []) {
       try {
         if (!privateKey) break;
-        logger.debug(
-          "Attempting to pull native balance for chainId: " + chainInfo.chainId
-        );
         if (isEVMChain(chainInfo.chainId)) {
-          logger.info("Attempting to pull EVM native balance...");
           try {
             balancePromises.push(pullEVMNativeBalance(chainInfo, privateKey));
           } catch (e) {
             logger.error("pullEVMNativeBalance() failed: " + e);
           }
-          logger.info("Attempting to pull EVM non-native balance...");
           // TODO one day this will spin up independent watchers that time themselves
           // purposefully not awaited
           pullAllEVMTokens(env.supportedTokens, chainInfo, metrics);
         } else if (chainInfo.chainId === CHAIN_ID_TERRA) {
-          logger.info("Attempting to pull TERRA native balance...");
           balancePromises.push(pullTerraNativeBalance(chainInfo, privateKey));
-          logger.info("Attempting to pull TERRA non-native balance...");
           balancePromises.push(
             pullAllTerraTokens(env.supportedTokens, chainInfo)
           );
@@ -110,11 +101,9 @@ async function pullBalances(metrics: PromHelper): Promise<WalletBalance[]> {
     for (const solanaPrivateKey of chainInfo.solanaPrivateKey || []) {
       try {
         if (chainInfo.chainId === CHAIN_ID_SOLANA) {
-          logger.info("pullBalances() - calling pullSolanaNativeBalance...");
           balancePromises.push(
             pullSolanaNativeBalance(chainInfo, solanaPrivateKey)
           );
-          logger.info("pullBalances() - calling pullSolanaTokenBalances...");
           balancePromises.push(
             pullSolanaTokenBalances(chainInfo, solanaPrivateKey)
           );
