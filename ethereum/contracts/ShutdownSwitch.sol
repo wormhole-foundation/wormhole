@@ -12,7 +12,7 @@ pragma solidity ^0.8.0;
  * When a predetermined number of guardians vote to disable, then transfers are blocked until the number of
  * disable votes is reduced below that threshold.
  *
- * NOTE: The number of votes to enable is irrelevant. As long as there are enough votes to disable, trabsfers are blocked.
+ * NOTE: The number of votes to enable is irrelevant. As long as there are enough votes to disable, transfers are blocked.
  *
  * An important design goal of this implementation is to minimize the impact (gas) to users, so the check to determine
  * if transfers are enabled is a simple boolean check.
@@ -32,19 +32,20 @@ import "./interfaces/IWormhole.sol";
 
 abstract contract ShutdownSwitch {
     /// @dev A map of all guardians that have active votes to disable. If a guardian is removed from the guardian set while they
-    /// have an active vote to disable, they would get left in the map. The current assumption is that this will have minimal impact.
-    mapping(address => bool) private disabledVotes;
+    /// have an active vote to disable, they would get left in the map. The current assumption is that this will have minimal impact,
+    /// because they would never be referenced again anyway.
+    mapping(address => bool) private shutdownVotes;
 
     bool private enabled = true;
 
     /// @dev Returns the number of votes required to disable transfers.
-    function requiredVotesToDisable() public view returns (uint16) {
-        return computeRequiredVotesToDisable(getCurrentGuardianSet().keys.length);
+    function requiredVotesToShutdown() public view returns (uint16) {
+        return computeRequiredVotesToShutdown(getCurrentGuardianSet().keys.length);
     }
 
     /// @dev Returns the current number of votes to disable transfers.
-    function numVotesToDisable() public view returns (uint16) {
-        return computeNumVotesDisabled(getCurrentGuardianSet());
+    function numVotesToShutdown() public view returns (uint16) {
+        return computeNumVotesShutdown(getCurrentGuardianSet());
     }
 
     /// @dev returns the current shutdown status, where true means transfers are enabled.
@@ -52,11 +53,25 @@ abstract contract ShutdownSwitch {
         return enabled;
     }
 
+    /// @dev Returns the number of votes required to disable transfers.
+    function currentVotesToShutdown() public view returns (address[] memory) {
+        Structs.GuardianSet memory gs = getCurrentGuardianSet();
+        address[] memory ret = new address[](computeNumVotesShutdown(gs));
+        uint retIdx = 0;
+        for (uint idx = 0; (idx < gs.keys.length); idx++) {
+            if (shutdownVotes[gs.keys[idx]]) {
+                ret[retIdx++] = gs.keys[idx];
+            }
+        }
+
+        return ret;
+    }
+
     /// @dev Event published whenenver a valid guardian votes.
-    event ShutdownVoteCast(address indexed voter, bool votedToEnable, uint16 numVotesToDisable, bool enableFlag);
+    event ShutdownVoteCast(address indexed voter, bool votedToEnable, uint16 numVotesToShutdown, bool enableFlag);
 
     /// @dev Event published whenever the shutdown status changes from enabled to disabled, or vice versa.
-    event ShutdownStatusChanged(bool enabledFlag, uint16 numVotesToDisable);
+    event ShutdownStatusChanged(bool enabledFlag, uint16 numVotesToShutdown);
 
     /// @dev Function that must be implemented by contracts inheriting from this one.
     function getCurrentGuardianSet() public virtual view returns (Structs.GuardianSet memory);
@@ -85,21 +100,21 @@ abstract contract ShutdownSwitch {
 
         // Only votes to disable are maintained in the map.
         if (_enabled) {
-            delete disabledVotes[msg.sender];
+            delete shutdownVotes[msg.sender];
         } else {
-            disabledVotes[msg.sender] = true;
+            shutdownVotes[msg.sender] = true;
         }
 
         // Update the number of votes to disable.
-        uint16 votesToDisable = computeNumVotesDisabled(gs);
+        uint16 votesToShutdown = computeNumVotesShutdown(gs);
 
         // Determine the new shutdown status and generate the appropriate events.
-        bool newEnabledFlag = (votesToDisable < computeRequiredVotesToDisable(gs.keys.length));
-        emit ShutdownSwitch.ShutdownVoteCast(msg.sender, _enabled, votesToDisable, newEnabledFlag);
+        bool newEnabledFlag = (votesToShutdown < computeRequiredVotesToShutdown(gs.keys.length));
+        emit ShutdownSwitch.ShutdownVoteCast(msg.sender, _enabled, votesToShutdown, newEnabledFlag);
 
         if (newEnabledFlag != enabled) {
             enabled = newEnabledFlag;
-            emit ShutdownSwitch.ShutdownStatusChanged(newEnabledFlag, votesToDisable);
+            emit ShutdownSwitch.ShutdownStatusChanged(newEnabledFlag, votesToShutdown);
         }
     }
 
@@ -115,20 +130,20 @@ abstract contract ShutdownSwitch {
     }
 
     /// @dev Returns the number of disable votes required to go disabled.
-    function computeRequiredVotesToDisable(uint numGuardians) private pure returns(uint16) {
+    function computeRequiredVotesToShutdown(uint numGuardians) private pure returns(uint16) {
         // If the number of active guardians is less than the pre-configured threshold, use that.
         return uint16(numGuardians >= REQUIRED_NO_VOTES ? REQUIRED_NO_VOTES : numGuardians);
     }
 
     /// @dev Counts up the number of current guardians that have active votes to disable.
-    function computeNumVotesDisabled(Structs.GuardianSet memory gs) private view returns (uint16) {
-        uint16 numDisabled = 0;
+    function computeNumVotesShutdown(Structs.GuardianSet memory gs) private view returns (uint16) {
+        uint16 votesToShutdown = 0;
         for (uint idx = 0; (idx < gs.keys.length); idx++) {
-            if (disabledVotes[gs.keys[idx]]) {
-                numDisabled++;
+            if (shutdownVotes[gs.keys[idx]]) {
+                votesToShutdown++;
             }
         }
 
-        return numDisabled;
+        return votesToShutdown;
     }
 }

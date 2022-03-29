@@ -26,10 +26,10 @@ contract("ShutdownSwitch", function () {
         const initialized = new web3.eth.Contract(BridgeImplementationFullABI, TokenBridge.address);
 
         assert.equal((await initialized.methods.enabledFlag().call()), true)
-        assert.equal((await initialized.methods.numVotesToDisable().call()), 0)
+        assert.equal((await initialized.methods.numVotesToShutdown().call()), 0)
 
         // Since we start out with only one guardian, the required votes should be one.
-        assert.equal((await initialized.methods.requiredVotesToDisable().call()), 1)
+        assert.equal((await initialized.methods.requiredVotesToShutdown().call()), 1)
     })
 
     it("should block non-guardians from casting a shutdown vote", async function () {
@@ -51,10 +51,11 @@ contract("ShutdownSwitch", function () {
 
         assert.ok(voteFailed)
         assert.equal((await initialized.methods.enabledFlag().call()), true)
-        assert.equal((await initialized.methods.numVotesToDisable().call()), 0)
-        assert.equal((await initialized.methods.requiredVotesToDisable().call()), 1)
+        assert.equal((await initialized.methods.numVotesToShutdown().call()), 0)
+        assert.equal((await initialized.methods.requiredVotesToShutdown().call()), 1)
     })
 
+    // Set up to have four guardians for all of our tests.
     it("should upgrade to four guardians", async function () {
         const accounts = await web3.eth.getAccounts();
 
@@ -114,8 +115,8 @@ contract("ShutdownSwitch", function () {
             gasLimit: 2000000
         });
 
-        assert.equal((await initialized.methods.numVotesToDisable().call()), 1)
-        assert.equal((await initialized.methods.requiredVotesToDisable().call()), 3)
+        assert.equal((await initialized.methods.numVotesToShutdown().call()), 1)
+        assert.equal((await initialized.methods.requiredVotesToShutdown().call()), 3)
         assert.equal((await initialized.methods.enabledFlag().call()), true)
 
         // This first vote should succeed, but we should still be enabled.
@@ -125,8 +126,8 @@ contract("ShutdownSwitch", function () {
             gasLimit: 2000000
         });
 
-        assert.equal((await initialized.methods.numVotesToDisable().call()), 1)
-        assert.equal((await initialized.methods.requiredVotesToDisable().call()), 3)
+        assert.equal((await initialized.methods.numVotesToShutdown().call()), 1)
+        assert.equal((await initialized.methods.requiredVotesToShutdown().call()), 3)
         assert.equal((await initialized.methods.enabledFlag().call()), true)
 
         // A duplicate vote should change nothing.
@@ -136,8 +137,8 @@ contract("ShutdownSwitch", function () {
             gasLimit: 2000000
         });
 
-        assert.equal((await initialized.methods.numVotesToDisable().call()), 1)
-        assert.equal((await initialized.methods.requiredVotesToDisable().call()), 3)
+        assert.equal((await initialized.methods.numVotesToShutdown().call()), 1)
+        assert.equal((await initialized.methods.requiredVotesToShutdown().call()), 3)
         assert.equal((await initialized.methods.enabledFlag().call()), true)
 
         // The second vote should succeed, but we should still be enabled.
@@ -147,8 +148,8 @@ contract("ShutdownSwitch", function () {
             gasLimit: 2000000
         });
 
-        assert.equal((await initialized.methods.numVotesToDisable().call()), 2)
-        assert.equal((await initialized.methods.requiredVotesToDisable().call()), 3)
+        assert.equal((await initialized.methods.numVotesToShutdown().call()), 2)
+        assert.equal((await initialized.methods.requiredVotesToShutdown().call()), 3)
         assert.equal((await initialized.methods.enabledFlag().call()), true)
 
         // But a third vote should suspend transfers.
@@ -158,8 +159,8 @@ contract("ShutdownSwitch", function () {
             gasLimit: 2000000
         });
 
-        assert.equal((await initialized.methods.numVotesToDisable().call()), 3)
-        assert.equal((await initialized.methods.requiredVotesToDisable().call()), 3)
+        assert.equal((await initialized.methods.numVotesToShutdown().call()), 3)
+        assert.equal((await initialized.methods.requiredVotesToShutdown().call()), 3)
         assert.equal((await initialized.methods.enabledFlag().call()), false)
     })
 
@@ -231,7 +232,7 @@ contract("ShutdownSwitch", function () {
             gasLimit: 2000000
         });
 
-        assert.equal((await initialized.methods.numVotesToDisable().call()), 1)
+        assert.equal((await initialized.methods.numVotesToShutdown().call()), 1)
         assert.equal((await initialized.methods.enabledFlag().call()), true)
 
         await initialized.methods.castShutdownVote(false).send({
@@ -247,7 +248,7 @@ contract("ShutdownSwitch", function () {
         });
 
         // Make sure transfers are now disabled.
-        assert.equal((await initialized.methods.numVotesToDisable().call()), 3)
+        assert.equal((await initialized.methods.numVotesToShutdown().call()), 3)
         assert.equal((await initialized.methods.enabledFlag().call()), false)
 
         // This transfer should be blocked.
@@ -279,7 +280,7 @@ contract("ShutdownSwitch", function () {
         // Don't clear the votes here.
 
         // This assumes the previous test left us disabled.
-        assert.equal((await initialized.methods.numVotesToDisable().call()), 3)
+        assert.equal((await initialized.methods.numVotesToShutdown().call()), 3)
         assert.equal((await initialized.methods.enabledFlag().call()), false)
 
         // Change one vote to enabled and our status should change back to enabled.
@@ -289,7 +290,7 @@ contract("ShutdownSwitch", function () {
             gasLimit: 2000000
         });
 
-        assert.equal((await initialized.methods.numVotesToDisable().call()), 2)
+        assert.equal((await initialized.methods.numVotesToShutdown().call()), 2)
         assert.equal((await initialized.methods.enabledFlag().call()), true)
 
         // And now the transfer should go through.
@@ -335,7 +336,7 @@ contract("ShutdownSwitch", function () {
             gasLimit: 2000000
         });
 
-        assert.equal((await initialized.methods.numVotesToDisable().call()), 1)
+        assert.equal((await initialized.methods.numVotesToShutdown().call()), 1)
         assert.equal((await initialized.methods.enabledFlag().call()), true)
 
         await initialized.methods.castShutdownVote(false).send({
@@ -344,7 +345,7 @@ contract("ShutdownSwitch", function () {
             gasLimit: 2000000
         });
 
-        assert.equal((await initialized.methods.numVotesToDisable().call()), 2)
+        assert.equal((await initialized.methods.numVotesToShutdown().call()), 2)
         assert.equal((await initialized.methods.enabledFlag().call()), true)
 
         await initialized.methods.castShutdownVote(false).send({
@@ -354,7 +355,7 @@ contract("ShutdownSwitch", function () {
         });
 
         // Make sure transfers are now disabled.
-        assert.equal((await initialized.methods.numVotesToDisable().call()), 3)
+        assert.equal((await initialized.methods.numVotesToShutdown().call()), 3)
         assert.equal((await initialized.methods.enabledFlag().call()), false)
 
         // This redeem should be blocked by shutdown switch rather than "no quorum".
@@ -375,7 +376,7 @@ contract("ShutdownSwitch", function () {
         // Don't clear the votes here.
 
         // This assumes the previous test left us disabled.
-        assert.equal((await initialized.methods.numVotesToDisable().call()), 3)
+        assert.equal((await initialized.methods.numVotesToShutdown().call()), 3)
         assert.equal((await initialized.methods.enabledFlag().call()), false)
 
         // Change one vote to enabled and our status should change back to enabled.
@@ -385,7 +386,7 @@ contract("ShutdownSwitch", function () {
             gasLimit: 2000000
         });
 
-        assert.equal((await initialized.methods.numVotesToDisable().call()), 2)
+        assert.equal((await initialized.methods.numVotesToShutdown().call()), 2)
         assert.equal((await initialized.methods.enabledFlag().call()), true)
 
         // The redeem should be back to being blocked by "no quorum" rather than by shutdown switch.
@@ -400,6 +401,49 @@ contract("ShutdownSwitch", function () {
         }
     })
 
+    it("should return all who are voting to disable on query", async function () {
+        // This test assumes the previous test initialized the vaa variable.
+        assert.ok(vaa != null)
+
+        const accounts = await web3.eth.getAccounts();
+        const initialized = new web3.eth.Contract(BridgeImplementationFullABI, TokenBridge.address);
+        await clearAllVotes(initialized, accounts);
+        assert.equal((await initialized.methods.enabledFlag().call()), true)
+
+        // Cast three votes to disable transfers.
+        await initialized.methods.castShutdownVote(false).send({
+            value: 0,
+            from: accounts[0],
+            gasLimit: 2000000
+        });
+
+        assert.equal((await initialized.methods.numVotesToShutdown().call()), 1)
+        assert.equal((await initialized.methods.enabledFlag().call()), true)
+
+        await initialized.methods.castShutdownVote(false).send({
+            value: 0,
+            from: accounts[1],
+            gasLimit: 2000000
+        });
+
+        assert.equal((await initialized.methods.numVotesToShutdown().call()), 2)
+        assert.equal((await initialized.methods.enabledFlag().call()), true)
+
+        await initialized.methods.castShutdownVote(false).send({
+            value: 0,
+            from: accounts[2],
+            gasLimit: 2000000
+        });
+
+        let voters = await initialized.methods.currentVotesToShutdown().call();
+
+        assert.equal(voters.length, 3);
+
+        assert.equal(voters[0], accounts[0]);
+        assert.equal(voters[1], accounts[1]);
+        assert.equal(voters[2], accounts[2]);
+    })
+
     async function clearAllVotes(initialized, accounts) {
         for (let idx = 0; (idx < 4); ++idx) {
             await initialized.methods.castShutdownVote(true).send({
@@ -408,6 +452,9 @@ contract("ShutdownSwitch", function () {
                 gasLimit: 2000000
             });
         }
+
+        assert.equal((await initialized.methods.numVotesToShutdown().call()), 0)
+        assert.equal((await initialized.methods.enabledFlag().call()), true)
     }
 });
 
