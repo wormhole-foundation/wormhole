@@ -1,4 +1,5 @@
 import {
+  CHAIN_ID_POLYGON,
   getIsTransferCompletedEth,
   hexToUint8Array,
   redeemOnEth,
@@ -65,16 +66,27 @@ export async function relayEVM(
   }
 
   logger.debug("Redeeming.");
+  // look, there's something janky with Polygon + ethers + EIP-1559
+  let overrides;
+  if (chainConfigInfo.chainId === CHAIN_ID_POLYGON) {
+    let feeData = await provider.getFeeData();
+    overrides = {
+      maxFeePerGas: feeData.maxFeePerGas?.mul(10) || undefined,
+      maxPriorityFeePerGas: feeData.maxPriorityFeePerGas?.mul(10) || undefined,
+    };
+  }
   const receipt = unwrapNative
     ? await redeemOnEthNative(
         chainConfigInfo.tokenBridgeAddress,
         signer,
-        signedVaaArray
+        signedVaaArray,
+        overrides
       )
     : await redeemOnEth(
         chainConfigInfo.tokenBridgeAddress,
         signer,
-        signedVaaArray
+        signedVaaArray,
+        overrides
       );
 
   logger.debug("Checking to see if the transaction is complete.");
