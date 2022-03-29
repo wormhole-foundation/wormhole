@@ -96,7 +96,7 @@ function calculateFeeUsd(
   } else if (targetChain === CHAIN_ID_POLYGON) {
     feeUsd = 0.5;
   } else if (targetChain === CHAIN_ID_AVAX) {
-    feeUsd = 1;
+    feeUsd = 2;
   } else if (targetChain === CHAIN_ID_OASIS) {
     feeUsd = 0.5;
   } else if (targetChain === CHAIN_ID_FANTOM) {
