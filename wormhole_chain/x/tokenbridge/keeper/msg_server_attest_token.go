@@ -33,6 +33,8 @@ func (k msgServer) AttestToken(goCtx context.Context, msg *types.MsgAttestToken)
 		return nil, types.ErrAttestWormholeToken
 	}
 
+	// TODO(csongor): don't attest uhole
+
 	// The display denom should have the most common decimal places
 	var displayDenom *types2.DenomUnit
 	for _, denom := range meta.DenomUnits {
