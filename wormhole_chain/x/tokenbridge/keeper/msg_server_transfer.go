@@ -101,6 +101,7 @@ func (k msgServer) Transfer(goCtx context.Context, msg *types.MsgTransfer) (*typ
 	// To
 	buf.Write(msg.ToAddress)
 	// ToChain
+	// TODO(csongor): why? chain id is uint16
 	if msg.ToChain > math.MaxUint8 {
 		return nil, types.ErrChainIDTooLarge
 	}
