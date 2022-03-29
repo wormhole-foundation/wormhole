@@ -15,7 +15,6 @@ import {base58, solidityKeccak256} from "ethers/lib/utils";
 import {setDefaultWasm, importCoreWasm, importTokenWasm, ixFromRust, BridgeImplementation__factory} from '@certusone/wormhole-sdk'
 setDefaultWasm("node")
 
-
 const signAndEncodeVM = function (
     timestamp,
     nonce,
