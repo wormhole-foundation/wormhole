@@ -30,7 +30,7 @@ func getTestMP() MessagePublication {
 	}
 }
 
-// Base test to ensure the
+// Base test to ensure the basic struct I/O
 func TestMessagePublication(t *testing.T) {
 	txHash := common.HexToHash("80d6a81b73b3cebba81fba2a330bcfaa25ce93e52e6bd65a02c7c13932a8c1a5")
 	timeStamp := time.Now()
