@@ -82,6 +82,8 @@ async function pullBalances(metrics: PromHelper): Promise<WalletBalance[]> {
             logger.error("pullEVMNativeBalance() failed: " + e);
           }
           logger.info("Attempting to pull EVM non-native balance...");
+          // TODO one day this will spin up independent watchers that time themselves
+          // purposefully not awaited
           pullAllEVMTokens(env.supportedTokens, chainInfo, metrics);
         } else if (chainInfo.chainId === CHAIN_ID_TERRA) {
           logger.info("Attempting to pull TERRA native balance...");
@@ -135,30 +137,6 @@ async function pullBalances(metrics: PromHelper): Promise<WalletBalance[]> {
   );
 
   return balances;
-}
-
-export async function pullEVMBalance(
-  chainInfo: ChainConfigInfo,
-  publicAddress: string,
-  tokenAddress: string
-): Promise<WalletBalance> {
-  let provider = newProvider(chainInfo.nodeUrl);
-
-  const token = await getEthereumToken(tokenAddress, provider);
-  const decimals = await token.decimals();
-  const balance = await token.balanceOf(publicAddress);
-  const symbol = await token.symbol();
-  const balanceFormatted = formatUnits(balance, decimals);
-
-  return {
-    chainId: chainInfo.chainId,
-    balanceAbs: balance.toString(),
-    balanceFormatted: balanceFormatted,
-    currencyName: symbol,
-    currencyAddressNative: tokenAddress,
-    isNative: false,
-    walletAddress: publicAddress,
-  };
 }
 
 async function pullTerraBalance(
@@ -519,55 +497,64 @@ async function pullAllEVMTokens(
   chainConfig: ChainConfigInfo,
   metrics: PromHelper
 ) {
-  let provider = newProvider(
-    chainConfig.nodeUrl,
-    true
-  ) as ethers.providers.JsonRpcBatchProvider;
-  const localAddresses = await calcLocalAddressesEVM(
-    provider,
-    supportedTokens,
-    chainConfig
-  );
-  if (!chainConfig.walletPrivateKey) {
-    return;
-  }
-  for (const privateKey of chainConfig.walletPrivateKey) {
-    try {
-      const publicAddress = await new ethers.Wallet(privateKey).getAddress();
-      const tokens = await Promise.all(
-        localAddresses.map((tokenAddress) =>
-          getEthereumToken(tokenAddress, provider)
-        )
-      );
-      const tokenInfos = await Promise.all(
-        tokens.map((token) =>
-          Promise.all([
-            token.decimals(),
-            token.balanceOf(publicAddress),
-            token.symbol(),
-          ])
-        )
-      );
-      const balances = tokenInfos.map(([decimals, balance, symbol], idx) => ({
-        chainId: chainConfig.chainId,
-        balanceAbs: balance.toString(),
-        balanceFormatted: formatUnits(balance, decimals),
-        currencyName: symbol,
-        currencyAddressNative: localAddresses[idx],
-        isNative: false,
-        walletAddress: publicAddress,
-      }));
-      metrics.handleWalletBalances(balances);
-    } catch (e) {
-      logger.error(
-        "pollEVMBalance failed: for tokens " +
-          JSON.stringify(localAddresses) +
-          " on chain " +
-          chainConfig.chainId +
-          ", error: " +
-          e
-      );
+  try {
+    let provider = newProvider(
+      chainConfig.nodeUrl,
+      true
+    ) as ethers.providers.JsonRpcBatchProvider;
+    const localAddresses = await calcLocalAddressesEVM(
+      provider,
+      supportedTokens,
+      chainConfig
+    );
+    if (!chainConfig.walletPrivateKey) {
+      return;
     }
+    for (const privateKey of chainConfig.walletPrivateKey) {
+      try {
+        const publicAddress = await new ethers.Wallet(privateKey).getAddress();
+        const tokens = await Promise.all(
+          localAddresses.map((tokenAddress) =>
+            getEthereumToken(tokenAddress, provider)
+          )
+        );
+        const tokenInfos = await Promise.all(
+          tokens.map((token) =>
+            Promise.all([
+              token.decimals(),
+              token.balanceOf(publicAddress),
+              token.symbol(),
+            ])
+          )
+        );
+        const balances = tokenInfos.map(([decimals, balance, symbol], idx) => ({
+          chainId: chainConfig.chainId,
+          balanceAbs: balance.toString(),
+          balanceFormatted: formatUnits(balance, decimals),
+          currencyName: symbol,
+          currencyAddressNative: localAddresses[idx],
+          isNative: false,
+          walletAddress: publicAddress,
+        }));
+        metrics.handleWalletBalances(balances);
+      } catch (e) {
+        logger.error(
+          "pullAllEVMTokens failed: for tokens " +
+            JSON.stringify(localAddresses) +
+            " on chain " +
+            chainConfig.chainId +
+            ", error: " +
+            e
+        );
+      }
+    }
+  } catch (e) {
+    logger.error(
+      "pullAllEVMTokens failed: for chain " +
+        chainConfig.chainId +
+        ", error: " +
+        e
+    );
   }
 }
 
