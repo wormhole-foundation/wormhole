@@ -16,6 +16,7 @@ import {
 } from "../../store/selectors";
 import {
   CHAINS_WITH_NFT_SUPPORT,
+  CLUSTER,
   getIsTransferDisabled,
 } from "../../utils/consts";
 import ButtonWithLoader from "../ButtonWithLoader";
@@ -99,7 +100,9 @@ function Source() {
         </div>
       ) : null}
       <LowBalanceWarning chainId={sourceChain} />
-      {sourceChain === CHAIN_ID_SOLANA && <SolanaTPSWarning />}
+      {sourceChain === CHAIN_ID_SOLANA && CLUSTER === "mainnet" && (
+        <SolanaTPSWarning />
+      )}
       <ChainWarningMessage chainId={sourceChain} />
       <ButtonWithLoader
         disabled={!isSourceComplete || isTransferDisabled}

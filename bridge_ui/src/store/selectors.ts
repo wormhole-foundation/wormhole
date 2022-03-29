@@ -284,6 +284,39 @@ export const selectTransferTargetError = (state: RootState) => {
   if (!state.transfer.targetAddressHex) {
     return "Target account unavailable";
   }
+  if (state.transfer.useRelayer && state.transfer.relayerFee === undefined) {
+    return "Invalid relayer fee.";
+  }
+  if (state.transfer.relayerFee && state.transfer.sourceParsedTokenAccount) {
+    try {
+      // these may trigger error: fractional component exceeds decimals
+      if (
+        parseUnits(
+          state.transfer.amount,
+          state.transfer.sourceParsedTokenAccount.decimals
+        )
+          .add(
+            parseUnits(
+              state.transfer.relayerFee.toString(),
+              state.transfer.sourceParsedTokenAccount.decimals
+            )
+          )
+          .gt(
+            parseUnits(
+              state.transfer.sourceParsedTokenAccount.uiAmountString,
+              state.transfer.sourceParsedTokenAccount.decimals
+            )
+          )
+      ) {
+        return "The amount being transferred plus fees exceeds the wallet's balance.";
+      }
+    } catch (e: any) {
+      if (e?.message) {
+        return e.message.substring(0, e.message.indexOf("("));
+      }
+      return "Invalid amount";
+    }
+  }
 };
 export const selectTransferIsTargetComplete = (state: RootState) =>
   !selectTransferTargetError(state);
@@ -295,7 +328,12 @@ export const selectTransferShouldLockFields = (state: RootState) =>
   selectTransferIsSending(state) || selectTransferIsSendComplete(state);
 export const selectTransferIsRecovery = (state: RootState) =>
   state.transfer.isRecovery;
-
+export const selectTransferGasPrice = (state: RootState) =>
+  state.transfer.gasPrice;
+export const selectTransferUseRelayer = (state: RootState) =>
+  state.transfer.useRelayer;
+export const selectTransferRelayerFee = (state: RootState) =>
+  state.transfer.relayerFee;
 export const selectSolanaTokenMap = (state: RootState) => {
   return state.tokens.solanaTokenMap;
 };
@@ -310,4 +348,8 @@ export const selectMarketsMap = (state: RootState) => {
 
 export const selectTerraFeeDenom = (state: RootState) => {
   return state.fee.terraFeeDenom;
+};
+
+export const selectRelayerTokenInfo = (state: RootState) => {
+  return state.tokens.relayerTokenInfo;
 };

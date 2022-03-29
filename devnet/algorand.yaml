@@ -10,12 +10,12 @@ spec:
   selector:
     app: algorand
   ports:
-  - name: algod
-    port: 4001
-    targetPort: algod
-  - name: kmd
-    port: 4002
-    targetPort: kmd
+    - name: algod
+      port: 4001
+      targetPort: algod
+    - name: kmd
+      port: 4002
+      targetPort: kmd
 ---
 apiVersion: apps/v1
 kind: StatefulSet

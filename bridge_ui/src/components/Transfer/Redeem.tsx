@@ -13,10 +13,14 @@ import {
   WSOL_ADDRESS,
 } from "@certusone/wormhole-sdk";
 import {
+  Button,
   Checkbox,
+  CircularProgress,
   FormControlLabel,
   Link,
   makeStyles,
+  Tooltip,
+  Typography,
 } from "@material-ui/core";
 import { Alert } from "@material-ui/lab";
 import { useCallback, useState } from "react";
@@ -28,9 +32,11 @@ import {
   selectTransferIsRecovery,
   selectTransferTargetAsset,
   selectTransferTargetChain,
+  selectTransferUseRelayer,
 } from "../../store/selectors";
 import { reset } from "../../store/transferSlice";
 import {
+  CLUSTER,
   getHowToAddTokensToWalletUrl,
   ROPSTEN_WETH_ADDRESS,
   WAVAX_ADDRESS,
@@ -49,6 +55,7 @@ import SolanaTPSWarning from "../SolanaTPSWarning";
 import StepDescription from "../StepDescription";
 import TerraFeeDenomPicker from "../TerraFeeDenomPicker";
 import AddToMetamask from "./AddToMetamask";
+import RedeemPreview from "./RedeemPreview";
 import WaitingForWalletMessage from "./WaitingForWalletMessage";
 
 const useStyles = makeStyles((theme) => ({
@@ -56,16 +63,28 @@ const useStyles = makeStyles((theme) => ({
     marginTop: theme.spacing(1),
     marginBottom: theme.spacing(1),
   },
+  centered: {
+    margin: theme.spacing(4, 0, 2),
+    textAlign: "center",
+  },
 }));
 
 function Redeem() {
   const { handleClick, handleNativeClick, disabled, showLoader } =
     useHandleRedeem();
+  const useRelayer = useSelector(selectTransferUseRelayer);
+  const [manualRedeem, setManualRedeem] = useState(!useRelayer);
+  const handleManuallyRedeemClick = useCallback(() => {
+    setManualRedeem(true);
+  }, []);
   const targetChain = useSelector(selectTransferTargetChain);
   const targetAsset = useSelector(selectTransferTargetAsset);
   const isRecovery = useSelector(selectTransferIsRecovery);
   const { isTransferCompletedLoading, isTransferCompleted } =
-    useGetIsTransferCompleted(true);
+    useGetIsTransferCompleted(
+      useRelayer ? false : true,
+      useRelayer ? 5000 : undefined
+    );
   const classes = useStyles();
   const dispatch = useDispatch();
   const { isReady, statusMessage } = useIsWalletReady(targetChain);
@@ -125,9 +144,45 @@ function Redeem() {
   }, [dispatch]);
   const howToAddTokensUrl = getHowToAddTokensToWalletUrl(targetChain);
 
-  return (
+  const relayerContent = (
     <>
-      <StepDescription>Receive the tokens on the target chain</StepDescription>
+      {isEVMChain(targetChain) && !isTransferCompleted ? (
+        <KeyAndBalance chainId={targetChain} />
+      ) : null}
+
+      {!isReady && isEVMChain(targetChain) && !isTransferCompleted ? (
+        <Typography className={classes.centered}>
+          {"Please connect your wallet to check for transfer completion."}
+        </Typography>
+      ) : null}
+
+      {(!isEVMChain(targetChain) || isReady) && !isTransferCompleted ? (
+        <div className={classes.centered}>
+          <CircularProgress style={{ marginBottom: 16 }} />
+          <Typography>
+            {"Waiting for a relayer to process your transfer."}
+          </Typography>
+          <Tooltip title="Your fees will be refunded on the target chain">
+            <Button
+              onClick={handleManuallyRedeemClick}
+              size="small"
+              variant="outlined"
+              style={{ marginTop: 16 }}
+            >
+              Manually redeem instead
+            </Button>
+          </Tooltip>
+        </div>
+      ) : null}
+
+      {isTransferCompleted ? (
+        <RedeemPreview overrideExplainerString="Success! Your transfer is complete." />
+      ) : null}
+    </>
+  );
+
+  const nonRelayContent = (
+    <>
       <KeyAndBalance chainId={targetChain} />
       {targetChain === CHAIN_ID_TERRA && (
         <TerraFeeDenomPicker disabled={disabled} />
@@ -144,27 +199,34 @@ function Redeem() {
           label="Automatically unwrap to native currency"
         />
       )}
-      {targetChain === CHAIN_ID_SOLANA && <SolanaTPSWarning />}
+      {targetChain === CHAIN_ID_SOLANA && CLUSTER === "mainnet" && (
+        <SolanaTPSWarning />
+      )}
       {targetChain === CHAIN_ID_SOLANA ? (
         <SolanaCreateAssociatedAddressAlternate />
       ) : null}
 
-      <ButtonWithLoader
-        //TODO disable when the associated token account is confirmed to not exist
-        disabled={
-          !isReady ||
-          disabled ||
-          (isRecovery && (isTransferCompletedLoading || isTransferCompleted))
-        }
-        onClick={
-          isNativeEligible && useNativeRedeem ? handleNativeClick : handleClick
-        }
-        showLoader={showLoader || (isRecovery && isTransferCompletedLoading)}
-        error={statusMessage}
-      >
-        Redeem
-      </ButtonWithLoader>
-      <WaitingForWalletMessage />
+      <>
+        {" "}
+        <ButtonWithLoader
+          //TODO disable when the associated token account is confirmed to not exist
+          disabled={
+            !isReady ||
+            disabled ||
+            (isRecovery && (isTransferCompletedLoading || isTransferCompleted))
+          }
+          onClick={
+            isNativeEligible && useNativeRedeem
+              ? handleNativeClick
+              : handleClick
+          }
+          showLoader={showLoader || (isRecovery && isTransferCompletedLoading)}
+          error={statusMessage}
+        >
+          Redeem
+        </ButtonWithLoader>
+        <WaitingForWalletMessage />
+      </>
 
       {isRecovery && isReady && isTransferCompleted ? (
         <>
@@ -195,6 +257,13 @@ function Redeem() {
           </ButtonWithLoader>
         </>
       ) : null}
+    </>
+  );
+
+  return (
+    <>
+      <StepDescription>Receive the tokens on the target chain</StepDescription>
+      {manualRedeem ? nonRelayContent : relayerContent}
     </>
   );
 }

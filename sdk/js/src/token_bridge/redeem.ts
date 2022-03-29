@@ -150,7 +150,8 @@ export async function redeemOnSolana(
   bridgeAddress: string,
   tokenBridgeAddress: string,
   payerAddress: string,
-  signedVAA: Uint8Array
+  signedVAA: Uint8Array,
+  feeRecipientAddress?: string
 ) {
   const { parse_vaa } = await importCoreWasm();
   const parsedVAA = parse_vaa(signedVAA);
@@ -167,7 +168,8 @@ export async function redeemOnSolana(
           tokenBridgeAddress,
           bridgeAddress,
           payerAddress,
-          signedVAA
+          signedVAA,
+          feeRecipientAddress
         )
       )
     );
@@ -178,7 +180,8 @@ export async function redeemOnSolana(
           tokenBridgeAddress,
           bridgeAddress,
           payerAddress,
-          signedVAA
+          signedVAA,
+          feeRecipientAddress
         )
       )
     );
