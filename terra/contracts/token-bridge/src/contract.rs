@@ -121,8 +121,41 @@ const CHAIN_ID: u16 = 3;
 const WRAPPED_ASSET_UPDATING: &str = "updating";
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Response> {
-    Ok(Response::new())
+pub fn migrate(deps: DepsMut, env: Env, _msg: MigrateMsg) -> StdResult<Response> {
+    let messages = migrate_wrapped_assets(deps, env, 767)?;
+    let count = messages.len();
+
+    Ok(Response::new()
+        .add_messages(messages)
+        .add_attribute("migrate", "upgrade cw20 wrappers")
+        .add_attribute("count", count.to_string()))
+}
+
+/// Migrate all wrapped assets to a new code id.
+/// This function should be called in [`migrate`].
+fn migrate_wrapped_assets(deps: DepsMut, _env: Env, new_code_id: u64) -> StdResult<Vec<CosmosMsg>> {
+    let bucket = wrapped_asset_address(deps.storage);
+
+    // Produce a migrate message for each wrapped asset.
+    let mut messages = vec![];
+    for item in bucket.range(None, None, Order::Ascending) {
+        let contract_address = item?.0;
+        messages.push(CosmosMsg::Wasm(WasmMsg::Migrate {
+            contract_addr: deps
+                .api
+                .addr_humanize(&contract_address.into())?
+                .to_string(),
+            new_code_id,
+            msg: to_binary(&MigrateMsg {})?,
+        }));
+    }
+
+    // Update config so future wrapped assets will be deployed with new code id
+    let mut c = config(deps.storage).load()?;
+    c.wrapped_asset_code_id = new_code_id;
+    config(deps.storage).save(&c)?;
+
+    Ok(messages)
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
