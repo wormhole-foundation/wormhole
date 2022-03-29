@@ -68,9 +68,9 @@ pub enum ContractError {
     GuardianSetIndexIncreaseError,
 
 
-    /// Guardian set must not be zero
-    #[error("GuardianSetZeroAddresses")]
-    GuardianSetZeroAddresses,
+    /// Guardian set must not be empty
+    #[error("Guardian set must not be empty")]
+    GuardianSetEmpty,
 
     /// VAA was already executed
     #[error("VaaAlreadyExecuted")]
