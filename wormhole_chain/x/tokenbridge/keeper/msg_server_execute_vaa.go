@@ -71,14 +71,14 @@ func (k msgServer) ExecuteVAA(goCtx context.Context, msg *types.MsgExecuteVAA) (
 		if len(payload) != 132 {
 			return nil, types.ErrVAAPayloadInvalid
 		}
-		amount := new(big.Int).SetBytes(payload[:32])
+		unnormalizedAmount := new(big.Int).SetBytes(payload[:32])
 		var tokenAddress [32]byte
 		copy(tokenAddress[:], payload[32:64])
 		tokenChain := binary.BigEndian.Uint16(payload[64:66])
-		var to [32]byte
-		copy(to[:], payload[66:98])
+		var to [20]byte
+		copy(to[:], payload[78:98])
 		toChain := binary.BigEndian.Uint16(payload[98:100])
-		fee := new(big.Int).SetBytes(payload[100:132])
+		unnormalizedFee := new(big.Int).SetBytes(payload[100:132])
 
 		// Check that the transfer is to this chain
 		if uint32(toChain) != wormholeConfig.ChainId {
@@ -86,21 +86,41 @@ func (k msgServer) ExecuteVAA(goCtx context.Context, msg *types.MsgExecuteVAA) (
 		}
 
 		identifier := ""
-		mint := false
+		var wrapped bool
 		if IsHOLEToken(tokenChain, tokenAddress) {
 			identifier = "uhole"
 			// We mint wormhole tokens because they are not native to wormhole chain
-			mint = true
+			wrapped = true
 		} else if uint32(tokenChain) != wormholeConfig.ChainId {
 			// Mint new wrapped assets if the coin is from another chain
 			identifier = "b" + GetWrappedCoinIdentifier(tokenChain, tokenAddress)
-			mint = true
+			wrapped = true
 		} else {
 			// Recover the coin denom from the token address if it's a native coin
 			identifier = strings.TrimLeft(string(tokenAddress[:]), "\x00")
+			wrapped = false
 		}
 
-		if mint {
+		meta, found := k.bankKeeper.GetDenomMetaData(ctx, identifier)
+		if !found {
+			if !wrapped {
+				return nil, types.ErrNoDenomMetadata
+			} else {
+				return nil, types.ErrAssetNotRegistered
+			}
+		}
+
+		amount, err := k.NormalizeDenom(ctx, identifier, unnormalizedAmount, meta)
+		if err != nil {
+			return nil, err
+		}
+
+		fee, err := k.NormalizeDenom(ctx, identifier, unnormalizedFee, meta)
+		if err != nil {
+			return nil, err
+		}
+
+		if wrapped {
 			err = k.bankKeeper.MintCoins(ctx, types.ModuleName, sdk.Coins{
 				{
 					Denom:  identifier,
@@ -110,31 +130,6 @@ func (k msgServer) ExecuteVAA(goCtx context.Context, msg *types.MsgExecuteVAA) (
 			if err != nil {
 				return nil, err
 			}
-		}
-
-		meta, found := k.bankKeeper.GetDenomMetaData(ctx, identifier)
-		if !found && uint32(tokenChain) != wormholeConfig.ChainId {
-			return nil, types.ErrAssetNotRegistered
-		} else if !found {
-			return nil, types.ErrNoDenomMetadata
-		}
-
-		// Find the display denom to figure out decimals
-		var displayDenom *btypes.DenomUnit
-		for _, denom := range meta.DenomUnits {
-			if denom.Denom == meta.Display {
-				displayDenom = denom
-				break
-			}
-		}
-		if displayDenom == nil {
-			return nil, types.ErrDisplayUnitNotFound
-		}
-
-		// If the original decimals exceed 8 un-truncate the amounts
-		if displayDenom.Exponent > 8 {
-			amount = amount.Mul(amount, new(big.Int).SetInt64(int64(math.Pow10(int(displayDenom.Exponent-8)))))
-			fee = fee.Mul(fee, new(big.Int).SetInt64(int64(math.Pow10(int(displayDenom.Exponent-8)))))
 		}
 
 		moduleAccount := k.accountKeeper.GetModuleAddress(types.ModuleName)
@@ -246,6 +241,31 @@ func (k msgServer) ExecuteVAA(goCtx context.Context, msg *types.MsgExecuteVAA) (
 	k.SetReplayProtection(ctx, types.ReplayProtection{Index: v.HexDigest()})
 
 	return &types.MsgExecuteVAAResponse{}, nil
+}
+
+func (k msgServer) NormalizeDenom(ctx sdk.Context, identifier string, amount *big.Int, meta btypes.Metadata) (normalized *big.Int, err error) {
+	// Find the display denom to figure out decimals
+	var displayDenom *btypes.DenomUnit
+	for _, denom := range meta.DenomUnits {
+		if denom.Denom == meta.Display {
+			displayDenom = denom
+			break
+		}
+	}
+	if displayDenom == nil {
+		return new(big.Int), types.ErrDisplayUnitNotFound
+	}
+
+	normalized = new(big.Int)
+
+	// If the original decimals exceed 8 un-truncate the amounts
+	if displayDenom.Exponent > 8 {
+		normalized.Mul(amount, new(big.Int).SetInt64(int64(math.Pow10(int(displayDenom.Exponent-8)))))
+	} else {
+		normalized = amount
+	}
+
+	return normalized, nil
 }
 
 func IsHOLEToken(tokenChain uint16, tokenAddress [32]byte) bool {
