@@ -130,11 +130,11 @@ func TestChainId_String(t *testing.T) {
 	}
 }
 
-func TestAddSignature(t *testing.T) {
+func getVaa() VAA {
 	var payload = []byte{97, 97, 97, 97, 97, 97}
 	var governanceEmitter = Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
 
-	vaa := &VAA{
+	return VAA{
 		Version:          uint8(1),
 		GuardianSetIndex: uint32(1),
 		Signatures:       nil,
@@ -146,6 +146,10 @@ func TestAddSignature(t *testing.T) {
 		EmitterAddress:   governanceEmitter,
 		Payload:          payload,
 	}
+}
+
+func TestAddSignature(t *testing.T) {
+	vaa := getVaa()
 
 	// Generate a random private key to sign with
 	key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
@@ -157,126 +161,37 @@ func TestAddSignature(t *testing.T) {
 }
 
 func TestSerializeBody(t *testing.T) {
-	var payload = []byte{97, 97, 97, 97, 97, 97}
-	var governanceEmitter = Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
-
-	vaa := &VAA{
-		Version:          uint8(1),
-		GuardianSetIndex: uint32(1),
-		Signatures:       nil,
-		Timestamp:        time.Unix(0, 0),
-		Nonce:            uint32(1),
-		Sequence:         uint64(1),
-		ConsistencyLevel: uint8(32),
-		EmitterChain:     ChainIDSolana,
-		EmitterAddress:   governanceEmitter,
-		Payload:          payload,
-	}
-
+	vaa := getVaa()
 	expected := []byte{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, 0x0, 0x1, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x4, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, 0x20, 0x61, 0x61, 0x61, 0x61, 0x61, 0x61}
 	assert.Equal(t, vaa.serializeBody(), expected)
 }
 
 func TestSigningBody(t *testing.T) {
-	var payload = []byte{97, 97, 97, 97, 97, 97}
-	var governanceEmitter = Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
-
-	vaa := &VAA{
-		Version:          uint8(1),
-		GuardianSetIndex: uint32(1),
-		Signatures:       nil,
-		Timestamp:        time.Unix(0, 0),
-		Nonce:            uint32(1),
-		Sequence:         uint64(1),
-		ConsistencyLevel: uint8(32),
-		EmitterChain:     ChainIDSolana,
-		EmitterAddress:   governanceEmitter,
-		Payload:          payload,
-	}
-
+	vaa := getVaa()
 	expected := []byte{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, 0x0, 0x1, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x4, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, 0x20, 0x61, 0x61, 0x61, 0x61, 0x61, 0x61}
 	assert.Equal(t, vaa.signingBody(), expected)
 }
 
 func TestSigningMsg(t *testing.T) {
-	var payload = []byte{97, 97, 97, 97, 97, 97}
-	var governanceEmitter = Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
-
-	vaa := &VAA{
-		Version:          uint8(1),
-		GuardianSetIndex: uint32(1),
-		Signatures:       nil,
-		Timestamp:        time.Unix(0, 0),
-		Nonce:            uint32(1),
-		Sequence:         uint64(1),
-		ConsistencyLevel: uint8(32),
-		EmitterChain:     ChainIDSolana,
-		EmitterAddress:   governanceEmitter,
-		Payload:          payload,
-	}
-
+	vaa := getVaa()
 	expected := common.HexToHash("4fae136bb1fd782fe1b5180ba735cdc83bcece3f9b7fd0e5e35300a61c8acd8f")
 	assert.Equal(t, vaa.SigningMsg(), expected)
 }
 
 func TestMessageID(t *testing.T) {
-	var payload = []byte{97, 97, 97, 97, 97, 97}
-	var governanceEmitter = Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
-
-	vaa := &VAA{
-		Version:          uint8(1),
-		GuardianSetIndex: uint32(1),
-		Signatures:       nil,
-		Timestamp:        time.Unix(0, 0),
-		Nonce:            uint32(1),
-		Sequence:         uint64(1),
-		ConsistencyLevel: uint8(32),
-		EmitterChain:     ChainIDSolana,
-		EmitterAddress:   governanceEmitter,
-		Payload:          payload,
-	}
-
+	vaa := getVaa()
 	expected := "1/0000000000000000000000000000000000000000000000000000000000000004/1"
 	assert.Equal(t, vaa.MessageID(), expected)
 }
 
 func TestHexDigest(t *testing.T) {
-	var payload = []byte{97, 97, 97, 97, 97, 97}
-	var governanceEmitter = Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
-
-	vaa := &VAA{
-		Version:          uint8(1),
-		GuardianSetIndex: uint32(1),
-		Signatures:       nil,
-		Timestamp:        time.Unix(0, 0),
-		Nonce:            uint32(1),
-		Sequence:         uint64(1),
-		ConsistencyLevel: uint8(32),
-		EmitterChain:     ChainIDSolana,
-		EmitterAddress:   governanceEmitter,
-		Payload:          payload,
-	}
-
+	vaa := getVaa()
 	expected := "4fae136bb1fd782fe1b5180ba735cdc83bcece3f9b7fd0e5e35300a61c8acd8f"
 	assert.Equal(t, vaa.HexDigest(), expected)
 }
 
 func TestVerifySignatures_Single(t *testing.T) {
-	var payload = []byte{97, 97, 97, 97, 97, 97}
-	var governanceEmitter = Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
-
-	vaa := &VAA{
-		Version:          uint8(1),
-		GuardianSetIndex: uint32(1),
-		Signatures:       nil,
-		Timestamp:        time.Unix(0, 0),
-		Nonce:            uint32(1),
-		Sequence:         uint64(1),
-		ConsistencyLevel: uint8(32),
-		EmitterChain:     ChainIDSolana,
-		EmitterAddress:   governanceEmitter,
-		Payload:          payload,
-	}
+	vaa := getVaa()
 
 	// Generate a random private key to sign with
 	privKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
@@ -298,21 +213,7 @@ func TestVerifySignatures_Single(t *testing.T) {
 }
 
 func TestVerifySignatures_MultiplesUniqKeyOrderedIndex(t *testing.T) {
-	var payload = []byte{97, 97, 97, 97, 97, 97}
-	var governanceEmitter = Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
-
-	vaa := &VAA{
-		Version:          uint8(1),
-		GuardianSetIndex: uint32(1),
-		Signatures:       nil,
-		Timestamp:        time.Unix(0, 0),
-		Nonce:            uint32(1),
-		Sequence:         uint64(1),
-		ConsistencyLevel: uint8(32),
-		EmitterChain:     ChainIDSolana,
-		EmitterAddress:   governanceEmitter,
-		Payload:          payload,
-	}
+	vaa := getVaa()
 
 	// Generate some random private keys to sign with
 	privKey1, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
@@ -338,21 +239,7 @@ func TestVerifySignatures_MultiplesUniqKeyOrderedIndex(t *testing.T) {
 }
 
 func TestVerifySignatures_MultiplesUniqKeysUnOrderedIndex(t *testing.T) {
-	var payload = []byte{97, 97, 97, 97, 97, 97}
-	var governanceEmitter = Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
-
-	vaa := &VAA{
-		Version:          uint8(1),
-		GuardianSetIndex: uint32(1),
-		Signatures:       nil,
-		Timestamp:        time.Unix(0, 0),
-		Nonce:            uint32(1),
-		Sequence:         uint64(1),
-		ConsistencyLevel: uint8(32),
-		EmitterChain:     ChainIDSolana,
-		EmitterAddress:   governanceEmitter,
-		Payload:          payload,
-	}
+	vaa := getVaa()
 
 	// Generate some random private keys to sign with
 	privKey1, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
@@ -378,21 +265,7 @@ func TestVerifySignatures_MultiplesUniqKeysUnOrderedIndex(t *testing.T) {
 }
 
 func TestVerifySignatures_MultiplesUniqKeysDuplicateIndex(t *testing.T) {
-	var payload = []byte{97, 97, 97, 97, 97, 97}
-	var governanceEmitter = Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
-
-	vaa := &VAA{
-		Version:          uint8(1),
-		GuardianSetIndex: uint32(1),
-		Signatures:       nil,
-		Timestamp:        time.Unix(0, 0),
-		Nonce:            uint32(1),
-		Sequence:         uint64(1),
-		ConsistencyLevel: uint8(32),
-		EmitterChain:     ChainIDSolana,
-		EmitterAddress:   governanceEmitter,
-		Payload:          payload,
-	}
+	vaa := getVaa()
 
 	// Generate some random private keys to sign with
 	privKey1, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
@@ -418,21 +291,7 @@ func TestVerifySignatures_MultiplesUniqKeysDuplicateIndex(t *testing.T) {
 }
 
 func TestVerifySignatures_MultiplesDuplicateKeysOrderedIndex(t *testing.T) {
-	var payload = []byte{97, 97, 97, 97, 97, 97}
-	var governanceEmitter = Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
-
-	vaa := &VAA{
-		Version:          uint8(1),
-		GuardianSetIndex: uint32(1),
-		Signatures:       nil,
-		Timestamp:        time.Unix(0, 0),
-		Nonce:            uint32(1),
-		Sequence:         uint64(1),
-		ConsistencyLevel: uint8(32),
-		EmitterChain:     ChainIDSolana,
-		EmitterAddress:   governanceEmitter,
-		Payload:          payload,
-	}
+	vaa := getVaa()
 
 	// Generate some random private keys to sign with
 	privKey1, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
@@ -457,21 +316,7 @@ func TestVerifySignatures_MultiplesDuplicateKeysOrderedIndex(t *testing.T) {
 }
 
 func TestVerifySignatures_MultiplesDuplicateKeysUnOrderedIndex(t *testing.T) {
-	var payload = []byte{97, 97, 97, 97, 97, 97}
-	var governanceEmitter = Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
-
-	vaa := &VAA{
-		Version:          uint8(1),
-		GuardianSetIndex: uint32(1),
-		Signatures:       nil,
-		Timestamp:        time.Unix(0, 0),
-		Nonce:            uint32(1),
-		Sequence:         uint64(1),
-		ConsistencyLevel: uint8(32),
-		EmitterChain:     ChainIDSolana,
-		EmitterAddress:   governanceEmitter,
-		Payload:          payload,
-	}
+	vaa := getVaa()
 
 	// Generate some random private keys to sign with
 	privKey1, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
@@ -489,6 +334,54 @@ func TestVerifySignatures_MultiplesDuplicateKeysUnOrderedIndex(t *testing.T) {
 	pubKey2, _ := crypto.Ecrecover(h.Bytes(), vaa.Signatures[1].Signature[:])
 	addr1 := common.BytesToAddress(crypto.Keccak256(pubKey1[1:])[12:])
 	addr2 := common.BytesToAddress(crypto.Keccak256(pubKey2[1:])[12:])
+	addr3 := crypto.PubkeyToAddress(privKey3.PublicKey)
+
+	// Make sure that it fails to verify, because it is not monotonic and it has a duplicate signature
+	assert.False(t, vaa.VerifySignatures([]common.Address{addr1, addr2, addr3}))
+}
+
+func TestVerifySignatures_SameKeysSingleIndex(t *testing.T) {
+	vaa := getVaa()
+
+	// Generate some random private keys to sign with
+	privKey1, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	privKey2, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	privKey3, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+
+	// Add nonmonotonic sigs
+	vaa.AddSignature(privKey1, 0)
+	vaa.AddSignature(privKey1, 0)
+	vaa.AddSignature(privKey1, 0)
+
+	// Generate a public key to compare to from our private key
+	h := vaa.SigningMsg()
+	pubKey1, _ := crypto.Ecrecover(h.Bytes(), vaa.Signatures[0].Signature[:])
+	addr1 := common.BytesToAddress(crypto.Keccak256(pubKey1[1:])[12:])
+	addr2 := crypto.PubkeyToAddress(privKey2.PublicKey)
+	addr3 := crypto.PubkeyToAddress(privKey3.PublicKey)
+
+	// Make sure that it fails to verify, because it is not monotonic and it has a duplicate signature
+	assert.False(t, vaa.VerifySignatures([]common.Address{addr1, addr2, addr3}))
+}
+
+func TestVerifySignatures_SameKeysMonotonicIndex(t *testing.T) {
+	vaa := getVaa()
+
+	// Generate some random private keys to sign with
+	privKey1, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	privKey2, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	privKey3, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+
+	// Add monotonic sigs
+	vaa.AddSignature(privKey1, 0)
+	vaa.AddSignature(privKey1, 1)
+	vaa.AddSignature(privKey1, 2)
+
+	// Generate a public key to compare to from our private key
+	h := vaa.SigningMsg()
+	pubKey1, _ := crypto.Ecrecover(h.Bytes(), vaa.Signatures[0].Signature[:])
+	addr1 := common.BytesToAddress(crypto.Keccak256(pubKey1[1:])[12:])
+	addr2 := crypto.PubkeyToAddress(privKey2.PublicKey)
 	addr3 := crypto.PubkeyToAddress(privKey3.PublicKey)
 
 	// Make sure that it fails to verify, because it is not monotonic and it has a duplicate signature
