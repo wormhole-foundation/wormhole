@@ -14,6 +14,7 @@ import (
 func TestGetOrCreateNodeKeyWithNewPath(t *testing.T) {
 	// Get a non-existing temp file path to write auto-generated privKey to
 	path := "/tmp/node_key_test_" + fmt.Sprint(rand.Int())
+	defer os.Remove(path)
 
 	logger, _ := zap.NewProduction()
 	privKey1, _ := GetOrCreateNodeKey(logger, path)
@@ -25,9 +26,6 @@ func TestGetOrCreateNodeKeyWithNewPath(t *testing.T) {
 
 	// Make sure we got the same key
 	assert.Equal(t, privKey1, privKey2)
-
-	// Manual cleanup
-	os.Remove(path)
 }
 
 func TestGetOrCreateNodeKeyWithPreExistingPath(t *testing.T) {
