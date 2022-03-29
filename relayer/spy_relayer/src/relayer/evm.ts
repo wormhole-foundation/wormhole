@@ -71,8 +71,8 @@ export async function relayEVM(
   if (chainConfigInfo.chainId === CHAIN_ID_POLYGON) {
     let feeData = await provider.getFeeData();
     overrides = {
-      maxFeePerGas: feeData.maxFeePerGas?.mul(10) || undefined,
-      maxPriorityFeePerGas: feeData.maxPriorityFeePerGas?.mul(10) || undefined,
+      maxFeePerGas: feeData.maxFeePerGas?.mul(50) || undefined,
+      maxPriorityFeePerGas: feeData.maxPriorityFeePerGas?.mul(50) || undefined,
     };
   }
   const receipt = unwrapNative
