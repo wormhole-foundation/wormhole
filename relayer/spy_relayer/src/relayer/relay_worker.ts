@@ -10,6 +10,7 @@ import {
   monitorRedis,
   RedisTables,
   RelayResult,
+  resetPayload,
   Status,
   StorePayload,
   storePayloadFromJson,
@@ -51,10 +52,13 @@ export function init(runWorker: boolean): boolean {
   return true;
 }
 
-function createWorkerInfos() {
+function createWorkerInfos(metrics: PromHelper) {
   let workerArray: WorkerInfo[] = new Array();
   let index = 0;
   relayerEnv.supportedChains.forEach((chain) => {
+    // initialize per chain metrics
+    metrics.incSuccesses(chain.chainId, 0);
+    metrics.incFailures(chain.chainId, 0);
     chain.walletPrivateKey?.forEach((key) => {
       workerArray.push({
         walletPrivateKey: key,
@@ -196,7 +200,10 @@ async function doAuditorThread(workerInfo: WorkerInfo) {
               auditLogger.info("Detected a rollback on " + si_key);
               // Remove this item from the WORKING table and move it to INCOMING
               await redisClient.select(RedisTables.INCOMING);
-              await redisClient.set(si_key, si_value);
+              await redisClient.set(
+                si_key,
+                storePayloadToJson(resetPayload(storePayloadFromJson(si_value)))
+              );
               await redisClient.select(RedisTables.WORKING);
             }
           } else if (storePayload.status === Status.Error) {
@@ -233,7 +240,7 @@ export async function run(ph: PromHelper) {
     logger.info("NOT clearing REDIS.");
   }
 
-  let workerArray: WorkerInfo[] = createWorkerInfos();
+  let workerArray: WorkerInfo[] = createWorkerInfos(metrics);
 
   spawnWorkerThreads(workerArray);
   try {

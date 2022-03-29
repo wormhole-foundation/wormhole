@@ -137,15 +137,15 @@ export class PromHelper {
   }
 
   // These are the accessor methods for the metrics
-  incSuccesses(chainId: ChainId) {
+  incSuccesses(chainId: ChainId, value?: number) {
     this.successCounter
       .labels({ chain_name: chainIDStrings[chainId] || "Unknown" })
-      .inc();
+      .inc(value);
   }
-  incFailures(chainId: ChainId) {
+  incFailures(chainId: ChainId, value?: number) {
     this.failureCounter
       .labels({ chain_name: chainIDStrings[chainId] || "Unknown" })
-      .inc();
+      .inc(value);
   }
   addCompleteTime(val: number) {
     this.completeTime.observe(val);

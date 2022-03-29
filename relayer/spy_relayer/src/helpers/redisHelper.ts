@@ -224,6 +224,10 @@ export function storePayloadFromJson(json: string): StorePayload {
   return JSON.parse(json);
 }
 
+export function resetPayload(storePayload: StorePayload): StorePayload {
+  return initPayloadWithVAA(storePayload.vaa_bytes);
+}
+
 export async function pushVaaToRedis(
   parsedVAA: ParsedVaa<ParsedTransferPayload>,
   hexVaa: string
@@ -299,9 +303,7 @@ export async function demoteWorkingRedis() {
     await redisClient.select(RedisTables.INCOMING);
     await redisClient.set(
       si_key,
-      storePayloadToJson(
-        initPayloadWithVAA(storePayloadFromJson(si_value).vaa_bytes)
-      )
+      storePayloadToJson(resetPayload(storePayloadFromJson(si_value)))
     );
     await redisClient.select(RedisTables.WORKING);
   }
