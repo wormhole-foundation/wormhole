@@ -77,7 +77,7 @@ genesis:
         voting_period: "50s"
     wormhole:
       config:
-        chain_id: 2
+        chain_id: 3104
         governance_chain: 1
         governance_emitter: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQ="
         guardian_set_expiration: 86400
