@@ -4,6 +4,7 @@ import {
   ChainId,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
+  hexToNativeString,
   hexToUint8Array,
   isEVMChain,
   parseTransferPayload,
@@ -51,8 +52,11 @@ export async function relay(
 
     if (isEVMChain(transferPayload.targetChain)) {
       const unwrapNative =
-        transferPayload.originAddress.toLowerCase() ===
-        chainConfigInfo.wrappedAsset?.toLowerCase();
+        transferPayload.originChain === transferPayload.targetChain &&
+        hexToNativeString(
+          transferPayload.originAddress,
+          transferPayload.originChain
+        )?.toLowerCase() === chainConfigInfo.wrappedAsset?.toLowerCase();
       logger.debug(
         "isEVMChain: originAddress: [" +
           transferPayload.originAddress +
