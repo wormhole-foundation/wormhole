@@ -7,13 +7,15 @@ import { LCDClient, MnemonicKey } from "@terra-money/terra.js";
 import axios from "axios";
 import { ChainConfigInfo } from "../configureEnv";
 import { getScopedLogger, ScopedLogger } from "../helpers/logHelper";
+import { PromHelper } from "../helpers/promHelpers";
 
 export async function relayTerra(
   chainConfigInfo: ChainConfigInfo,
   signedVAA: string,
   checkOnly: boolean,
   walletPrivateKey: any,
-  relayLogger: ScopedLogger
+  relayLogger: ScopedLogger,
+  metrics: PromHelper
 ) {
   const logger = getScopedLogger(["terra"], relayLogger);
   if (
@@ -113,5 +115,6 @@ export async function relayTerra(
   );
 
   logger.info("success: %s, tx hash: %s", success, receipt.txhash);
+  metrics.incSuccesses(chainConfigInfo.chainId);
   return { redeemed: success, result: receipt.txhash };
 }

@@ -29,9 +29,19 @@ export class PromHelper {
     help: "number of successful relays",
     labelNames: ["chain_name"],
   });
+  private confirmedCounter = new client.Counter({
+    name: "spy_relay_confirmed_successes",
+    help: "number of confirmed successful relays",
+    labelNames: ["chain_name"],
+  });
   private failureCounter = new client.Counter({
     name: "spy_relay_failures",
     help: "number of failed relays",
+    labelNames: ["chain_name"],
+  });
+  private rollbackCounter = new client.Counter({
+    name: "spy_relay_rollback",
+    help: "number of rolled back relays",
     labelNames: ["chain_name"],
   });
   private completeTime = new client.Histogram({
@@ -126,7 +136,9 @@ export class PromHelper {
     }
     if (this._mode === PromMode.Relay || this._mode == PromMode.Both) {
       this._register.registerMetric(this.successCounter);
+      this._register.registerMetric(this.confirmedCounter);
       this._register.registerMetric(this.failureCounter);
+      this._register.registerMetric(this.rollbackCounter);
       this._register.registerMetric(this.alreadyExecutedCounter);
       this._register.registerMetric(this.redisQueue);
       this._register.registerMetric(this.walletBalance);
@@ -142,8 +154,18 @@ export class PromHelper {
       .labels({ chain_name: chainIDStrings[chainId] || "Unknown" })
       .inc(value);
   }
+  incConfirmed(chainId: ChainId, value?: number) {
+    this.confirmedCounter
+      .labels({ chain_name: chainIDStrings[chainId] || "Unknown" })
+      .inc(value);
+  }
   incFailures(chainId: ChainId, value?: number) {
     this.failureCounter
+      .labels({ chain_name: chainIDStrings[chainId] || "Unknown" })
+      .inc(value);
+  }
+  incRollback(chainId: ChainId, value?: number) {
+    this.rollbackCounter
       .labels({ chain_name: chainIDStrings[chainId] || "Unknown" })
       .inc(value);
   }

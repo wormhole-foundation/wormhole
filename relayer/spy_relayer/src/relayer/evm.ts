@@ -9,6 +9,7 @@ import { Signer } from "@ethersproject/abstract-signer";
 import { ethers } from "ethers";
 import { ChainConfigInfo } from "../configureEnv";
 import { getScopedLogger, ScopedLogger } from "../helpers/logHelper";
+import { PromHelper } from "../helpers/promHelpers";
 
 export function newProvider(
   url: string,
@@ -31,7 +32,8 @@ export async function relayEVM(
   unwrapNative: boolean,
   checkOnly: boolean,
   walletPrivateKey: string,
-  relayLogger: ScopedLogger
+  relayLogger: ScopedLogger,
+  metrics: PromHelper
 ) {
   const logger = getScopedLogger(
     ["evm", chainConfigInfo.chainName],
@@ -99,5 +101,6 @@ export async function relayEVM(
   }
 
   logger.info("success: %s tx hash: %s", success, receipt.transactionHash);
+  metrics.incSuccesses(chainConfigInfo.chainId);
   return { redeemed: success, result: receipt };
 }

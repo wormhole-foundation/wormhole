@@ -58,7 +58,9 @@ function createWorkerInfos(metrics: PromHelper) {
   relayerEnv.supportedChains.forEach((chain) => {
     // initialize per chain metrics
     metrics.incSuccesses(chain.chainId, 0);
+    metrics.incConfirmed(chain.chainId, 0);
     metrics.incFailures(chain.chainId, 0);
+    metrics.incRollback(chain.chainId, 0);
     chain.walletPrivateKey?.forEach((key) => {
       workerArray.push({
         walletPrivateKey: key,
@@ -192,12 +194,16 @@ async function doAuditorThread(workerInfo: WorkerInfo) {
               storePayload.vaa_bytes,
               true,
               workerInfo.walletPrivateKey,
-              auditLogger
+              auditLogger,
+              metrics
             );
 
             await redisClient.del(si_key);
-            if (rr.status !== Status.Completed) {
+            if (rr.status === Status.Completed) {
+              metrics.incConfirmed(workerInfo.targetChainId);
+            } else {
               auditLogger.info("Detected a rollback on " + si_key);
+              metrics.incRollback(workerInfo.targetChainId);
               // Remove this item from the WORKING table and move it to INCOMING
               await redisClient.select(RedisTables.INCOMING);
               await redisClient.set(
@@ -292,7 +298,13 @@ async function processRequest(
       } else {
         logger.info("Calling with vaa_bytes %s", payload.vaa_bytes);
       }
-      relayResult = await relay(payload.vaa_bytes, false, myPrivateKey, logger);
+      relayResult = await relay(
+        payload.vaa_bytes,
+        false,
+        myPrivateKey,
+        logger,
+        metrics
+      );
       logger.info("Relay returned: %o", Status[relayResult.status]);
     } catch (e: any) {
       if (e.message) {
@@ -321,9 +333,7 @@ async function processRequest(
       targetChain = transferPayload.targetChain;
     } catch (e) {}
     let retry: boolean = false;
-    if (relayResult.status === Status.Completed) {
-      metrics.incSuccesses(targetChain);
-    } else {
+    if (relayResult.status !== Status.Completed) {
       metrics.incFailures(targetChain);
       if (payload.retries >= MAX_RETRIES) {
         relayResult.status = Status.FatalError;

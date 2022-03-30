@@ -16,6 +16,7 @@ import { relayTerra } from "./terra";
 import { getRelayerEnvironment } from "../configureEnv";
 import { RelayResult, Status } from "../helpers/redisHelper";
 import { getLogger, getScopedLogger, ScopedLogger } from "../helpers/logHelper";
+import { PromHelper } from "../helpers/promHelpers";
 
 const logger = getLogger();
 
@@ -28,7 +29,8 @@ export async function relay(
   signedVAA: string,
   checkOnly: boolean,
   walletPrivateKey: any,
-  relayLogger: ScopedLogger
+  relayLogger: ScopedLogger,
+  metrics: PromHelper
 ): Promise<RelayResult> {
   const logger = getScopedLogger(["relay"], relayLogger);
   const { parse_vaa } = await importCoreWasm();
@@ -71,7 +73,8 @@ export async function relay(
         unwrapNative,
         checkOnly,
         walletPrivateKey,
-        logger
+        logger,
+        metrics
       );
       return {
         status: evmResult.redeemed ? Status.Completed : Status.Error,
@@ -86,7 +89,8 @@ export async function relay(
         signedVAA,
         checkOnly,
         walletPrivateKey,
-        logger
+        logger,
+        metrics
       );
       if (retVal.redeemed) {
         rResult.status = Status.Completed;
@@ -102,7 +106,8 @@ export async function relay(
         signedVAA,
         checkOnly,
         walletPrivateKey,
-        logger
+        logger,
+        metrics
       );
       if (retVal.redeemed) {
         rResult.status = Status.Completed;
