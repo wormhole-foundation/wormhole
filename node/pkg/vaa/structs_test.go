@@ -382,7 +382,7 @@ func TestVerifySignaturesFuzz(t *testing.T) {
 			/* Fuzz Debugging
 			 * Tell us what keys and indexes were used (for debug when/if we have a failure case)
 			 */
-			if vaa.VerifySignatures(tc.addrs) == tc.result {
+			if vaa.VerifySignatures(tc.addrs) != tc.result {
 				fmt.Printf("Key Order")
 				if len(tc.keyOrder) == 0 {
 					fmt.Printf("%v", []uint8{})
