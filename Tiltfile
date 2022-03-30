@@ -50,6 +50,7 @@ config.define_bool("e2e", False, "Enable E2E testing stack")
 config.define_bool("ci_tests", False, "Enable tests runner component")
 config.define_bool("bridge_ui_hot", False, "Enable hot loading bridge_ui")
 config.define_bool("guardiand_debug", False, "Enable dlv endpoint for guardiand")
+config.define_bool("secondWormchain", False, "Enable a second wormchain node with different validator keys")
 
 cfg = config.parse()
 num_guardians = int(cfg.get("num", "1"))
@@ -69,6 +70,7 @@ spy_relayer = cfg.get("spy_relayer", ci)
 e2e = cfg.get("e2e", ci)
 ci_tests = cfg.get("ci_tests", ci)
 guardiand_debug = cfg.get("guardiand_debug", False)
+secondNode = cfg.get("secondWormchain", False)
 
 bridge_ui_hot = not ci
 
@@ -681,4 +683,38 @@ if algorand:
         labels = ["algorand"],
         trigger_mode = trigger_mode,
     )
-    
+
+docker_build(
+    ref = "wormhole-chaind-image",
+    context = ".",
+    dockerfile = "./wormhole_chain/Dockerfile",
+    only = [],
+    ignore = ["./wormhole_chain/testing", "./wormhole_chain/ts-sdk", "./wormhole_chain/design"],
+)
+
+k8s_yaml_with_ns("wormhole_chain/validators/kubernetes/wormchain-guardian-devnet.yaml")
+
+k8s_resource(
+    "guardian-validator",
+    port_forwards = [
+        port_forward(1317, container_port = 1317, name = "REST", host = webHost),
+        port_forward(26657, container_port = 26657, name = "TENDERMINT", host = webHost)
+    ],
+    resource_deps = [],
+    labels = [],
+    trigger_mode = trigger_mode,
+)
+
+if secondNode:
+    k8s_yaml_with_ns("validators/kubernetes/wormchain-validator2-devnet.yaml")
+
+    k8s_resource(
+        "second-validator",
+        port_forwards = [
+            port_forward(1318, container_port = 1317, name = "REST", host = webHost),
+            port_forward(26658, container_port = 26657, name = "TENDERMINT", host = webHost)
+        ],
+        resource_deps = [],
+        labels = [],
+        trigger_mode = trigger_mode,
+    )
