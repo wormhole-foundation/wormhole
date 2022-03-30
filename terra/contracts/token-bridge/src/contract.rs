@@ -120,11 +120,38 @@ const CHAIN_ID: u16 = 3;
 
 const WRAPPED_ASSET_UPDATING: &str = "updating";
 
+/// Migration code that runs the next time the contract is upgraded.
+/// This function will contain ephemeral code that we want to run once, and thus
+/// can (and should be) safely deleted after the upgrade happened successfully.
+///
+/// For example, when the code id of the wrapped assets is updated, this
+/// function will take care of upgrading all the deployed wrapped asset
+/// contracts. See [`migrate_wrapped_assets`].
+///
+/// Most upgrades won't require any special migration logic. In those cases,
+/// this function can safely be implemented as:
+/// ```
+/// Ok(Response::new())
+/// ```
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn migrate(deps: DepsMut, env: Env, _msg: MigrateMsg) -> StdResult<Response> {
+    // On a previous deployment, the wrapped assets have been migrated to code
+    // id 767:
+    // https://finder.terra.money/mainnet/tx/67e8fcff48eefe11bf6a975e621b6866ba930f9d2a85bc9ac5a70f009ee354c7
+    // However, that upgrade didn't change the [`wrapped_asset_code_id`] field
+    // of the config state of this contract (the token bridge), so every wrapped
+    // asset that's been deployed since by the token bridge still uses the old
+    // code id. We thus run [`migrate_wrapped_assets`] to upgrade all the
+    // wrapped assets to 767, and the function also takes care of changing the
+    // state accordingly. Many of these assets are already running 767, for
+    // those, this will be a no-op.
     let messages = migrate_wrapped_assets(deps, env, 767)?;
     let count = messages.len();
 
+    // NOTE: After this migrate is done, make sure to change the migrate function to
+    // ```
+    // Ok(Response::new())
+    // ```
     Ok(Response::new()
         .add_messages(messages)
         .add_attribute("migrate", "upgrade cw20 wrappers")
