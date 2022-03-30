@@ -602,6 +602,152 @@ contract("Wormhole", function () {
             assert.equal(e.data[Object.keys(e.data)[0]].reason, "governance action already consumed")
         }
     })
+
+    it("should revert a new guardian set with zero addresses", async function () {
+        const initialized = new web3.eth.Contract(ImplementationFullABI, Wormhole.address);
+        const accounts = await web3.eth.getAccounts();
+
+        const timestamp = 1000;
+        const nonce = 1001;
+        const emitterChainId = testGovernanceChainId;
+        const emitterAddress = testGovernanceContract
+        let data = "0x00000000000000000000000000000000000000000000000000000000436f726502";
+
+        let oldIndex = Number(await initialized.methods.getCurrentGuardianSetIndex().call());
+
+        data += [
+            web3.eth.abi.encodeParameter("uint16", testChainId).substring(2 + (64 - 4)),
+            web3.eth.abi.encodeParameter("uint32", oldIndex + 1).substring(2 + (64 - 8)),
+            web3.eth.abi.encodeParameter("uint8", 0).substring(2 + (64 - 2)),
+        ].join('')
+
+        const vm = await signAndEncodeVM(
+            timestamp,
+            nonce,
+            emitterChainId,
+            emitterAddress,
+            0,
+            data,
+            [
+                testSigner1PK,
+            ],
+            0,
+            2
+        );
+
+        try {
+            await initialized.methods.submitNewGuardianSet("0x" + vm).send({
+                value: 0,
+                from: accounts[0],
+                gasLimit: 1000000
+            });
+        } catch(e) {
+            asset.fail("new guardian set is empty")
+        }
+
+        let index = await initialized.methods.getCurrentGuardianSetIndex().call();
+        assert.equal(oldIndex, index);
+    })
+
+    it("should revert a new guardian set with the same index", async function () {
+        const initialized = new web3.eth.Contract(ImplementationFullABI, Wormhole.address);
+        const accounts = await web3.eth.getAccounts();
+
+        const timestamp = 1000;
+        const nonce = 1001;
+        const emitterChainId = testGovernanceChainId;
+        const emitterAddress = testGovernanceContract
+        let data = "0x00000000000000000000000000000000000000000000000000000000436f726502";
+
+        let oldIndex = Number(await initialized.methods.getCurrentGuardianSetIndex().call());
+
+        data += [
+            web3.eth.abi.encodeParameter("uint16", testChainId).substring(2 + (64 - 4)),
+            web3.eth.abi.encodeParameter("uint32", oldIndex).substring(2 + (64 - 8)),
+            web3.eth.abi.encodeParameter("uint8", 0).substring(2 + (64 - 2)),
+            web3.eth.abi.encodeParameter("address", testSigner1.address).substring(2 + (64 - 40)),
+            web3.eth.abi.encodeParameter("address", testSigner2.address).substring(2 + (64 - 40)),
+            web3.eth.abi.encodeParameter("address", testSigner3.address).substring(2 + (64 - 40)),
+        ].join('')
+
+        const vm = await signAndEncodeVM(
+            timestamp,
+            nonce,
+            emitterChainId,
+            emitterAddress,
+            0,
+            data,
+            [
+                testSigner1PK,
+            ],
+            0,
+            2
+        );
+
+        try {
+            await initialized.methods.submitNewGuardianSet("0x" + vm).send({
+                value: 0,
+                from: accounts[0],
+                gasLimit: 1000000
+            });
+        } catch(e) {
+            asset.fail("index must increase in steps of 1")
+        }
+
+        let index = await initialized.methods.getCurrentGuardianSetIndex().call();
+        assert.equal(oldIndex, index);
+    })
+
+    it("should revert a new guardian set with index that increments too fast", async function () {
+        const initialized = new web3.eth.Contract(ImplementationFullABI, Wormhole.address);
+        const accounts = await web3.eth.getAccounts();
+
+        const timestamp = 1000;
+        const nonce = 1001;
+        const emitterChainId = testGovernanceChainId;
+        const emitterAddress = testGovernanceContract
+        let data = "0x00000000000000000000000000000000000000000000000000000000436f726502";
+
+        let oldIndex = Number(await initialized.methods.getCurrentGuardianSetIndex().call());
+
+        data += [
+            web3.eth.abi.encodeParameter("uint16", testChainId).substring(2 + (64 - 4)),
+            web3.eth.abi.encodeParameter("uint32", oldIndex + 2).substring(2 + (64 - 8)),
+            web3.eth.abi.encodeParameter("uint8", 0).substring(2 + (64 - 2)),
+            web3.eth.abi.encodeParameter("address", testSigner1.address).substring(2 + (64 - 40)),
+            web3.eth.abi.encodeParameter("address", testSigner2.address).substring(2 + (64 - 40)),
+            web3.eth.abi.encodeParameter("address", testSigner3.address).substring(2 + (64 - 40)),
+        ].join('')
+
+        const vm = await signAndEncodeVM(
+            timestamp,
+            nonce,
+            emitterChainId,
+            emitterAddress,
+            0,
+            data,
+            [
+                testSigner1PK,
+            ],
+            0,
+            2
+        );
+
+        try {
+            await initialized.methods.submitNewGuardianSet("0x" + vm).send({
+                value: 0,
+                from: accounts[0],
+                gasLimit: 1000000
+            });
+        } catch(e) {
+            asset.fail("index must increase in steps of 1")
+        }
+
+        let index = await initialized.methods.getCurrentGuardianSetIndex().call();
+        assert.equal(oldIndex, index);
+    })
+
+
 });
 
 const signAndEncodeVM = async function (
