@@ -33,19 +33,16 @@ pub fn id() -> Addr {
 /// Export Core Devnet Contract Address
 #[cfg(feature = "devnet")]
 pub fn id() -> Addr {
-    Addr::unchecked("terra1pd65m0q9tl3v8znnz5f5ltsfegyzah7g42cx5v")
+    Addr::unchecked("terra18vd8fpwxzck93qlwghaj6arh4p7c5n896xzem5")
 }
 
-pub fn post_message<T>(nonce: u32, message: &T) -> StdResult<CosmosMsg>
-where
-    T: Serialize,
-    T: ?Sized,
+pub fn post_message(nonce: u32, message: impl AsRef<[u8]>) -> StdResult<CosmosMsg>
 {
     Ok(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: id().to_string(),
         funds:         vec![],
         msg:           to_binary(&ExecuteMsg::PostMessage {
-            message: to_binary(message)?,
+            message: Binary::from(message.as_ref()),
             nonce,
         })?,
     }))
