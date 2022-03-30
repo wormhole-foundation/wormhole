@@ -5,11 +5,12 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"encoding/hex"
+	"fmt"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
+	"reflect"
 	"testing"
 	"time"
 )
@@ -196,6 +197,7 @@ func TestVerifySignatures(t *testing.T) {
 	privKey1, _ := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
 	privKey2, _ := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
 	privKey3, _ := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
+	privKey4, _ := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
 
 	// Give a fixed order of trusted addresses
 	addrs := []common.Address{}
@@ -212,8 +214,12 @@ func TestVerifySignatures(t *testing.T) {
 	}
 
 	tests := []test{
-		{label: "NoSigner", keyOrder: []*ecdsa.PrivateKey{}, addrs: addrs, indexOrder: []uint8{0}, result: true},
-		{label: "Single", keyOrder: []*ecdsa.PrivateKey{privKey1}, addrs: addrs, indexOrder: []uint8{0}, result: true},
+		{label: "NoSignerZero", keyOrder: []*ecdsa.PrivateKey{}, addrs: addrs, indexOrder: []uint8{0}, result: true},
+		{label: "NoSignerOne", keyOrder: []*ecdsa.PrivateKey{}, addrs: addrs, indexOrder: []uint8{1}, result: true},
+		{label: "SingleZero", keyOrder: []*ecdsa.PrivateKey{privKey1}, addrs: addrs, indexOrder: []uint8{0}, result: true},
+		{label: "RogueSingleOne", keyOrder: []*ecdsa.PrivateKey{privKey4}, addrs: addrs, indexOrder: []uint8{0}, result: false},
+		{label: "RogueSingleZero", keyOrder: []*ecdsa.PrivateKey{privKey4}, addrs: addrs, indexOrder: []uint8{0}, result: false},
+		{label: "SingleOne", keyOrder: []*ecdsa.PrivateKey{privKey1}, addrs: addrs, indexOrder: []uint8{0}, result: true},
 		{label: "MultiUniqSignerMonotonicIndex", keyOrder: []*ecdsa.PrivateKey{privKey1, privKey2, privKey3}, addrs: addrs, indexOrder: []uint8{0, 1, 2}, result: true},
 		{label: "MultiMisOrderedSignerMonotonicIndex", keyOrder: []*ecdsa.PrivateKey{privKey3, privKey2, privKey1}, addrs: addrs, indexOrder: []uint8{0, 1, 2}, result: false},
 		{label: "MultiUniqSignerNonMonotonic", keyOrder: []*ecdsa.PrivateKey{privKey1, privKey2, privKey3}, addrs: addrs, indexOrder: []uint8{0, 2, 1}, result: false},
@@ -232,6 +238,169 @@ func TestVerifySignatures(t *testing.T) {
 
 			for i, key := range tc.keyOrder {
 				vaa.AddSignature(key, tc.indexOrder[i])
+			}
+
+			assert.Equal(t, tc.result, vaa.VerifySignatures(tc.addrs))
+		})
+	}
+}
+
+func TestVerifySignaturesFuzz(t *testing.T) {
+	// Generate some random trusted private keys to sign with
+	privKey1, _ := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
+	privKey2, _ := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
+	privKey3, _ := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
+
+	// Generate some random untrusted private keys to sign with
+	privKey4, _ := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
+	privKey5, _ := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
+	privKey6, _ := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
+
+	// Give a fixed order of trusted addresses (we intentionally omit privKey4, privKey5, privKey6)
+	addrs := []common.Address{}
+	addrs = append(addrs, crypto.PubkeyToAddress(privKey1.PublicKey))
+	addrs = append(addrs, crypto.PubkeyToAddress(privKey2.PublicKey))
+	addrs = append(addrs, crypto.PubkeyToAddress(privKey3.PublicKey))
+
+	// key space for fuzz tests
+	keys := []*ecdsa.PrivateKey{}
+	keys = append(keys, privKey1)
+	keys = append(keys, privKey2)
+	keys = append(keys, privKey3)
+	keys = append(keys, privKey4)
+	keys = append(keys, privKey5)
+	keys = append(keys, privKey6)
+
+	// index space for fuzz tests
+	indexes := []uint8{0, 1, 2, 3, 4, 5}
+
+	type test struct {
+		label      string
+		keyOrder   []*ecdsa.PrivateKey
+		addrs      []common.Address
+		indexOrder []uint8
+		result     bool
+	}
+
+	type allow struct {
+		keyPair   []*ecdsa.PrivateKey
+		indexPair []uint8
+	}
+
+	// Known good cases where we should have a verified result for
+	allows := []allow{
+		{keyPair: []*ecdsa.PrivateKey{}, indexPair: []uint8{}},
+		{keyPair: []*ecdsa.PrivateKey{privKey1}, indexPair: []uint8{0}},
+		{keyPair: []*ecdsa.PrivateKey{privKey2}, indexPair: []uint8{1}},
+		{keyPair: []*ecdsa.PrivateKey{privKey3}, indexPair: []uint8{2}},
+		{keyPair: []*ecdsa.PrivateKey{privKey1, privKey2}, indexPair: []uint8{0, 1}},
+		{keyPair: []*ecdsa.PrivateKey{privKey1, privKey3}, indexPair: []uint8{0, 2}},
+		{keyPair: []*ecdsa.PrivateKey{privKey2, privKey3}, indexPair: []uint8{1, 2}},
+		{keyPair: []*ecdsa.PrivateKey{privKey1, privKey2, privKey3}, indexPair: []uint8{0, 1, 2}},
+	}
+
+	tests := []test{}
+	keyPairs := [][]*ecdsa.PrivateKey{}
+	indexPairs := [][]uint8{}
+
+	// Build empty keyPair
+	keyPairs = append(keyPairs, []*ecdsa.PrivateKey{})
+
+	// Build single keyPairs
+	for _, key := range keys {
+		keyPairs = append(keyPairs, []*ecdsa.PrivateKey{key})
+	}
+
+	// Build double keyPairs
+	for _, key_i := range keys {
+		for _, key_j := range keys {
+			keyPairs = append(keyPairs, []*ecdsa.PrivateKey{key_i, key_j})
+		}
+	}
+
+	// Build triple keyPairs
+	for _, key_i := range keys {
+		for _, key_j := range keys {
+			for _, key_k := range keys {
+				keyPairs = append(keyPairs, []*ecdsa.PrivateKey{key_i, key_j, key_k})
+			}
+		}
+	}
+
+	// Build empty indexPairs
+	indexPairs = append(indexPairs, []uint8{})
+
+	// Build single indexPairs
+	for _, ind := range indexes {
+		indexPairs = append(indexPairs, []uint8{ind})
+	}
+
+	// Build double indexPairs
+	for _, ind_i := range indexes {
+		for _, ind_j := range indexes {
+			indexPairs = append(indexPairs, []uint8{ind_i, ind_j})
+		}
+	}
+
+	// Build triple keyPairs
+	for _, ind_i := range indexes {
+		for _, ind_j := range indexes {
+			for _, ind_k := range indexes {
+				indexPairs = append(indexPairs, []uint8{ind_i, ind_j, ind_k})
+			}
+		}
+	}
+
+	// Build out the fuzzTest cases
+	for _, keyPair := range keyPairs {
+		for _, indexPair := range indexPairs {
+			if len(keyPair) == len(indexPair) {
+				result := false
+
+				for _, allow := range allows {
+					if reflect.DeepEqual(allow.indexPair, indexPair) && reflect.DeepEqual(allow.keyPair, keyPair) {
+						result = true
+						break
+					}
+				}
+
+				test := test{label: "A", keyOrder: keyPair, addrs: addrs, indexOrder: indexPair, result: result}
+				tests = append(tests, test)
+			}
+		}
+	}
+
+	// Run the fuzzTest cases
+	for _, tc := range tests {
+		t.Run(string(tc.label), func(t *testing.T) {
+			vaa := getVaa()
+
+			for i, key := range tc.keyOrder {
+				vaa.AddSignature(key, tc.indexOrder[i])
+			}
+
+			/* Fuzz Debugging
+			 * Tell us what keys and indexes were used (for debug when/if we have a failure case)
+			 */
+			if vaa.VerifySignatures(tc.addrs) == true {
+				fmt.Printf("Key Order")
+				if len(tc.keyOrder) == 0 {
+					fmt.Printf("%v", []uint8{})
+				} else {
+					keyIndex := []uint8{}
+					for i, key_i := range keys {
+						for _, key_k := range tc.keyOrder {
+							if key_i == key_k {
+								keyIndex = append(keyIndex, uint8(i))
+							}
+						}
+					}
+					fmt.Printf("%v", keyIndex)
+				}
+
+				fmt.Printf("Index Order")
+				fmt.Printf("%v", tc.indexOrder)
+				fmt.Printf("\n")
 			}
 
 			assert.Equal(t, tc.result, vaa.VerifySignatures(tc.addrs))
