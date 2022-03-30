@@ -203,7 +203,7 @@ pub struct GuardianSetInfo {
 impl GuardianSetInfo {
     pub fn quorum(&self) -> usize {
         // allow quorum of 0 for testing purposes...
-        if self.addresses.len() == 0 {
+        if self.addresses.is_empty() {
             return 0;
         }
         ((self.addresses.len() * 10 / 3) * 2) / 10 + 1
@@ -243,7 +243,7 @@ pub fn sequence_set(storage: &mut dyn Storage, emitter: &[u8], sequence: u64) ->
 
 pub fn sequence_read(storage: &dyn Storage, emitter: &[u8]) -> u64 {
     bucket_read(storage, SEQUENCE_KEY)
-        .load(&emitter)
+        .load(emitter)
         .or::<u64>(Ok(0))
         .unwrap()
 }
@@ -254,7 +254,7 @@ pub fn vaa_archive_add(storage: &mut dyn Storage, hash: &[u8]) -> StdResult<()> 
 
 pub fn vaa_archive_check(storage: &dyn Storage, hash: &[u8]) -> bool {
     bucket_read(storage, GUARDIAN_SET_KEY)
-        .load(&hash)
+        .load(hash)
         .or::<bool>(Ok(false))
         .unwrap()
 }
@@ -283,8 +283,7 @@ pub struct GovernancePacket {
 }
 
 impl GovernancePacket {
-    pub fn deserialize(data: &Vec<u8>) -> StdResult<Self> {
-        let data = data.as_slice();
+    pub fn deserialize(data: &[u8]) -> StdResult<Self> {
         let module = data.get_bytes32(0).to_vec();
         let action = data.get_u8(32);
         let chain = data.get_u16(33);
@@ -311,8 +310,7 @@ pub struct GuardianSetUpgrade {
 }
 
 impl ContractUpgrade {
-    pub fn deserialize(data: &Vec<u8>) -> StdResult<Self> {
-        let data = data.as_slice();
+    pub fn deserialize(data: &[u8]) -> StdResult<Self> {
         let new_contract = data.get_u64(24);
         Ok(ContractUpgrade {
             new_contract,
@@ -321,10 +319,9 @@ impl ContractUpgrade {
 }
 
 impl GuardianSetUpgrade {
-    pub fn deserialize(data: &Vec<u8>) -> StdResult<Self> {
+    pub fn deserialize(data: &[u8]) -> StdResult<Self> {
         const ADDRESS_LEN: usize = 20;
 
-        let data = data.as_slice();
         let new_guardian_set_index = data.get_u32(0);
 
         let n_guardians = data.get_u8(4);
@@ -347,10 +344,10 @@ impl GuardianSetUpgrade {
             expiration_time: 0,
         };
 
-        return Ok(GuardianSetUpgrade {
+        Ok(GuardianSetUpgrade {
             new_guardian_set_index,
             new_guardian_set,
-        });
+        })
     }
 }
 
@@ -360,9 +357,7 @@ pub struct SetFee {
 }
 
 impl SetFee {
-    pub fn deserialize(data: &Vec<u8>) -> StdResult<Self> {
-        let data = data.as_slice();
-
+    pub fn deserialize(data: &[u8]) -> StdResult<Self> {
         let (_, amount) = data.get_u256(0);
         let fee = Coin {
             denom: String::from(FEE_DENOMINATION),
@@ -379,8 +374,7 @@ pub struct TransferFee {
 }
 
 impl TransferFee {
-    pub fn deserialize(data: &Vec<u8>) -> StdResult<Self> {
-        let data = data.as_slice();
+    pub fn deserialize(data: &[u8]) -> StdResult<Self> {
         let recipient = data.get_address(0);
 
         let (_, amount) = data.get_u256(32);
