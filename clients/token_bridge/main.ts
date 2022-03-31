@@ -99,7 +99,7 @@ yargs(hideBin(process.argv))
             "01",
             "0000",
             ethers.utils.defaultAbiCoder.encode(["uint16"], [argv.chain_id]).substring(2 + (64 - 4)),
-            ethers.utils.defaultAbiCoder.encode(["bytes32"], [argv.contract_address]).substring(2),
+            ethers.utils.defaultAbiCoder.encode(["bytes32"], [fmtAddress(argv.contract_address)]).substring(2),
         ].join('')
 
         const vm = signAndEncodeVM(
@@ -141,7 +141,7 @@ yargs(hideBin(process.argv))
             "000000000000000000000000000000000000000000546f6b656e427269646765", // Token Bridge header
             "02",
             ethers.utils.defaultAbiCoder.encode(["uint16"], [argv.chain_id]).substring(2 + (64 - 4)),
-            ethers.utils.defaultAbiCoder.encode(["bytes32"], [argv.contract_address]).substring(2),
+            ethers.utils.defaultAbiCoder.encode(["bytes32"], [fmtAddress(argv.contract_address)]).substring(2),
         ].join('')
 
         const vm = signAndEncodeVM(
@@ -425,6 +425,11 @@ function setupConnection(argv: yargs.Arguments): web3s.Connection {
         argv.rpc as string,
         'confirmed',
     );
+}
+
+function fmtAddress(addr: string) : string {
+    let address = (addr.search("0x") == 0) ? addr.substring(2) : addr;
+    return "0x" + zeroPadBytes(address, 32);
 }
 
 interface BridgeState {
