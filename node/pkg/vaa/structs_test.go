@@ -51,9 +51,23 @@ func TestChainIDFromString(t *testing.T) {
 		{input: "algorand", output: ChainIDAlgorand},
 		{input: "aurora", output: ChainIDAurora},
 		{input: "fantom", output: ChainIDFantom},
+		{input: "karura", output: ChainIDKarura},
+		{input: "acala", output: ChainIDAcala},
+		{input: "ethereum-ropsten", output: ChainIDEthereumRopsten},
+
+		{input: "Solana", output: ChainIDSolana},
+		{input: "Ethereum", output: ChainIDEthereum},
+		{input: "Terra", output: ChainIDTerra},
+		{input: "Bsc", output: ChainIDBSC},
+		{input: "Polygon", output: ChainIDPolygon},
+		{input: "Avalanche", output: ChainIDAvalanche},
+		{input: "Oasis", output: ChainIDOasis},
+		{input: "Algorand", output: ChainIDAlgorand},
+		{input: "Aurora", output: ChainIDAurora},
+		{input: "Fantom", output: ChainIDFantom},
 		{input: "Karura", output: ChainIDKarura},
 		{input: "Acala", output: ChainIDAcala},
-		{input: "ethereum-ropsten", output: ChainIDEthereumRopsten},
+		{input: "Ethereum-ropsten", output: ChainIDEthereumRopsten},
 	}
 
 	// Negative Test Cases
