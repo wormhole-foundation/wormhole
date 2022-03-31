@@ -319,13 +319,13 @@ export const KARURA_HOST =
   CLUSTER === "mainnet"
     ? ""
     : CLUSTER === "testnet"
-    ? "http://103.253.145.222:8545"
+    ? "https://karura-dev.aca-dev.network/eth/http"
     : "";
 export const ACALA_HOST =
   CLUSTER === "mainnet"
     ? ""
     : CLUSTER === "testnet"
-    ? "http://157.245.252.103:8545"
+    ? "https://acala-dev.aca-dev.network/eth/http"
     : "";
 export const ETH_BRIDGE_ADDRESS = getAddress(
   CLUSTER === "mainnet"
@@ -1198,7 +1198,7 @@ export const ACALA_RELAYER_URL =
   CLUSTER === "mainnet"
     ? ""
     : CLUSTER === "testnet"
-    ? "http://103.253.145.222:3111"
+    ? "https://karura-dev.aca-dev.network/eth/relayer"
     : // ? "http://localhost:3111"
       "";
 
