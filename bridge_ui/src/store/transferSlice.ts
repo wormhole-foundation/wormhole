@@ -6,6 +6,7 @@ import {
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { StateSafeWormholeWrappedInfo } from "../hooks/useCheckIfWormholeWrapped";
 import { ForeignAssetInfo } from "../hooks/useFetchForeignAsset";
+import { AcalaRelayerInfo } from "../hooks/useAcalaRelayerInfo";
 import {
   DataWrapper,
   errorDataWrapper,
@@ -60,6 +61,7 @@ export interface TransferState {
   gasPrice: number | undefined;
   useRelayer: boolean;
   relayerFee: string | undefined;
+  acalaRelayerInfo: DataWrapper<AcalaRelayerInfo>;
 }
 
 const initialState: TransferState = {
@@ -86,6 +88,7 @@ const initialState: TransferState = {
   gasPrice: undefined,
   useRelayer: false,
   relayerFee: undefined,
+  acalaRelayerInfo: getEmptyDataWrapper(),
 };
 
 export const transferSlice = createSlice({
@@ -274,6 +277,31 @@ export const transferSlice = createSlice({
     setRelayerFee: (state, action: PayloadAction<string | undefined>) => {
       state.relayerFee = action.payload;
     },
+    setAcalaRelayerInfo: (
+      state,
+      action: PayloadAction<AcalaRelayerInfo | undefined>
+    ) => {
+      state.acalaRelayerInfo = action.payload
+        ? receiveDataWrapper(action.payload)
+        : getEmptyDataWrapper();
+    },
+    fetchAcalaRelayerInfo: (state) => {
+      state.acalaRelayerInfo = fetchDataWrapper();
+    },
+    errorAcalaRelayerInfo: (
+      state,
+      action: PayloadAction<string | undefined>
+    ) => {
+      state.acalaRelayerInfo = errorDataWrapper(
+        action.payload || "An unknown error occurred."
+      );
+    },
+    receiveAcalaRelayerInfo: (
+      state,
+      action: PayloadAction<AcalaRelayerInfo>
+    ) => {
+      state.acalaRelayerInfo = receiveDataWrapper(action.payload);
+    },
   },
 });
 
@@ -305,6 +333,10 @@ export const {
   setGasPrice,
   setUseRelayer,
   setRelayerFee,
+  setAcalaRelayerInfo,
+  fetchAcalaRelayerInfo,
+  errorAcalaRelayerInfo,
+  receiveAcalaRelayerInfo,
 } = transferSlice.actions;
 
 export default transferSlice.reducer;

@@ -1,4 +1,9 @@
-import { CHAIN_ID_TERRA, isEVMChain } from "@certusone/wormhole-sdk";
+import {
+  CHAIN_ID_ACALA,
+  CHAIN_ID_KARURA,
+  CHAIN_ID_TERRA,
+  isEVMChain,
+} from "@certusone/wormhole-sdk";
 import {
   Card,
   Checkbox,
@@ -10,10 +15,12 @@ import clsx from "clsx";
 import { useCallback, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import SmartAddress from "../components/SmartAddress";
+import { useAcalaRelayerInfo } from "../hooks/useAcalaRelayerInfo";
 import useRelayerInfo from "../hooks/useRelayerInfo";
 import { GasEstimateSummary } from "../hooks/useTransactionFees";
 import { COLORS } from "../muiTheme";
 import {
+  selectTransferAmount,
   selectTransferOriginAsset,
   selectTransferOriginChain,
   selectTransferSourceChain,
@@ -79,7 +86,9 @@ function FeeMethodSelector() {
   const originAsset = useSelector(selectTransferOriginAsset);
   const originChain = useSelector(selectTransferOriginChain);
   const targetChain = useSelector(selectTransferTargetChain);
+  const transferAmount = useSelector(selectTransferAmount);
   const relayerInfo = useRelayerInfo(originChain, originAsset, targetChain);
+  const acalaRelayerInfo = useAcalaRelayerInfo(targetChain, transferAmount);
   const dispatch = useDispatch();
   const relayerSelected = !!useSelector(selectTransferUseRelayer);
   const sourceParsedTokenAccount = useSelector(
@@ -96,6 +105,17 @@ function FeeMethodSelector() {
     relayerInfo.data.feeFormatted &&
     relayerInfo.data.feeUsd;
 
+  const targetIsAcala =
+    targetChain === CHAIN_ID_ACALA || targetChain === CHAIN_ID_KARURA;
+  const acalaRelayerEligible = acalaRelayerInfo.data?.shouldRelay;
+
+  const chooseAcalaRelayer = useCallback(() => {
+    if (targetIsAcala && acalaRelayerEligible) {
+      dispatch(setUseRelayer(true));
+      dispatch(setRelayerFee(undefined));
+    }
+  }, [dispatch, targetIsAcala, acalaRelayerEligible]);
+
   const chooseRelayer = useCallback(() => {
     if (relayerEligible) {
       dispatch(setUseRelayer(true));
@@ -109,13 +129,74 @@ function FeeMethodSelector() {
   }, [dispatch]);
 
   useEffect(() => {
-    if (relayerInfo.data?.isRelayable === true) {
+    if (targetIsAcala) {
+      if (acalaRelayerEligible) {
+        chooseAcalaRelayer();
+      } else {
+        chooseManual();
+      }
+    } else if (relayerInfo.data?.isRelayable === true) {
       chooseRelayer();
     } else if (relayerInfo.data?.isRelayable === false) {
       chooseManual();
     }
     //If it's undefined / null it's still loading, so no action is taken.
-  }, [relayerInfo, chooseRelayer, chooseManual]);
+  }, [
+    relayerInfo,
+    chooseRelayer,
+    chooseManual,
+    targetIsAcala,
+    acalaRelayerEligible,
+    chooseAcalaRelayer,
+  ]);
+
+  const acalaRelayerContent = (
+    <Card
+      className={
+        classes.optionCardBase +
+        " " +
+        (relayerSelected ? classes.optionCardSelected : "") +
+        " " +
+        (acalaRelayerEligible ? classes.optionCardSelectable : "")
+      }
+      onClick={chooseAcalaRelayer}
+    >
+      <div className={classes.alignCenterContainer}>
+        <Checkbox
+          checked={relayerSelected}
+          disabled={!acalaRelayerEligible}
+          onClick={chooseAcalaRelayer}
+          className={classes.inlineBlock}
+        />
+        <div className={clsx(classes.inlineBlock, classes.alignLeft)}>
+          {acalaRelayerEligible ? (
+            <div>
+              <Typography variant="body1">
+                {CHAINS_BY_ID[targetChain].name}
+              </Typography>
+              <Typography variant="body2" color="textSecondary">
+                {CHAINS_BY_ID[targetChain].name} pays gas for you &#127881;
+              </Typography>
+            </div>
+          ) : (
+            <>
+              <Typography color="textSecondary" variant="body2">
+                {"Automatic redeem is unavailable for this token."}
+              </Typography>
+              <div />
+            </>
+          )}
+        </div>
+      </div>
+      {/* TODO fixed number of decimals on these strings */}
+      {acalaRelayerEligible ? (
+        <>
+          <div></div>
+          <div></div>
+        </>
+      ) : null}
+    </Card>
+  );
 
   const relayerContent = (
     <Card
@@ -228,7 +309,7 @@ function FeeMethodSelector() {
       >
         How would you like to pay the target chain fees?
       </Typography>
-      {relayerContent}
+      {targetIsAcala ? acalaRelayerContent : relayerContent}
       {manualRedeemContent}
     </div>
   );
