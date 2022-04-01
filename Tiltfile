@@ -210,6 +210,13 @@ k8s_resource(
     trigger_mode = trigger_mode,
 )
 
+local_resource(
+    name = "guardian-set-init",
+    deps = ["scripts", "ethereum", "clients", "solana", "terra"],
+    cmd = './scripts/guardian-set-init.sh %s' % (num_guardians),
+    allow_parallel = True,
+    trigger_mode = trigger_mode,
+)
 if num_guardians >= 2:
     local_resource(
         name = "guardian-set-update",
@@ -267,6 +274,7 @@ if solana:
             port_forward(8900, name = "Solana WS [:8900]", host = webHost),
             port_forward(9000, name = "Solana PubSub [:9000]", host = webHost),
         ],
+        resource_deps = ["guardian-set-init"],
         labels = ["solana"],
         trigger_mode = trigger_mode,
     )
@@ -352,6 +360,7 @@ k8s_resource(
     port_forwards = [
         port_forward(8545, name = "Ganache RPC [:8545]", host = webHost),
     ],
+    resource_deps = ["guardian-set-init"],
     labels = ["evm"],
     trigger_mode = trigger_mode,
 )
@@ -361,6 +370,7 @@ k8s_resource(
     port_forwards = [
         port_forward(8546, name = "Ganache RPC [:8546]", host = webHost),
     ],
+    resource_deps = ["guardian-set-init"],
     labels = ["evm"],
     trigger_mode = trigger_mode,
 )
@@ -539,6 +549,7 @@ k8s_resource(
         port_forward(26657, name = "Terra RPC [:26657]", host = webHost),
         port_forward(1317, name = "Terra LCD [:1317]", host = webHost),
     ],
+    resource_deps = ["guardian-set-init"],
     labels = ["terra"],
     trigger_mode = trigger_mode,
 )
