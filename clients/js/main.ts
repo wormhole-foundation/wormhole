@@ -17,6 +17,7 @@ import {
   toChainName,
   isEVMChain,
   toChainId,
+  tryNativeToHexString,
 } from "@certusone/wormhole-sdk";
 import { ethers } from "ethers";
 import { NETWORKS } from "./networks";
@@ -521,6 +522,10 @@ yargs(hideBin(process.argv))
         throw Error("SUI is not supported yet");
       } else if (chain === "aptos") {
         throw Error("APTOS is not supported yet");
+      } else if (chain === "wormholechain") {
+        throw Error("Wormhole Chain is not supported yet");
+      } else if (chain === "pythnet") {
+        throw Error("Pythnet is not supported yet");
       } else {
         // If you get a type error here, hover over `chain`'s type and it tells you
         // which cases are not handled
@@ -559,6 +564,10 @@ function parseAddress(chain: ChainName, address: string): string {
     throw Error("SUI is not supported yet")
   } else if (chain === "aptos") {
     throw Error("APTOS is not supported yet")
+  } else if (chain === "wormholechain") {
+    return "0x" + tryNativeToHexString(address, chain);
+  } else if (chain === "pythnet") {
+    throw Error("Pythnet is not supported yet");
   } else {
     impossible(chain)
   }

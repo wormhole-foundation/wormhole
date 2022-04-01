@@ -123,9 +123,17 @@ const MAINNET = {
     rpc: "https://rpc.gnosischain.com/",
     key: get_env_var("ETH_KEY"),
   },
+  pythnet: {
+    rpc: undefined,
+    key: undefined,
+  },
   ropsten: {
     rpc: `https://rpc.ankr.com/eth_ropsten`,
     key: get_env_var("ETH_KEY"),
+  },
+  wormholechain: {
+    rpc: undefined,
+    key: undefined,
   },
 };
 
@@ -236,9 +244,17 @@ const TESTNET = {
     rpc: "https://sokol.poa.network/",
     key: get_env_var("ETH_KEY_TESTNET"),
   },
+  pythnet: {
+    rpc: undefined,
+    key: undefined,
+  },
   ropsten: {
     rpc: `https://rpc.ankr.com/eth_ropsten`,
     key: get_env_var("ETH_KEY_TESTNET"),
+  },
+  wormholechain: {
+    rpc: undefined,
+    key: undefined,
   },
 };
 
@@ -349,9 +365,18 @@ const DEVNET = {
     rpc: undefined,
     key: undefined,
   },
+  pythnet: {
+    rpc: undefined,
+    key: undefined,
+  },
   ropsten: {
     rpc: undefined,
     key: "0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d",
+  },
+  wormholechain: {
+    rpc: "http://localhost:1319",
+    chain_id: "wormholechain",
+    key: undefined,
   },
 };
 

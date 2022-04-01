@@ -740,11 +740,11 @@ k8s_yaml_with_ns("wormhole_chain/validators/kubernetes/wormchain-guardian-devnet
 k8s_resource(
     "guardian-validator",
     port_forwards = [
-        port_forward(1317, container_port = 1317, name = "REST", host = webHost),
-        port_forward(26657, container_port = 26657, name = "TENDERMINT", host = webHost)
+        port_forward(1319, container_port = 1317, name = "REST [:1319]", host = webHost),
+        port_forward(26659, container_port = 26657, name = "TENDERMINT [:26659]", host = webHost)
     ],
     resource_deps = [],
-    labels = [],
+    labels = ["wormchain"],
     trigger_mode = trigger_mode,
 )
 
@@ -754,10 +754,10 @@ if secondNode:
     k8s_resource(
         "second-validator",
         port_forwards = [
-            port_forward(1318, container_port = 1317, name = "REST", host = webHost),
-            port_forward(26658, container_port = 26657, name = "TENDERMINT", host = webHost)
+            port_forward(1320, container_port = 1317, name = "REST [:1320]", host = webHost),
+            port_forward(26660, container_port = 26657, name = "TENDERMINT [:26660]", host = webHost)
         ],
         resource_deps = [],
-        labels = [],
+        labels = ["wormchain"],
         trigger_mode = trigger_mode,
     )

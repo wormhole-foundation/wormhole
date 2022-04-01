@@ -86,6 +86,7 @@ terraTokenBridge=$(jq --raw-output '.chains."3".contracts.tokenBridgeEmitterAddr
 bscTokenBridge=$(jq --raw-output '.chains."4".contracts.tokenBridgeEmitterAddress' $addressesJson)
 algoTokenBridge=$(jq --raw-output '.chains."8".contracts.tokenBridgeEmitterAddress' $addressesJson)
 terra2TokenBridge=$(jq --raw-output '.chains."18".contracts.tokenBridgeEmitterAddress' $addressesJson)
+wormchainTokenBridge=$(jq --raw-output '.chains."3104".contracts.tokenBridgeEmitterAddress' $addressesJson)
 
 solNFTBridge=$(jq --raw-output '.chains."1".contracts.nftBridgeEmitterAddress' $addressesJson)
 ethNFTBridge=$(jq --raw-output '.chains."2".contracts.nftBridgeEmitterAddress' $addressesJson)
@@ -99,6 +100,7 @@ terraTokenBridgeVAA=$(node ./clients/js/build/main.js generate registration -m T
 bscTokenBridgeVAA=$(node ./clients/js/build/main.js generate registration -m TokenBridge -c bsc -a ${bscTokenBridge} -g ${guardiansPrivateCSV})
 algoTokenBridgeVAA=$(node ./clients/js/build/main.js generate registration -m TokenBridge -c algorand -a ${algoTokenBridge} -g ${guardiansPrivateCSV})
 terra2TokenBridgeVAA=$(node ./clients/js/build/main.js generate registration -m TokenBridge -c terra2 -a ${terra2TokenBridge} -g ${guardiansPrivateCSV})
+wormchainTokenBridgeVAA=$(node ./clients/js/build/main.js generate registration -m TokenBridge -c wormholechain -a ${wormchainTokenBridge} -g ${guardiansPrivateCSV})
 
 
 # 5) create nft bridge registration VAAs
@@ -118,6 +120,7 @@ terraTokenBridge="REGISTER_TERRA_TOKEN_BRIDGE_VAA"
 bscTokenBridge="REGISTER_BSC_TOKEN_BRIDGE_VAA"
 algoTokenBridge="REGISTER_ALGO_TOKEN_BRIDGE_VAA"
 terra2TokenBridge="REGISTER_TERRA2_TOKEN_BRIDGE_VAA"
+wormchainTokenBridge="REGISTER_WORMCHAIN_TOKEN_BRIDGE_VAA"
 
 solNFTBridge="REGISTER_SOL_NFT_BRIDGE_VAA"
 ethNFTBridge="REGISTER_ETH_NFT_BRIDGE_VAA"
@@ -160,6 +163,9 @@ upsert_env_file $envFile $algoTokenBridge $algoTokenBridgeVAA
 upsert_env_file $ethFile $terra2TokenBridge $terra2TokenBridgeVAA
 upsert_env_file $envFile $terra2TokenBridge $terra2TokenBridgeVAA
 
+# wormchain token bridge
+upsert_env_file $ethFile $wormchainTokenBridge $wormchainTokenBridgeVAA
+upsert_env_file $envFile $wormchainTokenBridge $wormchainTokenBridgeVAA
 
 # 7) copy the local .env file to the solana & terra dirs, if the script is running on the host machine
 # chain dirs will not exist if running in docker for Tilt, only if running locally. check before copying.

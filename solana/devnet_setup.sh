@@ -101,6 +101,7 @@ node build/main.js submit -c solana -n devnet "$REGISTER_TERRA_TOKEN_BRIDGE_VAA"
 node build/main.js submit -c solana -n devnet "$REGISTER_BSC_TOKEN_BRIDGE_VAA"
 node build/main.js submit -c solana -n devnet "$REGISTER_ALGO_TOKEN_BRIDGE_VAA"
 node build/main.js submit -c solana -n devnet "$REGISTER_TERRA2_TOKEN_BRIDGE_VAA"
+node build/main.js submit -c solana -n devnet "$REGISTER_WORMCHAIN_TOKEN_BRIDGE_VAA"
 # Register the NFT Bridge Endpoint on ETH
 node build/main.js submit -c solana -n devnet "$REGISTER_ETH_NFT_BRIDGE_VAA"
 node build/main.js submit -c solana -n devnet "$REGISTER_TERRA_NFT_BRIDGE_VAA"
