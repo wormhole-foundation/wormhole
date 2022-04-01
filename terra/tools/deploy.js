@@ -1,4 +1,4 @@
-require('dotenv').config({ path: "../.env" });
+import 'dotenv/config'
 import { LCDClient, MnemonicKey } from "@terra-money/terra.js";
 import {
   StdFee,
@@ -148,7 +148,7 @@ async function instantiate(contract, inst_msg) {
 const addresses = {};
 
 const init_guardians = JSON.parse(process.env.INIT_SIGNERS)
-if (!!init_guardians || init_guardians.length() == 0) {
+if (!init_guardians || init_guardians.length === 0) {
   throw "failed to get initial guardians from .env file."
 }
 

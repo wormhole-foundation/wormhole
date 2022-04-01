@@ -222,7 +222,7 @@ if num_guardians >= 2:
         name = "guardian-set-update",
         resource_deps = guardian_resource_deps + ["guardian"],
         deps = ["scripts/send-vaa.sh", "clients/eth"],
-        cmd = './scripts/update-guardian-set.sh %s %s' % (num_guardians, webHost),
+        cmd = './scripts/update-guardian-set.sh %s %s %s' % (num_guardians, webHost, namespace),
         labels = ["guardian"],
         trigger_mode = trigger_mode,
     )
