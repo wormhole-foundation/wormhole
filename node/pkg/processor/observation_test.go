@@ -97,7 +97,7 @@ func TestHandleInboundSignedVAAWithQuorum_BadSigner(t *testing.T) {
 
 	processor.handleInboundSignedVAAWithQuorum(ctx, signedVAAWithQuorum)
 
-	// Check to see if we got an errro, which we should have,
+	// Check to see if we got an error, which we should have,
 	// because the VAA is signed by a bad signer
 	assert.Equal(t, 1, observedLogs.Len())
 	firstLog := observedLogs.All()[0]
@@ -135,7 +135,7 @@ func TestHandleInboundSignedVAAWithQuorum_GuardianSetNoKeysNoSignature(t *testin
 
 	processor.handleInboundSignedVAAWithQuorum(ctx, signedVAAWithQuorum)
 
-	// Check to see if we got an errro, which we should have,
+	// Check to see if we got an error, which we should have,
 	// because the VAA is not signed and we don't have any GuardianKeys
 	assert.Equal(t, 1, observedLogs.Len())
 	firstLog := observedLogs.All()[0]
@@ -169,7 +169,7 @@ func TestHandleInboundSignedVAAWithQuorum_GuardianSetNoKeysBadSignature(t *testi
 
 	processor.handleInboundSignedVAAWithQuorum(ctx, signedVAAWithQuorum)
 
-	// Check to see if we got an errro, which we should have,
+	// Check to see if we got an error, which we should have,
 	// because the VAA is signed by a bad signer and we don't have any GuardianKeys
 	// This means VerifySignature failed because signer was invalid
 	assert.Equal(t, 1, observedLogs.Len())
