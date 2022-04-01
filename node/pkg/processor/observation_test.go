@@ -78,7 +78,7 @@ func TestHandleInboundSignedVAAWithQuorum(t *testing.T) {
 			err: "dropping SignedVAAWithQuorum message since we have a guardian set without keys"},
 		{label: "VAANoSignatures", keyOrder: []*ecdsa.PrivateKey{}, indexOrder: []uint8{0}, addrs: []ethcommon.Address{goodAddr1},
 			err: "received SignedVAAWithQuorum message with no VAA signatures"},
-		{label: "VAANoQuorum", keyOrder: []*ecdsa.PrivateKey{badPrivateKey1}, indexOrder: []uint8{0}, addrs: []ethcommon.Address{goodAddr1},
+		{label: "VAAInvalidSignatures", keyOrder: []*ecdsa.PrivateKey{badPrivateKey1}, indexOrder: []uint8{0}, addrs: []ethcommon.Address{goodAddr1},
 			err: "received SignedVAAWithQuorum message with invalid VAA signatures"},
 	}
 
