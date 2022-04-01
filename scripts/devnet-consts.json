@@ -1,0 +1,351 @@
+{
+    "global": {
+        "governanceChainId": "1",
+        "governanceEmitterAddress": "0000000000000000000000000000000000000000000000000000000000000004"
+    },
+    "urls": {
+        "guardianSetLocalUrl": "http://localhost:7071/v1/guardianset/current"
+    },
+    "chains": {
+        "1": {
+            "rpcUrlTilt": "http://solana-devnet:8899",
+            "rpcUrlLocal": "http://localhost:8899",
+            "rpcPort": "8899",
+            "contracts": {
+                "coreEmitterAddress": "074c6d4fcaf24e4b33b3624d7c340c09e46af6fe0a86759efeb25552e46a0e2b",
+                "coreNativeAddress": "Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o",
+                "tokenBridgeEmitterAddress": "c69a1b1a65dd336bf1df6a77afb501fc25db7fc0938cb08595a9ef473265cb4f",
+                "tokenBridgeNativeAddress": "B6RHG3mfcckmrYN1UhmJzyS1XX3fZKbkeUcpJe9Sy3FE",
+                "nftBridgeEmitterAddress": "96ee982293251b48729804c8e8b24b553eb6b887867024948d2236fd37a577ab",
+                "nftBridgeNativeAddress": "NFTWqJR8YnRVqPDvTJrYuLrQDitTG5AScqbeghi4zSA"
+            },
+            "accounts": {
+                "testWallet": {
+                    "public": "6sbzC1eH4FTujJXWj51eQe25cYvr4xfXbJ1vAj7j2k5J",
+                    "private": [
+                        14,
+                        173,
+                        153,
+                        4,
+                        176,
+                        224,
+                        201,
+                        111,
+                        32,
+                        237,
+                        183,
+                        185,
+                        159,
+                        247,
+                        22,
+                        161,
+                        89,
+                        84,
+                        215,
+                        209,
+                        212,
+                        137,
+                        10,
+                        92,
+                        157,
+                        49,
+                        29,
+                        192,
+                        101,
+                        164,
+                        152,
+                        70,
+                        87,
+                        65,
+                        8,
+                        174,
+                        214,
+                        157,
+                        175,
+                        126,
+                        98,
+                        90,
+                        54,
+                        24,
+                        100,
+                        177,
+                        247,
+                        77,
+                        19,
+                        112,
+                        47,
+                        44,
+                        165,
+                        109,
+                        233,
+                        102,
+                        14,
+                        86,
+                        109,
+                        29,
+                        134,
+                        145,
+                        132,
+                        141
+                    ]
+                }
+            },
+            "addresses": {
+                "testToken": {
+                    "address": "2WDq7wSs9zYrpx2kbHDA4RUTRch2CCTP6ZWaH4GNfnQQ",
+                    "name": "Solana Test Token",
+                    "symbol": "SOLT",
+                    "decimals": 6
+                },
+                "testNFT": {
+                    "address": "BVxyYhm498L79r4HMQ9sxZ5bi41DmJmeWZ7SCS7Cyvna",
+                    "name": "Not a PUNK🎸",
+                    "symbol": "PUNK🎸",
+                    "decimals": 0
+                },
+                "testNFT2": {
+                    "address": "nftMANh29jbMboVnbYt1AUAWFP9N4Jnckr9Zeq85WUs",
+                    "name": "Not a PUNK2🎸",
+                    "symbol": "PUNK2🎸",
+                    "decimals": 0
+                }
+            }
+        },
+        "2": {
+            "rpcUrlTilt": "http://eth-devnet:8545",
+            "rpcUrlLocal": "http://localhost:8545",
+            "rpcPort": "8545",
+            "contracts": {
+                "coreEmitterAddress": "000000000000000000000000c89ce4735882c9f0f0fe26686c53074e09b0d550",
+                "coreNativeAddress": "0xC89Ce4735882C9F0f0FE26686c53074E09B0D550",
+                "tokenBridgeEmitterAddress": "0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16",
+                "tokenBridgeNativeAddress": "0x0290FB167208Af455bB137780163b7B7a9a10C16",
+                "nftBridgeEmitterAddress": "00000000000000000000000026b4afb60d6c903165150c6f0aa14f8016be4aec",
+                "nftBridgeAddress": "0x26b4afb60d6c903165150c6f0aa14f8016be4aec"
+            },
+            "accounts": {
+                "testWallet": {
+                    "public": "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1",
+                    "private": "0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d",
+                    "mnemonic": "myth like bonus scare over problem client lizard pioneer submit female collect"
+                }
+            },
+            "addresses": {
+                "testToken": {
+                    "address": "0x2D8BE6BF0baA74e0A907016679CaE9190e80dD0A",
+                    "name": "Ethereum Test Token",
+                    "symbol": "TKN",
+                    "decimals": 18
+                },
+                "testNFT": {
+                    "address": "0x5b9b42d6e4B2e4Bf8d42Eba32D46918e10899B66",
+                    "name": "Not an APE 🐒",
+                    "symbol": "APE🐒",
+                    "decimals": 0
+                },
+                "testWETH": {
+                    "address": "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E",
+                    "name": "Wrapped Ether",
+                    "symbol": "WETH",
+                    "decimals": 18
+                }
+            }
+        },
+        "3": {
+            "rpcUrlTilt": "http://terra-terrad:1317",
+            "rpcUrlLocal": "http://localhost:1317",
+            "rpcPort": "1317",
+            "contracts": {
+                "coreEmitterAddress": "0000000000000000000000003b1a7485c6162c5883ee45fb2d7477a87d8a4ce5",
+                "coreNativeAddress": "terra18vd8fpwxzck93qlwghaj6arh4p7c5n896xzem5",
+                "tokenBridgeEmitterAddress": "000000000000000000000000784999135aaa8a3ca5914468852fdddbddd8789d",
+                "tokenBridgeNativeAddress": "terra10pyejy66429refv3g35g2t7am0was7ya7kz2a4",
+                "nftBridgeEmitterAddress": "0000000000000000000000000fe5c51f539a651152ae461086d733777a54a134",
+                "nftBridgeNativeAddress": "terra10nmmwe8r3g99a9newtqa7a75xfgs2e8z87r2sf"
+            },
+            "accounts": {
+                "testWallet": {
+                    "public": "terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v",
+                    "private": "",
+                    "mnemonic": "notice oak worry limit wrap speak medal online prefer cluster roof addict wrist behave treat actual wasp year salad speed social layer crew genius"
+                }
+            },
+            "addresses": {
+                "testToken": {
+                    "address": "terra13nkgqrfymug724h8pprpexqj9h629sa3ncw7sh",
+                    "name": "MOCK",
+                    "symbol": "MCK",
+                    "decimals": 6
+                },
+                "testNFT": {
+                    "address": "terra18dt935pdcn2ka6l0syy5gt20wa48n3mktvdvjj",
+                    "name": "MOCK",
+                    "symbol": "MCK",
+                    "decimals": 0
+                }
+            }
+        },
+        "4": {
+            "rpcUrlTilt": "http://eth-devnet2:8546",
+            "rpcUrlLocal": "http://localhost:8546",
+            "rpcPort": "8546",
+            "contracts": {
+                "coreEmitterAddress": "000000000000000000000000c89ce4735882c9f0f0fe26686c53074e09b0d550",
+                "coreNativeAddress": "0xC89Ce4735882C9F0f0FE26686c53074E09B0D550",
+                "tokenBridgeEmitterAddress": "0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16",
+                "tokenBridgeNativeAddress": "0x0290FB167208Af455bB137780163b7B7a9a10C16",
+                "nftBridgeEmitterAddress": "00000000000000000000000026b4afb60d6c903165150c6f0aa14f8016be4aec",
+                "nftBridgeAddress": "0x26b4afb60d6c903165150c6f0aa14f8016be4aec"
+            }
+        }
+    },
+    "gancheDefaults": [
+        {
+            "name": "0",
+            "public": "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1",
+            "private": "0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d"
+        },
+        {
+            "name": "1",
+            "public": "0xFFcf8FDEE72ac11b5c542428B35EEF5769C409f0",
+            "private": "0x6cbed15c793ce57650b9877cf6fa156fbef513c4e6134f022a85b1ffdd59b2a1"
+        },
+        {
+            "name": "2",
+            "public": "0x22d491Bde2303f2f43325b2108D26f1eAbA1e32b",
+            "private": "0x6370fd033278c143179d81c5526140625662b8daa446c22ee2d73db3707e620c"
+        },
+        {
+            "name": "3",
+            "public": "0xE11BA2b4D45Eaed5996Cd0823791E0C93114882d",
+            "private": "0x646f1ce2fdad0e6deeeb5c7e8e5543bdde65e86029e2fd9fc169899c440a7913"
+        },
+        {
+            "name": "4",
+            "public": "0xd03ea8624C8C5987235048901fB614fDcA89b117",
+            "private": "0xadd53f9a7e588d003326d1cbf9e4a43c061aadd9bc938c843a79e7b4fd2ad743"
+        },
+        {
+            "name": "5",
+            "public": "0x95cED938F7991cd0dFcb48F0a06a40FA1aF46EBC",
+            "private": "0x395df67f0c2d2d9fe1ad08d1bc8b6627011959b79c53d7dd6a3536a33ab8a4fd"
+        },
+        {
+            "name": "6",
+            "public": "0x3E5e9111Ae8eB78Fe1CC3bb8915d5D461F3Ef9A9",
+            "private": "0xe485d098507f54e7733a205420dfddbe58db035fa577fc294ebd14db90767a52"
+        },
+        {
+            "name": "7",
+            "public": "0x28a8746e75304c0780E011BEd21C72cD78cd535E",
+            "private": "0xa453611d9419d0e56f499079478fd72c37b251a94bfde4d19872c44cf65386e3"
+        },
+        {
+            "name": "8",
+            "public": "0xACa94ef8bD5ffEE41947b4585a84BdA5a3d3DA6E",
+            "private": "0x829e924fdf021ba3dbbc4225edfece9aca04b929d6e75613329ca6f1d31c0bb4"
+        },
+        {
+            "name": "9",
+            "public": "0x1dF62f291b2E969fB0849d99D9Ce41e2F137006e",
+            "private": "0xb0057716d5917badaf911b193b12b910811c1497b5bada8d7711f758981c3773"
+        }
+    ],
+    "devnetGuardians": [
+        {
+            "name": "guardian-0",
+            "public": "0xbeFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe",
+            "private": "cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0"
+        },
+        {
+            "name": "guardian-1",
+            "public": "0x88D7D8B32a9105d228100E72dFFe2Fae0705D31c",
+            "private": "c3b2e45c422a1602333a64078aeb42637370b0f48fe385f9cfa6ad54a8e0c47e"
+        },
+        {
+            "name": "guardian-2",
+            "public": "0x58076F561CC62A47087B567C86f986426dFCD000",
+            "private": "9f790d3f08bc4b5cd910d4278f3deb406e57bb5e924906ccd52052bb078ccd47"
+        },
+        {
+            "name": "guardian-3",
+            "public": "0xBd6e9833490F8fA87c733A183CD076a6cBD29074",
+            "private": "b20cc49d6f2c82a5e6519015fc18aa3e562867f85f872c58f1277cfbd2a0c8e4"
+        },
+        {
+            "name": "guardian-4",
+            "public": "0xb853FCF0a5C78C1b56D15fCE7a154e6ebe9ED7a2",
+            "private": "eded5a2fdcb5bbbfa5b07f2a91393813420e7ac30a72fc935b6df36f8294b855"
+        },
+        {
+            "name": "guardian-5",
+            "public": "0xAF3503dBD2E37518ab04D7CE78b630F98b15b78a",
+            "private": "00d39587c3556f289677a837c7f3c0817cb7541ce6e38a243a4bdc761d534c5e"
+        },
+        {
+            "name": "guardian-6",
+            "public": "0x785632deA5609064803B1c8EA8bB2c77a6004Bd1",
+            "private": "da534d61a8da77b232f3a2cee55c0125e2b3e33a5cd8247f3fe9e72379445c3b"
+        },
+        {
+            "name": "guardian-7",
+            "public": "0x09a281a698C0F5BA31f158585B41F4f33659e54D",
+            "private": "cdbabfc2118eb00bc62c88845f3bbd03cb67a9e18a055101588ca9b36387006c"
+        },
+        {
+            "name": "guardian-8",
+            "public": "0x3178443AB76a60E21690DBfB17f7F59F09Ae3Ea1",
+            "private": "c83d36423820e7350428dc4abe645cb2904459b7d7128adefe16472fdac397ba"
+        },
+        {
+            "name": "guardian-9",
+            "public": "0x647ec26ae49b14060660504f4DA1c2059E1C5Ab6",
+            "private": "1cbf4e1388b81c9020500fefc83a7a81f707091bb899074db1bfce4537428112"
+        },
+        {
+            "name": "guardian-10",
+            "public": "0x810AC3D8E1258Bd2F004a94Ca0cd4c68Fc1C0611",
+            "private": "17646a6ba14a541957fc7112cc973c0b3f04fce59484a92c09bb45a0b57eb740"
+        },
+        {
+            "name": "guardian-11",
+            "public": "0x80610e96d645b12f47ae5cf4546b18538739e90F",
+            "private": "eb94ff04accbfc8195d44b45e7c7da4c6993b2fbbfc4ef166a7675a905df9891"
+        },
+        {
+            "name": "guardian-12",
+            "public": "0x2edb0D8530E31A218E72B9480202AcBaeB06178d",
+            "private": "053a6527124b309d914a47f5257a995e9b0ad17f14659f90ed42af5e6e262b6a"
+        },
+        {
+            "name": "guardian-13",
+            "public": "0xa78858e5e5c4705CdD4B668FFe3Be5bae4867c9D",
+            "private": "3fbf1e46f6da69e62aed5670f279e818889aa7d8f1beb7fd730770fd4f8ea3d7"
+        },
+        {
+            "name": "guardian-14",
+            "public": "0x5Efe3A05Efc62D60e1D19fAeB56A80223CDd3472",
+            "private": "53b05697596ba04067e40be8100c9194cbae59c90e7870997de57337497172e9"
+        },
+        {
+            "name": "guardian-15",
+            "public": "0xD791b7D32C05aBB1cc00b6381FA0c4928f0c56fC",
+            "private": "4e95cb2ff3f7d5e963631ad85c28b1b79cb370f21c67cbdd4c2ffb0bf664aa06"
+        },
+        {
+            "name": "guardian-16",
+            "public": "0x14Bc029B8809069093D712A3fd4DfAb31963597e",
+            "private": "01b8c448ce2c1d43cfc5938d3a57086f88e3dc43bb8b08028ecb7a7924f4676f"
+        },
+        {
+            "name": "guardian-17",
+            "public": "0x246Ab29FC6EBeDf2D392a51ab2Dc5C59d0902A03",
+            "private": "1db31a6ba3bcd54d2e8a64f8a2415064265d291593450c6eb7e9a6a986bd9400"
+        },
+        {
+            "name": "guardian-18",
+            "public": "0x132A84dFD920b35a3D0BA5f7A0635dF298F9033e",
+            "private": "70d8f1c9534a0ab61a020366b831a494057a289441c07be67e4288c44bc6cd5d"
+        }
+    ]
+}
