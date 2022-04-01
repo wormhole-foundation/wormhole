@@ -4,13 +4,16 @@
 set -e
 
 # wait for the guardians to establish networking
-sleep 3
+sleep 20
 
 newNumGuardians=$1
 echo "new number of guardians: ${newNumGuardians}"
 
 webHost=$2
 echo "webHost ${webHost}"
+
+namespace=$3
+echo "namespace ${namespace}"
 
 # file & path to save governance VAA
 fileName=new-guardianset.prototxt
@@ -40,7 +43,7 @@ if [ ${currentNumGuardians} == ${newNumGuardians} ]; then
 fi
 
 echo "creating guardian set update governance message template prototext"
-minikube kubectl -- exec -n wormhole guardian-0 -c guardiand -- /guardiand template guardian-set-update --num=${newNumGuardians} --idx=${currentIndex} > ${localPath}
+minikube kubectl -- exec -n ${namespace} guardian-0 -c guardiand -- /guardiand template guardian-set-update --num=${newNumGuardians} --idx=${currentIndex} > ${localPath}
 
 # for i in $(seq ${newNumGuardians})
 for i in $(seq ${currentNumGuardians})
@@ -50,10 +53,10 @@ do
 
   # create the governance guardian set update prototxt file in the container
   echo "created governance file for guardian-${guardianIndex}"
-  minikube kubectl -- cp ${localPath} wormhole/guardian-${guardianIndex}:${containerPath} -c guardiand
+  minikube kubectl -- cp ${localPath} ${namespace}/guardian-${guardianIndex}:${containerPath} -c guardiand
 
   # inject the guardian set update
-  minikube kubectl -- exec -n wormhole guardian-${guardianIndex} -c guardiand -- /guardiand admin governance-vaa-inject --socket $sock $containerPath
+  minikube kubectl -- exec -n ${namespace} guardian-${guardianIndex} -c guardiand -- /guardiand admin governance-vaa-inject --socket $sock $containerPath
   echo "injected governance VAA for guardian-${guardianIndex}"
 done
 
