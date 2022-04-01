@@ -1,5 +1,9 @@
 FROM docker.io/golang:1.17.5@sha256:90d1ab81f3d157ca649a9ff8d251691b810d95ea6023a03cdca139df58bca599
 
+#used for a readiness probe
+RUN apt-get update
+RUN apt install -y netcat
+
 WORKDIR /app
 
 COPY ./wormhole_chain .
