@@ -105,3 +105,9 @@ jobs:
         with:
           command: check
           args: --workspace --manifest-path ${{ matrix.manifest }}
+
+      - name: Run `cargo test`
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --workspace --manifest-path ${{ matrix.manifest }}
