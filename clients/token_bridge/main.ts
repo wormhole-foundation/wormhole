@@ -88,7 +88,7 @@ yargs(hideBin(process.argv))
                 required: true
             })
             .option('guardian_secret', {
-                describe: 'Guardian\'s secret key',
+                describe: 'Guardian\'s secret key, CSV allowed',
                 type: "string",
                 default: "cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0"
             })
@@ -109,9 +109,7 @@ yargs(hideBin(process.argv))
             "0x0000000000000000000000000000000000000000000000000000000000000004",
             Math.floor(Math.random() * 100000000),
             data,
-            [
-                argv.guardian_secret
-            ],
+            argv.guardian_secret.split(','),
             0,
             0
         );
@@ -131,7 +129,7 @@ yargs(hideBin(process.argv))
                 required: true
             })
             .option('guardian_secret', {
-                describe: 'Guardian\'s secret key',
+                describe: 'Guardian\'s secret key, CSV allowed',
                 type: "string",
                 default: "cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0"
             })
@@ -151,9 +149,7 @@ yargs(hideBin(process.argv))
             "0x0000000000000000000000000000000000000000000000000000000000000004",
             Math.floor(Math.random() * 100000000),
             data,
-            [
-               argv.guardian_secret
-            ],
+            argv.guardian_secret.split(','),
             0,
             0
         );
