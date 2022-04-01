@@ -1,6 +1,6 @@
 import yargs from "yargs";
 
-const {hideBin} = require('yargs/helpers')
+import { hideBin } from 'yargs/helpers'
 
 import * as elliptic from "elliptic";
 import * as ethers from "ethers";
@@ -92,14 +92,14 @@ yargs(hideBin(process.argv))
                 type: "string",
                 default: "cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0"
             })
-    }, async (argv: any) => {
+    }, async (argv) => {
         let data = [
             "0x",
             "000000000000000000000000000000000000000000546f6b656e427269646765", // Token Bridge header
             "01",
             "0000",
             ethers.utils.defaultAbiCoder.encode(["uint16"], [argv.chain_id]).substring(2 + (64 - 4)),
-            ethers.utils.defaultAbiCoder.encode(["bytes32"], [fmtAddress(argv.contract_address)]).substring(2),
+            ethers.utils.defaultAbiCoder.encode(["bytes32"], [fmtAddress(String(argv.contract_address))]).substring(2),
         ].join('')
 
         const vm = signAndEncodeVM(
@@ -133,13 +133,13 @@ yargs(hideBin(process.argv))
                 type: "string",
                 default: "cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0"
             })
-    }, async (argv: any) => {
+    }, async (argv) => {
         let data = [
             "0x",
             "000000000000000000000000000000000000000000546f6b656e427269646765", // Token Bridge header
             "02",
             ethers.utils.defaultAbiCoder.encode(["uint16"], [argv.chain_id]).substring(2 + (64 - 4)),
-            ethers.utils.defaultAbiCoder.encode(["bytes32"], [fmtAddress(argv.contract_address)]).substring(2),
+            ethers.utils.defaultAbiCoder.encode(["bytes32"], [fmtAddress(String(argv.contract_address))]).substring(2),
         ].join('')
 
         const vm = signAndEncodeVM(
@@ -192,7 +192,7 @@ yargs(hideBin(process.argv))
                 description: 'Wallet Mnemonic',
                 default: 'notice oak worry limit wrap speak medal online prefer cluster roof addict wrist behave treat actual wasp year salad speed social layer crew genius',
             })
-    }, async (argv: any) => {
+    }, async (argv) => {
         const terra = new LCDClient({
             URL: argv.rpc,
             chainID: argv.chain_id,
@@ -203,7 +203,7 @@ yargs(hideBin(process.argv))
         }));
 
         // create a simple message that moves coin balances
-        const vaa = Buffer.from(argv.vaa, "hex");
+        const vaa = Buffer.from(String(argv.vaa), "hex");
         const transaction = new MsgExecuteContract(
             wallet.key.accAddress,
             argv.token_bridge,
@@ -212,7 +212,7 @@ yargs(hideBin(process.argv))
                     data: fromUint8Array(vaa)
                 },
             },
-            {uluna: 1000}
+            { uluna: 1000 }
         );
 
         wallet
@@ -257,7 +257,7 @@ yargs(hideBin(process.argv))
                 description: 'Private key of the wallet',
                 required: false
             })
-    }, async (argv: any) => {
+    }, async (argv) => {
         const bridge = await importCoreWasm()
         const token_bridge = await importTokenWasm()
 
@@ -307,7 +307,7 @@ yargs(hideBin(process.argv))
         );
         console.log('SIGNATURE', signature);
     })
-    .command('eth execute_governance_vaa [vaa]', 'execute a governance VAA on Solana', (yargs) => {
+    .command('eth execute_governance_vaa [vaa]', 'execute a governance VAA on Ethereum', (yargs) => {
         return yargs
             .positional('vaa', {
                 describe: 'vaa to post',
@@ -332,7 +332,7 @@ yargs(hideBin(process.argv))
                 description: 'Private key of the wallet',
                 default: "0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d"
             })
-    }, async (argv: any) => {
+    }, async (argv) => {
         const bridge = await importCoreWasm()
 
         let provider = new ethers.providers.JsonRpcProvider(argv.rpc)
@@ -340,7 +340,7 @@ yargs(hideBin(process.argv))
         let t = new BridgeImplementation__factory(signer);
         let tb = t.attach(argv.token_bridge);
 
-        let vaa = Buffer.from(argv.vaa, "hex");
+        let vaa = Buffer.from(String(argv.vaa), "hex");
         let parsed_vaa = await bridge.parse_vaa(vaa);
 
         switch (parsed_vaa.payload[32]) {
@@ -423,7 +423,7 @@ function setupConnection(argv: yargs.Arguments): web3s.Connection {
     );
 }
 
-function fmtAddress(addr: string) : string {
+function fmtAddress(addr: string): string {
     let address = (addr.search("0x") == 0) ? addr.substring(2) : addr;
     return "0x" + zeroPadBytes(address, 32);
 }
