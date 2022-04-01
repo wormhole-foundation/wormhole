@@ -4,7 +4,7 @@
 set -e
 
 # wait for the guardians to establish networking
-sleep 30
+sleep 3
 
 newNumGuardians=$1
 echo "new number of guardians: ${newNumGuardians}"
@@ -19,6 +19,7 @@ containerPath=/tmp/$fileName
 echo "localPath: ${localPath}"
 echo "containerPath: ${containerPath}"
 
+# the admin socket of the devnet guardians. used for executing commands in guardian pods.
 sock=/tmp/admin.sock
 
 guardianPublicWebBaseUrl="${webHost}:7071"
@@ -31,6 +32,12 @@ currentIndex=$(echo ${guardianSet} | jq ".index")
 currentNumGuardians=$(echo ${guardianSet} | jq ".addresses | length")
 echo "currentIndex: ${currentIndex}"
 echo "currentNumGuardians ${currentNumGuardians}"
+
+
+if [ ${currentNumGuardians} == ${newNumGuardians} ]; then
+    echo "number of guardians is as expected."
+    exit 0
+fi
 
 echo "creating guardian set update governance message template prototext"
 minikube kubectl -- exec -n wormhole guardian-0 -c guardiand -- /guardiand template guardian-set-update --num=${newNumGuardians} --idx=${currentIndex} > ${localPath}
