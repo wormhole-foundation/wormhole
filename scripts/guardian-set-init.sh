@@ -106,7 +106,7 @@ echo "REGISTER_BSC_TOKEN_BRIDGE_VAA=$bscTokenBridgeVAA" >> ./scripts/.env
 
 # copy the local .env file to the solana & terra dirs
 cp ./scripts/.env ./solana
-cp ./scripts/.env ./terra
+cp ./scripts/.env ./terra/tools
 
 
 echo "guardian set init complete!"
