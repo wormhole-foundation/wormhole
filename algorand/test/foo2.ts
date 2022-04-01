@@ -42,12 +42,10 @@ async function firstTransaction() {
         let accountInfo = await algodClient.accountInformation(myAccount.addr).do();
         console.log("Account balance: %d microAlgos", accountInfo.amount);
 
-        let vaa = testLib.genGuardianSetUpgrade(guardianPrivKeys, 0, 1, 1, 1, guardianKeys)
-        console.log(vaa)
-
-        console.log(parseVAA(new Uint8Array(Buffer.from(vaa, "hex"))))
-
-        process.exit(0)
+#        let vaa = testLib.genGuardianSetUpgrade(guardianPrivKeys, 0, 1, 1, 1, guardianKeys)
+#        console.log(vaa)
+#        console.log(parseVAA(new Uint8Array(Buffer.from(vaa, "hex"))))
+#        process.exit(0)
 
         vaa = testLib.createSignedVAA(0, guardianPrivKeys, 1, 1, 1, PYTH_EMITTER, 0, 0, PYTH_PAYLOAD)
         console.log(vaa)
