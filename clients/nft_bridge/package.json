@@ -16,7 +16,8 @@
   "scripts": {
     "start": "tsc && node main.js",
     "build": "tsc",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "main": "ts-node main.ts"
   },
   "devDependencies": {
     "@truffle/hdwallet-provider": "^1.4.1",
@@ -24,6 +25,7 @@
     "@types/bs58": "^4.0.1",
     "@types/yargs": "^17.0.2",
     "copy-dir": "^1.3.0",
+    "ts-node": "^10.7.0",
     "typescript": "^4.3.5"
   }
 }

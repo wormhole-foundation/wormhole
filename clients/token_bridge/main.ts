@@ -277,7 +277,7 @@ yargs(hideBin(process.argv))
             await connection.confirmTransaction(airdropSignature);
         }
 
-        let vaa = Buffer.from(argv.vaa, "hex");
+        let vaa = Buffer.from(String(argv.vaa), "hex");
         await post_vaa(connection, bridge_id, from, vaa);
 
         let parsed_vaa = await bridge.parse_vaa(vaa);
