@@ -229,7 +229,7 @@ func TestVerifySignatures(t *testing.T) {
 		{label: "MultiSameSignerPartialSameIndex", keyOrder: []*ecdsa.PrivateKey{privKey1, privKey2, privKey2}, addrs: addrs, indexOrder: []uint8{0, 1, 1}, result: false},
 		{label: "MultiSameSignerNonMonotonic", keyOrder: []*ecdsa.PrivateKey{privKey1, privKey2, privKey2}, addrs: addrs, indexOrder: []uint8{0, 2, 1}, result: false},
 		{label: "MultiSameSignerFullSameIndex", keyOrder: []*ecdsa.PrivateKey{privKey1, privKey1, privKey1}, addrs: addrs, indexOrder: []uint8{0, 0, 0}, result: false},
-		{label: "MultiSameSignerMonotonic", keyOrder: []*ecdsa.PrivateKey{privKey1, privKey1, privKey1}, addrs: addrs, indexOrder: []uint8{0, 0, 0}, result: false},
+		{label: "MultiSameSignerMonotonic", keyOrder: []*ecdsa.PrivateKey{privKey1, privKey1, privKey1}, addrs: addrs, indexOrder: []uint8{0, 1, 2}, result: false},
 	}
 
 	for _, tc := range tests {
