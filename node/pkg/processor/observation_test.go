@@ -54,7 +54,7 @@ func TestHandleInboundSignedVAAWithQuorum_NilGuardianSet(t *testing.T) {
 
 	processor.handleInboundSignedVAAWithQuorum(ctx, signedVAAWithQuorum)
 
-	// Check to see if we got an errro, which we should have,
+	// Check to see if we got an error, which we should have,
 	// because a `gs` is not defined on processor
 	assert.Equal(t, 1, observedLogs.Len())
 	firstLog := observedLogs.All()[0]
@@ -62,118 +62,62 @@ func TestHandleInboundSignedVAAWithQuorum_NilGuardianSet(t *testing.T) {
 	assert.Equal(t, expected_error, firstLog.Message)
 }
 
-func TestHandleInboundSignedVAAWithQuorum_BadSigner(t *testing.T) {
-	vaa := getVAA()
+func TestHandleInboundSignedVAAWithQuorum(t *testing.T) {
+	goodPrivateKey1, _ := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
+	goodAddr1 := crypto.PubkeyToAddress(goodPrivateKey1.PublicKey)
+	badPrivateKey1, _ := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
 
-	// Define some good/bad keys/addrs to build from
-	goodGuardianPrivKey, _ := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
-	badGuardianPrivKey, _ := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
-	goodGuardianAddr := crypto.PubkeyToAddress(goodGuardianPrivKey.PublicKey)
-
-	// Define a good GuardianSet
-	guardianSet := common.GuardianSet{
-		Keys: []ethcommon.Address{
-			goodGuardianAddr,
-		},
-		Index: 1,
+	tests := []struct {
+		label      string
+		keyOrder   []*ecdsa.PrivateKey
+		indexOrder []uint8
+		addrs      []ethcommon.Address
+		err        string
+	}{
+		{label: "GuardianSetNoKeys", keyOrder: []*ecdsa.PrivateKey{}, indexOrder: []uint8{}, addrs: []ethcommon.Address{},
+			err: "dropping SignedVAAWithQuorum message since we have a guardian set without keys"},
+		{label: "VAANoSignatures", keyOrder: []*ecdsa.PrivateKey{}, indexOrder: []uint8{0}, addrs: []ethcommon.Address{goodAddr1},
+			err: "received SignedVAAWithQuorum message with no VAA signatures"},
+		{label: "VAANoQuorum", keyOrder: []*ecdsa.PrivateKey{badPrivateKey1}, indexOrder: []uint8{0}, addrs: []ethcommon.Address{goodAddr1},
+			err: "received SignedVAAWithQuorum message with invalid VAA signatures"},
 	}
 
-	// Sign with a bad key
-	vaa.AddSignature(badGuardianPrivKey, 1)
-	marshalVAA, err := vaa.Marshal()
-	if err != nil {
-		panic(err)
+	for _, tc := range tests {
+		t.Run(tc.label, func(t *testing.T) {
+			vaa := getVAA()
+
+			// Define a GuardianSet from test addrs
+			guardianSet := common.GuardianSet{
+				Keys:  tc.addrs,
+				Index: 1,
+			}
+
+			// Sign with the keys at the proper index
+			for i, key := range tc.keyOrder {
+				vaa.AddSignature(key, tc.indexOrder[i])
+			}
+
+			marshalVAA, err := vaa.Marshal()
+			if err != nil {
+				panic(err)
+			}
+
+			// Stub out the minimum to get processor to dance
+			observedZapCore, observedLogs := observer.New(zap.InfoLevel)
+			observedLogger := zap.New(observedZapCore)
+
+			ctx := context.Background()
+			signedVAAWithQuorum := &gossipv1.SignedVAAWithQuorum{Vaa: marshalVAA}
+			processor := Processor{}
+			processor.gs = &guardianSet
+			processor.logger = observedLogger
+
+			processor.handleInboundSignedVAAWithQuorum(ctx, signedVAAWithQuorum)
+
+			// Check to see if we got an error, which we should have
+			assert.Equal(t, 1, observedLogs.Len())
+			firstLog := observedLogs.All()[0]
+			assert.Equal(t, tc.err, firstLog.Message)
+		})
 	}
-
-	// Stub out the minimum to get processor to dance
-	observedZapCore, observedLogs := observer.New(zap.InfoLevel)
-	observedLogger := zap.New(observedZapCore)
-
-	ctx := context.Background()
-	signedVAAWithQuorum := &gossipv1.SignedVAAWithQuorum{Vaa: marshalVAA}
-	processor := Processor{}
-	processor.gs = &guardianSet
-	processor.logger = observedLogger
-
-	processor.handleInboundSignedVAAWithQuorum(ctx, signedVAAWithQuorum)
-
-	// Check to see if we got an error, which we should have,
-	// because the VAA is signed by a bad signer
-	assert.Equal(t, 1, observedLogs.Len())
-	firstLog := observedLogs.All()[0]
-	expected_error := "received SignedVAAWithQuorum message with invalid VAA signatures"
-	assert.Equal(t, expected_error, firstLog.Message)
-}
-
-func TestHandleInboundSignedVAAWithQuorum_GuardianSetNoKeysNoSignature(t *testing.T) {
-	vaa := getVAA()
-
-	badGuardianPrivKey, _ := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
-
-	// Define a good GuardianSet
-	guardianSet := common.GuardianSet{
-		Keys:  []ethcommon.Address{},
-		Index: 1,
-	}
-
-	// Sign with a bad key
-	vaa.AddSignature(badGuardianPrivKey, 1)
-	marshalVAA, err := vaa.Marshal()
-	if err != nil {
-		panic(err)
-	}
-
-	// Stub out the minimum to get processor to dance
-	observedZapCore, observedLogs := observer.New(zap.InfoLevel)
-	observedLogger := zap.New(observedZapCore)
-
-	ctx := context.Background()
-	signedVAAWithQuorum := &gossipv1.SignedVAAWithQuorum{Vaa: marshalVAA}
-	processor := Processor{}
-	processor.gs = &guardianSet
-	processor.logger = observedLogger
-
-	processor.handleInboundSignedVAAWithQuorum(ctx, signedVAAWithQuorum)
-
-	// Check to see if we got an error, which we should have,
-	// because the VAA is not signed and we don't have any GuardianKeys
-	assert.Equal(t, 1, observedLogs.Len())
-	firstLog := observedLogs.All()[0]
-	expected_error := "received SignedVAAWithQuorum message with invalid VAA signatures"
-	assert.Equal(t, expected_error, firstLog.Message)
-}
-
-func TestHandleInboundSignedVAAWithQuorum_GuardianSetNoKeysBadSignature(t *testing.T) {
-	vaa := getVAA()
-
-	// Define a good GuardianSet
-	guardianSet := common.GuardianSet{
-		Keys:  []ethcommon.Address{},
-		Index: 1,
-	}
-
-	marshalVAA, err := vaa.Marshal()
-	if err != nil {
-		panic(err)
-	}
-
-	// Stub out the minimum to get processor to dance
-	observedZapCore, observedLogs := observer.New(zap.InfoLevel)
-	observedLogger := zap.New(observedZapCore)
-
-	ctx := context.Background()
-	signedVAAWithQuorum := &gossipv1.SignedVAAWithQuorum{Vaa: marshalVAA}
-	processor := Processor{}
-	processor.gs = &guardianSet
-	processor.logger = observedLogger
-
-	processor.handleInboundSignedVAAWithQuorum(ctx, signedVAAWithQuorum)
-
-	// Check to see if we got an error, which we should have,
-	// because the VAA is signed by a bad signer and we don't have any GuardianKeys
-	// This means VerifySignature failed because signer was invalid
-	assert.Equal(t, 1, observedLogs.Len())
-	firstLog := observedLogs.All()[0]
-	expected_error := "received SignedVAAWithQuorum message without quorum"
-	assert.Equal(t, expected_error, firstLog.Message)
 }
