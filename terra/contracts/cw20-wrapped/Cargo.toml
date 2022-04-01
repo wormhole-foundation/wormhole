@@ -23,6 +23,3 @@ cw20 = { version = "0.8.0" }
 cw20-legacy = { version = "0.2.0", features = ["library"]} 
 cw-storage-plus  = { version = "0.8.0" }
 thiserror = { version = "1.0.20" }
-
-[dev-dependencies]
-cosmwasm-vm = { version = "0.16.0", default-features = false }

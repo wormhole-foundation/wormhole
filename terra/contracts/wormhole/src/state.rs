@@ -426,6 +426,17 @@ mod tests {
     #[test]
     fn test_deserialize() {
         let x = hex::decode("080000000901007bfa71192f886ab6819fa4862e34b4d178962958d9b2e3d9437338c9e5fde1443b809d2886eaa69e0f0158ea517675d96243c9209c3fe1d94d5b19866654c6980000000b150000000500020001020304000000000000000000000000000000000000000000000000000000000000000000000a0261626364").unwrap();
+
+        let body = &x[ParsedVAA::HEADER_LEN + ParsedVAA::SIGNATURE_LEN..];
+        let mut hasher = Keccak256::new();
+        hasher.update(body);
+        let hash = hasher.finalize();
+
+        // Rehash the hash
+        let mut hasher = Keccak256::new();
+        hasher.update(hash);
+        let hash = hasher.finalize().to_vec();
+
         let v = ParsedVAA::deserialize(x.as_slice()).unwrap();
         assert_eq!(
             v,
@@ -443,10 +454,7 @@ mod tests {
                 sequence: 10,
                 consistency_level: 2,
                 payload: vec![97, 98, 99, 100],
-                hash: vec![
-                    195, 10, 19, 96, 8, 61, 218, 69, 160, 238, 165, 142, 105, 119, 139, 121, 212,
-                    73, 238, 179, 13, 80, 245, 224, 75, 110, 163, 8, 185, 132, 55, 34
-                ]
+                hash,
             }
         );
     }
