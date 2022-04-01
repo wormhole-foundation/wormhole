@@ -95,10 +95,16 @@ jobs:
         with:
           profile: minimal
           toolchain: stable
-          override: true
+          default: true
 
       - name: Run `cargo check`
         uses: actions-rs/cargo@v1
         with:
           command: check
+          args: --workspace --manifest-path ${{ matrix.manifest }}
+
+      - name: Run `cargo test`
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
           args: --workspace --manifest-path ${{ matrix.manifest }}
