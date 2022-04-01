@@ -343,7 +343,8 @@ const DEVNET = {
     key: undefined,
   },
   wormholechain: {
-    rpc: undefined,
+    rpc: "http://localhost:1319",
+    chain_id: "wormholechain",
     key: undefined,
   },
   aptos: {
