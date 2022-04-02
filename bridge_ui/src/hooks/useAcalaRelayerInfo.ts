@@ -59,14 +59,14 @@ export const useAcalaRelayerInfo = (
         const result = await axios.get(ACALA_SHOULD_RELAY_URL, {
           params: {
             targetChain,
-            sourceAsset: originAsset,
+            originAsset,
             amount: vaaNormalizedAmount,
           },
         });
 
         console.log("check should relay: ", {
           targetChain,
-          sourceAsset: originAsset,
+          originAsset,
           amount: vaaNormalizedAmount,
           result: result.data?.shouldRelay,
         });
