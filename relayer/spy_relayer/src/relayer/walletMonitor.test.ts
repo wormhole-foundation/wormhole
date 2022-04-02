@@ -1,9 +1,11 @@
 require("../helpers/loadConfig");
 process.env.LOG_DIR = ".";
 
-import { CHAIN_ID_BSC } from "@certusone/wormhole-sdk";
+import { CHAIN_ID_TERRA } from "@certusone/wormhole-sdk";
 import { jest, test } from "@jest/globals";
+import { LCDClient } from "@terra-money/terra.js";
 import { ChainConfigInfo } from "../configureEnv";
+import { calcLocalAddressesTerra, pullTerraBalance } from "./walletMonitor";
 // import { pullEVMBalance } from "./walletMonitor";
 
 jest.setTimeout(300000);
@@ -38,3 +40,51 @@ jest.setTimeout(300000);
 //     expect(balance).toBeTruthy();
 //   }
 // });
+
+const terraChainConfig: ChainConfigInfo = {
+  chainId: CHAIN_ID_TERRA,
+  chainName: "Terra",
+  nativeCurrencySymbol: "UST",
+  nodeUrl: "https://fcd.terra.dev",
+  tokenBridgeAddress: "terra10nmmwe8r3g99a9newtqa7a75xfgs2e8z87r2sf",
+  terraName: "mainnet",
+  terraChainId: "columbus-5",
+  terraCoin: "uluna",
+  terraGasPriceUrl: "https://fcd.terra.dev/v1/txs/gas_prices",
+};
+
+const supportedTokens = require("../../config/mainnet/supportedTokens.json");
+
+test("should pull Terra token balances", async () => {
+  if (
+    !(
+      terraChainConfig.terraChainId &&
+      terraChainConfig.terraCoin &&
+      terraChainConfig.terraGasPriceUrl &&
+      terraChainConfig.terraName
+    )
+  ) {
+    throw new Error("Terra relay was called without proper instantiation.");
+  }
+  const lcdConfig = {
+    URL: terraChainConfig.nodeUrl,
+    chainID: terraChainConfig.terraChainId,
+    name: terraChainConfig.terraName,
+  };
+  const lcd = new LCDClient(lcdConfig);
+  const localAddresses = await calcLocalAddressesTerra(
+    lcd,
+    supportedTokens,
+    terraChainConfig
+  );
+  expect(localAddresses.length).toBeGreaterThan(0);
+  for (const tokenAddress of localAddresses) {
+    const balance = await pullTerraBalance(
+      lcd,
+      terraChainConfig.tokenBridgeAddress,
+      tokenAddress
+    );
+    console.log(balance);
+    expect(balance).toBeDefined();
+  }
+});
