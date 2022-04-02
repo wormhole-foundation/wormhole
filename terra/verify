@@ -1,0 +1,63 @@
+#!/bin/bash
+
+set -euo pipefail
+
+usage="Usage:
+  $(basename "$0") [-h] [-n network] <.wasm file> <code id> -- Verify that the deployed on-chain bytecode matches the local object file
+
+  where:
+      -h  show this help text
+      -n  set the network (mainnet, testnet, devnet. defaults to \$NETWORK if set)"
+
+network=$NETWORK
+while getopts ':hn:' option; do
+  case "$option" in
+    h) echo "$usage"
+       exit
+       ;;
+    n) network=$OPTARG
+       ;;
+    :) printf "missing argument for -%s\n" "$OPTARG" >&2
+       echo "$usage" >&2
+       exit 1
+       ;;
+   \?) printf "illegal option: -%s\n" "$OPTARG" >&2
+       echo "$usage" >&2
+       exit 1
+       ;;
+  esac
+done
+shift $((OPTIND - 1))
+
+
+case "$network" in
+  mainnet) url="https://lcd.terra.dev";;
+  testnet) url="https://bombay-lcd.terra.dev";;
+  devnet)  url="http://localhost:1317";;
+  *) printf "Network not set. Specify with -n\n" >&2
+     echo "$usage" >&2
+     exit 1
+     ;;
+esac
+
+[ $# -ne 2 ] && { echo "$usage" >&2; exit 1; }
+obj_file=$1
+code_id=$2
+
+
+hash1=`curl "$url"/terra/wasm/v1beta1/codes/"$code_id" --silent | jq '.code_info.code_hash' -r | base64 -d | hexdump -v -e '/1 "%02x" '`
+hash2=`sha256sum $obj_file | cut -f1 -d' '`
+
+echo "Deployed bytecode hash (on $network):"
+echo $hash1
+echo "$obj_file hash:"
+echo $hash2
+
+if [ "$hash1" == "$hash2" ]; then
+  printf "\033[0;32mSuccessfully verified\033[0m\n";
+  exit 0;
+else
+  printf "\033[0;31mFailed to verify\033[0m\n";
+  exit 1;
+fi
+
