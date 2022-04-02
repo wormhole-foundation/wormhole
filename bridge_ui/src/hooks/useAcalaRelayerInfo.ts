@@ -4,14 +4,16 @@ import {
   CHAIN_ID_KARURA,
 } from "@certusone/wormhole-sdk";
 import axios from "axios";
-import { parseUnits } from "ethers/lib/utils";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
-  selectAcalaRelayerInfo,
-  selectTransferSourceAsset,
-  selectTransferSourceParsedTokenAccount,
-} from "../store/selectors";
+  DataWrapper,
+  errorDataWrapper,
+  fetchDataWrapper,
+  getEmptyDataWrapper,
+  receiveDataWrapper,
+} from "../store/helpers";
+import { selectAcalaRelayerInfo } from "../store/selectors";
 import {
   errorAcalaRelayerInfo,
   fetchAcalaRelayerInfo,
@@ -27,59 +29,70 @@ export interface AcalaRelayerInfo {
 
 export const useAcalaRelayerInfo = (
   targetChain: ChainId,
-  transferAmount: string
+  vaaNormalizedAmount: string | undefined,
+  originAsset: string | undefined,
+  useStore: boolean = true
 ) => {
+  // within flow, update the store
   const dispatch = useDispatch();
-  const sourceAsset = useSelector(selectTransferSourceAsset);
-  const sourceParsedTokenAccount = useSelector(
-    selectTransferSourceParsedTokenAccount
+  // within recover, use internal state
+  const [state, setState] = useState<DataWrapper<AcalaRelayerInfo>>(
+    getEmptyDataWrapper()
   );
-  const decimals = sourceParsedTokenAccount?.decimals;
   useEffect(() => {
     let cancelled = false;
     if (
       !ACALA_RELAYER_URL ||
       !targetChain ||
       (targetChain !== CHAIN_ID_ACALA && targetChain !== CHAIN_ID_KARURA) ||
-      !transferAmount ||
-      !sourceAsset
+      !vaaNormalizedAmount ||
+      !originAsset
     ) {
-      dispatch(setAcalaRelayerInfo());
+      useStore
+        ? dispatch(setAcalaRelayerInfo())
+        : setState(getEmptyDataWrapper());
       return;
     }
-    dispatch(fetchAcalaRelayerInfo());
+    useStore ? dispatch(fetchAcalaRelayerInfo()) : setState(fetchDataWrapper());
     (async () => {
       try {
-        const amountParsed = parseUnits(transferAmount, decimals).toString();
-
         const result = await axios.get(ACALA_SHOULD_RELAY_URL, {
           params: {
             targetChain,
-            sourceAsset,
-            amount: amountParsed,
+            sourceAsset: originAsset,
+            amount: vaaNormalizedAmount,
           },
         });
 
         console.log("check should relay: ", {
           targetChain,
-          sourceAsset,
-          amount: amountParsed,
+          sourceAsset: originAsset,
+          amount: vaaNormalizedAmount,
           result: result.data?.shouldRelay,
         });
         if (!cancelled) {
-          dispatch(receiveAcalaRelayerInfo(result.data));
+          useStore
+            ? dispatch(receiveAcalaRelayerInfo(result.data))
+            : setState(receiveDataWrapper(result.data));
         }
       } catch (e) {
         if (!cancelled) {
-          dispatch(
-            errorAcalaRelayerInfo("Failed to retrieve the Acala relayer info.")
-          );
+          useStore
+            ? dispatch(
+                errorAcalaRelayerInfo(
+                  "Failed to retrieve the Acala relayer info."
+                )
+              )
+            : setState(
+                errorDataWrapper("Failed to retrieve the Acala relayer info.")
+              );
         }
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [targetChain, transferAmount, sourceAsset, decimals, dispatch]);
-  return useSelector(selectAcalaRelayerInfo);
+  }, [targetChain, vaaNormalizedAmount, originAsset, dispatch, useStore]);
+  const acalaRelayerInfoFromStore = useSelector(selectAcalaRelayerInfo);
+  return useStore ? acalaRelayerInfoFromStore : state;
 };

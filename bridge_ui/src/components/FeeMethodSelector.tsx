@@ -2,6 +2,7 @@ import {
   CHAIN_ID_ACALA,
   CHAIN_ID_KARURA,
   CHAIN_ID_TERRA,
+  hexToNativeString,
   isEVMChain,
 } from "@certusone/wormhole-sdk";
 import {
@@ -12,6 +13,7 @@ import {
   Typography,
 } from "@material-ui/core";
 import clsx from "clsx";
+import { parseUnits } from "ethers/lib/utils";
 import { useCallback, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import SmartAddress from "../components/SmartAddress";
@@ -88,14 +90,28 @@ function FeeMethodSelector() {
   const targetChain = useSelector(selectTransferTargetChain);
   const transferAmount = useSelector(selectTransferAmount);
   const relayerInfo = useRelayerInfo(originChain, originAsset, targetChain);
-  const acalaRelayerInfo = useAcalaRelayerInfo(targetChain, transferAmount);
-  const dispatch = useDispatch();
-  const relayerSelected = !!useSelector(selectTransferUseRelayer);
   const sourceParsedTokenAccount = useSelector(
     selectTransferSourceParsedTokenAccount
   );
+  const sourceDecimals = sourceParsedTokenAccount?.decimals;
+  let vaaNormalizedAmount: string | undefined = undefined;
+  if (transferAmount && sourceDecimals !== undefined) {
+    try {
+      vaaNormalizedAmount = parseUnits(
+        transferAmount,
+        Math.min(sourceDecimals, 8)
+      ).toString();
+    } catch (e) {}
+  }
   const sourceSymbol = sourceParsedTokenAccount?.symbol;
+  const acalaRelayerInfo = useAcalaRelayerInfo(
+    targetChain,
+    vaaNormalizedAmount,
+    originChain ? hexToNativeString(originAsset, originChain) : undefined
+  );
   const sourceChain = useSelector(selectTransferSourceChain);
+  const dispatch = useDispatch();
+  const relayerSelected = !!useSelector(selectTransferUseRelayer);
 
   console.log("relayer info in fee method selector", relayerInfo);
 
