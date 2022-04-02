@@ -243,7 +243,7 @@ pub struct TransferWithPayloadInfo {
 impl TransferWithPayloadInfo {
     pub fn deserialize(data: &Vec<u8>) -> StdResult<Self> {
         let transfer_info = TransferInfo::deserialize(data)?;
-        let payload = data[132..].to_vec();
+        let payload = TransferWithPayloadInfo::get_payload(data);
 
         Ok(TransferWithPayloadInfo {
             transfer_info,
@@ -252,6 +252,9 @@ impl TransferWithPayloadInfo {
     }
     pub fn serialize(&self) -> Vec<u8> {
         [self.transfer_info.serialize(), self.payload.clone()].concat()
+    }
+    pub fn get_payload(data: &Vec<u8>) -> Vec<u8> {
+        return data[132..].to_vec();
     }
 }
 

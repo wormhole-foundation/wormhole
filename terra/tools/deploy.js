@@ -22,6 +22,7 @@ const artifacts = [
   "nft_bridge.wasm",
   "cw721_wrapped.wasm",
   "cw721_base.wasm",
+  "mock_bridge_integration.wasm",
 ];
 
 /* Check that the artifact folder contains all the wasm files we expect and nothing else */

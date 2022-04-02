@@ -61,6 +61,11 @@ pub enum ExecuteMsg {
         asset_info: AssetInfo,
         nonce: u32,
     },
+
+    CompleteTransferWithPayload {
+        data: Binary,
+        relayer: HumanAddr,
+    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -71,6 +76,7 @@ pub struct MigrateMsg {}
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
     WrappedRegistry { chain: u16, address: Binary },
+    TransferInfo { vaa: Binary },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -81,6 +87,12 @@ pub struct WrappedRegistryResponse {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
-pub enum WormholeQueryMsg {
-    VerifyVAA { vaa: Binary, block_time: u64 },
+pub struct TransferInfoResponse {
+    pub amount: Uint128,
+    pub token_address: Vec<u8>,
+    pub token_chain: u16,
+    pub recipient: Vec<u8>,
+    pub recipient_chain: u16,
+    pub fee: Uint128,
+    pub payload: Vec<u8>,
 }

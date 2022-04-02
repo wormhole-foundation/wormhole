@@ -910,6 +910,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "mock-bridge-integration"
+version = "0.1.0"
+dependencies = [
+ "bigint",
+ "cosmwasm-std",
+ "cosmwasm-storage",
+ "cosmwasm-vm",
+ "cw20",
+ "cw20-base",
+ "cw20-wrapped",
+ "generic-array",
+ "hex",
+ "k256",
+ "lazy_static",
+ "schemars",
+ "serde",
+ "serde_json",
+ "sha3",
+ "terraswap",
+ "thiserror",
+ "token-bridge-terra",
+ "wormhole-bridge-terra",
+]
+
+[[package]]
 name = "more-asserts"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"

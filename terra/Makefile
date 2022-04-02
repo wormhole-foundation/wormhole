@@ -59,9 +59,15 @@ LocalTerra:
 test/node_modules: test/package-lock.json
 	cd test && npm ci
 
+.PHONY: unit-test
+## Run unit tests
+unit-test:
+	cargo test -p wormhole-bridge-terra
+	cargo test -p token-bridge-terra
+
 .PHONY: test
-## Run integration test
-test: artifacts test/node_modules LocalTerra
+## Run unit and integration tests
+test: artifacts test/node_modules LocalTerra unit-test
 	@if pgrep terrad; then echo "Error: terrad already running. Stop it before running tests"; exit 1; fi
 	cd LocalTerra && docker compose up --detach
 	sleep 5
