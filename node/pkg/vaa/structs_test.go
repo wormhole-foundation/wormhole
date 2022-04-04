@@ -295,7 +295,7 @@ func TestVerifySignatures(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		t.Run(string(tc.label), func(t *testing.T) {
+		t.Run(tc.label, func(t *testing.T) {
 			vaa := getVaa()
 
 			for i, key := range tc.keyOrder {
