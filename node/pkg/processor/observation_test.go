@@ -38,10 +38,7 @@ func getVAA() vaa.VAA {
 
 func TestHandleInboundSignedVAAWithQuorum_NilGuardianSet(t *testing.T) {
 	vaa := getVAA()
-	marshalVAA, err := vaa.Marshal()
-	if err != nil {
-		panic(err)
-	}
+	marshalVAA, _ := vaa.Marshal()
 
 	// Stub out the minimum to get processor to dance
 	observedZapCore, observedLogs := observer.New(zap.InfoLevel)
@@ -58,8 +55,8 @@ func TestHandleInboundSignedVAAWithQuorum_NilGuardianSet(t *testing.T) {
 	// because a `gs` is not defined on processor
 	assert.Equal(t, 1, observedLogs.Len())
 	firstLog := observedLogs.All()[0]
-	expected_error := "dropping SignedVAAWithQuorum message since we haven't initialized our guardian set yet"
-	assert.Equal(t, expected_error, firstLog.Message)
+	errorString := "dropping SignedVAAWithQuorum message since we haven't initialized our guardian set yet"
+	assert.Equal(t, errorString, firstLog.Message)
 }
 
 func TestHandleInboundSignedVAAWithQuorum(t *testing.T) {

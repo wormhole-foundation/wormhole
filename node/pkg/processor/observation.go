@@ -273,7 +273,7 @@ func (p *Processor) handleInboundSignedVAAWithQuorum(ctx context.Context, m *gos
 		return
 	}
 
-	// Error if guardianSet doesn't have any keys
+	// Check if guardianSet doesn't have any keys
 	if len(p.gs.Keys) == 0 {
 		p.logger.Warn("dropping SignedVAAWithQuorum message since we have a guardian set without keys",
 			zap.String("digest", hash),
@@ -282,7 +282,7 @@ func (p *Processor) handleInboundSignedVAAWithQuorum(ctx context.Context, m *gos
 		return
 	}
 
-	// Error if VAA doesn't have any signatures
+	// Check if VAA doesn't have any signatures
 	if len(v.Signatures) == 0 {
 		p.logger.Warn("received SignedVAAWithQuorum message with no VAA signatures",
 			zap.String("digest", hash),

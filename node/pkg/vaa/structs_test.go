@@ -5,7 +5,6 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"encoding/hex"
-	"fmt"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/assert"
@@ -372,7 +371,7 @@ func TestVerifySignaturesFuzz(t *testing.T) {
 
 	// Run the fuzzTest cases
 	for _, tc := range tests {
-		t.Run(string(tc.label), func(t *testing.T) {
+		t.Run(tc.label, func(t *testing.T) {
 			vaa := getVaa()
 
 			for i, key := range tc.keyOrder {
@@ -383,9 +382,8 @@ func TestVerifySignaturesFuzz(t *testing.T) {
 			 * Tell us what keys and indexes were used (for debug when/if we have a failure case)
 			 */
 			if vaa.VerifySignatures(tc.addrs) != tc.result {
-				fmt.Printf("Key Order")
 				if len(tc.keyOrder) == 0 {
-					fmt.Printf("%v", []uint8{})
+					t.Logf("Key Order %v\n", tc.keyOrder)
 				} else {
 					keyIndex := []uint8{}
 					for i, key_i := range keys {
@@ -395,12 +393,10 @@ func TestVerifySignaturesFuzz(t *testing.T) {
 							}
 						}
 					}
-					fmt.Printf("%v", keyIndex)
+					t.Logf("Key Order %v\n", keyIndex)
 				}
+				t.Logf("Index Order %v\n", tc.indexOrder)
 
-				fmt.Printf("Index Order")
-				fmt.Printf("%v", tc.indexOrder)
-				fmt.Printf("\n")
 			}
 
 			assert.Equal(t, tc.result, vaa.VerifySignatures(tc.addrs))
