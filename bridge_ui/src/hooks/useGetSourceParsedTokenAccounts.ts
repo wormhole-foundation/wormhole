@@ -32,6 +32,7 @@ import {
   useEthereumProvider,
 } from "../contexts/EthereumProviderContext";
 import { useSolanaWallet } from "../contexts/SolanaWalletContext";
+import auroraIcon from "../icons/aurora.svg";
 import avaxIcon from "../icons/avax.svg";
 import bnbIcon from "../icons/bnb.svg";
 import ethIcon from "../icons/eth.svg";
@@ -368,7 +369,7 @@ const createNativeAuroraParsedTokenAccount = (
           balanceInEth.toString(), //This is the actual display field, which has full precision.
           "ETH", //A white lie for display purposes
           "Aurora ETH", //A white lie for display purposes
-          fantomIcon,
+          auroraIcon,
           true //isNativeAsset
         );
       });
