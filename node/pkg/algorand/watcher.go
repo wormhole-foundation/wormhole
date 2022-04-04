@@ -189,6 +189,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 				return
 			}
 			e.next_round = result.CurrentRound + 1
+			logger.Info("Algorand next_round set to " + fmt.Sprintf("%d", e.next_round))
 		}
 
 		for {
