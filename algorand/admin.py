@@ -726,6 +726,31 @@ class PortalCore:
                 ret.append(response.__dict__["logs"])
         return ret
 
+    def check_bits_set(self, client, app_id, addr, seq):
+        bits_set = {}
+
+        app_state = None
+        ai = client.account_info(addr)
+        for app in ai["apps-local-state"]:
+            if app["id"] == app_id:
+                app_state = app["key-value"]
+        if app_state == None:
+            return False
+
+        start = int(seq / max_bits) * max_bits
+        s = int((seq - start) / bits_per_key)
+        b = int(((seq - start) - (s * bits_per_key)) / 8)
+
+        k = base64.b64encode(s.to_bytes(1, "big")).decode('utf-8')
+        for kv in app_state:
+            if kv["key"] != k:
+                continue
+            v = base64.b64decode(kv["value"]["bytes"])
+            bt = 1 << (seq%8)
+            return ((v[b] & bt) != 0)
+
+        return False
+
     def submitVAA(self, vaa, client, sender, appid):
         # A lot of our logic here depends on parseVAA and knowing what the payload is..
         p = self.parseVAA(vaa)
@@ -733,6 +758,8 @@ class PortalCore:
         #pprint.pprint(p)
 
         seq_addr = self.optin(client, sender, appid, int(p["sequence"] / max_bits), p["chainRaw"].hex() + p["emitter"].hex())
+
+        assert self.check_bits_set(client, appid, seq_addr, p["sequence"]) == False
         # And then the signatures to help us verify the vaa_s
         guardian_addr = self.optin(client, sender, self.coreid, p["index"], b"guardian".hex())
 
@@ -931,6 +958,9 @@ class PortalCore:
             response = self.waitForTransaction(client, x.get_txid())
             if "logs" in response.__dict__ and len(response.__dict__["logs"]) > 0:
                 ret.append(response.__dict__["logs"])
+
+        assert self.check_bits_set(client, appid, seq_addr, p["sequence"]) == True
+
         return ret
 
     def parseVAA(self, vaa):
