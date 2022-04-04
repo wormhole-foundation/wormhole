@@ -35,10 +35,6 @@ import IndexerClient from "algosdk/dist/types/src/client/v2/indexer/indexer";
 
 let ALGO_TOKEN =
     "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-let KMD_ADDRESS: string = "http://localhost";
-let KMD_PORT: number = 4002;
-let KMD_WALLET_NAME: string = "unencrypted-default-wallet";
-let KMD_WALLET_PASSWORD: string = "";
 let ALGOD_ADDRESS: string = "http://localhost";
 let ALGOD_PORT: number = 4001;
 let CORE_ID: number = 4;
@@ -98,21 +94,12 @@ class IndexerInfo {
     }
 }
 
-export function getKmdClient(): algosdk.Kmd {
-    const kmdClient: algosdk.Kmd = new algosdk.Kmd(
-        ALGO_TOKEN,
-        KMD_ADDRESS,
-        KMD_PORT
-    );
-    return kmdClient;
-}
-
-export function getAlgoClient(): algosdk.Algodv2 {
-    const algodClient = new algosdk.Algodv2(
-        ALGO_TOKEN,
-        ALGOD_ADDRESS,
-        ALGOD_PORT
-    );
+/**
+ * <p> Creates a new Algodv2 client using local file consts</p>
+ * @returns a newly constructed Algodv2 client
+ */
+export function getAlgoClient(): Algodv2 {
+    const algodClient = new Algodv2(ALGO_TOKEN, ALGOD_ADDRESS, ALGOD_PORT);
     return algodClient;
 }
 
@@ -155,8 +142,14 @@ export function appIdToAppAddr(appId: number): string {
     return aa;
 }
 
+/**
+ * <p> Return the balances of all assets for the supplied account</p>
+ * @param client An Algodv2 client
+ * @param account The account containing assets
+ * @returns Map of asset index to qty
+ */
 export async function getBalances(
-    client: algosdk.Algodv2,
+    client: Algodv2,
     account: string
 ): Promise<Map<number, number>> {
     let balances = new Map<number, number>();
@@ -179,8 +172,15 @@ export async function getBalances(
     return balances;
 }
 
+/**
+ * <p>Return the balance of the supplied asset index for the supplied account</p>
+ * @param client An Algodv2 client
+ * @param account The account to query for the supplied asset index
+ * @param key The asset index
+ * @returns The quantity of the asset in the supplied account
+ */
 export async function getBalance(
-    client: algosdk.Algodv2,
+    client: Algodv2,
     account: string,
     key: number
 ): Promise<number> {
@@ -202,7 +202,11 @@ export async function getBalance(
     return ret;
 }
 
-export async function getMessageFee(client: algosdk.Algodv2): Promise<number> {
+/**
+ * <p>Return the message fee for the core bridge</p>
+ * @returns The message fee for the core bridge
+ */
+export async function getMessageFee(client: Algodv2): Promise<number> {
     const applInfo: Record<string, any> = await client
         .getApplicationByID(CORE_ID)
         .do();
@@ -220,6 +224,11 @@ export async function getMessageFee(client: algosdk.Algodv2): Promise<number> {
     return ret;
 }
 
+/**
+ * <p>Parses the logs of a transaction looking for the sequence number</p>
+ * @param txn The transaction containing a sequence number
+ * @returns The sequence number found in the supplied transaction
+ */
 export function parseSeqFromLog(txn: any): bigint {
     const innerTxns = txn.innerTxns[-1];
     const logs = innerTxns["logs"];
@@ -229,8 +238,15 @@ export function parseSeqFromLog(txn: any): bigint {
     return sn;
 }
 
+/**
+ * <p>Attest an already created asset</p>
+ * @param client An Algodv2 client
+ * @param senderAcct The account paying fees
+ * @param assetId The asset index
+ * @returns Transaction ID
+ */
 export async function attestFromAlgorand(
-    client: algosdk.Algodv2,
+    client: Algodv2,
     senderAcct: Account,
     assetId: number
 ): Promise<string> {
@@ -312,8 +328,15 @@ export async function attestFromAlgorand(
     return txId;
 }
 
+/**
+ * <p>Checks to see it the account exists for the application</p>
+ * @param client An Algodv2 client
+ * @param appId Application ID
+ * @param acctAddr Account address to check
+ * @returns true, if account exists for application.  Otherwise, returns false
+ */
 export async function accountExists(
-    client: algosdk.Algodv2,
+    client: Algodv2,
     appId: number,
     acctAddr: string
 ): Promise<boolean> {
@@ -443,6 +466,11 @@ function extract3(buffer: any, start: number, size: number) {
     return buffer.slice(start, start + size);
 }
 
+/**
+ * <p>Parses the VAA into a Map</p>
+ * @param vaa The VAA to be parsed
+ * @returns The Map<string, any> containing the parsed elements of the VAA
+ */
 export function parseVAA(vaa: Uint8Array): Map<string, any> {
     let ret = new Map<string, any>();
     let buf = Buffer.from(vaa);
@@ -581,7 +609,7 @@ export function parseVAA(vaa: Uint8Array): Map<string, any> {
 }
 
 export async function decodeLocalState(
-    client: algosdk.Algodv2,
+    client: Algodv2,
     appId: number,
     address: string
 ): Promise<Uint8Array> {
@@ -620,7 +648,7 @@ export async function decodeLocalState(
 }
 
 export async function assetOptinCheck(
-    client: algosdk.Algodv2,
+    client: Algodv2,
     asset: number,
     receiver: string
 ): Promise<boolean> {
@@ -640,7 +668,7 @@ export async function assetOptinCheck(
 }
 
 export async function assetOptin(
-    client: algosdk.Algodv2,
+    client: Algodv2,
     sender: Account,
     asset: number,
     receiver: string
@@ -694,9 +722,17 @@ class SubmitVAAState {
     }
 }
 
+/**
+ * <p>Submits just the header of the VAA</p>
+ * @param vaa The VAA (Just the header is used)
+ * @param client AlgodV2 client
+ * @param sender Sending account
+ * @param appid Application ID
+ * @returns Current VAA state
+ */
 export async function submitVAAHdr(
     vaa: Uint8Array,
-    client: algosdk.Algodv2,
+    client: Algodv2,
     sender: Account,
     appid: number
 ): Promise<SubmitVAAState> {
@@ -816,11 +852,16 @@ export async function submitVAAHdr(
     return new SubmitVAAState(parsedVAA, accts, txns, guardianAddr);
 }
 
+/**
+ * <p>Groups the transactions together, signs them, sends them, waits for a confirmation</p>
+ * @param client AlgodV2 client
+ * @param sender Sending account
+ * @param txns One or more transactions to send
+ * @returns Confirmation log
+ */
 export async function simpleSignVAA(
-    vaa: Uint8Array,
-    client: algosdk.Algodv2,
+    client: Algodv2,
     sender: Account,
-    appid: number,
     txns: Array<algosdk.Transaction>
 ) {
     //    console.log("simpleSignVAA")
@@ -861,9 +902,17 @@ export async function simpleSignVAA(
     return ret;
 }
 
+/**
+ * </p>Submits the VAA to the application
+ * @param vaa The VAA to be submitted
+ * @param client AlgodV2 client
+ * @param sender Sending account
+ * @param appid Application ID
+ * @returns Confirmation log
+ */
 export async function submitVAA(
     vaa: Uint8Array,
-    client: algosdk.Algodv2,
+    client: Algodv2,
     sender: Account,
     appid: number
 ) {
@@ -1068,7 +1117,7 @@ export async function submitVAA(
         }
     }
 
-    return await simpleSignVAA(vaa, client, sender, appid, txns);
+    return await simpleSignVAA(client, sender, txns);
 }
 
 export async function getVAA(
@@ -1183,8 +1232,19 @@ export async function getVAA(
     return retVal;
 }
 
+/**
+ * <p>Transfers an asset from Algorand to a receiver on another chain</p>
+ * @param client AlgodV2 client
+ * @param sender Sending account
+ * @param assetId Asset index
+ * @param qty Quantity to transfer
+ * @param receiver Receiving account
+ * @param chain Reeiving chain
+ * @param fee Transfer fee
+ * @returns Sequence number of confirmation
+ */
 export async function transferAsset(
-    client: algosdk.Algodv2,
+    client: Algodv2,
     sender: Account,
     assetId: number,
     qty: number,
@@ -1346,20 +1406,28 @@ export function updateWrappedOnAlgorand(
     submitVAA(vaa, client, sender, TOKEN_BRIDGE_ID);
 }
 
-export function redeemOnAlgorand(
+/**
+ * <p>This basically just submits the VAA to Algorand</p>
+ * @param vaa The VAA to be redeemed
+ * @param client AlgodV2 client
+ * @param acct Sending account
+ * @param tokenId Token bridge ID
+ * @returns Transaction ID(s)
+ */
+export async function redeemOnAlgorand(
     vaa: Uint8Array,
-    client: algosdk.Algodv2,
+    client: Algodv2,
     acct: Account,
     tokenId: number
-) {
-    submitVAA(vaa, client, acct, tokenId);
+): Promise<string[]> {
+    return await submitVAA(vaa, client, acct, tokenId);
 }
 
 /////////// These need to be written
 
 export async function getForeignAssetAlgorand(
     client: Algodv2,
-    tokenBridgeAddress: string,
+    algoTokenBridgeAddress: string,
     orginChain: ChainId,
     originAsset: Uint8Array
 ): Promise<string> {
@@ -1380,7 +1448,7 @@ export function getIsTransferCompletedAlgorand(
 ): boolean {
     let retVal: boolean = false;
     // TODO:
-    // get txn from indexer
+    // get txn from the guardian who gets it from the indexer
     // if (txn.innerTxn.confirmed-round > 0) retval=true;
     return retVal;
 }
@@ -1399,6 +1467,16 @@ export function nativeToHexString() {
     // Add the algorand case to sdk/js/src/utils/array.ts
 }
 
+/**
+ * <p>Transfer the amount of an asset from Algorand to a different chain</p>
+ * @param client AlgodV2 client
+ * @param sender Holder of the asset
+ * @param assetId Asset index on Algorand
+ * @param quantity Amount to be transferred
+ * @param receiver Receiving account
+ * @param chain Receiving chain ID
+ * @param fee Message fee to be paid
+ */
 export async function transferFromAlgorand(
     client: algosdk.Algodv2,
     sender: Account,
