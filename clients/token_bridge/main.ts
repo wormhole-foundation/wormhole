@@ -311,7 +311,7 @@ yargs(hideBin(process.argv))
         );
         console.log('SIGNATURE', signature);
     })
-    .command('eth execute_governance_vaa [vaa]', 'execute a governance VAA on Solana', (yargs) => {
+    .command('eth execute_governance_vaa [vaa]', 'execute a governance VAA on evm', (yargs) => {
         return yargs
             .positional('vaa', {
                 describe: 'vaa to post',
